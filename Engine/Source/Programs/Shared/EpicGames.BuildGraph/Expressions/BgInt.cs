@@ -1,20 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.BuildGraph;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Xml;
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
-using OpenTracing;
-using OpenTracing.Util;
-using System.Threading.Tasks;
 
 namespace EpicGames.BuildGraph.Expressions
 {
@@ -27,43 +13,43 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Implicit conversion from an integer value
 		/// </summary>
-		public static implicit operator BgInt(int Value)
+		public static implicit operator BgInt(int value)
 		{
-			return new BgIntConstantExpr(Value);
+			return new BgIntConstantExpr(value);
 		}
 
 		/// <inheritdoc/>
-		public static BgInt operator +(BgInt Lhs, BgInt Rhs) => new BgIntAddExpr(Lhs, Rhs);
+		public static BgInt operator +(BgInt lhs, BgInt rhs) => new BgIntAddExpr(lhs, rhs);
 
 		/// <inheritdoc/>
-		public static BgInt operator -(BgInt Lhs, BgInt Rhs) => new BgIntAddExpr(Lhs, new BgIntNegateExpr(Rhs));
+		public static BgInt operator -(BgInt lhs, BgInt rhs) => new BgIntAddExpr(lhs, new BgIntNegateExpr(rhs));
 
 		/// <inheritdoc/>
-		public static BgBool operator <(BgInt Lhs, BgInt Rhs) => new BgIntLtExpr(Lhs, Rhs);
+		public static BgBool operator <(BgInt lhs, BgInt rhs) => new BgIntLtExpr(lhs, rhs);
 
 		/// <inheritdoc/>
-		public static BgBool operator >(BgInt Lhs, BgInt Rhs) => new BgIntGtExpr(Lhs, Rhs);
+		public static BgBool operator >(BgInt lhs, BgInt rhs) => new BgIntGtExpr(lhs, rhs);
 
 		/// <inheritdoc/>
-		public static BgBool operator ==(BgInt Lhs, BgInt Rhs) => new BgIntEqExpr(Lhs, Rhs);
+		public static BgBool operator ==(BgInt lhs, BgInt rhs) => new BgIntEqExpr(lhs, rhs);
 
 		/// <inheritdoc/>
-		public static BgBool operator !=(BgInt Lhs, BgInt Rhs) => new BgBoolNotExpr(new BgIntEqExpr(Lhs, Rhs));
+		public static BgBool operator !=(BgInt lhs, BgInt rhs) => new BgBoolNotExpr(new BgIntEqExpr(lhs, rhs));
 
 		/// <inheritdoc/>
-		public static BgBool operator <=(BgInt Lhs, BgInt Rhs) => new BgBoolNotExpr(new BgIntGtExpr(Lhs, Rhs));
+		public static BgBool operator <=(BgInt lhs, BgInt rhs) => new BgBoolNotExpr(new BgIntGtExpr(lhs, rhs));
 
 		/// <inheritdoc/>
-		public static BgBool operator >=(BgInt Lhs, BgInt Rhs) => new BgBoolNotExpr(new BgIntLtExpr(Lhs, Rhs));
+		public static BgBool operator >=(BgInt lhs, BgInt rhs) => new BgBoolNotExpr(new BgIntLtExpr(lhs, rhs));
 
 		/// <inheritdoc/>
-		object IBgExpr.Compute(BgExprContext Context) => Compute(Context);
+		object IBgExpr.Compute(BgExprContext context) => Compute(context);
 
 		/// <inheritdoc/>
-		public abstract int Compute(BgExprContext Context);
+		public abstract int Compute(BgExprContext context);
 
 		/// <inheritdoc/>
-		public BgInt IfThen(BgBool Condition, BgInt ValueIfTrue) => new BgIntChooseExpr(Condition, ValueIfTrue, this);
+		public BgInt IfThen(BgBool condition, BgInt valueIfTrue) => new BgIntChooseExpr(condition, valueIfTrue, this);
 
 		/// <inheritdoc/>
 		public override bool Equals(object? obj) => throw new InvalidOperationException();
@@ -81,13 +67,13 @@ namespace EpicGames.BuildGraph.Expressions
 	class BgIntTraits : BgTypeBase<BgInt>
 	{
 		/// <inheritdoc/>
-		public override BgInt DeserializeArgument(string Value) => (BgInt)int.Parse(Value);
+		public override BgInt DeserializeArgument(string value) => (BgInt)int.Parse(value);
 
 		/// <inheritdoc/>
-		public override string SerializeArgument(BgInt Value, BgExprContext Context) => Value.Compute(Context).ToString();
+		public override string SerializeArgument(BgInt value, BgExprContext context) => value.Compute(context).ToString();
 
 		/// <inheritdoc/>
-		public override BgInt CreateConstant(object Value) => new BgIntConstantExpr((int)Value);
+		public override BgInt CreateConstant(object value) => new BgIntConstantExpr((int)value);
 
 		/// <inheritdoc/>
 		public override IBgExprVariable<BgInt> CreateVariable() => new BgIntVariableExpr();
@@ -100,13 +86,13 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgInt Lhs { get; }
 		public BgInt Rhs { get; }
 
-		public BgIntEqExpr(BgInt Lhs, BgInt Rhs)
+		public BgIntEqExpr(BgInt lhs, BgInt rhs)
 		{
-			this.Lhs = Lhs;
-			this.Rhs = Rhs;
+			Lhs = lhs;
+			Rhs = rhs;
 		}
 
-		public override bool Compute(BgExprContext Context) => Lhs.Compute(Context) == Rhs.Compute(Context);
+		public override bool Compute(BgExprContext context) => Lhs.Compute(context) == Rhs.Compute(context);
 	}
 
 	class BgIntLtExpr : BgBool
@@ -114,13 +100,13 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgInt Lhs { get; }
 		public BgInt Rhs { get; }
 
-		public BgIntLtExpr(BgInt Lhs, BgInt Rhs)
+		public BgIntLtExpr(BgInt lhs, BgInt rhs)
 		{
-			this.Lhs = Lhs;
-			this.Rhs = Rhs;
+			Lhs = lhs;
+			Rhs = rhs;
 		}
 
-		public override bool Compute(BgExprContext Context) => Lhs.Compute(Context) < Rhs.Compute(Context);
+		public override bool Compute(BgExprContext context) => Lhs.Compute(context) < Rhs.Compute(context);
 	}
 
 	class BgIntGtExpr : BgBool
@@ -128,13 +114,13 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgInt Lhs { get; }
 		public BgInt Rhs { get; }
 
-		public BgIntGtExpr(BgInt Lhs, BgInt Rhs)
+		public BgIntGtExpr(BgInt lhs, BgInt rhs)
 		{
-			this.Lhs = Lhs;
-			this.Rhs = Rhs;
+			Lhs = lhs;
+			Rhs = rhs;
 		}
 
-		public override bool Compute(BgExprContext Context) => Lhs.Compute(Context) > Rhs.Compute(Context);
+		public override bool Compute(BgExprContext context) => Lhs.Compute(context) > Rhs.Compute(context);
 	}
 
 	class BgIntAddExpr : BgInt
@@ -142,73 +128,73 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgInt Lhs { get; }
 		public BgInt Rhs { get; }
 
-		public BgIntAddExpr(BgInt Lhs, BgInt Rhs)
+		public BgIntAddExpr(BgInt lhs, BgInt rhs)
 		{
-			this.Lhs = Lhs;
-			this.Rhs = Rhs;
+			Lhs = lhs;
+			Rhs = rhs;
 		}
 
-		public override int Compute(BgExprContext Context) => Lhs.Compute(Context) + Rhs.Compute(Context);
+		public override int Compute(BgExprContext context) => Lhs.Compute(context) + Rhs.Compute(context);
 	}
 
 	class BgIntNegateExpr : BgInt
 	{
 		public BgInt Inner { get; }
 
-		public BgIntNegateExpr(BgInt Inner)
+		public BgIntNegateExpr(BgInt inner)
 		{
-			this.Inner = Inner;
+			Inner = inner;
 		}
 
-		public override int Compute(BgExprContext Context) => -Inner.Compute(Context);
+		public override int Compute(BgExprContext context) => -Inner.Compute(context);
 	}
 
 	class BgIntChooseExpr : BgInt
 	{
-		public BgBool Condition;
-		public BgInt ValueIfTrue;
-		public BgInt ValueIfFalse;
+		public BgBool Condition { get; }
+		public BgInt ValueIfTrue { get; }
+		public BgInt ValueIfFalse { get; }
 
-		public BgIntChooseExpr(BgBool Condition, BgInt ValueIfTrue, BgInt ValueIfFalse)
+		public BgIntChooseExpr(BgBool condition, BgInt valueIfTrue, BgInt valueIfFalse)
 		{
-			this.Condition = Condition;
-			this.ValueIfTrue = ValueIfTrue;
-			this.ValueIfFalse = ValueIfFalse;
+			Condition = condition;
+			ValueIfTrue = valueIfTrue;
+			ValueIfFalse = valueIfFalse;
 		}
 
-		public override int Compute(BgExprContext Context) => Condition.Compute(Context) ? ValueIfTrue.Compute(Context) : ValueIfFalse.Compute(Context);
+		public override int Compute(BgExprContext context) => Condition.Compute(context) ? ValueIfTrue.Compute(context) : ValueIfFalse.Compute(context);
 	}
 
 	class BgIntConstantExpr : BgInt
 	{
 		public int Value { get; }
 
-		public BgIntConstantExpr(int Value)
+		public BgIntConstantExpr(int value)
 		{
-			this.Value = Value;
+			Value = value;
 		}
 
-		public override int Compute(BgExprContext Context) => Value;
+		public override int Compute(BgExprContext context) => Value;
 	}
 
 	class BgIntVariableExpr : BgInt, IBgExprVariable<BgInt>
 	{
 		public BgInt Value { get; set; } = 0;
 
-		public override int Compute(BgExprContext Context) => Value.Compute(Context);
+		public override int Compute(BgExprContext context) => Value.Compute(context);
 	}
 
 	class BgIntFormatExpr : BgString
 	{
-		BgInt Value;
+		public BgInt Value { get; }
 
-		public BgIntFormatExpr(BgInt Value)
+		public BgIntFormatExpr(BgInt value)
 		{
-			this.Value = Value;
+			Value = value;
 		}
 
-		public override string Compute(BgExprContext Context) => Value.Compute(Context).ToString();
+		public override string Compute(BgExprContext context) => Value.Compute(context).ToString();
 	}
 
-#endregion
+	#endregion
 }

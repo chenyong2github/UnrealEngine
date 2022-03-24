@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
-using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Xml;
 
 namespace EpicGames.BuildGraph
@@ -32,24 +28,24 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgTask(BgScriptLocation Location, string Name)
+		public BgTask(BgScriptLocation location, string name)
 		{
-			this.Location = Location;
-			this.Name = Name;
+			Location = location;
+			Name = name;
 		}
 
 		/// <summary>
 		/// Write to an xml file
 		/// </summary>
-		/// <param name="Writer"></param>
-		public void Write(XmlWriter Writer)
+		/// <param name="writer"></param>
+		public void Write(XmlWriter writer)
 		{
-			Writer.WriteStartElement(Name);
-			foreach (KeyValuePair<string, string> Argument in Arguments)
+			writer.WriteStartElement(Name);
+			foreach (KeyValuePair<string, string> argument in Arguments)
 			{
-				Writer.WriteAttributeString(Argument.Key, Argument.Value);
+				writer.WriteAttributeString(argument.Key, argument.Value);
 			}
-			Writer.WriteEndElement();
+			writer.WriteEndElement();
 		}
 	}
 }

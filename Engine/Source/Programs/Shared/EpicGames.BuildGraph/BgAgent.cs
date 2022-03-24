@@ -3,9 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml;
 
 namespace EpicGames.BuildGraph
@@ -35,28 +32,28 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="InName">Name of this agent group</param>
-		/// <param name="InPossibleTypes">Array of valid agent types. See comment for AgentTypes member.</param>
-		public BgAgent(string InName, string[] InPossibleTypes)
+		/// <param name="inName">Name of this agent group</param>
+		/// <param name="inPossibleTypes">Array of valid agent types. See comment for AgentTypes member.</param>
+		public BgAgent(string inName, string[] inPossibleTypes)
 		{
-			Name = InName;
-			PossibleTypes = InPossibleTypes;
+			Name = inName;
+			PossibleTypes = inPossibleTypes;
 		}
 
 		/// <summary>
 		/// Writes this agent group out to a file, filtering nodes by a controlling trigger
 		/// </summary>
-		/// <param name="Writer">The XML writer to output to</param>
-		public void Write(XmlWriter Writer)
+		/// <param name="writer">The XML writer to output to</param>
+		public void Write(XmlWriter writer)
 		{
-			Writer.WriteStartElement("Agent");
-			Writer.WriteAttributeString("Name", Name);
-			Writer.WriteAttributeString("Type", String.Join(";", PossibleTypes));
-			foreach (BgNode Node in Nodes)
+			writer.WriteStartElement("Agent");
+			writer.WriteAttributeString("Name", Name);
+			writer.WriteAttributeString("Type", String.Join(";", PossibleTypes));
+			foreach (BgNode node in Nodes)
 			{
-				Node.Write(Writer);
+				node.Write(writer);
 			}
-			Writer.WriteEndElement();
+			writer.WriteEndElement();
 		}
 	}
 }

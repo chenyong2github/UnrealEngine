@@ -2,15 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.IO;
-using System.Reflection;
-using System.Xml;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Diagnostics;
+using System.Text;
+using System.Xml;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics.CodeAnalysis;
 
 namespace EpicGames.BuildGraph
 {
@@ -43,52 +40,52 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// List of options, in the order they were specified
 		/// </summary>
-		public List<BgOption> Options = new List<BgOption>();
+		public List<BgOption> Options { get; } = new List<BgOption>();
 
 		/// <summary>
 		/// List of agents containing nodes to execute
 		/// </summary>
-		public List<BgAgent> Agents = new List<BgAgent>();
+		public List<BgAgent> Agents { get; } = new List<BgAgent>();
 
 		/// <summary>
 		/// Mapping from name to agent
 		/// </summary>
-		public Dictionary<string, BgAgent> NameToAgent = new Dictionary<string, BgAgent>(StringComparer.OrdinalIgnoreCase);
+		public Dictionary<string, BgAgent> NameToAgent { get; set; } = new Dictionary<string, BgAgent>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of names to the corresponding node.
 		/// </summary>
-		public Dictionary<string, BgNode> NameToNode = new Dictionary<string, BgNode>(StringComparer.OrdinalIgnoreCase);
+		public Dictionary<string, BgNode> NameToNode { get; set; } = new Dictionary<string, BgNode>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of names to the corresponding report.
 		/// </summary>
-		public Dictionary<string, BgReport> NameToReport = new Dictionary<string, BgReport>(StringComparer.OrdinalIgnoreCase);
+		public Dictionary<string, BgReport> NameToReport { get; private set; } = new Dictionary<string, BgReport>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of names to their corresponding node output.
 		/// </summary>
-		public Dictionary<string, BgNodeOutput> TagNameToNodeOutput = new Dictionary<string, BgNodeOutput>(StringComparer.OrdinalIgnoreCase);
+		public Dictionary<string, BgNodeOutput> TagNameToNodeOutput { get; private set; } = new Dictionary<string, BgNodeOutput>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of aggregate names to their respective nodes
 		/// </summary>
-		public Dictionary<string, BgAggregate> NameToAggregate = new Dictionary<string, BgAggregate>(StringComparer.OrdinalIgnoreCase);
+		public Dictionary<string, BgAggregate> NameToAggregate { get; private set; } = new Dictionary<string, BgAggregate>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// List of badges that can be displayed for this build
 		/// </summary>
-		public List<BgBadge> Badges = new List<BgBadge>();
+		public List<BgBadge> Badges { get; } = new List<BgBadge>();
 
 		/// <summary>
 		/// List of labels that can be displayed for this build
 		/// </summary>
-		public List<BgLabel> Labels = new List<BgLabel>();
+		public List<BgLabel> Labels { get; } = new List<BgLabel>();
 
 		/// <summary>
 		/// Diagnostic messages for this graph
 		/// </summary>
-		public List<BgGraphDiagnostic> Diagnostics = new List<BgGraphDiagnostic>();
+		public List<BgGraphDiagnostic> Diagnostics { get; } = new List<BgGraphDiagnostic>();
 
 		/// <summary>
 		/// Default constructor
@@ -100,114 +97,114 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Checks whether a given name already exists
 		/// </summary>
-		/// <param name="Name">The name to check.</param>
+		/// <param name="name">The name to check.</param>
 		/// <returns>True if the name exists, false otherwise.</returns>
-		public bool ContainsName(string Name)
+		public bool ContainsName(string name)
 		{
-			return NameToNode.ContainsKey(Name) || NameToReport.ContainsKey(Name) || NameToAggregate.ContainsKey(Name);
+			return NameToNode.ContainsKey(name) || NameToReport.ContainsKey(name) || NameToAggregate.ContainsKey(name);
 		}
 
 		/// <summary>
 		/// Tries to resolve the given name to one or more nodes. Checks for aggregates, and actual nodes.
 		/// </summary>
-		/// <param name="Name">The name to search for</param>
-		/// <param name="OutNodes">If the name is a match, receives an array of nodes and their output names</param>
+		/// <param name="name">The name to search for</param>
+		/// <param name="outNodes">If the name is a match, receives an array of nodes and their output names</param>
 		/// <returns>True if the name was found, false otherwise.</returns>
-		public bool TryResolveReference(string Name, [NotNullWhen(true)] out BgNode[]? OutNodes)
+		public bool TryResolveReference(string name, [NotNullWhen(true)] out BgNode[]? outNodes)
 		{
 			// Check if it's a tag reference or node reference
-			if (Name.StartsWith("#"))
+			if (name.StartsWith("#"))
 			{
 				// Check if it's a regular node or output name
-				BgNodeOutput? Output;
-				if (TagNameToNodeOutput.TryGetValue(Name, out Output))
+				BgNodeOutput? output;
+				if (TagNameToNodeOutput.TryGetValue(name, out output))
 				{
-					OutNodes = new BgNode[] { Output.ProducingNode };
+					outNodes = new BgNode[] { output.ProducingNode };
 					return true;
 				}
 			}
 			else
 			{
 				// Check if it's a regular node or output name
-				BgNode? Node;
-				if (NameToNode.TryGetValue(Name, out Node))
+				BgNode? node;
+				if (NameToNode.TryGetValue(name, out node))
 				{
-					OutNodes = new BgNode[] { Node };
+					outNodes = new BgNode[] { node };
 					return true;
 				}
 
 				// Check if it's an aggregate name
-				BgAggregate? Aggregate;
-				if (NameToAggregate.TryGetValue(Name, out Aggregate))
+				BgAggregate? aggregate;
+				if (NameToAggregate.TryGetValue(name, out aggregate))
 				{
-					OutNodes = Aggregate.RequiredNodes.ToArray();
+					outNodes = aggregate.RequiredNodes.ToArray();
 					return true;
 				}
 
 				// Check if it's a group name
-				BgAgent? Agent;
-				if (NameToAgent.TryGetValue(Name, out Agent))
+				BgAgent? agent;
+				if (NameToAgent.TryGetValue(name, out agent))
 				{
-					OutNodes = Agent.Nodes.ToArray();
+					outNodes = agent.Nodes.ToArray();
 					return true;
 				}
 			}
 
 			// Otherwise fail
-			OutNodes = null;
+			outNodes = null;
 			return false;
 		}
 
 		/// <summary>
 		/// Tries to resolve the given name to one or more node outputs. Checks for aggregates, and actual nodes.
 		/// </summary>
-		/// <param name="Name">The name to search for</param>
-		/// <param name="OutOutputs">If the name is a match, receives an array of nodes and their output names</param>
+		/// <param name="name">The name to search for</param>
+		/// <param name="outOutputs">If the name is a match, receives an array of nodes and their output names</param>
 		/// <returns>True if the name was found, false otherwise.</returns>
-		public bool TryResolveInputReference(string Name, [NotNullWhen(true)] out BgNodeOutput[]? OutOutputs)
+		public bool TryResolveInputReference(string name, [NotNullWhen(true)] out BgNodeOutput[]? outOutputs)
 		{
 			// Check if it's a tag reference or node reference
-			if (Name.StartsWith("#"))
+			if (name.StartsWith("#"))
 			{
 				// Check if it's a regular node or output name
-				BgNodeOutput? Output;
-				if (TagNameToNodeOutput.TryGetValue(Name, out Output))
+				BgNodeOutput? output;
+				if (TagNameToNodeOutput.TryGetValue(name, out output))
 				{
-					OutOutputs = new BgNodeOutput[] { Output };
+					outOutputs = new BgNodeOutput[] { output };
 					return true;
 				}
 			}
 			else
 			{
 				// Check if it's a regular node or output name
-				BgNode? Node;
-				if (NameToNode.TryGetValue(Name, out Node))
+				BgNode? node;
+				if (NameToNode.TryGetValue(name, out node))
 				{
-					OutOutputs = Node.Outputs.Union(Node.Inputs).ToArray();
+					outOutputs = node.Outputs.Union(node.Inputs).ToArray();
 					return true;
 				}
 
 				// Check if it's an aggregate name
-				BgAggregate? Aggregate;
-				if (NameToAggregate.TryGetValue(Name, out Aggregate))
+				BgAggregate? aggregate;
+				if (NameToAggregate.TryGetValue(name, out aggregate))
 				{
-					OutOutputs = Aggregate.RequiredNodes.SelectMany(x => x.Outputs.Union(x.Inputs)).Distinct().ToArray();
+					outOutputs = aggregate.RequiredNodes.SelectMany(x => x.Outputs.Union(x.Inputs)).Distinct().ToArray();
 					return true;
 				}
 			}
 
 			// Otherwise fail
-			OutOutputs = null;
+			outOutputs = null;
 			return false;
 		}
 
-		static void AddDependencies(BgNode Node, HashSet<BgNode> RetainNodes)
+		static void AddDependencies(BgNode node, HashSet<BgNode> retainNodes)
 		{
-			if (RetainNodes.Add(Node))
+			if (retainNodes.Add(node))
 			{
-				foreach(BgNode InputDependency in Node.InputDependencies)
+				foreach (BgNode inputDependency in node.InputDependencies)
 				{
-					AddDependencies(InputDependency, RetainNodes);
+					AddDependencies(inputDependency, retainNodes);
 				}
 			}
 		}
@@ -215,508 +212,508 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Cull the graph to only include the given nodes and their dependencies
 		/// </summary>
-		/// <param name="TargetNodes">A set of target nodes to build</param>
-		public void Select(IEnumerable<BgNode> TargetNodes)
+		/// <param name="targetNodes">A set of target nodes to build</param>
+		public void Select(IEnumerable<BgNode> targetNodes)
 		{
 			// Find this node and all its dependencies
-			HashSet<BgNode> RetainNodes = new HashSet<BgNode>();
-			foreach (BgNode TargetNode in TargetNodes)
+			HashSet<BgNode> retainNodes = new HashSet<BgNode>();
+			foreach (BgNode targetNode in targetNodes)
 			{
-				AddDependencies(TargetNode, RetainNodes);
+				AddDependencies(targetNode, retainNodes);
 			}
 
 			// Remove all the nodes which are not marked to be kept
-			foreach (BgAgent Agent in Agents)
+			foreach (BgAgent agent in Agents)
 			{
-				Agent.Nodes = Agent.Nodes.Where(x => RetainNodes.Contains(x)).ToList();
+				agent.Nodes = agent.Nodes.Where(x => retainNodes.Contains(x)).ToList();
 			}
 
 			// Remove all the empty agents
 			Agents.RemoveAll(x => x.Nodes.Count == 0);
 
 			// Trim down the list of nodes for each report to the ones that are being built
-			foreach (BgReport Report in NameToReport.Values)
+			foreach (BgReport report in NameToReport.Values)
 			{
-				Report.Nodes.RemoveWhere(x => !RetainNodes.Contains(x));
+				report.Nodes.RemoveWhere(x => !retainNodes.Contains(x));
 			}
 
 			// Remove all the empty reports
-			NameToReport = NameToReport.Where(x => x.Value.Nodes.Count > 0).ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.InvariantCultureIgnoreCase);
+			NameToReport = NameToReport.Where(x => x.Value.Nodes.Count > 0).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.InvariantCultureIgnoreCase);
 
 			// Remove all the order dependencies which are no longer part of the graph. Since we don't need to build them, we don't need to wait for them
-			foreach (BgNode Node in RetainNodes)
+			foreach (BgNode node in retainNodes)
 			{
-				Node.OrderDependencies = Node.OrderDependencies.Where(x => RetainNodes.Contains(x)).ToArray();
+				node.OrderDependencies = node.OrderDependencies.Where(x => retainNodes.Contains(x)).ToArray();
 			}
 
 			// Create a new list of aggregates for everything that's left
-			Dictionary<string, BgAggregate> NewNameToAggregate = new Dictionary<string, BgAggregate>(NameToAggregate.Comparer);
-			foreach (BgAggregate Aggregate in NameToAggregate.Values)
+			Dictionary<string, BgAggregate> newNameToAggregate = new Dictionary<string, BgAggregate>(NameToAggregate.Comparer);
+			foreach (BgAggregate aggregate in NameToAggregate.Values)
 			{
-				if (Aggregate.RequiredNodes.All(x => RetainNodes.Contains(x)))
+				if (aggregate.RequiredNodes.All(x => retainNodes.Contains(x)))
 				{
-					NewNameToAggregate[Aggregate.Name] = Aggregate;
+					newNameToAggregate[aggregate.Name] = aggregate;
 				}
 			}
-			NameToAggregate = NewNameToAggregate;
+			NameToAggregate = newNameToAggregate;
 
 			// Remove any labels that are no longer value
-			foreach (BgLabel Label in Labels)
+			foreach (BgLabel label in Labels)
 			{
-				Label.RequiredNodes.RemoveWhere(x => !RetainNodes.Contains(x));
-				Label.IncludedNodes.RemoveWhere(x => !RetainNodes.Contains(x));
+				label.RequiredNodes.RemoveWhere(x => !retainNodes.Contains(x));
+				label.IncludedNodes.RemoveWhere(x => !retainNodes.Contains(x));
 			}
 			Labels.RemoveAll(x => x.RequiredNodes.Count == 0);
 
 			// Remove any badges which do not have all their dependencies
-			Badges.RemoveAll(x => x.Nodes.Any(y => !RetainNodes.Contains(y)));
+			Badges.RemoveAll(x => x.Nodes.Any(y => !retainNodes.Contains(y)));
 
 			// Remove any diagnostics which are no longer part of the graph
-			Diagnostics.RemoveAll(x => (x.EnclosingNode != null && !RetainNodes.Contains(x.EnclosingNode)) || (x.EnclosingAgent != null && !Agents.Contains(x.EnclosingAgent)));
+			Diagnostics.RemoveAll(x => (x.EnclosingNode != null && !retainNodes.Contains(x.EnclosingNode)) || (x.EnclosingAgent != null && !Agents.Contains(x.EnclosingAgent)));
 		}
 
 		/// <summary>
 		/// Writes a preprocessed build graph to a script file
 		/// </summary>
-		/// <param name="File">The file to load</param>
-		/// <param name="SchemaFile">Schema file for validation</param>
-		public void Write(FileReference File, FileReference SchemaFile)
+		/// <param name="file">The file to load</param>
+		/// <param name="schemaFile">Schema file for validation</param>
+		public void Write(FileReference file, FileReference schemaFile)
 		{
-			XmlWriterSettings Settings = new XmlWriterSettings();
-			Settings.Indent = true;
-			Settings.IndentChars = "\t";
+			XmlWriterSettings settings = new XmlWriterSettings();
+			settings.Indent = true;
+			settings.IndentChars = "\t";
 
-			using (XmlWriter Writer = XmlWriter.Create(File.FullName, Settings))
+			using (XmlWriter writer = XmlWriter.Create(file.FullName, settings))
 			{
-				Writer.WriteStartElement("BuildGraph", "http://www.epicgames.com/BuildGraph");
+				writer.WriteStartElement("BuildGraph", "http://www.epicgames.com/BuildGraph");
 
-				if (SchemaFile != null)
+				if (schemaFile != null)
 				{
-					Writer.WriteAttributeString("schemaLocation", "http://www.w3.org/2001/XMLSchema-instance", "http://www.epicgames.com/BuildGraph " + SchemaFile.MakeRelativeTo(File.Directory));
+					writer.WriteAttributeString("schemaLocation", "http://www.w3.org/2001/XMLSchema-instance", "http://www.epicgames.com/BuildGraph " + schemaFile.MakeRelativeTo(file.Directory));
 				}
 
-				foreach (BgAgent Agent in Agents)
+				foreach (BgAgent agent in Agents)
 				{
-					Agent.Write(Writer);
+					agent.Write(writer);
 				}
 
-				foreach (BgAggregate Aggregate in NameToAggregate.Values)
+				foreach (BgAggregate aggregate in NameToAggregate.Values)
 				{
 					// If the aggregate has no required elements, skip it.
-					if (Aggregate.RequiredNodes.Count == 0)
+					if (aggregate.RequiredNodes.Count == 0)
 					{
 						continue;
 					}
 
-					Writer.WriteStartElement("Aggregate");
-					Writer.WriteAttributeString("Name", Aggregate.Name);
-					Writer.WriteAttributeString("Requires", String.Join(";", Aggregate.RequiredNodes.Select(x => x.Name)));
-					Writer.WriteEndElement();
+					writer.WriteStartElement("Aggregate");
+					writer.WriteAttributeString("Name", aggregate.Name);
+					writer.WriteAttributeString("Requires", String.Join(";", aggregate.RequiredNodes.Select(x => x.Name)));
+					writer.WriteEndElement();
 				}
 
-				foreach (BgLabel Label in Labels)
+				foreach (BgLabel label in Labels)
 				{
-					Writer.WriteStartElement("Label");
-					if (Label.DashboardCategory != null)
+					writer.WriteStartElement("Label");
+					if (label.DashboardCategory != null)
 					{
-						Writer.WriteAttributeString("Category", Label.DashboardCategory);
+						writer.WriteAttributeString("Category", label.DashboardCategory);
 					}
-					Writer.WriteAttributeString("Name", Label.DashboardName);
-					Writer.WriteAttributeString("Requires", String.Join(";", Label.RequiredNodes.Select(x => x.Name)));
+					writer.WriteAttributeString("Name", label.DashboardName);
+					writer.WriteAttributeString("Requires", String.Join(";", label.RequiredNodes.Select(x => x.Name)));
 
-					HashSet<BgNode> IncludedNodes = new HashSet<BgNode>(Label.IncludedNodes);
-					IncludedNodes.ExceptWith(Label.IncludedNodes.SelectMany(x => x.InputDependencies));
-					IncludedNodes.ExceptWith(Label.RequiredNodes);
-					if (IncludedNodes.Count > 0)
+					HashSet<BgNode> includedNodes = new HashSet<BgNode>(label.IncludedNodes);
+					includedNodes.ExceptWith(label.IncludedNodes.SelectMany(x => x.InputDependencies));
+					includedNodes.ExceptWith(label.RequiredNodes);
+					if (includedNodes.Count > 0)
 					{
-						Writer.WriteAttributeString("Include", String.Join(";", IncludedNodes.Select(x => x.Name)));
+						writer.WriteAttributeString("Include", String.Join(";", includedNodes.Select(x => x.Name)));
 					}
 
-					HashSet<BgNode> ExcludedNodes = new HashSet<BgNode>(Label.IncludedNodes);
-					ExcludedNodes.UnionWith(Label.IncludedNodes.SelectMany(x => x.InputDependencies));
-					ExcludedNodes.ExceptWith(Label.IncludedNodes);
-					ExcludedNodes.ExceptWith(ExcludedNodes.ToArray().SelectMany(x => x.InputDependencies));
-					if (ExcludedNodes.Count > 0)
+					HashSet<BgNode> excludedNodes = new HashSet<BgNode>(label.IncludedNodes);
+					excludedNodes.UnionWith(label.IncludedNodes.SelectMany(x => x.InputDependencies));
+					excludedNodes.ExceptWith(label.IncludedNodes);
+					excludedNodes.ExceptWith(excludedNodes.ToArray().SelectMany(x => x.InputDependencies));
+					if (excludedNodes.Count > 0)
 					{
-						Writer.WriteAttributeString("Exclude", String.Join(";", ExcludedNodes.Select(x => x.Name)));
+						writer.WriteAttributeString("Exclude", String.Join(";", excludedNodes.Select(x => x.Name)));
 					}
-					Writer.WriteEndElement();
+					writer.WriteEndElement();
 				}
 
-				foreach (BgReport Report in NameToReport.Values)
+				foreach (BgReport report in NameToReport.Values)
 				{
-					Writer.WriteStartElement("Report");
-					Writer.WriteAttributeString("Name", Report.Name);
-					Writer.WriteAttributeString("Requires", String.Join(";", Report.Nodes.Select(x => x.Name)));
-					Writer.WriteEndElement();
+					writer.WriteStartElement("Report");
+					writer.WriteAttributeString("Name", report.Name);
+					writer.WriteAttributeString("Requires", String.Join(";", report.Nodes.Select(x => x.Name)));
+					writer.WriteEndElement();
 				}
 
-				foreach (BgBadge Badge in Badges)
+				foreach (BgBadge badge in Badges)
 				{
-					Writer.WriteStartElement("Badge");
-					Writer.WriteAttributeString("Name", Badge.Name);
-					if (Badge.Project != null)
+					writer.WriteStartElement("Badge");
+					writer.WriteAttributeString("Name", badge.Name);
+					if (badge.Project != null)
 					{
-						Writer.WriteAttributeString("Project", Badge.Project);
+						writer.WriteAttributeString("Project", badge.Project);
 					}
-					if (Badge.Change != 0)
+					if (badge.Change != 0)
 					{
-						Writer.WriteAttributeString("Change", Badge.Change.ToString());
+						writer.WriteAttributeString("Change", badge.Change.ToString());
 					}
-					Writer.WriteAttributeString("Requires", String.Join(";", Badge.Nodes.Select(x => x.Name)));
-					Writer.WriteEndElement();
+					writer.WriteAttributeString("Requires", String.Join(";", badge.Nodes.Select(x => x.Name)));
+					writer.WriteEndElement();
 				}
 
-				Writer.WriteEndElement();
+				writer.WriteEndElement();
 			}
 		}
 
 		/// <summary>
 		/// Export the build graph to a Json file, for parallel execution by the build system
 		/// </summary>
-		/// <param name="File">Output file to write</param>
-		/// <param name="CompletedNodes">Set of nodes which have been completed</param>
-		public void Export(FileReference File, HashSet<BgNode> CompletedNodes)
+		/// <param name="file">Output file to write</param>
+		/// <param name="completedNodes">Set of nodes which have been completed</param>
+		public void Export(FileReference file, HashSet<BgNode> completedNodes)
 		{
 			// Find all the nodes which we're actually going to execute. We'll use this to filter the graph.
-			HashSet<BgNode> NodesToExecute = new HashSet<BgNode>();
-			foreach (BgNode Node in Agents.SelectMany(x => x.Nodes))
+			HashSet<BgNode> nodesToExecute = new HashSet<BgNode>();
+			foreach (BgNode node in Agents.SelectMany(x => x.Nodes))
 			{
-				if (!CompletedNodes.Contains(Node))
+				if (!completedNodes.Contains(node))
 				{
-					NodesToExecute.Add(Node);
+					nodesToExecute.Add(node);
 				}
 			}
 
 			// Open the output file
-			using (JsonWriter JsonWriter = new JsonWriter(File.FullName))
+			using (JsonWriter jsonWriter = new JsonWriter(file.FullName))
 			{
-				JsonWriter.WriteObjectStart();
+				jsonWriter.WriteObjectStart();
 
 				// Write all the agents
-				JsonWriter.WriteArrayStart("Groups");
-				foreach (BgAgent Agent in Agents)
+				jsonWriter.WriteArrayStart("Groups");
+				foreach (BgAgent agent in Agents)
 				{
-					BgNode[] Nodes = Agent.Nodes.Where(x => NodesToExecute.Contains(x)).ToArray();
-					if (Nodes.Length > 0)
+					BgNode[] nodes = agent.Nodes.Where(x => nodesToExecute.Contains(x)).ToArray();
+					if (nodes.Length > 0)
 					{
-						JsonWriter.WriteObjectStart();
-						JsonWriter.WriteValue("Name", Agent.Name);
-						JsonWriter.WriteArrayStart("Agent Types");
-						foreach (string AgentType in Agent.PossibleTypes)
+						jsonWriter.WriteObjectStart();
+						jsonWriter.WriteValue("Name", agent.Name);
+						jsonWriter.WriteArrayStart("Agent Types");
+						foreach (string agentType in agent.PossibleTypes)
 						{
-							JsonWriter.WriteValue(AgentType);
+							jsonWriter.WriteValue(agentType);
 						}
-						JsonWriter.WriteArrayEnd();
-						JsonWriter.WriteArrayStart("Nodes");
-						foreach (BgNode Node in Nodes)
+						jsonWriter.WriteArrayEnd();
+						jsonWriter.WriteArrayStart("Nodes");
+						foreach (BgNode node in nodes)
 						{
-							JsonWriter.WriteObjectStart();
-							JsonWriter.WriteValue("Name", Node.Name);
-							JsonWriter.WriteValue("DependsOn", String.Join(";", Node.GetDirectOrderDependencies().Where(x => NodesToExecute.Contains(x))));
-							JsonWriter.WriteValue("RunEarly", Node.bRunEarly);
-							JsonWriter.WriteObjectStart("Notify");
-							JsonWriter.WriteValue("Default", String.Join(";", Node.NotifyUsers));
-							JsonWriter.WriteValue("Submitters", String.Join(";", Node.NotifySubmitters));
-							JsonWriter.WriteValue("Warnings", Node.bNotifyOnWarnings);
-							JsonWriter.WriteObjectEnd();
-							JsonWriter.WriteObjectEnd();
+							jsonWriter.WriteObjectStart();
+							jsonWriter.WriteValue("Name", node.Name);
+							jsonWriter.WriteValue("DependsOn", String.Join(";", node.GetDirectOrderDependencies().Where(x => nodesToExecute.Contains(x))));
+							jsonWriter.WriteValue("RunEarly", node.BRunEarly);
+							jsonWriter.WriteObjectStart("Notify");
+							jsonWriter.WriteValue("Default", String.Join(";", node.NotifyUsers));
+							jsonWriter.WriteValue("Submitters", String.Join(";", node.NotifySubmitters));
+							jsonWriter.WriteValue("Warnings", node.BNotifyOnWarnings);
+							jsonWriter.WriteObjectEnd();
+							jsonWriter.WriteObjectEnd();
 						}
-						JsonWriter.WriteArrayEnd();
-						JsonWriter.WriteObjectEnd();
+						jsonWriter.WriteArrayEnd();
+						jsonWriter.WriteObjectEnd();
 					}
 				}
-				JsonWriter.WriteArrayEnd();
+				jsonWriter.WriteArrayEnd();
 
 				// Write all the badges
-				JsonWriter.WriteArrayStart("Badges");
-				foreach (BgBadge Badge in Badges)
+				jsonWriter.WriteArrayStart("Badges");
+				foreach (BgBadge badge in Badges)
 				{
-					BgNode[] Dependencies = Badge.Nodes.Where(x => NodesToExecute.Contains(x)).ToArray();
-					if (Dependencies.Length > 0)
+					BgNode[] dependencies = badge.Nodes.Where(x => nodesToExecute.Contains(x)).ToArray();
+					if (dependencies.Length > 0)
 					{
 						// Reduce that list to the smallest subset of direct dependencies
-						HashSet<BgNode> DirectDependencies = new HashSet<BgNode>(Dependencies);
-						foreach (BgNode Dependency in Dependencies)
+						HashSet<BgNode> directDependencies = new HashSet<BgNode>(dependencies);
+						foreach (BgNode dependency in dependencies)
 						{
-							DirectDependencies.ExceptWith(Dependency.OrderDependencies);
+							directDependencies.ExceptWith(dependency.OrderDependencies);
 						}
 
-						JsonWriter.WriteObjectStart();
-						JsonWriter.WriteValue("Name", Badge.Name);
-						if (!String.IsNullOrEmpty(Badge.Project))
+						jsonWriter.WriteObjectStart();
+						jsonWriter.WriteValue("Name", badge.Name);
+						if (!String.IsNullOrEmpty(badge.Project))
 						{
-							JsonWriter.WriteValue("Project", Badge.Project);
+							jsonWriter.WriteValue("Project", badge.Project);
 						}
-						if (Badge.Change != 0)
+						if (badge.Change != 0)
 						{
-							JsonWriter.WriteValue("Change", Badge.Change);
+							jsonWriter.WriteValue("Change", badge.Change);
 						}
-						JsonWriter.WriteValue("AllDependencies", String.Join(";", Agents.SelectMany(x => x.Nodes).Where(x => Dependencies.Contains(x)).Select(x => x.Name)));
-						JsonWriter.WriteValue("DirectDependencies", String.Join(";", DirectDependencies.Select(x => x.Name)));
-						JsonWriter.WriteObjectEnd();
+						jsonWriter.WriteValue("AllDependencies", String.Join(";", Agents.SelectMany(x => x.Nodes).Where(x => dependencies.Contains(x)).Select(x => x.Name)));
+						jsonWriter.WriteValue("DirectDependencies", String.Join(";", directDependencies.Select(x => x.Name)));
+						jsonWriter.WriteObjectEnd();
 					}
 				}
-				JsonWriter.WriteArrayEnd();
+				jsonWriter.WriteArrayEnd();
 
 				// Write all the triggers and reports. 
-				JsonWriter.WriteArrayStart("Reports");
-				foreach (BgReport Report in NameToReport.Values)
+				jsonWriter.WriteArrayStart("Reports");
+				foreach (BgReport report in NameToReport.Values)
 				{
-					BgNode[] Dependencies = Report.Nodes.Where(x => NodesToExecute.Contains(x)).ToArray();
-					if (Dependencies.Length > 0)
+					BgNode[] dependencies = report.Nodes.Where(x => nodesToExecute.Contains(x)).ToArray();
+					if (dependencies.Length > 0)
 					{
 						// Reduce that list to the smallest subset of direct dependencies
-						HashSet<BgNode> DirectDependencies = new HashSet<BgNode>(Dependencies);
-						foreach (BgNode Dependency in Dependencies)
+						HashSet<BgNode> directDependencies = new HashSet<BgNode>(dependencies);
+						foreach (BgNode dependency in dependencies)
 						{
-							DirectDependencies.ExceptWith(Dependency.OrderDependencies);
+							directDependencies.ExceptWith(dependency.OrderDependencies);
 						}
 
-						JsonWriter.WriteObjectStart();
-						JsonWriter.WriteValue("Name", Report.Name);
-						JsonWriter.WriteValue("AllDependencies", String.Join(";", Agents.SelectMany(x => x.Nodes).Where(x => Dependencies.Contains(x)).Select(x => x.Name)));
-						JsonWriter.WriteValue("DirectDependencies", String.Join(";", DirectDependencies.Select(x => x.Name)));
-						JsonWriter.WriteValue("Notify", String.Join(";", Report.NotifyUsers));
-						JsonWriter.WriteValue("IsTrigger", false);
-						JsonWriter.WriteObjectEnd();
+						jsonWriter.WriteObjectStart();
+						jsonWriter.WriteValue("Name", report.Name);
+						jsonWriter.WriteValue("AllDependencies", String.Join(";", Agents.SelectMany(x => x.Nodes).Where(x => dependencies.Contains(x)).Select(x => x.Name)));
+						jsonWriter.WriteValue("DirectDependencies", String.Join(";", directDependencies.Select(x => x.Name)));
+						jsonWriter.WriteValue("Notify", String.Join(";", report.NotifyUsers));
+						jsonWriter.WriteValue("IsTrigger", false);
+						jsonWriter.WriteObjectEnd();
 					}
 				}
-				JsonWriter.WriteArrayEnd();
+				jsonWriter.WriteArrayEnd();
 
-				JsonWriter.WriteObjectEnd();
+				jsonWriter.WriteObjectEnd();
 			}
 		}
 
 		/// <summary>
 		/// Export the build graph to a Json file for parsing by Horde
 		/// </summary>
-		/// <param name="File">Output file to write</param>
-		public void ExportForHorde(FileReference File)
+		/// <param name="file">Output file to write</param>
+		public void ExportForHorde(FileReference file)
 		{
-			DirectoryReference.CreateDirectory(File.Directory);
-			using (JsonWriter JsonWriter = new JsonWriter(File.FullName))
+			DirectoryReference.CreateDirectory(file.Directory);
+			using (JsonWriter jsonWriter = new JsonWriter(file.FullName))
 			{
-				JsonWriter.WriteObjectStart();
-				JsonWriter.WriteArrayStart("Groups");
-				foreach (BgAgent Agent in Agents)
+				jsonWriter.WriteObjectStart();
+				jsonWriter.WriteArrayStart("Groups");
+				foreach (BgAgent agent in Agents)
 				{
-					JsonWriter.WriteObjectStart();
-					JsonWriter.WriteArrayStart("Types");
-					foreach (string PossibleType in Agent.PossibleTypes)
+					jsonWriter.WriteObjectStart();
+					jsonWriter.WriteArrayStart("Types");
+					foreach (string possibleType in agent.PossibleTypes)
 					{
-						JsonWriter.WriteValue(PossibleType);
+						jsonWriter.WriteValue(possibleType);
 					}
-					JsonWriter.WriteArrayEnd();
-					JsonWriter.WriteArrayStart("Nodes");
-					foreach (BgNode Node in Agent.Nodes)
+					jsonWriter.WriteArrayEnd();
+					jsonWriter.WriteArrayStart("Nodes");
+					foreach (BgNode node in agent.Nodes)
 					{
-						JsonWriter.WriteObjectStart();
-						JsonWriter.WriteValue("Name", Node.Name);
-						JsonWriter.WriteValue("RunEarly", Node.bRunEarly);
-						JsonWriter.WriteValue("Warnings", Node.bNotifyOnWarnings);
+						jsonWriter.WriteObjectStart();
+						jsonWriter.WriteValue("Name", node.Name);
+						jsonWriter.WriteValue("RunEarly", node.BRunEarly);
+						jsonWriter.WriteValue("Warnings", node.BNotifyOnWarnings);
 
-						JsonWriter.WriteArrayStart("InputDependencies");
-						foreach (string InputDependency in Node.GetDirectInputDependencies().Select(x => x.Name))
+						jsonWriter.WriteArrayStart("InputDependencies");
+						foreach (string inputDependency in node.GetDirectInputDependencies().Select(x => x.Name))
 						{
-							JsonWriter.WriteValue(InputDependency);
+							jsonWriter.WriteValue(inputDependency);
 						}
-						JsonWriter.WriteArrayEnd();
+						jsonWriter.WriteArrayEnd();
 
-						JsonWriter.WriteArrayStart("OrderDependencies");
-						foreach (string OrderDependency in Node.GetDirectOrderDependencies().Select(x => x.Name))
+						jsonWriter.WriteArrayStart("OrderDependencies");
+						foreach (string orderDependency in node.GetDirectOrderDependencies().Select(x => x.Name))
 						{
-							JsonWriter.WriteValue(OrderDependency);
+							jsonWriter.WriteValue(orderDependency);
 						}
-						JsonWriter.WriteArrayEnd();
+						jsonWriter.WriteArrayEnd();
 
-						JsonWriter.WriteObjectEnd();
+						jsonWriter.WriteObjectEnd();
 					}
-					JsonWriter.WriteArrayEnd();
-					JsonWriter.WriteObjectEnd();
+					jsonWriter.WriteArrayEnd();
+					jsonWriter.WriteObjectEnd();
 				}
-				JsonWriter.WriteArrayEnd();
+				jsonWriter.WriteArrayEnd();
 
-				JsonWriter.WriteArrayStart("Aggregates");
-				foreach (BgAggregate Aggregate in NameToAggregate.Values)
+				jsonWriter.WriteArrayStart("Aggregates");
+				foreach (BgAggregate aggregate in NameToAggregate.Values)
 				{
-					JsonWriter.WriteObjectStart();
-					JsonWriter.WriteValue("Name", Aggregate.Name);
-					JsonWriter.WriteArrayStart("Nodes");
-					foreach (BgNode RequiredNode in Aggregate.RequiredNodes.OrderBy(x => x.Name))
+					jsonWriter.WriteObjectStart();
+					jsonWriter.WriteValue("Name", aggregate.Name);
+					jsonWriter.WriteArrayStart("Nodes");
+					foreach (BgNode requiredNode in aggregate.RequiredNodes.OrderBy(x => x.Name))
 					{
-						JsonWriter.WriteValue(RequiredNode.Name);
+						jsonWriter.WriteValue(requiredNode.Name);
 					}
-					JsonWriter.WriteArrayEnd();
-					JsonWriter.WriteObjectEnd();
+					jsonWriter.WriteArrayEnd();
+					jsonWriter.WriteObjectEnd();
 				}
-				JsonWriter.WriteArrayEnd();
+				jsonWriter.WriteArrayEnd();
 
-				JsonWriter.WriteArrayStart("Labels");
-				foreach (BgLabel Label in Labels)
+				jsonWriter.WriteArrayStart("Labels");
+				foreach (BgLabel label in Labels)
 				{
-					JsonWriter.WriteObjectStart();
-					if (!String.IsNullOrEmpty(Label.DashboardName))
+					jsonWriter.WriteObjectStart();
+					if (!String.IsNullOrEmpty(label.DashboardName))
 					{
-						JsonWriter.WriteValue("Name", Label.DashboardName);
+						jsonWriter.WriteValue("Name", label.DashboardName);
 					}
-					if (!String.IsNullOrEmpty(Label.DashboardCategory))
+					if (!String.IsNullOrEmpty(label.DashboardCategory))
 					{
-						JsonWriter.WriteValue("Category", Label.DashboardCategory);
+						jsonWriter.WriteValue("Category", label.DashboardCategory);
 					}
-					if (!String.IsNullOrEmpty(Label.UgsBadge))
+					if (!String.IsNullOrEmpty(label.UgsBadge))
 					{
-						JsonWriter.WriteValue("UgsBadge", Label.UgsBadge);
+						jsonWriter.WriteValue("UgsBadge", label.UgsBadge);
 					}
-					if (!String.IsNullOrEmpty(Label.UgsProject))
+					if (!String.IsNullOrEmpty(label.UgsProject))
 					{
-						JsonWriter.WriteValue("UgsProject", Label.UgsProject);
+						jsonWriter.WriteValue("UgsProject", label.UgsProject);
 					}
-					if (Label.Change != BgLabelChange.Current)
+					if (label.Change != BgLabelChange.Current)
 					{
-						JsonWriter.WriteValue("Change", Label.Change.ToString());
+						jsonWriter.WriteValue("Change", label.Change.ToString());
 					}
 
-					JsonWriter.WriteArrayStart("RequiredNodes");
-					foreach (BgNode RequiredNode in Label.RequiredNodes.OrderBy(x => x.Name))
+					jsonWriter.WriteArrayStart("RequiredNodes");
+					foreach (BgNode requiredNode in label.RequiredNodes.OrderBy(x => x.Name))
 					{
-						JsonWriter.WriteValue(RequiredNode.Name);
+						jsonWriter.WriteValue(requiredNode.Name);
 					}
-					JsonWriter.WriteArrayEnd();
-					JsonWriter.WriteArrayStart("IncludedNodes");
-					foreach (BgNode IncludedNode in Label.IncludedNodes.OrderBy(x => x.Name))
+					jsonWriter.WriteArrayEnd();
+					jsonWriter.WriteArrayStart("IncludedNodes");
+					foreach (BgNode includedNode in label.IncludedNodes.OrderBy(x => x.Name))
 					{
-						JsonWriter.WriteValue(IncludedNode.Name);
+						jsonWriter.WriteValue(includedNode.Name);
 					}
-					JsonWriter.WriteArrayEnd();
-					JsonWriter.WriteObjectEnd();
+					jsonWriter.WriteArrayEnd();
+					jsonWriter.WriteObjectEnd();
 				}
-				JsonWriter.WriteArrayEnd();
+				jsonWriter.WriteArrayEnd();
 
-				JsonWriter.WriteArrayStart("Badges");
-				foreach (BgBadge Badge in Badges)
+				jsonWriter.WriteArrayStart("Badges");
+				foreach (BgBadge badge in Badges)
 				{
-					HashSet<BgNode> Dependencies = Badge.Nodes;
-					if (Dependencies.Count > 0)
+					HashSet<BgNode> dependencies = badge.Nodes;
+					if (dependencies.Count > 0)
 					{
 						// Reduce that list to the smallest subset of direct dependencies
-						HashSet<BgNode> DirectDependencies = new HashSet<BgNode>(Dependencies);
-						foreach (BgNode Dependency in Dependencies)
+						HashSet<BgNode> directDependencies = new HashSet<BgNode>(dependencies);
+						foreach (BgNode dependency in dependencies)
 						{
-							DirectDependencies.ExceptWith(Dependency.OrderDependencies);
+							directDependencies.ExceptWith(dependency.OrderDependencies);
 						}
 
-						JsonWriter.WriteObjectStart();
-						JsonWriter.WriteValue("Name", Badge.Name);
-						if (!String.IsNullOrEmpty(Badge.Project))
+						jsonWriter.WriteObjectStart();
+						jsonWriter.WriteValue("Name", badge.Name);
+						if (!String.IsNullOrEmpty(badge.Project))
 						{
-							JsonWriter.WriteValue("Project", Badge.Project);
+							jsonWriter.WriteValue("Project", badge.Project);
 						}
-						if (Badge.Change != 0)
+						if (badge.Change != 0)
 						{
-							JsonWriter.WriteValue("Change", Badge.Change);
+							jsonWriter.WriteValue("Change", badge.Change);
 						}
-						JsonWriter.WriteValue("Dependencies", String.Join(";", DirectDependencies.Select(x => x.Name)));
-						JsonWriter.WriteObjectEnd();
+						jsonWriter.WriteValue("Dependencies", String.Join(";", directDependencies.Select(x => x.Name)));
+						jsonWriter.WriteObjectEnd();
 					}
 				}
-				JsonWriter.WriteArrayEnd();
+				jsonWriter.WriteArrayEnd();
 
-				JsonWriter.WriteObjectEnd();
+				jsonWriter.WriteObjectEnd();
 			}
 		}
 
 		/// <summary>
 		/// Print the contents of the graph
 		/// </summary>
-		/// <param name="CompletedNodes">Set of nodes which are already complete</param>
-		/// <param name="PrintOptions">Options for how to print the graph</param>
-		/// <param name="Logger"></param>
-		public void Print(HashSet<BgNode> CompletedNodes, GraphPrintOptions PrintOptions, ILogger Logger)
+		/// <param name="completedNodes">Set of nodes which are already complete</param>
+		/// <param name="printOptions">Options for how to print the graph</param>
+		/// <param name="logger"></param>
+		public void Print(HashSet<BgNode> completedNodes, GraphPrintOptions printOptions, ILogger logger)
 		{
 			// Print the options
-			if ((PrintOptions & GraphPrintOptions.ShowCommandLineOptions) != 0)
+			if ((printOptions & GraphPrintOptions.ShowCommandLineOptions) != 0)
 			{
 				// Get the list of messages
-				List<KeyValuePair<string, string>> Parameters = new List<KeyValuePair<string, string>>();
-				foreach (BgOption Option in Options)
+				List<KeyValuePair<string, string>> parameters = new List<KeyValuePair<string, string>>();
+				foreach (BgOption option in Options)
 				{
-					string Name = String.Format("-set:{0}=...", Option.Name);
+					string name = String.Format("-set:{0}=...", option.Name);
 
-					StringBuilder Description = new StringBuilder(Option.Description);
-					if (!String.IsNullOrEmpty(Option.DefaultValue))
+					StringBuilder description = new StringBuilder(option.Description);
+					if (!String.IsNullOrEmpty(option.DefaultValue))
 					{
-						Description.AppendFormat(" (Default: {0})", Option.DefaultValue);
+						description.AppendFormat(" (Default: {0})", option.DefaultValue);
 					}
 
-					Parameters.Add(new KeyValuePair<string, string>(Name, Description.ToString()));
+					parameters.Add(new KeyValuePair<string, string>(name, description.ToString()));
 				}
 
 				// Format them to the log
-				if (Parameters.Count > 0)
+				if (parameters.Count > 0)
 				{
-					Logger.LogInformation("");
-					Logger.LogInformation("Options:");
-					Logger.LogInformation("");
+					logger.LogInformation("");
+					logger.LogInformation("Options:");
+					logger.LogInformation("");
 
-					List<string> Lines = new List<string>();
-					HelpUtils.FormatTable(Parameters, 4, 24, HelpUtils.WindowWidth - 20, Lines);
+					List<string> lines = new List<string>();
+					HelpUtils.FormatTable(parameters, 4, 24, HelpUtils.WindowWidth - 20, lines);
 
-					foreach (string Line in Lines)
+					foreach (string line in lines)
 					{
-						Logger.Log(LogLevel.Information, Line);
+						logger.Log(LogLevel.Information, line);
 					}
 				}
 			}
 
 			// Output all the triggers in order
-			Logger.LogInformation("");
-			Logger.LogInformation("Graph:");
-			foreach (BgAgent Agent in Agents)
+			logger.LogInformation("");
+			logger.LogInformation("Graph:");
+			foreach (BgAgent agent in Agents)
 			{
-				Logger.LogInformation("        Agent: {0} ({1})", Agent.Name, String.Join(";", Agent.PossibleTypes));
-				foreach (BgNode Node in Agent.Nodes)
+				logger.LogInformation("        Agent: {0} ({1})", agent.Name, String.Join(";", agent.PossibleTypes));
+				foreach (BgNode node in agent.Nodes)
 				{
-					Logger.LogInformation("            Node: {0}{1}", Node.Name, CompletedNodes.Contains(Node) ? " (completed)" : Node.bRunEarly ? " (early)" : "");
-					if (PrintOptions.HasFlag(GraphPrintOptions.ShowDependencies))
+					logger.LogInformation("            Node: {0}{1}", node.Name, completedNodes.Contains(node) ? " (completed)" : node.BRunEarly ? " (early)" : "");
+					if (printOptions.HasFlag(GraphPrintOptions.ShowDependencies))
 					{
-						HashSet<BgNode> InputDependencies = new HashSet<BgNode>(Node.GetDirectInputDependencies());
-						foreach (BgNode InputDependency in InputDependencies)
+						HashSet<BgNode> inputDependencies = new HashSet<BgNode>(node.GetDirectInputDependencies());
+						foreach (BgNode inputDependency in inputDependencies)
 						{
-							Logger.LogInformation("                input> {0}", InputDependency.Name);
+							logger.LogInformation("                input> {0}", inputDependency.Name);
 						}
-						HashSet<BgNode> OrderDependencies = new HashSet<BgNode>(Node.GetDirectOrderDependencies());
-						foreach (BgNode OrderDependency in OrderDependencies.Except(InputDependencies))
+						HashSet<BgNode> orderDependencies = new HashSet<BgNode>(node.GetDirectOrderDependencies());
+						foreach (BgNode orderDependency in orderDependencies.Except(inputDependencies))
 						{
-							Logger.LogInformation("                after> {0}", OrderDependency.Name);
+							logger.LogInformation("                after> {0}", orderDependency.Name);
 						}
 					}
-					if (PrintOptions.HasFlag(GraphPrintOptions.ShowNotifications))
+					if (printOptions.HasFlag(GraphPrintOptions.ShowNotifications))
 					{
-						string Label = Node.bNotifyOnWarnings ? "warnings" : "errors";
-						foreach (string User in Node.NotifyUsers)
+						string label = node.BNotifyOnWarnings ? "warnings" : "errors";
+						foreach (string user in node.NotifyUsers)
 						{
-							Logger.LogInformation("                {0}> {1}", Label, User);
+							logger.LogInformation("                {0}> {1}", label, user);
 						}
-						foreach (string Submitter in Node.NotifySubmitters)
+						foreach (string submitter in node.NotifySubmitters)
 						{
-							Logger.LogInformation("                {0}> submitters to {1}", Label, Submitter);
+							logger.LogInformation("                {0}> submitters to {1}", label, submitter);
 						}
 					}
 				}
 			}
-			Logger.LogInformation("");
+			logger.LogInformation("");
 
 			// Print out all the non-empty aggregates
-			BgAggregate[] Aggregates = NameToAggregate.Values.OrderBy(x => x.Name).ToArray();
-			if (Aggregates.Length > 0)
+			BgAggregate[] aggregates = NameToAggregate.Values.OrderBy(x => x.Name).ToArray();
+			if (aggregates.Length > 0)
 			{
-				Logger.LogInformation("Aggregates:");
-				foreach (string AggregateName in Aggregates.Select(x => x.Name))
+				logger.LogInformation("Aggregates:");
+				foreach (string aggregateName in aggregates.Select(x => x.Name))
 				{
-					Logger.LogInformation("    {0}", AggregateName);
+					logger.LogInformation("    {0}", aggregateName);
 				}
-				Logger.LogInformation("");
+				logger.LogInformation("");
 			}
 		}
 	}

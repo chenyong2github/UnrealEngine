@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace EpicGames.BuildGraph
@@ -17,9 +16,9 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor; formats the exception message with the given String.Format() style parameters.
 		/// </summary>
-		/// <param name="Format">Formatting string, in String.Format syntax</param>
-		/// <param name="Args">Optional arguments for the string</param>
-		public BgConditionException(string Format, params object[] Args) : base(String.Format(Format, Args))
+		/// <param name="format">Formatting string, in String.Format syntax</param>
+		/// <param name="args">Optional arguments for the string</param>
+		public BgConditionException(string format, params object[] args) : base(String.Format(format, args))
 		{
 		}
 	}
@@ -64,39 +63,39 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Tokens for the condition
 		/// </summary>
-		List<string> Tokens = new List<string>();
+		readonly List<string> _tokens = new List<string>();
 
 		/// <summary>
 		/// The current token index
 		/// </summary>
-		int Idx;
+		int _idx;
 
 		/// <summary>
 		/// Context for evaluating the expression
 		/// </summary>
-		IBgScriptReaderContext Context;
+		readonly IBgScriptReaderContext _context;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Text">The condition text</param>
-		/// <param name="Context">Context for evaluating the expression</param>
-		private BgCondition(string Text, IBgScriptReaderContext Context)
+		/// <param name="text">The condition text</param>
+		/// <param name="context">Context for evaluating the expression</param>
+		private BgCondition(string text, IBgScriptReaderContext context)
 		{
-			this.Context = Context;
+			_context = context;
 
-			Tokenize(Text, Tokens);
+			Tokenize(text, _tokens);
 		}
 
 		/// <summary>
 		/// Evaluates the given string as a condition. Throws a ConditionException on a type or syntax error.
 		/// </summary>
-		/// <param name="Text"></param>
-		/// <param name="Context"></param>
+		/// <param name="text"></param>
+		/// <param name="context"></param>
 		/// <returns>The result of evaluating the condition</returns>
-		public static ValueTask<bool> EvaluateAsync(string Text, IBgScriptReaderContext Context)
+		public static ValueTask<bool> EvaluateAsync(string text, IBgScriptReaderContext context)
 		{
-			return new BgCondition(Text, Context).EvaluateAsync();
+			return new BgCondition(text, context).EvaluateAsync();
 		}
 
 		/// <summary>
@@ -106,15 +105,15 @@ namespace EpicGames.BuildGraph
 		async ValueTask<bool> EvaluateAsync()
 		{
 			bool bResult = true;
-			if(Tokens.Count > 1)
+			if (_tokens.Count > 1)
 			{
-				Idx = 0;
-				string Result = await EvaluateOrAsync();
-				if(Tokens[Idx] != EndToken)
+				_idx = 0;
+				string result = await EvaluateOrAsync();
+				if (_tokens[_idx] != EndToken)
 				{
-					throw new BgConditionException("Garbage after expression: {0}", String.Join("", Tokens.Skip(Idx)));
+					throw new BgConditionException("Garbage after expression: {0}", String.Join("", _tokens.Skip(_idx)));
 				}
-				bResult = CoerceToBool(Result);
+				bResult = CoerceToBool(result);
 			}
 			return bResult;
 		}
@@ -126,16 +125,16 @@ namespace EpicGames.BuildGraph
 		async ValueTask<string> EvaluateOrAsync()
 		{
 			// <Condition> Or <Condition> Or...
-			string Result = await EvaluateAndAsync();
-			while(String.Compare(Tokens[Idx], "Or", true) == 0)
+			string result = await EvaluateAndAsync();
+			while (String.Compare(_tokens[_idx], "Or", true) == 0)
 			{
 				// Evaluate this condition. We use a binary OR here, because we want to parse everything rather than short-circuit it.
-				Idx++;
-				string Lhs = Result;
-				string Rhs = await EvaluateAndAsync();
-				Result = (CoerceToBool(Lhs) | CoerceToBool(Rhs))? "true" : "false";
+				_idx++;
+				string lhs = result;
+				string rhs = await EvaluateAndAsync();
+				result = (CoerceToBool(lhs) | CoerceToBool(rhs)) ? "true" : "false";
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
@@ -145,16 +144,16 @@ namespace EpicGames.BuildGraph
 		async ValueTask<string> EvaluateAndAsync()
 		{
 			// <Condition> And <Condition> And...
-			string Result = await EvaluateComparisonAsync();
-			while(String.Compare(Tokens[Idx], "And", true) == 0)
+			string result = await EvaluateComparisonAsync();
+			while (String.Compare(_tokens[_idx], "And", true) == 0)
 			{
 				// Evaluate this condition. We use a binary AND here, because we want to parse everything rather than short-circuit it.
-				Idx++;
-				string Lhs = Result;
-				string Rhs = await EvaluateComparisonAsync();
-				Result = (CoerceToBool(Lhs) & CoerceToBool(Rhs))? "true" : "false";
+				_idx++;
+				string lhs = result;
+				string rhs = await EvaluateComparisonAsync();
+				result = (CoerceToBool(lhs) & CoerceToBool(rhs)) ? "true" : "false";
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
@@ -171,56 +170,56 @@ namespace EpicGames.BuildGraph
 			// scalar > scalar
 			// scalar >= scalar
 
-			string Result = await EvaluateScalarAsync();
-			if(Tokens[Idx] == "==")
+			string result = await EvaluateScalarAsync();
+			if (_tokens[_idx] == "==")
 			{
 				// Compare two scalars for equality
-				Idx++;
-				string Lhs = Result;
-				string Rhs = await EvaluateScalarAsync();
-				Result = (String.Compare(Lhs, Rhs, true) == 0)? "true" : "false";
+				_idx++;
+				string lhs = result;
+				string rhs = await EvaluateScalarAsync();
+				result = (String.Compare(lhs, rhs, true) == 0) ? "true" : "false";
 			}
-			else if(Tokens[Idx] == "!=")
+			else if (_tokens[_idx] == "!=")
 			{
 				// Compare two scalars for inequality
-				Idx++;
-				string Lhs = Result;
-				string Rhs = await EvaluateScalarAsync();
-				Result = (String.Compare(Lhs, Rhs, true) != 0)? "true" : "false";
+				_idx++;
+				string lhs = result;
+				string rhs = await EvaluateScalarAsync();
+				result = (String.Compare(lhs, rhs, true) != 0) ? "true" : "false";
 			}
-			else if(Tokens[Idx] == "<")
+			else if (_tokens[_idx] == "<")
 			{
 				// Compares whether the first integer is less than the second
-				Idx++;
-				int Lhs = CoerceToInteger(Result);
-				int Rhs = CoerceToInteger(await EvaluateScalarAsync());
-				Result = (Lhs < Rhs)? "true" : "false";
+				_idx++;
+				int lhs = CoerceToInteger(result);
+				int rhs = CoerceToInteger(await EvaluateScalarAsync());
+				result = (lhs < rhs) ? "true" : "false";
 			}
-			else if(Tokens[Idx] == "<=")
+			else if (_tokens[_idx] == "<=")
 			{
 				// Compares whether the first integer is less than the second
-				Idx++;
-				int Lhs = CoerceToInteger(Result);
-				int Rhs = CoerceToInteger(await EvaluateScalarAsync());
-				Result = (Lhs <= Rhs)? "true" : "false";
+				_idx++;
+				int lhs = CoerceToInteger(result);
+				int rhs = CoerceToInteger(await EvaluateScalarAsync());
+				result = (lhs <= rhs) ? "true" : "false";
 			}
-			else if(Tokens[Idx] == ">")
+			else if (_tokens[_idx] == ">")
 			{
 				// Compares whether the first integer is less than the second
-				Idx++;
-				int Lhs = CoerceToInteger(Result);
-				int Rhs = CoerceToInteger(await EvaluateScalarAsync());
-				Result = (Lhs > Rhs)? "true" : "false";
+				_idx++;
+				int lhs = CoerceToInteger(result);
+				int rhs = CoerceToInteger(await EvaluateScalarAsync());
+				result = (lhs > rhs) ? "true" : "false";
 			}
-			else if(Tokens[Idx] == ">=")
+			else if (_tokens[_idx] == ">=")
 			{
 				// Compares whether the first integer is less than the second
-				Idx++;
-				int Lhs = CoerceToInteger(Result);
-				int Rhs = CoerceToInteger(await EvaluateScalarAsync());
-				Result = (Lhs >= Rhs)? "true" : "false";
+				_idx++;
+				int lhs = CoerceToInteger(result);
+				int rhs = CoerceToInteger(await EvaluateScalarAsync());
+				result = (lhs >= rhs) ? "true" : "false";
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
@@ -229,46 +228,46 @@ namespace EpicGames.BuildGraph
 		/// <returns>The result of evaluating the expression</returns>
 		IEnumerable<string> EvaluateArguments()
 		{
-			List<string> Arguments = new List<string>();
+			List<string> arguments = new List<string>();
 
 			// skip opening bracket
-			if (Tokens[Idx++] != "(")
+			if (_tokens[_idx++] != "(")
 			{
 				throw new BgConditionException("Expected '('");
 			}
 
-			bool DidCloseBracket = false;
+			bool didCloseBracket = false;
 
-			while (Idx < Tokens.Count)
+			while (_idx < _tokens.Count)
 			{
-				string NextToken = Tokens.ElementAt(Idx++);
+				string nextToken = _tokens.ElementAt(_idx++);
 
-				if (NextToken == EndToken)
+				if (nextToken == EndToken)
 				{
 					// ran out of items
 					break;
 				}
-				else if (NextToken == ")")
+				else if (nextToken == ")")
 				{
-					DidCloseBracket = true;
+					didCloseBracket = true;
 					break;
 				}
-				else if (NextToken != ",")
+				else if (nextToken != ",")
 				{
-					if (NextToken.First() == '\'' && NextToken.Last() == '\'')
+					if (nextToken.First() == '\'' && nextToken.Last() == '\'')
 					{
-						NextToken = NextToken.Substring(1, NextToken.Length - 2);
+						nextToken = nextToken.Substring(1, nextToken.Length - 2);
 					}
-					Arguments.Add(NextToken);
+					arguments.Add(nextToken);
 				}
 			}
 
-			if (!DidCloseBracket)
+			if (!didCloseBracket)
 			{
 				throw new BgConditionException("Expected ')'");
 			}
 
-			return Arguments;
+			return arguments;
 		}
 
 		/// <summary>
@@ -277,98 +276,98 @@ namespace EpicGames.BuildGraph
 		/// <returns>The result of evaluating the expression</returns>
 		async ValueTask<string> EvaluateScalarAsync()
 		{
-			string Result;
-			if(Tokens[Idx] == "(")
+			string result;
+			if (_tokens[_idx] == "(")
 			{
 				// Subexpression
-				Idx++;
-				Result = await EvaluateOrAsync();
-				if(Tokens[Idx] != ")")
+				_idx++;
+				result = await EvaluateOrAsync();
+				if (_tokens[_idx] != ")")
 				{
 					throw new BgConditionException("Expected ')'");
 				}
-				Idx++;
+				_idx++;
 			}
-			else if(Tokens[Idx] == "!")
+			else if (_tokens[_idx] == "!")
 			{
 				// Logical not
-				Idx++;
-				string Rhs = await EvaluateScalarAsync();
-				Result = CoerceToBool(Rhs)? "false" : "true";
+				_idx++;
+				string rhs = await EvaluateScalarAsync();
+				result = CoerceToBool(rhs) ? "false" : "true";
 			}
-			else if(String.Compare(Tokens[Idx], "Exists", true) == 0 && Tokens[Idx + 1] == "(")
+			else if (String.Compare(_tokens[_idx], "Exists", true) == 0 && _tokens[_idx + 1] == "(")
 			{
 				// Check whether file or directory exists. Evaluate the argument as a subexpression.
-				Idx++;
-				string Argument = await EvaluateScalarAsync();
-				Result = await Context.ExistsAsync(Argument)? "true" : "false";
+				_idx++;
+				string argument = await EvaluateScalarAsync();
+				result = await _context.ExistsAsync(argument) ? "true" : "false";
 			}
-			else if(String.Compare(Tokens[Idx], "HasTrailingSlash", true) == 0 && Tokens[Idx + 1] == "(")
+			else if (String.Compare(_tokens[_idx], "HasTrailingSlash", true) == 0 && _tokens[_idx + 1] == "(")
 			{
 				// Check whether the given string ends with a slash
-				Idx++;
-				string Argument = await EvaluateScalarAsync();
-				Result = (Argument.Length > 0 && (Argument[Argument.Length - 1] == Path.DirectorySeparatorChar || Argument[Argument.Length - 1] == Path.AltDirectorySeparatorChar))? "true" : "false";
+				_idx++;
+				string argument = await EvaluateScalarAsync();
+				result = (argument.Length > 0 && (argument[argument.Length - 1] == Path.DirectorySeparatorChar || argument[argument.Length - 1] == Path.AltDirectorySeparatorChar)) ? "true" : "false";
 			}
-			else if (String.Compare(Tokens[Idx], "Contains", true) == 0 && Tokens[Idx + 1] == "(")
+			else if (String.Compare(_tokens[_idx], "Contains", true) == 0 && _tokens[_idx + 1] == "(")
 			{
 				// Check a string contains a substring. If a separator is supplied the string is first split
-				Idx++;
-				IEnumerable<string> Arguments = EvaluateArguments();
+				_idx++;
+				IEnumerable<string> arguments = EvaluateArguments();
 
-				if (Arguments.Count() != 2)
+				if (arguments.Count() != 2)
 				{
 					throw new BgConditionException("Invalid argument count for 'Contains'. Expected (Haystack,Needle)");
 				}
 
-				Result = Contains(Arguments.ElementAt(0), Arguments.ElementAt(1)) ? "true" : "false";
+				result = Contains(arguments.ElementAt(0), arguments.ElementAt(1)) ? "true" : "false";
 			}
-			else if (String.Compare(Tokens[Idx], "ContainsItem", true) == 0 && Tokens[Idx + 1] == "(")
+			else if (String.Compare(_tokens[_idx], "ContainsItem", true) == 0 && _tokens[_idx + 1] == "(")
 			{
 				// Check a string contains a substring. If a separator is supplied the string is first split
-				Idx++;
-				IEnumerable<string> Arguments = EvaluateArguments();
+				_idx++;
+				IEnumerable<string> arguments = EvaluateArguments();
 
-				if (Arguments.Count() != 3)
+				if (arguments.Count() != 3)
 				{
 					throw new BgConditionException("Invalid argument count for 'ContainsItem'. Expected (Haystack,Needle,HaystackSeparator)");
 				}
 
-				Result = ContainsItem(Arguments.ElementAt(0), Arguments.ElementAt(1), Arguments.ElementAt(2)) ? "true" : "false";
+				result = ContainsItem(arguments.ElementAt(0), arguments.ElementAt(1), arguments.ElementAt(2)) ? "true" : "false";
 			}
 			else
 			{
 				// Raw scalar. Remove quotes from strings, and allow literals and simple identifiers to pass through directly.
-				string Token = Tokens[Idx];
-				if(Token.Length >= 2 && (Token[0] == '\'' || Token[0] == '\"') && Token[Token.Length - 1] == Token[0])
+				string token = _tokens[_idx];
+				if (token.Length >= 2 && (token[0] == '\'' || token[0] == '\"') && token[token.Length - 1] == token[0])
 				{
-					Result = Token.Substring(1, Token.Length - 2);
-					Idx++;
+					result = token.Substring(1, token.Length - 2);
+					_idx++;
 				}
-				else if(Char.IsLetterOrDigit(Token[0]) || Token[0] == '_')
+				else if (Char.IsLetterOrDigit(token[0]) || token[0] == '_')
 				{
-					Result = Token;
-					Idx++;
+					result = token;
+					_idx++;
 				}
 				else
 				{
-					throw new BgConditionException("Token '{0}' is not a valid scalar", Token);
+					throw new BgConditionException("Token '{0}' is not a valid scalar", token);
 				}
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
 		/// Checks whether Haystack contains "Needle". 
 		/// </summary>
-		/// <param name="Haystack">The string to search</param>
-		/// <param name="Needle">The string to search for</param>
+		/// <param name="haystack">The string to search</param>
+		/// <param name="needle">The string to search for</param>
 		/// <returns>True if the path exists, false otherwise.</returns>
-		static bool Contains(string Haystack, string Needle)
+		static bool Contains(string haystack, string needle)
 		{
 			try
 			{
-				return Haystack.IndexOf(Needle, StringComparison.CurrentCultureIgnoreCase) >= 0;
+				return haystack.IndexOf(needle, StringComparison.CurrentCultureIgnoreCase) >= 0;
 			}
 			catch
 			{
@@ -379,16 +378,16 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Checks whether HaystackItems contains "Needle". 
 		/// </summary>
-		/// <param name="Haystack">The separated list of items to check</param>
-		/// <param name="Needle">The item to check for</param>
-		/// <param name="HaystackSeparator">The separator used in Haystack</param>
+		/// <param name="haystack">The separated list of items to check</param>
+		/// <param name="needle">The item to check for</param>
+		/// <param name="haystackSeparator">The separator used in Haystack</param>
 		/// <returns>True if the path exists, false otherwise.</returns>
-		static bool ContainsItem(string Haystack, string Needle, string HaystackSeparator)
+		static bool ContainsItem(string haystack, string needle, string haystackSeparator)
 		{
 			try
 			{
-				IEnumerable<string> HaystackItems = Haystack.Split(new string[] { HaystackSeparator }, StringSplitOptions.RemoveEmptyEntries);
-				return HaystackItems.Any(I => I.ToLower() == Needle.ToLower());
+				IEnumerable<string> haystackItems = haystack.Split(new string[] { haystackSeparator }, StringSplitOptions.RemoveEmptyEntries);
+				return haystackItems.Any(i => i.ToLower() == needle.ToLower());
 			}
 			catch
 			{
@@ -399,93 +398,93 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Converts a scalar to a boolean value.
 		/// </summary>
-		/// <param name="Scalar">The scalar to convert</param>
+		/// <param name="scalar">The scalar to convert</param>
 		/// <returns>The scalar converted to a boolean value.</returns>
-		static bool CoerceToBool(string Scalar)
+		static bool CoerceToBool(string scalar)
 		{
-			bool Result;
-			if(String.Compare(Scalar, "true", true) == 0)
+			bool result;
+			if (String.Compare(scalar, "true", true) == 0)
 			{
-				Result = true;
+				result = true;
 			}
-			else if(String.Compare(Scalar, "false", true) == 0)
+			else if (String.Compare(scalar, "false", true) == 0)
 			{
-				Result = false;
+				result = false;
 			}
 			else
 			{
-				throw new BgConditionException("Token '{0}' cannot be coerced to a bool", Scalar);
+				throw new BgConditionException("Token '{0}' cannot be coerced to a bool", scalar);
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
 		/// Converts a scalar to a boolean value.
 		/// </summary>
-		/// <param name="Scalar">The scalar to convert</param>
+		/// <param name="scalar">The scalar to convert</param>
 		/// <returns>The scalar converted to an integer value.</returns>
-		static int CoerceToInteger(string Scalar)
+		static int CoerceToInteger(string scalar)
 		{
-			int Value;
-			if(!Int32.TryParse(Scalar, out Value))
+			int value;
+			if (!Int32.TryParse(scalar, out value))
 			{
-				throw new BgConditionException("Token '{0}' cannot be coerced to an integer", Scalar);
+				throw new BgConditionException("Token '{0}' cannot be coerced to an integer", scalar);
 			}
-			return Value;
+			return value;
 		}
 
 		/// <summary>
 		/// Splits an input string up into expression tokens.
 		/// </summary>
-		/// <param name="Text">Text to be converted into tokens</param>
-		/// <param name="Tokens">List to receive a list of tokens</param>
-		static void Tokenize(string Text, List<string> Tokens)
+		/// <param name="text">Text to be converted into tokens</param>
+		/// <param name="tokens">List to receive a list of tokens</param>
+		static void Tokenize(string text, List<string> tokens)
 		{
-			int Idx = 0;
-			while(Idx < Text.Length)
+			int idx = 0;
+			while (idx < text.Length)
 			{
-				int EndIdx = Idx + 1;
-				if(!Char.IsWhiteSpace(Text[Idx]))
+				int endIdx = idx + 1;
+				if (!Char.IsWhiteSpace(text[idx]))
 				{
 					// Scan to the end of the current token
-					if(Char.IsNumber(Text[Idx]))
+					if (Char.IsNumber(text[idx]))
 					{
 						// Number
-						while(EndIdx < Text.Length && Char.IsNumber(Text[EndIdx]))
+						while (endIdx < text.Length && Char.IsNumber(text[endIdx]))
 						{
-							EndIdx++;
+							endIdx++;
 						}
 					}
-					else if(Char.IsLetter(Text[Idx]) || Text[Idx] == '_')
+					else if (Char.IsLetter(text[idx]) || text[idx] == '_')
 					{
 						// Identifier
-						while(EndIdx < Text.Length && (Char.IsLetterOrDigit(Text[EndIdx]) || Text[EndIdx] == '_'))
+						while (endIdx < text.Length && (Char.IsLetterOrDigit(text[endIdx]) || text[endIdx] == '_'))
 						{
-							EndIdx++;
+							endIdx++;
 						}
 					}
-					else if(Text[Idx] == '!' || Text[Idx] == '<' || Text[Idx] == '>' || Text[Idx] == '=')
+					else if (text[idx] == '!' || text[idx] == '<' || text[idx] == '>' || text[idx] == '=')
 					{
 						// Operator that can be followed by an equals character
-						if(EndIdx < Text.Length && Text[EndIdx] == '=')
+						if (endIdx < text.Length && text[endIdx] == '=')
 						{
-							EndIdx++;
+							endIdx++;
 						}
 					}
-					else if(Text[Idx] == '\'' || Text[Idx] == '\"')
+					else if (text[idx] == '\'' || text[idx] == '\"')
 					{
 						// String
-						if(EndIdx < Text.Length)
+						if (endIdx < text.Length)
 						{
-							EndIdx++;
-							while(EndIdx < Text.Length && Text[EndIdx - 1] != Text[Idx]) EndIdx++;
+							endIdx++;
+							while (endIdx < text.Length && text[endIdx - 1] != text[idx]) endIdx++;
 						}
 					}
-					Tokens.Add(Text.Substring(Idx, EndIdx - Idx));
+					tokens.Add(text.Substring(idx, endIdx - idx));
 				}
-				Idx = EndIdx;
+				idx = endIdx;
 			}
-			Tokens.Add(EndToken);
+			tokens.Add(EndToken);
 		}
 
 		/// <summary>
@@ -514,12 +513,12 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Helper method to evaluate a condition and check it's the expected result
 		/// </summary>
-		/// <param name="Condition">Condition to evaluate</param>
-		/// <param name="ExpectedResult">The expected result</param>
-		static async Task TestConditionAsync(string Condition, bool ExpectedResult)
+		/// <param name="condition">Condition to evaluate</param>
+		/// <param name="expectedResult">The expected result</param>
+		static async Task TestConditionAsync(string condition, bool expectedResult)
 		{
-			bool Result = await new BgCondition(Condition, null!).EvaluateAsync();
-			Console.WriteLine("{0}: {1} = {2}", (Result == ExpectedResult)? "PASS" : "FAIL", Condition, Result);
+			bool result = await new BgCondition(condition, null!).EvaluateAsync();
+			Console.WriteLine("{0}: {1} = {2}", (result == expectedResult) ? "PASS" : "FAIL", condition, result);
 		}
 	}
 }

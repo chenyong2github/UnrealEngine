@@ -1,21 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.BuildGraph;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Xml;
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
-using OpenTracing;
-using OpenTracing.Util;
-using System.Threading.Tasks;
-using System.Diagnostics.Contracts;
 
 namespace EpicGames.BuildGraph.Expressions
 {
@@ -47,69 +34,69 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Implicit conversion operator from a single value
 		/// </summary>
-		public static implicit operator BgList<T>(T Value) => new BgListConstantExpr<T>(new[] { Value });
+		public static implicit operator BgList<T>(T value) => new BgListConstantExpr<T>(new[] { value });
 
 		/// <summary>
 		/// Implicit conversion operator from an array of values
 		/// </summary>
-		public static implicit operator BgList<T>(T[] Value) => new BgListConstantExpr<T>(Value);
+		public static implicit operator BgList<T>(T[] value) => new BgListConstantExpr<T>(value);
 
 		/// <summary>
 		/// Implicit conversion operator from a list of values
 		/// </summary>
-		public static implicit operator BgList<T>(List<T> Value) => new BgListConstantExpr<T>(Value);
+		public static implicit operator BgList<T>(List<T> value) => new BgListConstantExpr<T>(value);
 
 		/// <summary>
 		/// Crates a list from an array of values
 		/// </summary>
-		/// <param name="Items">Sequence to construct from</param>
+		/// <param name="items">Sequence to construct from</param>
 		/// <returns></returns>
-		public static BgList<T> Create(IEnumerable<T> Items) => new BgListConstantExpr<T>(Items);
+		public static BgList<T> Create(IEnumerable<T> items) => new BgListConstantExpr<T>(items);
 
 		/// <summary>
 		/// Crates a list from an array of values
 		/// </summary>
-		/// <param name="Items">Sequence to construct from</param>
+		/// <param name="items">Sequence to construct from</param>
 		/// <returns></returns>
-		public static BgList<T> Create(params T[] Items) => new BgListConstantExpr<T>(Items);
+		public static BgList<T> Create(params T[] items) => new BgListConstantExpr<T>(items);
 
 		/// <summary>
 		/// Concatenates mutiple lists together
 		/// </summary>
-		/// <param name="Sources"></param>
+		/// <param name="sources"></param>
 		/// <returns></returns>
-		public static BgList<T> Concat(params BgList<T>[] Sources) => new BgListConcatExpr<T>(Sources);
+		public static BgList<T> Concat(params BgList<T>[] sources) => new BgListConcatExpr<T>(sources);
 
 		/// <summary>
 		/// Adds items to the end of the list, returning the new list
 		/// </summary>
-		/// <param name="Items">Items to add</param>
+		/// <param name="items">Items to add</param>
 		/// <returns>New list containing the given items</returns>
-		public BgList<T> Add(params T[] Items) => new BgListConcatExpr<T>(this, Items);
+		public BgList<T> Add(params T[] items) => new BgListConcatExpr<T>(this, items);
 
 		/// <inheritdoc cref="Add(T[])"/>
-		public BgList<T> Add(params BgList<T>[] Items) => new BgListConcatExpr<T>(this, Items);
+		public BgList<T> Add(params BgList<T>[] items) => new BgListConcatExpr<T>(this, items);
 
 		/// <inheritdoc cref="Add(T[])"/>
-		public BgList<T> AddIf(BgBool Condition, params T[] Items) => IfThen(Condition, Add(Items));
+		public BgList<T> AddIf(BgBool condition, params T[] items) => IfThen(condition, Add(items));
 
 		/// <inheritdoc cref="Add(T[])"/>
-		public BgList<T> AddIf(BgBool Condition, params BgList<T>[] Items) => IfThen(Condition, Add(Items));
+		public BgList<T> AddIf(BgBool condition, params BgList<T>[] items) => IfThen(condition, Add(items));
 
 		/// <summary>
 		/// Removes the given items from this list
 		/// </summary>
-		/// <param name="Items">Items to remove</param>
+		/// <param name="items">Items to remove</param>
 		/// <returns>New list without the given items</returns>
-		public BgList<T> Except(BgList<T> Items) => new BgListExceptExpr<T>(this, Items);
+		public BgList<T> Except(BgList<T> items) => new BgListExceptExpr<T>(this, items);
 
 		/// <summary>
 		/// Removes the given items from this list
 		/// </summary>
-		/// <param name="Condition">Condition to remove the items</param>
-		/// <param name="Items">Items to remove</param>
+		/// <param name="condition">Condition to remove the items</param>
+		/// <param name="items">Items to remove</param>
 		/// <returns>New list without the given items</returns>
-		public BgList<T> ExceptIf(BgBool Condition, BgList<T> Items) => IfThen(Condition, Except(Items));
+		public BgList<T> ExceptIf(BgBool condition, BgList<T> items) => IfThen(condition, Except(items));
 
 		/// <summary>
 		/// Removes any duplicate items from the list. The first item in the list is retained in its original order.
@@ -118,22 +105,22 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgList<T> Distinct() => new BgListDistinctExpr<T>(this);
 
 		/// <inheritdoc cref="Enumerable.Select{TSource, TResult}(IEnumerable{TSource}, Func{TSource, TResult})"/>
-		public BgList<TResult> Select<TResult>(Func<T, TResult> Function) where TResult : IBgExpr<TResult> => new BgListSelectExpr<T, TResult>(this, Function);
+		public BgList<TResult> Select<TResult>(Func<T, TResult> function) where TResult : IBgExpr<TResult> => new BgListSelectExpr<T, TResult>(this, function);
 
 		/// <inheritdoc cref="Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>
-		public BgList<T> Where(Func<T, BgBool> Predicate) => new BgListWhereExpr<T>(this, Predicate);
+		public BgList<T> Where(Func<T, BgBool> predicate) => new BgListWhereExpr<T>(this, predicate);
 
 		/// <inheritdoc cref="Enumerable.Contains{TSource}(IEnumerable{TSource}, TSource)"/>
-		public BgBool Contains(T Item) => new BgListContainsExpr<T>(this, Item);
+		public BgBool Contains(T item) => new BgListContainsExpr<T>(this, item);
 
 		/// <inheritdoc/>
-		object IBgExpr.Compute(BgExprContext Context) => GetEnumerable(Context);
+		object IBgExpr.Compute(BgExprContext context) => GetEnumerable(context);
 
 		/// <inheritdoc/>
-		public abstract IEnumerable<T> GetEnumerable(BgExprContext Context);
+		public abstract IEnumerable<T> GetEnumerable(BgExprContext context);
 
 		/// <inheritdoc/>
-		public BgList<T> IfThen(BgBool Condition, BgList<T> ValueIfTrue) => new BgListChooseExpr<T>(Condition, ValueIfTrue, this);
+		public BgList<T> IfThen(BgBool condition, BgList<T> valueIfTrue) => new BgListChooseExpr<T>(condition, valueIfTrue, this);
 
 		/// <inheritdoc/>
 		public BgString ToBgString() => new BgListFormatExpr<T>(this);
@@ -145,23 +132,23 @@ namespace EpicGames.BuildGraph.Expressions
 	class BgListType<T> : BgTypeBase<BgList<T>> where T : IBgExpr<T>
 	{
 		/// <inheritdoc/>
-		public override BgList<T> DeserializeArgument(string Text)
+		public override BgList<T> DeserializeArgument(string text)
 		{
-			IBgType<T> Converter = BgType.Get<T>();
-			return BgList<T>.Create(Text.Split(';').Select(x => Converter.DeserializeArgument(x)));
+			IBgType<T> converter = BgType.Get<T>();
+			return BgList<T>.Create(text.Split(';').Select(x => converter.DeserializeArgument(x)));
 		}
 
 		/// <inheritdoc/>
-		public override string SerializeArgument(BgList<T> Value, BgExprContext Context)
+		public override string SerializeArgument(BgList<T> value, BgExprContext context)
 		{
-			IBgType<T> Converter = BgType.Get<T>();
-			return String.Join(";", Value.GetEnumerable(Context).Select(x => Converter.SerializeArgument(x, Context)));
+			IBgType<T> converter = BgType.Get<T>();
+			return String.Join(";", value.GetEnumerable(context).Select(x => converter.SerializeArgument(x, context)));
 		}
 
 		/// <inheritdoc/>
-		public override BgList<T> CreateConstant(object Value)
+		public override BgList<T> CreateConstant(object value)
 		{
-			return new BgListConstantExpr<T>((IEnumerable<T>)Value);
+			return new BgListConstantExpr<T>((IEnumerable<T>)value);
 		}
 
 		/// <inheritdoc/>
@@ -176,19 +163,19 @@ namespace EpicGames.BuildGraph.Expressions
 	/// </summary>
 	public static class BgListExtensions
 	{
-		internal static List<string> Compute(this BgList<BgString> List, BgExprContext Context)
+		internal static List<string> Compute(this BgList<BgString> list, BgExprContext context)
 		{
-			return List.GetEnumerable(Context).Select(x => x.Compute(Context)).ToList();
+			return list.GetEnumerable(context).Select(x => x.Compute(context)).ToList();
 		}
 
-		internal static List<BgFileSet> Compute(this BgList<BgFileSet> List, BgExprContext Context)
+		internal static List<BgFileSet> Compute(this BgList<BgFileSet> list, BgExprContext context)
 		{
-			return List.GetEnumerable(Context).Select(x => x.Compute(Context)).ToList();
+			return list.GetEnumerable(context).Select(x => x.Compute(context)).ToList();
 		}
 
-		internal static List<string> ComputeTags(this BgList<BgFileSet> List, BgExprContext Context)
+		internal static List<string> ComputeTags(this BgList<BgFileSet> list, BgExprContext context)
 		{
-			return List.GetEnumerable(Context).Select(x => x.ComputeTag(Context)).ToList();
+			return list.GetEnumerable(context).Select(x => x.ComputeTag(context)).ToList();
 		}
 	}
 
@@ -196,93 +183,91 @@ namespace EpicGames.BuildGraph.Expressions
 
 	class BgListConcatExpr<T> : BgList<T> where T : IBgExpr<T>
 	{
-		public BgList<T>[] Sources;
+		public BgList<T>[] Sources { get; }
 
-		public BgListConcatExpr(params BgList<T>[] Sources)
+		public BgListConcatExpr(params BgList<T>[] sources)
 		{
-			this.Sources = Sources;
+			Sources = sources;
 		}
 
-		public BgListConcatExpr(BgList<T> FirstSource, BgList<T>[] OtherSources)
+		public BgListConcatExpr(BgList<T> firstSource, BgList<T>[] otherSources)
 		{
-			Sources = new BgList<T>[OtherSources.Length + 1];
-			Sources[0] = FirstSource;
-			Array.Copy(OtherSources, 0, Sources, 1, OtherSources.Length);
+			Sources = new BgList<T>[otherSources.Length + 1];
+			Sources[0] = firstSource;
+			Array.Copy(otherSources, 0, Sources, 1, otherSources.Length);
 		}
 
-		public override IEnumerable<T> GetEnumerable(BgExprContext Context)
+		public override IEnumerable<T> GetEnumerable(BgExprContext context)
 		{
-			return Sources.SelectMany(x => x.GetEnumerable(Context));
+			return Sources.SelectMany(x => x.GetEnumerable(context));
 		}
 	}
 
 	class BgListChooseExpr<T> : BgList<T> where T : IBgExpr<T>
 	{
-		public BgBool Condition;
-		public BgList<T> ValueIfTrue;
-		public BgList<T> ValueIfFalse;
+		public BgBool Condition { get; }
+		public BgList<T> ValueIfTrue { get; }
+		public BgList<T> ValueIfFalse { get; }
 
-		public BgListChooseExpr(BgBool Condition, BgList<T> ValueIfTrue, BgList<T> ValueIfFalse)
+		public BgListChooseExpr(BgBool condition, BgList<T> valueIfTrue, BgList<T> valueIfFalse)
 		{
-			this.Condition = Condition;
-			this.ValueIfTrue = ValueIfTrue;
-			this.ValueIfFalse = ValueIfFalse;
+			Condition = condition;
+			ValueIfTrue = valueIfTrue;
+			ValueIfFalse = valueIfFalse;
 		}
 
-		public override IEnumerable<T> GetEnumerable(BgExprContext Context) => Condition.Compute(Context) ? ValueIfTrue.GetEnumerable(Context) : ValueIfFalse.GetEnumerable(Context);
+		public override IEnumerable<T> GetEnumerable(BgExprContext context) => Condition.Compute(context) ? ValueIfTrue.GetEnumerable(context) : ValueIfFalse.GetEnumerable(context);
 	}
 
 	class BgListConstantExpr<T> : BgList<T> where T : IBgExpr<T>
 	{
 		public IEnumerable<T> Value { get; }
 
-		public BgListConstantExpr(IEnumerable<T> Value)
+		public BgListConstantExpr(IEnumerable<T> value)
 		{
-			this.Value = Value;
+			Value = value;
 		}
 
-		public override IEnumerable<T> GetEnumerable(BgExprContext Context) => Value;
+		public override IEnumerable<T> GetEnumerable(BgExprContext context) => Value;
 	}
 
 	class BgListFormatExpr<T> : BgString where T : IBgExpr<T>
 	{
-		public BgList<T> Inner;
+		public BgList<T> Inner { get; }
 
-		public BgListFormatExpr(BgList<T> Inner)
+		public BgListFormatExpr(BgList<T> inner)
 		{
-			this.Inner = Inner;
+			Inner = inner;
 		}
 
-		public override string Compute(BgExprContext Context) => String.Join(";", Inner.GetEnumerable(Context).Select(x => x.ToBgString().Compute(Context)));
+		public override string Compute(BgExprContext context) => String.Join(";", Inner.GetEnumerable(context).Select(x => x.ToBgString().Compute(context)));
 	}
 
 	class BgListVariableExpr<T> : BgList<T>, IBgExprVariable<BgList<T>> where T : IBgExpr<T>
 	{
 		public BgList<T> Value { get; set; } = BgList<T>.Empty;
 
-		public override IEnumerable<T> GetEnumerable(BgExprContext Context) => Value.GetEnumerable(Context);
+		public override IEnumerable<T> GetEnumerable(BgExprContext context) => Value.GetEnumerable(context);
 	}
 
 	class BgListDistinctExpr<T> : BgList<T> where T : IBgExpr<T>
 	{
-		BgList<T> Source;
+		public BgList<T> Source { get; }
 
-		public BgListDistinctExpr(BgList<T> Source)
+		public BgListDistinctExpr(BgList<T> source)
 		{
-			this.Source = Source;
+			Source = source;
 		}
 
-		public override IEnumerable<T> GetEnumerable(BgExprContext Context)
+		public override IEnumerable<T> GetEnumerable(BgExprContext context)
 		{
-			IBgType<T> Type = BgType.Get<T>();
-
-			HashSet<object> Values = new HashSet<object>();
-			foreach (T Item in Source.GetEnumerable(Context))
+			HashSet<object> values = new HashSet<object>();
+			foreach (T item in Source.GetEnumerable(context))
 			{
-				object ItemValue = Item.Compute(Context);
-				if (Values.Add(ItemValue))
+				object itemValue = item.Compute(context);
+				if (values.Add(itemValue))
 				{
-					yield return Item;
+					yield return item;
 				}
 			}
 		}
@@ -290,25 +275,25 @@ namespace EpicGames.BuildGraph.Expressions
 
 	class BgFunc<TIn, TOut> where TIn : IBgExpr<TIn> where TOut : IBgExpr<TOut>
 	{
-		IBgExprVariable<TIn> ArgVar;
-		IBgExpr<TOut> FuncExpr;
+		public IBgExprVariable<TIn> ArgVar { get; }
+		public IBgExpr<TOut> FuncExpr { get; }
 
-		public BgFunc(IBgExprVariable<TIn> ArgVar, IBgExpr<TOut> FuncExpr)
+		public BgFunc(IBgExprVariable<TIn> argVar, IBgExpr<TOut> funcExpr)
 		{
-			this.ArgVar = ArgVar;
-			this.FuncExpr = FuncExpr;
+			ArgVar = argVar;
+			FuncExpr = funcExpr;
 		}
 
-		public static implicit operator BgFunc<TIn, TOut>(Func<TIn, TOut> Function)
+		public static implicit operator BgFunc<TIn, TOut>(Func<TIn, TOut> function)
 		{
-			IBgExprVariable<TIn> ArgVar = BgType.Get<TIn>().CreateVariable();
-			return new BgFunc<TIn, TOut>(ArgVar, Function((TIn)ArgVar));
+			IBgExprVariable<TIn> argVar = BgType.Get<TIn>().CreateVariable();
+			return new BgFunc<TIn, TOut>(argVar, function((TIn)argVar));
 		}
 
-		public object Compute(BgExprContext Context, TIn Argument)
+		public object Compute(BgExprContext context, TIn argument)
 		{
-			ArgVar.Value = Argument;
-			return FuncExpr.Compute(Context);
+			ArgVar.Value = argument;
+			return FuncExpr.Compute(context);
 		}
 
 		public BgString ToBgString()
@@ -319,61 +304,61 @@ namespace EpicGames.BuildGraph.Expressions
 
 	class BgListSelectExpr<TIn, TOut> : BgList<TOut> where TIn : IBgExpr<TIn> where TOut : IBgExpr<TOut>
 	{
-		BgList<TIn> Source;
-		BgFunc<TIn, TOut> Function;
+		public BgList<TIn> Source { get; }
+		public BgFunc<TIn, TOut> Function { get; }
 
-		public BgListSelectExpr(BgList<TIn> Source, BgFunc<TIn, TOut> Function)
+		public BgListSelectExpr(BgList<TIn> source, BgFunc<TIn, TOut> function)
 		{
-			this.Source = Source;
-			this.Function = Function;
+			Source = source;
+			Function = function;
 		}
 
-		public override IEnumerable<TOut> GetEnumerable(BgExprContext Context)
+		public override IEnumerable<TOut> GetEnumerable(BgExprContext context)
 		{
-			return Source.GetEnumerable(Context).Select(x => (TOut)Function.Compute(Context, x));
+			return Source.GetEnumerable(context).Select(x => (TOut)Function.Compute(context, x));
 		}
 	}
 
 	class BgListWhereExpr<T> : BgList<T> where T : IBgExpr<T>
 	{
-		BgList<T> Source;
-		BgFunc<T, BgBool> Predicate;
+		public BgList<T> Source { get; }
+		public BgFunc<T, BgBool> Predicate { get; }
 
-		public BgListWhereExpr(BgList<T> Source, BgFunc<T, BgBool> Predicate)
+		public BgListWhereExpr(BgList<T> source, BgFunc<T, BgBool> predicate)
 		{
-			this.Source = Source;
-			this.Predicate = Predicate;
+			Source = source;
+			Predicate = predicate;
 		}
 
-		public override IEnumerable<T> GetEnumerable(BgExprContext Context)
+		public override IEnumerable<T> GetEnumerable(BgExprContext context)
 		{
-			return Source.GetEnumerable(Context).Where(x => (bool)Predicate.Compute(Context, x));
+			return Source.GetEnumerable(context).Where(x => (bool)Predicate.Compute(context, x));
 		}
 	}
 
 	class BgListExceptExpr<T> : BgList<T> where T : IBgExpr<T>
 	{
-		BgList<T> SourceList;
-		BgList<T> ExceptList;
+		public BgList<T> SourceList { get; }
+		public BgList<T> ExceptList { get; }
 
-		public BgListExceptExpr(BgList<T> Source, BgList<T> Except)
+		public BgListExceptExpr(BgList<T> source, BgList<T> except)
 		{
-			this.SourceList = Source;
-			this.ExceptList = Except;
+			SourceList = source;
+			ExceptList = except;
 		}
 
-		public override IEnumerable<T> GetEnumerable(BgExprContext Context)
+		public override IEnumerable<T> GetEnumerable(BgExprContext context)
 		{
-			HashSet<object> ExceptValues = new HashSet<object>();
-			ExceptValues.UnionWith(ExceptList.GetEnumerable(Context).Select(x => x.Compute(Context)));
+			HashSet<object> exceptValues = new HashSet<object>();
+			exceptValues.UnionWith(ExceptList.GetEnumerable(context).Select(x => x.Compute(context)));
 
-			IBgType<T> Type = BgType.Get<T>();
-			foreach (T SourceItem in SourceList.GetEnumerable(Context))
+			IBgType<T> type = BgType.Get<T>();
+			foreach (T sourceItem in SourceList.GetEnumerable(context))
 			{
-				object SourceValue = SourceItem.Compute(Context);
-				if (!ExceptValues.Contains(SourceValue))
+				object sourceValue = sourceItem.Compute(context);
+				if (!exceptValues.Contains(sourceValue))
 				{
-					yield return Type.CreateConstant(SourceValue);
+					yield return type.CreateConstant(sourceValue);
 				}
 			}
 		}
@@ -381,19 +366,19 @@ namespace EpicGames.BuildGraph.Expressions
 
 	class BgListContainsExpr<T> : BgBool where T : IBgExpr<T>
 	{
-		BgList<T> Source;
-		T Item;
+		public BgList<T> Source { get; }
+		public T Item { get; }
 
-		public BgListContainsExpr(BgList<T> Source, T Item)
+		public BgListContainsExpr(BgList<T> source, T item)
 		{
-			this.Source = Source;
-			this.Item = Item;
+			Source = source;
+			Item = item;
 		}
 
-		public override bool Compute(BgExprContext Context)
+		public override bool Compute(BgExprContext context)
 		{
-			object Value = Item.Compute(Context);
-			return Source.GetEnumerable(Context).Any(x => x.Compute(Context).Equals(Value));
+			object value = Item.Compute(context);
+			return Source.GetEnumerable(context).Any(x => x.Compute(context).Equals(value));
 		}
 	}
 

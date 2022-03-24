@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace EpicGames.BuildGraph
 {
 	/// <summary>
@@ -14,29 +10,29 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Name of this option
 		/// </summary>
-		public string Name;
+		public string Name { get; }
 
 		/// <summary>
 		/// Description for this option
 		/// </summary>
-		public string Description;
+		public string Description { get; }
 
 		/// <summary>
 		/// Default value for this option
 		/// </summary>
-		public string DefaultValue;
+		public string DefaultValue { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">The name of this option</param>
-		/// <param name="Description">Description of the option, for display on help pages</param>
-		/// <param name="DefaultValue">Default value for the option</param>
-		public BgOption(string Name, string Description, string DefaultValue)
+		/// <param name="name">The name of this option</param>
+		/// <param name="description">Description of the option, for display on help pages</param>
+		/// <param name="defaultValue">Default value for the option</param>
+		public BgOption(string name, string description, string defaultValue)
 		{
-			this.Name = Name;
-			this.Description = Description;
-			this.DefaultValue = DefaultValue;
+			Name = name;
+			Description = description;
+			DefaultValue = defaultValue;
 		}
 
 		/// <summary>

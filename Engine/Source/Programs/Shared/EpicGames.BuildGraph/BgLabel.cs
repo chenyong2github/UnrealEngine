@@ -2,9 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.BuildGraph
 {
@@ -53,33 +50,33 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Which change to show the badge for
 		/// </summary>
-		public readonly BgLabelChange Change;
+		public BgLabelChange Change { get; }
 
 		/// <summary>
 		/// Set of nodes that must be run for this label to be shown.
 		/// </summary>
-		public HashSet<BgNode> RequiredNodes = new HashSet<BgNode>();
+		public HashSet<BgNode> RequiredNodes { get; } = new HashSet<BgNode>();
 
 		/// <summary>
 		/// Set of nodes that will be included in this label if present.
 		/// </summary>
-		public HashSet<BgNode> IncludedNodes = new HashSet<BgNode>();
+		public HashSet<BgNode> IncludedNodes { get; } = new HashSet<BgNode>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="InDashboardName">Name of this label</param>
-		/// <param name="InDashboardCategory">Type of this label</param>
-		/// <param name="InUgsBadge">The UGS badge name</param>
-		/// <param name="InUgsProject">Project to display this badge for</param>
-		/// <param name="InChange">The change to show this badge on in UGS</param>
-		public BgLabel(string? InDashboardName, string? InDashboardCategory, string? InUgsBadge, string? InUgsProject, BgLabelChange InChange)
+		/// <param name="inDashboardName">Name of this label</param>
+		/// <param name="inDashboardCategory">Type of this label</param>
+		/// <param name="inUgsBadge">The UGS badge name</param>
+		/// <param name="inUgsProject">Project to display this badge for</param>
+		/// <param name="inChange">The change to show this badge on in UGS</param>
+		public BgLabel(string? inDashboardName, string? inDashboardCategory, string? inUgsBadge, string? inUgsProject, BgLabelChange inChange)
 		{
-			DashboardName = InDashboardName;
-			DashboardCategory = InDashboardCategory;
-			UgsBadge = InUgsBadge;
-			UgsProject = InUgsProject;
-			Change = InChange;
+			DashboardName = inDashboardName;
+			DashboardCategory = inDashboardCategory;
+			UgsBadge = inUgsBadge;
+			UgsProject = inUgsProject;
+			Change = inChange;
 		}
 
 		/// <summary>

@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.BuildGraph.Expressions;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
+using EpicGames.BuildGraph.Expressions;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.BuildGraph
 {
@@ -30,19 +27,19 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Add agent types to the agent definition
 		/// </summary>
-		public BgAgentConfig AddTypes(params BgString[] TypeNames)
+		public BgAgentConfig AddTypes(params BgString[] typeNames)
 		{
-			Types = Types.Add(TypeNames);
+			Types = Types.Add(typeNames);
 			return this;
 		}
 
 		/// <summary>
 		/// Check that a certain condition is true before executing the node
 		/// </summary>
-		public BgAgentConfig Check(BgBool Condition, LogLevel Level, BgString Message)
+		public BgAgentConfig Check(BgBool condition, LogLevel level, BgString message)
 		{
-			BgDiagnosticSpec Diagnostic = new BgDiagnosticSpec(Level, Message);
-			Diagnostics = Diagnostics.AddIf(Condition, Diagnostic);
+			BgDiagnosticSpec diagnostic = new BgDiagnosticSpec(level, message);
+			Diagnostics = Diagnostics.AddIf(condition, diagnostic);
 			return this;
 		}
 	}
@@ -75,84 +72,84 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Private constructor. Use <see cref="BgGraphSpec.AddAgent(BgString)"/> to construct an agent
 		/// </summary>
-		/// <param name="Name"></param>
-		internal BgAgentSpec(BgString Name)
+		/// <param name="name"></param>
+		internal BgAgentSpec(BgString name)
 		{
-			this.Name = Name;
+			Name = name;
 		}
 
 		/// <summary>
 		/// Adds a node to be executed on this agent
 		/// </summary>
-		/// <param name="Function">Lambda expression which calls a static method to be used for this node</param>
+		/// <param name="function">Lambda expression which calls a static method to be used for this node</param>
 		/// <returns>New node spec instance</returns>
-		public BgNodeSpec AddNode(Expression<Func<BgContext, Task>> Function)
+		public BgNodeSpec AddNode(Expression<Func<BgContext, Task>> function)
 		{
-			BgNodeSpec NodeSpec = BgNodeSpec.Create(Function);
-			NodeSpecs.Add(NodeSpec);
-			return NodeSpec;
+			BgNodeSpec nodeSpec = BgNodeSpec.Create(function);
+			NodeSpecs.Add(nodeSpec);
+			return nodeSpec;
 		}
 
 		/// <summary>
 		/// Adds a node to be executed on this agent
 		/// </summary>
-		/// <param name="Function">Lambda expression which calls a static method to be used for this node</param>
+		/// <param name="function">Lambda expression which calls a static method to be used for this node</param>
 		/// <returns>New node spec instance</returns>
-		public BgNodeSpec<T> AddNode<T>(Expression<Func<BgContext, Task<T>>> Function)
+		public BgNodeSpec<T> AddNode<T>(Expression<Func<BgContext, Task<T>>> function)
 		{
-			BgNodeSpec<T> NodeSpec = BgNodeSpec.Create<T>(Function);
-			NodeSpecs.Add(NodeSpec);
-			return NodeSpec;
+			BgNodeSpec<T> nodeSpec = BgNodeSpec.Create<T>(function);
+			NodeSpecs.Add(nodeSpec);
+			return nodeSpec;
 		}
 
 		/// <summary>
 		/// Add agent types to the agent definition
 		/// </summary>
-		public BgAgentSpec Type(params BgString[] NewTypeNames)
+		public BgAgentSpec Type(params BgString[] newTypeNames)
 		{
-			TypeNames = TypeNames.Add(NewTypeNames);
+			TypeNames = TypeNames.Add(newTypeNames);
 			return this;
 		}
 
 		/// <summary>
 		/// Check that a certain condition is true before executing the node
 		/// </summary>
-		public BgAgentSpec WarnIf(BgBool Condition, BgString Message)
+		public BgAgentSpec WarnIf(BgBool condition, BgString message)
 		{
-			BgDiagnosticSpec Diagnostic = new BgDiagnosticSpec(LogLevel.Warning, Message);
-			Diagnostics = Diagnostics.AddIf(Condition, Diagnostic);
+			BgDiagnosticSpec diagnostic = new BgDiagnosticSpec(LogLevel.Warning, message);
+			Diagnostics = Diagnostics.AddIf(condition, diagnostic);
 			return this;
 		}
 
 		/// <summary>
 		/// Check that a certain condition is true before executing the node
 		/// </summary>
-		public BgAgentSpec ErrorIf(BgBool Condition, BgString Message)
+		public BgAgentSpec ErrorIf(BgBool condition, BgString message)
 		{
-			BgDiagnosticSpec Diagnostic = new BgDiagnosticSpec(LogLevel.Error, Message);
-			Diagnostics = Diagnostics.AddIf(Condition, Diagnostic);
+			BgDiagnosticSpec diagnostic = new BgDiagnosticSpec(LogLevel.Error, message);
+			Diagnostics = Diagnostics.AddIf(condition, diagnostic);
 			return this;
 		}
 
 		/// <summary>
 		/// Creates a concrete <see cref="BgAgent"/> object from the specification
 		/// </summary>
-		public void AddToGraph(BgExprContext Context, BgGraph Graph)
+		public void AddToGraph(BgExprContext context, BgGraph graph)
 		{
-			string[] Types = TypeNames.Compute(Context).ToArray();
+			string[] types = TypeNames.Compute(context).ToArray();
 
-			BgAgent Agent = new BgAgent(Name.Compute(Context), Types);
-			Graph.NameToAgent.Add(Agent.Name, Agent);
-			Graph.Agents.Add(Agent);
+			BgAgent agent = new BgAgent(Name.Compute(context), types);
+			graph.NameToAgent.Add(agent.Name, agent);
+			graph.Agents.Add(agent);
 
-			foreach (BgDiagnosticSpec Precondition in Diagnostics.GetEnumerable(Context))
+			foreach (BgDiagnosticSpec precondition in Diagnostics.GetEnumerable(context))
 			{
-				Precondition.AddToGraph(Context, Graph, Agent, null);
+				precondition.AddToGraph(context, graph, agent, null);
 			}
 
-			foreach (BgNodeSpec NodeSpec in NodeSpecs)
+			foreach (BgNodeSpec nodeSpec in NodeSpecs)
 			{
-				NodeSpec.AddToGraph(Context, Graph, Agent);
+				nodeSpec.AddToGraph(context, graph, agent);
 			}
 		}
 	}

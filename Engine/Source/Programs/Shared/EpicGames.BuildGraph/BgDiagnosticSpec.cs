@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using EpicGames.BuildGraph.Expressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.BuildGraph
 {
@@ -17,39 +15,39 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Verbosity to output the message at
 		/// </summary>
-		public LogLevel Level;
+		public LogLevel Level { get; }
 
 		/// <summary>
 		/// The message to display
 		/// </summary>
-		public BgString Message;
+		public BgString Message { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Level">Output level</param>
-		/// <param name="Message"></param>
-		public BgDiagnosticSpec(LogLevel Level, BgString Message)
+		/// <param name="level">Output level</param>
+		/// <param name="message"></param>
+		public BgDiagnosticSpec(LogLevel level, BgString message)
 		{
-			this.Level = Level;
-			this.Message = Message;
+			Level = level;
+			Message = message;
 		}
 
 		/// <summary>
 		/// Adds a diagnostic to the graph
 		/// </summary>
-		internal void AddToGraph(BgExprContext Context, BgGraph Graph, BgAgent? EnclosingAgent, BgNode? EnclosingNode)
+		internal void AddToGraph(BgExprContext context, BgGraph graph, BgAgent? enclosingAgent, BgNode? enclosingNode)
 		{
-			BgScriptLocation Location = new BgScriptLocation("(unknown)", "(unknown)", 1);
-			string MessageValue = Message.Compute(Context);
-			Graph.Diagnostics.Add(new BgGraphDiagnostic(Location, (LogEventType)Level, MessageValue, EnclosingNode, EnclosingAgent));
+			BgScriptLocation location = new BgScriptLocation("(unknown)", "(unknown)", 1);
+			string messageValue = Message.Compute(context);
+			graph.Diagnostics.Add(new BgGraphDiagnostic(location, (LogEventType)Level, messageValue, enclosingNode, enclosingAgent));
 		}
 
 		/// <inheritdoc/>
-		public BgDiagnosticSpec IfThen(BgBool Condition, BgDiagnosticSpec ValueIfTrue) => throw new NotImplementedException();
+		public BgDiagnosticSpec IfThen(BgBool condition, BgDiagnosticSpec valueIfTrue) => throw new NotImplementedException();
 
 		/// <inheritdoc/>
-		object IBgExpr.Compute(BgExprContext Context) => this;
+		object IBgExpr.Compute(BgExprContext context) => this;
 
 		/// <inheritdoc/>
 		public BgString ToBgString() => Message;

@@ -1,17 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Xml;
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
-using System.Threading.Tasks;
 
 namespace EpicGames.BuildGraph.Expressions
 {
@@ -32,36 +21,36 @@ namespace EpicGames.BuildGraph.Expressions
 		public static BgBool True { get; } = true;
 
 		/// <inheritdoc/>
-		public BgBool IfThen(BgBool Condition, BgBool ValueIfTrue) => new BgBoolChooseExpr(Condition, ValueIfTrue, this);
+		public BgBool IfThen(BgBool condition, BgBool valueIfTrue) => new BgBoolChooseExpr(condition, valueIfTrue, this);
 
 		/// <summary>
 		/// Implict conversion operator from a boolean literal
 		/// </summary>
-		public static implicit operator BgBool(bool Value)
+		public static implicit operator BgBool(bool value)
 		{
-			return new BgBoolConstantExpr(Value);
+			return new BgBoolConstantExpr(value);
 		}
 
 		/// <inheritdoc/>
-		public static BgBool operator !(BgBool Inner) => new BgBoolNotExpr(Inner);
+		public static BgBool operator !(BgBool inner) => new BgBoolNotExpr(inner);
 
 		/// <inheritdoc/>
-		public static BgBool operator &(BgBool Lhs, BgBool Rhs) => new BgBoolAndExpr(Lhs, Rhs);
+		public static BgBool operator &(BgBool lhs, BgBool rhs) => new BgBoolAndExpr(lhs, rhs);
 
 		/// <inheritdoc/>
-		public static BgBool operator |(BgBool Lhs, BgBool Rhs) => new BgBoolOrExpr(Lhs, Rhs);
+		public static BgBool operator |(BgBool lhs, BgBool rhs) => new BgBoolOrExpr(lhs, rhs);
 
 		/// <inheritdoc/>
-		public static BgBool operator ==(BgBool Lhs, BgBool Rhs) => new BgBoolEqExpr(Lhs, Rhs);
+		public static BgBool operator ==(BgBool lhs, BgBool rhs) => new BgBoolEqExpr(lhs, rhs);
 
 		/// <inheritdoc/>
-		public static BgBool operator !=(BgBool Lhs, BgBool Rhs) => new BgBoolNotExpr(new BgBoolEqExpr(Lhs, Rhs));
+		public static BgBool operator !=(BgBool lhs, BgBool rhs) => new BgBoolNotExpr(new BgBoolEqExpr(lhs, rhs));
 
 		/// <inheritdoc/>
-		object IBgExpr.Compute(BgExprContext Context) => Compute(Context);
+		object IBgExpr.Compute(BgExprContext context) => Compute(context);
 
 		/// <inheritdoc/>
-		public abstract bool Compute(BgExprContext Context);
+		public abstract bool Compute(BgExprContext context);
 
 		/// <inheritdoc/>
 		public sealed override bool Equals(object? obj) => throw new InvalidOperationException();
@@ -79,13 +68,13 @@ namespace EpicGames.BuildGraph.Expressions
 	class BgBoolType : BgTypeBase<BgBool>
 	{
 		/// <inheritdoc/>
-		public override BgBool DeserializeArgument(string Text) => bool.Parse(Text);
+		public override BgBool DeserializeArgument(string text) => bool.Parse(text);
 
 		/// <inheritdoc/>
-		public override string SerializeArgument(BgBool Value, BgExprContext Context) => Value.Compute(Context).ToString();
+		public override string SerializeArgument(BgBool value, BgExprContext context) => value.Compute(context).ToString();
 
 		/// <inheritdoc/>
-		public override BgBool CreateConstant(object Value) => new BgBoolConstantExpr((bool)Value);
+		public override BgBool CreateConstant(object value) => new BgBoolConstantExpr((bool)value);
 
 		/// <inheritdoc/>
 		public override IBgExprVariable<BgBool> CreateVariable() => new BgBoolVariableExpr();
@@ -97,12 +86,12 @@ namespace EpicGames.BuildGraph.Expressions
 	{
 		public BgBool Inner { get; }
 
-		public BgBoolNotExpr(BgBool Inner)
+		public BgBoolNotExpr(BgBool inner)
 		{
-			this.Inner = Inner;
+			Inner = inner;
 		}
 
-		public override bool Compute(BgExprContext Context) => !Inner.Compute(Context);
+		public override bool Compute(BgExprContext context) => !Inner.Compute(context);
 	}
 
 	class BgBoolEqExpr : BgBool
@@ -110,13 +99,13 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgBool Lhs { get; }
 		public BgBool Rhs { get; }
 
-		public BgBoolEqExpr(BgBool Lhs, BgBool Rhs)
+		public BgBoolEqExpr(BgBool lhs, BgBool rhs)
 		{
-			this.Lhs = Lhs;
-			this.Rhs = Rhs;
+			Lhs = lhs;
+			Rhs = rhs;
 		}
 
-		public override bool Compute(BgExprContext Context) => Lhs.Compute(Context) == Rhs.Compute(Context);
+		public override bool Compute(BgExprContext context) => Lhs.Compute(context) == Rhs.Compute(context);
 	}
 
 	class BgBoolAndExpr : BgBool
@@ -124,13 +113,13 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgBool Lhs { get; }
 		public BgBool Rhs { get; }
 
-		public BgBoolAndExpr(BgBool Lhs, BgBool Rhs)
+		public BgBoolAndExpr(BgBool lhs, BgBool rhs)
 		{
-			this.Lhs = Lhs;
-			this.Rhs = Rhs;
+			Lhs = lhs;
+			Rhs = rhs;
 		}
 
-		public override bool Compute(BgExprContext Context) => Lhs.Compute(Context) && Rhs.Compute(Context);
+		public override bool Compute(BgExprContext context) => Lhs.Compute(context) && Rhs.Compute(context);
 	}
 
 	class BgBoolOrExpr : BgBool
@@ -138,60 +127,60 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgBool Lhs { get; }
 		public BgBool Rhs { get; }
 
-		public BgBoolOrExpr(BgBool Lhs, BgBool Rhs)
+		public BgBoolOrExpr(BgBool lhs, BgBool rhs)
 		{
-			this.Lhs = Lhs;
-			this.Rhs = Rhs;
+			Lhs = lhs;
+			Rhs = rhs;
 		}
 
-		public override bool Compute(BgExprContext Context) => Lhs.Compute(Context) || Rhs.Compute(Context);
+		public override bool Compute(BgExprContext context) => Lhs.Compute(context) || Rhs.Compute(context);
 	}
 
 	class BgBoolChooseExpr : BgBool
 	{
-		public BgBool Condition;
-		public BgBool ValueIfTrue;
-		public BgBool ValueIfFalse;
+		public BgBool Condition { get; }
+		public BgBool ValueIfTrue { get; }
+		public BgBool ValueIfFalse { get; }
 
-		public BgBoolChooseExpr(BgBool Condition, BgBool ValueIfTrue, BgBool ValueIfFalse)
+		public BgBoolChooseExpr(BgBool condition, BgBool valueIfTrue, BgBool valueIfFalse)
 		{
-			this.Condition = Condition;
-			this.ValueIfTrue = ValueIfTrue;
-			this.ValueIfFalse = ValueIfFalse;
+			Condition = condition;
+			ValueIfTrue = valueIfTrue;
+			ValueIfFalse = valueIfFalse;
 		}
 
-		public override bool Compute(BgExprContext Context) => Condition.Compute(Context) ? ValueIfTrue.Compute(Context) : ValueIfFalse.Compute(Context);
+		public override bool Compute(BgExprContext context) => Condition.Compute(context) ? ValueIfTrue.Compute(context) : ValueIfFalse.Compute(context);
 	}
 
 	class BgBoolVariableExpr : BgBool, IBgExprVariable<BgBool>
 	{
 		public BgBool Value { get; set; } = BgBool.False;
 
-		public override bool Compute(BgExprContext Context) => Value.Compute(Context);
+		public override bool Compute(BgExprContext context) => Value.Compute(context);
 	}
 
 	class BgBoolConstantExpr : BgBool
 	{
 		public bool Value { get; }
 
-		public BgBoolConstantExpr(bool Value)
+		public BgBoolConstantExpr(bool value)
 		{
-			this.Value = Value;
+			Value = value;
 		}
 
-		public override bool Compute(BgExprContext Context) => Value;
+		public override bool Compute(BgExprContext context) => Value;
 	}
 
 	class BgBoolFormatExpr : BgString
 	{
-		BgBool Value;
+		public BgBool Value { get; }
 
-		public BgBoolFormatExpr(BgBool Value)
+		public BgBoolFormatExpr(BgBool value)
 		{
-			this.Value = Value;
+			Value = value;
 		}
 
-		public override string Compute(BgExprContext Context) => Value.Compute(Context).ToString();
+		public override string Compute(BgExprContext context) => Value.Compute(context).ToString();
 	}
 
 	#endregion

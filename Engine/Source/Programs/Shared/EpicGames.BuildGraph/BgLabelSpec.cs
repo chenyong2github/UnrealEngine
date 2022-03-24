@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.BuildGraph.Expressions;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using EpicGames.BuildGraph.Expressions;
 
 namespace EpicGames.BuildGraph
 {
@@ -21,32 +19,32 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Category for this label
 		/// </summary>
-		public BgString? DashboardCategory { get; }
+		public BgString? DashboardCategory { get; set; }
 
 		/// <summary>
 		/// Name of the badge in UGS
 		/// </summary>
-		public BgString? UgsBadge { get; }
+		public BgString? UgsBadge { get; set; }
 
 		/// <summary>
 		/// Path to the project folder in UGS
 		/// </summary>
-		public BgString? UgsProject { get; }
+		public BgString? UgsProject { get; set; }
 
 		/// <summary>
 		/// Which change to show the badge for
 		/// </summary>
-		public BgString? Change;
+		public BgString? Change { get; set; }
 
 		/// <summary>
 		/// Set of nodes that must be run for this label to be shown.
 		/// </summary>
-		public BgList<BgFileSet> RequiredNodes = BgList<BgFileSet>.Empty;
+		public BgList<BgFileSet> RequiredNodes { get; set; } = BgList<BgFileSet>.Empty;
 
 		/// <summary>
 		/// Set of nodes that will be included in this label if present.
 		/// </summary>
-		public BgList<BgFileSet> IncludedNodes = BgList<BgFileSet>.Empty;
+		public BgList<BgFileSet> IncludedNodes { get; set; } = BgList<BgFileSet>.Empty;
 	}
 
 	/// <summary>
@@ -54,34 +52,34 @@ namespace EpicGames.BuildGraph
 	/// </summary>
 	public class BgLabelSpec
 	{
-		BgLabelConfig Config { get; }
+		private readonly BgLabelConfig _config;
 
-		internal BgLabelSpec(BgLabelConfig Config)
+		internal BgLabelSpec(BgLabelConfig config)
 		{
-			this.Config = Config;
+			_config = config;
 		}
 
-		internal void AddToGraph(BgExprContext Context, BgGraph Graph)
+		internal void AddToGraph(BgExprContext context, BgGraph graph)
 		{
-			string? DashboardName = Config.DashboardName?.Compute(Context);
-			string? DashboardCategory = Config.DashboardCategory?.Compute(Context);
-			string? UgsBadge = Config.UgsBadge?.Compute(Context);
-			string? UgsProject = Config.UgsBadge?.Compute(Context);
+			string? dashboardName = _config.DashboardName?.Compute(context);
+			string? dashboardCategory = _config.DashboardCategory?.Compute(context);
+			string? ugsBadge = _config.UgsBadge?.Compute(context);
+			string? ugsProject = _config.UgsBadge?.Compute(context);
 
-			BgLabelChange LabelChange;
-			if ((object?)Config.Change == null)
+			BgLabelChange labelChange;
+			if ((object?)_config.Change == null)
 			{
-				LabelChange = BgLabelChange.Current;
+				labelChange = BgLabelChange.Current;
 			}
 			else
 			{
-				LabelChange = Enum.Parse<BgLabelChange>(Config.Change.Compute(Context));
+				labelChange = Enum.Parse<BgLabelChange>(_config.Change.Compute(context));
 			}
 
-			BgLabel Label = new BgLabel(DashboardName, DashboardCategory, UgsBadge, UgsProject, LabelChange);
-			Label.RequiredNodes.UnionWith(Config.RequiredNodes.ComputeTags(Context).Select(x => Graph.TagNameToNodeOutput[x].ProducingNode));
-			Label.IncludedNodes.UnionWith(Config.IncludedNodes.ComputeTags(Context).Select(x => Graph.TagNameToNodeOutput[x].ProducingNode));
-			Graph.Labels.Add(Label);
+			BgLabel label = new BgLabel(dashboardName, dashboardCategory, ugsBadge, ugsProject, labelChange);
+			label.RequiredNodes.UnionWith(_config.RequiredNodes.ComputeTags(context).Select(x => graph.TagNameToNodeOutput[x].ProducingNode));
+			label.IncludedNodes.UnionWith(_config.IncludedNodes.ComputeTags(context).Select(x => graph.TagNameToNodeOutput[x].ProducingNode));
+			graph.Labels.Add(label);
 		}
 	}
 }

@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.BuildGraph.Expressions;
-using EpicGames.Core;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using EpicGames.BuildGraph.Expressions;
+using EpicGames.Core;
 
 namespace EpicGames.BuildGraph
 {
@@ -47,95 +45,95 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// All outputs for the node
 		/// </summary>
-		public HashSet<FileReference> BuildProducts = new HashSet<FileReference>();
+		public HashSet<FileReference> BuildProducts { get; } = new HashSet<FileReference>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgContext(BgExprContext Context)
+		public BgContext(BgExprContext context)
 		{
-			this.Context = Context;
+			Context = context;
 		}
 
 		/// <summary>
 		/// Resolve a boolean expression to a value
 		/// </summary>
-		/// <param name="Bool">The boolean expression</param>
+		/// <param name="expr">The boolean expression</param>
 		/// <returns>Value of the expression</returns>
-		public bool Get(BgBool Bool) => Bool.Compute(Context);
+		public bool Get(BgBool expr) => expr.Compute(Context);
 
 		/// <summary>
 		/// Resolve an integer expression to a value
 		/// </summary>
-		/// <param name="Integer">The integer expression</param>
+		/// <param name="expr">The integer expression</param>
 		/// <returns>Value of the expression</returns>
-		public int Get(BgInt Integer) => Integer.Compute(Context);
+		public int Get(BgInt expr) => expr.Compute(Context);
 
 		/// <summary>
 		/// Resolve a string expression to a value
 		/// </summary>
-		/// <param name="String">The string expression</param>
+		/// <param name="expr">The string expression</param>
 		/// <returns>Value of the expression</returns>
-		public string Get(BgString String) => String.Compute(Context);
+		public string Get(BgString expr) => expr.Compute(Context);
 
 		/// <summary>
 		/// Resolves an enum expression to a value
 		/// </summary>
 		/// <typeparam name="TEnum">The enum type</typeparam>
-		/// <param name="Enum">Enum expression</param>
+		/// <param name="expr">Enum expression</param>
 		/// <returns>The enum value</returns>
-		public TEnum Get<TEnum>(BgEnum<TEnum> Enum) where TEnum : struct => Enum.Compute(Context);
+		public TEnum Get<TEnum>(BgEnum<TEnum> expr) where TEnum : struct => expr.Compute(Context);
 
 		/// <summary>
 		/// Resolve a list of enums to a value
 		/// </summary>
 		/// <typeparam name="TEnum">The enum type</typeparam>
-		/// <param name="List">Enum expression</param>
+		/// <param name="expr">Enum expression</param>
 		/// <returns>The enum value</returns>
-		public List<TEnum> Get<TEnum>(BgList<BgEnum<TEnum>> List) where TEnum : struct => List.GetEnumerable(Context).Select(x => Get(x)).ToList();
+		public List<TEnum> Get<TEnum>(BgList<BgEnum<TEnum>> expr) where TEnum : struct => expr.GetEnumerable(Context).Select(x => Get(x)).ToList();
 
 		/// <summary>
 		/// Resolve a list of strings
 		/// </summary>
-		/// <param name="List">List expression</param>
+		/// <param name="expr">List expression</param>
 		/// <returns></returns>
-		public List<string> Get(BgList<BgString> List) => List.Compute(Context);
+		public List<string> Get(BgList<BgString> expr) => expr.Compute(Context);
 
 		/// <summary>
 		/// Resolve a file set
 		/// </summary>
-		/// <param name="FileSet">The token expression</param>
+		/// <param name="fileSet">The token expression</param>
 		/// <returns>Set of files for the token</returns>
-		public FileSet Get(BgFileSet FileSet) => FileSet.ComputeValue(Context);
+		public FileSet Get(BgFileSet fileSet) => fileSet.ComputeValue(Context);
 
 		/// <summary>
 		/// Resolve a file set
 		/// </summary>
-		/// <param name="FileSets">The token expression</param>
+		/// <param name="fileSets">The token expression</param>
 		/// <returns>Set of files for the token</returns>
-		public FileSet Get(BgList<BgFileSet> FileSets)
+		public FileSet Get(BgList<BgFileSet> fileSets)
 		{
-			FileSet Result = FileSet.Empty;
-			foreach (BgFileSet FileSet in FileSets.GetEnumerable(Context))
+			FileSet result = FileSet.Empty;
+			foreach (BgFileSet fileSet in fileSets.GetEnumerable(Context))
 			{
-				Result += Get(FileSet);
+				result += Get(fileSet);
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
 		/// Resolve a file set
 		/// </summary>
-		/// <param name="FileSets">The token expression</param>
+		/// <param name="fileSets">The token expression</param>
 		/// <returns>Set of files for the token</returns>
-		public FileSet Get(IEnumerable<BgFileSet> FileSets)
+		public FileSet Get(IEnumerable<BgFileSet> fileSets)
 		{
-			FileSet Result = FileSet.Empty;
-			foreach (BgFileSet FileSet in FileSets)
+			FileSet result = FileSet.Empty;
+			foreach (BgFileSet fileSet in fileSets)
 			{
-				Result += FileSet.ComputeValue(Context);
+				result += fileSet.ComputeValue(Context);
 			}
-			return Result;
+			return result;
 		}
 	}
 }

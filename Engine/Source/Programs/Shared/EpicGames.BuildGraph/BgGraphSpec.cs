@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.BuildGraph.Expressions;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Linq;
+using EpicGames.BuildGraph.Expressions;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.BuildGraph
 {
@@ -45,189 +43,189 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		public IBgGraphConstants Constants { get; }
 
-		List<IBgOption> Options = new List<IBgOption>();
-		List<BgAgentSpec> AgentSpecs = new List<BgAgentSpec>();
-		List<BgAggregateSpec> AggregateSpecs = new List<BgAggregateSpec>();
-		List<BgLabelSpec> LabelSpecs = new List<BgLabelSpec>();
-		BgList<BgDiagnosticSpec> DiagnosticSpecs = new List<BgDiagnosticSpec>();
+		readonly List<IBgOption> _options = new List<IBgOption>();
+		readonly List<BgAgentSpec> _agentSpecs = new List<BgAgentSpec>();
+		readonly List<BgAggregateSpec> _aggregateSpecs = new List<BgAggregateSpec>();
+		readonly List<BgLabelSpec> _labelSpecs = new List<BgLabelSpec>();
+		BgList<BgDiagnosticSpec> _diagnosticSpecs = new List<BgDiagnosticSpec>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Constants">Constant values for use during graph evaluation</param>
-		public BgGraphSpec(IBgGraphConstants Constants)
+		/// <param name="constants">Constant values for use during graph evaluation</param>
+		public BgGraphSpec(IBgGraphConstants constants)
 		{
-			this.Constants = Constants;
+			Constants = constants;
 		}
 
 		/// <summary>
 		/// Adds a boolean option
 		/// </summary>
-		/// <param name="Name">Name of the option. Must be unique.</param>
-		/// <param name="Description">Description for the option</param>
-		/// <param name="DefaultValue">Default value for the option.</param>
+		/// <param name="name">Name of the option. Must be unique.</param>
+		/// <param name="description">Description for the option</param>
+		/// <param name="defaultValue">Default value for the option.</param>
 		/// <returns>Boolean expression</returns>
-		public BgBoolOption AddOption(string Name, BgString Description, BgBool DefaultValue)
+		public BgBoolOption AddOption(string name, BgString description, BgBool defaultValue)
 		{
-			BgBoolOption Option = new BgBoolOption(Name, Description, DefaultValue);
-			Options.Add(Option);
-			return Option;
+			BgBoolOption option = new BgBoolOption(name, description, defaultValue);
+			_options.Add(option);
+			return option;
 		}
 
 		/// <summary>
 		/// Adds an integer option
 		/// </summary>
-		/// <param name="Name">Name of the option. Must be unique.</param>
-		/// <param name="Description">Description for the option</param>
-		/// <param name="DefaultValue">Default value for the option.</param>
+		/// <param name="name">Name of the option. Must be unique.</param>
+		/// <param name="description">Description for the option</param>
+		/// <param name="defaultValue">Default value for the option.</param>
 		/// <returns>Integer expression</returns>
-		public BgIntOption AddIntOption(string Name, BgString Description, BgInt DefaultValue)
+		public BgIntOption AddIntOption(string name, BgString description, BgInt defaultValue)
 		{
-			BgIntOption Option = new BgIntOption(Name, Description, DefaultValue);
-			Options.Add(Option);
-			return Option;
+			BgIntOption option = new BgIntOption(name, description, defaultValue);
+			_options.Add(option);
+			return option;
 		}
 
 		/// <summary>
 		/// Adds a string option
 		/// </summary>
-		/// <param name="Name">Name of the option. Must be unique.</param>
-		/// <param name="Description">Description for the option</param>
-		/// <param name="DefaultValue">Default value for the option.</param>
+		/// <param name="name">Name of the option. Must be unique.</param>
+		/// <param name="description">Description for the option</param>
+		/// <param name="defaultValue">Default value for the option.</param>
 		/// <returns>String expression</returns>
-		public BgStringOption AddOption(string Name, BgString Description, BgString DefaultValue)
+		public BgStringOption AddOption(string name, BgString description, BgString defaultValue)
 		{
-			BgStringOption Option = new BgStringOption(Name, Description, DefaultValue);
-			Options.Add(Option);
-			return Option;
+			BgStringOption option = new BgStringOption(name, description, defaultValue);
+			_options.Add(option);
+			return option;
 		}
 
 		/// <summary>
 		/// Adds an enum option
 		/// </summary>
 		/// <typeparam name="TEnum">Type of enum value</typeparam>
-		/// <param name="Name">Name of the option. Must be unique.</param>
-		/// <param name="Description">Description for the option</param>
-		/// <param name="DefaultValue">Default value for the option.</param>
+		/// <param name="name">Name of the option. Must be unique.</param>
+		/// <param name="description">Description for the option</param>
+		/// <param name="defaultValue">Default value for the option.</param>
 		/// <returns>Enum option</returns>
-		public BgEnumOption<TEnum> AddOption<TEnum>(string Name, BgString Description, BgEnum<TEnum> DefaultValue) where TEnum : struct
+		public BgEnumOption<TEnum> AddOption<TEnum>(string name, BgString description, BgEnum<TEnum> defaultValue) where TEnum : struct
 		{
-			BgEnumOption<TEnum> Option = new BgEnumOption<TEnum>(Name, Description, DefaultValue);
-			Options.Add(Option);
-			return Option;
+			BgEnumOption<TEnum> option = new BgEnumOption<TEnum>(name, description, defaultValue);
+			_options.Add(option);
+			return option;
 		}
 
 		/// <summary>
 		/// Adds an option which may be a list of enum values
 		/// </summary>
 		/// <typeparam name="TEnum">Type of enum value</typeparam>
-		/// <param name="Name">Name of the option. Must be unique.</param>
-		/// <param name="Description">Description for the option</param>
-		/// <param name="DefaultValue">Default value for the option.</param>
+		/// <param name="name">Name of the option. Must be unique.</param>
+		/// <param name="description">Description for the option</param>
+		/// <param name="defaultValue">Default value for the option.</param>
 		/// <returns></returns>
-		public BgEnumListOption<TEnum> AddOption<TEnum>(string Name, BgString Description, BgList<BgEnum<TEnum>> DefaultValue) where TEnum : struct
+		public BgEnumListOption<TEnum> AddOption<TEnum>(string name, BgString description, BgList<BgEnum<TEnum>> defaultValue) where TEnum : struct
 		{
-			BgEnumListOption<TEnum> Option = new BgEnumListOption<TEnum>(Name, Description, DefaultValue);
-			Options.Add(Option);
-			return Option;
+			BgEnumListOption<TEnum> option = new BgEnumListOption<TEnum>(name, description, defaultValue);
+			_options.Add(option);
+			return option;
 		}
 
 		/// <summary>
 		/// Adds a new agent to the graph
 		/// </summary>
-		/// <param name="Name">Name of the agent</param>
+		/// <param name="name">Name of the agent</param>
 		/// <returns>Agent specification object</returns>
-		public BgAgentSpec AddAgent(BgString Name)
+		public BgAgentSpec AddAgent(BgString name)
 		{
-			BgAgentSpec Agent = new BgAgentSpec(Name);
-			AgentSpecs.Add(Agent);
-			return Agent;
+			BgAgentSpec agent = new BgAgentSpec(name);
+			_agentSpecs.Add(agent);
+			return agent;
 		}
 
 		/// <summary>
 		/// Adds a new aggregate to the graph
 		/// </summary>
-		/// <param name="Name">Name of the agent</param>
-		/// <param name="Outputs">Initial set of tokens to include in the aggregate</param>
+		/// <param name="name">Name of the agent</param>
+		/// <param name="outputs">Initial set of tokens to include in the aggregate</param>
 		/// <returns>Agent specification object</returns>
-		public BgAggregateSpec AddAggregate(BgString Name, BgList<BgFileSet> Outputs)
+		public BgAggregateSpec AddAggregate(BgString name, BgList<BgFileSet> outputs)
 		{
-			BgAggregateSpec Aggregate = new BgAggregateSpec(Name, Outputs);
-			AggregateSpecs.Add(Aggregate);
-			return Aggregate;
+			BgAggregateSpec aggregate = new BgAggregateSpec(name, outputs);
+			_aggregateSpecs.Add(aggregate);
+			return aggregate;
 		}
 
 		/// <summary>
 		/// Adds a new aggregate to the graph
 		/// </summary>
-		/// <param name="Name">Name of the agent</param>
-		/// <param name="Outputs">Initial set of tokens to include in the aggregate</param>
-		/// <param name="Label"></param>
+		/// <param name="name">Name of the agent</param>
+		/// <param name="outputs">Initial set of tokens to include in the aggregate</param>
+		/// <param name="label"></param>
 		/// <returns>Agent specification object</returns>
-		public BgAggregateSpec AddAggregate(BgString Name, BgList<BgFileSet> Outputs, BgString Label)
+		public BgAggregateSpec AddAggregate(BgString name, BgList<BgFileSet> outputs, BgString label)
 		{
-			AddLabel(Config => Config.RequiredNodes = Config.RequiredNodes.Add(Outputs).Distinct());
-			return AddAggregate(Name, Outputs);
+			AddLabel(config => config.RequiredNodes = config.RequiredNodes.Add(outputs).Distinct());
+			return AddAggregate(name, outputs);
 		}
 
 		/// <summary>
 		/// Adds a new label to the graph
 		/// </summary>
-		/// <param name="Configure">Callback for configuring the label</param>
+		/// <param name="configure">Callback for configuring the label</param>
 		/// <returns>Label specification object</returns>
-		public BgLabelSpec AddLabel(Action<BgLabelConfig> Configure)
+		public BgLabelSpec AddLabel(Action<BgLabelConfig> configure)
 		{
-			BgLabelConfig Config = new BgLabelConfig();
-			Configure(Config);
+			BgLabelConfig config = new BgLabelConfig();
+			configure(config);
 
-			BgLabelSpec LabelSpec = new BgLabelSpec(Config);
-			LabelSpecs.Add(LabelSpec);
+			BgLabelSpec labelSpec = new BgLabelSpec(config);
+			_labelSpecs.Add(labelSpec);
 
-			return LabelSpec;
+			return labelSpec;
 		}
 
 		/// <summary>
 		/// Adds a diagnostic to the graph
 		/// </summary>
-		/// <param name="Condition">Condition for adding the diagnostic to the graph</param>
-		/// <param name="Level"></param>
-		/// <param name="Message"></param>
-		public void AddDiagnostic(BgBool Condition, LogLevel Level, BgString Message)
+		/// <param name="condition">Condition for adding the diagnostic to the graph</param>
+		/// <param name="level"></param>
+		/// <param name="message"></param>
+		public void AddDiagnostic(BgBool condition, LogLevel level, BgString message)
 		{
-			BgDiagnosticSpec Diagnostic = new BgDiagnosticSpec(Level, Message);
-			DiagnosticSpecs = DiagnosticSpecs.AddIf(Condition, Diagnostic);
+			BgDiagnosticSpec diagnostic = new BgDiagnosticSpec(level, message);
+			_diagnosticSpecs = _diagnosticSpecs.AddIf(condition, diagnostic);
 		}
 
 		/// <summary>
 		/// Creates a concrete graph from the specifications
 		/// </summary>
-		/// <param name="Targets"></param>
-		/// <param name="Options"></param>
+		/// <param name="targets"></param>
+		/// <param name="options"></param>
 		/// <returns>New graph instance</returns>
-		public BgGraph CreateGraph(HashSet<string> Targets, Dictionary<string, string> Options)
+		public BgGraph CreateGraph(HashSet<string> targets, Dictionary<string, string> options)
 		{
-			BgExprContext Context = new BgExprContext();
-			Context.Options = Options;
+			BgExprContext context = new BgExprContext();
+			context.Options = options;
 
-			BgGraph Graph = new BgGraph();
-			foreach (BgAgentSpec AgentSpec in AgentSpecs)
+			BgGraph graph = new BgGraph();
+			foreach (BgAgentSpec agentSpec in _agentSpecs)
 			{
-				AgentSpec.AddToGraph(Context, Graph);
+				agentSpec.AddToGraph(context, graph);
 			}
-			foreach (BgAggregateSpec AggregateSpec in AggregateSpecs)
+			foreach (BgAggregateSpec aggregateSpec in _aggregateSpecs)
 			{
-				AggregateSpec.AddToGraph(Context, Graph);
+				aggregateSpec.AddToGraph(context, graph);
 			}
-			foreach (BgDiagnosticSpec DiagnosticSpec in DiagnosticSpecs.GetEnumerable(Context))
+			foreach (BgDiagnosticSpec diagnosticSpec in _diagnosticSpecs.GetEnumerable(context))
 			{
-				DiagnosticSpec.AddToGraph(Context, Graph, null, null);
+				diagnosticSpec.AddToGraph(context, graph, null, null);
 			}
-			foreach (BgLabelSpec LabelSpec in LabelSpecs)
+			foreach (BgLabelSpec labelSpec in _labelSpecs)
 			{
-				LabelSpec.AddToGraph(Context, Graph);
+				labelSpec.AddToGraph(context, graph);
 			}
 
-			return Graph;
+			return graph;
 		}
 	}
 }

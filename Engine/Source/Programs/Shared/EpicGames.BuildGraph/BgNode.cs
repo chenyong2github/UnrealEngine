@@ -3,15 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
-using OpenTracing;
-using OpenTracing.Util;
-using Microsoft.Extensions.Logging;
-using System.Reflection;
-using System.ComponentModel;
 
 namespace EpicGames.BuildGraph
 {
@@ -33,12 +26,12 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="InProducingNode">Node which produces the given output</param>
-		/// <param name="InTagName">Name of the tag</param>
-		public BgNodeOutput(BgNode InProducingNode, string InTagName)
+		/// <param name="inProducingNode">Node which produces the given output</param>
+		/// <param name="inTagName">Name of the tag</param>
+		public BgNodeOutput(BgNode inProducingNode, string inTagName)
 		{
-			ProducingNode = InProducingNode;
-			TagName = InTagName;
+			ProducingNode = inProducingNode;
+			TagName = inTagName;
 		}
 
 		/// <summary>
@@ -104,35 +97,35 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Whether to start this node as soon as its dependencies are satisfied, rather than waiting for all of its agent's dependencies to be met.
 		/// </summary>
-		public bool bRunEarly { get; set; } = false;
+		public bool BRunEarly { get; set; } = false;
 
 		/// <summary>
 		/// Whether to ignore warnings produced by this node
 		/// </summary>
-		public bool bNotifyOnWarnings { get; set; } = true;
+		public bool BNotifyOnWarnings { get; set; } = true;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="InName">The name of this node</param>
-		/// <param name="InInputs">Inputs that this node depends on</param>
-		/// <param name="InOutputNames">Names of the outputs that this node produces</param>
-		/// <param name="InInputDependencies">Nodes which this node is dependent on for its inputs</param>
-		/// <param name="InOrderDependencies">Nodes which this node needs to run after. Should include all input dependencies.</param>
-		/// <param name="InRequiredTokens">Optional tokens which must be required for this node to run</param>
-		public BgNode(string InName, BgNodeOutput[] InInputs, string[] InOutputNames, BgNode[] InInputDependencies, BgNode[] InOrderDependencies, FileReference[] InRequiredTokens)
+		/// <param name="inName">The name of this node</param>
+		/// <param name="inInputs">Inputs that this node depends on</param>
+		/// <param name="inOutputNames">Names of the outputs that this node produces</param>
+		/// <param name="inInputDependencies">Nodes which this node is dependent on for its inputs</param>
+		/// <param name="inOrderDependencies">Nodes which this node needs to run after. Should include all input dependencies.</param>
+		/// <param name="inRequiredTokens">Optional tokens which must be required for this node to run</param>
+		public BgNode(string inName, BgNodeOutput[] inInputs, string[] inOutputNames, BgNode[] inInputDependencies, BgNode[] inOrderDependencies, FileReference[] inRequiredTokens)
 		{
-			Name = InName;
-			Inputs = InInputs;
+			Name = inName;
+			Inputs = inInputs;
 
-			List<BgNodeOutput> AllOutputs = new List<BgNodeOutput>();
-			AllOutputs.Add(new BgNodeOutput(this, "#" + Name));
-			AllOutputs.AddRange(InOutputNames.Where(x => String.Compare(x, Name, StringComparison.InvariantCultureIgnoreCase) != 0).Select(x => new BgNodeOutput(this, x)));
-			Outputs = AllOutputs.ToArray();
+			List<BgNodeOutput> allOutputs = new List<BgNodeOutput>();
+			allOutputs.Add(new BgNodeOutput(this, "#" + Name));
+			allOutputs.AddRange(inOutputNames.Where(x => String.Compare(x, Name, StringComparison.InvariantCultureIgnoreCase) != 0).Select(x => new BgNodeOutput(this, x)));
+			Outputs = allOutputs.ToArray();
 
-			InputDependencies = InInputDependencies;
-			OrderDependencies = InOrderDependencies;
-			RequiredTokens = InRequiredTokens;
+			InputDependencies = inInputDependencies;
+			OrderDependencies = inOrderDependencies;
+			RequiredTokens = inRequiredTokens;
 		}
 
 		/// <summary>
@@ -149,12 +142,12 @@ namespace EpicGames.BuildGraph
 		/// <returns>Sequence of nodes that are direct inputs to this node</returns>
 		public IEnumerable<BgNode> GetDirectInputDependencies()
 		{
-			HashSet<BgNode> DirectDependencies = new HashSet<BgNode>(InputDependencies);
-			foreach(BgNode InputDependency in InputDependencies)
+			HashSet<BgNode> directDependencies = new HashSet<BgNode>(InputDependencies);
+			foreach (BgNode inputDependency in InputDependencies)
 			{
-				DirectDependencies.ExceptWith(InputDependency.InputDependencies);
+				directDependencies.ExceptWith(inputDependency.InputDependencies);
 			}
-			return DirectDependencies;
+			return directDependencies;
 		}
 
 		/// <summary>
@@ -163,56 +156,56 @@ namespace EpicGames.BuildGraph
 		/// <returns>Sequence of nodes that are direct order dependencies of this node</returns>
 		public IEnumerable<BgNode> GetDirectOrderDependencies()
 		{
-			HashSet<BgNode> DirectDependencies = new HashSet<BgNode>(OrderDependencies);
-			foreach(BgNode OrderDependency in OrderDependencies)
+			HashSet<BgNode> directDependencies = new HashSet<BgNode>(OrderDependencies);
+			foreach (BgNode orderDependency in OrderDependencies)
 			{
-				DirectDependencies.ExceptWith(OrderDependency.OrderDependencies);
+				directDependencies.ExceptWith(orderDependency.OrderDependencies);
 			}
-			return DirectDependencies;
+			return directDependencies;
 		}
 
 		/// <summary>
 		/// Write this node to an XML writer
 		/// </summary>
-		/// <param name="Writer">The writer to output the node to</param>
-		public void Write(XmlWriter Writer)
+		/// <param name="writer">The writer to output the node to</param>
+		public void Write(XmlWriter writer)
 		{
-			Writer.WriteStartElement("Node");
-			Writer.WriteAttributeString("Name", Name);
+			writer.WriteStartElement("Node");
+			writer.WriteAttributeString("Name", Name);
 
-			string[] RequireNames = Inputs.Select(x => x.TagName).ToArray();
-			if (RequireNames.Length > 0)
+			string[] requireNames = Inputs.Select(x => x.TagName).ToArray();
+			if (requireNames.Length > 0)
 			{
-				Writer.WriteAttributeString("Requires", String.Join(";", RequireNames));
+				writer.WriteAttributeString("Requires", String.Join(";", requireNames));
 			}
 
-			string[] ProducesNames = Outputs.Where(x => x != DefaultOutput).Select(x => x.TagName).ToArray();
-			if (ProducesNames.Length > 0)
+			string[] producesNames = Outputs.Where(x => x != DefaultOutput).Select(x => x.TagName).ToArray();
+			if (producesNames.Length > 0)
 			{
-				Writer.WriteAttributeString("Produces", String.Join(";", ProducesNames));
+				writer.WriteAttributeString("Produces", String.Join(";", producesNames));
 			}
 
-			string[] AfterNames = GetDirectOrderDependencies().Except(InputDependencies).Select(x => x.Name).ToArray();
-			if (AfterNames.Length > 0)
+			string[] afterNames = GetDirectOrderDependencies().Except(InputDependencies).Select(x => x.Name).ToArray();
+			if (afterNames.Length > 0)
 			{
-				Writer.WriteAttributeString("After", String.Join(";", AfterNames));
+				writer.WriteAttributeString("After", String.Join(";", afterNames));
 			}
 
-			if (!bNotifyOnWarnings)
+			if (!BNotifyOnWarnings)
 			{
-				Writer.WriteAttributeString("NotifyOnWarnings", bNotifyOnWarnings.ToString());
+				writer.WriteAttributeString("NotifyOnWarnings", BNotifyOnWarnings.ToString());
 			}
 
-			if(bRunEarly)
+			if (BRunEarly)
 			{
-				Writer.WriteAttributeString("RunEarly", bRunEarly.ToString());
+				writer.WriteAttributeString("RunEarly", BRunEarly.ToString());
 			}
 
-			foreach (BgTask Task in Tasks)
+			foreach (BgTask task in Tasks)
 			{
-				Task.Write(Writer);
+				task.Write(writer);
 			}
-			Writer.WriteEndElement();
+			writer.WriteEndElement();
 		}
 
 		/// <summary>

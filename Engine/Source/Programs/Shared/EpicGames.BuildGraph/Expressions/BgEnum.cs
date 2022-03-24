@@ -1,21 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.BuildGraph;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Xml;
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
-using OpenTracing;
-using OpenTracing.Util;
-using System.Threading.Tasks;
-using System.Text.RegularExpressions;
 
 namespace EpicGames.BuildGraph.Expressions
 {
@@ -42,27 +27,27 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Implicit conversion from a regular enum type
 		/// </summary>
-		public static implicit operator BgEnum<TEnum>(TEnum Value)
+		public static implicit operator BgEnum<TEnum>(TEnum value)
 		{
-			return new BgEnumConstantExpr<TEnum>(Value);
+			return new BgEnumConstantExpr<TEnum>(value);
 		}
 
 		/// <summary>
 		/// Explicit conversion from a string value
 		/// </summary>
-		public static explicit operator BgEnum<TEnum>(BgString Value)
+		public static explicit operator BgEnum<TEnum>(BgString value)
 		{
-			return new BgEnumParseExpr<TEnum>(Value);
+			return new BgEnumParseExpr<TEnum>(value);
 		}
 
 		/// <inheritdoc/>
-		public BgEnum<TEnum> IfThen(BgBool Condition, BgEnum<TEnum> ValueIfTrue) => new BgEnumChooseExpr<TEnum>(Condition, ValueIfTrue, this);
+		public BgEnum<TEnum> IfThen(BgBool condition, BgEnum<TEnum> valueIfTrue) => new BgEnumChooseExpr<TEnum>(condition, valueIfTrue, this);
 
 		/// <inheritdoc/>
-		object IBgExpr.Compute(BgExprContext Context) => Compute(Context);
+		object IBgExpr.Compute(BgExprContext context) => Compute(context);
 
 		/// <inheritdoc/>
-		public abstract TEnum Compute(BgExprContext Context);
+		public abstract TEnum Compute(BgExprContext context);
 
 		/// <inheritdoc/>
 		public BgString ToBgString() => new BgEnumFormatExpr<TEnum>(this);
@@ -74,13 +59,13 @@ namespace EpicGames.BuildGraph.Expressions
 	class BgEnumType<TEnum> : BgTypeBase<BgEnum<TEnum>> where TEnum : struct
 	{
 		/// <inheritdoc/>
-		public override BgEnum<TEnum> DeserializeArgument(string Text) => Enum.Parse<TEnum>(Text);
+		public override BgEnum<TEnum> DeserializeArgument(string text) => Enum.Parse<TEnum>(text);
 
 		/// <inheritdoc/>
-		public override string SerializeArgument(BgEnum<TEnum> Value, BgExprContext Context) => Value.Compute(Context).ToString() ?? String.Empty;
+		public override string SerializeArgument(BgEnum<TEnum> value, BgExprContext context) => value.Compute(context).ToString() ?? String.Empty;
 
 		/// <inheritdoc/>
-		public override BgEnum<TEnum> CreateConstant(object Value) => new BgEnumConstantExpr<TEnum>((TEnum)Value);
+		public override BgEnum<TEnum> CreateConstant(object value) => new BgEnumConstantExpr<TEnum>((TEnum)value);
 
 		/// <inheritdoc/>
 		public override IBgExprVariable<BgEnum<TEnum>> CreateVariable() => throw new NotImplementedException();
@@ -92,12 +77,12 @@ namespace EpicGames.BuildGraph.Expressions
 	{
 		public BgString Value { get; }
 
-		public BgEnumParseExpr(BgString Value)
+		public BgEnumParseExpr(BgString value)
 		{
-			this.Value = Value;
+			Value = value;
 		}
 
-		public override TEnum Compute(BgExprContext Context) => Enum.Parse<TEnum>(Value.Compute(Context));
+		public override TEnum Compute(BgExprContext context) => Enum.Parse<TEnum>(Value.Compute(context));
 
 		public override string ToString()
 		{
@@ -109,12 +94,12 @@ namespace EpicGames.BuildGraph.Expressions
 	{
 		public TEnum Value { get; }
 
-		public BgEnumConstantExpr(TEnum Value)
+		public BgEnumConstantExpr(TEnum value)
 		{
-			this.Value = Value;
+			Value = value;
 		}
 
-		public override TEnum Compute(BgExprContext Context) => Value;
+		public override TEnum Compute(BgExprContext context) => Value;
 
 		public override string ToString()
 		{
@@ -128,14 +113,14 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgEnum<TEnum> ValueIfTrue { get; }
 		public BgEnum<TEnum> ValueIfFalse { get; }
 
-		public BgEnumChooseExpr(BgBool Condition, BgEnum<TEnum> ValueIfTrue, BgEnum<TEnum> ValueIfFalse)
+		public BgEnumChooseExpr(BgBool condition, BgEnum<TEnum> valueIfTrue, BgEnum<TEnum> valueIfFalse)
 		{
-			this.Condition = Condition;
-			this.ValueIfTrue = ValueIfTrue;
-			this.ValueIfFalse = ValueIfFalse;
+			Condition = condition;
+			ValueIfTrue = valueIfTrue;
+			ValueIfFalse = valueIfFalse;
 		}
 
-		public override TEnum Compute(BgExprContext Context) => Condition.Compute(Context) ? ValueIfTrue.Compute(Context) : ValueIfFalse.Compute(Context);
+		public override TEnum Compute(BgExprContext context) => Condition.Compute(context) ? ValueIfTrue.Compute(context) : ValueIfFalse.Compute(context);
 
 		public override string ToString()
 		{
@@ -147,12 +132,12 @@ namespace EpicGames.BuildGraph.Expressions
 	{
 		public BgEnum<TEnum> Value { get; }
 
-		public BgEnumFormatExpr(BgEnum<TEnum> Value)
+		public BgEnumFormatExpr(BgEnum<TEnum> value)
 		{
-			this.Value = Value;
+			Value = value;
 		}
 
-		public override string Compute(BgExprContext Context) => Value.Compute(Context).ToString() ?? String.Empty;
+		public override string Compute(BgExprContext context) => Value.Compute(context).ToString() ?? String.Empty;
 
 		public override string ToString()
 		{
@@ -164,7 +149,7 @@ namespace EpicGames.BuildGraph.Expressions
 	{
 		public BgEnum<TEnum> Value { get; set; } = null!;
 
-		public override TEnum Compute(BgExprContext Context) => Value.Compute(Context);
+		public override TEnum Compute(BgExprContext context) => Value.Compute(context);
 	}
 
 	#endregion

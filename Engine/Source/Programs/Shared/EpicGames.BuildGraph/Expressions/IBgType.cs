@@ -2,9 +2,7 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 
 namespace EpicGames.BuildGraph.Expressions
 {
@@ -16,17 +14,17 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Serializes the value of an expression to a string
 		/// </summary>
-		/// <param name="Value">The value to serialize</param>
-		/// <param name="Context">Context for evaluating the expression</param>
+		/// <param name="value">The value to serialize</param>
+		/// <param name="context">Context for evaluating the expression</param>
 		/// <returns></returns>
-		string SerializeArgument(object Value, BgExprContext Context);
+		string SerializeArgument(object value, BgExprContext context);
 
 		/// <summary>
 		/// Constructs an expression from a string value
 		/// </summary>
-		/// <param name="Text">The serialized value</param>
+		/// <param name="text">The serialized value</param>
 		/// <returns>Instance of the expression</returns>
-		object DeserializeArgument(string Text);
+		object DeserializeArgument(string text);
 	}
 
 	/// <summary>
@@ -37,24 +35,24 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Serializes the value of an expression to an argument string
 		/// </summary>
-		/// <param name="Value">The value to serialize</param>
-		/// <param name="Context">Context for evaluating the expression</param>
+		/// <param name="value">The value to serialize</param>
+		/// <param name="context">Context for evaluating the expression</param>
 		/// <returns></returns>
-		string SerializeArgument(T Value, BgExprContext Context);
+		string SerializeArgument(T value, BgExprContext context);
 
 		/// <summary>
 		/// Constructs an expression from an argument value
 		/// </summary>
-		/// <param name="Text">The serialized value</param>
+		/// <param name="text">The serialized value</param>
 		/// <returns>Instance of the expression</returns>
-		new T DeserializeArgument(string Text);
+		new T DeserializeArgument(string text);
 
 		/// <summary>
 		/// Creates a value of the expression type
 		/// </summary>
-		/// <param name="Value">Value to wrap</param>
+		/// <param name="value">Value to wrap</param>
 		/// <returns></returns>
-		T CreateConstant(object Value);
+		T CreateConstant(object value);
 
 		/// <summary>
 		/// Creates a variable of the given type
@@ -69,19 +67,19 @@ namespace EpicGames.BuildGraph.Expressions
 	public abstract class BgTypeBase<T> : IBgType<T> where T : IBgExpr<T>
 	{
 		/// <inheritdoc/>
-		object IBgType.DeserializeArgument(string Text) => DeserializeArgument(Text);
+		object IBgType.DeserializeArgument(string text) => DeserializeArgument(text);
 
 		/// <inheritdoc/>
-		public abstract T DeserializeArgument(string Text);
+		public abstract T DeserializeArgument(string text);
 
 		/// <inheritdoc/>
-		string IBgType.SerializeArgument(object Value, BgExprContext Context) => SerializeArgument((T)Value, Context);
+		string IBgType.SerializeArgument(object value, BgExprContext context) => SerializeArgument((T)value, context);
 
 		/// <inheritdoc/>
-		public abstract string SerializeArgument(T Value, BgExprContext Context);
+		public abstract string SerializeArgument(T value, BgExprContext context);
 
 		/// <inheritdoc/>
-		public abstract T CreateConstant(object Value);
+		public abstract T CreateConstant(object value);
 
 		/// <inheritdoc/>
 		public abstract IBgExprVariable<T> CreateVariable();
@@ -100,10 +98,10 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Type"></param>
-		public BgTypeAttribute(Type Type)
+		/// <param name="type"></param>
+		public BgTypeAttribute(Type type)
 		{
-			this.Type = Type;
+			Type = type;
 		}
 	}
 
@@ -115,7 +113,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Cache of traits implementations for each type
 		/// </summary>
-		static ConcurrentDictionary<Type, IBgType> TypeToTraits = new ConcurrentDictionary<Type, IBgType>();
+		static readonly ConcurrentDictionary<Type, IBgType> s_typeToTraits = new ConcurrentDictionary<Type, IBgType>();
 
 		/// <summary>
 		/// Cache of traits for a static type
@@ -128,60 +126,60 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Create a converter instance for the given type
 		/// </summary>
-		/// <param name="Type"></param>
+		/// <param name="type"></param>
 		/// <returns></returns>
-		public static IBgType Get(Type Type)
+		public static IBgType Get(Type type)
 		{
-			IBgType? Traits = GetInner(Type);
-			if(Traits == null)
+			IBgType? traits = GetInner(type);
+			if (traits == null)
 			{
-				throw new ArgumentException($"Missing converter attribute on type {Type.Name}");
+				throw new ArgumentException($"Missing converter attribute on type {type.Name}");
 			}
-			return Traits;
+			return traits;
 		}
 
 		/// <summary>
 		/// Helper method for getting the type traits from a hierarchy of types
 		/// </summary>
-		/// <param name="Type"></param>
+		/// <param name="type"></param>
 		/// <returns></returns>
-		static IBgType? GetInner(Type Type)
+		static IBgType? GetInner(Type type)
 		{
-			IBgType? Traits;
-			if (!TypeToTraits.TryGetValue(Type, out Traits))
+			IBgType? traits;
+			if (!s_typeToTraits.TryGetValue(type, out traits))
 			{
-				BgTypeAttribute? ConverterAttr = Type.GetCustomAttribute<BgTypeAttribute>(false);
-				if (ConverterAttr == null)
+				BgTypeAttribute? converterAttr = type.GetCustomAttribute<BgTypeAttribute>(false);
+				if (converterAttr == null)
 				{
-					if (Type.BaseType == null)
+					if (type.BaseType == null)
 					{
-						Traits = null;
+						traits = null;
 					}
 					else
 					{
-						Traits = GetInner(Type.BaseType);
+						traits = GetInner(type.BaseType);
 					}
 				}
 				else
 				{
-					Type ConverterType = ConverterAttr.Type;
-					if (ConverterType.IsGenericType)
+					Type converterType = converterAttr.Type;
+					if (converterType.IsGenericType)
 					{
-						ConverterType = ConverterType.MakeGenericType(Type.GetGenericArguments());
+						converterType = converterType.MakeGenericType(type.GetGenericArguments());
 					}
 
-					IBgType NewTraits = (IBgType)Activator.CreateInstance(ConverterType)!;
-					if (TypeToTraits.TryAdd(Type, NewTraits))
+					IBgType newTraits = (IBgType)Activator.CreateInstance(converterType)!;
+					if (s_typeToTraits.TryAdd(type, newTraits))
 					{
-						Traits = NewTraits;
+						traits = newTraits;
 					}
 					else
 					{
-						Traits = TypeToTraits[Type];
+						traits = s_typeToTraits[type];
 					}
 				}
 			}
-			return Traits;
+			return traits;
 		}
 
 		/// <summary>

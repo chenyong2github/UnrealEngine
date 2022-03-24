@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.BuildGraph.Expressions;
-using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using EpicGames.BuildGraph.Expressions;
 
 namespace EpicGames.BuildGraph
 {
@@ -26,29 +23,29 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Internal constructor. Use <see cref="BgGraphSpec.AddAggregate(BgString, BgList{BgFileSet})"/> to create an aggregate.
 		/// </summary>
-		internal BgAggregateSpec(BgString Name, BgList<BgFileSet> RequiredOutputs)
+		internal BgAggregateSpec(BgString name, BgList<BgFileSet> requiredOutputs)
 		{
-			this.Name = Name;
-			this.RequiredOutputs = RequiredOutputs;
+			Name = name;
+			RequiredOutputs = requiredOutputs;
 		}
 
 		/// <summary>
 		/// Creates a concrete aggregate object from this specification.
 		/// </summary>
-		internal void AddToGraph(BgExprContext Context, BgGraph Graph)
+		internal void AddToGraph(BgExprContext context, BgGraph graph)
 		{
-			BgAggregate Aggregate = new BgAggregate(Name.Compute(Context));
-			Aggregate.RequiredNodes.UnionWith(RequiredOutputs.ComputeTags(Context).Select(x => Graph.TagNameToNodeOutput[x].ProducingNode));
-			Graph.NameToAggregate.Add(Aggregate.Name, Aggregate);
+			BgAggregate aggregate = new BgAggregate(Name.Compute(context));
+			aggregate.RequiredNodes.UnionWith(RequiredOutputs.ComputeTags(context).Select(x => graph.TagNameToNodeOutput[x].ProducingNode));
+			graph.NameToAggregate.Add(aggregate.Name, aggregate);
 		}
 
 		/// <summary>
 		/// Adds a set of dependencies to this aggregate
 		/// </summary>
-		/// <param name="Tokens">List of token dependencies</param>
-		public void Requires(params BgFileSet[] Tokens)
+		/// <param name="tokens">List of token dependencies</param>
+		public void Requires(params BgFileSet[] tokens)
 		{
-			RequiredOutputs.Add(Tokens);
+			RequiredOutputs.Add(tokens);
 		}
 	}
 }

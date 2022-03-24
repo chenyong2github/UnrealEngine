@@ -2,10 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.BuildGraph
 {
@@ -17,25 +13,25 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Name of this trigger
 		/// </summary>
-		public readonly string Name;
+		public string Name { get; }
 
 		/// <summary>
 		/// Set of nodes to include in the report
 		/// </summary>
-		public HashSet<BgNode> Nodes = new HashSet<BgNode>();
+		public HashSet<BgNode> Nodes { get; } = new HashSet<BgNode>();
 
 		/// <summary>
 		/// List of users to notify with this report
 		/// </summary>
-		public HashSet<string> NotifyUsers = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+		public HashSet<string> NotifyUsers { get; } = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="InName">Name of this report</param>
-		public BgReport(string InName)
+		/// <param name="inName">Name of this report</param>
+		public BgReport(string inName)
 		{
-			Name = InName;
+			Name = inName;
 		}
 
 		/// <summary>

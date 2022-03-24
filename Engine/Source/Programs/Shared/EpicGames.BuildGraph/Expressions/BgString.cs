@@ -1,20 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.BuildGraph;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Xml;
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
-using OpenTracing;
-using OpenTracing.Util;
-using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 
 namespace EpicGames.BuildGraph.Expressions
@@ -33,56 +21,56 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Implicit conversion from a regular string type
 		/// </summary>
-		public static implicit operator BgString(string Value)
+		public static implicit operator BgString(string value)
 		{
-			return new BgStringConstantExpr(Value);
+			return new BgStringConstantExpr(value);
 		}
 
-		/// <inheritdoc cref="String.Equals(string?, string?, StringComparison)"/>
-		public static BgBool Equals(BgString Lhs, BgString Rhs, StringComparison Comparison = StringComparison.CurrentCulture) => Compare(Lhs, Rhs, Comparison) == 0;
+		/// <inheritdoc cref="String.Equals(String?, String?, StringComparison)"/>
+		public static BgBool Equals(BgString lhs, BgString rhs, StringComparison comparison = StringComparison.CurrentCulture) => Compare(lhs, rhs, comparison) == 0;
 
-		/// <inheritdoc cref="String.Compare(string?, string?, StringComparison)"/>
-		public static BgInt Compare(BgString Lhs, BgString Rhs, StringComparison Comparison = StringComparison.CurrentCulture) => new BgStringCompareExpr(Lhs, Rhs, Comparison);
+		/// <inheritdoc cref="String.Compare(String?, String?, StringComparison)"/>
+		public static BgInt Compare(BgString lhs, BgString rhs, StringComparison comparison = StringComparison.CurrentCulture) => new BgStringCompareExpr(lhs, rhs, comparison);
 
-		/// <inheritdoc cref="String.Join{T}(string?, IEnumerable{T})"/>
-		public static BgString Join(BgString Separator, BgList<BgString> Values) => new BgStringJoinExpr(Separator, Values);
+		/// <inheritdoc cref="String.Join{T}(String?, IEnumerable{T})"/>
+		public static BgString Join(BgString separator, BgList<BgString> values) => new BgStringJoinExpr(separator, values);
 
-		/// <inheritdoc cref="String.Format(string, object?[])"/>
-		public static BgString Format(string Format, params object?[] Args) => new BgStringFormatExpr(Format, Args);
-
-		/// <inheritdoc/>
-		public static BgString operator +(BgString Lhs, BgString Rhs) => new BgStringConcatExpr(Lhs, Rhs);
+		/// <inheritdoc cref="String.Format(String, Object?[])"/>
+		public static BgString Format(string format, params object?[] args) => new BgStringFormatExpr(format, args);
 
 		/// <inheritdoc/>
-		public static BgBool operator ==(BgString Lhs, BgString Rhs) => Equals(Lhs, Rhs);
+		public static BgString operator +(BgString lhs, BgString rhs) => new BgStringConcatExpr(lhs, rhs);
 
 		/// <inheritdoc/>
-		public static BgBool operator !=(BgString Lhs, BgString Rhs) => !Equals(Lhs, Rhs);
+		public static BgBool operator ==(BgString lhs, BgString rhs) => Equals(lhs, rhs);
+
+		/// <inheritdoc/>
+		public static BgBool operator !=(BgString lhs, BgString rhs) => !Equals(lhs, rhs);
 
 		/// <summary>
 		/// Appens another string to this one
 		/// </summary>
-		public BgString Append(BgString Other) => this + Other;
+		public BgString Append(BgString other) => this + other;
 
 		/// <summary>
 		/// Appens another string to this one if a condition is true
 		/// </summary>
-		public BgString AppendIf(BgBool Condition, BgString Other) => IfThen(Condition, this + Other);
+		public BgString AppendIf(BgBool condition, BgString other) => IfThen(condition, this + other);
 
 		/// <inheritdoc/>
-		public BgString IfThen(BgBool Condition, BgString ValueIfTrue) => new BgStringChooseExpr(Condition, ValueIfTrue, this);
+		public BgString IfThen(BgBool condition, BgString valueIfTrue) => new BgStringChooseExpr(condition, valueIfTrue, this);
 
 		/// <inheritdoc/>
-		public BgBool IsMatch(BgString Input, string Pattern) => new BgStringIsMatchExpr(Input, Pattern);
+		public BgBool IsMatch(BgString input, string pattern) => new BgStringIsMatchExpr(input, pattern);
 
 		/// <inheritdoc/>
-		public BgString Replace(BgString Input, string Pattern, string Replace) => new BgStringReplaceExpr(Input, Pattern, Replace);
+		public BgString Replace(BgString input, string pattern, string replace) => new BgStringReplaceExpr(input, pattern, replace);
 
 		/// <inheritdoc/>
-		object IBgExpr.Compute(BgExprContext Context) => Compute(Context);
+		object IBgExpr.Compute(BgExprContext context) => Compute(context);
 
 		/// <inheritdoc/>
-		public abstract string Compute(BgExprContext Context);
+		public abstract string Compute(BgExprContext context);
 
 		/// <inheritdoc/>
 		public override bool Equals(object? obj) => throw new InvalidOperationException();
@@ -100,13 +88,13 @@ namespace EpicGames.BuildGraph.Expressions
 	class BgStringTraits : BgTypeBase<BgString>
 	{
 		/// <inheritdoc/>
-		public override BgString DeserializeArgument(string Text) => Text;
+		public override BgString DeserializeArgument(string text) => text;
 
 		/// <inheritdoc/>
-		public override string SerializeArgument(BgString Value, BgExprContext Context) => Value.Compute(Context);
+		public override string SerializeArgument(BgString value, BgExprContext context) => value.Compute(context);
 
 		/// <inheritdoc/>
-		public override BgString CreateConstant(object Value) => new BgStringConstantExpr((string)Value);
+		public override BgString CreateConstant(object value) => new BgStringConstantExpr((string)value);
 
 		/// <inheritdoc/>
 		public override IBgExprVariable<BgString> CreateVariable() => new BgStringVariableExpr();
@@ -120,14 +108,14 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgString Rhs { get; }
 		public StringComparison Comparison { get; }
 
-		public BgStringCompareExpr(BgString Lhs, BgString Rhs, StringComparison Comparison)
+		public BgStringCompareExpr(BgString lhs, BgString rhs, StringComparison comparison)
 		{
-			this.Lhs = Lhs;
-			this.Rhs = Rhs;
-			this.Comparison = Comparison;
+			Lhs = lhs;
+			Rhs = rhs;
+			Comparison = comparison;
 		}
 
-		public override int Compute(BgExprContext Context) => String.Compare(Lhs.Compute(Context), Rhs.Compute(Context), Comparison);
+		public override int Compute(BgExprContext context) => String.Compare(Lhs.Compute(context), Rhs.Compute(context), Comparison);
 
 		public override string ToString() => $"Compare({Lhs}, {Rhs})";
 	}
@@ -137,13 +125,13 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgString Lhs { get; }
 		public BgString Rhs { get; }
 
-		public BgStringConcatExpr(BgString Lhs, BgString Rhs)
+		public BgStringConcatExpr(BgString lhs, BgString rhs)
 		{
-			this.Lhs = Lhs;
-			this.Rhs = Rhs;
+			Lhs = lhs;
+			Rhs = rhs;
 		}
 
-		public override string Compute(BgExprContext Context) => Lhs.Compute(Context) + Rhs.Compute(Context);
+		public override string Compute(BgExprContext context) => Lhs.Compute(context) + Rhs.Compute(context);
 
 		public override string ToString() => $"Concat({Lhs}, {Rhs})";
 	}
@@ -153,13 +141,13 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgString Separator { get; }
 		public BgList<BgString> Values { get; }
 
-		public BgStringJoinExpr(BgString Separator, BgList<BgString> Values)
+		public BgStringJoinExpr(BgString separator, BgList<BgString> values)
 		{
-			this.Separator = Separator;
-			this.Values = Values;
+			Separator = separator;
+			Values = values;
 		}
 
-		public override string Compute(BgExprContext Context) => String.Join(Separator.Compute(Context), Values.Compute(Context));
+		public override string Compute(BgExprContext context) => String.Join(Separator.Compute(context), Values.Compute(context));
 
 		public override string ToString() => $"Join({Separator}, {Values})";
 	}
@@ -169,13 +157,13 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgString Input { get; }
 		public string Pattern { get; }
 
-		public BgStringIsMatchExpr(BgString Input, string Pattern)
+		public BgStringIsMatchExpr(BgString input, string pattern)
 		{
-			this.Input = Input;
-			this.Pattern = Pattern;
+			Input = input;
+			Pattern = pattern;
 		}
 
-		public override bool Compute(BgExprContext Context) => Regex.IsMatch(Input.Compute(Context), Pattern);
+		public override bool Compute(BgExprContext context) => Regex.IsMatch(Input.Compute(context), Pattern);
 	}
 
 	class BgStringReplaceExpr : BgString
@@ -184,14 +172,14 @@ namespace EpicGames.BuildGraph.Expressions
 		public string Pattern { get; }
 		public string Replacement { get; }
 
-		public BgStringReplaceExpr(BgString Input, string Pattern, string Replacement)
+		public BgStringReplaceExpr(BgString input, string pattern, string replacement)
 		{
-			this.Input = Input;
-			this.Pattern = Pattern;
-			this.Replacement = Replacement;
+			Input = input;
+			Pattern = pattern;
+			Replacement = replacement;
 		}
 
-		public override string Compute(BgExprContext Context) => Regex.Replace(Input.Compute(Context), Pattern, Replacement);
+		public override string Compute(BgExprContext context) => Regex.Replace(Input.Compute(context), Pattern, Replacement);
 	}
 
 	class BgStringFormatExpr : BgString
@@ -199,47 +187,47 @@ namespace EpicGames.BuildGraph.Expressions
 		new string Format { get; }
 		BgString[] Arguments { get; }
 
-		public BgStringFormatExpr(string Format, object?[] Args)
+		public BgStringFormatExpr(string format, object?[] args)
 		{
-			this.Format = Format;
+			Format = format;
 
-			Arguments = new BgString[Args.Length];
-			for (int Idx = 0; Idx < Args.Length; Idx++)
+			Arguments = new BgString[args.Length];
+			for (int idx = 0; idx < args.Length; idx++)
 			{
-				if (Args[Idx] is IBgExpr Expr)
+				if (args[idx] is IBgExpr expr)
 				{
-					Arguments[Idx] = Expr.ToBgString();
+					Arguments[idx] = expr.ToBgString();
 				}
-				else if (Args[Idx] != null)
+				else if (args[idx] != null)
 				{
-					Arguments[Idx] = Args[Idx]?.ToString() ?? String.Empty;
+					Arguments[idx] = args[idx]?.ToString() ?? String.Empty;
 				}
 				else
 				{
-					Arguments[Idx] = String.Empty;
+					Arguments[idx] = String.Empty;
 				}
 			}
 		}
 
-		public override string Compute(BgExprContext Context) => String.Format(Format, Arguments.Select(x => x.Compute(Context)).ToArray());
+		public override string Compute(BgExprContext context) => String.Format(Format, Arguments.Select(x => x.Compute(context)).ToArray());
 
 		public override string ToString() => $"Format({String.Join(", ", new[] { Format }.Concat(Arguments.Select(x => x.ToString())))})";
 	}
 
 	class BgStringChooseExpr : BgString
 	{
-		public BgBool Condition;
-		public BgString ValueIfTrue;
-		public BgString ValueIfFalse;
+		public BgBool Condition { get; }
+		public BgString ValueIfTrue { get; }
+		public BgString ValueIfFalse { get; }
 
-		public BgStringChooseExpr(BgBool Condition, BgString ValueIfTrue, BgString ValueIfFalse)
+		public BgStringChooseExpr(BgBool condition, BgString valueIfTrue, BgString valueIfFalse)
 		{
-			this.Condition = Condition;
-			this.ValueIfTrue = ValueIfTrue;
-			this.ValueIfFalse = ValueIfFalse;
+			Condition = condition;
+			ValueIfTrue = valueIfTrue;
+			ValueIfFalse = valueIfFalse;
 		}
 
-		public override string Compute(BgExprContext Context) => Condition.Compute(Context) ? ValueIfTrue.Compute(Context) : ValueIfFalse.Compute(Context);
+		public override string Compute(BgExprContext context) => Condition.Compute(context) ? ValueIfTrue.Compute(context) : ValueIfFalse.Compute(context);
 	}
 
 	class BgStringVariableExpr : BgString, IBgExprVariable<BgString>
@@ -248,23 +236,23 @@ namespace EpicGames.BuildGraph.Expressions
 
 		public BgString Variable => this;
 
-		public override string Compute(BgExprContext Context) => Value.Compute(Context);
+		public override string Compute(BgExprContext context) => Value.Compute(context);
 	}
 
 	class BgStringConstantExpr : BgString
 	{
 		public string Value { get; }
 
-		public BgStringConstantExpr(string Value)
+		public BgStringConstantExpr(string value)
 		{
-			this.Value = Value;
+			Value = value;
 		}
 
-		public override string Compute(BgExprContext Context) => Value;
+		public override string Compute(BgExprContext context) => Value;
 
-		public override bool Equals(object? Obj)
+		public override bool Equals(object? obj)
 		{
-			return Obj is string ObjStr && String.Equals(Value, ObjStr, StringComparison.OrdinalIgnoreCase);
+			return obj is string objStr && String.Equals(Value, objStr, StringComparison.OrdinalIgnoreCase);
 		}
 
 		public override int GetHashCode()

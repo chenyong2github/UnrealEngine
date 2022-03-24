@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.BuildGraph
 {
@@ -26,10 +22,10 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="InName">Name of this aggregate</param>
-		public BgAggregate(string InName)
+		/// <param name="inName">Name of this aggregate</param>
+		public BgAggregate(string inName)
 		{
-			Name = InName;
+			Name = inName;
 		}
 
 		/// <summary>

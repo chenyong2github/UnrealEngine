@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.BuildGraph
 {
@@ -16,38 +13,38 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Location of the diagnostic
 		/// </summary>
-		public BgScriptLocation Location;
+		public BgScriptLocation Location { get; }
 
 		/// <summary>
 		/// The diagnostic event type
 		/// </summary>
-		public LogEventType EventType;
+		public LogEventType EventType { get; }
 
 		/// <summary>
 		/// The message to display
 		/// </summary>
-		public string Message;
+		public string Message { get; }
 
 		/// <summary>
 		/// The node which this diagnostic is declared in. If the node is culled from the graph, the message will not be displayed.
 		/// </summary>
-		public BgNode? EnclosingNode;
+		public BgNode? EnclosingNode { get; }
 
 		/// <summary>
 		/// The agent that this diagnostic is declared in. If the entire agent is culled from the graph, the message will not be displayed.
 		/// </summary>
-		public BgAgent? EnclosingAgent;
+		public BgAgent? EnclosingAgent { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgGraphDiagnostic(BgScriptLocation Location, LogEventType EventType, string Message, BgNode? EnclosingNode, BgAgent? EnclosingAgent)
+		public BgGraphDiagnostic(BgScriptLocation location, LogEventType eventType, string message, BgNode? enclosingNode, BgAgent? enclosingAgent)
 		{
-			this.Location = Location;
-			this.EventType = EventType;
-			this.Message = Message;
-			this.EnclosingNode = EnclosingNode;
-			this.EnclosingAgent = EnclosingAgent;
+			Location = location;
+			EventType = eventType;
+			Message = message;
+			EnclosingNode = enclosingNode;
+			EnclosingAgent = enclosingAgent;
 		}
 	}
 }

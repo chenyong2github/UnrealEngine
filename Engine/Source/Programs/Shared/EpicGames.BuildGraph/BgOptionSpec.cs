@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.BuildGraph.Expressions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
+using EpicGames.BuildGraph.Expressions;
 
 namespace EpicGames.BuildGraph
 {
@@ -17,9 +16,9 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Message"></param>
-		public BgOptionValidationException(string Message)
-			: base(Message)
+		/// <param name="message"></param>
+		public BgOptionValidationException(string message)
+			: base(message)
 		{
 		}
 	}
@@ -67,27 +66,27 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal BgBoolOption(string Name, BgString Description, BgBool DefaultValue)
+		internal BgBoolOption(string name, BgString description, BgBool defaultValue)
 		{
-			this.Name = Name;
-			this.Description = Description;
-			this.DefaultValue = DefaultValue;
+			Name = name;
+			Description = description;
+			DefaultValue = defaultValue;
 		}
 
 		/// <inheritdoc/>
-		public override bool Compute(BgExprContext Context)
+		public override bool Compute(BgExprContext context)
 		{
-			string? Value;
-			if (Context.Options.TryGetValue(Name, out Value))
+			string? value;
+			if (context.Options.TryGetValue(Name, out value))
 			{
-				bool BoolValue;
-				if (!bool.TryParse(Value, out BoolValue))
+				bool boolValue;
+				if (!bool.TryParse(value, out boolValue))
 				{
-					throw new BgOptionValidationException($"Argument for {Name} is not a valid bool ({Value})");
+					throw new BgOptionValidationException($"Argument for {Name} is not a valid bool ({value})");
 				}
-				return BoolValue;
+				return boolValue;
 			}
-			return DefaultValue.Compute(Context);
+			return DefaultValue.Compute(context);
 		}
 	}
 
@@ -123,42 +122,42 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal BgIntOption(string Name, BgString Description, BgInt DefaultValue)
+		internal BgIntOption(string name, BgString description, BgInt defaultValue)
 		{
-			this.Name = Name;
-			this.Description = Description;
-			this.DefaultValue = DefaultValue;
+			Name = name;
+			Description = description;
+			DefaultValue = defaultValue;
 		}
 
 		/// <inheritdoc/>
-		public override int Compute(BgExprContext Context)
+		public override int Compute(BgExprContext context)
 		{
-			string? Value;
-			if (Context.Options.TryGetValue(Name, out Value))
+			string? value;
+			if (context.Options.TryGetValue(Name, out value))
 			{
-				int IntValue;
-				if (!int.TryParse(Value, out IntValue))
+				int intValue;
+				if (!int.TryParse(value, out intValue))
 				{
 					throw new BgOptionValidationException($"Argument for '{Name}' is not a valid integer");
 				}
 				if (!ReferenceEquals(MinValue, null))
 				{
-					int IntMinValue = MinValue.Compute(Context);
-					if (IntValue < IntMinValue)
+					int intMinValue = MinValue.Compute(context);
+					if (intValue < intMinValue)
 					{
-						throw new BgOptionValidationException($"Argument for '{Name}' is less than the allowed minimum ({IntValue} < {IntMinValue})");
+						throw new BgOptionValidationException($"Argument for '{Name}' is less than the allowed minimum ({intValue} < {intMinValue})");
 					}
 				}
 				if (!ReferenceEquals(MaxValue, null))
 				{
-					int IntMaxValue = MaxValue.Compute(Context);
-					if (IntValue > IntMaxValue)
+					int intMaxValue = MaxValue.Compute(context);
+					if (intValue > intMaxValue)
 					{
-						throw new BgOptionValidationException($"Argument for '{Name}' is greater than the allowed maximum ({IntValue} > {IntMaxValue})");
+						throw new BgOptionValidationException($"Argument for '{Name}' is greater than the allowed maximum ({intValue} > {intMaxValue})");
 					}
 				}
 			}
-			return DefaultValue.Compute(Context);
+			return DefaultValue.Compute(context);
 		}
 	}
 
@@ -184,27 +183,27 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal BgEnumOption(string Name, BgString Description, BgEnum<TEnum> DefaultValue)
+		internal BgEnumOption(string name, BgString description, BgEnum<TEnum> defaultValue)
 		{
-			this.Name = Name;
-			this.Description = Description;
-			this.DefaultValue = DefaultValue;
+			Name = name;
+			Description = description;
+			DefaultValue = defaultValue;
 		}
 
 		/// <inheritdoc/>
-		public override TEnum Compute(BgExprContext Context)
+		public override TEnum Compute(BgExprContext context)
 		{
-			string? Value;
-			if (Context.Options.TryGetValue(Name, out Value))
+			string? value;
+			if (context.Options.TryGetValue(Name, out value))
 			{
-				TEnum EnumValue;
-				if (!Enum.TryParse<TEnum>(Value, true, out EnumValue))
+				TEnum enumValue;
+				if (!Enum.TryParse<TEnum>(value, true, out enumValue))
 				{
 					throw new BgOptionValidationException($"Argument '{Name}' is not a valid value for {typeof(TEnum).Name}");
 				}
-				return EnumValue;
+				return enumValue;
 			}
-			return DefaultValue.Compute(Context);
+			return DefaultValue.Compute(context);
 		}
 	}
 
@@ -245,39 +244,39 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal BgStringOption(string Name, BgString Description, BgString DefaultValue)
+		internal BgStringOption(string name, BgString description, BgString defaultValue)
 		{
-			this.Name = Name;
-			this.Description = Description;
-			this.DefaultValue = DefaultValue;
+			Name = name;
+			Description = description;
+			DefaultValue = defaultValue;
 		}
 
 		/// <inheritdoc/>
-		public override string Compute(BgExprContext Context)
+		public override string Compute(BgExprContext context)
 		{
-			string? Value;
-			if (Context.Options.TryGetValue(Name, out Value))
+			string? value;
+			if (context.Options.TryGetValue(Name, out value))
 			{
 				if (!Object.ReferenceEquals(Pattern, null))
 				{
-					string PatternValue = Pattern.Compute(Context);
-					if (!Regex.IsMatch(Value, PatternValue))
+					string patternValue = Pattern.Compute(context);
+					if (!Regex.IsMatch(value, patternValue))
 					{
-						string PatternFailedValue = PatternFailed?.Compute(Context) ?? $"Argument '{Name}' does not match the required pattern: '{PatternValue}'";
-						throw new BgOptionValidationException(PatternFailedValue);
+						string patternFailedValue = PatternFailed?.Compute(context) ?? $"Argument '{Name}' does not match the required pattern: '{patternValue}'";
+						throw new BgOptionValidationException(patternFailedValue);
 					}
 				}
 				if (!Object.ReferenceEquals(Enum, null))
 				{
-					List<string> EnumValues = Enum.Compute(Context);
-					if (!EnumValues.Any(x => x.Equals(Value, StringComparison.OrdinalIgnoreCase)))
+					List<string> enumValues = Enum.Compute(context);
+					if (!enumValues.Any(x => x.Equals(value, StringComparison.OrdinalIgnoreCase)))
 					{
 						throw new BgOptionValidationException($"Argument '{Name}' is invalid");
 					}
 				}
-				return Value;
+				return value;
 			}
-			return DefaultValue.Compute(Context);
+			return DefaultValue.Compute(context);
 		}
 	}
 
@@ -303,22 +302,22 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal BgEnumListOption(string Name, BgString Description, BgList<BgEnum<TEnum>> DefaultValue)
+		internal BgEnumListOption(string name, BgString description, BgList<BgEnum<TEnum>> defaultValue)
 		{
-			this.Name = Name;
-			this.Description = Description;
-			this.DefaultValue = DefaultValue;
+			Name = name;
+			Description = description;
+			DefaultValue = defaultValue;
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<BgEnum<TEnum>> GetEnumerable(BgExprContext Context)
+		public override IEnumerable<BgEnum<TEnum>> GetEnumerable(BgExprContext context)
 		{
-			BgList<BgEnum<TEnum>> Value = DefaultValue;
-			if (Context.Options.TryGetValue(Name, out string? ValueText))
+			BgList<BgEnum<TEnum>> value = DefaultValue;
+			if (context.Options.TryGetValue(Name, out string? valueText))
 			{
-				Value = BgType.Get<BgList<BgEnum<TEnum>>>().DeserializeArgument(ValueText);
+				value = BgType.Get<BgList<BgEnum<TEnum>>>().DeserializeArgument(valueText);
 			}
-			return Value.GetEnumerable(Context);
+			return value.GetEnumerable(context);
 		}
 	}
 }

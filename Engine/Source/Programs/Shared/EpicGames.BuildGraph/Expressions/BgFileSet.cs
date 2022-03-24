@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using EpicGames.Core;
 
 namespace EpicGames.BuildGraph.Expressions
 {
@@ -15,31 +12,31 @@ namespace EpicGames.BuildGraph.Expressions
 	public abstract class BgFileSet : IBgExpr<BgFileSet>
 	{
 		/// <inheritdoc/>
-		public BgFileSet IfThen(BgBool Condition, BgFileSet ValueIfTrue) => new BgFileSetIfThenExpr(Condition, ValueIfTrue, this);
+		public BgFileSet IfThen(BgBool condition, BgFileSet valueIfTrue) => new BgFileSetIfThenExpr(condition, valueIfTrue, this);
 
 		/// <inheritdoc/>
-		object IBgExpr.Compute(BgExprContext Context) => Compute(Context);
+		object IBgExpr.Compute(BgExprContext context) => Compute(context);
 
 		/// <inheritdoc/>
-		public abstract BgFileSet Compute(BgExprContext Context);
+		public abstract BgFileSet Compute(BgExprContext context);
 
 		/// <summary>
 		/// Gets the tag name for this fileset
 		/// </summary>
 		/// <returns></returns>
-		public string ComputeTag(BgExprContext Context) => ((BgFileSetTagExpr)Compute(Context)).Name;
+		public string ComputeTag(BgExprContext context) => ((BgFileSetTagExpr)Compute(context)).Name;
 
 		/// <summary>
 		/// Gets the tag name for this fileset
 		/// </summary>
 		/// <returns></returns>
-		public FileSet ComputeValue(BgExprContext Context) => ((BgFileSetValueExpr)Compute(Context)).FileSet;
+		public FileSet ComputeValue(BgExprContext context) => ((BgFileSetValueExpr)Compute(context)).FileSet;
 
 		/// <summary>
 		/// Implicit conversion from a file set to a functional file set
 		/// </summary>
-		/// <param name="FileSet"></param>
-		public static implicit operator BgFileSet(FileSet FileSet) => new BgFileSetValueExpr(FileSet);
+		/// <param name="fileSet"></param>
+		public static implicit operator BgFileSet(FileSet fileSet) => new BgFileSetValueExpr(fileSet);
 
 		/// <inheritdoc/>
 		public BgString ToBgString() => new BgFileSetToStringExpr(this);
@@ -51,13 +48,13 @@ namespace EpicGames.BuildGraph.Expressions
 	class BgFileSetType : BgTypeBase<BgFileSet>
 	{
 		/// <inheritdoc/>
-		public override BgFileSet DeserializeArgument(string Text) => new BgFileSetTagExpr(Text);
+		public override BgFileSet DeserializeArgument(string text) => new BgFileSetTagExpr(text);
 
 		/// <inheritdoc/>
-		public override string SerializeArgument(BgFileSet Value, BgExprContext Context) => ((BgFileSetTagExpr)Value.Compute(Context)).Name;
+		public override string SerializeArgument(BgFileSet value, BgExprContext context) => ((BgFileSetTagExpr)value.Compute(context)).Name;
 
 		/// <inheritdoc/>
-		public override BgFileSet CreateConstant(object Value) => new BgFileSetTagExpr(((BgFileSetTagExpr)Value).Name);
+		public override BgFileSet CreateConstant(object value) => new BgFileSetTagExpr(((BgFileSetTagExpr)value).Name);
 
 		/// <inheritdoc/>
 		public override IBgExprVariable<BgFileSet> CreateVariable() => throw new NotImplementedException();
@@ -67,35 +64,35 @@ namespace EpicGames.BuildGraph.Expressions
 
 	class BgFileSetIfThenExpr : BgFileSet
 	{
-		public BgBool Condition;
-		public BgFileSet ValueIfTrue;
-		public BgFileSet ValueIfFalse;
+		public BgBool Condition { get; }
+		public BgFileSet ValueIfTrue { get; }
+		public BgFileSet ValueIfFalse { get; }
 
-		public BgFileSetIfThenExpr(BgBool Condition, BgFileSet ValueIfTrue, BgFileSet ValueIfFalse)
+		public BgFileSetIfThenExpr(BgBool condition, BgFileSet valueIfTrue, BgFileSet valueIfFalse)
 		{
-			this.Condition = Condition;
-			this.ValueIfTrue = ValueIfTrue;
-			this.ValueIfFalse = ValueIfFalse;
+			Condition = condition;
+			ValueIfTrue = valueIfTrue;
+			ValueIfFalse = valueIfFalse;
 		}
 
-		public override BgFileSet Compute(BgExprContext Context) => Condition.Compute(Context) ? ValueIfTrue.Compute(Context) : ValueIfFalse.Compute(Context);
+		public override BgFileSet Compute(BgExprContext context) => Condition.Compute(context) ? ValueIfTrue.Compute(context) : ValueIfFalse.Compute(context);
 	}
 
 	class BgFileSetToStringExpr : BgString
 	{
-		BgFileSet FileSet;
+		public BgFileSet FileSet { get; }
 
-		internal BgFileSetToStringExpr(BgFileSet Token)
+		internal BgFileSetToStringExpr(BgFileSet token)
 		{
-			this.FileSet = Token;
+			FileSet = token;
 		}
 
-		public override string Compute(BgExprContext Context)
+		public override string Compute(BgExprContext context)
 		{
-			BgFileSet FileSetValue = FileSet.Compute(Context);
-			if (FileSetValue is BgFileSetTagExpr TagExpr)
+			BgFileSet fileSetValue = FileSet.Compute(context);
+			if (fileSetValue is BgFileSetTagExpr tagExpr)
 			{
-				return TagExpr.Name;
+				return tagExpr.Name;
 			}
 			else
 			{
@@ -108,43 +105,43 @@ namespace EpicGames.BuildGraph.Expressions
 	{
 		public string Name { get; set; }
 
-		public BgFileSetTagExpr(string Name)
+		public BgFileSetTagExpr(string name)
 		{
-			this.Name = Name;
+			Name = name;
 		}
 
-		public override BgFileSet Compute(BgExprContext Context) => this;
+		public override BgFileSet Compute(BgExprContext context) => this;
 	}
 
 	class BgFileSetTagFromStringExpr : BgFileSet
 	{
 		public BgString Name { get; }
 
-		public BgFileSetTagFromStringExpr(BgString Name)
+		public BgFileSetTagFromStringExpr(BgString name)
 		{
-			this.Name = Name;
+			Name = name;
 		}
 
-		public override BgFileSet Compute(BgExprContext Context) => new BgFileSetTagExpr(Name.Compute(Context));
+		public override BgFileSet Compute(BgExprContext context) => new BgFileSetTagExpr(Name.Compute(context));
 	}
 
 	class BgFileSetVariableExpr : BgFileSet, IBgExprVariable<BgFileSet>
 	{
 		public BgFileSet Value { get; set; } = new BgFileSetValueExpr(FileSet.Empty);
 
-		public override BgFileSet Compute(BgExprContext Context) => Value.Compute(Context);
+		public override BgFileSet Compute(BgExprContext context) => Value.Compute(context);
 	}
 
 	class BgFileSetValueExpr : BgFileSet
 	{
 		public FileSet FileSet { get; }
 
-		public BgFileSetValueExpr(FileSet FileSet)
+		public BgFileSetValueExpr(FileSet fileSet)
 		{
-			this.FileSet = FileSet;
+			FileSet = fileSet;
 		}
 
-		public override BgFileSet Compute(BgExprContext Context) => this;
+		public override BgFileSet Compute(BgExprContext context) => this;
 	}
 
 	#endregion

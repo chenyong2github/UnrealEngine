@@ -1,11 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.BuildGraph
 {
@@ -37,14 +32,14 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="InName">Name of this report</param>
-		/// <param name="InProject">Depot path to the project that this badge applies to</param>
-		/// <param name="InChange">The changelist to post the badge for</param>
-		public BgBadge(string InName, string InProject, int InChange)
+		/// <param name="inName">Name of this report</param>
+		/// <param name="inProject">Depot path to the project that this badge applies to</param>
+		/// <param name="inChange">The changelist to post the badge for</param>
+		public BgBadge(string inName, string inProject, int inChange)
 		{
-			Name = InName;
-			Project = InProject;
-			Change = InChange;
+			Name = inName;
+			Project = inProject;
+			Change = inChange;
 		}
 
 		/// <summary>

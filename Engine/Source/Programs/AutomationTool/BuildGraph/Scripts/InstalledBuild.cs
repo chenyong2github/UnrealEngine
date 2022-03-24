@@ -146,7 +146,7 @@ namespace AutomationTool
 				.AddNode(x => CompileUnrealEditorWin64Async(x, CrashReporterCompileArgs, EmbedSrcSrvInfo, CompileDatasmithPlugins, WithFullDebugInfo, SignExecutables))
 				.Requires(WinUhtNode);
 			
-			Graph.AddAggregate("Win64 Editor", WinEditorNode, Label: "Editors/Win64");
+			Graph.AddAggregate("Win64 Editor", WinEditorNode, label: "Editors/Win64");
 
 
 			/////// TARGET PLATFORMS ////////////////////////////////////////////////
@@ -219,7 +219,7 @@ namespace AutomationTool
 				.AddNode(x => MakeInstalledBuildWin64Async(x, WinInstalledFiles, WinFinalizeArgs, WinOutputDir))
 				.Requires(WinInstalledFiles);
 
-			Graph.AddAggregate("HostPlatforms_Win64", WinInstalledNode, Label: "Builds/Win64");
+			Graph.AddAggregate("HostPlatforms_Win64", WinInstalledNode, label: "Builds/Win64");
 		}
 
 		/// <summary>

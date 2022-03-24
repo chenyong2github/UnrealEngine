@@ -772,7 +772,7 @@ namespace AutomationTool
 			bool bHasRequiredAttributes = true;
 			foreach (ScriptTaskParameterBinding Parameter in Task.NameToParameter.Values)
 			{
-				if (!Parameter.bOptional && !TaskInfo.Arguments.ContainsKey(Parameter.Name))
+				if (!Parameter.Optional && !TaskInfo.Arguments.ContainsKey(Parameter.Name))
 				{
 					OutputBindingError(TaskInfo, "Missing required attribute - {AttrName}", Parameter.Name);
 					bHasRequiredAttributes = false;
@@ -1499,7 +1499,7 @@ namespace AutomationTool
 								string[] Columns = new string[4];
 								Columns[0] = ParameterName;
 								Columns[1] = TypeName;
-								Columns[2] = Parameter.bOptional ? "Optional" : "Required";
+								Columns[2] = Parameter.Optional ? "Optional" : "Required";
 								Columns[3] = ConvertToMarkdown(ParameterElement.SelectSingleNode("summary"));
 								Rows.Add(Columns);
 							}
@@ -1605,7 +1605,7 @@ namespace AutomationTool
 								Writer.WriteLine("      <tr>");
 								Writer.WriteLine("         <td>{0}</td>", ParameterName);
 								Writer.WriteLine("         <td>{0}</td>", TypeName);
-								Writer.WriteLine("         <td>{0}</td>", Parameter.bOptional? "Optional" : "Required");
+								Writer.WriteLine("         <td>{0}</td>", Parameter.Optional? "Optional" : "Required");
 								Writer.WriteLine("         <td>{0}</td>", ParameterElement.SelectSingleNode("summary").InnerXml.Trim());
 								Writer.WriteLine("      </tr>");
 							}
