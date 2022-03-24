@@ -640,3 +640,38 @@ float Vis_Cloth( float NoV, float NoL )
 	return rcp( 4 * ( NoL + NoV - NoL * NoV ) );
 }
 
+float D_Charlie(float Roughness, float NoH)
+{
+	float InvR = 1 / Roughness;
+	float Cos2H = NoH * NoH;
+	float Sin2H = 1 - Cos2H;
+	return (2 + InvR) * pow(Sin2H, InvR * 0.5) / (2 * PI);
+}
+
+// [Estevez and Kulla 2017, "Production Friendly Microfacet Sheen BRDF"]
+float Vis_Charlie_L(float x, float r)
+{
+	r = saturate(r);
+	r = 1.0 - (1. - r) * (1. - r);
+
+	float a = lerp(25.3245 , 21.5473 , r);
+	float b = lerp( 3.32435,  3.82987, r);
+	float c = lerp( 0.16801,  0.19823, r);
+	float d = lerp(-1.27393, -1.97760, r);
+	float e = lerp(-4.85967, -4.32054, r);
+
+	return a * rcp( (1 + b * pow(x, c)) + d * x + e);
+}
+float Vis_Charlie(float Roughness, float NoV, float NoL)
+{
+	float VisV = NoV < 0.5 ? exp(Vis_Charlie_L(NoV, Roughness)) : exp(2 * Vis_Charlie_L(0.5, Roughness) - Vis_Charlie_L(1 - NoV, Roughness));
+	float VisL = NoL < 0.5 ? exp(Vis_Charlie_L(NoL, Roughness)) : exp(2 * Vis_Charlie_L(0.5, Roughness) - Vis_Charlie_L(1 - NoL, Roughness));
+
+	return rcp(((1 + VisV + VisL) * (4 * NoV * NoL)));
+}
+
+float Vis_Ashikhmin(float NoV, float NoL)
+{
+	return rcp(4 * (NoL + NoV - NoL * NoV));
+}
+

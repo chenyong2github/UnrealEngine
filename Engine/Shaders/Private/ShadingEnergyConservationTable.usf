@@ -91,8 +91,14 @@ void BuildEnergyTableCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		const float NoL = L.z;
 		const float3 H = normalize(V + L);
 		const float NoH = H.z;
+#if STRATA_ENABLED
+		const float DCloth = D_Charlie(Roughness, NoH);
+		const float VCloth = Vis_Ashikhmin(NoV, NoL);
+#else
 		const float DCloth = D_InvGGX(Alpha.x * Alpha.y, NoH);
-		const float ClothWeight = NoL > 0 && NoV > 0 ? (PI * DCloth * Vis_Cloth(NoV, NoL)) : 0.0;
+		const float VCloth = Vis_Cloth(NoV, NoL);
+#endif
+		const float ClothWeight = NoL > 0 && NoV > 0 ? (PI * DCloth * VCloth) : 0.0;
 
 		Weight = float2(ClothWeight, ClothWeight * Pow5(1 - dot(V, H)));
 #elif BUILD_ENERGY_TABLE == 3
