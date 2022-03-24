@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Core
 {
@@ -45,7 +41,7 @@ namespace EpicGames.Core
 			/// <summary>
 			/// The logger to output to
 			/// </summary>
-			private ILogger Logger;
+			private readonly ILogger _logger;
 
 			/// <summary>
 			/// Prefix message for the status
@@ -60,16 +56,16 @@ namespace EpicGames.Core
 			/// </summary>
 			public string Progress
 			{
-				get { return ProgressInternal; }
+				get => _progressInternal;
 				set
 				{
-					ProgressInternal = value;
+					_progressInternal = value;
 
-					if (Timer.Elapsed > TimeSpan.FromSeconds(3.0))
+					if (_timer.Elapsed > TimeSpan.FromSeconds(3.0))
 					{
-						LastOutput = String.Empty;
+						_lastOutput = String.Empty;
 						Flush();
-						Timer.Restart();
+						_timer.Restart();
 					}
 				}
 			}
@@ -77,30 +73,30 @@ namespace EpicGames.Core
 			/// <summary>
 			/// The last string that was output
 			/// </summary>
-			string LastOutput = String.Empty;
+			string _lastOutput = String.Empty;
 
 			/// <summary>
 			/// Backing storage for the Progress string
 			/// </summary>
-			string ProgressInternal = String.Empty;
+			string _progressInternal = String.Empty;
 
 			/// <summary>
 			/// Timer since the last update
 			/// </summary>
-			Stopwatch Timer = Stopwatch.StartNew();
+			readonly Stopwatch _timer = Stopwatch.StartNew();
 
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="Logger">The logger to write to</param>
-			/// <param name="Message">The base message to display</param>
-			public LoggerProgress(ILogger Logger, string Message)
+			/// <param name="logger">The logger to write to</param>
+			/// <param name="message">The base message to display</param>
+			public LoggerProgress(ILogger logger, string message)
 			{
-				this.Logger = Logger;
-				this.Message = Message;
-				this.ProgressInternal = String.Empty;
+				_logger = logger;
+				Message = message;
+				_progressInternal = String.Empty;
 
-				Logger.LogInformation(Message);
+				logger.LogInformation(message);
 			}
 
 			/// <summary>
@@ -116,15 +112,15 @@ namespace EpicGames.Core
 			/// </summary>
 			void Flush()
 			{
-				string Output = Message;
+				string output = Message;
 				if (!String.IsNullOrEmpty(Progress))
 				{
-					Output += $" {Progress}";
+					output += $" {Progress}";
 				}
-				if (!String.Equals(Output, LastOutput, StringComparison.Ordinal))
+				if (!String.Equals(output, _lastOutput, StringComparison.Ordinal))
 				{
-					Logger.LogInformation(Output);
-					LastOutput = Output;
+					_logger.LogInformation(output);
+					_lastOutput = output;
 				}
 			}
 		}
@@ -132,12 +128,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Begins a new progress scope
 		/// </summary>
-		/// <param name="Logger">The logger being written to</param>
-		/// <param name="Message">The message prefix</param>
+		/// <param name="logger">The logger being written to</param>
+		/// <param name="message">The message prefix</param>
 		/// <returns>Scope object, which should be disposed when finished</returns>
-		public static ILoggerProgress BeginProgressScope(this ILogger Logger, string Message)
+		public static ILoggerProgress BeginProgressScope(this ILogger logger, string message)
 		{
-			return new LoggerProgress(Logger, Message);
+			return new LoggerProgress(logger, message);
 		}
 	}
 }

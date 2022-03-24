@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -18,60 +14,54 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The mutable hashset
 		/// </summary>
-		HashSet<T> Inner;
+		readonly HashSet<T> _inner;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Inner">The mutable hashset</param>
-		public ReadOnlyHashSet(HashSet<T> Inner)
+		/// <param name="inner">The mutable hashset</param>
+		public ReadOnlyHashSet(HashSet<T> inner)
 		{
-			this.Inner = Inner;
+			_inner = inner;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Collection">Elements for the hash set</param>
-		public ReadOnlyHashSet(IEnumerable<T> Elements)
+		public ReadOnlyHashSet(IEnumerable<T> elements)
 		{
-			this.Inner = new HashSet<T>(Elements);
+			_inner = new HashSet<T>(elements);
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Collection">Elements for the hash set</param>
-		/// <param name="Comparer">Comparer for elements in the set</param>
-		public ReadOnlyHashSet(IEnumerable<T> Elements, IEqualityComparer<T> Comparer)
+		/// <param name="comparer">Comparer for elements in the set</param>
+		public ReadOnlyHashSet(IEnumerable<T> elements, IEqualityComparer<T> comparer)
 		{
-			this.Inner = new HashSet<T>(Elements, Comparer);
+			_inner = new HashSet<T>(elements, comparer);
 		}
 
 		/// <summary>
 		/// Number of elements in the set
 		/// </summary>
-		public int Count
-		{
-			get { return Inner.Count; }
-		}
+		public int Count => _inner.Count;
 
 		/// <summary>
 		/// The comparer for elements in the set
 		/// </summary>
-		public IEqualityComparer<T> Comparer
-		{
-			get { return Inner.Comparer; }
-		}
+		public IEqualityComparer<T> Comparer => _inner.Comparer;
 
 		/// <summary>
 		/// Tests whether a given item is in the set
 		/// </summary>
-		/// <param name="Item">Item to check for</param>
+		/// <param name="item">Item to check for</param>
 		/// <returns>True if the item is in the set</returns>
-		public bool Contains(T Item)
+		public bool Contains(T item)
 		{
-			return Inner.Contains(Item);
+			return _inner.Contains(item);
 		}
 
 		/// <summary>
@@ -80,7 +70,7 @@ namespace EpicGames.Core
 		/// <returns>Enumerator instance</returns>
 		public IEnumerator<T> GetEnumerator()
 		{
-			return Inner.GetEnumerator();
+			return _inner.GetEnumerator();
 		}
 
 		/// <summary>
@@ -89,16 +79,16 @@ namespace EpicGames.Core
 		/// <returns>Enumerator instance</returns>
 		IEnumerator IEnumerable.GetEnumerator()
 		{
-			return ((IEnumerable)Inner).GetEnumerator();
+			return ((IEnumerable)_inner).GetEnumerator();
 		}
 
 		/// <summary>
 		/// Implicit conversion operator from hashsets
 		/// </summary>
-		/// <param name="HashSet"></param>
-		public static implicit operator ReadOnlyHashSet<T>(HashSet<T> HashSet)
+		/// <param name="hashSet"></param>
+		public static implicit operator ReadOnlyHashSet<T>(HashSet<T> hashSet)
 		{
-			return new ReadOnlyHashSet<T>(HashSet);
+			return new ReadOnlyHashSet<T>(hashSet);
 		}
 	}
 }

@@ -18,58 +18,58 @@ namespace EpicGames.Core
 		/// </summary>
 		class ReferenceComparer : IEqualityComparer<object>
 		{
-			bool IEqualityComparer<object>.Equals(object? A, object? B)
+			bool IEqualityComparer<object>.Equals(object? a, object? b)
 			{
-				return A == B;
+				return a == b;
 			}
 
-			int IEqualityComparer<object>.GetHashCode(object X)
+			int IEqualityComparer<object>.GetHashCode(object x)
 			{
-				return RuntimeHelpers.GetHashCode(X);
+				return RuntimeHelpers.GetHashCode(x);
 			}
 		}
 
 		/// <summary>
 		/// Instance of the ReferenceComparer class which can be shared by all archive writers
 		/// </summary>
-		static readonly ReferenceComparer ReferenceComparerInstance = new ReferenceComparer();
+		static readonly ReferenceComparer s_referenceComparerInstance = new ReferenceComparer();
 
 		/// <summary>
 		/// The output stream being written to
 		/// </summary>
-		Stream? Stream;
+		Stream? _stream;
 
 		/// <summary>
 		/// Buffer for data to be written to the stream
 		/// </summary>
-		byte[] Buffer;
+		byte[] _buffer;
 
 		/// <summary>
 		/// Current position within the output buffer
 		/// </summary>
-		int BufferPos;
+		int _bufferPos;
 
 		/// <summary>
 		/// Map of object instance to unique id
 		/// </summary>
-		readonly Dictionary<object, int> ObjectToUniqueId = new Dictionary<object, int>(ReferenceComparerInstance);
+		readonly Dictionary<object, int> _objectToUniqueId = new Dictionary<object, int>(s_referenceComparerInstance);
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Stream">The output stream</param>
-		public BinaryArchiveWriter(Stream Stream)
+		/// <param name="stream">The output stream</param>
+		public BinaryArchiveWriter(Stream stream)
 		{
-			this.Stream = Stream;
-			this.Buffer = new byte[4096];
+			_stream = stream;
+			_buffer = new byte[4096];
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="FileName">File to write to</param>
-		public BinaryArchiveWriter(FileReference FileName)
-			: this(File.Open(FileName.FullName, FileMode.Create, FileAccess.Write, FileShare.Read))
+		/// <param name="fileName">File to write to</param>
+		public BinaryArchiveWriter(FileReference fileName)
+			: this(File.Open(fileName.FullName, FileMode.Create, FileAccess.Write, FileShare.Read))
 		{
 		}
 
@@ -80,10 +80,10 @@ namespace EpicGames.Core
 		{
 			Flush();
 
-			if (Stream != null)
+			if (_stream != null)
 			{
-				Stream.Dispose();
-				Stream = null;
+				_stream.Dispose();
+				_stream = null;
 			}
 		}
 
@@ -92,25 +92,25 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Flush()
 		{
-			if (BufferPos > 0)
+			if (_bufferPos > 0)
 			{
-				Stream!.Write(Buffer, 0, BufferPos);
-				BufferPos = 0;
+				_stream!.Write(_buffer, 0, _bufferPos);
+				_bufferPos = 0;
 			}
 		}
 
 		/// <summary>
 		/// Ensures there is a minimum amount of space in the output buffer
 		/// </summary>
-		/// <param name="NumBytes">Minimum amount of space required in the output buffer</param>
-		private void EnsureSpace(int NumBytes)
+		/// <param name="numBytes">Minimum amount of space required in the output buffer</param>
+		private void EnsureSpace(int numBytes)
 		{
-			if (BufferPos + NumBytes > Buffer.Length)
+			if (_bufferPos + numBytes > _buffer.Length)
 			{
 				Flush();
-				if (NumBytes > Buffer.Length)
+				if (numBytes > _buffer.Length)
 				{
-					Buffer = new byte[NumBytes];
+					_buffer = new byte[numBytes];
 				}
 			}
 		}
@@ -118,236 +118,236 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Writes a bool to the output
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteBool(bool Value)
+		/// <param name="value">Value to write</param>
+		public void WriteBool(bool value)
 		{
-			WriteByte(Value ? (byte)1 : (byte)0);
+			WriteByte(value ? (byte)1 : (byte)0);
 		}
 
 		/// <summary>
 		/// Writes a single byte to the output
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteByte(byte Value)
+		/// <param name="value">Value to write</param>
+		public void WriteByte(byte value)
 		{
 			EnsureSpace(1);
 
-			Buffer[BufferPos] = Value;
+			_buffer[_bufferPos] = value;
 
-			BufferPos++;
+			_bufferPos++;
 		}
 
 		/// <summary>
 		/// Writes a single signed byte to the output
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteSignedByte(sbyte Value)
+		/// <param name="value">Value to write</param>
+		public void WriteSignedByte(sbyte value)
 		{
-			WriteByte((byte)Value);
+			WriteByte((byte)value);
 		}
 
 		/// <summary>
 		/// Writes a single short to the output
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteShort(short Value)
+		/// <param name="value">Value to write</param>
+		public void WriteShort(short value)
 		{
-			WriteUnsignedShort((ushort)Value);
+			WriteUnsignedShort((ushort)value);
 		}
 
 		/// <summary>
 		/// Writes a single unsigned short to the output
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteUnsignedShort(ushort Value)
+		/// <param name="value">Value to write</param>
+		public void WriteUnsignedShort(ushort value)
 		{
 			EnsureSpace(2);
 
-			Buffer[BufferPos + 0] = (byte)Value;
-			Buffer[BufferPos + 1] = (byte)(Value >> 8);
+			_buffer[_bufferPos + 0] = (byte)value;
+			_buffer[_bufferPos + 1] = (byte)(value >> 8);
 
-			BufferPos += 2;
+			_bufferPos += 2;
 		}
 
 		/// <summary>
 		/// Writes a single int to the output
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteInt(int Value)
+		/// <param name="value">Value to write</param>
+		public void WriteInt(int value)
 		{
-			WriteUnsignedInt((uint)Value);
+			WriteUnsignedInt((uint)value);
 		}
 
 		/// <summary>
 		/// Writes a single unsigned int to the output
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteUnsignedInt(uint Value)
+		/// <param name="value">Value to write</param>
+		public void WriteUnsignedInt(uint value)
 		{
 			EnsureSpace(4);
 
-			Buffer[BufferPos + 0] = (byte)Value;
-			Buffer[BufferPos + 1] = (byte)(Value >> 8);
-			Buffer[BufferPos + 2] = (byte)(Value >> 16);
-			Buffer[BufferPos + 3] = (byte)(Value >> 24);
+			_buffer[_bufferPos + 0] = (byte)value;
+			_buffer[_bufferPos + 1] = (byte)(value >> 8);
+			_buffer[_bufferPos + 2] = (byte)(value >> 16);
+			_buffer[_bufferPos + 3] = (byte)(value >> 24);
 
-			BufferPos += 4;
+			_bufferPos += 4;
 		}
 
 		/// <summary>
 		/// Writes a single long to the output
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteLong(long Value)
+		/// <param name="value">Value to write</param>
+		public void WriteLong(long value)
 		{
-			WriteUnsignedLong((ulong)Value);
+			WriteUnsignedLong((ulong)value);
 		}
 
 		/// <summary>
 		/// Writes a single unsigned long to the output
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteUnsignedLong(ulong Value)
+		/// <param name="value">Value to write</param>
+		public void WriteUnsignedLong(ulong value)
 		{
 			EnsureSpace(8);
 
-			Buffer[BufferPos + 0] = (byte)Value;
-			Buffer[BufferPos + 1] = (byte)(Value >> 8);
-			Buffer[BufferPos + 2] = (byte)(Value >> 16);
-			Buffer[BufferPos + 3] = (byte)(Value >> 24);
-			Buffer[BufferPos + 4] = (byte)(Value >> 32);
-			Buffer[BufferPos + 5] = (byte)(Value >> 40);
-			Buffer[BufferPos + 6] = (byte)(Value >> 48);
-			Buffer[BufferPos + 7] = (byte)(Value >> 56);
+			_buffer[_bufferPos + 0] = (byte)value;
+			_buffer[_bufferPos + 1] = (byte)(value >> 8);
+			_buffer[_bufferPos + 2] = (byte)(value >> 16);
+			_buffer[_bufferPos + 3] = (byte)(value >> 24);
+			_buffer[_bufferPos + 4] = (byte)(value >> 32);
+			_buffer[_bufferPos + 5] = (byte)(value >> 40);
+			_buffer[_bufferPos + 6] = (byte)(value >> 48);
+			_buffer[_bufferPos + 7] = (byte)(value >> 56);
 
-			BufferPos += 8;
+			_bufferPos += 8;
 		}
 
 		/// <summary>
 		/// Writes a double (64 bit floating point value) to the stream
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteDouble(double Value)
+		/// <param name="value">Value to write</param>
+		public void WriteDouble(double value)
 		{
-			WriteLong(BitConverter.DoubleToInt64Bits(Value));
+			WriteLong(BitConverter.DoubleToInt64Bits(value));
 		}
 
 		/// <summary>
 		/// Writes a string to the output
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteString(string? Value)
+		/// <param name="value">Value to write</param>
+		public void WriteString(string? value)
 		{
-			byte[]? Bytes;
-			if (Value == null)
+			byte[]? bytes;
+			if (value == null)
 			{
-				Bytes = null;
+				bytes = null;
 			}
 			else
 			{
-				Bytes = Encoding.UTF8.GetBytes(Value);
+				bytes = Encoding.UTF8.GetBytes(value);
 			}
-			WriteByteArray(Bytes);
+			WriteByteArray(bytes);
 		}
 
 		/// <summary>
 		/// Writes an array of bytes to the output
 		/// </summary>
-		/// <param name="Data">Data to write. May be null.</param>
-		public void WriteByteArray(byte[]? Data)
+		/// <param name="data">Data to write. May be null.</param>
+		public void WriteByteArray(byte[]? data)
 		{
-			WritePrimitiveArray(Data, sizeof(byte));
+			WritePrimitiveArray(data, sizeof(byte));
 		}
 
 		/// <summary>
 		/// Writes an array of shorts to the output
 		/// </summary>
-		/// <param name="Data">Data to write. May be null.</param>
-		public void WriteShortArray(short[]? Data)
+		/// <param name="data">Data to write. May be null.</param>
+		public void WriteShortArray(short[]? data)
 		{
-			WritePrimitiveArray(Data, sizeof(short));
+			WritePrimitiveArray(data, sizeof(short));
 		}
 
 		/// <summary>
 		/// Writes an array of ints to the output
 		/// </summary>
-		/// <param name="Data">Data to write. May be null.</param>
-		public void WriteIntArray(int[]? Data)
+		/// <param name="data">Data to write. May be null.</param>
+		public void WriteIntArray(int[]? data)
 		{
-			WritePrimitiveArray(Data, sizeof(int));
+			WritePrimitiveArray(data, sizeof(int));
 		}
 
 		/// <summary>
 		/// Writes an array of primitive types to the output.
 		/// </summary>
-		/// <param name="Data">Data to write. May be null.</param>
-		private void WritePrimitiveArray<T>(T[]? Data, int ElementSize) where T : struct
+		/// <param name="data">Data to write. May be null.</param>
+		private void WritePrimitiveArray<T>(T[]? data, int elementSize) where T : struct
 		{
-			if (Data == null)
+			if (data == null)
 			{
 				WriteInt(-1);
 			}
 			else
 			{
-				WriteInt(Data.Length);
-				WriteBulkData(Data, Data.Length * ElementSize);
+				WriteInt(data.Length);
+				WriteBulkData(data, data.Length * elementSize);
 			}
 		}
 
 		/// <summary>
 		/// Writes an array of bytes to the output
 		/// </summary>
-		/// <param name="Data">Data to write. May be null.</param>
-		public void WriteFixedSizeByteArray(byte[] Data)
+		/// <param name="data">Data to write. May be null.</param>
+		public void WriteFixedSizeByteArray(byte[] data)
 		{
-			WriteFixedSizePrimitiveArray(Data, sizeof(byte));
+			WriteFixedSizePrimitiveArray(data, sizeof(byte));
 		}
 
 		/// <summary>
 		/// Writes an array of shorts to the output
 		/// </summary>
-		/// <param name="Data">Data to write. May be null.</param>
-		public void WriteFixedSizeShortArray(short[] Data)
+		/// <param name="data">Data to write. May be null.</param>
+		public void WriteFixedSizeShortArray(short[] data)
 		{
-			WriteFixedSizePrimitiveArray(Data, sizeof(short));
+			WriteFixedSizePrimitiveArray(data, sizeof(short));
 		}
 
 		/// <summary>
 		/// Writes an array of ints to the output
 		/// </summary>
-		/// <param name="Data">Data to write. May be null.</param>
-		public void WriteFixedSizeIntArray(int[] Data)
+		/// <param name="data">Data to write. May be null.</param>
+		public void WriteFixedSizeIntArray(int[] data)
 		{
-			WriteFixedSizePrimitiveArray(Data, sizeof(int));
+			WriteFixedSizePrimitiveArray(data, sizeof(int));
 		}
 
 		/// <summary>
 		/// Writes an array of primitive types to the output.
 		/// </summary>
-		/// <param name="Data">Data to write. May be null.</param>
-		private void WriteFixedSizePrimitiveArray<T>(T[] Data, int ElementSize) where T : struct
+		/// <param name="data">Data to write. May be null.</param>
+		private void WriteFixedSizePrimitiveArray<T>(T[] data, int elementSize) where T : struct
 		{
-			WriteBulkData(Data, Data.Length * ElementSize);
+			WriteBulkData(data, data.Length * elementSize);
 		}
 
 		/// <summary>
 		/// Writes primitive data from the given array to the output buffer.
 		/// </summary>
-		/// <param name="Data">Data to write.</param>
-		/// <param name="Size">Size of the data, in bytes</param>
-		private void WriteBulkData(Array Data, int Size)
+		/// <param name="data">Data to write.</param>
+		/// <param name="size">Size of the data, in bytes</param>
+		private void WriteBulkData(Array data, int size)
 		{
-			if (Size > 0)
+			if (size > 0)
 			{
-				for (int Pos = 0; ;)
+				for (int pos = 0; ;)
 				{
-					int CopySize = Math.Min(Size - Pos, Buffer.Length - BufferPos);
+					int copySize = Math.Min(size - pos, _buffer.Length - _bufferPos);
 
-					System.Buffer.BlockCopy(Data, Pos, Buffer, BufferPos, CopySize);
-					BufferPos += CopySize;
-					Pos += CopySize;
+					System.Buffer.BlockCopy(data, pos, _buffer, _bufferPos, copySize);
+					_bufferPos += copySize;
+					pos += copySize;
 
-					if (Pos == Size)
+					if (pos == size)
 					{
 						break;
 					}
@@ -361,20 +361,20 @@ namespace EpicGames.Core
 		/// Write an array of items to the archive
 		/// </summary>
 		/// <typeparam name="T">Type of the element</typeparam>
-		/// <param name="Items">Array of items</param>
-		/// <param name="WriteElement">Writes an individual element to the archive</param>
-		public void WriteArray<T>(T[]? Items, Action<T> WriteElement)
+		/// <param name="items">Array of items</param>
+		/// <param name="writeElement">Writes an individual element to the archive</param>
+		public void WriteArray<T>(T[]? items, Action<T> writeElement)
 		{
-			if (Items == null)
+			if (items == null)
 			{
 				WriteInt(-1);
 			}
 			else
 			{
-				WriteInt(Items.Length);
-				for (int Idx = 0; Idx < Items.Length; Idx++)
+				WriteInt(items.Length);
+				for (int idx = 0; idx < items.Length; idx++)
 				{
-					WriteElement(Items[Idx]);
+					writeElement(items[idx]);
 				}
 			}
 		}
@@ -383,20 +383,20 @@ namespace EpicGames.Core
 		/// Write a list of items to the archive
 		/// </summary>
 		/// <typeparam name="T">Type of the element</typeparam>
-		/// <param name="Items">List of items</param>
-		/// <param name="WriteElement">Writes an individual element to the archive</param>
-		public void WriteList<T>(IReadOnlyList<T>? Items, Action<T> WriteElement)
+		/// <param name="items">List of items</param>
+		/// <param name="writeElement">Writes an individual element to the archive</param>
+		public void WriteList<T>(IReadOnlyList<T>? items, Action<T> writeElement)
 		{
-			if (Items == null)
+			if (items == null)
 			{
 				WriteInt(-1);
 			}
 			else
 			{
-				WriteInt(Items.Count);
-				for (int Idx = 0; Idx < Items.Count; Idx++)
+				WriteInt(items.Count);
+				for (int idx = 0; idx < items.Count; idx++)
 				{
-					WriteElement(Items[Idx]);
+					writeElement(items[idx]);
 				}
 			}
 		}
@@ -405,20 +405,20 @@ namespace EpicGames.Core
 		/// Writes a hashset of items
 		/// </summary>
 		/// <typeparam name="T">The element type for the set</typeparam>
-		/// <param name="Set">The set to write</param>
-		/// <param name="WriteElement">Delegate used to read a single element</param>
-		public void WriteHashSet<T>(HashSet<T> Set, Action<T> WriteElement)
+		/// <param name="set">The set to write</param>
+		/// <param name="writeElement">Delegate used to read a single element</param>
+		public void WriteHashSet<T>(HashSet<T> set, Action<T> writeElement)
 		{
-			if (Set == null)
+			if (set == null)
 			{
 				WriteInt(-1);
 			}
 			else
 			{
-				WriteInt(Set.Count);
-				foreach (T Element in Set)
+				WriteInt(set.Count);
+				foreach (T element in set)
 				{
-					WriteElement(Element);
+					writeElement(element);
 				}
 			}
 		}
@@ -426,24 +426,24 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Writes a dictionary of items
 		/// </summary>
-		/// <typeparam name="K">Type of the dictionary key</typeparam>
-		/// <typeparam name="V">Type of the dictionary value</typeparam>
-		/// <param name="Dictionary">The dictionary to write</param>
-		/// <param name="WriteKey">Delegate used to read a single key</param>
-		/// <param name="WriteValue">Delegate used to read a single value</param>
-		public void WriteDictionary<K, V>(IReadOnlyDictionary<K, V> Dictionary, Action<K> WriteKey, Action<V> WriteValue) where K : notnull
+		/// <typeparam name="TK">Type of the dictionary key</typeparam>
+		/// <typeparam name="TV">Type of the dictionary value</typeparam>
+		/// <param name="dictionary">The dictionary to write</param>
+		/// <param name="writeKey">Delegate used to read a single key</param>
+		/// <param name="writeValue">Delegate used to read a single value</param>
+		public void WriteDictionary<TK, TV>(IReadOnlyDictionary<TK, TV> dictionary, Action<TK> writeKey, Action<TV> writeValue) where TK : notnull
 		{
-			if (Dictionary == null)
+			if (dictionary == null)
 			{
 				WriteInt(-1);
 			}
 			else
 			{
-				WriteInt(Dictionary.Count);
-				foreach (KeyValuePair<K, V> Pair in Dictionary)
+				WriteInt(dictionary.Count);
+				foreach (KeyValuePair<TK, TV> pair in dictionary)
 				{
-					WriteKey(Pair.Key);
-					WriteValue(Pair.Value);
+					writeKey(pair.Key);
+					writeValue(pair.Value);
 				}
 			}
 		}
@@ -452,14 +452,14 @@ namespace EpicGames.Core
 		/// Writes a nullable object to the archive
 		/// </summary>
 		/// <typeparam name="T">The nullable type</typeparam>
-		/// <param name="Item">Item to write</param>
-		/// <param name="WriteValue">Delegate used to write a value</param>
-		public void WriteNullable<T>(Nullable<T> Item, Action<T> WriteValue) where T : struct
+		/// <param name="item">Item to write</param>
+		/// <param name="writeValue">Delegate used to write a value</param>
+		public void WriteNullable<T>(Nullable<T> item, Action<T> writeValue) where T : struct
 		{
-			if (Item.HasValue)
+			if (item.HasValue)
 			{
 				WriteBool(true);
-				WriteValue(Item.Value);
+				writeValue(item.Value);
 			}
 			else
 			{
@@ -471,18 +471,18 @@ namespace EpicGames.Core
 		/// Writes an object to the output, checking whether it is null or not. Does not preserve object references; each object written is duplicated.
 		/// </summary>
 		/// <typeparam name="T">Type of the object to serialize</typeparam>
-		/// <param name="Object">Reference to check for null before serializing</param>
-		/// <param name="WriteObject">Delegate used to write the object</param>
-		public void WriteOptionalObject<T>(T Object, Action WriteObject) where T : class
+		/// <param name="obj">Reference to check for null before serializing</param>
+		/// <param name="writeObject">Delegate used to write the object</param>
+		public void WriteOptionalObject<T>(T obj, Action writeObject) where T : class
 		{
-			if (Object == null)
+			if (obj == null)
 			{
 				WriteBool(false);
 			}
 			else
 			{
 				WriteBool(true);
-				WriteObject();
+				writeObject();
 			}
 		}
 
@@ -497,25 +497,25 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Writes an object to the output. If the specific instance has already been written, preserves the reference to that.
 		/// </summary>
-		/// <param name="Object">The object to serialize</param>
-		/// <param name="WriteObject">Delegate used to write the object</param>
-		public void WriteObjectReference(object? Object, Action WriteObject)
+		/// <param name="obj">The object to serialize</param>
+		/// <param name="writeObject">Delegate used to write the object</param>
+		public void WriteObjectReference(object? obj, Action writeObject)
 		{
-			if (Object == null)
+			if (obj == null)
 			{
 				WriteInt(-1);
 			}
 			else
 			{
-				if (ObjectToUniqueId.TryGetValue(Object, out int Index))
+				if (_objectToUniqueId.TryGetValue(obj, out int index))
 				{
-					WriteInt(Index);
+					WriteInt(index);
 				}
 				else
 				{
-					WriteInt(ObjectToUniqueId.Count);
-					ObjectToUniqueId.Add(Object, ObjectToUniqueId.Count);
-					WriteObject();
+					WriteInt(_objectToUniqueId.Count);
+					_objectToUniqueId.Add(obj, _objectToUniqueId.Count);
+					writeObject();
 				}
 			}
 		}
@@ -523,11 +523,11 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Writes an object to the output. If the specific instance has already been written, preserves the reference to that.
 		/// </summary>
-		/// <param name="Object">The object to serialize</param>
-		/// <param name="WriteObject">Delegate used to write the object</param>
-		public void WriteObjectReference<T>(T Object, Action WriteObject) where T : class?
+		/// <param name="obj">The object to serialize</param>
+		/// <param name="writeObject">Delegate used to write the object</param>
+		public void WriteObjectReference<T>(T obj, Action writeObject) where T : class?
 		{
-			WriteObjectReference((object?)Object, WriteObject);
+			WriteObjectReference((object?)obj, writeObject);
 		}
 	}
 }

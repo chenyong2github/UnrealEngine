@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -25,10 +22,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name to use to discriminate between different classes</param>
-		public JsonDiscriminatorAttribute(string Name)
+		/// <param name="name">Name to use to discriminate between different classes</param>
+		public JsonDiscriminatorAttribute(string name)
 		{
-			this.Name = Name;
+			Name = name;
 		}
 	}
 
@@ -46,10 +43,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Types">Array of derived classes</param>
-		public JsonKnownTypesAttribute(params Type[] Types)
+		/// <param name="types">Array of derived classes</param>
+		public JsonKnownTypesAttribute(params Type[] types)
 		{
-			this.Types = Types;
+			Types = types;
 		}
 	}
 
@@ -66,136 +63,136 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Mapping from discriminator to class type
 		/// </summary>
-		Dictionary<string, Type> DiscriminatorToType;
+		readonly Dictionary<string, Type> _discriminatorToType;
 
 		/// <summary>
 		/// Mapping from class type to discriminator
 		/// </summary>
-		Dictionary<Type, JsonEncodedText> TypeToDiscriminator;
+		readonly Dictionary<Type, JsonEncodedText> _typeToDiscriminator;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="KnownTypes">Set of derived class types</param>
-		public JsonKnownTypesConverter(IEnumerable<Type> KnownTypes)
+		/// <param name="knownTypes">Set of derived class types</param>
+		public JsonKnownTypesConverter(IEnumerable<Type> knownTypes)
 		{
-			DiscriminatorToType = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
-			foreach (Type KnownType in KnownTypes)
+			_discriminatorToType = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
+			foreach (Type knownType in knownTypes)
 			{
-				if (!typeof(T).IsAssignableFrom(KnownType))
+				if (!typeof(T).IsAssignableFrom(knownType))
 				{
-					throw new InvalidOperationException($"{KnownType} is not derived from {typeof(T)}");
+					throw new InvalidOperationException($"{knownType} is not derived from {typeof(T)}");
 				}
-				foreach (JsonDiscriminatorAttribute DiscriminatorAttribute in KnownType.GetCustomAttributes(typeof(JsonDiscriminatorAttribute), true))
+				foreach (JsonDiscriminatorAttribute discriminatorAttribute in knownType.GetCustomAttributes(typeof(JsonDiscriminatorAttribute), true))
 				{
-					DiscriminatorToType.Add(DiscriminatorAttribute.Name, KnownType);
+					_discriminatorToType.Add(discriminatorAttribute.Name, knownType);
 				}
 			}
 
-			TypeToDiscriminator = DiscriminatorToType.ToDictionary(x => x.Value, x => JsonEncodedText.Encode(x.Key));
+			_typeToDiscriminator = _discriminatorToType.ToDictionary(x => x.Value, x => JsonEncodedText.Encode(x.Key));
 		}
 
 		/// <summary>
 		/// Determines whether the given type can be converted
 		/// </summary>
-		/// <param name="TypeToConvert">Type to convert</param>
+		/// <param name="typeToConvert">Type to convert</param>
 		/// <returns>True if the type can be converted</returns>
-		public override bool CanConvert(Type TypeToConvert)
+		public override bool CanConvert(Type typeToConvert)
 		{
-			return TypeToConvert == typeof(T) || TypeToDiscriminator.ContainsKey(TypeToConvert);
+			return typeToConvert == typeof(T) || _typeToDiscriminator.ContainsKey(typeToConvert);
 		}
 
 		/// <summary>
 		/// Reads an object from the given input stream
 		/// </summary>
-		/// <param name="Reader">UTF8 reader</param>
-		/// <param name="TypeToConvert">Type to be read from the stream</param>
-		/// <param name="Options">Options for serialization</param>
+		/// <param name="reader">UTF8 reader</param>
+		/// <param name="typeToConvert">Type to be read from the stream</param>
+		/// <param name="options">Options for serialization</param>
 		/// <returns>Instance of the serialized object</returns>
-		public override T Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+		public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
-			using (JsonDocument Document = JsonDocument.ParseValue(ref Reader))
+			using (JsonDocument document = JsonDocument.ParseValue(ref reader))
 			{
-				JsonElement Element;
-				if (!TryGetPropertyRespectingCase(Document.RootElement, TypePropertyName, Options, out Element))
+				JsonElement element;
+				if (!TryGetPropertyRespectingCase(document.RootElement, TypePropertyName, options, out element))
 				{
-					throw new JsonException($"Missing '{TypePropertyName}' field for serializing {TypeToConvert.Name}");
+					throw new JsonException($"Missing '{TypePropertyName}' field for serializing {typeToConvert.Name}");
 				}
 
-				Type? TargetType;
-				if (!DiscriminatorToType.TryGetValue(Element.GetString(), out TargetType))
+				Type? targetType;
+				if (!_discriminatorToType.TryGetValue(element.GetString(), out targetType))
 				{
-					throw new JsonException($"Invalid '{TypePropertyName}' field ('{Element.GetString()}') for serializing {TypeToConvert.Name}");
+					throw new JsonException($"Invalid '{TypePropertyName}' field ('{element.GetString()}') for serializing {typeToConvert.Name}");
 				}
 
-				string Text = Document.RootElement.GetRawText();
-				T Result = (T)JsonSerializer.Deserialize(Text, TargetType, Options);
-				return Result;
+				string text = document.RootElement.GetRawText();
+				T result = (T)JsonSerializer.Deserialize(text, targetType, options);
+				return result;
 			}
 		}
 
 		/// <summary>
 		/// Finds a property within an object, ignoring case
 		/// </summary>
-		/// <param name="Object">The object to search</param>
-		/// <param name="PropertyName">Name of the property to search</param>
-		/// <param name="Options">Options for serialization. The <see cref="JsonSerializerOptions.PropertyNameCaseInsensitive"/> property defines whether a case insensitive scan will be performed.</param>
-		/// <param name="OutElement">The property value, if successful</param>
+		/// <param name="element">The object to search</param>
+		/// <param name="propertyName">Name of the property to search</param>
+		/// <param name="options">Options for serialization. The <see cref="JsonSerializerOptions.PropertyNameCaseInsensitive"/> property defines whether a case insensitive scan will be performed.</param>
+		/// <param name="outElement">The property value, if successful</param>
 		/// <returns>True if the property was found, false otherwise</returns>
-		static bool TryGetPropertyRespectingCase(JsonElement Object, string PropertyName, JsonSerializerOptions Options, out JsonElement OutElement)
+		static bool TryGetPropertyRespectingCase(JsonElement element, string propertyName, JsonSerializerOptions options, out JsonElement outElement)
 		{
-			JsonElement NewElement;
-			if (Object.TryGetProperty(PropertyName, out NewElement))
+			JsonElement newElement;
+			if (element.TryGetProperty(propertyName, out newElement))
 			{
-				OutElement = NewElement;
+				outElement = newElement;
 				return true;
 			}
 
-			if (Options.PropertyNameCaseInsensitive)
+			if (options.PropertyNameCaseInsensitive)
 			{
-				foreach (JsonProperty Property in Object.EnumerateObject())
+				foreach (JsonProperty property in element.EnumerateObject())
 				{
-					if (String.Equals(Property.Name, PropertyName, StringComparison.OrdinalIgnoreCase))
+					if (String.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
 					{
-						OutElement = Property.Value;
+						outElement = property.Value;
 						return true;
 					}
 				}
 			}
 
-			OutElement = new JsonElement();
+			outElement = new JsonElement();
 			return false;
 		}
 
 		/// <summary>
 		/// Writes an object to the given output stream
 		/// </summary>
-		/// <param name="Writer">UTF8 writer</param>
-		/// <param name="Value">Object to be serialized to the stream</param>
-		/// <param name="Options">Options for serialization</param>
-		public override void Write(Utf8JsonWriter Writer, T Value, JsonSerializerOptions Options)
+		/// <param name="writer">UTF8 writer</param>
+		/// <param name="value">Object to be serialized to the stream</param>
+		/// <param name="options">Options for serialization</param>
+		public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
 		{
-			if (Value == null)
+			if (value == null)
 			{
-				Writer.WriteNullValue();
+				writer.WriteNullValue();
 			}
 			else
 			{
-				Type ValueType = Value.GetType();
+				Type valueType = value.GetType();
 
-				Writer.WriteStartObject();
-				Writer.WriteString(Options.PropertyNamingPolicy?.ConvertName(TypePropertyName) ?? TypePropertyName, TypeToDiscriminator[ValueType]);
+				writer.WriteStartObject();
+				writer.WriteString(options.PropertyNamingPolicy?.ConvertName(TypePropertyName) ?? TypePropertyName, _typeToDiscriminator[valueType]);
 
-				byte[] Bytes = JsonSerializer.SerializeToUtf8Bytes(Value, ValueType, Options);
-				using (JsonDocument Document = JsonDocument.Parse(Bytes))
+				byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(value, valueType, options);
+				using (JsonDocument document = JsonDocument.Parse(bytes))
 				{
-					foreach (JsonProperty Property in Document.RootElement.EnumerateObject())
+					foreach (JsonProperty property in document.RootElement.EnumerateObject())
 					{
-						Property.WriteTo(Writer);
+						property.WriteTo(writer);
 					}
 				}
 
-				Writer.WriteEndObject();
+				writer.WriteEndObject();
 			}
 		}
 	}
@@ -208,25 +205,25 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Determines whether it's possible to create a converter for the given type
 		/// </summary>
-		/// <param name="TypeToConvert">The type being converted</param>
+		/// <param name="typeToConvert">The type being converted</param>
 		/// <returns>True if the type can be converted</returns>
-		public override bool CanConvert(Type TypeToConvert)
+		public override bool CanConvert(Type typeToConvert)
 		{
-			object[] Attributes = TypeToConvert.GetCustomAttributes(typeof(JsonKnownTypesAttribute), false);
-			return Attributes.Length > 0;
+			object[] attributes = typeToConvert.GetCustomAttributes(typeof(JsonKnownTypesAttribute), false);
+			return attributes.Length > 0;
 		}
 
 		/// <summary>
 		/// Creates a converter for the given type
 		/// </summary>
-		/// <param name="TypeToConvert">The type being converted</param>
-		/// <param name="Options">Options for serialization</param>
+		/// <param name="typeToConvert">The type being converted</param>
+		/// <param name="options">Options for serialization</param>
 		/// <returns>New converter for the requested type</returns>
-		public override JsonConverter CreateConverter(Type TypeToConvert, JsonSerializerOptions Options)
+		public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
 		{
-			object[] Attributes = TypeToConvert.GetCustomAttributes(typeof(JsonKnownTypesAttribute), false);
-			Type GenericType = typeof(JsonKnownTypesConverter<>).MakeGenericType(TypeToConvert);
-			return (JsonConverter)Activator.CreateInstance(GenericType, Attributes.SelectMany(x => ((JsonKnownTypesAttribute)x).Types))!;
+			object[] attributes = typeToConvert.GetCustomAttributes(typeof(JsonKnownTypesAttribute), false);
+			Type genericType = typeof(JsonKnownTypesConverter<>).MakeGenericType(typeToConvert);
+			return (JsonConverter)Activator.CreateInstance(genericType, attributes.SelectMany(x => ((JsonKnownTypesAttribute)x).Types))!;
 		}
 	}
 }

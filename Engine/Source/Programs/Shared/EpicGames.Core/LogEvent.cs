@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -10,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Core
 {
@@ -94,294 +93,294 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogEvent(DateTime Time, LogLevel Level, EventId EventId, string Message, string? Format, Dictionary<string, object>? Properties, LogException? Exception)
-			: this(Time, Level, EventId, 0, 1, Message, Format, Properties, Exception)
+		public LogEvent(DateTime time, LogLevel level, EventId eventId, string message, string? format, Dictionary<string, object>? properties, LogException? exception)
+			: this(time, level, eventId, 0, 1, message, format, properties, exception)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogEvent(DateTime Time, LogLevel Level, EventId EventId, int LineIndex, int LineCount, string Message, string? Format, Dictionary<string, object>? Properties, LogException? Exception)
+		public LogEvent(DateTime time, LogLevel level, EventId eventId, int lineIndex, int lineCount, string message, string? format, Dictionary<string, object>? properties, LogException? exception)
 		{
-			this.Time = Time;
-			this.Level = Level;
-			this.Id = EventId;
-			this.LineIndex = LineIndex;
-			this.LineCount = LineCount;
-			this.Message = Message;
-			this.Format = Format;
-			this.Properties = Properties;
-			this.Exception = Exception;
+			Time = time;
+			Level = level;
+			Id = eventId;
+			LineIndex = lineIndex;
+			LineCount = lineCount;
+			Message = message;
+			Format = format;
+			Properties = properties;
+			Exception = exception;
 		}
 
 		/// <summary>
 		/// Read a log event from a utf-8 encoded json byte array
 		/// </summary>
-		/// <param name="Data"></param>
+		/// <param name="data"></param>
 		/// <returns></returns>
-		public static LogEvent Read(ReadOnlySpan<byte> Data)
+		public static LogEvent Read(ReadOnlySpan<byte> data)
 		{
-			Utf8JsonReader Reader = new Utf8JsonReader(Data);
-			Reader.Read();
-			return Read(ref Reader);
+			Utf8JsonReader reader = new Utf8JsonReader(data);
+			reader.Read();
+			return Read(ref reader);
 		}
 
 		/// <summary>
 		/// Read a log event from Json
 		/// </summary>
-		/// <param name="Reader">The Json reader</param>
+		/// <param name="reader">The Json reader</param>
 		/// <returns>New log event</returns>
-		public static LogEvent Read(ref Utf8JsonReader Reader)
+		public static LogEvent Read(ref Utf8JsonReader reader)
 		{
-			DateTime Time = new DateTime(0);
-			LogLevel Level = LogLevel.None;
-			EventId EventId = new EventId(0);
-			int Line = 0;
-			int LineCount = 1;
-			string Message = String.Empty;
-			string Format = String.Empty;
-			Dictionary<string, object>? Properties = null;
-			LogException? Exception = null;
+			DateTime time = new DateTime(0);
+			LogLevel level = LogLevel.None;
+			EventId eventId = new EventId(0);
+			int line = 0;
+			int lineCount = 1;
+			string message = String.Empty;
+			string format = String.Empty;
+			Dictionary<string, object>? properties = null;
+			LogException? exception = null;
 
-			ReadOnlySpan<byte> PropertyName;
-			for (; JsonExtensions.TryReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
+			ReadOnlySpan<byte> propertyName;
+			for (; JsonExtensions.TryReadNextPropertyName(ref reader, out propertyName); reader.Skip())
 			{
-				if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, JsonPropertyNames.Time.Span))
+				if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Time.Span))
 				{
-					Time = Reader.GetDateTime();
+					time = reader.GetDateTime();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, JsonPropertyNames.Level.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Level.Span))
 				{
-					Level = Enum.Parse<LogLevel>(Reader.GetString());
+					level = Enum.Parse<LogLevel>(reader.GetString());
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, JsonPropertyNames.Id.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Id.Span))
 				{
-					EventId = Reader.GetInt32();
+					eventId = reader.GetInt32();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, JsonPropertyNames.Line.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Line.Span))
 				{
-					Line = Reader.GetInt32();
+					line = reader.GetInt32();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, JsonPropertyNames.LineCount.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.LineCount.Span))
 				{
-					LineCount = Reader.GetInt32();
+					lineCount = reader.GetInt32();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, JsonPropertyNames.Message.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Message.Span))
 				{
-					Message = Reader.GetString();
+					message = reader.GetString();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, JsonPropertyNames.Format.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Format.Span))
 				{
-					Format = Reader.GetString();
+					format = reader.GetString();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, JsonPropertyNames.Properties.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Properties.Span))
 				{
-					Properties = ReadProperties(ref Reader);
+					properties = ReadProperties(ref reader);
 				}
 			}
 
-			return new LogEvent(Time, Level, EventId, Line, LineCount, Message, Format, Properties, Exception);
+			return new LogEvent(time, level, eventId, line, lineCount, message, format, properties, exception);
 		}
 
-		static Dictionary<string, object> ReadProperties(ref Utf8JsonReader Reader)
+		static Dictionary<string, object> ReadProperties(ref Utf8JsonReader reader)
 		{
-			Dictionary<string, object> Properties = new Dictionary<string, object>();
+			Dictionary<string, object> properties = new Dictionary<string, object>();
 
-			ReadOnlySpan<byte> PropertyName;
-			for (; JsonExtensions.TryReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
+			ReadOnlySpan<byte> propertyName;
+			for (; JsonExtensions.TryReadNextPropertyName(ref reader, out propertyName); reader.Skip())
 			{
-				string Name = Encoding.UTF8.GetString(PropertyName);
-				object Value = ReadPropertyValue(ref Reader);
-				Properties.Add(Name, Value);
+				string name = Encoding.UTF8.GetString(propertyName);
+				object value = ReadPropertyValue(ref reader);
+				properties.Add(name, value);
 			}
 
-			return Properties;
+			return properties;
 		}
 
-		static object ReadPropertyValue(ref Utf8JsonReader Reader)
+		static object ReadPropertyValue(ref Utf8JsonReader reader)
 		{
-			switch (Reader.TokenType)
+			switch (reader.TokenType)
 			{
 				case JsonTokenType.True:
 					return true;
 				case JsonTokenType.False:
 					return true;
 				case JsonTokenType.StartObject:
-					return ReadStructuredPropertyValue(ref Reader);
+					return ReadStructuredPropertyValue(ref reader);
 				case JsonTokenType.String:
-					return Reader.GetString();
+					return reader.GetString();
 				case JsonTokenType.Number:
-					return Reader.GetInt32();
+					return reader.GetInt32();
 				default:
 					throw new InvalidOperationException("Unhandled property type");
 			}
 		}
 
-		static LogValue ReadStructuredPropertyValue(ref Utf8JsonReader Reader)
+		static LogValue ReadStructuredPropertyValue(ref Utf8JsonReader reader)
 		{
-			string Type = String.Empty;
-			string Text = String.Empty;
-			Dictionary<string, object>? Properties = null;
+			string type = String.Empty;
+			string text = String.Empty;
+			Dictionary<string, object>? properties = null;
 
-			ReadOnlySpan<byte> PropertyName;
-			for (; JsonExtensions.TryReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
+			ReadOnlySpan<byte> propertyName;
+			for (; JsonExtensions.TryReadNextPropertyName(ref reader, out propertyName); reader.Skip())
 			{
-				if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, JsonPropertyNames.Type.Span))
+				if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Type.Span))
 				{
-					Type = Reader.GetString();
+					type = reader.GetString();
 				}
-				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, JsonPropertyNames.Text.Span))
+				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, JsonPropertyNames.Text.Span))
 				{
-					Text = Reader.GetString();
+					text = reader.GetString();
 				}
 				else
 				{
-					Properties ??= new Dictionary<string, object>();
-					Properties.Add(Encoding.UTF8.GetString(PropertyName), ReadPropertyValue(ref Reader));
+					properties ??= new Dictionary<string, object>();
+					properties.Add(Encoding.UTF8.GetString(propertyName), ReadPropertyValue(ref reader));
 				}
 			}
 
-			return new LogValue(Type, Text, Properties);
+			return new LogValue(type, text, properties);
 		}
 
 		/// <summary>
 		/// Writes a log event to Json
 		/// </summary>
-		/// <param name="Writer"></param>
-		public void Write(Utf8JsonWriter Writer)
+		/// <param name="writer"></param>
+		public void Write(Utf8JsonWriter writer)
 		{
-			Writer.WriteStartObject();
-			Writer.WriteString(JsonPropertyNames.Time.Span, Time.ToString("s", CultureInfo.InvariantCulture));
-			Writer.WriteString(JsonPropertyNames.Level.Span, Level.ToString());
-			Writer.WriteString(JsonPropertyNames.Message.Span, Message);
+			writer.WriteStartObject();
+			writer.WriteString(JsonPropertyNames.Time.Span, Time.ToString("s", CultureInfo.InvariantCulture));
+			writer.WriteString(JsonPropertyNames.Level.Span, Level.ToString());
+			writer.WriteString(JsonPropertyNames.Message.Span, Message);
 
 			if (Id.Id != 0)
 			{
-				Writer.WriteNumber(JsonPropertyNames.Id.Span, Id.Id);
+				writer.WriteNumber(JsonPropertyNames.Id.Span, Id.Id);
 			}
 
 			if (LineIndex > 0)
 			{
-				Writer.WriteNumber(JsonPropertyNames.Line.Span, LineIndex);
+				writer.WriteNumber(JsonPropertyNames.Line.Span, LineIndex);
 			}
 
 			if (LineCount > 1)
 			{
-				Writer.WriteNumber(JsonPropertyNames.LineCount.Span, LineCount);
+				writer.WriteNumber(JsonPropertyNames.LineCount.Span, LineCount);
 			}
 
 			if (Format != null)
 			{
-				Writer.WriteString(JsonPropertyNames.Format.Span, Format);
+				writer.WriteString(JsonPropertyNames.Format.Span, Format);
 			}
 
 			if (Properties != null && Properties.Any())
 			{
-				Writer.WriteStartObject(JsonPropertyNames.Properties.Span);
-				foreach ((string Name, object? Value) in Properties!)
+				writer.WriteStartObject(JsonPropertyNames.Properties.Span);
+				foreach ((string name, object? value) in Properties!)
 				{
-					Writer.WritePropertyName(Name);
-					WritePropertyValue(ref Writer, Value);
+					writer.WritePropertyName(name);
+					WritePropertyValue(ref writer, value);
 				}
-				Writer.WriteEndObject();
+				writer.WriteEndObject();
 			}
 
 			if (Exception != null)
 			{
-				Writer.WriteStartObject(JsonPropertyNames.Exception.Span);
-				WriteException(ref Writer, Exception);
-				Writer.WriteEndObject();
+				writer.WriteStartObject(JsonPropertyNames.Exception.Span);
+				WriteException(ref writer, Exception);
+				writer.WriteEndObject();
 			}
-			Writer.WriteEndObject();
+			writer.WriteEndObject();
 		}
 
 		/// <summary>
 		/// Write a property value to a json object
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Value"></param>
-		static void WritePropertyValue(ref Utf8JsonWriter Writer, object? Value)
+		/// <param name="writer"></param>
+		/// <param name="value"></param>
+		static void WritePropertyValue(ref Utf8JsonWriter writer, object? value)
 		{
-			if (Value == null)
+			if (value == null)
 			{
-				Writer.WriteNullValue();
+				writer.WriteNullValue();
 			}
 			else
 			{
-				Type ValueType = Value.GetType();
-				if (ValueType == typeof(LogValue))
+				Type valueType = value.GetType();
+				if (valueType == typeof(LogValue))
 				{
-					WriteStructuredPropertyValue(ref Writer, (LogValue)Value);
+					WriteStructuredPropertyValue(ref writer, (LogValue)value);
 				}
 				else
 				{
-					WriteSimplePropertyValue(ref Writer, Value, ValueType);
+					WriteSimplePropertyValue(ref writer, value, valueType);
 				}
 			}
 		}
 
-		static void WriteStructuredPropertyValue(ref Utf8JsonWriter Writer, LogValue Value)
+		static void WriteStructuredPropertyValue(ref Utf8JsonWriter writer, LogValue value)
 		{
-			Writer.WriteStartObject();
-			Writer.WriteString(JsonPropertyNames.Type.Span, Value.Type);
-			Writer.WriteString(JsonPropertyNames.Text.Span, Value.Text);
-			if (Value.Properties != null)
+			writer.WriteStartObject();
+			writer.WriteString(JsonPropertyNames.Type.Span, value.Type);
+			writer.WriteString(JsonPropertyNames.Text.Span, value.Text);
+			if (value.Properties != null)
 			{
-				foreach ((string PropertyName, object? PropertyValue) in Value.Properties)
+				foreach ((string propertyName, object? propertyValue) in value.Properties)
 				{
-					Writer.WritePropertyName(PropertyName);
-					WritePropertyValue(ref Writer, PropertyValue);
+					writer.WritePropertyName(propertyName);
+					WritePropertyValue(ref writer, propertyValue);
 				}
 			}
-			Writer.WriteEndObject();
+			writer.WriteEndObject();
 		}
 
-		static void WriteSimplePropertyValue(ref Utf8JsonWriter Writer, object Value, Type ValueType)
+		static void WriteSimplePropertyValue(ref Utf8JsonWriter writer, object value, Type valueType)
 		{
-			switch (Type.GetTypeCode(ValueType))
+			switch (Type.GetTypeCode(valueType))
 			{
 				case TypeCode.Boolean:
-					Writer.WriteBooleanValue((bool)Value);
+					writer.WriteBooleanValue((bool)value);
 					break;
 				case TypeCode.Byte:
-					Writer.WriteNumberValue((Byte)Value);
+					writer.WriteNumberValue((byte)value);
 					break;
 				case TypeCode.SByte:
-					Writer.WriteNumberValue((SByte)Value);
+					writer.WriteNumberValue((sbyte)value);
 					break;
 				case TypeCode.UInt16:
-					Writer.WriteNumberValue((UInt16)Value);
+					writer.WriteNumberValue((ushort)value);
 					break;
 				case TypeCode.UInt32:
-					Writer.WriteNumberValue((UInt32)Value);
+					writer.WriteNumberValue((uint)value);
 					break;
 				case TypeCode.UInt64:
-					Writer.WriteNumberValue((UInt64)Value);
+					writer.WriteNumberValue((long)value);
 					break;
 				case TypeCode.Int16:
-					Writer.WriteNumberValue((Int16)Value);
+					writer.WriteNumberValue((short)value);
 					break;
 				case TypeCode.Int32:
-					Writer.WriteNumberValue((Int32)Value);
+					writer.WriteNumberValue((int)value);
 					break;
 				case TypeCode.Int64:
-					Writer.WriteNumberValue((Int64)Value);
+					writer.WriteNumberValue((long)value);
 					break;
 				case TypeCode.Decimal:
-					Writer.WriteNumberValue((Decimal)Value);
+					writer.WriteNumberValue((decimal)value);
 					break;
 				case TypeCode.Double:
-					Writer.WriteNumberValue((Double)Value);
+					writer.WriteNumberValue((double)value);
 					break;
 				case TypeCode.Single:
-					Writer.WriteNumberValue((Single)Value);
+					writer.WriteNumberValue((float)value);
 					break;
 				case TypeCode.String:
-					Writer.WriteStringValue((String)Value);
+					writer.WriteStringValue((string)value);
 					break;
 				default:
-					Writer.WriteStringValue(Value.ToString() ?? String.Empty);
+					writer.WriteStringValue(value.ToString() ?? String.Empty);
 					break;
 			}
 		}
@@ -389,81 +388,81 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Writes an exception to a json object
 		/// </summary>
-		/// <param name="Writer">Writer to receive the exception data</param>
-		/// <param name="Exception">The exception</param>
-		static void WriteException(ref Utf8JsonWriter Writer, LogException Exception)
+		/// <param name="writer">Writer to receive the exception data</param>
+		/// <param name="exception">The exception</param>
+		static void WriteException(ref Utf8JsonWriter writer, LogException exception)
 		{
-			Writer.WriteString("message", Exception.Message);
-			Writer.WriteString("trace", Exception.Trace);
+			writer.WriteString("message", exception.Message);
+			writer.WriteString("trace", exception.Trace);
 
-			if (Exception.InnerException != null)
+			if (exception.InnerException != null)
 			{
-				Writer.WriteStartObject("innerException");
-				WriteException(ref Writer, Exception.InnerException);
-				Writer.WriteEndObject();
+				writer.WriteStartObject("innerException");
+				WriteException(ref writer, exception.InnerException);
+				writer.WriteEndObject();
 			}
 
-			if (Exception.InnerExceptions != null)
+			if (exception.InnerExceptions != null)
 			{
-				Writer.WriteStartArray("innerExceptions");
-				for (int Idx = 0; Idx < 16 && Idx < Exception.InnerExceptions.Count; Idx++) // Cap number of exceptions returned to avoid huge messages
+				writer.WriteStartArray("innerExceptions");
+				for (int idx = 0; idx < 16 && idx < exception.InnerExceptions.Count; idx++) // Cap number of exceptions returned to avoid huge messages
 				{
-					LogException InnerException = Exception.InnerExceptions[Idx];
-					Writer.WriteStartObject();
-					WriteException(ref Writer, InnerException);
-					Writer.WriteEndObject();
+					LogException innerException = exception.InnerExceptions[idx];
+					writer.WriteStartObject();
+					WriteException(ref writer, innerException);
+					writer.WriteEndObject();
 				}
-				Writer.WriteEndArray();
+				writer.WriteEndArray();
 			}
 		}
 
-		public static LogEvent Create(LogLevel Level, string Format, params object[] Args)
-			=> Create(Level, KnownLogEvents.None, null, Format, Args);
+		public static LogEvent Create(LogLevel level, string format, params object[] args)
+			=> Create(level, KnownLogEvents.None, null, format, args);
 
-		public static LogEvent Create(LogLevel Level, EventId EventId, string Format, params object[] Args)
-			=> Create(Level, EventId, null, Format, Args);
+		public static LogEvent Create(LogLevel level, EventId eventId, string format, params object[] args)
+			=> Create(level, eventId, null, format, args);
 
-		public static LogEvent Create(LogLevel Level, EventId EventId, Exception? Exception, string Format, params object[] Args)
+		public static LogEvent Create(LogLevel level, EventId eventId, Exception? exception, string format, params object[] args)
 		{
-			Dictionary<string, object> Properties = new Dictionary<string, object>();
-			MessageTemplate.ParsePropertyValues(Format, Args, Properties);
+			Dictionary<string, object> properties = new Dictionary<string, object>();
+			MessageTemplate.ParsePropertyValues(format, args, properties);
 
-			string Message = MessageTemplate.Render(Format, Properties!);
-			return new LogEvent(DateTime.UtcNow, Level, EventId, Message, Format, Properties, LogException.FromException(Exception));
+			string message = MessageTemplate.Render(format, properties!);
+			return new LogEvent(DateTime.UtcNow, level, eventId, message, format, properties, LogException.FromException(exception));
 		}
 
 		/// <summary>
 		/// Creates a log event from an ILogger parameters
 		/// </summary>
-		public static LogEvent FromState<TState>(LogLevel Level, EventId EventId, TState State, Exception? Exception, Func<TState, Exception?, string> Formatter)
+		public static LogEvent FromState<TState>(LogLevel level, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
 		{
-			DateTime Time = DateTime.UtcNow;
+			DateTime time = DateTime.UtcNow;
 
 			// Render the message
-			string Message = Formatter(State, Exception);
+			string message = formatter(state, exception);
 
 			// Try to log the event
-			IEnumerable<KeyValuePair<string, object>>? Values = State as IEnumerable<KeyValuePair<string, object>>;
-			if (Values != null)
+			IEnumerable<KeyValuePair<string, object>>? values = state as IEnumerable<KeyValuePair<string, object>>;
+			if (values != null)
 			{
-				KeyValuePair<string, object>? Format = Values.FirstOrDefault(x => x.Key.Equals(MessageTemplate.FormatPropertyName, StringComparison.Ordinal));
-				if (Format != null)
+				KeyValuePair<string, object>? format = values.FirstOrDefault(x => x.Key.Equals(MessageTemplate.FormatPropertyName, StringComparison.Ordinal));
+				if (format != null)
 				{
 					// Format all the other values
-					string FormatString = Format.Value.Value?.ToString() ?? String.Empty;
-					Dictionary<string, object>? Properties = MessageTemplate.CreatePositionalProperties(FormatString, Values);
-					return new LogEvent(Time, Level, EventId, Message, FormatString, Properties, LogException.FromException(Exception));
+					string formatString = format.Value.Value?.ToString() ?? String.Empty;
+					Dictionary<string, object>? properties = MessageTemplate.CreatePositionalProperties(formatString, values);
+					return new LogEvent(time, level, eventId, message, formatString, properties, LogException.FromException(exception));
 				}
 				else
 				{
 					// Include all the data, but don't use the format string
-					return new LogEvent(Time, Level, EventId, Message, null, Values.ToDictionary(x => x.Key, x => x.Value), LogException.FromException(Exception));
+					return new LogEvent(time, level, eventId, message, null, values.ToDictionary(x => x.Key, x => x.Value), LogException.FromException(exception));
 				}
 			}
 			else
 			{
 				// Format as a string
-				return new LogEvent(Time, Level, EventId, Message, null, null, LogException.FromException(Exception));
+				return new LogEvent(time, level, eventId, message, null, null, LogException.FromException(exception));
 			}
 		}
 
@@ -490,9 +489,9 @@ namespace EpicGames.Core
 
 			if (Properties != null)
 			{
-				foreach ((string Name, object? Value) in Properties)
+				foreach ((string name, object? value) in Properties)
 				{
-					yield return new KeyValuePair<string, object?>(Name, Value?.ToString());
+					yield return new KeyValuePair<string, object?>(name, value?.ToString());
 				}
 			}
 		}
@@ -503,9 +502,9 @@ namespace EpicGames.Core
 		/// <returns>Property pairs</returns>
 		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
 		{
-			foreach (KeyValuePair<string, object?> Pair in this)
+			foreach (KeyValuePair<string, object?> pair in this)
 			{
-				yield return Pair;
+				yield return pair;
 			}
 		}
 
@@ -514,12 +513,12 @@ namespace EpicGames.Core
 		/// </summary>
 		public byte[] ToJsonBytes()
 		{
-			ArrayBufferWriter<byte> Buffer = new ArrayBufferWriter<byte>();
-			using (Utf8JsonWriter Writer = new Utf8JsonWriter(Buffer))
+			ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>();
+			using (Utf8JsonWriter writer = new Utf8JsonWriter(buffer))
 			{
-				Write(Writer);
+				Write(writer);
 			}
-			return Buffer.WrittenSpan.ToArray();
+			return buffer.WrittenSpan.ToArray();
 		}
 
 		/// <summary>
@@ -527,12 +526,12 @@ namespace EpicGames.Core
 		/// </summary>
 		public string ToJson()
 		{
-			ArrayBufferWriter<byte> Buffer = new ArrayBufferWriter<byte>();
-			using (Utf8JsonWriter Writer = new Utf8JsonWriter(Buffer))
+			ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>();
+			using (Utf8JsonWriter writer = new Utf8JsonWriter(buffer))
 			{
-				Write(Writer);
+				Write(writer);
 			}
-			return Encoding.UTF8.GetString(Buffer.WrittenSpan);
+			return Encoding.UTF8.GetString(buffer.WrittenSpan);
 		}
 
 		/// <inheritdoc/>
@@ -562,14 +561,14 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Type">Type of the value</param>
-		/// <param name="Text">Rendering of the value as text</param>
-		/// <param name="Properties">Additional properties for this value</param>
-		public LogValue(string Type, string Text, Dictionary<string, object>? Properties = null)
+		/// <param name="type">Type of the value</param>
+		/// <param name="text">Rendering of the value as text</param>
+		/// <param name="properties">Additional properties for this value</param>
+		public LogValue(string type, string text, Dictionary<string, object>? properties = null)
 		{
-			this.Type = Type;
-			this.Text = Text;
-			this.Properties = Properties;
+			Type = type;
+			Text = text;
+			Properties = properties;
 		}
 
 		/// <inheritdoc/>
@@ -602,48 +601,48 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Multiple inner exceptions, in the case of an <see cref="AggregateException"/>
 		/// </summary>
-		public List<LogException> InnerExceptions = new List<LogException>();
+		public List<LogException> InnerExceptions { get; set; } = new List<LogException>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Message"></param>
-		/// <param name="Trace"></param>
-		public LogException(string Message, string Trace)
+		/// <param name="message"></param>
+		/// <param name="trace"></param>
+		public LogException(string message, string trace)
 		{
-			this.Message = Message;
-			this.Trace = Trace;
+			Message = message;
+			Trace = trace;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Exception"></param>
-		[return: NotNullIfNotNull("Exception")]
-		public static LogException? FromException(Exception? Exception)
+		/// <param name="exception"></param>
+		[return: NotNullIfNotNull("exception")]
+		public static LogException? FromException(Exception? exception)
 		{
-			LogException? Result = null;
-			if (Exception != null)
+			LogException? result = null;
+			if (exception != null)
 			{
-				Result = new LogException(Exception.Message, Exception.StackTrace ?? String.Empty);
+				result = new LogException(exception.Message, exception.StackTrace ?? String.Empty);
 
-				if (Exception.InnerException != null)
+				if (exception.InnerException != null)
 				{
-					Result.InnerException = FromException(Exception.InnerException);
+					result.InnerException = FromException(exception.InnerException);
 				}
 
-				AggregateException? AggregateException = Exception as AggregateException;
-				if (AggregateException != null && AggregateException.InnerExceptions.Count > 0)
+				AggregateException? aggregateException = exception as AggregateException;
+				if (aggregateException != null && aggregateException.InnerExceptions.Count > 0)
 				{
-					Result.InnerExceptions = new List<LogException>();
-					for (int Idx = 0; Idx < 16 && Idx < AggregateException.InnerExceptions.Count; Idx++) // Cap number of exceptions returned to avoid huge messages
+					result.InnerExceptions = new List<LogException>();
+					for (int idx = 0; idx < 16 && idx < aggregateException.InnerExceptions.Count; idx++) // Cap number of exceptions returned to avoid huge messages
 					{
-						LogException InnerException = FromException(AggregateException.InnerExceptions[Idx]);
-						Result.InnerExceptions.Add(InnerException);
+						LogException innerException = FromException(aggregateException.InnerExceptions[idx]);
+						result.InnerExceptions.Add(innerException);
 					}
 				}
 			}
-			return Result;
+			return result;
 		}
 	}
 
@@ -653,15 +652,15 @@ namespace EpicGames.Core
 	public class LogEventConverter : JsonConverter<LogEvent>
 	{
 		/// <inheritdoc/>
-		public override LogEvent Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+		public override LogEvent Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
-			return LogEvent.Read(ref Reader);
+			return LogEvent.Read(ref reader);
 		}
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, LogEvent Value, JsonSerializerOptions Options)
+		public override void Write(Utf8JsonWriter writer, LogEvent value, JsonSerializerOptions options)
 		{
-			Value.Write(Writer);
+			value.Write(writer);
 		}
 	}
 }

@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Runtime.InteropServices;
 using System.IO.Compression;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace EpicGames.Core
 {
@@ -17,62 +15,62 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Create a zip archive entry, preserving platform mode bits
 		/// </summary>
-		/// <param name="Destination"></param>
-		/// <param name="SourceFileName"></param>
-		/// <param name="EntryName"></param>
-		/// <param name="CompressionLevel"></param>
+		/// <param name="destination"></param>
+		/// <param name="sourceFileName"></param>
+		/// <param name="entryName"></param>
+		/// <param name="compressionLevel"></param>
 		/// <returns></returns>
-		public static ZipArchiveEntry CreateEntryFromFile_CrossPlatform(this ZipArchive Destination, string SourceFileName, string EntryName, CompressionLevel CompressionLevel)
+		public static ZipArchiveEntry CreateEntryFromFile_CrossPlatform(this ZipArchive destination, string sourceFileName, string entryName, CompressionLevel compressionLevel)
 		{
-			ZipArchiveEntry Entry = ZipFileExtensions.CreateEntryFromFile(Destination, SourceFileName, EntryName, CompressionLevel);
-			int Result = -1;
+			ZipArchiveEntry entry = ZipFileExtensions.CreateEntryFromFile(destination, sourceFileName, entryName, compressionLevel);
+			int result = -1;
 
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 			{
-				Result = FileUtils.GetFileMode_Linux(SourceFileName);
+				result = FileUtils.GetFileMode_Linux(sourceFileName);
 			}
 			else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 			{
-				Result = FileUtils.GetFileMode_Mac(SourceFileName);
+				result = FileUtils.GetFileMode_Mac(sourceFileName);
 			}
 
-			if(Result >= 0)
+			if(result >= 0)
 			{
-				Entry.ExternalAttributes = (int)Result << 16;
+				entry.ExternalAttributes = (int)result << 16;
 			}
 
-			return Entry;
+			return entry;
 		}
 
 		/// <summary>
 		/// Internal field storing information about the platform that created a ZipArchiveEntry. Cannot interpret how to treat the attribute bits without reading this.
 		/// </summary>
-		static FieldInfo VersionMadeByPlatformField = typeof(ZipArchiveEntry).GetField("_versionMadeByPlatform", BindingFlags.NonPublic | BindingFlags.Instance)!;
+		static readonly FieldInfo s_versionMadeByPlatformField = typeof(ZipArchiveEntry).GetField("_versionMadeByPlatform", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
 		/// <summary>
 		/// Extract a zip archive entry, preserving platform mode bits
 		/// </summary>
-		/// <param name="Entry"></param>
-		/// <param name="TargetFileName"></param>
-		/// <param name="Overwrite"></param>
-		public static void ExtractToFile_CrossPlatform(this ZipArchiveEntry Entry, string TargetFileName, bool Overwrite)
+		/// <param name="entry"></param>
+		/// <param name="targetFileName"></param>
+		/// <param name="overwrite"></param>
+		public static void ExtractToFile_CrossPlatform(this ZipArchiveEntry entry, string targetFileName, bool overwrite)
 		{
-			ZipFileExtensions.ExtractToFile(Entry, TargetFileName, Overwrite);
+			ZipFileExtensions.ExtractToFile(entry, targetFileName, overwrite);
 
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 			{
-				int MadeByPlatform = Convert.ToInt32(VersionMadeByPlatformField.GetValue(Entry)!);
-				if (MadeByPlatform == 3 || MadeByPlatform == 19) // Unix or OSX
+				int madeByPlatform = Convert.ToInt32(s_versionMadeByPlatformField.GetValue(entry)!);
+				if (madeByPlatform == 3 || madeByPlatform == 19) // Unix or OSX
 				{
-					FileUtils.SetFileMode_Linux(TargetFileName, (ushort)(Entry.ExternalAttributes >> 16));
+					FileUtils.SetFileMode_Linux(targetFileName, (ushort)(entry.ExternalAttributes >> 16));
 				}
 			}
 			else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 			{
-				int MadeByPlatform = Convert.ToInt32(VersionMadeByPlatformField.GetValue(Entry)!);
-				if (MadeByPlatform == 3 || MadeByPlatform == 19) // Unix or OSX
+				int madeByPlatform = Convert.ToInt32(s_versionMadeByPlatformField.GetValue(entry)!);
+				if (madeByPlatform == 3 || madeByPlatform == 19) // Unix or OSX
 				{
-					FileUtils.SetFileMode_Mac(TargetFileName, (ushort)(Entry.ExternalAttributes >> 16));
+					FileUtils.SetFileMode_Mac(targetFileName, (ushort)(entry.ExternalAttributes >> 16));
 				}
 			}
 		}

@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Core
 {
@@ -21,9 +19,9 @@ namespace EpicGames.Core
 			/// <inheritdoc/>
 			public void Dispose()
 			{
-				foreach(IDisposable Child in this)
+				foreach(IDisposable child in this)
 				{
-					Child.Dispose();
+					child.Dispose();
 				}
 			}
 		}
@@ -39,50 +37,50 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Loggers">Array of loggers to forward to</param>
-		public ForwardingLogger(params ILogger[] Loggers)
+		/// <param name="loggers">Array of loggers to forward to</param>
+		public ForwardingLogger(params ILogger[] loggers)
 		{
-			this.Loggers = Loggers;
+			Loggers = loggers;
 		}
 
 		/// <inheritdoc/>
-		public IDisposable? BeginScope<TState>(TState State)
+		public IDisposable? BeginScope<TState>(TState state)
 		{
-			IDisposable? Disposable = null;
+			IDisposable? disposable = null;
 
-			DisposableList? Scope = null;
-			foreach (ILogger Logger in Loggers)
+			DisposableList? scope = null;
+			foreach (ILogger logger in Loggers)
 			{
-				IDisposable? Next = Logger.BeginScope(State);
-				if(Next != null)
+				IDisposable? next = logger.BeginScope(state);
+				if(next != null)
 				{
-					if (Scope != null)
+					if (scope != null)
 					{
-						Scope.Add(Next);
+						scope.Add(next);
 					}
-					else if (Disposable != null)
+					else if (disposable != null)
 					{
-						Scope = new DisposableList();
-						Scope.Add(Disposable);
-						Scope.Add(Next);
-						Disposable = Scope;
+						scope = new DisposableList();
+						scope.Add(disposable);
+						scope.Add(next);
+						disposable = scope;
 					}
 					else
 					{
-						Disposable = Next;
+						disposable = next;
 					}
 				}
 			}
 
-			return Disposable;
+			return disposable;
 		}
 
 		/// <inheritdoc/>
-		public bool IsEnabled(LogLevel LogLevel)
+		public bool IsEnabled(LogLevel logLevel)
 		{
-			foreach(ILogger Logger in Loggers)
+			foreach(ILogger logger in Loggers)
 			{
-				if(Logger.IsEnabled(LogLevel))
+				if(logger.IsEnabled(logLevel))
 				{
 					return true;
 				}
@@ -91,11 +89,11 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
+		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
 		{
-			foreach (ILogger Logger in Loggers)
+			foreach (ILogger logger in Loggers)
 			{
-				Logger.Log(LogLevel, EventId, State, Exception, Formatter);
+				logger.Log(logLevel, eventId, state, exception, formatter);
 			}
 		}
 	}

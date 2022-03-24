@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
@@ -18,13 +17,13 @@ namespace EpicGames.Core
 		/// Execute a large number of tasks in parallel over a collection. Parallel.ForEach() method isn't generally compatible with asynchronous programming, because any
 		/// exceptions are thrown on the 
 		/// </summary>
-		/// <param name="FromInclusive">The starting index</param>
-		/// <param name="ToExclusive">The last index, exclusive</param>
-		/// <param name="Action">Action to perform for each item in the collection</param>
+		/// <param name="fromInclusive">The starting index</param>
+		/// <param name="toExclusive">The last index, exclusive</param>
+		/// <param name="action">Action to perform for each item in the collection</param>
 		/// <returns>Async task</returns>
-		public static Task ForAsync(int FromInclusive, int ToExclusive, Action<int> Action)
+		public static Task ForAsync(int fromInclusive, int toExclusive, Action<int> action)
 		{
-			return ForEachAsync(Enumerable.Range(FromInclusive, ToExclusive - FromInclusive), Action);
+			return ForEachAsync(Enumerable.Range(fromInclusive, toExclusive - fromInclusive), action);
 		}
 
 		/// <summary>
@@ -32,22 +31,22 @@ namespace EpicGames.Core
 		/// exceptions are thrown on the 
 		/// </summary>
 		/// <typeparam name="T">The collection type</typeparam>
-		/// <param name="Collection">The collection to iterate over</param>
-		/// <param name="Action">Action to perform for each item in the collection</param>
+		/// <param name="collection">The collection to iterate over</param>
+		/// <param name="action">Action to perform for each item in the collection</param>
 		/// <returns>Async task</returns>
-		public static Task ForEachAsync<T>(IEnumerable<T> Collection, Action<T> Action)
+		public static Task ForEachAsync<T>(IEnumerable<T> collection, Action<T> action)
 		{
-			ExecutionDataflowBlockOptions Options = new ExecutionDataflowBlockOptions();
-			Options.MaxDegreeOfParallelism = DataflowBlockOptions.Unbounded;
+			ExecutionDataflowBlockOptions options = new ExecutionDataflowBlockOptions();
+			options.MaxDegreeOfParallelism = DataflowBlockOptions.Unbounded;
 
-			ActionBlock<T> Actions = new ActionBlock<T>(Action, Options);
-			foreach (T Item in Collection)
+			ActionBlock<T> actions = new ActionBlock<T>(action, options);
+			foreach (T item in collection)
 			{
-				Actions.Post(Item);
+				actions.Post(item);
 			}
-			Actions.Complete();
+			actions.Complete();
 
-			return Actions.Completion;
+			return actions.Completion;
 		}
 
 		/// <summary>
@@ -55,23 +54,23 @@ namespace EpicGames.Core
 		/// exceptions are thrown on the 
 		/// </summary>
 		/// <typeparam name="T">The collection type</typeparam>
-		/// <param name="Collection">The collection to iterate over</param>
-		/// <param name="Action">Action to perform for each item in the collection</param>
-		/// <param name="MaxDegreeOfParallelism">Maximum degree of parallelism</param>
+		/// <param name="collection">The collection to iterate over</param>
+		/// <param name="action">Action to perform for each item in the collection</param>
+		/// <param name="maxDegreeOfParallelism">Maximum degree of parallelism</param>
 		/// <returns>Async task</returns>
-		public static Task ForEachAsync<T>(IEnumerable<T> Collection, Func<T, Task> Action, int MaxDegreeOfParallelism)
+		public static Task ForEachAsync<T>(IEnumerable<T> collection, Func<T, Task> action, int maxDegreeOfParallelism)
 		{
-			ExecutionDataflowBlockOptions Options = new ExecutionDataflowBlockOptions();
-			Options.MaxDegreeOfParallelism = MaxDegreeOfParallelism;
+			ExecutionDataflowBlockOptions options = new ExecutionDataflowBlockOptions();
+			options.MaxDegreeOfParallelism = maxDegreeOfParallelism;
 
-			ActionBlock<T> Actions = new ActionBlock<T>(Action, Options);
-			foreach (T Item in Collection)
+			ActionBlock<T> actions = new ActionBlock<T>(action, options);
+			foreach (T item in collection)
 			{
-				Actions.Post(Item);
+				actions.Post(item);
 			}
-			Actions.Complete();
+			actions.Complete();
 
-			return Actions.Completion;
+			return actions.Completion;
 		}
 	}
 }

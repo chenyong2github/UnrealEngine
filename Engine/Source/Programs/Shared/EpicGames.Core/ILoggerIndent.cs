@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Core
 {
@@ -34,7 +32,7 @@ namespace EpicGames.Core
 			/// <summary>
 			/// Owning object
 			/// </summary>
-			DefaultLoggerIndentHandler Owner;
+			readonly DefaultLoggerIndentHandler _owner;
 
 			/// <summary>
 			/// The indent scope object
@@ -44,14 +42,14 @@ namespace EpicGames.Core
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			public Scope(DefaultLoggerIndentHandler Owner, ILoggerIndent Indent)
+			public Scope(DefaultLoggerIndentHandler owner, ILoggerIndent indent)
 			{
-				this.Owner = Owner;
-				this.Indent = Indent;
+				_owner = owner;
+				Indent = indent;
 
-				lock (Owner.Scopes)
+				lock (owner._scopes)
 				{
-					Owner.Scopes.Add(this);
+					owner._scopes.Add(this);
 				}
 			}
 
@@ -60,9 +58,9 @@ namespace EpicGames.Core
 			/// </summary>
 			public void Dispose()
 			{
-				lock (Owner.Scopes)
+				lock (_owner._scopes)
 				{
-					Owner.Scopes.Remove(this);
+					_owner._scopes.Remove(this);
 				}
 			}
 		}
@@ -76,46 +74,46 @@ namespace EpicGames.Core
 			/// <summary>
 			/// The indent to apply
 			/// </summary>
-			string Indent;
+			readonly string _indent;
 
 			/// <summary>
 			/// The inner state
 			/// </summary>
-			TState State;
+			readonly TState _state;
 
 			/// <summary>
 			/// Formatter for the inner state
 			/// </summary>
-			Func<TState, Exception, string> Formatter;
+			readonly Func<TState, Exception, string> _formatter;
 
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="Indent">The indent to apply</param>
-			/// <param name="State">The inner state</param>
-			/// <param name="Formatter">Formatter for the inner state</param>
-			public FormattedLogValues(string Indent, TState State, Func<TState, Exception, string> Formatter)
+			/// <param name="indent">The indent to apply</param>
+			/// <param name="state">The inner state</param>
+			/// <param name="formatter">Formatter for the inner state</param>
+			public FormattedLogValues(string indent, TState state, Func<TState, Exception, string> formatter)
 			{
-				this.Indent = Indent;
-				this.State = State;
-				this.Formatter = Formatter;
+				_indent = indent;
+				_state = state;
+				_formatter = formatter;
 			}
 
 			/// <inheritdoc/>
 			public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
 			{
-				IEnumerable<KeyValuePair<string, object>>? InnerEnumerable = State as IEnumerable<KeyValuePair<string, object>>;
-				if (InnerEnumerable != null)
+				IEnumerable<KeyValuePair<string, object>>? innerEnumerable = _state as IEnumerable<KeyValuePair<string, object>>;
+				if (innerEnumerable != null)
 				{
-					foreach (KeyValuePair<string, object> Pair in InnerEnumerable)
+					foreach (KeyValuePair<string, object> pair in innerEnumerable)
 					{
-						if (Pair.Key.Equals("{OriginalFormat}", StringComparison.Ordinal))
+						if (pair.Key.Equals("{OriginalFormat}", StringComparison.Ordinal))
 						{
-							yield return new KeyValuePair<string, object>(Pair.Key, Indent + Pair.Value.ToString());
+							yield return new KeyValuePair<string, object>(pair.Key, _indent + pair.Value.ToString());
 						}
 						else
 						{
-							yield return Pair;
+							yield return pair;
 						}
 					}
 				}
@@ -130,24 +128,24 @@ namespace EpicGames.Core
 			/// <summary>
 			/// Formats an instance of this object
 			/// </summary>
-			/// <param name="Values">The object instance</param>
-			/// <param name="Exception">The exception to format</param>
+			/// <param name="values">The object instance</param>
+			/// <param name="exception">The exception to format</param>
 			/// <returns>The formatted string</returns>
-			public static string Format(FormattedLogValues<TState> Values, Exception Exception)
+			public static string Format(FormattedLogValues<TState> values, Exception exception)
 			{
-				return Values.Indent + Values.Formatter(Values.State, Exception);
+				return values._indent + values._formatter(values._state, exception);
 			}
 		}
 
 		/// <summary>
 		/// The internal logger
 		/// </summary>
-		ILogger Inner;
+		readonly ILogger _inner;
 
 		/// <summary>
 		/// Current list of indents
 		/// </summary>
-		List<Scope> Scopes = new List<Scope>();
+		readonly List<Scope> _scopes = new List<Scope>();
 
 		/// <summary>
 		/// The current indent text
@@ -161,42 +159,42 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Inner">The logger to wrap</param>
-		public DefaultLoggerIndentHandler(ILogger Inner)
+		/// <param name="inner">The logger to wrap</param>
+		public DefaultLoggerIndentHandler(ILogger inner)
 		{
-			this.Inner = Inner;
-			this.Indent = "";
+			_inner = inner;
+			Indent = "";
 		}
 
 		/// <inheritdoc/>
-		public IDisposable BeginScope<TState>(TState State)
+		public IDisposable BeginScope<TState>(TState state)
 		{
-			ILoggerIndent? Indent = State as ILoggerIndent;
-			if (Indent != null)
+			ILoggerIndent? indent = state as ILoggerIndent;
+			if (indent != null)
 			{
-				return new Scope(this, Indent);
+				return new Scope(this, indent);
 			}
 
-			return Inner.BeginScope(State);
+			return _inner.BeginScope(state);
 		}
 
 		/// <inheritdoc/>
-		public bool IsEnabled(LogLevel LogLevel)
+		public bool IsEnabled(LogLevel logLevel)
 		{
-			return Inner.IsEnabled(LogLevel);
+			return _inner.IsEnabled(logLevel);
 		}
 
 		/// <inheritdoc/>
-		public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
+		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
 		{
-			if (Scopes.Count > 0)
+			if (_scopes.Count > 0)
 			{
-				string Indent = String.Join("", Scopes.Select(x => x.Indent.Indent));
-				Inner.Log(LogLevel, EventId, new FormattedLogValues<TState>(Indent, State, Formatter), Exception, FormattedLogValues<TState>.Format);
+				string indent = String.Join("", _scopes.Select(x => x.Indent.Indent));
+				_inner.Log(logLevel, eventId, new FormattedLogValues<TState>(indent, state, formatter), exception, FormattedLogValues<TState>.Format);
 				return;
 			}
 
-			Inner.Log(LogLevel, EventId, State, Exception, Formatter);
+			_inner.Log(logLevel, eventId, state, exception, formatter);
 		}
 	}
 
@@ -218,22 +216,22 @@ namespace EpicGames.Core
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="Indent">Indent to append to the existing indent</param>
-			public LoggerIndent(string Indent)
+			/// <param name="indent">Indent to append to the existing indent</param>
+			public LoggerIndent(string indent)
 			{
-				this.Indent = Indent;
+				Indent = indent;
 			}
 		}
 
 		/// <summary>
 		/// Create an indent
 		/// </summary>
-		/// <param name="Logger">Logger interface</param>
-		/// <param name="Indent">The indent to apply</param>
+		/// <param name="logger">Logger interface</param>
+		/// <param name="indent">The indent to apply</param>
 		/// <returns>Disposable object</returns>
-		public static IDisposable BeginIndentScope(this ILogger Logger, string Indent)
+		public static IDisposable BeginIndentScope(this ILogger logger, string indent)
 		{
-			return Logger.BeginScope(new LoggerIndent(Indent));
+			return logger.BeginScope(new LoggerIndent(indent));
 		}
 	}
 }

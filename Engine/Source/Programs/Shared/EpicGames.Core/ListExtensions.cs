@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
-using System.Text;
 
 namespace EpicGames.Core
 {
@@ -19,12 +15,12 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <typeparam name="TElement">List element</typeparam>
 		/// <typeparam name="TField">Field type to sort by</typeparam>
-		/// <param name="List">List to sort</param>
-		/// <param name="Selector">Selects a field from the element</param>
-		public static void SortBy<TElement, TField>(this List<TElement> List, Func<TElement, TField> Selector)
+		/// <param name="list">List to sort</param>
+		/// <param name="selector">Selects a field from the element</param>
+		public static void SortBy<TElement, TField>(this List<TElement> list, Func<TElement, TField> selector)
 		{
-			IComparer<TField> DefaultComparer = Comparer<TField>.Default;
-			SortBy(List, Selector, DefaultComparer);
+			IComparer<TField> defaultComparer = Comparer<TField>.Default;
+			SortBy(list, selector, defaultComparer);
 		}
 
 		/// <summary>
@@ -32,12 +28,12 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <typeparam name="TElement">List element</typeparam>
 		/// <typeparam name="TField">Field type to sort by</typeparam>
-		/// <param name="List">List to sort</param>
-		/// <param name="Selector">Selects a field from the element</param>
-		/// <param name="Comparer">Comparer for fields</param>
-		public static void SortBy<TElement, TField>(this List<TElement> List, Func<TElement, TField> Selector, IComparer<TField> Comparer)
+		/// <param name="list">List to sort</param>
+		/// <param name="selector">Selects a field from the element</param>
+		/// <param name="comparer">Comparer for fields</param>
+		public static void SortBy<TElement, TField>(this List<TElement> list, Func<TElement, TField> selector, IComparer<TField> comparer)
 		{
-			List.Sort((X, Y) => Comparer.Compare(Selector(X), Selector(Y)));
+			list.Sort((x, y) => comparer.Compare(selector(x), selector(y)));
 		}
 	}
 }

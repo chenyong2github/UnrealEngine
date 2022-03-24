@@ -2057,7 +2057,7 @@ namespace EpicGames.Perforce.Managed
 		/// <returns>Disposable object for the trace</returns>
 		private IDisposable Trace(string Operation)
 		{
-			return TraceSpan.Create(Operation, Service: "hordeagent_repository");
+			return TraceSpan.Create(Operation, service: "hordeagent_repository");
 		}
 
 		#endregion

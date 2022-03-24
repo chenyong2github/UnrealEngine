@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Core
 {
@@ -15,24 +14,24 @@ namespace EpicGames.Core
 		/// Split the sequence into batches of at most the given size
 		/// </summary>
 		/// <typeparam name="TElement">The element type</typeparam>
-		/// <param name="Sequence">Sequence to split into batches</param>
-		/// <param name="BatchSize">Maximum size of each batch</param>
+		/// <param name="sequence">Sequence to split into batches</param>
+		/// <param name="batchSize">Maximum size of each batch</param>
 		/// <returns>Sequence of batches</returns>
-		public static IEnumerable<IReadOnlyList<TElement>> Batch<TElement>(this IEnumerable<TElement> Sequence, int BatchSize)
+		public static IEnumerable<IReadOnlyList<TElement>> Batch<TElement>(this IEnumerable<TElement> sequence, int batchSize)
 		{
-			List<TElement> Elements = new List<TElement>(BatchSize);
-			foreach (TElement Element in Sequence)
+			List<TElement> elements = new List<TElement>(batchSize);
+			foreach (TElement element in sequence)
 			{
-				Elements.Add(Element);
-				if (Elements.Count == BatchSize)
+				elements.Add(element);
+				if (elements.Count == batchSize)
 				{
-					yield return Elements;
-					Elements.Clear();
+					yield return elements;
+					elements.Clear();
 				}
 			}
-			if (Elements.Count > 0)
+			if (elements.Count > 0)
 			{
-				yield return Elements;
+				yield return elements;
 			}
 		}
 
@@ -40,60 +39,60 @@ namespace EpicGames.Core
 		/// Finds the minimum element by a given field
 		/// </summary>
 		/// <typeparam name="TElement"></typeparam>
-		/// <param name="Sequence"></param>
-		/// <param name="Selector"></param>
+		/// <param name="sequence"></param>
+		/// <param name="selector"></param>
 		/// <returns></returns>
-		public static TElement MinBy<TElement>(this IEnumerable<TElement> Sequence, Func<TElement, int> Selector)
+		public static TElement MinBy<TElement>(this IEnumerable<TElement> sequence, Func<TElement, int> selector)
 		{
-			IEnumerator<TElement> Enumerator = Sequence.GetEnumerator();
-			if (!Enumerator.MoveNext())
+			IEnumerator<TElement> enumerator = sequence.GetEnumerator();
+			if (!enumerator.MoveNext())
 			{
 				throw new Exception("Collection is empty");
 			}
 
-			TElement MinElement = Enumerator.Current;
+			TElement minElement = enumerator.Current;
 
-			int MinValue = Selector(MinElement);
-			while (Enumerator.MoveNext())
+			int minValue = selector(minElement);
+			while (enumerator.MoveNext())
 			{
-				int Value = Selector(Enumerator.Current);
-				if (Value < MinValue)
+				int value = selector(enumerator.Current);
+				if (value < minValue)
 				{
-					MinElement = Enumerator.Current;
+					minElement = enumerator.Current;
 				}
 			}
 
-			return MinElement;
+			return minElement;
 		}
 
 		/// <summary>
 		/// Finds the maximum element by a given field
 		/// </summary>
 		/// <typeparam name="TElement"></typeparam>
-		/// <param name="Sequence"></param>
-		/// <param name="Selector"></param>
+		/// <param name="sequence"></param>
+		/// <param name="selector"></param>
 		/// <returns></returns>
-		public static TElement MaxBy<TElement>(this IEnumerable<TElement> Sequence, Func<TElement, int> Selector)
+		public static TElement MaxBy<TElement>(this IEnumerable<TElement> sequence, Func<TElement, int> selector)
 		{
-			IEnumerator<TElement> Enumerator = Sequence.GetEnumerator();
-			if (!Enumerator.MoveNext())
+			IEnumerator<TElement> enumerator = sequence.GetEnumerator();
+			if (!enumerator.MoveNext())
 			{
 				throw new Exception("Collection is empty");
 			}
 
-			TElement MaxElement = Enumerator.Current;
+			TElement maxElement = enumerator.Current;
 
-			int MaxValue = Selector(MaxElement);
-			while (Enumerator.MoveNext())
+			int maxValue = selector(maxElement);
+			while (enumerator.MoveNext())
 			{
-				int Value = Selector(Enumerator.Current);
-				if (Value > MaxValue)
+				int value = selector(enumerator.Current);
+				if (value > maxValue)
 				{
-					MaxElement = Enumerator.Current;
+					maxElement = enumerator.Current;
 				}
 			}
 
-			return MaxElement;
+			return maxElement;
 		}
 	}
 }

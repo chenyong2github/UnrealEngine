@@ -18,135 +18,129 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Span for the sequence of characters
 		/// </summary>
-		public ReadOnlySpan<char> Span 
-		{ 
-			get { return Memory.Span; } 
-		}
+		public ReadOnlySpan<char> Span => Memory.Span; 
 
 		/// <summary>
 		/// Length of the sequence of characters
 		/// </summary>
-		public int Length
+		public int Length => Memory.Length;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="text">String view to construct from</param>
+		public StringView(StringView text)
 		{
-			get { return Memory.Length; }
+			Memory = text.Memory;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Text">String view to construct from</param>
-		public StringView(StringView Text)
+		/// <param name="text">String view to construct from</param>
+		/// <param name="index">Offset within the string for this view</param>
+		public StringView(StringView text, int index)
 		{
-			this.Memory = Text.Memory;
+			Memory = text.Memory.Slice(index);
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Text">String view to construct from</param>
-		/// <param name="Index">Offset within the string for this view</param>
-		public StringView(StringView Text, int Index)
+		/// <param name="text">String view to construct from</param>
+		/// <param name="index">Offset within the string for this view</param>
+		/// <param name="count">Number of characters to include</param>
+		public StringView(StringView text, int index, int count)
 		{
-			this.Memory = Text.Memory.Slice(Index);
+			Memory = text.Memory.Slice(index, count);
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Text">String view to construct from</param>
-		/// <param name="Index">Offset within the string for this view</param>
-		/// <param name="Count">Number of characters to include</param>
-		public StringView(StringView Text, int Index, int Count)
+		/// <param name="memory">The memory containing the characters</param>
+		public StringView(ReadOnlyMemory<char> memory)
 		{
-			this.Memory = Text.Memory.Slice(Index, Count);
+			Memory = memory;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">The memory containing the characters</param>
-		public StringView(ReadOnlyMemory<char> Memory)
+		/// <param name="memory">The memory containing the characters</param>
+		/// <param name="index">Offset within the string for this view</param>
+		public StringView(ReadOnlyMemory<char> memory, int index)
 		{
-			this.Memory = Memory;
+			Memory = memory.Slice(index);
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">The memory containing the characters</param>
-		/// <param name="Index">Offset within the string for this view</param>
-		public StringView(ReadOnlyMemory<char> Memory, int Index)
+		/// <param name="memory">The memory containing the characters</param>
+		/// <param name="index">Offset within the string for this view</param>
+		/// <param name="count">Number of characters to include</param>
+		public StringView(ReadOnlyMemory<char> memory, int index, int count)
 		{
-			this.Memory = Memory.Slice(Index);
+			Memory = memory.Slice(index, count);
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">The memory containing the characters</param>
-		/// <param name="Index">Offset within the string for this view</param>
-		/// <param name="Count">Number of characters to include</param>
-		public StringView(ReadOnlyMemory<char> Memory, int Index, int Count)
+		/// <param name="text">String to construct from</param>
+		public StringView(string text)
 		{
-			this.Memory = Memory.Slice(Index, Count);
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Text">String to construct from</param>
-		public StringView(string Text)
-		{
-			Memory = Text.AsMemory();
+			Memory = text.AsMemory();
 		}
 
 		/// <summary>
 		/// Constructs a view onto a substring of the given string
 		/// </summary>
-		/// <param name="Text">String to construct from</param>
-		/// <param name="Index">Offset within the string for this view</param>
-		public StringView(string Text, int Index)
+		/// <param name="text">String to construct from</param>
+		/// <param name="index">Offset within the string for this view</param>
+		public StringView(string text, int index)
 		{
-			Memory = Text.AsMemory(Index);
+			Memory = text.AsMemory(index);
 		}
 
 		/// <summary>
 		/// Constructs a view onto a substring of the given string
 		/// </summary>
-		/// <param name="Text">String to construct from</param>
-		/// <param name="Index">Offset within the string for this view</param>
-		/// <param name="Count">Number of characters to include</param>
-		public StringView(string Text, int Index, int Count)
+		/// <param name="text">String to construct from</param>
+		/// <param name="index">Offset within the string for this view</param>
+		/// <param name="count">Number of characters to include</param>
+		public StringView(string text, int index, int count)
 		{
-			Memory = Text.AsMemory(Index, Count);
+			Memory = text.AsMemory(index, count);
 		}
 
 		/// <summary>
 		/// Equality comparer
 		/// </summary>
-		/// <param name="X">First string to compare</param>
-		/// <param name="Y">Second string to compare</param>
+		/// <param name="x">First string to compare</param>
+		/// <param name="y">Second string to compare</param>
 		/// <returns>True if the strings are equal</returns>
-		public static bool operator ==(StringView X, StringView Y)
+		public static bool operator ==(StringView x, StringView y)
 		{
-			return X.Equals(Y);
+			return x.Equals(y);
 		}
 
 		/// <summary>
 		/// Inequality comparer
 		/// </summary>
-		/// <param name="X">First string to compare</param>
-		/// <param name="Y">Second string to compare</param>
+		/// <param name="x">First string to compare</param>
+		/// <param name="y">Second string to compare</param>
 		/// <returns>True if the strings are equal</returns>
-		public static bool operator !=(StringView X, StringView Y)
+		public static bool operator !=(StringView x, StringView y)
 		{
-			return !X.Equals(Y);
+			return !x.Equals(y);
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj)
+		public override bool Equals(object? obj)
 		{
-			return Obj is StringView && Equals((StringView)Obj);
+			return obj is StringView view && Equals(view);
 		}
 
 		/// <inheritdoc/>
@@ -168,22 +162,22 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(StringView Other)
+		public bool Equals(StringView other)
 		{
-			return Equals(Other, StringComparison.CurrentCulture);
+			return Equals(other, StringComparison.CurrentCulture);
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(StringView? Other, StringComparison comparisonType)
+		public bool Equals(StringView? other, StringComparison comparisonType)
 		{
-			return Other.HasValue && Memory.Span.Equals(Other.Value.Memory.Span, comparisonType);
+			return other.HasValue && Memory.Span.Equals(other.Value.Memory.Span, comparisonType);
 		}
 
 		/// <summary>
 		/// Implicit conversion operator from a regular string
 		/// </summary>
-		/// <param name="Text">The string to construct from</param>
-		public static implicit operator StringView(string Text) => new StringView(Text);
+		/// <param name="text">The string to construct from</param>
+		public static implicit operator StringView(string text) => new StringView(text);
 	}
 
 	/// <summary>
@@ -209,16 +203,16 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ComparisonType">Type of comparison to perform</param>
-		public StringViewComparer(StringComparison ComparisonType)
+		/// <param name="comparisonType">Type of comparison to perform</param>
+		public StringViewComparer(StringComparison comparisonType)
 		{
-			this.ComparisonType = ComparisonType;
+			ComparisonType = comparisonType;
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(StringView X, StringView Y)
+		public bool Equals(StringView x, StringView y)
 		{
-			return X.Span.Equals(Y.Span, ComparisonType);
+			return x.Span.Equals(y.Span, ComparisonType);
 		}
 
 		/// <inheritdoc/>
@@ -228,26 +222,26 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public int Compare(StringView X, StringView Y)
+		public int Compare(StringView x, StringView y)
 		{
-			return X.Span.CompareTo(Y.Span, ComparisonType);
+			return x.Span.CompareTo(y.Span, ComparisonType);
 		}
 	}
 
 	/// <summary>
 	/// Comparer for StringView objects.  However, it implements UE style ignore case compare
 	/// </summary>
-	public class StringViewComparerUE : IComparer<StringView>, IEqualityComparer<StringView>
+	public class StringViewComparerUe : IComparer<StringView>, IEqualityComparer<StringView>
 	{
 		/// <summary>
 		/// Static instance of an ordinal StringView comparer
 		/// </summary>
-		public static StringViewComparerUE Ordinal = new StringViewComparerUE(StringComparison.Ordinal);
+		public static StringViewComparerUe Ordinal = new StringViewComparerUe(StringComparison.Ordinal);
 
 		/// <summary>
 		/// Static instance of an ordinal StringView comparer which ignores case
 		/// </summary>
-		public static StringViewComparerUE OrdinalIgnoreCase = new StringViewComparerUE(StringComparison.OrdinalIgnoreCase);
+		public static StringViewComparerUe OrdinalIgnoreCase = new StringViewComparerUe(StringComparison.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// The comparison type
@@ -257,16 +251,16 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ComparisonType">Type of comparison to perform</param>
-		public StringViewComparerUE(StringComparison ComparisonType)
+		/// <param name="comparisonType">Type of comparison to perform</param>
+		public StringViewComparerUe(StringComparison comparisonType)
 		{
-			this.ComparisonType = ComparisonType;
+			ComparisonType = comparisonType;
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(StringView X, StringView Y)
+		public bool Equals(StringView x, StringView y)
 		{
-			return X.Span.Equals(Y.Span, ComparisonType);
+			return x.Span.Equals(y.Span, ComparisonType);
 		}
 
 		/// <inheritdoc/>
@@ -276,15 +270,15 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public int Compare(StringView X, StringView Y)
+		public int Compare(StringView x, StringView y)
 		{
 			if (ComparisonType == StringComparison.OrdinalIgnoreCase)
 			{
-				return StringUtils.CompareIgnoreCaseUE(X.Span, Y.Span);
+				return StringUtils.CompareIgnoreCaseUe(x.Span, y.Span);
 			}
 			else
 			{
-				return X.Span.CompareTo(Y.Span, ComparisonType);
+				return x.Span.CompareTo(y.Span, ComparisonType);
 			}
 		}
 	}

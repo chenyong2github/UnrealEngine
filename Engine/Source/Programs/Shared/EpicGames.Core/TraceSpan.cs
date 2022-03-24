@@ -5,10 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -20,9 +17,9 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Adds additional metadata to this scope
 		/// </summary>
-		/// <param name="Name">Name of the key</param>
-		/// <param name="Value">Value for this metadata</param>
-		void AddMetadata(string Name, string Value);
+		/// <param name="name">Name of the key</param>
+		/// <param name="value">Value for this metadata</param>
+		void AddMetadata(string name, string value);
 	}
 
 	/// <summary>
@@ -33,11 +30,11 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Create a new trace span
 		/// </summary>
-		/// <param name="Operation">Name of the operation</param>
-		/// <param name="Resource">Resource that the operation is being performed on</param>
-		/// <param name="Service">Name of the service</param>
+		/// <param name="operation">Name of the operation</param>
+		/// <param name="resource">Resource that the operation is being performed on</param>
+		/// <param name="service">Name of the service</param>
 		/// <returns>New span instance</returns>
-		ITraceSpan Create(string Operation, string? Resource, string? Service);
+		ITraceSpan Create(string operation, string? resource, string? service);
 
 		/// <summary>
 		/// Flush all the current trace data
@@ -52,24 +49,24 @@ namespace EpicGames.Core
 	{
 		class TraceSpanImpl : ITraceSpan
 		{
-			public string Name;
-			public string? Resource;
-			public string? Service;
-			public DateTimeOffset StartTime;
-			public DateTimeOffset? FinishTime;
-			public Dictionary<string, string> Metadata = new Dictionary<string, string>();
+			public string Name { get; }
+			public string? Resource { get; }
+			public string? Service { get; }
+			public DateTimeOffset StartTime { get; }
+			public DateTimeOffset? FinishTime { get; private set; }
+			public Dictionary<string, string> Metadata { get; } = new Dictionary<string, string>();
 
-			public TraceSpanImpl(string Name, string? Resource, string? Service)
+			public TraceSpanImpl(string name, string? resource, string? service)
 			{
-				this.Name = Name;
-				this.Resource = Resource;
-				this.Service = Service;
-				this.StartTime = DateTimeOffset.Now;
+				Name = name;
+				Resource = resource;
+				Service = service;
+				StartTime = DateTimeOffset.Now;
 			}
 
-			public void AddMetadata(string Name, string Value)
+			public void AddMetadata(string name, string value)
 			{
-				Metadata[Name] = Value;
+				Metadata[name] = value;
 			}
 
 			public void Dispose()
@@ -84,30 +81,30 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Output directory for telemetry info
 		/// </summary>
-		DirectoryReference TelemetryDir;
+		readonly DirectoryReference _telemetryDir;
 
 		/// <summary>
 		/// The current scope provider
 		/// </summary>
-		List<TraceSpanImpl> Spans = new List<TraceSpanImpl>();
+		readonly List<TraceSpanImpl> _spans = new List<TraceSpanImpl>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="TelemetryDir">Directory to store telemetry files</param>
-		public JsonTraceSink(DirectoryReference TelemetryDir)
+		/// <param name="telemetryDir">Directory to store telemetry files</param>
+		public JsonTraceSink(DirectoryReference telemetryDir)
 		{
-			this.TelemetryDir = TelemetryDir;
+			_telemetryDir = telemetryDir;
 		}
 
 		/// <summary>
 		/// Creates a scope using the current provider
 		/// </summary>
-		public ITraceSpan Create(string Name, string? Resource = null, string? Service = null)
+		public ITraceSpan Create(string name, string? resource = null, string? service = null)
 		{
-			TraceSpanImpl Span = new TraceSpanImpl(Name, Resource, Service);
-			Spans.Add(Span);
-			return Span;
+			TraceSpanImpl span = new TraceSpanImpl(name, resource, service);
+			_spans.Add(span);
+			return span;
 		}
 
 		/// <summary>
@@ -115,46 +112,46 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Flush()
 		{
-			FileReference File;
-			using (Process Process = Process.GetCurrentProcess())
+			FileReference file;
+			using (Process process = Process.GetCurrentProcess())
 			{
-				DirectoryReference.CreateDirectory(TelemetryDir);
+				DirectoryReference.CreateDirectory(_telemetryDir);
 
-				string FileName = String.Format("{0}.{1}.json", Path.GetFileName(Assembly.GetEntryAssembly()!.Location), Process.Id, Process.StartTime.Ticks);
-				File = FileReference.Combine(TelemetryDir, FileName);
+				string fileName = String.Format("{0}.{1}.json", Path.GetFileName(Assembly.GetEntryAssembly()!.Location), process.Id, process.StartTime.Ticks);
+				file = FileReference.Combine(_telemetryDir, fileName);
 			}
 
-			using (JsonWriter Writer = new JsonWriter(File))
+			using (JsonWriter writer = new JsonWriter(file))
 			{
-				Writer.WriteObjectStart();
-				Writer.WriteArrayStart("Spans");
-				foreach (TraceSpanImpl Span in Spans)
+				writer.WriteObjectStart();
+				writer.WriteArrayStart("Spans");
+				foreach (TraceSpanImpl span in _spans)
 				{
-					if (Span.FinishTime != null)
+					if (span.FinishTime != null)
 					{
-						Writer.WriteObjectStart();
-						Writer.WriteValue("Name", Span.Name);
-						if (Span.Resource != null)
+						writer.WriteObjectStart();
+						writer.WriteValue("Name", span.Name);
+						if (span.Resource != null)
 						{
-							Writer.WriteValue("Resource", Span.Resource);
+							writer.WriteValue("Resource", span.Resource);
 						}
-						if (Span.Service != null)
+						if (span.Service != null)
 						{
-							Writer.WriteValue("Service", Span.Service);
+							writer.WriteValue("Service", span.Service);
 						}
-						Writer.WriteValue("StartTime", Span.StartTime.ToString("o", CultureInfo.InvariantCulture));
-						Writer.WriteValue("FinishTime", Span.FinishTime.Value.ToString("o", CultureInfo.InvariantCulture));
-						Writer.WriteObjectStart("Metadata");
-						foreach (KeyValuePair<string, string> Pair in Span.Metadata)
+						writer.WriteValue("StartTime", span.StartTime.ToString("o", CultureInfo.InvariantCulture));
+						writer.WriteValue("FinishTime", span.FinishTime.Value.ToString("o", CultureInfo.InvariantCulture));
+						writer.WriteObjectStart("Metadata");
+						foreach (KeyValuePair<string, string> pair in span.Metadata)
 						{
-							Writer.WriteValue(Pair.Key, Pair.Value);
+							writer.WriteValue(pair.Key, pair.Value);
 						}
-						Writer.WriteObjectEnd();
-						Writer.WriteObjectEnd();
+						writer.WriteObjectEnd();
+						writer.WriteObjectEnd();
 					}
 				}
-				Writer.WriteArrayEnd();
-				Writer.WriteObjectEnd();
+				writer.WriteArrayEnd();
+				writer.WriteObjectEnd();
 			}
 		}
 	}
@@ -166,26 +163,26 @@ namespace EpicGames.Core
 	{
 		class CombinedTraceSpan : ITraceSpan
 		{
-			ITraceSpan[] Spans;
+			readonly ITraceSpan[] _spans;
 
-			public CombinedTraceSpan(ITraceSpan[] Spans)
+			public CombinedTraceSpan(ITraceSpan[] spans)
 			{
-				this.Spans = Spans;
+				_spans = spans;
 			}
 
-			public void AddMetadata(string Name, string Value)
+			public void AddMetadata(string name, string value)
 			{
-				foreach(ITraceSpan Span in Spans)
+				foreach(ITraceSpan span in _spans)
 				{
-					Span.AddMetadata(Name, Value);
+					span.AddMetadata(name, value);
 				}
 			}
 
 			public void Dispose()
 			{
-				foreach (ITraceSpan Span in Spans)
+				foreach (ITraceSpan span in _spans)
 				{
-					Span.Dispose();
+					span.Dispose();
 				}
 			}
 		}
@@ -193,7 +190,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The sinks to use
 		/// </summary>
-		static List<ITraceSink> Sinks = GetDefaultSinks();
+		static readonly List<ITraceSink> s_sinks = GetDefaultSinks();
 
 		/// <summary>
 		/// Build a list of default sinks
@@ -201,51 +198,51 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		static List<ITraceSink> GetDefaultSinks()
 		{
-			List<ITraceSink> Sinks = new List<ITraceSink>();
+			List<ITraceSink> sinks = new List<ITraceSink>();
 
-			string? TelemetryDir = Environment.GetEnvironmentVariable("UE_TELEMETRY_DIR");
-			if (TelemetryDir != null)
+			string? telemetryDir = Environment.GetEnvironmentVariable("UE_TELEMETRY_DIR");
+			if (telemetryDir != null)
 			{
-				Sinks.Add(new JsonTraceSink(new DirectoryReference(TelemetryDir)));
+				sinks.Add(new JsonTraceSink(new DirectoryReference(telemetryDir)));
 			}
 
-			return Sinks;
+			return sinks;
 		}
 
 		/// <summary>
 		/// Adds a new sink
 		/// </summary>
-		/// <param name="Sink">The sink to add</param>
-		public static void AddSink(ITraceSink Sink)
+		/// <param name="sink">The sink to add</param>
+		public static void AddSink(ITraceSink sink)
 		{
-			Sinks.Add(Sink);
+			s_sinks.Add(sink);
 		}
 
 		/// <summary>
 		/// Remove a sink from the current list
 		/// </summary>
-		/// <param name="Sink">The sink to remove</param>
-		public static void RemoveSink(ITraceSink Sink)
+		/// <param name="sink">The sink to remove</param>
+		public static void RemoveSink(ITraceSink sink)
 		{
-			Sinks.Remove(Sink);
+			s_sinks.Remove(sink);
 		}
 
 		/// <summary>
 		/// Creates a scope using the current provider
 		/// </summary>
-		public static ITraceSpan Create(string Operation, string? Resource = null, string? Service = null)
+		public static ITraceSpan Create(string operation, string? resource = null, string? service = null)
 		{
-			if (Sinks.Count == 0)
+			if (s_sinks.Count == 0)
 			{
 				return new CombinedTraceSpan(Array.Empty<ITraceSpan>());
 			}
-			else if (Sinks.Count == 1)
+			else if (s_sinks.Count == 1)
 			{
-				return Sinks[0].Create(Operation, Resource, Service);
+				return s_sinks[0].Create(operation, resource, service);
 			}
 			else
 			{
-				return new CombinedTraceSpan(Sinks.ConvertAll(x => x.Create(Operation, Resource, Service)).ToArray());
+				return new CombinedTraceSpan(s_sinks.ConvertAll(x => x.Create(operation, resource, service)).ToArray());
 			}
 		}
 
@@ -254,9 +251,9 @@ namespace EpicGames.Core
 		/// </summary>
 		public static void Flush()
 		{
-			foreach (ITraceSink Sink in Sinks)
+			foreach (ITraceSink sink in s_sinks)
 			{
-				Sink.Flush();
+				sink.Flush();
 			}
 		}
 	}

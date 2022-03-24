@@ -26,135 +26,135 @@ namespace EpicGames.Core
 			public MethodInfo WriteMethodInfo { get; }
 			public Action<BinaryArchiveWriter, object> WriteMethod { get; }
 
-			public TypeSerializer(MethodInfo ReadMethodInfo, MethodInfo WriteMethodInfo)
+			public TypeSerializer(MethodInfo readMethodInfo, MethodInfo writeMethodInfo)
 			{
-				this.ReadMethodInfo = ReadMethodInfo;
-				this.WriteMethodInfo = WriteMethodInfo;
+				ReadMethodInfo = readMethodInfo;
+				WriteMethodInfo = writeMethodInfo;
 
-				Type Type = ReadMethodInfo.ReturnType;
-				this.ReadMethod = CreateBoxedReadMethod(Type, ReadMethodInfo);
-				this.WriteMethod = CreateBoxedWriteMethod(Type, WriteMethodInfo);
+				Type type = readMethodInfo.ReturnType;
+				ReadMethod = CreateBoxedReadMethod(type, readMethodInfo);
+				WriteMethod = CreateBoxedWriteMethod(type, writeMethodInfo);
 			}
 
-			static Func<BinaryArchiveReader, object> CreateBoxedReadMethod(Type Type, MethodInfo MethodInfo)
+			static Func<BinaryArchiveReader, object> CreateBoxedReadMethod(Type type, MethodInfo methodInfo)
 			{
-				DynamicMethod ReaderMethod = new DynamicMethod($"Boxed_{MethodInfo.Name}", typeof(object), new[] { typeof(BinaryArchiveReader) });
+				DynamicMethod readerMethod = new DynamicMethod($"Boxed_{methodInfo.Name}", typeof(object), new[] { typeof(BinaryArchiveReader) });
 
-				ILGenerator Generator = ReaderMethod.GetILGenerator(64);
-				Generator.Emit(OpCodes.Ldarg_0);
-				Generator.EmitCall(OpCodes.Call, MethodInfo, null);
-				if (!Type.IsClass)
+				ILGenerator generator = readerMethod.GetILGenerator(64);
+				generator.Emit(OpCodes.Ldarg_0);
+				generator.EmitCall(OpCodes.Call, methodInfo, null);
+				if (!type.IsClass)
 				{
-					Generator.Emit(OpCodes.Box);
+					generator.Emit(OpCodes.Box);
 				}
-				Generator.Emit(OpCodes.Ret);
+				generator.Emit(OpCodes.Ret);
 
-				return (Func<BinaryArchiveReader, object>)ReaderMethod.CreateDelegate(typeof(Func<BinaryArchiveReader, object>));
+				return (Func<BinaryArchiveReader, object>)readerMethod.CreateDelegate(typeof(Func<BinaryArchiveReader, object>));
 			}
 
-			static Action<BinaryArchiveWriter, object> CreateBoxedWriteMethod(Type Type, MethodInfo MethodInfo)
+			static Action<BinaryArchiveWriter, object> CreateBoxedWriteMethod(Type type, MethodInfo methodInfo)
 			{
-				DynamicMethod WriterMethod = new DynamicMethod($"Boxed_{MethodInfo.Name}", typeof(void), new[] { typeof(BinaryArchiveWriter), typeof(object) });
+				DynamicMethod writerMethod = new DynamicMethod($"Boxed_{methodInfo.Name}", typeof(void), new[] { typeof(BinaryArchiveWriter), typeof(object) });
 
-				ILGenerator Generator = WriterMethod.GetILGenerator(64);
-				Generator.Emit(OpCodes.Ldarg_0);
-				Generator.Emit(OpCodes.Ldarg_1);
-				Generator.Emit(OpCodes.Unbox_Any, Type);
-				Generator.EmitCall(OpCodes.Call, MethodInfo, null);
-				Generator.Emit(OpCodes.Ret);
+				ILGenerator generator = writerMethod.GetILGenerator(64);
+				generator.Emit(OpCodes.Ldarg_0);
+				generator.Emit(OpCodes.Ldarg_1);
+				generator.Emit(OpCodes.Unbox_Any, type);
+				generator.EmitCall(OpCodes.Call, methodInfo, null);
+				generator.Emit(OpCodes.Ret);
 
-				return (Action<BinaryArchiveWriter, object>)WriterMethod.CreateDelegate(typeof(Action<BinaryArchiveWriter, object>));
+				return (Action<BinaryArchiveWriter, object>)writerMethod.CreateDelegate(typeof(Action<BinaryArchiveWriter, object>));
 			}
 
-			public static TypeSerializer Create<T>(Expression<Func<BinaryArchiveReader, T>> ReaderExpr, Expression<Action<BinaryArchiveWriter, T>> WriterExpr)
+			public static TypeSerializer Create<T>(Expression<Func<BinaryArchiveReader, T>> readerExpr, Expression<Action<BinaryArchiveWriter, T>> writerExpr)
 			{
-				MethodInfo ReadMethod = ((MethodCallExpression)ReaderExpr.Body).Method;
-				MethodInfo WriteMethod = ((MethodCallExpression)WriterExpr.Body).Method;
-				return new TypeSerializer(ReadMethod, WriteMethod);
+				MethodInfo readMethod = ((MethodCallExpression)readerExpr.Body).Method;
+				MethodInfo writeMethod = ((MethodCallExpression)writerExpr.Body).Method;
+				return new TypeSerializer(readMethod, writeMethod);
 			}
 		}
 
-		static readonly ConcurrentDictionary<Type, TypeSerializer> TypeToSerializerInfo = new ConcurrentDictionary<Type, TypeSerializer>()
+		static readonly ConcurrentDictionary<Type, TypeSerializer> s_typeToSerializerInfo = new ConcurrentDictionary<Type, TypeSerializer>()
 		{
-			[typeof(byte)] = TypeSerializer.Create(Reader => Reader.ReadByte(), (Writer, Value) => Writer.WriteByte(Value)),
-			[typeof(sbyte)] = TypeSerializer.Create(Reader => Reader.ReadSignedByte(), (Writer, Value) => Writer.WriteSignedByte(Value)),
-			[typeof(short)] = TypeSerializer.Create(Reader => Reader.ReadShort(), (Writer, Value) => Writer.WriteShort(Value)),
-			[typeof(ushort)] = TypeSerializer.Create(Reader => Reader.ReadUnsignedShort(), (Writer, Value) => Writer.WriteUnsignedShort(Value)),
-			[typeof(int)] = TypeSerializer.Create(Reader => Reader.ReadInt(), (Writer, Value) => Writer.WriteInt(Value)),
-			[typeof(uint)] = TypeSerializer.Create(Reader => Reader.ReadUnsignedInt(), (Writer, Value) => Writer.WriteUnsignedInt(Value)),
-			[typeof(long)] = TypeSerializer.Create(Reader => Reader.ReadLong(), (Writer, Value) => Writer.WriteLong(Value)),
-			[typeof(ulong)] = TypeSerializer.Create(Reader => Reader.ReadUnsignedLong(), (Writer, Value) => Writer.WriteUnsignedLong(Value)),
-			[typeof(string)] = TypeSerializer.Create(Reader => Reader.ReadString(), (Writer, Value) => Writer.WriteString(Value))
+			[typeof(byte)] = TypeSerializer.Create(reader => reader.ReadByte(), (writer, value) => writer.WriteByte(value)),
+			[typeof(sbyte)] = TypeSerializer.Create(reader => reader.ReadSignedByte(), (writer, value) => writer.WriteSignedByte(value)),
+			[typeof(short)] = TypeSerializer.Create(reader => reader.ReadShort(), (writer, value) => writer.WriteShort(value)),
+			[typeof(ushort)] = TypeSerializer.Create(reader => reader.ReadUnsignedShort(), (writer, value) => writer.WriteUnsignedShort(value)),
+			[typeof(int)] = TypeSerializer.Create(reader => reader.ReadInt(), (writer, value) => writer.WriteInt(value)),
+			[typeof(uint)] = TypeSerializer.Create(reader => reader.ReadUnsignedInt(), (writer, value) => writer.WriteUnsignedInt(value)),
+			[typeof(long)] = TypeSerializer.Create(reader => reader.ReadLong(), (writer, value) => writer.WriteLong(value)),
+			[typeof(ulong)] = TypeSerializer.Create(reader => reader.ReadUnsignedLong(), (writer, value) => writer.WriteUnsignedLong(value)),
+			[typeof(string)] = TypeSerializer.Create(reader => reader.ReadString(), (writer, value) => writer.WriteString(value))
 		};
 
-		static readonly ConcurrentDictionary<Type, ContentHash> TypeToDigest = new ConcurrentDictionary<Type, ContentHash>();
-		static readonly ConcurrentDictionary<ContentHash, Type> DigestToType = new ConcurrentDictionary<ContentHash, Type>();
+		static readonly ConcurrentDictionary<Type, ContentHash> s_typeToDigest = new ConcurrentDictionary<Type, ContentHash>();
+		static readonly ConcurrentDictionary<ContentHash, Type> s_digestToType = new ConcurrentDictionary<ContentHash, Type>();
 
-		static MethodInfo GetMethodInfo(Expression<Action> Expr)
+		static MethodInfo GetMethodInfo(Expression<Action> expr)
 		{
-			return ((MethodCallExpression)Expr.Body).Method;
+			return ((MethodCallExpression)expr.Body).Method;
 		}
 
-		static MethodInfo GetMethodInfo<T>(Expression<Action<T>> Expr)
+		static MethodInfo GetMethodInfo<T>(Expression<Action<T>> expr)
 		{
-			return ((MethodCallExpression)Expr.Body).Method;
+			return ((MethodCallExpression)expr.Body).Method;
 		}
 
-		static MethodInfo GetGenericMethodInfo<T, T1>(Expression<Action<T, T1>> Expr)
+		static MethodInfo GetGenericMethodInfo<T, T1>(Expression<Action<T, T1>> expr)
 		{
-			return ((MethodCallExpression)Expr.Body).Method.GetGenericMethodDefinition();
+			return ((MethodCallExpression)expr.Body).Method.GetGenericMethodDefinition();
 		}
 
-		static readonly MethodInfo ReadBoolMethodInfo = GetMethodInfo<BinaryArchiveReader>(x => x.ReadBool());
-		static readonly MethodInfo ReadIntMethodInfo = GetMethodInfo<BinaryArchiveReader>(x => x.ReadInt());
-		static readonly MethodInfo ReadArrayMethodInfo = GetGenericMethodInfo<BinaryArchiveReader, Func<int>>((x, y) => x.ReadArray(y));
-		static readonly MethodInfo ReadPolymorphicObjectMethodInfo = GetMethodInfo(() => ReadObject(null!));
-		static readonly MethodInfo WriteBoolMethodInfo = GetMethodInfo<BinaryArchiveWriter>(x => x.WriteBool(false));
-		static readonly MethodInfo WriteIntMethodInfo = GetMethodInfo<BinaryArchiveWriter>(x => x.WriteInt(0));
-		static readonly MethodInfo WriteArrayMethodInfo = GetGenericMethodInfo<BinaryArchiveWriter, Action<int>>((x, y) => x.WriteArray(null!, y));
-		static readonly MethodInfo WritePolymorphicObjectMethodInfo = GetMethodInfo(() => WritePolymorphicObject(null!, null!));
+		static readonly MethodInfo s_readBoolMethodInfo = GetMethodInfo<BinaryArchiveReader>(x => x.ReadBool());
+		static readonly MethodInfo s_readIntMethodInfo = GetMethodInfo<BinaryArchiveReader>(x => x.ReadInt());
+		static readonly MethodInfo s_readArrayMethodInfo = GetGenericMethodInfo<BinaryArchiveReader, Func<int>>((x, y) => x.ReadArray(y));
+		static readonly MethodInfo s_readPolymorphicObjectMethodInfo = GetMethodInfo(() => ReadObject(null!));
+		static readonly MethodInfo s_writeBoolMethodInfo = GetMethodInfo<BinaryArchiveWriter>(x => x.WriteBool(false));
+		static readonly MethodInfo s_writeIntMethodInfo = GetMethodInfo<BinaryArchiveWriter>(x => x.WriteInt(0));
+		static readonly MethodInfo s_writeArrayMethodInfo = GetGenericMethodInfo<BinaryArchiveWriter, Action<int>>((x, y) => x.WriteArray(null!, y));
+		static readonly MethodInfo s_writePolymorphicObjectMethodInfo = GetMethodInfo(() => WritePolymorphicObject(null!, null!));
 
 		/// <summary>
 		/// Writes an arbitrary type to the given archive. May be an object or value type.
 		/// </summary>
 		/// <typeparam name="T">The type to write</typeparam>
-		/// <param name="Writer">Writer to serialize to</param>
-		/// <param name="Value">Value to write</param>
-		public static void Write<T>(this BinaryArchiveWriter Writer, T Value)
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="value">Value to write</param>
+		public static void Write<T>(this BinaryArchiveWriter writer, T value)
 		{
-			Type Type = typeof(T);
-			if (Type.IsClass && !Type.IsSealed)
+			Type type = typeof(T);
+			if (type.IsClass && !type.IsSealed)
 			{
-				Writer.WriteObjectReference(Value!, () => WriteNewPolymorphicObject(Writer, Value!));
+				writer.WriteObjectReference(value!, () => WriteNewPolymorphicObject(writer, value!));
 			}
 			else
 			{
-				FindOrAddSerializerInfo(Type).WriteMethod(Writer, Value!);
+				FindOrAddSerializerInfo(type).WriteMethod(writer, value!);
 			}
 		}
 
 		/// <summary>
 		/// Registers the given type. Allows serializing/deserializing it through calls to ReadType/WriteType.
 		/// </summary>
-		/// <param name="Type">Type to register</param>
-		public static void RegisterType(Type Type)
+		/// <param name="type">Type to register</param>
+		public static void RegisterType(Type type)
 		{
-			ContentHash Digest = ContentHash.MD5($"{Type.Assembly.FullName}\n{Type.FullName}");
-			TypeToDigest.TryAdd(Type, Digest);
-			DigestToType.TryAdd(Digest, Type);
+			ContentHash digest = ContentHash.MD5($"{type.Assembly.FullName}\n{type.FullName}");
+			s_typeToDigest.TryAdd(type, digest);
+			s_digestToType.TryAdd(digest, type);
 		}
 
 		/// <summary>
 		/// Registers all types in the given assembly with the <see cref="BinarySerializableAttribute"/> attribute for serialization
 		/// </summary>
-		/// <param name="Assembly">Assembly to search in</param>
-		public static void RegisterTypes(Assembly Assembly)
+		/// <param name="assembly">Assembly to search in</param>
+		public static void RegisterTypes(Assembly assembly)
 		{
-			foreach (Type Type in Assembly.GetTypes())
+			foreach (Type type in assembly.GetTypes())
 			{
-				if (Type.GetCustomAttribute<BinarySerializableAttribute>() != null)
+				if (type.GetCustomAttribute<BinarySerializableAttribute>() != null)
 				{
-					RegisterType(Type);
+					RegisterType(type);
 				}
 			}
 		}
@@ -162,277 +162,277 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Reads a tyoe from the archive
 		/// </summary>
-		/// <param name="Reader">Reader to deserializer the type from</param>
+		/// <param name="reader">Reader to deserializer the type from</param>
 		/// <returns>The matching type</returns>
-		public static Type? ReadType(this BinaryArchiveReader Reader)
+		public static Type? ReadType(this BinaryArchiveReader reader)
 		{
-			return Reader.ReadObjectReference(() => DigestToType[Reader.ReadContentHash()!]);
+			return reader.ReadObjectReference(() => s_digestToType[reader.ReadContentHash()!]);
 		}
 
 		/// <summary>
 		/// Writes a type to an archive
 		/// </summary>
-		/// <param name="Writer">Writer to serialize to</param>
-		/// <param name="Type">The type to serialize</param>
-		public static void WriteType(this BinaryArchiveWriter Writer, Type Type)
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="type">The type to serialize</param>
+		public static void WriteType(this BinaryArchiveWriter writer, Type type)
 		{
-			Writer.WriteObjectReference(Type, () => Writer.WriteContentHash(TypeToDigest[Type]));
+			writer.WriteObjectReference(type, () => writer.WriteContentHash(s_typeToDigest[type]));
 		}
 
-		static object? ReadNewPolymorphicObject(BinaryArchiveReader Reader)
+		static object? ReadNewPolymorphicObject(BinaryArchiveReader reader)
 		{
-			Type? FinalType = Reader.ReadType();
-			if (FinalType == null)
+			Type? finalType = reader.ReadType();
+			if (finalType == null)
 			{
 				return null;
 			}
 
-			TypeSerializer Info = FindOrAddSerializerInfo(FinalType);
-			return Info.ReadMethod(Reader)!;
+			TypeSerializer info = FindOrAddSerializerInfo(finalType);
+			return info.ReadMethod(reader)!;
 		}
 
-		public static object? ReadObject(this BinaryArchiveReader Reader)
+		public static object? ReadObject(this BinaryArchiveReader reader)
 		{
-			return Reader.ReadUntypedObjectReference(() => ReadNewPolymorphicObject(Reader));
+			return reader.ReadUntypedObjectReference(() => ReadNewPolymorphicObject(reader));
 		}
 
-		static void WriteNewPolymorphicObject(BinaryArchiveWriter Writer, object Value)
+		static void WriteNewPolymorphicObject(BinaryArchiveWriter writer, object value)
 		{
-			Type ActualType = Value.GetType();
-			Writer.WriteType(ActualType);
+			Type actualType = value.GetType();
+			writer.WriteType(actualType);
 
-			TypeSerializer Info = FindOrAddSerializerInfo(ActualType);
-			Info.WriteMethod(Writer, Value);
+			TypeSerializer info = FindOrAddSerializerInfo(actualType);
+			info.WriteMethod(writer, value);
 		}
 
-		static void WritePolymorphicObject(this BinaryArchiveWriter Writer, object Value)
+		static void WritePolymorphicObject(this BinaryArchiveWriter writer, object value)
 		{
-			Writer.WriteObjectReference(Value, () => WriteNewPolymorphicObject(Writer, Value));
+			writer.WriteObjectReference(value, () => WriteNewPolymorphicObject(writer, value));
 		}
 
 		/// <summary>
 		/// Finds an existing serializer for the given type, or creates one
 		/// </summary>
-		/// <param name="Type">Type to create a serializer for</param>
-		/// <param name="ConverterType">Type of the converter to use</param>
+		/// <param name="type">Type to create a serializer for</param>
+		/// <param name="converterType">Type of the converter to use</param>
 		/// <returns>Instance of the type serializer</returns>
-		static TypeSerializer FindOrAddSerializerInfo(Type Type, Type? ConverterType = null)
+		static TypeSerializer FindOrAddSerializerInfo(Type type, Type? converterType = null)
 		{
-			Type SerializerKey = ConverterType ?? Type;
+			Type serializerKey = converterType ?? type;
 
 			// Get the serializer info
-			if (!TypeToSerializerInfo.TryGetValue(SerializerKey, out TypeSerializer? SerializerInfo))
+			if (!s_typeToSerializerInfo.TryGetValue(serializerKey, out TypeSerializer? serializerInfo))
 			{
-				lock (TypeToSerializerInfo)
+				lock (s_typeToSerializerInfo)
 				{
-					SerializerInfo = CreateTypeSerializer(Type, ConverterType);
-					TypeToSerializerInfo[SerializerKey] = SerializerInfo;
+					serializerInfo = CreateTypeSerializer(type, converterType);
+					s_typeToSerializerInfo[serializerKey] = serializerInfo;
 				}
 			}
 
-			return SerializerInfo;
+			return serializerInfo;
 		}
 
 		/// <summary>
 		/// Creates a serializer for the given type
 		/// </summary>
-		/// <param name="Type">Type to create a serializer from</param>
-		/// <param name="ConverterType">Converter for the type</param>
+		/// <param name="type">Type to create a serializer from</param>
+		/// <param name="converterType">Converter for the type</param>
 		/// <returns>New instance of a type serializer</returns>
-		static TypeSerializer CreateTypeSerializer(Type Type, Type? ConverterType = null)
+		static TypeSerializer CreateTypeSerializer(Type type, Type? converterType = null)
 		{
 			// If there's a specific converter defined, generate serialization methods using that
-			if (ConverterType != null)
+			if (converterType != null)
 			{
 				// Make sure the converter is derived from IBinaryConverter
-				Type InterfaceType = typeof(IBinaryConverter<>).MakeGenericType(Type);
-				if (!InterfaceType.IsAssignableFrom(ConverterType))
+				Type interfaceType = typeof(IBinaryConverter<>).MakeGenericType(type);
+				if (!interfaceType.IsAssignableFrom(converterType))
 				{
-					throw new NotImplementedException($"Converter does not implement IBinaryArchiveConverter<{Type.Name}>");
+					throw new NotImplementedException($"Converter does not implement IBinaryArchiveConverter<{type.Name}>");
 				}
 
 				// Instantiate the converter, and store it in a static variable
-				Type InstantiatorType = typeof(Instantiator<>).MakeGenericType(ConverterType);
-				FieldInfo ConverterField = InstantiatorType.GetField(nameof(Instantiator<object>.Instance))!;
+				Type instantiatorType = typeof(Instantiator<>).MakeGenericType(converterType);
+				FieldInfo converterField = instantiatorType.GetField(nameof(Instantiator<object>.Instance))!;
 
 				// Get the mapping between interface methods and instance methods
-				InterfaceMapping InterfaceMapping = ConverterType.GetInterfaceMap(InterfaceType);
+				InterfaceMapping interfaceMapping = converterType.GetInterfaceMap(interfaceType);
 
 				// Create a reader method
-				DynamicMethod ReaderMethod = new DynamicMethod($"BinaryArchiveReader_Dynamic_{Type.Name}_With_{ConverterType.Name}", Type, new[] { typeof(BinaryArchiveReader) });
-				int ReaderIdx = Array.FindIndex(InterfaceMapping.InterfaceMethods, x => x.Name.Equals(nameof(IBinaryConverter<object>.Read), StringComparison.Ordinal));
-				GenerateConverterReaderForwardingMethod(ReaderMethod, ConverterField, InterfaceMapping.TargetMethods[ReaderIdx]);
+				DynamicMethod readerMethod = new DynamicMethod($"BinaryArchiveReader_Dynamic_{type.Name}_With_{converterType.Name}", type, new[] { typeof(BinaryArchiveReader) });
+				int readerIdx = Array.FindIndex(interfaceMapping.InterfaceMethods, x => x.Name.Equals(nameof(IBinaryConverter<object>.Read), StringComparison.Ordinal));
+				GenerateConverterReaderForwardingMethod(readerMethod, converterField, interfaceMapping.TargetMethods[readerIdx]);
 
 				// Create a writer method
-				DynamicMethod WriterMethod = new DynamicMethod($"BinaryArchiveWriter_Dynamic_{Type.Name}_With_{ConverterType.Name}", typeof(void), new[] { typeof(BinaryArchiveWriter), typeof(object) });
-				int WriterIdx = Array.FindIndex(InterfaceMapping.InterfaceMethods, x => x.Name.Equals(nameof(IBinaryConverter<object>.Write), StringComparison.Ordinal));
-				GenerateConverterWriterForwardingMethod(WriterMethod, ConverterField, InterfaceMapping.TargetMethods[WriterIdx]);
+				DynamicMethod writerMethod = new DynamicMethod($"BinaryArchiveWriter_Dynamic_{type.Name}_With_{converterType.Name}", typeof(void), new[] { typeof(BinaryArchiveWriter), typeof(object) });
+				int writerIdx = Array.FindIndex(interfaceMapping.InterfaceMethods, x => x.Name.Equals(nameof(IBinaryConverter<object>.Write), StringComparison.Ordinal));
+				GenerateConverterWriterForwardingMethod(writerMethod, converterField, interfaceMapping.TargetMethods[writerIdx]);
 
-				return new TypeSerializer(ReaderMethod, WriterMethod);
+				return new TypeSerializer(readerMethod, writerMethod);
 			}
 
 			// Get the default converter type
-			if (BinaryConverter.TryGetConverterType(Type, out Type? DefaultConverterType))
+			if (BinaryConverter.TryGetConverterType(type, out Type? defaultConverterType))
 			{
-				return FindOrAddSerializerInfo(Type, DefaultConverterType);
+				return FindOrAddSerializerInfo(type, defaultConverterType);
 			}
 
 			// Check if it's an array
-			if (Type.IsArray)
+			if (type.IsArray)
 			{
-				Type ElementType = Type.GetElementType()!;
+				Type elementType = type.GetElementType()!;
 
-				MethodInfo ReaderMethod = ReadArrayMethodInfo.MakeGenericMethod(ElementType);
-				MethodInfo WriterMethod = WriteArrayMethodInfo.MakeGenericMethod(ElementType);
+				MethodInfo readerMethod = s_readArrayMethodInfo.MakeGenericMethod(elementType);
+				MethodInfo writerMethod = s_writeArrayMethodInfo.MakeGenericMethod(elementType);
 
-				return new TypeSerializer(ReaderMethod, WriterMethod);
+				return new TypeSerializer(readerMethod, writerMethod);
 			}
 
 			// Check if it's a class
-			if (Type.IsClass)
+			if (type.IsClass)
 			{
 				// Get all the class properties
-				List<PropertyInfo> Properties = new List<PropertyInfo>();
-				foreach (PropertyInfo Property in Type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+				List<PropertyInfo> properties = new List<PropertyInfo>();
+				foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
 				{
-					MethodInfo? GetMethod = Property.GetGetMethod();
-					MethodInfo? SetMethod = Property.GetSetMethod();
-					if (GetMethod != null && SetMethod != null && Property.GetCustomAttribute<BinaryIgnoreAttribute>() == null)
+					MethodInfo? getMethod = property.GetGetMethod();
+					MethodInfo? setMethod = property.GetSetMethod();
+					if (getMethod != null && setMethod != null && property.GetCustomAttribute<BinaryIgnoreAttribute>() == null)
 					{
-						Properties.Add(Property);
+						properties.Add(property);
 					}
 				}
 
 				// Find the type constructor
-				ConstructorInfo? ConstructorInfo = Type.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Array.Empty<Type>(), null);
-				if (ConstructorInfo == null)
+				ConstructorInfo? constructorInfo = type.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Array.Empty<Type>(), null);
+				if (constructorInfo == null)
 				{
-					throw new NotImplementedException($"Type '{Type.Name}' does not have a parameterless constructor");
+					throw new NotImplementedException($"Type '{type.Name}' does not have a parameterless constructor");
 				}
 
 				// Create the methods
-				DynamicMethod WriterMethod = new DynamicMethod($"BinaryArchiveWriter_Dynamic_{Type.Name}", typeof(void), new[] { typeof(BinaryArchiveWriter), Type });
-				GenerateClassWriterMethod(WriterMethod, Properties);
+				DynamicMethod writerMethod = new DynamicMethod($"BinaryArchiveWriter_Dynamic_{type.Name}", typeof(void), new[] { typeof(BinaryArchiveWriter), type });
+				GenerateClassWriterMethod(writerMethod, properties);
 
-				DynamicMethod ReaderMethod = new DynamicMethod($"BinaryArchiveReader_Dynamic_{Type.Name}", Type, new[] { typeof(BinaryArchiveReader) });
-				GenerateClassReaderMethod(ReaderMethod, ConstructorInfo, Properties);
+				DynamicMethod readerMethod = new DynamicMethod($"BinaryArchiveReader_Dynamic_{type.Name}", type, new[] { typeof(BinaryArchiveReader) });
+				GenerateClassReaderMethod(readerMethod, constructorInfo, properties);
 
-				return new TypeSerializer(ReaderMethod, WriterMethod);
+				return new TypeSerializer(readerMethod, writerMethod);
 			}
 
-			throw new NotImplementedException($"Unable to create a serializer for {Type.Name}");
+			throw new NotImplementedException($"Unable to create a serializer for {type.Name}");
 		}
 
-		static void GenerateClassWriterMethod(DynamicMethod WriterMethod, List<PropertyInfo> Properties)
+		static void GenerateClassWriterMethod(DynamicMethod writerMethod, List<PropertyInfo> properties)
 		{
 			// Get the IL generator
-			ILGenerator Generator = WriterMethod.GetILGenerator(256 + (Properties.Count * 24));
+			ILGenerator generator = writerMethod.GetILGenerator(256 + (properties.Count * 24));
 
 			// Check if the argument is null, and write 'false' if it is, then early out.
-			Label NonNullInstance = Generator.DefineLabel();
-			Generator.Emit(OpCodes.Ldarg_1);                    // [0] = Arg1 (Instance)
-			Generator.Emit(OpCodes.Brtrue, NonNullInstance);    // [EMPTY] Instance != null -> NonNullInstance
+			Label nonNullInstance = generator.DefineLabel();
+			generator.Emit(OpCodes.Ldarg_1);                    // [0] = Arg1 (Instance)
+			generator.Emit(OpCodes.Brtrue, nonNullInstance);    // [EMPTY] Instance != null -> NonNullInstance
 
-			Generator.Emit(OpCodes.Ldarg_0);                    // [0] = Arg0 (Writer)
-			Generator.Emit(OpCodes.Ldc_I4_0);                   // [1] = false
-			Generator.EmitCall(OpCodes.Call, WriteBoolMethodInfo, null);  // [EMPTY] WriteBool(Write, false)
+			generator.Emit(OpCodes.Ldarg_0);                    // [0] = Arg0 (Writer)
+			generator.Emit(OpCodes.Ldc_I4_0);                   // [1] = false
+			generator.EmitCall(OpCodes.Call, s_writeBoolMethodInfo, null);  // [EMPTY] WriteBool(Write, false)
 
-			Generator.Emit(OpCodes.Ret);                        // [EMPTY] Return
+			generator.Emit(OpCodes.Ret);                        // [EMPTY] Return
 
 			// Otherwise write true.
-			Generator.MarkLabel(NonNullInstance);
+			generator.MarkLabel(nonNullInstance);
 
-			Generator.Emit(OpCodes.Ldarg_0);                    // [0] = Arg0 (Writer)
-			Generator.Emit(OpCodes.Ldc_I4_1);                   // [1] = true
-			Generator.EmitCall(OpCodes.Call, WriteBoolMethodInfo, null);  // [EMPTY] WriteBool(Writer, true)
+			generator.Emit(OpCodes.Ldarg_0);                    // [0] = Arg0 (Writer)
+			generator.Emit(OpCodes.Ldc_I4_1);                   // [1] = true
+			generator.EmitCall(OpCodes.Call, s_writeBoolMethodInfo, null);  // [EMPTY] WriteBool(Writer, true)
 
 			// Write all the properties
-			foreach (PropertyInfo Property in Properties)
+			foreach (PropertyInfo property in properties)
 			{
-				BinaryConverterAttribute? Converter = Property.GetCustomAttribute<BinaryConverterAttribute>();
+				BinaryConverterAttribute? converter = property.GetCustomAttribute<BinaryConverterAttribute>();
 
-				MethodInfo? WritePropertyMethod;
-				if (Property.PropertyType.IsClass && !Property.PropertyType.IsSealed && Converter == null)
+				MethodInfo? writePropertyMethod;
+				if (property.PropertyType.IsClass && !property.PropertyType.IsSealed && converter == null)
 				{
-					WritePropertyMethod = WritePolymorphicObjectMethodInfo;
+					writePropertyMethod = s_writePolymorphicObjectMethodInfo;
 				}
 				else
 				{
-					WritePropertyMethod = FindOrAddSerializerInfo(Property.PropertyType, Converter?.Type).WriteMethodInfo;
+					writePropertyMethod = FindOrAddSerializerInfo(property.PropertyType, converter?.Type).WriteMethodInfo;
 				}
 
-				Generator.Emit(OpCodes.Ldarg_0);                                            // [0] = Arg0 (BinaryArchiveWriter)
-				Generator.Emit(OpCodes.Ldarg_1);                                            // [1] = Arg1 (Instance)
-				Generator.EmitCall(OpCodes.Call, Property.GetGetMethod(true)!, null);       // [1] = GetMethod(Instance)
-				Generator.EmitCall(OpCodes.Call, WritePropertyMethod, null);                // [EMPTY] Write(BinaryArchiveWriter, GetMethod(Instance));
+				generator.Emit(OpCodes.Ldarg_0);                                            // [0] = Arg0 (BinaryArchiveWriter)
+				generator.Emit(OpCodes.Ldarg_1);                                            // [1] = Arg1 (Instance)
+				generator.EmitCall(OpCodes.Call, property.GetGetMethod(true)!, null);       // [1] = GetMethod(Instance)
+				generator.EmitCall(OpCodes.Call, writePropertyMethod, null);                // [EMPTY] Write(BinaryArchiveWriter, GetMethod(Instance));
 			}
 
 			// Return
-			Generator.Emit(OpCodes.Ret);
+			generator.Emit(OpCodes.Ret);
 		}
 
-		static void GenerateClassReaderMethod(DynamicMethod ReaderMethod, ConstructorInfo ConstructorInfo, List<PropertyInfo> Properties)
+		static void GenerateClassReaderMethod(DynamicMethod readerMethod, ConstructorInfo constructorInfo, List<PropertyInfo> properties)
 		{
 			// Get the IL generator
-			ILGenerator Generator = ReaderMethod.GetILGenerator(256 + (Properties.Count * 24));
+			ILGenerator generator = readerMethod.GetILGenerator(256 + (properties.Count * 24));
 
 			// Check if it was a null instance
-			Generator.Emit(OpCodes.Ldarg_0);                    // [0] = Arg1 (Reader)
-			Generator.EmitCall(OpCodes.Call, ReadBoolMethodInfo, null);   // [0] = Reader.ReadBool()
+			generator.Emit(OpCodes.Ldarg_0);                    // [0] = Arg1 (Reader)
+			generator.EmitCall(OpCodes.Call, s_readBoolMethodInfo, null);   // [0] = Reader.ReadBool()
 
-			Label NonNullInstance = Generator.DefineLabel();
-			Generator.Emit(OpCodes.Brtrue, NonNullInstance);    // Bool != null -> NonNullInstance
-			Generator.Emit(OpCodes.Ldnull);                     // [0] = null
-			Generator.Emit(OpCodes.Ret);                        // return
+			Label nonNullInstance = generator.DefineLabel();
+			generator.Emit(OpCodes.Brtrue, nonNullInstance);    // Bool != null -> NonNullInstance
+			generator.Emit(OpCodes.Ldnull);                     // [0] = null
+			generator.Emit(OpCodes.Ret);                        // return
 
 			// Construct an instance
-			Generator.MarkLabel(NonNullInstance);
-			Generator.Emit(OpCodes.Newobj, ConstructorInfo);    // [0] = new Type()
+			generator.MarkLabel(nonNullInstance);
+			generator.Emit(OpCodes.Newobj, constructorInfo);    // [0] = new Type()
 
 			// Read all the properties
-			foreach (PropertyInfo Property in Properties)
+			foreach (PropertyInfo property in properties)
 			{
-				BinaryConverterAttribute? Converter = Property.GetCustomAttribute<BinaryConverterAttribute>();
+				BinaryConverterAttribute? converter = property.GetCustomAttribute<BinaryConverterAttribute>();
 
-				MethodInfo? ReadPropertyMethod;
-				if (Property.PropertyType.IsClass && !Property.PropertyType.IsSealed && Converter == null)
+				MethodInfo? readPropertyMethod;
+				if (property.PropertyType.IsClass && !property.PropertyType.IsSealed && converter == null)
 				{
-					ReadPropertyMethod = ReadPolymorphicObjectMethodInfo;
+					readPropertyMethod = s_readPolymorphicObjectMethodInfo;
 				}
 				else
 				{
-					ReadPropertyMethod = FindOrAddSerializerInfo(Property.PropertyType, Converter?.Type).ReadMethodInfo;
+					readPropertyMethod = FindOrAddSerializerInfo(property.PropertyType, converter?.Type).ReadMethodInfo;
 				}
 
-				Generator.Emit(OpCodes.Dup);                                                // [1] = new Type()
+				generator.Emit(OpCodes.Dup);                                                // [1] = new Type()
 
-				Generator.Emit(OpCodes.Ldarg_0);                                            // [2] = Arg1 (Reader)
-				Generator.Emit(OpCodes.Call, ReadPropertyMethod);                           // [2] = Reader.ReadMethod() or ReadMethod(Reader)
+				generator.Emit(OpCodes.Ldarg_0);                                            // [2] = Arg1 (Reader)
+				generator.Emit(OpCodes.Call, readPropertyMethod);                           // [2] = Reader.ReadMethod() or ReadMethod(Reader)
 
-				Generator.Emit(OpCodes.Call, Property.GetSetMethod(true)!);                 // SetMethod(new Type(), ReadMethod(Reader))
+				generator.Emit(OpCodes.Call, property.GetSetMethod(true)!);                 // SetMethod(new Type(), ReadMethod(Reader))
 			}
 
 			// Return the instance
-			Generator.Emit(OpCodes.Ret);                        // [0] = new Type()
+			generator.Emit(OpCodes.Ret);                        // [0] = new Type()
 		}
 
-		static void GenerateConverterReaderForwardingMethod(DynamicMethod ReaderMethod, FieldInfo ConverterField, MethodInfo TargetMethod)
+		static void GenerateConverterReaderForwardingMethod(DynamicMethod readerMethod, FieldInfo converterField, MethodInfo targetMethod)
 		{
-			ILGenerator Generator = ReaderMethod.GetILGenerator(64);
-			Generator.Emit(OpCodes.Ldsfld, ConverterField);
-			Generator.Emit(OpCodes.Ldarg_0);
-			Generator.Emit(OpCodes.Call, TargetMethod);
-			Generator.Emit(OpCodes.Ret);
+			ILGenerator generator = readerMethod.GetILGenerator(64);
+			generator.Emit(OpCodes.Ldsfld, converterField);
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.Emit(OpCodes.Call, targetMethod);
+			generator.Emit(OpCodes.Ret);
 		}
 
-		static void GenerateConverterWriterForwardingMethod(DynamicMethod WriterMethod, FieldInfo ConverterField, MethodInfo TargetMethod)
+		static void GenerateConverterWriterForwardingMethod(DynamicMethod writerMethod, FieldInfo converterField, MethodInfo targetMethod)
 		{
-			ILGenerator Generator = WriterMethod.GetILGenerator(64);
-			Generator.Emit(OpCodes.Ldsfld, ConverterField);
-			Generator.Emit(OpCodes.Ldarg_0);
-			Generator.Emit(OpCodes.Ldarg_1);
-			Generator.Emit(OpCodes.Call, TargetMethod);
-			Generator.Emit(OpCodes.Ret);
+			ILGenerator generator = writerMethod.GetILGenerator(64);
+			generator.Emit(OpCodes.Ldsfld, converterField);
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.Emit(OpCodes.Ldarg_1);
+			generator.Emit(OpCodes.Call, targetMethod);
+			generator.Emit(OpCodes.Ret);
 		}
 	}
 }

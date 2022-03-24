@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using StackExchange.Redis;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace EpicGames.Redis
 {
@@ -16,21 +12,21 @@ namespace EpicGames.Redis
 		/// <summary>
 		/// Convert a RedisValue to a RedisKey
 		/// </summary>
-		/// <param name="Value"></param>
+		/// <param name="value"></param>
 		/// <returns></returns>
-		public static RedisKey AsKey(this RedisValue Value)
+		public static RedisKey AsKey(this RedisValue value)
 		{
-			return (byte[])Value;
+			return (byte[])value;
 		}
 
 		/// <summary>
 		/// Convert a RedisKey to a RedisValue
 		/// </summary>
-		/// <param name="Key"></param>
+		/// <param name="key"></param>
 		/// <returns></returns>
-		public static RedisValue AsValue(this RedisKey Key)
+		public static RedisValue AsValue(this RedisKey key)
 		{
-			return (byte[])Key;
+			return (byte[])key;
 		}
 	}
 }

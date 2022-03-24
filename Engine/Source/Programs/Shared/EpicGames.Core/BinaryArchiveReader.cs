@@ -17,49 +17,49 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The input stream.
 		/// </summary>
-		Stream? Stream;
+		Stream? _stream;
 
 		/// <summary>
 		/// The input buffer
 		/// </summary>
-		byte[]? Buffer;
+		byte[]? _buffer;
 
 		/// <summary>
 		/// Current position within the buffer
 		/// </summary>
-		int BufferPos;
+		int _bufferPos;
 
 		/// <summary>
 		/// List of previously serialized objects
 		/// </summary>
-		readonly List<object?> Objects = new List<object?>();
+		readonly List<object?> _objects = new List<object?>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Buffer">The buffer to read from</param>
-		public BinaryArchiveReader(byte[] Buffer)
+		/// <param name="buffer">The buffer to read from</param>
+		public BinaryArchiveReader(byte[] buffer)
 		{
-			this.Buffer = Buffer;
+			_buffer = buffer;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="FileName">File to read from</param>
-		public BinaryArchiveReader(FileReference FileName)
+		/// <param name="fileName">File to read from</param>
+		public BinaryArchiveReader(FileReference fileName)
 		{
-			this.Buffer = FileReference.ReadAllBytes(FileName);
+			_buffer = FileReference.ReadAllBytes(fileName);
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Stream">Stream to read from</param>
-		public BinaryArchiveReader(Stream Stream)
+		/// <param name="stream">Stream to read from</param>
+		public BinaryArchiveReader(Stream stream)
 		{
-			Buffer = new byte[Stream.Length];
-			Stream.Read(Buffer, 0, Buffer.Length);
+			_buffer = new byte[stream.Length];
+			stream.Read(_buffer, 0, _buffer.Length);
 		}
 
 		/// <summary>
@@ -67,13 +67,13 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Dispose()
 		{
-			if (Stream != null)
+			if (_stream != null)
 			{
-				Stream.Dispose();
-				Stream = null;
+				_stream.Dispose();
+				_stream = null;
 			}
 
-			Buffer = null;
+			_buffer = null;
 		}
 
 		/// <summary>
@@ -91,9 +91,9 @@ namespace EpicGames.Core
 		/// <returns>The value that was read</returns>
 		public byte ReadByte()
 		{
-			byte Value = Buffer![BufferPos];
-			BufferPos++;
-			return Value;
+			byte value = _buffer![_bufferPos];
+			_bufferPos++;
+			return value;
 		}
 
 		/// <summary>
@@ -120,9 +120,9 @@ namespace EpicGames.Core
 		/// <returns>The value that was read</returns>
 		public ushort ReadUnsignedShort()
 		{
-			ushort Value = (ushort)(Buffer![BufferPos + 0] | (Buffer[BufferPos + 1] << 8));
-			BufferPos += 2;
-			return Value;
+			ushort value = (ushort)(_buffer![_bufferPos + 0] | (_buffer[_bufferPos + 1] << 8));
+			_bufferPos += 2;
+			return value;
 		}
 
 		/// <summary>
@@ -140,9 +140,9 @@ namespace EpicGames.Core
 		/// <returns>The value that was read</returns>
 		public uint ReadUnsignedInt()
 		{
-			uint Value = (uint)(Buffer![BufferPos + 0] | (Buffer[BufferPos + 1] << 8) | (Buffer[BufferPos + 2] << 16) | (Buffer[BufferPos + 3] << 24));
-			BufferPos += 4;
-			return Value;
+			uint value = (uint)(_buffer![_bufferPos + 0] | (_buffer[_bufferPos + 1] << 8) | (_buffer[_bufferPos + 2] << 16) | (_buffer[_bufferPos + 3] << 24));
+			_bufferPos += 4;
+			return value;
 		}
 
 		/// <summary>
@@ -160,9 +160,9 @@ namespace EpicGames.Core
 		/// <returns>The value that was read</returns>
 		public ulong ReadUnsignedLong()
 		{
-			ulong Value = (ulong)ReadUnsignedInt();
-			Value |= (ulong)ReadUnsignedInt() << 32;
-			return Value;
+			ulong value = (ulong)ReadUnsignedInt();
+			value |= (ulong)ReadUnsignedInt() << 32;
+			return value;
 		}
 
 		/// <summary>
@@ -180,14 +180,14 @@ namespace EpicGames.Core
 		/// <returns>The value that was read</returns>
 		public string? ReadString()
 		{
-			byte[]? Bytes = ReadByteArray();
-			if (Bytes == null)
+			byte[]? bytes = ReadByteArray();
+			if (bytes == null)
 			{
 				return null;
 			}
 			else
 			{
-				return Encoding.UTF8.GetString(Bytes);
+				return Encoding.UTF8.GetString(bytes);
 			}
 		}
 
@@ -221,97 +221,96 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Reads an array of primitive types from the stream
 		/// </summary>
-		/// <param name="ElementSize">Size of a single element</param>
+		/// <param name="elementSize">Size of a single element</param>
 		/// <returns>The data that was read</returns>
-		private T[]? ReadPrimitiveArray<T>(int ElementSize) where T : struct
+		private T[]? ReadPrimitiveArray<T>(int elementSize) where T : struct
 		{
-			int Length = ReadInt();
-			if (Length < 0)
+			int length = ReadInt();
+			if (length < 0)
 			{
 				return null;
 			}
 			else
 			{
-				T[] Result = new T[Length];
-				ReadBulkData(Result, Length * ElementSize);
-				return Result;
+				T[] result = new T[length];
+				ReadBulkData(result, length * elementSize);
+				return result;
 			}
 		}
 
 		/// <summary>
 		/// Reads a byte array from the stream
 		/// </summary>
-		/// <param name="Length">Length of the array to read</param>
+		/// <param name="length">Length of the array to read</param>
 		/// <returns>The data that was read</returns>
-		public byte[] ReadFixedSizeByteArray(int Length)
+		public byte[] ReadFixedSizeByteArray(int length)
 		{
-			return ReadFixedSizePrimitiveArray<byte>(sizeof(byte), Length);
+			return ReadFixedSizePrimitiveArray<byte>(sizeof(byte), length);
 		}
 
 		/// <summary>
 		/// Reads a short array from the stream
 		/// </summary>
-		/// <param name="Length">Length of the array to read</param>
+		/// <param name="length">Length of the array to read</param>
 		/// <returns>The data that was read</returns>
-		public short[] ReadFixedSizeShortArray(int Length)
+		public short[] ReadFixedSizeShortArray(int length)
 		{
-			return ReadFixedSizePrimitiveArray<short>(sizeof(short), Length);
+			return ReadFixedSizePrimitiveArray<short>(sizeof(short), length);
 		}
 
 		/// <summary>
 		/// Reads an int array from the stream
 		/// </summary>
-		/// <param name="Length">Length of the array to read</param>
+		/// <param name="length">Length of the array to read</param>
 		/// <returns>The data that was read</returns>
-		public int[] ReadFixedSizeIntArray(int Length)
+		public int[] ReadFixedSizeIntArray(int length)
 		{
-			return ReadFixedSizePrimitiveArray<int>(sizeof(int), Length);
+			return ReadFixedSizePrimitiveArray<int>(sizeof(int), length);
 		}
 
 		/// <summary>
 		/// Reads an array of primitive types from the stream
 		/// </summary>
-		/// <param name="ElementSize">Size of a single element</param>
-		/// <param name="ElementCount">Number of elements to read</param>
+		/// <param name="elementSize">Size of a single element</param>
+		/// <param name="elementCount">Number of elements to read</param>
 		/// <returns>The data that was read</returns>
-		private T[] ReadFixedSizePrimitiveArray<T>(int ElementSize, int ElementCount) where T : struct
+		private T[] ReadFixedSizePrimitiveArray<T>(int elementSize, int elementCount) where T : struct
 		{
-			T[] Result = new T[ElementCount];
-			ReadBulkData(Result, ElementSize * ElementCount);
-			return Result;
+			T[] result = new T[elementCount];
+			ReadBulkData(result, elementSize * elementCount);
+			return result;
 		}
 
 		/// <summary>
 		/// Reads bulk data from the stream into the given buffer
 		/// </summary>
-		/// <param name="Data">Array which receives the data that was read</param>
-		/// <param name="Size">Size of data to read</param>
-		private void ReadBulkData(Array Data, int Size)
+		/// <param name="data">Array which receives the data that was read</param>
+		/// <param name="size">Size of data to read</param>
+		private void ReadBulkData(Array data, int size)
 		{
-			System.Buffer.BlockCopy(Buffer!, BufferPos, Data, 0, Size);
-			BufferPos += Size;
+			System.Buffer.BlockCopy(_buffer!, _bufferPos, data, 0, size);
+			_bufferPos += size;
 		}
-
 
 		/// <summary>
 		/// Reads an array of items
 		/// </summary>
 		/// <returns>New array</returns>
-		public T[]? ReadArray<T>(Func<T> ReadElement)
+		public T[]? ReadArray<T>(Func<T> readElement)
 		{
-			int Count = ReadInt();
-			if (Count < 0)
+			int count = ReadInt();
+			if (count < 0)
 			{
 				return null;
 			}
 			else
 			{
-				T[] Result = new T[Count];
-				for (int Idx = 0; Idx < Count; Idx++)
+				T[] result = new T[count];
+				for (int idx = 0; idx < count; idx++)
 				{
-					Result[Idx] = ReadElement();
+					result[idx] = readElement();
 				}
-				return Result;
+				return result;
 			}
 		}
 
@@ -319,23 +318,23 @@ namespace EpicGames.Core
 		/// Reads a list of items
 		/// </summary>
 		/// <typeparam name="T">The element type for the list</typeparam>
-		/// <param name="ReadElement">Delegate used to read a single element</param>
+		/// <param name="readElement">Delegate used to read a single element</param>
 		/// <returns>List of items</returns>
-		public List<T>? ReadList<T>(Func<T> ReadElement)
+		public List<T>? ReadList<T>(Func<T> readElement)
 		{
-			int Count = ReadInt();
-			if (Count < 0)
+			int count = ReadInt();
+			if (count < 0)
 			{
 				return null;
 			}
 			else
 			{
-				List<T> Result = new List<T>(Count);
-				for (int Idx = 0; Idx < Count; Idx++)
+				List<T> result = new List<T>(count);
+				for (int idx = 0; idx < count; idx++)
 				{
-					Result.Add(ReadElement());
+					result.Add(readElement());
 				}
-				return Result;
+				return result;
 			}
 		}
 
@@ -343,23 +342,23 @@ namespace EpicGames.Core
 		/// Reads a hashset of items
 		/// </summary>
 		/// <typeparam name="T">The element type for the set</typeparam>
-		/// <param name="ReadElement">Delegate used to read a single element</param>
+		/// <param name="readElement">Delegate used to read a single element</param>
 		/// <returns>Set of items</returns>
-		public HashSet<T>? ReadHashSet<T>(Func<T> ReadElement)
+		public HashSet<T>? ReadHashSet<T>(Func<T> readElement)
 		{
-			int Count = ReadInt();
-			if (Count < 0)
+			int count = ReadInt();
+			if (count < 0)
 			{
 				return null;
 			}
 			else
 			{
-				HashSet<T> Result = new HashSet<T>();
-				for (int Idx = 0; Idx < Count; Idx++)
+				HashSet<T> result = new HashSet<T>();
+				for (int idx = 0; idx < count; idx++)
 				{
-					Result.Add(ReadElement());
+					result.Add(readElement());
 				}
-				return Result;
+				return result;
 			}
 		}
 
@@ -367,77 +366,77 @@ namespace EpicGames.Core
 		/// Reads a hashset of items
 		/// </summary>
 		/// <typeparam name="T">The element type for the set</typeparam>
-		/// <param name="ReadElement">Delegate used to read a single element</param>
-		/// <param name="Comparer">Comparison function for the set</param>
+		/// <param name="readElement">Delegate used to read a single element</param>
+		/// <param name="comparer">Comparison function for the set</param>
 		/// <returns>Set of items</returns>
-		public HashSet<T>? ReadHashSet<T>(Func<T> ReadElement, IEqualityComparer<T> Comparer)
+		public HashSet<T>? ReadHashSet<T>(Func<T> readElement, IEqualityComparer<T> comparer)
 		{
-			int Count = ReadInt();
-			if (Count < 0)
+			int count = ReadInt();
+			if (count < 0)
 			{
 				return null;
 			}
 			else
 			{
-				HashSet<T> Result = new HashSet<T>(Comparer);
-				for (int Idx = 0; Idx < Count; Idx++)
+				HashSet<T> result = new HashSet<T>(comparer);
+				for (int idx = 0; idx < count; idx++)
 				{
-					Result.Add(ReadElement());
+					result.Add(readElement());
 				}
-				return Result;
+				return result;
 			}
 		}
 
 		/// <summary>
 		/// Reads a dictionary of items
 		/// </summary>
-		/// <typeparam name="K">Type of the dictionary key</typeparam>
-		/// <typeparam name="V">Type of the dictionary value</typeparam>
-		/// <param name="ReadKey">Delegate used to read a single key</param>
-		/// <param name="ReadValue">Delegate used to read a single value</param>
+		/// <typeparam name="TK">Type of the dictionary key</typeparam>
+		/// <typeparam name="TV">Type of the dictionary value</typeparam>
+		/// <param name="readKey">Delegate used to read a single key</param>
+		/// <param name="readValue">Delegate used to read a single value</param>
 		/// <returns>New dictionary instance</returns>
-		public Dictionary<K, V>? ReadDictionary<K, V>(Func<K> ReadKey, Func<V> ReadValue) where K : notnull
+		public Dictionary<TK, TV>? ReadDictionary<TK, TV>(Func<TK> readKey, Func<TV> readValue) where TK : notnull
 		{
-			int Count = ReadInt();
-			if (Count < 0)
+			int count = ReadInt();
+			if (count < 0)
 			{
 				return null;
 			}
 			else
 			{
-				Dictionary<K, V> Result = new Dictionary<K, V>(Count);
-				for (int Idx = 0; Idx < Count; Idx++)
+				Dictionary<TK, TV> result = new Dictionary<TK, TV>(count);
+				for (int idx = 0; idx < count; idx++)
 				{
-					Result.Add(ReadKey(), ReadValue());
+					result.Add(readKey(), readValue());
 				}
-				return Result;
+				return result;
 			}
 		}
 
 		/// <summary>
 		/// Reads a dictionary of items
 		/// </summary>
-		/// <typeparam name="K">Type of the dictionary key</typeparam>
-		/// <typeparam name="V">Type of the dictionary value</typeparam>
-		/// <param name="ReadKey">Delegate used to read a single key</param>
-		/// <param name="ReadValue">Delegate used to read a single value</param>
-		/// <param name="Comparer">Comparison function for keys in the dictionary</param>
+		/// <typeparam name="TK">Type of the dictionary key</typeparam>
+		/// <typeparam name="TV">Type of the dictionary value</typeparam>
+		/// <param name="readKey">Delegate used to read a single key</param>
+		/// <param name="readValue">Delegate used to read a single value</param>
+		/// <param name="comparer">Comparison function for keys in the dictionary</param>
 		/// <returns>New dictionary instance</returns>
-		public Dictionary<K, V>? ReadDictionary<K, V>(Func<K> ReadKey, Func<V> ReadValue, IEqualityComparer<K> Comparer) where K : notnull
+		public Dictionary<TK, TV>? ReadDictionary<TK, TV>(Func<TK> readKey, Func<TV> readValue, IEqualityComparer<TK> comparer) where TK : notnull
 		{
-			int Count = ReadInt();
-			if (Count < 0)
+			int count = ReadInt();
+			if (count < 0)
 			{
 				return null;
 			}
 			else
 			{
-				Dictionary<K, V> Result = new Dictionary<K, V>(Count, Comparer);
-				for (int Idx = 0; Idx < Count; Idx++)
+				Dictionary<TK, TV> result = new Dictionary<TK, TV>(count, comparer);
+				for (int idx = 0; idx < count; idx++)
 				{
-					Result.Add(ReadKey(), ReadValue());
+					result.Add(readKey(), readValue());
 				}
-				return Result;
+				return result;
 			}
 		}
 
@@ -445,12 +444,12 @@ namespace EpicGames.Core
 		/// Reads a nullable object from the archive
 		/// </summary>
 		/// <typeparam name="T">The nullable type</typeparam>
-		/// <param name="ReadValue">Delegate used to read a value</param>
-		public Nullable<T> ReadNullable<T>(Func<T> ReadValue) where T : struct
+		/// <param name="readValue">Delegate used to read a value</param>
+		public Nullable<T> ReadNullable<T>(Func<T> readValue) where T : struct
 		{
 			if (ReadBool())
 			{
-				return new Nullable<T>(ReadValue());
+				return new Nullable<T>(readValue());
 			}
 			else
 			{
@@ -462,13 +461,13 @@ namespace EpicGames.Core
 		/// Reads an object, which may be null, from the archive. Does not handle de-duplicating object references. 
 		/// </summary>
 		/// <typeparam name="T">Type of the object to read</typeparam>
-		/// <param name="Read">Delegate used to read the object</param>
+		/// <param name="read">Delegate used to read the object</param>
 		/// <returns>The object instance</returns>
-		public T? ReadOptionalObject<T>(Func<T> Read) where T : class
+		public T? ReadOptionalObject<T>(Func<T> read) where T : class
 		{
 			if (ReadBool())
 			{
-				return Read();
+				return read();
 			}
 			else
 			{
@@ -482,25 +481,25 @@ namespace EpicGames.Core
 		/// serialize a reference to itself.
 		/// </summary>
 		/// <typeparam name="T">Type of the object to read.</typeparam>
-		/// <param name="CreateObject">Delegate used to create an object instance</param>
-		/// <param name="ReadObject">Delegate used to read an object instance</param>
+		/// <param name="createObject">Delegate used to create an object instance</param>
+		/// <param name="readObject">Delegate used to read an object instance</param>
 		/// <returns>Object instance</returns>
-		public T? ReadObjectReference<T>(Func<T> CreateObject, Action<T> ReadObject) where T : class
+		public T? ReadObjectReference<T>(Func<T> createObject, Action<T> readObject) where T : class
 		{
-			int Index = ReadInt();
-			if (Index < 0)
+			int index = ReadInt();
+			if (index < 0)
 			{
 				return null;
 			}
 			else
 			{
-				if (Index == Objects.Count)
+				if (index == _objects.Count)
 				{
-					T Object = CreateObject();
-					Objects.Add(Object);
-					ReadObject(Object);
+					T obj = createObject();
+					_objects.Add(obj);
+					readObject(obj);
 				}
-				return (T?)Objects[Index];
+				return (T?)_objects[index];
 			}
 		}
 
@@ -509,28 +508,28 @@ namespace EpicGames.Core
 		/// Since the reader only receives the object reference when the CreateObject delegate returns, it is not possible for the object to serialize a reference to itself.
 		/// </summary>
 		/// <typeparam name="T">Type of the object to read.</typeparam>
-		/// <param name="ReadObject">Delegate used to create an object instance. The object may not reference itself recursively.</param>
+		/// <param name="readObject">Delegate used to create an object instance. The object may not reference itself recursively.</param>
 		/// <returns>Object instance</returns>
-		public object? ReadUntypedObjectReference(Func<object?> ReadObject)
+		public object? ReadUntypedObjectReference(Func<object?> readObject)
 		{
-			int Index = ReadInt();
-			if (Index < 0)
+			int index = ReadInt();
+			if (index < 0)
 			{
 				return null;
 			}
 			else
 			{
 				// Temporarily add the reader to the object list, so we can detect invalid recursive references. 
-				if (Index == Objects.Count)
+				if (index == _objects.Count)
 				{
-					Objects.Add(null);
-					Objects[Index] = ReadObject();
+					_objects.Add(null);
+					_objects[index] = readObject();
 				}
-				if (Objects[Index] == null)
+				if (_objects[index] == null)
 				{
 					throw new InvalidOperationException("Attempt to serialize reference to object recursively.");
 				}
-				return Objects[Index];
+				return _objects[index];
 			}
 		}
 
@@ -539,39 +538,39 @@ namespace EpicGames.Core
 		/// Since the reader only receives the object reference when the CreateObject delegate returns, it is not possible for the object to serialize a reference to itself.
 		/// </summary>
 		/// <typeparam name="T">Type of the object to read.</typeparam>
-		/// <param name="ReadObject">Delegate used to create an object instance. The object may not reference itself recursively.</param>
+		/// <param name="readObject">Delegate used to create an object instance. The object may not reference itself recursively.</param>
 		/// <returns>Object instance</returns>
-		public T? ReadObjectReference<T>(Func<T> ReadObject) where T : class => (T?)ReadUntypedObjectReference(ReadObject);
+		public T? ReadObjectReference<T>(Func<T> readObject) where T : class => (T?)ReadUntypedObjectReference(readObject);
 
 		/// <summary>
 		/// Helper method for validating that deserialized objects are not null
 		/// </summary>
 		/// <typeparam name="T">Type of the deserialized object</typeparam>
-		/// <param name="Param">The object instance</param>
+		/// <param name="param">The object instance</param>
 		/// <returns>The object instance</returns>
 		[return: NotNull]
-		public static T NotNull<T>(T? Param) where T : class
+		public static T NotNull<T>(T? param) where T : class
 		{
-			if (Param == null)
+			if (param == null)
 			{
 				throw new InvalidDataException("Object stored in archive is not allowed to be null.");
 			}
-			return Param;
+			return param;
 		}
 
 		/// <summary>
 		/// Helper method for validating that deserialized objects are not null
 		/// </summary>
 		/// <typeparam name="T">Type of the deserialized object</typeparam>
-		/// <param name="Param">The object instance</param>
+		/// <param name="param">The object instance</param>
 		/// <returns>The object instance</returns>
-		public static T NotNullStruct<T>(T? Param) where T : struct
+		public static T NotNullStruct<T>(T? param) where T : struct
 		{
-			if (Param == null)
+			if (param == null)
 			{
 				throw new InvalidDataException("Object stored in archive is not allowed to be null.");
 			}
-			return Param.Value;
+			return param.Value;
 		}
 	}
 }

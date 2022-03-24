@@ -25,10 +25,10 @@ namespace EpicGames.Core
 		public string TraceId { get; }
 		public string SpanId { get; }
 
-		public JsonTracerSpanContext(string TraceId, string SpanId)
+		public JsonTracerSpanContext(string traceId, string spanId)
 		{
-			this.TraceId = TraceId;
-			this.SpanId = SpanId;
+			TraceId = traceId;
+			SpanId = spanId;
 		}
 	}
 
@@ -37,38 +37,33 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Used to monotonically update ids
 		/// </summary>
-		private static long _nextIdCounter = 0;
+		private static long s_nextIdCounter = 0;
 
 		/// <summary>
 		/// A simple-as-possible (consecutive for repeatability) id generator.
 		/// </summary>
 		private static string NextId()
 		{
-			return Interlocked.Increment(ref _nextIdCounter).ToString(CultureInfo.InvariantCulture);
+			return Interlocked.Increment(ref s_nextIdCounter).ToString(CultureInfo.InvariantCulture);
 		}
-		
-		public JsonTracerSpanContext Context
-		{
-			// C# doesn't have "return type covariance" so we use the trick with the explicit interface implementation
-			// and this separate property.
-			get
-			{
-				return JsonTracerContext;
-			}
-		}
+
+		// C# doesn't have "return type covariance" so we use the trick with the explicit interface implementation
+		// and this separate property.
+		public JsonTracerSpanContext Context => _jsonTracerContext;
+
 		ISpanContext ISpan.Context => Context;
 		
 		public string OperationName { get; private set; }
 		
-		private readonly JsonTracer Tracer;
-		private JsonTracerSpanContext JsonTracerContext;
-		private DateTimeOffset _FinishTimestamp;
-		private bool Finished;
-		private readonly Dictionary<string, object> _Tags;
-		private readonly List<JsonTracerSpan.Reference> References;
+		private readonly JsonTracer _tracer;
+		private readonly JsonTracerSpanContext _jsonTracerContext;
+		private DateTimeOffset _finishTimestamp;
+		private bool _finished;
+		private readonly Dictionary<string, object> _tags;
+		private readonly List<JsonTracerSpan.Reference> _references;
 		
 		public DateTimeOffset StartTimestamp { get; }
-		public Dictionary<string, object> Tags => new Dictionary<string, object>(_Tags);
+		public Dictionary<string, object> Tags => new Dictionary<string, object>(_tags);
 		
 		/// <summary>
 		/// The finish time of the span; only valid after a call to <see cref="Finish()"/>.
@@ -77,10 +72,12 @@ namespace EpicGames.Core
 		{
 			get
 			{
-				if (_FinishTimestamp == DateTimeOffset.MinValue)
+				if (_finishTimestamp == DateTimeOffset.MinValue)
+				{
 					throw new InvalidOperationException("Must call Finish() before FinishTimestamp");
+				}
 
-				return _FinishTimestamp;
+				return _finishTimestamp;
 			}
 		}
 
@@ -92,68 +89,88 @@ namespace EpicGames.Core
 		/// <seealso cref="MockSpan.References"/>
 		public string? ParentId { get; }
 
-		private readonly object Lock = new object();
+		private readonly object _lock = new object();
 
-		public JsonTracerSpan(JsonTracer JsonTracer, string OperationName, DateTimeOffset StartTimestamp, Dictionary<string, object>? InitialTags, List<Reference>? References)
+		public JsonTracerSpan(JsonTracer jsonTracer, string operationName, DateTimeOffset startTimestamp, Dictionary<string, object>? initialTags, List<Reference>? references)
 		{
-			this.Tracer = JsonTracer;
-			this.OperationName = OperationName;
-			this.StartTimestamp = StartTimestamp;
+			_tracer = jsonTracer;
+			OperationName = operationName;
+			StartTimestamp = startTimestamp;
 			
-			_Tags = InitialTags == null
+			_tags = initialTags == null
 				? new Dictionary<string, object>()
-				: new Dictionary<string, object>(InitialTags);
+				: new Dictionary<string, object>(initialTags);
 
-			this.References = References == null
+			_references = references == null
 				? new List<Reference>()
-				: References.ToList();
+				: references.ToList();
 			
-			JsonTracerSpanContext? ParentContext = FindPreferredParentRef(this.References);
-			if (ParentContext == null)
+			JsonTracerSpanContext? parentContext = FindPreferredParentRef(_references);
+			if (parentContext == null)
 			{
 				// we are a root span
-				JsonTracerContext = new JsonTracerSpanContext(NextId(), NextId());
+				_jsonTracerContext = new JsonTracerSpanContext(NextId(), NextId());
 				ParentId = null;
 			}
 			else
 			{
 				// we are a child span
-				JsonTracerContext = new JsonTracerSpanContext(ParentContext.TraceId, NextId());
-				ParentId = ParentContext.SpanId;
+				_jsonTracerContext = new JsonTracerSpanContext(parentContext.TraceId, NextId());
+				ParentId = parentContext.SpanId;
 			}
 		}
 
-		public ISpan SetTag(string Key, string Value) { return SetObjectTag(Key, Value); }
-		public ISpan SetTag(string Key, bool Value) { return SetObjectTag(Key, Value); }
-		public ISpan SetTag(string Key, int Value) { return SetObjectTag(Key, Value); }
-		public ISpan SetTag(string Key, double Value) { return SetObjectTag(Key, Value); }
-		public ISpan SetTag(BooleanTag Tag, bool Value) { SetObjectTag(Tag.Key, Value); return this; }
-		public ISpan SetTag(IntOrStringTag Tag, string Value) { SetObjectTag(Tag.Key, Value); return this; }
-		public ISpan SetTag(IntTag Tag, int Value) { SetObjectTag(Tag.Key, Value); return this; }
-		public ISpan SetTag(StringTag Tag, string Value) { SetObjectTag(Tag.Key, Value); return this; }
+		public ISpan SetTag(string key, string value) => SetObjectTag(key, value); 
+		public ISpan SetTag(string key, bool value) => SetObjectTag(key, value);
+		public ISpan SetTag(string key, int value) => SetObjectTag(key, value);
+		public ISpan SetTag(string key, double value) => SetObjectTag(key, value);
 
-		private ISpan SetObjectTag(string Key, object Value)
+		public ISpan SetTag(BooleanTag tag, bool value) 
+		{ 
+			SetObjectTag(tag.Key, value); 
+			return this; 
+		}
+
+		public ISpan SetTag(IntOrStringTag tag, string value) 
+		{ 
+			SetObjectTag(tag.Key, value); 
+			return this; 
+		}
+
+		public ISpan SetTag(IntTag tag, int value) 
+		{ 
+			SetObjectTag(tag.Key, value); 
+			return this; 
+		}
+
+		public ISpan SetTag(StringTag tag, string value) 
+		{ 
+			SetObjectTag(tag.Key, value); 
+			return this; 
+		}
+
+		private ISpan SetObjectTag(string key, object value)
 		{
-			lock (Lock)
+			lock (_lock)
 			{
-				CheckForFinished("Setting tag [{0}:{1}] on already finished span", Key, Value);
-				_Tags[Key] = Value;
+				CheckForFinished("Setting tag [{0}:{1}] on already finished span", key, value);
+				_tags[key] = value;
 				return this;
 			}
 		}
 
 		public ISpan Log(IEnumerable<KeyValuePair<string, object>> fields) { throw new NotSupportedException("Log() calls are not supported in JsonTracerSpans"); }
 		public ISpan Log(DateTimeOffset timestamp, IEnumerable<KeyValuePair<string, object>> fields) { throw new NotSupportedException("Log() calls are not supported in JsonTracerSpans"); }
-		public ISpan Log(string @event) { throw new NotSupportedException("Log() calls are not supported in JsonTracerSpans"); }
-		public ISpan Log(DateTimeOffset timestamp, string @event) { throw new NotSupportedException("Log() calls are not supported in JsonTracerSpans"); }
+		public ISpan Log(string message) { throw new NotSupportedException("Log() calls are not supported in JsonTracerSpans"); }
+		public ISpan Log(DateTimeOffset timestamp, string message) { throw new NotSupportedException("Log() calls are not supported in JsonTracerSpans"); }
 
 		public ISpan SetBaggageItem(string key, string value) { throw new NotImplementedException(); }
 		public string GetBaggageItem(string key) { throw new NotImplementedException(); }
 
-		public ISpan SetOperationName(string OperationName)
+		public ISpan SetOperationName(string operationName)
 		{
-			CheckForFinished("Setting operationName [{0}] on already finished span", OperationName);
-			this.OperationName = OperationName;
+			CheckForFinished("Setting operationName [{0}] on already finished span", operationName);
+			OperationName = operationName;
 			return this;
 		}
 
@@ -162,38 +179,42 @@ namespace EpicGames.Core
 			Finish(DateTimeOffset.UtcNow);
 		}
 
-		public void Finish(DateTimeOffset FinishTimestamp)
+		public void Finish(DateTimeOffset finishTimestamp)
 		{
-			lock (Lock)
+			lock (_lock)
 			{
 				CheckForFinished("Tried to finish already finished span");
-				_FinishTimestamp = FinishTimestamp;
-				Tracer.AppendFinishedSpan(this);
-				Finished = true;
+				_finishTimestamp = finishTimestamp;
+				_tracer.AppendFinishedSpan(this);
+				_finished = true;
 			}
 		}
 		
-		private static JsonTracerSpanContext? FindPreferredParentRef(IList<Reference> References)
+		private static JsonTracerSpanContext? FindPreferredParentRef(IList<Reference> references)
 		{
-			if (!References.Any())
+			if (!references.Any())
+			{
 				return null;
+			}
 
 			// return the context of the parent, if applicable
-			foreach (var Reference in References)
+			foreach (Reference reference in references)
 			{
-				if (OpenTracing.References.ChildOf.Equals(Reference.ReferenceType))
-					return Reference.Context;
+				if (OpenTracing.References.ChildOf.Equals(reference.ReferenceType))
+				{
+					return reference.Context;
+				}
 			}
 
 			// otherwise, return the context of the first reference
-			return References.First().Context;
+			return references.First().Context;
 		}
 		
-		private void CheckForFinished(string Format, params object[] Args)
+		private void CheckForFinished(string format, params object[] args)
 		{
-			if (Finished)
+			if (_finished)
 			{
-				throw new InvalidOperationException(string.Format(Format, Args));
+				throw new InvalidOperationException(String.Format(format, args));
 			}
 		}
 		
@@ -206,70 +227,76 @@ namespace EpicGames.Core
 			/// </summary>
 			public string ReferenceType { get; }
 
-			public Reference(JsonTracerSpanContext Context, string ReferenceType)
+			public Reference(JsonTracerSpanContext context, string referenceType)
 			{
-				this.Context = Context ?? throw new ArgumentNullException(nameof(Context));
-				this.ReferenceType = ReferenceType ?? throw new ArgumentNullException(nameof(ReferenceType));
+				Context = context ?? throw new ArgumentNullException(nameof(context));
+				ReferenceType = referenceType ?? throw new ArgumentNullException(nameof(referenceType));
 			}
 
-			public override bool Equals(object? Obj)
+			public override bool Equals(object? obj)
 			{
-				return Equals(Obj as Reference);
+				return Equals(obj as Reference);
 			}
 			
-			public bool Equals(Reference? Other)
+			public bool Equals(Reference? other)
 			{
-				return Other != null &&
-				       EqualityComparer<JsonTracerSpanContext>.Default.Equals(Context, Other.Context) &&
-				       ReferenceType == Other.ReferenceType;
+				return other != null &&
+				       EqualityComparer<JsonTracerSpanContext>.Default.Equals(Context, other.Context) &&
+				       ReferenceType == other.ReferenceType;
 			}
-			
-			public override int GetHashCode()
+
+#pragma warning disable IDE0070 // Use 'System.HashCode'
+            public override int GetHashCode()
 			{
-				int HashCode = 2083322454;
-				HashCode = HashCode * -1521134295 + EqualityComparer<JsonTracerSpanContext>.Default.GetHashCode(Context);
-				HashCode = HashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(ReferenceType);
-				return HashCode;
+				int hashCode = 2083322454;
+				hashCode = hashCode * -1521134295 + EqualityComparer<JsonTracerSpanContext>.Default.GetHashCode(Context);
+				hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(ReferenceType);
+				return hashCode;
 			}
+#pragma warning restore IDE0070 // Use 'System.HashCode'
 		}
 	}
 
 	public class JsonTracerSpanBuilder : ISpanBuilder
 	{
-		private readonly JsonTracer Tracer;
-		private readonly string OperationName;
-		private DateTimeOffset StartTimestamp = DateTimeOffset.MinValue;
-		private readonly List<JsonTracerSpan.Reference> References = new List<JsonTracerSpan.Reference>();
-		private readonly Dictionary<string, object> Tags = new Dictionary<string, object>();
-		private bool _IgnoreActiveSpan;
+		private readonly JsonTracer _tracer;
+		private readonly string _operationName;
+		private DateTimeOffset _startTimestamp = DateTimeOffset.MinValue;
+		private readonly List<JsonTracerSpan.Reference> _references = new List<JsonTracerSpan.Reference>();
+		private readonly Dictionary<string, object> _tags = new Dictionary<string, object>();
+		private bool _ignoreActiveSpan;
 		
-		public JsonTracerSpanBuilder(JsonTracer Tracer, string OperationName)
+		public JsonTracerSpanBuilder(JsonTracer tracer, string operationName)
 		{
-			this.Tracer = Tracer;
-			this.OperationName = OperationName;
+			_tracer = tracer;
+			_operationName = operationName;
 		}
 		
-		public ISpanBuilder AsChildOf(ISpanContext? Parent)
+		public ISpanBuilder AsChildOf(ISpanContext? parent)
 		{
-			if (Parent == null)
-				return this;
-
-			return AddReference(OpenTracing.References.ChildOf, Parent);
-		}
-
-		public ISpanBuilder AsChildOf(ISpan? Parent)
-		{
-			if (Parent == null)
-				return this;
-
-			return AddReference(OpenTracing.References.ChildOf, Parent.Context);
-		}
-
-		public ISpanBuilder AddReference(string ReferenceType, ISpanContext? ReferencedContext)
-		{
-			if (ReferencedContext != null)
+			if (parent == null)
 			{
-				References.Add(new JsonTracerSpan.Reference((JsonTracerSpanContext)ReferencedContext, ReferenceType));
+				return this;
+			}
+
+			return AddReference(OpenTracing.References.ChildOf, parent);
+		}
+
+		public ISpanBuilder AsChildOf(ISpan? parent)
+		{
+			if (parent == null)
+			{
+				return this;
+			}
+
+			return AddReference(OpenTracing.References.ChildOf, parent.Context);
+		}
+
+		public ISpanBuilder AddReference(string referenceType, ISpanContext? referencedContext)
+		{
+			if (referencedContext != null)
+			{
+				_references.Add(new JsonTracerSpan.Reference((JsonTracerSpanContext)referencedContext, referenceType));
 			}
 
 			return this;
@@ -277,22 +304,61 @@ namespace EpicGames.Core
 
 		public ISpanBuilder IgnoreActiveSpan()
 		{
-			_IgnoreActiveSpan = true;
+			_ignoreActiveSpan = true;
 			return this;
 		}
 
-		public ISpanBuilder WithTag(string Key, string Value) { Tags[Key] = Value; return this; }
-		public ISpanBuilder WithTag(string Key, bool Value) { Tags[Key] = Value; return this; }
-		public ISpanBuilder WithTag(string Key, int Value) { Tags[Key] = Value; return this; }
-		public ISpanBuilder WithTag(string Key, double Value) { Tags[Key] = Value; return this; }
-		public ISpanBuilder WithTag(BooleanTag Tag, bool Value) { Tags[Tag.Key] = Value; return this; }
-		public ISpanBuilder WithTag(IntOrStringTag Tag, string Value) { Tags[Tag.Key] = Value; return this; }
-		public ISpanBuilder WithTag(IntTag Tag, int Value) { Tags[Tag.Key] = Value; return this; }
-		public ISpanBuilder WithTag(StringTag Tag, string Value) { Tags[Tag.Key] = Value; return this; }
+		public ISpanBuilder WithTag(string key, string value)
+		{ 
+			_tags[key] = value; 
+			return this; 
+		}
+		
+		public ISpanBuilder WithTag(string key, bool value) 
+		{ 
+			_tags[key] = value; 
+			return this; 
+		}
 
-		public ISpanBuilder WithStartTimestamp(DateTimeOffset Timestamp)
+		public ISpanBuilder WithTag(string key, int value)
+		{ 
+			_tags[key] = value; 
+			return this; 
+		}
+
+		public ISpanBuilder WithTag(string key, double value) 
+		{ 
+			_tags[key] = value; 
+			return this; 
+		}
+
+		public ISpanBuilder WithTag(BooleanTag tag, bool value) 
+		{ 
+			_tags[tag.Key] = value; 
+			return this; 
+		}
+
+		public ISpanBuilder WithTag(IntOrStringTag tag, string value) 
+		{ 
+			_tags[tag.Key] = value; 
+			return this; 
+		}
+		
+		public ISpanBuilder WithTag(IntTag tag, int value) 
+		{ 
+			_tags[tag.Key] = value; 
+			return this; 
+		}
+
+		public ISpanBuilder WithTag(StringTag tag, string value)
+		{ 
+			_tags[tag.Key] = value; 
+			return this; 
+		}
+
+		public ISpanBuilder WithStartTimestamp(DateTimeOffset timestamp)
 		{
-			StartTimestamp = Timestamp;
+			_startTimestamp = timestamp;
 			return this;
 		}
 
@@ -301,26 +367,26 @@ namespace EpicGames.Core
 			return StartActive(true);
 		}
 
-		public IScope StartActive(bool FinishSpanOnDispose)
+		public IScope StartActive(bool finishSpanOnDispose)
 		{
-			ISpan Span = Start();
-			return Tracer.ScopeManager.Activate(Span, FinishSpanOnDispose);
+			ISpan span = Start();
+			return _tracer.ScopeManager.Activate(span, finishSpanOnDispose);
 		}
 
 		public ISpan Start()
 		{
-			if (StartTimestamp == DateTimeOffset.MinValue) // value was not set by builder
+			if (_startTimestamp == DateTimeOffset.MinValue) // value was not set by builder
 			{
-				StartTimestamp = DateTimeOffset.UtcNow;
+				_startTimestamp = DateTimeOffset.UtcNow;
 			}
 
-			ISpanContext? ActiveSpanContext = Tracer.ActiveSpan?.Context;
-			if (!References.Any() && !_IgnoreActiveSpan && ActiveSpanContext != null)
+			ISpanContext? activeSpanContext = _tracer.ActiveSpan?.Context;
+			if (!_references.Any() && !_ignoreActiveSpan && activeSpanContext != null)
 			{
-				References.Add(new JsonTracerSpan.Reference((JsonTracerSpanContext)ActiveSpanContext, OpenTracing.References.ChildOf));
+				_references.Add(new JsonTracerSpan.Reference((JsonTracerSpanContext)activeSpanContext, OpenTracing.References.ChildOf));
 			}
 
-			return new JsonTracerSpan(Tracer, OperationName, StartTimestamp, Tags, References);
+			return new JsonTracerSpan(_tracer, _operationName, _startTimestamp, _tags, _references);
 		}
 	}
 	
@@ -329,106 +395,106 @@ namespace EpicGames.Core
 		public IScopeManager ScopeManager { get; }
 		public ISpan? ActiveSpan => ScopeManager.Active?.Span;
 
-		private readonly object Lock = new object();
-		private readonly List<JsonTracerSpan> FinishedSpans = new List<JsonTracerSpan>();
-		private readonly DirectoryReference? TelemetryDir;
+		private readonly object _lock = new object();
+		private readonly List<JsonTracerSpan> _finishedSpans = new List<JsonTracerSpan>();
+		private readonly DirectoryReference? _telemetryDir;
 		
-		public JsonTracer(DirectoryReference? TelemetryDir = null)
+		public JsonTracer(DirectoryReference? telemetryDir = null)
 		{
 			ScopeManager = new AsyncLocalScopeManager();
-			this.TelemetryDir = TelemetryDir;
+			_telemetryDir = telemetryDir;
 		}
 
 		public static JsonTracer? TryRegisterAsGlobalTracer()
 		{
-			string? TelemetryDir = Environment.GetEnvironmentVariable("UE_TELEMETRY_DIR");
-			if (TelemetryDir != null)
+			string? telemetryDir = Environment.GetEnvironmentVariable("UE_TELEMETRY_DIR");
+			if (telemetryDir != null)
 			{
-				JsonTracer Tracer = new JsonTracer(new DirectoryReference(TelemetryDir));
-				return GlobalTracer.RegisterIfAbsent(Tracer) ? Tracer : null;
+				JsonTracer tracer = new JsonTracer(new DirectoryReference(telemetryDir));
+				return GlobalTracer.RegisterIfAbsent(tracer) ? tracer : null;
 			}
 
 			return null;
 		}
 
-		public ISpanBuilder BuildSpan(string OperationName)
+		public ISpanBuilder BuildSpan(string operationName)
 		{
-			return new JsonTracerSpanBuilder(this, OperationName);
+			return new JsonTracerSpanBuilder(this, operationName);
 		}
 
-		public void Inject<TCarrier>(ISpanContext SpanContext, IFormat<TCarrier> Format, TCarrier Carrier)
+		public void Inject<TCarrier>(ISpanContext spanContext, IFormat<TCarrier> format, TCarrier carrier)
 		{
-			throw new NotSupportedException(string.Format("Tracer.Inject is not implemented for {0} by JsonTracer", Format));
+			throw new NotSupportedException(String.Format("Tracer.Inject is not implemented for {0} by JsonTracer", format));
 		}
 
-		public ISpanContext Extract<TCarrier>(IFormat<TCarrier> Format, TCarrier Carrier)
+		public ISpanContext Extract<TCarrier>(IFormat<TCarrier> format, TCarrier carrier)
 		{
-			throw new NotSupportedException(string.Format("Tracer.Extract is not implemented for {0} by JsonTracer", Format));
+			throw new NotSupportedException(String.Format("Tracer.Extract is not implemented for {0} by JsonTracer", format));
 		}
 
 		public void Flush()
 		{
-			if (TelemetryDir != null)
+			if (_telemetryDir != null)
 			{
-				string TelemetryScopeId = Environment.GetEnvironmentVariable("UE_TELEMETRY_SCOPE_ID") ?? "noscope";
+				string telemetryScopeId = Environment.GetEnvironmentVariable("UE_TELEMETRY_SCOPE_ID") ?? "noscope";
 				
-				FileReference File;
-				using (System.Diagnostics.Process Process = System.Diagnostics.Process.GetCurrentProcess())
+				FileReference file;
+				using (System.Diagnostics.Process process = System.Diagnostics.Process.GetCurrentProcess())
 				{
-					DirectoryReference.CreateDirectory(TelemetryDir);
+					DirectoryReference.CreateDirectory(_telemetryDir);
 
-					string FileName = String.Format("{0}.{1}.{2}.opentracing.json", Path.GetFileName(Assembly.GetEntryAssembly()!.Location), TelemetryScopeId, Process.Id);
-					File = FileReference.Combine(TelemetryDir, FileName);
+					string fileName = String.Format("{0}.{1}.{2}.opentracing.json", Path.GetFileName(Assembly.GetEntryAssembly()!.Location), telemetryScopeId, process.Id);
+					file = FileReference.Combine(_telemetryDir, fileName);
 				}
 
-				using (JsonWriter Writer = new JsonWriter(File))
+				using (JsonWriter writer = new JsonWriter(file))
 				{
-					GetFinishedSpansAsJson(Writer);
+					GetFinishedSpansAsJson(writer);
 				}
 			}
 		}
 		
 		public List<JsonTracerSpan> GetFinishedSpans()
 		{
-			lock (Lock)
+			lock (_lock)
 			{
-				return new List<JsonTracerSpan>(FinishedSpans);
+				return new List<JsonTracerSpan>(_finishedSpans);
 			}
 		}
 
-		public void GetFinishedSpansAsJson(JsonWriter Writer)
+		public void GetFinishedSpansAsJson(JsonWriter writer)
 		{
-			Writer.WriteObjectStart();
-			Writer.WriteArrayStart("Spans");
-			foreach (JsonTracerSpan Span in GetFinishedSpans())
+			writer.WriteObjectStart();
+			writer.WriteArrayStart("Spans");
+			foreach (JsonTracerSpan span in GetFinishedSpans())
 			{
-				Writer.WriteObjectStart();
-				Writer.WriteValue("Name", Span.OperationName);
-				Dictionary<string, object> Tags = Span.Tags;
-				if (Tags.TryGetValue("Resource", out object? Resource) && Resource is string ResourceString)
+				writer.WriteObjectStart();
+				writer.WriteValue("Name", span.OperationName);
+				Dictionary<string, object> tags = span.Tags;
+				if (tags.TryGetValue("Resource", out object? resource) && resource is string resourceString)
 				{
-					Writer.WriteValue("Resource", ResourceString);
+					writer.WriteValue("Resource", resourceString);
 				}
-				if (Tags.TryGetValue("Service", out object? Service) && Service is string ServiceString)
+				if (tags.TryGetValue("Service", out object? service) && service is string serviceString)
 				{
-					Writer.WriteValue("Service", ServiceString);
+					writer.WriteValue("Service", serviceString);
 				}
-				Writer.WriteValue("StartTime", Span.StartTimestamp.ToString("o", CultureInfo.InvariantCulture));
-				Writer.WriteValue("FinishTime", Span.FinishTimestamp.ToString("o", CultureInfo.InvariantCulture));
-				Writer.WriteObjectStart("Metadata");
+				writer.WriteValue("StartTime", span.StartTimestamp.ToString("o", CultureInfo.InvariantCulture));
+				writer.WriteValue("FinishTime", span.FinishTimestamp.ToString("o", CultureInfo.InvariantCulture));
+				writer.WriteObjectStart("Metadata");
 				// TODO: Write tags as metadata?
-				Writer.WriteObjectEnd();
-				Writer.WriteObjectEnd();
+				writer.WriteObjectEnd();
+				writer.WriteObjectEnd();
 			}
-			Writer.WriteArrayEnd();
-			Writer.WriteObjectEnd();
+			writer.WriteArrayEnd();
+			writer.WriteObjectEnd();
 		}
 		
-		internal void AppendFinishedSpan(JsonTracerSpan JsonTracerSpan)
+		internal void AppendFinishedSpan(JsonTracerSpan jsonTracerSpan)
 		{
-			lock (Lock)
+			lock (_lock)
 			{
-				FinishedSpans.Add(JsonTracerSpan);
+				_finishedSpans.Add(jsonTracerSpan);
 			}
 		}
 	}

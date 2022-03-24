@@ -1,18 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
 using System;
-using System.Buffers.Text;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Core
 {
@@ -36,16 +30,16 @@ namespace EpicGames.Core
 		public LogEventPriority Priority { get; }
 		public List<LogEvent> Events { get; }
 
-		public LogEventMatch(LogEventPriority Priority, LogEvent Event)
+		public LogEventMatch(LogEventPriority priority, LogEvent logEvent)
 		{
-			this.Priority = Priority;
-			this.Events = new List<LogEvent> { Event };
+			Priority = priority;
+			Events = new List<LogEvent> { logEvent };
 		}
 
-		public LogEventMatch(LogEventPriority Priority, IEnumerable<LogEvent> Events)
+		public LogEventMatch(LogEventPriority priority, IEnumerable<LogEvent> events)
 		{
-			this.Priority = Priority;
-			this.Events = Events.ToList();
+			Priority = priority;
+			Events = events.ToList();
 		}
 	}
 
@@ -57,9 +51,9 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Attempt to match events from the given input buffer
 		/// </summary>
-		/// <param name="Cursor">The input buffer</param>
+		/// <param name="cursor">The input buffer</param>
 		/// <returns>Information about the error that was matched, or null if an error was not matched</returns>
-		LogEventMatch? Match(ILogCursor Cursor);
+		LogEventMatch? Match(ILogCursor cursor);
 	}
 
 	/// <summary>
@@ -80,31 +74,31 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Buffer of input lines
 		/// </summary>
-		LogBuffer Buffer;
+		readonly LogBuffer _buffer;
 
 		/// <summary>
 		/// Buffer for holding partial line data
 		/// </summary>
-		MemoryStream PartialLine = new MemoryStream();
+		readonly MemoryStream _partialLine = new MemoryStream();
 
 		/// <summary>
 		/// Whether matching is currently enabled
 		/// </summary>
-		int MatchingEnabled;
+		int _matchingEnabled;
 
 		/// <summary>
 		/// The inner logger
 		/// </summary>
-		ILogger Logger;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Logger">The logger to receive parsed output messages</param>
-		public LogEventParser(ILogger Logger)
+		/// <param name="logger">The logger to receive parsed output messages</param>
+		public LogEventParser(ILogger logger)
 		{
-			this.Logger = Logger;
-			this.Buffer = new LogBuffer(50);
+			_logger = logger;
+			_buffer = new LogBuffer(50);
 		}
 
 		/// <inheritdoc/>
@@ -113,50 +107,50 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Writes a line to the event filter
 		/// </summary>
-		/// <param name="Line">The line to output</param>
-		public void WriteLine(string Line)
+		/// <param name="line">The line to output</param>
+		public void WriteLine(string line)
 		{
-			Buffer.AddLine(Line);
+			_buffer.AddLine(line);
 			ProcessData(false);
 		}
 
 		/// <summary>
 		/// Writes data to the log parser
 		/// </summary>
-		/// <param name="Data">Data to write</param>
-		public void WriteData(ReadOnlyMemory<byte> Data)
+		/// <param name="data">Data to write</param>
+		public void WriteData(ReadOnlyMemory<byte> data)
 		{
-			int BaseIdx = 0;
-			int ScanIdx = 0;
-			ReadOnlySpan<byte> Span = Data.Span;
+			int baseIdx = 0;
+			int scanIdx = 0;
+			ReadOnlySpan<byte> span = data.Span;
 
 			// Handle a partially existing line
-			if (PartialLine.Length > 0)
+			if (_partialLine.Length > 0)
 			{
-				for (; ScanIdx < Span.Length; ScanIdx++)
+				for (; scanIdx < span.Length; scanIdx++)
 				{
-					if (Span[ScanIdx] == '\n')
+					if (span[scanIdx] == '\n')
 					{
-						PartialLine.Write(Span.Slice(BaseIdx, ScanIdx - BaseIdx));
+						_partialLine.Write(span.Slice(baseIdx, scanIdx - baseIdx));
 						FlushPartialLine();
-						BaseIdx = ++ScanIdx;
+						baseIdx = ++scanIdx;
 						break;
 					}
 				}
 			}
 
 			// Handle any complete lines
-			for (; ScanIdx < Span.Length; ScanIdx++)
+			for (; scanIdx < span.Length; scanIdx++)
 			{
-				if(Span[ScanIdx] == '\n')
+				if(span[scanIdx] == '\n')
 				{
-					AddLine(Data.Slice(BaseIdx, ScanIdx - BaseIdx));
-					BaseIdx = ScanIdx + 1;
+					AddLine(data.Slice(baseIdx, scanIdx - baseIdx));
+					baseIdx = scanIdx + 1;
 				}
 			}
 
 			// Add the rest of the text to the partial line buffer
-			PartialLine.Write(Span.Slice(BaseIdx));
+			_partialLine.Write(span.Slice(baseIdx));
 
 			// Process the new data
 			ProcessData(false);
@@ -168,7 +162,7 @@ namespace EpicGames.Core
 		public void Flush()
 		{
 			// If there's a partially written line, write that out first
-			if (PartialLine.Length > 0)
+			if (_partialLine.Length > 0)
 			{
 				FlushPartialLine();
 			}
@@ -180,24 +174,24 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Adds a raw utf-8 string to the buffer
 		/// </summary>
-		/// <param name="Data">The string data</param>
-		private void AddLine(ReadOnlyMemory<byte> Data)
+		/// <param name="data">The string data</param>
+		private void AddLine(ReadOnlyMemory<byte> data)
 		{
-			if (Data.Length > 0 && Data.Span[Data.Length - 1] == '\r')
+			if (data.Length > 0 && data.Span[data.Length - 1] == '\r')
 			{
-				Data = Data.Slice(0, Data.Length - 1);
+				data = data.Slice(0, data.Length - 1);
 			}
-			if (Data.Length > 0 && Data.Span[0] == '{')
+			if (data.Length > 0 && data.Span[0] == '{')
 			{
-				JsonLogEvent JsonEvent;
-				if (JsonLogEvent.TryParse(Data, out JsonEvent))
+				JsonLogEvent jsonEvent;
+				if (JsonLogEvent.TryParse(data, out jsonEvent))
 				{
 					ProcessData(true);
-					Logger.Log(JsonEvent.Level, JsonEvent.EventId, JsonEvent, null, JsonLogEvent.Format);
+					_logger.Log(jsonEvent.Level, jsonEvent.EventId, jsonEvent, null, JsonLogEvent.Format);
 					return;
 				}
 			}
-			Buffer.AddLine(StringUtils.ParseEscapeCodes(Encoding.UTF8.GetString(Data.Span)));
+			_buffer.AddLine(StringUtils.ParseEscapeCodes(Encoding.UTF8.GetString(data.Span)));
 		}
 
 		/// <summary>
@@ -205,9 +199,9 @@ namespace EpicGames.Core
 		/// </summary>
 		private void FlushPartialLine()
 		{
-			AddLine(PartialLine.ToArray());
-			PartialLine.Position = 0;
-			PartialLine.SetLength(0);
+			AddLine(_partialLine.ToArray());
+			_partialLine.Position = 0;
+			_partialLine.SetLength(0);
 		}
 
 		/// <summary>
@@ -216,53 +210,53 @@ namespace EpicGames.Core
 		/// <param name="bFlush">Whether we've reached the end of the stream</param>
 		void ProcessData(bool bFlush)
 		{
-			while (Buffer.Length > 0)
+			while (_buffer.Length > 0)
 			{
 				// Try to match an event
-				List<LogEvent>? Events = null;
-				if (Regex.IsMatch(Buffer[0], "<-- Suspend Log Parsing -->", RegexOptions.IgnoreCase))
+				List<LogEvent>? events = null;
+				if (Regex.IsMatch(_buffer[0], "<-- Suspend Log Parsing -->", RegexOptions.IgnoreCase))
 				{
-					MatchingEnabled--;
+					_matchingEnabled--;
 				}
-				else if (Regex.IsMatch(Buffer[0], "<-- Resume Log Parsing -->", RegexOptions.IgnoreCase))
+				else if (Regex.IsMatch(_buffer[0], "<-- Resume Log Parsing -->", RegexOptions.IgnoreCase))
 				{
-					MatchingEnabled++;
+					_matchingEnabled++;
 				}
-				else if (MatchingEnabled >= 0)
+				else if (_matchingEnabled >= 0)
 				{
-					Events = MatchEvent();
+					events = MatchEvent();
 				}
 
 				// Bail out if we need more data
-				if (Buffer.Length < 1024 && !bFlush && Buffer.NeedMoreData)
+				if (_buffer.Length < 1024 && !bFlush && _buffer.NeedMoreData)
 				{
 					break;
 				}
 
 				// If we did match something, check if it's not negated by an ignore pattern. We typically have relatively few errors and many more ignore patterns than matchers, so it's quicker 
 				// to check them in response to an identified error than to treat them as matchers of their own.
-				if (Events != null)
+				if (events != null)
 				{
-					foreach (Regex IgnorePattern in IgnorePatterns)
+					foreach (Regex ignorePattern in IgnorePatterns)
 					{
-						if (IgnorePattern.IsMatch(Buffer[0]))
+						if (ignorePattern.IsMatch(_buffer[0]))
 						{
-							Events = null;
+							events = null;
 							break;
 						}
 					}
 				}
 
 				// Report the error to the listeners
-				if (Events != null)
+				if (events != null)
 				{
-					WriteEvents(Events);
-					Buffer.Advance(Events.Count);
+					WriteEvents(events);
+					_buffer.Advance(events.Count);
 				}
 				else
 				{
-					Logger.Log(LogLevel.Information, KnownLogEvents.None, Buffer[0]!, null, (State, Exception) => State);
-					Buffer.MoveNext();
+					_logger.Log(LogLevel.Information, KnownLogEvents.None, _buffer[0]!, null, (state, exception) => state);
+					_buffer.MoveNext();
 				}
 			}
 		}
@@ -273,30 +267,30 @@ namespace EpicGames.Core
 		/// <returns>The matched event</returns>
 		private List<LogEvent>? MatchEvent()
 		{
-			LogEventMatch? CurrentMatch = null;
-			foreach (ILogEventMatcher Matcher in Matchers)
+			LogEventMatch? currentMatch = null;
+			foreach (ILogEventMatcher matcher in Matchers)
 			{
-				LogEventMatch? Match = Matcher.Match(Buffer);
-				if(Match != null)
+				LogEventMatch? match = matcher.Match(_buffer);
+				if(match != null)
 				{
-					if (CurrentMatch == null || Match.Priority > CurrentMatch.Priority)
+					if (currentMatch == null || match.Priority > currentMatch.Priority)
 					{
-						CurrentMatch = Match;
+						currentMatch = match;
 					}
 				}
 			}
-			return CurrentMatch?.Events;
+			return currentMatch?.Events;
 		}
 
 		/// <summary>
 		/// Writes an event to the log
 		/// </summary>
 		/// <param name="Event">The event to write</param>
-		protected virtual void WriteEvents(List<LogEvent> Events)
+		protected virtual void WriteEvents(List<LogEvent> logEvents)
 		{
-			foreach (LogEvent Event in Events)
+			foreach (LogEvent logEvent in logEvents)
 			{
-				Logger.Log(Event.Level, Event.Id, Event, null, (State, Exception) => State.ToString());
+				_logger.Log(logEvent.Level, logEvent.Id, logEvent, null, (state, exception) => state.ToString());
 			}
 		}
 	}

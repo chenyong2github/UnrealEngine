@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 
 namespace EpicGames.Core
@@ -20,35 +18,35 @@ namespace EpicGames.Core
 			public State? PrevState { get; }
 			public string Indent { get; }
 
-			public State(State? PrevState, string Indent)
+			public State(State? prevState, string indent)
 			{
-				this.PrevState = PrevState;
-				this.Indent = Indent;
+				PrevState = prevState;
+				Indent = indent;
 			}
 		}
 
 		/// <summary>
 		/// The current state value
 		/// </summary>
-		static AsyncLocal<State?> CurrentState = new AsyncLocal<State?>();
+		static readonly AsyncLocal<State?> s_currentState = new AsyncLocal<State?>();
 
 		/// <summary>
 		/// Gets the current indent string
 		/// </summary>
-		public static string Current => CurrentState.Value?.Indent ?? String.Empty;
+		public static string Current => s_currentState.Value?.Indent ?? String.Empty;
 
 		/// <summary>
 		/// Push a new indent onto the stack
 		/// </summary>
-		/// <param name="Indent">The indent to add</param>
-		public static void Push(string Indent)
+		/// <param name="indent">The indent to add</param>
+		public static void Push(string indent)
 		{
-			State? PrevState = CurrentState.Value;
-			if (PrevState != null)
+			State? prevState = s_currentState.Value;
+			if (prevState != null)
 			{
-				Indent = PrevState.Indent + Indent;
+				indent = prevState.Indent + indent;
 			}
-			CurrentState.Value = new State(PrevState, Indent);
+			s_currentState.Value = new State(prevState, indent);
 		}
 
 		/// <summary>
@@ -56,7 +54,7 @@ namespace EpicGames.Core
 		/// </summary>
 		public static void Pop()
 		{
-			CurrentState.Value = CurrentState.Value!.PrevState;
+			s_currentState.Value = s_currentState.Value!.PrevState;
 		}
 	}
 }

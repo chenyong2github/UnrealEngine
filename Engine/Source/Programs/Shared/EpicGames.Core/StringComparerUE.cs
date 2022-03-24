@@ -5,7 +5,6 @@ using System.Collections.Generic;
 
 namespace EpicGames.Core
 {
-
 	/// <summary>
 	/// Comparer for String objects.  However, it implements UE style ignore case compare
 	/// </summary>
@@ -29,43 +28,43 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ComparisonType">Type of comparison to perform</param>
-		public StringComparerUE(StringComparison ComparisonType)
+		/// <param name="comparisonType">Type of comparison to perform</param>
+		public StringComparerUE(StringComparison comparisonType)
 		{
-			this.ComparisonType = ComparisonType;
+			ComparisonType = comparisonType;
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(string? X, string? Y)
+		public bool Equals(string? x, string? y)
 		{
-			return string.Equals(X, Y, ComparisonType);
+			return String.Equals(x, y, ComparisonType);
 		}
 
 		/// <inheritdoc/>
 		public int GetHashCode(string obj)
 		{
-			return string.GetHashCode(obj, ComparisonType);
+			return String.GetHashCode(obj, ComparisonType);
 		}
 
 		/// <inheritdoc/>
-		public int Compare(string? X, string? Y)
+		public int Compare(string? x, string? y)
 		{
 			if (ComparisonType == StringComparison.OrdinalIgnoreCase)
 			{
-				if (X == null)
+				if (x == null)
 				{
-					return Y == null ? 0 : -1;
+					return y == null ? 0 : -1;
 				}
-				else if (Y == null)
+				else if (y == null)
 				{
 					return 1;
 				}
 
-				return StringUtils.CompareIgnoreCaseUE(X.AsSpan(), Y.AsSpan());
+				return StringUtils.CompareIgnoreCaseUe(x.AsSpan(), y.AsSpan());
 			}
 			else
 			{
-				return string.Compare(X, Y, ComparisonType);
+				return String.Compare(x, y, ComparisonType);
 			}
 		}
 	}

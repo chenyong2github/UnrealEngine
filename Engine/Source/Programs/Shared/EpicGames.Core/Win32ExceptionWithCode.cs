@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -17,37 +13,34 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Code">The Windows error code</param>
-		public Win32ExceptionWithCode(int Code)
-			: base(Code)
+		/// <param name="code">The Windows error code</param>
+		public Win32ExceptionWithCode(int code)
+			: base(code)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Message">Message to display</param>
-		public Win32ExceptionWithCode(string Message)
-			: base(Message)
+		/// <param name="message">Message to display</param>
+		public Win32ExceptionWithCode(string message)
+			: base(message)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Code">The Windows error code</param>
-		/// <param name="Message">Message to display</param>
-		public Win32ExceptionWithCode(int Code, string Message)
-			: base(Code, Message)
+		/// <param name="code">The Windows error code</param>
+		/// <param name="message">Message to display</param>
+		public Win32ExceptionWithCode(int code, string message)
+			: base(code, message)
 		{
 		}
 
 		/// <summary>
 		/// Returns the exception message. Overriden to include the error code in the message.
 		/// </summary>
-		public override string Message
-		{
-			get { return String.Format("{0} (code 0x{1:X8})", base.Message, base.NativeErrorCode); }
-		}
+		public override string Message => String.Format("{0} (code 0x{1:X8})", base.Message, base.NativeErrorCode);
 	}
 }

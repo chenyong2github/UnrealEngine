@@ -2,8 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace EpicGames.Core
@@ -26,64 +24,52 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Returns read only span for this string
 		/// </summary>
-		public ReadOnlySpan<byte> Span
-		{
-			get { return Memory.Span; } 
-		}
+		public ReadOnlySpan<byte> Span => Memory.Span;
 
 		/// <summary>
 		/// Determines if this string is empty
 		/// </summary>
-		public bool IsEmpty
-		{
-			get { return Memory.IsEmpty; }
-		}
+		public bool IsEmpty => Memory.IsEmpty;
 
 		/// <summary>
 		/// Returns the length of this string
 		/// </summary>
-		public int Length
-		{
-			get { return Memory.Length; }
-		}
+		public int Length => Memory.Length;
 
 		/// <summary>
 		/// Allows indexing individual bytes of the data
 		/// </summary>
-		/// <param name="Index">Byte index</param>
+		/// <param name="index">Byte index</param>
 		/// <returns>Byte at the given index</returns>
-		public byte this[int Index]
+		public byte this[int index] => Span[index];
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="text">Text to construct from</param>
+		public Utf8String(string text)
 		{
-			get { return Span[Index]; }
+			Memory = Encoding.UTF8.GetBytes(text);
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Text">Text to construct from</param>
-		public Utf8String(string Text)
+		/// <param name="memory">The data to construct from</param>
+		public Utf8String(ReadOnlyMemory<byte> memory)
 		{
-			this.Memory = Encoding.UTF8.GetBytes(Text);
+			Memory = memory;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">The data to construct from</param>
-		public Utf8String(ReadOnlyMemory<byte> Memory)
+		/// <param name="buffer">The buffer to construct from</param>
+		/// <param name="offset">Offset within the buffer</param>
+		/// <param name="length">Length of the string within the buffer</param>
+		public Utf8String(byte[] buffer, int offset, int length)
 		{
-			this.Memory = Memory;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Buffer">The buffer to construct from</param>
-		/// <param name="Offset">Offset within the buffer</param>
-		/// <param name="Length">Length of the string within the buffer</param>
-		public Utf8String(byte[] Buffer, int Offset, int Length)
-		{
-			this.Memory = new ReadOnlyMemory<byte>(Buffer, Offset, Length);
+			Memory = new ReadOnlyMemory<byte>(buffer, offset, length);
 		}
 
 		/// <summary>
@@ -92,178 +78,178 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public Utf8String Clone()
 		{
-			byte[] NewBuffer = new byte[Memory.Length];
-			Memory.CopyTo(NewBuffer);
-			return new Utf8String(NewBuffer);
+			byte[] newBuffer = new byte[Memory.Length];
+			Memory.CopyTo(newBuffer);
+			return new Utf8String(newBuffer);
 		}
 
 		/// <summary>
 		/// Tests two strings for equality
 		/// </summary>
-		/// <param name="A">The first string to compare</param>
-		/// <param name="B">The second string to compare</param>
+		/// <param name="a">The first string to compare</param>
+		/// <param name="b">The second string to compare</param>
 		/// <returns>True if the strings are equal</returns>
-		public static bool operator ==(Utf8String A, Utf8String B)
+		public static bool operator ==(Utf8String a, Utf8String b)
 		{
-			return A.Equals(B);
+			return a.Equals(b);
 		}
 
 		/// <summary>
 		/// Tests two strings for inequality
 		/// </summary>
-		/// <param name="A">The first string to compare</param>
-		/// <param name="B">The second string to compare</param>
+		/// <param name="a">The first string to compare</param>
+		/// <param name="b">The second string to compare</param>
 		/// <returns>True if the strings are not equal</returns>
-		public static bool operator !=(Utf8String A, Utf8String B)
+		public static bool operator !=(Utf8String a, Utf8String b)
 		{
-			return !A.Equals(B);
+			return !a.Equals(b);
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(Utf8String Other) => Utf8StringComparer.Ordinal.Equals(Span, Other.Span);
+		public bool Equals(Utf8String other) => Utf8StringComparer.Ordinal.Equals(Span, other.Span);
 
 		/// <inheritdoc/>
-		public int CompareTo(Utf8String Other) => Utf8StringComparer.Ordinal.Compare(Span, Other.Span);
+		public int CompareTo(Utf8String other) => Utf8StringComparer.Ordinal.Compare(Span, other.Span);
 
-		/// <inheritdoc cref="String.Contains(string)"/>
-		public bool Contains(Utf8String String) => IndexOf(String) != -1;
+		/// <inheritdoc cref="String.Contains(String)"/>
+		public bool Contains(Utf8String str) => IndexOf(str) != -1;
 
-		/// <inheritdoc cref="String.Contains(string, StringComparison)"/>
-		public bool Contains(Utf8String String, Utf8StringComparer Comparer) => IndexOf(String, Comparer) != -1;
+		/// <inheritdoc cref="String.Contains(String, StringComparison)"/>
+		public bool Contains(Utf8String str, Utf8StringComparer comparer) => IndexOf(str, comparer) != -1;
 
-		/// <inheritdoc cref="String.IndexOf(char)"/>
-		public int IndexOf(byte Char)
+		/// <inheritdoc cref="String.IndexOf(Char)"/>
+		public int IndexOf(byte character)
 		{
-			return Span.IndexOf(Char);
+			return Span.IndexOf(character);
 		}
 
-		/// <inheritdoc cref="String.IndexOf(char)"/>
-		public int IndexOf(char Char)
+		/// <inheritdoc cref="String.IndexOf(Char)"/>
+		public int IndexOf(char character)
 		{
-			if (Char < 0x80)
+			if (character < 0x80)
 			{
-				return Span.IndexOf((byte)Char);
+				return Span.IndexOf((byte)character);
 			}
 			else
 			{
-				return Span.IndexOf(Encoding.UTF8.GetBytes(new[] { Char }));
+				return Span.IndexOf(Encoding.UTF8.GetBytes(new[] { character }));
 			}
 		}
 
-		/// <inheritdoc cref="String.IndexOf(char, int)"/>
-		public int IndexOf(char Char, int Index) => IndexOf(Char, Index, Length - Index);
+		/// <inheritdoc cref="String.IndexOf(Char, Int32)"/>
+		public int IndexOf(char character, int index) => IndexOf(character, index, Length - index);
 
-		/// <inheritdoc cref="String.IndexOf(char, int, int)"/>
-		public int IndexOf(char Char, int Index, int Count)
+		/// <inheritdoc cref="String.IndexOf(Char, Int32, Int32)"/>
+		public int IndexOf(char character, int index, int count)
 		{
-			int Result;
-			if (Char < 0x80)
+			int result;
+			if (character < 0x80)
 			{
-				Result = Span.Slice(Index, Count).IndexOf((byte)Char);
+				result = Span.Slice(index, count).IndexOf((byte)character);
 			}
 			else
 			{
-				Result = Span.Slice(Index, Count).IndexOf(Encoding.UTF8.GetBytes(new[] { Char }));
+				result = Span.Slice(index, count).IndexOf(Encoding.UTF8.GetBytes(new[] { character }));
 			}
-			return (Result == -1) ? -1 : Result + Index;
+			return (result == -1) ? -1 : result + index;
 		}
 
-		/// <inheritdoc cref="String.IndexOf(string)"/>
-		public int IndexOf(Utf8String String)
+		/// <inheritdoc cref="String.IndexOf(String)"/>
+		public int IndexOf(Utf8String str)
 		{
-			return Span.IndexOf(String.Span);
+			return Span.IndexOf(str.Span);
 		}
 
-		/// <inheritdoc cref="String.IndexOf(string, StringComparison)"/>
-		public int IndexOf(Utf8String String, Utf8StringComparer Comparer)
+		/// <inheritdoc cref="String.IndexOf(String, StringComparison)"/>
+		public int IndexOf(Utf8String str, Utf8StringComparer comparer)
 		{
-			for (int Idx = 0; Idx < Length - String.Length; Idx++)
+			for (int idx = 0; idx < Length - str.Length; idx++)
 			{
-				if (Comparer.Equals(String.Slice(Idx, String.Length), String))
+				if (comparer.Equals(str.Slice(idx, str.Length), str))
 				{
-					return Idx;
+					return idx;
 				}
 			}
 			return -1;
 		}
 
-		/// <inheritdoc cref="String.LastIndexOf(char)"/>
-		public int LastIndexOf(byte Char)
+		/// <inheritdoc cref="String.LastIndexOf(Char)"/>
+		public int LastIndexOf(byte character)
 		{
-			return Span.LastIndexOf(Char);
+			return Span.LastIndexOf(character);
 		}
 
-		/// <inheritdoc cref="String.LastIndexOf(char)"/>
-		public int LastIndexOf(char Char)
+		/// <inheritdoc cref="String.LastIndexOf(Char)"/>
+		public int LastIndexOf(char character)
 		{
-			if (Char < 0x80)
+			if (character < 0x80)
 			{
-				return Span.LastIndexOf((byte)Char);
+				return Span.LastIndexOf((byte)character);
 			}
 			else
 			{
-				return Span.LastIndexOf(Encoding.UTF8.GetBytes(new[] { Char }));
+				return Span.LastIndexOf(Encoding.UTF8.GetBytes(new[] { character }));
 			}
 		}
 
 		/// <summary>
 		/// Tests if this string starts with another string
 		/// </summary>
-		/// <param name="Other">The string to check against</param>
+		/// <param name="other">The string to check against</param>
 		/// <returns>True if this string starts with the other string</returns>
-		public bool StartsWith(Utf8String Other)
+		public bool StartsWith(Utf8String other)
 		{
-			return Span.StartsWith(Other.Span);
+			return Span.StartsWith(other.Span);
 		}
 
 		/// <summary>
 		/// Tests if this string ends with another string
 		/// </summary>
-		/// <param name="Other">The string to check against</param>
-		/// <param name="Comparer">The string comparer</param>
+		/// <param name="other">The string to check against</param>
+		/// <param name="comparer">The string comparer</param>
 		/// <returns>True if this string ends with the other string</returns>
-		public bool StartsWith(Utf8String Other, Utf8StringComparer Comparer)
+		public bool StartsWith(Utf8String other, Utf8StringComparer comparer)
 		{
-			return Length >= Other.Length && Comparer.Equals(Slice(0, Other.Length), Other);
+			return Length >= other.Length && comparer.Equals(Slice(0, other.Length), other);
 		}
 
 		/// <summary>
 		/// Tests if this string ends with another string
 		/// </summary>
-		/// <param name="Other">The string to check against</param>
+		/// <param name="other">The string to check against</param>
 		/// <returns>True if this string ends with the other string</returns>
-		public bool EndsWith(Utf8String Other)
+		public bool EndsWith(Utf8String other)
 		{
-			return Span.EndsWith(Other.Span);
+			return Span.EndsWith(other.Span);
 		}
 
 		/// <summary>
 		/// Tests if this string ends with another string
 		/// </summary>
-		/// <param name="Other">The string to check against</param>
-		/// <param name="Comparer">The string comparer</param>
+		/// <param name="other">The string to check against</param>
+		/// <param name="comparer">The string comparer</param>
 		/// <returns>True if this string ends with the other string</returns>
-		public bool EndsWith(Utf8String Other, Utf8StringComparer Comparer)
+		public bool EndsWith(Utf8String other, Utf8StringComparer comparer)
 		{
-			return Length >= Other.Length && Comparer.Equals(Slice(Length - Other.Length), Other);
+			return Length >= other.Length && comparer.Equals(Slice(Length - other.Length), other);
 		}
 
-		/// <inheritdoc cref="Substring(int)"/>
-		public Utf8String Slice(int Start) => Substring(Start);
+		/// <inheritdoc cref="Substring(Int32)"/>
+		public Utf8String Slice(int start) => Substring(start);
 
-		/// <inheritdoc cref="Substring(int, int)"/>
-		public Utf8String Slice(int Start, int Count) => Substring(Start, Count);
+		/// <inheritdoc cref="Substring(Int32, Int32)"/>
+		public Utf8String Slice(int start, int count) => Substring(start, count);
 
-		/// <inheritdoc cref="String.Substring(int)"/>
-		public Utf8String Substring(int Start)
+		/// <inheritdoc cref="String.Substring(Int32)"/>
+		public Utf8String Substring(int start)
 		{
-			return new Utf8String(Memory.Slice(Start));
+			return new Utf8String(Memory.Slice(start));
 		}
 
-		/// <inheritdoc cref="String.Substring(int, int)"/>
-		public Utf8String Substring(int Start, int Count)
+		/// <inheritdoc cref="String.Substring(Int32, Int32)"/>
+		public Utf8String Substring(int start, int count)
 		{
-			return new Utf8String(Memory.Slice(Start, Count));
+			return new Utf8String(Memory.Slice(start, count));
 		}
 		
 		/// <summary>
@@ -273,8 +259,8 @@ namespace EpicGames.Core
 		/// <returns>True if the objects are equivalent</returns>
 		public override bool Equals(object? obj)
 		{
-			Utf8String? Other = obj as Utf8String?;
-			return Other != null && Equals(Other.Value);
+			Utf8String? other = obj as Utf8String?;
+			return other != null && Equals(other.Value);
 		}
 
 		/// <summary>
@@ -295,59 +281,59 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Parse a string as an unsigned integer
 		/// </summary>
-		/// <param name="Text"></param>
+		/// <param name="text"></param>
 		/// <returns></returns>
-		public static uint ParseUnsignedInt(Utf8String Text)
+		public static uint ParseUnsignedInt(Utf8String text)
 		{
-			ReadOnlySpan<byte> Bytes = Text.Span;
-			if (Bytes.Length == 0)
+			ReadOnlySpan<byte> bytes = text.Span;
+			if (bytes.Length == 0)
 			{
 				throw new Exception("Cannot parse empty string as an integer");
 			}
 
-			uint Value = 0;
-			for (int Idx = 0; Idx < Bytes.Length; Idx++)
+			uint value = 0;
+			for (int idx = 0; idx < bytes.Length; idx++)
 			{
-				uint Digit = (uint)(Bytes[Idx] - '0');
-				if (Digit > 9)
+				uint digit = (uint)(bytes[idx] - '0');
+				if (digit > 9)
 				{
-					throw new Exception($"Cannot parse '{Text}' as an integer");
+					throw new Exception($"Cannot parse '{text}' as an integer");
 				}
-				Value = (Value * 10) + Digit;
+				value = (value * 10) + digit;
 			}
-			return Value;
+			return value;
 		}
 
 		/// <summary>
 		/// Appends two strings
 		/// </summary>
-		/// <param name="A"></param>
-		/// <param name="B"></param>
+		/// <param name="a"></param>
+		/// <param name="b"></param>
 		/// <returns></returns>
-		public static Utf8String operator +(Utf8String A, Utf8String B)
+		public static Utf8String operator +(Utf8String a, Utf8String b)
 		{
-			if (A.Length == 0)
+			if (a.Length == 0)
 			{
-				return B;
+				return b;
 			}
-			if (B.Length == 0)
+			if (b.Length == 0)
 			{
-				return A;
+				return a;
 			}
 
-			byte[] Buffer = new byte[A.Length + B.Length];
-			A.Span.CopyTo(Buffer);
-			B.Span.CopyTo(Buffer.AsSpan(A.Length));
-			return new Utf8String(Buffer);
+			byte[] buffer = new byte[a.Length + b.Length];
+			a.Span.CopyTo(buffer);
+			b.Span.CopyTo(buffer.AsSpan(a.Length));
+			return new Utf8String(buffer);
 		}
 
 		/// <summary>
 		/// Converts a string to a utf-8 string
 		/// </summary>
-		/// <param name="Text">Text to convert</param>
-		public static implicit operator Utf8String(string Text)
+		/// <param name="text">Text to convert</param>
+		public static implicit operator Utf8String(string text)
 		{
-			return new Utf8String(new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes(Text)));
+			return new Utf8String(new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes(text)));
 		}
 	}
 
@@ -362,25 +348,25 @@ namespace EpicGames.Core
 		public sealed class OrdinalComparer : Utf8StringComparer
 		{
 			/// <inheritdoc/>
-			public override bool Equals(ReadOnlySpan<byte> StrA, ReadOnlySpan<byte> StrB)
+			public override bool Equals(ReadOnlySpan<byte> strA, ReadOnlySpan<byte> strB)
 			{
-				return StrA.SequenceEqual(StrB);
+				return strA.SequenceEqual(strB);
 			}
 
 			/// <inheritdoc/>
-			public override int GetHashCode(ReadOnlySpan<byte> String)
+			public override int GetHashCode(ReadOnlySpan<byte> str)
 			{
-				int Hash = 5381;
-				for (int Idx = 0; Idx < String.Length; Idx++)
+				int hash = 5381;
+				for (int idx = 0; idx < str.Length; idx++)
 				{
-					Hash += (Hash << 5) + String[Idx];
+					hash += (hash << 5) + str[idx];
 				}
-				return Hash;
+				return hash;
 			}
 
-			public override int Compare(ReadOnlySpan<byte> StrA, ReadOnlySpan<byte> StrB)
+			public override int Compare(ReadOnlySpan<byte> strA, ReadOnlySpan<byte> strB)
 			{
-				return StrA.SequenceCompareTo(StrB);
+				return strA.SequenceCompareTo(strB);
 			}
 		}
 
@@ -390,16 +376,16 @@ namespace EpicGames.Core
 		public sealed class OrdinalIgnoreCaseComparer : Utf8StringComparer 
 		{
 			/// <inheritdoc/>
-			public override bool Equals(ReadOnlySpan<byte> StrA, ReadOnlySpan<byte> StrB)
+			public override bool Equals(ReadOnlySpan<byte> strA, ReadOnlySpan<byte> strB)
 			{
-				if (StrA.Length != StrB.Length)
+				if (strA.Length != strB.Length)
 				{
 					return false;
 				}
 
-				for (int Idx = 0; Idx < StrA.Length; Idx++)
+				for (int idx = 0; idx < strA.Length; idx++)
 				{
-					if (StrA[Idx] != StrB[Idx] && ToUpper(StrA[Idx]) != ToUpper(StrB[Idx]))
+					if (strA[idx] != strB[idx] && ToUpper(strA[idx]) != ToUpper(strB[idx]))
 					{
 						return false;
 					}
@@ -409,43 +395,43 @@ namespace EpicGames.Core
 			}
 
 			/// <inheritdoc/>
-			public override int GetHashCode(ReadOnlySpan<byte> String)
+			public override int GetHashCode(ReadOnlySpan<byte> str)
 			{
-				HashCode HashCode = new HashCode();
-				for (int Idx = 0; Idx < String.Length; Idx++)
+				HashCode hashCode = new HashCode();
+				for (int idx = 0; idx < str.Length; idx++)
 				{
-					HashCode.Add(ToUpper(String[Idx]));
+					hashCode.Add(ToUpper(str[idx]));
 				}
-				return HashCode.ToHashCode();
+				return hashCode.ToHashCode();
 			}
 
 			/// <inheritdoc/>
-			public override int Compare(ReadOnlySpan<byte> SpanA, ReadOnlySpan<byte> SpanB)
+			public override int Compare(ReadOnlySpan<byte> spanA, ReadOnlySpan<byte> spanB)
 			{
-				int Length = Math.Min(SpanA.Length, SpanB.Length);
-				for (int Idx = 0; Idx < Length; Idx++)
+				int length = Math.Min(spanA.Length, spanB.Length);
+				for (int idx = 0; idx < length; idx++)
 				{
-					if (SpanA[Idx] != SpanB[Idx])
+					if (spanA[idx] != spanB[idx])
 					{
-						int UpperA = ToUpper(SpanA[Idx]);
-						int UpperB = ToUpper(SpanB[Idx]);
-						if (UpperA != UpperB)
+						int upperA = ToUpper(spanA[idx]);
+						int upperB = ToUpper(spanB[idx]);
+						if (upperA != upperB)
 						{
-							return UpperA - UpperB;
+							return upperA - upperB;
 						}
 					}
 				}
-				return SpanA.Length - SpanB.Length;
+				return spanA.Length - spanB.Length;
 			}
 
 			/// <summary>
 			/// Convert a character to uppercase
 			/// </summary>
-			/// <param name="Character">Character to convert</param>
+			/// <param name="character">Character to convert</param>
 			/// <returns>The uppercase version of the character</returns>
-			static byte ToUpper(byte Character)
+			static byte ToUpper(byte character)
 			{
-				return (Character >= 'a' && Character <= 'z') ? (byte)(Character - 'a' + 'A') : Character;
+				return (character >= 'a' && character <= 'z') ? (byte)(character - 'a' + 'A') : character;
 			}
 		}
 
@@ -460,22 +446,22 @@ namespace EpicGames.Core
 		public static Utf8StringComparer OrdinalIgnoreCase { get; } = new OrdinalIgnoreCaseComparer();
 
 		/// <inheritdoc/>
-		public bool Equals(Utf8String StrA, Utf8String StrB) => Equals(StrA.Span, StrB.Span);
+		public bool Equals(Utf8String strA, Utf8String strB) => Equals(strA.Span, strB.Span);
 
 		/// <inheritdoc/>
-		public abstract bool Equals(ReadOnlySpan<byte> StrA, ReadOnlySpan<byte> StrB);
+		public abstract bool Equals(ReadOnlySpan<byte> strA, ReadOnlySpan<byte> strB);
 
 		/// <inheritdoc/>
-		public int GetHashCode(Utf8String String) => GetHashCode(String.Span);
+		public int GetHashCode(Utf8String str) => GetHashCode(str.Span);
 
 		/// <inheritdoc/>
-		public abstract int GetHashCode(ReadOnlySpan<byte> String);
+		public abstract int GetHashCode(ReadOnlySpan<byte> str);
 
 		/// <inheritdoc/>
-		public int Compare(Utf8String StrA, Utf8String StrB) => Compare(StrA.Span, StrB.Span);
+		public int Compare(Utf8String strA, Utf8String strB) => Compare(strA.Span, strB.Span);
 
 		/// <inheritdoc/>
-		public abstract int Compare(ReadOnlySpan<byte> StrA, ReadOnlySpan<byte> StrB);
+		public abstract int Compare(ReadOnlySpan<byte> strA, ReadOnlySpan<byte> strB);
 	}
 
 	/// <summary>
@@ -487,34 +473,34 @@ namespace EpicGames.Core
 		/// Reads a null-terminated utf8 string from the buffer
 		/// </summary>
 		/// <returns>The string data</returns>
-		public static Utf8String ReadString(this MemoryReader Reader)
+		public static Utf8String ReadString(this MemoryReader reader)
 		{
-			ReadOnlySpan<byte> Span = Reader.Span;
-			int Length = Span.IndexOf((byte)0);
-			Utf8String Value = new Utf8String(Reader.ReadFixedLengthBytes(Length));
-			Reader.ReadInt8();
-			return Value;
+			ReadOnlySpan<byte> span = reader.Span;
+			int length = span.IndexOf((byte)0);
+			Utf8String value = new Utf8String(reader.ReadFixedLengthBytes(length));
+			reader.ReadInt8();
+			return value;
 		}
 
 		/// <summary>
 		/// Writes a UTF8 string into memory with a null terminator
 		/// </summary>
-		/// <param name="Writer">The memory writer to serialize to</param>
-		/// <param name="String">String to write</param>
-		public static void WriteString(this MemoryWriter Writer, Utf8String String)
+		/// <param name="writer">The memory writer to serialize to</param>
+		/// <param name="str">String to write</param>
+		public static void WriteString(this MemoryWriter writer, Utf8String str)
 		{
-			Writer.WriteFixedLengthBytes(String.Span);
-			Writer.WriteInt8(0);
+			writer.WriteFixedLengthBytes(str.Span);
+			writer.WriteInt8(0);
 		}
 
 		/// <summary>
 		/// Determines the size of a serialized utf-8 string
 		/// </summary>
-		/// <param name="String">The string to measure</param>
+		/// <param name="str">The string to measure</param>
 		/// <returns>Size of the serialized string</returns>
-		public static int GetSerializedSize(this Utf8String String)
+		public static int GetSerializedSize(this Utf8String str)
 		{
-			return String.Length + 1;
+			return str.Length + 1;
 		}
 	}
 }

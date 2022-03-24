@@ -1,4 +1,6 @@
-﻿// Copyright (c) 2011 Google, Inc.
+﻿#pragma warning disable IDE0073
+
+// Copyright (c) 2011 Google, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +33,9 @@ using System;
 
 namespace EpicGames.Core
 {
+#pragma warning disable IDE0054
+#pragma warning disable IDE1006
+
 	public class CityHash
 	{
 		// Some primes between 2^63 and 2^64 for various uses.
@@ -420,9 +425,9 @@ namespace EpicGames.Core
 			return CityHash64WithSeeds(s, len, k2, seed);
 		}
 
-		public ulong CityHash64WithSeed(ReadOnlySpan<byte> Span, ulong seed)
+		public ulong CityHash64WithSeed(ReadOnlySpan<byte> span, ulong seed)
 		{
-			return CityHash64WithSeeds(Span, k2, seed);
+			return CityHash64WithSeeds(span, k2, seed);
 		}
 
 		public static unsafe ulong CityHash64WithSeeds(byte* s, uint len, ulong seed0, ulong seed1)
@@ -456,3 +461,5 @@ namespace EpicGames.Core
 		}
 	}
 }
+#pragma warning restore IDE1006
+#pragma warning restore IDE0054

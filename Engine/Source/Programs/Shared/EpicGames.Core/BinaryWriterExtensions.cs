@@ -13,7 +13,7 @@ namespace EpicGames.Core
 	/// </summary>
 	public interface IBinarySerializable
 	{
-		void Write(BinaryWriter Writer);
+		void Write(BinaryWriter writer);
 	}
 
 	/// <summary>
@@ -24,53 +24,53 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Writes an item implementing the IBinarySerializable interface to a binary writer. Included for symmetry with standard Writer.Write(X) calls.
 		/// </summary>
-		/// <param name="Writer">Writer to serialize to</param>
-		/// <param name="Item">The item to write</param>
-		public static void Write(this BinaryWriter Writer, IBinarySerializable Item)
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="item">The item to write</param>
+		public static void Write(this BinaryWriter writer, IBinarySerializable item)
 		{
-			Item.Write(Writer);
+			item.Write(writer);
 		}
 
 		/// <summary>
 		/// Writes an array of strings to a binary writer.
 		/// </summary>
-		/// <param name="Writer">Writer to serialize to</param>
-		/// <param name="Items">Array of items</param>
-		public static void Write(this BinaryWriter Writer, string[] Items)
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="items">Array of items</param>
+		public static void Write(this BinaryWriter writer, string[] items)
 		{
-			Write(Writer, Items, Item => Writer.Write(Item));
+			Write(writer, items, item => writer.Write(item));
 		}
 
 		/// <summary>
 		/// Writes an array to a binary writer.
 		/// </summary>
 		/// <typeparam name="T">The array element type</typeparam>
-		/// <param name="Writer">Writer to serialize to</param>
-		/// <param name="Items">Array of items</param>
-		public static void Write<T>(this BinaryWriter Writer, T[] Items) where T : class, IBinarySerializable
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="items">Array of items</param>
+		public static void Write<T>(this BinaryWriter writer, T[] items) where T : class, IBinarySerializable
 		{
-			Write(Writer, Items, Item => Writer.Write(Item));
+			Write(writer, items, item => writer.Write(item));
 		}
 
 		/// <summary>
 		/// Writes an array to a binary writer.
 		/// </summary>
 		/// <typeparam name="T">The array element type</typeparam>
-		/// <param name="Writer">Writer to serialize to</param>
-		/// <param name="Items">Array of items</param>
-		/// <param name="WriteElement">Delegate to call to serialize each element</param>
-		public static void Write<T>(this BinaryWriter Writer, T[] Items, Action<T> WriteElement)
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="items">Array of items</param>
+		/// <param name="writeElement">Delegate to call to serialize each element</param>
+		public static void Write<T>(this BinaryWriter writer, T[] items, Action<T> writeElement)
 		{
-			if (Items == null)
+			if (items == null)
 			{
-				Writer.Write(-1);
+				writer.Write(-1);
 			}
 			else
 			{
-				Writer.Write(Items.Length);
-				for (int Idx = 0; Idx < Items.Length; Idx++)
+				writer.Write(items.Length);
+				for (int idx = 0; idx < items.Length; idx++)
 				{
-					WriteElement(Items[Idx]);
+					writeElement(items[idx]);
 				}
 			}
 		}
@@ -78,43 +78,43 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Writes a list of strings to a binary writer.
 		/// </summary>
-		/// <param name="Writer">Writer to serialize to</param>
-		/// <param name="Items">Array of items</param>
-		public static void Write(this BinaryWriter Writer, List<string> Items)
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="items">Array of items</param>
+		public static void Write(this BinaryWriter writer, List<string> items)
 		{
-			Write(Writer, Items, Item => Writer.Write(Item));
+			Write(writer, items, item => writer.Write(item));
 		}
 
 		/// <summary>
 		/// Writes a list to a binary writer.
 		/// </summary>
 		/// <typeparam name="T">The array element type</typeparam>
-		/// <param name="Writer">Writer to serialize to</param>
-		/// <param name="Items">Array of items</param>
-		public static void Write<T>(this BinaryWriter Writer, List<T> Items) where T : class, IBinarySerializable
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="items">Array of items</param>
+		public static void Write<T>(this BinaryWriter writer, List<T> items) where T : class, IBinarySerializable
 		{
-			Write(Writer, Items, Item => Writer.Write(Item));
+			Write(writer, items, item => writer.Write(item));
 		}
 
 		/// <summary>
 		/// Writes a list to a binary writer.
 		/// </summary>
 		/// <typeparam name="T">The list element type</typeparam>
-		/// <param name="Writer">Writer to serialize to</param>
-		/// <param name="Items">List of items</param>
-		/// <param name="WriteElement">Delegate to call to serialize each element</param>
-		public static void Write<T>(this BinaryWriter Writer, List<T> Items, Action<T> WriteElement)
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="items">List of items</param>
+		/// <param name="writeElement">Delegate to call to serialize each element</param>
+		public static void Write<T>(this BinaryWriter writer, List<T> items, Action<T> writeElement)
 		{
-			if (Items == null)
+			if (items == null)
 			{
-				Writer.Write(-1);
+				writer.Write(-1);
 			}
 			else
 			{
-				Writer.Write(Items.Count);
-				for (int Idx = 0; Idx < Items.Count; Idx++)
+				writer.Write(items.Count);
+				for (int idx = 0; idx < items.Count; idx++)
 				{
-					WriteElement(Items[Idx]);
+					writeElement(items[idx]);
 				}
 			}
 		}
@@ -122,26 +122,26 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Write a dictionary to a binary writer
 		/// </summary>
-		/// <typeparam name="K">The key type for the dictionary</typeparam>
-		/// <typeparam name="V">The value type for the dictionary</typeparam>
+		/// <typeparam name="TK">The key type for the dictionary</typeparam>
+		/// <typeparam name="TV">The value type for the dictionary</typeparam>
 		/// <param name="Reader">Reader to read data from</param>
-		/// <param name="Items">List of items to be written</param>
-		/// <param name="WriteKey">Delegate to call to serialize each key</param>
-		/// <param name="WriteKey">Delegate to call to serialize each value</param>
+		/// <param name="items">List of items to be written</param>
+		/// <param name="writeKey">Delegate to call to serialize each key</param>
+		/// <param name="writeKey">Delegate to call to serialize each value</param>
 		/// <returns>Dictionary of objects, as serialized. May be null.</returns>
-		public static void Write<K, V>(this BinaryWriter Writer, Dictionary<K, V> Items, Action<K> WriteKey, Action<V> WriteValue) where K : notnull
+		public static void Write<TK, TV>(this BinaryWriter writer, Dictionary<TK, TV> items, Action<TK> writeKey, Action<TV> writeValue) where TK : notnull
 		{
-			if (Items == null)
+			if (items == null)
 			{
-				Writer.Write(-1);
+				writer.Write(-1);
 			}
 			else
 			{
-				Writer.Write(Items.Count);
-				foreach (KeyValuePair<K, V> Item in Items)
+				writer.Write(items.Count);
+				foreach (KeyValuePair<TK, TV> item in items)
 				{
-					WriteKey(Item.Key);
-					WriteValue(Item.Value);
+					writeKey(item.Key);
+					writeValue(item.Value);
 				}
 			}
 		}
@@ -150,70 +150,70 @@ namespace EpicGames.Core
 		/// Read a nullable object from a binary reader
 		/// </summary>
 		/// <typeparam name="T">Type of the object</typeparam>
-		/// <param name="Writer">Reader to read data from</param>
-		/// <param name="WriteItem">Function to read the payload, if non-null</param>
+		/// <param name="writer">Reader to read data from</param>
+		/// <param name="writeItem">Function to read the payload, if non-null</param>
 		/// <returns>Object instance or null</returns>
-		public static void WriteNullable<T>(this BinaryWriter Writer, T Item, Action WriteItem) where T : class
+		public static void WriteNullable<T>(this BinaryWriter writer, T item, Action writeItem) where T : class
 		{
-			if (Item == null)
+			if (item == null)
 			{
-				Writer.Write(false);
+				writer.Write(false);
 			}
 			else
 			{
-				Writer.Write(true);
-				WriteItem();
+				writer.Write(true);
+				writeItem();
 			}
 		}
 
 		/// <summary>
 		/// Writes a value of a specific type to a binary writer
 		/// </summary>
-		/// <param name="Writer">Writer for output data</param>
-		/// <param name="FieldType">Type of value to write</param>
-		/// <param name="Value">The value to output</param>
-		public static void Write(this BinaryWriter Writer, Type FieldType, object Value)
+		/// <param name="writer">Writer for output data</param>
+		/// <param name="fieldType">Type of value to write</param>
+		/// <param name="value">The value to output</param>
+		public static void Write(this BinaryWriter writer, Type fieldType, object value)
 		{
-			if (FieldType == typeof(string))
+			if (fieldType == typeof(string))
 			{
-				Writer.Write((string)Value);
+				writer.Write((string)value);
 			}
-			else if (FieldType == typeof(bool))
+			else if (fieldType == typeof(bool))
 			{
-				Writer.Write((bool)Value);
+				writer.Write((bool)value);
 			}
-			else if (FieldType == typeof(int))
+			else if (fieldType == typeof(int))
 			{
-				Writer.Write((int)Value);
+				writer.Write((int)value);
 			}
-			else if (FieldType == typeof(float))
+			else if (fieldType == typeof(float))
 			{
-				Writer.Write((float)Value);
+				writer.Write((float)value);
 			}
-			else if (FieldType == typeof(double))
+			else if (fieldType == typeof(double))
 			{
-				Writer.Write((double)Value);
+				writer.Write((double)value);
 			}
-			else if (FieldType.IsEnum)
+			else if (fieldType.IsEnum)
 			{
-				Writer.Write((int)Value);
+				writer.Write((int)value);
 			}
-			else if (FieldType == typeof(string[]))
+			else if (fieldType == typeof(string[]))
 			{
-				Writer.Write((string[])Value);
+				writer.Write((string[])value);
 			}
-			else if (FieldType == typeof(bool?))
+			else if (fieldType == typeof(bool?))
 			{
-				bool? NullableValue = (bool?)Value;
-				Writer.Write(NullableValue.HasValue ? NullableValue.Value ? 1 : 0 : -1);
+				bool? nullableValue = (bool?)value;
+				writer.Write(nullableValue.HasValue ? nullableValue.Value ? 1 : 0 : -1);
 			}
-			else if (FieldType == typeof(FileReference))
+			else if (fieldType == typeof(FileReference))
 			{
-				Writer.Write((FileReference)Value);
+				writer.Write((FileReference)value);
 			}
 			else
 			{
-				throw new Exception(String.Format("Unsupported type '{0}' for binary serialization", FieldType.Name));
+				throw new Exception(String.Format("Unsupported type '{0}' for binary serialization", fieldType.Name));
 			}
 		}
 	}

@@ -19,7 +19,7 @@ namespace Horde.Agent.Parser.Matchers
 				{
 					if (cursor.IsMatch(maxOffset, "end: stack for UAT"))
 					{
-						LogEventBuilder builder = new LogEventBuilder(cursor, LineCount: maxOffset + 1);
+						LogEventBuilder builder = new LogEventBuilder(cursor, lineCount: maxOffset + 1);
 						return builder.ToMatch(LogEventPriority.BelowNormal, GetLogLevel(cursor), KnownLogEvents.Engine_Crash);
 					}
 				}

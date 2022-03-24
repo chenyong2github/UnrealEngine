@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Core
 {
@@ -20,10 +18,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id"></param>
-		public JsonSchemaAttribute(string Id)
+		/// <param name="id"></param>
+		public JsonSchemaAttribute(string id)
 		{
-			this.Id = Id;
+			Id = id;
 		}
 	}
 
@@ -51,25 +49,25 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name"></param>
-		/// <param name="Description"></param>
-		/// <param name="FileMatch">File patterns to match</param>
-		public JsonSchemaCatalogAttribute(string Name, string Description, string? FileMatch)
-			: this(Name, Description, (FileMatch == null) ? (string[]?)null : new[] { FileMatch })
+		/// <param name="name"></param>
+		/// <param name="description"></param>
+		/// <param name="fileMatch">File patterns to match</param>
+		public JsonSchemaCatalogAttribute(string name, string description, string? fileMatch)
+			: this(name, description, (fileMatch == null) ? (string[]?)null : new[] { fileMatch })
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name"></param>
-		/// <param name="Description"></param>
-		/// <param name="FileMatch">File patterns to match</param>
-		public JsonSchemaCatalogAttribute(string Name, string Description, string[]? FileMatch)
+		/// <param name="name"></param>
+		/// <param name="description"></param>
+		/// <param name="fileMatch">File patterns to match</param>
+		public JsonSchemaCatalogAttribute(string name, string description, string[]? fileMatch)
 		{
-			this.Name = Name;
-			this.Description = Description;
-			this.FileMatch = FileMatch;
+			Name = name;
+			Description = description;
+			FileMatch = fileMatch;
 		}
 	}
 

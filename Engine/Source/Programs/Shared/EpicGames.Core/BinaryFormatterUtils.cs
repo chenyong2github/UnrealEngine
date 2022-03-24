@@ -13,45 +13,45 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Load an object from a file on disk, using the binary formatter
 		/// </summary>
-		/// <param name="Location">File to read from</param>
+		/// <param name="location">File to read from</param>
 		/// <returns>Instance of the object that was read from disk</returns>
-		public static T Load<T>(FileReference Location)
+		public static T Load<T>(FileReference location)
 		{
-			using FileStream Stream = new FileStream(Location.FullName, FileMode.Open, FileAccess.Read);
-			BinaryFormatter Formatter = new BinaryFormatter();
-			return (T)Formatter.Deserialize(Stream);
+			using FileStream stream = new FileStream(location.FullName, FileMode.Open, FileAccess.Read);
+			BinaryFormatter formatter = new BinaryFormatter();
+			return (T)formatter.Deserialize(stream);
 		}
 
 		/// <summary>
 		/// Saves a file to disk, using the binary formatter
 		/// </summary>
-		/// <param name="Location">File to write to</param>
-		/// <param name="Object">Object to serialize</param>
-		public static void Save(FileReference Location, object Object)
+		/// <param name="location">File to write to</param>
+		/// <param name="obj">Object to serialize</param>
+		public static void Save(FileReference location, object obj)
 		{
-			DirectoryReference.CreateDirectory(Location.Directory);
-			using FileStream Stream = new FileStream(Location.FullName, FileMode.Create, FileAccess.Write);
-			BinaryFormatter Formatter = new BinaryFormatter();
-			Formatter.Serialize(Stream, Object);
+			DirectoryReference.CreateDirectory(location.Directory);
+			using FileStream stream = new FileStream(location.FullName, FileMode.Create, FileAccess.Write);
+			BinaryFormatter formatter = new BinaryFormatter();
+			formatter.Serialize(stream, obj);
 		}
 
 		/// <summary>
 		/// Saves a file to disk using the binary formatter, without updating the timestamp if it hasn't changed
 		/// </summary>
-		/// <param name="Location">File to write to</param>
-		/// <param name="Object">Object to serialize</param>
-		public static void SaveIfDifferent(FileReference Location, object Object)
+		/// <param name="location">File to write to</param>
+		/// <param name="obj">Object to serialize</param>
+		public static void SaveIfDifferent(FileReference location, object obj)
 		{
-			byte[] Contents;
-			using (MemoryStream Stream = new MemoryStream())
+			byte[] contents;
+			using (MemoryStream stream = new MemoryStream())
 			{
-				BinaryFormatter Formatter = new BinaryFormatter();
-				Formatter.Serialize(Stream, Object);
-				Contents = Stream.ToArray();
+				BinaryFormatter formatter = new BinaryFormatter();
+				formatter.Serialize(stream, obj);
+				contents = stream.ToArray();
 			}
 
-			DirectoryReference.CreateDirectory(Location.Directory);
-			FileReference.WriteAllBytesIfDifferent(Location, Contents);
+			DirectoryReference.CreateDirectory(location.Directory);
+			FileReference.WriteAllBytesIfDifferent(location, contents);
 		}
 	}
 }

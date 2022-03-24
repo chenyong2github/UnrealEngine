@@ -2,8 +2,6 @@
 
 using StackExchange.Redis;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace EpicGames.Redis
@@ -24,23 +22,23 @@ namespace EpicGames.Redis
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Channel"></param>
-		public RedisChannel(RedisChannel Channel) => this.Channel = Channel;
+		/// <param name="channel"></param>
+		public RedisChannel(RedisChannel channel) => Channel = channel;
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Obj is RedisChannel<T> List && Channel == List.Channel;
+		public override bool Equals(object? obj) => obj is RedisChannel<T> list && Channel == list.Channel;
 
 		/// <inheritdoc/>
-		public bool Equals(RedisChannel<T> Other) => Channel == Other.Channel;
+		public bool Equals(RedisChannel<T> other) => Channel == other.Channel;
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => Channel.GetHashCode();
 
 		/// <summary>Compares two instances for equality</summary>
-		public static bool operator ==(RedisChannel<T> Left, RedisChannel<T> Right) => Left.Channel == Right.Channel;
+		public static bool operator ==(RedisChannel<T> left, RedisChannel<T> right) => left.Channel == right.Channel;
 
 		/// <summary>Compares two instances for equality</summary>
-		public static bool operator !=(RedisChannel<T> Left, RedisChannel<T> Right) => Left.Channel != Right.Channel;
+		public static bool operator !=(RedisChannel<T> left, RedisChannel<T> right) => left.Channel != right.Channel;
 	}
 
 	/// <summary>
@@ -52,7 +50,7 @@ namespace EpicGames.Redis
 		/// <summary>
 		/// The subscriber to register with
 		/// </summary>
-		ISubscriber? Subscriber;
+		ISubscriber? _subscriber;
 
 		/// <summary>
 		/// The channel to post on
@@ -62,41 +60,41 @@ namespace EpicGames.Redis
 		/// <summary>
 		/// The handler to call
 		/// </summary>
-		Action<RedisChannel<T>, T> Handler;
+		readonly Action<RedisChannel<T>, T> _handler;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Subscriber"></param>
-		/// <param name="Channel"></param>
-		/// <param name="Handler"></param>
-		RedisChannelSubscription(ISubscriber Subscriber, RedisChannel<T> Channel, Action<RedisChannel<T>, T> Handler)
+		/// <param name="subscriber"></param>
+		/// <param name="channel"></param>
+		/// <param name="handler"></param>
+		RedisChannelSubscription(ISubscriber subscriber, RedisChannel<T> channel, Action<RedisChannel<T>, T> handler)
 		{
-			this.Subscriber = Subscriber;
-			this.Channel = Channel;
-			this.Handler = Handler;
+			_subscriber = subscriber;
+			Channel = channel;
+			_handler = handler;
 		}
 		
 		/// <summary>
 		/// Start the subscription
 		/// </summary>
-		internal static async Task<RedisChannelSubscription<T>> CreateAsync(ISubscriber Subscriber, RedisChannel<T> Channel, Action<RedisChannel<T>, T> Handler, CommandFlags Flags = CommandFlags.None)
+		internal static async Task<RedisChannelSubscription<T>> CreateAsync(ISubscriber subscriber, RedisChannel<T> channel, Action<RedisChannel<T>, T> handler, CommandFlags flags = CommandFlags.None)
 		{
-			RedisChannelSubscription<T> Subscription = new RedisChannelSubscription<T>(Subscriber, Channel, Handler);
-			await Subscription.Subscriber!.SubscribeAsync(Channel.Channel, Subscription.UntypedHandler, Flags);
-			return Subscription;
+			RedisChannelSubscription<T> subscription = new RedisChannelSubscription<T>(subscriber, channel, handler);
+			await subscription._subscriber!.SubscribeAsync(channel.Channel, subscription.UntypedHandler, flags);
+			return subscription;
 		}
 
 		/// <summary>
 		/// Unsubscribe from the channel
 		/// </summary>
-		/// <param name="Flags">Flags for the operation</param>
-		public async Task UnsubscribeAsync(CommandFlags Flags = CommandFlags.None)
+		/// <param name="flags">Flags for the operation</param>
+		public async Task UnsubscribeAsync(CommandFlags flags = CommandFlags.None)
 		{
-			if (Subscriber != null)
+			if (_subscriber != null)
 			{
-				await Subscriber.UnsubscribeAsync(Channel.Channel, UntypedHandler, Flags);
-				Subscriber = null;
+				await _subscriber.UnsubscribeAsync(Channel.Channel, UntypedHandler, flags);
+				_subscriber = null;
 			}
 		}
 
@@ -104,10 +102,10 @@ namespace EpicGames.Redis
 		/// The callback for messages being received
 		/// </summary>
 		/// <param name="_"></param>
-		/// <param name="Message"></param>
-		void UntypedHandler(RedisChannel _, RedisValue Message)
+		/// <param name="message"></param>
+		void UntypedHandler(RedisChannel _, RedisValue message)
 		{
-			Handler(Channel, RedisSerializer.Deserialize<T>(Message));
+			_handler(Channel, RedisSerializer.Deserialize<T>(message));
 		}
 
 		/// <inheritdoc/>
@@ -129,16 +127,16 @@ namespace EpicGames.Redis
 	public static class RedisChannelExtensions
 	{
 		/// <inheritdoc cref="ISubscriber.SubscribeAsync(StackExchange.Redis.RedisChannel, Action{StackExchange.Redis.RedisChannel, RedisValue}, CommandFlags)"/>
-		public static Task<RedisChannelSubscription<T>> SubscribeAsync<T>(this ISubscriber Subscriber, RedisChannel<T> Channel, Action<RedisChannel<T>, T> Handler, CommandFlags Flags = CommandFlags.None)
+		public static Task<RedisChannelSubscription<T>> SubscribeAsync<T>(this ISubscriber subscriber, RedisChannel<T> channel, Action<RedisChannel<T>, T> handler, CommandFlags flags = CommandFlags.None)
 		{
-			return RedisChannelSubscription<T>.CreateAsync(Subscriber, Channel, Handler, Flags);
+			return RedisChannelSubscription<T>.CreateAsync(subscriber, channel, handler, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.PublishAsync(StackExchange.Redis.RedisChannel, RedisValue, CommandFlags)"/>
-		public static Task PublishAsync<T>(this IDatabaseAsync Database, RedisChannel<T> Channel, T Item, CommandFlags Flags = CommandFlags.None)
+		public static Task PublishAsync<T>(this IDatabaseAsync database, RedisChannel<T> channel, T item, CommandFlags flags = CommandFlags.None)
 		{
-			RedisValue Value = RedisSerializer.Serialize(Item);
-			return Database.PublishAsync(Channel.Channel, Value, Flags);
+			RedisValue value = RedisSerializer.Serialize(item);
+			return database.PublishAsync(channel.Channel, value, flags);
 		}
 	}
 }

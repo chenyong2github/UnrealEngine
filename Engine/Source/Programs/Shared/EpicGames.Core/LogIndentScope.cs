@@ -1,11 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -17,15 +12,15 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Whether the object has been disposed
 		/// </summary>
-		bool Disposed;
+		bool _disposed;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Indent">Indent to append to the existing indent</param>
-		public LogIndentScope(string Indent)
+		/// <param name="indent">Indent to append to the existing indent</param>
+		public LogIndentScope(string indent)
 		{
-			LogIndent.Push(Indent);
+			LogIndent.Push(indent);
 		}
 
 		/// <summary>
@@ -33,10 +28,10 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Dispose()
 		{
-			if (!Disposed)
+			if (!_disposed)
 			{
 				LogIndent.Pop();
-				Disposed = true;
+				_disposed = true;
 			}
 		}
 	}

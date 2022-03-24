@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Core
 {
@@ -49,63 +48,63 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JsonLogEvent(LogLevel Level, EventId EventId, int LineIndex, int LineCount, ReadOnlyMemory<byte> Data)
+		public JsonLogEvent(LogLevel level, EventId eventId, int lineIndex, int lineCount, ReadOnlyMemory<byte> data)
 		{
-			this.Level = Level;
-			this.EventId = EventId;
-			this.LineIndex = LineIndex;
-			this.LineCount = LineCount;
-			this.Data = Data;
+			Level = level;
+			EventId = eventId;
+			LineIndex = lineIndex;
+			LineCount = lineCount;
+			Data = data;
 		}
 
 		/// <summary>
 		/// Tries to parse a Json log event from the given 
 		/// </summary>
-		/// <param name="Data"></param>
-		/// <param name="Event"></param>
+		/// <param name="data"></param>
+		/// <param name="logEvent"></param>
 		/// <returns></returns>
-		public static bool TryParse(ReadOnlyMemory<byte> Data, out JsonLogEvent Event)
+		public static bool TryParse(ReadOnlyMemory<byte> data, out JsonLogEvent logEvent)
 		{
-			Utf8StringComparer StringComparer = Utf8StringComparer.OrdinalIgnoreCase;
+			Utf8StringComparer stringComparer = Utf8StringComparer.OrdinalIgnoreCase;
 			try
 			{
-				LogLevel Level = LogLevel.None;
-				int EventId = 0;
-				int LineIndex = 0;
-				int LineCount = 1;
+				LogLevel level = LogLevel.None;
+				int eventId = 0;
+				int lineIndex = 0;
+				int lineCount = 1;
 
-				Utf8JsonReader Reader = new Utf8JsonReader(Data.Span);
-				if (Reader.Read() && Reader.TokenType == JsonTokenType.StartObject)
+				Utf8JsonReader reader = new Utf8JsonReader(data.Span);
+				if (reader.Read() && reader.TokenType == JsonTokenType.StartObject)
 				{
-					ReadOnlySpan<byte> PropertyName;
-					for (; ReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
+					ReadOnlySpan<byte> propertyName;
+					for (; ReadNextPropertyName(ref reader, out propertyName); reader.Skip())
 					{
-						if (StringComparer.Equals(PropertyName, LevelString.Span))
+						if (stringComparer.Equals(propertyName, LevelString.Span))
 						{
-							if (!Enum.TryParse(Reader.GetString(), out Level))
+							if (!Enum.TryParse(reader.GetString(), out level))
 							{
 								break;
 							}
 						}
-						else if (StringComparer.Equals(PropertyName, LineIndexString.Span))
+						else if (stringComparer.Equals(propertyName, LineIndexString.Span))
 						{
-							LineIndex = Reader.GetInt32();
+							lineIndex = reader.GetInt32();
 						}
-						else if (StringComparer.Equals(PropertyName, LineCountString.Span))
+						else if (stringComparer.Equals(propertyName, LineCountString.Span))
 						{
-							LineCount = Reader.GetInt32();
+							lineCount = reader.GetInt32();
 						}
-						else if (StringComparer.Equals(PropertyName, PropertiesString.Span) && Reader.TokenType == JsonTokenType.StartObject)
+						else if (stringComparer.Equals(propertyName, PropertiesString.Span) && reader.TokenType == JsonTokenType.StartObject)
 						{
-							for (; ReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
+							for (; ReadNextPropertyName(ref reader, out propertyName); reader.Skip())
 							{
-								if (StringComparer.Equals(EventIdString.Span, PropertyName) && Reader.TokenType == JsonTokenType.StartObject)
+								if (stringComparer.Equals(EventIdString.Span, propertyName) && reader.TokenType == JsonTokenType.StartObject)
 								{
-									for (; ReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
+									for (; ReadNextPropertyName(ref reader, out propertyName); reader.Skip())
 									{
-										if (StringComparer.Equals(IdString.Span, PropertyName) && Reader.TryGetInt32(out int NewEventId))
+										if (stringComparer.Equals(IdString.Span, propertyName) && reader.TryGetInt32(out int newEventId))
 										{
-											EventId = NewEventId;
+											eventId = newEventId;
 										}
 									}
 								}
@@ -114,9 +113,9 @@ namespace EpicGames.Core
 					}
 				}
 
-				if (Reader.TokenType == JsonTokenType.EndObject && Level != LogLevel.None && Reader.BytesConsumed == Data.Length)
+				if (reader.TokenType == JsonTokenType.EndObject && level != LogLevel.None && reader.BytesConsumed == data.Length)
 				{
-					Event = new JsonLogEvent(Level, new EventId(EventId), LineIndex, LineCount, Data);
+					logEvent = new JsonLogEvent(level, new EventId(eventId), lineIndex, lineCount, data);
 					return true;
 				}
 			}
@@ -124,20 +123,20 @@ namespace EpicGames.Core
 			{
 			}
 
-			Event = default;
+			logEvent = default;
 			return false;
 		}
 
-		static bool ReadNextPropertyName(ref Utf8JsonReader Reader, out ReadOnlySpan<byte> PropertyName)
+		static bool ReadNextPropertyName(ref Utf8JsonReader reader, out ReadOnlySpan<byte> propertyName)
 		{
-			if (Reader.Read() && Reader.TokenType == JsonTokenType.PropertyName)
+			if (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
 			{
-				PropertyName = Reader.ValueSpan;
-				return Reader.Read();
+				propertyName = reader.ValueSpan;
+				return reader.Read();
 			}
 			else
 			{
-				PropertyName = ReadOnlySpan<byte>.Empty;
+				propertyName = ReadOnlySpan<byte>.Empty;
 				return false;
 			}
 		}
@@ -145,30 +144,30 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Formats an event as a string
 		/// </summary>
-		/// <param name="State"></param>
-		/// <param name="Ex"></param>
+		/// <param name="state"></param>
+		/// <param name="ex"></param>
 		/// <returns></returns>
 		/// <exception cref="NotImplementedException"></exception>
-		public static string Format(JsonLogEvent State, Exception? Ex)
+		public static string Format(JsonLogEvent state, Exception? ex)
 		{
-			Utf8JsonReader Reader = new Utf8JsonReader(State.Data.Span);
-			if (Reader.Read() && Reader.TokenType == JsonTokenType.StartObject)
+			Utf8JsonReader reader = new Utf8JsonReader(state.Data.Span);
+			if (reader.Read() && reader.TokenType == JsonTokenType.StartObject)
 			{
 				for (; ; )
 				{
-					if (!Reader.Read() || Reader.TokenType != JsonTokenType.PropertyName)
+					if (!reader.Read() || reader.TokenType != JsonTokenType.PropertyName)
 					{
 						break;
 					}
 
-					bool IsMessage = Utf8StringComparer.OrdinalIgnoreCase.Equals(Reader.ValueSpan, RenderedMessageString.Span);
-					if (!Reader.TrySkip())
+					bool isMessage = Utf8StringComparer.OrdinalIgnoreCase.Equals(reader.ValueSpan, RenderedMessageString.Span);
+					if (!reader.TrySkip())
 					{
 						break;
 					}
-					if (IsMessage && Reader.TokenType == JsonTokenType.String)
+					if (isMessage && reader.TokenType == JsonTokenType.String)
 					{
-						return Reader.GetString();
+						return reader.GetString();
 					}
 				}
 			}

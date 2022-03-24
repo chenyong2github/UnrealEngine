@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Text.Json;
 
 namespace EpicGames.Core
@@ -15,19 +13,19 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Tries to read a property name then move to the value token
 		/// </summary>
-		/// <param name="Reader">Token reader</param>
-		/// <param name="PropertyName">Receives the property name on success</param>
+		/// <param name="reader">Token reader</param>
+		/// <param name="propertyName">Receives the property name on success</param>
 		/// <returns>True if the read succeeded</returns>
-		public static bool TryReadNextPropertyName(ref Utf8JsonReader Reader, out ReadOnlySpan<byte> PropertyName)
+		public static bool TryReadNextPropertyName(ref Utf8JsonReader reader, out ReadOnlySpan<byte> propertyName)
 		{
-			if (Reader.Read() && Reader.TokenType == JsonTokenType.PropertyName)
+			if (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
 			{
-				PropertyName = Reader.ValueSpan;
-				return Reader.Read();
+				propertyName = reader.ValueSpan;
+				return reader.Read();
 			}
 			else
 			{
-				PropertyName = ReadOnlySpan<byte>.Empty;
+				propertyName = ReadOnlySpan<byte>.Empty;
 				return false;
 			}
 		}
@@ -35,9 +33,9 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Reads a Utf8 string from the current json token
 		/// </summary>
-		/// <param name="Reader"></param>
+		/// <param name="reader"></param>
 		/// <returns></returns>
-		public static Utf8String GetUtf8String(this Utf8JsonReader Reader)
+		public static Utf8String GetUtf8String(this Utf8JsonReader reader)
 		{
 			throw new NotImplementedException();
 		}

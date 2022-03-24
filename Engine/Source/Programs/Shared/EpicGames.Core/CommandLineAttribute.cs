@@ -1,11 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -18,39 +13,39 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Prefix for the option, with a leading '-' and trailing '=' character if a value is expected.
 		/// </summary>
-		public string? Prefix;
+		public string? Prefix { get; set; }
 
 		/// <summary>
 		/// Specifies a fixed value for this argument. Specifying an alternate value is not permitted.
 		/// </summary>
-		public string? Value = null;
+		public string? Value { get; set; } = null;
 
 		/// <summary>
 		/// Whether this argument is required
 		/// </summary>
-		public bool Required;
+		public bool Required { get; set; }
 
 		/// <summary>
 		/// For collection types, specifies the separator character between multiple arguments
 		/// </summary>
-		public char ListSeparator = '\0';
+		public char ListSeparator { get; set; } = '\0';
 
 		/// <summary>
 		/// Description of the operation.
 		/// </summary>
-		public string? Description;
+		public string? Description { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Prefix">Prefix for this argument</param>
-		public CommandLineAttribute(string? Prefix = null)
+		/// <param name="prefix">Prefix for this argument</param>
+		public CommandLineAttribute(string? prefix = null)
 		{
-			this.Prefix = Prefix;
+			Prefix = prefix;
 
-			if(Prefix != null)
+			if(prefix != null)
 			{
-				if(!Prefix.StartsWith("-"))
+				if(!prefix.StartsWith("-"))
 				{
 					throw new Exception("Command-line arguments must begin with a '-' character");
 				}

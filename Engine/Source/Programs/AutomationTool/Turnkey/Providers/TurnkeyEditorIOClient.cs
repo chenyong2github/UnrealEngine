@@ -275,7 +275,7 @@ namespace Turnkey
 		{
 			// build message
 			StringWriter JsonMessage = new StringWriter();
-			JsonWriter Json = new JsonWriter(JsonMessage, Style:JsonWriterStyle.Readable );
+			JsonWriter Json = new JsonWriter(JsonMessage, style:JsonWriterStyle.Readable );
 			Json.WriteObjectStart();
 				Json.WriteValue("version", Version );
 				MessageFunc(Json);

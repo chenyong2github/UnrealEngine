@@ -3,11 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Xml;
 
 namespace EpicGames.Core
@@ -20,8 +17,8 @@ namespace EpicGames.Core
 		/// <inheritdoc cref="Utf8JsonWriter.WriteStartObject()"/>
 		void WriteStartObject();
 
-		/// <inheritdoc cref="Utf8JsonWriter.WriteStartObject(string)"/>
-		void WriteStartObject(string Name);
+		/// <inheritdoc cref="Utf8JsonWriter.WriteStartObject(String)"/>
+		void WriteStartObject(string name);
 
 		/// <inheritdoc cref="Utf8JsonWriter.WriteEndObject()"/>
 		void WriteEndObject();
@@ -29,26 +26,26 @@ namespace EpicGames.Core
 		/// <inheritdoc cref="Utf8JsonWriter.WriteStartArray()"/>
 		void WriteStartArray();
 
-		/// <inheritdoc cref="Utf8JsonWriter.WriteStartArray(string)"/>
-		void WriteStartArray(string Name);
+		/// <inheritdoc cref="Utf8JsonWriter.WriteStartArray(String)"/>
+		void WriteStartArray(string name);
 
 		/// <inheritdoc cref="Utf8JsonWriter.WriteEndObject()"/>
 		void WriteEndArray();
 
-		/// <inheritdoc cref="Utf8JsonWriter.WriteBoolean(string, bool)"/>
-		void WriteBoolean(string Name, bool Value);
+		/// <inheritdoc cref="Utf8JsonWriter.WriteBoolean(String, Bool)"/>
+		void WriteBoolean(string name, bool value);
 
-		/// <inheritdoc cref="Utf8JsonWriter.WriteString(string, string)"/>
-		void WriteString(string Key, string Value);
+		/// <inheritdoc cref="Utf8JsonWriter.WriteString(String, String)"/>
+		void WriteString(string key, string value);
 
-		/// <inheritdoc cref="Utf8JsonWriter.WriteStringValue(string)"/>
-		void WriteStringValue(string Name);
+		/// <inheritdoc cref="Utf8JsonWriter.WriteStringValue(String)"/>
+		void WriteStringValue(string name);
 
 		/// <summary>
 		/// Serialize a type to JSON
 		/// </summary>
-		/// <param name="Type"></param>
-		void WriteType(JsonSchemaType Type);
+		/// <param name="type"></param>
+		void WriteType(JsonSchemaType type);
 	}
 
 	/// <summary>
@@ -64,19 +61,19 @@ namespace EpicGames.Core
 			public Dictionary<JsonSchemaType, int> TypeRefCount { get; } = new Dictionary<JsonSchemaType, int>();
 
 			/// <inheritdoc/>
-			public void WriteBoolean(string Name, bool Value) { }
+			public void WriteBoolean(string name, bool value) { }
 
 			/// <inheritdoc/>
-			public void WriteString(string Key, string Value) { }
+			public void WriteString(string key, string value) { }
 
 			/// <inheritdoc/>
-			public void WriteStringValue(string Name) { }
+			public void WriteStringValue(string name) { }
 
 			/// <inheritdoc/>
 			public void WriteStartObject() { }
 
 			/// <inheritdoc/>
-			public void WriteStartObject(string Name) { }
+			public void WriteStartObject(string name) { }
 
 			/// <inheritdoc/>
 			public void WriteEndObject() { }
@@ -85,24 +82,24 @@ namespace EpicGames.Core
 			public void WriteStartArray() { }
 
 			/// <inheritdoc/>
-			public void WriteStartArray(string Name) { }
+			public void WriteStartArray(string name) { }
 
 			/// <inheritdoc/>
 			public void WriteEndArray() { }
 
 			/// <inheritdoc/>
-			public void WriteType(JsonSchemaType Type)
+			public void WriteType(JsonSchemaType type)
 			{
-				if (!(Type is JsonSchemaPrimitiveType))
+				if (!(type is JsonSchemaPrimitiveType))
 				{
-					TypeRefCount.TryGetValue(Type, out int RefCount);
-					if (RefCount < 2)
+					TypeRefCount.TryGetValue(type, out int refCount);
+					if (refCount < 2)
 					{
-						TypeRefCount[Type] = ++RefCount;
+						TypeRefCount[type] = ++refCount;
 					}
-					if (RefCount < 2)
+					if (refCount < 2)
 					{
-						Type.Write(this);
+						type.Write(this);
 					}
 				}
 			}
@@ -116,64 +113,64 @@ namespace EpicGames.Core
 			/// <summary>
 			/// Raw Json output
 			/// </summary>
-			Utf8JsonWriter JsonWriter;
+			readonly Utf8JsonWriter _jsonWriter;
 
 			/// <summary>
 			/// Mapping of type to definition name
 			/// </summary>
-			Dictionary<JsonSchemaType, string> TypeToDefinition { get; }
+			readonly Dictionary<JsonSchemaType, string> _typeToDefinition;
 
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="Writer"></param>
-			/// <param name="TypeToDefinition"></param>
-			public JsonSchemaWriter(Utf8JsonWriter Writer, Dictionary<JsonSchemaType, string> TypeToDefinition)
+			/// <param name="writer"></param>
+			/// <param name="typeToDefinition"></param>
+			public JsonSchemaWriter(Utf8JsonWriter writer, Dictionary<JsonSchemaType, string> typeToDefinition)
 			{
-				this.JsonWriter = Writer;
-				this.TypeToDefinition = TypeToDefinition;
+				_jsonWriter = writer;
+				_typeToDefinition = typeToDefinition;
 			}
 
 			/// <inheritdoc/>
-			public void WriteBoolean(string Name, bool Value) => JsonWriter.WriteBoolean(Name, Value);
+			public void WriteBoolean(string name, bool value) => _jsonWriter.WriteBoolean(name, value);
 
 			/// <inheritdoc/>
-			public void WriteString(string Key, string Value) => JsonWriter.WriteString(Key, Value);
+			public void WriteString(string key, string value) => _jsonWriter.WriteString(key, value);
 
 			/// <inheritdoc/>
-			public void WriteStringValue(string Name) => JsonWriter.WriteStringValue(Name);
+			public void WriteStringValue(string name) => _jsonWriter.WriteStringValue(name);
 
 			/// <inheritdoc/>
-			public void WriteStartObject() => JsonWriter.WriteStartObject();
+			public void WriteStartObject() => _jsonWriter.WriteStartObject();
 
 			/// <inheritdoc/>
-			public void WriteStartObject(string Name) => JsonWriter.WriteStartObject(Name);
+			public void WriteStartObject(string name) => _jsonWriter.WriteStartObject(name);
 
 			/// <inheritdoc/>
-			public void WriteEndObject() => JsonWriter.WriteEndObject();
+			public void WriteEndObject() => _jsonWriter.WriteEndObject();
 
 			/// <inheritdoc/>
-			public void WriteStartArray() => JsonWriter.WriteStartArray();
+			public void WriteStartArray() => _jsonWriter.WriteStartArray();
 
 			/// <inheritdoc/>
-			public void WriteStartArray(string Name) => JsonWriter.WriteStartArray(Name);
+			public void WriteStartArray(string name) => _jsonWriter.WriteStartArray(name);
 
 			/// <inheritdoc/>
-			public void WriteEndArray() => JsonWriter.WriteEndArray();
+			public void WriteEndArray() => _jsonWriter.WriteEndArray();
 
 			/// <summary>
 			/// Writes a type, either inline or as a reference to a definition elsewhere
 			/// </summary>
-			/// <param name="Type"></param>
-			public void WriteType(JsonSchemaType Type)
+			/// <param name="type"></param>
+			public void WriteType(JsonSchemaType type)
 			{
-				if (TypeToDefinition.TryGetValue(Type, out string? Definition))
+				if (_typeToDefinition.TryGetValue(type, out string? definition))
 				{
-					JsonWriter.WriteString("$ref", $"#/definitions/{Definition}");
+					_jsonWriter.WriteString("$ref", $"#/definitions/{definition}");
 				}
 				else
 				{
-					Type.Write(this);
+					type.Write(this);
 				}
 			}
 		}
@@ -191,163 +188,139 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Id">Id for the schema</param>
-		/// <param name="RootType"></param>
-		public JsonSchema(string? Id, JsonSchemaType RootType)
+		/// <param name="id">Id for the schema</param>
+		/// <param name="rootType"></param>
+		public JsonSchema(string? id, JsonSchemaType rootType)
 		{
-			this.Id = Id;
-			this.RootType = RootType;
+			Id = id;
+			RootType = rootType;
 		}
 
 		/// <summary>
 		/// Write this schema to a byte array
 		/// </summary>
-		/// <param name="Writer"></param>
-		public void Write(Utf8JsonWriter Writer)
+		/// <param name="writer"></param>
+		public void Write(Utf8JsonWriter writer)
 		{
 			// Determine reference counts for each type. Any type referenced at least twice will be split off into a separate definition.
-			JsonTypeRefCollector RefCollector = new JsonTypeRefCollector();
-			RefCollector.WriteType(RootType);
+			JsonTypeRefCollector refCollector = new JsonTypeRefCollector();
+			refCollector.WriteType(RootType);
 
 			// Assign names to each type definition
-			HashSet<string> DefinitionNames = new HashSet<string>();
-			Dictionary<JsonSchemaType, string> TypeToDefinition = new Dictionary<JsonSchemaType, string>();
-			foreach ((JsonSchemaType Type, int RefCount) in RefCollector.TypeRefCount)
+			HashSet<string> definitionNames = new HashSet<string>();
+			Dictionary<JsonSchemaType, string> typeToDefinition = new Dictionary<JsonSchemaType, string>();
+			foreach ((JsonSchemaType type, int refCount) in refCollector.TypeRefCount)
 			{
-				if (RefCount > 1)
+				if (refCount > 1)
 				{
-					string BaseName = Type.Name ?? "unnamed";
+					string baseName = type.Name ?? "unnamed";
 
-					string Name = BaseName;
-					for (int Idx = 1; !DefinitionNames.Add(Name); Idx++)
+					string name = baseName;
+					for (int idx = 1; !definitionNames.Add(name); idx++)
 					{
-						Name = $"{BaseName}{Idx}";
+						name = $"{baseName}{idx}";
 					}
 
-					TypeToDefinition[Type] = Name;
+					typeToDefinition[type] = name;
 				}
 			}
 
 			// Write the schema
-			Writer.WriteStartObject();
-			Writer.WriteString("$schema", "http://json-schema.org/draft-04/schema#");
+			writer.WriteStartObject();
+			writer.WriteString("$schema", "http://json-schema.org/draft-04/schema#");
 			if (Id != null)
 			{
-				Writer.WriteString("$id", Id);
+				writer.WriteString("$id", Id);
 			}
 
-			JsonSchemaWriter SchemaWriter = new JsonSchemaWriter(Writer, TypeToDefinition);
-			RootType.Write(SchemaWriter);
+			JsonSchemaWriter schemaWriter = new JsonSchemaWriter(writer, typeToDefinition);
+			RootType.Write(schemaWriter);
 
-			if (TypeToDefinition.Count > 0)
+			if (typeToDefinition.Count > 0)
 			{
-				Writer.WriteStartObject("definitions");
-				foreach ((JsonSchemaType Type, string RefName) in TypeToDefinition)
+				writer.WriteStartObject("definitions");
+				foreach ((JsonSchemaType type, string refName) in typeToDefinition)
 				{
-					Writer.WriteStartObject(RefName);
-					Type.Write(SchemaWriter);
-					Writer.WriteEndObject();
+					writer.WriteStartObject(refName);
+					type.Write(schemaWriter);
+					writer.WriteEndObject();
 				}
-				Writer.WriteEndObject();
+				writer.WriteEndObject();
 			}
 
-			Writer.WriteEndObject();
+			writer.WriteEndObject();
 		}
 
 		/// <summary>
 		/// Write this schema to a stream
 		/// </summary>
-		/// <param name="Stream">The output stream</param>
-		public void Write(Stream Stream)
+		/// <param name="stream">The output stream</param>
+		public void Write(Stream stream)
 		{
-			using (Utf8JsonWriter Writer = new Utf8JsonWriter(Stream, new JsonWriterOptions { Indented = true }))
+			using (Utf8JsonWriter writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
 			{
-				Write(Writer);
+				Write(writer);
 			}
 		}
 
 		/// <summary>
 		/// Writes this schema to a file
 		/// </summary>
-		/// <param name="File">The output file</param>
-		public void Write(FileReference File)
+		/// <param name="file">The output file</param>
+		public void Write(FileReference file)
 		{
-			using (FileStream Stream = FileReference.Open(File, FileMode.Create))
+			using (FileStream stream = FileReference.Open(file, FileMode.Create))
 			{
-				Write(Stream);
+				Write(stream);
 			}
 		}
 
 		/// <summary>
 		/// Constructs a Json schema from a type
 		/// </summary>
-		/// <param name="Type">The type to construct from</param>
-		/// <param name="XmlDoc">C# Xml documentation file, to use for property descriptions</param>
+		/// <param name="type">The type to construct from</param>
+		/// <param name="xmlDoc">C# Xml documentation file, to use for property descriptions</param>
 		/// <returns>New schema object</returns>
-		public static JsonSchema FromType(Type Type, XmlDocument? XmlDoc)
+		public static JsonSchema FromType(Type type, XmlDocument? xmlDoc)
 		{
-			JsonSchemaAttribute? SchemaAttribute = Type.GetCustomAttribute<JsonSchemaAttribute>();
-			return new JsonSchema(SchemaAttribute?.Id, CreateSchemaType(Type, new Dictionary<Type, JsonSchemaType>(), XmlDoc));
-		}
-
-		/// <summary>
-		/// Gets the description for a type
-		/// </summary>
-		/// <param name="Type"></param>
-		/// <param name="XmlDoc"></param>
-		/// <returns></returns>
-		static string? GetTypeDescription(Type Type, XmlDocument? XmlDoc)
-		{
-			if (XmlDoc == null)
-			{
-				return null;
-			}
-
-			string Selector = $"//member[@name='T:{Type.FullName}']/summary";
-
-			XmlNode Node = XmlDoc.SelectSingleNode(Selector);
-			if (Node == null)
-			{
-				return null;
-			}
-
-			return Node.InnerText.Trim().Replace("\r\n", "\n", StringComparison.Ordinal);
+			JsonSchemaAttribute? schemaAttribute = type.GetCustomAttribute<JsonSchemaAttribute>();
+			return new JsonSchema(schemaAttribute?.Id, CreateSchemaType(type, new Dictionary<Type, JsonSchemaType>(), xmlDoc));
 		}
 
 		/// <summary>
 		/// Gets a property description from Xml documentation file
 		/// </summary>
-		/// <param name="Type"></param>
-		/// <param name="Name"></param>
-		/// <param name="XmlDoc"></param>
+		/// <param name="type"></param>
+		/// <param name="name"></param>
+		/// <param name="xmlDoc"></param>
 		/// <returns></returns>
-		static string? GetPropertyDescription(Type Type, string Name, XmlDocument? XmlDoc)
+		static string? GetPropertyDescription(Type type, string name, XmlDocument? xmlDoc)
 		{
-			if (XmlDoc == null)
+			if (xmlDoc == null)
 			{
 				return null;
 			}
 
-			string Selector = $"//member[@name='P:{Type.FullName}.{Name}']/summary";
+			string selector = $"//member[@name='P:{type.FullName}.{name}']/summary";
 
-			XmlNode Node = XmlDoc.SelectSingleNode(Selector);
-			if (Node == null)
+			XmlNode node = xmlDoc.SelectSingleNode(selector);
+			if (node == null)
 			{
 				return null;
 			}
 
-			return Node.InnerText.Trim().Replace("\r\n", "\n", StringComparison.Ordinal);
+			return node.InnerText.Trim().Replace("\r\n", "\n", StringComparison.Ordinal);
 		}
 
 		/// <summary>
 		/// Constructs a schema type from the given type object
 		/// </summary>
-		/// <param name="Type"></param>
-		/// <param name="XmlDoc"></param>
+		/// <param name="type"></param>
+		/// <param name="xmlDoc"></param>
 		/// <returns></returns>
-		static JsonSchemaType CreateSchemaType(Type Type, Dictionary<Type, JsonSchemaType> TypeCache, XmlDocument? XmlDoc)
+		static JsonSchemaType CreateSchemaType(Type type, Dictionary<Type, JsonSchemaType> typeCache, XmlDocument? xmlDoc)
 		{
-			switch (Type.GetTypeCode(Type))
+			switch (Type.GetTypeCode(type))
 			{
 				case TypeCode.Boolean:
 					return new JsonSchemaBoolean();
@@ -367,99 +340,99 @@ namespace EpicGames.Core
 					return new JsonSchemaString();
 			}
 
-			JsonSchemaTypeAttribute? Attribute = Type.GetCustomAttribute<JsonSchemaTypeAttribute>();
-			switch (Attribute)
+			JsonSchemaTypeAttribute? attribute = type.GetCustomAttribute<JsonSchemaTypeAttribute>();
+			switch (attribute)
 			{
-				case JsonSchemaStringAttribute String:
-					return new JsonSchemaString(String.Format);
+				case JsonSchemaStringAttribute str:
+					return new JsonSchemaString(str.Format);
 			}
 
-			if (Type.IsEnum)
+			if (type.IsEnum)
 			{
-				return new JsonSchemaEnum(Enum.GetNames(Type)) { Name = Type.Name };
+				return new JsonSchemaEnum(Enum.GetNames(type)) { Name = type.Name };
 			}
-			if (Type.IsGenericType && Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+			if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
 			{
-				return CreateSchemaType(Type.GetGenericArguments()[0], TypeCache, XmlDoc);
+				return CreateSchemaType(type.GetGenericArguments()[0], typeCache, xmlDoc);
 			}
-			if (Type == typeof(DateTime) || Type == typeof(DateTimeOffset))
+			if (type == typeof(DateTime) || type == typeof(DateTimeOffset))
 			{
 				return new JsonSchemaString(JsonSchemaStringFormat.DateTime);
 			}
 
-			Type[] Interfaces = Type.GetInterfaces();
-			foreach (Type Interface in Interfaces)
+			Type[] interfaceTypes = type.GetInterfaces();
+			foreach (Type interfaceType in interfaceTypes)
 			{
-				if (Interface.IsGenericType)
+				if (interfaceType.IsGenericType)
 				{
-					Type[] Arguments = Interface.GetGenericArguments();
-					if (Interface.GetGenericTypeDefinition() == typeof(IList<>))
+					Type[] arguments = interfaceType.GetGenericArguments();
+					if (interfaceType.GetGenericTypeDefinition() == typeof(IList<>))
 					{
-						return new JsonSchemaArray(CreateSchemaType(Arguments[0], TypeCache, XmlDoc));
+						return new JsonSchemaArray(CreateSchemaType(arguments[0], typeCache, xmlDoc));
 					}
-					if (Interface.GetGenericTypeDefinition() == typeof(IDictionary<,>))
+					if (interfaceType.GetGenericTypeDefinition() == typeof(IDictionary<,>))
 					{
-						JsonSchemaObject Object = new JsonSchemaObject();
-						Object.AdditionalProperties = CreateSchemaType(Arguments[1], TypeCache, XmlDoc);
-						return Object;
+						JsonSchemaObject obj = new JsonSchemaObject();
+						obj.AdditionalProperties = CreateSchemaType(arguments[1], typeCache, xmlDoc);
+						return obj;
 					}
 				}
 			}
 
-			if (Type.IsClass)
+			if (type.IsClass)
 			{
-				if (TypeCache.TryGetValue(Type, out JsonSchemaType? SchemaType))
+				if (typeCache.TryGetValue(type, out JsonSchemaType? schemaType))
 				{
-					return SchemaType;
+					return schemaType;
 				}
 
-				JsonKnownTypesAttribute? KnownTypes = Type.GetCustomAttribute<JsonKnownTypesAttribute>(false);
-				if (KnownTypes != null)
+				JsonKnownTypesAttribute? knownTypes = type.GetCustomAttribute<JsonKnownTypesAttribute>(false);
+				if (knownTypes != null)
 				{
-					JsonSchemaOneOf Object = new JsonSchemaOneOf();
-					TypeCache[Type] = Object;
-					SetOneOfProperties(Object, Type, KnownTypes.Types, TypeCache, XmlDoc);
-					return Object;
+					JsonSchemaOneOf obj = new JsonSchemaOneOf();
+					typeCache[type] = obj;
+					SetOneOfProperties(obj, type, knownTypes.Types, typeCache, xmlDoc);
+					return obj;
 				}
 				else
 				{
-					JsonSchemaObject Object = new JsonSchemaObject();
-					TypeCache[Type] = Object;
-					SetObjectProperties(Object, Type, TypeCache, XmlDoc);
-					return Object;
+					JsonSchemaObject obj = new JsonSchemaObject();
+					typeCache[type] = obj;
+					SetObjectProperties(obj, type, typeCache, xmlDoc);
+					return obj;
 				}
 			}
 
-			throw new Exception($"Unknown type for schema generation: {Type}");
+			throw new Exception($"Unknown type for schema generation: {type}");
 		}
 
-		static void SetOneOfProperties(JsonSchemaOneOf Object, Type Type, Type[] KnownTypes, Dictionary<Type, JsonSchemaType> TypeCache, XmlDocument? XmlDoc)
+		static void SetOneOfProperties(JsonSchemaOneOf obj, Type type, Type[] knownTypes, Dictionary<Type, JsonSchemaType> typeCache, XmlDocument? xmlDoc)
 		{
-			Object.Name = Type.Name;
+			obj.Name = type.Name;
 
-			foreach (Type KnownType in KnownTypes)
+			foreach (Type knownType in knownTypes)
 			{
-				JsonDiscriminatorAttribute? Attribute = KnownType.GetCustomAttribute<JsonDiscriminatorAttribute>();
-				if (Attribute != null)
+				JsonDiscriminatorAttribute? attribute = knownType.GetCustomAttribute<JsonDiscriminatorAttribute>();
+				if (attribute != null)
 				{
-					JsonSchemaObject KnownObject = new JsonSchemaObject();
-					KnownObject.Properties.Add(new JsonSchemaProperty("type", "Type discriminator", new JsonSchemaEnum(new[] { Attribute.Name })));
-					SetObjectProperties(KnownObject, KnownType, TypeCache, XmlDoc);
-					Object.Types.Add(KnownObject);
+					JsonSchemaObject knownObject = new JsonSchemaObject();
+					knownObject.Properties.Add(new JsonSchemaProperty("type", "Type discriminator", new JsonSchemaEnum(new[] { attribute.Name })));
+					SetObjectProperties(knownObject, knownType, typeCache, xmlDoc);
+					obj.Types.Add(knownObject);
 				}
 			}
 		}
 
-		static void SetObjectProperties(JsonSchemaObject Object, Type Type, Dictionary<Type, JsonSchemaType> TypeCache, XmlDocument? XmlDoc)
+		static void SetObjectProperties(JsonSchemaObject obj, Type type, Dictionary<Type, JsonSchemaType> typeCache, XmlDocument? xmlDoc)
 		{
-			Object.Name = Type.Name;
+			obj.Name = type.Name;
 
-			PropertyInfo[] Properties = Type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
-			foreach (PropertyInfo Property in Properties)
+			PropertyInfo[] properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
+			foreach (PropertyInfo property in properties)
 			{
-				string? Description = GetPropertyDescription(Type, Property.Name, XmlDoc);
-				JsonSchemaType PropertyType = CreateSchemaType(Property.PropertyType, TypeCache, XmlDoc);
-				Object.Properties.Add(new JsonSchemaProperty(Property.Name, Description, PropertyType));
+				string? description = GetPropertyDescription(type, property.Name, xmlDoc);
+				JsonSchemaType propertyType = CreateSchemaType(property.PropertyType, typeCache, xmlDoc);
+				obj.Properties.Add(new JsonSchemaProperty(property.Name, description, propertyType));
 			}
 		}
 	}

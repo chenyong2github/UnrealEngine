@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 
+#pragma warning disable IDE1006 // Naming Styles
+
 namespace EpicGames.Core
 {
 	/// <summary>
@@ -89,7 +91,7 @@ namespace EpicGames.Core
 	/// Engine\Source\Runtime\CoreUObject\Public\UObject\ObjectMacros.h
 	/// </summary>
 	[Flags]
-	public enum EClassFlags : UInt32
+	public enum EClassFlags : uint
 	{
 		/// <summary>
 		/// No Flags
@@ -315,7 +317,7 @@ namespace EpicGames.Core
 	/// Engine\Source\Runtime\CoreUObject\Public\UObject\ObjectMacros.h
 	/// </summary>
 	[Flags]
-	public enum EClassCastFlags : UInt64
+	public enum EClassCastFlags : ulong
 	{
 		None = 0x0000000000000000,
 
@@ -406,7 +408,7 @@ namespace EpicGames.Core
 	/// Engine\Source\Runtime\CoreUObject\Public\UObject\ObjectMacros.h
 	/// </summary>
 	[Flags]
-	public enum EEnumFlags : UInt32
+	public enum EEnumFlags : uint
 	{
 		None,
 		Flags = 1 << 0,
@@ -441,7 +443,7 @@ namespace EpicGames.Core
 	/// Engine\Source\Runtime\CoreUObject\Public\UObject\Script.h
 	/// </summary>
 	[Flags]
-	public enum EFunctionFlags : UInt32
+	public enum EFunctionFlags : uint
 	{
 		None = 0x00000000,
 
@@ -635,7 +637,7 @@ namespace EpicGames.Core
 	/// Engine\Source\Runtime\CoreUObject\Public\UObject\ObjectMacros.h
 	/// </summary>
 	[Flags]
-	public enum EInternalObjectFlags : Int32
+	public enum EInternalObjectFlags : int
 	{
 		None = 0,
 		//~ All the other bits are reserved, DO NOT ADD NEW FLAGS HERE!
@@ -1226,7 +1228,7 @@ namespace EpicGames.Core
 	{
 		private static readonly Lazy<List<string>> BitNames = new Lazy<List<string>>(() =>
 		{
-			List<string> Out = new List<String>();
+			List<string> Out = new List<string>();
 			FieldInfo[] Fields = typeof(EPropertyFlags).GetFields();
 			for (int Bit = 0; Bit < 64; ++Bit)
 			{
@@ -1251,7 +1253,7 @@ namespace EpicGames.Core
 				}
 				if (!bFound)
 				{
-					Out.Add($"0x{Mask.ToString("X16")}");
+					Out.Add($"0x{Mask:X16}");
 				}
 			}
 			return Out;
@@ -1275,7 +1277,7 @@ namespace EpicGames.Core
 		public static List<string> ToStringList(this EPropertyFlags InFlags, bool bIncludePrefix = true)
 		{
 			List<string> LocalBitNames = BitNames.Value;
-			ulong IntFlags = (UInt64)InFlags;
+			ulong IntFlags = (ulong)InFlags;
 			List<string> Out = new List<string>();
 			for (int Bit = 0; Bit < 64; ++Bit)
 			{
@@ -1450,3 +1452,5 @@ namespace EpicGames.Core
 		}
 	}
 }
+
+#pragma warning restore IDE1006 // Naming Styles

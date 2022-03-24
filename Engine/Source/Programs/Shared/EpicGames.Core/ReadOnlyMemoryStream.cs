@@ -1,29 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
 namespace EpicGames.Core
 {
 	/// <summary>
-	/// Stream which reads from a <see cref="ReadOnlyMemory{byte}"/>
+	/// Stream which reads from a <see cref="ReadOnlyMemory{Byte}"/>
 	/// </summary>
 	public class ReadOnlyMemoryStream : Stream
 	{
 		/// <summary>
 		/// The buffer to read from
 		/// </summary>
-		ReadOnlyMemory<byte> Memory;
+		readonly ReadOnlyMemory<byte> _memory;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">The memory to read from</param>
-		public ReadOnlyMemoryStream(ReadOnlyMemory<byte> Memory)
+		/// <param name="memory">The memory to read from</param>
+		public ReadOnlyMemoryStream(ReadOnlyMemory<byte> memory)
 		{
-			this.Memory = Memory;
+			_memory = memory;
 		}
 
 		/// <inheritdoc/>
@@ -36,7 +34,7 @@ namespace EpicGames.Core
 		public override bool CanWrite => false;
 
 		/// <inheritdoc/>
-		public override long Length => Memory.Length;
+		public override long Length => _memory.Length;
 
 		/// <inheritdoc/>
 		public override long Position { get; set; }
@@ -47,30 +45,30 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public override int Read(byte[] Buffer, int Offset, int Count)
+		public override int Read(byte[] buffer, int offset, int count)
 		{
-			int CopyLength = Math.Min(Count, (int)(Memory.Length - Position));
-			Memory.Slice((int)Position, CopyLength).CopyTo(Buffer.AsMemory(Offset, CopyLength));
-			Position += CopyLength;
-			return CopyLength;
+			int copyLength = Math.Min(count, (int)(_memory.Length - Position));
+			_memory.Slice((int)Position, copyLength).CopyTo(buffer.AsMemory(offset, copyLength));
+			Position += copyLength;
+			return copyLength;
 		}
 
 		/// <inheritdoc/>
-		public override long Seek(long Offset, SeekOrigin Origin)
+		public override long Seek(long offset, SeekOrigin origin)
 		{
-			switch (Origin)
+			switch (origin)
 			{
 				case SeekOrigin.Begin:
-					Position = Offset;
+					Position = offset;
 					break;
 				case SeekOrigin.Current:
-					Position += Offset;
+					Position += offset;
 					break;
 				case SeekOrigin.End:
-					Position = Memory.Length + Offset;
+					Position = _memory.Length + offset;
 					break;
 				default:
-					throw new ArgumentException(null, nameof(Origin));
+					throw new ArgumentException(null, nameof(origin));
 			}
 			return Position;
 		}

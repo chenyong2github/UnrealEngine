@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Reflection;
-
 namespace EpicGames.Core
 {
 #if !__SCOPEPROFILER_AVAILABLE__
-	
+#pragma warning disable IDE0060 // Remove unused parameter
+
 	/// <summary>
 	/// A stub/no-op scope-profiler API that can be replaced by another implementation to record execution of
 	/// instrumented scopes.
@@ -15,16 +13,16 @@ namespace EpicGames.Core
 	{
 		public static ScopeProfiler Instance = new ScopeProfiler();
 		
-		public void InitializeAndStart(string ProgramName, string HostAddress, int MaxThreadCount) { }
+		public void InitializeAndStart(string programName, string hostAddress, int maxThreadCount) { }
 
 		public void StopAndShutdown() { }
 
 		/// <summary>
 		/// Start a stacked scope. Must start and end on the same thread
 		/// </summary>
-		/// <param name="Name"></param>
+		/// <param name="name"></param>
 		/// <param name="bIsStall"></param>
-		public void StartScope(string Name, bool bIsStall) { }
+		public void StartScope(string name, bool bIsStall) { }
 		
 		/// <summary>
 		/// End a stacked scope. Must start and end on the same thread.
@@ -34,21 +32,21 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Record an un-stacked time span at a specified time.
 		/// </summary>
-		/// <param name="Name"></param>
-		/// <param name="Id"></param>
+		/// <param name="name"></param>
+		/// <param name="id"></param>
 		/// <param name="bStall"></param>
-		/// <param name="BeginThreadId"></param>
-		/// <param name="EndThreadId"></param>
-		/// <param name="StartTime">start time for the span (use FastTime())</param>
-		/// <param name="EndTime">end time for the span (use FastTime())</param>
-		public void AddSpanAtTime(string Name, ulong Id, bool bStall, uint BeginThreadId, uint EndThreadId, ulong StartTime, ulong EndTime) { }
+		/// <param name="beginThreadId"></param>
+		/// <param name="endThreadId"></param>
+		/// <param name="startTime">start time for the span (use FastTime())</param>
+		/// <param name="endTime">end time for the span (use FastTime())</param>
+		public void AddSpanAtTime(string name, ulong id, bool bStall, uint beginThreadId, uint endThreadId, ulong startTime, ulong endTime) { }
 
 		/// <summary>
 		/// Record a value against a particular name, to be plotted over time
 		/// </summary>
-		/// <param name="Name"></param>
-		/// <param name="Value"></param>
-		public void Plot(string Name, double Value) { }
+		/// <param name="name"></param>
+		/// <param name="value"></param>
+		public void Plot(string name, double value) { }
 
 		/// <summary>
 		/// Generate a timestamp value for the current moment.
@@ -68,6 +66,7 @@ namespace EpicGames.Core
 			return 0;
 		}
 	}
+#pragma warning restore IDE0060 // Remove unused parameter
 #endif
 }
 

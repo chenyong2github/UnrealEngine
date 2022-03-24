@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
-using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Win32.SafeHandles;
 
 namespace EpicGames.Core
 {
@@ -42,108 +39,108 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Attempts to terminate all processes matching a predicate
 		/// </summary>
-		/// <param name="Predicate">The predicate for whether to terminate a process</param>
-		/// <param name="Logger">Logging device</param>
-		/// <param name="CancellationToken">Cancellation token to abort the search</param>
+		/// <param name="predicate">The predicate for whether to terminate a process</param>
+		/// <param name="logger">Logging device</param>
+		/// <param name="cancellationToken">Cancellation token to abort the search</param>
 		/// <returns>True if the process succeeded</returns>
-		public static bool TerminateProcesses(Predicate<FileReference> Predicate, ILogger Logger, CancellationToken CancellationToken)
+		public static bool TerminateProcesses(Predicate<FileReference> predicate, ILogger logger, CancellationToken cancellationToken)
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				return TerminateProcessesWin32(Predicate, Logger, CancellationToken);
+				return TerminateProcessesWin32(predicate, logger, cancellationToken);
 			}
 			else
 			{
-				return TerminateProcessesGenericPlatform(Predicate, Logger, CancellationToken);
+				return TerminateProcessesGenericPlatform(predicate, logger, cancellationToken);
 			}
 		}
 
 		/// <summary>
 		/// Attempts to terminate all processes matching a predicate
 		/// </summary>
-		/// <param name="Predicate">The predicate for whether to terminate a process</param>
-		/// <param name="Logger">Logging device</param>
-		/// <param name="CancellationToken">Cancellation token to abort the search</param>
+		/// <param name="predicate">The predicate for whether to terminate a process</param>
+		/// <param name="logger">Logging device</param>
+		/// <param name="cancellationToken">Cancellation token to abort the search</param>
 		/// <returns>True if the process succeeded</returns>
-		static bool TerminateProcessesWin32(Predicate<FileReference> Predicate, ILogger Logger, CancellationToken CancellationToken)
+		static bool TerminateProcessesWin32(Predicate<FileReference> predicate, ILogger logger, CancellationToken cancellationToken)
 		{
-			Dictionary<int, int> ProcessToCount = new Dictionary<int, int>();
+			Dictionary<int, int> processToCount = new Dictionary<int, int>();
 			for(; ;)
 			{
-				CancellationToken.ThrowIfCancellationRequested();
+				cancellationToken.ThrowIfCancellationRequested();
 
 				// Enumerate the processes
-				int NumProcessIds;
-				uint[] ProcessIds = new uint[512];
+				int numProcessIds;
+				uint[] processIds = new uint[512];
 				for (; ; )
 				{
-					int MaxBytes = ProcessIds.Length * sizeof(uint);
-					int NumBytes = 0;
-					if (!EnumProcesses(ProcessIds, MaxBytes, out NumBytes))
+					int maxBytes = processIds.Length * sizeof(uint);
+					int numBytes = 0;
+					if (!EnumProcesses(processIds, maxBytes, out numBytes))
 					{
 						throw new Win32ExceptionWithCode("Unable to enumerate processes");
 					}
-					if (NumBytes < MaxBytes)
+					if (numBytes < maxBytes)
 					{
-						NumProcessIds = NumBytes / sizeof(uint);
+						numProcessIds = numBytes / sizeof(uint);
 						break;
 					}
-					ProcessIds = new uint[ProcessIds.Length + 256];
+					processIds = new uint[processIds.Length + 256];
 				}
 
 				// Find the processes to terminate
-				List<SafeProcessHandle> WaitHandles = new List<SafeProcessHandle>();
+				List<SafeProcessHandle> waitHandles = new List<SafeProcessHandle>();
 				try
 				{
 					// Open each process in turn
-					foreach (uint ProcessId in ProcessIds)
+					foreach (uint processId in processIds)
 					{
-						SafeProcessHandle Handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, false, ProcessId);
+						SafeProcessHandle handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, false, processId);
 						try
 						{
-							if (!Handle.IsInvalid)
+							if (!handle.IsInvalid)
 							{
-								int Characters = 260;
-								StringBuilder Buffer = new StringBuilder(Characters);
-								if (QueryFullProcessImageName(Handle, 0, Buffer, ref Characters) > 0)
+								int characters = 260;
+								StringBuilder buffer = new StringBuilder(characters);
+								if (QueryFullProcessImageName(handle, 0, buffer, ref characters) > 0)
 								{
-									FileReference ImageFile = new FileReference(Buffer.ToString(0, Characters));
-									if (Predicate(ImageFile))
+									FileReference imageFile = new FileReference(buffer.ToString(0, characters));
+									if (predicate(imageFile))
 									{
-										Logger.LogInformation("Terminating {ImageName} ({ProcessId})", ImageFile, ProcessId);
-										if (TerminateProcess(Handle, 9))
+										logger.LogInformation("Terminating {ImageName} ({ProcessId})", imageFile, processId);
+										if (TerminateProcess(handle, 9))
 										{
-											WaitHandles.Add(Handle);
+											waitHandles.Add(handle);
 										}
 										else
 										{
-											Logger.LogInformation("Failed call to TerminateProcess ({Code})", Marshal.GetLastWin32Error());
+											logger.LogInformation("Failed call to TerminateProcess ({Code})", Marshal.GetLastWin32Error());
 										}
-										Handle.SetHandleAsInvalid();
+										handle.SetHandleAsInvalid();
 									}
 								}
 							}
 						}
 						finally
 						{
-							Handle.Dispose();
+							handle.Dispose();
 						}
 					}
 
 					// If there's nothing to do, exit immediately
-					if (WaitHandles.Count == 0)
+					if (waitHandles.Count == 0)
 					{
 						return true;
 					}
 
 					// Wait for them all to complete
-					WaitForMultipleObjects(WaitHandles.Count, WaitHandles.Select(x => x.DangerousGetHandle()).ToArray(), true, 10 * 1000);
+					WaitForMultipleObjects(waitHandles.Count, waitHandles.Select(x => x.DangerousGetHandle()).ToArray(), true, 10 * 1000);
 				}
 				finally
 				{
-					foreach (SafeProcessHandle WaitHandle in WaitHandles)
+					foreach (SafeProcessHandle waitHandle in waitHandles)
 					{
-						WaitHandle.Close();
+						waitHandle.Close();
 					}
 				}
 			}
@@ -152,76 +149,76 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Attempts to terminate all processes matching a predicate
 		/// </summary>
-		/// <param name="Predicate">The predicate for whether to terminate a process</param>
-		/// <param name="Logger">Logging device</param>
-		/// <param name="CancellationToken">Cancellation token to abort the search</param>
+		/// <param name="predicate">The predicate for whether to terminate a process</param>
+		/// <param name="logger">Logging device</param>
+		/// <param name="cancellationToken">Cancellation token to abort the search</param>
 		/// <returns>True if the process succeeded</returns>
-		static bool TerminateProcessesGenericPlatform(Predicate<FileReference> Predicate, ILogger Logger, CancellationToken CancellationToken)
+		static bool TerminateProcessesGenericPlatform(Predicate<FileReference> predicate, ILogger logger, CancellationToken cancellationToken)
 		{
-			bool Result = true;
-			Dictionary<(int, DateTime), int> ProcessToCount = new Dictionary<(int, DateTime), int>();
+			bool result = true;
+			Dictionary<(int, DateTime), int> processToCount = new Dictionary<(int, DateTime), int>();
 			for (; ; )
 			{
-				CancellationToken.ThrowIfCancellationRequested();
+				cancellationToken.ThrowIfCancellationRequested();
 
 				bool bNoMatches = true;
 
 				// Enumerate all the processes
-				Process[] Processes = Process.GetProcesses();
-				foreach (Process Process in Processes)
+				Process[] processes = Process.GetProcesses();
+				foreach (Process process in processes)
 				{
 					// Attempt to get the image file. Ignore exceptions trying to fetch metadata for processes we don't have access to.
-					FileReference? ImageFile;
+					FileReference? imageFile;
 					try
 					{
-						ImageFile = new FileReference(Process.MainModule.FileName);
+						imageFile = new FileReference(process.MainModule.FileName);
 					}
 					catch
 					{
-						ImageFile = null;
+						imageFile = null;
 					}
 
 					// Test whether to terminate this process
-					if (ImageFile != null && Predicate(ImageFile))
+					if (imageFile != null && predicate(imageFile))
 					{
 						// Get a unique id for the process, given that process ids are recycled
-						(int, DateTime) UniqueId;
+						(int, DateTime) uniqueId;
 						try
 						{
-							UniqueId = (Process.Id, Process.StartTime);
+							uniqueId = (process.Id, process.StartTime);
 						}
 						catch
 						{
-							UniqueId = (Process.Id, DateTime.MinValue);
+							uniqueId = (process.Id, DateTime.MinValue);
 						}
 
 						// Figure out whether to try and terminate this process
 						const int MaxCount = 5;
-						if (!ProcessToCount.TryGetValue(UniqueId, out int Count) || Count < MaxCount)
+						if (!processToCount.TryGetValue(uniqueId, out int count) || count < MaxCount)
 						{
 							bNoMatches = false;
 							try
 							{
-								Logger.LogInformation("Terminating {ImageName} ({ProcessId})", ImageFile, Process.Id);
-								Process.Kill(true);
-								if (!Process.WaitForExit(5 * 1000))
+								logger.LogInformation("Terminating {ImageName} ({ProcessId})", imageFile, process.Id);
+								process.Kill(true);
+								if (!process.WaitForExit(5 * 1000))
 								{
-									Logger.LogInformation("Termination still pending; will retry...");
+									logger.LogInformation("Termination still pending; will retry...");
 								}
 							}
-							catch (Exception Ex)
+							catch (Exception ex)
 							{
-								Count++;
-								if (Count > 1)
+								count++;
+								if (count > 1)
 								{
-									Logger.LogInformation(Ex, "Exception while querying basic process info for pid {ProcessId}; will retry.", Process.Id);
+									logger.LogInformation(ex, "Exception while querying basic process info for pid {ProcessId}; will retry.", process.Id);
 								}
-								else if (Count == MaxCount)
+								else if (count == MaxCount)
 								{
-									Logger.LogWarning(Ex, "Unable to terminate process {ImageFile} ({ProcessId}): {Message}", ImageFile, Process.Id, Ex.Message);
-									Result = false;
+									logger.LogWarning(ex, "Unable to terminate process {ImageFile} ({ProcessId}): {Message}", imageFile, process.Id, ex.Message);
+									result = false;
 								}
-								ProcessToCount[UniqueId] = Count;
+								processToCount[uniqueId] = count;
 							}
 						}
 					}
@@ -230,7 +227,7 @@ namespace EpicGames.Core
 				// Return once we reach this point and haven't found anything else to terminate
 				if (bNoMatches)
 				{
-					return Result;
+					return result;
 				}
 			}
 		}

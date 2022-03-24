@@ -2,10 +2,7 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using System.Text;
 
 namespace EpicGames.Core
 {
@@ -17,9 +14,9 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Format a value for a log file.
 		/// </summary>
-		/// <param name="Value">The value to format</param>
+		/// <param name="value">The value to format</param>
 		/// <returns>Value to be written to the log event. This may be a primitive type (int, string, etc...) or a LogValue object. If it is neither, Result.ToString() is used.</returns>
-		public object Format(object Value);
+		public object Format(object value);
 	}
 
 	/// <summary>
@@ -36,10 +33,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Type name to use in log events</param>
-		public LogEventTypeAttribute(string Name)
+		/// <param name="name">Type name to use in log events</param>
+		public LogEventTypeAttribute(string name)
 		{
-			this.Name = Name;
+			Name = name;
 		}
 	}
 
@@ -57,10 +54,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Type"></param>
-		public LogEventFormatterAttribute(Type Type)
+		/// <param name="type"></param>
+		public LogEventFormatterAttribute(Type type)
 		{
-			this.Type = Type;
+			Type = type;
 		}
 	}
 
@@ -75,7 +72,7 @@ namespace EpicGames.Core
 		public class DefaultFormatter : ILogEventFormatter
 		{
 			/// <inheritdoc/>
-			public object Format(object Value) => Value.ToString() ?? String.Empty;
+			public object Format(object value) => value.ToString() ?? String.Empty;
 		}
 
 		/// <summary>
@@ -84,7 +81,7 @@ namespace EpicGames.Core
 		public class PassThroughFormatter : ILogEventFormatter
 		{
 			/// <inheritdoc/>
-			public object Format(object Value) => Value;
+			public object Format(object value) => value;
 		}
 
 		/// <summary>
@@ -92,90 +89,89 @@ namespace EpicGames.Core
 		/// </summary>
 		public class AnnotateTypeFormatter : ILogEventFormatter
 		{
-			readonly string Name;
+			readonly string _name;
 
-			public AnnotateTypeFormatter(string Name)
+			public AnnotateTypeFormatter(string name)
 			{
-				this.Name = Name;
+				_name = name;
 			}
 
 			/// <inheritdoc/>
-			public object Format(object Value) => new LogValue(Name, Value.ToString() ?? String.Empty);
+			public object Format(object value) => new LogValue(_name, value.ToString() ?? String.Empty);
 		}
 
-		static DefaultFormatter DefaultFormatterInstance = new DefaultFormatter();
+		static readonly DefaultFormatter s_defaultFormatterInstance = new DefaultFormatter();
 
-		static ConcurrentDictionary<Type, ILogEventFormatter> CachedFormatters = GetDefaultFormatters();
+		static readonly ConcurrentDictionary<Type, ILogEventFormatter> s_cachedFormatters = GetDefaultFormatters();
 
 		static ConcurrentDictionary<Type, ILogEventFormatter> GetDefaultFormatters()
 		{
-			PassThroughFormatter PassThroughFormatter = new PassThroughFormatter();
+			PassThroughFormatter passThroughFormatter = new PassThroughFormatter();
 
-			ConcurrentDictionary<Type, ILogEventFormatter> Formatters = new ConcurrentDictionary<Type, ILogEventFormatter>();
-			Formatters.TryAdd(typeof(bool), PassThroughFormatter);
-			Formatters.TryAdd(typeof(int), PassThroughFormatter);
-			Formatters.TryAdd(typeof(string), PassThroughFormatter);
-			Formatters.TryAdd(typeof(LogValue), PassThroughFormatter);
+			ConcurrentDictionary<Type, ILogEventFormatter> formatters = new ConcurrentDictionary<Type, ILogEventFormatter>();
+			formatters.TryAdd(typeof(bool), passThroughFormatter);
+			formatters.TryAdd(typeof(int), passThroughFormatter);
+			formatters.TryAdd(typeof(string), passThroughFormatter);
+			formatters.TryAdd(typeof(LogValue), passThroughFormatter);
 
-			return Formatters;
+			return formatters;
 		}
 
 		/// <summary>
 		/// Registers a formatter for a particular type
 		/// </summary>
-		/// <param name="Type"></param>
-		/// <param name="Formatter"></param>
-		public static void RegisterFormatter(Type Type, ILogEventFormatter Formatter)
+		/// <param name="type"></param>
+		/// <param name="formatter"></param>
+		public static void RegisterFormatter(Type type, ILogEventFormatter formatter)
 		{
-			CachedFormatters.TryAdd(Type, Formatter);
+			s_cachedFormatters.TryAdd(type, formatter);
 		}
 
 		/// <summary>
 		/// Gets a formatter for the specified type
 		/// </summary>
-		/// <param name="Type"></param>
+		/// <param name="type"></param>
 		/// <returns></returns>
-		public static ILogEventFormatter GetFormatter(Type Type)
+		public static ILogEventFormatter GetFormatter(Type type)
 		{
 			for (; ; )
 			{
-				ILogEventFormatter? Formatter;
-				if (CachedFormatters.TryGetValue(Type, out Formatter))
+				ILogEventFormatter? formatter;
+				if (s_cachedFormatters.TryGetValue(type, out formatter))
 				{
-					return Formatter;
+					return formatter;
 				}
 
-				Formatter = CreateFormatter(Type);
+				formatter = CreateFormatter(type);
 
-				if (CachedFormatters.TryAdd(Type, Formatter))
+				if (s_cachedFormatters.TryAdd(type, formatter))
 				{
-					return Formatter;
+					return formatter;
 				}
 			}
 		}
 
-		static ILogEventFormatter CreateFormatter(Type Type)
+		static ILogEventFormatter CreateFormatter(Type type)
 		{
-			LogEventTypeAttribute? TypeAttribute = Type.GetCustomAttribute<LogEventTypeAttribute>();
-			if (TypeAttribute != null)
+			LogEventTypeAttribute? typeAttribute = type.GetCustomAttribute<LogEventTypeAttribute>();
+			if (typeAttribute != null)
 			{
-				return new AnnotateTypeFormatter(Type.Name);
+				return new AnnotateTypeFormatter(type.Name);
 			}
 
-			LogEventFormatterAttribute? FormatterAttribute = Type.GetCustomAttribute<LogEventFormatterAttribute>();
-			if (FormatterAttribute != null)
+			LogEventFormatterAttribute? formatterAttribute = type.GetCustomAttribute<LogEventFormatterAttribute>();
+			if (formatterAttribute != null)
 			{
-				return (ILogEventFormatter)Activator.CreateInstance(FormatterAttribute.Type)!;
+				return (ILogEventFormatter)Activator.CreateInstance(formatterAttribute.Type)!;
 			}
 
-			return DefaultFormatterInstance;
+			return s_defaultFormatterInstance;
 		}
 
-
-		public static object Format(object Value)
+		public static object Format(object value)
 		{
-			ILogEventFormatter Formatter = GetFormatter(Value.GetType());
-			return Formatter.Format(Value);
+			ILogEventFormatter formatter = GetFormatter(value.GetType());
+			return formatter.Format(value);
 		}
 	}
 }

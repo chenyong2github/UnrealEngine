@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -22,44 +21,44 @@ namespace EpicGames.Core
 		/// Adds a context message to a list stored on the given exception. Intended to be used in situations where supplying additional context
 		/// for an exception is valuable, but wrapping it would remove information.
 		/// </summary>
-		/// <param name="Ex">The exception that was thrown</param>
-		/// <param name="Message">Message to append to the context list</param>
-		public static void AddContext(Exception Ex, string Message)
+		/// <param name="ex">The exception that was thrown</param>
+		/// <param name="message">Message to append to the context list</param>
+		public static void AddContext(Exception ex, string message)
 		{
-			List<string>? Messages = Ex.Data[ContextEntryName] as List<string>;
-			if (Messages == null)
+			List<string>? messages = ex.Data[ContextEntryName] as List<string>;
+			if (messages == null)
 			{
-				Messages = new List<string>();
-				Ex.Data[ContextEntryName] = Messages;
+				messages = new List<string>();
+				ex.Data[ContextEntryName] = messages;
 			}
-			Messages.Add(Message);
+			messages.Add(message);
 		}
 
 		/// <summary>
 		/// Adds a context message to a list stored on the given exception. Intended to be used in situations where supplying additional context
 		/// for an exception is valuable, but wrapping it would remove information.
 		/// </summary>
-		/// <param name="Ex">The exception that was thrown</param>
-		/// <param name="Format">Formatting string for </param>
-		/// <param name="Args">Message to append to the context list</param>
-		public static void AddContext(Exception Ex, string Format, params object[] Args)
+		/// <param name="ex">The exception that was thrown</param>
+		/// <param name="format">Formatting string for </param>
+		/// <param name="args">Message to append to the context list</param>
+		public static void AddContext(Exception ex, string format, params object[] args)
 		{
-			AddContext(Ex, String.Format(Format, Args));
+			AddContext(ex, String.Format(format, args));
 		}
 
 		/// <summary>
 		/// Enumerates the context lines from the given exception
 		/// </summary>
-		/// <param name="Ex">The exception to retrieve context from</param>
+		/// <param name="ex">The exception to retrieve context from</param>
 		/// <returns>Sequence of context lines</returns>
-		public static IEnumerable<string> GetContext(Exception Ex)
+		public static IEnumerable<string> GetContext(Exception ex)
 		{
-			List<string>? Messages = Ex.Data[ContextEntryName] as List<string>;
-			if (Messages != null)
+			List<string>? messages = ex.Data[ContextEntryName] as List<string>;
+			if (messages != null)
 			{
-				foreach (string Message in Messages)
+				foreach (string message in messages)
 				{
-					yield return Message;
+					yield return message;
 				}
 			}
 		}
@@ -67,83 +66,83 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Formats an exception for display in the log, including additional lines of context that were attached to it.
 		/// </summary>
-		/// <param name="Ex">The exception to format</param>
+		/// <param name="ex">The exception to format</param>
 		/// <returns>String containing the exception information. May be multiple lines.</returns>
-		public static string FormatException(Exception Ex)
+		public static string FormatException(Exception ex)
 		{
-			StringBuilder ErrorMessage = new StringBuilder();
-			if (Ex is AggregateException)
+			StringBuilder errorMessage = new StringBuilder();
+			if (ex is AggregateException exAgg)
 			{
-				Exception? InnerException = ((AggregateException)Ex).InnerException;
-				if (InnerException != null)
+				Exception? innerException = exAgg.InnerException;
+				if (innerException != null)
 				{
-					ErrorMessage.Append(InnerException.ToString());
-					foreach (string Line in GetContext(InnerException))
+					errorMessage.Append(innerException.ToString());
+					foreach (string line in GetContext(innerException))
 					{
-						ErrorMessage.AppendFormat("\n  {0}", Line);
+						errorMessage.AppendFormat("\n  {0}", line);
 					}
 				}
 			}
 			else
 			{
-				ErrorMessage.Append(Ex.ToString());
+				errorMessage.Append(ex.ToString());
 			}
-			foreach (string Line in GetContext(Ex))
+			foreach (string line in GetContext(ex))
 			{
-				ErrorMessage.AppendFormat("\n{0}", Line);
+				errorMessage.AppendFormat("\n{0}", line);
 			}
-			return ErrorMessage.ToString();
+			return errorMessage.ToString();
 		}
 
 		/// <summary>
 		/// Formats a detailed information about where an exception occurs, including any inner exceptions
 		/// </summary>
-		/// <param name="Ex">The exception to format</param>
+		/// <param name="ex">The exception to format</param>
 		/// <returns>String containing the exception information. May be multiple lines.</returns>
-		public static string FormatExceptionDetails(Exception Ex)
+		public static string FormatExceptionDetails(Exception ex)
 		{
-			List<Exception> ExceptionStack = new List<Exception>();
-			for (Exception? CurrentEx = Ex; CurrentEx != null; CurrentEx = CurrentEx.InnerException)
+			List<Exception> exceptionStack = new List<Exception>();
+			for (Exception? currentEx = ex; currentEx != null; currentEx = currentEx.InnerException)
 			{
-				ExceptionStack.Add(CurrentEx);
+				exceptionStack.Add(currentEx);
 			}
 
-			StringBuilder Message = new StringBuilder();
-			for (int Idx = ExceptionStack.Count - 1; Idx >= 0; Idx--)
+			StringBuilder message = new StringBuilder();
+			for (int idx = exceptionStack.Count - 1; idx >= 0; idx--)
 			{
-				Exception CurrentEx = ExceptionStack[Idx];
-				Message.AppendFormat("{0}{1}: {2}\n{3}", (Idx == ExceptionStack.Count - 1) ? "" : "Wrapped by ", CurrentEx.GetType().Name, CurrentEx.Message, CurrentEx.StackTrace);
+				Exception currentEx = exceptionStack[idx];
+				message.AppendFormat("{0}{1}: {2}\n{3}", (idx == exceptionStack.Count - 1) ? "" : "Wrapped by ", currentEx.GetType().Name, currentEx.Message, currentEx.StackTrace);
 
-				if (CurrentEx.Data.Count > 0)
+				if (currentEx.Data.Count > 0)
 				{
-					foreach (object? Key in CurrentEx.Data.Keys)
+					foreach (object? key in currentEx.Data.Keys)
 					{
-						if (Key == null)
+						if (key == null)
 						{
 							continue;
 						}
 
-						object? Value = CurrentEx.Data[Key];
-						if (Value == null)
+						object? value = currentEx.Data[key];
+						if (value == null)
 						{
 							continue;
 						}
 
-						string ValueString;
-						if(Value is List<string>)
+						string valueString;
+						if(value is List<string> valueList)
 						{
-							ValueString = String.Format("({0})", String.Join(", ", ((List<string>)Value).Select(x => String.Format("\"{0}\"", x))));
+							valueString = String.Format("({0})", String.Join(", ", valueList.Select(x => String.Format("\"{0}\"", x))));
 						}
 						else
 						{
-							ValueString = Value.ToString() ?? String.Empty;
+							valueString = value.ToString() ?? String.Empty;
 						}
 
-						Message.AppendFormat("   data: {0} = {1}", Key, ValueString);
+						message.AppendFormat("   data: {0} = {1}", key, valueString);
 					}
 				}
 			}
-			return Message.ToString();
+			return message.ToString();
 		}
 	}
 }

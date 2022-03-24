@@ -40,10 +40,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Type">The serializer type</param>
-		public BinaryConverterAttribute(Type Type)
+		/// <param name="type">The serializer type</param>
+		public BinaryConverterAttribute(Type type)
 		{
-			this.Type = Type;
+			Type = type;
 		}
 	}
 }

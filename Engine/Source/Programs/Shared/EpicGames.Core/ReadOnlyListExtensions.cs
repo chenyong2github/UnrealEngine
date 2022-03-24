@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -17,25 +14,25 @@ namespace EpicGames.Core
 		/// Performs a binary search on the given list
 		/// </summary>
 		/// <typeparam name="T">The element type for the list</typeparam>
-		/// <param name="List">The list type</param>
-		/// <param name="Item">Item to search for</param>
+		/// <param name="list">The list type</param>
+		/// <param name="item">Item to search for</param>
 		/// <returns>As List.BinarySearch</returns>
-		public static int BinarySearch<T>(this IReadOnlyList<T> List, T Item)
+		public static int BinarySearch<T>(this IReadOnlyList<T> list, T item)
 		{
-			return BinarySearch(List, x => x, Item, Comparer<T>.Default);
+			return BinarySearch(list, x => x, item, Comparer<T>.Default);
 		}
 
 		/// <summary>
 		/// Performs a binary search on the given list
 		/// </summary>
 		/// <typeparam name="T">The element type for the list</typeparam>
-		/// <param name="List">The list type</param>
-		/// <param name="Item">Item to search for</param>
-		/// <param name="Comparer">Comparer for elements in the list</param>
+		/// <param name="list">The list type</param>
+		/// <param name="item">Item to search for</param>
+		/// <param name="comparer">Comparer for elements in the list</param>
 		/// <returns>As List.BinarySearch</returns>
-		public static int BinarySearch<T>(this IReadOnlyList<T> List, T Item, IComparer<T> Comparer)
+		public static int BinarySearch<T>(this IReadOnlyList<T> list, T item, IComparer<T> comparer)
 		{
-			return BinarySearch(List, x => x, Item, Comparer);
+			return BinarySearch(list, x => x, item, comparer);
 		}
 
 		/// <summary>
@@ -43,13 +40,13 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <typeparam name="TItem">The item in the list</typeparam>
 		/// <typeparam name="TField">The field to search on</typeparam>
-		/// <param name="List">The list to search</param>
-		/// <param name="Projection">The projection to apply to each item in the list</param>
-		/// <param name="Item">The item to find</param>
+		/// <param name="list">The list to search</param>
+		/// <param name="projection">The projection to apply to each item in the list</param>
+		/// <param name="item">The item to find</param>
 		/// <returns>As <see cref="List{T}.BinarySearch(T)"/></returns>
-		public static int BinarySearch<TItem, TField>(this IReadOnlyList<TItem> List, Func<TItem, TField> Projection, TField Item)
+		public static int BinarySearch<TItem, TField>(this IReadOnlyList<TItem> list, Func<TItem, TField> projection, TField item)
 		{
-			return BinarySearch(List, Projection, Item, Comparer<TField>.Default);
+			return BinarySearch(list, projection, item, Comparer<TField>.Default);
 		}
 
 		/// <summary>
@@ -57,34 +54,34 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <typeparam name="TItem">The item in the list</typeparam>
 		/// <typeparam name="TField">The field to search on</typeparam>
-		/// <param name="List">The list to search</param>
-		/// <param name="Projection">The projection to apply to each item in the list</param>
-		/// <param name="Item">The item to find</param>
-		/// <param name="Comparer">Comparer for field elements</param>
+		/// <param name="list">The list to search</param>
+		/// <param name="projection">The projection to apply to each item in the list</param>
+		/// <param name="item">The item to find</param>
+		/// <param name="comparer">Comparer for field elements</param>
 		/// <returns>As <see cref="List{T}.BinarySearch(T)"/></returns>
-		public static int BinarySearch<TItem, TField>(this IReadOnlyList<TItem> List, Func<TItem, TField> Projection, TField Item, IComparer<TField> Comparer)
+		public static int BinarySearch<TItem, TField>(this IReadOnlyList<TItem> list, Func<TItem, TField> projection, TField item, IComparer<TField> comparer)
 		{
-			int LowerBound = 0;
-			int UpperBound = List.Count - 1;
-			while (LowerBound <= UpperBound)
+			int lowerBound = 0;
+			int upperBound = list.Count - 1;
+			while (lowerBound <= upperBound)
 			{
-				int Idx = LowerBound + (UpperBound - LowerBound) / 2;
+				int idx = lowerBound + (upperBound - lowerBound) / 2;
 
-				int Comparison = Comparer.Compare(Projection(List[Idx]), Item);
-				if (Comparison == 0)
+				int comparison = comparer.Compare(projection(list[idx]), item);
+				if (comparison == 0)
 				{
-					return Idx;
+					return idx;
 				}
-				else if (Comparison < 0)
+				else if (comparison < 0)
 				{
-					LowerBound = Idx + 1;
+					lowerBound = idx + 1;
 				}
 				else
 				{
-					UpperBound = Idx - 1;
+					upperBound = idx - 1;
 				}
 			}
-			return ~LowerBound;
+			return ~lowerBound;
 		}
 
 		/// <summary>
@@ -92,38 +89,38 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <typeparam name="TInput">The input element type</typeparam>
 		/// <typeparam name="TOutput">The output element type</typeparam>
-		/// <param name="Input">Input list</param>
-		/// <param name="Convert">Conversion function</param>
+		/// <param name="input">Input list</param>
+		/// <param name="convert">Conversion function</param>
 		/// <returns>New list of items</returns>
-		public static List<TOutput> ConvertAll<TInput, TOutput>(this IReadOnlyList<TInput> Input, Func<TInput, TOutput> Convert)
+		public static List<TOutput> ConvertAll<TInput, TOutput>(this IReadOnlyList<TInput> input, Func<TInput, TOutput> convert)
 		{
-			List<TOutput> Outputs = new List<TOutput>(Input.Count);
-			for (int Idx = 0; Idx < Input.Count; Idx++)
+			List<TOutput> outputs = new List<TOutput>(input.Count);
+			for (int idx = 0; idx < input.Count; idx++)
 			{
-				Outputs.Add(Convert(Input[Idx]));
+				outputs.Add(convert(input[idx]));
 			}
-			return Outputs;
+			return outputs;
 		}
 
 		/// <summary>
 		/// Finds the index of the first element matching a predicate
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="List">List to search</param>
-		/// <param name="Predicate">Predicate for the list</param>
+		/// <param name="list">List to search</param>
+		/// <param name="predicate">Predicate for the list</param>
 		/// <returns>Index of the element</returns>
-		public static int FindIndex<T>(this IReadOnlyList<T> List, Predicate<T> Predicate)
+		public static int FindIndex<T>(this IReadOnlyList<T> list, Predicate<T> predicate)
 		{
-			int FoundIndex = -1;
-			for(int Idx = 0; Idx < List.Count; Idx++)
+			int foundIndex = -1;
+			for(int idx = 0; idx < list.Count; idx++)
 			{
-				if (Predicate(List[Idx]))
+				if (predicate(list[idx]))
 				{
-					FoundIndex = Idx;
+					foundIndex = idx;
 					break;
 				}
 			}
-			return FoundIndex;
+			return foundIndex;
 		}
 	}
 }

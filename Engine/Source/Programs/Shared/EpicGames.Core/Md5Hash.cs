@@ -2,12 +2,10 @@
 
 using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace EpicGames.Core
 {
@@ -30,7 +28,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Memory storing the digest data
 		/// </summary>
-		public ReadOnlyMemory<byte> Memory;
+		public ReadOnlyMemory<byte> Memory { get; }
 
 		/// <summary>
 		/// Span for the underlying memory
@@ -45,87 +43,87 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">Memory to construct from</param>
-		public Md5Hash(ReadOnlyMemory<byte> Memory)
+		/// <param name="memory">Memory to construct from</param>
+		public Md5Hash(ReadOnlyMemory<byte> memory)
 		{
-			if (Memory.Length != NumBytes)
+			if (memory.Length != NumBytes)
 			{
 				throw new ArgumentException($"Md5Hash must be {NumBytes} bytes long");
 			}
 
-			this.Memory = Memory;
+			Memory = memory;
 		}
 
 		/// <summary>
 		/// Creates a content hash for a block of data, using a given algorithm.
 		/// </summary>
-		/// <param name="Data">Data to compute the hash for</param>
+		/// <param name="data">Data to compute the hash for</param>
 		/// <returns>New content hash instance containing the hash of the data</returns>
-		public static Md5Hash Compute(ReadOnlySpan<byte> Data)
+		public static Md5Hash Compute(ReadOnlySpan<byte> data)
 		{
-			byte[] Output = new byte[NumBytes];
-			using (MD5 Hasher = MD5.Create())
+			byte[] output = new byte[NumBytes];
+			using (MD5 hasher = MD5.Create())
 			{
-				Hasher.TryComputeHash(Data, Output, out _);
+				hasher.TryComputeHash(data, output, out _);
 			}
-			return new Md5Hash(Output);
+			return new Md5Hash(output);
 		}
 
 		/// <summary>
 		/// Creates a content hash for the input Stream object
 		/// </summary>
-		/// <param name="Stream">The Stream object to compoute the has for</param>
+		/// <param name="stream">The Stream object to compoute the has for</param>
 		/// <returns>New content hash instance containing the hash of the data</returns>
-		public static Md5Hash Compute(Stream Stream)
+		public static Md5Hash Compute(Stream stream)
 		{
-			using (MD5 Hasher = MD5.Create())
+			using (MD5 hasher = MD5.Create())
 			{
-				return new Md5Hash(Hasher.ComputeHash(Stream));
+				return new Md5Hash(hasher.ComputeHash(stream));
 			}
 		}
 
 		/// <summary>
 		/// Parses a digest from the given hex string
 		/// </summary>
-		/// <param name="Text"></param>
+		/// <param name="text"></param>
 		/// <returns></returns>
-		public static Md5Hash Parse(string Text)
+		public static Md5Hash Parse(string text)
 		{
-			return new Md5Hash(StringUtils.ParseHexString(Text));
+			return new Md5Hash(StringUtils.ParseHexString(text));
 		}
 
 		/// <summary>
 		/// Parses a digest from the given hex string
 		/// </summary>
-		/// <param name="Text"></param>
+		/// <param name="text"></param>
 		/// <returns></returns>
-		public static Md5Hash Parse(Utf8String Text)
+		public static Md5Hash Parse(Utf8String text)
 		{
-			return new Md5Hash(StringUtils.ParseHexString(Text.Span));
+			return new Md5Hash(StringUtils.ParseHexString(text.Span));
 		}
 
 		/// <inheritdoc cref="IComparable{T}.CompareTo(T)"/>
-		public int CompareTo(Md5Hash Other)
+		public int CompareTo(Md5Hash other)
 		{
-			ReadOnlySpan<byte> A = Span;
-			ReadOnlySpan<byte> B = Other.Span;
+			ReadOnlySpan<byte> a = Span;
+			ReadOnlySpan<byte> b = other.Span;
 
-			for (int Idx = 0; Idx < A.Length && Idx < B.Length; Idx++)
+			for (int idx = 0; idx < a.Length && idx < b.Length; idx++)
 			{
-				int Compare = A[Idx] - B[Idx];
-				if (Compare != 0)
+				int compare = a[idx] - b[idx];
+				if (compare != 0)
 				{
-					return Compare;
+					return compare;
 				}
 			}
-			return A.Length - B.Length;
+			return a.Length - b.Length;
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(Md5Hash Other) => Span.SequenceEqual(Other.Span);
+		public bool Equals(Md5Hash other) => Span.SequenceEqual(other.Span);
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => (Obj is Md5Hash Hash) && Hash.Span.SequenceEqual(Span);
+		public override bool Equals(object? obj) => (obj is Md5Hash hash) && hash.Span.SequenceEqual(Span);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => BinaryPrimitives.ReadInt32LittleEndian(Span);
@@ -136,32 +134,32 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Test two hash values for equality
 		/// </summary>
-		public static bool operator ==(Md5Hash A, Md5Hash B) => A.Span.SequenceEqual(B.Span);
+		public static bool operator ==(Md5Hash a, Md5Hash b) => a.Span.SequenceEqual(b.Span);
 
 		/// <summary>
 		/// Test two hash values for equality
 		/// </summary>
-		public static bool operator !=(Md5Hash A, Md5Hash B) => !(A == B);
+		public static bool operator !=(Md5Hash a, Md5Hash b) => !(a == b);
 
 		/// <summary>
 		/// Tests whether A > B
 		/// </summary>
-		public static bool operator >(Md5Hash A, Md5Hash B) => A.CompareTo(B) > 0;
+		public static bool operator >(Md5Hash a, Md5Hash b) => a.CompareTo(b) > 0;
 
 		/// <summary>
 		/// Tests whether A is less than B
 		/// </summary>
-		public static bool operator <(Md5Hash A, Md5Hash B) => A.CompareTo(B) < 0;
+		public static bool operator <(Md5Hash a, Md5Hash b) => a.CompareTo(b) < 0;
 
 		/// <summary>
 		/// Tests whether A is greater than or equal to B
 		/// </summary>
-		public static bool operator >=(Md5Hash A, Md5Hash B) => A.CompareTo(B) >= 0;
+		public static bool operator >=(Md5Hash a, Md5Hash b) => a.CompareTo(b) >= 0;
 
 		/// <summary>
 		/// Tests whether A is less than or equal to B
 		/// </summary>
-		public static bool operator <=(Md5Hash A, Md5Hash B) => A.CompareTo(B) <= 0;
+		public static bool operator <=(Md5Hash a, Md5Hash b) => a.CompareTo(b) <= 0;
 	}
 
 	/// <summary>
@@ -172,21 +170,21 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Read an <see cref="Md5Hash"/> from a memory reader
 		/// </summary>
-		/// <param name="Reader"></param>
+		/// <param name="reader"></param>
 		/// <returns></returns>
-		public static Md5Hash ReadMd5Hash(this MemoryReader Reader)
+		public static Md5Hash ReadMd5Hash(this MemoryReader reader)
 		{
-			return new Md5Hash(Reader.ReadFixedLengthBytes(Md5Hash.NumBytes));
+			return new Md5Hash(reader.ReadFixedLengthBytes(Md5Hash.NumBytes));
 		}
 
 		/// <summary>
 		/// Write an <see cref="Md5Hash"/> to a memory writer
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Hash"></param>
-		public static void WriteMd5Hash(this MemoryWriter Writer, Md5Hash Hash)
+		/// <param name="writer"></param>
+		/// <param name="hash"></param>
+		public static void WriteMd5Hash(this MemoryWriter writer, Md5Hash hash)
 		{
-			Writer.WriteFixedLengthBytes(Hash.Span);
+			writer.WriteFixedLengthBytes(hash.Span);
 		}
 	}
 
@@ -196,15 +194,15 @@ namespace EpicGames.Core
 	sealed class Md5HashTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext Context, Type SourceType)
+		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
 		{
-			return SourceType == typeof(string);
+			return sourceType == typeof(string);
 		}
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value)
+		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
 		{
-			return Md5Hash.Parse((string)Value);
+			return Md5Hash.Parse((string)value);
 		}
 	}
 }

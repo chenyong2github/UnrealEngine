@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Buffers;
-using System.Security.Cryptography;
-using System.Text;
 using System.Buffers.Binary;
-using System.Diagnostics.CodeAnalysis;
 using System.ComponentModel;
 using System.Globalization;
-using System.Text.Json.Serialization;
+using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace EpicGames.Core
 {
@@ -30,10 +26,9 @@ namespace EpicGames.Core
 		/// Length of the hash in bits
 		/// </summary>
 		public const int NumBits = NumBytes * 8;
-
-		ulong A;
-		ulong B;
-		uint C;
+		readonly ulong _a;
+		readonly ulong _b;
+		readonly uint _c;
 
 		/// <summary>
 		/// Hash consisting of zeroes
@@ -44,8 +39,8 @@ namespace EpicGames.Core
 		/// Constructor
 		/// </summary>
 		/// <param name="Memory">Memory to construct from</param>
-		public Sha1Hash(ReadOnlySpan<byte> Span)
-			: this(BinaryPrimitives.ReadUInt64BigEndian(Span), BinaryPrimitives.ReadUInt64BigEndian(Span.Slice(8)), BinaryPrimitives.ReadUInt32BigEndian(Span.Slice(16)))
+		public Sha1Hash(ReadOnlySpan<byte> span)
+			: this(BinaryPrimitives.ReadUInt64BigEndian(span), BinaryPrimitives.ReadUInt64BigEndian(span.Slice(8)), BinaryPrimitives.ReadUInt32BigEndian(span.Slice(16)))
 		{
 		}
 
@@ -53,77 +48,77 @@ namespace EpicGames.Core
 		/// Constructor
 		/// </summary>
 		/// <param name="Memory">Memory to construct from</param>
-		public Sha1Hash(ulong A, ulong B, uint C)
+		public Sha1Hash(ulong a, ulong b, uint c)
 		{
-			this.A = A;
-			this.B = B;
-			this.C = C;
+			_a = a;
+			_b = b;
+			_c = c;
 		}
 
 		/// <summary>
 		/// Creates a content hash for a block of data, using a given algorithm.
 		/// </summary>
-		/// <param name="Data">Data to compute the hash for</param>
+		/// <param name="data">Data to compute the hash for</param>
 		/// <returns>New content hash instance containing the hash of the data</returns>
-		public static Sha1Hash Compute(ReadOnlySpan<byte> Data)
+		public static Sha1Hash Compute(ReadOnlySpan<byte> data)
 		{
-			byte[] Output = new byte[20];
-			using (SHA1 Sha1 = SHA1.Create())
+			byte[] output = new byte[20];
+			using (SHA1 sha1 = SHA1.Create())
 			{
-				int BytesWritten;
-				if (!Sha1.TryComputeHash(Data, Output, out BytesWritten) || BytesWritten != NumBytes)
+				int bytesWritten;
+				if (!sha1.TryComputeHash(data, output, out bytesWritten) || bytesWritten != NumBytes)
 				{
 					throw new Exception($"Unable to hash data");
 				}
 			}
-			return new Sha1Hash(Output);
+			return new Sha1Hash(output);
 		}
 
 		/// <summary>
 		/// Parses a digest from the given hex string
 		/// </summary>
-		/// <param name="Text"></param>
+		/// <param name="text"></param>
 		/// <returns></returns>
-		public static Sha1Hash Parse(string Text)
+		public static Sha1Hash Parse(string text)
 		{
-			return new Sha1Hash(StringUtils.ParseHexString(Text));
+			return new Sha1Hash(StringUtils.ParseHexString(text));
 		}
 
 		/// <summary>
 		/// Parses a digest from the given hex string
 		/// </summary>
-		/// <param name="Text"></param>
+		/// <param name="text"></param>
 		/// <returns></returns>
-		public static Sha1Hash Parse(ReadOnlySpan<byte> Text)
+		public static Sha1Hash Parse(ReadOnlySpan<byte> text)
 		{
-			return new Sha1Hash(StringUtils.ParseHexString(Text));
+			return new Sha1Hash(StringUtils.ParseHexString(text));
 		}
 
 		/// <inheritdoc cref="IComparable{T}.CompareTo(T)"/>
-		public int CompareTo(Sha1Hash Other)
+		public int CompareTo(Sha1Hash other)
 		{
-			if (A != Other.A)
+			if (_a != other._a)
 			{
-				return (A < Other.A) ? -1 : +1;
+				return (_a < other._a) ? -1 : +1;
 			}
-			else if (B != Other.B)
+			else if (_b != other._b)
 			{
-				return (B < Other.B) ? -1 : +1;
+				return (_b < other._b) ? -1 : +1;
 			}
 			else
 			{
-				return (C < Other.C) ? -1 : +1;
+				return (_c < other._c) ? -1 : +1;
 			}
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(Sha1Hash Other) => A == Other.A && B == Other.B && C == Other.C;
+		public bool Equals(Sha1Hash other) => _a == other._a && _b == other._b && _c == other._c;
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => (Obj is Sha1Hash Hash) && Equals(Hash);
+		public override bool Equals(object? obj) => (obj is Sha1Hash hash) && Equals(hash);
 
 		/// <inheritdoc/>
-		public override int GetHashCode() => (int)A;
+		public override int GetHashCode() => (int)_a;
 
 		/// <inheritdoc/>
 		public Utf8String ToUtf8String() => StringUtils.FormatUtf8HexString(ToByteArray());
@@ -133,51 +128,51 @@ namespace EpicGames.Core
 
 		public byte[] ToByteArray()
 		{
-			byte[] Data = new byte[NumBytes];
-			CopyTo(Data);
-			return Data;
+			byte[] data = new byte[NumBytes];
+			CopyTo(data);
+			return data;
 		}
 
 		/// <summary>
 		/// Copies this hash into a span
 		/// </summary>
-		/// <param name="Span"></param>
-		public void CopyTo(Span<byte> Span)
+		/// <param name="span"></param>
+		public void CopyTo(Span<byte> span)
 		{
-			BinaryPrimitives.WriteUInt64BigEndian(Span, A);
-			BinaryPrimitives.WriteUInt64BigEndian(Span[8..], B);
-			BinaryPrimitives.WriteUInt32BigEndian(Span[16..], C);
+			BinaryPrimitives.WriteUInt64BigEndian(span, _a);
+			BinaryPrimitives.WriteUInt64BigEndian(span[8..], _b);
+			BinaryPrimitives.WriteUInt32BigEndian(span[16..], _c);
 		}
 
 		/// <summary>
 		/// Test two hash values for equality
 		/// </summary>
-		public static bool operator ==(Sha1Hash A, Sha1Hash B) => A.Equals(B);
+		public static bool operator ==(Sha1Hash a, Sha1Hash b) => a.Equals(b);
 
 		/// <summary>
 		/// Test two hash values for equality
 		/// </summary>
-		public static bool operator !=(Sha1Hash A, Sha1Hash B) => !(A == B);
+		public static bool operator !=(Sha1Hash a, Sha1Hash b) => !(a == b);
 
 		/// <summary>
 		/// Tests whether A > B
 		/// </summary>
-		public static bool operator >(Sha1Hash A, Sha1Hash B) => A.CompareTo(B) > 0;
+		public static bool operator >(Sha1Hash a, Sha1Hash b) => a.CompareTo(b) > 0;
 
 		/// <summary>
 		/// Tests whether A is less than B
 		/// </summary>
-		public static bool operator <(Sha1Hash A, Sha1Hash B) => A.CompareTo(B) < 0;
+		public static bool operator <(Sha1Hash a, Sha1Hash b) => a.CompareTo(b) < 0;
 
 		/// <summary>
 		/// Tests whether A is greater than or equal to B
 		/// </summary>
-		public static bool operator >=(Sha1Hash A, Sha1Hash B) => A.CompareTo(B) >= 0;
+		public static bool operator >=(Sha1Hash a, Sha1Hash b) => a.CompareTo(b) >= 0;
 
 		/// <summary>
 		/// Tests whether A is less than or equal to B
 		/// </summary>
-		public static bool operator <=(Sha1Hash A, Sha1Hash B) => A.CompareTo(B) <= 0;
+		public static bool operator <=(Sha1Hash a, Sha1Hash b) => a.CompareTo(b) <= 0;
 	}
 
 	/// <summary>
@@ -188,21 +183,21 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Read an <see cref="Sha1Hash"/> from a memory reader
 		/// </summary>
-		/// <param name="Reader"></param>
+		/// <param name="reader"></param>
 		/// <returns></returns>
-		public static Sha1Hash ReadSha1Hash(this MemoryReader Reader)
+		public static Sha1Hash ReadSha1Hash(this MemoryReader reader)
 		{
-			return new Sha1Hash(Reader.ReadFixedLengthBytes(Sha1Hash.NumBytes).Span);
+			return new Sha1Hash(reader.ReadFixedLengthBytes(Sha1Hash.NumBytes).Span);
 		}
 
 		/// <summary>
 		/// Write an <see cref="Sha1Hash"/> to a memory writer
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Hash"></param>
-		public static void WriteSha1Hash(this MemoryWriter Writer, Sha1Hash Hash)
+		/// <param name="writer"></param>
+		/// <param name="hash"></param>
+		public static void WriteSha1Hash(this MemoryWriter writer, Sha1Hash hash)
 		{
-			Hash.CopyTo(Writer.AllocateSpan(Sha1Hash.NumBytes));
+			hash.CopyTo(writer.AllocateSpan(Sha1Hash.NumBytes));
 		}
 	}
 
@@ -212,10 +207,10 @@ namespace EpicGames.Core
 	sealed class Sha1HashJsonConverter : JsonConverter<Sha1Hash>
 	{
 		/// <inheritdoc/>
-		public override Sha1Hash Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options) => Sha1Hash.Parse(Reader.ValueSpan);
+		public override Sha1Hash Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Sha1Hash.Parse(reader.ValueSpan);
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, Sha1Hash Value, JsonSerializerOptions Options) => Writer.WriteStringValue(Value.ToUtf8String().Span);
+		public override void Write(Utf8JsonWriter writer, Sha1Hash value, JsonSerializerOptions options) => writer.WriteStringValue(value.ToUtf8String().Span);
 	}
 
 	/// <summary>
@@ -224,15 +219,15 @@ namespace EpicGames.Core
 	sealed class Sha1HashTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext Context, Type SourceType)
+		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
 		{
-			return SourceType == typeof(string);
+			return sourceType == typeof(string);
 		}
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value)
+		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
 		{
-			return Sha1Hash.Parse((string)Value);
+			return Sha1Hash.Parse((string)value);
 		}
 	}
 }

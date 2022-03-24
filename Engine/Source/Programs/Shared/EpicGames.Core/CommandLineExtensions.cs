@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace EpicGames.Core
@@ -14,60 +12,60 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Determines if the given argument needs to be escaped
 		/// </summary>
-		/// <param name="Argument">The argument to check</param>
+		/// <param name="argument">The argument to check</param>
 		/// <returns>True if the argument needs to be escaped</returns>
-		static bool NeedsEscaping(string Argument)
+		static bool NeedsEscaping(string argument)
 		{
-			return Argument.Contains(' ') || Argument.Contains('\"');
+			return argument.Contains(' ') || argument.Contains('\"');
 		}
 
 		/// <summary>
 		/// Appends command line argument with a prefixed space. The argument may contain spaces or quotes.
 		/// </summary>
-		/// <param name="Builder">The command line to append to</param>
-		/// <param name="Argument">The argument to append</param>
-		public static void AppendArgument(this StringBuilder Builder, string Argument)
+		/// <param name="builder">The command line to append to</param>
+		/// <param name="argument">The argument to append</param>
+		public static void AppendArgument(this StringBuilder builder, string argument)
 		{
-			if (Builder.Length > 0)
+			if (builder.Length > 0)
 			{
-				Builder.Append(' ');
+				builder.Append(' ');
 			}
 
-			int EqualsIdx = Argument.IndexOf('=');
-			if (EqualsIdx != -1)
+			int equalsIdx = argument.IndexOf('=');
+			if (equalsIdx != -1)
 			{
-				string Name = Argument.Substring(0, EqualsIdx + 1);
-				if (!NeedsEscaping(Name))
+				string name = argument.Substring(0, equalsIdx + 1);
+				if (!NeedsEscaping(name))
 				{
-					Builder.Append(Name);
-					Argument = Argument.Substring(EqualsIdx + 1);
+					builder.Append(name);
+					argument = argument.Substring(equalsIdx + 1);
 				}
 			}
 
-			AppendCommandLineArgumentWithoutSpace(Builder, Argument);
+			AppendCommandLineArgumentWithoutSpace(builder, argument);
 		}
 
 		/// <summary>
 		/// Appends command line argument with a prefixed space. The argument may contain spaces or quotes.
 		/// </summary>
-		/// <param name="Builder">The command line to append to</param>
-		/// <param name="Name">Name of the argument (eg. -Foo=)</param>
-		/// <param name="Value">Value of the argument</param>
-		public static void AppendArgument(this StringBuilder Builder, string Name, string Value)
+		/// <param name="builder">The command line to append to</param>
+		/// <param name="name">Name of the argument (eg. -Foo=)</param>
+		/// <param name="value">Value of the argument</param>
+		public static void AppendArgument(this StringBuilder builder, string name, string value)
 		{
-			if (Builder.Length > 0)
+			if (builder.Length > 0)
 			{
-				Builder.Append(' ');
+				builder.Append(' ');
 			}
 
-			if (NeedsEscaping(Name))
+			if (NeedsEscaping(name))
 			{
-				AppendCommandLineArgumentWithoutSpace(Builder, Name + Value);
+				AppendCommandLineArgumentWithoutSpace(builder, name + value);
 			}
 			else
 			{
-				Builder.Append(Name);
-				AppendCommandLineArgumentWithoutSpace(Builder, Value);
+				builder.Append(name);
+				AppendCommandLineArgumentWithoutSpace(builder, value);
 			}
 		}
 
@@ -75,62 +73,62 @@ namespace EpicGames.Core
 		/// Appends an escaped command line argument. The argument may contain spaces or quotes, and is escaped according to the rules in
 		/// https://docs.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-commandlinetoargvw.
 		/// </summary>
-		/// <param name="Builder">The builder to append to</param>
-		/// <param name="Argument">The argument to escape</param>
-		public static void AppendCommandLineArgumentWithoutSpace(this StringBuilder Builder, string Argument)
+		/// <param name="builder">The builder to append to</param>
+		/// <param name="argument">The argument to escape</param>
+		public static void AppendCommandLineArgumentWithoutSpace(this StringBuilder builder, string argument)
 		{
-			if (!NeedsEscaping(Argument))
+			if (!NeedsEscaping(argument))
 			{
 				// No escaping necessary if the argument doesn't contain any special characters
-				Builder.Append(Argument);
+				builder.Append(argument);
 			}
 			else
 			{
 				// Escape the whole string following the rules on the CommandLineToArgV MSDN page. 
-				Builder.Append('\"');
-				for (int Idx = 0; Idx < Argument.Length; Idx++)
+				builder.Append('\"');
+				for (int idx = 0; idx < argument.Length; idx++)
 				{
-					char Character = Argument[Idx];
-					if (Character == '\"')
+					char character = argument[idx];
+					if (character == '\"')
 					{
 						// Escape a single quotation mark
-						Builder.Append("\\\"");
+						builder.Append("\\\"");
 					}
-					else if (Character == '\\')
+					else if (character == '\\')
 					{
 						// Special handling for slashes which may be followed by a quotation mark, as dictated by CommandLineToArgV
-						int StartIdx = Idx;
+						int startIdx = idx;
 						for (; ; )
 						{
-							int NextIdx = Idx + 1;
-							if (NextIdx == Argument.Length)
+							int nextIdx = idx + 1;
+							if (nextIdx == argument.Length)
 							{
 								// Will have a trailing quotation mark toggling 'in quotes' mode (2n)
-								Builder.Append('\\', (NextIdx - StartIdx) * 2);
+								builder.Append('\\', (nextIdx - startIdx) * 2);
 								break;
 							}
-							else if (Argument[NextIdx] == '\"')
+							else if (argument[nextIdx] == '\"')
 							{
 								// Needs to have a trailing quotation mark, so need to escape each backslash plus the quotation mark (2n+1)
-								Builder.Append('\\', (NextIdx - StartIdx) * 2 + 1);
+								builder.Append('\\', (nextIdx - startIdx) * 2 + 1);
 								break;
 							}
-							else if (Argument[NextIdx] != '\\')
+							else if (argument[nextIdx] != '\\')
 							{
 								// No trailing quote; can just pass through verbatim
-								Builder.Append('\\', (NextIdx - StartIdx));
+								builder.Append('\\', (nextIdx - startIdx));
 								break;
 							}
-							Idx = NextIdx;
+							idx = nextIdx;
 						}
 					}
 					else
 					{
 						// Regular character
-						Builder.Append(Character);
+						builder.Append(character);
 					}
 				}
-				Builder.Append('\"');
+				builder.Append('\"');
 			}
 		}
 	}

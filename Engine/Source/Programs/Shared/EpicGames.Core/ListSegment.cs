@@ -3,7 +3,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Core
 {
@@ -42,31 +41,31 @@ namespace EpicGames.Core
 		/// Initializes a new instance of the System.ArraySegment`1 structure that delimits
 		/// all the elements in the specified array.
 		/// </summary>
-		public ListSegment(IList<T> List)
-			: this(List, 0, List.Count)
+		public ListSegment(IList<T> list)
+			: this(list, 0, list.Count)
 		{
 		}
 
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="List"></param>
-		/// <param name="Offset"></param>
-		/// <param name="Count"></param>
-		public ListSegment(IList<T> List, int Offset, int Count)
+		/// <param name="list"></param>
+		/// <param name="offset"></param>
+		/// <param name="count"></param>
+		public ListSegment(IList<T> list, int offset, int count)
 		{
-			if (Offset < 0 || Offset > List.Count)
+			if (offset < 0 || offset > list.Count)
 			{
-				throw new ArgumentOutOfRangeException(nameof(Offset));
+				throw new ArgumentOutOfRangeException(nameof(offset));
 			}
-			if (Count < 0 || Offset + Count > List.Count)
+			if (count < 0 || offset + count > list.Count)
 			{
-				throw new ArgumentOutOfRangeException(nameof(Count));
+				throw new ArgumentOutOfRangeException(nameof(count));
 			}
 
-			this.List = List;
-			this.Offset = Offset;
-			this.Count = Count;
+			List = list;
+			Offset = offset;
+			Count = count;
 		}
 
 		/// <summary>
@@ -75,33 +74,33 @@ namespace EpicGames.Core
 		/// <param name="index"></param>
 		/// <returns></returns>
 		/// <exception cref="ArgumentOutOfRangeException">Index is not a valid index in the ListSegment</exception>
-		public T this[int Index]
+		public T this[int index]
 		{
 			get
 			{
-				if (Index < 0 || Index >= Count)
+				if (index < 0 || index >= Count)
 				{
-					throw new ArgumentOutOfRangeException(nameof(Index));
+					throw new ArgumentOutOfRangeException(nameof(index));
 				}
-				return List[Index + Offset];
+				return List[index + Offset];
 			}
 			set
 			{
-				if (Index < 0 || Index >= Count)
+				if (index < 0 || index >= Count)
 				{
-					throw new ArgumentOutOfRangeException(nameof(Index));
+					throw new ArgumentOutOfRangeException(nameof(index));
 				}
-				List[Index + Offset] = value;
+				List[index + Offset] = value;
 			}
 		}
 
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="List"></param>
-		public static implicit operator ListSegment<T>(List<T> List)
+		/// <param name="list"></param>
+		public static implicit operator ListSegment<T>(List<T> list)
 		{
-			return new ListSegment<T>(List);
+			return new ListSegment<T>(list);
 		}
 
 		/// <summary>
@@ -109,32 +108,32 @@ namespace EpicGames.Core
 		/// </summary>
 		struct Enumerator : IEnumerator<T>, IEnumerator
 		{
-			IList<T> List;
-			int Index;
-			int MaxIndex;
+			readonly IList<T> _list;
+			int _index;
+			readonly int _maxIndex;
 
 			/// <inheritdoc/>
 			public T Current
 			{
 				get
 				{
-					if (Index >= MaxIndex)
+					if (_index >= _maxIndex)
 					{
 						throw new IndexOutOfRangeException();
 					}
-					return List[Index];
+					return _list[_index];
 				}
 			}
 
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="Segment"></param>
-			public Enumerator(ListSegment<T> Segment)
+			/// <param name="segment"></param>
+			public Enumerator(ListSegment<T> segment)
 			{
-				this.List = Segment.List;
-				this.Index = Segment.Offset - 1;
-				this.MaxIndex = Segment.Offset + Segment.Count;
+				_list = segment.List;
+				_index = segment.Offset - 1;
+				_maxIndex = segment.Offset + segment.Count;
 			}
 
 			/// <inheritdoc/>
@@ -145,7 +144,7 @@ namespace EpicGames.Core
 			/// <inheritdoc/>
 			public bool MoveNext()
 			{
-				return ++Index < MaxIndex;
+				return ++_index < _maxIndex;
 			}
 
 			/// <inheritdoc/>
@@ -171,25 +170,25 @@ namespace EpicGames.Core
 		/// Create a list segment
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="List"></param>
-		/// <param name="Offset"></param>
+		/// <param name="list"></param>
+		/// <param name="offset"></param>
 		/// <returns></returns>
-		public static ListSegment<T> Slice<T>(this IList<T> List, int Offset)
+		public static ListSegment<T> Slice<T>(this IList<T> list, int offset)
 		{
-			return new ListSegment<T>(List, Offset, List.Count - Offset);
+			return new ListSegment<T>(list, offset, list.Count - offset);
 		}
 
 		/// <summary>
 		/// Create a list segment
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="List"></param>
-		/// <param name="Offset"></param>
-		/// <param name="Count"></param>
+		/// <param name="list"></param>
+		/// <param name="offset"></param>
+		/// <param name="count"></param>
 		/// <returns></returns>
-		public static ListSegment<T> Slice<T>(this IList<T> List, int Offset, int Count)
+		public static ListSegment<T> Slice<T>(this IList<T> list, int offset, int count)
 		{
-			return new ListSegment<T>(List, Offset, Count);
+			return new ListSegment<T>(list, offset, count);
 		}
 	}
 }

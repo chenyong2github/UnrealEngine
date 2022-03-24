@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Buffers;
+using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
-using System.Buffers.Binary;
 
 namespace EpicGames.Core
 {
@@ -17,7 +15,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Memory storing the digest data
 		/// </summary>
-		public ReadOnlyMemory<byte> Memory;
+		public ReadOnlyMemory<byte> Memory { get; }
 
 		/// <summary>
 		/// Accessor for the span of memory storing the data
@@ -27,73 +25,73 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">Memory to construct from</param>
-		public Digest(ReadOnlyMemory<byte> Memory)
+		/// <param name="memory">Memory to construct from</param>
+		public Digest(ReadOnlyMemory<byte> memory)
 		{
-			this.Memory = Memory;
+			Memory = memory;
 		}
 
 		/// <summary>
 		/// Creates a content hash for a block of data, using a given algorithm.
 		/// </summary>
-		/// <param name="Data">Data to compute the hash for</param>
+		/// <param name="data">Data to compute the hash for</param>
 		/// <returns>New content hash instance containing the hash of the data</returns>
-		public static Digest<T> Compute<T>(byte[] Data) where T : DigestTraits, new()
+		public static Digest<T> Compute<T>(byte[] data) where T : DigestTraits, new()
 		{
-			using HashAlgorithm Algorithm = Digest<T>.Traits.CreateAlgorithm();
-			return Algorithm.ComputeHash(Data);
+			using HashAlgorithm algorithm = Digest<T>.Traits.CreateAlgorithm();
+			return algorithm.ComputeHash(data);
 		}
 
 		/// <summary>
 		/// Creates a content hash for a block of data, using a given algorithm.
 		/// </summary>
-		/// <param name="Text">Text to compute the hash for</param>
+		/// <param name="text">Text to compute the hash for</param>
 		/// <returns>New content hash instance containing the hash of the data</returns>
-		public static Digest<T> Compute<T>(string Text) where T : DigestTraits, new()
+		public static Digest<T> Compute<T>(string text) where T : DigestTraits, new()
 		{
-			return Compute<T>(Encoding.UTF8.GetBytes(Text));
+			return Compute<T>(Encoding.UTF8.GetBytes(text));
 		}
 
 		/// <summary>
 		/// Creates a content hash for a block of data, using a given algorithm.
 		/// </summary>
-		/// <param name="Data">Data to compute the hash for</param>
+		/// <param name="data">Data to compute the hash for</param>
 		/// <returns>New content hash instance containing the hash of the data</returns>
-		public static Digest<T> Compute<T>(ReadOnlySpan<byte> Data) where T : DigestTraits, new()
+		public static Digest<T> Compute<T>(ReadOnlySpan<byte> data) where T : DigestTraits, new()
 		{
-			byte[] Value = new byte[Digest<T>.Traits.Length];
-			using (HashAlgorithm Algorithm = Digest<T>.Traits.CreateAlgorithm())
+			byte[] value = new byte[Digest<T>.Traits.Length];
+			using (HashAlgorithm algorithm = Digest<T>.Traits.CreateAlgorithm())
 			{
-				if (!Algorithm.TryComputeHash(Data, Value, out int Written) || Written != Value.Length)
+				if (!algorithm.TryComputeHash(data, value, out int written) || written != value.Length)
 				{
 					throw new InvalidOperationException("Unable to compute hash for buffer");
 				}
 			}
-			return new Digest<T>(Value);
+			return new Digest<T>(value);
 		}
 
 		/// <summary>
 		/// Parses a digest from the given hex string
 		/// </summary>
-		/// <param name="Text"></param>
+		/// <param name="text"></param>
 		/// <returns></returns>
-		public static Digest Parse(string Text)
+		public static Digest Parse(string text)
 		{
-			return new Digest(StringUtils.ParseHexString(Text));
+			return new Digest(StringUtils.ParseHexString(text));
 		}
 
 		/// <summary>
 		/// Parses a digest from the given hex string
 		/// </summary>
-		/// <param name="Text"></param>
+		/// <param name="text"></param>
 		/// <returns></returns>
-		public static Digest<T> Parse<T>(string Text) where T : DigestTraits, new()
+		public static Digest<T> Parse<T>(string text) where T : DigestTraits, new()
 		{
-			return new Digest<T>(StringUtils.ParseHexString(Text));
+			return new Digest<T>(StringUtils.ParseHexString(text));
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => (Obj is Digest Digest) && Digest.Span.SequenceEqual(Span);
+		public override bool Equals(object? obj) => (obj is Digest digest) && digest.Span.SequenceEqual(Span);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => BinaryPrimitives.ReadInt32LittleEndian(Span);
@@ -104,41 +102,41 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Test two hash values for equality
 		/// </summary>
-		/// <param name="A"></param>
-		/// <param name="B"></param>
+		/// <param name="a"></param>
+		/// <param name="b"></param>
 		/// <returns></returns>
-		public static bool operator ==(Digest A, Digest B)
+		public static bool operator ==(Digest a, Digest b)
 		{
-			return A.Memory.Span.SequenceEqual(B.Memory.Span);
+			return a.Memory.Span.SequenceEqual(b.Memory.Span);
 		}
 
 		/// <summary>
 		/// Test two hash values for equality
 		/// </summary>
-		/// <param name="A"></param>
-		/// <param name="B"></param>
+		/// <param name="a"></param>
+		/// <param name="b"></param>
 		/// <returns></returns>
-		public static bool operator !=(Digest A, Digest B)
+		public static bool operator !=(Digest a, Digest b)
 		{
-			return !(A == B);
+			return !(a == b);
 		}
 
 		/// <summary>
 		/// Implicit conversion operator from memory objects
 		/// </summary>
-		/// <param name="Memory"></param>
-		public static implicit operator Digest(ReadOnlyMemory<byte> Memory)
+		/// <param name="memory"></param>
+		public static implicit operator Digest(ReadOnlyMemory<byte> memory)
 		{
-			return new Digest(Memory);
+			return new Digest(memory);
 		}
 
 		/// <summary>
 		/// Implicit conversion operator from byte arrays
 		/// </summary>
-		/// <param name="Memory"></param>
-		public static implicit operator Digest(byte[] Memory)
+		/// <param name="memory"></param>
+		public static implicit operator Digest(byte[] memory)
 		{
-			return new Digest(Memory);
+			return new Digest(memory);
 		}
 	}
 
@@ -155,10 +153,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Length"></param>
-		public DigestTraits(int Length)
+		/// <param name="length"></param>
+		public DigestTraits(int length)
 		{
-			this.Length = Length;
+			Length = length;
 		}
 
 		/// <summary>
@@ -257,7 +255,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Memory storing the digest data
 		/// </summary>
-		public ReadOnlyMemory<byte> Memory;
+		public ReadOnlyMemory<byte> Memory { get; }
 
 		/// <summary>
 		/// Accessor for the span of memory storing the data
@@ -267,14 +265,14 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">Memory to construct from</param>
-		public Digest(ReadOnlyMemory<byte> Memory)
+		/// <param name="memory">Memory to construct from</param>
+		public Digest(ReadOnlyMemory<byte> memory)
 		{
-			this.Memory = Memory;
+			Memory = memory;
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => (Obj is Digest<T> Hash) && Hash.Span.SequenceEqual(Span);
+		public override bool Equals(object? obj) => (obj is Digest<T> hash) && hash.Span.SequenceEqual(Span);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => BinaryPrimitives.ReadInt32LittleEndian(Span);
@@ -285,35 +283,35 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Test two hash values for equality
 		/// </summary>
-		/// <param name="A"></param>
-		/// <param name="B"></param>
+		/// <param name="a"></param>
+		/// <param name="b"></param>
 		/// <returns></returns>
-		public static bool operator ==(Digest<T> A, Digest<T> B) => A.Span.SequenceEqual(B.Span);
+		public static bool operator ==(Digest<T> a, Digest<T> b) => a.Span.SequenceEqual(b.Span);
 
 		/// <summary>
 		/// Test two hash values for equality
 		/// </summary>
-		/// <param name="A"></param>
-		/// <param name="B"></param>
+		/// <param name="a"></param>
+		/// <param name="b"></param>
 		/// <returns></returns>
-		public static bool operator !=(Digest<T> A, Digest<T> B) => !A.Span.SequenceEqual(B.Span);
+		public static bool operator !=(Digest<T> a, Digest<T> b) => !a.Span.SequenceEqual(b.Span);
 
 		/// <summary>
 		/// Implicit conversion operator from memory objects
 		/// </summary>
-		/// <param name="Memory"></param>
-		public static implicit operator Digest<T>(ReadOnlyMemory<byte> Memory)
+		/// <param name="memory"></param>
+		public static implicit operator Digest<T>(ReadOnlyMemory<byte> memory)
 		{
-			return new Digest<T>(Memory);
+			return new Digest<T>(memory);
 		}
 
 		/// <summary>
 		/// Implicit conversion operator from byte arrays
 		/// </summary>
-		/// <param name="Memory"></param>
-		public static implicit operator Digest<T>(byte[] Memory)
+		/// <param name="memory"></param>
+		public static implicit operator Digest<T>(byte[] memory)
 		{
-			return new Digest<T>(Memory);
+			return new Digest<T>(memory);
 		}
 	}
 
@@ -325,43 +323,43 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Read a digest from a memory reader
 		/// </summary>
-		/// <param name="Reader"></param>
+		/// <param name="reader"></param>
 		/// <returns></returns>
-		public static Digest ReadDigest(this MemoryReader Reader)
+		public static Digest ReadDigest(this MemoryReader reader)
 		{
-			return new Digest(Reader.ReadVariableLengthBytes());
+			return new Digest(reader.ReadVariableLengthBytes());
 		}
 
 		/// <summary>
 		/// Read a strongly-typed digest from a memory reader
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Reader"></param>
+		/// <param name="reader"></param>
 		/// <returns></returns>
-		public static Digest<T> ReadDigest<T>(this MemoryReader Reader) where T : DigestTraits, new()
+		public static Digest<T> ReadDigest<T>(this MemoryReader reader) where T : DigestTraits, new()
 		{
-			return new Digest<T>(Reader.ReadFixedLengthBytes(Digest<T>.Traits.Length));
+			return new Digest<T>(reader.ReadFixedLengthBytes(Digest<T>.Traits.Length));
 		}
 
 		/// <summary>
 		/// Write a digest to a memory writer
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Digest"></param>
-		public static void WriteDigest(this MemoryWriter Writer, Digest Digest)
+		/// <param name="writer"></param>
+		/// <param name="digest"></param>
+		public static void WriteDigest(this MemoryWriter writer, Digest digest)
 		{
-			Writer.WriteVariableLengthBytes(Digest.Span);
+			writer.WriteVariableLengthBytes(digest.Span);
 		}
 
 		/// <summary>
 		/// Write a strongly typed digest to a memory writer
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Writer"></param>
-		/// <param name="Digest"></param>
-		public static void WriteDigest<T>(this MemoryWriter Writer, Digest<T> Digest) where T : DigestTraits, new()
+		/// <param name="writer"></param>
+		/// <param name="digest"></param>
+		public static void WriteDigest<T>(this MemoryWriter writer, Digest<T> digest) where T : DigestTraits, new()
 		{
-			Writer.WriteFixedLengthBytes(Digest.Span);
+			writer.WriteFixedLengthBytes(digest.Span);
 		}
 	}
 }

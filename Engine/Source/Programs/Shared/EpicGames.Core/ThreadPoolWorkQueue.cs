@@ -2,10 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -17,22 +14,22 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Object used for controlling access to NumOutstandingJobs and updating EmptyEvent
 		/// </summary>
-		object LockObject = new object();
+		readonly object _lockObject = new object();
 
 		/// <summary>
 		/// Number of jobs remaining in the queue. This is updated in an atomic way.
 		/// </summary>
-		int NumOutstandingJobs;
+		int _numOutstandingJobs;
 
 		/// <summary>
 		/// Event which indicates whether the queue is empty.
 		/// </summary>
-		ManualResetEvent EmptyEvent = new ManualResetEvent(true);
+		ManualResetEvent _emptyEvent = new ManualResetEvent(true);
 
 		/// <summary>
 		/// Exceptions which occurred while executing tasks
 		/// </summary>
-		List<Exception> Exceptions = new List<Exception>();
+		readonly List<Exception> _exceptions = new List<Exception>();
 
 		/// <summary>
 		/// Default constructor
@@ -46,70 +43,67 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Dispose()
 		{
-			if(EmptyEvent != null)
+			if(_emptyEvent != null)
 			{
 				Wait();
 
-				EmptyEvent.Dispose();
-				EmptyEvent = null!;
+				_emptyEvent.Dispose();
+				_emptyEvent = null!;
 			}
 		}
 
 		/// <summary>
 		/// Returns the number of items remaining in the queue
 		/// </summary>
-		public int NumRemaining
-		{
-			get { return NumOutstandingJobs; }
-		}
+		public int NumRemaining => _numOutstandingJobs;
 
 		/// <summary>
 		/// Adds an item to the queue
 		/// </summary>
-		/// <param name="ActionToExecute">The action to add</param>
-		public void Enqueue(Action ActionToExecute)
+		/// <param name="actionToExecute">The action to add</param>
+		public void Enqueue(Action actionToExecute)
 		{
-			lock(LockObject)
+			lock(_lockObject)
 			{
-				if(NumOutstandingJobs == 0)
+				if(_numOutstandingJobs == 0)
 				{
-					EmptyEvent.Reset();
+					_emptyEvent.Reset();
 				}
-				NumOutstandingJobs++;
+				_numOutstandingJobs++;
 			}
 
 #if SINGLE_THREAD
 			Execute(ActionToExecute);
 #else
-			ThreadPool.QueueUserWorkItem(Execute, ActionToExecute);
+			ThreadPool.QueueUserWorkItem(Execute, actionToExecute);
 #endif
 		}
 
 		/// <summary>
 		/// Internal method to execute an action
 		/// </summary>
-		/// <param name="ActionToExecute">The action to execute</param>
-		void Execute(object? ActionToExecute)
+		/// <param name="actionToExecute">The action to execute</param>
+		void Execute(object? actionToExecute)
 		{
 			try
 			{
-				((Action)ActionToExecute!)();
+				((Action)actionToExecute!)();
 			}
-			catch(Exception Ex)
+			catch(Exception ex)
 			{
-				lock(LockObject)
+				lock(_lockObject)
 				{
-					Exceptions.Add(Ex);
+					_exceptions.Add(ex);
 				}
 			}
 			finally
 			{
-				lock(LockObject)
+				lock(_lockObject)
 				{
-					NumOutstandingJobs--;
-					if(NumOutstandingJobs == 0)
+					_numOutstandingJobs--;
+					if(_numOutstandingJobs == 0)
 					{
-						EmptyEvent.Set();
+						_emptyEvent.Set();
 					}
 				}
 			}
@@ -120,28 +114,28 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Wait()
 		{
-			EmptyEvent.WaitOne();
+			_emptyEvent.WaitOne();
 			RethrowExceptions();
 		}
 
 		/// <summary>
 		/// Waits for all queued tasks to finish, or the timeout to elapse
 		/// </summary>
-		/// <param name="MillisecondsTimeout">Maximum time to wait</param>
+		/// <param name="millisecondsTimeout">Maximum time to wait</param>
 		/// <returns>True if the queue completed, false if the timeout elapsed</returns>
-		public bool Wait(int MillisecondsTimeout)
+		public bool Wait(int millisecondsTimeout)
 		{
-			return Wait(TimeSpan.FromMilliseconds(MillisecondsTimeout));
+			return Wait(TimeSpan.FromMilliseconds(millisecondsTimeout));
 		}
 
 		/// <summary>
 		/// Waits for all queued tasks to finish, or the timeout to elapse
 		/// </summary>
-		/// <param name="Timeout">Maximum time to wait</param>
+		/// <param name="timeout">Maximum time to wait</param>
 		/// <returns>True if the queue completed, false if the timeout elapsed</returns>
-		public bool Wait(TimeSpan Timeout)
+		public bool Wait(TimeSpan timeout)
 		{
-			bool bResult = EmptyEvent.WaitOne(Timeout);
+			bool bResult = _emptyEvent.WaitOne(timeout);
 			if (bResult)
 			{
 				RethrowExceptions();
@@ -154,11 +148,11 @@ namespace EpicGames.Core
 		/// </summary>
 		public void RethrowExceptions()
 		{
-			lock(LockObject)
+			lock(_lockObject)
 			{
-				if(Exceptions.Count > 0)
+				if(_exceptions.Count > 0)
 				{
-					throw new AggregateException(Exceptions.ToArray());
+					throw new AggregateException(_exceptions.ToArray());
 				}
 			}
 		}

@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Core
 {
@@ -11,7 +9,7 @@ namespace EpicGames.Core
 	/// </summary>
 	public class BuzHash
 	{
-		static uint[] Table = new uint[256]
+		static readonly uint[] s_table = new uint[256]
 		{
 			0x458be752, 0xc10748cc, 0xfbbcdbb8, 0x6ded5b68, 0xb10a82b5, 0x20d75648, 0xdfc5665f, 0xa8428801, 0x7ebf5191, 0x841135c7, 0x65cc53b3,
 			0x280a597c, 0x16f60255, 0xc78cbc3e, 0x294415f5, 0xb938d494, 0xec85c4e6, 0xb7d33edc, 0xe549b544, 0xfdeda5aa, 0x882bf287, 0x3116737c,
@@ -39,8 +37,8 @@ namespace EpicGames.Core
 			0xf9c18d66, 0x593ade65, 0xd95ddf11,
 		};
 
-		int Count;
-		uint State;
+		int _count;
+		uint _state;
 
 		/// <summary>
 		/// Constructor
@@ -53,12 +51,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Count"></param>
-		/// <param name="State"></param>
-		public BuzHash(int Count, uint State)
+		/// <param name="count"></param>
+		/// <param name="state"></param>
+		public BuzHash(int count, uint state)
 		{
-			this.Count = Count;
-			this.State = State;
+			_count = count;
+			_state = state;
 		}
 
 		/// <summary>
@@ -66,84 +64,84 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Reset()
 		{ 
-			Count = 0; 
-			State = 0; 
+			_count = 0; 
+			_state = 0; 
+		}
+
+		/// <summary>
+		/// Add a byte to the window and update the hash
+		/// </summary>
+		/// <param name="value">New value to append to the window</param>
+		public void Add(byte value)
+		{
+			_state = Add(_state, value);
+			_count++;
 		}
 
 		/// <summary>
 		/// Add a byte to the window and update the hash
 		/// </summary>
 		/// <param name="Value">New value to append to the window</param>
-		public void Add(byte Value)
+		public void Add(ReadOnlySpan<byte> span)
 		{
-			State = Add(State, Value);
-			Count++;
-		}
-
-		/// <summary>
-		/// Add a byte to the window and update the hash
-		/// </summary>
-		/// <param name="Value">New value to append to the window</param>
-		public void Add(ReadOnlySpan<byte> Span)
-		{
-			State = Add(State, Span);
-			Count += Span.Length;
+			_state = Add(_state, span);
+			_count += span.Length;
 		}
 
 		/// <summary>
 		/// Static method for updating a hash given a particular byte value
 		/// </summary>
-		/// <param name="State">The current hash value</param>
-		/// <param name="Value">Byte to add to the hash</param>
+		/// <param name="state">The current hash value</param>
+		/// <param name="value">Byte to add to the hash</param>
 		/// <returns>New hash value</returns>
-		public static uint Add(uint State, byte Value)
+		public static uint Add(uint state, byte value)
 		{
-			return Rol32(State, 1) ^ Table[Value];
+			return Rol32(state, 1) ^ s_table[value];
 		}
 
 		/// <summary>
 		/// Static method for appending a range of data to a hash value
 		/// </summary>
-		/// <param name="State">The current hash value</param>
-		/// <param name="Data">Data to append to the hash</param>
+		/// <param name="state">The current hash value</param>
+		/// <param name="data">Data to append to the hash</param>
 		/// <returns>New hash value</returns>
-		public static uint Add(uint State, ReadOnlySpan<byte> Data)
+		public static uint Add(uint state, ReadOnlySpan<byte> data)
 		{
-			for (int Idx = 0; Idx < Data.Length; Idx++)
+			for (int idx = 0; idx < data.Length; idx++)
 			{
-				State = Add(State, Data[Idx]);
+				state = Add(state, data[idx]);
 			}
-			return State;
+			return state;
 		}
 
 		/// <summary>
 		/// Removes a byte from the start of the hash window
 		/// </summary>
-		/// <param name="Value">Value at the start of the window</param>
-		public void Sub(byte Value)
+		/// <param name="value">Value at the start of the window</param>
+		public void Sub(byte value)
 		{
-			State = State ^ Rol32(Table[Value], (int)(Count - 1));
-			Count--;
+			_state ^= Rol32(s_table[value], (int)(_count - 1));
+			_count--;
 		}
 
 		/// <summary>
 		/// Removes a byte from the start of the hash window
 		/// </summary>
-		/// <param name="Value">Value at the start of the window</param>
-		public static uint Sub(uint State, byte Value, int Count)
+		/// <param name="value">Value at the start of the window</param>
+		public static uint Sub(uint state, byte value, int count)
 		{
-			return State ^ Rol32(Table[Value], (int)(Count - 1));
+			return state ^ Rol32(s_table[value], (int)(count - 1));
 		}
 
 		/// <summary>
 		/// Update the hash with the given data
 		/// </summary>
-		/// <param name="Data"></param>
-		public void Update(ReadOnlySpan<byte> Data)
+		/// <param name="data"></param>
+		public void Update(ReadOnlySpan<byte> data)
 		{
-			for (int Idx = 0; Idx < Data.Length; ++Idx)
+			for (int idx = 0; idx < data.Length; ++idx)
 			{
-				Add(Data[Idx]);
+				Add(data[idx]);
 			}
 		}
 
@@ -153,13 +151,13 @@ namespace EpicGames.Core
 		/// <returns>The current hash value</returns>
 		public uint Get()
 		{
-			return State;
+			return _state;
 		}
 
-		static uint Rol32(uint V, int N)
+		static uint Rol32(uint v, int n)
 		{
-			N &= 31;
-			return ((V) << (N)) | ((V) >> (32 - N));
+			n &= 31;
+			return ((v) << (n)) | ((v) >> (32 - n));
 		}
 	}
 }

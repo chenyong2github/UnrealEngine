@@ -2,8 +2,6 @@
 
 using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Core
 {
@@ -15,30 +13,30 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The memory block to write to
 		/// </summary>
-		Memory<byte> Memory;
+		readonly Memory<byte> _memory;
 
 		/// <summary>
 		/// Current offset within the memory
 		/// </summary>
-		int Offset;
+		int _offset;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">Memory to write to</param>
-		public MemoryWriter(Memory<byte> Memory)
+		/// <param name="memory">Memory to write to</param>
+		public MemoryWriter(Memory<byte> memory)
 		{
-			this.Memory = Memory;
-			this.Offset = 0;
+			_memory = memory;
+			_offset = 0;
 		}
 
 		/// <summary>
 		/// Checks that we've used the exact buffer length
 		/// </summary>
-		/// <param name="ExpectedOffset">Expected offset within the output buffer</param>
-		public void CheckOffset(int ExpectedOffset)
+		/// <param name="expectedOffset">Expected offset within the output buffer</param>
+		public void CheckOffset(int expectedOffset)
 		{
-			if (Offset != ExpectedOffset)
+			if (_offset != expectedOffset)
 			{
 				throw new Exception("Serialization is not at expected offset within the output buffer");
 			}
@@ -47,146 +45,146 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Writes a boolean to memory
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteBoolean(bool Value)
+		/// <param name="value">Value to write</param>
+		public void WriteBoolean(bool value)
 		{
-			WriteUInt8(Value ? (byte)1 : (byte)0);
+			WriteUInt8(value ? (byte)1 : (byte)0);
 		}
 
 		/// <summary>
 		/// Writes a byte to memory
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteInt8(sbyte Value)
+		/// <param name="value">Value to write</param>
+		public void WriteInt8(sbyte value)
 		{
-			Memory.Span[Offset] = (byte)Value;
-			Offset++;
+			_memory.Span[_offset] = (byte)value;
+			_offset++;
 		}
 
 		/// <summary>
 		/// Writes a byte to memory
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteUInt8(byte Value)
+		/// <param name="value">Value to write</param>
+		public void WriteUInt8(byte value)
 		{
-			Memory.Span[Offset] = Value;
-			Offset++;
+			_memory.Span[_offset] = value;
+			_offset++;
 		}
 
 		/// <summary>
 		/// Writes an int16 to the memory
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteInt16(short Value)
+		/// <param name="value">Value to write</param>
+		public void WriteInt16(short value)
 		{
-			BinaryPrimitives.WriteInt16LittleEndian(Memory.Span.Slice(Offset), Value);
-			Offset += sizeof(short);
+			BinaryPrimitives.WriteInt16LittleEndian(_memory.Span.Slice(_offset), value);
+			_offset += sizeof(short);
 		}
 
 		/// <summary>
 		/// Writes a uint16 to the memory
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteUInt16(ushort Value)
+		/// <param name="value">Value to write</param>
+		public void WriteUInt16(ushort value)
 		{
-			BinaryPrimitives.WriteUInt16LittleEndian(Memory.Span.Slice(Offset), Value);
-			Offset += sizeof(ushort);
+			BinaryPrimitives.WriteUInt16LittleEndian(_memory.Span.Slice(_offset), value);
+			_offset += sizeof(ushort);
 		}
 
 		/// <summary>
 		/// Writes an int32 to the memory
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteInt32(int Value)
+		/// <param name="value">Value to write</param>
+		public void WriteInt32(int value)
 		{
-			BinaryPrimitives.WriteInt32LittleEndian(Memory.Span.Slice(Offset), Value);
-			Offset += sizeof(int);
+			BinaryPrimitives.WriteInt32LittleEndian(_memory.Span.Slice(_offset), value);
+			_offset += sizeof(int);
 		}
 
 		/// <summary>
 		/// Writes a uint32 to the memory
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteUInt32(uint Value)
+		/// <param name="value">Value to write</param>
+		public void WriteUInt32(uint value)
 		{
-			BinaryPrimitives.WriteUInt32LittleEndian(Memory.Span.Slice(Offset), Value);
-			Offset += sizeof(uint);
+			BinaryPrimitives.WriteUInt32LittleEndian(_memory.Span.Slice(_offset), value);
+			_offset += sizeof(uint);
 		}
 
 		/// <summary>
 		/// Writes an int64 to the memory
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteInt64(long Value)
+		/// <param name="value">Value to write</param>
+		public void WriteInt64(long value)
 		{
-			BinaryPrimitives.WriteInt64LittleEndian(Memory.Span.Slice(Offset), Value);
-			Offset += sizeof(long);
+			BinaryPrimitives.WriteInt64LittleEndian(_memory.Span.Slice(_offset), value);
+			_offset += sizeof(long);
 		}
 
 		/// <summary>
 		/// Writes a uint64 to the memory
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteUInt64(ulong Value)
+		/// <param name="value">Value to write</param>
+		public void WriteUInt64(ulong value)
 		{
-			BinaryPrimitives.WriteUInt64LittleEndian(Memory.Span.Slice(Offset), Value);
-			Offset += sizeof(ulong);
+			BinaryPrimitives.WriteUInt64LittleEndian(_memory.Span.Slice(_offset), value);
+			_offset += sizeof(ulong);
 		}
 
 		/// <summary>
 		/// Writes a variable length span of bytes
 		/// </summary>
-		/// <param name="Bytes">The bytes to write</param>
-		public void WriteVariableLengthBytes(ReadOnlySpan<byte> Bytes)
+		/// <param name="bytes">The bytes to write</param>
+		public void WriteVariableLengthBytes(ReadOnlySpan<byte> bytes)
 		{
-			WriteInt32(Bytes.Length);
-			WriteFixedLengthBytes(Bytes);
+			WriteInt32(bytes.Length);
+			WriteFixedLengthBytes(bytes);
 		}
 
 		/// <summary>
 		/// Write a fixed-length sequence of bytes to the buffer
 		/// </summary>
-		/// <param name="Bytes">The bytes to write</param>
-		public void WriteFixedLengthBytes(ReadOnlySpan<byte> Bytes)
+		/// <param name="bytes">The bytes to write</param>
+		public void WriteFixedLengthBytes(ReadOnlySpan<byte> bytes)
 		{
-			Bytes.CopyTo(Memory.Span.Slice(Offset));
-			Offset += Bytes.Length;
+			bytes.CopyTo(_memory.Span.Slice(_offset));
+			_offset += bytes.Length;
 		}
 
 		/// <summary>
 		/// Writes a variable length array
 		/// </summary>
-		/// <param name="Array">The array to write</param>
-		/// <param name="WriteItem">Delegate to write an individual item</param>
-		public void WriteVariableLengthArray<T>(T[] Array, Action<T> WriteItem)
+		/// <param name="array">The array to write</param>
+		/// <param name="writeItem">Delegate to write an individual item</param>
+		public void WriteVariableLengthArray<T>(T[] array, Action<T> writeItem)
 		{
-			WriteInt32(Array.Length);
-			WriteFixedLengthArray(Array, WriteItem);
+			WriteInt32(array.Length);
+			WriteFixedLengthArray(array, writeItem);
 		}
 
 		/// <summary>
 		/// Writes a fixed length array
 		/// </summary>
-		/// <param name="Array">The array to write</param>
-		/// <param name="WriteItem">Delegate to write an individual item</param>
-		public void WriteFixedLengthArray<T>(T[] Array, Action<T> WriteItem)
+		/// <param name="array">The array to write</param>
+		/// <param name="writeItem">Delegate to write an individual item</param>
+		public void WriteFixedLengthArray<T>(T[] array, Action<T> writeItem)
 		{
-			for (int Idx = 0; Idx < Array.Length; Idx++)
+			for (int idx = 0; idx < array.Length; idx++)
 			{
-				WriteItem(Array[Idx]);
+				writeItem(array[idx]);
 			}
 		}
 
 		/// <summary>
 		/// Allocate a writable span from the buffer
 		/// </summary>
-		/// <param name="Length">Length of the span to allocate</param>
+		/// <param name="length">Length of the span to allocate</param>
 		/// <returns>Span that can be written to</returns>
-		public Span<byte> AllocateSpan(int Length)
+		public Span<byte> AllocateSpan(int length)
 		{
-			Span<byte> Span = Memory.Span.Slice(Offset, Length);
-			Offset += Length;
-			return Span;
+			Span<byte> span = _memory.Span.Slice(_offset, length);
+			_offset += length;
+			return span;
 		}
 	}
 }

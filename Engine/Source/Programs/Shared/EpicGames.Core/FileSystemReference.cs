@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -34,209 +33,201 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Direct constructor for a path
 		/// </summary>
-		protected FileSystemReference(string InFullName)
+		protected FileSystemReference(string fullName)
 		{
-			FullName = InFullName;
-		}
-
-		/// <summary>
-		/// Direct constructor for a path
-		/// </summary>
-		protected FileSystemReference(string InFullName, string InCanonicalName)
-		{
-			FullName = InFullName;
+			FullName = fullName;
 		}
 
 		/// <summary>
 		/// Create a full path by concatenating multiple strings
 		/// </summary>
 		/// <returns></returns>
-		static ThreadLocal<StringBuilder> CombineStringsStringBuilder = new ThreadLocal<StringBuilder>(() => new StringBuilder(260));
-		static protected string CombineStrings(DirectoryReference BaseDirectory, params string[] Fragments)
+		static readonly ThreadLocal<StringBuilder> s_combineStringsStringBuilder = new ThreadLocal<StringBuilder>(() => new StringBuilder(260));
+		protected static string CombineStrings(DirectoryReference baseDirectory, params string[] fragments)
 		{
 			// Get the initial string to append to, and strip any root directory suffix from it
-			StringBuilder NewFullName = CombineStringsStringBuilder.Value!.Clear().Append(BaseDirectory.FullName);
-			if (NewFullName.Length > 0 && NewFullName[NewFullName.Length - 1] == Path.DirectorySeparatorChar)
+			StringBuilder newFullName = s_combineStringsStringBuilder.Value!.Clear().Append(baseDirectory.FullName);
+			if (newFullName.Length > 0 && newFullName[^1] == Path.DirectorySeparatorChar)
 			{
-				NewFullName.Remove(NewFullName.Length - 1, 1);
+				newFullName.Remove(newFullName.Length - 1, 1);
 			}
 
 			// Scan through the fragments to append, appending them to a string and updating the base length as we go
-			foreach (string Fragment in Fragments)
+			foreach (string fragment in fragments)
 			{
 				// Check if this fragment is an absolute path
-				if ((Fragment.Length >= 2 && Fragment[1] == ':') || (Fragment.Length >= 1 && (Fragment[0] == '\\' || Fragment[0] == '/')))
+				if ((fragment.Length >= 2 && fragment[1] == ':') || (fragment.Length >= 1 && (fragment[0] == '\\' || fragment[0] == '/')))
 				{
 					// It is. Reset the new name to the full version of this path.
-					NewFullName.Clear();
-					NewFullName.Append(Path.GetFullPath(Fragment).TrimEnd(Path.DirectorySeparatorChar));
+					newFullName.Clear();
+					newFullName.Append(Path.GetFullPath(fragment).TrimEnd(Path.DirectorySeparatorChar));
 				}
 				else
 				{
 					// Append all the parts of this fragment to the end of the existing path.
-					int StartIdx = 0;
-					while (StartIdx < Fragment.Length)
+					int startIdx = 0;
+					while (startIdx < fragment.Length)
 					{
 						// Find the end of this fragment. We may have been passed multiple paths in the same string.
-						int EndIdx = StartIdx;
-						while (EndIdx < Fragment.Length && Fragment[EndIdx] != '\\' && Fragment[EndIdx] != '/')
+						int endIdx = startIdx;
+						while (endIdx < fragment.Length && fragment[endIdx] != '\\' && fragment[endIdx] != '/')
 						{
-							EndIdx++;
+							endIdx++;
 						}
 
 						// Ignore any empty sections, like leading or trailing slashes, and '.' directory references.
-						int Length = EndIdx - StartIdx;
-						if (Length == 0)
+						int length = endIdx - startIdx;
+						if (length == 0)
 						{
 							// Multiple directory separators in a row; illegal.
-							throw new ArgumentException(String.Format("Path fragment '{0}' contains invalid directory separators.", Fragment));
+							throw new ArgumentException(String.Format("Path fragment '{0}' contains invalid directory separators.", fragment));
 						}
-						else if (Length == 2 && Fragment[StartIdx] == '.' && Fragment[StartIdx + 1] == '.')
+						else if (length == 2 && fragment[startIdx] == '.' && fragment[startIdx + 1] == '.')
 						{
 							// Remove the last directory name
-							for (int SeparatorIdx = NewFullName.Length - 1; SeparatorIdx >= 0; SeparatorIdx--)
+							for (int separatorIdx = newFullName.Length - 1; separatorIdx >= 0; separatorIdx--)
 							{
-								if (NewFullName[SeparatorIdx] == Path.DirectorySeparatorChar)
+								if (newFullName[separatorIdx] == Path.DirectorySeparatorChar)
 								{
-									NewFullName.Remove(SeparatorIdx, NewFullName.Length - SeparatorIdx);
+									newFullName.Remove(separatorIdx, newFullName.Length - separatorIdx);
 									break;
 								}
 							}
 						}
-						else if (Length != 1 || Fragment[StartIdx] != '.')
+						else if (length != 1 || fragment[startIdx] != '.')
 						{
 							// Append this fragment
-							NewFullName.Append(Path.DirectorySeparatorChar);
-							NewFullName.Append(Fragment, StartIdx, Length);
+							newFullName.Append(Path.DirectorySeparatorChar);
+							newFullName.Append(fragment, startIdx, length);
 						}
 
 						// Move to the next part
-						StartIdx = EndIdx + 1;
+						startIdx = endIdx + 1;
 					}
 				}
 			}
 
 			// Append the directory separator
-			if (NewFullName.Length == 0 || (NewFullName.Length == 2 && NewFullName[1] == ':'))
+			if (newFullName.Length == 0 || (newFullName.Length == 2 && newFullName[1] == ':'))
 			{
-				NewFullName.Append(Path.DirectorySeparatorChar);
+				newFullName.Append(Path.DirectorySeparatorChar);
 			}
 
 			// Set the new path variables
-			return NewFullName.ToString();
+			return newFullName.ToString();
 		}
 
 		/// <summary>
 		/// Checks whether this name has the given extension.
 		/// </summary>
-		/// <param name="Extension">The extension to check</param>
+		/// <param name="extension">The extension to check</param>
 		/// <returns>True if this name has the given extension, false otherwise</returns>
-		public bool HasExtension(string Extension)
+		public bool HasExtension(string extension)
 		{
-			if (Extension.Length > 0 && Extension[0] != '.')
+			if (extension.Length > 0 && extension[0] != '.')
 			{
-				return FullName.Length >= Extension.Length + 1 && FullName[FullName.Length - Extension.Length - 1] == '.' && FullName.EndsWith(Extension, Comparison);
+				return FullName.Length >= extension.Length + 1 && FullName[FullName.Length - extension.Length - 1] == '.' && FullName.EndsWith(extension, Comparison);
 			}
 			else
 			{
-				return FullName.EndsWith(Extension, Comparison);
+				return FullName.EndsWith(extension, Comparison);
 			}
 		}
 
 		/// <summary>
 		/// Determines if the given object is at or under the given directory
 		/// </summary>
-		/// <param name="Other">Directory to check against</param>
+		/// <param name="other">Directory to check against</param>
 		/// <returns>True if this path is under the given directory</returns>
-		public bool IsUnderDirectory(DirectoryReference Other)
+		public bool IsUnderDirectory(DirectoryReference other)
 		{
-			return FullName.StartsWith(Other.FullName, Comparison) && (FullName.Length == Other.FullName.Length || FullName[Other.FullName.Length] == Path.DirectorySeparatorChar || Other.IsRootDirectory());
+			return FullName.StartsWith(other.FullName, Comparison) && (FullName.Length == other.FullName.Length || FullName[other.FullName.Length] == Path.DirectorySeparatorChar || other.IsRootDirectory());
 		}
 
 		/// <summary>
 		/// Searches the path fragments for the given name. Only complete fragments are considered a match.
 		/// </summary>
-		/// <param name="Name">Name to check for</param>
-		/// <param name="Offset">Offset within the string to start the search</param>
+		/// <param name="name">Name to check for</param>
+		/// <param name="offset">Offset within the string to start the search</param>
 		/// <returns>True if the given name is found within the path</returns>
-		public bool ContainsName(string Name, int Offset)
+		public bool ContainsName(string name, int offset)
 		{
-			return ContainsName(Name, Offset, FullName.Length - Offset);
+			return ContainsName(name, offset, FullName.Length - offset);
 		}
 
 		/// <summary>
 		/// Searches the path fragments for the given name. Only complete fragments are considered a match.
 		/// </summary>
-		/// <param name="Name">Name to check for</param>
-		/// <param name="Offset">Offset within the string to start the search</param>
-		/// <param name="Length">Length of the substring to search</param>
+		/// <param name="name">Name to check for</param>
+		/// <param name="offset">Offset within the string to start the search</param>
+		/// <param name="length">Length of the substring to search</param>
 		/// <returns>True if the given name is found within the path</returns>
-		public bool ContainsName(string Name, int Offset, int Length)
+		public bool ContainsName(string name, int offset, int length)
 		{
 			// Check the substring to search is at least long enough to contain a match
-			if(Length < Name.Length)
+			if(length < name.Length)
 			{
 				return false;
 			}
 
 			// Find each occurence of the name within the remaining string, then test whether it's surrounded by directory separators
-			int MatchIdx = Offset;
+			int matchIdx = offset;
 			for(;;)
 			{
 				// Find the next occurrence
-				MatchIdx = FullName.IndexOf(Name, MatchIdx, Offset + Length - MatchIdx, Comparison);
-				if(MatchIdx == -1)
+				matchIdx = FullName.IndexOf(name, matchIdx, offset + length - matchIdx, Comparison);
+				if(matchIdx == -1)
 				{
 					return false;
 				}
 
 				// Check if the substring is a directory
-				int MatchEndIdx = MatchIdx + Name.Length;
-				if(FullName[MatchIdx - 1] == Path.DirectorySeparatorChar && (MatchEndIdx == FullName.Length || FullName[MatchEndIdx] == Path.DirectorySeparatorChar))
+				int matchEndIdx = matchIdx + name.Length;
+				if(FullName[matchIdx - 1] == Path.DirectorySeparatorChar && (matchEndIdx == FullName.Length || FullName[matchEndIdx] == Path.DirectorySeparatorChar))
 				{
 					return true;
 				}
 
 				// Move past the string that didn't match
-				MatchIdx += Name.Length;
+				matchIdx += name.Length;
 			}
 		}
 
 		/// <summary>
 		/// Determines if the given object is under the given directory, within a subfolder of the given name. Useful for masking out directories by name.
 		/// </summary>
-		/// <param name="Name">Name of a subfolder to also check for</param>
-		/// <param name="BaseDir">Base directory to check against</param>
+		/// <param name="name">Name of a subfolder to also check for</param>
+		/// <param name="baseDir">Base directory to check against</param>
 		/// <returns>True if the path is under the given directory</returns>
-		public bool ContainsName(string Name, DirectoryReference BaseDir)
+		public bool ContainsName(string name, DirectoryReference baseDir)
 		{
 			// Check that this is under the base directory
-			if(!IsUnderDirectory(BaseDir))
+			if(!IsUnderDirectory(baseDir))
 			{
 				return false;
 			}
 			else
 			{
-				return ContainsName(Name, BaseDir.FullName.Length);
+				return ContainsName(name, baseDir.FullName.Length);
 			}
 		}
 
 		/// <summary>
 		/// Determines if the given object is under the given directory, within a subfolder of the given name. Useful for masking out directories by name.
 		/// </summary>
-		/// <param name="Names">Names of subfolders to also check for</param>
-		/// <param name="BaseDir">Base directory to check against</param>
+		/// <param name="names">Names of subfolders to also check for</param>
+		/// <param name="baseDir">Base directory to check against</param>
 		/// <returns>True if the path is under the given directory</returns>
-		public bool ContainsAnyNames(IEnumerable<string> Names, DirectoryReference BaseDir)
+		public bool ContainsAnyNames(IEnumerable<string> names, DirectoryReference baseDir)
 		{
 			// Check that this is under the base directory
-			if(!IsUnderDirectory(BaseDir))
+			if(!IsUnderDirectory(baseDir))
 			{
 				return false;
 			}
 			else
 			{
-				return Names.Any(x => ContainsName(x, BaseDir.FullName.Length));
+				return names.Any(x => ContainsName(x, baseDir.FullName.Length));
 			}
 		}
 		
@@ -245,90 +236,90 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Directory">The directory to create a relative path from</param>
 		/// <returns>A relative path from the given directory</returns>
-		static ThreadLocal<StringBuilder> MakeRelativeToStringBuilder = new ThreadLocal<StringBuilder>(() => new StringBuilder(260));
-		public string MakeRelativeTo(DirectoryReference Directory)
+		static readonly ThreadLocal<StringBuilder> s_makeRelativeToStringBuilder = new ThreadLocal<StringBuilder>(() => new StringBuilder(260));
+		public string MakeRelativeTo(DirectoryReference directory)
 		{
-			StringBuilder Result = MakeRelativeToStringBuilder.Value!.Clear();
-			WriteRelativeTo(Directory, ref Result);
-			return Result.ToString();
+			StringBuilder result = s_makeRelativeToStringBuilder.Value!.Clear();
+			WriteRelativeTo(directory, ref result);
+			return result.ToString();
 		}
 
-		public void WriteRelativeTo(DirectoryReference Directory, ref StringBuilder Result)
+		public void WriteRelativeTo(DirectoryReference directory, ref StringBuilder result)
 		{
 			// Find how much of the path is common between the two paths. This length does not include a trailing directory separator character.
-			int CommonDirectoryLength = -1;
-			for (int Idx = 0; ; Idx++)
+			int commonDirectoryLength = -1;
+			for (int idx = 0; ; idx++)
 			{
-				if (Idx == FullName.Length)
+				if (idx == FullName.Length)
 				{
 					// The two paths are identical. Just return the "." character.
-					if (Idx == Directory.FullName.Length)
+					if (idx == directory.FullName.Length)
 					{
-						Result.Append('.');
+						result.Append('.');
 						return;
 					}
 
 					// Check if we're finishing on a complete directory name
-					if (Directory.FullName[Idx] == Path.DirectorySeparatorChar)
+					if (directory.FullName[idx] == Path.DirectorySeparatorChar)
 					{
-						CommonDirectoryLength = Idx;
+						commonDirectoryLength = idx;
 					}
 					break;
 				}
-				else if (Idx == Directory.FullName.Length)
+				else if (idx == directory.FullName.Length)
 				{
 					// Check whether the end of the directory name coincides with a boundary for the current name.
-					if (FullName[Idx] == Path.DirectorySeparatorChar)
+					if (FullName[idx] == Path.DirectorySeparatorChar)
 					{
-						CommonDirectoryLength = Idx;
+						commonDirectoryLength = idx;
 					}
 					break;
 				}
 				else
 				{
 					// Check the two paths match, and bail if they don't. Increase the common directory length if we've reached a separator.
-					if(String.Compare(FullName, Idx, Directory.FullName, Idx, 1, Comparison) != 0)
+					if(String.Compare(FullName, idx, directory.FullName, idx, 1, Comparison) != 0)
 					{
 						break;
 					}
-					if (FullName[Idx] == Path.DirectorySeparatorChar)
+					if (FullName[idx] == Path.DirectorySeparatorChar)
 					{
-						CommonDirectoryLength = Idx;
+						commonDirectoryLength = idx;
 					}
 				}
 			}
 
 			// If there's no relative path, just return the absolute path
-			if (CommonDirectoryLength == -1)
+			if (commonDirectoryLength == -1)
 			{
-				Result.Append(FullName);
+				result.Append(FullName);
 				return;
 			}
 
 			// Append all the '..' separators to get back to the common directory, then the rest of the string to reach the target item
-			for (int Idx = CommonDirectoryLength + 1; Idx < Directory.FullName.Length; Idx++)
+			for (int idx = commonDirectoryLength + 1; idx < directory.FullName.Length; idx++)
 			{
 				// Move up a directory
-				if (Result.Length != 0)
+				if (result.Length != 0)
 				{
-					Result.Append(Path.DirectorySeparatorChar);
+					result.Append(Path.DirectorySeparatorChar);
 				}
-				Result.Append("..");
+				result.Append("..");
 
 				// Scan to the next directory separator
-				while (Idx < Directory.FullName.Length && Directory.FullName[Idx] != Path.DirectorySeparatorChar)
+				while (idx < directory.FullName.Length && directory.FullName[idx] != Path.DirectorySeparatorChar)
 				{
-					Idx++;
+					idx++;
 				}
 			}
 
-			if (CommonDirectoryLength + 1 < FullName.Length)
+			if (commonDirectoryLength + 1 < FullName.Length)
 			{
-				if (Result.Length != 0)
+				if (result.Length != 0)
 				{
-					Result.Append(Path.DirectorySeparatorChar);
+					result.Append(Path.DirectorySeparatorChar);
 				}
-				Result.Append(FullName, CommonDirectoryLength + 1, FullName.Length - CommonDirectoryLength - 1);
+				result.Append(FullName, commonDirectoryLength + 1, FullName.Length - commonDirectoryLength - 1);
 			}
 		}
 

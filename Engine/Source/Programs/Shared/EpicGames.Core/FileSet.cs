@@ -5,7 +5,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace EpicGames.Core
 {
@@ -28,10 +27,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Path">Relative path within the tree</param>
-		public FileSet(string Path)
+		/// <param name="path">Relative path within the tree</param>
+		public FileSet(string path)
 		{
-			this.Path = Path;
+			Path = path;
 		}
 
 		/// <summary>
@@ -51,9 +50,19 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Files"></param>
 		/// <returns>Tree containing the given files</returns>
-		public static FileSet FromFile(DirectoryReference Directory, string File)
+		public static FileSet FromFile(DirectoryReference directory, string file)
 		{
-			return FromFiles(new[] { (File, FileReference.Combine(Directory, File)) });
+			return FromFiles(new[] { (File: file, FileReference.Combine(directory, file)) });
+		}
+
+		/// <summary>
+		/// Creates a file tree from a given set of files
+		/// </summary>
+		/// <param name="files"></param>
+		/// <returns>Tree containing the given files</returns>
+		public static FileSet FromFiles(IEnumerable<(string, FileReference)> files)
+		{
+			return new FileSetFromFiles(files);
 		}
 
 		/// <summary>
@@ -61,79 +70,79 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Files"></param>
 		/// <returns>Tree containing the given files</returns>
-		public static FileSet FromFiles(IEnumerable<(string, FileReference)> Files)
+		public static FileSet FromFile(DirectoryReference directory, FileReference file)
 		{
-			return new FileSetFromFiles(Files);
+			return FromFiles(directory, new[] { file });
 		}
 
 		/// <summary>
 		/// Creates a file tree from a given set of files
 		/// </summary>
-		/// <param name="Files"></param>
+		/// <param name="files"></param>
 		/// <returns>Tree containing the given files</returns>
-		public static FileSet FromFile(DirectoryReference Directory, FileReference File)
+		public static FileSet FromFiles(DirectoryReference directory, IEnumerable<FileReference> files)
 		{
-			return FromFiles(Directory, new[] { File });
-		}
-
-		/// <summary>
-		/// Creates a file tree from a given set of files
-		/// </summary>
-		/// <param name="Files"></param>
-		/// <returns>Tree containing the given files</returns>
-		public static FileSet FromFiles(DirectoryReference Directory, IEnumerable<FileReference> Files)
-		{
-			return new FileSetFromFiles(Files.Select(x => (x.MakeRelativeTo(Directory), x)));
+			return new FileSetFromFiles(files.Select(x => (x.MakeRelativeTo(directory), x)));
 		}
 
 		/// <summary>
 		/// Creates a file tree from a folder on disk
 		/// </summary>
-		/// <param name="Directory"></param>
+		/// <param name="directory"></param>
 		/// <returns></returns>
-		public static FileSet FromDirectory(DirectoryReference Directory)
+		public static FileSet FromDirectory(DirectoryReference directory)
 		{
-			return new FileSetFromDirectory(new DirectoryInfo(Directory.FullName));
+			return new FileSetFromDirectory(new DirectoryInfo(directory.FullName));
 		}
 
 		/// <summary>
 		/// Creates a file tree from a folder on disk
 		/// </summary>
-		/// <param name="DirectoryInfo"></param>
+		/// <param name="directoryInfo"></param>
 		/// <returns></returns>
-		public static FileSet FromDirectory(DirectoryInfo DirectoryInfo)
+		public static FileSet FromDirectory(DirectoryInfo directoryInfo)
 		{
-			return new FileSetFromDirectory(DirectoryInfo);
+			return new FileSetFromDirectory(directoryInfo);
 		}
 
 		/// <summary>
 		/// Create a tree containing files filtered by any of the given wildcards
 		/// </summary>
-		/// <param name="Rules"></param>
+		/// <param name="rules"></param>
 		/// <returns></returns>
-		public FileSet Filter(string Rules)
+		public FileSet Filter(string rules)
 		{
-			return Filter(Rules.Split(';'));
+			return Filter(rules.Split(';'));
 		}
 
 		/// <summary>
 		/// Create a tree containing files filtered by any of the given wildcards
 		/// </summary>
-		/// <param name="Rules"></param>
+		/// <param name="rules"></param>
 		/// <returns></returns>
-		public FileSet Filter(params string[] Rules)
+		public FileSet Filter(params string[] rules)
 		{
-			return new FileSetFromFilter(this, new FileFilter(Rules));
+			return new FileSetFromFilter(this, new FileFilter(rules));
 		}
 
 		/// <summary>
 		/// Create a tree containing files filtered by any of the given file filter objects
 		/// </summary>
-		/// <param name="Filters"></param>
+		/// <param name="filters"></param>
 		/// <returns></returns>
-		public FileSet Filter(params FileFilter[] Filters)
+		public FileSet Filter(params FileFilter[] filters)
 		{
-			return new FileSetFromFilter(this, Filters);
+			return new FileSetFromFilter(this, filters);
+		}
+
+		/// <summary>
+		/// Create a tree containing the exception of files with another tree
+		/// </summary>
+		/// <param name="filter">Files to exclude from the filter</param>
+		/// <returns></returns>
+		public FileSet Except(string filter)
+		{
+			return Except(filter.Split(';'));
 		}
 
 		/// <summary>
@@ -141,53 +150,43 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Filter">Files to exclude from the filter</param>
 		/// <returns></returns>
-		public FileSet Except(string Filter)
+		public FileSet Except(params string[] rules)
 		{
-			return Except(Filter.Split(';'));
-		}
-
-		/// <summary>
-		/// Create a tree containing the exception of files with another tree
-		/// </summary>
-		/// <param name="Filter">Files to exclude from the filter</param>
-		/// <returns></returns>
-		public FileSet Except(params string[] Rules)
-		{
-			return new FileSetFromFilter(this, new FileFilter(Rules.Select(x => $"-{x}")));
+			return new FileSetFromFilter(this, new FileFilter(rules.Select(x => $"-{x}")));
 		}
 
 		/// <summary>
 		/// Create a tree containing the union of files with another tree
 		/// </summary>
-		/// <param name="Lhs"></param>
-		/// <param name="Rhs"></param>
+		/// <param name="lhs"></param>
+		/// <param name="rhs"></param>
 		/// <returns></returns>
-		public static FileSet Union(FileSet Lhs, FileSet Rhs)
+		public static FileSet Union(FileSet lhs, FileSet rhs)
 		{
-			return new FileSetFromUnion(Lhs, Rhs);
+			return new FileSetFromUnion(lhs, rhs);
 		}
 
 		/// <summary>
 		/// Create a tree containing the exception of files with another tree
 		/// </summary>
-		/// <param name="Lhs"></param>
-		/// <param name="Rhs"></param>
+		/// <param name="lhs"></param>
+		/// <param name="rhs"></param>
 		/// <returns></returns>
-		public static FileSet Except(FileSet Lhs, FileSet Rhs)
+		public static FileSet Except(FileSet lhs, FileSet rhs)
 		{
-			return new FileSetFromExcept(Lhs, Rhs);
+			return new FileSetFromExcept(lhs, rhs);
 		}
 
 		/// <inheritdoc cref="Union(FileSet, FileSet)"/>
-		public static FileSet operator +(FileSet Lhs, FileSet Rhs)
+		public static FileSet operator +(FileSet lhs, FileSet rhs)
 		{
-			return Union(Lhs, Rhs);
+			return Union(lhs, rhs);
 		}
 
 		/// <inheritdoc cref="Except(FileSet, FileSet)"/>
-		public static FileSet operator -(FileSet Lhs, FileSet Rhs)
+		public static FileSet operator -(FileSet lhs, FileSet rhs)
 		{
-			return Except(Lhs, Rhs);
+			return Except(lhs, rhs);
 		}
 
 		/// <summary>
@@ -196,20 +195,20 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public Dictionary<string, FileReference> Flatten()
 		{
-			Dictionary<string, FileReference> PathToSourceFile = new Dictionary<string, FileReference>(StringComparer.OrdinalIgnoreCase);
-			FlattenInternal(String.Empty, PathToSourceFile);
-			return PathToSourceFile;
+			Dictionary<string, FileReference> pathToSourceFile = new Dictionary<string, FileReference>(StringComparer.OrdinalIgnoreCase);
+			FlattenInternal(String.Empty, pathToSourceFile);
+			return pathToSourceFile;
 		}
 
-		private void FlattenInternal(string PathPrefix, Dictionary<string, FileReference> PathToSourceFile)
+		private void FlattenInternal(string pathPrefix, Dictionary<string, FileReference> pathToSourceFile)
 		{
-			foreach ((string Path, FileReference File) in EnumerateFiles())
+			foreach ((string path, FileReference file) in EnumerateFiles())
 			{
-				PathToSourceFile[PathPrefix + Path] = File;
+				pathToSourceFile[pathPrefix + path] = file;
 			}
-			foreach((string Path, FileSet FileSet) in EnumerateDirectories())
+			foreach((string path, FileSet fileSet) in EnumerateDirectories())
 			{
-				FileSet.FlattenInternal(PathPrefix + Path + "/", PathToSourceFile);
+				fileSet.FlattenInternal(pathPrefix + path + "/", pathToSourceFile);
 			}
 		}
 
@@ -217,15 +216,15 @@ namespace EpicGames.Core
 		/// Flatten to a map of files in a target directory
 		/// </summary>
 		/// <returns></returns>
-		public Dictionary<FileReference, FileReference> Flatten(DirectoryReference OutputDir)
+		public Dictionary<FileReference, FileReference> Flatten(DirectoryReference outputDir)
 		{
-			Dictionary<FileReference, FileReference> TargetToSourceFile = new Dictionary<FileReference, FileReference>();
-			foreach ((string Path, FileReference SourceFile) in Flatten())
+			Dictionary<FileReference, FileReference> targetToSourceFile = new Dictionary<FileReference, FileReference>();
+			foreach ((string path, FileReference sourceFile) in Flatten())
 			{
-				FileReference TargetFile = FileReference.Combine(OutputDir, Path);
-				TargetToSourceFile[TargetFile] = SourceFile;
+				FileReference targetFile = FileReference.Combine(outputDir, path);
+				targetToSourceFile[targetFile] = sourceFile;
 			}
-			return TargetToSourceFile;
+			return targetToSourceFile;
 		}
 
 		/// <inheritdoc/>
@@ -240,50 +239,50 @@ namespace EpicGames.Core
 	/// </summary>
 	class FileSetFromFiles : FileSet
 	{
-		Dictionary<string, FileReference> Files = new Dictionary<string, FileReference>();
-		Dictionary<string, FileSetFromFiles> SubTrees = new Dictionary<string, FileSetFromFiles>();
+		readonly Dictionary<string, FileReference> _files = new Dictionary<string, FileReference>();
+		readonly Dictionary<string, FileSetFromFiles> _subTrees = new Dictionary<string, FileSetFromFiles>();
 
 		/// <summary>
 		/// Private constructor
 		/// </summary>
-		/// <param name="Path"></param>
-		private FileSetFromFiles(string Path)
-			: base(Path)
+		/// <param name="path"></param>
+		private FileSetFromFiles(string path)
+			: base(path)
 		{
 		}
 
 		/// <summary>
 		/// Creates a tree from a given set of files
 		/// </summary>
-		/// <param name="InputFiles"></param>
-		public FileSetFromFiles(IEnumerable<(string, FileReference)> InputFiles)
+		/// <param name="inputFiles"></param>
+		public FileSetFromFiles(IEnumerable<(string, FileReference)> inputFiles)
 			: this(String.Empty)
 		{
-			foreach ((string Path, FileReference File) in InputFiles)
+			foreach ((string path, FileReference file) in inputFiles)
 			{
-				string[] Fragments = Path.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+				string[] fragments = path.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
 
-				FileSetFromFiles Current = this;
-				for (int Idx = 0; Idx < Fragments.Length - 1; Idx++)
+				FileSetFromFiles current = this;
+				for (int idx = 0; idx < fragments.Length - 1; idx++)
 				{
-					FileSetFromFiles? Next;
-					if (!Current.SubTrees.TryGetValue(Fragments[Idx], out Next))
+					FileSetFromFiles? next;
+					if (!current._subTrees.TryGetValue(fragments[idx], out next))
 					{
-						Next = new FileSetFromFiles(Current.Path + Fragments[Idx] + "/");
-						Current.SubTrees.Add(Fragments[Idx], Next);
+						next = new FileSetFromFiles(current.Path + fragments[idx] + "/");
+						current._subTrees.Add(fragments[idx], next);
 					}
-					Current = Next;
+					current = next;
 				}
 
-				Current.Files.Add(Fragments[^1], File);
+				current._files.Add(fragments[^1], file);
 			}
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<KeyValuePair<string, FileReference>> EnumerateFiles() => Files;
+		public override IEnumerable<KeyValuePair<string, FileReference>> EnumerateFiles() => _files;
 
 		/// <inheritdoc/>
-		public override IEnumerable<KeyValuePair<string, FileSet>> EnumerateDirectories() => SubTrees.Select(x => new KeyValuePair<string, FileSet>(x.Key, x.Value));
+		public override IEnumerable<KeyValuePair<string, FileSet>> EnumerateDirectories() => _subTrees.Select(x => new KeyValuePair<string, FileSet>(x.Key, x.Value));
 	}
 
 	/// <summary>
@@ -291,30 +290,30 @@ namespace EpicGames.Core
 	/// </summary>
 	sealed class FileSetFromDirectory : FileSet
 	{
-		DirectoryInfo DirectoryInfo;
+		readonly DirectoryInfo _directoryInfo;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FileSetFromDirectory(DirectoryInfo DirectoryInfo)
-			: this(DirectoryInfo, "/")
+		public FileSetFromDirectory(DirectoryInfo directoryInfo)
+			: this(directoryInfo, "/")
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FileSetFromDirectory(DirectoryInfo DirectoryInfo, string Path)
-			: base(Path)
+		public FileSetFromDirectory(DirectoryInfo directoryInfo, string path)
+			: base(path)
 		{
-			this.DirectoryInfo = DirectoryInfo;
+			_directoryInfo = directoryInfo;
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<KeyValuePair<string, FileReference>> EnumerateFiles() => DirectoryInfo.EnumerateFiles().Select(x => new KeyValuePair<string, FileReference>(x.Name, new FileReference(x)));
+		public override IEnumerable<KeyValuePair<string, FileReference>> EnumerateFiles() => _directoryInfo.EnumerateFiles().Select(x => new KeyValuePair<string, FileReference>(x.Name, new FileReference(x)));
 
 		/// <inheritdoc/>
-		public override IEnumerable<KeyValuePair<string, FileSet>> EnumerateDirectories() => DirectoryInfo.EnumerateDirectories().Select(x => KeyValuePair.Create<string, FileSet>(x.Name, new FileSetFromDirectory(x)));
+		public override IEnumerable<KeyValuePair<string, FileSet>> EnumerateDirectories() => _directoryInfo.EnumerateDirectories().Select(x => KeyValuePair.Create<string, FileSet>(x.Name, new FileSetFromDirectory(x)));
 	}
 
 	/// <summary>
@@ -322,57 +321,57 @@ namespace EpicGames.Core
 	/// </summary>
 	class FileSetFromUnion : FileSet
 	{
-		FileSet Lhs;
-		FileSet Rhs;
+		readonly FileSet _lhs;
+		readonly FileSet _rhs;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Lhs">First file tree for the union</param>
-		/// <param name="Rhs">Other file tree for the union</param>
-		public FileSetFromUnion(FileSet Lhs, FileSet Rhs)
-			: base(Lhs.Path)
+		/// <param name="lhs">First file tree for the union</param>
+		/// <param name="rhs">Other file tree for the union</param>
+		public FileSetFromUnion(FileSet lhs, FileSet rhs)
+			: base(lhs.Path)
 		{
-			this.Lhs = Lhs;
-			this.Rhs = Rhs;
+			_lhs = lhs;
+			_rhs = rhs;
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<KeyValuePair<string, FileReference>> EnumerateFiles()
 		{
-			Dictionary<string, FileReference> Files = new Dictionary<string, FileReference>(Lhs.EnumerateFiles(), StringComparer.OrdinalIgnoreCase);
-			foreach ((string Name, FileReference File) in Rhs.EnumerateFiles())
+			Dictionary<string, FileReference> files = new Dictionary<string, FileReference>(_lhs.EnumerateFiles(), StringComparer.OrdinalIgnoreCase);
+			foreach ((string name, FileReference file) in _rhs.EnumerateFiles())
 			{
-				FileReference? ExistingFile;
-				if (!Files.TryGetValue(Name, out ExistingFile))
+				FileReference? existingFile;
+				if (!files.TryGetValue(name, out existingFile))
 				{
-					Files.Add(Name, File);
+					files.Add(name, file);
 				}
-				else if (ExistingFile == null || !ExistingFile.Equals(File))
+				else if (existingFile == null || !existingFile.Equals(file))
 				{
-					throw new InvalidOperationException($"Conflict for contents of {Path}{Name} - could be {ExistingFile} or {File}");
+					throw new InvalidOperationException($"Conflict for contents of {Path}{name} - could be {existingFile} or {file}");
 				}
 			}
-			return Files;
+			return files;
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<KeyValuePair<string, FileSet>> EnumerateDirectories()
 		{
-			Dictionary<string, FileSet> NameToSubTree = new Dictionary<string, FileSet>(Lhs.EnumerateDirectories(), StringComparer.OrdinalIgnoreCase);
-			foreach ((string Name, FileSet SubTree) in Rhs.EnumerateDirectories())
+			Dictionary<string, FileSet> nameToSubTree = new Dictionary<string, FileSet>(_lhs.EnumerateDirectories(), StringComparer.OrdinalIgnoreCase);
+			foreach ((string name, FileSet subTree) in _rhs.EnumerateDirectories())
 			{
-				FileSet? ExistingSubTree;
-				if (NameToSubTree.TryGetValue(Name, out ExistingSubTree))
+				FileSet? existingSubTree;
+				if (nameToSubTree.TryGetValue(name, out existingSubTree))
 				{
-					NameToSubTree[Name] = new FileSetFromUnion(ExistingSubTree, SubTree);
+					nameToSubTree[name] = new FileSetFromUnion(existingSubTree, subTree);
 				}
 				else
 				{
-					NameToSubTree[Name] = SubTree;
+					nameToSubTree[name] = subTree;
 				}
 			}
-			return NameToSubTree;
+			return nameToSubTree;
 		}
 	}
 
@@ -381,42 +380,42 @@ namespace EpicGames.Core
 	/// </summary>
 	class FileSetFromExcept : FileSet
 	{
-		FileSet Lhs;
-		FileSet Rhs;
+		readonly FileSet _lhs;
+		readonly FileSet _rhs;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Lhs">First file tree for the union</param>
-		/// <param name="Rhs">Other file tree for the union</param>
-		public FileSetFromExcept(FileSet Lhs, FileSet Rhs)
-			: base(Lhs.Path)
+		/// <param name="lhs">First file tree for the union</param>
+		/// <param name="rhs">Other file tree for the union</param>
+		public FileSetFromExcept(FileSet lhs, FileSet rhs)
+			: base(lhs.Path)
 		{
-			this.Lhs = Lhs;
-			this.Rhs = Rhs;
+			_lhs = lhs;
+			_rhs = rhs;
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<KeyValuePair<string, FileReference>> EnumerateFiles()
 		{
-			HashSet<string> RhsFiles = new HashSet<string>(Rhs.EnumerateFiles().Select(x => x.Key), StringComparer.OrdinalIgnoreCase);
-			return Lhs.EnumerateFiles().Where(x => !RhsFiles.Contains(x.Key));
+			HashSet<string> rhsFiles = new HashSet<string>(_rhs.EnumerateFiles().Select(x => x.Key), StringComparer.OrdinalIgnoreCase);
+			return _lhs.EnumerateFiles().Where(x => !rhsFiles.Contains(x.Key));
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<KeyValuePair<string, FileSet>> EnumerateDirectories()
 		{
-			Dictionary<string, FileSet> RhsDirs = new Dictionary<string, FileSet>(Rhs.EnumerateDirectories(), StringComparer.OrdinalIgnoreCase);
-			foreach ((string Name, FileSet LhsSet) in Lhs.EnumerateDirectories())
+			Dictionary<string, FileSet> rhsDirs = new Dictionary<string, FileSet>(_rhs.EnumerateDirectories(), StringComparer.OrdinalIgnoreCase);
+			foreach ((string name, FileSet lhsSet) in _lhs.EnumerateDirectories())
 			{
-				FileSet? RhsSet;
-				if (RhsDirs.TryGetValue(Name, out RhsSet))
+				FileSet? rhsSet;
+				if (rhsDirs.TryGetValue(name, out rhsSet))
 				{
-					yield return KeyValuePair.Create<string, FileSet>(Name, new FileSetFromExcept(LhsSet, RhsSet));
+					yield return KeyValuePair.Create<string, FileSet>(name, new FileSetFromExcept(lhsSet, rhsSet));
 				}
 				else
 				{
-					yield return KeyValuePair.Create(Name, LhsSet);
+					yield return KeyValuePair.Create(name, lhsSet);
 				}
 			}
 		}
@@ -428,30 +427,30 @@ namespace EpicGames.Core
 	/// <typeparam name="T">Class containing information about a file</typeparam>
 	class FileSetFromFilter : FileSet
 	{
-		FileSet Inner;
-		FileFilter[] Filters;
+		readonly FileSet _inner;
+		readonly FileFilter[] _filters;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Inner">The tree to filter</param>
-		/// <param name="Filters"></param>
-		public FileSetFromFilter(FileSet Inner, params FileFilter[] Filters)
-			: base(Inner.Path)
+		/// <param name="inner">The tree to filter</param>
+		/// <param name="filters"></param>
+		public FileSetFromFilter(FileSet inner, params FileFilter[] filters)
+			: base(inner.Path)
 		{
-			this.Inner = Inner;
-			this.Filters = Filters;
+			_inner = inner;
+			_filters = filters;
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<KeyValuePair<string, FileReference>> EnumerateFiles()
 		{
-			foreach (KeyValuePair<string, FileReference> Item in Inner.EnumerateFiles())
+			foreach (KeyValuePair<string, FileReference> item in _inner.EnumerateFiles())
 			{
-				string FilterName = Inner.Path + Item.Key;
-				if (Filters.Any(x => x.Matches(FilterName)))
+				string filterName = _inner.Path + item.Key;
+				if (_filters.Any(x => x.Matches(filterName)))
 				{
-					yield return Item;
+					yield return item;
 				}
 			}
 		}
@@ -459,15 +458,15 @@ namespace EpicGames.Core
 		/// <inheritdoc/>
 		public override IEnumerable<KeyValuePair<string, FileSet>> EnumerateDirectories()
 		{
-			foreach (KeyValuePair<string, FileSet> Item in Inner.EnumerateDirectories())
+			foreach (KeyValuePair<string, FileSet> item in _inner.EnumerateDirectories())
 			{
-				string FilterName = Inner.Path + Item.Key;
+				string filterName = _inner.Path + item.Key;
 
-				FileFilter[] PossibleFilters = Filters.Where(x => x.PossiblyMatches(FilterName)).ToArray();
-				if (PossibleFilters.Length > 0)
+				FileFilter[] possibleFilters = _filters.Where(x => x.PossiblyMatches(filterName)).ToArray();
+				if (possibleFilters.Length > 0)
 				{
-					FileSetFromFilter SubTreeFilter = new FileSetFromFilter(Item.Value, PossibleFilters);
-					yield return new KeyValuePair<string, FileSet>(Item.Key, SubTreeFilter);
+					FileSetFromFilter subTreeFilter = new FileSetFromFilter(item.Value, possibleFilters);
+					yield return new KeyValuePair<string, FileSet>(item.Key, subTreeFilter);
 				}
 			}
 		}

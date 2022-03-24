@@ -13,15 +13,15 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Completion source to wait on
 		/// </summary>
-		TaskCompletionSource<bool> Source = new TaskCompletionSource<bool>();
+		TaskCompletionSource<bool> _source = new TaskCompletionSource<bool>();
 
 		/// <summary>
 		/// Signal the event
 		/// </summary>
 		public void Set()
 		{
-			TaskCompletionSource<bool> PrevSource = Interlocked.Exchange(ref Source, new TaskCompletionSource<bool>());
-			PrevSource.SetResult(true);
+			TaskCompletionSource<bool> prevSource = Interlocked.Exchange(ref _source, new TaskCompletionSource<bool>());
+			prevSource.SetResult(true);
 		}
 
 		/// <summary>
@@ -30,15 +30,12 @@ namespace EpicGames.Core
 		/// <returns>True if the event is set</returns>
 		public bool IsSet()
 		{
-			return Source.Task.IsCompleted;
+			return _source.Task.IsCompleted;
 		}
 
 		/// <summary>
 		/// Waits for this event to be set
 		/// </summary>
-		public Task Task
-		{
-			get { return Source.Task; }
-		}
+		public Task Task => _source.Task;
 	}
 }

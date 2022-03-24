@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -14,195 +13,199 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Array mapping from ascii index to hexadecimal digits.
 		/// </summary>
-		static sbyte[] HexDigits;
+		static readonly sbyte[] s_hexDigits;
 
 		/// <summary>
 		/// Hex digits to utf8 byte
 		/// </summary>
-		static byte[] HexDigitToUtf8Byte = Encoding.UTF8.GetBytes("0123456789abcdef");
+		static readonly byte[] s_hexDigitToUtf8Byte = Encoding.UTF8.GetBytes("0123456789abcdef");
 
 		/// <summary>
 		/// Array mapping human readable size of bytes, 1024^x. long max is within the range of Exabytes.
 		/// </summary>
-		static string[] ByteSizes = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
+		static readonly string[] s_byteSizes = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
 
 		/// <summary>
 		/// Static constructor. Initializes the HexDigits array.
 		/// </summary>
 		static StringUtils()
 		{
-			HexDigits = new sbyte[256];
-			for (int Idx = 0; Idx < 256; Idx++)
+			s_hexDigits = new sbyte[256];
+			for (int idx = 0; idx < 256; idx++)
 			{
-				HexDigits[Idx] = -1;
+				s_hexDigits[idx] = -1;
 			}
-			for (int Idx = '0'; Idx <= '9'; Idx++)
+			for (int idx = '0'; idx <= '9'; idx++)
 			{
-				HexDigits[Idx] = (sbyte)(Idx - '0');
+				s_hexDigits[idx] = (sbyte)(idx - '0');
 			}
-			for (int Idx = 'a'; Idx <= 'f'; Idx++)
+			for (int idx = 'a'; idx <= 'f'; idx++)
 			{
-				HexDigits[Idx] = (sbyte)(10 + Idx - 'a');
+				s_hexDigits[idx] = (sbyte)(10 + idx - 'a');
 			}
-			for (int Idx = 'A'; Idx <= 'F'; Idx++)
+			for (int idx = 'A'; idx <= 'F'; idx++)
 			{
-				HexDigits[Idx] = (sbyte)(10 + Idx - 'A');
+				s_hexDigits[idx] = (sbyte)(10 + idx - 'A');
 			}
 		}
 
 		/// <summary>
 		/// Indents a string by a given indent
 		/// </summary>
-		/// <param name="Text">The text to indent</param>
-		/// <param name="Indent">The indent to add to each line</param>
+		/// <param name="text">The text to indent</param>
+		/// <param name="indent">The indent to add to each line</param>
 		/// <returns>The indented string</returns>
-		public static string Indent(string Text, string Indent)
+		public static string Indent(string text, string indent)
 		{
-			string Result = "";
-			if(Text.Length > 0)
+			string result = "";
+			if(text.Length > 0)
 			{
-				Result = Indent + Text.Replace("\n", "\n" + Indent);
+				result = indent + text.Replace("\n", "\n" + indent);
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
 		/// Expand all the property references (of the form $(PropertyName)) in a string.
 		/// </summary>
-		/// <param name="Text">The input string to expand properties in</param>
-		/// <param name="Properties">Dictionary of properties to expand</param>
+		/// <param name="text">The input string to expand properties in</param>
+		/// <param name="properties">Dictionary of properties to expand</param>
 		/// <returns>The expanded string</returns>
-		public static string ExpandProperties(string Text, Dictionary<string, string> Properties)
+		public static string ExpandProperties(string text, Dictionary<string, string> properties)
 		{
-			return ExpandProperties(Text, Name => { Properties.TryGetValue(Name, out string? Value); return Value; });
+			return ExpandProperties(text, name => 
+			{ 
+				properties.TryGetValue(name, out string? value); 
+				return value; 
+			});
 		}
 
 		/// <summary>
 		/// Expand all the property references (of the form $(PropertyName)) in a string.
 		/// </summary>
-		/// <param name="Text">The input string to expand properties in</param>
-		/// <param name="GetPropertyValue">Delegate to retrieve a property value</param>
+		/// <param name="text">The input string to expand properties in</param>
+		/// <param name="getPropertyValue">Delegate to retrieve a property value</param>
 		/// <returns>The expanded string</returns>
-		public static string ExpandProperties(string Text, Func<string, string?> GetPropertyValue)
+		public static string ExpandProperties(string text, Func<string, string?> getPropertyValue)
 		{
-			string Result = Text;
-			for (int Idx = Result.IndexOf("$("); Idx != -1; Idx = Result.IndexOf("$(", Idx))
+			string result = text;
+			for (int idx = result.IndexOf("$("); idx != -1; idx = result.IndexOf("$(", idx))
 			{
 				// Find the end of the variable name
-				int EndIdx = Result.IndexOf(')', Idx + 2);
-				if (EndIdx == -1)
+				int endIdx = result.IndexOf(')', idx + 2);
+				if (endIdx == -1)
 				{
 					break;
 				}
 
 				// Extract the variable name from the string
-				string Name = Result.Substring(Idx + 2, EndIdx - (Idx + 2));
+				string name = result.Substring(idx + 2, endIdx - (idx + 2));
 
 				// Check if we've got a value for this variable
-				string? Value = GetPropertyValue(Name);
-				if (Value == null)
+				string? value = getPropertyValue(name);
+				if (value == null)
 				{
 					// Do not expand it; must be preprocessing the script.
-					Idx = EndIdx;
+					idx = endIdx;
 				}
 				else
 				{
 					// Replace the variable, or skip past it
-					Result = Result.Substring(0, Idx) + Value + Result.Substring(EndIdx + 1);
+					result = result.Substring(0, idx) + value + result.Substring(endIdx + 1);
 
 					// Make sure we skip over the expanded variable; we don't want to recurse on it.
-					Idx += Value.Length;
+					idx += value.Length;
 				}
 			}
-			return Result;
+			return result;
 		}
 
-		/// <inheritdoc cref="WordWrap(string, int, int, int)">
-		public static IEnumerable<string> WordWrap(string Text, int MaxWidth)
+		/// <inheritdoc cref="WordWrap(String, Int32, Int32, Int32)">
+		public static IEnumerable<string> WordWrap(string text, int maxWidth)
 		{
-			return WordWrap(Text, 0, 0, MaxWidth);
+			return WordWrap(text, 0, 0, maxWidth);
 		}
 
 		/// <summary>
 		/// Takes a given sentence and wraps it on a word by word basis so that no line exceeds the set maximum line length. Words longer than a line 
 		/// are broken up. Returns the sentence as a list of individual lines.
 		/// </summary>
-		/// <param name="Text">The text to be wrapped</param>
-		/// <param name="InitialIndent">Indent for the first line</param>
-		/// <param name="HangingIndent">Indent for subsequent lines</param>
-		/// <param name="MaxWidth">The maximum (non negative) length of the returned sentences</param>
-		public static IEnumerable<string> WordWrap(string Text, int InitialIndent, int HangingIndent, int MaxWidth)
+		/// <param name="text">The text to be wrapped</param>
+		/// <param name="initialIndent">Indent for the first line</param>
+		/// <param name="hangingIndent">Indent for subsequent lines</param>
+		/// <param name="maxWidth">The maximum (non negative) length of the returned sentences</param>
+		public static IEnumerable<string> WordWrap(string text, int initialIndent, int hangingIndent, int maxWidth)
 		{
-			StringBuilder Builder = new StringBuilder();
+			StringBuilder builder = new StringBuilder();
 
-			int MinIdx = 0;
-			for (int LineIdx = 0; MinIdx < Text.Length; LineIdx++)
+			int minIdx = 0;
+			for (int lineIdx = 0; minIdx < text.Length; lineIdx++)
 			{
-				int Indent = (LineIdx == 0) ? InitialIndent : HangingIndent;
-				int MaxWidthForLine = MaxWidth - Indent;
-				int MaxIdx = GetWordWrapLineEnd(Text, MinIdx, MaxWidthForLine);
+				int indent = (lineIdx == 0) ? initialIndent : hangingIndent;
+				int maxWidthForLine = maxWidth - indent;
+				int maxIdx = GetWordWrapLineEnd(text, minIdx, maxWidthForLine);
 
-				int PrintMaxIdx = MaxIdx;
-				while (PrintMaxIdx > MinIdx && Char.IsWhiteSpace(Text[PrintMaxIdx - 1]))
+				int printMaxIdx = maxIdx;
+				while (printMaxIdx > minIdx && Char.IsWhiteSpace(text[printMaxIdx - 1]))
 				{
-					PrintMaxIdx--;
+					printMaxIdx--;
 				}
 
-				Builder.Clear();
-				Builder.Append(' ', Indent);
-				Builder.Append(Text, MinIdx, PrintMaxIdx - MinIdx);
-				yield return Builder.ToString();
+				builder.Clear();
+				builder.Append(' ', indent);
+				builder.Append(text, minIdx, printMaxIdx - minIdx);
+				yield return builder.ToString();
 
-				MinIdx = MaxIdx;
+				minIdx = maxIdx;
 			}
 		}
 
 		/// <summary>
 		/// Gets the next character index to end a word-wrapped line on
 		/// </summary>
-		static int GetWordWrapLineEnd(string Text, int MinIdx, int MaxWidth)
+		static int GetWordWrapLineEnd(string text, int minIdx, int maxWidth)
 		{
-			MaxWidth = Math.Min(MaxWidth, Text.Length - MinIdx);
+			maxWidth = Math.Min(maxWidth, text.Length - minIdx);
 
-			int MaxIdx = Text.IndexOf('\n', MinIdx, MaxWidth);
-			if (MaxIdx == -1)
+			int maxIdx = text.IndexOf('\n', minIdx, maxWidth);
+			if (maxIdx == -1)
 			{
-				MaxIdx = MinIdx + MaxWidth;
+				maxIdx = minIdx + maxWidth;
 			}
 			else
 			{
-				return MaxIdx + 1;
+				return maxIdx + 1;
 			}
 
-			if (MaxIdx == Text.Length)
+			if (maxIdx == text.Length)
 			{
-				return MaxIdx;
+				return maxIdx;
 			}
-			else if (Char.IsWhiteSpace(Text[MaxIdx]))
+			else if (Char.IsWhiteSpace(text[maxIdx]))
 			{
-				for (; ; MaxIdx++)
+				for (; ; maxIdx++)
 				{
-					if (MaxIdx == Text.Length)
+					if (maxIdx == text.Length)
 					{
-						return MaxIdx;
+						return maxIdx;
 					}
-					if (Text[MaxIdx] != ' ')
+					if (text[maxIdx] != ' ')
 					{
-						return MaxIdx;
+						return maxIdx;
 					}
 				}
 			}
 			else
 			{
-				for(int TryMaxIdx = MaxIdx; ; TryMaxIdx--)
+				for(int tryMaxIdx = maxIdx; ; tryMaxIdx--)
 				{
-					if(TryMaxIdx == MinIdx)
+					if(tryMaxIdx == minIdx)
 					{
-						return MaxIdx;
+						return maxIdx;
 					}
-					if (Text[TryMaxIdx - 1] == ' ')
+					if (text[tryMaxIdx - 1] == ' ')
 					{
-						return TryMaxIdx;
+						return tryMaxIdx;
 					}
 				}
 			}
@@ -211,319 +214,319 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Extension method to allow formatting a string to a stringbuilder and appending a newline
 		/// </summary>
-		/// <param name="Builder">The string builder</param>
-		/// <param name="Format">Format string, as used for StringBuilder.AppendFormat</param>
-		/// <param name="Args">Arguments for the format string</param>
-		public static void AppendLine(this StringBuilder Builder, string Format, params object[] Args)
+		/// <param name="builder">The string builder</param>
+		/// <param name="format">Format string, as used for StringBuilder.AppendFormat</param>
+		/// <param name="args">Arguments for the format string</param>
+		public static void AppendLine(this StringBuilder builder, string format, params object[] args)
 		{
-			Builder.AppendFormat(Format, Args);
-			Builder.AppendLine();
+			builder.AppendFormat(format, args);
+			builder.AppendLine();
 		}
 
 		/// <summary>
 		/// Formats a list of strings in the style "1, 2, 3 and 4"
 		/// </summary>
-		/// <param name="Arguments">List of strings to format</param>
-		/// <param name="Conjunction">Conjunction to use between the last two items in the list (eg. "and" or "or")</param>
+		/// <param name="arguments">List of strings to format</param>
+		/// <param name="conjunction">Conjunction to use between the last two items in the list (eg. "and" or "or")</param>
 		/// <returns>Formatted list of strings</returns>
-		public static string FormatList(string[] Arguments, string Conjunction = "and")
+		public static string FormatList(string[] arguments, string conjunction = "and")
 		{
-			StringBuilder Result = new StringBuilder();
-			if (Arguments.Length > 0)
+			StringBuilder result = new StringBuilder();
+			if (arguments.Length > 0)
 			{
-				Result.Append(Arguments[0]);
-				for (int Idx = 1; Idx < Arguments.Length; Idx++)
+				result.Append(arguments[0]);
+				for (int idx = 1; idx < arguments.Length; idx++)
 				{
-					if (Idx == Arguments.Length - 1)
+					if (idx == arguments.Length - 1)
 					{
-						Result.AppendFormat(" {0} ", Conjunction);
+						result.AppendFormat(" {0} ", conjunction);
 					}
 					else
 					{
-						Result.Append(", ");
+						result.Append(", ");
 					}
-					Result.Append(Arguments[Idx]);
+					result.Append(arguments[idx]);
 				}
 			}
-			return Result.ToString();
+			return result.ToString();
 		}
 
 		/// <summary>
 		/// Formats a list of strings in the style "1, 2, 3 and 4"
 		/// </summary>
-		/// <param name="Arguments">List of strings to format</param>
-		/// <param name="Conjunction">Conjunction to use between the last two items in the list (eg. "and" or "or")</param>
+		/// <param name="arguments">List of strings to format</param>
+		/// <param name="conjunction">Conjunction to use between the last two items in the list (eg. "and" or "or")</param>
 		/// <returns>Formatted list of strings</returns>
-		public static string FormatList(IEnumerable<string> Arguments, string Conjunction = "and")
+		public static string FormatList(IEnumerable<string> arguments, string conjunction = "and")
 		{
-			return FormatList(Arguments.ToArray(), Conjunction);
+			return FormatList(arguments.ToArray(), conjunction);
 		}
 
 		/// <summary>
 		/// Formats a list of items
 		/// </summary>
-		/// <param name="Items">Array of items</param>
-		/// <param name="MaxCount">Maximum number of items to include in the list</param>
+		/// <param name="items">Array of items</param>
+		/// <param name="maxCount">Maximum number of items to include in the list</param>
 		/// <returns>Formatted list of items</returns>
-		public static string FormatList(string[] Items, int MaxCount)
+		public static string FormatList(string[] items, int maxCount)
 		{
-			if (Items.Length == 0)
+			if (items.Length == 0)
 			{
 				return "unknown";
 			}
-			else if (Items.Length == 1)
+			else if (items.Length == 1)
 			{
-				return Items[0];
+				return items[0];
 			}
-			else if (Items.Length <= MaxCount)
+			else if (items.Length <= maxCount)
 			{
-				return $"{String.Join(", ", Items.Take(Items.Length - 1))} and {Items.Last()}";
+				return $"{String.Join(", ", items.Take(items.Length - 1))} and {items.Last()}";
 			}
 			else
 			{
-				return $"{String.Join(", ", Items.Take(MaxCount - 1))} and {Items.Length - (MaxCount - 1)} others";
+				return $"{String.Join(", ", items.Take(maxCount - 1))} and {items.Length - (maxCount - 1)} others";
 			}
 		}
 
 		/// <summary>
 		/// Parses a hexadecimal digit
 		/// </summary>
-		/// <param name="Character">Character to parse</param>
+		/// <param name="character">Character to parse</param>
 		/// <returns>Value of this digit, or -1 if invalid</returns>
-		public static int GetHexDigit(byte Character)
+		public static int GetHexDigit(byte character)
 		{
-			return HexDigits[Character];
+			return s_hexDigits[character];
 		}
 
 		/// <summary>
 		/// Parses a hexadecimal digit
 		/// </summary>
-		/// <param name="Character">Character to parse</param>
+		/// <param name="character">Character to parse</param>
 		/// <returns>Value of this digit, or -1 if invalid</returns>
-		public static int GetHexDigit(char Character)
+		public static int GetHexDigit(char character)
 		{
-			return HexDigits[Math.Min((uint)Character, 127)];
+			return s_hexDigits[Math.Min((uint)character, 127)];
 		}
 
 		/// <summary>
 		/// Parses a hexadecimal string into an array of bytes
 		/// </summary>
 		/// <returns>Array of bytes</returns>
-		public static byte[] ParseHexString(string Text)
+		public static byte[] ParseHexString(string text)
 		{
-			byte[]? Bytes;
-			if(!TryParseHexString(Text, out Bytes))
+			byte[]? bytes;
+			if(!TryParseHexString(text, out bytes))
 			{
-				throw new FormatException(String.Format("Invalid hex string: '{0}'", Text));
+				throw new FormatException(String.Format("Invalid hex string: '{0}'", text));
 			}
-			return Bytes;
+			return bytes;
 		}
 
 		/// <summary>
 		/// Parses a hexadecimal string into an array of bytes
 		/// </summary>
 		/// <returns>Array of bytes</returns>
-		public static byte[] ParseHexString(ReadOnlySpan<byte> Text)
+		public static byte[] ParseHexString(ReadOnlySpan<byte> text)
 		{
-			byte[]? Bytes;
-			if (!TryParseHexString(Text, out Bytes))
+			byte[]? bytes;
+			if (!TryParseHexString(text, out bytes))
 			{
-				throw new FormatException($"Invalid hex string: '{Encoding.UTF8.GetString(Text)}'");
+				throw new FormatException($"Invalid hex string: '{Encoding.UTF8.GetString(text)}'");
 			}
-			return Bytes;
+			return bytes;
 		}
 
 		/// <summary>
 		/// Parses a hexadecimal string into an array of bytes
 		/// </summary>
-		/// <param name="Text">Text to parse</param>
+		/// <param name="text">Text to parse</param>
 		/// <returns></returns>
-		public static bool TryParseHexString(string Text, [NotNullWhen(true)] out byte[]? OutBytes)
+		public static bool TryParseHexString(string text, [NotNullWhen(true)] out byte[]? outBytes)
 		{
-			if((Text.Length & 1) != 0)
+			if((text.Length & 1) != 0)
 			{
-				OutBytes = null;
+				outBytes = null;
 				return false;
 			}
 
-			byte[] Bytes = new byte[Text.Length / 2];
-			for(int Idx = 0; Idx < Text.Length; Idx += 2)
+			byte[] bytes = new byte[text.Length / 2];
+			for(int idx = 0; idx < text.Length; idx += 2)
 			{
-				int Value = (GetHexDigit(Text[Idx]) << 4) | GetHexDigit(Text[Idx + 1]);
-				if(Value < 0)
+				int value = (GetHexDigit(text[idx]) << 4) | GetHexDigit(text[idx + 1]);
+				if(value < 0)
 				{
-					OutBytes = null;
+					outBytes = null;
 					return false;
 				}
-				Bytes[Idx / 2] = (byte)Value;
+				bytes[idx / 2] = (byte)value;
 			}
-			OutBytes = Bytes;
+			outBytes = bytes;
 			return true;
 		}
 
 		/// <summary>
 		/// Parses a hexadecimal string into an array of bytes
 		/// </summary>
-		/// <param name="Text">Text to parse</param>
+		/// <param name="text">Text to parse</param>
 		/// <returns></returns>
-		public static bool TryParseHexString(ReadOnlySpan<byte> Text, [NotNullWhen(true)] out byte[]? OutBytes)
+		public static bool TryParseHexString(ReadOnlySpan<byte> text, [NotNullWhen(true)] out byte[]? outBytes)
 		{
-			if ((Text.Length & 1) != 0)
+			if ((text.Length & 1) != 0)
 			{
-				OutBytes = null;
+				outBytes = null;
 				return false;
 			}
 
-			byte[] Bytes = new byte[Text.Length / 2];
-			for (int Idx = 0; Idx < Text.Length; Idx += 2)
+			byte[] bytes = new byte[text.Length / 2];
+			for (int idx = 0; idx < text.Length; idx += 2)
 			{
-				int Value = ParseHexByte(Text, Idx);
-				if (Value < 0)
+				int value = ParseHexByte(text, idx);
+				if (value < 0)
 				{
-					OutBytes = null;
+					outBytes = null;
 					return false;
 				}
-				Bytes[Idx / 2] = (byte)Value;
+				bytes[idx / 2] = (byte)value;
 			}
-			OutBytes = Bytes;
+			outBytes = bytes;
 			return true;
 		}
 
 		/// <summary>
 		/// Parse a hex byte from the given offset into a span of utf8 characters
 		/// </summary>
-		/// <param name="Text">The text to parse</param>
-		/// <param name="Idx">Index within the text to parse</param>
+		/// <param name="text">The text to parse</param>
+		/// <param name="idx">Index within the text to parse</param>
 		/// <returns>The parsed value, or a negative value on error</returns>
-		public static int ParseHexByte(ReadOnlySpan<byte> Text, int Idx)
+		public static int ParseHexByte(ReadOnlySpan<byte> text, int idx)
 		{
-			return ((int)HexDigits[Text[Idx]] << 4) | ((int)HexDigits[Text[Idx + 1]]);
+			return ((int)s_hexDigits[text[idx]] << 4) | ((int)s_hexDigits[text[idx + 1]]);
 		}
 
 		/// <summary>
 		/// Formats an array of bytes as a hexadecimal string
 		/// </summary>
-		/// <param name="Bytes">An array of bytes</param>
+		/// <param name="bytes">An array of bytes</param>
 		/// <returns>String representation of the array</returns>
-		public static string FormatHexString(byte[] Bytes)
+		public static string FormatHexString(byte[] bytes)
 		{
-			return FormatHexString(Bytes.AsSpan());
+			return FormatHexString(bytes.AsSpan());
 		}
 
 		/// <summary>
 		/// Formats an array of bytes as a hexadecimal string
 		/// </summary>
-		/// <param name="Bytes">An array of bytes</param>
+		/// <param name="bytes">An array of bytes</param>
 		/// <returns>String representation of the array</returns>
-		public static string FormatHexString(ReadOnlySpan<byte> Bytes)
+		public static string FormatHexString(ReadOnlySpan<byte> bytes)
 		{
 			const string HexDigits = "0123456789abcdef";
 
-			char[] Characters = new char[Bytes.Length * 2];
-			for (int Idx = 0; Idx < Bytes.Length; Idx++)
+			char[] characters = new char[bytes.Length * 2];
+			for (int idx = 0; idx < bytes.Length; idx++)
 			{
-				Characters[Idx * 2 + 0] = HexDigits[Bytes[Idx] >> 4];
-				Characters[Idx * 2 + 1] = HexDigits[Bytes[Idx] & 15];
+				characters[idx * 2 + 0] = HexDigits[bytes[idx] >> 4];
+				characters[idx * 2 + 1] = HexDigits[bytes[idx] & 15];
 			}
-			return new string(Characters);
+			return new string(characters);
 		}
 
 		/// <summary>
 		/// Formats an array of bytes as a hexadecimal string
 		/// </summary>
-		/// <param name="Bytes">An array of bytes</param>
+		/// <param name="bytes">An array of bytes</param>
 		/// <returns>String representation of the array</returns>
-		public static Utf8String FormatUtf8HexString(ReadOnlySpan<byte> Bytes)
+		public static Utf8String FormatUtf8HexString(ReadOnlySpan<byte> bytes)
 		{
-			byte[] Characters = new byte[Bytes.Length * 2];
-			for (int Idx = 0; Idx < Bytes.Length; Idx++)
+			byte[] characters = new byte[bytes.Length * 2];
+			for (int idx = 0; idx < bytes.Length; idx++)
 			{
-				Characters[Idx * 2 + 0] = HexDigitToUtf8Byte[Bytes[Idx] >> 4];
-				Characters[Idx * 2 + 1] = HexDigitToUtf8Byte[Bytes[Idx] & 15];
+				characters[idx * 2 + 0] = s_hexDigitToUtf8Byte[bytes[idx] >> 4];
+				characters[idx * 2 + 1] = s_hexDigitToUtf8Byte[bytes[idx] & 15];
 			}
-			return new Utf8String(Characters);
+			return new Utf8String(characters);
 		}
 
 		/// <summary>
 		/// Quotes a string as a command line argument
 		/// </summary>
-		/// <param name="String">The string to quote</param>
+		/// <param name="str">The string to quote</param>
 		/// <returns>The quoted argument if it contains any spaces, otherwise the original string</returns>
-		public static string QuoteArgument(this string String)
+		public static string QuoteArgument(this string str)
 		{
-			if (String.Contains(' '))
+			if (str.Contains(' '))
 			{
-				return $"\"{String}\"";
+				return $"\"{str}\"";
 			}
 			else
 			{
-				return String;
+				return str;
 			}
 		}
 
 		/// <summary>
 		/// Formats bytes into a human readable string
 		/// </summary>
-		/// <param name="Bytes">The total number of bytes</param>
-		/// <param name="DecimalPlaces">The number of decimal places to round the resulting value</param>
+		/// <param name="bytes">The total number of bytes</param>
+		/// <param name="decimalPlaces">The number of decimal places to round the resulting value</param>
 		/// <returns>Human readable string based on the value of Bytes</returns>
-		public static string FormatBytesString(long Bytes, int DecimalPlaces = 2)
+		public static string FormatBytesString(long bytes, int decimalPlaces = 2)
 		{
-			if (Bytes == 0)
+			if (bytes == 0)
 			{
-				return $"0 {ByteSizes[0]}";
+				return $"0 {s_byteSizes[0]}";
 			}
-			long BytesAbs = Math.Abs(Bytes);
-			int Power = Convert.ToInt32(Math.Floor(Math.Log(BytesAbs, 1024)));
-			double Value = Math.Round(BytesAbs / Math.Pow(1024, Power), DecimalPlaces);
-			return $"{(Math.Sign(Bytes) * Value)} {ByteSizes[Power]}";
+			long bytesAbs = Math.Abs(bytes);
+			int power = Convert.ToInt32(Math.Floor(Math.Log(bytesAbs, 1024)));
+			double value = Math.Round(bytesAbs / Math.Pow(1024, power), decimalPlaces);
+			return $"{(Math.Sign(bytes) * value)} {s_byteSizes[power]}";
 		}
 
 		/// <summary>
 		/// Converts a bytes string into bytes. E.g 1.2KB -> 1229
 		/// </summary>
-		/// <param name="BytesString"></param>
+		/// <param name="bytesString"></param>
 		/// <returns></returns>
-		public static long ParseBytesString( string BytesString )
+		public static long ParseBytesString( string bytesString )
 		{
-			BytesString = BytesString.Trim();
+			bytesString = bytesString.Trim();
 
-			int Power = ByteSizes.FindIndex( s => (s != ByteSizes[0]) && BytesString.EndsWith(s, StringComparison.InvariantCultureIgnoreCase ) ); // need to handle 'B' suffix separately
-			if (Power == -1 && BytesString.EndsWith(ByteSizes[0]))
+			int power = s_byteSizes.FindIndex( s => (s != s_byteSizes[0]) && bytesString.EndsWith(s, StringComparison.InvariantCultureIgnoreCase ) ); // need to handle 'B' suffix separately
+			if (power == -1 && bytesString.EndsWith(s_byteSizes[0]))
 			{
-				Power = 0;
+				power = 0;
 			}
-			if (Power != -1)
+			if (power != -1)
 			{
-				BytesString = BytesString.Substring(0, BytesString.Length - ByteSizes[Power].Length );
-			}
-
-			double Value = double.Parse(BytesString);
-			if (Power > 0 )
-			{
-				Value *= Math.Pow(1024, Power);
+				bytesString = bytesString.Substring(0, bytesString.Length - s_byteSizes[power].Length );
 			}
 
-			return (long)Math.Round(Value);
+			double value = Double.Parse(bytesString);
+			if (power > 0 )
+			{
+				value *= Math.Pow(1024, power);
+			}
+
+			return (long)Math.Round(value);
 		}
 
 		/// <summary>
 		/// Converts a bytes string into bytes. E.g 1.5KB -> 1536
 		/// </summary>
-		/// <param name="BytesString"></param>
+		/// <param name="bytesString"></param>
 		/// <returns></returns>
-		public static bool TryParseBytesString( string BytesString, out long? Bytes )
+		public static bool TryParseBytesString( string bytesString, out long? bytes )
 		{
 			try
 			{
-				Bytes = ParseBytesString(BytesString);
+				bytes = ParseBytesString(bytesString);
 				return true;
 			}
 			catch(Exception)
 			{
 			}
 
-			Bytes = null;
+			bytes = null;
 			return false;
 		}
 
@@ -531,109 +534,109 @@ namespace EpicGames.Core
 		/// Parses a string to remove VT100 escape codes
 		/// </summary>
 		/// <returns></returns>
-		public static string ParseEscapeCodes(string Line)
+		public static string ParseEscapeCodes(string line)
 		{
-			char EscapeChar = '\u001b';
+			char escapeChar = '\u001b';
 
-			int Index = Line.IndexOf(EscapeChar);
-			if (Index != -1)
+			int index = line.IndexOf(escapeChar);
+			if (index != -1)
 			{
-				int LastIndex = 0;
+				int lastIndex = 0;
 
-				StringBuilder Result = new StringBuilder();
+				StringBuilder result = new StringBuilder();
 				for (; ; )
 				{
-					Result.Append(Line, LastIndex, Index - LastIndex);
+					result.Append(line, lastIndex, index - lastIndex);
 
-					while (Index < Line.Length)
+					while (index < line.Length)
 					{
-						char Char = Line[Index];
-						if ((Char >= 'a' && Char <= 'z') || (Char >= 'A' && Char <= 'Z'))
+						char character = line[index];
+						if ((character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z'))
 						{
-							Index++;
+							index++;
 							break;
 						}
-						Index++;
+						index++;
 					}
 
-					LastIndex = Index;
+					lastIndex = index;
 
-					Index = Line.IndexOf(EscapeChar, Index);
-					if (Index == -1)
+					index = line.IndexOf(escapeChar, index);
+					if (index == -1)
 					{
 						break;
 					}
 				}
-				Result.Append(Line, LastIndex, Line.Length - LastIndex);
+				result.Append(line, lastIndex, line.Length - lastIndex);
 
-				Line = Result.ToString();
+				line = result.ToString();
 			}
 
-			return Line;
+			return line;
 		}
 
 		/// <summary>
 		/// Truncates the given string to the maximum length, appending an elipsis if it is longer than allowed.
 		/// </summary>
-		/// <param name="Text"></param>
-		/// <param name="MaxLength"></param>
+		/// <param name="text"></param>
+		/// <param name="maxLength"></param>
 		/// <returns></returns>
-		public static string Truncate(string Text, int MaxLength)
+		public static string Truncate(string text, int maxLength)
 		{
-			if (Text.Length > MaxLength)
+			if (text.Length > maxLength)
 			{
-				Text = Text.Substring(0, MaxLength - 3) + "...";
+				text = text.Substring(0, maxLength - 3) + "...";
 			}
-			return Text;
+			return text;
 		}
 
 		/// <summary>
 		/// Compare two strings using UnrealEngine's ignore case algorithm
 		/// </summary>
-		/// <param name="X">First string to compare</param>
-		/// <param name="Y">Second string to compare</param>
+		/// <param name="x">First string to compare</param>
+		/// <param name="y">Second string to compare</param>
 		/// <returns>Less than zero if X < Y, zero if X == Y, and greater than zero if X > y</returns>
-		public static int CompareIgnoreCaseUE(ReadOnlySpan<char> X, ReadOnlySpan<char> Y)
+		public static int CompareIgnoreCaseUe(ReadOnlySpan<char> x, ReadOnlySpan<char> y)
 		{
-			int Length = X.Length < Y.Length ? X.Length : Y.Length;
+			int length = x.Length < y.Length ? x.Length : y.Length;
 
-			for (int Index = 0; Index < Length; ++Index)
+			for (int index = 0; index < length; ++index)
 			{
-				char XC = X[Index];
-				char YC = Y[Index];
-				if (XC == YC)
+				char xc = x[index];
+				char yc = y[index];
+				if (xc == yc)
 				{
 					continue;
 				}
-				else if (((XC | YC) & 0xffffff80) == 0) // if (BothAscii)
+				else if (((xc | yc) & 0xffffff80) == 0) // if (BothAscii)
 				{
-					if (XC >= 'A' && XC <= 'Z')
+					if (xc >= 'A' && xc <= 'Z')
 					{
-						XC += (char)32;
+						xc += (char)32;
 					}
-					if (YC >= 'A' && YC <= 'Z')
+					if (yc >= 'A' && yc <= 'Z')
 					{
-						YC += (char)32;
+						yc += (char)32;
 					}
-					int Diff = XC - YC;
-					if (Diff != 0)
+					int diff = xc - yc;
+					if (diff != 0)
 					{
-						return Diff;
+						return diff;
 					}
 				}
 				else
 				{
-					return XC - YC;
+					return xc - yc;
 				}
 			}
 
-			if (X.Length == Length)
+			if (x.Length == length)
 			{
-				return Y.Length == Length ? 0 : /* X[Length] */ -Y[Length];
+				return y.Length == length ? 0 : /* X[Length] */ -y[length];
 			}
 			else
 			{
-				return X[Length] /* - Y[Length] */;
+				return x[length] /* - Y[Length] */;
 			}
 		}
 	}

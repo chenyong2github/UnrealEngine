@@ -1,16 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Win32.SafeHandles;
 
 namespace EpicGames.Core
 {
@@ -22,9 +19,9 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Inner">Inner exception</param>
-		/// <param name="Message">Message to display</param>
-		public WrappedFileOrDirectoryException(Exception Inner, string Message) : base(Message)
+		/// <param name="inner">Inner exception</param>
+		/// <param name="message">Message to display</param>
+		public WrappedFileOrDirectoryException(Exception inner, string message) : base(message, inner)
 		{
 		}
 
@@ -56,106 +53,106 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Read all text for a file
 		/// </summary>
-		/// <param name="File"></param>
+		/// <param name="file"></param>
 		/// <returns></returns>
-		public static string ReadAllText(FileReference File)
+		public static string ReadAllText(FileReference file)
 		{
 			try
 			{
-				return FileReference.ReadAllText(File);
+				return FileReference.ReadAllText(file);
 			}
-			catch (DirectoryNotFoundException Ex)
+			catch (DirectoryNotFoundException ex)
 			{
-				throw new WrappedFileOrDirectoryException(Ex, $"Unable to read file '{File}'. The directory does not exist.");
+				throw new WrappedFileOrDirectoryException(ex, $"Unable to read file '{file}'. The directory does not exist.");
 			}
-			catch (FileNotFoundException Ex)
+			catch (FileNotFoundException ex)
 			{
-				throw new WrappedFileOrDirectoryException(Ex, $"Unable to read file '{File}'. The file does not exist.");
+				throw new WrappedFileOrDirectoryException(ex, $"Unable to read file '{file}'. The file does not exist.");
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				throw new WrappedFileOrDirectoryException(Ex, $"Unable to read file '{File}'");
+				throw new WrappedFileOrDirectoryException(ex, $"Unable to read file '{file}'");
 			}
 		}
 
 		/// <summary>
 		/// Finds the on-disk case of a a file
 		/// </summary>
-		/// <param name="Info">FileInfo instance describing the file</param>
+		/// <param name="info">FileInfo instance describing the file</param>
 		/// <returns>New FileInfo instance that represents the file with the correct case</returns>
-		public static FileInfo FindCorrectCase(FileInfo Info)
+		public static FileInfo FindCorrectCase(FileInfo info)
 		{
-			DirectoryInfo ParentInfo = DirectoryUtils.FindCorrectCase(Info.Directory);
-			if (Info.Exists)
+			DirectoryInfo parentInfo = DirectoryUtils.FindCorrectCase(info.Directory);
+			if (info.Exists)
 			{
-				foreach (FileInfo ChildInfo in ParentInfo.EnumerateFiles())
+				foreach (FileInfo childInfo in parentInfo.EnumerateFiles())
 				{
-					if (String.Equals(ChildInfo.Name, Info.Name, FileReference.Comparison))
+					if (String.Equals(childInfo.Name, info.Name, FileReference.Comparison))
 					{
-						return ChildInfo;
+						return childInfo;
 					}
 				}
 			}
-			return new FileInfo(Path.Combine(ParentInfo.FullName, Info.Name));
+			return new FileInfo(Path.Combine(parentInfo.FullName, info.Name));
 		}
 
 		/// <summary>
 		/// Creates a directory tree, with all intermediate branches
 		/// </summary>
-		/// <param name="Directory">The directory to create</param>
-		public static void CreateDirectoryTree(DirectoryReference Directory)
+		/// <param name="directory">The directory to create</param>
+		public static void CreateDirectoryTree(DirectoryReference directory)
 		{
-			if (!DirectoryReference.Exists(Directory))
+			if (!DirectoryReference.Exists(directory))
 			{
-				DirectoryReference? ParentDirectory = Directory.ParentDirectory;
-				if (ParentDirectory != null)
+				DirectoryReference? parentDirectory = directory.ParentDirectory;
+				if (parentDirectory != null)
 				{
-					CreateDirectoryTree(ParentDirectory);
+					CreateDirectoryTree(parentDirectory);
 				}
-				DirectoryReference.CreateDirectory(Directory);
+				DirectoryReference.CreateDirectory(directory);
 			}
 		}
 
 		/// <summary>
 		/// Deletes a file, whether it's read-only or not
 		/// </summary>
-		/// <param name="FileName">Name of the file to delete</param>
-		public static void ForceDeleteFile(string FileName)
+		/// <param name="fileName">Name of the file to delete</param>
+		public static void ForceDeleteFile(string fileName)
 		{
 			if (RuntimePlatform.IsWindows)
 			{
-				ForceDeleteFileWin32(FileName);
+				ForceDeleteFileWin32(fileName);
 			}
 			else
 			{
-				ForceDeleteFile(new FileInfo(FileName));
+				ForceDeleteFile(new FileInfo(fileName));
 			}
 		}
 
 		/// <summary>
 		/// Deletes a file, whether it's read-only or not
 		/// </summary>
-		/// <param name="File">The file to delete</param>
-		public static void ForceDeleteFile(FileInfo File)
+		/// <param name="file">The file to delete</param>
+		public static void ForceDeleteFile(FileInfo file)
 		{
 			if (RuntimePlatform.IsWindows)
 			{
-				ForceDeleteFileWin32(File.FullName);
-				File.Refresh();
+				ForceDeleteFileWin32(file.FullName);
+				file.Refresh();
 			}
 			else
 			{
 				try
 				{
-					if (File.Exists)
+					if (file.Exists)
 					{
-						File.Attributes = FileAttributes.Normal;
-						File.Delete();
+						file.Attributes = FileAttributes.Normal;
+						file.Delete();
 					}
 				}
-				catch (Exception Ex)
+				catch (Exception ex)
 				{
-					throw new WrappedFileOrDirectoryException(Ex, String.Format("Unable to delete '{0}': {1}", File.FullName, Ex.Message.TrimEnd()));
+					throw new WrappedFileOrDirectoryException(ex, String.Format("Unable to delete '{0}': {1}", file.FullName, ex.Message.TrimEnd()));
 				}
 			}
 		}
@@ -163,51 +160,51 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Deletes a file, whether it's read-only or not
 		/// </summary>
-		/// <param name="Location">The file to delete</param>
-		public static void ForceDeleteFile(FileReference Location)
+		/// <param name="location">The file to delete</param>
+		public static void ForceDeleteFile(FileReference location)
 		{
 			if (RuntimePlatform.IsWindows)
 			{
-				ForceDeleteFileWin32(Location.FullName);
+				ForceDeleteFileWin32(location.FullName);
 			}
 			else
 			{
-				ForceDeleteFile(new FileInfo(Location.FullName));
+				ForceDeleteFile(new FileInfo(location.FullName));
 			}
 		}
 
 		/// <summary>
 		/// Deletes a directory and all its contents. Attempts to handle directories with long filenames (> 260 chars) on Windows.
 		/// </summary>
-		/// <param name="DirectoryName">Directory to delete</param>
-		public static void ForceDeleteDirectory(string DirectoryName)
+		/// <param name="directoryName">Directory to delete</param>
+		public static void ForceDeleteDirectory(string directoryName)
 		{
 			if (RuntimePlatform.IsWindows)
 			{
-				ForceDeleteLongDirectoryWin32("\\\\?\\" + DirectoryName);
+				ForceDeleteLongDirectoryWin32("\\\\?\\" + directoryName);
 			}
 			else
 			{
-				ForceDeleteDirectory(new DirectoryInfo(DirectoryName));
+				ForceDeleteDirectory(new DirectoryInfo(directoryName));
 			}
 		}
 
 		/// <summary>
 		/// Deletes a directory and all its contents. Attempts to handle directories with long filenames (> 260 chars) on Windows.
 		/// </summary>
-		/// <param name="Directory">Directory to delete</param>
-		public static void ForceDeleteDirectory(DirectoryInfo Directory)
+		/// <param name="directory">Directory to delete</param>
+		public static void ForceDeleteDirectory(DirectoryInfo directory)
 		{
-			if (Directory.Exists)
+			if (directory.Exists)
 			{
 				if (RuntimePlatform.IsWindows)
 				{
-					ForceDeleteLongDirectoryWin32("\\\\?\\" + Directory.FullName);
+					ForceDeleteLongDirectoryWin32("\\\\?\\" + directory.FullName);
 				}
 				else
 				{
-					ForceDeleteDirectoryContents(Directory);
-					ForceDeleteDirectoryInternal(Directory);
+					ForceDeleteDirectoryContents(directory);
+					ForceDeleteDirectoryInternal(directory);
 				}
 			}
 		}
@@ -215,64 +212,64 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Deletes a directory and all its contents. Attempts to handle directories with long filenames (> 260 chars) on Windows.
 		/// </summary>
-		/// <param name="Location">Directory to delete</param>
-		public static void ForceDeleteDirectory(DirectoryReference Location)
+		/// <param name="location">Directory to delete</param>
+		public static void ForceDeleteDirectory(DirectoryReference location)
 		{
-			ForceDeleteDirectory(Location.FullName);
+			ForceDeleteDirectory(location.FullName);
 		}
 
 		/// <summary>
 		/// Helper method to delete a directory and throw a WrappedFileOrDirectoryException on failure.
 		/// </summary>
-		/// <param name="Directory">The directory to delete</param>
-		static void ForceDeleteDirectoryInternal(DirectoryInfo Directory)
+		/// <param name="directory">The directory to delete</param>
+		static void ForceDeleteDirectoryInternal(DirectoryInfo directory)
 		{
 			try
 			{
-				Directory.Delete(true);
+				directory.Delete(true);
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				throw new WrappedFileOrDirectoryException(Ex, String.Format("Unable to delete '{0}': {1}", Directory.FullName, Ex.Message.TrimEnd()));
+				throw new WrappedFileOrDirectoryException(ex, String.Format("Unable to delete '{0}': {1}", directory.FullName, ex.Message.TrimEnd()));
 			}
 		}
 
 		/// <summary>
 		/// Deletes the contents of a directory, without deleting the directory itself. Attempts to handle directories with long filenames (> 260 chars) on Windows.
 		/// </summary>
-		/// <param name="Directory">Directory to delete</param>
-		public static void ForceDeleteDirectoryContents(string Directory)
+		/// <param name="directory">Directory to delete</param>
+		public static void ForceDeleteDirectoryContents(string directory)
 		{
-			ForceDeleteDirectoryContents(new DirectoryInfo(Directory));
+			ForceDeleteDirectoryContents(new DirectoryInfo(directory));
 		}
 
 		/// <summary>
 		/// Deletes the contents of a directory, without deleting the directory itself. Attempts to handle directories with long filenames (> 260 chars) on Windows.
 		/// </summary>
-		/// <param name="Directory">Directory to delete</param>
-		public static void ForceDeleteDirectoryContents(DirectoryInfo Directory)
+		/// <param name="directory">Directory to delete</param>
+		public static void ForceDeleteDirectoryContents(DirectoryInfo directory)
 		{
 			if (RuntimePlatform.IsWindows)
 			{
-				ForceDeleteLongDirectoryContentsWin32(Directory.FullName);
+				ForceDeleteLongDirectoryContentsWin32(directory.FullName);
 			}
 			else
 			{
-				if (Directory.Exists)
+				if (directory.Exists)
 				{
-					foreach (FileInfo File in Directory.EnumerateFiles())
+					foreach (FileInfo file in directory.EnumerateFiles())
 					{
-						ForceDeleteFile(File);
+						ForceDeleteFile(file);
 					}
-					foreach (DirectoryInfo SubDirectory in Directory.EnumerateDirectories())
+					foreach (DirectoryInfo subDirectory in directory.EnumerateDirectories())
 					{
-						if (SubDirectory.Attributes.HasFlag(FileAttributes.ReparsePoint))
+						if (subDirectory.Attributes.HasFlag(FileAttributes.ReparsePoint))
 						{
-							ForceDeleteDirectoryInternal(SubDirectory);
+							ForceDeleteDirectoryInternal(subDirectory);
 						}
 						else
 						{
-							ForceDeleteDirectory(SubDirectory);
+							ForceDeleteDirectory(subDirectory);
 						}
 					}
 				}
@@ -282,10 +279,20 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Deletes the contents of a directory, without deleting the directory itself. Attempts to handle directories with long filenames (> 260 chars) on Windows.
 		/// </summary>
-		/// <param name="Directory">Directory to delete</param>
-		public static void ForceDeleteDirectoryContents(DirectoryReference Directory)
+		/// <param name="directory">Directory to delete</param>
+		public static void ForceDeleteDirectoryContents(DirectoryReference directory)
 		{
-			ForceDeleteDirectoryContents(new DirectoryInfo(Directory.FullName));
+			ForceDeleteDirectoryContents(new DirectoryInfo(directory.FullName));
+		}
+
+		/// <summary>
+		/// Moves a file from one location to another. Creates the destination directory, and removes read-only files in the target location if necessary.
+		/// </summary>
+		/// <param name="sourceFileName">Path to the source file</param>
+		/// <param name="targetFileName">Path to the target file</param>
+		public static void ForceMoveFile(string sourceFileName, string targetFileName)
+		{
+			ForceMoveFile(new FileReference(sourceFileName), new FileReference(targetFileName));
 		}
 
 		/// <summary>
@@ -293,32 +300,22 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="SourceFileName">Path to the source file</param>
 		/// <param name="TargetFileName">Path to the target file</param>
-		public static void ForceMoveFile(string SourceFileName, string TargetFileName)
-		{
-			ForceMoveFile(new FileReference(SourceFileName), new FileReference(TargetFileName));
-		}
-
-		/// <summary>
-		/// Moves a file from one location to another. Creates the destination directory, and removes read-only files in the target location if necessary.
-		/// </summary>
-		/// <param name="SourceFileName">Path to the source file</param>
-		/// <param name="TargetFileName">Path to the target file</param>
-		public static void ForceMoveFile(FileReference SourceLocation, FileReference TargetLocation)
+		public static void ForceMoveFile(FileReference sourceLocation, FileReference targetLocation)
 		{
 			// Try to move the file into place
 			try
 			{
-				FileReference.Move(SourceLocation, TargetLocation);
+				FileReference.Move(sourceLocation, targetLocation);
 				return;
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
 				// Try to create the target directory
 				try
 				{
-					if (!DirectoryReference.Exists(TargetLocation.Directory))
+					if (!DirectoryReference.Exists(targetLocation.Directory))
 					{
-						CreateDirectoryTree(TargetLocation.Directory);
+						CreateDirectoryTree(targetLocation.Directory);
 					}
 				}
 				catch
@@ -328,69 +325,70 @@ namespace EpicGames.Core
 				// Try to delete an existing file at the target location
 				try
 				{
-					if (FileReference.Exists(TargetLocation))
+					if (FileReference.Exists(targetLocation))
 					{
-						FileReference.SetAttributes(TargetLocation, FileAttributes.Normal);
-						FileReference.Delete(TargetLocation);
-						FileReference.Move(SourceLocation, TargetLocation);
+						FileReference.SetAttributes(targetLocation, FileAttributes.Normal);
+						FileReference.Delete(targetLocation);
+						FileReference.Move(sourceLocation, targetLocation);
 						return;
 					}
 				}
-				catch (Exception DeleteEx)
+				catch (Exception deleteEx)
 				{
-					throw new WrappedFileOrDirectoryException(new AggregateException(Ex, DeleteEx), String.Format("Unable to move {0} to {1} (also tried delete/move)", SourceLocation, TargetLocation));
+					throw new WrappedFileOrDirectoryException(new AggregateException(ex, deleteEx), String.Format("Unable to move {0} to {1} (also tried delete/move)", sourceLocation, targetLocation));
 				}
 
 				// Throw the original exception
-				throw new WrappedFileOrDirectoryException(Ex, String.Format("Unable to move {0} to {1}", SourceLocation, TargetLocation));
+				throw new WrappedFileOrDirectoryException(ex, String.Format("Unable to move {0} to {1}", sourceLocation, targetLocation));
 			}
 		}
 
 		/// <summary>
 		/// Gets the file mode on Mac
 		/// </summary>
-		/// <param name="FileName"></param>
+		/// <param name="fileName"></param>
 		/// <returns></returns>
-		public static int GetFileMode_Mac(string FileName)
+		public static int GetFileMode_Mac(string fileName)
 		{
 			stat64_t stat = new stat64_t();
-			int Result = stat64(FileName, stat);
-			return (Result >= 0)? stat.st_mode : -1;
+			int result = stat64(fileName, stat);
+			return (result >= 0)? stat.st_mode : -1;
 		}
 
 		/// <summary>
 		/// Sets the file mode on Mac
 		/// </summary>
-		/// <param name="FileName"></param>
-		/// <param name="Mode"></param>
-		public static void SetFileMode_Mac(string FileName, ushort Mode)
+		/// <param name="fileName"></param>
+		/// <param name="mode"></param>
+		public static void SetFileMode_Mac(string fileName, ushort mode)
 		{
-			chmod(FileName, Mode);
+			chmod(fileName, mode);
 		}
 
 		/// <summary>
 		/// Gets the file mode on Linux
 		/// </summary>
-		/// <param name="FileName"></param>
+		/// <param name="fileName"></param>
 		/// <returns></returns>
-		public static int GetFileMode_Linux(string FileName)
+		public static int GetFileMode_Linux(string fileName)
 		{
 			stat64_linux_t stat = new stat64_linux_t();
-			int Result = stat64_linux(1, FileName, stat);
-			return (Result >= 0)? (int)stat.st_mode : -1;
+			int result = stat64_linux(1, fileName, stat);
+			return (result >= 0)? (int)stat.st_mode : -1;
 		}
 
 		/// <summary>
 		/// Sets the file mode on Linux
 		/// </summary>
-		/// <param name="FileName"></param>
-		/// <param name="Mode"></param>
-		public static void SetFileMode_Linux(string FileName, ushort Mode)
+		/// <param name="fileName"></param>
+		/// <param name="mode"></param>
+		public static void SetFileMode_Linux(string fileName, ushort mode)
 		{
-			chmod_linux(FileName, Mode);
+			chmod_linux(fileName, mode);
 		}
 
 		#region Win32 Native File Methods
+#pragma warning disable IDE1006 // Naming Styles
 
 		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 		struct WIN32_FIND_DATA
@@ -422,7 +420,7 @@ namespace EpicGames.Core
 
 		[DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
 		[return: MarshalAs(UnmanagedType.Bool)]
-		static extern bool FindClose(IntPtr FindHandle);
+		static extern bool FindClose(IntPtr findHandle);
 
 		[DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
 		[return: MarshalAs(UnmanagedType.Bool)]
@@ -441,36 +439,37 @@ namespace EpicGames.Core
 		const int ERROR_FILE_NOT_FOUND = 2;
 		const int ERROR_PATH_NOT_FOUND = 3;
 		const int ERROR_ACCESS_DENIED = 5;
+#pragma warning restore IDE1006 // Naming Styles
 
-		private static void ForceDeleteLongDirectoryContentsWin32(string DirName)
+		private static void ForceDeleteLongDirectoryContentsWin32(string dirName)
 		{
-			WIN32_FIND_DATA FindData = new WIN32_FIND_DATA();
+			WIN32_FIND_DATA findData = new WIN32_FIND_DATA();
 
-			IntPtr hFind = FindFirstFileW(DirName + "\\*", ref FindData);
+			IntPtr hFind = FindFirstFileW(dirName + "\\*", ref findData);
 			if (hFind != INVALID_HANDLE_VALUE)
 			{
 				try
 				{
 					for (; ; )
 					{
-						string FullName = DirName + "\\" + FindData.cFileName;
-						if ((FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
+						string fullName = dirName + "\\" + findData.cFileName;
+						if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
 						{
-							if (FindData.cFileName != "." && FindData.cFileName != "..")
+							if (findData.cFileName != "." && findData.cFileName != "..")
 							{
-								ForceDeleteLongDirectoryWin32(FullName);
+								ForceDeleteLongDirectoryWin32(fullName);
 							}
 						}
 						else
 						{
-							if ((FindData.dwFileAttributes & FILE_ATTRIBUTE_READONLY) != 0)
+							if ((findData.dwFileAttributes & FILE_ATTRIBUTE_READONLY) != 0)
 							{
-								SetFileAttributesW(FullName, FILE_ATTRIBUTE_NORMAL);
+								SetFileAttributesW(fullName, FILE_ATTRIBUTE_NORMAL);
 							}
-							ForceDeleteFileWin32(FullName);
+							ForceDeleteFileWin32(fullName);
 						}
 
-						if (!FindNextFileW(hFind, ref FindData))
+						if (!FindNextFileW(hFind, ref findData))
 						{
 							break;
 						}
@@ -483,16 +482,16 @@ namespace EpicGames.Core
 			}
 		}
 
-		private static void ForceDeleteLongDirectoryWin32(string DirName)
+		private static void ForceDeleteLongDirectoryWin32(string dirName)
 		{
-			ForceDeleteLongDirectoryContentsWin32(DirName);
+			ForceDeleteLongDirectoryContentsWin32(dirName);
 
-			if (!RemoveDirectory(DirName))
+			if (!RemoveDirectory(dirName))
 			{
-				int ErrorCode = Marshal.GetLastWin32Error();
-				if (ErrorCode != ERROR_FILE_NOT_FOUND && ErrorCode != ERROR_PATH_NOT_FOUND)
+				int errorCode = Marshal.GetLastWin32Error();
+				if (errorCode != ERROR_FILE_NOT_FOUND && errorCode != ERROR_PATH_NOT_FOUND)
 				{
-					throw new WrappedFileOrDirectoryException(new Win32Exception(ErrorCode), "Unable to delete " + DirName);
+					throw new WrappedFileOrDirectoryException(new Win32Exception(errorCode), "Unable to delete " + dirName);
 				}
 			}
 		}
@@ -500,32 +499,32 @@ namespace EpicGames.Core
 		[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
 		internal static extern int GetFileAttributesW(string lpFileName);
 
-		public static void ForceDeleteFileWin32(string FileName)
+		public static void ForceDeleteFileWin32(string fileName)
 		{
 			// Try to delete the file normally
-			if (DeleteFileW(FileName))
+			if (DeleteFileW(fileName))
 			{
 				return;
 			}
 
 			// Capture the exception for failing to delete the file
-			Win32Exception Ex = new Win32Exception();
+			Win32Exception ex = new Win32Exception();
 
 			// Check the file exists and is not readonly
-			int Attributes = GetFileAttributesW(FileName);
-			if (Attributes == -1)
+			int attributes = GetFileAttributesW(fileName);
+			if (attributes == -1)
 			{
-				int ErrorCode = Marshal.GetLastWin32Error();
-				if (ErrorCode == ERROR_PATH_NOT_FOUND || ErrorCode == ERROR_FILE_NOT_FOUND)
+				int errorCode = Marshal.GetLastWin32Error();
+				if (errorCode == ERROR_PATH_NOT_FOUND || errorCode == ERROR_FILE_NOT_FOUND)
 				{
 					return;
 				}
 			}
 			else
 			{
-				if ((Attributes & (int)FileAttributes.ReadOnly) != 0)
+				if ((attributes & (int)FileAttributes.ReadOnly) != 0)
 				{
-					if (SetFileAttributesW(FileName, (int)FileAttributes.Normal) && DeleteFileW(FileName))
+					if (SetFileAttributesW(fileName, (int)FileAttributes.Normal) && DeleteFileW(fileName))
 					{
 						return;
 					}
@@ -533,35 +532,35 @@ namespace EpicGames.Core
 			}
 
 			// Get a useful error message about why the delete failed
-			StringBuilder Message = new StringBuilder($"Unable to delete {FileName} - {Ex.Message}");
-			if (Ex.NativeErrorCode == ERROR_ACCESS_DENIED)
+			StringBuilder message = new StringBuilder($"Unable to delete {fileName} - {ex.Message}");
+			if (ex.NativeErrorCode == ERROR_ACCESS_DENIED)
 			{
-				List<FileLockInfo_Win32>? LockInfoList;
+				List<FileLockInfoWin32>? lockInfoList;
 				try
 				{
-					LockInfoList = GetFileLockInfo_Win32(FileName);
+					lockInfoList = GetFileLockInfo_Win32(fileName);
 				}
 				catch
 				{
-					LockInfoList = null;
+					lockInfoList = null;
 				}
 
-				if (LockInfoList != null && LockInfoList.Count > 0)
+				if (lockInfoList != null && lockInfoList.Count > 0)
 				{
-					Message.Append("\nProcesses with open handles to file:");
-					foreach (FileLockInfo_Win32 LockInfo in LockInfoList)
+					message.Append("\nProcesses with open handles to file:");
+					foreach (FileLockInfoWin32 lockInfo in lockInfoList)
 					{
-						Message.Append($"\n  {LockInfo}");
+						message.Append($"\n  {lockInfo}");
 					}
 				}
 			}
-			throw new WrappedFileOrDirectoryException(Ex, Message.ToString());
+			throw new WrappedFileOrDirectoryException(ex, message.ToString());
 		}
 
 		#endregion
 
 		#region Win32 Restart Manager API
-
+#pragma warning disable IDE1006
 		[StructLayout(LayoutKind.Sequential)]
 		struct RM_UNIQUE_PROCESS
 		{
@@ -638,45 +637,46 @@ namespace EpicGames.Core
 
 		[DllImport("kernel32.dll", SetLastError = true)]
 		static extern bool QueryFullProcessImageName([In]SafeProcessHandle hProcess, [In]int dwFlags, [Out]StringBuilder lpExeName, ref int lpdwSize);
+#pragma warning restore IDE1006
 
 		/// <summary>
 		/// Information about a locked file
 		/// </summary>
-		public class FileLockInfo_Win32
+		public class FileLockInfoWin32
 		{
 			/// <summary>
 			/// Process id
 			/// </summary>
-			public int ProcessId;
+			public int ProcessId { get; }
 
 			/// <summary>
 			/// Path to the process holding the lock
 			/// </summary>
-			public string? FileName;
+			public string? FileName { get; }
 
 			/// <summary>
 			/// Name of the application
 			/// </summary>
-			public string AppName;
+			public string AppName { get; }
 
 			/// <summary>
 			/// Time at which the process started
 			/// </summary>
-			public DateTime StartTime;
+			public DateTime StartTime { get; }
 
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="ProcessId">Process id</param>
-			/// <param name="FileName">Path to the process holding the lock</param>
-			/// <param name="AppName">Name of the application</param>
-			/// <param name="StartTime">Time at which the process started</param>
-			public FileLockInfo_Win32(int ProcessId, string? FileName, string AppName, DateTime StartTime)
+			/// <param name="processId">Process id</param>
+			/// <param name="fileName">Path to the process holding the lock</param>
+			/// <param name="appName">Name of the application</param>
+			/// <param name="startTime">Time at which the process started</param>
+			public FileLockInfoWin32(int processId, string? fileName, string appName, DateTime startTime)
 			{
-				this.ProcessId = ProcessId;
-				this.FileName = FileName;
-				this.AppName = AppName;
-				this.StartTime = StartTime;
+				ProcessId = processId;
+				FileName = fileName;
+				AppName = appName;
+				StartTime = startTime;
 			}
 
 			/// <inheritdoc/>
@@ -689,83 +689,84 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Gets a list of processes that have a handle to the given file open
 		/// </summary>
-		/// <param name="FileName">File to check</param>
+		/// <param name="fileName">File to check</param>
 		/// <returns>List of processes with a lock open</returns>
-		public static List<FileLockInfo_Win32> GetFileLockInfo_Win32(string FileName)
+		public static List<FileLockInfoWin32> GetFileLockInfo_Win32(string fileName)
 		{
-			uint SessionHandle = 0;
+			uint sessionHandle = 0;
 			try
 			{
-				StringBuilder SessionKey = new StringBuilder(CCH_RM_SESSION_KEY + 1);
+				StringBuilder sessionKey = new StringBuilder(CCH_RM_SESSION_KEY + 1);
 
-				int Result = RmStartSession(out SessionHandle, 0, SessionKey);
-				if (Result != 0)
+				int result = RmStartSession(out sessionHandle, 0, sessionKey);
+				if (result != 0)
 				{
-					throw new Win32Exception(Result, "Unable to open restart manager session");
+					throw new Win32Exception(result, "Unable to open restart manager session");
 				}
 
-				Result = RmRegisterResources(SessionHandle, 1, new string[] { FileName }, 0, null, 0, null);
-				if (Result != 0)
+				result = RmRegisterResources(sessionHandle, 1, new string[] { fileName }, 0, null, 0, null);
+				if (result != 0)
 				{
-					throw new Win32Exception(Result, "Unable to register resource with restart manager");
+					throw new Win32Exception(result, "Unable to register resource with restart manager");
 				}
 
 				uint nProcInfoNeeded = 0;
 				uint nProcInfo = 10;
-				uint Reason = 0;
-				RM_PROCESS_INFO[] ProcessInfoArray = new RM_PROCESS_INFO[nProcInfo];
-				Result = RmGetList(SessionHandle, out nProcInfoNeeded, ref nProcInfo, ProcessInfoArray, ref Reason);
-				if (Result != 0)
+				uint reason = 0;
+				RM_PROCESS_INFO[] processInfoArray = new RM_PROCESS_INFO[nProcInfo];
+				result = RmGetList(sessionHandle, out nProcInfoNeeded, ref nProcInfo, processInfoArray, ref reason);
+				if (result != 0)
 				{
-					throw new Win32Exception(Result, "Unable to query processes with file handle open");
+					throw new Win32Exception(result, "Unable to query processes with file handle open");
 				}
 
-				List<FileLockInfo_Win32> FileLocks = new List<FileLockInfo_Win32>();
-				for (int Idx = 0; Idx < nProcInfo; Idx++)
+				List<FileLockInfoWin32> fileLocks = new List<FileLockInfoWin32>();
+				for (int idx = 0; idx < nProcInfo; idx++)
 				{
-					RM_PROCESS_INFO ProcessInfo = ProcessInfoArray[Idx];
-					long StartTimeTicks = FileTimeToTicks(ProcessInfo.Process.ProcessStartTime);
+					RM_PROCESS_INFO processInfo = processInfoArray[idx];
+					long startTimeTicks = FileTimeToTicks(processInfo.Process.ProcessStartTime);
 
-					string? ImageName = null;
-					using (SafeProcessHandle hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, ProcessInfo.Process.dwProcessId))
+					string? imageName = null;
+					using (SafeProcessHandle hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, processInfo.Process.dwProcessId))
 					{
 						if (hProcess != null)
 						{
-							FILETIME CreateTime, ExitTime, KernelTime, UserTime;
-							if (GetProcessTimes(hProcess, out CreateTime, out ExitTime, out KernelTime, out UserTime) && FileTimeToTicks(CreateTime) == StartTimeTicks)
+							FILETIME createTime, exitTime, kernelTime, userTime;
+							if (GetProcessTimes(hProcess, out createTime, out exitTime, out kernelTime, out userTime) && FileTimeToTicks(createTime) == startTimeTicks)
 							{
-								int Capacity = 260;
-								StringBuilder ImageNameBuilder = new StringBuilder(Capacity);
-								if (QueryFullProcessImageName(hProcess, 0, ImageNameBuilder, ref Capacity))
+								int capacity = 260;
+								StringBuilder imageNameBuilder = new StringBuilder(capacity);
+								if (QueryFullProcessImageName(hProcess, 0, imageNameBuilder, ref capacity))
 								{
-									ImageName = ImageNameBuilder.ToString(0, Capacity);
+									imageName = imageNameBuilder.ToString(0, capacity);
 								}
 							}
 						}
 					}
 
-					FileLocks.Add(new FileLockInfo_Win32(ProcessInfo.Process.dwProcessId, ImageName, ProcessInfo.strAppName, DateTime.FromFileTime(StartTimeTicks)));
+					fileLocks.Add(new FileLockInfoWin32(processInfo.Process.dwProcessId, imageName, processInfo.strAppName, DateTime.FromFileTime(startTimeTicks)));
 				}
-				return FileLocks;
+				return fileLocks;
 			}
 			finally
 			{
-				if (SessionHandle != 0)
+				if (sessionHandle != 0)
 				{
-					RmEndSession(SessionHandle);
+					RmEndSession(sessionHandle);
 				}
 			}
 		}
 
-		private static long FileTimeToTicks(FILETIME FileTime)
+		private static long FileTimeToTicks(FILETIME fileTime)
 		{
-			return (long)(uint)FileTime.dwLowDateTime | ((long)(uint)FileTime.dwHighDateTime << 32);
+			return (long)(uint)fileTime.dwLowDateTime | ((long)(uint)fileTime.dwHighDateTime << 32);
 		}
 
 		#endregion
 
 		#region Mac Native File Methods
 #pragma warning disable CS0649
+#pragma warning disable IDE1006
 		struct timespec_t
 		{
 			public ulong tv_sec;
@@ -802,11 +803,13 @@ namespace EpicGames.Core
 		[DllImport("libSystem.dylib")]
 		static extern int chmod(string path, ushort mode);
 
+#pragma warning restore IDE1006
 #pragma warning restore CS0649
 		#endregion
 
 		#region Linux Native File Methods
 #pragma warning disable CS0649
+#pragma warning disable IDE1006
 
 		[StructLayout(LayoutKind.Sequential)]
 		class stat64_linux_t
@@ -837,6 +840,7 @@ namespace EpicGames.Core
 		[DllImport("libc", EntryPoint="chmod")]
 		static extern int chmod_linux(string path, ushort mode);
 
+#pragma warning restore IDE1006
 #pragma warning restore CS0649
 		#endregion
 	}

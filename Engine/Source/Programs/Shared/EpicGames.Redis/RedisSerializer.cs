@@ -5,9 +5,7 @@ using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 
 namespace EpicGames.Redis
 {
@@ -25,10 +23,10 @@ namespace EpicGames.Redis
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ConverterType">The converter type</param>
-		public RedisConverterAttribute(Type ConverterType)
+		/// <param name="converterType">The converter type</param>
+		public RedisConverterAttribute(Type converterType)
 		{
-			this.ConverterType = ConverterType;
+			ConverterType = converterType;
 		}
 	}
 
@@ -40,16 +38,16 @@ namespace EpicGames.Redis
 		/// <summary>
 		/// Serailize an object to a RedisValue
 		/// </summary>
-		/// <param name="Value"></param>
+		/// <param name="value"></param>
 		/// <returns></returns>
-		RedisValue ToRedisValue(T Value);
+		RedisValue ToRedisValue(T value);
 
 		/// <summary>
 		/// Deserialize an object from a RedisValue
 		/// </summary>
-		/// <param name="Value"></param>
+		/// <param name="value"></param>
 		/// <returns></returns>
-		T FromRedisValue(RedisValue Value);
+		T FromRedisValue(RedisValue value);
 	}
 
 	/// <summary>
@@ -59,15 +57,15 @@ namespace EpicGames.Redis
 	public sealed class RedisCbConverter<T> : IRedisConverter<T>
 	{
 		/// <inheritdoc/>
-		public RedisValue ToRedisValue(T Value)
+		public RedisValue ToRedisValue(T value)
 		{
-			return CbSerializer.Serialize(Value).GetView();
+			return CbSerializer.Serialize(value).GetView();
 		}
 
 		/// <inheritdoc/>
-		public T FromRedisValue(RedisValue Value)
+		public T FromRedisValue(RedisValue value)
 		{
-			return CbSerializer.Deserialize<T>(new CbField((byte[])Value));
+			return CbSerializer.Deserialize<T>(new CbField((byte[])value));
 		}
 	}
 
@@ -78,37 +76,37 @@ namespace EpicGames.Redis
 	{
 		class RedisStringConverter<T> : IRedisConverter<T>
 		{
-			TypeConverter TypeConverter;
+			readonly TypeConverter _typeConverter;
 
-			public RedisStringConverter(TypeConverter TypeConverter)
+			public RedisStringConverter(TypeConverter typeConverter)
 			{
-				this.TypeConverter = TypeConverter;
+				_typeConverter = typeConverter;
 			}
 
-			public RedisValue ToRedisValue(T Value) => (string)TypeConverter.ConvertTo(Value, typeof(string));
-			public T FromRedisValue(RedisValue Value) => (T)TypeConverter.ConvertFrom((string)Value);
+			public RedisValue ToRedisValue(T value) => (string)_typeConverter.ConvertTo(value, typeof(string));
+			public T FromRedisValue(RedisValue value) => (T)_typeConverter.ConvertFrom((string)value);
 		}
 
 		class RedisNativeConverter<T> : IRedisConverter<T>
 		{
-			Func<RedisValue, T> FromRedisValueFunc;
-			Func<T, RedisValue> ToRedisValueFunc;
+			readonly Func<RedisValue, T> _fromRedisValueFunc;
+			readonly Func<T, RedisValue> _toRedisValueFunc;
 
-			public RedisNativeConverter(Func<RedisValue, T> FromRedisValueFunc, Func<T, RedisValue> ToRedisValueFunc)
+			public RedisNativeConverter(Func<RedisValue, T> fromRedisValueFunc, Func<T, RedisValue> toRedisValueFunc)
 			{
-				this.FromRedisValueFunc = FromRedisValueFunc;
-				this.ToRedisValueFunc = ToRedisValueFunc;
+				_fromRedisValueFunc = fromRedisValueFunc;
+				_toRedisValueFunc = toRedisValueFunc;
 			}
 
-			public T FromRedisValue(RedisValue Value) => FromRedisValueFunc(Value);
-			public RedisValue ToRedisValue(T Value) => ToRedisValueFunc(Value);
+			public T FromRedisValue(RedisValue value) => _fromRedisValueFunc(value);
+			public RedisValue ToRedisValue(T value) => _toRedisValueFunc(value);
 		}
 
-		static Dictionary<Type, object> NativeConverters = CreateNativeConverterLookup();
+		static readonly Dictionary<Type, object> s_nativeConverters = CreateNativeConverterLookup();
 
 		static Dictionary<Type, object> CreateNativeConverterLookup()
 		{
-			KeyValuePair<Type, object>[] Converters =
+			KeyValuePair<Type, object>[] converters =
 			{
 				CreateNativeConverter(x => (bool)x, x => x),
 				CreateNativeConverter(x => (int)x, x => x),
@@ -125,12 +123,12 @@ namespace EpicGames.Redis
 				CreateNativeConverter(x => (byte[])x, x => x),
 				CreateNativeConverter(x => (string)x, x => x),
 			};
-			return new Dictionary<Type, object>(Converters);
+			return new Dictionary<Type, object>(converters);
 		}
 
-		static KeyValuePair<Type, object> CreateNativeConverter<T>(Func<RedisValue, T> FromRedisValueFunc, Func<T, RedisValue> ToRedisValueFunc)
+		static KeyValuePair<Type, object> CreateNativeConverter<T>(Func<RedisValue, T> fromRedisValueFunc, Func<T, RedisValue> toRedisValueFunc)
 		{
-			return new KeyValuePair<Type, object>(typeof(T), new RedisNativeConverter<T>(FromRedisValueFunc, ToRedisValueFunc));
+			return new KeyValuePair<Type, object>(typeof(T), new RedisNativeConverter<T>(fromRedisValueFunc, toRedisValueFunc));
 		}
 
 		/// <summary>
@@ -143,35 +141,35 @@ namespace EpicGames.Redis
 
 			static IRedisConverter<T> CreateConverter()
 			{
-				Type Type = typeof(T);
+				Type type = typeof(T);
 
 				// Check for a custom converter
-				RedisConverterAttribute? Attribute = Type.GetCustomAttribute<RedisConverterAttribute>();
-				if (Attribute != null)
+				RedisConverterAttribute? attribute = type.GetCustomAttribute<RedisConverterAttribute>();
+				if (attribute != null)
 				{
-					Type ConverterType = Attribute.ConverterType;
-					if (ConverterType.IsGenericTypeDefinition)
+					Type converterType = attribute.ConverterType;
+					if (converterType.IsGenericTypeDefinition)
 					{
-						ConverterType = ConverterType.MakeGenericType(Type);
+						converterType = converterType.MakeGenericType(type);
 					}
-					return (IRedisConverter<T>)Activator.CreateInstance(ConverterType)!;
+					return (IRedisConverter<T>)Activator.CreateInstance(converterType)!;
 				}
 
 				// Check for known basic types
-				object? NativeConverter;
-				if (NativeConverters.TryGetValue(typeof(T), out NativeConverter))
+				object? nativeConverter;
+				if (s_nativeConverters.TryGetValue(typeof(T), out nativeConverter))
                 {
-					return (IRedisConverter<T>)NativeConverter;
+					return (IRedisConverter<T>)nativeConverter;
                 }
 
 				// Check if there's a regular converter we can use to convert to/from a string
-				TypeConverter? Converter = TypeDescriptor.GetConverter(Type);
-				if (Converter != null && Converter.CanConvertFrom(typeof(string)) && Converter.CanConvertTo(typeof(string)))
+				TypeConverter? converter = TypeDescriptor.GetConverter(type);
+				if (converter != null && converter.CanConvertFrom(typeof(string)) && converter.CanConvertTo(typeof(string)))
 				{
-					return new RedisStringConverter<T>(Converter);
+					return new RedisStringConverter<T>(converter);
 				}
 
-				throw new Exception($"Unable to find Redis converter for {Type.Name}");
+				throw new Exception($"Unable to find Redis converter for {type.Name}");
 			}
 		}
 
@@ -189,22 +187,22 @@ namespace EpicGames.Redis
 		/// Serialize an object to a <see cref="RedisValue"/>
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Value"></param>
+		/// <param name="value"></param>
 		/// <returns></returns>
-		public static RedisValue Serialize<T>(T Value)
+		public static RedisValue Serialize<T>(T value)
 		{
-			return CachedConverter<T>.Converter.ToRedisValue(Value);
+			return CachedConverter<T>.Converter.ToRedisValue(value);
 		}
 
 		/// <summary>
 		/// Deserialize a <see cref="RedisValue"/>
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Value"></param>
+		/// <param name="value"></param>
 		/// <returns></returns>
-		public static T Deserialize<T>(RedisValue Value)
+		public static T Deserialize<T>(RedisValue value)
 		{
-			return CachedConverter<T>.Converter.FromRedisValue(Value);
+			return CachedConverter<T>.Converter.FromRedisValue(value);
 		}
 	}
 }

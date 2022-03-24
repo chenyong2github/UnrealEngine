@@ -1,15 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
 using System;
-using System.Buffers;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Text;
-using System.Text.Json;
 
 namespace EpicGames.Core
 {
@@ -27,101 +21,101 @@ namespace EpicGames.Core
 		/// Converts any positional properties to named properties
 		/// </summary>
 		/// <returns></returns>
-		public static Dictionary<string, object>? CreatePositionalProperties(string Format, IEnumerable<KeyValuePair<string, object>> Properties)
+		public static Dictionary<string, object>? CreatePositionalProperties(string format, IEnumerable<KeyValuePair<string, object>> properties)
 		{
-			Dictionary<string, object>? OutputProperties = null;
-			if (Properties != null)
+			Dictionary<string, object>? outputProperties = null;
+			if (properties != null)
 			{
-				OutputProperties = new Dictionary<string, object>(Properties);
+				outputProperties = new Dictionary<string, object>(properties);
 
-				List<(int, int)>? Offsets = ParsePropertyNames(Format);
-				if (Offsets != null)
+				List<(int, int)>? offsets = ParsePropertyNames(format);
+				if (offsets != null)
 				{
-					foreach ((int Offset, int Length) in Offsets)
+					foreach ((int offset, int length) in offsets)
 					{
-						ReadOnlySpan<char> Name = Format.AsSpan(Offset, Length);
-						if (int.TryParse(Name, out int Number))
+						ReadOnlySpan<char> name = format.AsSpan(offset, length);
+						if (int.TryParse(name, out int number))
 						{
-							OutputProperties[Name.ToString()] = Properties.ElementAtOrDefault(Number).Value;
+							outputProperties[name.ToString()] = properties.ElementAtOrDefault(number).Value;
 						}
 					}
 				}
 			}
-			return OutputProperties;
+			return outputProperties;
 		}
 
 		/// <summary>
 		/// Renders a format string
 		/// </summary>
-		/// <param name="Format">The format string</param>
-		/// <param name="Properties">Property values to embed</param>
+		/// <param name="format">The format string</param>
+		/// <param name="properties">Property values to embed</param>
 		/// <returns>The rendered string</returns>
-		public static string Render(string Format, IEnumerable<KeyValuePair<string, object?>>? Properties)
+		public static string Render(string format, IEnumerable<KeyValuePair<string, object?>>? properties)
 		{
-			StringBuilder Result = new StringBuilder();
-			Render(Format, Properties, Result);
-			return Result.ToString();
+			StringBuilder result = new StringBuilder();
+			Render(format, properties, result);
+			return result.ToString();
 		}
 
 		/// <summary>
 		/// Renders a format string to the end of a string builder
 		/// </summary>
-		/// <param name="Format">The format string to render</param>
-		/// <param name="Properties">Sequence of key/value properties</param>
-		/// <param name="Result">Buffer to append the rendered string to</param>
-		public static void Render(string Format, IEnumerable<KeyValuePair<string, object?>>? Properties, StringBuilder Result)
+		/// <param name="format">The format string to render</param>
+		/// <param name="properties">Sequence of key/value properties</param>
+		/// <param name="result">Buffer to append the rendered string to</param>
+		public static void Render(string format, IEnumerable<KeyValuePair<string, object?>>? properties, StringBuilder result)
 		{
-			int NextOffset = 0;
+			int nextOffset = 0;
 
-			List<(int, int)>? Names = ParsePropertyNames(Format);
-			if (Names != null)
+			List<(int, int)>? names = ParsePropertyNames(format);
+			if (names != null)
 			{
-				foreach((int Offset, int Length) in Names)
+				foreach((int offset, int length) in names)
 				{
-					object? Value;
-					if (Properties != null && TryGetPropertyValue(Format.AsSpan(Offset, Length), Properties, out Value))
+					object? value;
+					if (properties != null && TryGetPropertyValue(format.AsSpan(offset, length), properties, out value))
 					{
-						int StartOffset = Offset - 1;
-						if (Format[StartOffset] == '@' || Format[StartOffset] == '$')
+						int startOffset = offset - 1;
+						if (format[startOffset] == '@' || format[startOffset] == '$')
 						{
-							StartOffset--;
+							startOffset--;
 						}
 
-						Unescape(Format.AsSpan(NextOffset, StartOffset - NextOffset), Result);
-						Result.Append(Value?.ToString() ?? "null");
-						NextOffset = Offset + Length + 1;
+						Unescape(format.AsSpan(nextOffset, startOffset - nextOffset), result);
+						result.Append(value?.ToString() ?? "null");
+						nextOffset = offset + length + 1;
 					}
 				}
 			}
 
-			Unescape(Format.AsSpan(NextOffset, Format.Length - NextOffset), Result);
+			Unescape(format.AsSpan(nextOffset, format.Length - nextOffset), result);
 		}
 
 		/// <summary>
 		/// Escapes a string for use in a message template
 		/// </summary>
-		/// <param name="Text">Text to escape</param>
+		/// <param name="text">Text to escape</param>
 		/// <returns>The escaped string</returns>
-		public static string Escape(string Text)
+		public static string Escape(string text)
 		{
-			StringBuilder Result = new StringBuilder();
-			Escape(Text, Result);
-			return Result.ToString();
+			StringBuilder result = new StringBuilder();
+			Escape(text, result);
+			return result.ToString();
 		}
 
 		/// <summary>
 		/// Escapes a span of characters and appends the result to a string
 		/// </summary>
-		/// <param name="Text">Span of characters to escape</param>
-		/// <param name="Result">Buffer to receive the escaped string</param>
-		public static void Escape(ReadOnlySpan<char> Text, StringBuilder Result)
+		/// <param name="text">Span of characters to escape</param>
+		/// <param name="result">Buffer to receive the escaped string</param>
+		public static void Escape(ReadOnlySpan<char> text, StringBuilder result)
 		{
-			foreach(char Char in Text)
+			foreach(char character in text)
 			{
-				Result.Append(Char);
-				if (Char == '{' || Char == '}')
+				result.Append(character);
+				if (character == '{' || character == '}')
 				{
-					Result.Append(Char);
+					result.Append(character);
 				}
 			}
 		}
@@ -129,98 +123,98 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Unescapes a string from a message template
 		/// </summary>
-		/// <param name="Text">The text to unescape</param>
+		/// <param name="text">The text to unescape</param>
 		/// <returns>The unescaped text</returns>
-		public static string Unescape(string Text)
+		public static string Unescape(string text)
 		{
-			StringBuilder Result = new StringBuilder();
-			Unescape(Text.AsSpan(), Result);
-			return Result.ToString();
+			StringBuilder result = new StringBuilder();
+			Unescape(text.AsSpan(), result);
+			return result.ToString();
 		}
 
 		/// <summary>
 		/// Unescape a string and append the result to a string builder
 		/// </summary>
-		/// <param name="Text">Text to unescape</param>
-		/// <param name="Result">Receives the unescaped text</param>
-		public static void Unescape(ReadOnlySpan<char> Text, StringBuilder Result)
+		/// <param name="text">Text to unescape</param>
+		/// <param name="result">Receives the unescaped text</param>
+		public static void Unescape(ReadOnlySpan<char> text, StringBuilder result)
 		{
-			char LastChar = '\0';
-			foreach (char Char in Text)
+			char lastChar = '\0';
+			foreach (char character in text)
 			{
-				if ((Char != '{' || Char != '}') || Char != LastChar)
+				if ((character != '{' || character != '}') || character != lastChar)
 				{
-					Result.Append(Char);
+					result.Append(character);
 				}
-				LastChar = Char;
+				lastChar = character;
 			}
 		}
 
 		/// <summary>
 		/// Finds locations of property names from the given format string
 		/// </summary>
-		/// <param name="Format">The format string to parse</param>
+		/// <param name="format">The format string to parse</param>
 		/// <returns>List of offset, length pairs for property names. Null if the string does not contain any property references.</returns>
-		public static List<(int, int)>? ParsePropertyNames(string Format)
+		public static List<(int, int)>? ParsePropertyNames(string format)
 		{
-			List<(int, int)>? Names = null;
-			for (int Idx = 0; Idx < Format.Length - 1; Idx++)
+			List<(int, int)>? names = null;
+			for (int idx = 0; idx < format.Length - 1; idx++)
 			{
-				if (Format[Idx] == '{')
+				if (format[idx] == '{')
 				{
-					if (Format[Idx + 1] == '{')
+					if (format[idx + 1] == '{')
 					{
-						Idx++;
+						idx++;
 					}
 					else
 					{
-						int StartIdx = Idx + 1;
+						int startIdx = idx + 1;
 
-						Idx = Format.IndexOf('}', StartIdx);
-						if (Idx == -1)
+						idx = format.IndexOf('}', startIdx);
+						if (idx == -1)
 						{
 							break;
 						}
-						if (Names == null)
+						if (names == null)
 						{
-							Names = new List<(int, int)>();
+							names = new List<(int, int)>();
 						}
 
-						Names.Add((StartIdx, Idx - StartIdx));
+						names.Add((startIdx, idx - startIdx));
 					}
 				}
 			}
-			return Names;
+			return names;
 		}
 
 		/// <summary>
 		/// Parse the ordered arguments into a dictionary of named properties
 		/// </summary>
-		/// <param name="Format">Format string</param>
-		/// <param name="Args">Argument list to parse</param>
+		/// <param name="format">Format string</param>
+		/// <param name="args">Argument list to parse</param>
 		/// <returns></returns>
-		public static void ParsePropertyValues(string Format, object[] Args, Dictionary<string, object> Properties)
+		public static void ParsePropertyValues(string format, object[] args, Dictionary<string, object> properties)
 		{
-			List<(int, int)>? Offsets = ParsePropertyNames(Format);
-			if (Offsets != null)
+			List<(int, int)>? offsets = ParsePropertyNames(format);
+			if (offsets != null)
 			{
-				for (int Idx = 0; Idx < Offsets.Count; Idx++)
+				for (int idx = 0; idx < offsets.Count; idx++)
 				{
-					string Name = Format.Substring(Offsets[Idx].Item1, Offsets[Idx].Item2);
+					string name = format.Substring(offsets[idx].Item1, offsets[idx].Item2);
 
-					int Number;
-					if (int.TryParse(Name, out Number))
+					int number;
+					if (int.TryParse(name, out number))
 					{
-						if (Number >= 0 && Number < Args.Length)
+						if (number >= 0 && number < args.Length)
 						{
-							Properties[Name] = Args[Number];
+							properties[name] = args[number];
 						}
 					}
 					else
 					{
-						if (Idx < Args.Length)
+						if (idx < args.Length)
 						{
-							Properties[Name] = Args[Idx];
+							properties[name] = args[idx];
 						}
 					}
 				}
@@ -230,39 +224,39 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Attempts to get a named property value from the given dictionary
 		/// </summary>
-		/// <param name="Name">Name of the property</param>
-		/// <param name="Properties">Sequence of property name/value pairs</param>
-		/// <param name="Value">On success, receives the property value</param>
+		/// <param name="name">Name of the property</param>
+		/// <param name="properties">Sequence of property name/value pairs</param>
+		/// <param name="value">On success, receives the property value</param>
 		/// <returns>True if the property was found, false otherwise</returns>
-		public static bool TryGetPropertyValue(ReadOnlySpan<char> Name, IEnumerable<KeyValuePair<string, object?>> Properties, out object? Value)
+		public static bool TryGetPropertyValue(ReadOnlySpan<char> name, IEnumerable<KeyValuePair<string, object?>> properties, out object? value)
 		{
-			int Number;
-			if (int.TryParse(Name, System.Globalization.NumberStyles.Integer, null, out Number))
+			int number;
+			if (int.TryParse(name, System.Globalization.NumberStyles.Integer, null, out number))
 			{
-				foreach (KeyValuePair<string, object?> Property in Properties)
+				foreach (KeyValuePair<string, object?> property in properties)
 				{
-					if (Number == 0)
+					if (number == 0)
 					{
-						Value = Property.Value;
+						value = property.Value;
 						return true;
 					}
-					Number--;
+					number--;
 				}
 			}
 			else
 			{
-				foreach (KeyValuePair<string, object?> Property in Properties)
+				foreach (KeyValuePair<string, object?> property in properties)
 				{
-					ReadOnlySpan<char> ParameterName = Property.Key.AsSpan();
-					if (Name.Equals(ParameterName, StringComparison.Ordinal))
+					ReadOnlySpan<char> parameterName = property.Key.AsSpan();
+					if (name.Equals(parameterName, StringComparison.Ordinal))
 					{
-						Value = Property.Value;
+						value = property.Value;
 						return true;
 					}
 				}
 			}
 
-			Value = null;
+			value = null;
 			return false;
 		}
 	}

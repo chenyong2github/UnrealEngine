@@ -16,10 +16,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		/// <param name="Value">The value to copy</param>
-		public Boxed(T Value)
+		/// <param name="value">The value to copy</param>
+		public Boxed(T value)
 		{
-			this.Value = Value;
+			Value = value;
 		}
 
 		/// <inheritdoc/>
@@ -31,19 +31,19 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Implicit conversion of a boxed value to value type
 		/// </summary>
-		/// <param name="Boxed"></param>
-		public static implicit operator T(Boxed<T> Boxed)
+		/// <param name="boxed"></param>
+		public static implicit operator T(Boxed<T> boxed)
 		{
-			return Boxed.Value;
+			return boxed.Value;
 		}
 
 		/// <summary>
 		/// Implicit conversion of a boxed value to value type
 		/// </summary>
-		/// <param name="Value"></param>
-		public static implicit operator Boxed<T>(T Value)
+		/// <param name="value"></param>
+		public static implicit operator Boxed<T>(T value)
 		{
-			return new Boxed<T>(Value);
+			return new Boxed<T>(value);
 		}
 	}
 }

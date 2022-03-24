@@ -1,13 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -16,19 +10,17 @@ namespace EpicGames.Core
 	/// </summary>
 	class LogBuffer : ILogCursor
 	{
-		int LineNumber;
+		int _lineNumber;
+		readonly string?[] _history;
+		int _historyIdx;
+		int _historyCount;
+		readonly List<string?> _nextLines;
 
-		string?[] History;
-		int HistoryIdx;
-		int HistoryCount;
-
-		List<string?> NextLines;
-
-		public LogBuffer(int HistorySize)
+		public LogBuffer(int historySize)
 		{
-			LineNumber = 1;
-			History = new string?[HistorySize];
-			NextLines = new List<string?>();
+			_lineNumber = 1;
+			_history = new string?[historySize];
+			_nextLines = new List<string?>();
 		}
 
 		public bool NeedMoreData
@@ -37,30 +29,21 @@ namespace EpicGames.Core
 			private set;
 		}
 
-		public string? CurrentLine
-		{
-			get { return this[0]; }
-		}
+		public string? CurrentLine => this[0];
 
-		public int CurrentLineNumber
-		{
-			get { return LineNumber; }
-		}
+		public int CurrentLineNumber => _lineNumber;
 
-		public int Length
-		{
-			get { return NextLines.Count; }
-		}
+		public int Length => _nextLines.Count;
 
-		public void AddLine(string? Line)
+		public void AddLine(string? line)
 		{
-			NextLines.Add(Line);
+			_nextLines.Add(line);
 			NeedMoreData = false;
 		}
 
-		public void Advance(int Count)
+		public void Advance(int count)
 		{
-			for (int Idx = 0; Idx < Count; Idx++)
+			for (int idx = 0; idx < count; idx++)
 			{
 				MoveNext();
 			}
@@ -68,50 +51,50 @@ namespace EpicGames.Core
 
 		public void MoveNext()
 		{
-			if (NextLines.Count == 0)
+			if (_nextLines.Count == 0)
 			{
 				throw new InvalidOperationException("Attempt to move past end of line buffer");
 			}
 
-			HistoryIdx++;
-			if (HistoryIdx >= History.Length)
+			_historyIdx++;
+			if (_historyIdx >= _history.Length)
 			{
-				HistoryIdx = 0;
+				_historyIdx = 0;
 			}
-			if (HistoryCount < History.Length)
+			if (_historyCount < _history.Length)
 			{
-				HistoryCount++;
+				_historyCount++;
 			}
 
-			History[HistoryIdx] = NextLines[0];
-			NextLines.RemoveAt(0);
+			_history[_historyIdx] = _nextLines[0];
+			_nextLines.RemoveAt(0);
 
-			LineNumber++;
+			_lineNumber++;
 		}
 
-		public string? this[int Offset]
+		public string? this[int offset]
 		{
 			get
 			{
-				if (Offset >= 0)
+				if (offset >= 0)
 				{
 					// Add new lines to the buffer
-					if (Offset >= NextLines.Count)
+					if (offset >= _nextLines.Count)
 					{
 						NeedMoreData = true;
 						return null;
 					}
-					return NextLines[Offset];
+					return _nextLines[offset];
 				}
-				else if (Offset >= -HistoryCount)
+				else if (offset >= -_historyCount)
 				{
 					// Retrieve a line from the history buffer
-					int Idx = HistoryIdx + 1 + Offset;
-					if (Idx < 0)
+					int idx = _historyIdx + 1 + offset;
+					if (idx < 0)
 					{
-						Idx += History.Length;
+						idx += _history.Length;
 					}
-					return History[Idx];
+					return _history[idx];
 				}
 				else
 				{

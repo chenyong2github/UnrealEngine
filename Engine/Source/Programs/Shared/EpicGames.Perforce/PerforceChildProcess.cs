@@ -86,7 +86,7 @@ namespace EpicGames.Perforce
 			string FullArgumentList = CommandLineArguments.Join(FullArguments);
 			Logger.LogDebug("Running {Executable} {Arguments}", PerforceFileName, FullArgumentList);
 
-			Scope = TraceSpan.Create(Command, Service: "perforce");
+			Scope = TraceSpan.Create(Command, service: "perforce");
 			Scope.AddMetadata("arguments", FullArgumentList);
 
 			ChildProcessGroup = new ManagedProcessGroup();

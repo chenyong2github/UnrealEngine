@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Core
 {
@@ -19,22 +18,22 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Configure this object with the given command line arguments
 		/// </summary>
-		/// <param name="Arguments">Command line arguments</param>
-		void Configure(CommandLineArguments Arguments, ILogger Logger);
+		/// <param name="arguments">Command line arguments</param>
+		void Configure(CommandLineArguments arguments, ILogger logger);
 
 		/// <summary>
 		/// Gets all command line parameters to show in help for this command
 		/// </summary>
-		/// <param name="Arguments">The command line arguments</param>
+		/// <param name="arguments">The command line arguments</param>
 		/// <returns>List of name/description pairs</returns>
-		List<KeyValuePair<string, string>> GetParameters(CommandLineArguments Arguments);
+		List<KeyValuePair<string, string>> GetParameters(CommandLineArguments arguments);
 
 		/// <summary>
 		/// Execute this command
 		/// </summary>
-		/// <param name="Logger">The logger to use for this command</param>
+		/// <param name="logger">The logger to use for this command</param>
 		/// <returns>Exit code</returns>
-		Task<int> ExecuteAsync(ILogger Logger);
+		Task<int> ExecuteAsync(ILogger logger);
 	}
 
 	/// <summary>
@@ -55,7 +54,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Create a command instance
 		/// </summary>
-		public ICommand CreateInstance(IServiceProvider ServiceProvider);
+		public ICommand CreateInstance(IServiceProvider serviceProvider);
 	}
 
 	/// <summary>
@@ -66,34 +65,34 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Names for this command
 		/// </summary>
-		public string[] Names;
+		public string[] Names { get; }
 
 		/// <summary>
 		/// Short description for the mode. Will be displayed in the help text.
 		/// </summary>
-		public string Description;
+		public string Description { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name of the mode</param>
-		/// <param name="Description">Short description for display in the help text</param>
-		public CommandAttribute(string Name, string Description)
+		/// <param name="name">Name of the mode</param>
+		/// <param name="description">Short description for display in the help text</param>
+		public CommandAttribute(string name, string description)
 		{
-			this.Names = new string[] { Name };
-			this.Description = Description;
+			Names = new string[] { name };
+			Description = description;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Category">Category for this command</param>
-		/// <param name="Name">Name of the mode</param>
-		/// <param name="Description">Short description for display in the help text</param>
-		public CommandAttribute(string Category, string Name, string Description)
+		/// <param name="category">Category for this command</param>
+		/// <param name="name">Name of the mode</param>
+		/// <param name="description">Short description for display in the help text</param>
+		public CommandAttribute(string category, string name, string description)
 		{
-			this.Names = new string[] { Category, Name };
-			this.Description = Description;
+			Names = new string[] { category, name };
+			Description = description;
 		}
 	}
 
@@ -103,19 +102,19 @@ namespace EpicGames.Core
 	public abstract class Command : ICommand
 	{
 		/// <inheritdoc/>
-		public virtual void Configure(CommandLineArguments Arguments, ILogger Logger)
+		public virtual void Configure(CommandLineArguments arguments, ILogger logger)
 		{
-			Arguments.ApplyTo(this, Logger);
+			arguments.ApplyTo(this, logger);
 		}
 
 		/// <inheritdoc/>
-		public virtual List<KeyValuePair<string, string>> GetParameters(CommandLineArguments Arguments)
+		public virtual List<KeyValuePair<string, string>> GetParameters(CommandLineArguments arguments)
 		{
 			return CommandLineArguments.GetParameters(GetType());
 		}
 
 		/// <inheritdoc/>
-		public abstract Task<int> ExecuteAsync(ILogger Logger);
+		public abstract Task<int> ExecuteAsync(ILogger logger);
 	}
 
 	/// <summary>
@@ -126,16 +125,16 @@ namespace EpicGames.Core
 		public string[] Names { get; }
 		public string Description { get; }
 
-		public Type Type;
+		public Type Type { get; }
 
-		public CommandFactory(string[] Names, string Description, Type Type)
+		public CommandFactory(string[] names, string description, Type type)
 		{
-			this.Names = Names;
-			this.Description = Description;
-			this.Type = Type;
+			Names = names;
+			Description = description;
+			Type = type;
 		}
 
-		public ICommand CreateInstance(IServiceProvider ServiceProvider) => (ICommand)ServiceProvider.GetRequiredService(Type);
+		public ICommand CreateInstance(IServiceProvider serviceProvider) => (ICommand)serviceProvider.GetRequiredService(Type);
 		public override string ToString() => String.Join(" ", Names);
 	}
 
@@ -147,20 +146,20 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Adds services for executing the 
 		/// </summary>
-		/// <param name="Services"></param>
-		/// <param name="Assembly"></param>
-		public static void AddCommandsFromAssembly(this IServiceCollection Services, Assembly Assembly)
+		/// <param name="services"></param>
+		/// <param name="assembly"></param>
+		public static void AddCommandsFromAssembly(this IServiceCollection services, Assembly assembly)
 		{
-			List<(CommandAttribute, Type)> Commands = new List<(CommandAttribute, Type)>();
-			foreach (Type Type in Assembly.GetTypes())
+			List<(CommandAttribute, Type)> commands = new List<(CommandAttribute, Type)>();
+			foreach (Type type in assembly.GetTypes())
 			{
-				if (typeof(ICommand).IsAssignableFrom(Type) && !Type.IsAbstract)
+				if (typeof(ICommand).IsAssignableFrom(type) && !type.IsAbstract)
 				{
-					CommandAttribute? Attribute = Type.GetCustomAttribute<CommandAttribute>();
-					if (Attribute != null)
+					CommandAttribute? attribute = type.GetCustomAttribute<CommandAttribute>();
+					if (attribute != null)
 					{
-						Services.AddTransient(Type);
-						Services.AddTransient(typeof(ICommandFactory), SP => new CommandFactory(Attribute.Names, Attribute.Description, Type));
+						services.AddTransient(type);
+						services.AddTransient(typeof(ICommandFactory), sp => new CommandFactory(attribute.Names, attribute.Description, type));
 					}
 				}
 			}
@@ -169,31 +168,31 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Entry point for executing registered command types in a particular assembly
 		/// </summary>
-		/// <param name="Args">Command line arguments</param>
-		/// <param name="ServiceProvider">The service provider for the application</param>
-		/// <param name="DefaultCommandType">The default command type</param>
+		/// <param name="args">Command line arguments</param>
+		/// <param name="serviceProvider">The service provider for the application</param>
+		/// <param name="defaultCommandType">The default command type</param>
 		/// <returns>Return code from the command</returns>
-		public static async Task<int> RunAsync(CommandLineArguments Args, IServiceProvider ServiceProvider, Type? DefaultCommandType)
+		public static async Task<int> RunAsync(CommandLineArguments args, IServiceProvider serviceProvider, Type? defaultCommandType)
 		{
 			// Find all the command types
-			List<ICommandFactory> CommandFactories = ServiceProvider.GetServices<ICommandFactory>().ToList();
+			List<ICommandFactory> commandFactories = serviceProvider.GetServices<ICommandFactory>().ToList();
 
 			// Check if there's a matching command
-			ICommand? Command = null;
-			ICommandFactory? CommandFactory = null;
+			ICommand? command = null;
+			ICommandFactory? commandFactory = null;
 
 			// Parse the positional arguments for the command name
-			string[] PositionalArgs = Args.GetPositionalArguments();
-			if (PositionalArgs.Length == 0)
+			string[] positionalArgs = args.GetPositionalArguments();
+			if (positionalArgs.Length == 0)
 			{
-				if (DefaultCommandType == null || Args.HasOption("-Help"))
+				if (defaultCommandType == null || args.HasOption("-Help"))
 				{
 					Console.WriteLine("Usage:");
 					Console.WriteLine("    [Command] [-Option1] [-Option2]...");
 					Console.WriteLine("");
 					Console.WriteLine("Commands:");
 
-					PrintCommands(CommandFactories);
+					PrintCommands(commandFactories);
 
 					Console.WriteLine("");
 					Console.WriteLine("Specify \"<CommandName> -Help\" for command-specific help");
@@ -201,75 +200,75 @@ namespace EpicGames.Core
 				}
 				else 
 				{
-					Command = (ICommand)ServiceProvider.GetService(DefaultCommandType);
+					command = (ICommand)serviceProvider.GetService(defaultCommandType);
 				}
 			}
 			else
 			{
-				foreach (ICommandFactory Factory in CommandFactories)
+				foreach (ICommandFactory factory in commandFactories)
 				{
-					if (Factory.Names.SequenceEqual(PositionalArgs, StringComparer.OrdinalIgnoreCase))
+					if (factory.Names.SequenceEqual(positionalArgs, StringComparer.OrdinalIgnoreCase))
 					{
-						Command = Factory.CreateInstance(ServiceProvider);
-						CommandFactory = Factory;
+						command = factory.CreateInstance(serviceProvider);
+						commandFactory = factory;
 						break;
 					}
 				}
-				if (Command == null)
+				if (command == null)
 				{
-					ConsoleUtils.WriteError($"Invalid command '{String.Join(" ", PositionalArgs)}'");
+					ConsoleUtils.WriteError($"Invalid command '{String.Join(" ", positionalArgs)}'");
 					Console.WriteLine("");
 					Console.WriteLine("Available commands:");
 
-					PrintCommands(CommandFactories);
+					PrintCommands(commandFactories);
 					return 1;
 				}
 			}
 
 			// If the help flag is specified, print the help info and exit immediately
-			if (Args.HasOption("-Help"))
+			if (args.HasOption("-Help"))
 			{
-				if (CommandFactory == null)
+				if (commandFactory == null)
 				{
-					HelpUtils.PrintHelp(null, null, Command.GetParameters(Args));
+					HelpUtils.PrintHelp(null, null, command.GetParameters(args));
 				}
 				else
 				{
-					HelpUtils.PrintHelp(String.Join(" ", CommandFactory.Names), CommandFactory.Description, Command.GetParameters(Args));
+					HelpUtils.PrintHelp(String.Join(" ", commandFactory.Names), commandFactory.Description, command.GetParameters(args));
 				}
 				return 1;
 			}
 
 			// Configure the command
-			ILogger Logger = ServiceProvider.GetRequiredService<ILoggerProvider>().CreateLogger("CommandHost");
+			ILogger logger = serviceProvider.GetRequiredService<ILoggerProvider>().CreateLogger("CommandHost");
 			try
 			{
-				Command.Configure(Args, Logger);
-				Args.CheckAllArgumentsUsed(Logger);
+				command.Configure(args, logger);
+				args.CheckAllArgumentsUsed(logger);
 			}
-			catch (CommandLineArgumentException Ex)
+			catch (CommandLineArgumentException ex)
 			{
-				ConsoleUtils.WriteError(Ex.Message);
+				ConsoleUtils.WriteError(ex.Message);
 				Console.WriteLine("");
 				Console.WriteLine("Valid parameters:");
 
-				HelpUtils.PrintTable(Command.GetParameters(Args), 4, 24);
+				HelpUtils.PrintTable(command.GetParameters(args), 4, 24);
 				return 1;
 			}
 
 			// Execute all the commands
 			try
 			{
-				return await Command.ExecuteAsync(Logger);
+				return await command.ExecuteAsync(logger);
 			}
-			catch (FatalErrorException Ex)
+			catch (FatalErrorException ex)
 			{
-				Logger.LogCritical(Ex, "Fatal error.");
-				return Ex.ExitCode;
+				logger.LogCritical(ex, "Fatal error.");
+				return ex.ExitCode;
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogCritical(Ex, "Fatal error.");
+				logger.LogCritical(ex, "Fatal error.");
 				return 1;
 			}
 		}
@@ -277,15 +276,15 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Print a formatted list of all the available commands
 		/// </summary>
-		/// <param name="Attributes">List of command attributes</param>
-		static void PrintCommands(IEnumerable<ICommandFactory> Attributes)
+		/// <param name="attributes">List of command attributes</param>
+		static void PrintCommands(IEnumerable<ICommandFactory> attributes)
 		{
-			List<KeyValuePair<string, string>> Commands = new List<KeyValuePair<string, string>>();
-			foreach (ICommandFactory Attribute in Attributes)
+			List<KeyValuePair<string, string>> commands = new List<KeyValuePair<string, string>>();
+			foreach (ICommandFactory attribute in attributes)
 			{
-				Commands.Add(new KeyValuePair<string, string>(String.Join(" ", Attribute.Names), Attribute.Description));
+				commands.Add(new KeyValuePair<string, string>(String.Join(" ", attribute.Names), attribute.Description));
 			}
-			HelpUtils.PrintTable(Commands.OrderBy(x => x.Key).ToList(), 4, 20);
+			HelpUtils.PrintTable(commands.OrderBy(x => x.Key).ToList(), 4, 20);
 		}
 	}
 }

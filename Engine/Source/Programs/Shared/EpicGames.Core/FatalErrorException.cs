@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -16,45 +12,45 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Exit code for the process
 		/// </summary>
-		public int ExitCode = 1;
+		public int ExitCode { get; set; } = 1;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Message">The error message to display.</param>
-		public FatalErrorException(string Message)
-			: base(Message)
+		/// <param name="message">The error message to display.</param>
+		public FatalErrorException(string message)
+			: base(message)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="InnerException">An inner exception to wrap</param>
-		/// <param name="Message">The error message to display.</param>
-		public FatalErrorException(Exception InnerException, string Message)
-			: base(Message, InnerException)
+		/// <param name="innerException">An inner exception to wrap</param>
+		/// <param name="message">The error message to display.</param>
+		public FatalErrorException(Exception innerException, string message)
+			: base(message, innerException)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Format">Formatting string for the error message</param>
-		/// <param name="Arguments">Arguments for the formatting string</param>
-		public FatalErrorException(string Format, params object[] Arguments)
-			: base(String.Format(Format, Arguments))
+		/// <param name="format">Formatting string for the error message</param>
+		/// <param name="arguments">Arguments for the formatting string</param>
+		public FatalErrorException(string format, params object[] arguments)
+			: base(String.Format(format, arguments))
 		{
 		}
 
 		/// <summary>
 		/// Constructor which wraps another exception
 		/// </summary>
-		/// <param name="InnerException">The inner exception being wrapped</param>
-		/// <param name="Format">Format for the message string</param>
-		/// <param name="Arguments">Format arguments</param>
-		public FatalErrorException(Exception InnerException, string Format, params object[] Arguments)
-			: base(String.Format(Format, Arguments), InnerException)
+		/// <param name="innerException">The inner exception being wrapped</param>
+		/// <param name="format">Format for the message string</param>
+		/// <param name="arguments">Format arguments</param>
+		public FatalErrorException(Exception innerException, string format, params object[] arguments)
+			: base(String.Format(format, arguments), innerException)
 		{
 		}
 

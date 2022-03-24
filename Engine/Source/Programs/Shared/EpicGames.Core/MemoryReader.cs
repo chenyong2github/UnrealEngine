@@ -2,8 +2,6 @@
 
 using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Core
 {
@@ -36,30 +34,27 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Returns the memory at the current offset
 		/// </summary>
-		public ReadOnlySpan<byte> Span
-		{
-			get { return Memory.Span.Slice(Offset); }
-		}
+		public ReadOnlySpan<byte> Span => Memory.Span.Slice(Offset);
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">The memory to read from</param>
-		public MemoryReader(ReadOnlyMemory<byte> Memory)
+		/// <param name="memory">The memory to read from</param>
+		public MemoryReader(ReadOnlyMemory<byte> memory)
 		{
-			this.Memory = Memory;
-			this.Offset = 0;
+			Memory = memory;
+			Offset = 0;
 		}
 
 		/// <summary>
 		/// Checks that we've used the exact buffer length
 		/// </summary>
-		/// <param name="ExpectedOffset">Expected offset within the output buffer</param>
-		public void CheckOffset(int ExpectedOffset)
+		/// <param name="expectedOffset">Expected offset within the output buffer</param>
+		public void CheckOffset(int expectedOffset)
 		{
-			if (Offset != ExpectedOffset)
+			if (Offset != expectedOffset)
 			{
-				throw new Exception($"Serialization is not at expected offset within the input buffer (expected {ExpectedOffset}, actual {Offset})");
+				throw new Exception($"Serialization is not at expected offset within the input buffer (expected {expectedOffset}, actual {Offset})");
 			}
 		}
 
@@ -78,9 +73,9 @@ namespace EpicGames.Core
 		/// <returns>The value read from the buffer</returns>
 		public sbyte ReadInt8()
 		{
-			sbyte Value = (sbyte)Memory.Span[Offset];
+			sbyte value = (sbyte)Memory.Span[Offset];
 			Offset++;
-			return Value;
+			return value;
 		}
 
 		/// <summary>
@@ -89,9 +84,9 @@ namespace EpicGames.Core
 		/// <returns>The value read from the buffer</returns>
 		public byte ReadUInt8()
 		{
-			byte Value = Memory.Span[Offset];
+			byte value = Memory.Span[Offset];
 			Offset++;
-			return Value;
+			return value;
 		}
 
 		/// <summary>
@@ -100,9 +95,9 @@ namespace EpicGames.Core
 		/// <returns>The value read from the buffer</returns>
 		public short ReadInt16()
 		{
-			short Value = BinaryPrimitives.ReadInt16LittleEndian(Memory.Span.Slice(Offset));
+			short value = BinaryPrimitives.ReadInt16LittleEndian(Memory.Span.Slice(Offset));
 			Offset += sizeof(short);
-			return Value;
+			return value;
 		}
 
 		/// <summary>
@@ -111,9 +106,9 @@ namespace EpicGames.Core
 		/// <returns>The value read from the buffer</returns>
 		public ushort ReadUInt16()
 		{
-			ushort Value = BinaryPrimitives.ReadUInt16LittleEndian(Memory.Span.Slice(Offset));
+			ushort value = BinaryPrimitives.ReadUInt16LittleEndian(Memory.Span.Slice(Offset));
 			Offset += sizeof(ushort);
-			return Value;
+			return value;
 		}
 
 		/// <summary>
@@ -122,9 +117,9 @@ namespace EpicGames.Core
 		/// <returns>The value that was read from the buffer</returns>
 		public int ReadInt32()
 		{
-			int Value = BinaryPrimitives.ReadInt32LittleEndian(Memory.Span.Slice(Offset));
+			int value = BinaryPrimitives.ReadInt32LittleEndian(Memory.Span.Slice(Offset));
 			Offset += sizeof(int);
-			return Value;
+			return value;
 		}
 
 		/// <summary>
@@ -133,9 +128,9 @@ namespace EpicGames.Core
 		/// <returns>The value that was read from the buffer</returns>
 		public uint ReadUInt32()
 		{
-			uint Value = BinaryPrimitives.ReadUInt32LittleEndian(Memory.Span.Slice(Offset));
+			uint value = BinaryPrimitives.ReadUInt32LittleEndian(Memory.Span.Slice(Offset));
 			Offset += sizeof(uint);
-			return Value;
+			return value;
 		}
 
 		/// <summary>
@@ -144,9 +139,9 @@ namespace EpicGames.Core
 		/// <returns>The value that was read from the buffer</returns>
 		public long ReadInt64()
 		{
-			long Value = BinaryPrimitives.ReadInt64LittleEndian(Memory.Span.Slice(Offset));
+			long value = BinaryPrimitives.ReadInt64LittleEndian(Memory.Span.Slice(Offset));
 			Offset += sizeof(long);
-			return Value;
+			return value;
 		}
 
 		/// <summary>
@@ -155,9 +150,9 @@ namespace EpicGames.Core
 		/// <returns>The value that was read from the buffer</returns>
 		public ulong ReadUInt64()
 		{
-			ulong Value = BinaryPrimitives.ReadUInt64LittleEndian(Memory.Span.Slice(Offset));
+			ulong value = BinaryPrimitives.ReadUInt64LittleEndian(Memory.Span.Slice(Offset));
 			Offset += sizeof(ulong);
-			return Value;
+			return value;
 		}
 
 		/// <summary>
@@ -166,45 +161,45 @@ namespace EpicGames.Core
 		/// <returns>Sequence of bytes</returns>
 		public ReadOnlyMemory<byte> ReadVariableLengthBytes()
 		{
-			int Length = ReadInt32();
-			return ReadFixedLengthBytes(Length);
+			int length = ReadInt32();
+			return ReadFixedLengthBytes(length);
 		}
 
 		/// <summary>
 		/// Reads a sequence of bytes from the buffer
 		/// </summary>
-		/// <param name="Length">Number of bytes to read</param>
+		/// <param name="length">Number of bytes to read</param>
 		/// <returns>Sequence of bytes</returns>
-		public ReadOnlyMemory<byte> ReadFixedLengthBytes(int Length)
+		public ReadOnlyMemory<byte> ReadFixedLengthBytes(int length)
 		{
-			ReadOnlyMemory<byte> Bytes = Memory.Slice(Offset, Length);
-			Offset += Length;
-			return Bytes;
+			ReadOnlyMemory<byte> bytes = Memory.Slice(Offset, length);
+			Offset += length;
+			return bytes;
 		}
 
 		/// <summary>
 		/// Reads a variable length array
 		/// </summary>
-		/// <param name="ReadItem">Delegate to write an individual item</param>
-		public T[] ReadVariableLengthArray<T>(Func<T> ReadItem)
+		/// <param name="readItem">Delegate to write an individual item</param>
+		public T[] ReadVariableLengthArray<T>(Func<T> readItem)
 		{
-			int Length = ReadInt32();
-			return ReadFixedLengthArray(Length, ReadItem);
+			int length = ReadInt32();
+			return ReadFixedLengthArray(length, readItem);
 		}
 
 		/// <summary>
 		/// Writes a fixed length array
 		/// </summary>
-		/// <param name="Length">Length of the array to read</param>
-		/// <param name="ReadItem">Delegate to read an individual item</param>
-		public T[] ReadFixedLengthArray<T>(int Length, Func<T> ReadItem)
+		/// <param name="length">Length of the array to read</param>
+		/// <param name="readItem">Delegate to read an individual item</param>
+		public T[] ReadFixedLengthArray<T>(int length, Func<T> readItem)
 		{
-			T[] Array = new T[Length];
-			for (int Idx = 0; Idx < Length; Idx++)
+			T[] array = new T[length];
+			for (int idx = 0; idx < length; idx++)
 			{
-				Array[Idx] = ReadItem();
+				array[idx] = readItem();
 			}
-			return Array;
+			return array;
 		}
 	}
 }

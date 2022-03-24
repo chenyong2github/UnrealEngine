@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Core
 {
@@ -19,67 +17,67 @@ namespace EpicGames.Core
 			get
 			{
 				// Get the window width, using a default value if there's no console attached to this process.
-				int NewWindowWidth;
+				int newWindowWidth;
 				try
 				{
-					NewWindowWidth = Console.WindowWidth;
+					newWindowWidth = Console.WindowWidth;
 				}
 				catch
 				{
-					NewWindowWidth = 240;
+					newWindowWidth = 240;
 				}
 
-				if (NewWindowWidth <= 0)
+				if (newWindowWidth <= 0)
 				{
-					NewWindowWidth = 240;
+					newWindowWidth = 240;
 				}
 
-				return NewWindowWidth;
+				return newWindowWidth;
 			}
 		}
 
 		/// <summary>
 		/// Writes the given text to the console as a sequence of word-wrapped lines
 		/// </summary>
-		/// <param name="Text">The text to write to the console</param>
-		public static void WriteLineWithWordWrap(string Text)
+		/// <param name="text">The text to write to the console</param>
+		public static void WriteLineWithWordWrap(string text)
 		{
-			WriteLineWithWordWrap(Text, 0, 0);
+			WriteLineWithWordWrap(text, 0, 0);
 		}
 
 		/// <summary>
 		/// Writes the given text to the console as a sequence of word-wrapped lines
 		/// </summary>
-		/// <param name="Text">The text to write to the console</param>
-		/// <param name="InitialIndent">Indent for the first line</param>
-		/// <param name="HangingIndent">Indent for lines after the first</param>
-		public static void WriteLineWithWordWrap(string Text, int InitialIndent, int HangingIndent)
+		/// <param name="text">The text to write to the console</param>
+		/// <param name="initialIndent">Indent for the first line</param>
+		/// <param name="hangingIndent">Indent for lines after the first</param>
+		public static void WriteLineWithWordWrap(string text, int initialIndent, int hangingIndent)
 		{
-			foreach (string Line in StringUtils.WordWrap(Text, InitialIndent, HangingIndent, WindowWidth))
+			foreach (string line in StringUtils.WordWrap(text, initialIndent, hangingIndent, WindowWidth))
 			{
-				Console.WriteLine(Line);
+				Console.WriteLine(line);
 			}
 		}
 
 		/// <summary>
 		/// Writes an colored warning message to the console
 		/// </summary>
-		/// <param name="Text">The message to output</param>
-		public static void WriteWarning(string Text)
+		/// <param name="text">The message to output</param>
+		public static void WriteWarning(string text)
 		{
 			Console.ForegroundColor = ConsoleColor.Yellow;
-			Console.WriteLine(Text);
+			Console.WriteLine(text);
 			Console.ResetColor();
 		}
 
 		/// <summary>
 		/// Writes an colored error message to the console
 		/// </summary>
-		/// <param name="Text">The message to output</param>
-		public static void WriteError(string Text)
+		/// <param name="text">The message to output</param>
+		public static void WriteError(string text)
 		{
 			Console.ForegroundColor = ConsoleColor.Red;
-			Console.WriteLine(Text);
+			Console.WriteLine(text);
 			Console.ResetColor();
 		}
 	}

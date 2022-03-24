@@ -1,16 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.IO;
-using System.CodeDom.Compiler;
-using Microsoft.CSharp;
-using Microsoft.Win32;
-using System.Reflection;
 using System.Diagnostics;
-using EpicGames.Core;
+using System.Text;
 
 namespace EpicGames.Core
 {
@@ -19,41 +10,41 @@ namespace EpicGames.Core
 	/// </summary>
 	public class StartupTraceListener : TraceListener
 	{
-		StringBuilder Buffer = new StringBuilder();
+		readonly StringBuilder _buffer = new StringBuilder();
 
 		/// <summary>
 		/// Copy the contents of the buffered output to another trace listener
 		/// </summary>
-		/// <param name="Other">The trace listener to receive the buffered output</param>
-		public void CopyTo(TraceListener Other)
+		/// <param name="other">The trace listener to receive the buffered output</param>
+		public void CopyTo(TraceListener other)
 		{
-			foreach(string Line in Buffer.ToString().Split("\n"))
+			foreach(string line in _buffer.ToString().Split("\n"))
 			{
-				Other.WriteLine(Line);
+				other.WriteLine(line);
 			}
 		}
 
 		/// <summary>
 		/// Write a message to the buffer
 		/// </summary>
-		/// <param name="Message">The message to write</param>
-		public override void Write(string Message)
+		/// <param name="message">The message to write</param>
+		public override void Write(string message)
 		{
 			if(NeedIndent)
 			{
 				WriteIndent();
 			}
-			Buffer.Append(Message);
+			_buffer.Append(message);
 		}
 
 		/// <summary>
 		/// Write a message to the buffer, followed by a newline
 		/// </summary>
-		/// <param name="Message">The message to write</param>
-		public override void WriteLine(string Message)
+		/// <param name="message">The message to write</param>
+		public override void WriteLine(string message)
 		{
-			Write(Message);
-			Buffer.Append("\n");
+			Write(message);
+			_buffer.Append("\n");
 		}
 	}
 }

@@ -14,37 +14,34 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Completion source for the task
 		/// </summary>
-		readonly TaskCompletionSource<bool> CompletionSource;
+		readonly TaskCompletionSource<bool> _completionSource;
 
 		/// <summary>
 		/// Registration handle with the cancellation token
 		/// </summary>
-		readonly CancellationTokenRegistration Registration;
+		readonly CancellationTokenRegistration _registration;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Token">The cancellation token to register with</param>
-		public CancellationTask(CancellationToken Token)
+		/// <param name="token">The cancellation token to register with</param>
+		public CancellationTask(CancellationToken token)
 		{
-			CompletionSource = new TaskCompletionSource<bool>();
-			Registration = Token.Register(() => CompletionSource.TrySetResult(true));
+			_completionSource = new TaskCompletionSource<bool>();
+			_registration = token.Register(() => _completionSource.TrySetResult(true));
 		}
 
 		/// <summary>
 		/// The task that can be waited on
 		/// </summary>
-		public Task Task
-		{
-			get { return CompletionSource.Task; }
-		}
+		public Task Task => _completionSource.Task;
 
 		/// <summary>
 		/// Dispose of any allocated resources
 		/// </summary>
 		public void Dispose()
 		{
-			Registration.Dispose();
+			_registration.Dispose();
 		}
 	}
 }

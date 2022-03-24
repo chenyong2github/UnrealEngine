@@ -26,16 +26,16 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Reads a value from the archive
 		/// </summary>
-		/// <param name="Reader">The archive reader</param>
+		/// <param name="reader">The archive reader</param>
 		/// <returns>New instance of the value</returns>
-		TValue Read(BinaryArchiveReader Reader);
+		TValue Read(BinaryArchiveReader reader);
 
 		/// <summary>
 		/// Writes a value to the archive
 		/// </summary>
-		/// <param name="Writer">The archive writer</param>
-		/// <param name="Value">The value to write</param>
-		void Write(BinaryArchiveWriter Writer, TValue Value);
+		/// <param name="writer">The archive writer</param>
+		/// <param name="value">The value to write</param>
+		void Write(BinaryArchiveWriter writer, TValue value);
 	}
 
 	/// <summary>
@@ -46,53 +46,53 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Map from type to the converter type
 		/// </summary>
-		static readonly ConcurrentDictionary<Type, Type> TypeToConverterType = new ConcurrentDictionary<Type, Type>();
+		static readonly ConcurrentDictionary<Type, Type> s_typeToConverterType = new ConcurrentDictionary<Type, Type>();
 
 		/// <summary>
 		/// Explicitly register the converter for a type. If Type is a generic type, the converter should also be a generic type with the same type arguments.
 		/// </summary>
-		/// <param name="Type">Type to register a converter for</param>
-		/// <param name="ConverterType">The converter type</param>
-		public static void RegisterConverter(Type Type, Type ConverterType)
+		/// <param name="type">Type to register a converter for</param>
+		/// <param name="converterType">The converter type</param>
+		public static void RegisterConverter(Type type, Type converterType)
 		{
-			if (!TypeToConverterType.TryAdd(Type, ConverterType))
+			if (!s_typeToConverterType.TryAdd(type, converterType))
 			{
-				throw new Exception($"Type '{Type.Name}' already has a registered converter ({TypeToConverterType[Type].Name})");
+				throw new Exception($"Type '{type.Name}' already has a registered converter ({s_typeToConverterType[type].Name})");
 			}
 		}
 
 		/// <summary>
 		/// Attempts to get the converter for a particular type
 		/// </summary>
-		/// <param name="Type">The type to use</param>
-		/// <param name="ConverterType">The converter type</param>
+		/// <param name="type">The type to use</param>
+		/// <param name="converterType">The converter type</param>
 		/// <returns>True if a converter was found</returns>
-		public static bool TryGetConverterType(Type Type, out Type? ConverterType)
+		public static bool TryGetConverterType(Type type, out Type? converterType)
 		{
-			if (TypeToConverterType.TryGetValue(Type, out Type? CustomConverterType))
+			if (s_typeToConverterType.TryGetValue(type, out Type? customConverterType))
 			{
-				ConverterType = CustomConverterType;
+				converterType = customConverterType;
 				return true;
 			}
 
-			BinaryConverterAttribute? ConverterAttribute = Type.GetCustomAttribute<BinaryConverterAttribute>();
-			if (ConverterAttribute != null)
+			BinaryConverterAttribute? converterAttribute = type.GetCustomAttribute<BinaryConverterAttribute>();
+			if (converterAttribute != null)
 			{
-				ConverterType = ConverterAttribute.Type;
+				converterType = converterAttribute.Type;
 				return true;
 			}
 
-			if (Type.IsGenericType)
+			if (type.IsGenericType)
 			{
-				BinaryConverterAttribute? GenericConverterAttribute = Type.GetGenericTypeDefinition().GetCustomAttribute<BinaryConverterAttribute>();
-				if (GenericConverterAttribute != null)
+				BinaryConverterAttribute? genericConverterAttribute = type.GetGenericTypeDefinition().GetCustomAttribute<BinaryConverterAttribute>();
+				if (genericConverterAttribute != null)
 				{
-					ConverterType = GenericConverterAttribute.Type.MakeGenericType(Type.GetGenericArguments());
+					converterType = genericConverterAttribute.Type.MakeGenericType(type.GetGenericArguments());
 					return true;
 				}
 			}
 
-			ConverterType = null;
+			converterType = null;
 			return false;
 		}
 	}

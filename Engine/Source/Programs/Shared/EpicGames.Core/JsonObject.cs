@@ -3,9 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
 
 namespace EpicGames.Core
@@ -18,10 +16,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Format">Format string</param>
-		/// <param name="Args">Optional arguments</param>
-		public JsonParseException(string Format, params object[] Args)
-			: base(String.Format(Format, Args))
+		/// <param name="format">Format string</param>
+		/// <param name="args">Optional arguments</param>
+		public JsonParseException(string format, params object[] args)
+			: base(String.Format(format, args))
 		{
 		}
 	}
@@ -31,47 +29,47 @@ namespace EpicGames.Core
 	/// </summary>
 	public class JsonObject
 	{
-		Dictionary<string, object?> RawObject;
+		readonly Dictionary<string, object?> _rawObject;
 
 		/// <summary>
 		/// Construct a JSON object from the raw string -> object dictionary
 		/// </summary>
-		/// <param name="InRawObject">Raw object parsed from disk</param>
-		public JsonObject(Dictionary<string, object?> InRawObject)
+		/// <param name="inRawObject">Raw object parsed from disk</param>
+		public JsonObject(Dictionary<string, object?> inRawObject)
 		{
-			RawObject = new Dictionary<string, object?>(InRawObject, StringComparer.InvariantCultureIgnoreCase);
+			_rawObject = new Dictionary<string, object?>(inRawObject, StringComparer.InvariantCultureIgnoreCase);
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Element"></param>
-		public JsonObject(JsonElement Element)
+		/// <param name="element"></param>
+		public JsonObject(JsonElement element)
 		{
-			RawObject = new Dictionary<string, object?>(StringComparer.InvariantCultureIgnoreCase);
-			foreach (JsonProperty Property in Element.EnumerateObject())
+			_rawObject = new Dictionary<string, object?>(StringComparer.InvariantCultureIgnoreCase);
+			foreach (JsonProperty property in element.EnumerateObject())
 			{
-				RawObject[Property.Name] = ParseElement(Property.Value);
+				_rawObject[property.Name] = ParseElement(property.Value);
 			}
 		}
 
 		/// <summary>
 		/// Parse an individual element
 		/// </summary>
-		/// <param name="Element"></param>
+		/// <param name="element"></param>
 		/// <returns></returns>
-		public static object? ParseElement(JsonElement Element)
+		public static object? ParseElement(JsonElement element)
 		{
-			switch(Element.ValueKind)
+			switch(element.ValueKind)
 			{
 				case JsonValueKind.Array:
-					return Element.EnumerateArray().Select(x => ParseElement(x)).ToArray();
+					return element.EnumerateArray().Select(x => ParseElement(x)).ToArray();
 				case JsonValueKind.Number:
-					return Element.GetDouble();
+					return element.GetDouble();
 				case JsonValueKind.Object:
-					return Element.EnumerateObject().ToDictionary(x => x.Name, x => ParseElement(x.Value));
+					return element.EnumerateObject().ToDictionary(x => x.Name, x => ParseElement(x.Value));
 				case JsonValueKind.String:
-					return Element.GetString();
+					return element.GetString();
 				case JsonValueKind.False:
 					return false;
 				case JsonValueKind.True:
@@ -86,66 +84,66 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Read a JSON file from disk and construct a JsonObject from it
 		/// </summary>
-		/// <param name="File">File to read from</param>
+		/// <param name="file">File to read from</param>
 		/// <returns>New JsonObject instance</returns>
-		public static JsonObject Read(FileReference File)
+		public static JsonObject Read(FileReference file)
 		{
-			string Text = FileReference.ReadAllText(File);
+			string text = FileReference.ReadAllText(file);
 			try
 			{
-				return Parse(Text);
+				return Parse(text);
 			}
-			catch(Exception Ex)
+			catch(Exception ex)
 			{
-				throw new JsonParseException("Unable to parse {0}: {1}", File, Ex.Message);
+				throw new JsonParseException("Unable to parse {0}: {1}", file, ex.Message);
 			}
 		}
 
 		/// <summary>
 		/// Tries to read a JSON file from disk
 		/// </summary>
-		/// <param name="FileName">File to read from</param>
-		/// <param name="Result">On success, receives the parsed object</param>
+		/// <param name="fileName">File to read from</param>
+		/// <param name="result">On success, receives the parsed object</param>
 		/// <returns>True if the file was read, false otherwise</returns>
-		public static bool TryRead(FileReference FileName, [NotNullWhen(true)] out JsonObject? Result)
+		public static bool TryRead(FileReference fileName, [NotNullWhen(true)] out JsonObject? result)
 		{
-			if (!FileReference.Exists(FileName))
+			if (!FileReference.Exists(fileName))
 			{
-				Result = null;
+				result = null;
 				return false;
 			}
 
-			string Text = FileReference.ReadAllText(FileName);
-			return TryParse(Text, out Result);
+			string text = FileReference.ReadAllText(fileName);
+			return TryParse(text, out result);
 		}
 
 		/// <summary>
 		/// Parse a JsonObject from the given raw text string
 		/// </summary>
-		/// <param name="Text">The text to parse</param>
+		/// <param name="text">The text to parse</param>
 		/// <returns>New JsonObject instance</returns>
-		public static JsonObject Parse(string Text)
+		public static JsonObject Parse(string text)
 		{
-			JsonDocument Document = JsonDocument.Parse(Text, new JsonDocumentOptions { AllowTrailingCommas = true });
-			return new JsonObject(Document.RootElement);
+			JsonDocument document = JsonDocument.Parse(text, new JsonDocumentOptions { AllowTrailingCommas = true });
+			return new JsonObject(document.RootElement);
 		}
 
 		/// <summary>
 		/// Try to parse a JsonObject from the given raw text string
 		/// </summary>
-		/// <param name="Text">The text to parse</param>
-		/// <param name="Result">On success, receives the new JsonObject</param>
+		/// <param name="text">The text to parse</param>
+		/// <param name="result">On success, receives the new JsonObject</param>
 		/// <returns>True if the object was parsed</returns>
-		public static bool TryParse(string Text, [NotNullWhen(true)] out JsonObject? Result)
+		public static bool TryParse(string text, [NotNullWhen(true)] out JsonObject? result)
 		{
 			try
 			{
-				Result = Parse(Text);
+				result = Parse(text);
 				return true;
 			}
 			catch (Exception)
 			{
-				Result = null;
+				result = null;
 				return false;
 			}
 		}
@@ -153,43 +151,40 @@ namespace EpicGames.Core
 		/// <summary>
 		/// List of key names in this object
 		/// </summary>
-		public IEnumerable<string> KeyNames
-		{
-			get { return RawObject.Keys; }
-		}
+		public IEnumerable<string> KeyNames => _rawObject.Keys;
 
 		/// <summary>
 		/// Gets a string field by the given name from the object, throwing an exception if it is not there or cannot be parsed.
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
+		/// <param name="fieldName">Name of the field to get</param>
 		/// <returns>The field value</returns>
-		public string GetStringField(string FieldName)
+		public string GetStringField(string fieldName)
 		{
-			string? StringValue;
-			if (!TryGetStringField(FieldName, out StringValue))
+			string? stringValue;
+			if (!TryGetStringField(fieldName, out stringValue))
 			{
-				throw new JsonParseException("Missing or invalid '{0}' field", FieldName);
+				throw new JsonParseException("Missing or invalid '{0}' field", fieldName);
 			}
-			return StringValue;
+			return stringValue;
 		}
 
 		/// <summary>
 		/// Tries to read a string field by the given name from the object
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
-		/// <param name="Result">On success, receives the field value</param>
+		/// <param name="fieldName">Name of the field to get</param>
+		/// <param name="result">On success, receives the field value</param>
 		/// <returns>True if the field could be read, false otherwise</returns>
-		public bool TryGetStringField(string FieldName, [NotNullWhen(true)] out string? Result)
+		public bool TryGetStringField(string fieldName, [NotNullWhen(true)] out string? result)
 		{
-			object? RawValue;
-			if (RawObject.TryGetValue(FieldName, out RawValue) && (RawValue is string))
+			object? rawValue;
+			if (_rawObject.TryGetValue(fieldName, out rawValue) && (rawValue is string strValue))
 			{
-				Result = (string)RawValue;
+				result = strValue;
 				return true;
 			}
 			else
 			{
-				Result = null;
+				result = null;
 				return false;
 			}
 		}
@@ -197,35 +192,35 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Gets a string array field by the given name from the object, throwing an exception if it is not there or cannot be parsed.
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
+		/// <param name="fieldName">Name of the field to get</param>
 		/// <returns>The field value</returns>
-		public string[] GetStringArrayField(string FieldName)
+		public string[] GetStringArrayField(string fieldName)
 		{
-			string[]? StringValues;
-			if (!TryGetStringArrayField(FieldName, out StringValues))
+			string[]? stringValues;
+			if (!TryGetStringArrayField(fieldName, out stringValues))
 			{
-				throw new JsonParseException("Missing or invalid '{0}' field", FieldName);
+				throw new JsonParseException("Missing or invalid '{0}' field", fieldName);
 			}
-			return StringValues;
+			return stringValues;
 		}
 
 		/// <summary>
 		/// Tries to read a string array field by the given name from the object
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
-		/// <param name="Result">On success, receives the field value</param>
+		/// <param name="fieldName">Name of the field to get</param>
+		/// <param name="result">On success, receives the field value</param>
 		/// <returns>True if the field could be read, false otherwise</returns>
-		public bool TryGetStringArrayField(string FieldName, [NotNullWhen(true)] out string[]? Result)
+		public bool TryGetStringArrayField(string fieldName, [NotNullWhen(true)] out string[]? result)
 		{
-			object? RawValue;
-			if (RawObject.TryGetValue(FieldName, out RawValue) && (RawValue is IEnumerable<object>) && ((IEnumerable<object>)RawValue).All(x => x is string))
+			object? rawValue;
+			if (_rawObject.TryGetValue(fieldName, out rawValue) && (rawValue is IEnumerable<object> enumValue) && enumValue.All(x => x is string))
 			{
-				Result = ((IEnumerable<object>)RawValue).Select(x => (string)x).ToArray();
+				result = enumValue.Select(x => (string)x).ToArray();
 				return true;
 			}
 			else
 			{
-				Result = null;
+				result = null;
 				return false;
 			}
 		}
@@ -233,35 +228,35 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Gets a boolean field by the given name from the object, throwing an exception if it is not there or cannot be parsed.
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
+		/// <param name="fieldName">Name of the field to get</param>
 		/// <returns>The field value</returns>
-		public bool GetBoolField(string FieldName)
+		public bool GetBoolField(string fieldName)
 		{
-			bool BoolValue;
-			if (!TryGetBoolField(FieldName, out BoolValue))
+			bool boolValue;
+			if (!TryGetBoolField(fieldName, out boolValue))
 			{
-				throw new JsonParseException("Missing or invalid '{0}' field", FieldName);
+				throw new JsonParseException("Missing or invalid '{0}' field", fieldName);
 			}
-			return BoolValue;
+			return boolValue;
 		}
 
 		/// <summary>
 		/// Tries to read a bool field by the given name from the object
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
-		/// <param name="Result">On success, receives the field value</param>
+		/// <param name="fieldName">Name of the field to get</param>
+		/// <param name="result">On success, receives the field value</param>
 		/// <returns>True if the field could be read, false otherwise</returns>
-		public bool TryGetBoolField(string FieldName, out bool Result)
+		public bool TryGetBoolField(string fieldName, out bool result)
 		{
-			object? RawValue;
-			if (RawObject.TryGetValue(FieldName, out RawValue) && (RawValue is Boolean))
+			object? rawValue;
+			if (_rawObject.TryGetValue(fieldName, out rawValue) && (rawValue is bool boolValue))
 			{
-				Result = (bool)RawValue;
+				result = boolValue;
 				return true;
 			}
 			else
 			{
-				Result = false;
+				result = false;
 				return false;
 			}
 		}
@@ -269,30 +264,30 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Gets an integer field by the given name from the object, throwing an exception if it is not there or cannot be parsed.
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
+		/// <param name="fieldName">Name of the field to get</param>
 		/// <returns>The field value</returns>
-		public int GetIntegerField(string FieldName)
+		public int GetIntegerField(string fieldName)
 		{
-			int IntegerValue;
-			if (!TryGetIntegerField(FieldName, out IntegerValue))
+			int integerValue;
+			if (!TryGetIntegerField(fieldName, out integerValue))
 			{
-				throw new JsonParseException("Missing or invalid '{0}' field", FieldName);
+				throw new JsonParseException("Missing or invalid '{0}' field", fieldName);
 			}
-			return IntegerValue;
+			return integerValue;
 		}
 
 		/// <summary>
 		/// Tries to read an integer field by the given name from the object
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
-		/// <param name="Result">On success, receives the field value</param>
+		/// <param name="fieldName">Name of the field to get</param>
+		/// <param name="result">On success, receives the field value</param>
 		/// <returns>True if the field could be read, false otherwise</returns>
-		public bool TryGetIntegerField(string FieldName, out int Result)
+		public bool TryGetIntegerField(string fieldName, out int result)
 		{
-			object? RawValue;
-			if (!RawObject.TryGetValue(FieldName, out RawValue) || !int.TryParse(RawValue?.ToString(), out Result))
+			object? rawValue;
+			if (!_rawObject.TryGetValue(fieldName, out rawValue) || !Int32.TryParse(rawValue?.ToString(), out result))
 			{
-				Result = 0;
+				result = 0;
 				return false;
 			}
 			return true;
@@ -301,15 +296,15 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Tries to read an unsigned integer field by the given name from the object
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
-		/// <param name="Result">On success, receives the field value</param>
+		/// <param name="fieldName">Name of the field to get</param>
+		/// <param name="result">On success, receives the field value</param>
 		/// <returns>True if the field could be read, false otherwise</returns>
-		public bool TryGetUnsignedIntegerField(string FieldName, out uint Result)
+		public bool TryGetUnsignedIntegerField(string fieldName, out uint result)
 		{
-			object? RawValue;
-			if (!RawObject.TryGetValue(FieldName, out RawValue) || !uint.TryParse(RawValue?.ToString(), out Result))
+			object? rawValue;
+			if (!_rawObject.TryGetValue(fieldName, out rawValue) || !UInt32.TryParse(rawValue?.ToString(), out result))
 			{
-				Result = 0;
+				result = 0;
 				return false;
 			}
 			return true;
@@ -318,30 +313,30 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Gets a double field by the given name from the object, throwing an exception if it is not there or cannot be parsed.
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
+		/// <param name="fieldName">Name of the field to get</param>
 		/// <returns>The field value</returns>
-		public double GetDoubleField(string FieldName)
+		public double GetDoubleField(string fieldName)
 		{
-			double DoubleValue;
-			if (!TryGetDoubleField(FieldName, out DoubleValue))
+			double doubleValue;
+			if (!TryGetDoubleField(fieldName, out doubleValue))
 			{
-				throw new JsonParseException("Missing or invalid '{0}' field", FieldName);
+				throw new JsonParseException("Missing or invalid '{0}' field", fieldName);
 			}
-			return DoubleValue;
+			return doubleValue;
 		}
 
 		/// <summary>
 		/// Tries to read a double field by the given name from the object
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
-		/// <param name="Result">On success, receives the field value</param>
+		/// <param name="fieldName">Name of the field to get</param>
+		/// <param name="result">On success, receives the field value</param>
 		/// <returns>True if the field could be read, false otherwise</returns>
-		public bool TryGetDoubleField(string FieldName, out double Result)
+		public bool TryGetDoubleField(string fieldName, out double result)
 		{
-			object? RawValue;
-			if (!RawObject.TryGetValue(FieldName, out RawValue) || !double.TryParse(RawValue?.ToString(), out Result))
+			object? rawValue;
+			if (!_rawObject.TryGetValue(fieldName, out rawValue) || !Double.TryParse(rawValue?.ToString(), out result))
 			{
-				Result = 0.0;
+				result = 0.0;
 				return false;
 			}
 			return true;
@@ -350,30 +345,30 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Gets an enum field by the given name from the object, throwing an exception if it is not there or cannot be parsed.
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
+		/// <param name="fieldName">Name of the field to get</param>
 		/// <returns>The field value</returns>
-		public T GetEnumField<T>(string FieldName) where T : struct
+		public T GetEnumField<T>(string fieldName) where T : struct
 		{
-			T EnumValue;
-			if (!TryGetEnumField(FieldName, out EnumValue))
+			T enumValue;
+			if (!TryGetEnumField(fieldName, out enumValue))
 			{
-				throw new JsonParseException("Missing or invalid '{0}' field", FieldName);
+				throw new JsonParseException("Missing or invalid '{0}' field", fieldName);
 			}
-			return EnumValue;
+			return enumValue;
 		}
 
 		/// <summary>
 		/// Tries to read an enum field by the given name from the object
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
-		/// <param name="Result">On success, receives the field value</param>
+		/// <param name="fieldName">Name of the field to get</param>
+		/// <param name="result">On success, receives the field value</param>
 		/// <returns>True if the field could be read, false otherwise</returns>
-		public bool TryGetEnumField<T>(string FieldName, out T Result) where T : struct
+		public bool TryGetEnumField<T>(string fieldName, out T result) where T : struct
 		{
-			string? StringValue;
-			if (!TryGetStringField(FieldName, out StringValue) || !Enum.TryParse<T>(StringValue, true, out Result))
+			string? stringValue;
+			if (!TryGetStringField(fieldName, out stringValue) || !Enum.TryParse<T>(stringValue, true, out result))
 			{
-				Result = default(T);
+				result = default;
 				return false;
 			}
 			return true;
@@ -382,64 +377,64 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Tries to read an enum array field by the given name from the object
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
-		/// <param name="Result">On success, receives the field value</param>
+		/// <param name="fieldName">Name of the field to get</param>
+		/// <param name="result">On success, receives the field value</param>
 		/// <returns>True if the field could be read, false otherwise</returns>
-		public bool TryGetEnumArrayField<T>(string FieldName, [NotNullWhen(true)] out T[]? Result) where T : struct
+		public bool TryGetEnumArrayField<T>(string fieldName, [NotNullWhen(true)] out T[]? result) where T : struct
 		{
-			string[]? StringValues;
-			if (!TryGetStringArrayField(FieldName, out StringValues))
+			string[]? stringValues;
+			if (!TryGetStringArrayField(fieldName, out stringValues))
 			{
-				Result = null;
+				result = null;
 				return false;
 			}
 
-			T[] EnumValues = new T[StringValues.Length];
-			for (int Idx = 0; Idx < StringValues.Length; Idx++)
+			T[] enumValues = new T[stringValues.Length];
+			for (int idx = 0; idx < stringValues.Length; idx++)
 			{
-				if (!Enum.TryParse<T>(StringValues[Idx], true, out EnumValues[Idx]))
+				if (!Enum.TryParse<T>(stringValues[idx], true, out enumValues[idx]))
 				{
-					Result = null;
+					result = null;
 					return false;
 				}
 			}
 
-			Result = EnumValues;
+			result = enumValues;
 			return true;
 		}
 
 		/// <summary>
 		/// Gets an object field by the given name from the object, throwing an exception if it is not there or cannot be parsed.
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
+		/// <param name="fieldName">Name of the field to get</param>
 		/// <returns>The field value</returns>
-		public JsonObject GetObjectField(string FieldName)
+		public JsonObject GetObjectField(string fieldName)
 		{
-			JsonObject? Result;
-			if (!TryGetObjectField(FieldName, out Result))
+			JsonObject? result;
+			if (!TryGetObjectField(fieldName, out result))
 			{
-				throw new JsonParseException("Missing or invalid '{0}' field", FieldName);
+				throw new JsonParseException("Missing or invalid '{0}' field", fieldName);
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
 		/// Tries to read an object field by the given name from the object
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
-		/// <param name="Result">On success, receives the field value</param>
+		/// <param name="fieldName">Name of the field to get</param>
+		/// <param name="result">On success, receives the field value</param>
 		/// <returns>True if the field could be read, false otherwise</returns>
-		public bool TryGetObjectField(string FieldName, [NotNullWhen(true)] out JsonObject? Result)
+		public bool TryGetObjectField(string fieldName, [NotNullWhen(true)] out JsonObject? result)
 		{
-			object? RawValue;
-			if (RawObject.TryGetValue(FieldName, out RawValue) && (RawValue is Dictionary<string, object?>))
+			object? rawValue;
+			if (_rawObject.TryGetValue(fieldName, out rawValue) && (rawValue is Dictionary<string, object?> dictValue))
 			{
-				Result = new JsonObject((Dictionary<string, object?>)RawValue);
+				result = new JsonObject(dictValue);
 				return true;
 			}
 			else
 			{
-				Result = null;
+				result = null;
 				return false;
 			}
 		}
@@ -447,35 +442,35 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Gets an object array field by the given name from the object, throwing an exception if it is not there or cannot be parsed.
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
+		/// <param name="fieldName">Name of the field to get</param>
 		/// <returns>The field value</returns>
-		public JsonObject[] GetObjectArrayField(string FieldName)
+		public JsonObject[] GetObjectArrayField(string fieldName)
 		{
-			JsonObject[]? Result;
-			if (!TryGetObjectArrayField(FieldName, out Result))
+			JsonObject[]? result;
+			if (!TryGetObjectArrayField(fieldName, out result))
 			{
-				throw new JsonParseException("Missing or invalid '{0}' field", FieldName);
+				throw new JsonParseException("Missing or invalid '{0}' field", fieldName);
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
 		/// Tries to read an object array field by the given name from the object
 		/// </summary>
-		/// <param name="FieldName">Name of the field to get</param>
-		/// <param name="Result">On success, receives the field value</param>
+		/// <param name="fieldName">Name of the field to get</param>
+		/// <param name="result">On success, receives the field value</param>
 		/// <returns>True if the field could be read, false otherwise</returns>
-		public bool TryGetObjectArrayField(string FieldName, [NotNullWhen(true)] out JsonObject[]? Result)
+		public bool TryGetObjectArrayField(string fieldName, [NotNullWhen(true)] out JsonObject[]? result)
 		{
-			object? RawValue;
-			if (RawObject.TryGetValue(FieldName, out RawValue) && (RawValue is IEnumerable<object>) && ((IEnumerable<object>)RawValue).All(x => x is Dictionary<string, object>))
+			object? rawValue;
+			if (_rawObject.TryGetValue(fieldName, out rawValue) && (rawValue is IEnumerable<object> enumValue) && enumValue.All(x => x is Dictionary<string, object>))
 			{
-				Result = ((IEnumerable<object>)RawValue).Select(x => new JsonObject((Dictionary<string, object?>)x)).ToArray();
+				result = enumValue.Select(x => new JsonObject((Dictionary<string, object?>)x)).ToArray();
 				return true;
 			}
 			else
 			{
-				Result = null;
+				result = null;
 				return false;
 			}
 		}

@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,30 +15,30 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Converts a cancellation token to a waitable task
 		/// </summary>
-		/// <param name="Token">Cancellation token</param>
+		/// <param name="token">Cancellation token</param>
 		/// <returns></returns>
-		public static Task AsTask(this CancellationToken Token)
+		public static Task AsTask(this CancellationToken token)
 		{
-			return Task.Delay(-1, Token).ContinueWith(x => { });
+			return Task.Delay(-1, token).ContinueWith(x => { });
 		}
 
 		/// <summary>
 		/// Attempts to get the result of a task, if it has finished
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Task"></param>
-		/// <param name="Result"></param>
+		/// <param name="task"></param>
+		/// <param name="result"></param>
 		/// <returns></returns>
-		public static bool TryGetResult<T>(this Task<T> Task, out T Result)
+		public static bool TryGetResult<T>(this Task<T> task, out T result)
 		{
-			if (Task.IsCompleted)
+			if (task.IsCompleted)
 			{
-				Result = Task.Result;
+				result = task.Result;
 				return true;
 			}
 			else
 			{
-				Result = default!;
+				result = default!;
 				return false;
 			}
 		}
@@ -47,74 +46,74 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Waits for a time period to elapse or the task to be cancelled, without throwing an cancellation exception
 		/// </summary>
-		/// <param name="Time">Time to wait</param>
-		/// <param name="Token">Cancellation token</param>
+		/// <param name="time">Time to wait</param>
+		/// <param name="token">Cancellation token</param>
 		/// <returns></returns>
-		public static Task DelayNoThrow(TimeSpan Time, CancellationToken Token)
+		public static Task DelayNoThrow(TimeSpan time, CancellationToken token)
 		{
-			return Task.Delay(Time, Token).ContinueWith(x => { });
+			return Task.Delay(time, token).ContinueWith(x => { });
 		}
 
 		/// <summary>
 		/// Removes all the complete tasks from a list, allowing each to throw exceptions as necessary
 		/// </summary>
-		/// <param name="Tasks">List of tasks to remove tasks from</param>
-		public static void RemoveCompleteTasks(this List<Task> Tasks)
+		/// <param name="tasks">List of tasks to remove tasks from</param>
+		public static void RemoveCompleteTasks(this List<Task> tasks)
 		{
-			List<Exception> Exceptions = new List<Exception>();
+			List<Exception> exceptions = new List<Exception>();
 
-			int OutIdx = 0;
-			for (int Idx = 0; Idx < Tasks.Count; Idx++)
+			int outIdx = 0;
+			for (int idx = 0; idx < tasks.Count; idx++)
 			{
-				if (Tasks[Idx].IsCompleted)
+				if (tasks[idx].IsCompleted)
 				{
-					AggregateException? Exception = Tasks[Idx].Exception;
-					if (Exception != null)
+					AggregateException? exception = tasks[idx].Exception;
+					if (exception != null)
 					{
-						Exceptions.AddRange(Exception.InnerExceptions);
+						exceptions.AddRange(exception.InnerExceptions);
 					}
 				}
 				else
 				{
-					if (Idx != OutIdx)
+					if (idx != outIdx)
 					{
-						Tasks[OutIdx] = Tasks[Idx];
+						tasks[outIdx] = tasks[idx];
 					}
-					OutIdx++;
+					outIdx++;
 				}
 			}
-			Tasks.RemoveRange(OutIdx, Tasks.Count - OutIdx);
+			tasks.RemoveRange(outIdx, tasks.Count - outIdx);
 
-			if (Exceptions.Count > 0)
+			if (exceptions.Count > 0)
 			{
-				throw new AggregateException(Exceptions);
+				throw new AggregateException(exceptions);
 			}
 		}
 
 		/// <summary>
 		/// Removes all the complete tasks from a list, allowing each to throw exceptions as necessary
 		/// </summary>
-		/// <param name="Tasks">List of tasks to remove tasks from</param>
+		/// <param name="tasks">List of tasks to remove tasks from</param>
 		/// <returns>Return values from the completed tasks</returns>
-		public static List<T> RemoveCompleteTasks<T>(this List<Task<T>> Tasks)
+		public static List<T> RemoveCompleteTasks<T>(this List<Task<T>> tasks)
 		{
-			List<T> Results = new List<T>();
+			List<T> results = new List<T>();
 
-			int OutIdx = 0;
-			for (int Idx = 0; Idx < Tasks.Count; Idx++)
+			int outIdx = 0;
+			for (int idx = 0; idx < tasks.Count; idx++)
 			{
-				if (Tasks[Idx].IsCompleted)
+				if (tasks[idx].IsCompleted)
 				{
-					Results.Add(Tasks[Idx].Result);
+					results.Add(tasks[idx].Result);
 				}
-				else if (Idx != OutIdx)
+				else if (idx != outIdx)
 				{
-					Tasks[OutIdx++] = Tasks[Idx];
+					tasks[outIdx++] = tasks[idx];
 				}
 			}
-			Tasks.RemoveRange(OutIdx, Tasks.Count - OutIdx);
+			tasks.RemoveRange(outIdx, tasks.Count - outIdx);
 
-			return Results;
+			return results;
 		}
 	}
 }

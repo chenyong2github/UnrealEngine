@@ -2,9 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -26,35 +23,35 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Highest include rule number matched by this node or any child nodes.
 		/// </summary>
-		public int MaxIncludeRuleNumber = -1;
+		public int MaxIncludeRuleNumber { get; set; } = -1;
 
 		/// <summary>
 		/// Highest exclude rule number matched by this node or any child nodes.
 		/// </summary>
-		public int MaxExcludeRuleNumber = -1;
+		public int MaxExcludeRuleNumber { get; set; } = -1;
 
 		/// <summary>
 		/// Child branches of this node, distinct by the the pattern for each.
 		/// </summary>
-		public List<FileFilterNode> Branches = new List<FileFilterNode>();
+		public List<FileFilterNode> Branches { get; set; } = new List<FileFilterNode>();
 
 		/// <summary>
 		/// If a path matches the sequence of nodes ending in this node, the number of the rule which added it. -1 if this was not the last node in a rule.
 		/// </summary>
-		public int RuleNumber;
+		public int RuleNumber { get; set; }
 
 		/// <summary>
 		/// Whether a rule terminating in this node should include files or exclude files.
 		/// </summary>
-		public FileFilterType Type;
+		public FileFilterType Type { get; set; }
 
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
-		public FileFilterNode(FileFilterNode? InParent, string InPattern)
+		public FileFilterNode(FileFilterNode? inParent, string inPattern)
 		{
-			Parent = InParent;
-			Pattern = InPattern;
+			Parent = inParent;
+			Pattern = inPattern;
 			RuleNumber = -1;
 			Type = FileFilterType.Exclude;
 		}
@@ -62,44 +59,44 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Determine if the given token matches the pattern in this node
 		/// </summary>
-		public bool IsMatch(string Token)
+		public bool IsMatch(string token)
 		{
 			if(Pattern.EndsWith("."))
 			{
-				return !Token.Contains('.') && IsMatch(Token, 0, Pattern.Substring(0, Pattern.Length - 1), 0);
+				return !token.Contains('.') && IsMatch(token, 0, Pattern.Substring(0, Pattern.Length - 1), 0);
 			}
 			else
 			{
-				return IsMatch(Token, 0, Pattern, 0);
+				return IsMatch(token, 0, Pattern, 0);
 			}
 		}
 
 		/// <summary>
 		/// Determine if a given token matches a pattern, starting from the given positions within each string.
 		/// </summary>
-		static bool IsMatch(string Token, int TokenIdx, string Pattern, int PatternIdx)
+		static bool IsMatch(string token, int tokenIdx, string pattern, int patternIdx)
 		{
 			for (; ; )
 			{
-				if (PatternIdx == Pattern.Length)
+				if (patternIdx == pattern.Length)
 				{
-					return (TokenIdx == Token.Length);
+					return (tokenIdx == token.Length);
 				}
-				else if (Pattern[PatternIdx] == '*')
+				else if (pattern[patternIdx] == '*')
 				{
-					for (int NextTokenIdx = Token.Length; NextTokenIdx >= TokenIdx; NextTokenIdx--)
+					for (int nextTokenIdx = token.Length; nextTokenIdx >= tokenIdx; nextTokenIdx--)
 					{
-						if (IsMatch(Token, NextTokenIdx, Pattern, PatternIdx + 1))
+						if (IsMatch(token, nextTokenIdx, pattern, patternIdx + 1))
 						{
 							return true;
 						}
 					}
 					return false;
 				}
-				else if (TokenIdx < Token.Length && (Char.ToLower(Token[TokenIdx]) == Char.ToLower(Pattern[PatternIdx]) || Pattern[PatternIdx] == '?'))
+				else if (tokenIdx < token.Length && (Char.ToLower(token[tokenIdx]) == Char.ToLower(pattern[patternIdx]) || pattern[patternIdx] == '?'))
 				{
-					TokenIdx++;
-					PatternIdx++;
+					tokenIdx++;
+					patternIdx++;
 				}
 				else
 				{

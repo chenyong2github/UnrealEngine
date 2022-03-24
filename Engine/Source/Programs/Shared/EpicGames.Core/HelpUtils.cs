@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Core
 {
@@ -23,38 +22,38 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Prints help for the given object type
 		/// </summary>
-		/// <param name="Type">Type to print help for</param>
-		public static void PrintHelp(string Title, Type Type)
+		/// <param name="type">Type to print help for</param>
+		public static void PrintHelp(string title, Type type)
 		{
-			PrintHelp(Title, GetDescription(Type), CommandLineArguments.GetParameters(Type));
+			PrintHelp(title, GetDescription(type), CommandLineArguments.GetParameters(type));
 		}
 
 		/// <summary>
 		/// Prints help for a command
 		/// </summary>
-		/// <param name="Title">Title for the help text</param>
-		/// <param name="Description">Description for the command</param>
-		/// <param name="Parameters">List of parameters</param>
-		public static void PrintHelp(string? Title, string? Description, List<KeyValuePair<string, string>> Parameters)
+		/// <param name="title">Title for the help text</param>
+		/// <param name="description">Description for the command</param>
+		/// <param name="parameters">List of parameters</param>
+		public static void PrintHelp(string? title, string? description, List<KeyValuePair<string, string>> parameters)
 		{
 			bool bFirstLine = true;
-			if (!String.IsNullOrEmpty(Title))
+			if (!String.IsNullOrEmpty(title))
 			{
-				PrintParagraph(Title);
+				PrintParagraph(title);
 				bFirstLine = false;
 			}
 
-			if (!String.IsNullOrEmpty(Description))
+			if (!String.IsNullOrEmpty(description))
 			{
 				if (!bFirstLine)
 				{
 					Console.WriteLine("");
 				}
-				PrintParagraph(Description);
+				PrintParagraph(description);
 				bFirstLine = false;
 			}
 
-			if (Parameters.Count > 0)
+			if (parameters.Count > 0)
 			{
 				if (!bFirstLine)
 				{
@@ -62,87 +61,87 @@ namespace EpicGames.Core
 				}
 
 				Console.WriteLine("Parameters:");
-				PrintTable(Parameters, 4, 24);
+				PrintTable(parameters, 4, 24);
 			}
 		}
 
 		/// <summary>
 		/// Gets the description from a type
 		/// </summary>
-		/// <param name="Type">The type to get a description for</param>
+		/// <param name="type">The type to get a description for</param>
 		/// <returns>The description text</returns>
-		public static string GetDescription(Type Type)
+		public static string GetDescription(Type type)
 		{
-			StringBuilder DescriptionText = new StringBuilder();
-			foreach (DescriptionAttribute Attribute in Type.GetCustomAttributes(typeof(DescriptionAttribute), false))
+			StringBuilder descriptionText = new StringBuilder();
+			foreach (DescriptionAttribute attribute in type.GetCustomAttributes(typeof(DescriptionAttribute), false))
 			{
-				if (DescriptionText.Length > 0)
+				if (descriptionText.Length > 0)
 				{
-					DescriptionText.AppendLine();
+					descriptionText.AppendLine();
 				}
-				DescriptionText.AppendLine(Attribute.Description);
+				descriptionText.AppendLine(attribute.Description);
 			}
-			return DescriptionText.ToString();
+			return descriptionText.ToString();
 		}
 
 		/// <summary>
 		/// Prints a paragraph of text using word wrapping
 		/// </summary>
-		/// <param name="Text">Text to print</param>
+		/// <param name="text">Text to print</param>
 		/// <param name="Logger">Logger implementation to write to</param>
-		public static void PrintParagraph(string Text)
+		public static void PrintParagraph(string text)
 		{
-			PrintParagraph(Text, WindowWidth - 1);
+			PrintParagraph(text, WindowWidth - 1);
 		}
 
 		/// <summary>
 		/// Prints a paragraph of text using word wrapping
 		/// </summary>
-		/// <param name="Text">Text to print</param>
-		/// <param name="MaxWidth">Maximum width for each line</param>
-		public static void PrintParagraph(string Text, int MaxWidth)
+		/// <param name="text">Text to print</param>
+		/// <param name="maxWidth">Maximum width for each line</param>
+		public static void PrintParagraph(string text, int maxWidth)
 		{
-			IEnumerable<string> Lines = StringUtils.WordWrap(Text, MaxWidth);
-			foreach (string Line in Lines)
+			IEnumerable<string> lines = StringUtils.WordWrap(text, maxWidth);
+			foreach (string line in lines)
 			{
-				Console.WriteLine(Line);
+				Console.WriteLine(line);
 			}
 		}
 
 		/// <summary>
 		/// Prints an argument list to the console
 		/// </summary>
-		/// <param name="Items">List of parameters arranged as "-ParamName Param Description"</param>
-		/// <param name="Indent">Indent from the left hand side</param>
-		/// <param name="MinFirstColumnWidth">The minimum padding from the start of the param name to the start of the description (resizes with larger param names)</param>
+		/// <param name="items">List of parameters arranged as "-ParamName Param Description"</param>
+		/// <param name="indent">Indent from the left hand side</param>
+		/// <param name="minFirstColumnWidth">The minimum padding from the start of the param name to the start of the description (resizes with larger param names)</param>
 		/// <returns></returns>
-		public static void PrintTable(List<KeyValuePair<string, string>> Items, int Indent, int MinFirstColumnWidth)
+		public static void PrintTable(List<KeyValuePair<string, string>> items, int indent, int minFirstColumnWidth)
 		{
-			List<string> Lines = new List<string>();
-			FormatTable(Items, Indent, MinFirstColumnWidth, WindowWidth - 1, Lines);
+			List<string> lines = new List<string>();
+			FormatTable(items, indent, minFirstColumnWidth, WindowWidth - 1, lines);
 
-			foreach (string Line in Lines)
+			foreach (string line in lines)
 			{
-				Console.WriteLine(Line);
+				Console.WriteLine(line);
 			}
 		}
 
 		/// <summary>
 		/// Prints a table of items to a logging device
 		/// </summary>
-		/// <param name="Items"></param>
-		/// <param name="Indent"></param>
-		/// <param name="MinFirstColumnWidth"></param>
-		/// <param name="MaxWidth"></param>
-		/// <param name="Logger"></param>
-		public static void PrintTable(List<KeyValuePair<string, string>> Items, int Indent, int MinFirstColumnWidth, int MaxWidth, ILogger Logger)
+		/// <param name="items"></param>
+		/// <param name="indent"></param>
+		/// <param name="minFirstColumnWidth"></param>
+		/// <param name="maxWidth"></param>
+		/// <param name="logger"></param>
+		public static void PrintTable(List<KeyValuePair<string, string>> items, int indent, int minFirstColumnWidth, int maxWidth, ILogger logger)
 		{
-			List<string> Lines = new List<string>();
-			FormatTable(Items, Indent, MinFirstColumnWidth, MaxWidth, Lines);
+			List<string> lines = new List<string>();
+			FormatTable(items, indent, minFirstColumnWidth, maxWidth, lines);
 
-			foreach (string Line in Lines)
+			foreach (string line in lines)
 			{
-				Logger.LogInformation("{Line)", Line);
+				logger.LogInformation("{Line)", line);
 			}
 		}
 
@@ -155,37 +154,37 @@ namespace EpicGames.Core
 		///
 		///     -Param3      Param3 Description continues as before. 
 		/// </summary>
-		/// <param name="Items">List of parameters arranged as "-ParamName Param Description"</param>
-		/// <param name="Indent">Indent from the left hand side</param>
-		/// <param name="MinFirstColumnWidth">The minimum padding from the start of the param name to the start of the description (resizes with larger param names)</param>
+		/// <param name="items">List of parameters arranged as "-ParamName Param Description"</param>
+		/// <param name="indent">Indent from the left hand side</param>
+		/// <param name="minFirstColumnWidth">The minimum padding from the start of the param name to the start of the description (resizes with larger param names)</param>
 		/// <returns>Sequence of formatted lines in the table</returns>
-		public static void FormatTable(IReadOnlyList<KeyValuePair<string, string>> Items, int Indent, int MinFirstColumnWidth, int MaxWidth, List<string> Lines)
+		public static void FormatTable(IReadOnlyList<KeyValuePair<string, string>> items, int indent, int minFirstColumnWidth, int maxWidth, List<string> lines)
 		{
-			if(Items.Count > 0)
+			if(items.Count > 0)
 			{
 				// string used to intent the param
-				string IndentString = new string(' ', Indent);
+				string indentString = new string(' ', indent);
 
 				// default the padding value
-				int RightPadding = Math.Max(MinFirstColumnWidth, Items.Max(x => x.Key.Length + 2));
+				int rightPadding = Math.Max(minFirstColumnWidth, items.Max(x => x.Key.Length + 2));
 
 				// Build the formatted params
-				foreach(KeyValuePair<string, string> Item in Items)
+				foreach(KeyValuePair<string, string> item in items)
 				{
 					// build the param first, including intend and padding on the rights size
-					string ParamString = IndentString + Item.Key.PadRight(RightPadding);
+					string paramString = indentString + item.Key.PadRight(rightPadding);
 
 					// Build the description line by line, adding the same amount of intending each time. 
-					IEnumerable<string> DescriptionLines = StringUtils.WordWrap(Item.Value, MaxWidth - ParamString.Length);
+					IEnumerable<string> descriptionLines = StringUtils.WordWrap(item.Value, maxWidth - paramString.Length);
 
-					foreach(string DescriptionLine in DescriptionLines)
+					foreach(string descriptionLine in descriptionLines)
 					{
 						// Formatting as following:
 						// <Indent>-param<Right Padding>Description<New line>
-						Lines.Add(ParamString + DescriptionLine);
+						lines.Add(paramString + descriptionLine);
 
 						// we replace the param string on subsequent lines with white space of the same length
-						ParamString = string.Empty.PadRight(IndentString.Length + RightPadding);
+						paramString = string.Empty.PadRight(indentString.Length + rightPadding);
 					}
 				}
 			}

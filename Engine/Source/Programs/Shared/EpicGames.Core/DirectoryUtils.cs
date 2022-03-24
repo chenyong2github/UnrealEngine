@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -17,35 +13,35 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Finds the on-disk case of a a directory
 		/// </summary>
-		/// <param name="Info">DirectoryInfo instance describing the directory</param>
+		/// <param name="info">DirectoryInfo instance describing the directory</param>
 		/// <returns>New DirectoryInfo instance that represents the directory with the correct case</returns>
-		public static DirectoryInfo FindCorrectCase(DirectoryInfo Info)
+		public static DirectoryInfo FindCorrectCase(DirectoryInfo info)
 		{
-			DirectoryInfo ParentInfo = Info.Parent;
-			if (ParentInfo == null)
+			DirectoryInfo parentInfo = info.Parent;
+			if (parentInfo == null)
 			{
-				string FullName = Info.FullName;
-				if (FullName.Length >= 2 && (FullName[0] >= 'a' && FullName[0] <= 'z') && FullName[1] == ':')
+				string fullName = info.FullName;
+				if (fullName.Length >= 2 && (fullName[0] >= 'a' && fullName[0] <= 'z') && fullName[1] == ':')
 				{
-					return new DirectoryInfo(Char.ToUpper(FullName[0]) + FullName.Substring(1));
+					return new DirectoryInfo(Char.ToUpper(fullName[0]) + fullName.Substring(1));
 				}
 				else
 				{
-					return Info;
+					return info;
 				}
 			}
 			else
 			{
-				ParentInfo = FindCorrectCase(ParentInfo);
-				if (Info.Exists)
+				parentInfo = FindCorrectCase(parentInfo);
+				if (info.Exists)
 				{
 					try
 					{
-						foreach (DirectoryInfo ChildInfo in ParentInfo.EnumerateDirectories())
+						foreach (DirectoryInfo childInfo in parentInfo.EnumerateDirectories())
 						{
-							if (String.Equals(ChildInfo.Name, Info.Name, DirectoryReference.Comparison))
+							if (String.Equals(childInfo.Name, info.Name, DirectoryReference.Comparison))
 							{
-								return ChildInfo;
+								return childInfo;
 							}
 						}
 					}
@@ -56,7 +52,7 @@ namespace EpicGames.Core
 					}
 				}
 
-				return new DirectoryInfo(Path.Combine(ParentInfo.FullName, Info.Name));
+				return new DirectoryInfo(Path.Combine(parentInfo.FullName, info.Name));
 			}
 		}
 	}

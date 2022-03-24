@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Core
 {
@@ -43,13 +40,13 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Offset">Starting offset within the line</param>
-		/// <param name="Text">The text for this span</param>
-		public LogEventSpan(int Offset, string Text)
+		/// <param name="offset">Starting offset within the line</param>
+		/// <param name="text">The text for this span</param>
+		public LogEventSpan(int offset, string text)
 		{
-			this.Offset = Offset;
-			this.Text = Text;
-			this.Properties = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+			Offset = offset;
+			Text = text;
+			Properties = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 		}
 
 		/// <summary>
@@ -86,56 +83,56 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Text">Text for the line</param>
-		public LogEventLine(string Text)
+		/// <param name="text">Text for the line</param>
+		public LogEventLine(string text)
 		{
-			this.Text = Text;
-			this.Spans = new Dictionary<string, LogEventSpan>();
+			Text = text;
+			Spans = new Dictionary<string, LogEventSpan>();
 		}
 
 		/// <summary>
 		/// Adds a span containing markup on the source text
 		/// </summary>
-		/// <param name="Offset">Offset within the line</param>
-		/// <param name="Length">Length of the span</param>
-		/// <param name="Name">Name to use to identify the item in the format string</param>
+		/// <param name="offset">Offset within the line</param>
+		/// <param name="length">Length of the span</param>
+		/// <param name="name">Name to use to identify the item in the format string</param>
 		/// <returns>New span for the given range</returns>
-		public LogEventSpan AddSpan(int Offset, int Length, string Name)
+		public LogEventSpan AddSpan(int offset, int length, string name)
 		{
-			LogEventSpan Span = new LogEventSpan(Offset, Text.Substring(Offset, Length));
-			Spans.Add(Name, Span);
-			return Span;
+			LogEventSpan span = new LogEventSpan(offset, Text.Substring(offset, length));
+			Spans.Add(name, span);
+			return span;
 		}
 
 		/// <summary>
 		/// Adds a span containing markup for a regex match group
 		/// </summary>
-		/// <param name="Group">The match group</param>
-		/// <param name="Name">Name to use to identify the item in the format string</param>
-		public LogEventSpan AddSpan(Group Group, string Name)
+		/// <param name="group">The match group</param>
+		/// <param name="name">Name to use to identify the item in the format string</param>
+		public LogEventSpan AddSpan(Group group, string name)
 		{
-			return AddSpan(Group.Index, Group.Length, Name);
+			return AddSpan(group.Index, group.Length, name);
 		}
 
 		/// <summary>
 		/// Adds a span naming a regex match group, using the name of the group
 		/// </summary>
-		/// <param name="Group">The match group</param>
-		public LogEventSpan AddSpan(Group Group)
+		/// <param name="group">The match group</param>
+		public LogEventSpan AddSpan(Group group)
 		{
-			return AddSpan(Group.Index, Group.Length, Group.Name);
+			return AddSpan(group.Index, group.Length, group.Name);
 		}
 
 		/// <summary>
 		/// Adds a span naming a regex match group, using the name of the group
 		/// </summary>
-		/// <param name="Group">The match group</param>
-		/// <param name="Name">Name to use to identify the item in the format string</param>
-		public LogEventSpan? TryAddSpan(Group Group, string Name)
+		/// <param name="group">The match group</param>
+		/// <param name="name">Name to use to identify the item in the format string</param>
+		public LogEventSpan? TryAddSpan(Group group, string name)
 		{
-			if (Group.Success)
+			if (group.Success)
 			{
-				return AddSpan(Group, Name);
+				return AddSpan(group, name);
 			}
 			else
 			{
@@ -146,12 +143,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Adds a span naming a regex match group, using the name of the group
 		/// </summary>
-		/// <param name="Group">The match group</param>
-		public LogEventSpan? TryAddSpan(Group Group)
+		/// <param name="group">The match group</param>
+		public LogEventSpan? TryAddSpan(Group group)
 		{
-			if (Group.Success)
+			if (group.Success)
 			{
-				return AddSpan(Group);
+				return AddSpan(group);
 			}
 			else
 			{
@@ -173,31 +170,31 @@ namespace EpicGames.Core
 	{
 		class LogSpan
 		{
-			public string Name;
-			public int Offset;
-			public int Length;
-			public object? Value;
+			public string _name;
+			public int _offset;
+			public int _length;
+			public object? _value;
 
-			public LogSpan(string Name, int Offset, int Length, object? Value)
+			public LogSpan(string name, int offset, int length, object? value)
 			{
-				this.Name = Name;
-				this.Offset = Offset;
-				this.Length = Length;
-				this.Value = Value;
+				_name = name;
+				_offset = offset;
+				_length = length;
+				_value = value;
 			}
 		}
 
 		class LogLine
 		{
-			public string Message;
-			public string? Format;
-			public Dictionary<string, object>? Properties;
+			public string _message;
+			public string? _format;
+			public Dictionary<string, object>? _properties;
 
-			public LogLine(string Message, string? Format, Dictionary<string, object>? Properties)
+			public LogLine(string message, string? format, Dictionary<string, object>? properties)
 			{
-				this.Message = Message;
-				this.Format = Format;
-				this.Properties = Properties;
+				_message = message;
+				_format = format;
+				_properties = properties;
 			}
 		}
 
@@ -214,30 +211,30 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Events which have been parsed so far
 		/// </summary>
-		List<LogLine>? Lines;
+		List<LogLine>? _lines;
 
 		/// <summary>
 		/// Spans for the current line
 		/// </summary>
-		List<LogSpan>? Spans;
+		List<LogSpan>? _spans;
 
 		/// <summary>
 		/// Additional properties for this line
 		/// </summary>
-		Dictionary<string, object>? Properties;
+		Dictionary<string, object>? _properties;
 
 		/// <summary>
 		/// Starts building a log event at the current cursor position
 		/// </summary>
-		/// <param name="Cursor">The current cursor position</param>
-		public LogEventBuilder(ILogCursor Cursor, int LineCount = 1)
+		/// <param name="cursor">The current cursor position</param>
+		public LogEventBuilder(ILogCursor cursor, int lineCount = 1)
 		{
-			this.Current = Cursor;
-			this.Next = Cursor.Rebase(1);
+			Current = cursor;
+			Next = cursor.Rebase(1);
 
-			if (LineCount > 1)
+			if (lineCount > 1)
 			{
-				MoveNext(LineCount - 1);
+				MoveNext(lineCount - 1);
 			}
 		}
 
@@ -247,50 +244,50 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		LogLine CreateLine()
 		{
-			int Offset = 0;
-			string CurrentLine = Current.CurrentLine!;
+			int offset = 0;
+			string currentLine = Current.CurrentLine!;
 
-			string? Format = null;
-			if (Spans != null)
+			string? format = null;
+			if (_spans != null)
 			{
-				StringBuilder Builder = new StringBuilder();
-				foreach (LogSpan Span in Spans)
+				StringBuilder builder = new StringBuilder();
+				foreach (LogSpan span in _spans)
 				{
-					if (Span.Offset >= Offset)
+					if (span._offset >= offset)
 					{
-						Builder.Append(CurrentLine, Offset, Span.Offset - Offset);
-						Builder.Append($"{{{Span.Name}}}");
-						Offset = Span.Offset + Span.Length;
+						builder.Append(currentLine, offset, span._offset - offset);
+						builder.Append($"{{{span._name}}}");
+						offset = span._offset + span._length;
 					}
 				}
-				Builder.Append(CurrentLine, Offset, CurrentLine.Length - Offset);
-				Format = Builder.ToString();
+				builder.Append(currentLine, offset, currentLine.Length - offset);
+				format = builder.ToString();
 			}
 
-			return new LogLine(CurrentLine, Format, Properties);
+			return new LogLine(currentLine, format, _properties);
 		}
 
 		/// <summary>
 		/// Adds a span containing markup on the source text
 		/// </summary>
-		/// <param name="Name">Name to use to identify the item in the format string</param>
-		/// <param name="Offset">Offset within the line</param>
-		/// <param name="Length">Length of the span</param>
+		/// <param name="name">Name to use to identify the item in the format string</param>
+		/// <param name="offset">Offset within the line</param>
+		/// <param name="length">Length of the span</param>
 		/// <param name="Data">Data of the span</param>
 		/// <returns>New span for the given range</returns>
-		public void Annotate(string Name, int Offset, int Length, object? Value = null)
+		public void Annotate(string name, int offset, int length, object? value = null)
 		{
-			LogSpan Span = new LogSpan(Name, Offset, Length, Value);
+			LogSpan span = new LogSpan(name, offset, length, value);
 
-			this.Properties ??= new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-			this.Properties.Add(Name, Span);
+			_properties ??= new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+			_properties.Add(name, span);
 
-			Spans ??= new List<LogSpan>();
-			for(int InsertIdx = Spans.Count; ;InsertIdx--)
+			_spans ??= new List<LogSpan>();
+			for(int insertIdx = _spans.Count; ;insertIdx--)
 			{
-				if (InsertIdx == 0 || Spans[InsertIdx - 1].Offset < Offset)
+				if (insertIdx == 0 || _spans[insertIdx - 1]._offset < offset)
 				{
-					Spans.Insert(InsertIdx, Span);
+					_spans.Insert(insertIdx, span);
 					break;
 				}
 			}
@@ -299,32 +296,32 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Adds a span containing markup for a regex match group
 		/// </summary>
-		/// <param name="Group">The match group</param>
-		/// <param name="Name">Name to use to identify the item in the format string</param>
-		public void Annotate(string Name, Group Group, object? Value = null)
+		/// <param name="group">The match group</param>
+		/// <param name="name">Name to use to identify the item in the format string</param>
+		public void Annotate(string name, Group group, object? value = null)
 		{
-			Annotate(Name, Group.Index, Group.Length, Value);
+			Annotate(name, group.Index, group.Length, value);
 		}
 
 		/// <summary>
 		/// Adds a span naming a regex match group, using the name of the group
 		/// </summary>
-		/// <param name="Group">The match group</param>
-		public void Annotate(Group Group, object? Value = null)
+		/// <param name="group">The match group</param>
+		public void Annotate(Group group, object? value = null)
 		{
-			Annotate(Group.Name, Group.Index, Group.Length, Value);
+			Annotate(group.Name, group.Index, group.Length, value);
 		}
 
 		/// <summary>
 		/// Adds a span naming a regex match group, using the name of the group
 		/// </summary>
-		/// <param name="Group">The match group</param>
-		/// <param name="Name">Name to use to identify the item in the format string</param>
-		public bool TryAnnotate(string Name, Group Group, object? Value = null)
+		/// <param name="group">The match group</param>
+		/// <param name="name">Name to use to identify the item in the format string</param>
+		public bool TryAnnotate(string name, Group group, object? value = null)
 		{
-			if (Group.Success)
+			if (group.Success)
 			{
-				Annotate(Name, Group);
+				Annotate(name, group, value);
 				return true;
 			}
 			return false;
@@ -333,12 +330,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Adds a span naming a regex match group, using the name of the group
 		/// </summary>
-		/// <param name="Group">The match group</param>
-		public bool TryAnnotate(Group Group, object? Value = null)
+		/// <param name="group">The match group</param>
+		public bool TryAnnotate(Group group, object? value = null)
 		{
-			if (Group.Success)
+			if (group.Success)
 			{
-				Annotate(Group, Value);
+				Annotate(group, value);
 				return true;
 			}
 			return false;
@@ -347,12 +344,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Adds an additional named property
 		/// </summary>
-		/// <param name="Name">Name of the argument</param>
-		/// <param name="Value">Value to associate with it</param>
-		public void AddProperty(string Name, object Value)
+		/// <param name="name">Name of the argument</param>
+		/// <param name="value">Value to associate with it</param>
+		public void AddProperty(string name, object value)
 		{
-			Properties ??= new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-			Properties.Add(Name, Value);
+			_properties ??= new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+			_properties.Add(name, value);
 		}
 
 		/// <summary>
@@ -360,11 +357,11 @@ namespace EpicGames.Core
 		/// </summary>
 		public void MoveNext()
 		{
-			Lines ??= new List<LogLine>();
-			Lines.Add(CreateLine());
+			_lines ??= new List<LogLine>();
+			_lines.Add(CreateLine());
 
-			Spans = null;
-			Properties = null;
+			_spans = null;
+			_properties = null;
 
 			Current = Next;
 			Next = Next.Rebase(1);
@@ -373,10 +370,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Advance by the given number of lines
 		/// </summary>
-		/// <param name="Count"></param>
-		public void MoveNext(int Count)
+		/// <param name="count"></param>
+		public void MoveNext(int count)
 		{
-			for (int Idx = 0; Idx < Count; Idx++)
+			for (int idx = 0; idx < count; idx++)
 			{
 				MoveNext();
 			}
@@ -386,75 +383,75 @@ namespace EpicGames.Core
 		/// Returns an array of log events
 		/// </summary>
 		/// <returns></returns>
-		public LogEvent[] ToArray(LogLevel Level, EventId EventId)
+		public LogEvent[] ToArray(LogLevel level, EventId eventId)
 		{
-			DateTime Time = DateTime.UtcNow;
+			DateTime time = DateTime.UtcNow;
 
-			int NumLines = Lines?.Count ?? 0;
-			int NumEvents = NumLines;
+			int numLines = _lines?.Count ?? 0;
+			int numEvents = numLines;
 			if (Current.CurrentLine != null)
 			{
-				NumEvents++;
+				numEvents++;
 			}
 
-			LogEvent[] Events = new LogEvent[NumEvents];
-			for (int Idx = 0; Idx < NumLines; Idx++)
+			LogEvent[] events = new LogEvent[numEvents];
+			for (int idx = 0; idx < numLines; idx++)
 			{
-				Events[Idx] = CreateEvent(Time, Level, EventId, Idx, NumEvents, Lines![Idx]);
+				events[idx] = CreateEvent(time, level, eventId, idx, numEvents, _lines![idx]);
 			}
 			if (Current.CurrentLine != null)
 			{
-				Events[NumEvents - 1] = CreateEvent(Time, Level, EventId, NumEvents - 1, NumEvents, CreateLine());
+				events[numEvents - 1] = CreateEvent(time, level, eventId, numEvents - 1, numEvents, CreateLine());
 			}
 
-			return Events;
+			return events;
 		}
 
-		static LogEvent CreateEvent(DateTime Time, LogLevel Level, EventId EventId, int LineIndex, int LineCount, LogLine Line)
+		static LogEvent CreateEvent(DateTime time, LogLevel level, EventId eventId, int lineIndex, int lineCount, LogLine line)
 		{
-			Dictionary<string, object>? Properties = null;
-			if (Line.Properties != null)
+			Dictionary<string, object>? properties = null;
+			if (line._properties != null)
 			{
-				Properties = new Dictionary<string, object>();
-				foreach ((string Name, object Value) in Line.Properties)
+				properties = new Dictionary<string, object>();
+				foreach ((string name, object value) in line._properties)
 				{
-					object NewValue;
-					if (Value is LogSpan Span)
+					object newValue;
+					if (value is LogSpan span)
 					{
-						string Text = Line.Message.Substring(Span.Offset, Span.Length);
-						if (Span.Value == null)
+						string text = line._message.Substring(span._offset, span._length);
+						if (span._value == null)
 						{
-							NewValue = Text;
+							newValue = text;
 						}
 						else
 						{
-							NewValue = LogEventFormatter.Format(Span.Value!);
-							if (NewValue is LogValue Event)
+							newValue = LogEventFormatter.Format(span._value!);
+							if (newValue is LogValue newLogValue)
 							{
-								Event.Text = Text;
+								newLogValue.Text = text;
 							}
 						}
 					}
 					else
 					{
-						NewValue = LogEventFormatter.Format(Value);
+						newValue = LogEventFormatter.Format(value);
 					}
-					Properties[Name] = NewValue;
+					properties[name] = newValue;
 				}
 			}
-			return new LogEvent(Time, Level, EventId, LineIndex, LineCount, Line.Message, Line.Format, Properties, null);
+			return new LogEvent(time, level, eventId, lineIndex, lineCount, line._message, line._format, properties, null);
 		}
 
 		/// <summary>
 		/// Creates a match object at the given priority
 		/// </summary>
-		/// <param name="Level"></param>
-		/// <param name="EventId">The event id</param>
-		/// <param name="Priority"></param>
+		/// <param name="level"></param>
+		/// <param name="eventId">The event id</param>
+		/// <param name="priority"></param>
 		/// <returns></returns>
-		public LogEventMatch ToMatch(LogEventPriority Priority, LogLevel Level, EventId EventId)
+		public LogEventMatch ToMatch(LogEventPriority priority, LogLevel level, EventId eventId)
 		{
-			return new LogEventMatch(Priority, ToArray(Level, EventId));
+			return new LogEventMatch(priority, ToArray(level, eventId));
 		}
 	}
 }

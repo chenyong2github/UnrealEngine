@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -30,46 +29,46 @@ namespace EpicGames.Core
 	/// </summary>
 	public class JsonWriter : IDisposable
 	{
-		TextWriter Writer;
-		bool bLeaveOpen;
-		JsonWriterStyle Style;
-		bool bRequiresComma;
-		string Indent;
+		TextWriter _writer;
+		readonly bool _leaveOpen;
+		readonly JsonWriterStyle _style;
+		bool _bRequiresComma;
+		string _indent;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="FileName">File to write to</param>
-		/// <param name="Style">Should use packed JSON or not</param>
-		public JsonWriter(string FileName, JsonWriterStyle Style = JsonWriterStyle.Readable)
-			: this(new StreamWriter(FileName))
+		/// <param name="fileName">File to write to</param>
+		/// <param name="style">Should use packed JSON or not</param>
+		public JsonWriter(string fileName, JsonWriterStyle style = JsonWriterStyle.Readable)
+			: this(new StreamWriter(fileName))
 		{
-			this.Style = Style;
+			_style = style;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="FileName">File to write to</param>
-		/// <param name="Style">Should use packed JSON or not</param>
-		public JsonWriter(FileReference FileName, JsonWriterStyle Style = JsonWriterStyle.Readable)
-			: this(new StreamWriter(FileName.FullName))
+		/// <param name="fileName">File to write to</param>
+		/// <param name="style">Should use packed JSON or not</param>
+		public JsonWriter(FileReference fileName, JsonWriterStyle style = JsonWriterStyle.Readable)
+			: this(new StreamWriter(fileName.FullName))
 		{
-			this.Style = Style;
+			_style = style;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Writer">The text writer to output to</param>
-		/// <param name="bLeaveOpen">Whether to leave the writer open when the object is disposed</param>
-		/// <param name="Style">The output style</param>
-		public JsonWriter(TextWriter Writer, bool bLeaveOpen = false, JsonWriterStyle Style = JsonWriterStyle.Readable)
+		/// <param name="writer">The text writer to output to</param>
+		/// <param name="leaveOpen">Whether to leave the writer open when the object is disposed</param>
+		/// <param name="style">The output style</param>
+		public JsonWriter(TextWriter writer, bool leaveOpen = false, JsonWriterStyle style = JsonWriterStyle.Readable)
 		{
-			this.Writer = Writer;
-			this.bLeaveOpen = bLeaveOpen;
-			this.Style = Style;
-			Indent = "";
+			_writer = writer;
+			_leaveOpen = leaveOpen;
+			_style = style;
+			_indent = "";
 		}
 
 		/// <summary>
@@ -77,26 +76,26 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Dispose()
 		{
-			if(!bLeaveOpen && Writer != null)
+			if(!_leaveOpen && _writer != null)
 			{
-				Writer.Dispose();
-				Writer = null!;
+				_writer.Dispose();
+				_writer = null!;
 			}
 		}
 
 		private void IncreaseIndent()
 		{
-			if (Style == JsonWriterStyle.Readable)
+			if (_style == JsonWriterStyle.Readable)
 			{
-				Indent += "\t";
+				_indent += "\t";
 			}
 		}
 		
 		private void DecreaseIndent()
 		{
-			if (Style == JsonWriterStyle.Readable)
+			if (_style == JsonWriterStyle.Readable)
 			{
-				Indent = Indent.Substring(0, Indent.Length - 1);
+				_indent = _indent.Substring(0, _indent.Length - 1);
 			}
 		}
 
@@ -107,25 +106,25 @@ namespace EpicGames.Core
 		{
 			WriteCommaNewline();
 
-			Writer.Write(Indent);
-			Writer.Write("{");
+			_writer.Write(_indent);
+			_writer.Write("{");
 
 			IncreaseIndent();
-			bRequiresComma = false;
+			_bRequiresComma = false;
 		}
 
 		/// <summary>
 		/// Write the name and opening brace for an object
 		/// </summary>
-		/// <param name="ObjectName">Name of the field</param>
-		public void WriteObjectStart(string ObjectName)
+		/// <param name="objectName">Name of the field</param>
+		public void WriteObjectStart(string objectName)
 		{
 			WriteCommaNewline();
 
-			string Space = (Style == JsonWriterStyle.Readable) ? " " : "";
-			Writer.Write("{0}\"{1}\":{2}", Indent, ObjectName, Space);
+			string space = (_style == JsonWriterStyle.Readable) ? " " : "";
+			_writer.Write("{0}\"{1}\":{2}", _indent, objectName, space);
 
-			bRequiresComma = false;
+			_bRequiresComma = false;
 
 			WriteObjectStart();
 		}
@@ -138,10 +137,10 @@ namespace EpicGames.Core
 			DecreaseIndent();
 
 			WriteLine();
-			Writer.Write(Indent);
-			Writer.Write("}");
+			_writer.Write(_indent);
+			_writer.Write("}");
 
-			bRequiresComma = true;
+			_bRequiresComma = true;
 		}
 
 		/// <summary>
@@ -152,25 +151,25 @@ namespace EpicGames.Core
 		{
 			WriteCommaNewline();
 
-			Writer.Write("{0}[", Indent);
+			_writer.Write("{0}[", _indent);
 
 			IncreaseIndent();
-			bRequiresComma = false;
+			_bRequiresComma = false;
 		}
 
 		/// <summary>
 		/// Write the name and opening bracket for an array
 		/// </summary>
-		/// <param name="ArrayName">Name of the field</param>
-		public void WriteArrayStart(string ArrayName)
+		/// <param name="arrayName">Name of the field</param>
+		public void WriteArrayStart(string arrayName)
 		{
 			WriteCommaNewline();
 
-			string Space = (Style == JsonWriterStyle.Readable) ? " " : "";
-			Writer.Write("{0}\"{1}\":{2}[", Indent, ArrayName, Space);
+			string space = (_style == JsonWriterStyle.Readable) ? " " : "";
+			_writer.Write("{0}\"{1}\":{2}[", _indent, arrayName, space);
 
 			IncreaseIndent();
-			bRequiresComma = false;
+			_bRequiresComma = false;
 		}
 
 		/// <summary>
@@ -181,42 +180,42 @@ namespace EpicGames.Core
 			DecreaseIndent();
 
 			WriteLine();
-			Writer.Write("{0}]", Indent);
+			_writer.Write("{0}]", _indent);
 
-			bRequiresComma = true;
+			_bRequiresComma = true;
 		}
 
 		private void WriteLine()
 		{
-			if (Style == JsonWriterStyle.Readable)
+			if (_style == JsonWriterStyle.Readable)
 			{
-				Writer.WriteLine();
+				_writer.WriteLine();
 			}
 		}
 		
-		private void WriteLine(string Line)
+		private void WriteLine(string line)
 		{
-			if (Style == JsonWriterStyle.Readable)
+			if (_style == JsonWriterStyle.Readable)
 			{
-				Writer.WriteLine(Line);
+				_writer.WriteLine(line);
 			}
 			else
 			{
-				Writer.Write(Line);
+				_writer.Write(line);
 			}
 		}
 
 		/// <summary>
 		/// Write an array of strings
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Values">Values for the field</param>
-		public void WriteStringArrayField(string Name, IEnumerable<string> Values)
+		/// <param name="name">Name of the field</param>
+		/// <param name="values">Values for the field</param>
+		public void WriteStringArrayField(string name, IEnumerable<string> values)
 		{
-			WriteArrayStart(Name);
-			foreach(string Value in Values)
+			WriteArrayStart(name);
+			foreach(string value in values)
 			{
-				WriteValue(Value);
+				WriteValue(value);
 			}
 			WriteArrayEnd();
 		}
@@ -224,177 +223,177 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Write an array of enum values
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Values">Values for the field</param>
-		public void WriteEnumArrayField<T>(string Name, IEnumerable<T> Values) where T : struct
+		/// <param name="name">Name of the field</param>
+		/// <param name="values">Values for the field</param>
+		public void WriteEnumArrayField<T>(string name, IEnumerable<T> values) where T : struct
 		{
-			WriteStringArrayField(Name, Values.Select(x => x.ToString()!));
+			WriteStringArrayField(name, values.Select(x => x.ToString()!));
 		}
 
 		/// <summary>
 		/// Write a value with no field name, for the contents of an array
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteValue(int Value)
+		/// <param name="value">Value to write</param>
+		public void WriteValue(int value)
 		{
 			WriteCommaNewline();
 
-			Writer.Write(Indent);
-			Writer.Write(Value);
+			_writer.Write(_indent);
+			_writer.Write(value);
 
-			bRequiresComma = true;
+			_bRequiresComma = true;
 		}
 
 		/// <summary>
 		/// Write a value with no field name, for the contents of an array
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		public void WriteValue(string Value)
+		/// <param name="value">Value to write</param>
+		public void WriteValue(string value)
 		{
 			WriteCommaNewline();
 
-			Writer.Write(Indent);
-			WriteEscapedString(Value);
+			_writer.Write(_indent);
+			WriteEscapedString(value);
 
-			bRequiresComma = true;
+			_bRequiresComma = true;
 		}
 
 		/// <summary>
 		/// Write a field name and string value
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value for the field</param>
-		public void WriteValue(string Name, string? Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value for the field</param>
+		public void WriteValue(string name, string? value)
 		{
 			WriteCommaNewline();
 
-			string Space = (Style == JsonWriterStyle.Readable) ? " " : "";
-			Writer.Write("{0}\"{1}\":{2}", Indent, Name, Space);
-			WriteEscapedString(Value);
+			string space = (_style == JsonWriterStyle.Readable) ? " " : "";
+			_writer.Write("{0}\"{1}\":{2}", _indent, name, space);
+			WriteEscapedString(value);
 
-			bRequiresComma = true;
+			_bRequiresComma = true;
 		}
 
 		/// <summary>
 		/// Write a field name and integer value
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value for the field</param>
-		public void WriteValue(string Name, int Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value for the field</param>
+		public void WriteValue(string name, int value)
 		{
-			WriteValueInternal(Name, Value.ToString());
+			WriteValueInternal(name, value.ToString());
 		}
 
 		/// <summary>
 		/// Write a field name and double value
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value for the field</param>
-		public void WriteValue(string Name, double Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value for the field</param>
+		public void WriteValue(string name, double value)
 		{
-			WriteValueInternal(Name, Value.ToString());
+			WriteValueInternal(name, value.ToString());
 		}
 
 		/// <summary>
 		/// Write a field name and bool value
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value for the field</param>
-		public void WriteValue(string Name, bool Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value for the field</param>
+		public void WriteValue(string name, bool value)
 		{
-			WriteValueInternal(Name, Value ? "true" : "false");
+			WriteValueInternal(name, value ? "true" : "false");
 		}
 
 		/// <summary>
 		/// Write a field name and enum value
 		/// </summary>
 		/// <typeparam name="T">The enum type</typeparam>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value for the field</param>
-		public void WriteEnumValue<T>(string Name, T Value) where T : struct
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value for the field</param>
+		public void WriteEnumValue<T>(string name, T value) where T : struct
 		{
-			WriteValue(Name, Value.ToString()!);
+			WriteValue(name, value.ToString()!);
 		}
 
 		void WriteCommaNewline()
 		{
-			if (bRequiresComma)
+			if (_bRequiresComma)
 			{
 				WriteLine(",");
 			}
-			else if (Indent.Length > 0)
+			else if (_indent.Length > 0)
 			{
 				WriteLine();
 			}
 		}
 
-		void WriteValueInternal(string Name, string Value)
+		void WriteValueInternal(string name, string value)
 		{
 			WriteCommaNewline();
 
-			string Space = (Style == JsonWriterStyle.Readable) ? " " : "";
-			Writer.Write("{0}\"{1}\":{2}{3}", Indent, Name, Space, Value);
+			string space = (_style == JsonWriterStyle.Readable) ? " " : "";
+			_writer.Write("{0}\"{1}\":{2}{3}", _indent, name, space, value);
 
-			bRequiresComma = true;
+			_bRequiresComma = true;
 		}
 
-		void WriteEscapedString(string? Value)
+		void WriteEscapedString(string? value)
 		{
 			// Escape any characters which may not appear in a JSON string (see http://www.json.org).
-			Writer.Write("\"");
-			if (Value != null)
+			_writer.Write("\"");
+			if (value != null)
 			{
-				Writer.Write(EscapeString(Value));
+				_writer.Write(EscapeString(value));
 			}
-			Writer.Write("\"");
+			_writer.Write("\"");
 		}
 
 		/// <summary>
 		/// Escapes a string for serializing to JSON
 		/// </summary>
-		/// <param name="Value">The string to escape</param>
+		/// <param name="value">The string to escape</param>
 		/// <returns>The escaped string</returns>
-		public static string EscapeString(string Value)
+		public static string EscapeString(string value)
 		{
-			StringBuilder Result = new StringBuilder();
-			for (int Idx = 0; Idx < Value.Length; Idx++)
+			StringBuilder result = new StringBuilder();
+			for (int idx = 0; idx < value.Length; idx++)
 			{
-				switch (Value[Idx])
+				switch (value[idx])
 				{
 					case '\"':
-						Result.Append("\\\"");
+						result.Append("\\\"");
 						break;
 					case '\\':
-						Result.Append("\\\\");
+						result.Append("\\\\");
 						break;
 					case '\b':
-						Result.Append("\\b");
+						result.Append("\\b");
 						break;
 					case '\f':
-						Result.Append("\\f");
+						result.Append("\\f");
 						break;
 					case '\n':
-						Result.Append("\\n");
+						result.Append("\\n");
 						break;
 					case '\r':
-						Result.Append("\\r");
+						result.Append("\\r");
 						break;
 					case '\t':
-						Result.Append("\\t");
+						result.Append("\\t");
 						break;
 					default:
-						if (Char.IsControl(Value[Idx]))
+						if (Char.IsControl(value[idx]))
 						{
-							Result.AppendFormat("\\u{0:X4}", (int)Value[Idx]);
+							result.AppendFormat("\\u{0:X4}", (int)value[idx]);
 						}
 						else
 						{
-							Result.Append(Value[Idx]);
+							result.Append(value[idx]);
 						}
 						break;
 				}
 			}
-			return Result.ToString();
+			return result.ToString();
 		}
 	}
 }

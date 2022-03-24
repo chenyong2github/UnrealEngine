@@ -2,11 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -23,8 +18,8 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Write this type to the given archive
 		/// </summary>
-		/// <param name="Writer"></param>
-		public abstract void Write(IJsonSchemaWriter Writer);
+		/// <param name="writer"></param>
+		public abstract void Write(IJsonSchemaWriter writer);
 	}
 
 	/// <summary>
@@ -40,9 +35,9 @@ namespace EpicGames.Core
 	public class JsonSchemaBoolean : JsonSchemaPrimitiveType
 	{
 		/// <inheritdoc/>
-		public override void Write(IJsonSchemaWriter Writer)
+		public override void Write(IJsonSchemaWriter writer)
 		{
-			Writer.WriteString("type", "boolean");
+			writer.WriteString("type", "boolean");
 		}
 	}
 
@@ -52,9 +47,9 @@ namespace EpicGames.Core
 	public class JsonSchemaInteger : JsonSchemaPrimitiveType
 	{
 		/// <inheritdoc/>
-		public override void Write(IJsonSchemaWriter Writer)
+		public override void Write(IJsonSchemaWriter writer)
 		{
-			Writer.WriteString("type", "integer");
+			writer.WriteString("type", "integer");
 		}
 	}
 
@@ -64,9 +59,9 @@ namespace EpicGames.Core
 	public class JsonSchemaNumber : JsonSchemaPrimitiveType
 	{
 		/// <inheritdoc/>
-		public override void Write(IJsonSchemaWriter Writer)
+		public override void Write(IJsonSchemaWriter writer)
 		{
-			Writer.WriteString("type", "integer");
+			writer.WriteString("type", "integer");
 		}
 	}
 
@@ -124,24 +119,24 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Format"></param>
-		public JsonSchemaString(JsonSchemaStringFormat? Format = null, string? Pattern = null)
+		/// <param name="format"></param>
+		public JsonSchemaString(JsonSchemaStringFormat? format = null, string? pattern = null)
 		{
-			this.Format = Format;
-			this.Pattern = Pattern;
+			Format = format;
+			Pattern = pattern;
 		}
 
 		/// <inheritdoc/>
-		public override void Write(IJsonSchemaWriter Writer)
+		public override void Write(IJsonSchemaWriter writer)
 		{
-			Writer.WriteString("type", "string");
+			writer.WriteString("type", "string");
 			if (Format != null)
 			{
-				Writer.WriteString("format", Format.Value.ToString().ToLowerInvariant());
+				writer.WriteString("format", Format.Value.ToString().ToLowerInvariant());
 			}
 			if (Pattern != null)
 			{
-				Writer.WriteString("pattern", Pattern);
+				writer.WriteString("pattern", Pattern);
 			}
 		}
 	}
@@ -159,20 +154,20 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JsonSchemaEnum(IEnumerable<string> Values)
+		public JsonSchemaEnum(IEnumerable<string> values)
 		{
-			this.Values.AddRange(Values);
+			Values.AddRange(values);
 		}
 
 		/// <inheritdoc/>
-		public override void Write(IJsonSchemaWriter Writer)
+		public override void Write(IJsonSchemaWriter writer)
 		{
-			Writer.WriteStartArray("enum");
-			foreach (string Value in Values)
+			writer.WriteStartArray("enum");
+			foreach (string value in Values)
 			{
-				Writer.WriteStringValue(Value);
+				writer.WriteStringValue(value);
 			}
-			Writer.WriteEndArray();
+			writer.WriteEndArray();
 		}
 	}
 
@@ -189,18 +184,18 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JsonSchemaArray(JsonSchemaType ItemType)
+		public JsonSchemaArray(JsonSchemaType itemType)
 		{
-			this.ItemType = ItemType;
+			ItemType = itemType;
 		}
 
 		/// <inheritdoc/>
-		public override void Write(IJsonSchemaWriter Writer)
+		public override void Write(IJsonSchemaWriter writer)
 		{
-			Writer.WriteString("type", "array");
-			Writer.WriteStartObject("items");
-			Writer.WriteType(ItemType);
-			Writer.WriteEndObject();
+			writer.WriteString("type", "array");
+			writer.WriteStartObject("items");
+			writer.WriteType(ItemType);
+			writer.WriteEndObject();
 		}
 	}
 
@@ -227,27 +222,27 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JsonSchemaProperty(string Name, string? Description, JsonSchemaType Type)
+		public JsonSchemaProperty(string name, string? description, JsonSchemaType type)
 		{
-			this.Name = Name;
-			this.Description = Description;
-			this.Type = Type;
+			Name = name;
+			Description = description;
+			Type = type;
 		}
 
 		/// <summary>
 		/// Writes a property to a schema
 		/// </summary>
-		/// <param name="Writer"></param>
-		public void Write(IJsonSchemaWriter Writer)
+		/// <param name="writer"></param>
+		public void Write(IJsonSchemaWriter writer)
 		{
-			string CamelCaseName = Char.ToLowerInvariant(Name[0]) + Name.Substring(1);
-			Writer.WriteStartObject(CamelCaseName);
-			Writer.WriteType(Type);
+			string camelCaseName = Char.ToLowerInvariant(Name[0]) + Name.Substring(1);
+			writer.WriteStartObject(camelCaseName);
+			writer.WriteType(Type);
 			if (Description != null)
 			{
-				Writer.WriteString("description", Description);
+				writer.WriteString("description", Description);
 			}
-			Writer.WriteEndObject();
+			writer.WriteEndObject();
 		}
 	}
 
@@ -267,28 +262,28 @@ namespace EpicGames.Core
 		public JsonSchemaType? AdditionalProperties { get; set; }
 
 		/// <inheritdoc/>
-		public override void Write(IJsonSchemaWriter Writer)
+		public override void Write(IJsonSchemaWriter writer)
 		{
-			Writer.WriteString("type", "object");
+			writer.WriteString("type", "object");
 			if (Properties.Count > 0)
 			{
-				Writer.WriteStartObject("properties");
-				foreach (JsonSchemaProperty Property in Properties)
+				writer.WriteStartObject("properties");
+				foreach (JsonSchemaProperty property in Properties)
 				{
-					Property.Write(Writer);
+					property.Write(writer);
 				}
-				Writer.WriteEndObject();
+				writer.WriteEndObject();
 			}
 
 			if (AdditionalProperties == null)
 			{
-				Writer.WriteBoolean("additionalProperties", false);
+				writer.WriteBoolean("additionalProperties", false);
 			}
 			else
 			{
-				Writer.WriteStartObject("additionalProperties");
-				AdditionalProperties.Write(Writer);
-				Writer.WriteEndObject();
+				writer.WriteStartObject("additionalProperties");
+				AdditionalProperties.Write(writer);
+				writer.WriteEndObject();
 			}
 		}
 	}
@@ -304,16 +299,16 @@ namespace EpicGames.Core
 		public List<JsonSchemaType> Types { get; } = new List<JsonSchemaType>();
 
 		/// <inheritdoc/>
-		public override void Write(IJsonSchemaWriter Writer)
+		public override void Write(IJsonSchemaWriter writer)
 		{
-			Writer.WriteStartArray("oneOf");
-			foreach (JsonSchemaType Type in Types)
+			writer.WriteStartArray("oneOf");
+			foreach (JsonSchemaType type in Types)
 			{
-				Writer.WriteStartObject();
-				Type.Write(Writer);
-				Writer.WriteEndObject();
+				writer.WriteStartObject();
+				type.Write(writer);
+				writer.WriteEndObject();
 			}
-			Writer.WriteEndArray();
+			writer.WriteEndArray();
 		}
 	}
 }

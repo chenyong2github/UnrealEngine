@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -16,71 +13,71 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The base status message
 		/// </summary>
-		string Message;
+		string _message;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Message">The status message</param>
-		public LogStatusScope(string Message)
+		/// <param name="message">The status message</param>
+		public LogStatusScope(string message)
 		{
-			this.Message = Message;
-			Log.PushStatus(Message);
+			_message = message;
+			Log.PushStatus(message);
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Format">The format specifier for the message</param>
-		/// <param name="Args">Arguments for the status message</param>
-		public LogStatusScope(string Format, params object[] Args)
-			: this(String.Format(Format, Args))
+		/// <param name="format">The format specifier for the message</param>
+		/// <param name="args">Arguments for the status message</param>
+		public LogStatusScope(string format, params object[] args)
+			: this(String.Format(format, args))
 		{
 		}
 
 		/// <summary>
 		/// Updates the base status message passed into the constructor.
 		/// </summary>
-		/// <param name="Message">The status message</param>
-		public void SetMessage(string Message)
+		/// <param name="message">The status message</param>
+		public void SetMessage(string message)
 		{
-			this.Message = Message;
-			Log.UpdateStatus(Message);
+			_message = message;
+			Log.UpdateStatus(message);
 		}
 
 		/// <summary>
 		/// Updates the base status message passed into the constructor.
 		/// </summary>
-		/// <param name="Format">The format specifier for the message</param>
-		/// <param name="Args">Arguments for the status message</param>
-		public void SetMessage(string Format, params object[] Args)
+		/// <param name="format">The format specifier for the message</param>
+		/// <param name="args">Arguments for the status message</param>
+		public void SetMessage(string format, params object[] args)
 		{
-			SetMessage(String.Format(Format, Args));
+			SetMessage(String.Format(format, args));
 		}
 
 		/// <summary>
 		/// Appends a progress string to the status message. Overwrites any previous progress message.
 		/// </summary>
-		/// <param name="Progress">The progress message</param>
-		public void SetProgress(string Progress)
+		/// <param name="progress">The progress message</param>
+		public void SetProgress(string progress)
 		{
-			StringBuilder FullMessage = new StringBuilder(Message);
-			FullMessage.Append(' ');
-			FullMessage.Append(Progress);
-			Log.UpdateStatus(FullMessage.ToString());
+			StringBuilder fullMessage = new StringBuilder(_message);
+			fullMessage.Append(' ');
+			fullMessage.Append(progress);
+			Log.UpdateStatus(fullMessage.ToString());
 		}
 
 		/// <summary>
 		/// Appends a progress string to the status message. Overwrites any previous progress message.
 		/// </summary>
-		/// <param name="Format">The format specifier for the message</param>
-		/// <param name="Args">Arguments for the status message</param>
-		public void SetProgress(string Format, params object[] Args)
+		/// <param name="format">The format specifier for the message</param>
+		/// <param name="args">Arguments for the status message</param>
+		public void SetProgress(string format, params object[] args)
 		{
-			StringBuilder FullMessage = new StringBuilder(Message);
-			FullMessage.Append(' ');
-			FullMessage.AppendFormat(Format, Args);
-			Log.UpdateStatus(FullMessage.ToString());
+			StringBuilder fullMessage = new StringBuilder(_message);
+			fullMessage.Append(' ');
+			fullMessage.AppendFormat(format, args);
+			Log.UpdateStatus(fullMessage.ToString());
 		}
 
 		/// <summary>
@@ -88,10 +85,10 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Dispose()
 		{
-			if(Message != null)
+			if(_message != null)
 			{
 				Log.PopStatus();
-				Message = null!;
+				_message = null!;
 			}
 		}
 	}

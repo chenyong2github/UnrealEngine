@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -9,7 +8,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -39,213 +37,213 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Bytes">The hash data</param>
-		public ContentHash(byte[] Bytes)
+		/// <param name="bytes">The hash data</param>
+		public ContentHash(byte[] bytes)
 		{
-			this.Bytes = Bytes;
+			Bytes = bytes;
 		}
 
 		/// <summary>
 		/// Compares two content hashes for equality
 		/// </summary>
-		/// <param name="Other">The object to compare against</param>
+		/// <param name="other">The object to compare against</param>
 		/// <returns>True if the hashes are equal, false otherwise</returns>
-		public override bool Equals(object? Other)
+		public override bool Equals(object? other)
 		{
-			return Equals(Other as ContentHash);
+			return Equals(other as ContentHash);
 		}
 
 		/// <summary>
 		/// Compares two content hashes for equality
 		/// </summary>
-		/// <param name="Other">The hash to compare against</param>
+		/// <param name="other">The hash to compare against</param>
 		/// <returns>True if the hashes are equal, false otherwise</returns>
-		public bool Equals(ContentHash? Other)
+		public bool Equals(ContentHash? other)
 		{
-			if (ReferenceEquals(Other, null))
+			if (other is null)
 			{
 				return false;
 			}
 			else
 			{
-				return Bytes.SequenceEqual(Other.Bytes);
+				return Bytes.SequenceEqual(other.Bytes);
 			}
 		}
 
 		/// <summary>
 		/// Compares two content hash objects for equality
 		/// </summary>
-		/// <param name="A">The first hash to compare</param>
-		/// <param name="B">The second has to compare</param>
+		/// <param name="a">The first hash to compare</param>
+		/// <param name="b">The second has to compare</param>
 		/// <returns>True if the objects are equal, false otherwise</returns>
-		public static bool operator ==(ContentHash? A, ContentHash? B)
+		public static bool operator ==(ContentHash? a, ContentHash? b)
 		{
-			if (ReferenceEquals(A, null))
+			if (a is null)
 			{
-				return ReferenceEquals(B, null);
+				return b is null;
 			}
 			else
 			{
-				return A.Equals(B);
+				return a.Equals(b);
 			}
 		}
 
 		/// <summary>
 		/// Compares two content hash objects for inequality
 		/// </summary>
-		/// <param name="A">The first hash to compare</param>
-		/// <param name="B">The second has to compare</param>
+		/// <param name="a">The first hash to compare</param>
+		/// <param name="b">The second has to compare</param>
 		/// <returns>True if the objects are not equal, false otherwise</returns>
-		public static bool operator !=(ContentHash? A, ContentHash? B)
+		public static bool operator !=(ContentHash? a, ContentHash? b)
 		{
-			return !(A == B);
+			return !(a == b);
 		}
 
 		/// <summary>
 		/// Creates a content hash for a block of data, using a given algorithm.
 		/// </summary>
-		/// <param name="Data">Data to compute the hash for</param>
-		/// <param name="Algorithm">Algorithm to use to create the hash</param>
+		/// <param name="data">Data to compute the hash for</param>
+		/// <param name="algorithm">Algorithm to use to create the hash</param>
 		/// <returns>New content hash instance containing the hash of the data</returns>
-		public static ContentHash Compute(byte[] Data, HashAlgorithm Algorithm)
+		public static ContentHash Compute(byte[] data, HashAlgorithm algorithm)
 		{
-			return new ContentHash(Algorithm.ComputeHash(Data));
+			return new ContentHash(algorithm.ComputeHash(data));
 		}
 
 		/// <summary>
 		/// Creates a content hash for a string, using a given algorithm.
 		/// </summary>
-		/// <param name="Text">Text to compute a hash for</param>
-		/// <param name="Algorithm">Algorithm to use to create the hash</param>
+		/// <param name="text">Text to compute a hash for</param>
+		/// <param name="algorithm">Algorithm to use to create the hash</param>
 		/// <returns>New content hash instance containing the hash of the text</returns>
-		public static ContentHash Compute(string Text, HashAlgorithm Algorithm)
+		public static ContentHash Compute(string text, HashAlgorithm algorithm)
 		{
-			return new ContentHash(Algorithm.ComputeHash(Encoding.Unicode.GetBytes(Text)));
+			return new ContentHash(algorithm.ComputeHash(Encoding.Unicode.GetBytes(text)));
 		}
 
 		/// <summary>
 		/// Creates a content hash for a file, using a given algorithm.
 		/// </summary>
-		/// <param name="Location">File to compute a hash for</param>
-		/// <param name="Algorithm">Algorithm to use to create the hash</param>
+		/// <param name="location">File to compute a hash for</param>
+		/// <param name="algorithm">Algorithm to use to create the hash</param>
 		/// <returns>New content hash instance containing the hash of the file</returns>
-		public static ContentHash Compute(FileReference Location, HashAlgorithm Algorithm)
+		public static ContentHash Compute(FileReference location, HashAlgorithm algorithm)
 		{
-			using (FileStream Stream = FileReference.Open(Location, FileMode.Open, FileAccess.Read, FileShare.Read))
+			using (FileStream stream = FileReference.Open(location, FileMode.Open, FileAccess.Read, FileShare.Read))
 			{
-				return new ContentHash(Algorithm.ComputeHash(Stream));
+				return new ContentHash(algorithm.ComputeHash(stream));
 			}
 		}
 
 		/// <summary>
 		/// Creates a content hash for a block of data using MD5
 		/// </summary>
-		/// <param name="Data">Data to compute the hash for</param>
+		/// <param name="data">Data to compute the hash for</param>
 		/// <returns>New content hash instance containing the hash of the data</returns>
-		public static ContentHash MD5(byte[] Data)
+		public static ContentHash MD5(byte[] data)
 		{
-			using (MD5 Algorithm = System.Security.Cryptography.MD5.Create())
+			using (MD5 algorithm = System.Security.Cryptography.MD5.Create())
 			{
-				return Compute(Data, Algorithm);
+				return Compute(data, algorithm);
 			}
 		}
 
 		/// <summary>
 		/// Creates a content hash for a string using MD5.
 		/// </summary>
-		/// <param name="Text">Text to compute a hash for</param>
+		/// <param name="text">Text to compute a hash for</param>
 		/// <returns>New content hash instance containing the hash of the text</returns>
-		public static ContentHash MD5(string Text)
+		public static ContentHash MD5(string text)
 		{
-			using (MD5 Algorithm = System.Security.Cryptography.MD5.Create())
+			using (MD5 algorithm = System.Security.Cryptography.MD5.Create())
 			{
-				return Compute(Text, Algorithm);
+				return Compute(text, algorithm);
 			}
 		}
 
 		/// <summary>
 		/// Creates a content hash for a file, using a given algorithm.
 		/// </summary>
-		/// <param name="Location">File to compute a hash for</param>
+		/// <param name="location">File to compute a hash for</param>
 		/// <returns>New content hash instance containing the hash of the file</returns>
-		public static ContentHash MD5(FileReference Location)
+		public static ContentHash MD5(FileReference location)
 		{
-			using (MD5 Algorithm = System.Security.Cryptography.MD5.Create())
+			using (MD5 algorithm = System.Security.Cryptography.MD5.Create())
 			{
-				return Compute(Location, Algorithm);
+				return Compute(location, algorithm);
 			}
 		}
 
 		/// <summary>
 		/// Creates a content hash for a block of data using SHA1
 		/// </summary>
-		/// <param name="Data">Data to compute the hash for</param>
+		/// <param name="data">Data to compute the hash for</param>
 		/// <returns>New content hash instance containing the hash of the data</returns>
-		public static ContentHash SHA1(byte[] Data)
+		public static ContentHash SHA1(byte[] data)
 		{
-			using (SHA1 Algorithm = System.Security.Cryptography.SHA1.Create())
+			using (SHA1 algorithm = System.Security.Cryptography.SHA1.Create())
 			{
-				return Compute(Data, Algorithm);
+				return Compute(data, algorithm);
 			}
 		}
 
 		/// <summary>
 		/// Creates a content hash for a string using SHA1.
 		/// </summary>
-		/// <param name="Text">Text to compute a hash for</param>
+		/// <param name="text">Text to compute a hash for</param>
 		/// <returns>New content hash instance containing the hash of the text</returns>
-		public static ContentHash SHA1(string Text)
+		public static ContentHash SHA1(string text)
 		{
-			using (SHA1 Algorithm = System.Security.Cryptography.SHA1.Create())
+			using (SHA1 algorithm = System.Security.Cryptography.SHA1.Create())
 			{
-				return Compute(Text, Algorithm);
+				return Compute(text, algorithm);
 			}
 		}
 
 		/// <summary>
 		/// Creates a content hash for a file using SHA1.
 		/// </summary>
-		/// <param name="Location">File to compute a hash for</param>
+		/// <param name="location">File to compute a hash for</param>
 		/// <returns>New content hash instance containing the hash of the file</returns>
-		public static ContentHash SHA1(FileReference Location)
+		public static ContentHash SHA1(FileReference location)
 		{
-			using (SHA1 Algorithm = System.Security.Cryptography.SHA1.Create())
+			using (SHA1 algorithm = System.Security.Cryptography.SHA1.Create())
 			{
-				return Compute(Location, Algorithm);
+				return Compute(location, algorithm);
 			}
 		}
 
 		/// <summary>
 		/// Parse a hash from a string
 		/// </summary>
-		/// <param name="Text">Text to parse</param>
+		/// <param name="text">Text to parse</param>
 		/// <returns>Value of the hash</returns>
-		public static ContentHash Parse(string Text)
+		public static ContentHash Parse(string text)
 		{
-			ContentHash? Hash;
-			if (!TryParse(Text, out Hash))
+			ContentHash? hash;
+			if (!TryParse(text, out hash))
 			{
-				throw new ArgumentException(String.Format("'{0}' is not a valid content hash", Text));
+				throw new ArgumentException(String.Format("'{0}' is not a valid content hash", text));
 			}
-			return Hash;
+			return hash;
 		}
 
 		/// <summary>
 		/// Parse a hash from a string
 		/// </summary>
-		/// <param name="Text">Text to parse</param>
+		/// <param name="text">Text to parse</param>
 		/// <returns>Value of the hash</returns>
-		public static bool TryParse(string Text, [NotNullWhen(true)] out ContentHash? Hash)
+		public static bool TryParse(string text, [NotNullWhen(true)] out ContentHash? hash)
 		{
-			byte[]? Bytes;
-			if (StringUtils.TryParseHexString(Text, out Bytes))
+			byte[]? bytes;
+			if (StringUtils.TryParseHexString(text, out bytes))
 			{
-				Hash = new ContentHash(Bytes);
+				hash = new ContentHash(bytes);
 				return true;
 			}
 			else
 			{
-				Hash = null;
+				hash = null;
 				return false;
 			}
 		}
@@ -256,12 +254,12 @@ namespace EpicGames.Core
 		/// <returns>Integer value to use as a hash code</returns>
 		public override int GetHashCode()
 		{
-			int HashCode = Bytes[0];
-			for (int Idx = 1; Idx < Bytes.Length; Idx++)
+			int hashCode = Bytes[0];
+			for (int idx = 1; idx < Bytes.Length; idx++)
 			{
-				HashCode = (HashCode * 31) + Bytes[Idx];
+				hashCode = (hashCode * 31) + Bytes[idx];
 			}
-			return HashCode;
+			return hashCode;
 		}
 
 		/// <summary>
@@ -280,15 +278,15 @@ namespace EpicGames.Core
 	public class ContentHashJsonConverter : JsonConverter<ContentHash>
 	{
 		/// <inheritdoc/>
-		public override ContentHash Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+		public override ContentHash Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
-			return ContentHash.Parse(Reader.GetString());
+			return ContentHash.Parse(reader.GetString());
 		}
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, ContentHash Value, JsonSerializerOptions Options)
+		public override void Write(Utf8JsonWriter writer, ContentHash value, JsonSerializerOptions options)
 		{
-			Writer.WriteStringValue(Value.ToString());
+			writer.WriteStringValue(value.ToString());
 		}
 	}
 
@@ -300,35 +298,35 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Writes a ContentHash to a binary archive
 		/// </summary>
-		/// <param name="Writer">The writer to output data to</param>
-		/// <param name="Hash">The hash to write</param>
-		public static void WriteContentHash(this BinaryArchiveWriter Writer, ContentHash? Hash)
+		/// <param name="writer">The writer to output data to</param>
+		/// <param name="hash">The hash to write</param>
+		public static void WriteContentHash(this BinaryArchiveWriter writer, ContentHash? hash)
 		{
-			if (ReferenceEquals(Hash, null))
+			if (hash is null)
 			{
-				Writer.WriteByteArray(null);
+				writer.WriteByteArray(null);
 			}
 			else
 			{
-				Writer.WriteByteArray(Hash.Bytes);
+				writer.WriteByteArray(hash.Bytes);
 			}
 		}
 
 		/// <summary>
 		/// Reads a ContentHash from a binary archive
 		/// </summary>
-		/// <param name="Reader">Reader to serialize data from</param>
+		/// <param name="reader">Reader to serialize data from</param>
 		/// <returns>New hash instance</returns>
-		public static ContentHash? ReadContentHash(this BinaryArchiveReader Reader)
+		public static ContentHash? ReadContentHash(this BinaryArchiveReader reader)
 		{
-			byte[]? Data = Reader.ReadByteArray();
-			if (Data == null)
+			byte[]? data = reader.ReadByteArray();
+			if (data == null)
 			{
 				return null;
 			}
 			else
 			{
-				return new ContentHash(Data);
+				return new ContentHash(data);
 			}
 		}
 	}

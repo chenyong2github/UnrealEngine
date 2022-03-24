@@ -12,140 +12,140 @@ namespace EpicGames.Core
 		/// Read an objects from a binary reader
 		/// </summary>
 		/// <typeparam name="T">The element type for the array</typeparam>
-		/// <param name="Reader">Reader to read data from</param>
+		/// <param name="reader">Reader to read data from</param>
 		/// <returns>Object instance.</returns>
-		public static T ReadObject<T>(this BinaryReader Reader) where T : class, IBinarySerializable
+		public static T ReadObject<T>(this BinaryReader reader) where T : class, IBinarySerializable
 		{
-			return (T)Activator.CreateInstance(typeof(T), Reader)!;
+			return (T)Activator.CreateInstance(typeof(T), reader)!;
 		}
 
 		/// <summary>
 		/// Read an array of strings from a binary reader
 		/// </summary>
-		/// <param name="Reader">Reader to read data from</param>
+		/// <param name="reader">Reader to read data from</param>
 		/// <returns>Array of strings, as serialized. May be null.</returns>
-		public static string[]? ReadStringArray(this BinaryReader Reader)
+		public static string[]? ReadStringArray(this BinaryReader reader)
 		{
-			return Reader.ReadArray(() => Reader.ReadString());
+			return reader.ReadArray(() => reader.ReadString());
 		}
 
 		/// <summary>
 		/// Read an array of objects from a binary reader
 		/// </summary>
 		/// <typeparam name="T">The element type for the array</typeparam>
-		/// <param name="Reader">Reader to read data from</param>
+		/// <param name="reader">Reader to read data from</param>
 		/// <returns>Array of objects, as serialized. May be null.</returns>
-		public static T[]? ReadArray<T>(this BinaryReader Reader) where T : class, IBinarySerializable
+		public static T[]? ReadArray<T>(this BinaryReader reader) where T : class, IBinarySerializable
 		{
-			return ReadArray<T>(Reader, () => Reader.ReadObject<T>());
+			return ReadArray<T>(reader, () => reader.ReadObject<T>());
 		}
 
 		/// <summary>
 		/// Read an array of objects from a binary reader
 		/// </summary>
 		/// <typeparam name="T">The element type for the array</typeparam>
-		/// <param name="Reader">Reader to read data from</param>
-		/// <param name="ReadElement">Delegate to call to serialize each element</param>
+		/// <param name="reader">Reader to read data from</param>
+		/// <param name="readElement">Delegate to call to serialize each element</param>
 		/// <returns>Array of objects, as serialized. May be null.</returns>
-		public static T[]? ReadArray<T>(this BinaryReader Reader, Func<T> ReadElement)
+		public static T[]? ReadArray<T>(this BinaryReader reader, Func<T> readElement)
 		{
-			int NumItems = Reader.ReadInt32();
-			if (NumItems < 0)
+			int numItems = reader.ReadInt32();
+			if (numItems < 0)
 			{
 				return null;
 			}
 
-			T[] Items = new T[NumItems];
-			for (int Idx = 0; Idx < NumItems; Idx++)
+			T[] items = new T[numItems];
+			for (int idx = 0; idx < numItems; idx++)
 			{
-				Items[Idx] = ReadElement();
+				items[idx] = readElement();
 			}
-			return Items;
+			return items;
 		}
 
 		/// <summary>
 		/// Read a list of strings from a binary reader
 		/// </summary>
-		/// <param name="Reader">Reader to read data from</param>
+		/// <param name="reader">Reader to read data from</param>
 		/// <returns>Array of strings, as serialized. May be null.</returns>
-		public static List<string>? ReadStringList(this BinaryReader Reader)
+		public static List<string>? ReadStringList(this BinaryReader reader)
 		{
-			return Reader.ReadList(() => Reader.ReadString());
+			return reader.ReadList(() => reader.ReadString());
 		}
 
 		/// <summary>
 		/// Read a list of objects from a binary reader
 		/// </summary>
 		/// <typeparam name="T">The element type for the list</typeparam>
-		/// <param name="Reader">Reader to read data from</param>
+		/// <param name="reader">Reader to read data from</param>
 		/// <param name="ReadElement">Delegate to call to serialize each element</param>
 		/// <returns>List of objects, as serialized. May be null.</returns>
-		public static List<T>? ReadList<T>(this BinaryReader Reader) where T : class, IBinarySerializable
+		public static List<T>? ReadList<T>(this BinaryReader reader) where T : class, IBinarySerializable
 		{
-			return ReadList<T>(Reader, () => Reader.ReadObject<T>());
+			return ReadList<T>(reader, () => reader.ReadObject<T>());
 		}
 
 		/// <summary>
 		/// Read a list of objects from a binary reader
 		/// </summary>
 		/// <typeparam name="T">The element type for the list</typeparam>
-		/// <param name="Reader">Reader to read data from</param>
-		/// <param name="ReadElement">Delegate to call to serialize each element</param>
+		/// <param name="reader">Reader to read data from</param>
+		/// <param name="readElement">Delegate to call to serialize each element</param>
 		/// <returns>List of objects, as serialized. May be null.</returns>
-		public static List<T>? ReadList<T>(this BinaryReader Reader, Func<T> ReadElement)
+		public static List<T>? ReadList<T>(this BinaryReader reader, Func<T> readElement)
 		{
-			int NumItems = Reader.ReadInt32();
-			if (NumItems < 0)
+			int numItems = reader.ReadInt32();
+			if (numItems < 0)
 			{
 				return null;
 			}
 
-			List<T> Items = new List<T>(NumItems);
-			for (int Idx = 0; Idx < NumItems; Idx++)
+			List<T> items = new List<T>(numItems);
+			for (int idx = 0; idx < numItems; idx++)
 			{
-				Items.Add(ReadElement());
+				items.Add(readElement());
 			}
-			return Items;
+			return items;
 		}
 
 		/// <summary>
 		/// Read a list of objects from a binary reader
 		/// </summary>
 		/// <typeparam name="T">The element type for the list</typeparam>
-		/// <param name="Reader">Reader to read data from</param>
-		/// <param name="ReadKey">Delegate to call to serialize each key</param>
-		/// <param name="ReadValue">Delegate to call to serialize each value</param>
+		/// <param name="reader">Reader to read data from</param>
+		/// <param name="readKey">Delegate to call to serialize each key</param>
+		/// <param name="readValue">Delegate to call to serialize each value</param>
 		/// <returns>List of objects, as serialized. May be null.</returns>
-		public static Dictionary<K, V>? ReadDictionary<K, V>(this BinaryReader Reader, Func<K> ReadKey, Func<V> ReadValue) where K : notnull
+		public static Dictionary<TK, TV>? ReadDictionary<TK, TV>(this BinaryReader reader, Func<TK> readKey, Func<TV> readValue) where TK : notnull
 		{
-			int NumItems = Reader.ReadInt32();
-			if (NumItems < 0)
+			int numItems = reader.ReadInt32();
+			if (numItems < 0)
 			{
 				return null;
 			}
 
-			Dictionary<K, V> Items = new Dictionary<K, V>(NumItems);
-			for (int Idx = 0; Idx < NumItems; Idx++)
+			Dictionary<TK, TV> items = new Dictionary<TK, TV>(numItems);
+			for (int idx = 0; idx < numItems; idx++)
 			{
-				K Key = ReadKey();
-				V Value = ReadValue();
-				Items.Add(Key, Value);
+				TK key = readKey();
+				TV value = readValue();
+				items.Add(key, value);
 			}
-			return Items;
+			return items;
 		}
 
 		/// <summary>
 		/// Read a nullable object from a binary reader
 		/// </summary>
 		/// <typeparam name="T">Type of the object</typeparam>
-		/// <param name="Reader">Reader to read data from</param>
-		/// <param name="ReadItem">Function to read the payload, if non-null</param>
+		/// <param name="reader">Reader to read data from</param>
+		/// <param name="readItem">Function to read the payload, if non-null</param>
 		/// <returns>Object instance or null</returns>
-		public static T? ReadNullable<T>(this BinaryReader Reader, Func<T> ReadItem) where T : class
+		public static T? ReadNullable<T>(this BinaryReader reader, Func<T> readItem) where T : class
 		{
-			if (Reader.ReadBoolean())
+			if (reader.ReadBoolean())
 			{
-				return ReadItem();
+				return readItem();
 			}
 			else
 			{
@@ -156,51 +156,51 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Reads a value of a specific type from a binary reader
 		/// </summary>
-		/// <param name="Reader">Reader for input data</param>
-		/// <param name="ObjectType">Type of value to read</param>
+		/// <param name="reader">Reader for input data</param>
+		/// <param name="objectType">Type of value to read</param>
 		/// <returns>The value read from the stream</returns>
-		public static object? ReadObject(this BinaryReader Reader, Type ObjectType)
+		public static object? ReadObject(this BinaryReader reader, Type objectType)
 		{
-			if (ObjectType == typeof(string))
+			if (objectType == typeof(string))
 			{
-				return Reader.ReadString();
+				return reader.ReadString();
 			}
-			else if (ObjectType == typeof(bool))
+			else if (objectType == typeof(bool))
 			{
-				return Reader.ReadBoolean();
+				return reader.ReadBoolean();
 			}
-			else if (ObjectType == typeof(int))
+			else if (objectType == typeof(int))
 			{
-				return Reader.ReadInt32();
+				return reader.ReadInt32();
 			}
-			else if (ObjectType == typeof(float))
+			else if (objectType == typeof(float))
 			{
-				return Reader.ReadSingle();
+				return reader.ReadSingle();
 			}
-			else if (ObjectType == typeof(double))
+			else if (objectType == typeof(double))
 			{
-				return Reader.ReadDouble();
+				return reader.ReadDouble();
 			}
-			else if (ObjectType == typeof(string[]))
+			else if (objectType == typeof(string[]))
 			{
-				return Reader.ReadStringArray();
+				return reader.ReadStringArray();
 			}
-			else if (ObjectType == typeof(bool?))
+			else if (objectType == typeof(bool?))
 			{
-				int Value = Reader.ReadInt32();
-				return (Value == -1) ? (bool?)null : (Value == 0) ? (bool?)false : (bool?)true;
+				int value = reader.ReadInt32();
+				return (value == -1) ? (bool?)null : (value == 0) ? (bool?)false : (bool?)true;
 			}
-			else if (ObjectType == typeof(FileReference))
+			else if (objectType == typeof(FileReference))
 			{
-				return Reader.ReadFileReference();
+				return reader.ReadFileReference();
 			}
-			else if (ObjectType.IsEnum)
+			else if (objectType.IsEnum)
 			{
-				return Enum.ToObject(ObjectType, Reader.ReadInt32());
+				return Enum.ToObject(objectType, reader.ReadInt32());
 			}
 			else
 			{
-				throw new Exception(String.Format("Reading binary objects of type '{0}' is not currently supported.", ObjectType.Name));
+				throw new Exception(String.Format("Reading binary objects of type '{0}' is not currently supported.", objectType.Name));
 			}
 		}
 	}

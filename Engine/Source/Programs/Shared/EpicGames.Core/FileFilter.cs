@@ -2,11 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace EpicGames.Core
 {
@@ -36,123 +33,123 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Root node for the tree.
 		/// </summary>
-		FileFilterNode RootNode;
+		readonly FileFilterNode _rootNode;
 
 		/// <summary>
 		/// The default node, which will match any path
 		/// </summary>
-		FileFilterNode DefaultNode;
+		readonly FileFilterNode _defaultNode;
 
 		/// <summary>
 		/// Terminating nodes for each rule added to the filter
 		/// </summary>
-		List<FileFilterNode> Rules = new List<FileFilterNode>();
+		readonly List<FileFilterNode> _rules = new List<FileFilterNode>();
 
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		public FileFilter(FileFilterType DefaultType = FileFilterType.Exclude)
+		public FileFilter(FileFilterType defaultType = FileFilterType.Exclude)
 		{
-			RootNode = new FileFilterNode(null, "");
+			_rootNode = new FileFilterNode(null, "");
 
-			DefaultNode = new FileFilterNode(RootNode, "...");
-			DefaultNode.Type = DefaultType;
+			_defaultNode = new FileFilterNode(_rootNode, "...");
+			_defaultNode.Type = defaultType;
 		}
 
 		/// <summary>
 		/// Copy constructor
 		/// </summary>
-		/// <param name="Other">Filter to copy from</param>
-		public FileFilter(FileFilter Other)
-			: this(Other.DefaultNode.Type)
+		/// <param name="other">Filter to copy from</param>
+		public FileFilter(FileFilter other)
+			: this(other._defaultNode.Type)
 		{
-			foreach (FileFilterNode OtherRule in Other.Rules)
+			foreach (FileFilterNode otherRule in other._rules)
 			{
-				AddRule(OtherRule.ToString(), OtherRule.Type);
+				AddRule(otherRule.ToString(), otherRule.Type);
 			}
 		}
 
 		/// <summary>
 		/// Constructs a file filter from a p4-style filespec. Exclude lines are prefixed with a - character.
 		/// </summary>
-		/// <param name="Lines">Lines to parse rules from</param>
-		public FileFilter(IEnumerable<string> Lines)
+		/// <param name="lines">Lines to parse rules from</param>
+		public FileFilter(IEnumerable<string> lines)
 			: this()
 		{
-			foreach (string Line in Lines)
+			foreach (string line in lines)
 			{
-				AddRule(Line);
+				AddRule(line);
 			}
 		}
 
 		/// <summary>
 		/// Adds an include or exclude rule to the filter
 		/// </summary>
-		/// <param name="Rule">Pattern to match. See CreateRegex() for details.</param>
-		public void AddRule(string Rule)
+		/// <param name="rule">Pattern to match. See CreateRegex() for details.</param>
+		public void AddRule(string rule)
 		{
-			if (Rule.StartsWith("-"))
+			if (rule.StartsWith("-"))
 			{
-				Exclude(Rule.Substring(1).TrimStart());
+				Exclude(rule.Substring(1).TrimStart());
 			}
 			else
 			{
-				Include(Rule);
+				Include(rule);
 			}
 		}
 
 		/// <summary>
 		/// Adds an include or exclude rule to the filter. The rule may be 
 		/// </summary>
-		/// <param name="Rule">Pattern to match. See CreateRegex() for details.</param>
-		/// <param name="AllowTags">If the rule starts with a list of tags {a,b,c}, specifies a list of tags to match against</param>
-		public void AddRule(string Rule, params string[] AllowTags)
+		/// <param name="rule">Pattern to match. See CreateRegex() for details.</param>
+		/// <param name="allowTags">If the rule starts with a list of tags {a,b,c}, specifies a list of tags to match against</param>
+		public void AddRule(string rule, params string[] allowTags)
 		{
-			string CleanRule = Rule.Trim();
-			if(CleanRule.StartsWith("{"))
+			string cleanRule = rule.Trim();
+			if(cleanRule.StartsWith("{"))
 			{
 				// Find the end of the condition
-				int ConditionEnd = CleanRule.IndexOf('}');
-				if(ConditionEnd == -1)
+				int conditionEnd = cleanRule.IndexOf('}');
+				if(conditionEnd == -1)
 				{
-					throw new Exception(String.Format("Missing closing parenthesis in rule: {0}", CleanRule));
+					throw new Exception(String.Format("Missing closing parenthesis in rule: {0}", cleanRule));
 				}
 
 				// Check there's a matching tag
-				string[] RuleTags = CleanRule.Substring(1, ConditionEnd - 1).Split(',').Select(x => x.Trim()).ToArray();
-				if(!RuleTags.Any(x => AllowTags.Contains(x)))
+				string[] ruleTags = cleanRule.Substring(1, conditionEnd - 1).Split(',').Select(x => x.Trim()).ToArray();
+				if(!ruleTags.Any(x => allowTags.Contains(x)))
 				{
 					return;
 				}
 
 				// Strip the condition from the rule
-				CleanRule = CleanRule.Substring(ConditionEnd + 1).TrimStart(); 
+				cleanRule = cleanRule.Substring(conditionEnd + 1).TrimStart(); 
 			}
-			AddRule(CleanRule);
+			AddRule(cleanRule);
 		}
 
 		/// <summary>
 		/// Adds several rules to the filter
 		/// </summary>
-		/// <param name="Rules">List of patterns to match.</param>
-		public void AddRules(IEnumerable<string> Rules)
+		/// <param name="rules">List of patterns to match.</param>
+		public void AddRules(IEnumerable<string> rules)
 		{
-			foreach(string Rule in Rules)
+			foreach(string rule in rules)
 			{
-				AddRule(Rule);
+				AddRule(rule);
 			}
 		}
 
 		/// <summary>
 		/// Adds several rules to the filter
 		/// </summary>
-		/// <param name="Rules">List of patterns to match.</param>
-		/// <param name="Type">Whether the rules are include or exclude rules</param>
-		public void AddRules(IEnumerable<string> Rules, FileFilterType Type)
+		/// <param name="rules">List of patterns to match.</param>
+		/// <param name="type">Whether the rules are include or exclude rules</param>
+		public void AddRules(IEnumerable<string> rules, FileFilterType type)
 		{
-			foreach(string Rule in Rules)
+			foreach(string rule in rules)
 			{
-				AddRule(Rule, Type);
+				AddRule(rule, type);
 			}
 		}
 
@@ -160,62 +157,62 @@ namespace EpicGames.Core
 		/// Adds several rules in the given lines. Rules may be prefixed with conditions of the syntax {Key=Value, Key2=Value2}, which
 		/// will be evaluated using variables in the given dictionary before being added.
 		/// </summary>
-		/// <param name="Rules"></param>
-		/// <param name="Tags">Lookup for variables to test against</param>
-		public void AddRules(IEnumerable<string> Rules, params string[] Tags)
+		/// <param name="rules"></param>
+		/// <param name="tags">Lookup for variables to test against</param>
+		public void AddRules(IEnumerable<string> rules, params string[] tags)
 		{
-			foreach(string Rule in Rules)
+			foreach(string rule in rules)
 			{
-				AddRule(Rule, Tags);
+				AddRule(rule, tags);
 			}
 		}
 
 		/// <summary>
 		/// Adds a rule which matches a filename relative to a given base directory.
 		/// </summary>
-		/// <param name="File">The filename to add a rule for</param>
-		/// <param name="BaseDirectory">Base directory for the rule</param>
-		/// <param name="Type">Whether to add an include or exclude rule</param>
-		public void AddRuleForFile(FileReference File, DirectoryReference BaseDirectory, FileFilterType Type)
+		/// <param name="file">The filename to add a rule for</param>
+		/// <param name="baseDirectory">Base directory for the rule</param>
+		/// <param name="type">Whether to add an include or exclude rule</param>
+		public void AddRuleForFile(FileReference file, DirectoryReference baseDirectory, FileFilterType type)
 		{
-			AddRule("/" + File.MakeRelativeTo(BaseDirectory), Type);
+			AddRule("/" + file.MakeRelativeTo(baseDirectory), type);
 		}
 
 		/// <summary>
 		/// Adds rules for files which match the given names
 		/// </summary>
-		/// <param name="Files">The filenames to rules for</param>
-		/// <param name="BaseDirectory">Base directory for the rules</param>
-		/// <param name="Type">Whether to add an include or exclude rule</param>
-		public void AddRuleForFiles(IEnumerable<FileReference> Files, DirectoryReference BaseDirectory, FileFilterType Type)
+		/// <param name="files">The filenames to rules for</param>
+		/// <param name="baseDirectory">Base directory for the rules</param>
+		/// <param name="type">Whether to add an include or exclude rule</param>
+		public void AddRuleForFiles(IEnumerable<FileReference> files, DirectoryReference baseDirectory, FileFilterType type)
 		{
-			foreach (FileReference File in Files)
+			foreach (FileReference file in files)
 			{
-				AddRuleForFile(File, BaseDirectory, Type);
+				AddRuleForFile(file, baseDirectory, type);
 			}
 		}
 
 		/// <summary>
 		/// Reads a configuration file split into sections
 		/// </summary>
-		/// <param name="FileName"></param>
-		/// <param name="SectionName"></param>
-		/// <param name="AllowTags"></param>
-		public void ReadRulesFromFile(FileReference FileName, string SectionName, params string[] AllowTags)
+		/// <param name="fileName"></param>
+		/// <param name="sectionName"></param>
+		/// <param name="allowTags"></param>
+		public void ReadRulesFromFile(FileReference fileName, string sectionName, params string[] allowTags)
 		{
 			bool bInSection = false;
-			foreach(string Line in File.ReadAllLines(FileName.FullName))
+			foreach(string line in File.ReadAllLines(fileName.FullName))
 			{
-				string TrimLine = Line.Trim();
-				if(!TrimLine.StartsWith(";") && TrimLine.Length > 0)
+				string trimLine = line.Trim();
+				if(!trimLine.StartsWith(";") && trimLine.Length > 0)
 				{
-					if(TrimLine.StartsWith("["))
+					if(trimLine.StartsWith("["))
 					{
-						bInSection = (TrimLine == "[" + SectionName + "]");
+						bInSection = (trimLine == "[" + sectionName + "]");
 					}
 					else if(bInSection)
 					{
-						AddRule(Line, AllowTags);
+						AddRule(line, allowTags);
 					}
 				}
 			}
@@ -224,120 +221,120 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Adds an include rule to the filter
 		/// </summary>
-		/// <param name="Pattern">Pattern to match. See CreateRegex() for details.</param>
-		public void Include(string Pattern)
+		/// <param name="pattern">Pattern to match. See CreateRegex() for details.</param>
+		public void Include(string pattern)
 		{
-			AddRule(Pattern, FileFilterType.Include);
+			AddRule(pattern, FileFilterType.Include);
 		}
 
 		/// <summary>
 		/// Adds several exclude rules to the filter
 		/// </summary>
-		/// <param name="Patterns">Patterns to match. See CreateRegex() for details.</param>
-		public void Include(IEnumerable<string> Patterns)
+		/// <param name="patterns">Patterns to match. See CreateRegex() for details.</param>
+		public void Include(IEnumerable<string> patterns)
 		{
-			foreach (string Pattern in Patterns)
+			foreach (string pattern in patterns)
 			{
-				Include(Pattern);
+				Include(pattern);
 			}
 		}
 
 		/// <summary>
 		/// Adds an exclude rule to the filter
 		/// </summary>
-		/// <param name="Pattern">Mask to match. See CreateRegex() for details.</param>
-		public void Exclude(string Pattern)
+		/// <param name="pattern">Mask to match. See CreateRegex() for details.</param>
+		public void Exclude(string pattern)
 		{
-			AddRule(Pattern, FileFilterType.Exclude);
+			AddRule(pattern, FileFilterType.Exclude);
 		}
 
 		/// <summary>
 		/// Adds several exclude rules to the filter
 		/// </summary>
-		/// <param name="Patterns">Patterns to match. See CreateRegex() for details.</param>
-		public void Exclude(IEnumerable<string> Patterns)
+		/// <param name="patterns">Patterns to match. See CreateRegex() for details.</param>
+		public void Exclude(IEnumerable<string> patterns)
 		{
-			foreach (string Pattern in Patterns)
+			foreach (string pattern in patterns)
 			{
-				Exclude(Pattern);
+				Exclude(pattern);
 			}
 		}
 
 		/// <summary>
 		/// Adds an include or exclude rule to the filter
 		/// </summary>
-		/// <param name="Pattern">The pattern which the rule should match</param>
-		/// <param name="Type">Whether to include or exclude files matching this rule</param>
-		public void AddRule(string Pattern, FileFilterType Type)
+		/// <param name="pattern">The pattern which the rule should match</param>
+		/// <param name="type">Whether to include or exclude files matching this rule</param>
+		public void AddRule(string pattern, FileFilterType type)
 		{
-			string NormalizedPattern = Pattern.Replace('\\', '/');
+			string normalizedPattern = pattern.Replace('\\', '/');
 
 			// Remove the slash from the start of the pattern. Any exclude pattern that doesn't contain a directory separator is assumed to apply to any directory (eg. *.cpp), otherwise it's 
 			// taken relative to the root.
-			if (NormalizedPattern.StartsWith("/"))
+			if (normalizedPattern.StartsWith("/"))
 			{
-				NormalizedPattern = NormalizedPattern.Substring(1);
+				normalizedPattern = normalizedPattern.Substring(1);
 			}
-			else if(!NormalizedPattern.Contains("/") && !NormalizedPattern.StartsWith("..."))
+			else if(!normalizedPattern.Contains("/") && !normalizedPattern.StartsWith("..."))
 			{
-				NormalizedPattern = ".../" + NormalizedPattern;
+				normalizedPattern = ".../" + normalizedPattern;
 			}
 
 			// All directories indicate a wildcard match
-			if (NormalizedPattern.EndsWith("/"))
+			if (normalizedPattern.EndsWith("/"))
 			{
-				NormalizedPattern += "...";
+				normalizedPattern += "...";
 			}
 
 			// Replace any directory wildcards mid-string
-			for (int Idx = NormalizedPattern.IndexOf("..."); Idx != -1; Idx = NormalizedPattern.IndexOf("...", Idx))
+			for (int idx = normalizedPattern.IndexOf("..."); idx != -1; idx = normalizedPattern.IndexOf("...", idx))
 			{
-				if (Idx > 0 && NormalizedPattern[Idx - 1] != '/')
+				if (idx > 0 && normalizedPattern[idx - 1] != '/')
 				{
-					NormalizedPattern = NormalizedPattern.Insert(Idx, "*/");
-					Idx++;
+					normalizedPattern = normalizedPattern.Insert(idx, "*/");
+					idx++;
 				}
 
-				Idx += 3;
+				idx += 3;
 
-				if (Idx < NormalizedPattern.Length && NormalizedPattern[Idx] != '/')
+				if (idx < normalizedPattern.Length && normalizedPattern[idx] != '/')
 				{
-					NormalizedPattern = NormalizedPattern.Insert(Idx, "/*");
-					Idx += 2;
+					normalizedPattern = normalizedPattern.Insert(idx, "/*");
+					idx += 2;
 				}
 			}
 
 			// Split the pattern into fragments
-			string[] BranchPatterns = NormalizedPattern.Split('/');
+			string[] branchPatterns = normalizedPattern.Split('/');
 
 			// Add it into the tree
-			FileFilterNode LastNode = RootNode;
-			foreach (string BranchPattern in BranchPatterns)
+			FileFilterNode lastNode = _rootNode;
+			foreach (string branchPattern in branchPatterns)
 			{
-				FileFilterNode NextNode = LastNode.Branches.FirstOrDefault(x => x.Pattern == BranchPattern);
-				if (NextNode == null)
+				FileFilterNode nextNode = lastNode.Branches.FirstOrDefault(x => x.Pattern == branchPattern);
+				if (nextNode == null)
 				{
-					NextNode = new FileFilterNode(LastNode, BranchPattern);
-					LastNode.Branches.Add(NextNode);
+					nextNode = new FileFilterNode(lastNode, branchPattern);
+					lastNode.Branches.Add(nextNode);
 				}
-				LastNode = NextNode;
+				lastNode = nextNode;
 			}
 
 			// We've reached the end of the pattern, so mark it as a leaf node
-			Rules.Add(LastNode);
-			LastNode.RuleNumber = Rules.Count - 1;
-			LastNode.Type = Type;
+			_rules.Add(lastNode);
+			lastNode.RuleNumber = _rules.Count - 1;
+			lastNode.Type = type;
 
 			// Update the maximums along that path
-			for (FileFilterNode? UpdateNode = LastNode; UpdateNode != null; UpdateNode = UpdateNode.Parent)
+			for (FileFilterNode? updateNode = lastNode; updateNode != null; updateNode = updateNode.Parent)
 			{
-				if (Type == FileFilterType.Include)
+				if (type == FileFilterType.Include)
 				{
-					UpdateNode.MaxIncludeRuleNumber = LastNode.RuleNumber;
+					updateNode.MaxIncludeRuleNumber = lastNode.RuleNumber;
 				}
 				else
 				{
-					UpdateNode.MaxExcludeRuleNumber = LastNode.RuleNumber;
+					updateNode.MaxExcludeRuleNumber = lastNode.RuleNumber;
 				}
 			}
 		}
@@ -345,158 +342,158 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Determines whether the given file matches the filter
 		/// </summary>
-		/// <param name="FileName">File to match</param>
+		/// <param name="fileName">File to match</param>
 		/// <returns>True if the file passes the filter</returns>
-		public bool Matches(string FileName)
+		public bool Matches(string fileName)
 		{
-			string[] Tokens = FileName.TrimStart('/', '\\').Split('/', '\\');
+			string[] tokens = fileName.TrimStart('/', '\\').Split('/', '\\');
 
-			FileFilterNode MatchingNode = FindMatchingNode(RootNode, Tokens, 0, DefaultNode);
+			FileFilterNode matchingNode = FindMatchingNode(_rootNode, tokens, 0, _defaultNode);
 
-			return MatchingNode.Type == FileFilterType.Include;
+			return matchingNode.Type == FileFilterType.Include;
 		}
 
 		/// <summary>
 		/// Determines whether it's possible for anything within the given folder name to match the filter. Useful to early out of recursive file searches.
 		/// </summary>
-		/// <param name="FolderName">File to match</param>
+		/// <param name="folderName">File to match</param>
 		/// <returns>True if the file passes the filter</returns>
-		public bool PossiblyMatches(string FolderName)
+		public bool PossiblyMatches(string folderName)
 		{
-			string[] Tokens = FolderName.Trim('/', '\\').Split('/', '\\');
+			string[] tokens = folderName.Trim('/', '\\').Split('/', '\\');
 
-			FileFilterNode MatchingNode = FindMatchingNode(RootNode, Tokens.Union(new string[]{ "" }).ToArray(), 0, DefaultNode);
+			FileFilterNode matchingNode = FindMatchingNode(_rootNode, tokens.Union(new string[]{ "" }).ToArray(), 0, _defaultNode);
 
-			return MatchingNode.Type == FileFilterType.Include || HighestPossibleIncludeMatch(RootNode, Tokens, 0, MatchingNode.RuleNumber) > MatchingNode.RuleNumber;
+			return matchingNode.Type == FileFilterType.Include || HighestPossibleIncludeMatch(_rootNode, tokens, 0, matchingNode.RuleNumber) > matchingNode.RuleNumber;
 		}
 
 		/// <summary>
 		/// Applies the filter to each element in a sequence, and returns the list of files that match
 		/// </summary>
-		/// <param name="FileNames">List of filenames</param>
+		/// <param name="fileNames">List of filenames</param>
 		/// <returns>List of filenames which match the filter</returns>
-		public IEnumerable<string> ApplyTo(IEnumerable<string> FileNames)
+		public IEnumerable<string> ApplyTo(IEnumerable<string> fileNames)
 		{
-			return FileNames.Where(x => Matches(x));
+			return fileNames.Where(x => Matches(x));
 		}
 
 		/// <summary>
 		/// Applies the filter to each element in a sequence, and returns the list of files that match
 		/// </summary>
-		/// <param name="BaseDirectory">The base directory to match files against</param>
-		/// <param name="FileNames">List of filenames</param>
+		/// <param name="baseDirectory">The base directory to match files against</param>
+		/// <param name="fileNames">List of filenames</param>
 		/// <returns>List of filenames which match the filter</returns>
-		public IEnumerable<FileReference> ApplyTo(DirectoryReference BaseDirectory, IEnumerable<FileReference> FileNames)
+		public IEnumerable<FileReference> ApplyTo(DirectoryReference baseDirectory, IEnumerable<FileReference> fileNames)
 		{
-			return FileNames.Where(x => Matches(x.MakeRelativeTo(BaseDirectory)));
+			return fileNames.Where(x => Matches(x.MakeRelativeTo(baseDirectory)));
 		}
 
 		/// <summary>
 		/// Finds a list of files within a given directory which match the filter.
 		/// </summary>
-		/// <param name="DirectoryName">File to match</param>
+		/// <param name="directoryName">File to match</param>
 		/// <param name="bIgnoreSymlinks">Whether to ignore symlinks in the output</param>
 		/// <returns>List of files that pass the filter</returns>
-		public List<FileReference> ApplyToDirectory(DirectoryReference DirectoryName, bool bIgnoreSymlinks)
+		public List<FileReference> ApplyToDirectory(DirectoryReference directoryName, bool bIgnoreSymlinks)
 		{
-			List<FileReference> MatchingFileNames = new List<FileReference>();
-			if (DirectoryReference.Exists(DirectoryName))
+			List<FileReference> matchingFileNames = new List<FileReference>();
+			if (DirectoryReference.Exists(directoryName))
 			{
-				FindMatchesFromDirectory(new DirectoryInfo(DirectoryName.FullName), "", bIgnoreSymlinks, MatchingFileNames);
+				FindMatchesFromDirectory(new DirectoryInfo(directoryName.FullName), "", bIgnoreSymlinks, matchingFileNames);
 			}
-			return MatchingFileNames;
+			return matchingFileNames;
 		}
 
 		/// <summary>
 		/// Finds a list of files within a given directory which match the filter.
 		/// </summary>
-		/// <param name="DirectoryName">File to match</param>
-		/// <param name="PrefixPath"></param>
+		/// <param name="directoryName">File to match</param>
+		/// <param name="prefixPath"></param>
 		/// <param name="bIgnoreSymlinks">Whether to ignore symlinks in the output</param>
 		/// <returns>List of files that pass the filter</returns>
-		public List<FileReference> ApplyToDirectory(DirectoryReference DirectoryName, string PrefixPath, bool bIgnoreSymlinks)
+		public List<FileReference> ApplyToDirectory(DirectoryReference directoryName, string prefixPath, bool bIgnoreSymlinks)
 		{
-			List<FileReference> MatchingFileNames = new List<FileReference>();
-			if (DirectoryReference.Exists(DirectoryName))
+			List<FileReference> matchingFileNames = new List<FileReference>();
+			if (DirectoryReference.Exists(directoryName))
 			{
-				FindMatchesFromDirectory(new DirectoryInfo(DirectoryName.FullName), PrefixPath.Replace('\\', '/').TrimEnd('/') + "/", bIgnoreSymlinks, MatchingFileNames);
+				FindMatchesFromDirectory(new DirectoryInfo(directoryName.FullName), prefixPath.Replace('\\', '/').TrimEnd('/') + "/", bIgnoreSymlinks, matchingFileNames);
 			}
-			return MatchingFileNames;
+			return matchingFileNames;
 		}
 
 		/// <summary>
 		/// Checks whether the given pattern contains a supported wildcard. Useful for distinguishing explicit file references from opportunistic file references.
 		/// </summary>
-		/// <param name="Pattern">The pattern to check</param>
+		/// <param name="pattern">The pattern to check</param>
 		/// <returns>True if the pattern contains a wildcard (?, *, ...), false otherwise.</returns>
-		public static int FindWildcardIndex(string Pattern)
+		public static int FindWildcardIndex(string pattern)
 		{
-			int Result = -1;
-			for(int Idx = 0; Idx < Pattern.Length; Idx++)
+			int result = -1;
+			for(int idx = 0; idx < pattern.Length; idx++)
 			{
-				if(Pattern[Idx] == '?' || Pattern[Idx] == '*' || (Pattern[Idx] == '.' && Idx + 2 < Pattern.Length && Pattern[Idx + 1] == '.' && Pattern[Idx + 2] == '.'))
+				if(pattern[idx] == '?' || pattern[idx] == '*' || (pattern[idx] == '.' && idx + 2 < pattern.Length && pattern[idx + 1] == '.' && pattern[idx + 2] == '.'))
 				{
-					Result = Idx;
+					result = idx;
 					break;
 				}
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
 		/// Resolve an individual wildcard to a set of files
 		/// </summary>
-		/// <param name="Pattern">The pattern to resolve</param>
+		/// <param name="pattern">The pattern to resolve</param>
 		/// <returns>List of files matching the wildcard</returns>
-		public static List<FileReference> ResolveWildcard(string Pattern)
+		public static List<FileReference> ResolveWildcard(string pattern)
 		{
-			for(int Idx = FindWildcardIndex(Pattern); Idx > 0; Idx--)
+			for(int idx = FindWildcardIndex(pattern); idx > 0; idx--)
 			{
-				if(Pattern[Idx] == '/' || Pattern[Idx] == '\\')
+				if(pattern[idx] == '/' || pattern[idx] == '\\')
 				{
-					return ResolveWildcard(new DirectoryReference(Pattern.Substring(0, Idx)), Pattern.Substring(Idx + 1));
+					return ResolveWildcard(new DirectoryReference(pattern.Substring(0, idx)), pattern.Substring(idx + 1));
 				}
 			}
-			return ResolveWildcard(DirectoryReference.GetCurrentDirectory(), Pattern);
+			return ResolveWildcard(DirectoryReference.GetCurrentDirectory(), pattern);
 		}
 
 		/// <summary>
 		/// Resolve an individual wildcard to a set of files
 		/// </summary>
-		/// <param name="BaseDir">Base directory for wildcards</param>
-		/// <param name="Pattern">The pattern to resolve</param>
+		/// <param name="baseDir">Base directory for wildcards</param>
+		/// <param name="pattern">The pattern to resolve</param>
 		/// <returns>List of files matching the wildcard</returns>
-		public static List<FileReference> ResolveWildcard(DirectoryReference BaseDir, string Pattern)
+		public static List<FileReference> ResolveWildcard(DirectoryReference baseDir, string pattern)
 		{
-			FileFilter Filter = new FileFilter(FileFilterType.Exclude);
-			Filter.AddRule(Pattern);
-			return Filter.ApplyToDirectory(BaseDir, true);
+			FileFilter filter = new FileFilter(FileFilterType.Exclude);
+			filter.AddRule(pattern);
+			return filter.ApplyToDirectory(baseDir, true);
 		}
 
 		/// <summary>
 		/// Finds a list of files within a given directory which match the filter.
 		/// </summary>
-		/// <param name="CurrentDirectory">The current directory</param>
-		/// <param name="NamePrefix">Current relative path prefix in the traversed directory tree</param>
+		/// <param name="currentDirectory">The current directory</param>
+		/// <param name="namePrefix">Current relative path prefix in the traversed directory tree</param>
 		/// <param name="bIgnoreSymlinks">Whether to ignore symlinks in the output</param>
-		/// <param name="MatchingFileNames">Receives a list of matching files</param>
+		/// <param name="matchingFileNames">Receives a list of matching files</param>
 		/// <returns>True if the file passes the filter</returns>
-		void FindMatchesFromDirectory(DirectoryInfo CurrentDirectory, string NamePrefix, bool bIgnoreSymlinks, List<FileReference> MatchingFileNames)
+		void FindMatchesFromDirectory(DirectoryInfo currentDirectory, string namePrefix, bool bIgnoreSymlinks, List<FileReference> matchingFileNames)
 		{
-			foreach (FileInfo NextFile in CurrentDirectory.EnumerateFiles())
+			foreach (FileInfo nextFile in currentDirectory.EnumerateFiles())
 			{
-				string FileName = NamePrefix + NextFile.Name;
-				if (Matches(FileName) && (!bIgnoreSymlinks || !NextFile.Attributes.HasFlag(FileAttributes.ReparsePoint)))
+				string fileName = namePrefix + nextFile.Name;
+				if (Matches(fileName) && (!bIgnoreSymlinks || !nextFile.Attributes.HasFlag(FileAttributes.ReparsePoint)))
 				{
-					MatchingFileNames.Add(new FileReference(NextFile));
+					matchingFileNames.Add(new FileReference(nextFile));
 				}
 			}
-			foreach (DirectoryInfo NextDirectory in CurrentDirectory.EnumerateDirectories())
+			foreach (DirectoryInfo nextDirectory in currentDirectory.EnumerateDirectories())
 			{
-				string NextNamePrefix = NamePrefix + NextDirectory.Name;
-				if (PossiblyMatches(NextNamePrefix))
+				string nextNamePrefix = namePrefix + nextDirectory.Name;
+				if (PossiblyMatches(nextNamePrefix))
 				{
-					FindMatchesFromDirectory(NextDirectory, NextNamePrefix + "/", bIgnoreSymlinks, MatchingFileNames);
+					FindMatchesFromDirectory(nextDirectory, nextNamePrefix + "/", bIgnoreSymlinks, matchingFileNames);
 				}
 			}
 		}
@@ -504,86 +501,86 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Finds the node which matches a given list of tokens.
 		/// </summary>
-		/// <param name="CurrentNode"></param>
-		/// <param name="Tokens"></param>
-		/// <param name="TokenIdx"></param>
-		/// <param name="CurrentBestNode"></param>
+		/// <param name="currentNode"></param>
+		/// <param name="tokens"></param>
+		/// <param name="tokenIdx"></param>
+		/// <param name="currentBestNode"></param>
 		/// <returns></returns>
-		FileFilterNode FindMatchingNode(FileFilterNode CurrentNode, string[] Tokens, int TokenIdx, FileFilterNode CurrentBestNode)
+		FileFilterNode FindMatchingNode(FileFilterNode currentNode, string[] tokens, int tokenIdx, FileFilterNode currentBestNode)
 		{
 			// If we've matched all the input tokens, check if this rule is better than any other we've seen
-			if (TokenIdx == Tokens.Length)
+			if (tokenIdx == tokens.Length)
 			{
-				return (CurrentNode.RuleNumber > CurrentBestNode.RuleNumber) ? CurrentNode : CurrentBestNode;
+				return (currentNode.RuleNumber > currentBestNode.RuleNumber) ? currentNode : currentBestNode;
 			}
 
 			// If there is no rule under the current node which is better than the current best node, early out
-			if (CurrentNode.MaxIncludeRuleNumber <= CurrentBestNode.RuleNumber && CurrentNode.MaxExcludeRuleNumber <= CurrentBestNode.RuleNumber)
+			if (currentNode.MaxIncludeRuleNumber <= currentBestNode.RuleNumber && currentNode.MaxExcludeRuleNumber <= currentBestNode.RuleNumber)
 			{
-				return CurrentBestNode;
+				return currentBestNode;
 			}
 
 			// Test all the branches for one that matches
-			FileFilterNode BestNode = CurrentBestNode;
-			foreach (FileFilterNode Branch in CurrentNode.Branches)
+			FileFilterNode bestNode = currentBestNode;
+			foreach (FileFilterNode branch in currentNode.Branches)
 			{
-				if (Branch.Pattern == "...")
+				if (branch.Pattern == "...")
 				{
-					for (int NextTokenIdx = Tokens.Length; NextTokenIdx >= TokenIdx; NextTokenIdx--)
+					for (int nextTokenIdx = tokens.Length; nextTokenIdx >= tokenIdx; nextTokenIdx--)
 					{
-						BestNode = FindMatchingNode(Branch, Tokens, NextTokenIdx, BestNode);
+						bestNode = FindMatchingNode(branch, tokens, nextTokenIdx, bestNode);
 					}
 				}
 				else
 				{
-					if (Branch.IsMatch(Tokens[TokenIdx]))
+					if (branch.IsMatch(tokens[tokenIdx]))
 					{
-						BestNode = FindMatchingNode(Branch, Tokens, TokenIdx + 1, BestNode);
+						bestNode = FindMatchingNode(branch, tokens, tokenIdx + 1, bestNode);
 					}
 				}
 			}
-			return BestNode;
+			return bestNode;
 		}
 
 		/// <summary>
 		/// Returns the highest possible rule number which can match the given list of input tokens, assuming that the list of input tokens is incomplete.
 		/// </summary>
-		/// <param name="CurrentNode">The current node being checked</param>
-		/// <param name="Tokens">The tokens to match</param>
-		/// <param name="TokenIdx">Current token index</param>
-		/// <param name="CurrentBestRuleNumber">The highest rule number seen so far. Used to optimize tree traversals.</param>
+		/// <param name="currentNode">The current node being checked</param>
+		/// <param name="tokens">The tokens to match</param>
+		/// <param name="tokenIdx">Current token index</param>
+		/// <param name="currentBestRuleNumber">The highest rule number seen so far. Used to optimize tree traversals.</param>
 		/// <returns>New highest rule number</returns>
-		int HighestPossibleIncludeMatch(FileFilterNode CurrentNode, string[] Tokens, int TokenIdx, int CurrentBestRuleNumber)
+		int HighestPossibleIncludeMatch(FileFilterNode currentNode, string[] tokens, int tokenIdx, int currentBestRuleNumber)
 		{
 			// If we've matched all the input tokens, check if this rule is better than any other we've seen
-			if (TokenIdx == Tokens.Length)
+			if (tokenIdx == tokens.Length)
 			{
-				return Math.Max(CurrentBestRuleNumber, CurrentNode.MaxIncludeRuleNumber);
+				return Math.Max(currentBestRuleNumber, currentNode.MaxIncludeRuleNumber);
 			}
 
 			// Test all the branches for one that matches
-			int BestRuleNumber = CurrentBestRuleNumber;
-			if (CurrentNode.MaxIncludeRuleNumber > BestRuleNumber)
+			int bestRuleNumber = currentBestRuleNumber;
+			if (currentNode.MaxIncludeRuleNumber > bestRuleNumber)
 			{
-				foreach (FileFilterNode Branch in CurrentNode.Branches)
+				foreach (FileFilterNode branch in currentNode.Branches)
 				{
-					if (Branch.Pattern == "...")
+					if (branch.Pattern == "...")
 					{
-						if (Branch.MaxIncludeRuleNumber > BestRuleNumber)
+						if (branch.MaxIncludeRuleNumber > bestRuleNumber)
 						{
-							BestRuleNumber = Branch.MaxIncludeRuleNumber;
+							bestRuleNumber = branch.MaxIncludeRuleNumber;
 						}
 					}
 					else
 					{
-						if (Branch.IsMatch(Tokens[TokenIdx]))
+						if (branch.IsMatch(tokens[tokenIdx]))
 						{
-							BestRuleNumber = HighestPossibleIncludeMatch(Branch, Tokens, TokenIdx + 1, BestRuleNumber);
+							bestRuleNumber = HighestPossibleIncludeMatch(branch, tokens, tokenIdx + 1, bestRuleNumber);
 						}
 					}
 				}
 			}
-			return BestRuleNumber;
+			return bestRuleNumber;
 		}
 	}
 }

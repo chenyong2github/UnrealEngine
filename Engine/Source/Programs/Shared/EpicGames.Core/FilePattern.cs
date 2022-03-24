@@ -3,22 +3,20 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
 	public class FilePatternException : Exception
 	{
-		public FilePatternException(string Message)
-			: base(Message)
+		public FilePatternException(string message)
+			: base(message)
 		{
 		}
 
-		public FilePatternException(string Format, params object[] Args)
-			: base(String.Format(Format, Args))
+		public FilePatternException(string format, params object[] args)
+			: base(String.Format(format, args))
 		{
 		}
 
@@ -46,92 +44,92 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructs a file pattern which matches a single file
 		/// </summary>
-		/// <param name="File">Location of the file</param>
-		public FilePattern(FileReference File)
+		/// <param name="file">Location of the file</param>
+		public FilePattern(FileReference file)
 		{
-			BaseDirectory = File.Directory;
-			Tokens.Add(File.GetFileName());
+			BaseDirectory = file.Directory;
+			Tokens.Add(file.GetFileName());
 		}
 
 		/// <summary>
 		/// Constructs a file pattern from the given string, resolving relative paths to the given directory. 
 		/// </summary>
-		/// <param name="RootDirectory">If a relative path is specified by the pattern, the root directory used to turn it into an absolute path</param>
-		/// <param name="Pattern">The pattern to match. If the pattern ends with a directory separator, an implicit '...' is appended.</param>
-		public FilePattern(DirectoryReference RootDirectory, string Pattern)
+		/// <param name="rootDirectory">If a relative path is specified by the pattern, the root directory used to turn it into an absolute path</param>
+		/// <param name="pattern">The pattern to match. If the pattern ends with a directory separator, an implicit '...' is appended.</param>
+		public FilePattern(DirectoryReference rootDirectory, string pattern)
 		{
 			// Normalize the path separators
-			StringBuilder Text = new StringBuilder(Pattern);
+			StringBuilder text = new StringBuilder(pattern);
 			if(Path.DirectorySeparatorChar != '\\')
 			{
-				Text.Replace('\\', Path.DirectorySeparatorChar);
+				text.Replace('\\', Path.DirectorySeparatorChar);
 			}
 			if(Path.DirectorySeparatorChar != '/')
 			{
-				Text.Replace('/', Path.DirectorySeparatorChar);
+				text.Replace('/', Path.DirectorySeparatorChar);
 			}
 
 			// Find the base directory, stopping when we hit a wildcard. The source directory must end with a path specification.
-			int BaseDirectoryLen = 0;
-			for(int Idx = 0; Idx < Text.Length; Idx++)
+			int baseDirectoryLen = 0;
+			for(int idx = 0; idx < text.Length; idx++)
 			{
-				if(Text[Idx] == Path.DirectorySeparatorChar)
+				if(text[idx] == Path.DirectorySeparatorChar)
 				{
-					BaseDirectoryLen = Idx + 1;
+					baseDirectoryLen = idx + 1;
 				}
-				else if(Text[Idx] == '?' || Text[Idx] == '*' || (Idx + 2 < Text.Length && Text[Idx] == '.' && Text[Idx + 1] == '.' && Text[Idx + 2] == '.'))
+				else if(text[idx] == '?' || text[idx] == '*' || (idx + 2 < text.Length && text[idx] == '.' && text[idx + 1] == '.' && text[idx + 2] == '.'))
 				{
 					break;
 				}
 			}
 
 			// Extract the base directory
-			BaseDirectory = DirectoryReference.Combine(RootDirectory, Text.ToString(0, BaseDirectoryLen));
+			BaseDirectory = DirectoryReference.Combine(rootDirectory, text.ToString(0, baseDirectoryLen));
 
 			// Convert any directory wildcards ("...") into complete directory wildcards ("\\...\\"). We internally treat use "...\\" as the wildcard 
 			// token so we can correctly match zero directories. Patterns such as "foo...bar" should require at least one directory separator, so 
 			// should be converted to "foo*\\...\\*bar".
-			for(int Idx = BaseDirectoryLen; Idx < Text.Length; Idx++)
+			for(int idx = baseDirectoryLen; idx < text.Length; idx++)
 			{
-				if(Text[Idx] == '.' && Text[Idx + 1] == '.' && Text[Idx + 2] == '.')
+				if(text[idx] == '.' && text[idx + 1] == '.' && text[idx + 2] == '.')
 				{
 					// Insert a directory separator before
-					if(Idx > BaseDirectoryLen && Text[Idx - 1] != Path.DirectorySeparatorChar)
+					if(idx > baseDirectoryLen && text[idx - 1] != Path.DirectorySeparatorChar)
 					{
-						Text.Insert(Idx++, '*');
-						Text.Insert(Idx++, Path.DirectorySeparatorChar);
+						text.Insert(idx++, '*');
+						text.Insert(idx++, Path.DirectorySeparatorChar);
 					}
 
 					// Skip past the ellipsis
-					Idx += 3;
+					idx += 3;
 
 					// Insert a directory separator after
-					if(Idx == Text.Length || Text[Idx] != Path.DirectorySeparatorChar)
+					if(idx == text.Length || text[idx] != Path.DirectorySeparatorChar)
 					{
-						Text.Insert(Idx++, Path.DirectorySeparatorChar);
-						Text.Insert(Idx++, '*');
+						text.Insert(idx++, Path.DirectorySeparatorChar);
+						text.Insert(idx++, '*');
 					}
 				}
 			}
 
 			// Parse the tokens
-			int LastIdx = BaseDirectoryLen;
-			for(int Idx = BaseDirectoryLen; Idx < Text.Length; Idx++)
+			int lastIdx = baseDirectoryLen;
+			for(int idx = baseDirectoryLen; idx < text.Length; idx++)
 			{
-				if(Text[Idx] == '?' || Text[Idx] == '*')
+				if(text[idx] == '?' || text[idx] == '*')
 				{
-					Tokens.Add(Text.ToString(LastIdx, Idx - LastIdx));
-					Tokens.Add(Text.ToString(Idx, 1));
-					LastIdx = Idx + 1;
+					Tokens.Add(text.ToString(lastIdx, idx - lastIdx));
+					Tokens.Add(text.ToString(idx, 1));
+					lastIdx = idx + 1;
 				}
-				else if(Idx - 3 >= BaseDirectoryLen && Text[Idx] == Path.DirectorySeparatorChar && Text[Idx - 1] == '.' && Text[Idx - 2] == '.' && Text[Idx - 3] == '.')
+				else if(idx - 3 >= baseDirectoryLen && text[idx] == Path.DirectorySeparatorChar && text[idx - 1] == '.' && text[idx - 2] == '.' && text[idx - 3] == '.')
 				{
-					Tokens.Add(Text.ToString(LastIdx, Idx - 3 - LastIdx));
-					Tokens.Add(Text.ToString(Idx - 3, 4));
-					LastIdx = Idx + 1;
+					Tokens.Add(text.ToString(lastIdx, idx - 3 - lastIdx));
+					Tokens.Add(text.ToString(idx - 3, 4));
+					lastIdx = idx + 1;
 				}
 			}
-			Tokens.Add(Text.ToString(LastIdx, Text.Length - LastIdx));
+			Tokens.Add(text.ToString(lastIdx, text.Length - lastIdx));
 		}
 
 		/// <summary>
@@ -146,18 +144,18 @@ namespace EpicGames.Core
 			}
 			else
 			{
-				StringBuilder Pattern = new StringBuilder();
-				foreach(string Token in Tokens)
+				StringBuilder pattern = new StringBuilder();
+				foreach(string token in Tokens)
 				{
-					Pattern.Append(Token);
+					pattern.Append(token);
 				}
-				if(Pattern.Length > 0)
+				if(pattern.Length > 0)
 				{
-					Pattern.Append(Path.DirectorySeparatorChar);
+					pattern.Append(Path.DirectorySeparatorChar);
 				}
-				Pattern.Append("...");
+				pattern.Append("...");
 
-				return new FilePattern(BaseDirectory, Pattern.ToString());
+				return new FilePattern(BaseDirectory, pattern.ToString());
 			}
 		}
 
@@ -183,8 +181,8 @@ namespace EpicGames.Core
 		/// <returns>True if the pattern is a directory</returns>
 		public bool EndsWithDirectorySeparator()
 		{
-			string LastToken = Tokens[Tokens.Count - 1];
-			return LastToken.Length > 0 && LastToken[LastToken.Length - 1] == Path.DirectorySeparatorChar;
+			string lastToken = Tokens[^1];
+            return lastToken.Length > 0 && lastToken[^1] == Path.DirectorySeparatorChar;
 		}
 
 		/// <summary>
@@ -199,20 +197,20 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Tests whether a pattern is compatible with another pattern (that is, that the number and type of wildcards match)
 		/// </summary>
-		/// <param name="Other">Pattern to compare against</param>
+		/// <param name="other">Pattern to compare against</param>
 		/// <returns>Whether the patterns are compatible.</returns>
-		public bool IsCompatibleWith(FilePattern Other)
+		public bool IsCompatibleWith(FilePattern other)
 		{
 			// Check there are the same number of tokens in each pattern
-			if(Tokens.Count != Other.Tokens.Count)
+			if(Tokens.Count != other.Tokens.Count)
 			{
 				return false;
 			}
 
 			// Check all the wildcard tokens match
-			for(int Idx = 1; Idx < Tokens.Count; Idx += 2)
+			for(int idx = 1; idx < Tokens.Count; idx += 2)
 			{
-				if(Tokens[Idx] != Other.Tokens[Idx])
+				if(Tokens[idx] != other.Tokens[idx])
 				{
 					return false;
 				}
@@ -226,29 +224,29 @@ namespace EpicGames.Core
 		/// <returns>The regex pattern</returns>
 		public string GetRegexPattern()
 		{
-			StringBuilder Pattern = new StringBuilder("^");
-			Pattern.Append(Regex.Escape(Tokens[0]));
-			for(int Idx = 1; Idx < Tokens.Count; Idx += 2)
+			StringBuilder pattern = new StringBuilder("^");
+			pattern.Append(Regex.Escape(Tokens[0]));
+			for(int idx = 1; idx < Tokens.Count; idx += 2)
 			{
 				// Append the wildcard expression
-				if(Tokens[Idx] == "?")
+				if(Tokens[idx] == "?")
 				{
-					Pattern.Append("([^\\/])");
+					pattern.Append("([^\\/])");
 				}
-				else if(Tokens[Idx] == "*")
+				else if(Tokens[idx] == "*")
 				{
-					Pattern.Append("([^\\/]*)");
+					pattern.Append("([^\\/]*)");
 				}
 				else
 				{
-					Pattern.AppendFormat("((?:.+{0})?)", Regex.Escape(Path.DirectorySeparatorChar.ToString()));
+					pattern.AppendFormat("((?:.+{0})?)", Regex.Escape(Path.DirectorySeparatorChar.ToString()));
 				}
 
 				// Append the next sequence of characters to match
-				Pattern.Append(Regex.Escape(Tokens[Idx + 1]));
+				pattern.Append(Regex.Escape(Tokens[idx + 1]));
 			}
-			Pattern.Append("$");
-			return Pattern.ToString();
+			pattern.Append("$");
+			return pattern.ToString();
 		}
 
 		/// <summary>
@@ -257,171 +255,171 @@ namespace EpicGames.Core
 		/// <returns>String representing the regex replacement pattern</returns>
 		public string GetRegexReplacementPattern()
 		{
-			StringBuilder Pattern = new StringBuilder();
-			for(int Idx = 0;;Idx += 2)
+			StringBuilder pattern = new StringBuilder();
+			for(int idx = 0;;idx += 2)
 			{
 				// Append the escaped replacement character
-				Pattern.Append(Tokens[Idx].Replace("$", "$$"));
+				pattern.Append(Tokens[idx].Replace("$", "$$"));
 
 				// Check if we've reached the end of the string
-				if(Idx == Tokens.Count - 1)
+				if(idx == Tokens.Count - 1)
 				{
 					break;
 				}
 
 				// Insert the capture
-				Pattern.AppendFormat("${0}", (Idx / 2) + 1);
+				pattern.AppendFormat("${0}", (idx / 2) + 1);
 			}
-			return Pattern.ToString();
+			return pattern.ToString();
 		}
 
 		/// <summary>
 		/// Creates a file mapping between a set of source patterns and a target pattern. All patterns should have a matching order and number of wildcards.
 		/// </summary>
-		/// <param name="Files">Files to use for the mapping</param>
+		/// <param name="files">Files to use for the mapping</param>
 		/// <param name="SourcePatterns">List of source patterns</param>
-		/// <param name="TargetPattern">Matching output pattern</param>
+		/// <param name="targetPattern">Matching output pattern</param>
 		/// <param name="Filter">Filter to apply to source files</param>
 		/// <param name="TargetFileToSourceFile">Dictionary to receive a mapping from target file to source file. An exception is thrown if multiple source files map to one target file, or a source file is also used as a target file.</param>
-		public static Dictionary<FileReference, FileReference> CreateMapping(HashSet<FileReference>? Files, ref FilePattern SourcePattern, ref FilePattern TargetPattern)
+		public static Dictionary<FileReference, FileReference> CreateMapping(HashSet<FileReference>? files, ref FilePattern sourcePattern, ref FilePattern targetPattern)
 		{
 			// If the source pattern ends in a directory separator, or a set of input files are specified and it doesn't contain wildcards, treat it as a full directory match
-			if(SourcePattern.EndsWithDirectorySeparator())
+			if(sourcePattern.EndsWithDirectorySeparator())
 			{
-				SourcePattern = new FilePattern(SourcePattern.BaseDirectory, String.Join("", SourcePattern.Tokens) + "...");
+				sourcePattern = new FilePattern(sourcePattern.BaseDirectory, String.Join("", sourcePattern.Tokens) + "...");
 			}
-			else if(Files != null)
+			else if(files != null)
 			{
-				SourcePattern = SourcePattern.AsDirectoryPattern();
+				sourcePattern = sourcePattern.AsDirectoryPattern();
 			}
 
 			// If we have multiple potential source files, but no wildcards in the output pattern, assume it's a directory and append the pattern from the source.
-			if(SourcePattern.ContainsWildcards() && !TargetPattern.ContainsWildcards())
+			if(sourcePattern.ContainsWildcards() && !targetPattern.ContainsWildcards())
 			{
-				StringBuilder NewPattern = new StringBuilder();
-				foreach(string Token in TargetPattern.Tokens)
+				StringBuilder newPattern = new StringBuilder();
+				foreach(string token in targetPattern.Tokens)
 				{
-					NewPattern.Append(Token);
+					newPattern.Append(token);
 				}
-				if(NewPattern.Length > 0 && NewPattern[NewPattern.Length - 1] != Path.DirectorySeparatorChar)
+				if(newPattern.Length > 0 && newPattern[^1] != Path.DirectorySeparatorChar)
 				{
-					NewPattern.Append(Path.DirectorySeparatorChar);
+					newPattern.Append(Path.DirectorySeparatorChar);
 				}
-				foreach(string Token in SourcePattern.Tokens)
+				foreach(string token in sourcePattern.Tokens)
 				{
-					NewPattern.Append(Token);
+					newPattern.Append(token);
 				}
-				TargetPattern = new FilePattern(TargetPattern.BaseDirectory, NewPattern.ToString());
+				targetPattern = new FilePattern(targetPattern.BaseDirectory, newPattern.ToString());
 			}
 
 			// If the target pattern ends with a directory separator, treat it as a full directory match if it has wildcards, or a copy of the source pattern if not
-			if(TargetPattern.EndsWithDirectorySeparator())
+			if(targetPattern.EndsWithDirectorySeparator())
 			{
-				TargetPattern = new FilePattern(TargetPattern.BaseDirectory, String.Join("", TargetPattern.Tokens) + "...");
+				targetPattern = new FilePattern(targetPattern.BaseDirectory, String.Join("", targetPattern.Tokens) + "...");
 			}
 
 			// Handle the case where source and target pattern are both individual files
-			Dictionary<FileReference, FileReference> TargetFileToSourceFile = new Dictionary<FileReference, FileReference>();
-			if(SourcePattern.ContainsWildcards() || TargetPattern.ContainsWildcards())
+			Dictionary<FileReference, FileReference> targetFileToSourceFile = new Dictionary<FileReference, FileReference>();
+			if(sourcePattern.ContainsWildcards() || targetPattern.ContainsWildcards())
 			{
 				// Check the two patterns are compatible
-				if(!SourcePattern.IsCompatibleWith(TargetPattern))
+				if(!sourcePattern.IsCompatibleWith(targetPattern))
 				{
-					throw new FilePatternException("File patterns '{0}' and '{1}' do not have matching wildcards", SourcePattern, TargetPattern);
+					throw new FilePatternException("File patterns '{0}' and '{1}' do not have matching wildcards", sourcePattern, targetPattern);
 				}
 
 				// Create a filter to match the source files
-				FileFilter Filter = new FileFilter(FileFilterType.Exclude);
-				Filter.Include(String.Join("", SourcePattern.Tokens));
+				FileFilter filter = new FileFilter(FileFilterType.Exclude);
+				filter.Include(String.Join("", sourcePattern.Tokens));
 
 				// Apply it to the source directory
-				List<FileReference> SourceFiles;
-				if(Files == null)
+				List<FileReference> sourceFiles;
+				if(files == null)
 				{
-					SourceFiles = Filter.ApplyToDirectory(SourcePattern.BaseDirectory, true);
+					sourceFiles = filter.ApplyToDirectory(sourcePattern.BaseDirectory, true);
 				}
 				else
 				{
-					SourceFiles = CheckInputFiles(Files, SourcePattern.BaseDirectory);
+					sourceFiles = CheckInputFiles(files, sourcePattern.BaseDirectory);
 				}
 
 				// Map them onto output files
-				FileReference[] TargetFiles = new FileReference[SourceFiles.Count];
+				FileReference[] targetFiles = new FileReference[sourceFiles.Count];
 
 				// Get the source and target regexes
-				string SourceRegex = SourcePattern.GetRegexPattern();
-				string TargetRegex = TargetPattern.GetRegexReplacementPattern();
-				for(int Idx = 0; Idx < SourceFiles.Count; Idx++)
+				string sourceRegex = sourcePattern.GetRegexPattern();
+				string targetRegex = targetPattern.GetRegexReplacementPattern();
+				for(int idx = 0; idx < sourceFiles.Count; idx++)
 				{
-					string SourceRelativePath = SourceFiles[Idx].MakeRelativeTo(SourcePattern.BaseDirectory);
-					string TargetRelativePath = Regex.Replace(SourceRelativePath, SourceRegex, TargetRegex);
-					TargetFiles[Idx] = FileReference.Combine(TargetPattern.BaseDirectory, TargetRelativePath);
+					string sourceRelativePath = sourceFiles[idx].MakeRelativeTo(sourcePattern.BaseDirectory);
+					string targetRelativePath = Regex.Replace(sourceRelativePath, sourceRegex, targetRegex);
+					targetFiles[idx] = FileReference.Combine(targetPattern.BaseDirectory, targetRelativePath);
 				}
 
 				// Add them to the output map
-				for(int Idx = 0; Idx < TargetFiles.Length; Idx++)
+				for(int idx = 0; idx < targetFiles.Length; idx++)
 				{
-					FileReference? ExistingSourceFile;
-					if(TargetFileToSourceFile.TryGetValue(TargetFiles[Idx], out ExistingSourceFile) && ExistingSourceFile != SourceFiles[Idx])
+					FileReference? existingSourceFile;
+					if(targetFileToSourceFile.TryGetValue(targetFiles[idx], out existingSourceFile) && existingSourceFile != sourceFiles[idx])
 					{
-						throw new FilePatternException("Output file '{0}' is mapped from '{1}' and '{2}'", TargetFiles[Idx], ExistingSourceFile, SourceFiles[Idx]);
+						throw new FilePatternException("Output file '{0}' is mapped from '{1}' and '{2}'", targetFiles[idx], existingSourceFile, sourceFiles[idx]);
 					}
-					TargetFileToSourceFile[TargetFiles[Idx]] = SourceFiles[Idx];
+					targetFileToSourceFile[targetFiles[idx]] = sourceFiles[idx];
 				}
 			}
 			else
 			{
 				// Just copy a single file
-				FileReference SourceFile = SourcePattern.GetSingleFile();
-				if(FileReference.Exists(SourceFile))
+				FileReference sourceFile = sourcePattern.GetSingleFile();
+				if(FileReference.Exists(sourceFile))
 				{
-					FileReference TargetFile = TargetPattern.GetSingleFile();
-					TargetFileToSourceFile[TargetFile] = SourceFile;
+					FileReference targetFile = targetPattern.GetSingleFile();
+					targetFileToSourceFile[targetFile] = sourceFile;
 				}
 				else
 				{
-					throw new FilePatternException("Source file '{0}' does not exist", SourceFile);
+					throw new FilePatternException("Source file '{0}' does not exist", sourceFile);
 				}
 			}
 
 			// Check that no source file is also destination file
-			foreach(FileReference SourceFile in TargetFileToSourceFile.Values)
+			foreach(FileReference sourceFile in targetFileToSourceFile.Values)
 			{
-				if(TargetFileToSourceFile.ContainsKey(SourceFile))
+				if(targetFileToSourceFile.ContainsKey(sourceFile))
 				{
-					throw new FilePatternException("'{0}' is listed as a source and target file", SourceFile);
+					throw new FilePatternException("'{0}' is listed as a source and target file", sourceFile);
 				}
 			}
 
 			// Return the map
-			return TargetFileToSourceFile;
+			return targetFileToSourceFile;
 		}
 
 		/// <summary>
 		/// Checks that the given input files all exist and are under the given base directory
 		/// </summary>
-		/// <param name="InputFiles">Input files to check</param>
-		/// <param name="BaseDirectory">Base directory for files</param>
+		/// <param name="inputFiles">Input files to check</param>
+		/// <param name="baseDirectory">Base directory for files</param>
 		/// <returns>List of valid files</returns>
-		public static List<FileReference> CheckInputFiles(IEnumerable<FileReference> InputFiles, DirectoryReference BaseDirectory)
+		public static List<FileReference> CheckInputFiles(IEnumerable<FileReference> inputFiles, DirectoryReference baseDirectory)
 		{
-			List<FileReference> Files = new List<FileReference>();
-			foreach(FileReference InputFile in InputFiles)
+			List<FileReference> files = new List<FileReference>();
+			foreach(FileReference inputFile in inputFiles)
 			{
-				if(!InputFile.IsUnderDirectory(BaseDirectory))
+				if(!inputFile.IsUnderDirectory(baseDirectory))
 				{
-					throw new FilePatternException("Source file '{0}' is not under '{1}'", InputFile, BaseDirectory);
+					throw new FilePatternException("Source file '{0}' is not under '{1}'", inputFile, baseDirectory);
 				}
-				else if(!FileReference.Exists(InputFile))
+				else if(!FileReference.Exists(inputFile))
 				{
-					throw new FilePatternException("Source file '{0}' does not exist", InputFile);
+					throw new FilePatternException("Source file '{0}' does not exist", inputFile);
 				}
 				else
 				{
-					Files.Add(InputFile);
+					files.Add(inputFile);
 				}
 			}
-			return Files;
+			return files;
 		}
 
 		/// <summary>
