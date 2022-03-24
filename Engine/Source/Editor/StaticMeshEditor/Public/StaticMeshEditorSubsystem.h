@@ -167,6 +167,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
 	TArray<float> GetLodScreenSizes(UStaticMesh* StaticMesh);
 
+	/**
+	 * Set LOD screen sizes.
+	 * @param	StaticMesh			Mesh to process.
+	 * @param	ScreenSizes			Array of LOD screen sizes to set.
+	 * @return A boolean indicating if setting the screen sizes was successful.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
+	bool SetLodScreenSizes(UStaticMesh* StaticMesh, const TArray<float>& ScreenSizes);
+
 public:
 	/**
 	* Get the Nanite Settings for the mesh
