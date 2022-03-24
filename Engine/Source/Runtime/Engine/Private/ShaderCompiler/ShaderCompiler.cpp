@@ -3743,7 +3743,6 @@ FString FShaderCompilingManager::CreateShaderDebugInfoPath(const FShaderCompiler
 	DumpDebugInfoPath.ReplaceInline(TEXT(">"), TEXT(")"));
 	DumpDebugInfoPath.ReplaceInline(TEXT("::"), TEXT("=="));
 	DumpDebugInfoPath.ReplaceInline(TEXT("|"), TEXT("_"));
-	DumpDebugInfoPath.ReplaceInline(TEXT(":"), TEXT("_"));
 	DumpDebugInfoPath.ReplaceInline(TEXT("*"), TEXT("-"));
 	DumpDebugInfoPath.ReplaceInline(TEXT("?"), TEXT("!"));
 	DumpDebugInfoPath.ReplaceInline(TEXT("\""), TEXT("\'"));
