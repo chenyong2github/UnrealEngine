@@ -22,12 +22,6 @@
 #include "Components/BoxComponent.h"
 #endif // WITH_EDITOR
 
-static int32 RenderCaptureNextWaterInfoDraws = 0;
-static FAutoConsoleVariableRef CVarRenderCaptureNextWaterInfoDraws(
-	TEXT("r.Water.WaterInfo.RenderCaptureNextWaterInfoDraws"),
-	RenderCaptureNextWaterInfoDraws,
-	TEXT("Enable capturing of the water info texture for the next N draws"));
-
 static int32 ForceUpdateWaterInfoNextFrames = 0;
 static FAutoConsoleVariableRef CVarForceUpdateWaterInfoNextFrames(
 	TEXT("r.Water.WaterInfo.ForceUpdateWaterInfoNextFrames"),
@@ -230,9 +224,6 @@ void AWaterZone::UpdateWaterInfoTexture()
 {
 	if (UWorld* World = GetWorld(); World && FApp::CanEverRender())
 	{
-		RenderCaptureInterface::FScopedCapture RenderCapture((RenderCaptureNextWaterInfoDraws != 0), TEXT("RenderWaterInfo"));
-		RenderCaptureNextWaterInfoDraws = FMath::Max(0, RenderCaptureNextWaterInfoDraws - 1);
-
 		float WaterZMin(TNumericLimits<double>::Max());
 		float WaterZMax(TNumericLimits<double>::Lowest());
 	
@@ -270,15 +261,20 @@ void AWaterZone::UpdateWaterInfoTexture()
 			GroundActors.Add(LandscapeProxy);
 		}
 
-		WaterInfo::FRenderingContext Context;
+		const ETextureRenderTargetFormat Format = bHalfPrecisionTexture ? ETextureRenderTargetFormat::RTF_RGBA16f : RTF_RGBA32f;
+		WaterInfoTexture = FWaterUtils::GetOrCreateTransientRenderTarget2D(WaterInfoTexture, TEXT("WaterInfoTexture"), RenderTargetResolution, Format);
+
+		UE::WaterInfo::FRenderingContext Context;
 		Context.ZoneToRender = this;
 		Context.WaterBodies = WaterBodies;
 		Context.GroundActors = MoveTemp(GroundActors);
 		Context.CaptureZ = WaterZMax;
+		Context.TextureRenderTarget = WaterInfoTexture;
 
-		const ETextureRenderTargetFormat Format = bHalfPrecisionTexture ? ETextureRenderTargetFormat::RTF_RGBA16f : RTF_RGBA32f;
-		WaterInfoTexture = FWaterUtils::GetOrCreateTransientRenderTarget2D(WaterInfoTexture, TEXT("WaterInfoTexture"), RenderTargetResolution, Format);
-		WaterInfo::UpdateWaterInfoRendering(World->Scene, WaterInfoTexture, Context);
+		if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(World))
+		{
+			WaterSubsystem->MarkWaterInfoTextureForRebuild(Context);
+		}
 
 		for (UWaterBodyComponent* Component : WaterBodies)
 		{

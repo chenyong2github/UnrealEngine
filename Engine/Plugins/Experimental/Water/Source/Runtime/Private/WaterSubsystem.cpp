@@ -24,6 +24,7 @@
 #include "WaterRuntimeSettings.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
+#include "WaterViewExtension.h"
 
 // ----------------------------------------------------------------------------------
 
@@ -244,6 +245,7 @@ void UWaterSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	check(World != nullptr);
 
 	WaterBodyManager.Initialize(World);
+	WaterViewExtension = FSceneViewExtensions::NewExtension<FWaterViewExtension>(World);
 
 	bUsingSmoothedTime = false;
 	FConsoleVariableDelegate NotifyWaterScalabilityChanged = FConsoleVariableDelegate::CreateUObject(this, &UWaterSubsystem::NotifyWaterScalabilityChangedInternal);
@@ -523,6 +525,11 @@ void UWaterSubsystem::MarkAllWaterZonesForRebuild(EWaterZoneRebuildFlags Rebuild
 			WaterZone->MarkForRebuild(RebuildFlags);
 		}
 	}
+}
+
+void UWaterSubsystem::MarkWaterInfoTextureForRebuild(const UE::WaterInfo::FRenderingContext& WaterInfoContext)
+{
+	WaterViewExtension->MarkWaterInfoTextureForRebuild(WaterInfoContext);
 }
 
 void UWaterSubsystem::NotifyWaterScalabilityChangedInternal(IConsoleVariable* CVar)

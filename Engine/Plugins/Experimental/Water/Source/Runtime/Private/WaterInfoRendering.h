@@ -10,11 +10,12 @@ class FSceneInterface;
 class UTextureRenderTarget2D;
 class AActor;
 
-namespace WaterInfo
+namespace UE::WaterInfo
 {
 	struct FRenderingContext
 	{
 		AWaterZone* ZoneToRender = nullptr;
+		UTextureRenderTarget2D* TextureRenderTarget;
 		TArray<UWaterBodyComponent*> WaterBodies;
 		TArray<AActor*> GroundActors;
 		float CaptureZ;
@@ -22,6 +23,5 @@ namespace WaterInfo
 	
 void UpdateWaterInfoRendering(
 	FSceneInterface* Scene,
-	UTextureRenderTarget2D* TextureRenderTarget,
 	const FRenderingContext& Context);
 }

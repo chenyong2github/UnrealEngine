@@ -26,6 +26,9 @@ class UTexture2D;
 struct FUnderwaterPostProcessDebugInfo;
 enum class EWaterBodyQueryFlags;
 class ABuoyancyManager;
+class FWaterViewExtension;
+
+namespace UE::WaterInfo { struct FRenderingContext; }
 
 bool IsWaterEnabled(bool bIsRenderThread);
 
@@ -167,6 +170,8 @@ public:
 	
 	void MarkAllWaterZonesForRebuild(EWaterZoneRebuildFlags RebuildFlags = EWaterZoneRebuildFlags::All);
 
+	void MarkWaterInfoTextureForRebuild(const UE::WaterInfo::FRenderingContext& WaterInfoContext);
+
 #if WITH_EDITOR
 	/** Little scope object to temporarily change the value of bAllowWaterSubsystemOnPreviewWorld */
 	struct WATER_API FScopedAllowWaterSubsystemOnPreviewWorld
@@ -241,6 +246,8 @@ private:
 	UMaterialParameterCollection* MaterialParameterCollection;
 
 	FUnderwaterPostProcessVolume UnderwaterPostProcessVolume;
+
+	TSharedPtr<FWaterViewExtension, ESPMode::ThreadSafe> WaterViewExtension;
 
 #if WITH_EDITOR
 	/** By default, there is no water subsystem allowed on preview worlds except when explicitly requested : */

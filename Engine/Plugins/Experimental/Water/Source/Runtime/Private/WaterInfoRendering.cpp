@@ -18,7 +18,13 @@
 #include "Rendering/NaniteStreamingManager.h"
 #include "SceneViewExtension.h"
 
-namespace WaterInfo
+static int32 RenderCaptureNextWaterInfoDraws = 0;
+static FAutoConsoleVariableRef CVarRenderCaptureNextWaterInfoDraws(
+	TEXT("r.Water.WaterInfo.RenderCaptureNextWaterInfoDraws"),
+	RenderCaptureNextWaterInfoDraws,
+	TEXT("Enable capturing of the water info texture for the next N draws"));
+
+namespace UE::WaterInfo
 {
 
 struct FUpdateWaterInfoParams
@@ -535,10 +541,12 @@ static FSceneRenderer* CreateWaterInfoColorRenderer(
 
 void UpdateWaterInfoRendering(
 	FSceneInterface* Scene,
-	UTextureRenderTarget2D* TextureRenderTarget,
 	const WaterInfo::FRenderingContext& Context)
 {
-	if (TextureRenderTarget == nullptr || Scene == nullptr)
+	RenderCaptureInterface::FScopedCapture RenderCapture((RenderCaptureNextWaterInfoDraws != 0), TEXT("RenderWaterInfo"));
+	RenderCaptureNextWaterInfoDraws = FMath::Max(0, RenderCaptureNextWaterInfoDraws - 1);
+
+	if (Context.TextureRenderTarget == nullptr || Scene == nullptr)
 	{
 		return;
 	}
@@ -554,13 +562,13 @@ void UpdateWaterInfoRendering(
 	ViewRotationMat = ViewRotationMat.RemoveTranslation();
 	ViewRotationMat.RemoveScaling();
 	
-	const FIntPoint CaptureExtent(TextureRenderTarget->GetSurfaceWidth(), TextureRenderTarget->GetSurfaceHeight());
+	const FIntPoint CaptureExtent(Context.TextureRenderTarget->GetSurfaceWidth(), Context.TextureRenderTarget->GetSurfaceHeight());
 
 	const FMatrix OrthoProj = BuildOrthoMatrix(ZoneExtent.X, ZoneExtent.Y);
 
 	FSceneRenderer* DepthRenderer = CreateWaterInfoDepthRenderer(
 		Scene,
-		TextureRenderTarget->GameThread_GetRenderTargetResource(),
+		Context.TextureRenderTarget->GameThread_GetRenderTargetResource(),
 		Context,
 		CaptureExtent,
 		ViewRotationMat,
@@ -569,14 +577,14 @@ void UpdateWaterInfoRendering(
 	
 	FSceneRenderer* ColorRenderer = CreateWaterInfoColorRenderer(
 		Scene,
-		TextureRenderTarget->GameThread_GetRenderTargetResource(),
+		Context.TextureRenderTarget->GameThread_GetRenderTargetResource(),
 		Context,
 		CaptureExtent,
 		ViewRotationMat,
 		ViewLocation,
 		OrthoProj);
 
-	FTextureRenderTargetResource* TextureRenderTargetResource = TextureRenderTarget->GameThread_GetRenderTargetResource();
+	FTextureRenderTargetResource* TextureRenderTargetResource = Context.TextureRenderTarget->GameThread_GetRenderTargetResource();
 
 	FUpdateWaterInfoParams Params;
 	Params.DepthRenderer = DepthRenderer;
