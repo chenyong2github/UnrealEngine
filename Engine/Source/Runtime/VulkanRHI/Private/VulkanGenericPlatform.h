@@ -107,6 +107,9 @@ public:
 	// Allow platforms to track swapchain destruction
 	static void DestroySwapchainKHR(VkDevice Device, VkSwapchainKHR Swapchain, const VkAllocationCallbacks* Allocator);
 
+	// Whether to attempt recreate swapchain when present or acqurire operations fail
+	static bool RecreateSwapchainOnFail() { return true; }
+
 	// Ensure the last frame completed on the GPU
 	static bool RequiresWaitingForFrameCompletionEvent() { return true; }
 

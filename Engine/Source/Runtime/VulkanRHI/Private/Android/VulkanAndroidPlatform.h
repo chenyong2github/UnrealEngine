@@ -131,6 +131,9 @@ public:
 
 	static void DestroySwapchainKHR(VkDevice Device, VkSwapchainKHR Swapchain, const VkAllocationCallbacks* Allocator);
 
+	// Do not attempt to immediately recreate swapchain
+	static bool RecreateSwapchainOnFail() { return false; }
+
 	static VkFormat GetPlatform5551FormatWithFallback(VkFormat& OutFallbackFormat0, VkFormat& OutFallbackFormat1) 
 	{ 
 		OutFallbackFormat0 = VK_FORMAT_A1R5G5B5_UNORM_PACK16; 

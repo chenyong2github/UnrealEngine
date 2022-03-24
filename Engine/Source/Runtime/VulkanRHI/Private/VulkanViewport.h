@@ -146,14 +146,12 @@ protected:
 
 	void CreateSwapchain(struct FVulkanSwapChainRecreateInfo* RecreateInfo);
 	void DestroySwapchain(struct FVulkanSwapChainRecreateInfo* RecreateInfo);
-	void AcquireImageIndex();
 	bool TryAcquireImageIndex();
 
 	void RecreateSwapchain(void* NewNativeWindow);
 	void RecreateSwapchainFromRT(EPixelFormat PreferredPixelFormat);
 	void Resize(uint32 InSizeX, uint32 InSizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat);
 
-	static int32 DoAcquireImageIndex(FVulkanViewport* Viewport);
 	bool DoCheckedSwapChainJob(TFunction<int32(FVulkanViewport*)> SwapChainJob);
 	bool SupportsStandardSwapchain();
 	bool RequiresRenderingBackBuffer();
