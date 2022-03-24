@@ -21,7 +21,7 @@ public class LowLevelTestsTarget : TargetRules
 			bIncludeAllTestsOverride = true;
 		}
 
-		bDeployAfterCompile = false;
+		bDeployAfterCompile = Target.Platform != UnrealTargetPlatform.Android;
 		bIsBuildingConsoleApplication = true;
 
 		// Disabling default true flags that aren't necessary for tests
@@ -41,6 +41,7 @@ public class LowLevelTestsTarget : TargetRules
 		bCompileAgainstCoreUObject = false;
 		bCompileAgainstApplicationCore = false;
 		bUseLoggingInShipping = true;
+		bForceEnableExceptions = true;
 
 		bool bDebugOrDevelopment = Target.Configuration == UnrealTargetConfiguration.Debug || Target.Configuration == UnrealTargetConfiguration.Development;
 		bBuildWithEditorOnlyData = Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop) && bDebugOrDevelopment;
@@ -65,6 +66,7 @@ public class LowLevelTestsTarget : TargetRules
 
 	protected virtual void SetupPreprocessorDefinitions(TargetInfo Target)
 	{
+		GlobalDefinitions.Add("UE_LOW_LEVEL_TESTS=1");
 		GlobalDefinitions.Add("STATS=0");
 
 		// Platform specific setup

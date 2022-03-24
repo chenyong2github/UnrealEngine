@@ -4,13 +4,6 @@
 
 #include "CoreMinimal.h"
 
-#include "TestCommon/ApplicationCoreUtilities.h"
-#include "TestCommon/CoreUtilities.h"
-#include "TestCommon/CoreUObjectUtilities.h"
-#include "TestCommon/EditorUtilities.h"
-#include "TestCommon/EngineUtilities.h"
-
-
 void InitAllThreadPoolsEditorEx(bool MultiThreaded);
 
 void InitOutputDevicesEx();

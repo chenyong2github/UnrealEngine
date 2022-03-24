@@ -3,6 +3,10 @@
 #include "CoreMinimal.h"
 #include "Misc/CommandLine.h"
 #include "TestCommon/CoreUtilities.h"
+#include "HAL/PlatformOutputDevices.h"
+#include "HAL/PlatformProcess.h"
+#include "Logging/LogSuppressionInterface.h"
+#include "Misc/QueuedThreadPool.h"
 
 void InitCommandLine(bool AllowLogging)
 {
@@ -100,16 +104,14 @@ void CleanupTaskGraph()
 
 void InitTaskGraphAndDependencies(bool MultiThreaded)
 {
-	InitCommandLine();
-	InitAllThreadPools(MultiThreaded);
 	InitTaskGraph(MultiThreaded);
+	InitAllThreadPools(MultiThreaded);
 }
 
 void CleanupTaskGraphAndDependencies()
 {
-	CleanupTaskGraph();
 	CleanupAllThreadPools();
-	CleanupCommandLine();
+	CleanupTaskGraph();
 }
 
 void CleanupPlatform()

@@ -3,12 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
 #include "Async/TaskGraphInterfaces.h"
-#include "HAL/PlatformOutputDevices.h"
-#include "HAL/PlatformProcess.h"
-#include "Logging/LogSuppressionInterface.h"
-#include "Misc/QueuedThreadPool.h"
 
 void InitCommandLine(bool AllowLogging = false);
 

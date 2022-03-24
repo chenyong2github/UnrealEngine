@@ -4,6 +4,13 @@
 
 #include "TestCommon/EngineUtilities.h"
 
+#include "CoreMinimal.h"
+#include "DistanceFieldAtlas.h"
+#include "MeshCardRepresentation.h"
+#include "RenderUtils.h"
+#include "ShaderParameterMetadata.h"
+
+
 void InitAsyncQueues()
 {
 	check(!GDistanceFieldAsyncQueue);

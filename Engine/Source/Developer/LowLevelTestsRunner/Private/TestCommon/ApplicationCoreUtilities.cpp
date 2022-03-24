@@ -3,6 +3,7 @@
 #if WITH_APPLICATION_CORE
 
 #include "TestCommon/ApplicationCoreUtilities.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 void InitOutputDevicesAppCore()
 {

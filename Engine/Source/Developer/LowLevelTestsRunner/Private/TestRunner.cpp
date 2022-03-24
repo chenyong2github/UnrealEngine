@@ -10,19 +10,41 @@
 #include "LowLevelTestModule.h"
 #include "TestCommon/CoreUtilities.h"
 
-// Test run interceptor
-struct TestRunListener : public Catch::TestEventListenerBase {
-	using TestEventListenerBase::TestEventListenerBase; // inherit constructor
-public:
-	void testCaseStarting(Catch::TestCaseInfo  const& TestInfo) override {
-		if (bGDebug)
-		{
-			std::cout << TestInfo.lineInfo.file << ":" << TestInfo.lineInfo.line << " with tags " << TestInfo.tagsAsString() << std::endl;
-		}
-	}
-};
+#include <set>
 
-CATCH_REGISTER_LISTENER(TestRunListener);
+namespace Catch
+{
+	// Test run interceptor
+	struct TestRunListener : public TestEventListenerBase {
+		using TestEventListenerBase::TestEventListenerBase; // inherit constructor
+	private:
+		std::ostream& catchOut = getCurrentContext().getConfig()->stream();
+	public:
+		void testCaseStarting(Catch::TestCaseInfo  const& TestInfo) override {
+			if (bGDebug)
+			{
+				catchOut << TestInfo.lineInfo.file << ":" << TestInfo.lineInfo.line << " with tags " << TestInfo.tagsAsString() << " \n";
+			}
+		}
+
+		void testCaseEnded(Catch::TestCaseStats const& testCaseStats) override {
+			if (testCaseStats.totals.testCases.failed > 0)
+			{
+				catchOut << "* Error: Test case \"" << testCaseStats.testInfo.name << "\" failed \n";
+			}
+		}
+
+		bool assertionEnded(Catch::AssertionStats const& assertionStats) override {
+			if (!assertionStats.assertionResult.succeeded()) {
+				catchOut << "* Error: Assertion \"" << assertionStats.assertionResult.getExpression() << "\" failed at " << assertionStats.assertionResult.getSourceInfo().file << ": " << assertionStats.assertionResult.getSourceInfo().line << "\n";
+			}
+			// true == clear message buffer
+			return true;
+		}
+	};
+
+	CATCH_REGISTER_LISTENER(TestRunListener);
+}
 
 void LoadBaseTestModule(FString BaseModuleName)
 {
@@ -108,55 +130,74 @@ int RunTests(int argc, const char* argv[])
 	}
 #endif
 
-	int CatchArgc;
+	int CatchArgc = 0;
 	TUniquePtr<const char* []> CatchArgv = MakeUnique<const char* []>(argc);
 
-	// Everything past a "--" argument, if present, is not sent to the catch test runner.
-	for (CatchArgc = 0; CatchArgc < argc; ++CatchArgc)
-	{
-		if (std::strcmp(argv[CatchArgc], "--") == 0)
-		{
-			break;
-		}
-		CatchArgv.Get()[CatchArgc] = argv[CatchArgc];
-	}
+	std::set<std::string> KnownLLTArgs;
+	KnownLLTArgs.insert("--wait");
+	KnownLLTArgs.insert("--no-wait");
+	KnownLLTArgs.insert("--log");
+	KnownLLTArgs.insert("--no-log");
+	KnownLLTArgs.insert("--mt");
+	KnownLLTArgs.insert("--no-mt");
+	KnownLLTArgs.insert("--debug");
+	KnownLLTArgs.insert("--base-global-module");
 
 	// By default don't wait for input
 	bool bWaitForInputToTerminate = false;
 
-	
 	FString LoadModuleName = TEXT("");
 
-	for (int i = CatchArgc; i < argc; ++i)
+	// Every argument that is not in the list of known low level test options and is considered to be a catch test runner argument.
+	for (int i = 0; i < argc; ++i)
 	{
-		if (std::strcmp(argv[i], "--wait") == 0)
+		if (KnownLLTArgs.find(argv[i]) != KnownLLTArgs.end())
 		{
-			bWaitForInputToTerminate = true;
+			if (std::strcmp(argv[i], "--wait") == 0)
+			{
+				bWaitForInputToTerminate = true;
+			}
+			else if (std::strcmp(argv[i], "--no-wait") == 0)
+			{
+				bWaitForInputToTerminate = false;
+			}
+			if (std::strcmp(argv[i], "--log") == 0)
+			{
+				bGAllowLogging = true;
+			}
+			if (std::strcmp(argv[i], "--no-log") == 0)
+			{
+				bGAllowLogging = false;
+			}
+			if (std::strcmp(argv[i], "--mt") == 0)
+			{
+				bGMultithreaded = true;
+			}
+			if (std::strcmp(argv[i], "--no-mt") == 0)
+			{
+				bGMultithreaded = false;
+			}
+			if (std::strcmp(argv[i], "--debug") == 0)
+			{
+				bGDebug = true;
+			}
+			// If we have --base-global-module parse proceeding argument as its option-value
+			if (std::strcmp(argv[i], "--base-global-module") == 0 &&
+				i + 1 < argc)
+			{
+				LoadModuleName = argv[i + 1];
+				++i;
+			}
 		}
-		else if (std::strcmp(argv[i], "--no-wait") == 0)
+		else
 		{
-			bWaitForInputToTerminate = false;
-		}
-		if (std::strcmp(argv[i], "--no-log") == 0)
-		{
-			bGAllowLogging = false;
-		}
-		if (std::strcmp(argv[i], "--no-mt") == 0)
-		{
-			bGMultithreaded = false;
-		}
-		if (std::strcmp(argv[i], "--debug") == 0)
-		{
-			bGDebug = true;
-		}
-		// If we have --base-global-module parse proceeding argument as its option-value
-		if (std::strcmp(argv[i], "--base-global-module") == 0 &&
-			i + 1 < argc)
-		{
-			LoadModuleName = argv[i + 1];
-			++i;
+			// Passing to catch2
+			CatchArgv.Get()[CatchArgc++] = argv[i];
 		}
 	}
+
+	// Global command line initialization
+	InitCommandLine(bGAllowLogging);
 
 	LoadBaseTestModule(LoadModuleName);
 	GlobalModuleSetup();
@@ -171,8 +212,11 @@ int RunTests(int argc, const char* argv[])
 	GlobalModuleTeardown();
 	UnloadBaseTestModule(LoadModuleName);
 
-	// Required, will crash on exit otherwise...
+	// Required for platform cleanup, program will crash on exit otherwise
 	CleanupPlatform();
+
+	// Command line cleanup
+	CleanupCommandLine();
 
 #if PLATFORM_DESKTOP
 	if (bWaitForInputToTerminate)

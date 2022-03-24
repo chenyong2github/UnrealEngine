@@ -15,6 +15,7 @@ namespace Gauntlet
 		public string Project;
 		public string GameMap;
 		private Dictionary<string, object> Params;
+		private HashSet<string> NonOptionParams;
 
 		// Give external people read-only access
 		public IReadOnlyDictionary<string, object> Arguments {  get { return Params;  } }
@@ -31,6 +32,7 @@ namespace Gauntlet
 			GameMap = string.Empty;
 			AdditionalExplicitCommandLineArgs = string.Empty;
 			Params = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+			NonOptionParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 		}
 
 		// copy constructor
@@ -40,6 +42,7 @@ namespace Gauntlet
 			GameMap = InCopy.GameMap;
 			AdditionalExplicitCommandLineArgs = InCopy.AdditionalExplicitCommandLineArgs;
 			Params = new Dictionary<string, object>(InCopy.Params);
+			NonOptionParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 		}
 
 		/// <summary>
@@ -119,8 +122,13 @@ namespace Gauntlet
 		/// </summary>
 		/// <param name="ParamName"></param>
 		/// <param name="ParamVal"></param>
-		public void Add(string ParamName, object ParamVal = null)
+		public void Add(string ParamName, object ParamVal = null, bool IsNonOption = false)
 		{
+			if (IsNonOption)
+			{
+				NonOptionParams.Add(ParamName);
+			}
+
 			if (Params.ContainsKey(ParamName))
 			{
 				if (ParamName.ToLower() == "execcmds" && ParamVal != null)
@@ -233,13 +241,13 @@ namespace Gauntlet
 				string CurrentArgument;
 				if (Params[Key] != null && !string.IsNullOrWhiteSpace(Params[Key].ToString()))
 				{
-					CurrentArgument = string.Format("-{0}={1}", Key,
+					CurrentArgument = string.Format("{0}{1}={2}", NonOptionParams.Contains(Key) ? "" : "-", Key,
 						(Params[Key].ToString().Contains(' ') && !Params[Key].ToString().Contains('\"'))
 						? string.Format("\"{0}\"", Params[Key]) : Params[Key]);
 				}
 				else
 				{
-					CurrentArgument = string.Format("-{0}", Key);
+					CurrentArgument = string.Format("{0}{1}", NonOptionParams.Contains(Key) ? "" : "-", Key);
 				}
 				FinalCommandline = string.Format("{0} {1} ", FinalCommandline, CurrentArgument);
 			}

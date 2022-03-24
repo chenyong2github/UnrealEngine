@@ -328,6 +328,23 @@ namespace
 			if (FPaths::IsRelative(info.dli_fname))
 			{
 				FCStringAnsi::Strcpy(ModuleSymbolPath, TCHAR_TO_UTF8(FPlatformProcess::BaseDir()));
+#ifdef UE_LOW_LEVEL_TESTS
+				// Low level tests live one level above the base directory in a folder <ModuleName>Tests
+				// Sometimes this folder can also be just <ModuleName> if the target was compiled with the tests
+				if (FPaths::DirectoryExists(FPaths::Combine(ModuleSymbolPath, TCHAR_TO_UTF8(*FPaths::GetBaseFilename(out_SymbolInfo.ModuleName)))))
+				{
+					FCStringAnsi::Strcat(ModuleSymbolPath, "/");
+					FCStringAnsi::Strcat(ModuleSymbolPath, TCHAR_TO_UTF8(*FPaths::GetBaseFilename(out_SymbolInfo.ModuleName)));
+					FCStringAnsi::Strcat(ModuleSymbolPath, "/");
+				}
+				else
+				{
+					FCStringAnsi::Strcat(ModuleSymbolPath, "/");
+					FCStringAnsi::Strcat(ModuleSymbolPath, TCHAR_TO_UTF8(*FPaths::GetBaseFilename(out_SymbolInfo.ModuleName)));
+					FCStringAnsi::Strcat(ModuleSymbolPath, "Tests");
+					FCStringAnsi::Strcat(ModuleSymbolPath, "/");
+				}
+#endif
 				FCStringAnsi::Strcat(ModuleSymbolPath, TCHAR_TO_UTF8(*FPaths::GetBaseFilename(out_SymbolInfo.ModuleName)));
 				FCStringAnsi::Strcat(ModuleSymbolPath, ".sym");
 			}

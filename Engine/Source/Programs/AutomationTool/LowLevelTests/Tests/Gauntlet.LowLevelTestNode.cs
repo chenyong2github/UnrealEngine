@@ -26,7 +26,7 @@ namespace LowLevelTests
 		{
 			Context = InContext;
 
-			MaxDuration = 60 * 5;
+			MaxDuration = 60 * 30;
 			LowLevelTestResult = TestResult.Invalid;
 		}
 
@@ -41,7 +41,7 @@ namespace LowLevelTests
 		{
 			if (LowLevelTestsApp == null)
 			{
-				LowLevelTestsApp = new LowLevelTestsSession(Context.BuildInfo);
+				LowLevelTestsApp = new LowLevelTestsSession(Context.BuildInfo, Context.Options.Tags);
 			}
 
 			return LowLevelTestsApp.TryReserveDevices();
@@ -124,14 +124,14 @@ namespace LowLevelTests
 				StdOut = TestInstance.StdOut;
 			}
 
+			string LogDir = Path.Combine(Unreal.EngineDirectory.FullName, "Programs", "AutomationTool", "Saved", "Logs");
+
 			if (StdOut == null || string.IsNullOrEmpty(StdOut.Trim()))
 			{
-				Log.Error("No StdOut returned from low level test app.");
+				Log.Warning("No StdOut returned from low level test app.");
 			}
-			else // Save artifact
-			{
-				string LogDir = Path.Combine(Unreal.EngineDirectory.FullName, "Programs", "AutomationTool", "Saved", "Logs");
-				
+			else // Save log artifact
+			{	
 				const string ClientLogFile = "ClientOutput.log";
 				string ClientOutputLog = Path.Combine(ArtifactPath, ClientLogFile);
 				
@@ -142,12 +142,35 @@ namespace LowLevelTests
 				File.Copy(ClientOutputLog, Path.Combine(LogDir, ClientLogFile));
 			}
 
-			LowLevelTestsLogParser LowLevelTestsLogParser = new LowLevelTestsLogParser(StdOut);
+			ILowLevelTestsReporting LowLevelTestsReporting = Gauntlet.Utils.InterfaceHelpers.FindImplementations<ILowLevelTestsReporting>(true)
+				.Where(B => B.CanSupportPlatform(Context.Options.Platform))
+				.First();
+
+			string ReportPath = null;
+			bool ReportCopied = false;
+			try
+			{
+				ReportPath = LowLevelTestsReporting.CopyDeviceReportTo(LowLevelTestsApp.Install, Context.Options.Platform, Context.Options.TestApp, Context.Options.Build, LogDir);
+				ReportCopied = true;
+			}
+			catch (Exception ex)
+			{
+				Log.Error("Failed to copy report: {0}", ex.ToString());
+			}
+
+			bool ReportResult = false;
+			if (ReportCopied)
+			{
+				string ReportContents = File.ReadAllText(ReportPath);
+				Console.WriteLine(ReportContents);
+				LowLevelTestsLogParser LowLevelTestsLogParser = new LowLevelTestsLogParser(ReportContents);
+				ReportResult = LowLevelTestsLogParser.GetCatchTestResults().Passed;
+			}
 
 			UnrealProcessResult Result = GetExitCodeAndReason(
 				InReason,
-				LowLevelTestsLogParser.GetSummary(),
-				LowLevelTestsLogParser.GetCatchTestResults(),
+				ReportResult,
+				StdOut,
 				out string ExitReason,
 				out int ExitCode);
 
@@ -178,8 +201,10 @@ namespace LowLevelTests
 			}
 		}
 
-		protected virtual UnrealProcessResult GetExitCodeAndReason(StopReason InReason, UnrealLog InLog, LowLevelTestsLogParser.CatchTestResults InCatchResults, out string ExitReason, out int ExitCode)
+		protected virtual UnrealProcessResult GetExitCodeAndReason(StopReason InReason, bool ReportResult, string StdOut, out string ExitReason, out int ExitCode)
 		{
+			UnrealLog UnrealLog = new UnrealLogParser(StdOut).GetSummary();
+			
 			if (TestInstance.WasKilled)
 			{
 				if (InReason == StopReason.MaxDuration)
@@ -198,29 +223,29 @@ namespace LowLevelTests
 
 			// First we check for unreal specific issues.
 			// A successful test run must be free of these.
-			if (InLog.FatalError != null)
+			if (UnrealLog.FatalError != null)
 			{
 				ExitReason = "Process encountered fatal error";
 				ExitCode = -1;
 				return UnrealProcessResult.EncounteredFatalError;
 			}
 
-			if (InLog.Ensures.Count() > 0)
+			if (UnrealLog.Ensures.Count() > 0)
 			{
-				ExitReason = string.Format("Process encountered {0} Ensures", InLog.Ensures.Count());
+				ExitReason = string.Format("Process encountered {0} Ensures", UnrealLog.Ensures.Count());
 				ExitCode = -1;
 				return UnrealProcessResult.EncounteredEnsure;
 			}
 
-			if (InLog.RequestedExit)
+			if (UnrealLog.RequestedExit)
 			{
-				ExitReason = string.Format("Exit was requested: {0}", InLog.RequestedExitReason);
+				ExitReason = string.Format("Exit was requested: {0}", UnrealLog.RequestedExitReason);
 				ExitCode = 0;
 				return UnrealProcessResult.ExitOk;
 			}
 
 			// Then we check for actual test results.
-			if (InCatchResults.Passed)
+			if (ReportResult)
 			{
 				ExitReason = "All Catch2 tests passed.";
 				ExitCode = 0;

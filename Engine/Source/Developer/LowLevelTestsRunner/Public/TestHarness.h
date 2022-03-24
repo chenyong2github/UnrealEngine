@@ -2,11 +2,11 @@
 
 #pragma once
 
-#ifndef UE5_ENABLE_TESTHARNESS_ENGINE_SUPPORT
-#define UE5_ENABLE_TESTHARNESS_ENGINE_SUPPORT 1
+#ifndef UE_ENABLE_TESTHARNESS_ENGINE_SUPPORT
+#define UE_ENABLE_TESTHARNESS_ENGINE_SUPPORT 1
 #endif
 
-#if UE5_ENABLE_TESTHARNESS_ENGINE_SUPPORT
+#if UE_ENABLE_TESTHARNESS_ENGINE_SUPPORT
 #include "CoreTypes.h"
 #include "Containers/ContainersFwd.h"
 #include "Containers/StringFwd.h"
@@ -58,8 +58,6 @@ inline bool operator==(const TMap<KeyT, ValueT>& Left, const TMap<KeyT, ValueT>&
 	return bIsEqual;
 }
 
-#endif // UE5_ENABLE_TESTHARNESS_ENGINE_SUPPORT
-
 #if defined(THIRD_PARTY_INCLUDES_START) && defined(THIRD_PARTY_INCLUDES_END)
 THIRD_PARTY_INCLUDES_START
 #endif // defined(THIRD_PARTY_INCLUDES_START) && defined(THIRD_PARTY_INCLUDES_END)
@@ -81,8 +79,6 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 #endif // defined(THIRD_PARTY_INCLUDES_START) && defined(THIRD_PARTY_INCLUDES_END)
 
-#if UE5_ENABLE_TESTHARNESS_ENGINE_SUPPORT
-
 // Tell Catch how to print TTuple<KeyType, ValueType>
 template <typename... Types> struct TTuple;
 
@@ -95,4 +91,68 @@ struct Catch::StringMaker<TTuple<KeyType, ValueType>>
 	}
 };
 
-#endif // #if UE5_ENABLE_TESTHARNESS_ENGINE_SUPPORT
+// Tests if true and prints message otherwise
+#define TestTrue(a, b) \
+	INFO((a)); \
+	CHECK((b) == true); \
+
+// Quiet version of TestTrue
+#define TestTrue_Q(a) \
+	CHECK((a) == true); \
+
+// Tests if false and prints message otherwise
+#define TestFalse(a, b) \
+	INFO((a)); \
+	CHECK((b) != true); \
+
+// Quiet version of TestFalse
+#define TestFalse_Q(a) \
+	CHECK((a) != true); \
+
+// Tests if b == c and prints message otherwise
+#define TestEqual(a, b, c) \
+	INFO((a)); \
+	CHECK((b) == (c)); \
+
+#define TestEqual_Conditional(a, b, c) \
+	INFO((a)); \
+	CHECKED_IF((b) == (c)) \
+
+// Quiet version of TestEqual
+#define TestEqual_Q(a, b) \
+	CHECK((a) == (b)); \
+
+#define TestNotEqual(a, b, c) \
+	INFO((a)); \
+	CHECK((b) != (c)); \
+
+#define TestNull(a, b) \
+	INFO((a)); \
+	CHECK((b) == nullptr); \
+
+#define TestNotNull(a, b) \
+	INFO((a)); \
+	CHECK((b) != nullptr); \
+
+#define TestValid(a, b) \
+	INFO((a)); \
+	CHECK((b).IsValid() == true); \
+
+#define TestInvalid(a, b) \
+	INFO((a)); \
+	CHECK((b).IsValid() != true); \
+
+#define TestEqualString(a, b, c) \
+	INFO((a)); \
+	CHECK(FCString::Strcmp(ToCStr((b)), ToCStr((c))) == 0); \
+
+#define TestAddInfo(a) \
+	INFO((a)); \
+
+#define TestAddWarning(a) \
+	WARN((a)); \
+
+#define TestAddError(a) \
+	FAIL_CHECK((a)); \
+
+#endif // UE_ENABLE_TESTHARNESS_ENGINE_SUPPORT

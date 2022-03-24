@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using System.Collections.Generic;
 using System.IO;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -34,6 +36,8 @@ namespace UnrealBuildTool
 			TargetSourceFile = File = FileReference.Combine(UnrealBuildTool.EngineSourceDirectory, "UnrealBuildTool", "Configuration", "TestTargetRules.cs");
 			LaunchModuleName = TestedTarget.LaunchModuleName + "Tests";
 
+			ManifestFileNames = TestedTarget.ManifestFileNames;
+
 			WindowsPlatform = TestedTarget.WindowsPlatform;
 
 			Type = TargetType.Program;
@@ -41,7 +45,7 @@ namespace UnrealBuildTool
 
 			bBuildInSolutionByDefault = false;
 
-			bDeployAfterCompile = false;
+			bDeployAfterCompile = Target.Platform != UnrealTargetPlatform.Android;
 			bIsBuildingConsoleApplication = true;
 
 			// Disabling default true flags that aren't necessary for tests
@@ -62,6 +66,9 @@ namespace UnrealBuildTool
 			bCompileAgainstApplicationCore = false;
 			bUseLoggingInShipping = true;
 
+			// Allow exception handling
+			bForceEnableExceptions = true;
+
 			bool bDebugOrDevelopment = Target.Configuration == UnrealTargetConfiguration.Debug || Target.Configuration == UnrealTargetConfiguration.Development;
 			bBuildWithEditorOnlyData = Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop) && bDebugOrDevelopment;
 
@@ -74,7 +81,9 @@ namespace UnrealBuildTool
 				bDebugBuildsActuallyUseDebugCRT = true;
 			}
 
+			GlobalDefinitions.Add("UE_LOW_LEVEL_TESTS=1");
 			GlobalDefinitions.Add("STATS=0");
+			GlobalDefinitions.Add("TEST_FOR_VALID_FILE_SYSTEM_MEMORY=0");
 
 			// Platform specific setup
 			if (Target.Platform == UnrealTargetPlatform.Android)

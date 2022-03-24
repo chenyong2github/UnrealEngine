@@ -11,8 +11,6 @@
 
 TEST_CASE("Core::Compression::CompressedBuffer::Compress", "[Core][Compression][Smoke]")
 {
-	InitCommandLine();
-
 	const uint8 ZeroBuffer[1024]{};
 	const FIoHash ZeroBufferHash = FIoHash::HashBuffer(MakeMemoryView(ZeroBuffer));
 
@@ -78,14 +76,10 @@ TEST_CASE("Core::Compression::CompressedBuffer::Compress", "[Core][Compression][
 		CHECK(CompressionLevel == ECompressedBufferCompressionLevel::VeryFast);
 		CHECK(FMath::IsPowerOfTwo(BlockSize));
 	}
-
-	CleanupCommandLine();
 }
 
 TEST_CASE("Core::Compression::CompressedBuffer::Decompress", "[Core][Compression][Smoke]")
 {
-	InitCommandLine();
-
 	const auto GenerateData = [](int32 N) -> TArray<uint64>
 	{
 		TArray<uint64> Data;
@@ -247,6 +241,4 @@ TEST_CASE("Core::Compression::CompressedBuffer::Decompress", "[Core][Compression
 			CHECK(Uncompressed.IsNull());
 		}
 	}
-
-	CleanupCommandLine();
 }

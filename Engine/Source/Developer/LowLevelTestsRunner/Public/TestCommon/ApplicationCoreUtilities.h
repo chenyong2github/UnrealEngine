@@ -4,8 +4,6 @@
 
 #if WITH_APPLICATION_CORE
 
-#include "HAL/PlatformApplicationMisc.h"
-
 void InitOutputDevicesAppCore();
 
 #endif // WITH_APPLICATION_CORE

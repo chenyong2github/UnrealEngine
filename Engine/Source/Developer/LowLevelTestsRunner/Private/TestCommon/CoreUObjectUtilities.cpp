@@ -3,6 +3,12 @@
 #if WITH_COREUOBJECT
 
 #include "TestCommon/CoreUObjectUtilities.h"
+#include "HAL/PlatformFileManager.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
+#include "Modules/ModuleManager.h"
+#include "UObject/Package.h"
+#include "UObject/PackageResourceManager.h"
 
 void InitCoreUObject()
 {

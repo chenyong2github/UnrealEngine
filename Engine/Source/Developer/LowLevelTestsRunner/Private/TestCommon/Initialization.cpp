@@ -1,6 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TestCommon/Initialization.h"
+#include "TestCommon/ApplicationCoreUtilities.h"
+#include "TestCommon/CoreUtilities.h"
+#include "TestCommon/CoreUObjectUtilities.h"
+#include "TestCommon/EditorUtilities.h"
+#include "TestCommon/EngineUtilities.h"
+
 
 
 void InitAllThreadPoolsEditorEx(bool MultiThreaded)
