@@ -312,7 +312,14 @@ SubmitCrashReportResult RunWithUI(FPlatformErrorReport ErrorReport, bool bImplic
 	TSharedRef<SCrashReportClient> ClientControl = SNew(SCrashReportClient, CrashReportClient, bImplicitSend);
 
 	FString CrashedAppName = FPrimaryCrashProperties::Get()->IsValid() ? FPrimaryCrashProperties::Get()->GameName : TEXT("");
-	CrashedAppName.RemoveFromStart(TEXT("UE4-"));
+	// GameNames have taken on a number of prefixes over the years. Try to strip them all off.
+	if (!CrashedAppName.RemoveFromStart(TEXT("UE4-")))
+	{
+		if (!CrashedAppName.RemoveFromStart(TEXT("UE5-")))
+		{
+			CrashedAppName.RemoveFromStart(TEXT("UE-"));
+		}
+	}
 	CrashedAppName.RemoveFromEnd(TEXT("Game"));
 
 	const FString CrashedAppString = NSLOCTEXT("CrashReportClient", "CrashReporterTitle", "Crash Reporter").ToString();

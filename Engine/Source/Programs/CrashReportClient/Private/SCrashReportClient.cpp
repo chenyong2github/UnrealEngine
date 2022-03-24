@@ -330,7 +330,14 @@ void SCrashReportClient::ConstructDetailedDialog(const TSharedRef<FCrashReportCl
 void SCrashReportClient::ConstructSimpleDialog(const TSharedRef<FCrashReportClient>& Client, const FText& CrashDetailedMessage)
 {
 	FString CrashedAppName = FPrimaryCrashProperties::Get()->IsValid() ? FPrimaryCrashProperties::Get()->GameName : TEXT("");
-	CrashedAppName.RemoveFromStart(TEXT("UE4-"));
+	// GameNames have taken on a number of prefixes over the years. Try to strip them all off.
+	if (!CrashedAppName.RemoveFromStart(TEXT("UE4-")))
+	{
+		if (!CrashedAppName.RemoveFromStart(TEXT("UE5-")))
+		{
+			CrashedAppName.RemoveFromStart(TEXT("UE-"));
+		}
+	}
 	CrashedAppName.RemoveFromEnd(TEXT("Game"));
 
 	ChildSlot
