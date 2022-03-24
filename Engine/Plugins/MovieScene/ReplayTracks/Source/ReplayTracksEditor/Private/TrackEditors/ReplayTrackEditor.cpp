@@ -252,7 +252,10 @@ void FReplayTrackEditor::OnInitialize()
 void FReplayTrackEditor::OnRelease()
 {
 	const TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
-	SequencerPtr->OnGlobalTimeChanged().Remove(GlobalTimeChangedHandle);
+	if (SequencerPtr.IsValid())
+	{
+		SequencerPtr->OnGlobalTimeChanged().Remove(GlobalTimeChangedHandle);
+	}
 }
 
 void FReplayTrackEditor::Tick(float DeltaTime)
