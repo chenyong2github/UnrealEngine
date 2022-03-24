@@ -483,6 +483,11 @@ private:
 
 	FLevelStatus& FindOrAddLevelStatus(const FString& LevelPackageName)
 	{
+		return FindOrAddLevelStatus(FString(LevelPackageName));
+	}
+
+	FLevelStatus& FindOrAddLevelStatus(FString&& LevelPackageName)
+	{
 		if (int32* LevelStatusIndex = LevelStatusesByName.Find(LevelPackageName))
 		{
 			return AllLevelStatuses[*LevelStatusIndex];
@@ -491,7 +496,7 @@ private:
 		const int32 Index = AllLevelStatuses.Emplace(LevelPackageName);
 		AllLevelStatuses[Index].LevelIndex = Index;
 
-		LevelStatusesByName.Add(LevelPackageName, Index);
+		LevelStatusesByName.Add(MoveTemp(LevelPackageName), Index);
 		NumLevelsAddedThisFrame++;
 
 		return AllLevelStatuses[Index];

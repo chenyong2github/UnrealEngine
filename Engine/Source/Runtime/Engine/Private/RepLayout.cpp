@@ -3820,6 +3820,9 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible_r(
 		}
 	}
 
+	FNetBitReader TempReader;
+	TempReader.PackageMap = Reader.PackageMap;
+
 	while (true)
 	{
 		uint32 NetFieldExportHandle = 0;
@@ -3862,10 +3865,7 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible_r(
 			return false;
 		}
 
-		FNetBitReader TempReader;
-		
-		TempReader.PackageMap = Reader.PackageMap;
-		TempReader.SetData(Reader, NumBits);
+		TempReader.ResetData(Reader, NumBits);
 
 		if (Reader.IsError())
 		{

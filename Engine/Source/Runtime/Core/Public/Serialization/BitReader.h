@@ -35,6 +35,9 @@ public:
 	void SetData( uint8* Src, int64 CountBits );
 	void SetData( TArray<uint8>&& Src, int64 CountBits );
 
+	/** Equivalent to SetData (reset position, copy from Src into internal buffer), but uses Reset not Empty to avoid a realloc if possible. */
+	void ResetData(FBitReader& Src, int64 CountBits);
+
 #if defined(_MSC_VER) && PLATFORM_DESKTOP
 #pragma warning( push )
 #pragma warning( disable : 4789 )	// Windows PGO (LTCG) is causing nonsensical errors in certain build environments

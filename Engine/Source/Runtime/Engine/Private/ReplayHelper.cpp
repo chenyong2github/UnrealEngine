@@ -1932,16 +1932,16 @@ bool FReplayHelper::ReadDemoFrame(UNetConnection* Connection, FArchive& Ar, TArr
 		// This can occur if the Archive is "double read" due to a level fast forward.
 		const bool bAddToSeenList = bAppendPackets && !bForLevelFastForward;
 
-		FString NameTemp;
 		for (uint32 i = 0; i < NumStreamingLevels; i++)
 		{
+			FString NameTemp;
 			Ar << NameTemp;
 
 			if (bAddToSeenList)
 			{
 				// Add this level to the seen list, but don't actually mark it as being seen.
 				// It will be marked when we have processed packets for it.
-				const FLevelStatus& LevelStatus = FindOrAddLevelStatus(NameTemp);
+				const FLevelStatus& LevelStatus = FindOrAddLevelStatus(MoveTemp(NameTemp));
 				SeenLevelStatuses.Add(LevelStatus.LevelIndex);
 			}
 		}

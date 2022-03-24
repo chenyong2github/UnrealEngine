@@ -188,6 +188,21 @@ void FBitReader::SetData( FBitReader& Src, int64 CountBits )
 	Src.SerializeBits(Buffer.GetData(), CountBits);
 }
 
+void FBitReader::ResetData(FBitReader& Src, int64 CountBits)
+{
+	Num = CountBits;
+	Pos = 0;
+	ClearError();
+
+	// Setup network version
+	this->SetEngineNetVer(Src.EngineNetVer());
+	this->SetGameNetVer(Src.GameNetVer());
+
+	Buffer.Reset();
+	Buffer.AddUninitialized((CountBits + 7) >> 3);
+	Src.SerializeBits(Buffer.GetData(), CountBits);
+}
+
 /** This appends data from another BitReader. It checks that this bit reader is byte-aligned so it can just do a TArray::Append instead of a bitcopy.
  *	It is intended to be used by performance minded code that wants to ensure an appBitCpy is avoided.
  */
