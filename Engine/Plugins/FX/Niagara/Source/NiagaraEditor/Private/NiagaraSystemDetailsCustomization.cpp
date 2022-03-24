@@ -17,6 +17,5 @@ void FNiagaraSystemDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailLayou
 	if(GNiagaraScalabilityModeEnabled)
 	{
 		InDetailLayout.HideCategory("Scalability");
-		InDetailLayout.HideProperty("EffectType");
 	}
 }
