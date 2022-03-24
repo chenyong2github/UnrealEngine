@@ -529,7 +529,7 @@ public:
 
 private:
 	// Does this anim instance need immediate update (rather than parallel)?
-	bool NeedsImmediateUpdate(float DeltaSeconds) const;
+	bool NeedsImmediateUpdate(float DeltaSeconds, bool bNeedsValidRootMotion) const;
 
 public:
 	/** Returns the owning actor of this AnimInstance */

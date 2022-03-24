@@ -536,7 +536,7 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 	}
 
 	// Determine whether or not the animation should be immediately updated according to current state
-	const bool bWantsImmediateUpdate = bNeedsValidRootMotion || NeedsImmediateUpdate(DeltaSeconds);
+	const bool bWantsImmediateUpdate = NeedsImmediateUpdate(DeltaSeconds, bNeedsValidRootMotion);
 
 	// Determine whether or not we can or should actually immediately update the animation state
 	bool bShouldImmediateUpdate = bWantsImmediateUpdate;
@@ -700,18 +700,18 @@ void UAnimInstance::ParallelUpdateAnimation()
 	GetProxyOnAnyThread<FAnimInstanceProxy>().UpdateAnimation();
 }
 
-bool UAnimInstance::NeedsImmediateUpdate(float DeltaSeconds) const
+bool UAnimInstance::NeedsImmediateUpdate(float DeltaSeconds, bool bNeedsValidRootMotion) const
 {
 	const bool bUseParallelUpdateAnimation = (GetDefault<UEngine>()->bAllowMultiThreadedAnimationUpdate && bUseMultiThreadedAnimationUpdate) || (CVarForceUseParallelAnimUpdate.GetValueOnGameThread() != 0);
 
 	return
+		(bNeedsValidRootMotion && RootMotionMode == ERootMotionMode::RootMotionFromEverything) ||
 		!CanRunParallelWork() ||
 		GIntraFrameDebuggingGameThread ||
 		CVarUseParallelAnimUpdate.GetValueOnGameThread() == 0 ||
 		CVarUseParallelAnimationEvaluation.GetValueOnGameThread() == 0 ||
 		!bUseParallelUpdateAnimation ||
-		DeltaSeconds == 0.0f ||
-		RootMotionMode == ERootMotionMode::RootMotionFromEverything;
+		DeltaSeconds == 0.0f;
 }
 
 bool UAnimInstance::NeedsUpdate() const
