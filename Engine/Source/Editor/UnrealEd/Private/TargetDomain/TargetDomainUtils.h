@@ -36,7 +36,6 @@ FCbObject BuildDefinitionListToObject(TConstArrayView<UE::DerivedData::FBuildDef
 
 struct FCookAttachments
 {
-	const ITargetPlatform* TargetPlatform;
 	TArray<FName> BuildDependencies;
 	TArray<FName> RuntimeOnlyDependencies;
 	TArray<UE::DerivedData::FBuildDefinition> BuildDefinitionList;
