@@ -28,7 +28,7 @@ struct IImagePixelDataPayload
 typedef TSharedPtr<IImagePixelDataPayload, ESPMode::ThreadSafe> FImagePixelPayloadPtr;
 
 
-// todo : use ImageCore FImage instead
+// @todo Oodle : use ImageCore FImage instead
 //  get rid of this whole class and TImagePixelData too
 //	just use an FImage instead
 struct FImagePixelData

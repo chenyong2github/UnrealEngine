@@ -14,7 +14,7 @@ namespace MoviePipeline
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_ImageQuantization"), STAT_ImageQuantization, STATGROUP_MoviePipeline);
 
 
-// @@!! TODO: get rid of this whole file
+// @todo Oodle : can get rid of this whole file
 //		use FImage, just call CopyImage
 
 

@@ -1470,7 +1470,7 @@ static FVector TransformWorldToSideSpace(uint32 CubemapFace, FVector InDirection
 	return Ret;
 }
 
-FVector ComputeSSCubeDirectionAtTexelCenter(uint32 x, uint32 y, float InvSideExtent)
+static FVector ComputeSSCubeDirectionAtTexelCenter(uint32 x, uint32 y, float InvSideExtent)
 {
 	// center of the texels
 	FVector DirectionSS((x + 0.5f) * InvSideExtent * 2 - 1, (y + 0.5f) * InvSideExtent * 2 - 1, 1);

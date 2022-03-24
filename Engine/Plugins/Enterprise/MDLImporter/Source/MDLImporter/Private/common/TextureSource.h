@@ -21,7 +21,10 @@ namespace Common
 	// Converts a float texture to a corresponding texture source.
 	inline FTextureSource* CreateTextureSource(const float* InData, int InWidth, int InHeight, int InChannels, bool bFlipY)
 	{
-		// @@!! TODO use FImage / CopyImage
+		// @todo Oodle : use FImageView / CopyImage
+		//  just make an FImageView on the float * and use TextureSource->Init() from ImageView
+		//  this whole function could be 2 lines
+		// 
 		//	also why are we converting to G8 or RGBA16 here ?
 		// just use F32 ETextureSourceFormat ?
 
@@ -85,7 +88,7 @@ namespace Common
 						int DstOffset = Y * InWidth * 4 + X * 4;
 						int SrcOffset = SrcY * InWidth * 4 + X * 4;
 
-						// @@!! use FColor::QuantizeUNormFloatTo16
+						// @todo Oodle: use FColor::QuantizeUNormFloatTo16
 						//	or just use FImage
 						check(IsValueInRange(InData[SrcOffset]));
 						check(IsValueInRange(InData[SrcOffset + 1]));
