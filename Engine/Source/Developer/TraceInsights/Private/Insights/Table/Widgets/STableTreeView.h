@@ -415,6 +415,8 @@ protected:
 	typedef TFunctionRef<void(TArray<Insights::FBaseTreeNodePtr>& InNodes)> WriteToFileCallback;
 	void ExportToFileRec(const FBaseTreeNodePtr& InGroupNode, TArray<Insights::FBaseTreeNodePtr>& InNodes, bool bInExportCollapsed, bool InExportLeafs, WriteToFileCallback Callback);
 
+	FText GetTreeViewBannerText() const { return TreeViewBannerText; }
+
 protected:
 	/** Table view model. */
 	TSharedPtr<Insights::FTable> Table;
@@ -533,6 +535,8 @@ protected:
 
 	double StatsStartTime;
 	double StatsEndTime;
+
+	FText TreeViewBannerText;
 
 	static constexpr int32 MAX_NUMBER_OF_NODES_TO_EXPAND = 1000 * 1000;
 	static constexpr int32 MAX_DEPTH_TO_EXPAND = 100;

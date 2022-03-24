@@ -227,6 +227,41 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 			[
 				SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, SharedThis(this))
 			]
+
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Top)
+			.Padding(FMargin(0.0f, 30.0f, 0.0f, 0.0f))
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("PopupText.Background"))
+				[
+					SNew(SHorizontalBox)
+					.Visibility_Lambda([this]() -> EVisibility 
+					{
+						return TreeViewBannerText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
+					})
+
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+					[
+						SNew(SImage)
+						.Image(FInsightsStyle::GetBrush("TreeViewBanner.WarningIcon"))
+					]
+
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+					[
+						SNew(STextBlock)
+						.Text(this, &STableTreeView::GetTreeViewBannerText)
+						.ColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f))
+					]
+				]
+			]
 		]
 
 		+ SHorizontalBox::Slot()
@@ -975,6 +1010,16 @@ void STableTreeView::ApplyFiltering()
 		}
 	}
 
+	TreeViewBannerText = FText::GetEmpty();
+	if (Root->GetChildren().Num() == 0)
+	{
+		TreeViewBannerText = LOCTEXT("EmptyTreeMsg", "Tree is empty.");
+	}
+	else if (Root->GetFilteredChildren().Num() == 0)
+	{
+		TreeViewBannerText = LOCTEXT("AllNodesFiltered", "All tree nodes are filtered out.");
+	}
+
 	Stopwatch.Stop();
 	const double FilteringTime = Stopwatch.GetAccumulatedTime();
 	if (FilteringTime > 0.1)
@@ -1365,6 +1410,12 @@ void STableTreeView::ApplyGrouping()
 
 void STableTreeView::CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings)
 {
+	if (TableTreeNodes.Num() == 0)
+	{
+		Root->ClearChildren();
+		return;
+	}
+
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
 
