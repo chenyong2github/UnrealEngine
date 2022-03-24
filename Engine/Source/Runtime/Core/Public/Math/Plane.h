@@ -148,7 +148,7 @@ public:
 	 * @param Tolerance Minimum squared length of vector for normalization.
 	 * @return true if the plane was normalized correctly, false otherwise.
 	 */
-	bool Normalize(T Tolerance = SMALL_NUMBER);
+	bool Normalize(T Tolerance = UE_SMALL_NUMBER);
 
 	/**
 	 * Get a flipped version of the plane.
@@ -208,7 +208,7 @@ public:
 	 * @param Tolerance Error Tolerance.
 	 * @return true if the two planes are equal within specified tolerance, otherwise false.
 	 */
-	bool Equals(const TPlane<T>& V, T Tolerance = KINDA_SMALL_NUMBER) const;
+	bool Equals(const TPlane<T>& V, T Tolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/**
 	 * Calculates dot product of two planes.

@@ -529,7 +529,7 @@ void FractionalToString(const double InVal, const FDecimalNumberFormattingRules&
 	// Check for float-> int overflow, fallback on regular lex if occurs
 	// if fractional part overflows then we are losing precession but the number is still valid
 	uint64 IntIntegralPart = static_cast<uint64>(IntegralPart);
-	if (IntegralPart - static_cast<double>(IntIntegralPart) > SMALL_NUMBER && bFastDecimalFormatLargeFloatSupport)
+	if (IntegralPart - static_cast<double>(IntIntegralPart) > UE_SMALL_NUMBER && bFastDecimalFormatLargeFloatSupport)
 	{
 		OutString = LexToSanitizedString(InVal);
 

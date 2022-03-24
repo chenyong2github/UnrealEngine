@@ -159,7 +159,7 @@ public:
 	 * @param Tolerance Error Tolerance.
 	 * @return true if two Matrix are equal, within specified tolerance, otherwise false.
 	 */
-	inline bool Equals(const TMatrix<T>& Other, T Tolerance = KINDA_SMALL_NUMBER) const;
+	inline bool Equals(const TMatrix<T>& Other, T Tolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/**
 	 * Checks whether another Matrix is not equal to this, within specified tolerance.
@@ -211,16 +211,16 @@ public:
 
 	// NOTE: There is some compiler optimization issues with WIN64 that cause FORCEINLINE to cause a crash
 	// Remove any scaling from this matrix (ie magnitude of each row is 1) with error Tolerance
-	inline void RemoveScaling(T Tolerance = SMALL_NUMBER);
+	inline void RemoveScaling(T Tolerance = UE_SMALL_NUMBER);
 
 	// Returns matrix after RemoveScaling with error Tolerance
-	inline TMatrix<T> GetMatrixWithoutScale(T Tolerance = SMALL_NUMBER) const;
+	inline TMatrix<T> GetMatrixWithoutScale(T Tolerance = UE_SMALL_NUMBER) const;
 
 	/** Remove any scaling from this matrix (ie magnitude of each row is 1) and return the 3D scale vector that was initially present with error Tolerance */
-	inline TVector<T> ExtractScaling(T Tolerance = SMALL_NUMBER);
+	inline TVector<T> ExtractScaling(T Tolerance = UE_SMALL_NUMBER);
 
 	/** return a 3D scale vector calculated from this matrix (where each component is the magnitude of a row vector) with error Tolerance. */
-	inline TVector<T> GetScaleVector(T Tolerance = SMALL_NUMBER) const;
+	inline TVector<T> GetScaleVector(T Tolerance = UE_SMALL_NUMBER) const;
 
 	// Remove any translation from this matrix
 	inline TMatrix<T> RemoveTranslation() const;

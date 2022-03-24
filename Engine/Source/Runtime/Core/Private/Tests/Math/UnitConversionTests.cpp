@@ -40,8 +40,8 @@ bool FUnitUnitTests::RunTest(const FString& Parameters)
 		{ 1000,		1.0936,		1e-4,	EUnit::Millimeters, 		EUnit::Yards		 		},
 		{ 2000,		0.0787,		1e-4,	EUnit::Micrometers, 		EUnit::Inches		 		},
 
-		{ 90,		PI/2,		1e-3,	EUnit::Degrees, 			EUnit::Radians		 		},
-		{ PI,		180,		1e-3,	EUnit::Radians, 			EUnit::Degrees		 		},
+		{ 90,		UE_PI/2,	1e-3,	EUnit::Degrees, 			EUnit::Radians		 		},
+		{ UE_PI,	180,		1e-3,	EUnit::Radians, 			EUnit::Degrees		 		},
 
 		{ 12,		43.2,		0.1,	EUnit::MetersPerSecond,		EUnit::KilometersPerHour	},
 		{ 1,		0.6214,		1e-4,	EUnit::KilometersPerHour,	EUnit::MilesPerHour			},

@@ -248,7 +248,7 @@ void FStatsTreeElement::UpdatePostMeasurement(double InCyclesPerTimerToRemove)
 	};
 
 	// remove the cycles for the timers
-	if (InCyclesPerTimerToRemove > SMALL_NUMBER)
+	if (InCyclesPerTimerToRemove > UE_SMALL_NUMBER)
 	{
 		Local::RemoveCyclesForTimers(this, InCyclesPerTimerToRemove);
 	}

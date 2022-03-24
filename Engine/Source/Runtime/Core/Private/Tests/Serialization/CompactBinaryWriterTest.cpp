@@ -476,7 +476,7 @@ bool FCbWriterFloatTest::RunTest(const FString& Parameters)
 	// Test Float32
 	{
 		Writer.Reset();
-		constexpr float Values[] = { 0.0f, 1.0f, -1.0f, PI };
+		constexpr float Values[] = { 0.0f, 1.0f, -1.0f, UE_PI };
 		for (float Value : Values)
 		{
 			Writer.AddFloat(Value);
@@ -496,7 +496,7 @@ bool FCbWriterFloatTest::RunTest(const FString& Parameters)
 	// Test Float64
 	{
 		Writer.Reset();
-		constexpr double Values[] = { 0.0f, 1.0f, -1.0f, PI, 1.9999998807907104, 1.9999999403953552, 3.4028234663852886e38, 6.8056469327705771e38 };
+		constexpr double Values[] = { 0.0f, 1.0f, -1.0f, UE_PI, 1.9999998807907104, 1.9999999403953552, 3.4028234663852886e38, 6.8056469327705771e38 };
 		for (double Value : Values)
 		{
 			Writer.AddFloat(Value);

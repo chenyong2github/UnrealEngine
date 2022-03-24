@@ -680,7 +680,7 @@ FORCENOINLINE FRotator3f TestQuaternionToRotator(const FQuat4f& Quat)
 	const float YawX = (1.f-2.f*(FMath::Square(Y) + FMath::Square(Z)));
 	const float SINGULARITY_THRESHOLD = 0.4999995f;
 
-	static const float RAD_TO_DEG = (180.f)/PI;
+	static const float RAD_TO_DEG = (180.f)/UE_PI;
 	FRotator3f RotatorFromQuat;
 
 	// Note: using stock C functions for some trig functions since this is the "reference" implementation
@@ -718,11 +718,11 @@ FORCENOINLINE FQuat4f FindBetween_Old(const FVector3f& vec1, const FVector3f& ve
 	const float crossMag = cross.Size();
 
 	// See if vectors are parallel or anti-parallel
-	if (crossMag < KINDA_SMALL_NUMBER)
+	if (crossMag < UE_KINDA_SMALL_NUMBER)
 	{
 		// If these vectors are parallel - just return identity quaternion (ie no rotation).
 		const float Dot = vec1 | vec2;
-		if (Dot > -KINDA_SMALL_NUMBER)
+		if (Dot > -UE_KINDA_SMALL_NUMBER)
 		{
 			return FQuat4f::Identity; // no rotation
 		}
@@ -746,7 +746,7 @@ FORCENOINLINE FQuat4f FindBetween_Old(const FVector3f& vec1, const FVector3f& ve
 	const float dot = vec1 | vec2;
 	if (dot < 0.0f)
 	{
-		angle = PI - angle;
+		angle = UE_PI - angle;
 	}
 
 	float sinHalfAng, cosHalfAng;
@@ -1920,45 +1920,45 @@ bool RunDoubleVectorTest()
 	V0 = MakeVectorRegister(-1.8, -1.0, -0.8, 0.0);
 	V2 = MakeVectorRegister(-1.0, -1.0, 0.0, 0.0);
 	V3 = VectorTruncate(V0);
-	LogTest<double>(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+	LogTest<double>(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, UE_DOUBLE_KINDA_SMALL_NUMBER));
 
 	V0 = MakeVectorRegister(0.0, 0.8, 1.0, 1.8);
 	V2 = MakeVectorRegister(0.0, 0.0, 1.0, 1.0);
 	V3 = VectorTruncate(V0);
-	LogTest<double>(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+	LogTest<double>(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, UE_DOUBLE_KINDA_SMALL_NUMBER));
 
 	V0 = MakeVectorRegister(0.1, 1.8, 2.4, -2.4);
 	V2 = MakeVectorRegister(0.0, 1.0, 2.0, -2.0);
 	V3 = VectorTruncate(V0);
-	LogTest<double>(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+	LogTest<double>(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, UE_DOUBLE_KINDA_SMALL_NUMBER));
 
 	// VectorFractional
 	V0 = MakeVectorRegister(-1.8, -1.0, -0.8, 0.0);
 	V2 = MakeVectorRegister(-0.8, 0.0, -0.8, 0.0);
 	V3 = VectorFractional(V0);
-	LogTest<double>(TEXT("VectorFractional"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+	LogTest<double>(TEXT("VectorFractional"), TestVectorsEqual(V2, V3, UE_DOUBLE_KINDA_SMALL_NUMBER));
 
 	V0 = MakeVectorRegister(0.0, 0.8, 1.0, 1.8);
 	V2 = MakeVectorRegister(0.0, 0.8, 0.0, 0.8);
 	V3 = VectorFractional(V0);
-	LogTest<double>(TEXT("VectorFractional"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+	LogTest<double>(TEXT("VectorFractional"), TestVectorsEqual(V2, V3, UE_DOUBLE_KINDA_SMALL_NUMBER));
 
 	// VectorCeil
 	V0 = MakeVectorRegister(-1.8, -1.0, -0.8, 0.0);
 	V2 = MakeVectorRegister(-1.0, -1.0, -0.0, 0.0);
 	V3 = VectorCeil(V0);
-	LogTest<double>(TEXT("VectorCeil"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+	LogTest<double>(TEXT("VectorCeil"), TestVectorsEqual(V2, V3, UE_DOUBLE_KINDA_SMALL_NUMBER));
 
 	V0 = MakeVectorRegister(0.0, 0.8, 1.0, 1.8);
 	V2 = MakeVectorRegister(0.0, 1.0, 1.0, 2.0);
 	V3 = VectorCeil(V0);
-	LogTest<double>(TEXT("VectorCeil"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+	LogTest<double>(TEXT("VectorCeil"), TestVectorsEqual(V2, V3, UE_DOUBLE_KINDA_SMALL_NUMBER));
 
 	// VectorFloor
 	V0 = MakeVectorRegister(-1.8, -1.0, -0.8, 0.0);
 	V2 = MakeVectorRegister(-2.0, -1.0, -1.0, 0.0);
 	V3 = VectorFloor(V0);
-	LogTest<double>(TEXT("VectorFloor"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+	LogTest<double>(TEXT("VectorFloor"), TestVectorsEqual(V2, V3, UE_DOUBLE_KINDA_SMALL_NUMBER));
 
 	V0 = MakeVectorRegister(0.0, 0.8, 1.0, 1.8);
 	V2 = MakeVectorRegister(0.0, 0.0, 1.0, 1.0);
@@ -2668,40 +2668,40 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V0 = MakeVectorRegister(-1.8f, -1.0f, -0.8f, 0.0f);
 	V2 = MakeVectorRegister(-1.0f, -1.0f, 0.0f, 0.0f);
 	V3 = VectorTruncate(V0);
-	LogTest<float>(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+	LogTest<float>(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, UE_KINDA_SMALL_NUMBER));
 
 	V0 = MakeVectorRegister(0.0f, 0.8f, 1.0f, 1.8f);
 	V2 = MakeVectorRegister(0.0f, 0.0f, 1.0f, 1.0f);
 	V3 = VectorTruncate(V0);
-	LogTest<float>(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+	LogTest<float>(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, UE_KINDA_SMALL_NUMBER));
 
 	// VectorFractional
 	V0 = MakeVectorRegister(-1.8f, -1.0f, -0.8f, 0.0f);
 	V2 = MakeVectorRegister(-0.8f, 0.0f, -0.8f, 0.0f);
 	V3 = VectorFractional(V0);
-	LogTest<float>(TEXT("VectorFractional"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+	LogTest<float>(TEXT("VectorFractional"), TestVectorsEqual(V2, V3, UE_KINDA_SMALL_NUMBER));
 
 	V0 = MakeVectorRegister(0.0f, 0.8f, 1.0f, 1.8f);
 	V2 = MakeVectorRegister(0.0f, 0.8f, 0.0f, 0.8f);
 	V3 = VectorFractional(V0);
-	LogTest<float>(TEXT("VectorFractional"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+	LogTest<float>(TEXT("VectorFractional"), TestVectorsEqual(V2, V3, UE_KINDA_SMALL_NUMBER));
 
 	// VectorCeil
 	V0 = MakeVectorRegister(-1.8f, -1.0f, -0.8f, 0.0f);
 	V2 = MakeVectorRegister(-1.0f, -1.0f, -0.0f, 0.0f);
 	V3 = VectorCeil(V0);
-	LogTest<float>(TEXT("VectorCeil"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+	LogTest<float>(TEXT("VectorCeil"), TestVectorsEqual(V2, V3, UE_KINDA_SMALL_NUMBER));
 
 	V0 = MakeVectorRegister(0.0f, 0.8f, 1.0f, 1.8f);
 	V2 = MakeVectorRegister(0.0f, 1.0f, 1.0f, 2.0f);
 	V3 = VectorCeil(V0);
-	LogTest<float>(TEXT("VectorCeil"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+	LogTest<float>(TEXT("VectorCeil"), TestVectorsEqual(V2, V3, UE_KINDA_SMALL_NUMBER));
 
 	// VectorFloor
 	V0 = MakeVectorRegister(-1.8f, -1.0f, -0.8f, 0.0f);
 	V2 = MakeVectorRegister(-2.0f, -1.0f, -1.0f, 0.0f);
 	V3 = VectorFloor(V0);
-	LogTest<float>(TEXT("VectorFloor"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+	LogTest<float>(TEXT("VectorFloor"), TestVectorsEqual(V2, V3, UE_KINDA_SMALL_NUMBER));
 
 	V0 = MakeVectorRegister(0.0f, 0.8f, 1.0f, 1.8f);
 	V2 = MakeVectorRegister(0.0f, 0.0f, 1.0f, 1.0f);
@@ -2803,8 +2803,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			{-2.8f,	-0.3f},
 			{-0.4f,	 5.5f},
 			{ 0.4f,	-5.5f},
-			{ 2.8f,	 2.0f + KINDA_SMALL_NUMBER},
-			{-2.8f,	 2.0f - KINDA_SMALL_NUMBER},
+			{ 2.8f,	 2.0f + UE_KINDA_SMALL_NUMBER},
+			{-2.8f,	 2.0f - UE_KINDA_SMALL_NUMBER},
 
 			// Analytically should be zero but floating point precision can cause results close to Y (or erroneously negative) depending on the method used.
 			{55.8f,	 9.3f},
@@ -2813,27 +2813,27 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			// Commonly used for FRotators and angles
 			{725.2f,	360.0f},
 			{179.9f,	90.0f},
-			{ 5.3f * PI,	2.f * PI},
-			{-5.3f * PI,	2.f * PI},
+			{ 5.3f * UE_PI,	2.f * UE_PI},
+			{-5.3f * UE_PI,	2.f * UE_PI},
 
 			// Test extreme ranges
-			{ 1.0f,			 KINDA_SMALL_NUMBER},
-			{ 1.0f,			-KINDA_SMALL_NUMBER},
-			{-SMALL_NUMBER,  SMALL_NUMBER},
-			{ SMALL_NUMBER, -SMALL_NUMBER},
-			{ 1.0f,			 MIN_flt},
-			{ 1.0f,			-MIN_flt},
-			{ MAX_flt,		 MIN_flt},
-			{ MAX_flt,		-MIN_flt},
+			{ 1.0f,				 UE_KINDA_SMALL_NUMBER},
+			{ 1.0f,				-UE_KINDA_SMALL_NUMBER},
+			{-UE_SMALL_NUMBER,   UE_SMALL_NUMBER},
+			{ UE_SMALL_NUMBER,  -UE_SMALL_NUMBER},
+			{ 1.0f,				 MIN_flt},
+			{ 1.0f,				-MIN_flt},
+			{ MAX_flt,			 MIN_flt},
+			{ MAX_flt,			-MIN_flt},
 
 			// Test some tricky cases
 			{8388808.00f, 178.222f},  // FAILS old version
 			{360.0f * 1e10f,		360.0f},
 			{-720.0f * 1000000.0f,	360.0f},
 			{1080.0f * 12345.f,		360.0f},
-			{360.0f,				360.0f - KINDA_SMALL_NUMBER},
-			{1080.0f,				360.0f - KINDA_SMALL_NUMBER},
-			{719.0f,				360.0f - KINDA_SMALL_NUMBER},
+			{360.0f,				360.0f - UE_KINDA_SMALL_NUMBER},
+			{1080.0f,				360.0f - UE_KINDA_SMALL_NUMBER},
+			{719.0f,				360.0f - UE_KINDA_SMALL_NUMBER},
 			
 
 			// We define this to be zero and not NaN.
@@ -2885,8 +2885,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			{-2.8,	-0.3},
 			{-0.4,	 5.5},
 			{ 0.4,	-5.5},
-			{ 2.8,	 2.0 + DOUBLE_KINDA_SMALL_NUMBER},
-			{-2.8,	 2.0 - DOUBLE_KINDA_SMALL_NUMBER},
+			{ 2.8,	 2.0 + UE_DOUBLE_KINDA_SMALL_NUMBER},
+			{-2.8,	 2.0 - UE_DOUBLE_KINDA_SMALL_NUMBER},
 
 			// Analytically should be zero but floating point precision can cause results close to Y (or erroneously negative) depending on the method used.
 			{55.8,	 9.3},
@@ -2896,14 +2896,14 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			// Commonly used for FRotators and angles
 			{725.2,	360.0},
 			{179.9,	90.0},
-			{ 5.3 * DOUBLE_PI,	2. * DOUBLE_PI},
-			{-5.3 * DOUBLE_PI,	2. * DOUBLE_PI},
+			{ 5.3 * UE_DOUBLE_PI,	2. * UE_DOUBLE_PI},
+			{-5.3 * UE_DOUBLE_PI,	2. * UE_DOUBLE_PI},
 
 			// Test extreme ranges
-			{ 1.0,			 DOUBLE_KINDA_SMALL_NUMBER},
-			{ 1.0,			-DOUBLE_KINDA_SMALL_NUMBER},
-			{-DOUBLE_SMALL_NUMBER,  DOUBLE_SMALL_NUMBER},
-			{ DOUBLE_SMALL_NUMBER, -DOUBLE_SMALL_NUMBER},
+			{ 1.0,			 UE_DOUBLE_KINDA_SMALL_NUMBER},
+			{ 1.0,			-UE_DOUBLE_KINDA_SMALL_NUMBER},
+			{-UE_DOUBLE_SMALL_NUMBER,  UE_DOUBLE_SMALL_NUMBER},
+			{ UE_DOUBLE_SMALL_NUMBER, -UE_DOUBLE_SMALL_NUMBER},
 			{ 1.0,			 MIN_dbl},
 			{ 1.0,			-MIN_dbl},
 			{ MAX_flt,		 MIN_dbl},
@@ -2914,9 +2914,9 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			{360.0 * 1e10,			360.0},
 			{-720.0 * 1000000.0,	360.0},
 			{1080.0 * 12345.,		360.0},
-			{360.0,					360.0 - DOUBLE_KINDA_SMALL_NUMBER},
-			{1080.0,				360.0 - DOUBLE_KINDA_SMALL_NUMBER},
-			{719.0,					360.0 - DOUBLE_KINDA_SMALL_NUMBER},
+			{360.0,					360.0 - UE_DOUBLE_KINDA_SMALL_NUMBER},
+			{1080.0,				360.0 - UE_DOUBLE_KINDA_SMALL_NUMBER},
+			{719.0,					360.0 - UE_DOUBLE_KINDA_SMALL_NUMBER},
 
 			// We define this to be zero and not NaN.
 			// Disabled since we don't want to trigger an ensure, but left here for testing that logic.
@@ -3120,7 +3120,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			LogQuaternionTest(TEXT("FRotator3f::ZeroRotator not != FQuat4f::Identity : Quaternion"), Q0, Q1, !(Q0 != Q1));
 		}
 
-		const float Nudge = KINDA_SMALL_NUMBER * 0.25f;
+		const float Nudge = UE_KINDA_SMALL_NUMBER * 0.25f;
 		const FRotator3f RotArray[] = {
 			FRotator3f(0.f, 0.f, 0.f),
 			FRotator3f(Nudge, -Nudge, Nudge),
@@ -3141,7 +3141,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		// FRotator3f tests
 		{
 			// Equality test
-			const float RotTolerance = KINDA_SMALL_NUMBER;
+			const float RotTolerance = UE_KINDA_SMALL_NUMBER;
 			for (auto const& A : RotArray)
 			{
 				for (auto const& B : RotArray)
@@ -3167,7 +3167,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 	// Rotator->Quat->Rotator
 	{
-		const float Nudge = KINDA_SMALL_NUMBER * 0.25f;
+		const float Nudge = UE_KINDA_SMALL_NUMBER * 0.25f;
 		const FRotator3f RotArray[] ={
 			FRotator3f(0.0f, 0.0f, 0.0f),
 			FRotator3f(30.0f, 30.0f, 30.0f),
@@ -3387,9 +3387,9 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 					}
 					else
 					{
-						LogTest<float>(TEXT("FindBetween: Old A->B"), TestFVector3Equal(RotAOld, BNorm, KINDA_SMALL_NUMBER));
-						LogTest<float>(TEXT("FindBetween: New A->B (normal)"), TestFVector3Equal(RotANewNormal, BNorm, KINDA_SMALL_NUMBER));
-						LogTest<float>(TEXT("FindBetween: New A->B (vector)"), TestFVector3Equal(RotANewVector, BNorm, KINDA_SMALL_NUMBER));
+						LogTest<float>(TEXT("FindBetween: Old A->B"), TestFVector3Equal(RotAOld, BNorm, UE_KINDA_SMALL_NUMBER));
+						LogTest<float>(TEXT("FindBetween: New A->B (normal)"), TestFVector3Equal(RotANewNormal, BNorm, UE_KINDA_SMALL_NUMBER));
+						LogTest<float>(TEXT("FindBetween: New A->B (vector)"), TestFVector3Equal(RotANewVector, BNorm, UE_KINDA_SMALL_NUMBER));
 					}
 				}
 			}
@@ -3410,8 +3410,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 				const FVector3f Rotated1 = Q1.RotateVector(FVector3f::ForwardVector);
 				const FVector3f Rotated2 = R0.RotateVector(FVector3f::ForwardVector);
 
-				LogTest<float>(TEXT("V.ToOrientationQuat() rotate"), TestFVector3Equal(Rotated0, Rotated1, KINDA_SMALL_NUMBER));
-				LogTest<float>(TEXT("V.ToOrientationRotator() rotate"), TestFVector3Equal(Rotated0, Rotated2, KINDA_SMALL_NUMBER));
+				LogTest<float>(TEXT("V.ToOrientationQuat() rotate"), TestFVector3Equal(Rotated0, Rotated1, UE_KINDA_SMALL_NUMBER));
+				LogTest<float>(TEXT("V.ToOrientationRotator() rotate"), TestFVector3Equal(Rotated0, Rotated2, UE_KINDA_SMALL_NUMBER));
 			}
 		}
 	}
@@ -4122,7 +4122,7 @@ bool FInitVectorTest::RunTest(const FString& Parameters)
 		const bool bIsInitialized = Actual.InitFromCompactString(InExpected.ToCompactString());
 
 		TestTrue(*(InTestName + " return value"), bIsInitialized);
-		TestEqual(*InTestName, Actual, InExpected, KINDA_SMALL_NUMBER);
+		TestEqual(*InTestName, Actual, InExpected, UE_KINDA_SMALL_NUMBER);
 	};
 
 	TestInitFromCompactString(TEXT("InitFromCompactString Simple"), FVector(1.2f, 2.3f, 3.4f));

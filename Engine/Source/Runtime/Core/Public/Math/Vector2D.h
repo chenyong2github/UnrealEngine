@@ -412,7 +412,7 @@ public:
 	* @param Tolerance Error tolerance.
 	* @return true if the vectors are equal within specified tolerance, otherwise false.
 	*/
-	bool Equals(const TVector2<T>& V, T Tolerance=KINDA_SMALL_NUMBER) const;
+	bool Equals(const TVector2<T>& V, T Tolerance=UE_KINDA_SMALL_NUMBER) const;
 
 	/**
 	* Set the values of the vector directly.
@@ -498,7 +498,7 @@ public:
 	* @param Tolerance Minimum squared length of vector for normalization.
 	* @return A normalized copy of the vector if safe, (0,0) otherwise.
 	*/
-	TVector2<T> GetSafeNormal(T Tolerance=SMALL_NUMBER) const;
+	TVector2<T> GetSafeNormal(T Tolerance=UE_SMALL_NUMBER) const;
 
 	/**
 	* Normalize this vector in-place if it is large enough, set it to (0,0) otherwise.
@@ -506,7 +506,7 @@ public:
 	* @param Tolerance Minimum squared length of vector for normalization.
 	* @see GetSafeNormal()
 	*/
-	void Normalize(T Tolerance=SMALL_NUMBER);
+	void Normalize(T Tolerance=UE_SMALL_NUMBER);
 
 	/**
 	* Checks whether vector is near to zero within a specified tolerance.
@@ -514,7 +514,7 @@ public:
 	* @param Tolerance Error tolerance.
 	* @return true if vector is in tolerance to zero, otherwise false.
 	*/
-	bool IsNearlyZero(T Tolerance=KINDA_SMALL_NUMBER) const;
+	bool IsNearlyZero(T Tolerance=UE_KINDA_SMALL_NUMBER) const;
 
 	/**
 	* Util to convert this vector into a unit direction vector and its original length.
@@ -1069,7 +1069,7 @@ template<typename T>
 FORCEINLINE void TVector2<T>::ToDirectionAndLength(TVector2<T> &OutDir, double &OutLength) const
 {
 	OutLength = Size();
-	if (OutLength > SMALL_NUMBER)
+	if (OutLength > UE_SMALL_NUMBER)
 	{
 		T OneOverLength = 1.0f / OutLength;
 		OutDir = TVector2<T>(X*OneOverLength, Y*OneOverLength);
@@ -1084,7 +1084,7 @@ template<typename T>
 FORCEINLINE void TVector2<T>::ToDirectionAndLength(TVector2<T> &OutDir, float &OutLength) const
 {
 	OutLength = Size();
-	if (OutLength > SMALL_NUMBER)
+	if (OutLength > UE_SMALL_NUMBER)
 	{
 		float OneOverLength = 1.0f / OutLength;
 		OutDir = TVector2<T>(X*OneOverLength, Y*OneOverLength);

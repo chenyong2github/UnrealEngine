@@ -205,7 +205,7 @@ public:
 	 * @param Tolerance Error Tolerance.
 	 * @return true if rotator is nearly zero, within specified tolerance, otherwise false.
 	 */
-	bool IsNearlyZero( T Tolerance = KINDA_SMALL_NUMBER ) const;
+	bool IsNearlyZero( T Tolerance = UE_KINDA_SMALL_NUMBER ) const;
 
 	/**
 	 * Checks whether this has exactly zero rotation, when treated as an orientation.
@@ -223,7 +223,7 @@ public:
 	 * @param Tolerance Error Tolerance.
 	 * @return true if two rotators are equal, within specified tolerance, otherwise false.
 	 */
-	bool Equals( const TRotator<T>& R, T Tolerance = KINDA_SMALL_NUMBER ) const;
+	bool Equals( const TRotator<T>& R, T Tolerance = UE_KINDA_SMALL_NUMBER ) const;
 
 	/**
 	 * Adds to each component of the rotator.

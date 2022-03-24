@@ -163,7 +163,7 @@ void TTransform<T>::SetToRelativeTransform(const TTransform<T>& ParentTransform)
 	checkSlow(ParentTransform.IsRotationNormalized());
 
 	// Scale = S(A)/S(B)	
-	TransformVectorRegister VSafeScale3D	= VectorSet_W0(GetSafeScaleReciprocal(ParentTransform.Scale3D, ScalarRegister(SMALL_NUMBER)));
+	TransformVectorRegister VSafeScale3D	= VectorSet_W0(GetSafeScaleReciprocal(ParentTransform.Scale3D, ScalarRegister(UE_SMALL_NUMBER)));
 	Scale3D = VectorMultiply(Scale3D, VSafeScale3D);
 	
 	//VQTranslation = (  ( T(A).X - T(B).X ),  ( T(A).Y - T(B).Y ), ( T(A).Z - T(B).Z), 0.f );
@@ -195,7 +195,7 @@ void TTransform<T>::GetRelativeTransformUsingMatrixWithScale(TTransform<T>* OutT
 	TMatrix<T> BM = Relative->ToMatrixWithScale();
 	// get combined scale
 	// Scale = S(A)/S(B)
-	static ScalarRegister STolerance(SMALL_NUMBER);
+	static ScalarRegister STolerance(UE_SMALL_NUMBER);
 	TransformVectorRegister VSafeScale3D = VectorSet_W0(GetSafeScaleReciprocal(Relative->Scale3D, STolerance));
 	TransformVectorRegister VScale3D = VectorMultiply(Base->Scale3D, VSafeScale3D);
 	ConstructTransformFromMatrixWithDesiredScale(AM, BM.Inverse(), VScale3D, *OutTransform);
@@ -225,7 +225,7 @@ TTransform<T> TTransform<T>::GetRelativeTransform(const TTransform<T>& Other) co
 	else
 	{
 		// Scale = S(A)/S(B)
-		static ScalarRegister STolerance(SMALL_NUMBER);
+		static ScalarRegister STolerance(UE_SMALL_NUMBER);
 		TransformVectorRegister VSafeScale3D = VectorSet_W0(GetSafeScaleReciprocal(Other.Scale3D, STolerance));
 
 		TransformVectorRegister VScale3D = VectorMultiply(Scale3D, VSafeScale3D);

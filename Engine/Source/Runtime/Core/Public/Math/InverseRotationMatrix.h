@@ -32,19 +32,19 @@ template<typename T>
 FORCEINLINE TInverseRotationMatrix<T>::TInverseRotationMatrix(const TRotator<T>& Rot)
 	: TMatrix<T>(
 		TMatrix<T>( // Yaw
-			TPlane<T>(+FMath::Cos(Rot.Yaw * PI / 180.f), -FMath::Sin(Rot.Yaw * PI / 180.f), 0.0f, 0.0f),
-			TPlane<T>(+FMath::Sin(Rot.Yaw * PI / 180.f), +FMath::Cos(Rot.Yaw * PI / 180.f), 0.0f, 0.0f),
+			TPlane<T>(+FMath::Cos(Rot.Yaw * UE_PI / 180.f), -FMath::Sin(Rot.Yaw * UE_PI / 180.f), 0.0f, 0.0f),
+			TPlane<T>(+FMath::Sin(Rot.Yaw * UE_PI / 180.f), +FMath::Cos(Rot.Yaw * UE_PI / 180.f), 0.0f, 0.0f),
 			TPlane<T>(0.0f, 0.0f, 1.0f, 0.0f),
 			TPlane<T>(0.0f, 0.0f, 0.0f, 1.0f)) *
 		TMatrix<T>( // Pitch
-			TPlane<T>(+FMath::Cos(Rot.Pitch * PI / 180.f), 0.0f, -FMath::Sin(Rot.Pitch * PI / 180.f), 0.0f),
+			TPlane<T>(+FMath::Cos(Rot.Pitch * UE_PI / 180.f), 0.0f, -FMath::Sin(Rot.Pitch * UE_PI / 180.f), 0.0f),
 			TPlane<T>(0.0f, 1.0f, 0.0f, 0.0f),
-			TPlane<T>(+FMath::Sin(Rot.Pitch * PI / 180.f), 0.0f, +FMath::Cos(Rot.Pitch * PI / 180.f), 0.0f),
+			TPlane<T>(+FMath::Sin(Rot.Pitch * UE_PI / 180.f), 0.0f, +FMath::Cos(Rot.Pitch * UE_PI / 180.f), 0.0f),
 			TPlane<T>(0.0f, 0.0f, 0.0f, 1.0f)) *
 		TMatrix<T>( // Roll
 			TPlane<T>(1.0f, 0.0f, 0.0f, 0.0f),
-			TPlane<T>(0.0f, +FMath::Cos(Rot.Roll * PI / 180.f), +FMath::Sin(Rot.Roll * PI / 180.f), 0.0f),
-			TPlane<T>(0.0f, -FMath::Sin(Rot.Roll * PI / 180.f), +FMath::Cos(Rot.Roll * PI / 180.f), 0.0f),
+			TPlane<T>(0.0f, +FMath::Cos(Rot.Roll * UE_PI / 180.f), +FMath::Sin(Rot.Roll * UE_PI / 180.f), 0.0f),
+			TPlane<T>(0.0f, -FMath::Sin(Rot.Roll * UE_PI / 180.f), +FMath::Cos(Rot.Roll * UE_PI / 180.f), 0.0f),
 			TPlane<T>(0.0f, 0.0f, 0.0f, 1.0f))
 	)
 { }

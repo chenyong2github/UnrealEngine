@@ -2168,7 +2168,7 @@ void TestConsoleVariableCallback(IConsoleVariable* Var)
 	check(Var);
 
 	float Value = Var->GetFloat();
-	check(FMath::IsNearlyEqual(Value, 3.1f, KINDA_SMALL_NUMBER));
+	check(FMath::IsNearlyEqual(Value, 3.1f, UE_KINDA_SMALL_NUMBER));
 
 	++GConsoleVariableCallbackTestCounter;
 }
@@ -2231,7 +2231,7 @@ void FConsoleManager::Test()
 		check(VarA->GetString() == FString(TEXT("1")));
 
 		check(VarB->GetInt() == 1);
-		check(FMath::IsNearlyEqual(VarB->GetFloat(), 1.2f, KINDA_SMALL_NUMBER));
+		check(FMath::IsNearlyEqual(VarB->GetFloat(), 1.2f, UE_KINDA_SMALL_NUMBER));
 		check(VarB->GetString() == FString(TEXT("1.2")));
 
 		check(RefD == 2);
@@ -2239,7 +2239,7 @@ void FConsoleManager::Test()
 		check(VarD->GetFloat() == (float)2);
 		check(VarD->GetString() == FString(TEXT("2")));
 
-		check(FMath::IsNearlyEqual(RefE, 2.1f, KINDA_SMALL_NUMBER));
+		check(FMath::IsNearlyEqual(RefE, 2.1f, UE_KINDA_SMALL_NUMBER));
 		check(VarE->GetInt() == (int32)RefE);
 		check(VarE->GetFloat() == RefE);
 		check(VarE->GetString() == FString(TEXT("2.1")));
@@ -2293,7 +2293,7 @@ void FConsoleManager::Test()
 			check(VarC == IConsoleManager::Get().FindConsoleVariable(TEXT("TestNameC")));
 			check(VarC->GetInt() == 1);
 			// note: exact comparison fails in Win32 release
-			check(FMath::IsNearlyEqual(VarC->GetFloat(), 1.23f, KINDA_SMALL_NUMBER));
+			check(FMath::IsNearlyEqual(VarC->GetFloat(), 1.23f, UE_KINDA_SMALL_NUMBER));
 			check(VarC->GetString() == FString(TEXT("1.23")));
 			VarC->Set(TEXT("3.1"), ECVF_SetByConsole);
 			check(VarC->GetString() == FString(TEXT("3.1")));

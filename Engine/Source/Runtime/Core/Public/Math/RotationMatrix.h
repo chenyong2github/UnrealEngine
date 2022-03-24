@@ -78,7 +78,7 @@ TMatrix<T> TRotationMatrix<T>::MakeFromX(TVector<T> const& XAxis)
 	TVector<T> const NewX = XAxis.GetSafeNormal();
 
 	// try to use up if possible
-	TVector<T> const UpVector = (FMath::Abs(NewX.Z) < (1.f - KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
+	TVector<T> const UpVector = (FMath::Abs(NewX.Z) < (1.f - UE_KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
 
 	const TVector<T> NewY = (UpVector ^ NewX).GetSafeNormal();
 	const TVector<T> NewZ = NewX ^ NewY;
@@ -92,7 +92,7 @@ TMatrix<T> TRotationMatrix<T>::MakeFromY(TVector<T> const& YAxis)
 	TVector<T> const NewY = YAxis.GetSafeNormal();
 
 	// try to use up if possible
-	TVector<T> const UpVector = (FMath::Abs(NewY.Z) < (1.f - KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
+	TVector<T> const UpVector = (FMath::Abs(NewY.Z) < (1.f - UE_KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
 
 	const TVector<T> NewZ = (UpVector ^ NewY).GetSafeNormal();
 	const TVector<T> NewX = NewY ^ NewZ;
@@ -106,7 +106,7 @@ TMatrix<T> TRotationMatrix<T>::MakeFromZ(TVector<T> const& ZAxis)
 	TVector<T> const NewZ = ZAxis.GetSafeNormal();
 
 	// try to use up if possible
-	TVector<T> const UpVector = (FMath::Abs(NewZ.Z) < (1.f - KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
+	TVector<T> const UpVector = (FMath::Abs(NewZ.Z) < (1.f - UE_KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
 
 	const TVector<T> NewX = (UpVector ^ NewZ).GetSafeNormal();
 	const TVector<T> NewY = NewZ ^ NewX;
@@ -124,7 +124,7 @@ TMatrix<T> TRotationMatrix<T>::MakeFromXY(TVector<T> const& XAxis, TVector<T> co
 	if (FMath::IsNearlyEqual(FMath::Abs(NewX | Norm), T(1.f)))
 	{
 		// make sure we don't ever pick the same as NewX
-		Norm = (FMath::Abs(NewX.Z) < (1.f - KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
+		Norm = (FMath::Abs(NewX.Z) < (1.f - UE_KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
 	}
 
 	const TVector<T> NewZ = (NewX ^ Norm).GetSafeNormal();
@@ -143,7 +143,7 @@ TMatrix<T> TRotationMatrix<T>::MakeFromXZ(TVector<T> const& XAxis, TVector<T> co
 	if (FMath::IsNearlyEqual(FMath::Abs(NewX | Norm), T(1.f)))
 	{
 		// make sure we don't ever pick the same as NewX
-		Norm = (FMath::Abs(NewX.Z) < (1.f - KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
+		Norm = (FMath::Abs(NewX.Z) < (1.f - UE_KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
 	}
 
 	const TVector<T> NewY = (Norm ^ NewX).GetSafeNormal();
@@ -162,7 +162,7 @@ TMatrix<T> TRotationMatrix<T>::MakeFromYX(TVector<T> const& YAxis, TVector<T> co
 	if (FMath::IsNearlyEqual(FMath::Abs(NewY | Norm), T(1.f)))
 	{
 		// make sure we don't ever pick the same as NewX
-		Norm = (FMath::Abs(NewY.Z) < (1.f - KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
+		Norm = (FMath::Abs(NewY.Z) < (1.f - UE_KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
 	}
 
 	const TVector<T> NewZ = (Norm ^ NewY).GetSafeNormal();
@@ -181,7 +181,7 @@ TMatrix<T> TRotationMatrix<T>::MakeFromYZ(TVector<T> const& YAxis, TVector<T> co
 	if (FMath::IsNearlyEqual(FMath::Abs(NewY | Norm), T(1.f)))
 	{
 		// make sure we don't ever pick the same as NewX
-		Norm = (FMath::Abs(NewY.Z) < (1.f - KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
+		Norm = (FMath::Abs(NewY.Z) < (1.f - UE_KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
 	}
 
 	const TVector<T> NewX = (NewY ^ Norm).GetSafeNormal();
@@ -200,7 +200,7 @@ TMatrix<T> TRotationMatrix<T>::MakeFromZX(TVector<T> const& ZAxis, TVector<T> co
 	if (FMath::IsNearlyEqual(FMath::Abs(NewZ | Norm), T(1.f)))
 	{
 		// make sure we don't ever pick the same as NewX
-		Norm = (FMath::Abs(NewZ.Z) < (1.f - KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
+		Norm = (FMath::Abs(NewZ.Z) < (1.f - UE_KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
 	}
 
 	const TVector<T> NewY = (NewZ ^ Norm).GetSafeNormal();
@@ -219,7 +219,7 @@ TMatrix<T> TRotationMatrix<T>::MakeFromZY(TVector<T> const& ZAxis, TVector<T> co
 	if (FMath::IsNearlyEqual(FMath::Abs(NewZ | Norm), T(1.f)))
 	{
 		// make sure we don't ever pick the same as NewX
-		Norm = (FMath::Abs(NewZ.Z) < (1.f - KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
+		Norm = (FMath::Abs(NewZ.Z) < (1.f - UE_KINDA_SMALL_NUMBER)) ? TVector<T>(0, 0, 1.f) : TVector<T>(1.f, 0, 0);
 	}
 
 	const TVector<T> NewX = (Norm ^ NewZ).GetSafeNormal();

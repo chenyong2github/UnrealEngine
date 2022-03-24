@@ -129,7 +129,7 @@ public:
 	 * @param Tolerance Error tolerance.
 	 * @return true if the boxes are equal within tolerance limits, false otherwise.
 	 */
-	bool Equals(const TBox<T>& Other, T Tolerance=KINDA_SMALL_NUMBER) const
+	bool Equals(const TBox<T>& Other, T Tolerance=UE_KINDA_SMALL_NUMBER) const
 	{
 		return Min.Equals(Other.Min, Tolerance) && Max.Equals(Other.Max, Tolerance);
 	}

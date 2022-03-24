@@ -153,7 +153,7 @@ public:
 			Result.Z = GetFraction() * 2.f - 1.f;
 			L = Result.SizeSquared();
 		}
-		while(L > 1.f || L < KINDA_SMALL_NUMBER);
+		while(L > 1.f || L < UE_KINDA_SMALL_NUMBER);
 
 		return Result.GetUnsafeNormal();
 	}
@@ -244,7 +244,7 @@ public:
 
 			// Get spherical coords that have an even distribution over the unit sphere
 			// Method described at http://mathworld.wolfram.com/SpherePointPicking.html	
-			float Theta = 2.f * PI * RandU;
+			float Theta = 2.f * UE_PI * RandU;
 			float Phi = FMath::Acos((2.f * RandV) - 1.f);
 
 			// restrict phi to [0, ConeHalfAngleRad]
@@ -258,8 +258,8 @@ public:
 			FVector const DirZ = DirMat.GetUnitAxis( EAxis::X );		
 			FVector const DirY = DirMat.GetUnitAxis( EAxis::Y );
 
-			FVector Result = Dir.RotateAngleAxis(Phi * 180.f / PI, DirY);
-			Result = Result.RotateAngleAxis(Theta * 180.f / PI, DirZ);
+			FVector Result = Dir.RotateAngleAxis(Phi * 180.f / UE_PI, DirY);
+			Result = Result.RotateAngleAxis(Theta * 180.f / UE_PI, DirZ);
 
 			// ensure it's a unit vector (might not have been passed in that way)
 			Result = Result.GetSafeNormal();
@@ -289,7 +289,7 @@ public:
 
 			// Get spherical coords that have an even distribution over the unit sphere
 			// Method described at http://mathworld.wolfram.com/SpherePointPicking.html	
-			float Theta = 2.f * PI * RandU;
+			float Theta = 2.f * UE_PI * RandU;
 			float Phi = FMath::Acos((2.f * RandV) - 1.f);
 
 			// restrict phi to [0, ConeHalfAngleRad]
@@ -308,8 +308,8 @@ public:
 			FVector const DirZ = DirMat.GetUnitAxis( EAxis::X );		
 			FVector const DirY = DirMat.GetUnitAxis( EAxis::Y );
 
-			FVector Result = Dir.RotateAngleAxis(Phi * 180.f / PI, DirY);
-			Result = Result.RotateAngleAxis(Theta * 180.f / PI, DirZ);
+			FVector Result = Dir.RotateAngleAxis(Phi * 180.f / UE_PI, DirY);
+			Result = Result.RotateAngleAxis(Theta * 180.f / UE_PI, DirZ);
 
 			// ensure it's a unit vector (might not have been passed in that way)
 			Result = Result.GetSafeNormal();

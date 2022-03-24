@@ -90,7 +90,7 @@ public:
 	 * @param Tolerance Error Tolerance.
 	 * @return true if spheres are equal within specified tolerance, otherwise false.
 	 */
-	bool Equals(const TSphere<T>& Sphere, T Tolerance = KINDA_SMALL_NUMBER) const
+	bool Equals(const TSphere<T>& Sphere, T Tolerance = UE_KINDA_SMALL_NUMBER) const
 	{
 		return Center.Equals(Sphere.Center, Tolerance) && FMath::Abs(W - Sphere.W) <= Tolerance;
 	}
@@ -102,7 +102,7 @@ public:
 	 * @param Tolerance Error Tolerance.
 	 * @return true if sphere is inside another, otherwise false.
 	 */
-	bool IsInside(const TSphere<T>& Other, T Tolerance = KINDA_SMALL_NUMBER) const
+	bool IsInside(const TSphere<T>& Other, T Tolerance = UE_KINDA_SMALL_NUMBER) const
 	{
 		if (W > Other.W + Tolerance)
 		{
@@ -118,7 +118,7 @@ public:
 	* @param In The location to test for inside the bounding volume.
 	* @return true if location is inside this volume.
 	*/
-	bool IsInside(const FVector& In, T Tolerance = KINDA_SMALL_NUMBER) const
+	bool IsInside(const FVector& In, T Tolerance = UE_KINDA_SMALL_NUMBER) const
 	{
 		return (Center - In).SizeSquared() <= FMath::Square(W + Tolerance);
 	}
@@ -130,7 +130,7 @@ public:
 	 * @param  Tolerance Error tolerance.
 	 * @return true if spheres intersect, false otherwise.
 	 */
-	FORCEINLINE bool Intersects(const TSphere<T>& Other, T Tolerance = KINDA_SMALL_NUMBER) const
+	FORCEINLINE bool Intersects(const TSphere<T>& Other, T Tolerance = UE_KINDA_SMALL_NUMBER) const
 	{
 		return (Center - Other.Center).SizeSquared() <= FMath::Square(FMath::Max(0.f, Other.W + W + Tolerance));
 	}
@@ -158,7 +158,7 @@ public:
 	 */
 	T GetVolume() const
 	{
-		return (4.f / 3.f) * PI * (W * W * W);
+		return (4.f / 3.f) * UE_PI * (W * W * W);
 	}
 
 	/**
@@ -265,7 +265,7 @@ TSphere<T>& TSphere<T>::operator+=(const TSphere<T>& Other)
 	TVector<T> ToOther = Other.Center - Center;
 	T DistSqr = ToOther.SizeSquared();
 
-	if (FMath::Square(W - Other.W) + KINDA_SMALL_NUMBER >= DistSqr)
+	if (FMath::Square(W - Other.W) + UE_KINDA_SMALL_NUMBER >= DistSqr)
 	{
 		// Pick the smaller
 		if (W < Other.W)
@@ -281,7 +281,7 @@ TSphere<T>& TSphere<T>::operator+=(const TSphere<T>& Other)
 		NewSphere.W = (Dist + Other.W + W) * 0.5f;
 		NewSphere.Center = Center;
 
-		if (Dist > SMALL_NUMBER)
+		if (Dist > UE_SMALL_NUMBER)
 		{
 			NewSphere.Center += ToOther * ((NewSphere.W - W) / Dist);
 		}

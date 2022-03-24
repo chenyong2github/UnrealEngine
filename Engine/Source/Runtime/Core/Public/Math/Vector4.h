@@ -369,7 +369,7 @@ public:
 	 * @param Tolerance Error Tolerance.
 	 * @return true if the two vectors are equal within specified tolerance, otherwise false.
 	 */
-	bool Equals(const TVector4<T>& V, T Tolerance=KINDA_SMALL_NUMBER) const;
+	bool Equals(const TVector4<T>& V, T Tolerance=UE_KINDA_SMALL_NUMBER) const;
 
 	/**
 	 * Check if the vector is of unit length, with specified tolerance.
@@ -377,7 +377,7 @@ public:
 	 * @param LengthSquaredTolerance Tolerance against squared length.
 	 * @return true if the vector is a unit vector within the specified tolerance.
 	 */
-	bool IsUnit3(T LengthSquaredTolerance = KINDA_SMALL_NUMBER) const;
+	bool IsUnit3(T LengthSquaredTolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/**
 	 * Get a textual representation of the vector.
@@ -401,7 +401,7 @@ public:
 	 * @param Tolerance Minimum squared length of vector for normalization.
 	 * @return A normalized copy of the vector or a zero vector.
 	 */
-	FORCEINLINE TVector4 GetSafeNormal(T Tolerance = SMALL_NUMBER) const;
+	FORCEINLINE TVector4 GetSafeNormal(T Tolerance = UE_SMALL_NUMBER) const;
 
 	/**
 	 * Calculates normalized version of vector without checking if it is non-zero.
@@ -477,7 +477,7 @@ public:
 	bool ContainsNaN() const;
 
 	/** Utility to check if all of the components of this vector are nearly zero given the tolerance. */
-	bool IsNearlyZero3(T Tolerance = KINDA_SMALL_NUMBER) const;
+	bool IsNearlyZero3(T Tolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/** Reflect vector. */
 	TVector4<T> Reflect3(const TVector4<T>& Normal) const;

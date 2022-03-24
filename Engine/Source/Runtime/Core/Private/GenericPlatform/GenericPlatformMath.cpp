@@ -68,8 +68,8 @@ float FGenericPlatformMath::Atan2(float Y, float X)
 	t0 = t0 * t4 + c[6];
 	t3 = t0 * t3;
 
-	t3 = yAbsBigger ? (0.5f * PI) - t3 : t3;
-	t3 = (X < 0.0f) ? PI - t3 : t3;
+	t3 = yAbsBigger ? (0.5f * UE_PI) - t3 : t3;
+	t3 = (X < 0.0f) ? UE_PI - t3 : t3;
 	t3 = (Y < 0.0f) ? -t3 : t3;
 
 	return t3;
@@ -164,7 +164,7 @@ namespace CompilerHiddenConstants
 	volatile float Twelve = 12.0f;
 	volatile float Sixteen = 16.0f;
 	volatile float MinusOneE37 = -1.0e37f;
-	volatile float FloatMax = MAX_FLT;
+	volatile float FloatMax = UE_MAX_FLT;
 }
 
 template<class MathPlatform>

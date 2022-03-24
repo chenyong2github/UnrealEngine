@@ -1447,10 +1447,10 @@ public:
 #if PLATFORM_64BITS
 	bool TestEqual(const TCHAR* What, SIZE_T Actual, SIZE_T Expected);
 #endif
-	bool TestEqual(const TCHAR* What, float Actual, float Expected, float Tolerance = KINDA_SMALL_NUMBER);
-	bool TestEqual(const TCHAR* What, double Actual, double Expected, double Tolerance = KINDA_SMALL_NUMBER);
-	bool TestEqual(const TCHAR* What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER);
-	bool TestEqual(const TCHAR* What, FRotator Actual, FRotator Expected, float Tolerance = KINDA_SMALL_NUMBER);
+	bool TestEqual(const TCHAR* What, float Actual, float Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	bool TestEqual(const TCHAR* What, double Actual, double Expected, double Tolerance = UE_KINDA_SMALL_NUMBER);
+	bool TestEqual(const TCHAR* What, FVector Actual, FVector Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	bool TestEqual(const TCHAR* What, FRotator Actual, FRotator Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, FColor Actual, FColor Expected);
 	bool TestEqual(const TCHAR* What, FLinearColor Actual, FLinearColor Expected);
 	bool TestEqual(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
@@ -1461,22 +1461,22 @@ public:
 		return TestEqual(*What, Actual, Expected);
 	}
 
-	bool TestEqual(const FString& What, float Actual, float Expected, float Tolerance = KINDA_SMALL_NUMBER)
+	bool TestEqual(const FString& What, float Actual, float Expected, float Tolerance = UE_KINDA_SMALL_NUMBER)
 	{
 		return TestEqual(*What, Actual, Expected, Tolerance);
 	}
 
-	bool TestEqual(const FString& What, double Actual, double Expected, double Tolerance = KINDA_SMALL_NUMBER)
+	bool TestEqual(const FString& What, double Actual, double Expected, double Tolerance = UE_KINDA_SMALL_NUMBER)
 	{
 		return TestEqual(*What, Actual, Expected, Tolerance);
 	}
 
-	bool TestEqual(const FString& What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER)
+	bool TestEqual(const FString& What, FVector Actual, FVector Expected, float Tolerance = UE_KINDA_SMALL_NUMBER)
 	{
 		return TestEqual(*What, Actual, Expected, Tolerance);
 	}
 
-	bool TestEqual(const FString& What, FRotator Actual, FRotator Expected, float Tolerance = KINDA_SMALL_NUMBER)
+	bool TestEqual(const FString& What, FRotator Actual, FRotator Expected, float Tolerance = UE_KINDA_SMALL_NUMBER)
 	{
 		return TestEqual(*What, Actual, Expected, Tolerance);
 	}

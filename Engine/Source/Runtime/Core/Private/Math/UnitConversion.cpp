@@ -559,7 +559,7 @@ namespace UnitConversion
 		// Convert to degrees
 		switch (From)
 		{
-			case EUnit::Radians:			return (180 / PI);
+			case EUnit::Radians:			return (180 / UE_PI);
 			default: 						return 1;
 		}
 	}

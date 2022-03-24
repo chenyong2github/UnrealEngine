@@ -116,7 +116,7 @@ public:
 	 * @param Tolerance Error Tolerance.
 	 * @return true if two pairs are equal within specified tolerance, false otherwise..
 	 */
-	bool Equals( const FTwoVectors& V, float Tolerance = KINDA_SMALL_NUMBER ) const;
+	bool Equals( const FTwoVectors& V, float Tolerance = UE_KINDA_SMALL_NUMBER ) const;
 
 	// Unary operators.
 

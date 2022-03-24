@@ -75,7 +75,7 @@ public:
 		JumpTable.MapPostUnary<FFramesPerSecond>([](double In) -> FExpressionResult { return MakeFrameRateFromFPS(In); });
 		JumpTable.MapPostUnary<FNonDropFrame>([](double In) -> FExpressionResult { return MakeFrameRateFromFPS(In); });
 		JumpTable.MapPostUnary<FDropFrame>([](double In) -> FExpressionResult {
-			if (!FMath::IsNearlyEqual(In, NTSC_30_FPS, DOUBLE_KINDA_SMALL_NUMBER) && !FMath::IsNearlyEqual(In, NTSC_60_FPS, DOUBLE_KINDA_SMALL_NUMBER))
+			if (!FMath::IsNearlyEqual(In, NTSC_30_FPS, UE_DOUBLE_KINDA_SMALL_NUMBER) && !FMath::IsNearlyEqual(In, NTSC_60_FPS, UE_DOUBLE_KINDA_SMALL_NUMBER))
 			{
 				return MakeError(FText::Format(LOCTEXT("InvalidDropFrameFPS", "Drop frame not supported for FPS specified: {0}.\nDrop frame timecode is only supported for NTSC_30 ({1}fps) and NTSC_60 ({2}fps) frame rates."), In, NTSC_30_FPS, NTSC_60_FPS));
 			}
@@ -166,15 +166,15 @@ private:
 		if (RoundedFPS != InFPS)
 		{
 			// Allow creating FFrameRates for fractional FPS values only if they match an NTSC frame rate.
-			if (FMath::IsNearlyEqual(InFPS, NTSC_24_FPS, DOUBLE_KINDA_SMALL_NUMBER))
+			if (FMath::IsNearlyEqual(InFPS, NTSC_24_FPS, UE_DOUBLE_KINDA_SMALL_NUMBER))
 			{
 				return MakeValue(FFrameRate(NTSC_24_Numerator, NTSC_Denominator));
 			}
-			else if (FMath::IsNearlyEqual(InFPS, NTSC_30_FPS, DOUBLE_KINDA_SMALL_NUMBER))
+			else if (FMath::IsNearlyEqual(InFPS, NTSC_30_FPS, UE_DOUBLE_KINDA_SMALL_NUMBER))
 			{
 				return MakeValue(FFrameRate(NTSC_30_Numerator, NTSC_Denominator));
 			}
-			else if (FMath::IsNearlyEqual(InFPS, NTSC_60_FPS, DOUBLE_KINDA_SMALL_NUMBER))
+			else if (FMath::IsNearlyEqual(InFPS, NTSC_60_FPS, UE_DOUBLE_KINDA_SMALL_NUMBER))
 			{
 				return MakeValue(FFrameRate(NTSC_60_Numerator, NTSC_Denominator));
 			}

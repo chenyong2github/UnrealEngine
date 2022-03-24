@@ -172,7 +172,7 @@ public:
 	 * @param Tolerance Error tolerance for comparison with other Quaternion.
 	 * @return true if two Quaternions are equal, within specified tolerance, otherwise false.
 	 */
-	FORCEINLINE bool Equals(const TQuat<T>& Q, T Tolerance=KINDA_SMALL_NUMBER) const;
+	FORCEINLINE bool Equals(const TQuat<T>& Q, T Tolerance=UE_KINDA_SMALL_NUMBER) const;
 
 	/**
 	 * Checks whether this Quaternion is an Identity Quaternion.
@@ -181,7 +181,7 @@ public:
 	 * @param Tolerance Error tolerance for comparison with Identity Quaternion.
 	 * @return true if Quaternion is a normalized Identity Quaternion.
 	 */
-	FORCEINLINE bool IsIdentity(T Tolerance=SMALL_NUMBER) const;
+	FORCEINLINE bool IsIdentity(T Tolerance=UE_SMALL_NUMBER) const;
 
 	/**
 	 * Subtracts another quaternion from this.
@@ -372,7 +372,7 @@ public:
 	 *
 	 * @param Tolerance Minimum squared length of quaternion for normalization.
 	 */
-	FORCEINLINE void Normalize(T Tolerance = SMALL_NUMBER);
+	FORCEINLINE void Normalize(T Tolerance = UE_SMALL_NUMBER);
 
 	/**
 	 * Get a normalized copy of this quaternion.
@@ -380,7 +380,7 @@ public:
 	 *
 	 * @param Tolerance Minimum squared length of quaternion for normalization.
 	 */
-	FORCEINLINE TQuat<T> GetNormalized(T Tolerance = SMALL_NUMBER) const;
+	FORCEINLINE TQuat<T> GetNormalized(T Tolerance = UE_SMALL_NUMBER) const;
 
 	// Return true if this quaternion is normalized
 	bool IsNormalized() const;
@@ -729,7 +729,7 @@ inline TQuat<T>::TQuat(const UE::Math::TMatrix<T>& M)
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// Make sure the Rotation part of the Matrix is unit length.
 	// Changed to this (same as RemoveScaling) from RotDeterminant as using two different ways of checking unit length matrix caused inconsistency. 
-	if (!ensure((FMath::Abs(1.f - M.GetScaledAxis(EAxis::X).SizeSquared()) <= KINDA_SMALL_NUMBER) && (FMath::Abs(1.f - M.GetScaledAxis(EAxis::Y).SizeSquared()) <= KINDA_SMALL_NUMBER) && (FMath::Abs(1.f - M.GetScaledAxis(EAxis::Z).SizeSquared()) <= KINDA_SMALL_NUMBER)))
+	if (!ensure((FMath::Abs(1.f - M.GetScaledAxis(EAxis::X).SizeSquared()) <= UE_KINDA_SMALL_NUMBER) && (FMath::Abs(1.f - M.GetScaledAxis(EAxis::Y).SizeSquared()) <= UE_KINDA_SMALL_NUMBER) && (FMath::Abs(1.f - M.GetScaledAxis(EAxis::Z).SizeSquared()) <= UE_KINDA_SMALL_NUMBER)))
 	{
 		*this = TQuat<T>::Identity;
 		return;
@@ -1269,7 +1269,7 @@ template<typename T>
 FORCEINLINE T TQuat<T>::Error(const TQuat<T>& Q1, const TQuat<T>& Q2)
 {
 	const T cosom = FMath::Abs(Q1.X * Q2.X + Q1.Y * Q2.Y + Q1.Z * Q2.Z + Q1.W * Q2.W);
-	return (FMath::Abs(cosom) < 0.9999999f) ? FMath::Acos(cosom)*(1.f / PI) : 0.0f;
+	return (FMath::Abs(cosom) < 0.9999999f) ? FMath::Acos(cosom)*(1.f / UE_PI) : 0.0f;
 }
 
 

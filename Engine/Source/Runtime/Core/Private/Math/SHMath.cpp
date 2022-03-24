@@ -35,7 +35,7 @@ static int32 InitSHTables()
 		BasisM[BasisIndex] = M;
 
 		NormalizationConstants[BasisIndex] = FMath::Sqrt(
-			(float(2 * L + 1) / float(4 * PI)) *
+			(float(2 * L + 1) / float(4 * UE_PI)) *
 			(float(Factorial(L - FMath::Abs(M))) / float(Factorial(L + FMath::Abs(M))))
 			);
 
@@ -57,7 +57,7 @@ static int32 InitDummy = InitSHTables();
 /** So that e.g. LP(1,1,1) which evaluates to -sqrt(1-1^2) is 0.*/
 FORCEINLINE float SafeSqrt(float F)
 {
-	return FMath::Abs(F) > KINDA_SMALL_NUMBER ? FMath::Sqrt(F) : 0.f;
+	return FMath::Abs(F) > UE_KINDA_SMALL_NUMBER ? FMath::Sqrt(F) : 0.f;
 }
 
 /** Evaluates the LegendrePolynomial for L,M at X */

@@ -46,10 +46,10 @@ namespace GlobalVectorConstants
 	inline constexpr VectorRegister4Float FloatMinus1_111= MakeVectorRegisterFloatConstant( -1.f, 1.f, 1.f, 1.f );
 	inline constexpr VectorRegister4Float FloatOneHalf = MakeVectorRegisterFloatConstant( 0.5f, 0.5f, 0.5f, 0.5f );
 	inline constexpr VectorRegister4Float FloatMinusOneHalf = MakeVectorRegisterFloatConstant( -0.5f, -0.5f, -0.5f, -0.5f );
-	inline constexpr VectorRegister4Float KindaSmallNumber = MakeVectorRegisterFloatConstant( KINDA_SMALL_NUMBER, KINDA_SMALL_NUMBER, KINDA_SMALL_NUMBER, KINDA_SMALL_NUMBER );
-	inline constexpr VectorRegister4Float SmallNumber = MakeVectorRegisterFloatConstant( SMALL_NUMBER, SMALL_NUMBER, SMALL_NUMBER, SMALL_NUMBER );
-	inline constexpr VectorRegister4Float ThreshQuatNormalized = MakeVectorRegisterFloatConstant( THRESH_QUAT_NORMALIZED, THRESH_QUAT_NORMALIZED, THRESH_QUAT_NORMALIZED, THRESH_QUAT_NORMALIZED );
-	inline constexpr VectorRegister4Float BigNumber = MakeVectorRegisterFloatConstant(BIG_NUMBER, BIG_NUMBER, BIG_NUMBER, BIG_NUMBER);
+	inline constexpr VectorRegister4Float KindaSmallNumber = MakeVectorRegisterFloatConstant( UE_KINDA_SMALL_NUMBER, UE_KINDA_SMALL_NUMBER, UE_KINDA_SMALL_NUMBER, UE_KINDA_SMALL_NUMBER );
+	inline constexpr VectorRegister4Float SmallNumber = MakeVectorRegisterFloatConstant( UE_SMALL_NUMBER, UE_SMALL_NUMBER, UE_SMALL_NUMBER, UE_SMALL_NUMBER );
+	inline constexpr VectorRegister4Float ThreshQuatNormalized = MakeVectorRegisterFloatConstant( UE_THRESH_QUAT_NORMALIZED, UE_THRESH_QUAT_NORMALIZED, UE_THRESH_QUAT_NORMALIZED, UE_THRESH_QUAT_NORMALIZED );
+	inline constexpr VectorRegister4Float BigNumber = MakeVectorRegisterFloatConstant(UE_BIG_NUMBER, UE_BIG_NUMBER, UE_BIG_NUMBER, UE_BIG_NUMBER);
 
 	inline constexpr VectorRegister2Double DoubleOne2d = MakeVectorRegister2DoubleConstant(1.0, 1.0);
 	inline constexpr VectorRegister4Double DoubleOne = MakeVectorRegisterDoubleConstant(1.0, 1.0, 1.0, 1.0);
@@ -64,10 +64,10 @@ namespace GlobalVectorConstants
 	inline constexpr VectorRegister4Double DoubleMinus1_111 = MakeVectorRegisterDoubleConstant(-1., 1., 1., 1.);
 	inline constexpr VectorRegister4Double DoubleOneHalf = MakeVectorRegisterDoubleConstant(0.5, 0.5, 0.5, 0.5);
 	inline constexpr VectorRegister4Double DoubleMinusOneHalf = MakeVectorRegisterDoubleConstant(-0.5, -0.5, -0.5, -0.5);
-	inline constexpr VectorRegister4Double DoubleKindaSmallNumber = MakeVectorRegisterDoubleConstant(DOUBLE_KINDA_SMALL_NUMBER, DOUBLE_KINDA_SMALL_NUMBER, DOUBLE_KINDA_SMALL_NUMBER, DOUBLE_KINDA_SMALL_NUMBER);
-	inline constexpr VectorRegister4Double DoubleSmallNumber = MakeVectorRegisterDoubleConstant(DOUBLE_SMALL_NUMBER, DOUBLE_SMALL_NUMBER, DOUBLE_SMALL_NUMBER, DOUBLE_SMALL_NUMBER);
-	inline constexpr VectorRegister4Double DoubleThreshQuatNormalized = MakeVectorRegisterDoubleConstant(DOUBLE_THRESH_QUAT_NORMALIZED, DOUBLE_THRESH_QUAT_NORMALIZED, DOUBLE_THRESH_QUAT_NORMALIZED, DOUBLE_THRESH_QUAT_NORMALIZED);
-	inline constexpr VectorRegister4Double DoubleBigNumber = MakeVectorRegisterDoubleConstant(DOUBLE_BIG_NUMBER, DOUBLE_BIG_NUMBER, DOUBLE_BIG_NUMBER, DOUBLE_BIG_NUMBER);
+	inline constexpr VectorRegister4Double DoubleKindaSmallNumber = MakeVectorRegisterDoubleConstant(UE_DOUBLE_KINDA_SMALL_NUMBER, UE_DOUBLE_KINDA_SMALL_NUMBER, UE_DOUBLE_KINDA_SMALL_NUMBER, UE_DOUBLE_KINDA_SMALL_NUMBER);
+	inline constexpr VectorRegister4Double DoubleSmallNumber = MakeVectorRegisterDoubleConstant(UE_DOUBLE_SMALL_NUMBER, UE_DOUBLE_SMALL_NUMBER, UE_DOUBLE_SMALL_NUMBER, UE_DOUBLE_SMALL_NUMBER);
+	inline constexpr VectorRegister4Double DoubleThreshQuatNormalized = MakeVectorRegisterDoubleConstant(UE_DOUBLE_THRESH_QUAT_NORMALIZED, UE_DOUBLE_THRESH_QUAT_NORMALIZED, UE_DOUBLE_THRESH_QUAT_NORMALIZED, UE_DOUBLE_THRESH_QUAT_NORMALIZED);
+	inline constexpr VectorRegister4Double DoubleBigNumber = MakeVectorRegisterDoubleConstant(UE_DOUBLE_BIG_NUMBER, UE_DOUBLE_BIG_NUMBER, UE_DOUBLE_BIG_NUMBER, UE_DOUBLE_BIG_NUMBER);
 
 	inline constexpr VectorRegister Vector0001 = MakeVectorRegisterConstant(0.0, 0.0, 0.0, 1.0);
 	inline constexpr VectorRegister Vector1110 = MakeVectorRegisterConstant(1.0, 1.0, 1.0, 0.0);
@@ -87,12 +87,12 @@ namespace GlobalVectorConstants
 	inline constexpr VectorRegister4Double DOUBLE_QMULTI_SIGN_MASK1 = MakeVectorRegisterDoubleConstant(1., 1., -1., -1.);
 	inline constexpr VectorRegister4Double DOUBLE_QMULTI_SIGN_MASK2 = MakeVectorRegisterDoubleConstant(-1., 1., 1., -1.);
 
-	inline constexpr VectorRegister4Float DEG_TO_RAD = MakeVectorRegisterConstant(PI/(180.f), PI/(180.f), PI/(180.f), PI/(180.f));
-	inline constexpr VectorRegister4Float DEG_TO_RAD_HALF = MakeVectorRegisterConstant((PI/180.f)*0.5f, (PI/180.f)*0.5f, (PI/180.f)*0.5f, (PI/180.f)*0.5f);
-	inline constexpr VectorRegister4Float RAD_TO_DEG = MakeVectorRegisterConstant((180.f)/PI, (180.f)/PI, (180.f)/PI, (180.f)/PI);
-	inline constexpr VectorRegister4Double DOUBLE_DEG_TO_RAD = MakeVectorRegisterConstant(DOUBLE_PI/(180.), DOUBLE_PI/(180.), DOUBLE_PI/(180.), DOUBLE_PI/(180.));
-	inline constexpr VectorRegister4Double DOUBLE_DEG_TO_RAD_HALF = MakeVectorRegisterConstant((DOUBLE_PI/180.) * 0.5, (DOUBLE_PI/180.) * 0.5, (DOUBLE_PI/180.) * 0.5, (DOUBLE_PI/180.) * 0.5);
-	inline constexpr VectorRegister4Double DOUBLE_RAD_TO_DEG = MakeVectorRegisterConstant((180.)/DOUBLE_PI, (180.)/DOUBLE_PI, (180.)/DOUBLE_PI, (180.)/DOUBLE_PI);
+	inline constexpr VectorRegister4Float DEG_TO_RAD = MakeVectorRegisterConstant(UE_PI/(180.f), UE_PI/(180.f), UE_PI/(180.f), UE_PI/(180.f));
+	inline constexpr VectorRegister4Float DEG_TO_RAD_HALF = MakeVectorRegisterConstant((UE_PI/180.f)*0.5f, (UE_PI/180.f)*0.5f, (UE_PI/180.f)*0.5f, (UE_PI/180.f)*0.5f);
+	inline constexpr VectorRegister4Float RAD_TO_DEG = MakeVectorRegisterConstant((180.f)/UE_PI, (180.f)/UE_PI, (180.f)/UE_PI, (180.f)/UE_PI);
+	inline constexpr VectorRegister4Double DOUBLE_DEG_TO_RAD = MakeVectorRegisterConstant(UE_DOUBLE_PI/(180.), UE_DOUBLE_PI/(180.), UE_DOUBLE_PI/(180.), UE_DOUBLE_PI/(180.));
+	inline constexpr VectorRegister4Double DOUBLE_DEG_TO_RAD_HALF = MakeVectorRegisterConstant((UE_DOUBLE_PI/180.) * 0.5, (UE_DOUBLE_PI/180.) * 0.5, (UE_DOUBLE_PI/180.) * 0.5, (UE_DOUBLE_PI/180.) * 0.5);
+	inline constexpr VectorRegister4Double DOUBLE_RAD_TO_DEG = MakeVectorRegisterConstant((180.)/UE_DOUBLE_PI, (180.)/UE_DOUBLE_PI, (180.)/UE_DOUBLE_PI, (180.)/UE_DOUBLE_PI);
 
 	/** Bitmask to AND out the XYZ components in a vector */
 	inline VectorRegister4Float XYZMask()			{ return MakeVectorRegisterFloatMask( ~uint32(0), ~uint32(0), ~uint32(0), uint32(0)); }
@@ -115,19 +115,19 @@ namespace GlobalVectorConstants
 	inline VectorRegister4Float FloatInfinity()		{ return MakeVectorRegisterFloatMask((uint32)0x7F800000, (uint32)0x7F800000, (uint32)0x7F800000, (uint32)0x7F800000); }
 	inline VectorRegister4Double DoubleInfinity()	{ return MakeVectorRegisterDoubleMask((uint64)0x7FF0000000000000, (uint64)0x7FF0000000000000, (uint64)0x7FF0000000000000, (uint64)0x7FF0000000000000); }
 
-	inline constexpr VectorRegister4Float Pi = MakeVectorRegisterConstant(PI, PI, PI, PI);
-	inline constexpr VectorRegister4Float TwoPi = MakeVectorRegisterConstant(2.0f*PI, 2.0f*PI, 2.0f*PI, 2.0f*PI);
-	inline constexpr VectorRegister4Float PiByTwo = MakeVectorRegisterConstant(0.5f*PI, 0.5f*PI, 0.5f*PI, 0.5f*PI);
-	inline constexpr VectorRegister4Float PiByFour = MakeVectorRegisterConstant(0.25f*PI, 0.25f*PI, 0.25f*PI, 0.25f*PI);
-	inline constexpr VectorRegister4Float OneOverPi = MakeVectorRegisterConstant(1.0f / PI, 1.0f / PI, 1.0f / PI, 1.0f / PI);
-	inline constexpr VectorRegister4Float OneOverTwoPi = MakeVectorRegisterConstant(1.0f / (2.0f*PI), 1.0f / (2.0f*PI), 1.0f / (2.0f*PI), 1.0f / (2.0f*PI));
+	inline constexpr VectorRegister4Float Pi = MakeVectorRegisterConstant(UE_PI, UE_PI, UE_PI, UE_PI);
+	inline constexpr VectorRegister4Float TwoPi = MakeVectorRegisterConstant(2.0f*UE_PI, 2.0f*UE_PI, 2.0f*UE_PI, 2.0f*UE_PI);
+	inline constexpr VectorRegister4Float PiByTwo = MakeVectorRegisterConstant(0.5f*UE_PI, 0.5f*UE_PI, 0.5f*UE_PI, 0.5f*UE_PI);
+	inline constexpr VectorRegister4Float PiByFour = MakeVectorRegisterConstant(0.25f*UE_PI, 0.25f*UE_PI, 0.25f*UE_PI, 0.25f*UE_PI);
+	inline constexpr VectorRegister4Float OneOverPi = MakeVectorRegisterConstant(1.0f / UE_PI, 1.0f / UE_PI, 1.0f / UE_PI, 1.0f / UE_PI);
+	inline constexpr VectorRegister4Float OneOverTwoPi = MakeVectorRegisterConstant(1.0f / (2.0f*UE_PI), 1.0f / (2.0f*UE_PI), 1.0f / (2.0f*UE_PI), 1.0f / (2.0f*UE_PI));
 
-	inline constexpr VectorRegister4Double DoublePi = MakeVectorRegisterDoubleConstant(DOUBLE_PI, DOUBLE_PI, DOUBLE_PI, DOUBLE_PI);
-	inline constexpr VectorRegister4Double DoubleTwoPi = MakeVectorRegisterDoubleConstant(2.0 * DOUBLE_PI, 2.0 * DOUBLE_PI, 2.0 * DOUBLE_PI, 2.0 * DOUBLE_PI);
-	inline constexpr VectorRegister4Double DoublePiByTwo = MakeVectorRegisterDoubleConstant(0.5 * DOUBLE_PI, 0.5 * DOUBLE_PI, 0.5 * DOUBLE_PI, 0.5 * DOUBLE_PI);
-	inline constexpr VectorRegister4Double DoublePiByFour = MakeVectorRegisterDoubleConstant(0.25 * DOUBLE_PI, 0.25 * DOUBLE_PI, 0.25 * DOUBLE_PI, 0.25 * DOUBLE_PI);
-	inline constexpr VectorRegister4Double DoubleOneOverPi = MakeVectorRegisterDoubleConstant(1.0 / DOUBLE_PI, 1.0 / DOUBLE_PI, 1.0 / DOUBLE_PI, 1.0 / DOUBLE_PI);
-	inline constexpr VectorRegister4Double DoubleOneOverTwoPi = MakeVectorRegisterDoubleConstant(1.0 / (2.0 * DOUBLE_PI), 1.0 / (2.0 * DOUBLE_PI), 1.0 / (2.0 * DOUBLE_PI), 1.0 / (2.0 * DOUBLE_PI));
+	inline constexpr VectorRegister4Double DoublePi = MakeVectorRegisterDoubleConstant(UE_DOUBLE_PI, UE_DOUBLE_PI, UE_DOUBLE_PI, UE_DOUBLE_PI);
+	inline constexpr VectorRegister4Double DoubleTwoPi = MakeVectorRegisterDoubleConstant(2.0 * UE_DOUBLE_PI, 2.0 * UE_DOUBLE_PI, 2.0 * UE_DOUBLE_PI, 2.0 * UE_DOUBLE_PI);
+	inline constexpr VectorRegister4Double DoublePiByTwo = MakeVectorRegisterDoubleConstant(0.5 * UE_DOUBLE_PI, 0.5 * UE_DOUBLE_PI, 0.5 * UE_DOUBLE_PI, 0.5 * UE_DOUBLE_PI);
+	inline constexpr VectorRegister4Double DoublePiByFour = MakeVectorRegisterDoubleConstant(0.25 * UE_DOUBLE_PI, 0.25 * UE_DOUBLE_PI, 0.25 * UE_DOUBLE_PI, 0.25 * UE_DOUBLE_PI);
+	inline constexpr VectorRegister4Double DoubleOneOverPi = MakeVectorRegisterDoubleConstant(1.0 / UE_DOUBLE_PI, 1.0 / UE_DOUBLE_PI, 1.0 / UE_DOUBLE_PI, 1.0 / UE_DOUBLE_PI);
+	inline constexpr VectorRegister4Double DoubleOneOverTwoPi = MakeVectorRegisterDoubleConstant(1.0 / (2.0 * UE_DOUBLE_PI), 1.0 / (2.0 * UE_DOUBLE_PI), 1.0 / (2.0 * UE_DOUBLE_PI), 1.0 / (2.0 * UE_DOUBLE_PI));
 
 	inline constexpr VectorRegister4Float Float255 = MakeVectorRegisterConstant(255.0f, 255.0f, 255.0f, 255.0f);
 	inline constexpr VectorRegister4Float Float127 = MakeVectorRegisterConstant(127.0f, 127.0f, 127.0f, 127.0f);
@@ -142,8 +142,8 @@ namespace GlobalVectorConstants
 	inline constexpr VectorRegister4Double Double180 = MakeVectorRegisterDoubleConstant(180., 180., 180., 180.);
 
 	// All float numbers greater than or equal to this have no fractional value.
-	inline constexpr VectorRegister4Float FloatNonFractional = MakeVectorRegisterConstant(FLOAT_NON_FRACTIONAL, FLOAT_NON_FRACTIONAL, FLOAT_NON_FRACTIONAL, FLOAT_NON_FRACTIONAL);
-	inline constexpr VectorRegister4Double DoubleNonFractional = MakeVectorRegisterDoubleConstant(DOUBLE_NON_FRACTIONAL, DOUBLE_NON_FRACTIONAL, DOUBLE_NON_FRACTIONAL, DOUBLE_NON_FRACTIONAL);
+	inline constexpr VectorRegister4Float FloatNonFractional = MakeVectorRegisterConstant(UE_FLOAT_NON_FRACTIONAL, UE_FLOAT_NON_FRACTIONAL, UE_FLOAT_NON_FRACTIONAL, UE_FLOAT_NON_FRACTIONAL);
+	inline constexpr VectorRegister4Double DoubleNonFractional = MakeVectorRegisterDoubleConstant(UE_DOUBLE_NON_FRACTIONAL, UE_DOUBLE_NON_FRACTIONAL, UE_DOUBLE_NON_FRACTIONAL, UE_DOUBLE_NON_FRACTIONAL);
 
 	inline constexpr VectorRegister4Float FloatTwo = MakeVectorRegisterConstant(2.0f, 2.0f, 2.0f, 2.0f);
 	inline constexpr uint32 AlmostTwoBits = 0x3fffffff;

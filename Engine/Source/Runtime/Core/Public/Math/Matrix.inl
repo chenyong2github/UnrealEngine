@@ -295,9 +295,9 @@ inline TMatrix<T> TMatrix<T>::InverseFast() const
 	// If we're in non final release, then make sure we're not creating NaNs
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// Check for zero scale matrix to invert
-	if (GetScaledAxis(EAxis::X).IsNearlyZero(SMALL_NUMBER) &&
-		GetScaledAxis(EAxis::Y).IsNearlyZero(SMALL_NUMBER) &&
-		GetScaledAxis(EAxis::Z).IsNearlyZero(SMALL_NUMBER))
+	if (GetScaledAxis(EAxis::X).IsNearlyZero(UE_SMALL_NUMBER) &&
+		GetScaledAxis(EAxis::Y).IsNearlyZero(UE_SMALL_NUMBER) &&
+		GetScaledAxis(EAxis::Z).IsNearlyZero(UE_SMALL_NUMBER))
 	{
 		ErrorEnsure(TEXT("TMatrix<T>::InverseFast(), trying to invert a NIL matrix, this results in NaNs! Use Inverse() instead."));
 	}
@@ -324,9 +324,9 @@ inline TMatrix<T> TMatrix<T>::Inverse() const
 	TMatrix<T> Result;
 
 	// Check for zero scale matrix to invert
-	if (GetScaledAxis(EAxis::X).IsNearlyZero(SMALL_NUMBER) &&
-		GetScaledAxis(EAxis::Y).IsNearlyZero(SMALL_NUMBER) &&
-		GetScaledAxis(EAxis::Z).IsNearlyZero(SMALL_NUMBER))
+	if (GetScaledAxis(EAxis::X).IsNearlyZero(UE_SMALL_NUMBER) &&
+		GetScaledAxis(EAxis::Y).IsNearlyZero(UE_SMALL_NUMBER) &&
+		GetScaledAxis(EAxis::Z).IsNearlyZero(UE_SMALL_NUMBER))
 	{
 		// just set to zero - avoids unsafe inverse of zero and duplicates what QNANs were resulting in before (scaling away all children)
 		Result = Identity;
@@ -381,7 +381,7 @@ inline TMatrix<T> TMatrix<T>::TransposeAdjoint() const
 // NOTE: There is some compiler optimization issues with WIN64 that cause FORCEINLINE to cause a crash
 // Remove any scaling from this matrix (ie magnitude of each row is 1)
 template<typename T>
-inline void TMatrix<T>::RemoveScaling(T Tolerance/*=SMALL_NUMBER*/)
+inline void TMatrix<T>::RemoveScaling(T Tolerance/*=UE_SMALL_NUMBER*/)
 {
 	// For each row, find magnitude, and if its non-zero re-scale so its unit length.
 	const T SquareSum0 = (M[0][0] * M[0][0]) + (M[0][1] * M[0][1]) + (M[0][2] * M[0][2]);
@@ -404,7 +404,7 @@ inline void TMatrix<T>::RemoveScaling(T Tolerance/*=SMALL_NUMBER*/)
 
 // Returns matrix without scale information
 template<typename T>
-inline TMatrix<T> TMatrix<T>::GetMatrixWithoutScale(T Tolerance/*=SMALL_NUMBER*/) const
+inline TMatrix<T> TMatrix<T>::GetMatrixWithoutScale(T Tolerance/*=UE_SMALL_NUMBER*/) const
 {
 	TMatrix<T> Result = (TMatrix<T>&)*this;
 	Result.RemoveScaling(Tolerance);
@@ -413,7 +413,7 @@ inline TMatrix<T> TMatrix<T>::GetMatrixWithoutScale(T Tolerance/*=SMALL_NUMBER*/
 
 /** Remove any scaling from this matrix (ie magnitude of each row is 1) and return the 3D scale vector that was initially present. */
 template<typename T>
-inline TVector<T> TMatrix<T>::ExtractScaling(T Tolerance/*=SMALL_NUMBER*/)
+inline TVector<T> TMatrix<T>::ExtractScaling(T Tolerance/*=UE_SMALL_NUMBER*/)
 {
 	TVector<T> Scale3D(0, 0, 0);
 
@@ -469,7 +469,7 @@ inline TVector<T> TMatrix<T>::ExtractScaling(T Tolerance/*=SMALL_NUMBER*/)
 
 /** return a 3D scale vector calculated from this matrix (where each component is the magnitude of a row vector). */
 template<typename T>
-inline TVector<T> TMatrix<T>::GetScaleVector(T Tolerance/*=SMALL_NUMBER*/) const
+inline TVector<T> TMatrix<T>::GetScaleVector(T Tolerance/*=UE_SMALL_NUMBER*/) const
 {
 	TVector<T> Scale3D(1, 1, 1);
 
@@ -704,7 +704,7 @@ template <typename T>
 FORCEINLINE bool MakeFrustumPlane(T A, T B, T C, T D, TPlane<T>& OutPlane)
 {
 	const T	LengthSquared = A * A + B * B + C * C;
-	if (LengthSquared > DELTA * DELTA)
+	if (LengthSquared > UE_DELTA * UE_DELTA)
 	{
 		const T	InvLength = FMath::InvSqrt(LengthSquared);
 		OutPlane = TPlane<T>(-A * InvLength, -B * InvLength, -C * InvLength, D * InvLength);

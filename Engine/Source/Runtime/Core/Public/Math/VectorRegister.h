@@ -120,6 +120,6 @@ static constexpr VectorRegister VECTOR_INV_255 = MakeVectorRegisterDoubleConstan
 namespace GlobalVectorConstants
 {
 	static constexpr VectorRegister AnimWeightThreshold = MakeVectorRegisterConstant(ZERO_ANIMWEIGHT_THRESH_DOUBLE, ZERO_ANIMWEIGHT_THRESH_DOUBLE, ZERO_ANIMWEIGHT_THRESH_DOUBLE, ZERO_ANIMWEIGHT_THRESH_DOUBLE);
-	static constexpr VectorRegister RotationSignificantThreshold = MakeVectorRegisterConstant(1.0 - DELTA*DELTA, 1.0 - DELTA*DELTA, 1.0 - DELTA*DELTA, 1.0 - DELTA*DELTA);
+	static constexpr VectorRegister RotationSignificantThreshold = MakeVectorRegisterConstant(1.0 - UE_DELTA*UE_DELTA, 1.0 - UE_DELTA*UE_DELTA, 1.0 - UE_DELTA*UE_DELTA, 1.0 - UE_DELTA*UE_DELTA);
 }
 
