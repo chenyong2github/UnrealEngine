@@ -121,6 +121,8 @@ private:
 
 	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext, FSoftObjectPathFixupArchive*& OutSoftObjectPathFixupArchive) const override;
 	//~ End UActorDescContainer Interface
+
+	void OnEnableStreaming();
 #endif
 
 public:
@@ -210,9 +212,15 @@ public:
 	UPROPERTY(EditAnywhere, Category=WorldPartition)
 	bool bEnableStreaming;
 
-	/** Used to know if it's the first time streaming is enabled on this world */
+	/** Used to know if it's the first time streaming is enabled on this world. */
 	UPROPERTY()
 	bool bStreamingWasEnabled;
+
+	/** Used to know if the user has already been warned about that it should enable streaming based on world size. */
+	bool bShouldEnableStreamingWarned;
+
+	/** Used to know if we need to recheck if the user should enable streaming based on world size. */
+	bool bShouldCheckEnableStreamingWarning;
 #endif
 
 	UPROPERTY()

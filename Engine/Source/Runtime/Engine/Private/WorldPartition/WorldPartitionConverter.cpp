@@ -57,6 +57,8 @@ bool FWorldPartitionConverter::Convert()
 		{
 			return false;
 		}
+		WorldPartition->bEnableStreaming = Parameters.bEnableStreaming;
+		WorldPartition->bStreamingWasEnabled = Parameters.bEnableStreaming;
 		bCreatedWorldPartition = true;
 	}
 

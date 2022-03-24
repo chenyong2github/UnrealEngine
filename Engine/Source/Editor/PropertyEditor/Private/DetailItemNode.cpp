@@ -489,7 +489,7 @@ ENodeVisibility FDetailItemNode::GetVisibility() const
 }
 
 static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCustomization& InCustomization, const FDetailFilter& InFilter, const FString& InCategoryName )
-{	
+{
 	struct Local
 	{
 		static bool StringPassesFilter(const FDetailFilter& InDetailFilter, const FString& InString)

@@ -458,6 +458,7 @@ void FDetailCustomizationsModule::RegisterSectionMappings()
 		{
 			TSharedRef<FPropertySection> Section = PropertyModule.FindOrCreateSection("Actor", "Streaming", LOCTEXT("Streaming", "Streaming"));
 			Section->AddCategory("World Partition");
+			Section->AddCategory("Data Layers");
 			Section->AddCategory("HLOD");
 		}
 	}
@@ -478,12 +479,6 @@ void FDetailCustomizationsModule::RegisterSectionMappings()
 			Section->AddCategory("Asset User Data");
 			Section->AddCategory("Cooking");
 			Section->AddCategory("Tags");
-		}
-
-		{
-			TSharedRef<FPropertySection> Section = PropertyModule.FindOrCreateSection("ActorComponent", "Streaming", LOCTEXT("Streaming", "Streaming"));
-			Section->AddCategory("World Partition");
-			Section->AddCategory("Data Layers");
 		}
 	}
 

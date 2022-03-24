@@ -20,12 +20,13 @@ public:
 	{
 		FParameters()
 		: bConvertSubLevels(true)
+		, bEnableStreaming(true)
 		, EditorHashClass(nullptr)
 		, RuntimeHashClass(nullptr)
-		{
-		}
+		{}
 
 		bool bConvertSubLevels;
+		bool bEnableStreaming;
 		TSubclassOf<UWorldPartitionEditorHash> EditorHashClass;
 		TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass;
 	};

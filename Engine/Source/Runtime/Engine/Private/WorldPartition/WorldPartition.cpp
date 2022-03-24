@@ -259,6 +259,8 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, WorldPartitionEditor(nullptr)
 	, bEnableStreaming(true)
 	, bStreamingWasEnabled(true)
+	, bShouldEnableStreamingWarned(false)
+	, bShouldCheckEnableStreamingWarning(false)
 	, bForceGarbageCollection(false)
 	, bForceGarbageCollectionPurge(false)
 	, bIsPIE(false)
@@ -1142,12 +1144,23 @@ bool UWorldPartition::GetInstancingContext(const FLinkerInstancingContext*& OutI
 	return false;
 }
 
+void UWorldPartition::OnEnableStreaming()
+{
+	if (!bStreamingWasEnabled)
+	{
+		bStreamingWasEnabled = true;
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionEnableStreamingDialolg", "Please refer to https://docs.unrealengine.com/5.0/en-US/building-virtual-worlds/world-partition for how to set up streaming."));
+	}
+}
+
 void UWorldPartition::HashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 {
 	check(ActorDesc);
 	check(EditorHash);
 	FWorldPartitionHandle ActorHandle(this, ActorDesc->GetGuid());
 	EditorHash->HashActor(ActorHandle);
+
+	bShouldCheckEnableStreamingWarning = true;
 }
 
 void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
@@ -1300,6 +1313,32 @@ void UWorldPartition::Tick(float DeltaSeconds)
 
 		bForceGarbageCollection = false;
 		bForceGarbageCollectionPurge = false;
+	}
+
+	if (bShouldCheckEnableStreamingWarning)
+	{
+		bShouldCheckEnableStreamingWarning = false;
+
+		if (!bEnableStreaming && !bStreamingWasEnabled && !bShouldEnableStreamingWarned)
+		{
+			FBox AllActorsBounds(ForceInit);
+			for (UActorDescContainer::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+			{
+				AllActorsBounds += ActorDescIterator->GetBounds();
+
+				// Warn the user if the world becomes larger that 4km in any axis
+				if (AllActorsBounds.GetSize().GetMax() >= 400000.0f)
+				{
+					bShouldEnableStreamingWarned = true;
+					if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionShouldEnableStreaming", "The size of your world has grown enough to justify enabling streaming. Enable streaming now?")) == EAppReturnType::Yes)
+					{
+						OnEnableStreaming();
+					}
+
+					break;
+				}
+			}
+		}
 	}
 #endif
 }
