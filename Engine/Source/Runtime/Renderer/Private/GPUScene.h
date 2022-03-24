@@ -328,6 +328,9 @@ public:
 	/** Returns whether or not a GPU Write is pending for the specified primitive */
 	bool HasPendingGPUWrite(uint32 PrimitiveId) const;
 
+	void BeginAsyncComputeReadAccess(FRDGBuilder& GraphBuilder) const;
+	void EndAsyncComputeReadAccess(FRDGBuilder& GraphBuilder) const;
+
 	bool bUpdateAllPrimitives;
 
 	/** Indices of primitives that need to be updated in GPU Scene */
@@ -397,6 +400,7 @@ private:
 	bool bInBeginEndBlock = false;
 	bool bReadWriteAccess = false;
 	bool bReadWriteUAVOverlap = false;
+	mutable bool bAsyncComputeReadAccess = false;
 	FGPUSceneDynamicContext* CurrentDynamicContext = nullptr;
 	int32 NumScenePrimitives = 0;
 

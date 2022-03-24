@@ -2748,6 +2748,11 @@ void CullRasterize(
 		check(!Nanite::GStreamingManager.IsAsyncUpdateInProgress());
 	});
 
+	if (RasterContext.RasterScheduling == ERasterScheduling::HardwareAndSoftwareOverlap)
+	{
+		Scene.GPUScene.BeginAsyncComputeReadAccess(GraphBuilder);
+	}
+
 	// Calling CullRasterize more than once on a CullingContext is illegal unless bSupportsMultiplePasses is enabled.
 	check(CullingContext.DrawPassIndex == 0 || CullingContext.Configuration.bSupportsMultiplePasses);
 
@@ -3101,6 +3106,11 @@ void CullRasterize(
 		// Pass index and number of clusters rendered in previous passes are irrelevant for depth-only rendering.
 		CullingContext.DrawPassIndex++;
 		CullingContext.RenderFlags |= NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA;
+	}
+
+	if (RasterContext.RasterScheduling == ERasterScheduling::HardwareAndSoftwareOverlap)
+	{
+		Scene.GPUScene.EndAsyncComputeReadAccess(GraphBuilder);
 	}
 
 	if (bExtractStats)

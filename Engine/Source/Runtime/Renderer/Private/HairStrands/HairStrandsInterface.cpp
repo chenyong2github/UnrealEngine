@@ -376,25 +376,6 @@ uint32 FHairGroupPublicData::GetResourcesSize() const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void TransitBufferToReadable(FRDGBuilder& GraphBuilder, FBufferTransitionQueue& BuffersToTransit)
-{
-	if (BuffersToTransit.Num())
-	{
-		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionToSRV"), [LocalBuffersToTransit = MoveTemp(BuffersToTransit)](FRHICommandList& RHICmdList)
-		{
-			FMemMark Mark(FMemStack::Get());
-			TArray<FRHITransitionInfo, TMemStackAllocator<>> Transitions;
-			Transitions.Reserve(LocalBuffersToTransit.Num());
-			for (FRHIUnorderedAccessView* UAV : LocalBuffersToTransit)
-			{
-				Transitions.Add(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-			}
-			RHICmdList.Transition(Transitions);
-		});
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool IsHairStrandsNonVisibleShadowCastingEnable()
 {

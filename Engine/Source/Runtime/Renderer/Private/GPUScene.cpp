@@ -675,6 +675,14 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUScene);
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
 
+		RHICmdList.Transition({
+			FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+			FRHITransitionInfo(BufferState.InstancePayloadDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+			FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+			FRHITransitionInfo(BufferState.InstanceBVHBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+			FRHITransitionInfo(BufferState.LightmapDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+		});
+
 		UploadGeneral<FUploadDataSourceAdapterScenePrimitives>(RHICmdList, &Scene, Adapter, BufferState);
 
 // TODO: Reimplement!
@@ -925,53 +933,15 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 
 #endif // DO_CHECK
 
-		FRHICommandListExecutor::Transition({
-			FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask),
-			FRHITransitionInfo(BufferState.InstancePayloadDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask),
-			FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask)
-		}, ERHIPipeline::Graphics, ERHIPipeline::All);
+		RHICmdList.Transition({
+			FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+			FRHITransitionInfo(BufferState.InstancePayloadDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+			FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+			FRHITransitionInfo(BufferState.InstanceBVHBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+			FRHITransitionInfo(BufferState.LightmapDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
+		});
 	});
 }
-
-namespace 
-{
-
-	class FUAVTransitionStateScopeHelper
-	{
-	public:
-		FUAVTransitionStateScopeHelper(FRHICommandListImmediate& InRHICmdList, const FUnorderedAccessViewRHIRef& InUAV, ERHIAccess InitialState, ERHIAccess InFinalState = ERHIAccess::None) :
-			RHICmdList(InRHICmdList),
-			UAV(InUAV),
-			CurrentState(InitialState),
-			FinalState(InFinalState)
-		{
-		}
-
-		~FUAVTransitionStateScopeHelper()
-		{
-			if (FinalState != ERHIAccess::None)
-			{
-				TransitionTo(FinalState);
-			}
-		}
-
-		void TransitionTo(ERHIAccess NewState)
-		{
-			if (CurrentState != NewState)
-			{
-				RHICmdList.Transition(FRHITransitionInfo(UAV, CurrentState, NewState));
-				CurrentState = NewState;
-			}
-
-		}
-
-		FRHICommandListImmediate& RHICmdList;
-		FUnorderedAccessViewRHIRef UAV;
-		ERHIAccess CurrentState;
-		ERHIAccess FinalState;
-	};
-
-};
 
 template<typename FUploadDataSourceAdapter>
 FGPUSceneBufferState FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FScene* Scene, const FUploadDataSourceAdapter& UploadDataSourceAdapter)
@@ -1128,8 +1098,6 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 		const bool bExecuteInParallel = GGPUSceneParallelUpdate != 0 && FApp::ShouldUseThreadingForPerformance();
 		const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
 
-		FUAVTransitionStateScopeHelper InstanceSceneDataTransitionHelper(RHICmdList, BufferState.InstanceSceneDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
-
 		const uint32 LightMapDataBufferSize = BufferState.LightMapDataBufferSize;
 
 		const int32 NumPrimitiveDataUploads = UploadDataSourceAdapter.NumPrimitivesToUpload();
@@ -1159,8 +1127,6 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 			const bool bShouldUploadViaCreate = GRHISupportsEfficientUploadOnResourceCreation && GGPUSceneInstanceUploadViaCreate != 0;
 			PrimitiveUploadBuffer.SetUploadViaCreate(bShouldUploadViaCreate);
 			InstanceSceneUploadBuffer.SetUploadViaCreate(bShouldUploadViaCreate);
-
-			FUAVTransitionStateScopeHelper PrimitiveDataTransitionHelper(RHICmdList, BufferState.PrimitiveBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
 
 			{
 				SCOPED_DRAW_EVENTF(RHICmdList, UpdateGPUScene, TEXT("UpdateGPUScene NumPrimitiveDataUploads %u"), NumPrimitiveDataUploads);
@@ -1249,7 +1215,6 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 					}, !bExecuteInParallel);
 				}
 
-				PrimitiveDataTransitionHelper.TransitionTo(ERHIAccess::UAVCompute);
 				PrimitiveUploadBuffer.ResourceUploadTo(RHICmdList, BufferState.PrimitiveBuffer, true);
 			}
 		}
@@ -1411,12 +1376,9 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 				if (NumInstancePayloadDataUploads > 0)
 				{
-					FUAVTransitionStateScopeHelper InstancePayloadDataTransitionHelper(RHICmdList, BufferState.InstancePayloadDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
-					InstancePayloadDataTransitionHelper.TransitionTo(ERHIAccess::UAVCompute);
 					InstancePayloadUploadBuffer.ResourceUploadTo(RHICmdList, BufferState.InstancePayloadDataBuffer, false);
 				}
 
-				InstanceSceneDataTransitionHelper.TransitionTo(ERHIAccess::UAVCompute);
 				InstanceSceneUploadBuffer.ResourceUploadTo(RHICmdList, BufferState.InstanceSceneDataBuffer, false);
 			}
 
@@ -1444,17 +1406,13 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 						InstanceSceneUploadBuffer.Add( NodeIndex, &GPUNode );
 					} );
 
-				RHICmdList.Transition( FRHITransitionInfo(BufferState.InstanceBVHBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute ) );
 				InstanceSceneUploadBuffer.ResourceUploadTo( RHICmdList, BufferState.InstanceBVHBuffer, false );
-				RHICmdList.Transition( FRHITransitionInfo(BufferState.InstanceBVHBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask ) );
 			}
 
 			if (NumLightmapDataUploads > 0)
 			{
 				SCOPED_NAMED_EVENT(STAT_UpdateGPUSceneLightMaps, FColor::Green);
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneLightMaps);
-
-				FUAVTransitionStateScopeHelper LightMapTransitionHelper(RHICmdList, BufferState.LightmapDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
 
 				// GPUCULL_TODO: This code is wrong: the intention is to break it up into batches such that the uploaded data fits in the max buffer size
 				//               However, what it does do is break it up into batches of MaxLightmapsUploads (while iterating over primitives). This is bad
@@ -1479,7 +1437,11 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 						}
 					}
 
-					LightMapTransitionHelper.TransitionTo(ERHIAccess::UAVCompute);
+					if (PrimitiveOffset > 0)
+					{
+						RHICmdList.Transition(FRHITransitionInfo(BufferState.LightmapDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+					}
+
 					LightmapUploadBuffer.ResourceUploadTo(RHICmdList, BufferState.LightmapDataBuffer, false);
 				}
 			}
@@ -1649,6 +1611,7 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 
 	RDG_EVENT_SCOPE(GraphBuilder, "GPUScene.UploadDynamicPrimitiveShaderDataForView");
 
+	check(!bAsyncComputeReadAccess);
 	ensure(bInBeginEndBlock);
 	ensure(Scene == nullptr || DynamicPrimitivesOffset >= Scene->Primitives.Num());
 
@@ -1712,13 +1675,23 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 		AddPass(GraphBuilder, RDG_EVENT_NAME("Uploads"),
 			[this, Scene, UploadAdapter, BufferState = MoveTemp(BufferState)](FRHICommandListImmediate& RHICmdList)
 		{
+			RHICmdList.Transition({
+				FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(BufferState.InstancePayloadDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(BufferState.InstanceBVHBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(BufferState.LightmapDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+			});
+
 			UploadGeneral<FUploadDataSourceAdapterDynamicPrimitives>(RHICmdList, Scene, UploadAdapter, BufferState);
 
-			FRHICommandListExecutor::Transition({
-				FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask),
-				FRHITransitionInfo(BufferState.InstancePayloadDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask),
-				FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask)
-				}, ERHIPipeline::Graphics, ERHIPipeline::All);
+			RHICmdList.Transition({
+				FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+				FRHITransitionInfo(BufferState.InstancePayloadDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+				FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+				FRHITransitionInfo(BufferState.InstanceBVHBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+				FRHITransitionInfo(BufferState.LightmapDataBuffer.Buffer, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
+			});
 		});
 	}
 
@@ -2212,6 +2185,7 @@ bool FGPUScene::BeginReadWriteAccess(FRDGBuilder& GraphBuilder, bool bAllowUAVOv
 {
 	if (IsEnabled())
 	{
+		checkf(!bAsyncComputeReadAccess, TEXT("You must call EndAsyncComputeReadAccess first."));
 		checkf(!bReadWriteAccess, TEXT("GPUScene's buffers already have r/w access"));
 		bReadWriteAccess = true;
 		bReadWriteUAVOverlap = bAllowUAVOverlap;
@@ -2220,14 +2194,11 @@ bool FGPUScene::BeginReadWriteAccess(FRDGBuilder& GraphBuilder, bool bAllowUAVOv
 		AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::TransitionInstanceSceneDataBuffer"),
 			[this, bAllowUAVOverlap](FRHICommandList& RHICmdList)
 		{
-			FRHITransitionInfo 	Transitions[] =
-			{
-				FRHITransitionInfo(InstanceSceneDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(InstancePayloadDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(PrimitiveBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-			};
-
-			RHICmdList.Transition(Transitions);
+			RHICmdList.Transition({
+				FRHITransitionInfo(InstanceSceneDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(InstancePayloadDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(PrimitiveBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+			});
 
 			if (bAllowUAVOverlap) // NOTE: using a capture because the member is set on a different timeline
 			{
@@ -2272,14 +2243,11 @@ void FGPUScene::EndReadWriteAccess(FRDGBuilder& GraphBuilder, ERHIAccess FinalAc
 				RHICmdList.EndUAVOverlap({ InstanceSceneDataBuffer.UAV, InstancePayloadDataBuffer.UAV, PrimitiveBuffer.UAV });
 			}
 
-			FRHITransitionInfo 	Transitions[] =
-			{
-				FRHITransitionInfo(InstanceSceneDataBuffer.UAV, ERHIAccess::UAVCompute, FinalAccessState),
-				FRHITransitionInfo(InstancePayloadDataBuffer.UAV, ERHIAccess::UAVCompute, FinalAccessState),
-				FRHITransitionInfo(PrimitiveBuffer.UAV, ERHIAccess::UAVCompute, FinalAccessState)
-			};
-
-			RHICmdList.Transition(Transitions);
+			RHICmdList.Transition({
+				FRHITransitionInfo(InstanceSceneDataBuffer.Buffer, ERHIAccess::UAVCompute, FinalAccessState),
+				FRHITransitionInfo(InstancePayloadDataBuffer.Buffer, ERHIAccess::UAVCompute, FinalAccessState),
+				FRHITransitionInfo(PrimitiveBuffer.Buffer, ERHIAccess::UAVCompute, FinalAccessState)
+			});
 		});
 
 		bReadWriteAccess = false;
@@ -2287,6 +2255,46 @@ void FGPUScene::EndReadWriteAccess(FRDGBuilder& GraphBuilder, ERHIAccess FinalAc
 	}
 }
 
+void FGPUScene::BeginAsyncComputeReadAccess(FRDGBuilder& GraphBuilder) const
+{
+	if (IsEnabled() && GSupportsEfficientAsyncCompute)
+	{
+		check(!bReadWriteAccess);
+		check(!bAsyncComputeReadAccess);
+
+		AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::TransitionToAsyncComputeRead"),
+			[this](FRHICommandListImmediate&)
+		{
+			FRHICommandListExecutor::Transition({
+				FRHITransitionInfo(InstanceSceneDataBuffer.Buffer, ERHIAccess::SRVMask, ERHIAccess::SRVMask),
+				FRHITransitionInfo(InstancePayloadDataBuffer.Buffer, ERHIAccess::SRVMask, ERHIAccess::SRVMask),
+				FRHITransitionInfo(PrimitiveBuffer.Buffer, ERHIAccess::SRVMask, ERHIAccess::SRVMask)
+			}, ERHIPipeline::Graphics, ERHIPipeline::All);
+		});
+
+		bAsyncComputeReadAccess = true;
+	}
+}
+
+void FGPUScene::EndAsyncComputeReadAccess(FRDGBuilder& GraphBuilder) const
+{
+	if (IsEnabled() && GSupportsEfficientAsyncCompute)
+	{
+		check(bAsyncComputeReadAccess);
+
+		AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::TransitionToAsyncComputeRead"),
+			[this](FRHICommandListImmediate&)
+		{
+			FRHICommandListExecutor::Transition({
+				FRHITransitionInfo(InstanceSceneDataBuffer.Buffer, ERHIAccess::SRVMask, ERHIAccess::SRVMask),
+				FRHITransitionInfo(InstancePayloadDataBuffer.Buffer, ERHIAccess::SRVMask, ERHIAccess::SRVMask),
+				FRHITransitionInfo(PrimitiveBuffer.Buffer, ERHIAccess::SRVMask, ERHIAccess::SRVMask)
+				}, ERHIPipeline::All, ERHIPipeline::Graphics);
+		});
+
+		bAsyncComputeReadAccess = false;
+	}
+}
 
 /**
  * Compute shader to project and invalidate the rectangles of given instances.

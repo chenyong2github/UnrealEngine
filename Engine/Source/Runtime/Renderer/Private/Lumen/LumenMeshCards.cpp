@@ -414,7 +414,7 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 		}
 		else if (bResourceResized)
 		{
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.MeshCardsBuffer.UAV, ERHIAccess::UAVCompute | ERHIAccess::UAVGraphics, ERHIAccess::SRVMask));
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.MeshCardsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		}
 	}
 
@@ -452,7 +452,7 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 		}
 		else if (bResourceResized)
 		{
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.HeightfieldBuffer.UAV, ERHIAccess::UAVCompute | ERHIAccess::UAVGraphics, ERHIAccess::SRVMask));
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.HeightfieldBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		}
 	}
 

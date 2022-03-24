@@ -2136,32 +2136,6 @@ static FRDGTextureRef AddHairVisibilityFillOpaqueDepth(
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-static void AddHairCulledVertexResourcesTransitionPass(
-	FRDGBuilder& GraphBuilder,
-	const FHairStrandsMacroGroupDatas& MacroGroupDatas)
-{
-	FBufferTransitionQueue TransitionQueue;
-	for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas)
-	{
-		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
-		{
-			if (PrimitiveInfo.PublicDataPtr)
-			{
-				if (FUnorderedAccessViewRHIRef UAV = PrimitiveInfo.PublicDataPtr->CulledVertexIdBuffer.UAV)
-				{
-					TransitionQueue.Add(UAV);
-				}
-
-				if (FUnorderedAccessViewRHIRef UAV = PrimitiveInfo.PublicDataPtr->CulledVertexRadiusScaleBuffer.UAV)
-				{
-					TransitionQueue.Add(UAV);
-				}
-			}
-		}
-	}
-	TransitBufferToReadable(GraphBuilder, TransitionQueue);
-}
-
 static void AddHairVisibilityCommonPass(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -2182,8 +2156,6 @@ static void AddHairVisibilityCommonPass(
 		default:												return RDG_EVENT_NAME("Noname");
 		}
 	};
-
-	AddHairCulledVertexResourcesTransitionPass(GraphBuilder, MacroGroupDatas);
 
 	// Note: this reference needs to persistent until SubmitMeshDrawCommands() is called, as DrawRenderState does not ref count 
 	// the view uniform buffer (raw pointer). It is only within the MeshProcessor that the uniform buffer get reference

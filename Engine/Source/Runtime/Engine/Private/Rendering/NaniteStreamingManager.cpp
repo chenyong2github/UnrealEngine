@@ -2183,11 +2183,11 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 			}
 			else
 			{
-				RHICmdList.Transition(
+				FRHICommandListExecutor::Transition(
 				{
-					FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-				});
+					FRHITransitionInfo(ClusterPageData.DataBuffer.Buffer,	ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(Hierarchy.DataBuffer.Buffer,			ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+				}, ERHIPipeline::All, ERHIPipeline::Graphics);
 			}
 
 			PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer);
@@ -2211,8 +2211,8 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 		{
 			FRHICommandListExecutor::Transition(
 			{
-				FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::SRVMask),
-				FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
+				FRHITransitionInfo(ClusterPageData.DataBuffer.Buffer,	ERHIAccess::Unknown, ERHIAccess::SRVMask),
+				FRHITransitionInfo(Hierarchy.DataBuffer.Buffer,			ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
 			}, ERHIPipeline::Graphics, ERHIPipeline::All);
 
 			AsyncState.bBuffersTransitionedToWrite = false;
