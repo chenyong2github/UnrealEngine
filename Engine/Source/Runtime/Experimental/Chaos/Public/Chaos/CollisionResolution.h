@@ -58,7 +58,7 @@ namespace Chaos
 		/**
 		 * @brief Whether CCD should be enabled for a contact given the current particle velocities etc
 		*/
-		bool CHAOS_API ShouldUseCCD(const FGeometryParticleHandle* Particle0, const FVec3& StartX0, const FGeometryParticleHandle* Particle1, const FVec3& StartX1, FVec3& Dir, FReal& Length, const bool bForceDisableCCD);
+		bool CHAOS_API ShouldUseCCD(const FGeometryParticleHandle* Particle0, const FVec3& DeltaX0, const FGeometryParticleHandle* Particle1, const FVec3& DeltaX1, FVec3& Dir, FReal& Length, const bool bForceDisableCCD);
 
 		// Update the constraint by re-running collision detection on the shape pair.
 		template<ECollisionUpdateType UpdateType>

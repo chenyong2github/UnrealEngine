@@ -822,9 +822,9 @@ namespace Chaos
 
 			FReal LengthCCD = 0;
 			FVec3 DirCCD = FVec3(0);
-			const FVec3 StartX0 = (ConstParticle0->ObjectState() == EObjectStateType::Kinematic) ? ConstParticle0->P() - ConstParticle0->V() * Dt : ConstParticle0->X();
-			const FVec3 StartX1 = (ConstParticle1->ObjectState() == EObjectStateType::Kinematic) ? ConstParticle1->P() - ConstParticle1->V() * Dt : ConstParticle1->X();
-			const bool bUseCCD = Collisions::ShouldUseCCD(Particle0, StartX0, Particle1, StartX1, DirCCD, LengthCCD, false);
+			const FVec3 DeltaX0 = (ConstParticle0->ObjectState() == EObjectStateType::Kinematic) ? (ConstParticle0->V() * Dt) : (ConstParticle0->P() - ConstParticle0->X());
+			const FVec3 DeltaX1 = (ConstParticle1->ObjectState() == EObjectStateType::Kinematic) ? (ConstParticle1->V() * Dt) : (ConstParticle1->P() - ConstParticle1->X());
+			const bool bUseCCD = Collisions::ShouldUseCCD(Particle0, DeltaX0, Particle1, DeltaX1, DirCCD, LengthCCD, false);
 
 			return bUseCCD;
 		}
