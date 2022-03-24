@@ -1887,6 +1887,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		KeyString += TEXT("_PPDBM");
 	}
 
+	if (FDataDrivenShaderPlatformInfo::GetSupportsDistanceFields(Platform))
+	{
+		KeyString += TEXT("_DF");
+	}
+
 	if (RHISupportsMeshShadersTier0(Platform))
 	{
 		KeyString += TEXT("_MS_T0");
@@ -1895,6 +1900,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	if (RHISupportsMeshShadersTier1(Platform))
 	{
 		KeyString += TEXT("_MS_T1");
+	}
+
+	if (RHISupportsBindless(Platform))
+	{
+		KeyString += TEXT("_BNDLS");
 	}
 
 	if (ShouldCompileRayTracingShadersForProject(Platform))
