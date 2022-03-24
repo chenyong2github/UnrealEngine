@@ -180,6 +180,7 @@ void MainCS(
 	tsr_halfC FilteredInput;
 	tsr_halfC FilteredHistory;
 	{
+		CenterInput = tsr_half(0.0);
 		FilteredInput = tsr_half(0.0);
 		FilteredHistory = tsr_half(0.0);
 
