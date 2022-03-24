@@ -30,10 +30,10 @@ public class OpenSSL : ModuleRules
 			string VSVersion = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 
 			// Add includes
-			PublicIncludePaths.Add(Path.Combine(OpenSSL111kPath, "include", PlatformSubdir, VSVersion));
+			PublicIncludePaths.Add(Path.Combine(OpenSSL111nPath, "include", PlatformSubdir, VSVersion));
 
 			// Add Libs
-			string LibPath = Path.Combine(OpenSSL111kPath, "lib", PlatformSubdir, VSVersion, ConfigFolder);
+			string LibPath = Path.Combine(OpenSSL111nPath, "lib", PlatformSubdir, VSVersion, ConfigFolder);
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.lib"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.lib"));
@@ -59,14 +59,12 @@ public class OpenSSL : ModuleRules
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			string platform = "/Unix/" + Target.Architecture;
-			string IncludePath = OpenSSL111cPath + "/include" + platform;
-			string LibraryPath = OpenSSL111cPath + "/lib" + platform;
+			string IncludePath = OpenSSL111nPath + "/include" + platform;
+			string LibraryPath = OpenSSL111nPath + "/lib" + platform;
 
 			PublicIncludePaths.Add(IncludePath);
 			PublicAdditionalLibraries.Add(LibraryPath + "/libssl.a");
 			PublicAdditionalLibraries.Add(LibraryPath + "/libcrypto.a");
-
-			PublicDependencyModuleNames.Add("zlib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Android)
 		{
