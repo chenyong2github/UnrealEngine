@@ -164,6 +164,7 @@ public:
 	void SetValueGetter(TSharedRef<ITableCellValueGetter> InValueGetter) { ValueGetter = InValueGetter; }
 
 	const TOptional<FTableCellValue> GetValue(const FBaseTreeNode& InNode) const;
+	uint64 GetValueId(const FBaseTreeNode& InNode) const;
 
 	//////////////////////////////////////////////////
 	// Value Formatter

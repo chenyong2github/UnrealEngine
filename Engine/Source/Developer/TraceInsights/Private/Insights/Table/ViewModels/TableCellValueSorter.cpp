@@ -6,6 +6,15 @@
 
 #define LOCTEXT_NAMESPACE "TableCellValueSorter"
 
+// Default pre-sorting (group nodes sorts above leaf nodes)
+#define INSIGHTS_DEFAULT_PRESORTING_NODES(A, B) \
+	{ \
+		if (A->IsGroup() != B->IsGroup()) \
+		{ \
+			return A->IsGroup(); \
+		} \
+	}
+
 // Default sorting
 #define INSIGHTS_DEFAULT_SORTING_NODES(A, B) return A->GetDefaultSortOrder() < B->GetDefaultSortOrder();
 
@@ -77,12 +86,16 @@ FSorterByName::FSorterByName(TSharedRef<FTableColumn> InColumnRef)
 {
 	AscendingCompareDelegate = [](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
+		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
+
 		// Sort by name (ascending).
 		return A->GetName().LexicalLess(B->GetName());
 	};
 
 	DescendingCompareDelegate = [](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
+		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
+
 		// Sort by name (descending).
 		return B->GetName().LexicalLess(A->GetName());
 	};
@@ -102,6 +115,8 @@ FSorterByTypeName::FSorterByTypeName(TSharedRef<FTableColumn> InColumnRef)
 {
 	AscendingCompareDelegate = [](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
+		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
+
 		const FName& TypeA = A->GetTypeName();
 		const FName& TypeB = B->GetTypeName();
 
@@ -118,6 +133,8 @@ FSorterByTypeName::FSorterByTypeName(TSharedRef<FTableColumn> InColumnRef)
 
 	DescendingCompareDelegate = [](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
+		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
+
 		const FName& TypeA = A->GetTypeName();
 		const FName& TypeB = B->GetTypeName();
 
@@ -144,6 +161,8 @@ FSorterByBoolValue::FSorterByBoolValue(TSharedRef<FTableColumn> InColumnRef)
 
 	AscendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
+		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
+
 		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
 		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
 
@@ -163,6 +182,8 @@ FSorterByBoolValue::FSorterByBoolValue(TSharedRef<FTableColumn> InColumnRef)
 
 	DescendingCompareDelegate = [&Column = * InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
+		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
+
 		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
 		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
 
@@ -189,51 +210,13 @@ FSorterByInt64Value::FSorterByInt64Value(TSharedRef<FTableColumn> InColumnRef)
 	: FBaseTableColumnSorter(InColumnRef)
 {
 	ensure(InColumnRef->GetDataType() == ETableCellDataType::Int64);
-
-	AscendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
-	{
-		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
-		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
-
-		const int64 ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().Int64 : 0;
-		const int64 ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().Int64 : 0;
-
-		if (ValueA == ValueB)
-		{
-			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
-		}
-		else
-		{
-			// Sort by value (ascending).
-			return ValueA < ValueB;
-		}
-	};
-
-	DescendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
-	{
-		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
-		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
-
-		const int64 ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().Int64 : 0;
-		const int64 ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().Int64 : 0;
-
-		if (ValueA == ValueB)
-		{
-			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
-		}
-		else
-		{
-			// Sort by value (descending).
-			return ValueB < ValueA;
-		}
-	};
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FSorterByInt64Value::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode SortMode) const
 {
-	// Note: This implementation is faster than using above delegates.
+	// Note: This implementation is faster than using delegates.
 	//       It caches the values before sorting, in this way it minimizes the calls to Column.GetValue().
 
 	const FTableColumn& Column = *ColumnRef;
@@ -261,6 +244,8 @@ void FSorterByInt64Value::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 	{
 		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
 		{
+			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
+
 			if (A.Value == B.Value)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
@@ -276,6 +261,8 @@ void FSorterByInt64Value::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 	{
 		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
 		{
+			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
+
 			if (A.Value == B.Value)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
@@ -302,51 +289,13 @@ FSorterByFloatValue::FSorterByFloatValue(TSharedRef<FTableColumn> InColumnRef)
 	: FBaseTableColumnSorter(InColumnRef)
 {
 	ensure(InColumnRef->GetDataType() == ETableCellDataType::Float);
-
-	AscendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
-	{
-		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
-		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
-
-		const float ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().Float : 0.0f;
-		const float ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().Float : 0.0f;
-
-		if (ValueA == ValueB)
-		{
-			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
-		}
-		else
-		{
-			// Sort by value (ascending).
-			return ValueA < ValueB;
-		}
-	};
-
-	DescendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
-	{
-		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
-		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
-
-		const float ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().Float : 0.0f;
-		const float ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().Float : 0.0f;
-
-		if (ValueA == ValueB)
-		{
-			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
-		}
-		else
-		{
-			// Sort by value (descending).
-			return ValueB < ValueA;
-		}
-	};
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FSorterByFloatValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode SortMode) const
 {
-	// Note: This implementation is faster than using above delegates.
+	// Note: This implementation is faster than using delegates.
 	//       It caches the values before sorting, in this way it minimizes the calls to Column.GetValue().
 
 	const FTableColumn& Column = *ColumnRef;
@@ -374,6 +323,8 @@ void FSorterByFloatValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 	{
 		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
 		{
+			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
+
 			if (A.Value == B.Value)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
@@ -389,6 +340,8 @@ void FSorterByFloatValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 	{
 		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
 		{
+			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
+
 			if (A.Value == B.Value)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
@@ -415,51 +368,13 @@ FSorterByDoubleValue::FSorterByDoubleValue(TSharedRef<FTableColumn> InColumnRef)
 	: FBaseTableColumnSorter(InColumnRef)
 {
 	ensure(InColumnRef->GetDataType() == ETableCellDataType::Double);
-
-	AscendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
-	{
-		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
-		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
-
-		const double ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().Double : 0.0;
-		const double ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().Double : 0.0;
-
-		if (ValueA == ValueB)
-		{
-			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
-		}
-		else
-		{
-			// Sort by value (ascending).
-			return ValueA < ValueB;
-		}
-	};
-
-	DescendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
-	{
-		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
-		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
-
-		const double ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().Double : 0.0;
-		const double ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().Double : 0.0;
-
-		if (ValueA == ValueB)
-		{
-			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
-		}
-		else
-		{
-			// Sort by value (descending).
-			return ValueB < ValueA;
-		}
-	};
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FSorterByDoubleValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode SortMode) const
 {
-	// Note: This implementation is faster than using above delegates.
+	// Note: This implementation is faster than using delegates.
 	//       It caches the values before sorting, in this way it minimizes the calls to Column.GetValue().
 
 	const FTableColumn& Column = *ColumnRef;
@@ -487,6 +402,8 @@ void FSorterByDoubleValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode
 	{
 		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
 		{
+			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
+
 			if (A.Value == B.Value)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
@@ -502,6 +419,8 @@ void FSorterByDoubleValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode
 	{
 		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
 		{
+			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
+
 			if (A.Value == B.Value)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
@@ -531,6 +450,8 @@ FSorterByCStringValue::FSorterByCStringValue(TSharedRef<FTableColumn> InColumnRe
 
 	AscendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
+		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
+
 		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
 		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
 
@@ -551,6 +472,8 @@ FSorterByCStringValue::FSorterByCStringValue(TSharedRef<FTableColumn> InColumnRe
 
 	DescendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
+		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
+
 		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
 		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
 
@@ -578,73 +501,13 @@ FSorterByTextValue::FSorterByTextValue(TSharedRef<FTableColumn> InColumnRef)
 	: FBaseTableColumnSorter(InColumnRef)
 {
 	ensure(InColumnRef->GetDataType() == ETableCellDataType::Text);
-
-	AscendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
-	{
-		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
-		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
-
-		if (!OptionalValueB.IsSet())
-		{
-			return true;
-		}
-
-		if (!OptionalValueA.IsSet())
-		{
-			return false;
-		}
-
-		const FText& ValueA = OptionalValueA.GetValue().GetText();
-		const FText& ValueB = OptionalValueB.GetValue().GetText();
-
-		const int32 Compare = ValueA.CompareTo(ValueB);
-		if (Compare == 0)
-		{
-			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
-		}
-		else
-		{
-			// Sort by value (ascending).
-			return Compare < 0;
-		}
-	};
-
-	DescendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
-	{
-		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
-		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
-
-		if (!OptionalValueB.IsSet())
-		{
-			return true;
-		}
-
-		if (!OptionalValueA.IsSet())
-		{
-			return false;
-		}
-
-		const FText& ValueA = OptionalValueA.GetValue().GetText();
-		const FText& ValueB = OptionalValueB.GetValue().GetText();
-
-		const int32 Compare = ValueA.CompareTo(ValueB);
-		if (Compare == 0)
-		{
-			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
-		}
-		else
-		{
-			// Sort by value (descending).
-			return Compare > 0;
-		}
-	};
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FSorterByTextValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode SortMode) const
 {
-	// Note: This implementation is faster than using above delegates.
+	// Note: This implementation is faster than using delegates.
 	//       It caches the values before sorting, in this way it minimizes the calls to Column.GetValue().
 
 	const FTableColumn& Column = *ColumnRef;
@@ -654,85 +517,200 @@ void FSorterByTextValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode S
 	struct FSortElement
 	{
 		const FBaseTreeNodePtr NodePtr;
-		TOptional<FTableCellValue> Value;
+		FSetElementId ValueId;
 	};
 	TArray<FSortElement> ElementsToSort;
+
+	TSet<FString> UniqueValues;
 
 	// Cache value for each node.
 	ElementsToSort.Reset(NumElements);
 	for (const FBaseTreeNodePtr& NodePtr : NodesToSort)
 	{
-		ElementsToSort.Add({ NodePtr, Column.GetValue(*NodePtr) });
+		FSetElementId ValueId;
+		TOptional<FTableCellValue> Value = Column.GetValue(*NodePtr);
+		if (Value.IsSet())
+		{
+			ValueId = UniqueValues.Add(Value.GetValue().GetText().ToString());
+		}
+		ElementsToSort.Add({ NodePtr, ValueId });
 	}
 	ensure(ElementsToSort.Num() == NumElements);
 
 	if (SortMode == ESortMode::Ascending)
 	{
-		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
+		ElementsToSort.Sort([&UniqueValues](const FSortElement& A, const FSortElement& B) -> bool
+		{
+			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
+
+			if (A.ValueId == B.ValueId)
 			{
-				if (!A.Value.IsSet())
-				{
-					if (!B.Value.IsSet())
-					{
-						INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
-					}
+				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
+			}
 
-					return true;
-				}
+			if (!A.ValueId.IsValidId())
+			{
+				return true;
+			}
 
-				if (!B.Value.IsSet())
-				{
-					return false;
-				}
+			if (!B.ValueId.IsValidId())
+			{
+				return false;
+			}
 
-				const FText& ValueA = A.Value.GetValue().GetText();
-				const FText& ValueB = B.Value.GetValue().GetText();
+			const FString& ValueA = UniqueValues[A.ValueId];
+			const FString& ValueB = UniqueValues[B.ValueId];
 
-				const int32 Compare = ValueA.CompareTo(ValueB);
-				if (Compare == 0)
-				{
-					INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
-				}
-				else
-				{
-					// Sort by value (ascending).
-					return Compare < 0;
-				}
-			});
+			// Sort by value (ascending).
+			return ValueA.Compare(ValueB) <= 0;
+		});
 	}
 	else // if (SortMode == ESortMode::Descending)
 	{
-		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
+		ElementsToSort.Sort([&UniqueValues](const FSortElement& A, const FSortElement& B) -> bool
+		{
+			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
+
+			if (A.ValueId == B.ValueId)
 			{
-				if (!A.Value.IsSet())
-				{
-					if (!B.Value.IsSet())
-					{
-						INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
-					}
+				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
+			}
 
-					return true;
-				}
+			if (!A.ValueId.IsValidId())
+			{
+				return true;
+			}
 
-				if (!B.Value.IsSet())
-				{
-					return false;
-				}
+			if (!B.ValueId.IsValidId())
+			{
+				return false;
+			}
 
-				const FText& ValueA = A.Value.GetValue().GetText();
-				const FText& ValueB = B.Value.GetValue().GetText();
+			const FString& ValueA = UniqueValues[A.ValueId];
+			const FString& ValueB = UniqueValues[B.ValueId];
 
-				const int32 Compare = ValueA.CompareTo(ValueB);
-				if (Compare == 0)
-				{
-					INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
-				}
-				else
-				{
-					// Sort by value (descending).
-					return Compare > 0;
-				}
-			});
+			// Sort by value (descending).
+			return ValueA.Compare(ValueB) >= 0;
+		});
+	}
+
+	for (int32 Index = 0; Index < NumElements; ++Index)
+	{
+		NodesToSort[Index] = ElementsToSort[Index].NodePtr;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FSorterByTextValueWithId
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FSorterByTextValueWithId::FSorterByTextValueWithId(TSharedRef<FTableColumn> InColumnRef)
+	: FBaseTableColumnSorter(InColumnRef)
+{
+	ensure(InColumnRef->GetDataType() == ETableCellDataType::Text);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FSorterByTextValueWithId::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode SortMode) const
+{
+	// Note: This implementation is faster than using delegates.
+	//       It caches the values before sorting, in this way it minimizes the calls to Column.GetValue().
+
+	const FTableColumn& Column = *ColumnRef;
+
+	const int32 NumElements = NodesToSort.Num();
+
+	struct FSortElement
+	{
+		const FBaseTreeNodePtr NodePtr;
+		int32 ValueIndex;
+	};
+	TArray<FSortElement> ElementsToSort;
+
+	TArray<FString> UniqueValues;
+	TMap<uint64, int32> UniqueValuesMap; // Id --> Index in UniqueValues
+
+	// Cache value for each node.
+	ElementsToSort.Reset(NumElements);
+	for (const FBaseTreeNodePtr& NodePtr : NodesToSort)
+	{
+		int32 ValueIndex = -1;
+		uint64 ValueId = Column.GetValueId(*NodePtr);
+		const int32* IndexPtr = UniqueValuesMap.Find(ValueId);
+		if (IndexPtr)
+		{
+			ValueIndex = *IndexPtr;
+		}
+		else
+		{
+			TOptional<FTableCellValue> Value = Column.GetValue(*NodePtr);
+			if (Value.IsSet())
+			{
+				ValueIndex = UniqueValues.Num();
+				UniqueValues.Add(Value.GetValue().GetText().ToString());
+			}
+			UniqueValuesMap.Add(ValueId, ValueIndex);
+		}
+		ElementsToSort.Add({ NodePtr, ValueIndex });
+	}
+	ensure(ElementsToSort.Num() == NumElements);
+
+	if (SortMode == ESortMode::Ascending)
+	{
+		ElementsToSort.Sort([&UniqueValues](const FSortElement& A, const FSortElement& B) -> bool
+		{
+			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
+
+			if (A.ValueIndex == B.ValueIndex)
+			{
+				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
+			}
+
+			if (A.ValueIndex < 0)
+			{
+				return true;
+			}
+
+			if (B.ValueIndex < 0)
+			{
+				return false;
+			}
+
+			const FString& ValueA = UniqueValues[A.ValueIndex];
+			const FString& ValueB = UniqueValues[B.ValueIndex];
+
+			// Sort by value (ascending).
+			return ValueA.Compare(ValueB) <= 0;
+		});
+	}
+	else // if (SortMode == ESortMode::Descending)
+	{
+		ElementsToSort.Sort([&UniqueValues](const FSortElement& A, const FSortElement& B) -> bool
+		{
+			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
+
+			if (A.ValueIndex == B.ValueIndex)
+			{
+				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
+			}
+
+			if (A.ValueIndex < 0)
+			{
+				return true;
+			}
+
+			if (B.ValueIndex < 0)
+			{
+				return false;
+			}
+
+			const FString& ValueA = UniqueValues[A.ValueIndex];
+			const FString& ValueB = UniqueValues[B.ValueIndex];
+
+			// Sort by value (descending).
+			return ValueA.Compare(ValueB) >= 0;
+		});
 	}
 
 	for (int32 Index = 0; Index < NumElements; ++Index)
@@ -746,4 +724,5 @@ void FSorterByTextValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode S
 } // namespace Insights
 
 #undef INSIGHTS_DEFAULT_SORTING_NODES
+#undef INSIGHTS_DEFAULT_PRESORTING_NODES
 #undef LOCTEXT_NAMESPACE

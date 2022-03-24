@@ -68,8 +68,8 @@ public:
 	explicit FTableCellValue(float Value) : DataType(ETableCellDataType::Float), Float(Value) {}
 	explicit FTableCellValue(double Value) : DataType(ETableCellDataType::Double), Double(Value) {}
 	explicit FTableCellValue(const TCHAR* Value) : DataType(ETableCellDataType::CString), CString(Value) {}
-	explicit FTableCellValue(TSharedPtr<ICustomTableCellValue> Value) : DataType(ETableCellDataType::Custom), Custom(Value) {}
-	explicit FTableCellValue(const FText& Value) : DataType(ETableCellDataType::Text), Custom(MakeShared<FTextCustomTableCellValue>(Value)) {}
+	explicit FTableCellValue(TSharedPtr<ICustomTableCellValue> Value, uint64 Id = 0) : DataType(ETableCellDataType::Custom), ValueId(Id), Custom(Value) {}
+	explicit FTableCellValue(const FText& Value, uint64 Id = 0) : DataType(ETableCellDataType::Text), ValueId(Id), Custom(MakeShared<FTextCustomTableCellValue>(Value)) {}
 
 	bool AsBool() const
 	{
@@ -165,6 +165,11 @@ public:
 		return FText::GetEmpty();
 	}
 
+	uint64 GetValueId() const
+	{
+		return ValueId;
+	}
+
 public:
 	ETableCellDataType DataType;
 
@@ -175,6 +180,7 @@ public:
 		float Float;
 		double Double;
 		const TCHAR* CString; // should be valid for the lieftime of the owner table
+		uint64 ValueId; // only used by Custom types
 	};
 
 	TSharedPtr<ICustomTableCellValue> Custom;

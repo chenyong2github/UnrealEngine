@@ -18,6 +18,7 @@ class ITableCellValueGetter
 {
 public:
 	virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const = 0;
+	virtual uint64 GetValueId(const FTableColumn& Column, const FBaseTreeNode& Node) const = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -29,6 +30,7 @@ public:
 	virtual ~FTableCellValueGetter() {}
 
 	virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override { return TOptional<FTableCellValue>(); }
+	virtual uint64 GetValueId(const FTableColumn& Column, const FBaseTreeNode& Node) const override { return 0; }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

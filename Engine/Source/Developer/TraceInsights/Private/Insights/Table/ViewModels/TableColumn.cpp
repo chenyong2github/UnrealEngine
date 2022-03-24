@@ -27,6 +27,13 @@ const TOptional<FTableCellValue> FTableColumn::GetValue(const FBaseTreeNode& InN
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+uint64 FTableColumn::GetValueId(const FBaseTreeNode& InNode) const
+{
+	return ValueGetter->GetValueId(*this, InNode);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedRef<ITableCellValueFormatter> FTableColumn::GetDefaultValueFormatter()
 {
 	return MakeShared<FTableCellValueFormatter>();

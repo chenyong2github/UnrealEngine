@@ -774,12 +774,12 @@ void FMemAllocTable::AddDefaultColumns()
 
 						if (!Callstack)
 						{
-							return FTableCellValue(FText::FromString(GetCallstackNotAvailableString()));
+							return FTableCellValue(FText::FromString(GetCallstackNotAvailableString()), 0);
 						}
 
 						if (Callstack->Num() == 0)
 						{
-							return FTableCellValue(FText::FromString(GetEmptyCallstackString()));
+							return FTableCellValue(FText::FromString(GetEmptyCallstackString()), uint64(Callstack));
 						}
 
 						const TraceServices::FStackFrame* Frame = nullptr;
@@ -855,11 +855,27 @@ void FMemAllocTable::AddDefaultColumns()
 
 						TStringBuilder<1024> Str;
 						FormatStackFrame(*Frame, Str, EStackFrameFormatFlags::Module);
-						return FTableCellValue(FText::FromString(FString(Str)));
+						return FTableCellValue(FText::FromString(FString(Str)), uint64(Callstack));
 					}
 				}
 
 				return TOptional<FTableCellValue>();
+			}
+
+			virtual uint64 GetValueId(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+			{
+				if (!Node.IsGroup()) //if (Node->Is<FMemAllocNode>())
+				{
+					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
+					if (Alloc)
+					{
+						const TraceServices::FCallstack* Callstack = Alloc->GetCallstack();
+						return uint64(Callstack);
+					}
+				}
+
+				return 0;
 			}
 		};
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FFunctionValueGetter>();
@@ -896,7 +912,7 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FunctionValueFormatter>();
 		Column.SetValueFormatter(Formatter);
 
-		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByTextValue>(ColumnRef);
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByTextValueWithId>(ColumnRef);
 		Column.SetValueSorter(Sorter);
 
 		AddColumn(ColumnRef);

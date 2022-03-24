@@ -159,4 +159,14 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class FSorterByTextValueWithId : public FBaseTableColumnSorter
+{
+public:
+	FSorterByTextValueWithId(TSharedRef<FTableColumn> InColumnRef);
+
+	virtual void Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode SortMode) const override;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 } // namespace Insights
