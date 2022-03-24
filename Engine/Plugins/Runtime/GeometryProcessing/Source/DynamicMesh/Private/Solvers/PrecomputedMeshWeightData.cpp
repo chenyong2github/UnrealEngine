@@ -71,10 +71,10 @@ void UE::MeshDeformation::CotanTriangleData::Initialize(const FDynamicMesh3& Dyn
 		Cotangent[1] = -EdgeAB.Dot(EdgeBC) / TwiceArea;
 		Cotangent[2] = EdgeAC.Dot(EdgeBC) / TwiceArea;
 
+		Area = 0.5 * TwiceArea;
+
 		if (bIsObtuse())
 		{
-			const double Area = 0.5 * TwiceArea;
-
 			// Voronoi inappropriate case.  Instead use Area(T)/2 at obtuse corner
 			// and Area(T) / 4 at the other corners.
 
@@ -120,6 +120,8 @@ void UE::MeshDeformation::CotanTriangleData::Initialize(const FDynamicMesh3& Dyn
 		VoronoiArea[0] = SmallTriangleArea / 3.;
 		VoronoiArea[1] = SmallTriangleArea / 3.;
 		VoronoiArea[2] = SmallTriangleArea / 3.;
+
+		Area = SmallTriangleArea;
 	}
 }
 
