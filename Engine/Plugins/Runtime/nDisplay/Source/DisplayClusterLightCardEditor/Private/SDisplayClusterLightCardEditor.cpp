@@ -148,7 +148,8 @@ void SDisplayClusterLightCardEditor::OnActiveRootActorChanged(ADisplayClusterRoo
 
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateLightCardListWidget()
 {
-	return SAssignNew(LightCardList, SDisplayClusterLightCardList, SharedThis(this));
+	return SAssignNew(LightCardList, SDisplayClusterLightCardList, SharedThis(this))
+	.OnLightCardListChanged(this, &SDisplayClusterLightCardEditor::OnLightCardListChanged);
 }
 
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateViewportWidget()
@@ -317,6 +318,11 @@ void SDisplayClusterLightCardEditor::OnObjectTransacted(UObject* Object,
 		// a LightCard actor from the level manually then undoes it.
 		RefreshPreviewActors();
 	}
+}
+
+void SDisplayClusterLightCardEditor::OnLightCardListChanged()
+{
+	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::LightCards);
 }
 
 #undef LOCTEXT_NAMESPACE

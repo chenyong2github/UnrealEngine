@@ -94,6 +94,9 @@ private:
 
 	/** Raised when any object is transacted */
 	void OnObjectTransacted(UObject* Object, const FTransactionObjectEvent& TransactionObjectEvent);
+
+	/** Raised when the light card list has added or removed a card */
+	void OnLightCardListChanged();
 	
 private:
 	/** The light card list widget */

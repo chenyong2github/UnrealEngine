@@ -138,7 +138,8 @@ private:
 void SDisplayClusterLightCardList::Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor)
 {
 	LightCardEditorPtr = InLightCardEditor;
-
+	OnLightCardChanged = InArgs._OnLightCardListChanged;
+	
 	BindCommands();
 
 	ChildSlot
@@ -471,12 +472,31 @@ void SDisplayClusterLightCardList::AddExistingLightCard()
 
 void SDisplayClusterLightCardList::AddLightCardToActor(AActor* LightCard)
 {
+	check(LightCard);
+	
 	UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData();
 	ConfigData->Modify();
 	FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = ConfigData->StageSettings.Lightcard.ShowOnlyList;
-	RootActorLightCards.Actors.AddUnique(LightCard);
 
+	if (!RootActorLightCards.Actors.ContainsByPredicate([&](const TSoftObjectPtr<AActor>& Actor)
+	{
+		// Don't add if a loaded actor is already present.
+		return Actor.Get() == LightCard;
+	}))
+	{
+		const TSoftObjectPtr<AActor> LightCardSoftObject(LightCard);
+		
+		// Remove any exact paths to this actor. It's possible invalid actors are present if a light card
+		// was force deleted from a level.
+		RootActorLightCards.Actors.RemoveAll([&] (const TSoftObjectPtr<AActor>& Actor)
+		{
+			return Actor == LightCardSoftObject;
+		});
+	
+		RootActorLightCards.Actors.Add(LightCard);
+	}
 	Refresh();
+	OnLightCardChanged.ExecuteIfBound();
 }
 
 bool SDisplayClusterLightCardList::CanAddLightCard() const
@@ -511,7 +531,10 @@ void SDisplayClusterLightCardList::RemoveLightCard(bool bDeleteLightCardActor)
 				ConfigData->Modify();
 				
 				FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = ConfigData->StageSettings.Lightcard.ShowOnlyList;
-				RootActorLightCards.Actors.Remove(Item->LightCardActor.Get());
+				RootActorLightCards.Actors.RemoveAll([&](const TSoftObjectPtr<AActor>& Actor)
+				{
+					return Actor.Get() == Item->LightCardActor.Get();
+				});
 			}
 
 			if (bDeleteLightCardActor)
@@ -533,6 +556,7 @@ void SDisplayClusterLightCardList::RemoveLightCard(bool bDeleteLightCardActor)
 	}
 
 	Refresh();
+	OnLightCardChanged.ExecuteIfBound();
 }
 
 bool SDisplayClusterLightCardList::CanRemoveLightCard() const

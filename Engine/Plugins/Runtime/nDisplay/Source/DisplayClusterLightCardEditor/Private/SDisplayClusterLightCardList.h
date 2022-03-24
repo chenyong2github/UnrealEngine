@@ -21,6 +21,8 @@ class STreeView;
 class SDisplayClusterLightCardList : public SCompoundWidget
 {
 public:
+	DECLARE_DELEGATE(FOnLightCardListChanged)
+	
 	struct FLightCardTreeItem
 	{
 		TWeakObjectPtr<AActor> LightCardActor;
@@ -38,6 +40,7 @@ public:
 public:
 	SLATE_BEGIN_ARGS(SDisplayClusterLightCardList)
 	{}
+	SLATE_EVENT(FOnLightCardListChanged, OnLightCardListChanged)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor);
@@ -111,4 +114,7 @@ private:
 
 	/** Mapped commands for this list */
 	TSharedPtr<FUICommandList> CommandList;
+
+	/** When a user adds or removes a light card */
+	FOnLightCardListChanged OnLightCardChanged;
 };
