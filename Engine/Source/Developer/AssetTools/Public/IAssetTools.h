@@ -253,6 +253,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Asset Tools")
 	virtual UObject* DuplicateAsset(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject) = 0;
 
+	/** Controls whether or not newly created assets are made externally referneceable or not */
+	virtual void SetCreateAssetsAsExternallyReferenceable(bool bValue) = 0;
+
+	/** Gets whether assets are being made externally referenceable or not */
+	virtual bool GetCreateAssetsAsExternallyReferenceable() = 0;
+
 	/** Renames assets using the specified names. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	virtual bool RenameAssets(const TArray<FAssetRenameData>& AssetsAndNames) = 0;

@@ -894,6 +894,10 @@ namespace ObjectTools
 				DupObject->GetOutermost()->SetPackageFlags(PKG_DisallowExport);
 			}
 
+			// Duplicating an asset should respect the reference controls of the original.
+			bool isObjectExternallyReferenceable = Object->GetOutermost()->IsExternallyReferenceable();
+			DupObject->GetOutermost()->SetIsExternallyReferenceable(isObjectExternallyReferenceable);
+
 			// When duplicating a World Composition map, make sure to properly initialize WorldTileInfo
 			if (Object->GetOutermost()->GetWorldTileInfo())
 			{

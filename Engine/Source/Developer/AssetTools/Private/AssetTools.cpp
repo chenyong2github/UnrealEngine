@@ -185,6 +185,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	, AssetClassPermissionList(MakeShared<FNamePermissionList>())
 	, FolderPermissionList(MakeShared<FPathPermissionList>())
 	, WritableFolderPermissionList(MakeShared<FPathPermissionList>())
+	, CreateAssetsAsExternallyReferenceable(true)
 {
 	TArray<FString> SupportedTypesArray;
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedAssetTypes"), SupportedTypesArray, GEditorIni);
@@ -527,6 +528,9 @@ UObject* UAssetToolsImpl::CreateAsset(const FString& AssetName, const FString& P
 
 	if( NewObj )
 	{
+
+		Pkg->SetIsExternallyReferenceable(CreateAssetsAsExternallyReferenceable);
+
 		// Notify the asset registry
 		FAssetRegistryModule::AssetCreated(NewObj);
 
@@ -687,6 +691,16 @@ UObject* UAssetToolsImpl::PerformDuplicateAsset(const FString& AssetName, const 
 	}
 
 	return NewObject;
+}
+
+void UAssetToolsImpl::SetCreateAssetsAsExternallyReferenceable(bool bValue)
+{
+	CreateAssetsAsExternallyReferenceable = bValue;
+}
+
+bool UAssetToolsImpl::GetCreateAssetsAsExternallyReferenceable()
+{
+	return CreateAssetsAsExternallyReferenceable;
 }
 
 void UAssetToolsImpl::GenerateAdvancedCopyDestinations(FAdvancedCopyParams& InParams, const TArray<FName>& InPackageNamesToCopy, const UAdvancedCopyCustomization* CopyCustomization, TMap<FString, FString>& OutPackagesAndDestinations) const

@@ -83,6 +83,8 @@ public:
 	virtual UObject* DuplicateAsset(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject) override;
 	virtual UObject* DuplicateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject) override;
 	virtual UObject* DuplicateAssetWithDialogAndTitle(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject, FText DialogTitle) override;
+	virtual void SetCreateAssetsAsExternallyReferenceable(bool bValue) override;
+	virtual bool GetCreateAssetsAsExternallyReferenceable() override;
 	virtual bool RenameAssets(const TArray<FAssetRenameData>& AssetsAndNames) override;
 	virtual EAssetRenameResult RenameAssetsWithDialog(const TArray<FAssetRenameData>& AssetsAndNames, bool bAutoCheckout = false) override;
 	virtual void FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects) override;
@@ -220,6 +222,8 @@ private:
 
 	/** List of sub content paths denied for every mount. */
 	TArray<FString> SubContentDenyListPaths;
+
+	bool CreateAssetsAsExternallyReferenceable;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
