@@ -166,6 +166,7 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineExecutorJob : public UObject
 public:
 	UMoviePipelineExecutorJob()
 	{
+		bEnabled = true;
 		StatusProgress = 0.f;
 		bIsConsumed = false;
 		Configuration = CreateDefaultSubobject<UMoviePipelineMasterConfig>("DefaultConfig");
@@ -333,6 +334,10 @@ public:
 	/** (Optional) Shot specific information. If a shot is missing from this list it will assume to be enabled and will be rendered. */
 	UPROPERTY(BlueprintReadWrite, Instanced, Category = "Movie Render Pipeline")
 	TArray<UMoviePipelineExecutorShot*> ShotInfo;
+
+	/** Whether this job is enabled and should be rendered. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	bool bEnabled;
 
 	/** 
 	* Arbitrary data that can be associated with the job. Not used by default implementations, nor read.

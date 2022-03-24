@@ -43,6 +43,12 @@ void UMoviePipelineLinearExecutorBase::StartPipelineByIndex(int32 InPipelineInde
 	
 	CurrentPipelineIndex = InPipelineIndex;
 
+	if (!Queue->GetJobs()[CurrentPipelineIndex]->bEnabled)
+	{
+		OnIndividualPipelineFinished(nullptr);
+		return;
+	}
+
 	if (Queue->GetJobs()[CurrentPipelineIndex]->IsConsumed())
 	{
 		// We skip working on consumed jobs. Jobs submitted to remote renders might already be consumed and
