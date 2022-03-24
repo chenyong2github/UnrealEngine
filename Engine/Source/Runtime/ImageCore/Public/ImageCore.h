@@ -273,7 +273,7 @@ public:
 	 */
 	IMAGECORE_API FImage(int32 InSizeX, int32 InSizeY, int32 InNumSlices, ERawImageFormat::Type InFormat, EGammaSpace InGammaSpace);
 
-	// @@!! danger? changed default GammaSpace from Linear to Guess
+	// note: changed default GammaSpace from Linear to GetDefaultGammaSpace
 	FORCEINLINE FImage(int32 InSizeX, int32 InSizeY, int32 InNumSlices, ERawImageFormat::Type InFormat) :
 		FImage(InSizeX,InSizeY,InNumSlices,InFormat,ERawImageFormat::GetDefaultGammaSpace(InFormat))
 	{
@@ -292,7 +292,7 @@ public:
 	{
 	}
 
-	// @@!! danger? changed default GammaSpace from Linear to Guess
+	// note: changed default GammaSpace from Linear to GetDefaultGammaSpace
 	FORCEINLINE FImage(int32 InSizeX, int32 InSizeY, ERawImageFormat::Type InFormat) :
 		FImage(InSizeX,InSizeY,1,InFormat,ERawImageFormat::GetDefaultGammaSpace(InFormat))
 	{

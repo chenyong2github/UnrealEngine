@@ -2,6 +2,7 @@
 #pragma once
 #include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "ImageCore.h"
 
 // This is supposed to be, as close as possible, the complete list of DXGI formats
 // per those docs - the ODDFMTs we don't support for doing anything other than name, but we keep
@@ -131,6 +132,9 @@
 	ODDFMT(P208,						130) \
 	ODDFMT(V208,						131) \
 	ODDFMT(V408,						132) \
+	RGBFMT(B8G8R8,						1001,3) \
+	RGBFMT(R8G8B8,						1002,3) \
+	RGBFMT(R8G8B8X8,					1003,4) \
 	/* end */
 
 namespace UE { namespace DDS
@@ -159,8 +163,10 @@ namespace UE { namespace DDS
 	enum class EDDSError
 	{
 		OK,						// No error
+		Ok = OK,
 		OutOfMemory,			// Out of memory/allocation failure while reading
 		NotADds,				// No valid DDS header found
+		NotADDS = NotADds,
 		BadResourceDimension,	// Resource not 1D, 2D or 3D
 		BadPixelFormat,			// Malformed or unsupported pixel format
 		BadImageDimension,		// Image dimensions (width, height, depth, array size) outside supported range
@@ -272,11 +278,20 @@ namespace UE { namespace DDS
 		// Sanity-check that all members make sense and return an error code.
 		IMAGECORE_API EDDSError Validate() const;
 
+		// Check if this DDS is usable in Unreal Texture types:
+		IMAGECORE_API bool IsValidTexture2D() const;
+		IMAGECORE_API bool IsValidTextureCube() const; // or cube array
+		IMAGECORE_API bool IsValidTextureArray() const;
+		IMAGECORE_API bool IsValidTextureVolume() const;
+
 		// Used for loading from a DDS file image in memory.
 		// 
 		// On error, returns nullptr. If a non-null OutError is supplied, error information
 		// is written there.
 		IMAGECORE_API static FDDSFile* CreateFromDDSInMemory(const uint8* InDDS, int64 InDDSSize, EDDSError* OutError=nullptr);
+		
+		// is this buffer a DDS ?
+		IMAGECORE_API static bool IsADDS(const uint8* InDDS, int64 InDDSSize);
 
 		// For 8-bit UNorm formats, both RGBA and BGRA channel order variants exist and
 		// are popular. This function does the trivial conversion between the two, updating
@@ -284,6 +299,18 @@ namespace UE { namespace DDS
 		// correct or the pixel format is not one of the few formats that exist in both RGBA
 		// and BGRA variants, this function does nothing.
 		IMAGECORE_API void ConvertChannelOrder(EChannelOrder InTargetOrder);
+
+		// convert X alpha to A  and fill 255
+		IMAGECORE_API void ConvertRGBXtoRGBA();		
+
+		// Blit pixels from DDS mip to Image
+		// return false if no pixel format conversion is supported
+		// ToImage is not allocated, must be pre-allocated and sized correctly
+		IMAGECORE_API bool GetMipImage(const FImageView & ToImage, int MipIndex) const;
+
+		// Fill DDS mip from Image
+		// Image must be of format DXGIFormatFromRawFormat
+		IMAGECORE_API void FillMip(const FImageView & FromImage, int MipIndex);
 
 		// Bit flags
 		static constexpr uint32 CREATE_FLAG_NONE = 0;
@@ -297,6 +324,7 @@ namespace UE { namespace DDS
 
 	// Returns whether a given pixel format is sRGB
 	IMAGECORE_API bool DXGIFormatIsSRGB(EDXGIFormat InFormat);
+	IMAGECORE_API bool DXGIFormatHasLinearAndSRGBForm(EDXGIFormat InFormat);
 
 	// Return the corresponding non-sRGB version of a pixel format if there is one
 	IMAGECORE_API EDXGIFormat DXGIFormatRemoveSRGB(EDXGIFormat InFormat);
@@ -304,4 +332,7 @@ namespace UE { namespace DDS
 	// Return the corresponding sRGB version of a pixel format if there is one
 	IMAGECORE_API EDXGIFormat DXGIFormatAddSRGB(EDXGIFormat InFormat);
 
+	IMAGECORE_API EDXGIFormat DXGIFormatFromRawFormat(ERawImageFormat::Type RawFormat,EGammaSpace GammaSpace);
+
+	IMAGECORE_API ERawImageFormat::Type DXGIFormatGetClosestRawFormat(EDXGIFormat fmt, bool * pIsExactMatch = nullptr);
 } }

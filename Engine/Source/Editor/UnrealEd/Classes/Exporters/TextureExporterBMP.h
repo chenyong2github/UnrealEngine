@@ -17,7 +17,7 @@ class UTextureExporterBMP : public UTextureExporterGeneric
 {
 	GENERATED_UCLASS_BODY()
 	
-	virtual bool SupportsTexture(UTexture2D* Texture) const override;
+	virtual bool SupportsTexture(UTexture* Texture) const override;
 };
 
 UCLASS()

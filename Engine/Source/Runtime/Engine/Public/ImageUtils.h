@@ -123,6 +123,18 @@ public:
 	ENGINE_API static bool DecompressImage(const void* InCompressedData, int64 InCompressedSize, FImage & OutImage);
 	
 	/**
+	*  Export Texture (2D,Array,Cube,CubeArray,Volume) to DDS
+	*  reads from texture source, not platform data
+	* 
+	* @param OutData    Filled with DDS file format
+	* @param Texture    Texture (2D,Array,Cube,CubeArray,Volume) to export
+	* @param BlockIndex Block to export (optional)
+	* @param LayerIndex Layer to export (optional)
+	* 
+	*/
+	ENGINE_API static bool ExportTextureSourceToDDS(TArray64<uint8> & OutData, UTexture * Texture, int BlockIndex=0, int LayerIndex=0);
+
+	/**
 	 * if Texture source is available, get it as an FImage
 	 *
 	 * @param Texture		Texture to get gets from

@@ -160,13 +160,13 @@ FString ULightMapTexture2D::GetDesc()
 static void DumpLightmapSizeOnDisk()
 {
 	UE_LOG(LogLightMap,Log,TEXT("Lightmap size on disk"));
-	UE_LOG(LogLightMap,Log,TEXT("Source (KB),Source is PNG,Platform Data (KB),Lightmap"));
+	UE_LOG(LogLightMap,Log,TEXT("Source (KB),Source is Compressed,Platform Data (KB),Lightmap"));
 	for (TObjectIterator<ULightMapTexture2D> It; It; ++It)
 	{
 		ULightMapTexture2D* Lightmap = *It;
 		UE_LOG(LogLightMap,Log,TEXT("%f,%d,%f,%s"),
 			Lightmap->Source.GetSizeOnDisk() / 1024.0f,
-			Lightmap->Source.IsPNGCompressed(),
+			Lightmap->Source.IsSourceCompressed(),
 			Lightmap->CalcTextureMemorySizeEnum(TMC_AllMips) / 1024.0f,
 			*Lightmap->GetPathName()
 			);

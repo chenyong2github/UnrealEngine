@@ -7,9 +7,10 @@ ImageUtils.cpp: Image utility functions.
 #include "ImageUtils.h"
 
 #include "CubemapUnwrapUtils.h"
-#include "DDSLoader.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureCube.h"
+#include "Engine/TextureCubeArray.h"
+#include "Engine/VolumeTexture.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
@@ -19,6 +20,7 @@ ImageUtils.cpp: Image utility functions.
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "ImageCoreUtils.h"
+#include "DDSFile.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogImageUtils, Log, All);
 
@@ -150,6 +152,164 @@ bool FImageUtils::CompressImage(TArray64<uint8> & OutData, const TCHAR * ToForma
 	}
 
 	return ImageWrapperModule->CompressImage(OutData,ToFormat,InImage,Quality);
+}
+
+bool FImageUtils::ExportTextureSourceToDDS(TArray64<uint8> & OutData, UTexture * Texture, int BlockIndex, int LayerIndex)
+{
+#if WITH_EDITORONLY_DATA	
+	UE::DDS::EDDSError Error;
+
+	UTexture2D * Texture2D = Cast<UTexture2D>(Texture);
+	UTextureCube * TextureCube = Cast<UTextureCube>(Texture);
+	UTextureCubeArray * TextureCubeArray = Cast<UTextureCubeArray>(Texture);
+	UVolumeTexture * TextureVolume = Cast<UVolumeTexture>(Texture);
+	const FTextureSource & Source = Texture->Source;
+	
+	check( BlockIndex < Source.GetNumBlocks() );
+	check( LayerIndex < Source.GetNumLayers() );
+	
+	FTextureSourceBlock Block;
+	Source.GetBlock(BlockIndex, Block);
+
+	int32 SizeX = Block.SizeX;
+	int32 SizeY = Block.SizeY;
+	int32 NumSlices = Block.NumSlices;
+	int32 NumMips = Block.NumMips;
+
+	int32 Dimension;
+	int32 SizeZ;
+	int32 ArraySize;
+	uint32 CreateFlags = 0;
+	if ( Texture2D != nullptr )
+	{
+		Dimension = 2;
+		SizeZ = 1;
+		ArraySize = NumSlices;
+	}
+	else if ( TextureCube != nullptr )
+	{
+		Dimension = 2;
+		SizeZ = 1;
+
+		// IsLongLatCubemap() is not right
+		// just guess from NumSlices
+
+		//bool bIsLongLatCubemap = Source.IsLongLatCubemap();
+		bool bIsLongLatCubemap = ( NumSlices == 1 ); 
+
+		if ( bIsLongLatCubemap )
+		{
+			// just export as 2d texture
+			check( NumSlices == 1 );
+			ArraySize = 1;
+		}
+		else
+		{
+			check( NumSlices == 6 );
+			ArraySize = 6;
+			CreateFlags = UE::DDS::FDDSFile::CREATE_FLAG_CUBEMAP;
+		}
+	}
+	else if ( TextureCubeArray != nullptr )
+	{
+		Dimension = 2;
+		SizeZ = 1;
+
+		// IsLongLatCubemap() should be right for CubeArrays
+		bool bIsLongLatCubemap = Source.IsLongLatCubemap() || (NumSlices%6) != 0; 
+
+		if ( bIsLongLatCubemap )
+		{
+			// just export as 2d texture array
+			ArraySize = NumSlices;
+		}
+		else
+		{
+			check( (NumSlices%6) == 0 );
+			ArraySize = NumSlices;
+			CreateFlags = UE::DDS::FDDSFile::CREATE_FLAG_CUBEMAP;
+		}
+	}
+	else if ( TextureVolume != nullptr )
+	{
+		Dimension = 3;
+		SizeZ = NumSlices;
+		ArraySize = 1;
+
+		// @@!! if NumMips != 1 will fail later in FillMip right now due to Unreal getting Volume mips wrong
+	}
+	else
+	{
+		check(0);
+		return false;
+	}
+	
+	ERawImageFormat::Type RawFormat = FImageCoreUtils::ConvertToRawImageFormat(Source.GetFormat(LayerIndex));
+	EGammaSpace GammaSpace = Source.GetGammaSpace(LayerIndex);
+	UE::DDS::EDXGIFormat DXGIFormat = UE::DDS::DXGIFormatFromRawFormat(RawFormat,GammaSpace);
+	
+	if ( RawFormat == ERawImageFormat::BGRE8 )
+	{
+		// convert BGRE to Linear float? or just export the bytes as they are in BGRA ?
+		UE_LOG(LogImageUtils,Warning,TEXT("DDS export to BGRE8 will write the bytes as they were in BGRA, not converted to float linear"));
+	}
+
+	UE_LOG(LogImageUtils,Display,TEXT("Exporting DDS Dimension=%d SizeX=%d SizeY=%d SizeZ=%d NumMips=%d ArraySize=%d"),Dimension, SizeX,SizeY,SizeZ,NumMips,ArraySize);	
+
+	UE::DDS::FDDSFile * DDS = UE::DDS::FDDSFile::CreateEmpty(Dimension, SizeX,SizeY,SizeZ,NumMips,ArraySize, DXGIFormat,CreateFlags, &Error);
+	if ( DDS == nullptr || Error != UE::DDS::EDDSError::OK )
+	{
+		UE_LOG(LogImageUtils,Warning,TEXT("FDDSFile::CreateEmpty (Error=%d)"),(int)Error);			
+		return false;
+	}
+	
+	// delete DDS at scope exit :
+	TUniquePtr<UE::DDS::FDDSFile> DDSPtr(DDS);
+
+	check( DDS->Validate() == UE::DDS::EDDSError::OK );
+	
+	// blit into the mips:
+	
+	for(int MipIndex=0;MipIndex<NumMips;MipIndex++)
+	{
+		FTextureSource::FMipLock MipLock(FTextureSource::ELockState::ReadOnly,const_cast<FTextureSource *>(&Source),BlockIndex,LayerIndex,MipIndex);
+
+		if ( DDS->Dimension == 3 )
+		{
+			check( DDS->Mips.Num() == DDS->MipCount );
+			check( DDS->Mips[MipIndex].Depth == MipLock.Image.NumSlices );
+
+			DDS->FillMip( MipLock.Image, MipIndex );
+		}
+		else
+		{
+			// DDS->Mips[] contains both mips and arrays
+			check( DDS->Mips.Num() == DDS->MipCount * NumSlices );
+
+			for(int SliceIndex=0;SliceIndex<NumSlices;SliceIndex++)
+			{
+				FImageView MipSlice = MipLock.Image.GetSlice(SliceIndex);
+				
+				// DDS Mips[] array has whole mip chain of each slice, then next slice
+				// we have the opposite (all slices of top mip first, then next mip)
+				int DDSMipIndex = SliceIndex * DDS->MipCount + MipIndex;
+				
+				DDS->FillMip( MipSlice, DDSMipIndex );
+			}
+		}
+	}
+
+	Error = DDS->WriteDDS(OutData);
+	if ( Error != UE::DDS::EDDSError::OK )
+	{
+		UE_LOG(LogImageUtils,Warning,TEXT("FDDSFile::WriteDDS failed (Error=%d)"),(int)Error);			
+		return false;
+	}
+
+	return true;
+#else
+	return false;
+#endif
 }
 
 /**
@@ -1113,8 +1273,6 @@ UTexture2D* FImageUtils::ImportFileAsTexture2D(const FString& Filename)
 
 UTexture2D* FImageUtils::ImportBufferAsTexture2D(TArrayView64<const uint8> Buffer)
 {
-	//@@!! test me
-
 	FImage Image;
 	if ( ! DecompressImage(Buffer.GetData(),Buffer.Num(), Image) )
 	{

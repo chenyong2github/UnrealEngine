@@ -205,14 +205,7 @@ static void WriteSource(FCbWriter& Writer, const UTexture& Texture, int32 LayerI
 
 	Writer.BeginObject();
 
-	ETextureSourceCompressionFormat CompressionFormat = Source.GetSourceCompression();
-	if ((CompressionFormat == ETextureSourceCompressionFormat::TSCF_PNG) && !Source.IsPNGCompressed())
-	{
-		// CompressionFormat might mismatch with IsPNGCompressed.  In that case IsPNGCompressed is authoritative.
-		// This behavior matches FTextureSource::Decompress
-		CompressionFormat = ETextureSourceCompressionFormat::TSCF_None;
-	}
-	Writer.AddInteger("CompressionFormat", CompressionFormat);
+	Writer.AddInteger("CompressionFormat", Source.GetSourceCompression());
 	Writer.AddInteger("SourceFormat", Source.GetFormat(LayerIndex));
 	Writer.AddInteger("GammaSpace", static_cast<uint8>(GammaSpace));
 	Writer.AddInteger("NumSlices", (BuildSettings.bCubemap || BuildSettings.bTextureArray || BuildSettings.bVolume) ? Source.GetNumSlices() : 1);

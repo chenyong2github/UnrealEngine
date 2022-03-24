@@ -129,6 +129,8 @@
 #include "Engine/TextureLightProfile.h"
 #include "SoundCueGraph/SoundCueGraphNode.h"
 #include "Exporters/TextureCubeExporterHDR.h"
+#include "Exporters/TextureExporterGeneric.h"
+#include "Exporters/TextureExporterDDS.h"
 #include "Exporters/TextureExporterBMP.h"
 #include "Exporters/TextureExporterHDR.h"
 #include "Exporters/RenderTargetExporterHDR.h"
@@ -165,9 +167,9 @@
 #include "Sound/SoundCue.h"
 #include "Sound/SoundMix.h"
 #include "Engine/TextureCube.h"
-#include "Engine/VolumeTexture.h"
 #include "Engine/Texture2DArray.h"
 #include "Engine/VolumeTexture.h"
+#include "Engine/TextureCubeArray.h"
 #include "Engine/TextureRenderTarget.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureRenderTarget2DArray.h"
@@ -195,8 +197,7 @@
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 
-#include "DDSLoader.h"
-#include "Formats/HdrImageWrapper.h"
+#include "DDSFile.h"
 #include "Factories/TIFFLoader.h"
 #include "IESConverter.h"
 #include "IImageWrapper.h"
@@ -225,17 +226,7 @@
 #include "VT/VirtualTexture.h"
 #include "VT/VirtualTextureBuilder.h"
 
-#if PLATFORM_WINDOWS
-	// Needed for DDS support.
-	#include "Windows/WindowsHWrapper.h"
-	#include "Windows/AllowWindowsPlatformTypes.h"
-		#include <ddraw.h>
-	#include "Windows/HideWindowsPlatformTypes.h"
-#endif
-
-#if WITH_EDITOR
-	#include "CubemapUnwrapUtils.h"
-#endif
+#include "CubemapUnwrapUtils.h"
 
 #include "Components/BrushComponent.h"
 #include "EngineUtils.h"
@@ -1236,6 +1227,8 @@ UObject* ULevelFactory::FactoryCreateText
 		else // This actor is new, but rejected to import its properties, so just delete...
 		{
 			Actor->Destroy();
+			// @@!! Actor pointer continues to be used below?
+			// continue;
 		}
 
 		// If this is a newly imported brush, validate it.  If it's a newly imported dynamic brush, rebuild it first.
@@ -2715,7 +2708,7 @@ UTextureFactory::UTextureFactory(const FObjectInitializer& ObjectInitializer)
 	Formats.Add( TEXT( "bmp;Texture" ) );
 	Formats.Add( TEXT( "pcx;Texture" ) );
 	Formats.Add( TEXT( "tga;Texture" ) );
-	Formats.Add( TEXT( "float;Texture" ) ); // @@!! what's this ?
+	Formats.Add( TEXT( "float;Texture" ) ); // @@!! what's this ? seems to be listed but have no loader?
 	Formats.Add( TEXT( "psd;Texture" ) );
 	Formats.Add( TEXT( "dds;Texture (Cubemap or 2D)" ) );
 	Formats.Add( TEXT( "hdr;Texture (HDR) (LongLat unwrap or 2D)" ) );
@@ -3362,59 +3355,9 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, int64 Length, FFeedbackCo
 	}
 	
 	//
-	// DDS Texture
-	// @@!! move this out with the other DDS cube/aray loader
-	FDDSLoadHelper  DDSLoadHelper(Buffer, Length);
-	if (DDSLoadHelper.IsValid2DTexture())
-	{
-		// DDS 2d texture
-		if (!IsImportResolutionValid(DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, bAllowNonPowerOfTwo, Warn))
-		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("DDS has invalid dimensions."));
-			return false;
-		}
-
-		ETextureSourceFormat SourceFormat = DDSLoadHelper.ComputeSourceFormat();
-
-		// Invalid DDS format
-		if (SourceFormat == TSF_Invalid)
-		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("DDS uses an unsupported format."));
-			return false;
-		}
-
-		uint32 MipMapCount = DDSLoadHelper.ComputeMipMapCount();
-		if (SourceFormat != TSF_Invalid && MipMapCount > 0)
-		{
-			OutImage.Init2DWithMips(
-				DDSLoadHelper.DDSHeader->dwWidth,
-				DDSLoadHelper.DDSHeader->dwHeight,
-				MipMapCount,
-				SourceFormat,
-				DDSLoadHelper.GetDDSDataPointer()
-			);
-
-			if (MipMapCount > 1)
-			{
-				// if the source has mips we keep the mips by default, unless the user changes that
-				MipGenSettings = TMGS_LeaveExistingMips;
-			}
-
-			if (FTextureSource::IsHDR(SourceFormat))
-			{
-				// the loader can suggest a compression setting
-				OutImage.CompressionSettings = TC_HDR;
-				OutImage.SRGB = false;
-			}
-
-			return true;
-		}
-	}
-
-
-	//
 	// Legacy TIFF import (for the platforms that doesn't have libtiff)
-	//
+	// @@!!  this is not used?; all the Editor platforms have libtiff?  see libtiff.build.cs
+	//		remove me?
 	FTiffLoadHelper TiffLoaderHelper;
 	if (TiffLoaderHelper.IsValid())
 	{
@@ -3497,6 +3440,7 @@ UTexture* UTextureFactory::ImportTextureUDIM(UClass* Class, UObject* InParent, F
 
 	if (SourceImages.Num() < 2)
 	{
+		// @@!! seems like it should continue if Count == 1
 		return nullptr;
 	}
 
@@ -3519,8 +3463,9 @@ UTexture* UTextureFactory::ImportTextureUDIM(UClass* Class, UObject* InParent, F
 	{
 		Texture->SRGB = false;
 	}
-	else if (ColorSpaceMode == ETextureSourceColorSpace::SRGB)
+	else 
 	{
+		check(ColorSpaceMode == ETextureSourceColorSpace::SRGB);
 		Texture->SRGB = true;
 	}
 
@@ -3529,6 +3474,220 @@ UTexture* UTextureFactory::ImportTextureUDIM(UClass* Class, UObject* InParent, F
 		Texture->AssetImportData->AddFileName(SourceFileNames[FileIndex], FileIndex);
 	}
 
+	return Texture;
+}
+
+UTexture * UTextureFactory::ImportDDS(const uint8* Buffer,int64 Length,UObject* InParent,FName Name, EObjectFlags Flags,EImageImportFlags ImportFlags,FFeedbackContext* Warn)
+{
+	UE::DDS::EDDSError Error;
+	UE::DDS::FDDSFile* DDS = UE::DDS::FDDSFile::CreateFromDDSInMemory(Buffer,Length,&Error);
+	if ( DDS == nullptr )
+	{
+		// NotADds is okay/expected , we try this on all image buffers
+		check( Error != UE::DDS::EDDSError::OK ); 
+		if ( Error != UE::DDS::EDDSError::NotADds )
+		{
+			UE_LOG(LogEditorFactories,Warning,TEXT("Failed to load DDS (Error=%d)"),(int)Error);			
+		}
+		return nullptr;
+	}
+
+	// delete DDS at scope exit :
+	TUniquePtr<UE::DDS::FDDSFile> DDSPtr(DDS);
+
+	if (!IsImportResolutionValid(DDS->Width, DDS->Height, !!(ImportFlags & EImageImportFlags::AllowNonPowerOfTwo), Warn))
+	{
+		Warn->Logf(ELogVerbosity::Error, TEXT("DDS resolution not supported"));
+		return nullptr;
+	}
+
+	// change X8 formats to A8 :	
+	DDS->ConvertRGBXtoRGBA();
+	// change RGBA8 to BGRA8 before DXGIFormatGetClosestRawFormat :
+	DDS->ConvertChannelOrder(UE::DDS::EChannelOrder::BGRA);
+
+	// map format to RawFormat and ETextureSourceFormat
+	ERawImageFormat::Type RawFormat = UE::DDS::DXGIFormatGetClosestRawFormat(DDS->DXGIFormat);
+	if ( RawFormat == ERawImageFormat::Invalid )
+	{
+		Warn->Logf(ELogVerbosity::Error, TEXT("DDS DXGIFormat not supported : %d : %s"), (int)DDS->DXGIFormat, UE::DDS::DXGIFormatGetName(DDS->DXGIFormat) );
+		return nullptr;
+	}
+
+	UTexture * Texture;
+	int NumSlices;
+	if ( DDS->IsValidTexture2D() )
+	{
+		Texture = CreateTexture2D(InParent, Name, Flags);
+		NumSlices = 1;
+
+		UE_LOG(LogEditorFactories,Display,TEXT("DDS imported as 2d Texture"));
+	}
+	else if ( DDS->IsValidTextureCube() )
+	{
+		if ( DDS->ArraySize > 6 )
+		{
+			UObject* NewObject = CreateOrOverwriteAsset(UTextureCubeArray::StaticClass(), InParent, Name, Flags);
+			Texture = NewObject ? CastChecked<UTextureCubeArray>(NewObject) : nullptr;
+			
+			UE_LOG(LogEditorFactories,Display,TEXT("DDS imported as Cube Texture Array"));
+		}
+		else
+		{
+			Texture = CreateTextureCube(InParent, Name, Flags);
+			
+			UE_LOG(LogEditorFactories,Display,TEXT("DDS imported as Cube Texture"));
+		}
+
+		NumSlices = DDS->ArraySize;
+	}
+	else if ( DDS->IsValidTextureArray() )
+	{
+		Texture = CreateTexture2DArray(InParent, Name, Flags);
+		NumSlices = DDS->ArraySize;
+
+		UE_LOG(LogEditorFactories,Display,TEXT("DDS imported as Texture Array"));
+	}
+	else if ( DDS->IsValidTextureVolume() )
+	{
+		UObject* NewObject = CreateOrOverwriteAsset(UVolumeTexture::StaticClass(), InParent, Name, Flags);
+		Texture = NewObject ? CastChecked<UVolumeTexture>(NewObject) : nullptr;
+		NumSlices = DDS->Depth;
+
+		UE_LOG(LogEditorFactories,Display,TEXT("DDS imported as Volume"));
+	}
+	else
+	{
+		UE_LOG(LogEditorFactories,Error,TEXT("DDS is not a valid Unreal type"));
+		return nullptr;
+	}
+	if ( Texture == nullptr )
+	{
+		UE_LOG(LogEditorFactories,Error,TEXT("DDS could not create texture"));
+		return nullptr;
+	}
+
+	ETextureSourceFormat TSFormat = FImageCoreUtils::ConvertToTextureSourceFormat(RawFormat);
+
+	int MipCount = (int)DDS->MipCount;
+
+	if ( MipCount > MAX_TEXTURE_MIP_COUNT )
+	{
+		// unexpected, because IsImportResolutionValid has already limited rsolution
+		UE_LOG(LogEditorFactories,Warning,TEXT("DDS exceeds MAX_TEXTURE_MIP_COUNT"));
+		MipCount = MAX_TEXTURE_MIP_COUNT;
+	}
+
+	#if 1
+	if ( DDS->Dimension == 3 )
+	{
+		// Unreal doesn't handle volume mips correctly?
+		//  (slices doesn't mip down)
+		// force mip import off for now
+		// @@!! fix Unreal volume mips?
+		// see also GetMippedNumSlices
+		MipCount = 1;
+	}
+	#endif
+
+	Texture->Source.Init(DDS->Width,DDS->Height,NumSlices,MipCount,TSFormat);
+
+	for(int MipIndex=0;MipIndex<MipCount;MipIndex++)
+	{
+		FTextureSource::FMipLock MipLock(FTextureSource::ELockState::ReadWrite,&(Texture->Source),MipIndex);
+
+		if ( DDS->Dimension == 3 )
+		{
+			check( DDS->Mips.Num() == DDS->MipCount );
+
+			#if 0
+			// hack for Unreal not mipping volumes correctly (NumSlices doesn't go down like it should)
+			//  (moot because we now force MipCount to 1 for volumes)
+			// @@!! if the fix is made in GetMippedNumSlices , this is unnecessary
+			if ( MipIndex > 0 && MipLock.Image.NumSlices > (int32)DDS->Mips[MipIndex].Depth )
+			{
+				// memset the miplock to zero : last slices won't be written :
+				memset(MipLock.Image.RawData,0,MipLock.Image.GetImageSizeBytes());
+				// only copy the portion the DDS has :
+				MipLock.Image.NumSlices = DDS->Mips[MipIndex].Depth;
+			}
+			#endif
+
+			check( DDS->Mips[MipIndex].Depth == MipLock.Image.NumSlices );
+
+			if ( ! DDS->GetMipImage( MipLock.Image, MipIndex ) )
+			{
+				// Texture is not returned; it will be deleted by GC
+				Texture->MarkAsGarbage();
+				UE_LOG(LogEditorFactories,Error,TEXT("DDS could not convert pixel format"));
+				return nullptr;
+			}
+		}
+		else
+		{
+			// DDS->Mips[] contains both mips and arrays
+			check( DDS->Mips.Num() == DDS->MipCount * NumSlices );
+
+			for(int SliceIndex=0;SliceIndex<NumSlices;SliceIndex++)
+			{
+				FImageView DestSlice = MipLock.Image.GetSlice(SliceIndex);
+				
+				// DDS Mips[] array has whole mip chain of each slice, then next slice
+				// we have the opposite (all slices of top mip first, then next mip)
+				int DDSMipIndex = SliceIndex * DDS->MipCount + MipIndex;
+
+				if ( ! DDS->GetMipImage( DestSlice, DDSMipIndex ) )
+				{
+					// Texture is not returned; it will be deleted by GC
+					Texture->MarkAsGarbage();
+					UE_LOG(LogEditorFactories,Error,TEXT("DDS could not convert pixel format"));
+					return nullptr;
+				}
+			}
+		}
+	}
+
+	bool bSRGB = false;
+
+	if ( ERawImageFormat::GetFormatNeedsGammaSpace(RawFormat) )
+	{
+		if ( DDS->CreateFlags & UE::DDS::FDDSFile::CREATE_FLAG_WAS_D3D9 )
+		{
+			// no SRGB info in Dx9 format
+			// assume SRGB yes
+			bSRGB = true;
+		}
+		else if ( UE::DDS::DXGIFormatHasLinearAndSRGBForm(DDS->DXGIFormat) )
+		{
+			// Dx10 file with format that has linear/srgb pair
+			//	( _UNORM when _UNORM_SRGB)
+			bSRGB = UE::DDS::DXGIFormatIsSRGB(DDS->DXGIFormat);
+		}
+		else
+		{
+			// Dx10 format that doesn't have linear/srgb pairs
+			
+			// R8G8_UNORM and R8_UNORM have no _SRGB pair
+			// so no way to clearly indicate SRGB or Linear for them
+			// assume SRGB yes
+			bSRGB = true;
+		}
+	}
+
+	if ( ERawImageFormat::IsHDR(RawFormat) )
+	{
+		Texture->CompressionSettings = TC_HDR;
+		check( bSRGB == false );
+	}
+
+	Texture->SRGB = bSRGB;
+	
+	if ( MipCount > 1)
+	{
+		// if the source has mips we keep the mips by default, unless the user changes that
+		Texture->MipGenSettings = TMGS_LeaveExistingMips;
+	}
+	
 	return Texture;
 }
 
@@ -3551,152 +3710,10 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 
 	// Do unusual loaders first before Generic
 
-	//
-	// DDS Cubemap
-	//
-	FDDSLoadHelper DDSLoadHelper(Buffer, Length);
-	if(DDSLoadHelper.IsValidCubemapTexture())
+	UTexture * DDSTexture = ImportDDS(Buffer,Length,InParent,Name,Flags,ImportFlags,Warn);
+	if ( DDSTexture != nullptr )
 	{
-		if(!IsImportResolutionValid(DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, bAllowNonPowerOfTwo, Warn))
-		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("DDS uses an unsupported format"));
-			return nullptr;
-		}
-
-		int32 NumMips = DDSLoadHelper.ComputeMipMapCount();
-		ETextureSourceFormat Format = DDSLoadHelper.ComputeSourceFormat();
-		if (Format == TSF_Invalid)
-		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("DDS file contains data in an unsupported format."));
-			return nullptr;
-		}
-
-		if (NumMips > MAX_TEXTURE_MIP_COUNT)
-		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("DDS file contains an unsupported number of mipmap levels."));
-			return nullptr;
-		}
-
-		// create the cube texture
-		UTextureCube* TextureCube = CreateTextureCube( InParent, Name, Flags );
-
-		if ( TextureCube )
-		{
-			TextureCube->Source.Init(
-				DDSLoadHelper.GetSizeX(),
-				DDSLoadHelper.GetSizeY(),
-				DDSLoadHelper.GetSliceCount(),
-				NumMips,
-				Format
-				);
-			if(Format == TSF_RGBA16F || Format == TSF_RGBA32F)
-			{
-				TextureCube->CompressionSettings = TC_HDR;
-				TextureCube->SRGB = false;
-			}
-
-			uint8* DestMipData[MAX_TEXTURE_MIP_COUNT] = {0};
-			int32 MipSize[MAX_TEXTURE_MIP_COUNT] = {0};
-			for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
-			{
-				DestMipData[MipIndex] = TextureCube->Source.LockMip(MipIndex);
-				MipSize[MipIndex] = TextureCube->Source.CalcMipSize(MipIndex) / 6;
-			}
-
-			for (int32 SliceIndex = 0; SliceIndex < 6; ++SliceIndex)
-			{
-				const uint8* SrcMipData = DDSLoadHelper.GetDDSDataPointer((ECubeFace)SliceIndex);
-				for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
-				{
-					FMemory::Memcpy(DestMipData[MipIndex] + MipSize[MipIndex] * SliceIndex, SrcMipData, MipSize[MipIndex]);
-					SrcMipData += MipSize[MipIndex];
-				}
-			}
-
-			for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
-			{
-				TextureCube->Source.UnlockMip(MipIndex);
-			}
-
-			if (NumMips > 1)
-			{
-				TextureCube->MipGenSettings = TMGS_LeaveExistingMips;
-			}
-		}
-		
-		UE_LOG(LogEditorFactories,Display,TEXT("DDS imported as TextureCube.") );
-
-		return TextureCube;
-	}
-	
-	// DDS Texture array.
-	if (DDSLoadHelper.IsValidArrayTexture())
-	{
-		if (!IsImportResolutionValid(DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, bAllowNonPowerOfTwo, Warn))
-		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("DDS uses an unsupported format"));
-			return nullptr;
-		}
-
-		int32 NumMips = DDSLoadHelper.ComputeMipMapCount();
-		ETextureSourceFormat Format = DDSLoadHelper.ComputeSourceFormat();
-		if (Format == TSF_Invalid)
-		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("DDS file contains data in an unsupported format."));
-			return nullptr;
-		}
-
-		// Create the array texture
-		UTexture2DArray* TextureArray = CreateTexture2DArray(InParent, Name, Flags);
-
-		if (TextureArray)
-		{
-			TextureArray->Source.Init(
-				DDSLoadHelper.GetSizeX(),
-				DDSLoadHelper.GetSizeY(),
-				DDSLoadHelper.GetSliceCount(),
-				NumMips,
-				Format
-			);
-			if (Format == TSF_RGBA16F || Format == TSF_RGBA32F)
-			{
-				TextureArray->CompressionSettings = TC_HDR;
-				TextureArray->SRGB = false;
-			}
-
-			uint8* DestMipData[MAX_TEXTURE_MIP_COUNT] = { 0 };
-			int32 MipSize[MAX_TEXTURE_MIP_COUNT] = { 0 };
-			for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
-			{
-				DestMipData[MipIndex] = TextureArray->Source.LockMip(MipIndex);
-				MipSize[MipIndex] = TextureArray->Source.CalcMipSize(MipIndex) / DDSLoadHelper.GetSliceCount();
-			}
-
-			for (uint32 SliceIndex = 0; SliceIndex < DDSLoadHelper.GetSliceCount(); ++SliceIndex)
-			{
-				const uint8* SrcMipData = DDSLoadHelper.GetDDSDataPointer((ECubeFace)SliceIndex);
-				for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
-				{
-					FMemory::Memcpy(DestMipData[MipIndex] + MipSize[MipIndex] * SliceIndex, SrcMipData, MipSize[MipIndex]);
-					SrcMipData += MipSize[MipIndex];
-				}
-			}
-
-			for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
-			{
-				TextureArray->Source.UnlockMip(MipIndex);
-			}
-
-			if (NumMips > 1)
-			{
-				// If the source has mips we keep the mips by default, unless the user changes that
-				MipGenSettings = TMGS_LeaveExistingMips;
-			}
-		}
-		
-		UE_LOG(LogEditorFactories,Display,TEXT("DDS imported as TextureArray.") );
-
-		return TextureArray;
+		return DDSTexture;
 	}
 
 	//
@@ -3750,19 +3767,19 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 		if (HDRImportShouldBeLongLatCubeMap == EAppReturnType::Yes ||
 			HDRImportShouldBeLongLatCubeMap == EAppReturnType::YesAll)
 		{
-			FHdrImageWrapper HdrImageWrapper;
-			if (HdrImageWrapper.SetCompressedFromView(TArrayView64<const uint8>(Buffer, Length)))
+			TSharedPtr<IImageWrapper> HdrImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::HDR);
+			if (HdrImageWrapper->SetCompressed(Buffer, Length))
 			{
 				TArray64<uint8> UnCompressedData;
-				if (HdrImageWrapper.GetRaw(ERGBFormat::BGRE, 8, UnCompressedData))
+				if (HdrImageWrapper->GetRaw(ERGBFormat::BGRE, 8, UnCompressedData))
 				{
 					// create the cube texture
 					UTextureCube* TextureCube = CreateTextureCube(InParent, Name, Flags);
 					if ( TextureCube )
 					{
 						TextureCube->Source.Init(
-							HdrImageWrapper.GetWidth(),
-							HdrImageWrapper.GetHeight(),
+							HdrImageWrapper->GetWidth(),
+							HdrImageWrapper->GetHeight(),
 							/*NumSlices=*/ 1,
 							/*NumMips=*/ 1,
 							TSF_BGRE8,
@@ -3779,7 +3796,7 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 				}
 			}
 
-			Warn->Log(ELogVerbosity::Error, HdrImageWrapper.GetErrorMessage().ToString());
+			Warn->Log(ELogVerbosity::Error, TEXT("HDR import failed"));
 			return nullptr;
 		}
 		// else didn't want cubemap
@@ -3789,7 +3806,7 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 	//
 	// IES File (usually measured real world light profiles)
 	//
-	if(!FCString::Stricmp(Type, TEXT("ies")))
+	if( FCString::Stricmp(Type, TEXT("ies")) == 0)
 	{
 		// checks for .IES extension to avoid wasting loading large assets just to reject them during header parsing
 		FIESConverter IESConverter(Buffer, Length);
@@ -3818,6 +3835,11 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 			}
 
 			return Texture;
+		}
+		else
+		{
+			Warn->Log(ELogVerbosity::Error, TEXT("IES import failed"));
+			return nullptr;
 		}
 	}
 
@@ -4683,6 +4705,87 @@ bool UTextureExporterPCX::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 }
 
 
+/*------------------------------------------------------------------------------
+	UTextureExporterDDS implementation.
+
+------------------------------------------------------------------------------*/
+
+UTextureExporterDDS::UTextureExporterDDS(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// note UTexture not UTexture2D , picks up cube etc.
+	SupportedClass = UTexture::StaticClass();
+	PreferredFormatIndex = 0;
+	FormatExtension.Add(TEXT("DDS"));
+	FormatDescription.Add(TEXT("DDS DirectDraw Surface"));
+}
+
+bool UTextureExporterDDS::SupportsObject(UObject* Object) const
+{
+	// don't call Super (UTextureExporterGeneric), skip to UExporter
+	// this checks we are "SupportedClass"
+	if ( ! UExporter::SupportsObject(Object) )
+	{
+		return false;
+	}
+
+	UTexture * Texture = GetExportTexture( Object );
+	if ( Texture == nullptr )
+	{
+		return false;
+	}
+	
+	if ( !Texture->Source.IsValid() )
+	{
+		return false;
+	}
+	
+	return true;
+}
+
+bool UTextureExporterDDS::ExportBinary( UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags )
+{
+	UTexture * Texture = GetExportTexture( Object );
+	check( Texture != nullptr );
+	
+	// FileIndex for layers for VT :
+	
+	int NumBlocks = Texture->Source.GetNumBlocks();
+	int NumLayers = Texture->Source.GetNumLayers();
+
+	int NumFiles = NumBlocks * NumLayers;
+	check( FileIndex < NumFiles );
+	int BlockIndex = FileIndex / NumLayers;
+	int LayerIndex = FileIndex % NumLayers; 
+
+	UE_LOG(LogEditorFactories, Display, TEXT("Exporting DDS from Layer %d/%d Block %d/%d"), LayerIndex,NumLayers, BlockIndex,NumBlocks);
+
+	// Type == Image extension
+	
+	TArray64<uint8> OutArray;
+	if ( ! FImageUtils::ExportTextureSourceToDDS(OutArray,Texture,BlockIndex,LayerIndex) )
+	{
+		Warn->Logf(ELogVerbosity::Error, TEXT("ExportTextureSourceToDDS failed"));
+		return false;
+	}
+
+	Ar.Serialize(OutArray.GetData(),OutArray.Num());
+
+	return true;
+}
+
+UVirtualTextureBuilderExporterDDS::UVirtualTextureBuilderExporterDDS(const FObjectInitializer& ObjectInitializer)
+	: UTextureExporterDDS(ObjectInitializer)
+{
+	SupportedClass = UVirtualTextureBuilder::StaticClass();
+}
+
+/*------------------------------------------------------------------------------
+	UTextureExporterGeneric implementation.
+
+	UTextureExporterGeneric base class for all standard 2d texture exporters
+------------------------------------------------------------------------------*/
+
 static bool ExportTexture2DGeneric( UObject* Object,FArchive& Ar, const TCHAR * ImageFormat, FFeedbackContext* Warn, int FileIndex=0)
 {
 	UTexture2D* Texture = CastChecked<UTexture2D>( Object );
@@ -4699,13 +4802,11 @@ static bool ExportTexture2DGeneric( UObject* Object,FArchive& Ar, const TCHAR * 
 	
 	int NumBlocks = Texture->Source.GetNumBlocks();
 	int NumLayers = Texture->Source.GetNumLayers();
-	int BlockIndex = 0;
-	int LayerIndex = 0;
 
 	int NumFiles = NumBlocks * NumLayers;
 	check( FileIndex < NumFiles );
-	BlockIndex = FileIndex / NumLayers;
-	LayerIndex = FileIndex % NumLayers; 
+	int BlockIndex = FileIndex / NumLayers;
+	int LayerIndex = FileIndex % NumLayers; 
 
 	UE_LOG(LogEditorFactories, Display, TEXT("Exporting Texture as %s Layer %d/%d Block %d/%d"), ImageFormat, LayerIndex,NumLayers, BlockIndex,NumBlocks);
 
@@ -4728,14 +4829,6 @@ static bool ExportTexture2DGeneric( UObject* Object,FArchive& Ar, const TCHAR * 
 	return true;
 }
 
-/*------------------------------------------------------------------------------
-	UTextureExporterGeneric implementation.
-
-	UTextureExporterGeneric base class for all standard 2d texture exporters
-------------------------------------------------------------------------------*/
-
-// note that 
-
 UTextureExporterGeneric::UTextureExporterGeneric(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -4743,7 +4836,7 @@ UTextureExporterGeneric::UTextureExporterGeneric(const FObjectInitializer& Objec
 	PreferredFormatIndex = 0;
 }
 
-UTexture2D* UTextureExporterGeneric::GetExportTexture(UObject* Object) const
+UTexture* UTextureExporterGeneric::GetExportTexture(UObject* Object) const
 {
 	// for UVirtualTextureBuilderExporter
 	UVirtualTextureBuilder* VirtualTextureBuilder = Cast<UVirtualTextureBuilder>(Object);
@@ -4751,7 +4844,7 @@ UTexture2D* UTextureExporterGeneric::GetExportTexture(UObject* Object) const
 	{
 		return VirtualTextureBuilder->Texture;
 	}
-	return Cast<UTexture2D>(Object);
+	return Cast<UTexture>(Object);
 }
 
 // note that UTextureExporterGeneric will actually be registered as an exporter itself
@@ -4762,8 +4855,10 @@ bool UTextureExporterGeneric::SupportsObject(UObject* Object) const
 	bool bSupportsObject = false;
 	if (Super::SupportsObject(Object))
 	{
-		UTexture2D* Texture = GetExportTexture(Object);
-		if ( Texture )
+		UTexture* Texture = GetExportTexture(Object);
+		// only Texture2D's for generic :
+		UTexture2D * Texture2D = Cast<UTexture2D>(Texture);
+		if ( Texture2D != nullptr )
 		{
 			if ( ! Texture->Source.IsValid() )
 			{
@@ -4780,7 +4875,7 @@ bool UTextureExporterGeneric::SupportsObject(UObject* Object) const
 
 int32 UTextureExporterGeneric::GetFileCount(UObject* Object) const
 {
-	UTexture2D* Texture = GetExportTexture(Object);
+	UTexture* Texture = GetExportTexture(Object);
 	check(Texture != nullptr);
 
 	// standard textures will have NumBlocks == NumLayers == 1
@@ -4811,21 +4906,23 @@ FString UTextureExporterGeneric::GetUniqueFilename(const TCHAR* Filename, int32 
 		// @todo: change GetUniqueFilename API to pass the Object
 		//
 		// it's possible you could even be able to map back to the original UDIM file names (xxx.1001 etc.)
-		//	using the TextureSource asset import info
+		//	using the TextureSource asset import info (AssetImportData)
 		return FString::Printf(TEXT("%s%d%s"), *FPaths::GetBaseFilename(Filename, false), FileIndex, *FPaths::GetExtension(Filename, true));
 	}
 }
 
 bool UTextureExporterGeneric::ExportBinary( UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags )
 {
-	UTexture2D* Texture = GetExportTexture(Object);
+	UTexture* Texture = GetExportTexture(Object);
 	check( Texture != nullptr );
+		
+	UTexture2D * Texture2D = Cast<UTexture2D>(Texture);
+	check( Texture2D != nullptr );
 	check( SupportsTexture(Texture) );
 	
-	// FileIndex for layers for VT :
-
+	// FileIndex is for layers for VT
 	// Type == Image extension
-	return ExportTexture2DGeneric(Texture,Ar,Type,Warn,FileIndex);
+	return ExportTexture2DGeneric(Texture2D,Ar,Type,Warn,FileIndex);
 }
 
 //===========================================================
@@ -4840,7 +4937,7 @@ UTextureExporterBMP::UTextureExporterBMP(const FObjectInitializer& ObjectInitial
 	FormatDescription.Add(TEXT("Windows Bitmap"));
 }
 
-bool UTextureExporterBMP::SupportsTexture(UTexture2D* Texture) const
+bool UTextureExporterBMP::SupportsTexture(UTexture* Texture) const
 {
 	// U8 formats only :
 	return Texture->Source.GetFormat() == TSF_BGRA8 || Texture->Source.GetFormat() == TSF_G8;
@@ -4861,7 +4958,7 @@ UTextureExporterHDR::UTextureExporterHDR(const FObjectInitializer& ObjectInitial
 	FormatDescription.Add(TEXT("HDR Radiance RGBE texture"));
 }
 
-bool UTextureExporterHDR::SupportsTexture(UTexture2D* Texture) const
+bool UTextureExporterHDR::SupportsTexture(UTexture* Texture) const
 {
 	// only BGRE is allowed to go out to HDR now (lossless)
 	bool bSupportsObject = Texture->Source.GetFormat() == TSF_BGRE8;
@@ -4883,7 +4980,7 @@ UTextureExporterPNG::UTextureExporterPNG(const FObjectInitializer& ObjectInitial
 	FormatDescription.Add(TEXT("PNG"));
 }
 
-bool UTextureExporterPNG::SupportsTexture(UTexture2D* Texture) const
+bool UTextureExporterPNG::SupportsTexture(UTexture* Texture) const
 {
 	ETextureSourceFormat TSF = Texture->Source.GetFormat();
 	ERawImageFormat::Type RawFormat = FImageCoreUtils::ConvertToRawImageFormat(TSF);
@@ -4906,7 +5003,7 @@ UTextureExporterEXR::UTextureExporterEXR(const FObjectInitializer& ObjectInitial
 	FormatDescription.Add(TEXT("EXR HDR float texture"));
 }
 
-bool UTextureExporterEXR::SupportsTexture(UTexture2D* Texture) const
+bool UTextureExporterEXR::SupportsTexture(UTexture* Texture) const
 {
 	ETextureSourceFormat TSF = Texture->Source.GetFormat();
 	ERawImageFormat::Type RawFormat = FImageCoreUtils::ConvertToRawImageFormat(TSF);
@@ -5028,9 +5125,6 @@ UTextureCubeExporterHDR::UTextureCubeExporterHDR(const FObjectInitializer& Objec
 	
 	// this is the only exporter registered for UTextureCube
 	// this does GenerateLongLatUnwrap
-
-	// @@!! todo : register a DDS cube exporter that can write the faces
-	//		how can user choose between the two? -> by extension
 }
 
 bool UTextureCubeExporterHDR::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)

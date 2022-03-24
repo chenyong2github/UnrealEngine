@@ -14,6 +14,7 @@
 #include "UObject/ObjectSaveContext.h"
 #include "TextureResource.h"
 #include "Engine/Texture2D.h"
+#include "Engine/VolumeTexture.h"
 #include "Streaming/TextureMipDataProvider.h"
 #include "Engine/TextureMipDataProviderFactory.h"
 #include "ContentStreaming.h"
@@ -664,8 +665,19 @@ void UTexture::Serialize(FArchive& Ar)
 	
 	if (Ar.IsLoading())
 	{
-		// For a while, we could end up writing textures that were flagged as !bPNGCompressed, had their
-		// compression format set to PNG, but did not actually contain compressed data. Fix these up.
+		// bPNGCompressed is now deprecated and CompressionFormat should be used to detect PNG compression
+		// update old assets that did not have CompressionFormat set
+		// 
+		// - In old versions, CompressionFormat did not exist (so it will load in as None), and bPNGCompressed is used
+		//   as the source to set CompressionFormat
+		// - In new versions, bPNGCompressed is deprecated, never written (so will load as false), and CompressionFormat
+		//   is the authoritative source on whether something is a PNG or not.
+		// - In between, for a while after CompressionFormat was introduced, a bug meant that textures that were flagged 
+		//   as !bPNGCompressed, had their compression format set to PNG, but did not actually contain compressed data. Fix these up.
+		//
+		// Now, the separate bPNGCompressed is gone (to avoid further desyncs like this) and we make sure
+		// that CompressionFormat always matches the contents.	
+
 		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::TextureSourceVirtualization
 			&& !Source.bPNGCompressed_DEPRECATED
 			&& Source.CompressionFormat == TSCF_PNG)
@@ -674,24 +686,16 @@ void UTexture::Serialize(FArchive& Ar)
 			Source.CompressionFormat = TSCF_None;
 		}
 
-		// Along with the above, the rules implemented here are this:
-		// - In older versions, bPNGCompressed is the authoritative source of PNG-ness. In those versions,
-		//   if the compression format is set to PNG but bPNGCompressed isn't set, bPNGCompressed wins.
-		// - In new versions, bPNGCompressed is deprecated, never written as true, and CompressionFormat
-		//   is the authoritative source on whether something is a PNG or not.
-		// - Finally, in between, some versions would in certain cases write textures with bPNGCompressed set
-		//   and the CompressionFormat being None, and those are actually PNGs.
-		//
-		// Now, the separate bPNGCompressed is gone (to avoid further desyncs like this) and we make sure
-		// that CompressionFormat always matches the contents.
-		if ( Source.bPNGCompressed_DEPRECATED )
+		if ( Source.bPNGCompressed_DEPRECATED && Source.CompressionFormat != TSCF_PNG )
 		{
-			// loaded with deprecated "bPNGCompressed"
+			// loaded with deprecated "bPNGCompressed" (but not the newer CompressionFormat)
 			// change to CompressionFormat PNG
-			check( Source.CompressionFormat == TSCF_None || Source.CompressionFormat == TSCF_PNG );
+			// this is expected on assets older than the CompressionFormat field
+			check( Source.CompressionFormat == TSCF_None );
 			Source.CompressionFormat = TSCF_PNG;
-			Source.bPNGCompressed_DEPRECATED = false;
 		}
+		
+		// bPNGCompressed_DEPRECATED is not kept in sync with CompressionFormat any more, do not check it after this point
 
 		if ( Source.GetFormat() == TSF_RGBA8_DEPRECATED
 			|| Source.GetFormat() == TSF_RGBE8_DEPRECATED )
@@ -1365,9 +1369,7 @@ void FTextureSource::InitLayered(
 		TotalBytes += CalcLayerSize(0, i);
 	}
 
-	// TODO: Allocating an empty buffer if there is no data to copy from seems like an odd choice but the 
-	// code logic has been doing this for almost a decade so I don't want to change it until I am sure that
-	// it serves no purpose. Given a choice I'd assert on NewData == nullptr instead.
+	// Init with NewData == null is used to allocate space, which is then filled with LockMip
 	if (NewData != nullptr)
 	{
 		BulkData.UpdatePayload(FSharedBuffer::Clone(NewData, TotalBytes), Owner);
@@ -1412,6 +1414,16 @@ void FTextureSource::Init(
 		)
 {
 	InitLayered(NewSizeX, NewSizeY, NewNumSlices, 1, NewNumMips, &NewFormat, NewData);
+}
+
+void FTextureSource::Init(const FImageView & Image)
+{
+	ETextureSourceFormat SourceFormat = FImageCoreUtils::ConvertToTextureSourceFormat(Image.Format);
+
+	// FImageView has gamma information too that is lost
+	// TextureSource does not store gamma information (it's in the owning Texture)
+
+	Init(Image.SizeX,Image.SizeY,Image.NumSlices,1,SourceFormat,(const uint8 *)Image.RawData);
 }
 
 void FTextureSource::Init(
@@ -1596,9 +1608,9 @@ FTextureSource::FMipLock::FMipLock(ELockState InLockState,FTextureSource * InTex
 		Image.RawData = Locked;
 		Image.SizeX = FMath::Max(Block.SizeX >> MipIndex, 1);
 		Image.SizeY = FMath::Max(Block.SizeY >> MipIndex, 1);
-		Image.NumSlices = Block.NumSlices;
-		Image.Format = FImageCoreUtils::ConvertToRawImageFormat(TextureSource->Format);
-		Image.GammaSpace = TextureSource->GetGammaSpace();
+		Image.NumSlices = TextureSource->GetMippedNumSlices(Block.NumSlices,MipIndex);
+		Image.Format = FImageCoreUtils::ConvertToRawImageFormat(TextureSource->GetFormat(LayerIndex));
+		Image.GammaSpace = TextureSource->GetGammaSpace(LayerIndex);
 		
 		const int64 MipSizeBytes = TextureSource->CalcMipSize(BlockIndex, LayerIndex, MipIndex);
 
@@ -1746,9 +1758,9 @@ bool FTextureSource::GetMipImage(FImage & OutImage, int32 BlockIndex, int32 Laye
 	OutImage.RawData = MoveTemp(MipData);
 	OutImage.SizeX = FMath::Max(Block.SizeX >> MipIndex, 1);
 	OutImage.SizeY = FMath::Max(Block.SizeY >> MipIndex, 1);
-	OutImage.NumSlices = Block.NumSlices;
-	OutImage.Format = FImageCoreUtils::ConvertToRawImageFormat(Format);
-	OutImage.GammaSpace = GetGammaSpace();
+	OutImage.NumSlices = GetMippedNumSlices(Block.NumSlices,MipIndex);
+	OutImage.Format = FImageCoreUtils::ConvertToRawImageFormat(GetFormat(LayerIndex));
+	OutImage.GammaSpace = GetGammaSpace(LayerIndex);
 
 	check( OutImage.GetImageSizeBytes() == MipSizeBytes );
 	return true;
@@ -1823,8 +1835,10 @@ int64 FTextureSource::CalcMipSize(int32 BlockIndex, int32 LayerIndex, int32 MipI
 
 	const int64 MipSizeX = FMath::Max(Block.SizeX >> MipIndex, 1);
 	const int64 MipSizeY = FMath::Max(Block.SizeY >> MipIndex, 1);
+	const int64 MipSlices = GetMippedNumSlices(Block.NumSlices,MipIndex);
+
 	const int64 BytesPerPixel = GetBytesPerPixel(LayerIndex);
-	return MipSizeX * MipSizeY * Block.NumSlices * BytesPerPixel;
+	return MipSizeX * MipSizeY * MipSlices * BytesPerPixel;
 }
 
 int32 FTextureSource::GetBytesPerPixel(int32 LayerIndex) const
@@ -1907,8 +1921,47 @@ FString FTextureSource::GetIdString() const
 	return GuidString;
 }
 
-EGammaSpace FTextureSource::GetGammaSpace() const
+int FTextureSource::GetMippedNumSlices(int InNumSlices,int InMipIndex) const
 {
+	// @@!! test me!  before was always returning InNumSlices
+	//  not sure you can change this, does it break old content?
+	//  but I think any old content that had TextureSource mips for volumes was broken anyway
+	//	so maybe it's okay?
+
+	#if 1
+
+	// match old behavior
+	return InNumSlices;
+
+	#else
+	
+	// what to do with NumSlices on the mip ?
+	// if this is an Array, it should stay the same
+	// if this is a Volume, it should mip down
+
+	// TextureSource does not know if it's a volume or not
+	// need to check type of Owner Texture
+
+	bool bIsVolume = Owner ? Owner->IsA(UVolumeTexture::StaticClass()) : false;
+	if ( bIsVolume )
+	{
+		return FMath::Max(InNumSlices >> InMipIndex, 1);
+	}
+	else
+	{
+		return InNumSlices;
+	}	
+
+	#endif
+}
+
+EGammaSpace FTextureSource::GetGammaSpace(int LayerIndex) const
+{
+	if ( ! ERawImageFormat::GetFormatNeedsGammaSpace( FImageCoreUtils::ConvertToRawImageFormat(GetFormat(LayerIndex)) ) )
+	{
+		return EGammaSpace::Linear;
+	}
+
 	// TextureSource does not know its own gamma, but its owning Texture does :
 	if ( Owner != nullptr )
 	{
@@ -1917,7 +1970,8 @@ EGammaSpace FTextureSource::GetGammaSpace() const
 	else
 	{
 		// TextureSource does not have gamma information, just guess it ?
-		return ERawImageFormat::GetDefaultGammaSpace( FImageCoreUtils::ConvertToRawImageFormat(Format) );
+		// we know format GetFormatNeedsGammaSpace is true, so default is SRGB
+		return EGammaSpace::sRGB;
 	}
 }
 
@@ -1948,7 +2002,7 @@ FSharedBuffer FTextureSource::TryDecompressData() const
 			// this shouldn't ever happen currently
 			UE_LOG(LogTexture, Warning, TEXT("TryDecompressData unexpected format conversion?"));
 
-			Image.ChangeFormat(RawFormat, GetGammaSpace());
+			Image.ChangeFormat(RawFormat, GetGammaSpace(0));
 		}
 			
 		if ( CompressionFormat == TSCF_PNG && Image.Format == ERawImageFormat::BGRA8 )
@@ -2140,24 +2194,24 @@ int64 FTextureSource::CalcBlockSize(const FTextureSourceBlock& Block) const
 int64 FTextureSource::CalcLayerSize(const FTextureSourceBlock& Block, int32 LayerIndex) const
 {
 	int64 BytesPerPixel = GetBytesPerPixel(LayerIndex);
-	int64 MipSizeX = Block.SizeX;
-	int64 MipSizeY = Block.SizeY;
 
 	int64 TotalSize = 0;
 	for (int32 MipIndex = 0; MipIndex < Block.NumMips; ++MipIndex)
 	{
-		TotalSize += MipSizeX * MipSizeY * BytesPerPixel * Block.NumSlices;
-		MipSizeX = FMath::Max<int64>(MipSizeX >> 1, 1);
-		MipSizeY = FMath::Max<int64>(MipSizeY >> 1, 1);
+		int32 MipSizeX = FMath::Max<int32>(Block.SizeX >> MipIndex, 1);
+		int32 MipSizeY = FMath::Max<int32>(Block.SizeY >> MipIndex, 1);
+		int32 MipSizeZ = GetMippedNumSlices(Block.NumSlices,MipIndex);
+
+		TotalSize += MipSizeX * MipSizeY * MipSizeZ * BytesPerPixel;
 	}
 	return TotalSize;
 }
 
-int64 FTextureSource::CalcMipOffset(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const
+int64 FTextureSource::CalcMipOffset(int32 BlockIndex, int32 LayerIndex, int32 OffsetToMipIndex) const
 {
 	FTextureSourceBlock Block;
 	GetBlock(BlockIndex, Block);
-	check(MipIndex < Block.NumMips);
+	check(OffsetToMipIndex < Block.NumMips);
 
 	int64 MipOffset = BlockDataOffsets[BlockIndex];
 
@@ -2168,14 +2222,14 @@ int64 FTextureSource::CalcMipOffset(int32 BlockIndex, int32 LayerIndex, int32 Mi
 	}
 
 	int64 BytesPerPixel = GetBytesPerPixel(LayerIndex);
-	int64 MipSizeX = Block.SizeX;
-	int64 MipSizeY = Block.SizeY;
 
-	while (MipIndex-- > 0)
+	for (int32 MipIndex = 0; MipIndex < OffsetToMipIndex; ++MipIndex)
 	{
-		MipOffset += MipSizeX * MipSizeY * BytesPerPixel * Block.NumSlices;
-		MipSizeX = FMath::Max<int64>(MipSizeX >> 1, 1);
-		MipSizeY = FMath::Max<int64>(MipSizeY >> 1, 1);
+		int32 MipSizeX = FMath::Max<int32>(Block.SizeX >> MipIndex, 1);
+		int32 MipSizeY = FMath::Max<int32>(Block.SizeY >> MipIndex, 1);
+		int32 MipSizeZ = GetMippedNumSlices(Block.NumSlices,MipIndex);
+
+		MipOffset += MipSizeX * MipSizeY * MipSizeZ * BytesPerPixel;
 	}
 
 	return MipOffset;

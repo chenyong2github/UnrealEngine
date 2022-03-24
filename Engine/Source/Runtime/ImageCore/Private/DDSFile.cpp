@@ -130,6 +130,11 @@ static const EDXGIFormat DXGIFormatRGBATable[] =
 	EDXGIFormat::R8G8B8A8_TYPELESS,		EDXGIFormat::B8G8R8A8_TYPELESS,
 	EDXGIFormat::R8G8B8A8_UNORM,		EDXGIFormat::B8G8R8A8_UNORM,
 	EDXGIFormat::R8G8B8A8_UNORM_SRGB,	EDXGIFormat::B8G8R8A8_UNORM_SRGB,
+	EDXGIFormat::R8G8B8X8,				EDXGIFormat::B8G8R8X8_TYPELESS,
+// not mapped :
+//	RGBFMT(R8G8B8A8_UINT,				30, 4) 
+//	RGBFMT(R8G8B8A8_SNORM,				31, 4) 
+//	RGBFMT(R8G8B8A8_SINT,				32, 4) 
 };
 
 static int DXGIFormatFindInTableImpl(const EDXGIFormat* InTable, int InCount, EDXGIFormat InFormat)
@@ -155,6 +160,12 @@ bool DXGIFormatIsSRGB(EDXGIFormat Format)
 {
 	int idx = DXGIFormatFindInTable(DXGIFormatSRGBTable, Format);
 	return idx >= 0 && ((idx & 1) == 1);
+}
+
+bool DXGIFormatHasLinearAndSRGBForm(EDXGIFormat Format) 
+{
+	int idx = DXGIFormatFindInTable(DXGIFormatSRGBTable, Format);
+	return idx >= 0;
 }
 
 EDXGIFormat DXGIFormatRemoveSRGB(EDXGIFormat fmt) 
@@ -226,6 +237,7 @@ static const FDXGIFormatInfo SupportedFormatList[] =
 // the other ones we read from D3D9 .DDS files but will only write when FormatVersion is D3D9,
 // and otherwise prefer D3D10 mode, because they're not widely supported in apps that consume
 // D3D9 .DDS files.
+//
 static const FBitmaskToDXGI BitmaskToDXGITable[] = 
 {
 	//flags				bits	r			g			b			a			dxgi							AutoD3d9
@@ -246,7 +258,12 @@ static const FBitmaskToDXGI BitmaskToDXGITable[] =
 	{ DDPF_BUMPDUDV,	32,		0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000, EDXGIFormat::R8G8B8A8_SNORM,	0 },
 	{ DDPF_BUMPDUDV,	2,		0x0000ffff, 0xffff0000, 0x00000000, 0x00000000, EDXGIFormat::R16G16_SNORM,		0 },
 	{ DDPF_BUMPDUDV,	16,		0x00ff,		0xff00,		0x0000,		0x0000,		EDXGIFormat::R8G8_SNORM,		0 },
+	{ DDPF_RGB,			32,		0x000000ff, 0x0000ff00, 0x00ff0000, 0x00000000, EDXGIFormat::R8G8B8X8,	1 },
+	{ DDPF_RGB,			24,		0x000000ff, 0x0000ff00, 0x00ff0000, 0x00000000, EDXGIFormat::R8G8B8,	1 },
+	{ DDPF_RGB,			24,		0x00ff0000, 0x0000ff00, 0x000000ff, 0x00000000, EDXGIFormat::B8G8R8,	1 },
 };
+
+
 
 // This is following MS DDSTextureLoader11.
 // When multiple FOURCCs map to the same DXGI format, put the preferred FOURCC first.
@@ -358,7 +375,7 @@ EDDSError FDDSFile::Validate() const
 	const FDXGIFormatInfo* FormatInfo = DXGIFormatGetInfo(DXGIFormat);
 	if (!FormatInfo)
 	{
-		UE_LOG(LogDDSFile, Error, TEXT("Unsupported format %d (%s)"), DXGIFormat, DXGIFormatGetName(DXGIFormat));
+		UE_LOG(LogDDSFile, Warning, TEXT("Unsupported format %d (%s)"), DXGIFormat, DXGIFormatGetName(DXGIFormat));
 		return EDDSError::BadPixelFormat;
 	}
 
@@ -368,7 +385,7 @@ EDDSError FDDSFile::Validate() const
 	case 1:
 		if (Height != 1 || Depth != 1)
 		{
-			UE_LOG(LogDDSFile, Error, TEXT("1D textures must have height and depth of 1."));
+			UE_LOG(LogDDSFile, Warning, TEXT("1D textures must have height and depth of 1."));
 			return EDDSError::BadImageDimension;
 		}
 		break;
@@ -376,7 +393,7 @@ EDDSError FDDSFile::Validate() const
 	case 2:
 		if (Depth != 1)
 		{
-			UE_LOG(LogDDSFile, Error, TEXT("2D textures must have depth of 1."));
+			UE_LOG(LogDDSFile, Warning, TEXT("2D textures must have depth of 1."));
 			return EDDSError::BadImageDimension;
 		}
 		break;
@@ -384,19 +401,20 @@ EDDSError FDDSFile::Validate() const
 	case 3:
 		if (ArraySize != 1)
 		{
-			UE_LOG(LogDDSFile, Error, TEXT("3D textures must have array size of 1."));
+			UE_LOG(LogDDSFile, Warning, TEXT("3D textures must have array size of 1."));
 			return EDDSError::BadImageDimension;
 		}
+		break;
 
 	default:
-		UE_LOG(LogDDSFile, Error, TEXT("DDS textures must be 1D, 2D or 3D."));
+		UE_LOG(LogDDSFile, Warning, TEXT("DDS textures must be 1D, 2D or 3D."));
 		return EDDSError::BadResourceDimension;
 	}
 
 	// All dimensions must be non-zero
 	if (Width == 0 || Height == 0 || Depth == 0 || MipCount == 0 || ArraySize == 0)
 	{
-		UE_LOG(LogDDSFile, Error, TEXT("One or more image dimensions are zero."));
+		UE_LOG(LogDDSFile, Warning, TEXT("One or more image dimensions are zero."));
 		return EDDSError::BadImageDimension;
 	}
 
@@ -404,14 +422,14 @@ EDDSError FDDSFile::Validate() const
 	const uint32 MaxDimension = (1 << MAX_MIPS_SUPPORTED) - 1; // 1<<k is when we tip over into needing k+1 mip levels, (1<<k)-1 needs just k.
 	if (Width > MaxDimension || Height > MaxDimension || Depth > MaxDimension)
 	{
-		UE_LOG(LogDDSFile, Error, TEXT("Image dimensions %ux%ux%u of DDS exceed maximum of %u."), Width, Height, Depth, MaxDimension);
+		UE_LOG(LogDDSFile, Warning, TEXT("Image dimensions %ux%ux%u of DDS exceed maximum of %u."), Width, Height, Depth, MaxDimension);
 		return EDDSError::BadImageDimension;
 	}
 
 	// Check that mipmap count is supported and makes sense for the image dimensions.
 	if (MipCount > MAX_MIPS_SUPPORTED)
 	{
-		UE_LOG(LogDDSFile, Error, TEXT("Invalid mipmap count of %u."), MipCount);
+		UE_LOG(LogDDSFile, Warning, TEXT("Invalid mipmap count of %u."), MipCount);
 		return EDDSError::BadMipmapCount;
 	}
 
@@ -423,7 +441,7 @@ EDDSError FDDSFile::Validate() const
 		(Height >> FinalMip) == 0 &&
 		(Depth >> FinalMip) == 0)
 	{
-		UE_LOG(LogDDSFile, Error, TEXT("Invalid mipmap count of %u for %ux%ux%u image."), MipCount, Width, Height, Depth);
+		UE_LOG(LogDDSFile, Warning, TEXT("Invalid mipmap count of %u for %ux%ux%u image."), MipCount, Width, Height, Depth);
 		return EDDSError::BadMipmapCount;
 	}
 
@@ -432,18 +450,86 @@ EDDSError FDDSFile::Validate() const
 	{
 		if (Width != Height || Depth != 1)
 		{
-			UE_LOG(LogDDSFile, Error, TEXT("Cubemap has non-square faces or non-1 depth!"));
+			UE_LOG(LogDDSFile, Warning, TEXT("Cubemap has non-square faces or non-1 depth!"));
 			return EDDSError::BadCubemap;
 		}
 
 		if ((ArraySize % 6) != 0)
 		{
-			UE_LOG(LogDDSFile, Error, TEXT("Cubemap or cubemap array doesn't have a multiple of 6 faces."));
+			UE_LOG(LogDDSFile, Warning, TEXT("Cubemap or cubemap array doesn't have a multiple of 6 faces."));
 			return EDDSError::BadCubemap;
 		}
 	}
 
 	return EDDSError::OK;
+}
+
+bool FDDSFile::IsValidTexture2D() const
+{
+	if ( Validate() != EDDSError::OK )
+	{
+		return false;
+	}
+
+	if ( Dimension == 1 || Dimension == 2 )
+	{
+		if ( ArraySize == 1 )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FDDSFile::IsValidTextureCube() const
+{
+	if ( Validate() != EDDSError::OK )
+	{
+		return false;
+	}
+	
+	if ( Dimension == 2 && ArraySize >= 6 && (ArraySize%6) == 0 )
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool FDDSFile::IsValidTextureArray() const
+{
+	if ( Validate() != EDDSError::OK )
+	{
+		return false;
+	}
+	
+	if ( Dimension == 1 || Dimension == 2 )
+	{
+		if ( ArraySize > 1 )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FDDSFile::IsValidTextureVolume() const
+{
+	if ( Validate() != EDDSError::OK )
+	{
+		return false;
+	}
+	
+	if ( Dimension == 3 )
+	{
+		// checked in Validate :
+		check( ArraySize == 1 );
+		return true;
+	}
+
+	return false;
 }
 
 static EDDSError AllocateMips(FDDSFile* InDDS, const FDXGIFormatInfo* InFormatInfo, uint32 InCreateFlags)
@@ -552,7 +638,7 @@ static EDDSError ParseHeader(FDDSFile* InDDS, FDDSHeaderWithMagic const* InHeade
 		}
 		else
 		{
-			UE_LOG(LogDDSFile, Error, TEXT("D3D10 resource dimension in DDS is neither 1D, 2D, nor 3D."));
+			UE_LOG(LogDDSFile, Warning, TEXT("D3D10 resource dimension in DDS is neither 1D, 2D, nor 3D."));
 			return EDDSError::BadResourceDimension;
 		}
 		InDDS->DXGIFormat = (EDXGIFormat)InDX10Header->dxgi_format;
@@ -606,7 +692,7 @@ static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const u
 	{
 		if (InReadEnd - InReadCursor < Mip.DataSize)
 		{
-			UE_LOG(LogDDSFile, Error, TEXT("Error reading texture data."));
+			UE_LOG(LogDDSFile, Warning, TEXT("Error reading texture data."));
 			return EDDSError::IoError;
 		}
 
@@ -634,7 +720,7 @@ static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const u
 	// definitely a bad file.
 	if (InDDSSize < sizeof(DDSHeader))
 	{
-		UE_LOG(LogDDSFile, Error, TEXT("Failed to read DDS header"));
+		//UE_LOG(LogDDSFile, Display, TEXT("Too few bytes to read DDS header"));
 		*OutError = EDDSError::IoError;
 		return nullptr;
 	}
@@ -650,7 +736,7 @@ static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const u
 
 	if (DDSHeader.Magic != DDS_MAGIC)
 	{
-		UE_LOG(LogDDSFile, Error, TEXT("Not a DDS file."));
+		//UE_LOG(LogDDSFile, Display, TEXT("Not a DDS file."));
 		*OutError = EDDSError::NotADds;
 		return nullptr;
 	}
@@ -661,7 +747,7 @@ static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const u
 	{
 		if (ReadEnd - ReadCursor < sizeof(DDS10Header))
 		{
-			UE_LOG(LogDDSFile, Error, TEXT("Failed to read DX10 DDS header"));
+			UE_LOG(LogDDSFile, Display, TEXT("Failed to read DX10 DDS header"));
 			*OutError = EDDSError::IoError;
 			return nullptr;
 		}
@@ -686,6 +772,48 @@ static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const u
 
 	return DDS;
  }
+ 
+bool FDDSFile::IsADDS(const uint8* InDDS, int64 InDDSSize)
+{
+	FDDSHeaderWithMagic DDSHeader = {};
+	FDDSHeaderDX10 DDS10Header = {};
+
+	// If we don't even have enough bytes for this to contain a valid header,
+	// definitely a bad file.
+	if (InDDSSize < sizeof(DDSHeader))
+	{
+		return false;
+	}
+	
+	// We've now established that InDDSSize >= sizeof(DDSHeader),
+	// so we can read that much for sure.
+	// It's slightly more convenient to work with an end pointer here.
+	const uint8* ReadEnd = InDDS + InDDSSize;
+	const uint8* ReadCursor = InDDS;
+
+	memcpy(&DDSHeader, ReadCursor, sizeof(DDSHeader));
+	ReadCursor += sizeof(DDSHeader);
+
+	if (DDSHeader.Magic != DDS_MAGIC)
+	{
+		return false;
+	}
+
+	// Do we need to read a dx10 header?
+	const FDDSPixelFormat& ddpf = DDSHeader.ddspf;
+	if ((ddpf.flags & DDPF_FOURCC) && ddpf.fourCC == DX10_MAGIC)
+	{
+		if (ReadEnd - ReadCursor < sizeof(DDS10Header))
+		{
+			return false;
+		}
+
+		memcpy(&DDS10Header, ReadCursor, sizeof(DDS10Header));
+		ReadCursor += sizeof(DDS10Header);
+	}
+
+	return true;
+}
 
 //
 // Write to an archive (i.e. file)
@@ -773,13 +901,13 @@ EDDSError FDDSFile::WriteDDS(TArray64<uint8>& OutDDS, EDDSFormatVersion InFormat
 		// If we found neither a bitmask format nor FourCC, we don't know how to save this pixel format for D3D9.
 		if (!D3d9BitmaskFormat && !D3d9FourCC)
 		{
-			UE_LOG(LogDDSFile, Error, TEXT("Unsupported pixel format %s for D3D9 DDS."), DXGIFormatGetName(EffectiveFormat));
+			UE_LOG(LogDDSFile, Warning, TEXT("Unsupported pixel format %s for D3D9 DDS."), DXGIFormatGetName(EffectiveFormat));
 			return EDDSError::BadPixelFormat;
 		}
 
 		if (ArraySize != 1)
 		{
-			UE_LOG(LogDDSFile, Error, TEXT("D3D9 .DDS does not support arrays."));
+			UE_LOG(LogDDSFile, Warning, TEXT("D3D9 .DDS does not support arrays."));
 			return EDDSError::BadImageDimension;
 		}
 
@@ -885,6 +1013,44 @@ EDDSError FDDSFile::WriteDDS(TArray64<uint8>& OutDDS, EDDSFormatVersion InFormat
 	return EDDSError::OK;
 }
 
+void FDDSFile::ConvertRGBXtoRGBA()
+{
+	// change X8 formats to A8 :
+	if ( DXGIFormat == EDXGIFormat::R8G8B8X8 )
+	{
+		DXGIFormat = EDXGIFormat::R8G8B8A8_UNORM_SRGB;
+	}
+	else if ( DXGIFormat == EDXGIFormat::B8G8R8X8_UNORM )
+	{
+		DXGIFormat = EDXGIFormat::B8G8R8A8_UNORM;
+	}
+	else if ( DXGIFormat == EDXGIFormat::B8G8R8X8_UNORM_SRGB )
+	{
+		DXGIFormat = EDXGIFormat::B8G8R8A8_UNORM_SRGB;
+	}
+	else if ( DXGIFormat == EDXGIFormat::B8G8R8X8_TYPELESS )
+	{
+		DXGIFormat = EDXGIFormat::B8G8R8A8_TYPELESS;
+	}
+	else
+	{
+		// not an X8 format
+		return;
+	}
+
+	// stuff 255 in A :
+	for (auto& Mip : Mips)
+	{
+		// Loop over pixels. Data in DDS mips is densely packed!
+		uint8* PixelData = Mip.Data;
+		const int64 DataSize = Mip.DataSize;
+		for (int64 i = 0; i < DataSize; i += 4)
+		{
+			PixelData[3] = 0xFF;
+		}
+	}
+}
+
 void FDDSFile::ConvertChannelOrder(EChannelOrder InTargetOrder)
 {
 	// Is this one of the few RGBA/BGRA formats we can convert?
@@ -921,6 +1087,250 @@ void FDDSFile::ConvertChannelOrder(EChannelOrder InTargetOrder)
 			PixelData[i] = PixelData[i + 2];
 			PixelData[i + 2] = t;
 		}
+	}
+}
+
+void FDDSFile::FillMip(const FImageView & FromImage, int MipIndex)
+{
+	check( MipIndex < Mips.Num() );
+	const FDDSMip & ToMip = Mips[MipIndex];
+
+	check( FromImage.GetNumPixels() == ToMip.Width * ToMip.Height * (int64) ToMip.Depth );
+	check( FromImage.GetImageSizeBytes() == ToMip.DataSize );
+		
+	memcpy(ToMip.Data,FromImage.RawData,ToMip.DataSize);
+}
+
+// Blit pixels from DDS mip to Image
+// return false if no pixel format conversion is supported
+bool FDDSFile::GetMipImage(const FImageView & ToImage, int MipIndex) const
+{
+	check( MipIndex < Mips.Num() );
+	const FDDSMip & FromMip = Mips[MipIndex];
+
+	check( ToImage.GetNumPixels() == FromMip.Width * FromMip.Height * (int64) FromMip.Depth );
+
+	// before BlitMip you should have done ConvertChannelOrder to BGRA and ConvertRGBXtoRGBA
+	// so we should only see BGRA (no RGBA or BGRX) here
+
+	if ( ToImage.Format == ERawImageFormat::R16F && DXGIFormat == EDXGIFormat::R32_FLOAT )
+	{
+		// no ERawImageFormat::R32F currently , have to convert to F16
+		
+		const float * FmPtr = (const float *) FromMip.Data;
+		uint16 * ToPtr = (uint16 *)ToImage.RawData;
+		int64 Count = ToImage.GetNumPixels();
+		check( ToImage.GetImageSizeBytes() == Count*sizeof(*ToPtr) );
+		check( FromMip.DataSize == Count*sizeof(*FmPtr) );
+		while(Count--)
+		{
+			FPlatformMath::StoreHalf(ToPtr, *FmPtr++);
+			ToPtr++;
+		}
+		return true;
+	}
+	else if ( ToImage.Format == ERawImageFormat::BGRA8 && DXGIFormat == EDXGIFormat::B8G8R8 )
+	{
+		const uint8 * FmPtr = FromMip.Data;
+		uint8 * ToPtr = (uint8 *)ToImage.RawData;
+		int64 Count = ToImage.GetNumPixels();
+		check( ToImage.GetImageSizeBytes() == Count*4 );
+		check( FromMip.DataSize == Count*3 );
+		while(Count--)
+		{
+			*ToPtr++ = *FmPtr++;
+			*ToPtr++ = *FmPtr++;
+			*ToPtr++ = *FmPtr++;
+			*ToPtr++ = 0xFF;
+		}
+		return true;
+	}
+	else if ( ToImage.Format == ERawImageFormat::BGRA8 && DXGIFormat == EDXGIFormat::R8G8B8 )
+	{
+		const uint8 * FmPtr = FromMip.Data;
+		uint8 * ToPtr = (uint8 *)ToImage.RawData;
+		int64 Count = ToImage.GetNumPixels();
+		check( ToImage.GetImageSizeBytes() == Count*4 );
+		check( FromMip.DataSize == Count*3 );
+		while(Count--)
+		{
+			*ToPtr++ = FmPtr[2];
+			*ToPtr++ = FmPtr[1];
+			*ToPtr++ = FmPtr[0];
+			*ToPtr++ = 0xFF;
+			FmPtr += 3;
+		}
+		return true;
+	}
+	else if ( ToImage.Format == ERawImageFormat::BGRA8 && (
+		DXGIFormat == EDXGIFormat::R8G8_TYPELESS ||
+		DXGIFormat == EDXGIFormat::R8G8_UNORM ||
+		DXGIFormat == EDXGIFormat::R8G8_UINT ||
+		DXGIFormat == EDXGIFormat::R8G8_SNORM ||
+		DXGIFormat == EDXGIFormat::R8G8_SINT ) )
+	{
+		const uint8 * FmPtr = FromMip.Data;
+		uint8 * ToPtr = (uint8 *)ToImage.RawData;
+		int64 Count = ToImage.GetNumPixels();
+		check( ToImage.GetImageSizeBytes() == Count*4 );
+		check( FromMip.DataSize == Count*2 );
+		while(Count--)
+		{
+			*ToPtr++ = 0;
+			*ToPtr++ = FmPtr[1];
+			*ToPtr++ = FmPtr[0];
+			*ToPtr++ = 0xFF;
+			FmPtr += 2;
+		}
+		check( ToPtr == (uint8 *)ToImage.RawData + ToImage.GetImageSizeBytes() );
+		check( FmPtr == FromMip.Data + FromMip.DataSize );
+		return true;
+	}
+	else if ( ToImage.GetImageSizeBytes() == FromMip.DataSize )
+	{	
+		bool bIsExactMatch;
+		ERawImageFormat::Type DXGIToRawFormat = DXGIFormatGetClosestRawFormat(DXGIFormat,&bIsExactMatch);
+
+		if ( DXGIToRawFormat == ToImage.Format )
+		{
+			if ( ! bIsExactMatch )
+			{
+				UE_LOG(LogDDSFile, Warning, TEXT("DDS BlitMip DXGIFormat isn't exact match fmt %d=(%s) to (%s)"), \
+					DXGIFormat, DXGIFormatGetName(DXGIFormat),ERawImageFormat::GetName(ToImage.Format));
+				// but do it anyway
+			}
+		
+			memcpy(ToImage.RawData,FromMip.Data,FromMip.DataSize);
+			return true;
+		}
+		else 
+		{
+			// formats mismatch but are same size
+			// very speculative, try it anyway, but log :
+		
+			UE_LOG(LogDDSFile, Warning, TEXT("DDS BlitMip DXGIFormat incompatible but same size! may be junk!  fmt %d=(%s) to (%s)"), \
+				DXGIFormat, DXGIFormatGetName(DXGIFormat),ERawImageFormat::GetName(ToImage.Format));
+
+			memcpy(ToImage.RawData,FromMip.Data,FromMip.DataSize);
+			return true;
+		}
+	}
+	else
+	{
+		// no supported conversion
+		
+		UE_LOG(LogDDSFile, Warning, TEXT("DDS BlitMip DXGIFormat cannot blit!  %d (%s) to (%s)"), \
+			DXGIFormat, DXGIFormatGetName(DXGIFormat),ERawImageFormat::GetName(ToImage.Format));
+
+		return false;
+	}
+}
+
+struct FDXGIFormatRawFormatMapping
+{
+	EDXGIFormat DXGIFormat;
+	ERawImageFormat::Type RawFormat;
+	bool bIsExactMatch;
+};
+
+FDXGIFormatRawFormatMapping DXGIRawFormatMap[] =
+{
+	{ EDXGIFormat::R32G32B32A32_FLOAT, ERawImageFormat::RGBA32F, true },
+	{ EDXGIFormat::R16G16B16A16_FLOAT, ERawImageFormat::RGBA16F, true },
+	{ EDXGIFormat::R32_FLOAT,  ERawImageFormat::R16F, false },
+	{ EDXGIFormat::R16_FLOAT,  ERawImageFormat::R16F, true },
+
+	// R32G32B32_FLOAT not supported
+	// R32G32_FLOAT not supported
+	// R16G16_FLOAT not supported
+
+	{ EDXGIFormat::R16G16B16A16_UNORM, ERawImageFormat::RGBA16, true },
+	{ EDXGIFormat::R16G16B16A16_UINT,  ERawImageFormat::RGBA16, true },
+	{ EDXGIFormat::R16G16B16A16_SNORM, ERawImageFormat::RGBA16, false },
+	{ EDXGIFormat::R16G16B16A16_SINT,  ERawImageFormat::RGBA16, false },
+
+	{ EDXGIFormat::R8G8B8A8_TYPELESS,  ERawImageFormat::BGRA8, false },
+	{ EDXGIFormat::R8G8B8A8_UNORM,  ERawImageFormat::BGRA8, false },
+	{ EDXGIFormat::R8G8B8A8_UNORM_SRGB,  ERawImageFormat::BGRA8, false },
+	{ EDXGIFormat::R8G8B8A8_UINT,  ERawImageFormat::BGRA8, false },
+	{ EDXGIFormat::R8G8B8A8_SNORM,  ERawImageFormat::BGRA8, false },
+	{ EDXGIFormat::R8G8B8A8_SINT,  ERawImageFormat::BGRA8, false },
+	
+	{ EDXGIFormat::B8G8R8A8_UNORM,  ERawImageFormat::BGRA8, true },
+	{ EDXGIFormat::B8G8R8X8_UNORM,  ERawImageFormat::BGRA8, false },
+	
+	{ EDXGIFormat::B8G8R8A8_TYPELESS,  ERawImageFormat::BGRA8, true },
+	{ EDXGIFormat::B8G8R8A8_UNORM_SRGB,  ERawImageFormat::BGRA8, true },
+	{ EDXGIFormat::B8G8R8X8_TYPELESS,  ERawImageFormat::BGRA8, false },
+	{ EDXGIFormat::B8G8R8X8_UNORM_SRGB,  ERawImageFormat::BGRA8, false },
+
+	{ EDXGIFormat::R32_UINT,  ERawImageFormat::G16, false },
+	{ EDXGIFormat::R32_SINT,  ERawImageFormat::G16, false },
+	
+	{ EDXGIFormat::R16_TYPELESS,  ERawImageFormat::G16, true },
+	{ EDXGIFormat::R16_UNORM,  ERawImageFormat::G16, true },
+	{ EDXGIFormat::R16_UINT,  ERawImageFormat::G16, true },
+	{ EDXGIFormat::R16_SNORM,  ERawImageFormat::G16, false },
+	{ EDXGIFormat::R16_SINT,  ERawImageFormat::G16, false },
+	
+	{ EDXGIFormat::R8_TYPELESS,  ERawImageFormat::G8, true },
+	{ EDXGIFormat::R8_UNORM,  ERawImageFormat::G8, true },
+	{ EDXGIFormat::R8_UINT,  ERawImageFormat::G8, true },
+	{ EDXGIFormat::R8_SNORM,  ERawImageFormat::G8, false },
+	{ EDXGIFormat::R8_SINT,  ERawImageFormat::G8, false },
+	{ EDXGIFormat::A8_UNORM,  ERawImageFormat::G8, false },
+
+	{ EDXGIFormat::B8G8R8, ERawImageFormat::BGRA8, false },
+	{ EDXGIFormat::R8G8B8, ERawImageFormat::BGRA8, false },
+	{ EDXGIFormat::R8G8B8X8, ERawImageFormat::BGRA8, false },
+	
+	{ EDXGIFormat::R8G8_TYPELESS, ERawImageFormat::BGRA8, false },
+	{ EDXGIFormat::R8G8_UNORM, ERawImageFormat::BGRA8, false },
+	{ EDXGIFormat::R8G8_UINT, ERawImageFormat::BGRA8, false },
+	{ EDXGIFormat::R8G8_SNORM, ERawImageFormat::BGRA8, false },
+	{ EDXGIFormat::R8G8_SINT, ERawImageFormat::BGRA8, false },
+
+	// terminates list :
+	{ EDXGIFormat::UNKNOWN, ERawImageFormat::Invalid, false}
+};
+
+ERawImageFormat::Type DXGIFormatGetClosestRawFormat(EDXGIFormat fmt, bool * pIsExactMatch)
+{
+	for(const FDXGIFormatRawFormatMapping * Mapping = DXGIRawFormatMap;Mapping->DXGIFormat != EDXGIFormat::UNKNOWN;++Mapping)
+	{
+		if ( Mapping->DXGIFormat == fmt )
+		{
+			if ( pIsExactMatch )
+			{
+				*pIsExactMatch = Mapping->bIsExactMatch;
+			}
+			return Mapping->RawFormat;
+		}
+	}
+
+	return ERawImageFormat::Invalid;
+}
+
+EDXGIFormat DXGIFormatFromRawFormat(ERawImageFormat::Type RawFormat,EGammaSpace GammaSpace)
+{
+	switch(RawFormat)
+	{
+	case ERawImageFormat::G8:		return EDXGIFormat::R8_UNORM; // would like to encode Gamma, but no way to do so
+	case ERawImageFormat::BGRA8:
+		{
+		if ( GammaSpace == EGammaSpace::Linear)
+			return EDXGIFormat::B8G8R8A8_UNORM;
+		else
+			return EDXGIFormat::B8G8R8A8_UNORM_SRGB;
+		}
+	case ERawImageFormat::BGRE8:	return EDXGIFormat::B8G8R8A8_UNORM; // no way to indicate this is BGRE
+	case ERawImageFormat::RGBA16:	return EDXGIFormat::R16G16B16A16_UNORM;
+	case ERawImageFormat::RGBA16F:	return EDXGIFormat::R16G16B16A16_FLOAT;
+	case ERawImageFormat::RGBA32F:	return EDXGIFormat::R32G32B32A32_FLOAT;
+	case ERawImageFormat::G16:		return EDXGIFormat::R16_UNORM;
+	case ERawImageFormat::R16F:		return EDXGIFormat::R16_FLOAT;
+	default:
+		return EDXGIFormat::UNKNOWN;
 	}
 }
 

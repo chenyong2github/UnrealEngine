@@ -192,6 +192,13 @@ struct FTextureSource
 		ETextureSourceFormat NewFormat,
 		const uint8* NewData = NULL
 		);
+	
+	/**
+	* Init and copy in texture bits from Image
+	* 
+	* @param Image -  Image to initialize with
+	*/
+	ENGINE_API void Init(const FImageView & Image);
 
 	/**
 	 * Initialize the source data with the given size, number of mips, and format.
@@ -330,9 +337,13 @@ struct FTextureSource
 
 	/** Returns the compression format of the source data in enum format. */
 	FORCEINLINE ETextureSourceCompressionFormat GetSourceCompression() const { return CompressionFormat; }
-	
+	FORCEINLINE bool IsSourceCompressed() const { return GetSourceCompression() != ETextureSourceCompressionFormat::TSCF_None; }
+
 	/** Get GammaSpace for this Format */
-	ENGINE_API EGammaSpace GetGammaSpace() const;
+	ENGINE_API EGammaSpace GetGammaSpace(int LayerIndex) const;
+	
+	/** Get mipped number of slices (volumes mip but arrays don't) */
+	ENGINE_API int GetMippedNumSlices(int NumSlices,int MipIndex) const;
 
 	/** Support for copy/paste */
 	void ExportCustomProperties(FOutputDevice& Out, uint32 Indent);
@@ -348,13 +359,22 @@ struct FTextureSource
 	FORCEINLINE int32 GetNumLayers() const { return NumLayers; }
 	FORCEINLINE int32 GetNumBlocks() const { return Blocks.Num() + 1; }
 	FORCEINLINE ETextureSourceFormat GetFormat(int32 LayerIndex = 0) const { return (LayerIndex == 0) ? Format : LayerFormat[LayerIndex]; }
+	
+	UE_DEPRECATED(5.1, "Use GetSourceCompression instead")
 	FORCEINLINE bool IsPNGCompressed() const { return GetSourceCompression() == ETextureSourceCompressionFormat::TSCF_PNG; }
+	
+	// Warning: IsLongLatCubemap() is not correct.  LongLat Cubemaps have bLongLatCubemap == false
+	// the correct check is to see if the texture class is CubeMap and (NumSlices%6) == 0
+	// bLongLatCubemap is sometimes set to true for cube arrays to disambiguate the case of 6 longlat cubemaps in an array
+	// @@!! consider putting the NumSlices check in IsLongLatCubemap()
 	FORCEINLINE bool IsLongLatCubemap() const { return bLongLatCubemap; }
+
 	FORCEINLINE int64 GetSizeOnDisk() const { return BulkData.GetPayloadSize(); }
 	inline bool HasPayloadData() const { return BulkData.HasPayloadData(); }
 	/** Returns true if the texture's bulkdata payload is either already in memory or if the payload is 0 bytes in length. It will return false if the payload needs to load from disk */
 	FORCEINLINE bool IsBulkDataLoaded() const { return BulkData.DoesPayloadNeedLoading(); }
 
+	// Apply a visitor to the bulkdata :
 	ENGINE_API void OperateOnLoadedBulkData(TFunctionRef<void (const FSharedBuffer& BulkDataBuffer)> Operation);
 
 	UE_DEPRECATED(5.00, "There is no longer a need to call LoadBulkDataWithFileReader, FTextureSource::BulkData can now load the data on demand without it.")
@@ -1499,6 +1519,7 @@ public:
 
 	ENGINE_API EGammaSpace GetGammaSpace() const
 	{
+		// note: does not validate that the Format respects gamma (TextureSource::GetGammaSpace does)
 		return SRGB ? ( bUseLegacyGamma ? EGammaSpace::Pow22 : EGammaSpace::sRGB ) : EGammaSpace::Linear;
 	}
 #endif
