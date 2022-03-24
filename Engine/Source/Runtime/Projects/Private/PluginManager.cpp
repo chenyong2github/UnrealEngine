@@ -1029,6 +1029,9 @@ bool FPluginManager::ConfigureEnabledPlugins()
 				}
 			}
 
+			TArray<FString> ConfigFilesPluginsCannotOverride;
+			GConfig->GetArray(TEXT("Plugins"), TEXT("ConfigFilesPluginsCannotOverride"), ConfigFilesPluginsCannotOverride, GEngineIni);
+
 			TSet<FString> AllIniFiles;
 
 			if (PluginSystemDefs::IsCachingIniFilesForProcessing())
@@ -1050,7 +1053,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 			FCriticalSection PluginPakCS;
 			
 			// Mount all the enabled plugins
-			ParallelFor(PluginsArray.Num(), [&PluginsArray, &ConfigCS, &PluginPakCS, &AllIniFiles, this](int32 Index)
+			ParallelFor(PluginsArray.Num(), [&PluginsArray, &ConfigCS, &PluginPakCS, &ConfigFilesPluginsCannotOverride, &AllIniFiles, this](int32 Index)
 			{
 				FString PlatformName = FPlatformProperties::PlatformName();
 				FPlugin& Plugin = *PluginsArray[Index];
@@ -1123,6 +1126,16 @@ bool FPluginManager::ConfigureEnabledPlugins()
 						if (FoundConfig != nullptr)
 						{
 							UE_LOG(LogPluginManager, Log, TEXT("Found config from plugin[%s] %s"), *Plugin.GetName(), *PluginConfigFilename);
+
+							if (ConfigFilesPluginsCannotOverride.Contains(BaseConfigFile))
+							{
+								// Not allowed, skip it
+								FText FailureMessage = FText::Format(LOCTEXT("PluginOverrideFailureFormat", "Plugin '{0}' cannot override config file: '{1}'"), FText::FromString(Plugin.GetName()), FText::FromString(BaseConfigFile));
+								FText DialogTitle = LOCTEXT("PluginConfigFileOverride", "Plugin config file override");
+								UE_LOG(LogPluginManager, Error, TEXT("%s"), *FailureMessage.ToString());
+								FMessageDialog::Open(EAppMsgType::Ok, FailureMessage, &DialogTitle);
+								continue;
+							}
 
 							FoundConfig->AddDynamicLayerToHierarchy(FPaths::Combine(PluginConfigDir, ConfigFile));
 
