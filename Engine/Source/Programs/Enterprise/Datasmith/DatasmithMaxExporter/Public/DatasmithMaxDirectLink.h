@@ -234,6 +234,7 @@ public:
 	virtual void SetupActor(FNodeTracker& NodeTracker) = 0;
 	virtual void SetupDatasmithHISMForNode(FNodeTracker& NodeTracker, INode* GeometryNode, const FRenderMeshForConversion& RenderMesh, Mtl* Material, int32 MeshIndex, const TArray<Matrix3>& Transforms) = 0;
 	virtual void RemoveMaterial(const TSharedPtr<IDatasmithBaseMaterialElement>& DatasmithMaterial) = 0;
+	virtual void RemoveTexture(const TSharedPtr<IDatasmithTextureElement>&) = 0;
 	virtual void NodeXRefMerged(INode* Node) = 0;
 };
 
@@ -356,6 +357,11 @@ public:
 		return Materials;
 	}
 
+	TArray<Texmap*>& GetActualTexmaps()
+	{
+		return Textures;
+	}
+
 	void ResetActualMaterialAndTextures()
 	{
 		Materials.Reset();
@@ -402,16 +408,18 @@ public:
 
 	void Reset();
 
-	FMaterialTracker* AddMaterial(Mtl* Material);
+	FMaterialTracker* AddMaterial(Mtl* Material); // Add material to track its changes
 
-	void InvalidateMaterial(Mtl* Material);
+	void InvalidateMaterial(Mtl* Material); // Mark changed
 
-	void UpdateMaterial(FMaterialTracker* MaterialTracker);
+	void UpdateMaterial(FMaterialTracker* MaterialTracker); // Reparse source material
+
+	void ConvertMaterial(Mtl* Material, TSharedRef<IDatasmithScene> DatasmithScene, const TCHAR* AssetsPath, TSet<Texmap*>& TexmapsConverted); // Convert to Datasmith
 
 	// When Material is not used my scene anymore - stop tracking it
 	void ReleaseMaterial(FMaterialTracker& MaterialTracker);
 
-	// Clean all converted data, remove from datasmith scene(before rebuild)
+	// Clean all converted data, remove from datasmith scene(e.g. before rebuilding material)
 	void RemoveConvertedMaterial(FMaterialTracker& MaterialTracker);
 
 	void ResetInvalidatedMaterials()
@@ -422,11 +430,6 @@ public:
 	TSet<FMaterialTracker*> GetInvalidatedMaterials()
 	{
 		return InvalidatedMaterialTrackers;
-	}
-
-	void SetDatasmithMaterial(Mtl* ActualMaterial, TSharedPtr<IDatasmithBaseMaterialElement> DatastmihMaterial)
-	{
-		UsedMaterialToDatasmithMaterial.Add(ActualMaterial, DatastmihMaterial);
 	}
 
 	ISceneTracker& SceneTracker;
@@ -441,6 +444,11 @@ public:
 
 	TMap<Mtl*, TSet<FMaterialTracker*>> UsedMaterialToMaterialTracker; // Materials uses by nodes keep set of assigned materials they are used for
 	TMap<Mtl*, TSharedPtr<IDatasmithBaseMaterialElement>> UsedMaterialToDatasmithMaterial;
+
+	TMap<Texmap*, TSet<FMaterialTracker*>> UsedTextureToMaterialTracker; // Materials uses by nodes keep set of assigned textures they are used for
+	TMap<Texmap*, TArray<TSharedPtr<IDatasmithTextureElement>>> UsedTextureToDatasmithElement; // Keep track of Datasmith Element created for texmap to simplify update/removal(no need to search DatasmithScene)
+	// note: each texmap can create multiple texture elements
+
 };
 
 //----

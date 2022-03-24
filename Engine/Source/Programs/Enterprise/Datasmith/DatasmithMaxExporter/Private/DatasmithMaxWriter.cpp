@@ -446,33 +446,40 @@ bool FDatasmithMaxMatHelper::IsSRGB(Bitmap& InBitmap)
 
 bool FDatasmithMaxMatExport::bForceReexport = false;
 
-void FDatasmithMaxMatExport::GetXMLTexture(TSharedRef< IDatasmithScene > DatasmithScene, Texmap* InTexMap, const TCHAR* AssetsPath)
+// todo: need wa wya to return created texture element(if there was one), maybe use 'last' in DatasmithScene(check that count changed)
+//   verify that only one texture created!
+void FDatasmithMaxMatExport::GetXMLTexture(TSharedRef< IDatasmithScene > DatasmithScene, Texmap* InTexMap, const TCHAR* AssetsPath, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements)
 {
 	switch (FDatasmithMaxMatHelper::GetTextureClass(InTexMap))
 	{
 	case EDSBitmapType::NotSupported:
-		return;
 		break;
 	case EDSBitmapType::RegularBitmap:
-		FDatasmithMaxMatWriter::GetRegularTexmap(DatasmithScene, (BitmapTex*)InTexMap);
+		FDatasmithMaxMatWriter::GetRegularTexmap(DatasmithScene, (BitmapTex*)InTexMap, OutTextureElements);
 		break;
 	case EDSBitmapType::AutodeskBitmap:
-		FDatasmithMaxMatWriter::GetAutodeskTexmap(DatasmithScene, InTexMap);
+		FDatasmithMaxMatWriter::GetAutodeskTexmap(DatasmithScene, InTexMap, OutTextureElements);
 		break; 
 	case EDSBitmapType::TheaBitmap:
-		FDatasmithMaxMatWriter::GetTheaTexmap(DatasmithScene, (BitmapTex*)InTexMap);
+		FDatasmithMaxMatWriter::GetTheaTexmap(DatasmithScene, (BitmapTex*)InTexMap, OutTextureElements);
 		break;
 	case EDSBitmapType::CoronaBitmap:
-		FDatasmithMaxMatWriter::GetCoronaTexmap(DatasmithScene, (BitmapTex*)InTexMap);
+		FDatasmithMaxMatWriter::GetCoronaTexmap(DatasmithScene, (BitmapTex*)InTexMap, OutTextureElements);
 		break;
 	case EDSBitmapType::VRayHRDI:
-		FDatasmithMaxMatWriter::GetVrayHdri(DatasmithScene, (BitmapTex*)InTexMap);
+		FDatasmithMaxMatWriter::GetVrayHdri(DatasmithScene, (BitmapTex*)InTexMap, OutTextureElements);
 		break;
 	case EDSBitmapType::ColorCorrector:
-		GetXMLTexture(DatasmithScene, InTexMap->GetSubTexmap(0), AssetsPath);
+		GetXMLTexture(DatasmithScene, InTexMap->GetSubTexmap(0), AssetsPath, OutTextureElements);
 		break;
 	case EDSBitmapType::BakeableMap:
-		FDatasmithMaxMatWriter::AddBakeable(DatasmithScene, (BitmapTex*)InTexMap, AssetsPath);
+		{
+			TSharedPtr<IDatasmithTextureElement> TextureElement = FDatasmithMaxMatWriter::AddBakeable(DatasmithScene, (BitmapTex*)InTexMap, AssetsPath);
+			if (OutTextureElements)
+			{
+				OutTextureElements->Add(TextureElement);
+			}
+		}
 		break;
 	case EDSBitmapType::NormalMap:
 	case EDSBitmapType::FallOff:
@@ -485,7 +492,7 @@ void FDatasmithMaxMatExport::GetXMLTexture(TSharedRef< IDatasmithScene > Datasmi
 	case EDSBitmapType::CompositeTex:
 		for (int i = 0; i < InTexMap->NumSubTexmaps(); i++)
 		{
-			GetXMLTexture(DatasmithScene, InTexMap->GetSubTexmap(i), AssetsPath);
+			GetXMLTexture(DatasmithScene, InTexMap->GetSubTexmap(i), AssetsPath, OutTextureElements);
 		}
 		break;
 	default:

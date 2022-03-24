@@ -11,10 +11,10 @@ FString FDatasmithMaxMatWriter::DumpBitmapThea(TSharedPtr<IDatasmithCompositeTex
 	return DumpBitmap(CompTex, Texture, Prefix, bForceInvert, bIsGrayscale);
 }
 
-void FDatasmithMaxMatWriter::GetTheaTexmap(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex)
+void FDatasmithMaxMatWriter::GetTheaTexmap(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements)
 {
 	BitmapTex* Texture = (BitmapTex*)InBitmapTex->GetReference(0);
-	GetRegularTexmap(DatasmithScene, Texture);
+	GetRegularTexmap(DatasmithScene, Texture, OutTextureElements);
 }
 
 void FDatasmithMaxMatWriter::ExportTheaSubmaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithShaderElement >& MaterialShader, Mtl* Material, EDSMaterialType MaterialType)

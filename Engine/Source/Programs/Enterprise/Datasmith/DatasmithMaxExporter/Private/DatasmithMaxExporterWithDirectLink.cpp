@@ -857,9 +857,9 @@ public:
 			InvalidatedNodeTrackers.Reset();
 		}
 
-		TSet<Mtl*> ActualMaterialToUpdate;
-		TSet<Texmap*> ActualTexmapsToUpdate;
-
+		// Each tracked(i.e. assigned to a visible node) Max material can result in multiple actual materials
+		// e.g. an assigned MultiSubObj material is aclually a set of material not directly assigned to a node
+		TSet<Mtl*> ActualMaterialToUpdate; 
 		{
 			PROGRESS_STAGE("Process invalidated materials");
 			{
@@ -875,37 +875,34 @@ public:
 						ActualMaterialToUpdate.Add(ActualMaterial);
 					}
 					MaterialTracker->bInvalidated = false;
-					for (Texmap* Texture: MaterialTracker->Textures)
-					{
-						ActualTexmapsToUpdate.Add(Texture);
-					}
 				}
 				MaterialsCollectionTracker.ResetInvalidatedMaterials();
+			}
+		}
+
+		TSet<Texmap*> ActualTexmapsToUpdate;
+		{
+			PROGRESS_STAGE("Update materials")
+			PROGRESS_STAGE_COUNTER(ActualMaterialToUpdate.Num());
+			for (Mtl* ActualMaterial: ActualMaterialToUpdate)
+			{
+				ProgressCounter.Next();
+
+				MaterialsCollectionTracker.ConvertMaterial(ActualMaterial, ExportedScene.GetDatasmithScene(), ExportedScene.GetSceneExporter().GetAssetsOutputPath(), ActualTexmapsToUpdate);
 			}
 		}
 
 		{
 			PROGRESS_STAGE("Update textures")
 			PROGRESS_STAGE_COUNTER(ActualTexmapsToUpdate.Num());
+			
 			for (Texmap* Texture : ActualTexmapsToUpdate)
 			{
 				ProgressCounter.Next();
-				FDatasmithMaxMatExport::GetXMLTexture(ExportedScene.GetDatasmithScene(), Texture, ExportedScene.GetSceneExporter().GetAssetsOutputPath());
-			}
-		}
 
-		{
-			PROGRESS_STAGE("Update materials")
-			PROGRESS_STAGE_COUNTER(ActualMaterialToUpdate.Num());
-			for (Mtl* ActualMaterial : ActualMaterialToUpdate)
-			{
-				ProgressCounter.Next();
-
-				// todo: make sure not reexport submaterial more than once - i.e. when a submaterial is used in two composite material
-				FDatasmithMaxMatExport::bForceReexport = true;
-				TSharedPtr<IDatasmithBaseMaterialElement> DatastmihMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial(ExportedScene.GetDatasmithScene(), ActualMaterial, ExportedScene.GetSceneExporter().GetAssetsOutputPath());
-
-				MaterialsCollectionTracker.SetDatasmithMaterial(ActualMaterial, DatastmihMaterial);
+				TArray<TSharedPtr<IDatasmithTextureElement>> TextureElements;
+				FDatasmithMaxMatExport::GetXMLTexture(ExportedScene.GetDatasmithScene(), Texture, ExportedScene.GetSceneExporter().GetAssetsOutputPath(), &TextureElements);
+				MaterialsCollectionTracker.UsedTextureToDatasmithElement.Add(Texture, TextureElements);
 			}
 		}
 
@@ -985,6 +982,11 @@ public:
 	virtual void RemoveMaterial(const TSharedPtr<IDatasmithBaseMaterialElement>& DatasmithMaterial) override
 	{
 		ExportedScene.DatasmithSceneRef->RemoveMaterial(DatasmithMaterial);		
+	}
+
+	virtual void RemoveTexture(const TSharedPtr<IDatasmithTextureElement>& DatasmithTextureElement) override
+	{
+		ExportedScene.DatasmithSceneRef->RemoveTexture(DatasmithTextureElement);		
 	}
 
 	void InvalidateNode(FNodeTracker& NodeTracker)

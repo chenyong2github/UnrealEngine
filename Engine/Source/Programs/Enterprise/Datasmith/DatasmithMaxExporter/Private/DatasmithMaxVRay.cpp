@@ -123,7 +123,7 @@ FString FDatasmithMaxMatWriter::DumpVrayHdri(TSharedPtr<IDatasmithCompositeTextu
 	return *BitmapName;
 }
 
-void FDatasmithMaxMatWriter::GetVrayHdri(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex)
+void FDatasmithMaxMatWriter::GetVrayHdri(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements)
 {
 	FString Path = TEXT("");
 
@@ -174,6 +174,10 @@ void FDatasmithMaxMatWriter::GetVrayHdri(TSharedRef< IDatasmithScene > Datasmith
 	}
 	TextureElement->SetFile(*Path);
 	DatasmithScene->AddTexture(TextureElement);
+	if (OutTextureElements)
+	{
+		OutTextureElements->Add(TextureElement);
+	}
 }
 
 void FDatasmithMaxMatWriter::ExportVRayMaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithMaterialElement >& MaterialElement, Mtl* Material)

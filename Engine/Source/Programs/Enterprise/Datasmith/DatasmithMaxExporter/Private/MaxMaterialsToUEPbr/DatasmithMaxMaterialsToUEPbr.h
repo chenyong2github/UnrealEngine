@@ -59,6 +59,8 @@ public:
 
 	} ConvertState;
 
+	TArray<Texmap*>* TexmapsConverted = nullptr;
+
 protected:
 	TIndirectArray< IDatasmithMaxTexmapToUEPbr > TexmapConverters;
 

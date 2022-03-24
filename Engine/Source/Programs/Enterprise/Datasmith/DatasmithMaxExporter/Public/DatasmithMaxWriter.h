@@ -103,7 +103,7 @@ class FDatasmithMaxMatExport
 {
 public:
 	// stores the textures without allowing dupe in uniqueTextures
-	static void GetXMLTexture(TSharedRef< IDatasmithScene > DatasmithScene, Texmap* InTexmap, const TCHAR* AssetsPath);
+	static void GetXMLTexture(TSharedRef< IDatasmithScene > DatasmithScene, Texmap* InTexmap, const TCHAR* AssetsPath, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements=nullptr);
 		
 	// Exports the given material if it hasn't been exported yet and returns the created IDatasmithBaseMaterialElement, else returns an invalid TSharedPtr.
 	static TSharedPtr< IDatasmithBaseMaterialElement > ExportUniqueMaterial(TSharedRef< IDatasmithScene > DatasmithScene, Mtl* Material, const TCHAR* AssetsPath);
@@ -144,8 +144,8 @@ public:
 	static FString CropBitmap(BitmapTex* InBitmapTex);
 	static FString DumpBitmap(TSharedPtr<IDatasmithCompositeTexture>& CompTex, BitmapTex* InBitmapTex, const TCHAR* Prefix, bool bForceInvert, bool bIsGrayscale);
 	static FString DumpAutodeskBitmap(TSharedPtr<IDatasmithCompositeTexture>& CompTex, Texmap* InTexmap, const TCHAR* Prefix, bool bForceInvert, bool bIsGrayscale);
-	static void GetRegularTexmap(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex);
-	static void GetAutodeskTexmap(TSharedRef< IDatasmithScene > DatasmithScene, Texmap* InTexMap);
+	static void GetRegularTexmap(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements);
+	static void GetAutodeskTexmap(TSharedRef< IDatasmithScene > DatasmithScene, Texmap* InTexMap, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements);
 	static TSharedPtr< IDatasmithTextureElement > AddBakeable(TSharedRef< IDatasmithScene > DatasmithScene, Texmap* InTexmap, const TCHAR* AssetsPath);
 	static void ExportStandardMaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithMaterialElement >& MaterialElement, Mtl* Material);
 	static void ExportBlendMaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithMaterialElement >& MaterialElement, Mtl* Material);
@@ -159,7 +159,7 @@ public:
 	// THEA DEPENDANT
 	//---------------------------------------------------------------
 	static FString DumpBitmapThea(TSharedPtr<IDatasmithCompositeTexture>& CompTex, BitmapTex* InBitmapTex, const TCHAR* Prefix, bool bForceInvert, bool bIsGrayscale);
-	static void GetTheaTexmap(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex);
+	static void GetTheaTexmap(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements);
 	static void ExportTheaSubmaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithShaderElement >& MaterialShader, Mtl* Material, EDSMaterialType MaterialType);
 	static void ExportTheaMaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithMaterialElement >& MaterialElement, Mtl* Material);
 
@@ -167,7 +167,7 @@ public:
 	// VRAY DEPENDANT
 	//---------------------------------------------------------------
 	static FString DumpVrayColor(TSharedPtr<IDatasmithCompositeTexture>& CompTex, Texmap* InTexmap, const TCHAR* Prefix, bool bForceInvert);
-	static void GetVrayHdri(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex);
+	static void GetVrayHdri(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements);
 	static FString DumpVrayHdri(TSharedPtr<IDatasmithCompositeTexture>& CompTex, BitmapTex* InBitmapTex, const TCHAR* Prefix, bool bForceInvert);
 	static void ExportVRayMaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithMaterialElement >& MaterialElement, Mtl* Material);
 	static void ExportVRayLightMaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithMaterialElement >& MaterialElement, Mtl* Material);
@@ -184,7 +184,7 @@ public:
 	//---------------------------------------------------------------
 	static FString DumpBitmapCorona(TSharedPtr<IDatasmithCompositeTexture>& CompTex, BitmapTex* InBitmapTex, const TCHAR* Prefix, bool bForceInvert, bool bIsGrayscale);
 	static FString DumpCoronaColor(TSharedPtr<IDatasmithCompositeTexture>& CompTex, Texmap* InTexmap, const TCHAR* Prefix, bool bForceInvert);
-	static void GetCoronaTexmap(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex);
+	static void GetCoronaTexmap(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements);
 	static void ExportCoronaMaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithMaterialElement >& MaterialElement, Mtl* Material);
 	static void ExportCoronaLightMaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithMaterialElement >& MaterialElement, Mtl* Material);
 	static void ExportCoronaBlendMaterial(TSharedRef< IDatasmithScene > DatasmithScene,  TSharedPtr< IDatasmithMaterialElement >& MaterialElement, Mtl* Material);

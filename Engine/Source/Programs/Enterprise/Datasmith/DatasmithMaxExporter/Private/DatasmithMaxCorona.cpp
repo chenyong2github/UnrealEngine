@@ -67,7 +67,7 @@ FString FDatasmithMaxMatWriter::DumpBitmapCorona(TSharedPtr<IDatasmithCompositeT
 	return *Base;
 }
 
-void FDatasmithMaxMatWriter::GetCoronaTexmap(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex)
+void FDatasmithMaxMatWriter::GetCoronaTexmap(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements)
 {
 	FString Path = TEXT("");
 
@@ -117,6 +117,10 @@ void FDatasmithMaxMatWriter::GetCoronaTexmap(TSharedRef< IDatasmithScene > Datas
 	}
 	TextureElement->SetFile(*Path);
 	DatasmithScene->AddTexture(TextureElement);
+	if (OutTextureElements)
+	{
+		OutTextureElements->Add(TextureElement);
+	}
 }
 
 void FDatasmithMaxMatWriter::ExportCoronaMaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithMaterialElement >& MaterialElement, Mtl* Material)

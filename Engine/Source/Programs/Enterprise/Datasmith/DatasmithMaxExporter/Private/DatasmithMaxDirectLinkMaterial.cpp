@@ -7,6 +7,7 @@
 #include "DatasmithMaxHelper.h"
 #include "DatasmithMaxWriter.h"
 #include "DatasmithMaxClassIDs.h"
+#include "MaxMaterialsToUEPbr/DatasmithMaxMaterialsToUEPbr.h"
 
 
 #include "DatasmithSceneFactory.h"
@@ -87,39 +88,7 @@ public:
 			{
 				MaterialEnum(Material->GetSubMtl(i), bAddRecursively);
 			}
-
-			for (int i = 0; i < Material->NumSubTexmaps(); i++)
-			{
-				Texmap* SubTexture = Material->GetSubTexmap(i);
-				if (SubTexture != NULL)
-				{
-					TexEnum(SubTexture);
-				}
-			}
 		}
-	}
-
-	void TexEnum(Texmap* Texture)
-	{
-		if (Texture == NULL)
-		{
-			return;
-		}
-
-		if (!MaterialsCollectionTracker.EncounteredTextures.Contains(Texture))
-		{
-			MaterialsCollectionTracker.EncounteredTextures.Add(Texture);
-		}
-
-		for (int i = 0; i < Texture->NumSubTexmaps(); i++)
-		{
-			Texmap* SubTexture = Texture->GetSubTexmap(i);
-			if (SubTexture != NULL)
-			{
-				TexEnum(SubTexture);
-			}
-		}
-		MaterialTracker.AddActualTexture(Texture);
 	}
 };
 
@@ -133,8 +102,10 @@ void FMaterialsCollectionTracker::Reset()
 	MaterialNames.Reset();
 
 	UsedMaterialToMaterialTracker.Reset();
-
 	UsedMaterialToDatasmithMaterial.Reset();
+
+	UsedTextureToMaterialTracker.Reset();
+	UsedTextureToDatasmithElement.Reset();
 }
 
 void FMaterialsCollectionTracker::UpdateMaterial(FMaterialTracker* MaterialTracker)
@@ -147,12 +118,60 @@ void FMaterialsCollectionTracker::UpdateMaterial(FMaterialTracker* MaterialTrack
 	}
 }
 
+void FMaterialsCollectionTracker::ConvertMaterial(Mtl* Material, TSharedRef<IDatasmithScene> DatasmithScene, const TCHAR* AssetsPath, TSet<Texmap*>& TexmapsConverted)
+{
+	// todo: reworking material export - composite materials(like VRayBlend) export submaterials too
+	//   check below is needed to make sure that no material is exported twice.
+	//   This is how it was handled before bu needs to be handled without going through the list of all materials.
+	// Names should be unique prior to this
+	FString MaterialName(FDatasmithUtils::SanitizeObjectName(Material->GetName().data()));
+	for (int i = 0; i < DatasmithScene->GetMaterialsCount(); i++)
+	{
+		if (FString(DatasmithScene->GetMaterial(i)->GetName()) == MaterialName)
+		{
+			return;
+		}
+	}
+
+	TArray<Texmap*> TexmapsUsedByMaterial;
+	TSharedPtr<IDatasmithBaseMaterialElement> DatasmithMaterial;
+
+	if (FDatasmithMaxMaterialsToUEPbr* MaterialConverter = FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter(Material))
+	{
+
+		TGuardValue<TArray<Texmap*>*> TexmapsConvertedGuard(MaterialConverter->TexmapsConverted, &TexmapsUsedByMaterial);
+		 
+		MaterialConverter->Convert(DatasmithScene, DatasmithMaterial, Material, AssetsPath);
+
+		if (DatasmithMaterial)
+		{
+			DatasmithScene->AddMaterial(DatasmithMaterial);
+			UsedMaterialToDatasmithMaterial.Add(Material, DatasmithMaterial);
+		}
+	}
+
+	// Tie texture used by an actual material to tracked material
+	for (Texmap* Texture : TexmapsUsedByMaterial)
+	{
+
+		for (FMaterialTracker* MaterialTracker : UsedMaterialToMaterialTracker[Material])
+		{
+			MaterialTracker->AddActualTexture(Texture);
+			UsedTextureToMaterialTracker.FindOrAdd(Texture).Add(MaterialTracker);
+		}
+	}
+
+	TexmapsConverted.Append(TexmapsUsedByMaterial);
+
+}
+
 void FMaterialsCollectionTracker::ReleaseMaterial(FMaterialTracker& MaterialTracker)
 {
 	RemoveConvertedMaterial(MaterialTracker);
 	MaterialTrackers.Remove(MaterialTracker.Material);
 	InvalidatedMaterialTrackers.Remove(&MaterialTracker);
 }
+
 
 void FMaterialsCollectionTracker::RemoveConvertedMaterial(FMaterialTracker& MaterialTracker)
 {
@@ -169,6 +188,23 @@ void FMaterialsCollectionTracker::RemoveConvertedMaterial(FMaterialTracker& Mate
 			{
 				SceneTracker.RemoveMaterial(DatasmithMaterial);
 			}
+		}
+	}
+
+	for (Texmap* Texture: MaterialTracker.GetActualTexmaps())
+	{
+		TSet<FMaterialTracker*>& MaterialTrackersForTexture = UsedTextureToMaterialTracker[Texture];
+		MaterialTrackersForTexture.Remove(&MaterialTracker);
+
+		if (!MaterialTrackersForTexture.Num()) // No tracked materials are using this texture anymore
+		{
+			UsedTextureToMaterialTracker.Remove(Texture);
+
+			for (const TSharedPtr<IDatasmithTextureElement>& TextureElement: UsedTextureToDatasmithElement[Texture])
+			{
+				SceneTracker.RemoveTexture(TextureElement);
+			}
+			UsedTextureToDatasmithElement.Remove(Texture);
 		}
 	}
 

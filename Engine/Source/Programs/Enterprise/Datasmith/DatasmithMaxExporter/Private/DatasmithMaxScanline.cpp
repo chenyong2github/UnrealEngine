@@ -452,7 +452,7 @@ FString FDatasmithMaxMatWriter::DumpAutodeskBitmap(TSharedPtr<IDatasmithComposit
 	return ActualBitmapName;
 }
 
-void FDatasmithMaxMatWriter::GetRegularTexmap(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex)
+void FDatasmithMaxMatWriter::GetRegularTexmap(TSharedRef< IDatasmithScene > DatasmithScene, BitmapTex* InBitmapTex, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements)
 {
 	if (!InBitmapTex)
 	{
@@ -487,9 +487,13 @@ void FDatasmithMaxMatWriter::GetRegularTexmap(TSharedRef< IDatasmithScene > Data
 
 	TextureElement->SetFile(*Path);
 	DatasmithScene->AddTexture(TextureElement);
+	if (OutTextureElements)
+	{
+		OutTextureElements->Add(TextureElement);
+	}
 }
 
-void FDatasmithMaxMatWriter::GetAutodeskTexmap(TSharedRef< IDatasmithScene > DatasmithScene, Texmap* InTexMap)
+void FDatasmithMaxMatWriter::GetAutodeskTexmap(TSharedRef< IDatasmithScene > DatasmithScene, Texmap* InTexMap, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements)
 {
 	if (PBBitmap* BitmapSourceFile = DatasmithMaxTexmapParser::ParseAutodeskBitmap(InTexMap).SourceFile)
 	{
@@ -527,6 +531,10 @@ void FDatasmithMaxMatWriter::GetAutodeskTexmap(TSharedRef< IDatasmithScene > Dat
 
 		TextureElement->SetFile(*Path);
 		DatasmithScene->AddTexture(TextureElement);
+		if (OutTextureElements)
+		{
+			OutTextureElements->Add(TextureElement);
+		}
 	}
 }
 
