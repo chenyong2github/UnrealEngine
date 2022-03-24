@@ -136,18 +136,18 @@ void AMediaPlate::Play()
 		MediaPlayer->PlayOnOpen = true;
 		MediaPlayer->SetLooping(bLoop);
 		
-		// Try and play the URL.
-		if (Url.FilePath.IsEmpty() == false)
+		// Try and play the media path.
+		if (MediaPath.FilePath.IsEmpty() == false)
 		{
 			// Is it a URL or a file?
-			bool bIsUrl = Url.FilePath.Contains(TEXT("://"));
+			bool bIsUrl = MediaPath.FilePath.Contains(TEXT("://"));
 			if (bIsUrl)
 			{
-				bIsPlaying = MediaPlayer->OpenUrl(Url.FilePath);
+				bIsPlaying = MediaPlayer->OpenUrl(MediaPath.FilePath);
 			}
 			else
 			{
-				bIsPlaying = MediaPlayer->OpenFile(Url.FilePath);
+				bIsPlaying = MediaPlayer->OpenFile(MediaPath.FilePath);
 			}
 		}
 

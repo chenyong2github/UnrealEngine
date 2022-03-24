@@ -39,8 +39,8 @@ private:
 
 	/** Stores our media source property. */
 	TSharedPtr<IPropertyHandle> MediaSourceProperty;
-	/** Stores our Url property. */
-	TSharedPtr<IPropertyHandle> UrlProperty;
+	/** Stores our media path property. */
+	TSharedPtr<IPropertyHandle> MediaPathProperty;
 
 	/**
 	 * Called when the open media plate button is pressed.
@@ -48,9 +48,9 @@ private:
 	FReply OnOpenMediaPlate();
 
 	/**
-	 * Called when Url changes.
+	 * Called when MediaPath changes.
 	 */
-	void OnUrlChanged(IDetailLayoutBuilder* DetailBuilder);
+	void OnMediaPathChanged(IDetailLayoutBuilder* DetailBuilder);
 
 };
 

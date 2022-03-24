@@ -37,25 +37,25 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	// Get media source property.
 	MediaSourceProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AMediaPlate, MediaSource));
 	
-	// Get Url property.
-	TSharedRef<IPropertyHandle> Property = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AMediaPlate, Url));
+	// Get media path property.
+	TSharedRef<IPropertyHandle> Property = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AMediaPlate, MediaPath));
 	if (Property->IsValidHandle())
 	{
-		UrlProperty = Property->GetChildHandle("FilePath");
-		if (UrlProperty->IsValidHandle())
+		MediaPathProperty = Property->GetChildHandle("FilePath");
+		if (MediaPathProperty->IsValidHandle())
 		{
 			if (MediaSourceProperty->IsValidHandle())
 			{
 				// Get a callback when this changes so we can hide the media source property.
 				FSimpleDelegate OnUrlChangedDelegate = FSimpleDelegate::CreateSP(this,
-					&FMediaPlateCustomization::OnUrlChanged, &DetailBuilder);
-				UrlProperty->SetOnPropertyValueChanged(OnUrlChangedDelegate);
+					&FMediaPlateCustomization::OnMediaPathChanged, &DetailBuilder);
+				MediaPathProperty->SetOnPropertyValueChanged(OnUrlChangedDelegate);
 
-				// Is the Url being used?
-				FString Url;
-				if (UrlProperty->GetValue(Url))
+				// Is the media path being used?
+				FString MediaPath;
+				if (MediaPathProperty->GetValue(MediaPath))
 				{
-					if (Url.IsEmpty() == false)
+					if (MediaPath.IsEmpty() == false)
 					{
 						// Yes, so hide the media source.
 						MediaSourceProperty->MarkHiddenByCustomization();
@@ -180,7 +180,7 @@ FReply FMediaPlateCustomization::OnOpenMediaPlate()
 	return FReply::Handled();
 }
 
-void FMediaPlateCustomization::OnUrlChanged(IDetailLayoutBuilder* DetailBuilder)
+void FMediaPlateCustomization::OnMediaPathChanged(IDetailLayoutBuilder* DetailBuilder)
 {
 	// Refresh the layout so we can show/hide the media source.
 	DetailBuilder->ForceRefreshDetails();
