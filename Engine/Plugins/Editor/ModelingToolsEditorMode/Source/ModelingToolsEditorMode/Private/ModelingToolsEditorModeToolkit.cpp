@@ -669,6 +669,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeMeshAttributeMapsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeMultiMeshAttributeMapsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeMeshAttributeVertexTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeRenderCaptureTool);
 	}
 	else if (PaletteIndex == UVTabName)
 	{

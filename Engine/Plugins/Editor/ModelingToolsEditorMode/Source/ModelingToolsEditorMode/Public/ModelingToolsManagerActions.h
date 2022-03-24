@@ -119,6 +119,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginAttributeEditorTool;
 	TSharedPtr<FUICommandInfo> BeginBakeMeshAttributeMapsTool;
 	TSharedPtr<FUICommandInfo> BeginBakeMultiMeshAttributeMapsTool;
+	TSharedPtr<FUICommandInfo> BeginBakeRenderCaptureTool;
 	TSharedPtr<FUICommandInfo> BeginBakeMeshAttributeVertexTool;
 	TSharedPtr<FUICommandInfo> BeginUVSeamEditTool;
 
