@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Buffers;
-using System.Security.Cryptography;
-using System.Text;
 using System.Buffers.Binary;
-using System.Diagnostics.CodeAnalysis;
 
 namespace EpicGames.Core
 {
@@ -28,7 +23,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Memory storing the digest data
 		/// </summary>
-		public ReadOnlyMemory<byte> Memory;
+		public ReadOnlyMemory<byte> Memory { get; }
 
 		/// <summary>
 		/// Span for the underlying memory
@@ -43,61 +38,61 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">Memory to construct from</param>
-		public Blake3Hash(ReadOnlyMemory<byte> Memory)
+		/// <param name="memory">Memory to construct from</param>
+		public Blake3Hash(ReadOnlyMemory<byte> memory)
 		{
-			if (Memory.Length != NumBytes)
+			if (memory.Length != NumBytes)
 			{
 				throw new ArgumentException($"Blake3Hash must be {NumBytes} bytes long");
 			}
 
-			this.Memory = Memory;
+			Memory = memory;
 		}
 
 		/// <summary>
 		/// Creates a content hash for a block of data, using a given algorithm.
 		/// </summary>
-		/// <param name="Data">Data to compute the hash for</param>
+		/// <param name="data">Data to compute the hash for</param>
 		/// <returns>New content hash instance containing the hash of the data</returns>
-		public static Blake3Hash Compute(ReadOnlySpan<byte> Data)
+		public static Blake3Hash Compute(ReadOnlySpan<byte> data)
 		{
-			byte[] Output = new byte[32];
-			Blake3.Hasher.Hash(Data, Output);
-			return new Blake3Hash(Output);
+			byte[] output = new byte[32];
+			Blake3.Hasher.Hash(data, output);
+			return new Blake3Hash(output);
 		}
 
 		/// <summary>
 		/// Parses a digest from the given hex string
 		/// </summary>
-		/// <param name="Text"></param>
+		/// <param name="text"></param>
 		/// <returns></returns>
-		public static Blake3Hash Parse(string Text)
+		public static Blake3Hash Parse(string text)
 		{
-			return new Blake3Hash(StringUtils.ParseHexString(Text));
+			return new Blake3Hash(StringUtils.ParseHexString(text));
 		}
 
 		/// <inheritdoc cref="IComparable{T}.CompareTo(T)"/>
-		public int CompareTo(Blake3Hash Other)
+		public int CompareTo(Blake3Hash other)
 		{
-			ReadOnlySpan<byte> A = Span;
-			ReadOnlySpan<byte> B = Other.Span;
+			ReadOnlySpan<byte> a = Span;
+			ReadOnlySpan<byte> b = other.Span;
 
-			for (int Idx = 0; Idx < A.Length && Idx < B.Length; Idx++)
+			for (int idx = 0; idx < a.Length && idx < b.Length; idx++)
 			{
-				int Compare = A[Idx] - B[Idx];
-				if (Compare != 0)
+				int compare = a[idx] - b[idx];
+				if (compare != 0)
 				{
-					return Compare;
+					return compare;
 				}
 			}
-			return A.Length - B.Length;
+			return a.Length - b.Length;
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(Blake3Hash Other) => Span.SequenceEqual(Other.Span);
+		public bool Equals(Blake3Hash other) => Span.SequenceEqual(other.Span);
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => (Obj is Blake3Hash Hash) && Hash.Span.SequenceEqual(Span);
+		public override bool Equals(object? obj) => (obj is Blake3Hash hash) && hash.Span.SequenceEqual(Span);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => BinaryPrimitives.ReadInt32LittleEndian(Span);
@@ -108,32 +103,32 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Test two hash values for equality
 		/// </summary>
-		public static bool operator ==(Blake3Hash A, Blake3Hash B) => A.Span.SequenceEqual(B.Span);
+		public static bool operator ==(Blake3Hash a, Blake3Hash b) => a.Span.SequenceEqual(b.Span);
 
 		/// <summary>
 		/// Test two hash values for equality
 		/// </summary>
-		public static bool operator !=(Blake3Hash A, Blake3Hash B) => !(A == B);
+		public static bool operator !=(Blake3Hash a, Blake3Hash b) => !(a == b);
 
 		/// <summary>
 		/// Tests whether A > B
 		/// </summary>
-		public static bool operator >(Blake3Hash A, Blake3Hash B) => A.CompareTo(B) > 0;
+		public static bool operator >(Blake3Hash a, Blake3Hash b) => a.CompareTo(b) > 0;
 
 		/// <summary>
 		/// Tests whether A is less than B
 		/// </summary>
-		public static bool operator <(Blake3Hash A, Blake3Hash B) => A.CompareTo(B) < 0;
+		public static bool operator <(Blake3Hash a, Blake3Hash b) => a.CompareTo(b) < 0;
 
 		/// <summary>
 		/// Tests whether A is greater than or equal to B
 		/// </summary>
-		public static bool operator >=(Blake3Hash A, Blake3Hash B) => A.CompareTo(B) >= 0;
+		public static bool operator >=(Blake3Hash a, Blake3Hash b) => a.CompareTo(b) >= 0;
 
 		/// <summary>
 		/// Tests whether A is less than or equal to B
 		/// </summary>
-		public static bool operator <=(Blake3Hash A, Blake3Hash B) => A.CompareTo(B) <= 0;
+		public static bool operator <=(Blake3Hash a, Blake3Hash b) => a.CompareTo(b) <= 0;
 	}
 
 	/// <summary>
@@ -144,21 +139,21 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Read an <see cref="Blake3Hash"/> from a memory reader
 		/// </summary>
-		/// <param name="Reader"></param>
+		/// <param name="reader"></param>
 		/// <returns></returns>
-		public static Blake3Hash ReadBlake3Hash(this MemoryReader Reader)
+		public static Blake3Hash ReadBlake3Hash(this MemoryReader reader)
 		{
-			return new Blake3Hash(Reader.ReadFixedLengthBytes(Blake3Hash.NumBytes));
+			return new Blake3Hash(reader.ReadFixedLengthBytes(Blake3Hash.NumBytes));
 		}
 
 		/// <summary>
 		/// Write an <see cref="Blake3Hash"/> to a memory writer
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Hash"></param>
-		public static void WriteBlake3Hash(this MemoryWriter Writer, Blake3Hash Hash)
+		/// <param name="writer"></param>
+		/// <param name="hash"></param>
+		public static void WriteBlake3Hash(this MemoryWriter writer, Blake3Hash hash)
 		{
-			Writer.WriteFixedLengthBytes(Hash.Span);
+			writer.WriteFixedLengthBytes(hash.Span);
 		}
 	}
 }
