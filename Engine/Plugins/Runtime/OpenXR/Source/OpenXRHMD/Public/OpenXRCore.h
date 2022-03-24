@@ -51,6 +51,11 @@ FORCEINLINE FVector ToFVector(XrVector3f Vector, float Scale = 1.0f)
 	return FVector(-Vector.z * Scale, Vector.x * Scale, Vector.y * Scale);
 }
 
+FORCEINLINE FVector3f ToFVector3f(XrVector3f Vector, float Scale = 1.0f)
+{
+	return FVector3f(-Vector.z * Scale, Vector.x * Scale, Vector.y * Scale);
+}
+
 FORCEINLINE XrVector3f ToXrVector(FVector Vector, float Scale = 1.0f)
 {
 	if (Vector.IsZero())

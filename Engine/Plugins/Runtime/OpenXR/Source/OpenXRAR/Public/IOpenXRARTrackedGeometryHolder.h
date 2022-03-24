@@ -97,7 +97,7 @@ struct FOpenXRMeshUpdate : public FOpenXRARTrackedGeometryData
 {
 	EARObjectClassification Type = EARObjectClassification::NotApplicable;
 	EARSpatialMeshUsageFlags SpatialMeshUsageFlags = EARSpatialMeshUsageFlags::NotApplicable;
-	TArray<FVector> Vertices;
+	TArray<FVector3f> Vertices;
 	TArray<MRMESH_INDEX_TYPE> Indices;
 
 	FOpenXRMeshUpdate() :
