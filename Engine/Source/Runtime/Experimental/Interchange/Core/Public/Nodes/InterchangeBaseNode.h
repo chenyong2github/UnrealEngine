@@ -393,7 +393,7 @@ public:
 	template<typename AttributeType>
 	AttributeType GetAttributeChecked(const FString& NodeAttributeKey) const
 	{
-		AttributeType Value;
+		AttributeType Value = AttributeType();
 		check(HasAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey)));
 		UE::Interchange::FAttributeStorage::TAttributeHandle<AttributeType> Handle = GetAttributeHandle<AttributeType>(UE::Interchange::FAttributeKey(NodeAttributeKey));
 		check(Handle.IsValid());

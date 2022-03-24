@@ -414,9 +414,9 @@ namespace UE::Interchange::Private
 		FGetFbxTransformCurvesParameters(FbxScene* InSDKScene, FbxNode* InNode)
 		{
 			SDKScene = InSDKScene;
-			ensure(SDKScene);
+			check(SDKScene);
 			Node = InNode;
-			ensure(Node);
+			check(Node);
 		}
 
 		FbxScene* SDKScene = nullptr;
@@ -432,7 +432,10 @@ namespace UE::Interchange::Private
 
 	void GetFbxTransformCurves(FGetFbxTransformCurvesParameters& Parameters)
 	{
-		ensure(Parameters.SDKScene);
+		if (!ensure(Parameters.SDKScene) || !ensure(Parameters.Node))
+		{
+			return;
+		}
 		//Get the node transform curve keys, the transform components are separate into float curve
 		//Translation X
 		//Translation Y
