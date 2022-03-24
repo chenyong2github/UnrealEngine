@@ -28,6 +28,8 @@ static bool IsSkeletalMeshRayTracingSupported()
 }
 #endif // RHI_RAYTRACING
 
+static TAutoConsoleVariable<bool> CVarSkeletalMeshClothBlendEnabled(TEXT("r.SkeletalMeshClothBlend.Enabled"), true, TEXT("Enable the use of the cloth blend weight value set by the skeletal mesh component. When disabled all cloth blend weight will become 0."));
+
 /*-----------------------------------------------------------------------------
 FSkeletalMeshObject
 -----------------------------------------------------------------------------*/
@@ -442,5 +444,10 @@ void UpdatePreviousRefToLocalMatrices(TArray<FMatrix44f>& ReferenceToLocal, cons
 		return;
 	}
 	UpdateRefToLocalMatricesInner(ReferenceToLocal, ComponentTransform, BoneVisibilityStates, (bIsMasterCompValid) ? &MasterBoneMap : nullptr, RefBasesInvMatrix, RefSkeleton, InSkeletalMeshRenderData, LODIndex, ExtraRequiredBoneIndices);
+}
+
+bool IsSkeletalMeshClothBlendEnabled()
+{
+	return CVarSkeletalMeshClothBlendEnabled.GetValueOnAnyThread();
 }
 

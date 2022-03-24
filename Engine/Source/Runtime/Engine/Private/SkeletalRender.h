@@ -105,4 +105,9 @@ static FORCEINLINE void Pack4(VectorRegister4Double Normal, uint32* PackedNormal
 	VectorStoreSignedByte4(MakeVectorRegisterFloatFromDouble(Normal), PackedNormal);
 }
 
+/**
+* Returns true if the cloth blend weight defined in the SkeletalMeshComponent should be used by skin rendereding.
+*/
+bool IsSkeletalMeshClothBlendEnabled();
+
 

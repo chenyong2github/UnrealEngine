@@ -2340,7 +2340,7 @@ bool FDynamicSkelMeshObjectDataGPUSkin::UpdateClothSimulationData(USkinnedMeshCo
 		}
 
 		ClothObjectLocalToWorld = SrcComponent->GetComponentToWorld().ToMatrixWithScale();
-		ClothBlendWeight = SimMeshComponent->ClothBlendWeight;
+		ClothBlendWeight = IsSkeletalMeshClothBlendEnabled() ? SimMeshComponent->ClothBlendWeight : 0.0f;
 		ClothingSimData = SimMeshComponent->GetCurrentClothingData_AnyThread();
 		return true;
 	}
@@ -2355,7 +2355,7 @@ bool FDynamicSkelMeshObjectDataGPUSkin::UpdateClothSimulationData(USkinnedMeshCo
 		}
 		else
 		{
-			ClothBlendWeight = SimMeshComponent->ClothBlendWeight;
+			ClothBlendWeight = IsSkeletalMeshClothBlendEnabled() ? SimMeshComponent->ClothBlendWeight : 0.0f;
 			ClothingSimData = SimMeshComponent->GetCurrentClothingData_AnyThread();
 		}
 
