@@ -11,8 +11,7 @@ enum class ESoundwaveSampleRateSettings : uint8
 	Medium,
 	Low,
 	Min,
-	// Use this setting to resample soundwaves to the device's sample rate to avoid having to perform sample rate conversion at runtime.
-	MatchDevice
+	MatchDevice_DEPRECATED
 };
 
 /************************************************************************/
