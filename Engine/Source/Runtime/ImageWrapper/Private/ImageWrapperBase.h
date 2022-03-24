@@ -112,17 +112,14 @@ protected:
 	TArray64<uint8> CompressedData;
 
 	/** Format of the raw data */
+	// @@!! two format vars ugh
+	ERGBFormat Format;
 	ERGBFormat RawFormat;
+	int8 BitDepth;
 	int8 RawBitDepth;
 
 	/** Bytes per row for the raw data */
-	int32 RawBytesPerRow;
-
-	/** Format of the image */
-	ERGBFormat Format;
-
-	/** Bit depth of the image */
-	int8 BitDepth;
+	int32 RawBytesPerRow; // @@!! not supported, remove me
 
 	/** Width/Height of the image data */
 	int32 Width;

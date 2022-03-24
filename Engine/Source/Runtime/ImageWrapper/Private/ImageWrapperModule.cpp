@@ -14,6 +14,9 @@
 #include "Formats/PngImageWrapper.h"
 #include "Formats/TgaImageWrapper.h"
 #include "Formats/TiffImageWrapper.h"
+#include "Formats/DdsImageWrapper.h"
+
+#include "DDSFile.h"
 
 #include "IImageWrapperModule.h"
 
@@ -126,6 +129,10 @@ public:
 			break;
 #endif // WITH_LIBTIFF
 
+		case EImageFormat::DDS:
+			ImageWrapper = MakeShared<FDdsImageWrapper>();
+			break;
+
 		default:
 			break;
 		}
@@ -177,6 +184,10 @@ public:
 		{
 			Format = EImageFormat::TGA;
 		}
+		else if ( UE::DDS::FDDSFile::IsADDS((const uint8 *)CompressedData, CompressedSize) )
+		{
+			Format = EImageFormat::DDS;
+		}
 
 		return Format;
 	}
@@ -195,6 +206,7 @@ public:
 		case EImageFormat::TGA: return TEXT("tga");
 		case EImageFormat::HDR: return TEXT("hdr");
 		case EImageFormat::TIFF: return TEXT("tiff");
+		case EImageFormat::DDS: return TEXT("dds");
 		case EImageFormat::Invalid:
 		default:
 			check(0);
@@ -246,6 +258,10 @@ public:
 			 FCString::Stricmp(Name,TEXT("tif")) == 0 )
 		{
 			return EImageFormat::TIFF;
+		}
+		else if ( FCString::Stricmp(Name,TEXT("dds")) == 0 )
+		{
+			return EImageFormat::DDS;
 		}
 		else
 		{

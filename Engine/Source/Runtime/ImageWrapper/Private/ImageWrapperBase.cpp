@@ -8,11 +8,11 @@
  *****************************************************************************/
 
 FImageWrapperBase::FImageWrapperBase()
-	: RawFormat(ERGBFormat::Invalid)
+	: Format(ERGBFormat::Invalid)
+	, RawFormat(ERGBFormat::Invalid)
+	, BitDepth(0)
 	, RawBitDepth(0)
 	, RawBytesPerRow(0)
-	, Format(ERGBFormat::Invalid)
-	, BitDepth(0)
 	, Width(0)
 	, Height(0)
 { }
@@ -25,6 +25,7 @@ void FImageWrapperBase::Reset()
 {
 	LastError.Empty();
 	
+	//@@!!
 	// not reset ?
 	//TArray64<uint8> RawData;
 	//TArray64<uint8> CompressedData;
@@ -62,25 +63,31 @@ bool FImageWrapperBase::GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArr
 	LastError.Empty();
 	Uncompress(InFormat, InBitDepth);
 
-	if (LastError.IsEmpty())
+	if ( ! LastError.IsEmpty())
 	{
-		OutRawData = MoveTemp(RawData);
-		if ( OutRawData.IsEmpty() )
-		{
-			return false;
-		}
+		return false;
+	}
+	
+	if ( RawData.IsEmpty() )
+	{
+		return false;
 	}
 
-	return LastError.IsEmpty();
+	OutRawData = MoveTemp(RawData);
+	
+	return true;
 }
 
 
 bool FImageWrapperBase::SetCompressed(const void* InCompressedData, int64 InCompressedSize)
 {
+	Reset();
+	RawData.Empty();			// Invalidates the raw data too
+
 	if(InCompressedSize > 0 && InCompressedData != nullptr)
 	{
-		Reset();
-		RawData.Empty();			// Invalidates the raw data too
+		// this is usually an unnecessary allocation and copy
+		// we should decompress directly from the source buffer
 
 		CompressedData.Empty(InCompressedSize);
 		CompressedData.AddUninitialized(InCompressedSize);
@@ -109,6 +116,9 @@ bool FImageWrapperBase::SetRaw(const void* InRawData, int64 InRawSize, const int
 		UE_LOG(LogImageWrapper, Warning, TEXT("ImageWrapper unsupported format; check CanSetRawFormat; %d x %d"), (int)InFormat,InBitDepth);
 		return false;
 	}
+	
+	// this is usually an unnecessary allocation and copy
+	// we should compress directly from the source buffer
 
 	RawData.Empty(InRawSize);
 	RawData.AddUninitialized(InRawSize);
@@ -117,6 +127,9 @@ bool FImageWrapperBase::SetRaw(const void* InRawData, int64 InRawSize, const int
 	RawFormat = InFormat;
 	RawBitDepth = InBitDepth;
 	RawBytesPerRow = InBytesPerRow;
+
+	Format = RawFormat;
+	BitDepth = RawBitDepth;
 
 	Width = InWidth;
 	Height = InHeight;
@@ -205,7 +218,8 @@ ERawImageFormat::Type IImageWrapper::ConvertRGBFormat(ERGBFormat RGBFormat,int B
 		else if ( BitDepth == 32 )
 		{
 			*bIsExactMatch = false; // no single channel F32
-			return ERawImageFormat::RGBA32F; // promote F32 to 4xF32
+			return ERawImageFormat::RGBA32F; // promote F32 to 4xF32 for no quality loss (alternative is 1xF16)
+			//@todo Oodle: add ERawImageFormat::R32F ?
 		}
 		break;
 

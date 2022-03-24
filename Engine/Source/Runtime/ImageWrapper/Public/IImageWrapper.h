@@ -45,6 +45,9 @@ enum class EImageFormat : int8
 
 	/** Tag Image File Format files */
 	TIFF,
+
+	/** DirectDraw Surface */
+	DDS,
 };
 
 
