@@ -22,6 +22,8 @@ class FNetFieldExportGroup;
 class FOutBunch;
 class UNetConnection;
 
+namespace UE::Net { struct FSubObjectRegistry;  }
+
 enum class ESetChannelActorFlags : uint32
 {
 	None					= 0,
