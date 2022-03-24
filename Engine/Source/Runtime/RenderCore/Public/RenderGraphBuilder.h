@@ -296,7 +296,7 @@ public:
 	FRDGBlackboard Blackboard;
 
 #if RDG_DUMP_RESOURCES
-	static FString BeginResourceDump(const TArray<FString>& Args);
+	static FString BeginResourceDump(const TCHAR* Cmd);
 	static void InitResourceDump();
 	static void EndResourceDump();
 	static bool IsDumpingFrame();

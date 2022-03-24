@@ -15,6 +15,7 @@ const k_null_json_ptr = "0000000000000000";
 
 // -------------------------------------------------------------------- GLOBALS
 
+var g_dump_service = {};
 var g_infos = {};
 var g_dump_cvars = {};
 var g_passes = [];
@@ -150,11 +151,11 @@ function load_resource_binary_file(relative_path, callback)
 	return load_binary_file(relative_path, function(raw_texture_data)
 	{
 		var compression_type = '';
-		if (g_dump_cvars['r.DumpGPU.CompressResources'] == '1')
+		if (g_dump_service['CompressionName'] == 'Zlib')
 		{
 			compression_type = 'deflate';
 		}
-		else if (g_dump_cvars['r.DumpGPU.CompressResources'] == '2')
+		else if (g_dump_service['CompressionName'] == 'GZip')
 		{
 			compression_type = 'gzip';
 		}
@@ -3910,9 +3911,13 @@ function init_top_buttons()
 
 function init_page()
 {
+	// Load the dump service information to know how to read files. This is independent of Base/Infos.json because may depends whether it was uploaded through the DumpGPUServices plugin.
+	g_dump_service = load_json('Base/DumpService.json');
+
 	// Load the base information of the page.
 	g_infos = load_json('Base/Infos.json');
-	if (!g_infos)
+
+	if (!g_dump_service || !g_infos)
 	{
 		document.body.innerHTML = 'Please use OpenGPUDumpViewer script for the viewer to work correctly.';
 		return;

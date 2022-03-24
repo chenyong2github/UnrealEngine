@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "DumpGPU.h"
 #include "RenderGraph.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformMisc.h"
@@ -16,6 +17,32 @@
 #include "RenderGraphUtils.h"
 #include "GlobalShader.h"
 #include "RHIValidation.h"
+
+
+IDumpGPUUploadServiceProvider* IDumpGPUUploadServiceProvider::GProvider = nullptr;
+
+FString IDumpGPUUploadServiceProvider::FDumpParameters::DumpServiceParametersFileContent() const
+{
+	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+	JsonObject->SetStringField(TEXT("Type"), *Type);
+	JsonObject->SetStringField(TEXT("Time"), *Time);
+	JsonObject->SetStringField(TEXT("CompressionName"), *CompressionName.ToString());
+	JsonObject->SetStringField(TEXT("CompressionFiles"), *CompressionFiles);
+
+	FString OutputString;
+	TSharedRef<TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>> Writer = TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&OutputString);
+	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
+
+	return OutputString;
+}
+
+bool IDumpGPUUploadServiceProvider::FDumpParameters::DumpServiceParametersFile() const
+{
+	FString FileName = LocalPath / kServiceFileName;
+	FString OutputString = DumpServiceParametersFileContent();
+
+	return FFileHelper::SaveStringToFile(OutputString, *FileName);
+}
 
 #if RDG_DUMP_RESOURCES
 
@@ -69,14 +96,6 @@ static TAutoConsoleVariable<int32> GDumpRenderingConsoleVariablesCVar(
 	TEXT("Whether to dump rendering console variables (enabled by default)."),
 	ECVF_Default);
 
-static TAutoConsoleVariable<int32> GDumpGPUCompressResources(
-	TEXT("r.DumpGPU.CompressResources"), 0,
-	TEXT("Whether to compress resource binary.\n")
-	TEXT(" 0: Disabled (default)\n")
-	TEXT(" 1: Zlib\n")
-	TEXT(" 2: GZip"),
-	ECVF_Default);
-
 static TAutoConsoleVariable<int32> GDumpTestEnableDiskWrite(
 	TEXT("r.DumpGPU.Test.EnableDiskWrite"), 1,
 	TEXT("Master switch whether any files should be written to disk, used for r.DumpGPU automation tests to not fill up workers' hard drive."),
@@ -90,6 +109,19 @@ static TAutoConsoleVariable<int32> GDumpTestPrettifyResourceFileNames(
 static TAutoConsoleVariable<FString> GDumpGPUDirectoryCVar(
 	TEXT("r.DumpGPU.Directory"), TEXT(""),
 	TEXT("Directory to dump to."),
+	ECVF_Default);
+
+static TAutoConsoleVariable<int32> GDumpGPUUploadCVar(
+	TEXT("r.DumpGPU.Upload"), 1,
+	TEXT("Allows to upload the GPU dump automatically if set-up."),
+	ECVF_Default);
+
+static TAutoConsoleVariable<int32> GDumpGPUUploadCompressResources(
+	TEXT("r.DumpGPU.Upload.CompressResources"), 1,
+	TEXT("Whether to compress resource binary.\n")
+	TEXT(" 0: Disabled (default)\n")
+	TEXT(" 1: Zlib\n")
+	TEXT(" 2: GZip"),
 	ECVF_Default);
 
 // Although this cvar does not seams used in the C++ code base, it is dumped by DumpRenderingCVarsToCSV() and used by GPUDumpViewer.html.
@@ -149,7 +181,8 @@ struct FRDGResourceDumpContext
 	static constexpr const TCHAR* kStructuresMetadataDir = TEXT("StructuresMetadata/");
 
 	bool bEnableDiskWrite = false;
-	FName ResourceCompressionName;
+	bool bUpload = false;
+	FName UploadResourceCompressionName;
 	FString DumpingDirectoryPath;
 	FDateTime Time;
 	FGenericPlatformMemoryConstants MemoryConstants;
@@ -168,7 +201,6 @@ struct FRDGResourceDumpContext
 	int64 MetadataFilesWriteBytes = 0;
 	int32 ResourceBinaryFilesOpened = 0;
 	int64 ResourceBinaryWriteBytes = 0;
-	int64 ResourceBinaryUncompressedBytes = 0;
 
 	enum class ETimingBucket : uint8
 	{
@@ -176,7 +208,6 @@ struct FRDGResourceDumpContext
 		RHIReleaseResources,
 		GPUWait,
 		CPUPostProcessing,
-		CPUCompression,
 		MetadataFileWrite,
 		ResourceBinaryFileWrite,
 		MAX
@@ -237,6 +268,15 @@ struct FRDGResourceDumpContext
 		{
 			TimingBucket[i] = 0.0f;
 		}
+	}
+
+	IDumpGPUUploadServiceProvider::FDumpParameters GetDumpParameters() const
+	{
+		IDumpGPUUploadServiceProvider::FDumpParameters DumpServiceParameters;
+		DumpServiceParameters.Type = TEXT("DumpGPU");
+		DumpServiceParameters.LocalPath = DumpingDirectoryPath;
+		DumpServiceParameters.Time = Time.ToString();
+		return DumpServiceParameters;
 	}
 
 	bool IsDumpingFrame() const
@@ -313,47 +353,14 @@ struct FRDGResourceDumpContext
 		return !Ar->IsError() && !Ar->IsCriticalError();
 	}
 
-	bool IsResourceBinaryCompressable(int64 UncompressedSize) const
-	{
-		return !ResourceCompressionName.IsNone() && (UncompressedSize < (int64(1) << int64(32)));
-	}
-
 	bool DumpResourceBinaryToFile(const uint8* UncompressedData, int64 UncompressedSize, const FString& FileName)
 	{
-		ResourceBinaryUncompressedBytes += UncompressedSize;
-
-		if (!IsResourceBinaryCompressable(UncompressedSize))
-		{
-			return DumpBinaryToFile(UncompressedData, UncompressedSize, FileName);
-		}
-
-		int32 CompressedSize;
-		TArray64<uint8> CompressedArray;
-		{
-			FTimeBucketMeasure TimeBucketMeasure(this, ETimingBucket::CPUCompression);
-
-			int32 MaxCompressedSize = FCompression::CompressMemoryBound(ResourceCompressionName, UncompressedSize, COMPRESS_BiasSize);
-			CompressedArray.SetNumUninitialized(MaxCompressedSize);
-
-			CompressedSize = MaxCompressedSize;
-			bool bSuccess = FCompression::CompressMemory(
-				ResourceCompressionName,
-				/* out */ CompressedArray.GetData(), /* out */ CompressedSize,
-				UncompressedData, UncompressedSize,
-				COMPRESS_BiasSize);
-		}
-
-		return DumpBinaryToFile(CompressedArray.GetData(), CompressedSize, FileName);
+		return DumpBinaryToFile(UncompressedData, UncompressedSize, FileName);
 	}
 
 	bool IsUnsafeToDumpResource(SIZE_T ResourceByteSize, float DumpMemoryMultiplier) const
 	{
 		uint64 AproximatedStagingMemoryRequired = uint64(double(ResourceByteSize) * DumpMemoryMultiplier);
-		if (IsResourceBinaryCompressable(ResourceByteSize))
-		{
-			AproximatedStagingMemoryRequired += FCompression::CompressMemoryBound(ResourceCompressionName, ResourceByteSize, COMPRESS_BiasSize);
-		}
-
 		uint64 MaxMemoryAvailable = FMath::Min(MemoryStats.AvailablePhysical, MemoryStats.AvailableVirtual);
 
 		return AproximatedStagingMemoryRequired > MaxMemoryAvailable;
@@ -1364,13 +1371,48 @@ void FRDGBuilder::InitResourceDump()
 	}
 }
 
-FString FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
+FString FRDGBuilder::BeginResourceDump(const TCHAR* Cmd)
 {
 	check(IsInGameThread());
 
 	if (DumpingFrameCounter_GameThread != 0)
 	{
 		return FString();
+	}
+
+	TArray<FString> Tokens;
+	TArray<FString> Switches;
+	TMap<FString, FString> Parameters;
+	{
+		const TCHAR* LocalCmd = Cmd;
+
+		FString NextToken;
+		while (FParse::Token(LocalCmd, NextToken, false))
+		{
+			if (**NextToken == TCHAR('-'))
+			{
+				new(Switches) FString(NextToken.Mid(1));
+			}
+			else
+			{
+				new(Tokens) FString(NextToken);
+			}
+		}
+
+		for (int32 SwitchIdx = Switches.Num() - 1; SwitchIdx >= 0; --SwitchIdx)
+		{
+			FString& Switch = Switches[SwitchIdx];
+			TArray<FString> SplitSwitch;
+
+			// Remove Bar=1 from the switch list and put it in params as {Bar,1}.
+			// Note: Handle nested equality such as Bar="Key=Value"
+			int32 AssignmentIndex = 0;
+			if (Switch.FindChar(TEXT('='), AssignmentIndex))
+			{
+				Parameters.Add(Switch.Left(AssignmentIndex), Switch.RightChop(AssignmentIndex + 1).TrimQuotes());
+				Switches.RemoveAt(SwitchIdx);
+			}
+		}
 	}
 
 	FRDGResourceDumpContext NewResourceDumpContext;
@@ -1396,17 +1438,36 @@ FString FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
 		NewResourceDumpContext.DumpingDirectoryPath = DirectoryPath / FApp::GetProjectName() + TEXT("-") + FPlatformProperties::PlatformName() + TEXT("-") + NewResourceDumpContext.Time.ToString() + TEXT("/");
 	}
 	NewResourceDumpContext.bEnableDiskWrite = GDumpTestEnableDiskWrite.GetValueOnGameThread() != 0;
+
+	if (Switches.Contains(TEXT("upload")))
 	{
-		if (GDumpGPUCompressResources.GetValueOnGameThread() == 1)
+		if (!IDumpGPUUploadServiceProvider::GProvider || !NewResourceDumpContext.bEnableDiskWrite)
 		{
-			NewResourceDumpContext.ResourceCompressionName = NAME_Zlib;
+			UE_LOG(LogRendererCore, Warning, TEXT("DumpGPU upload services are not set up."));
 		}
-		else if (GDumpGPUCompressResources.GetValueOnGameThread() == 2)
+		else if (GDumpGPUUploadCVar.GetValueOnGameThread() == 0)
 		{
-			NewResourceDumpContext.ResourceCompressionName = NAME_Gzip;
+			UE_LOG(LogRendererCore, Warning, TEXT("DumpGPU upload services are not available because r.DumpGPU.Upload=0."));
+		}
+		else
+		{
+			NewResourceDumpContext.bUpload = true;
 		}
 	}
-	NewResourceDumpContext.bShowInExplore = NewResourceDumpContext.bEnableDiskWrite && GDumpExploreCVar.GetValueOnGameThread() != 0;
+
+	if (NewResourceDumpContext.bUpload)
+	{
+		if (GDumpGPUUploadCompressResources.GetValueOnGameThread() == 1)
+		{
+			NewResourceDumpContext.UploadResourceCompressionName = NAME_Zlib;
+		}
+		else if (GDumpGPUUploadCompressResources.GetValueOnGameThread() == 2)
+		{
+			NewResourceDumpContext.UploadResourceCompressionName = NAME_Gzip;
+		}
+	}
+
+	NewResourceDumpContext.bShowInExplore = NewResourceDumpContext.bEnableDiskWrite && GDumpExploreCVar.GetValueOnGameThread() != 0 && !NewResourceDumpContext.bUpload;
 	NewResourceDumpContext.MemoryConstants = FPlatformMemory::GetConstants();
 	NewResourceDumpContext.MemoryStats = FPlatformMemory::GetStats();
 
@@ -1423,6 +1484,12 @@ FString FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
 		NewResourceDumpContext.DumpStringToFile(TEXT(""), FString(FRDGResourceDumpContext::kBaseDir) / TEXT("Passes.json"));
 		NewResourceDumpContext.DumpStringToFile(TEXT(""), FString(FRDGResourceDumpContext::kBaseDir) / TEXT("ResourceDescs.json"));
 		NewResourceDumpContext.DumpStringToFile(TEXT(""), FString(FRDGResourceDumpContext::kBaseDir) / TEXT("PassDrawCounts.json"));
+	}
+
+	// Dump service parameters so GPUDumpViewer.html remain compatible when not using upload provider.
+	if (NewResourceDumpContext.bEnableDiskWrite)
+	{
+		NewResourceDumpContext.GetDumpParameters().DumpServiceParametersFile();
 	}
 
 	// Output informations
@@ -1555,19 +1622,6 @@ void FRDGBuilder::EndResourceDump()
 		UE_LOG(LogRendererCore, Display, TEXT("Dumped GPU readback commands: %.3f s"), float(RHIReadbackCommandsSeconds));
 		UE_LOG(LogRendererCore, Display, TEXT("Dumped GPU wait: %.3f s"), float(GPUWaitSeconds));
 		UE_LOG(LogRendererCore, Display, TEXT("Dumped CPU resource binary post processing: %.3f s"), float(CPUPostProcessingSeconds));
-		if (!GRDGResourceDumpContext.ResourceCompressionName.IsNone())
-		{
-			double CPUCompressionSeconds = GRDGResourceDumpContext.TimingBucket[int32(FRDGResourceDumpContext::ETimingBucket::CPUCompression)];
-
-			UE_LOG(LogRendererCore, Display, TEXT("Dumped CPU resource binary compression from %.3f MB to %.3f MB (%.1f %%) using %s"),
-				float(GRDGResourceDumpContext.ResourceBinaryUncompressedBytes) / float(1024 * 1024),
-				float(GRDGResourceDumpContext.ResourceBinaryWriteBytes) / float(1024 * 1024),
-				100.0f * float(GRDGResourceDumpContext.ResourceBinaryWriteBytes) / float(GRDGResourceDumpContext.ResourceBinaryUncompressedBytes),
-				*GRDGResourceDumpContext.ResourceCompressionName.ToString());
-			UE_LOG(LogRendererCore, Display, TEXT("Dumped CPU resource binary compression took %.3f s at %.3f MB/s"),
-				float(CPUCompressionSeconds),
-				float(GRDGResourceDumpContext.ResourceBinaryUncompressedBytes) / (float(1024 * 1024) * float(CPUCompressionSeconds)));
-		}
 		UE_LOG(LogRendererCore, Display, TEXT("Dumped metadata: %.3f MB in %d files under %.3f s at %.3f MB/s"),
 			float(GRDGResourceDumpContext.MetadataFilesWriteBytes) / float(1024 * 1024),
 			GRDGResourceDumpContext.MetadataFilesOpened,
@@ -1590,6 +1644,20 @@ void FRDGBuilder::EndResourceDump()
 			GLog->Flush();
 		}
 		FGenericCrashContext::DumpLog(GRDGResourceDumpContext.DumpingDirectoryPath / FRDGResourceDumpContext::kBaseDir);
+	}
+
+	if (GRDGResourceDumpContext.bUpload && IDumpGPUUploadServiceProvider::GProvider)
+	{
+		IDumpGPUUploadServiceProvider::FDumpParameters DumpCompletedParameters = GRDGResourceDumpContext.GetDumpParameters();
+
+		// Compress the resource binary in background before uploading.
+		if (!GRDGResourceDumpContext.UploadResourceCompressionName.IsNone())
+		{
+			DumpCompletedParameters.CompressionName = GRDGResourceDumpContext.UploadResourceCompressionName;
+			DumpCompletedParameters.CompressionFiles = FWildcardString(TEXT("*.bin"));
+		}
+
+		IDumpGPUUploadServiceProvider::GProvider->UploadDump(DumpCompletedParameters);
 	}
 
 	#if PLATFORM_DESKTOP

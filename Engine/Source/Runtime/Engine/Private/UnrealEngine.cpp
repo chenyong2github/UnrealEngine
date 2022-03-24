@@ -5592,7 +5592,7 @@ bool UEngine::HandleDumpGPUCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 
 	check(IsInGameThread());
 	TArray<FString> Args;
-	FString ResourceDumpDirectory = FRDGBuilder::BeginResourceDump(Args);
+	FString ResourceDumpDirectory = FRDGBuilder::BeginResourceDump(Cmd);
 
 	if (!ResourceDumpDirectory.IsEmpty())
 	{
