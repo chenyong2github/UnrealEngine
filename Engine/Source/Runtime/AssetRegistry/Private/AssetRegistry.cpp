@@ -2267,6 +2267,16 @@ TOptional<FAssetPackageData> UAssetRegistryImpl::GetAssetPackageDataCopy(FName P
 	return AssetPackageData ? *AssetPackageData : TOptional<FAssetPackageData>();
 }
 
+void UAssetRegistryImpl::EnumerateAllPackages(TFunctionRef<void(FName PackageName, const FAssetPackageData& PackageData)> Callback) const
+{
+	FReadScopeLock InterfaceScopeLock(InterfaceLock);
+	for (const TPair<FName, const FAssetPackageData*>& Pair : GuardedData.GetState().GetAssetPackageDataMap())
+	{
+		Callback(Pair.Key, *Pair.Value);
+	}
+}
+
+
 bool UAssetRegistryImpl::DoesPackageExistOnDisk(FName PackageName, FString* OutCorrectCasePackageName, FString* OutExtension) const
 {
 	auto CalculateExtension = [](const FString& PackageNameStr, TConstArrayView<FAssetData> Assets) -> FString
