@@ -1189,6 +1189,8 @@ bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice&
 	}
 	else if( FParse::Command(&Str, TEXT("HighResShot") ) )
 	{
+		// this is HighResShot from the Editor NOT in PIE
+		// Editor PIE HighResShot is in GameViewportClient
 		if (GetHighResScreenshotConfig().ParseConsoleCommand(Str, Ar))
 		{
 			TakeHighResScreenShots();

@@ -1964,21 +1964,31 @@ bool UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 				// Clip the bitmap to just the capture region if valid
 				if (!SourceRect.IsEmpty())
 				{
-					FColor* const Data = Bitmap.GetData();
 					const int32 OldWidth = Size.X;
 					const int32 OldHeight = Size.Y;
-					const int32 NewWidth = SourceRect.Width();
-					const int32 NewHeight = SourceRect.Height();
-					const int32 CaptureTopRow = SourceRect.Min.Y;
-					const int32 CaptureLeftColumn = SourceRect.Min.X;
-
-					for (int32 Row = 0; Row < NewHeight; Row++)
+					
+					//clamp in bounds:
+					int CaptureMinX = FMath::Clamp(SourceRect.Min.X,0,OldWidth);
+					int CaptureMinY = FMath::Clamp(SourceRect.Min.Y,0,OldHeight);
+				
+					int CaptureMaxX = FMath::Clamp(SourceRect.Max.X,0,OldWidth);
+					int CaptureMaxY = FMath::Clamp(SourceRect.Max.Y,0,OldHeight);
+				
+					int32 NewWidth  = CaptureMaxX - CaptureMinX;
+					int32 NewHeight = CaptureMaxY - CaptureMinY;
+ 
+					if ( NewWidth > 0 && NewHeight > 0 )
 					{
-						FMemory::Memmove(Data + Row * NewWidth, Data + (Row + CaptureTopRow) * OldWidth + CaptureLeftColumn, NewWidth * sizeof(*Data));
-					}
+						FColor* const Data = Bitmap.GetData();
 
-					Bitmap.RemoveAt(NewWidth * NewHeight, OldWidth * OldHeight - NewWidth * NewHeight, false);
-					Size = FIntVector(NewWidth, NewHeight, 0);
+						for (int32 Row = 0; Row < NewHeight; Row++)
+						{
+							FMemory::Memmove(Data + Row * NewWidth, Data + (Row + CaptureMinY) * OldWidth + CaptureMinX, NewWidth * sizeof(*Data));
+						}
+
+						Bitmap.RemoveAt(NewWidth * NewHeight, OldWidth * OldHeight - NewWidth * NewHeight, false);
+						Size = FIntVector(NewWidth, NewHeight, 0);
+					}
 				}
 
 				if ( FPaths::GetExtension(ScreenShotName).IsEmpty() )
