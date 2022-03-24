@@ -175,7 +175,7 @@ void FPCGEditor::SelectAllNodes()
 	}
 }
 
-bool FPCGEditor::CanSelectAllNodes()
+bool FPCGEditor::CanSelectAllNodes() const
 {
 	return GraphEditorWidget.IsValid();
 }
@@ -190,16 +190,38 @@ void FPCGEditor::DeleteSelectedNodes()
 		for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 		{
 			UPCGEditorGraphNode* PCGEditorGraphNode = CastChecked<UPCGEditorGraphNode>(Object);
-			UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
-			check(PCGNode);
 
-			PCGGraph->RemoveNode(PCGNode);
-			PCGEditorGraphNode->DestroyNode();
+			if (PCGEditorGraphNode->CanUserDeleteNode())
+			{
+				UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
+				check(PCGNode);
+
+				PCGGraph->RemoveNode(PCGNode);
+				PCGEditorGraphNode->DestroyNode();
+			}
 		}
 
 		GraphEditorWidget->ClearSelectionSet();
 		GraphEditorWidget->NotifyGraphChanged();
 	}
+}
+
+bool FPCGEditor::CanDeleteSelectedNodes() const
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
+		{
+			UPCGEditorGraphNode* PCGEditorGraphNode = CastChecked<UPCGEditorGraphNode>(Object);
+
+			if (PCGEditorGraphNode->CanUserDeleteNode())
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 void FPCGEditor::OnAlignTop()
@@ -284,8 +306,8 @@ TSharedRef<SGraphEditor> FPCGEditor::CreateGraphEditorWidget()
 		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanSelectAllNodes));
 
 	GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
-		FExecuteAction::CreateSP(this, &FPCGEditor::DeleteSelectedNodes)
-	);
+		FExecuteAction::CreateSP(this, &FPCGEditor::DeleteSelectedNodes),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanDeleteSelectedNodes));
 
 	// Alignment Commands
 	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesTop,

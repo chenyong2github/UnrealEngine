@@ -32,10 +32,12 @@ private:
 	/** Select every node in the graph */
 	void SelectAllNodes();
 	/** Whether we can select every node */
-	bool CanSelectAllNodes();
+	bool CanSelectAllNodes() const;
 
 	/** Delete all selected nodes in the graph */
 	void DeleteSelectedNodes();
+	/** Whether we can delete all selected nodes */
+	bool CanDeleteSelectedNodes() const;
 
 	void OnAlignTop();
 	void OnAlignMiddle();

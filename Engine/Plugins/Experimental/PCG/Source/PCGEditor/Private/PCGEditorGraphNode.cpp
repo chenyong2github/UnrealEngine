@@ -2,14 +2,15 @@
 
 #include "PCGEditorGraphNode.h"
 
+#include "PCGEditorGraphSchema.h"
+#include "PCGNode.h"
+#include "PCGSettings.h"
+
 #include "EdGraph/EdGraphPin.h"
+#include "Framework/Commands/GenericCommands.h"
 #include "GraphEditorActions.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
-
-#include "PCGNode.h"
-#include "PCGSettings.h"
-#include "PCGEditorGraphSchema.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphNode"
 
@@ -37,31 +38,38 @@ void UPCGEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, class UGrap
 		return;
 	}
 
-	FToolMenuSection& NodeSection = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsHeader", "Node Actions"));
 	{
-		NodeSection.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsHeader", "Node Actions"));
+		Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
 	}
 
-	FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaOrganization", LOCTEXT("OrganizationHeader", "Organization"));
-	Section.AddSubMenu("Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* AlignmentMenu)
+	{
+		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaGeneral", LOCTEXT("GeneralHeader", "General"));
+		Section.AddMenuEntry(FGenericCommands::Get().Delete);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaOrganization", LOCTEXT("OrganizationHeader", "Organization"));
+		Section.AddSubMenu("Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* AlignmentMenu)
 		{
 			{
-				FToolMenuSection& InSection = AlignmentMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
-				InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
-				InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
-				InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
-				InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
-				InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
-				InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
-				InSection.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections);
+				FToolMenuSection& SubSection = AlignmentMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
+				SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
+				SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
+				SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
+				SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
+				SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
+				SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
+				SubSection.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections);
 			}
 
 			{
-				FToolMenuSection& InSection = AlignmentMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
-				InSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
-				InSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
+				FToolMenuSection& SubSection = AlignmentMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
+				SubSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
+				SubSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
 			}
 		}));
+	}
 }
 
 void UPCGEditorGraphNode::AllocateDefaultPins()
@@ -90,6 +98,11 @@ void UPCGEditorGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 		GetSchema()->TryCreateConnection(FromPin, ToPin);
 	}
 	NodeConnectionListChanged();
+}
+
+bool UPCGEditorGraphNode::CanUserDeleteNode() const
+{
+	return NodeType != EPCGEditorGraphNodeType::Input && NodeType != EPCGEditorGraphNodeType::Output;
 }
 
 #undef LOCTEXT_NAMESPACE
