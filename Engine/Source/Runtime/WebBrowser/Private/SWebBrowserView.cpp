@@ -733,5 +733,9 @@ void SWebBrowserView::SetParentWindow(TSharedPtr<SWindow> Window)
 	}
 }
 
+void SWebBrowserView::SetBrowserKeyboardFocus()
+{
+	BrowserWindow->OnFocus(HasAnyUserFocusOrFocusedDescendants(), false);
+}
 
 #undef LOCTEXT_NAMESPACE

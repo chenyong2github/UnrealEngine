@@ -268,6 +268,11 @@ public:
 
 	/** Set parent SWindow for this browser. */
 	void SetParentWindow(TSharedPtr<SWindow> Window);
+
+	/** Update the underlying browser widget to match the KB focus in slate.
+		This is used to work around a CEF bug that loses focus state on navigations*/
+	void SetBrowserKeyboardFocus();
+
 private:
 
 	void SetupParentWindowHandlers();
