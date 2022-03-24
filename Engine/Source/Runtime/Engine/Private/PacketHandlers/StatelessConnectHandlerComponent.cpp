@@ -964,7 +964,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 		const double RestartHandshakeAckResendWindow = 10.0;
 		double CurTime = Driver != nullptr ? Driver->GetElapsedTime() : 0.0;
 
-		if (LastInitTimestamp - CurTime >= RestartHandshakeAckResendWindow)
+		if (CurTime - LastInitTimestamp >= RestartHandshakeAckResendWindow)
 		{
 			LastChallengeSuccessAddress.Reset();
 			LastInitTimestamp = 0.0;
