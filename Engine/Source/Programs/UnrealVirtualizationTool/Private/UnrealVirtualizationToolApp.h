@@ -1,0 +1,110 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "ISourceControlChangelist.h" // TODO
+#include "Templates/UniquePtr.h"
+
+class ISourceControlProvider;
+
+struct FPlugin
+{
+	FString PluginFilePath;
+
+	TArray<FString> PackagePaths;
+};
+
+struct FProject
+{
+	FString ProjectFilePath;
+
+	TArray<FPlugin> Plugins;
+	TArray<FString> PackagePaths;
+
+	void AddFile(const FString& FilePath);
+	void AddPluginFile(const FString& FilePath, const FString& PluginFilePath);
+
+	FStringView GetProjectName() const;
+	TArray<FString> GetAllPackages() const;
+
+	void RegisterMountPoints() const;
+	void UnRegisterMountPoints() const;
+
+	bool TryLoadConfig(FConfigFile& OutConfig) const;
+};
+
+// Note that the enum doesn't give us huge value right now, it has been provided
+// in case that we expand with additional functionality in the future.
+
+/** A bitfield of the various operations that the virtualization process supports */
+enum class EProcessOptions : uint32
+{
+	/** No options */
+	None		= 0,
+	/** Virtualize the packages in the provided changelist */
+	Virtualize	= 1 << 0,
+	/** Submit the changelist */
+	Submit		= 1 << 1
+};
+ENUM_CLASS_FLAGS(EProcessOptions);
+
+/** The result of FUnrealVirtualizationToolApp initialization */
+enum class EInitResult
+{
+	/** Initialization succeeded and the application should run. */
+	Success = 0,
+	/** No error was encountered but the application should early out and not run. */
+	EarlyOut,
+	/** Initialization failed with an error, we should not run and should display an error to the user */
+	Error
+};
+
+class FUnrealVirtualizationToolApp
+{
+public:
+	FUnrealVirtualizationToolApp();
+	~FUnrealVirtualizationToolApp();
+
+	EInitResult Initialize();
+	bool Run();
+
+private:
+
+	void PrintCmdLineHelp() const;
+
+	bool TrySubmitChangelist(const TArray<FString>& DescriptionTags);
+
+	bool TryLoadModules();
+	bool TryInitEnginePlugins();
+	EInitResult TryParseCmdLine();
+	bool TryParseChangelist(TArray<FString>& OutChangelistPackages);
+	bool TrySortFilesByProject(const TArray<FString>& ChangelistPackages);
+	bool TryFindProject(const FString& PackagePath, FString& ProjectFilePath, FString& PluginFilePath) const;
+
+	FProject& FindOrAddProject(const FString& ProjectFilePath);
+
+private:
+
+	/** Override used to suppress log messages */
+	TUniquePtr<FFeedbackContext> OutputDeviceOverride;
+
+	/** The source control provider that the tool uses */
+	TUniquePtr<ISourceControlProvider> SCCProvider;
+
+	/** Pointer to the changelist that should be submitted */
+	FSourceControlChangelistPtr ChangelistToSubmit;
+
+	/** Data structure holding the files in the changelist sorted by project and then by plugin*/
+	TArray<FProject> Projects;
+	
+	/** Name of the client spec (workspace) passed in on the command line*/
+	FString ClientSpecName;
+
+	/** The number of the changelist being submitted, passed in on the command line */
+	FString ChangelistNumber;
+
+	/** Bitfield control the various options that should be run */
+	EProcessOptions ProcessOptions = EProcessOptions::Virtualize;
+};
