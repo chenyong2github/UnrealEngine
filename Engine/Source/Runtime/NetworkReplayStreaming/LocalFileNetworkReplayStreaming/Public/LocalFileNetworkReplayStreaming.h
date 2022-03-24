@@ -143,6 +143,13 @@ public:
 	virtual void	Seek(int64 InPos) override;
 	virtual bool	AtEnd() override;
 
+	void Reset()
+	{
+		Buffer.Reset();
+		Pos = 0;
+		bAtEndOfReplay = false;
+	}
+
 	TArray<uint8>	Buffer;
 	int32			Pos;
 	bool			bAtEndOfReplay;
@@ -229,6 +236,12 @@ class FCachedFileRequest
 public:
 	FCachedFileRequest(const TArray<uint8>& InRequestData, const double InLastAccessTime) 
 		: RequestData(InRequestData)
+		, LastAccessTime(InLastAccessTime)
+	{
+	}
+
+	FCachedFileRequest(TArray<uint8>&& InRequestData, const double InLastAccessTime)
+		: RequestData(MoveTemp(InRequestData))
 		, LastAccessTime(InLastAccessTime)
 	{
 	}
@@ -655,6 +668,7 @@ protected:
 	FString DemoSavePath;
 
 	void AddRequestToCache(int32 ChunkIndex, const TArray<uint8>& RequestData);
+	void AddRequestToCache(int32 ChunkIndex, TArray<uint8>&& RequestData);
 	void CleanupRequestCache();
 
 	bool bCacheFileReadsInMemory;
