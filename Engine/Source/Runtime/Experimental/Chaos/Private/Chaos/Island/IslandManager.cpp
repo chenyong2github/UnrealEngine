@@ -695,9 +695,15 @@ void FPBDIslandManager::BuildGroups(const int32 NumContainers)
 	TSparseArray<TUniquePtr<FPBDIslandSolver>>& LocalIslands = IslandSolvers;
 	SortedIslands.Sort([&LocalIslands](const int32 IslandIndexA, const int32 IslandIndexB) -> bool
 		{ return LocalIslands[IslandIndexA]->NumConstraints() > LocalIslands[IslandIndexB]->NumConstraints();});
+
+	int32 NumConstraints = 0;
+	for (TUniquePtr<FPBDIslandSolver>& IslandSolver : IslandSolvers)
+	{
+		NumConstraints += IslandSolver->NumConstraints();
+	}
 	
 	const int32 NumGroups = IslandGroups.Num();
-	const int32 GroupSize = IslandGraph->NumEdges() / NumGroups + 1;
+	const int32 GroupSize = NumConstraints / NumGroups + 1;
 
 	for(TUniquePtr<FPBDIslandGroup>& IslandGroup : IslandGroups)
 	{

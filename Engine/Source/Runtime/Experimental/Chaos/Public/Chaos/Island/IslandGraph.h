@@ -253,7 +253,7 @@ public:
 	* @param RootIndex root index of the island graph
 	* @param IslandIndex index of the island we are splitting
 	*/
-	void SplitIsland(TQueue<int32>& NodeQueue, const int32 RootIndex, const int32 IslandIndex);
+	void SplitIsland(const int32 RootIndex, const int32 IslandIndex);
 
 	/**
 	* Split all the graph islands if not sleeping
@@ -281,9 +281,8 @@ public:
 	* into the node queue
 	* @param NodeIndex Node index that we are currently iterating over
 	* @param ContainerId Constraint container id that will be compared to the item container
-	* @param NodeQueue Node queue in which all the connected nodes not processed yet will be added
 	*/
-	void UpdateLevels(const int32 NodeIndex, const int32 ContainerId, TQueue<int32>& NodeQueue);
+	void UpdateLevels(const int32 NodeIndex, const int32 ContainerId);
 
 	/**
 	* Given a constraint containerId compute all the islands/edges/nodes colors
@@ -297,19 +296,17 @@ public:
 	* into the node queue
 	* @param NodeIndex Node index that we are currently iterating over
 	* @param ContainerId Constraint container id that will be compared to the item container
-	* @param NodeQueue Node queue in which all the connected nodes not processed yet will be added
 	* @param MinEdges Minimum number of edges to compute coloring
 	*/
-	void UpdateColors(const int32 NodeIndex, const int32 ContainerId, TQueue<int32>& NodeQueue, const int32 MinEdges);
+	void UpdateColors(const int32 NodeIndex, const int32 ContainerId,  const int32 MinEdges);
 
 	/**
 	* Pick the first available color that is not used yet by the current graph node and the edge opposite one
 	* @param GraphNode Graph node that we currently iterate over
 	* @param OtherIndex Index of the edge opposite node
-	* @param NodeQueue Node queue in which all the connected nodes not processed yet will be added
 	* @return First available color 
 	*/
-	int32 PickColor(const FGraphNode& GraphNode, const int32 OtherIndex, TQueue<int32>& NodeQueue);
+	int32 PickColor(const FGraphNode& GraphNode, const int32 OtherIndex);
 
 	/**
 	* Check if at least one of the 2 edge nodes is moving
@@ -346,6 +343,9 @@ public:
 
 	/** Graph counter used for graph traversal to check if an edge/node/island has already been processed */
 	int32 GraphCounter = 0;
+
+	/** List of nodes to be processed in the graph functions */
+	TArray<int32> NodeQueue;
 };
 
 }
