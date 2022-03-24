@@ -52,7 +52,7 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
-		private GroupParameter()
+		public GroupParameter()
 		{
 			Label = null!;
 			Children = null!;
@@ -138,7 +138,7 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
-		private TextParameter()
+		public TextParameter()
 		{
 			Label = null!;
 			Argument = null!;
@@ -220,6 +220,14 @@ namespace Horde.Build.Models
 		public bool Default { get; set; }
 
 		/// <summary>
+		/// Default constructor for JSON serializer
+		/// </summary>
+		public ListParameterItem()
+		{
+			Text = String.Empty;
+		}
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="group">The group to put this parameter in</param>
@@ -274,7 +282,7 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
-		private ListParameter()
+		public ListParameter()
 		{
 			Label = null!;
 			Items = null!;
@@ -366,9 +374,9 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
-		private BoolParameter()
+		public BoolParameter()
 		{
-			Label = null!;
+			Label = String.Empty;
 		}
 
 		/// <summary>
