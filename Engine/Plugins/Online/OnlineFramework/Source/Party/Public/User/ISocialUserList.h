@@ -70,7 +70,7 @@ private:
 		uint8 OutputValue = 0;
 		for (ESocialSubsystem Subsystem : Subsystems)
 		{
-			OutputValue |= (uint8)Subsystem;
+			OutputValue |= 1 << (uint8)Subsystem;
 		}
 		return OutputValue;
 	}
