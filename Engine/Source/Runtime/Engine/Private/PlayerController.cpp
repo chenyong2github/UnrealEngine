@@ -5700,12 +5700,11 @@ void APlayerController::BuildHiddenComponentList(const FVector& ViewLocation, TS
 	}
 
 	// iterate backwards so we can remove as we go
+	HiddenComponentsOut.Reserve(HiddenComponentsOut.Num() + HiddenPrimitiveComponents.Num());
 	for (int32 ComponentIndx = HiddenPrimitiveComponents.Num() - 1; ComponentIndx >= 0; --ComponentIndx)
 	{
-		TWeakObjectPtr<UPrimitiveComponent> ComponentPtr = HiddenPrimitiveComponents[ComponentIndx];
-		if (ComponentPtr.IsValid())
+		if (UPrimitiveComponent* Component = HiddenPrimitiveComponents[ComponentIndx].Get())
 		{
-			UPrimitiveComponent* Component = ComponentPtr.Get();
 			if (Component->IsRegistered())
 			{
 				HiddenComponentsOut.Add(Component->ComponentId);
@@ -5713,7 +5712,7 @@ void APlayerController::BuildHiddenComponentList(const FVector& ViewLocation, TS
 		}
 		else
 		{
-			HiddenPrimitiveComponents.RemoveAt(ComponentIndx);
+			HiddenPrimitiveComponents.RemoveAtSwap(ComponentIndx);
 		}
 	}
 
