@@ -2571,34 +2571,7 @@ private:
 		{
 			if (UWorld* World = Object->GetTypedOuter<UWorld>())
 			{
-				ENetMode NetMode = World->GetNetMode();
-
-				FText WorldName;
-
-				switch (NetMode)
-				{
-				case NM_Standalone:
-					WorldName = LOCTEXT("DebugWorldStandalone", "Standalone");
-					break;
-
-				case NM_ListenServer:
-					WorldName = LOCTEXT("DebugWorldListenServer", "Listen Server");
-					break;
-
-				case NM_DedicatedServer:
-					WorldName = LOCTEXT("DebugWorldDedicatedServer", "Dedicated Server");
-					break;
-
-				case NM_Client:
-					if (FWorldContext* PieContext = GEngine->GetWorldContextFromWorld(World))
-					{
-						WorldName = FText::Format(LOCTEXT("DebugWorldClient", "Client {0}"), PieContext->PIEInstance - 1);
-						break;
-					}
-					[[fallthrough]];
-				default:
-					WorldName = LOCTEXT("UnknownWorldMode", "[Unknown]");
-				};
+				FText WorldName = FText::FromString(GetDebugStringForWorld(World));
 
 				return FText::FormatNamed(LOCTEXT("ParentLineTooltip", "{ObjectFullPath}\nWorld: {WorldFullPath}\nWorld Type: {WorldType}"),
 					TEXT("ObjectFullPath"), FText::FromString(Object->GetPathName()),

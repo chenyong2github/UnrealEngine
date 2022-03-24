@@ -5539,7 +5539,6 @@ void UWorld::SetWorldDataLayers(AWorldDataLayers* NewWorldDataLayers)
 
 FString UWorld::GetDebugDisplayName() const
 {
-	extern ENGINE_API FString GetDebugStringForWorld(const UWorld* World);
 	return FString::Printf(TEXT("%s (%s)"), *GetDebugStringForWorld(this), *GetPathNameSafe(this));
 }
 

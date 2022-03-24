@@ -495,6 +495,9 @@ ENGINE_API extern int32 GUnbuiltHLODCount;
 // Update the debugging aid GPlayInEditorContextString based on the current world context (does nothing in WITH_EDITOR=0 builds)
 ENGINE_API void UpdatePlayInEditorWorldDebugString(const FWorldContext* WorldContext);
 
+// Returns the Debug string for a given world (Standalone, Listen Server, Client #, etc)
+ENGINE_API FString GetDebugStringForWorld(const UWorld* World);
+
 // Used to temporarily override GPlayInEditorID, correctly updating the debug string and other state as necessary
 struct ENGINE_API FTemporaryPlayInEditorIDOverride
 {
