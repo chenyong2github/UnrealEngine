@@ -525,6 +525,12 @@ namespace UnrealBuildTool
 		public bool bCompileISPC = false;
 
 		/// <summary>
+		/// Whether to compile IntelMetricsDiscovery.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bCompileIntelMetricsDiscovery = true;
+
+		/// <summary>
 		/// Whether to compile in python support
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2290,6 +2296,11 @@ namespace UnrealBuildTool
 		public bool bCompileISPC
 		{
 			get { return Inner.bCompileISPC; }
+		}
+
+		public bool bCompileIntelMetricsDiscovery
+		{
+			get { return Inner.bCompileIntelMetricsDiscovery; }
 		}
 		
 		public bool bCompilePython
