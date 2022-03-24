@@ -3,6 +3,7 @@
 #include "K2Node_AsyncMakeRequestHeader.h"
 
 #include "HttpRequestProxyObject.h"
+#include "EdGraph/EdGraphPin.h"
 
 UK2Node_AsyncMakeRequestHeader::UK2Node_AsyncMakeRequestHeader()
 {
