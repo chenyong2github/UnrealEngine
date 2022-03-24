@@ -28,6 +28,17 @@ enum class ESimulationSpace : uint8
 	BaseBoneSpace,
 };
 
+/** Determines behaviour regarding deferral of simulation tasks. */
+UENUM()
+enum class ESimulationTiming : uint8
+{
+	/** Use the default project setting as defined by p.RigidBodyNode.DeferredSimulationDefault. */
+	Default,
+	/** Always run the simulation to completion during animation evaluation. */
+	Synchronous,
+	/** Always run the simulation in the background and retrieve the result on the next animation evaluation. */
+	Deferred
+};
 
 /**
  * Settings for the system which passes motion of the simulation's space into the simulation. This allows the simulation to pass a 
@@ -328,6 +339,12 @@ private:
 
 	// Destroy the simulation and free related structures
 	void DestroyPhysicsSimulation();
+
+public:
+
+	/* Whether the physics simulation runs synchronously with the node's evaluation or is run in the background until the next frame. */
+	UPROPERTY(EditAnywhere, Category=Settings, AdvancedDisplay)
+	ESimulationTiming SimulationTiming;
 
 private:
 
