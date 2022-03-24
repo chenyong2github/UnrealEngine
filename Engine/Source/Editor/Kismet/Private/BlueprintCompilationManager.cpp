@@ -1519,6 +1519,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			if (CompilerData.Compiler.IsValid())
 			{
 				UObject::FPostCDOCompiledContext PostCDOCompiledContext;
+				PostCDOCompiledContext.bIsRegeneratingOnLoad = CompilerData.BP->bIsRegeneratingOnLoad;
 				PostCDOCompiledContext.bIsSkeletonOnly = CompilerData.IsSkeletonOnly();
 
 				CompilerData.Compiler->PostCDOCompiled(PostCDOCompiledContext);
