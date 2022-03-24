@@ -5,8 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/CoreNetTypes.h"
 
-namespace UE {
-namespace Net {
+namespace UE::Net {
 
 /**
 * Stores the SubObjects to replicate and the network condition dictating to which connection they can replicate to.
@@ -57,6 +56,23 @@ private:
 	TArray<FEntry> Registry;
 };
 
-} // namespace Net
-} // namespace UE
+/** Keep track of replicated components and their subobject list */
+struct FReplicatedComponentInfo
+{
+	// Component that will be replicated
+	class UActorComponent* Component = nullptr;
+
+	// NetCondition of the component
+	ELifetimeCondition NetCondition = COND_None;
+
+	// Collection of subobjects replicated with this component
+	FSubObjectRegistry SubObjects;
+
+	bool operator==(const FReplicatedComponentInfo& rhs) const { return Component == rhs.Component; }
+	bool operator==(const class UActorComponent* rhs) const { return Component == rhs; }
+};
+
+
+} // namespace UE::Net
+
 

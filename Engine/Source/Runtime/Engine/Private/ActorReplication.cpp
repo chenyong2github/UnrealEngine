@@ -42,6 +42,8 @@ namespace ActorReplication
 	static ENetRole SavedRole;
 }
 
+using namespace UE::Net;
+
 float AActor::GetNetPriority(const FVector& ViewPos, const FVector& ViewDir, AActor* Viewer, AActor* ViewTarget, UActorChannel* InChannel, float Time, bool bLowBandwidth)
 {
 	if (bNetUseOwnerRelevancy && Owner)
@@ -456,11 +458,13 @@ void AActor::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifeti
 	DOREPLIFETIME_WITH_PARAMS_FAST(AActor, bTearOff, SharedParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(AActor, bCanBeDamaged, SharedParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(AActor, Instigator, SharedParams);
+
+	constexpr bool bUsePushModel = true;
 	
-	FDoRepLifetimeParams AttachmentReplicationParams{COND_Custom, REPNOTIFY_Always, /*bIsPushBased=*/true};
+	FDoRepLifetimeParams AttachmentReplicationParams{COND_Custom, REPNOTIFY_Always, bUsePushModel};
 	DOREPLIFETIME_WITH_PARAMS_FAST(AActor, AttachmentReplication, AttachmentReplicationParams);
 
-	FDoRepLifetimeParams ReplicatedMovementParams{COND_SimulatedOrPhysics, REPNOTIFY_Always, /*bIsPushBased=*/true};
+	FDoRepLifetimeParams ReplicatedMovementParams{COND_SimulatedOrPhysics, REPNOTIFY_Always, bUsePushModel};
 	DOREPLIFETIME_WITH_PARAMS_FAST(AActor, ReplicatedMovement, ReplicatedMovementParams);
 }
 
@@ -485,19 +489,67 @@ bool AActor::ReplicateSubobjects(UActorChannel *Channel, FOutBunch *Bunch, FRepl
 	return WroteSomething;
 }
 
+ELifetimeCondition AActor::AllowActorComponentToReplicate(const UActorComponent* ComponentToReplicate) const
+{
+	return ComponentToReplicate->GetIsReplicated() ? COND_None : COND_Never;
+}
+
+void AActor::SetReplicatedComponentNetCondition(const UActorComponent* ReplicatedComponent, ELifetimeCondition NetCondition)
+{
+	checkf(HasActorBegunPlay(), TEXT("Can only set a netcondition after BeginPlay. %s setting for %s"), *GetName(), *ReplicatedComponent->GetName());
+
+	if (FReplicatedComponentInfo* ComponentInfo = ReplicatedComponentsInfo.FindByKey(ReplicatedComponent))
+	{
+		ComponentInfo->NetCondition = NetCondition;
+	}
+	else
+	{
+		ensureMsgf(false, TEXT("Tried to set a netcondition on a replicated component not part of the list yet, netcondition will be ignored. %s setting for %s"), *GetName(), *ReplicatedComponent->GetName());
+	}
+}
+
+void AActor::AddComponentForReplication(UActorComponent* Component)
+{
+	if (ActorHasBegunPlay == EActorBeginPlayState::HasNotBegunPlay)
+	{
+		return;
+	}
+
+	const ELifetimeCondition NetCondition = AllowActorComponentToReplicate(Component);
+
+	if (NetCondition != COND_Never)
+	{
+		FReplicatedComponentInfo* ComponentInfo = ReplicatedComponentsInfo.FindByKey(Component);
+		if (!ComponentInfo)
+		{
+			ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo{ Component, NetCondition });
+		}
+		else
+		{
+			// Always set the condition because this component could be registering SubObjects ahead of time and already in the list with COND_Never
+			ComponentInfo->NetCondition = NetCondition;
+		}
+	}
+}
+
+void AActor::RemoveReplicatedComponent(UActorComponent* Component)
+{
+	ReplicatedComponentsInfo.RemoveSingleSwap(FReplicatedComponentInfo{ Component });
+}
+
 void AActor::AddReplicatedSubObject(UObject* SubObject, ELifetimeCondition NetCondition)
 {
 	check(IsValid(SubObject));
 
 	ensureMsgf(IsUsingRegisteredSubObjectList(), TEXT("%s is registering subobjects but bReplicateUsingRegisteredSubObjectList is false. Without the flag set to true the registered subobjects will not be replicated."), *GetName());
 
-	UE::Net::FSubObjectRegistry::EResult Result = ReplicatedSubObjects.AddSubObjectUnique(SubObject, NetCondition);
+	FSubObjectRegistry::EResult Result = ReplicatedSubObjects.AddSubObjectUnique(SubObject, NetCondition);
 
-	UE_CLOG(Result == UE::Net::FSubObjectRegistry::EResult::NewEntry, LogNetSubObject, Verbose, TEXT("%s (0x%p) added replicated subobject %s (0x%p) [%s]"), 
+	UE_CLOG(Result == FSubObjectRegistry::EResult::NewEntry, LogNetSubObject, Verbose, TEXT("%s (0x%p) added replicated subobject %s (0x%p) [%s]"), 
 		*GetName(), this, *SubObject->GetName(), SubObject, *StaticEnum<ELifetimeCondition>()->GetValueAsString(NetCondition));
 
 	// Warn if the subobject was registered with a different net condition.
-	ensureMsgf(Result != UE::Net::FSubObjectRegistry::EResult::NetConditionConflict, TEXT("%s(0x%p) Registered subobject %s (0x%p) again with a different net condition. Active [%s] New [%s]. New condition will be ignored"),
+	ensureMsgf(Result != FSubObjectRegistry::EResult::NetConditionConflict, TEXT("%s(0x%p) Registered subobject %s (0x%p) again with a different net condition. Active [%s] New [%s]. New condition will be ignored"),
 		*GetName(), this, *SubObject->GetName(), SubObject, *StaticEnum<ELifetimeCondition>()->GetValueAsString(ReplicatedSubObjects.GetNetCondition(SubObject)), *StaticEnum<ELifetimeCondition>()->GetValueAsString(NetCondition));
 }
 
@@ -518,18 +570,22 @@ void AActor::AddActorComponentReplicatedSubObject(UActorComponent* OwnerComponen
 	if (ComponentInfo)
 	{
 		// Add the subobject to the component's list
-		UE::Net::FSubObjectRegistry::EResult Result = ComponentInfo->SubObjects.AddSubObjectUnique(SubObject, NetCondition);
+		FSubObjectRegistry::EResult Result = ComponentInfo->SubObjects.AddSubObjectUnique(SubObject, NetCondition);
 
-		UE_CLOG(Result == UE::Net::FSubObjectRegistry::EResult::NewEntry, LogNetSubObject, Verbose, TEXT("%s::%s (0x%p) added replicated subobject %s (0x%p) [%s]"),
+		UE_CLOG(Result == FSubObjectRegistry::EResult::NewEntry, LogNetSubObject, Verbose, TEXT("%s::%s (0x%p) added replicated subobject %s (0x%p) [%s]"),
 			*GetName(), *OwnerComponent->GetName(), OwnerComponent, *SubObject->GetName(), SubObject, *StaticEnum<ELifetimeCondition>()->GetValueAsString(NetCondition));
 
 		// Warn if the subobject was registered with a different net condition.
-		ensureMsgf(Result != UE::Net::FSubObjectRegistry::EResult::NetConditionConflict, TEXT("%s::%s (0x%p) Registered subobject %s (0x%p) again with a different net condition. Active [%s] New [%s]. New condition will be ignored"),
+		ensureMsgf(Result != FSubObjectRegistry::EResult::NetConditionConflict, TEXT("%s::%s (0x%p) Registered subobject %s (0x%p) again with a different net condition. Active [%s] New [%s]. New condition will be ignored"),
 			*GetName(), *OwnerComponent->GetName(), OwnerComponent, *SubObject->GetName(), SubObject, *StaticEnum<ELifetimeCondition>()->GetValueAsString(ComponentInfo->SubObjects.GetNetCondition(SubObject)), *StaticEnum<ELifetimeCondition>()->GetValueAsString(NetCondition));
 	}
 	else
 	{
-		const int32 Index = ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo{OwnerComponent});
+		// If we have to create an entry it means the component is registering subobjects while not replicating or before he's registered in the actor.
+		// Let's allow him to register subobjects but set a condition that prevents him from getting replicated until we call IsAllowed.
+		constexpr ELifetimeCondition NeverReplicate = COND_Never;
+
+		const int32 Index = ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo{OwnerComponent, NeverReplicate});
 		ReplicatedComponentsInfo[Index].SubObjects.AddSubObjectUnique(SubObject, NetCondition);
 
 		UE_LOG(LogNetSubObject, Verbose, TEXT("%s::%s (0x%p) added replicated subobject %s (0x%p) [%s]"),

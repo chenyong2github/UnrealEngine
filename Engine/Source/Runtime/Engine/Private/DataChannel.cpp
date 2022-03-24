@@ -128,6 +128,8 @@ namespace UE::Net
 
 }; // namespace UE::Net
 
+using namespace UE::Net;
+
 template<typename T>
 static const bool IsBunchTooLarge(UNetConnection* Connection, T* Bunch)
 {
@@ -141,20 +143,25 @@ public:
 	FSubObjectGetter() = delete;
 	~FSubObjectGetter() = delete;
 
-	static const TArray<UE::Net::FSubObjectRegistry::FEntry>& GetSubObjects(AActor* InActor)
+	static const TArray<FSubObjectRegistry::FEntry>& GetSubObjects(AActor* InActor)
 	{
 		return InActor->ReplicatedSubObjects.GetRegistryList();
 	}
 
-	static const TArray<UE::Net::FSubObjectRegistry::FEntry>* GetSubObjectsOfActorCompoment(AActor* InActor, UActorComponent* InActorComp)
+	static const FSubObjectRegistry* GetSubObjectsOfActorCompoment(AActor* InActor, UActorComponent* InActorComp)
 	{
-		AActor::FReplicatedComponentInfo* ComponentInfo = InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
-		return ComponentInfo ? &(ComponentInfo->SubObjects.GetRegistryList()) : nullptr;
+		FReplicatedComponentInfo* ComponentInfo = InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
+		return ComponentInfo ? &(ComponentInfo->SubObjects) : nullptr;
+	}
+
+	static const TArray<FReplicatedComponentInfo>& GetReplicatedComponents(AActor* InActor)
+	{
+		return InActor->ReplicatedComponentsInfo;
 	}
 
 	static bool IsSubObjectInRegistry(AActor* InActor, UActorComponent* InActorComp, UObject* InSubObject)
 	{
-		AActor::FReplicatedComponentInfo* ComponentInfo = InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
+		FReplicatedComponentInfo* ComponentInfo = InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
 		return ComponentInfo ? ComponentInfo->SubObjects.IsSubObjectInRegistry(InSubObject) : false;
 	}
 };
@@ -316,7 +323,6 @@ void UChannel::ConditionalCleanUp( const bool bForDestroy, EChannelCloseReason C
 
 bool UChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseReason)
 {
-	using namespace UE::Net;
 
 	checkSlow(Connection != NULL);
 	checkSlow(Connection->Channels[ChIndex] == this);
@@ -555,8 +561,6 @@ bool UChannel::ReceivedSequencedBunch( FInBunch& Bunch )
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UChannel::ReceivedRawBunch( FInBunch & Bunch, bool & bOutSkipAck )
 {
-	using namespace UE::Net;
-
 	SCOPE_CYCLE_COUNTER(Stat_ChannelReceivedRawBunch);
 
 	SCOPED_NAMED_EVENT(UChannel_ReceivedRawBunch, FColor::Green);
@@ -710,8 +714,6 @@ static void LogPartialBunch(const FString& Label, const FInBunch& UberBunch, con
 
 bool UChannel::ReceivedNextBunch( FInBunch & Bunch, bool & bOutSkipAck )
 {
-	using namespace UE::Net;
-
 	// We received the next bunch. Basically at this point:
 	//	-We know this is in order if reliable
 	//	-We dont know if this is partial or not
@@ -1116,8 +1118,6 @@ void UActorChannel::AppendMustBeMappedGuids( FOutBunch* Bunch )
 FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 {
 	LLM_SCOPE_BYTAG(NetChannel);
-
-	using namespace UE::Net;
 
 	if (!ensure(ChIndex != -1))
 	{
@@ -1651,8 +1651,6 @@ bool UControlChannel::CheckEndianess(FInBunch& Bunch)
 
 void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 {
-	using namespace UE::Net;
-
 	check(!Closing);
 
 	// If this is a new client connection inspect the raw packet for endianess
@@ -1926,8 +1924,6 @@ void UControlChannel::QueueMessage(const FOutBunch* Bunch)
 
 FPacketIdRange UControlChannel::SendBunch(FOutBunch* Bunch, bool Merge)
 {
-	using namespace UE::Net;
-
 	// if we already have queued messages, we need to queue subsequent ones to guarantee proper ordering
 	if (QueuedMessages.Num() > 0 || NumOutRec >= RELIABLE_BUFFER - 1 + Bunch->bClose)
 	{
@@ -1954,8 +1950,6 @@ FPacketIdRange UControlChannel::SendBunch(FOutBunch* Bunch, bool Merge)
 
 void UControlChannel::Tick()
 {
-	using namespace UE::Net;
-
 	Super::Tick();
 
 	if( !OpenAcked )
@@ -2125,7 +2119,7 @@ void UControlChannel::ReceiveDestructionInfo(FInBunch& Bunch)
 					TheActor->PreDestroyFromReplication();
 					TheActor->Destroy(true);
 
-					if (UE::Net::FilterGuidRemapping != 0)
+					if (FilterGuidRemapping != 0)
 					{
 						// Remove this actor's NetGUID from the list of unmapped values, it will be added back if it replicates again
 						if (NetGUID.IsValid() && Connection != nullptr && Connection->Driver != nullptr && Connection->Driver->GuidCache.IsValid())
@@ -2300,7 +2294,7 @@ void UActorChannel::DestroyActorAndComponents()
 		Actor->Destroy(true);
 	}
 
-	if (UE::Net::FilterGuidRemapping != 0)
+	if (FilterGuidRemapping != 0)
 	{
 		// Remove this actor's NetGUID from the list of unmapped values, it will be added back if it replicates again
 		if (ActorNetGUID.IsValid() && Connection != nullptr && Connection->Driver != nullptr && Connection->Driver->GuidCache.IsValid())
@@ -2737,7 +2731,7 @@ bool UActorChannel::ProcessQueuedBunches()
 		}
 		else
 		{
-			if ((FPlatformTime::Seconds() - QueuedBunchStartTime) > UE::Net::QueuedBunchTimeoutSeconds)
+			if ((FPlatformTime::Seconds() - QueuedBunchStartTime) > QueuedBunchTimeoutSeconds)
 			{
 				if (!bSuppressQueuedBunchWarningsDueToHitches && FPlatformProperties::RequiresCookedData())
 				{
@@ -2774,8 +2768,6 @@ bool UActorChannel::ProcessQueuedBunches()
 void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 {
 	LLM_SCOPE_BYTAG(NetChannel);
-
-	using namespace UE::Net;
 
 	check(!Closing);
 
@@ -2932,8 +2924,6 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 
 void UActorChannel::ProcessBunch( FInBunch & Bunch )
 {
-	using namespace UE::Net;
-
 	if ( Broken )
 	{
 		return;
@@ -3538,13 +3528,11 @@ bool UActorChannel::DoSubObjectReplication(FOutBunch& Bunch, FReplicationFlags& 
 		// If the actor replicates it's subobjects and those of it's components via the list.
 		bWroteSomethingImportant |= ReplicateRegisteredSubObjects(Bunch, OutRepFlags);
 
-		if (UE::Net::GCVarCompareSubObjectsReplicated)
+		if (GCVarCompareSubObjectsReplicated)
 		{
 			ValidateReplicatedSubObjects();
 
 			DataChannelInternal::bTrackReplicatedSubObjects = false;
-			DataChannelInternal::LegacySubObjectsCollected.Reset();
-			DataChannelInternal::ReplicatedSubObjectsTracker.Reset();
 		}
 	}
 	else
@@ -3563,16 +3551,9 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplication
 {
 	check(Actor->IsUsingRegisteredSubObjectList());
 
-	if (UE::Net::GCVarCompareSubObjectsReplicated)
+	if (GCVarCompareSubObjectsReplicated)
 	{
-		// Call the legacy method but simply collect the subobjects it would have replicated
-		DataChannelInternal::bTestingLegacyMethodForComparison = true;
-
-		SetCurrentSubObjectOwner(Actor);
-		FReplicationFlags TempRepFlags = RepFlags; // Mirror the flags in case someone actually dirties them.
-		Actor->ReplicateSubobjects(this, &Bunch, &TempRepFlags);
-		
-		DataChannelInternal::bTestingLegacyMethodForComparison = false;
+		TestLegacyReplicateSubObjects(Bunch, RepFlags);
 
 		// From here track all subobjects that write into the bunch.
 		DataChannelInternal::bTrackReplicatedSubObjects = true;
@@ -3585,8 +3566,8 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplication
 	// Start with the Actor's subobjects
 	{
 		SetCurrentSubObjectOwner(Actor);
-		const TArray<UE::Net::FSubObjectRegistry::FEntry>& ActorSubObjects = FSubObjectGetter::GetSubObjects(Actor);
-		for (const UE::Net::FSubObjectRegistry::FEntry& SubObjectInfo : ActorSubObjects)
+		const TArray<FSubObjectRegistry::FEntry>& ActorSubObjects = FSubObjectGetter::GetSubObjects(Actor);
+		for (const FSubObjectRegistry::FEntry& SubObjectInfo : ActorSubObjects)
 		{
 			if (ConditionMap[SubObjectInfo.NetCondition])
 			{
@@ -3596,24 +3577,29 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplication
 	}
 
 	// Now the replicated actor components
-	for (UActorComponent* ReplicatedComponent : Actor->GetReplicatedComponents())
+	for( const FReplicatedComponentInfo& RepComponentInfo : FSubObjectGetter::GetReplicatedComponents(Actor) )
 	{
-		check(ReplicatedComponent);
+		check(IsValid(RepComponentInfo.Component));
 
-		SetCurrentSubObjectOwner(ReplicatedComponent);
-		if (ReplicatedComponent->IsUsingRegisteredSubObjectList())
+		if (ConditionMap[RepComponentInfo.NetCondition])
 		{
-			bWroteSomethingImportant |= WriteSubObjects(ReplicatedComponent, Bunch, RepFlags, ConditionMap);
-		}
-		else
-		{
-			// Replicate the component's SubObjects using the virtual method
-			bWroteSomethingImportant |= ReplicatedComponent->ReplicateSubobjects(this, &Bunch, const_cast<FReplicationFlags*>(&RepFlags));
-		}
+			UActorComponent* ReplicatedComponent = RepComponentInfo.Component;
 
-		// Finally replicate the component itself at the end. SubObjects have to be created before the component on the receiving end.
-		SetCurrentSubObjectOwner(Actor);
-		bWroteSomethingImportant |= WriteSubObjectInBunch(ReplicatedComponent, Bunch, RepFlags);
+			SetCurrentSubObjectOwner(ReplicatedComponent);
+			if (ReplicatedComponent->IsUsingRegisteredSubObjectList())
+			{
+				bWroteSomethingImportant |= WriteSubObjects(ReplicatedComponent, RepComponentInfo.SubObjects, Bunch, RepFlags, ConditionMap);
+			}
+			else
+			{
+				// Replicate the component's SubObjects using the virtual method
+				bWroteSomethingImportant |= ReplicatedComponent->ReplicateSubobjects(this, &Bunch, const_cast<FReplicationFlags*>(&RepFlags));
+			}
+
+			// Finally replicate the component itself at the end. SubObjects have to be created before the component on the receiving end.
+			SetCurrentSubObjectOwner(Actor);
+			bWroteSomethingImportant |= WriteSubObjectInBunch(ReplicatedComponent, Bunch, RepFlags);
+		}
 	}
 
 	return bWroteSomethingImportant;
@@ -3665,11 +3651,31 @@ bool UActorChannel::ReplicateSubobject(UObject* SubObj, FOutBunch& Bunch, FRepli
 	return bWroteSomethingImportant;
 }
 
+void UActorChannel::TestLegacyReplicateSubObjects(FOutBunch& Bunch, FReplicationFlags RepFlags)
+{
+	// Call the legacy method but simply collect the subobjects it would have replicated
+	DataChannelInternal::bTestingLegacyMethodForComparison = true;
+
+	SetCurrentSubObjectOwner(Actor);
+	Actor->ReplicateSubobjects(this, &Bunch, &RepFlags);
+
+	DataChannelInternal::bTestingLegacyMethodForComparison = false;
+}
+
+void UActorChannel::TestLegacyReplicateSubObjects(UActorComponent* ReplicatedComponent, FOutBunch& Bunch, FReplicationFlags RepFlags)
+{
+	// Call the legacy method but simply collect the subobjects it would have replicated
+	DataChannelInternal::bTestingLegacyMethodForComparison = true;
+
+	SetCurrentSubObjectOwner(ReplicatedComponent);
+	ReplicatedComponent->ReplicateSubobjects(this, &Bunch, &RepFlags);
+
+	DataChannelInternal::bTestingLegacyMethodForComparison = false;
+}
+
 
 bool UActorChannel::ReplicateSubobject(UActorComponent* ReplicatedComponent, FOutBunch& Bunch, FReplicationFlags RepFlags)
 {
-    // This function traps ActorComponents using the registration list even if their owning Actor isn't using the list itself.
-
 	if (!IsValid(ReplicatedComponent))
 	{
 		return false;
@@ -3678,6 +3684,14 @@ bool UActorChannel::ReplicateSubobject(UActorComponent* ReplicatedComponent, FOu
 	// This traps actor components using the registration list even if their owning Actor isn't using the list itself.
 	if (ReplicatedComponent->IsUsingRegisteredSubObjectList() && !DataChannelInternal::bTestingLegacyMethodForComparison)
 	{
+		if (GCVarCompareSubObjectsReplicated)
+		{
+			TestLegacyReplicateSubObjects(ReplicatedComponent, Bunch, RepFlags);
+
+			// From here track all subobjects that write into the bunch.
+			DataChannelInternal::bTrackReplicatedSubObjects = true;
+		}
+
 		bool bWroteSomethingImportant = false;
 
 		const TStaticBitArray<COND_Max> ConditionMap = FSendingRepState::BuildConditionMapFromRepFlags(RepFlags);
@@ -3685,8 +3699,15 @@ bool UActorChannel::ReplicateSubobject(UActorComponent* ReplicatedComponent, FOu
 		checkf(Actor->IsUsingRegisteredSubObjectList() == false, TEXT("This code should only be hit when an Actor that does NOT support the SubObjectList is replicating an ActorComponent that does: %s replicating %s."), 
 			*Actor->GetName(), *ReplicatedComponent->GetName());
 
-        // Write all the subobjects of the component
+		// Write all the subobjects of the component
 		bWroteSomethingImportant |= WriteSubObjects(ReplicatedComponent, Bunch, RepFlags, ConditionMap);
+
+		if (GCVarCompareSubObjectsReplicated)
+		{
+			ValidateReplicatedSubObjects();
+
+			DataChannelInternal::bTrackReplicatedSubObjects = false;
+		}
 
         // Finally write the component itself
 		SetCurrentSubObjectOwner(Actor);
@@ -3702,27 +3723,34 @@ bool UActorChannel::ReplicateSubobject(UActorComponent* ReplicatedComponent, FOu
 
 bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap)
 {
-	bool bWroteSomethingImportant = false;
-	if (const TArray<UE::Net::FSubObjectRegistry::FEntry>* ComponentSubObjects = FSubObjectGetter::GetSubObjectsOfActorCompoment(Actor, ReplicatedComponent))
+	if (const FSubObjectRegistry* SubObjectList = FSubObjectGetter::GetSubObjectsOfActorCompoment(Actor, ReplicatedComponent))
 	{
-		for (const UE::Net::FSubObjectRegistry::FEntry& SubObjectInfo : *ComponentSubObjects)
-		{
-			checkf(IsValid(SubObjectInfo.SubObject), TEXT("Found invalid subobject (%s) registered in %s"), *GetNameSafe(SubObjectInfo.SubObject), *GetNameSafe(ReplicatedComponent));
+		return WriteSubObjects(ReplicatedComponent, *SubObjectList, Bunch, RepFlags, ConditionMap);
+	}
 
-			if (ConditionMap[SubObjectInfo.NetCondition])
-			{
-				bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectInfo.SubObject, Bunch, RepFlags);
-			}
+	return false;
+}
+
+bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, const FSubObjectRegistry& SubObjectList, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap)
+{
+	bool bWroteSomethingImportant = false;
+	for (const FSubObjectRegistry::FEntry& SubObjectInfo : SubObjectList.GetRegistryList())
+	{
+		checkf(IsValid(SubObjectInfo.SubObject), TEXT("Found invalid subobject (%s) registered in %s::%s"), *GetNameSafe(SubObjectInfo.SubObject), *Actor->GetName(), *GetNameSafe(ReplicatedComponent));
+
+		if (ConditionMap[SubObjectInfo.NetCondition])
+		{
+			bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectInfo.SubObject, Bunch, RepFlags);
 		}
 	}
 
 	return bWroteSomethingImportant;
 }
 
-bool UActorChannel::ValidateReplicatedSubObjects() const
+bool UActorChannel::ValidateReplicatedSubObjects()
 {
 	bool bErrorDetected = false;
-	const bool bLogAllErrors = UE::Net::CVarLogAllSubObjectComparisonErrors.GetValueOnAnyThread() != 0;
+	const bool bLogAllErrors = CVarLogAllSubObjectComparisonErrors.GetValueOnAnyThread() != 0;
 	
 	// Make sure both lists contain the same subobjects and trigger an ensure if an element is missing from the other.
 	for (const DataChannelInternal::FSubObjectReplicatedInfo& Info : DataChannelInternal::LegacySubObjectsCollected)
@@ -3744,6 +3772,9 @@ bool UActorChannel::ValidateReplicatedSubObjects() const
 	}
 
 	bErrorDetected |= DataChannelInternal::ReplicatedSubObjectsTracker.Num() != 0;
+
+	DataChannelInternal::LegacySubObjectsCollected.Reset();
+	DataChannelInternal::ReplicatedSubObjectsTracker.Reset();
 
 	return bErrorDetected;
 }
@@ -4015,8 +4046,6 @@ int32 UActorChannel::WriteContentBlockPayload( UObject* Obj, FNetBitWriter &Bunc
 
 UObject* UActorChannel::ReadContentBlockHeader(FInBunch& Bunch, bool& bObjectDeleted, bool& bOutHasRepLayout)
 {
-	using namespace UE::Net;
-
 	CA_ASSUME(Connection != nullptr);
 
 	const bool IsServer = Connection->Driver->IsServer();
@@ -4306,8 +4335,6 @@ UObject* UActorChannel::ReadContentBlockHeader(FInBunch& Bunch, bool& bObjectDel
 
 UObject* UActorChannel::ReadContentBlockPayload( FInBunch &Bunch, FNetBitReader& OutPayload, bool& bOutHasRepLayout )
 {
-	using namespace UE::Net;
-
 	const int32 StartHeaderBits = Bunch.GetPosBits();
 	bool bObjectDeleted = false;
 	UObject* RepObj = ReadContentBlockHeader( Bunch, bObjectDeleted, bOutHasRepLayout );
@@ -4395,8 +4422,6 @@ int32 UActorChannel::WriteFieldHeaderAndPayload( FNetBitWriter& Bunch, const FCl
 
 bool UActorChannel::ReadFieldHeaderAndPayload( UObject* Object, const FClassNetCache* ClassCache, FNetFieldExportGroup* NetFieldExportGroup, FNetBitReader& Bunch, const FFieldNetCache** OutField, FNetBitReader& OutPayload ) const
 {
-	using namespace UE::Net;
-
 	*OutField = nullptr;
 
 	if ( Bunch.GetBitsLeft() == 0 )

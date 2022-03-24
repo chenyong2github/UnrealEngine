@@ -1283,6 +1283,8 @@ void AActor::PostCreateBlueprintComponent(UActorComponent* NewActorComp)
 		if (NewActorComp->GetIsReplicated())
 		{
 			ReplicatedComponents.AddUnique(NewActorComp);
+
+			AddComponentForReplication(NewActorComp);
 		}
 	}
 }

@@ -3595,6 +3595,22 @@ public:
 	/** Completely synchronizes the replicated components array so that it contains exactly the number of replicated components currently owned */
 	void UpdateAllReplicatedComponents();
 
+	/** 
+	* Allows classes to control if a replicated component can actually be replicated or not in a specific actor class. 
+	* You can also choose a netcondition to filter to whom the component is replicated to.
+	* Called on every replicated component during BeginPlay() and from there on every new replicated component added to the OwnedComponent list
+    *
+	* @param ComponentToReplicate The replicated component added to the actor.
+	* @return Return COND_None if this component should be replicated to everyone, COND_Never if it should not be replicated at all or any other conditions for specific filtering.
+	*/
+	virtual ELifetimeCondition AllowActorComponentToReplicate(const UActorComponent* ComponentToReplicate) const;
+
+	/** 
+	* Change the network condition of a replicated component but only after BeginPlay. 
+	* Using a network condition can allow you to filter to which client the component gets replicated to. 
+	*/
+	void SetReplicatedComponentNetCondition(const UActorComponent* ReplicatedComponent, ELifetimeCondition NetCondition);
+
 	/** Returns whether replication is enabled or not. */
 	FORCEINLINE bool GetIsReplicated() const
 	{
@@ -3640,20 +3656,14 @@ private:
 	UE::Net::FSubObjectRegistry ReplicatedSubObjects;
 	friend class FSubObjectGetter;
 
-	/** Keep track of replicated components and their subobject list */
-	struct FReplicatedComponentInfo
-	{
-		// Component that will be replicated
-		UActorComponent* Component = nullptr;
-
-		// Collection of subobjects replicated with this component
-		UE::Net::FSubObjectRegistry SubObjects;
-
-		bool operator==(const FReplicatedComponentInfo& rhs) const { return Component == rhs.Component; }
-		bool operator==(const UActorComponent* rhs) const { return Component == rhs; }
-	};
 	/** Array of replicated components and the list of replicated subobjects they own. Replaces the deprecated ReplicatedCompoments array. */
-	TArray<FReplicatedComponentInfo> ReplicatedComponentsInfo;
+	TArray<UE::Net::FReplicatedComponentInfo> ReplicatedComponentsInfo;
+
+	/** Check if a new component is replicated by the actor and must be registered in the list */
+	void AddComponentForReplication(UActorComponent* Component);
+
+	/** Remove a component from the replicated list */
+	void RemoveReplicatedComponent(UActorComponent* Component);
 
 protected:
 	/** Set of replicated components, stored as an array to save space as this is generally not very large */

@@ -321,6 +321,7 @@ void AActor::ResetOwnedComponents()
 
 	OwnedComponents.Reset();
 	ReplicatedComponents.Reset();
+	ReplicatedComponentsInfo.Reset();
 
 	ForEachObjectWithOuter(this, [this](UObject* Child)
 	{
@@ -3140,7 +3141,13 @@ void AActor::AddOwnedComponent(UActorComponent* Component)
 		if (Component->GetIsReplicated())
 		{
 			ReplicatedComponents.AddUnique(Component);
+
+			if (!HasAnyFlags(RF_ClassDefaultObject) && HasActorBegunPlay())
+			{
+				AddComponentForReplication(Component);
+			}
 		}
+		
 
 		if (Component->IsCreatedByConstructionScript())
 		{
@@ -3163,6 +3170,8 @@ void AActor::RemoveOwnedComponent(UActorComponent* Component)
 	if (OwnedComponents.Remove(Component) > 0)
 	{
 		ReplicatedComponents.RemoveSingleSwap(Component);
+		RemoveReplicatedComponent(Component);
+
 		if (Component->IsCreatedByConstructionScript())
 		{
 			BlueprintCreatedComponents.RemoveSingleSwap(Component);
@@ -3183,6 +3192,8 @@ bool AActor::OwnsComponent(UActorComponent* Component) const
 
 void AActor::UpdateReplicatedComponent(UActorComponent* Component)
 {
+	using namespace UE::Net;
+
 	if (Component->GetIsReplicated())
 	{
 		ReplicatedComponents.AddUnique(Component);
@@ -3191,18 +3202,48 @@ void AActor::UpdateReplicatedComponent(UActorComponent* Component)
 	{
 		ReplicatedComponents.RemoveSingleSwap(Component);
 	}
+
+	const ELifetimeCondition NetCondition = Component->GetIsReplicated() ? AllowActorComponentToReplicate(Component) : COND_Never;
+
+	if (FReplicatedComponentInfo* RepComponentInfo = ReplicatedComponentsInfo.FindByKey(Component))
+	{
+		// Even if not replicated anymore just set the condition to Never because we want to keep the subobject list intact in case the component switches back to replicated later.
+		RepComponentInfo->NetCondition = NetCondition;
+	}
+	else if (NetCondition != COND_Never)
+	{
+		ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo{ Component, NetCondition });
+	}
 }
 
 void AActor::UpdateAllReplicatedComponents()
 {
+	using namespace UE::Net;
+
 	ReplicatedComponents.Reset();
+
+	// Disable all replicated components first
+	for (FReplicatedComponentInfo& RepComponentInfo : ReplicatedComponentsInfo)
+	{
+		RepComponentInfo.NetCondition = COND_Never;
+	}
 
 	for (UActorComponent* Component : OwnedComponents)
 	{
-		if (Component != nullptr && Component->GetIsReplicated())
+		if (Component && Component->GetIsReplicated())
 		{
 			// We reset the array so no need to add unique
 			ReplicatedComponents.Add(Component);
+
+			if (HasActorBegunPlay())
+			{
+				const ELifetimeCondition NetCondition = AllowActorComponentToReplicate(Component);
+				if (NetCondition != COND_Never)
+				{
+					const int32 Index = ReplicatedComponentsInfo.AddUnique(FReplicatedComponentInfo{ Component });
+					ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
+				}
+			}
 		}
 	}
 }
@@ -3929,6 +3970,19 @@ void AActor::BeginPlay()
 	ReceiveBeginPlay();
 
 	ActorHasBegunPlay = EActorBeginPlayState::HasBegunPlay;
+
+	// Check all replicated components to find if any got overriden by the actor class now that the class finished it's BeginPlay.
+	// We check after BeginPlay because some components can get removed or added during BeginPlay.
+	for (UActorComponent* ReplicatedComponent : ReplicatedComponents)
+	{
+		const ELifetimeCondition NetCondition = AllowActorComponentToReplicate(ReplicatedComponent);
+
+		if (NetCondition != COND_Never)
+		{
+			const int32 Index = ReplicatedComponentsInfo.AddUnique(UE::Net::FReplicatedComponentInfo{ ReplicatedComponent });
+			ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
+		}
+	}
 }
 
 void AActor::UpdateInitialOverlaps(bool bFromLevelStreaming)
