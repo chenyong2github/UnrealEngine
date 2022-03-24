@@ -115,6 +115,6 @@ public:
 	UPROPERTY()
 	FMeshApproximationSettings MeshApproximationSettings_DEPRECATED;
 	UPROPERTY()
-	TSoftObjectPtr<UMaterial> HLODMaterial_DEPRECATED;
+	TSoftObjectPtr<UMaterialInterface> HLODMaterial_DEPRECATED;
 #endif
 };
