@@ -156,6 +156,12 @@ public:
 		SetValueFromValueKey(ItemKey, AddValue(InValue));
 	}
 
+	template<typename U>
+	void SetValue(PCGMetadataEntryKey ItemKey, const U& InValue)
+	{
+		SetValueFromValueKey(ItemKey, AddValue(T(InValue)));
+	}
+
 	T GetValueFromItemKey(PCGMetadataEntryKey ItemKey) const
 	{
 		return GetValue(GetValueKey(ItemKey));

@@ -13,7 +13,11 @@ enum class EPCGPointProperties : uint8
 {
 	Density,
 	Extents,
-	Color
+	Color,
+	Position,
+	Rotation,
+	Scale,
+	Transform
 };
 
 UENUM()
