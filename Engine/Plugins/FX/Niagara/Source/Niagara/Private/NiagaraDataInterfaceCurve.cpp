@@ -195,16 +195,18 @@ FORCEINLINE_DEBUGGABLE float UNiagaraDataInterfaceCurve::SampleCurveInternal<TIn
 	return Curve.Eval(X);
 }
 
-#ifdef NIAGARA_EXP_VM
+#if VECTORVM_SUPPORTS_EXPERIMENTAL && !VECTORVM_SUPPORTS_LEGACY
 template<>
 void UNiagaraDataInterfaceCurve::SampleCurve<TIntegralConstant<bool, true>>(FVectorVMExternalFunctionContext& Context)
 {
-	if (Context.NumInstances == 1)
+	const int32 NumInstances = Context.GetNumInstances();
+
+	if (NumInstances == 1)
 	{
 		VectorVM::FExternalFuncInputHandler<float> XParam(Context);
 		VectorVM::FExternalFuncRegisterHandler<float> OutSample(Context);
 
-		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		for (int32 i = 0; i < NumInstances; ++i)
 		{
 			*OutSample.GetDest() = SampleCurveInternal<TIntegralConstant<bool, true>>(XParam.Get());
 			XParam.Advance();
@@ -244,7 +246,7 @@ void UNiagaraDataInterfaceCurve::SampleCurve<TIntegralConstant<bool, true>>(FVec
 		}
 	}
 }
-#endif
+#endif // VECTORVM_SUPPORTS_EXPERIMENTAL
 
 template<typename UseLUT>
 void UNiagaraDataInterfaceCurve::SampleCurve(FVectorVMExternalFunctionContext& Context)

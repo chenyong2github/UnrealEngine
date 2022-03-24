@@ -4,8 +4,8 @@ using UnrealBuildTool;
 
 public class VectorVM : ModuleRules
 {
-	public VectorVM(ReadOnlyTargetRules Target) : base(Target)
-	{
+    public VectorVM(ReadOnlyTargetRules Target) : base(Target)
+    {
         PublicDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
@@ -13,23 +13,22 @@ public class VectorVM : ModuleRules
             }
         );
 
-		PrivateDependencyModuleNames.AddRange(
+        PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
-				"CoreUObject"
-            }
-        );
+                "CoreUObject"
+            });
 
         PrivateIncludePaths.AddRange(
             new string[] {
                 "Runtime/Engine/Classes/Curves"
-            }
-        );
+            });
+
         PublicDefinitions.AddRange(
             new string[]
             {
-                "NIAGARA_EXP_VM",
-            }
-        );
+                "VECTORVM_SUPPORTS_EXPERIMENTAL=1",
+                "VECTORVM_SUPPORTS_LEGACY=1"
+            });
     }
 }

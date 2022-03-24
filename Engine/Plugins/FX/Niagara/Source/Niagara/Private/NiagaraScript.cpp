@@ -287,11 +287,31 @@ FVersionedNiagaraScriptData::FVersionedNiagaraScriptData()
 }
 #endif
 
+#if VECTORVM_SUPPORTS_EXPERIMENTAL
+bool FNiagaraVMExecutableData::SupportsExperimentalVM() const
+{
+	return ExperimentalContextData.Num() > 0;
+}
+
+FVectorVMOptimizeContext FNiagaraVMExecutableData::BuildExperimentalContext() const
+{
+	FVectorVMOptimizeContext Context;
+	if (SupportsExperimentalVM())
+	{
+		ReinterpretVectorVMOptimizeContextData(ExperimentalContextData, Context);
+	}
+	else
+	{
+		FMemory::Memzero(Context);
+	}
+
+	return Context;
+}
+#endif
+
+
 UNiagaraScript::UNiagaraScript()
 {
-#	ifdef NIAGARA_EXP_VM
-	FMemory::Memzero(&OptimizeContext, sizeof(OptimizeContext));
-#	endif //NIAGARA_EXP_VM
 }
 
 #if WITH_EDITORONLY_DATA
@@ -738,22 +758,12 @@ UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 	, IsCooked(false)
 #endif
 {
-#	ifdef NIAGARA_EXP_VM
-	FMemory::Memzero(&OptimizeContext, sizeof(OptimizeContext));
-#	endif //NIAGARA_EXP_VM
 #if WITH_EDITORONLY_DATA
 	ScriptResource = MakeUnique<FNiagaraShaderScript>();
 	ScriptResource->OnCompilationComplete().AddUniqueDynamic(this, &UNiagaraScript::RaiseOnGPUCompilationComplete);
 
 	RapidIterationParameters.DebugName = *GetFullName();
 #endif
-}
-
-UNiagaraScript::~UNiagaraScript()
-{
-#	ifdef NIAGARA_EXP_VM
-	FreeVectorVMOptimizeContext(&OptimizeContext);
-#	endif //NIAGARA_EXP_VM
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1346,6 +1356,7 @@ void FNiagaraScriptAsyncOptimizeTaskState::OptimizeByteCode()
 
 	if (bShouldOptimizeByteCode && SourceByteCode.HasByteCode())
 	{
+#if VECTORVM_SUPPORTS_LEGACY
 		// Generate optimized byte code on any thread
 		OptimizedByteCode.Reserve(SourceByteCode.GetLength());
 		VectorVM::OptimizeByteCode(SourceByteCode.GetDataPtr(), OptimizedByteCode.GetData(), MakeArrayView(ExternalFunctionRegisterCounts));
@@ -1355,6 +1366,7 @@ void FNiagaraScriptAsyncOptimizeTaskState::OptimizeByteCode()
 		{
 			SourceByteCode.Reset();
 		}
+#endif
 	}
 	bOptimizationComplete = true;
 }
@@ -1380,7 +1392,11 @@ struct FNiagaraScriptAsyncOptimizeTask
 
 bool UNiagaraScript::ShouldDecompressByteCode() const
 {
+#if VECTORVM_SUPPORTS_LEGACY
 	return CachedScriptVM.IsValid() && CachedScriptVM.ByteCode.IsCompressed();
+#else
+	return false;
+#endif
 }
 
 bool UNiagaraScript::ShouldOptimizeByteCode() const
@@ -1402,18 +1418,6 @@ bool UNiagaraScript::ShouldFreeUnoptimizedByteCode() const
 
 FGraphEventRef UNiagaraScript::HandleByteCodeOptimization(bool bShouldForceNow)
 {
-#	ifdef NIAGARA_EXP_VM
-	//this is just necessary because VectorVM doesn't know about FVMExternalFunctionBindingInfo
-	int NumExtFns = CachedScriptVM.CalledVMExternalFunctions.Num();
-	FVectorVMExtFunctionData *ExtFnTable = (FVectorVMExtFunctionData *)FMemory_Alloca(sizeof(FVectorVMExtFunctionData) * NumExtFns); //32 is pointless, it just gets around static analysis triggering for unknown reasons
-	CA_ASSUME(ExtFnTable != nullptr);
-	for (int i = 0; i < NumExtFns; ++i) {
-		ExtFnTable[i].NumInputs = CachedScriptVM.CalledVMExternalFunctions[i].GetNumInputs();
-		ExtFnTable[i].NumOutputs = CachedScriptVM.CalledVMExternalFunctions[i].GetNumOutputs();
-	}
-	OptimizeVectorVMScript(CachedScriptVM.ByteCode.GetDataPtr(), CachedScriptVM.ByteCode.GetLength(), ExtFnTable, NumExtFns, &OptimizeContext, VVMOptFlag_SaveIntermediateState);
-
-#	endif //NIAGARA_EXP_VM
 	check(IsInGameThread());
 
 	const bool bHasOptimizationTask = CachedScriptVM.OptimizationTask.State.IsValid();

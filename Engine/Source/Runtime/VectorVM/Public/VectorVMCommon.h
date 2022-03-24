@@ -10,8 +10,6 @@
 #define VECTOR_WIDTH_BYTES (16)
 #define VECTOR_WIDTH_FLOATS (4)
 
-DECLARE_DELEGATE_OneParam(FVMExternalFunction, class FVectorVMExternalFunctionContext& /*Context*/);
-
 UENUM()
 enum class EVectorVMBaseTypes : uint8
 {
@@ -251,11 +249,11 @@ struct FDataSetMeta
 	//UE-65856 for tracking this work.
 
 	//@NOTE (smcgrath): the lock/unlock functions can go with the ne VM, we don't need them
-#ifndef NIAGARA_EXP_VM
+#if VECTORVM_SUPPORTS_LEGACY
 	FCriticalSection FreeTableLock;
-#endif
 	FORCEINLINE void LockFreeTable();
 	FORCEINLINE void UnlockFreeTable();
+#endif
 
 	FDataSetMeta()
 		: InputRegisterTypeOffsets{}
@@ -308,3 +306,23 @@ private:
 	FDataSetMeta& operator=(FDataSetMeta&&) = delete;
 	FDataSetMeta& operator=(const FDataSetMeta&) = delete;
 };
+
+#if VECTORVM_SUPPORTS_EXPERIMENTAL && VECTORVM_SUPPORTS_LEGACY
+
+class FVectorVMExternalFunctionContextProxy;
+DECLARE_DELEGATE_OneParam(FVMExternalFunction, FVectorVMExternalFunctionContextProxy& /*Context*/);
+
+#elif VECTORVM_SUPPORTS_EXPERIMENTAL
+
+class FVectorVMExternalFunctionContextExperimental;
+DECLARE_DELEGATE_OneParam(FVMExternalFunction, FVectorVMExternalFunctionContextExperimental& /*Context*/);
+
+#elif VECTORVM_SUPPORTS_LEGACY
+
+class FVectorVMExternalFunctionContextLegacy;
+DECLARE_DELEGATE_OneParam(FVMExternalFunction, FVectorVMExternalFunctionContextLegacy& /*Context*/);
+
+#else
+#error "At least one of VECTORVM_SUPPORTS_EXPERIMENTAL | VECTORVM_SUPPORTS_LEGACY must be defined"
+#endif
+

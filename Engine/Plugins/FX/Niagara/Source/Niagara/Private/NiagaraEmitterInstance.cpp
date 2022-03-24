@@ -1680,7 +1680,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	uint32 TotalActualEventSpawns = 0;
 
 	Data.NumSpawnedIDs = 0;
-#ifndef NIAGARA_EXP_VM
+#if VECTORVM_SUPPORTS_LEGACY
 	Data.GetSpawnedIDsTable().SetNum(0, false);
 #endif
 	int32 SpawnCountRemaining = AllocationSize - OrigNumParticles;

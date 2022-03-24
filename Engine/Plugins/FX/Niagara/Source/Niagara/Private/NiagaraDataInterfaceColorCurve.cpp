@@ -238,11 +238,13 @@ FORCEINLINE_DEBUGGABLE FLinearColor UNiagaraDataInterfaceColorCurve::SampleCurve
 }
 
 
-#if defined(NIAGARA_EXP_VM) && PLATFORM_ENABLE_VECTORINTRINSICS && !PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+#if VECTORVM_SUPPORTS_EXPERIMENTAL && !VECTORVM_SUPPORTS_LEGACY && PLATFORM_ENABLE_VECTORINTRINSICS && !PLATFORM_ENABLE_VECTORINTRINSICS_NEON
 template<>
 void UNiagaraDataInterfaceColorCurve::SampleCurve<TIntegralConstant<bool, true>>(FVectorVMExternalFunctionContext& Context)
 {
-	if (Context.NumInstances == 1) //could be a per-instance function call, in which can we can't write 4-wide so just use the old method
+	const int32 NumInstances = Context.GetNumInstances();
+
+	if (NumInstances == 1) //could be a per-instance function call, in which can we can't write 4-wide so just use the old method
 	{ 
 		VectorVM::FExternalFuncInputHandler<float> XParam(Context);
 		VectorVM::FExternalFuncRegisterHandler<float> SamplePtrR(Context);
@@ -250,7 +252,7 @@ void UNiagaraDataInterfaceColorCurve::SampleCurve<TIntegralConstant<bool, true>>
 		VectorVM::FExternalFuncRegisterHandler<float> SamplePtrB(Context);
 		VectorVM::FExternalFuncRegisterHandler<float> SamplePtrA(Context);
 
-		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		for (int32 i = 0; i < NumInstances; ++i)
 		{
 			float X = XParam.GetAndAdvance();
 			FLinearColor C = SampleCurveInternal<TIntegralConstant<bool, true>>(X);
@@ -262,6 +264,8 @@ void UNiagaraDataInterfaceColorCurve::SampleCurve<TIntegralConstant<bool, true>>
 	}
 	else
 	{
+		const int32 NumLoops = Context.GetNumLoops<4>();
+
 		float *LUT = ShaderLUT.GetData();
 		VectorRegister4f LutNumSamplesMinusOne4 = VectorSetFloat1(LUTNumSamplesMinusOne);
 		VectorRegister4f LutMinTime4            = VectorSetFloat1(LUTMinTime);
@@ -276,7 +280,7 @@ void UNiagaraDataInterfaceColorCurve::SampleCurve<TIntegralConstant<bool, true>>
 		int IdxA[4];
 		int IdxB[4];
 
-		for (int i = 0; i < Context.NumLoops; ++i)
+		for (int i = 0; i < NumLoops; ++i)
 		{
 			VectorRegister4f NormalizedX = VectorMultiply(VectorSubtract(XParam[i & Context.RegInc[0]], LutMinTime4), LutInvTimeRange4);
 			VectorRegister4f RemappedX   = VectorClamp(VectorMultiply(NormalizedX, LutNumSamplesMinusOne4), VectorZeroFloat(), LutNumSamplesMinusOne4);
@@ -313,7 +317,7 @@ void UNiagaraDataInterfaceColorCurve::SampleCurve<TIntegralConstant<bool, true>>
 		}
 	}
 }
-#endif //NIAGARA_EXP_VM
+#endif // VECTORVM_SUPPORTS_EXPERIMENTAL
 
 template<typename UseLUT>
 void UNiagaraDataInterfaceColorCurve::SampleCurve(FVectorVMExternalFunctionContext& Context)

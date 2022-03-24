@@ -91,7 +91,7 @@ static uint32 VectorVMSerializeSetError_(FVectorVMSerializeState *SerializeState
 #define VectorVMSerializeSetError(SerializeState, Flags)     VectorVMSerializeSetError_(SerializeState, Flags, __LINE__)
 
 
-#ifdef NIAGARA_EXP_VM
+#if VECTORVM_SUPPORTS_EXPERIMENTAL
 
 /*********************************************************************************************************************************************************************************************************************************
 *** Serialization stuff for the Experimental VM
@@ -296,7 +296,7 @@ static uint32 VVMSer_initSerializationState_(FVectorVMState *VVMState, FVectorVM
 }
 #endif //VVM_SERIALIZE_NO_WRITE
 
-#else //NIAGARA_EXP_VM
+#else // VECTORVM_SUPPORTS_EXPERIMENTAL
 
 /*********************************************************************************************************************************************************************************************************************************
 *** Serialization stuff for the old VM
@@ -373,7 +373,7 @@ static void VVMSer_serializeInstruction(FVectorVMSerializeState *SerializeState,
 }
 #endif //VVM_SERIALIZE_NO_WRITE
 
-#endif //NIAGARA_EXP_VM
+#endif // VECTORVM_SUPPORTS_EXPERIMENTAL
 
 /*********************************************************************************************************************************************************************************************************************************
 *** Stuff shared between the new and old VM

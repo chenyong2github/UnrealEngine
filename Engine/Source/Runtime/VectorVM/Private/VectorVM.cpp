@@ -141,15 +141,8 @@ FORCEINLINE VectorRegister4Int VectorIntShuffle(const VectorRegister4Int& Vec, c
 }
 #endif
 
-#ifdef NIAGARA_EXP_VM
-//@TODO: remove these functions when we go to the new VM
-FORCEINLINE void FDataSetMeta::LockFreeTable() {
+#if VECTORVM_SUPPORTS_LEGACY
 
-}
-FORCEINLINE void FDataSetMeta::UnlockFreeTable() {
-
-}
-#else
 //Temporarily locking the free table until we can implement a lock free algorithm. UE-65856
 FORCEINLINE void FDataSetMeta::LockFreeTable()
 {
@@ -173,7 +166,8 @@ FORCEINLINE void FDataSetMeta::UnlockFreeTable()
 {
  	FreeTableLock.Unlock();
 }
-#endif //NIAGARA_EXP_VM
+
+#endif //VECTORVM_SUPPORTS_LEGACY
 
 static int32 GbParallelVVM = 1;
 static FAutoConsoleVariableRef CVarbParallelVVM(
@@ -281,6 +275,69 @@ static FAutoConsoleVariableRef CVarbBatchPackVMOutput(
 );
 
 #include "VectorVMExperimental.inl"
+
+uint8 VectorVM::GetNumOpCodes()
+{
+	return (uint8)EVectorVMOp::NumOpcodes;
+}
+
+#if WITH_EDITOR
+UEnum* g_VectorVMEnumStateObj = nullptr;
+UEnum* g_VectorVMEnumOperandObj = nullptr;
+
+FString VectorVM::GetOpName(EVectorVMOp Op)
+{
+	check(g_VectorVMEnumStateObj);
+
+	FString OpStr = g_VectorVMEnumStateObj->GetNameByValue((uint8)Op).ToString();
+	int32 LastIdx = 0;
+	OpStr.FindLastChar(TEXT(':'), LastIdx);
+	return OpStr.RightChop(LastIdx + 1);
+}
+
+FString VectorVM::GetOperandLocationName(EVectorVMOperandLocation Location)
+{
+	check(g_VectorVMEnumOperandObj);
+
+	FString LocStr = g_VectorVMEnumOperandObj->GetNameByValue((uint8)Location).ToString();
+	int32 LastIdx = 0;
+	LocStr.FindLastChar(TEXT(':'), LastIdx);
+	return LocStr.RightChop(LastIdx + 1);
+}
+#endif
+
+uint8 VectorVM::CreateSrcOperandMask(EVectorVMOperandLocation Type0, EVectorVMOperandLocation Type1, EVectorVMOperandLocation Type2)
+{
+	return	(Type0 == EVectorVMOperandLocation::Constant ? OP0_CONST : OP_REGISTER) |
+		(Type1 == EVectorVMOperandLocation::Constant ? OP1_CONST : OP_REGISTER) |
+		(Type2 == EVectorVMOperandLocation::Constant ? OP2_CONST : OP_REGISTER);
+}
+
+#if VECTORVM_SUPPORTS_LEGACY
+namespace VectorKernelNoiseImpl
+{
+	static void BuildNoiseTable();
+}
+#endif
+
+void VectorVM::Init()
+{
+	static bool Inited = false;
+	if (Inited == false)
+	{
+#if WITH_EDITOR
+		g_VectorVMEnumStateObj = StaticEnum<EVectorVMOp>();
+		g_VectorVMEnumOperandObj = StaticEnum<EVectorVMOperandLocation>();
+#endif
+
+#if VECTORVM_SUPPORTS_LEGACY
+		VectorKernelNoiseImpl::BuildNoiseTable();
+#endif
+		Inited = true;
+	}
+}
+
+#if VECTORVM_SUPPORTS_LEGACY
 
 //////////////////////////////////////////////////////////////////////////
 //  VM Code Optimizer Context
@@ -645,13 +702,6 @@ void FVectorVMContext::FinishExec()
 }
 
 //////////////////////////////////////////////////////////////////////////
-
-uint8 VectorVM::CreateSrcOperandMask(EVectorVMOperandLocation Type0, EVectorVMOperandLocation Type1, EVectorVMOperandLocation Type2)
-{
-	return	(Type0 == EVectorVMOperandLocation::Constant ? OP0_CONST : OP_REGISTER) |
-		(Type1 == EVectorVMOperandLocation::Constant ? OP1_CONST : OP_REGISTER) |
-		(Type2 == EVectorVMOperandLocation::Constant ? OP2_CONST : OP_REGISTER);
-}
 
 //////////////////////////////////////////////////////////////////////////
 // Kernels
@@ -1560,6 +1610,87 @@ struct FVectorKernelNoise : public TUnaryVectorKernel<FVectorKernelNoise>
 	}
 };
 
+namespace VectorKernelNoiseImpl
+{
+	static void BuildNoiseTable()
+	{
+		// random noise
+		float TempTable[17][17][17];
+		for (int z = 0; z < 17; z++)
+		{
+			for (int y = 0; y < 17; y++)
+			{
+				for (int x = 0; x < 17; x++)
+				{
+					float f1 = (float)FMath::FRandRange(-1.0f, 1.0f);
+					TempTable[x][y][z] = f1;
+				}
+			}
+		}
+
+		// pad
+		for (int i = 0; i < 17; i++)
+		{
+			for (int j = 0; j < 17; j++)
+			{
+				TempTable[i][j][16] = TempTable[i][j][0];
+				TempTable[i][16][j] = TempTable[i][0][j];
+				TempTable[16][j][i] = TempTable[0][j][i];
+			}
+		}
+
+		// compute gradients
+		FVector3f TempTable2[17][17][17];
+		for (int z = 0; z < 16; z++)
+		{
+			for (int y = 0; y < 16; y++)
+			{
+				for (int x = 0; x < 16; x++)
+				{
+					FVector3f XGrad = FVector3f(1.0f, 0.0f, TempTable[x][y][z] - TempTable[x + 1][y][z]);
+					FVector3f YGrad = FVector3f(0.0f, 1.0f, TempTable[x][y][z] - TempTable[x][y + 1][z]);
+					FVector3f ZGrad = FVector3f(0.0f, 1.0f, TempTable[x][y][z] - TempTable[x][y][z + 1]);
+
+					FVector3f Grad = FVector3f(XGrad.Z, YGrad.Z, ZGrad.Z);
+					TempTable2[x][y][z] = Grad;
+				}
+			}
+		}
+
+		// pad
+		for (int i = 0; i < 17; i++)
+		{
+			for (int j = 0; j < 17; j++)
+			{
+				TempTable2[i][j][16] = TempTable2[i][j][0];
+				TempTable2[i][16][j] = TempTable2[i][0][j];
+				TempTable2[16][j][i] = TempTable2[0][j][i];
+			}
+		}
+
+
+		// compute curl of gradient field
+		for (int z = 0; z < 16; z++)
+		{
+			for (int y = 0; y < 16; y++)
+			{
+				for (int x = 0; x < 16; x++)
+				{
+					FVector3f Dy = TempTable2[x][y][z] - TempTable2[x][y + 1][z];
+					FVector3f Sy = TempTable2[x][y][z] + TempTable2[x][y + 1][z];
+					FVector3f Dx = TempTable2[x][y][z] - TempTable2[x + 1][y][z];
+					FVector3f Sx = TempTable2[x][y][z] + TempTable2[x + 1][y][z];
+					FVector3f Dz = TempTable2[x][y][z] - TempTable2[x][y][z + 1];
+					FVector3f Sz = TempTable2[x][y][z] + TempTable2[x][y][z + 1];
+					FVector3f Dir = FVector3f(Dy.Z - Sz.Y, Dz.X - Sx.Z, Dx.Y - Sy.X);
+
+					FVectorKernelNoise::RandomTable[x][y][z] = MakeVectorRegister(Dir.X, Dir.Y, Dir.Z, 0.f);
+				}
+			}
+		}
+	}
+}
+
 VectorRegister4Float FVectorKernelNoise::RandomTable[17][17][17];
 
 //////////////////////////////////////////////////////////////////////////
@@ -2104,16 +2235,18 @@ struct FKernelExternalFunctionCall
 
 	static void Exec(FVectorVMContext& Context)
 	{
-#ifdef NIAGARA_EXP_VM
-		check(false);
-#else
+#if VECTORVM_SUPPORTS_LEGACY
 		const uint32 ExternalFuncIdx = Context.DecodeU8();
 		const FVMExternalFunction* ExternalFunction = Context.ExternalFunctionTable[ExternalFuncIdx];
 		check(ExternalFunction);
 
 		if (ExternalFunction)
 		{
+#if VECTORVM_SUPPORTS_EXPERIMENTAL
 			FVectorVMExternalFunctionContext DataInterfaceFunctionContext(&Context);
+#else
+			FVectorVMExternalFunctionContextLegacy DataInterfaceFunctionContext(&Context);
+#endif
 			ExternalFunction->Execute(DataInterfaceFunctionContext);
 		}
 #endif
@@ -2464,101 +2597,6 @@ struct FVectorKernelBoolToInt : TUnaryKernel<FVectorKernelBoolToInt, FRegisterHa
 	}
 };
 
-#if WITH_EDITOR
-UEnum* g_VectorVMEnumStateObj = nullptr;
-UEnum* g_VectorVMEnumOperandObj = nullptr;
-#endif
-
-
-void VectorVM::Init()
-{
-	static bool Inited = false;
-	if (Inited == false)
-	{
-#if WITH_EDITOR
-		g_VectorVMEnumStateObj = StaticEnum<EVectorVMOp>();
-		g_VectorVMEnumOperandObj = StaticEnum<EVectorVMOperandLocation>();
-#endif
-
-		// random noise
-		float TempTable[17][17][17];
-		for (int z = 0; z < 17; z++)
-		{
-			for (int y = 0; y < 17; y++)
-			{
-				for (int x = 0; x < 17; x++)
-				{
-					float f1 = (float)FMath::FRandRange(-1.0f, 1.0f);
-					TempTable[x][y][z] = f1;
-				}
-			}
-		}
-
-		// pad
-		for (int i = 0; i < 17; i++)
-		{
-			for (int j = 0; j < 17; j++)
-			{
-				TempTable[i][j][16] = TempTable[i][j][0];
-				TempTable[i][16][j] = TempTable[i][0][j];
-				TempTable[16][j][i] = TempTable[0][j][i];
-			}
-		}
-
-		// compute gradients
-		FVector3f TempTable2[17][17][17];
-		for (int z = 0; z < 16; z++)
-		{
-			for (int y = 0; y < 16; y++)
-			{
-				for (int x = 0; x < 16; x++)
-				{
-					FVector3f XGrad = FVector3f(1.0f, 0.0f, TempTable[x][y][z] - TempTable[x+1][y][z]);
-					FVector3f YGrad = FVector3f(0.0f, 1.0f, TempTable[x][y][z] - TempTable[x][y + 1][z]);
-					FVector3f ZGrad = FVector3f(0.0f, 1.0f, TempTable[x][y][z] - TempTable[x][y][z+1]);
-
-					FVector3f Grad = FVector3f(XGrad.Z, YGrad.Z, ZGrad.Z);
-					TempTable2[x][y][z] = Grad;
-				}
-			}
-		}
-
-		// pad
-		for (int i = 0; i < 17; i++)
-		{
-			for (int j = 0; j < 17; j++)
-			{
-				TempTable2[i][j][16] = TempTable2[i][j][0];
-				TempTable2[i][16][j] = TempTable2[i][0][j];
-				TempTable2[16][j][i] = TempTable2[0][j][i];
-			}
-		}
-
-
-		// compute curl of gradient field
-		for (int z = 0; z < 16; z++)
-		{
-			for (int y = 0; y < 16; y++)
-			{
-				for (int x = 0; x < 16; x++)
-				{
-					FVector3f Dy = TempTable2[x][y][z] - TempTable2[x][y + 1][z];
-					FVector3f Sy = TempTable2[x][y][z] + TempTable2[x][y + 1][z];
-					FVector3f Dx = TempTable2[x][y][z] - TempTable2[x + 1][y][z];
-					FVector3f Sx = TempTable2[x][y][z] + TempTable2[x + 1][y][z];
-					FVector3f Dz = TempTable2[x][y][z] - TempTable2[x][y][z + 1];
-					FVector3f Sz = TempTable2[x][y][z] + TempTable2[x][y][z + 1];
-					FVector3f Dir = FVector3f(Dy.Z - Sz.Y, Dz.X - Sx.Z, Dx.Y - Sy.X);
-
-					FVectorKernelNoise::RandomTable[x][y][z] = MakeVectorRegister(Dir.X, Dir.Y, Dir.Z, 0.f);
-				}
-			}
-		}
-
-		Inited = true;
-	}
-}
-
 void VectorVM::Exec(FVectorVMExecArgs& Args, FVectorVMSerializeState *SerializeState)
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE("VMExec");
@@ -2784,34 +2822,6 @@ void VectorVM::Exec(FVectorVMExecArgs& Args, FVectorVMSerializeState *SerializeS
 	}
 #endif //VVM_INCLUDE_SERIALIZATION
 }
-
-uint8 VectorVM::GetNumOpCodes()
-{
-	return (uint8)EVectorVMOp::NumOpcodes;
-}
-
-#if WITH_EDITOR
-FString VectorVM::GetOpName(EVectorVMOp Op)
-{
-	check(g_VectorVMEnumStateObj);
-
-	FString OpStr = g_VectorVMEnumStateObj->GetNameByValue((uint8)Op).ToString();
-	int32 LastIdx = 0;
-	OpStr.FindLastChar(TEXT(':'),LastIdx);
-	return OpStr.RightChop(LastIdx+1);
-}
-
-FString VectorVM::GetOperandLocationName(EVectorVMOperandLocation Location)
-{
-	check(g_VectorVMEnumOperandObj);
-
-	FString LocStr = g_VectorVMEnumOperandObj->GetNameByValue((uint8)Location).ToString();
-	int32 LastIdx = 0;
-	LocStr.FindLastChar(TEXT(':'), LastIdx);
-	return LocStr.RightChop(LastIdx+1);
-}
-#endif
-
 
 void ExecBatchedOutput(FVectorVMContext& Context)
 {
@@ -3772,5 +3782,7 @@ void VectorVM::OptimizeByteCode(const uint8* ByteCode, TArray<uint8>& OptimizedC
 	Context.EncodeJumpTable();
 #endif //PLATFORM_SUPPORTS_UNALIGNED_LOADS && PLATFORM_LITTLE_ENDIAN
 }
+
+#endif // #if VECTORVM_SUPPORTS_LEGACY
 
 #undef VM_FORCEINLINE

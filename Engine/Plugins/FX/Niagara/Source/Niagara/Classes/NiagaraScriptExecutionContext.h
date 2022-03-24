@@ -125,8 +125,10 @@ struct FNiagaraDataSetExecutionInfo
 
 struct FScriptExecutionConstantBufferTable
 {
-	TArray<const uint8*, TInlineAllocator<12>> Buffers;
-	TArray<int32, TInlineAllocator<12>> BufferSizes;
+	static constexpr uint32 MaxBufferCount = 12;
+
+	TArray<const uint8*, TInlineAllocator<MaxBufferCount>> Buffers;
+	TArray<int32, TInlineAllocator<MaxBufferCount>> BufferSizes;
 
 	void Reset(int32 ResetSize)
 	{
@@ -182,7 +184,11 @@ struct FNiagaraScriptExecutionContextBase
 	void CreateStatScopeData();
 	TMap<TStatIdData const*, float> ReportStats();
 #endif
-	
+
+#if VECTORVM_SUPPORTS_EXPERIMENTAL && VECTORVM_SUPPORTS_LEGACY
+	bool bUsingExperimentalVM;
+#endif
+
 	FNiagaraScriptExecutionContextBase();
 	virtual ~FNiagaraScriptExecutionContextBase();
 
@@ -203,6 +209,14 @@ struct FNiagaraScriptExecutionContextBase
 	//Unused. These are only useful in the new SystemScript context.
 	virtual void BindSystemInstances(TArray<FNiagaraSystemInstance*>& InSystemInstances) {}
 	virtual bool GeneratePerInstanceDIFunctionTable(FNiagaraSystemInstance* Inst, TArray<struct FNiagaraPerInstanceDIFuncInfo>& OutFunctions) {return true;}
+
+private:
+#if VECTORVM_SUPPORTS_EXPERIMENTAL
+	bool ExecuteInternal_Experimental(uint32 NumInstances, const FScriptExecutionConstantBufferTable& ConstantBufferTable);
+#endif // VECTORVM_SUPPORTS_EXPERIMENTAL
+#if VECTORVM_SUPPORTS_LEGACY
+	bool ExecuteInternal_Legacy(uint32 NumInstances, const FScriptExecutionConstantBufferTable& ConstantBufferTable);
+#endif // VECTORVM_SUPPORTS_LEGACY
 };
 
 struct FNiagaraScriptExecutionContext : public FNiagaraScriptExecutionContextBase
@@ -246,9 +260,10 @@ protected:
 	*/
 	TArray<FNiagaraSystemInstance*>* SystemInstances;
 
-
+#if VECTORVM_SUPPORTS_LEGACY
 	/** Helper function that handles calling into per instance DI calls and massages the VM context appropriately. */
-	void PerInstanceFunctionHook(FVectorVMExternalFunctionContext& Context, int32 PerInstFunctionIndex, int32 UserPtrIndex);
+	void PerInstanceFunctionHook(FVectorVMExternalFunctionContext& ParentContext, FVectorVMExternalFunctionContextLegacy& Context, int32 PerInstFunctionIndex, int32 UserPtrIndex);
+#endif
 
 public:
 	FNiagaraSystemScriptExecutionContext(ENiagaraSystemSimulationScript InScriptType) : SystemInstances(nullptr) { ScriptType = InScriptType; }

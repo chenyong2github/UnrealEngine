@@ -8,7 +8,7 @@ typedef void   (VectorVMFreeFn)                 (void *Ptr, const char *Filename
 struct FDataSetMeta;
 
 //prototypes for serialization that are required whether or not serialization is enabled
-#if defined(NIAGARA_EXP_VM) || defined(VVM_INCLUDE_SERIALIZATION)
+#if VECTORVM_SUPPORTS_EXPERIMENTAL || defined(VVM_INCLUDE_SERIALIZATION)
 struct FVectorVMConstData
 {
 	void * RegisterData;
@@ -19,7 +19,7 @@ struct FVectorVMConstData
 typedef uint32 (VectorVMOptimizeErrorCallback)  (struct FVectorVMOptimizeContext *OptimizeContext, uint32 ErrorFlags);	//return new error flags
 typedef uint32 (VectorVMSerializeErrorCallback) (struct FVectorVMSerializeState *SerializeState, uint32 ErrorFlags);
 
-#endif //NIAGARA_EXP_VM || VVM_INCLUDE_SERIALIZATION
+#endif // VECTORVM_SUPPORTS_EXPERIMENTAL || VVM_INCLUDE_SERIALIZATION
 
 //Serialization
 enum EVectorVMSerializeFlags
@@ -176,7 +176,7 @@ struct FVectorVMSerializeState
 
 #endif // VVM_INCLUDE_SERIALIZATION
 
-#ifdef NIAGARA_EXP_VM
+#if VECTORVM_SUPPORTS_EXPERIMENTAL
 
 union FVecReg {
 	VectorRegister4f v;
@@ -337,7 +337,7 @@ struct FVectorVMExternalFnPerInstanceData
 struct FVectorVMInitData
 {
 	struct FVectorVMState *					ExistingVectorVMState;
-	FVectorVMOptimizeContext *              OptimizeContext;
+	const FVectorVMOptimizeContext *              OptimizeContext;
 	TArrayView<FDataSetMeta>                DataSets;
 	TArrayView<const FVMExternalFunction *> ExtFunctionTable;
 	
@@ -425,6 +425,44 @@ struct FVectorVMState
 	} Error;
 };
 
+class FVectorVMExternalFunctionContextExperimental
+{
+public:
+	uint32** RegisterData;
+	uint16* RawVecIndices; //undecoded, for compatbility with the previous VM
+	uint32* RegInc;
+
+	int                      RegReadCount;
+	int                      NumRegisters;
+
+	int                      StartInstance;
+	int                      NumInstances;
+	int                      NumLoops;
+	int                      PerInstanceFnInstanceIdx;
+
+	void** UserPtrTable;
+	int                      NumUserPtrs;
+
+	FRandomStream* RandStream;
+	int32* RandCounters;
+	TArrayView<FDataSetMeta> DataSets;
+
+	FORCEINLINE int32                                  GetStartInstance() const { return StartInstance; }
+	FORCEINLINE int32                                  GetNumInstances() const { return NumInstances; }
+	FORCEINLINE int32* GetRandCounters() { return RandCounters; }
+	FORCEINLINE FRandomStream& GetRandStream() { return *RandStream; }
+	FORCEINLINE void* GetUserPtrTable(int32 UserPtrIdx) { check(UserPtrIdx < NumUserPtrs);  return UserPtrTable[UserPtrIdx]; }
+	template<uint32 InstancesPerOp> FORCEINLINE int32  GetNumLoops() const { static_assert(InstancesPerOp == 4); return NumLoops; };
+
+	FORCEINLINE float* GetNextRegister(int32* OutAdvanceOffset, int32* OutVecIndex)
+	{
+		check(RegReadCount < NumRegisters);
+		*OutAdvanceOffset = RegInc[RegReadCount] & 1;
+		*OutVecIndex = RawVecIndices[RegReadCount];
+		return (float*)RegisterData[RegReadCount++];
+	}
+};
+
 //API FUNCTIONS
 
 //normal functions
@@ -434,8 +472,10 @@ VECTORVM_API void             ExecVectorVMState     (FVectorVMState *VectorVMSta
 VECTORVM_API int              GetNumOutputInstances (FVectorVMState *VectorVMState, int DataSetIdx);
 
 //optimize functions
-VECTORVM_API uint32  OptimizeVectorVMScript      (const uint8 *Bytecode, int BytecodeLen, FVectorVMExtFunctionData *ExtFnIOData, int NumExtFns, FVectorVMOptimizeContext *OptContext, uint32 Flags); //OutContext must be zeroed except the Init struct
-VECTORVM_API void    FreeVectorVMOptimizeContext (FVectorVMOptimizeContext *Context);
+VECTORVM_API uint32  OptimizeVectorVMScript                (const uint8 *Bytecode, int BytecodeLen, FVectorVMExtFunctionData *ExtFnIOData, int NumExtFns, FVectorVMOptimizeContext *OptContext, uint32 Flags); //OutContext must be zeroed except the Init struct
+VECTORVM_API void    FreeVectorVMOptimizeContext           (FVectorVMOptimizeContext *Context);
+VECTORVM_API void    FreezeVectorVMOptimizeContext         (const FVectorVMOptimizeContext& Context, TArray<uint8>& ContextData);
+VECTORVM_API void    ReinterpretVectorVMOptimizeContextData(TConstArrayView<uint8> ContextData, FVectorVMOptimizeContext& Context);
 
 //serialize functions
 VECTORVM_API uint32  SerializeVectorVMInputDataSets  (FVectorVMSerializeState *SerializeState, TArrayView<FDataSetMeta> DataSets, FVectorVMConstData *ConstData, int NumConstData); //only use when not calling InitVectorVMState()
@@ -443,7 +483,7 @@ VECTORVM_API uint32  SerializeVectorVMOutputDataSets (FVectorVMSerializeState *S
 VECTORVM_API void    SerializeVectorVMWriteToFile    (FVectorVMSerializeState *SerializeState, uint8 WhichStateWritten, const wchar_t *Filename);
 VECTORVM_API void    FreeVectorVMSerializeState      (FVectorVMSerializeState *SerializeState);
 
-#else //NIAGARA_EXP_VM
+#else // VECTORVM_SUPPORTS_EXPERIMENTAL
 
 struct FVectorVMState {
 
@@ -454,4 +494,4 @@ VECTORVM_API uint32 SerializeVectorVMOutputDataSets (FVectorVMSerializeState *Se
 VECTORVM_API void   SerializeVectorVMWriteToFile    (FVectorVMSerializeState *SerializeState, uint8 WhichStateWritten, const wchar_t *Filename);
 VECTORVM_API void   FreeVectorVMSerializeState      (FVectorVMSerializeState *SerializeState);
 
-#endif //NIAGARA_EXP_VM
+#endif // VECTORVM_SUPPORTS_EXPERIMENTAL

@@ -285,7 +285,7 @@ static void VVMDefaultFree(void *Ptr, const char *Filename, int LineNumber)
 
 #include "./VectorVMExperimental_Serialization.inl"
 
-#ifdef NIAGARA_EXP_VM
+#if VECTORVM_SUPPORTS_EXPERIMENTAL
 
 #define VVM_CACHELINE_SIZE				64
 #define VVM_CHUNK_FIXED_OVERHEAD_SIZE	512
@@ -1333,7 +1333,7 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 						{
 							VVMDecodeInstructionRegisters(InsPtr + 2 + i * 2, BatchState->ChunkLocalData.ExtFnDecodedReg.RegData + i, BatchState->ChunkLocalData.ExtFnDecodedReg.RegInc + i);
 						}
-						FVectorVMExternalFunctionContext ExtFnCtx;
+						FVectorVMExternalFunctionContextExperimental ExtFnCtx;
 
 						ExtFnCtx.RegisterData             = (uint32 **)BatchState->ChunkLocalData.ExtFnDecodedReg.RegData;
 						ExtFnCtx.RegInc                   = BatchState->ChunkLocalData.ExtFnDecodedReg.RegInc;
@@ -1363,7 +1363,12 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 							}
 						}
 						check(DummyRegCount <= VVMState->NumDummyRegsReq);
+#if VECTORVM_SUPPORTS_LEGACY
+						FVectorVMExternalFunctionContext ProxyContext(ExtFnCtx);
+						ExtFnData->Function->Execute(ProxyContext);
+#else
 						ExtFnData->Function->Execute(ExtFnCtx);
+#endif
 					}
 					InsPtr += 2 + ((ExtFnData->NumInputs + ExtFnData->NumOutputs) << 1);
 				}

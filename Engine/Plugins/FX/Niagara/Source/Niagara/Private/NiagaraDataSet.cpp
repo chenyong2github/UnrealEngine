@@ -357,7 +357,7 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 			RequiredIDs = ExistingNumIDs;
 		}
 
-#ifndef NIAGARA_EXP_VM //the new VM doesn't use the SpawnedIDsTable, so remove it.
+#if VECTORVM_SUPPORTS_LEGACY //the new VM doesn't use the SpawnedIDsTable, so remove it.
 		// We know that we can't spawn more than NumFreeIDs particles, so we can pre-allocate SpawnedIDsTable here, to avoid allocations during execution.
 		SpawnedIDsTable.Reserve(NumFreeIDs);
 #endif

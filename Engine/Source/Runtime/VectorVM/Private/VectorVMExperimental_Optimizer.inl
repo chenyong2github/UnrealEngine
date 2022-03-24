@@ -150,7 +150,70 @@ static void VectorVMFreeOptimizerIntermediateData(FVectorVMOptimizeContext *OptC
 	}
 }
 
-VECTORVM_API void FreeVectorVMOptimizeContext(FVectorVMOptimizeContext *OptContext)
+void FreezeVectorVMOptimizeContext(const FVectorVMOptimizeContext& Context, TArray<uint8>& ContextData)
+{
+	const uint32 BytecodeSize = Context.NumBytecodeBytes + 16;
+	const uint32 ConstRemapSize = Context.NumConstsAlloced * sizeof(uint16);
+	const uint32 ExtFnSize = Context.NumExtFns * sizeof(FVectorVMExtFunctionData);
+
+	const uint32 BytecodeOffset = Align(sizeof(FVectorVMOptimizeContext), 16);
+	const uint32 ConstRemap0Offset = Align(BytecodeOffset + BytecodeSize, 16);
+	const uint32 ConstRemap1Offset = Align(ConstRemap0Offset + ConstRemapSize, 16);
+	const uint32 ExtFnOffset = Align(ConstRemap1Offset + ConstRemapSize, 16);
+	const uint32 TotalSize = Align(ExtFnOffset + ExtFnSize, 16);
+
+	ContextData.SetNumZeroed(TotalSize);
+	uint8* DestData = ContextData.GetData();
+	FMemory::Memcpy(DestData, &Context, sizeof(Context));
+	FMemory::Memcpy(DestData + BytecodeOffset, Context.OutputBytecode, BytecodeSize);
+	FMemory::Memcpy(DestData + ConstRemap0Offset, Context.ConstRemap[0], ConstRemapSize);
+	FMemory::Memcpy(DestData + ConstRemap1Offset, Context.ConstRemap[1], ConstRemapSize);
+	FMemory::Memcpy(DestData + ExtFnOffset, Context.ExtFnTable, ExtFnSize);
+
+	// we want to clear out the pointers to any callbacks
+	FVectorVMOptimizeContext& DestContext = *reinterpret_cast<FVectorVMOptimizeContext*>(DestData);
+	DestContext.Init.ReallocFn = nullptr;
+	DestContext.Init.FreeFn = nullptr;
+	DestContext.Error.CallbackFn = nullptr;
+}
+
+static void* VectorVMFrozenRealloc(void* Ptr, size_t NumBytes, const char* Filename, int LineNum)
+{
+	check(false);
+	return nullptr;
+}
+
+static void VectorVMFrozenFree(void* Ptr, const char* Filename, int LineNum)
+{
+	check(false);
+}
+
+void ReinterpretVectorVMOptimizeContextData(TConstArrayView<uint8> ContextData, FVectorVMOptimizeContext& Context)
+{
+	const uint8* SrcData = ContextData.GetData();
+	const FVectorVMOptimizeContext& SrcContext = *reinterpret_cast<const FVectorVMOptimizeContext*>(SrcData);
+
+	const uint32 BytecodeSize = SrcContext.NumBytecodeBytes + 16;
+	const uint32 ConstRemapSize = SrcContext.NumConstsAlloced * sizeof(uint16);
+	const uint32 ExtFnSize = SrcContext.NumExtFns * sizeof(FVectorVMExtFunctionData);
+
+	const uint32 BytecodeOffset = Align(sizeof(FVectorVMOptimizeContext), 16);
+	const uint32 ConstRemap0Offset = Align(BytecodeOffset + BytecodeSize, 16);
+	const uint32 ConstRemap1Offset = Align(ConstRemap0Offset + ConstRemapSize, 16);
+	const uint32 ExtFnOffset = Align(ConstRemap1Offset + ConstRemapSize, 16);
+	const uint32 TotalSize = Align(ExtFnOffset + ExtFnSize, 16);
+
+	FMemory::Memcpy(&Context, SrcData, sizeof(Context));
+	Context.OutputBytecode = const_cast<uint8*>(reinterpret_cast<const uint8*>(SrcData + BytecodeOffset));
+	Context.ConstRemap[0] = const_cast<uint16*>(reinterpret_cast<const uint16*>(SrcData + ConstRemap0Offset));
+	Context.ConstRemap[1] = const_cast<uint16*>(reinterpret_cast<const uint16*>(SrcData + ConstRemap1Offset));
+	Context.ExtFnTable = const_cast<FVectorVMExtFunctionData*>(reinterpret_cast<const FVectorVMExtFunctionData*>(SrcData + ExtFnOffset));
+	Context.Init.ReallocFn = VectorVMFrozenRealloc;
+	Context.Init.FreeFn = VectorVMFrozenFree;
+	Context.Error.CallbackFn = nullptr;
+}
+
+void FreeVectorVMOptimizeContext(FVectorVMOptimizeContext *OptContext)
 {
 	//save init data
 	VectorVMReallocFn *ReallocFn = OptContext->Init.ReallocFn;

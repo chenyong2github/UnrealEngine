@@ -6,7 +6,7 @@ public class Niagara : ModuleRules
 {
     public Niagara(ReadOnlyTargetRules Target) : base(Target)
     {
-		PrivateIncludePaths.Add("../../../../Shaders/Shared");
+        PrivateIncludePaths.Add("../../../../Shaders/Shared");
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {
@@ -45,16 +45,15 @@ public class Niagara : ModuleRules
             }
         );
 
-		PrivateIncludePathModuleNames.AddRange(
-			new string[] {
-				"DerivedDataCache",
-			});
+        PrivateIncludePathModuleNames.AddRange(
+                new string[] {
+                        "DerivedDataCache",
+                });
 
         PrivateIncludePaths.AddRange(
             new string[] {
                 "Niagara/Private",
-            })
-        ;
+            });
 
         if (Target.bBuildEditor == true)
         {
@@ -67,11 +66,12 @@ public class Niagara : ModuleRules
 				"Slate"
             });
         }
+
         PublicDefinitions.AddRange(
             new string[]
             {
-                "NIAGARA_EXP_VM",
-            }
-        );
+                "VECTORVM_SUPPORTS_EXPERIMENTAL=1",
+                "VECTORVM_SUPPORTS_LEGACY=1"
+            });
     }
 }

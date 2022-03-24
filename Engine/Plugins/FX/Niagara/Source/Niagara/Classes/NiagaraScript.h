@@ -492,6 +492,9 @@ public:
 #endif
 
 	UPROPERTY()
+	TArray<uint8> ExperimentalContextData;
+
+	UPROPERTY()
 	uint32 bReadsSignificanceIndex : 1;
 
 	UPROPERTY()
@@ -508,6 +511,11 @@ public:
 #if WITH_EDITORONLY_DATA
 	void BakeScriptLiterals(TArray<uint8>& OutLiterals) const;
 #endif
+
+#if VECTORVM_SUPPORTS_EXPERIMENTAL
+	bool SupportsExperimentalVM() const;
+	FVectorVMOptimizeContext BuildExperimentalContext() const;
+#endif //VECTORVM_SUPPORTS_EXPERIMENTAL
 };
 
 struct NIAGARA_API FNiagaraGraphCachedDataBase
@@ -649,10 +657,6 @@ class UNiagaraScript : public UNiagaraScriptBase
 	GENERATED_UCLASS_BODY()
 public:
 	UNiagaraScript();
-	~UNiagaraScript();
-#	ifdef NIAGARA_EXP_VM
-	FVectorVMOptimizeContext OptimizeContext;
-#	endif //NIAGARA_EXP_VM
 
 #if WITH_EDITORONLY_DATA
 	/** If true then this script asset uses active version control to track changes. */

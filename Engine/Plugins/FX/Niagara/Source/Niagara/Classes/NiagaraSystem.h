@@ -25,6 +25,8 @@
 
 #include "NiagaraSystem.generated.h"
 
+class FNiagaraAsyncCompileTask;
+
 #if WITH_EDITORONLY_DATA
 class UNiagaraEditorDataBase;
 #endif
@@ -148,105 +150,6 @@ struct FNiagaraSystemCompiledData
 	FNiagaraParameterDataSetBindingCollection UpdateInstanceOwnerBinding;
 	UPROPERTY()
 	TArray<FNiagaraParameterDataSetBindingCollection> UpdateInstanceEmitterBindings;
-};
-
-USTRUCT()
-struct FEmitterCompiledScriptPair
-{
-	GENERATED_USTRUCT_BODY()
-	
-	bool bResultsReady = false;
-	UNiagaraEmitter* Emitter = nullptr;
-	UNiagaraScript* CompiledScript = nullptr;
-	uint32 PendingJobID = INDEX_NONE; // this is the ID for any active shader compiler worker job
-	FNiagaraVMExecutableDataId CompileId;
-	TSharedPtr<FNiagaraVMExecutableData> CompileResults;
-};
-
-UENUM()
-enum class ENiagaraCompilationState : uint8
-{
-	CheckDDC,
-	Precompile,
-	StartCompileJob,
-	AwaitResult,
-	ProcessResult,
-	PutToDDC,
-	Finished,
-	Aborted
-};
-
-struct FNiagaraLazyPrecompileReference
-{
-	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> GetPrecompileData(UNiagaraScript* ForScript);
-	TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> GetPrecompileDuplicateData(UNiagaraEmitter* OwningEmitter, UNiagaraScript* TargetScript);
-	
-	UNiagaraSystem* System = nullptr;
-	TArray<UNiagaraScript*> Scripts;
-	TMap<UNiagaraScript*, int32> EmitterScriptIndex;
-	TArray<TObjectPtr<UObject>> CompilationRootObjects;
-
-private:
-	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> SystemPrecompiledData;
-	TMap<UNiagaraScript*, TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>> EmitterMapping;
-	TArray<TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe>> PrecompileDuplicateDatas;
-};
-
-struct FNiagaraAsyncTaskSharedData
-{
-	FNiagaraAsyncTaskSharedData();
-	~FNiagaraAsyncTaskSharedData();
-	
-	
-};
-
-class FNiagaraAsyncCompileTask
-{
-#if WITH_EDITORONLY_DATA
-public:
-	FString DDCKey;
-	FString AssetPath;
-	FString UniqueEmitterName;
-	uint32 TaskHandle = 0;
-
-	double StartTaskTime = 0;
-	double DDCFetchTime = 0;
-	double StartCompileTime = 0;
-	bool bWaitForCompileJob = false;
-	bool bUsedShaderCompilerWorker = false;
-	bool bFetchedGCObjects = false;
-	UNiagaraSystem* OwningSystem;
-	FEmitterCompiledScriptPair ScriptPair;
-	TArray<FNiagaraVariable> EncounteredExposedVars;
-
-	ENiagaraCompilationState CurrentState;
-
-	TSharedPtr<FNiagaraVMExecutableData> ExeData;
-	TArray<uint8> DDCOutData;
-
-	// this data is shared between the ddc thread and the game thread that starts the compilation
-	TSharedPtr<FNiagaraLazyPrecompileReference, ESPMode::ThreadSafe> PrecompileReference;
-	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> ComputedPrecompileData;
-	TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> ComputedPrecompileDuplicateData;
-
-	FNiagaraAsyncCompileTask(UNiagaraSystem* InOwningSystem, FString InAssetPath, const FEmitterCompiledScriptPair& InScriptPair);
-
-	const FEmitterCompiledScriptPair& GetScriptPair() const { return ScriptPair; };
-	void WaitAndResolveResult();
-	void AbortTask();
-
-	void CheckDDCResult();
-	void PutToDDC();
-	void ProcessCurrentState();
-	void MoveToState(ENiagaraCompilationState NewState);
-	bool IsDone() const;
-
-	void PrecompileData();
-	void StartCompileJob();
-	bool AwaitResult();
-	void ProcessResult();
-
-#endif
 };
 
 USTRUCT()
@@ -551,6 +454,8 @@ public:
 	bool UsesCollection(const UNiagaraParameterCollection* Collection)const;
 
 	bool SupportsLargeWorldCoordinates() const { return bSupportLargeWorldCoordinates && bLwcEnabledSettingCached; }
+	FORCEINLINE bool ShouldDisableExperimentalVM() const { return bDisableExperimentalVM; }
+
 #if WITH_EDITORONLY_DATA
 	bool UsesEmitter(const UNiagaraEmitter* Emitter) const;
 	bool UsesScript(const UNiagaraScript* Script)const; 
@@ -597,7 +502,6 @@ protected:
 	/** If true ParticleReads will not absolutely prevent attribute trimming - User must ensure that the appropriate attributes are preserved on the source emitter! */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
 	uint32 bIgnoreParticleReadsForAttributeTrim : 1;
-
 
 	/** When enable debug switches are disabled while editing the system. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (DisplayName="Disable Debug Switches During Edit"))
@@ -653,6 +557,10 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rendering", meta=(DisplayName="Default Render CustomDepth Pass", EditCondition="bOverrideRenderCustomDepth"))
 	uint8 bRenderCustomDepth : 1;
+
+	/** If true, disables experimental VM, if available */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (DisplayName = "Disable Experimental VM"))
+	uint8 bDisableExperimentalVM : 1;
 
 	/**
 	When enabled this is the default value set on the component.

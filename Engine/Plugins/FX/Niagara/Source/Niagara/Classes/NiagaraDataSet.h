@@ -351,6 +351,8 @@ public:
 
 	FORCEINLINE TArray<int32>& GetFreeIDTable() { return FreeIDsTable; }
 	FORCEINLINE TArray<int32>& GetSpawnedIDsTable() { return SpawnedIDsTable; }
+	FORCEINLINE const TArray<int32>& GetFreeIDTable() const { return FreeIDsTable; }
+	FORCEINLINE const TArray<int32>& GetSpawnedIDsTable() const { return SpawnedIDsTable; }
 	FORCEINLINE int32& GetNumFreeIDs() { return NumFreeIDs; }
 	FORCEINLINE int32& GetMaxUsedID() { return MaxUsedID; }
 	FORCEINLINE int32& GetIDAcquireTag() { return IDAcquireTag; }
