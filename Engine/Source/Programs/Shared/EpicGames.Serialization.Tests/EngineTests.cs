@@ -3,9 +3,7 @@
 using EpicGames.Core;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Serialization.Tests
 {
@@ -14,97 +12,97 @@ namespace EpicGames.Serialization.Tests
 	{
 		class CbFieldAccessors
 		{
-			public object Default;
-			public Func<CbField, bool> IsType;
-			public Func<CbField, object> AsType;
-			public Func<CbField, object, object> AsTypeWithDefault;
-			public Func<object, object, bool> Comparer = (x, y) => x.Equals(y);
+			public object _defaultValue;
+			public Func<CbField, bool> _isType;
+			public Func<CbField, object> _asType;
+			public Func<CbField, object, object> _asTypeWithDefault;
+			public Func<object, object, bool> _comparer = (x, y) => x.Equals(y);
 
-			public CbFieldAccessors(object Default, Func<CbField, bool> IsType, Func<CbField, object> AsType, Func<CbField, object, object> AsTypeWithDefault)
+			public CbFieldAccessors(object defaultValue, Func<CbField, bool> isType, Func<CbField, object> asType, Func<CbField, object, object> asTypeWithDefault)
 			{
-				this.Default = Default;
-				this.IsType = IsType;
-				this.AsType = AsType;
-				this.AsTypeWithDefault = AsTypeWithDefault;
+				_defaultValue = defaultValue;
+				_isType = isType;
+				_asType = asType;
+				_asTypeWithDefault = asTypeWithDefault;
 			}
 
-			public static CbFieldAccessors FromStruct<T>(Func<CbField, bool> IsType, Func<CbField, T, object> AsTypeWithDefault) where T : struct
+			public static CbFieldAccessors FromStruct<T>(Func<CbField, bool> isType, Func<CbField, T, object> asTypeWithDefault) where T : struct
 			{
-				return new CbFieldAccessors(new T(), IsType, x => AsTypeWithDefault(x, new T()), (x, y) => AsTypeWithDefault(x, (T)y));
+				return new CbFieldAccessors(new T(), isType, x => asTypeWithDefault(x, new T()), (x, y) => asTypeWithDefault(x, (T)y));
 			}
 
-			public static CbFieldAccessors FromStruct<T>(T Default, Func<CbField, bool> IsType, Func<CbField, T, object> AsTypeWithDefault) where T : struct
+			public static CbFieldAccessors FromStruct<T>(T @default, Func<CbField, bool> isType, Func<CbField, T, object> asTypeWithDefault) where T : struct
 			{
-				return new CbFieldAccessors(Default, IsType, x => AsTypeWithDefault(x, new T()), (x, y) => AsTypeWithDefault(x, (T)y));
+				return new CbFieldAccessors(@default, isType, x => asTypeWithDefault(x, new T()), (x, y) => asTypeWithDefault(x, (T)y));
 			}
 
-			public static CbFieldAccessors FromStruct<T>(Func<CbField, bool> IsType, Func<CbField, T, object> AsTypeWithDefault, Func<T, T, bool> Comparer) where T : struct
+			public static CbFieldAccessors FromStruct<T>(Func<CbField, bool> isType, Func<CbField, T, object> asTypeWithDefault, Func<T, T, bool> comparer) where T : struct
 			{
-				return new CbFieldAccessors(new T(), IsType, x => AsTypeWithDefault(x, new T()), (x, y) => AsTypeWithDefault(x, (T)y)) { Comparer = (x, y) => Comparer((T)x, (T)y) };
+				return new CbFieldAccessors(new T(), isType, x => asTypeWithDefault(x, new T()), (x, y) => asTypeWithDefault(x, (T)y)) { _comparer = (x, y) => comparer((T)x, (T)y) };
 			}
 		}
 
-		Dictionary<CbFieldType, CbFieldAccessors> TypeAccessors = new Dictionary<CbFieldType, CbFieldAccessors>
+		readonly Dictionary<CbFieldType, CbFieldAccessors> _typeAccessors = new Dictionary<CbFieldType, CbFieldAccessors>
 		{
 			[CbFieldType.Object] = new CbFieldAccessors(CbObject.Empty, x => x.IsObject(), x => x.AsObject(), (x, y) => x.AsObject()),
 			[CbFieldType.UniformObject] = new CbFieldAccessors(CbObject.Empty, x => x.IsObject(), x => x.AsObject(), (x, y) => x.AsObject()),
 			[CbFieldType.Array] = new CbFieldAccessors(CbArray.Empty, x => x.IsArray(), x => x.AsArray(), (x, y) => x.AsArray()),
 			[CbFieldType.UniformArray] = new CbFieldAccessors(CbArray.Empty, x => x.IsArray(), x => x.AsArray(), (x, y) => x.AsArray()),
 			[CbFieldType.Binary] = CbFieldAccessors.FromStruct<ReadOnlyMemory<byte>>(x => x.IsBinary(), (x, y) => x.AsBinary(y), (x, y) => x.Span.SequenceEqual(y.Span)),
-			[CbFieldType.String] = new CbFieldAccessors(Utf8String.Empty, x => x.IsString(), x => x.AsUtf8String(), (x, Default) => x.AsUtf8String((Utf8String)Default)),
+			[CbFieldType.String] = new CbFieldAccessors(Utf8String.Empty, x => x.IsString(), x => x.AsUtf8String(), (x, @default) => x.AsUtf8String((Utf8String)@default)),
 			[CbFieldType.IntegerPositive] = CbFieldAccessors.FromStruct<ulong>(x => x.IsInteger(), (x, y) => x.AsUInt64(y)),
 			[CbFieldType.IntegerNegative] = CbFieldAccessors.FromStruct<long>(x => x.IsInteger(), (x, y) => x.AsInt64(y)),
 			[CbFieldType.Float32] = CbFieldAccessors.FromStruct<float>(x => x.IsFloat(), (x, y) => x.AsFloat(y)),
 			[CbFieldType.Float64] = CbFieldAccessors.FromStruct<double>(x => x.IsFloat(), (x, y) => x.AsDouble(y)),
 			[CbFieldType.BoolTrue] = CbFieldAccessors.FromStruct<bool>(x => x.IsBool(), (x, y) => x.AsBool(y)),
 			[CbFieldType.BoolFalse] = CbFieldAccessors.FromStruct<bool>(x => x.IsBool(), (x, y) => x.AsBool(y)),
-			[CbFieldType.ObjectAttachment] = new CbFieldAccessors(new CbObjectAttachment(IoHash.Zero), x => x.IsObjectAttachment(), x => x.AsObjectAttachment(), (x, Default) => x.AsObjectAttachment((CbObjectAttachment)Default)),
-			[CbFieldType.BinaryAttachment] = new CbFieldAccessors(new CbBinaryAttachment(IoHash.Zero), x => x.IsBinaryAttachment(), x => x.AsBinaryAttachment(), (x, Default) => x.AsBinaryAttachment((CbBinaryAttachment)Default)),
-			[CbFieldType.Hash] = new CbFieldAccessors(IoHash.Zero, x => x.IsHash(), x => x.AsHash(), (x, Default) => x.AsHash((IoHash)Default)),
+			[CbFieldType.ObjectAttachment] = new CbFieldAccessors(new CbObjectAttachment(IoHash.Zero), x => x.IsObjectAttachment(), x => x.AsObjectAttachment(), (x, @default) => x.AsObjectAttachment((CbObjectAttachment)@default)),
+			[CbFieldType.BinaryAttachment] = new CbFieldAccessors(new CbBinaryAttachment(IoHash.Zero), x => x.IsBinaryAttachment(), x => x.AsBinaryAttachment(), (x, @default) => x.AsBinaryAttachment((CbBinaryAttachment)@default)),
+			[CbFieldType.Hash] = new CbFieldAccessors(IoHash.Zero, x => x.IsHash(), x => x.AsHash(), (x, @default) => x.AsHash((IoHash)@default)),
 			[CbFieldType.Uuid] = CbFieldAccessors.FromStruct<Guid>(x => x.IsUuid(), (x, y) => x.AsUuid(y)),
 			[CbFieldType.DateTime] = CbFieldAccessors.FromStruct<DateTime>(new DateTime(0, DateTimeKind.Utc), x => x.IsDateTime(), (x, y) => x.AsDateTime(y)),
 			[CbFieldType.TimeSpan] = CbFieldAccessors.FromStruct<TimeSpan>(x => x.IsTimeSpan(), (x, y) => x.AsTimeSpan(y)),
 		};
 
-		void TestField(CbFieldType FieldType, CbField Field, object? ExpectedValue = null, object? DefaultValue = null, CbFieldError ExpectedError = CbFieldError.None, CbFieldAccessors? Accessors = null)
+		void TestField(CbFieldType fieldType, CbField field, object? expectedValue = null, object? defaultValue = null, CbFieldError expectedError = CbFieldError.None, CbFieldAccessors? accessors = null)
 		{
-			Accessors ??= TypeAccessors[FieldType];
-			ExpectedValue ??= Accessors.Default;
-			DefaultValue ??= Accessors.Default;
+			accessors ??= _typeAccessors[fieldType];
+			expectedValue ??= accessors._defaultValue;
+			defaultValue ??= accessors._defaultValue;
 
-			Assert.AreEqual(Accessors.IsType(Field), ExpectedError != CbFieldError.TypeError);
-			if (ExpectedError == CbFieldError.None && !Field.IsBool())
+			Assert.AreEqual(accessors._isType(field), expectedError != CbFieldError.TypeError);
+			if (expectedError == CbFieldError.None && !field.IsBool())
 			{
-				Assert.IsFalse(Field.AsBool());
-				Assert.IsTrue(Field.HasError());
-				Assert.AreEqual(Field.GetError(), CbFieldError.TypeError);
+				Assert.IsFalse(field.AsBool());
+				Assert.IsTrue(field.HasError());
+				Assert.AreEqual(field.GetError(), CbFieldError.TypeError);
 			}
 
-			object Value = Accessors.AsTypeWithDefault(Field, DefaultValue);
-			Assert.IsTrue(Accessors.Comparer(Accessors.AsTypeWithDefault(Field, DefaultValue), ExpectedValue));
-			Assert.AreEqual(Field.HasError(), ExpectedError != CbFieldError.None);
-			Assert.AreEqual(Field.GetError(), ExpectedError);
+			object value = accessors._asTypeWithDefault(field, defaultValue);
+			Assert.IsTrue(accessors._comparer(accessors._asTypeWithDefault(field, defaultValue), expectedValue));
+			Assert.AreEqual(field.HasError(), expectedError != CbFieldError.None);
+			Assert.AreEqual(field.GetError(), expectedError);
 		}
 
-		void TestField(CbFieldType FieldType, byte[] Payload, object? ExpectedValue = null, object? DefaultValue = null, CbFieldError ExpectedError = CbFieldError.None, CbFieldAccessors? Accessors = null)
+		void TestField(CbFieldType fieldType, byte[] payload, object? expectedValue = null, object? defaultValue = null, CbFieldError expectedError = CbFieldError.None, CbFieldAccessors? accessors = null)
 		{
-			CbField Field = new CbField(Payload, FieldType);
-			Assert.AreEqual(Field.GetSize(), Payload.Length + (CbFieldUtils.HasFieldType(FieldType) ? 0 : 1));
-			Assert.IsTrue(Field.HasValue());
-			Assert.IsFalse(Field.HasError());
-			Assert.AreEqual(Field.GetError(), CbFieldError.None);
-			TestField(FieldType, Field, ExpectedValue, DefaultValue, ExpectedError, Accessors);
+			CbField field = new CbField(payload, fieldType);
+			Assert.AreEqual(field.GetSize(), payload.Length + (CbFieldUtils.HasFieldType(fieldType) ? 0 : 1));
+			Assert.IsTrue(field.HasValue());
+			Assert.IsFalse(field.HasError());
+			Assert.AreEqual(field.GetError(), CbFieldError.None);
+			TestField(fieldType, field, expectedValue, defaultValue, expectedError, accessors);
 		}
 
-		void TestFieldError(CbFieldType FieldType, CbField Field, CbFieldError ExpectedError, object? ExpectedValue = null, CbFieldAccessors? Accessors = null)
+		void TestFieldError(CbFieldType fieldType, CbField field, CbFieldError expectedError, object? expectedValue = null, CbFieldAccessors? accessors = null)
 		{
-			TestField(FieldType, Field, ExpectedValue, ExpectedValue, ExpectedError, Accessors);
+			TestField(fieldType, field, expectedValue, expectedValue, expectedError, accessors);
 		}
 
-		void TestFieldError(CbFieldType FieldType, ReadOnlyMemory<byte> Payload, CbFieldError ExpectedError, object? ExpectedValue = null, CbFieldAccessors? Accessors = null)
+		void TestFieldError(CbFieldType fieldType, ReadOnlyMemory<byte> payload, CbFieldError expectedError, object? expectedValue = null, CbFieldAccessors? accessors = null)
 		{
-			CbField Field = new CbField(Payload, FieldType);
-			TestFieldError(FieldType, Field, ExpectedError, ExpectedValue, Accessors);
+			CbField field = new CbField(payload, fieldType);
+			TestFieldError(fieldType, field, expectedError, expectedValue, accessors);
 		}
 
 		[TestMethod]
@@ -112,98 +110,94 @@ namespace EpicGames.Serialization.Tests
 		{
 			// Test CbField()
 			{
-				CbField DefaultField = new CbField();
-				Assert.IsFalse(DefaultField.HasName());
-				Assert.IsFalse(DefaultField.HasValue());
-				Assert.IsFalse(DefaultField.HasError());
-				Assert.IsTrue(DefaultField.GetError() == CbFieldError.None);
-				Assert.AreEqual(DefaultField.GetSize(), 1);
-				Assert.AreEqual(DefaultField.GetName().Length, 0);
-				Assert.IsFalse(DefaultField.HasName());
-				Assert.IsFalse(DefaultField.HasValue());
-				Assert.IsFalse(DefaultField.HasError());
-				Assert.AreEqual(DefaultField.GetError(), CbFieldError.None);
-				Assert.AreEqual(DefaultField.GetHash(), Blake3Hash.Compute(new byte[] { (byte)CbFieldType.None }));
-				ReadOnlyMemory<byte> View;
-				Assert.IsFalse(DefaultField.TryGetView(out View));
+				CbField defaultField = new CbField();
+				Assert.IsFalse(defaultField.HasName());
+				Assert.IsFalse(defaultField.HasValue());
+				Assert.IsFalse(defaultField.HasError());
+				Assert.IsTrue(defaultField.GetError() == CbFieldError.None);
+				Assert.AreEqual(defaultField.GetSize(), 1);
+				Assert.AreEqual(defaultField.GetName().Length, 0);
+				Assert.IsFalse(defaultField.HasName());
+				Assert.IsFalse(defaultField.HasValue());
+				Assert.IsFalse(defaultField.HasError());
+				Assert.AreEqual(defaultField.GetError(), CbFieldError.None);
+				Assert.AreEqual(defaultField.GetHash(), Blake3Hash.Compute(new byte[] { (byte)CbFieldType.None }));
+				Assert.IsFalse(defaultField.TryGetView(out _));
 			}
 
 			// Test CbField(None)
 			{
-				CbField NoneField = new CbField(ReadOnlyMemory<byte>.Empty, CbFieldType.None);
-				Assert.AreEqual(NoneField.GetSize(), 1);
-				Assert.AreEqual(NoneField.GetName().Length, 0);
-				Assert.IsFalse(NoneField.HasName());
-				Assert.IsFalse(NoneField.HasValue());
-				Assert.IsFalse(NoneField.HasError());
-				Assert.AreEqual(NoneField.GetError(), CbFieldError.None);
-				Assert.AreEqual(NoneField.GetHash(), new CbField().GetHash());
-				ReadOnlyMemory<byte> View;
-				Assert.IsFalse(NoneField.TryGetView(out View));
+				CbField noneField = new CbField(ReadOnlyMemory<byte>.Empty, CbFieldType.None);
+				Assert.AreEqual(noneField.GetSize(), 1);
+				Assert.AreEqual(noneField.GetName().Length, 0);
+				Assert.IsFalse(noneField.HasName());
+				Assert.IsFalse(noneField.HasValue());
+				Assert.IsFalse(noneField.HasError());
+				Assert.AreEqual(noneField.GetError(), CbFieldError.None);
+				Assert.AreEqual(noneField.GetHash(), new CbField().GetHash());
+				Assert.IsFalse(noneField.TryGetView(out _));
 			}
 
 			// Test CbField(None|Type|Name)
 			{
-				CbFieldType FieldType = CbFieldType.None | CbFieldType.HasFieldName;
-				byte[] NoneBytes = { (byte)FieldType, 4, (byte)'N', (byte)'a', (byte)'m', (byte)'e' };
-				CbField NoneField = new CbField(NoneBytes);
-				Assert.AreEqual(NoneField.GetSize(), NoneBytes.Length);
-				Assert.AreEqual(NoneField.GetName(), "Name");
-				Assert.IsTrue(NoneField.HasName());
-				Assert.IsFalse(NoneField.HasValue());
-				Assert.AreEqual(NoneField.GetHash(), Blake3Hash.Compute(NoneBytes));
-				ReadOnlyMemory<byte> View;
-				Assert.IsTrue(NoneField.TryGetView(out View) && View.Span.SequenceEqual(NoneBytes));
+				CbFieldType fieldType = CbFieldType.None | CbFieldType.HasFieldName;
+				byte[] noneBytes = { (byte)fieldType, 4, (byte)'N', (byte)'a', (byte)'m', (byte)'e' };
+				CbField noneField = new CbField(noneBytes);
+				Assert.AreEqual(noneField.GetSize(), noneBytes.Length);
+				Assert.AreEqual(noneField.GetName(), "Name");
+				Assert.IsTrue(noneField.HasName());
+				Assert.IsFalse(noneField.HasValue());
+				Assert.AreEqual(noneField.GetHash(), Blake3Hash.Compute(noneBytes));
+				ReadOnlyMemory<byte> view;
+				Assert.IsTrue(noneField.TryGetView(out view) && view.Span.SequenceEqual(noneBytes));
 
-				byte[] CopyBytes = new byte[NoneBytes.Length];
-				NoneField.CopyTo(CopyBytes);
-				Assert.IsTrue(NoneBytes.AsSpan().SequenceEqual(CopyBytes));
+				byte[] copyBytes = new byte[noneBytes.Length];
+				noneField.CopyTo(copyBytes);
+				Assert.IsTrue(noneBytes.AsSpan().SequenceEqual(copyBytes));
 			}
 
 			// Test CbField(None|Type)
 			{
-				CbFieldType FieldType = CbFieldType.None;
-				byte[] NoneBytes = { (byte)FieldType };
-				CbField NoneField = new CbField(NoneBytes);
-				Assert.AreEqual(NoneField.GetSize(), NoneBytes.Length);
-				Assert.AreEqual(NoneField.GetName().Length, 0);
-				Assert.IsFalse(NoneField.HasName());
-				Assert.IsFalse(NoneField.HasValue());
-				Assert.AreEqual(NoneField.GetHash(), new CbField().GetHash());
-				ReadOnlyMemory<byte> View;
-				Assert.IsTrue(NoneField.TryGetView(out View) && View.Span.SequenceEqual(NoneBytes));
+				CbFieldType fieldType = CbFieldType.None;
+				byte[] noneBytes = { (byte)fieldType };
+				CbField noneField = new CbField(noneBytes);
+				Assert.AreEqual(noneField.GetSize(), noneBytes.Length);
+				Assert.AreEqual(noneField.GetName().Length, 0);
+				Assert.IsFalse(noneField.HasName());
+				Assert.IsFalse(noneField.HasValue());
+				Assert.AreEqual(noneField.GetHash(), new CbField().GetHash());
+				ReadOnlyMemory<byte> view;
+				Assert.IsTrue(noneField.TryGetView(out view) && view.Span.SequenceEqual(noneBytes));
 			}
 
 			// Test CbField(None|Name)
 			{
-				CbFieldType FieldType = CbFieldType.None | CbFieldType.HasFieldName;
-				byte[] NoneBytes = { (byte)FieldType, 4, (byte)'N', (byte)'a', (byte)'m', (byte)'e' };
-				CbField NoneField = new CbField(NoneBytes.AsMemory(1), FieldType);
-				Assert.AreEqual(NoneField.GetSize(), NoneBytes.Length);
-				Assert.AreEqual(NoneField.GetName(), "Name");
-				Assert.IsTrue(NoneField.HasName());
-				Assert.IsFalse(NoneField.HasValue());
-				Assert.AreEqual(NoneField.GetHash(), Blake3Hash.Compute(NoneBytes));
-				ReadOnlyMemory<byte> View;
-				Assert.IsFalse(NoneField.TryGetView(out View));
+				CbFieldType fieldType = CbFieldType.None | CbFieldType.HasFieldName;
+				byte[] noneBytes = { (byte)fieldType, 4, (byte)'N', (byte)'a', (byte)'m', (byte)'e' };
+				CbField noneField = new CbField(noneBytes.AsMemory(1), fieldType);
+				Assert.AreEqual(noneField.GetSize(), noneBytes.Length);
+				Assert.AreEqual(noneField.GetName(), "Name");
+				Assert.IsTrue(noneField.HasName());
+				Assert.IsFalse(noneField.HasValue());
+				Assert.AreEqual(noneField.GetHash(), Blake3Hash.Compute(noneBytes));
+				Assert.IsFalse(noneField.TryGetView(out _));
 
-				byte[] CopyBytes = new byte[NoneBytes.Length];
-				NoneField.CopyTo(CopyBytes);
-				Assert.IsTrue(NoneBytes.AsSpan().SequenceEqual(CopyBytes));
+				byte[] copyBytes = new byte[noneBytes.Length];
+				noneField.CopyTo(copyBytes);
+				Assert.IsTrue(noneBytes.AsSpan().SequenceEqual(copyBytes));
 			}
 
 			// Test CbField(None|EmptyName)
 			{
-				CbFieldType FieldType = CbFieldType.None | CbFieldType.HasFieldName;
-				byte[] NoneBytes = { (byte)FieldType, 0 };
-				CbField NoneField = new CbField(NoneBytes.AsMemory(1), FieldType);
-				Assert.AreEqual(NoneField.GetSize(), NoneBytes.Length);
-				Assert.AreEqual(NoneField.GetName(), "");
-				Assert.IsTrue(NoneField.HasName());
-				Assert.IsFalse(NoneField.HasValue());
-				Assert.AreEqual(NoneField.GetHash(), Blake3Hash.Compute(NoneBytes));
-				ReadOnlyMemory<byte> View;
-				Assert.IsFalse(NoneField.TryGetView(out View));
+				CbFieldType fieldType = CbFieldType.None | CbFieldType.HasFieldName;
+				byte[] noneBytes = { (byte)fieldType, 0 };
+				CbField noneField = new CbField(noneBytes.AsMemory(1), fieldType);
+				Assert.AreEqual(noneField.GetSize(), noneBytes.Length);
+				Assert.AreEqual(noneField.GetName(), "");
+				Assert.IsTrue(noneField.HasName());
+				Assert.IsFalse(noneField.HasValue());
+				Assert.AreEqual(noneField.GetHash(), Blake3Hash.Compute(noneBytes));
+				Assert.IsFalse(noneField.TryGetView(out _));
 			}
 		}
 
@@ -212,264 +206,262 @@ namespace EpicGames.Serialization.Tests
 		{
 			// Test CbField(Null)
 			{
-				CbField NullField = new CbField(ReadOnlyMemory<byte>.Empty, CbFieldType.Null);
-				Assert.AreEqual(NullField.GetSize(), 1);
-				Assert.IsTrue(NullField.IsNull());
-				Assert.IsTrue(NullField.HasValue());
-				Assert.IsFalse(NullField.HasError());
-				Assert.AreEqual(NullField.GetError(), CbFieldError.None);
-				Assert.AreEqual(NullField.GetHash(), Blake3Hash.Compute(new byte[] { (byte)CbFieldType.Null }));
+				CbField nullField = new CbField(ReadOnlyMemory<byte>.Empty, CbFieldType.Null);
+				Assert.AreEqual(nullField.GetSize(), 1);
+				Assert.IsTrue(nullField.IsNull());
+				Assert.IsTrue(nullField.HasValue());
+				Assert.IsFalse(nullField.HasError());
+				Assert.AreEqual(nullField.GetError(), CbFieldError.None);
+				Assert.AreEqual(nullField.GetHash(), Blake3Hash.Compute(new byte[] { (byte)CbFieldType.Null }));
 			}
 
 			// Test CbField(None) as Null
 			{
-				CbField Field = new CbField();
-				Assert.IsFalse(Field.IsNull());
+				CbField field = new CbField();
+				Assert.IsFalse(field.IsNull());
 			}
 		}
 
 		[TestMethod]
 		public void CbFieldObjectTest()
 		{
-			Action<CbObject, int, int> TestIntObject = (CbObject Object, int ExpectedNum, int ExpectedPayloadSize) =>
+			static void TestIntObject(CbObject obj, int expectedNum, int expectedPayloadSize)
 			{
-				Assert.AreEqual(Object.GetSize(), ExpectedPayloadSize + sizeof(CbFieldType));
+				Assert.AreEqual(obj.GetSize(), expectedPayloadSize + sizeof(CbFieldType));
 
-				int ActualNum = 0;
-				foreach (CbField Field in Object)
+				int actualNum = 0;
+				foreach (CbField field in obj)
 				{
-					++ActualNum;
-					Assert.AreNotEqual(Field.GetName().Length, 0);
-					Assert.AreEqual(Field.AsInt32(), ActualNum);
+					++actualNum;
+					Assert.AreNotEqual(field.GetName().Length, 0);
+					Assert.AreEqual(field.AsInt32(), actualNum);
 				}
-				Assert.AreEqual(ActualNum, ExpectedNum);
-			};
+				Assert.AreEqual(actualNum, expectedNum);
+			}
 
 			// Test CbField(Object, Empty)
 			TestField(CbFieldType.Object, new byte[1]);
 
 			// Test CbField(Object, Empty)
 			{
-				CbObject Object = CbObject.Empty;
-				TestIntObject(Object, 0, 1);
+				CbObject @object = CbObject.Empty;
+				TestIntObject(@object, 0, 1);
 
 				// Find fields that do not exist.
-				Assert.IsFalse(Object.Find("Field").HasValue());
-				Assert.IsFalse(Object.FindIgnoreCase("Field").HasValue());
-				Assert.IsFalse(Object["Field"].HasValue());
+				Assert.IsFalse(@object.Find("Field").HasValue());
+				Assert.IsFalse(@object.FindIgnoreCase("Field").HasValue());
+				Assert.IsFalse(@object["Field"].HasValue());
 
 				// Advance an iterator past the last field.
-				CbFieldIterator It = Object.CreateIterator();
-				Assert.IsFalse((bool)It);
-				Assert.IsTrue(!It);
-				for (int Count = 16; Count > 0; --Count)
+				CbFieldIterator it = @object.CreateIterator();
+				Assert.IsFalse((bool)it);
+				Assert.IsTrue(!it);
+				for (int count = 16; count > 0; --count)
 				{
-					++It;
-					It.Current.AsInt32();
+					++it;
+					it.Current.AsInt32();
 				}
-				Assert.IsFalse((bool)It);
-				Assert.IsTrue(!It);
+				Assert.IsFalse((bool)it);
+				Assert.IsTrue(!it);
 			}
 
 			// Test CbField(Object, NotEmpty)
 			{
-				byte IntType = (byte)(CbFieldType.HasFieldName | CbFieldType.IntegerPositive);
-				byte[] Payload = { 12, IntType, 1, (byte)'A', 1, IntType, 1, (byte)'B', 2, IntType, 1, (byte)'C', 3 };
-				CbField Field = new CbField(Payload, CbFieldType.Object);
-				TestField(CbFieldType.Object, Field, new CbObject(Payload, CbFieldType.Object));
-				CbObject Object = CbObject.Clone(Field.AsObject());
-				TestIntObject(Object, 3, Payload.Length);
-				TestIntObject(Field.AsObject(), 3, Payload.Length);
-				Assert.IsTrue(Object.Equals(Field.AsObject()));
-				Assert.AreEqual(Object.Find("B").AsInt32(), 2);
-				Assert.AreEqual(Object.Find("b").AsInt32(4), 4);
-				Assert.AreEqual(Object.FindIgnoreCase("B").AsInt32(), 2);
-				Assert.AreEqual(Object.FindIgnoreCase("b").AsInt32(), 2);
-				Assert.AreEqual(Object["B"].AsInt32(), 2);
-				Assert.AreEqual(Object["b"].AsInt32(4), 4);
+				byte intType = (byte)(CbFieldType.HasFieldName | CbFieldType.IntegerPositive);
+				byte[] payload = { 12, intType, 1, (byte)'A', 1, intType, 1, (byte)'B', 2, intType, 1, (byte)'C', 3 };
+				CbField field = new CbField(payload, CbFieldType.Object);
+				TestField(CbFieldType.Object, field, new CbObject(payload, CbFieldType.Object));
+				CbObject @object = CbObject.Clone(field.AsObject());
+				TestIntObject(@object, 3, payload.Length);
+				TestIntObject(field.AsObject(), 3, payload.Length);
+				Assert.IsTrue(@object.Equals(field.AsObject()));
+				Assert.AreEqual(@object.Find("B").AsInt32(), 2);
+				Assert.AreEqual(@object.Find("b").AsInt32(4), 4);
+				Assert.AreEqual(@object.FindIgnoreCase("B").AsInt32(), 2);
+				Assert.AreEqual(@object.FindIgnoreCase("b").AsInt32(), 2);
+				Assert.AreEqual(@object["B"].AsInt32(), 2);
+				Assert.AreEqual(@object["b"].AsInt32(4), 4);
 			}
 
 			// Test CbField(UniformObject, NotEmpty)
 			{
-				byte IntType = (byte)(CbFieldType.HasFieldName | CbFieldType.IntegerPositive);
-				byte[] Payload = { 10, IntType, 1, (byte)'A', 1, 1, (byte)'B', 2, 1, (byte)'C', 3 };
-				CbField Field = new CbField(Payload, CbFieldType.UniformObject);
-				TestField(CbFieldType.UniformObject, Field, new CbObject(Payload, CbFieldType.UniformObject));
-				CbObject Object = CbObject.Clone(Field.AsObject());
-				TestIntObject(Object, 3, Payload.Length);
-				TestIntObject(Field.AsObject(), 3, Payload.Length);
-				Assert.IsTrue(Object.Equals(Field.AsObject()));
-				Assert.AreEqual(Object.Find("B").AsInt32(), 2);
-				Assert.AreEqual(Object.Find("B").AsInt32(), 2);
-				Assert.AreEqual(Object.Find("b").AsInt32(4), 4);
-				Assert.AreEqual(Object.Find("b").AsInt32(4), 4);
-				Assert.AreEqual(Object.FindIgnoreCase("B").AsInt32(), 2);
-				Assert.AreEqual(Object.FindIgnoreCase("B").AsInt32(), 2);
-				Assert.AreEqual(Object.FindIgnoreCase("b").AsInt32(), 2);
-				Assert.AreEqual(Object.FindIgnoreCase("b").AsInt32(), 2);
-				Assert.AreEqual(Object["B"].AsInt32(), 2);
-				Assert.AreEqual(Object["b"].AsInt32(4), 4);
+				byte intType = (byte)(CbFieldType.HasFieldName | CbFieldType.IntegerPositive);
+				byte[] payload = { 10, intType, 1, (byte)'A', 1, 1, (byte)'B', 2, 1, (byte)'C', 3 };
+				CbField field = new CbField(payload, CbFieldType.UniformObject);
+				TestField(CbFieldType.UniformObject, field, new CbObject(payload, CbFieldType.UniformObject));
+				CbObject @object = CbObject.Clone(field.AsObject());
+				TestIntObject(@object, 3, payload.Length);
+				TestIntObject(field.AsObject(), 3, payload.Length);
+				Assert.IsTrue(@object.Equals(field.AsObject()));
+				Assert.AreEqual(@object.Find("B").AsInt32(), 2);
+				Assert.AreEqual(@object.Find("B").AsInt32(), 2);
+				Assert.AreEqual(@object.Find("b").AsInt32(4), 4);
+				Assert.AreEqual(@object.Find("b").AsInt32(4), 4);
+				Assert.AreEqual(@object.FindIgnoreCase("B").AsInt32(), 2);
+				Assert.AreEqual(@object.FindIgnoreCase("B").AsInt32(), 2);
+				Assert.AreEqual(@object.FindIgnoreCase("b").AsInt32(), 2);
+				Assert.AreEqual(@object.FindIgnoreCase("b").AsInt32(), 2);
+				Assert.AreEqual(@object["B"].AsInt32(), 2);
+				Assert.AreEqual(@object["b"].AsInt32(4), 4);
 
 				// Equals
-				byte[] NamedPayload = { 1, (byte)'O', 10, IntType, 1, (byte)'A', 1, 1, (byte)'B', 2, 1, (byte)'C', 3 };
-				CbField NamedField = new CbField(NamedPayload, CbFieldType.UniformObject | CbFieldType.HasFieldName);
-				Assert.IsTrue(Field.AsObject().Equals(NamedField.AsObject()));
+				byte[] namedPayload = { 1, (byte)'O', 10, intType, 1, (byte)'A', 1, 1, (byte)'B', 2, 1, (byte)'C', 3 };
+				CbField namedField = new CbField(namedPayload, CbFieldType.UniformObject | CbFieldType.HasFieldName);
+				Assert.IsTrue(field.AsObject().Equals(namedField.AsObject()));
 
 				// CopyTo
-				byte[] CopyBytes = new byte[Payload.Length + 1];
-				Field.AsObject().CopyTo(CopyBytes);
-				Assert.IsTrue(Payload.AsSpan().SequenceEqual(CopyBytes.AsSpan(1)));
-				NamedField.AsObject().CopyTo(CopyBytes);
-				Assert.IsTrue(Payload.AsSpan().SequenceEqual(CopyBytes.AsSpan(1)));
+				byte[] copyBytes = new byte[payload.Length + 1];
+				field.AsObject().CopyTo(copyBytes);
+				Assert.IsTrue(payload.AsSpan().SequenceEqual(copyBytes.AsSpan(1)));
+				namedField.AsObject().CopyTo(copyBytes);
+				Assert.IsTrue(payload.AsSpan().SequenceEqual(copyBytes.AsSpan(1)));
 
 				// TryGetView
-				ReadOnlyMemory<byte> View;
-				Assert.IsFalse(Field.AsObject().TryGetView(out View));
-				Assert.IsFalse(NamedField.AsObject().TryGetView(out View));
+				Assert.IsFalse(field.AsObject().TryGetView(out _));
+				Assert.IsFalse(namedField.AsObject().TryGetView(out _));
 			}
 
 			// Test CbField(None) as Object
 			{
-				CbField Field = CbField.Empty;
-				TestFieldError(CbFieldType.Object, Field, CbFieldError.TypeError);
-				CbField.MakeView(Field).AsObject();
+				CbField field = CbField.Empty;
+				TestFieldError(CbFieldType.Object, field, CbFieldError.TypeError);
+				CbField.MakeView(field).AsObject();
 			}
 
 			// Test FCbObjectView(ObjectWithName) and CreateIterator
 			{
-				byte ObjectType = (byte)(CbFieldType.Object | CbFieldType.HasFieldName);
-				byte[] Buffer = { ObjectType, 3, (byte)'K', (byte)'e', (byte)'y', 4, (byte)(CbFieldType.HasFieldName | CbFieldType.IntegerPositive), 1, (byte)'F', 8 };
-				CbObject Object = new CbObject(Buffer);
-				Assert.AreEqual(Object.GetSize(), 6);
-				CbObject ObjectClone = CbObject.Clone(Object);
-				Assert.AreEqual(ObjectClone.GetSize(), 6);
-				Assert.IsTrue(Object.Equals(ObjectClone));
-				Assert.AreEqual(ObjectClone.GetHash(), Object.GetHash());
-				for (CbFieldIterator It = ObjectClone.CreateIterator(); It; ++It)
+				byte objectType = (byte)(CbFieldType.Object | CbFieldType.HasFieldName);
+				byte[] buffer = { objectType, 3, (byte)'K', (byte)'e', (byte)'y', 4, (byte)(CbFieldType.HasFieldName | CbFieldType.IntegerPositive), 1, (byte)'F', 8 };
+				CbObject @object = new CbObject(buffer);
+				Assert.AreEqual(@object.GetSize(), 6);
+				CbObject objectClone = CbObject.Clone(@object);
+				Assert.AreEqual(objectClone.GetSize(), 6);
+				Assert.IsTrue(@object.Equals(objectClone));
+				Assert.AreEqual(objectClone.GetHash(), @object.GetHash());
+				for (CbFieldIterator it = objectClone.CreateIterator(); it; ++it)
 				{
-					CbField Field = It.Current;
-					Assert.AreEqual(Field.GetName(), "F");
-					Assert.AreEqual(Field.AsInt32(), 8);
+					CbField field = it.Current;
+					Assert.AreEqual(field.GetName(), "F");
+					Assert.AreEqual(field.AsInt32(), 8);
 				}
-				for (CbFieldIterator It = ObjectClone.CreateIterator(), End = new CbFieldIterator(); It != End; ++It)
+				for (CbFieldIterator it = objectClone.CreateIterator(), end = new CbFieldIterator(); it != end; ++it)
 				{
 				}
-				foreach (CbField Field in ObjectClone)
+				foreach (CbField _ in objectClone)
 				{
 				}
 			}
 
 			// Test FCbObjectView as CbFieldIterator
 			{
-				int Count = 0;
-				CbObject Object = CbObject.Empty;
-				for (CbFieldIterator It = CbFieldIterator.MakeSingle(Object.AsField()); It; ++It)
+				int count = 0;
+				CbObject @object = CbObject.Empty;
+				for (CbFieldIterator it = CbFieldIterator.MakeSingle(@object.AsField()); it; ++it)
 				{
-					CbField Field = It.Current;
-					Assert.IsTrue(Field.IsObject());
-					++Count;
+					CbField field = it.Current;
+					Assert.IsTrue(field.IsObject());
+					++count;
 				}
-				Assert.AreEqual(Count, 1);
+				Assert.AreEqual(count, 1);
 			}
 		}
 
 		public void CbFieldArrayTest()
 		{
-			Action<CbArray, int, int> TestIntArray = (CbArray Array, int ExpectedNum, int ExpectedPayloadSize) =>
+			static void TestIntArray(CbArray array, int expectedNum, int expectedPayloadSize)
 			{
-				Assert.AreEqual(Array.GetSize(), ExpectedPayloadSize + sizeof(CbFieldType));
-				Assert.AreEqual(Array.Count, ExpectedNum);
+				Assert.AreEqual(array.GetSize(), expectedPayloadSize + sizeof(CbFieldType));
+				Assert.AreEqual(array.Count, expectedNum);
 
-				int ActualNum = 0;
-				for (CbFieldIterator It = Array.CreateIterator(); It; ++It)
+				int actualNum = 0;
+				for (CbFieldIterator it = array.CreateIterator(); it; ++it)
 				{
-					++ActualNum;
-					Assert.AreEqual(It.Current.AsInt32(), ActualNum);
+					++actualNum;
+					Assert.AreEqual(it.Current.AsInt32(), actualNum);
 				}
-				Assert.AreEqual(ActualNum, ExpectedNum);
+				Assert.AreEqual(actualNum, expectedNum);
 
-				ActualNum = 0;
-				foreach (CbField Field in Array)
+				actualNum = 0;
+				foreach (CbField field in array)
 				{
-					++ActualNum;
-					Assert.AreEqual(Field.AsInt32(), ActualNum);
+					++actualNum;
+					Assert.AreEqual(field.AsInt32(), actualNum);
 				}
-				Assert.AreEqual(ActualNum, ExpectedNum);
+				Assert.AreEqual(actualNum, expectedNum);
 
-				ActualNum = 0;
-				foreach (CbField Field in Array.AsField())
+				actualNum = 0;
+				foreach (CbField field in array.AsField())
 				{
-					++ActualNum;
-					Assert.AreEqual(Field.AsInt32(), ActualNum);
+					++actualNum;
+					Assert.AreEqual(field.AsInt32(), actualNum);
 				}
-				Assert.AreEqual(ActualNum, ExpectedNum);
-			};
+				Assert.AreEqual(actualNum, expectedNum);
+			}
 
 			// Test CbField(Array, Empty)
 			TestField(CbFieldType.Array, new byte[]{1, 0});
 
 			// Test CbField(Array, Empty)
 			{
-				CbArray Array = new CbArray();
-				TestIntArray(Array, 0, 2);
+				CbArray array = new CbArray();
+				TestIntArray(array, 0, 2);
 
 				// Advance an iterator past the last field.
-				CbFieldIterator It = Array.CreateIterator();
-				Assert.IsFalse((bool)It);
-				Assert.IsTrue(!It);
-				for (int Count = 16; Count > 0; --Count)
+				CbFieldIterator it = array.CreateIterator();
+				Assert.IsFalse((bool)it);
+				Assert.IsTrue(!it);
+				for (int count = 16; count > 0; --count)
 				{
-					++It;
-					It.Current.AsInt32();
+					++it;
+					it.Current.AsInt32();
 				}
-				Assert.IsFalse((bool)It);
-				Assert.IsTrue(!It);
+				Assert.IsFalse((bool)it);
+				Assert.IsTrue(!it);
 			}
 
 			// Test CbField(Array, NotEmpty)
 			{
-				byte IntType = (byte)CbFieldType.IntegerPositive;
-				byte[] Payload = new byte[]{ 7, 3, IntType, 1, IntType, 2, IntType, 3 };
-				CbField Field = new CbField(Payload, CbFieldType.Array);
-				TestField(CbFieldType.Array, Field, new CbArray(Payload, CbFieldType.Array));
-				CbArray Array = CbArray.Clone(Field.AsArray());
-				TestIntArray(Array, 3, Payload.Length);
-				TestIntArray(Field.AsArray(), 3, Payload.Length);
-				Assert.IsTrue(Array.Equals(Field.AsArray()));
+				byte intType = (byte)CbFieldType.IntegerPositive;
+				byte[] payload = new byte[]{ 7, 3, intType, 1, intType, 2, intType, 3 };
+				CbField field = new CbField(payload, CbFieldType.Array);
+				TestField(CbFieldType.Array, field, new CbArray(payload, CbFieldType.Array));
+				CbArray array = CbArray.Clone(field.AsArray());
+				TestIntArray(array, 3, payload.Length);
+				TestIntArray(field.AsArray(), 3, payload.Length);
+				Assert.IsTrue(array.Equals(field.AsArray()));
 			}
 
 			// Test CbField(UniformArray)
 			{
-				byte IntType = (byte)(CbFieldType.IntegerPositive);
-				byte[] Payload = new byte[]{ 5, 3, IntType, 1, 2, 3 };
-				CbField Field = new CbField(Payload, CbFieldType.UniformArray);
-				TestField(CbFieldType.UniformArray, Field, new CbArray(Payload, CbFieldType.UniformArray));
-				CbArray Array = CbArray.Clone(Field.AsArray());
-				TestIntArray(Array, 3, Payload.Length);
-				TestIntArray(Field.AsArray(), 3, Payload.Length);
-				Assert.IsTrue(Array.Equals(Field.AsArray()));
+				byte intType = (byte)(CbFieldType.IntegerPositive);
+				byte[] payload = new byte[]{ 5, 3, intType, 1, 2, 3 };
+				CbField field = new CbField(payload, CbFieldType.UniformArray);
+				TestField(CbFieldType.UniformArray, field, new CbArray(payload, CbFieldType.UniformArray));
+				CbArray array = CbArray.Clone(field.AsArray());
+				TestIntArray(array, 3, payload.Length);
+				TestIntArray(field.AsArray(), 3, payload.Length);
+				Assert.IsTrue(array.Equals(field.AsArray()));
 
 //				Assert.IsTrue(Array.GetOuterBuffer() == Array.AsField().AsArray().GetOuterBuffer());
 
 				// Equals
-				byte[] NamedPayload = new byte[]{ 1, (byte)'A', 5, 3, IntType, 1, 2, 3 };
-				CbField NamedField = new CbField(NamedPayload, CbFieldType.UniformArray | CbFieldType.HasFieldName);
-				Assert.IsTrue(Field.AsArray().Equals(NamedField.AsArray()));
-				Assert.IsTrue(Field.Equals(Field.AsArray().AsField()));
-				Assert.IsTrue(NamedField.Equals(NamedField.AsArray().AsField()));
+				byte[] namedPayload = new byte[]{ 1, (byte)'A', 5, 3, intType, 1, 2, 3 };
+				CbField namedField = new CbField(namedPayload, CbFieldType.UniformArray | CbFieldType.HasFieldName);
+				Assert.IsTrue(field.AsArray().Equals(namedField.AsArray()));
+				Assert.IsTrue(field.Equals(field.AsArray().AsField()));
+				Assert.IsTrue(namedField.Equals(namedField.AsArray().AsField()));
 
 				// CopyTo
-				byte[] CopyBytes = new byte[Payload.Length + 1];
-				Field.AsArray().CopyTo(CopyBytes);
-				Assert.IsTrue(Payload.AsSpan().SequenceEqual(CopyBytes.AsSpan(1)));
-				NamedField.AsArray().CopyTo(CopyBytes);
-				Assert.IsTrue(Payload.AsSpan().SequenceEqual(CopyBytes.AsSpan(1)));
+				byte[] copyBytes = new byte[payload.Length + 1];
+				field.AsArray().CopyTo(copyBytes);
+				Assert.IsTrue(payload.AsSpan().SequenceEqual(copyBytes.AsSpan(1)));
+				namedField.AsArray().CopyTo(copyBytes);
+				Assert.IsTrue(payload.AsSpan().SequenceEqual(copyBytes.AsSpan(1)));
 
 				// TryGetView
-				ReadOnlyMemory<byte> View;
 //				Assert.IsTrue(Array.TryGetView(out View) && View == Array.GetOuterBuffer().GetView());
-				Assert.IsFalse(Field.AsArray().TryGetView(out View));
-				Assert.IsFalse(NamedField.AsArray().TryGetView(out View));
+				Assert.IsFalse(field.AsArray().TryGetView(out _));
+				Assert.IsFalse(namedField.AsArray().TryGetView(out _));
 
 //				// GetBuffer
 //				Assert.IsTrue(Array.GetBuffer().Flatten().GetView() == Array.GetOuterBuffer().GetView());
@@ -479,39 +471,39 @@ namespace EpicGames.Serialization.Tests
 
 			// Test CbField(None) as Array
 			{
-				CbField Field = new CbField();
+				CbField field = new CbField();
 //				TestFieldError(CbFieldType.Array, Field, CbFieldError.TypeError);
-				CbField.MakeView(Field).AsArray();
+				CbField.MakeView(field).AsArray();
 			}
 
 			// Test CbArray(ArrayWithName) and CreateIterator
 			{
-				byte ArrayType = (byte)(CbFieldType.Array | CbFieldType.HasFieldName);
-				byte[] Buffer = new byte[] { ArrayType, 3, (byte)'K', (byte)'e', (byte)'y', 3, 1, (byte)(CbFieldType.IntegerPositive), 8 };
-				CbArray Array = new CbArray(Buffer);
-				Assert.AreEqual(Array.GetSize(), 5);
-				CbArray ArrayClone = CbArray.Clone(Array);
-				Assert.AreEqual(ArrayClone.GetSize(), 5);
-				Assert.IsTrue(Array.Equals(ArrayClone));
-				Assert.AreEqual(ArrayClone.GetHash(), Array.GetHash());
-				for (CbFieldIterator It = ArrayClone.CreateIterator(); It; ++It)
+				byte arrayType = (byte)(CbFieldType.Array | CbFieldType.HasFieldName);
+				byte[] buffer = new byte[] { arrayType, 3, (byte)'K', (byte)'e', (byte)'y', 3, 1, (byte)(CbFieldType.IntegerPositive), 8 };
+				CbArray array = new CbArray(buffer);
+				Assert.AreEqual(array.GetSize(), 5);
+				CbArray arrayClone = CbArray.Clone(array);
+				Assert.AreEqual(arrayClone.GetSize(), 5);
+				Assert.IsTrue(array.Equals(arrayClone));
+				Assert.AreEqual(arrayClone.GetHash(), array.GetHash());
+				for (CbFieldIterator it = arrayClone.CreateIterator(); it; ++it)
 				{
-					CbField Field = It.Current;
-					Assert.AreEqual(Field.AsInt32(), 8);
+					CbField field = it.Current;
+					Assert.AreEqual(field.AsInt32(), 8);
 //					Assert.IsTrue(Field.IsOwned());
 				}
-				for (CbFieldIterator It = ArrayClone.CreateIterator(), End = new CbFieldIterator(); It != End; ++It)
+				for (CbFieldIterator it = arrayClone.CreateIterator(), end = new CbFieldIterator(); it != end; ++it)
 				{
 				}
-				foreach (CbField Field in ArrayClone)
+				foreach (CbField _ in arrayClone)
 				{
 				}
 
 				// CopyTo
-				byte[] CopyBytes = new byte[5];
-				Array.CopyTo(CopyBytes);
+				byte[] copyBytes = new byte[5];
+				array.CopyTo(copyBytes);
 //				Assert.IsTrue(ArrayClone.GetOuterBuffer().GetView().Span.SequenceEqual(CopyBytes));
-				ArrayClone.CopyTo(CopyBytes);
+				arrayClone.CopyTo(copyBytes);
 //				Assert.IsTrue(ArrayClone.GetOuterBuffer().GetView().Span.SequenceEqual(CopyBytes));
 
 //				// GetBuffer
@@ -522,29 +514,29 @@ namespace EpicGames.Serialization.Tests
 
 			// Test CbArray as CbFieldIterator
 			{
-				uint Count = 0;
-				CbArray Array = new CbArray();
-				for (CbFieldIterator Iter = CbFieldIterator.MakeSingle(Array.AsField()); Iter; ++Iter)
+				uint count = 0;
+				CbArray array = new CbArray();
+				for (CbFieldIterator iter = CbFieldIterator.MakeSingle(array.AsField()); iter; ++iter)
 				{
-					CbField Field = Iter.Current;
-					Assert.IsTrue(Field.IsArray());
-					++Count;
+					CbField field = iter.Current;
+					Assert.IsTrue(field.IsArray());
+					++count;
 				}
-				Assert.AreEqual(Count, 1u);
+				Assert.AreEqual(count, 1u);
 			}
 
 			// Test CbArray as CbFieldIterator
 			{
-				uint Count = 0;
-				CbArray Array = new CbArray();
+				uint count = 0;
+				CbArray array = new CbArray();
 //				Array.MakeOwned();
-				for(CbFieldIterator Iter = CbFieldIterator.MakeSingle(Array.AsField()); Iter; ++Iter)
+				for(CbFieldIterator iter = CbFieldIterator.MakeSingle(array.AsField()); iter; ++iter)
 				{
-					CbField Field = Iter.Current;
-					Assert.IsTrue(Field.IsArray());
-					++Count;
+					CbField field = iter.Current;
+					Assert.IsTrue(field.IsArray());
+					++count;
 				}
-				Assert.AreEqual(Count, 1u);
+				Assert.AreEqual(count, 1u);
 			}
 		}
 
@@ -556,12 +548,12 @@ namespace EpicGames.Serialization.Tests
 
 			// Test CbField(Binary, Value)
 			{
-				byte[] Payload = { 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
-				CbField FieldView = new CbField(Payload, CbFieldType.Binary);
-				TestField(CbFieldType.Binary, FieldView, (ReadOnlyMemory<byte>)Payload.AsMemory(1, 3));
+				byte[] payload = { 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
+				CbField fieldView = new CbField(payload, CbFieldType.Binary);
+				TestField(CbFieldType.Binary, fieldView, (ReadOnlyMemory<byte>)payload.AsMemory(1, 3));
 
-				CbField Field = CbField.Clone(FieldView);
-				Field.AsBinary();
+				CbField field = CbField.Clone(fieldView);
+				field.AsBinary();
 //				Assert.IsFalse(Field.GetOuterBuffer().IsNull());
 //				MoveTemp(Field).AsBinary();
 //				Assert.IsTrue(Field.GetOuterBuffer().IsNull());
@@ -569,9 +561,9 @@ namespace EpicGames.Serialization.Tests
 
 			// Test CbField(None) as Binary
 			{
-				CbField FieldView = new CbField();
-				byte[] Default = { 1, 2, 3 };
-				TestFieldError(CbFieldType.Binary, FieldView, CbFieldError.TypeError, (ReadOnlyMemory<byte>)Default);
+				CbField fieldView = new CbField();
+				byte[] @default = { 1, 2, 3 };
+				TestFieldError(CbFieldType.Binary, fieldView, CbFieldError.TypeError, (ReadOnlyMemory<byte>)@default);
 
 //				CbField Field = CbField.Clone(FieldView);
 //				TestFieldError(CbFieldType.Binary, FSharedBuffer, Field, CbFieldError.TypeError, FSharedBuffer.MakeView(Default), FCbBinaryAccessors());
@@ -586,21 +578,21 @@ namespace EpicGames.Serialization.Tests
 
 			// Test CbField(String, Value)
 			{
-				byte[] Payload = { 3, (byte)'A', (byte)'B', (byte)'C' }; // Size: 3, Data: ABC
-				TestField(CbFieldType.String, Payload, new Utf8String(Payload.AsMemory(1, 3)));
+				byte[] payload = { 3, (byte)'A', (byte)'B', (byte)'C' }; // Size: 3, Data: ABC
+				TestField(CbFieldType.String, payload, new Utf8String(payload.AsMemory(1, 3)));
 			}
 
 			// Test CbField(String, OutOfRangeSize)
 			{
-				byte[] Payload = new byte[9];
-				VarInt.Write(Payload, (ulong)(1) << 31);
-				TestFieldError(CbFieldType.String, Payload, CbFieldError.RangeError, new Utf8String("ABC"));
+				byte[] payload = new byte[9];
+				VarInt.Write(payload, (ulong)(1) << 31);
+				TestFieldError(CbFieldType.String, payload, CbFieldError.RangeError, new Utf8String("ABC"));
 			}
 
 			// Test CbField(None) as String
 			{
-				CbField Field = new CbField();
-				TestFieldError(CbFieldType.String, Field, CbFieldError.TypeError, new Utf8String("ABC"));
+				CbField field = new CbField();
+				TestFieldError(CbFieldType.String, field, CbFieldError.TypeError, new Utf8String("ABC"));
 			}
 		}
 
@@ -632,40 +624,41 @@ namespace EpicGames.Serialization.Tests
 			Neg7  = Neg15 | Int8,
 		};
 
-		void TestIntegerField(CbFieldType FieldType, EIntType ExpectedMask, ulong Magnitude)
+		void TestIntegerField(CbFieldType fieldType, EIntType expectedMask, ulong magnitude)
 		{
-			byte[] Payload = new byte[9];
-			ulong Negative = (ulong)((byte)FieldType & 1);
-			VarInt.Write(Payload, Magnitude - Negative);
-			ulong DefaultValue = 8;
-			ulong ExpectedValue = (Negative != 0)? (ulong)(-(long)(Magnitude)) : Magnitude;
-			CbField Field = new CbField(Payload, FieldType);
+			byte[] payload = new byte[9];
+			ulong negative = (ulong)((byte)fieldType & 1);
+			VarInt.Write(payload, magnitude - negative);
+			ulong defaultValue = 8;
+			ulong expectedValue = (negative != 0)? (ulong)(-(long)(magnitude)) : magnitude;
+			CbField field = new CbField(payload, fieldType);
 
-			TestField(CbFieldType.IntegerNegative, Field, (sbyte)(((ExpectedMask & EIntType.Int8) != 0) ? ExpectedValue : DefaultValue),
-				(sbyte)(DefaultValue), ((ExpectedMask & EIntType.Int8) != 0)? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<sbyte>(x => x.IsInteger(), (x, y) => x.AsInt8(y)));
+			TestField(CbFieldType.IntegerNegative, field, (sbyte)(((expectedMask & EIntType.Int8) != 0) ? expectedValue : defaultValue),
+				(sbyte)(defaultValue), ((expectedMask & EIntType.Int8) != 0)? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<sbyte>(x => x.IsInteger(), (x, y) => x.AsInt8(y)));
 
-			TestField(CbFieldType.IntegerNegative, Field, (short)(((ExpectedMask & EIntType.Int16) != 0)? ExpectedValue : DefaultValue),
-				(short)(DefaultValue), ((ExpectedMask & EIntType.Int16) != 0)? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<short>(x => x.IsInteger(), (x, y) => x.AsInt16(y)));
+			TestField(CbFieldType.IntegerNegative, field, (short)(((expectedMask & EIntType.Int16) != 0)? expectedValue : defaultValue),
+				(short)(defaultValue), ((expectedMask & EIntType.Int16) != 0)? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<short>(x => x.IsInteger(), (x, y) => x.AsInt16(y)));
 
-			TestField(CbFieldType.IntegerNegative, Field, (int)(((ExpectedMask & EIntType.Int32) != 0)? ExpectedValue : DefaultValue),
-				(int)(DefaultValue), ((ExpectedMask & EIntType.Int32) != 0)? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<int>(x => x.IsInteger(), (x, y) => x.AsInt32(y)));
+			TestField(CbFieldType.IntegerNegative, field, (int)(((expectedMask & EIntType.Int32) != 0)? expectedValue : defaultValue),
+				(int)(defaultValue), ((expectedMask & EIntType.Int32) != 0)? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<int>(x => x.IsInteger(), (x, y) => x.AsInt32(y)));
 
-			TestField(CbFieldType.IntegerNegative, Field, (long)(((ExpectedMask & EIntType.Int64) != 0)? ExpectedValue : DefaultValue),
-				(long)(DefaultValue), ((ExpectedMask & EIntType.Int64) != 0)? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<long>(x => x.IsInteger(), (x, y) => x.AsInt64(y)));
+			TestField(CbFieldType.IntegerNegative, field, (long)(((expectedMask & EIntType.Int64) != 0)? expectedValue : defaultValue),
+				(long)(defaultValue), ((expectedMask & EIntType.Int64) != 0)? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<long>(x => x.IsInteger(), (x, y) => x.AsInt64(y)));
 
-			TestField(CbFieldType.IntegerPositive, Field, (byte)(((ExpectedMask & EIntType.UInt8) != 0) ? ExpectedValue : DefaultValue),
-				(byte)(DefaultValue), ((ExpectedMask & EIntType.UInt8) != 0) ? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<byte>(x => x.IsInteger(), (x, y) => x.AsUInt8(y)));
+			TestField(CbFieldType.IntegerPositive, field, (byte)(((expectedMask & EIntType.UInt8) != 0) ? expectedValue : defaultValue),
+				(byte)(defaultValue), ((expectedMask & EIntType.UInt8) != 0) ? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<byte>(x => x.IsInteger(), (x, y) => x.AsUInt8(y)));
 
-			TestField(CbFieldType.IntegerPositive, Field, (ushort)(((ExpectedMask & EIntType.UInt16) != 0)? ExpectedValue : DefaultValue),
-				(ushort)(DefaultValue), ((ExpectedMask & EIntType.UInt16) != 0) ? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<ushort>(x => x.IsInteger(), (x, y) => x.AsUInt16(y)));
+			TestField(CbFieldType.IntegerPositive, field, (ushort)(((expectedMask & EIntType.UInt16) != 0)? expectedValue : defaultValue),
+				(ushort)(defaultValue), ((expectedMask & EIntType.UInt16) != 0) ? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<ushort>(x => x.IsInteger(), (x, y) => x.AsUInt16(y)));
 
-			TestField(CbFieldType.IntegerPositive, Field, (uint)(((ExpectedMask & EIntType.UInt32) != 0) ? ExpectedValue : DefaultValue),
-				(uint)(DefaultValue), ((ExpectedMask & EIntType.UInt32) != 0) ? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<uint>(x => x.IsInteger(), (x, y) => x.AsUInt32(y)));
-			TestField(CbFieldType.IntegerPositive, Field, (ulong)(((ExpectedMask & EIntType.UInt64) != 0) ? ExpectedValue : DefaultValue),
-				(ulong)(DefaultValue), ((ExpectedMask & EIntType.UInt64) != 0)? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<ulong>(x => x.IsInteger(), (x, y) => x.AsUInt64(y)));
+			TestField(CbFieldType.IntegerPositive, field, (uint)(((expectedMask & EIntType.UInt32) != 0) ? expectedValue : defaultValue),
+				(uint)(defaultValue), ((expectedMask & EIntType.UInt32) != 0) ? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<uint>(x => x.IsInteger(), (x, y) => x.AsUInt32(y)));
+			TestField(CbFieldType.IntegerPositive, field, (ulong)(((expectedMask & EIntType.UInt64) != 0) ? expectedValue : defaultValue),
+				(ulong)(defaultValue), ((expectedMask & EIntType.UInt64) != 0)? CbFieldError.None : CbFieldError.RangeError, CbFieldAccessors.FromStruct<ulong>(x => x.IsInteger(), (x, y) => x.AsUInt64(y)));
 		}
 
-		void CbFieldIntegerTest()
+		[TestMethod]
+		public void CbFieldIntegerTest()
 		{
 			// Test CbField(IntegerPositive)
 			TestIntegerField(CbFieldType.IntegerPositive, EIntType.Pos7,  0x00);
@@ -699,9 +692,9 @@ namespace EpicGames.Serialization.Tests
 
 			// Test CbField(None) as Integer
 			{
-				CbField Field = new CbField();
-				TestFieldError(CbFieldType.IntegerPositive, Field, CbFieldError.TypeError, (ulong)(8));
-				TestFieldError(CbFieldType.IntegerNegative, Field, CbFieldError.TypeError, (long)(8));
+				CbField field = new CbField();
+				TestFieldError(CbFieldType.IntegerPositive, field, CbFieldError.TypeError, (ulong)(8));
+				TestFieldError(CbFieldType.IntegerNegative, field, CbFieldError.TypeError, (long)(8));
 			}
 		}
 
@@ -710,108 +703,108 @@ namespace EpicGames.Serialization.Tests
 		{
 			// Test CbField(Float, 32-bit)
 			{
-				byte[] Payload = new byte[]{ 0xc0, 0x12, 0x34, 0x56 }; // -2.28444433f
-				TestField(CbFieldType.Float32, Payload, -2.28444433f);
+				byte[] payload = new byte[]{ 0xc0, 0x12, 0x34, 0x56 }; // -2.28444433f
+				TestField(CbFieldType.Float32, payload, -2.28444433f);
 
-				CbField Field = new CbField(Payload, CbFieldType.Float32);
-				TestField(CbFieldType.Float64, Field, (double)-2.28444433f);
+				CbField field = new CbField(payload, CbFieldType.Float32);
+				TestField(CbFieldType.Float64, field, (double)-2.28444433f);
 			}
 
 			// Test CbField(Float, 64-bit)
 			{
-				byte[] Payload = new byte[]{ 0xc1, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef }; // -631475.76888888876
-				TestField(CbFieldType.Float64, Payload, -631475.76888888876);
+				byte[] payload = new byte[]{ 0xc1, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef }; // -631475.76888888876
+				TestField(CbFieldType.Float64, payload, -631475.76888888876);
 
-				CbField Field = new CbField(Payload, CbFieldType.Float64);
-				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
+				CbField field = new CbField(payload, CbFieldType.Float64);
+				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
 			}
 
 			// Test CbField(Integer+, MaxBinary32) as Float
 			{
-				byte[] Payload = new byte[9];
-				VarInt.Write(Payload, ((ulong)(1) << 24) - 1); // 16,777,215
-				CbField Field = new CbField(Payload, CbFieldType.IntegerPositive);
-				TestField(CbFieldType.Float32, Field, 16_777_215.0f);
-				TestField(CbFieldType.Float64, Field, 16_777_215.0);
+				byte[] payload = new byte[9];
+				VarInt.Write(payload, ((ulong)(1) << 24) - 1); // 16,777,215
+				CbField field = new CbField(payload, CbFieldType.IntegerPositive);
+				TestField(CbFieldType.Float32, field, 16_777_215.0f);
+				TestField(CbFieldType.Float64, field, 16_777_215.0);
 			}
 
 			// Test CbField(Integer+, MaxBinary32+1) as Float
 			{
-				byte[] Payload = new byte[9];
-				VarInt.Write(Payload, (ulong)(1) << 24); // 16,777,216
-				CbField Field = new CbField(Payload, CbFieldType.IntegerPositive);
-				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
-				TestField(CbFieldType.Float64, Field, 16_777_216.0);
+				byte[] payload = new byte[9];
+				VarInt.Write(payload, (ulong)(1) << 24); // 16,777,216
+				CbField field = new CbField(payload, CbFieldType.IntegerPositive);
+				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
+				TestField(CbFieldType.Float64, field, 16_777_216.0);
 			}
 
 			// Test CbField(Integer+, MaxBinary64) as Float
 			{
-				byte[] Payload = new byte[9];
-				VarInt.Write(Payload, ((ulong)(1) << 53) - 1); // 9,007,199,254,740,991
-				CbField Field = new CbField(Payload, CbFieldType.IntegerPositive);
-				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
-				TestField(CbFieldType.Float64, Field, 9_007_199_254_740_991.0);
+				byte[] payload = new byte[9];
+				VarInt.Write(payload, ((ulong)(1) << 53) - 1); // 9,007,199,254,740,991
+				CbField field = new CbField(payload, CbFieldType.IntegerPositive);
+				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
+				TestField(CbFieldType.Float64, field, 9_007_199_254_740_991.0);
 			}
 
 			// Test CbField(Integer+, MaxBinary64+1) as Float
 			{
-				byte[] Payload = new byte[9];
-				VarInt.Write(Payload, (ulong)(1) << 53); // 9,007,199,254,740,992
-				CbField Field = new CbField(Payload, CbFieldType.IntegerPositive);
-				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
-				TestFieldError(CbFieldType.Float64, Field, CbFieldError.RangeError, 8.0);
+				byte[] payload = new byte[9];
+				VarInt.Write(payload, (ulong)(1) << 53); // 9,007,199,254,740,992
+				CbField field = new CbField(payload, CbFieldType.IntegerPositive);
+				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
+				TestFieldError(CbFieldType.Float64, field, CbFieldError.RangeError, 8.0);
 			}
 
 			// Test CbField(Integer+, MaxUInt64) as Float
 			{
-				byte[] Payload = new byte[9];
-				VarInt.Write(Payload, ~(ulong)0); // Max uint64
-				CbField Field = new CbField(Payload, CbFieldType.IntegerPositive);
-				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
-				TestFieldError(CbFieldType.Float64, Field, CbFieldError.RangeError, 8.0);
+				byte[] payload = new byte[9];
+				VarInt.Write(payload, ~(ulong)0); // Max uint64
+				CbField field = new CbField(payload, CbFieldType.IntegerPositive);
+				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
+				TestFieldError(CbFieldType.Float64, field, CbFieldError.RangeError, 8.0);
 			}
 
 			// Test CbField(Integer-, MaxBinary32) as Float
 			{
-				byte[] Payload = new byte[9];
-				VarInt.Write(Payload, ((ulong)(1) << 24) - 2); // -16,777,215
-				CbField Field = new CbField(Payload, CbFieldType.IntegerNegative);
-				TestField(CbFieldType.Float32, Field, -16_777_215.0f);
-				TestField(CbFieldType.Float64, Field, -16_777_215.0);
+				byte[] payload = new byte[9];
+				VarInt.Write(payload, ((ulong)(1) << 24) - 2); // -16,777,215
+				CbField field = new CbField(payload, CbFieldType.IntegerNegative);
+				TestField(CbFieldType.Float32, field, -16_777_215.0f);
+				TestField(CbFieldType.Float64, field, -16_777_215.0);
 			}
 
 			// Test CbField(Integer-, MaxBinary32+1) as Float
 			{
-				byte[] Payload = new byte[9];
-				VarInt.Write(Payload, ((ulong)(1) << 24) - 1); // -16,777,216
-				CbField Field = new CbField(Payload, CbFieldType.IntegerNegative);
-				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
-				TestField(CbFieldType.Float64, Field, -16_777_216.0);
+				byte[] payload = new byte[9];
+				VarInt.Write(payload, ((ulong)(1) << 24) - 1); // -16,777,216
+				CbField field = new CbField(payload, CbFieldType.IntegerNegative);
+				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
+				TestField(CbFieldType.Float64, field, -16_777_216.0);
 			}
 
 			// Test CbField(Integer-, MaxBinary64) as Float
 			{
-				byte[] Payload = new byte[9];
-				VarInt.Write(Payload, ((ulong)(1) << 53) - 2); // -9,007,199,254,740,991
-				CbField Field = new CbField(Payload, CbFieldType.IntegerNegative);
-				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
-				TestField(CbFieldType.Float64, Field, -9_007_199_254_740_991.0);
+				byte[] payload = new byte[9];
+				VarInt.Write(payload, ((ulong)(1) << 53) - 2); // -9,007,199,254,740,991
+				CbField field = new CbField(payload, CbFieldType.IntegerNegative);
+				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
+				TestField(CbFieldType.Float64, field, -9_007_199_254_740_991.0);
 			}
 
 			// Test CbField(Integer-, MaxBinary64+1) as Float
 			{
-				byte[] Payload = new byte[9];
-				VarInt.Write(Payload, ((ulong)(1) << 53) - 1); // -9,007,199,254,740,992
-				CbField Field = new CbField(Payload, CbFieldType.IntegerNegative);
-				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
-				TestFieldError(CbFieldType.Float64, Field, CbFieldError.RangeError, 8.0);
+				byte[] payload = new byte[9];
+				VarInt.Write(payload, ((ulong)(1) << 53) - 1); // -9,007,199,254,740,992
+				CbField field = new CbField(payload, CbFieldType.IntegerNegative);
+				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
+				TestFieldError(CbFieldType.Float64, field, CbFieldError.RangeError, 8.0);
 			}
 
 			// Test CbField(None) as Float
 			{
-				CbField Field = new CbField();
-				TestFieldError(CbFieldType.Float32, Field, CbFieldError.TypeError, 8.0f);
-				TestFieldError(CbFieldType.Float64, Field, CbFieldError.TypeError, 8.0);
+				CbField field = new CbField();
+				TestFieldError(CbFieldType.Float32, field, CbFieldError.TypeError, 8.0f);
+				TestFieldError(CbFieldType.Float64, field, CbFieldError.TypeError, 8.0);
 			}
 		}
 
@@ -826,110 +819,110 @@ namespace EpicGames.Serialization.Tests
 
 			// Test CbField(None) as Bool
 			{
-				CbField DefaultField = new CbField();
-				TestFieldError(CbFieldType.BoolFalse, DefaultField, CbFieldError.TypeError, false);
-				TestFieldError(CbFieldType.BoolTrue, DefaultField, CbFieldError.TypeError, true);
+				CbField defaultField = new CbField();
+				TestFieldError(CbFieldType.BoolFalse, defaultField, CbFieldError.TypeError, false);
+				TestFieldError(CbFieldType.BoolTrue, defaultField, CbFieldError.TypeError, true);
 			}
 		}
 
 		[TestMethod]
 		public void CbFieldObjectAttachmentTest()
 		{
-			byte[] ZeroBytes = new byte[20];
-			byte[] SequentialBytes = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+			byte[] zeroBytes = new byte[20];
+			byte[] sequentialBytes = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
 			// Test CbField(ObjectAttachment, Zero)
-			TestField(CbFieldType.ObjectAttachment, ZeroBytes);
+			TestField(CbFieldType.ObjectAttachment, zeroBytes);
 
 			// Test CbField(ObjectAttachment, NonZero)
-			TestField(CbFieldType.ObjectAttachment, SequentialBytes, (CbObjectAttachment)new IoHash(SequentialBytes));
+			TestField(CbFieldType.ObjectAttachment, sequentialBytes, (CbObjectAttachment)new IoHash(sequentialBytes));
 
 			// Test CbField(ObjectAttachment, NonZero) AsAttachment
 			{
-				CbField Field = new CbField(SequentialBytes, CbFieldType.ObjectAttachment);
-				TestField(CbFieldType.ObjectAttachment, Field, (CbObjectAttachment)new IoHash(SequentialBytes), (CbObjectAttachment)new IoHash(), CbFieldError.None);
+				CbField field = new CbField(sequentialBytes, CbFieldType.ObjectAttachment);
+				TestField(CbFieldType.ObjectAttachment, field, (CbObjectAttachment)new IoHash(sequentialBytes), (CbObjectAttachment)new IoHash(), CbFieldError.None);
 			}
 
 			// Test CbField(None) as ObjectAttachment
 			{
-				CbField DefaultField = new CbField();
-				TestFieldError(CbFieldType.ObjectAttachment, DefaultField, CbFieldError.TypeError, (CbObjectAttachment)new IoHash(SequentialBytes));
+				CbField defaultField = new CbField();
+				TestFieldError(CbFieldType.ObjectAttachment, defaultField, CbFieldError.TypeError, (CbObjectAttachment)new IoHash(sequentialBytes));
 			}
 		}
 
 		[TestMethod]
 		public void CbFieldBinaryAttachmentTest()
 		{
-			byte[] ZeroBytes = new byte[20];
-			byte[] SequentialBytes = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+			byte[] zeroBytes = new byte[20];
+			byte[] sequentialBytes = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
 			// Test CbField(BinaryAttachment, Zero)
-			TestField(CbFieldType.BinaryAttachment, ZeroBytes);
+			TestField(CbFieldType.BinaryAttachment, zeroBytes);
 
 			// Test CbField(BinaryAttachment, NonZero)
-			TestField(CbFieldType.BinaryAttachment, SequentialBytes, (CbBinaryAttachment)new IoHash(SequentialBytes));
+			TestField(CbFieldType.BinaryAttachment, sequentialBytes, (CbBinaryAttachment)new IoHash(sequentialBytes));
 
 			// Test CbField(BinaryAttachment, NonZero) AsAttachment
 			{
-				CbField Field = new CbField(SequentialBytes, CbFieldType.BinaryAttachment);
-				TestField(CbFieldType.BinaryAttachment, Field, (CbBinaryAttachment)new IoHash(SequentialBytes), (CbBinaryAttachment)new IoHash(), CbFieldError.None);
+				CbField field = new CbField(sequentialBytes, CbFieldType.BinaryAttachment);
+				TestField(CbFieldType.BinaryAttachment, field, (CbBinaryAttachment)new IoHash(sequentialBytes), (CbBinaryAttachment)new IoHash(), CbFieldError.None);
 			}
 
 			// Test CbField(None) as BinaryAttachment
 			{
-				CbField DefaultField = new CbField();
-				TestFieldError(CbFieldType.BinaryAttachment, DefaultField, CbFieldError.TypeError, (CbBinaryAttachment)new IoHash(SequentialBytes));
+				CbField defaultField = new CbField();
+				TestFieldError(CbFieldType.BinaryAttachment, defaultField, CbFieldError.TypeError, (CbBinaryAttachment)new IoHash(sequentialBytes));
 			}
 		}
 
 		[TestMethod]
 		public void CbFieldHashTest()
 		{
-			byte[] ZeroBytes = new byte[20];
-			byte[] SequentialBytes = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+			byte[] zeroBytes = new byte[20];
+			byte[] sequentialBytes = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
 			// Test CbField(Hash, Zero)
-			TestField(CbFieldType.Hash, ZeroBytes);
+			TestField(CbFieldType.Hash, zeroBytes);
 
 			// Test CbField(Hash, NonZero)
-			TestField(CbFieldType.Hash, SequentialBytes, new IoHash(SequentialBytes));
+			TestField(CbFieldType.Hash, sequentialBytes, new IoHash(sequentialBytes));
 
 			// Test CbField(None) as Hash
 			{
-				CbField DefaultField = new CbField();
-				TestFieldError(CbFieldType.Hash, DefaultField, CbFieldError.TypeError, new IoHash(SequentialBytes));
+				CbField defaultField = new CbField();
+				TestFieldError(CbFieldType.Hash, defaultField, CbFieldError.TypeError, new IoHash(sequentialBytes));
 			}
 
 			// Test CbField(ObjectAttachment) as Hash
 			{
-				CbField Field = new CbField(SequentialBytes, CbFieldType.ObjectAttachment);
-				TestField(CbFieldType.Hash, Field, new IoHash(SequentialBytes));
+				CbField field = new CbField(sequentialBytes, CbFieldType.ObjectAttachment);
+				TestField(CbFieldType.Hash, field, new IoHash(sequentialBytes));
 			}
 
 			// Test CbField(BinaryAttachment) as Hash
 			{
-				CbField Field = new CbField(SequentialBytes, CbFieldType.BinaryAttachment);
-				TestField(CbFieldType.Hash, Field, new IoHash(SequentialBytes));
+				CbField field = new CbField(sequentialBytes, CbFieldType.BinaryAttachment);
+				TestField(CbFieldType.Hash, field, new IoHash(sequentialBytes));
 			}
 		}
 
 		[TestMethod]
 		public void CbFieldUuidTest()
 		{
-			byte[] ZeroBytes = new byte[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-			byte[] SequentialBytes = new byte[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-			Guid SequentialGuid = Guid.Parse("00010203-0405-0607-0809-0a0b0c0d0e0f");
+			byte[] zeroBytes = new byte[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+			byte[] sequentialBytes = new byte[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+			Guid sequentialGuid = Guid.Parse("00010203-0405-0607-0809-0a0b0c0d0e0f");
 
 			// Test CbField(Uuid, Zero)
-			TestField(CbFieldType.Uuid, ZeroBytes, new Guid(), SequentialGuid);
+			TestField(CbFieldType.Uuid, zeroBytes, new Guid(), sequentialGuid);
 
 			// Test CbField(Uuid, NonZero)
-			TestField(CbFieldType.Uuid, SequentialBytes, SequentialGuid, new Guid());
+			TestField(CbFieldType.Uuid, sequentialBytes, sequentialGuid, new Guid());
 
 			// Test CbField(None) as Uuid
 			{
-				CbField DefaultField = new CbField();
-				TestFieldError(CbFieldType.Uuid, DefaultField, CbFieldError.TypeError, Guid.NewGuid());
+				CbField defaultField = new CbField();
+				TestFieldError(CbFieldType.Uuid, defaultField, CbFieldError.TypeError, Guid.NewGuid());
 			}
 		}
 
@@ -944,17 +937,17 @@ namespace EpicGames.Serialization.Tests
 
 			// Test CbField(DateTime, Zero) as FDateTime
 			{
-				byte[] Payload = new byte[]{0, 0, 0, 0, 0, 0, 0, 0};
-				CbField Field = new CbField(Payload, CbFieldType.DateTime);
-				Assert.AreEqual(Field.AsDateTime(), new DateTime(0));
+				byte[] payload = new byte[]{0, 0, 0, 0, 0, 0, 0, 0};
+				CbField field = new CbField(payload, CbFieldType.DateTime);
+				Assert.AreEqual(field.AsDateTime(), new DateTime(0));
 			}
 
 			// Test CbField(None) as DateTime
 			{
-				CbField DefaultField = new CbField();
-				TestFieldError(CbFieldType.DateTime, DefaultField, CbFieldError.TypeError);
-				DateTime DefaultValue = new DateTime(0x1020_3040_5060_7080L, DateTimeKind.Utc);
-				Assert.AreEqual(DefaultField.AsDateTime(DefaultValue), DefaultValue);
+				CbField defaultField = new CbField();
+				TestFieldError(CbFieldType.DateTime, defaultField, CbFieldError.TypeError);
+				DateTime defaultValue = new DateTime(0x1020_3040_5060_7080L, DateTimeKind.Utc);
+				Assert.AreEqual(defaultField.AsDateTime(defaultValue), defaultValue);
 			}
 		}
 
@@ -969,17 +962,17 @@ namespace EpicGames.Serialization.Tests
 
 			// Test CbField(TimeSpan, Zero) as FTimeSpan
 			{
-				byte[] Payload = new byte[]{0, 0, 0, 0, 0, 0, 0, 0};
-				CbField Field = new CbField(Payload, CbFieldType.TimeSpan);
-				Assert.AreEqual(Field.AsTimeSpan(), new TimeSpan(0));
+				byte[] payload = new byte[]{0, 0, 0, 0, 0, 0, 0, 0};
+				CbField field = new CbField(payload, CbFieldType.TimeSpan);
+				Assert.AreEqual(field.AsTimeSpan(), new TimeSpan(0));
 			}
 
 			// Test CbField(None) as TimeSpan
 			{
-				CbField DefaultField = new CbField();
-				TestFieldError(CbFieldType.TimeSpan, DefaultField, CbFieldError.TypeError);
-				TimeSpan DefaultValue = new TimeSpan(0x1020_3040_5060_7080L);
-				Assert.AreEqual(DefaultField.AsTimeSpan(DefaultValue), DefaultValue);
+				CbField defaultField = new CbField();
+				TestFieldError(CbFieldType.TimeSpan, defaultField, CbFieldError.TypeError);
+				TimeSpan defaultValue = new TimeSpan(0x1020_3040_5060_7080L);
+				Assert.AreEqual(defaultField.AsTimeSpan(defaultValue), defaultValue);
 			}
 		}
 
@@ -1615,7 +1608,6 @@ namespace EpicGames.Serialization.Tests
 			return true;
 		}
 #endif
-		delegate void ParseObjectType(CbObject Object, ref uint A, ref uint B, ref uint C, ref uint D);
 
 		[TestMethod]
 		public void CbFieldParseTest()
@@ -1624,54 +1616,54 @@ namespace EpicGames.Serialization.Tests
 			// Under ideal conditions, when the fields are in the expected order and there are no extra fields,
 			// the loop will execute once and only one comparison will be performed for each field name. Either
 			// way, each field will only be visited once even if the loop needs to execute several times.
-			ParseObjectType ParseObject = (CbObject Object, ref uint A, ref uint B, ref uint C, ref uint D) =>
+			static void ParseObject(CbObject obj, ref uint a, ref uint b, ref uint c, ref uint d)
 			{
-				for (CbFieldIterator It = Object.CreateIterator(); It;)
+				for (CbFieldIterator it = obj.CreateIterator(); it;)
 				{
-					CbFieldIterator Last = It;
-					if (It.Current.GetName().Equals("A"))
+					CbFieldIterator last = it;
+					if (it.Current.GetName().Equals("A"))
 					{
-						A = It.Current.AsUInt32();
-						++It;
+						a = it.Current.AsUInt32();
+						++it;
 					}
-					if (It.Current.GetName().Equals("B"))
+					if (it.Current.GetName().Equals("B"))
 					{
-						B = It.Current.AsUInt32();
-						++It;
+						b = it.Current.AsUInt32();
+						++it;
 					}
-					if (It.Current.GetName().Equals("C"))
+					if (it.Current.GetName().Equals("C"))
 					{
-						C = It.Current.AsUInt32();
-						++It;
+						c = it.Current.AsUInt32();
+						++it;
 					}
-					if (It.Current.GetName().Equals("D"))
+					if (it.Current.GetName().Equals("D"))
 					{
-						D = It.Current.AsUInt32();
-						++It;
+						d = it.Current.AsUInt32();
+						++it;
 					}
-					if (Last == It)
+					if (last == it)
 					{
-						++It;
+						++it;
 					}
 				}
-			};
+			}
 
-			Func<byte[], uint, uint, uint, uint, bool> TestParseObject = (byte[] Data, uint A, uint B, uint C, uint D) =>
+			static bool TestParseObject(byte[] data, uint a, uint b, uint c, uint d)
 			{
-				uint ParsedA = 0, ParsedB = 0, ParsedC = 0, ParsedD = 0;
-				ParseObject(new CbObject(Data, CbFieldType.Object), ref ParsedA, ref ParsedB, ref ParsedC, ref ParsedD);
-				return A == ParsedA && B == ParsedB && C == ParsedC && D == ParsedD;
-			};
+				uint parsedA = 0, parsedB = 0, parsedC = 0, parsedD = 0;
+				ParseObject(new CbObject(data, CbFieldType.Object), ref parsedA, ref parsedB, ref parsedC, ref parsedD);
+				return a == parsedA && b == parsedB && c == parsedC && d == parsedD;
+			}
 
-			byte T = (byte)(CbFieldType.IntegerPositive | CbFieldType.HasFieldName);
+			byte t = (byte)(CbFieldType.IntegerPositive | CbFieldType.HasFieldName);
 			Assert.IsTrue(TestParseObject(new byte[]{0}, 0, 0, 0, 0));
-			Assert.IsTrue(TestParseObject(new byte[] { 16, T, 1, (byte)'A', 1, T, 1, (byte)'B', 2, T, 1, (byte)'C', 3, T, 1, (byte)'D', 4}, 1, 2, 3, 4));
-			Assert.IsTrue(TestParseObject(new byte[]{16, T, 1, (byte)'B', 2, T, 1, (byte)'C', 3, T, 1, (byte)'D', 4, T, 1, (byte)'A', 1}, 1, 2, 3, 4));
-			Assert.IsTrue(TestParseObject(new byte[]{12, T, 1, (byte)'B', 2, T, 1, (byte)'C', 3, T, 1, (byte)'D', 4}, 0, 2, 3, 4));
-			Assert.IsTrue(TestParseObject(new byte[]{8, T, 1, (byte)'B', 2, T, 1, (byte)'C', 3}, 0, 2, 3, 0));
-			Assert.IsTrue(TestParseObject(new byte[]{20, T, 1, (byte)'A', 1, T, 1, (byte)'B', 2, T, 1, (byte)'C', 3, T, 1, (byte)'D', 4, T, 1, (byte)'E', 5}, 1, 2, 3, 4));
-			Assert.IsTrue(TestParseObject(new byte[]{20, T, 1, (byte)'E', 5, T, 1, (byte)'A', 1, T, 1, (byte)'B', 2, T, 1, (byte)'C', 3, T, 1, (byte)'D', 4}, 1, 2, 3, 4));
-			Assert.IsTrue(TestParseObject(new byte[] { 16, T, 1, (byte)'D', 4, T, 1, (byte)'C', 3, T, 1, (byte)'B', 2, T, 1, (byte)'A', 1}, 1, 2, 3, 4));
+			Assert.IsTrue(TestParseObject(new byte[] { 16, t, 1, (byte)'A', 1, t, 1, (byte)'B', 2, t, 1, (byte)'C', 3, t, 1, (byte)'D', 4}, 1, 2, 3, 4));
+			Assert.IsTrue(TestParseObject(new byte[]{16, t, 1, (byte)'B', 2, t, 1, (byte)'C', 3, t, 1, (byte)'D', 4, t, 1, (byte)'A', 1}, 1, 2, 3, 4));
+			Assert.IsTrue(TestParseObject(new byte[]{12, t, 1, (byte)'B', 2, t, 1, (byte)'C', 3, t, 1, (byte)'D', 4}, 0, 2, 3, 4));
+			Assert.IsTrue(TestParseObject(new byte[]{8, t, 1, (byte)'B', 2, t, 1, (byte)'C', 3}, 0, 2, 3, 0));
+			Assert.IsTrue(TestParseObject(new byte[]{20, t, 1, (byte)'A', 1, t, 1, (byte)'B', 2, t, 1, (byte)'C', 3, t, 1, (byte)'D', 4, t, 1, (byte)'E', 5}, 1, 2, 3, 4));
+			Assert.IsTrue(TestParseObject(new byte[]{20, t, 1, (byte)'E', 5, t, 1, (byte)'A', 1, t, 1, (byte)'B', 2, t, 1, (byte)'C', 3, t, 1, (byte)'D', 4}, 1, 2, 3, 4));
+			Assert.IsTrue(TestParseObject(new byte[] { 16, t, 1, (byte)'D', 4, t, 1, (byte)'C', 3, t, 1, (byte)'B', 2, t, 1, (byte)'A', 1}, 1, 2, 3, 4));
 		}
 	}
 }

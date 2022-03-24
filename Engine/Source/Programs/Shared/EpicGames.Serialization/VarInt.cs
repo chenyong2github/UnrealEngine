@@ -15,40 +15,40 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Read a variable-length unsigned integer.
 		/// </summary>
-		/// <param name="Buffer">A variable-length encoding of an unsigned integer</param>
+		/// <param name="buffer">A variable-length encoding of an unsigned integer</param>
 		/// <returns></returns>
-		public static ulong Read(ReadOnlySpan<byte> Buffer)
+		public static ulong Read(ReadOnlySpan<byte> buffer)
 		{
-			return Read(Buffer, out _);
+			return Read(buffer, out _);
 		}
 
 		/// <summary>
 		/// Read a variable-length unsigned integer.
 		/// </summary>
-		/// <param name="Buffer">A variable-length encoding of an unsigned integer</param>
-		/// <param name="BytesRead">The number of bytes consumed from the input</param>
+		/// <param name="buffer">A variable-length encoding of an unsigned integer</param>
+		/// <param name="bytesRead">The number of bytes consumed from the input</param>
 		/// <returns></returns>
-		public static ulong Read(ReadOnlySpan<byte> Buffer, out int BytesRead)
+		public static ulong Read(ReadOnlySpan<byte> buffer, out int bytesRead)
 		{
-			BytesRead = (int)Measure(Buffer);
+			bytesRead = (int)Measure(buffer);
 
-			ulong Value = (ulong)(Buffer[0] & (0xff >> BytesRead));
-			for (int i = 1; i < BytesRead; i++)
+			ulong value = (ulong)(buffer[0] & (0xff >> bytesRead));
+			for (int i = 1; i < bytesRead; i++)
 			{
-				Value <<= 8;
-				Value |= Buffer[i];
+				value <<= 8;
+				value |= buffer[i];
 			}
-			return Value;
+			return value;
 		}
 
 		/// <summary>
 		/// Measure the length in bytes (1-9) of an encoded variable-length integer.
 		/// </summary>
-		/// <param name="Buffer">A variable-length encoding of an(signed or unsigned) integer.</param>
+		/// <param name="buffer">A variable-length encoding of an(signed or unsigned) integer.</param>
 		/// <returns>The number of bytes used to encode the integer, in the range 1-9.</returns>
-		public static int Measure(ReadOnlySpan<byte> Buffer)
+		public static int Measure(ReadOnlySpan<byte> buffer)
 		{
-			byte b = Buffer[0];
+			byte b = buffer[0];
 			b = (byte)~b;
 			return BitOperations.LeadingZeroCount(b) - 23;
 		}
@@ -56,21 +56,21 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Measure the number of bytes (1-5) required to encode the 32-bit input.
 		/// </summary>
-		/// <param name="Value"></param>
+		/// <param name="value"></param>
 		/// <returns></returns>
-		public static int Measure(int Value)
+		public static int Measure(int value)
 		{
-			return Measure((ulong)(long)Value);
+			return Measure((ulong)(long)value);
 		}
 
 		/// <summary>
 		/// Measure the number of bytes (1-5) required to encode the 32-bit input.
 		/// </summary>
-		/// <param name="Value"></param>
+		/// <param name="value"></param>
 		/// <returns></returns>
-		public static int Measure(uint Value)
+		public static int Measure(uint value)
 		{
-			return BitOperations.Log2(Value) / 7 + 1;
+			return BitOperations.Log2(value) / 7 + 1;
 		}
 
 		/// <summary>
@@ -86,31 +86,31 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Write a variable-length unsigned integer.
 		/// </summary>
-		/// <param name="Value">An unsigned integer to encode</param>
-		/// <param name="Buffer">A buffer of at least 9 bytes to write the output to.</param>
+		/// <param name="value">An unsigned integer to encode</param>
+		/// <param name="buffer">A buffer of at least 9 bytes to write the output to.</param>
 		/// <returns>The number of bytes used in the output</returns>
-		public static int Write(Span<byte> Buffer, long Value)
+		public static int Write(Span<byte> buffer, long value)
 		{
-			return Write(Buffer, (ulong)Value);
+			return Write(buffer, (ulong)value);
 		}
 
 		/// <summary>
 		/// Write a variable-length unsigned integer.
 		/// </summary>
-		/// <param name="Value">An unsigned integer to encode</param>
-		/// <param name="Buffer">A buffer of at least 9 bytes to write the output to.</param>
+		/// <param name="value">An unsigned integer to encode</param>
+		/// <param name="buffer">A buffer of at least 9 bytes to write the output to.</param>
 		/// <returns>The number of bytes used in the output</returns>
-		public static int Write(Span<byte> Buffer, ulong Value)
+		public static int Write(Span<byte> buffer, ulong value)
 		{
-			int ByteCount = Measure(Value);
+			int byteCount = Measure(value);
 
-			for (int Idx = 1; Idx < ByteCount; Idx++)
+			for (int idx = 1; idx < byteCount; idx++)
 			{
-				Buffer[ByteCount - Idx] = (byte)Value;
-				Value >>= 8;
+				buffer[byteCount - idx] = (byte)value;
+				value >>= 8;
 			}
-			Buffer[0] = (byte)((0xff << (9 - (int)ByteCount)) | (byte)Value);
-			return ByteCount;
+			buffer[0] = (byte)((0xff << (9 - (int)byteCount)) | (byte)value);
+			return byteCount;
 		}
 	}
 }

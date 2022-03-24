@@ -35,10 +35,10 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name"></param>
-		public CbFieldAttribute(string Name)
+		/// <param name="name"></param>
+		public CbFieldAttribute(string name)
 		{
-			this.Name = Name;
+			this.Name = name;
 		}
 	}
 
@@ -62,8 +62,8 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name used to identify this class</param>
-		public CbDiscriminatorAttribute(string Name) => this.Name = Name;
+		/// <param name="name">Name used to identify this class</param>
+		public CbDiscriminatorAttribute(string name) => this.Name = name;
 	}
 
 	/// <summary>
@@ -72,12 +72,12 @@ namespace EpicGames.Serialization
 	public class CbException : Exception
 	{
 		/// <inheritdoc cref="Exception(string?)"/>
-		public CbException(string Message) : base(Message)
+		public CbException(string message) : base(message)
 		{
 		}
 
 		/// <inheritdoc cref="Exception(string?, Exception)"/>
-		public CbException(string Message, Exception Inner) : base(Message, Inner)
+		public CbException(string message, Exception inner) : base(message, inner)
 		{
 		}
 	}
@@ -90,88 +90,88 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Serialize an object
 		/// </summary>
-		/// <param name="Type">Type of the object to serialize</param>
-		/// <param name="Value"></param>
+		/// <param name="type">Type of the object to serialize</param>
+		/// <param name="value"></param>
 		/// <returns></returns>
-		public static CbObject Serialize(Type Type, object Value)
+		public static CbObject Serialize(Type type, object value)
 		{
-			CbWriter Writer = new CbWriter();
-			CbConverter.GetConverter(Type).WriteObject(Writer, Value);
-			return Writer.ToObject();
+			CbWriter writer = new CbWriter();
+			CbConverter.GetConverter(type).WriteObject(writer, value);
+			return writer.ToObject();
 		}
 
 		/// <summary>
 		/// Serialize an object
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Value"></param>
+		/// <param name="value"></param>
 		/// <returns></returns>
-		public static CbObject Serialize<T>(T Value)
+		public static CbObject Serialize<T>(T value)
 		{
-			CbWriter Writer = new CbWriter();
-			CbConverter.GetConverter<T>().Write(Writer, Value);
-			return Writer.ToObject();
+			CbWriter writer = new CbWriter();
+			CbConverter.GetConverter<T>().Write(writer, value);
+			return writer.ToObject();
 		}
 
 		/// <summary>
 		/// Serialize a property to a given writer
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Writer"></param>
-		/// <param name="Value"></param>
-		public static void Serialize<T>(CbWriter Writer, T Value)
+		/// <param name="writer"></param>
+		/// <param name="value"></param>
+		public static void Serialize<T>(CbWriter writer, T value)
 		{
-			CbConverter.GetConverter<T>().Write(Writer, Value);
+			CbConverter.GetConverter<T>().Write(writer, value);
 		}
 
 		/// <summary>
 		/// Serialize a named property to the given writer
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Writer"></param>
-		/// <param name="Name"></param>
-		/// <param name="Value"></param>
-		public static void Serialize<T>(CbWriter Writer, Utf8String Name, T Value)
+		/// <param name="writer"></param>
+		/// <param name="name"></param>
+		/// <param name="value"></param>
+		public static void Serialize<T>(CbWriter writer, Utf8String name, T value)
 		{
-			CbConverter.GetConverter<T>().WriteNamed(Writer, Name, Value);
+			CbConverter.GetConverter<T>().WriteNamed(writer, name, value);
 		}
 
 		/// <summary>
 		/// Deserialize an object from a <see cref="CbObject"/>
 		/// </summary>
-		/// <param name="Field"></param>
-		/// <param name="Type">Type of the object to read</param>
+		/// <param name="field"></param>
+		/// <param name="type">Type of the object to read</param>
 		/// <returns></returns>
-		public static object? Deserialize(CbField Field, Type Type)
+		public static object? Deserialize(CbField field, Type type)
 		{
-			return CbConverter.GetConverter(Type).ReadObject(Field);
+			return CbConverter.GetConverter(type).ReadObject(field);
 		}
 
 		/// <summary>
 		/// Deserialize an object from a <see cref="CbField"/>
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Field"></param>
+		/// <param name="field"></param>
 		/// <returns></returns>
-		public static T Deserialize<T>(CbField Field)
+		public static T Deserialize<T>(CbField field)
 		{
-			return CbConverter.GetConverter<T>().Read(Field);
+			return CbConverter.GetConverter<T>().Read(field);
 		}
 
 		/// <summary>
 		/// Deserialize an object from a <see cref="CbObject"/>
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Object"></param>
+		/// <param name="obj"></param>
 		/// <returns></returns>
-		public static T Deserialize<T>(CbObject Object) => Deserialize<T>(Object.AsField());
+		public static T Deserialize<T>(CbObject obj) => Deserialize<T>(obj.AsField());
 
 		/// <summary>
 		/// Deserialize an object from a block of memory
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="Data"></param>
+		/// <param name="data"></param>
 		/// <returns></returns>
-		public static T Deserialize<T>(ReadOnlyMemory<byte> Data) => Deserialize<T>(new CbField(Data));
+		public static T Deserialize<T>(ReadOnlyMemory<byte> data) => Deserialize<T>(new CbField(data));
 	}
 }

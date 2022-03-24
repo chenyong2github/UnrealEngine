@@ -19,61 +19,61 @@ namespace EpicGames.Serialization.Converters
 	class CbDictionaryConverter<TKey, TValue> : CbConverterBase<Dictionary<TKey, TValue>> where TKey : notnull
 	{
 		/// <inheritdoc/>
-		public override Dictionary<TKey, TValue> Read(CbField Field)
+		public override Dictionary<TKey, TValue> Read(CbField field)
 		{
-			Dictionary<TKey, TValue> Dictionary = new Dictionary<TKey, TValue>();
-			foreach (CbField Element in Field)
+			Dictionary<TKey, TValue> dictionary = new Dictionary<TKey, TValue>();
+			foreach (CbField element in field)
 			{
-				IEnumerator<CbField> Enumerator = Element.AsArray().GetEnumerator();
+				IEnumerator<CbField> enumerator = element.AsArray().GetEnumerator();
 
-				if (!Enumerator.MoveNext())
+				if (!enumerator.MoveNext())
 				{
 					throw new CbException("Missing key for dictionary entry");
 				}
-				TKey Key = CbSerializer.Deserialize<TKey>(Enumerator.Current);
+				TKey key = CbSerializer.Deserialize<TKey>(enumerator.Current);
 
-				if (!Enumerator.MoveNext())
+				if (!enumerator.MoveNext())
 				{
 					throw new CbException("Missing value for dictionary entry");
 				}
-				TValue Value = CbSerializer.Deserialize<TValue>(Enumerator.Current);
+				TValue value = CbSerializer.Deserialize<TValue>(enumerator.Current);
 
-				Dictionary.Add(Key, Value);
+				dictionary.Add(key, value);
 			}
-			return Dictionary;
+			return dictionary;
 		}
 
 		/// <inheritdoc/>
-		public override void Write(CbWriter Writer, Dictionary<TKey, TValue> Value)
+		public override void Write(CbWriter writer, Dictionary<TKey, TValue> value)
 		{
-			if (Value.Count > 0)
+			if (value.Count > 0)
 			{
-				Writer.BeginUniformArray(CbFieldType.Array);
-				foreach (KeyValuePair<TKey, TValue> Pair in Value)
+				writer.BeginUniformArray(CbFieldType.Array);
+				foreach (KeyValuePair<TKey, TValue> pair in value)
 				{
-					Writer.BeginArray();
-					CbSerializer.Serialize(Writer, Pair.Key);
-					CbSerializer.Serialize(Writer, Pair.Value);
-					Writer.EndArray();
+					writer.BeginArray();
+					CbSerializer.Serialize(writer, pair.Key);
+					CbSerializer.Serialize(writer, pair.Value);
+					writer.EndArray();
 				}
-				Writer.EndUniformArray();
+				writer.EndUniformArray();
 			}
 		}
 
 		/// <inheritdoc/>
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, Dictionary<TKey, TValue> Value)
+		public override void WriteNamed(CbWriter writer, Utf8String name, Dictionary<TKey, TValue> value)
 		{
-			if (Value.Count > 0)
+			if (value.Count > 0)
 			{
-				Writer.BeginUniformArray(Name, CbFieldType.Array);
-				foreach (KeyValuePair<TKey, TValue> Pair in Value)
+				writer.BeginUniformArray(name, CbFieldType.Array);
+				foreach (KeyValuePair<TKey, TValue> pair in value)
 				{
-					Writer.BeginArray();
-					CbSerializer.Serialize(Writer, Pair.Key);
-					CbSerializer.Serialize(Writer, Pair.Value);
-					Writer.EndArray();
+					writer.BeginArray();
+					CbSerializer.Serialize(writer, pair.Key);
+					CbSerializer.Serialize(writer, pair.Value);
+					writer.EndArray();
 				}
-				Writer.EndUniformArray();
+				writer.EndUniformArray();
 			}
 		}
 	}
@@ -84,12 +84,12 @@ namespace EpicGames.Serialization.Converters
 	class CbDictionaryConverterFactory : CbConverterFactory
 	{
 		/// <inheritdoc/>
-		public override ICbConverter? CreateConverter(Type Type)
+		public override ICbConverter? CreateConverter(Type type)
 		{
-			if (Type.IsGenericType && Type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+			if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
 			{
-				Type ConverterType = typeof(CbDictionaryConverter<,>).MakeGenericType(Type.GenericTypeArguments);
-				return (ICbConverter)Activator.CreateInstance(ConverterType)!;
+				Type converterType = typeof(CbDictionaryConverter<,>).MakeGenericType(type.GenericTypeArguments);
+				return (ICbConverter)Activator.CreateInstance(converterType)!;
 			}
 			return null;
 		}

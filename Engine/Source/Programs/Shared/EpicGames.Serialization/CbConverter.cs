@@ -25,10 +25,10 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ConverterType"></param>
-		public CbConverterAttribute(Type ConverterType)
+		/// <param name="converterType"></param>
+		public CbConverterAttribute(Type converterType)
 		{
-			this.ConverterType = ConverterType;
+			this.ConverterType = converterType;
 		}
 	}
 
@@ -40,24 +40,24 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Reads an object from a field
 		/// </summary>
-		/// <param name="Field"></param>
+		/// <param name="field"></param>
 		/// <returns></returns>
-		object? ReadObject(CbField Field);
+		object? ReadObject(CbField field);
 
 		/// <summary>
 		/// Writes an object to a field
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Value"></param>
-		void WriteObject(CbWriter Writer, object? Value);
+		/// <param name="writer"></param>
+		/// <param name="value"></param>
+		void WriteObject(CbWriter writer, object? value);
 
 		/// <summary>
 		/// Writes an object to a named field, if not equal to the default value
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Name"></param>
-		/// <param name="Value"></param>
-		void WriteNamedObject(CbWriter Writer, Utf8String Name, object? Value);
+		/// <param name="writer"></param>
+		/// <param name="name"></param>
+		/// <param name="value"></param>
+		void WriteNamedObject(CbWriter writer, Utf8String name, object? value);
 	}
 
 	/// <summary>
@@ -68,24 +68,24 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Reads an object from a field
 		/// </summary>
-		/// <param name="Field"></param>
+		/// <param name="field"></param>
 		/// <returns></returns>
-		T Read(CbField Field);
+		T Read(CbField field);
 
 		/// <summary>
 		/// Writes an object to a field
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Value"></param>
-		void Write(CbWriter Writer, T Value);
+		/// <param name="writer"></param>
+		/// <param name="value"></param>
+		void Write(CbWriter writer, T value);
 
 		/// <summary>
 		/// Writes an object to a named field, if not equal to the default value
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Name"></param>
-		/// <param name="Value"></param>
-		void WriteNamed(CbWriter Writer, Utf8String Name, T Value);
+		/// <param name="writer"></param>
+		/// <param name="name"></param>
+		/// <param name="value"></param>
+		void WriteNamed(CbWriter writer, Utf8String name, T value);
 	}
 
 	/// <summary>
@@ -116,51 +116,34 @@ namespace EpicGames.Serialization
 	{
 		class CbConverterMethodsWrapper<TConverter, T> : ICbConverterMethods where TConverter : class, ICbConverter<T>
 		{
-			static TConverter StaticConverter = null!;
+			static TConverter s_staticConverter = null!;
 
-			static T Read(CbField Field) => StaticConverter.Read(Field);
-			static void Write(CbWriter Writer, T Value) => StaticConverter.Write(Writer, Value);
-			static void WriteNamed(CbWriter Writer, Utf8String Name, T Value) => StaticConverter.WriteNamed(Writer, Name, Value);
+			static T Read(CbField field) => s_staticConverter.Read(field);
+			static void Write(CbWriter writer, T value) => s_staticConverter.Write(writer, value);
+			static void WriteNamed(CbWriter writer, Utf8String name, T value) => s_staticConverter.WriteNamed(writer, name, value);
 
 			public MethodInfo ReadMethod { get; } = GetMethodInfo(() => Read(null!));
 			public MethodInfo WriteMethod { get; } = GetMethodInfo(() => Write(null!, default!));
 			public MethodInfo WriteNamedMethod { get; } = GetMethodInfo(() => WriteNamed(null!, null!, default!));
 
-			public CbConverterMethodsWrapper(TConverter Converter)
+			public CbConverterMethodsWrapper(TConverter converter)
 			{
-				StaticConverter = Converter;
+				s_staticConverter = converter;
 			}
 
-			static MethodInfo GetMethodInfo(Expression<Action> Expr)
+			static MethodInfo GetMethodInfo(Expression<Action> expr)
 			{
-				return ((MethodCallExpression)Expr.Body).Method;
+				return ((MethodCallExpression)expr.Body).Method;
 			}
 		}
 
-		static Dictionary<PropertyInfo, ICbConverterMethods> PropertyToMethods = new Dictionary<PropertyInfo, ICbConverterMethods>();
-		static Dictionary<Type, ICbConverterMethods> TypeToMethods = new Dictionary<Type, ICbConverterMethods>();
+		static Dictionary<PropertyInfo, ICbConverterMethods> s_propertyToMethods = new Dictionary<PropertyInfo, ICbConverterMethods>();
+		static Dictionary<Type, ICbConverterMethods> s_typeToMethods = new Dictionary<Type, ICbConverterMethods>();
 
-		static ICbConverterMethods CreateWrapper(Type Type, ICbConverter Converter)
+		static ICbConverterMethods CreateWrapper(Type type, ICbConverter converter)
 		{
-			Type ConverterMethodsType = typeof(CbConverterMethodsWrapper<,>).MakeGenericType(Converter.GetType(), Type);
-			return (ICbConverterMethods)Activator.CreateInstance(ConverterMethodsType, new object[] { Converter })!;
-		}
-
-		/// <summary>
-		/// Gets a <see cref="ICbConverterMethods"/> interface for the given type
-		/// </summary>
-		/// <param name="Type"></param>
-		/// <returns></returns>
-		public static ICbConverterMethods Get(PropertyInfo Property)
-		{
-			ICbConverterMethods? Methods;
-			if (!PropertyToMethods.TryGetValue(Property, out Methods))
-			{
-				ICbConverter Converter = CbConverter.GetConverter(Property);
-				Methods = (Converter as ICbConverterMethods) ?? CreateWrapper(Property.PropertyType, Converter);
-				PropertyToMethods.Add(Property, Methods);
-			}
-			return Methods;
+			Type converterMethodsType = typeof(CbConverterMethodsWrapper<,>).MakeGenericType(converter.GetType(), type);
+			return (ICbConverterMethods)Activator.CreateInstance(converterMethodsType, new object[] { converter })!;
 		}
 
 		/// <summary>
@@ -168,16 +151,33 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Type"></param>
 		/// <returns></returns>
-		public static ICbConverterMethods Get(Type Type)
+		public static ICbConverterMethods Get(PropertyInfo property)
 		{
-			ICbConverterMethods? Methods;
-			if (!TypeToMethods.TryGetValue(Type, out Methods))
+			ICbConverterMethods? methods;
+			if (!s_propertyToMethods.TryGetValue(property, out methods))
 			{
-				ICbConverter Converter = CbConverter.GetConverter(Type);
-				Methods = (Converter as ICbConverterMethods) ?? CreateWrapper(Type, Converter);
-				TypeToMethods.Add(Type, Methods);
+				ICbConverter converter = CbConverter.GetConverter(property);
+				methods = (converter as ICbConverterMethods) ?? CreateWrapper(property.PropertyType, converter);
+				s_propertyToMethods.Add(property, methods);
 			}
-			return Methods;
+			return methods;
+		}
+
+		/// <summary>
+		/// Gets a <see cref="ICbConverterMethods"/> interface for the given type
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public static ICbConverterMethods Get(Type type)
+		{
+			ICbConverterMethods? methods;
+			if (!s_typeToMethods.TryGetValue(type, out methods))
+			{
+				ICbConverter converter = CbConverter.GetConverter(type);
+				methods = (converter as ICbConverterMethods) ?? CreateWrapper(type, converter);
+				s_typeToMethods.Add(type, methods);
+			}
+			return methods;
 		}
 	}
 
@@ -188,22 +188,22 @@ namespace EpicGames.Serialization
 	public abstract class CbConverterBase<T> : ICbConverter<T>
 	{
 		/// <inheritdoc/>
-		public object? ReadObject(CbField Field) => Read(Field);
+		public object? ReadObject(CbField field) => Read(field);
 
 		/// <inheritdoc/>
-		public void WriteObject(CbWriter Writer, object? Value) => Write(Writer, (T)Value!);
+		public void WriteObject(CbWriter writer, object? value) => Write(writer, (T)value!);
 
 		/// <inheritdoc/>
-		public void WriteNamedObject(CbWriter Writer, Utf8String Name, object? Value) => WriteNamed(Writer, Name, (T)Value!);
+		public void WriteNamedObject(CbWriter writer, Utf8String name, object? value) => WriteNamed(writer, name, (T)value!);
 
 		/// <inheritdoc/>
-		public abstract T Read(CbField Field);
+		public abstract T Read(CbField field);
 
 		/// <inheritdoc/>
-		public abstract void Write(CbWriter Writer, T Value);
+		public abstract void Write(CbWriter writer, T value);
 
 		/// <inheritdoc/>
-		public abstract void WriteNamed(CbWriter Writer, Utf8String Name, T Value);
+		public abstract void WriteNamed(CbWriter writer, Utf8String name, T value);
 	}
 
 	/// <summary>
@@ -214,9 +214,9 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Create a converter for the given type
 		/// </summary>
-		/// <param name="Type">The type to create a converter for</param>
+		/// <param name="type">The type to create a converter for</param>
 		/// <returns>The converter instance, or null if this factory does not support the given type</returns>
-		public abstract ICbConverter? CreateConverter(Type Type);
+		public abstract ICbConverter? CreateConverter(Type type);
 	}
 
 	/// <summary>
@@ -227,12 +227,12 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Object used for locking access to shared objects
 		/// </summary>
-		static object LockObject = new object();
+		static object s_lockObject = new object();
 
 		/// <summary>
 		/// Cache of property to converter
 		/// </summary>
-		static Dictionary<PropertyInfo, ICbConverter> PropertyToConverter = new Dictionary<PropertyInfo, ICbConverter>();
+		static Dictionary<PropertyInfo, ICbConverter> s_propertyToConverter = new Dictionary<PropertyInfo, ICbConverter>();
 
 		/// <summary>
 		/// Cache of type to converter
@@ -287,8 +287,8 @@ namespace EpicGames.Serialization
 			/// <returns></returns>
 			static ICbConverter<T> CreateConverter()
 			{
-				ICbConverter Converter = GetConverter(typeof(T));
-				return (Converter as ICbConverter<T>) ?? new CbConverterWrapper(Converter);
+				ICbConverter converter = GetConverter(typeof(T));
+				return (converter as ICbConverter<T>) ?? new CbConverterWrapper(converter);
 			}
 
 			/// <summary>
@@ -296,84 +296,84 @@ namespace EpicGames.Serialization
 			/// </summary>
 			class CbConverterWrapper : CbConverterBase<T>
 			{
-				ICbConverter Inner;
+				ICbConverter _inner;
 
-				public CbConverterWrapper(ICbConverter Inner) => this.Inner = Inner;
-
-				/// <inheritdoc/>
-				public override T Read(CbField Field) => (T)Inner.ReadObject(Field)!;
+				public CbConverterWrapper(ICbConverter inner) => this._inner = inner;
 
 				/// <inheritdoc/>
-				public override void Write(CbWriter Writer, T Value) => Inner.WriteObject(Writer, Value);
+				public override T Read(CbField field) => (T)_inner.ReadObject(field)!;
 
 				/// <inheritdoc/>
-				public override void WriteNamed(CbWriter Writer, Utf8String Name, T Value) => Inner.WriteNamedObject(Writer, Name, Value);
+				public override void Write(CbWriter writer, T value) => _inner.WriteObject(writer, value);
+
+				/// <inheritdoc/>
+				public override void WriteNamed(CbWriter writer, Utf8String name, T value) => _inner.WriteNamedObject(writer, name, value);
 			}
 		}
 
 		/// <summary>
 		/// Gets the converter for a particular property
 		/// </summary>
-		/// <param name="Property"></param>
+		/// <param name="property"></param>
 		/// <returns></returns>
-		public static ICbConverter GetConverter(PropertyInfo Property)
+		public static ICbConverter GetConverter(PropertyInfo property)
 		{
-			CbConverterAttribute? ConverterAttribute = Property.GetCustomAttribute<CbConverterAttribute>();
-			if (ConverterAttribute != null)
+			CbConverterAttribute? converterAttribute = property.GetCustomAttribute<CbConverterAttribute>();
+			if (converterAttribute != null)
 			{
-				Type ConverterType = ConverterAttribute.ConverterType;
-				lock (LockObject)
+				Type converterType = converterAttribute.ConverterType;
+				lock (s_lockObject)
 				{
-					ICbConverter? Converter;
-					if (!PropertyToConverter.TryGetValue(Property, out Converter))
+					ICbConverter? converter;
+					if (!s_propertyToConverter.TryGetValue(property, out converter))
 					{
-						Converter = (ICbConverter?)Activator.CreateInstance(ConverterType)!;
-						PropertyToConverter.Add(Property, Converter);
+						converter = (ICbConverter?)Activator.CreateInstance(converterType)!;
+						s_propertyToConverter.Add(property, converter);
 					}
-					return Converter;
+					return converter;
 				}
 			}
-			return GetConverter(Property.PropertyType);
+			return GetConverter(property.PropertyType);
 		}
 
 		/// <summary>
 		/// Gets the converter for a particular type
 		/// </summary>
-		/// <param name="Type"></param>
+		/// <param name="type"></param>
 		/// <returns></returns>
-		public static ICbConverter GetConverter(Type Type)
+		public static ICbConverter GetConverter(Type type)
 		{
-			ICbConverter? Converter;
-			lock (LockObject)
+			ICbConverter? converter;
+			lock (s_lockObject)
 			{
-				if (!TypeToConverter.TryGetValue(Type, out Converter))
+				if (!TypeToConverter.TryGetValue(type, out converter))
 				{
-					CbConverterAttribute? ConverterAttribute = Type.GetCustomAttribute<CbConverterAttribute>();
-					if (ConverterAttribute != null)
+					CbConverterAttribute? converterAttribute = type.GetCustomAttribute<CbConverterAttribute>();
+					if (converterAttribute != null)
 					{
-						Type ConverterType = ConverterAttribute.ConverterType;
-						if (Type.IsGenericType && ConverterType.IsGenericTypeDefinition)
+						Type converterType = converterAttribute.ConverterType;
+						if (type.IsGenericType && converterType.IsGenericTypeDefinition)
 						{
-							ConverterType = ConverterType.MakeGenericType(Type.GetGenericArguments());
+							converterType = converterType.MakeGenericType(type.GetGenericArguments());
 						}
-						Converter = (ICbConverter?)Activator.CreateInstance(ConverterType)!;
+						converter = (ICbConverter?)Activator.CreateInstance(converterType)!;
 					}
 					else
 					{
-						for (int Idx = ConverterFactories.Count - 1; Idx >= 0 && Converter == null; Idx--)
+						for (int idx = ConverterFactories.Count - 1; idx >= 0 && converter == null; idx--)
 						{
-							Converter = ConverterFactories[Idx].CreateConverter(Type);
+							converter = ConverterFactories[idx].CreateConverter(type);
 						}
 
-						if (Converter == null)
+						if (converter == null)
 						{
-							throw new CbException($"Unable to create converter for {Type.Name}");
+							throw new CbException($"Unable to create converter for {type.Name}");
 						}
 					}
-					TypeToConverter.Add(Type, Converter!);
+					TypeToConverter.Add(type, converter!);
 				}
 			}
-			return Converter;
+			return converter;
 		}
 
 		/// <summary>

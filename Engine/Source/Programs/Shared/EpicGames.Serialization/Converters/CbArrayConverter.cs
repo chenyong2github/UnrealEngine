@@ -20,36 +20,36 @@ namespace EpicGames.Serialization.Converters
 	class CbArrayConverter<T> : CbConverterBase<T[]>
 	{
 		/// <inheritdoc/>
-		public override T[] Read(CbField Field)
+		public override T[] Read(CbField field)
 		{
-			List<T> List = new List<T>();
-			foreach (CbField ElementField in Field)
+			List<T> list = new List<T>();
+			foreach (CbField elementField in field)
 			{
-				List.Add(CbSerializer.Deserialize<T>(ElementField));
+				list.Add(CbSerializer.Deserialize<T>(elementField));
 			}
-			return List.ToArray();
+			return list.ToArray();
 		}
 
 		/// <inheritdoc/>
-		public override void Write(CbWriter Writer, T[] List)
+		public override void Write(CbWriter writer, T[] list)
 		{
-			Writer.BeginArray();
-			foreach (T Element in List)
+			writer.BeginArray();
+			foreach (T element in list)
 			{
-				CbSerializer.Serialize<T>(Writer, Element);
+				CbSerializer.Serialize<T>(writer, element);
 			}
-			Writer.EndArray();
+			writer.EndArray();
 		}
 
 		/// <inheritdoc/>
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, T[] Array)
+		public override void WriteNamed(CbWriter writer, Utf8String name, T[] array)
 		{
-			Writer.BeginArray(Name);
-			foreach (T Element in Array)
+			writer.BeginArray(name);
+			foreach (T element in array)
 			{
-				CbSerializer.Serialize<T>(Writer, Element);
+				CbSerializer.Serialize<T>(writer, element);
 			}
-			Writer.EndArray();
+			writer.EndArray();
 		}
 	}
 	
@@ -59,13 +59,13 @@ namespace EpicGames.Serialization.Converters
 	class CbArrayConverterFactory : CbConverterFactory
 	{
 		/// <inheritdoc/>
-		public override ICbConverter? CreateConverter(Type Type)
+		public override ICbConverter? CreateConverter(Type type)
 		{
-			if (Type.IsArray)
+			if (type.IsArray)
 			{
-				Type ElementType = Type.GetElementType()!;
-				Type ConverterType = typeof(CbArrayConverter<>).MakeGenericType(ElementType);
-				return (ICbConverter)Activator.CreateInstance(ConverterType)!;
+				Type elementType = type.GetElementType()!;
+				Type converterType = typeof(CbArrayConverter<>).MakeGenericType(elementType);
+				return (ICbConverter)Activator.CreateInstance(converterType)!;
 			}
 			return null;
 		}

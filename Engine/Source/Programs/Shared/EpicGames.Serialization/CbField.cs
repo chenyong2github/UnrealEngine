@@ -10,7 +10,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -194,7 +193,7 @@ namespace EpicGames.Serialization
 	/// <summary>
 	/// A binary attachment, referenced by <see cref="IoHash"/>
 	/// </summary>
-	[DebuggerDisplay("{Hash}")]
+	[DebuggerDisplay("{_hash}")]
 	[JsonConverter(typeof(CbBinaryAttachmentJsonConverter))]
 	[TypeConverter(typeof(CbBinaryAttachmentTypeConverter))]
 	public struct CbBinaryAttachment
@@ -207,43 +206,43 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Hash of the referenced object
 		/// </summary>
-		public IoHash Hash;
+		public IoHash Hash { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Hash">Hash of the referenced object</param>
-		public CbBinaryAttachment(IoHash Hash)
+		/// <param name="hash">Hash of the referenced object</param>
+		public CbBinaryAttachment(IoHash hash)
 		{
-			this.Hash = Hash;
+			Hash = hash;
 		}
 
 		/// <inheritdoc/>
 		public override string ToString() => Hash.ToString();
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Obj is CbBinaryAttachment Other && Other.Hash == Hash;
+		public override bool Equals(object? obj) => obj is CbBinaryAttachment other && other.Hash == Hash;
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => Hash.GetHashCode();
 
 		/// <inheritdoc/>
-		public static bool operator ==(CbBinaryAttachment Lhs, CbBinaryAttachment Rhs) => Lhs.Hash == Rhs.Hash;
+		public static bool operator ==(CbBinaryAttachment lhs, CbBinaryAttachment rhs) => lhs.Hash == rhs.Hash;
 
 		/// <inheritdoc/>
-		public static bool operator !=(CbBinaryAttachment Lhs, CbBinaryAttachment Rhs) => Lhs.Hash != Rhs.Hash;
+		public static bool operator !=(CbBinaryAttachment lhs, CbBinaryAttachment rhs) => lhs.Hash != rhs.Hash;
 
 		/// <summary>
 		/// Convert a hash to a binary attachment 
 		/// </summary>
-		/// <param name="Hash">The attachment to convert</param>
-		public static implicit operator CbBinaryAttachment(IoHash Hash) => new CbBinaryAttachment(Hash);
+		/// <param name="hash">The attachment to convert</param>
+		public static implicit operator CbBinaryAttachment(IoHash hash) => new CbBinaryAttachment(hash);
 
 		/// <summary>
 		/// Use a binary attachment as a hash
 		/// </summary>
-		/// <param name="Attachment">The attachment to convert</param>
-		public static implicit operator IoHash(CbBinaryAttachment Attachment) => Attachment.Hash;
+		/// <param name="attachment">The attachment to convert</param>
+		public static implicit operator IoHash(CbBinaryAttachment attachment) => attachment.Hash;
 	}
 
 	/// <summary>
@@ -252,10 +251,10 @@ namespace EpicGames.Serialization
 	sealed class CbBinaryAttachmentJsonConverter : JsonConverter<CbBinaryAttachment>
 	{
 		/// <inheritdoc/>
-		public override CbBinaryAttachment Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options) => IoHash.Parse(Reader.ValueSpan);
+		public override CbBinaryAttachment Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => IoHash.Parse(reader.ValueSpan);
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, CbBinaryAttachment Value, JsonSerializerOptions Options) => Writer.WriteStringValue(Value.Hash.ToUtf8String().Span);
+		public override void Write(Utf8JsonWriter writer, CbBinaryAttachment value, JsonSerializerOptions options) => writer.WriteStringValue(value.Hash.ToUtf8String().Span);
 	}
 
 	/// <summary>
@@ -264,16 +263,16 @@ namespace EpicGames.Serialization
 	sealed class CbBinaryAttachmentTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext Context, Type SourceType) => SourceType == typeof(string);
+		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType) => sourceType == typeof(string);
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value) => new CbBinaryAttachment(IoHash.Parse((string)Value));
+		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value) => new CbBinaryAttachment(IoHash.Parse((string)value));
 	}
 
 	/// <summary>
 	/// An object attachment, referenced by <see cref="IoHash"/>
 	/// </summary>
-	[DebuggerDisplay("{Hash}")]
+	[DebuggerDisplay("{_hash}")]
 	[JsonConverter(typeof(CbObjectAttachmentJsonConverter))]
 	[TypeConverter(typeof(CbObjectAttachmentTypeConverter))]
 	public struct CbObjectAttachment
@@ -286,43 +285,43 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Hash of the referenced object
 		/// </summary>
-		public IoHash Hash;
+		public IoHash Hash { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Hash">Hash of the referenced object</param>
-		public CbObjectAttachment(IoHash Hash)
+		/// <param name="hash">Hash of the referenced object</param>
+		public CbObjectAttachment(IoHash hash)
 		{
-			this.Hash = Hash;
+			Hash = hash;
 		}
 
 		/// <inheritdoc/>
 		public override string ToString() => Hash.ToString();
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Obj is CbObjectAttachment Other && Other.Hash == Hash;
+		public override bool Equals(object? obj) => obj is CbObjectAttachment other && other.Hash == Hash;
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => Hash.GetHashCode();
 
 		/// <inheritdoc/>
-		public static bool operator ==(CbObjectAttachment Lhs, CbObjectAttachment Rhs) => Lhs.Hash == Rhs.Hash;
+		public static bool operator ==(CbObjectAttachment lhs, CbObjectAttachment rhs) => lhs.Hash == rhs.Hash;
 
 		/// <inheritdoc/>
-		public static bool operator !=(CbObjectAttachment Lhs, CbObjectAttachment Rhs) => Lhs.Hash != Rhs.Hash;
+		public static bool operator !=(CbObjectAttachment lhs, CbObjectAttachment rhs) => lhs.Hash != rhs.Hash;
 
 		/// <summary>
 		/// Use an object attachment as a hash
 		/// </summary>
 		/// <param name="Attachment">The attachment to convert</param>
-		public static implicit operator CbObjectAttachment(IoHash Hash) => new CbObjectAttachment(Hash);
+		public static implicit operator CbObjectAttachment(IoHash hash) => new CbObjectAttachment(hash);
 
 		/// <summary>
 		/// Use an object attachment as a hash
 		/// </summary>
-		/// <param name="Attachment">The attachment to convert</param>
-		public static implicit operator IoHash(CbObjectAttachment Attachment) => Attachment.Hash;
+		/// <param name="attachment">The attachment to convert</param>
+		public static implicit operator IoHash(CbObjectAttachment attachment) => attachment.Hash;
 	}
 
 	/// <summary>
@@ -331,10 +330,10 @@ namespace EpicGames.Serialization
 	sealed class CbObjectAttachmentJsonConverter : JsonConverter<CbObjectAttachment>
 	{
 		/// <inheritdoc/>
-		public override CbObjectAttachment Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options) => IoHash.Parse(Reader.ValueSpan);
+		public override CbObjectAttachment Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => IoHash.Parse(reader.ValueSpan);
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, CbObjectAttachment Value, JsonSerializerOptions Options) => Writer.WriteStringValue(Value.Hash.ToUtf8String().Span);
+		public override void Write(Utf8JsonWriter writer, CbObjectAttachment value, JsonSerializerOptions options) => writer.WriteStringValue(value.Hash.ToUtf8String().Span);
 	}
 
 	/// <summary>
@@ -343,10 +342,10 @@ namespace EpicGames.Serialization
 	sealed class CbObjectAttachmentTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext Context, Type SourceType) => SourceType == typeof(string);
+		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType) => sourceType == typeof(string);
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value) => new CbObjectAttachment(IoHash.Parse((string)Value));
+		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value) => new CbObjectAttachment(IoHash.Parse((string)value));
 	}
 
 	/// <summary>
@@ -378,81 +377,81 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Removes flags from the given type
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>Type without flag fields</returns>
-		public static CbFieldType GetType(CbFieldType Type)
+		public static CbFieldType GetType(CbFieldType type)
 		{
-			return Type & TypeMask;
+			return type & TypeMask;
 		}
 
 		/// <summary>
 		/// Gets the serialized type
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>Type without flag fields</returns>
-		public static CbFieldType GetSerializedType(CbFieldType Type)
+		public static CbFieldType GetSerializedType(CbFieldType type)
 		{
-			return Type & SerializedTypeMask;
+			return type & SerializedTypeMask;
 		}
 
 		/// <summary>
 		/// Tests if the given field has a type
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field has a type</returns>
-		public static bool HasFieldType(CbFieldType Type)
+		public static bool HasFieldType(CbFieldType type)
 		{
-			return (Type & CbFieldType.HasFieldType) != 0;
+			return (type & CbFieldType.HasFieldType) != 0;
 		}
 
 		/// <summary>
 		/// Tests if the given field has a name
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field has a name</returns>
-		public static bool HasFieldName(CbFieldType Type)
+		public static bool HasFieldName(CbFieldType type)
 		{
-			return (Type & CbFieldType.HasFieldName) != 0;
+			return (type & CbFieldType.HasFieldName) != 0;
 		}
 
 		/// <summary>
 		/// Tests if the given field type is none
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field is none</returns>
-		public static bool IsNone(CbFieldType Type)
+		public static bool IsNone(CbFieldType type)
 		{
-			return GetType(Type) == CbFieldType.None;
+			return GetType(type) == CbFieldType.None;
 		}
 
 		/// <summary>
 		/// Tests if the given field type is a null value
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field is a null</returns>
-		public static bool IsNull(CbFieldType Type)
+		public static bool IsNull(CbFieldType type)
 		{
-			return GetType(Type) == CbFieldType.Null;
+			return GetType(type) == CbFieldType.Null;
 		}
 
 		/// <summary>
 		/// Tests if the given field type is an object
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field is an object type</returns>
-		public static bool IsObject(CbFieldType Type)
+		public static bool IsObject(CbFieldType type)
 		{
-			return (Type & ObjectMask) == ObjectBase;
+			return (type & ObjectMask) == ObjectBase;
 		}
 
 		/// <summary>
 		/// Tests if the given field type is an array
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field is an array type</returns>
-		public static bool IsArray(CbFieldType Type)
+		public static bool IsArray(CbFieldType type)
 		{
-			return (Type & ArrayMask) == ArrayBase;
+			return (type & ArrayMask) == ArrayBase;
 		}
 
 		/// <summary>
@@ -468,41 +467,41 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Tests if the given field type is a string
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field is an array type</returns>
-		public static bool IsString(CbFieldType Type)
+		public static bool IsString(CbFieldType type)
 		{
-			return GetType(Type) == CbFieldType.String;
+			return GetType(type) == CbFieldType.String;
 		}
 
 		/// <summary>
 		/// Tests if the given field type is an integer
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field is an integer type</returns>
-		public static bool IsInteger(CbFieldType Type)
+		public static bool IsInteger(CbFieldType type)
 		{
-			return (Type & IntegerMask) == IntegerBase;
+			return (type & IntegerMask) == IntegerBase;
 		}
 
 		/// <summary>
 		/// Tests if the given field type is a float (or integer, due to implicit conversion)
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field is a float type</returns>
-		public static bool IsFloat(CbFieldType Type)
+		public static bool IsFloat(CbFieldType type)
 		{
-			return (Type & FloatMask) == FloatBase;
+			return (type & FloatMask) == FloatBase;
 		}
 
 		/// <summary>
 		/// Tests if the given field type is a boolean
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field is an bool type</returns>
-		public static bool IsBool(CbFieldType Type)
+		public static bool IsBool(CbFieldType type)
 		{
-			return (Type & BoolMask) == BoolBase;
+			return (type & BoolMask) == BoolBase;
 		}
 
 		/// <summary>
@@ -528,21 +527,21 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Tests if the given field type is an attachment
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field is an attachment type</returns>
-		public static bool IsAttachment(CbFieldType Type)
+		public static bool IsAttachment(CbFieldType type)
 		{
-			return (Type & AttachmentMask) == AttachmentBase;
+			return (type & AttachmentMask) == AttachmentBase;
 		}
 
 		/// <summary>
 		/// Tests if the given field type is a hash
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field is a hash</returns>
-		public static bool IsHash(CbFieldType Type)
+		public static bool IsHash(CbFieldType type)
 		{
-			return GetType(Type) == CbFieldType.Hash || IsAttachment(Type);
+			return GetType(type) == CbFieldType.Hash || IsAttachment(type);
 		}
 
 		/// <summary>
@@ -585,35 +584,34 @@ namespace EpicGames.Serialization
 			return GetType(type) == CbFieldType.ObjectId;
 		}
 
-
 		/// <summary>
 		/// Tests if the given field type has fields
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field has fields</returns>
-		public static bool HasFields(CbFieldType Type)
+		public static bool HasFields(CbFieldType type)
 		{
-			CbFieldType NoFlags = GetType(Type);
-			return NoFlags >= CbFieldType.Object && NoFlags <= CbFieldType.UniformArray;
+			CbFieldType noFlags = GetType(type);
+			return noFlags >= CbFieldType.Object && noFlags <= CbFieldType.UniformArray;
 		}
 
 		/// <summary>
 		/// Tests if the given field type has uniform fields (array/object)
 		/// </summary>
-		/// <param name="Type">Type to check</param>
+		/// <param name="type">Type to check</param>
 		/// <returns>True if the field has uniform fields</returns>
-		public static bool HasUniformFields(CbFieldType Type)
+		public static bool HasUniformFields(CbFieldType type)
 		{
-			CbFieldType LocalType = GetType(Type);
-			return LocalType == CbFieldType.UniformObject || LocalType == CbFieldType.UniformArray;
+			CbFieldType localType = GetType(type);
+			return localType == CbFieldType.UniformObject || localType == CbFieldType.UniformArray;
 		}
 
 		/// <summary>
 		/// Tests if the type is or may contain fields of any attachment type.
 		/// </summary>
-		public static bool MayContainAttachments(CbFieldType Type)
+		public static bool MayContainAttachments(CbFieldType type)
 		{
-			return IsObject(Type) | IsArray(Type) | IsAttachment(Type);
+			return IsObject(type) | IsArray(type) | IsAttachment(type);
 		}
 	}
 
@@ -643,8 +641,8 @@ namespace EpicGames.Serialization
 	/// </summary>
 	class CbFieldWithNameDebugView
 	{
-		public string? Name;
-		public object? Value;
+		public string? Name { get; set; }
+		public object? Value { get; set; }
 	}
 
 	/// <summary>
@@ -652,9 +650,9 @@ namespace EpicGames.Serialization
 	/// </summary>
 	class CbFieldDebugView
 	{
-		public CbFieldDebugView(CbField Field) => Value = Field.HasName()
-				? new CbFieldWithNameDebugView { Name = Field.Name.ToString(), Value = Field.Value } 
-				: Field.Value;
+		public CbFieldDebugView(CbField field) => Value = field.HasName()
+				? new CbFieldWithNameDebugView { Name = field.Name.ToString(), Value = field.Value } 
+				: field.Value;
 
 		[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
 		public object? Value { get; }
@@ -718,12 +716,12 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Offset of the name with the memory
 		/// </summary>
-		public int NameLen;
+		public int _nameLen;
 
 		/// <summary>
 		/// Offset of the payload within the memory
 		/// </summary>
-		public int PayloadOffset;
+		public int _payloadOffset;
 
 		/// <summary>
 		/// Error for parsing the current field type
@@ -741,14 +739,14 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Copy constructor
 		/// </summary>
-		/// <param name="Other"></param>
-		public CbField(CbField Other)
+		/// <param name="other"></param>
+		public CbField(CbField other)
 		{
-			this.TypeWithFlags = Other.TypeWithFlags;
-			this.Memory = Other.Memory;
-			this.NameLen = Other.NameLen;
-			this.PayloadOffset = Other.PayloadOffset;
-			this.Error = Other.Error;
+			TypeWithFlags = other.TypeWithFlags;
+			Memory = other.Memory;
+			_nameLen = other._nameLen;
+			_payloadOffset = other._payloadOffset;
+			Error = other.Error;
 		}
 
 		/// <summary>
@@ -756,32 +754,32 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param>Data Pointer to the start of the field data.</param>
 		/// <param>Type HasFieldType means that Data contains the type. Otherwise, use the given type.</param>
-		public CbField(ReadOnlyMemory<byte> Data, CbFieldType Type = CbFieldType.HasFieldType)
+		public CbField(ReadOnlyMemory<byte> data, CbFieldType type = CbFieldType.HasFieldType)
 		{
-			int Offset = 0;
-			if (CbFieldUtils.HasFieldType(Type))
+			int offset = 0;
+			if (CbFieldUtils.HasFieldType(type))
 			{
-				Type = (CbFieldType)Data.Span[Offset] | CbFieldType.HasFieldType;
-				Offset++;
+				type = (CbFieldType)data.Span[offset] | CbFieldType.HasFieldType;
+				offset++;
 			}
 
-			if (CbFieldUtils.HasFieldName(Type))
+			if (CbFieldUtils.HasFieldName(type))
 			{
-				NameLen = (int)VarInt.Read(Data.Slice(Offset).Span, out int NameLenByteCount);
-				Offset += NameLenByteCount + NameLen;
+				_nameLen = (int)VarInt.Read(data.Slice(offset).Span, out int nameLenByteCount);
+				offset += nameLenByteCount + _nameLen;
 			}
 
-			this.Memory = Data;
-			this.TypeWithFlags = Type;
-			this.PayloadOffset = Offset;
+			Memory = data;
+			TypeWithFlags = type;
+			_payloadOffset = offset;
 
-			Memory = Memory.Slice(0, (int)Math.Min((ulong)Memory.Length, (ulong)PayloadOffset + GetPayloadSize()));
+			Memory = Memory.Slice(0, (int)Math.Min((ulong)Memory.Length, (ulong)_payloadOffset + GetPayloadSize()));
 		}
 
 		/// <summary>
 		/// Returns the name of the field if it has a name, otherwise an empty view.
 		/// </summary>
-		public Utf8String Name => new Utf8String(Memory.Slice(PayloadOffset - NameLen, NameLen));
+		public Utf8String Name => new Utf8String(Memory.Slice(_payloadOffset - _nameLen, _nameLen));
 
 		/// <summary>
 		/// Gets the value of this field
@@ -790,8 +788,8 @@ namespace EpicGames.Serialization
 		{
 			get
 			{
-				CbFieldType FieldType = CbFieldUtils.GetType(TypeWithFlags);
-				switch (FieldType)
+				CbFieldType fieldType = CbFieldUtils.GetType(TypeWithFlags);
+				switch (fieldType)
 				{
 					case CbFieldType.None:
 						return None;
@@ -834,7 +832,7 @@ namespace EpicGames.Serialization
 					case CbFieldType.ObjectId:
 						return AsObjectId();
 					default:
-						throw new NotImplementedException($"Unknown field type ({FieldType})");
+						throw new NotImplementedException($"Unknown field type ({fieldType})");
 				}
 			}
 		}
@@ -891,19 +889,19 @@ namespace EpicGames.Serialization
 		/// Access the field as binary data.
 		/// </summary>
 		/// <returns></returns>
-		public ReadOnlyMemory<byte> AsBinary(ReadOnlyMemory<byte> Default)
+		public ReadOnlyMemory<byte> AsBinary(ReadOnlyMemory<byte> defaultValue)
 		{
 			if (CbFieldUtils.IsBinary(TypeWithFlags))
 			{
 				Error = CbFieldError.None;
 
-				ulong Length = VarInt.Read(Payload.Span, out int BytesRead);
-				return Payload.Slice(BytesRead, (int)Length);
+				ulong length = VarInt.Read(Payload.Span, out int bytesRead);
+				return Payload.Slice(bytesRead, (int)length);
 			}
 			else
 			{
 				Error = CbFieldError.TypeError;
-				return Default;
+				return defaultValue;
 			}
 		}
 
@@ -920,9 +918,9 @@ namespace EpicGames.Serialization
 		/// Access the field as binary data.
 		/// </summary>
 		/// <returns></returns>
-		public byte[] AsBinaryArray(byte[] Default)
+		public byte[] AsBinaryArray(byte[] defaultValue)
 		{
-			return AsBinary(Default).ToArray();
+			return AsBinary(defaultValue).ToArray();
 		}
 
 		/// <summary>
@@ -935,7 +933,7 @@ namespace EpicGames.Serialization
 		/// Access the field as a UTF-8 string.
 		/// </summary>
 		/// <returns></returns>
-		public string AsString(string Default) => AsUtf8String(Default).ToString();
+		public string AsString(string defaultValue) => AsUtf8String(defaultValue).ToString();
 
 		/// <summary>
 		/// Access the field as a UTF-8 string.
@@ -949,45 +947,45 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as a UTF-8 string. Returns the provided default on error.
 		/// </summary>
-		/// <param name="Default">Default value to return</param>
+		/// <param name="defaultValue">Default value to return</param>
 		/// <returns></returns>
-		public Utf8String AsUtf8String(Utf8String Default)
+		public Utf8String AsUtf8String(Utf8String defaultValue)
 		{
 			if (CbFieldUtils.IsString(TypeWithFlags))
 			{
-				ulong ValueSize = VarInt.Read(Payload.Span, out int ValueSizeByteCount);
-				if (ValueSize >= (1UL << 31))
+				ulong valueSize = VarInt.Read(Payload.Span, out int valueSizeByteCount);
+				if (valueSize >= (1UL << 31))
 				{
 					Error = CbFieldError.RangeError;
-					return Default;
+					return defaultValue;
 				}
 				else
 				{
 					Error = CbFieldError.None;
-					return new Utf8String(Payload.Slice(ValueSizeByteCount, (int)ValueSize));
+					return new Utf8String(Payload.Slice(valueSizeByteCount, (int)valueSize));
 				}
 			}
 			else
 			{
 				Error = CbFieldError.TypeError;
-				return Default;
+				return defaultValue;
 			}
 		}
 
 		/// <summary>
 		/// Access the field as an int8. Returns the provided default on error.
 		/// </summary>
-		public sbyte AsInt8(sbyte Default = 0)
+		public sbyte AsInt8(sbyte defaultValue = 0)
 		{
-			return (sbyte)AsInteger((ulong)Default, 7, true);
+			return (sbyte)AsInteger((ulong)defaultValue, 7, true);
 		}
 
 		/// <summary>
 		/// Access the field as an int16. Returns the provided default on error.
 		/// </summary>
-		public short AsInt16(short Default = 0)
+		public short AsInt16(short defaultValue = 0)
 		{
-			return (short)AsInteger((ulong)Default, 15, true);
+			return (short)AsInteger((ulong)defaultValue, 15, true);
 		}
 
 		/// <summary>
@@ -1001,9 +999,9 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as an int32. Returns the provided default on error.
 		/// </summary>
-		public int AsInt32(int Default)
+		public int AsInt32(int defaultValue)
 		{
-			return (int)AsInteger((ulong)Default, 31, true);
+			return (int)AsInteger((ulong)defaultValue, 31, true);
 		}
 
 		/// <summary>
@@ -1017,25 +1015,25 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as an int64. Returns the provided default on error.
 		/// </summary>
-		public long AsInt64(long Default)
+		public long AsInt64(long defaultValue)
 		{
-			return (long)AsInteger((ulong)Default, 63, true);
+			return (long)AsInteger((ulong)defaultValue, 63, true);
 		}
 
 		/// <summary>
 		/// Access the field as an int8. Returns the provided default on error.
 		/// </summary>
-		public byte AsUInt8(byte Default = 0)
+		public byte AsUInt8(byte defaultValue = 0)
 		{
-			return (byte)AsInteger(Default, 8, false);
+			return (byte)AsInteger(defaultValue, 8, false);
 		}
 
 		/// <summary>
 		/// Access the field as an int16. Returns the provided default on error.
 		/// </summary>
-		public ushort AsUInt16(ushort Default = 0)
+		public ushort AsUInt16(ushort defaultValue = 0)
 		{
-			return (ushort)AsInteger(Default, 16, false);
+			return (ushort)AsInteger(defaultValue, 16, false);
 		}
 
 		/// <summary>
@@ -1049,9 +1047,9 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as an int32. Returns the provided default on error.
 		/// </summary>
-		public uint AsUInt32(uint Default)
+		public uint AsUInt32(uint defaultValue)
 		{
-			return (uint)AsInteger(Default, 32, false);
+			return (uint)AsInteger(defaultValue, 32, false);
 		}
 
 		/// <summary>
@@ -1065,78 +1063,76 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as an int64. Returns the provided default on error.
 		/// </summary>
-		public ulong AsUInt64(ulong Default)
+		public ulong AsUInt64(ulong defaultValue)
 		{
-			return (ulong)AsInteger(Default, 64, false);
+			return (ulong)AsInteger(defaultValue, 64, false);
 		}
 
 		/// <summary>
 		/// Access the field as an integer, checking that it's in the correct range
 		/// </summary>
-		/// <param name="Default"></param>
-		/// <param name="MagnitudeBits"></param>
-		/// <param name="IsSigned"></param>
+		/// <param name="default"></param>
+		/// <param name="magnitudeBits"></param>
+		/// <param name="isSigned"></param>
 		/// <returns></returns>
-		private ulong AsInteger(ulong Default, int MagnitudeBits, bool IsSigned)
+		private ulong AsInteger(ulong defaultValue, int magnitudeBits, bool isSigned)
 		{
 			if (CbFieldUtils.IsInteger(TypeWithFlags))
 			{
 				// A shift of a 64-bit value by 64 is undefined so shift by one less because magnitude is never zero.
-				ulong OutOfRangeMask = ~(ulong)1 << (MagnitudeBits - 1);
-				ulong IsNegative = (ulong)(byte)(TypeWithFlags) & 1;
+				ulong outOfRangeMask = ~(ulong)1 << (magnitudeBits - 1);
+				ulong isNegative = (ulong)(byte)(TypeWithFlags) & 1;
 
-				int MagnitudeByteCount;
-				ulong Magnitude = VarInt.Read(Payload.Span, out MagnitudeByteCount);
-				ulong Value = Magnitude ^ (ulong)-(long)(IsNegative);
+				ulong magnitude = VarInt.Read(Payload.Span, out _);
+				ulong value = magnitude ^ (ulong)-(long)(isNegative);
 
-				if ((Magnitude & OutOfRangeMask) == 0 && (IsNegative == 0 || IsSigned))
+				if ((magnitude & outOfRangeMask) == 0 && (isNegative == 0 || isSigned))
 				{
 					Error = CbFieldError.None;
-					return Value;
+					return value;
 				}
 				else
 				{
 					Error = CbFieldError.RangeError;
-					return Default;
+					return defaultValue;
 				}
 			}
 			else
 			{
 				Error = CbFieldError.TypeError;
-				return Default;
+				return defaultValue;
 			}
 		}
 
 		/// <summary>
 		/// Access the field as a float. Returns the provided default on error.
 		/// </summary>
-		/// <param name="Default">Default value</param>
+		/// <param name="default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public float AsFloat(float Default = 0.0f)
+		public float AsFloat(float defaultValue = 0.0f)
 		{
 			switch (GetType())
 			{
 				case CbFieldType.IntegerPositive:
 				case CbFieldType.IntegerNegative:
 					{
-						ulong IsNegative = (ulong)TypeWithFlags & 1;
-						ulong OutOfRangeMask = ~((1UL << /*FLT_MANT_DIG*/ 24) - 1);
+						ulong isNegative = (ulong)TypeWithFlags & 1;
+						ulong outOfRangeMask = ~((1UL << /*FLT_MANT_DIG*/ 24) - 1);
 
-						int MagnitudeByteCount;
-						ulong Magnitude = VarInt.Read(Payload.Span, out MagnitudeByteCount) + IsNegative;
-						bool IsInRange = (Magnitude & OutOfRangeMask) == 0;
-						Error = IsInRange ? CbFieldError.None : CbFieldError.RangeError;
-						return IsInRange ? (float)((IsNegative != 0) ? (float)-(long)Magnitude : (float)Magnitude) : Default;
+						ulong magnitude = VarInt.Read(Payload.Span, out _) + isNegative;
+						bool isInRange = (magnitude & outOfRangeMask) == 0;
+						Error = isInRange ? CbFieldError.None : CbFieldError.RangeError;
+						return isInRange ? (float)((isNegative != 0) ? (float)-(long)magnitude : (float)magnitude) : defaultValue;
 					}
 				case CbFieldType.Float32:
 					Error = CbFieldError.None;
 					return BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32BigEndian(Payload.Span));
 				case CbFieldType.Float64:
 					Error = CbFieldError.RangeError;
-					return Default;
+					return defaultValue;
 				default:
 					Error = CbFieldError.TypeError;
-					return Default;
+					return defaultValue;
 			}
 		}
 
@@ -1149,23 +1145,22 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as a double. Returns the provided default on error.
 		/// </summary>
-		/// <param name="Default">Default value</param>
+		/// <param name="default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public double AsDouble(double Default)
+		public double AsDouble(double defaultValue)
 		{
 			switch (GetType())
 			{
 				case CbFieldType.IntegerPositive:
 				case CbFieldType.IntegerNegative:
 					{
-						ulong IsNegative = (ulong)TypeWithFlags & 1;
-						ulong OutOfRangeMask = ~((1UL << /*DBL_MANT_DIG*/ 53) - 1);
+						ulong isNegative = (ulong)TypeWithFlags & 1;
+						ulong outOfRangeMask = ~((1UL << /*DBL_MANT_DIG*/ 53) - 1);
 
-						int MagnitudeByteCount;
-						ulong Magnitude = VarInt.Read(Payload.Span, out MagnitudeByteCount) + IsNegative;
-						bool IsInRange = (Magnitude & OutOfRangeMask) == 0;
-						Error = IsInRange ? CbFieldError.None : CbFieldError.RangeError;
-						return IsInRange ? (double)((IsNegative != 0) ? (double)-(long)Magnitude : (double)Magnitude) : Default;
+						ulong magnitude = VarInt.Read(Payload.Span, out _) + isNegative;
+						bool isInRange = (magnitude & outOfRangeMask) == 0;
+						Error = isInRange ? CbFieldError.None : CbFieldError.RangeError;
+						return isInRange ? (double)((isNegative != 0) ? (double)-(long)magnitude : (double)magnitude) : defaultValue;
 					}
 				case CbFieldType.Float32:
 					{
@@ -1179,7 +1174,7 @@ namespace EpicGames.Serialization
 					}
 				default:
 					Error = CbFieldError.TypeError;
-					return Default;
+					return defaultValue;
 			}
 		}
 
@@ -1192,9 +1187,9 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as a bool. Returns the provided default on error.
 		/// </summary>
-		/// <param name="Default">Default value</param>
+		/// <param name="default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public bool AsBool(bool Default)
+		public bool AsBool(bool defaultValue)
 		{
 			switch (GetType())
 			{
@@ -1206,7 +1201,7 @@ namespace EpicGames.Serialization
 					return false;
 				default:
 					Error = CbFieldError.TypeError;
-					return Default;
+					return defaultValue;
 			}
 		}
 
@@ -1219,9 +1214,9 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as a hash referencing an object attachment. Returns the provided default on error.
 		/// </summary>
-		/// <param name="Default">Default value</param>
+		/// <param name="default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public CbObjectAttachment AsObjectAttachment(CbObjectAttachment Default)
+		public CbObjectAttachment AsObjectAttachment(CbObjectAttachment defaultValue)
 		{
 			if (CbFieldUtils.IsObjectAttachment(TypeWithFlags))
 			{
@@ -1231,7 +1226,7 @@ namespace EpicGames.Serialization
 			else
 			{
 				Error = CbFieldError.TypeError;
-				return Default;
+				return defaultValue;
 			}
 		}
 
@@ -1245,9 +1240,9 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as a hash referencing a binary attachment. Returns the provided default on error.
 		/// </summary>
-		/// <param name="Default">Default value</param>
+		/// <param name="default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public CbBinaryAttachment AsBinaryAttachment(CbBinaryAttachment Default)
+		public CbBinaryAttachment AsBinaryAttachment(CbBinaryAttachment defaultValue)
 		{
 			if (CbFieldUtils.IsBinaryAttachment(TypeWithFlags))
 			{
@@ -1257,7 +1252,7 @@ namespace EpicGames.Serialization
 			else
 			{
 				Error = CbFieldError.TypeError;
-				return Default;
+				return defaultValue;
 			}
 		}
 
@@ -1271,9 +1266,9 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as a hash referencing an attachment. Returns the provided default on error.
 		/// </summary>
-		/// <param name="Default">Default value</param>
+		/// <param name="default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public IoHash AsAttachment(IoHash Default)
+		public IoHash AsAttachment(IoHash defaultValue)
 		{
 			if (CbFieldUtils.IsAttachment(TypeWithFlags))
 			{
@@ -1283,7 +1278,7 @@ namespace EpicGames.Serialization
 			else
 			{
 				Error = CbFieldError.TypeError;
-				return Default;
+				return defaultValue;
 			}
 		}
 
@@ -1296,9 +1291,9 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as a hash referencing an attachment. Returns the provided default on error.
 		/// </summary>
-		/// <param name="Default">Default value</param>
+		/// <param name="default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public IoHash AsHash(IoHash Default)
+		public IoHash AsHash(IoHash defaultValue)
 		{
 			if (CbFieldUtils.IsHash(TypeWithFlags))
 			{
@@ -1308,41 +1303,41 @@ namespace EpicGames.Serialization
 			else
 			{
 				Error = CbFieldError.TypeError;
-				return Default;
+				return defaultValue;
 			}
 		}
 
 		/// <summary>
 		/// Access the field as a UUID. Returns a nil UUID on error.
 		/// </summary>
-		/// <param name="Default">Default value</param>
+		/// <param name="default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public Guid AsUuid(Guid Default = default(Guid))
+		public Guid AsUuid(Guid defaultValue = default)
 		{
 			if (CbFieldUtils.IsUuid(TypeWithFlags))
 			{
 				Error = CbFieldError.None;
 
-				ReadOnlySpan<byte> Span = Payload.Span;
-				uint A = BinaryPrimitives.ReadUInt32BigEndian(Span);
-				ushort B = BinaryPrimitives.ReadUInt16BigEndian(Span.Slice(4));
-				ushort C = BinaryPrimitives.ReadUInt16BigEndian(Span.Slice(6));
+				ReadOnlySpan<byte> span = Payload.Span;
+				uint a = BinaryPrimitives.ReadUInt32BigEndian(span);
+				ushort b = BinaryPrimitives.ReadUInt16BigEndian(span.Slice(4));
+				ushort c = BinaryPrimitives.ReadUInt16BigEndian(span.Slice(6));
 
-				return new Guid(A, B, C, Span[8], Span[9], Span[10], Span[11], Span[12], Span[13], Span[14], Span[15]);
+				return new Guid(a, b, c, span[8], span[9], span[10], span[11], span[12], span[13], span[14], span[15]);
 			}
 			else
 			{
 				Error = CbFieldError.TypeError;
-				return Default;
+				return defaultValue;
 			}
 		}
 
 		/// <summary>
 		/// Reads a date time as number of ticks from the stream
 		/// </summary>
-		/// <param name="Default"></param>
+		/// <param name="default"></param>
 		/// <returns></returns>
-		public long AsDateTimeTicks(long Default = 0)
+		public long AsDateTimeTicks(long defaultValue = 0)
 		{
 			if (CbFieldUtils.IsDateTime(TypeWithFlags))
 			{
@@ -1352,7 +1347,7 @@ namespace EpicGames.Serialization
 			else
 			{
 				Error = CbFieldError.TypeError;
-				return Default;
+				return defaultValue;
 			}
 		}
 
@@ -1368,19 +1363,19 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as a DateTime.
 		/// </summary>
-		/// <param name="Default"></param>
+		/// <param name="default"></param>
 		/// <returns></returns>
-		public DateTime AsDateTime(DateTime Default)
+		public DateTime AsDateTime(DateTime defaultValue)
 		{
-			return new DateTime(AsDateTimeTicks(Default.ToUniversalTime().Ticks), DateTimeKind.Utc);
+			return new DateTime(AsDateTimeTicks(defaultValue.ToUniversalTime().Ticks), DateTimeKind.Utc);
 		}
 
 		/// <summary>
 		/// Reads a timespan as number of ticks from the stream
 		/// </summary>
-		/// <param name="Default"></param>
+		/// <param name="default"></param>
 		/// <returns></returns>
-		public long AsTimeSpanTicks(long Default = 0)
+		public long AsTimeSpanTicks(long defaultValue = 0)
 		{
 			if (CbFieldUtils.IsTimeSpan(TypeWithFlags))
 			{
@@ -1390,24 +1385,23 @@ namespace EpicGames.Serialization
 			else
 			{
 				Error = CbFieldError.TypeError;
-				return Default;
+				return defaultValue;
 			}
 		}
 
 		/// <summary>
 		/// Reads a timespan as number of ticks from the stream
 		/// </summary>
-		/// <param name="Default"></param>
+		/// <param name="default"></param>
 		/// <returns></returns>
-		public TimeSpan AsTimeSpan(TimeSpan Default = default) => new TimeSpan(AsTimeSpanTicks(Default.Ticks));
-
+		public TimeSpan AsTimeSpan(TimeSpan defaultValue = default) => new TimeSpan(AsTimeSpanTicks(defaultValue.Ticks));
 
 		/// <summary>
 		/// Access the field as a object id
 		/// </summary>
-		/// <param name="Default"></param>
+		/// <param name="default"></param>
 		/// <returns></returns>
-		public ReadOnlyMemory<byte> AsObjectId(ReadOnlyMemory<byte> Default = default)
+		public ReadOnlyMemory<byte> AsObjectId(ReadOnlyMemory<byte> defaultValue = default)
 		{
 			if (CbFieldUtils.IsObjectId(TypeWithFlags))
 			{
@@ -1418,7 +1412,7 @@ namespace EpicGames.Serialization
 			else
 			{
 				Error = CbFieldError.TypeError;
-				return Default;
+				return defaultValue;
 			}
 		}
 
@@ -1477,8 +1471,8 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Whether the field has a value
 		/// </summary>
-		/// <param name="Field"></param>
-		public static explicit operator bool(CbField Field) => Field.HasValue();
+		/// <param name="field"></param>
+		public static explicit operator bool(CbField field) => field.HasValue();
 
 		/// <summary>
 		/// Whether the field has a value.
@@ -1508,28 +1502,28 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public Blake3Hash GetHash()
 		{
-			using (Blake3.Hasher Hasher = Blake3.Hasher.New())
+			using (Blake3.Hasher hasher = Blake3.Hasher.New())
 			{
-				AppendHash(Hasher);
+				AppendHash(hasher);
 
-				byte[] Hash = new byte[32];
-				Hasher.Finalize(Hash);
+				byte[] hash = new byte[32];
+				hasher.Finalize(hash);
 
-				return new Blake3Hash(Hash);
+				return new Blake3Hash(hash);
 			}
 		}
 
 		/// <summary>
 		/// Append the hash of the field, including the type and name
 		/// </summary>
-		/// <param name="Hasher"></param>
-		void AppendHash(Blake3.Hasher Hasher)
+		/// <param name="hasher"></param>
+		void AppendHash(Blake3.Hasher hasher)
 		{
-			Span<byte> Data = stackalloc byte[1];
-			Data[0] = (byte)CbFieldUtils.GetSerializedType(TypeWithFlags);
-			Hasher.Update(Data);
+			Span<byte> data = stackalloc byte[1];
+			data[0] = (byte)CbFieldUtils.GetSerializedType(TypeWithFlags);
+			hasher.Update(data);
 
-			Hasher.Update(GetViewNoType().Span);
+			hasher.Update(GetViewNoType().Span);
 		}
 
 		/// <summary>
@@ -1541,42 +1535,42 @@ namespace EpicGames.Serialization
 		/// these assumptions do not hold, this may return false for equivalent inputs. Validation can
 		/// be performed with ValidateCompactBinary, except for field order and field name case.
 		/// </summary>
-		/// <param name="Other"></param>
+		/// <param name="other"></param>
 		/// <returns></returns>
-		public bool Equals(CbField? Other)
+		public bool Equals(CbField? other)
 		{
-			return Other != null && CbFieldUtils.GetSerializedType(TypeWithFlags) == CbFieldUtils.GetSerializedType(Other.TypeWithFlags) && GetViewNoType().Span.SequenceEqual(Other.GetViewNoType().Span);
+			return other != null && CbFieldUtils.GetSerializedType(TypeWithFlags) == CbFieldUtils.GetSerializedType(other.TypeWithFlags) && GetViewNoType().Span.SequenceEqual(other.GetViewNoType().Span);
 		}
 
 		/// <summary>
 		/// Copy the field into a buffer of exactly GetSize() bytes, including the type and name.
 		/// </summary>
-		/// <param name="Buffer"></param>
-		public void CopyTo(Span<byte> Buffer)
+		/// <param name="buffer"></param>
+		public void CopyTo(Span<byte> buffer)
 		{
-			Buffer[0] = (byte)CbFieldUtils.GetSerializedType(TypeWithFlags);
-			GetViewNoType().Span.CopyTo(Buffer.Slice(1));
+			buffer[0] = (byte)CbFieldUtils.GetSerializedType(TypeWithFlags);
+			GetViewNoType().Span.CopyTo(buffer.Slice(1));
 		}
 
 		/// <summary>
 		/// Invoke the visitor for every attachment in the field.
 		/// </summary>
-		/// <param name="Visitor"></param>
-		public void IterateAttachments(Action<CbField> Visitor)
+		/// <param name="visitor"></param>
+		public void IterateAttachments(Action<CbField> visitor)
 		{
 			switch (GetType())
 			{
 				case CbFieldType.Object:
 				case CbFieldType.UniformObject:
-					CbObject.FromFieldNoCheck(this).IterateAttachments(Visitor);
+					CbObject.FromFieldNoCheck(this).IterateAttachments(visitor);
 					break;
 				case CbFieldType.Array:
 				case CbFieldType.UniformArray:
-					CbArray.FromFieldNoCheck(this).IterateAttachments(Visitor);
+					CbArray.FromFieldNoCheck(this).IterateAttachments(visitor);
 					break;
 				case CbFieldType.ObjectAttachment:
 				case CbFieldType.BinaryAttachment:
-					Visitor(this);
+					visitor(this);
 					break;
 			}
 		}
@@ -1587,18 +1581,18 @@ namespace EpicGames.Serialization
 		/// A view is available if the field contains its type. Access the equivalent for other fields
 		/// through FCbField::GetBuffer, FCbField::Clone, or CopyTo.
 		/// </summary>
-		/// <param name="OutView"></param>
+		/// <param name="outView"></param>
 		/// <returns></returns>
-		public bool TryGetView(out ReadOnlyMemory<byte> OutView)
+		public bool TryGetView(out ReadOnlyMemory<byte> outView)
 		{
 			if (CbFieldUtils.HasFieldType(TypeWithFlags))
 			{
-				OutView = Memory;
+				outView = Memory;
 				return true;
 			}
 			else
 			{
-				OutView = ReadOnlyMemory<byte>.Empty;
+				outView = ReadOnlyMemory<byte>.Empty;
 				return false;
 			}
 		}
@@ -1606,12 +1600,9 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Find a field of an object by case-sensitive name comparison, otherwise a field with no value.
 		/// </summary>
-		/// <param name="Name"></param>
+		/// <param name="name"></param>
 		/// <returns></returns>
-		public CbField this[Utf8String Name]
-		{
-			get { return this.FirstOrDefault(Field => Field.Name == Name) ?? CbField.Empty; }
-		}
+		public CbField this[Utf8String name] => this.FirstOrDefault(field => field.Name == name) ?? CbField.Empty;
 
 		/// <summary>
 		/// Create an iterator for the fields of an array or object, otherwise an empty iterator.
@@ -1619,26 +1610,26 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public CbFieldIterator CreateIterator()
 		{
-			CbFieldType LocalTypeWithFlags = TypeWithFlags;
-			if (CbFieldUtils.HasFields(LocalTypeWithFlags))
+			CbFieldType localTypeWithFlags = TypeWithFlags;
+			if (CbFieldUtils.HasFields(localTypeWithFlags))
 			{
-				ReadOnlyMemory<byte> PayloadBytes = Payload;
-				int PayloadSizeByteCount;
-				int PayloadSize = (int)VarInt.Read(PayloadBytes.Span, out PayloadSizeByteCount);
-				PayloadBytes = PayloadBytes.Slice(PayloadSizeByteCount);
-				int NumByteCount = CbFieldUtils.IsArray(LocalTypeWithFlags) ? (int)VarInt.Measure(PayloadBytes.Span) : 0;
-				if (PayloadSize > NumByteCount)
+				ReadOnlyMemory<byte> payloadBytes = Payload;
+				int payloadSizeByteCount;
+				int payloadSize = (int)VarInt.Read(payloadBytes.Span, out payloadSizeByteCount);
+				payloadBytes = payloadBytes.Slice(payloadSizeByteCount);
+				int numByteCount = CbFieldUtils.IsArray(localTypeWithFlags) ? (int)VarInt.Measure(payloadBytes.Span) : 0;
+				if (payloadSize > numByteCount)
 				{
-					PayloadBytes = PayloadBytes.Slice(NumByteCount);
+					payloadBytes = payloadBytes.Slice(numByteCount);
 
-					CbFieldType UniformType = CbFieldType.HasFieldType;
+					CbFieldType uniformType = CbFieldType.HasFieldType;
 					if (CbFieldUtils.HasUniformFields(TypeWithFlags))
 					{
-						UniformType = (CbFieldType)PayloadBytes.Span[0];
-						PayloadBytes = PayloadBytes.Slice(1);
+						uniformType = (CbFieldType)payloadBytes.Span[0];
+						payloadBytes = payloadBytes.Slice(1);
 					}
 
-					return new CbFieldIterator(PayloadBytes, UniformType);
+					return new CbFieldIterator(payloadBytes, uniformType);
 				}
 			}
 			return new CbFieldIterator(ReadOnlyMemory<byte>.Empty, CbFieldType.HasFieldType);
@@ -1647,9 +1638,9 @@ namespace EpicGames.Serialization
 		/// <inheritdoc/>
 		public IEnumerator<CbField> GetEnumerator()
 		{
-			for (CbFieldIterator Iter = CreateIterator(); Iter; Iter.MoveNext())
+			for (CbFieldIterator iter = CreateIterator(); iter; iter.MoveNext())
 			{
-				yield return Iter.Current;
+				yield return iter.Current;
 			}
 		}
 
@@ -1662,20 +1653,20 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		private ReadOnlyMemory<byte> GetViewNoType()
 		{
-			int NameSize = CbFieldUtils.HasFieldName(TypeWithFlags) ? NameLen + (int)VarInt.Measure((uint)NameLen) : 0;
-			return Memory.Slice(PayloadOffset - NameSize);
+			int nameSize = CbFieldUtils.HasFieldName(TypeWithFlags) ? _nameLen + (int)VarInt.Measure((uint)_nameLen) : 0;
+			return Memory.Slice(_payloadOffset - nameSize);
 		}
 
 		/// <summary>
 		/// Accessor for the payload
 		/// </summary>
-		internal ReadOnlyMemory<byte> Payload => Memory.Slice(PayloadOffset);
+		internal ReadOnlyMemory<byte> Payload => Memory.Slice(_payloadOffset);
 
 		/// <summary>
 		/// Returns a view of the value payload, which excludes the type and name.
 		/// </summary>
 		/// <returns></returns>
-		internal ReadOnlyMemory<byte> GetPayloadView() => Memory.Slice(PayloadOffset);
+		internal ReadOnlyMemory<byte> GetPayloadView() => Memory.Slice(_payloadOffset);
 
 		/// <summary>
 		/// Returns the type of the field excluding flags.
@@ -1707,8 +1698,8 @@ namespace EpicGames.Serialization
 				case CbFieldType.Binary:
 				case CbFieldType.String:
 					{
-						ulong PayloadSize = VarInt.Read(Payload.Span, out int BytesRead);
-						return PayloadSize + (ulong)BytesRead;
+						ulong payloadSize = VarInt.Read(Payload.Span, out int bytesRead);
+						return payloadSize + (ulong)bytesRead;
 					}
 				case CbFieldType.IntegerPositive:
 				case CbFieldType.IntegerNegative:
@@ -1740,10 +1731,10 @@ namespace EpicGames.Serialization
 
 		#region Mimic inheritance from TCbBufferFactory
 
-		public static CbField Clone(ReadOnlyMemory<byte> Data) => Clone(new CbField(Data));
-		public static CbField Clone(CbField Other) => Other;
-		public static CbField MakeView(ReadOnlyMemory<byte> Data) => new CbField(Data);
-		public static CbField MakeView(CbField Other) => Other;
+		public static CbField Clone(ReadOnlyMemory<byte> data) => Clone(new CbField(data));
+		public static CbField Clone(CbField other) => other;
+		public static CbField MakeView(ReadOnlyMemory<byte> data) => new CbField(data);
+		public static CbField MakeView(CbField other) => other;
 
 		#endregion
 	}
@@ -1760,156 +1751,156 @@ namespace EpicGames.Serialization
 		}
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter Writer, CbField Field, JsonSerializerOptions Options)
+		public override void Write(Utf8JsonWriter writer, CbField field, JsonSerializerOptions options)
 		{
-			switch (Field.GetType())
+			switch (field.GetType())
 			{
 				case CbFieldType.Null:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteNull(Field.Name.Span);
+						writer.WriteNull(field.Name.Span);
 					}
 					else
 					{
-						Writer.WriteNullValue();
+						writer.WriteNullValue();
 					}
 					break;
 				case CbFieldType.Object:
 				case CbFieldType.UniformObject:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteStartObject(Field.Name.Span);
+						writer.WriteStartObject(field.Name.Span);
 					}
 					else
 					{
-						Writer.WriteStartObject();
+						writer.WriteStartObject();
 					}
 
-					foreach (CbField Member in Field.AsObject())
+					foreach (CbField member in field.AsObject())
 					{
-						Write(Writer, Member, Options);
+						Write(writer, member, options);
 					}
-					Writer.WriteEndObject();
+					writer.WriteEndObject();
 					break;
 				case CbFieldType.Array:
 				case CbFieldType.UniformArray:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteStartArray(Field.Name.Span);
+						writer.WriteStartArray(field.Name.Span);
 					}
 					else
 					{
-						Writer.WriteStartArray();
+						writer.WriteStartArray();
 					}
 
-					foreach (CbField Element in Field.AsArray())
+					foreach (CbField element in field.AsArray())
 					{
-						Write(Writer, Element, Options);
+						Write(writer, element, options);
 					}
-					Writer.WriteEndArray();
+					writer.WriteEndArray();
 					break;
 				case CbFieldType.Binary:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteBase64String(Field.Name.Span, Field.AsBinary().Span);
+						writer.WriteBase64String(field.Name.Span, field.AsBinary().Span);
 					}
 					else
 					{
-						Writer.WriteBase64StringValue(Field.AsBinary().Span);
+						writer.WriteBase64StringValue(field.AsBinary().Span);
 					}
 					break;
 				case CbFieldType.String:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteString(Field.Name.Span, Field.AsUtf8String().Span);
+						writer.WriteString(field.Name.Span, field.AsUtf8String().Span);
 					}
 					else
 					{
-						Writer.WriteStringValue(Field.AsUtf8String().Span);
+						writer.WriteStringValue(field.AsUtf8String().Span);
 					}
 					break;
 				case CbFieldType.IntegerPositive:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteNumber(Field.Name.Span, Field.AsUInt64());
+						writer.WriteNumber(field.Name.Span, field.AsUInt64());
 					}
 					else
 					{
-						Writer.WriteNumberValue(Field.AsUInt64());
+						writer.WriteNumberValue(field.AsUInt64());
 					}
 					break;
 				case CbFieldType.IntegerNegative:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteNumber(Field.Name.Span, Field.AsInt64());
+						writer.WriteNumber(field.Name.Span, field.AsInt64());
 					}
 					else
 					{
-						Writer.WriteNumberValue(Field.AsInt64());
+						writer.WriteNumberValue(field.AsInt64());
 					}
 					break;
 				case CbFieldType.Float32:
 				case CbFieldType.Float64:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteNumber(Field.Name.Span, Field.AsDouble());
+						writer.WriteNumber(field.Name.Span, field.AsDouble());
 					}
 					else
 					{
-						Writer.WriteNumberValue(Field.AsDouble());
+						writer.WriteNumberValue(field.AsDouble());
 					}
 					break;
 				case CbFieldType.BoolFalse:
 				case CbFieldType.BoolTrue:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteBoolean(Field.Name.Span, Field.AsBool());
+						writer.WriteBoolean(field.Name.Span, field.AsBool());
 					}
 					else
 					{
-						Writer.WriteBooleanValue(Field.AsBool());
+						writer.WriteBooleanValue(field.AsBool());
 					}
 					break;
 				case CbFieldType.ObjectAttachment:
 				case CbFieldType.BinaryAttachment:
 				case CbFieldType.Hash:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteString(Field.Name.Span, Field.AsHash().ToString());
+						writer.WriteString(field.Name.Span, field.AsHash().ToString());
 					}
 					else
 					{
-						Writer.WriteStringValue(Field.AsHash().ToString());
+						writer.WriteStringValue(field.AsHash().ToString());
 					}
 					break;
 				case CbFieldType.Uuid:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteString(Field.Name.Span, Field.AsUuid().ToString());
+						writer.WriteString(field.Name.Span, field.AsUuid().ToString());
 					}
 					else
 					{
-						Writer.WriteStringValue(Field.AsUuid().ToString());
+						writer.WriteStringValue(field.AsUuid().ToString());
 					}
 					break;
 				case CbFieldType.DateTime:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteNumber(Field.Name.Span, Field.AsDateTimeTicks());
+						writer.WriteNumber(field.Name.Span, field.AsDateTimeTicks());
 					}
 					else
 					{
-						Writer.WriteNumberValue(Field.AsDateTimeTicks());
+						writer.WriteNumberValue(field.AsDateTimeTicks());
 					}
 					break;
 				case CbFieldType.TimeSpan:
-					if (Field.HasName())
+					if (field.HasName())
 					{
-						Writer.WriteNumber(Field.Name.Span, Field.AsTimeSpanTicks());
+						writer.WriteNumber(field.Name.Span, field.AsTimeSpanTicks());
 					}
 					else
 					{
-						Writer.WriteNumberValue(Field.AsTimeSpanTicks());
+						writer.WriteNumberValue(field.AsTimeSpanTicks());
 					}
 					break;
 				default:
@@ -1923,7 +1914,7 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// The underlying buffer
 		/// </summary>
-		ReadOnlyMemory<byte> Data;
+		readonly ReadOnlyMemory<byte> _data;
 
 		/// <summary>
 		/// Type for all fields
@@ -1939,12 +1930,12 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Data"></param>
-		/// <param name="UniformType"></param>
-		public CbFieldEnumerator(ReadOnlyMemory<byte> Data, CbFieldType UniformType)
+		/// <param name="data"></param>
+		/// <param name="uniformType"></param>
+		public CbFieldEnumerator(ReadOnlyMemory<byte> data, CbFieldType uniformType)
 		{
-			this.Data = Data;
-			this.UniformType = UniformType;
+			_data = data;
+			UniformType = uniformType;
 		}
 
 		/// <inheritdoc/>
@@ -1961,9 +1952,9 @@ namespace EpicGames.Serialization
 		/// <inheritdoc/>
 		public bool MoveNext()
 		{
-			if (Data.Length > 0)
+			if (_data.Length > 0)
 			{
-				Current = new CbField(Data, UniformType);
+				Current = new CbField(_data, UniformType);
 				return true;
 			}
 			else
@@ -1979,7 +1970,7 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public CbFieldEnumerator Clone()
 		{
-			return new CbFieldEnumerator(Data, UniformType);
+			return new CbFieldEnumerator(_data, UniformType);
 		}
 	}
 
@@ -1991,12 +1982,12 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// The underlying buffer
 		/// </summary>
-		ReadOnlyMemory<byte> NextData;
+		ReadOnlyMemory<byte> _nextData;
 
 		/// <summary>
 		/// Type for all fields
 		/// </summary>
-		CbFieldType UniformType;
+		readonly CbFieldType _uniformType;
 
 		/// <summary>
 		/// The current iterator
@@ -2014,22 +2005,22 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Constructor for single field iterator
 		/// </summary>
-		/// <param name="Field"></param>
-		private CbFieldIterator(CbField Field)
+		/// <param name="field"></param>
+		private CbFieldIterator(CbField field)
 		{
-			NextData = ReadOnlyMemory<byte>.Empty;
-			Current = Field;
+			_nextData = ReadOnlyMemory<byte>.Empty;
+			Current = field;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Data"></param>
-		/// <param name="UniformType"></param>
-		public CbFieldIterator(ReadOnlyMemory<byte> Data, CbFieldType UniformType)
+		/// <param name="data"></param>
+		/// <param name="uniformType"></param>
+		public CbFieldIterator(ReadOnlyMemory<byte> data, CbFieldType uniformType)
 		{
-			this.NextData = Data;
-			this.UniformType = UniformType;
+			_nextData = data;
+			_uniformType = uniformType;
 
 			MoveNext();
 		}
@@ -2037,33 +2028,33 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Copy constructor
 		/// </summary>
-		/// <param name="Other"></param>
-		public CbFieldIterator(CbFieldIterator Other)
+		/// <param name="other"></param>
+		public CbFieldIterator(CbFieldIterator other)
 		{
-			this.NextData = Other.NextData;
-			this.UniformType = Other.UniformType;
-			this.Current = Other.Current;
+			_nextData = other._nextData;
+			_uniformType = other._uniformType;
+			Current = other.Current;
 		}
 
 		/// <summary>
 		/// Construct a field range that contains exactly one field.
 		/// </summary>
-		/// <param name="Field"></param>
+		/// <param name="field"></param>
 		/// <returns></returns>
-		public static CbFieldIterator MakeSingle(CbField Field)
+		public static CbFieldIterator MakeSingle(CbField field)
 		{
-			return new CbFieldIterator(Field);
+			return new CbFieldIterator(field);
 		}
 
 		/// <summary>
 		/// Construct a field range from a buffer containing zero or more valid fields.
 		/// </summary>
-		/// <param name="View">A buffer containing zero or more valid fields.</param>
-		/// <param name="Type">HasFieldType means that View contains the type.Otherwise, use the given type.</param>
+		/// <param name="view">A buffer containing zero or more valid fields.</param>
+		/// <param name="type">HasFieldType means that View contains the type.Otherwise, use the given type.</param>
 		/// <returns></returns>
-		public static CbFieldIterator MakeRange(ReadOnlyMemory<byte> View, CbFieldType Type = CbFieldType.HasFieldType)
+		public static CbFieldIterator MakeRange(ReadOnlyMemory<byte> view, CbFieldType type = CbFieldType.HasFieldType)
 		{
-			return new CbFieldIterator(View, Type);
+			return new CbFieldIterator(view, type);
 		}
 
 		/// <summary>
@@ -2087,21 +2078,21 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Copy the field range into a buffer of exactly GetRangeSize() bytes.
 		/// </summary>
-		/// <param name="Buffer"></param>
-		public void CopyRangeTo(Span<byte> Buffer)
+		/// <param name="buffer"></param>
+		public void CopyRangeTo(Span<byte> buffer)
 		{
-			ReadOnlyMemory<byte> Source;
-			if (TryGetRangeView(out Source))
+			ReadOnlyMemory<byte> source;
+			if (TryGetRangeView(out source))
 			{
-				Source.Span.CopyTo(Buffer);
+				source.Span.CopyTo(buffer);
 			}
 			else
 			{
-				for (CbFieldIterator It = new CbFieldIterator(this); It; It.MoveNext())
+				for (CbFieldIterator it = new CbFieldIterator(this); it; it.MoveNext())
 				{
-					int Size = It.Current.GetSize();
-					It.Current.CopyTo(Buffer);
-					Buffer = Buffer.Slice(Size);
+					int size = it.Current.GetSize();
+					it.Current.CopyTo(buffer);
+					buffer = buffer.Slice(size);
 				}
 			}
 		}
@@ -2109,17 +2100,17 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Invoke the visitor for every attachment in the field range.
 		/// </summary>
-		/// <param name="Visitor"></param>
-		public void IterateRangeAttachments(Action<CbField> Visitor)
+		/// <param name="visitor"></param>
+		public void IterateRangeAttachments(Action<CbField> visitor)
 		{
 			// Always iterate over non-uniform ranges because we do not know if they contain an attachment.
 			if (CbFieldUtils.HasFieldType(Current.GetTypeWithFlags()))
 			{
-				for (CbFieldIterator It = new CbFieldIterator(this); It; ++It)
+				for (CbFieldIterator it = new CbFieldIterator(this); it; ++it)
 				{
-					if (CbFieldUtils.MayContainAttachments(It.Current.GetTypeWithFlags()))
+					if (CbFieldUtils.MayContainAttachments(it.Current.GetTypeWithFlags()))
 					{
-						It.Current.IterateAttachments(Visitor);
+						it.Current.IterateAttachments(visitor);
 					}
 				}
 			}
@@ -2128,9 +2119,9 @@ namespace EpicGames.Serialization
 			{
 				if (CbFieldUtils.MayContainAttachments(Current.GetTypeWithFlags()))
 				{
-					for (CbFieldIterator It = new CbFieldIterator(this); It; ++It)
+					for (CbFieldIterator it = new CbFieldIterator(this); it; ++it)
 					{
-						It.Current.IterateAttachments(Visitor);
+						it.Current.IterateAttachments(visitor);
 					}
 				}
 			}
@@ -2143,7 +2134,7 @@ namespace EpicGames.Serialization
 		/// ranges through FCbFieldIterator::CloneRange or CopyRangeTo.
 		/// </summary>
 		/// <returns></returns>
-		bool TryGetRangeView(out ReadOnlyMemory<byte> OutView)
+		bool TryGetRangeView(out ReadOnlyMemory<byte> outView)
 		{
 			throw new NotImplementedException();
 /*			FMemoryView View;
@@ -2161,10 +2152,10 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public bool MoveNext()
 		{
-			if (NextData.Length > 0)
+			if (_nextData.Length > 0)
 			{
-				Current = new CbField(NextData, UniformType);
-				NextData = NextData.Slice(Current.Memory.Length);
+				Current = new CbField(_nextData, _uniformType);
+				_nextData = _nextData.Slice(Current.Memory.Length);
 				return true;
 			}
 			else
@@ -2177,20 +2168,20 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Test whether the iterator is valid
 		/// </summary>
-		/// <param name="Iterator"></param>
-		public static implicit operator bool(CbFieldIterator Iterator)
+		/// <param name="iterator"></param>
+		public static implicit operator bool(CbFieldIterator iterator)
 		{
-			return Iterator.IsValid();
+			return iterator.IsValid();
 		}
 
 		/// <summary>
 		/// Move to the next item
 		/// </summary>
-		/// <param name="Iterator"></param>
+		/// <param name="iterator"></param>
 		/// <returns></returns>
-		public static CbFieldIterator operator ++(CbFieldIterator Iterator)
+		public static CbFieldIterator operator ++(CbFieldIterator iterator)
 		{
-			return new CbFieldIterator(Iterator.NextData, Iterator.UniformType);
+			return new CbFieldIterator(iterator._nextData, iterator._uniformType);
 		}
 
 		public override bool Equals(object? obj)
@@ -2203,13 +2194,13 @@ namespace EpicGames.Serialization
 			throw new NotImplementedException();
 		}
 
-		public static bool operator ==(CbFieldIterator A, CbFieldIterator B)
+		public static bool operator ==(CbFieldIterator a, CbFieldIterator b)
 		{
-			return A.Current.Equals(B.Current);
+			return a.Current.Equals(b.Current);
 		}
-		public static bool operator !=(CbFieldIterator A, CbFieldIterator B)
+		public static bool operator !=(CbFieldIterator a, CbFieldIterator b)
 		{
-			return !A.Current.Equals(B.Current);
+			return !a.Current.Equals(b.Current);
 		}
 	}
 
@@ -2218,12 +2209,12 @@ namespace EpicGames.Serialization
 	/// </summary>
 	class CbArrayDebugView
 	{
-		CbArray Array;
+		readonly CbArray _array;
 
-		public CbArrayDebugView(CbArray Array) => this.Array = Array;
+		public CbArrayDebugView(CbArray array) => _array = array;
 
 		[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-		public object?[] Value => Array.Select(x => x.Value).ToArray();
+		public object?[] Value => _array.Select(x => x.Value).ToArray();
 	}
 
 	/// <summary>
@@ -2239,7 +2230,7 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// The field containing this array
 		/// </summary>
-		readonly CbField InnerField;
+		readonly CbField _innerField;
 
 		/// <summary>
 		/// Empty array constant
@@ -2251,26 +2242,26 @@ namespace EpicGames.Serialization
 		/// </summary>
 		public CbArray()
 		{
-			InnerField = Empty.InnerField;
+			_innerField = Empty._innerField;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Field"></param>
-		private CbArray(CbField Field)
+		/// <param name="field"></param>
+		private CbArray(CbField field)
 		{
-			InnerField = Field;
+			_innerField = field;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Data"></param>
-		/// <param name="Type"></param>
-		public CbArray(ReadOnlyMemory<byte> Data, CbFieldType Type = CbFieldType.HasFieldType)
+		/// <param name="data"></param>
+		/// <param name="type"></param>
+		public CbArray(ReadOnlyMemory<byte> data, CbFieldType type = CbFieldType.HasFieldType)
 		{
-			InnerField = new CbField(Data, Type);
+			_innerField = new CbField(data, type);
 		}
 
 		/// <summary>
@@ -2280,9 +2271,9 @@ namespace EpicGames.Serialization
 		{
 			get
 			{
-				ReadOnlyMemory<byte> PayloadBytes = InnerField.Payload;
-				PayloadBytes = PayloadBytes.Slice(VarInt.Measure(PayloadBytes.Span));
-				return (int)VarInt.Read(PayloadBytes.Span, out int NumByteCount);
+				ReadOnlyMemory<byte> payloadBytes = _innerField.Payload;
+				payloadBytes = payloadBytes.Slice(VarInt.Measure(payloadBytes.Span));
+				return (int)VarInt.Read(payloadBytes.Span, out int _);
 			}
 		}
 
@@ -2290,14 +2281,14 @@ namespace EpicGames.Serialization
 		/// Access the array as an array field.
 		/// </summary>
 		/// <returns></returns>
-		public CbField AsField() => InnerField;
+		public CbField AsField() => _innerField;
 
 		/// <summary>
 		/// Construct an array from an array field. No type check is performed!
 		/// </summary>
-		/// <param name="Field"></param>
+		/// <param name="field"></param>
 		/// <returns></returns>
-		public static CbArray FromFieldNoCheck(CbField Field) => new CbArray(Field);
+		public static CbArray FromFieldNoCheck(CbField field) => new CbArray(field);
 
 		/// <summary>
 		/// Returns the size of the array in bytes if serialized by itself with no name.
@@ -2305,7 +2296,7 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public int GetSize()
 		{
-			return (int)Math.Min((ulong)sizeof(CbFieldType) + InnerField.GetPayloadSize(), int.MaxValue);
+			return (int)Math.Min((ulong)sizeof(CbFieldType) + _innerField.GetPayloadSize(), Int32.MaxValue);
 		}
 
 		/// <summary>
@@ -2314,29 +2305,29 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public Blake3Hash GetHash()
 		{
-			using (Blake3.Hasher Hasher = Blake3.Hasher.New())
+			using (Blake3.Hasher hasher = Blake3.Hasher.New())
 			{
-				AppendHash(Hasher);
+				AppendHash(hasher);
 
-				byte[] Result = new byte[Blake3Hash.NumBytes];
-				Hasher.Finalize(Result);
+				byte[] result = new byte[Blake3Hash.NumBytes];
+				hasher.Finalize(result);
 
-				return new Blake3Hash(Result);
+				return new Blake3Hash(result);
 			}
 		}
 
 		/// <summary>
 		/// Append the hash of the array if serialized by itself with no name.
 		/// </summary>
-		public void AppendHash(Blake3.Hasher Hasher)
+		public void AppendHash(Blake3.Hasher hasher)
 		{
-			byte[] SerializedType = new byte[] { (byte)InnerField.GetType() };
-			Hasher.Update(SerializedType);
-			Hasher.Update(InnerField.Payload.Span);
+			byte[] serializedType = new byte[] { (byte)_innerField.GetType() };
+			hasher.Update(serializedType);
+			hasher.Update(_innerField.Payload.Span);
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Equals(Obj as CbArray);
+		public override bool Equals(object? obj) => Equals(obj as CbArray);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => BinaryPrimitives.ReadInt32BigEndian(GetHash().Span);
@@ -2350,25 +2341,25 @@ namespace EpicGames.Serialization
 		/// these assumptions do not hold, this may return false for equivalent inputs. Validation can
 		/// be done with the All mode to check these assumptions about the format of the inputs.
 		/// </summary>
-		/// <param name="Other"></param>
+		/// <param name="other"></param>
 		/// <returns></returns>
-		public bool Equals(CbArray? Other)
+		public bool Equals(CbArray? other)
 		{
-			return Other != null && GetType() == Other.GetType() && GetPayloadView().Span.SequenceEqual(Other.GetPayloadView().Span);
+			return other != null && GetType() == other.GetType() && GetPayloadView().Span.SequenceEqual(other.GetPayloadView().Span);
 		}
 
 		/// <summary>
 		/// Copy the array into a buffer of exactly GetSize() bytes, with no name.
 		/// </summary>
-		/// <param name="Buffer"></param>
-		public void CopyTo(Span<byte> Buffer)
+		/// <param name="buffer"></param>
+		public void CopyTo(Span<byte> buffer)
 		{
-			Buffer[0] = (byte)GetType();
-			GetPayloadView().Span.CopyTo(Buffer.Slice(1));
+			buffer[0] = (byte)GetType();
+			GetPayloadView().Span.CopyTo(buffer.Slice(1));
 		}
 
 		/** Invoke the visitor for every attachment in the array. */
-		public void IterateAttachments(Action<CbField> Visitor) => CreateIterator().IterateRangeAttachments(Visitor);
+		public void IterateAttachments(Action<CbField> visitor) => CreateIterator().IterateRangeAttachments(visitor);
 
 		/// <summary>
 		/// Try to get a view of the array as it would be serialized, such as by CopyTo.
@@ -2376,21 +2367,21 @@ namespace EpicGames.Serialization
 		/// A view is available if the array contains its type and has no name. Access the equivalent
 		/// for other arrays through FCbArray::GetBuffer, FCbArray::Clone, or CopyTo.
 		/// </summary>
-		public bool TryGetView(out ReadOnlyMemory<byte> OutView)
+		public bool TryGetView(out ReadOnlyMemory<byte> outView)
 		{
-			if(InnerField.HasName())
+			if(_innerField.HasName())
 			{
-				OutView = ReadOnlyMemory<byte>.Empty;
+				outView = ReadOnlyMemory<byte>.Empty;
 				return false;
 			}
-			return InnerField.TryGetView(out OutView);
+			return _innerField.TryGetView(out outView);
 		}
 
 		/// <inheritdoc cref="CbField.CreateIterator"/>
-		public CbFieldIterator CreateIterator() => InnerField.CreateIterator();
+		public CbFieldIterator CreateIterator() => _innerField.CreateIterator();
 
 		/// <inheritdoc/>
-		public IEnumerator<CbField> GetEnumerator() => InnerField.GetEnumerator();
+		public IEnumerator<CbField> GetEnumerator() => _innerField.GetEnumerator();
 
 		/// <inheritdoc/>
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -2398,19 +2389,19 @@ namespace EpicGames.Serialization
 		#region Mimic inheritance from CbField
 
 		/// <inheritdoc cref="CbField.GetType"/>
-		internal new CbFieldType GetType() => InnerField.GetType();
+		internal new CbFieldType GetType() => _innerField.GetType();
 
 		/// <inheritdoc cref="CbField.GetPayloadView"/>
-		internal ReadOnlyMemory<byte> GetPayloadView() => InnerField.GetPayloadView();
+		internal ReadOnlyMemory<byte> GetPayloadView() => _innerField.GetPayloadView();
 
 		#endregion
 
 		#region Mimic inheritance from TCbBufferFactory
 
-		public static CbArray Clone(ReadOnlyMemory<byte> Data) => Clone(new CbArray(Data));
-		public static CbArray Clone(CbArray Other) => Other;
-		public static CbArray MakeView(ReadOnlyMemory<byte> Data) => new CbArray(Data);
-		public static CbArray MakeView(CbArray Other) => Other;
+		public static CbArray Clone(ReadOnlyMemory<byte> data) => Clone(new CbArray(data));
+		public static CbArray Clone(CbArray other) => other;
+		public static CbArray MakeView(ReadOnlyMemory<byte> data) => new CbArray(data);
+		public static CbArray MakeView(CbArray other) => other;
 
 		#endregion
 	}
@@ -2427,12 +2418,12 @@ namespace EpicGames.Serialization
 			public object? Value { get; set; }
 		}
 
-		CbObject Object;
+		readonly CbObject _object;
 
-		public CbObjectDebugView(CbObject Object) => this.Object = Object;
+		public CbObjectDebugView(CbObject obj) => _object = obj;
 
 		[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-		public Property[] Properties => Object.Select(x => new Property { Name = x.Name.ToString(), Value = x.Value }).ToArray();
+		public Property[] Properties => _object.Select(x => new Property { Name = x.Name.ToString(), Value = x.Value }).ToArray();
 	}
 
 	/// <summary>
@@ -2454,38 +2445,38 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// The inner field object
 		/// </summary>
-		private CbField InnerField;
+		private readonly CbField _innerField;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Buffer"></param>
-		private CbObject(CbField Field)
+		private CbObject(CbField field)
 		{
-			InnerField = new CbField(Field.Memory, Field.TypeWithFlags);
+			_innerField = new CbField(field.Memory, field.TypeWithFlags);
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Buffer"></param>
-		public CbObject(ReadOnlyMemory<byte> Buffer, CbFieldType FieldType = CbFieldType.HasFieldType)
+		/// <param name="buffer"></param>
+		public CbObject(ReadOnlyMemory<byte> buffer, CbFieldType fieldType = CbFieldType.HasFieldType)
 		{
-			InnerField = new CbField(Buffer, FieldType);
+			_innerField = new CbField(buffer, fieldType);
 		}
 
 		/// <summary>
 		/// Builds an object by calling a delegate with a writer
 		/// </summary>
-		/// <param name="Build"></param>
+		/// <param name="build"></param>
 		/// <returns></returns>
-		public static CbObject Build(Action<CbWriter> Build)
+		public static CbObject Build(Action<CbWriter> build)
 		{
-			CbWriter Writer = new CbWriter();
-			Writer.BeginObject();
-			Build(Writer);
-			Writer.EndObject();
-			return new CbObject(Writer.ToByteArray());
+			CbWriter writer = new CbWriter();
+			writer.BeginObject();
+			build(writer);
+			writer.EndObject();
+			return new CbObject(writer.ToByteArray());
 		}
 
 		/// <summary>
@@ -2494,33 +2485,33 @@ namespace EpicGames.Serialization
 		/// The cost of this operation scales linearly with the number of fields in the object. Prefer to
 		/// iterate over the fields only once when consuming an object.
 		/// </summary>
-		/// <param name="Name">The name of the field.</param>
+		/// <param name="name">The name of the field.</param>
 		/// <returns>The matching field if found, otherwise a field with no value.</returns>
-		public CbField Find(Utf8String Name) => InnerField[Name];
+		public CbField Find(Utf8String name) => _innerField[name];
 
 		/// <summary>
 		/// Find a field by case-insensitive name comparison.
 		/// </summary>
-		/// <param name="Name">The name of the field.</param>
+		/// <param name="name">The name of the field.</param>
 		/// <returns>The matching field if found, otherwise a field with no value.</returns>
-		public CbField FindIgnoreCase(Utf8String Name) => InnerField.FirstOrDefault(Field => Utf8StringComparer.OrdinalIgnoreCase.Equals(Field.Name, Name)) ?? new CbField();
+		public CbField FindIgnoreCase(Utf8String name) => _innerField.FirstOrDefault(field => Utf8StringComparer.OrdinalIgnoreCase.Equals(field.Name, name)) ?? new CbField();
 
 		/// <summary>
 		/// Find a field by case-sensitive name comparison.
 		/// </summary>
-		/// <param name="Name">The name of the field.</param>
+		/// <param name="name">The name of the field.</param>
 		/// <returns>The matching field if found, otherwise a field with no value.</returns>
-		public CbField this[Utf8String Name] => InnerField[Name];
+		public CbField this[Utf8String name] => _innerField[name];
 
 		/// <inheritdoc cref="AsFieldView"/>
-		public CbField AsField() => InnerField;
+		public CbField AsField() => _innerField;
 
 		/// <summary>
 		/// Construct an object from an object field. No type check is performed!
 		/// </summary>
-		/// <param name="Field"></param>
+		/// <param name="field"></param>
 		/// <returns></returns>
-		public static CbObject FromFieldNoCheck(CbField Field) => new CbObject(Field);
+		public static CbObject FromFieldNoCheck(CbField field) => new CbObject(field);
 
 		/// <summary>
 		/// Returns the size of the object in bytes if serialized by itself with no name.
@@ -2528,7 +2519,7 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public int GetSize()
 		{
-			return sizeof(CbFieldType) + InnerField.Payload.Length;
+			return sizeof(CbFieldType) + _innerField.Payload.Length;
 		}
 
 		/// <summary>
@@ -2537,30 +2528,30 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public Blake3Hash GetHash()
 		{
-			using (Blake3.Hasher Hasher = Blake3.Hasher.New())
+			using (Blake3.Hasher hasher = Blake3.Hasher.New())
 			{
-				AppendHash(Hasher);
+				AppendHash(hasher);
 
-				byte[] Data = new byte[Blake3Hash.NumBytes];
-				Hasher.Finalize(Data);
+				byte[] data = new byte[Blake3Hash.NumBytes];
+				hasher.Finalize(data);
 
-				return new Blake3Hash(Data);
+				return new Blake3Hash(data);
 			}
 		}
 
 		/// <summary>
 		/// Append the hash of the object if serialized by itself with no name.
 		/// </summary>
-		/// <param name="Hasher"></param>
-		public void AppendHash(Blake3.Hasher Hasher)
+		/// <param name="hasher"></param>
+		public void AppendHash(Blake3.Hasher hasher)
 		{
-			byte[] Temp = new byte[] { (byte)InnerField.GetType() };
-			Hasher.Update(Temp);
-			Hasher.Update(InnerField.Payload.Span);
+			byte[] temp = new byte[] { (byte)_innerField.GetType() };
+			hasher.Update(temp);
+			hasher.Update(_innerField.Payload.Span);
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Equals(Obj as CbObject);
+		public override bool Equals(object? obj) => Equals(obj as CbObject);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => BinaryPrimitives.ReadInt32BigEndian(GetHash().Span);
@@ -2574,28 +2565,28 @@ namespace EpicGames.Serialization
 		/// these assumptions do not hold, this may return false for equivalent inputs. Validation can
 		/// be done with the All mode to check these assumptions about the format of the inputs.
 		/// </summary>
-		/// <param name="Other"></param>
+		/// <param name="other"></param>
 		/// <returns></returns>
-		public bool Equals(CbObject? Other)
+		public bool Equals(CbObject? other)
 		{
-			return Other != null && InnerField.GetType() == Other.InnerField.GetType() && InnerField.Payload.Span.SequenceEqual(Other.InnerField.Payload.Span);
+			return other != null && _innerField.GetType() == other._innerField.GetType() && _innerField.Payload.Span.SequenceEqual(other._innerField.Payload.Span);
 		}
 
 		/// <summary>
 		/// Copy the object into a buffer of exactly GetSize() bytes, with no name.
 		/// </summary>
-		/// <param name="Buffer"></param>
-		public void CopyTo(Span<byte> Buffer)
+		/// <param name="buffer"></param>
+		public void CopyTo(Span<byte> buffer)
 		{
-			Buffer[0] = (byte)InnerField.GetType();
-			InnerField.Payload.Span.CopyTo(Buffer.Slice(1));
+			buffer[0] = (byte)_innerField.GetType();
+			_innerField.Payload.Span.CopyTo(buffer.Slice(1));
 		}
 
 		/// <summary>
 		/// Invoke the visitor for every attachment in the object.
 		/// </summary>
-		/// <param name="Visitor"></param>
-		public void IterateAttachments(Action<CbField> Visitor) => CreateIterator().IterateRangeAttachments(Visitor);
+		/// <param name="visitor"></param>
+		public void IterateAttachments(Action<CbField> visitor) => CreateIterator().IterateRangeAttachments(visitor);
 
 		/// <summary>
 		/// Creates a view of the object, excluding the name
@@ -2603,14 +2594,14 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public ReadOnlyMemory<byte> GetView()
 		{
-			ReadOnlyMemory<byte> Memory;
-			if (!TryGetView(out Memory))
+			ReadOnlyMemory<byte> memory;
+			if (!TryGetView(out memory))
 			{
-				byte[] Data = new byte[GetSize()];
-				CopyTo(Data);
-				Memory = Data;
+				byte[] data = new byte[GetSize()];
+				CopyTo(data);
+				memory = data;
 			}
-			return Memory;
+			return memory;
 		}
 
 		/// <summary>
@@ -2619,33 +2610,33 @@ namespace EpicGames.Serialization
 		/// A view is available if the object contains its type and has no name. Access the equivalent
 		/// for other objects through FCbObject::GetBuffer, FCbObject::Clone, or CopyTo.
 		/// </summary>
-		/// <param name="OutView"></param>
+		/// <param name="outView"></param>
 		/// <returns></returns>
-		public bool TryGetView(out ReadOnlyMemory<byte> OutView)
+		public bool TryGetView(out ReadOnlyMemory<byte> outView)
 		{
-			if (InnerField.HasName())
+			if (_innerField.HasName())
 			{
-				OutView = ReadOnlyMemory<byte>.Empty;
+				outView = ReadOnlyMemory<byte>.Empty;
 				return false;
 			}
-			return InnerField.TryGetView(out OutView);
+			return _innerField.TryGetView(out outView);
 		}
 
 		/// <inheritdoc cref="CbField.CreateIterator"/>
-		public CbFieldIterator CreateIterator() => InnerField.CreateIterator();
+		public CbFieldIterator CreateIterator() => _innerField.CreateIterator();
 
 		/// <inheritdoc/>
-		public IEnumerator<CbField> GetEnumerator() => InnerField.GetEnumerator();
+		public IEnumerator<CbField> GetEnumerator() => _innerField.GetEnumerator();
 
 		/// <inheritdoc/>
-		IEnumerator IEnumerable.GetEnumerator() => InnerField.GetEnumerator();
+		IEnumerator IEnumerable.GetEnumerator() => _innerField.GetEnumerator();
 
 		/// <summary>
 		/// Clone this object
 		/// </summary>
-		/// <param name="Object"></param>
+		/// <param name="obj"></param>
 		/// <returns></returns>
-		public static CbObject Clone(CbObject Object) => Object;
+		public static CbObject Clone(CbObject obj) => obj;
 
 		#region Conversion to Json
 		/// <summary>
@@ -2654,96 +2645,101 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public string ToJson()
 		{
-			ArrayBufferWriter<byte> Buffer = new ArrayBufferWriter<byte>();
-			using (Utf8JsonWriter JsonWriter = new Utf8JsonWriter(Buffer))
+			ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>();
+			using (Utf8JsonWriter jsonWriter = new Utf8JsonWriter(buffer))
 			{
-				ToJson(JsonWriter);
+				ToJson(jsonWriter);
 			}
-			return Encoding.UTF8.GetString(Buffer.WrittenMemory.Span);
+			return Encoding.UTF8.GetString(buffer.WrittenMemory.Span);
 		}
 
 		/// <summary>
 		/// Write this object to JSON
 		/// </summary>
-		/// <param name="Writer"></param>
-		public void ToJson(Utf8JsonWriter Writer)
+		/// <param name="writer"></param>
+		public void ToJson(Utf8JsonWriter writer)
 		{
-			Writer.WriteStartObject();
-			foreach (CbField Field in InnerField)
+			writer.WriteStartObject();
+			foreach (CbField field in _innerField)
 			{
-				WriteField(Field, Writer);
+				WriteField(field, writer);
 			}
-			Writer.WriteEndObject();
+			writer.WriteEndObject();
 		}
 
 		/// <summary>
 		/// Write a single field to a writer
 		/// </summary>
-		/// <param name="Field"></param>
-		/// <param name="Writer"></param>
-		private static void WriteField(CbField Field, Utf8JsonWriter Writer)
+		/// <param name="field"></param>
+		/// <param name="writer"></param>
+		private static void WriteField(CbField field, Utf8JsonWriter writer)
 		{
-			if (Field.IsObject())
+			if (field.IsObject())
 			{
-				if (Field.NameLen != 0)
-					Writer.WriteStartObject(Field.Name.Span);
-				else
-					Writer.WriteStartObject();
-				CbObject Object = Field.AsObject();
-				foreach (CbField ObjectField in Object.InnerField)
+				if (field._nameLen != 0)
 				{
-					WriteField(ObjectField, Writer);
-				}
-				Writer.WriteEndObject();
-			}
-			else if (Field.IsArray())
-			{
-				Writer.WriteStartArray(Field.Name.Span);
-				CbArray Array = Field.AsArray();
-				foreach (CbField ObjectField in Array)
-				{
-					WriteField(ObjectField, Writer);
-				}
-				Writer.WriteEndArray();
-			}
-			else if (Field.IsInteger())
-			{
-				if (Field.GetType() == CbFieldType.IntegerNegative)
-				{
-					Writer.WriteNumber(Field.Name.Span, -Field.AsInt64());
+					writer.WriteStartObject(field.Name.Span);
 				}
 				else
 				{
-					Writer.WriteNumber(Field.Name.Span, Field.AsUInt64());
+					writer.WriteStartObject();
+				}
+
+				CbObject obj = field.AsObject();
+				foreach (CbField objField in obj._innerField)
+				{
+					WriteField(objField, writer);
+				}
+				writer.WriteEndObject();
+			}
+			else if (field.IsArray())
+			{
+				writer.WriteStartArray(field.Name.Span);
+				CbArray array = field.AsArray();
+				foreach (CbField objectField in array)
+				{
+					WriteField(objectField, writer);
+				}
+				writer.WriteEndArray();
+			}
+			else if (field.IsInteger())
+			{
+				if (field.GetType() == CbFieldType.IntegerNegative)
+				{
+					writer.WriteNumber(field.Name.Span, -field.AsInt64());
+				}
+				else
+				{
+					writer.WriteNumber(field.Name.Span, field.AsUInt64());
 				}
 			}
-			else if (Field.IsBool())
+			else if (field.IsBool())
 			{
-				Writer.WriteBoolean(Field.Name.Span, Field.AsBool());
+				writer.WriteBoolean(field.Name.Span, field.AsBool());
 			}
-			else if (Field.IsNull())
+			else if (field.IsNull())
 			{
-				Writer.WriteNullValue();
+				writer.WriteNullValue();
 			}
-			else if (Field.IsDateTime())
+			else if (field.IsDateTime())
 			{
-				Writer.WriteString(Field.Name.Span, Field.AsDateTime());
+				writer.WriteString(field.Name.Span, field.AsDateTime());
 			}
-			else if (Field.IsHash())
+			else if (field.IsHash())
 			{
-				Writer.WriteString(Field.Name.Span, Field.AsHash().ToUtf8String().Span);
+				writer.WriteString(field.Name.Span, field.AsHash().ToUtf8String().Span);
 			}
-			else if (Field.IsString())
+			else if (field.IsString())
 			{
-				Writer.WriteString(Field.Name.Span, Field.AsUtf8String().Span);
+				writer.WriteString(field.Name.Span, field.AsUtf8String().Span);
 			}
-			else if (Field.IsObjectId())
+			else if (field.IsObjectId())
 			{
-				Writer.WriteString(Field.Name.Span, StringUtils.FormatUtf8HexString(Field.AsObjectId().Span).Span);
+				writer.WriteString(field.Name.Span, StringUtils.FormatUtf8HexString(field.AsObjectId().Span).Span);
 			}
 			else
 			{
-				throw new NotImplementedException($"Unhandled type {Field.GetType()} when attempting to convert to json");
+				throw new NotImplementedException($"Unhandled type {field.GetType()} when attempting to convert to json");
 			}
 		}
 		#endregion

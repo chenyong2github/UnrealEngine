@@ -1,11 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Numerics;
-using EpicGames.Core;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EpicGames.Serialization.Tests
@@ -16,17 +10,17 @@ namespace EpicGames.Serialization.Tests
 		[TestMethod]
 		public void TestVarInt()
 		{
-			byte[] Buffer = new byte[20];
+			byte[] buffer = new byte[20];
 
-			int Length = VarInt.Write(Buffer, -1);
-			Assert.AreEqual(9, Length);
+			int length = VarInt.Write(buffer, -1);
+			Assert.AreEqual(9, length);
 			Assert.AreEqual(9, VarInt.Measure(-1));
 
-			Assert.AreEqual(9, VarInt.Measure(Buffer));
-			int Value = (int)(long)VarInt.Read(Buffer, out int BytesRead);
-			Assert.AreEqual(9, BytesRead);
+			Assert.AreEqual(9, VarInt.Measure(buffer));
+			int value = (int)(long)VarInt.Read(buffer, out int bytesRead);
+			Assert.AreEqual(9, bytesRead);
 
-			Assert.AreEqual(-1, Value);
+			Assert.AreEqual(-1, value);
 		}
 	}
 }

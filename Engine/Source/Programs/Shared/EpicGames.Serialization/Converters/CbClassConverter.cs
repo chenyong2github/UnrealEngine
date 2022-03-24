@@ -18,13 +18,13 @@ namespace EpicGames.Serialization.Converters
 			public static Utf8String[]? Names = null;
 			public static PropertyInfo[]? Properties = null;
 
-			public static bool MatchName(CbField Field, int Idx)
+			public static bool MatchName(CbField field, int idx)
 			{
-				return Field.Name == Names![Idx];
+				return field.Name == Names![idx];
 			}
 		}
 
-		static Utf8String DiscriminatorKey = "_t";
+		static Utf8String s_discriminatorKey = "_t";
 
 		public Type ClassType { get; }
 		public bool IsPolymorphic { get; }
@@ -38,36 +38,36 @@ namespace EpicGames.Serialization.Converters
 		public DynamicMethod ReadConcreteMethod { get; }
 		public DynamicMethod WriteConcreteContentsMethod { get; }
 
-		static Dictionary<PropertyInfo, CbClassConverterMethods> PropertyToMethods = new Dictionary<PropertyInfo, CbClassConverterMethods>();
-		static Dictionary<Type, CbClassConverterMethods> TypeToMethods = new Dictionary<Type, CbClassConverterMethods>();
+		static Dictionary<PropertyInfo, CbClassConverterMethods> s_propertyToMethods = new Dictionary<PropertyInfo, CbClassConverterMethods>();
+		static Dictionary<Type, CbClassConverterMethods> s_typeToMethods = new Dictionary<Type, CbClassConverterMethods>();
 
-		public static CbClassConverterMethods Create(Type ClassType)
+		public static CbClassConverterMethods Create(Type classType)
 		{
-			CbClassConverterMethods? Methods;
-			if (!TypeToMethods.TryGetValue(ClassType, out Methods))
+			CbClassConverterMethods? methods;
+			if (!s_typeToMethods.TryGetValue(classType, out methods))
 			{
-				Methods = new CbClassConverterMethods(ClassType);
-				TypeToMethods.Add(ClassType, Methods);
-				Methods.GenerateBytecode();
+				methods = new CbClassConverterMethods(classType);
+				s_typeToMethods.Add(classType, methods);
+				methods.GenerateBytecode();
 			}
-			return Methods;
+			return methods;
 		}
 
-		private CbClassConverterMethods(Type ClassType)
+		private CbClassConverterMethods(Type classType)
 		{
-			this.ClassType = ClassType;
-			this.IsPolymorphic = (ClassType.GetCustomAttribute<CbPolymorphicAttribute>(true) != null);
+			this.ClassType = classType;
+			this.IsPolymorphic = (classType.GetCustomAttribute<CbPolymorphicAttribute>(true) != null);
 
-			ReadConcreteMethod = new DynamicMethod($"ReadConcrete_{ClassType.Name}", ClassType, new Type[] { typeof(CbField) });
-			WriteConcreteContentsMethod = new DynamicMethod($"WriteConcreteContents_{ClassType.Name}", null, new Type[] { typeof(CbWriter), ClassType });
+			ReadConcreteMethod = new DynamicMethod($"ReadConcrete_{classType.Name}", classType, new Type[] { typeof(CbField) });
+			WriteConcreteContentsMethod = new DynamicMethod($"WriteConcreteContents_{classType.Name}", null, new Type[] { typeof(CbWriter), classType });
 
-			WriteMethod = new DynamicMethod($"Write_{ClassType.Name}", null, new Type[] { typeof(CbWriter), ClassType });
-			WriteNamedMethod = new DynamicMethod($"WriteNamed_{ClassType.Name}", null, new Type[] { typeof(CbWriter), typeof(Utf8String), ClassType });
+			WriteMethod = new DynamicMethod($"Write_{classType.Name}", null, new Type[] { typeof(CbWriter), classType });
+			WriteNamedMethod = new DynamicMethod($"WriteNamed_{classType.Name}", null, new Type[] { typeof(CbWriter), typeof(Utf8String), classType });
 
 			if (IsPolymorphic)
 			{
-				ReadMethod = new DynamicMethod($"Read_{ClassType.Name}", ClassType, new Type[] { typeof(CbField) });
-				WriteContentsMethod = new DynamicMethod($"WriteContents_{ClassType.Name}", null, new Type[] { typeof(CbWriter), ClassType });
+				ReadMethod = new DynamicMethod($"Read_{classType.Name}", classType, new Type[] { typeof(CbField) });
+				WriteContentsMethod = new DynamicMethod($"WriteContents_{classType.Name}", null, new Type[] { typeof(CbWriter), classType });
 			}
 			else
 			{
@@ -89,194 +89,194 @@ namespace EpicGames.Serialization.Converters
 			if (IsPolymorphic)
 			{
 				// Create the dispatch type
-				Type DispatchType = typeof(CbPolymorphicDispatch<>).MakeGenericType(ClassType);
+				Type dispatchType = typeof(CbPolymorphicDispatch<>).MakeGenericType(ClassType);
 
 				// Create the read dispatch method
 				{
-					ILGenerator Generator = ReadMethod.GetILGenerator();
-					Generator.Emit(OpCodes.Ldarg_0);
-					Generator.Emit(OpCodes.Call, DispatchType.GetMethod(nameof(CbPolymorphicDispatch<object>.Read))!);
-					Generator.Emit(OpCodes.Ret);
+					ILGenerator generator = ReadMethod.GetILGenerator();
+					generator.Emit(OpCodes.Ldarg_0);
+					generator.Emit(OpCodes.Call, dispatchType.GetMethod(nameof(CbPolymorphicDispatch<object>.Read))!);
+					generator.Emit(OpCodes.Ret);
 				}
 
 				// Create the write dispatch method
 				{
-					ILGenerator Generator = WriteContentsMethod.GetILGenerator();
-					Generator.Emit(OpCodes.Ldarg_0);
-					Generator.Emit(OpCodes.Ldarg_1);
-					Generator.Emit(OpCodes.Call, DispatchType.GetMethod(nameof(CbPolymorphicDispatch<object>.WriteContents))!);
-					Generator.Emit(OpCodes.Ret);
+					ILGenerator generator = WriteContentsMethod.GetILGenerator();
+					generator.Emit(OpCodes.Ldarg_0);
+					generator.Emit(OpCodes.Ldarg_1);
+					generator.Emit(OpCodes.Call, dispatchType.GetMethod(nameof(CbPolymorphicDispatch<object>.WriteContents))!);
+					generator.Emit(OpCodes.Ret);
 				}
 
 				// Finally, update the dispatch type with all the methods. We should be safe on the recursive path now.
-				PopulateDispatchType(ClassType, DispatchType);
+				PopulateDispatchType(ClassType, dispatchType);
 			}
 		}
 
-		static void PopulateDispatchType(Type ClassType, Type DispatchType)
+		static void PopulateDispatchType(Type classType, Type dispatchType)
 		{
-			Dictionary<Utf8String, Type> DiscriminatorToKnownType = new Dictionary<Utf8String, Type>();
+			Dictionary<Utf8String, Type> discriminatorToKnownType = new Dictionary<Utf8String, Type>();
 
-			Type[] KnownTypes = ClassType.Assembly.GetTypes();
-			foreach (Type KnownType in KnownTypes)
+			Type[] knownTypes = classType.Assembly.GetTypes();
+			foreach (Type knownType in knownTypes)
 			{
-				if (KnownType.IsClass && !KnownType.IsAbstract)
+				if (knownType.IsClass && !knownType.IsAbstract)
 				{
-					for (Type? BaseType = KnownType; BaseType != null; BaseType = BaseType.BaseType)
+					for (Type? baseType = knownType; baseType != null; baseType = baseType.BaseType)
 					{
-						if (BaseType == ClassType)
+						if (baseType == classType)
 						{
-							CbDiscriminatorAttribute? Discriminator = KnownType.GetCustomAttribute<CbDiscriminatorAttribute>();
-							if (Discriminator == null)
+							CbDiscriminatorAttribute? discriminator = knownType.GetCustomAttribute<CbDiscriminatorAttribute>();
+							if (discriminator == null)
 							{
 								throw new NotSupportedException();
 							}
-							DiscriminatorToKnownType[Discriminator.Name] = KnownType;
+							discriminatorToKnownType[discriminator.Name] = knownType;
 						}
 					}
 				}
 			}
 
 			// Populate the dictionary
-			Dictionary<Utf8String, Func<CbField, object>> NameToReadFunc = (Dictionary<Utf8String, Func<CbField, object>>)DispatchType.GetField(nameof(CbPolymorphicDispatch<object>.NameToReadFunc))!.GetValue(null)!;
-			Dictionary<Type, Action<CbWriter, object>> TypeToWriteContentsFunc = (Dictionary<Type, Action<CbWriter, object>>)DispatchType.GetField(nameof(CbPolymorphicDispatch<object>.TypeToWriteContentsFunc))!.GetValue(null)!;
+			Dictionary<Utf8String, Func<CbField, object>> nameToReadFunc = (Dictionary<Utf8String, Func<CbField, object>>)dispatchType.GetField(nameof(CbPolymorphicDispatch<object>.NameToReadFunc))!.GetValue(null)!;
+			Dictionary<Type, Action<CbWriter, object>> typeToWriteContentsFunc = (Dictionary<Type, Action<CbWriter, object>>)dispatchType.GetField(nameof(CbPolymorphicDispatch<object>.TypeToWriteContentsFunc))!.GetValue(null)!;
 
-			foreach ((Utf8String Name, Type KnownType) in DiscriminatorToKnownType)
+			foreach ((Utf8String name, Type knownType) in discriminatorToKnownType)
 			{
-				CbClassConverterMethods Methods = Create(KnownType);
+				CbClassConverterMethods methods = Create(knownType);
 
 				{
-					DynamicMethod DynamicMethod = new DynamicMethod("_", typeof(object), new Type[] { typeof(CbField) });
-					ILGenerator Generator = DynamicMethod.GetILGenerator();
-					Generator.Emit(OpCodes.Ldarg_0);
-					Generator.Emit(OpCodes.Call, Methods.ReadConcreteMethod);
-					Generator.Emit(OpCodes.Castclass, typeof(object));
-					Generator.Emit(OpCodes.Ret);
-					NameToReadFunc[Name] = CreateDelegate<Func<CbField, object>>(DynamicMethod);
+					DynamicMethod dynamicMethod = new DynamicMethod("_", typeof(object), new Type[] { typeof(CbField) });
+					ILGenerator generator = dynamicMethod.GetILGenerator();
+					generator.Emit(OpCodes.Ldarg_0);
+					generator.Emit(OpCodes.Call, methods.ReadConcreteMethod);
+					generator.Emit(OpCodes.Castclass, typeof(object));
+					generator.Emit(OpCodes.Ret);
+					nameToReadFunc[name] = CreateDelegate<Func<CbField, object>>(dynamicMethod);
 				}
 
 				{
-					DynamicMethod DynamicMethod = new DynamicMethod("_", null, new Type[] { typeof(CbWriter), typeof(object) });
-					ILGenerator Generator = DynamicMethod.GetILGenerator();
-					Generator.Emit(OpCodes.Ldarg_0);
-					Generator.Emit(OpCodes.Ldarg_1);
-					Generator.Emit(OpCodes.Castclass, KnownType);
-					Generator.Emit(OpCodes.Call, Methods.WriteConcreteContentsMethod);
-					Generator.Emit(OpCodes.Ret);
-					TypeToWriteContentsFunc[KnownType] = CreateDelegate<Action<CbWriter, object>>(DynamicMethod);
+					DynamicMethod dynamicMethod = new DynamicMethod("_", null, new Type[] { typeof(CbWriter), typeof(object) });
+					ILGenerator generator = dynamicMethod.GetILGenerator();
+					generator.Emit(OpCodes.Ldarg_0);
+					generator.Emit(OpCodes.Ldarg_1);
+					generator.Emit(OpCodes.Castclass, knownType);
+					generator.Emit(OpCodes.Call, methods.WriteConcreteContentsMethod);
+					generator.Emit(OpCodes.Ret);
+					typeToWriteContentsFunc[knownType] = CreateDelegate<Action<CbWriter, object>>(dynamicMethod);
 				}
 			}
 		}
 
-		static void CreateObjectWriter(Type Type, ILGenerator Generator, DynamicMethod ContentsWriter)
+		static void CreateObjectWriter(Type type, ILGenerator generator, DynamicMethod contentsWriter)
 		{
-			Generator.Emit(OpCodes.Ldarg_1);
+			generator.Emit(OpCodes.Ldarg_1);
 
-			Label SkipLabel = Generator.DefineLabel();
-			Generator.Emit(OpCodes.Brfalse, SkipLabel);
+			Label skipLabel = generator.DefineLabel();
+			generator.Emit(OpCodes.Brfalse, skipLabel);
 
-			Generator.Emit(OpCodes.Ldarg_0);
-			Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.BeginObject()), null);
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.EmitCall(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.BeginObject()), null);
 
-			Generator.Emit(OpCodes.Ldarg_0);
-			Generator.Emit(OpCodes.Ldarg_1);
-			Generator.EmitCall(OpCodes.Call, ContentsWriter, null);
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.Emit(OpCodes.Ldarg_1);
+			generator.EmitCall(OpCodes.Call, contentsWriter, null);
 
-			Generator.Emit(OpCodes.Ldarg_0);
-			Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.EndObject()), null);
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.EmitCall(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.EndObject()), null);
 
-			Generator.MarkLabel(SkipLabel);
-			Generator.Emit(OpCodes.Ret);
+			generator.MarkLabel(skipLabel);
+			generator.Emit(OpCodes.Ret);
 		}
 
-		static void CreateNamedObjectWriter(Type Type, ILGenerator Generator, DynamicMethod ContentsWriter)
+		static void CreateNamedObjectWriter(Type type, ILGenerator generator, DynamicMethod contentsWriter)
 		{
-			Generator.Emit(OpCodes.Ldarg_2);
+			generator.Emit(OpCodes.Ldarg_2);
 
-			Label SkipLabel = Generator.DefineLabel();
-			Generator.Emit(OpCodes.Brfalse, SkipLabel);
+			Label skipLabel = generator.DefineLabel();
+			generator.Emit(OpCodes.Brfalse, skipLabel);
 
-			Generator.Emit(OpCodes.Ldarg_0);
-			Generator.Emit(OpCodes.Ldarg_1);
-			Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.BeginObject(null!)), null);
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.Emit(OpCodes.Ldarg_1);
+			generator.EmitCall(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.BeginObject(null!)), null);
 
-			Generator.Emit(OpCodes.Ldarg_0);
-			Generator.Emit(OpCodes.Ldarg_2);
-			Generator.EmitCall(OpCodes.Call, ContentsWriter, null);
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.Emit(OpCodes.Ldarg_2);
+			generator.EmitCall(OpCodes.Call, contentsWriter, null);
 
-			Generator.Emit(OpCodes.Ldarg_0);
-			Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.EndObject()), null);
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.EmitCall(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.EndObject()), null);
 
-			Generator.MarkLabel(SkipLabel);
-			Generator.Emit(OpCodes.Ret);
+			generator.MarkLabel(skipLabel);
+			generator.Emit(OpCodes.Ret);
 		}
 
-		static void CreateConcreteObjectContentsWriter(Type Type, ILGenerator Generator)
+		static void CreateConcreteObjectContentsWriter(Type type, ILGenerator generator)
 		{
 			// Find the reflected properties from this type
-			(Utf8String Name, PropertyInfo Property)[] Properties = GetProperties(Type);
+			(Utf8String Name, PropertyInfo Property)[] properties = GetProperties(type);
 
 			// Create a static type with the required reflection data
-			Type ReflectedType = typeof(CbReflectedTypeInfo<>).MakeGenericType(Type);
-			FieldInfo NamesField = ReflectedType.GetField(nameof(CbReflectedTypeInfo<object>.Names))!;
-			NamesField.SetValue(null, Properties.Select(x => x.Name).ToArray());
+			Type reflectedType = typeof(CbReflectedTypeInfo<>).MakeGenericType(type);
+			FieldInfo namesField = reflectedType.GetField(nameof(CbReflectedTypeInfo<object>.Names))!;
+			namesField.SetValue(null, properties.Select(x => x.Name).ToArray());
 
 			// Write the discriminator
-			CbDiscriminatorAttribute? Discriminator = Type.GetCustomAttribute<CbDiscriminatorAttribute>();
-			if (Discriminator != null)
+			CbDiscriminatorAttribute? discriminator = type.GetCustomAttribute<CbDiscriminatorAttribute>();
+			if (discriminator != null)
 			{
-				FieldInfo DiscriminatorKeyField = GetFieldInfo(() => DiscriminatorKey);
-				Generator.Emit(OpCodes.Ldarg_0);
-				Generator.Emit(OpCodes.Ldsfld, DiscriminatorKeyField);
-				Generator.Emit(OpCodes.Ldstr, Discriminator.Name);
-				Generator.Emit(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.WriteString(default, null!)));
+				FieldInfo discriminatorKeyField = GetFieldInfo(() => s_discriminatorKey);
+				generator.Emit(OpCodes.Ldarg_0);
+				generator.Emit(OpCodes.Ldsfld, discriminatorKeyField);
+				generator.Emit(OpCodes.Ldstr, discriminator.Name);
+				generator.Emit(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.WriteString(default, null!)));
 			}
 
 			// Write all the remaining properties
-			for (int Idx = 0; Idx < Properties.Length; Idx++)
+			for (int idx = 0; idx < properties.Length; idx++)
 			{
-				PropertyInfo Property = Properties[Idx].Property;
-				Type PropertyType = Property.PropertyType;
+				PropertyInfo property = properties[idx].Property;
+				Type propertyType = property.PropertyType;
 
 				// Get the field value
-				Generator.Emit(OpCodes.Ldarg_1);
-				Generator.EmitCall(OpCodes.Call, Property.GetMethod!, null);
+				generator.Emit(OpCodes.Ldarg_1);
+				generator.EmitCall(OpCodes.Call, property.GetMethod!, null);
 
-				Label SkipLabel = Generator.DefineLabel();
+				Label skipLabel = generator.DefineLabel();
 
-				MethodInfo WriteMethod;
-				if (TypeToMethods.TryGetValue(PropertyType, out CbClassConverterMethods? DynamicMethods))
+				MethodInfo writeMethod;
+				if (s_typeToMethods.TryGetValue(propertyType, out CbClassConverterMethods? dynamicMethods))
 				{
-					Generator.Emit(OpCodes.Dup);
-					Generator.Emit(OpCodes.Brfalse, SkipLabel);
-					WriteMethod = DynamicMethods.WriteNamedMethod;
+					generator.Emit(OpCodes.Dup);
+					generator.Emit(OpCodes.Brfalse, skipLabel);
+					writeMethod = dynamicMethods.WriteNamedMethod;
 				}
 				else
 				{
-					ICbConverterMethods Methods = CbConverterMethods.Get(Property);
-					WriteMethod = Methods.WriteNamedMethod;
+					ICbConverterMethods methods = CbConverterMethods.Get(property);
+					writeMethod = methods.WriteNamedMethod;
 				}
 
 				// Store the variable in a local
-				LocalBuilder Local = Generator.DeclareLocal(PropertyType);
-				Generator.Emit(OpCodes.Dup);
-				Generator.Emit(OpCodes.Stloc, Local);
+				LocalBuilder local = generator.DeclareLocal(propertyType);
+				generator.Emit(OpCodes.Dup);
+				generator.Emit(OpCodes.Stloc, local);
 
 				// Call the writer
-				Generator.Emit(OpCodes.Ldarg_0);
+				generator.Emit(OpCodes.Ldarg_0);
 
-				Generator.Emit(OpCodes.Ldsfld, NamesField);
-				Generator.Emit(OpCodes.Ldc_I4, Idx);
-				Generator.Emit(OpCodes.Ldelem, typeof(Utf8String));
+				generator.Emit(OpCodes.Ldsfld, namesField);
+				generator.Emit(OpCodes.Ldc_I4, idx);
+				generator.Emit(OpCodes.Ldelem, typeof(Utf8String));
 
-				Generator.Emit(OpCodes.Ldloc, Local);
-				Generator.EmitCall(OpCodes.Call, WriteMethod, null);
+				generator.Emit(OpCodes.Ldloc, local);
+				generator.EmitCall(OpCodes.Call, writeMethod, null);
 
 				// Remove the duplicated value from the top of the stack
-				Generator.MarkLabel(SkipLabel);
-				Generator.Emit(OpCodes.Pop);
+				generator.MarkLabel(skipLabel);
+				generator.Emit(OpCodes.Pop);
 			}
-			Generator.Emit(OpCodes.Ret);
+			generator.Emit(OpCodes.Ret);
 		}
 
 		class CbPolymorphicDispatch<T>
@@ -284,221 +284,221 @@ namespace EpicGames.Serialization.Converters
 			public static Dictionary<Utf8String, Func<CbField, object>> NameToReadFunc = new Dictionary<Utf8String, Func<CbField, object>>();
 			public static Dictionary<Type, Action<CbWriter, object>> TypeToWriteContentsFunc = new Dictionary<Type, Action<CbWriter, object>>();
 
-			public static object Read(CbField Field)
+			public static object Read(CbField field)
 			{
-				Utf8String Name = Field.AsObject().Find(DiscriminatorKey).AsUtf8String();
-				return NameToReadFunc[Name](Field);
+				Utf8String name = field.AsObject().Find(s_discriminatorKey).AsUtf8String();
+				return NameToReadFunc[name](field);
 			}
 
-			public static void WriteContents(CbWriter Writer, object Value)
+			public static void WriteContents(CbWriter writer, object value)
 			{
-				Type Type = Value!.GetType();
-				TypeToWriteContentsFunc[Type](Writer, Value);
+				Type type = value!.GetType();
+				TypeToWriteContentsFunc[type](writer, value);
 			}
 		}
 
-		static T CreateDelegate<T>(DynamicMethod Method) where T : Delegate
+		static T CreateDelegate<T>(DynamicMethod method) where T : Delegate
 		{
-			return (T)Method.CreateDelegate(typeof(T));
+			return (T)method.CreateDelegate(typeof(T));
 		}
 
-		static void CreateConcreteObjectReader(Type Type, ILGenerator Generator)
+		static void CreateConcreteObjectReader(Type type, ILGenerator generator)
 		{
 			// Construct the object
-			ConstructorInfo? Constructor = Type.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
-			if (Constructor == null)
+			ConstructorInfo? constructor = type.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
+			if (constructor == null)
 			{
-				throw new CbException($"Unable to find default constructor for {Type}");
+				throw new CbException($"Unable to find default constructor for {type}");
 			}
 
 			// Find the reflected properties from this type
-			(Utf8String Name, PropertyInfo Property)[] Properties = GetProperties(Type);
+			(Utf8String Name, PropertyInfo Property)[] properties = GetProperties(type);
 
 			// Create a static type with the required reflection data
-			Type ReflectedType = typeof(CbReflectedTypeInfo<>).MakeGenericType(Type);
-			FieldInfo NamesField = ReflectedType.GetField(nameof(CbReflectedTypeInfo<object>.Names))!;
-			NamesField.SetValue(null, Properties.Select(x => x.Name).ToArray());
-			MethodInfo MatchNameMethod = ReflectedType.GetMethod(nameof(CbReflectedTypeInfo<object>.MatchName))!;
+			Type reflectedType = typeof(CbReflectedTypeInfo<>).MakeGenericType(type);
+			FieldInfo namesField = reflectedType.GetField(nameof(CbReflectedTypeInfo<object>.Names))!;
+			namesField.SetValue(null, properties.Select(x => x.Name).ToArray());
+			MethodInfo matchNameMethod = reflectedType.GetMethod(nameof(CbReflectedTypeInfo<object>.MatchName))!;
 
 			// NewObjectLocal = new Type()
-			LocalBuilder NewObjectLocal = Generator.DeclareLocal(typeof(object));
-			Generator.Emit(OpCodes.Newobj, Constructor);
-			Generator.Emit(OpCodes.Stloc, NewObjectLocal);
+			LocalBuilder newObjectLocal = generator.DeclareLocal(typeof(object));
+			generator.Emit(OpCodes.Newobj, constructor);
+			generator.Emit(OpCodes.Stloc, newObjectLocal);
 
 			// Stack(0) = CbField.CreateIterator()
-			Generator.Emit(OpCodes.Ldarg_0);
-			Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbField>(x => x.CreateIterator()), null);
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.EmitCall(OpCodes.Call, GetMethodInfo<CbField>(x => x.CreateIterator()), null);
 
 			// CbFieldIterator IteratorLocal = Stack(0)
-			LocalBuilder IteratorLocal = Generator.DeclareLocal(typeof(CbFieldIterator));
-			Generator.Emit(OpCodes.Dup);
-			Generator.Emit(OpCodes.Stloc, IteratorLocal);
+			LocalBuilder iteratorLocal = generator.DeclareLocal(typeof(CbFieldIterator));
+			generator.Emit(OpCodes.Dup);
+			generator.Emit(OpCodes.Stloc, iteratorLocal);
 
 			// if(!Stack.Pop().IsValid()) goto ReturnLabel
-			Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbFieldIterator>(x => x.IsValid()), null);
-			Label ReturnLabel = Generator.DefineLabel();
-			Generator.Emit(OpCodes.Brfalse, ReturnLabel);
+			generator.EmitCall(OpCodes.Call, GetMethodInfo<CbFieldIterator>(x => x.IsValid()), null);
+			Label returnLabel = generator.DefineLabel();
+			generator.Emit(OpCodes.Brfalse, returnLabel);
 
 			// NamesLocal = CbReflectedTypeInfo<Type>.Names
-			LocalBuilder NamesLocal = Generator.DeclareLocal(typeof(Utf8String[]));
-			Generator.Emit(OpCodes.Ldsfld, NamesField);
-			Generator.Emit(OpCodes.Stloc, NamesLocal);
+			LocalBuilder namesLocal = generator.DeclareLocal(typeof(Utf8String[]));
+			generator.Emit(OpCodes.Ldsfld, namesField);
+			generator.Emit(OpCodes.Stloc, namesLocal);
 
 			// IterationLoopLabel:
-			Label IterationLoopLabel = Generator.DefineLabel();
-			Generator.MarkLabel(IterationLoopLabel);
+			Label iterationLoopLabel = generator.DefineLabel();
+			generator.MarkLabel(iterationLoopLabel);
 
 			// bool MatchLocal = false
-			LocalBuilder MatchLocal = Generator.DeclareLocal(typeof(bool));
-			Generator.Emit(OpCodes.Ldc_I4_0);
-			Generator.Emit(OpCodes.Stloc, MatchLocal);
+			LocalBuilder matchLocal = generator.DeclareLocal(typeof(bool));
+			generator.Emit(OpCodes.Ldc_I4_0);
+			generator.Emit(OpCodes.Stloc, matchLocal);
 
 			// Stack(0) = IteratorLocal.GetCurrent()
-			Generator.Emit(OpCodes.Ldloc, IteratorLocal);
-			Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbFieldIterator>(x => x.GetCurrent()), null);
+			generator.Emit(OpCodes.Ldloc, iteratorLocal);
+			generator.EmitCall(OpCodes.Call, GetMethodInfo<CbFieldIterator>(x => x.GetCurrent()), null);
 
 			// Try to parse each of the properties in order. If fields are ordered correctly, we will parse the object in a single pass. Otherwise we can loop and start again.
-			LocalBuilder FieldLocal = Generator.DeclareLocal(typeof(CbField));
-			for (int Idx = 0; Idx < Properties.Length; Idx++)
+			LocalBuilder fieldLocal = generator.DeclareLocal(typeof(CbField));
+			for (int idx = 0; idx < properties.Length; idx++)
 			{
-				PropertyInfo Property = Properties[Idx].Property;
+				PropertyInfo property = properties[idx].Property;
 
 				// Get the read method for this property type
-				MethodInfo ReadMethod;
-				if (TypeToMethods.TryGetValue(Property.PropertyType, out CbClassConverterMethods? DynamicMethods))
+				MethodInfo readMethod;
+				if (s_typeToMethods.TryGetValue(property.PropertyType, out CbClassConverterMethods? dynamicMethods))
 				{
-					ReadMethod = DynamicMethods.ReadMethod;
+					readMethod = dynamicMethods.ReadMethod;
 				}
 				else
 				{
-					ReadMethod = CbConverterMethods.Get(Property).ReadMethod;
+					readMethod = CbConverterMethods.Get(property).ReadMethod;
 				}
 
 				// if(!CbReflectedTypeInfo<Type>.MatchName(Stack(0), Idx)) goto SkipPropertyLabel
-				Label SkipPropertyLabel = Generator.DefineLabel();
-				Generator.Emit(OpCodes.Dup); // Current CbField
-				Generator.Emit(OpCodes.Ldc_I4, Idx);
-				Generator.Emit(OpCodes.Call, MatchNameMethod);
-				Generator.Emit(OpCodes.Brfalse, SkipPropertyLabel);
+				Label skipPropertyLabel = generator.DefineLabel();
+				generator.Emit(OpCodes.Dup); // Current CbField
+				generator.Emit(OpCodes.Ldc_I4, idx);
+				generator.Emit(OpCodes.Call, matchNameMethod);
+				generator.Emit(OpCodes.Brfalse, skipPropertyLabel);
 
 				// FieldLocal = Stack.Pop()
-				Generator.Emit(OpCodes.Stloc, FieldLocal);
+				generator.Emit(OpCodes.Stloc, fieldLocal);
 
 				// Property.SetMethod(NewObjectLocal, ReadMethod(FieldLocal))
-				Generator.Emit(OpCodes.Ldloc, NewObjectLocal);
-				Generator.Emit(OpCodes.Ldloc, FieldLocal);
-				Generator.EmitCall(OpCodes.Call, ReadMethod, null);
-				Generator.EmitCall(OpCodes.Call, Property.SetMethod!, null);
+				generator.Emit(OpCodes.Ldloc, newObjectLocal);
+				generator.Emit(OpCodes.Ldloc, fieldLocal);
+				generator.EmitCall(OpCodes.Call, readMethod, null);
+				generator.EmitCall(OpCodes.Call, property.SetMethod!, null);
 
 				// if(!IteratorLocal.MoveNext()) goto ReturnLabel
-				Generator.Emit(OpCodes.Ldloc, IteratorLocal);
-				Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbFieldIterator>(x => x.MoveNext()), null);
-				Generator.Emit(OpCodes.Brfalse, ReturnLabel);
+				generator.Emit(OpCodes.Ldloc, iteratorLocal);
+				generator.EmitCall(OpCodes.Call, GetMethodInfo<CbFieldIterator>(x => x.MoveNext()), null);
+				generator.Emit(OpCodes.Brfalse, returnLabel);
 
 				// MatchLocal = true
-				Generator.Emit(OpCodes.Ldc_I4_1);
-				Generator.Emit(OpCodes.Stloc, MatchLocal);
+				generator.Emit(OpCodes.Ldc_I4_1);
+				generator.Emit(OpCodes.Stloc, matchLocal);
 
 				// Stack(0) = IteratorLocal.GetCurrent()
-				Generator.Emit(OpCodes.Ldloc, IteratorLocal);
-				Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbFieldIterator>(x => x.GetCurrent()), null);
+				generator.Emit(OpCodes.Ldloc, iteratorLocal);
+				generator.EmitCall(OpCodes.Call, GetMethodInfo<CbFieldIterator>(x => x.GetCurrent()), null);
 
 				// SkipPropertyLabel:
-				Generator.MarkLabel(SkipPropertyLabel);
+				generator.MarkLabel(skipPropertyLabel);
 			}
 
 			// Stack.Pop()
-			Generator.Emit(OpCodes.Pop); // Current CbField
+			generator.Emit(OpCodes.Pop); // Current CbField
 
 			// if(MatchLocal) goto IterationLoopLabel
-			Generator.Emit(OpCodes.Ldloc, MatchLocal);
-			Generator.Emit(OpCodes.Brtrue, IterationLoopLabel);
+			generator.Emit(OpCodes.Ldloc, matchLocal);
+			generator.Emit(OpCodes.Brtrue, iterationLoopLabel);
 
 			// if(IteratorLocal.MoveNext()) goto IterationLoopLabel
-			Generator.Emit(OpCodes.Ldloc, IteratorLocal);
-			Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbFieldIterator>(x => x.MoveNext()), null);
-			Generator.Emit(OpCodes.Brtrue, IterationLoopLabel);
+			generator.Emit(OpCodes.Ldloc, iteratorLocal);
+			generator.EmitCall(OpCodes.Call, GetMethodInfo<CbFieldIterator>(x => x.MoveNext()), null);
+			generator.Emit(OpCodes.Brtrue, iterationLoopLabel);
 
 			// return NewObjectLocal
-			Generator.MarkLabel(ReturnLabel);
-			Generator.Emit(OpCodes.Ldloc, NewObjectLocal);
-			Generator.Emit(OpCodes.Ret);
+			generator.MarkLabel(returnLabel);
+			generator.Emit(OpCodes.Ldloc, newObjectLocal);
+			generator.Emit(OpCodes.Ret);
 		}
 
-		static (Utf8String, PropertyInfo)[] GetProperties(Type Type)
+		static (Utf8String, PropertyInfo)[] GetProperties(Type type)
 		{
-			List<(Utf8String, PropertyInfo)> PropertyList = new List<(Utf8String, PropertyInfo)>();
-			foreach (PropertyInfo Property in Type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+			List<(Utf8String, PropertyInfo)> propertyList = new List<(Utf8String, PropertyInfo)>();
+			foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
 			{
-				CbFieldAttribute? Attribute = Property.GetCustomAttribute<CbFieldAttribute>();
-				if (Attribute != null)
+				CbFieldAttribute? attribute = property.GetCustomAttribute<CbFieldAttribute>();
+				if (attribute != null)
 				{
-					Utf8String Name = Attribute.Name ?? Property.Name;
-					PropertyList.Add((Name, Property));
+					Utf8String name = attribute.Name ?? property.Name;
+					propertyList.Add((name, property));
 				}
 			}
-			return PropertyList.ToArray();
+			return propertyList.ToArray();
 		}
 
-		static FieldInfo GetFieldInfo<T>(Expression<Func<T>> Expr)
+		static FieldInfo GetFieldInfo<T>(Expression<Func<T>> expr)
 		{
-			return (FieldInfo)((MemberExpression)Expr.Body).Member;
+			return (FieldInfo)((MemberExpression)expr.Body).Member;
 		}
 
-		static MethodInfo GetMethodInfo(Expression<Action> Expr)
+		static MethodInfo GetMethodInfo(Expression<Action> expr)
 		{
-			return ((MethodCallExpression)Expr.Body).Method;
+			return ((MethodCallExpression)expr.Body).Method;
 		}
 
-		static MethodInfo GetMethodInfo<T>(Expression<Action<T>> Expr)
+		static MethodInfo GetMethodInfo<T>(Expression<Action<T>> expr)
 		{
-			return ((MethodCallExpression)Expr.Body).Method;
+			return ((MethodCallExpression)expr.Body).Method;
 		}
 	}
 
 	class CbClassConverter<T> : CbConverterBase<T>, ICbConverterMethods where T : class
 	{
-		CbClassConverterMethods Methods;
+		CbClassConverterMethods _methods;
 
-		Func<CbField, T> ReadFunc;
-		Action<CbWriter, T> WriteFunc;
-		Action<CbWriter, Utf8String, T> WriteNamedFunc;
+		Func<CbField, T> _readFunc;
+		Action<CbWriter, T> _writeFunc;
+		Action<CbWriter, Utf8String, T> _writeNamedFunc;
 
 		public CbClassConverter()
 		{
-			Methods = CbClassConverterMethods.Create(typeof(T));
+			_methods = CbClassConverterMethods.Create(typeof(T));
 
-			ReadFunc = CreateDelegate<Func<CbField, T>>(Methods.ReadMethod);
-			WriteFunc = CreateDelegate<Action<CbWriter, T>>(Methods.WriteMethod);
-			WriteNamedFunc = CreateDelegate<Action<CbWriter, Utf8String, T>>(Methods.WriteNamedMethod);
+			_readFunc = CreateDelegate<Func<CbField, T>>(_methods.ReadMethod);
+			_writeFunc = CreateDelegate<Action<CbWriter, T>>(_methods.WriteMethod);
+			_writeNamedFunc = CreateDelegate<Action<CbWriter, Utf8String, T>>(_methods.WriteNamedMethod);
 		}
 
-		public MethodInfo ReadMethod => Methods.ReadMethod;
+		public MethodInfo ReadMethod => _methods.ReadMethod;
 
-		public MethodInfo WriteMethod => Methods.WriteMethod;
+		public MethodInfo WriteMethod => _methods.WriteMethod;
 
-		public MethodInfo WriteNamedMethod => Methods.WriteNamedMethod;
+		public MethodInfo WriteNamedMethod => _methods.WriteNamedMethod;
 
-		static TDelegate CreateDelegate<TDelegate>(DynamicMethod Method) where TDelegate : Delegate => (TDelegate)Method.CreateDelegate(typeof(TDelegate));
+		static TDelegate CreateDelegate<TDelegate>(DynamicMethod method) where TDelegate : Delegate => (TDelegate)method.CreateDelegate(typeof(TDelegate));
 
-		public override T Read(CbField Field) => ReadFunc(Field);
+		public override T Read(CbField field) => _readFunc(field);
 
-		public override void Write(CbWriter Writer, T Value) => WriteFunc(Writer, Value);
+		public override void Write(CbWriter writer, T value) => _writeFunc(writer, value);
 
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, T Value) => WriteNamedFunc(Writer, Name, Value);
+		public override void WriteNamed(CbWriter writer, Utf8String name, T value) => _writeNamedFunc(writer, name, value);
 	}
 
 	class CbClassConverterFactory : CbConverterFactory
 	{
-		public override ICbConverter? CreateConverter(Type Type)
+		public override ICbConverter? CreateConverter(Type type)
 		{
-			ICbConverter? Converter = null;
-			if (Type.IsClass)
+			ICbConverter? converter = null;
+			if (type.IsClass)
 			{
-				Type ConverterType = typeof(CbClassConverter<>).MakeGenericType(Type);
-				Converter = (ICbConverter?)Activator.CreateInstance(ConverterType);
+				Type converterType = typeof(CbClassConverter<>).MakeGenericType(type);
+				converter = (ICbConverter?)Activator.CreateInstance(converterType);
 			}
-			return Converter;
+			return converter;
 		}
 	}
 }

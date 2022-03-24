@@ -12,25 +12,25 @@ namespace EpicGames.Serialization.Converters
 {
 	class CbEnumConverter<T> : CbConverterBase<T>, ICbConverterMethods where T : Enum
 	{
-		Func<CbField, T> ReadFunc;
-		Action<CbWriter, T> WriteFunc;
-		Action<CbWriter, Utf8String, T> WriteNamedFunc;
+		Func<CbField, T> _readFunc;
+		Action<CbWriter, T> _writeFunc;
+		Action<CbWriter, Utf8String, T> _writeNamedFunc;
 
 		public CbEnumConverter()
 		{
-			Type Type = typeof(T);
+			Type type = typeof(T);
 
-			ReadMethod = new DynamicMethod($"Read_{Type.Name}", Type, new Type[] { typeof(CbField) });
-			CreateEnumReader(Type, ReadMethod.GetILGenerator());
-			ReadFunc = (Func<CbField, T>)ReadMethod.CreateDelegate(typeof(Func<CbField, T>));
+			ReadMethod = new DynamicMethod($"Read_{type.Name}", type, new Type[] { typeof(CbField) });
+			CreateEnumReader(type, ReadMethod.GetILGenerator());
+			_readFunc = (Func<CbField, T>)ReadMethod.CreateDelegate(typeof(Func<CbField, T>));
 
-			WriteMethod = new DynamicMethod($"Write_{Type.Name}", null, new Type[] { typeof(CbWriter), Type });
-			CreateEnumWriter(Type, WriteMethod.GetILGenerator());
-			WriteFunc = (Action<CbWriter, T>)WriteMethod.CreateDelegate(typeof(Action<CbWriter, T>));
+			WriteMethod = new DynamicMethod($"Write_{type.Name}", null, new Type[] { typeof(CbWriter), type });
+			CreateEnumWriter(type, WriteMethod.GetILGenerator());
+			_writeFunc = (Action<CbWriter, T>)WriteMethod.CreateDelegate(typeof(Action<CbWriter, T>));
 
-			WriteNamedMethod = new DynamicMethod($"WriteNamed_{Type.Name}", null, new Type[] { typeof(CbWriter), typeof(Utf8String), Type });
-			CreateNamedEnumWriter(Type, WriteNamedMethod.GetILGenerator());
-			WriteNamedFunc = (Action<CbWriter, Utf8String, T>)WriteNamedMethod.CreateDelegate(typeof(Action<CbWriter, Utf8String, T>));
+			WriteNamedMethod = new DynamicMethod($"WriteNamed_{type.Name}", null, new Type[] { typeof(CbWriter), typeof(Utf8String), type });
+			CreateNamedEnumWriter(type, WriteNamedMethod.GetILGenerator());
+			_writeNamedFunc = (Action<CbWriter, Utf8String, T>)WriteNamedMethod.CreateDelegate(typeof(Action<CbWriter, Utf8String, T>));
 		}
 
 		public DynamicMethod ReadMethod { get; }
@@ -42,69 +42,69 @@ namespace EpicGames.Serialization.Converters
 		public DynamicMethod WriteNamedMethod { get; }
 		MethodInfo ICbConverterMethods.WriteNamedMethod => WriteNamedMethod;
 
-		public override T Read(CbField Field) => ReadFunc(Field);
+		public override T Read(CbField field) => _readFunc(field);
 
-		public override void Write(CbWriter Writer, T Value) => WriteFunc(Writer, Value);
+		public override void Write(CbWriter writer, T value) => _writeFunc(writer, value);
 
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, T Value) => WriteNamedFunc(Writer, Name, Value);
+		public override void WriteNamed(CbWriter writer, Utf8String name, T value) => _writeNamedFunc(writer, name, value);
 
-		static void CreateEnumReader(Type Type, ILGenerator Generator)
+		static void CreateEnumReader(Type type, ILGenerator generator)
 		{
-			Generator.Emit(OpCodes.Ldarg_0);
-			Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbField>(x => x.AsInt32()), null);
-			Generator.Emit(OpCodes.Ret);
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.EmitCall(OpCodes.Call, GetMethodInfo<CbField>(x => x.AsInt32()), null);
+			generator.Emit(OpCodes.Ret);
 		}
 
-		static void CreateEnumWriter(Type Type, ILGenerator Generator)
+		static void CreateEnumWriter(Type type, ILGenerator generator)
 		{
-			Generator.Emit(OpCodes.Ldarg_1);
+			generator.Emit(OpCodes.Ldarg_1);
 
-			Label SkipLabel = Generator.DefineLabel();
-			Generator.Emit(OpCodes.Brfalse, SkipLabel);
+			Label skipLabel = generator.DefineLabel();
+			generator.Emit(OpCodes.Brfalse, skipLabel);
 
-			Generator.Emit(OpCodes.Ldarg_0);
-			Generator.Emit(OpCodes.Ldarg_1);
-			Generator.Emit(OpCodes.Conv_I8);
-			Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.WriteIntegerValue(0L)), null);
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.Emit(OpCodes.Ldarg_1);
+			generator.Emit(OpCodes.Conv_I8);
+			generator.EmitCall(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.WriteIntegerValue(0L)), null);
 
-			Generator.MarkLabel(SkipLabel);
-			Generator.Emit(OpCodes.Ret);
+			generator.MarkLabel(skipLabel);
+			generator.Emit(OpCodes.Ret);
 		}
 
-		static void CreateNamedEnumWriter(Type Type, ILGenerator Generator)
+		static void CreateNamedEnumWriter(Type type, ILGenerator generator)
 		{
-			Generator.Emit(OpCodes.Ldarg_2);
+			generator.Emit(OpCodes.Ldarg_2);
 
-			Label SkipLabel = Generator.DefineLabel();
-			Generator.Emit(OpCodes.Brfalse, SkipLabel);
+			Label skipLabel = generator.DefineLabel();
+			generator.Emit(OpCodes.Brfalse, skipLabel);
 
-			Generator.Emit(OpCodes.Ldarg_0);
-			Generator.Emit(OpCodes.Ldarg_1);
-			Generator.Emit(OpCodes.Ldarg_2);
-			Generator.Emit(OpCodes.Conv_I8);
-			Generator.EmitCall(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.WriteInteger(default, 0L)), null);
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.Emit(OpCodes.Ldarg_1);
+			generator.Emit(OpCodes.Ldarg_2);
+			generator.Emit(OpCodes.Conv_I8);
+			generator.EmitCall(OpCodes.Call, GetMethodInfo<CbWriter>(x => x.WriteInteger(default, 0L)), null);
 
-			Generator.MarkLabel(SkipLabel);
-			Generator.Emit(OpCodes.Ret);
+			generator.MarkLabel(skipLabel);
+			generator.Emit(OpCodes.Ret);
 		}
 
-		static MethodInfo GetMethodInfo<TArg>(Expression<Action<TArg>> Expr)
+		static MethodInfo GetMethodInfo<TArg>(Expression<Action<TArg>> expr)
 		{
-			return ((MethodCallExpression)Expr.Body).Method;
+			return ((MethodCallExpression)expr.Body).Method;
 		}
 	}
 
 	class CbEnumConverterFactory : CbConverterFactory
 	{
-		public override ICbConverter? CreateConverter(Type Type)
+		public override ICbConverter? CreateConverter(Type type)
 		{
-			ICbConverter? Converter = null;
-			if (Type.IsEnum)
+			ICbConverter? converter = null;
+			if (type.IsEnum)
 			{
-				Type ConverterType = typeof(CbEnumConverter<>).MakeGenericType(Type);
-				Converter = (ICbConverter?)Activator.CreateInstance(ConverterType);
+				Type converterType = typeof(CbEnumConverter<>).MakeGenericType(type);
+				converter = (ICbConverter?)Activator.CreateInstance(converterType);
 			}
-			return Converter;
+			return converter;
 		}
 	}
 }

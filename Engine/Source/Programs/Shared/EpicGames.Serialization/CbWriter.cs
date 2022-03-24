@@ -19,19 +19,19 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Message"></param>
-		public CbWriterException(string Message)
-			: base(Message)
+		/// <param name="message"></param>
+		public CbWriterException(string message)
+			: base(message)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Message"></param>
-		/// <param name="Ex"></param>
-		public CbWriterException(string Message, Exception? Ex)
-			: base(Message, Ex)
+		/// <param name="message"></param>
+		/// <param name="ex"></param>
+		public CbWriterException(string message, Exception? ex)
+			: base(message, ex)
 		{
 		}
 	}
@@ -47,28 +47,28 @@ namespace EpicGames.Serialization
 		/// </summary>
 		class Scope
 		{
-			public CbFieldType FieldType;
-			public CbFieldType UniformFieldType;
-			public int Offset; // Offset to insert the length/count
-			public int Length; // Excludes the size of this field's headers, and child fields' headers.
-			public int Count;
-			public List<Scope> Children = new List<Scope>();
-			public int SizeOfChildHeaders; // Sum of additional headers for child items, recursively.
+			public CbFieldType _fieldType;
+			public CbFieldType _uniformFieldType;
+			public int _offset; // Offset to insert the length/count
+			public int _length; // Excludes the size of this field's headers, and child fields' headers.
+			public int _count;
+			public List<Scope> _children = new List<Scope>();
+			public int _sizeOfChildHeaders; // Sum of additional headers for child items, recursively.
 
-			public Scope(CbFieldType FieldType, CbFieldType UniformFieldType, int Offset)
+			public Scope(CbFieldType fieldType, CbFieldType uniformFieldType, int offset)
 			{
-				Reset(FieldType, UniformFieldType, Offset);
+				Reset(fieldType, uniformFieldType, offset);
 			}
 
-			public void Reset(CbFieldType FieldType, CbFieldType UniformFieldType, int Offset)
+			public void Reset(CbFieldType fieldType, CbFieldType uniformFieldType, int offset)
 			{
-				this.FieldType = FieldType;
-				this.UniformFieldType = UniformFieldType;
-				this.Offset = Offset;
-				this.Length = 0;
-				this.Count = 0;
-				this.Children.Clear();
-				this.SizeOfChildHeaders = 0;
+				this._fieldType = fieldType;
+				this._uniformFieldType = uniformFieldType;
+				this._offset = offset;
+				this._length = 0;
+				this._count = 0;
+				this._children.Clear();
+				this._sizeOfChildHeaders = 0;
 			}
 		}
 
@@ -77,34 +77,34 @@ namespace EpicGames.Serialization
 		/// </summary>
 		class Chunk
 		{
-			public int Offset;
-			public int Length;
-			public byte[] Data;
-			public List<Scope> Scopes = new List<Scope>();
+			public int _offset;
+			public int _length;
+			public byte[] _data;
+			public List<Scope> _scopes = new List<Scope>();
 
-			public Chunk(int Offset, int MaxLength)
+			public Chunk(int offset, int maxLength)
 			{
-				this.Data = new byte[MaxLength];
-				Reset(Offset);
+				this._data = new byte[maxLength];
+				Reset(offset);
 			}
 
-			public void Reset(int Offset)
+			public void Reset(int offset)
 			{
-				this.Offset = Offset;
-				this.Length = 0;
-				this.Scopes.Clear();
+				this._offset = offset;
+				this._length = 0;
+				this._scopes.Clear();
 			}
 		}
 
 		const int DefaultChunkSize = 1024;
 
-		List<Chunk> Chunks = new List<Chunk>();
-		Stack<Scope> OpenScopes = new Stack<Scope>();
-		Chunk CurrentChunk => Chunks[Chunks.Count - 1];
-		Scope CurrentScope => OpenScopes.Peek();
-		int CurrentOffset;
-		List<Chunk> FreeChunks = new List<Chunk>();
-		List<Scope> FreeScopes = new List<Scope>();
+		List<Chunk> _chunks = new List<Chunk>();
+		Stack<Scope> _openScopes = new Stack<Scope>();
+		Chunk CurrentChunk => _chunks[_chunks.Count - 1];
+		Scope CurrentScope => _openScopes.Peek();
+		int _currentOffset;
+		List<Chunk> _freeChunks = new List<Chunk>();
+		List<Scope> _freeScopes = new List<Scope>();
 
 		/// <summary>
 		/// Constructor
@@ -117,11 +117,11 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Reserve">Amount of data to reserve for output</param>
-		public CbWriter(int Reserve)
+		/// <param name="reserve">Amount of data to reserve for output</param>
+		public CbWriter(int reserve)
 		{
-			Chunks.Add(new Chunk(0, Reserve));
-			OpenScopes.Push(new Scope(CbFieldType.Array, CbFieldType.None, 0));
+			_chunks.Add(new Chunk(0, reserve));
+			_openScopes.Push(new Scope(CbFieldType.Array, CbFieldType.None, 0));
 		}
 
 		/// <summary>
@@ -129,57 +129,57 @@ namespace EpicGames.Serialization
 		/// </summary>
 		public void Clear()
 		{
-			foreach (Chunk Chunk in Chunks)
+			foreach (Chunk chunk in _chunks)
 			{
-				FreeChunk(Chunk);
+				FreeChunk(chunk);
 			}
 
-			CurrentOffset = 0;
+			_currentOffset = 0;
 
-			Chunks.Clear();
-			Chunks.Add(AllocChunk(0, DefaultChunkSize));
+			_chunks.Clear();
+			_chunks.Add(AllocChunk(0, DefaultChunkSize));
 
-			OpenScopes.Clear();
-			OpenScopes.Push(AllocScope(CbFieldType.Array, CbFieldType.None, 0));
+			_openScopes.Clear();
+			_openScopes.Push(AllocScope(CbFieldType.Array, CbFieldType.None, 0));
 		}
 
 		/// <summary>
 		/// Allocate a new chunk object
 		/// </summary>
-		/// <param name="Offset">Offset of the chunk</param>
-		/// <param name="MaxLength">Maximum length of the chunk</param>
+		/// <param name="offset">Offset of the chunk</param>
+		/// <param name="maxLength">Maximum length of the chunk</param>
 		/// <returns>New chunk object</returns>
-		Chunk AllocChunk(int Offset, int MaxLength)
+		Chunk AllocChunk(int offset, int maxLength)
 		{
-			for(int Idx = FreeChunks.Count - 1; Idx >= 0; Idx--)
+			for(int idx = _freeChunks.Count - 1; idx >= 0; idx--)
 			{
-				Chunk Chunk = FreeChunks[Idx];
-				if (Chunk.Data.Length >= MaxLength)
+				Chunk chunk = _freeChunks[idx];
+				if (chunk._data.Length >= maxLength)
 				{
-					FreeChunks.RemoveAt(Idx);
-					Chunk.Reset(Offset);
-					return Chunk;
+					_freeChunks.RemoveAt(idx);
+					chunk.Reset(offset);
+					return chunk;
 				}
 			}
-			return new Chunk(Offset, MaxLength);
+			return new Chunk(offset, maxLength);
 		}
 
 		/// <summary>
 		/// Adds a chunk to the free list
 		/// </summary>
-		/// <param name="Chunk"></param>
-		void FreeChunk(Chunk Chunk)
+		/// <param name="chunk"></param>
+		void FreeChunk(Chunk chunk)
 		{
 			// Add the scopes to the free list
-			FreeScopes.AddRange(Chunk.Scopes);
-			Chunk.Scopes.Clear();
+			_freeScopes.AddRange(chunk._scopes);
+			chunk._scopes.Clear();
 
 			// Insert it into the free list, sorted by descending size
-			for (int Idx = 0; ; Idx++)
+			for (int idx = 0; ; idx++)
 			{
-				if (Idx == FreeChunks.Count || Chunk.Data.Length >= FreeChunks[Idx].Data.Length)
+				if (idx == _freeChunks.Count || chunk._data.Length >= _freeChunks[idx]._data.Length)
 				{
-					FreeChunks.Insert(Idx, Chunk);
+					_freeChunks.Insert(idx, chunk);
 					break;
 				}
 			}
@@ -188,55 +188,55 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Allocate a scope object
 		/// </summary>
-		/// <param name="FieldType"></param>
-		/// <param name="UniformFieldType"></param>
-		/// <param name="Offset"></param>
+		/// <param name="fieldType"></param>
+		/// <param name="uniformFieldType"></param>
+		/// <param name="offset"></param>
 		/// <returns></returns>
-		Scope AllocScope(CbFieldType FieldType, CbFieldType UniformFieldType, int Offset)
+		Scope AllocScope(CbFieldType fieldType, CbFieldType uniformFieldType, int offset)
 		{
-			if (FreeScopes.Count > 0)
+			if (_freeScopes.Count > 0)
 			{
-				Scope Scope = FreeScopes[FreeScopes.Count - 1];
-				Scope.Reset(FieldType, UniformFieldType, Offset);
-				FreeScopes.RemoveAt(FreeScopes.Count - 1);
-				return Scope;
+				Scope scope = _freeScopes[_freeScopes.Count - 1];
+				scope.Reset(fieldType, uniformFieldType, offset);
+				_freeScopes.RemoveAt(_freeScopes.Count - 1);
+				return scope;
 			}
-			return new Scope(FieldType, UniformFieldType, Offset);
+			return new Scope(fieldType, uniformFieldType, offset);
 		}
 
 		/// <summary>
 		/// Ensure that a block of contiguous memory of the given length is available in the output buffer
 		/// </summary>
-		/// <param name="Length"></param>
+		/// <param name="length"></param>
 		/// <returns>The allocated memory</returns>
-		Memory<byte> Allocate(int Length)
+		Memory<byte> Allocate(int length)
 		{
-			Chunk LastChunk = CurrentChunk;
-			if (LastChunk.Length + Length > LastChunk.Data.Length)
+			Chunk lastChunk = CurrentChunk;
+			if (lastChunk._length + length > lastChunk._data.Length)
 			{
-				int ChunkSize = Math.Max(Length, DefaultChunkSize);
-				LastChunk = AllocChunk(CurrentOffset, ChunkSize);
-				Chunks.Add(LastChunk);
+				int chunkSize = Math.Max(length, DefaultChunkSize);
+				lastChunk = AllocChunk(_currentOffset, chunkSize);
+				_chunks.Add(lastChunk);
 			}
 
-			Memory<byte> Buffer = LastChunk.Data.AsMemory(LastChunk.Length, Length);
-			LastChunk.Length += Length;
-			CurrentOffset += Length;
-			return Buffer;
+			Memory<byte> buffer = lastChunk._data.AsMemory(lastChunk._length, length);
+			lastChunk._length += length;
+			_currentOffset += length;
+			return buffer;
 		}
 
 		/// <summary>
 		/// Insert a new scope
 		/// </summary>
-		/// <param name="FieldType"></param>
-		/// <param name="UniformFieldType"></param>
-		void PushScope(CbFieldType FieldType, CbFieldType UniformFieldType)
+		/// <param name="fieldType"></param>
+		/// <param name="uniformFieldType"></param>
+		void PushScope(CbFieldType fieldType, CbFieldType uniformFieldType)
 		{
-			Scope NewScope = AllocScope(FieldType, UniformFieldType, CurrentOffset);
-			CurrentScope.Children.Add(NewScope);
-			OpenScopes.Push(NewScope);
+			Scope newScope = AllocScope(fieldType, uniformFieldType, _currentOffset);
+			CurrentScope._children.Add(newScope);
+			_openScopes.Push(newScope);
 
-			CurrentChunk.Scopes.Add(NewScope);
+			CurrentChunk._scopes.Add(newScope);
 		}
 
 		/// <summary>
@@ -244,92 +244,92 @@ namespace EpicGames.Serialization
 		/// </summary>
 		void PopScope()
 		{
-			Scope Scope = CurrentScope;
-			Scope.Length = CurrentOffset - Scope.Offset;
-			Scope.SizeOfChildHeaders = ComputeSizeOfChildHeaders(Scope);
-			OpenScopes.Pop();
+			Scope scope = CurrentScope;
+			scope._length = _currentOffset - scope._offset;
+			scope._sizeOfChildHeaders = ComputeSizeOfChildHeaders(scope);
+			_openScopes.Pop();
 		}
 
 		/// <summary>
 		/// Writes the header for an unnamed field
 		/// </summary>
-		/// <param name="Type"></param>
-		void WriteFieldHeader(CbFieldType Type)
+		/// <param name="type"></param>
+		void WriteFieldHeader(CbFieldType type)
 		{
-			Scope Scope = CurrentScope;
-			if (!CbFieldUtils.IsArray(Scope.FieldType))
+			Scope scope = CurrentScope;
+			if (!CbFieldUtils.IsArray(scope._fieldType))
 			{
-				throw new CbWriterException($"Anonymous fields are not allowed within fields of type {Scope.FieldType}");
+				throw new CbWriterException($"Anonymous fields are not allowed within fields of type {scope._fieldType}");
 			}
 			
-			if (Scope.UniformFieldType == CbFieldType.None)
+			if (scope._uniformFieldType == CbFieldType.None)
 			{
-				Allocate(1).Span[0] = (byte)Type;
+				Allocate(1).Span[0] = (byte)type;
 			}
-			else if (Scope.UniformFieldType != Type)
+			else if (scope._uniformFieldType != type)
 			{
-				throw new CbWriterException($"Mismatched type for uniform array - expected {Scope.UniformFieldType}, not {Type}");
+				throw new CbWriterException($"Mismatched type for uniform array - expected {scope._uniformFieldType}, not {type}");
 			}
-			Scope.Count++;
+			scope._count++;
 		}
 
 		/// <summary>
 		/// Writes the header for a named field
 		/// </summary>
-		/// <param name="Type"></param>
-		/// <param name="Name"></param>
-		void WriteFieldHeader(CbFieldType Type, Utf8String Name)
+		/// <param name="type"></param>
+		/// <param name="name"></param>
+		void WriteFieldHeader(CbFieldType type, Utf8String name)
 		{
-			Scope Scope = CurrentScope;
-			if (!CbFieldUtils.IsObject(Scope.FieldType))
+			Scope scope = CurrentScope;
+			if (!CbFieldUtils.IsObject(scope._fieldType))
 			{
-				throw new CbWriterException($"Named fields are not allowed within fields of type {Scope.FieldType}");
+				throw new CbWriterException($"Named fields are not allowed within fields of type {scope._fieldType}");
 			}
 
-			int NameVarIntLength = VarInt.Measure(Name.Length);
-			if (Scope.UniformFieldType == CbFieldType.None)
+			int nameVarIntLength = VarInt.Measure(name.Length);
+			if (scope._uniformFieldType == CbFieldType.None)
 			{
-				Span<byte> Buffer = Allocate(1 + NameVarIntLength + Name.Length).Span;
-				Buffer[0] = (byte)(Type | CbFieldType.HasFieldName);
-				WriteBinaryPayload(Buffer[1..], Name.Span);
+				Span<byte> buffer = Allocate(1 + nameVarIntLength + name.Length).Span;
+				buffer[0] = (byte)(type | CbFieldType.HasFieldName);
+				WriteBinaryPayload(buffer[1..], name.Span);
 			}
 			else
 			{
-				if (Scope.UniformFieldType != Type)
+				if (scope._uniformFieldType != type)
 				{
-					throw new CbWriterException($"Mismatched type for uniform object - expected {Scope.UniformFieldType}, not {Type}");
+					throw new CbWriterException($"Mismatched type for uniform object - expected {scope._uniformFieldType}, not {type}");
 				}
-				WriteBinaryPayload(Name.Span);
+				WriteBinaryPayload(name.Span);
 			}
-			Scope.Count++;
+			scope._count++;
 		}
 
 		/// <summary>
 		/// Copies an entire field value to the output
 		/// </summary>
-		/// <param name="Field"></param>
-		public void WriteFieldValue(CbField Field)
+		/// <param name="field"></param>
+		public void WriteFieldValue(CbField field)
 		{
-			WriteFieldHeader(Field.GetType());
-			int Size = (int)Field.GetPayloadSize();
-			Field.GetPayloadView().CopyTo(Allocate(Size));
+			WriteFieldHeader(field.GetType());
+			int size = (int)field.GetPayloadSize();
+			field.GetPayloadView().CopyTo(Allocate(size));
 		}
 
 		/// <summary>
 		/// Copies an entire field value to the output, using the name from the field
 		/// </summary>
-		/// <param name="Field"></param>
-		public void WriteField(CbField Field) => WriteField(Field.GetName(), Field);
+		/// <param name="field"></param>
+		public void WriteField(CbField field) => WriteField(field.GetName(), field);
 
 		/// <summary>
 		/// Copies an entire field value to the output
 		/// </summary>
-		/// <param name="Field"></param>
-		public void WriteField(Utf8String Name, CbField Field)
+		/// <param name="field"></param>
+		public void WriteField(Utf8String name, CbField field)
 		{
-			WriteFieldHeader(Field.GetType(), Name);
-			int Size = (int)Field.GetPayloadSize();
-			Field.GetPayloadView().CopyTo(Allocate(Size));
+			WriteFieldHeader(field.GetType(), name);
+			int size = (int)field.GetPayloadSize();
+			field.GetPayloadView().CopyTo(Allocate(size));
 		}
 
 		/// <summary>
@@ -344,10 +344,10 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Begin writing an object field
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		public void BeginObject(Utf8String Name)
+		/// <param name="name">Name of the field</param>
+		public void BeginObject(Utf8String name)
 		{
-			WriteFieldHeader(CbFieldType.Object, Name);
+			WriteFieldHeader(CbFieldType.Object, name);
 			PushScope(CbFieldType.Object, CbFieldType.None);
 		}
 
@@ -371,10 +371,10 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Begin writing a named array field
 		/// </summary>
-		/// <param name="Name"></param>
-		public void BeginArray(Utf8String Name)
+		/// <param name="name"></param>
+		public void BeginArray(Utf8String name)
 		{
-			WriteFieldHeader(CbFieldType.Array, Name);
+			WriteFieldHeader(CbFieldType.Array, name);
 			PushScope(CbFieldType.Array, CbFieldType.None);
 		}
 
@@ -389,24 +389,24 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Begin writing a uniform array field
 		/// </summary>
-		/// <param name="FieldType">The field type for elements in the array</param>
-		public void BeginUniformArray(CbFieldType FieldType)
+		/// <param name="fieldType">The field type for elements in the array</param>
+		public void BeginUniformArray(CbFieldType fieldType)
 		{
 			WriteFieldHeader(CbFieldType.UniformArray);
-			PushScope(CbFieldType.UniformArray, FieldType);
-			Allocate(1).Span[0] = (byte)FieldType;
+			PushScope(CbFieldType.UniformArray, fieldType);
+			Allocate(1).Span[0] = (byte)fieldType;
 		}
 
 		/// <summary>
 		/// Begin writing a named uniform array field
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="FieldType">The field type for elements in the array</param>
-		public void BeginUniformArray(Utf8String Name, CbFieldType FieldType)
+		/// <param name="name">Name of the field</param>
+		/// <param name="fieldType">The field type for elements in the array</param>
+		public void BeginUniformArray(Utf8String name, CbFieldType fieldType)
 		{
-			WriteFieldHeader(CbFieldType.UniformArray, Name);
-			PushScope(CbFieldType.UniformArray, FieldType);
-			Allocate(1).Span[0] = (byte)FieldType;
+			WriteFieldHeader(CbFieldType.UniformArray, name);
+			PushScope(CbFieldType.UniformArray, fieldType);
+			Allocate(1).Span[0] = (byte)fieldType;
 		}
 
 		/// <summary>
@@ -428,411 +428,411 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Write a named null field
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		public void WriteNull(Utf8String Name)
+		/// <param name="name">Name of the field</param>
+		public void WriteNull(Utf8String name)
 		{
-			WriteFieldHeader(CbFieldType.Null, Name);
+			WriteFieldHeader(CbFieldType.Null, name);
 		}
 
 		/// <summary>
 		/// Writes a boolean value
 		/// </summary>
-		/// <param name="Value"></param>
-		public void WriteBoolValue(bool Value)
+		/// <param name="value"></param>
+		public void WriteBoolValue(bool value)
 		{
-			WriteFieldHeader(Value? CbFieldType.BoolTrue : CbFieldType.BoolFalse);
+			WriteFieldHeader(value? CbFieldType.BoolTrue : CbFieldType.BoolFalse);
 		}
 
 		/// <summary>
 		/// Writes a boolean value
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value"></param>
-		public void WriteBool(Utf8String Name, bool Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value"></param>
+		public void WriteBool(Utf8String name, bool value)
 		{
-			WriteFieldHeader(Value ? CbFieldType.BoolTrue : CbFieldType.BoolFalse, Name);
+			WriteFieldHeader(value ? CbFieldType.BoolTrue : CbFieldType.BoolFalse, name);
 		}
 
 		/// <summary>
 		/// Writes the payload for an integer
 		/// </summary>
-		/// <param name="Value">Value to write</param>
-		void WriteIntegerPayload(ulong Value)
+		/// <param name="value">Value to write</param>
+		void WriteIntegerPayload(ulong value)
 		{
-			int Length = VarInt.Measure(Value);
-			Span<byte> Buffer = Allocate(Length).Span;
-			VarInt.Write(Buffer, Value);
+			int length = VarInt.Measure(value);
+			Span<byte> buffer = Allocate(length).Span;
+			VarInt.Write(buffer, value);
 		}
 
 		/// <summary>
 		/// Writes an unnamed integer field
 		/// </summary>
-		/// <param name="Value">Value to be written</param>
-		public void WriteIntegerValue(int Value)
+		/// <param name="value">Value to be written</param>
+		public void WriteIntegerValue(int value)
 		{
-			WriteIntegerValue((long)Value);
+			WriteIntegerValue((long)value);
 		}
 
 		/// <summary>
 		/// Writes an unnamed integer field
 		/// </summary>
-		/// <param name="Value">Value to be written</param>
-		public void WriteIntegerValue(long Value)
+		/// <param name="value">Value to be written</param>
+		public void WriteIntegerValue(long value)
 		{
-			if (Value >= 0)
+			if (value >= 0)
 			{
 				WriteFieldHeader(CbFieldType.IntegerPositive);
-				WriteIntegerPayload((ulong)Value);
+				WriteIntegerPayload((ulong)value);
 			}
 			else
 			{
 				WriteFieldHeader(CbFieldType.IntegerNegative);
-				WriteIntegerPayload((ulong)-Value);
+				WriteIntegerPayload((ulong)-value);
 			}
 		}
 
 		/// <summary>
 		/// Writes an named integer field
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value to be written</param>
-		public void WriteInteger(Utf8String Name, int Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value to be written</param>
+		public void WriteInteger(Utf8String name, int value)
 		{
-			WriteInteger(Name, (long)Value);
+			WriteInteger(name, (long)value);
 		}
 
 		/// <summary>
 		/// Writes an named integer field
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value to be written</param>
-		public void WriteInteger(Utf8String Name, long Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value to be written</param>
+		public void WriteInteger(Utf8String name, long value)
 		{
-			if (Value >= 0)
+			if (value >= 0)
 			{
-				WriteFieldHeader(CbFieldType.IntegerPositive, Name);
-				WriteIntegerPayload((ulong)Value);
+				WriteFieldHeader(CbFieldType.IntegerPositive, name);
+				WriteIntegerPayload((ulong)value);
 			}
 			else
 			{
-				WriteFieldHeader(CbFieldType.IntegerNegative, Name);
-				WriteIntegerPayload((ulong)-Value);
+				WriteFieldHeader(CbFieldType.IntegerNegative, name);
+				WriteIntegerPayload((ulong)-value);
 			}
 		}
 
 		/// <summary>
 		/// Writes an unnamed integer field
 		/// </summary>
-		/// <param name="Value">Value to be written</param>
-		public void WriteIntegerValue(ulong Value)
+		/// <param name="value">Value to be written</param>
+		public void WriteIntegerValue(ulong value)
 		{
 			WriteFieldHeader(CbFieldType.IntegerPositive);
-			WriteIntegerPayload(Value);
+			WriteIntegerPayload(value);
 		}
 
 		/// <summary>
 		/// Writes a named integer field
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value to be written</param>
-		public void WriteInteger(Utf8String Name, ulong Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value to be written</param>
+		public void WriteInteger(Utf8String name, ulong value)
 		{
-			WriteFieldHeader(CbFieldType.IntegerPositive, Name);
-			WriteIntegerPayload(Value);
+			WriteFieldHeader(CbFieldType.IntegerPositive, name);
+			WriteIntegerPayload(value);
 		}
 
 		/// <summary>
 		/// Writes an unnamed double field
 		/// </summary>
-		/// <param name="Value">Value to be written</param>
-		public void WriteDoubleValue(double Value)
+		/// <param name="value">Value to be written</param>
+		public void WriteDoubleValue(double value)
 		{
 			WriteFieldHeader(CbFieldType.Float64);
-			BinaryPrimitives.WriteInt64BigEndian(Allocate(sizeof(double)).Span, BitConverter.DoubleToInt64Bits(Value));
+			BinaryPrimitives.WriteInt64BigEndian(Allocate(sizeof(double)).Span, BitConverter.DoubleToInt64Bits(value));
 		}
 
 		/// <summary>
 		/// Writes a named double field
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value to be written</param>
-		public void WriteDouble(Utf8String Name, double Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value to be written</param>
+		public void WriteDouble(Utf8String name, double value)
 		{
-			WriteFieldHeader(CbFieldType.Float64, Name);
-			BinaryPrimitives.WriteInt64BigEndian(Allocate(sizeof(double)).Span, BitConverter.DoubleToInt64Bits(Value));
+			WriteFieldHeader(CbFieldType.Float64, name);
+			BinaryPrimitives.WriteInt64BigEndian(Allocate(sizeof(double)).Span, BitConverter.DoubleToInt64Bits(value));
 		}
 
 		/// <summary>
 		/// Writes the payload for a <see cref="DateTime"/> value
 		/// </summary>
-		/// <param name="DateTime">The value to write</param>
-		void WriteDateTimePayload(DateTime DateTime)
+		/// <param name="dateTime">The value to write</param>
+		void WriteDateTimePayload(DateTime dateTime)
 		{
-			Span<byte> Buffer = Allocate(sizeof(long)).Span;
-			BinaryPrimitives.WriteInt64BigEndian(Buffer, DateTime.Ticks);
+			Span<byte> buffer = Allocate(sizeof(long)).Span;
+			BinaryPrimitives.WriteInt64BigEndian(buffer, dateTime.Ticks);
 		}
 
 		/// <summary>
 		/// Writes an unnamed <see cref="DateTime"/> field
 		/// </summary>
-		/// <param name="Value">Value to be written</param>
-		public void WriteDateTimeValue(DateTime Value)
+		/// <param name="value">Value to be written</param>
+		public void WriteDateTimeValue(DateTime value)
 		{
 			WriteFieldHeader(CbFieldType.DateTime);
-			WriteDateTimePayload(Value);
+			WriteDateTimePayload(value);
 		}
 
 		/// <summary>
 		/// Writes a named <see cref="DateTime"/> field
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value to be written</param>
-		public void WriteDateTime(Utf8String Name, DateTime Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value to be written</param>
+		public void WriteDateTime(Utf8String name, DateTime value)
 		{
-			WriteFieldHeader(CbFieldType.DateTime, Name);
-			WriteDateTimePayload(Value);
+			WriteFieldHeader(CbFieldType.DateTime, name);
+			WriteDateTimePayload(value);
 		}
 
 		/// <summary>
 		/// Writes the payload for a hash
 		/// </summary>
-		/// <param name="Hash"></param>
-		void WriteHashPayload(IoHash Hash)
+		/// <param name="hash"></param>
+		void WriteHashPayload(IoHash hash)
 		{
-			Span<byte> Buffer = Allocate(IoHash.NumBytes).Span;
-			Hash.CopyTo(Buffer);
+			Span<byte> buffer = Allocate(IoHash.NumBytes).Span;
+			hash.CopyTo(buffer);
 		}
 
 		/// <summary>
 		/// Writes an unnamed <see cref="IoHash"/> field
 		/// </summary>
-		/// <param name="Hash"></param>
-		public void WriteHashValue(IoHash Hash)
+		/// <param name="hash"></param>
+		public void WriteHashValue(IoHash hash)
 		{
 			WriteFieldHeader(CbFieldType.Hash);
-			WriteHashPayload(Hash);
+			WriteHashPayload(hash);
 		}
 
 		/// <summary>
 		/// Writes a named <see cref="IoHash"/> field
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value to be written</param>
-		public void WriteHash(Utf8String Name, IoHash Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value to be written</param>
+		public void WriteHash(Utf8String name, IoHash value)
 		{
-			WriteFieldHeader(CbFieldType.Hash, Name);
-			WriteHashPayload(Value);
+			WriteFieldHeader(CbFieldType.Hash, name);
+			WriteHashPayload(value);
 		}
 
 		/// <summary>
 		/// Writes an unnamed reference to a binary attachment
 		/// </summary>
-		/// <param name="Hash">Hash of the attachment</param>
-		public void WriteBinaryAttachmentValue(IoHash Hash)
+		/// <param name="hash">Hash of the attachment</param>
+		public void WriteBinaryAttachmentValue(IoHash hash)
 		{
 			WriteFieldHeader(CbFieldType.BinaryAttachment);
-			WriteHashPayload(Hash);
+			WriteHashPayload(hash);
 		}
 
 		/// <summary>
 		/// Writes a named reference to a binary attachment
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Hash">Hash of the attachment</param>
-		public void WriteBinaryAttachment(Utf8String Name, IoHash Hash)
+		/// <param name="name">Name of the field</param>
+		/// <param name="hash">Hash of the attachment</param>
+		public void WriteBinaryAttachment(Utf8String name, IoHash hash)
 		{
-			WriteFieldHeader(CbFieldType.BinaryAttachment, Name);
-			WriteHashPayload(Hash);
+			WriteFieldHeader(CbFieldType.BinaryAttachment, name);
+			WriteHashPayload(hash);
 		}
 
 		/// <summary>
 		/// Writes the payload for an object to the buffer
 		/// </summary>
-		/// <param name="Object"></param>
-		void WriteObjectPayload(CbObject Object)
+		/// <param name="obj"></param>
+		void WriteObjectPayload(CbObject obj)
 		{
-			CbField Field = Object.AsField();
-			Memory<byte> Buffer = Allocate(Field.Payload.Length);
-			Field.Payload.CopyTo(Buffer);
+			CbField field = obj.AsField();
+			Memory<byte> buffer = Allocate(field.Payload.Length);
+			field.Payload.CopyTo(buffer);
 		}
 
 		/// <summary>
 		/// Writes an object directly into the writer
 		/// </summary>
-		/// <param name="Object">Object to write</param>
-		public void WriteObject(CbObject Object)
+		/// <param name="obj">Object to write</param>
+		public void WriteObject(CbObject obj)
 		{
 			WriteFieldHeader(CbFieldType.Object);
-			WriteObjectPayload(Object);
+			WriteObjectPayload(obj);
 		}
 
 		/// <summary>
 		/// Writes an object directly into the writer
 		/// </summary>
-		/// <param name="Name">Name of the object</param>
-		/// <param name="Object">Object to write</param>
-		public void WriteObject(Utf8String Name, CbObject Object)
+		/// <param name="name">Name of the object</param>
+		/// <param name="obj">Object to write</param>
+		public void WriteObject(Utf8String name, CbObject obj)
 		{
-			WriteFieldHeader(CbFieldType.Object, Name);
-			WriteObjectPayload(Object);
+			WriteFieldHeader(CbFieldType.Object, name);
+			WriteObjectPayload(obj);
 		}
 
 		/// <summary>
 		/// Writes an unnamed reference to an object attachment
 		/// </summary>
-		/// <param name="Hash">Hash of the attachment</param>
-		public void WriteObjectAttachmentValue(IoHash Hash)
+		/// <param name="hash">Hash of the attachment</param>
+		public void WriteObjectAttachmentValue(IoHash hash)
 		{
 			WriteFieldHeader(CbFieldType.ObjectAttachment);
-			WriteHashPayload(Hash);
+			WriteHashPayload(hash);
 		}
 
 		/// <summary>
 		/// Writes a named reference to an object attachment
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Hash">Hash of the attachment</param>
-		public void WriteObjectAttachment(Utf8String Name, IoHash Hash)
+		/// <param name="name">Name of the field</param>
+		/// <param name="hash">Hash of the attachment</param>
+		public void WriteObjectAttachment(Utf8String name, IoHash hash)
 		{
-			WriteFieldHeader(CbFieldType.ObjectAttachment, Name);
-			WriteHashPayload(Hash);
+			WriteFieldHeader(CbFieldType.ObjectAttachment, name);
+			WriteHashPayload(hash);
 		}
 
 		/// <summary>
 		/// Writes the payload for a binary value
 		/// </summary>
-		/// <param name="Output">Output buffer</param>
-		/// <param name="Value">Value to be written</param>
-		static void WriteBinaryPayload(Span<byte> Output, ReadOnlySpan<byte> Value)
+		/// <param name="output">Output buffer</param>
+		/// <param name="value">Value to be written</param>
+		static void WriteBinaryPayload(Span<byte> output, ReadOnlySpan<byte> value)
 		{
-			int VarIntLength = VarInt.Write(Output, Value.Length);
-			Output = Output[VarIntLength..];
+			int varIntLength = VarInt.Write(output, value.Length);
+			output = output[varIntLength..];
 
-			Value.CopyTo(Output);
-			CheckSize(Output, Value.Length);
+			value.CopyTo(output);
+			CheckSize(output, value.Length);
 		}
 
 		/// <summary>
 		/// Writes the payload for a binary value
 		/// </summary>
-		/// <param name="Value">Value to be written</param>
-		void WriteBinaryPayload(ReadOnlySpan<byte> Value)
+		/// <param name="value">Value to be written</param>
+		void WriteBinaryPayload(ReadOnlySpan<byte> value)
 		{
-			int ValueVarIntLength = VarInt.Measure(Value.Length);
-			Span<byte> Buffer = Allocate(ValueVarIntLength + Value.Length).Span;
-			WriteBinaryPayload(Buffer, Value);
+			int valueVarIntLength = VarInt.Measure(value.Length);
+			Span<byte> buffer = Allocate(valueVarIntLength + value.Length).Span;
+			WriteBinaryPayload(buffer, value);
 		}
 
 		/// <summary>
 		/// Writes an unnamed string value
 		/// </summary>
-		/// <param name="Value">Value to be written</param>
-		public void WriteStringValue(string Value) => WriteUtf8StringValue(Value);
+		/// <param name="value">Value to be written</param>
+		public void WriteStringValue(string value) => WriteUtf8StringValue(value);
 
 		/// <summary>
 		/// Writes a named string value
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value to be written</param>
-		public void WriteString(Utf8String Name, string? Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value to be written</param>
+		public void WriteString(Utf8String name, string? value)
 		{
-			if(Value != null)
+			if(value != null)
 			{
-				WriteUtf8String(Name, Value);
+				WriteUtf8String(name, value);
 			}
 		}
 
 		/// <summary>
 		/// Writes an unnamed string value
 		/// </summary>
-		/// <param name="Value">Value to be written</param>
-		public void WriteUtf8StringValue(Utf8String Value)
+		/// <param name="value">Value to be written</param>
+		public void WriteUtf8StringValue(Utf8String value)
 		{
 			WriteFieldHeader(CbFieldType.String);
-			WriteBinaryPayload(Value.Span);
+			WriteBinaryPayload(value.Span);
 		}
 
 		/// <summary>
 		/// Writes a named string value
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value to be written</param>
-		public void WriteUtf8String(Utf8String Name, Utf8String Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value to be written</param>
+		public void WriteUtf8String(Utf8String name, Utf8String value)
 		{
-			if (Value.Length > 0)
+			if (value.Length > 0)
 			{
-				WriteFieldHeader(CbFieldType.String, Name);
-				WriteBinaryPayload(Value.Span);
+				WriteFieldHeader(CbFieldType.String, name);
+				WriteBinaryPayload(value.Span);
 			}
 		}
 
 		/// <summary>
 		/// Writes an unnamed binary value
 		/// </summary>
-		/// <param name="Value">Value to be written</param>
-		public void WriteBinarySpanValue(ReadOnlySpan<byte> Value)
+		/// <param name="value">Value to be written</param>
+		public void WriteBinarySpanValue(ReadOnlySpan<byte> value)
 		{
 			WriteFieldHeader(CbFieldType.Binary);
-			WriteBinaryPayload(Value);
+			WriteBinaryPayload(value);
 		}
 
 		/// <summary>
 		/// Writes a named binary value
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value to be written</param>
-		public void WriteBinarySpan(Utf8String Name, ReadOnlySpan<byte> Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value to be written</param>
+		public void WriteBinarySpan(Utf8String name, ReadOnlySpan<byte> value)
 		{
-			WriteFieldHeader(CbFieldType.Binary, Name);
-			WriteBinaryPayload(Value);
+			WriteFieldHeader(CbFieldType.Binary, name);
+			WriteBinaryPayload(value);
 		}
 
 		/// <summary>
 		/// Writes an unnamed binary value
 		/// </summary>
-		/// <param name="Value">Value to be written</param>
-		public void WriteBinaryValue(ReadOnlyMemory<byte> Value)
+		/// <param name="value">Value to be written</param>
+		public void WriteBinaryValue(ReadOnlyMemory<byte> value)
 		{
-			WriteBinarySpanValue(Value.Span);
+			WriteBinarySpanValue(value.Span);
 		}
 
 		/// <summary>
 		/// Writes a named binary value
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value to be written</param>
-		public void WriteBinary(Utf8String Name, ReadOnlyMemory<byte> Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value to be written</param>
+		public void WriteBinary(Utf8String name, ReadOnlyMemory<byte> value)
 		{
-			WriteBinarySpan(Name, Value.Span);
+			WriteBinarySpan(name, value.Span);
 		}
 
 		/// <summary>
 		/// Writes an unnamed binary value
 		/// </summary>
-		/// <param name="Value">Value to be written</param>
-		public void WriteBinaryArrayValue(byte[] Value)
+		/// <param name="value">Value to be written</param>
+		public void WriteBinaryArrayValue(byte[] value)
 		{
-			WriteBinarySpanValue(Value.AsSpan());
+			WriteBinarySpanValue(value.AsSpan());
 		}
 
 		/// <summary>
 		/// Writes a named binary value
 		/// </summary>
-		/// <param name="Name">Name of the field</param>
-		/// <param name="Value">Value to be written</param>
-		public void WriteBinaryArray(Utf8String Name, byte[] Value)
+		/// <param name="name">Name of the field</param>
+		/// <param name="value">Value to be written</param>
+		public void WriteBinaryArray(Utf8String name, byte[] value)
 		{
-			WriteBinarySpan(Name, Value.AsSpan());
+			WriteBinarySpan(name, value.AsSpan());
 		}
 
 		/// <summary>
 		/// Check that the given span is the required size
 		/// </summary>
-		/// <param name="Span"></param>
-		/// <param name="ExpectedSize"></param>
-		static void CheckSize(Span<byte> Span, int ExpectedSize)
+		/// <param name="span"></param>
+		/// <param name="expectedSize"></param>
+		static void CheckSize(Span<byte> span, int expectedSize)
 		{
-			if (Span.Length != ExpectedSize)
+			if (span.Length != expectedSize)
 			{
 				throw new Exception("Size of buffer is not correct");
 			}
@@ -844,13 +844,13 @@ namespace EpicGames.Serialization
 		/// <returns>Hash for the object</returns>
 		public IoHash ComputeHash()
 		{
-			using (Blake3.Hasher Hasher = Blake3.Hasher.New())
+			using (Blake3.Hasher hasher = Blake3.Hasher.New())
 			{
-				foreach (ReadOnlyMemory<byte> Segment in EnumerateSegments())
+				foreach (ReadOnlyMemory<byte> segment in EnumerateSegments())
 				{
-					Hasher.Update(Segment.Span);
+					hasher.Update(segment.Span);
 				}
-				return IoHash.FromBlake3(Hasher);
+				return IoHash.FromBlake3(hasher);
 			}
 		}
 
@@ -860,12 +860,12 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public int GetSize()
 		{
-			if (OpenScopes.Count != 1)
+			if (_openScopes.Count != 1)
 			{
 				throw new CbWriterException("Unfinished scope in writer");
 			}
 
-			return CurrentOffset + ComputeSizeOfChildHeaders(CurrentScope);
+			return _currentOffset + ComputeSizeOfChildHeaders(CurrentScope);
 		}
 
 		/// <summary>
@@ -876,68 +876,68 @@ namespace EpicGames.Serialization
 
 		private IEnumerable<ReadOnlyMemory<byte>> EnumerateSegments()
 		{
-			byte[] ScopeHeader = new byte[64];
+			byte[] scopeHeader = new byte[64];
 
-			int SourceOffset = 0;
-			foreach (Chunk Chunk in Chunks)
+			int sourceOffset = 0;
+			foreach (Chunk chunk in _chunks)
 			{
-				foreach (Scope Scope in Chunk.Scopes)
+				foreach (Scope scope in chunk._scopes)
 				{
-					ReadOnlyMemory<byte> SourceData = Chunk.Data.AsMemory(SourceOffset - Chunk.Offset, Scope.Offset - SourceOffset);
-					yield return SourceData;
+					ReadOnlyMemory<byte> sourceData = chunk._data.AsMemory(sourceOffset - chunk._offset, scope._offset - sourceOffset);
+					yield return sourceData;
 
-					SourceOffset += SourceData.Length;
+					sourceOffset += sourceData.Length;
 
-					int HeaderLength = WriteScopeHeader(ScopeHeader, Scope);
-					yield return ScopeHeader.AsMemory(0, HeaderLength);
+					int headerLength = WriteScopeHeader(scopeHeader, scope);
+					yield return scopeHeader.AsMemory(0, headerLength);
 				}
 
-				ReadOnlyMemory<byte> LastSourceData = Chunk.Data.AsMemory(SourceOffset - Chunk.Offset, (Chunk.Offset + Chunk.Length) - SourceOffset);
-				yield return LastSourceData;
+				ReadOnlyMemory<byte> lastSourceData = chunk._data.AsMemory(sourceOffset - chunk._offset, (chunk._offset + chunk._length) - sourceOffset);
+				yield return lastSourceData;
 
-				SourceOffset += LastSourceData.Length;
+				sourceOffset += lastSourceData.Length;
 			}
 		}
 
 		/// <summary>
 		/// Copy the data from this writer to a buffer
 		/// </summary>
-		/// <param name="Buffer"></param>
-		public void CopyTo(Span<byte> Buffer)
+		/// <param name="buffer"></param>
+		public void CopyTo(Span<byte> buffer)
 		{
-			int BufferOffset = 0;
+			int bufferOffset = 0;
 
-			int SourceOffset = 0;
-			foreach (Chunk Chunk in Chunks)
+			int sourceOffset = 0;
+			foreach (Chunk chunk in _chunks)
 			{
-				foreach (Scope Scope in Chunk.Scopes)
+				foreach (Scope scope in chunk._scopes)
 				{
-					ReadOnlySpan<byte> SourceData = Chunk.Data.AsSpan(SourceOffset - Chunk.Offset, Scope.Offset - SourceOffset);
-					SourceData.CopyTo(Buffer.Slice(BufferOffset));
+					ReadOnlySpan<byte> sourceData = chunk._data.AsSpan(sourceOffset - chunk._offset, scope._offset - sourceOffset);
+					sourceData.CopyTo(buffer.Slice(bufferOffset));
 
-					BufferOffset += SourceData.Length;
-					SourceOffset += SourceData.Length;
+					bufferOffset += sourceData.Length;
+					sourceOffset += sourceData.Length;
 
-					BufferOffset += WriteScopeHeader(Buffer.Slice(BufferOffset), Scope);
+					bufferOffset += WriteScopeHeader(buffer.Slice(bufferOffset), scope);
 				}
 
-				ReadOnlySpan<byte> LastSourceData = Chunk.Data.AsSpan(SourceOffset - Chunk.Offset, (Chunk.Offset + Chunk.Length) - SourceOffset);
-				LastSourceData.CopyTo(Buffer.Slice(BufferOffset));
-				BufferOffset += LastSourceData.Length;
-				SourceOffset += LastSourceData.Length;
+				ReadOnlySpan<byte> lastSourceData = chunk._data.AsSpan(sourceOffset - chunk._offset, (chunk._offset + chunk._length) - sourceOffset);
+				lastSourceData.CopyTo(buffer.Slice(bufferOffset));
+				bufferOffset += lastSourceData.Length;
+				sourceOffset += lastSourceData.Length;
 			}
 		}
 
 		class ReadStream : Stream
 		{
-			IEnumerator<ReadOnlyMemory<byte>> Enumerator;
-			ReadOnlyMemory<byte> Segment;
-			long PositionInternal;
+			IEnumerator<ReadOnlyMemory<byte>> _enumerator;
+			ReadOnlyMemory<byte> _segment;
+			long _positionInternal;
 
-			public ReadStream(IEnumerator<ReadOnlyMemory<byte>> Enumerator, long Length)
+			public ReadStream(IEnumerator<ReadOnlyMemory<byte>> enumerator, long length)
 			{
-				this.Enumerator = Enumerator;
-				this.Length = Length;
+				this._enumerator = enumerator;
+				this.Length = length;
 			}
 
 			/// <inheritdoc/>
@@ -955,7 +955,7 @@ namespace EpicGames.Serialization
 			/// <inheritdoc/>
 			public override long Position
 			{
-				get => PositionInternal;
+				get => _positionInternal;
 				set => throw new NotSupportedException();
 			}
 
@@ -963,42 +963,42 @@ namespace EpicGames.Serialization
 			public override void Flush() { }
 
 			/// <inheritdoc/>
-			public override int Read(Span<byte> Buffer)
+			public override int Read(Span<byte> buffer)
 			{
-				int ReadLength = 0;
-				while (ReadLength < Buffer.Length)
+				int readLength = 0;
+				while (readLength < buffer.Length)
 				{
-					while (Segment.Length == 0)
+					while (_segment.Length == 0)
 					{
-						if (!Enumerator.MoveNext())
+						if (!_enumerator.MoveNext())
 						{
-							return ReadLength;
+							return readLength;
 						}
-						Segment = Enumerator.Current;
+						_segment = _enumerator.Current;
 					}
 
-					int CopyLength = Math.Min(Segment.Length, Buffer.Length);
+					int copyLength = Math.Min(_segment.Length, buffer.Length);
 
-					Segment.Span.Slice(0, CopyLength).CopyTo(Buffer.Slice(ReadLength));
-					Segment = Segment.Slice(CopyLength);
+					_segment.Span.Slice(0, copyLength).CopyTo(buffer.Slice(readLength));
+					_segment = _segment.Slice(copyLength);
 
-					PositionInternal += CopyLength;
-					ReadLength += CopyLength;
+					_positionInternal += copyLength;
+					readLength += copyLength;
 				}
-				return ReadLength;
+				return readLength;
 			}
 
 			/// <inheritdoc/>
-			public override int Read(byte[] Buffer, int Offset, int Count) => Read(Buffer.AsSpan(Offset, Count));
+			public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
 
 			/// <inheritdoc/>
-			public override long Seek(long Offset, SeekOrigin Origin) => throw new NotSupportedException();
+			public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
 			/// <inheritdoc/>
-			public override void SetLength(long Value) => throw new NotSupportedException();
+			public override void SetLength(long value) => throw new NotSupportedException();
 
 			/// <inheritdoc/>
-			public override void Write(byte[] Buffer, int Offset, int Count) => throw new NotSupportedException();
+			public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 		}
 
 		/// <summary>
@@ -1016,56 +1016,56 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public byte[] ToByteArray()
 		{
-			byte[] Buffer = new byte[GetSize()];
-			CopyTo(Buffer);
-			return Buffer;
+			byte[] buffer = new byte[GetSize()];
+			CopyTo(buffer);
+			return buffer;
 		}
 
 		/// <summary>
 		/// Comptues the size of any child headers
 		/// </summary>
-		/// <param name="Scope"></param>
-		static int ComputeSizeOfChildHeaders(Scope Scope)
+		/// <param name="scope"></param>
+		static int ComputeSizeOfChildHeaders(Scope scope)
 		{
-			int SizeOfChildHeaders = 0;
-			foreach (Scope ChildScope in Scope.Children)
+			int sizeOfChildHeaders = 0;
+			foreach (Scope childScope in scope._children)
 			{
-				switch (ChildScope.FieldType)
+				switch (childScope._fieldType)
 				{
 					case CbFieldType.Object:
 					case CbFieldType.UniformObject:
-						SizeOfChildHeaders += ChildScope.SizeOfChildHeaders + VarInt.Measure(ChildScope.Length + ChildScope.SizeOfChildHeaders);
+						sizeOfChildHeaders += childScope._sizeOfChildHeaders + VarInt.Measure(childScope._length + childScope._sizeOfChildHeaders);
 						break;
 					case CbFieldType.Array:
 					case CbFieldType.UniformArray:
-						int ArrayCountLength = VarInt.Measure(ChildScope.Count);
-						SizeOfChildHeaders += ChildScope.SizeOfChildHeaders + VarInt.Measure(ChildScope.Length + ChildScope.SizeOfChildHeaders + ArrayCountLength) + ArrayCountLength;
+						int arrayCountLength = VarInt.Measure(childScope._count);
+						sizeOfChildHeaders += childScope._sizeOfChildHeaders + VarInt.Measure(childScope._length + childScope._sizeOfChildHeaders + arrayCountLength) + arrayCountLength;
 						break;
 					default:
 						throw new InvalidOperationException();
 				}
 			}
-			return SizeOfChildHeaders;
+			return sizeOfChildHeaders;
 		}
 
 		/// <summary>
 		/// Writes the header for a particular scope
 		/// </summary>
-		/// <param name="Span"></param>
-		/// <param name="Scope"></param>
+		/// <param name="span"></param>
+		/// <param name="scope"></param>
 		/// <returns></returns>
-		static int WriteScopeHeader(Span<byte> Span, Scope Scope)
+		static int WriteScopeHeader(Span<byte> span, Scope scope)
 		{
-			switch (Scope.FieldType)
+			switch (scope._fieldType)
 			{
 				case CbFieldType.Object:
 				case CbFieldType.UniformObject:
-					return VarInt.Write(Span, Scope.Length + Scope.SizeOfChildHeaders);
+					return VarInt.Write(span, scope._length + scope._sizeOfChildHeaders);
 				case CbFieldType.Array:
 				case CbFieldType.UniformArray:
-					int NumItemsLength = VarInt.Measure(Scope.Count);
-					int Offset = VarInt.Write(Span, Scope.Length + Scope.SizeOfChildHeaders + NumItemsLength);
-					return Offset + VarInt.Write(Span.Slice(Offset), Scope.Count);
+					int numItemsLength = VarInt.Measure(scope._count);
+					int offset = VarInt.Write(span, scope._length + scope._sizeOfChildHeaders + numItemsLength);
+					return offset + VarInt.Write(span.Slice(offset), scope._count);
 				default:
 					throw new InvalidOperationException();
 			}

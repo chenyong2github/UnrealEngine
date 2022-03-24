@@ -20,22 +20,22 @@ namespace EpicGames.Serialization.Converters
 		public MethodInfo WriteNamedMethod { get; }
 		public Action<CbWriter, Utf8String, T> WriteNamedFunc { get; }
 
-		public CbPrimitiveConverter(Expression<Func<CbField, T>> Read, Expression<Action<CbWriter, T>> Write, Expression<Action<CbWriter, Utf8String, T>> WriteNamed)
+		public CbPrimitiveConverter(Expression<Func<CbField, T>> read, Expression<Action<CbWriter, T>> write, Expression<Action<CbWriter, Utf8String, T>> writeNamed)
 		{
-			this.ReadMethod = ((MethodCallExpression)Read.Body).Method;
-			this.ReadFunc = Read.Compile();
+			this.ReadMethod = ((MethodCallExpression)read.Body).Method;
+			this.ReadFunc = read.Compile();
 
-			this.WriteMethod = ((MethodCallExpression)Write.Body).Method;
-			this.WriteFunc = Write.Compile();
+			this.WriteMethod = ((MethodCallExpression)write.Body).Method;
+			this.WriteFunc = write.Compile();
 
-			this.WriteNamedMethod = ((MethodCallExpression)WriteNamed.Body).Method;
-			this.WriteNamedFunc = WriteNamed.Compile();
+			this.WriteNamedMethod = ((MethodCallExpression)writeNamed.Body).Method;
+			this.WriteNamedFunc = writeNamed.Compile();
 		}
 
-		public override T Read(CbField Field) => ReadFunc(Field);
+		public override T Read(CbField field) => ReadFunc(field);
 
-		public override void Write(CbWriter Writer, T Value) => WriteFunc(Writer, Value);
+		public override void Write(CbWriter writer, T value) => WriteFunc(writer, value);
 
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, T Value) => WriteNamedFunc(Writer, Name, Value);
+		public override void WriteNamed(CbWriter writer, Utf8String name, T value) => WriteNamedFunc(writer, name, value);
 	}
 }

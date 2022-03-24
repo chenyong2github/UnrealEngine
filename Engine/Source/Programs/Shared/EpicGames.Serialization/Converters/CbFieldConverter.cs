@@ -14,21 +14,21 @@ namespace EpicGames.Serialization.Converters
 	class CbFieldConverter : CbConverterBase<CbField>
 	{
 		/// <inheritdoc/>
-		public override CbField Read(CbField Field)
+		public override CbField Read(CbField field)
 		{
-			return Field;
+			return field;
 		}
 
 		/// <inheritdoc/>
-		public override void Write(CbWriter Writer, CbField Field)
+		public override void Write(CbWriter writer, CbField field)
 		{
-			Writer.WriteFieldValue(Field);
+			writer.WriteFieldValue(field);
 		}
 
 		/// <inheritdoc/>
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, CbField Value)
+		public override void WriteNamed(CbWriter writer, Utf8String name, CbField value)
 		{
-			Writer.WriteField(Name, Value);
+			writer.WriteField(name, value);
 		}
 	}
 
@@ -39,21 +39,21 @@ namespace EpicGames.Serialization.Converters
 	class CbObjectConverter : CbConverterBase<CbObject>
 	{
 		/// <inheritdoc/>
-		public override CbObject Read(CbField Field)
+		public override CbObject Read(CbField field)
 		{
-			return Field.AsObject();
+			return field.AsObject();
 		}
 
 		/// <inheritdoc/>
-		public override void Write(CbWriter Writer, CbObject Object)
+		public override void Write(CbWriter writer, CbObject obj)
 		{
-			Writer.WriteFieldValue(Object.AsField());
+			writer.WriteFieldValue(obj.AsField());
 		}
 
 		/// <inheritdoc/>
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, CbObject Object)
+		public override void WriteNamed(CbWriter writer, Utf8String name, CbObject obj)
 		{
-			Writer.WriteField(Name, Object.AsField());
+			writer.WriteField(name, obj.AsField());
 		}
 	}
 }

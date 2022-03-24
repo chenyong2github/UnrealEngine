@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using EpicGames.Core;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -16,36 +15,36 @@ namespace EpicGames.Serialization.Tests
 		[TestMethod]
 		public void OverflowTest()
 		{
-			CbWriter Writer = new CbWriter();
+			CbWriter writer = new CbWriter();
 
-			Writer.BeginArray();
-			for (int Idx = 0; Idx < 128; Idx++)
+			writer.BeginArray();
+			for (int idx = 0; idx < 128; idx++)
 			{
-				Writer.WriteNullValue();
+				writer.WriteNullValue();
 			}
-			Writer.EndArray();
+			writer.EndArray();
 
-			byte[] Data = Writer.ToByteArray();
+			writer.ToByteArray();
 		}
 
 		[TestMethod]
 		public void EmbeddedObject()
 		{
-			CbWriter Writer1 = new CbWriter();
-			Writer1.BeginObject();
-			Writer1.WriteInteger("a", 1);
-			Writer1.WriteUtf8String("b", "hello");
-			Writer1.EndObject();
+			CbWriter writer1 = new CbWriter();
+			writer1.BeginObject();
+			writer1.WriteInteger("a", 1);
+			writer1.WriteUtf8String("b", "hello");
+			writer1.EndObject();
 
-			CbObject Object1 = Writer1.ToObject();
+			CbObject object1 = writer1.ToObject();
 
-			CbWriter Writer2 = new CbWriter();
-			Writer2.BeginObject();
-			Writer2.WriteObject("ref", Object1);
-			Writer2.EndObject();
+			CbWriter writer2 = new CbWriter();
+			writer2.BeginObject();
+			writer2.WriteObject("ref", object1);
+			writer2.EndObject();
 
-			CbObject Object2 = Writer2.ToObject();
-			Assert.AreEqual(21, Object2.GetSize());
+			CbObject object2 = writer2.ToObject();
+			Assert.AreEqual(21, object2.GetSize());
 		}
 
 		[TestMethod]
@@ -78,7 +77,6 @@ namespace EpicGames.Serialization.Tests
 			Assert.AreEqual(IoHash.Parse("f855382171a0b1e5a1c653aa6c5121a05cbf4ba0"), inputsFields[0].AsHash());
 		}
 
-
 		[TestMethod]
 		public void ReferenceOutput()
 		{
@@ -100,7 +98,7 @@ namespace EpicGames.Serialization.Tests
 		}
 
 		[TestMethod]
-		public void compact_binary()
+		public void CompactBinary()
 		{
 			byte[] bytes = File.ReadAllBytes("CompactBinaryObjects/compact_binary");
 
@@ -118,8 +116,8 @@ namespace EpicGames.Serialization.Tests
 		[TestMethod]
 		public void WriteArray()
 		{
-			var hash1 = IoHash.Parse("5d8a6dc277c968f0d027c98f879c955c1905c293");
-			var hash2 = IoHash.Parse("313f0d0d334100d83aeb1ee2c42794fd087cb0ae");
+			IoHash hash1 = IoHash.Parse("5d8a6dc277c968f0d027c98f879c955c1905c293");
+			IoHash hash2 = IoHash.Parse("313f0d0d334100d83aeb1ee2c42794fd087cb0ae");
 
 			CbWriter writer = new CbWriter();
 			writer.BeginObject();
@@ -143,11 +141,10 @@ namespace EpicGames.Serialization.Tests
 			CollectionAssert.AreEqual(new IoHash[] { hash1, hash2 }, blobs);
 		}
 
-
 		[TestMethod]
 		public void WriteObject()
 		{
-			var hash1 = IoHash.Parse("5d8a6dc277c968f0d027c98f879c955c1905c293");
+			IoHash hash1 = IoHash.Parse("5d8a6dc277c968f0d027c98f879c955c1905c293");
 
 			CbWriter writer = new CbWriter();
 			writer.BeginObject();
