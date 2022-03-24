@@ -13,6 +13,7 @@
 
 class UStaticMesh;
 class UInterchangeStaticMeshLodDataNode;
+struct FMeshDescription;
 struct FKAggregateGeom;
 
 
