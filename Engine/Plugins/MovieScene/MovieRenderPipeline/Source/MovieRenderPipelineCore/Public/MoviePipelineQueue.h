@@ -264,6 +264,32 @@ public:
 	bool IsConsumed() const;
 
 	/**
+	* Set the job to be enabled/disabled. This is exposed to the user in the Queue UI
+	* so they can disable a job after loading a queue to skip trying to run it.
+	*
+	* For C++ implementations override `virtual void SetIsEnabled_Implementation() override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def set_is_enabled(self, isEnabled):
+	*
+	* @param bInEnabled	True if the job should be enabled and rendered.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	void SetIsEnabled(const bool bInEnabled);
+
+	/**
+	* Gets whether or not the job has been marked as being enabled. 
+	*
+	* For C++ implementations override `virtual bool IsEnabled_Implementation() const override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def is_enabled(self):
+	*		return ?
+	*/
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	bool IsEnabled() const;
+
+	/**
 	* Should be called to clear status and user data after duplication so that jobs stay
 	* unique and don't pick up ids or other unwanted behavior from the pareant job.
 	*
@@ -312,6 +338,8 @@ protected:
 	virtual float GetStatusProgress_Implementation() const { return StatusProgress; }
 	virtual bool IsConsumed_Implementation() const { return bIsConsumed; }
 	virtual void OnDuplicated_Implementation();
+	virtual void SetIsEnabled_Implementation(const bool bInEnabled) { bEnabled = bInEnabled; }
+	virtual bool IsEnabled_Implementation() const { return bEnabled; }
 	// ~UMoviePipelineExecutorJob Interface
 
 public:
@@ -334,10 +362,6 @@ public:
 	/** (Optional) Shot specific information. If a shot is missing from this list it will assume to be enabled and will be rendered. */
 	UPROPERTY(BlueprintReadWrite, Instanced, Category = "Movie Render Pipeline")
 	TArray<UMoviePipelineExecutorShot*> ShotInfo;
-
-	/** Whether this job is enabled and should be rendered. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	bool bEnabled;
 
 	/** 
 	* Arbitrary data that can be associated with the job. Not used by default implementations, nor read.
@@ -363,6 +387,10 @@ private:
 	*/
 	UPROPERTY()
 	TSoftObjectPtr<UMoviePipelineMasterConfig> PresetOrigin;
+
+	/** Whether this job is enabled and should be rendered. */
+	UPROPERTY()
+	bool bEnabled;
 };
 
 /**

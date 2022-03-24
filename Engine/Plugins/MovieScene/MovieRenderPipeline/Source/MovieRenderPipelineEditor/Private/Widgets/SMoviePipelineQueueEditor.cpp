@@ -158,7 +158,7 @@ public:
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
 		if (Job)
 		{
-			return Job->bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			return Job->IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 		}
 
 		return ECheckBoxState::Unchecked;
@@ -175,14 +175,14 @@ public:
 				{
 					if (UMoviePipelineExecutorJob* Job = JobTreeItem->WeakJob.Get())
 					{
-						Job->bEnabled = NewState == ECheckBoxState::Checked;
+						Job->SetIsEnabled(NewState == ECheckBoxState::Checked);
 					}
 				}
 			}
 		}
 		else if (UMoviePipelineExecutorJob* Job = WeakJob.Get())
 		{
-			Job->bEnabled = NewState == ECheckBoxState::Checked;
+			Job->SetIsEnabled(NewState == ECheckBoxState::Checked);
 		}
 	}
 
@@ -309,7 +309,7 @@ public:
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
 		if (Job)
 		{
-			return Job->bEnabled && !Job->IsConsumed();
+			return Job->IsEnabled() && !Job->IsConsumed();
 		}
 		return false;
 	}
@@ -761,7 +761,7 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
 		if (Job)
 		{
-			return Job->bEnabled && !Job->IsConsumed();
+			return Job->IsEnabled()  && !Job->IsConsumed();
 		}
 		return false;
 	}
@@ -878,6 +878,7 @@ TSharedRef<SWidget> SQueueShotListRow::GenerateWidgetForColumn(const FName& Colu
 		.Padding(2.0f)
 		[
 			SNew(SHorizontalBox)
+			.IsEnabled(Item.Get(), &FMoviePipelineShotItem::IsEnabled)
 
 			// Toggle Checkbox for deciding to render or not.
 			+ SHorizontalBox::Slot()
@@ -964,7 +965,8 @@ TSharedRef<SWidget> SQueueShotListRow::GenerateWidgetForColumn(const FName& Colu
 	{
 		return SNew(SWidgetSwitcher)
 			.WidgetIndex(Item.Get(), &FMoviePipelineShotItem::GetStatusIndex)
-			
+			.IsEnabled(Item.Get(), &FMoviePipelineShotItem::IsEnabled)
+
 			// Ready Label
 			+ SWidgetSwitcher::Slot()
 			.VAlign(VAlign_Center)

@@ -286,7 +286,7 @@ bool SMoviePipelineQueuePanel::IsRenderLocalEnabled() const
 	bool bAtLeastOneJobAvailable = false;
 	for (UMoviePipelineExecutorJob* Job : Subsystem->GetQueue()->GetJobs())
 	{
-		if (!Job->IsConsumed())
+		if (!Job->IsConsumed() && Job->IsEnabled())
 		{
 			bAtLeastOneJobAvailable = true;
 			break;
@@ -325,7 +325,7 @@ bool SMoviePipelineQueuePanel::IsRenderRemoteEnabled() const
 	bool bAtLeastOneJobAvailable = false;
 	for (UMoviePipelineExecutorJob* Job : Subsystem->GetQueue()->GetJobs())
 	{
-		if (!Job->IsConsumed())
+		if (!Job->IsConsumed() && Job->IsEnabled())
 		{
 			bAtLeastOneJobAvailable = true;
 			break;

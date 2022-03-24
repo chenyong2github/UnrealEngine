@@ -43,7 +43,7 @@ void UMoviePipelineLinearExecutorBase::StartPipelineByIndex(int32 InPipelineInde
 	
 	CurrentPipelineIndex = InPipelineIndex;
 
-	if (!Queue->GetJobs()[CurrentPipelineIndex]->bEnabled)
+	if (!Queue->GetJobs()[CurrentPipelineIndex]->IsEnabled())
 	{
 		OnIndividualPipelineFinished(nullptr);
 		return;
