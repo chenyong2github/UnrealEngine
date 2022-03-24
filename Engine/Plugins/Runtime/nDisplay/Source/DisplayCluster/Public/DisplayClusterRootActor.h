@@ -116,7 +116,7 @@ protected:
 	bool BuildHierarchy();
 
 public:
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Default Camera"), Category = "NDisplay|Components")
+	UFUNCTION(BlueprintGetter)
 	UDisplayClusterCameraComponent* GetDefaultCamera() const;
 
 	UFUNCTION(BlueprintCallable, Category = "NDisplay|Render")
@@ -239,7 +239,7 @@ private:
 	/**
 	 * Default camera component. It's an outer camera in VP/ICVFX terminology. Always exists on a DCRA instance.
 	 */
-	UPROPERTY(VisibleAnywhere, Category = "NDisplay")
+	UPROPERTY(VisibleAnywhere, BlueprintGetter=GetDefaultCamera, Category = "NDisplay|Components")
 	UDisplayClusterCameraComponent* DefaultViewPoint;
 
 	/**
