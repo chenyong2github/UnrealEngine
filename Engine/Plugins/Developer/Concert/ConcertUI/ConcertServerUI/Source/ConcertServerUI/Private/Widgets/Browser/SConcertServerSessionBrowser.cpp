@@ -55,14 +55,15 @@ TSharedRef<SWidget> SConcertServerSessionBrowser::MakeSessionTableView(const FAr
 {
 	SearchText = MakeShared<FText>();
 	return SAssignNew(SessionBrowser, SConcertSessionBrowser, Controller.Pin().ToSharedRef(), SearchText)
-		.OnSessionDoubleClicked(InArgs._DoubleClickSession)
+		.OnLiveSessionDoubleClicked(InArgs._DoubleClickLiveSession)
+		.OnArchivedSessionDoubleClicked(InArgs._DoubleClickArchivedSession)
 		.OnRequestedDeleteSession(this, &SConcertServerSessionBrowser::RequestDeleteSession)
 		// Pretend a modal dialog said no - RequestDeleteSession will show non-modal dialog
 		.CanDeleteArchivedSession_Lambda([](TSharedPtr<FConcertSessionItem>) { return false; })
 		.CanDeleteActiveSession_Lambda([](TSharedPtr<FConcertSessionItem>) { return false; });
 }
 
-void SConcertServerSessionBrowser::RequestDeleteSession(TSharedPtr<FConcertSessionItem> SessionItem) 
+void SConcertServerSessionBrowser::RequestDeleteSession(const TSharedPtr<FConcertSessionItem>& SessionItem) 
 {
 	if (const TSharedPtr<SMessageDialog> PinnedDeleteSessionDialog = DeleteSessionDialog.Pin())
 	{
@@ -110,7 +111,7 @@ void SConcertServerSessionBrowser::UnregisterFromOnRootWindowClosed() const
 	}
 }
 
-void SConcertServerSessionBrowser::DeleteArchivedSessionWithNonModalQuestion(TSharedPtr<FConcertSessionItem> SessionItem)
+void SConcertServerSessionBrowser::DeleteArchivedSessionWithNonModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem)
 {
 	const FText Message = FText::Format(
 	LOCTEXT("DeleteArchivedDescription", "Deleting a session will cause all associated data to be removed.\n\nDelete {0}?"),
@@ -140,7 +141,7 @@ void SConcertServerSessionBrowser::DeleteArchivedSessionWithNonModalQuestion(TSh
 	Dialog->Show();
 }
 
-void SConcertServerSessionBrowser::DeleteActiveSessionWithNonModalQuestion(TSharedPtr<FConcertSessionItem> SessionItem)
+void SConcertServerSessionBrowser::DeleteActiveSessionWithNonModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem)
 {
 	const int32 NumUsers = Controller.Pin()->GetNumConnectedClients(SessionItem->SessionId);
 	const FText Message = FText::Format(

@@ -45,7 +45,12 @@ void SConcertSessionBrowser::Construct(const FArguments& InArgs, TSharedRef<ICon
 
 	ExtendSessionContextMenu = InArgs._ExtendSessionContextMenu;
 	OnSessionClicked = InArgs._OnSessionClicked;
-	OnSessionDoubleClicked = InArgs._OnSessionDoubleClicked;
+	OnLiveSessionDoubleClicked = InArgs._OnLiveSessionDoubleClicked;
+	OnArchivedSessionDoubleClicked = InArgs._OnArchivedSessionDoubleClicked;
+	if (!OnArchivedSessionDoubleClicked.IsBound())
+	{
+		OnArchivedSessionDoubleClicked = FSessionDelegate::CreateSP(this, &SConcertSessionBrowser::InsertRestoreSessionAsEditableRowInternal);
+	}
 	OnRequestedDeleteSession = InArgs._OnRequestedDeleteSession;
 	CanDeleteArchivedSession = InArgs._CanDeleteArchivedSession;
 	CanDeleteActiveSession = InArgs._CanDeleteActiveSession;
@@ -488,7 +493,7 @@ TSharedRef<ITableRow> SConcertSessionBrowser::MakeActiveSessionRowWidget(const T
 
 	// Add an 'Active Session' row. Clicking the row icon joins the session.
 	return SNew(SSessionRow, ActiveItem, OwnerTable)
-		.OnDoubleClickFunc([this](const TSharedPtr<FConcertSessionItem>& Item) { OnSessionDoubleClicked.ExecuteIfBound(Item); })
+		.OnDoubleClickFunc([this](const TSharedPtr<FConcertSessionItem>& Item) { OnLiveSessionDoubleClicked.ExecuteIfBound(Item); })
 		.OnRenameFunc([this](const TSharedPtr<FConcertSessionItem>& Item, const FString& NewName) { RequestRenameSession(Item, NewName); })
 		.IsDefaultSession([this](TSharedPtr<FConcertSessionItem> ItemPin)
 		{
@@ -507,7 +512,7 @@ TSharedRef<ITableRow> SConcertSessionBrowser::MakeArchivedSessionRowWidget(const
 
 	// Add an 'Archived Session' row. Clicking the row icon adds a 'Restore as' row to the table.
 	return SNew(SSessionRow, ArchivedItem, OwnerTable)
-		.OnDoubleClickFunc([this](const TSharedPtr<FConcertSessionItem>& Item) { InsertRestoreSessionAsEditableRowInternal(Item); })
+		.OnDoubleClickFunc([this](const TSharedPtr<FConcertSessionItem>& Item) { OnArchivedSessionDoubleClicked.Execute(Item); })
 		.OnRenameFunc([this](const TSharedPtr<FConcertSessionItem>& Item, const FString& NewName) { RequestRenameSession(Item, NewName); })
 		.IsDefaultSession([this](TSharedPtr<FConcertSessionItem> ItemPin)
 		{

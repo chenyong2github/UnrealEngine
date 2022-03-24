@@ -17,9 +17,10 @@ class SConcertServerSessionBrowser : public SCompoundWidget
 public:
 	
 	SLATE_BEGIN_ARGS(SConcertServerSessionBrowser) { }
-		SLATE_EVENT(FSessionDelegate, DoubleClickSession)
+		SLATE_EVENT(FSessionDelegate, DoubleClickLiveSession)
+		SLATE_EVENT(FSessionDelegate, DoubleClickArchivedSession)
 	SLATE_END_ARGS()
-	~SConcertServerSessionBrowser();
+	virtual ~SConcertServerSessionBrowser() override;
 
 	void Construct(const FArguments& InArgs, TSharedRef<FConcertServerSessionBrowserController> InController);
 
@@ -49,9 +50,9 @@ private:
 	
 	TSharedRef<SWidget> MakeSessionTableView(const FArguments& InArgs);
 
-	void RequestDeleteSession(TSharedPtr<FConcertSessionItem> SessionItem);
+	void RequestDeleteSession(const TSharedPtr<FConcertSessionItem>& SessionItem);
 	void OnRootWindowClosed(const TSharedRef<SWindow>&) const;
 	void UnregisterFromOnRootWindowClosed() const;
-	void DeleteArchivedSessionWithNonModalQuestion(TSharedPtr<FConcertSessionItem> SessionItem);
-	void DeleteActiveSessionWithNonModalQuestion(TSharedPtr<FConcertSessionItem> SessionItem);
+	void DeleteArchivedSessionWithNonModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem);
+	void DeleteActiveSessionWithNonModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem);
 };

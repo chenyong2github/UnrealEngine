@@ -14,7 +14,10 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Misc/ConfigCacheIni.h"
 #include "OutputLog/Public/OutputLogModule.h"
-#include "Session/ConcertServerSessionTab.h"
+#include "Session/LiveConcertSessionTab.h"
+
+#include "Tabs/Archived/ArchivedConcertSessionTab.h"
+
 #include "Widgets/SWindow.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
@@ -73,30 +76,37 @@ void FConcertServerWindowController::CreateWindow()
 
 	RootWindow->SetOnWindowClosed(FOnWindowClosed::CreateRaw(this, &FConcertServerWindowController::OnWindowClosed));
 	RootWindow->ShowWindow();
-	const bool bForceWindowToFront = true;
+	constexpr bool bForceWindowToFront = true;
 	RootWindow->BringToFront(bForceWindowToFront);
 }
 
 void FConcertServerWindowController::OpenSessionTab(const FGuid& SessionId)
 {
-	if (TSharedPtr<FConcertServerSessionTab> SessionTab = GetOrRegisterSessionTab(SessionId))
+	if (TSharedPtr<FAbstractConcertSessionTab> SessionTab = GetOrRegisterSessionTab(SessionId))
 	{
 		SessionTab->OpenSessionTab();
 	}
 }
 
-TSharedPtr<FConcertServerSessionTab> FConcertServerWindowController::GetOrRegisterSessionTab(const FGuid& SessionId)
+TSharedPtr<FAbstractConcertSessionTab> FConcertServerWindowController::GetOrRegisterSessionTab(const FGuid& SessionId)
 {
+	if (TSharedRef<FAbstractConcertSessionTab>* FoundId = RegisteredSessions.Find(SessionId))
+	{
+		return *FoundId;
+	}
+	
 	if (TSharedPtr<IConcertServerSession> Session = ServerInstance->GetConcertServer()->GetLiveSession(SessionId))
 	{
-		const FConcertSessionInfo& SessionInfo = Session->GetSessionInfo();
-		if (TSharedRef<FConcertServerSessionTab>* FoundId = RegisteredSessions.Find(SessionInfo.SessionId))
-		{
-			return *FoundId;
-		}
-	
-		const TSharedRef<FConcertServerSessionTab> SessionTab = MakeShared<FConcertServerSessionTab>(Session.ToSharedRef(), ServerInstance.ToSharedRef(), RootWindow.ToSharedRef());
-		RegisteredSessions.Add(SessionInfo.SessionId, SessionTab);
+		const TSharedRef<FLiveConcertSessionTab> SessionTab = MakeShared<FLiveConcertSessionTab>(Session.ToSharedRef(), ServerInstance.ToSharedRef(), RootWindow.ToSharedRef());
+		RegisteredSessions.Add(SessionId, SessionTab);
+		return SessionTab;
+	}
+
+	const bool bIsArchivedSession = ServerInstance->GetConcertServer()->GetArchivedSessionInfo(SessionId).IsSet();
+	if (bIsArchivedSession)
+	{
+		const TSharedRef<FArchivedConcertSessionTab> SessionTab = MakeShared<FArchivedConcertSessionTab>(SessionId, ServerInstance.ToSharedRef(), RootWindow.ToSharedRef());
+		RegisteredSessions.Add(SessionId, SessionTab);
 		return SessionTab;
 	}
 	

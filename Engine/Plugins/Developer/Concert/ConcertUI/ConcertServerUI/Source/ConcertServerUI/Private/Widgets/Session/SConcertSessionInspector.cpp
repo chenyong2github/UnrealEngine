@@ -5,6 +5,8 @@
 #include "Framework/Docking/TabManager.h"
 #include "Session/History/SSessionHistory.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "SConcertSessionInspector"
 
@@ -21,13 +23,6 @@ void SConcertSessionInspector::Construct(const FArguments& InArgs, const FRequir
 		.Padding(FMargin(1.0f, 2.0f))
 		[
 			SNew(SVerticalBox)
-
-			// Toolbar
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNullWidget::NullWidget
-			]
 
 			// Content
 			+SVerticalBox::Slot()

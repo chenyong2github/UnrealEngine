@@ -1008,9 +1008,9 @@ private:
 	// Layout the 'session|details' split view.
 	TSharedRef<SWidget> MakeBrowserContent(TSharedPtr<FText> InSearchText);
 	void ExtendControlButtons(FExtender& Extender);
-	void ExtendSessionContextMenu(TSharedPtr<FConcertSessionItem> Item, FExtender& Extender);
+	void ExtendSessionContextMenu(const TSharedPtr<FConcertSessionItem>& Item, FExtender& Extender);
 	TSharedRef<SWidget> MakeUserAndSettings();
-	TSharedRef<SWidget> MakeOverlayedTableView(TSharedRef<SWidget> TableView);
+	TSharedRef<SWidget> MakeOverlayedTableView(const TSharedRef<SWidget>& TableView);
 	
 	// Layouts the session detail panel.
 	TSharedRef<SWidget> MakeSessionDetails(TSharedPtr<FConcertSessionItem> Item);
@@ -1035,9 +1035,9 @@ private:
 	void RequestJoinSession(const TSharedPtr<FConcertSessionItem>& ActiveItem);
 
 	// Manipulates the sessions view (the array and the UI).
-	void OnSessionSelectionChanged(TSharedPtr<FConcertSessionItem> SelectedSession);
-	void OnSessionDoubleClicked(TSharedPtr<FConcertSessionItem> SelectedSession);
-	bool ConfirmDeleteSessionWithDialog(TSharedPtr<FConcertSessionItem> SessionItem);
+	void OnSessionSelectionChanged(const TSharedPtr<FConcertSessionItem>& SessionItem);
+	void OnSessionDoubleClicked(const TSharedPtr<FConcertSessionItem>& SessionItem);
+	bool ConfirmDeleteSessionWithDialog(const TSharedPtr<FConcertSessionItem>& SessionItem);
 
 	// Update server/session/clients lists.
 	EActiveTimerReturnType TickDiscovery(double InCurrentTime, float InDeltaTime);
@@ -1173,7 +1173,7 @@ TSharedRef<SWidget> SConcertClientSessionBrowser::MakeBrowserContent(TSharedPtr<
 						MakeUserAndSettings()
 					]
 					.OnSessionClicked_Raw(this, &SConcertClientSessionBrowser::OnSessionSelectionChanged)
-					.OnSessionDoubleClicked_Raw(this, &SConcertClientSessionBrowser::OnSessionDoubleClicked)
+					.OnLiveSessionDoubleClicked_Raw(this, &SConcertClientSessionBrowser::OnSessionDoubleClicked)
 					.OnRequestedDeleteSession_Lambda([this](auto) { UpdateDiscovery(); /* Don't wait up to 1s, kick discovery right now */ })
 					.CanDeleteArchivedSession(this, &SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog)
 					.CanDeleteActiveSession(this, &SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog)
@@ -1292,7 +1292,7 @@ void SConcertClientSessionBrowser::ExtendControlButtons(FExtender& Extender)
 		}));
 }
 
-void SConcertClientSessionBrowser::ExtendSessionContextMenu(TSharedPtr<FConcertSessionItem> Item, FExtender& Extender)
+void SConcertClientSessionBrowser::ExtendSessionContextMenu(const TSharedPtr<FConcertSessionItem>& Item, FExtender& Extender)
 {
 	if (Item->Type == FConcertSessionItem::EType::ActiveSession)
 	{
@@ -1360,7 +1360,7 @@ TSharedRef<SWidget> SConcertClientSessionBrowser::MakeUserAndSettings()
 		];
 }
 
-TSharedRef<SWidget> SConcertClientSessionBrowser::MakeOverlayedTableView(TSharedRef<SWidget> SessionTable)
+TSharedRef<SWidget> SConcertClientSessionBrowser::MakeOverlayedTableView(const TSharedRef<SWidget>& SessionTable)
 {
 	return SNew(SOverlay)
 		+SOverlay::Slot()
@@ -1693,7 +1693,7 @@ TSharedRef<ITableRow> SConcertClientSessionBrowser::OnGenerateClientRowWidget(TS
 	];
 }
 
-void SConcertClientSessionBrowser::OnSessionSelectionChanged(TSharedPtr<FConcertSessionItem> SelectedSession)
+void SConcertClientSessionBrowser::OnSessionSelectionChanged(const TSharedPtr<FConcertSessionItem>& SelectedSession)
 {
 	// Clear the list of clients (if any)
 	Clients.Reset();
@@ -1702,7 +1702,7 @@ void SConcertClientSessionBrowser::OnSessionSelectionChanged(TSharedPtr<FConcert
 	SessionDetailsView->SetContent(MakeSessionDetails(SelectedSession));
 }
 
-void SConcertClientSessionBrowser::OnSessionDoubleClicked(TSharedPtr<FConcertSessionItem> SelectedSession)
+void SConcertClientSessionBrowser::OnSessionDoubleClicked(const TSharedPtr<FConcertSessionItem>& SelectedSession)
 {
 	switch (SelectedSession->Type)
 	{
@@ -1717,7 +1717,7 @@ void SConcertClientSessionBrowser::OnSessionDoubleClicked(TSharedPtr<FConcertSes
 	}
 }
 
-bool SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog(TSharedPtr<FConcertSessionItem> SessionItem)
+bool SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog(const TSharedPtr<FConcertSessionItem>& SessionItem)
 {
 	const FText SessionNameInText = FText::FromString(SessionItem->SessionName);
 	const FText SeverNameInText = FText::FromString(SessionItem->ServerName);

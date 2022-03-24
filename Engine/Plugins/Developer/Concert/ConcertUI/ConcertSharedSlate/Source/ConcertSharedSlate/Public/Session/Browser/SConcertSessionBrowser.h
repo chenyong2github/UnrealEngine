@@ -21,11 +21,11 @@ class STableViewBase;
 struct FConcertSessionClientInfo;
 struct FConcertSessionInfo;
 
-DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FExtendSessionTable, TSharedRef<SWidget> /* TableView */);
+DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FExtendSessionTable, const TSharedRef<SWidget>& /* TableView */);
 DECLARE_DELEGATE_OneParam(FExtenderDelegate, FExtender&);
-DECLARE_DELEGATE_TwoParams(FExtendSessionContextMenu, TSharedPtr<FConcertSessionItem>, FExtender&)
-DECLARE_DELEGATE_OneParam(FSessionDelegate, TSharedPtr<FConcertSessionItem> /*Session*/);
-DECLARE_DELEGATE_RetVal_OneParam(bool, FCanRemoveSession, TSharedPtr<FConcertSessionItem> /* SessionItem */);
+DECLARE_DELEGATE_TwoParams(FExtendSessionContextMenu, const TSharedPtr<FConcertSessionItem>&, FExtender&)
+DECLARE_DELEGATE_OneParam(FSessionDelegate, const TSharedPtr<FConcertSessionItem>& /*Session*/);
+DECLARE_DELEGATE_RetVal_OneParam(bool, FCanRemoveSession, const TSharedPtr<FConcertSessionItem>& /* SessionItem */);
 
 /**
  * Enables the user to browse/search/filter/sort active and archived sessions, create new session,
@@ -67,10 +67,12 @@ public:
 	/** Custom slot placed to the right of the search bar */
 	SLATE_NAMED_SLOT(FArguments, RightOfSearchBar)
 	
-	/** Called when this session is clicked */
+	/** Called when a live or archived session is clicked */
 	SLATE_EVENT(FSessionDelegate, OnSessionClicked)
-	/** Called when this session is double-clicked */
-	SLATE_EVENT(FSessionDelegate, OnSessionDoubleClicked)
+	/** Called when a live session is double-clicked */
+	SLATE_EVENT(FSessionDelegate, OnLiveSessionDoubleClicked)
+	/** Called when an archived session is double-clicked. If unset, the default behaviour is to rename the session. */
+	SLATE_EVENT(FSessionDelegate, OnArchivedSessionDoubleClicked)
 	/** Called after a user has requested to delete a session */
 	SLATE_EVENT(FSessionDelegate, OnRequestedDeleteSession)
 
@@ -189,8 +191,12 @@ private:
 	TAttribute<FString> DefaultServerUrl;
 	
 	FExtendSessionContextMenu ExtendSessionContextMenu;
+	/** Called when a live or archived session is clicked */
 	FSessionDelegate OnSessionClicked;
-	FSessionDelegate OnSessionDoubleClicked;
+	FSessionDelegate OnLiveSessionDoubleClicked;
+	/** If unset, the default behaviour is to rename the session. */
+	FSessionDelegate OnArchivedSessionDoubleClicked;
+	/** Called after a live or archived session was requested to be deleted (it may or may not have been deleted).*/
 	FSessionDelegate OnRequestedDeleteSession;
 	FCanRemoveSession CanDeleteArchivedSession;
 	FCanRemoveSession CanDeleteActiveSession;

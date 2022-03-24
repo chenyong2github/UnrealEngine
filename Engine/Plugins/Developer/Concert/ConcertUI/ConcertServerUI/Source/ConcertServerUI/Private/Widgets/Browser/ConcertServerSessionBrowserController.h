@@ -72,7 +72,7 @@ private:
 	void RefreshSessionList();
 
 	// Session actions
-	void OpenSession(TSharedPtr<FConcertSessionItem> SessionItem);
+	void OpenSession(const TSharedPtr<FConcertSessionItem>& SessionItem);
 	void RenameSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName);
 	void DeleteSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId);
 

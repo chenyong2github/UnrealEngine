@@ -147,7 +147,8 @@ TSharedRef<SDockTab> FConcertServerSessionBrowserController::SpawnSessionBrowser
 		.TabRole(MajorTab)
 		[
 			SAssignNew(ConcertBrowser, SConcertServerSessionBrowser, SharedThis(this))
-				.DoubleClickSession(this, &FConcertServerSessionBrowserController::OpenSession)
+				.DoubleClickLiveSession(this, &FConcertServerSessionBrowserController::OpenSession)
+				.DoubleClickArchivedSession(this, &FConcertServerSessionBrowserController::OpenSession)
 		];
 
 	FGlobalTabmanager::Get()->SetMainTab(DockTab);
@@ -164,7 +165,7 @@ void FConcertServerSessionBrowserController::RefreshSessionList()
 	}
 }
 
-void FConcertServerSessionBrowserController::OpenSession(TSharedPtr<FConcertSessionItem> SessionItem)
+void FConcertServerSessionBrowserController::OpenSession(const TSharedPtr<FConcertSessionItem>& SessionItem)
 {
 	Owner.Pin()->OpenSessionTab(SessionItem->SessionId);
 }
