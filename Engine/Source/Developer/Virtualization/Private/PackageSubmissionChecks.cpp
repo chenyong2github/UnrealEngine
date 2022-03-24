@@ -137,12 +137,6 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 		return;
 	}
 
-	// Can't virtualize if the payload trailer system is disabled
-	if (!FPackageTrailer::IsEnabled())
-	{
-		return;
-	}
-
 	if (!System.IsPushingEnabled(EStorageType::Persistent))
 	{
 		UE_LOG(LogVirtualization, Verbose, TEXT("Pushing to persistent backend storage is disabled"));
