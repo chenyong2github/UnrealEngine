@@ -49,6 +49,34 @@ namespace UnrealBuildTool
 			return InPlatform.ToString();
 		}
 
+		public override string GetVisualStudioUserFileStrings(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, string InConditionString, TargetRules InTargetRules, FileReference TargetRulesPath, FileReference ProjectFilePath, string ProjectName, string? ForeignUProjectPath)
+		{
+			StringBuilder VCUserFileContent = new StringBuilder();
+
+			VCUserFileContent.AppendLine("  <PropertyGroup {0}>", InConditionString);
+			if (InTargetRules.Type != TargetType.Game)
+			{
+				string DebugOptions = "";
+
+				if (ForeignUProjectPath != null)
+				{
+					DebugOptions += ForeignUProjectPath;
+					DebugOptions += " -skipcompile";
+				}
+				else if (InTargetRules.Type == TargetType.Editor && ProjectName != ProjectFileGenerator.EngineProjectFileNameBase)
+				{
+					DebugOptions += ProjectName;
+				}
+
+				VCUserFileContent.AppendLine("    <LocalDebuggerCommandArguments>{0}</LocalDebuggerCommandArguments>", DebugOptions);
+			}
+			VCUserFileContent.AppendLine("    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>");
+			VCUserFileContent.AppendLine("  </PropertyGroup>");
+
+
+			return VCUserFileContent.ToString();
+		}
+
 		public override bool RequiresVSUserFileGeneration()
 		{
 			return true;

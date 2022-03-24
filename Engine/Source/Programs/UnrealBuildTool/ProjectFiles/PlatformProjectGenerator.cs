@@ -258,6 +258,24 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Get the text to insert into the user file for the given platform/configuration/target
+		/// </summary>
+		/// <param name="InPlatform">The platform being added</param>
+		/// <param name="InConfiguration">The configuration being added</param>
+		/// <param name="InConditionString">The condition string </param>
+		/// <param name="InTargetRules">The target rules </param>
+		/// <param name="TargetRulesPath">The target rules path</param>
+		/// <param name="ProjectFilePath">The project file path</param>
+		/// <param name="ProjectName">The name of the project</param>
+		/// <param name="ForeignUProjectPath">Path to foreign .uproject file, if any</param>
+		/// <returns>The string to append to the user file</returns>
+		public virtual string GetVisualStudioUserFileStrings(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration,
+			string InConditionString, TargetRules InTargetRules, FileReference TargetRulesPath, FileReference ProjectFilePath, string ProjectName, string? ForeignUProjectPath)
+		{
+			return GetVisualStudioUserFileStrings(InPlatform, InConfiguration, InConditionString, InTargetRules, TargetRulesPath, ProjectFilePath);
+		}
+
+		/// <summary>
 		/// For Additional Project Property files that need to be written out.  This is currently used only on Android. 
 		/// </summary>
 		public virtual void WriteAdditionalPropFile()
