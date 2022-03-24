@@ -56,6 +56,8 @@ FPhysicsAssetRenderSettings::FPhysicsAssetRenderSettings()
 	, COMRenderColor(255, 255, 100)
 	, COMRenderSize(5.0f)
 	, InfluenceLineLength(2.0f)
+	, BoneUnselectedMaterial(nullptr)
+	, BoneNoCollisionMaterial(nullptr)
 {}
 
 void FPhysicsAssetRenderSettings::InitPhysicsAssetRenderSettings(UMaterialInterface* InBoneUnselectedMaterial, UMaterialInterface* InBoneNoCollisionMaterial)
