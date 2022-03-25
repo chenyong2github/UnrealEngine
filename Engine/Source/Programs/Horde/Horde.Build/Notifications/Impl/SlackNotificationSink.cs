@@ -424,7 +424,7 @@ namespace Horde.Build.Notifications.Impl
 						autoSubmitMessage = $"\n\n```{job.AutoSubmitMessage}```";
 					}
 
-					attachment.Blocks.Add(new SectionBlock($"Files in CL {job.PreflightChange} were *not submitted*. Please resolve the following issues and submit manually.{job.AutoSubmitMessage}"));
+					attachment.Blocks.Add(new SectionBlock($"Files in CL *{job.PreflightChange}* were *not submitted*. Please resolve the following issues and submit manually.{autoSubmitMessage}"));
 				}
 			}
 
