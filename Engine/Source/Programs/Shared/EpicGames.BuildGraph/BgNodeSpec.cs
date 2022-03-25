@@ -380,7 +380,7 @@ namespace EpicGames.BuildGraph
 			bool runEarly = CanRunEarly.Compute(context);
 
 			BgNode node = new BgNode(name, inputDependencies, outputNames, inputNodes, afterNodes, Array.Empty<FileReference>());
-			node.BRunEarly = runEarly;
+			node.RunEarly = runEarly;
 
 			BgScriptLocation location = new BgScriptLocation("(unknown)", "(unknown)", 1);
 

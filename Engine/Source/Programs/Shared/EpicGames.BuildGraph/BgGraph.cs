@@ -411,11 +411,11 @@ namespace EpicGames.BuildGraph
 							jsonWriter.WriteObjectStart();
 							jsonWriter.WriteValue("Name", node.Name);
 							jsonWriter.WriteValue("DependsOn", String.Join(";", node.GetDirectOrderDependencies().Where(x => nodesToExecute.Contains(x))));
-							jsonWriter.WriteValue("RunEarly", node.BRunEarly);
+							jsonWriter.WriteValue("RunEarly", node.RunEarly);
 							jsonWriter.WriteObjectStart("Notify");
 							jsonWriter.WriteValue("Default", String.Join(";", node.NotifyUsers));
 							jsonWriter.WriteValue("Submitters", String.Join(";", node.NotifySubmitters));
-							jsonWriter.WriteValue("Warnings", node.BNotifyOnWarnings);
+							jsonWriter.WriteValue("Warnings", node.NotifyOnWarnings);
 							jsonWriter.WriteObjectEnd();
 							jsonWriter.WriteObjectEnd();
 						}
@@ -510,8 +510,8 @@ namespace EpicGames.BuildGraph
 					{
 						jsonWriter.WriteObjectStart();
 						jsonWriter.WriteValue("Name", node.Name);
-						jsonWriter.WriteValue("RunEarly", node.BRunEarly);
-						jsonWriter.WriteValue("Warnings", node.BNotifyOnWarnings);
+						jsonWriter.WriteValue("RunEarly", node.RunEarly);
+						jsonWriter.WriteValue("Warnings", node.NotifyOnWarnings);
 
 						jsonWriter.WriteArrayStart("InputDependencies");
 						foreach (string inputDependency in node.GetDirectInputDependencies().Select(x => x.Name))
@@ -674,7 +674,7 @@ namespace EpicGames.BuildGraph
 				logger.LogInformation("        Agent: {0} ({1})", agent.Name, String.Join(";", agent.PossibleTypes));
 				foreach (BgNode node in agent.Nodes)
 				{
-					logger.LogInformation("            Node: {0}{1}", node.Name, completedNodes.Contains(node) ? " (completed)" : node.BRunEarly ? " (early)" : "");
+					logger.LogInformation("            Node: {0}{1}", node.Name, completedNodes.Contains(node) ? " (completed)" : node.RunEarly ? " (early)" : "");
 					if (printOptions.HasFlag(GraphPrintOptions.ShowDependencies))
 					{
 						HashSet<BgNode> inputDependencies = new HashSet<BgNode>(node.GetDirectInputDependencies());
@@ -690,7 +690,7 @@ namespace EpicGames.BuildGraph
 					}
 					if (printOptions.HasFlag(GraphPrintOptions.ShowNotifications))
 					{
-						string label = node.BNotifyOnWarnings ? "warnings" : "errors";
+						string label = node.NotifyOnWarnings ? "warnings" : "errors";
 						foreach (string user in node.NotifyUsers)
 						{
 							logger.LogInformation("                {0}> {1}", label, user);

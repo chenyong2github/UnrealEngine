@@ -1830,8 +1830,8 @@ namespace EpicGames.BuildGraph
 				{
 					// Add it to the node lookup
 					BgNode newNode = new BgNode(name, inputs.ToArray(), validOutputNames.ToArray(), inputDependencies.ToArray(), orderDependencies.ToArray(), requiredTokens.ToArray());
-					newNode.BRunEarly = bRunEarly;
-					newNode.BNotifyOnWarnings = bNotifyOnWarnings;
+					newNode.RunEarly = bRunEarly;
+					newNode.NotifyOnWarnings = bNotifyOnWarnings;
 					_graph.NameToNode.Add(name, newNode);
 
 					// Register all the output tags in the global name table.
@@ -1972,7 +1972,7 @@ namespace EpicGames.BuildGraph
 					}
 					if (bWarnings.HasValue)
 					{
-						node.BNotifyOnWarnings = bWarnings.Value;
+						node.NotifyOnWarnings = bWarnings.Value;
 					}
 				}
 

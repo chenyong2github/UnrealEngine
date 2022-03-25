@@ -97,12 +97,12 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Whether to start this node as soon as its dependencies are satisfied, rather than waiting for all of its agent's dependencies to be met.
 		/// </summary>
-		public bool BRunEarly { get; set; } = false;
+		public bool RunEarly { get; set; } = false;
 
 		/// <summary>
 		/// Whether to ignore warnings produced by this node
 		/// </summary>
-		public bool BNotifyOnWarnings { get; set; } = true;
+		public bool NotifyOnWarnings { get; set; } = true;
 
 		/// <summary>
 		/// Constructor
@@ -191,14 +191,14 @@ namespace EpicGames.BuildGraph
 				writer.WriteAttributeString("After", String.Join(";", afterNames));
 			}
 
-			if (!BNotifyOnWarnings)
+			if (!NotifyOnWarnings)
 			{
-				writer.WriteAttributeString("NotifyOnWarnings", BNotifyOnWarnings.ToString());
+				writer.WriteAttributeString("NotifyOnWarnings", NotifyOnWarnings.ToString());
 			}
 
-			if (BRunEarly)
+			if (RunEarly)
 			{
-				writer.WriteAttributeString("RunEarly", BRunEarly.ToString());
+				writer.WriteAttributeString("RunEarly", RunEarly.ToString());
 			}
 
 			foreach (BgTask task in Tasks)
