@@ -260,8 +260,8 @@ console.logColor(logging.Cyan, `Running Cirrus - The Pixel Streaming reference i
 let nextPlayerId = 100; // reserve some player ids
 const SFUPlayerId = "1"; // sfu is a special kind of player
 
-let streamer;				// WebSocket connected to Streamer
-let sfu;					// WebSocket connected to SFU
+let streamer = null;				// WebSocket connected to Streamer
+let sfu = null;					// WebSocket connected to SFU
 let players = new Map(); 	// playerId <-> player, where player is either a web-browser or a native webrtc player
 
 function sfuIsConnected() {
@@ -314,6 +314,15 @@ const { URL } = require('url');
 console.logColor(logging.Green, `WebSocket listening for Streamer connections on :${streamerPort}`)
 let streamerServer = new WebSocket.Server({ port: streamerPort, backlog: 1 });
 streamerServer.on('connection', function (ws, req) {
+
+	// Check if we have an already existing connection to a streamer, if so, deny a new streamer connecting.
+	if(streamer != null){
+		/* We send a 1008 because that a "policy violation", which similar enough to what is happening here. */
+		ws.close(1008, 'Cirrus supports only 1 streamer being connected, already one connected, so dropping this new connection.');
+		console.logColor(logging.Yellow, `Dropping new streamer connection, we already have a connected streamer`);
+		return;
+	}
+
 	console.logColor(logging.Green, `Streamer connected: ${req.connection.remoteAddress}`);
 	sendStreamerConnectedToMatchmaker();
 
@@ -374,6 +383,7 @@ streamerServer.on('connection', function (ws, req) {
 			const msg = { type: "streamerDisconnected" };
 			sfu.send(JSON.stringify(msg));
 		}
+		streamer = null;
 	}
 	
 	ws.on('close', function(code, reason) {
