@@ -407,6 +407,29 @@ bool FImgMediaPlayer::GetPlayerFeatureFlag(EFeatureFlag flag) const
 	return IMediaPlayer::GetPlayerFeatureFlag(flag);
 }
 
+/* IMediaView interface
+ *****************************************************************************/
+
+bool FImgMediaPlayer::GetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>& OutTiles) const
+{
+	if (Loader.IsValid())
+	{
+		return Loader->GetVisibleTiles(OutTiles);
+	}
+
+	return false;
+}
+
+bool FImgMediaPlayer::SetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>&& InTiles)
+{
+	if (Loader.IsValid())
+	{
+		return Loader->SetVisibleTiles(MoveTemp(InTiles));
+	}
+
+	return false;
+}
+
 
 /* FImgMediaPlayer implementation
  *****************************************************************************/

@@ -24,6 +24,7 @@ public:
 		: Duration(FTimespan::Zero())
 		, OutputDim(FIntPoint::ZeroValue)
 		, Time(FTimespan::Zero())
+		, TilingDesc()
 	{ }
 
 public:
@@ -36,13 +37,14 @@ public:
 	 * @param InTime The sample time (in the player's local clock).
 	 * @param InDuration The duration for which the sample is valid.
 	 */
-	bool Initialize(FImgMediaFrame& InFrame, const FIntPoint& InOutputDim, FMediaTimeStamp InTime, FTimespan InDuration, uint8 InNumMipMaps)
+	bool Initialize(FImgMediaFrame& InFrame, const FIntPoint& InOutputDim, FMediaTimeStamp InTime, FTimespan InDuration, uint8 InNumMipMaps, TilingDescription InTilingDesc = TilingDescription())
 	{
 		Duration = InDuration;
 		Frame = InFrame;
 		OutputDim = InOutputDim;
 		Time = InTime;
 		NumMipMaps = InNumMipMaps;
+		TilingDesc = InTilingDesc;
 
 		// If we have no data then make sure the number of mipmaps is 1.
 		// otherwise FMediaTextureResource won't like it.
@@ -71,6 +73,11 @@ public:
 	virtual uint8 GetNumMips() const override
 	{
 		return NumMipMaps;
+	}
+
+	virtual TilingDescription GetTilingDescription() const override
+	{
+		return TilingDesc;
 	}
 
 	virtual FTimespan GetDuration() const override
@@ -136,4 +143,7 @@ private:
 
 	/** Number of mip levels in this sample. */
 	uint8 NumMipMaps;
+
+	/** Description of the number and size of tiles in this sample. */
+	TilingDescription TilingDesc;
 };

@@ -10,7 +10,6 @@
 #include "IMediaTextureSampleConverter.h"
 
 class FExrImgMediaReaderGpu;
-struct FImgMediaTileSelection;
 
 struct FStructuredBufferPoolItem
 {
@@ -63,7 +62,7 @@ public:
 public:
 
 	//~ FExrImgMediaReader interface
-	virtual bool ReadFrame(int32 FrameId, int32 MipLevel, const FImgMediaTileSelection& InTileSelection, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame) override;
+	virtual bool ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTileSelection>& InMipTiles, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame) override;
 	
 	/**
 	* For performance reasons we want to pre-allocate structured buffers to at least the number of concurrent frames.
@@ -105,7 +104,7 @@ protected:
 		( TArray<FStructuredBufferPoolItemSharedPtr>&& BufferDataArray
 		, const FIntPoint& FullResolution
 		, const FIntPoint& TileDim
-		, const FIntRect& TopMipViewport
+		, const TMap<int32, FIntRect>& Viewports
 		, const int32 NumChannels
 		, const int32 NumMipLevels
 		, const bool bHasTiles);

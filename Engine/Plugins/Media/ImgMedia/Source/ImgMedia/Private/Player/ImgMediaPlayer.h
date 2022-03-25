@@ -27,7 +27,7 @@ class FImgMediaPlayer
 	, protected IMediaControls
 	, protected IMediaSamples
 	, protected IMediaTracks
-	, protected IMediaView
+	, public IMediaView
 {
 public:
 
@@ -64,6 +64,13 @@ public:
 	virtual bool FlushOnSeekCompleted() const;
 	virtual void ProcessVideoSamples() override;
 	virtual bool GetPlayerFeatureFlag(EFeatureFlag flag) const override;
+
+public:
+
+	//~ IMediaView interface
+
+	virtual bool GetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>& OutTiles) const override;
+	virtual bool SetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>&& InTiles) override;
 
 protected:
 

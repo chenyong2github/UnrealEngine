@@ -6,6 +6,8 @@
 #include "Containers/LruCache.h"
 #include "Containers/Queue.h"
 #include "IMediaSamples.h"
+#include "IMediaView.h"
+#include "ImgMediaMipMapInfo.h"
 #include "Misc/FrameRate.h"
 #include "Templates/SharedPointer.h"
 
@@ -20,7 +22,6 @@ class IImgMediaReader;
 class IQueuedWork;
 
 struct FImgMediaFrame;
-struct FImgMediaTileSelection;
 
 
 /**
@@ -375,13 +376,12 @@ protected:
 	void AddFrameToCache(int32 FrameNumber, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame);
 
 	/**
-	 * Get what mip level we should be using for a given frame.
+	 * Get what mip level and tiles we should be using for a given frame.
 	 *
 	 * @param FrameIndex Frame to get mip level for.
 	 * @param OutTileSelection Will be filled in with what tiles are actually needed.
-	 * @return Returns the mip level.
 	 */
-	int32 GetDesiredMipLevel(int32 FrameIndex, FImgMediaTileSelection& OutTileSelection);
+	void GetDesiredMipTiles(int32 FrameIndex, TMap<int32, FImgMediaTileSelection>& OutMipsAndTiles);
 
 	/***
 	 * Modulos the time so that it is between 0 and SequenceDuration.
@@ -421,6 +421,14 @@ protected:
 	 * @return True if it found a number.
 	 */
 	bool GetNumberAtEndOfString(int32& Number, const FString& String) const;
+
+public:
+	
+	/** Thread-safe function to get currently visible tiles per mip level. */
+	bool GetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>& OutTiles) const;
+
+	/** Thread-safe function to set currently visible tiles per mip level. */
+	bool SetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>&& InTiles);
 
 private:
 
@@ -516,4 +524,10 @@ private:
 		uint64 CurrentSequenceIndex;
 	} QueuedSampleFetch;
 
+private:
+	/** Critical section for synchronizing access to the active tile list. */
+	mutable FCriticalSection CriticalSectionTiles;
+
+	/** List of visible tiles updated through the IMediaView interface. */
+	TMap<int32, TSet<FMediaTileCoordinate>> ActiveTilesPerMipLevel;
 };

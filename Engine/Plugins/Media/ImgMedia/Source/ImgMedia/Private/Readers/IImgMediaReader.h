@@ -5,12 +5,11 @@
 #include "CoreTypes.h"
 #include "Misc/FrameRate.h"
 #include "IMediaTextureSample.h"
+#include "ImgMediaMipMapInfo.h"
 #include "Math/IntPoint.h"
 #include "Templates/SharedPointer.h"
 #include "RHI.h"
 #include "RHIResources.h"
-
-struct FImgMediaTileSelection;
 
 /**
  * Information about an image sequence frame.
@@ -66,8 +65,8 @@ struct FImgMediaFrame
 	/** Additional information about the frame. */
 	FImgMediaFrameInfo Info;
 
-	/** Bitmask of which mipmaps are present. */
-	int32 MipMapsPresent = 0;
+	/** Tiles present per mip level. */
+	TMap<int32, FImgMediaTileSelection> MipTilesPresent;
 
 	/** The frame's horizontal stride (in bytes). */
 	uint32 Stride = 0;
@@ -119,7 +118,7 @@ public:
 	 * @return true on success, false otherwise.
 	 * @see GetFrameInfo
 	 */
-	virtual bool ReadFrame(int32 FrameId, int32 MipLevel, const FImgMediaTileSelection& InTileSelection, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame) = 0;
+	virtual bool ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTileSelection>& InMipTiles, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame) = 0;
 
 	/**
 	 * Mark Frame to be canceled based on Frame number. Typically this will be 

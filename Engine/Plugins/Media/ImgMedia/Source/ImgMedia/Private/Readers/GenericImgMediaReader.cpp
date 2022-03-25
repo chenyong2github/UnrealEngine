@@ -91,7 +91,7 @@ bool FGenericImgMediaReader::GetFrameInfo(const FString& ImagePath, FImgMediaFra
 }
 
 
-bool FGenericImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, const FImgMediaTileSelection& InTileSelectio, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
+bool FGenericImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTileSelection>& InMipTiles, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
 {
 	TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = LoaderPtr.Pin();
 	if (Loader.IsValid() == false)
@@ -106,12 +106,13 @@ bool FGenericImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, const FImg
 	void* Buffer = OutFrame->Data.Get();
 
 	// Loop over all mips.
-	for (int32 CurrentMipLevel = 0; CurrentMipLevel < NumMipLevels; ++CurrentMipLevel)
+	for (const TPair<int32, FImgMediaTileSelection>& TilesPerMip : InMipTiles)
 	{
+		const int32 CurrentMipLevel = TilesPerMip.Key;
+
 		// Do we want to read in this mip?
-		bool IsThisLevelPresent = (OutFrame->MipMapsPresent & (1 << CurrentMipLevel)) != 0;
-		bool ReadThisMip = (Buffer == nullptr) ||
-			((CurrentMipLevel >= MipLevel) && (IsThisLevelPresent == false));
+		bool IsThisLevelPresent = OutFrame->MipTilesPresent.Contains(CurrentMipLevel);
+		bool ReadThisMip = (Buffer == nullptr) || (IsThisLevelPresent == false);
 		if (ReadThisMip)
 		{
 			// Load image.
@@ -153,7 +154,7 @@ bool FGenericImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, const FImg
 
 			// Copy data to our buffer
 			FMemory::Memcpy(Buffer, RawData.GetData(), RawNum);
-			OutFrame->MipMapsPresent |= 1 << CurrentMipLevel;
+			OutFrame->MipTilesPresent.Add(CurrentMipLevel).SetAllVisible();
 		}
 
 		// Next level.

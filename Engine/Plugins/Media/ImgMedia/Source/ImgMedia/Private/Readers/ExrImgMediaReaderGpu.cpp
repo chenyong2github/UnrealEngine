@@ -121,12 +121,12 @@ FExrImgMediaReaderGpu::~FExrImgMediaReaderGpu()
 /* FExrImgMediaReaderGpu interface
  *****************************************************************************/
 
-bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgMediaTileSelection& InTileSelection, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
+bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTileSelection>& InMipTiles, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
 {
 	// Fall back to cpu?
 	if (bFallBackToCPU)
 	{
-		return FExrImgMediaReader::ReadFrame(FrameId, MipLevel, InTileSelection, OutFrame);
+		return FExrImgMediaReader::ReadFrame(FrameId, InMipTiles, OutFrame);
 	}
 
 	TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = LoaderPtr.Pin();
@@ -146,10 +146,6 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 
 	// Get tile info.
 	bool bHasTiles = OutFrame->Info.bHasTiles;
-	int32 StartTileX = InTileSelection.TopLeftX;
-	int32 StartTileY = InTileSelection.TopLeftY;
-	int32 EndTileX = FMath::Min((int32)InTileSelection.BottomRightX, OutFrame->Info.NumTiles.X);
-	int32 EndTileY = FMath::Min((int32)InTileSelection.BottomRightY, OutFrame->Info.NumTiles.Y);
 
 	const FIntPoint& FullResolution = OutFrame->Info.Dim;
 
@@ -160,12 +156,8 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 		return false;
 	}
 
-	FIntRect TopMipViewport = FIntRect(FIntPoint(0, 0), FullResolution);
+	TMap<int32, FIntRect> Viewports;
 
-	if (bHasTiles)
-	{
-		TopMipViewport = FIntRect(StartTileX * TileDim.X, StartTileY * TileDim.Y, EndTileX * TileDim.X, EndTileY * TileDim.Y);
-	}
 	const int32 NumChannels = OutFrame->Info.NumChannels;
 	const int32 PixelSize = sizeof(uint16) * NumChannels;
 
@@ -177,18 +169,29 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 		// Loop over all mips.
 		FIntPoint CurrentMipDim = FullResolution;
 
-		for (int32 CurrentMipLevel = 0; CurrentMipLevel < NumMipLevels; ++CurrentMipLevel)
+		for (const TPair<int32, FImgMediaTileSelection>& TilesPerMip : InMipTiles)
 		{
-			// Do we want to read in this mip?
-			bool IsThisLevelPresent = (OutFrame->MipMapsPresent & (1 << CurrentMipLevel)) != 0;
-			bool ReadThisMip = (CurrentMipLevel >= MipLevel) && (IsThisLevelPresent == false);
+			const int32 CurrentMipLevel = TilesPerMip.Key;
+			const FImgMediaTileSelection& CurrentTileSelection = TilesPerMip.Value;
 
+			bool ReadThisMip = true;
+			// Avoid reads if the cached frame already contains the current tiles for this mip level.
+			if (const FImgMediaTileSelection* CachedSelection = OutFrame->MipTilesPresent.Find(CurrentMipLevel))
+			{
+				ReadThisMip = !CachedSelection->Contains(CurrentTileSelection);
+			}
+			
 			// Next mip level.
 			int MipLevelDiv = 1 << CurrentMipLevel;
 			CurrentMipDim = FullResolution / MipLevelDiv;
 
 			if (ReadThisMip)
 			{
+				FIntRect& Viewport = Viewports.Add(CurrentMipLevel);
+				Viewport.Min = FIntPoint(TileDim.X * CurrentTileSelection.TopLeftX, TileDim.X * CurrentTileSelection.TopLeftY);
+				Viewport.Max = FIntPoint(TileDim.Y * CurrentTileSelection.BottomRightX, TileDim.Y * CurrentTileSelection.BottomRightY);
+				Viewport.Clip(FIntRect(FIntPoint::ZeroValue, CurrentMipDim));
+
 				const SIZE_T BufferSize = GetBufferSize(CurrentMipDim, NumChannels, bHasTiles, OutFrame->Info.NumTiles / MipLevelDiv);
 				FStructuredBufferPoolItemSharedPtr& BufferData = BufferDataArray[CurrentMipLevel];
 				BufferData = AllocateGpuBufferFromPool(BufferSize);
@@ -207,10 +210,10 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 					if (bHasTiles)
 					{
 						FIntRect TileRegion = FIntRect(
-							FMath::FloorToInt(float(StartTileX) / MipLevelDiv),
-							FMath::FloorToInt(float(StartTileY) / MipLevelDiv),
-							FMath::CeilToInt(float(EndTileX) / MipLevelDiv),
-							FMath::CeilToInt(float(EndTileY) / MipLevelDiv));
+							(int32)CurrentTileSelection.TopLeftX,
+							(int32)CurrentTileSelection.TopLeftY,
+							FMath::Min((int32)CurrentTileSelection.BottomRightX, FMath::CeilToInt(float(OutFrame->Info.NumTiles.X) / MipLevelDiv)),
+							FMath::Min((int32)CurrentTileSelection.BottomRightY, FMath::CeilToInt(float(OutFrame->Info.NumTiles.Y) / MipLevelDiv)));
 						FIntPoint NumTiles = OutFrame->Info.NumTiles / MipLevelDiv;
 
 						ReadResult = ReadTiles(MipDataPtr, ImagePath, FrameId, TileRegion, NumTiles, TileDim, PixelSize);
@@ -222,7 +225,7 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 
 					if (ReadResult != Fail)
 					{
-						OutFrame->MipMapsPresent |= 1 << CurrentMipLevel;
+						OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentTileSelection);
 					}
 				}
 				else
@@ -264,7 +267,7 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 
 					// Fall back to CPU.
 					bFallBackToCPU = true;
-					return FExrImgMediaReader::ReadFrame(FrameId, MipLevel, InTileSelection, OutFrame);
+					return FExrImgMediaReader::ReadFrame(FrameId, InMipTiles, OutFrame);
 				}
 			}
 		}
@@ -272,9 +275,8 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 	OutFrame->Format = NumChannels <= 3 ? EMediaTextureSampleFormat::FloatRGB : EMediaTextureSampleFormat::FloatRGBA;
 	OutFrame->Stride = FullResolution.X * PixelSize;
 
-	OutFrame->SampleConverter = CreateSampleConverter(MoveTemp(BufferDataArray), FullResolution, TileDim, TopMipViewport, NumChannels, NumMipLevels, bHasTiles);
+	OutFrame->SampleConverter = CreateSampleConverter(MoveTemp(BufferDataArray), FullResolution, TileDim, Viewports, NumChannels, NumMipLevels, bHasTiles);
 
-	OutFrame->MipMapsPresent = 1 << MipLevel;
 	UE_LOG(LogImgMedia, Verbose, TEXT("Reader %p: Read Pixels Complete. %i"), this, FrameId);
 	return true;
 }
@@ -435,12 +437,12 @@ TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> FExrImgMediaReader
 	( TArray<FStructuredBufferPoolItemSharedPtr>&& BufferDataArray
 	, const FIntPoint& FullResolution
 	, const FIntPoint& TileDim
-	, const FIntRect& TopMipViewport
+	, const TMap<int32, FIntRect>& Viewports
 	, const int32 NumChannels
 	, const int32 NumMipLevels
 	, const bool bHasTiles)
 {
-	auto RenderThreadSwizzler = [this, BufferDataArray, FullResolution, TileDim, TopMipViewport, NumChannels, NumMipLevels, bHasTiles](FRHICommandListImmediate& RHICmdList, FTexture2DRHIRef RenderTargetTextureRHI)->bool
+	auto RenderThreadSwizzler = [this, BufferDataArray, FullResolution, TileDim, Viewports, NumChannels, NumMipLevels, bHasTiles](FRHICommandListImmediate& RHICmdList, FTexture2DRHIRef RenderTargetTextureRHI)->bool
 	{
 
 		SCOPED_DRAW_EVENT(RHICmdList, FExrImgMediaReaderGpu_Convert);
@@ -452,8 +454,6 @@ TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> FExrImgMediaReader
 			int MipLevelDiv = 1 << MipLevel;
 			Dim = FullResolution / MipLevelDiv;
 
-			FIntRect Viewport = TopMipViewport / MipLevelDiv;
-			Viewport.Clip(FIntRect(FIntPoint(0, 0), Dim));
 			FStructuredBufferPoolItemSharedPtr BufferData = BufferDataArray[MipLevel];
 			if (BufferData.IsValid())
 			{
@@ -461,6 +461,9 @@ TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> FExrImgMediaReader
 				{
 					continue;
 				}
+
+				FIntRect Viewport = Viewports[MipLevel];
+
 				// This flag will indicate that we should wait for poll to complete.
 				BufferData->bWillBeSignaled = true;
 

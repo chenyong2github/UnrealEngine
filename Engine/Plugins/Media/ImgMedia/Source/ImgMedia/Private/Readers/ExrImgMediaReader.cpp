@@ -73,7 +73,7 @@ bool FExrImgMediaReader::GetFrameInfo(const FString& ImagePath, FImgMediaFrameIn
 }
 
 
-bool FExrImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, const FImgMediaTileSelection& InTileSelection, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
+bool FExrImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTileSelection>& InMipTiles, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
 {
 	TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = LoaderPtr.Pin();
 	if (Loader.IsValid() == false)
@@ -85,10 +85,6 @@ bool FExrImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, const FImgMedi
 	int32 NumTilesX = Loader->GetNumTilesX();
 	int32 NumTilesY = Loader->GetNumTilesY();
 	bool bHasTiles = (NumTilesX * NumTilesY) > 1;
-	int32 StartTileX = InTileSelection.TopLeftX;
-	int32 StartTileY = InTileSelection.TopLeftY;
-	int32 EndTileX = FMath::Min((int32)InTileSelection.BottomRightX, NumTilesX);
-	int32 EndTileY = FMath::Min((int32)InTileSelection.BottomRightY, NumTilesY);
 
 	int32 BytesPerPixelPerChannel = sizeof(uint16);
 	int32 NumChannels = 4;
@@ -145,80 +141,92 @@ bool FExrImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, const FImgMedi
 		// The EXR RGBA interface only outputs RGBA data.
 		OutFrame->Format = EMediaTextureSampleFormat::FloatRGBA;
 		OutFrame->Data = MakeShareable(Buffer, MoveTemp(BufferDeleter));
-		OutFrame->MipMapsPresent = 0;
+		OutFrame->MipTilesPresent.Reset();
 		OutFrame->Stride = OutFrame->Info.Dim.X * BytesPerPixel;
 	}
 
 	// Loop over all mips.
 	uint8* MipDataPtr = (uint8*)(OutFrame->Data.Get());
 	FIntPoint Dim = OutFrame->Info.Dim;
-	bool LevelFoundSoFar = false;
+	
 	int32 NumMipLevels = Loader->GetNumMipLevels();
 	for (int32 CurrentMipLevel = 0; CurrentMipLevel < NumMipLevels; ++CurrentMipLevel)
 	{
-		// Do we want to read in this mip?
-		bool IsThisLevelPresent = (OutFrame->MipMapsPresent & (1 << CurrentMipLevel)) != 0;
-		bool ReadThisMip = (CurrentMipLevel >= MipLevel) &&
-			(IsThisLevelPresent == false);
-		
-		if (ReadThisMip)
+		if (InMipTiles.Contains(CurrentMipLevel))
 		{
-			FString Image = Loader->GetImagePath(FrameId, CurrentMipLevel);
-			FString BaseImage;
-			if (bHasTiles)
+			const FImgMediaTileSelection& CurrentTileSelection = InMipTiles[CurrentMipLevel];
+
+			const int MipLevelDiv = 1 << CurrentMipLevel;
+			int32 StartTileX = CurrentTileSelection.TopLeftX;
+			int32 StartTileY = CurrentTileSelection.TopLeftY;
+			int32 EndTileX = FMath::Min((int32)CurrentTileSelection.BottomRightX, FMath::CeilToInt(float(NumTilesX) / MipLevelDiv));
+			int32 EndTileY = FMath::Min((int32)CurrentTileSelection.BottomRightY, FMath::CeilToInt(float(NumTilesY) / MipLevelDiv));
+
+			bool ReadThisMip = true;
+			// Avoid reads if the cached frame already contains the current tiles for this mip level.
+			if (const FImgMediaTileSelection* CachedSelection = OutFrame->MipTilesPresent.Find(CurrentMipLevel))
 			{
-				// Remove "_x0_y0.exr" so we can add on the correct name for the tile we want.
-				BaseImage = Image.LeftChop(10);
+				ReadThisMip = !CachedSelection->Contains(CurrentTileSelection);
 			}
 
-			int32 TileWidth = Dim.X / NumTilesX;
-			int32 TileHeight = Dim.Y / NumTilesY;
-			// The offset into the frame buffer for each row of tiles.
-			// Total width * height of a tile * bytes per pixel.
-			int32 FrameBufferOffsetPerTileY = Dim.X * TileHeight * BytesPerPixel;
-			int32 FrameBufferOffsetY = FrameBufferOffsetPerTileY * StartTileY;
-			
-			for (int32 TileY = StartTileY; TileY < EndTileY; TileY++)
+			if (ReadThisMip)
 			{
-				// The offset into the frame buffer for each column of tiles.
-				// Tile width * bytes per pixel.
-				int32 FrameBufferOffsetPerTileX = TileWidth * BytesPerPixel;
-				int32 FrameBufferOffsetX = FrameBufferOffsetPerTileX * StartTileX;
-				for (int32 TileX = StartTileX; TileX < EndTileX; TileX++)
+				FString Image = Loader->GetImagePath(FrameId, CurrentMipLevel);
+				FString BaseImage;
+				if (bHasTiles)
 				{
-					// Get for our frame/mip level.
-					if (bHasTiles)
-					{
-						Image = FString::Printf(TEXT("%s_x%d_y%d.exr"), *BaseImage, TileX, TileY);
-					}
-					FRgbaInputFile InputFile(Image, 2);
-					if (InputFile.HasInputFile())
-					{
-						// read frame data
-						InputFile.SetFrameBuffer(MipDataPtr + FrameBufferOffsetX + FrameBufferOffsetY, Dim);
-						InputFile.ReadPixels(0, TileHeight - 1);
-
-						FrameBufferOffsetX += FrameBufferOffsetPerTileX;
-						OutFrame->MipMapsPresent |= 1 << CurrentMipLevel;
-						LevelFoundSoFar = true;
-					}
-					else
-					{
-						UE_LOG(LogImgMedia, Error, TEXT("Could not load %s"), *Image);
-					}
+					// Remove "_x0_y0.exr" so we can add on the correct name for the tile we want.
+					BaseImage = Image.LeftChop(10);
 				}
-				
-				FrameBufferOffsetY += FrameBufferOffsetPerTileY;
+
+				int32 TileWidth = Dim.X / NumTilesX;
+				int32 TileHeight = Dim.Y / NumTilesY;
+				// The offset into the frame buffer for each row of tiles.
+				// Total width * height of a tile * bytes per pixel.
+				int32 FrameBufferOffsetPerTileY = Dim.X * TileHeight * BytesPerPixel;
+				int32 FrameBufferOffsetY = FrameBufferOffsetPerTileY * StartTileY;
+
+				for (int32 TileY = StartTileY; TileY < EndTileY; TileY++)
+				{
+					// The offset into the frame buffer for each column of tiles.
+					// Tile width * bytes per pixel.
+					int32 FrameBufferOffsetPerTileX = TileWidth * BytesPerPixel;
+					int32 FrameBufferOffsetX = FrameBufferOffsetPerTileX * StartTileX;
+					for (int32 TileX = StartTileX; TileX < EndTileX; TileX++)
+					{
+						// Get for our frame/mip level.
+						if (bHasTiles)
+						{
+							Image = FString::Printf(TEXT("%s_x%d_y%d.exr"), *BaseImage, TileX, TileY);
+						}
+						FRgbaInputFile InputFile(Image, 2);
+						if (InputFile.HasInputFile())
+						{
+							// read frame data
+							InputFile.SetFrameBuffer(MipDataPtr + FrameBufferOffsetX + FrameBufferOffsetY, Dim);
+							InputFile.ReadPixels(0, TileHeight - 1);
+
+							FrameBufferOffsetX += FrameBufferOffsetPerTileX;
+
+							if (!OutFrame->MipTilesPresent.Contains(CurrentMipLevel))
+							{
+								OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentTileSelection);
+							}
+						}
+						else
+						{
+							UE_LOG(LogImgMedia, Error, TEXT("Could not load %s"), *Image);
+						}
+					}
+
+					FrameBufferOffsetY += FrameBufferOffsetPerTileY;
+				}
 			}
 		}
 
 		// Next level.
 		MipDataPtr += Dim.X * Dim.Y * BytesPerPixel;
 		Dim /= 2;
-		if (IsThisLevelPresent)
-		{
-			LevelFoundSoFar = true;
-		}
 	}
 
 	return true;
@@ -318,6 +326,12 @@ bool FExrImgMediaReader::GetInfo(FRgbaInputFile& InputFile, FImgMediaFrameInfo& 
 	{
 		OutInfo.NumTiles = FIntPoint(OutInfo.Dim.X / OutInfo.TileDimensions.X, OutInfo.Dim.Y / OutInfo.TileDimensions.Y);
 	}
+	else
+	{
+		OutInfo.TileDimensions = OutInfo.Dim;
+		OutInfo.NumTiles = FIntPoint(1, 1);
+	}
+
 	return (OutInfo.UncompressedSize > 0) && (OutInfo.Dim.GetMin() > 0);
 }
 

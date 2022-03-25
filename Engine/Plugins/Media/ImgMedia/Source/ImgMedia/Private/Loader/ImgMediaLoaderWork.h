@@ -39,7 +39,7 @@ public:
 	 * @param InExistingFrame If set, then use this frame to load into.
 	 * @see Shutdown
 	 */
-	void Initialize(int32 InFrameNumber, int32 InMipLevel, const FImgMediaTileSelection& InTileSelection, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> InExistingFrame);
+	void Initialize(int32 InFrameNumber, TMap<int32, FImgMediaTileSelection> InMipTiles, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> InExistingFrame);
 
 public:
 
@@ -62,11 +62,8 @@ private:
 	/** The number of the image frame. */
 	int32 FrameNumber;
 
-	/** Mip level of the image frame. */
-	int32 MipLevel;
-
-	/** Which tiles we should load. */
-	FImgMediaTileSelection TileSelection;
+	/** Which tiles we should load per mip level. */
+	TMap<int32, FImgMediaTileSelection> MipTiles;
 	
 	/** If set, then load the image into this frame instead of making a new one. */
 	TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> ExistingFrame;

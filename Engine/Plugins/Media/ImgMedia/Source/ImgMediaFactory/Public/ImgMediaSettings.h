@@ -26,6 +26,9 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=General)
 	FFrameRate DefaultFrameRate;
 
+	/** Whether to use the tiles produced by virtual texturing or not. */
+	UPROPERTY(config, EditAnywhere, Category=General)
+	bool bUseVirtualTextureTiles;
 public:
 
 	/** Percentage of cache to use for frames behind the play head (default = 25%). */

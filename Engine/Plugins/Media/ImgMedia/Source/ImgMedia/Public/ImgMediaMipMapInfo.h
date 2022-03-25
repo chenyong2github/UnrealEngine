@@ -92,18 +92,62 @@ struct FImgMediaTileSelection
 	 */
 	void SetAllNotVisible()
 	{
-		TopLeftX = 0;
-		TopLeftY = 0;
+		TopLeftX = 0xffff;
+		TopLeftY = 0xffff;
 		BottomRightX = 0;
 		BottomRightY = 0;
 	}
 
 	/**
-	 * See if this selection is visible.
+	* See if this selection is visible.
+	*
+	* @return True if so.
+	*/
+	bool IsVisible() const { return (TopLeftX < BottomRightX); };
+
+
+	/**
+	 * Include a given tile coordinate to the current section region.
 	 *
-	 * @return True if so.
+	 * @param TileCoordX Horizontal tile coordinate.
+	 * @param TileCoordY Vertical tile coordinate.
 	 */
-	bool IsVisible() { return (TopLeftX < BottomRightX); };
+	void Include(uint16 TileCoordX, uint16 TileCoordY)
+	{
+		TopLeftX = FMath::Min(TopLeftX, TileCoordX);
+		TopLeftY = FMath::Min(TopLeftY, TileCoordY);
+		BottomRightX = FMath::Max(BottomRightX, uint16(TileCoordX + 1u));
+		BottomRightY = FMath::Max(BottomRightY, uint16(TileCoordY + 1u));
+	}
+
+	/**
+	 * Check if the current selection contains a tile.
+	 *
+	 * @param TileCoordX Horizontal tile coordinate.
+	 * @param TileCoordY Vertical tile coordinate.
+	 * @return True if the coordinate is contained withing bounds, false otherwise.
+	 */
+	bool Contains(uint16 TileCoordX, uint16 TileCoordY) const
+	{
+		return TopLeftX <= TileCoordX &&
+			TopLeftY <= TileCoordY &&
+			BottomRightX > TileCoordX &&
+			BottomRightY > TileCoordY;
+	}
+
+	/**
+	 * Check if the current selection contains another selection within its bounds.
+	 *
+	 * @param Other Selection to compare.
+	 * @return True if the other selection is contained withing bounds, false otherwise.
+	 */
+	bool Contains(const FImgMediaTileSelection& Other) const
+	{
+		return TopLeftX <= Other.TopLeftX &&
+			TopLeftY <= Other.TopLeftY &&
+			BottomRightX >= Other.BottomRightX &&
+			BottomRightY >= Other.BottomRightY;
+	}
 };
 
 /**
