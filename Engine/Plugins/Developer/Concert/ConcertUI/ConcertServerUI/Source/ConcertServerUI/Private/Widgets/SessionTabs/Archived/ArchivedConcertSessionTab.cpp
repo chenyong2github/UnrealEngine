@@ -1,8 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets/Tabs/Archived/ArchivedConcertSessionTab.h"
+#include "Widgets/SessionTabs/Archived/ArchivedConcertSessionTab.h"
 
-#include "Widgets/Tabs/Archived/SConcertArchivedSessionInspector.h"
+#include "Widgets/SessionTabs/Archived/SConcertArchivedSessionInspector.h"
 #include "Widgets/StatusBar/SConcertStatusBar.h"
 
 FArchivedConcertSessionTab::FArchivedConcertSessionTab(const FGuid& InspectedSessionID, TSharedRef<IConcertSyncServer> SyncServer, TAttribute<TSharedRef<SWindow>> ConstructUnderWindow)

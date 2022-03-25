@@ -3,8 +3,8 @@
 #include "LiveConcertSessionTab.h"
 
 #include "IConcertSession.h"
-#include "Widgets/Session/PackageViewer/ConcertSessionPackageViewerController.h"
-#include "Widgets/Session/SConcertSessionInspector.h"
+#include "PackageViewer/ConcertSessionPackageViewerController.h"
+#include "SConcertSessionInspector.h"
 #include "Widgets/StatusBar/SConcertStatusBar.h"
 
 #include "Widgets/Docking/SDockTab.h"

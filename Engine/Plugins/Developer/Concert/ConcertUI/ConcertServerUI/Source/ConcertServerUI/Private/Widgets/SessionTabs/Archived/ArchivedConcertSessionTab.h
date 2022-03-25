@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "SConcertArchivedSessionInspector.h"
 
-#include "Widgets/Tabs/AbstractConcertSessionTab.h"
+#include "Widgets/SessionTabs/AbstractConcertSessionTab.h"
 
 /** Manages the tab for an archived session.  */
 class FArchivedConcertSessionTab : public FAbstractConcertSessionTab

@@ -1,6 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets/Session/SConcertSessionInspector.h"
+#include "SConcertSessionInspector.h"
 
 #include "Framework/Docking/TabManager.h"
 #include "Session/History/SSessionHistory.h"

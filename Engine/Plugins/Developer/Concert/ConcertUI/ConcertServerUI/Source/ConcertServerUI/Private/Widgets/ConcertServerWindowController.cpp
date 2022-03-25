@@ -2,10 +2,12 @@
 
 #include "ConcertServerWindowController.h"
 
+#include "Browser/ConcertServerSessionBrowserController.h"
 #include "ConcertServerTabs.h"
 #include "IConcertServer.h"
 #include "IConcertSyncServer.h"
-#include "Browser/ConcertServerSessionBrowserController.h"
+#include "SessionTabs/Archived/ArchivedConcertSessionTab.h"
+#include "SessionTabs/Live/LiveConcertSessionTab.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
@@ -14,9 +16,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Misc/ConfigCacheIni.h"
 #include "OutputLog/Public/OutputLogModule.h"
-#include "Session/LiveConcertSessionTab.h"
 
-#include "Tabs/Archived/ArchivedConcertSessionTab.h"
 
 #include "Widgets/SWindow.h"
 
