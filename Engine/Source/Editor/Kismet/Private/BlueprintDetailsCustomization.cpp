@@ -1449,19 +1449,16 @@ void FBlueprintVarActionDetails::OnVarTypeChanged(const FEdGraphPinType& NewPinT
 					FBlueprintEditorUtils::ChangeMemberVariableType(GetBlueprintObj(), VarName, NewPinType);
 				}
 
-				if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
-				{
-					TSharedPtr<FBlueprintEditor> BlueprintEditor = MyBlueprint.Pin()->GetBlueprintEditor().Pin();
+				TSharedPtr<FBlueprintEditor> BlueprintEditor = MyBlueprint.Pin()->GetBlueprintEditor().Pin();
 					
-					// If the underlying type object's namespace is not imported, auto-import it now into the current editor context.
-					const UObject* PinSubCategoryObject = NewPinType.PinSubCategoryObject.Get();
-					if (PinSubCategoryObject && BlueprintEditor.IsValid() && BlueprintEditor->IsNonImportedObject(PinSubCategoryObject))
+				// If the underlying type object's namespace is not imported, auto-import it now into the current editor context.
+				const UObject* PinSubCategoryObject = NewPinType.PinSubCategoryObject.Get();
+				if (PinSubCategoryObject && BlueprintEditor.IsValid() && BlueprintEditor->IsNonImportedObject(PinSubCategoryObject))
+				{
+					FString Namespace = FBlueprintNamespaceUtilities::GetObjectNamespace(PinSubCategoryObject);
+					if (!Namespace.IsEmpty())
 					{
-						FString Namespace = FBlueprintNamespaceUtilities::GetObjectNamespace(PinSubCategoryObject);
-						if (!Namespace.IsEmpty())
-						{
-							BlueprintEditor->ImportNamespace(Namespace);
-						}
+						BlueprintEditor->ImportNamespace(Namespace);
 					}
 				}
 			}
@@ -2776,11 +2773,6 @@ void FBlueprintVarActionDetails::OnFinishedChangingLocalVariable(const FProperty
 
 void FBlueprintVarActionDetails::ImportNamespacesForPropertyValue(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer)
 {
-	if (!GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
-	{
-		return;
-	}
-
 	// Auto-import any namespace(s) associated with the property's value into the current editor context.
 	TSharedPtr<SMyBlueprint> MyBlueprintPtr = MyBlueprint.Pin();
 	if (MyBlueprintPtr.IsValid())
@@ -3445,23 +3437,20 @@ void FBlueprintGraphArgumentLayout::PinInfoChanged(const FEdGraphPinType& PinTyp
 							// Reset default value, it probably doesn't match
 							(*UDPinPtr)->PinDefaultValue.Reset();
 
-							if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+							TSharedPtr<FBlueprintEditor> BlueprintEditor;
+							if(MyBPPinned.IsValid())
 							{
-								TSharedPtr<FBlueprintEditor> BlueprintEditor;
-								if(MyBPPinned.IsValid())
-								{
-									BlueprintEditor = MyBPPinned->GetBlueprintEditor().Pin();
-								}
+								BlueprintEditor = MyBPPinned->GetBlueprintEditor().Pin();
+							}
 
-								// If the underlying type object's namespace is not imported, auto-import it now into the current editor context.
-								const UObject* PinSubCategoryObject = PinType.PinSubCategoryObject.Get();
-								if (PinSubCategoryObject && BlueprintEditor.IsValid() && BlueprintEditor->IsNonImportedObject(PinSubCategoryObject))
+							// If the underlying type object's namespace is not imported, auto-import it now into the current editor context.
+							const UObject* PinSubCategoryObject = PinType.PinSubCategoryObject.Get();
+							if (PinSubCategoryObject && BlueprintEditor.IsValid() && BlueprintEditor->IsNonImportedObject(PinSubCategoryObject))
+							{
+								FString Namespace = FBlueprintNamespaceUtilities::GetObjectNamespace(PinSubCategoryObject);
+								if (!Namespace.IsEmpty())
 								{
-									FString Namespace = FBlueprintNamespaceUtilities::GetObjectNamespace(PinSubCategoryObject);
-									if (!Namespace.IsEmpty())
-									{
-										BlueprintEditor->ImportNamespace(Namespace);
-									}
+									BlueprintEditor->ImportNamespace(Namespace);
 								}
 							}
 						}
@@ -6045,7 +6034,7 @@ void FBlueprintGlobalOptionsDetails::HandleNamespaceValueChange(const FString& I
 				// In that case, it will switch to a default namespace in the Imports table.
 				bRefreshDetailsView = true;
 			}
-			else if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+			else
 			{
 				FBlueprintEditor::FImportNamespaceExParameters Params;
 				Params.bIsAutoImport = false;

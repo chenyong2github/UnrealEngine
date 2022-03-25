@@ -580,33 +580,30 @@ void SBlueprintActionMenu::OnActionSelected( const TArray< TSharedPtr<FEdGraphSc
 				{
 					NewNodePosition.Y += UEdGraphSchema_K2::EstimateNodeHeight( ResultNode );
 
-					if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+					TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = EditorPtr.Pin();
+					if (BlueprintEditorPtr.IsValid())
 					{
-						TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = EditorPtr.Pin();
-						if (BlueprintEditorPtr.IsValid())
+						// Determine which namespace(s) to import, based on the node's external dependencies.
+						TSet<FString> NamespacesToImport;
+						TArray<UStruct*> ExternalDependencies;
+						if (ResultNode->HasExternalDependencies(&ExternalDependencies))
 						{
-							// Determine which namespace(s) to import, based on the node's external dependencies.
-							TSet<FString> NamespacesToImport;
-							TArray<UStruct*> ExternalDependencies;
-							if (ResultNode->HasExternalDependencies(&ExternalDependencies))
+							for (const UStruct* ExternalDependency : ExternalDependencies)
 							{
-								for (const UStruct* ExternalDependency : ExternalDependencies)
+								FString ObjectNamespace = FBlueprintNamespaceUtilities::GetObjectNamespace(ExternalDependency);
+								if (!ObjectNamespace.IsEmpty())
 								{
-									FString ObjectNamespace = FBlueprintNamespaceUtilities::GetObjectNamespace(ExternalDependency);
-									if (!ObjectNamespace.IsEmpty())
-									{
-										NamespacesToImport.Add(MoveTemp(ObjectNamespace));
-									}
+									NamespacesToImport.Add(MoveTemp(ObjectNamespace));
 								}
 							}
+						}
 
-							if (NamespacesToImport.Num() > 0)
-							{
-								// Auto-import the namespace(s) gathered above. Additional type objects within the imported scope may be loaded here.
-								FBlueprintEditor::FImportNamespaceExParameters Params;
-								Params.NamespacesToImport = MoveTemp(NamespacesToImport);
-								BlueprintEditorPtr->ImportNamespaceEx(Params);
-							}
+						if (NamespacesToImport.Num() > 0)
+						{
+							// Auto-import the namespace(s) gathered above. Additional type objects within the imported scope may be loaded here.
+							FBlueprintEditor::FImportNamespaceExParameters Params;
+							Params.NamespacesToImport = MoveTemp(NamespacesToImport);
+							BlueprintEditorPtr->ImportNamespaceEx(Params);
 						}
 					}
 				}

@@ -1226,12 +1226,8 @@ void FBlueprintEditor::OnComponentAddedToBlueprint(const FSubobjectData& NewSubo
 	check(NewSubobject);
 
 	// If necessary, auto-import the namespace associated with the new subobject's class.
-	const bool bShouldAutoImportTypeNamespace = GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures;
-	if (bShouldAutoImportTypeNamespace)
-	{
-		const FString SubobjectTypeNamespace = FBlueprintNamespaceUtilities::GetObjectNamespace(NewSubobject->GetClass());
-		ImportNamespace(SubobjectTypeNamespace);
-	}
+	const FString SubobjectTypeNamespace = FBlueprintNamespaceUtilities::GetObjectNamespace(NewSubobject->GetClass());
+	ImportNamespace(SubobjectTypeNamespace);
 }
 
 TSharedRef<SWidget> FBlueprintEditor::CreateGraphTitleBarWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph)
@@ -2048,6 +2044,13 @@ void FBlueprintEditor::ImportNamespace(const FString& InNamespace)
 
 void FBlueprintEditor::ImportNamespaceEx(const FImportNamespaceExParameters& InParams)
 {
+	// No auto-import actions if features are disabled.
+	const bool bIsAutoInputEnabled = GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures;
+	if (InParams.bIsAutoImport && !bIsAutoInputEnabled)
+	{
+		return;
+	}
+
 	// Exit now if no input was given.
 	if (InParams.NamespacesToImport.IsEmpty())
 	{

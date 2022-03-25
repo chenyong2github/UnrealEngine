@@ -835,17 +835,14 @@ private:
 				ActionPtr.Pin()->ChangeVariableType(InNewPinType);
 			}
 
-			if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+			// If the underlying type object's namespace is not imported, auto-import it now into the current editor context.
+			const UObject* PinSubCategoryObject = InNewPinType.PinSubCategoryObject.Get();
+			if (PinSubCategoryObject && BlueprintEditor.IsValid() && BlueprintEditor->IsNonImportedObject(PinSubCategoryObject))
 			{
-				// If the underlying type object's namespace is not imported, auto-import it now into the current editor context.
-				const UObject* PinSubCategoryObject = InNewPinType.PinSubCategoryObject.Get();
-				if (PinSubCategoryObject && BlueprintEditor.IsValid() && BlueprintEditor->IsNonImportedObject(PinSubCategoryObject))
+				FString Namespace = FBlueprintNamespaceUtilities::GetObjectNamespace(PinSubCategoryObject);
+				if (!Namespace.IsEmpty() && BlueprintEditor.IsValid())
 				{
-					FString Namespace = FBlueprintNamespaceUtilities::GetObjectNamespace(PinSubCategoryObject);
-					if (!Namespace.IsEmpty() && BlueprintEditor.IsValid())
-					{
-						BlueprintEditor->ImportNamespace(Namespace);
-					}
+					BlueprintEditor->ImportNamespace(Namespace);
 				}
 			}
 		}
