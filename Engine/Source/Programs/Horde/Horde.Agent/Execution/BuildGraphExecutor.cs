@@ -767,6 +767,7 @@ namespace Horde.Agent.Execution
 			newEnvironment["IsBuildMachine"] = "1";
 
 			DirectoryReference logDir = DirectoryReference.Combine(workspaceDir, "Engine", "Programs", "AutomationTool", "Saved", "Logs");
+			FileUtils.ForceDeleteDirectoryContents(logDir);
 			newEnvironment["uebp_LogFolder"] = logDir.FullName;
 
 			DirectoryReference telemetryDir = DirectoryReference.Combine(workspaceDir, "Engine", "Programs", "AutomationTool", "Saved", "Telemetry");
