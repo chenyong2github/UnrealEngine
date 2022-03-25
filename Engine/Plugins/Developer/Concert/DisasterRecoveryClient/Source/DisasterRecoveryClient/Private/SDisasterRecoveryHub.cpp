@@ -597,10 +597,10 @@ TSharedRef<SWidget> SDisasterRecoveryHub::MakeSessionActivityView()
 {
 	return SAssignNew(ActivityView, SConcertSessionRecovery)
 		.OnFetchActivities(this, &SDisasterRecoveryHub::FetchActivities)
-		.ClientAvatarColorColumnVisibility(EVisibility::Hidden) // Disaster recovery has only one user, the local one.
-		.ClientNameColumnVisibility(EVisibility::Hidden)
-		.OperationColumnVisibility(EVisibility::Visible)
-		.PackageColumnVisibility(EVisibility::Visible)
+		.WithClientAvatarColorColumn(false) // Disaster recovery has only one user, the local one.
+		.WithClientNameColumn(false)
+		.WithOperationColumn(true)
+		.WithPackageColumn(true)
 		.DetailsAreaVisibility(ShouldDisplayActivityDetails() ? EVisibility::Visible : EVisibility::Collapsed)
 		.IsConnectionActivityFilteringEnabled(false) // Not valuable and ignored by Disaster Recovery (DR). DR sessions are for the local user only and join/leave are not recoverable but this will also ignore when the local user joins/leaves a Multi-User session.
 		.IsLockActivityFilteringEnabled(false)       // Not valuable and ignored by Disaster Recovery (DR). DR sessions are for the local user only but lock/unlock are not recoverable but this will also ignore when the local user locks/unlocks assets in a Multi-User session.

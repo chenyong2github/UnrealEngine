@@ -27,20 +27,15 @@
 #include "ConcertLogGlobal.h"
 #include "ConcertTransactionEvents.h"
 #include "ConcertWorkspaceData.h"
+#include "SessionActivityUtils.h"
 #include "SPackageDetails.h"
+
+#include "Session/Activity/PredefinedActivityColumns.h"
 
 #define LOCTEXT_NAMESPACE "SConcertSessionActivities"
 
 namespace ConcertSessionActivityUtils
 {
-// The columns names.
-const FName DateTimeColumnId    = TEXT("DateTime");
-const FName OperationColumnId   = TEXT("Operation");
-const FName PackageColumnId     = TEXT("Package");
-const FName SummaryColumnId     = TEXT("Summary");
-const FName ClientNameColumnId  = TEXT("Client");
-const FName AvatarColorColumnId = TEXT("Client AvatarColor");
-
 // The View Options check boxes.
 const FName DisplayRelativeTimeCheckBoxId       = TEXT("DisplayRelativeTime");
 const FName ShowConnectionActivitiesCheckBoxId  = TEXT("ShowConnectionActivities");
@@ -52,73 +47,6 @@ const FName ShowIgnoredActivitiesCheckBoxId     = TEXT("ShowIgnoredActivities");
 FText GetActivityDateTime(const FConcertSessionActivity& Activity, SConcertSessionActivities::ETimeFormat TimeFormat)
 {
 	return TimeFormat == SConcertSessionActivities::ETimeFormat::Relative ? ConcertFrontendUtils::FormatRelativeTime(Activity.Activity.EventTime) : FText::AsDateTime(Activity.Activity.EventTime);
-}
-
-FText GetOperationName(const FConcertSessionActivity& Activity)
-{
-	if (const FConcertSyncTransactionActivitySummary* TransactionSummary = Activity.ActivitySummary.Cast<FConcertSyncTransactionActivitySummary>())
-	{
-		return TransactionSummary->TransactionTitle;
-	}
-
-	if (const FConcertSyncPackageActivitySummary* PackageSummary = Activity.ActivitySummary.Cast<FConcertSyncPackageActivitySummary>())
-	{
-		auto GetSavedOperationNameFn = [](const FConcertSyncPackageActivitySummary* PackageSummary)
-		{
-			if (PackageSummary->bAutoSave)
-			{
-				return LOCTEXT("AutoSavePackageOperation", "Auto-Save Package");
-			}
-			return PackageSummary->bPreSave ? LOCTEXT("PreSavePackageOperation", "Pre-Save Package") : LOCTEXT("SavePackageOperation", "Save Package");
-		};
-
-		switch (PackageSummary->PackageUpdateType)
-		{
-		case EConcertPackageUpdateType::Added   : return LOCTEXT("NewPackageOperation",    "New Package");
-		case EConcertPackageUpdateType::Deleted : return LOCTEXT("DeletePackageOperation", "Delete Package");
-		case EConcertPackageUpdateType::Renamed : return LOCTEXT("RenamePackageOperation", "Rename Package");
-		case EConcertPackageUpdateType::Saved   : return GetSavedOperationNameFn(PackageSummary);
-		case EConcertPackageUpdateType::Dummy   : return LOCTEXT("DiscardPackageOperation", "Discard Changes");
-		default: break;
-		}
-	}
-
-	if (const FConcertSyncConnectionActivitySummary* ConnectionSummary = Activity.ActivitySummary.Cast<FConcertSyncConnectionActivitySummary>())
-	{
-		switch (ConnectionSummary->ConnectionEventType)
-		{
-		case EConcertSyncConnectionEventType::Connected:    return LOCTEXT("JoinOperation", "Join Session");
-		case EConcertSyncConnectionEventType::Disconnected: return LOCTEXT("LeaveOperation", "Leave Session");
-		default: break;
-		}
-	}
-
-	if (const FConcertSyncLockActivitySummary* LockSummary = Activity.ActivitySummary.Cast<FConcertSyncLockActivitySummary>())
-	{
-		switch (LockSummary->LockEventType)
-		{
-		case EConcertSyncLockEventType::Locked:   return LOCTEXT("LockOperation", "Lock");
-		case EConcertSyncLockEventType::Unlocked: return LOCTEXT("UnlockOperation", "Unlock");
-		default: break;
-		}
-	}
-
-	return FText::GetEmpty();
-}
-
-FText GetPackageName(const FConcertSessionActivity& Activity)
-{
-	if (const FConcertSyncPackageActivitySummary* Summary = Activity.ActivitySummary.Cast<FConcertSyncPackageActivitySummary>())
-	{
-		return FText::FromName(Summary->PackageName);
-	}
-
-	if (const FConcertSyncTransactionActivitySummary* Summary = Activity.ActivitySummary.Cast<FConcertSyncTransactionActivitySummary>())
-	{
-		return FText::FromName(Summary->PrimaryPackageName);
-	}
-
-	return FText::GetEmpty();
 }
 
 FText GetSummary(const FConcertSessionActivity& Activity, const FText& ClientName, bool bAsRichText)
@@ -149,39 +77,32 @@ FText GetClientName(const FConcertClientInfo* InActivityClient)
 class SConcertSessionActivityRow : public SMultiColumnTableRow<TSharedPtr<FConcertSessionActivity>>
 {
 public:
+
+	DECLARE_DELEGATE_RetVal_OneParam(const FActivityColumn*, FGetColumn,
+		const FName& ColumnId
+		);
+	
 	SLATE_BEGIN_ARGS(SConcertSessionActivityRow)
-		: _TimeFormat(SConcertSessionActivities::ETimeFormat::Relative)
-		, _HighlightText()
-		, _OnMakeColumnOverlayWidget()
-	{
-	}
-
-	SLATE_ATTRIBUTE(SConcertSessionActivities::ETimeFormat, TimeFormat)
-	SLATE_ATTRIBUTE(FText, HighlightText)
-	SLATE_ARGUMENT(SConcertSessionActivities::FMakeColumnOverlayWidgetFunc, OnMakeColumnOverlayWidget) // Function invoked when generating a row to add a widget above the column widget.
-
+		: _OnMakeColumnOverlayWidget()
+	{}
+		/** Function invoked when generating a row to add a widget above the column widget. */
+		SLATE_ARGUMENT(SConcertSessionActivities::FMakeColumnOverlayWidgetFunc, OnMakeColumnOverlayWidget) 
 	SLATE_END_ARGS()
 
-public:
 	/**
 	 * Constructs a row widget to display a Concert activity.
 	 * @param InArgs The widgets arguments.
-	 * @param InActivty The activity to display.
+	 * @param InActivity The activity to display.
 	 * @param InActivityClient The client who produced this activity. Can be null if unknown or not desirable.
 	 * @param InOwnerTableView The table view that will own this row.
 	 */
-	void Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionActivity> InActivity, const TOptional<FConcertClientInfo>& InActivityClient, const TSharedRef<STableViewBase>& InOwnerTableView);
+	void Construct(const FArguments& InArgs, TSharedRef<SConcertSessionActivities> InOwner, TSharedRef<FConcertSessionActivity> InActivity, FGetColumn InColumnGetter, const TOptional<FConcertClientInfo>& InActivityClient, const TSharedRef<STableViewBase>& InOwnerTableView);
 
 	/** Generates the widget representing this row. */
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
 
 private:
-	/** Format the the time displayed as relative or absolute according to the attribute 'TimeFormat'. */
-	FText FormatEventDateTime() const;
-
-	/** Returns the client avatar color. */
-	FLinearColor GetClientAvatarColor() const { return ClientAvatarColor; }
-
+	
 	/** Returns the display name of the client who performed the activity or an empty text if the information wasn't available or desired. */
 	FText GetClientName() const { return ClientName; }
 
@@ -189,25 +110,25 @@ private:
 	FText MakeTooltipText() const;
 
 private:
+	TWeakPtr<SConcertSessionActivities> Owner;
 	TWeakPtr<FConcertSessionActivity> Activity;
-	TAttribute<SConcertSessionActivities::ETimeFormat> TimeFormat;
+	FGetColumn ColumnGetter;
 	FText AbsoluteDateTime;
 	FText ClientName;
-	FLinearColor ClientAvatarColor;
-	TAttribute<FText> HighlightText;
 	SConcertSessionActivities::FMakeColumnOverlayWidgetFunc OnMakeColumnOverlayWidget;
 };
 
 
-void SConcertSessionActivityRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionActivity> InActivity, const TOptional<FConcertClientInfo>& InActivityClient, const TSharedRef<STableViewBase>& InOwnerTableView)
+void SConcertSessionActivityRow::Construct(const FArguments& InArgs, TSharedRef<SConcertSessionActivities> InOwner, TSharedRef<FConcertSessionActivity> InActivity, FGetColumn InColumnGetter, const TOptional<FConcertClientInfo>& InActivityClient, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
+	check(InColumnGetter.IsBound());
+	Owner = InOwner;
 	Activity = InActivity;
-	TimeFormat = InArgs._TimeFormat;
-	HighlightText = InArgs._HighlightText;
+	ColumnGetter = InColumnGetter;
+	
 	OnMakeColumnOverlayWidget = InArgs._OnMakeColumnOverlayWidget;
 	AbsoluteDateTime = ConcertSessionActivityUtils::GetActivityDateTime(*InActivity, SConcertSessionActivities::ETimeFormat::Absolute); // Cache the absolute time. It doesn't changes.
 	ClientName = ConcertSessionActivityUtils::GetClientName(InActivityClient);
-	ClientAvatarColor = InActivityClient ? InActivityClient->AvatarColor : FConcertFrontendStyle::Get()->GetColor("Concert.DisconnectedColor");
 
 	// Construct base class
 	SMultiColumnTableRow<TSharedPtr<FConcertSessionActivity>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
@@ -220,75 +141,17 @@ void SConcertSessionActivityRow::Construct(const FArguments& InArgs, TSharedPtr<
 
 TSharedRef<SWidget> SConcertSessionActivityRow::GenerateWidgetForColumn(const FName& ColumnId)
 {
-	TSharedPtr<FConcertSessionActivity> ActivityPin = Activity.Pin();
-	TSharedRef<SOverlay> Overlay = SNew(SOverlay);
-
-	if (ColumnId == ConcertSessionActivityUtils::AvatarColorColumnId)
+	const TSharedPtr<SConcertSessionActivities> OwnerPin = Owner.Pin();
+	const TSharedPtr<FConcertSessionActivity> ActivityPin = Activity.Pin();
+	check(OwnerPin && ActivityPin);
+	
+	const TSharedRef<SOverlay> Overlay = SNew(SOverlay);
+	if (const FActivityColumn* Column = ColumnGetter.Execute(ColumnId))
 	{
-		Overlay->AddSlot()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		.Padding(2, 1)
-		[
-			SNew(SColorBlock)
-			.Color(GetClientAvatarColor())
-			.Size(FVector2D(4.f, 16.f))
-		];
+		SOverlay::FScopedWidgetSlotArguments WidgetSlot = Overlay->AddSlot();
+		Column->BuildColumnWidget(OwnerPin.ToSharedRef(), ActivityPin.ToSharedRef(), WidgetSlot);
 	}
-	else if (ColumnId == ConcertSessionActivityUtils::DateTimeColumnId)
-	{
-		Overlay->AddSlot()
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Text(this, &SConcertSessionActivityRow::FormatEventDateTime)
-			.HighlightText(HighlightText)
-		];
-	}
-	else if (ColumnId == ConcertSessionActivityUtils::ClientNameColumnId)
-	{
-		Overlay->AddSlot()
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Text(GetClientName())
-			.HighlightText(HighlightText)
-		];
-	}
-	else if (ColumnId == ConcertSessionActivityUtils::PackageColumnId)
-	{
-		Overlay->AddSlot()
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Text(ConcertSessionActivityUtils::GetPackageName(*ActivityPin))
-			.HighlightText(HighlightText)
-		];
-	}
-	else if (ColumnId == ConcertSessionActivityUtils::OperationColumnId)
-	{
-		Overlay->AddSlot()
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Text(ConcertSessionActivityUtils::GetOperationName(*ActivityPin))
-			.HighlightText(HighlightText)
-		];
-	}
-	else
-	{
-		check(ColumnId == ConcertSessionActivityUtils::SummaryColumnId);
-
-		Overlay->AddSlot()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SRichTextBlock)
-			.DecoratorStyleSet(FConcertFrontendStyle::Get().Get())
-			.Text(ConcertSessionActivityUtils::GetSummary(*ActivityPin, FText::GetEmpty(), true/*bAsRichText*/))
-			.HighlightText(HighlightText)
-		];
-	}
-
+	
 	if (OnMakeColumnOverlayWidget.IsBound())
 	{
 		if (TSharedPtr<SWidget> OverlayedWidget = OnMakeColumnOverlayWidget.Execute(ActivityPin, ColumnId))
@@ -301,7 +164,6 @@ TSharedRef<SWidget> SConcertSessionActivityRow::GenerateWidgetForColumn(const FN
 	}
 
 	SetToolTipText(TAttribute<FText>(this, &SConcertSessionActivityRow::MakeTooltipText));
-
 	return Overlay;
 }
 
@@ -309,10 +171,10 @@ FText SConcertSessionActivityRow::MakeTooltipText() const
 {
 	if (TSharedPtr<FConcertSessionActivity> ActivityPin = Activity.Pin())
 	{
-		FText Client = GetClientName();
-		FText Operation = ConcertSessionActivityUtils::GetOperationName(*ActivityPin);
-		FText Package = ConcertSessionActivityUtils::GetPackageName(*ActivityPin);
-		FText Summary = ConcertSessionActivityUtils::GetSummary(*ActivityPin, Client, /*bAsRichText*/false);
+		const FText Client = GetClientName();
+		const FText Operation = UE::ConcertSharedSlate::Private::GetOperationName(*ActivityPin);
+		const FText Package = UE::ConcertSharedSlate::Private::GetPackageName(*ActivityPin);
+		const FText Summary = ConcertSessionActivityUtils::GetSummary(*ActivityPin, Client, /*bAsRichText*/false);
 
 		FTextBuilder TextBuilder;
 
@@ -345,16 +207,6 @@ FText SConcertSessionActivityRow::MakeTooltipText() const
 	return FText::GetEmpty();
 }
 
-FText SConcertSessionActivityRow::FormatEventDateTime() const
-{
-	if (TSharedPtr<FConcertSessionActivity> ItemPin = Activity.Pin())
-	{
-		return TimeFormat.Get() == SConcertSessionActivities::ETimeFormat::Relative ? ConcertFrontendUtils::FormatRelativeTime(ItemPin->Activity.EventTime) : AbsoluteDateTime;
-	}
-	return FText::GetEmpty();
-}
-
-
 void SConcertSessionActivities::Construct(const FArguments& InArgs)
 {
 	FetchActivitiesFn = InArgs._OnFetchActivities;
@@ -362,11 +214,11 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 	GetTransactionEventFn = InArgs._OnGetTransactionEvent;
 	GetPackageEventFn = InArgs._OnGetPackageEvent;
 	MakeColumnOverlayWidgetFn = InArgs._OnMakeColumnOverlayWidget;
+	
+	Columns = InArgs._Columns;
 	HighlightText = InArgs._HighlightText;
+	
 	TimeFormat = InArgs._TimeFormat;
-	ClientNameColumnVisibility = InArgs._ClientNameColumnVisibility;
-	OperationColumnVisibility = InArgs._OperationColumnVisibility;
-	PackageColumnVisibility = InArgs._PackageColumnVisibility;
 	ConnectionActivitiesVisibility = InArgs._ConnectionActivitiesVisibility;
 	LockActivitiesVisibility = InArgs._LockActivitiesVisibility;
 	PackageActivitiesVisibility = InArgs._PackageActivitiesVisibility;
@@ -378,46 +230,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 	SearchTextFilter = MakeShared<TTextFilter<const FConcertSessionActivity&>>(TTextFilter<const FConcertSessionActivity&>::FItemToStringArray::CreateSP(this, &SConcertSessionActivities::PopulateSearchStrings));
 	SearchTextFilter->OnChanged().AddSP(this, &SConcertSessionActivities::OnActivityFilterUpdated);
 
-	// Set the initial filter state.
 	ActiveFilterFlags = QueryActiveActivityFilters();
-
-	// Create the table header. (Setting visibility on the column itself doesn't show/hide the column as one would expect, unfortunately)
-	TSharedRef<SHeaderRow> HeaderRow = SNew(SHeaderRow);
-	if (InArgs._ClientAvatarColorColumnVisibility.Get() == EVisibility::Visible)
-	{
-		HeaderRow->AddColumn(SHeaderRow::Column(ConcertSessionActivityUtils::AvatarColorColumnId)
-			.DefaultLabel(INVTEXT(""))
-			.ManualWidth(8));
-	}
-
-	HeaderRow->AddColumn(SHeaderRow::Column(ConcertSessionActivityUtils::DateTimeColumnId)
-		.DefaultLabel(LOCTEXT("DateTime", "Date/Time"))
-		.ManualWidth(160));
-
-	if (InArgs._ClientNameColumnVisibility.Get() == EVisibility::Visible)
-	{
-		HeaderRow->AddColumn(SHeaderRow::Column(ConcertSessionActivityUtils::ClientNameColumnId)
-			.DefaultLabel(LOCTEXT("Client", "Client"))
-			.ManualWidth(80));
-	}
-
-	if (InArgs._OperationColumnVisibility.Get() == EVisibility::Visible)
-	{
-		HeaderRow->AddColumn(SHeaderRow::Column(ConcertSessionActivityUtils::OperationColumnId)
-			.DefaultLabel(LOCTEXT("Operation", "Operation"))
-			.ManualWidth(160));
-	}
-
-	if (InArgs._PackageColumnVisibility.Get() == EVisibility::Visible)
-	{
-		HeaderRow->AddColumn(SHeaderRow::Column(ConcertSessionActivityUtils::PackageColumnId)
-			.DefaultLabel(LOCTEXT("Package", "Package"))
-			.ManualWidth(200));
-	}
-
-	HeaderRow->AddColumn(SHeaderRow::Column(ConcertSessionActivityUtils::SummaryColumnId)
-		.DefaultLabel(LOCTEXT("Summary", "Summary")));
-
 	ChildSlot
 	[
 		SNew(SSplitter)
@@ -443,7 +256,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 					.AllowOverscroll(EAllowOverscroll::No)
 					.OnListViewScrolled(this, &SConcertSessionActivities::OnListViewScrolled)
 					.OnSelectionChanged(this, &SConcertSessionActivities::OnListViewSelectionChanged)
-					.HeaderRow(HeaderRow)
+					.HeaderRow(CreateHeaderRow())
 				]
 			]
 
@@ -534,6 +347,52 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 	{
 		FSlateApplication::Get().OnPostTick().AddSP(this, &SConcertSessionActivities::OnPostTick);
 	}
+}
+
+TSharedRef<SHeaderRow> SConcertSessionActivities::CreateHeaderRow()
+{
+	using namespace UE::ConcertSharedSlate;
+
+	// Before sort because columns can be placed before
+	const bool bContainsDateTime = Columns.FindByPredicate([](const FActivityColumn& Column) { return Column.ColumnId ==  ActivityColumn::DateTimeColumnId; }) != nullptr; 
+	checkf(!bContainsDateTime, TEXT("DateTime is already created by SConcertSessionActivities!"))
+	Columns.Add(ActivityColumn::DateTime());
+	
+	Columns.Sort([](const FActivityColumn& Left, const FActivityColumn& Right) { return Left.GetColumnSortOrderValue() < Right.GetColumnSortOrderValue(); });
+
+	// Summary is always last
+	const bool bContainsSummary = Columns.FindByPredicate([](const FActivityColumn& Column) { return Column.ColumnId ==  ActivityColumn::SummaryColumnId; }) != nullptr; 
+	checkf(!bContainsSummary, TEXT("Summary is already created by SConcertSessionActivities!"))
+	Columns.Add(ActivityColumn::Summary());
+	
+	const TSharedRef<SHeaderRow> HeaderRow = SNew(SHeaderRow);
+	for (FActivityColumn& Column : Columns)
+	{
+		HeaderRow->AddColumn(Column);
+	}
+	
+	return HeaderRow;
+}
+
+TSharedRef<ITableRow> SConcertSessionActivities::OnGenerateActivityRowWidget(TSharedPtr<FConcertSessionActivity> Activity, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	const TOptional<FConcertClientInfo> ActivityClient = GetActivityUserFn.IsBound() ? GetActivityUserFn.Execute(Activity->Activity.EndpointId) : TOptional<FConcertClientInfo>{};
+	const SConcertSessionActivityRow::FGetColumn ColumnGetter = SConcertSessionActivityRow::FGetColumn::CreateLambda([this](const FName& ColumnId) -> const FActivityColumn*
+	{
+		for (const FActivityColumn& Column : Columns)
+		{
+			if (Column.ColumnId == ColumnId)
+			{
+				return &Column;
+			}
+		}
+
+		checkNoEntry();
+		return nullptr;
+	});
+	
+	return SNew(SConcertSessionActivityRow, SharedThis(this), Activity.ToSharedRef(), ColumnGetter, ActivityClient, OwnerTable)
+		.OnMakeColumnOverlayWidget(MakeColumnOverlayWidgetFn);
 }
 
 void SConcertSessionActivities::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -870,37 +729,12 @@ FText SConcertSessionActivities::UpdateTextFilter(const FText& InFilterText)
 	return SearchTextFilter->GetFilterErrorText();
 }
 
-void SConcertSessionActivities::PopulateSearchStrings(const FConcertSessionActivity& Activity, TArray<FString>& OutSearchStrings) const
+void SConcertSessionActivities::PopulateSearchStrings(const FConcertSessionActivity& Activity, TArray<FString>& OutSearchStrings)
 {
-	FText ClientName = GetActivityUserFn.IsBound()
-		? ConcertSessionActivityUtils::GetClientName(GetActivityUserFn.Execute(Activity.Activity.EndpointId)) : FText::GetEmpty();
-
-	OutSearchStrings.Add(ConcertSessionActivityUtils::GetActivityDateTime(Activity, TimeFormat.Get()).ToString());
-	OutSearchStrings.Add(ConcertSessionActivityUtils::GetSummary(Activity, ClientName, /*bAsRichText*/false).ToString());
-
-	if (ClientNameColumnVisibility.Get() == EVisibility::Visible)
+	for (const FActivityColumn& Column : Columns)
 	{
-		OutSearchStrings.Add(ClientName.ToString());
+		Column.ExecutePopulateSearchString(SharedThis(this), Activity, OutSearchStrings);
 	}
-
-	if (OperationColumnVisibility.Get() == EVisibility::Visible)
-	{
-		OutSearchStrings.Add(ConcertSessionActivityUtils::GetOperationName(Activity).ToString());
-	}
-
-	if (PackageColumnVisibility.Get() == EVisibility::Visible)
-	{
-		OutSearchStrings.Add(ConcertSessionActivityUtils::GetPackageName(Activity).ToString());
-	}
-}
-
-TSharedRef<ITableRow> SConcertSessionActivities::OnGenerateActivityRowWidget(TSharedPtr<FConcertSessionActivity> Activity, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	const TOptional<FConcertClientInfo> ActivityClient = GetActivityUserFn.IsBound() ? GetActivityUserFn.Execute(Activity->Activity.EndpointId) : TOptional<FConcertClientInfo>{};
-	return SNew(SConcertSessionActivityRow, Activity, ActivityClient, OwnerTable)
-		.TimeFormat(TimeFormat)
-		.HighlightText(HighlightText)
-		.OnMakeColumnOverlayWidget(MakeColumnOverlayWidgetFn);
 }
 
 TSharedPtr<FConcertSessionActivity> SConcertSessionActivities::GetSelectedActivity() const
@@ -928,7 +762,8 @@ TSharedPtr<FConcertSessionActivity> SConcertSessionActivities::GetMostRecentActi
 
 bool SConcertSessionActivities::IsLastColumn(const FName& ColumnId) const
 {
-	return ColumnId == ConcertSessionActivityUtils::SummaryColumnId; // Summary column is always visible and always the last.
+	// Summary column is always visible and always the last.
+	return ColumnId == UE::ConcertSharedSlate::ActivityColumn::SummaryColumnId; 
 }
 
 void SConcertSessionActivities::DisplayTransactionDetails(const FConcertSessionActivity& Activity, const FConcertTransactionEventBase& InTransaction)

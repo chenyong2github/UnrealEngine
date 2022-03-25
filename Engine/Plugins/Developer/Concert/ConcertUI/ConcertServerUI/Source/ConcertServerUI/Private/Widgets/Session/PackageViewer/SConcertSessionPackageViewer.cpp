@@ -2,6 +2,7 @@
 
 #include "SConcertSessionPackageViewer.h"
 
+#include "Session/Activity/PredefinedActivityColumns.h"
 #include "Session/Activity/SConcertSessionActivities.h"
 #include "Widgets/Input/SSearchBox.h"
 
@@ -9,22 +10,23 @@
 
 void SConcertSessionPackageViewer::Construct(const FArguments& InArgs)
 {
+	using namespace UE::ConcertSharedSlate;
+	
 	ActivityListViewOptions = MakeShared<FConcertSessionActivitiesOptions>();
 	ActivityListViewOptions->bEnableConnectionActivityFiltering = false;
 	ActivityListViewOptions->bEnableLockActivityFiltering = false;
 	ActivityListViewOptions->bEnablePackageActivityFiltering = false;
 	ActivityListViewOptions->bEnableTransactionActivityFiltering = false;
-	
+
 	SAssignNew(ActivityListView, SConcertSessionActivities)
 		.OnGetPackageEvent(InArgs._GetPackageEvent)
 		.OnFetchActivities(InArgs._FetchInitialActivities)
 		.OnMapActivityToClient(InArgs._GetClientInfo)
 		.HighlightText(this, &SConcertSessionPackageViewer::HighlightSearchedText)
+		.Columns({
+			// TODO: Create Icon (depending on EConcertPackageUpdateType), Size, and Version
+		})
 		.TimeFormat(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTimeFormat)
-		.ClientNameColumnVisibility(EVisibility::Visible)
-		.ClientAvatarColorColumnVisibility(EVisibility::Collapsed)
-		.OperationColumnVisibility(EVisibility::Collapsed)
-		.PackageColumnVisibility(EVisibility::Collapsed)
 		.ConnectionActivitiesVisibility(EVisibility::Collapsed)
 		.LockActivitiesVisibility(EVisibility::Collapsed)
 		.PackageActivitiesVisibility(EVisibility::Visible)

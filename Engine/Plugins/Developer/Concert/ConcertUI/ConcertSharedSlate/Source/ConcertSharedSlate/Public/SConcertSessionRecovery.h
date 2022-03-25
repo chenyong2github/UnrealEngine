@@ -19,10 +19,10 @@ class CONCERTSHAREDSLATE_API SConcertSessionRecovery : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SConcertSessionRecovery)
-		: _ClientAvatarColorColumnVisibility(EVisibility::Collapsed)
-		, _ClientNameColumnVisibility(EVisibility::Collapsed)
-		, _OperationColumnVisibility(EVisibility::Visible)
-		, _PackageColumnVisibility(EVisibility::Collapsed)
+		: _WithClientAvatarColorColumn(false)
+		, _WithClientNameColumn(false)
+		, _WithOperationColumn(true)
+		, _WithPackageColumn(false)
 		, _DetailsAreaVisibility(EVisibility::Collapsed)
 		, _IsConnectionActivityFilteringEnabled(false)
 		, _IsLockActivityFilteringEnabled(false)
@@ -51,16 +51,16 @@ public:
 		SLATE_ARGUMENT(TFunction<void()>, OnCancel)
 
 		/** Show/hide the column displaying the avatar color of the client who performed the activity. */
-		SLATE_ARGUMENT(EVisibility, ClientAvatarColorColumnVisibility)
+		SLATE_ARGUMENT(bool, WithClientAvatarColorColumn)
 
 		/** Show/hide the column showing the display name of the client who performed the activity. */
-		SLATE_ARGUMENT(EVisibility, ClientNameColumnVisibility)
+		SLATE_ARGUMENT(bool, WithClientNameColumn)
 
 		/** Show/hide the column displaying the operation represented by the activity. */
-		SLATE_ARGUMENT(EVisibility, OperationColumnVisibility)
+		SLATE_ARGUMENT(bool, WithOperationColumn)
 
 		/** Show/hide the column displaying affected package. */
-		SLATE_ARGUMENT(EVisibility, PackageColumnVisibility)
+		SLATE_ARGUMENT(bool, WithPackageColumn)
 
 		/** Show/hide the details area widget. */
 		SLATE_ARGUMENT(EVisibility, DetailsAreaVisibility)
@@ -112,6 +112,9 @@ public:
 	TSharedPtr<FConcertSessionActivity> GetMostRecentActivity() const;
 
 private:
+
+	TArray<FActivityColumn> MakeColumns(const FArguments& InArgs) const;
+	
 	void OnSearchTextChanged(const FText& InFilterText);
 	void OnSearchTextCommitted(const FText& InFilterText, ETextCommit::Type CommitType);
 	FText HighlightSearchText() const;

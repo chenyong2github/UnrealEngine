@@ -421,10 +421,10 @@ void FConcertClientSessionBrowserController::RestoreSession(const FGuid& ServerA
 		.OnFetchActivities_Lambda(ReadActivitiesFn)
 		.OnMapActivityToClient_Lambda(GetActivityClientInfoFn)
 		.OnRestore(OnAcceptRestoreFn)
-		.ClientNameColumnVisibility(EVisibility::Visible)
-		.ClientAvatarColorColumnVisibility(EVisibility::Visible)
-		.OperationColumnVisibility(EVisibility::Visible)
-		.PackageColumnVisibility(EVisibility::Hidden) // Even tough the column is not present, the tooltips and summary contains the affected package.
+		.WithClientAvatarColorColumn(true)
+		.WithClientNameColumn(true)
+		.WithOperationColumn(true)
+		.WithPackageColumn(false) // Even tough the column is not present, the tooltips and summary contains the affected package.
 		.DetailsAreaVisibility(bRequestActivityDetails ? EVisibility::Visible : EVisibility::Collapsed) // The activity stream was configured to pull the activity details.
 		.IsConnectionActivityFilteringEnabled(true)
 		.IsLockActivityFilteringEnabled(true);

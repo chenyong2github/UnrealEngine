@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SlateFwd.h"
+#include "ActivityColumn.h"
 #include "Async/Future.h"
 #include "Misc/TextFilter.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -19,7 +19,6 @@ class SUndoHistoryDetails;
 class SPackageDetails;
 class STextBlock;
 class SExpendableArea;
-
 
 /** Filters for the concert session activity view. */
 enum class EConcertActivityFilterFlags
@@ -37,7 +36,7 @@ ENUM_CLASS_FLAGS(EConcertActivityFilterFlags);
 class CONCERTSHAREDSLATE_API SConcertSessionActivities : public SCompoundWidget
 {
 public:
-	
+
 	/** Defines how the time should be displayed in the date/time column. */
 	enum class ETimeFormat
 	{
@@ -54,7 +53,6 @@ public:
 	/** Returns the transaction event corresponding the specified activity.*/
 	DECLARE_DELEGATE_RetVal_OneParam(TFuture<TOptional<FConcertSyncTransactionEvent>>, FGetTransactionEvent, const FConcertSessionActivity& /*Activity*/)
 	
-
 	/** Returns the package event corresponding to the package activity. */
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FGetPackageEvent, const FConcertSessionActivity& /*Activity*/, FConcertSyncPackageEventMetaData& /*OutEvent*/);
 
@@ -67,10 +65,6 @@ public:
 		, _OnMapActivityToClient()
 		, _OnMakeColumnOverlayWidget()
 		, _TimeFormat(ETimeFormat::Relative)
-		, _ClientAvatarColorColumnVisibility(EVisibility::Hidden)
-		, _ClientNameColumnVisibility(EVisibility::Hidden)
-		, _OperationColumnVisibility(EVisibility::Hidden)
-		, _PackageColumnVisibility(EVisibility::Hidden)
 		, _ConnectionActivitiesVisibility(EVisibility::Hidden)
 		, _LockActivitiesVisibility(EVisibility::Hidden)
 		, _PackageActivitiesVisibility(EVisibility::Visible)
@@ -93,24 +87,15 @@ public:
 
 		/** If bound, invoked when generating a row to add an overlay to a column. */
 		SLATE_EVENT(FMakeColumnOverlayWidgetFunc, OnMakeColumnOverlayWidget)
+	
+		/** The columns to show for each activity; they are shown after date time */
+		SLATE_ARGUMENT(TArray<FActivityColumn>, Columns)
 
 		/** Highlight the returned text in the view. */
 		SLATE_ATTRIBUTE(FText, HighlightText)
 
 		/** Defines how time should be displayed (relative vs absolute). */
 		SLATE_ATTRIBUTE(ETimeFormat, TimeFormat)
-
-		/** Show/hide the column displaying the avatar color of the client who performed the activity. */
-		SLATE_ATTRIBUTE(EVisibility, ClientAvatarColorColumnVisibility)
-
-		/** Show/hide the column showing the display name of the client who performed the activity. */
-		SLATE_ATTRIBUTE(EVisibility, ClientNameColumnVisibility)
-
-		/** Show/hide the column showing the operation name. */
-		SLATE_ATTRIBUTE(EVisibility, OperationColumnVisibility)
-
-		/** Show/hide the column showing the affected package. */
-		SLATE_ATTRIBUTE(EVisibility, PackageColumnVisibility)
 
 		/** Show/hide connection activities. */
 		SLATE_ATTRIBUTE(EVisibility, ConnectionActivitiesVisibility)
@@ -176,59 +161,47 @@ public:
 	/** Asks the view to update the text search filter. */
 	FText UpdateTextFilter(const FText& InFilterText);
 
-private:
-	/** Generates a row widget in the table view. */
-	TSharedRef<ITableRow> OnGenerateActivityRowWidget(TSharedPtr<FConcertSessionActivity> Item, const TSharedRef<STableViewBase>& OwnerTable);
+	const TAttribute<FText>& GetHighlightText() const { return HighlightText; }
+	const TAttribute<ETimeFormat>& GetTimeFormat() const { return TimeFormat; }
+	TOptional<FConcertClientInfo> GetClientInfo(const FGuid& Guid) const { return GetActivityUserFn.IsBound() ? GetActivityUserFn.Execute(Guid) : TOptional<FConcertClientInfo>{}; }
 
-	/** Fetches more activities. */
+private:
+
+	// Widget creation
+	TSharedRef<SHeaderRow> CreateHeaderRow();
+	TSharedRef<ITableRow> OnGenerateActivityRowWidget(TSharedPtr<FConcertSessionActivity> Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void FetchActivities();
 
-	/** Queries the active set of activity filter flags. */
+	// Filtering
 	EConcertActivityFilterFlags QueryActiveActivityFilters() const;
-
-	/** Invoked when the filter changes and the displayed activity list must be reevaluated. */
 	void OnActivityFilterUpdated();
-
-	/** Returns true if the specified activity passes the view filters. */
 	bool PassesFilters(const FConcertSessionActivity& Activity);
 
-	/** Invoked when the list view scrolled to fetch more data from the activity provider. */
+	// List view
 	void OnListViewScrolled(double InScrollOffset);
-
-	/** Invoked when the list view selection changes. */
 	void OnListViewSelectionChanged(TSharedPtr<FConcertSessionActivity> InActivity, ESelectInfo::Type SelectInfo);
 
-	/** Convert the item into a list of text element used search bars. */
-	void PopulateSearchStrings(const FConcertSessionActivity& Item, TArray<FString>& OutSearchStrings) const;
+	// Search
+	void PopulateSearchStrings(const FConcertSessionActivity& Item, TArray<FString>& OutSearchStrings);
 
-	/** Returns whether the details expandable area should be visible or not. */
-	EVisibility GetDetailAreaVisibility() const { return DetailsAreaVisibility; }
-
-	/** Manages how much space is used by the 'Details' area with respect to its expansion state. */
-	SSplitter::ESizeRule GetDetailsAreaSizeRule() const { return bDetailsAreaExpanded ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; }
-
-	/** Invoked when the 'Details' expandable area is expanded/collapsed. Affects how the 'Details' area size is accounted in the splitter. */
+	// Details
 	void OnDetailsAreaExpansionChanged(bool bExpanded);
-
-	/** Displays what properties/objects changed during a transaction in the details area when a transaction activity is selected in the list. */
-	void DisplayTransactionDetails(const FConcertSessionActivity& Activity, const FConcertTransactionEventBase& InTransaction);
-
-	/** Displays what changed in a package in the details area when a package activity is selected in the list. */
-	void DisplayPackageDetails(const FConcertSessionActivity& Activity, int64 PackageRevision, const FConcertPackageInfo& PackageInfo);
-
-	/** Update the detail area to display the proper panel and details. */
 	void UpdateDetailArea(TSharedPtr<FConcertSessionActivity> InSelectedActivity);
-
-	/** Change the visibility of the details panels, keeping only one visible. */
 	void SetDetailsPanelVisibility(const SWidget* VisiblePanel);
-
-	/** Returns the text displayed to the user when there are no details to display. */
+	void DisplayTransactionDetails(const FConcertSessionActivity& Activity, const FConcertTransactionEventBase& InTransaction);
+	void DisplayPackageDetails(const FConcertSessionActivity& Activity, int64 PackageRevision, const FConcertPackageInfo& PackageInfo);
 	FText GetNoDetailsText() const;
-
+	EVisibility GetDetailAreaVisibility() const { return DetailsAreaVisibility; }
+	SSplitter::ESizeRule GetDetailsAreaSizeRule() const { return bDetailsAreaExpanded ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; }
+	
 	/** Invoked after all widget ticks get processed. Used to check if the user scrolled or not. */
 	void OnPostTick(float);
 
 private:
+
+	/** The columns that are being displayed */
+	TArray<FActivityColumn> Columns;
+	
 	/** List of all activities (including the filtered out ones). */
 	TArray<TSharedPtr<FConcertSessionActivity>> AllActivities;
 
@@ -246,15 +219,6 @@ private:
 
 	/** Whether the time should be displayed as relative (9 seconds ago) or as absolute (July 10, 2019 - 10:20:10) */
 	TAttribute<ETimeFormat> TimeFormat;
-
-	/** Whether the client name column is displayed. */
-	TAttribute<EVisibility> ClientNameColumnVisibility;
-
-	/** Whether the operation column is displayed. */
-	TAttribute<EVisibility> OperationColumnVisibility;
-
-	/** Whether the package column is displayed. */
-	TAttribute<EVisibility> PackageColumnVisibility;
 
 	/** Whether the join/leave session activities are displayed. */
 	TAttribute<EVisibility> ConnectionActivitiesVisibility;
@@ -281,7 +245,7 @@ private:
 	bool bUserScrolling = false;
 
 	/** Defines which activity types are currently filtered out from the view. */
-	EConcertActivityFilterFlags ActiveFilterFlags;
+	EConcertActivityFilterFlags ActiveFilterFlags = EConcertActivityFilterFlags::ShowAll;
 
 	/** Used to fetch more activities from an abstract source. Usually mutually exclusive with Append() function. May not be bound. */
 	FFetchActivitiesFunc FetchActivitiesFn;

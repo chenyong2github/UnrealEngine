@@ -13,6 +13,8 @@
 #include "SNegativeActionButton.h"
 #include "SPositiveActionButton.h"
 
+#include "Session/Activity/PredefinedActivityColumns.h"
+
 #define LOCTEXT_NAMESPACE "SConcertSessionRecovery"
 
 void SConcertSessionRecovery::Construct(const FArguments& InArgs)
@@ -29,24 +31,21 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 	ActivityViewOptions->bEnablePackageActivityFiltering = InArgs._IsPackageActivityFilteringEnabled;
 	ActivityViewOptions->bEnableTransactionActivityFiltering = InArgs._IsTransactionActivityFilteringEnabled;
 	ActivityViewOptions->bEnableIgnoredActivityFiltering = InArgs._IsIgnoredActivityFilteringEnabled;
-
+	
 	SAssignNew(ActivityView, SConcertSessionActivities)
-	.OnFetchActivities(InArgs._OnFetchActivities)
-	.OnMapActivityToClient(InArgs._OnMapActivityToClient)
-	.OnMakeColumnOverlayWidget_Lambda([this](TWeakPtr<FConcertSessionActivity> Activity, const FName& ColumnId) { return MakeRecoverThroughWidget(Activity, ColumnId); })
-	.HighlightText(this, &SConcertSessionRecovery::HighlightSearchText)
-	.TimeFormat(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTimeFormat)
-	.ClientAvatarColorColumnVisibility(InArgs._ClientAvatarColorColumnVisibility)
-	.ClientNameColumnVisibility(InArgs._ClientNameColumnVisibility)
-	.OperationColumnVisibility(InArgs._OperationColumnVisibility)
-	.PackageColumnVisibility(InArgs._PackageColumnVisibility)
-	.ConnectionActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetConnectionActivitiesVisibility)
-	.LockActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetLockActivitiesVisibility)
-	.PackageActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetPackageActivitiesVisibility)
-	.TransactionActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTransactionActivitiesVisibility)
-	.IgnoredActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetIgnoredActivitiesVisibility)
-	.DetailsAreaVisibility(InArgs._DetailsAreaVisibility)
-	.NoActivitiesReasonText(InArgs._NoActivitiesReasonText);
+		.OnFetchActivities(InArgs._OnFetchActivities)
+		.OnMapActivityToClient(InArgs._OnMapActivityToClient)
+		.OnMakeColumnOverlayWidget_Lambda([this](TWeakPtr<FConcertSessionActivity> Activity, const FName& ColumnId) { return MakeRecoverThroughWidget(Activity, ColumnId); })
+		.Columns(MakeColumns(InArgs))
+		.HighlightText(this, &SConcertSessionRecovery::HighlightSearchText)
+		.TimeFormat(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTimeFormat)
+		.ConnectionActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetConnectionActivitiesVisibility)
+		.LockActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetLockActivitiesVisibility)
+		.PackageActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetPackageActivitiesVisibility)
+		.TransactionActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTransactionActivitiesVisibility)
+		.IgnoredActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetIgnoredActivitiesVisibility)
+		.DetailsAreaVisibility(InArgs._DetailsAreaVisibility)
+		.NoActivitiesReasonText(InArgs._NoActivitiesReasonText);
 
 	ChildSlot
 	[
@@ -141,6 +140,31 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 			]
 		]
 	];
+}
+
+TArray<FActivityColumn> SConcertSessionRecovery::MakeColumns(const FArguments& InArgs) const
+{
+	using namespace UE::ConcertSharedSlate;
+	TArray<FActivityColumn> Result;
+
+	if (InArgs._WithClientAvatarColorColumn)
+	{
+		Result.Add(ActivityColumn::AvatarColor());
+	}
+	if (InArgs._WithClientNameColumn)
+	{
+		Result.Add(ActivityColumn::ClientName());
+	}
+	if (InArgs._WithOperationColumn)
+	{
+		Result.Add(ActivityColumn::Operation());
+	}
+	if (InArgs._WithPackageColumn)
+	{
+		Result.Add(ActivityColumn::Package());
+	}
+	
+	return Result;
 }
 
 TSharedPtr<SWidget> SConcertSessionRecovery::MakeRecoverThroughWidget(TWeakPtr<FConcertSessionActivity> Activity, const FName& ColumnId)

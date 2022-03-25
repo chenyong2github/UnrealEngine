@@ -4,6 +4,8 @@
 
 #include "ConcertMessageData.h"
 #include "IConcertSession.h"
+
+#include "Session/Activity/PredefinedActivityColumns.h"
 #include "Session/Activity/SConcertSessionActivities.h"
 
 #include "Widgets/Input/SSearchBox.h"
@@ -41,6 +43,8 @@ namespace ConcertSessionHistoryUI
 
 void SSessionHistory::Construct(const FArguments& InArgs)
 {
+	using namespace UE::ConcertSharedSlate;
+	
 	PackageNameFilter = InArgs._PackageFilter;
 
 	ActivityMap.Reserve(MaximumNumberOfActivities);
@@ -52,10 +56,11 @@ void SSessionHistory::Construct(const FArguments& InArgs)
 		.OnMapActivityToClient(this, &SSessionHistory::GetClientInfo)
 		.HighlightText(this, &SSessionHistory::HighlightSearchedText)
 		.TimeFormat(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTimeFormat)
-		.ClientNameColumnVisibility(EVisibility::Visible)
-		.ClientAvatarColorColumnVisibility(EVisibility::Visible)
-		.OperationColumnVisibility(EVisibility::Visible)
-		.PackageColumnVisibility(EVisibility::Collapsed)
+		.Columns({
+			ActivityColumn::AvatarColor(),
+			ActivityColumn::ClientName(),
+			ActivityColumn::Operation()
+		})
 		.ConnectionActivitiesVisibility(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetConnectionActivitiesVisibility)
 		.LockActivitiesVisibility(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetLockActivitiesVisibility)
 		.PackageActivitiesVisibility(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetPackageActivitiesVisibility)
