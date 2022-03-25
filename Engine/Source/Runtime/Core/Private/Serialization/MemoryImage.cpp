@@ -1314,7 +1314,7 @@ int32 FPointerTableBase::AddTypeDependency(const FTypeLayoutDesc& TypeDesc)
 	{
 		for (int32 Index = 0; Index < TypeDependencies.Num(); ++Index)
 		{
-			if (TypeDependencies[Index]->NameHash == TypeDesc.NameHash)
+			if (TypeDependencies[Index] != nullptr && TypeDependencies[Index]->NameHash == TypeDesc.NameHash)
 			{
 				return Index;
 			}
