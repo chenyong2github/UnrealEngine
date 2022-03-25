@@ -965,12 +965,13 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 	const ETextureCreateFlags InvalidFlags = TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable | TexCreate_GenerateMipCapable | TexCreate_UAV | TexCreate_Presentable | TexCreate_CPUReadback;
 	check(!EnumHasAnyFlags(Flags, InvalidFlags));
 
-	FRHITextureDesc Desc = FRHITextureDesc::Create2D(FIntPoint(SizeX, SizeY), (EPixelFormat)Format, FClearValueBinding(), Flags, NumMips, 1);
-	FRHITextureCreateDesc CreateDesc(
-		Desc,
-		ERHIAccess::SRVMask,
-		TEXT("RHIAsyncCreateTexture2D")
-	);
+	FRHITextureCreateDesc CreateDesc =
+		FRHITextureCreateDesc::Create2D(TEXT("RHIAsyncCreateTexture2D"))
+		.SetExtent(FIntPoint(SizeX, SizeY))
+		.SetFormat((EPixelFormat)Format)
+		.SetFlags(Flags)
+		.SetNumMips(NumMips)
+		.SetInitialState(ERHIAccess::SRVMask);
 
 	const DXGI_FORMAT PlatformResourceFormat = (DXGI_FORMAT)GPixelFormats[Format].PlatformFormat;
 	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, EnumHasAnyFlags(Flags, TexCreate_SRGB));
@@ -2730,7 +2731,15 @@ FD3D12Texture* FD3D12DynamicRHI::CreateTextureFromResource(bool bTextureArray, b
 	FD3D12Resource* TextureResource = new FD3D12Resource(Device, Device->GetGPUMask(), Resource, DestinationState, TextureDesc);
 	TextureResource->AddRef();
 
-	FRHITextureCreateDesc CreateDesc(FRHITextureDesc::Create2D(FIntPoint(SizeX, SizeY), Format, ClearValueBinding, TexCreateFlags, NumMips, NumSamples), ERHIAccess::SRVMask, TEXT("TextureFromResource"));
+	FRHITextureCreateDesc CreateDesc =
+		FRHITextureCreateDesc::Create2D(TEXT("TextureFromResource"))
+		.SetExtent(FIntPoint(SizeX, SizeY))
+		.SetFormat(Format)
+		.SetClearValue(ClearValueBinding)
+		.SetFlags(TexCreateFlags)
+		.SetNumMips(NumMips)
+		.SetNumSamples(NumSamples)
+		.SetInitialState(ERHIAccess::SRVMask);
 
 	FD3D12Texture* Texture2D = Adapter->CreateLinkedObject<FD3D12Texture>(Device->GetGPUMask(), [&](FD3D12Device* Device)
 	{

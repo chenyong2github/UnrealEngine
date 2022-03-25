@@ -53,7 +53,7 @@ FORCEINLINE ERHIPipeline FRDGSubresourceState::GetPipelines() const
 	return Pipelines;
 }
 
-inline FPooledRenderTargetDesc Translate(const FRDGTextureDesc& InDesc)
+inline FPooledRenderTargetDesc Translate(const FRHITextureDesc& InDesc)
 {
 	check(InDesc.IsValid());
 

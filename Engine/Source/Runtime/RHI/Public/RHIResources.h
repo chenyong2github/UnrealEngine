@@ -1202,6 +1202,7 @@ private:
 /** Descriptor used to create a texture resource */
 struct RHI_API FRHITextureDesc
 {
+	UE_DEPRECATED(5.1, "FRHITextureDesc Create functions have been moved to FRHITextureCreateDesc.")
 	static FRHITextureDesc Create2D(
 		  FIntPoint           Size
 		, EPixelFormat        Format
@@ -1217,6 +1218,7 @@ struct RHI_API FRHITextureDesc
 		return FRHITextureDesc(ETextureDimension::Texture2D, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, NumSamples, ExtData);
 	}
 
+	UE_DEPRECATED(5.1, "FRHITextureDesc Create functions have been moved to FRHITextureCreateDesc.")
 	static FRHITextureDesc Create2DArray(
 		  FIntPoint           Size
 		, EPixelFormat        Format
@@ -1232,6 +1234,7 @@ struct RHI_API FRHITextureDesc
 		return FRHITextureDesc(ETextureDimension::Texture2DArray, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, NumSamples, ExtData);
 	}
 
+	UE_DEPRECATED(5.1, "FRHITextureDesc Create functions have been moved to FRHITextureCreateDesc.")
 	static FRHITextureDesc Create3D(
 		  FIntVector          Size
 		, EPixelFormat        Format
@@ -1249,6 +1252,7 @@ struct RHI_API FRHITextureDesc
 		return FRHITextureDesc(ETextureDimension::Texture3D, Flags, Format, ClearValue, { Size.X, Size.Y }, Size.Z, ArraySize, NumMips, LocalNumSamples, ExtData);
 	}
 
+	UE_DEPRECATED(5.1, "FRHITextureDesc Create functions have been moved to FRHITextureCreateDesc.")
 	static FRHITextureDesc CreateCube(
 		  uint32              Size
 		, EPixelFormat        Format
@@ -1266,6 +1270,7 @@ struct RHI_API FRHITextureDesc
 		return FRHITextureDesc(ETextureDimension::TextureCube, Flags, Format, ClearValue, { (int32)Size, (int32)Size }, Depth, ArraySize, NumMips, NumSamples, ExtData);
 	}
 
+	UE_DEPRECATED(5.1, "FRHITextureDesc Create functions have been moved to FRHITextureCreateDesc.")
 	static FRHITextureDesc CreateCubeArray(
 		  uint32              Size
 		, EPixelFormat        Format
@@ -1287,6 +1292,12 @@ struct RHI_API FRHITextureDesc
 		: NumSamples(1)
 		, Dimension(ETextureDimension::Texture2D)
 	{}
+
+	FRHITextureDesc(ETextureDimension InDimension)
+		: NumSamples(1)
+		, Dimension(InDimension)
+	{
+	}
 
 	FRHITextureDesc(
 		  ETextureDimension   InDimension
@@ -1312,7 +1323,7 @@ struct RHI_API FRHITextureDesc
 		, Format    (InFormat    )
 	{}
 
-	UE_DEPRECATED(5.1, "Prefer using one of the FRHITextureDesc::Create...() functions rather than this FRHITextureDesc constructor. Otherwise use the FRHITextureDesc constructor that does not take optional arguments.")
+	UE_DEPRECATED(5.1, "Prefer using FRHITextureCreateDesc rather than this FRHITextureDesc constructor. Otherwise use the FRHITextureDesc constructor that does not take optional arguments.")
 	FRHITextureDesc(
 		  ETextureDimension   InDimension
 		, ETextureCreateFlags InFlags
@@ -1492,6 +1503,36 @@ extern RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage
 
 struct FRHITextureCreateDesc : public FRHITextureDesc
 {
+	static FRHITextureCreateDesc Create(const TCHAR* InDebugName, ETextureDimension InDimension)
+	{
+		return FRHITextureCreateDesc(InDebugName, InDimension);
+	}
+
+	static FRHITextureCreateDesc Create2D(const TCHAR* InDebugName)
+	{
+		return FRHITextureCreateDesc(InDebugName, ETextureDimension::Texture2D);
+	}
+
+	static FRHITextureCreateDesc Create2DArray(const TCHAR* InDebugName)
+	{
+		return FRHITextureCreateDesc(InDebugName, ETextureDimension::Texture2DArray);
+	}
+
+	static FRHITextureCreateDesc Create3D(const TCHAR* InDebugName)
+	{
+		return FRHITextureCreateDesc(InDebugName, ETextureDimension::Texture3D);
+	}
+
+	static FRHITextureCreateDesc CreateCube(const TCHAR* InDebugName)
+	{
+		return FRHITextureCreateDesc(InDebugName, ETextureDimension::TextureCube);
+	}
+
+	static FRHITextureCreateDesc CreateCubeArray(const TCHAR* InDebugName)
+	{
+		return FRHITextureCreateDesc(InDebugName, ETextureDimension::TextureCubeArray);
+	}
+
 	static FRHITextureCreateDesc Create2D(
 		  TCHAR const*                DebugName
 		, FIntPoint                   Size
@@ -1506,13 +1547,17 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, FRHIGPUMask                 GPUMask      = FRHIGPUMask::All()
 		)
 	{
-		return FRHITextureCreateDesc(
-			  FRHITextureDesc::Create2D(Size, Format, ClearValue, Flags, NumMips, NumSamples, ExtData)
-			, (InitialState == ERHIAccess::Unknown) ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState
-			, DebugName
-			, BulkData
-			, GPUMask
-		);
+		return Create2D(DebugName)
+			.SetExtent(Size)
+			.SetFormat(Format)
+			.SetClearValue(ClearValue)
+			.SetFlags(Flags)
+			.SetNumMips(NumMips)
+			.SetNumSamples(NumSamples)
+			.SetExtData(ExtData)
+			.SetBulkData(BulkData)
+			.SetGPUMask(GPUMask)
+			.SetInitialState(InitialState == ERHIAccess::Unknown ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState);
 	}
 
 	static FRHITextureCreateDesc Create2DArray(
@@ -1530,13 +1575,18 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, FRHIGPUMask                 GPUMask      = FRHIGPUMask::All()
 		)
 	{
-		return FRHITextureCreateDesc(
-			  FRHITextureDesc::Create2DArray(Size, Format, ClearValue, Flags, ArraySize, NumMips, NumSamples, ExtData)
-			, (InitialState == ERHIAccess::Unknown) ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState
-			, DebugName
-			, BulkData
-			, GPUMask
-		);
+		return Create2DArray(DebugName)
+			.SetExtent(Size)
+			.SetFormat(Format)
+			.SetClearValue(ClearValue)
+			.SetFlags(Flags)
+			.SetArraySize(ArraySize)
+			.SetNumMips(NumMips)
+			.SetNumSamples(NumSamples)
+			.SetExtData(ExtData)
+			.SetBulkData(BulkData)
+			.SetGPUMask(GPUMask)
+			.SetInitialState(InitialState == ERHIAccess::Unknown ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState);
 	}
 
 	static FRHITextureCreateDesc Create3D(
@@ -1552,13 +1602,17 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, FRHIGPUMask                 GPUMask      = FRHIGPUMask::All()
 		)
 	{
-		return FRHITextureCreateDesc(
-			  FRHITextureDesc::Create3D(Size, Format, ClearValue, Flags, NumMips, ExtData)
-			, (InitialState == ERHIAccess::Unknown) ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState
-			, DebugName
-			, BulkData
-			, GPUMask
-		);
+		return Create3D(DebugName)
+			.SetExtent(FIntPoint(Size.X, Size.Y))
+			.SetDepth(Size.Z)
+			.SetFormat(Format)
+			.SetClearValue(ClearValue)
+			.SetFlags(Flags)
+			.SetNumMips(NumMips)
+			.SetExtData(ExtData)
+			.SetBulkData(BulkData)
+			.SetGPUMask(GPUMask)
+			.SetInitialState(InitialState == ERHIAccess::Unknown ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState);
 	}
 
 	static FRHITextureCreateDesc CreateCube(
@@ -1575,13 +1629,17 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, FRHIGPUMask                 GPUMask      = FRHIGPUMask::All()
 		)
 	{
-		return FRHITextureCreateDesc(
-			  FRHITextureDesc::CreateCube(Size, Format, ClearValue, Flags, NumMips, NumSamples, ExtData)
-			, (InitialState == ERHIAccess::Unknown) ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState
-			, DebugName
-			, BulkData
-			, GPUMask
-		);
+		return CreateCube(DebugName)
+			.SetExtent(Size)
+			.SetFormat(Format)
+			.SetClearValue(ClearValue)
+			.SetFlags(Flags)
+			.SetNumMips(NumMips)
+			.SetNumSamples(NumSamples)
+			.SetExtData(ExtData)
+			.SetBulkData(BulkData)
+			.SetGPUMask(GPUMask)
+			.SetInitialState(InitialState == ERHIAccess::Unknown ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState);
 	}
 
 	static FRHITextureCreateDesc CreateCubeArray(
@@ -1599,18 +1657,30 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, FRHIGPUMask                 GPUMask      = FRHIGPUMask::All()
 		)
 	{
-		return FRHITextureCreateDesc(
-			  FRHITextureDesc::CreateCubeArray(Size, Format, ClearValue, Flags, ArraySize, NumMips, NumSamples, ExtData)
-			, (InitialState == ERHIAccess::Unknown) ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState
-			, DebugName
-			, BulkData
-			, GPUMask
-		);
+		return CreateCubeArray(DebugName)
+			.SetExtent(Size)
+			.SetFormat(Format)
+			.SetClearValue(ClearValue)
+			.SetFlags(Flags)
+			.SetArraySize(ArraySize)
+			.SetNumMips(NumMips)
+			.SetNumSamples(NumSamples)
+			.SetExtData(ExtData)
+			.SetBulkData(BulkData)
+			.SetGPUMask(GPUMask)
+			.SetInitialState(InitialState == ERHIAccess::Unknown ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState);
 	}
 
 	FRHITextureCreateDesc() = default;
 
-	// Constructor will full argument set.
+	// Constructor with minimal argument set. Name and dimension are always required.
+	FRHITextureCreateDesc(const TCHAR* InDebugName, ETextureDimension InDimension)
+		: FRHITextureDesc(InDimension)
+		, DebugName(InDebugName)
+	{
+	}
+
+	// Constructor with full argument set.
 	FRHITextureCreateDesc(
 		  ETextureDimension           InDimension
 		, ETextureCreateFlags         InFlags
@@ -1656,6 +1726,25 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		ensureMsgf(InitialState != ERHIAccess::Unknown, TEXT("Resource %s cannot be created in an unknown state."), DebugName);
 	}
 
+	FRHITextureCreateDesc& SetFlags(ETextureCreateFlags InFlags)               { Flags = InFlags;                          return *this; }
+	FRHITextureCreateDesc& AddFlags(ETextureCreateFlags InFlags)               { Flags |= InFlags;                         return *this; }
+	FRHITextureCreateDesc& SetClearValue(FClearValueBinding InClearValue)      { ClearValue = InClearValue;                return *this; }
+	FRHITextureCreateDesc& SetExtData(uint32 InExtData)                        { ExtData = InExtData;                      return *this; }
+	FRHITextureCreateDesc& SetExtent(const FIntPoint& InExtent)                { Extent = InExtent;                        return *this; }
+	FRHITextureCreateDesc& SetExtent(int32 InExtentX, int32 InExtentY)         { Extent = FIntPoint(InExtentX, InExtentY); return *this; }
+	FRHITextureCreateDesc& SetExtent(uint32 InExtent)                          { Extent = FIntPoint(InExtent);             return *this; }
+	FRHITextureCreateDesc& SetDepth(uint16 InDepth)                            { Depth = InDepth;                          return *this; }
+	FRHITextureCreateDesc& SetArraySize(uint16 InArraySize)                    { ArraySize = InArraySize;                  return *this; }
+	FRHITextureCreateDesc& SetNumMips(uint8 InNumMips)                         { NumMips = InNumMips;                      return *this; }
+	FRHITextureCreateDesc& SetNumSamples(uint8 InNumSamples)                   { NumSamples = InNumSamples;                return *this; }
+	FRHITextureCreateDesc& SetDimension(ETextureDimension InDimension)         { Dimension = InDimension;                  return *this; }
+	FRHITextureCreateDesc& SetFormat(EPixelFormat InFormat)                    { Format = InFormat;                        return *this; }
+	FRHITextureCreateDesc& SetUAVFormat(EPixelFormat InUAVFormat)              { UAVFormat = InUAVFormat;                  return *this; }
+	FRHITextureCreateDesc& SetInitialState(ERHIAccess InInitialState)          { InitialState = InInitialState;            return *this; }
+	FRHITextureCreateDesc& SetDebugName(const TCHAR* InDebugName)              { DebugName = InDebugName;                  return *this; }
+	FRHITextureCreateDesc& SetGPUMask(FRHIGPUMask InGPUMask)                   { GPUMask = InGPUMask;                      return *this; }
+	FRHITextureCreateDesc& SetBulkData(FResourceBulkDataInterface* InBulkData) { BulkData = InBulkData;                    return *this; }
+
 	/* The RHI access state that the resource will be created in. */
 	ERHIAccess InitialState = ERHIAccess::Unknown;
 
@@ -1663,7 +1752,7 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 	const TCHAR* DebugName = nullptr;
 
 	/* A mask representing which GPUs to create the resource on, in a multi-GPU system. */
-	FRHIGPUMask GPUMask;
+	FRHIGPUMask GPUMask = FRHIGPUMask::All();
 
 	/* Optional initial data to fill the resource with. */
 	FResourceBulkDataInterface* BulkData = nullptr;

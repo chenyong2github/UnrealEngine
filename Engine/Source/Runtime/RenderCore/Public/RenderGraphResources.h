@@ -394,8 +394,8 @@ private:
 /** Translates from a pooled render target descriptor to an RDG texture descriptor. */
 inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc);
 
-/** Translates from an RDG texture descriptor to a pooled render target descriptor. */
-inline FPooledRenderTargetDesc Translate(const FRDGTextureDesc& InDesc);
+/** Translates from an RHI/RDG texture descriptor to a pooled render target descriptor. */
+inline FPooledRenderTargetDesc Translate(const FRHITextureDesc& InDesc);
 
 UE_DEPRECATED(5.0, "Translate with ERenderTargetTexture is deprecated. Please use the single parameter variant.")
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

@@ -246,7 +246,12 @@ FD3D12Texture* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelForma
 	D3D12_RESOURCE_DESC BackBufferDesc = BackBufferResource->GetDesc();
 
 	FString Name = FString::Printf(TEXT("BackBuffer%d"), BackBufferIndex);
-	FRHITextureCreateDesc CreateDesc(FRHITextureDesc::Create2D(FIntPoint((uint32)BackBufferDesc.Width, BackBufferDesc.Height), PixelFormat, FClearValueBinding(), TexCreate_RenderTargetable, 1, 1), ERHIAccess::Present, *Name);
+	FRHITextureCreateDesc CreateDesc =
+		FRHITextureCreateDesc::Create2D(*Name)
+		.SetExtent(FIntPoint((uint32)BackBufferDesc.Width, BackBufferDesc.Height))
+		.SetFormat(PixelFormat)
+		.SetFlags(ETextureCreateFlags::RenderTargetable)
+		.SetInitialState(ERHIAccess::Present);
 
 	FD3D12DynamicRHI* DynamicRHI = FD3D12DynamicRHI::GetD3DRHI();
 
@@ -352,7 +357,12 @@ FD3D12Texture* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelForma
 */
 FD3D12Texture* FD3D12Viewport::CreateDummyBackBufferTextures(FD3D12Adapter* InAdapter, EPixelFormat InPixelFormat, uint32 InSizeX, uint32 InSizeY, bool bInIsSDR)
 {
-	FRHITextureCreateDesc CreateDesc(FRHITextureDesc::Create2D(FIntPoint(InSizeX, InSizeY), InPixelFormat, FClearValueBinding(), TexCreate_RenderTargetable | TexCreate_Presentable, 1, 1), ERHIAccess::Present, TEXT("BackBufferReference"));
+	FRHITextureCreateDesc CreateDesc =
+		FRHITextureCreateDesc::Create2D(TEXT("BackBufferReference"))
+		.SetExtent(FIntPoint(InSizeX, InSizeY))
+		.SetFormat(InPixelFormat)
+		.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::Presentable)
+		.SetInitialState(ERHIAccess::Present);
 
 	FD3D12Texture* Result = InAdapter->CreateLinkedObject<FD3D12Texture>(FRHIGPUMask::All(), [&](FD3D12Device* Device)
 	{

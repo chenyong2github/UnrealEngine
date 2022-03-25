@@ -236,7 +236,7 @@ public:
 	{
 		const int32 NumReflectionCaptureMips = GetNumMips(CubemapSize);
 
-		const FRHITextureDesc TextureDesc = FRHITextureDesc::CreateCube(
+		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::CreateCube(
 			CubemapSize, PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 10000, 0, 0)), TexCreate_RenderTargetable | TexCreate_TargetArraySlicesIndependently | TexCreate_DisableDCC, NumReflectionCaptureMips);
 
 		RenderTarget = AllocatePooledTexture(TextureDesc, TEXT("ReflectionCubeTexture"));

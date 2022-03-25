@@ -139,7 +139,7 @@ const TRefCountPtr<IPooledRenderTarget>& CreateCardAtlas(FRDGBuilder& GraphBuild
 		TexFlags |= TexCreate_RenderTargetable;
 	}
 
-	FRHITextureCreateInfo CreateInfo = FRDGTextureDesc::Create2D(
+	FRDGTextureDesc CreateInfo = FRDGTextureDesc::Create2D(
 		PageAtlasSize,
 		bCompressed ? Config.CompressedFormat : Config.UncompressedFormat,
 		FClearValueBinding::None,

@@ -4567,13 +4567,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		GDynamicRHI->UpdateTexture3D_RenderThread(*this, Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
 	}
 	
-	FORCEINLINE void* LockTextureCubeFace(FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail)
+	FORCEINLINE void* LockTextureCubeFace(FRHITexture* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail)
 	{
 		LLM_SCOPE(ELLMTag::Textures);
 		return GDynamicRHI->RHILockTextureCubeFace_RenderThread(*this, Texture, FaceIndex, ArrayIndex, MipIndex, LockMode, DestStride, bLockWithinMiptail);
 	}
 	
-	FORCEINLINE void UnlockTextureCubeFace(FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, bool bLockWithinMiptail)
+	FORCEINLINE void UnlockTextureCubeFace(FRHITexture* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, bool bLockWithinMiptail)
 	{
 		LLM_SCOPE(ELLMTag::Textures);
 		GDynamicRHI->RHIUnlockTextureCubeFace_RenderThread(*this, Texture, FaceIndex, ArrayIndex, MipIndex, bLockWithinMiptail);
@@ -5428,230 +5428,179 @@ FORCEINLINE FTextureRHIRef RHICreateTexture(const FRHITextureCreateDesc& CreateD
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 	LLM_SCOPE(EnumHasAnyFlags(CreateDesc.Flags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable) ? ELLMTag::RenderTargets : ELLMTag::Textures);
+
+	if (CreateDesc.InitialState == ERHIAccess::Unknown)
+	{
+		// Need to copy the incoming descriptor since we need to override the initial state.
+		FRHITextureCreateDesc NewCreateDesc(CreateDesc);
+		NewCreateDesc.SetInitialState(RHIGetDefaultResourceState(CreateDesc.Flags, CreateDesc.BulkData != nullptr));
+
+		return GDynamicRHI->RHICreateTexture_RenderThread(RHICmdList, NewCreateDesc);
+	}
+
 	return GDynamicRHI->RHICreateTexture_RenderThread(RHICmdList, CreateDesc);
 }
 
 //UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTexture2DRHIRef RHICreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess ResourceState, const FRHIResourceCreateInfo& CreateInfo)
 {
-	const uint32 Depth = 1;
-	const uint32 ArraySize = 1;
-
 	return RHICreateTexture(
-		FRHITextureCreateDesc(
-			  ETextureDimension::Texture2D
-			, Flags
-			, (EPixelFormat)Format
-			, CreateInfo.ClearValueBinding
-			, { (int32)SizeX, (int32)SizeY }
-			, Depth
-			, ArraySize
-			, NumMips
-			, NumSamples
-			, CreateInfo.ExtData
-			, ResourceState
-			, CreateInfo.DebugName
-			, CreateInfo.BulkData
-			, CreateInfo.GPUMask
-		)
+		FRHITextureCreateDesc::Create2D(CreateInfo.DebugName)
+			.SetExtent(SizeX, SizeY)
+			.SetFormat((EPixelFormat)Format)
+			.SetNumMips(NumMips)
+			.SetNumSamples(NumSamples)
+			.SetFlags(Flags)
+			.SetInitialState(ResourceState)
+			.SetExtData(CreateInfo.ExtData)
+			.SetBulkData(CreateInfo.BulkData)
+			.SetGPUMask(CreateInfo.GPUMask)
+			.SetClearValue(CreateInfo.ClearValueBinding)
 	);
 }
 
 //UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTexture2DRHIRef RHICreateTextureExternal2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess ResourceState, const  FRHIResourceCreateInfo& CreateInfo)
 {
-	const uint32 Depth = 1;
-	const uint32 ArraySize = 1;
-
-	ERHIAccess InitialState = ResourceState == ERHIAccess::Unknown
-		? RHIGetDefaultResourceState(Flags, false)
-		: ResourceState;
-
-	return RHICreateTexture(
-		FRHITextureCreateDesc(
-			  ETextureDimension::Texture2D
-			, Flags | ETextureCreateFlags::External
-			, (EPixelFormat)Format
-			, CreateInfo.ClearValueBinding
-			, { (int32)SizeX, (int32)SizeY }
-			, Depth
-			, ArraySize
-			, NumMips
-			, NumSamples
-			, CreateInfo.ExtData
-			, InitialState
-			, CreateInfo.DebugName
-			, CreateInfo.BulkData
-			, CreateInfo.GPUMask
-		)
-	);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags | ETextureCreateFlags::External, ResourceState, CreateInfo);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 //UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
-FORCEINLINE FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess ResourceState, void** InitialMipData, uint32 NumInitialMips)
+FORCEINLINE FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, void** InitialMipData, uint32 NumInitialMips)
 {
 	LLM_SCOPE(EnumHasAnyFlags(Flags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable) ? ELLMTag::RenderTargets : ELLMTag::Textures);
+	const ERHIAccess ResourceState = InResourceState == ERHIAccess::Unknown ? RHIGetDefaultResourceState((ETextureCreateFlags)Flags, InitialMipData != nullptr) : InResourceState;
 	return GDynamicRHI->RHIAsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, ResourceState, InitialMipData, NumInitialMips);
 }
 
 //UE_DEPRECATED(5.1, "FRHITexture2DArray is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess ResourceState, const FRHIResourceCreateInfo& CreateInfo)
 {
-	const uint32 Depth = 1;
-
 	return RHICreateTexture(
-		FRHITextureCreateDesc(
-			  ETextureDimension::Texture2DArray
-			, Flags
-			, (EPixelFormat)Format
-			, CreateInfo.ClearValueBinding
-			, { (int32)SizeX, (int32)SizeY }
-			, Depth
-			, ArraySize
-			, NumMips
-			, NumSamples
-			, CreateInfo.ExtData
-			, ResourceState
-			, CreateInfo.DebugName
-			, CreateInfo.BulkData
-			, CreateInfo.GPUMask
-		)
+		FRHITextureCreateDesc::Create2DArray(CreateInfo.DebugName)
+			.SetExtent(SizeX, SizeY)
+			.SetArraySize(ArraySize)
+			.SetFormat((EPixelFormat)Format)
+			.SetNumMips(NumMips)
+			.SetNumSamples(NumSamples)
+			.SetFlags(Flags)
+			.SetInitialState(ResourceState)
+			.SetExtData(CreateInfo.ExtData)
+			.SetBulkData(CreateInfo.BulkData)
+			.SetGPUMask(CreateInfo.GPUMask)
+			.SetClearValue(CreateInfo.ClearValueBinding)
 	);
 }
 
 //UE_DEPRECATED(5.1, "FRHITexture3D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTexture3DRHIRef RHICreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess ResourceState, const FRHIResourceCreateInfo& CreateInfo)
 {
-	const uint32 ArraySize = 1;
-	const uint32 NumSamples = 1;
-
 	return RHICreateTexture(
-		FRHITextureCreateDesc(
-			  ETextureDimension::Texture3D
-			, Flags
-			, (EPixelFormat)Format
-			, CreateInfo.ClearValueBinding
-			, { (int32)SizeX, (int32)SizeY }
-			, SizeZ
-			, ArraySize
-			, NumMips
-			, NumSamples
-			, CreateInfo.ExtData
-			, ResourceState
-			, CreateInfo.DebugName
-			, CreateInfo.BulkData
-			, CreateInfo.GPUMask
-		)
+		FRHITextureCreateDesc::Create3D(CreateInfo.DebugName)
+			.SetExtent(SizeX, SizeY)
+			.SetDepth(SizeZ)
+			.SetFormat((EPixelFormat)Format)
+			.SetNumMips(NumMips)
+			.SetFlags(Flags)
+			.SetInitialState(ResourceState)
+			.SetExtData(CreateInfo.ExtData)
+			.SetBulkData(CreateInfo.BulkData)
+			.SetGPUMask(CreateInfo.GPUMask)
+			.SetClearValue(CreateInfo.ClearValueBinding)
 	);
 }
 
 //UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTextureCubeRHIRef RHICreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess ResourceState, const FRHIResourceCreateInfo& CreateInfo)
 {
-	const uint32 Depth = 1;
-	const uint32 ArraySize = 1;
-	const uint32 NumSamples = 1;
-
 	return RHICreateTexture(
-		FRHITextureCreateDesc(
-			  ETextureDimension::TextureCube
-			, Flags
-			, (EPixelFormat)Format
-			, CreateInfo.ClearValueBinding
-			, { (int32)Size, (int32)Size }
-			, Depth
-			, ArraySize
-			, NumMips
-			, NumSamples
-			, CreateInfo.ExtData
-			, ResourceState
-			, CreateInfo.DebugName
-			, CreateInfo.BulkData
-			, CreateInfo.GPUMask
-		)
+		FRHITextureCreateDesc::CreateCube(CreateInfo.DebugName)
+			.SetExtent(Size)
+			.SetFormat((EPixelFormat)Format)
+			.SetNumMips(NumMips)
+			.SetFlags(Flags)
+			.SetInitialState(ResourceState)
+			.SetExtData(CreateInfo.ExtData)
+			.SetBulkData(CreateInfo.BulkData)
+			.SetGPUMask(CreateInfo.GPUMask)
+			.SetClearValue(CreateInfo.ClearValueBinding)
 	);
 }
 
 //UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTextureCubeRHIRef RHICreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess ResourceState, const FRHIResourceCreateInfo& CreateInfo)
 {
-	const uint32 Depth = 1;
-	const uint32 NumSamples = 1;
-
 	return RHICreateTexture(
-		FRHITextureCreateDesc(
-			  ETextureDimension::TextureCubeArray
-			, Flags
-			, (EPixelFormat)Format
-			, CreateInfo.ClearValueBinding
-			, { (int32)Size, (int32)Size }
-			, Depth
-			, ArraySize
-			, NumMips
-			, NumSamples
-			, CreateInfo.ExtData
-			, ResourceState
-			, CreateInfo.DebugName
-			, CreateInfo.BulkData
-			, CreateInfo.GPUMask
-		)
+		FRHITextureCreateDesc::CreateCube(CreateInfo.DebugName)
+			.SetExtent(Size)
+			.SetArraySize(ArraySize)
+			.SetFormat((EPixelFormat)Format)
+			.SetNumMips(NumMips)
+			.SetFlags(Flags)
+			.SetInitialState(ResourceState)
+			.SetExtData(CreateInfo.ExtData)
+			.SetBulkData(CreateInfo.BulkData)
+			.SetGPUMask(CreateInfo.GPUMask)
+			.SetClearValue(CreateInfo.ClearValueBinding)
 	);
 }
 
 //UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTexture2DRHIRef RHICreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo)
 {
-	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
-	return RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, ResourceState, CreateInfo);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, ERHIAccess::Unknown, CreateInfo);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 //UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTexture2DRHIRef RHICreateTextureExternal2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo)
 {
-	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
-	return RHICreateTextureExternal2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, ResourceState, CreateInfo);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return RHICreateTextureExternal2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, ERHIAccess::Unknown, CreateInfo);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 //UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, void** InitialMipData, uint32 NumInitialMips)
 {
-	bool bHasInitialData = InitialMipData != nullptr;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
-	return RHIAsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, ResourceState, InitialMipData, NumInitialMips);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return RHIAsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, ERHIAccess::Unknown, InitialMipData, NumInitialMips);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 //UE_DEPRECATED(5.1, "FRHITexture2DArray is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo)
 {
-	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
-	return RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags, ResourceState, CreateInfo);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags, ERHIAccess::Unknown, CreateInfo);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 //UE_DEPRECATED(5.1, "FRHITexture3D is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTexture3DRHIRef RHICreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo)
 {
-	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
-	return RHICreateTexture3D(SizeX, SizeY, SizeZ, Format, NumMips, Flags, ResourceState, CreateInfo);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return RHICreateTexture3D(SizeX, SizeY, SizeZ, Format, NumMips, Flags, ERHIAccess::Unknown, CreateInfo);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 //UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTextureCubeRHIRef RHICreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo)
 {
-	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
-	return RHICreateTextureCube(Size, Format, NumMips, Flags, ResourceState, CreateInfo);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return RHICreateTextureCube(Size, Format, NumMips, Flags, ERHIAccess::Unknown, CreateInfo);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 //UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use RHICreateTexture(const FRHITextureCreateDesc&).")
 FORCEINLINE FTextureCubeRHIRef RHICreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo)
 {
-	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
-	return RHICreateTextureCubeArray(Size, ArraySize, Format, NumMips, Flags, ResourceState, CreateInfo);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return RHICreateTextureCubeArray(Size, ArraySize, Format, NumMips, Flags, ERHIAccess::Unknown, CreateInfo);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FORCEINLINE void RHICopySharedMips(FRHITexture* DestTexture, FRHITexture* SrcTexture)

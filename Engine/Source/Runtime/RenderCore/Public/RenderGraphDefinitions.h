@@ -534,9 +534,108 @@ private:
 template <typename ObjectType, typename IndexType>
 const TRDGHandle<ObjectType, IndexType> TRDGHandle<ObjectType, IndexType>::Null;
 
-/** FORWARD DECLARATIONS */
+struct FRDGTextureDesc : public FRHITextureDesc
+{
+	static FRDGTextureDesc Create2D(
+		FIntPoint           Size
+		, EPixelFormat        Format
+		, FClearValueBinding  ClearValue
+		, ETextureCreateFlags Flags
+		, uint8               NumMips = 1
+		, uint8               NumSamples = 1
+		, uint32              ExtData = 0
+	)
+	{
+		const uint32 Depth = 1;
+		const uint32 ArraySize = 1;
+		return FRDGTextureDesc(ETextureDimension::Texture2D, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, NumSamples, ExtData);
+	}
 
-using FRDGTextureDesc = FRHITextureCreateInfo;
+	static FRDGTextureDesc Create2DArray(
+		FIntPoint           Size
+		, EPixelFormat        Format
+		, FClearValueBinding  ClearValue
+		, ETextureCreateFlags Flags
+		, uint16              ArraySize
+		, uint8               NumMips = 1
+		, uint8               NumSamples = 1
+		, uint32              ExtData = 0
+	)
+	{
+		const uint32 Depth = 1;
+		return FRDGTextureDesc(ETextureDimension::Texture2DArray, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, NumSamples, ExtData);
+	}
+
+	static FRDGTextureDesc Create3D(
+		FIntVector          Size
+		, EPixelFormat        Format
+		, FClearValueBinding  ClearValue
+		, ETextureCreateFlags Flags
+		, uint8               NumMips = 1
+		, uint32              ExtData = 0
+	)
+	{
+		const uint32 ArraySize = 1;
+		const uint32 LocalNumSamples = 1;
+
+		checkf(Size.Z <= TNumericLimits<decltype(FRDGTextureDesc::Depth)>::Max(), TEXT("Depth parameter (Size.Z) exceeds valid range"));
+
+		return FRDGTextureDesc(ETextureDimension::Texture3D, Flags, Format, ClearValue, { Size.X, Size.Y }, Size.Z, ArraySize, NumMips, LocalNumSamples, ExtData);
+	}
+
+	static FRDGTextureDesc CreateCube(
+		uint32              Size
+		, EPixelFormat        Format
+		, FClearValueBinding  ClearValue
+		, ETextureCreateFlags Flags
+		, uint8               NumMips = 1
+		, uint8               NumSamples = 1
+		, uint32              ExtData = 0
+	)
+	{
+		checkf(Size <= (uint32)TNumericLimits<int32>::Max(), TEXT("Size parameter exceeds valid range"));
+
+		const uint32 Depth = 1;
+		const uint32 ArraySize = 1;
+		return FRDGTextureDesc(ETextureDimension::TextureCube, Flags, Format, ClearValue, { (int32)Size, (int32)Size }, Depth, ArraySize, NumMips, NumSamples, ExtData);
+	}
+
+	static FRDGTextureDesc CreateCubeArray(
+		uint32              Size
+		, EPixelFormat        Format
+		, FClearValueBinding  ClearValue
+		, ETextureCreateFlags Flags
+		, uint16              ArraySize
+		, uint8               NumMips = 1
+		, uint8               NumSamples = 1
+		, uint32              ExtData = 0
+	)
+	{
+		checkf(Size <= (uint32)TNumericLimits<int32>::Max(), TEXT("Size parameter exceeds valid range"));
+
+		const uint32 Depth = 1;
+		return FRDGTextureDesc(ETextureDimension::TextureCubeArray, Flags, Format, ClearValue, { (int32)Size, (int32)Size }, Depth, ArraySize, NumMips, NumSamples, ExtData);
+	}
+
+	FRDGTextureDesc() = default;
+	FRDGTextureDesc(
+		ETextureDimension   InDimension
+		, ETextureCreateFlags InFlags
+		, EPixelFormat        InFormat
+		, FClearValueBinding  InClearValue
+		, FIntPoint           InExtent
+		, uint16              InDepth
+		, uint16              InArraySize
+		, uint8               InNumMips
+		, uint8               InNumSamples
+		, uint32              InExtData
+	)
+		: FRHITextureDesc(InDimension, InFlags, InFormat, InClearValue, InExtent, InDepth, InArraySize, InNumMips, InNumSamples, InExtData)
+	{
+	}
+};
+
+/** FORWARD DECLARATIONS */
 
 class FRDGBlackboard;
 
