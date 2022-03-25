@@ -3395,7 +3395,7 @@ namespace EAutoReceiveInput
 	};
 }
 
-/** Specifies if an AI pawn will automatically be possed by an AI controller */
+/** Specifies if an AI pawn will automatically be possessed by an AI controller */
 UENUM()
 enum class EAutoPossessAI : uint8
 {
