@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SCompoundWidget.h"
 
 /** Designed as content for a tab. Displays information about an archived session. */
