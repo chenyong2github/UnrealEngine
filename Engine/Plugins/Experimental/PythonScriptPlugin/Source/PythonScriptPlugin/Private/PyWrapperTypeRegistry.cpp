@@ -682,7 +682,7 @@ void FPyWrapperTypeRegistry::GenerateWrappedTypesForReferences(const FGeneratedW
 
 	for (const UFunction* DelegateSignature : InGeneratedWrappedTypeReferences.DelegateReferences)
 	{
-		check(DelegateSignature->HasAnyFunctionFlags(FUNC_Delegate));
+		checkf(DelegateSignature->HasAnyFunctionFlags(FUNC_Delegate), TEXT("UFunction '%s' was detected as a delegate but doesn't have the 'FUNC_Delegate' flag"), *DelegateSignature->GetPathName());
 		GenerateWrappedDelegateType(DelegateSignature, GeneratedWrappedTypeReferences, OutDirtyModules, ReferenceGenerationFlags);
 	}
 
