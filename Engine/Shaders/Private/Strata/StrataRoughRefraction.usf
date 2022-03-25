@@ -52,8 +52,12 @@ void OpaqueRoughRefractionPS(
 	const float2 PixelRadiusCm2 = SceneDepthCm * GetTanHalfFieldOfView() * View.ViewSizeAndInvSize.zw;
 	const float PixelRadiusCm = min(PixelRadiusCm2.x, PixelRadiusCm2.y);
 
+	const float StandardDeviationCm = sqrt(ORRData.VarianceCm);
+	const float StandardDeviationPixelSpace = StandardDeviationCm / PixelRadiusCm;	// Be careful to do that conversion on linear standard deviation, not variance
+	const float VariancePixelSpace = StandardDeviationPixelSpace * StandardDeviationPixelSpace;
+
 	const float PerceptualBlurAcceptanceFactor = 2.5f;
-	const bool OpaqueRoughRefractionEnabled = ORRData.OpaqueRoughRefractionEnabled && (PixelRadiusCm < PerceptualBlurAcceptanceFactor * ORRData.VarianceCm);
+	const bool OpaqueRoughRefractionEnabled = ORRData.OpaqueRoughRefractionEnabled;// && (PixelRadiusCm < PerceptualBlurAcceptanceFactor* ORRData.VarianceCm);
 
 	// We are now going to blur the bottom layer luminance according to the top layer variance resulting from the roughness.
 	// For this we have: measure GGX variance for a perpendicaular view, eta=1.33 and varying roughness. At runtim that variance is approximated by a Gaussian.
@@ -63,9 +67,6 @@ void OpaqueRoughRefractionPS(
 		// Proceed blurring the bottom layers if needed according to the blur footprint.
 		float3 WeightedLuminance = 0.0f;
 		float AccumulatedWeights = 0.0f;
-
-		const float VariancePixelSpace = ORRData.VarianceCm / PixelRadiusCm;
-		const float StandardDeviationPixelSpace = sqrt(VariancePixelSpace);
 
 		// A area of radius StandardDeviation*3 around the mean of a guassian normal distribution (=mu) encompass 99% of the energy.
 		const float RadiusAroundCenterMu = 3.0f;
@@ -321,10 +322,11 @@ void EvaluateRoughRefractionLobeCS(uint3 ThreadId : SV_DispatchThreadID)
 					float2 SampleUV = L.xy * 0.5 + 0.5;
 					SampleCountTextureUAV[uint2(SampleUV * 64.0f)] += 1;
 
-					LobStatUpdate(LobeState, L.xy);
+					const float3 RayOnPlane = L.xyz / abs(L.z);
+					LobStatUpdate(LobeState, RayOnPlane.xy);
 
 					Count++;
-					Mean += L.xy;
+					Mean += RayOnPlane.xy;
 				}
 			}
 		}
@@ -369,6 +371,7 @@ uint TraceSqrtSampleCount;
 
 RWBuffer<float2> RoughRefracDataUAV;
 
+// Shader used to export variance based on roughness for curve fitting
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void RoughRefracDataCS(uint3 ThreadId : SV_DispatchThreadID)
 {
@@ -388,7 +391,9 @@ void RoughRefracDataCS(uint3 ThreadId : SV_DispatchThreadID)
 			float Value = 0;
 			if (GetGGXDirection(RandomUV, Roughness, V, L, Value, Eta12) && Value > 0.0f)
 			{
-				LobStatUpdate(LobeState, L.xy);
+				// Project onto the plane at distance 1 to consider the blur resulting at a distance of 1.
+				const float3 RayOnPlane = L.xyz / abs(L.z);
+				LobStatUpdate(LobeState, RayOnPlane.xy);
 			}
 		}
 	}
@@ -579,6 +584,7 @@ void VisualizeRoughRefractionPS(
 		AddLineWS(Context, SlabOrigin + SlabEdgeY * Offset + SlabEdgeZ, SlabOrigin + SlabEdgeY * Offset + SlabEdgeX + SlabEdgeZ, float4(0.2, 0.2, 0.2, 1.0));
 	}
 
+	// Draw the rays
 	for (float u = 0.5f; u < TraceDomainSize; u++)
 	{
 		for (float v = 0.5f; v < TraceDomainSize; v++)
@@ -588,12 +594,14 @@ void VisualizeRoughRefractionPS(
 			float Value = 0;
 			if (GetGGXDirection(RandomUV, UI.Roughness, UI.V, L, Value, UI.Eta12))
 			{
-				if(Value > 0.0f) AddLineWS(Context, RefractionP, RefractionP + L * VisProjectedRayRadius, float4(0, Value, 0, 0.3));
-				//if(Value > 0.0f) AddLineWS(Context, RefractionP + L * VisProjectedRayRadius, float3((RefractionP + L * VisProjectedRayRadius).xy, SlabCenter.z - 0.5* UI.SlabThickness), float4(0, 1, 0, 0.3));
+				const float3 RayOnPlane = L.xyz / abs(L.z);
+				if(Value > 0.0f) AddLineWS(Context, RefractionP, RefractionP + RayOnPlane * VisProjectedRayRadius, float4(0, Value, 0, 0.3));
+				//if(Value > 0.0f) AddLineWS(Context, RefractionP + RayOnPlane * VisProjectedRayRadius, float3((RefractionP + L * VisProjectedRayRadius).xy, SlabCenter.z - 0.5* UI.SlabThickness), float4(0, 1, 0, 0.3));
 			}
 			else
 			{
-				if (Value > 0.0f) AddLineWS(Context, RefractionP, RefractionP + L * VisProjectedRayRadius, float4(Value, 0, 0, 0.3));
+				const float3 RayOnPlane = L.xyz / abs(L.z);
+				if (Value > 0.0f) AddLineWS(Context, RefractionP, RefractionP + RayOnPlane * VisProjectedRayRadius, float4(Value, 0, 0, 0.3));
 			}
 		}
 	}

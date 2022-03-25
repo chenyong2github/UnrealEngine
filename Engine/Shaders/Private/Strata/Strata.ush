@@ -586,9 +586,9 @@ FStrataOpaqueRoughRefractionData StrataUnpackOpaqueRoughRefractionData(float3 In
 }
 
 
-// Returns the variance of rays projected on the XY plane after scattering at the interface of a slab of matter,
+// Returns the variance of refracted rays intersection with on the XY plane after scattering at the interface of a slab of matter,
 // having the given Roughness and a normal along Z; after traveling along -Z from air to water (eta = 1.333).
-// That variance has been generated from unit vectors, so it is a measure of the spread of light on the projected XY plane.
+// That variance has been generated from unit vectors, so it is a measure of the spread of light on the XY plane after a depth of 1.
 // Using Thales, one can scale that spread to any distance. The Gaussian kernel can be evaluated for a depth d using a Variance = GetVarianceFromRoughness(Roughness) * d.
 // 
 //			| V = -Z
@@ -608,7 +608,7 @@ float GetVarianceFromRoughness(float Roughness)
 	float Roughness2 = Roughness * Roughness;
 	float Roughness3 = Roughness2 * Roughness;
 	float Roughness4 = Roughness2 * Roughness2;
-	return saturate(0.0000483367f - 0.000707943f * Roughness - 0.00840911f * Roughness2 + 0.095437f * Roughness3 - 0.0478129f * Roughness4);
+	return saturate(0.0000226575 - 0.000332564 * Roughness - 0.0168059 * Roughness2 + 0.115569 * Roughness3 - 0.0526336 * Roughness4);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2716,8 +2716,10 @@ void PackStrataOut(
 			uint RootOperatorIndex = Strata.OperatorIndex;
 			const FStrataOperator RootOperator = StrataTree.Operators[Strata.OperatorIndex];
 			OpaqueRoughRefractionData.Coverage = RootOperator.OpaqueRoughRefractCoverage;
-			// STRATA_TODO Fake variance place holder for now
-			OpaqueRoughRefractionData.VarianceCm = GetVarianceFromRoughness(RootOperator.OpaqueRoughRefractTopRoughness) * RootOperator.OpaqueRoughRefractThicknessCm;
+
+			const float StandardDeviationCm = sqrt(GetVarianceFromRoughness(RootOperator.OpaqueRoughRefractTopRoughness));
+			const float StandardDeviationCmForThickness = StandardDeviationCm * RootOperator.OpaqueRoughRefractThicknessCm;
+			OpaqueRoughRefractionData.VarianceCm = StandardDeviationCmForThickness * StandardDeviationCmForThickness;
 		}
 		
 		int SimpleMaterial_BSDFIndex = 0;
