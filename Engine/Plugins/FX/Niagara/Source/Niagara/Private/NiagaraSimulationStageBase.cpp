@@ -7,6 +7,15 @@
 
 const FName UNiagaraSimulationStageBase::ParticleSpawnUpdateName("ParticleSpawnUpdate");
 
+namespace NiagaraSimulationStageLocal
+{
+	static FName NAME_Particles_StateIndex("Particles.StateIndex");
+	static FNiagaraVariableBase GetDefaultEnabledBinding() { return FNiagaraVariableBase(FNiagaraTypeDefinition::GetBoolDef(), NAME_None); }
+	static FNiagaraVariableBase GetDefaultElementCountBinding() { return FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_None); }
+	static FNiagaraVariableBase GetDefaultNumIterationsBinding() { return FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_None); }
+	static FNiagaraVariableBase GetDefaultParticleStateBinding() { return FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_Particles_StateIndex); }
+}
+
 bool UNiagaraSimulationStageBase::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 #if WITH_EDITORONLY_DATA
@@ -88,31 +97,38 @@ void UNiagaraSimulationStageGeneric::PostInitProperties()
 
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
-		EnabledBinding.Setup(
-			FNiagaraVariableBase(FNiagaraTypeDefinition::GetBoolDef(), NAME_None),
-			FNiagaraVariableBase(FNiagaraTypeDefinition::GetBoolDef(), NAME_None),
-			ENiagaraRendererSourceDataMode::Emitter
-		);
-
-		ElementCountBinding.Setup(
-			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_None),
-			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_None),
-			ENiagaraRendererSourceDataMode::Emitter
-		);
-
-		NumIterationsBinding.Setup(
-			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_None),
-			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_None),
-			ENiagaraRendererSourceDataMode::Emitter
-		);
-
-		static const FName ParticleStateIndex("Particles.StateIndex");
-		ParticleIterationStateBinding.Setup(
-			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), ParticleStateIndex),
-			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), ParticleStateIndex),
-			ENiagaraRendererSourceDataMode::Particles
-		);
+		using namespace NiagaraSimulationStageLocal;
+		EnabledBinding.Setup(GetDefaultEnabledBinding(), GetDefaultEnabledBinding(), ENiagaraRendererSourceDataMode::Emitter);
+		ElementCountBinding.Setup(GetDefaultElementCountBinding(), GetDefaultElementCountBinding(), ENiagaraRendererSourceDataMode::Emitter);
+		NumIterationsBinding.Setup(GetDefaultNumIterationsBinding(), GetDefaultNumIterationsBinding(), ENiagaraRendererSourceDataMode::Emitter);
+		ParticleIterationStateBinding.Setup(GetDefaultParticleStateBinding(), GetDefaultParticleStateBinding(), ENiagaraRendererSourceDataMode::Particles);
 	}
+}
+
+void UNiagaraSimulationStageGeneric::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	// Ensure data wasn't somehow saved incorrectly
+	using namespace NiagaraSimulationStageLocal;
+	if (EnabledBinding.GetType() != GetDefaultEnabledBinding().GetType())
+	{
+		EnabledBinding.Setup(GetDefaultEnabledBinding(), GetDefaultEnabledBinding(), ENiagaraRendererSourceDataMode::Emitter);
+	}
+	if (ElementCountBinding.GetType() != GetDefaultElementCountBinding().GetType())
+	{
+		ElementCountBinding.Setup(GetDefaultElementCountBinding(), GetDefaultElementCountBinding(), ENiagaraRendererSourceDataMode::Emitter);
+	}
+	if (NumIterationsBinding.GetType() != GetDefaultNumIterationsBinding().GetType())
+	{
+		NumIterationsBinding.Setup(GetDefaultNumIterationsBinding(), GetDefaultNumIterationsBinding(), ENiagaraRendererSourceDataMode::Emitter);
+	}
+	if (ParticleIterationStateBinding.GetType() != GetDefaultParticleStateBinding().GetType())
+	{
+		ParticleIterationStateBinding.Setup(GetDefaultParticleStateBinding(), GetDefaultParticleStateBinding(), ENiagaraRendererSourceDataMode::Particles);
+	}
+#endif
 }
 
 #if WITH_EDITOR

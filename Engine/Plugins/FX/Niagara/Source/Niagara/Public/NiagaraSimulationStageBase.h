@@ -132,6 +132,7 @@ public:
 	FIntVector OverrideGpuDispatchNumThreads = FIntVector(64, 1, 1);
 
 	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 #if WITH_EDITOR
 	virtual FName GetStackContextReplacementName() const override; 
