@@ -32,10 +32,9 @@ private:
 };
 
 // Spatial ordering algorithm
-// Note we support two sets of importance weights because it is sometimes helpful to also sort by distance from center
-// However this feature is not yet exposed in the outer interface
+// Note we support two sets of importance weights because it is sometimes helpful to also sort by an additional metric, such as distance from center
 template<typename RealType>
-void OrderPoints(TArray<int32>& PointOrder, TArrayView<const TVector<RealType>> Points, TArrayView<TArrayView<const float>> ImportanceWeights, int32 EarlyStop, int32 SpatialLevels)
+void OrderPoints(TArray<int32>& PointOrder, TArrayView<const TVector<RealType>> Points, TArrayView<const TArrayView<const float>> ImportanceWeights, int32 EarlyStop, int32 SpatialLevels)
 {
 	const int32 NumPoints = Points.Num();
 	PointOrder.SetNumUninitialized(NumPoints);
@@ -325,6 +324,22 @@ void FPriorityOrderPoints::ComputeUniformSpaced(TArrayView<const FVector3f> Poin
 {
 	TArrayView<TArrayView<const float>> ImportanceWeightsWeights(&ImportanceWeights, 1);
 	PriorityOrderPointsLocal::OrderPoints<float>(Order, Points, ImportanceWeightsWeights, EarlyStop, SpatialLevels);
+}
+
+void FPriorityOrderPoints::ComputeUniformSpaced(TArrayView<const FVector3d> Points, TArrayView<const float> ImportanceWeights, TArrayView<const float> SecondImportanceWeights, int32 EarlyStop)
+{
+	TArray<TArrayView<const float>, TFixedAllocator<2>> MultiImportanceWeights;
+	MultiImportanceWeights.Add(ImportanceWeights);
+	MultiImportanceWeights.Add(SecondImportanceWeights);
+	PriorityOrderPointsLocal::OrderPoints<double>(Order, Points, MultiImportanceWeights, EarlyStop, SpatialLevels);
+}
+
+void FPriorityOrderPoints::ComputeUniformSpaced(TArrayView<const FVector3f> Points, TArrayView<const float> ImportanceWeights, TArrayView<const float> SecondImportanceWeights, int32 EarlyStop)
+{
+	TArray<TArrayView<const float>, TFixedAllocator<2>> MultiImportanceWeights;
+	MultiImportanceWeights.Add(ImportanceWeights);
+	MultiImportanceWeights.Add(SecondImportanceWeights);
+	PriorityOrderPointsLocal::OrderPoints<float>(Order, Points, MultiImportanceWeights, EarlyStop, SpatialLevels);
 }
 
 void FPriorityOrderPoints::ComputeDescendingImportance(TArrayView<const float> ImportanceWeights)
