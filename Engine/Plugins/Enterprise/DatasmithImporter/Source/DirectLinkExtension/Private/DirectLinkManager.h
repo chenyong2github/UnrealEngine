@@ -4,6 +4,7 @@
 
 #include "IDirectLinkManager.h"
 
+#include "AutoReimportManager.h"
 #include "SourceUri.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
@@ -23,7 +24,6 @@ namespace UE::DatasmithImporter
 	class FDirectLinkAssetObserver;
 	class FDirectLinkExternalSource;
 	class FDirectLinkManager;
-	struct FAutoReimportInfo;
 	struct FDirectLinkSourceDescription;
 
 	class FDirectLinkAutoReconnectManager
@@ -69,8 +69,8 @@ namespace UE::DatasmithImporter
 		virtual DirectLink::FEndpoint& GetEndpoint() override;
 		virtual FSourceUri GetUriFromSourceHandle(const DirectLink::FSourceHandle& SourceHandle) override;
 #if WITH_EDITOR
-		virtual bool IsAssetAutoReimportEnabled(UObject* InAsset) const override;
-		virtual bool SetAssetAutoReimport(UObject* InAsset, bool bEnabled) override;
+		virtual bool IsAssetAutoReimportEnabled(UObject* InAsset) const override { return AutoReimportManger->IsAssetAutoReimportEnabled(InAsset); }
+		virtual bool SetAssetAutoReimport(UObject* InAsset, bool bEnabled) override { return AutoReimportManger->SetAssetAutoReimport(InAsset, bEnabled); }
 #endif //WITH_EDITOR
 		virtual TArray<TSharedRef<FDirectLinkExternalSource>> GetExternalSourceList() const override;
 		virtual void UnregisterDirectLinkExternalSource(FName InName) override;
@@ -84,7 +84,7 @@ namespace UE::DatasmithImporter
 		 * Update the internal registration a given asset registered for auto-reimport.
 		 * Modified assets may no longer have a DirectLink source and we must keep track of such changes.
 		 */
-		void UpdateModifiedRegisteredAsset(UObject* InAsset);
+		void UpdateModifiedRegisteredAsset(UObject* InAsset) { AutoReimportManger->UpdateModifiedRegisteredAsset(InAsset); }
 
 	private:
 		/**
@@ -106,20 +106,6 @@ namespace UE::DatasmithImporter
 		void UpdateSourceCache();
 
 		void CancelEmptySourcesLoading() const;
-
-		bool EnableAssetAutoReimport(UObject* InAsset);
-
-		bool DisableAssetAutoReimport(UObject* InAsset);
-
-		void OnExternalSourceChanged(const TSharedRef<FExternalSource>& ExternalSource);
-
-		void TriggerAutoReimportOnExternalSource(const TSharedRef<FExternalSource>& ExternalSource);
-
-		void TriggerAutoReimportOnAsset(UObject* Asset);
-
-#if WITH_EDITOR
-		void OnEndPIE(bool bIsSimulating);
-#endif
 
 	private:
 		/**
@@ -145,19 +131,8 @@ namespace UE::DatasmithImporter
 
 		TUniquePtr<FDirectLinkAutoReconnectManager> ReconnectionManager;
 		
-		mutable FRWLock AutoReimportLock;
-
-		TSet<TSoftObjectPtr<UObject>> PendingAutoReimportObjects;
-
-		TMap<UObject*, TSharedRef<FAutoReimportInfo>> AutoReimportObjectsMap;
+		TSharedRef<FAutoReimportManager> AutoReimportManger;
 		
-		TMultiMap<TSharedRef<FExternalSource>, TSharedRef<FAutoReimportInfo>> AutoReimportExternalSourcesMap;
-
-		TQueue<TSharedPtr<FExternalSource>> PendingReimportQueue;
-
-#if WITH_EDITOR
-		FDelegateHandle OnPIEEndHandle;
-#endif
 		friend FDirectLinkAutoReconnectManager;
 	};
 }
