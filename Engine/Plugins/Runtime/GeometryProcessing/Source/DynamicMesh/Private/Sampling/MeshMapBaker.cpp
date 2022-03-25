@@ -161,16 +161,18 @@ void FMeshMapBaker::Bake()
 	ECorrespondenceStrategy UseStrategy = this->CorrespondenceStrategy;
 	bool bIsIdentity = true;
 	int NumDetailMeshes = 0;
-	auto CheckIdentity = [Mesh, &bIsIdentity, &NumDetailMeshes](const void* DetailMesh)
+	auto CheckIdentity = [this, Mesh, &bIsIdentity, &NumDetailMeshes](const void* DetailMesh)
 	{
-		bIsIdentity = bIsIdentity && (DetailMesh == Mesh);
+		// When the mesh pointers differ, loosely compare the meshes as a sanity check.
+		// TODO: Expose additional comparison metrics on the detail sampler when the mesh pointers differ.
+		bIsIdentity = bIsIdentity && (DetailMesh == Mesh || Mesh->TriangleCount() == DetailSampler->GetTriangleCount(DetailMesh));
 		++NumDetailMeshes;
 	};
 	DetailSampler->ProcessMeshes(CheckIdentity);
-	if (UseStrategy == ECorrespondenceStrategy::Identity && !ensure(bIsIdentity && (NumDetailMeshes == 1)))
+	if (UseStrategy == ECorrespondenceStrategy::Identity && !ensure(bIsIdentity && NumDetailMeshes == 1))
 	{
-		// Identity strategy requires mesh to be the same. Could potentially have two copies, in which
-		// case this ensure is too conservative, but for now we will assume this
+		// Identity strategy requires there to be only one mesh that is the same
+		// as the target mesh. 
 		UseStrategy = ECorrespondenceStrategy::NearestPoint;
 	}
 

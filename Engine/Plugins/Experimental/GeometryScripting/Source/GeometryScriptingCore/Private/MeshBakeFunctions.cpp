@@ -495,6 +495,10 @@ namespace GeometryScriptBakeLocals
 		Baker.SetDimensions(BakeDimensions);
 		Baker.SetProjectionDistance(BakeOptions.ProjectionDistance);
 		Baker.SetSamplesPerPixel(GetSamplesPerPixel(BakeOptions.SamplesPerPixel));
+		if (bIsBakeToSelf)
+		{
+			Baker.SetCorrespondenceStrategy(FMeshBaseBaker::ECorrespondenceStrategy::Identity);
+		}
 
 		auto IsValidBakeType = [](EGeometryScriptBakeTypes, TArray<FGeometryScriptDebugMessage>*)
 		{
@@ -645,6 +649,10 @@ namespace GeometryScriptBakeLocals
 		Baker.SetTargetMeshUVLayer(TargetOptions.TargetUVLayer);
 		Baker.SetDetailSampler(&DetailSampler);
 		Baker.SetProjectionDistance(BakeOptions.ProjectionDistance);
+		if (bIsBakeToSelf)
+		{
+			Baker.SetCorrespondenceStrategy(FMeshBaseBaker::ECorrespondenceStrategy::Identity);
+		}
 
 		FEvaluatorState EvalState;
 		EvalState.TargetMesh = TargetMesh->GetMeshPtr();

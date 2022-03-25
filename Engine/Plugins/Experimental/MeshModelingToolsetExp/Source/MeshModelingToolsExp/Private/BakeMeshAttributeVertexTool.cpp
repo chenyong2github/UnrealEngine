@@ -59,6 +59,7 @@ public:
 	FDynamicMesh3* BaseMesh;
 	TSharedPtr<TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
 	TUniquePtr<FMeshVertexBaker> Baker;
+	bool bIsBakeToSelf = false;
 
 	UBakeMeshAttributeVertexTool::FBakeSettings BakeSettings;
 	FOcclusionMapSettings OcclusionSettings;
@@ -82,6 +83,11 @@ public:
 		Baker->SetTargetMesh(BaseMesh);
 		Baker->SetTargetMeshTangents(BaseMeshTangents);
 		Baker->SetProjectionDistance(BakeSettings.ProjectionDistance);
+		if (bIsBakeToSelf)
+		{
+			Baker->SetCorrespondenceStrategy(FMeshBaseBaker::ECorrespondenceStrategy::Identity);
+		}
+		
 		Baker->BakeMode = BakeSettings.OutputMode == EBakeVertexOutput::RGBA ? FMeshVertexBaker::EBakeMode::RGBA : FMeshVertexBaker::EBakeMode::PerChannel;
 		
 		FMeshBakerDynamicMeshSampler DetailSampler(DetailMesh.Get(), DetailSpatial.Get());
@@ -443,6 +449,7 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshVertexBaker>> UBakeMeshAttrib
 	Op->CurvatureSettings = CachedCurvatureMapSettings;
 	Op->TextureSettings = CachedTexture2DSettings;
 	Op->MultiTextureSettings = CachedMultiTexture2DSettings;
+	Op->bIsBakeToSelf = bIsBakeToSelf;
 
 	// Texture2DImage & MultiTexture settings
 	Op->TextureImage = CachedTextureImage;
