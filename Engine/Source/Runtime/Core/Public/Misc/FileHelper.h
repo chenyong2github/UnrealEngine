@@ -148,7 +148,13 @@ struct CORE_API FFileHelper
 	static bool SaveStringArrayToFile( const TArray<FString>& Lines, const TCHAR* Filename, EEncodingOptions EncodingOptions = EEncodingOptions::AutoDetect, IFileManager* FileManager = &IFileManager::Get(), uint32 WriteFlags = 0 );
 
 	/**
-	 * Saves a 24/32Bit BMP file to disk
+	 * Saves a 24/32Bit BMP file to disk for debug image dump purposes
+	 * 
+	 * for general image saving (to BMP or any other format); use FImageUtils::SaveImage instead
+	 * CreateBitmap is mainly for debug dump images
+	 * 
+	 * note this also calls SendDataToPCViaUnrealConsole
+	 *   and uses GenerateNextBitmapFilename if Pattern does not have ".bmp" on it
 	 * 
 	 * @param Pattern filename with path, must not be 0, if with "bmp" extension (e.g. "out.bmp") the filename stays like this, if without (e.g. "out") automatic index numbers are addended (e.g. "out00002.bmp")
 	 * @param DataWidth - Width of the bitmap supplied in Data >0
@@ -162,10 +168,6 @@ struct CORE_API FFileHelper
 	 *
 	 * @return true if success
 	 */
-	 // DEPRECATED
-	//	BmpImageWrapper now has a good writer, prefer that for general image saving ; use FImageUtils::SaveImage
-	// note this also calls SendDataToPCViaUnrealConsole
-	//   and uses GenerateNextBitmapFilename
 	static bool CreateBitmap( const TCHAR* Pattern, int32 DataWidth, int32 DataHeight, const struct FColor* Data, FIntRect* SubRectangle = NULL, IFileManager* FileManager = &IFileManager::Get(), FString* OutFilename = NULL, bool bInWriteAlpha = false, EColorChannel ColorChannel = EColorChannel::All);
 
 	/**

@@ -14,8 +14,6 @@ NOT the ImageUtils in Engine
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "Misc/FileHelper.h"
-#include "DDSLoader.h"
-#include "HDRLoader.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 

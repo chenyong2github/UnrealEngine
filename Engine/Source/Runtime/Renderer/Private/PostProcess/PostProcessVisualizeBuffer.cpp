@@ -180,6 +180,8 @@ TUniquePtr<FImagePixelData> ReadbackPixelData(FRHICommandListImmediate& RHICmdLi
 	SourceRect.Min.X *= MSAAXSamples;
 	SourceRect.Max.X *= MSAAXSamples;
 
+	// todo: SourceRect is not clipped to Texture bounds
+
 	switch (Texture->GetFormat())
 	{
 	case PF_FloatRGBA:
@@ -250,12 +252,19 @@ void AddDumpToFilePass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input, cons
 
 	if (GIsHighResScreenshot && HighResScreenshotConfig.CaptureRegion.Area())
 	{
+		// todo: CaptureRegion is not clipped to Texture bounds
 		Input.ViewRect = HighResScreenshotConfig.CaptureRegion;
 	}
 
 	AddReadbackTexturePass(GraphBuilder, RDG_EVENT_NAME("DumpToFile(%s)", Input.Texture->Name), Input.Texture,
 		[&HighResScreenshotConfig, Input, Filename](FRHICommandListImmediate& RHICmdList)
 	{
+		// this is where HighResShot bDumpBufferVisualizationTargets are written to EXRs
+
+		// @todo Oodle alternative : use the exact same pixelformat that this buffer would have in the renderer
+		//	 use the DDS writer which can output arbitrary pixel formats
+		//	 do no format conversions so we dump the exact same bits the game renderer would see
+
 		TUniquePtr<FImagePixelData> PixelData = ReadbackPixelData(RHICmdList, Input.Texture->GetRHI(), Input.ViewRect);
 
 		if (!PixelData.IsValid())
@@ -386,6 +395,7 @@ FScreenPassTexture AddVisualizeGBufferOverviewPass(
 				MaterialFilename = BaseFilename + TEXT("_") + MaterialName;
 			}
 
+			// always makes a .png filename even when bCaptureHDR was set, which will actually save an EXR
 			MaterialFilename.Append(TEXT(".png"));
 
 			AddDumpToFilePass(GraphBuilder, Output, MaterialFilename);
