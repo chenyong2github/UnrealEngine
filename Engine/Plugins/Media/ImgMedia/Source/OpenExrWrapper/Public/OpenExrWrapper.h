@@ -90,6 +90,11 @@ public:
 	 */
 	void AddIntAttribute(const FString& Name, int32 Value);
 
+	/**
+	 * Call this to get the number of mipmap levels.
+	 */
+	virtual int32 GetNumberOfMipLevels() { return 0; }
+
 protected:
 	/** Stores the EXR header object. */
 	void* Header;
@@ -134,11 +139,6 @@ public:
 		int32 TileWidth, int32 TileHeight, int32 NumChannels, bool bIsMipsEnabled);
 
 	/**
-	 * Call this to get the number of mipmap levels.
-	 */
-	int32 GetNumberOfMipLevels();
-
-	/**
 	 * Call this prior to WriteTile to set where the data is coming from.
 	 * 
 	 * @param Buffer		Source of data.
@@ -154,6 +154,9 @@ public:
 	 * @param MipLevel		Mipmap level of tile.
 	 */
 	void WriteTile(int32 TileX, int32 TileY, int32 MipLevel);
+
+	//~ FBaseOutputFile interface.
+	virtual int32 GetNumberOfMipLevels() override;
 };
 
 /**
@@ -205,6 +208,16 @@ public:
 		int32 TileWidth, int32 TileHeight, bool bIsMipsEnabled);
 
 	/**
+	 * Get the width of a mip level.
+	 */
+	int32 GetMipWidth(int32 MipLevel);
+
+	/**
+	 * Get the height of a mip level.
+	 */
+	int32 GetMipHeight(int32 MipLevel);
+
+	/**
 	 * Call this before SetFrameBuffer for each channel in the frame buffer.
 	 *
 	 * @param Name			Name of channel (e.g. R, G, B, or A).
@@ -213,6 +226,17 @@ public:
 	 */
 	void AddFrameBufferChannel(const FString& Name, void* Base,
 		const FIntPoint& Stride);
+
+	/**
+	 * Call this to change a channel in the frame buffer.
+	 *
+	 * @param Name			Name of channel (e.g. R, G, B, or A).
+	 * @param Base			Address of the start of the data.
+	 * @param Stride		A pixels location is calculated by Base + x * StrideX + y * StrideY.
+	 */
+	void UpdateFrameBufferChannel(const FString& Name, void* Base,
+		const FIntPoint& Stride);
+
 	/**
 	 * Call this prior to WriteTile to set where the data is coming from.
 	 *
@@ -229,6 +253,9 @@ public:
 	 * @param MipLevel		Mipmap level of tile.
 	 */
 	void WriteTile(int32 TileX, int32 TileY, int32 MipLevel);
+
+	//~ FBaseOutputFile interface.
+	virtual int32 GetNumberOfMipLevels() override;
 
 private:
 

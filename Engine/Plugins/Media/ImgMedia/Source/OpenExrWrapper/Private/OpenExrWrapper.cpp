@@ -460,6 +460,23 @@ void FTiledOutputFile::AddFrameBufferChannel(const FString& Name, void* Base,
 		Imf::Slice(Imf::HALF, (char*)Base, Stride.X, Stride.Y));
 }
 
+void FTiledOutputFile::UpdateFrameBufferChannel(const FString& Name, void* Base,
+	const FIntPoint& Stride)
+{
+	Imf::Slice* Slice = ((Imf::FrameBuffer*)FrameBuffer)->findSlice(
+		StringCast<ANSICHAR>(*Name).Get());
+	if (Slice != nullptr)
+	{
+		Slice->base = (char*)Base;
+		Slice->xStride = Stride.X;
+		Slice->yStride = Stride.Y;
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error, TEXT("Could not find frame buffer channel %s."), *Name);
+	}
+}
+
 void FTiledOutputFile::SetFrameBuffer()
 {
 	if (OutputFile != nullptr)
@@ -491,6 +508,48 @@ void FTiledOutputFile::WriteTile(int32 TileX, int32 TileY, int32 MipLevel)
 	{
 		UE_LOG(LogOpenEXRWrapper, Error,
 			TEXT("WriteTile failed: CreateOutputFile has not been called yet."));
+	}
+}
+
+int32 FTiledOutputFile::GetNumberOfMipLevels()
+{
+	if (OutputFile != nullptr)
+	{
+		return ((Imf::TiledOutputFile*)OutputFile)->numLevels();
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error,
+			TEXT("GetNumberOfMipLevels failed: CreateOutputFile has not been called yet."));
+		return 0;
+	}
+}
+
+int32 FTiledOutputFile::GetMipWidth(int32 MipLevel)
+{
+	if (OutputFile != nullptr)
+	{
+		return ((Imf::TiledOutputFile*)OutputFile)->levelWidth(MipLevel);
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error,
+			TEXT("GetMipWidth failed: CreateOutputFile has not been called yet."));
+		return 0;
+	}
+}
+
+int32 FTiledOutputFile::GetMipHeight(int32 MipLevel)
+{
+	if (OutputFile != nullptr)
+	{
+		return ((Imf::TiledOutputFile*)OutputFile)->levelHeight(MipLevel);
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error,
+			TEXT("GetMipHeight failed: CreateOutputFile has not been called yet."));
+		return 0;
 	}
 }
 

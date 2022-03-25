@@ -59,10 +59,12 @@ private:
 	 * @param InTileWidth		Desired width of tiles.
 	 * @param InTileHeight		Desired height of tiles.
 	 * @param InTileBorder		Number of pixels to duplicate along a tile edge.
+	 * @param bInEnableMips		Turn on mip mapping.
 	 * @param InName			Full path and name of file to write.
 	 */
 	void ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageWrapper,
-		int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, const FString& InName);
+		int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, 
+		bool bInEnableMips, const FString& InName);
 
 	/** Holds our details view. */
 	TSharedPtr<class IDetailsView> DetailsView;

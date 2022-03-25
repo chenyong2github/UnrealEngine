@@ -108,6 +108,7 @@ void SImgMediaProcessImages::ProcessAllImages(TSharedPtr<SNotificationItem> Conf
 	int32 InTileWidth = Options->TileSizeX;
 	int32 InTileHeight = Options->TileSizeY;
 	int32 TileBorder = Options->TileBorder;
+	bool bEnableMips = Options->bEnableMipMapping;
 
 	// Create output directory.
 	FString OutPath = Options->OutputPath.Path;
@@ -176,7 +177,8 @@ void SImgMediaProcessImages::ProcessAllImages(TSharedPtr<SNotificationItem> Conf
 				FString Name = FPaths::Combine(OutPath, FileName);
 				if (bUseCustomFormat)
 				{
-					ProcessImageCustom(ImageWrapper, InTileWidth, InTileHeight, TileBorder, Name);
+					ProcessImageCustom(ImageWrapper, InTileWidth, InTileHeight, TileBorder,
+						bEnableMips, Name);
 				}
 				else
 				{
@@ -264,7 +266,8 @@ void SImgMediaProcessImages::ProcessImage(TSharedPtr<IImageWrapper>& InImageWrap
 }
 
 void SImgMediaProcessImages::ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageWrapper,
-	int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, const FString& InName)
+	int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, bool bInEnableMips,
+	const FString& InName)
 {
 #if IMGMEDIAEDITOR_EXR_SUPPORTED_PLATFORM
 	// Get image data.
@@ -374,7 +377,7 @@ void SImgMediaProcessImages::ProcessImageCustom(TSharedPtr<IImageWrapper>& InIma
 
 	int32 NumChannels = 4;
 
-	FIntPoint Stride(2, DestWidth * BytesPerPixel);
+	FIntPoint Stride(2, 0);
 
 	// Create tiled exr file.
 	FTiledOutputFile OutFile(FIntPoint(0, 0), FIntPoint(DestWidth - 1, DestHeight - 1),
@@ -398,14 +401,83 @@ void SImgMediaProcessImages::ProcessImageCustom(TSharedPtr<IImageWrapper>& InIma
 	OutFile.AddChannel(RChannelName);
 
 	// Create output.
-	OutFile.CreateOutputFile(InName, DestWidth, DestHeight, false);
-	OutFile.AddFrameBufferChannel(AChannelName, RawDataPtr, Stride);
-	OutFile.AddFrameBufferChannel(BChannelName, RawDataPtr + DestWidth * 2, Stride);
-	OutFile.AddFrameBufferChannel(GChannelName, RawDataPtr + DestWidth * 4, Stride);
-	OutFile.AddFrameBufferChannel(RChannelName, RawDataPtr + DestWidth * 6, Stride);
-	OutFile.SetFrameBuffer();
-	
-	OutFile.WriteTile(0, 0, 0);
+	OutFile.CreateOutputFile(InName, DestWidth, DestHeight, bInEnableMips);
+	OutFile.AddFrameBufferChannel(AChannelName, nullptr, Stride);
+	OutFile.AddFrameBufferChannel(BChannelName, nullptr, Stride);
+	OutFile.AddFrameBufferChannel(GChannelName, nullptr, Stride);
+	OutFile.AddFrameBufferChannel(RChannelName, nullptr, Stride);
+
+	// Flip between 2 buffers making mips.
+	TArray64<uint8> RawData2;
+	uint8* MipBuffer[2];
+	MipBuffer[0] = RawDataPtr;
+	MipBuffer[1] = nullptr;
+	int32 CurrentMipBufferIndex = 0;
+
+	// Loop over each mip level.
+	int32 NumMips = OutFile.GetNumberOfMipLevels();
+	for (int32 MipLevel = 0; MipLevel < NumMips; MipLevel++)
+	{
+		int32 MipWidth = OutFile.GetMipWidth(MipLevel);
+		int32 MipHeight = OutFile.GetMipHeight(MipLevel);
+		uint8* CurrentBuffer = MipBuffer[CurrentMipBufferIndex];
+		uint8* LastBuffer = MipBuffer[CurrentMipBufferIndex ^ 1];
+
+		// Allocate space for the other buffer.
+		if (CurrentBuffer == nullptr)
+		{
+			RawData2.AddUninitialized(MipWidth* MipHeight* BytesPerPixel);
+			MipBuffer[CurrentMipBufferIndex] = RawData2.GetData();
+			CurrentBuffer = MipBuffer[CurrentMipBufferIndex];
+		}
+
+		// Generate mip data.
+		if (MipLevel != 0)
+		{
+			int32 SourceStrideX = NumChannels;
+			int32 SourceStrideY = MipWidth * NumChannels * 2;
+			for (int32 PixelY = 0; PixelY < MipHeight; ++PixelY)
+			{
+				for (int32 PixelX = 0; PixelX < MipWidth; ++PixelX)
+				{
+					int32 PixelOffset = (PixelX + PixelY * MipWidth) * NumChannels;
+					for (int32 Channel = 0; Channel < NumChannels; ++Channel)
+					{
+						// Box filter.
+						int32 SourceWidth = MipWidth * 2;
+						int32 SourcePixelOffset = (PixelX + PixelY * SourceWidth) * NumChannels * 2 +
+							Channel;
+						FFloat16 SourcePixels[4];
+						SourcePixels[0] =
+							((FFloat16*)LastBuffer)[SourcePixelOffset];
+						SourcePixels[1] =
+							((FFloat16*)LastBuffer)[SourcePixelOffset + SourceStrideX];
+						SourcePixels[2] =
+							((FFloat16*)LastBuffer)[SourcePixelOffset + SourceStrideY];
+						SourcePixels[3] =
+							((FFloat16*)LastBuffer)[SourcePixelOffset + SourceStrideX + SourceStrideY];
+
+						((FFloat16*)CurrentBuffer)[PixelOffset + Channel] =
+							(SourcePixels[0] + SourcePixels[1] + SourcePixels[2] + SourcePixels[3]) * 0.25f;
+					}
+				}
+			}
+		}
+
+		// Write to EXR.
+		Stride.Y = MipWidth * BytesPerPixel;
+		OutFile.UpdateFrameBufferChannel(AChannelName, CurrentBuffer, Stride);
+		OutFile.UpdateFrameBufferChannel(BChannelName, CurrentBuffer + MipWidth * 2, Stride);
+		OutFile.UpdateFrameBufferChannel(GChannelName, CurrentBuffer + MipWidth * 4, Stride);
+		OutFile.UpdateFrameBufferChannel(RChannelName, CurrentBuffer + MipWidth * 6, Stride);
+
+		OutFile.SetFrameBuffer();
+
+		OutFile.WriteTile(0, 0, MipLevel);
+
+		// Switch buffers.
+		CurrentMipBufferIndex ^= 1;
+	}
 
 #else // IMGMEDIAEDITOR_EXR_SUPPORTED_PLATFORM
 	UE_LOG(LogImgMediaEditor, Error, TEXT("EXR not supported on this platform."));
