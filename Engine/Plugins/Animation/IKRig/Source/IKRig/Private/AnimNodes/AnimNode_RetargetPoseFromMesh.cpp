@@ -66,6 +66,7 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 
 	if (!(IKRetargeterAsset && Processor && SourceMeshComponent.IsValid()))
 	{
+		Output.ResetToRefPose();
 		return;
 	}
 
