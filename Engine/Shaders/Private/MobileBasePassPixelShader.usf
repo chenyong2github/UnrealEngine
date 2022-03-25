@@ -652,6 +652,7 @@ void Main(
 	half CustomData1 = GetMaterialCustomData1(MaterialParameters);
 	InitShadingModelContext(ShadingModelContext, GBuffer, MaterialParameters.SvPosition, MaterialParameters.CameraVector, CustomData0, CustomData1);
 	float3 DiffuseDir = MaterialParameters.WorldNormal;
+	half PlanarReflectionValidContentMask = 1;
 
 #if MATERIAL_SHADINGMODEL_HAIR
 	FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
@@ -726,7 +727,8 @@ void Main(
 		{
 			half4 PlanarReflection = GetPlanarReflection(MaterialParameters.AbsoluteWorldPosition, MaterialParameters.WorldNormal, GBuffer.Roughness);
 			// Planar reflections win over reflection environment
-			SpecularIBL = lerp(SpecularIBL, PlanarReflection.rgb, PlanarReflection.a);
+			SpecularIBL = PlanarReflection.rgb;
+			PlanarReflectionValidContentMask = PlanarReflection.a;
 		}
 	#endif
 	#if MATERIAL_SHADINGMODEL_CLEAR_COAT
@@ -896,6 +898,8 @@ void Main(
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	Emissive *= TopMaterialCoverage;
 #endif
+
+	Emissive *= PlanarReflectionValidContentMask;
 	Color += Emissive;
 
 #if !MATERIAL_SHADINGMODEL_UNLIT && MOBILE_EMULATION

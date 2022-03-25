@@ -180,6 +180,7 @@ public:
 		: FGlobalShader(Initializer)
 	{
 		KernelRadiusY.Bind(Initializer.ParameterMap, TEXT("KernelRadiusY"));
+		ValidContentMaskFactor.Bind(Initializer.ParameterMap, TEXT("ValidContentMaskFactor"));
 		InvPrefilterRoughnessDistance.Bind(Initializer.ParameterMap, TEXT("InvPrefilterRoughnessDistance"));
 		SceneColorInputTexture.Bind(Initializer.ParameterMap, TEXT("SceneColorInputTexture"));
 		SceneColorInputSampler.Bind(Initializer.ParameterMap, TEXT("SceneColorInputSampler"));
@@ -193,6 +194,9 @@ public:
 		const float KernelRadiusYValue = FMath::Clamp(ReflectionSceneProxy->PrefilterRoughness, 0.0f, 0.04f) * 0.5f * FilterWidth;
 		SetShaderValue(RHICmdList, ShaderRHI, KernelRadiusY, KernelRadiusYValue);
 
+		const float ValidContentMaskFactorValue = FMath::Clamp(ReflectionSceneProxy->ValidContentMaskFactor, 1.0f, 1000.0f);
+		SetShaderValue(RHICmdList, ShaderRHI, ValidContentMaskFactor, ValidContentMaskFactorValue);
+
 		SetShaderValue(RHICmdList, ShaderRHI, InvPrefilterRoughnessDistance, 1.0f / FMath::Max(ReflectionSceneProxy->PrefilterRoughnessDistance, DELTA));
 
 		SetTextureParameter(RHICmdList, ShaderRHI, SceneColorInputTexture, SceneColorInputSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), SceneColorInput);
@@ -205,6 +209,7 @@ public:
 private:
 
 	LAYOUT_FIELD(FShaderParameter, KernelRadiusY)
+	LAYOUT_FIELD(FShaderParameter, ValidContentMaskFactor)
 	LAYOUT_FIELD(FShaderParameter, InvPrefilterRoughnessDistance)
 	LAYOUT_FIELD(FShaderResourceParameter, SceneColorInputTexture)
 	LAYOUT_FIELD(FShaderResourceParameter, SceneColorInputSampler)

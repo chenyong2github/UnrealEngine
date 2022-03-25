@@ -34,6 +34,9 @@ public:
 	UPROPERTY(EditAnywhere, Category=PlanarReflection, meta=(UIMin = "0", UIMax = "100000"), AdvancedDisplay)
 	float PrefilterRoughnessDistance;
 
+	UPROPERTY(EditAnywhere, Category = PlanarReflection, meta = (UIMin = "1", UIMax = "1000"), AdvancedDisplay)
+	float ValidContentMaskFactor;
+
 	/** Downsample percent, can be used to reduce GPU time rendering the planar reflection. */
 	UPROPERTY(EditAnywhere, Category=PlanarReflection, meta=(UIMin = "25", UIMax = "100"), AdvancedDisplay)
 	int32 ScreenPercentage;
