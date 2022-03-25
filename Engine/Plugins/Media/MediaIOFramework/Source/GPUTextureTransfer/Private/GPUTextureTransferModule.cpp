@@ -99,7 +99,7 @@ bool FGPUTextureTransferModule::LoadGPUDirectBinary()
 	TextureTransferHandle = FPlatformProcess::GetDllHandle(*DVPDll);
 	if (TextureTransferHandle == nullptr)
 	{
-		UE_LOG(LogGPUTextureTransfer, Warning, TEXT("Failed to load required library %s. GPU Texture transfer will not be functional."), *DVPDll);
+		UE_LOG(LogGPUTextureTransfer, Display, TEXT("Failed to load required library %s. GPU Texture transfer will not be functional."), *DVPDll);
 	}
 
 	FPlatformProcess::PopDllDirectory(*GPUDirectPath);
