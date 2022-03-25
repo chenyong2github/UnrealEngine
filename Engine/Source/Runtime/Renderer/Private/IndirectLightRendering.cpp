@@ -526,7 +526,7 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 		&& Scene->ReflectionSceneData.CubemapArray.IsValid()
 		&& Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num())
 	{
-		CubeArrayTexture = Scene->ReflectionSceneData.CubemapArray.GetRenderTarget().ShaderResourceTexture;
+		CubeArrayTexture = Scene->ReflectionSceneData.CubemapArray.GetRenderTarget()->GetRHI();
 	}
 
 	OutParameters.ReflectionCubemap = CubeArrayTexture;

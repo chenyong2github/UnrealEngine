@@ -361,6 +361,130 @@ private:
 	RenderCommandFunctionArray* RenderCommands;
 };
 
+struct FRenderThreadStructBase
+{
+	FRenderThreadStructBase() = default;
+
+	// Copy construction is not allowed. Used to avoid accidental copying in the command lambda.
+	FRenderThreadStructBase(const FRenderThreadStructBase&) = delete;
+
+	void InitRHI(FRHICommandListImmediate&) {}
+	void ReleaseRHI(FRHICommandListImmediate&) {}
+};
+
+/**  Represents a struct with a lifetime that spans multiple render commands with scoped initialization
+ *   and release on the render thread.
+ * 
+ *   Example:
+ * 
+ *   struct FMyStruct : public FRenderThreadStructBase
+ *   {
+ *       FInitializer { int32 Foo; int32 Bar; };
+ * 
+ *       FMyStruct(const FInitializer& InInitializer)
+ *            : Initializer(InInitializer)
+ *       {
+ *            // Called immediately by TRenderThreadStruct when created.
+ *       }
+ * 
+ *       ~FMyStruct()
+ *       {
+ *           // Called on the render thread when TRenderThreadStruct goes out of scope.
+ *       }
+ * 
+ *       void InitRHI(FRHICommandListImmediate& RHICmdList)
+ *       {
+ *           // Called on the render thread by TRenderThreadStruct when created.
+ *       }
+ * 
+ *       void ReleaseRHI(FRHICommandListImmediate& RHICmdList)
+ *       {
+ *           // Called on the render thread when TRenderThreadStruct goes out of scope.
+ *       }
+ * 
+ *       FInitializer Initializer;
+ *   };
+ *
+ *   // On Main Thread
+ * 
+ *   {
+ *       TRenderThreadStruct<FMyStruct> MyStruct(FMyStruct::FInitializer{1, 2});
+ * 
+ *       ENQUEUE_RENDER_COMMAND(CommandA)[MyStruct = MyStruct.Get()](FRHICommandListImmediate& RHICmdList)
+ *       {
+ *           // Do something with MyStruct.
+ *       };
+ * 
+ *       ENQUEUE_RENDER_COMMAND(CommandB)[MyStruct = MyStrucft.Get()](FRHICommandListImmediate& RHICmdList)
+ *       {
+ *           // Do something else with MyStruct.
+ *       };
+ * 
+ *       // MyStruct instance is automatically released and deleted on the render thread.
+ *   }
+ */
+template <typename StructType>
+class TRenderThreadStruct
+{
+public:
+	static_assert(TIsDerivedFrom<StructType, FRenderThreadStructBase>::IsDerived, "StructType must be derived from FRenderThreadStructBase.");
+
+	template <typename... TArgs>
+	TRenderThreadStruct(TArgs&&... Args)
+		: Struct(new StructType(Forward<TArgs&&>(Args)...))
+	{
+		ENQUEUE_RENDER_COMMAND(InitStruct)([Struct = Struct](FRHICommandListImmediate& RHICmdList)
+		{
+			Struct->InitRHI(RHICmdList);
+		});
+	}
+
+	~TRenderThreadStruct()
+	{
+		ENQUEUE_RENDER_COMMAND(DeleteStruct)([Struct = Struct](FRHICommandListImmediate& RHICmdList)
+		{
+			Struct->ReleaseRHI(RHICmdList);
+			delete Struct;
+		});
+		Struct = nullptr;
+	}
+
+	TRenderThreadStruct(const TRenderThreadStruct&) = delete;
+
+	const StructType* operator->() const
+	{
+		return Struct;
+	}
+
+	StructType* operator->()
+	{
+		return Struct;
+	}
+
+	const StructType& operator*() const
+	{
+		return *Struct;
+	}
+
+	StructType& operator*()
+	{
+		return *Struct;
+	}
+
+	const StructType* Get() const
+	{
+		return Struct;
+	}
+
+	StructType* Get()
+	{
+		return Struct;
+	}
+
+private:
+	StructType* Struct;
+};
+
 DECLARE_MULTICAST_DELEGATE(FStopRenderingThread);
 using FStopRenderingThreadDelegate = FStopRenderingThread::FDelegate;
 

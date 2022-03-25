@@ -1618,7 +1618,7 @@ public:
 	int32 GetMaxCubemaps() const { return MaxCubemaps; }
 	int32 GetCubemapSize() const { return CubemapSize; }
 	bool IsValid() const { return IsValidRef(ReflectionEnvs); }
-	FSceneRenderTargetItem& GetRenderTarget() const { return ReflectionEnvs->GetRenderTargetItem(); }
+	const TRefCountPtr<IPooledRenderTarget>& GetRenderTarget() const { return ReflectionEnvs; }
 
 protected:
 	uint32 MaxCubemaps;

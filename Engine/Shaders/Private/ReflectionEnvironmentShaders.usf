@@ -146,13 +146,15 @@ float CubeTexelWeight( float3 N )
 TextureCube SourceCubemapTexture;
 SamplerState SourceCubemapSampler;
 float2 SinCosSourceCubemapRotation;
+float2 SvPositionToUVScale;
 
 void CopyCubemapToCubeFaceColorPS(
-	FScreenVertexOutput Input,
+	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0
 	)
-{ 
-	float2 ScaledUVs = Input.UV * 2 - 1;
+{
+	float2 UV = SvPosition.xy * SvPositionToUVScale;
+	float2 ScaledUVs = UV * 2 - 1;
 	float3 CubeCoordinates = GetCubemapVector(ScaledUVs, CubeFace);
 	// Rotate around Z axis
 	CubeCoordinates.xy = float2(dot(CubeCoordinates.xy, float2(SinCosSourceCubemapRotation.y, -SinCosSourceCubemapRotation.x)), dot(CubeCoordinates.xy, SinCosSourceCubemapRotation));
@@ -194,11 +196,12 @@ void DownsampleCS(uint3 ThreadId : SV_DispatchThreadID)
 	float4 OutColor;
 #else // USE_COMPUTE
 void DownsamplePS(
-	FScreenVertexOutput Input,
+	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0
 	)
 { 
-	float2 ScaledUVs = Input.UV * 2 - 1;
+	float2 UV = SvPosition.xy * SvPositionToUVScale;
+	float2 ScaledUVs = UV * 2 - 1;
 	const int SelectedCubeFace = CubeFace;
 #endif // USE_COMPUTE
 	float3 CubeCoordinates = GetCubemapVector(ScaledUVs, SelectedCubeFace);
@@ -275,10 +278,7 @@ SamplerState ReflectionEnvironmentColorSampler;
 
 #if COMPUTEBRIGHTNESS_PIXELSHADER
 
-void ComputeBrightnessMain(
-	in float4 UVAndScreenPos : TEXCOORD0, 
-	out float4 OutColor : SV_Target0
-	)
+void ComputeBrightnessMain(out float4 OutColor : SV_Target0)
 { 
 	// Sample the 6 1x1 cube faces and average
 	float3 AverageColor = TextureCubeSampleLevel(ReflectionEnvironmentColorTexture, ReflectionEnvironmentColorSampler, float3(1, 0, 0), NumCaptureArrayMips - 1).rgb;
@@ -305,11 +305,12 @@ float4 SampleCubemap(float3 Coordinates)
 }
 
 void DownsamplePS_Mobile(
-	FScreenVertexOutput Input,
+	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0
 )
 {
-	float2 ScaledUVs = Input.UV * 2 - 1;
+	float2 UV = SvPosition.xy * SvPositionToUVScale;
+	float2 ScaledUVs = UV * 2 - 1;
 	float3 CubeCoordinates = GetCubemapVector(ScaledUVs, CubeFace);
 
 	OutColor = SampleCubemap(CubeCoordinates);
@@ -330,11 +331,12 @@ void FilterCS(uint3 ThreadId : SV_DispatchThreadID)
 	float4 OutColor;
 #else // USE_COMPUTE
 void FilterPS(
-	FScreenVertexOutput Input,
+	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0
 	)
 { 
-	float2 ScaledUVs = Input.UV * 2 - 1;
+	float2 UV = SvPosition.xy * SvPositionToUVScale;
+	float2 ScaledUVs = UV * 2 - 1;
 	const int SelectedCubeFace = CubeFace;
 #endif // USE_COMPUTE
 	float3 CubeCoordinates = GetCubemapVector(ScaledUVs, SelectedCubeFace);
@@ -438,11 +440,12 @@ float CoefficientMask2;
 int NumSamples;
 
 void DiffuseIrradianceCopyPS(
-	FScreenVertexOutput Input,
+	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0
 	)
 { 
-	float2 ScaledUVs = Input.UV * 2 - 1;
+	float2 UV = SvPosition.xy * SvPositionToUVScale;
+	float2 ScaledUVs = UV * 2 - 1;
 	float3 CubeCoordinates = normalize(GetCubemapVector(ScaledUVs, CubeFace));
 
 	float SquaredUVs = 1 + dot(ScaledUVs, ScaledUVs);
@@ -460,32 +463,33 @@ float4 Sample01;
 float4 Sample23;
 
 void DiffuseIrradianceAccumulatePS(
-	FScreenVertexOutput Input,
+	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0
 	)
 { 
 	float4 AccumulatedValue = 0;
+	float2 UV = SvPosition.xy * SvPositionToUVScale;
 
 	{
-		float2 ScaledUVs = saturate(Input.UV + Sample01.xy) * 2 - 1;
+		float2 ScaledUVs = saturate(UV + Sample01.xy) * 2 - 1;
 		float3 CubeCoordinates = GetCubemapVector(ScaledUVs, CubeFace);
 		AccumulatedValue += SampleCubemap(CubeCoordinates);
 	}
 	
 	{
-		float2 ScaledUVs = saturate(Input.UV + Sample01.zw) * 2 - 1;
+		float2 ScaledUVs = saturate(UV + Sample01.zw) * 2 - 1;
 		float3 CubeCoordinates = GetCubemapVector(ScaledUVs, CubeFace);
 		AccumulatedValue += SampleCubemap(CubeCoordinates);
 	}
 
 	{
-		float2 ScaledUVs = saturate(Input.UV + Sample23.xy) * 2 - 1;
+		float2 ScaledUVs = saturate(UV + Sample23.xy) * 2 - 1;
 		float3 CubeCoordinates = GetCubemapVector(ScaledUVs, CubeFace);
 		AccumulatedValue += SampleCubemap(CubeCoordinates);
 	}
 
 	{
-		float2 ScaledUVs = saturate(Input.UV + Sample23.zw) * 2 - 1;
+		float2 ScaledUVs = saturate(UV + Sample23.zw) * 2 - 1;
 		float3 CubeCoordinates = GetCubemapVector(ScaledUVs, CubeFace);
 		AccumulatedValue += SampleCubemap(CubeCoordinates);
 	}
@@ -494,7 +498,6 @@ void DiffuseIrradianceAccumulatePS(
 }
 
 void AccumulateCubeFacesPS(
-	FScreenVertexOutput Input,
 	out float4 OutColor : SV_Target0
 	)
 {

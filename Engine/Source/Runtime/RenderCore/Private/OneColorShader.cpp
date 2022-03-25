@@ -3,34 +3,6 @@
 
 #include "OneColorShader.h"
 
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FClearShaderUB, )
-	SHADER_PARAMETER_ARRAY(FVector4f, DrawColorMRT, [8] )
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FClearShaderUB, "ClearShaderUB");
-
-void FOneColorPS::SetColors(FRHICommandList& RHICmdList, const FLinearColor* Colors, int32 NumColors)
-{
-	check(NumColors <= MaxSimultaneousRenderTargets);
-
-	auto& ClearUBParam = GetUniformBufferParameter<FClearShaderUB>();
-	if (ClearUBParam.IsBound())
-	{
-		FClearShaderUB ClearData;
-		FMemory::Memzero(ClearData.DrawColorMRT);
-		for (int32 i = 0; i < NumColors; ++i)
-		{
-			ClearData.DrawColorMRT[i].X = Colors[i].R;
-			ClearData.DrawColorMRT[i].Y = Colors[i].G;
-			ClearData.DrawColorMRT[i].Z = Colors[i].B;
-			ClearData.DrawColorMRT[i].W = Colors[i].A;
-		}
-
-		FLocalUniformBuffer LocalUB = TUniformBufferRef<FClearShaderUB>::CreateLocalUniformBuffer(RHICmdList, ClearData, UniformBuffer_SingleFrame);
-		RHICmdList.SetLocalShaderUniformBuffer(RHICmdList.GetBoundPixelShader(), ClearUBParam.GetBaseIndex(), LocalUB);
-	}
-}
-
 // #define avoids a lot of code duplication
 #define IMPLEMENT_ONECOLORVS(A,B) typedef TOneColorVS<A,B> TOneColorVS##A##B; \
 	IMPLEMENT_SHADER_TYPE2_WITH_TEMPLATE_PREFIX(template<> RENDERCORE_API, TOneColorVS##A##B, SF_Vertex);

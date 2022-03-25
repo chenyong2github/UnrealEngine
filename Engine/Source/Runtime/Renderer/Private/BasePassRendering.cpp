@@ -684,7 +684,7 @@ static void ClearGBufferAtMaxZ(
 			{},
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&View, VertexShader, PixelShader, ActiveTargetCount, ClearColor0](FRHICommandListImmediate& RHICmdList)
+			[&View, VertexShader, PixelShader, ActiveTargetCount, ClearColor0](FRHICommandList& RHICmdList)
 		{
 			const FLinearColor ClearColors[MaxSimultaneousRenderTargets] =
 			{
@@ -715,7 +715,8 @@ static void ClearGBufferAtMaxZ(
 			VertexShader->SetDepthParameter(RHICmdList, float(ERHIZBuffer::FarPlane));
 
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
-			PixelShader->SetColors(RHICmdList, ClearColors, ActiveTargetCount);
+			PixelShader->SetColors(RHICmdList, PixelShader, ClearColors, ActiveTargetCount);
+
 			RHICmdList.SetStreamSource(0, GClearVertexBuffer.VertexBufferRHI, 0);
 			RHICmdList.DrawPrimitive(0, 2, 1);
 		});
