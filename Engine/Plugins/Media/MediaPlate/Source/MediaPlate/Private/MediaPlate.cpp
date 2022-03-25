@@ -8,6 +8,7 @@
 #include "MediaComponent.h"
 #include "MediaPlayer.h"
 #include "MediaPlateModule.h"
+#include "MediaSource.h"
 #include "MediaTexture.h"
 #include "MediaTextureTracker.h"
 #include "UObject/ConstructorHelpers.h"
@@ -139,15 +140,11 @@ void AMediaPlate::Play()
 		// Try and play the media path.
 		if (MediaPath.FilePath.IsEmpty() == false)
 		{
-			// Is it a URL or a file?
-			bool bIsUrl = MediaPath.FilePath.Contains(TEXT("://"));
-			if (bIsUrl)
+			MediaPathMediaSource = UMediaSource::SpawnMediaSourceForString(MediaPath.FilePath);
+			if (MediaPathMediaSource != nullptr)
 			{
-				bIsPlaying = MediaPlayer->OpenUrl(MediaPath.FilePath);
-			}
-			else
-			{
-				bIsPlaying = MediaPlayer->OpenFile(MediaPath.FilePath);
+				bIsPlaying = MediaPlayer->OpenSource(MediaPathMediaSource);
+				return;
 			}
 		}
 

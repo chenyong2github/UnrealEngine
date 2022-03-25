@@ -85,6 +85,10 @@ private:
 	/** Info representing this object. */
 	TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> MediaTextureTrackerObject;
 
+	/** If we are using MediaPath, then this is the media source for it. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMediaSource> MediaPathMediaSource;
+
 	/**
 	 * Adds our media texture to the media texture tracker.
 	 */
