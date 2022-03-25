@@ -94,5 +94,5 @@ TArray<UActorComponent*> UHLODBuilderMeshMerge::Build(const FHLODBuildContext& I
 		}
 	});
 
-	return TArray<UActorComponent*>({ Component });
+	return { Component };
 }

@@ -110,6 +110,8 @@ public:
 	static uint32 ComputeHLODHash(const TArray<AActor*>& InSourceActors);
 
 protected:
+	static TArray<UActorComponent*> BatchInstances(const TArray<UActorComponent*>& InSubComponents);
+
 	template <typename TComponentClass>
 	static inline TArray<TComponentClass*> FilterComponents(const TArray<UActorComponent*>& InSourceComponents)
 	{

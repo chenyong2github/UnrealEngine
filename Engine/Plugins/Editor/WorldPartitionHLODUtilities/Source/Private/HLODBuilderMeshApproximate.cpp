@@ -20,8 +20,6 @@
 #include "Engine/HLODProxy.h"
 #include "Serialization/ArchiveCrc32.h"
 
-#include "HLODBuilderInstancing.h"
-
 
 UHLODBuilderMeshApproximate::UHLODBuilderMeshApproximate(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -73,26 +71,7 @@ TArray<UActorComponent*> UHLODBuilderMeshApproximate::Build(const FHLODBuildCont
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODBuilderMeshApproximate::Build);
 
-	TArray<UStaticMeshComponent*> StaticMeshComponents;
-	TArray<UActorComponent*> InstancedComponents;
-
-	// Filter the input components
-	for (UStaticMeshComponent* SubComponent : FilterComponents<UStaticMeshComponent>(InSourceComponents))
-	{
-		switch (SubComponent->HLODBatchingPolicy)
-		{
-		case EHLODBatchingPolicy::None:
-			StaticMeshComponents.Add(SubComponent);
-			break;
-		case EHLODBatchingPolicy::Instancing:
-			InstancedComponents.Add(SubComponent);
-			break;
-		case EHLODBatchingPolicy::MeshSection:
-			InstancedComponents.Add(SubComponent);
-			UE_LOG(LogHLODBuilder, Warning, TEXT("EHLODBatchingPolicy::MeshSection is not yet supported by the UHLODBuilderMeshSimplify builder."));
-			break;
-		}
-	}
+	TArray<UStaticMeshComponent*> StaticMeshComponents = FilterComponents<UStaticMeshComponent>(InSourceComponents);
 
 	TSet<AActor*> Actors;
 	Algo::Transform(StaticMeshComponents, Actors, [](UPrimitiveComponent* PrimitiveComponent) { return PrimitiveComponent->GetOwner(); });
@@ -223,13 +202,6 @@ TArray<UActorComponent*> UHLODBuilderMeshApproximate::Build(const FHLODBuildCont
 			MaterialInst->InitStaticPermutation();
 			MaterialInst->PostEditChange();
 		}
-	}
-
-	// Batch instances
-	if (InstancedComponents.Num())
-	{
-		UHLODBuilderInstancing* InstancingHLODBuilder = NewObject<UHLODBuilderInstancing>();
-		Components.Append(InstancingHLODBuilder->Build(InHLODBuildContext, InstancedComponents));
 	}
 
 	return Components;

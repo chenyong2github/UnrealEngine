@@ -19,8 +19,6 @@
 #include "Engine/HLODProxy.h"
 #include "Serialization/ArchiveCrc32.h"
 
-#include "HLODBuilderInstancing.h"
-
 
 UHLODBuilderMeshSimplify::UHLODBuilderMeshSimplify(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -72,26 +70,7 @@ TArray<UActorComponent*> UHLODBuilderMeshSimplify::Build(const FHLODBuildContext
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODBuilderMeshSimplifySettings::Build);
 
-	TArray<UStaticMeshComponent*> StaticMeshComponents;
-	TArray<UActorComponent*> InstancedComponents;
-
-	// Filter the input components
-	for (UStaticMeshComponent* SubComponent : FilterComponents<UStaticMeshComponent>(InSourceComponents))
-	{
-		switch (SubComponent->HLODBatchingPolicy)
-		{
-		case EHLODBatchingPolicy::None:
-			StaticMeshComponents.Add(SubComponent);
-			break;
-		case EHLODBatchingPolicy::Instancing:
-			InstancedComponents.Add(SubComponent);
-			break;
-		case EHLODBatchingPolicy::MeshSection:
-			InstancedComponents.Add(SubComponent);
-			UE_LOG(LogHLODBuilder, Warning, TEXT("EHLODBatchingPolicy::MeshSection is not yet supported by the UHLODBuilderMeshSimplify builder."));
-			break;
-		}
-	}
+	TArray<UStaticMeshComponent*> StaticMeshComponents = FilterComponents<UStaticMeshComponent>(InSourceComponents);
 
 	const UHLODBuilderMeshSimplifySettings* MeshSimplifySettings = CastChecked<UHLODBuilderMeshSimplifySettings>(HLODBuilderSettings);
 	const FMeshProxySettings& UseSettings = MeshSimplifySettings->MeshSimplifySettings;
@@ -118,13 +97,6 @@ TArray<UActorComponent*> UHLODBuilderMeshSimplify::Build(const FHLODBuildContext
 
 	TArray<UActorComponent*> Components;
 	Components.Add(Component);
-
-	// Batch instances
-	if (InstancedComponents.Num())
-	{
-		UHLODBuilderInstancing* InstancingHLODBuilder = NewObject<UHLODBuilderInstancing>();
-		Components.Append(InstancingHLODBuilder->Build(InHLODBuildContext, InstancedComponents));
-	}
 
 	return Components;
 }
