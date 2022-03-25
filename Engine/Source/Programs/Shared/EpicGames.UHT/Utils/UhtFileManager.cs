@@ -156,7 +156,7 @@ namespace EpicGames.UHT.Utils
 		{
 			try
 			{
-				File.Move(OldFilePath, OldFilePath, true);
+				File.Move(OldFilePath, NewFilePath, true);
 				return true;
 			}
 			catch (Exception)

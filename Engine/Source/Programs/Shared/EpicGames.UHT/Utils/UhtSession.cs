@@ -2364,6 +2364,7 @@ namespace EpicGames.UHT.Utils
 		#region Exporting
 		private void StepExport()
 		{
+			long TotalWrittenFiles = 0;
 			Try(null, () =>
 			{
 				Log.Logger.LogTrace("Step - Exports");
@@ -2383,6 +2384,13 @@ namespace EpicGames.UHT.Utils
 						Log.Logger.LogTrace($"       Running exporter {Exporter.Name}");
 						UhtExportFactory Factory = new UhtExportFactory(this, Exporter, Options);
 						Factory.Run();
+						foreach (var Output in Factory.Outputs)
+						{
+							if (Output.bSaved)
+							{
+								TotalWrittenFiles++;
+							}
+						}
 					}
 					else
 					{
@@ -2390,6 +2398,8 @@ namespace EpicGames.UHT.Utils
 					}
 				}
 			});
+
+			Log.Logger.LogInformation($"Total of {TotalWrittenFiles} written");
 		}
 		#endregion
 	}
