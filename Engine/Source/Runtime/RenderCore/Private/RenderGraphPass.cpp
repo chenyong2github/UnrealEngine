@@ -128,7 +128,7 @@ FRDGBarrierBatchBegin::FRDGBarrierBatchBegin(ERHIPipeline InPipelinesToBegin, ER
 #endif
 {}
 
-void FRDGBarrierBatchBegin::AddTransition(FRDGParentResourceRef Resource, const FRHITransitionInfo& Info)
+void FRDGBarrierBatchBegin::AddTransition(FRDGViewableResource* Resource, const FRHITransitionInfo& Info)
 {
 	Transitions.Add(Info);
 	bTransitionNeeded = true;
@@ -142,7 +142,7 @@ void FRDGBarrierBatchBegin::AddTransition(FRDGParentResourceRef Resource, const 
 #endif
 }
 
-void FRDGBarrierBatchBegin::AddAlias(FRDGParentResourceRef Resource, const FRHITransientAliasingInfo& Info)
+void FRDGBarrierBatchBegin::AddAlias(FRDGViewableResource* Resource, const FRHITransientAliasingInfo& Info)
 {
 	Aliases.Add(Info);
 	bTransitionNeeded = true;

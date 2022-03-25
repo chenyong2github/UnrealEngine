@@ -1656,7 +1656,8 @@ void FOpenGLDynamicRHI::RHICopySharedMips(FRHITexture2D* DestTexture2D, FRHIText
 }
 
 FOpenGLShaderResourceView::FOpenGLShaderResourceView(FOpenGLTexture* InTexture, const FRHITextureSRVCreateInfo& CreateInfo)
-	: Target      (InTexture->Target)
+	: FRHIShaderResourceView(InTexture)
+	, Target      (InTexture->Target)
 	, Texture     (InTexture)
 	, LimitMip    (CreateInfo.MipLevel)
 	, OwnsResource(FOpenGL::SupportsTextureView())

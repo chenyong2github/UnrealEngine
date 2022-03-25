@@ -435,6 +435,15 @@ void FRHICommandResourceTransition::Execute(FRHICommandListBase& CmdList)
 	Transition->~FRHITransition();
 }
 
+void FRHICommandSetTrackedAccess::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(SetTrackedAccess);
+	for (const FRHITrackedAccessInfo& Info : Infos)
+	{
+		INTERNAL_DECORATOR_COMPUTE(SetTrackedAccess)(Info);
+	}
+}
+
 void FRHICommandSetAsyncComputeBudget::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(SetAsyncComputeBudget);

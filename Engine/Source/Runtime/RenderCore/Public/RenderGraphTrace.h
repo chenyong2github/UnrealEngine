@@ -17,7 +17,7 @@ public:
 	void OutputGraphBegin();
 	void OutputGraphEnd(const FRDGBuilder& GraphBuilder);
 
-	void AddResource(FRDGParentResource* Resource);
+	void AddResource(FRDGViewableResource* Resource);
 	void AddTexturePassDependency(FRDGTexture* Texture, FRDGPass* Pass);
 	void AddBufferPassDependency(FRDGBuffer* Buffer, FRDGPass* Pass);
 

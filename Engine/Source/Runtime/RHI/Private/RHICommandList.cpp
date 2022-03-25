@@ -1049,6 +1049,13 @@ void FRHICommandListExecutor::Transition(TArrayView<const FRHITransitionInfo> In
 
 	FRHIAsyncComputeCommandListImmediate& RHICmdListAsyncCompute = GetImmediateAsyncComputeCommandList();
 
+#if DO_CHECK
+	for (const FRHITransitionInfo& Info : Infos)
+	{
+		checkf(Info.IsWholeResource(), TEXT("Only whole resource transitions are allowed in FRHICommandListExecutor::Transition."));
+	}
+#endif
+
 	if (!GSupportsEfficientAsyncCompute)
 	{
 		checkf(SrcPipelines != ERHIPipeline::AsyncCompute, TEXT("Async compute is disabled. Cannot transition from it."));
@@ -1077,6 +1084,11 @@ void FRHICommandListExecutor::Transition(TArrayView<const FRHITransitionInfo> In
 	if (EnumHasAnyFlags(SrcPipelines | DstPipelines, ERHIPipeline::AsyncCompute))
 	{
 		FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHICmdListAsyncCompute);
+	}
+
+	if (EnumHasAnyFlags(SrcPipelines | DstPipelines, ERHIPipeline::Graphics))
+	{
+		CommandLists[ERHIPipeline::Graphics]->SetTrackedAccess(Infos);
 	}
 }
 
@@ -1598,7 +1610,7 @@ void FRHICommandListBase::QueueParallelAsyncCommandListSubmit(FGraphEventRef* An
 	}
 }
 
-void FRHICommandListBase::QueueAsyncCommandListSubmit(FGraphEventRef& AnyThreadCompletionEvent, class FRHICommandList* CmdList)
+void FRHICommandListBase::QueueAsyncCommandListSubmit(FGraphEventRef& AnyThreadCompletionEvent, FRHICommandList* CmdList)
 {
 	check(IsInRenderingThread() && IsImmediate());
 
@@ -1639,7 +1651,7 @@ FRHICOMMAND_MACRO(FRHICommandWaitForAndSubmitRTSubList)
 	}
 };
 
-void FRHICommandListBase::QueueRenderThreadCommandListSubmit(FGraphEventRef& RenderThreadCompletionEvent, class FRHICommandList* CmdList)
+void FRHICommandListBase::QueueRenderThreadCommandListSubmit(FGraphEventRef& RenderThreadCompletionEvent, FRHICommandList* CmdList)
 {
 	check(IsInRenderingThread() && IsImmediate());
 
@@ -1678,7 +1690,7 @@ FRHICOMMAND_MACRO(FRHICommandSubmitSubList)
 	}
 };
 
-void FRHICommandListBase::QueueCommandListSubmit(class FRHICommandList* CmdList)
+void FRHICommandListBase::QueueCommandListSubmit(FRHICommandList* CmdList)
 {
 	ALLOC_COMMAND(FRHICommandSubmitSubList)(CmdList);
 
@@ -2148,6 +2160,45 @@ void FRHIComputeCommandList::operator delete(void *RawMemory)
 	FMemory::Free(RawMemory);
 }
 
+void FRHIComputeCommandList::Transition(TArrayView<const FRHITransitionInfo> Infos)
+{
+	const ERHIPipeline Pipeline = GetPipeline();
+
+	if (Bypass())
+	{
+		// Stack allocate the transition
+		FMemStack& MemStack = FMemStack::Get();
+		FMemMark Mark(MemStack);
+		FRHITransition* Transition = new (MemStack.Alloc(FRHITransition::GetTotalAllocationSize(), FRHITransition::GetAlignment())) FRHITransition(Pipeline, Pipeline);
+		GDynamicRHI->RHICreateTransition(Transition, FRHITransitionCreateInfo(Pipeline, Pipeline, ERHITransitionCreateFlags::NoSplit, Infos));
+
+		GetComputeContext().RHIBeginTransitions(MakeArrayView((const FRHITransition**)&Transition, 1));
+		GetComputeContext().RHIEndTransitions(MakeArrayView((const FRHITransition**)&Transition, 1));
+
+		// Manual release
+		GDynamicRHI->RHIReleaseTransition(Transition);
+		Transition->~FRHITransition();
+	}
+	else
+	{
+		// Allocate the transition in the command list
+		FRHITransition* Transition = new (Alloc(FRHITransition::GetTotalAllocationSize(), FRHITransition::GetAlignment())) FRHITransition(Pipeline, Pipeline);
+		GDynamicRHI->RHICreateTransition(Transition, FRHITransitionCreateInfo(Pipeline, Pipeline, ERHITransitionCreateFlags::NoSplit, Infos));
+
+		ALLOC_COMMAND(FRHICommandResourceTransition)(Transition);
+	}
+
+	for (const FRHITransitionInfo& Info : Infos)
+	{
+		ensureMsgf(Info.IsWholeResource(), TEXT("The Transition method only supports whole resource transitions."));
+
+		if (FRHIViewableResource* Resource = GetViewableResource(Info))
+		{
+			SetTrackedAccess({ FRHITrackedAccessInfo(Resource, Info.AccessAfter) });
+		}
+	}
+}
+
 #if RHI_RAYTRACING
 void FRHIComputeCommandList::BuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
 {
@@ -2196,7 +2247,8 @@ FBufferRHIRef FDynamicRHI::CreateBuffer_RenderThread(class FRHICommandListImmedi
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateBuffer_RenderThread);
 	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateBuffer(Size, Usage, Stride, ResourceState, CreateInfo);
+	FBufferRHIRef Buffer = GDynamicRHI->RHICreateBuffer(Size, Usage, Stride, ResourceState, CreateInfo);
+	return Buffer;
 }
 
 FShaderResourceViewRHIRef FDynamicRHI::CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Stride, uint8 Format)

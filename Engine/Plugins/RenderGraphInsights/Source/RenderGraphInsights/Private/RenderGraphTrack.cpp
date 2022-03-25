@@ -1199,7 +1199,7 @@ void FRenderGraphTrack::BuildDrawState(FRenderGraphTrackDrawStateBuilder& Builde
 			uint64 SizeInBytes{};
 			uint32 Index{};
 			uint32 Order{};
-			ERDGParentResourceType Type = ERDGParentResourceType::Texture;
+			ERDGViewableResourceType Type = ERDGViewableResourceType::Texture;
 			bool bHasPreviousOwner{};
 		};
 
@@ -1297,7 +1297,7 @@ void FRenderGraphTrack::BuildDrawState(FRenderGraphTrackDrawStateBuilder& Builde
 					Entry.SizeInBytes = Texture.SizeInBytes;
 					Entry.Index = TextureIndex;
 					Entry.Order = Texture.Order;
-					Entry.Type = ERDGParentResourceType::Texture;
+					Entry.Type = ERDGViewableResourceType::Texture;
 					Entry.bHasPreviousOwner = Texture.PrevousOwnerHandle.IsValid();
 				}
 			}
@@ -1324,7 +1324,7 @@ void FRenderGraphTrack::BuildDrawState(FRenderGraphTrackDrawStateBuilder& Builde
 					Entry.SizeInBytes = Buffer.SizeInBytes;
 					Entry.Index = BufferIndex;
 					Entry.Order = Buffer.Order;
-					Entry.Type = ERDGParentResourceType::Buffer;
+					Entry.Type = ERDGViewableResourceType::Buffer;
 					Entry.bHasPreviousOwner = Buffer.PrevousOwnerHandle.IsValid();
 				}
 			}
@@ -1369,7 +1369,7 @@ void FRenderGraphTrack::BuildDrawState(FRenderGraphTrackDrawStateBuilder& Builde
 			{
 				if (!Entry.bHasPreviousOwner)
 				{
-					auto& Array = Entry.Type == ERDGParentResourceType::Texture ? TextureIndexToDepth : BufferIndexToDepth;
+					auto& Array = Entry.Type == ERDGViewableResourceType::Texture ? TextureIndexToDepth : BufferIndexToDepth;
 					Array[Entry.Index] = DepthOffset++;
 				}
 

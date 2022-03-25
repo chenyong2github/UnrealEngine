@@ -1273,6 +1273,7 @@ D3D12_RESOURCE_STATES GetD3D12ResourceState(ERHIAccess InRHIAccess, bool InIsAsy
 	case ERHIAccess::DSVWrite:				return D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	case ERHIAccess::CopyDest:				return D3D12_RESOURCE_STATE_COPY_DEST;
 	case ERHIAccess::ResolveDst:			return D3D12_RESOURCE_STATE_RESOLVE_DEST;
+	case ERHIAccess::Present:				return D3D12_RESOURCE_STATE_PRESENT;
 
 	// Generic read for mask read states
 	case ERHIAccess::ReadOnlyMask:	

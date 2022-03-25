@@ -546,7 +546,8 @@ class FMetalShaderResourceView final : public FRHIShaderResourceView, public FMe
 {
 public:
 	explicit FMetalShaderResourceView(const FShaderResourceViewInitializer& Initializer)
-		: FMetalResourceViewBase(
+		: FRHIShaderResourceView(Initializer.AsBufferSRV().Buffer)
+		, FMetalResourceViewBase(
 			  Initializer.AsBufferSRV().Buffer
 			, Initializer.AsBufferSRV().StartOffsetBytes
 			, Initializer.AsBufferSRV().NumElements
@@ -555,7 +556,8 @@ public:
 	{}
 
 	explicit FMetalShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)
-		: FMetalResourceViewBase(
+		: FRHIShaderResourceView(Texture)
+		, FMetalResourceViewBase(
 			  Texture
 			, CreateInfo.Format
 			, CreateInfo.MipLevel
@@ -574,18 +576,21 @@ class FMetalUnorderedAccessView final : public FRHIUnorderedAccessView, public F
 {
 public:
 	explicit FMetalUnorderedAccessView(FRHIBuffer* Buffer, EPixelFormat Format)
-		: FMetalResourceViewBase(Buffer, 0, UINT_MAX, Format)
+		: FRHIUnorderedAccessView(Buffer)
+		, FMetalResourceViewBase(Buffer, 0, UINT_MAX, Format)
 	{}
 
 	explicit FMetalUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
-		: FMetalResourceViewBase(Buffer, 0, UINT_MAX, PF_Unknown)
+		: FRHIUnorderedAccessView(Buffer)
+		, FMetalResourceViewBase(Buffer, 0, UINT_MAX, PF_Unknown)
 	{
 		checkf(!bUseUAVCounter, TEXT("UAV counters not implemented."));
 		checkf(!bAppendBuffer, TEXT("UAV append buffers not implemented."));
 	}
 
 	explicit FMetalUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
-		: FMetalResourceViewBase(
+		: FRHIUnorderedAccessView(Buffer)
+		, FMetalResourceViewBase(
 			  Texture
 			, PF_Unknown
 			, MipLevel

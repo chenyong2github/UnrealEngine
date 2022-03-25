@@ -12,8 +12,6 @@
 #include "ShaderParameterMacros.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-class FRDGLogFile;
-
 /** Use the render graph builder to build up a graph of passes and then call Execute() to process them. Resource barriers
  *  and lifetimes are derived from _RDG_ parameters in the pass parameter struct provided to each AddPass call. The resulting
  *  graph is compiled, culled, and executed in Execute(). The builder should be created on the stack and executed prior to
@@ -363,7 +361,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	//////////////////////////////////////////////////////////////////////////
 
 private:
-	static const ERHIAccess kDefaultAccessFinal = ERHIAccess::SRVMask;
 	static const char* const kDefaultUnaccountedCSVStat;
 
 	FRHIAsyncComputeCommandListImmediate& RHICmdListAsyncCompute;
@@ -382,19 +379,6 @@ private:
 
 	void AddProloguePass();
 
-	FORCEINLINE FRDGPassHandle ClampToPrologue(FRDGPassHandle PassHandle) const
-	{
-		// Preserve null inputs as outputs. Null is the highest value.
-		return ProloguePassHandle.GetIndexUnchecked() > PassHandle.GetIndexUnchecked() ? ProloguePassHandle : PassHandle;
-	}
-
-	FORCEINLINE FRDGPassHandlesByPipeline ClampToPrologue(FRDGPassHandlesByPipeline PassHandles) const
-	{
-		PassHandles[ERHIPipeline::Graphics]     = ClampToPrologue(PassHandles[ERHIPipeline::Graphics]);
-		PassHandles[ERHIPipeline::AsyncCompute] = ClampToPrologue(PassHandles[ERHIPipeline::AsyncCompute]);
-		return PassHandles;
-	}
-
 	FORCEINLINE FRDGPass* GetProloguePass() const
 	{
 		return ProloguePass;
@@ -403,7 +387,7 @@ private:
 	/** Returns the graph prologue pass handle. */
 	FORCEINLINE FRDGPassHandle GetProloguePassHandle() const
 	{
-		return ProloguePassHandle;
+		return FRDGPassHandle(0);
 	}
 
 	/** Returns the graph epilogue pass handle. */
@@ -489,7 +473,15 @@ private:
 
 	/** Tracks external resources to their registered render graph counterparts for de-duplication. */
 	TSortedMap<FRHITexture*, FRDGTexture*, FRDGArrayAllocator> ExternalTextures;
-	TSortedMap<const FRDGPooledBuffer*, FRDGBuffer*, FRDGArrayAllocator> ExternalBuffers;
+	TSortedMap<FRDGPooledBuffer*, FRDGBuffer*, FRDGArrayAllocator> ExternalBuffers;
+
+	/** Tracks the latest RDG resource to own an alias of a pooled resource (multiple RDG resources can reference the same pooled resource). */
+	TMap<FRDGPooledTexture*, FRDGTexture*, FRDGSetAllocator> PooledTextureOwnershipMap;
+	TMap<FRDGPooledBuffer*, FRDGBuffer*, FRDGSetAllocator> PooledBufferOwnershipMap;
+
+	/** Array of all pooled references held during execution. */
+	TArray<TRefCountPtr<IPooledRenderTarget>, FRDGArrayAllocator> ActivePooledTextures;
+	TArray<TRefCountPtr<FRDGPooledBuffer>, FRDGArrayAllocator> ActivePooledBuffers;
 
 	/** Map of barrier batches begun from more than one pipe. */
 	TMap<FRDGBarrierBatchBeginId, FRDGBarrierBatchBegin*, FRDGSetAllocator> BarrierBatchMap;
@@ -503,7 +495,6 @@ private:
 	 *  the graph for culling purposes. The epilogue pass is added to the very end of the pass array for traversal
 	 *  purposes. The prologue does not need to participate in any graph traversal behavior.
 	 */
-	FRDGPassHandle ProloguePassHandle;
 	FRDGPass* ProloguePass = nullptr;
 	FRDGPass* EpiloguePass = nullptr;
 
@@ -605,12 +596,10 @@ private:
 	/** Array of all active parallel execute tasks. */
 	FGraphEventArray ParallelExecuteEvents;
 
-	/** Array of all pooled references held during execution. */
-	FRDGPooledTextureArray ActivePooledTextures;
-	FRDGPooledBufferArray ActivePooledBuffers;
+	TArray<FRHITrackedAccessInfo, FRDGArrayAllocator> EpilogueResourceAccesses;
 
 	/** Texture state used for intermediate operations. Held here to avoid re-allocating. */
-	FRDGTextureTransientSubresourceStateIndirect ScratchTextureState;
+	FRDGTextureSubresourceStateIndirect ScratchTextureState;
 
 	/** Current scope's async compute budget. This is passed on to every pass created. */
 	EAsyncComputeBudget AsyncComputeBudgetScope = EAsyncComputeBudget::EAll_4;
@@ -629,7 +618,6 @@ private:
 #if RDG_ENABLE_DEBUG
 	FRDGUserValidation UserValidation;
 	FRDGBarrierValidation BarrierValidation;
-	FRDGLogFile LogFile;
 #endif
 
 	/** Tracks whether we are in a scope of adding passes to the builder. Used to avoid recursion. */
@@ -656,6 +644,12 @@ private:
 
 	void Compile();
 	void Clear();
+
+	void SetRHI(FRDGTexture* Texture, IPooledRenderTarget* RenderTarget, FRDGPassHandle PassHandle);
+	void SetRHI(FRDGTexture* Texture, FRDGPooledTexture* PooledTexture, FRDGPassHandle PassHandle);
+	void SetRHI(FRDGTexture* Texture, FRHITransientTexture* TransientTexture, FRDGPassHandle PassHandle);
+	void SetRHI(FRDGBuffer* Buffer, FRDGPooledBuffer* PooledBuffer, FRDGPassHandle PassHandle);
+	void SetRHI(FRDGBuffer* Buffer, FRHITransientBuffer* TransientBuffer, FRDGPassHandle PassHandle);
 
 	void BeginResourcesRHI(FRDGPass* ResourcePass, FRDGPassHandle ExecutePassHandle);
 	void BeginResourceRHI(FRDGPassHandle, FRDGTexture* Texture);
@@ -701,7 +695,7 @@ private:
 	void AddTransition(
 		FRDGPassHandle PassHandle,
 		FRDGTextureRef Texture,
-		const FRDGTextureTransientSubresourceStateIndirect& StateAfter);
+		const FRDGTextureSubresourceStateIndirect& StateAfter);
 
 	void AddTransition(
 		FRDGPassHandle PassHandle,
@@ -709,7 +703,7 @@ private:
 		FRDGSubresourceState StateAfter);
 
 	void AddTransition(
-		FRDGParentResource* Resource,
+		FRDGViewableResource* Resource,
 		FRDGSubresourceState StateBefore,
 		FRDGSubresourceState StateAfter,
 		const FRHITransitionInfo& TransitionInfo);
@@ -717,12 +711,12 @@ private:
 	void AddAliasingTransition(
 		FRDGPassHandle BeginPassHandle,
 		FRDGPassHandle EndPassHandle,
-		FRDGParentResourceRef Resource,
+		FRDGViewableResource* Resource,
 		const FRHITransientAliasingInfo& Info);
 
 	bool IsTransient(FRDGTextureRef Texture) const;
 	bool IsTransient(FRDGBufferRef Buffer) const;
-	bool IsTransientInternal(FRDGParentResourceRef Resource, bool bFastVRAM) const;
+	bool IsTransientInternal(FRDGViewableResource* Resource, bool bFastVRAM) const;
 
 	FRHIRenderPassInfo GetRenderPassInfo(const FRDGPass* Pass) const;
 

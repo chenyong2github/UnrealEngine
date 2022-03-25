@@ -310,6 +310,7 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, const FRHIT
 		if (!Info.Resource)
 			continue;
 
+		checkf(Info.AccessAfter != ERHIAccess::Unknown, TEXT("FRHITransitionInfo::AccessAfter cannot be Unknown when creating a resource transition."));
 		checkf(Info.Type != FRHITransitionInfo::EType::Unknown, TEXT("FRHITransitionInfo::Type cannot be Unknown when creating a resource transition."));
 
 		FResourceIdentity Identity;
@@ -468,8 +469,9 @@ void FValidationComputeContext::FState::Reset()
 	GlobalUniformBuffers.Reset();
 }
 
-FValidationContext::FValidationContext()
+FValidationContext::FValidationContext(EType InType)
 	: RHIContext(nullptr)
+	, Type(InType)
 {
 	State.Reset();
 	Tracker = &State.TrackerInstance;
@@ -697,6 +699,24 @@ namespace RHIValidation
 			*GetRHIPipelineName(RequiredState.Pipelines));
 	}
 
+	static inline FString GetReasonString_IncorrectTrackedAccess(
+		FResource* Resource, FSubresourceIndex const& SubresourceIndex,
+		const FState& CurrentState,
+		const FState& TrackedState)
+	{
+		FString DebugName = GetResourceDebugName(Resource, SubresourceIndex);
+		return FString::Printf(
+			BARRIER_TRACKER_LOG_PREFIX_RESNAME
+			TEXT("Attempted to assign resource %s a tracked access that does not match its validation tracked access.\n\n")
+			TEXT("    --- Actual access states:                    %s\n")
+			TEXT("    --- Assigned access states:                  %s\n")
+			BARRIER_TRACKER_LOG_SUFFIX,
+			*DebugName,
+			*DebugName,
+			*GetRHIAccessName(CurrentState.Access),
+			*GetRHIAccessName(TrackedState.Access));
+	}
+
 	static inline FString GetReasonString_BeginBacktrace(void* CreateTrace, void* BeginTrace)
 	{
 		if (CreateTrace || BeginTrace)
@@ -917,7 +937,7 @@ namespace RHIValidation
 			*GetRHIAccessName(CurrentStateFromRHI.Access));
 	}
 
-	static inline FString GetReasonString_IncorrectPreviousState(
+	static inline FString GetReasonString_IncorrectPreviousExplicitState(
 		FResource* Resource, FSubresourceIndex const& SubresourceIndex,
 		const FState& CurrentState,
 		const FState& CurrentStateFromRHI)
@@ -937,6 +957,29 @@ namespace RHIValidation
 			*DebugName,
 			*GetRHIPipelineName(CurrentState.Pipelines),
 			*GetRHIPipelineName(CurrentStateFromRHI.Pipelines));
+	}
+
+	static inline FString GetReasonString_IncorrectPreviousTrackedState(
+		FResource* Resource, FSubresourceIndex const& SubresourceIndex,
+		const FState& CurrentState,
+		ERHIPipeline PipelineFromRHI)
+	{
+		FString DebugName = GetResourceDebugName(Resource, SubresourceIndex);
+		return FString::Printf(
+			BARRIER_TRACKER_LOG_PREFIX_RESNAME
+			TEXT("The tracked previous state \"%s\" does not match the tracked current state \"%s\" for the resource %s.\n")
+			TEXT("    --- Allowed pipelines for this resource are:                           %s\n")
+			TEXT("    --- Previous pipelines passed as part of the resource transition were: %s\n\n")
+			TEXT("    --- The previous state was pulled from the last call to RHICmdList.SetTrackedAccess due to the use of ERHIAccess::Unknown. If this doesn't match the expected state, be sure to update the \n")
+			TEXT("    --- tracked state after using manual low - level transitions. It is highly recommended to coalesce all subresources into the same state before relying on tracked previous states with \n")
+			TEXT("    --- ERHIAccess::Unknown. RHICmdList.SetTrackedAccess applies to whole resources.\n")
+			BARRIER_TRACKER_LOG_SUFFIX,
+			*DebugName,
+			*GetRHIAccessName(Resource->GetTrackedAccess()),
+			*GetRHIAccessName(CurrentState.Access),
+			*DebugName,
+			*GetRHIPipelineName(CurrentState.Pipelines),
+			*GetRHIPipelineName(PipelineFromRHI));
 	}
 
 	static inline FString GetReasonString_MismatchedEndTransition(
@@ -1162,9 +1205,17 @@ namespace RHIValidation
 			// Check for the correct pipeline
 			RHI_VALIDATION_CHECK(EnumHasAllFlags(CurrentStateFromRHI.Pipelines, ExecutingPipeline), *GetReasonString_WrongPipeline(Resource, SubresourceIndex, State.Current, TargetState));
 
-			// Check the current RHI state passed in matches the tracked state for the resource, or is "unknown".
-			RHI_VALIDATION_CHECK(CurrentStateFromRHI.Access == ERHIAccess::Unknown || (CurrentStateFromRHI.Access == State.Previous.Access && CurrentStateFromRHI.Pipelines == State.Previous.Pipelines),
-				*GetReasonString_IncorrectPreviousState(Resource, SubresourceIndex, State.Previous, CurrentStateFromRHI));
+			if (CurrentStateFromRHI.Access == ERHIAccess::Unknown)
+			{
+				RHI_VALIDATION_CHECK(Resource->TrackedAccess == State.Previous.Access && CurrentStateFromRHI.Pipelines == State.Previous.Pipelines,
+					*GetReasonString_IncorrectPreviousTrackedState(Resource, SubresourceIndex, State.Previous, CurrentStateFromRHI.Pipelines));
+			}
+			else
+			{
+				// Check the current RHI state passed in matches the tracked state for the resource.
+				RHI_VALIDATION_CHECK(CurrentStateFromRHI.Access == State.Previous.Access && CurrentStateFromRHI.Pipelines == State.Previous.Pipelines,
+					*GetReasonString_IncorrectPreviousExplicitState(Resource, SubresourceIndex, State.Previous, CurrentStateFromRHI));
+			}
 		}
 
 		// Check for unnecessary transitions
@@ -1265,6 +1316,26 @@ namespace RHIValidation
 
 		// Disable all non-compatible access types
 		State.Current.Access = DecayResourceAccess(State.Current.Access, RequiredState.Access, bAllowAllUAVsOverlap || State.bExplicitAllowUAVOverlap);
+	}
+
+	void FSubresourceState::AssertTracked(FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& RequiredState)
+	{
+		if (Resource->LoggingMode != ELoggingMode::None
+#if LOG_UNNAMED_RESOURCES
+			|| Resource->GetDebugName() == nullptr
+#endif
+			)
+		{
+			Log(Resource, SubresourceIndex, nullptr, nullptr, TEXT("AssertTracked"), *FString::Printf(TEXT("Access: %s, Pipeline %s"), *GetRHIAccessName(RequiredState.Access), *GetRHIPipelineName(RequiredState.Pipelines)));
+		}
+
+		FPipelineState& State = States[RequiredState.Pipelines];
+
+		// Check we're not trying to access the resource whilst a pending resource transition is in progress.
+		RHI_VALIDATION_CHECK(!State.bTransitioning, *GetReasonString_AccessDuringTransition(Resource, SubresourceIndex, State.Current, RequiredState, State.CreateTransitionBacktrace, State.BeginTransitionBacktrace));
+
+		// Ensure the resource is in the required state for this operation
+		RHI_VALIDATION_CHECK(State.Current.Access == RequiredState.Access, *GetReasonString_IncorrectTrackedAccess(Resource, SubresourceIndex, State.Current, RequiredState));
 	}
 
 	void FSubresourceState::SpecificUAVOverlap(FResource* Resource, FSubresourceIndex const& SubresourceIndex, ERHIPipeline Pipeline, bool bAllow)
@@ -1373,6 +1444,18 @@ namespace RHIValidation
 			FTransientState::AliasingOverlap(Data_AliasingOverlap.ResourceBefore, Data_AliasingOverlap.ResourceAfter, Data_AliasingOverlap.CreateBacktrace);
 			Data_AliasingOverlap.ResourceBefore->ReleaseOpRef();
 			Data_AliasingOverlap.ResourceAfter->ReleaseOpRef();
+			break;
+
+		case EOpType::SetTrackedAccess:
+			Data_Assert.Identity.Resource->EnumerateSubresources(Data_SetTrackedAccess.Resource->GetWholeResourceRange(), [this, Pipeline](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
+			{
+				State.AssertTracked(
+					Data_SetTrackedAccess.Resource,
+					SubresourceIndex,
+					FState(Data_SetTrackedAccess.Access, Pipeline));
+			});
+			Data_SetTrackedAccess.Resource->TrackedAccess = Data_SetTrackedAccess.Access;
+			Data_SetTrackedAccess.Resource->ReleaseOpRef();
 			break;
 
 		case EOpType::AcquireTransient:

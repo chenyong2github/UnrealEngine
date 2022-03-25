@@ -207,10 +207,10 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 	FD3D12Texture* SourceTexture = GetD3D12TextureFromRHITexture(SourceTextureRHI);
 	FD3D12Texture* DestTexture = GetD3D12TextureFromRHITexture(DestTextureRHI);
 
-	ETextureDimension SourceDimension = SourceTexture->GetDesc().Dimension;
-	ETextureDimension DestDimension = DestTexture->GetDesc().Dimension;
+	const FRHITextureDesc& SourceDesc = SourceTexture->GetDesc();
+	const FRHITextureDesc& DestDesc = DestTexture->GetDesc();
 
-	if (SourceDimension == ETextureDimension::Texture2D && DestDimension == ETextureDimension::Texture2D)
+	if (SourceDesc.IsTexture2D() && DestDesc.IsTexture2D())
 	{
 		const D3D_FEATURE_LEVEL FeatureLevel = GetParentDevice()->GetParentAdapter()->GetFeatureLevel();
 		if (SourceTexture != DestTexture)
@@ -376,7 +376,7 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 			}
 		}
 	}
-	else if (SourceDimension == ETextureDimension::TextureCube && DestDimension == ETextureDimension::TextureCube)
+	else if (SourceDesc.IsTextureCube() && DestDesc.IsTextureCube())
 	{
 		if (SourceTexture != DestTexture)
 		{
@@ -430,7 +430,7 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 			}
 		}
 	}
-	else if (SourceDimension == ETextureDimension::Texture2D && DestDimension == ETextureDimension::TextureCube)
+	else if (SourceDesc.IsTexture2D() && DestDesc.IsTextureCube())
 	{
 		// If source is 2D and Dest is a cube then copy the 2D texture to the specified cube face.
 		// Determine the cubemap face being resolved.
@@ -455,21 +455,11 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 		CommandListHandle.UpdateResidency(DestTexture->GetResource());
 	}
 
-	else if (SourceDimension == ETextureDimension::Texture3D && DestDimension == ETextureDimension::Texture3D)
+	else if (SourceDesc.IsTexture3D() && DestDesc.IsTexture3D())
 	{
 		// bit of a hack.  no one resolves slice by slice and 0 is the default value.  assume for the moment they are resolving the whole texture.
 		check(ResolveParams.SourceArrayIndex == 0);
 		check(SourceTexture == DestTexture);
-	}
-
-	// Force transtion to readable since RHI user expects both source and dest to be in readable state after calling RHICopyToResolveTarget
-	if (SourceTextureRHI && ResolveParams.SourceAccessFinal != ERHIAccess::Unknown)
-	{
-		RHICmdList.TransitionResource(ResolveParams.SourceAccessFinal, SourceTextureRHI);
-	}
-	if (DestTextureRHI && SourceTextureRHI != DestTextureRHI && ResolveParams.DestAccessFinal != ERHIAccess::Unknown)
-	{
-		RHICmdList.TransitionResource(ResolveParams.DestAccessFinal, DestTextureRHI);
 	}
 
 	ConditionalFlushCommandList();

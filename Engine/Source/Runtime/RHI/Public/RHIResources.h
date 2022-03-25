@@ -39,6 +39,7 @@
 
 #define RHI_ENABLE_RESOURCE_INFO (RHI_WANT_RESOURCE_INFO && !RHI_FORCE_DISABLE_RESOURCE_INFO)
 
+class FRHIComputeCommandList;
 class FRHICommandListImmediate;
 struct FClearValueBinding;
 struct FRHIResourceInfo;
@@ -1067,17 +1068,55 @@ private:
 	uint32 LayoutConstantBufferSize;
 };
 
-class FRHIBuffer : public FRHIResource
+class FRHIViewableResource : public FRHIResource
+{
+public:
+	// TODO (RemoveUnknowns) remove once FRHIBufferCreateDesc contains initial access.
+	void SetTrackedAccess_Unsafe(ERHIAccess Access)
+	{
+		TrackedAccess = Access;
+	}
+
+	FName GetName() const
+	{
+		return Name;
+	}
+
+#if ENABLE_RHI_VALIDATION
+	virtual RHIValidation::FResource* GetTrackerResource() = 0;
+#endif
+
+protected:
+	FRHIViewableResource(ERHIResourceType InResourceType, ERHIAccess InAccess)
+		: FRHIResource(InResourceType)
+		, TrackedAccess(InAccess)
+	{}
+
+	void Swap(FRHIViewableResource& Other)
+	{
+		::Swap(TrackedAccess, Other.TrackedAccess);
+	}
+
+	FName Name;
+
+private:
+	ERHIAccess TrackedAccess;
+
+	friend class FRHIComputeCommandList;
+	friend class IRHIComputeContext;
+};
+
+class FRHIBuffer : public FRHIViewableResource
 #if ENABLE_RHI_VALIDATION
 	, public RHIValidation::FBufferResource
 #endif
 {
 public:
-	FRHIBuffer() : FRHIResource(RRT_Buffer) {}
+	FRHIBuffer() : FRHIViewableResource(RRT_Buffer, ERHIAccess::Unknown) {}
 
 	/** Initialization constructor. */
 	FRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, uint32 InStride)
-		: FRHIResource(RRT_Buffer)
+		: FRHIViewableResource(RRT_Buffer, ERHIAccess::Unknown /* TODO (RemoveUnknowns): Use InitialAccess from descriptor after refactor. */)
 		, Size(InSize)
 		, Stride(InStride)
 		, Usage(InUsage)
@@ -1093,15 +1132,21 @@ public:
 	/** @return The usage flags used to create the buffer. */
 	EBufferUsageFlags GetUsage() const { return Usage; }
 
-	void SetName(const FName& InName) { BufferName = InName; }
-
-	FName GetName() const { return BufferName; }
+	void SetName(const FName& InName) { Name = InName; }
 
 	virtual uint32 GetParentGPUIndex() const { return 0; }
+
+#if ENABLE_RHI_VALIDATION
+	virtual RHIValidation::FResource* GetTrackerResource() final override
+	{
+		return this;
+	}
+#endif
 
 protected:
 	void Swap(FRHIBuffer& Other)
 	{
+		FRHIViewableResource::Swap(Other);
 		::Swap(Stride, Other.Stride);
 		::Swap(Size, Other.Size);
 		::Swap(Usage, Other.Usage);
@@ -1123,7 +1168,6 @@ private:
 	uint32 Size{};
 	uint32 Stride{};
 	EBufferUsageFlags Usage{};
-	FName BufferName;
 };
 
 UE_DEPRECATED(5.0, "FRHIIndexBuffer is deprecated, please use FRHIBuffer.")      typedef class FRHIBuffer FRHIIndexBuffer;
@@ -1632,7 +1676,7 @@ class FRHITexture;
 /*UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use FRHITexture.")    */ typedef class FRHITexture FRHITextureCube;
 
 
-class RHI_API FRHITexture : public FRHIResource
+class RHI_API FRHITexture : public FRHIViewableResource
 #if ENABLE_RHI_VALIDATION
 	, public RHIValidation::FTextureResource
 #endif
@@ -1640,7 +1684,7 @@ class RHI_API FRHITexture : public FRHIResource
 protected:
 	/** Initialization constructor. Should only be called by platform RHI implementations. */
 	FRHITexture(const FRHITextureCreateDesc& InDesc)
-		: FRHIResource(RRT_Texture)
+		: FRHIViewableResource(RRT_Texture, InDesc.InitialState)
 #if ENABLE_RHI_VALIDATION
 		, RHIValidation::FTextureResource(InDesc)
 #endif
@@ -1810,18 +1854,13 @@ public:
 
 	void SetName(const FName& InName)
 	{
-		TextureName = InName;
+		Name = InName;
 
 #if TEXTURE_PROFILER_ENABLED
 		FTextureProfiler::Get()->UpdateTextureName(this);
 #endif
 	}
 
-	FName GetName() const
-	{
-		return TextureName;
-	}
-	
 	///
 	/// Deprecated functions
 	/// 
@@ -1833,7 +1872,7 @@ public:
 	//UE_DEPRECATED(5.1, "FRHITexture3D is deprecated, please use FRHITexture directly")
 	inline FRHITexture3D* GetTexture3D() { return TextureDesc.Dimension == ETextureDimension::Texture3D ? this : nullptr; }
 	//UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use FRHITexture directly")
-	inline FRHITextureCube* GetTextureCube() { return TextureDesc.Dimension == ETextureDimension::TextureCube ? this : nullptr; }
+	inline FRHITextureCube* GetTextureCube() { return TextureDesc.IsTextureCube() ? this : nullptr; }
 
 	//UE_DEPRECATED(5.1, "GetSizeX() is deprecated, please use GetDesc().Extent.X instead")
 	uint32 GetSizeX() const { return GetDesc().Extent.X; }
@@ -1865,12 +1904,19 @@ public:
 	//UE_DEPRECATED(5.1, "GetSize() is deprecated, please use GetDesc().Extent.X instead")
 	uint32 GetSize() const { check(GetDesc().IsTextureCube()); return GetDesc().Extent.X; }
 
+#if ENABLE_RHI_VALIDATION
+	virtual RHIValidation::FResource* GetTrackerResource() override
+	{
+		return RHIValidation::FTextureResource::GetTrackerResource();
+	}
+#endif
+
 private:
 
 	friend class FRHITextureReference;
 	/** Constructor for texture references */
 	FRHITexture(ERHIResourceType InResourceType)
-		: FRHIResource(InResourceType)
+		: FRHIViewableResource(InResourceType, ERHIAccess::Unknown)
 	{
 		check(InResourceType == RRT_TextureReference);
 	}
@@ -1878,8 +1924,6 @@ private:
 	FRHITextureDesc TextureDesc;
 
 	FLastRenderTimeContainer LastRenderTime;
-
-	FName TextureName;
 };
 
 class RHI_API FRHITextureReference final : public FRHITexture
@@ -2185,26 +2229,50 @@ public:
 // Views
 //
 
-class FRHIUnorderedAccessView : public FRHIResource
+class FRHIView : public FRHIResource
+{
+public:
+	FRHIView(ERHIResourceType InResourceType, FRHIViewableResource* InParentResource)
+		: FRHIResource(InResourceType)
+		, ParentResource(InParentResource)
+	{}
+
+	virtual FRHIDescriptorHandle GetBindlessHandle() const { return FRHIDescriptorHandle(); }
+
+	FRHIViewableResource* GetParentResource() const { return ParentResource; }
+
+protected:
+	void SetParentResource(FRHIViewableResource* InParentResource)
+	{
+		check(InParentResource);
+		ParentResource = InParentResource;
+	}
+
+private:
+	FRHIViewableResource* ParentResource;
+};
+
+class FRHIUnorderedAccessView : public FRHIView
 #if ENABLE_RHI_VALIDATION
 	, public RHIValidation::FUnorderedAccessView
 #endif
 {
 public:
-	FRHIUnorderedAccessView() : FRHIResource(RRT_UnorderedAccessView) {}
-	virtual FRHIDescriptorHandle GetBindlessHandle() const { return FRHIDescriptorHandle(); }
+	explicit FRHIUnorderedAccessView(FRHIViewableResource* InParentResource)
+		: FRHIView(RRT_UnorderedAccessView, InParentResource)
+	{}
 };
 
-class FRHIShaderResourceView : public FRHIResource 
+class FRHIShaderResourceView : public FRHIView
 #if ENABLE_RHI_VALIDATION
 	, public RHIValidation::FShaderResourceView
 #endif
 {
 public:
-	FRHIShaderResourceView() : FRHIResource(RRT_ShaderResourceView) {}
-	virtual FRHIDescriptorHandle GetBindlessHandle() const { return FRHIDescriptorHandle(); }
+	explicit FRHIShaderResourceView(FRHIViewableResource* InParentResource)
+		: FRHIView(RRT_ShaderResourceView, InParentResource)
+	{}
 };
-
 
 typedef TRefCountPtr<FRHISamplerState> FSamplerStateRHIRef;
 typedef TRefCountPtr<FRHIRasterizerState> FRasterizerStateRHIRef;

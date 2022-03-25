@@ -146,11 +146,11 @@ void FRHIGPUTextureReadback::EnqueueCopyInternal(FRHICommandList& RHICmdList, FR
 
 			FString FenceName = Fence->GetFName().ToString();
 			FRHIResourceCreateInfo CreateInfo(*FenceName);
-			DestinationStagingTexture = RHICreateTexture2D(TextureSize.X, TextureSize.Y, SourceTexture->GetFormat(), 1, 1, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, CreateInfo);
+			DestinationStagingTexture = RHICreateTexture2D(TextureSize.X, TextureSize.Y, SourceTexture->GetFormat(), 1, 1, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, ERHIAccess::CPURead, CreateInfo);
 		}
 
 		// We need the destination texture to be writable from a copy operation
-		RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest));
+		RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTexture, ERHIAccess::CPURead, ERHIAccess::CopyDest));
 
 		// Ensure this copy call does not perform any transitions. We're handling them manually.
 		ResolveParams.SourceAccessFinal = ERHIAccess::Unknown;

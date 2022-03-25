@@ -62,7 +62,7 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHIBu
 	TRefCountPtr<ID3D11UnorderedAccessView> UnorderedAccessView;
 	VERIFYD3D11CREATEVIEWRESULT(Direct3DDevice->CreateUnorderedAccessView(Buffer->Resource, &UAVDesc, (ID3D11UnorderedAccessView**)UnorderedAccessView.GetInitReference()), Direct3DDevice, BufferRHI, UAVDesc);
 
-	return new FD3D11UnorderedAccessView(UnorderedAccessView, Buffer);
+	return new FD3D11UnorderedAccessView(UnorderedAccessView, Buffer, Buffer);
 }
 
 FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView_RenderThread(
@@ -112,7 +112,7 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHITe
 	TRefCountPtr<ID3D11UnorderedAccessView> UnorderedAccessView;
 	VERIFYD3D11CREATEVIEWRESULT(Direct3DDevice->CreateUnorderedAccessView(Texture->GetResource(),&UAVDesc,(ID3D11UnorderedAccessView**)UnorderedAccessView.GetInitReference()), Direct3DDevice, TextureRHI, UAVDesc);
 
-	return new FD3D11UnorderedAccessView(UnorderedAccessView,Texture);
+	return new FD3D11UnorderedAccessView(UnorderedAccessView, Texture, Texture);
 }
 
 FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView_RenderThread(
@@ -137,7 +137,7 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHIBu
 	TRefCountPtr<ID3D11UnorderedAccessView> UnorderedAccessView;
 	VERIFYD3D11CREATEVIEWRESULT(Direct3DDevice->CreateUnorderedAccessView(Buffer->Resource, &UAVDesc, (ID3D11UnorderedAccessView**)UnorderedAccessView.GetInitReference()), Direct3DDevice, BufferRHI, UAVDesc);
 
-	return new FD3D11UnorderedAccessView(UnorderedAccessView, Buffer);
+	return new FD3D11UnorderedAccessView(UnorderedAccessView, Buffer, Buffer);
 }
 
 FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint8 Format)
@@ -223,7 +223,7 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(const FS
 
 	if (!Desc.Buffer || !Buffer->Resource)
 	{
-		return new FD3D11ShaderResourceView(nullptr, nullptr);
+		return new FD3D11ShaderResourceView(nullptr, nullptr, nullptr);
 	}
 
 	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
@@ -234,7 +234,7 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(const FS
 		{
 			CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, Buffer->Resource, Desc.StartOffsetBytes, Desc.NumElements, Desc.Format, ShaderResourceView.GetInitReference());
 
-			return new FD3D11ShaderResourceView(ShaderResourceView, Buffer);
+			return new FD3D11ShaderResourceView(ShaderResourceView, Buffer, Buffer);
 		}
 
 		case FShaderResourceViewInitializer::EType::StructuredBufferSRV:
@@ -273,7 +273,7 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(const FS
 
 			VERIFYD3D11RESULT_EX(Direct3DDevice->CreateShaderResourceView(Buffer->Resource, &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference()), Direct3DDevice);
 
-			return new FD3D11ShaderResourceView(ShaderResourceView, Buffer);
+			return new FD3D11ShaderResourceView(ShaderResourceView, Buffer, Buffer);
 		}
 
 		case FShaderResourceViewInitializer::EType::IndexBufferSRV:
@@ -285,7 +285,7 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(const FS
 
 			CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, Buffer->Resource, Desc.StartOffsetBytes, Desc.NumElements, Format, ShaderResourceView.GetInitReference());
 
-			return new FD3D11ShaderResourceView(ShaderResourceView, Buffer);
+			return new FD3D11ShaderResourceView(ShaderResourceView, Buffer, Buffer);
 		}
 	}
 

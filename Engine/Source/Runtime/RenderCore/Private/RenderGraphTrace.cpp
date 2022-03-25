@@ -446,7 +446,7 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 	UE_TRACE_LOG(RDGTrace, GraphEndMessage, RDGChannel);
 }
 
-void FRDGTrace::AddResource(FRDGParentResource* Resource)
+void FRDGTrace::AddResource(FRDGViewableResource* Resource)
 {
 	Resource->TraceOrder = ResourceOrder++;
 }

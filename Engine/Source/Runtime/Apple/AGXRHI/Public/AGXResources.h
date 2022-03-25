@@ -546,7 +546,8 @@ class FAGXShaderResourceView final : public FRHIShaderResourceView, public FAGXR
 {
 public:
 	explicit FAGXShaderResourceView(const FShaderResourceViewInitializer& Initializer)
-		: FAGXResourceViewBase(
+		: FRHIShaderResourceView(Initializer.AsBufferSRV().Buffer)
+		, FAGXResourceViewBase(
 			  Initializer.AsBufferSRV().Buffer
 			, Initializer.AsBufferSRV().StartOffsetBytes
 			, Initializer.AsBufferSRV().NumElements
@@ -555,7 +556,8 @@ public:
 	{}
 
 	explicit FAGXShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)
-		: FAGXResourceViewBase(
+		: FRHIShaderResourceView(Texture)
+		, FAGXResourceViewBase(
 			  Texture
 			, CreateInfo.Format
 			, CreateInfo.MipLevel
@@ -574,18 +576,21 @@ class FAGXUnorderedAccessView final : public FRHIUnorderedAccessView, public FAG
 {
 public:
 	explicit FAGXUnorderedAccessView(FRHIBuffer* Buffer, EPixelFormat Format)
-		: FAGXResourceViewBase(Buffer, 0, UINT_MAX, Format)
+		: FRHIUnorderedAccessView(Buffer)
+		, FAGXResourceViewBase(Buffer, 0, UINT_MAX, Format)
 	{}
 
 	explicit FAGXUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
-		: FAGXResourceViewBase(Buffer, 0, UINT_MAX, PF_Unknown)
+		: FRHIUnorderedAccessView(Buffer)
+		, FAGXResourceViewBase(Buffer, 0, UINT_MAX, PF_Unknown)
 	{
 		checkf(!bUseUAVCounter, TEXT("UAV counters not implemented."));
 		checkf(!bAppendBuffer, TEXT("UAV append buffers not implemented."));
 	}
 
 	explicit FAGXUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
-		: FAGXResourceViewBase(
+		: FRHIUnorderedAccessView(Texture)
+		, FAGXResourceViewBase(
 			  Texture
 			, PF_Unknown
 			, MipLevel

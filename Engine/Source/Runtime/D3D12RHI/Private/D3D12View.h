@@ -835,9 +835,9 @@ protected:
 class FD3D12UnorderedAccessView : public FRHIUnorderedAccessView, public FD3D12View < D3D12_UNORDERED_ACCESS_VIEW_DESC >, public FD3D12LinkedAdapterObject<FD3D12UnorderedAccessView>
 {
 protected:
-	FD3D12UnorderedAccessView(FD3D12Device* InParent);
+	FD3D12UnorderedAccessView(FD3D12Device* InParent, FRHIViewableResource* InParentResource);
 public:
-	FD3D12UnorderedAccessView(FD3D12Device* InParent, const D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12Resource* InCounterResource);
+	FD3D12UnorderedAccessView(FD3D12Device* InParent, FRHIViewableResource* InParentResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12Resource* InCounterResource);
 
 	virtual void RecreateView() override;
 

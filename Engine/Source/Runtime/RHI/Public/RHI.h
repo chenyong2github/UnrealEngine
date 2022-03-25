@@ -1972,18 +1972,6 @@ inline constexpr bool IsValidAccess(ERHIAccess Access)
 	return !IsInvalidAccess(Access);
 }
 
-enum class ERHITransitionAccessMode
-{
-	// All upcoming rhi transitions can still have Unkown before state - rhi might need to do internal tracking if needed
-	AllowUnknown = 0,
-
-	// All upcoming rhi transitions are fully defined - no internal RHI tracking required anymore
-	DisallowUnknown,
-
-	Default = AllowUnknown
-};
-ENUM_CLASS_FLAGS(ERHITransitionAccessMode);
-
 enum class ERHITransitionCreateFlags
 {
 	None = 0,
@@ -1993,7 +1981,9 @@ enum class ERHITransitionCreateFlags
 
 	// Indicates the transition will have no useful work between the Begin/End calls,
 	// so should use a partial flush rather than a fence as this is more optimal.
-	NoSplit = 1 << 1
+	NoSplit = 1 << 1,
+
+	BeginSimpleMode
 };
 ENUM_CLASS_FLAGS(ERHITransitionCreateFlags);
 
@@ -2087,6 +2077,7 @@ struct FRHITransitionInfo : public FRHISubresourceRange
 	union
 	{
 		class FRHIResource* Resource = nullptr;
+		class FRHIViewableResource* ViewableResource;
 		class FRHITexture* Texture;
 		class FRHIBuffer* Buffer;
 		class FRHIUnorderedAccessView* UAV;
@@ -2148,6 +2139,24 @@ struct FRHITransitionInfo : public FRHISubresourceRange
 		, Flags(InFlags)
 	{}
 
+	FRHITransitionInfo(class FRHITexture* InTexture, ERHIAccess InNewState)
+		: Texture(InTexture)
+		, Type(EType::Texture)
+		, AccessAfter(InNewState)
+	{}
+
+	FRHITransitionInfo(class FRHIUnorderedAccessView* InUAV, ERHIAccess InNewState)
+		: UAV(InUAV)
+		, Type(EType::UAV)
+		, AccessAfter(InNewState)
+	{}
+
+	FRHITransitionInfo(class FRHIBuffer* InRHIBuffer, ERHIAccess InNewState)
+		: Buffer(InRHIBuffer)
+		, Type(EType::Buffer)
+		, AccessAfter(InNewState)
+	{}
+
 	inline bool operator == (FRHITransitionInfo const& RHS) const
 	{
 		return Resource == RHS.Resource
@@ -2163,6 +2172,8 @@ struct FRHITransitionInfo : public FRHISubresourceRange
 		return !(*this == RHS);
 	}
 };
+
+RHI_API FRHIViewableResource* GetViewableResource(const FRHITransitionInfo& Info);
 
 struct FRHITransientAliasingOverlap
 {
@@ -2336,6 +2347,19 @@ struct FRHITransitionCreateInfo
 	ERHITransitionCreateFlags Flags = ERHITransitionCreateFlags::None;
 	TArrayView<const FRHITransitionInfo> TransitionInfos;
 	TArrayView<const FRHITransientAliasingInfo> AliasingInfos;
+};
+
+struct FRHITrackedAccessInfo
+{
+	FRHITrackedAccessInfo() = default;
+
+	FRHITrackedAccessInfo(FRHIViewableResource* InResource, ERHIAccess InAccess)
+		: Resource(InResource)
+		, Access(InAccess)
+	{}
+
+	FRHIViewableResource* Resource = nullptr;
+	ERHIAccess Access = ERHIAccess::Unknown;
 };
 
 #include "RHIValidationCommon.h"

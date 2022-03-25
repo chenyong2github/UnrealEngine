@@ -1102,7 +1102,7 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FRHIText
 	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
 	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateShaderResourceView(Texture->GetResource(), &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference()), Direct3DDevice);
 
-	return new FD3D11ShaderResourceView(ShaderResourceView, Texture);
+	return new FD3D11ShaderResourceView(ShaderResourceView, Texture, Texture);
 }
 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)

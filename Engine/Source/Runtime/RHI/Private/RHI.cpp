@@ -2277,6 +2277,21 @@ static inline uint32 GetSectionUint(const FConfigSection& Section, FName Key, ui
 	}
 }
 
+FRHIViewableResource* GetViewableResource(const FRHITransitionInfo& Info)
+{
+	switch (Info.Type)
+	{
+	case FRHITransitionInfo::EType::Buffer:
+	case FRHITransitionInfo::EType::Texture:
+		return Info.ViewableResource;
+
+	case FRHITransitionInfo::EType::UAV:
+		return Info.UAV ? Info.UAV->GetParentResource() : nullptr;
+	}
+
+	return nullptr;
+}
+
 void FGenericDataDrivenShaderPlatformInfo::SetDefaultValues()
 {
 	MaxFeatureLevel = ERHIFeatureLevel::Num;

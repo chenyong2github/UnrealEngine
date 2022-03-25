@@ -55,7 +55,7 @@ static uint32 ComputeSizeInKB(FPooledRenderTarget& Element)
 	return (Element.ComputeMemorySize() + 1023) / 1024;
 }
 
-TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(FRHITextureCreateInfo Desc, const TCHAR* Name, bool bResetStateToUnknown)
+TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElement(FRHITextureCreateInfo Desc, const TCHAR* Name)
 {
 	FPooledRenderTarget* Found = 0;
 	uint32 FoundIndex = -1;
@@ -101,7 +101,6 @@ TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(FRH
 
 		Found = new FPooledRenderTarget(
 			RHICreateTexture(CreateDesc),
-			AccessInitial,
 			Translate(CreateDesc),
 			this);
 
@@ -136,11 +135,6 @@ TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(FRH
 
 	Found->Desc.DebugName = Name;
 	Found->UnusedForNFrames = 0;
-
-	if (bResetStateToUnknown)
-	{
-		Found->PooledTexture.Reset();
-	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	RHIBindDebugLabelName(Found->GetRHI(), Name);
@@ -195,20 +189,13 @@ bool FRenderTargetPool::FindFreeElement(const FRHITextureCreateInfo& Desc, TRefC
 		}
 	}
 
-	const bool bResetStateToUnknown = true;
-	Out = FindFreeElementInternal(Desc, Name, bResetStateToUnknown);
+	Out = FindFreeElement(Desc, Name);
 	return false;
-}
-
-TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElement(const FRHITextureCreateInfo& Desc, const TCHAR* Name)
-{
-	const bool bResetStateToUnknown = true;
-	return FindFreeElementInternal(Desc, Name, bResetStateToUnknown);
 }
 
 void FRenderTargetPool::CreateUntrackedElement(const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const FSceneRenderTargetItem& Item)
 {
-	FPooledRenderTarget* Result = new FPooledRenderTarget(Item.GetRHI(), ERHIAccess::Unknown, Desc, nullptr);
+	FPooledRenderTarget* Result = new FPooledRenderTarget(Item.GetRHI(), Desc, nullptr);
 	Result->RenderTargetItem = Item;
 	Out = Result;
 }

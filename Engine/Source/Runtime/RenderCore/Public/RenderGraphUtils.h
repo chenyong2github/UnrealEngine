@@ -13,7 +13,7 @@
 class FGlobalShaderMap;
 
 /** Returns whether the resource was produced by a prior pass. */
-inline bool HasBeenProduced(FRDGParentResourceRef Resource)
+inline bool HasBeenProduced(FRDGViewableResource* Resource)
 {
 	return Resource && Resource->HasBeenProduced();
 }

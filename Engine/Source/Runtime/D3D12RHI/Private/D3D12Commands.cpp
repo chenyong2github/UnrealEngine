@@ -459,12 +459,6 @@ static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D1
 
 	for (const FRHITransitionInfo& Info : TransitionData->TransitionInfos)
 	{
-		// A transition back to discard is a no-op.
-		if (Info.AccessAfter == ERHIAccess::Discard)
-		{
-			continue;
-		}
-
 		const bool bUAVAccessAfter = EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
 
 		// If targeting all pipelines and UAV access then add UAV barrier even with RHI based transitions
@@ -498,23 +492,31 @@ static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D1
 						return;
 					}
 
-					const bool bIsAsyncCompute = EnumHasAnyFlags(TransitionData->DstPipelines, ERHIPipeline::AsyncCompute);
-					const bool bKnownBeforeState = (Info.AccessBefore != ERHIAccess::Unknown && Info.AccessBefore != ERHIAccess::Discard);
+					ERHIAccess AccessBefore = Info.AccessBefore;
 
-					// Derive or get the correct before & after state
-					D3D12_RESOURCE_STATES BeforeState = bKnownBeforeState ? GetD3D12ResourceState(Info.AccessBefore, bIsAsyncCompute) : D3D12_RESOURCE_STATE_TBD;
-					D3D12_RESOURCE_STATES AfterState = GetD3D12ResourceState(Info.AccessAfter, bIsAsyncCompute);
+					if (AccessBefore == ERHIAccess::Unknown)
+					{
+						if (FRHIViewableResource* ViewableResource = GetViewableResource(Info))
+						{
+							AccessBefore = Context.GetTrackedAccess(ViewableResource);
+						}
+					}
+
+					const bool bIsAsyncCompute = EnumHasAnyFlags(TransitionData->DstPipelines, ERHIPipeline::AsyncCompute);
+
+					D3D12_RESOURCE_STATES StateBefore =      AccessBefore == ERHIAccess::Discard ? GetInitialResourceState(Resource->GetDesc()) : GetD3D12ResourceState(     AccessBefore, bIsAsyncCompute);
+					D3D12_RESOURCE_STATES StateAfter  = Info.AccessAfter  == ERHIAccess::Discard ? GetInitialResourceState(Resource->GetDesc()) : GetD3D12ResourceState(Info.AccessAfter,  bIsAsyncCompute);
 					
 					// Add the compression flags if needed
 					if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression))
 					{
-						AfterState |= SkipFastClearEliminateState;
+						StateAfter |= SkipFastClearEliminateState;
 					}
 
 					// enqueue the correct transitions
 					if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
 					{
-						if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, BeforeState, AfterState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply))
+						if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, StateBefore, StateAfter, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply))
 						{
 							bUAVBarrier = true;
 						}
@@ -523,7 +525,7 @@ static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D1
 					{
 						EnumerateSubresources(Resource, Info, [&](uint32 Subresource)
 						{
-							if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, BeforeState, AfterState, Subresource, FD3D12DynamicRHI::ETransitionMode::Apply))
+							if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, StateBefore, StateAfter, Subresource, FD3D12DynamicRHI::ETransitionMode::Apply))
 							{
 								bUAVBarrier = true;
 							}

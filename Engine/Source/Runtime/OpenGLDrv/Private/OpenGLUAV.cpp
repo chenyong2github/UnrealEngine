@@ -30,6 +30,7 @@ static void BindGLTexBufferRange(GLenum Target, GLenum InternalFormat, GLuint Bu
 }
 
 FOpenGLShaderResourceView::FOpenGLShaderResourceView(const FShaderResourceViewInitializer& Initializer)
+	: FRHIShaderResourceView(Initializer.AsBufferSRV().Buffer)
 {
 	FShaderResourceViewInitializer::FBufferShaderResourceViewInitializer Desc = Initializer.AsBufferSRV();
 	Buffer = FOpenGLDynamicRHI::ResourceCast(Desc.Buffer);
@@ -190,6 +191,7 @@ FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FRHIT
 }
 
 FOpenGLTextureUnorderedAccessView::FOpenGLTextureUnorderedAccessView(FRHITexture* InTextureRHI):
+	FOpenGLUnorderedAccessView(InTextureRHI),
 	TextureRHI(InTextureRHI)
 {
 	VERIFY_GL_SCOPE();
@@ -211,6 +213,7 @@ FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FRHIB
 }
 
 FOpenGLTexBufferUnorderedAccessView::FOpenGLTexBufferUnorderedAccessView(FOpenGLDynamicRHI* InOpenGLRHI, FRHIBuffer* InBufferRHI, uint8 Format):
+	FOpenGLUnorderedAccessView(InBufferRHI),
 	BufferRHI(InBufferRHI),
 	OpenGLRHI(InOpenGLRHI)
 {
@@ -261,7 +264,8 @@ FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FRHIB
 }
 
 FOpenGLBufferUnorderedAccessView::FOpenGLBufferUnorderedAccessView(FOpenGLDynamicRHI* InOpenGLRHI, FRHIBuffer* InBufferRHI)
-	: BufferRHI(InBufferRHI)
+	: FOpenGLUnorderedAccessView(InBufferRHI)
+	, BufferRHI(InBufferRHI)
 	, OpenGLRHI(InOpenGLRHI)
 {
 	VERIFY_GL_SCOPE();

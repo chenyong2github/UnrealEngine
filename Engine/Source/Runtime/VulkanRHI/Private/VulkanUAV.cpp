@@ -8,8 +8,9 @@
 #include "VulkanRayTracing.h"
 #endif // VULKAN_RHI_RAYTRACING
 
-FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat, uint32 InOffset)
-	: VulkanRHI::FVulkanViewBase(Device)
+FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHIViewableResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat, uint32 InOffset)
+	: FRHIShaderResourceView(InRHIBuffer)
+	, VulkanRHI::FVulkanViewBase(Device)
 	, BufferViewFormat(InFormat)
 	, SourceTexture(nullptr)
 	, SourceStructuredBuffer(nullptr)
@@ -29,7 +30,8 @@ FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHI
 
 
 FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHITexture* InSourceTexture, const FRHITextureSRVCreateInfo& InCreateInfo)
-	: VulkanRHI::FVulkanViewBase(Device)
+	: FRHIShaderResourceView(InSourceTexture)
+	, VulkanRHI::FVulkanViewBase(Device)
 	, BufferViewFormat((EPixelFormat)InCreateInfo.Format)
 	, SRGBOverride(InCreateInfo.SRGBOverride)
 	, SourceTexture(InSourceTexture)
@@ -47,7 +49,8 @@ FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHI
 }
 
 FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* InDevice, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InOffset)
-	: VulkanRHI::FVulkanViewBase(InDevice)
+	: FRHIShaderResourceView(InSourceBuffer)
+	, VulkanRHI::FVulkanViewBase(InDevice)
 {
 	check(InDevice && InSourceBuffer);
 
@@ -231,7 +234,8 @@ void FVulkanShaderResourceView::UpdateView()
 	}
 }
 FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
-	: VulkanRHI::FVulkanViewBase(Device)
+	: FRHIUnorderedAccessView(Buffer)
+	, VulkanRHI::FVulkanViewBase(Device)
 	, MipLevel(0)
 	, FirstArraySlice(0)
 	, NumArraySlices(0)
@@ -242,7 +246,8 @@ FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FV
 }
 
 FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FRHITexture* TextureRHI, uint32 MipLevel, uint16 InFirstArraySlice, uint16 InNumArraySlices)
-	: VulkanRHI::FVulkanViewBase(Device)
+	: FRHIUnorderedAccessView(TextureRHI)
+	, VulkanRHI::FVulkanViewBase(Device)
 	, SourceTexture(TextureRHI)
 	, MipLevel(MipLevel)
 	, FirstArraySlice(InFirstArraySlice)
@@ -256,7 +261,8 @@ FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FR
 
 
 FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* Buffer, EPixelFormat Format)
-	: VulkanRHI::FVulkanViewBase(Device)
+	: FRHIUnorderedAccessView(Buffer)
+	, VulkanRHI::FVulkanViewBase(Device)
 	, MipLevel(0)
 	, FirstArraySlice(0)
 	, NumArraySlices(0)

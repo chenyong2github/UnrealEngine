@@ -21,7 +21,7 @@ inline bool NeedsUAVBarrier(const FRDGSubresourceState& Previous, const FRDGSubr
 	return NeedsUAVBarrier(Previous.NoUAVBarrierFilter.GetUniqueHandle(), Next.NoUAVBarrierFilter.GetUniqueHandle());
 }
 
-FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentResourceType InType)
+FRDGViewableResource::FRDGViewableResource(const TCHAR* InName, const ERDGViewableResourceType InType)
 	: FRDGResource(InName)
 	, Type(InType)
 	, bExternal(0)
@@ -74,7 +74,7 @@ bool FRDGProducerState::IsDependencyRequired(FRDGProducerState LastProducer, ERH
 	return true;
 }
 
-bool FRDGSubresourceState::IsMergeAllowed(ERDGParentResourceType ResourceType, const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next)
+bool FRDGSubresourceState::IsMergeAllowed(ERDGViewableResourceType ResourceType, const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next)
 {
 	/** State merging occurs during compilation and before resource transitions are collected. It serves to remove the bulk
 	 *  of unnecessary transitions by looking ahead in the resource usage chain. A resource transition cannot occur within
@@ -175,21 +175,6 @@ void FRDGUniformBuffer::InitRHI()
 	ResourceRHI = UniformBufferRHI;
 }
 
-void FRDGPooledTexture::Finalize()
-{
-	for (FRDGSubresourceState& SubresourceState : State)
-	{
-		SubresourceState.Finalize();
-	}
-	Owner = nullptr;
-}
-
-void FRDGPooledTexture::Reset()
-{
-	InitAsWholeResource(State);
-	Owner = nullptr;
-}
-
 FRDGTextureSubresourceRange FRDGTexture::GetSubresourceRangeSRV() const
 {
 	FRDGTextureSubresourceRange Range = GetSubresourceRange();
@@ -205,168 +190,5 @@ FRDGTextureSubresourceRange FRDGTexture::GetSubresourceRangeSRV() const
 IPooledRenderTarget* FRDGTexture::GetPooledRenderTarget() const
 {
 	IF_RDG_ENABLE_DEBUG(ValidateRHIAccess());
-	return PooledRenderTarget;
-}
-
-void FRDGTexture::SetRHI(IPooledRenderTarget* InPooledRenderTarget)
-{
-	if (FRHITransientTexture* LocalTransientTexture = InPooledRenderTarget->GetTransientTexture())
-	{
-		FRDGTransientRenderTarget* LocalRenderTarget = static_cast<FRDGTransientRenderTarget*>(InPooledRenderTarget);
-		Allocation = TRefCountPtr<FRDGTransientRenderTarget>(LocalRenderTarget);
-
-		SetRHI(LocalTransientTexture, &LocalRenderTarget->State);
-	}
-	else
-	{
-		FPooledRenderTarget* LocalRenderTarget = static_cast<FPooledRenderTarget*>(InPooledRenderTarget);
-		Allocation = TRefCountPtr<FPooledRenderTarget>(LocalRenderTarget);
-
-		SetRHI(&LocalRenderTarget->PooledTexture);
-	}
-
-	PooledRenderTarget = InPooledRenderTarget;
-}
-
-void FRDGTexture::SetRHI(FRDGPooledTexture* InPooledTexture)
-{
-	PooledTexture = InPooledTexture;
-	State = &PooledTexture->State;
-	ViewCache = &PooledTexture->ViewCache;
-
-	// Return the previous owner and assign this texture as the new one.
-	FRDGTextureRef PreviousOwner = PooledTexture->Owner;
-	PooledTexture->Owner = this;
-
-	// Link the previous alias to this one.
-	if (PreviousOwner)
-	{
-		PreviousOwner->NextOwner = Handle;
-		PreviousOwner->bLastOwner = false;
-	}
-
-	ResourceRHI = PooledTexture->GetRHI();
-}
-
-void FRDGTexture::SetRHI(FRHITransientTexture* InTransientTexture, FRDGTextureSubresourceState* InTransientTextureState)
-{
-	TransientTexture = InTransientTexture;
-	State = InTransientTextureState;
-	ViewCache = &InTransientTexture->ViewCache;
-	ResourceRHI = InTransientTexture->GetRHI();
-	bTransient = true;
-}
-
-void FRDGTexture::Finalize(FRDGPooledTextureArray& PooledTextureArray)
-{
-	checkf(NextOwner.IsNull() == !!bLastOwner, TEXT("NextOwner must match bLastOwner."));
-	checkf(!bExtracted || bLastOwner, TEXT("Extracted resources must be the last owner of a resource."));
-
-	if (bLastOwner)
-	{
-		if (bTransient)
-		{
-			if (PooledRenderTarget)
-			{
-				InitAsWholeResource(*State, {});
-				PooledTextureArray.Emplace(MoveTemp(Allocation));
-			}
-			else
-			{
-				// Manually deconstruct the allocated state so as not to invoke overhead from the allocators destructor tracking.
-				State->~FRDGTextureSubresourceState();
-				State = nullptr;
-			}
-		}
-		else
-		{
-			if (PooledTexture)
-			{
-				// External and extracted resources are user controlled, so we cannot assume the texture stays in its final state.
-				if (bExternal || bExtracted)
-				{
-					PooledTexture->Reset();
-				}
-				else
-				{
-					PooledTexture->Finalize();
-				}
-			}
-
-			if (PooledRenderTarget)
-			{
-				PooledTextureArray.Emplace(PooledRenderTarget);
-			}
-		}
-	}
-
-	Allocation = nullptr;
-}
-
-void FRDGBuffer::SetRHI(FRDGPooledBuffer* InPooledBuffer)
-{
-	// Return the previous owner and assign this buffer as the new one.
-	FRDGBuffer* PreviousOwner = InPooledBuffer->Owner;
-	InPooledBuffer->Owner = this;
-
-	// Link the previous owner to this one.
-	if (PreviousOwner)
-	{
-		PreviousOwner->NextOwner = Handle;
-		PreviousOwner->bLastOwner = false;
-	}
-
-	PooledBuffer = InPooledBuffer;
-	Allocation = InPooledBuffer;
-	State = &PooledBuffer->State;
-	ViewCache = &PooledBuffer->ViewCache;
-	ResourceRHI = InPooledBuffer->GetRHI();
-
-	// The upload with UAV workaround performs its own transitions outside of RDG, so fall back to Unknown for simplicity.
-#if PLATFORM_NEEDS_GPU_UAV_RESOURCE_INIT_WORKAROUND
-	if (bUAVAccessed && bQueuedForUpload)
-	{
-		*State = FRDGSubresourceState();
-	}
-#endif
-}
-
-void FRDGBuffer::SetRHI(FRHITransientBuffer* InTransientBuffer, FRDGAllocator& Allocator)
-{
-	TransientBuffer = InTransientBuffer;
-	State = Allocator.AllocNoDestruct<FRDGSubresourceState>();
-	ViewCache = &InTransientBuffer->ViewCache;
-	ResourceRHI = InTransientBuffer->GetRHI();
-
-	bTransient = true;
-}
-
-void FRDGBuffer::Finalize(FRDGPooledBufferArray& PooledBufferArray)
-{
-	// If these fire, the graph is not tracking state properly.
-	checkf(NextOwner.IsNull() == !!bLastOwner, TEXT("NextOwner must match bLastOwner."));
-	checkf(!bExtracted || bLastOwner, TEXT("Extracted resources must be the last owner of a resource."));
-
-	if (bLastOwner)
-	{
-		if (bTransient)
-		{
-			State = nullptr;
-		}
-		else
-		{
-			if (bExternal || bExtracted)
-			{
-				PooledBuffer->Reset();
-			}
-			else
-			{
-				PooledBuffer->Finalize();
-			}
-
-			PooledBufferArray.Emplace(PooledBuffer);
-		}
-	}
-
-	Allocation = nullptr;
+	return RenderTarget;
 }

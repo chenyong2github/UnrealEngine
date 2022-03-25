@@ -33,7 +33,7 @@ struct FRDGSubresourceState
 	static bool IsTransitionRequired(const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next);
 
 	/** Given a before and after state, returns whether they can be merged into a single state. */
-	static bool IsMergeAllowed(ERDGParentResourceType ResourceType, const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next);
+	static bool IsMergeAllowed(ERDGViewableResourceType ResourceType, const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next);
 
 	FRDGSubresourceState() = default;
 
@@ -76,17 +76,10 @@ struct FRDGSubresourceState
 
 	/** The last no-UAV barrier to be used by this subresource. */
 	FRDGViewUniqueFilter NoUAVBarrierFilter;
-
-	/** The last used pass for log file debugging. */
-	IF_RDG_ENABLE_DEBUG(mutable FRDGPassHandle LogFilePass);
 };
 
-using FRDGTextureSubresourceState = TRDGTextureSubresourceArray<FRDGSubresourceState, FDefaultAllocator>;
-using FRDGTextureTransientSubresourceState = TRDGTextureSubresourceArray<FRDGSubresourceState, FRDGArrayAllocator>;
-using FRDGTextureTransientSubresourceStateIndirect = TRDGTextureSubresourceArray<FRDGSubresourceState*, FRDGArrayAllocator>;
-
-using FRDGPooledTextureArray = TArray<TRefCountPtr<IPooledRenderTarget>, FRDGArrayAllocator>;
-using FRDGPooledBufferArray = TArray<TRefCountPtr<FRDGPooledBuffer>, FRDGArrayAllocator>;
+using FRDGTextureSubresourceState = TRDGTextureSubresourceArray<FRDGSubresourceState, FRDGArrayAllocator>;
+using FRDGTextureSubresourceStateIndirect = TRDGTextureSubresourceArray<FRDGSubresourceState*, FRDGArrayAllocator>;
 
 /** Generic graph resource. */
 class RENDERCORE_API FRDGResource
@@ -241,12 +234,12 @@ private:
 };
 
 /** A render graph resource with an allocation lifetime tracked by the graph. May have child resources which reference it (e.g. views). */
-class RENDERCORE_API FRDGParentResource
+class RENDERCORE_API FRDGViewableResource
 	: public FRDGResource
 {
 public:
 	/** The type of this resource; useful for casting between types. */
-	const ERDGParentResourceType Type;
+	const ERDGViewableResourceType Type;
 
 	/** Whether this resource is externally registered with the graph (i.e. the user holds a reference to the underlying resource outside the graph). */
 	bool IsExternal() const
@@ -274,7 +267,7 @@ public:
 	}
 
 protected:
-	FRDGParentResource(const TCHAR* InName, ERDGParentResourceType InType);
+	FRDGViewableResource(const TCHAR* InName, ERDGViewableResourceType InType);
 
 	enum class ETransientExtractionHint
 	{
@@ -335,8 +328,21 @@ private:
 	/** Scratch index allocated for the resource in the pass being setup. */
 	uint16 PassStateIndex = 0;
 
-	/** The final state of the resource at the end of graph execution, if known. */
-	ERHIAccess AccessFinal = ERHIAccess::Unknown;
+	/** The state of the resource at the graph epilogue. */
+	ERHIAccess EpilogueAccess = ERHIAccess::SRVMask;
+
+	/** The valid set of access states for finalized access. */
+	IF_RDG_ENABLE_DEBUG(ERHIAccess FinalizedAccessMask = ERHIAccess::Unknown);
+
+	void SetFinalizedAccess(ERHIAccess InValidAccessMask)
+	{
+		bFinalizedAccess = 1;
+
+		// Finalized resources are not always added to the pass states (unless marked as such within the graph), so marked as not culled here.
+		bCulled = 0;
+
+		IF_RDG_ENABLE_DEBUG(FinalizedAccessMask = InValidAccessMask);
+	}
 
 #if RDG_ENABLE_TRACE
 	uint16 TraceOrder = 0;
@@ -344,8 +350,8 @@ private:
 #endif
 
 #if RDG_ENABLE_DEBUG
-	struct FRDGParentResourceDebugData* ParentDebugData = nullptr;
-	FRDGParentResourceDebugData& GetParentDebugData() const;
+	struct FRDGViewableResourceDebugData* ViewableDebugData = nullptr;
+	FRDGViewableResourceDebugData& GetViewableDebugData() const;
 #endif
 
 	friend FRDGBuilder;
@@ -354,7 +360,7 @@ private:
 	friend FRDGTrace;
 };
 
-/** A render graph resource (e.g. a view) which references a single parent resource (e.g. a texture / buffer). Provides an abstract way to access the parent resource. */
+/** A render graph resource (e.g. a view) which references a single viewable resource (e.g. a texture / buffer). Provides an abstract way to access the viewable resource. */
 class FRDGView
 	: public FRDGResource
 {
@@ -363,7 +369,7 @@ public:
 	const ERDGViewType Type;
 
 	/** Returns the referenced parent render graph resource. */
-	virtual FRDGParentResourceRef GetParent() const = 0;
+	virtual FRDGViewableResource* GetParent() const = 0;
 
 	FRDGViewHandle GetHandle() const
 	{
@@ -403,11 +409,9 @@ class RENDERCORE_API FRDGPooledTexture final
 	: public FRefCountedObject
 {
 public:
-	FRDGPooledTexture(FRHITexture* InTexture, const FRDGTextureSubresourceLayout& InLayout, ERHIAccess AccessInitial = ERHIAccess::Unknown)
+	FRDGPooledTexture(FRHITexture* InTexture)
 		: Texture(InTexture)
-	{
-		InitAsWholeResource(State, FRDGSubresourceState(AccessInitial));
-	}
+	{}
 
 	/** Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache. */
 	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(const FRHITextureUAVCreateInfo& UAVDesc) { return ViewCache.GetOrCreateUAV(Texture, UAVDesc); }
@@ -417,29 +421,16 @@ public:
 
 	FORCEINLINE FRHITexture* GetRHI() const { return Texture; }
 
-	FORCEINLINE FRDGTexture* GetOwner() const { return Owner; }
-
 private:
-	/** Prepares the pooled texture state for re-use across RDG builder instances. */
-	void Finalize();
-
-	/** Resets the pooled texture state back an unknown value. */
-	void Reset();
-
 	TRefCountPtr<FRHITexture> Texture;
-	FRDGTexture* Owner = nullptr;
-	FRDGTextureSubresourceState State;
 	FRHITextureViewCache ViewCache;
 
-	friend FRDGTexture;
 	friend FRDGBuilder;
-	friend FRenderTargetPool;
-	friend FRDGAllocator;
 };
 
 /** Render graph tracked Texture. */
 class RENDERCORE_API FRDGTexture final
-	: public FRDGParentResource
+	: public FRDGViewableResource
 {
 public:
 	const FRDGTextureDesc Desc;
@@ -489,7 +480,7 @@ public:
 
 private:
 	FRDGTexture(const TCHAR* InName, const FRDGTextureDesc& InDesc, ERDGTextureFlags InFlags)
-		: FRDGParentResource(InName, ERDGParentResourceType::Texture)
+		: FRDGViewableResource(InName, ERDGViewableResourceType::Texture)
 		, Desc(InDesc)
 		, Flags(InFlags)
 		, Layout(InDesc)
@@ -502,18 +493,6 @@ private:
 		LastProducers.SetNum(SubresourceCount);
 		bSwapChain = EnumHasAnyFlags(Desc.Flags, ETextureCreateFlags::Presentable);
 	}
-
-	/** Assigns a render target as the backing RHI resource. */
-	void SetRHI(IPooledRenderTarget* PooledRenderTarget);
-
-	/** Assigns a pooled texture as the backing RHI resource. */
-	void SetRHI(FRDGPooledTexture* PooledTexture);
-
-	/** Assigns a transient texture as the backing RHI resource. */
-	void SetRHI(FRHITransientTexture* TransientTexture, FRDGTextureSubresourceState* TransientTextureState);
-
-	/** Finalizes the texture for execution; no other transitions are allowed after calling this. */
-	void Finalize(FRDGPooledTextureArray& PooledTextureArray);
 
 	/** Returns RHI texture without access checks. */
 	FRHITexture* GetRHIUnchecked() const
@@ -539,8 +518,8 @@ private:
 	FRDGTextureSubresourceRange  WholeRange;
 	const uint32 SubresourceCount;
 
-	/** The assigned pooled render target to use during execution. Never reset. */
-	IPooledRenderTarget* PooledRenderTarget = nullptr;
+	/** The assigned render target to use during execution. Never reset. */
+	IPooledRenderTarget* RenderTarget = nullptr;
 
 	union
 	{
@@ -557,11 +536,11 @@ private:
 	/** Valid strictly when holding a strong reference; use PooledRenderTarget instead. */
 	TRefCountPtr<IPooledRenderTarget> Allocation;
 
-	/** Cached state pointer from the pooled texture. */
+	/** Tracks subresource states as the graph is built. */
 	FRDGTextureSubresourceState* State = nullptr;
 
 	/** Tracks merged subresource states as the graph is built. */
-	FRDGTextureTransientSubresourceStateIndirect MergeState;
+	FRDGTextureSubresourceStateIndirect MergeState;
 
 	/** Tracks pass producers for each subresource as the graph is built. */
 	TRDGTextureSubresourceArray<FRDGProducerStatesByPipeline, FRDGArrayAllocator> LastProducers;
@@ -636,7 +615,7 @@ class FRDGTextureSRVDesc final
 {
 public:
 	FRDGTextureSRVDesc() = default;
-	
+
 	FRDGTextureRef Texture = nullptr;
 
 	/** Create SRV that access all sub resources of texture. */
@@ -987,18 +966,6 @@ private:
 	TRefCountPtr<FRHIBuffer> Buffer;
 	FRHIBufferViewCache ViewCache;
 
-	void Reset()
-	{
-		Owner = nullptr;
-		State = {};
-	}
-
-	void Finalize()
-	{
-		Owner = nullptr;
-		State.Finalize();
-	}
-
 	FRDGBufferDesc GetAlignedDesc() const
 	{
 		FRDGBufferDesc AlignedDesc = Desc;
@@ -1007,21 +974,17 @@ private:
 	}
 
 	const TCHAR* Name = nullptr;
-	FRDGBufferRef Owner = nullptr;
-	FRDGSubresourceState State;
 
 	const uint32 NumAllocatedElements;
 	uint32 LastUsedFrame = 0;
 
-	friend FRDGBufferPool;
 	friend FRDGBuilder;
-	friend FRDGBuffer;
-	friend FRDGAllocator;
+	friend FRDGBufferPool;
 };
 
 /** A render graph tracked buffer. */
 class RENDERCORE_API FRDGBuffer final
-	: public FRDGParentResource
+	: public FRDGViewableResource
 {
 public:
 	FRDGBufferDesc Desc;
@@ -1033,7 +996,7 @@ public:
 	/** Returns the underlying RHI buffer resource */
 	FRHIBuffer* GetRHI() const
 	{
-		return static_cast<FRHIBuffer*>(FRDGParentResource::GetRHI());
+		return static_cast<FRHIBuffer*>(FRDGViewableResource::GetRHI());
 	}
 
 	/** Returns the buffer to use for indirect RHI calls. */
@@ -1066,7 +1029,7 @@ public:
 
 private:
 	FRDGBuffer(const TCHAR* InName, const FRDGBufferDesc& InDesc, ERDGBufferFlags InFlags)
-		: FRDGParentResource(InName, ERDGParentResourceType::Buffer)
+		: FRDGViewableResource(InName, ERDGViewableResourceType::Buffer)
 		, Desc(InDesc)
 		, Flags(InFlags)
 	{}
@@ -1076,15 +1039,6 @@ private:
 	{
 		NumElementsCallback = MoveTemp(InNumElementsCallback);
 	}
-
-	/** Assigns a pooled buffer as the backing RHI resource. */
-	void SetRHI(FRDGPooledBuffer* InPooledBuffer);
-
-	/** Assigns a transient buffer as the backing RHI resource. */
-	void SetRHI(FRHITransientBuffer* InTransientBuffer, FRDGAllocator& Allocator);
-
-	/** Finalizes the buffer for execution; no other transitions are allowed after calling this. */
-	void Finalize(FRDGPooledBufferArray& PooledBufferArray);
 
 	/** Finalizes any pending field of the buffer descriptor. */
 	void FinalizeDesc()

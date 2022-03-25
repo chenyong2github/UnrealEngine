@@ -171,12 +171,15 @@ enum class ERDGUnorderedAccessViewFlags : uint8
 ENUM_CLASS_FLAGS(ERDGUnorderedAccessViewFlags);
 
 /** The set of concrete parent resource types. */
-enum class ERDGParentResourceType : uint8
+enum class ERDGViewableResourceType : uint8
 {
 	Texture,
 	Buffer,
 	MAX
 };
+
+UE_DEPRECATED(5.1, "ERDGParentResourceType has been renamed to ERDGViewableResourceType.")
+typedef ERDGViewableResourceType ERDGParentResourceType;
 
 /** The set of concrete view types. */
 enum class ERDGViewType : uint8
@@ -216,20 +219,26 @@ enum class ERDGInitialDataFlags : uint8
 ENUM_CLASS_FLAGS(ERDGInitialDataFlags)
 
 /** Returns the equivalent parent resource type for a view type. */
-inline ERDGParentResourceType GetParentResourceType(ERDGViewType ViewType)
+inline ERDGViewableResourceType GetViewableResourceType(ERDGViewType ViewType)
 {
 	switch (ViewType)
 	{
 	case ERDGViewType::TextureUAV:
 	case ERDGViewType::TextureSRV:
-		return ERDGParentResourceType::Texture;
+		return ERDGViewableResourceType::Texture;
 	case ERDGViewType::BufferUAV:
 	case ERDGViewType::BufferSRV:
-		return ERDGParentResourceType::Buffer;
+		return ERDGViewableResourceType::Buffer;
 	default:
 		checkNoEntry();
-		return ERDGParentResourceType::MAX;
+		return ERDGViewableResourceType::MAX;
 	}
+}
+
+UE_DEPRECATED(5.1, "GetParentResourceType has been renamed to GetViewableResourceType.")
+inline ERDGViewableResourceType GetParentResourceType(ERDGViewType ViewType)
+{
+	return GetViewableResourceType(ViewType);
 }
 
 using ERDGTextureMetaDataAccess = ERHITextureMetaDataAccess;
@@ -548,8 +557,13 @@ class FRDGUserValidation;
 class FRDGResource;
 using FRDGResourceRef = FRDGResource*;
 
-class FRDGParentResource;
-using FRDGParentResourceRef = FRDGParentResource*;
+class FRDGViewableResource;
+
+UE_DEPRECATED(5.1, "FRDGParentResource has been renamed to FRDGViewableResource.")
+typedef FRDGViewableResource FRDGParentResource;
+
+UE_DEPRECATED(5.1, "FRDGParentResourceRef has been renamed to FRDGViewableResource*.")
+typedef FRDGViewableResource* FRDGParentResourceRef;
 
 class FRDGShaderResourceView;
 using FRDGShaderResourceViewRef = FRDGShaderResourceView*;

@@ -389,6 +389,23 @@ public:
 
 #endif
 
+#if ENABLE_RHI_VALIDATION
+	virtual void SetTrackedAccess(const FRHITrackedAccessInfo& Info)
+#else
+	inline  void SetTrackedAccess(const FRHITrackedAccessInfo& Info)
+#endif
+	{
+		check(Info.Resource != nullptr);
+		check(Info.Access != ERHIAccess::Unknown);
+		Info.Resource->TrackedAccess = Info.Access;
+	}
+
+	inline ERHIAccess GetTrackedAccess(const FRHIViewableResource* Resource) const
+	{
+		check(Resource);
+		return Resource->TrackedAccess;
+	}
+
 	virtual void* RHIGetNativeCommandBuffer() { return nullptr; }
 	virtual void RHIPostExternalCommandsReset() { }
 };

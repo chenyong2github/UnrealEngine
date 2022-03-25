@@ -75,9 +75,9 @@ public:
 	FRDGBarrierBatchBegin(ERHIPipeline PipelinesToBegin, ERHIPipeline PipelinesToEnd, const TCHAR* DebugName, FRDGPass* DebugPass);
 	FRDGBarrierBatchBegin(ERHIPipeline PipelinesToBegin, ERHIPipeline PipelinesToEnd, const TCHAR* DebugName, FRDGPassesByPipeline DebugPasses);
 
-	void AddTransition(FRDGParentResourceRef Resource, const FRHITransitionInfo& Info);
+	void AddTransition(FRDGViewableResource* Resource, const FRHITransitionInfo& Info);
 
-	void AddAlias(FRDGParentResourceRef Resource, const FRHITransientAliasingInfo& Info);
+	void AddAlias(FRDGViewableResource* Resource, const FRHITransientAliasingInfo& Info);
 
 	void SetUseCrossPipelineFence()
 	{
@@ -112,8 +112,8 @@ private:
 
 #if RDG_ENABLE_DEBUG
 	FRDGPassesByPipeline DebugPasses;
-	TArray<FRDGParentResource*, FRDGArrayAllocator> DebugTransitionResources;
-	TArray<FRDGParentResource*, FRDGArrayAllocator> DebugAliasingResources;
+	TArray<FRDGViewableResource*, FRDGArrayAllocator> DebugTransitionResources;
+	TArray<FRDGViewableResource*, FRDGArrayAllocator> DebugAliasingResources;
 	const TCHAR* DebugName;
 	ERHIPipeline DebugPipelinesToBegin;
 	ERHIPipeline DebugPipelinesToEnd;
@@ -434,8 +434,8 @@ protected:
 		}
 
 		FRDGTextureRef Texture = nullptr;
-		FRDGTextureTransientSubresourceState State;
-		FRDGTextureTransientSubresourceStateIndirect MergeState;
+		FRDGTextureSubresourceState State;
+		FRDGTextureSubresourceStateIndirect MergeState;
 		uint16 ReferenceCount = 0;
 	};
 

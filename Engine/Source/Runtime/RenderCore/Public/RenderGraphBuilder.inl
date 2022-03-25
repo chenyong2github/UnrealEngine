@@ -308,11 +308,6 @@ inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCoun
 	}
 
 	ExtractedTextures.Emplace(Texture, OutTexturePtr);
-
-	if (Texture->AccessFinal == ERHIAccess::Unknown)
-	{
-		Texture->AccessFinal = kDefaultAccessFinal;
-	}
 }
 
 inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>* OutBufferPtr)
@@ -326,11 +321,6 @@ inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPt
 	Buffer->bCulled = false;
 	Buffer->bForceNonTransient = true;
 	ExtractedBuffers.Emplace(Buffer, OutBufferPtr);
-
-	if (Buffer->AccessFinal == ERHIAccess::Unknown)
-	{
-		Buffer->AccessFinal = kDefaultAccessFinal;
-	}
 }
 
 inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>* OutBufferPtr, ERHIAccess AccessFinal)
@@ -367,13 +357,13 @@ inline const TRefCountPtr<FRDGPooledBuffer>& FRDGBuilder::GetPooledBuffer(FRDGBu
 inline void FRDGBuilder::SetTextureAccessFinal(FRDGTextureRef Texture, ERHIAccess AccessFinal)
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateSetAccessFinal(Texture, AccessFinal));
-	Texture->AccessFinal = AccessFinal;
+	Texture->EpilogueAccess = AccessFinal;
 }
 
 inline void FRDGBuilder::SetBufferAccessFinal(FRDGBufferRef Buffer, ERHIAccess AccessFinal)
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateSetAccessFinal(Buffer, AccessFinal));
-	Buffer->AccessFinal = AccessFinal;
+	Buffer->EpilogueAccess = AccessFinal;
 }
 
 inline void FRDGBuilder::RemoveUnusedTextureWarning(FRDGTextureRef Texture)

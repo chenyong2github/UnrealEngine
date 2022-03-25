@@ -3,13 +3,15 @@
 #include "D3D12RHIPrivate.h"
 #include "ClearReplacementShaders.h"
 
-FD3D12UnorderedAccessView::FD3D12UnorderedAccessView(FD3D12Device* InParent)
-	: FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
+FD3D12UnorderedAccessView::FD3D12UnorderedAccessView(FD3D12Device* InParent, FRHIViewableResource* InParentResource)
+	: FRHIUnorderedAccessView(InParentResource)
+	, FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
 {
 }
 
-FD3D12UnorderedAccessView::FD3D12UnorderedAccessView(FD3D12Device* InParent, const D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12Resource* InCounterResource)
-	: FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
+FD3D12UnorderedAccessView::FD3D12UnorderedAccessView(FD3D12Device* InParent, FRHIViewableResource* InParentResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12Resource* InCounterResource)
+	: FRHIUnorderedAccessView(InParentResource)
+	, FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
 	, CounterResource(InCounterResource)
 {
 	SetDesc(InDesc);
@@ -58,7 +60,7 @@ inline FD3D12UnorderedAccessView* CreateUAV(D3D12_UNORDERED_ACCESS_VIEW_DESC& De
 			Device->GetParentAdapter()->CreateBuffer(HeapProps, Node, InitialState, ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 4, &CounterResource,  TEXT("Counter"), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 		}
 
-		return new FD3D12UnorderedAccessView(Device, Desc, Resource, CounterResource);
+		return new FD3D12UnorderedAccessView(Device, Resource, Desc, Resource, CounterResource);
 	});
 }
 

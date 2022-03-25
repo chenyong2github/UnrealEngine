@@ -176,6 +176,7 @@ namespace RHIValidation
 		void BeginTransition   (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, EResourceTransitionFlags NewFlags, ERHIPipeline Pipeline, void* CreateTrace);
 		void EndTransition     (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, ERHIPipeline Pipeline, void* CreateTrace);
 		void Assert            (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& RequiredState, bool bAllowAllUAVsOverlap);
+		void AssertTracked     (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& TrackedState);
 		void SpecificUAVOverlap(FResource* Resource, FSubresourceIndex const& SubresourceIndex, ERHIPipeline Pipeline, bool bAllow);
 	};
 
@@ -278,6 +279,7 @@ namespace RHIValidation
 		uint32 NumArraySlices = 0;
 		uint32 NumPlanes = 0;
 		FTransientState TransientState;
+		ERHIAccess TrackedAccess = ERHIAccess::Unknown;
 
 	private:
 		FString DebugName;
@@ -313,6 +315,33 @@ namespace RHIValidation
 			check(RefCount >= 0);
 		}
 
+		inline ERHIAccess GetTrackedAccess() const
+		{
+			return TrackedAccess;
+		}
+
+		inline FSubresourceRange GetWholeResourceRange()
+		{
+			checkSlow(NumMips > 0 && NumArraySlices > 0 && NumPlanes > 0);
+
+			FSubresourceRange SubresourceRange;
+			SubresourceRange.MipIndex = 0;
+			SubresourceRange.ArraySlice = 0;
+			SubresourceRange.PlaneIndex = 0;
+			SubresourceRange.NumMips = NumMips;
+			SubresourceRange.NumArraySlices = NumArraySlices;
+			SubresourceRange.NumPlanes = NumPlanes;
+			return SubresourceRange;
+		}
+
+		inline FResourceIdentity GetWholeResourceIdentity()
+		{
+			FResourceIdentity Identity;
+			Identity.Resource = this;
+			Identity.SubresourceRange = GetWholeResourceRange();
+			return Identity;
+		}
+
 	protected:
 		inline void InitBarrierTracking(int32 InNumMips, int32 InNumArraySlices, int32 InNumPlanes, ERHIAccess InResourceState, const TCHAR* InDebugName)
 		{
@@ -323,6 +352,7 @@ namespace RHIValidation
 			NumArraySlices = InNumArraySlices;
 			NumPlanes = InNumPlanes;
 			TransientState = FTransientState(InResourceState);
+			TrackedAccess = InResourceState;
 
 			for (auto& State : WholeResourceState.States)
 			{
@@ -354,21 +384,6 @@ namespace RHIValidation
 		{
 			FResource::InitBarrierTracking(1, 1, 1, InResourceState, InDebugName);
 		}
-
-		inline FResourceIdentity GetWholeResourceIdentity()
-		{
-			checkSlow(NumMips == 1 && NumArraySlices == 1 && NumPlanes == 1);
-
-			FResourceIdentity Identity;
-			Identity.Resource = this;
-			Identity.SubresourceRange.MipIndex = 0;
-			Identity.SubresourceRange.ArraySlice = 0;
-			Identity.SubresourceRange.PlaneIndex = 0;
-			Identity.SubresourceRange.NumMips = 1;
-			Identity.SubresourceRange.NumArraySlices = 1;
-			Identity.SubresourceRange.NumPlanes = 1;
-			return Identity;
-		}
 	};
 
 	class FAccelerationStructureResource : public FBufferResource
@@ -389,7 +404,7 @@ namespace RHIValidation
 
 		virtual ~FTextureResource() {}
 
-		virtual FResource* GetTrackerResource() { return &PRIVATE_TrackerResource; }
+		FResource* GetTrackerResource() { return &PRIVATE_TrackerResource; }
 
 		void InitBarrierTracking(FRHITextureCreateDesc const& CreateDesc);
 
@@ -501,19 +516,7 @@ namespace RHIValidation
 
 		inline FResourceIdentity GetWholeResourceIdentity()
 		{
-			FResource* Resource = GetTrackerResource();
-
-			checkSlow(Resource->NumMips > 0 && Resource->NumArraySlices > 0 && Resource->NumPlanes > 0);
-
-			FResourceIdentity Identity;
-			Identity.Resource = Resource;
-			Identity.SubresourceRange.MipIndex = 0;
-			Identity.SubresourceRange.ArraySlice = 0;
-			Identity.SubresourceRange.PlaneIndex = 0;
-			Identity.SubresourceRange.NumMips = Resource->NumMips;
-			Identity.SubresourceRange.NumArraySlices = Resource->NumArraySlices;
-			Identity.SubresourceRange.NumPlanes = Resource->NumPlanes;
-			return Identity;
+			return GetTrackerResource()->GetWholeResourceIdentity();
 		}
 
 		inline FResourceIdentity GetWholeResourceIdentitySRV()
@@ -562,6 +565,7 @@ namespace RHIValidation
 	{
 		BeginTransition,
 		EndTransition,
+		SetTrackedAccess,
 		AliasingOverlap,
 		AcquireTransient,
 		DiscardTransient,
@@ -606,6 +610,12 @@ namespace RHIValidation
 				FState NextState;
 				void* CreateBacktrace;
 			} Data_EndTransition;
+
+			struct
+			{
+				FResource* Resource;
+				ERHIAccess Access;
+			} Data_SetTrackedAccess;
 
 			struct
 			{
@@ -701,6 +711,17 @@ namespace RHIValidation
 			Op.Data_EndTransition.PreviousState = PreviousState;
 			Op.Data_EndTransition.NextState = NextState;
 			Op.Data_EndTransition.CreateBacktrace = CreateBacktrace;
+			return MoveTemp(Op);
+		}
+
+		static inline FOperation SetTrackedAccess(FResource* Resource, ERHIAccess Access)
+		{
+			Resource->AddOpRef();
+
+			FOperation Op;
+			Op.Type = EOpType::SetTrackedAccess;
+			Op.Data_SetTrackedAccess.Resource = Resource;
+			Op.Data_SetTrackedAccess.Access = Access;
 			return MoveTemp(Op);
 		}
 
@@ -937,6 +958,11 @@ namespace RHIValidation
 		FOperationsList Finalize()
 		{
 			return MoveTemp(CurrentList);
+		}
+
+		inline void SetTrackedAccess(FResource* Resource, ERHIAccess Access)
+		{
+			AddOp(FOperation::SetTrackedAccess(Resource, Access));
 		}
 
 		inline void Rename(FResource* Resource, const TCHAR* NewName, const TCHAR* Suffix = nullptr)

@@ -477,8 +477,9 @@ public:
 	TRefCountPtr<ID3D11ShaderResourceView> View;
 	TRefCountPtr<FD3D11BaseShaderResource> Resource;
 
-	FD3D11ShaderResourceView(ID3D11ShaderResourceView* InView,FD3D11BaseShaderResource* InResource)
-	: View(InView)
+	FD3D11ShaderResourceView(ID3D11ShaderResourceView* InView, FRHIViewableResource* InParentResource, FD3D11BaseShaderResource* InResource)
+	: FRHIShaderResourceView(InParentResource)
+	, View(InView)
 	, Resource(InResource)
 	{}
 
@@ -498,8 +499,9 @@ public:
 	TRefCountPtr<FD3D11BaseShaderResource> Resource;	
 	void* IHVResourceHandle;
 	
-	FD3D11UnorderedAccessView(ID3D11UnorderedAccessView* InView,FD3D11BaseShaderResource* InResource)
-	: View(InView)
+	FD3D11UnorderedAccessView(ID3D11UnorderedAccessView* InView, FRHIViewableResource* InParentResource, FD3D11BaseShaderResource* InResource)
+	: FRHIUnorderedAccessView(InParentResource)
+	, View(InView)
 	, Resource(InResource)
 	, IHVResourceHandle(nullptr)
 	{}

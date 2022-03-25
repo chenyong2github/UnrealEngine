@@ -252,7 +252,17 @@ protected:
 class FValidationContext : public IRHICommandContext
 {
 public:
-	FValidationContext();
+	enum EType
+	{
+		Default,
+		Parallel
+	};
+
+	FValidationContext(EType InType);
+
+	FValidationContext()
+		: FValidationContext(EType::Default)
+	{}
 
 	virtual IRHICommandContext& GetLowestLevelContext() override final
 	{
@@ -352,28 +362,6 @@ public:
 	virtual void RHICopyToResolveTarget(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FResolveParams& ResolveParams) override final
 	{
 		RHIContext->RHICopyToResolveTarget(SourceTexture, DestTexture, ResolveParams);
-
-		auto SetAccess = [&](FRHITexture* Texture, ERHIAccess Access)
-		{
-			// If this is a depth texture, only transition the depth plane.
-			RHIValidation::FResourceIdentity Identity = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_DepthStencilTargetable | TexCreate_DepthStencilResolveTarget)
-				? Texture->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Common), 1)
-				: Texture->GetWholeResourceIdentity();
-
-			Tracker->TransitionResource(Identity,
-				RHIValidation::FState(ERHIAccess::Unknown, ERHIPipeline::Graphics),
-				RHIValidation::FState(Access, ERHIPipeline::Graphics),
-				EResourceTransitionFlags::None);
-		};
-
-		if (SourceTexture && ResolveParams.SourceAccessFinal != ERHIAccess::Unknown)
-		{
-			SetAccess(SourceTexture, ResolveParams.SourceAccessFinal);
-		}
-		if (DestTexture && SourceTexture != DestTexture && ResolveParams.DestAccessFinal != ERHIAccess::Unknown)
-		{
-			SetAccess(DestTexture, ResolveParams.DestAccessFinal);
-		}
 	}
 
 	virtual void RHIResummarizeHTile(FRHITexture2D* DepthTexture) override final
@@ -424,6 +412,20 @@ public:
 		}
 
 		RHIContext->RHIEndTransitions(Transitions);
+	}
+
+	virtual void SetTrackedAccess(const FRHITrackedAccessInfo& Info) override final
+	{
+		check(Info.Resource != nullptr);
+		check(Info.Access != ERHIAccess::Unknown);
+		checkf(Type != EType::Parallel,
+			TEXT("SetTrackedAccess(%s, %s) was called from a parallel translate context. This is not allowed. This is most likely a call to RHICmdList.Transition on a command list queued for parallel dispatch."),
+			*Info.Resource->GetName().ToString(),
+			*GetRHIAccessName(Info.Access));
+
+		Tracker->SetTrackedAccess(Info.Resource->GetTrackerResource(), Info.Access);
+
+		RHIContext->SetTrackedAccess(Info);
 	}
 
 	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) override final
@@ -1112,6 +1114,8 @@ protected:
 	};
 	FState State;
 
+	EType Type = EType::Default;
+
 	friend class FValidationRHICommandContextContainer;
 	friend class FValidationRHI;
 
@@ -1158,7 +1162,7 @@ public:
 
 		if (!CurrentContext)
 		{
-			CurrentContext = new FValidationContext();
+			CurrentContext = new FValidationContext(FValidationContext::EType::Parallel);
 		}
 
 		CurrentContext->State.Reset();

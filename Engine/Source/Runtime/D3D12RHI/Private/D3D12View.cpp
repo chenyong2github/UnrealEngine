@@ -125,7 +125,8 @@ void FD3D12ViewDescriptorHandle::UpdateBindlessSlot(ED3D12DescriptorCreateReason
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FD3D12ShaderResourceView::FD3D12ShaderResourceView(FD3D12Device* InParent)
-	: FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
+	: FRHIShaderResourceView(nullptr)
+	, FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
 	, bContainsDepthPlane(false)
 	, bContainsStencilPlane(false)
 	, bSkipFastClearFinalize(false)

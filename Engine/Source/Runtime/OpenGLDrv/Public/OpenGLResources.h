@@ -1539,7 +1539,8 @@ class FOpenGLUnorderedAccessView : public FRHIUnorderedAccessView
 {
 
 public:
-	FOpenGLUnorderedAccessView():
+	FOpenGLUnorderedAccessView(FRHIViewableResource* InParentResource):
+		FRHIUnorderedAccessView(InParentResource),
 		Resource(0),
 		BufferResource(0),
 		Format(0),
@@ -1621,7 +1622,6 @@ public:
 class FOpenGLShaderResourceView : public FRHIShaderResourceView
 {
 public:
-	explicit FOpenGLShaderResourceView() = default;
 	explicit FOpenGLShaderResourceView(const FShaderResourceViewInitializer& Initializer);
 	explicit FOpenGLShaderResourceView(FOpenGLTexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo);
 

@@ -17,16 +17,6 @@ TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBuffer(
 	const FRDGBufferDesc& Desc,
 	const TCHAR* InDebugName)
 {
-	TRefCountPtr<FRDGPooledBuffer> Result = FindFreeBufferInternal(RHICmdList, Desc, InDebugName);
-	Result->Reset();
-	return Result;
-}
-
-TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBufferInternal(
-	FRHICommandList& RHICmdList,
-	const FRDGBufferDesc& Desc,
-	const TCHAR* InDebugName)
-{
 	const uint64 BufferPageSize = 64 * 1024;
 
 	FRDGBufferDesc AlignedDesc = Desc;
@@ -108,7 +98,6 @@ TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBufferInternal(
 		check(PooledBuffer->GetRefCount() == 2);
 
 		PooledBuffer->LastUsedFrame = FrameCounter;
-		PooledBuffer->State.Access = InitialAccess;
 
 		return PooledBuffer;
 	}
@@ -228,7 +217,6 @@ TRefCountPtr<FRDGTransientRenderTarget> FRDGTransientResourceAllocator::Allocate
 	RenderTarget->LifetimeState = ERDGTransientResourceLifetimeState::Allocated;
 	RenderTarget->GetRenderTargetItem().TargetableTexture = Texture->GetRHI();
 	RenderTarget->GetRenderTargetItem().ShaderResourceTexture = Texture->GetRHI();
-	InitAsWholeResource(RenderTarget->State, {});
 	return RenderTarget;
 }
 
@@ -236,6 +224,8 @@ void FRDGTransientResourceAllocator::Release(TRefCountPtr<FRDGTransientRenderTar
 {
 	check(RenderTarget);
 
+	// If this is true, we hold the final reference in the RenderTarget argument. We want to zero out its
+	// members before dereferencing to zero so that it gets marked as deallocated rather than pending.
 	if (RenderTarget->GetRefCount() == 1)
 	{
 		Allocator->DeallocateMemory(RenderTarget->Texture, PassHandle.GetIndex());

@@ -26,9 +26,6 @@ public:
 private:
 	void ReleaseDynamicRHI() override;
 
-	/** Allocate a buffer from a given descriptor. */
-	TRefCountPtr<FRDGPooledBuffer> FindFreeBufferInternal(FRHICommandList& RHICmdList, const FRDGBufferDesc& Desc, const TCHAR* InDebugName);
-
 	/** Elements can be 0, we compact the buffer later. */
 	TArray<TRefCountPtr<FRDGPooledBuffer>> AllocatedBuffers;
 	TArray<uint64> AllocatedBufferHashes;
@@ -73,8 +70,6 @@ public:
 		RenderTargetItem.ShaderResourceTexture = nullptr;
 		RenderTargetItem.TargetableTexture = nullptr;
 	}
-
-	FRDGTextureSubresourceState State;
 
 private:
 	FRDGTransientRenderTarget() = default;
