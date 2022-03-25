@@ -1503,7 +1503,7 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, uint32		              ExtData      = 0
 		, ERHIAccess                  InitialState = ERHIAccess::Unknown
 		, FResourceBulkDataInterface* BulkData     = nullptr
-		, FRHIGPUMask                 GPUMask      = FRHIGPUMask()
+		, FRHIGPUMask                 GPUMask      = FRHIGPUMask::All()
 		)
 	{
 		return FRHITextureCreateDesc(
@@ -1527,7 +1527,7 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, uint32		              ExtData      = 0
 		, ERHIAccess                  InitialState = ERHIAccess::Unknown
 		, FResourceBulkDataInterface* BulkData     = nullptr
-		, FRHIGPUMask                 GPUMask      = FRHIGPUMask()
+		, FRHIGPUMask                 GPUMask      = FRHIGPUMask::All()
 		)
 	{
 		return FRHITextureCreateDesc(
@@ -1549,7 +1549,7 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, uint32		              ExtData      = 0
 		, ERHIAccess                  InitialState = ERHIAccess::Unknown
 		, FResourceBulkDataInterface* BulkData     = nullptr
-		, FRHIGPUMask                 GPUMask      = FRHIGPUMask()
+		, FRHIGPUMask                 GPUMask      = FRHIGPUMask::All()
 		)
 	{
 		return FRHITextureCreateDesc(
@@ -1572,7 +1572,7 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, uint32		              ExtData      = 0
 		, ERHIAccess                  InitialState = ERHIAccess::Unknown
 		, FResourceBulkDataInterface* BulkData     = nullptr
-		, FRHIGPUMask                 GPUMask      = FRHIGPUMask()
+		, FRHIGPUMask                 GPUMask      = FRHIGPUMask::All()
 		)
 	{
 		return FRHITextureCreateDesc(
@@ -1596,7 +1596,7 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, uint32		              ExtData      = 0
 		, ERHIAccess                  InitialState = ERHIAccess::Unknown
 		, FResourceBulkDataInterface* BulkData     = nullptr
-		, FRHIGPUMask                 GPUMask      = FRHIGPUMask()
+		, FRHIGPUMask                 GPUMask      = FRHIGPUMask::All()
 		)
 	{
 		return FRHITextureCreateDesc(
@@ -1625,7 +1625,7 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, ERHIAccess                  InInitialState
 		, TCHAR const*                InDebugName
 		, FResourceBulkDataInterface* InBulkData    = nullptr 
-		, FRHIGPUMask                 InGPUMask     = FRHIGPUMask()
+		, FRHIGPUMask                 InGPUMask     = FRHIGPUMask::All()
 		)
 		: FRHITextureDesc(InDimension, InFlags, InFormat, InClearValue, InExtent, InDepth, InArraySize, InNumMips, InNumSamples, InExtData)
 		, InitialState   (InInitialState)
@@ -1640,7 +1640,7 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, ERHIAccess                  InInitialState
 		, TCHAR const*                InDebugName
 		, FResourceBulkDataInterface* InBulkData     = nullptr
-		, FRHIGPUMask                 InGPUMask      = FRHIGPUMask()
+		, FRHIGPUMask                 InGPUMask      = FRHIGPUMask::All()
 		)
 		: FRHITextureDesc(InDesc)
 		, InitialState   (InInitialState)
