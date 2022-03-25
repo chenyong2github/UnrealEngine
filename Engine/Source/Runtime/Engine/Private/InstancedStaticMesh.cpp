@@ -1315,6 +1315,8 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 								OverlayMeshBatch.CastShadow = false;
 								OverlayMeshBatch.bSelectable = false;
 								OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+								// make sure overlay is always rendered on top of base mesh
+								OverlayMeshBatch.MeshIdInPrimitive += LODModel.Sections.Num();
 								Collector.AddMesh(ViewIndex, OverlayMeshBatch);
 								
 								INC_DWORD_STAT_BY(STAT_StaticMeshTriangles, OverlayMeshBatch.GetNumPrimitives());

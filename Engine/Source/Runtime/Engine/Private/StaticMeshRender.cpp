@@ -1202,6 +1202,8 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 							OverlayMeshBatch.CastShadow = false;
 							OverlayMeshBatch.bSelectable = false;
 							OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+							// make sure overlay is always rendered on top of base mesh
+							OverlayMeshBatch.MeshIdInPrimitive += LODModel.Sections.Num();
 							PDI->DrawMesh(OverlayMeshBatch, FLT_MAX);
 						}
 					}
@@ -1335,6 +1337,8 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 								OverlayMeshBatch.CastShadow = false;
 								OverlayMeshBatch.bSelectable = false;
 								OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+								// make sure overlay is always rendered on top of base mesh
+								OverlayMeshBatch.MeshIdInPrimitive += LODModel.Sections.Num();
 								// Reuse mesh ScreenSize as cull distance for an overlay. Overlay does not need to compute LOD so we can avoid adding new members into MeshBatch or MeshRelevance
 								float OverlayMeshScreenSize = OverlayMaterialMaxDrawDistance;
 								PDI->DrawMesh(OverlayMeshBatch, OverlayMeshScreenSize);

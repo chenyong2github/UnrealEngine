@@ -1344,6 +1344,8 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 							OverlayMeshBatch.CastShadow = false;
 							OverlayMeshBatch.bSelectable = false;
 							OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+							// make sure overlay is always rendered on top of base mesh
+							OverlayMeshBatch.MeshIdInPrimitive += LODModel.Sections.Num();
 							Collector.AddMesh(ElementParams.ViewIndex, OverlayMeshBatch);
 						}
 					}
@@ -1472,6 +1474,8 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 								OverlayMeshBatch.CastShadow = false;
 								OverlayMeshBatch.bSelectable = false;
 								OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+								// make sure overlay is always rendered on top of base mesh
+								OverlayMeshBatch.MeshIdInPrimitive += LODModel.Sections.Num();
 								Collector.AddMesh(ElementParams.ViewIndex, OverlayMeshBatch);
 							}
 						}

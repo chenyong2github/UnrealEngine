@@ -6422,6 +6422,8 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 						OverlayMeshBatch.CastShadow = false;
 						OverlayMeshBatch.bSelectable = false;
 						OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+						// make sure overlay is always rendered on top of base mesh
+						OverlayMeshBatch.MeshIdInPrimitive += LODData.RenderSections.Num();
 						// Reuse mesh ScreenSize as cull distance for an overlay. Overlay does not need to compute LOD so we can avoid adding new members into MeshBatch or MeshRelevance
 						float OverlayMeshScreenSize = OverlayMaterialMaxDrawDistance;
 						PDI->DrawMesh(OverlayMeshBatch, OverlayMeshScreenSize);
@@ -6734,6 +6736,8 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 					OverlayMeshBatch.CastShadow = false;
 					OverlayMeshBatch.bSelectable = false;
 					OverlayMeshBatch.MaterialRenderProxy = OverlayMaterial->GetRenderProxy();
+					// make sure overlay is always rendered on top of base mesh
+					OverlayMeshBatch.MeshIdInPrimitive += LODData.RenderSections.Num();
 					Collector.AddMesh(ViewIndex, OverlayMeshBatch);
 				
 					INC_DWORD_STAT_BY(STAT_SkelMeshTriangles, OverlayMeshBatch.GetNumPrimitives());
