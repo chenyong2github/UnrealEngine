@@ -1144,4 +1144,180 @@ void UMaterialGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>& 
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+//////////////////////////////////////////////////////////////////////////
+/** CVars for tweaking how the material editor context menu search picks the best match */
+namespace MaterialEditorContextMenuConsoleVariables
+{
+	/** How much weight the node's title has */
+	static float NodeTitleWeight = 20.0f;
+	static FAutoConsoleVariableRef CVarNodeTitleWeight(
+		TEXT("r.MaterialEditor.ContextMenu.NodeTitleWeight"), NodeTitleWeight,
+		TEXT("The amount of weight placed on the search items title"),
+		ECVF_Default);
+
+	/** Weight used to prefer keywords of actions  */
+	static float KeywordWeight = 30.0f;
+	static FAutoConsoleVariableRef CVarKeywordWeight(
+		TEXT("r.MaterialEditor.ContextMenu.KeywordWeight"), KeywordWeight,
+		TEXT("The amount of weight placed on search items keyword"),
+		ECVF_Default);
+
+	/** Weight that a match to a description search has */
+	static float DescriptionWeight = 4.0f;
+	static FAutoConsoleVariableRef CVarDescriptionWeight(
+		TEXT("r.MaterialEditor.ContextMenu.DescriptionWeight"), DescriptionWeight,
+		TEXT("The amount of weight placed on description that match what the user has typed in"),
+		ECVF_Default);
+
+	/** Weight that a match to a category search has */
+	static float CategoryWeight = 4.0f;
+	static FAutoConsoleVariableRef CVarCategoryWeight(
+		TEXT("r.MaterialEditor.ContextMenu.CategoryWeight"), CategoryWeight,
+		TEXT("The amount of weight placed on categories that match what the user has typed in"),
+		ECVF_Default);
+
+	/** The multiplier given if there is an exact localized match to the search term */
+	static float WholeMatchLocalizedWeightMultiplier = 0.5f;
+	static FAutoConsoleVariableRef CVarWholeMatchLocalizedWeightMultiplier(
+		TEXT("r.MaterialEditor.ContextMenu.WholeMatchLocalizedWeightMultiplier"), WholeMatchLocalizedWeightMultiplier,
+		TEXT("The multiplier given if there is an exact localized match to the search term"),
+		ECVF_Default);
+
+	/** The multiplier given if there is an exact match to the search term */
+	static float WholeMatchWeightMultiplier = 0.5f;
+	static FAutoConsoleVariableRef CVarWholeMatchWeightMultiplier(
+		TEXT("r.MaterialEditor.ContextMenu.WholeMatchWeightMultiplier"), WholeMatchWeightMultiplier,
+		TEXT("The multiplier given if there is an exact match to the search term"),
+		ECVF_Default);
+
+	/** The multiplier given if the keyword starts with a term the user typed in */
+	static float StartsWithBonusWeightMultiplier = 4.0f;
+	static FAutoConsoleVariableRef CVarStartsWithBonusWeightMultiplier(
+		TEXT("r.MaterialEditor.ContextMenu.StartsWithBonusWeightMultiplier"), StartsWithBonusWeightMultiplier,
+		TEXT("The multiplier given if the keyword starts with a term the user typed in"),
+		ECVF_Default);
+
+	/** Increasing this will prefer whole percentage matches when comparing the keyword to what the user has typed in */
+	static float PercentageMatchWeightMultiplier = 1.0f;
+	static FAutoConsoleVariableRef CVarPercentageMatchWeightMultiplier(
+		TEXT("r.MaterialEditor.ContextMenu.PercentageMatchWeightMultiplier"), PercentageMatchWeightMultiplier,
+		TEXT("A multiplier for how much weight to give something based on the percentage match it is"),
+		ECVF_Default);
+
+	/** Increasing this weight will give a bonus to shorter matching words */
+	static float ShorterMatchWeight = 10.0f;
+	static FAutoConsoleVariableRef CVarShorterWeight(
+		TEXT("r.MaterialEditor.ContextMenu.ShorterMatchWeight"), ShorterMatchWeight,
+		TEXT("Increasing this weight will make shorter words preferred"),
+		ECVF_Default);
+}
+
+FGraphSchemaSearchWeightModifiers UMaterialGraphSchema::GetSearchWeightModifiers() const
+{
+	FGraphSchemaSearchWeightModifiers Modifiers;
+	Modifiers.NodeTitleWeight = MaterialEditorContextMenuConsoleVariables::NodeTitleWeight;
+	Modifiers.KeywordWeight = MaterialEditorContextMenuConsoleVariables::KeywordWeight;
+	Modifiers.DescriptionWeight = MaterialEditorContextMenuConsoleVariables::DescriptionWeight;
+	Modifiers.CategoryWeight = MaterialEditorContextMenuConsoleVariables::DescriptionWeight;
+	Modifiers.WholeMatchLocalizedWeightMultiplier = MaterialEditorContextMenuConsoleVariables::WholeMatchLocalizedWeightMultiplier;
+	Modifiers.WholeMatchWeightMultiplier = MaterialEditorContextMenuConsoleVariables::WholeMatchWeightMultiplier;
+	Modifiers.StartsWithBonusWeightMultiplier = MaterialEditorContextMenuConsoleVariables::StartsWithBonusWeightMultiplier;
+	Modifiers.PercentageMatchWeightMultiplier = MaterialEditorContextMenuConsoleVariables::PercentageMatchWeightMultiplier;
+	Modifiers.ShorterMatchWeight = MaterialEditorContextMenuConsoleVariables::ShorterMatchWeight;
+	return Modifiers;
+}
+
+float UMaterialGraphSchema::GetActionFilteredWeight(const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const TArray<FString>& InFilterTerms, const TArray<FString>& InSanitizedFilterTerms, const TArray<UEdGraphPin*>& DraggedFromPins) const
+{
+	// The overall 'weight'
+	float TotalWeight = 0.0f;
+
+	// Setup an array of arrays so we can do a weighted search			
+	TArray<FGraphSchemaSearchTextWeightInfo> WeightedArrayList;
+	FGraphSchemaSearchTextDebugInfo DebugInfo;
+
+	int32 Action = 0;
+	if (InCurrentAction.Actions[Action].IsValid() == true)
+	{
+		FGraphSchemaSearchWeightModifiers WeightModifiers = GetSearchWeightModifiers();
+		int32 NonLocalizedFirstIndex = CollectSearchTextWeightInfo(InCurrentAction, WeightModifiers, WeightedArrayList, &DebugInfo);
+
+		// Now iterate through all the filter terms and calculate a 'weight' using the values and multipliers
+		for (int32 FilterIndex = 0; FilterIndex < InFilterTerms.Num(); ++FilterIndex)
+		{
+			const FString& EachTerm = InFilterTerms[FilterIndex];
+			const FString& EachTermSanitized = InSanitizedFilterTerms[FilterIndex];
+			// Now check the weighted lists
+			for (int32 iFindCount = 0; iFindCount < WeightedArrayList.Num(); iFindCount++)
+			{
+				float WeightPerList = 0.0f;
+				const TArray<FString>& WordArray = *WeightedArrayList[iFindCount].Array;
+				float ArrayWeight = WeightedArrayList[iFindCount].WeightModifier;
+				int32 WholeMatchCount = 0;
+				float WholeMatchMultiplier = (iFindCount < NonLocalizedFirstIndex) ? MaterialEditorContextMenuConsoleVariables::WholeMatchLocalizedWeightMultiplier : MaterialEditorContextMenuConsoleVariables::WholeMatchWeightMultiplier;
+
+				// Count of how many words in this array contain a search term that the user has typed in
+				int32 WordMatchCount = 0;
+				// The number of characters in the best matching word
+				int32 BestMatchCharLength = 0;
+
+				for (int32 iEachWord = 0; iEachWord < WordArray.Num(); iEachWord++)
+				{
+					float WeightPerWord = 0.0f;
+
+					// If a word contains the search phrase that the user has typed in, then give it weight					
+					if (WordArray[iEachWord].Contains(EachTermSanitized, ESearchCase::CaseSensitive) || WordArray[iEachWord].Contains(EachTerm, ESearchCase::CaseSensitive))
+					{
+						++WordMatchCount;
+						WeightPerWord += ArrayWeight * WholeMatchMultiplier;
+
+						// If the word starts with the search term, give it extra boost of weight
+						if (WordArray[iEachWord].StartsWith(EachTermSanitized, ESearchCase::CaseSensitive) || WordArray[iEachWord].StartsWith(EachTerm, ESearchCase::CaseSensitive))
+						{
+							WeightPerWord += ArrayWeight * MaterialEditorContextMenuConsoleVariables::StartsWithBonusWeightMultiplier;
+						}
+					}
+
+					if (WeightPerWord > WeightPerList)
+					{
+						// Use the best word match weight, we don't want to count similar words more than one
+						WeightPerList = WeightPerWord;
+						BestMatchCharLength = WordArray[iEachWord].Len();
+					}
+				}
+
+				if (BestMatchCharLength > 0 && WeightPerList > 0)
+				{
+					// Higher number of matching words contributes to higher weight
+					float PercentMatch = (float)WordMatchCount / (float)WordArray.Num();
+					float PercentMatchWeight = (WeightPerList * PercentMatch * MaterialEditorContextMenuConsoleVariables::PercentageMatchWeightMultiplier);
+					WeightPerList += PercentMatchWeight;
+					DebugInfo.PercentMatchWeight += PercentMatchWeight;
+					DebugInfo.PercentMatch += PercentMatch;
+
+					// The shorter the best matched word, the larger bonus it gets
+					float ShorterMatchFactor = (float)EachTerm.Len() / (float)BestMatchCharLength;
+					float ShorterMatchWeight = ShorterMatchFactor * MaterialEditorContextMenuConsoleVariables::ShorterMatchWeight;
+					WeightPerList += ShorterMatchWeight;
+					DebugInfo.ShorterMatchWeight += ShorterMatchWeight;
+				}
+
+				if (WeightedArrayList[iFindCount].DebugWeight)
+				{
+					*WeightedArrayList[iFindCount].DebugWeight += WeightPerList;
+				}
+
+				TotalWeight += WeightPerList;
+			}
+		}
+
+		DebugInfo.TotalWeight = TotalWeight;
+		PrintSearchTextDebugInfo(InFilterTerms, InCurrentAction, &DebugInfo);
+	}
+
+	return TotalWeight;
+}
+#endif // WITH_EDITORONLY_DATA
+
 #undef LOCTEXT_NAMESPACE

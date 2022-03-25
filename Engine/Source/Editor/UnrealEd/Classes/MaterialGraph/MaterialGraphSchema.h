@@ -265,6 +265,10 @@ class UMaterialGraphSchema : public UEdGraphSchema
 	virtual void OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdGraphPin* PinB, const FVector2D& GraphPosition) const override;
 	virtual bool SafeDeleteNodeFromGraph(UEdGraph* Graph, UEdGraphNode* NodeToDelete) const override;
 	virtual void GetAssetsGraphHoverMessage(const TArray<FAssetData>& Assets, const UEdGraph* HoverGraph, FString& OutTooltipText, bool& OutOkIcon) const;
+#if WITH_EDITORONLY_DATA
+	virtual float GetActionFilteredWeight(const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const TArray<FString>& InFilterTerms, const TArray<FString>& InSanitizedFilterTerms, const TArray<UEdGraphPin*>& DraggedFromPins) const override;
+	virtual FGraphSchemaSearchWeightModifiers GetSearchWeightModifiers() const override;
+#endif // WITH_EDITORONLY_DATA	
 	//~ End UEdGraphSchema Interface
 
 private:

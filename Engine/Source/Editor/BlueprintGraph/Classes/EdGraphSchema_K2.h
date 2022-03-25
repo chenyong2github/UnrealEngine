@@ -558,6 +558,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	virtual float GetActionFilteredWeight(const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const TArray<FString>& InFilterTerms, const TArray<FString>& InSanitizedFilterTerms, const TArray<UEdGraphPin*>& DraggedFromPins) const override;
+	virtual FGraphSchemaSearchWeightModifiers GetSearchWeightModifiers() const override;
 #endif // WITH_EDITORONLY_DATA	
 
 	//~ End EdGraphSchema Interface

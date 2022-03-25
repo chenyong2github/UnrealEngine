@@ -7535,129 +7535,130 @@ bool UEdGraphSchema_K2::SafeDeleteNodeFromGraph(UEdGraph* Graph, UEdGraphNode* N
 
 //////////////////////////////////////////////////////////////////////////
 /** CVars for tweaking how the blueprint context menu search picks the best match */
-namespace ContextMenuConsoleVariables
+namespace BPContextMenuConsoleVariables
 {
 	/** Increasing this weight will give a bonus to shorter matching words */
 	static float ShorterWeight = 10.0f;
 	static FAutoConsoleVariableRef CVarShorterWeight(
-		TEXT("ContextMenu.ShorterWeight"), ShorterWeight,
+		TEXT("BP.ContextMenu.ShorterWeight"), ShorterWeight,
 		TEXT("Increasing this weight will make shorter words preferred"),
 		ECVF_Default);
 
 	/** When calculating shorter weight, this is the maximum length to make it relative to */
 	static int32 MaxWordLength = 30;
 	static FAutoConsoleVariableRef CVarMaxWordLength(
-		TEXT("ContextMenu.MaxWordLength"), MaxWordLength,
+		TEXT("BP.ContextMenu.MaxWordLength"), MaxWordLength,
 		TEXT("Maximum length to count while awarding short word weight"),
 		ECVF_Default);
 
 	/** Increasing this will prefer whole percentage matches when comparing the keyword to what the user has typed in */
 	static float PercentageMatchWeightMultiplier = 1.0f;
 	static FAutoConsoleVariableRef CVarPercentageMatchWeightMultiplier(
-		TEXT("ContextMenu.PercentageMatchWeightMultiplier"), PercentageMatchWeightMultiplier,
+		TEXT("BP.ContextMenu.PercentageMatchWeightMultiplier"), PercentageMatchWeightMultiplier,
 		TEXT("A multiplier for how much weight to give something based on the percentage match it is"),
 		ECVF_Default);
 
 	/** How much weight the description of actions have */
 	static float DescriptionWeight = 10.0f;
 	static FAutoConsoleVariableRef CVarDescriptionWeight(
-		TEXT("ContextMenu.DescriptionWeight"), DescriptionWeight,
+		TEXT("BP.ContextMenu.DescriptionWeight"), DescriptionWeight,
 		TEXT("The amount of weight placed on search items description"),
 		ECVF_Default);
 
 	/** Weight used to prefer categories that are the same as the node that was dragged off of */
 	static float MatchingFromPinCategory = 500.0f;
 	static FAutoConsoleVariableRef CVarMatchingFromPinCategory(
-		TEXT("ContextMenu.MatchingFromPinCategory"), MatchingFromPinCategory,
+		TEXT("BP.ContextMenu.MatchingFromPinCategory"), MatchingFromPinCategory,
 		TEXT("The amount of weight placed on actions with the same category as the node being dragged off of"),
 		ECVF_Default);
 
 	/** Weight that a match to a category search has */
 	static float CategoryWeight = 4.0f;
 	static FAutoConsoleVariableRef CVarCategoryWeight(
-		TEXT("ContextMenu.CategoryWeight"), CategoryWeight,
+		TEXT("BP.ContextMenu.CategoryWeight"), CategoryWeight,
 		TEXT("The amount of weight placed on categories that match what the user has typed in"),
 		ECVF_Default);
 
 	/** How much weight the node's title has */
 	static float NodeTitleWeight = 10.0f;
 	static FAutoConsoleVariableRef CVarNodeTitleWeight(
-		TEXT("ContextMenu.NodeTitleWeight"), NodeTitleWeight,
+		TEXT("BP.ContextMenu.NodeTitleWeight"), NodeTitleWeight,
 		TEXT("The amount of weight placed on the search items title"),
 		ECVF_Default);
 
 	/** Weight used to prefer keywords of actions  */
 	static float KeywordWeight = 30.0f;
 	static FAutoConsoleVariableRef CVarKeywordWeight(
-		TEXT("ContextMenu.KeywordWeight"), KeywordWeight,
+		TEXT("BP.ContextMenu.KeywordWeight"), KeywordWeight,
 		TEXT("The amount of weight placed on search items keyword"),
 		ECVF_Default);
 
 	/** The multiplier given if the keyword starts with a term the user typed in */
 	static float StartsWithBonusWeightMultiplier = 4.0f;
 	static FAutoConsoleVariableRef CVarStartsWithBonusWeightMultiplier(
-		TEXT("ContextMenu.StartsWithBonusWeightMultiplier"), StartsWithBonusWeightMultiplier,
+		TEXT("BP.ContextMenu.StartsWithBonusWeightMultiplier"), StartsWithBonusWeightMultiplier,
 		TEXT("The multiplier given if the keyword starts with a term the user typed in"),
 		ECVF_Default);
 
 	/** The multiplier given if the keyword contains a term the user typed in */
 	static float WordContainsLetterWeightMultiplier = 0.5f;
 	static FAutoConsoleVariableRef CVarWordContainsLetterWeightMultiplier(
-		TEXT("ContextMenu.WordContainsLetterWeightMultiplier"), WordContainsLetterWeightMultiplier,
+		TEXT("BP.ContextMenu.WordContainsLetterWeightMultiplier"), WordContainsLetterWeightMultiplier,
 		TEXT("The multiplier given if the keyword only contains a term the user typed in"),
 		ECVF_Default);
 
 	/** The bonus given if node is a favorite */
 	static float FavoriteBonus = 1000.0f;
 	static FAutoConsoleVariableRef CVarWordContainsLetterFavoriteBonus(
-		TEXT("ContextMenu.FavoriteBonus"), FavoriteBonus,
+		TEXT("BP.ContextMenu.FavoriteBonus"), FavoriteBonus,
 		TEXT("The bonus given if node is a favorite"),
 		ECVF_Default);
 
 	/** The bonus given if an action has the same container type as the dragged from pin */
 	static float ContainerBonus = 1000.0f;
 	static FAutoConsoleVariableRef CVarContainerBonus(
-		TEXT("ContextMenu.ContainerBonus"), ContainerBonus,
+		TEXT("BP.ContextMenu.ContainerBonus"), ContainerBonus,
 		TEXT("The bonus given if the dragged from pin matches the same container type of the action"),
 		ECVF_Default);
+};	// namespace BPContextMenuConsoleVariables
 
-	/** Enabling the debug printing of context menu selections */
-	static bool bPrintDebugContextSelection = false;
-	static FAutoConsoleVariableRef CVarPrintDebugContextSelection(
-		TEXT("ContextMenu.bPrintDebugContextSelection"), bPrintDebugContextSelection,
-		TEXT("Flag for printing the debug info about the context menu selection"),
-		ECVF_Default);
-
-};	// namespace ContextMenuConsoleVariables
+FGraphSchemaSearchWeightModifiers UEdGraphSchema_K2::GetSearchWeightModifiers() const
+{
+	FGraphSchemaSearchWeightModifiers Modifiers;
+	Modifiers.NodeTitleWeight = BPContextMenuConsoleVariables::NodeTitleWeight;
+	Modifiers.KeywordWeight = BPContextMenuConsoleVariables::KeywordWeight;
+	Modifiers.DescriptionWeight = BPContextMenuConsoleVariables::DescriptionWeight;
+	Modifiers.CategoryWeight = BPContextMenuConsoleVariables::DescriptionWeight;
+	Modifiers.WholeMatchLocalizedWeightMultiplier = BPContextMenuConsoleVariables::WordContainsLetterWeightMultiplier;
+	Modifiers.WholeMatchWeightMultiplier = BPContextMenuConsoleVariables::WordContainsLetterWeightMultiplier;
+	Modifiers.StartsWithBonusWeightMultiplier = BPContextMenuConsoleVariables::StartsWithBonusWeightMultiplier;
+	Modifiers.PercentageMatchWeightMultiplier = BPContextMenuConsoleVariables::PercentageMatchWeightMultiplier;
+	Modifiers.ShorterMatchWeight = BPContextMenuConsoleVariables::ShorterWeight;
+	return Modifiers;
+}
 
 /**
 * Debug Info about how the preferred context menu action is chosen
 * @see SGraphActionMenu::GetActionFilteredWeight
 */
-struct FContextMenuWeightDebugInfo
+struct FBPContextMenuWeightDebugInfo : public FGraphSchemaSearchTextDebugInfo
 {
-	float TotalWeight = 0.0f;
-	// Info about which sets of words match up with what weight
-	float KeywordArrayWeight = 0.0f;
-	float DescriptionWeight = 0.0f;
-	float NodeTitleWeight = 0.0f;
-	float CategoryWeight = 0.0f;
 	float FavoriteBonusWeight = 0.0f;
-
-	float PercentageMatchWeight = 0.0f;
-	/** The calculated match percentage */
-	float PercMatch = 0.0f;
-	float ShorterWeight = 0.0f;
 	float CategoryBonusWeight = 0.0f;
 
 	/**
 	* Print out the debug info about this weight info to the console
 	*/
-	void Print(const FString& Desc)
+	virtual void Print(const TArray<FString>& SearchForKeywords, const FGraphActionListBuilderBase::ActionGroup& Action) const override
 	{
+		// Combine the actions string, separate with \n so terms don't run into each other, and remove the spaces (incase the user is searching for a variable)
+		// In the case of groups containing multiple actions, they will have been created and added at the same place in the code, using the same description
+		// and keywords, so we only need to use the first one for filtering.
+		const FString& SearchText = Action.GetSearchTextForFirstAction();
+
 		UE_LOG(LogTemp, Warning, TEXT("[Weight for %s] \
 TotalWeight: %-8.2f | PercentageMatchWeight: %-8.2f | PercMatch: %-8.2f | ShorterWeight: %-8.2f | CategoryBonusWeight: %-8.2f | KeywordArrayWeight: %-8.2f | DescriptionWeight: %-8.2f | NodeTitleWeight: %-8.2f | CategoryWeight: %-8.2f | Fav. Bonus:%-8.2f\n"),
-			*Desc, TotalWeight, PercentageMatchWeight, PercMatch, ShorterWeight, CategoryBonusWeight, KeywordArrayWeight, DescriptionWeight, NodeTitleWeight, CategoryWeight, FavoriteBonusWeight);
+			*SearchText, TotalWeight, PercentMatchWeight, PercentMatch, ShorterMatchWeight, CategoryBonusWeight, KeywordWeight, DescriptionWeight, NodeTitleWeight, CategoryWeight, FavoriteBonusWeight);
 	}
 };
 
@@ -7665,24 +7666,10 @@ float UEdGraphSchema_K2::GetActionFilteredWeight(const FGraphActionListBuilderBa
 {
 	// The overall 'weight' of this action 
 	float TotalWeight = 0.0f;
-	// Helper array for tracking actions and the weight that they have added
-	struct FArrayWithWeight
-	{
-		FArrayWithWeight(const TArray< FString >* InArray, float InWeightModifier, float* OutDebugWeight)
-			: Array(InArray)
-			, OutWeight(OutDebugWeight)
-			, WeightModifier(InWeightModifier)
-		{
-		}
-
-		const TArray< FString >* Array = nullptr;
-		float* OutWeight = nullptr;
-		float WeightModifier = 0.0f;
-	};
 
 	// Setup an array of arrays so we can do a weighted search			
-	TArray< FArrayWithWeight > WeightedArrayList;
-	FContextMenuWeightDebugInfo OutDebugInfo;
+	TArray< FGraphSchemaSearchTextWeightInfo > WeightedArrayList;
+	FBPContextMenuWeightDebugInfo OutDebugInfo;
 
 	const bool bIsFromDrag = (DraggedFromPins.Num() > 0);
 
@@ -7691,38 +7678,12 @@ float UEdGraphSchema_K2::GetActionFilteredWeight(const FGraphActionListBuilderBa
 	{
 		TSharedPtr<FEdGraphSchemaAction> CurrentAction = InCurrentAction.Actions[Action];
 
-		// Combine the actions string, separate with \n so terms don't run into each other, and remove the spaces (incase the user is searching for a variable)
-		// In the case of groups containing multiple actions, they will have been created and added at the same place in the code, using the same description
-		// and keywords, so we only need to use the first one for filtering.
-		const FString& SearchText = InCurrentAction.GetSearchTextForFirstAction();
-
+		FGraphSchemaSearchWeightModifiers WeightModifiers = GetSearchWeightModifiers();
 		// If there are no keywords, bump the weight on description to compensate
 		const TArray<FString>& LocKeywords = InCurrentAction.GetLocalizedSearchKeywordsArrayForFirstAction();
-		const float DescriptionWeight = LocKeywords.Num() > 0 ? ContextMenuConsoleVariables::DescriptionWeight : ContextMenuConsoleVariables::DescriptionWeight * 2.0f;
+		WeightModifiers.DescriptionWeight = LocKeywords.Num() > 0 ? WeightModifiers.DescriptionWeight : WeightModifiers.DescriptionWeight * 2.0f;
 
-		// First the localized keywords
-		WeightedArrayList.Add(FArrayWithWeight(&LocKeywords, ContextMenuConsoleVariables::KeywordWeight, &OutDebugInfo.KeywordArrayWeight));
-
-		// The localized description
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedMenuDescriptionArrayForFirstAction(), DescriptionWeight, &OutDebugInfo.DescriptionWeight));
-
-		// The node search localized title weight, in most case this will be the same as description
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedSearchTitleArrayForFirstAction(), ContextMenuConsoleVariables::NodeTitleWeight, &OutDebugInfo.NodeTitleWeight));
-
-		// The localized category
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedSearchCategoryArrayForFirstAction(), ContextMenuConsoleVariables::CategoryWeight, &OutDebugInfo.CategoryWeight));
-
-		// First the keywords
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetSearchKeywordsArrayForFirstAction(), ContextMenuConsoleVariables::KeywordWeight, &OutDebugInfo.KeywordArrayWeight));
-
-		// The description
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetMenuDescriptionArrayForFirstAction(), DescriptionWeight, &OutDebugInfo.DescriptionWeight));
-
-		// The node search title weight
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetSearchTitleArrayForFirstAction(), ContextMenuConsoleVariables::NodeTitleWeight, &OutDebugInfo.NodeTitleWeight));
-
-		// The category
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetSearchCategoryArrayForFirstAction(), ContextMenuConsoleVariables::CategoryWeight, &OutDebugInfo.CategoryWeight));
+		CollectSearchTextWeightInfo(InCurrentAction, WeightModifiers, WeightedArrayList, &OutDebugInfo);
 
 		// Give a weight bonus to actions whose category matches what was dragged off of
 		if (bIsFromDrag)
@@ -7762,7 +7723,7 @@ float UEdGraphSchema_K2::GetActionFilteredWeight(const FGraphActionListBuilderBa
 					// For containers, add a preference for functions that are marked in their category
 					if (!bAddedContainerPreferenceBonus && FromPin->PinType.IsContainer() && InActionCategory == GetContainerTypeString(FromPin->PinType.ContainerType))
 					{
-						TotalWeight += ContextMenuConsoleVariables::ContainerBonus;
+						TotalWeight += BPContextMenuConsoleVariables::ContainerBonus;
 						bAddedContainerPreferenceBonus = true;
 					}
 
@@ -7791,8 +7752,8 @@ float UEdGraphSchema_K2::GetActionFilteredWeight(const FGraphActionListBuilderBa
 					// If we found match in any cases above then add the weight bonus and stop looking
 					if (bAddMatchBonus)
 					{
-						TotalWeight += ContextMenuConsoleVariables::MatchingFromPinCategory;
-						OutDebugInfo.CategoryBonusWeight += ContextMenuConsoleVariables::MatchingFromPinCategory;
+						TotalWeight += BPContextMenuConsoleVariables::MatchingFromPinCategory;
+						OutDebugInfo.CategoryBonusWeight += BPContextMenuConsoleVariables::MatchingFromPinCategory;
 
 						// Break out of the loop so that we don't give any extra bonuses
 						break;
@@ -7807,8 +7768,8 @@ float UEdGraphSchema_K2::GetActionFilteredWeight(const FGraphActionListBuilderBa
 		{
 			if (BlueprintFavorites->IsFavorited(CurrentAction))
 			{
-				TotalWeight += ContextMenuConsoleVariables::FavoriteBonus;
-				OutDebugInfo.FavoriteBonusWeight += ContextMenuConsoleVariables::FavoriteBonus;
+				TotalWeight += BPContextMenuConsoleVariables::FavoriteBonus;
+				OutDebugInfo.FavoriteBonusWeight += BPContextMenuConsoleVariables::FavoriteBonus;
 			}
 		}
 
@@ -7845,12 +7806,12 @@ float UEdGraphSchema_K2::GetActionFilteredWeight(const FGraphActionListBuilderBa
 					if (KeywordArray[iEachWord].Contains(*EachTermSanitized, ESearchCase::CaseSensitive) || KeywordArray[iEachWord].Contains(*EachTerm, ESearchCase::CaseSensitive))
 					{
 						++WordMatchCount;
-						WeightPerWord += KeywordArrayWeight * ContextMenuConsoleVariables::WordContainsLetterWeightMultiplier;
+						WeightPerWord += KeywordArrayWeight * BPContextMenuConsoleVariables::WordContainsLetterWeightMultiplier;
 
 						// If the word starts with the letter, give it a little extra boost of weight
 						if (KeywordArray[iEachWord].StartsWith(*EachTermSanitized, ESearchCase::CaseSensitive) || KeywordArray[iEachWord].StartsWith(*EachTerm, ESearchCase::CaseSensitive))
 						{
-							WeightPerWord += KeywordArrayWeight * ContextMenuConsoleVariables::StartsWithBonusWeightMultiplier;
+							WeightPerWord += KeywordArrayWeight * BPContextMenuConsoleVariables::StartsWithBonusWeightMultiplier;
 						}
 
 						if (WeightPerWord > WeightPerList)
@@ -7870,33 +7831,30 @@ float UEdGraphSchema_K2::GetActionFilteredWeight(const FGraphActionListBuilderBa
 					// How many words that we are checking had partial matches compared to what the user typed in?
 					float PercMatch = (float)WordMatchCount / (float)KeywordArray.Num();
 
-					float PercentageBonus = (WeightPerList * PercMatch * ContextMenuConsoleVariables::PercentageMatchWeightMultiplier);
+					float PercentageBonus = (WeightPerList * PercMatch * BPContextMenuConsoleVariables::PercentageMatchWeightMultiplier);
 					WeightPerList += PercentageBonus;
 
 					// The shorter the matching word, the larger bonus it gets
-					float ShortFactor = ContextMenuConsoleVariables::MaxWordLength - FMath::Min(BestMatchCharLength, ContextMenuConsoleVariables::MaxWordLength);
-					float ShortWeight = ShortFactor * ContextMenuConsoleVariables::ShorterWeight * (bIsFromDrag ? 0.25f : 1.0f);
+					float ShortFactor = BPContextMenuConsoleVariables::MaxWordLength - FMath::Min(BestMatchCharLength, BPContextMenuConsoleVariables::MaxWordLength);
+					float ShortWeight = ShortFactor * BPContextMenuConsoleVariables::ShorterWeight * (bIsFromDrag ? 0.25f : 1.0f);
 					WeightPerList += ShortWeight;
 
-					OutDebugInfo.PercMatch += PercMatch;
-					OutDebugInfo.ShorterWeight += ShortWeight;
-					OutDebugInfo.PercentageMatchWeight += PercentageBonus;
+					OutDebugInfo.PercentMatch += PercMatch;
+					OutDebugInfo.ShorterMatchWeight += ShortWeight;
+					OutDebugInfo.PercentMatchWeight += PercentageBonus;
 				}
 
 				TotalWeight += WeightPerList;
-				if (WeightedArrayList[iFindCount].OutWeight)
+				if (WeightedArrayList[iFindCount].DebugWeight)
 				{
 					// Each weight is used twice so add them
-					*WeightedArrayList[iFindCount].OutWeight += WeightPerList;
+					*WeightedArrayList[iFindCount].DebugWeight += WeightPerList;
 				}
 			}
 		}
 		OutDebugInfo.TotalWeight = TotalWeight;
 
-		if (ContextMenuConsoleVariables::bPrintDebugContextSelection)
-		{
-			OutDebugInfo.Print(SearchText);
-		}
+		PrintSearchTextDebugInfo(InFilterTerms, CurrentAction, &OutDebugInfo);
 	}
 
 	return TotalWeight;

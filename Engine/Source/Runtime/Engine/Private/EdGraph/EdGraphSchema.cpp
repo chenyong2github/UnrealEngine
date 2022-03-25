@@ -759,30 +759,6 @@ float UEdGraphSchema::GetActionFilteredWeight(const FGraphActionListBuilderBase:
 	// The overall 'weight'
 	int32 TotalWeight = 0;
 
-	// Some simple weight figures to help find the most appropriate match	
-	const int32 WholeMatchWeightMultiplier = 2;
-	const int32 WholeMatchLocalizedWeightMultiplier = 3;
-	const int32 DescriptionWeight = 10;
-	const int32 CategoryWeight = 1;
-	const int32 NodeTitleWeight = 1;
-	const int32 KeywordWeight = 4;
-
-	// Helper array
-	struct FArrayWithWeight
-	{
-		FArrayWithWeight(const TArray< FString >* InArray, int32 InWeight)
-			: Array(InArray)
-			, Weight(InWeight)
-		{
-		}
-
-		const TArray< FString >* Array;
-		int32 Weight;
-	};
-
-	// Setup an array of arrays so we can do a weighted search			
-	TArray<FArrayWithWeight> WeightedArrayList;
-
 	int32 Action = 0;
 	if (InCurrentAction.Actions[Action].IsValid() == true)
 	{
@@ -791,29 +767,11 @@ float UEdGraphSchema::GetActionFilteredWeight(const FGraphActionListBuilderBase:
 		// and keywords, so we only need to use the first one for filtering.
 		const FString& SearchText = InCurrentAction.GetSearchTextForFirstAction();
 
-		// First the localized keywords
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedSearchKeywordsArrayForFirstAction(), KeywordWeight));
-
-		// The localized description
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedMenuDescriptionArrayForFirstAction(), DescriptionWeight));
-
-		// The node search localized title weight
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedSearchTitleArrayForFirstAction(), NodeTitleWeight));
-
-		// The localized category
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedSearchCategoryArrayForFirstAction(), CategoryWeight));
-
-		// First the keywords
-		int32 NonLocalizedFirstIndex = WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetSearchKeywordsArrayForFirstAction(), KeywordWeight));
-
-		// The description
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetMenuDescriptionArrayForFirstAction(), DescriptionWeight));
-
-		// The node search title weight
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetSearchTitleArrayForFirstAction(), NodeTitleWeight));
-
-		// The category
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetSearchCategoryArrayForFirstAction(), CategoryWeight));
+		// Setup an array of arrays so we can do a weighted search			
+		TArray<FGraphSchemaSearchTextWeightInfo> WeightedArrayList;
+		FGraphSchemaSearchWeightModifiers WeightModifiers = GetSearchWeightModifiers();
+		FGraphSchemaSearchTextDebugInfo DebugInfo;
+		int32 NonLocalizedFirstIndex = CollectSearchTextWeightInfo(InCurrentAction, WeightModifiers, WeightedArrayList, &DebugInfo);
 
 		// Now iterate through all the filter terms and calculate a 'weight' using the values and multipliers
 		const FString* EachTerm = nullptr;
@@ -835,9 +793,9 @@ float UEdGraphSchema::GetActionFilteredWeight(const FGraphActionListBuilderBase:
 			{
 				int32 WeightPerList = 0;
 				const TArray<FString>& KeywordArray = *WeightedArrayList[iFindCount].Array;
-				int32 EachWeight = WeightedArrayList[iFindCount].Weight;
+				int32 EachWeight = WeightedArrayList[iFindCount].WeightModifier;
 				int32 WholeMatchCount = 0;
-				int32 WholeMatchMultiplier = (iFindCount < NonLocalizedFirstIndex) ? WholeMatchLocalizedWeightMultiplier : WholeMatchWeightMultiplier;
+				int32 WholeMatchMultiplier = (iFindCount < NonLocalizedFirstIndex) ? WeightModifiers.WholeMatchLocalizedWeightMultiplier : WeightModifiers.WholeMatchWeightMultiplier;
 
 				for (int32 iEachWord = 0; iEachWord < KeywordArray.Num(); iEachWord++)
 				{
@@ -875,18 +833,170 @@ float UEdGraphSchema::GetActionFilteredWeight(const FGraphActionListBuilderBase:
 						WeightPerList += EachWeight / 2;
 					}
 				}
+
 				// Increase the weight if theres a larger % of matches in the keyword list
 				if (WholeMatchCount != 0)
 				{
 					int32 PercentAdjust = (100 / KeywordArray.Num()) * WholeMatchCount;
-					WeightPerList *= PercentAdjust;
+					int32 PercentAdjustedWeight = WeightPerList * PercentAdjust;
+					DebugInfo.PercentMatch += (float)KeywordArray.Num() / (float)WholeMatchCount;
+					DebugInfo.PercentMatchWeight += (PercentAdjustedWeight - WeightPerList);
+					WeightPerList = PercentAdjustedWeight;
+				}
+
+				if (WeightedArrayList[iFindCount].DebugWeight)
+				{
+					*WeightedArrayList[iFindCount].DebugWeight += WeightPerList;
 				}
 				TotalWeight += WeightPerList;
 			}
 		}
+
+		PrintSearchTextDebugInfo(InFilterTerms, InCurrentAction, &DebugInfo);
 	}
 	return TotalWeight;
 
+}
+
+int32 UEdGraphSchema::CollectSearchTextWeightInfo(const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const FGraphSchemaSearchWeightModifiers& InWeightModifiers, 
+													TArray<FGraphSchemaSearchTextWeightInfo>& OutWeightedArrayList, FGraphSchemaSearchTextDebugInfo* InDebugInfo) const
+{
+	// First the localized keywords
+	OutWeightedArrayList.Add(FGraphSchemaSearchTextWeightInfo(&InCurrentAction.GetLocalizedSearchKeywordsArrayForFirstAction(), InWeightModifiers.KeywordWeight, InDebugInfo ? &InDebugInfo->KeywordWeight : nullptr));
+
+	// The localized description
+	OutWeightedArrayList.Add(FGraphSchemaSearchTextWeightInfo(&InCurrentAction.GetLocalizedMenuDescriptionArrayForFirstAction(), InWeightModifiers.DescriptionWeight, InDebugInfo ? &InDebugInfo->DescriptionWeight : nullptr));
+
+	// The node search localized title weight
+	OutWeightedArrayList.Add(FGraphSchemaSearchTextWeightInfo(&InCurrentAction.GetLocalizedSearchTitleArrayForFirstAction(), InWeightModifiers.NodeTitleWeight, InDebugInfo ? &InDebugInfo->NodeTitleWeight : nullptr));
+
+	// The localized category
+	OutWeightedArrayList.Add(FGraphSchemaSearchTextWeightInfo(&InCurrentAction.GetLocalizedSearchCategoryArrayForFirstAction(), InWeightModifiers.CategoryWeight, InDebugInfo ? &InDebugInfo->CategoryWeight : nullptr));
+
+	// First the keywords
+	int32 NonLocalizedFirstIndex = OutWeightedArrayList.Add(FGraphSchemaSearchTextWeightInfo(&InCurrentAction.GetSearchKeywordsArrayForFirstAction(), InWeightModifiers.KeywordWeight, InDebugInfo ? &InDebugInfo->KeywordWeight : nullptr));
+
+	// The description
+	OutWeightedArrayList.Add(FGraphSchemaSearchTextWeightInfo(&InCurrentAction.GetMenuDescriptionArrayForFirstAction(), InWeightModifiers.DescriptionWeight, InDebugInfo ? &InDebugInfo->DescriptionWeight : nullptr));
+
+	// The node search title weight
+	OutWeightedArrayList.Add(FGraphSchemaSearchTextWeightInfo(&InCurrentAction.GetSearchTitleArrayForFirstAction(), InWeightModifiers.NodeTitleWeight, InDebugInfo ? &InDebugInfo->NodeTitleWeight : nullptr));
+
+	// The category
+	OutWeightedArrayList.Add(FGraphSchemaSearchTextWeightInfo(&InCurrentAction.GetSearchCategoryArrayForFirstAction(), InWeightModifiers.CategoryWeight, InDebugInfo ? &InDebugInfo->CategoryWeight : nullptr));
+
+	return NonLocalizedFirstIndex;
+}
+
+//////////////////////////////////////////////////////////////////////////
+/** CVars for tweaking how context menu search picks the best match */
+namespace ContextMenuConsoleVariables
+{
+	/** How much weight the node's title has */
+	static float NodeTitleWeight = 1.0f;
+	static FAutoConsoleVariableRef CVarNodeTitleWeight(
+		TEXT("ContextMenu.NodeTitleWeight"), NodeTitleWeight,
+		TEXT("The amount of weight placed on the search items title"),
+		ECVF_Default);
+
+	/** Weight used to prefer keywords of actions  */
+	static float KeywordWeight = 4.0f;
+	static FAutoConsoleVariableRef CVarKeywordWeight(
+		TEXT("ContextMenu.KeywordWeight"), KeywordWeight,
+		TEXT("The amount of weight placed on search items keyword"),
+		ECVF_Default);
+
+	/** Weight used to prefer description of actions  */
+	static float DescriptionWeight = 10.0f;
+	static FAutoConsoleVariableRef CVarDescriptionWeight(
+		TEXT("ContextMenu.DescriptionWeight"), DescriptionWeight,
+		TEXT("The amount of weight placed on search items description"),
+		ECVF_Default);
+
+	/** Weight that a match to a category search has */
+	static float CategoryWeight = 1.0f;
+	static FAutoConsoleVariableRef CVarCategoryWeight(
+		TEXT("ContextMenu.CategoryWeight"), CategoryWeight,
+		TEXT("The amount of weight placed on categories that match what the user has typed in"),
+		ECVF_Default);
+
+	/** The multiplier given if there is an exact localized match to the search term */
+	static float WholeMatchLocalizedWeightMultiplier = 3.0f;
+	static FAutoConsoleVariableRef CVarWholeMatchLocalizedWeightMultiplier(
+		TEXT("ContextMenu.WholeMatchLocalizedWeightMultiplier"), WholeMatchLocalizedWeightMultiplier,
+		TEXT("The multiplier given if there is an exact localized match to the search term"),
+		ECVF_Default);
+
+	/** The multiplier given if there is an exact match to the search term */
+	static float WholeMatchWeightMultiplier = 2.0f;
+	static FAutoConsoleVariableRef CVarWholeMatchWeightMultiplier(
+		TEXT("ContextMenu.WholeMatchWeightMultiplier"), WholeMatchWeightMultiplier,
+		TEXT("The multiplier given if there is an exact match to the search term"),
+		ECVF_Default);
+
+	/** Increasing this will prefer whole percentage matches when comparing the keyword to what the user has typed in */
+	static float PercentageMatchWeightMultiplier = 1.0f;
+	static FAutoConsoleVariableRef CVarPercentageMatchWeightMultiplier(
+		TEXT("rContextMenu.PercentageMatchWeightMultiplier"), PercentageMatchWeightMultiplier,
+		TEXT("A multiplier for how much weight to give something based on the percentage match it is"),
+		ECVF_Default);
+
+	/** Enabling the debug printing of context menu selections */
+	static bool bPrintDebugInfo = false;
+	static FAutoConsoleVariableRef CVarPrintDebugInfo(
+		TEXT("ContextMenu.PrintDebugInfo"), bPrintDebugInfo,
+		TEXT("Print the debug info about the context menu selection"),
+		ECVF_Default);
+}
+
+FGraphSchemaSearchWeightModifiers UEdGraphSchema::GetSearchWeightModifiers() const
+{
+	FGraphSchemaSearchWeightModifiers Modifiers;
+	Modifiers.NodeTitleWeight = ContextMenuConsoleVariables::NodeTitleWeight;
+	Modifiers.KeywordWeight = ContextMenuConsoleVariables::KeywordWeight;
+	Modifiers.DescriptionWeight = ContextMenuConsoleVariables::DescriptionWeight;
+	Modifiers.CategoryWeight = ContextMenuConsoleVariables::DescriptionWeight;
+	Modifiers.WholeMatchLocalizedWeightMultiplier = ContextMenuConsoleVariables::WholeMatchLocalizedWeightMultiplier;
+	Modifiers.WholeMatchWeightMultiplier = ContextMenuConsoleVariables::WholeMatchWeightMultiplier;
+	Modifiers.PercentageMatchWeightMultiplier = ContextMenuConsoleVariables::PercentageMatchWeightMultiplier;
+	return Modifiers;
+}
+
+void UEdGraphSchema::PrintSearchTextDebugInfo(const TArray<FString>& InFilterTerms, const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const FGraphSchemaSearchTextDebugInfo* InDebugInfo) const
+{
+	if (ContextMenuConsoleVariables::bPrintDebugInfo && InDebugInfo)
+	{
+		InDebugInfo->Print(InFilterTerms, InCurrentAction);
+	}
+}
+
+void FGraphSchemaSearchTextDebugInfo::Print(const TArray<FString>& SearchForKeywords, const FGraphActionListBuilderBase::ActionGroup& Action) const
+{
+	auto CombineStrings = [](const TArray<FString>& Strings) -> FString
+	{
+		FString Output;
+		for (int32 i = 0; i < Strings.Num(); ++i)
+		{
+			Output += Strings[i];
+			Output += i > 0 ? TEXT(" ") : TEXT("");
+		}
+		return Output;
+	};
+
+	FString SearchText = CombineStrings(SearchForKeywords);
+	FString LocalizedTitle = CombineStrings(Action.GetLocalizedSearchTitleArrayForFirstAction());
+	FString LocalizedKeywords = CombineStrings(Action.GetLocalizedSearchKeywordsArrayForFirstAction());
+	FString LocalizedDescription = CombineStrings(Action.GetLocalizedMenuDescriptionArrayForFirstAction());
+	FString LocalizedCategory = CombineStrings(Action.GetLocalizedSearchCategoryArrayForFirstAction());
+	FString Title = CombineStrings(Action.GetSearchTitleArrayForFirstAction());
+	FString Keywords = CombineStrings(Action.GetSearchKeywordsArrayForFirstAction());
+	FString Description = CombineStrings(Action.GetMenuDescriptionArrayForFirstAction());
+	FString Category = CombineStrings(Action.GetSearchCategoryArrayForFirstAction());
+
+	UE_LOG(LogTemp, Log, TEXT("Searching for \"%s\" in [LocTitle:\"%s\" LocKeywords:\"%s\" LocDescription:\"%s\" LocCategory:\"%s\" Title:\"%s\" Keywords:\"%s\" Description:\"%s\" Category:\"%s\"] \
+TotalWeight: %.2f | NodeTitleWeight: %.2f | KeywordWeight: %.2f | CategoryWeight: %.2f | PercentMatchWeight: %.2f | ShorterMatchWeight: %.2f"),
+		*SearchText, *LocalizedTitle, *LocalizedKeywords, *LocalizedDescription, *LocalizedCategory, *Title, *Keywords, *Description, *Category, 
+		TotalWeight, NodeTitleWeight, KeywordWeight, CategoryWeight, PercentMatchWeight, ShorterMatchWeight);
 }
 #endif // WITH_EDITORONLY_DATA
 
