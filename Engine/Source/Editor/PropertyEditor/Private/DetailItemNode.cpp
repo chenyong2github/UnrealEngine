@@ -485,6 +485,20 @@ ENodeVisibility FDetailItemNode::GetVisibility() const
 	{
 		Visibility = (bShouldBeVisibleDueToFiltering || bShouldBeVisibleDueToChildFiltering) ? Visibility : ENodeVisibility::HiddenDueToFiltering;
 	}
+	
+	if (Visibility == ENodeVisibility::Visible && GetNodeType() == EDetailNodeType::Category)
+	{
+		Visibility = ENodeVisibility::ForcedHidden;
+		for (const TSharedRef<FDetailTreeNode>& Child : Children)
+		{
+			if (Child->GetVisibility() != ENodeVisibility::ForcedHidden)
+			{
+				Visibility = ENodeVisibility::Visible;
+				break;
+			}
+		}
+	}
+	
 	return Visibility;
 }
 
