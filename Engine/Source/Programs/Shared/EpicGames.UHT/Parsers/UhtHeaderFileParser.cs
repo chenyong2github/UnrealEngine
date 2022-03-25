@@ -874,7 +874,7 @@ namespace EpicGames.UHT.Parsers
 			{
 				return true;
 			}
-			return (GetCurrentCompositeCompilerDirective() & (UhtCompilerDirective.NotCPPBlock | UhtCompilerDirective.OneBlock | UhtCompilerDirective.WithEditor | UhtCompilerDirective.WithEditorOnlyData | UhtCompilerDirective.WithHotReload)) != 0;
+			return !GetCurrentCompositeCompilerDirective().HasAnyFlags(UhtCompilerDirective.CPPBlock | UhtCompilerDirective.ZeroBlock | UhtCompilerDirective.Unrecognized);
 		}
 
 		/// <summary>

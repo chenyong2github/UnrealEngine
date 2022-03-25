@@ -79,11 +79,6 @@ namespace UnrealBuildTool.Modes
 		/// </summary>
 		private readonly UhtPointerMemberBehavior NonEngineObjectPtrMemberBehaviorInternal = UhtPointerMemberBehavior.AllowSilently;
 
-		/// <summary>
-		/// If true setters and getters will be automatically (without specifying their function names on a property) parsed and generated if a function with matching signature is found
-		/// </summary>
-		private readonly bool bAllowAutomaticSettersAndGettersInternal;
-
 		#region IUhtConfig Implementation
 		/// <inheritdoc/>
 		public EGeneratedCodeVersion DefaultGeneratedCodeVersion => this.DefaultGeneratedCodeVersionInternal;
@@ -99,9 +94,6 @@ namespace UnrealBuildTool.Modes
 
 		/// <inheritdoc/>
 		public UhtPointerMemberBehavior NonEngineObjectPtrMemberBehavior => this.NonEngineObjectPtrMemberBehaviorInternal;
-
-		/// <inheritdoc/>
-		public bool bAllowAutomaticSettersAndGetters => this.bAllowAutomaticSettersAndGettersInternal;
 
 		/// <inheritdoc/>
 		public void RedirectTypeIdentifier(ref UhtToken Token)
@@ -189,7 +181,6 @@ namespace UnrealBuildTool.Modes
 			DirectoryReference ConfigDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Programs/UnrealBuildTool");
 			this.Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ConfigDirectory, BuildHostPlatform.Current.Platform, "", Args.GetRawArray());
 
-			this.bAllowAutomaticSettersAndGettersInternal = GetBoolean("UnrealHeaderTool", "AutomaticSettersAndGetters", false);
 			this.TypeRedirectMap = GetRedirectsStringView("UnrealHeaderTool", "TypeRedirects", "OldType", "NewType");
 			this.MetaDataRedirectMap = GetRedirectsString("CoreUObject.Metadata", "MetadataRedirects", "OldKey", "NewKey");
 			this.StructsWithNoPrefix = GetHashSet("UnrealHeaderTool", "StructsWithNoPrefix", StringViewComparer.Ordinal);

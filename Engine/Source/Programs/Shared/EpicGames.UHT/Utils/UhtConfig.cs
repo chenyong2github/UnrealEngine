@@ -60,11 +60,6 @@ namespace EpicGames.UHT.Utils
 		public UhtPointerMemberBehavior NonEngineObjectPtrMemberBehavior { get; }
 
 		/// <summary>
-		/// If true setters and getters will be automatically (without specifying their function names on a property) parsed and generated if a function with matching signature is found
-		/// </summary>
-		public bool bAllowAutomaticSettersAndGetters { get; }
-
-		/// <summary>
 		/// If the token references a remapped identifier, update the value in the token 
 		/// </summary>
 		/// <param name="Token">Token to be remapped</param>

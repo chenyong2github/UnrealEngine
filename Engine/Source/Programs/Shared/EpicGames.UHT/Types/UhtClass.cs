@@ -234,6 +234,11 @@ namespace EpicGames.UHT.Types
 		/// Collection of tokens parsed in the declaration
 		/// </summary>
 		public UhtToken[] Tokens;
+
+		/// <summary>
+		/// If this declaration is part of a UFUNCTION, this will be set
+		/// </summary>
+		public UhtFunction? Function;
 	}
 
 	/// <summary>
@@ -455,13 +460,14 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="CompilerDirectives">Currently active compiler directives</param>
 		/// <param name="Tokens">List of declaration tokens</param>
-		public void AddDeclaration(UhtCompilerDirective CompilerDirectives, List<UhtToken> Tokens)
+		/// <param name="Function">If parsed as part of a UFUNCTION, this will reference it</param>
+		public void AddDeclaration(UhtCompilerDirective CompilerDirectives, List<UhtToken> Tokens, UhtFunction? Function)
 		{
 			if (this.DeclarationsInternal == null)
 			{
 				this.DeclarationsInternal = new List<UhtDeclaration>();
 			}
-			this.DeclarationsInternal.Add(new UhtDeclaration { CompilerDirectives = CompilerDirectives, Tokens = Tokens.ToArray() });
+			this.DeclarationsInternal.Add(new UhtDeclaration { CompilerDirectives = CompilerDirectives, Tokens = Tokens.ToArray(), Function = Function });
 		}
 
 		/// <summary>
@@ -573,7 +579,6 @@ namespace EpicGames.UHT.Types
 					break;
 
 				case UhtResolvePhase.Final:
-					bool bAutoGetterSetter = UhtConfig.Instance.bAllowAutomaticSettersAndGetters;
 					Dictionary<string, List<GetterSetterToResolve>>? GSToResolve = null;
 					foreach (UhtType Child in this.Children)
 					{
@@ -596,10 +601,6 @@ namespace EpicGames.UHT.Types
 								{
 									GSToResolve = AddGetterSetter(GSToResolve, Property.Getter == null ? $"Get{Property.SourceName}" : Property.Getter, Property, false);
 								}
-								else if (bAutoGetterSetter)
-								{
-									GSToResolve = AddGetterSetter(GSToResolve, $"Get{Property.SourceName}", Property, false);
-								}
 							}
 
 							if (!Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.SetterSpecifiedNone))
@@ -607,10 +608,6 @@ namespace EpicGames.UHT.Types
 								if (Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.SetterSpecified))
 								{
 									GSToResolve = AddGetterSetter(GSToResolve, Property.Setter == null ? $"Set{Property.SourceName}" : Property.Setter, Property, true);
-								}
-								else if (bAutoGetterSetter)
-								{
-									GSToResolve = AddGetterSetter(GSToResolve, $"Set{Property.SourceName}", Property, true);
 								}
 							}
 						}
@@ -876,22 +873,34 @@ namespace EpicGames.UHT.Types
 
 			// Validate the #if blocks.  This should really be done during validation
 			string FuncType = bSetter ? "setter" : "getter";
+			UhtPropertyExportFlags TestFlag = bSetter ? UhtPropertyExportFlags.SetterSpecified : UhtPropertyExportFlags.GetterSpecified;
 			if (Declaration.CompilerDirectives.HasAnyFlags(UhtCompilerDirective.WithEditor))
 			{
-				if (Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.GetterSpecified))
+				if (Property.PropertyExportFlags.HasAnyFlags(TestFlag))
 				{
-					Property.LogError(Tokens[0].InputLine, $"Property {Property.SourceName} {FuncType} function {Tokens[NameIndex].Value.ToString()} "
+					Property.LogError(Tokens[0].InputLine, $"Property {Property.SourceName} {FuncType} function {Tokens[NameIndex].Value} "
 						+ "cannot be declared within WITH_EDITOR block. Use WITH_EDITORONLY_DATA instead.");
 				}
 				return false;
 			}
 			if (Declaration.CompilerDirectives.HasAnyFlags(UhtCompilerDirective.WithEditorOnlyData) && !Property.PropertyFlags.HasAnyFlags(EPropertyFlags.EditorOnly))
 			{
-				if (Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.GetterSpecified))
+				if (Property.PropertyExportFlags.HasAnyFlags(TestFlag))
 				{
-					Property.LogError(Tokens[0].InputLine, $"Property {Property.SourceName} is not editor-only but its {FuncType} function '{Tokens[NameIndex].Value.ToString()}' is");
+					Property.LogError(Tokens[0].InputLine, $"Property {Property.SourceName} is not editor-only but its {FuncType} function '{Tokens[NameIndex].Value}' is");
 				}
 				return false;
+			}
+			if (Declaration.Function != null)
+			{
+				if (!Declaration.Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Native))
+				{
+					Property.LogError(Tokens[0].InputLine, $"Property {Property.SourceName} {FuncType} function '{Tokens[NameIndex].Value}' has to be native");
+				}
+				if (Declaration.Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net | EFunctionFlags.Event))
+				{
+					Property.LogError(Tokens[0].InputLine, $"Property {Property.SourceName} {FuncType} function '{Tokens[NameIndex].Value}' cannot be a net or an event");
+				}
 			}
 			return true;
 		}

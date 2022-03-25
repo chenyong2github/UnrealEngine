@@ -43,7 +43,6 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.FunctionThunkReturn:
 				case UhtPropertyTextType.RigVMTemplateArg:
 				case UhtPropertyTextType.ExportMember:
-				case UhtPropertyTextType.GetterSetterArg:
 					Builder.Append(this.CppTypeText);
 					break;
 
@@ -54,6 +53,7 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.InterfaceFunction:
 				case UhtPropertyTextType.EventParameterMember:
 				case UhtPropertyTextType.EventParameterFunctionMember:
+				case UhtPropertyTextType.GetterSetterArg:
 					Builder.Append("bool");
 					break;
 			}

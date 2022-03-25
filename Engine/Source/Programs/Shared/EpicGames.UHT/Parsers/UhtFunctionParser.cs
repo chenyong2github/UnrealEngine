@@ -463,7 +463,7 @@ namespace EpicGames.UHT.Parsers
 					}
 
 					// Record the tokens so we can detect this function as a declaration later (i.e. RPC)
-					using (UhtTokenRecorder TokenRecorder = new UhtTokenRecorder(ParentScope))
+					using (UhtTokenRecorder TokenRecorder = new UhtTokenRecorder(ParentScope, Function))
 					{
 
 						if (TopScope.TokenReader.TryOptional("virtual"))
@@ -563,6 +563,10 @@ namespace EpicGames.UHT.Parsers
 
 						// Try parsing metadata for the function
 						SpecifierParser.ParseFieldMetaData(Function.EngineName);
+
+						// COMPATIBILITY-TODO - Try to pull any comment following the declaration
+						TopScope.TokenReader.PeekToken();
+						TopScope.TokenReader.CommitPendingComments();
 
 						TopScope.AddFormattedCommentsAsTooltipMetaData();
 

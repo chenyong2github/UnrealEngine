@@ -196,8 +196,8 @@ namespace EpicGames.UHT.Types
 
 			if (Property.MetaData.ContainsKey("Visible"))
 			{
-				this.ParameterFlags |= UhtRigVMParameterFlags.Constant;
-				this.ParameterFlags &= (UhtRigVMParameterFlags.Input | UhtRigVMParameterFlags.Output);
+				this.ParameterFlags |= UhtRigVMParameterFlags.Constant | UhtRigVMParameterFlags.Input;
+				this.ParameterFlags &= ~UhtRigVMParameterFlags.Output;
 			}
 
 			if (this.bEditorOnly)

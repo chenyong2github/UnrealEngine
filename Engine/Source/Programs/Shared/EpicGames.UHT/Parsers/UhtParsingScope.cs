@@ -483,6 +483,7 @@ namespace EpicGames.UHT.Parsers
 	{
 		private readonly UhtCompilerDirective CompilerDirective;
 		private readonly UhtParsingScope Scope;
+		private readonly UhtFunction? Function;
 		private bool bFlushed;
 
 		/// <summary>
@@ -494,6 +495,7 @@ namespace EpicGames.UHT.Parsers
 		{
 			this.Scope = Scope;
 			this.CompilerDirective = this.Scope.HeaderParser.GetCurrentCompositeCompilerDirective();
+			this.Function = null;
 			this.bFlushed = false;
 			if (this.Scope.ScopeType is UhtClass)
 			{
@@ -506,10 +508,12 @@ namespace EpicGames.UHT.Parsers
 		/// Create a new recorder
 		/// </summary>
 		/// <param name="Scope">Scope being parsed</param>
-		public UhtTokenRecorder(UhtParsingScope Scope)
+		/// <param name="Function">Function associated with the recorder</param>
+		public UhtTokenRecorder(UhtParsingScope Scope, UhtFunction Function)
 		{
 			this.Scope = Scope;
 			this.CompilerDirective = this.Scope.HeaderParser.GetCurrentCompositeCompilerDirective();
+			this.Function = Function;
 			this.bFlushed = false;
 			if (this.Scope.ScopeType is UhtClass)
 			{
@@ -536,7 +540,7 @@ namespace EpicGames.UHT.Parsers
 				bFlushed = true;
 				if (this.Scope.ScopeType is UhtClass Class)
 				{
-					Class.AddDeclaration(this.CompilerDirective, this.Scope.TokenReader.RecordedTokens);
+					Class.AddDeclaration(this.CompilerDirective, this.Scope.TokenReader.RecordedTokens, this.Function);
 					this.Scope.TokenReader.DisableRecording();
 					return true;
 				}
