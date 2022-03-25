@@ -2671,7 +2671,10 @@ void FStarshipEditorStyle::FStyle::SetupWindowStyles()
 	// the style destroy the brush rather than calling delete within the Editor Style.
 
 	WindowTitleOverride = new FSlateColorBrush(FStyleColors::Title);
-	Set("Brushes.Title", WindowTitleOverride); 
+	Set("Brushes.Title", WindowTitleOverride);
+
+	Set("WindowSize.Small", FVector2D(480, 284));
+	Set("WindowSize.Medium", FVector2D(680, 492));
 }
 
 void FStarshipEditorStyle::FStyle::SetupProjectBadgeStyle()

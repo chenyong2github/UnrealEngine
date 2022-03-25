@@ -58,7 +58,8 @@ public:
 			DetailsViewArgs.bLockable = false;
 			DetailsViewArgs.bUpdatesFromSelection = false;
 			DetailsViewArgs.bAllowSearch = Options.bAllowSearch;
-			
+			DetailsViewArgs.ColumnWidth = Options.ValueColumnWidthRatio;
+
 			if (Options.bShowObjectName)
 			{
 				DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::ObjectsUseNameArea;
@@ -72,66 +73,73 @@ public:
 			DetailsViewArgs.bShowPropertyMatrixButton = false;
 		}
 
-		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");		
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 
 		DetailsView->SetObjects(Objects, true);
 
+		FVector2D DefaultWindowSize = FEditorStyle::Get().GetVector("WindowSize.Medium");
+
 		ChildSlot
 		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.FillHeight(1.0f)
+			SNew(SBox)
+			.MinDesiredWidth(Options.MinWidth <= 0 ? DefaultWindowSize.X : Options.MinWidth)
+			.MinDesiredHeight(Options.MinHeight <= 0 ? DefaultWindowSize.Y : Options.MinWidth)
 			[
-				SNew(SScrollBox)
-				+SScrollBox::Slot()
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				.FillHeight(1.0f)
 				[
-					DetailsView->AsShared()
-				]
-			]
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Right)
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.Padding(2.0f)
-					.AutoWidth()
+					SNew(SScrollBox)
+					+SScrollBox::Slot()
 					[
-						SNew(SButton)
-						.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
-						.Text(LOCTEXT("OKButton", "OK"))
-						.HAlign(HAlign_Center)
-						.OnClicked_Lambda([this, InParentWindow, InArgs]()
-						{
-							if(InParentWindow.IsValid())
-							{
-								InParentWindow.Pin()->RequestDestroyWindow();
-							}
-							bOKPressed = true;
-							return FReply::Handled(); 
-						})
+						DetailsView->AsShared()
 					]
-					+SHorizontalBox::Slot()
-					.Padding(2.0f)
-					.AutoWidth()
+				]
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Right)
 					[
-						SNew(SButton)
-						.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
-						.Text(LOCTEXT("CancelButton", "Cancel"))
-						.HAlign(HAlign_Center)
-						.OnClicked_Lambda([InParentWindow]()
-						{ 
-							if(InParentWindow.IsValid())
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.Padding(2.0f)
+						.AutoWidth()
+						[
+							SNew(SButton)
+							.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
+							.Text(LOCTEXT("OKButton", "OK"))
+							.HAlign(HAlign_Center)
+							.OnClicked_Lambda([this, InParentWindow, InArgs]()
 							{
-								InParentWindow.Pin()->RequestDestroyWindow();
-							}
-							return FReply::Handled(); 
-						})
+								if(InParentWindow.IsValid())
+								{
+									InParentWindow.Pin()->RequestDestroyWindow();
+								}
+								bOKPressed = true;
+								return FReply::Handled(); 
+							})
+						]
+						+SHorizontalBox::Slot()
+						.Padding(2.0f)
+						.AutoWidth()
+						[
+							SNew(SButton)
+							.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
+							.Text(LOCTEXT("CancelButton", "Cancel"))
+							.HAlign(HAlign_Center)
+							.OnClicked_Lambda([InParentWindow]()
+							{ 
+								if(InParentWindow.IsValid())
+								{
+									InParentWindow.Pin()->RequestDestroyWindow();
+								}
+								return FReply::Handled(); 
+							})
+						]
 					]
 				]
 			]

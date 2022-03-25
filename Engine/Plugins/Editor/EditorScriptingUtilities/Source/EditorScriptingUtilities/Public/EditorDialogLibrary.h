@@ -11,17 +11,23 @@ struct FEditorDialogLibraryObjectDetailsViewOptions
 {
 	GENERATED_USTRUCT_BODY()
 
-	FEditorDialogLibraryObjectDetailsViewOptions()
-		:bShowObjectName(true)
-		,bAllowSearch(true)
-	{}
-	
+	UPROPERTY(BlueprintReadWrite, Category = "Editor Scripting | Object Dialog")
+	bool bShowObjectName = true;
 	
 	UPROPERTY(BlueprintReadWrite, Category = "Editor Scripting | Object Dialog")
-	bool bShowObjectName;
-	
+	bool bAllowSearch = true;
+
+	/** The minimum dialog width. If zero, default to the medium window width defined by the Editor style. */
 	UPROPERTY(BlueprintReadWrite, Category = "Editor Scripting | Object Dialog")
-	bool bAllowSearch;
+	int32 MinWidth = 0;
+
+	/** The minimum dialog height. If zero, default to the medium window height defined by the Editor style. */
+	UPROPERTY(BlueprintReadWrite, Category = "Editor Scripting | Object Dialog")
+	int32 MinHeight = 0;
+
+	/** The column size proportion, between 0 and 1, used to display the property value. The remaining of the horizontal space will be used to display the property name. */
+	UPROPERTY(BlueprintReadWrite, Category = "Editor Scripting | Object Dialog")
+	float ValueColumnWidthRatio = 0.6;
 };
 
 /**
@@ -57,7 +63,7 @@ public:
 	* @return The result of the users decision, or DefaultValue if suppressed.
 	*/
 	UFUNCTION(BlueprintCallable, DisplayName = "Show Suppressable Warning Dialog", Category = "Editor Scripting | Supressable Warning Dialog")
-    static bool ShowSuppressableWarningDialog(const FText& Title, const FText& Message, const FString& InIniSettingName, const FString& InIniSettingFileNameOverride = TEXT(""), bool bDefaultValue = true);
+	static bool ShowSuppressableWarningDialog(const FText& Title, const FText& Message, const FString& InIniSettingName, const FString& InIniSettingFileNameOverride = TEXT(""), bool bDefaultValue = true);
 	
 	/**
 	 * Open a modal message box dialog containing a details view for inspecting / modifying a UObject. 
@@ -67,7 +73,7 @@ public:
 	 * @return The result of the users decision, true=Ok, false=Cancel, or false if running in unattended mode.
 	*/
 	UFUNCTION(BlueprintCallable, DisplayName = "Show Object Dialog", Category = "Editor Scripting | Object Dialog")
-	static bool ShowObjectDetailsView(const FText& Title, UObject* InOutObject, const FEditorDialogLibraryObjectDetailsViewOptions& Options);
+	static bool ShowObjectDetailsView(const FText& Title, UObject* InOutObject, const FEditorDialogLibraryObjectDetailsViewOptions& Options = FEditorDialogLibraryObjectDetailsViewOptions());
 
 	/**
 	 * Open a modal message box dialog containing a details view for inspecting / modifying multiples UObjects. 
@@ -77,6 +83,6 @@ public:
 	 * @return The result of the users decision, true=Ok, false=Cancel, or false if running in unattended mode.
 	*/
 	UFUNCTION(BlueprintCallable, DisplayName = "Show Objects Dialog", Category = "Editor Scripting | Objects Dialog")
-	static bool ShowObjectsDetailsView(const FText& Title, const TArray<UObject*>& InOutObjects, const FEditorDialogLibraryObjectDetailsViewOptions& Options);
+	static bool ShowObjectsDetailsView(const FText& Title, const TArray<UObject*>& InOutObjects, const FEditorDialogLibraryObjectDetailsViewOptions& Options = FEditorDialogLibraryObjectDetailsViewOptions());
 };
 
