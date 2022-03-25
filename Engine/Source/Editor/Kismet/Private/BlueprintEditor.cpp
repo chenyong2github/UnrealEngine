@@ -3306,8 +3306,21 @@ void FBlueprintEditor::ReparentBlueprint_NewParentChosen(UClass* ChosenClass)
 				}
 			}
 
+			// Gather the set of default imports with the old parent class set.
+			TSet<FString> OldDefaultImports;
+			FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(BlueprintObj, OldDefaultImports);
+
 			UClass* OldParentClass = BlueprintObj->ParentClass;
 			BlueprintObj->ParentClass = ChosenClass;
+
+			// Gather the set of default imports with the new parent class set.
+			TSet<FString> NewDefaultImports;
+			FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(BlueprintObj, NewDefaultImports);
+
+			// Auto-import any old default imports that no longer appear in the new set.
+			FImportNamespaceExParameters Params;
+			Params.NamespacesToImport = OldDefaultImports.Difference(NewDefaultImports);
+			ImportNamespaceEx(Params);
 
 			// Ensure that the Blueprint is up-to-date (valid SCS etc.) before compiling
 			EnsureBlueprintIsUpToDate(BlueprintObj);
