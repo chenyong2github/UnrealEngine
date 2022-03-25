@@ -768,7 +768,7 @@ void SLevelViewportToolBar::FillOptionsMenu(UToolMenu* Menu)
 				FText::GetEmpty(),
 				FNewToolMenuDelegate::CreateSP(this, &SLevelViewportToolBar::GenerateViewportConfigsMenu),
 				false,
-				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "EditorViewport.SubMenu.Layouts")
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Layout")
 			);
 		}
 

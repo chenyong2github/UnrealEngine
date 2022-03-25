@@ -723,7 +723,7 @@ private:
 					[
 						SNew(SImage)
 						.ColorAndOpacity(FSlateColor::UseForeground())
-						.Image(FAppStyle::Get().GetBrush("EditorViewport.SubMenu.Layouts"))
+						.Image(FAppStyle::Get().GetBrush("Icons.Layout"))
 					]
 					+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
