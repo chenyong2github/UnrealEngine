@@ -14,7 +14,7 @@
  * @param	InTargetObjects			array of objects to search for references to
  * @param	bFindAlsoWeakReferences should we also look into weak references?
  */
-FFindReferencersArchive::FFindReferencersArchive(UObject* InPotentialReferencer, const TArray<UObject*>& InTargetObjects, bool bFindAlsoWeakReferences)
+FFindReferencersArchive::FFindReferencersArchive(UObject* InPotentialReferencer, TArrayView<UObject*> InTargetObjects, bool bFindAlsoWeakReferences)
 {
 	// use the optimized RefLink to skip over properties which don't contain object references
 	ArIsObjectReferenceCollector = true;
@@ -137,9 +137,14 @@ int32 FFindReferencersArchive::GetReferenceCount( UObject* TargetObject, TArray<
 int32 FFindReferencersArchive::GetReferenceCounts( TMap<class UObject*, int32>& out_ReferenceCounts ) const
 {
 	out_ReferenceCounts.Empty();
+	return AppendReferenceCounts(out_ReferenceCounts);
+}
+
+int32 FFindReferencersArchive::AppendReferenceCounts(TMap<class UObject*, int32>& out_ReferenceCounts) const
+{
 	for (int32 Index = 0; Index < TargetObjects.RefCountNum(); ++Index)
 	{
-		if ( TargetObjects.GetRefCount(Index) > 0 && TargetObjects.GetObject(Index) != PotentialReferencer )
+		if (TargetObjects.GetRefCount(Index) > 0 && TargetObjects.GetObject(Index) != PotentialReferencer)
 		{
 			out_ReferenceCounts.Add(TargetObjects.GetObject(Index), TargetObjects.GetRefCount(Index));
 		}

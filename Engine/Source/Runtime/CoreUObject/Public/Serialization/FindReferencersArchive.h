@@ -21,7 +21,7 @@ public:
 	 * @param	InTargetObjects			array of objects to search for references to
 	 * @param	bFindAlsoWeakReferences should we also look into weak references?
 	 */
-	COREUOBJECT_API FFindReferencersArchive(class UObject* PotentialReferencer, const TArray<class UObject*>& InTargetObjects, bool bFindAlsoWeakReferences = false);
+	COREUOBJECT_API FFindReferencersArchive(class UObject* PotentialReferencer, TArrayView<class UObject*> InTargetObjects, bool bFindAlsoWeakReferences = false);
 
 	/**
 	 * Retrieves the number of references from PotentialReferencer to the object specified.
@@ -43,6 +43,9 @@ public:
 	 * @return	the number of objects which were referenced by PotentialReferencer.
 	 */
 	COREUOBJECT_API int32 GetReferenceCounts( TMap<class UObject*, int32>& out_ReferenceCounts ) const;
+
+	/** GetReferenceCounts without empyting out map */
+	COREUOBJECT_API int32 AppendReferenceCounts( TMap<class UObject*, int32>& out_ReferenceCounts ) const;
 
 	/**
 	 * Retrieves the number of references from PotentialReferencer list of TargetObjects

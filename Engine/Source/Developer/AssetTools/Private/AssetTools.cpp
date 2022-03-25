@@ -991,7 +991,6 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 		ObjectTools::GatherSubObjectsForReferenceReplacement(NewObjectSet, ExistingObjectSet, ObjectsAndSubObjectsToReplaceWithin);
 
 		TArray<FName> Dependencies;
-		TArray<UObject*> ObjectsToReplace;
 		for (FName SuccessfullyCopiedPackage : SuccessfullyCopiedSourcePackages)
 		{
 			Dependencies.Reset();
@@ -1001,17 +1000,27 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 				const int32 DependencyIndex = SuccessfullyCopiedSourcePackages.IndexOfByKey(Dependency);
 				if (DependencyIndex != INDEX_NONE)
 				{
-					for (const auto& DuplicatedObjectPair : DuplicatedObjectsForEachPackage[DependencyIndex])
+					TMap<UObject*, TArray<UObject*, TInlineAllocator<1>>> Consolidations;
+					Consolidations.Reserve(DuplicatedObjectsForEachPackage[DependencyIndex].Num());
+
+					for (const TPair<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>>& Duplication : DuplicatedObjectsForEachPackage[DependencyIndex])
 					{
-						UObject* SourceObject = DuplicatedObjectPair.Key.Get();
-						UObject* NewObject = DuplicatedObjectPair.Value.Get();
+						UObject* SourceObject = Duplication.Key.Get();
+						UObject* NewObject = Duplication.Value.Get();
 						if (SourceObject && NewObject)
 						{
-							ObjectsToReplace.Reset();
-							ObjectsToReplace.Add(SourceObject);
-							ObjectTools::ConsolidateObjects(NewObject, ObjectsToReplace, ObjectsAndSubObjectsToReplaceWithin, ExistingObjectSet, false);
+							Consolidations.FindOrAdd(NewObject).Add(SourceObject);
 						}
 					}
+
+					TArray<ObjectTools::FReplaceRequest> Requests;
+					Requests.Reserve(Consolidations.Num());
+					for (TPair<UObject*, TArray<UObject*, TInlineAllocator<1>>>& Consolidation : Consolidations)
+					{
+						Requests.Add(ObjectTools::FReplaceRequest{Consolidation.Key, Consolidation.Value});
+					}
+
+					ObjectTools::ConsolidateObjects(Requests, ObjectsAndSubObjectsToReplaceWithin, ExistingObjectSet, false);
 				}
 			}
 		}

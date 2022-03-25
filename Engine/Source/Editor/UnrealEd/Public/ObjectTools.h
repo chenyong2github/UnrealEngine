@@ -190,6 +190,13 @@ namespace ObjectTools
 		TArray<UObject*>	FailedConsolidationObjs;
 	};
 
+	/** Helper struct for batch replacements where Old references get replaced with New */
+	struct FReplaceRequest
+	{
+		UObject* New = nullptr;
+		TArrayView<UObject*> Old; 
+	};
+
 	/**
 	 * Consolidates objects by replacing all references/uses of the provided "objects to consolidate" with references to the "object to consolidate to." This is
 	 * useful for situations such as when a particular asset is duplicated in multiple places and it would be handy to allow all uses to point to one particular copy
@@ -198,14 +205,18 @@ namespace ObjectTools
 	 *
 	 * @param	ObjectToConsolidateTo	Object to which all references of the "objects to consolidate" will instead refer to after this operation completes
 	 * @param	ObjectsToConsolidate	Objects which all references of which will be replaced with references to the "object to consolidate to"; each will also be deleted
+	 * @param	Requests				Batch of consolidations. All objects consilidated to, i.e. FReplaceRequest::New, must be non-null.
 	 *
 	 * @note	This function performs NO type checking, by design. It is potentially dangerous to replace references of one type with another, so utilize caution.
 	 * @note	The "objects to consolidate" are DELETED by this function.
 	 *
 	 * @return	Structure of consolidation results, specifying which packages were dirtied, which objects failed consolidation (if any), etc.
 	 */
-	UNREALED_API FConsolidationResults ConsolidateObjects( UObject* ObjectToConsolidateTo, TArray<UObject*>& ObjectsToConsolidate, bool bShowDeleteConfirmation = true );
+	UNREALED_API FConsolidationResults ConsolidateObjects(UObject* ObjectToConsolidateTo, TArray<UObject*>& ObjectsToConsolidate, bool bShowDeleteConfirmation = true );
 	UNREALED_API FConsolidationResults ConsolidateObjects(UObject* ObjectToConsolidateTo, TArray<UObject*>& ObjectsToConsolidate, TSet<UObject*>& ObjectsToConsolidateWithin, TSet<UObject*>& ObjectsToNotConsolidateWithin, bool bShouldDeleteAfterConsolidate, bool bWarnAboutRootSet = true);
+	UNREALED_API FConsolidationResults ConsolidateObjects(TArrayView<FReplaceRequest> Requests, TSet<UObject*>& ObjectsToConsolidateWithin, TSet<UObject*>& ObjectsToNotConsolidateWithin, bool bShouldDeleteAfterConsolidate, bool bWarnAboutRootSet = true);
+
+	
 	UNREALED_API void CompileBlueprintsAfterRefUpdate(const TArray<UObject*>& ObjectsConsolidatedWithin);
 	/**
 	 * Copies references for selected generic browser objects to the clipboard.
@@ -329,9 +340,11 @@ namespace ObjectTools
 	 *
 	 * @param ObjectToReplaceWith	Any references found to 'ObjectsToReplace' will be replaced with this object.  If the object is nullptr references will be nulled.
 	 * @param ObjectsToReplace		An array of objects that should be replaced with 'ObjectToReplaceWith'
+	 * @param Requests				Batch of replacements where all FReplaceRequest::Old are replaced with FReplaceRequest::New for each request
 	 */
 	UNREALED_API void ForceReplaceReferences(UObject* ObjectToReplaceWith, TArray<UObject*>& ObjectsToReplace);
 	UNREALED_API void ForceReplaceReferences(UObject* ObjectToReplaceWith, TArray<UObject*>& ObjectsToReplace, TSet<UObject*>& ObjectsToReplaceWithin);
+	UNREALED_API void ForceReplaceReferences(TArrayView<FReplaceRequest> Requests, TSet<UObject*>& ObjectsToReplaceWithin);
 
 	/**
 	 * Gathers additional objects to delete such as map built data
