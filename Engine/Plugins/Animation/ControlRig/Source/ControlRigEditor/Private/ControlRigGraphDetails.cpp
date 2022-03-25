@@ -1804,7 +1804,7 @@ void FControlRigGraphMathTypeDetails::CustomizeHeader(TSharedRef<IPropertyHandle
 
 	for (UObject* Object : Objects)
 	{
-		ObjectsBeingCustomized.Add(Object);
+		ObjectsBeingCustomized.Add(MakeWeakObjectPtr(Object));
 
 		if(BlueprintBeingCustomized == nullptr)
 		{
@@ -1816,8 +1816,6 @@ void FControlRigGraphMathTypeDetails::CustomizeHeader(TSharedRef<IPropertyHandle
 			GraphBeingCustomized = Object->GetTypedOuter<URigVMGraph>();
 		}
 	}
-
-	ObjectBeingCustomizedView = TArrayView<const UObject* const>(ObjectsBeingCustomized.GetData(), ObjectsBeingCustomized.Num());
 
 	FProperty* Property = InPropertyHandle->GetProperty();
 	const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
