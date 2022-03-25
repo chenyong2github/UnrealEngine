@@ -101,7 +101,9 @@ void FUnixErrorOutputDevice::HandleError()
 		UE_LOG(LogCore, Log, TEXT("=== Critical error: ===") LINE_TERMINATOR TEXT("%s") LINE_TERMINATOR, GErrorExceptionDescription);
 		UE_LOG(LogCore, Log, TEXT("%s"), GErrorHist);
 
-		GLog->Flush();
+		// TODO Fix this, as we no longer *output* this callstack most the time now
+		// This fixes a hang vs using GLog->Flush()
+		GLog->PanicFlush();
 
 		HandleErrorRestoreUI();
 
