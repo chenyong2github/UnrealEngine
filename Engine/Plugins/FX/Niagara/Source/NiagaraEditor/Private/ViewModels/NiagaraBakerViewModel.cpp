@@ -1,10 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-//-TODO: Remove post from capture
-//-TODO: Hook up loading a preview environment
-//-TODO: Add custom post processes for capturing data?
-//-TODO: Allow us to toggle preview on / off for baker / realtime
-
 #include "ViewModels/NiagaraBakerViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "Widgets/SNiagaraBakerWidget.h"
@@ -123,6 +118,22 @@ const UNiagaraBakerSettings* FNiagaraBakerViewModel::GetBakerGeneratedSettings()
 TSharedPtr<class SWidget> FNiagaraBakerViewModel::GetWidget()
 {
 	return Widget;
+}
+
+void FNiagaraBakerViewModel::TogglePlaybackLooping()
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		const FScopedTransaction Transaction(LOCTEXT("ToggleLooping", "Toggle Looping"));
+		BakerSettings->bPreviewLooping = !BakerSettings->bPreviewLooping;
+		BakerSettings->Modify();
+	}
+}
+
+bool FNiagaraBakerViewModel::IsPlaybackLooping() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->bPreviewLooping : false;
 }
 
 void FNiagaraBakerViewModel::SetCameraViewMode(ENiagaraBakerViewMode ViewMode)
@@ -445,7 +456,6 @@ void FNiagaraBakerViewModel::RenderBaker()
 		PreviewComponent->SeekToDesiredAge(FrameTime);
 		PreviewComponent->TickComponent(BakerSettings->GetSeekDelta(), ELevelTick::LEVELTICK_All, nullptr);
 
-		const float WorldTime = FApp::GetCurrentTime() - BakerSettings->StartSeconds - BakerSettings->DurationSeconds + FrameTime;
 
 		// Render frame
 		for (int32 iOutputTexture=0; iOutputTexture < BakerSettings->OutputTextures.Num(); ++iOutputTexture)
@@ -458,7 +468,7 @@ void FNiagaraBakerViewModel::RenderBaker()
 			}
 			FTextureRenderTargetResource* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
 
-			BakerRenderer.RenderView(PreviewComponent, BakerSettings, WorldTime, RenderTarget, iOutputTexture);
+			BakerRenderer.RenderView(PreviewComponent, BakerSettings, FrameTime, RenderTarget, iOutputTexture);
 
 			TArray<FFloat16Color> OutSamples;
 			RenderTargetResource->ReadFloat16Pixels(OutSamples);
@@ -514,6 +524,7 @@ void FNiagaraBakerViewModel::RenderBaker()
 		OutputTexture.GeneratedTexture->UpdateResource();
 		OutputTexture.GeneratedTexture->PostEditChange();
 		OutputTexture.GeneratedTexture->MarkPackageDirty();
+		OutputTexture.GeneratedTexture->TemporarilyDisableStreaming();
 	}
 
 	// Duplicate and set as generated data

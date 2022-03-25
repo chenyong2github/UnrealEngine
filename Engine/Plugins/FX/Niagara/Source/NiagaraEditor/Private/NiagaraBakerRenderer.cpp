@@ -92,6 +92,9 @@ bool FNiagaraBakerRenderer::RenderView(UNiagaraComponent* PreviewComponent, cons
 	UWorld* World = PreviewComponent->GetWorld();
 	check(World);
 
+	// Send EOF updates before we flush our pending ticks to ensure everything is ready for Niagara
+	World->SendAllEndOfFrameUpdates();
+
 	// We need any GPU sims to flush pending ticks
 	FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World);
 	ensureMsgf(ComputeDispatchInterface, TEXT("The batcher was not valid on the world this may result in incorrect baking"));
@@ -291,7 +294,6 @@ bool FNiagaraBakerRenderer::RenderView(UNiagaraComponent* PreviewComponent, cons
 					continue;
 				}
 
-				//-TODO: We don't support GPU Context currently
 				if (EmitterInstance->GetGPUContext() != nullptr)
 				{
 					return false;

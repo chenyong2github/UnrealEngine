@@ -30,10 +30,12 @@
 //-TODO: Improve feedback & warning display
 //-TODO: Throttle sim frames on warmup
 //-TODO: Turn off playback when out of focus
-//-TODO: Looping vs non-looping play back
 //-TODO: Fluid systems stop simulation with to previous?
 //-TODO: First frame black even though I have non zero start seconds
 //-TODO: None should display HDR or something sensible
+//-TODO: Support particle attribute generation on GPU
+//-TODO: Hook up loading a preview environment / sequence
+//-TODO: Add custom post processes for capturing data?
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -426,12 +428,15 @@ void SNiagaraBakerWidget::Construct(const FArguments& InArgs)
 		TransportControlArgs.OnForwardPlay.BindSP(this, &SNiagaraBakerWidget::OnTransportForwardPlay);
 		TransportControlArgs.OnForwardStep.BindSP(this, &SNiagaraBakerWidget::OnTransportForwardStep);
 		TransportControlArgs.OnForwardEnd.BindSP(this, &SNiagaraBakerWidget::OnTransportForwardEnd);
+		TransportControlArgs.OnToggleLooping.BindSP(this, &SNiagaraBakerWidget::OnTransportToggleLooping);
+		TransportControlArgs.OnGetLooping.BindSP(ViewModel, &FNiagaraBakerViewModel::IsPlaybackLooping);
 
 		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::BackwardEnd));
 		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::BackwardStep));
 		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::ForwardPlay));
 		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::ForwardStep));
 		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::ForwardEnd));
+		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::Loop));
 
 		TransportControlArgs.bAreButtonsFocusable = false;
 
@@ -781,24 +786,27 @@ void SNiagaraBakerWidget::RefreshWidget()
 
 void SNiagaraBakerWidget::Tick(const FGeometry& AllottedGeometry, const double CurrentTime, const float DeltaTime)
 {
-	TSharedPtr<FNiagaraBakerViewModel> ViewModel = WeakViewModel.Pin();
-	if (ViewModel == nullptr)
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	if (BakerSettings == nullptr)
 	{
 		return;
 	}
 
-	float DurationSeconds = 0.0f;
-	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
-	{
-		DurationSeconds = BakerSettings->DurationSeconds;
-	}
-
+	const float DurationSeconds = BakerSettings->DurationSeconds;
 	if ( DurationSeconds > 0.0f )
 	{
 		if (bIsPlaying)
 		{
 			PreviewRelativeTime += DeltaTime;
-			PreviewRelativeTime = FMath::Fmod(PreviewRelativeTime, DurationSeconds);
+			if ( BakerSettings->bPreviewLooping )
+			{
+				PreviewRelativeTime = FMath::Fmod(PreviewRelativeTime, DurationSeconds);
+			}
+			else if ( PreviewRelativeTime >= DurationSeconds )
+			{
+				PreviewRelativeTime = DurationSeconds;
+				bIsPlaying = false;
+			}
 		}
 		else
 		{
@@ -899,6 +907,15 @@ FReply SNiagaraBakerWidget::OnTransportForwardEnd()
 		PreviewRelativeTime = BakerSettings->DurationSeconds;
 	}
 
+	return FReply::Handled();
+}
+
+FReply SNiagaraBakerWidget::OnTransportToggleLooping() const
+{
+	if (auto ViewModel = WeakViewModel.Pin())
+	{
+		ViewModel->TogglePlaybackLooping();
+	}
 	return FReply::Handled();
 }
 

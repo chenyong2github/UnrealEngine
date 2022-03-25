@@ -17,6 +17,7 @@ bool FNiagaraBakerTextureSettings::Equals(const FNiagaraBakerTextureSettings& Ot
 UNiagaraBakerSettings::UNiagaraBakerSettings(const FObjectInitializer& Init)
 	: Super(Init)
 {
+	bPreviewLooping = true;
 	bRenderComponentOnly = true;
 	OutputTextures.AddDefaulted();
 

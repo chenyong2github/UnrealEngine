@@ -57,6 +57,9 @@ public:
 	void ToggleChannelEnabled(ENiagaraBakerColorChannel Channel) { bColorChannelEnabled[int(Channel)] = !bColorChannelEnabled[int(Channel)]; }
 	void SetChannelEnabled(ENiagaraBakerColorChannel Channel, bool bEnabled) { bColorChannelEnabled[int(Channel)] = bEnabled; }
 
+	void TogglePlaybackLooping();
+	bool IsPlaybackLooping() const;
+
 	bool ShowRealtimePreview() const { return bShowRealtimePreview; }
 	void ToggleRealtimePreview() { bShowRealtimePreview = !bShowRealtimePreview; }
 

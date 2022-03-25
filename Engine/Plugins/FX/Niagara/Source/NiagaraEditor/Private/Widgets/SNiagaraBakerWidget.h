@@ -44,6 +44,7 @@ public:
 	FReply OnTransportForwardPlay();
 	FReply OnTransportForwardStep();
 	FReply OnTransportForwardEnd();
+	FReply OnTransportToggleLooping() const;
 
 private:
 	TWeakPtr<FNiagaraBakerViewModel>			WeakViewModel;

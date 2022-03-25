@@ -407,18 +407,18 @@ void FNiagaraGpuComputeDispatch::FlushPendingTicks_GameThread()
 
 void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmediate& RHICmdList, bool bForceFlush)
 {
-	// No ticks are pending
-	bool bHasTicks = false;
+	// Test to see if we have any proxies, if not we have nothing to do
+	bool bHasProxies = false;
 	for ( int iTickStage=0; iTickStage < ENiagaraGpuComputeTickStage::Max; ++iTickStage)
 	{
 		if ( ProxiesPerStage[iTickStage].Num() > 0 )
 		{
-			bHasTicks = true;
+			bHasProxies = true;
 			break;
 		}
 	}
 
-	if ( !bHasTicks )
+	if ( !bHasProxies)
 	{
 		return;
 	}
@@ -445,6 +445,28 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 		case 1:
 		{
 			//UE_LOG(LogNiagara, Log, TEXT("FNiagaraGpuComputeDispatch: Queued ticks are being Processed due to not rendering.  This may result in undesirable simulation artifacts."));
+
+			// Make a pass to see if we have any pending ticks, if not we can early out here
+			bool bHasPendingTicks = false;
+			for (int iTickStage=0; !bHasPendingTicks && (iTickStage < ENiagaraGpuComputeTickStage::Max); ++iTickStage)
+			{
+				for ( FNiagaraSystemGpuComputeProxy* Proxy : ProxiesPerStage[iTickStage] )
+				{
+					bHasPendingTicks = Proxy->PendingTicks.Num() > 0;
+					if (bHasPendingTicks)
+					{
+						break;
+					}
+				}
+			}
+			if (bHasPendingTicks == false)
+			{
+				return;
+			}
+
+			// Ensure any deferred updates are flushed out
+			FDeferredUpdateResource::UpdateResources(RHICmdList);
+			FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
 			// Make a temporary ViewInfo
 			//-TODO: We could gather some more information here perhaps?
