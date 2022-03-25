@@ -897,7 +897,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPType);
 	}
 
-	FString CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject);
+	FString CPPType = RigVMTypeUtils::PostProcessCPPType(InCPPType, InCPPTypeObject);
 	
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("VariableNode")) : InNodeName);
 	URigVMVariableNode* Node = NewObject<URigVMVariableNode>(Graph, *Name);
@@ -8260,7 +8260,7 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 	}, false, true);
 
 	URigVMPin* Pin = NewObject<URigVMPin>(LibraryNode, PinName);
-	Pin->CPPType = PostProcessCPPType(InCPPType, CPPTypeObject);
+	Pin->CPPType = RigVMTypeUtils::PostProcessCPPType(InCPPType, CPPTypeObject);
 	Pin->CPPTypeObjectPath = InCPPTypeObjectPath;
 	Pin->bIsConstant = false;
 	Pin->Direction = InDirection;
@@ -10098,7 +10098,7 @@ URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName&
 		}
 	}
 
-	FString CPPType = PostProcessCPPType(InCPPType, CPPTypeObject);
+	FString CPPType = RigVMTypeUtils::PostProcessCPPType(InCPPType, CPPTypeObject);
 
 	FString DefaultValue;
 	if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
@@ -10214,7 +10214,7 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 		}
 	}
 
-	FString CPPType = PostProcessCPPType(InCPPType, CPPTypeObject);
+	FString CPPType = RigVMTypeUtils::PostProcessCPPType(InCPPType, CPPTypeObject);
 
 	FString DefaultValue;
 	if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
@@ -10575,7 +10575,7 @@ URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FSt
 		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(CPPType);
 	}
 
-	CPPType = PostProcessCPPType(CPPType, InCPPTypeObject);
+	CPPType = RigVMTypeUtils::PostProcessCPPType(CPPType, InCPPTypeObject);
 	
 	const FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("ArrayNode")) : InNodeName);
 	URigVMArrayNode* Node = NewObject<URigVMArrayNode>(Graph, *Name);
@@ -11473,6 +11473,8 @@ void URigVMController::ConfigurePinFromProperty(FProperty* InProperty, URigVMPin
 	{
 		InOutPin->CPPTypeObjectPath = *InOutPin->CPPTypeObject->GetPathName();
 	}
+
+	InOutPin->CPPType = RigVMTypeUtils::PostProcessCPPType(InOutPin->CPPType, InOutPin->GetCPPTypeObject());
 }
 
 void URigVMController::ConfigurePinFromPin(URigVMPin* InOutPin, URigVMPin* InPin)
@@ -12930,36 +12932,6 @@ void URigVMController::PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefau
 	}
 }
 
-FString URigVMController::PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject)
-{
-	FString CPPType = InCPPType;
-	
-	if (const UClass* Class = Cast<UClass>(InCPPTypeObject))
-	{
-		CPPType = FString::Printf(RigVMTypeUtils::TObjectPtrTemplate, Class->GetPrefixCPP(), *Class->GetName());
-	}
-	else if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
-	{
-		CPPType = ScriptStruct->GetStructCPPName();
-	}
-	else if (UEnum* Enum = Cast<UEnum>(InCPPTypeObject))
-	{
-		CPPType = RigVMTypeUtils::CPPTypeFromEnum(Enum);
-	}
-
-	if(CPPType != InCPPType)
-	{
-		FString TemplateType = InCPPType;
-		while (RigVMTypeUtils::IsArrayType(TemplateType))
-		{
-			CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
-			TemplateType = RigVMTypeUtils::BaseTypeFromArrayType(TemplateType);
-		}		
-	}
-	
-	return CPPType;
-}
-
 void URigVMController::ResolveTemplateNodePins(URigVMTemplateNode* InNode, bool bSetupUndoRedo)
 {
 	if (InNode == nullptr)
@@ -13276,7 +13248,7 @@ bool URigVMController::ResolveWildCardPin(const FString& InPinPath, const FStrin
 		}
 	}
 
-	const FString CPPType = PostProcessCPPType(InCPPType, CPPTypeObject);
+	const FString CPPType = RigVMTypeUtils::PostProcessCPPType(InCPPType, CPPTypeObject);
 
 	if (URigVMPin* Pin = Graph->FindPin(InPinPath))
 	{
@@ -14022,7 +13994,7 @@ bool URigVMController::EnsurePinValidity(URigVMPin* InPin, bool bRecursive)
 		}
 	}
 
-	InPin->CPPType = PostProcessCPPType(InPin->CPPType, InPin->GetCPPTypeObject());
+	InPin->CPPType = RigVMTypeUtils::PostProcessCPPType(InPin->CPPType, InPin->GetCPPTypeObject());
 
 	if(bRecursive)
 	{
@@ -14056,7 +14028,7 @@ void URigVMController::EnsureLocalVariableValidity()
 		{
 			// CPPType can become invalid when the type object is defined by
 			// an asset that have changed name or asset path, user defined struct is one possibility
-			Variable.CPPType = PostProcessCPPType(Variable.CPPType, Variable.CPPTypeObject);
+			Variable.CPPType = RigVMTypeUtils::PostProcessCPPType(Variable.CPPType, Variable.CPPTypeObject);
 		}
 	}
 }

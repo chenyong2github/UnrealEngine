@@ -563,7 +563,7 @@ int32 URigVMPin::GetArraySize() const
 
 FString URigVMPin::GetCPPType() const
 {
-	return URigVMController::PostProcessCPPType(CPPType, GetCPPTypeObject());
+	return RigVMTypeUtils::PostProcessCPPType(CPPType, GetCPPTypeObject());
 }
 
 FString URigVMPin::GetArrayElementCppType() const
@@ -1241,7 +1241,7 @@ void URigVMPin::UpdateTypeInformationIfRequired() const
 	{
 		// refresh the type string 
 		URigVMPin* MutableThis = (URigVMPin*)this;
-		MutableThis->CPPType = URigVMController::PostProcessCPPType(CPPType, CPPTypeObject);
+		MutableThis->CPPType = RigVMTypeUtils::PostProcessCPPType(CPPType, CPPTypeObject);
 	}
 }
 

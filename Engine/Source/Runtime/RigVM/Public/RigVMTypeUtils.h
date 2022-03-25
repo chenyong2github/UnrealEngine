@@ -90,4 +90,34 @@ namespace RigVMTypeUtils
 		static const FString WildCardArrayCPPType = ArrayTypeFromBaseType(GetWildCardCPPType()); 
 		return WildCardArrayCPPType;
 	}
+
+	FORCEINLINE FString PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject)
+	{
+		FString CPPType = InCPPType;
+	
+		if (const UClass* Class = Cast<UClass>(InCPPTypeObject))
+		{
+			CPPType = FString::Printf(RigVMTypeUtils::TObjectPtrTemplate, Class->GetPrefixCPP(), *Class->GetName());
+		}
+		else if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
+		{
+			CPPType = ScriptStruct->GetStructCPPName();
+		}
+		else if (UEnum* Enum = Cast<UEnum>(InCPPTypeObject))
+		{
+			CPPType = RigVMTypeUtils::CPPTypeFromEnum(Enum);
+		}
+
+		if(CPPType != InCPPType)
+		{
+			FString TemplateType = InCPPType;
+			while (RigVMTypeUtils::IsArrayType(TemplateType))
+			{
+				CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
+				TemplateType = RigVMTypeUtils::BaseTypeFromArrayType(TemplateType);
+			}		
+		}
+	
+		return CPPType;
+	}
 }

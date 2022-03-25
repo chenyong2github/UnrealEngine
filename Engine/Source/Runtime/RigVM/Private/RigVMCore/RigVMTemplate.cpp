@@ -47,6 +47,7 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(FProperty* InProperty)
 	{
 		Type.CPPTypeObject = ByteProperty->Enum;
 	}
+	Type.CPPType = RigVMTypeUtils::PostProcessCPPType(Type.CPPType, Type.CPPTypeObject);
 
 	Types.Add(Type);
 }
