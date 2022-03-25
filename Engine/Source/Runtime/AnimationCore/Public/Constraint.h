@@ -102,6 +102,12 @@ struct ANIMATIONCORE_API FFilterOptionPerAxis
 		// if none of them is set, it's not valid
 		return bX || bY || bZ;
 	}
+	
+	bool HasNoEffect() const
+	{
+		// if all of them are set the filter won't affect anything
+		return bX && bY && bZ;
+	}
 };
 
 /** A filter for a whole transform */

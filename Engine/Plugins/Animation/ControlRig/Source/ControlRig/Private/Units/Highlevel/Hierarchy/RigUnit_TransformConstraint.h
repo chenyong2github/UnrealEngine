@@ -258,6 +258,8 @@ struct FRigUnit_ParentConstraint : public FRigUnit_HighlevelBaseMutable
         : Child(FRigElementKey(NAME_None, ERigElementType::Bone))
         , bMaintainOffset(true)
 		, Weight(1.0f)
+		, ChildCache()
+		, ParentCaches()
 	{
 		Parents.Add(FConstraintParent());
 	}
@@ -282,6 +284,12 @@ struct FRigUnit_ParentConstraint : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
 	float Weight;
+
+	UPROPERTY()
+	FCachedRigElement ChildCache;
+
+	UPROPERTY()
+	TArray<FCachedRigElement> ParentCaches;
 };
 
 /**
@@ -334,6 +342,8 @@ struct FRigUnit_PositionConstraintLocalSpaceOffset : public FRigUnit_HighlevelBa
 		: Child(FRigElementKey(NAME_None, ERigElementType::Bone))
 		, bMaintainOffset(true)
 		, Weight(1.0f)
+		, ChildCache()
+		, ParentCaches()
 	{
 		Parents.Add(FConstraintParent());
 	}
@@ -355,6 +365,12 @@ struct FRigUnit_PositionConstraintLocalSpaceOffset : public FRigUnit_HighlevelBa
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
 	float Weight;
+
+	UPROPERTY()
+	FCachedRigElement ChildCache;
+
+	UPROPERTY()
+	TArray<FCachedRigElement> ParentCaches;
 };
 
 
@@ -434,6 +450,8 @@ struct FRigUnit_RotationConstraintLocalSpaceOffset : public FRigUnit_HighlevelBa
 		: Child(FRigElementKey(NAME_None, ERigElementType::Bone))
 		, bMaintainOffset(true)
 		, Weight(1.0f)
+		, ChildCache()
+		, ParentCaches()
 	{
 		Parents.Add(FConstraintParent());
 	}
@@ -458,6 +476,12 @@ struct FRigUnit_RotationConstraintLocalSpaceOffset : public FRigUnit_HighlevelBa
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
 	float Weight;
+
+	UPROPERTY()
+	FCachedRigElement ChildCache;
+
+	UPROPERTY()
+	TArray<FCachedRigElement> ParentCaches;
 };
 
 /**
@@ -510,6 +534,8 @@ struct FRigUnit_ScaleConstraintLocalSpaceOffset : public FRigUnit_HighlevelBaseM
 		: Child(FRigElementKey(NAME_None, ERigElementType::Bone))
 		, bMaintainOffset(true)
 		, Weight(1.0f)
+		, ChildCache()
+		, ParentCaches()
 	{
 		Parents.Add(FConstraintParent());
 	}
@@ -531,4 +557,10 @@ struct FRigUnit_ScaleConstraintLocalSpaceOffset : public FRigUnit_HighlevelBaseM
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
 	float Weight;
+
+	UPROPERTY()
+	FCachedRigElement ChildCache;
+
+	UPROPERTY()
+	TArray<FCachedRigElement> ParentCaches;
 };

@@ -376,4 +376,10 @@ struct CONTROLRIG_API FRigUnit_SphericalPoseReader: public FRigUnit_HighlevelBas
 	FVector DriverNormal;
 	UPROPERTY(transient)
 	FVector Driver2D;
+	
+	UPROPERTY()
+	FCachedRigElement DriverCache;
+
+	UPROPERTY()
+	FCachedRigElement OptionalParentCache;
 };

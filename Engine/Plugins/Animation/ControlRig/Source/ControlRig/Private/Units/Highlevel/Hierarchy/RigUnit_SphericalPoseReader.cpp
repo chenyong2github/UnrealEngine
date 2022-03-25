@@ -16,13 +16,17 @@ FRigUnit_SphericalPoseReader_Execute()
 
 	if (Context.State == EControlRigState::Init)
 	{
+		DriverCache.Reset();
+		OptionalParentCache.Reset();
 		return;
 	}
 
-	if (!DriverItem.IsValid())
+	if (!DriverCache.UpdateCache(DriverItem, Hierarchy))
 	{
 		return;
 	}
+	
+	OptionalParentCache.UpdateCache(OptionalParentItem, Hierarchy);
 
 	// remap/clamp inputs
 	RemapAndConvertInputs(
@@ -38,30 +42,30 @@ FRigUnit_SphericalPoseReader_Execute()
 	// get parent global space
 	FTransform GlobalDriverParentTransform;
 	FTransform GlobalDriverParentTransformInit;
-	if (OptionalParentItem.IsValid())
+	if (OptionalParentCache.IsValid())
 	{
-		GlobalDriverParentTransform = Hierarchy->GetGlobalTransform(OptionalParentItem);
-		GlobalDriverParentTransformInit = Hierarchy->GetInitialGlobalTransform(OptionalParentItem);
+		GlobalDriverParentTransform = Hierarchy->GetGlobalTransformByIndex(OptionalParentCache, false);
+		GlobalDriverParentTransformInit = Hierarchy->GetGlobalTransformByIndex(OptionalParentCache, true);
 	}else
 	{
 		// if user does not specify a custom parent space, then simply use the driver's parent
-		GlobalDriverParentTransform = Hierarchy->GetParentTransform(DriverItem);
-		GlobalDriverParentTransformInit = Hierarchy->GetInitialGlobalTransform(DriverItem);
+		GlobalDriverParentTransform = Hierarchy->GetParentTransformByIndex(DriverCache, false);
+		GlobalDriverParentTransformInit = Hierarchy->GetParentTransformByIndex(DriverCache, true);
 	}
 	
 	// get local rotation space of driver
-	FTransform GlobalDriverTransformInit = Hierarchy->GetInitialGlobalTransform(DriverItem);
+	const FTransform GlobalDriverTransformInit = Hierarchy->GetGlobalTransformByIndex(DriverCache, true);
 	FTransform LocalDriverTransformInit = GlobalDriverTransformInit * GlobalDriverParentTransformInit.Inverse();
 	// apply static offset in local space
 	FQuat RotationOffsetQuat = FQuat::MakeFromEuler(RotationOffset);
 	LocalDriverTransformInit.SetRotation(LocalDriverTransformInit.GetRotation() * RotationOffsetQuat);
 	
 	// calculate world transform of sphere
+	const FTransform GlobalDriverTransform = Hierarchy->GetGlobalTransformByIndex(DriverCache);
 	FTransform WorldOffset = LocalDriverTransformInit * GlobalDriverParentTransform;
-	WorldOffset.SetLocation(Hierarchy->GetGlobalTransform(DriverItem).GetLocation());
+	WorldOffset.SetLocation(GlobalDriverTransform.GetLocation());
 
 	// get driver axis
-	const FTransform GlobalDriverTransform = Hierarchy->GetGlobalTransform(DriverItem);
 	const FVector CurrentGlobalDriverAxis = GlobalDriverTransform.GetRotation().RotateVector(DriverAxis);
 	DriverNormal = WorldOffset.InverseTransformVectorNoScale(CurrentGlobalDriverAxis).GetSafeNormal();
 
