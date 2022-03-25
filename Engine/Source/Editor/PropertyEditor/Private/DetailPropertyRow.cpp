@@ -291,7 +291,13 @@ void FDetailPropertyRow::OnItemNodeInitialized( TSharedRef<FDetailCategoryImpl> 
 		if (CustomPropertyWidget->IsEnabledAttr.IsSet())
 		{
 			CustomIsEnabledAttrib = CustomPropertyWidget->IsEnabledAttr;
-		}		
+		}
+
+		// set initial value of auto-expand from struct customization
+		if (CustomPropertyWidget->ForceAutoExpansion.IsSet())
+		{
+			bForceAutoExpansion = CustomPropertyWidget->ForceAutoExpansion.GetValue();
+		}
 	}
 
 	if( bShowCustomPropertyChildren && CustomTypeInterface.IsValid() )
