@@ -7,6 +7,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "UObject/WeakObjectPtr.h"
 
+enum class EMapChangeType : uint8;
 class FUICommandList;
 class ADisplayClusterRootActor;
 
@@ -38,6 +39,9 @@ private:
 	 */
 	TSharedPtr<FString> FillRootActorList(const FString& InitiallySelectedRootActor = TEXT(""));
 
+	/** Deselect and clear the current root actor */
+	void ClearSelectedRootActor();
+	
 	/** Raised when the user selects a new root actor from the root actor picker dropdown */
 	void OnRootActorChanged(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo);
 
@@ -55,6 +59,9 @@ private:
 
 	/** Raised when the user deletes an actor from the level */
 	void OnLevelActorDeleted(AActor* Actor);
+
+	/** When the map changes */
+	void HandleMapChanged(UWorld* InWorld, EMapChangeType InMapChangeType);
 
 private:
 	/** The command list used by the toolbar */
@@ -74,4 +81,7 @@ private:
 
 	/** The OnLevelActorDeleted delegate handle */
 	FDelegateHandle LevelActorDeletedHandle;
+
+	/** The handle to OnMapChanged */
+	FDelegateHandle MapChangedHandle;
 };

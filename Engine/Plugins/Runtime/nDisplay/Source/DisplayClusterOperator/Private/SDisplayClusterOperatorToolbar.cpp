@@ -6,6 +6,7 @@
 #include "DisplayClusterRootActor.h"
 
 #include "EditorStyleSet.h"
+#include "LevelEditor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Widgets/Layout/SBorder.h"
@@ -15,9 +16,15 @@
 
 SDisplayClusterOperatorToolbar::~SDisplayClusterOperatorToolbar()
 {
-	if (GEngine != nullptr)
+	if (LevelActorDeletedHandle.IsValid() && GEngine != nullptr)
 	{
 		GEngine->OnLevelActorDeleted().Remove(LevelActorDeletedHandle);
+	}
+
+	if (MapChangedHandle.IsValid())
+	{
+		FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+		LevelEditor.OnMapChanged().Remove(MapChangedHandle);
 	}
 	
 	if (ActiveRootActor.IsValid())
@@ -75,6 +82,9 @@ void SDisplayClusterOperatorToolbar::Construct(const FArguments& InArgs)
 	{
 		LevelActorDeletedHandle = GEngine->OnLevelActorDeleted().AddSP(this, &SDisplayClusterOperatorToolbar::OnLevelActorDeleted);
 	}
+
+	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	MapChangedHandle = LevelEditor.OnMapChanged().AddRaw(this, &SDisplayClusterOperatorToolbar::HandleMapChanged);
 }
 
 TSharedPtr<FString> SDisplayClusterOperatorToolbar::FillRootActorList(const FString& InitiallySelectedRootActor)
@@ -97,6 +107,22 @@ TSharedPtr<FString> SDisplayClusterOperatorToolbar::FillRootActorList(const FStr
 	}
 
 	return SelectedItem;
+}
+
+void SDisplayClusterOperatorToolbar::ClearSelectedRootActor()
+{
+	if (ActiveRootActor.IsValid())
+	{
+		if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(ActiveRootActor->GetClass()))
+		{
+			Blueprint->OnCompiled().RemoveAll(this);
+		}
+	}
+
+	ActiveRootActorName.Reset();
+	ActiveRootActor.Reset();
+	IDisplayClusterOperator::Get().OnActiveRootActorChanged().Broadcast(nullptr);
+	RootActorComboBox->SetSelectedItem(nullptr);
 }
 
 void SDisplayClusterOperatorToolbar::OnRootActorChanged(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo)
@@ -132,6 +158,7 @@ void SDisplayClusterOperatorToolbar::OnRootActorChanged(TSharedPtr<FString> Item
 	{
 		if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(SelectedRootActor->GetClass()))
 		{
+			Blueprint->OnCompiled().RemoveAll(this);
 			Blueprint->OnCompiled().AddRaw(this, &SDisplayClusterOperatorToolbar::OnBlueprintCompiled);
 		}
 	}
@@ -192,10 +219,16 @@ void SDisplayClusterOperatorToolbar::OnLevelActorDeleted(AActor* Actor)
 			return;
 		}
 		
-		ActiveRootActor.Reset();
-		ActiveRootActorName.Reset();
-		IDisplayClusterOperator::Get().OnActiveRootActorChanged().Broadcast(nullptr);
-		RootActorComboBox->SetSelectedItem(nullptr);
+		ClearSelectedRootActor();
+	}
+}
+
+void SDisplayClusterOperatorToolbar::HandleMapChanged(UWorld* InWorld, EMapChangeType InMapChangeType)
+{
+	if (InMapChangeType == EMapChangeType::TearDownWorld &&
+		(!ActiveRootActor.IsValid() || ActiveRootActor->GetWorld() == InWorld))
+	{
+		ClearSelectedRootActor();
 	}
 }
 

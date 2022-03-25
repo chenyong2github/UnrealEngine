@@ -354,11 +354,13 @@ void SDisplayClusterLightCardList::AddNewLightCard()
 	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 	SpawnParameters.Name = TEXT("LightCard");
 	SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+	SpawnParameters.OverrideLevel = RootActor->GetLevel();
 	
 	ADisplayClusterLightCardActor* NewActor = CastChecked<ADisplayClusterLightCardActor>(
 		RootActor->GetWorld()->SpawnActor(ADisplayClusterLightCardActor::StaticClass(),
 		&SpawnLocation, &SpawnRotation, MoveTemp(SpawnParameters)));
 
+	ensure(NewActor->GetLevel() == RootActor->GetLevel());
 	NewActor->SetActorLabel(NewActor->GetName());
 
 	AddLightCardToActor(NewActor);
