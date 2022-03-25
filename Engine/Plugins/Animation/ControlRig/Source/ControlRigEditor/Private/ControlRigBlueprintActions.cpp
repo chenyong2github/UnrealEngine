@@ -347,12 +347,22 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 		TArray<TWeakObjectPtr<AActor> > ActorsToAdd;
 		ActorsToAdd.Add(MeshActor);
 		TArray<FGuid> ActorTracks = WeakSequencer.Pin()->AddActors(ActorsToAdd, false);
+		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+
 		for (FGuid ActorTrackGuid : ActorTracks)
 		{
 			//Delete binding from default animating rig
 			FGuid CompGuid = WeakSequencer.Pin()->FindObjectId(*(MeshActor->GetSkeletalMeshComponent()), WeakSequencer.Pin()->GetFocusedTemplateID());
 			if (CompGuid.IsValid())
 			{
+				if (ControlRigEditMode)
+				{
+					UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), CompGuid, NAME_None));
+					if (Track && Track->GetControlRig())
+					{
+						ControlRigEditMode->RemoveControlRig(Track->GetControlRig());
+					}
+				}
 				if (!MovieScene->RemovePossessable(CompGuid))
 				{
 					MovieScene->RemoveSpawnable(CompGuid);
@@ -390,12 +400,10 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 				FText Name = LOCTEXT("SequenceTrackFilter_ControlRigControls", "Control Rig Controls");
 				WeakSequencer.Pin()->SetTrackFilterEnabled(Name, true);
 				WeakSequencer.Pin()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
-				FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 				if (!ControlRigEditMode)
 				{
 					GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
 					ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-
 				}
 				if (ControlRigEditMode)
 				{

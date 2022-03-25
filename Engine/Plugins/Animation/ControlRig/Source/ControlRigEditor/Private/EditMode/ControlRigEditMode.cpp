@@ -2679,6 +2679,7 @@ void FControlRigEditMode::PostUndo()
 			}
 			if (bSomethingAdded)
 			{
+				Sequencer->ForceEvaluate();
 				SetObjects_Internal();
 				bInvalidateViewport = true;
 			}

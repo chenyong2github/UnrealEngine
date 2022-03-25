@@ -2316,8 +2316,7 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 	TArray<FRigControl> Controls;
 
 	URigHierarchy* Hierarchy = Subject->GetHierarchy();
-	if (bSelected)
-	{
+	
 	if (URigHierarchyController* Controller = Hierarchy->GetController())
 	{
 		Hierarchy->ForEach<FRigControlElement>([ControlElement, Controller, bSelected](FRigControlElement* OtherControlElement) -> bool
@@ -2340,7 +2339,7 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 			});
 	}
 
-	}
+
 	if (bIsDoingSelection)
 	{
 		return;
