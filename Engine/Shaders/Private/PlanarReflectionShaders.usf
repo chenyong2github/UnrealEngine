@@ -61,6 +61,7 @@ void VerticalSample(float2 InUV, float y, float KernelRadiusY, float CenterDista
 }
 
 float KernelRadiusY;
+float ValidContentMaskFactor;
 
 void PrefilterPlanarReflectionPS(
 	float2 InUV : TEXCOORD0,
@@ -106,7 +107,7 @@ void PrefilterPlanarReflectionPS(
 
 		// We cleared the planar reflection alpha to 1, and base pass writes 0
 		float ValidContentMask = 1 - AccumulatedColor.a;
-		OutColor = float4(AccumulatedColor.rgb, ValidContentMask);
+		OutColor = float4(AccumulatedColor.rgb, pow(ValidContentMask, ValidContentMaskFactor));
 	}
 	else
 #endif // ENABLE_PLANAR_REFLECTIONS_PREFILTER
@@ -123,7 +124,7 @@ void PrefilterPlanarReflectionPS(
 
 		// We cleared the planar reflection alpha to 1, and base pass writes 0
 		float ValidContentMask = 1 - SceneColorValue.a;
-		OutColor = float4(SceneColorValue.xyz, ValidContentMask);
+		OutColor = float4(SceneColorValue.xyz, pow(ValidContentMask, ValidContentMaskFactor));
 	}
 }
 

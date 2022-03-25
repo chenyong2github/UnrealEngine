@@ -148,6 +148,7 @@ public:
 	int32 PlanarReflectionId;
 	float PrefilterRoughness;
 	float PrefilterRoughnessDistance;
+	float ValidContentMaskFactor;
 	FMatrix ProjectionWithExtraFOV[GMaxPlanarReflectionViews];
 	FIntRect ViewRect[GMaxPlanarReflectionViews];
 	FMatrix3x4 InverseTransposeMirrorMatrix;

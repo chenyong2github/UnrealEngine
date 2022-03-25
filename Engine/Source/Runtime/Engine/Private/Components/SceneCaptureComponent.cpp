@@ -801,6 +801,7 @@ UPlanarReflectionComponent::UPlanarReflectionComponent(const FObjectInitializer&
 	RenderTarget = NULL;
 	PrefilterRoughness = .01f;
 	PrefilterRoughnessDistance = 10000;
+	ValidContentMaskFactor = 1;
 	ScreenPercentage = 50;
 	bApplyBlur = false;
 	NormalDistortionStrength = 500;

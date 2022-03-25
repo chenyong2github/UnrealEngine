@@ -44,6 +44,6 @@ FPlanarReflectionSceneProxy::FPlanarReflectionSceneProxy(UPlanarReflectionCompon
 	PlanarReflectionId = Component->GetPlanarReflectionId();
 	PrefilterRoughness = Component->PrefilterRoughness;
 	PrefilterRoughnessDistance = Component->PrefilterRoughnessDistance;
-
+	ValidContentMaskFactor = Component->ValidContentMaskFactor;
 	bApplyBlur = Component->bApplyBlur;
 }
