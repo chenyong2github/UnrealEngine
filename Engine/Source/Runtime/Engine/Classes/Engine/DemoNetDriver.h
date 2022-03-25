@@ -170,8 +170,6 @@ public:
 	APlayerController* GetSpectatorController() const { return SpectatorController; }
 
 private:
-	/** True if as have paused all of the channels */
-	bool bChannelsArePaused;
 
 	/** This is the main spectator controller that is used to view the demo world from */
 	APlayerController* SpectatorController;
@@ -248,11 +246,22 @@ private:
 	};
 
 	bool bIsFastForwarding;
-	bool bIsFastForwardingForCheckpoint;
-	bool bWasStartStreamingSuccessful;
 	bool bIsFinalizingFastForward;
 	bool bIsRestoringStartupActors;
 
+	/** True if as have paused all of the channels */
+	uint8 bChannelsArePaused : 1;
+	uint8 bIsFastForwardingForCheckpoint : 1;
+	uint8 bWasStartStreamingSuccessful : 1;
+
+	/** If true, recording will prioritize replicating actors based on the value that AActor::GetReplayPriority returns. */
+	uint8 bPrioritizeActors : 1;
+
+protected:
+	uint8 bIsWaitingForHeaderDownload : 1;
+	uint8 bIsWaitingForStream : 1;
+
+private:
 	TArray<FNetworkGUID> NonQueuedGUIDsForScrubbing;
 
 	// Replay tasks
@@ -287,9 +296,6 @@ private:
 
 	/** Array of prioritized actors, used in TickDemoRecord. Stored as a member so that its storage doesn't have to be re-allocated each frame. */
 	TArray<FDemoActorPriority> PrioritizedActors;
-
-	/** If true, recording will prioritize replicating actors based on the value that AActor::GetReplayPriority returns. */
-	bool bPrioritizeActors;
 
 	/** Does the actual work of TickFlush, either on the main thread or in a task thread in parallel with Slate. */
 	void TickFlushInternal(float DeltaSeconds);
@@ -679,9 +685,6 @@ protected:
 	void NotifyDemoPlaybackFailure(EDemoPlayFailure::Type FailureType);
 
 	TArray<FQueuedDemoPacket> QueuedPacketsBeforeTravel;
-
-	bool bIsWaitingForHeaderDownload;
-	bool bIsWaitingForStream;
 
 	int64 MaxArchiveReadPos;
 

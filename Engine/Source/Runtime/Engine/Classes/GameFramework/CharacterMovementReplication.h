@@ -99,9 +99,9 @@ public:
 		, Location(ForceInitToZero)
 		, ControlRotation(ForceInitToZero)
 		, CompressedMoveFlags(0)
+		, MovementMode(0)
 		, MovementBase(nullptr)
 		, MovementBaseBoneName(NAME_None)
-		, MovementMode(0)
 	{
 	}
 	
@@ -135,9 +135,9 @@ public:
 	FRotator ControlRotation;
 	uint8 CompressedMoveFlags;
 
+	uint8 MovementMode;
 	class UPrimitiveComponent* MovementBase;
 	FName MovementBaseBoneName;
-	uint8 MovementMode;
 };
 
 

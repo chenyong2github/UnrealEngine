@@ -172,10 +172,6 @@ class ENGINE_API AGameNetworkManager : public AInfo
 	UPROPERTY(GlobalConfig)
 	int32 ClientNetSendMoveThrottleOverPlayerCount;
 
-	/** If client update is within MAXPOSITIONERRORSQUARED of what the server expects then the client is authoritative on it's final position */
-	UPROPERTY(GlobalConfig)
-	bool ClientAuthorativePosition;
-
 	/** Minimum delay between the server sending error corrections to a client, in seconds. */
 	UPROPERTY(GlobalConfig)
 	float ClientErrorUpdateRateLimit;
@@ -187,6 +183,10 @@ class ENGINE_API AGameNetworkManager : public AInfo
 	/** Camera position change limit, when exceeded allows an immediate ServerUpdateCamera call. */
 	UPROPERTY(GlobalConfig)
 	float ClientNetCamUpdatePositionLimit;
+
+	/** If client update is within MAXPOSITIONERRORSQUARED of what the server expects then the client is authoritative on it's final position */
+	UPROPERTY(GlobalConfig)
+	bool ClientAuthorativePosition;
 
 	//======================================================================================================================
 	// Movement Time Discrepancy settings for Characters (speed hack detection and prevention)

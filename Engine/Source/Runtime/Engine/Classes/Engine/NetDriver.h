@@ -614,19 +614,19 @@ struct ENGINE_API FChannelDefinition
 	int32 StaticChannelIndex;	// Channel always uses this index, INDEX_NONE if dynamically chosen
 
 	UPROPERTY()
-	bool bTickOnCreate;			// Whether to immediately begin ticking the channel after creation
+	uint8 bTickOnCreate : 1;			// Whether to immediately begin ticking the channel after creation
 
 	UPROPERTY()
-	bool bServerOpen;			// Channel opened by the server
+	uint8 bServerOpen : 1;			// Channel opened by the server
 
 	UPROPERTY()
-	bool bClientOpen;			// Channel opened by the client
+	uint8 bClientOpen : 1;			// Channel opened by the client
 
 	UPROPERTY()
-	bool bInitialServer;		// Channel created on server when connection is established
+	uint8 bInitialServer : 1;		// Channel created on server when connection is established
 
 	UPROPERTY()
-	bool bInitialClient;		// Channel created on client before connecting
+	uint8 bInitialClient : 1;		// Channel created on client before connecting
 
 	FChannelDefinition() : 
 		ChannelName(NAME_None),
@@ -770,19 +770,6 @@ public:
 	UPROPERTY(Config)
 	float TimeoutMultiplierForUnoptimizedBuilds;
 
-	/**
-	 * If true, ignore timeouts completely.  Should be used only in development
-	 */
-	UPROPERTY(Config)
-	bool bNoTimeouts;
-
-	/**
-	 * If true this NetDriver will not apply the network emulation settings that simulate
-	 * latency and packet loss in non-shippable builds
-	 */
-	UPROPERTY(Config)
-	bool bNeverApplyNetworkEmulationSettings;
-
 	/** Connection to the server (this net driver is a client) */
 	UPROPERTY()
 	TObjectPtr<class UNetConnection> ServerConnection;
@@ -918,22 +905,55 @@ public:
 private:
 	double						ElapsedTime;
 	
-
 	/** Whether or not the NetDriver is ticking */
 	bool bInTick;
 
-	bool bPendingDestruction;
+	uint8 bPendingDestruction : 1;
+
+#if DO_ENABLE_NET_TEST
+	/** Dont load packet settings from config or cmdline when true*/
+	uint8 bForcedPacketSettings : 1;
+#endif 
+
+	uint8 bDidHitchLastFrame : 1;
+
+	/** cache whether or not we have a replay connection, updated when a connection is added or removed */
+	uint8 bHasReplayConnection : 1;
+
+protected:
+	uint8 bMaySendProperties : 1;
+
+	uint8 bSkipServerReplicateActors : 1;
 
 public:
-	/** Last realtime a tick dispatch occurred. Used currently to try and diagnose timeout issues */
-	double						LastTickDispatchRealtime;
+	/**
+	 * If true, ignore timeouts completely.  Should be used only in development
+	 */
+	UPROPERTY(Config)
+	uint8 bNoTimeouts : 1;
+
+	/**
+	 * If true this NetDriver will not apply the network emulation settings that simulate
+	 * latency and packet loss in non-shippable builds
+	 */
+	UPROPERTY(Config)
+	uint8 bNeverApplyNetworkEmulationSettings : 1;
 
 	/** If true then client connections are to other client peers */
-	bool						bIsPeer;
+	uint8						bIsPeer : 1;
 	/** @todo document */
-	bool						ProfileStats;
+	uint8						ProfileStats : 1;
 	/** If true, it assumes the stats are being set by server data */
-	bool						bSkipLocalStats;
+	uint8						bSkipLocalStats : 1;
+	/** Collect net stats even if not FThreadStats::IsCollectingData(). */
+	uint8 bCollectNetStats : 1;
+	/** Used to determine if checking for standby cheats should occur */
+	uint8						bIsStandbyCheckingEnabled : 1;
+	/** Used to determine whether we've already caught a cheat or not */
+	uint8						bHasStandbyCheatTriggered : 1;
+
+	/** Last realtime a tick dispatch occurred. Used currently to try and diagnose timeout issues */
+	double						LastTickDispatchRealtime;
 	/** Timings for Socket::SendTo() */
 	int32						SendCycles;
 	/** Stats for network perf */
@@ -1001,14 +1021,8 @@ public:
 	/** Total acks sent since the net driver's creation  */
 	uint32						OutTotalAcks;
 
-	/** Collect net stats even if not FThreadStats::IsCollectingData(). */
-	bool bCollectNetStats;
 	/** Time of last netdriver cleanup pass */
 	double						LastCleanupTime;
-	/** Used to determine if checking for standby cheats should occur */
-	bool						bIsStandbyCheckingEnabled;
-	/** Used to determine whether we've already caught a cheat or not */
-	bool						bHasStandbyCheatTriggered;
 	/** The amount of time without packets before triggering the cheat code */
 	float						StandbyRxCheatTime;
 	/** todo document */
@@ -1816,10 +1830,6 @@ public:
 	bool HasReplayConnection() const { return bHasReplayConnection; }
 
 protected:
-
-	bool bMaySendProperties;
-
-	bool bSkipServerReplicateActors = false;
 	
 	/** Stream of random numbers to be used by this instance of UNetDriver */
 	FRandomStream UpdateDelayRandomStream;
@@ -1873,16 +1883,6 @@ private:
 
 	/** Unique id used by NetTrace to identify driver */
 	uint32 NetTraceId = 0;
-
-#if DO_ENABLE_NET_TEST
-	/** Dont load packet settings from config or cmdline when true*/
-	bool bForcedPacketSettings;
-#endif 
-
-	bool bDidHitchLastFrame = false;
-
-	/** cache whether or not we have a replay connection, updated when a connection is added or removed */
-	bool bHasReplayConnection;
 
 	/** Stat tracking for the total number of out of order packets lost */
 	int32 TotalOutOfOrderPacketsLost = 0;

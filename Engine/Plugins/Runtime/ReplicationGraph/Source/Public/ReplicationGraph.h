@@ -1112,6 +1112,11 @@ protected:
 	bool bEnableFullActorPrioritizationDetailsAllConnections = false;
 #endif
 
+private:
+	/** Whether or not a connection was saturated during an update. */
+	bool bWasConnectionSaturated = false;
+
+protected:
 	/** Default Replication Path */
 	void ReplicateActorListsForConnections_Default(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewerArray& Viewers);
 
@@ -1155,9 +1160,6 @@ private:
 
 	/** Collect replication data during ServerReplicateActors */
 	FFrameReplicationStats FrameReplicationStats;
-
-	/** Whether or not a connection was saturated during an update. */
-	bool bWasConnectionSaturated = false;
 
 	/** Internal frame counter for replication. This is only updated by us. The one of UNetDriver can be updated by RPC calls and is only used to invalidate shared property CLs/serialiation data. */
 	uint32 ReplicationGraphFrame = 0;
@@ -1235,10 +1237,10 @@ public:
 	bool bEnableFullActorPrioritizationDetails = false;
 #endif
 
+	bool bEnableDebugging;
+
 	UPROPERTY()
 	TObjectPtr<class AReplicationGraphDebugActor> DebugActor = nullptr;
-
-	bool bEnableDebugging;
 
 	/** Index of the connection in the global list. Will be reassigned when any client disconnects so it is a key that can be referenced only during a single tick */
 	int32 ConnectionOrderNum;
