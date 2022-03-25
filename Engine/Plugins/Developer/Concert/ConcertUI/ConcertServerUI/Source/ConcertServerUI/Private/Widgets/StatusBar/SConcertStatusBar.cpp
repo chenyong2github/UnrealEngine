@@ -2,6 +2,8 @@
 
 #include "SConcertStatusBar.h"
 
+#include "OutputLogCreationParams.h"
+
 #include "Framework/Application/SlateApplication.h"
 #include "OutputLogModule.h"
 #include "SWidgetDrawer.h"
@@ -23,7 +25,26 @@ namespace UE::ConcertServerUI::Private
 		{
 			if (!StatusBarOutputLog)
 			{
-				StatusBarOutputLog = FOutputLogModule::Get().MakeOutputLogDrawerWidget(FSimpleDelegate());
+				FOutputLogCreationParams Params;
+				Params.bCreateDockInLayoutButton = true;
+				Params.SettingsMenuCreationFlags = EOutputLogSettingsMenuFlags::SkipClearOnPie
+					| EOutputLogSettingsMenuFlags::SkipOpenSourceButton
+					| EOutputLogSettingsMenuFlags::SkipEnableWordWrapping; // Checkbox relies on saving an editor config file and does not work correctly
+				Params.AllowAsInitialLogCategory = FAllowLogCategoryCallback::CreateLambda([](const FName CategoryName)
+				{
+					// Hide these categories for improved UX
+					static TArray<FString> DeselectedByDefault = { "Slate", "WindowsTextInput" };
+					const FString CategoryNameAsString = CategoryName.ToString();
+					for (const FString& DeselectedCategory : DeselectedByDefault)
+					{
+						if (CategoryNameAsString.Contains(DeselectedCategory))
+						{
+							return false;
+						}
+					}
+					return true;
+				});
+				StatusBarOutputLog = FOutputLogModule::Get().MakeOutputLogWidget(Params);
 			}
 
 			return StatusBarOutputLog.ToSharedRef();
