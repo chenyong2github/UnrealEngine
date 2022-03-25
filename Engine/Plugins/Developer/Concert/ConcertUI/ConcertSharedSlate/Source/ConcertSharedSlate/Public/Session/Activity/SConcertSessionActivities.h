@@ -9,6 +9,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Layout/SExpandableArea.h"
 #include "ConcertSyncSessionTypes.h"
 
 struct FConcertSessionActivity;

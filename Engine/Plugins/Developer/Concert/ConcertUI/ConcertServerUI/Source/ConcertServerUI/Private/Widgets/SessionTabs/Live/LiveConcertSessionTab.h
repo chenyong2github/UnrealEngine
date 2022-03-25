@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ServerSessionHistoryController.h"
 #include "Widgets/SessionTabs/AbstractConcertSessionTab.h"
+#include "Types/SlateAttribute.h"
 
 class FConcertSessionPackageViewerController;
 class IConcertSyncServer;

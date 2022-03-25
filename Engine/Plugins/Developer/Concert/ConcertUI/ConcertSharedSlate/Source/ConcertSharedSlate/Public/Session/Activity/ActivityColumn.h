@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Views/SHeaderRow.h"
 
 class SConcertSessionActivities;
