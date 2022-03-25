@@ -780,6 +780,7 @@ struct ENGINE_API FNavHeightfieldSamples
 	TBitArray<> Holes;
 
 	FNavHeightfieldSamples();
+	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize);
 
 	FORCEINLINE bool IsEmpty() const { return Heights.Num() == 0; }
 };

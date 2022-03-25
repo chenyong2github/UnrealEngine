@@ -97,23 +97,24 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 		TArray<physx::PxMaterial*> UsedPhysicalMaterialArray;
 		physx::PxHeightField* RBHeightfield = nullptr;
 		physx::PxHeightField* RBHeightfieldSimple = nullptr;
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 		physx::PxHeightField* RBHeightfieldEd = nullptr; // Used only by landscape editor, does not have holes in it
-#endif	//WITH_EDITOR
+#endif	//WITH_EDITORONLY_DATA
 #endif	//WITH_PHYSX
 
 #if WITH_CHAOS
 		TArray<Chaos::FMaterialHandle> UsedChaosMaterials;
 		TUniquePtr<Chaos::FHeightField> Heightfield;
 	    TUniquePtr<Chaos::FHeightField> HeightfieldSimple;
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 		TUniquePtr<Chaos::FHeightField> EditorHeightfield;
-#endif
-#endif
+#endif // WITH_EDITORONLY_DATA
+#endif // WITH_CHAOS
 
 		FHeightfieldGeometryRef(FGuid& InGuid);
 
 		virtual ~FHeightfieldGeometryRef();
+		void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize);
 	};
 	
 #if WITH_EDITORONLY_DATA
@@ -221,6 +222,7 @@ public:
 	//~ Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void BeginDestroy() override;
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	virtual void PostLoad() override;
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")

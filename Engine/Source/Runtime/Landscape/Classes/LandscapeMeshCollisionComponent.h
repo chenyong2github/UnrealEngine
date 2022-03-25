@@ -57,31 +57,33 @@ public:
 		/** List of PxMaterials used on this landscape */
 		TArray<physx::PxMaterial*>	UsedPhysicalMaterialArray;
 		physx::PxTriangleMesh*		RBTriangleMesh;
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 		physx::PxTriangleMesh*		RBTriangleMeshEd; // Used only by landscape editor, does not have holes in it
-#endif	//WITH_EDITOR
+#endif	//WITH_EDITORONLY_DATA
 #endif	//WITH_PHYSX
 
 #if WITH_CHAOS
 		TArray<Chaos::FMaterialHandle> UsedChaosMaterials;
 		TUniquePtr<Chaos::FTriangleMeshImplicitObject> Trimesh;
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 		TUniquePtr<Chaos::FTriangleMeshImplicitObject> EditorTrimesh;
-#endif // WITH_EDITOR
+#endif // WITH_EDITORONLY_DATA
 #endif // WITH_CHAOS
 
 		FTriMeshGeometryRef();
 		FTriMeshGeometryRef(FGuid& InGuid);
 		virtual ~FTriMeshGeometryRef();
+
+		void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize);
 	};
 
 #if WITH_EDITORONLY_DATA
 	/** The collision mesh values. */
-	FWordBulkData								CollisionXYOffsetData; //  X, Y Offset in raw format...
+	FWordBulkData CollisionXYOffsetData; //  X, Y Offset in raw format...
 #endif //WITH_EDITORONLY_DATA
 
 	/** Physics engine version of heightfield data. */
-	TRefCountPtr<FTriMeshGeometryRef>			MeshRef;
+	TRefCountPtr<FTriMeshGeometryRef> MeshRef;
 
 	//~ Begin UActorComponent Interface.
 protected:
@@ -101,6 +103,7 @@ public:
 	//~ Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void BeginDestroy() override;
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 #if WITH_EDITOR
 	virtual void ExportCustomProperties(FOutputDevice& Out, uint32 Indent) override;
 	virtual void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn) override;
