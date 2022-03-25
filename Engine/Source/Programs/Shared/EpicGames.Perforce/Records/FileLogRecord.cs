@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Perforce
 {
@@ -36,12 +32,12 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DepotPath">Path to the file in the depot</param>
-		/// <param name="Revisions">Revisions of this file</param>
-		public FileLogRecord(string DepotPath, List<RevisionRecord> Revisions)
+		/// <param name="depotPath">Path to the file in the depot</param>
+		/// <param name="revisions">Revisions of this file</param>
+		public FileLogRecord(string depotPath, List<RevisionRecord> revisions)
 		{
-			this.DepotPath = DepotPath;
-			this.Revisions = Revisions;
+			DepotPath = depotPath;
+			Revisions = revisions;
 		}
 
 		/// <summary>

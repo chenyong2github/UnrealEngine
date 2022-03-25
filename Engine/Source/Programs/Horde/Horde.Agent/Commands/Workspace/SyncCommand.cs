@@ -56,7 +56,7 @@ namespace Horde.Agent.Commands.Workspace
 
 			if (PreflightChange != -1)
 			{
-				await repo.UnshelveAsync(perforceClient, StreamName, PreflightChange, CancellationToken.None);
+				await repo.UnshelveAsync(perforceClient, PreflightChange, CancellationToken.None);
 			}
 		}
 	}

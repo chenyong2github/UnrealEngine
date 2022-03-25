@@ -422,7 +422,7 @@ namespace AutomationTool
 				BgGraphBuilder Builder = (BgGraphBuilder)Activator.CreateInstance(BuilderType);
 				Builder.SetupGraph(GraphSpec);
 
-				Graph = GraphSpec.CreateGraph(new HashSet<string>(), Arguments);
+				Graph = GraphSpec.CreateGraph(Arguments);
 			}
 			else
 			{

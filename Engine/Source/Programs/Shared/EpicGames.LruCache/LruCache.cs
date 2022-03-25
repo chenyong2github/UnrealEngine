@@ -1,20 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Buffers;
-using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.MemoryMappedFiles;
-using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,7 +17,7 @@ namespace HordeCommon
 	/// <summary>
 	/// A thread-safe LRU cache of hashed objects, backed by a file on disk. Reads are typically lock free. Writes require a lock but complete in constant time.
 	/// The cache is transactional, and will not lose data if the process is terminated. Entries are kept in the cache until explicitly trimmed by calling
-	/// <see cref="LruCache.TrimAsync(long)"/>.
+	/// <see cref="LruCache.TrimAsync(Int64)"/>.
 	/// </summary>
 	public class LruCache : IDisposable
 	{
@@ -46,25 +38,25 @@ namespace HordeCommon
 		{
 			public Memory<byte> Data { get; }
 
-			public byte BlockSizeLog2;
-			public int PageCount; // For a large item, this is the total number of full pages in the list. The full item size is LargeItemPageCount * 4kb + Item.LastBlockLength
-			public ulong FreeBitMap;
-			public int NextPageIdx;
+			public byte _blockSizeLog2;
+			public int _pageCount; // For a large item, this is the total number of full pages in the list. The full item size is LargeItemPageCount * 4kb + Item.LastBlockLength
+			public ulong _freeBitMap;
+			public int _nextPageIdx;
 
-			public int BlockSize => 1 << BlockSizeLog2;
-			public ulong EmptyBitMap => ~0UL >> (64 - (1 << (PageSizeLog2 - BlockSizeLog2))); // Note: left-shift only uses bottom 5 bits, cannot use (1UL << (PageSize >> BlockSizeLog2)) -1
+			public int BlockSize => 1 << _blockSizeLog2;
+			public ulong EmptyBitMap => ~0UL >> (64 - (1 << (PageSizeLog2 - _blockSizeLog2))); // Note: left-shift only uses bottom 5 bits, cannot use (1UL << (PageSize >> BlockSizeLog2)) -1
 				
-			public Page(Memory<byte> Data)
+			public Page(Memory<byte> data)
 			{
-				this.Data = Data;
+				Data = data;
 			}
 
-			public void Reset(int BlockSizeLog2, int PageCount, int NextPage)
+			public void Reset(int blockSizeLog2, int pageCount, int nextPage)
 			{
-				this.BlockSizeLog2 = (byte)BlockSizeLog2;
-				this.PageCount = PageCount;
-				this.FreeBitMap = EmptyBitMap;
-				this.NextPageIdx = NextPage;
+				_blockSizeLog2 = (byte)blockSizeLog2;
+				_pageCount = pageCount;
+				_freeBitMap = EmptyBitMap;
+				_nextPageIdx = nextPage;
 			}
 		}
 
@@ -94,15 +86,15 @@ namespace HordeCommon
 			public bool IsLargeItem => (Data & LargeItemFlag) != 0;
 			public bool IsValid => (Data & ValidFlag) != 0;
 
-			public Item(long Data)
+			public Item(long data)
 			{
-				this.Data = Data;
+				Data = data;
 			}
 
-			public Item(int FirstPage, byte Generation, int TailIndex, int TailSize, bool LargeItem)
+			public Item(int firstPage, byte generation, int tailIndex, int tailSize, bool largeItem)
 			{
-				Data = ((long)FirstPage << FirstPageOffset) | ((long)Generation << GenerationOffset) | ((long)TailIndex << TailIndexOffset) | ((long)TailSize << TailSizeOffset) | ValidFlag;
-				if (LargeItem)
+				Data = ((long)firstPage << FirstPageOffset) | ((long)generation << GenerationOffset) | ((long)tailIndex << TailIndexOffset) | ((long)tailSize << TailSizeOffset) | ValidFlag;
+				if (largeItem)
 				{
 					Data |= LargeItemFlag;
 				}
@@ -116,22 +108,22 @@ namespace HordeCommon
 		{
 			internal readonly LruCache Outer;
 
-			internal View(LruCache Outer)
+			internal View(LruCache outer)
 			{
-				this.Outer = Outer;
-				lock (Outer.LockObject)
+				Outer = outer;
+				lock (outer._lockObject)
 				{
-					Outer.NumReaders++;
+					outer._numReaders++;
 				}
 			}
 
-			public ReadOnlyMemory<byte> Get(IoHash Hash) => Outer.Get(Hash);
+			public ReadOnlyMemory<byte> Get(IoHash hash) => Outer.Get(hash);
 
 			public void Dispose()
 			{
-				lock (Outer.LockObject)
+				lock (Outer._lockObject)
 				{
-					Outer.NumReaders--;
+					Outer._numReaders--;
 				}
 			}
 		}
@@ -143,92 +135,92 @@ namespace HordeCommon
 		{
 			const ulong Multiplier = 11400714819323198485ul; // fibonnaci hashing
 
-			private byte[] Hashes;
-			private long[] Items;
+			private readonly byte[] _hashes;
+			private readonly long[] _items;
 			public int NumItems { get; private set; }
-			public int MaxItems => 1 << MaxItemsLog2;
-			private int MaxItemsLog2;
+			public int MaxItems => 1 << _maxItemsLog2;
+			private readonly int _maxItemsLog2;
 
-			public HashTable(int MaxItems)
+			public HashTable(int maxItems)
 			{
-				MaxItemsLog2 = BitOperations.Log2((uint)MaxItems);
-				MaxItems = 1 << MaxItemsLog2;
+				_maxItemsLog2 = BitOperations.Log2((uint)maxItems);
+				maxItems = 1 << _maxItemsLog2;
 
-				Hashes = new byte[MaxItems * IoHash.NumBytes];
-				Items = new long[MaxItems];
+				_hashes = new byte[maxItems * IoHash.NumBytes];
+				_items = new long[maxItems];
 			}
 
-			Memory<byte> GetHashMemory(int Slot) => Hashes.AsMemory(Slot * IoHash.NumBytes, IoHash.NumBytes);
+			Memory<byte> GetHashMemory(int slot) => _hashes.AsMemory(slot * IoHash.NumBytes, IoHash.NumBytes);
 
-			int GetTargetSlot(IoHash Hash) => (int)(((ulong)Hash.GetHashCode() * Multiplier) >> (64 - MaxItemsLog2));
+			int GetTargetSlot(IoHash hash) => (int)(((ulong)hash.GetHashCode() * Multiplier) >> (64 - _maxItemsLog2));
 
-			public bool Add(IoHash Hash, Item Item)
+			public bool Add(IoHash hash, Item item)
 			{
 				if (NumItems < MaxItems)
 				{
 					NumItems++;
-					int TargetSlot = GetTargetSlot(Hash);
-					Add(Hash, Item.Data, TargetSlot, TargetSlot);
+					int targetSlot = GetTargetSlot(hash);
+					Add(hash, item.Data, targetSlot, targetSlot);
 					return true;
 				}
 				return false;
 			}
 
-			private void Add(IoHash Hash, long ItemData, int Slot, int TargetSlot)
+			private void Add(IoHash hash, long itemData, int slot, int targetSlot)
 			{
 				for(; ;)
 				{
 					// Check if this slot is empty
-					IoHash CompareHash = GetHash(Slot);
-					if(CompareHash == IoHash.Zero)
+					IoHash compareHash = GetHash(slot);
+					if(compareHash == IoHash.Zero)
 					{
 						break;
 					}
 
 					// If not, get the probe sequence length of the item currently in this slot
-					int CompareTargetSlot = GetTargetSlot(CompareHash);
+					int compareTargetSlot = GetTargetSlot(compareHash);
 
 					// If this is a better fit, replace it. Update subsequent slots first to ensure consistent read ordering.
-					int NextSlot = (Slot + 1) & (MaxItems - 1);
-					if (Displace(Slot, TargetSlot, CompareTargetSlot))
+					int nextSlot = (slot + 1) & (MaxItems - 1);
+					if (Displace(slot, targetSlot, compareTargetSlot))
 					{
-						Add(CompareHash, Items[Slot], NextSlot, CompareTargetSlot);
+						Add(compareHash, _items[slot], nextSlot, compareTargetSlot);
 						break;
 					}
-					Slot = NextSlot;
+					slot = nextSlot;
 				}
 
-				Hash.CopyTo(GetHashMemory(Slot).Span);
-				Items[Slot] = ItemData;
+				hash.CopyTo(GetHashMemory(slot).Span);
+				_items[slot] = itemData;
 			}
 
-			public bool Displace(int Slot, int TargetSlot, int CompareTargetSlot)
+			public bool Displace(int slot, int targetSlot, int compareTargetSlot)
 			{
-				int ProbeLen = (TargetSlot + MaxItems - Slot) & (MaxItems - 1);
-				int CompareProbeLen = (CompareTargetSlot + MaxItems - Slot) & (MaxItems - 1);
-				return ProbeLen > CompareProbeLen;
+				int probeLen = (targetSlot + MaxItems - slot) & (MaxItems - 1);
+				int compareProbeLen = (compareTargetSlot + MaxItems - slot) & (MaxItems - 1);
+				return probeLen > compareProbeLen;
 			}
 
-			public IoHash GetHash(int Slot) => new IoHash(GetHashMemory(Slot).Span);
-			public Item GetItem(int Slot) => new Item(Items[Slot]);
+			public IoHash GetHash(int slot) => new IoHash(GetHashMemory(slot).Span);
+			public Item GetItem(int slot) => new Item(_items[slot]);
 
-			public int Find(IoHash Hash)
+			public int Find(IoHash hash)
 			{
-				int TargetSlot = GetTargetSlot(Hash);
-				for (int Slot = TargetSlot;;Slot = (Slot + 1) & (MaxItems - 1))
+				int targetSlot = GetTargetSlot(hash);
+				for (int slot = targetSlot;;slot = (slot + 1) & (MaxItems - 1))
 				{
-					IoHash CompareHash = GetHash(Slot);
-					if (CompareHash == IoHash.Zero)
+					IoHash compareHash = GetHash(slot);
+					if (compareHash == IoHash.Zero)
 					{
 						break;
 					}
-					if (CompareHash == Hash)
+					if (compareHash == hash)
 					{
-						return Slot;
+						return slot;
 					}
 
-					int CompareTargetSlot = GetTargetSlot(CompareHash);
-					if (Displace(Slot, TargetSlot, CompareTargetSlot))
+					int compareTargetSlot = GetTargetSlot(compareHash);
+					if (Displace(slot, targetSlot, compareTargetSlot))
 					{
 						break;
 					}
@@ -236,305 +228,305 @@ namespace HordeCommon
 				return -1;
 			}
 
-			public bool TryUpdate(int Slot, Item OldItem, Item NewItem)
+			public bool TryUpdate(int slot, Item oldItem, Item newItem)
 			{
-				return Interlocked.CompareExchange(ref Items[Slot], NewItem.Data, OldItem.Data) == OldItem.Data;
+				return Interlocked.CompareExchange(ref _items[slot], newItem.Data, oldItem.Data) == oldItem.Data;
 			}
 		}
 
-		object LockObject = new object();
-		int NumReaders = 0;
+		readonly object _lockObject = new object();
+		int _numReaders = 0;
 
-		FileReference IndexFile;
+		readonly FileReference _indexFile;
 
-		MemoryMappedFile DataFile;
-		MemoryMappedViewAccessor DataFileViewAccessor;
-		MemoryMappedFileView DataFileView;
+		readonly MemoryMappedFile _dataFile;
+		readonly MemoryMappedViewAccessor _dataFileViewAccessor;
+		readonly MemoryMappedFileView _dataFileView;
 
 		const int InvalidIdx = -1;
 
-		int NumFreePages;
-		int FreePageIdx;
-		int[] PageIdxWithFreeBlock = new int[MaxBlockSizeLog2 + 1];
+		int _numFreePages;
+		int _freePageIdx;
+		readonly int[] _pageIdxWithFreeBlock = new int[MaxBlockSizeLog2 + 1];
 
-		Page[] Pages;
-		HashTable Lookup;
+		readonly Page[] _pages;
+		HashTable _lookup;
 
-		int Generation;
-		long[] GenerationSize;
+		int _generation;
+		readonly long[] _generationSize;
 
-		long MaxBytesPerGeneration;
+		readonly long _maxBytesPerGeneration;
 
-		public int NumItems => Lookup.NumItems;
-		public int MaxItems => Lookup.MaxItems;
+		public int NumItems => _lookup.NumItems;
+		public int MaxItems => _lookup.MaxItems;
 
 		public long NumBytes { get; private set; }
 		public long NumBytesWithBlockSlack { get; private set; }
-		public long NumBytesWithPageSlack => (Pages.Length - NumFreePages) << PageSizeLog2;
+		public long NumBytesWithPageSlack => (_pages.Length - _numFreePages) << PageSizeLog2;
 
 		public long MaxSize { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="IndexFileRef">Path to the index file</param>
-		/// <param name="DataFileRef">Path to the cache file</param>
-		/// <param name="MaxItems">Maximum number of items that can be stored in the cache</param>
-		/// <param name="MaxSize">Size of the cache file. This will be preallocated.</param>
-		private LruCache(FileReference IndexFileRef, FileReference DataFileRef, int MaxItems, long MaxSize)
+		/// <param name="indexFileRef">Path to the index file</param>
+		/// <param name="dataFileRef">Path to the cache file</param>
+		/// <param name="maxItems">Maximum number of items that can be stored in the cache</param>
+		/// <param name="maxSize">Size of the cache file. This will be preallocated.</param>
+		private LruCache(FileReference indexFileRef, FileReference dataFileRef, int maxItems, long maxSize)
 		{
-			MaxSize = MaxSize & ~(PageSize - 1);
+			maxSize &= ~(PageSize - 1);
 
-			this.IndexFile = IndexFileRef;
-			this.Generation = 0;
-			this.GenerationSize = new long[256];
-			this.Lookup = new HashTable((int)(MaxItems * 1.4));
-			this.MaxSize = MaxSize;
+			_indexFile = indexFileRef;
+			_generation = 0;
+			_generationSize = new long[256];
+			_lookup = new HashTable((int)(maxItems * 1.4));
+			MaxSize = maxSize;
 
-			DataFile = MemoryMappedFile.CreateFromFile(DataFileRef.FullName, FileMode.OpenOrCreate, null, MaxSize);
-			DataFileViewAccessor = DataFile.CreateViewAccessor(0, MaxSize);
-			DataFileView = new MemoryMappedFileView(DataFileViewAccessor);
+			_dataFile = MemoryMappedFile.CreateFromFile(dataFileRef.FullName, FileMode.OpenOrCreate, null, maxSize);
+			_dataFileViewAccessor = _dataFile.CreateViewAccessor(0, maxSize);
+			_dataFileView = new MemoryMappedFileView(_dataFileViewAccessor);
 
-			MaxBytesPerGeneration = MaxSize / 256;
+			_maxBytesPerGeneration = maxSize / 256;
 
-			int NumPages = (int)(MaxSize >> PageSizeLog2);
-			Pages = new Page[NumPages];
+			int numPages = (int)(maxSize >> PageSizeLog2);
+			_pages = new Page[numPages];
 
-			const int MaxChunkSize = int.MaxValue & ~(PageSize - 1);
+			const int MaxChunkSize = Int32.MaxValue & ~(PageSize - 1);
 			const int MaxPagesPerChunk = MaxChunkSize >> PageSizeLog2;
 
-			long ChunkOffset = 0;
-			for (int BaseIdx = 0; BaseIdx < NumPages; )
+			long chunkOffset = 0;
+			for (int baseIdx = 0; baseIdx < numPages; )
 			{
-				int NumPagesInBlock = Math.Min(NumPages - BaseIdx, MaxPagesPerChunk);
-				int ChunkSize = NumPagesInBlock << PageSizeLog2;
+				int numPagesInBlock = Math.Min(numPages - baseIdx, MaxPagesPerChunk);
+				int chunkSize = numPagesInBlock << PageSizeLog2;
 
-				Memory<byte> ChunkData = DataFileView.GetMemory(ChunkOffset, ChunkSize);
-				for (int Idx = 0; Idx < NumPagesInBlock; Idx++)
+				Memory<byte> chunkData = _dataFileView.GetMemory(chunkOffset, chunkSize);
+				for (int idx = 0; idx < numPagesInBlock; idx++)
 				{
-					Memory<byte> Data = ChunkData.Slice(Idx << MaxBlockSizeLog2, MaxBlockSize);
-					Pages[BaseIdx + Idx] = new Page(Data);
+					Memory<byte> data = chunkData.Slice(idx << MaxBlockSizeLog2, MaxBlockSize);
+					_pages[baseIdx + idx] = new Page(data);
 				}
 
-				BaseIdx += NumPagesInBlock;
-				ChunkOffset += ChunkSize;
+				baseIdx += numPagesInBlock;
+				chunkOffset += chunkSize;
 			}
 
-			FreePageIdx = 0;
-			for (int Idx = 1; Idx < Pages.Length; Idx++)
+			_freePageIdx = 0;
+			for (int idx = 1; idx < _pages.Length; idx++)
 			{
-				Pages[Idx - 1].NextPageIdx = Idx;
+				_pages[idx - 1]._nextPageIdx = idx;
 			}
 
-			for (int Idx = 0; Idx < PageIdxWithFreeBlock.Length; Idx++)
+			for (int idx = 0; idx < _pageIdxWithFreeBlock.Length; idx++)
 			{
-				PageIdxWithFreeBlock[Idx] = InvalidIdx;
+				_pageIdxWithFreeBlock[idx] = InvalidIdx;
 			}
 
-			NumFreePages = Pages.Length;
+			_numFreePages = _pages.Length;
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			DataFileView.Dispose();
-			DataFileViewAccessor.Dispose();
-			DataFile.Dispose();
+			_dataFileView.Dispose();
+			_dataFileViewAccessor.Dispose();
+			_dataFile.Dispose();
 		}
 
 		/// <summary>
 		/// Creates a new cache
 		/// </summary>
-		/// <param name="IndexFile"></param>
-		/// <param name="DataFile"></param>
-		/// <param name="MaxItems"></param>
-		/// <param name="MaxSize"></param>
+		/// <param name="indexFile"></param>
+		/// <param name="dataFile"></param>
+		/// <param name="maxItems"></param>
+		/// <param name="maxSize"></param>
 		/// <returns></returns>
-		public static LruCache CreateNew(FileReference IndexFile, FileReference DataFile, int MaxItems, long MaxSize)
+		public static LruCache CreateNew(FileReference indexFile, FileReference dataFile, int maxItems, long maxSize)
 		{
-			DirectoryReference.CreateDirectory(IndexFile.Directory);
-			DirectoryReference.CreateDirectory(DataFile.Directory);
+			DirectoryReference.CreateDirectory(indexFile.Directory);
+			DirectoryReference.CreateDirectory(dataFile.Directory);
 
-			FileReference.Delete(IndexFile);
-			FileReference.Delete(GetTransactionFile(IndexFile));
-			FileReference.Delete(DataFile);
+			FileReference.Delete(indexFile);
+			FileReference.Delete(GetTransactionFile(indexFile));
+			FileReference.Delete(dataFile);
 
-			return new LruCache(IndexFile, DataFile, MaxItems, MaxSize);
+			return new LruCache(indexFile, dataFile, maxItems, maxSize);
 		}
 
 		/// <summary>
 		/// Opens an existing cache and modify its settings
 		/// </summary>
-		/// <param name="IndexFile"></param>
-		/// <param name="DataFile"></param>
-		/// <param name="MaxItems"></param>
-		/// <param name="MaxSize"></param>
+		/// <param name="indexFile"></param>
+		/// <param name="dataFile"></param>
+		/// <param name="maxItems"></param>
+		/// <param name="maxSize"></param>
 		/// <returns></returns>
-		public static async Task<LruCache?> OpenAndModifyAsync(FileReference IndexFile, FileReference DataFile, int MaxItems, long MaxSize)
+		public static async Task<LruCache?> OpenAndModifyAsync(FileReference indexFile, FileReference dataFile, int maxItems, long maxSize)
 		{
-			LruCache? Cache = await OpenAsync(IndexFile, DataFile);
-			if (Cache != null)
+			LruCache? cache = await OpenAsync(indexFile, dataFile);
+			if (cache != null)
 			{
-				if (Cache.MaxItems != MaxItems || Cache.MaxSize != MaxSize)
+				if (cache.MaxItems != maxItems || cache.MaxSize != maxSize)
 				{
-					FileReference NewIndexFile = new FileReference(IndexFile.FullName + ".new");
-					FileReference NewDataFile = new FileReference(DataFile.FullName + ".new");
+					FileReference newIndexFile = new FileReference(indexFile.FullName + ".new");
+					FileReference newDataFile = new FileReference(dataFile.FullName + ".new");
 
-					using (LruCache NewCache = LruCache.CreateNew(NewIndexFile, NewDataFile, MaxItems, MaxSize))
+					using (LruCache newCache = LruCache.CreateNew(newIndexFile, newDataFile, maxItems, maxSize))
 					{
-						for (int Idx = 0; Idx < Cache.Lookup.MaxItems; Idx++)
+						for (int idx = 0; idx < cache._lookup.MaxItems; idx++)
 						{
-							Item Item = NewCache.Lookup.GetItem(Idx);
-							if (Item.IsValid)
+							Item item = newCache._lookup.GetItem(idx);
+							if (item.IsValid)
 							{
-								IoHash Hash = Cache.Lookup.GetHash(Idx);
-								NewCache.Add(Hash, NewCache.Get(Hash));
+								IoHash hash = cache._lookup.GetHash(idx);
+								newCache.Add(hash, newCache.Get(hash));
 							}
 						}
 					}
 
-					FileReference OldIndexFile = new FileReference(IndexFile.FullName + ".old");
-					FileReference OldDataFile = new FileReference(DataFile.FullName + ".old");
+					FileReference oldIndexFile = new FileReference(indexFile.FullName + ".old");
+					FileReference oldDataFile = new FileReference(dataFile.FullName + ".old");
 
-					FileReference.Move(IndexFile, OldIndexFile, true);
-					FileReference.Move(DataFile, OldDataFile, true);
+					FileReference.Move(indexFile, oldIndexFile, true);
+					FileReference.Move(dataFile, oldDataFile, true);
 
-					FileReference.Move(NewIndexFile, IndexFile, true);
-					FileReference.Move(NewDataFile, DataFile, true);
+					FileReference.Move(newIndexFile, indexFile, true);
+					FileReference.Move(newDataFile, dataFile, true);
 
-					FileReference.Delete(OldIndexFile);
-					FileReference.Delete(OldDataFile);
+					FileReference.Delete(oldIndexFile);
+					FileReference.Delete(oldDataFile);
 
-					Cache.Dispose();
-					Cache = await OpenAsync(IndexFile, DataFile);
+					cache.Dispose();
+					cache = await OpenAsync(indexFile, dataFile);
 				}
 			}
-			return Cache;
+			return cache;
 		}
 
 		/// <summary>
 		/// Loads the current cache index from disk
 		/// </summary>
-		public static async Task<LruCache> OpenAsync(FileReference IndexFile, FileReference DataFile)
+		public static async Task<LruCache> OpenAsync(FileReference indexFile, FileReference dataFile)
 		{
-			LruCache? Cache = await TryOpenAsync(IndexFile, DataFile);
-			if (Cache == null)
+			LruCache? cache = await TryOpenAsync(indexFile, dataFile);
+			if (cache == null)
 			{
-				throw new FileNotFoundException($"Unable to open {IndexFile}");
+				throw new FileNotFoundException($"Unable to open {indexFile}");
 			}
-			return Cache;
+			return cache;
 		}
 
 		/// <summary>
 		/// Loads the current cache index from disk
 		/// </summary>
-		public static async Task<LruCache?> TryOpenAsync(FileReference IndexFile, FileReference DataFile)
+		public static async Task<LruCache?> TryOpenAsync(FileReference indexFile, FileReference dataFile)
 		{
 			// Check if the index exists. If not, check if a save of it was interrupted.
-			if (!FileReference.Exists(IndexFile))
+			if (!FileReference.Exists(indexFile))
 			{
-				FileReference TransactionIndexFile = new FileReference(IndexFile.FullName + ".tr");
-				if (!FileReference.Exists(TransactionIndexFile))
+				FileReference transactionIndexFile = new FileReference(indexFile.FullName + ".tr");
+				if (!FileReference.Exists(transactionIndexFile))
 				{
 					return null;
 				}
-				FileReference.Move(TransactionIndexFile, IndexFile, true);
+				FileReference.Move(transactionIndexFile, indexFile, true);
 			}
 
-			byte[] Data = await FileReference.ReadAllBytesAsync(IndexFile);
-			MemoryReader Reader = new MemoryReader(Data);
+			byte[] data = await FileReference.ReadAllBytesAsync(indexFile);
+			MemoryReader reader = new MemoryReader(data);
 
-			byte Version = Reader.ReadUInt8();
-			if (Version > CurrentVersion)
+			byte version = reader.ReadUInt8();
+			if (version > CurrentVersion)
 			{
-				throw new InvalidDataException($"Unable to load lru cache index of version {Version}");
+				throw new InvalidDataException($"Unable to load lru cache index of version {version}");
 			}
 
-			int MaxItems = Reader.ReadInt32();
-			long MaxSize = Reader.ReadInt64();
+			int maxItems = reader.ReadInt32();
+			long maxSize = reader.ReadInt64();
 
-			LruCache Cache = new LruCache(IndexFile, DataFile, MaxItems, MaxSize);
-			Cache.Generation = Reader.ReadUInt8();
+			LruCache cache = new LruCache(indexFile, dataFile, maxItems, maxSize);
+			cache._generation = reader.ReadUInt8();
 
-			foreach (Page Page in Cache.Pages)
+			foreach (Page page in cache._pages)
 			{
-				Page.PageCount = InvalidIdx;
+				page._pageCount = InvalidIdx;
 			}
 
-			int ItemCount = Reader.ReadInt32();
-			for (int Idx = 0; Idx < ItemCount; Idx++)
+			int itemCount = reader.ReadInt32();
+			for (int idx = 0; idx < itemCount; idx++)
 			{
-				IoHash Hash = Reader.ReadIoHash();
-				Item Item = new Item(Reader.ReadInt64());
+				IoHash hash = reader.ReadIoHash();
+				Item item = new Item(reader.ReadInt64());
 
-				int PageIdx = Item.FirstPageIdx;
+				int pageIdx = item.FirstPageIdx;
 
-				Page Page = Cache.Pages[PageIdx];
-				if (Item.IsLargeItem)
+				Page page = cache._pages[pageIdx];
+				if (item.IsLargeItem)
 				{
-					int PageCount = 0;
+					int pageCount = 0;
 
-					Page FirstPage = Page;
+					Page firstPage = page;
 					for (; ; )
 					{
-						int NextPageIdx = Reader.ReadInt32();
-						Page.Reset(MaxBlockSizeLog2, 0, NextPageIdx & 0x7fffffff);
-						Page.FreeBitMap = 0;
-						Page = Cache.Pages[Page.NextPageIdx];
+						int nextPageIdx = reader.ReadInt32();
+						page.Reset(MaxBlockSizeLog2, 0, nextPageIdx & 0x7fffffff);
+						page._freeBitMap = 0;
+						page = cache._pages[page._nextPageIdx];
 
-						PageCount++;
+						pageCount++;
 
-						if (NextPageIdx >= 0)
+						if (nextPageIdx >= 0)
 						{
 							break;
 						}
 					}
 
-					Cache.NumBytes += PageCount << PageSizeLog2;
-					Cache.NumBytesWithBlockSlack += PageCount << PageSizeLog2;
+					cache.NumBytes += pageCount << PageSizeLog2;
+					cache.NumBytesWithBlockSlack += pageCount << PageSizeLog2;
 
-					Page = FirstPage;
-					for (; PageCount > 0; PageCount--)
+					page = firstPage;
+					for (; pageCount > 0; pageCount--)
 					{
-						Page.PageCount = PageCount;
-						Page = Cache.Pages[Page.NextPageIdx];
+						page._pageCount = pageCount;
+						page = cache._pages[page._nextPageIdx];
 					}
 				}
 
-				if (Page.PageCount == InvalidIdx)
+				if (page._pageCount == InvalidIdx)
 				{
-					int BlockSizeLog2 = GetBlockSizeLog2(Item.TailSize);
-					Page.Reset(BlockSizeLog2, 0, InvalidIdx);
+					int blockSizeLog2 = GetBlockSizeLog2(item.TailSize);
+					page.Reset(blockSizeLog2, 0, InvalidIdx);
 				}
 
-				Page.FreeBitMap ^= 1UL << Item.TailIndex;
+				page._freeBitMap ^= 1UL << item.TailIndex;
 
-				Cache.NumBytes += Item.TailSize;
-				Cache.NumBytesWithBlockSlack += Page.BlockSize;
+				cache.NumBytes += item.TailSize;
+				cache.NumBytesWithBlockSlack += page.BlockSize;
 
-				Cache.Lookup.Add(Hash, Item);
+				cache._lookup.Add(hash, item);
 			}
 
 			// Fix up the lists of free and partially-free pages
-			Cache.NumFreePages = 0;
-			Cache.FreePageIdx = InvalidIdx;
-			for (int PageIdx = Cache.Pages.Length - 1; PageIdx >= 0; PageIdx--)
+			cache._numFreePages = 0;
+			cache._freePageIdx = InvalidIdx;
+			for (int pageIdx = cache._pages.Length - 1; pageIdx >= 0; pageIdx--)
 			{
-				Page Page = Cache.Pages[PageIdx];
-				if (Page.PageCount == InvalidIdx)
+				Page page = cache._pages[pageIdx];
+				if (page._pageCount == InvalidIdx)
 				{
-					Page.Reset(0, 0, Cache.FreePageIdx);
-					Page.NextPageIdx = Cache.FreePageIdx;
-					Cache.FreePageIdx = PageIdx;
-					Cache.NumFreePages++;
+					page.Reset(0, 0, cache._freePageIdx);
+					page._nextPageIdx = cache._freePageIdx;
+					cache._freePageIdx = pageIdx;
+					cache._numFreePages++;
 				}
-				else if (Page.FreeBitMap != 0)
+				else if (page._freeBitMap != 0)
 				{
-					Page.NextPageIdx = Cache.PageIdxWithFreeBlock[Page.BlockSizeLog2];
-					Cache.FreePageIdx = PageIdx;
+					page._nextPageIdx = cache._pageIdxWithFreeBlock[page._blockSizeLog2];
+					cache._freePageIdx = pageIdx;
 				}
 			}
-			return Cache;
+			return cache;
 		}
 
 		/// <summary>
@@ -542,60 +534,60 @@ namespace HordeCommon
 		/// </summary>
 		public async Task SaveAsync()
 		{
-			byte[] IndexData;
-			lock (LockObject)
+			byte[] indexData;
+			lock (_lockObject)
 			{
-				int IndexSize = sizeof(byte) + sizeof(int) + sizeof(long) + sizeof(byte) + sizeof(int);
-				for (int Slot = 0; Slot < Lookup.MaxItems; Slot++)
+				int indexSize = sizeof(byte) + sizeof(int) + sizeof(long) + sizeof(byte) + sizeof(int);
+				for (int slot = 0; slot < _lookup.MaxItems; slot++)
 				{
-					Item Item = Lookup.GetItem(Slot);
-					if (Item.IsValid)
+					Item item = _lookup.GetItem(slot);
+					if (item.IsValid)
 					{
-						IndexSize += IoHash.NumBytes + sizeof(long);
-						if (Item.IsLargeItem)
+						indexSize += IoHash.NumBytes + sizeof(long);
+						if (item.IsLargeItem)
 						{
-							IndexSize += Pages[Item.FirstPageIdx].PageCount * sizeof(int);
+							indexSize += _pages[item.FirstPageIdx]._pageCount * sizeof(int);
 						}
 					}
 				}
 
-				IndexData = new byte[IndexSize];
+				indexData = new byte[indexSize];
 
-				MemoryWriter Writer = new MemoryWriter(IndexData);
-				Writer.WriteUInt8(CurrentVersion);
-				Writer.WriteInt32(MaxItems);
-				Writer.WriteInt64(MaxSize);
+				MemoryWriter writer = new MemoryWriter(indexData);
+				writer.WriteUInt8(CurrentVersion);
+				writer.WriteInt32(MaxItems);
+				writer.WriteInt64(MaxSize);
 
-				Writer.WriteUInt8((byte)Generation);
+				writer.WriteUInt8((byte)_generation);
 
-				Writer.WriteInt32(Lookup.NumItems);
-				for (int Slot = 0; Slot < Lookup.MaxItems; Slot++)
+				writer.WriteInt32(_lookup.NumItems);
+				for (int slot = 0; slot < _lookup.MaxItems; slot++)
 				{
-					Item Item = Lookup.GetItem(Slot);
-					if (Item.IsValid)
+					Item item = _lookup.GetItem(slot);
+					if (item.IsValid)
 					{
-						Writer.WriteIoHash(Lookup.GetHash(Slot));
-						Writer.WriteInt64(Item.Data);
+						writer.WriteIoHash(_lookup.GetHash(slot));
+						writer.WriteInt64(item.Data);
 
-						if (Item.IsLargeItem)
+						if (item.IsLargeItem)
 						{
-							Page Page = Pages[Item.FirstPageIdx];
-							while (Page.PageCount > 1)
+							Page page = _pages[item.FirstPageIdx];
+							while (page._pageCount > 1)
 							{
-								Writer.WriteUInt32((uint)Page.NextPageIdx | 0x80000000U);
-								Page = Pages[Page.NextPageIdx];
+								writer.WriteUInt32((uint)page._nextPageIdx | 0x80000000U);
+								page = _pages[page._nextPageIdx];
 							}
-							Writer.WriteInt32(Page.NextPageIdx);
+							writer.WriteInt32(page._nextPageIdx);
 						}
 					}
 				}
-				Writer.CheckOffset(IndexSize);
+				writer.CheckOffset(indexSize);
 			}
 
 			// Write the new file to disk
-			FileReference TransactionFile = GetTransactionFile(IndexFile);
-			await FileReference.WriteAllBytesAsync(TransactionFile, IndexData);
-			FileReference.Move(TransactionFile, IndexFile, true);
+			FileReference transactionFile = GetTransactionFile(_indexFile);
+			await FileReference.WriteAllBytesAsync(transactionFile, indexData);
+			FileReference.Move(transactionFile, _indexFile, true);
 		}
 
 		/// <summary>
@@ -603,129 +595,129 @@ namespace HordeCommon
 		/// </summary>
 		public void NextGeneration()
 		{
-			lock (LockObject)
+			lock (_lockObject)
 			{
-				Generation = (Generation + 1) & 0xff;
+				_generation = (_generation + 1) & 0xff;
 			}
 		}
 
 		/// <summary>
 		/// Adds an item to the cache
 		/// </summary>
-		/// <param name="Data"></param>
+		/// <param name="data"></param>
 		/// <returns></returns>
-		public IoHash Add(ReadOnlyMemory<byte> Data)
+		public IoHash Add(ReadOnlyMemory<byte> data)
 		{
-			IoHash Hash = IoHash.Compute(Data.Span);
-			Add(Hash, Data);
-			return Hash;
+			IoHash hash = IoHash.Compute(data.Span);
+			Add(hash, data);
+			return hash;
 		}
 
-		static int GetBlockSizeLog2(int ItemSize)
+		static int GetBlockSizeLog2(int itemSize)
 		{
-			int ItemSizeLog2 = Math.Max(BitOperations.Log2((uint)ItemSize), MinBlockSizeLog2);
-			if (ItemSize > (1 << ItemSizeLog2))
+			int itemSizeLog2 = Math.Max(BitOperations.Log2((uint)itemSize), MinBlockSizeLog2);
+			if (itemSize > (1 << itemSizeLog2))
 			{
-				ItemSizeLog2++;
+				itemSizeLog2++;
 			}
-			return ItemSizeLog2;
+			return itemSizeLog2;
 		}
 
 		/// <summary>
 		/// Adds an item into the cache
 		/// </summary>
-		/// <param name="Hash">Has of the item</param>
-		/// <param name="Data">The data to add</param>
-		public void Add(IoHash Hash, ReadOnlyMemory<byte> Data)
+		/// <param name="hash">Has of the item</param>
+		/// <param name="data">The data to add</param>
+		public void Add(IoHash hash, ReadOnlyMemory<byte> data)
 		{
-			lock (LockObject)
+			lock (_lockObject)
 			{
 				// Make sure we can add the hash
-				if (Lookup.NumItems >= Lookup.MaxItems)
+				if (_lookup.NumItems >= _lookup.MaxItems)
 				{
 					return;
 				}
-				if (Lookup.Find(Hash) != -1)
+				if (_lookup.Find(hash) != -1)
 				{
 					return;
 				}
 
 				// Make sure there are enough full pages to store the data. The last page is always treated as a 'tail' block, even if it's exactly 4kb long.
-				int NumFullPages = Math.Max(Data.Length - 1, 0) >> PageSizeLog2;
+				int numFullPages = Math.Max(data.Length - 1, 0) >> PageSizeLog2;
 
 				// Get the size of the 'tail' page
-				int TailSize = Data.Length - (NumFullPages << PageSizeLog2);
-				int TailSizeLog2 = GetBlockSizeLog2(TailSize);
+				int tailSize = data.Length - (numFullPages << PageSizeLog2);
+				int tailSizeLog2 = GetBlockSizeLog2(tailSize);
 
 				// Get the tail page. This may be null if there are no pages free of the given size.
-				int TailPageIdx = PageIdxWithFreeBlock[TailSizeLog2];
+				int tailPageIdx = _pageIdxWithFreeBlock[tailSizeLog2];
 
 				// Make sure there are enough pages available
-				int NumRequiredPages = NumFullPages;
-				if (TailPageIdx == InvalidIdx)
+				int numRequiredPages = numFullPages;
+				if (tailPageIdx == InvalidIdx)
 				{
-					NumRequiredPages++;
+					numRequiredPages++;
 				}
-				if (NumFreePages < NumRequiredPages)
+				if (_numFreePages < numRequiredPages)
 				{
 					return;
 				}
 
 				// Allocate the tail page if necessary
-				if (TailPageIdx == -1)
+				if (tailPageIdx == -1)
 				{
-					TailPageIdx = FreePageIdx;
-					FreePageIdx = Pages[TailPageIdx].NextPageIdx;
+					tailPageIdx = _freePageIdx;
+					_freePageIdx = _pages[tailPageIdx]._nextPageIdx;
 
-					PageIdxWithFreeBlock[TailSizeLog2] = TailPageIdx;
-					Pages[TailPageIdx].Reset(TailSizeLog2, 0, -1);
+					_pageIdxWithFreeBlock[tailSizeLog2] = tailPageIdx;
+					_pages[tailPageIdx].Reset(tailSizeLog2, 0, -1);
 				}
 
 				// Take an item from the first free span
-				Page TailPage = Pages[TailPageIdx];
-				int TailIndex = BitOperations.TrailingZeroCount(TailPage.FreeBitMap) & 63;
-				TailPage.FreeBitMap ^= 1UL << TailIndex;
+				Page tailPage = _pages[tailPageIdx];
+				int tailIndex = BitOperations.TrailingZeroCount(tailPage._freeBitMap) & 63;
+				tailPage._freeBitMap ^= 1UL << tailIndex;
 
 				// If the page is full, remove it from the free list
-				if (TailPage.FreeBitMap == 0UL)
+				if (tailPage._freeBitMap == 0UL)
 				{
-					PageIdxWithFreeBlock[TailSizeLog2] = TailPage.NextPageIdx;
+					_pageIdxWithFreeBlock[tailSizeLog2] = tailPage._nextPageIdx;
 				}
 
 				// Copy the tail data to the cache
-				int TailOffset = TailIndex << TailSizeLog2;
-				Data.Slice(Data.Length - TailSize).CopyTo(TailPage.Data.Slice(TailOffset));
+				int tailOffset = tailIndex << tailSizeLog2;
+				data.Slice(data.Length - tailSize).CopyTo(tailPage.Data.Slice(tailOffset));
 
 				// Add all the other full pages in reverse order
-				int FirstPageIdx = TailPageIdx;
-				for (int Idx = NumFullPages - 1; Idx >= 0; Idx--)
+				int firstPageIdx = tailPageIdx;
+				for (int idx = numFullPages - 1; idx >= 0; idx--)
 				{
-					int PageIdx = FreePageIdx;
+					int pageIdx = _freePageIdx;
 
-					Page Page = Pages[PageIdx];
-					FreePageIdx = Page.NextPageIdx;
+					Page page = _pages[pageIdx];
+					_freePageIdx = page._nextPageIdx;
 
-					Page.Reset(PageSizeLog2, NumFullPages - Idx, FirstPageIdx);
-					Page.FreeBitMap = 0;
+					page.Reset(PageSizeLog2, numFullPages - idx, firstPageIdx);
+					page._freeBitMap = 0;
 
-					Data.Slice(Idx << PageSizeLog2, PageSize).CopyTo(Page.Data);
-					FirstPageIdx = PageIdx;
+					data.Slice(idx << PageSizeLog2, PageSize).CopyTo(page.Data);
+					firstPageIdx = pageIdx;
 				}
 
 				// Create the new item
-				Item Item = new Item(FirstPageIdx, (byte)Generation, TailIndex, TailSize, NumFullPages > 0);
-				Lookup.Add(Hash, Item);
+				Item item = new Item(firstPageIdx, (byte)_generation, tailIndex, tailSize, numFullPages > 0);
+				_lookup.Add(hash, item);
 
 				// Update the allocation stats
-				NumBytes += Data.Length;
-				NumBytesWithBlockSlack += (NumFullPages << PageSizeLog2) + (1 << TailSizeLog2);
-				NumFreePages -= NumRequiredPages;
+				NumBytes += data.Length;
+				NumBytesWithBlockSlack += (numFullPages << PageSizeLog2) + (1 << tailSizeLog2);
+				_numFreePages -= numRequiredPages;
 
 				// Update the generation
-				long NewGenerationSize = Interlocked.Add(ref GenerationSize[Generation], (NumFullPages << PageSizeLog2) + (1 << TailSizeLog2));
-				if (NewGenerationSize > MaxBytesPerGeneration)
+				long newGenerationSize = Interlocked.Add(ref _generationSize[_generation], (numFullPages << PageSizeLog2) + (1 << tailSizeLog2));
+				if (newGenerationSize > _maxBytesPerGeneration)
 				{
-					Generation++;
+					_generation++;
 				}
 			}
 		}
@@ -733,26 +725,26 @@ namespace HordeCommon
 		/// <summary>
 		/// Inserts a page into a linked list, sorted by index
 		/// </summary>
-		/// <param name="FirstPageIdx"></param>
-		/// <param name="PageIdx"></param>
-		void AddPageToList(ref int FirstPageIdx, int PageIdx)
+		/// <param name="firstPageIdx"></param>
+		/// <param name="pageIdx"></param>
+		void AddPageToList(ref int firstPageIdx, int pageIdx)
 		{
-			Page Page = Pages[PageIdx];
-			if (FirstPageIdx == InvalidIdx || PageIdx < FirstPageIdx)
+			Page page = _pages[pageIdx];
+			if (firstPageIdx == InvalidIdx || pageIdx < firstPageIdx)
 			{
-				Page.NextPageIdx = FirstPageIdx;
-				FirstPageIdx = PageIdx;
+				page._nextPageIdx = firstPageIdx;
+				firstPageIdx = pageIdx;
 			}
 			else
 			{
-				Page PrevPage = Pages[FirstPageIdx];
-				while (PrevPage.NextPageIdx != InvalidIdx && PageIdx < PrevPage.NextPageIdx)
+				Page prevPage = _pages[firstPageIdx];
+				while (prevPage._nextPageIdx != InvalidIdx && pageIdx < prevPage._nextPageIdx)
 				{
-					PrevPage = Pages[PrevPage.NextPageIdx];
+					prevPage = _pages[prevPage._nextPageIdx];
 				}
 
-				Page.NextPageIdx = PrevPage.NextPageIdx;
-				PrevPage.NextPageIdx = PageIdx;
+				page._nextPageIdx = prevPage._nextPageIdx;
+				prevPage._nextPageIdx = pageIdx;
 			}
 		}
 
@@ -761,29 +753,29 @@ namespace HordeCommon
 		/// </summary>
 		/// <param name="FirstPage"></param>
 		/// <param name="Page"></param>
-		void RemovePageFromList(ref int FirstPageIdx, int PageIdx)
+		void RemovePageFromList(ref int firstPageIdx, int pageIdx)
 		{
-			Page Page = Pages[PageIdx];
-			if (FirstPageIdx == PageIdx)
+			Page page = _pages[pageIdx];
+			if (firstPageIdx == pageIdx)
 			{
-				FirstPageIdx = Page.NextPageIdx;
+				firstPageIdx = page._nextPageIdx;
 			}
-			else if(FirstPageIdx != InvalidIdx)
+			else if(firstPageIdx != InvalidIdx)
 			{
-				Page PrevPage = Pages[FirstPageIdx];
+				Page prevPage = _pages[firstPageIdx];
 				for (; ;)
 				{
-					int NextPageIdx = PrevPage.NextPageIdx;
-					if (NextPageIdx == InvalidIdx)
+					int nextPageIdx = prevPage._nextPageIdx;
+					if (nextPageIdx == InvalidIdx)
 					{
 						break;
 					}
-					if (NextPageIdx == PageIdx)
+					if (nextPageIdx == pageIdx)
 					{
-						PrevPage.NextPageIdx = Page.NextPageIdx;
+						prevPage._nextPageIdx = page._nextPageIdx;
 						break;
 					}
-					PrevPage = Pages[NextPageIdx];
+					prevPage = _pages[nextPageIdx];
 				}
 			}
 		}
@@ -800,168 +792,168 @@ namespace HordeCommon
 		/// <summary>
 		/// Tries to read an item from the cache. Invoked via <see cref="View.Get(IoHash)"/>.
 		/// </summary>
-		/// <param name="Hash"></param>
+		/// <param name="hash"></param>
 		/// <returns></returns>
-		private ReadOnlyMemory<byte> Get(IoHash Hash)
+		private ReadOnlyMemory<byte> Get(IoHash hash)
 		{
-			int Slot = Lookup.Find(Hash);
-			if (Slot == -1)
+			int slot = _lookup.Find(hash);
+			if (slot == -1)
 			{
 				return ReadOnlyMemory<byte>.Empty;
 			}
 
-			Item Item = Lookup.GetItem(Slot);
-			Page FirstPage = Pages[Item.FirstPageIdx];
+			Item item = _lookup.GetItem(slot);
+			Page firstPage = _pages[item.FirstPageIdx];
 
-			if (Item.IsLargeItem)
+			if (item.IsLargeItem)
 			{
-				int ItemSize = (FirstPage.PageCount << PageSizeLog2) + Item.TailSize;
+				int itemSize = (firstPage._pageCount << PageSizeLog2) + item.TailSize;
 
-				byte[] Buffer = new byte[ItemSize];
+				byte[] buffer = new byte[itemSize];
 
-				int Offset = 0;
+				int offset = 0;
 
-				Page NextPage = FirstPage;
-				for (int Idx = 0; Idx < FirstPage.PageCount; Idx++)
+				Page nextPage = firstPage;
+				for (int idx = 0; idx < firstPage._pageCount; idx++)
 				{
-					NextPage.Data.CopyTo(Buffer.AsMemory(Offset));
-					NextPage = Pages[NextPage.NextPageIdx];
-					Offset += PageSize;
+					nextPage.Data.CopyTo(buffer.AsMemory(offset));
+					nextPage = _pages[nextPage._nextPageIdx];
+					offset += PageSize;
 				}
-				NextPage!.Data.Slice(Item.TailIndex << NextPage.BlockSizeLog2, Item.TailSize).CopyTo(Buffer.AsMemory(Offset));
+				nextPage!.Data.Slice(item.TailIndex << nextPage._blockSizeLog2, item.TailSize).CopyTo(buffer.AsMemory(offset));
 
-				UpdateGeneration(Slot, Item, ItemSize);
-				return Buffer;
+				UpdateGeneration(slot, item, itemSize);
+				return buffer;
 			}
 			else
 			{
-				UpdateGeneration(Slot, Item, Item.TailSize);
-				return FirstPage.Data.Slice(Item.TailIndex << FirstPage.BlockSizeLog2, Item.TailSize);
+				UpdateGeneration(slot, item, item.TailSize);
+				return firstPage.Data.Slice(item.TailIndex << firstPage._blockSizeLog2, item.TailSize);
 			}
 		}
 
-		void UpdateGeneration(int Slot, Item Item, int ItemSize)
+		void UpdateGeneration(int slot, Item item, int itemSize)
 		{
 			for (; ; )
 			{
-				int GenerationCopy = Generation;
-				if (Item.Generation == GenerationCopy)
+				int generationCopy = _generation;
+				if (item.Generation == generationCopy)
 				{
 					break;
 				}
 
-				Item NewItem = new Item(Item.FirstPageIdx, (byte)GenerationCopy, Item.TailIndex, Item.TailSize, Item.IsLargeItem);
-				if (Lookup.TryUpdate(Slot, Item, NewItem))
+				Item newItem = new Item(item.FirstPageIdx, (byte)generationCopy, item.TailIndex, item.TailSize, item.IsLargeItem);
+				if (_lookup.TryUpdate(slot, item, newItem))
 				{
-					Interlocked.Add(ref GenerationSize[Item.Generation], -ItemSize);
+					Interlocked.Add(ref _generationSize[item.Generation], -itemSize);
 
-					long NewGenerationSize = Interlocked.Add(ref GenerationSize[Item.Generation], ItemSize);
-					if (NewGenerationSize > MaxBytesPerGeneration)
+					long newGenerationSize = Interlocked.Add(ref _generationSize[item.Generation], itemSize);
+					if (newGenerationSize > _maxBytesPerGeneration)
 					{
-						Interlocked.CompareExchange(ref Generation, (byte)(GenerationCopy + 1), GenerationCopy);
+						Interlocked.CompareExchange(ref _generation, (byte)(generationCopy + 1), generationCopy);
 					}
 
 					break;
 				}
 
-				Item = Lookup.GetItem(Slot);
+				item = _lookup.GetItem(slot);
 			}
 		}
 
 		/// <summary>
 		/// Trims the cache to the given size, allowing new objects to be allocated. 
 		/// </summary>
-		/// <param name="TargetSize"></param>
+		/// <param name="targetSize"></param>
 		/// <returns></returns>
-		public async ValueTask<bool> TrimAsync(long TargetSize)
+		public async ValueTask<bool> TrimAsync(long targetSize)
 		{
-			List<Item> FreeItems = new List<Item>();
-			lock (LockObject)
+			List<Item> freeItems = new List<Item>();
+			lock (_lockObject)
 			{
 				// Check that nobody is currently reading from the cache
-				if (NumReaders > 0)
+				if (_numReaders > 0)
 				{
 					return false;
 				}
 
 				// Figure out how many generations we're going to keep
-				long NewTotalSize = 0;
-				int KeepGenerations = 0;
-				while (KeepGenerations < 256 && NewTotalSize < TargetSize)
+				long newTotalSize = 0;
+				int keepGenerations = 0;
+				while (keepGenerations < 256 && newTotalSize < targetSize)
 				{
-					NewTotalSize += GenerationSize[(int)(byte)(Generation - KeepGenerations)];
-					KeepGenerations++;
+					newTotalSize += _generationSize[(int)(byte)(_generation - keepGenerations)];
+					keepGenerations++;
 				}
 
 				// Create a new list of read-only items
-				HashTable NewItems = new HashTable(Lookup.MaxItems);
-				for (int Slot = 0; Slot < Lookup.MaxItems; Slot++)
+				HashTable newItems = new HashTable(_lookup.MaxItems);
+				for (int slot = 0; slot < _lookup.MaxItems; slot++)
 				{
-					Item Item = Lookup.GetItem(Slot);
-					if (Item.IsValid)
+					Item item = _lookup.GetItem(slot);
+					if (item.IsValid)
 					{
-						int Age = (byte)(Generation - Item.Generation);
-						if (Age < KeepGenerations)
+						int age = (byte)(_generation - item.Generation);
+						if (age < keepGenerations)
 						{
-							NewItems.Add(Lookup.GetHash(Slot), Item);
+							newItems.Add(_lookup.GetHash(slot), item);
 						}
 						else
 						{
-							FreeItems.Add(Item);
+							freeItems.Add(item);
 						}
 					}
 				}
-				Lookup = NewItems;
+				_lookup = newItems;
 			}
 
 			// Save the new state. This will ensure consistency when we restart.
 			await SaveAsync();
 
 			// Release any pages that are no longer needed
-			lock (LockObject)
+			lock (_lockObject)
 			{
-				foreach (Item Item in FreeItems)
+				foreach (Item item in freeItems)
 				{
-					int PageIdx = Item.FirstPageIdx;
-					Page Page = Pages[PageIdx];
+					int pageIdx = item.FirstPageIdx;
+					Page page = _pages[pageIdx];
 
 					// Free any full pages
-					int PageCount = Page.PageCount;
-					while (Page.PageCount > 0)
+					int pageCount = page._pageCount;
+					while (page._pageCount > 0)
 					{
-						AddPageToList(ref FreePageIdx, PageIdx);
-						PageIdx = Page.NextPageIdx;
-						Page = Pages[Page.NextPageIdx];
+						AddPageToList(ref _freePageIdx, pageIdx);
+						pageIdx = page._nextPageIdx;
+						page = _pages[page._nextPageIdx];
 					}
 
 					// Update the stats
-					NumBytes -= (PageCount << PageSizeLog2) + Item.TailSize;
-					NumBytesWithBlockSlack -= (PageCount << PageSizeLog2) + (1 << Page.BlockSizeLog2);
+					NumBytes -= (pageCount << PageSizeLog2) + item.TailSize;
+					NumBytesWithBlockSlack -= (pageCount << PageSizeLog2) + (1 << page._blockSizeLog2);
 
 					// If this is the first free item on the tail page, add it to the free list
-					if (Page.FreeBitMap == 0)
+					if (page._freeBitMap == 0)
 					{
-						AddPageToList(ref PageIdxWithFreeBlock[Page.BlockSizeLog2], PageIdx);
+						AddPageToList(ref _pageIdxWithFreeBlock[page._blockSizeLog2], pageIdx);
 					}
 
 					// Mark this block as free
-					Page.FreeBitMap |= 1UL << Item.TailIndex;
+					page._freeBitMap |= 1UL << item.TailIndex;
 
 					// If this page is completely empty, add it to the free page list
-					if (Page.FreeBitMap == Page.EmptyBitMap)
+					if (page._freeBitMap == page.EmptyBitMap)
 					{
-						RemovePageFromList(ref PageIdxWithFreeBlock[Page.BlockSizeLog2], PageIdx);
-						AddPageToList(ref FreePageIdx, PageIdx);
-						NumFreePages++;
+						RemovePageFromList(ref _pageIdxWithFreeBlock[page._blockSizeLog2], pageIdx);
+						AddPageToList(ref _freePageIdx, pageIdx);
+						_numFreePages++;
 					}
 				}
 			}
 			return true;
 		}
 
-		static FileReference GetTransactionFile(FileReference IndexFile)
+		static FileReference GetTransactionFile(FileReference indexFile)
 		{
-			return new FileReference(IndexFile.FullName + ".tr");
+			return new FileReference(indexFile.FullName + ".tr");
 		}
 	}
 }

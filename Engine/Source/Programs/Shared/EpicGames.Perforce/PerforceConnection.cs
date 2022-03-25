@@ -1,20 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Perforce
 {
@@ -26,95 +21,95 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Create a new Perforce connection
 		/// </summary>
-		/// <param name="Logger"></param>
+		/// <param name="logger"></param>
 		/// <returns></returns>
-		public static Task<IPerforceConnection> CreateAsync(ILogger Logger)
+		public static Task<IPerforceConnection> CreateAsync(ILogger logger)
 		{
-			return CreateAsync(PerforceSettings.Default, Logger);
+			return CreateAsync(PerforceSettings.Default, logger);
 		}
 
 		/// <summary>
 		/// Create a new Perforce connection
 		/// </summary>
-		/// <param name="ServerAndPort">The server address and port</param>
-		/// <param name="UserName">The user name</param>
-		/// <param name="Logger">Interface for logging</param>
+		/// <param name="serverAndPort">The server address and port</param>
+		/// <param name="userName">The user name</param>
+		/// <param name="logger">Interface for logging</param>
 		/// <returns></returns>
-		public static Task<IPerforceConnection> CreateAsync(string? ServerAndPort, string? UserName, ILogger Logger)
+		public static Task<IPerforceConnection> CreateAsync(string? serverAndPort, string? userName, ILogger logger)
 		{
-			return CreateAsync(CombineSettings(ServerAndPort, UserName), Logger);
+			return CreateAsync(CombineSettings(serverAndPort, userName), logger);
 		}
 
 		/// <summary>
 		/// Create a new Perforce connection
 		/// </summary>
-		/// <param name="ServerAndPort">The server address and port</param>
-		/// <param name="UserName">The user name</param>
-		/// <param name="ClientName">The client name</param>
-		/// <param name="Logger">Interface for logging</param>
+		/// <param name="serverAndPort">The server address and port</param>
+		/// <param name="userName">The user name</param>
+		/// <param name="clientName">The client name</param>
+		/// <param name="logger">Interface for logging</param>
 		/// <returns></returns>
-		public static Task<IPerforceConnection> CreateAsync(string? ServerAndPort, string? UserName, string? ClientName, ILogger Logger)
+		public static Task<IPerforceConnection> CreateAsync(string? serverAndPort, string? userName, string? clientName, ILogger logger)
+		{
+			return CreateAsync(CombineSettings(serverAndPort, userName, clientName), logger);
+		}
+
+		/// <summary>
+		/// Create a new Perforce connection
+		/// </summary>
+		/// <param name="serverAndPort">The server address and port</param>
+		/// <param name="userName">The user name</param>
+		/// <param name="clientName">The client name</param>
+		/// <param name="appName"></param>
+		/// <param name="appVersion"></param>
+		/// <param name="logger">Interface for logging</param>
+		/// <returns></returns>
+		public static Task<IPerforceConnection> CreateAsync(string? serverAndPort, string? userName, string? clientName, string? appName, string? appVersion, ILogger logger)
+		{
+			return CreateAsync(CombineSettings(serverAndPort, userName, clientName, appName, appVersion), logger);
+		}
+
+		/// <summary>
+		/// Create a new Perforce connection
+		/// </summary>
+		/// <param name="settings">Settings for the connection</param>
+		/// <param name="logger"></param>
+		/// <returns></returns>
+		public static async Task<IPerforceConnection> CreateAsync(IPerforceSettings settings, ILogger logger)
+		{
+			if (settings.PreferNativeClient)
 			{
-			return CreateAsync(CombineSettings(ServerAndPort, UserName, ClientName), Logger);
-		}
-
-		/// <summary>
-		/// Create a new Perforce connection
-		/// </summary>
-		/// <param name="ServerAndPort">The server address and port</param>
-		/// <param name="UserName">The user name</param>
-		/// <param name="ClientName">The client name</param>
-		/// <param name="AppName"></param>
-		/// <param name="AppVersion"></param>
-		/// <param name="Logger">Interface for logging</param>
-		/// <returns></returns>
-		public static Task<IPerforceConnection> CreateAsync(string? ServerAndPort, string? UserName, string? ClientName, string? AppName, string? AppVersion, ILogger Logger)
-		{
-			return CreateAsync(CombineSettings(ServerAndPort, UserName, ClientName, AppName, AppVersion), Logger);
-		}
-
-		/// <summary>
-		/// Create a new Perforce connection
-		/// </summary>
-		/// <param name="Settings">Settings for the connection</param>
-		/// <param name="Logger"></param>
-		/// <returns></returns>
-		public static async Task<IPerforceConnection> CreateAsync(IPerforceSettings Settings, ILogger Logger)
-		{
-			if (Settings.PreferNativeClient)
-			{
-				return await NativePerforceConnection.CreateAsync(Settings, Logger);
+				return await NativePerforceConnection.CreateAsync(settings, logger);
 			}
 			else
-		{
-				return new PerforceConnection(Settings, Logger);
+			{
+				return new PerforceConnection(settings, logger);
 			}
 		}
 
-		static PerforceSettings CombineSettings(string? ServerAndPort, string? UserName, string? ClientName = null, string? AppName = null, string? AppVersion = null)
+		static PerforceSettings CombineSettings(string? serverAndPort, string? userName, string? clientName = null, string? appName = null, string? appVersion = null)
 		{
-			PerforceSettings Settings = new PerforceSettings(PerforceSettings.Default);
-			if (ServerAndPort != null)
+			PerforceSettings settings = new PerforceSettings(PerforceSettings.Default);
+			if (serverAndPort != null)
 			{
-				Settings.ServerAndPort = ServerAndPort;
+				settings.ServerAndPort = serverAndPort;
 			}
-			if (UserName != null)
+			if (userName != null)
 			{
-				Settings.UserName = UserName;
+				settings.UserName = userName;
 			}
-			if (ClientName != null)
+			if (clientName != null)
 			{
-				Settings.ClientName = ClientName;
+				settings.ClientName = clientName;
 			}
-			if (AppName != null)
+			if (appName != null)
 			{
-				Settings.AppName = AppName;
+				settings.AppName = appName;
 			}
-			if (AppVersion != null)
+			if (appVersion != null)
 			{
-				Settings.AppVersion = AppVersion;
+				settings.AppVersion = appVersion;
 			}
-			return Settings;
+			return settings;
 		}
 
 		#region Legacy implementation
@@ -124,28 +119,28 @@ namespace EpicGames.Perforce
 		{
 			get
 			{
-				PerforceSettings Settings = new PerforceSettings(PerforceEnvironment.Default);
+				PerforceSettings settings = new PerforceSettings(PerforceEnvironment.Default);
 				if (ServerAndPort != null)
 				{
-					Settings.ServerAndPort = ServerAndPort;
+					settings.ServerAndPort = ServerAndPort;
 				}
 				if (UserName != null)
 				{
-					Settings.UserName = UserName;
+					settings.UserName = UserName;
 				}
 				if (ClientName != null)
 				{
-					Settings.ClientName = ClientName;
+					settings.ClientName = ClientName;
 				}
 				if (AppName != null)
 				{
-					Settings.AppName = AppName;
+					settings.AppName = AppName;
 				}
-				if(AppVersion != null)
+				if (AppVersion != null)
 				{
-					Settings.AppVersion = AppVersion;
+					settings.AppVersion = AppVersion;
 				}
-				return Settings;
+				return settings;
 			}
 		}
 
@@ -211,69 +206,69 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ServerAndPort">The server address and port</param>
-		/// <param name="UserName">The user name</param>
-		/// <param name="Logger">Interface for logging</param>
-		public PerforceConnection(string? ServerAndPort, string? UserName, ILogger Logger)
-			: this(ServerAndPort, UserName, null, Logger)
+		/// <param name="serverAndPort">The server address and port</param>
+		/// <param name="userName">The user name</param>
+		/// <param name="logger">Interface for logging</param>
+		public PerforceConnection(string? serverAndPort, string? userName, ILogger logger)
+			: this(serverAndPort, userName, null, logger)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ServerAndPort">The server address and port</param>
-		/// <param name="UserName">The user name</param>
-		/// <param name="ClientName">The client name</param>
-		/// <param name="Logger">Interface for logging</param>
-		public PerforceConnection(string? ServerAndPort, string? UserName, string? ClientName, ILogger Logger)
-			: this(ServerAndPort, UserName, ClientName, null, null, Logger)
+		/// <param name="serverAndPort">The server address and port</param>
+		/// <param name="userName">The user name</param>
+		/// <param name="clientName">The client name</param>
+		/// <param name="logger">Interface for logging</param>
+		public PerforceConnection(string? serverAndPort, string? userName, string? clientName, ILogger logger)
+			: this(serverAndPort, userName, clientName, null, null, logger)
 		{
-			AssemblyName EntryAssemblyName = Assembly.GetEntryAssembly()!.GetName();
-			if (EntryAssemblyName.Name != null)
+			AssemblyName entryAssemblyName = Assembly.GetEntryAssembly()!.GetName();
+			if (entryAssemblyName.Name != null)
 			{
-				AppName = EntryAssemblyName.Name;
-				AppVersion = EntryAssemblyName.Version?.ToString() ?? String.Empty;
+				AppName = entryAssemblyName.Name;
+				AppVersion = entryAssemblyName.Version?.ToString() ?? String.Empty;
 			}
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ServerAndPort">The server address and port</param>
-		/// <param name="UserName">The user name</param>
-		/// <param name="ClientName">The client name</param>
-		/// <param name="AppName"></param>
-		/// <param name="AppVersion"></param>
-		/// <param name="Logger">Interface for logging</param>
-		public PerforceConnection(string? ServerAndPort, string? UserName, string? ClientName, string? AppName, string? AppVersion, ILogger Logger)
+		/// <param name="serverAndPort">The server address and port</param>
+		/// <param name="userName">The user name</param>
+		/// <param name="clientName">The client name</param>
+		/// <param name="appName"></param>
+		/// <param name="appVersion"></param>
+		/// <param name="logger">Interface for logging</param>
+		public PerforceConnection(string? serverAndPort, string? userName, string? clientName, string? appName, string? appVersion, ILogger logger)
 		{
-			this.ServerAndPort = ServerAndPort;
-			this.UserName = UserName;
-			this.ClientName = ClientName;
-			this.AppName = AppName;
-			this.AppVersion = AppVersion;
-			this.Logger = Logger;
+			ServerAndPort = serverAndPort;
+			UserName = userName;
+			ClientName = clientName;
+			AppName = appName;
+			AppVersion = appVersion;
+			Logger = logger;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Settings"></param>
-		/// <param name="Logger"></param>
-		public PerforceConnection(IPerforceSettings Settings, ILogger Logger)
-			: this(Settings.ServerAndPort, Settings.UserName, Settings.ClientName, Settings.AppName, Settings.AppVersion, Logger)
+		/// <param name="settings"></param>
+		/// <param name="logger"></param>
+		public PerforceConnection(IPerforceSettings settings, ILogger logger)
+			: this(settings.ServerAndPort, settings.UserName, settings.ClientName, settings.AppName, settings.AppVersion, logger)
 		{
 		}
 
 		/// <summary>
 		/// Constructor 
 		/// </summary>
-		/// <param name="Other">Connection to copy settings from</param>
-		public PerforceConnection(PerforceConnection Other)
-			: this(Other.ServerAndPort, Other.UserName, Other.ClientName, Other.AppName, Other.AppVersion, Other.Logger)
+		/// <param name="other">Connection to copy settings from</param>
+		public PerforceConnection(PerforceConnection other)
+			: this(other.ServerAndPort, other.UserName, other.ClientName, other.AppName, other.AppVersion, other.Logger)
 		{
-			GlobalOptions.AddRange(Other.GlobalOptions);
+			GlobalOptions.AddRange(other.GlobalOptions);
 		}
 
 		/// <inheritdoc/>
@@ -283,85 +278,85 @@ namespace EpicGames.Perforce
 
 		List<string> GetGlobalArguments()
 		{
-			List<string> Arguments = new List<string>();
+			List<string> arguments = new List<string>();
 			if (ServerAndPort != null)
 			{
-				Arguments.Add($"-p{ServerAndPort}");
+				arguments.Add($"-p{ServerAndPort}");
 			}
 			if (UserName != null)
 			{
-				Arguments.Add($"-u{UserName}");
+				arguments.Add($"-u{UserName}");
 			}
 			if (ClientName != null)
 			{
-				Arguments.Add($"-c{ClientName}");
+				arguments.Add($"-c{ClientName}");
 			}
 			if (AppName != null)
 			{
-				Arguments.Add($"-zprog={AppName}");
+				arguments.Add($"-zprog={AppName}");
 			}
 			if (AppVersion != null)
 			{
-				Arguments.Add($"-zversion={AppVersion}");
+				arguments.Add($"-zversion={AppVersion}");
 			}
-			Arguments.AddRange(GlobalOptions);
-			return Arguments;
+			arguments.AddRange(GlobalOptions);
+			return arguments;
 		}
 
 		/// <inheritdoc/>
-		public Task<IPerforceOutput> CommandAsync(string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData, bool InterceptIo)
+		public Task<IPerforceOutput> CommandAsync(string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments, byte[]? inputData, bool interceptIo)
 		{
-			if (InterceptIo)
+			if (interceptIo)
 			{
-				throw new NotSupportedException($"{nameof(InterceptIo)} option is not supported through legacy Perforce client");
+				throw new NotSupportedException($"{nameof(interceptIo)} option is not supported through legacy Perforce client");
 			}
-			return Task.FromResult<IPerforceOutput>(new PerforceChildProcess(Command, Arguments, FileArguments, InputData, GetGlobalArguments(), Logger));
+			return Task.FromResult<IPerforceOutput>(new PerforceChildProcess(command, arguments, fileArguments, inputData, GetGlobalArguments(), Logger));
 		}
 
 		/// <summary>
 		/// Execute the 'login' command
 		/// </summary>
-		/// <param name="Password">Password to use to login</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="password">Password to use to login</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public Task<IPerforceOutput> LoginCommandAsync(string Password, CancellationToken CancellationToken = default)
+		public Task<IPerforceOutput> LoginCommandAsync(string password, CancellationToken cancellationToken = default)
 		{
 			// Some versions of P4.EXE do not support marshalled output for P4 login calls, so we only support this as a basic text query.
-			byte[] PasswordBytes = Encoding.UTF8.GetBytes(Password);
-			return Task.FromResult<IPerforceOutput>(new PerforceChildProcess("login", new List<string>(), null, PasswordBytes, GetGlobalArguments(), Logger));
+			byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+			return Task.FromResult<IPerforceOutput>(new PerforceChildProcess("login", new List<string>(), null, passwordBytes, GetGlobalArguments(), Logger));
 		}
 
 		/// <summary>
 		/// Sets an environment variable
 		/// </summary>
-		/// <param name="Name">Name of the variable to set</param>
-		/// <param name="Value">Value for the variable</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="name">Name of the variable to set</param>
+		/// <param name="value">Value for the variable</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public async Task SetAsync(string Name, string Value, CancellationToken CancellationToken = default)
+		public async Task SetAsync(string name, string value, CancellationToken cancellationToken = default)
 		{
-			Tuple<bool, string> Result = await TrySetAsync(Name, Value, CancellationToken);
-			if (!Result.Item1)
+			Tuple<bool, string> result = await TrySetAsync(name, value, cancellationToken);
+			if (!result.Item1)
 			{
-				throw new PerforceException(Result.Item2);
+				throw new PerforceException(result.Item2);
 			}
 		}
 
 		/// <summary>
 		/// Sets an environment variable
 		/// </summary>
-		/// <param name="Name">Name of the variable to set</param>
-		/// <param name="Value">Value for the variable</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="name">Name of the variable to set</param>
+		/// <param name="value">Value for the variable</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public async Task<Tuple<bool, string>> TrySetAsync(string Name, string Value, CancellationToken CancellationToken = default)
+		public async Task<Tuple<bool, string>> TrySetAsync(string name, string value, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			Arguments.Add($"{Name}={Value}");
+			List<string> arguments = new List<string>();
+			arguments.Add($"{name}={value}");
 
-			using (PerforceChildProcess ChildProcess = new PerforceChildProcess("set", Arguments, null, null, GetGlobalArguments(), Logger))
+			using (PerforceChildProcess childProcess = new PerforceChildProcess("set", arguments, null, null, GetGlobalArguments(), Logger))
 			{
-				return await ChildProcess.TryReadToEndAsync(CancellationToken);
+				return await childProcess.TryReadToEndAsync(cancellationToken);
 			}
 		}
 
@@ -376,23 +371,23 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Create a new connection with a different client
 		/// </summary>
-		/// <param name="Perforce"></param>
-		/// <param name="ClientName"></param>
+		/// <param name="perforce"></param>
+		/// <param name="clientName"></param>
 		/// <returns></returns>
-		public static Task<IPerforceConnection> WithClientAsync(this IPerforceConnection Perforce, string? ClientName)
+		public static Task<IPerforceConnection> WithClientAsync(this IPerforceConnection perforce, string? clientName)
 		{
-			PerforceSettings Settings = new PerforceSettings(Perforce.Settings) { ClientName = ClientName };
-			return PerforceConnection.CreateAsync(Settings, Perforce.Logger);
+			PerforceSettings settings = new PerforceSettings(perforce.Settings) { ClientName = clientName };
+			return PerforceConnection.CreateAsync(settings, perforce.Logger);
 		}
 
 		/// <summary>
 		/// Create a new connection with a different client
 		/// </summary>
-		/// <param name="Perforce"></param>
+		/// <param name="perforce"></param>
 		/// <returns></returns>
-		public static Task<IPerforceConnection> WithoutClientAsync(this IPerforceConnection Perforce)
+		public static Task<IPerforceConnection> WithoutClientAsync(this IPerforceConnection perforce)
 		{
-			return WithClientAsync(Perforce, null);
+			return WithClientAsync(perforce, null);
 		}
 
 		#region Command wrappers
@@ -400,56 +395,56 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute a command and parse the response
 		/// </summary>
-		/// <param name="Perforce">The Perforce connection</param>
-		/// <param name="Command">Command to execute</param>
-		/// <param name="Arguments">Arguments for the command</param>
-		/// <param name="InputData">Input data to pass to Perforce</param>
-		/// <param name="StatRecordType">The type of records to return for "stat" responses</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="perforce">The Perforce connection</param>
+		/// <param name="command">Command to execute</param>
+		/// <param name="arguments">Arguments for the command</param>
+		/// <param name="inputData">Input data to pass to Perforce</param>
+		/// <param name="statRecordType">The type of records to return for "stat" responses</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of objects returned by the server</returns>
-		public static Task<List<PerforceResponse>> CommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, byte[]? InputData, Type? StatRecordType, CancellationToken CancellationToken = default)
+		public static Task<List<PerforceResponse>> CommandAsync(this IPerforceConnection perforce, string command, IReadOnlyList<string> arguments, byte[]? inputData, Type? statRecordType, CancellationToken cancellationToken = default)
 		{
-			return CommandAsync(Perforce, Command, Arguments, null, InputData, StatRecordType, CancellationToken);
+			return CommandAsync(perforce, command, arguments, null, inputData, statRecordType, cancellationToken);
 		}
 
 		/// <summary>
 		/// Execute a command and parse the response
 		/// </summary>
-		/// <param name="Perforce">The Perforce connection</param>
-		/// <param name="Command">Command to execute</param>
-		/// <param name="Arguments">Arguments for the command</param>
-		/// <param name="FileArguments">File arguments for the command</param>
-		/// <param name="InputData">Input data to pass to Perforce</param>
-		/// <param name="StatRecordType">The type of records to return for "stat" responses</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="perforce">The Perforce connection</param>
+		/// <param name="command">Command to execute</param>
+		/// <param name="arguments">Arguments for the command</param>
+		/// <param name="fileArguments">File arguments for the command</param>
+		/// <param name="inputData">Input data to pass to Perforce</param>
+		/// <param name="statRecordType">The type of records to return for "stat" responses</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of objects returned by the server</returns>
-		public static async Task<List<PerforceResponse>> CommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData, Type? StatRecordType, CancellationToken CancellationToken = default)
+		public static async Task<List<PerforceResponse>> CommandAsync(this IPerforceConnection perforce, string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments, byte[]? inputData, Type? statRecordType, CancellationToken cancellationToken = default)
 		{
-			await using (IPerforceOutput Response = await Perforce.CommandAsync(Command, Arguments, FileArguments, InputData, false))
+			await using (IPerforceOutput response = await perforce.CommandAsync(command, arguments, fileArguments, inputData, false))
 			{
-				return await Response.ReadResponsesAsync(StatRecordType, CancellationToken);
+				return await response.ReadResponsesAsync(statRecordType, cancellationToken);
 			}
 		}
 
 		/// <summary>
 		/// Execute a command and parse the response
 		/// </summary>
-		/// <param name="Perforce">The Perforce connection</param>
-		/// <param name="Command">Command to execute</param>
-		/// <param name="Arguments">Arguments for the command</param>
-		/// <param name="FileArguments">File arguments for the command</param>
-		/// <param name="InputData">Input data to pass to Perforce</param>
-		/// <param name="StatRecordType">The type of records to return for "stat" responses</param>
-		/// <param name="InterceptIo">Whether to intercept Io operations and return them in the response output</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="perforce">The Perforce connection</param>
+		/// <param name="command">Command to execute</param>
+		/// <param name="arguments">Arguments for the command</param>
+		/// <param name="fileArguments">File arguments for the command</param>
+		/// <param name="inputData">Input data to pass to Perforce</param>
+		/// <param name="statRecordType">The type of records to return for "stat" responses</param>
+		/// <param name="interceptIo">Whether to intercept Io operations and return them in the response output</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of objects returned by the server</returns>
-		public static async IAsyncEnumerable<PerforceResponse> StreamCommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData, Type? StatRecordType, bool InterceptIo, [EnumeratorCancellation] CancellationToken CancellationToken)
+		public static async IAsyncEnumerable<PerforceResponse> StreamCommandAsync(this IPerforceConnection perforce, string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments, byte[]? inputData, Type? statRecordType, bool interceptIo, [EnumeratorCancellation] CancellationToken cancellationToken)
 		{
-			await using (IPerforceOutput Output = await Perforce.CommandAsync(Command, Arguments, FileArguments, InputData, InterceptIo))
+			await using (IPerforceOutput output = await perforce.CommandAsync(command, arguments, fileArguments, inputData, interceptIo))
 			{
-				await foreach (PerforceResponse Response in Output.ReadStreamingResponsesAsync(StatRecordType, CancellationToken))
+				await foreach (PerforceResponse response in output.ReadStreamingResponsesAsync(statRecordType, cancellationToken))
 				{
-					yield return Response;
+					yield return response;
 				}
 			}
 		}
@@ -457,21 +452,21 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute a command and parse the response
 		/// </summary>
-		/// <param name="Perforce">The Perforce connection</param>
-		/// <param name="Command">Command to execute</param>
-		/// <param name="Arguments">Arguments for the command</param>
-		/// <param name="FileArguments">File arguments for the command</param>
-		/// <param name="InputData">Input data to pass to Perforce</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="perforce">The Perforce connection</param>
+		/// <param name="command">Command to execute</param>
+		/// <param name="arguments">Arguments for the command</param>
+		/// <param name="fileArguments">File arguments for the command</param>
+		/// <param name="inputData">Input data to pass to Perforce</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of objects returned by the server</returns>
-		public static async IAsyncEnumerable<PerforceResponse<T>> StreamCommandAsync<T>(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments = null, byte[]? InputData = null, [EnumeratorCancellation] CancellationToken CancellationToken = default) where T : class
+		public static async IAsyncEnumerable<PerforceResponse<T>> StreamCommandAsync<T>(this IPerforceConnection perforce, string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments = null, byte[]? inputData = null, [EnumeratorCancellation] CancellationToken cancellationToken = default) where T : class
 		{
-			await using (IPerforceOutput Output = await Perforce.CommandAsync(Command, Arguments, FileArguments, InputData, false))
+			await using (IPerforceOutput output = await perforce.CommandAsync(command, arguments, fileArguments, inputData, false))
 			{
-				Type StatRecordType = typeof(T);
-				await foreach (PerforceResponse Response in Output.ReadStreamingResponsesAsync(StatRecordType, CancellationToken))
+				Type statRecordType = typeof(T);
+				await foreach (PerforceResponse response in output.ReadStreamingResponsesAsync(statRecordType, cancellationToken))
 				{
-					yield return new PerforceResponse<T>(Response);
+					yield return new PerforceResponse<T>(response);
 				}
 			}
 		}
@@ -479,160 +474,159 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute a command and parse the response
 		/// </summary>
-		/// <param name="Perforce">The Perforce connection</param>
-		/// <param name="Command">Command to execute</param>
-		/// <param name="Arguments">Arguments for the command</param>
-		/// <param name="InputData">Input data to pass to Perforce</param>
-		/// <param name="HandleRecord">Delegate used to handle each record</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="perforce">The Perforce connection</param>
+		/// <param name="command">Command to execute</param>
+		/// <param name="arguments">Arguments for the command</param>
+		/// <param name="inputData">Input data to pass to Perforce</param>
+		/// <param name="handleRecord">Delegate used to handle each record</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of objects returned by the server</returns>
-		public static async Task RecordCommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, byte[]? InputData, Action<PerforceRecord> HandleRecord, CancellationToken CancellationToken = default)
+		public static async Task RecordCommandAsync(this IPerforceConnection perforce, string command, IReadOnlyList<string> arguments, byte[]? inputData, Action<PerforceRecord> handleRecord, CancellationToken cancellationToken = default)
 		{
-			await using (IPerforceOutput Response = await Perforce.CommandAsync(Command, Arguments, null, InputData, false))
+			await using (IPerforceOutput response = await perforce.CommandAsync(command, arguments, null, inputData, false))
 			{
-				await Response.ReadRecordsAsync(HandleRecord, CancellationToken);
+				await response.ReadRecordsAsync(handleRecord, cancellationToken);
 			}
 		}
 
 		/// <summary>
 		/// Serializes a list of key/value pairs into binary format.
 		/// </summary>
-		/// <param name="KeyValuePairs">List of key value pairs</param>
+		/// <param name="keyValuePairs">List of key value pairs</param>
 		/// <returns>Serialized record data</returns>
-		static byte[] SerializeRecord(List<KeyValuePair<string, object>> KeyValuePairs)
+		static byte[] SerializeRecord(List<KeyValuePair<string, object>> keyValuePairs)
 		{
-			MemoryStream Stream = new MemoryStream();
-			using (BinaryWriter Writer = new BinaryWriter(Stream))
+			MemoryStream stream = new MemoryStream();
+			using (BinaryWriter writer = new BinaryWriter(stream))
 			{
-				Writer.Write((byte)'{');
-				foreach (KeyValuePair<string, object> KeyValuePair in KeyValuePairs)
+				writer.Write((byte)'{');
+				foreach (KeyValuePair<string, object> keyValuePair in keyValuePairs)
 				{
-					Writer.Write('s');
-					byte[] KeyBytes = Encoding.UTF8.GetBytes(KeyValuePair.Key);
-					Writer.Write((int)KeyBytes.Length);
-					Writer.Write(KeyBytes);
+					writer.Write('s');
+					byte[] keyBytes = Encoding.UTF8.GetBytes(keyValuePair.Key);
+					writer.Write((int)keyBytes.Length);
+					writer.Write(keyBytes);
 
-					if (KeyValuePair.Value is string)
+					if (keyValuePair.Value is string str)
 					{
-						Writer.Write('s');
-						byte[] ValueBytes = Encoding.UTF8.GetBytes((string)KeyValuePair.Value);
-						Writer.Write((int)ValueBytes.Length);
-						Writer.Write(ValueBytes);
+						writer.Write('s');
+						byte[] valueBytes = Encoding.UTF8.GetBytes(str);
+						writer.Write((int)valueBytes.Length);
+						writer.Write(valueBytes);
 					}
 					else
 					{
-						throw new PerforceException("Unsupported formatting type for {0}", KeyValuePair.Key);
+						throw new PerforceException("Unsupported formatting type for {0}", keyValuePair.Key);
 					}
 				}
-				Writer.Write((byte)'0');
+				writer.Write((byte)'0');
 			}
-			return Stream.ToArray();
+			return stream.ToArray();
 		}
 
 		/// <summary>
 		/// Execute a command and parse the response
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Command">The command to execute</param>
-		/// <param name="Arguments">Arguments for the command</param>
-		/// <param name="FileArguments">Arguments which can be passed into a -x argument</param>
-		/// <param name="InputData">Input data to pass to Perforce</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="command">The command to execute</param>
+		/// <param name="arguments">Arguments for the command</param>
+		/// <param name="fileArguments">Arguments which can be passed into a -x argument</param>
+		/// <param name="inputData">Input data to pass to Perforce</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of objects returned by the server</returns>
-		public static async Task<PerforceResponseList<T>> CommandAsync<T>(this IPerforceConnection Connection, string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData, CancellationToken CancellationToken = default) where T : class
+		public static async Task<PerforceResponseList<T>> CommandAsync<T>(this IPerforceConnection connection, string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments, byte[]? inputData, CancellationToken cancellationToken = default) where T : class
 		{
-			List<PerforceResponse> Responses = await Connection.CommandAsync(Command, Arguments, FileArguments, InputData, typeof(T), CancellationToken);
+			List<PerforceResponse> responses = await connection.CommandAsync(command, arguments, fileArguments, inputData, typeof(T), cancellationToken);
 
-			PerforceResponseList<T> TypedResponses = new PerforceResponseList<T>();
-			foreach (PerforceResponse Response in Responses)
+			PerforceResponseList<T> typedResponses = new PerforceResponseList<T>();
+			foreach (PerforceResponse response in responses)
 			{
-				TypedResponses.Add(new PerforceResponse<T>(Response));
+				typedResponses.Add(new PerforceResponse<T>(response));
 			}
-			return TypedResponses;
+			return typedResponses;
 		}
 
 		/// <summary>
 		/// Execute a command and parse the response
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Command">The command to execute</param>
-		/// <param name="Arguments">Arguments for the command</param>
-		/// <param name="InputData">Input data to pass to Perforce</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="command">The command to execute</param>
+		/// <param name="arguments">Arguments for the command</param>
+		/// <param name="inputData">Input data to pass to Perforce</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of objects returned by the server</returns>
-		public static Task<PerforceResponseList<T>> CommandAsync<T>(this IPerforceConnection Connection, string Command, List<string> Arguments, byte[]? InputData, CancellationToken CancellationToken = default) where T : class
+		public static Task<PerforceResponseList<T>> CommandAsync<T>(this IPerforceConnection connection, string command, List<string> arguments, byte[]? inputData, CancellationToken cancellationToken = default) where T : class
 		{
-			return CommandAsync<T>(Connection, Command, Arguments, null, InputData, CancellationToken);
+			return CommandAsync<T>(connection, command, arguments, null, inputData, cancellationToken);
 		}
 
 		/// <summary>
 		/// Execute a command and parse the response
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Command">The command to execute</param>
-		/// <param name="CommonArguments">Arguments for the command</param>
-		/// <param name="BatchedArguments">Arguments to pass to the command in batches</param>
-		/// <param name="InputData">Input data to pass to Perforce</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="command">The command to execute</param>
+		/// <param name="commonArguments">Arguments for the command</param>
+		/// <param name="batchedArguments">Arguments to pass to the command in batches</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of objects returned by the server</returns>
-		public static async Task<PerforceResponseList<T>> BatchedCommandAsync<T>(IPerforceConnection Connection, string Command, IReadOnlyList<string> CommonArguments, IReadOnlyList<string> BatchedArguments, byte[]? InputData, CancellationToken CancellationToken = default) where T : class
+		public static async Task<PerforceResponseList<T>> BatchedCommandAsync<T>(IPerforceConnection connection, string command, IReadOnlyList<string> commonArguments, IReadOnlyList<string> batchedArguments, CancellationToken cancellationToken = default) where T : class
 		{
-			PerforceResponseList<T> Responses = new PerforceResponseList<T>();
-			for (int FileSpecIdx = 0; FileSpecIdx < BatchedArguments.Count;)
+			PerforceResponseList<T> responses = new PerforceResponseList<T>();
+			for (int fileSpecIdx = 0; fileSpecIdx < batchedArguments.Count;)
 			{
-				List<string> Arguments = new List<string>();
-				Arguments.AddRange(CommonArguments);
+				List<string> arguments = new List<string>();
+				arguments.AddRange(commonArguments);
 
 				const int PerArgumentExtra = 5;
-				int Length = (Command.Length + PerArgumentExtra) + Arguments.Sum(x => x.Length + PerArgumentExtra);
+				int length = (command.Length + PerArgumentExtra) + arguments.Sum(x => x.Length + PerArgumentExtra);
 
-				for (; FileSpecIdx < BatchedArguments.Count && Length < 4096; FileSpecIdx++)
+				for (; fileSpecIdx < batchedArguments.Count && length < 4096; fileSpecIdx++)
 				{
-					Arguments.Add(BatchedArguments[FileSpecIdx]);
-					Length += BatchedArguments[FileSpecIdx].Length + PerArgumentExtra;
+					arguments.Add(batchedArguments[fileSpecIdx]);
+					length += batchedArguments[fileSpecIdx].Length + PerArgumentExtra;
 				}
-				Responses.AddRange(await CommandAsync<T>(Connection, Command, Arguments, null, CancellationToken));
+				responses.AddRange(await CommandAsync<T>(connection, command, arguments, null, cancellationToken));
 			}
-			return Responses;
+			return responses;
 		}
 
 		/// <summary>
 		/// Attempts to execute the given command, returning the results from the server or the first PerforceResponse object.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Command">The command to execute</param>
-		/// <param name="Arguments">Arguments for the command.</param>
-		/// <param name="InputData">Input data for the command.</param>
-		/// <param name="StatRecordType">Type of element to return in the response</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="command">The command to execute</param>
+		/// <param name="arguments">Arguments for the command.</param>
+		/// <param name="inputData">Input data for the command.</param>
+		/// <param name="statRecordType">Type of element to return in the response</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either an object of type T or error.</returns>
-		static async Task<PerforceResponse> SingleResponseCommandAsync(IPerforceConnection Connection, string Command, IReadOnlyList<string> Arguments, byte[]? InputData, Type? StatRecordType, CancellationToken CancellationToken = default)
+		static async Task<PerforceResponse> SingleResponseCommandAsync(IPerforceConnection connection, string command, IReadOnlyList<string> arguments, byte[]? inputData, Type? statRecordType, CancellationToken cancellationToken = default)
 		{
-			List<PerforceResponse> Responses = await Connection.CommandAsync(Command, Arguments, InputData, StatRecordType, CancellationToken);
-			if (Responses.Count != 1)
+			List<PerforceResponse> responses = await connection.CommandAsync(command, arguments, inputData, statRecordType, cancellationToken);
+			if (responses.Count != 1)
 			{
-				for (int Idx = 0; Idx < Responses.Count; Idx++)
+				for (int idx = 0; idx < responses.Count; idx++)
 				{
-					Connection.Logger.LogDebug("Unexpected response {Idx}: {Text}", Idx, Responses[Idx].ToString());
+					connection.Logger.LogDebug("Unexpected response {Idx}: {Text}", idx, responses[idx].ToString());
 				}
-				throw new PerforceException("Expected one result from 'p4 {0}', got {1}", Command, Responses.Count);
+				throw new PerforceException("Expected one result from 'p4 {0}', got {1}", command, responses.Count);
 			}
-			return Responses[0];
+			return responses[0];
 		}
 
 		/// <summary>
 		/// Attempts to execute the given command, returning the results from the server or the first PerforceResponse object.
 		/// </summary>
 		/// <typeparam name="T">Type of record to parse</typeparam>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Command">The command to execute</param>
-		/// <param name="Arguments">Arguments for the command.</param>
-		/// <param name="InputData">Input data for the command.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="command">The command to execute</param>
+		/// <param name="arguments">Arguments for the command.</param>
+		/// <param name="inputData">Input data for the command.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either an object of type T or error.</returns>
-		public static async Task<PerforceResponse<T>> SingleResponseCommandAsync<T>(IPerforceConnection Connection, string Command, List<string> Arguments, byte[]? InputData, CancellationToken CancellationToken = default) where T : class
+		public static async Task<PerforceResponse<T>> SingleResponseCommandAsync<T>(IPerforceConnection connection, string command, List<string> arguments, byte[]? inputData, CancellationToken cancellationToken = default) where T : class
 		{
-			return new PerforceResponse<T>(await SingleResponseCommandAsync(Connection, Command, Arguments, InputData, typeof(T), CancellationToken));
+			return new PerforceResponse<T>(await SingleResponseCommandAsync(connection, command, arguments, inputData, typeof(T), cancellationToken));
 		}
 
 		#endregion
@@ -642,83 +636,83 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Adds files to a pending changelist.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to add files to</param>
-		/// <param name="FileSpecList">Files to be added</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to add files to</param>
+		/// <param name="fileSpecList">Files to be added</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<AddRecord>> AddAsync(this IPerforceConnection Connection, int ChangeNumber, FileSpecList FileSpecList, CancellationToken CancellationToken = default)
+		public static async Task<List<AddRecord>> AddAsync(this IPerforceConnection connection, int changeNumber, FileSpecList fileSpecList, CancellationToken cancellationToken = default)
 		{
-			return (await TryAddAsync(Connection, ChangeNumber, null, AddOptions.None, FileSpecList, CancellationToken)).Data;
+			return (await TryAddAsync(connection, changeNumber, null, AddOptions.None, fileSpecList, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Adds files to a pending changelist.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to add files to</param>
-		/// <param name="FileType">Type for new files</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecList">Files to be added</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to add files to</param>
+		/// <param name="fileType">Type for new files</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecList">Files to be added</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<AddRecord>> AddAsync(this IPerforceConnection Connection, int ChangeNumber, string? FileType, AddOptions Options, FileSpecList FileSpecList, CancellationToken CancellationToken = default)
+		public static async Task<List<AddRecord>> AddAsync(this IPerforceConnection connection, int changeNumber, string? fileType, AddOptions options, FileSpecList fileSpecList, CancellationToken cancellationToken = default)
 		{
-			return (await TryAddAsync(Connection, ChangeNumber, FileType, Options, FileSpecList, CancellationToken)).Data;
+			return (await TryAddAsync(connection, changeNumber, fileType, options, fileSpecList, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Adds files to a pending changelist.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to add files to</param>
-		/// <param name="FileSpecList">Files to be added</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to add files to</param>
+		/// <param name="fileSpecList">Files to be added</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<AddRecord>> TryAddAsync(this IPerforceConnection Connection, int ChangeNumber, FileSpecList FileSpecList, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<AddRecord>> TryAddAsync(this IPerforceConnection connection, int changeNumber, FileSpecList fileSpecList, CancellationToken cancellationToken = default)
 		{
-			return TryAddAsync(Connection, ChangeNumber, null, AddOptions.None, FileSpecList, CancellationToken);
+			return TryAddAsync(connection, changeNumber, null, AddOptions.None, fileSpecList, cancellationToken);
 		}
 
 		/// <summary>
 		/// Adds files to a pending changelist.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to add files to</param>
-		/// <param name="FileType">Type for new files</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileNames">Files to be added</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to add files to</param>
+		/// <param name="fileType">Type for new files</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileNames">Files to be added</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<AddRecord>> TryAddAsync(this IPerforceConnection Connection, int ChangeNumber, string? FileType, AddOptions Options, FileSpecList FileNames, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<AddRecord>> TryAddAsync(this IPerforceConnection connection, int changeNumber, string? fileType, AddOptions options, FileSpecList fileNames, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if (ChangeNumber != -1)
+			List<string> arguments = new List<string>();
+			if (changeNumber != -1)
 			{
-				Arguments.Add($"-c{ChangeNumber}");
+				arguments.Add($"-c{changeNumber}");
 			}
-			if ((Options & AddOptions.DowngradeToAdd) != 0)
+			if ((options & AddOptions.DowngradeToAdd) != 0)
 			{
-				Arguments.Add("-d");
+				arguments.Add("-d");
 			}
-			if ((Options & AddOptions.IncludeWildcards) != 0)
+			if ((options & AddOptions.IncludeWildcards) != 0)
 			{
-				Arguments.Add("-f");
+				arguments.Add("-f");
 			}
-			if ((Options & AddOptions.NoIgnore) != 0)
+			if ((options & AddOptions.NoIgnore) != 0)
 			{
-				Arguments.Add("-I");
+				arguments.Add("-I");
 			}
-			if ((Options & AddOptions.PreviewOnly) != 0)
+			if ((options & AddOptions.PreviewOnly) != 0)
 			{
-				Arguments.Add("-n");
+				arguments.Add("-n");
 			}
-			if (FileType != null)
+			if (fileType != null)
 			{
-				Arguments.Add($"-t{FileType}");
+				arguments.Add($"-t{fileType}");
 			}
 
-			return BatchedCommandAsync<AddRecord>(Connection, "add", Arguments, FileNames.List, null, CancellationToken);
+			return BatchedCommandAsync<AddRecord>(connection, "add", arguments, fileNames.List, cancellationToken);
 		}
 
 		#endregion
@@ -728,201 +722,201 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Creates a changelist with the p4 change command. 
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Record">Information for the change to create. The number field should be left set to -1.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="record">Information for the change to create. The number field should be left set to -1.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>The changelist number, or an error.</returns>
-		public static async Task<ChangeRecord> CreateChangeAsync(this IPerforceConnection Connection, ChangeRecord Record, CancellationToken CancellationToken = default)
+		public static async Task<ChangeRecord> CreateChangeAsync(this IPerforceConnection connection, ChangeRecord record, CancellationToken cancellationToken = default)
 		{
-			return (await TryCreateChangeAsync(Connection, Record, CancellationToken)).Data;
+			return (await TryCreateChangeAsync(connection, record, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Creates a changelist with the p4 change command. 
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Record">Information for the change to create. The number field should be left set to -1.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="record">Information for the change to create. The number field should be left set to -1.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>The changelist number, or an error.</returns>
-		public static async Task<PerforceResponse<ChangeRecord>> TryCreateChangeAsync(this IPerforceConnection Connection, ChangeRecord Record, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponse<ChangeRecord>> TryCreateChangeAsync(this IPerforceConnection connection, ChangeRecord record, CancellationToken cancellationToken = default)
 		{
-			if (Record.Number != -1)
+			if (record.Number != -1)
 			{
 				throw new PerforceException("'Number' field should be set to -1 to create a new changelist.");
 			}
 
-			PerforceResponse Response = await SingleResponseCommandAsync(Connection, "change", new List<string> { "-i" }, SerializeRecord(Record), null, CancellationToken);
+			PerforceResponse response = await SingleResponseCommandAsync(connection, "change", new List<string> { "-i" }, SerializeRecord(record), null, cancellationToken);
 
-			PerforceError? Error = Response.Error;
-			if (Error != null)
+			PerforceError? error = response.Error;
+			if (error != null)
 			{
-				return new PerforceResponse<ChangeRecord>(Error);
+				return new PerforceResponse<ChangeRecord>(error);
 			}
 
-			PerforceInfo? Info = Response.Info;
-			if (Info == null)
+			PerforceInfo? info = response.Info;
+			if (info == null)
 			{
-				throw new PerforceException("Unexpected info response from change command: {0}", Response);
+				throw new PerforceException("Unexpected info response from change command: {0}", response);
 			}
 
-			string[] Tokens = Info.Data.Split(' ');
-			if (Tokens.Length != 3)
+			string[] tokens = info.Data.Split(' ');
+			if (tokens.Length != 3)
 			{
-				throw new PerforceException("Unexpected info response from change command: {0}", Response);
+				throw new PerforceException("Unexpected info response from change command: {0}", response);
 			}
 
-			Record.Number = int.Parse(Tokens[1]);
-			return new PerforceResponse<ChangeRecord>(Record);
+			record.Number = Int32.Parse(tokens[1]);
+			return new PerforceResponse<ChangeRecord>(record);
 		}
 
 		/// <summary>
 		/// Updates an existing changelist.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for this command</param>
-		/// <param name="Record">Information for the change to create. The number field should be left set to zero.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for this command</param>
+		/// <param name="record">Information for the change to create. The number field should be left set to zero.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>The changelist number, or an error.</returns>
-		public static async Task UpdateChangeAsync(this IPerforceConnection Connection, UpdateChangeOptions Options, ChangeRecord Record, CancellationToken CancellationToken = default)
+		public static async Task UpdateChangeAsync(this IPerforceConnection connection, UpdateChangeOptions options, ChangeRecord record, CancellationToken cancellationToken = default)
 		{
-			(await TryUpdateChangeAsync(Connection, Options, Record, CancellationToken)).EnsureSuccess();
+			(await TryUpdateChangeAsync(connection, options, record, cancellationToken)).EnsureSuccess();
 		}
 
 		/// <summary>
 		/// Updates an existing changelist.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for this command</param>
-		/// <param name="Record">Information for the change to create. The number field should be left set to zero.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for this command</param>
+		/// <param name="record">Information for the change to create. The number field should be left set to zero.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>The changelist number, or an error.</returns>
-		public static Task<PerforceResponse> TryUpdateChangeAsync(this IPerforceConnection Connection, UpdateChangeOptions Options, ChangeRecord Record, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse> TryUpdateChangeAsync(this IPerforceConnection connection, UpdateChangeOptions options, ChangeRecord record, CancellationToken cancellationToken = default)
 		{
-			if (Record.Number == -1)
+			if (record.Number == -1)
 			{
 				throw new PerforceException("'Number' field must be set to update a changelist.");
 			}
 
-			List<string> Arguments = new List<string>();
-			Arguments.Add("-i");
-			if ((Options & UpdateChangeOptions.Force) != 0)
+			List<string> arguments = new List<string>();
+			arguments.Add("-i");
+			if ((options & UpdateChangeOptions.Force) != 0)
 			{
-				Arguments.Add("-f");
+				arguments.Add("-f");
 			}
-			if ((Options & UpdateChangeOptions.Submitted) != 0)
+			if ((options & UpdateChangeOptions.Submitted) != 0)
 			{
-				Arguments.Add("-u");
+				arguments.Add("-u");
 			}
 
-			return SingleResponseCommandAsync(Connection, "change", Arguments, SerializeRecord(Record), null, CancellationToken);
+			return SingleResponseCommandAsync(connection, "change", arguments, SerializeRecord(record), null, cancellationToken);
 		}
 
 		/// <summary>
 		/// Deletes a changelist (p4 change -d)
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="ChangeNumber">Changelist number to delete</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="changeNumber">Changelist number to delete</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task DeleteChangeAsync(this IPerforceConnection Connection, DeleteChangeOptions Options, int ChangeNumber, CancellationToken CancellationToken = default)
+		public static async Task DeleteChangeAsync(this IPerforceConnection connection, DeleteChangeOptions options, int changeNumber, CancellationToken cancellationToken = default)
 		{
-			(await TryDeleteChangeAsync(Connection, Options, ChangeNumber, CancellationToken)).EnsureSuccess();
+			(await TryDeleteChangeAsync(connection, options, changeNumber, cancellationToken)).EnsureSuccess();
 		}
 
 		/// <summary>
 		/// Deletes a changelist (p4 change -d)
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="ChangeNumber">Changelist number to delete</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="changeNumber">Changelist number to delete</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponse> TryDeleteChangeAsync(this IPerforceConnection Connection, DeleteChangeOptions Options, int ChangeNumber, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse> TryDeleteChangeAsync(this IPerforceConnection connection, DeleteChangeOptions options, int changeNumber, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string> { "-d" };
-			if ((Options & DeleteChangeOptions.Submitted) != 0)
+			List<string> arguments = new List<string> { "-d" };
+			if ((options & DeleteChangeOptions.Submitted) != 0)
 			{
-				Arguments.Add("-f");
+				arguments.Add("-f");
 			}
-			if ((Options & DeleteChangeOptions.BeforeRenumber) != 0)
+			if ((options & DeleteChangeOptions.BeforeRenumber) != 0)
 			{
-				Arguments.Add("-O");
+				arguments.Add("-O");
 			}
-			Arguments.Add($"{ChangeNumber}");
+			arguments.Add($"{changeNumber}");
 
-			return SingleResponseCommandAsync(Connection, "change", Arguments, null, null, CancellationToken);
+			return SingleResponseCommandAsync(connection, "change", arguments, null, null, cancellationToken);
 		}
 
 		/// <summary>
 		/// Gets a changelist
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="ChangeNumber">Changelist number to retrieve. -1 is the default changelist for this workspace.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="changeNumber">Changelist number to retrieve. -1 is the default changelist for this workspace.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<ChangeRecord> GetChangeAsync(this IPerforceConnection Connection, GetChangeOptions Options, int ChangeNumber, CancellationToken CancellationToken = default)
+		public static async Task<ChangeRecord> GetChangeAsync(this IPerforceConnection connection, GetChangeOptions options, int changeNumber, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetChange(Connection, Options, ChangeNumber, CancellationToken)).Data;
+			return (await TryGetChange(connection, options, changeNumber, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Gets a changelist
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="ChangeNumber">Changelist number to retrieve. -1 is the default changelist for this workspace.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="changeNumber">Changelist number to retrieve. -1 is the default changelist for this workspace.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponse<ChangeRecord>> TryGetChange(this IPerforceConnection Connection, GetChangeOptions Options, int ChangeNumber, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse<ChangeRecord>> TryGetChange(this IPerforceConnection connection, GetChangeOptions options, int changeNumber, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string> { "-o" };
-			if ((Options & GetChangeOptions.BeforeRenumber) != 0)
+			List<string> arguments = new List<string> { "-o" };
+			if ((options & GetChangeOptions.BeforeRenumber) != 0)
 			{
-				Arguments.Add("-O");
+				arguments.Add("-O");
 			}
-			if (ChangeNumber != -1)
+			if (changeNumber != -1)
 			{
-				Arguments.Add($"{ChangeNumber}");
+				arguments.Add($"{changeNumber}");
 			}
 
-			return SingleResponseCommandAsync<ChangeRecord>(Connection, "change", Arguments, null, CancellationToken);
+			return SingleResponseCommandAsync<ChangeRecord>(connection, "change", arguments, null, cancellationToken);
 		}
 
 		/// <summary>
 		/// Serializes a change record to a byte array
 		/// </summary>
-		/// <param name="Input">The record to serialize</param>
+		/// <param name="input">The record to serialize</param>
 		/// <returns>Serialized record</returns>
-		static byte[] SerializeRecord(ChangeRecord Input)
+		static byte[] SerializeRecord(ChangeRecord input)
 		{
-			List<KeyValuePair<string, object>> NameToValue = new List<KeyValuePair<string, object>>();
-			if (Input.Number == -1)
+			List<KeyValuePair<string, object>> nameToValue = new List<KeyValuePair<string, object>>();
+			if (input.Number == -1)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Change", "new"));
+				nameToValue.Add(new KeyValuePair<string, object>("Change", "new"));
 			}
 			else
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Change", Input.Number.ToString()));
+				nameToValue.Add(new KeyValuePair<string, object>("Change", input.Number.ToString()));
 			}
-			if (Input.Type != ChangeType.Unspecified)
+			if (input.Type != ChangeType.Unspecified)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Type", Input.Type.ToString()));
+				nameToValue.Add(new KeyValuePair<string, object>("Type", input.Type.ToString()));
 			}
-			if (Input.User != null)
+			if (input.User != null)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("User", Input.User));
+				nameToValue.Add(new KeyValuePair<string, object>("User", input.User));
 			}
-			if (Input.Client != null)
+			if (input.Client != null)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Client", Input.Client));
+				nameToValue.Add(new KeyValuePair<string, object>("Client", input.Client));
 			}
-			if (Input.Description != null)
+			if (input.Description != null)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Description", Input.Description));
+				nameToValue.Add(new KeyValuePair<string, object>("Description", input.Description));
 			}
-			return SerializeRecord(NameToValue);
+			return SerializeRecord(nameToValue);
 		}
 
 		#endregion
@@ -932,144 +926,144 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Enumerates changes on the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxChanges">List only the highest numbered changes</param>
-		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
-		/// <param name="FileSpecs">Paths to query changes for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxChanges">List only the highest numbered changes</param>
+		/// <param name="status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
+		/// <param name="fileSpecs">Paths to query changes for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server.</returns>
-		public static async Task<List<ChangesRecord>> GetChangesAsync(this IPerforceConnection Connection, ChangesOptions Options, int MaxChanges, ChangeStatus Status, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<ChangesRecord>> GetChangesAsync(this IPerforceConnection connection, ChangesOptions options, int maxChanges, ChangeStatus status, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetChangesAsync(Connection, Options, MaxChanges, Status, FileSpecs, CancellationToken)).Data;
+			return (await TryGetChangesAsync(connection, options, maxChanges, status, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Enumerates changes on the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="ClientName">List only changes made from the named client workspace.</param>
-		/// <param name="MaxChanges">List only the highest numbered changes</param>
-		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
-		/// <param name="UserName">List only changes made by the named user</param>
-		/// <param name="FileSpecs">Paths to query changes for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="clientName">List only changes made from the named client workspace.</param>
+		/// <param name="maxChanges">List only the highest numbered changes</param>
+		/// <param name="status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
+		/// <param name="userName">List only changes made by the named user</param>
+		/// <param name="fileSpecs">Paths to query changes for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server.</returns>
-		public static async Task<List<ChangesRecord>> GetChangesAsync(this IPerforceConnection Connection, ChangesOptions Options, string? ClientName, int MaxChanges, ChangeStatus Status, string? UserName, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<ChangesRecord>> GetChangesAsync(this IPerforceConnection connection, ChangesOptions options, string? clientName, int maxChanges, ChangeStatus status, string? userName, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetChangesAsync(Connection, Options, ClientName, MaxChanges, Status, UserName, FileSpecs, CancellationToken)).Data;
+			return (await TryGetChangesAsync(connection, options, clientName, maxChanges, status, userName, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Enumerates changes on the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="ClientName">List only changes made from the named client workspace.</param>
-		/// <param name="MinChangeNumber">The minimum changelist number</param>
-		/// <param name="MaxChanges">List only the highest numbered changes</param>
-		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
-		/// <param name="UserName">List only changes made by the named user</param>
-		/// <param name="FileSpecs">Paths to query changes for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="clientName">List only changes made from the named client workspace.</param>
+		/// <param name="minChangeNumber">The minimum changelist number</param>
+		/// <param name="maxChanges">List only the highest numbered changes</param>
+		/// <param name="status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
+		/// <param name="userName">List only changes made by the named user</param>
+		/// <param name="fileSpecs">Paths to query changes for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server.</returns>
-		public static async Task<List<ChangesRecord>> GetChangesAsync(this IPerforceConnection Connection, ChangesOptions Options, string? ClientName, int MinChangeNumber, int MaxChanges, ChangeStatus Status, string? UserName, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<ChangesRecord>> GetChangesAsync(this IPerforceConnection connection, ChangesOptions options, string? clientName, int minChangeNumber, int maxChanges, ChangeStatus status, string? userName, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetChangesAsync(Connection, Options, ClientName, MinChangeNumber, MaxChanges, Status, UserName, FileSpecs, CancellationToken)).Data;
+			return (await TryGetChangesAsync(connection, options, clientName, minChangeNumber, maxChanges, status, userName, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Enumerates changes on the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxChanges">List only the highest numbered changes</param>
-		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
-		/// <param name="FileSpecs">Paths to query changes for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxChanges">List only the highest numbered changes</param>
+		/// <param name="status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
+		/// <param name="fileSpecs">Paths to query changes for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server.</returns>
-		public static Task<PerforceResponseList<ChangesRecord>> TryGetChangesAsync(this IPerforceConnection Connection, ChangesOptions Options, int MaxChanges, ChangeStatus Status, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<ChangesRecord>> TryGetChangesAsync(this IPerforceConnection connection, ChangesOptions options, int maxChanges, ChangeStatus status, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryGetChangesAsync(Connection, Options, null, MaxChanges, Status, null, FileSpecs, CancellationToken);
+			return TryGetChangesAsync(connection, options, null, maxChanges, status, null, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Enumerates changes on the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="ClientName">List only changes made from the named client workspace.</param>
-		/// <param name="MaxChanges">List only the highest numbered changes</param>
-		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
-		/// <param name="UserName">List only changes made by the named user</param>
-		/// <param name="FileSpecs">Paths to query changes for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="clientName">List only changes made from the named client workspace.</param>
+		/// <param name="maxChanges">List only the highest numbered changes</param>
+		/// <param name="status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
+		/// <param name="userName">List only changes made by the named user</param>
+		/// <param name="fileSpecs">Paths to query changes for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server.</returns>
-		public static Task<PerforceResponseList<ChangesRecord>> TryGetChangesAsync(this IPerforceConnection Connection, ChangesOptions Options, string? ClientName, int MaxChanges, ChangeStatus Status, string? UserName, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<ChangesRecord>> TryGetChangesAsync(this IPerforceConnection connection, ChangesOptions options, string? clientName, int maxChanges, ChangeStatus status, string? userName, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryGetChangesAsync(Connection, Options, ClientName, -1, MaxChanges, Status, UserName, FileSpecs, CancellationToken);
+			return TryGetChangesAsync(connection, options, clientName, -1, maxChanges, status, userName, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Enumerates changes on the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="ClientName">List only changes made from the named client workspace.</param>
-		/// <param name="MinChangeNumber">The minimum changelist number</param>
-		/// <param name="MaxChanges">List only the highest numbered changes</param>
-		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
-		/// <param name="UserName">List only changes made by the named user</param>
-		/// <param name="FileSpecs">Paths to query changes for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="clientName">List only changes made from the named client workspace.</param>
+		/// <param name="minChangeNumber">The minimum changelist number</param>
+		/// <param name="maxChanges">List only the highest numbered changes</param>
+		/// <param name="status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
+		/// <param name="userName">List only changes made by the named user</param>
+		/// <param name="fileSpecs">Paths to query changes for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server.</returns>
-		public static Task<PerforceResponseList<ChangesRecord>> TryGetChangesAsync(this IPerforceConnection Connection, ChangesOptions Options, string? ClientName, int MinChangeNumber, int MaxChanges, ChangeStatus Status, string? UserName, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<ChangesRecord>> TryGetChangesAsync(this IPerforceConnection connection, ChangesOptions options, string? clientName, int minChangeNumber, int maxChanges, ChangeStatus status, string? userName, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if ((Options & ChangesOptions.IncludeIntegrations) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & ChangesOptions.IncludeIntegrations) != 0)
 			{
-				Arguments.Add("-i");
+				arguments.Add("-i");
 			}
-			if ((Options & ChangesOptions.IncludeTimes) != 0)
+			if ((options & ChangesOptions.IncludeTimes) != 0)
 			{
-				Arguments.Add("-t");
+				arguments.Add("-t");
 			}
-			if ((Options & ChangesOptions.LongOutput) != 0)
+			if ((options & ChangesOptions.LongOutput) != 0)
 			{
-				Arguments.Add("-l");
+				arguments.Add("-l");
 			}
-			if ((Options & ChangesOptions.TruncatedLongOutput) != 0)
+			if ((options & ChangesOptions.TruncatedLongOutput) != 0)
 			{
-				Arguments.Add("-L");
+				arguments.Add("-L");
 			}
-			if ((Options & ChangesOptions.IncludeRestricted) != 0)
+			if ((options & ChangesOptions.IncludeRestricted) != 0)
 			{
-				Arguments.Add("-f");
+				arguments.Add("-f");
 			}
-			if (ClientName != null)
+			if (clientName != null)
 			{
-				Arguments.Add($"-c{ClientName}");
+				arguments.Add($"-c{clientName}");
 			}
-			if (MinChangeNumber != -1)
+			if (minChangeNumber != -1)
 			{
-				Arguments.Add($"-e{MinChangeNumber}");
+				arguments.Add($"-e{minChangeNumber}");
 			}
-			if (MaxChanges != -1)
+			if (maxChanges != -1)
 			{
-				Arguments.Add($"-m{MaxChanges}");
+				arguments.Add($"-m{maxChanges}");
 			}
-			if (Status != ChangeStatus.All)
+			if (status != ChangeStatus.All)
 			{
-				Arguments.Add($"-s{PerforceReflection.GetEnumText(typeof(ChangeStatus), Status)}");
+				arguments.Add($"-s{PerforceReflection.GetEnumText(typeof(ChangeStatus), status)}");
 			}
-			if (UserName != null)
+			if (userName != null)
 			{
-				Arguments.Add($"-u{UserName}");
+				arguments.Add($"-u{userName}");
 			}
-			Arguments.AddRange(FileSpecs.List);
+			arguments.AddRange(fileSpecs.List);
 
-			return CommandAsync<ChangesRecord>(Connection, "changes", Arguments, null, CancellationToken);
+			return CommandAsync<ChangesRecord>(connection, "changes", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -1079,60 +1073,60 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Cleans the workspace
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<CleanRecord>> CleanAsync(this IPerforceConnection Connection, CleanOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<CleanRecord>> CleanAsync(this IPerforceConnection connection, CleanOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryCleanAsync(Connection, Options, FileSpecs, CancellationToken)).Data;
+			return (await TryCleanAsync(connection, options, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Cleans the workspace
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<PerforceResponseList<CleanRecord>> TryCleanAsync(this IPerforceConnection Connection, CleanOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponseList<CleanRecord>> TryCleanAsync(this IPerforceConnection connection, CleanOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if ((Options & CleanOptions.Edited) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & CleanOptions.Edited) != 0)
 			{
-				Arguments.Add("-e");
+				arguments.Add("-e");
 			}
-			if ((Options & CleanOptions.Added) != 0)
+			if ((options & CleanOptions.Added) != 0)
 			{
-				Arguments.Add("-a");
+				arguments.Add("-a");
 			}
-			if ((Options & CleanOptions.Deleted) != 0)
+			if ((options & CleanOptions.Deleted) != 0)
 			{
-				Arguments.Add("-d");
+				arguments.Add("-d");
 			}
-			if ((Options & CleanOptions.Preview) != 0)
+			if ((options & CleanOptions.Preview) != 0)
 			{
-				Arguments.Add("-n");
+				arguments.Add("-n");
 			}
-			if ((Options & CleanOptions.NoIgnoreChecking) != 0)
+			if ((options & CleanOptions.NoIgnoreChecking) != 0)
 			{
-				Arguments.Add("-I");
+				arguments.Add("-I");
 			}
-			if ((Options & CleanOptions.LocalSyntax) != 0)
+			if ((options & CleanOptions.LocalSyntax) != 0)
 			{
-				Arguments.Add("-l");
+				arguments.Add("-l");
 			}
-			if ((Options & CleanOptions.ModifiedTimes) != 0)
+			if ((options & CleanOptions.ModifiedTimes) != 0)
 			{
-				Arguments.Add("-m");
+				arguments.Add("-m");
 			}
-			Arguments.AddRange(FileSpecs.List);
+			arguments.AddRange(fileSpecs.List);
 
-			PerforceResponseList<CleanRecord> Records = await CommandAsync<CleanRecord>(Connection, "clean", Arguments, null, CancellationToken);
-			Records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
-			return Records;
+			PerforceResponseList<CleanRecord> records = await CommandAsync<CleanRecord>(connection, "clean", arguments, null, cancellationToken);
+			records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
+			return records;
 		}
 
 		#endregion
@@ -1142,268 +1136,264 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Creates a client
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Record">The client record</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="record">The client record</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task CreateClientAsync(this IPerforceConnection Connection, ClientRecord Record, CancellationToken CancellationToken = default)
+		public static async Task CreateClientAsync(this IPerforceConnection connection, ClientRecord record, CancellationToken cancellationToken = default)
 		{
-			(await TryCreateClientAsync(Connection, Record, CancellationToken)).EnsureSuccess();
+			(await TryCreateClientAsync(connection, record, cancellationToken)).EnsureSuccess();
 		}
 
 		/// <summary>
 		/// Creates a client
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Record">The client record</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="record">The client record</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponse> TryCreateClientAsync(this IPerforceConnection Connection, ClientRecord Record, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse> TryCreateClientAsync(this IPerforceConnection connection, ClientRecord record, CancellationToken cancellationToken = default)
 		{
-			return TryUpdateClientAsync(Connection, Record, CancellationToken);
+			return TryUpdateClientAsync(connection, record, cancellationToken);
 		}
 
 		/// <summary>
 		/// Creates a client
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Record">The client record</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="record">The client record</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task UpdateClientAsync(this IPerforceConnection Connection, ClientRecord Record, CancellationToken CancellationToken = default)
+		public static async Task UpdateClientAsync(this IPerforceConnection connection, ClientRecord record, CancellationToken cancellationToken = default)
 		{
-			(await TryUpdateClientAsync(Connection, Record, CancellationToken)).EnsureSuccess();
+			(await TryUpdateClientAsync(connection, record, cancellationToken)).EnsureSuccess();
 		}
 
 		/// <summary>
 		/// Update a client
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Record">The client record</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="record">The client record</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponse> TryUpdateClientAsync(this IPerforceConnection Connection, ClientRecord Record, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse> TryUpdateClientAsync(this IPerforceConnection connection, ClientRecord record, CancellationToken cancellationToken = default)
 		{
-			return SingleResponseCommandAsync(Connection, "client", new List<string> { "-i" }, SerializeRecord(Record), null, CancellationToken);
+			return SingleResponseCommandAsync(connection, "client", new List<string> { "-i" }, SerializeRecord(record), null, cancellationToken);
 		}
 
 		/// <summary>
 		/// Deletes a client
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for this command</param>
-		/// <param name="ClientName">Name of the client</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for this command</param>
+		/// <param name="clientName">Name of the client</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task DeleteClientAsync(this IPerforceConnection Connection, DeleteClientOptions Options, string ClientName, CancellationToken CancellationToken = default)
+		public static async Task DeleteClientAsync(this IPerforceConnection connection, DeleteClientOptions options, string clientName, CancellationToken cancellationToken = default)
 		{
-			(await TryDeleteClientAsync(Connection, Options, ClientName, CancellationToken)).EnsureSuccess();
+			(await TryDeleteClientAsync(connection, options, clientName, cancellationToken)).EnsureSuccess();
 		}
 
 		/// <summary>
 		/// Deletes a client
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for this command</param>
-		/// <param name="ClientName">Name of the client</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for this command</param>
+		/// <param name="clientName">Name of the client</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponse> TryDeleteClientAsync(this IPerforceConnection Connection, DeleteClientOptions Options, string ClientName, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse> TryDeleteClientAsync(this IPerforceConnection connection, DeleteClientOptions options, string clientName, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string> { "-d" };
-			if ((Options & DeleteClientOptions.Force) != 0)
+			List<string> arguments = new List<string> { "-d" };
+			if ((options & DeleteClientOptions.Force) != 0)
 			{
-				Arguments.Add("-f");
+				arguments.Add("-f");
 			}
-			if ((Options & DeleteClientOptions.DeleteShelved) != 0)
+			if ((options & DeleteClientOptions.DeleteShelved) != 0)
 			{
-				Arguments.Add("-Fs");
+				arguments.Add("-Fs");
 			}
-			Arguments.Add(ClientName);
+			arguments.Add(clientName);
 
-			return SingleResponseCommandAsync(Connection, "client", Arguments, null, null, CancellationToken);
+			return SingleResponseCommandAsync(connection, "client", arguments, null, null, cancellationToken);
 		}
 
 		/// <summary>
 		/// Changes the stream associated with a client
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ClientName">The client name</param>
-		/// <param name="StreamName">The new stream to be associated with the client</param>
-		/// <param name="Options">Options for this command</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="streamName">The new stream to be associated with the client</param>
+		/// <param name="options">Options for this command</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task SwitchClientToStreamAsync(this IPerforceConnection Connection, string ClientName, string StreamName, SwitchClientOptions Options, CancellationToken CancellationToken = default)
+		public static async Task SwitchClientToStreamAsync(this IPerforceConnection connection, string streamName, SwitchClientOptions options, CancellationToken cancellationToken = default)
 		{
-			(await TrySwitchClientToStreamAsync(Connection, ClientName, StreamName, Options, CancellationToken)).EnsureSuccess();
+			(await TrySwitchClientToStreamAsync(connection, streamName, options, cancellationToken)).EnsureSuccess();
 		}
 
 		/// <summary>
 		/// Changes the stream associated with a client
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ClientName">The client name</param>
-		/// <param name="StreamName">The new stream to be associated with the client</param>
-		/// <param name="Options">Options for this command</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="streamName">The new stream to be associated with the client</param>
+		/// <param name="options">Options for this command</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponse> TrySwitchClientToStreamAsync(this IPerforceConnection Connection, string ClientName, string StreamName, SwitchClientOptions Options, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse> TrySwitchClientToStreamAsync(this IPerforceConnection connection, string streamName, SwitchClientOptions options, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string> { "-s" };
-			if ((Options & SwitchClientOptions.IgnoreOpenFiles) != 0)
+			List<string> arguments = new List<string> { "-s" };
+			if ((options & SwitchClientOptions.IgnoreOpenFiles) != 0)
 			{
-				Arguments.Add("-f");
+				arguments.Add("-f");
 			}
-			Arguments.Add($"-S{StreamName}");
+			arguments.Add($"-S{streamName}");
 
-			return SingleResponseCommandAsync(Connection, "client", Arguments, null, null, CancellationToken);
+			return SingleResponseCommandAsync(connection, "client", arguments, null, null, cancellationToken);
 		}
 
 		/// <summary>
 		/// Changes a client to mirror a template
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ClientName">The client name</param>
-		/// <param name="TemplateName">The new stream to be associated with the client</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="templateName">The new stream to be associated with the client</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task SwitchClientToTemplateAsync(this IPerforceConnection Connection, string ClientName, string TemplateName, CancellationToken CancellationToken = default)
+		public static async Task SwitchClientToTemplateAsync(this IPerforceConnection connection, string templateName, CancellationToken cancellationToken = default)
 		{
-			(await TrySwitchClientToTemplateAsync(Connection, ClientName, TemplateName, CancellationToken)).EnsureSuccess();
+			(await TrySwitchClientToTemplateAsync(connection, templateName, cancellationToken)).EnsureSuccess();
 		}
 
 		/// <summary>
 		/// Changes a client to mirror a template
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ClientName">The client name</param>
-		/// <param name="TemplateName">The new stream to be associated with the client</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="templateName">The new stream to be associated with the client</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponse> TrySwitchClientToTemplateAsync(this IPerforceConnection Connection, string ClientName, string TemplateName, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse> TrySwitchClientToTemplateAsync(this IPerforceConnection connection, string templateName, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			Arguments.Add("-s");
-			Arguments.Add($"-t{TemplateName}");
+			List<string> arguments = new List<string>();
+			arguments.Add("-s");
+			arguments.Add($"-t{templateName}");
 
-			return SingleResponseCommandAsync(Connection, "client", Arguments, null, null, CancellationToken);
+			return SingleResponseCommandAsync(connection, "client", arguments, null, null, cancellationToken);
 		}
 
 		/// <summary>
 		/// Queries the current client definition
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ClientName">Name of the client. Specify null for the current client.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="clientName">Name of the client. Specify null for the current client.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public static async Task<ClientRecord> GetClientAsync(this IPerforceConnection Connection, string? ClientName, CancellationToken CancellationToken = default)
+		public static async Task<ClientRecord> GetClientAsync(this IPerforceConnection connection, string? clientName, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetClientAsync(Connection, ClientName, CancellationToken)).Data;
+			return (await TryGetClientAsync(connection, clientName, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Queries the current client definition
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ClientName">Name of the client. Specify null for the current client.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="clientName">Name of the client. Specify null for the current client.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public static Task<PerforceResponse<ClientRecord>> TryGetClientAsync(this IPerforceConnection Connection, string? ClientName, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse<ClientRecord>> TryGetClientAsync(this IPerforceConnection connection, string? clientName, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string> { "-o" };
-			if (ClientName != null)
+			List<string> arguments = new List<string> { "-o" };
+			if (clientName != null)
 			{
-				Arguments.Add(ClientName);
+				arguments.Add(clientName);
 			}
-			return SingleResponseCommandAsync<ClientRecord>(Connection, "client", Arguments, null, CancellationToken);
+			return SingleResponseCommandAsync<ClientRecord>(connection, "client", arguments, null, cancellationToken);
 		}
 
 		/// <summary>
 		/// Queries the view for a stream
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="StreamName">Name of the stream.</param>
-		/// <param name="ChangeNumber">Changelist at which to query the stream view</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="streamName">Name of the stream.</param>
+		/// <param name="changeNumber">Changelist at which to query the stream view</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public static async Task<ClientRecord> GetStreamViewAsync(this IPerforceConnection Connection, string StreamName, int ChangeNumber, CancellationToken CancellationToken = default)
+		public static async Task<ClientRecord> GetStreamViewAsync(this IPerforceConnection connection, string streamName, int changeNumber, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetStreamViewAsync(Connection, StreamName, ChangeNumber, CancellationToken)).Data;
+			return (await TryGetStreamViewAsync(connection, streamName, changeNumber, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Queries the view for a stream
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="StreamName">Name of the stream.</param>
-		/// <param name="ChangeNumber">Changelist at which to query the stream view</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="streamName">Name of the stream.</param>
+		/// <param name="changeNumber">Changelist at which to query the stream view</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public static Task<PerforceResponse<ClientRecord>> TryGetStreamViewAsync(this IPerforceConnection Connection, string StreamName, int ChangeNumber, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse<ClientRecord>> TryGetStreamViewAsync(this IPerforceConnection connection, string streamName, int changeNumber, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string> { "-o" };
-			Arguments.Add($"-S{StreamName}");
-			if (ChangeNumber != -1)
+			List<string> arguments = new List<string> { "-o" };
+			arguments.Add($"-S{streamName}");
+			if (changeNumber != -1)
 			{
-				Arguments.Add($"-c{ChangeNumber}");
+				arguments.Add($"-c{changeNumber}");
 			}
 
-			return SingleResponseCommandAsync<ClientRecord>(Connection, "client", Arguments, null, CancellationToken);
+			return SingleResponseCommandAsync<ClientRecord>(connection, "client", arguments, null, cancellationToken);
 		}
 
 		/// <summary>
 		/// Serializes a client record to a byte array
 		/// </summary>
-		/// <param name="Input">The input record</param>
+		/// <param name="input">The input record</param>
 		/// <returns>Serialized record data</returns>
-		static byte[] SerializeRecord(ClientRecord Input)
+		static byte[] SerializeRecord(ClientRecord input)
 		{
-			List<KeyValuePair<string, object>> NameToValue = new List<KeyValuePair<string, object>>();
-			if (Input.Name != null)
+			List<KeyValuePair<string, object>> nameToValue = new List<KeyValuePair<string, object>>();
+			if (input.Name != null)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Client", Input.Name));
+				nameToValue.Add(new KeyValuePair<string, object>("Client", input.Name));
 			}
-			if (Input.Owner != null)
+			if (input.Owner != null)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Owner", Input.Owner));
+				nameToValue.Add(new KeyValuePair<string, object>("Owner", input.Owner));
 			}
-			if (Input.Host != null)
+			if (input.Host != null)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Host", Input.Host));
+				nameToValue.Add(new KeyValuePair<string, object>("Host", input.Host));
 			}
-			if (Input.Description != null)
+			if (input.Description != null)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Description", Input.Description));
+				nameToValue.Add(new KeyValuePair<string, object>("Description", input.Description));
 			}
-			if (Input.Root != null)
+			if (input.Root != null)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Root", Input.Root));
+				nameToValue.Add(new KeyValuePair<string, object>("Root", input.Root));
 			}
-			if (Input.Options != ClientOptions.None)
+			if (input.Options != ClientOptions.None)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Options", PerforceReflection.GetEnumText(typeof(ClientOptions), Input.Options)));
+				nameToValue.Add(new KeyValuePair<string, object>("Options", PerforceReflection.GetEnumText(typeof(ClientOptions), input.Options)));
 			}
-			if (Input.SubmitOptions != ClientSubmitOptions.Unspecified)
+			if (input.SubmitOptions != ClientSubmitOptions.Unspecified)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("SubmitOptions", PerforceReflection.GetEnumText(typeof(ClientSubmitOptions), Input.SubmitOptions)));
+				nameToValue.Add(new KeyValuePair<string, object>("SubmitOptions", PerforceReflection.GetEnumText(typeof(ClientSubmitOptions), input.SubmitOptions)));
 			}
-			if (Input.LineEnd != ClientLineEndings.Unspecified)
+			if (input.LineEnd != ClientLineEndings.Unspecified)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("LineEnd", PerforceReflection.GetEnumText(typeof(ClientLineEndings), Input.LineEnd)));
+				nameToValue.Add(new KeyValuePair<string, object>("LineEnd", PerforceReflection.GetEnumText(typeof(ClientLineEndings), input.LineEnd)));
 			}
-			if (Input.Type != null)
+			if (input.Type != null)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Type", Input.Type));
+				nameToValue.Add(new KeyValuePair<string, object>("Type", input.Type));
 			}
-			if (Input.Stream != null)
+			if (input.Stream != null)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Stream", Input.Stream));
+				nameToValue.Add(new KeyValuePair<string, object>("Stream", input.Stream));
 			}
-			for (int Idx = 0; Idx < Input.View.Count; Idx++)
+			for (int idx = 0; idx < input.View.Count; idx++)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>(String.Format("View{0}", Idx), Input.View[Idx]));
+				nameToValue.Add(new KeyValuePair<string, object>(String.Format("View{0}", idx), input.View[idx]));
 			}
-			return SerializeRecord(NameToValue);
+			return SerializeRecord(nameToValue);
 		}
 
 		#endregion
@@ -1413,98 +1403,98 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Queries the current client definition
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for this command</param>
-		/// <param name="UserName">List only client workspaces owned by this user.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for this command</param>
+		/// <param name="userName">List only client workspaces owned by this user.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public static async Task<List<ClientsRecord>> GetClientsAsync(this IPerforceConnection Connection, ClientsOptions Options, string? UserName, CancellationToken CancellationToken = default)
+		public static async Task<List<ClientsRecord>> GetClientsAsync(this IPerforceConnection connection, ClientsOptions options, string? userName, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetClientsAsync(Connection, Options, UserName, CancellationToken)).Data;
+			return (await TryGetClientsAsync(connection, options, userName, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Queries the current client definition
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for this command</param>
-		/// <param name="UserName">List only client workspaces owned by this user.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for this command</param>
+		/// <param name="userName">List only client workspaces owned by this user.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public static Task<PerforceResponseList<ClientsRecord>> TryGetClientsAsync(this IPerforceConnection Connection, ClientsOptions Options, string? UserName, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<ClientsRecord>> TryGetClientsAsync(this IPerforceConnection connection, ClientsOptions options, string? userName, CancellationToken cancellationToken = default)
 		{
-			return TryGetClientsAsync(Connection, Options, null, -1, null, UserName, CancellationToken);
+			return TryGetClientsAsync(connection, options, null, -1, null, userName, cancellationToken);
 		}
 
 		/// <summary>
 		/// Queries the current client definition
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for this command</param>
-		/// <param name="Filter">List only client workspaces matching filter. Treated as case sensitive if <ref>ClientsOptions.CaseSensitiveFilter</ref> is set.</param>
-		/// <param name="MaxResults">Limit the number of results to return. -1 for all.</param>
-		/// <param name="Stream">List client workspaces associated with the specified stream.</param>
-		/// <param name="UserName">List only client workspaces owned by this user.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for this command</param>
+		/// <param name="filter">List only client workspaces matching filter. Treated as case sensitive if <ref>ClientsOptions.CaseSensitiveFilter</ref> is set.</param>
+		/// <param name="maxResults">Limit the number of results to return. -1 for all.</param>
+		/// <param name="stream">List client workspaces associated with the specified stream.</param>
+		/// <param name="userName">List only client workspaces owned by this user.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public static async Task<List<ClientsRecord>> GetClientsAsync(this IPerforceConnection Connection, ClientsOptions Options, string? Filter, int MaxResults, string? Stream, string? UserName, CancellationToken CancellationToken = default)
+		public static async Task<List<ClientsRecord>> GetClientsAsync(this IPerforceConnection connection, ClientsOptions options, string? filter, int maxResults, string? stream, string? userName, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetClientsAsync(Connection, Options, Filter, MaxResults, Stream, UserName, CancellationToken)).Data;
+			return (await TryGetClientsAsync(connection, options, filter, maxResults, stream, userName, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Queries the current client definition
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for this command</param>
-		/// <param name="Filter">List only client workspaces matching filter. Treated as case sensitive if <ref>ClientsOptions.CaseSensitiveFilter</ref> is set.</param>
-		/// <param name="MaxResults">Limit the number of results to return. -1 for all.</param>
-		/// <param name="Stream">List client workspaces associated with the specified stream.</param>
-		/// <param name="UserName">List only client workspaces owned by this user.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for this command</param>
+		/// <param name="filter">List only client workspaces matching filter. Treated as case sensitive if <ref>ClientsOptions.CaseSensitiveFilter</ref> is set.</param>
+		/// <param name="maxResults">Limit the number of results to return. -1 for all.</param>
+		/// <param name="stream">List client workspaces associated with the specified stream.</param>
+		/// <param name="userName">List only client workspaces owned by this user.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public static Task<PerforceResponseList<ClientsRecord>> TryGetClientsAsync(this IPerforceConnection Connection, ClientsOptions Options, string? Filter, int MaxResults, string? Stream, string? UserName, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<ClientsRecord>> TryGetClientsAsync(this IPerforceConnection connection, ClientsOptions options, string? filter, int maxResults, string? stream, string? userName, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if ((Options & ClientsOptions.All) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & ClientsOptions.All) != 0)
 			{
-				Arguments.Add("-a");
+				arguments.Add("-a");
 			}
-			if (Filter != null)
+			if (filter != null)
 			{
-				if ((Options & ClientsOptions.CaseSensitiveFilter) != 0)
+				if ((options & ClientsOptions.CaseSensitiveFilter) != 0)
 				{
-					Arguments.Add("-e");
-					Arguments.Add(Filter);
+					arguments.Add("-e");
+					arguments.Add(filter);
 				}
 				else
 				{
-					Arguments.Add("-E");
-					Arguments.Add(Filter);
+					arguments.Add("-E");
+					arguments.Add(filter);
 				}
 			}
-			if (MaxResults != -1)
+			if (maxResults != -1)
 			{
-				Arguments.Add($"-m{MaxResults}");
+				arguments.Add($"-m{maxResults}");
 			}
-			if (Stream != null)
+			if (stream != null)
 			{
-				Arguments.Add($"-S{Stream}");
+				arguments.Add($"-S{stream}");
 			}
-			if ((Options & ClientsOptions.WithTimes) != 0)
+			if ((options & ClientsOptions.WithTimes) != 0)
 			{
-				Arguments.Add("-t");
+				arguments.Add("-t");
 			}
-			if (UserName != null)
+			if (userName != null)
 			{
-				Arguments.Add("-u");
-				Arguments.Add(UserName);
+				arguments.Add("-u");
+				arguments.Add(userName);
 			}
-			if ((Options & ClientsOptions.Unloaded) != 0)
+			if ((options & ClientsOptions.Unloaded) != 0)
 			{
-				Arguments.Add("-U");
+				arguments.Add("-U");
 			}
-			return CommandAsync<ClientsRecord>(Connection, "clients", Arguments, null, CancellationToken);
+			return CommandAsync<ClientsRecord>(connection, "clients", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -1514,47 +1504,47 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute the 'delete' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">The change to add deleted files to</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">The change to add deleted files to</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static async Task<List<DeleteRecord>> DeleteAsync(this IPerforceConnection Connection, int ChangeNumber, DeleteOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<DeleteRecord>> DeleteAsync(this IPerforceConnection connection, int changeNumber, DeleteOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryDeleteAsync(Connection, ChangeNumber, Options, FileSpecs, CancellationToken)).Data;
+			return (await TryDeleteAsync(connection, changeNumber, options, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Execute the 'delete' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">The change to add deleted files to</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">The change to add deleted files to</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static Task<PerforceResponseList<DeleteRecord>> TryDeleteAsync(this IPerforceConnection Connection, int ChangeNumber, DeleteOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<DeleteRecord>> TryDeleteAsync(this IPerforceConnection connection, int changeNumber, DeleteOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if (ChangeNumber != -1)
+			List<string> arguments = new List<string>();
+			if (changeNumber != -1)
 			{
-				Arguments.Add($"-c{ChangeNumber}");
+				arguments.Add($"-c{changeNumber}");
 			}
-			if ((Options & DeleteOptions.PreviewOnly) != 0)
+			if ((options & DeleteOptions.PreviewOnly) != 0)
 			{
-				Arguments.Add("-n");
+				arguments.Add("-n");
 			}
-			if ((Options & DeleteOptions.KeepWorkspaceFiles) != 0)
+			if ((options & DeleteOptions.KeepWorkspaceFiles) != 0)
 			{
-				Arguments.Add("-k");
+				arguments.Add("-k");
 			}
-			if ((Options & DeleteOptions.WithoutSyncing) != 0)
+			if ((options & DeleteOptions.WithoutSyncing) != 0)
 			{
-				Arguments.Add("-v");
+				arguments.Add("-v");
 			}
 
-			return BatchedCommandAsync<DeleteRecord>(Connection, "delete", Arguments, FileSpecs.List, null, CancellationToken);
+			return BatchedCommandAsync<DeleteRecord>(connection, "delete", arguments, fileSpecs.List, cancellationToken);
 		}
 
 		#endregion
@@ -1564,26 +1554,26 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Queries the current depot definition
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="DepotName">Name of the client. Specify null for the current client.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="depotName">Name of the client. Specify null for the current client.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public static Task<DepotRecord> GetDepotAsync(this IPerforceConnection Connection, string DepotName, CancellationToken CancellationToken = default)
+		public static Task<DepotRecord> GetDepotAsync(this IPerforceConnection connection, string depotName, CancellationToken cancellationToken = default)
 		{
-			return TryGetDepotAsync(Connection, DepotName, CancellationToken).UnwrapAsync();
+			return TryGetDepotAsync(connection, depotName, cancellationToken).UnwrapAsync();
 		}
 
 		/// <summary>
 		/// Queries the current depot definition
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="DepotName">Name of the client. Specify null for the current client.</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="depotName">Name of the client. Specify null for the current client.</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public static Task<PerforceResponse<DepotRecord>> TryGetDepotAsync(this IPerforceConnection Connection, string DepotName, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse<DepotRecord>> TryGetDepotAsync(this IPerforceConnection connection, string depotName, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string> { "-o", DepotName };
-			return SingleResponseCommandAsync<DepotRecord>(Connection, "depot", Arguments, null, CancellationToken);
+			List<string> arguments = new List<string> { "-o", depotName };
+			return SingleResponseCommandAsync<DepotRecord>(connection, "depot", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -1593,112 +1583,112 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Describes a single changelist
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">The changelist number to retrieve description for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">The changelist number to retrieve description for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a describe record or error code</returns>
-		public static async Task<DescribeRecord> DescribeAsync(this IPerforceConnection Connection, int ChangeNumber, CancellationToken CancellationToken = default)
+		public static async Task<DescribeRecord> DescribeAsync(this IPerforceConnection connection, int changeNumber, CancellationToken cancellationToken = default)
 		{
-			return (await TryDescribeAsync(Connection, ChangeNumber, CancellationToken)).Data;
+			return (await TryDescribeAsync(connection, changeNumber, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Describes a single changelist
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">The changelist number to retrieve description for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">The changelist number to retrieve description for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a describe record or error code</returns>
-		public static async Task<PerforceResponse<DescribeRecord>> TryDescribeAsync(this IPerforceConnection Connection, int ChangeNumber, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponse<DescribeRecord>> TryDescribeAsync(this IPerforceConnection connection, int changeNumber, CancellationToken cancellationToken = default)
 		{
-			PerforceResponseList<DescribeRecord> Records = await TryDescribeAsync(Connection, new int[] { ChangeNumber }, CancellationToken);
-			if (Records.Count != 1)
+			PerforceResponseList<DescribeRecord> records = await TryDescribeAsync(connection, new int[] { changeNumber }, cancellationToken);
+			if (records.Count != 1)
 			{
-				throw new PerforceException("Expected only one record returned from p4 describe command, got {0}", Records.Count);
+				throw new PerforceException("Expected only one record returned from p4 describe command, got {0}", records.Count);
 			}
-			return Records[0];
+			return records[0];
 		}
 
 		/// <summary>
 		/// Describes a set of changelists
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumbers">The changelist numbers to retrieve descriptions for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumbers">The changelist numbers to retrieve descriptions for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static async Task<List<DescribeRecord>> DescribeAsync(this IPerforceConnection Connection, int[] ChangeNumbers, CancellationToken CancellationToken = default)
+		public static async Task<List<DescribeRecord>> DescribeAsync(this IPerforceConnection connection, int[] changeNumbers, CancellationToken cancellationToken = default)
 		{
-			return (await TryDescribeAsync(Connection, ChangeNumbers, CancellationToken)).Data;
+			return (await TryDescribeAsync(connection, changeNumbers, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Describes a set of changelists
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumbers">The changelist numbers to retrieve descriptions for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumbers">The changelist numbers to retrieve descriptions for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static Task<PerforceResponseList<DescribeRecord>> TryDescribeAsync(this IPerforceConnection Connection, int[] ChangeNumbers, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<DescribeRecord>> TryDescribeAsync(this IPerforceConnection connection, int[] changeNumbers, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string> { "-s" };
-			foreach (int ChangeNumber in ChangeNumbers)
+			List<string> arguments = new List<string> { "-s" };
+			foreach (int changeNumber in changeNumbers)
 			{
-				Arguments.Add($"{ChangeNumber}");
+				arguments.Add($"{changeNumber}");
 			}
-			return CommandAsync<DescribeRecord>(Connection, "describe", Arguments, null, CancellationToken);
+			return CommandAsync<DescribeRecord>(connection, "describe", arguments, null, cancellationToken);
 		}
 
 		/// <summary>
 		/// Describes a set of changelists
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxNumFiles">Maximum number of files to return</param>
-		/// <param name="ChangeNumbers">The changelist numbers to retrieve descriptions for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxNumFiles">Maximum number of files to return</param>
+		/// <param name="changeNumbers">The changelist numbers to retrieve descriptions for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static async Task<List<DescribeRecord>> DescribeAsync(this IPerforceConnection Connection, DescribeOptions Options, int MaxNumFiles, int[] ChangeNumbers, CancellationToken CancellationToken = default)
+		public static async Task<List<DescribeRecord>> DescribeAsync(this IPerforceConnection connection, DescribeOptions options, int maxNumFiles, int[] changeNumbers, CancellationToken cancellationToken = default)
 		{
-			return (await TryDescribeAsync(Connection, Options, MaxNumFiles, ChangeNumbers, CancellationToken)).Data;
+			return (await TryDescribeAsync(connection, options, maxNumFiles, changeNumbers, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Describes a set of changelists
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxNumFiles">Maximum number of files to return</param>
-		/// <param name="ChangeNumbers">The changelist numbers to retrieve descriptions for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxNumFiles">Maximum number of files to return</param>
+		/// <param name="changeNumbers">The changelist numbers to retrieve descriptions for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static Task<PerforceResponseList<DescribeRecord>> TryDescribeAsync(this IPerforceConnection Connection, DescribeOptions Options, int MaxNumFiles, int[] ChangeNumbers, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<DescribeRecord>> TryDescribeAsync(this IPerforceConnection connection, DescribeOptions options, int maxNumFiles, int[] changeNumbers, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string> { "-s" };
-			if ((Options & DescribeOptions.ShowDescriptionForRestrictedChanges) != 0)
+			List<string> arguments = new List<string> { "-s" };
+			if ((options & DescribeOptions.ShowDescriptionForRestrictedChanges) != 0)
 			{
-				Arguments.Add("-f");
+				arguments.Add("-f");
 			}
-			if ((Options & DescribeOptions.Identity) != 0)
+			if ((options & DescribeOptions.Identity) != 0)
 			{
-				Arguments.Add("-I");
+				arguments.Add("-I");
 			}
-			if (MaxNumFiles != -1)
+			if (maxNumFiles != -1)
 			{
-				Arguments.Add($"-m{MaxNumFiles}");
+				arguments.Add($"-m{maxNumFiles}");
 			}
-			if ((Options & DescribeOptions.OriginalChangeNumber) != 0)
+			if ((options & DescribeOptions.OriginalChangeNumber) != 0)
 			{
-				Arguments.Add("-O");
+				arguments.Add("-O");
 			}
-			if ((Options & DescribeOptions.Shelved) != 0)
+			if ((options & DescribeOptions.Shelved) != 0)
 			{
-				Arguments.Add("-S");
+				arguments.Add("-S");
 			}
-			foreach (int ChangeNumber in ChangeNumbers)
+			foreach (int changeNumber in changeNumbers)
 			{
-				Arguments.Add($"{ChangeNumber}");
+				arguments.Add($"{changeNumber}");
 			}
-			return CommandAsync<DescribeRecord>(Connection, "describe", Arguments, null, CancellationToken);
+			return CommandAsync<DescribeRecord>(connection, "describe", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -1708,52 +1698,52 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// List directories under a depot path
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="Stream">List directories mapped for the specified stream</param>
-		/// <param name="FileSpecs">Files to be opened for edit</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="stream">List directories mapped for the specified stream</param>
+		/// <param name="fileSpecs">Files to be opened for edit</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<DirsRecord>> GetDirsAsync(this IPerforceConnection Connection, DirsOptions Options, string? Stream, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<DirsRecord>> GetDirsAsync(this IPerforceConnection connection, DirsOptions options, string? stream, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetDirsAsync(Connection, Options, Stream, FileSpecs, CancellationToken)).Data;
+			return (await TryGetDirsAsync(connection, options, stream, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// List directories under a depot path
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="Stream">List directories mapped for the specified stream</param>
-		/// <param name="FileSpecs">Files to be opened for edit</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="stream">List directories mapped for the specified stream</param>
+		/// <param name="fileSpecs">Files to be opened for edit</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<DirsRecord>> TryGetDirsAsync(this IPerforceConnection Connection, DirsOptions Options, string? Stream, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<DirsRecord>> TryGetDirsAsync(this IPerforceConnection connection, DirsOptions options, string? stream, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if ((Options & DirsOptions.OnlyMapped) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & DirsOptions.OnlyMapped) != 0)
 			{
-				Arguments.Add("-C");
+				arguments.Add("-C");
 			}
-			if ((Options & DirsOptions.IncludeDeleted) != 0)
+			if ((options & DirsOptions.IncludeDeleted) != 0)
 			{
-				Arguments.Add("-D");
+				arguments.Add("-D");
 			}
-			if ((Options & DirsOptions.OnlyHave) != 0)
+			if ((options & DirsOptions.OnlyHave) != 0)
 			{
-				Arguments.Add("-H");
+				arguments.Add("-H");
 			}
-			if (Stream != null)
+			if (stream != null)
 			{
-				Arguments.Add("-S");
-				Arguments.Add(Stream);
+				arguments.Add("-S");
+				arguments.Add(stream);
 			}
-			if ((Options & DirsOptions.IgnoreCase) != 0)
+			if ((options & DirsOptions.IgnoreCase) != 0)
 			{
-				Arguments.Add("-i");
+				arguments.Add("-i");
 			}
 
-			return CommandAsync<DirsRecord>(Connection, "dirs", Arguments, FileSpecs.List, null, CancellationToken);
+			return CommandAsync<DirsRecord>(connection, "dirs", arguments, fileSpecs.List, null, cancellationToken);
 		}
 
 		#endregion
@@ -1763,75 +1753,75 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Opens files for edit
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to add files to</param>
-		/// <param name="FileSpecs">Files to be opened for edit</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to add files to</param>
+		/// <param name="fileSpecs">Files to be opened for edit</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<EditRecord>> EditAsync(this IPerforceConnection Connection, int ChangeNumber, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<EditRecord>> EditAsync(this IPerforceConnection connection, int changeNumber, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryEditAsync(Connection, ChangeNumber, FileSpecs, CancellationToken)).Data;
+			return (await TryEditAsync(connection, changeNumber, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Opens files for edit
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to add files to</param>
-		/// <param name="FileSpecs">Files to be opened for edit</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to add files to</param>
+		/// <param name="fileSpecs">Files to be opened for edit</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<EditRecord>> TryEditAsync(this IPerforceConnection Connection, int ChangeNumber, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<EditRecord>> TryEditAsync(this IPerforceConnection connection, int changeNumber, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryEditAsync(Connection, ChangeNumber, null, EditOptions.None, FileSpecs, CancellationToken);
+			return TryEditAsync(connection, changeNumber, null, EditOptions.None, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Opens files for edit
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to add files to</param>
-		/// <param name="FileType">Type for new files</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to be opened for edit</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to add files to</param>
+		/// <param name="fileType">Type for new files</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to be opened for edit</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<EditRecord>> EditAsync(this IPerforceConnection Connection, int ChangeNumber, string? FileType, EditOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<EditRecord>> EditAsync(this IPerforceConnection connection, int changeNumber, string? fileType, EditOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryEditAsync(Connection, ChangeNumber, FileType, Options, FileSpecs, CancellationToken)).Data;
+			return (await TryEditAsync(connection, changeNumber, fileType, options, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Opens files for edit
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to add files to</param>
-		/// <param name="FileType">Type for new files</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to be opened for edit</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to add files to</param>
+		/// <param name="fileType">Type for new files</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to be opened for edit</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<EditRecord>> TryEditAsync(this IPerforceConnection Connection, int ChangeNumber, string? FileType, EditOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<EditRecord>> TryEditAsync(this IPerforceConnection connection, int changeNumber, string? fileType, EditOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if (ChangeNumber != -1)
+			List<string> arguments = new List<string>();
+			if (changeNumber != -1)
 			{
-				Arguments.Add($"-c{ChangeNumber}");
+				arguments.Add($"-c{changeNumber}");
 			}
-			if ((Options & EditOptions.KeepWorkspaceFiles) != 0)
+			if ((options & EditOptions.KeepWorkspaceFiles) != 0)
 			{
-				Arguments.Add("-k");
+				arguments.Add("-k");
 			}
-			if ((Options & EditOptions.PreviewOnly) != 0)
+			if ((options & EditOptions.PreviewOnly) != 0)
 			{
-				Arguments.Add("-n");
+				arguments.Add("-n");
 			}
-			if (FileType != null)
+			if (fileType != null)
 			{
-				Arguments.Add($"-t{FileType}");
+				arguments.Add($"-t{fileType}");
 			}
 
-			return BatchedCommandAsync<EditRecord>(Connection, "edit", Arguments, FileSpecs.List, null, CancellationToken);
+			return BatchedCommandAsync<EditRecord>(connection, "edit", arguments, fileSpecs.List, cancellationToken);
 		}
 
 		#endregion
@@ -1841,124 +1831,124 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute the 'filelog' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static async Task<List<FileLogRecord>> FileLogAsync(this IPerforceConnection Connection, FileLogOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<FileLogRecord>> FileLogAsync(this IPerforceConnection connection, FileLogOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryFileLogAsync(Connection, Options, FileSpecs, CancellationToken)).Data;
+			return (await TryFileLogAsync(connection, options, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Execute the 'filelog' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static Task<PerforceResponseList<FileLogRecord>> TryFileLogAsync(this IPerforceConnection Connection, FileLogOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<FileLogRecord>> TryFileLogAsync(this IPerforceConnection connection, FileLogOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryFileLogAsync(Connection, -1, -1, Options, FileSpecs, CancellationToken);
+			return TryFileLogAsync(connection, -1, -1, options, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Execute the 'filelog' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="MaxChanges">Number of changelists to show. Ignored if zero or negative.</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="maxChanges">Number of changelists to show. Ignored if zero or negative.</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static async Task<List<FileLogRecord>> FileLogAsync(this IPerforceConnection Connection, int MaxChanges, FileLogOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<FileLogRecord>> FileLogAsync(this IPerforceConnection connection, int maxChanges, FileLogOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryFileLogAsync(Connection, MaxChanges, Options, FileSpecs, CancellationToken)).Data;
+			return (await TryFileLogAsync(connection, maxChanges, options, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Execute the 'filelog' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="MaxChanges">Number of changelists to show. Ignored if zero or negative.</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="maxChanges">Number of changelists to show. Ignored if zero or negative.</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static Task<PerforceResponseList<FileLogRecord>> TryFileLogAsync(this IPerforceConnection Connection, int MaxChanges, FileLogOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<FileLogRecord>> TryFileLogAsync(this IPerforceConnection connection, int maxChanges, FileLogOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryFileLogAsync(Connection, -1, MaxChanges, Options, FileSpecs, CancellationToken);
+			return TryFileLogAsync(connection, -1, maxChanges, options, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Execute the 'filelog' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Show only files modified by this changelist. Ignored if zero or negative.</param>
-		/// <param name="MaxChanges">Number of changelists to show. Ignored if zero or negative.</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Show only files modified by this changelist. Ignored if zero or negative.</param>
+		/// <param name="maxChanges">Number of changelists to show. Ignored if zero or negative.</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static async Task<List<FileLogRecord>> FileLogAsync(this IPerforceConnection Connection, int ChangeNumber, int MaxChanges, FileLogOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<FileLogRecord>> FileLogAsync(this IPerforceConnection connection, int changeNumber, int maxChanges, FileLogOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryFileLogAsync(Connection, ChangeNumber, MaxChanges, Options, FileSpecs, CancellationToken)).Data;
+			return (await TryFileLogAsync(connection, changeNumber, maxChanges, options, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Execute the 'filelog' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Show only files modified by this changelist. Ignored if zero or negative.</param>
-		/// <param name="MaxChanges">Number of changelists to show. Ignored if zero or negative.</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Show only files modified by this changelist. Ignored if zero or negative.</param>
+		/// <param name="maxChanges">Number of changelists to show. Ignored if zero or negative.</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static Task<PerforceResponseList<FileLogRecord>> TryFileLogAsync(this IPerforceConnection Connection, int ChangeNumber, int MaxChanges, FileLogOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<FileLogRecord>> TryFileLogAsync(this IPerforceConnection connection, int changeNumber, int maxChanges, FileLogOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
 			// Build the argument list
-			List<string> Arguments = new List<string>();
-			if (ChangeNumber > 0)
+			List<string> arguments = new List<string>();
+			if (changeNumber > 0)
 			{
-				Arguments.Add($"-c{ChangeNumber}");
+				arguments.Add($"-c{changeNumber}");
 			}
-			if ((Options & FileLogOptions.ContentHistory) != 0)
+			if ((options & FileLogOptions.ContentHistory) != 0)
 			{
-				Arguments.Add("-h");
+				arguments.Add("-h");
 			}
-			if ((Options & FileLogOptions.FollowAcrossBranches) != 0)
+			if ((options & FileLogOptions.FollowAcrossBranches) != 0)
 			{
-				Arguments.Add("-i");
+				arguments.Add("-i");
 			}
-			if ((Options & FileLogOptions.FullDescriptions) != 0)
+			if ((options & FileLogOptions.FullDescriptions) != 0)
 			{
-				Arguments.Add("-l");
+				arguments.Add("-l");
 			}
-			if ((Options & FileLogOptions.LongDescriptions) != 0)
+			if ((options & FileLogOptions.LongDescriptions) != 0)
 			{
-				Arguments.Add("-L");
+				arguments.Add("-L");
 			}
-			if (MaxChanges > 0)
+			if (maxChanges > 0)
 			{
-				Arguments.Add($"-m{MaxChanges}");
+				arguments.Add($"-m{maxChanges}");
 			}
-			if ((Options & FileLogOptions.DoNotFollowPromotedTaskStreams) != 0)
+			if ((options & FileLogOptions.DoNotFollowPromotedTaskStreams) != 0)
 			{
-				Arguments.Add("-p");
+				arguments.Add("-p");
 			}
-			if ((Options & FileLogOptions.IgnoreNonContributoryIntegrations) != 0)
+			if ((options & FileLogOptions.IgnoreNonContributoryIntegrations) != 0)
 			{
-				Arguments.Add("-s");
+				arguments.Add("-s");
 			}
 
 			// Always include times to simplify parsing
-			Arguments.Add("-t");
+			arguments.Add("-t");
 
 			// Append all the arguments
-			return BatchedCommandAsync<FileLogRecord>(Connection, "filelog", Arguments, FileSpecs.List, null, CancellationToken);
+			return BatchedCommandAsync<FileLogRecord>(connection, "filelog", arguments, fileSpecs.List, cancellationToken);
 		}
 
 		#endregion
@@ -1968,77 +1958,77 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute the 'files' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of response objects</returns>
-		public static async Task<List<FilesRecord>> FilesAsync(this IPerforceConnection Connection, FilesOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<FilesRecord>> FilesAsync(this IPerforceConnection connection, FilesOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryFilesAsync(Connection, Options, -1, FileSpecs, CancellationToken)).Data;
+			return (await TryFilesAsync(connection, options, -1, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Execute the 'files' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of response objects</returns>
-		public static Task<PerforceResponseList<FilesRecord>> TryFilesAsync(this IPerforceConnection Connection, FilesOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<FilesRecord>> TryFilesAsync(this IPerforceConnection connection, FilesOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryFilesAsync(Connection, Options, -1, FileSpecs, CancellationToken);
+			return TryFilesAsync(connection, options, -1, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Execute the 'files' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxFiles">Maximum number of results to return. Ignored if less than or equal to zero.</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxFiles">Maximum number of results to return. Ignored if less than or equal to zero.</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of response objects</returns>
-		public static async Task<List<FilesRecord>> FilesAsync(this IPerforceConnection Connection, FilesOptions Options, int MaxFiles, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<FilesRecord>> FilesAsync(this IPerforceConnection connection, FilesOptions options, int maxFiles, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryFilesAsync(Connection, Options, MaxFiles, FileSpecs, CancellationToken)).Data;
+			return (await TryFilesAsync(connection, options, maxFiles, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Execute the 'files' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxFiles">Maximum number of results to return. Ignored if less than or equal to zero.</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxFiles">Maximum number of results to return. Ignored if less than or equal to zero.</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of response objects</returns>
-		public static Task<PerforceResponseList<FilesRecord>> TryFilesAsync(this IPerforceConnection Connection, FilesOptions Options, int MaxFiles, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<FilesRecord>> TryFilesAsync(this IPerforceConnection connection, FilesOptions options, int maxFiles, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if ((Options & FilesOptions.AllRevisions) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & FilesOptions.AllRevisions) != 0)
 			{
-				Arguments.Add("-a");
+				arguments.Add("-a");
 			}
-			if ((Options & FilesOptions.LimitToArchiveDepots) != 0)
+			if ((options & FilesOptions.LimitToArchiveDepots) != 0)
 			{
-				Arguments.Add("-A");
+				arguments.Add("-A");
 			}
-			if ((Options & FilesOptions.ExcludeDeleted) != 0)
+			if ((options & FilesOptions.ExcludeDeleted) != 0)
 			{
-				Arguments.Add("-e");
+				arguments.Add("-e");
 			}
-			if ((Options & FilesOptions.IgnoreCase) != 0)
+			if ((options & FilesOptions.IgnoreCase) != 0)
 			{
-				Arguments.Add("-i");
+				arguments.Add("-i");
 			}
-			if (MaxFiles > 0)
+			if (maxFiles > 0)
 			{
-				Arguments.Add($"-m{MaxFiles}");
+				arguments.Add($"-m{maxFiles}");
 			}
 
-			return BatchedCommandAsync<FilesRecord>(Connection, "files", Arguments, FileSpecs.List, null, CancellationToken);
+			return BatchedCommandAsync<FilesRecord>(connection, "files", arguments, fileSpecs.List, cancellationToken);
 		}
 
 		#endregion
@@ -2048,214 +2038,214 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute the 'fstat' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static IAsyncEnumerable<FStatRecord> FStatAsync(this IPerforceConnection Connection, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<FStatRecord> FStatAsync(this IPerforceConnection connection, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryFStatAsync(Connection, FStatOptions.None, FileSpecs, CancellationToken).Select(x => x.Data);
+			return TryFStatAsync(connection, FStatOptions.None, fileSpecs, cancellationToken).Select(x => x.Data);
 		}
 
 		/// <summary>
 		/// Execute the 'fstat' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static IAsyncEnumerable<FStatRecord> FStatAsync(this IPerforceConnection Connection, FStatOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<FStatRecord> FStatAsync(this IPerforceConnection connection, FStatOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryFStatAsync(Connection, Options, FileSpecs, CancellationToken).Select(x => x.Data);
+			return TryFStatAsync(connection, options, fileSpecs, cancellationToken).Select(x => x.Data);
 		}
 
 		/// <summary>
 		/// Execute the 'fstat' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static IAsyncEnumerable<PerforceResponse<FStatRecord>> TryFStatAsync(this IPerforceConnection Connection, FStatOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<PerforceResponse<FStatRecord>> TryFStatAsync(this IPerforceConnection connection, FStatOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryFStatAsync(Connection, -1, Options, FileSpecs, CancellationToken);
+			return TryFStatAsync(connection, -1, options, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Execute the 'fstat' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="MaxFiles">Produce fstat output for only the first max files.</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="maxFiles">Produce fstat output for only the first max files.</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static IAsyncEnumerable<FStatRecord> FStatAsync(this IPerforceConnection Connection, int MaxFiles, FStatOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<FStatRecord> FStatAsync(this IPerforceConnection connection, int maxFiles, FStatOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryFStatAsync(Connection, MaxFiles, Options, FileSpecs, CancellationToken).Select(x => x.Data);
+			return TryFStatAsync(connection, maxFiles, options, fileSpecs, cancellationToken).Select(x => x.Data);
 		}
 
 		/// <summary>
 		/// Execute the 'fstat' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="MaxFiles">Produce fstat output for only the first max files.</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="maxFiles">Produce fstat output for only the first max files.</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static IAsyncEnumerable<PerforceResponse<FStatRecord>> TryFStatAsync(this IPerforceConnection Connection, int MaxFiles, FStatOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<PerforceResponse<FStatRecord>> TryFStatAsync(this IPerforceConnection connection, int maxFiles, FStatOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryFStatAsync(Connection, -1, -1, null, null, MaxFiles, Options, FileSpecs, CancellationToken);
+			return TryFStatAsync(connection, -1, -1, null, null, maxFiles, options, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Execute the 'fstat' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="AfterChangeNumber">Return only files affected after the given changelist number.</param>
-		/// <param name="OnlyChangeNumber">Return only files affected by the given changelist number.</param>
-		/// <param name="Filter">List only those files that match the criteria specified.</param>
-		/// <param name="Fields">Fields to return in the output</param>
-		/// <param name="MaxFiles">Produce fstat output for only the first max files.</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="afterChangeNumber">Return only files affected after the given changelist number.</param>
+		/// <param name="onlyChangeNumber">Return only files affected by the given changelist number.</param>
+		/// <param name="filter">List only those files that match the criteria specified.</param>
+		/// <param name="fields">Fields to return in the output</param>
+		/// <param name="maxFiles">Produce fstat output for only the first max files.</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static IAsyncEnumerable<FStatRecord> FStatAsync(this IPerforceConnection Connection, int AfterChangeNumber, int OnlyChangeNumber, string? Filter, string? Fields, int MaxFiles, FStatOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<FStatRecord> FStatAsync(this IPerforceConnection connection, int afterChangeNumber, int onlyChangeNumber, string? filter, string? fields, int maxFiles, FStatOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryFStatAsync(Connection, AfterChangeNumber, OnlyChangeNumber, Filter, Fields, MaxFiles, Options, FileSpecs, CancellationToken).Select(x => x.Data);
+			return TryFStatAsync(connection, afterChangeNumber, onlyChangeNumber, filter, fields, maxFiles, options, fileSpecs, cancellationToken).Select(x => x.Data);
 		}
 
 		/// <summary>
 		/// Execute the 'fstat' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="AfterChangeNumber">Return only files affected after the given changelist number.</param>
-		/// <param name="OnlyChangeNumber">Return only files affected by the given changelist number.</param>
-		/// <param name="Filter">List only those files that match the criteria specified.</param>
-		/// <param name="Fields">Fields to return in the output</param>
-		/// <param name="MaxFiles">Produce fstat output for only the first max files.</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">List of file specifications to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="afterChangeNumber">Return only files affected after the given changelist number.</param>
+		/// <param name="onlyChangeNumber">Return only files affected by the given changelist number.</param>
+		/// <param name="filter">List only those files that match the criteria specified.</param>
+		/// <param name="fields">Fields to return in the output</param>
+		/// <param name="maxFiles">Produce fstat output for only the first max files.</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static IAsyncEnumerable<PerforceResponse<FStatRecord>> TryFStatAsync(this IPerforceConnection Connection, int AfterChangeNumber, int OnlyChangeNumber, string? Filter, string? Fields, int MaxFiles, FStatOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<PerforceResponse<FStatRecord>> TryFStatAsync(this IPerforceConnection connection, int afterChangeNumber, int onlyChangeNumber, string? filter, string? fields, int maxFiles, FStatOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
 			// Build the argument list
-			List<string> Arguments = new List<string>();
-			if (AfterChangeNumber != -1)
+			List<string> arguments = new List<string>();
+			if (afterChangeNumber != -1)
 			{
-				Arguments.Add($"-c{AfterChangeNumber}");
+				arguments.Add($"-c{afterChangeNumber}");
 			}
-			if(OnlyChangeNumber != -1)
+			if (onlyChangeNumber != -1)
 			{
-				Arguments.Add($"-e{OnlyChangeNumber}");
+				arguments.Add($"-e{onlyChangeNumber}");
 			}
-			if(Filter != null)
+			if (filter != null)
 			{
-				Arguments.Add("-F");
-				Arguments.Add(Filter);
+				arguments.Add("-F");
+				arguments.Add(filter);
 			}
-			if (Fields != null)
+			if (fields != null)
 			{
-				Arguments.Add("-T");
-				Arguments.Add(Fields);
+				arguments.Add("-T");
+				arguments.Add(fields);
 			}
-			if((Options & FStatOptions.ReportDepotSyntax) != 0)
+			if ((options & FStatOptions.ReportDepotSyntax) != 0)
 			{
-				Arguments.Add("-L");
+				arguments.Add("-L");
 			}
-			if((Options & FStatOptions.AllRevisions) != 0)
+			if ((options & FStatOptions.AllRevisions) != 0)
 			{
-				Arguments.Add("-Of");
+				arguments.Add("-Of");
 			}
-			if((Options & FStatOptions.IncludeFileSizes) != 0)
+			if ((options & FStatOptions.IncludeFileSizes) != 0)
 			{
-				Arguments.Add("-Ol");
+				arguments.Add("-Ol");
 			}
-			if((Options & FStatOptions.ClientFileInPerforceSyntax) != 0)
+			if ((options & FStatOptions.ClientFileInPerforceSyntax) != 0)
 			{
-				Arguments.Add("-Op");
+				arguments.Add("-Op");
 			}
-			if((Options & FStatOptions.ShowPendingIntegrations) != 0)
+			if ((options & FStatOptions.ShowPendingIntegrations) != 0)
 			{
-				Arguments.Add("-Or");
+				arguments.Add("-Or");
 			}
-			if((Options & FStatOptions.ShortenOutput) != 0)
+			if ((options & FStatOptions.ShortenOutput) != 0)
 			{
-				Arguments.Add("-Os");
+				arguments.Add("-Os");
 			}
-			if((Options & FStatOptions.ReverseOrder) != 0)
+			if ((options & FStatOptions.ReverseOrder) != 0)
 			{
-				Arguments.Add("-r");
+				arguments.Add("-r");
 			}
-			if((Options & FStatOptions.OnlyMapped) != 0)
+			if ((options & FStatOptions.OnlyMapped) != 0)
 			{
-				Arguments.Add("-Rc");
+				arguments.Add("-Rc");
 			}
-			if((Options & FStatOptions.OnlyHave) != 0)
+			if ((options & FStatOptions.OnlyHave) != 0)
 			{
-				Arguments.Add("-Rh");
+				arguments.Add("-Rh");
 			}
-			if((Options & FStatOptions.OnlyOpenedBeforeHead) != 0)
+			if ((options & FStatOptions.OnlyOpenedBeforeHead) != 0)
 			{
-				Arguments.Add("-Rn");
+				arguments.Add("-Rn");
 			}
-			if((Options & FStatOptions.OnlyOpenInWorkspace) != 0)
+			if ((options & FStatOptions.OnlyOpenInWorkspace) != 0)
 			{
-				Arguments.Add("-Ro");
+				arguments.Add("-Ro");
 			}
-			if((Options & FStatOptions.OnlyOpenAndResolved) != 0)
+			if ((options & FStatOptions.OnlyOpenAndResolved) != 0)
 			{
-				Arguments.Add("-Rr");
+				arguments.Add("-Rr");
 			}
-			if((Options & FStatOptions.OnlyShelved) != 0)
+			if ((options & FStatOptions.OnlyShelved) != 0)
 			{
-				Arguments.Add("-Rs");
+				arguments.Add("-Rs");
 			}
-			if((Options & FStatOptions.OnlyUnresolved) != 0)
+			if ((options & FStatOptions.OnlyUnresolved) != 0)
 			{
-				Arguments.Add("-Ru");
+				arguments.Add("-Ru");
 			}
-			if((Options & FStatOptions.SortByDate) != 0)
+			if ((options & FStatOptions.SortByDate) != 0)
 			{
-				Arguments.Add("-Sd");
+				arguments.Add("-Sd");
 			}
-			if((Options & FStatOptions.SortByHaveRevision) != 0)
+			if ((options & FStatOptions.SortByHaveRevision) != 0)
 			{
-				Arguments.Add("-Sh");
+				arguments.Add("-Sh");
 			}
-			if((Options & FStatOptions.SortByHeadRevision) != 0)
+			if ((options & FStatOptions.SortByHeadRevision) != 0)
 			{
-				Arguments.Add("-Sr");
+				arguments.Add("-Sr");
 			}
-			if((Options & FStatOptions.SortByFileSize) != 0)
+			if ((options & FStatOptions.SortByFileSize) != 0)
 			{
-				Arguments.Add("-Ss");
+				arguments.Add("-Ss");
 			}
-			if((Options & FStatOptions.SortByFileType) != 0)
+			if ((options & FStatOptions.SortByFileType) != 0)
 			{
-				Arguments.Add("-St");
+				arguments.Add("-St");
 			}
-			if((Options & FStatOptions.IncludeFilesInUnloadDepot) != 0)
+			if ((options & FStatOptions.IncludeFilesInUnloadDepot) != 0)
 			{
-				Arguments.Add("-U");
+				arguments.Add("-U");
 			}
-			if (MaxFiles > 0)
+			if (maxFiles > 0)
 			{
-				Arguments.Add($"-m{MaxFiles}");
+				arguments.Add($"-m{maxFiles}");
 			}
 
 			// Execute the command
-			IAsyncEnumerable<PerforceResponse<FStatRecord>> Records = StreamCommandAsync<FStatRecord>(Connection, "fstat", Arguments, FileSpecs.List, null, CancellationToken);
-			if (OnlyChangeNumber != -1)
+			IAsyncEnumerable<PerforceResponse<FStatRecord>> records = StreamCommandAsync<FStatRecord>(connection, "fstat", arguments, fileSpecs.List, null, cancellationToken);
+			if (onlyChangeNumber != -1)
 			{
-				Records = Records.Where(x => !x.Succeeded || x.Data.Description == null);
+				records = records.Where(x => !x.Succeeded || x.Data.Description == null);
 			}
-			return Records;
+			return records;
 		}
 
 		#endregion
@@ -2265,25 +2255,25 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Dtermine files currently synced to the client
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="FileSpec">Files to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="fileSpec">Files to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of file records</returns>
-		public static IAsyncEnumerable<HaveRecord> HaveAsync(this IPerforceConnection Connection, FileSpecList FileSpec, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<HaveRecord> HaveAsync(this IPerforceConnection connection, FileSpecList fileSpec, CancellationToken cancellationToken = default)
 		{
-			return TryHaveAsync(Connection, FileSpec, CancellationToken).Select(x => x.Data);
+			return TryHaveAsync(connection, fileSpec, cancellationToken).Select(x => x.Data);
 		}
 
 		/// <summary>
 		/// Dtermine files currently synced to the client
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="FileSpec">Files to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="fileSpec">Files to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of file records</returns>
-		public static IAsyncEnumerable<PerforceResponse<HaveRecord>> TryHaveAsync(this IPerforceConnection Connection, FileSpecList FileSpec, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<PerforceResponse<HaveRecord>> TryHaveAsync(this IPerforceConnection connection, FileSpecList fileSpec, CancellationToken cancellationToken = default)
 		{
-			return StreamCommandAsync<HaveRecord>(Connection, "have", new List<string>(), FileSpec.List, null, CancellationToken);
+			return StreamCommandAsync<HaveRecord>(connection, "have", new List<string>(), fileSpec.List, null, cancellationToken);
 		}
 
 		#endregion
@@ -2293,31 +2283,31 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute the 'info' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; an InfoRecord or error code</returns>
-		public static async Task<InfoRecord> GetInfoAsync(this IPerforceConnection Connection, InfoOptions Options, CancellationToken CancellationToken = default)
+		public static async Task<InfoRecord> GetInfoAsync(this IPerforceConnection connection, InfoOptions options, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetInfoAsync(Connection, Options, CancellationToken)).Data;
+			return (await TryGetInfoAsync(connection, options, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Execute the 'info' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; an InfoRecord or error code</returns>
-		public static Task<PerforceResponse<InfoRecord>> TryGetInfoAsync(this IPerforceConnection Connection, InfoOptions Options, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse<InfoRecord>> TryGetInfoAsync(this IPerforceConnection connection, InfoOptions options, CancellationToken cancellationToken = default)
 		{
 			// Build the argument list
-			List<string> Arguments = new List<string>();
-			if((Options & InfoOptions.ShortOutput) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & InfoOptions.ShortOutput) != 0)
 			{
-				Arguments.Add("-s");
+				arguments.Add("-s");
 			}
-			return SingleResponseCommandAsync<InfoRecord>(Connection, "info", Arguments, null, CancellationToken);
+			return SingleResponseCommandAsync<InfoRecord>(connection, "info", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -2327,57 +2317,57 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Log in to the server
 		/// </summary>
-		/// <param name="Connection"></param>
-		/// <param name="Password"></param>
-		/// <param name="CancellationToken"></param>
+		/// <param name="connection"></param>
+		/// <param name="password"></param>
+		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async Task<LoginRecord> LoginAsync(this IPerforceConnection Connection, string Password, CancellationToken CancellationToken = default)
+		public static async Task<LoginRecord> LoginAsync(this IPerforceConnection connection, string password, CancellationToken cancellationToken = default)
 		{
-			return (await TryLoginAsync(Connection, Password, CancellationToken)).Data;
+			return (await TryLoginAsync(connection, password, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Attempts to log in to the server
 		/// </summary>
-		/// <param name="Connection"></param>
-		/// <param name="Password"></param>
-		/// <param name="CancellationToken"></param>
+		/// <param name="connection"></param>
+		/// <param name="password"></param>
+		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async Task<PerforceResponse<LoginRecord>> TryLoginAsync(this IPerforceConnection Connection, string Password, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponse<LoginRecord>> TryLoginAsync(this IPerforceConnection connection, string password, CancellationToken cancellationToken = default)
 		{
-			await using (IPerforceOutput Response = await Connection.LoginCommandAsync(Password, CancellationToken))
+			await using (IPerforceOutput response = await connection.LoginCommandAsync(password, cancellationToken))
 			{
-				for(; ;)
+				for (; ; )
 				{
-					if(!await Response.ReadAsync(CancellationToken))
+					if (!await response.ReadAsync(cancellationToken))
 					{
 						break;
 					}
 				}
 
-				DiscardPasswordPrompt(Response);
+				DiscardPasswordPrompt(response);
 
-				List<PerforceResponse> ParsedResponses = await Response.ReadResponsesAsync(typeof(LoginRecord), CancellationToken);
+				List<PerforceResponse> parsedResponses = await response.ReadResponsesAsync(typeof(LoginRecord), cancellationToken);
 
-				PerforceResponse FirstResponse = ParsedResponses.First();
-				if (FirstResponse.Info != null)
+				PerforceResponse firstResponse = parsedResponses.First();
+				if (firstResponse.Info != null)
 				{
 					// Older versions of P4.EXE do not return a login record for succesful login, instread just returning a string. Call p4 login -s to get the login state instead.
-					return await TryGetLoginStateAsync(Connection, CancellationToken);
+					return await TryGetLoginStateAsync(connection, cancellationToken);
 				}
 
-				return new PerforceResponse<LoginRecord>(FirstResponse);
+				return new PerforceResponse<LoginRecord>(firstResponse);
 			}
 		}
 
-		static void DiscardPasswordPrompt(IPerforceOutput Output)
+		static void DiscardPasswordPrompt(IPerforceOutput output)
 		{
-			ReadOnlySpan<byte> Data = Output.Data.Span;
-			for (int Idx = 0; Idx < Data.Length; Idx++)
+			ReadOnlySpan<byte> data = output.Data.Span;
+			for (int idx = 0; idx < data.Length; idx++)
 			{
-				if (Data[Idx] == '{')
+				if (data[idx] == '{')
 				{
-					Output.Discard(Idx);
+					output.Discard(idx);
 					break;
 				}
 			}
@@ -2386,23 +2376,23 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Gets the state of the current user's login
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns></returns>
-		public static async Task<LoginRecord> GetLoginStateAsync(this IPerforceConnection Connection, CancellationToken CancellationToken = default)
+		public static async Task<LoginRecord> GetLoginStateAsync(this IPerforceConnection connection, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetLoginStateAsync(Connection, CancellationToken)).Data;
+			return (await TryGetLoginStateAsync(connection, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Gets the state of the current user's login
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns></returns>
-		public static async Task<PerforceResponse<LoginRecord>> TryGetLoginStateAsync(this IPerforceConnection Connection, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponse<LoginRecord>> TryGetLoginStateAsync(this IPerforceConnection connection, CancellationToken cancellationToken = default)
 		{
-			return await SingleResponseCommandAsync<LoginRecord>(Connection, "login", new List<string> { "-s" }, null, CancellationToken);
+			return await SingleResponseCommandAsync<LoginRecord>(connection, "login", new List<string> { "-s" }, null, cancellationToken);
 		}
 
 		#endregion
@@ -2412,33 +2402,33 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute the 'merge' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the merge</param>
-		/// <param name="Change"></param>
-		/// <param name="MaxFiles">Maximum number of files to merge</param>
-		/// <param name="SourceFileSpec">The source filespec and revision range</param>
-		/// <param name="TargetFileSpec">The target filespec</param>
-		/// <param name="CancellationToken">Cancellation token</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the merge</param>
+		/// <param name="change"></param>
+		/// <param name="maxFiles">Maximum number of files to merge</param>
+		/// <param name="sourceFileSpec">The source filespec and revision range</param>
+		/// <param name="targetFileSpec">The target filespec</param>
+		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>List of records</returns>
-		public static Task<PerforceResponseList<MergeRecord>> MergeAsync(this IPerforceConnection Connection, MergeOptions Options, int Change, int MaxFiles, string SourceFileSpec, string TargetFileSpec, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<MergeRecord>> MergeAsync(this IPerforceConnection connection, MergeOptions options, int change, int maxFiles, string sourceFileSpec, string targetFileSpec, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if ((Options & MergeOptions.Preview) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & MergeOptions.Preview) != 0)
 			{
-				Arguments.Add($"-n");
+				arguments.Add($"-n");
 			}
-			if (Change != -1)
+			if (change != -1)
 			{
-				Arguments.Add($"-c{Change}");
+				arguments.Add($"-c{change}");
 			}
-			if (MaxFiles != -1)
+			if (maxFiles != -1)
 			{
-				Arguments.Add($"-m{MaxFiles}");
+				arguments.Add($"-m{maxFiles}");
 			}
-			Arguments.Add(SourceFileSpec);
-			Arguments.Add(TargetFileSpec);
+			arguments.Add(sourceFileSpec);
+			arguments.Add(targetFileSpec);
 
-			return CommandAsync<MergeRecord>(Connection, "merge", Arguments, null, CancellationToken);
+			return CommandAsync<MergeRecord>(connection, "merge", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -2448,57 +2438,57 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Opens files for move
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to add files to</param>
-		/// <param name="FileType">Type for new files</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="SourceFileSpec">The source file(s)</param>
-		/// <param name="TargetFileSpec">The target file(s)</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to add files to</param>
+		/// <param name="fileType">Type for new files</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="sourceFileSpec">The source file(s)</param>
+		/// <param name="targetFileSpec">The target file(s)</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<MoveRecord>> MoveAsync(this IPerforceConnection Connection, int ChangeNumber, string? FileType, MoveOptions Options, string SourceFileSpec, string TargetFileSpec, CancellationToken CancellationToken = default)
+		public static async Task<List<MoveRecord>> MoveAsync(this IPerforceConnection connection, int changeNumber, string? fileType, MoveOptions options, string sourceFileSpec, string targetFileSpec, CancellationToken cancellationToken = default)
 		{
-			return (await TryMoveAsync(Connection, ChangeNumber, FileType, Options, SourceFileSpec, TargetFileSpec, CancellationToken)).Data;
+			return (await TryMoveAsync(connection, changeNumber, fileType, options, sourceFileSpec, targetFileSpec, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Opens files for move
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to add files to</param>
-		/// <param name="FileType">Type for new files</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="SourceFileSpec">The source file(s)</param>
-		/// <param name="TargetFileSpec">The target file(s)</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to add files to</param>
+		/// <param name="fileType">Type for new files</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="sourceFileSpec">The source file(s)</param>
+		/// <param name="targetFileSpec">The target file(s)</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<MoveRecord>> TryMoveAsync(this IPerforceConnection Connection, int ChangeNumber, string? FileType, MoveOptions Options, string SourceFileSpec, string TargetFileSpec, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<MoveRecord>> TryMoveAsync(this IPerforceConnection connection, int changeNumber, string? fileType, MoveOptions options, string sourceFileSpec, string targetFileSpec, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if (ChangeNumber != -1)
+			List<string> arguments = new List<string>();
+			if (changeNumber != -1)
 			{
-				Arguments.Add($"-c{ChangeNumber}");
+				arguments.Add($"-c{changeNumber}");
 			}
-			if ((Options & MoveOptions.KeepWorkspaceFiles) != 0)
+			if ((options & MoveOptions.KeepWorkspaceFiles) != 0)
 			{
-				Arguments.Add("-k");
+				arguments.Add("-k");
 			}
-			if ((Options & MoveOptions.RenameOnly) != 0)
+			if ((options & MoveOptions.RenameOnly) != 0)
 			{
-				Arguments.Add("-r");
+				arguments.Add("-r");
 			}
-			if ((Options & MoveOptions.PreviewOnly) != 0)
+			if ((options & MoveOptions.PreviewOnly) != 0)
 			{
-				Arguments.Add("-n");
+				arguments.Add("-n");
 			}
-			if (FileType != null)
+			if (fileType != null)
 			{
-				Arguments.Add($"-t{FileType}");
+				arguments.Add($"-t{fileType}");
 			}
-			Arguments.Add(SourceFileSpec);
-			Arguments.Add(TargetFileSpec);
+			arguments.Add(sourceFileSpec);
+			arguments.Add(targetFileSpec);
 
-			return CommandAsync<MoveRecord>(Connection, "move", Arguments, null, CancellationToken);
+			return CommandAsync<MoveRecord>(connection, "move", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -2508,92 +2498,92 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute the 'opened' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Specification for the files to list</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Specification for the files to list</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static IAsyncEnumerable<OpenedRecord> OpenedAsync(this IPerforceConnection Connection, OpenedOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<OpenedRecord> OpenedAsync(this IPerforceConnection connection, OpenedOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryOpenedAsync(Connection, Options, FileSpecs, CancellationToken).Select(x => x.Data);
+			return TryOpenedAsync(connection, options, fileSpecs, cancellationToken).Select(x => x.Data);
 		}
 
 		/// <summary>
 		/// Execute the 'opened' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Specification for the files to list</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Specification for the files to list</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static IAsyncEnumerable<PerforceResponse<OpenedRecord>> TryOpenedAsync(this IPerforceConnection Connection, OpenedOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<PerforceResponse<OpenedRecord>> TryOpenedAsync(this IPerforceConnection connection, OpenedOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryOpenedAsync(Connection, Options, -1, null, null, -1, FileSpecs, CancellationToken);
+			return TryOpenedAsync(connection, options, -1, null, null, -1, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Execute the 'opened' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="ChangeNumber">List the files in pending changelist change. To list files in the default changelist, use DefaultChange.</param>
-		/// <param name="ClientName">List only files that are open in the given client</param>
-		/// <param name="UserName">List only files that are opened by the given user</param>
-		/// <param name="MaxResults">Maximum number of results to return</param>
-		/// <param name="FileSpecs">Specification for the files to list</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="changeNumber">List the files in pending changelist change. To list files in the default changelist, use DefaultChange.</param>
+		/// <param name="clientName">List only files that are open in the given client</param>
+		/// <param name="userName">List only files that are opened by the given user</param>
+		/// <param name="maxResults">Maximum number of results to return</param>
+		/// <param name="fileSpecs">Specification for the files to list</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static IAsyncEnumerable<OpenedRecord> OpenedAsync(this IPerforceConnection Connection, OpenedOptions Options, int ChangeNumber, string? ClientName, string? UserName, int MaxResults, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<OpenedRecord> OpenedAsync(this IPerforceConnection connection, OpenedOptions options, int changeNumber, string? clientName, string? userName, int maxResults, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryOpenedAsync(Connection, Options, ChangeNumber, ClientName, UserName, MaxResults, FileSpecs, CancellationToken).Select(x => x.Data);
+			return TryOpenedAsync(connection, options, changeNumber, clientName, userName, maxResults, fileSpecs, cancellationToken).Select(x => x.Data);
 		}
 
 		/// <summary>
 		/// Execute the 'opened' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="ChangeNumber">List the files in pending changelist change. To list files in the default changelist, use DefaultChange.</param>
-		/// <param name="ClientName">List only files that are open in the given client</param>
-		/// <param name="UserName">List only files that are opened by the given user</param>
-		/// <param name="MaxResults">Maximum number of results to return</param>
-		/// <param name="FileSpecs">Specification for the files to list</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="changeNumber">List the files in pending changelist change. To list files in the default changelist, use DefaultChange.</param>
+		/// <param name="clientName">List only files that are open in the given client</param>
+		/// <param name="userName">List only files that are opened by the given user</param>
+		/// <param name="maxResults">Maximum number of results to return</param>
+		/// <param name="fileSpecs">Specification for the files to list</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static IAsyncEnumerable<PerforceResponse<OpenedRecord>> TryOpenedAsync(this IPerforceConnection Connection, OpenedOptions Options, int ChangeNumber, string? ClientName, string? UserName, int MaxResults, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<PerforceResponse<OpenedRecord>> TryOpenedAsync(this IPerforceConnection connection, OpenedOptions options, int changeNumber, string? clientName, string? userName, int maxResults, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
 			// Build the argument list
-			List<string> Arguments = new List<string>();
-			if((Options & OpenedOptions.AllWorkspaces) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & OpenedOptions.AllWorkspaces) != 0)
 			{
-				Arguments.Add($"-a");
+				arguments.Add($"-a");
 			}
-			if (ChangeNumber == PerforceReflection.DefaultChange)
+			if (changeNumber == PerforceReflection.DefaultChange)
 			{
-				Arguments.Add($"-cdefault");
+				arguments.Add($"-cdefault");
 			}
-			else if (ChangeNumber != -1)
+			else if (changeNumber != -1)
 			{
-				Arguments.Add($"-c{ChangeNumber}");
+				arguments.Add($"-c{changeNumber}");
 			}
-			if(ClientName != null)
+			if (clientName != null)
 			{
-				Arguments.Add($"-C{ClientName}");
+				arguments.Add($"-C{clientName}");
 			}
-			if(UserName != null)
+			if (userName != null)
 			{
-				Arguments.Add($"-u{UserName}");
+				arguments.Add($"-u{userName}");
 			}
-			if(MaxResults != -1)
+			if (maxResults != -1)
 			{
-				Arguments.Add($"-m{MaxResults}");
+				arguments.Add($"-m{maxResults}");
 			}
-			if((Options & OpenedOptions.ShortOutput) != 0)
+			if ((options & OpenedOptions.ShortOutput) != 0)
 			{
-				Arguments.Add($"-s");
+				arguments.Add($"-s");
 			}
 
-			return StreamCommandAsync<OpenedRecord>(Connection, "opened", Arguments, FileSpecs.List, null, CancellationToken);
+			return StreamCommandAsync<OpenedRecord>(connection, "opened", arguments, fileSpecs.List, null, cancellationToken);
 		}
 
 		#endregion
@@ -2603,79 +2593,79 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute the 'print' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="OutputFile">Output file to redirect output to</param>
-		/// <param name="FileSpec">Specification for the files to print</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="outputFile">Output file to redirect output to</param>
+		/// <param name="fileSpec">Specification for the files to print</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<PrintRecord> PrintAsync(this IPerforceConnection Connection, string OutputFile, string FileSpec, CancellationToken CancellationToken = default)
+		public static async Task<PrintRecord> PrintAsync(this IPerforceConnection connection, string outputFile, string fileSpec, CancellationToken cancellationToken = default)
 		{
-			return (await TryPrintAsync(Connection, OutputFile, FileSpec, CancellationToken)).Data;
+			return (await TryPrintAsync(connection, outputFile, fileSpec, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Execute the 'print' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="OutputFile">Output file to redirect output to</param>
-		/// <param name="FileSpec">Specification for the files to print</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="outputFile">Output file to redirect output to</param>
+		/// <param name="fileSpec">Specification for the files to print</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponse<PrintRecord>> TryPrintAsync(this IPerforceConnection Connection, string OutputFile, string FileSpec, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse<PrintRecord>> TryPrintAsync(this IPerforceConnection connection, string outputFile, string fileSpec, CancellationToken cancellationToken = default)
 		{
-			return TryPrintInternalAsync<PrintRecord>(Connection, OutputFile, FileSpec, CancellationToken);
+			return TryPrintInternalAsync<PrintRecord>(connection, outputFile, fileSpec, cancellationToken);
 		}
 
 		/// <summary>
 		/// Execute the 'print' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="FileSpec">Specification for the files to print</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="fileSpec">Specification for the files to print</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<PerforceResponse<PrintRecord<byte[]>>> TryPrintDataAsync(this IPerforceConnection Connection, string FileSpec, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponse<PrintRecord<byte[]>>> TryPrintDataAsync(this IPerforceConnection connection, string fileSpec, CancellationToken cancellationToken = default)
 		{
-			string TempFile = Path.GetTempFileName();
+			string tempFile = Path.GetTempFileName();
 			try
 			{
-				PerforceResponse<PrintRecord<byte[]>> Record = await TryPrintInternalAsync<PrintRecord<byte[]>>(Connection, TempFile, FileSpec, CancellationToken);
-				if (Record.Succeeded)
+				PerforceResponse<PrintRecord<byte[]>> record = await TryPrintInternalAsync<PrintRecord<byte[]>>(connection, tempFile, fileSpec, cancellationToken);
+				if (record.Succeeded)
 				{
-					Record.Data.Contents = await File.ReadAllBytesAsync(TempFile, CancellationToken);
+					record.Data.Contents = await File.ReadAllBytesAsync(tempFile, cancellationToken);
 				}
-				return Record;
+				return record;
 			}
 			finally
 			{
-				File.Delete(TempFile);
+				File.Delete(tempFile);
 			}
 		}
 
 		/// <summary>
 		/// Execute the 'print' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="FileSpec">Specification for the files to print</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="fileSpec">Specification for the files to print</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<PerforceResponse<PrintRecord<string[]>>> TryPrintLinesAsync(this IPerforceConnection Connection, string FileSpec, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponse<PrintRecord<string[]>>> TryPrintLinesAsync(this IPerforceConnection connection, string fileSpec, CancellationToken cancellationToken = default)
 		{
-			string TempFile = Path.GetTempFileName();
+			string tempFile = Path.GetTempFileName();
 			try
 			{
-				PerforceResponse<PrintRecord<string[]>> Record = await TryPrintInternalAsync<PrintRecord<string[]>>(Connection, TempFile, FileSpec, CancellationToken);
-				if (Record.Succeeded)
+				PerforceResponse<PrintRecord<string[]>> record = await TryPrintInternalAsync<PrintRecord<string[]>>(connection, tempFile, fileSpec, cancellationToken);
+				if (record.Succeeded)
 				{
-					Record.Data.Contents = await File.ReadAllLinesAsync(TempFile, CancellationToken);
+					record.Data.Contents = await File.ReadAllLinesAsync(tempFile, cancellationToken);
 				}
-				return Record;
+				return record;
 			}
 			finally
 			{
 				try
 				{
-					File.SetAttributes(TempFile, FileAttributes.Normal);
-					File.Delete(TempFile);
+					File.SetAttributes(tempFile, FileAttributes.Normal);
+					File.Delete(tempFile);
 				}
 				catch
 				{
@@ -2686,19 +2676,19 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute the 'print' command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="OutputFile">Output file to redirect output to</param>
-		/// <param name="FileSpec">Specification for the files to print</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="outputFile">Output file to redirect output to</param>
+		/// <param name="fileSpec">Specification for the files to print</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		static Task<PerforceResponse<T>> TryPrintInternalAsync<T>(this IPerforceConnection Connection, string OutputFile, string FileSpec, CancellationToken CancellationToken = default) where T : class
+		static Task<PerforceResponse<T>> TryPrintInternalAsync<T>(this IPerforceConnection connection, string outputFile, string fileSpec, CancellationToken cancellationToken = default) where T : class
 		{
 			// Build the argument list
-			List<string> Arguments = new List<string>();
-			Arguments.Add("-o");
-			Arguments.Add(OutputFile);
-			Arguments.Add(FileSpec);
-			return SingleResponseCommandAsync<T>(Connection, "print", Arguments, null, CancellationToken);
+			List<string> arguments = new List<string>();
+			arguments.Add("-o");
+			arguments.Add(outputFile);
+			arguments.Add(fileSpec);
+			return SingleResponseCommandAsync<T>(connection, "print", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -2708,70 +2698,70 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Open files for add, delete, and/or edit in order to reconcile a workspace with changes made outside of Perforce.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to open files to</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to be reverted</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to open files to</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to be reverted</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<ReconcileRecord>> ReconcileAsync(this IPerforceConnection Connection, int ChangeNumber, ReconcileOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<ReconcileRecord>> ReconcileAsync(this IPerforceConnection connection, int changeNumber, ReconcileOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			PerforceResponseList<ReconcileRecord> Records = await TryReconcileAsync(Connection, ChangeNumber, Options, FileSpecs, CancellationToken);
-			Records.RemoveAll(x => x.Info != null);
-			return Records.Data;
+			PerforceResponseList<ReconcileRecord> records = await TryReconcileAsync(connection, changeNumber, options, fileSpecs, cancellationToken);
+			records.RemoveAll(x => x.Info != null);
+			return records.Data;
 		}
 
 		/// <summary>
 		/// Open files for add, delete, and/or edit in order to reconcile a workspace with changes made outside of Perforce.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to open files to</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to be reverted</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to open files to</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to be reverted</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<ReconcileRecord>> TryReconcileAsync(this IPerforceConnection Connection, int ChangeNumber, ReconcileOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<ReconcileRecord>> TryReconcileAsync(this IPerforceConnection connection, int changeNumber, ReconcileOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if(ChangeNumber != -1)
+			List<string> arguments = new List<string>();
+			if (changeNumber != -1)
 			{
-				Arguments.Add($"-c{ChangeNumber}");
+				arguments.Add($"-c{changeNumber}");
 			}
-			if((Options & ReconcileOptions.Edit) != 0)
+			if ((options & ReconcileOptions.Edit) != 0)
 			{
-				Arguments.Add("-e");
+				arguments.Add("-e");
 			}
-			if((Options & ReconcileOptions.Add) != 0)
+			if ((options & ReconcileOptions.Add) != 0)
 			{
-				Arguments.Add("-a");
+				arguments.Add("-a");
 			}
-			if((Options & ReconcileOptions.Delete) != 0)
+			if ((options & ReconcileOptions.Delete) != 0)
 			{
-				Arguments.Add("-d");
+				arguments.Add("-d");
 			}
-			if((Options & ReconcileOptions.PreviewOnly) != 0)
+			if ((options & ReconcileOptions.PreviewOnly) != 0)
 			{
-				Arguments.Add("-n");
+				arguments.Add("-n");
 			}
-			if((Options & ReconcileOptions.AllowWildcards) != 0)
+			if ((options & ReconcileOptions.AllowWildcards) != 0)
 			{
-				Arguments.Add("-f");
+				arguments.Add("-f");
 			}
-			if((Options & ReconcileOptions.NoIgnore) != 0)
+			if ((options & ReconcileOptions.NoIgnore) != 0)
 			{
-				Arguments.Add("-I");
+				arguments.Add("-I");
 			}
-			if((Options & ReconcileOptions.LocalFileSyntax) != 0)
+			if ((options & ReconcileOptions.LocalFileSyntax) != 0)
 			{
-				Arguments.Add("-l");
+				arguments.Add("-l");
 			}
-			if ((Options & ReconcileOptions.UseFileModification) != 0)
+			if ((options & ReconcileOptions.UseFileModification) != 0)
 			{
-				Arguments.Add("-m");
+				arguments.Add("-m");
 			}
-			Arguments.AddRange(FileSpecs.List);
+			arguments.AddRange(fileSpecs.List);
 
-			return CommandAsync<ReconcileRecord>(Connection, "reconcile", Arguments, null, CancellationToken);
+			return CommandAsync<ReconcileRecord>(connection, "reconcile", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -2781,47 +2771,47 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Reopen a file
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to open files to</param>
-		/// <param name="FileType">New filetype</param>
-		/// <param name="FileSpec">Files to be reverted</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to open files to</param>
+		/// <param name="fileType">New filetype</param>
+		/// <param name="fileSpec">Files to be reverted</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<ReopenRecord>> ReopenAsync(this IPerforceConnection Connection, int? ChangeNumber, string? FileType, string FileSpec, CancellationToken CancellationToken = default)
+		public static async Task<List<ReopenRecord>> ReopenAsync(this IPerforceConnection connection, int? changeNumber, string? fileType, string fileSpec, CancellationToken cancellationToken = default)
 		{
-			return (await TryReopenAsync(Connection, ChangeNumber, FileType, FileSpec, CancellationToken)).Data;
+			return (await TryReopenAsync(connection, changeNumber, fileType, fileSpec, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Reopen a file
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to open files to</param>
-		/// <param name="FileType">New filetype</param>
-		/// <param name="FileSpec">Files to be reverted</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to open files to</param>
+		/// <param name="fileType">New filetype</param>
+		/// <param name="fileSpec">Files to be reverted</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<ReopenRecord>> TryReopenAsync(this IPerforceConnection Connection, int? ChangeNumber, string? FileType, string FileSpec, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<ReopenRecord>> TryReopenAsync(this IPerforceConnection connection, int? changeNumber, string? fileType, string fileSpec, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if (ChangeNumber != null)
+			List<string> arguments = new List<string>();
+			if (changeNumber != null)
 			{
-				if (ChangeNumber == PerforceReflection.DefaultChange)
+				if (changeNumber == PerforceReflection.DefaultChange)
 				{
-					Arguments.Add("-cdefault");
+					arguments.Add("-cdefault");
 				}
 				else
 				{
-					Arguments.Add($"-c{ChangeNumber}");
+					arguments.Add($"-c{changeNumber}");
 				}
 			}
-			if (FileType != null)
+			if (fileType != null)
 			{
-				Arguments.Add($"-t{FileType}");
+				arguments.Add($"-t{fileType}");
 			}
-			Arguments.Add(FileSpec);
+			arguments.Add(fileSpec);
 
-			return CommandAsync<ReopenRecord>(Connection, "reopen", Arguments, null, CancellationToken);
+			return CommandAsync<ReopenRecord>(connection, "reopen", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -2831,17 +2821,17 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Reloads a client workspace
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ClientName">Name of the client to reload</param>
-		/// <param name="SourceServerId">The source server id</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="clientName">Name of the client to reload</param>
+		/// <param name="sourceServerId">The source server id</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<List<PerforceResponse>> ReloadClient(this IPerforceConnection Connection, string ClientName, string SourceServerId, CancellationToken CancellationToken = default)
+		public static Task<List<PerforceResponse>> ReloadClient(this IPerforceConnection connection, string clientName, string sourceServerId, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			Arguments.Add($"-c{ClientName}");
-			Arguments.Add($"-p{SourceServerId}");
-			return Connection.CommandAsync("reload", Arguments, null, null, CancellationToken);
+			List<string> arguments = new List<string>();
+			arguments.Add($"-c{clientName}");
+			arguments.Add($"-p{sourceServerId}");
+			return connection.CommandAsync("reload", arguments, null, null, cancellationToken);
 		}
 
 		#endregion p4 reload
@@ -2851,74 +2841,78 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Resolve conflicts between file revisions.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to open files to</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to be reverted</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to open files to</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to be reverted</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<ResolveRecord>> ResolveAsync(this IPerforceConnection Connection, int ChangeNumber, ResolveOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<ResolveRecord>> ResolveAsync(this IPerforceConnection connection, int changeNumber, ResolveOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryResolveAsync(Connection, ChangeNumber, Options, FileSpecs, CancellationToken)).Data;
+			return (await TryResolveAsync(connection, changeNumber, options, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Resolve conflicts between file revisions.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to open files to</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to be reverted</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to open files to</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to be reverted</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<PerforceResponseList<ResolveRecord>> TryResolveAsync(this IPerforceConnection Connection, int ChangeNumber, ResolveOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponseList<ResolveRecord>> TryResolveAsync(this IPerforceConnection connection, int changeNumber, ResolveOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if ((Options & ResolveOptions.Automatic) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & ResolveOptions.Automatic) != 0)
 			{
-				Arguments.Add("-am");
+				arguments.Add("-am");
 			}
-			if ((Options & ResolveOptions.AcceptYours) != 0)
+			if ((options & ResolveOptions.AcceptYours) != 0)
 			{
-				Arguments.Add("-ay");
+				arguments.Add("-ay");
 			}
-			if ((Options & ResolveOptions.AcceptTheirs) != 0)
+			if ((options & ResolveOptions.AcceptTheirs) != 0)
 			{
-				Arguments.Add("-at");
+				arguments.Add("-at");
 			}
-			if ((Options & ResolveOptions.SafeAccept) != 0)
+			if ((options & ResolveOptions.SafeAccept) != 0)
 			{
-				Arguments.Add("-as");
+				arguments.Add("-as");
 			}
-			if ((Options & ResolveOptions.ForceAccept) != 0)
+			if ((options & ResolveOptions.ForceAccept) != 0)
 			{
-				Arguments.Add("-af");
+				arguments.Add("-af");
 			}
-			if((Options & ResolveOptions.IgnoreWhitespaceOnly) != 0)
+			if ((options & ResolveOptions.IgnoreWhitespaceOnly) != 0)
 			{
-				Arguments.Add("-db");
+				arguments.Add("-db");
 			}
-			if((Options & ResolveOptions.IgnoreWhitespace) != 0)
+			if ((options & ResolveOptions.IgnoreWhitespace) != 0)
 			{
-				Arguments.Add("-dw");
+				arguments.Add("-dw");
 			}
-			if((Options & ResolveOptions.IgnoreLineEndings) != 0)
+			if ((options & ResolveOptions.IgnoreLineEndings) != 0)
 			{
-				Arguments.Add("-dl");
+				arguments.Add("-dl");
 			}
-			if ((Options & ResolveOptions.ResolveAgain) != 0)
+			if ((options & ResolveOptions.ResolveAgain) != 0)
 			{
-				Arguments.Add("-f");
+				arguments.Add("-f");
 			}
-			if ((Options & ResolveOptions.PreviewOnly) != 0)
+			if ((options & ResolveOptions.PreviewOnly) != 0)
 			{
-				Arguments.Add("-n");
+				arguments.Add("-n");
 			}
-			Arguments.AddRange(FileSpecs.List);
+			if (changeNumber != -1)
+			{
+				arguments.Add($"-c{changeNumber}");
+			}
+			arguments.AddRange(fileSpecs.List);
 
-			PerforceResponseList<ResolveRecord> Records = await CommandAsync<ResolveRecord>(Connection, "resolve", Arguments, null, CancellationToken);
-			Records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
-			return Records;
+			PerforceResponseList<ResolveRecord> records = await CommandAsync<ResolveRecord>(connection, "resolve", arguments, null, cancellationToken);
+			records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
+			return records;
 		}
 
 		#endregion
@@ -2928,59 +2922,59 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Reverts files that have been added to a pending changelist.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to add files to</param>
-		/// <param name="ClientName">Revert another user’s open files. </param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to be reverted</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to add files to</param>
+		/// <param name="clientName">Revert another user’s open files. </param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to be reverted</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<RevertRecord>> RevertAsync(this IPerforceConnection Connection, int ChangeNumber, string? ClientName, RevertOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<RevertRecord>> RevertAsync(this IPerforceConnection connection, int changeNumber, string? clientName, RevertOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryRevertAsync(Connection, ChangeNumber, ClientName, Options, FileSpecs, CancellationToken)).Data;
+			return (await TryRevertAsync(connection, changeNumber, clientName, options, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Reverts files that have been added to a pending changelist.
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist to add files to</param>
-		/// <param name="ClientName">Revert another user’s open files. </param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to be reverted</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist to add files to</param>
+		/// <param name="clientName">Revert another user’s open files. </param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to be reverted</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<PerforceResponseList<RevertRecord>> TryRevertAsync(this IPerforceConnection Connection, int ChangeNumber, string? ClientName, RevertOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponseList<RevertRecord>> TryRevertAsync(this IPerforceConnection connection, int changeNumber, string? clientName, RevertOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if((Options & RevertOptions.Unchanged) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & RevertOptions.Unchanged) != 0)
 			{
-				Arguments.Add("-a");
+				arguments.Add("-a");
 			}
-			if((Options & RevertOptions.PreviewOnly) != 0)
+			if ((options & RevertOptions.PreviewOnly) != 0)
 			{
-				Arguments.Add("-n");
+				arguments.Add("-n");
 			}
-			if((Options & RevertOptions.KeepWorkspaceFiles) != 0)
+			if ((options & RevertOptions.KeepWorkspaceFiles) != 0)
 			{
-				Arguments.Add("-k");
+				arguments.Add("-k");
 			}
-			if((Options & RevertOptions.DeleteAddedFiles) != 0)
+			if ((options & RevertOptions.DeleteAddedFiles) != 0)
 			{
-				Arguments.Add("-w");
+				arguments.Add("-w");
 			}
-			if(ChangeNumber != -1)
+			if (changeNumber != -1)
 			{
-				Arguments.Add($"-c{ChangeNumber}");
+				arguments.Add($"-c{changeNumber}");
 			}
-			if(ClientName != null)
+			if (clientName != null)
 			{
-				Arguments.Add($"-C{ClientName}");
+				arguments.Add($"-C{clientName}");
 			}
 
-			PerforceResponseList<RevertRecord> Records = await BatchedCommandAsync<RevertRecord>(Connection, "revert", Arguments, FileSpecs.List, null, CancellationToken);
-			Records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
-			return Records;
+			PerforceResponseList<RevertRecord> records = await BatchedCommandAsync<RevertRecord>(connection, "revert", arguments, fileSpecs.List, cancellationToken);
+			records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
+			return records;
 		}
 
 		#endregion
@@ -2990,83 +2984,83 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Shelves a set of files
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">The change number to receive the shelved files</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">The change number to receive the shelved files</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<ShelveRecord>> ShelveAsync(this IPerforceConnection Connection, int ChangeNumber, ShelveOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<ShelveRecord>> ShelveAsync(this IPerforceConnection connection, int changeNumber, ShelveOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryShelveAsync(Connection, ChangeNumber, Options, FileSpecs, CancellationToken)).Data;
+			return (await TryShelveAsync(connection, changeNumber, options, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Shelves a set of files
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">The change number to receive the shelved files</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">The change number to receive the shelved files</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<PerforceResponseList<ShelveRecord>> TryShelveAsync(this IPerforceConnection Connection, int ChangeNumber, ShelveOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponseList<ShelveRecord>> TryShelveAsync(this IPerforceConnection connection, int changeNumber, ShelveOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			Arguments.Add($"-c{ChangeNumber}");
-			if((Options & ShelveOptions.OnlyChanged) != 0)
+			List<string> arguments = new List<string>();
+			arguments.Add($"-c{changeNumber}");
+			if ((options & ShelveOptions.OnlyChanged) != 0)
 			{
-				Arguments.Add("-aleaveunchanged");
+				arguments.Add("-aleaveunchanged");
 			}
-			if((Options & ShelveOptions.Overwrite) != 0)
+			if ((options & ShelveOptions.Overwrite) != 0)
 			{
-				Arguments.Add("-f");
+				arguments.Add("-f");
 			}
-			Arguments.AddRange(FileSpecs.List);
+			arguments.AddRange(fileSpecs.List);
 
-			PerforceResponseList<ShelveRecord> Records = await CommandAsync<ShelveRecord>(Connection, "shelve", Arguments, null, CancellationToken);
-			Records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
-			return Records;
+			PerforceResponseList<ShelveRecord> records = await CommandAsync<ShelveRecord>(connection, "shelve", arguments, null, cancellationToken);
+			records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
+			return records;
 		}
 
 		/// <summary>
 		/// Deletes files from a shelved changelist
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist containing shelved files to be deleted</param>
-		/// <param name="FileSpecs">Files to delete</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist containing shelved files to be deleted</param>
+		/// <param name="fileSpecs">Files to delete</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task DeleteShelvedFilesAsync(this IPerforceConnection Connection, int ChangeNumber, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task DeleteShelvedFilesAsync(this IPerforceConnection connection, int changeNumber, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<PerforceResponse> Responses = await TryDeleteShelvedFilesAsync(Connection, ChangeNumber, FileSpecs, CancellationToken);
+			List<PerforceResponse> responses = await TryDeleteShelvedFilesAsync(connection, changeNumber, fileSpecs, cancellationToken);
 
-			PerforceResponse? ErrorResponse = Responses.FirstOrDefault(x => x.Error != null && x.Error.Generic != PerforceGenericCode.Empty);
-			if(ErrorResponse != null)
+			PerforceResponse? errorResponse = responses.FirstOrDefault(x => x.Error != null && x.Error.Generic != PerforceGenericCode.Empty);
+			if (errorResponse != null)
 			{
-				throw new PerforceException(ErrorResponse.Error!);
+				throw new PerforceException(errorResponse.Error!);
 			}
 		}
 
 		/// <summary>
 		/// Deletes files from a shelved changelist
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">Changelist containing shelved files to be deleted</param>
-		/// <param name="FileSpecs">Files to delete</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">Changelist containing shelved files to be deleted</param>
+		/// <param name="fileSpecs">Files to delete</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<List<PerforceResponse>> TryDeleteShelvedFilesAsync(this IPerforceConnection Connection, int ChangeNumber, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<List<PerforceResponse>> TryDeleteShelvedFilesAsync(this IPerforceConnection connection, int changeNumber, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			Arguments.Add("-d");
-			if(ChangeNumber != -1)
+			List<string> arguments = new List<string>();
+			arguments.Add("-d");
+			if (changeNumber != -1)
 			{
-				Arguments.Add($"-c{ChangeNumber}");
+				arguments.Add($"-c{changeNumber}");
 			}
-			Arguments.AddRange(FileSpecs.List);
+			arguments.AddRange(fileSpecs.List);
 
-			return Connection.CommandAsync("shelve", Arguments, null, null, CancellationToken);
+			return connection.CommandAsync("shelve", arguments, null, null, cancellationToken);
 		}
 
 		#endregion
@@ -3076,34 +3070,34 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Queries information about a stream
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="StreamName">Name of the stream to query</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="streamName">Name of the stream to query</param>
 		/// <param name="bIncludeView">Whether to include the stream view in the output</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Stream information record</returns>
-		public static async Task<StreamRecord> GetStreamAsync(this IPerforceConnection Connection, string StreamName, bool bIncludeView, CancellationToken CancellationToken = default)
+		public static async Task<StreamRecord> GetStreamAsync(this IPerforceConnection connection, string streamName, bool bIncludeView, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetStreamAsync(Connection, StreamName, bIncludeView, CancellationToken)).Data;
+			return (await TryGetStreamAsync(connection, streamName, bIncludeView, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Queries information about a stream
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="StreamName">Name of the stream to query</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="streamName">Name of the stream to query</param>
 		/// <param name="bIncludeView">Whether to include the stream view in the output</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Stream information record</returns>
-		public static Task<PerforceResponse<StreamRecord>> TryGetStreamAsync(this IPerforceConnection Connection, string StreamName, bool bIncludeView, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponse<StreamRecord>> TryGetStreamAsync(this IPerforceConnection connection, string streamName, bool bIncludeView, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string> { "-o" };
+			List<string> arguments = new List<string> { "-o" };
 			if (bIncludeView)
 			{
-				Arguments.Add("-v");
+				arguments.Add("-v");
 			}
-			Arguments.Add(StreamName);
+			arguments.Add(streamName);
 
-			return SingleResponseCommandAsync<StreamRecord>(Connection, "stream", Arguments, null, CancellationToken);
+			return SingleResponseCommandAsync<StreamRecord>(connection, "stream", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -3113,76 +3107,76 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Enumerates all streams in a depot
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="streamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of streams matching the given criteria</returns>
-		public static async Task<List<StreamsRecord>> GetStreamsAsync(this IPerforceConnection Connection, string? StreamPath, CancellationToken CancellationToken = default)
+		public static async Task<List<StreamsRecord>> GetStreamsAsync(this IPerforceConnection connection, string? streamPath, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetStreamsAsync(Connection, StreamPath, CancellationToken)).Data;
+			return (await TryGetStreamsAsync(connection, streamPath, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Enumerates all streams in a depot
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="streamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of streams matching the given criteria</returns>
-		public static Task<PerforceResponseList<StreamsRecord>> TryGetStreamsAsync(this IPerforceConnection Connection, string? StreamPath, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<StreamsRecord>> TryGetStreamsAsync(this IPerforceConnection connection, string? streamPath, CancellationToken cancellationToken = default)
 		{
-			return TryGetStreamsAsync(Connection, StreamPath, -1, null, false, CancellationToken);
+			return TryGetStreamsAsync(connection, streamPath, -1, null, false, cancellationToken);
 		}
 
 		/// <summary>
 		/// Enumerates all streams in a depot
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
-		/// <param name="MaxResults">Maximum number of results to return</param>
-		/// <param name="Filter">Additional filter to be applied to the results</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="streamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
+		/// <param name="maxResults">Maximum number of results to return</param>
+		/// <param name="filter">Additional filter to be applied to the results</param>
 		/// <param name="bUnloaded">Whether to enumerate unloaded workspaces</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of streams matching the given criteria</returns>
-		public static async Task<List<StreamsRecord>> GetStreamsAsync(this IPerforceConnection Connection, string? StreamPath, int MaxResults, string? Filter, bool bUnloaded, CancellationToken CancellationToken = default)
+		public static async Task<List<StreamsRecord>> GetStreamsAsync(this IPerforceConnection connection, string? streamPath, int maxResults, string? filter, bool bUnloaded, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetStreamsAsync(Connection, StreamPath, MaxResults, Filter, bUnloaded, CancellationToken)).Data;
+			return (await TryGetStreamsAsync(connection, streamPath, maxResults, filter, bUnloaded, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Enumerates all streams in a depot
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
-		/// <param name="MaxResults">Maximum number of results to return</param>
-		/// <param name="Filter">Additional filter to be applied to the results</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="streamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
+		/// <param name="maxResults">Maximum number of results to return</param>
+		/// <param name="filter">Additional filter to be applied to the results</param>
 		/// <param name="bUnloaded">Whether to enumerate unloaded workspaces</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of streams matching the given criteria</returns>
-		public static Task<PerforceResponseList<StreamsRecord>> TryGetStreamsAsync(this IPerforceConnection Connection, string? StreamPath, int MaxResults, string? Filter, bool bUnloaded, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<StreamsRecord>> TryGetStreamsAsync(this IPerforceConnection connection, string? streamPath, int maxResults, string? filter, bool bUnloaded, CancellationToken cancellationToken = default)
 		{
 			// Build the command line
-			List<string> Arguments = new List<string>();
+			List<string> arguments = new List<string>();
 			if (bUnloaded)
 			{
-				Arguments.Add("-U");
+				arguments.Add("-U");
 			}
-			if (Filter != null)
+			if (filter != null)
 			{
-				Arguments.Add("-F");
-				Arguments.Add(Filter);
+				arguments.Add("-F");
+				arguments.Add(filter);
 			}
-			if (MaxResults > 0)
+			if (maxResults > 0)
 			{
-				Arguments.Add($"-m{MaxResults}");
+				arguments.Add($"-m{maxResults}");
 			}
-			if (StreamPath != null)
+			if (streamPath != null)
 			{
-				Arguments.Add(StreamPath);
+				arguments.Add(streamPath);
 			}
 
 			// Execute the command
-			return CommandAsync<StreamsRecord>(Connection, "streams", Arguments, null, CancellationToken);
+			return CommandAsync<StreamsRecord>(connection, "streams", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -3192,61 +3186,61 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Submits a pending changelist
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">The changelist to submit</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">The changelist to submit</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<SubmitRecord> SubmitAsync(this IPerforceConnection Connection, int ChangeNumber, SubmitOptions Options, CancellationToken CancellationToken = default)
+		public static async Task<SubmitRecord> SubmitAsync(this IPerforceConnection connection, int changeNumber, SubmitOptions options, CancellationToken cancellationToken = default)
 		{
-			return (await TrySubmitAsync(Connection, ChangeNumber, Options, CancellationToken)).Data;
+			return (await TrySubmitAsync(connection, changeNumber, options, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Submits a pending changelist
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">The changelist to submit</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">The changelist to submit</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<PerforceResponse<SubmitRecord>> TrySubmitAsync(this IPerforceConnection Connection, int ChangeNumber, SubmitOptions Options, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponse<SubmitRecord>> TrySubmitAsync(this IPerforceConnection connection, int changeNumber, SubmitOptions options, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if((Options & SubmitOptions.ReopenAsEdit) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & SubmitOptions.ReopenAsEdit) != 0)
 			{
-				Arguments.Add("-r");
+				arguments.Add("-r");
 			}
-			Arguments.Add($"-c{ChangeNumber}");
+			arguments.Add($"-c{changeNumber}");
 
-			return (await CommandAsync<SubmitRecord>(Connection, "submit", Arguments, null, CancellationToken))[0];
+			return (await CommandAsync<SubmitRecord>(connection, "submit", arguments, null, cancellationToken))[0];
 		}
 
 		/// <summary>
 		/// Submits a shelved changelist
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">The changelist to submit</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">The changelist to submit</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<SubmitRecord> SubmitShelvedAsync(this IPerforceConnection Connection, int ChangeNumber, CancellationToken CancellationToken = default)
+		public static async Task<SubmitRecord> SubmitShelvedAsync(this IPerforceConnection connection, int changeNumber, CancellationToken cancellationToken = default)
 		{
-			return (await TrySubmitShelvedAsync(Connection, ChangeNumber, CancellationToken)).Data;
+			return (await TrySubmitShelvedAsync(connection, changeNumber, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Submits a pending changelist
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">The changelist to submit</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">The changelist to submit</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<PerforceResponse<SubmitRecord>> TrySubmitShelvedAsync(this IPerforceConnection Connection, int ChangeNumber, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponse<SubmitRecord>> TrySubmitShelvedAsync(this IPerforceConnection connection, int changeNumber, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			Arguments.Add($"-e{ChangeNumber}");
+			List<string> arguments = new List<string>();
+			arguments.Add($"-e{changeNumber}");
 
-			return (await CommandAsync<SubmitRecord>(Connection, "submit", Arguments, null, CancellationToken))[0];
+			return (await CommandAsync<SubmitRecord>(connection, "submit", arguments, null, cancellationToken))[0];
 		}
 
 		#endregion
@@ -3256,271 +3250,272 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Syncs files from the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static IAsyncEnumerable<SyncRecord> SyncAsync(this IPerforceConnection Connection, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<SyncRecord> SyncAsync(this IPerforceConnection connection, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TrySyncAsync(Connection, FileSpecs, CancellationToken).Select(x => x.Data);
+			return TrySyncAsync(connection, fileSpecs, cancellationToken).Select(x => x.Data);
 		}
 
 		/// <summary>
 		/// Syncs files from the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static IAsyncEnumerable<PerforceResponse<SyncRecord>> TrySyncAsync(this IPerforceConnection Connection, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<PerforceResponse<SyncRecord>> TrySyncAsync(this IPerforceConnection connection, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TrySyncAsync(Connection, SyncOptions.None, -1, FileSpecs, CancellationToken);
+			return TrySyncAsync(connection, SyncOptions.None, -1, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Syncs files from the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static IAsyncEnumerable<SyncRecord> SyncAsync(this IPerforceConnection Connection, SyncOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<SyncRecord> SyncAsync(this IPerforceConnection connection, SyncOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TrySyncAsync(Connection, Options, FileSpecs, CancellationToken).Select(x => x.Data);
+			return TrySyncAsync(connection, options, fileSpecs, cancellationToken).Select(x => x.Data);
 		}
 
 		/// <summary>
 		/// Syncs files from the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static IAsyncEnumerable<PerforceResponse<SyncRecord>> TrySyncAsync(this IPerforceConnection Connection, SyncOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<PerforceResponse<SyncRecord>> TrySyncAsync(this IPerforceConnection connection, SyncOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TrySyncAsync(Connection, Options, -1, FileSpecs, CancellationToken);
+			return TrySyncAsync(connection, options, -1, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Syncs files from the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxFiles">Syncs only the first number of files specified.</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxFiles">Syncs only the first number of files specified.</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static IAsyncEnumerable<SyncRecord> SyncAsync(this IPerforceConnection Connection, SyncOptions Options, int MaxFiles, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<SyncRecord> SyncAsync(this IPerforceConnection connection, SyncOptions options, int maxFiles, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TrySyncAsync(Connection, Options, MaxFiles, FileSpecs, CancellationToken).Select(x => x.Data);
+			return TrySyncAsync(connection, options, maxFiles, fileSpecs, cancellationToken).Select(x => x.Data);
 		}
 
 		/// <summary>
 		/// Syncs files from the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxFiles">Syncs only the first number of files specified.</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxFiles">Syncs only the first number of files specified.</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static IAsyncEnumerable<PerforceResponse<SyncRecord>> TrySyncAsync(this IPerforceConnection Connection, SyncOptions Options, int MaxFiles, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<PerforceResponse<SyncRecord>> TrySyncAsync(this IPerforceConnection connection, SyncOptions options, int maxFiles, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TrySyncAsync(Connection, Options, MaxFiles, -1, -1, -1, -1, -1, FileSpecs, CancellationToken);
+			return TrySyncAsync(connection, options, maxFiles, -1, -1, -1, -1, -1, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Syncs files from the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxFiles">Syncs only the first number of files specified</param>
-		/// <param name="NumThreads">Sync in parallel using the given number of threads</param>
-		/// <param name="Batch">The number of files in a batch</param>
-		/// <param name="BatchSize">The number of bytes in a batch</param>
-		/// <param name="Min">Minimum number of files in a parallel sync</param>
-		/// <param name="MinSize">Minimum number of bytes in a parallel sync</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxFiles">Syncs only the first number of files specified</param>
+		/// <param name="numThreads">Sync in parallel using the given number of threads</param>
+		/// <param name="batch">The number of files in a batch</param>
+		/// <param name="batchSize">The number of bytes in a batch</param>
+		/// <param name="min">Minimum number of files in a parallel sync</param>
+		/// <param name="minSize">Minimum number of bytes in a parallel sync</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static IAsyncEnumerable<SyncRecord> SyncAsync(this IPerforceConnection Connection, SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<SyncRecord> SyncAsync(this IPerforceConnection connection, SyncOptions options, int maxFiles, int numThreads, int batch, int batchSize, int min, int minSize, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TrySyncAsync(Connection, Options, MaxFiles, NumThreads, Batch, BatchSize, Min, MinSize, FileSpecs, CancellationToken).Select(x => x.Data);
+			return TrySyncAsync(connection, options, maxFiles, numThreads, batch, batchSize, min, minSize, fileSpecs, cancellationToken).Select(x => x.Data);
 		}
 
 		/// <summary>
 		/// Syncs files from the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxFiles">Syncs only the first number of files specified</param>
-		/// <param name="NumThreads">Sync in parallel using the given number of threads</param>
-		/// <param name="Batch">The number of files in a batch</param>
-		/// <param name="BatchSize">The number of bytes in a batch</param>
-		/// <param name="Min">Minimum number of files in a parallel sync</param>
-		/// <param name="MinSize">Minimum number of bytes in a parallel sync</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxFiles">Syncs only the first number of files specified</param>
+		/// <param name="numThreads">Sync in parallel using the given number of threads</param>
+		/// <param name="batch">The number of files in a batch</param>
+		/// <param name="batchSize">The number of bytes in a batch</param>
+		/// <param name="min">Minimum number of files in a parallel sync</param>
+		/// <param name="minSize">Minimum number of bytes in a parallel sync</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static IAsyncEnumerable<PerforceResponse<SyncRecord>> TrySyncAsync(this IPerforceConnection Connection, SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<PerforceResponse<SyncRecord>> TrySyncAsync(this IPerforceConnection connection, SyncOptions options, int maxFiles, int numThreads, int batch, int batchSize, int min, int minSize, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
 			// Perforce annoyingly returns 'up-to-date' as an error. Ignore it.
-			IAsyncEnumerable<PerforceResponse<SyncRecord>> Records = SyncInternalAsync<SyncRecord>(Connection, Options, MaxFiles, NumThreads, Batch, BatchSize, Min, MinSize, FileSpecs, false, CancellationToken);
-			Records = Records.Where(x => x.Error == null || x.Error.Generic != PerforceGenericCode.Empty);
-			return Records;
+			IAsyncEnumerable<PerforceResponse<SyncRecord>> records = SyncInternalAsync<SyncRecord>(connection, options, maxFiles, numThreads, batch, batchSize, min, minSize, fileSpecs, false, cancellationToken);
+			records = records.Where(x => x.Error == null || x.Error.Generic != PerforceGenericCode.Empty);
+			return records;
 		}
 
 		/// <summary>
 		/// Syncs files from the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxFiles">Syncs only the first number of files specified.</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxFiles">Syncs only the first number of files specified.</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<SyncSummaryRecord>> SyncQuietAsync(this IPerforceConnection Connection, SyncOptions Options, int MaxFiles, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<SyncSummaryRecord>> SyncQuietAsync(this IPerforceConnection connection, SyncOptions options, int maxFiles, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			PerforceResponseList<SyncSummaryRecord> Records = await TrySyncQuietAsync(Connection, Options, MaxFiles, FileSpecs, CancellationToken);
-			Records.RemoveAll(x => (x.Error != null && x.Error.Generic == PerforceGenericCode.Empty) || x.Info != null);
-			return Records.Data;
+			PerforceResponseList<SyncSummaryRecord> records = await TrySyncQuietAsync(connection, options, maxFiles, fileSpecs, cancellationToken);
+			records.RemoveAll(x => (x.Error != null && x.Error.Generic == PerforceGenericCode.Empty) || x.Info != null);
+			return records.Data;
 		}
 
 		/// <summary>
 		/// Syncs files from the server
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxFiles">Syncs only the first number of files specified.</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxFiles">Syncs only the first number of files specified.</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<SyncSummaryRecord>> TrySyncQuietAsync(this IPerforceConnection Connection, SyncOptions Options, int MaxFiles, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<SyncSummaryRecord>> TrySyncQuietAsync(this IPerforceConnection connection, SyncOptions options, int maxFiles, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TrySyncQuietAsync(Connection, Options, MaxFiles, -1, -1, -1, -1, -1, FileSpecs, null, CancellationToken);
+			return TrySyncQuietAsync(connection, options, maxFiles, -1, -1, -1, -1, -1, fileSpecs, cancellationToken);
 		}
 
 		/// <summary>
 		/// Syncs files from the server without returning detailed file info
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxFiles">Syncs only the first number of files specified</param>
-		/// <param name="NumThreads">Sync in parallel using the given number of threads</param>
-		/// <param name="Batch">The number of files in a batch</param>
-		/// <param name="BatchSize">The number of bytes in a batch</param>
-		/// <param name="Min">Minimum number of files in a parallel sync</param>
-		/// <param name="MinSize">Minimum number of bytes in a parallel sync</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="ResponseFile">Response file for list of files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxFiles">Syncs only the first number of files specified</param>
+		/// <param name="numThreads">Sync in parallel using the given number of threads</param>
+		/// <param name="batch">The number of files in a batch</param>
+		/// <param name="batchSize">The number of bytes in a batch</param>
+		/// <param name="min">Minimum number of files in a parallel sync</param>
+		/// <param name="minSize">Minimum number of bytes in a parallel sync</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<SyncSummaryRecord>> SyncQuietAsync(this IPerforceConnection Connection, SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, FileSpecList FileSpecs, FileReference? ResponseFile, CancellationToken CancellationToken = default)
+		public static async Task<List<SyncSummaryRecord>> SyncQuietAsync(this IPerforceConnection connection, SyncOptions options, int maxFiles, int numThreads, int batch, int batchSize, int min, int minSize, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TrySyncQuietAsync(Connection, Options, MaxFiles, NumThreads, Batch, BatchSize, Min, MinSize, FileSpecs, ResponseFile, CancellationToken)).Data;
+			return (await TrySyncQuietAsync(connection, options, maxFiles, numThreads, batch, batchSize, min, minSize, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Syncs files from the server without returning detailed file info
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxFiles">Syncs only the first number of files specified</param>
-		/// <param name="NumThreads">Sync in parallel using the given number of threads</param>
-		/// <param name="Batch">The number of files in a batch</param>
-		/// <param name="BatchSize">The number of bytes in a batch</param>
-		/// <param name="Min">Minimum number of files in a parallel sync</param>
-		/// <param name="MinSize">Minimum number of bytes in a parallel sync</param>
-		/// <param name="FileSpecs">Files to sync</param>
-		/// <param name="ResponseFile">Response file for list of files to sync</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxFiles">Syncs only the first number of files specified</param>
+		/// <param name="numThreads">Sync in parallel using the given number of threads</param>
+		/// <param name="batch">The number of files in a batch</param>
+		/// <param name="batchSize">The number of bytes in a batch</param>
+		/// <param name="min">Minimum number of files in a parallel sync</param>
+		/// <param name="minSize">Minimum number of bytes in a parallel sync</param>
+		/// <param name="fileSpecs">Files to sync</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<PerforceResponseList<SyncSummaryRecord>> TrySyncQuietAsync(this IPerforceConnection Connection, SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, FileSpecList FileSpecs, FileReference? ResponseFile, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponseList<SyncSummaryRecord>> TrySyncQuietAsync(this IPerforceConnection connection, SyncOptions options, int maxFiles, int numThreads, int batch, int batchSize, int min, int minSize, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return new PerforceResponseList<SyncSummaryRecord>(await SyncInternalAsync<SyncSummaryRecord>(Connection, Options, MaxFiles, NumThreads, Batch, BatchSize, Min, MinSize, FileSpecs, true, CancellationToken).ToListAsync(CancellationToken));
+			return new PerforceResponseList<SyncSummaryRecord>(await SyncInternalAsync<SyncSummaryRecord>(connection, options, maxFiles, numThreads, batch, batchSize, min, minSize, fileSpecs, true, cancellationToken).ToListAsync(cancellationToken));
 		}
 
 		/// <summary>
 		/// Gets arguments for a sync command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxFiles">Syncs only the first number of files specified</param>
-		/// <param name="NumThreads">Sync in parallel using the given number of threads</param>
-		/// <param name="Batch">The number of files in a batch</param>
-		/// <param name="BatchSize">The number of bytes in a batch</param>
-		/// <param name="Min">Minimum number of files in a parallel sync</param>
-		/// <param name="MinSize">Minimum number of bytes in a parallel sync</param>
-		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxFiles">Syncs only the first number of files specified</param>
+		/// <param name="numThreads">Sync in parallel using the given number of threads</param>
+		/// <param name="batch">The number of files in a batch</param>
+		/// <param name="batchSize">The number of bytes in a batch</param>
+		/// <param name="min">Minimum number of files in a parallel sync</param>
+		/// <param name="minSize">Minimum number of bytes in a parallel sync</param>
+		/// <param name="fileSpecs">Files to sync</param>
 		/// <param name="bQuiet">Whether to use quiet output</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Arguments for the command</returns>
-		private static IAsyncEnumerable<PerforceResponse<T>> SyncInternalAsync<T>(this IPerforceConnection Connection, SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, FileSpecList FileSpecs, bool bQuiet, CancellationToken CancellationToken = default) where T : class
+		private static IAsyncEnumerable<PerforceResponse<T>> SyncInternalAsync<T>(this IPerforceConnection connection, SyncOptions options, int maxFiles, int numThreads, int batch, int batchSize, int min, int minSize, FileSpecList fileSpecs, bool bQuiet, CancellationToken cancellationToken = default) where T : class
 		{
-			List<string> Arguments = new List<string>();
-			if((Options & SyncOptions.Force) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & SyncOptions.Force) != 0)
 			{
-				Arguments.Add("-f");
+				arguments.Add("-f");
 			}
-			if((Options & SyncOptions.KeepWorkspaceFiles) != 0)
+			if ((options & SyncOptions.KeepWorkspaceFiles) != 0)
 			{
-				Arguments.Add("-k");
+				arguments.Add("-k");
 			}
-			if((Options & SyncOptions.FullDepotSyntax) != 0)
+			if ((options & SyncOptions.FullDepotSyntax) != 0)
 			{
-				Arguments.Add("-L");
+				arguments.Add("-L");
 			}
-			if((Options & SyncOptions.PreviewOnly) != 0)
+			if ((options & SyncOptions.PreviewOnly) != 0)
 			{
-				Arguments.Add("-n");
+				arguments.Add("-n");
 			}
-			if((Options & SyncOptions.NetworkPreviewOnly) != 0)
+			if ((options & SyncOptions.NetworkPreviewOnly) != 0)
 			{
-				Arguments.Add("-N");
+				arguments.Add("-N");
 			}
-			if((Options & SyncOptions.DoNotUpdateHaveList) != 0)
+			if ((options & SyncOptions.DoNotUpdateHaveList) != 0)
 			{
-				Arguments.Add("-p");
+				arguments.Add("-p");
 			}
-			if(bQuiet)
+			if (bQuiet)
 			{
-				Arguments.Add("-q");
+				arguments.Add("-q");
 			}
-			if((Options & SyncOptions.ReopenMovedFiles) != 0)
+			if ((options & SyncOptions.ReopenMovedFiles) != 0)
 			{
-				Arguments.Add("-r");
+				arguments.Add("-r");
 			}
-			if((Options & SyncOptions.Safe) != 0)
+			if ((options & SyncOptions.Safe) != 0)
 			{
-				Arguments.Add("-s");
+				arguments.Add("-s");
 			}
-			if(MaxFiles != -1)
+			if (maxFiles != -1)
 			{
-				Arguments.Add($"-m{MaxFiles}");
+				arguments.Add($"-m{maxFiles}");
 			}
-			/*			if(NumThreads != -1)
-						{
-							Arguments.Add($"--parallel-threads={0}", NumThreads);
-							if(Batch != -1)
-							{
-								Arguments.AppendFormat(",batch={0}", Batch);
-							}
-							if(BatchSize != -1)
-							{
-								Arguments.AppendFormat(",batchsize={0}", BatchSize);
-							}
-							if(Min != -1)
-							{
-								Arguments.AppendFormat(",min={0}", Min);
-							}
-							if(MinSize != -1)
-							{
-								Arguments.AppendFormat(",minsize={0}", MinSize);
-							}
-						}*/
-			return StreamCommandAsync<T>(Connection, "sync", Arguments, FileSpecs.List, null, CancellationToken);
+
+			// Using multiple threads is not supported through p4.exe due to threaded output not being parsable
+			if(numThreads != -1 && (connection is NativePerforceConnection))
+			{
+				StringBuilder argument = new StringBuilder($"--parallel-threads={numThreads}");
+				if(batch != -1)
+				{
+					argument.Append($",batch={batch}");
+				}
+				if(batchSize != -1)
+				{
+					argument.Append($",batchsize={batchSize}");
+				}
+				if(min != -1)
+				{
+					argument.Append($",min={min}");
+				}
+				if(minSize != -1)
+				{
+					argument.Append($",minsize={minSize}");
+				}
+				arguments.Add(argument.ToString());
+			}
+			return StreamCommandAsync<T>(connection, "sync", arguments, fileSpecs.List, null, cancellationToken);
 		}
 
 		#endregion
@@ -3530,65 +3525,65 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Restore shelved files from a pending change into a workspace
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">The changelist containing shelved files</param>
-		/// <param name="IntoChangeNumber">The changelist to receive the unshelved files</param>
-		/// <param name="UsingBranchSpec">The branchspec to use when unshelving files</param>
-		/// <param name="UsingStream">Specifies the use of a stream-derived branch view to map the shelved files between the specified stream and its parent stream.</param>
-		/// <param name="ForceParentStream">Unshelve to the specified parent stream. Overrides the parent defined in the source stream specification.</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to unshelve</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">The changelist containing shelved files</param>
+		/// <param name="intoChangeNumber">The changelist to receive the unshelved files</param>
+		/// <param name="usingBranchSpec">The branchspec to use when unshelving files</param>
+		/// <param name="usingStream">Specifies the use of a stream-derived branch view to map the shelved files between the specified stream and its parent stream.</param>
+		/// <param name="forceParentStream">Unshelve to the specified parent stream. Overrides the parent defined in the source stream specification.</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to unshelve</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<UnshelveRecord>> UnshelveAsync(this IPerforceConnection Connection, int ChangeNumber, int IntoChangeNumber, string? UsingBranchSpec, string? UsingStream, string? ForceParentStream, UnshelveOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<UnshelveRecord>> UnshelveAsync(this IPerforceConnection connection, int changeNumber, int intoChangeNumber, string? usingBranchSpec, string? usingStream, string? forceParentStream, UnshelveOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return (await TryUnshelveAsync(Connection, ChangeNumber, IntoChangeNumber, UsingBranchSpec, UsingStream, ForceParentStream, Options, FileSpecs, CancellationToken)).Data;
+			return (await TryUnshelveAsync(connection, changeNumber, intoChangeNumber, usingBranchSpec, usingStream, forceParentStream, options, fileSpecs, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Restore shelved files from a pending change into a workspace
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumber">The changelist containing shelved files</param>
-		/// <param name="IntoChangeNumber">The changelist to receive the unshelved files</param>
-		/// <param name="UsingBranchSpec">The branchspec to use when unshelving files</param>
-		/// <param name="UsingStream">Specifies the use of a stream-derived branch view to map the shelved files between the specified stream and its parent stream.</param>
-		/// <param name="ForceParentStream">Unshelve to the specified parent stream. Overrides the parent defined in the source stream specification.</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="FileSpecs">Files to unshelve</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumber">The changelist containing shelved files</param>
+		/// <param name="intoChangeNumber">The changelist to receive the unshelved files</param>
+		/// <param name="usingBranchSpec">The branchspec to use when unshelving files</param>
+		/// <param name="usingStream">Specifies the use of a stream-derived branch view to map the shelved files between the specified stream and its parent stream.</param>
+		/// <param name="forceParentStream">Unshelve to the specified parent stream. Overrides the parent defined in the source stream specification.</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">Files to unshelve</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<UnshelveRecord>> TryUnshelveAsync(this IPerforceConnection Connection, int ChangeNumber, int IntoChangeNumber, string? UsingBranchSpec, string? UsingStream, string? ForceParentStream, UnshelveOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<UnshelveRecord>> TryUnshelveAsync(this IPerforceConnection connection, int changeNumber, int intoChangeNumber, string? usingBranchSpec, string? usingStream, string? forceParentStream, UnshelveOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			Arguments.Add($"-s{ChangeNumber}");
-			if((Options & UnshelveOptions.ForceOverwrite) != 0)
+			List<string> arguments = new List<string>();
+			arguments.Add($"-s{changeNumber}");
+			if ((options & UnshelveOptions.ForceOverwrite) != 0)
 			{
-				Arguments.Add("-f");
+				arguments.Add("-f");
 			}
-			if((Options & UnshelveOptions.PreviewOnly) != 0)
+			if ((options & UnshelveOptions.PreviewOnly) != 0)
 			{
-				Arguments.Add("-n");
+				arguments.Add("-n");
 			}
-			if(IntoChangeNumber != -1)
+			if (intoChangeNumber != -1)
 			{
-				Arguments.Add($"-c{IntoChangeNumber}");
+				arguments.Add($"-c{intoChangeNumber}");
 			}
-			if(UsingBranchSpec != null)
+			if (usingBranchSpec != null)
 			{
-				Arguments.Add($"-b{UsingBranchSpec}");
+				arguments.Add($"-b{usingBranchSpec}");
 			}
-			if(UsingStream != null)
+			if (usingStream != null)
 			{
-				Arguments.Add($"-S{UsingStream}");
+				arguments.Add($"-S{usingStream}");
 			}
-			if(ForceParentStream != null)
+			if (forceParentStream != null)
 			{
-				Arguments.Add($"-P{ForceParentStream}");
+				arguments.Add($"-P{forceParentStream}");
 			}
-			Arguments.AddRange(FileSpecs.List);
+			arguments.AddRange(fileSpecs.List);
 
-			return CommandAsync<UnshelveRecord>(Connection, "unshelve", Arguments, null, CancellationToken);
+			return CommandAsync<UnshelveRecord>(connection, "unshelve", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -3598,81 +3593,80 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Enumerates all streams in a depot
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="UserName">Name of the user to fetch information for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="userName">Name of the user to fetch information for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<UserRecord> GetUserAsync(this IPerforceConnection Connection, string UserName, CancellationToken CancellationToken = default)
+		public static async Task<UserRecord> GetUserAsync(this IPerforceConnection connection, string userName, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetUserAsync(Connection, UserName, CancellationToken))[0].Data;
+			return (await TryGetUserAsync(connection, userName, cancellationToken))[0].Data;
 		}
 
 		/// <summary>
 		/// Enumerates all streams in a depot
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="UserName">Name of the user to fetch information for</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="userName">Name of the user to fetch information for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<UserRecord>> TryGetUserAsync(this IPerforceConnection Connection, string UserName, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<UserRecord>> TryGetUserAsync(this IPerforceConnection connection, string userName, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			Arguments.Add("-o");
-			Arguments.Add(UserName);
-			return CommandAsync<UserRecord>(Connection, "user", Arguments, null, CancellationToken);
+			List<string> arguments = new List<string>();
+			arguments.Add("-o");
+			arguments.Add(userName);
+			return CommandAsync<UserRecord>(connection, "user", arguments, null, cancellationToken);
 		}
 
 		#endregion
 
 		#region p4 users
 
-
 		/// <summary>
 		/// Enumerates all streams in a depot
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxResults">Maximum number of results to return</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxResults">Maximum number of results to return</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task<List<UsersRecord>> GetUsersAsync(this IPerforceConnection Connection, UsersOptions Options, int MaxResults, CancellationToken CancellationToken = default)
+		public static async Task<List<UsersRecord>> GetUsersAsync(this IPerforceConnection connection, UsersOptions options, int maxResults, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetUsersAsync(Connection, Options, MaxResults, CancellationToken)).Data;
+			return (await TryGetUsersAsync(connection, options, maxResults, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Enumerates all streams in a depot
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="Options">Options for the command</param>
-		/// <param name="MaxResults">Maximum number of results to return</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxResults">Maximum number of results to return</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<UsersRecord>> TryGetUsersAsync(this IPerforceConnection Connection, UsersOptions Options, int MaxResults, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<UsersRecord>> TryGetUsersAsync(this IPerforceConnection connection, UsersOptions options, int maxResults, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if ((Options & UsersOptions.IncludeServiceUsers) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & UsersOptions.IncludeServiceUsers) != 0)
 			{
-				Arguments.Add("-a");
+				arguments.Add("-a");
 			}
-			if ((Options & UsersOptions.OnlyMasterServer) != 0)
+			if ((options & UsersOptions.OnlyMasterServer) != 0)
 			{
-				Arguments.Add("-c");
+				arguments.Add("-c");
 			}
-			if ((Options & UsersOptions.IncludeLoginInfo) != 0)
+			if ((options & UsersOptions.IncludeLoginInfo) != 0)
 			{
-				Arguments.Add("-l");
+				arguments.Add("-l");
 			}
-			if ((Options & UsersOptions.OnlyReplicaServer) != 0)
+			if ((options & UsersOptions.OnlyReplicaServer) != 0)
 			{
-				Arguments.Add("-r");
+				arguments.Add("-r");
 			}
-			if (MaxResults > 0)
+			if (maxResults > 0)
 			{
-				Arguments.Add($"-m{MaxResults}");
+				arguments.Add($"-m{maxResults}");
 			}
 
-			return CommandAsync<UsersRecord>(Connection, "users", Arguments, null, CancellationToken);
+			return CommandAsync<UsersRecord>(connection, "users", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -3682,25 +3676,25 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Retrieves the location of a file of set of files in the workspace
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="FileSpecs">Patterns for the files to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="fileSpecs">Patterns for the files to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static IAsyncEnumerable<WhereRecord> WhereAsync(this IPerforceConnection Connection, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<WhereRecord> WhereAsync(this IPerforceConnection connection, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return TryWhereAsync(Connection, FileSpecs, CancellationToken).Select(x => x.Data);
+			return TryWhereAsync(connection, fileSpecs, cancellationToken).Select(x => x.Data);
 		}
 
 		/// <summary>
 		/// Retrieves the location of a file of set of files in the workspace
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="FileSpecs">Patterns for the files to query</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="fileSpecs">Patterns for the files to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static IAsyncEnumerable<PerforceResponse<WhereRecord>> TryWhereAsync(this IPerforceConnection Connection, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static IAsyncEnumerable<PerforceResponse<WhereRecord>> TryWhereAsync(this IPerforceConnection connection, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
 		{
-			return StreamCommandAsync<WhereRecord>(Connection, "where", new List<string>(), FileSpecs.List, null, CancellationToken);
+			return StreamCommandAsync<WhereRecord>(connection, "where", new List<string>(), fileSpecs.List, null, cancellationToken);
 		}
 
 		#endregion
@@ -3710,30 +3704,30 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// perform undo on a changelist (p4 undo -c [targetCL] //...@undoCL)
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumberToUndo">Changelist number to undo</param>
-		/// <param name="ChangeNumber">Changelist number to receive the changes</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumberToUndo">Changelist number to undo</param>
+		/// <param name="changeNumber">Changelist number to receive the changes</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static async Task UndoChangeAsync(this IPerforceConnection Connection, int ChangeNumberToUndo, int ChangeNumber, CancellationToken CancellationToken = default)
+		public static async Task UndoChangeAsync(this IPerforceConnection connection, int changeNumberToUndo, int changeNumber, CancellationToken cancellationToken = default)
 		{
-			(await TryUndoChangeAsync(Connection, ChangeNumberToUndo, ChangeNumber, CancellationToken))[0].EnsureSuccess();
+			(await TryUndoChangeAsync(connection, changeNumberToUndo, changeNumber, cancellationToken))[0].EnsureSuccess();
 		}
 
 		/// <summary>
 		/// perform undo on a changelist (p4 undo -c [targetCL] //...@undoCL)
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="ChangeNumberToUndo">Changelist number to undo</param>
-		/// <param name="ChangeNumber">Changelist number to receive the changes</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="changeNumberToUndo">Changelist number to undo</param>
+		/// <param name="changeNumber">Changelist number to receive the changes</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponseList<UndoRecord>> TryUndoChangeAsync(this IPerforceConnection Connection, int ChangeNumberToUndo, int ChangeNumber, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<UndoRecord>> TryUndoChangeAsync(this IPerforceConnection connection, int changeNumberToUndo, int changeNumber, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			Arguments.Add($"-c{ChangeNumber}");
-			Arguments.Add($"//...@{ChangeNumberToUndo}");
-			return CommandAsync<UndoRecord>(Connection, "undo", Arguments, null, CancellationToken);
+			List<string> arguments = new List<string>();
+			arguments.Add($"-c{changeNumber}");
+			arguments.Add($"//...@{changeNumberToUndo}");
+			return CommandAsync<UndoRecord>(connection, "undo", arguments, null, cancellationToken);
 		}
 		#endregion
 
@@ -3742,46 +3736,46 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Runs the annotate p4 command
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="FileSpec">Depot path to the file</param>
-		/// <param name="Options">Options for the anotate command</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="fileSpec">Depot path to the file</param>
+		/// <param name="options">Options for the anotate command</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of annotate records</returns>
-		public static async Task<List<AnnotateRecord>> AnnotateAsync(this IPerforceConnection Connection, string FileSpec, AnnotateOptions Options, CancellationToken CancellationToken = default)
+		public static async Task<List<AnnotateRecord>> AnnotateAsync(this IPerforceConnection connection, string fileSpec, AnnotateOptions options, CancellationToken cancellationToken = default)
 		{
-			return (await TryAnnotateAsync(Connection, FileSpec, Options, CancellationToken)).Data;
+			return (await TryAnnotateAsync(connection, fileSpec, options, cancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Runs the annotate p4 command 
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="FileSpec">Depot path to the file</param>
-		/// <param name="Options">Options for the anotate command</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="fileSpec">Depot path to the file</param>
+		/// <param name="options">Options for the anotate command</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of annotate records</returns>
-		public static Task<PerforceResponseList<AnnotateRecord>> TryAnnotateAsync(this IPerforceConnection Connection, string FileSpec, AnnotateOptions Options, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<AnnotateRecord>> TryAnnotateAsync(this IPerforceConnection connection, string fileSpec, AnnotateOptions options, CancellationToken cancellationToken = default)
 		{
-			List<string> Arguments = new List<string>();
-			if ((Options & AnnotateOptions.IncludeDeletedFilesAndLines) != 0)
+			List<string> arguments = new List<string>();
+			if ((options & AnnotateOptions.IncludeDeletedFilesAndLines) != 0)
 			{
-				Arguments.Add("-a");
+				arguments.Add("-a");
 			}
-			if ((Options & AnnotateOptions.IgnoreWhiteSpaceChanges) != 0)
+			if ((options & AnnotateOptions.IgnoreWhiteSpaceChanges) != 0)
 			{
-				Arguments.Add("-db");
+				arguments.Add("-db");
 			}
-			if ((Options & AnnotateOptions.OutputUserAndDate) != 0)
+			if ((options & AnnotateOptions.OutputUserAndDate) != 0)
 			{
-				Arguments.Add("-u");
+				arguments.Add("-u");
 			}
-			if ((Options & AnnotateOptions.FollowIntegrations) != 0)
+			if ((options & AnnotateOptions.FollowIntegrations) != 0)
 			{
-				Arguments.Add("-I");
+				arguments.Add("-I");
 			}
-			Arguments.Add(FileSpec);
+			arguments.Add(fileSpec);
 
-			return CommandAsync<AnnotateRecord>(Connection, "annotate", Arguments, null, CancellationToken);
+			return CommandAsync<AnnotateRecord>(connection, "annotate", arguments, null, cancellationToken);
 		}
 
 		#endregion
@@ -3791,26 +3785,26 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Gets the current stream that a client is connected to
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns></returns>
-		public static async Task<string?> GetCurrentStreamAsync(this IPerforceConnection Connection, CancellationToken CancellationToken = default)
+		public static async Task<string?> GetCurrentStreamAsync(this IPerforceConnection connection, CancellationToken cancellationToken = default)
 		{
-			return await TryGetCurrentStreamAsync(Connection, CancellationToken).UnwrapAsync();
+			return await TryGetCurrentStreamAsync(connection, cancellationToken).UnwrapAsync();
 		}
 
 		/// <summary>
 		/// Gets the current stream that a client is connected to
 		/// </summary>
-		/// <param name="Connection">Connection to the Perforce server</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns></returns>
-		public static async Task<PerforceResponse<string>> TryGetCurrentStreamAsync(this IPerforceConnection Connection, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponse<string>> TryGetCurrentStreamAsync(this IPerforceConnection connection, CancellationToken cancellationToken = default)
 		{
-			PerforceResponse<ClientRecord> Response = await Connection.TryGetClientAsync(null, CancellationToken);
-			if (Response.Succeeded)
+			PerforceResponse<ClientRecord> response = await connection.TryGetClientAsync(null, cancellationToken);
+			if (response.Succeeded)
 			{
-				return new PerforceResponse<string>(Response.Data.Stream!);
+				return new PerforceResponse<string>(response.Data.Stream!);
 			}
 			else
 			{

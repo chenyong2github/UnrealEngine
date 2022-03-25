@@ -2,9 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Perforce
 {
@@ -104,14 +101,14 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name of the client</param>
-		/// <param name="Owner">Owner of the client</param>
-		/// <param name="Root">The root directory to sync</param>
-		public ClientRecord(string Name, string Owner, string Root)
+		/// <param name="name">Name of the client</param>
+		/// <param name="owner">Owner of the client</param>
+		/// <param name="root">The root directory to sync</param>
+		public ClientRecord(string name, string owner, string root)
 		{
-			this.Name = Name;
-			this.Owner = Owner;
-			this.Root = Root;
+			Name = name;
+			Owner = owner;
+			Root = root;
 		}
 	}
 }

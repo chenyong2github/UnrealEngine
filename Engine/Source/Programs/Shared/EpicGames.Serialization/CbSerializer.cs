@@ -1,16 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using EpicGames.Serialization.Converters;
 using System;
-using System.Collections;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
-using System.Reflection.Emit;
 
 namespace EpicGames.Serialization
 {
@@ -38,7 +29,7 @@ namespace EpicGames.Serialization
 		/// <param name="name"></param>
 		public CbFieldAttribute(string name)
 		{
-			this.Name = name;
+			Name = name;
 		}
 	}
 
@@ -63,7 +54,7 @@ namespace EpicGames.Serialization
 		/// Constructor
 		/// </summary>
 		/// <param name="name">Name used to identify this class</param>
-		public CbDiscriminatorAttribute(string name) => this.Name = name;
+		public CbDiscriminatorAttribute(string name) => Name = name;
 	}
 
 	/// <summary>
@@ -71,12 +62,12 @@ namespace EpicGames.Serialization
 	/// </summary>
 	public class CbException : Exception
 	{
-		/// <inheritdoc cref="Exception(string?)"/>
+		/// <inheritdoc cref="Exception(String?)"/>
 		public CbException(string message) : base(message)
 		{
 		}
 
-		/// <inheritdoc cref="Exception(string?, Exception)"/>
+		/// <inheritdoc cref="Exception(String?, Exception)"/>
 		public CbException(string message, Exception inner) : base(message, inner)
 		{
 		}

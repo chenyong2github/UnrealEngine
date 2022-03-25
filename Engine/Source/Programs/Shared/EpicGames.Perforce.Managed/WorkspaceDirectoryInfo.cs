@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Serialization;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using EpicGames.Core;
 
 namespace EpicGames.Perforce.Managed
 {
@@ -44,56 +43,56 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="RootDir"></param>
-		public WorkspaceDirectoryInfo(DirectoryReference RootDir)
-			: this(null, RootDir.FullName, null)
+		/// <param name="rootDir"></param>
+		public WorkspaceDirectoryInfo(DirectoryReference rootDir)
+			: this(null, rootDir.FullName, null)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ParentDirectory">The parent directory</param>
-		/// <param name="Name">Name of this directory</param>
-		/// <param name="Ref">The corresponding stream digest</param>
-		public WorkspaceDirectoryInfo(WorkspaceDirectoryInfo? ParentDirectory, Utf8String Name, StreamTreeRef? Ref)
+		/// <param name="parentDirectory">The parent directory</param>
+		/// <param name="name">Name of this directory</param>
+		/// <param name="ref">The corresponding stream digest</param>
+		public WorkspaceDirectoryInfo(WorkspaceDirectoryInfo? parentDirectory, Utf8String name, StreamTreeRef? @ref)
 		{
-			this.ParentDirectory = ParentDirectory;
-			this.Name = Name;
-			this.StreamDirectoryDigest = (Ref == null) ? IoHash.Zero : Ref.GetHash();
-			this.NameToFile = new Dictionary<Utf8String, WorkspaceFileInfo>(Utf8StringComparer.Ordinal);
-			this.NameToSubDirectory = new Dictionary<Utf8String, WorkspaceDirectoryInfo>(FileUtils.PlatformPathComparerUtf8);
+			ParentDirectory = parentDirectory;
+			Name = name;
+			StreamDirectoryDigest = (@ref == null) ? IoHash.Zero : @ref.GetHash();
+			NameToFile = new Dictionary<Utf8String, WorkspaceFileInfo>(Utf8StringComparer.Ordinal);
+			NameToSubDirectory = new Dictionary<Utf8String, WorkspaceDirectoryInfo>(FileUtils.PlatformPathComparerUtf8);
 		}
 
 		/// <summary>
 		/// Adds a file to the workspace
 		/// </summary>
-		/// <param name="Path">Relative path to the file, using forward slashes, and without a leading slash</param>
-		/// <param name="Length">Length of the file on disk</param>
-		/// <param name="LastModifiedTicks">Last modified time of the file</param>
+		/// <param name="path">Relative path to the file, using forward slashes, and without a leading slash</param>
+		/// <param name="length">Length of the file on disk</param>
+		/// <param name="lastModifiedTicks">Last modified time of the file</param>
 		/// <param name="bReadOnly">Whether the file is read only</param>
-		/// <param name="ContentId">Unique identifier for the server content</param>
-		public void AddFile(Utf8String Path, long Length, long LastModifiedTicks, bool bReadOnly, FileContentId ContentId)
+		/// <param name="contentId">Unique identifier for the server content</param>
+		public void AddFile(Utf8String path, long length, long lastModifiedTicks, bool bReadOnly, FileContentId contentId)
 		{
 			StreamDirectoryDigest = IoHash.Zero;
 
-			int Idx = Path.Span.IndexOf((byte)'/');
-			if (Idx == -1)
+			int idx = path.Span.IndexOf((byte)'/');
+			if (idx == -1)
 			{
-				NameToFile[Path] = new WorkspaceFileInfo(this, Path, Length, LastModifiedTicks, bReadOnly, ContentId);
+				NameToFile[path] = new WorkspaceFileInfo(this, path, length, lastModifiedTicks, bReadOnly, contentId);
 			}
 			else
 			{
-				Utf8String Name = Path.Slice(0, Idx);
+				Utf8String name = path.Slice(0, idx);
 
-				WorkspaceDirectoryInfo? SubDirectory;
-				if (!NameToSubDirectory.TryGetValue(Name, out SubDirectory))
+				WorkspaceDirectoryInfo? subDirectory;
+				if (!NameToSubDirectory.TryGetValue(name, out subDirectory))
 				{
-					SubDirectory = new WorkspaceDirectoryInfo(this, Name, null);
-					NameToSubDirectory[Name] = SubDirectory;
+					subDirectory = new WorkspaceDirectoryInfo(this, name, null);
+					NameToSubDirectory[name] = subDirectory;
 				}
 
-				SubDirectory.AddFile(Path.Slice(Idx + 1), Length, LastModifiedTicks, bReadOnly, ContentId);
+				subDirectory.AddFile(path.Slice(idx + 1), length, lastModifiedTicks, bReadOnly, contentId);
 			}
 		}
 
@@ -103,22 +102,22 @@ namespace EpicGames.Perforce.Managed
 		/// <returns>List of files</returns>
 		public List<WorkspaceFileInfo> GetFiles()
 		{
-			List<WorkspaceFileInfo> Files = new List<WorkspaceFileInfo>();
-			GetFilesInternal(Files);
-			return Files;
+			List<WorkspaceFileInfo> files = new List<WorkspaceFileInfo>();
+			GetFilesInternal(files);
+			return files;
 		}
 
 		/// <summary>
 		/// Internal helper method for recursing through the tree to build a file list
 		/// </summary>
-		/// <param name="Files"></param>
-		private void GetFilesInternal(List<WorkspaceFileInfo> Files)
+		/// <param name="files"></param>
+		private void GetFilesInternal(List<WorkspaceFileInfo> files)
 		{
-			Files.AddRange(NameToFile.Values);
+			files.AddRange(NameToFile.Values);
 
-			foreach (KeyValuePair<Utf8String, WorkspaceDirectoryInfo> Pair in NameToSubDirectory)
+			foreach (KeyValuePair<Utf8String, WorkspaceDirectoryInfo> pair in NameToSubDirectory)
 			{
-				Pair.Value.GetFilesInternal(Files);
+				pair.Value.GetFilesInternal(files);
 			}
 		}
 
@@ -126,83 +125,83 @@ namespace EpicGames.Perforce.Managed
 		/// Refresh the state of the workspace on disk
 		/// </summary>
 		/// <param name="bRemoveUntracked">Whether to remove files that are not part of the stream</param>
-		/// <param name="FilesToDelete">Receives an array of files to delete</param>
-		/// <param name="DirectoriesToDelete">Recevies an array of directories to delete</param>
-		public void Refresh(bool bRemoveUntracked, out FileInfo[] FilesToDelete, out DirectoryInfo[] DirectoriesToDelete)
+		/// <param name="filesToDelete">Receives an array of files to delete</param>
+		/// <param name="directoriesToDelete">Recevies an array of directories to delete</param>
+		public void Refresh(bool bRemoveUntracked, out FileInfo[] filesToDelete, out DirectoryInfo[] directoriesToDelete)
 		{
-			ConcurrentQueue<FileInfo> ConcurrentFilesToDelete = new ConcurrentQueue<FileInfo>();
-			ConcurrentQueue<DirectoryInfo> ConcurrentDirectoriesToDelete = new ConcurrentQueue<DirectoryInfo>();
-			using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
+			ConcurrentQueue<FileInfo> concurrentFilesToDelete = new ConcurrentQueue<FileInfo>();
+			ConcurrentQueue<DirectoryInfo> concurrentDirectoriesToDelete = new ConcurrentQueue<DirectoryInfo>();
+			using (ThreadPoolWorkQueue queue = new ThreadPoolWorkQueue())
 			{
-				Queue.Enqueue(() => Refresh(new DirectoryInfo(GetFullName()), bRemoveUntracked, ConcurrentFilesToDelete, ConcurrentDirectoriesToDelete, Queue));
+				queue.Enqueue(() => Refresh(new DirectoryInfo(GetFullName()), bRemoveUntracked, concurrentFilesToDelete, concurrentDirectoriesToDelete, queue));
 			}
-			DirectoriesToDelete = ConcurrentDirectoriesToDelete.ToArray();
-			FilesToDelete = ConcurrentFilesToDelete.ToArray();
+			directoriesToDelete = concurrentDirectoriesToDelete.ToArray();
+			filesToDelete = concurrentFilesToDelete.ToArray();
 		}
 
 		/// <summary>
 		/// Recursive method for querying the workspace state
 		/// </summary>
-		/// <param name="Info"></param>
+		/// <param name="info"></param>
 		/// <param name="bRemoveUntracked"></param>
-		/// <param name="FilesToDelete"></param>
-		/// <param name="DirectoriesToDelete"></param>
-		/// <param name="Queue"></param>
-		void Refresh(DirectoryInfo Info, bool bRemoveUntracked, ConcurrentQueue<FileInfo> FilesToDelete, ConcurrentQueue<DirectoryInfo> DirectoriesToDelete, ThreadPoolWorkQueue Queue)
+		/// <param name="filesToDelete"></param>
+		/// <param name="directoriesToDelete"></param>
+		/// <param name="queue"></param>
+		void Refresh(DirectoryInfo info, bool bRemoveUntracked, ConcurrentQueue<FileInfo> filesToDelete, ConcurrentQueue<DirectoryInfo> directoriesToDelete, ThreadPoolWorkQueue queue)
 		{
 			// Recurse through subdirectories
-			Dictionary<Utf8String, WorkspaceDirectoryInfo> NewNameToSubDirectory = new Dictionary<Utf8String, WorkspaceDirectoryInfo>(NameToSubDirectory.Count, NameToSubDirectory.Comparer);
-			foreach (DirectoryInfo SubDirectoryInfo in Info.EnumerateDirectories())
+			Dictionary<Utf8String, WorkspaceDirectoryInfo> newNameToSubDirectory = new Dictionary<Utf8String, WorkspaceDirectoryInfo>(NameToSubDirectory.Count, NameToSubDirectory.Comparer);
+			foreach (DirectoryInfo subDirectoryInfo in info.EnumerateDirectories())
 			{
-				WorkspaceDirectoryInfo? SubDirectory;
-				if (NameToSubDirectory.TryGetValue(SubDirectoryInfo.Name, out SubDirectory))
+				WorkspaceDirectoryInfo? subDirectory;
+				if (NameToSubDirectory.TryGetValue(subDirectoryInfo.Name, out subDirectory))
 				{
-					NewNameToSubDirectory.Add(SubDirectory.Name, SubDirectory);
-					Queue.Enqueue(() => SubDirectory.Refresh(SubDirectoryInfo, bRemoveUntracked, FilesToDelete, DirectoriesToDelete, Queue));
+					newNameToSubDirectory.Add(subDirectory.Name, subDirectory);
+					queue.Enqueue(() => subDirectory.Refresh(subDirectoryInfo, bRemoveUntracked, filesToDelete, directoriesToDelete, queue));
 				}
 				else if (bRemoveUntracked)
 				{
-					DirectoriesToDelete.Enqueue(SubDirectoryInfo);
+					directoriesToDelete.Enqueue(subDirectoryInfo);
 				}
 			}
-			NameToSubDirectory = NewNameToSubDirectory;
+			NameToSubDirectory = newNameToSubDirectory;
 
 			// Figure out which files have changed.
-			Dictionary<Utf8String, WorkspaceFileInfo> NewNameToFile = new Dictionary<Utf8String, WorkspaceFileInfo>(NameToFile.Count, NameToFile.Comparer);
-			foreach (FileInfo File in Info.EnumerateFiles())
+			Dictionary<Utf8String, WorkspaceFileInfo> newNameToFile = new Dictionary<Utf8String, WorkspaceFileInfo>(NameToFile.Count, NameToFile.Comparer);
+			foreach (FileInfo file in info.EnumerateFiles())
 			{
-				WorkspaceFileInfo? StagedFile;
-				if (NameToFile.TryGetValue(File.Name, out StagedFile))
+				WorkspaceFileInfo? stagedFile;
+				if (NameToFile.TryGetValue(file.Name, out stagedFile))
 				{
-					if (StagedFile.MatchesAttributes(File))
+					if (stagedFile.MatchesAttributes(file))
 					{
-						NewNameToFile.Add(StagedFile.Name, StagedFile);
+						newNameToFile.Add(stagedFile.Name, stagedFile);
 					}
 					else
 					{
-						FilesToDelete.Enqueue(File);
+						filesToDelete.Enqueue(file);
 					}
 				}
 				else
 				{
 					if (bRemoveUntracked)
 					{
-						FilesToDelete.Enqueue(File);
+						filesToDelete.Enqueue(file);
 					}
 				}
 			}
 
 			// If the file state has changed, clear the directory hashes
-			if (NameToFile.Count != NewNameToFile.Count)
+			if (NameToFile.Count != newNameToFile.Count)
 			{
-				for (WorkspaceDirectoryInfo? Directory = this; Directory != null && Directory.StreamDirectoryDigest != IoHash.Zero; Directory = Directory.ParentDirectory)
+				for (WorkspaceDirectoryInfo? directory = this; directory != null && directory.StreamDirectoryDigest != IoHash.Zero; directory = directory.ParentDirectory)
 				{
-					Directory.StreamDirectoryDigest = IoHash.Zero;
+					directory.StreamDirectoryDigest = IoHash.Zero;
 				}
 			}
 
 			// Update the new file list
-			NameToFile = NewNameToFile;
+			NameToFile = newNameToFile;
 		}
 
 		/// <summary>
@@ -211,63 +210,63 @@ namespace EpicGames.Perforce.Managed
 		/// <returns></returns>
 		public string[] FindDifferences()
 		{
-			ConcurrentQueue<string> Paths = new ConcurrentQueue<string>();
-			using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
+			ConcurrentQueue<string> paths = new ConcurrentQueue<string>();
+			using (ThreadPoolWorkQueue queue = new ThreadPoolWorkQueue())
 			{
-				Queue.Enqueue(() => FindDifferences(new DirectoryInfo(GetFullName()), "/", Paths, Queue));
+				queue.Enqueue(() => FindDifferences(new DirectoryInfo(GetFullName()), "/", paths, queue));
 			}
-			return Paths.OrderBy(x => x).ToArray();
+			return paths.OrderBy(x => x).ToArray();
 		}
 
 		/// <summary>
 		/// Helper method for finding differences from the working directory
 		/// </summary>
-		/// <param name="Directory"></param>
-		/// <param name="Path"></param>
-		/// <param name="Paths"></param>
-		/// <param name="Queue"></param>
-		void FindDifferences(DirectoryInfo Directory, string Path, ConcurrentQueue<string> Paths, ThreadPoolWorkQueue Queue)
+		/// <param name="directory"></param>
+		/// <param name="path"></param>
+		/// <param name="paths"></param>
+		/// <param name="queue"></param>
+		void FindDifferences(DirectoryInfo directory, string path, ConcurrentQueue<string> paths, ThreadPoolWorkQueue queue)
 		{
 			// Recurse through subdirectories
-			HashSet<Utf8String> RemainingSubDirectoryNames = new HashSet<Utf8String>(NameToSubDirectory.Keys);
-			foreach (DirectoryInfo SubDirectory in Directory.EnumerateDirectories())
+			HashSet<Utf8String> remainingSubDirectoryNames = new HashSet<Utf8String>(NameToSubDirectory.Keys);
+			foreach (DirectoryInfo subDirectory in directory.EnumerateDirectories())
 			{
-				WorkspaceDirectoryInfo? StagedSubDirectory;
-				if (NameToSubDirectory.TryGetValue(SubDirectory.Name, out StagedSubDirectory))
+				WorkspaceDirectoryInfo? stagedSubDirectory;
+				if (NameToSubDirectory.TryGetValue(subDirectory.Name, out stagedSubDirectory))
 				{
-					RemainingSubDirectoryNames.Remove(SubDirectory.Name);
-					Queue.Enqueue(() => StagedSubDirectory.FindDifferences(SubDirectory, String.Format("{0}{1}/", Path, SubDirectory.Name), Paths, Queue));
+					remainingSubDirectoryNames.Remove(subDirectory.Name);
+					queue.Enqueue(() => stagedSubDirectory.FindDifferences(subDirectory, String.Format("{0}{1}/", path, subDirectory.Name), paths, queue));
 					continue;
 				}
-				Paths.Enqueue(String.Format("+{0}{1}/...", Path, SubDirectory.Name));
+				paths.Enqueue(String.Format("+{0}{1}/...", path, subDirectory.Name));
 			}
-			foreach (Utf8String RemainingSubDirectoryName in RemainingSubDirectoryNames)
+			foreach (Utf8String remainingSubDirectoryName in remainingSubDirectoryNames)
 			{
-				Paths.Enqueue(String.Format("-{0}{1}/...", Path, RemainingSubDirectoryName));
+				paths.Enqueue(String.Format("-{0}{1}/...", path, remainingSubDirectoryName));
 			}
 
 			// Search through files
-			HashSet<Utf8String> RemainingFileNames = new HashSet<Utf8String>(NameToFile.Keys);
-			foreach (FileInfo File in Directory.EnumerateFiles())
+			HashSet<Utf8String> remainingFileNames = new HashSet<Utf8String>(NameToFile.Keys);
+			foreach (FileInfo file in directory.EnumerateFiles())
 			{
-				WorkspaceFileInfo? StagedFile;
-				if (!NameToFile.TryGetValue(File.Name, out StagedFile))
+				WorkspaceFileInfo? stagedFile;
+				if (!NameToFile.TryGetValue(file.Name, out stagedFile))
 				{
-					Paths.Enqueue(String.Format("+{0}{1}", Path, File.Name));
+					paths.Enqueue(String.Format("+{0}{1}", path, file.Name));
 				}
-				else if (!StagedFile.MatchesAttributes(File))
+				else if (!stagedFile.MatchesAttributes(file))
 				{
-					Paths.Enqueue(String.Format("!{0}{1}", Path, File.Name));
-					RemainingFileNames.Remove(File.Name);
+					paths.Enqueue(String.Format("!{0}{1}", path, file.Name));
+					remainingFileNames.Remove(file.Name);
 				}
 				else
 				{
-					RemainingFileNames.Remove(File.Name);
+					remainingFileNames.Remove(file.Name);
 				}
 			}
-			foreach (Utf8String RemainingFileName in RemainingFileNames)
+			foreach (Utf8String remainingFileName in remainingFileNames)
 			{
-				Paths.Enqueue(String.Format("-{0}{1}", Path, RemainingFileName));
+				paths.Enqueue(String.Format("-{0}{1}", path, remainingFileName));
 			}
 		}
 
@@ -277,9 +276,9 @@ namespace EpicGames.Perforce.Managed
 		/// <returns></returns>
 		public string GetFullName()
 		{
-			StringBuilder Builder = new StringBuilder();
-			AppendFullPath(Builder);
-			return Builder.ToString();
+			StringBuilder builder = new StringBuilder();
+			AppendFullPath(builder);
+			return builder.ToString();
 		}
 
 		/// <summary>
@@ -294,29 +293,29 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Append the client path, using native directory separators, to the given string builder
 		/// </summary>
-		/// <param name="Builder"></param>
-		public void AppendClientPath(StringBuilder Builder)
+		/// <param name="builder"></param>
+		public void AppendClientPath(StringBuilder builder)
 		{
 			if (ParentDirectory != null)
 			{
-				ParentDirectory.AppendClientPath(Builder);
-				Builder.Append(Name);
-				Builder.Append(Path.DirectorySeparatorChar);
+				ParentDirectory.AppendClientPath(builder);
+				builder.Append(Name);
+				builder.Append(Path.DirectorySeparatorChar);
 			}
 		}
 
 		/// <summary>
 		/// Append the path for this directory to the given string builder
 		/// </summary>
-		/// <param name="Builder"></param>
-		public void AppendFullPath(StringBuilder Builder)
+		/// <param name="builder"></param>
+		public void AppendFullPath(StringBuilder builder)
 		{
 			if (ParentDirectory != null)
 			{
-				ParentDirectory.AppendFullPath(Builder);
-				Builder.Append(Path.DirectorySeparatorChar);
+				ParentDirectory.AppendFullPath(builder);
+				builder.Append(Path.DirectorySeparatorChar);
 			}
-			Builder.Append(Name);
+			builder.Append(Name);
 		}
 
 		/// <inheritdoc/>
@@ -331,61 +330,61 @@ namespace EpicGames.Perforce.Managed
 	/// </summary>
 	static class WorkspaceDirectoryInfoExtensions
 	{
-		public static void ReadWorkspaceDirectoryInfo(this MemoryReader Reader, WorkspaceDirectoryInfo DirectoryInfo, ManagedWorkspaceVersion Version)
+		public static void ReadWorkspaceDirectoryInfo(this MemoryReader reader, WorkspaceDirectoryInfo directoryInfo, ManagedWorkspaceVersion version)
 		{
-			if (Version < ManagedWorkspaceVersion.AddDigest)
+			if (version < ManagedWorkspaceVersion.AddDigest)
 			{
-				DirectoryInfo.StreamDirectoryDigest = IoHash.Zero;
+				directoryInfo.StreamDirectoryDigest = IoHash.Zero;
 			}
-			else if (Version < ManagedWorkspaceVersion.AddDigestIoHash)
+			else if (version < ManagedWorkspaceVersion.AddDigestIoHash)
 			{
-				Reader.ReadFixedLengthBytes(Sha1.Length);
-				DirectoryInfo.StreamDirectoryDigest = IoHash.Zero;
+				reader.ReadFixedLengthBytes(Sha1.Length);
+				directoryInfo.StreamDirectoryDigest = IoHash.Zero;
 			}
 			else
 			{
-				DirectoryInfo.StreamDirectoryDigest = Reader.ReadIoHash();
+				directoryInfo.StreamDirectoryDigest = reader.ReadIoHash();
 			}
 
-			int NumFiles = Reader.ReadInt32();
-			for (int Idx = 0; Idx < NumFiles; Idx++)
+			int numFiles = reader.ReadInt32();
+			for (int idx = 0; idx < numFiles; idx++)
 			{
-				WorkspaceFileInfo FileInfo = Reader.ReadWorkspaceFileInfo(DirectoryInfo);
-				DirectoryInfo.NameToFile.Add(FileInfo.Name, FileInfo);
+				WorkspaceFileInfo fileInfo = reader.ReadWorkspaceFileInfo(directoryInfo);
+				directoryInfo.NameToFile.Add(fileInfo.Name, fileInfo);
 			}
 
-			int NumSubDirectories = Reader.ReadInt32();
-			for (int Idx = 0; Idx < NumSubDirectories; Idx++)
+			int numSubDirectories = reader.ReadInt32();
+			for (int idx = 0; idx < numSubDirectories; idx++)
 			{
-				Utf8String Name = Reader.ReadString();
+				Utf8String name = reader.ReadString();
 
-				WorkspaceDirectoryInfo SubDirectory = new WorkspaceDirectoryInfo(DirectoryInfo, Name, null);
-				Reader.ReadWorkspaceDirectoryInfo(SubDirectory, Version);
-				DirectoryInfo.NameToSubDirectory[SubDirectory.Name] = SubDirectory;
+				WorkspaceDirectoryInfo subDirectory = new WorkspaceDirectoryInfo(directoryInfo, name, null);
+				reader.ReadWorkspaceDirectoryInfo(subDirectory, version);
+				directoryInfo.NameToSubDirectory[subDirectory.Name] = subDirectory;
 			}
 		}
 
-		public static void WriteWorkspaceDirectoryInfo(this MemoryWriter Writer, WorkspaceDirectoryInfo DirectoryInfo)
+		public static void WriteWorkspaceDirectoryInfo(this MemoryWriter writer, WorkspaceDirectoryInfo directoryInfo)
 		{
-			Writer.WriteIoHash(DirectoryInfo.StreamDirectoryDigest);
+			writer.WriteIoHash(directoryInfo.StreamDirectoryDigest);
 
-			Writer.WriteInt32(DirectoryInfo.NameToFile.Count);
-			foreach (WorkspaceFileInfo File in DirectoryInfo.NameToFile.Values)
+			writer.WriteInt32(directoryInfo.NameToFile.Count);
+			foreach (WorkspaceFileInfo file in directoryInfo.NameToFile.Values)
 			{
-				Writer.WriteWorkspaceFileInfo(File);
+				writer.WriteWorkspaceFileInfo(file);
 			}
 
-			Writer.WriteInt32(DirectoryInfo.NameToSubDirectory.Count);
-			foreach (WorkspaceDirectoryInfo SubDirectory in DirectoryInfo.NameToSubDirectory.Values)
+			writer.WriteInt32(directoryInfo.NameToSubDirectory.Count);
+			foreach (WorkspaceDirectoryInfo subDirectory in directoryInfo.NameToSubDirectory.Values)
 			{
-				Writer.WriteString(SubDirectory.Name);
-				Writer.WriteWorkspaceDirectoryInfo(SubDirectory);
+				writer.WriteString(subDirectory.Name);
+				writer.WriteWorkspaceDirectoryInfo(subDirectory);
 			}
 		}
 
-		public static int GetSerializedSize(this WorkspaceDirectoryInfo DirectoryInfo)
+		public static int GetSerializedSize(this WorkspaceDirectoryInfo directoryInfo)
 		{
-			return Digest<Sha1>.Length + sizeof(int) + DirectoryInfo.NameToFile.Values.Sum(x => x.GetSerializedSize()) + sizeof(int) + DirectoryInfo.NameToSubDirectory.Values.Sum(x => x.Name.GetSerializedSize() + x.GetSerializedSize());
+			return Digest<Sha1>.Length + sizeof(int) + directoryInfo.NameToFile.Values.Sum(x => x.GetSerializedSize()) + sizeof(int) + directoryInfo.NameToSubDirectory.Values.Sum(x => x.Name.GetSerializedSize() + x.GetSerializedSize());
 		}
 	}
 }

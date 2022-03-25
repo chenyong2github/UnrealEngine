@@ -7,6 +7,7 @@
 
 csharp_style_prefer_switch_expression = false
 csharp_style_implicit_object_creation_when_type_is_apparent = false
+dotnet_remove_unnecessary_suppression_exclusions = all
 
 # Sort using and Import directives with System.* appearing first
 dotnet_sort_system_directives_first = true

@@ -164,7 +164,11 @@ namespace EpicGames.BuildGraph
 		/// <returns>Agent specification object</returns>
 		public BgAggregateSpec AddAggregate(BgString name, BgList<BgFileSet> outputs, BgString label)
 		{
-			AddLabel(config => config.RequiredNodes = config.RequiredNodes.Add(outputs).Distinct());
+			AddLabel(config =>
+			{
+				config.DashboardName = label;
+				config.RequiredNodes = config.RequiredNodes.Add(outputs).Distinct();
+			});
 			return AddAggregate(name, outputs);
 		}
 
@@ -199,10 +203,9 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Creates a concrete graph from the specifications
 		/// </summary>
-		/// <param name="targets"></param>
 		/// <param name="options"></param>
 		/// <returns>New graph instance</returns>
-		public BgGraph CreateGraph(HashSet<string> targets, Dictionary<string, string> options)
+		public BgGraph CreateGraph(Dictionary<string, string> options)
 		{
 			BgExprContext context = new BgExprContext();
 			context.Options = options;

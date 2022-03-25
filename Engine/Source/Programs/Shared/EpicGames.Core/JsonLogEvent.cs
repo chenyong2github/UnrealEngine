@@ -148,7 +148,9 @@ namespace EpicGames.Core
 		/// <param name="ex"></param>
 		/// <returns></returns>
 		/// <exception cref="NotImplementedException"></exception>
+#pragma warning disable IDE0060 // Remove unused parameter
 		public static string Format(JsonLogEvent state, Exception? ex)
+#pragma warning restore IDE0060 // Remove unused parameter
 		{
 			Utf8JsonReader reader = new Utf8JsonReader(state.Data.Span);
 			if (reader.Read() && reader.TokenType == JsonTokenType.StartObject)

@@ -2,8 +2,6 @@
 
 using EpicGames.Core;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Serialization.Converters
 {

@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Serialization;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using EpicGames.Serialization;
 
 namespace EpicGames.Perforce.Managed
 {
@@ -20,7 +18,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// The current signature for saved directory objects
 		/// </summary>
-		static readonly byte[] CurrentSignature = { (byte)'W', (byte)'S', (byte)'D', 5 };
+		static readonly byte[] s_currentSignature = { (byte)'W', (byte)'S', (byte)'D', 5 };
 
 		/// <summary>
 		/// The root digest
@@ -35,23 +33,23 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Root"></param>
-		/// <param name="HashToTree"></param>
-		public StreamSnapshotFromMemory(StreamTreeRef Root, Dictionary<IoHash, CbObject> HashToTree)
+		/// <param name="root"></param>
+		/// <param name="hashToTree"></param>
+		public StreamSnapshotFromMemory(StreamTreeRef root, Dictionary<IoHash, CbObject> hashToTree)
 		{
-			this.Root = Root;
-			this.HashToTree = HashToTree;
+			Root = root;
+			HashToTree = hashToTree;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Builder"></param>
-		public StreamSnapshotFromMemory(StreamTreeBuilder Builder)
+		/// <param name="builder"></param>
+		public StreamSnapshotFromMemory(StreamTreeBuilder builder)
 		{
-			Dictionary<IoHash, CbObject> HashToTree = new Dictionary<IoHash, CbObject>();
-			this.Root = Builder.EncodeRef(Tree => EncodeObject(Tree, HashToTree));
-			this.HashToTree = HashToTree;
+			Dictionary<IoHash, CbObject> hashToTree = new Dictionary<IoHash, CbObject>();
+			Root = builder.EncodeRef(tree => EncodeObject(tree, hashToTree));
+			HashToTree = hashToTree;
 		}
 
 		/// <summary>
@@ -59,90 +57,90 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="BasePath"></param>
 		/// <returns></returns>
-		static IoHash EncodeObject(StreamTree Tree, Dictionary<IoHash, CbObject> HashToTree)
+		static IoHash EncodeObject(StreamTree tree, Dictionary<IoHash, CbObject> hashToTree)
 		{
-			CbObject Object = Tree.ToCbObject();
+			CbObject @object = tree.ToCbObject();
 
-			IoHash Hash = Object.GetHash();
-			HashToTree[Hash] = Object;
+			IoHash hash = @object.GetHash();
+			hashToTree[hash] = @object;
 
-			return Hash;
+			return hash;
 		}
 
 		/// <inheritdoc/>
-		public override StreamTree Lookup(StreamTreeRef Ref)
+		public override StreamTree Lookup(StreamTreeRef @ref)
 		{
-			return new StreamTree(Ref.Path, HashToTree[Ref.Hash]);
+			return new StreamTree(@ref.Path, HashToTree[@ref.Hash]);
 		}
 
 		/// <summary>
 		/// Load a stream directory from a file on disk
 		/// </summary>
-		/// <param name="InputFile">File to read from</param>
-		/// <param name="CancellationToken">Cancellation token</param>
+		/// <param name="inputFile">File to read from</param>
+		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>New StreamDirectoryInfo object</returns>
-		public static async Task<StreamSnapshotFromMemory?> TryLoadAsync(FileReference InputFile, Utf8String BasePath, CancellationToken CancellationToken)
+		public static async Task<StreamSnapshotFromMemory?> TryLoadAsync(FileReference inputFile, Utf8String basePath, CancellationToken cancellationToken)
 		{
-			byte[] Data = await FileReference.ReadAllBytesAsync(InputFile);
-			if (!Data.AsSpan().StartsWith(CurrentSignature))
+			byte[] data = await FileReference.ReadAllBytesAsync(inputFile, cancellationToken);
+			if (!data.AsSpan().StartsWith(s_currentSignature))
 			{
 				return null;
 			}
 
-			CbObject RootObj = new CbObject(Data.AsMemory(CurrentSignature.Length));
+			CbObject rootObj = new CbObject(data.AsMemory(s_currentSignature.Length));
 
-			CbObject RootObj2 = RootObj["root"].AsObject();
-			Utf8String RootPath = RootObj2["path"].AsUtf8String(BasePath);
-			StreamTreeRef Root = new StreamTreeRef(RootPath, RootObj2);
+			CbObject rootObj2 = rootObj["root"].AsObject();
+			Utf8String rootPath = rootObj2["path"].AsUtf8String(basePath);
+			StreamTreeRef root = new StreamTreeRef(rootPath, rootObj2);
 
-			CbArray Array = RootObj["items"].AsArray();
+			CbArray array = rootObj["items"].AsArray();
 
-			Dictionary<IoHash, CbObject> HashToTree = new Dictionary<IoHash, CbObject>(Array.Count);
-			foreach (CbField Element in Array)
+			Dictionary<IoHash, CbObject> hashToTree = new Dictionary<IoHash, CbObject>(array.Count);
+			foreach (CbField element in array)
 			{
-				CbObject ObjectElement = Element.AsObject();
-				IoHash Hash = ObjectElement["hash"].AsHash();
-				CbObject Tree = ObjectElement["tree"].AsObject();
-				HashToTree[Hash] = Tree;
+				CbObject objectElement = element.AsObject();
+				IoHash hash = objectElement["hash"].AsHash();
+				CbObject tree = objectElement["tree"].AsObject();
+				hashToTree[hash] = tree;
 			}
 
-			return new StreamSnapshotFromMemory(Root, HashToTree);
+			return new StreamSnapshotFromMemory(root, hashToTree);
 		}
 
 		/// <summary>
 		/// Saves the contents of this object to disk
 		/// </summary>
-		/// <param name="OutputFile">The output file to write to</param>
-		public async Task Save(FileReference OutputFile, Utf8String BasePath)
+		/// <param name="outputFile">The output file to write to</param>
+		public async Task Save(FileReference outputFile, Utf8String basePath)
 		{
-			CbWriter Writer = new CbWriter();
-			Writer.BeginObject();
-						
-			Writer.BeginObject("root");
-			if (Root.Path != BasePath)
-			{
-				Writer.WriteUtf8String("path", Root.Path);
-			}
-			Root.Write(Writer);
-			Writer.EndObject();
-			
-			Writer.BeginArray("items");
-			foreach ((IoHash Hash, CbObject Tree) in HashToTree)
-			{
-				Writer.BeginObject();
-				Writer.WriteHash("hash", Hash);
-				Writer.WriteObject("tree", Tree);
-				Writer.EndObject();
-			}
-			Writer.EndArray();
+			CbWriter writer = new CbWriter();
+			writer.BeginObject();
 
-			Writer.EndObject();
-
-			byte[] Data = Writer.ToByteArray();
-			using (FileStream OutputStream = FileReference.Open(OutputFile, FileMode.Create, FileAccess.Write, FileShare.Read))
+			writer.BeginObject("root");
+			if (Root.Path != basePath)
 			{
-				await OutputStream.WriteAsync(CurrentSignature, 0, CurrentSignature.Length);
-				await OutputStream.WriteAsync(Data, 0, Data.Length);
+				writer.WriteUtf8String("path", Root.Path);
+			}
+			Root.Write(writer);
+			writer.EndObject();
+
+			writer.BeginArray("items");
+			foreach ((IoHash hash, CbObject tree) in HashToTree)
+			{
+				writer.BeginObject();
+				writer.WriteHash("hash", hash);
+				writer.WriteObject("tree", tree);
+				writer.EndObject();
+			}
+			writer.EndArray();
+
+			writer.EndObject();
+
+			byte[] data = writer.ToByteArray();
+			using (FileStream outputStream = FileReference.Open(outputFile, FileMode.Create, FileAccess.Write, FileShare.Read))
+			{
+				await outputStream.WriteAsync(s_currentSignature, 0, s_currentSignature.Length);
+				await outputStream.WriteAsync(data, 0, data.Length);
 			}
 		}
 	}

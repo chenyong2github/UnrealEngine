@@ -2,8 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using EpicGames.Perforce;
 
 namespace EpicGames.Perforce
 {

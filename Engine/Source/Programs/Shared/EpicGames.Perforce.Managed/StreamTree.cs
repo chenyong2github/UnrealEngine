@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using EpicGames.Core;
+using EpicGames.Serialization;
 
 namespace EpicGames.Perforce.Managed
 {
@@ -40,51 +36,51 @@ namespace EpicGames.Perforce.Managed
 		public int Revision { get; }
 
 		#region Field names
-		static Utf8String LengthField = "len";
-		static Utf8String DigestField = "dig";
-		static Utf8String TypeField = "type";
-		static Utf8String RevisionField = "rev";
+		static readonly Utf8String s_lengthField = "len";
+		static readonly Utf8String s_digestField = "dig";
+		static readonly Utf8String s_typeField = "type";
+		static readonly Utf8String s_revisionField = "rev";
 		#endregion
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public StreamFile(Utf8String Path, long Length, FileContentId ContentId, int Revision)
+		public StreamFile(Utf8String path, long length, FileContentId contentId, int revision)
 		{
-			this.Path = Path;
-			this.Length = Length;
-			this.ContentId = ContentId;
-			this.Revision = Revision;
+			Path = path;
+			Length = length;
+			ContentId = contentId;
+			Revision = revision;
 		}
 
 		/// <summary>
 		/// Parse from a compact binary object
 		/// </summary>
-		/// <param name="Path">Path to the file</param>
-		/// <param name="Field"></param>
+		/// <param name="path">Path to the file</param>
+		/// <param name="field"></param>
 		/// <returns></returns>
-		public StreamFile(Utf8String Path, CbObject Field)
+		public StreamFile(Utf8String path, CbObject field)
 		{
-			this.Path = Path;
-			Length = Field[LengthField].AsInt64();
+			Path = path;
+			Length = field[s_lengthField].AsInt64();
 
-			Md5Hash Digest = new Md5Hash(Field[DigestField].AsBinary());
-			Utf8String Type = Field[TypeField].AsUtf8String();
-			ContentId = new FileContentId(Digest, Type);
+			Md5Hash digest = new Md5Hash(field[s_digestField].AsBinary());
+			Utf8String type = field[s_typeField].AsUtf8String();
+			ContentId = new FileContentId(digest, type);
 
-			Revision = Field[RevisionField].AsInt32();
+			Revision = field[s_revisionField].AsInt32();
 		}
 
 		/// <summary>
 		/// Write this object to compact binary
 		/// </summary>
-		/// <param name="Writer"></param>
-		public void Write(CbWriter Writer)
+		/// <param name="writer"></param>
+		public void Write(CbWriter writer)
 		{
-			Writer.WriteInteger(LengthField, Length);
-			Writer.WriteBinarySpan(DigestField, ContentId.Digest.Span);
-			Writer.WriteUtf8String(TypeField, ContentId.Type);
-			Writer.WriteInteger(RevisionField, Revision);
+			writer.WriteInteger(s_lengthField, Length);
+			writer.WriteBinarySpan(s_digestField, ContentId.Digest.Span);
+			writer.WriteUtf8String(s_typeField, ContentId.Type);
+			writer.WriteInteger(s_revisionField, Revision);
 		}
 	}
 
@@ -104,29 +100,29 @@ namespace EpicGames.Perforce.Managed
 		public IoHash Hash { get; set; }
 
 		#region Field names
-		static Utf8String HashField = "hash";
+		static readonly Utf8String s_hashField = "hash";
 		#endregion
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Path"></param>
-		/// <param name="Hash"></param>
-		public StreamTreeRef(Utf8String Path, IoHash Hash)
+		/// <param name="path"></param>
+		/// <param name="hash"></param>
+		public StreamTreeRef(Utf8String path, IoHash hash)
 		{
-			this.Path = Path;
-			this.Hash = Hash;
+			Path = path;
+			Hash = hash;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Path"></param>
-		/// <param name="Field"></param>
-		public StreamTreeRef(Utf8String Path, CbObject Field)
+		/// <param name="path"></param>
+		/// <param name="field"></param>
+		public StreamTreeRef(Utf8String path, CbObject field)
 		{
-			this.Path = Path;
-			Hash = Field[HashField].AsObjectAttachment();
+			Path = path;
+			Hash = field[s_hashField].AsObjectAttachment();
 		}
 
 		/// <summary>
@@ -135,20 +131,20 @@ namespace EpicGames.Perforce.Managed
 		/// <returns></returns>
 		public IoHash GetHash()
 		{
-			CbWriter Writer = new CbWriter();
-			Writer.BeginObject();
-			Write(Writer);
-			Writer.EndObject();
-			return Writer.ToObject().GetHash();
+			CbWriter writer = new CbWriter();
+			writer.BeginObject();
+			Write(writer);
+			writer.EndObject();
+			return writer.ToObject().GetHash();
 		}
 
 		/// <summary>
 		/// Serialize to a compact binary object
 		/// </summary>
-		/// <param name="Writer"></param>
-		public void Write(CbWriter Writer)
+		/// <param name="writer"></param>
+		public void Write(CbWriter writer)
 		{
-			Writer.WriteObjectAttachment(HashField, Hash);
+			writer.WriteObjectAttachment(s_hashField, Hash);
 		}
 	}
 
@@ -173,10 +169,10 @@ namespace EpicGames.Perforce.Managed
 		public Dictionary<Utf8String, StreamTreeRef> NameToTree { get; } = new Dictionary<Utf8String, StreamTreeRef>(FileUtils.PlatformPathComparerUtf8);
 
 		#region Field names
-		static Utf8String NameField = "name";
-		static Utf8String PathField = "path";
-		static Utf8String FilesField = "files";
-		static Utf8String TreesField = "trees";
+		static readonly Utf8String s_nameField = "name";
+		static readonly Utf8String s_pathField = "path";
+		static readonly Utf8String s_filesField = "files";
+		static readonly Utf8String s_treesField = "trees";
 		#endregion
 
 		/// <summary>
@@ -189,129 +185,129 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		public StreamTree(Utf8String Path, Dictionary<Utf8String, StreamFile> NameToFile, Dictionary<Utf8String, StreamTreeRef> NameToTree)
+		public StreamTree(Utf8String path, Dictionary<Utf8String, StreamFile> nameToFile, Dictionary<Utf8String, StreamTreeRef> nameToTree)
 		{
-			CheckPath(Path);
-			this.Path = Path;
+			CheckPath(path);
+			Path = path;
 
-			this.NameToFile = NameToFile;
-			this.NameToTree = NameToTree;
+			NameToFile = nameToFile;
+			NameToTree = nameToTree;
 		}
 
 		/// <summary>
 		/// Deserialize a tree from a compact binary object
 		/// </summary>
-		public StreamTree(Utf8String Path, CbObject Object)
+		public StreamTree(Utf8String path, CbObject @object)
 		{
-			CheckPath(Path);
-			this.Path = Path;
+			CheckPath(path);
+			Path = path;
 
-			CbArray FileArray = Object[FilesField].AsArray();
-			foreach (CbField FileField in FileArray)
+			CbArray fileArray = @object[s_filesField].AsArray();
+			foreach (CbField fileField in fileArray)
 			{
-				CbObject FileObject = FileField.AsObject();
+				CbObject fileObject = fileField.AsObject();
 
-				Utf8String Name = FileObject[NameField].AsUtf8String();
-				Utf8String FilePath = ReadPath(FileObject, Path, Name);
-				StreamFile File = new StreamFile(FilePath, FileObject);
+				Utf8String name = fileObject[s_nameField].AsUtf8String();
+				Utf8String filePath = ReadPath(fileObject, path, name);
+				StreamFile file = new StreamFile(filePath, fileObject);
 
-				NameToFile.Add(Name, File);
+				NameToFile.Add(name, file);
 			}
 
-			CbArray TreeArray = Object[TreesField].AsArray();
-			foreach (CbField TreeField in TreeArray)
+			CbArray treeArray = @object[s_treesField].AsArray();
+			foreach (CbField treeField in treeArray)
 			{
-				CbObject TreeObject = TreeField.AsObject();
+				CbObject treeObject = treeField.AsObject();
 
-				Utf8String Name = TreeObject[NameField].AsUtf8String();
-				Utf8String TreePath = ReadPath(TreeObject, Path, Name);
-				StreamTreeRef Tree = new StreamTreeRef(TreePath, TreeObject);
+				Utf8String name = treeObject[s_nameField].AsUtf8String();
+				Utf8String treePath = ReadPath(treeObject, path, name);
+				StreamTreeRef tree = new StreamTreeRef(treePath, treeObject);
 
-				NameToTree.Add(Name, Tree);
+				NameToTree.Add(name, tree);
 			}
 		}
 
 		/// <summary>
 		/// Serialize to a compact binary object
 		/// </summary>
-		/// <param name="Writer"></param>
-		public void Write(CbWriter Writer)
+		/// <param name="writer"></param>
+		public void Write(CbWriter writer)
 		{
 			if (NameToFile.Count > 0)
 			{
-				Writer.BeginArray(FilesField);
-				foreach ((Utf8String Name, StreamFile File) in NameToFile.OrderBy(x => x.Key))
+				writer.BeginArray(s_filesField);
+				foreach ((Utf8String name, StreamFile file) in NameToFile.OrderBy(x => x.Key))
 				{
-					Writer.BeginObject();
-					Writer.WriteUtf8String(NameField, Name);
-					WritePath(Writer, File.Path, Path, Name);
-					File.Write(Writer);
-					Writer.EndObject();
+					writer.BeginObject();
+					writer.WriteUtf8String(s_nameField, name);
+					WritePath(writer, file.Path, Path, name);
+					file.Write(writer);
+					writer.EndObject();
 				}
-				Writer.EndArray();
+				writer.EndArray();
 			}
 
 			if (NameToTree.Count > 0)
 			{
-				Writer.BeginArray(TreesField);
-				foreach ((Utf8String Name, StreamTreeRef Tree) in NameToTree.OrderBy(x => x.Key))
+				writer.BeginArray(s_treesField);
+				foreach ((Utf8String name, StreamTreeRef tree) in NameToTree.OrderBy(x => x.Key))
 				{
-					Writer.BeginObject();
-					Writer.WriteUtf8String(NameField, Name);
-					WritePath(Writer, Tree.Path, Path, Name);
-					Tree.Write(Writer);
-					Writer.EndObject();
+					writer.BeginObject();
+					writer.WriteUtf8String(s_nameField, name);
+					WritePath(writer, tree.Path, Path, name);
+					tree.Write(writer);
+					writer.EndObject();
 				}
-				Writer.EndArray();
+				writer.EndArray();
 			}
 		}
 
 		/// <summary>
 		/// Reads a path from an object, defaulting it to the parent path plus the child name
 		/// </summary>
-		/// <param name="Object"></param>
-		/// <param name="BasePath"></param>
-		/// <param name="Name"></param>
+		/// <param name="object"></param>
+		/// <param name="basePath"></param>
+		/// <param name="name"></param>
 		/// <returns></returns>
-		static Utf8String ReadPath(CbObject Object, Utf8String BasePath, Utf8String Name)
+		static Utf8String ReadPath(CbObject @object, Utf8String basePath, Utf8String name)
 		{
-			Utf8String Path = Object[PathField].AsUtf8String();
-			if (Path.IsEmpty)
+			Utf8String path = @object[s_pathField].AsUtf8String();
+			if (path.IsEmpty)
 			{
-				byte[] Data = new byte[BasePath.Length + 1 + Name.Length];
-				BasePath.Memory.CopyTo(Data);
-				Data[BasePath.Length] = (byte)'/';
-				Name.Memory.CopyTo(Data.AsMemory(BasePath.Length + 1));
-				Path = new Utf8String(Data);
+				byte[] data = new byte[basePath.Length + 1 + name.Length];
+				basePath.Memory.CopyTo(data);
+				data[basePath.Length] = (byte)'/';
+				name.Memory.CopyTo(data.AsMemory(basePath.Length + 1));
+				path = new Utf8String(data);
 			}
-			return Path;
+			return path;
 		}
 
 		/// <summary>
 		/// Writes a path if it's not the default (the parent path, a slash, followed by the child name)
 		/// </summary>
-		/// <param name="Writer"></param>
-		/// <param name="Path"></param>
-		/// <param name="ParentPath"></param>
-		/// <param name="Name"></param>
-		static void WritePath(CbWriter Writer, Utf8String Path, Utf8String ParentPath, Utf8String Name)
+		/// <param name="writer"></param>
+		/// <param name="path"></param>
+		/// <param name="parentPath"></param>
+		/// <param name="name"></param>
+		static void WritePath(CbWriter writer, Utf8String path, Utf8String parentPath, Utf8String name)
 		{
-			if (Path.Length != ParentPath.Length + Name.Length + 1 || !Path.StartsWith(ParentPath) || Path[ParentPath.Length] != '/' || !Path.EndsWith(Name))
+			if (path.Length != parentPath.Length + name.Length + 1 || !path.StartsWith(parentPath) || path[parentPath.Length] != '/' || !path.EndsWith(name))
 			{
-				Writer.WriteUtf8String(PathField, Path);
+				writer.WriteUtf8String(s_pathField, path);
 			}
 		}
 
 		/// <summary>
 		/// Checks that a base path does not have a trailing slash
 		/// </summary>
-		/// <param name="Path"></param>
+		/// <param name="path"></param>
 		/// <exception cref="ArgumentException"></exception>
-		static void CheckPath(Utf8String Path)
+		static void CheckPath(Utf8String path)
 		{
-			if (Path.Length > 0 && Path[Path.Length - 1] == '/')
+			if (path.Length > 0 && path[^1] == '/')
 			{
-				throw new ArgumentException("BasePath must not end in a slash", nameof(Path));
+				throw new ArgumentException("BasePath must not end in a slash", nameof(path));
 			}
 		}
 
@@ -321,11 +317,11 @@ namespace EpicGames.Perforce.Managed
 		/// <returns></returns>
 		public CbObject ToCbObject()
 		{
-			CbWriter Writer = new CbWriter();
-			Writer.BeginObject();
-			Write(Writer);
-			Writer.EndObject();
-			return Writer.ToObject();
+			CbWriter writer = new CbWriter();
+			writer.BeginObject();
+			Write(writer);
+			writer.EndObject();
+			return writer.ToObject();
 		}
 	}
 }

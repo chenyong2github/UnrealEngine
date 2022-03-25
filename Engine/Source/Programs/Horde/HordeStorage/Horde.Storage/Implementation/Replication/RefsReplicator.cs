@@ -460,11 +460,6 @@ namespace Horde.Storage.Implementation
             return countOfReplicationsDone;
         }
 
-        private async Task AddToReplicationLog(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blob)
-        {
-            await _replicationLog.InsertAddEvent(ns, bucket, key, blob);
-        }
-
         private async Task ReplicateOp(NamespaceId ns, BlobIdentifier blob, CancellationToken cancellationToken)
         {
             using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op");

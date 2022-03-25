@@ -307,7 +307,7 @@ namespace EpicGames.BuildGraph
 				// Check whether the given string ends with a slash
 				_idx++;
 				string argument = await EvaluateScalarAsync();
-				result = (argument.Length > 0 && (argument[argument.Length - 1] == Path.DirectorySeparatorChar || argument[argument.Length - 1] == Path.AltDirectorySeparatorChar)) ? "true" : "false";
+				result = (argument.Length > 0 && (argument[^1] == Path.DirectorySeparatorChar || argument[^1] == Path.AltDirectorySeparatorChar)) ? "true" : "false";
 			}
 			else if (String.Compare(_tokens[_idx], "Contains", true) == 0 && _tokens[_idx + 1] == "(")
 			{
@@ -339,7 +339,7 @@ namespace EpicGames.BuildGraph
 			{
 				// Raw scalar. Remove quotes from strings, and allow literals and simple identifiers to pass through directly.
 				string token = _tokens[_idx];
-				if (token.Length >= 2 && (token[0] == '\'' || token[0] == '\"') && token[token.Length - 1] == token[0])
+				if (token.Length >= 2 && (token[0] == '\'' || token[0] == '\"') && token[^1] == token[0])
 				{
 					result = token.Substring(1, token.Length - 2);
 					_idx++;
@@ -477,7 +477,10 @@ namespace EpicGames.BuildGraph
 						if (endIdx < text.Length)
 						{
 							endIdx++;
-							while (endIdx < text.Length && text[endIdx - 1] != text[idx]) endIdx++;
+							while (endIdx < text.Length && text[endIdx - 1] != text[idx])
+							{
+								endIdx++;
+							}
 						}
 					}
 					tokens.Add(text.Substring(idx, endIdx - idx));

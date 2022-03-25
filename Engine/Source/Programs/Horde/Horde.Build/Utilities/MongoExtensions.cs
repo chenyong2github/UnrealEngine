@@ -245,10 +245,12 @@ namespace Horde.Build.Utilities
 		/// <param name="filter">The filter builder</param>
 		/// <param name="expression">Expression to parse</param>
 		/// <returns>New filter definition</returns>
+#pragma warning disable IDE0060
 		public static FilterDefinition<TDocument> Expr<TDocument>(this FilterDefinitionBuilder<TDocument> filter, Expression<Func<TDocument, bool>> expression)
 		{
 			return expression;
 		}
+#pragma warning restore IDE0060
 
 		/// <summary>
 		/// Converts a JsonElement to a BsonValue

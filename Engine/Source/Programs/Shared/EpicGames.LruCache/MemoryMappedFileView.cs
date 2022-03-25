@@ -2,10 +2,7 @@
 
 using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.IO;
 using System.IO.MemoryMappedFiles;
-using System.Text;
 
 namespace HordeCommon
 {
@@ -16,20 +13,20 @@ namespace HordeCommon
 	{
 		sealed unsafe class MemoryWrapper : MemoryManager<byte>
 		{
-			private readonly byte* Pointer;
-			private readonly int Length;
+			private readonly byte* _pointer;
+			private readonly int _length;
 
-			public MemoryWrapper(byte* Pointer, int Length)
+			public MemoryWrapper(byte* pointer, int length)
 			{
-				this.Pointer = Pointer;
-				this.Length = Length;
+				_pointer = pointer;
+				_length = length;
 			}
 
 			/// <inheritdoc/>
-			public override Span<byte> GetSpan() => new Span<byte>(Pointer, Length);
+			public override Span<byte> GetSpan() => new Span<byte>(_pointer, _length);
 
 			/// <inheritdoc/>
-			public override MemoryHandle Pin(int elementIndex) => new MemoryHandle(Pointer + elementIndex);
+			public override MemoryHandle Pin(int elementIndex) => new MemoryHandle(_pointer + elementIndex);
 
 			/// <inheritdoc/>
 			public override void Unpin() { }
@@ -38,38 +35,38 @@ namespace HordeCommon
 			protected override void Dispose(bool disposing) { }
 		}
 
-		MemoryMappedViewAccessor MemoryMappedViewAccessor;
-		byte* Data;
+		readonly MemoryMappedViewAccessor _memoryMappedViewAccessor;
+		byte* _data;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="MemoryMappedViewAccessor"></param>
-		public MemoryMappedFileView(MemoryMappedViewAccessor MemoryMappedViewAccessor)
+		/// <param name="memoryMappedViewAccessor"></param>
+		public MemoryMappedFileView(MemoryMappedViewAccessor memoryMappedViewAccessor)
 		{
-			this.MemoryMappedViewAccessor = MemoryMappedViewAccessor;
-			MemoryMappedViewAccessor.SafeMemoryMappedViewHandle.AcquirePointer(ref Data);
+			_memoryMappedViewAccessor = memoryMappedViewAccessor;
+			memoryMappedViewAccessor.SafeMemoryMappedViewHandle.AcquirePointer(ref _data);
 		}
 
 		/// <summary>
 		/// Gets a memory object for the given range
 		/// </summary>
-		/// <param name="Offset"></param>
-		/// <param name="Length"></param>
+		/// <param name="offset"></param>
+		/// <param name="length"></param>
 		/// <returns></returns>
-		public Memory<byte> GetMemory(long Offset, int Length)
+		public Memory<byte> GetMemory(long offset, int length)
 		{
-			MemoryWrapper Wrapper = new MemoryWrapper(Data + Offset, Length);
-			return Wrapper.Memory;
+			MemoryWrapper wrapper = new MemoryWrapper(_data + offset, length);
+			return wrapper.Memory;
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			if (Data != null)
+			if (_data != null)
 			{
-				MemoryMappedViewAccessor.SafeMemoryMappedViewHandle.ReleasePointer();
-				Data = null;
+				_memoryMappedViewAccessor.SafeMemoryMappedViewHandle.ReleasePointer();
+				_data = null;
 			}
 		}
 	}

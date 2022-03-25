@@ -189,7 +189,6 @@ namespace Horde.Build.Tasks.Impl
 		readonly IPoolCollection _poolCollection;
 		readonly IUgsMetadataCollection _ugsMetadataCollection;
 		readonly PerforceLoadBalancer _perforceLoadBalancer;
-		readonly IHostApplicationLifetime _applicationLifetime;
 		readonly IOptionsMonitor<ServerSettings> _settings;
 		readonly ILogger<JobTaskSource> _logger;
 		readonly ITicker _ticker;
@@ -231,7 +230,7 @@ namespace Horde.Build.Tasks.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobTaskSource(DatabaseService databaseService, IAgentCollection agents, IJobCollection jobs, IJobStepRefCollection jobStepRefs, IGraphCollection graphs, IPoolCollection pools, IUgsMetadataCollection ugsMetadataCollection, StreamService streamService, ILogFileService logFileService, PerforceLoadBalancer perforceLoadBalancer, IHostApplicationLifetime applicationLifetime, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<JobTaskSource> logger)
+		public JobTaskSource(DatabaseService databaseService, IAgentCollection agents, IJobCollection jobs, IJobStepRefCollection jobStepRefs, IGraphCollection graphs, IPoolCollection pools, IUgsMetadataCollection ugsMetadataCollection, StreamService streamService, ILogFileService logFileService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<JobTaskSource> logger)
 		{
 			_databaseService = databaseService;
 			_agentsCollection = agents;
@@ -243,7 +242,6 @@ namespace Horde.Build.Tasks.Impl
 			_streamService = streamService;
 			_logFileService = logFileService;
 			_perforceLoadBalancer = perforceLoadBalancer;
-			_applicationLifetime = applicationLifetime;
 			_ticker = clock.AddTicker<JobTaskSource>(s_refreshInterval, TickAsync, logger);
 			_settings = settings;
 			_logger = logger;

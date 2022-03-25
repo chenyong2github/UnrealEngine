@@ -1,22 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Buffers.Binary;
-using System.Buffers.Text;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Perforce
 {
@@ -28,71 +20,71 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// The process group
 		/// </summary>
-		ManagedProcessGroup ChildProcessGroup;
+		ManagedProcessGroup _childProcessGroup;
 
 		/// <summary>
 		/// The child process instance
 		/// </summary>
-		ManagedProcess ChildProcess;
+		ManagedProcess _childProcess;
 
 		/// <summary>
 		/// Scope object for tracing
 		/// </summary>
-		ITraceSpan Scope;
+		ITraceSpan _scope;
 
 		/// <summary>
 		/// The buffer data
 		/// </summary>
-		byte[] Buffer;
+		byte[] _buffer;
 
 		/// <summary>
 		/// End of the valid portion of the buffer (exclusive)
 		/// </summary>
-		int BufferEnd;
+		int _bufferEnd;
 
 		/// <inheritdoc/>
-		public ReadOnlyMemory<byte> Data => Buffer.AsMemory(0, BufferEnd);
+		public ReadOnlyMemory<byte> Data => _buffer.AsMemory(0, _bufferEnd);
 
 		/// <summary>
 		/// Temp file containing file arguments
 		/// </summary>
-		string? TempFileName;
+		string? _tempFileName;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Command"></param>
-		/// <param name="Arguments">Command line arguments</param>
-		/// <param name="FileArguments">File arguments, which may be placed in a response file</param>
-		/// <param name="InputData">Input data to pass to the child process</param>
-		/// <param name="GlobalOptions"></param>
-		/// <param name="Logger">Logging device</param>
-		public PerforceChildProcess(string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData, IReadOnlyList<string> GlobalOptions, ILogger Logger)
+		/// <param name="command"></param>
+		/// <param name="arguments">Command line arguments</param>
+		/// <param name="fileArguments">File arguments, which may be placed in a response file</param>
+		/// <param name="inputData">Input data to pass to the child process</param>
+		/// <param name="globalOptions"></param>
+		/// <param name="logger">Logging device</param>
+		public PerforceChildProcess(string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments, byte[]? inputData, IReadOnlyList<string> globalOptions, ILogger logger)
 		{
-			string PerforceFileName = GetExecutable();
+			string perforceFileName = GetExecutable();
 
-			List<string> FullArguments = new List<string>();
-			FullArguments.Add("-G");
-			FullArguments.AddRange(GlobalOptions);
-			if (FileArguments != null)
+			List<string> fullArguments = new List<string>();
+			fullArguments.Add("-G");
+			fullArguments.AddRange(globalOptions);
+			if (fileArguments != null)
 			{
-				TempFileName = Path.GetTempFileName();
-				File.WriteAllLines(TempFileName, FileArguments);
-				FullArguments.Add($"-x{TempFileName}");
+				_tempFileName = Path.GetTempFileName();
+				File.WriteAllLines(_tempFileName, fileArguments);
+				fullArguments.Add($"-x{_tempFileName}");
 			}
-			FullArguments.Add(Command);
-			FullArguments.AddRange(Arguments);
+			fullArguments.Add(command);
+			fullArguments.AddRange(arguments);
 
-			string FullArgumentList = CommandLineArguments.Join(FullArguments);
-			Logger.LogDebug("Running {Executable} {Arguments}", PerforceFileName, FullArgumentList);
+			string fullArgumentList = CommandLineArguments.Join(fullArguments);
+			logger.LogDebug("Running {Executable} {Arguments}", perforceFileName, fullArgumentList);
 
-			Scope = TraceSpan.Create(Command, service: "perforce");
-			Scope.AddMetadata("arguments", FullArgumentList);
+			_scope = TraceSpan.Create(command, service: "perforce");
+			_scope.AddMetadata("arguments", fullArgumentList);
 
-			ChildProcessGroup = new ManagedProcessGroup();
-			ChildProcess = new ManagedProcess(ChildProcessGroup, PerforceFileName, FullArgumentList, null, null, InputData, ProcessPriorityClass.Normal);
+			_childProcessGroup = new ManagedProcessGroup();
+			_childProcess = new ManagedProcess(_childProcessGroup, perforceFileName, fullArgumentList, null, null, inputData, ProcessPriorityClass.Normal);
 
-			Buffer = new byte[64 * 1024];
+			_buffer = new byte[64 * 1024];
 		}
 
 		/// <summary>
@@ -101,16 +93,16 @@ namespace EpicGames.Perforce
 		/// <returns>Path to the executable</returns>
 		public static string GetExecutable()
 		{
-			string PerforceFileName;
+			string perforceFileName;
 			if (RuntimePlatform.IsWindows)
 			{
-				PerforceFileName = "p4.exe";
+				perforceFileName = "p4.exe";
 			}
 			else
 			{
-				PerforceFileName = File.Exists("/usr/local/bin/p4") ? "/usr/local/bin/p4" : "/usr/bin/p4";
+				perforceFileName = File.Exists("/usr/local/bin/p4") ? "/usr/local/bin/p4" : "/usr/bin/p4";
 			}
-			return PerforceFileName;
+			return perforceFileName;
 		}
 
 		/// <inheritdoc/>
@@ -123,79 +115,82 @@ namespace EpicGames.Perforce
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			if (ChildProcess != null)
+			if (_childProcess != null)
 			{
-				ChildProcess.Dispose();
-				ChildProcess = null!;
+				_childProcess.Dispose();
+				_childProcess = null!;
 			}
-			if (ChildProcessGroup != null)
+			if (_childProcessGroup != null)
 			{
-				ChildProcessGroup.Dispose();
-				ChildProcessGroup = null!;
+				_childProcessGroup.Dispose();
+				_childProcessGroup = null!;
 			}
-			if (Scope != null)
+			if (_scope != null)
 			{
-				Scope.Dispose();
-				Scope = null!;
+				_scope.Dispose();
+				_scope = null!;
 			}
-			if (TempFileName != null)
+			if (_tempFileName != null)
 			{
-				try { File.Delete(TempFileName); } catch { }
-				TempFileName = null;
+				try 
+				{ 
+					File.Delete(_tempFileName); 
+				} catch { }
+				_tempFileName = null;
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> ReadAsync(CancellationToken CancellationToken)
+		public async Task<bool> ReadAsync(CancellationToken cancellationToken)
 		{
 			// Update the buffer contents
-			if (BufferEnd == Buffer.Length)
+			if (_bufferEnd == _buffer.Length)
 			{
-				Array.Resize(ref Buffer, Math.Min(Buffer.Length + (32 * 1024 * 1024), Buffer.Length * 2));
+				Array.Resize(ref _buffer, Math.Min(_buffer.Length + (32 * 1024 * 1024), _buffer.Length * 2));
 			}
 
 			// Try to read more data
-			int PrevBufferEnd = BufferEnd;
-			while (BufferEnd < Buffer.Length)
+			int prevBufferEnd = _bufferEnd;
+			while (_bufferEnd < _buffer.Length)
 			{
-				int Count = await ChildProcess!.ReadAsync(Buffer, BufferEnd, Buffer.Length - BufferEnd, CancellationToken);
-				if (Count == 0)
+				int count = await _childProcess!.ReadAsync(_buffer, _bufferEnd, _buffer.Length - _bufferEnd, cancellationToken);
+				if (count == 0)
 				{
 					break;
 				}
-				BufferEnd += Count;
+				_bufferEnd += count;
 			}
-			return BufferEnd > PrevBufferEnd;
+			return _bufferEnd > prevBufferEnd;
 		}
 
 		/// <inheritdoc/>
-		public void Discard(int NumBytes)
+		public void Discard(int numBytes)
 		{
-			if (NumBytes > 0)
+			if (numBytes > 0)
 			{
-				Array.Copy(Buffer, NumBytes, Buffer, 0, BufferEnd - NumBytes);
-				BufferEnd -= NumBytes;
+				Array.Copy(_buffer, numBytes, _buffer, 0, _bufferEnd - numBytes);
+				_bufferEnd -= numBytes;
 			}
 		}
 
 		/// <summary>
 		/// Reads all output from the child process as a string
 		/// </summary>
-		/// <param name="CancellationToken">Cancellation token to abort the read</param>
+		/// <param name="cancellationToken">Cancellation token to abort the read</param>
 		/// <returns>Exit code and output from the process</returns>
-		public async Task<Tuple<bool, string>> TryReadToEndAsync(CancellationToken CancellationToken)
+		public async Task<Tuple<bool, string>> TryReadToEndAsync(CancellationToken cancellationToken)
 		{
-			using MemoryStream Stream = new MemoryStream();
+			using MemoryStream stream = new MemoryStream();
 
-			while (await ReadAsync(CancellationToken))
+			while (await ReadAsync(cancellationToken))
 			{
-				ReadOnlyMemory<byte> DataCopy = Data;
-				Stream.Write(DataCopy.Span);
-				Discard(DataCopy.Length);
+				ReadOnlyMemory<byte> dataCopy = Data;
+				stream.Write(dataCopy.Span);
+				Discard(dataCopy.Length);
 			}
 
-			string String = Encoding.Default.GetString(Stream.ToArray());
-			return Tuple.Create(ChildProcess.ExitCode == 0, String);
+			string @string = Encoding.Default.GetString(stream.ToArray());
+			return Tuple.Create(_childProcess.ExitCode == 0, @string);
 		}
 	}
 }

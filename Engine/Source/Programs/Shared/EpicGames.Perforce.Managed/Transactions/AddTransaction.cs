@@ -1,182 +1,177 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 
 namespace EpicGames.Perforce.Managed
 {
 	class WorkspaceFileToMove
 	{
-		public StreamFile StreamFile;
-		public CachedFileInfo TrackedFile;
-		public WorkspaceFileInfo WorkspaceFile;
+		public StreamFile _streamFile;
+		public CachedFileInfo _trackedFile;
+		public WorkspaceFileInfo _workspaceFile;
 
-		public WorkspaceFileToMove(StreamFile StreamFile, CachedFileInfo TrackedFile, WorkspaceFileInfo WorkspaceFile)
+		public WorkspaceFileToMove(StreamFile streamFile, CachedFileInfo trackedFile, WorkspaceFileInfo workspaceFile)
 		{
-			this.StreamFile = StreamFile;
-			this.TrackedFile = TrackedFile;
-			this.WorkspaceFile = WorkspaceFile;
+			_streamFile = streamFile;
+			_trackedFile = trackedFile;
+			_workspaceFile = workspaceFile;
 		}
 	}
 
 	class WorkspaceFileToCopy
 	{
-		public StreamFile StreamFile;
-		public WorkspaceFileInfo SourceWorkspaceFile;
-		public WorkspaceFileInfo TargetWorkspaceFile;
+		public StreamFile _streamFile;
+		public WorkspaceFileInfo _sourceWorkspaceFile;
+		public WorkspaceFileInfo _targetWorkspaceFile;
 
-		public WorkspaceFileToCopy(StreamFile StreamFile, WorkspaceFileInfo SourceWorkspaceFile, WorkspaceFileInfo TargetWorkspaceFile)
+		public WorkspaceFileToCopy(StreamFile streamFile, WorkspaceFileInfo sourceWorkspaceFile, WorkspaceFileInfo targetWorkspaceFile)
 		{
-			this.StreamFile = StreamFile;
-			this.SourceWorkspaceFile = SourceWorkspaceFile;
-			this.TargetWorkspaceFile = TargetWorkspaceFile;
+			_streamFile = streamFile;
+			_sourceWorkspaceFile = sourceWorkspaceFile;
+			_targetWorkspaceFile = targetWorkspaceFile;
 		}
 	}
 
 	class WorkspaceFileToSync
 	{
-		public StreamFile StreamFile;
-		public WorkspaceFileInfo WorkspaceFile;
+		public StreamFile _streamFile;
+		public WorkspaceFileInfo _workspaceFile;
 
-		public WorkspaceFileToSync(StreamFile StreamFile, WorkspaceFileInfo WorkspaceFile)
+		public WorkspaceFileToSync(StreamFile streamFile, WorkspaceFileInfo workspaceFile)
 		{
-			this.StreamFile = StreamFile;
-			this.WorkspaceFile = WorkspaceFile;
+			_streamFile = streamFile;
+			_workspaceFile = workspaceFile;
 		}
 	}
 
 	class AddTransaction
 	{
-		public WorkspaceDirectoryInfo NewWorkspaceRootDir;
-		public StreamSnapshot StreamSnapshot;
-		public ConcurrentDictionary<CachedFileInfo, WorkspaceFileToMove> FilesToMove = new ConcurrentDictionary<CachedFileInfo, WorkspaceFileToMove>();
-		public ConcurrentQueue<WorkspaceFileToCopy> FilesToCopy = new ConcurrentQueue<WorkspaceFileToCopy>();
-		public ConcurrentQueue<WorkspaceFileToSync> FilesToSync = new ConcurrentQueue<WorkspaceFileToSync>();
+		public WorkspaceDirectoryInfo _newWorkspaceRootDir;
+		public StreamSnapshot _streamSnapshot;
+		public ConcurrentDictionary<CachedFileInfo, WorkspaceFileToMove> _filesToMove = new ConcurrentDictionary<CachedFileInfo, WorkspaceFileToMove>();
+		public ConcurrentQueue<WorkspaceFileToCopy> _filesToCopy = new ConcurrentQueue<WorkspaceFileToCopy>();
+		public ConcurrentQueue<WorkspaceFileToSync> _filesToSync = new ConcurrentQueue<WorkspaceFileToSync>();
+		readonly Dictionary<FileContentId, CachedFileInfo> _contentIdToTrackedFile;
+		readonly Dictionary<FileContentId, WorkspaceFileInfo> _contentIdToWorkspaceFile = new Dictionary<FileContentId, WorkspaceFileInfo>();
 
-		Dictionary<FileContentId, CachedFileInfo> ContentIdToTrackedFile;
-		Dictionary<FileContentId, WorkspaceFileInfo> ContentIdToWorkspaceFile = new Dictionary<FileContentId, WorkspaceFileInfo>();
-
-		public AddTransaction(WorkspaceDirectoryInfo WorkspaceRootDir, StreamSnapshot StreamSnapshot, Dictionary<FileContentId, CachedFileInfo> ContentIdToTrackedFile)
+		public AddTransaction(WorkspaceDirectoryInfo workspaceRootDir, StreamSnapshot streamSnapshot, Dictionary<FileContentId, CachedFileInfo> contentIdToTrackedFile)
 		{
-			this.StreamSnapshot = StreamSnapshot;
-			this.NewWorkspaceRootDir = new WorkspaceDirectoryInfo(WorkspaceRootDir.GetLocation());
+			_streamSnapshot = streamSnapshot;
+			_newWorkspaceRootDir = new WorkspaceDirectoryInfo(workspaceRootDir.GetLocation());
 
-			this.ContentIdToTrackedFile = ContentIdToTrackedFile;
+			_contentIdToTrackedFile = contentIdToTrackedFile;
 
-			List<WorkspaceFileInfo> WorkspaceFiles = WorkspaceRootDir.GetFiles();
-			foreach(WorkspaceFileInfo WorkspaceFile in WorkspaceFiles)
+			List<WorkspaceFileInfo> workspaceFiles = workspaceRootDir.GetFiles();
+			foreach (WorkspaceFileInfo workspaceFile in workspaceFiles)
 			{
-				ContentIdToWorkspaceFile[WorkspaceFile.ContentId] = WorkspaceFile;
+				_contentIdToWorkspaceFile[workspaceFile.ContentId] = workspaceFile;
 			}
 
-			using(ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
+			using (ThreadPoolWorkQueue queue = new ThreadPoolWorkQueue())
 			{
-				Queue.Enqueue(() => MergeDirectory(WorkspaceRootDir, NewWorkspaceRootDir, StreamSnapshot.Root, Queue));
+				queue.Enqueue(() => MergeDirectory(workspaceRootDir, _newWorkspaceRootDir, streamSnapshot.Root, queue));
 			}
 		}
 
-		void MergeDirectory(WorkspaceDirectoryInfo WorkspaceDir, WorkspaceDirectoryInfo NewWorkspaceDir, StreamTreeRef StreamTreeRef, ThreadPoolWorkQueue Queue)
+		void MergeDirectory(WorkspaceDirectoryInfo workspaceDir, WorkspaceDirectoryInfo newWorkspaceDir, StreamTreeRef streamTreeRef, ThreadPoolWorkQueue queue)
 		{
 			// Make sure the directory exists
-			Directory.CreateDirectory(WorkspaceDir.GetFullName());
+			Directory.CreateDirectory(workspaceDir.GetFullName());
 
 			// Update all the subdirectories
-			StreamTree StreamDir = StreamSnapshot.Lookup(StreamTreeRef);
-			foreach((Utf8String SubDirName, StreamTreeRef SubDirRef) in StreamDir.NameToTree)
+			StreamTree streamDir = _streamSnapshot.Lookup(streamTreeRef);
+			foreach ((Utf8String subDirName, StreamTreeRef subDirRef) in streamDir.NameToTree)
 			{
-				WorkspaceDirectoryInfo? WorkspaceSubDir;
-				if(WorkspaceDir.NameToSubDirectory.TryGetValue(SubDirName, out WorkspaceSubDir))
+				WorkspaceDirectoryInfo? workspaceSubDir;
+				if (workspaceDir.NameToSubDirectory.TryGetValue(subDirName, out workspaceSubDir))
 				{
-					MergeSubDirectory(SubDirName, WorkspaceSubDir, SubDirRef, NewWorkspaceDir, Queue);
+					MergeSubDirectory(subDirName, workspaceSubDir, subDirRef, newWorkspaceDir, queue);
 				}
 				else
 				{
-					AddSubDirectory(SubDirName, NewWorkspaceDir, SubDirRef, Queue);
+					AddSubDirectory(subDirName, newWorkspaceDir, subDirRef, queue);
 				}
 			}
 
 			// Move files into this folder
-			foreach((Utf8String Name, StreamFile StreamFile) in StreamDir.NameToFile)
+			foreach ((Utf8String name, StreamFile streamFile) in streamDir.NameToFile)
 			{
-				WorkspaceFileInfo? WorkspaceFile;
-				if(WorkspaceDir.NameToFile.TryGetValue(Name, out WorkspaceFile))
+				WorkspaceFileInfo? workspaceFile;
+				if (workspaceDir.NameToFile.TryGetValue(name, out workspaceFile))
 				{
-					NewWorkspaceDir.NameToFile.Add(WorkspaceFile.Name, WorkspaceFile);
+					newWorkspaceDir.NameToFile.Add(workspaceFile.Name, workspaceFile);
 				}
 				else
 				{
-					AddFile(NewWorkspaceDir, Name, StreamFile);
+					AddFile(newWorkspaceDir, name, streamFile);
 				}
 			}
 		}
 
-		void AddDirectory(WorkspaceDirectoryInfo NewWorkspaceDir, StreamTreeRef StreamTreeRef, ThreadPoolWorkQueue Queue)
+		void AddDirectory(WorkspaceDirectoryInfo newWorkspaceDir, StreamTreeRef streamTreeRef, ThreadPoolWorkQueue queue)
 		{
-			StreamTree StreamDir = StreamSnapshot.Lookup(StreamTreeRef);
+			StreamTree streamDir = _streamSnapshot.Lookup(streamTreeRef);
 
 			// Make sure the directory exists
-			Directory.CreateDirectory(NewWorkspaceDir.GetFullName());
+			Directory.CreateDirectory(newWorkspaceDir.GetFullName());
 
 			// Add all the sub directories and files
-			foreach((Utf8String SubDirName, StreamTreeRef SubDirRef) in StreamDir.NameToTree)
+			foreach ((Utf8String subDirName, StreamTreeRef subDirRef) in streamDir.NameToTree)
 			{
-				AddSubDirectory(SubDirName, NewWorkspaceDir, SubDirRef, Queue);
+				AddSubDirectory(subDirName, newWorkspaceDir, subDirRef, queue);
 			}
-			foreach((Utf8String Name, StreamFile StreamFile) in StreamDir.NameToFile)
+			foreach ((Utf8String name, StreamFile streamFile) in streamDir.NameToFile)
 			{
-				AddFile(NewWorkspaceDir, Name, StreamFile);
+				AddFile(newWorkspaceDir, name, streamFile);
 			}
 		}
 
-		void MergeSubDirectory(Utf8String Name, WorkspaceDirectoryInfo WorkspaceSubDir, StreamTreeRef StreamSubTreeRef, WorkspaceDirectoryInfo NewWorkspaceDir, ThreadPoolWorkQueue Queue)
+		void MergeSubDirectory(Utf8String name, WorkspaceDirectoryInfo workspaceSubDir, StreamTreeRef streamSubTreeRef, WorkspaceDirectoryInfo newWorkspaceDir, ThreadPoolWorkQueue queue)
 		{
-			WorkspaceDirectoryInfo NewWorkspaceSubDir = new WorkspaceDirectoryInfo(NewWorkspaceDir, Name, StreamSubTreeRef);
-			NewWorkspaceDir.NameToSubDirectory.Add(Name, NewWorkspaceSubDir);
-			Queue.Enqueue(() => MergeDirectory(WorkspaceSubDir, NewWorkspaceSubDir, StreamSubTreeRef, Queue));
+			WorkspaceDirectoryInfo newWorkspaceSubDir = new WorkspaceDirectoryInfo(newWorkspaceDir, name, streamSubTreeRef);
+			newWorkspaceDir.NameToSubDirectory.Add(name, newWorkspaceSubDir);
+			queue.Enqueue(() => MergeDirectory(workspaceSubDir, newWorkspaceSubDir, streamSubTreeRef, queue));
 		}
 
-		void AddSubDirectory(Utf8String Name, WorkspaceDirectoryInfo NewWorkspaceDir, StreamTreeRef StreamSubTreeRef, ThreadPoolWorkQueue Queue)
+		void AddSubDirectory(Utf8String name, WorkspaceDirectoryInfo newWorkspaceDir, StreamTreeRef streamSubTreeRef, ThreadPoolWorkQueue queue)
 		{
-			WorkspaceDirectoryInfo NewWorkspaceSubDir = new WorkspaceDirectoryInfo(NewWorkspaceDir, Name, StreamSubTreeRef);
-			NewWorkspaceDir.NameToSubDirectory.Add(Name, NewWorkspaceSubDir);
-			Queue.Enqueue(() => AddDirectory(NewWorkspaceSubDir, StreamSubTreeRef, Queue));
+			WorkspaceDirectoryInfo newWorkspaceSubDir = new WorkspaceDirectoryInfo(newWorkspaceDir, name, streamSubTreeRef);
+			newWorkspaceDir.NameToSubDirectory.Add(name, newWorkspaceSubDir);
+			queue.Enqueue(() => AddDirectory(newWorkspaceSubDir, streamSubTreeRef, queue));
 		}
 
-		void AddFile(WorkspaceDirectoryInfo NewWorkspaceDir, Utf8String Name, StreamFile StreamFile)
+		void AddFile(WorkspaceDirectoryInfo newWorkspaceDir, Utf8String name, StreamFile streamFile)
 		{
 			// Create a new file for this workspace
-			WorkspaceFileInfo WorkspaceFile = new WorkspaceFileInfo(NewWorkspaceDir, Name, StreamFile.ContentId);
-			NewWorkspaceDir.NameToFile.Add(Name, WorkspaceFile);
+			WorkspaceFileInfo workspaceFile = new WorkspaceFileInfo(newWorkspaceDir, name, streamFile.ContentId);
+			newWorkspaceDir.NameToFile.Add(name, workspaceFile);
 
 			// Try to add it to the cache
-			CachedFileInfo? TrackedFile;
-			if(ContentIdToTrackedFile.TryGetValue(StreamFile.ContentId, out TrackedFile))
+			CachedFileInfo? trackedFile;
+			if (_contentIdToTrackedFile.TryGetValue(streamFile.ContentId, out trackedFile))
 			{
-				if(FilesToMove.TryAdd(TrackedFile, new WorkspaceFileToMove(StreamFile, TrackedFile, WorkspaceFile)))
+				if (_filesToMove.TryAdd(trackedFile, new WorkspaceFileToMove(streamFile, trackedFile, workspaceFile)))
 				{
-					WorkspaceFile.SetMetadata(TrackedFile.Length, TrackedFile.LastModifiedTicks, TrackedFile.bReadOnly);
+					workspaceFile.SetMetadata(trackedFile.Length, trackedFile.LastModifiedTicks, trackedFile.BReadOnly);
 				}
 				else
 				{
-					FilesToCopy.Enqueue(new WorkspaceFileToCopy(StreamFile, FilesToMove[TrackedFile].WorkspaceFile, WorkspaceFile));
+					_filesToCopy.Enqueue(new WorkspaceFileToCopy(streamFile, _filesToMove[trackedFile]._workspaceFile, workspaceFile));
 				}
 			}
 			else
 			{
-				WorkspaceFileInfo? SourceWorkspaceFile;
-				if(ContentIdToWorkspaceFile.TryGetValue(StreamFile.ContentId, out SourceWorkspaceFile))
+				WorkspaceFileInfo? sourceWorkspaceFile;
+				if (_contentIdToWorkspaceFile.TryGetValue(streamFile.ContentId, out sourceWorkspaceFile))
 				{
-					FilesToCopy.Enqueue(new WorkspaceFileToCopy(StreamFile, SourceWorkspaceFile, WorkspaceFile));
+					_filesToCopy.Enqueue(new WorkspaceFileToCopy(streamFile, sourceWorkspaceFile, workspaceFile));
 				}
 				else
 				{
-					FilesToSync.Enqueue(new WorkspaceFileToSync(StreamFile, WorkspaceFile));
+					_filesToSync.Enqueue(new WorkspaceFileToSync(streamFile, workspaceFile));
 				}
 			}
 		}

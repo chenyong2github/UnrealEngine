@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using EpicGames.Core;
 
 namespace EpicGames.Perforce.Managed
 {
@@ -134,7 +132,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Array of file type bases, with order matching <see cref="FileTypeBase"/>
 		/// </summary>
-		static Utf8String[] BaseNames =
+		static readonly Utf8String[] s_baseNames =
 		{
 			"text",
 			"binary",
@@ -169,185 +167,185 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Encoded">The encoded value</param>
-		public FileType(uint Encoded)
+		/// <param name="encoded">The encoded value</param>
+		public FileType(uint encoded)
 		{
-			this.Encoded = Encoded;
+			Encoded = encoded;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Base">Base file type</param>
-		/// <param name="Modifiers">File type modifiers</param>
-		/// <param name="NumRevisions">Number of revisions to store</param>
-		public FileType(FileTypeBase Base, FileTypeModifiers Modifiers = 0, int NumRevisions = 0)
+		/// <param name="base">Base file type</param>
+		/// <param name="modifiers">File type modifiers</param>
+		/// <param name="numRevisions">Number of revisions to store</param>
+		public FileType(FileTypeBase @base, FileTypeModifiers modifiers = 0, int numRevisions = 0)
 		{
-			Encoded = (uint)Base | (uint)Modifiers | (uint)(NumRevisions << 16);
+			Encoded = (uint)@base | (uint)modifiers | (uint)(numRevisions << 16);
 		}
 
 		/// <summary>
 		/// Parse a string as a filetype
 		/// </summary>
-		/// <param name="Text"></param>
+		/// <param name="text"></param>
 		/// <returns></returns>
-		public static FileType Parse(ReadOnlySpan<byte> Text)
+		public static FileType Parse(ReadOnlySpan<byte> text)
 		{
-			if (TryParse(Text, out FileType Type))
+			if (TryParse(text, out FileType type))
 			{
-				return Type;
+				return type;
 			}
 			else
 			{
-				throw new InvalidCastException($"Cannot parse text ('{Encoding.UTF8.GetString(Text)}') as FileType");
+				throw new InvalidCastException($"Cannot parse text ('{Encoding.UTF8.GetString(text)}') as FileType");
 			}
 		}
 
 		/// <summary>
 		/// Try to parse a utf8 string as a filetype
 		/// </summary>
-		/// <param name="Text"></param>
-		/// <param name="Type"></param>
+		/// <param name="text"></param>
+		/// <param name="type"></param>
 		/// <returns></returns>
-		public static bool TryParse(ReadOnlySpan<byte> Text, out FileType Type)
+		public static bool TryParse(ReadOnlySpan<byte> text, out FileType type)
 		{
-			int PlusIdx = Text.IndexOf((byte)'+');
-			if (PlusIdx == -1)
+			int plusIdx = text.IndexOf((byte)'+');
+			if (plusIdx == -1)
 			{
-				if (TryParseBase(Text, out FileTypeBase Base))
+				if (TryParseBase(text, out FileTypeBase @base))
 				{
-					Type = new FileType(Base);
+					type = new FileType(@base);
 					return true;
 				}
 			}
 			else
 			{
-				if (TryParseBase(Text.Slice(0, PlusIdx), out FileTypeBase Base) && TryParseModifiers(Text.Slice(PlusIdx + 1), out (FileTypeModifiers, int) Modifiers))
+				if (TryParseBase(text.Slice(0, plusIdx), out FileTypeBase @base) && TryParseModifiers(text.Slice(plusIdx + 1), out (FileTypeModifiers, int) modifiers))
 				{
-					Type = new FileType(Base, Modifiers.Item1, Modifiers.Item2);
+					type = new FileType(@base, modifiers.Item1, modifiers.Item2);
 					return true;
 				}
 			}
 
-			Type = default;
+			type = default;
 			return false;
 		}
 
 		/// <summary>
 		/// Try to parse a utf8 string as a filetype base
 		/// </summary>
-		/// <param name="Text"></param>
-		/// <param name="Base"></param>
+		/// <param name="text"></param>
+		/// <param name="base"></param>
 		/// <returns></returns>
-		public static bool TryParseBase(ReadOnlySpan<byte> Text, out FileTypeBase Base)
+		public static bool TryParseBase(ReadOnlySpan<byte> text, out FileTypeBase @base)
 		{
-			for (int Idx = 0; Idx < BaseNames.Length; Idx++)
+			for (int idx = 0; idx < s_baseNames.Length; idx++)
 			{
-				if (Text.SequenceEqual(BaseNames[Idx].Span))
+				if (text.SequenceEqual(s_baseNames[idx].Span))
 				{
-					Base = (FileTypeBase)Idx;
+					@base = (FileTypeBase)idx;
 					return true;
 				}
 			}
 
-			Base = 0;
+			@base = 0;
 			return false;
 		}
 
 		/// <summary>
 		/// Try to parse modifiers from a utf8 string
 		/// </summary>
-		/// <param name="Text"></param>
-		/// <param name="Result"></param>
+		/// <param name="text"></param>
+		/// <param name="result"></param>
 		/// <returns></returns>
-		public static bool TryParseModifiers(ReadOnlySpan<byte> Text, out (FileTypeModifiers, int) Result)
+		public static bool TryParseModifiers(ReadOnlySpan<byte> text, out (FileTypeModifiers, int) result)
 		{
-			FileTypeModifiers Modifiers = 0;
-			int NumRevisions = 0;
+			FileTypeModifiers modifiers = 0;
+			int numRevisions = 0;
 
-			for (int Idx = 0; Idx < Text.Length; Idx++)
+			for (int idx = 0; idx < text.Length; idx++)
 			{
-				switch(Text[Idx])
+				switch (text[idx])
 				{
 					case (byte)'w':
-						Modifiers |= FileTypeModifiers.AlwaysWritable;
+						modifiers |= FileTypeModifiers.AlwaysWritable;
 						break;
 					case (byte)'x':
-						Modifiers |= FileTypeModifiers.Executable;
+						modifiers |= FileTypeModifiers.Executable;
 						break;
 					case (byte)'k':
-						Modifiers |= FileTypeModifiers.KeywordExpansion;
+						modifiers |= FileTypeModifiers.KeywordExpansion;
 						break;
 					case (byte)'o':
-						Modifiers |= FileTypeModifiers.KeywordExpansionOld;
+						modifiers |= FileTypeModifiers.KeywordExpansionOld;
 						break;
 					case (byte)'l':
-						Modifiers |= FileTypeModifiers.ExclusiveOpen;
+						modifiers |= FileTypeModifiers.ExclusiveOpen;
 						break;
 					case (byte)'C':
-						Modifiers |= FileTypeModifiers.StoreFullRevisionsCompressed;
+						modifiers |= FileTypeModifiers.StoreFullRevisionsCompressed;
 						break;
 					case (byte)'D':
-						Modifiers |= FileTypeModifiers.StoreDeltas;
+						modifiers |= FileTypeModifiers.StoreDeltas;
 						break;
 					case (byte)'F':
-						Modifiers |= FileTypeModifiers.StoreFullRevisionsUncompressed;
+						modifiers |= FileTypeModifiers.StoreFullRevisionsUncompressed;
 						break;
 					case (byte)'S':
-						while (Idx + 1 < Text.Length && (Text[Idx + 1] >= '0' && Text[Idx + 1] <= '9'))
+						while (idx + 1 < text.Length && (text[idx + 1] >= '0' && text[idx + 1] <= '9'))
 						{
-							NumRevisions = (NumRevisions * 10) + (Text[++Idx] - '0');
+							numRevisions = (numRevisions * 10) + (text[++idx] - '0');
 						}
-						if(NumRevisions == 0)
+						if (numRevisions == 0)
 						{
-							NumRevisions = 1;
+							numRevisions = 1;
 						}
 						break;
 					case (byte)'m':
-						Modifiers |= FileTypeModifiers.Modtime;
+						modifiers |= FileTypeModifiers.Modtime;
 						break;
 					default:
-						Result = (0, 0);
+						result = (0, 0);
 						return false;
 				}
 			}
 
-			Result = (Modifiers, NumRevisions);
+			result = (modifiers, numRevisions);
 			return true;
 		}
 
 		/// <summary>
 		/// Compares two filetypes for equality
 		/// </summary>
-		/// <param name="A"></param>
-		/// <param name="B"></param>
+		/// <param name="a"></param>
+		/// <param name="b"></param>
 		/// <returns></returns>
-		public static bool operator ==(FileType A, FileType B)
+		public static bool operator ==(FileType a, FileType b)
 		{
-			return A.Encoded == B.Encoded;
+			return a.Encoded == b.Encoded;
 		}
 
 		/// <summary>
 		/// Compares two filetypes for equality
 		/// </summary>
-		/// <param name="A"></param>
-		/// <param name="B"></param>
+		/// <param name="a"></param>
+		/// <param name="b"></param>
 		/// <returns></returns>
-		public static bool operator !=(FileType A, FileType B)
+		public static bool operator !=(FileType a, FileType b)
 		{
-			return A.Encoded != B.Encoded;
+			return a.Encoded != b.Encoded;
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj)
+		public override bool Equals(object? obj)
 		{
-			return (Obj is FileType Other) && Equals(Other);
+			return (obj is FileType other) && Equals(other);
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(FileType Other)
+		public bool Equals(FileType other)
 		{
-			return Encoded == Other.Encoded;
+			return Encoded == other.Encoded;
 		}
 
 		/// <inheritdoc/>
@@ -359,62 +357,62 @@ namespace EpicGames.Perforce.Managed
 		/// <inheritdoc/>
 		public override string ToString()
 		{
-			StringBuilder Type = new StringBuilder(BaseNames[(int)Base].ToString());
+			StringBuilder type = new StringBuilder(s_baseNames[(int)Base].ToString());
 
-			int RemainingModifiers = (int)Modifiers;
-			if (RemainingModifiers != 0 || NumRevisions > 0)
+			int remainingModifiers = (int)Modifiers;
+			if (remainingModifiers != 0 || NumRevisions > 0)
 			{
-				Type.Append('+');
-				while (RemainingModifiers != 0)
+				type.Append('+');
+				while (remainingModifiers != 0)
 				{
-					FileTypeModifiers Modifier = (FileTypeModifiers)(RemainingModifiers & ~(RemainingModifiers - 1));
-					switch (Modifier)
+					FileTypeModifiers modifier = (FileTypeModifiers)(remainingModifiers & ~(remainingModifiers - 1));
+					switch (modifier)
 					{
 						case FileTypeModifiers.AlwaysWritable:
-							Type.Append('w');
+							type.Append('w');
 							break;
 						case FileTypeModifiers.Executable:
-							Type.Append('x');
+							type.Append('x');
 							break;
 						case FileTypeModifiers.KeywordExpansion:
-							Type.Append('k');
+							type.Append('k');
 							break;
 						case FileTypeModifiers.KeywordExpansionOld:
-							Type.Append('o');
+							type.Append('o');
 							break;
 						case FileTypeModifiers.ExclusiveOpen:
-							Type.Append('l');
+							type.Append('l');
 							break;
 						case FileTypeModifiers.StoreFullRevisionsCompressed:
-							Type.Append('C');
+							type.Append('C');
 							break;
 						case FileTypeModifiers.StoreDeltas:
-							Type.Append('D');
+							type.Append('D');
 							break;
 						case FileTypeModifiers.StoreFullRevisionsUncompressed:
-							Type.Append('F');
+							type.Append('F');
 							break;
 						case FileTypeModifiers.Modtime:
-							Type.Append('m');
+							type.Append('m');
 							break;
 						case FileTypeModifiers.ArchiveTriggerRequired:
-							Type.Append('X');
+							type.Append('X');
 							break;
 					}
-					RemainingModifiers ^= (int)Modifier;
+					remainingModifiers ^= (int)modifier;
 				}
 
 				if (NumRevisions == 1)
 				{
-					Type.Append('S');
+					type.Append('S');
 				}
 				else if (NumRevisions > 1)
 				{
-					Type.Append($"S{NumRevisions}");
+					type.Append($"S{NumRevisions}");
 				}
 			}
 
-			return Type.ToString();
+			return type.ToString();
 		}
 	}
 
@@ -426,20 +424,20 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Constructor for reading a file info from disk
 		/// </summary>
-		/// <param name="Reader">Binary reader to read data from</param>
-		public static FileType ReadFileType(this MemoryReader Reader)
+		/// <param name="reader">Binary reader to read data from</param>
+		public static FileType ReadFileType(this MemoryReader reader)
 		{
-			return new FileType(Reader.ReadUInt32());
+			return new FileType(reader.ReadUInt32());
 		}
 
 		/// <summary>
 		/// Save the file info to disk
 		/// </summary>
-		/// <param name="Writer">Writer to output to</param>
-		/// <param name="FileType">The file type to serialize</param>
-		public static void WriteFileType(this MemoryWriter Writer, FileType FileType)
+		/// <param name="writer">Writer to output to</param>
+		/// <param name="fileType">The file type to serialize</param>
+		public static void WriteFileType(this MemoryWriter writer, FileType fileType)
 		{
-			Writer.WriteUInt32(FileType.Encoded);
+			writer.WriteUInt32(fileType.Encoded);
 		}
 	}
 }

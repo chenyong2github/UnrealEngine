@@ -34,6 +34,7 @@ using System;
 namespace EpicGames.Core
 {
 #pragma warning disable IDE0054
+#pragma warning disable IDE0180
 #pragma warning disable IDE1006
 
 	public class CityHash
@@ -462,4 +463,5 @@ namespace EpicGames.Core
 	}
 }
 #pragma warning restore IDE1006
+#pragma warning restore IDE0180
 #pragma warning restore IDE0054

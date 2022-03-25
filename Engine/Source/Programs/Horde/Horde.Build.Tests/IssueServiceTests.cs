@@ -44,8 +44,8 @@ namespace Horde.Build.Tests
 			public TestJsonLogger(ILogFileService logFileService, LogId logId)
 				: base(null, NullLogger.Instance)
 			{
-				this._logFileService = logFileService;
-				this._logId = logId;
+				_logFileService = logFileService;
+				_logId = logId;
 			}
 
 			public async ValueTask DisposeAsync()
@@ -716,7 +716,6 @@ namespace Horde.Build.Tests
 			}
 		}
 
-
 		[TestMethod]
 		public async Task CompileIssueTest()
 		{
@@ -1078,7 +1077,6 @@ namespace Horde.Build.Tests
 			Assert.AreEqual("Missing copyright notice in ToolchainInfo.cs", issue.Summary);
 		}
 
-
 		[TestMethod]
 		public async Task AddSpanToIssueTest()
 		{
@@ -1229,7 +1227,6 @@ namespace Horde.Build.Tests
 				List<ILogEvent> events = await LogFileService.FindLogEventsAsync(log!);
 				Assert.AreEqual(1, events.Count);
 				Assert.AreEqual(40, events[0].LineCount);
-				ILogEventData eventData = await LogFileService.GetEventDataAsync(log!, events[0].LineIndex, events[0].LineCount);
 
 				List<IIssue> issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(1, issues.Count);

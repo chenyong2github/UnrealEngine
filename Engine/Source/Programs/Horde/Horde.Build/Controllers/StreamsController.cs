@@ -35,7 +35,7 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public StreamsController(StreamService streamService, ITemplateCollection templateCollection, JobService jobService, IJobStepRefCollection jobStepRefCollection, IPerforceService perforceService)
+		public StreamsController(StreamService streamService, ITemplateCollection templateCollection, IJobStepRefCollection jobStepRefCollection, IPerforceService perforceService)
 		{
 			_streamService = streamService;
 			_templateCollection = templateCollection;

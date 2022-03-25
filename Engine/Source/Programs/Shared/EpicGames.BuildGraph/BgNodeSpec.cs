@@ -101,7 +101,7 @@ namespace EpicGames.BuildGraph
 			string methodSignature = $"{call.Method.DeclaringType?.Name}.{call.Method.Name}";
 			if (!call.Method.IsStatic)
 			{
-				throw new BgNodeException($"Node {call.Method.DeclaringType?.Name}.{call.Method.Name} must be static");
+				throw new BgNodeException($"Node {methodSignature} must be static");
 			}
 
 			_className = call.Method.DeclaringType!.AssemblyQualifiedName!;
@@ -115,7 +115,7 @@ namespace EpicGames.BuildGraph
 			}
 			catch (Exception ex)
 			{
-				ExceptionUtils.AddContext(ex, $"while calling method {call.Method.DeclaringType?.Name}.{call.Method.Name}");
+				ExceptionUtils.AddContext(ex, $"while calling method {methodSignature}");
 				throw;
 			}
 

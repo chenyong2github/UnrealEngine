@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Perforce;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -14,6 +11,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Perforce
 {
@@ -28,57 +27,57 @@ namespace EpicGames.Perforce
 		class NativeSettings
 		{
 			[MarshalAs(UnmanagedType.LPStr)]
-			public string? ServerAndPort;
+			public string? _serverAndPort;
 
 			[MarshalAs(UnmanagedType.LPStr)]
-			public string? UserName;
+			public string? _userName;
 
 			[MarshalAs(UnmanagedType.LPStr)]
-			public string? Password;
+			public string? _password;
 
 			[MarshalAs(UnmanagedType.LPStr)]
-			public string? ClientName;
+			public string? _clientName;
 
 			[MarshalAs(UnmanagedType.LPStr)]
-			public string? AppName;
+			public string? _appName;
 
 			[MarshalAs(UnmanagedType.LPStr)]
-			public string? AppVersion;
+			public string? _appVersion;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
 		[SuppressMessage("Compiler", "CA1812")]
 		class NativeReadBuffer
 		{
-			public IntPtr Data;
-			public int Length;
-			public int Count;
-			public int MaxLength;
-			public int MaxCount;
+			public IntPtr _data;
+			public int _length;
+			public int _count;
+			public int _maxLength;
+			public int _maxCount;
 		};
 
 		[StructLayout(LayoutKind.Sequential)]
 		class NativeWriteBuffer
 		{
-			public IntPtr Data;
-			public int MaxLength;
-			public int MaxCount;
+			public IntPtr _data;
+			public int _maxLength;
+			public int _maxCount;
 		};
 
 		[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-		delegate void OnBufferReadyFn(NativeReadBuffer ReadBuffer, [In, Out] NativeWriteBuffer WriteBuffer);
+		delegate void OnBufferReadyFn(NativeReadBuffer readBuffer, [In, Out] NativeWriteBuffer writeBuffer);
 
 		[DllImport(NativeDll, CallingConvention = CallingConvention.Cdecl)]
-		static extern IntPtr Client_Create(NativeSettings? Settings, NativeWriteBuffer WriteBuffer, IntPtr OnBufferReadyFnPtr);
+		static extern IntPtr Client_Create(NativeSettings? settings, NativeWriteBuffer writeBuffer, IntPtr onBufferReadyFnPtr);
 
 		[DllImport(NativeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-		static extern void Client_Login(IntPtr Client, [MarshalAs(UnmanagedType.LPStr)] string Password);
+		static extern void Client_Login(IntPtr client, [MarshalAs(UnmanagedType.LPStr)] string password);
 
 		[DllImport(NativeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-		static extern void Client_Command(IntPtr Client, [MarshalAs(UnmanagedType.LPStr)] string Command, int NumArgs, string[] Args, byte[]? InputData, int InputLength, bool InterceptIo);
+		static extern void Client_Command(IntPtr client, [MarshalAs(UnmanagedType.LPStr)] string command, int numArgs, string[] args, byte[]? inputData, int inputLength, bool interceptIo);
 
 		[DllImport(NativeDll, CallingConvention = CallingConvention.Cdecl)]
-		static extern void Client_Destroy(IntPtr Client);
+		static extern void Client_Destroy(IntPtr client);
 
 		/// <summary>
 		/// A buffer used for native code to stream data into
@@ -90,23 +89,23 @@ namespace EpicGames.Perforce
 			public IntPtr BasePtr { get; private set; }
 			public int MaxLength => Data.Length;
 
-			public PinnedBuffer(int MaxLength)
+			public PinnedBuffer(int maxLength)
 			{
-				Data = new byte[MaxLength];
+				Data = new byte[maxLength];
 				Handle = GCHandle.Alloc(Data, GCHandleType.Pinned);
 				BasePtr = Handle.AddrOfPinnedObject();
 			}
 
-			public void Resize(int MaxLength)
+			public void Resize(int maxLength)
 			{
-				byte[] OldData = Data;
+				byte[] oldData = Data;
 				Handle.Free();
 
-				Data = new byte[MaxLength];
+				Data = new byte[maxLength];
 				Handle = GCHandle.Alloc(Data, GCHandleType.Pinned);
 				BasePtr = Handle.AddrOfPinnedObject();
 
-				OldData.CopyTo(Data, 0);
+				oldData.CopyTo(Data, 0);
 			}
 
 			public void Dispose()
@@ -120,155 +119,155 @@ namespace EpicGames.Perforce
 		/// </summary>
 		class Response : IPerforceOutput
 		{
-			NativePerforceConnection Outer;
+			readonly NativePerforceConnection _outer;
 
-			PinnedBuffer? Buffer;
-			int BufferPos;
-			int BufferLen;
+			PinnedBuffer? _buffer;
+			int _bufferPos;
+			int _bufferLen;
 
-			PinnedBuffer? NextBuffer;
-			int NextBufferPos;
-			int NextBufferLen;
+			PinnedBuffer? _nextBuffer;
+			int _nextBufferPos;
+			int _nextBufferLen;
 
-			public Channel<(PinnedBuffer Buffer, int Length)> ReadBuffers = Channel.CreateUnbounded<(PinnedBuffer, int)>();
+			public Channel<(PinnedBuffer Buffer, int Length)> _readBuffers = Channel.CreateUnbounded<(PinnedBuffer, int)>();
 
-			public ReadOnlyMemory<byte> Data => (Buffer == null) ? ReadOnlyMemory<byte>.Empty : Buffer.Data.AsMemory(BufferPos, BufferLen - BufferPos);
+			public ReadOnlyMemory<byte> Data => (_buffer == null) ? ReadOnlyMemory<byte>.Empty : _buffer.Data.AsMemory(_bufferPos, _bufferLen - _bufferPos);
 
-			public Response(NativePerforceConnection Outer)
+			public Response(NativePerforceConnection outer)
 			{
-				this.Outer = Outer;
+				_outer = outer;
 			}
 
 			public async ValueTask DisposeAsync()
 			{
-				if (Buffer != null)
+				if (_buffer != null)
 				{
-					Outer.WriteBuffers.Add(Buffer);
+					_outer._writeBuffers.Add(_buffer);
 				}
-				if (NextBuffer != null)
+				if (_nextBuffer != null)
 				{
-					Outer.WriteBuffers.Add(NextBuffer);
+					_outer._writeBuffers.Add(_nextBuffer);
 				}
 
-				while (await ReadBuffers.Reader.WaitToReadAsync())
+				while (await _readBuffers.Reader.WaitToReadAsync())
 				{
-					(PinnedBuffer, int) Buffer;
-					if (ReadBuffers.Reader.TryRead(out Buffer))
+					(PinnedBuffer, int) buffer;
+					if (_readBuffers.Reader.TryRead(out buffer))
 					{
-						Outer.WriteBuffers.Add(Buffer.Item1);
+						_outer._writeBuffers.Add(buffer.Item1);
 					}
 				}
 
-				Outer.ResponseCompleteEvent.Set();
+				_outer._responseCompleteEvent.Set();
 			}
 
 			async Task<(PinnedBuffer?, int)> GetNextReadBufferAsync()
 			{
 				for (; ; )
 				{
-					if (!await ReadBuffers.Reader.WaitToReadAsync())
+					if (!await _readBuffers.Reader.WaitToReadAsync())
 					{
 						return (null, 0);
 					}
 
-					(PinnedBuffer, int) Pair;
-					if (ReadBuffers.Reader.TryRead(out Pair))
+					(PinnedBuffer, int) pair;
+					if (_readBuffers.Reader.TryRead(out pair))
 					{
-						return Pair;
+						return pair;
 					}
 				}
 			}
 
-			public async Task<bool> ReadAsync(CancellationToken Token)
+			public async Task<bool> ReadAsync(CancellationToken token)
 			{
 				// If we don't have any data yet, wait until a read completes
-				if (Buffer == null)
+				if (_buffer == null)
 				{
-					(Buffer, BufferLen) = await GetNextReadBufferAsync();
-					return Buffer != null;
+					(_buffer, _bufferLen) = await GetNextReadBufferAsync();
+					return _buffer != null;
 				}
 
 				// If we've used up all the data in the buffer, return it to the write list and move to the next one.
-				int OriginalBufferLen = BufferLen - NextBufferPos;
-				if (BufferPos >= OriginalBufferLen)
+				int originalBufferLen = _bufferLen - _nextBufferPos;
+				if (_bufferPos >= originalBufferLen)
 				{
-					Outer.WriteBuffers.TryAdd(Buffer!);
+					_outer._writeBuffers.TryAdd(_buffer!);
 
-					Buffer = NextBuffer;
-					BufferPos -= OriginalBufferLen;
-					BufferLen = NextBufferLen;
+					_buffer = _nextBuffer;
+					_bufferPos -= originalBufferLen;
+					_bufferLen = _nextBufferLen;
 
-					NextBuffer = null;
-					NextBufferPos = 0;
-					NextBufferLen = 0;
+					_nextBuffer = null;
+					_nextBufferPos = 0;
+					_nextBufferLen = 0;
 
 					return true;
 				}
 
 				// Ensure there's some space in the current buffer. In order to handle cases where we want to read data straddling both buffers, copy 16k chunks
 				// back to the first buffer until we can read entirely from the second buffer.
-				int MaxAppend = Buffer.MaxLength - BufferLen;
-				if (MaxAppend == 0)
+				int maxAppend = _buffer.MaxLength - _bufferLen;
+				if (maxAppend == 0)
 				{
-					if (BufferPos > 0)
+					if (_bufferPos > 0)
 					{
-						Buffer.Data.AsSpan(BufferPos, BufferLen - BufferPos).CopyTo(Buffer.Data);
-						BufferLen -= BufferPos;
-						BufferPos = 0;
+						_buffer.Data.AsSpan(_bufferPos, _bufferLen - _bufferPos).CopyTo(_buffer.Data);
+						_bufferLen -= _bufferPos;
+						_bufferPos = 0;
 					}
 					else
 					{
-						Buffer.Resize(Buffer.MaxLength + 16384);
+						_buffer.Resize(_buffer.MaxLength + 16384);
 					}
-					MaxAppend = Buffer.MaxLength - BufferLen;
+					maxAppend = _buffer.MaxLength - _bufferLen;
 				}
 
 				// Read the next buffer
-				if (NextBuffer == null)
+				if (_nextBuffer == null)
 				{
-					(NextBuffer, NextBufferLen) = await GetNextReadBufferAsync();
-					if (NextBuffer == null)
+					(_nextBuffer, _nextBufferLen) = await GetNextReadBufferAsync();
+					if (_nextBuffer == null)
 					{
 						return false;
 					}
 				}
 
 				// Try to copy some data from the next buffer
-				int CopyLen = Math.Min(NextBufferLen - NextBufferPos, Math.Min(MaxAppend, 16384));
-				NextBuffer.Data.AsSpan(NextBufferPos, CopyLen).CopyTo(Buffer.Data.AsSpan(BufferLen));
-				BufferLen += CopyLen;
-				NextBufferPos += CopyLen;
+				int copyLen = Math.Min(_nextBufferLen - _nextBufferPos, Math.Min(maxAppend, 16384));
+				_nextBuffer.Data.AsSpan(_nextBufferPos, copyLen).CopyTo(_buffer.Data.AsSpan(_bufferLen));
+				_bufferLen += copyLen;
+				_nextBufferPos += copyLen;
 
 				// If we've read everything from the next buffer, return it to the write list
-				if (NextBufferPos == NextBufferLen)
+				if (_nextBufferPos == _nextBufferLen)
 				{
-					Outer.WriteBuffers.Add(NextBuffer, Token);
+					_outer._writeBuffers.Add(_nextBuffer, token);
 
-					NextBuffer = null;
-					NextBufferPos = 0;
-					NextBufferLen = 0;
+					_nextBuffer = null;
+					_nextBufferPos = 0;
+					_nextBufferLen = 0;
 				}
 
 				return true;
 			}
 
-			public void Discard(int NumBytes)
+			public void Discard(int numBytes)
 			{
 				// Update the read position
-				BufferPos += NumBytes;
-				Debug.Assert(BufferPos <= BufferLen);
+				_bufferPos += numBytes;
+				Debug.Assert(_bufferPos <= _bufferLen);
 			}
 		}
 
-		IntPtr Client;
-		PinnedBuffer[] Buffers;
-		OnBufferReadyFn OnBufferReadyInst;
-		IntPtr OnBufferReadyFnPtr;
-		Thread? BackgroundThread;
-		BlockingCollection<(Action, Response)?> Requests = new BlockingCollection<(Action, Response)?>();
-		BlockingCollection<PinnedBuffer> WriteBuffers = new BlockingCollection<PinnedBuffer>();
-		Response? CurrentResponse;
-		ManualResetEvent ResponseCompleteEvent;
+		IntPtr _client;
+		readonly PinnedBuffer[] _buffers;
+		readonly OnBufferReadyFn _onBufferReadyInst;
+		readonly IntPtr _onBufferReadyFnPtr;
+		Thread? _backgroundThread;
+		readonly BlockingCollection<(Action, Response)?> _requests = new BlockingCollection<(Action, Response)?>();
+		readonly BlockingCollection<PinnedBuffer> _writeBuffers = new BlockingCollection<PinnedBuffer>();
+		Response? _currentResponse;
+		readonly ManualResetEvent _responseCompleteEvent;
 
 		/// <inheritdoc/>
 		public IPerforceSettings Settings { get; }
@@ -279,66 +278,66 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Settings">Settings for the connection</param>
-		/// <param name="Logger">Logger for messages</param>
-		public NativePerforceConnection(IPerforceSettings Settings, ILogger Logger)
-			: this(Settings, 2, 64 * 1024, Logger)
+		/// <param name="settings">Settings for the connection</param>
+		/// <param name="logger">Logger for messages</param>
+		public NativePerforceConnection(IPerforceSettings settings, ILogger logger)
+			: this(settings, 2, 64 * 1024, logger)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Settings">Settings for the connection</param>
-		/// <param name="BufferCount">Number of buffers to create for streaming response data</param>
-		/// <param name="BufferSize">Size of each buffer</param>
-		/// <param name="Logger">Logger for messages</param>
-		public NativePerforceConnection(IPerforceSettings Settings, int BufferCount, int BufferSize, ILogger Logger)
+		/// <param name="settings">Settings for the connection</param>
+		/// <param name="bufferCount">Number of buffers to create for streaming response data</param>
+		/// <param name="bufferSize">Size of each buffer</param>
+		/// <param name="logger">Logger for messages</param>
+		public NativePerforceConnection(IPerforceSettings settings, int bufferCount, int bufferSize, ILogger logger)
 		{
-			this.Settings = Settings;
-			this.Logger = Logger;
+			Settings = settings;
+			Logger = logger;
 
-			Buffers = new PinnedBuffer[BufferCount];
-			for (int Idx = 0; Idx < BufferCount; Idx++)
+			_buffers = new PinnedBuffer[bufferCount];
+			for (int idx = 0; idx < bufferCount; idx++)
 			{
-				Buffers[Idx] = new PinnedBuffer(BufferSize);
-				WriteBuffers.TryAdd(Buffers[Idx]);
+				_buffers[idx] = new PinnedBuffer(bufferSize);
+				_writeBuffers.TryAdd(_buffers[idx]);
 			}
 
-			OnBufferReadyInst = new OnBufferReadyFn(OnBufferReady);
-			OnBufferReadyFnPtr = Marshal.GetFunctionPointerForDelegate(OnBufferReadyInst);
+			_onBufferReadyInst = new OnBufferReadyFn(OnBufferReady);
+			_onBufferReadyFnPtr = Marshal.GetFunctionPointerForDelegate(_onBufferReadyInst);
 
-			ResponseCompleteEvent = new ManualResetEvent(false);
+			_responseCompleteEvent = new ManualResetEvent(false);
 
-			BackgroundThread = new Thread(BackgroundThreadProc);
-			BackgroundThread.Start();
+			_backgroundThread = new Thread(BackgroundThreadProc);
+			_backgroundThread.Start();
 		}
 
 		/// <summary>
 		/// Create an instance of the native client
 		/// </summary>
-		/// <param name="Settings"></param>
-		/// <param name="Logger"></param>
+		/// <param name="settings"></param>
+		/// <param name="logger"></param>
 		/// <returns></returns>
-		public static async Task<NativePerforceConnection> CreateAsync(IPerforceSettings Settings, ILogger Logger)
+		public static async Task<NativePerforceConnection> CreateAsync(IPerforceSettings settings, ILogger logger)
 		{
-			NativePerforceConnection Connection = new NativePerforceConnection(Settings, Logger);
-			await Connection.ConnectAsync();
-			return Connection;
+			NativePerforceConnection connection = new NativePerforceConnection(settings, logger);
+			await connection.ConnectAsync();
+			return connection;
 
 		}
 
-		void GetNextWriteBuffer(NativeWriteBuffer NativeWriteBuffer, int MinSize)
+		void GetNextWriteBuffer(NativeWriteBuffer nativeWriteBuffer, int minSize)
 		{
-			PinnedBuffer Buffer = WriteBuffers.Take();
-			if (Buffer.MaxLength < MinSize)
+			PinnedBuffer buffer = _writeBuffers.Take();
+			if (buffer.MaxLength < minSize)
 			{
-				Buffer.Resize(MinSize);
+				buffer.Resize(minSize);
 			}
 
-			NativeWriteBuffer.Data = Buffer.BasePtr;
-			NativeWriteBuffer.MaxLength = Buffer.Data.Length;
-			NativeWriteBuffer.MaxCount = int.MaxValue;
+			nativeWriteBuffer._data = buffer.BasePtr;
+			nativeWriteBuffer._maxLength = buffer.Data.Length;
+			nativeWriteBuffer._maxCount = int.MaxValue;
 		}
 
 		/// <summary>
@@ -352,30 +351,30 @@ namespace EpicGames.Perforce
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			if (BackgroundThread != null)
+			if (_backgroundThread != null)
 			{
-				Requests.Add(null);
-				Requests.CompleteAdding();
+				_requests.Add(null);
+				_requests.CompleteAdding();
 
-				BackgroundThread.Join();
-				BackgroundThread = null!;
+				_backgroundThread.Join();
+				_backgroundThread = null!;
 			}
 
-			Requests.Dispose();
+			_requests.Dispose();
 
-			if (Client != IntPtr.Zero)
+			if (_client != IntPtr.Zero)
 			{
-				Client_Destroy(Client);
-				Client = IntPtr.Zero;
+				Client_Destroy(_client);
+				_client = IntPtr.Zero;
 			}
 
-			WriteBuffers.Dispose();
+			_writeBuffers.Dispose();
 
-			ResponseCompleteEvent.Dispose();
+			_responseCompleteEvent.Dispose();
 
-			foreach (PinnedBuffer PinnedBuffer in Buffers)
+			foreach (PinnedBuffer pinnedBuffer in _buffers)
 			{
-				PinnedBuffer.Dispose();
+				pinnedBuffer.Dispose();
 			}
 
 			GC.SuppressFinalize(this);
@@ -386,10 +385,10 @@ namespace EpicGames.Perforce
 		/// </summary>
 		private async Task ConnectAsync()
 		{
-			PerforceError? Error = await TryConnectAsync();
-			if (Error != null)
+			PerforceError? error = await TryConnectAsync();
+			if (error != null)
 			{
-				throw new PerforceException(Error);
+				throw new PerforceException(error);
 			}
 		}
 
@@ -399,41 +398,41 @@ namespace EpicGames.Perforce
 		/// <returns>Error returned when attempting to connect</returns>
 		private async Task<PerforceError?> TryConnectAsync()
 		{
-			await using Response Response = new Response(this);
+			await using Response response = new Response(this);
 
-			NativeSettings? NativeSettings = null;
+			NativeSettings? nativeSettings = null;
 			if (Settings != null)
 			{
-				NativeSettings = new NativeSettings();
-				NativeSettings.ServerAndPort = Settings.ServerAndPort;
-				NativeSettings.UserName = Settings.UserName;
-				NativeSettings.Password = Settings.Password;
-				NativeSettings.ClientName = Settings.ClientName;
-				NativeSettings.AppName = Settings.AppName;
-				NativeSettings.AppVersion = Settings.AppVersion;
+				nativeSettings = new NativeSettings();
+				nativeSettings._serverAndPort = Settings.ServerAndPort;
+				nativeSettings._userName = Settings.UserName;
+				nativeSettings._password = Settings.Password;
+				nativeSettings._clientName = Settings.ClientName;
+				nativeSettings._appName = Settings.AppName;
+				nativeSettings._appVersion = Settings.AppVersion;
 			}
 
-			Requests.Add((() =>
+			_requests.Add((() =>
 			{
-				NativeWriteBuffer WriteBuffer = new NativeWriteBuffer();
-				GetNextWriteBuffer(WriteBuffer, 1);
-				Client = Client_Create(NativeSettings, WriteBuffer, OnBufferReadyFnPtr);
-			}, Response));
+				NativeWriteBuffer writeBuffer = new NativeWriteBuffer();
+				GetNextWriteBuffer(writeBuffer, 1);
+				_client = Client_Create(nativeSettings, writeBuffer, _onBufferReadyFnPtr);
+			}, response));
 
-			List<PerforceResponse> Records = await ((IPerforceOutput)Response).ReadResponsesAsync(null, default);
-			if (Records.Count != 1)
+			List<PerforceResponse> records = await ((IPerforceOutput)response).ReadResponsesAsync(null, default);
+			if (records.Count != 1)
 			{
 				throw new PerforceException("Expected at least one record to be returned from Init() call.");
 			}
 
-			PerforceError? Error = Records[0].Error;
-			if (Error == null)
+			PerforceError? error = records[0].Error;
+			if (error == null)
 			{
 				throw new PerforceException("Unexpected response from init call");
 			}
-			if (Error.Severity != PerforceSeverityCode.Empty)
+			if (error.Severity != PerforceSeverityCode.Empty)
 			{
-				return Error;
+				return error;
 			}
 			return null;
 		}
@@ -447,108 +446,108 @@ namespace EpicGames.Perforce
 		{
 			for (; ; )
 			{
-				(Action Action, Response Response)? Request = Requests.Take();
-				if (Request == null)
+				(Action Action, Response Response)? request = _requests.Take();
+				if (request == null)
 				{
 					break;
 				}
 
-				CurrentResponse = Request.Value.Response;
-				ResponseCompleteEvent.Reset();
+				_currentResponse = request.Value.Response;
+				_responseCompleteEvent.Reset();
 
-				Request.Value.Action();
+				request.Value.Action();
 
-				CurrentResponse.ReadBuffers.Writer.TryComplete();
-				ResponseCompleteEvent.WaitOne();
+				_currentResponse._readBuffers.Writer.TryComplete();
+				_responseCompleteEvent.WaitOne();
 
-				CurrentResponse = null;
+				_currentResponse = null;
 			}
 		}
 
 		/// <summary>
 		/// Callback for switching buffers
 		/// </summary>
-		/// <param name="ReadBuffer">The complete buffer</param>
-		/// <param name="WriteBuffer">Receives information about the next buffer to write to</param>
-		void OnBufferReady(NativeReadBuffer ReadBuffer, [In, Out] NativeWriteBuffer WriteBuffer)
+		/// <param name="readBuffer">The complete buffer</param>
+		/// <param name="writeBuffer">Receives information about the next buffer to write to</param>
+		void OnBufferReady(NativeReadBuffer readBuffer, [In, Out] NativeWriteBuffer writeBuffer)
 		{
-			PinnedBuffer Buffer = Buffers.First(x => x.BasePtr == ReadBuffer.Data);
-			CurrentResponse!.ReadBuffers.Writer.TryWrite((Buffer, ReadBuffer.Length)); // Unbounded; will always succeed
+			PinnedBuffer buffer = _buffers.First(x => x.BasePtr == readBuffer._data);
+			_currentResponse!._readBuffers.Writer.TryWrite((buffer, readBuffer._length)); // Unbounded; will always succeed
 
-			int NextWriteSize = 0;
-			if (ReadBuffer.Length == 0)
+			int nextWriteSize = 0;
+			if (readBuffer._length == 0)
 			{
-				NextWriteSize = ReadBuffer.MaxLength * 2;
+				nextWriteSize = readBuffer._maxLength * 2;
 			}
 
-			GetNextWriteBuffer(WriteBuffer, NextWriteSize);
+			GetNextWriteBuffer(writeBuffer, nextWriteSize);
 		}
 
 		/// <inheritdoc/>
-		public Task<IPerforceOutput> CommandAsync(string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData, bool InterceptIo)
+		public Task<IPerforceOutput> CommandAsync(string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments, byte[]? inputData, bool interceptIo)
 		{
-			byte[]? SpecData = null;
-			if (InputData != null)
+			byte[]? specData = null;
+			if (inputData != null)
 			{
-				SpecData = Encoding.UTF8.GetBytes(FormatSpec(InputData));
+				specData = Encoding.UTF8.GetBytes(FormatSpec(inputData));
 			}
 
-			List<string> AllArguments = new List<string>(Arguments);
-			if (FileArguments != null)
+			List<string> allArguments = new List<string>(arguments);
+			if (fileArguments != null)
 			{
-				AllArguments.AddRange(FileArguments);
+				allArguments.AddRange(fileArguments);
 			}
 
-			Response Response = new Response(this);
-			Requests.Add((() => Client_Command(Client, Command, AllArguments.Count, AllArguments.ToArray(), SpecData, SpecData?.Length ?? 0, InterceptIo), Response));
-			return Task.FromResult<IPerforceOutput>(Response);
+			Response response = new Response(this);
+			_requests.Add((() => Client_Command(_client, command, allArguments.Count, allArguments.ToArray(), specData, specData?.Length ?? 0, interceptIo), response));
+			return Task.FromResult<IPerforceOutput>(response);
 		}
 
 		/// <inheritdoc/>
-		public Task<IPerforceOutput> LoginCommandAsync(string Password, CancellationToken CancellationToken = default)
+		public Task<IPerforceOutput> LoginCommandAsync(string password, CancellationToken cancellationToken = default)
 		{
-			Response Response = new Response(this);
-			Requests.Add((() => Client_Login(Client, Password), Response), CancellationToken);
-			return Task.FromResult<IPerforceOutput>(Response);
+			Response response = new Response(this);
+			_requests.Add((() => Client_Login(_client, password), response), cancellationToken);
+			return Task.FromResult<IPerforceOutput>(response);
 		}
 
 		/// <summary>
 		/// Converts a Python marshalled data blob to a spec definition
 		/// </summary>
-		static string FormatSpec(byte[] InputData)
+		static string FormatSpec(byte[] inputData)
 		{
-			int Pos = 0;
+			int pos = 0;
 
-			List<KeyValuePair<Utf8String, PerforceValue>> Rows = new List<KeyValuePair<Utf8String, PerforceValue>>();
-			if (!PerforceOutputExtensions.ParseRecord(InputData, ref Pos, Rows))
+			List<KeyValuePair<Utf8String, PerforceValue>> rows = new List<KeyValuePair<Utf8String, PerforceValue>>();
+			if (!PerforceOutputExtensions.ParseRecord(inputData, ref pos, rows))
 			{
 				throw new PerforceException("Unable to parse input data as record");
 			}
-			if (Pos != InputData.Length)
+			if (pos != inputData.Length)
 			{
 				throw new PerforceException("Garbage after end of spec data");
 			}
 
-			StringBuilder Result = new StringBuilder();
-			foreach ((Utf8String Key, PerforceValue Value) in Rows)
+			StringBuilder result = new StringBuilder();
+			foreach ((Utf8String key, PerforceValue value) in rows)
 			{
-				string[] ValueLines = Value.ToString().Split('\n');
-				if (ValueLines.Length == 1)
+				string[] valueLines = value.ToString().Split('\n');
+				if (valueLines.Length == 1)
 				{
-					Result.AppendLine($"{Key}: {ValueLines[0]}");
+					result.AppendLine($"{key}: {valueLines[0]}");
 				}
 				else
 				{
-					Result.AppendLine($"{Key}:");
-					foreach (string ValueLine in ValueLines)
+					result.AppendLine($"{key}:");
+					foreach (string valueLine in valueLines)
 					{
-						Result.AppendLine($"\t{ValueLine}");
+						result.AppendLine($"\t{valueLine}");
 					}
 				}
-				Result.AppendLine();
+				result.AppendLine();
 			}
 
-			return Result.ToString();
+			return result.ToString();
 		}
 	}
 }

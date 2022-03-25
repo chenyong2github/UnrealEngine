@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Perforce.Managed
 {
@@ -24,43 +20,43 @@ namespace EpicGames.Perforce.Managed
 		public readonly ulong CacheId;
 		public readonly long Length;
 		public readonly long LastModifiedTicks;
-		public readonly bool bReadOnly;
+		public readonly bool BReadOnly;
 		public readonly uint SequenceNumber;
 
-		public CachedFileInfo(DirectoryReference CacheDir, FileContentId ContentId, ulong CacheId, long Length, long LastModifiedTicks, bool bReadOnly, uint SequenceNumber)
+		public CachedFileInfo(DirectoryReference cacheDir, FileContentId contentId, ulong cacheId, long length, long lastModifiedTicks, bool bReadOnly, uint sequenceNumber)
 		{
-			this.CacheDir = CacheDir;
-			this.ContentId = ContentId;
-			this.CacheId = CacheId;
-			this.Length = Length;
-			this.LastModifiedTicks = LastModifiedTicks;
-			this.bReadOnly = bReadOnly;
-			this.SequenceNumber = SequenceNumber;
+			CacheDir = cacheDir;
+			ContentId = contentId;
+			CacheId = cacheId;
+			Length = length;
+			LastModifiedTicks = lastModifiedTicks;
+			BReadOnly = bReadOnly;
+			SequenceNumber = sequenceNumber;
 		}
 
-		public bool CheckIntegrity(ILogger Logger)
+		public bool CheckIntegrity(ILogger logger)
 		{
-			FileReference Location = GetLocation();
+			FileReference location = GetLocation();
 
-			FileInfo Info = new FileInfo(Location.FullName);
-			if (!Info.Exists)
+			FileInfo info = new FileInfo(location.FullName);
+			if (!info.Exists)
 			{
-				Logger.LogWarning("warning: {0} was missing from cache.", Location);
+				logger.LogWarning("warning: {0} was missing from cache.", location);
 				return false;
 			}
-			if (Info.Length != Length)
+			if (info.Length != Length)
 			{
-				Logger.LogWarning("warning: {0} was {1:n} bytes; expected {2:n} bytes", Location, Info.Length, Length);
+				logger.LogWarning("warning: {0} was {1:n} bytes; expected {2:n} bytes", location, info.Length, Length);
 				return false;
 			}
-			if (Info.LastWriteTimeUtc.Ticks != LastModifiedTicks)
+			if (info.LastWriteTimeUtc.Ticks != LastModifiedTicks)
 			{
-				Logger.LogWarning("warning: {0} was last modified at {1}; expected {2}", Location, Info.LastWriteTimeUtc, new DateTime(LastModifiedTicks, DateTimeKind.Utc));
+				logger.LogWarning("warning: {0} was last modified at {1}; expected {2}", location, info.LastWriteTimeUtc, new DateTime(LastModifiedTicks, DateTimeKind.Utc));
 				return false;
 			}
-			if (Info.Attributes.HasFlag(FileAttributes.ReadOnly) != bReadOnly)
+			if (info.Attributes.HasFlag(FileAttributes.ReadOnly) != BReadOnly)
 			{
-				Logger.LogWarning("warning: {0} readonly flag is {1}; expected {2}", Info.Attributes.HasFlag(FileAttributes.ReadOnly), bReadOnly);
+				logger.LogWarning("warning: {0} readonly flag is {1}; expected {2}", info.Attributes.HasFlag(FileAttributes.ReadOnly), BReadOnly);
 				return false;
 			}
 
@@ -69,45 +65,45 @@ namespace EpicGames.Perforce.Managed
 
 		public FileReference GetLocation()
 		{
-			StringBuilder FullName = new StringBuilder(CacheDir.FullName);
-			FullName.Append(Path.DirectorySeparatorChar);
-			FullName.AppendFormat("{0:X}", (CacheId >> 60) & 0xf);
-			FullName.Append(Path.DirectorySeparatorChar);
-			FullName.AppendFormat("{0:X}", (CacheId >> 56) & 0xf);
-			FullName.Append(Path.DirectorySeparatorChar);
-			FullName.AppendFormat("{0:X}", (CacheId >> 62) & 0xf);
-			FullName.Append(Path.DirectorySeparatorChar);
-			FullName.AppendFormat("{0:X}", CacheId);
-			return new FileReference(FullName.ToString());
+			StringBuilder fullName = new StringBuilder(CacheDir.FullName);
+			fullName.Append(Path.DirectorySeparatorChar);
+			fullName.AppendFormat("{0:X}", (CacheId >> 60) & 0xf);
+			fullName.Append(Path.DirectorySeparatorChar);
+			fullName.AppendFormat("{0:X}", (CacheId >> 56) & 0xf);
+			fullName.Append(Path.DirectorySeparatorChar);
+			fullName.AppendFormat("{0:X}", (CacheId >> 62) & 0xf);
+			fullName.Append(Path.DirectorySeparatorChar);
+			fullName.AppendFormat("{0:X}", CacheId);
+			return new FileReference(fullName.ToString());
 		}
 	}
 
 	static class CachedFileInfoExtensions
 	{
-		public static CachedFileInfo ReadCachedFileInfo(this MemoryReader Reader, DirectoryReference CacheDir)
+		public static CachedFileInfo ReadCachedFileInfo(this MemoryReader reader, DirectoryReference cacheDir)
 		{
-			FileContentId ContentId = Reader.ReadFileContentId();
-			ulong CacheId = Reader.ReadUInt64();
-			long Length = Reader.ReadInt64();
-			long LastModifiedTicks = Reader.ReadInt64();
-			bool bReadOnly = Reader.ReadBoolean();
-			uint SequenceNumber = Reader.ReadUInt32();
-			return new CachedFileInfo(CacheDir, ContentId, CacheId, Length, LastModifiedTicks, bReadOnly, SequenceNumber);
+			FileContentId contentId = reader.ReadFileContentId();
+			ulong cacheId = reader.ReadUInt64();
+			long length = reader.ReadInt64();
+			long lastModifiedTicks = reader.ReadInt64();
+			bool bReadOnly = reader.ReadBoolean();
+			uint sequenceNumber = reader.ReadUInt32();
+			return new CachedFileInfo(cacheDir, contentId, cacheId, length, lastModifiedTicks, bReadOnly, sequenceNumber);
 		}
 
-		public static void WriteCachedFileInfo(this MemoryWriter Writer, CachedFileInfo FileInfo)
+		public static void WriteCachedFileInfo(this MemoryWriter writer, CachedFileInfo fileInfo)
 		{
-			Writer.WriteFileContentId(FileInfo.ContentId);
-			Writer.WriteUInt64(FileInfo.CacheId);
-			Writer.WriteInt64(FileInfo.Length);
-			Writer.WriteInt64(FileInfo.LastModifiedTicks);
-			Writer.WriteBoolean(FileInfo.bReadOnly);
-			Writer.WriteUInt32(FileInfo.SequenceNumber);
+			writer.WriteFileContentId(fileInfo.ContentId);
+			writer.WriteUInt64(fileInfo.CacheId);
+			writer.WriteInt64(fileInfo.Length);
+			writer.WriteInt64(fileInfo.LastModifiedTicks);
+			writer.WriteBoolean(fileInfo.BReadOnly);
+			writer.WriteUInt32(fileInfo.SequenceNumber);
 		}
 
-		public static int GetSerializedSize(this CachedFileInfo FileInfo)
+		public static int GetSerializedSize(this CachedFileInfo fileInfo)
 		{
-			return FileInfo.ContentId.GetSerializedSize() + sizeof(ulong) + sizeof(long) + sizeof(long) + sizeof(byte) + sizeof(uint);
+			return fileInfo.ContentId.GetSerializedSize() + sizeof(ulong) + sizeof(long) + sizeof(long) + sizeof(byte) + sizeof(uint);
 		}
 	}
 }

@@ -1,13 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace EpicGames.Perforce.Managed
 {
@@ -29,9 +22,9 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Lookup a directory by reference
 		/// </summary>
-		/// <param name="Ref">The reference</param>
+		/// <param name="ref">The reference</param>
 		/// <returns></returns>
-		public abstract StreamTree Lookup(StreamTreeRef Ref);
+		public abstract StreamTree Lookup(StreamTreeRef @ref);
 	}
 
 	/// <summary>
@@ -43,25 +36,25 @@ namespace EpicGames.Perforce.Managed
 		/// Get all the files in this directory
 		/// </summary>
 		/// <returns>List of files</returns>
-		public static List<StreamFile> GetFiles(this StreamSnapshot Snapshot)
+		public static List<StreamFile> GetFiles(this StreamSnapshot snapshot)
 		{
-			List<StreamFile> Files = new List<StreamFile>();
-			AppendFiles(Snapshot, Snapshot.Root, Files);
-			return Files;
+			List<StreamFile> files = new List<StreamFile>();
+			AppendFiles(snapshot, snapshot.Root, files);
+			return files;
 		}
 
 		/// <summary>
 		/// Append the contents of this directory and subdirectories to a list
 		/// </summary>
-		/// <param name="Files">List to append to</param>
-		static void AppendFiles(StreamSnapshot Snapshot, StreamTreeRef TreeRef, List<StreamFile> Files)
+		/// <param name="files">List to append to</param>
+		static void AppendFiles(StreamSnapshot snapshot, StreamTreeRef treeRef, List<StreamFile> files)
 		{
-			StreamTree DirectoryInfo = Snapshot.Lookup(TreeRef);
-			foreach (StreamTreeRef SubDirRef in DirectoryInfo.NameToTree.Values)
+			StreamTree directoryInfo = snapshot.Lookup(treeRef);
+			foreach (StreamTreeRef subDirRef in directoryInfo.NameToTree.Values)
 			{
-				AppendFiles(Snapshot, SubDirRef, Files);
+				AppendFiles(snapshot, subDirRef, files);
 			}
-			Files.AddRange(DirectoryInfo.NameToFile.Values);
+			files.AddRange(directoryInfo.NameToFile.Values);
 		}
 	}
 }

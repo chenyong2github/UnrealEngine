@@ -136,11 +136,11 @@ namespace EpicGames.BuildGraph
 			if (context.Options.TryGetValue(Name, out value))
 			{
 				int intValue;
-				if (!int.TryParse(value, out intValue))
+				if (!Int32.TryParse(value, out intValue))
 				{
 					throw new BgOptionValidationException($"Argument for '{Name}' is not a valid integer");
 				}
-				if (!ReferenceEquals(MinValue, null))
+				if (!(MinValue is null))
 				{
 					int intMinValue = MinValue.Compute(context);
 					if (intValue < intMinValue)
@@ -148,7 +148,7 @@ namespace EpicGames.BuildGraph
 						throw new BgOptionValidationException($"Argument for '{Name}' is less than the allowed minimum ({intValue} < {intMinValue})");
 					}
 				}
-				if (!ReferenceEquals(MaxValue, null))
+				if (!(MaxValue is null))
 				{
 					int intMaxValue = MaxValue.Compute(context);
 					if (intValue > intMaxValue)
@@ -257,7 +257,7 @@ namespace EpicGames.BuildGraph
 			string? value;
 			if (context.Options.TryGetValue(Name, out value))
 			{
-				if (!Object.ReferenceEquals(Pattern, null))
+				if (!(Pattern is null))
 				{
 					string patternValue = Pattern.Compute(context);
 					if (!Regex.IsMatch(value, patternValue))
@@ -266,7 +266,7 @@ namespace EpicGames.BuildGraph
 						throw new BgOptionValidationException(patternFailedValue);
 					}
 				}
-				if (!Object.ReferenceEquals(Enum, null))
+				if (!(Enum is null))
 				{
 					List<string> enumValues = Enum.Compute(context);
 					if (!enumValues.Any(x => x.Equals(value, StringComparison.OrdinalIgnoreCase)))

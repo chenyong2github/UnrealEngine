@@ -2,34 +2,32 @@
 
 using EpicGames.Core;
 using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Text;
 
 namespace EpicGames.Serialization.Converters
 {
 	class CbEnumConverter<T> : CbConverterBase<T>, ICbConverterMethods where T : Enum
 	{
-		Func<CbField, T> _readFunc;
-		Action<CbWriter, T> _writeFunc;
-		Action<CbWriter, Utf8String, T> _writeNamedFunc;
+		readonly Func<CbField, T> _readFunc;
+		readonly Action<CbWriter, T> _writeFunc;
+		readonly Action<CbWriter, Utf8String, T> _writeNamedFunc;
 
 		public CbEnumConverter()
 		{
 			Type type = typeof(T);
 
 			ReadMethod = new DynamicMethod($"Read_{type.Name}", type, new Type[] { typeof(CbField) });
-			CreateEnumReader(type, ReadMethod.GetILGenerator());
+			CreateEnumReader(ReadMethod.GetILGenerator());
 			_readFunc = (Func<CbField, T>)ReadMethod.CreateDelegate(typeof(Func<CbField, T>));
 
 			WriteMethod = new DynamicMethod($"Write_{type.Name}", null, new Type[] { typeof(CbWriter), type });
-			CreateEnumWriter(type, WriteMethod.GetILGenerator());
+			CreateEnumWriter(WriteMethod.GetILGenerator());
 			_writeFunc = (Action<CbWriter, T>)WriteMethod.CreateDelegate(typeof(Action<CbWriter, T>));
 
 			WriteNamedMethod = new DynamicMethod($"WriteNamed_{type.Name}", null, new Type[] { typeof(CbWriter), typeof(Utf8String), type });
-			CreateNamedEnumWriter(type, WriteNamedMethod.GetILGenerator());
+			CreateNamedEnumWriter(WriteNamedMethod.GetILGenerator());
 			_writeNamedFunc = (Action<CbWriter, Utf8String, T>)WriteNamedMethod.CreateDelegate(typeof(Action<CbWriter, Utf8String, T>));
 		}
 
@@ -48,14 +46,14 @@ namespace EpicGames.Serialization.Converters
 
 		public override void WriteNamed(CbWriter writer, Utf8String name, T value) => _writeNamedFunc(writer, name, value);
 
-		static void CreateEnumReader(Type type, ILGenerator generator)
+		static void CreateEnumReader(ILGenerator generator)
 		{
 			generator.Emit(OpCodes.Ldarg_0);
 			generator.EmitCall(OpCodes.Call, GetMethodInfo<CbField>(x => x.AsInt32()), null);
 			generator.Emit(OpCodes.Ret);
 		}
 
-		static void CreateEnumWriter(Type type, ILGenerator generator)
+		static void CreateEnumWriter(ILGenerator generator)
 		{
 			generator.Emit(OpCodes.Ldarg_1);
 
@@ -71,7 +69,7 @@ namespace EpicGames.Serialization.Converters
 			generator.Emit(OpCodes.Ret);
 		}
 
-		static void CreateNamedEnumWriter(Type type, ILGenerator generator)
+		static void CreateNamedEnumWriter(ILGenerator generator)
 		{
 			generator.Emit(OpCodes.Ldarg_2);
 

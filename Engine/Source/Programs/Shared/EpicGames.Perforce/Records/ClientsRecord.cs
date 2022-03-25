@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Perforce
 {
@@ -83,7 +79,7 @@ namespace EpicGames.Perforce
 		/// The edge server ID
 		/// </summary>
 		[PerforceTag("ServerID", Optional = true)]
-		public string? ServerID { get; set; }
+		public string? ServerId { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization

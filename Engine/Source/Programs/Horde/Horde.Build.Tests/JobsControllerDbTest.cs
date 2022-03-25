@@ -21,7 +21,7 @@ namespace Horde.Build.Tests
         [TestMethod]
         public async Task GetJobs()
         {
-			Fixture fixture = await CreateFixtureAsync();
+			await CreateFixtureAsync();
 
 			ActionResult<List<object>> res = await JobsController.FindJobsAsync();
 	        Assert.AreEqual(2, res.Value!.Count);
@@ -48,8 +48,8 @@ namespace Horde.Build.Tests
 	        
 	        UpdateStepRequest updateReq = new UpdateStepRequest();
 	        updateReq.AbortRequested = true;
-	        obj = (await JobsController.UpdateStepAsync(job.Id, batchId, stepId, updateReq)).Value!;
-	        UpdateStepResponse updateRes = (obj as UpdateStepResponse)!;
+			await JobsController.UpdateStepAsync(job.Id, batchId, stepId, updateReq);
+//	        UpdateStepResponse updateRes = (obj as UpdateStepResponse)!;
 	        
 	        obj = (await JobsController.GetStepAsync(job.Id, batchId, stepId)).Value!;
 	        stepRes = (obj as GetStepResponse)!;

@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace EpicGames.Perforce
@@ -21,27 +19,21 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Data">The response data</param>
-		public PerforceResponse(object Data)
+		/// <param name="data">The response data</param>
+		public PerforceResponse(object data)
 		{
-			this.InternalData = Data;
+			InternalData = data;
 		}
 
 		/// <summary>
 		/// True if the response is successful
 		/// </summary>
-		public bool Succeeded
-		{
-			get { return !(InternalData is PerforceError); }
-		}
+		public bool Succeeded => !(InternalData is PerforceError);
 
 		/// <summary>
 		/// True if the response is an error
 		/// </summary>
-		public bool Failed
-		{
-			get { return InternalData is PerforceError; }
-		}
+		public bool Failed => InternalData is PerforceError;
 
 		/// <summary>
 		/// Accessor for the succcessful response data. Throws an exception if the response is an error.
@@ -58,36 +50,27 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Returns the info data.
 		/// </summary>
-		public PerforceInfo? Info
-		{
-			get { return InternalData as PerforceInfo; }
-		}
+		public PerforceInfo? Info => InternalData as PerforceInfo;
 
 		/// <summary>
 		/// Returns the error data, or null if this is a succesful response.
 		/// </summary>
-		public PerforceError? Error
-		{
-			get { return InternalData as PerforceError; }
-		}
+		public PerforceError? Error => InternalData as PerforceError;
 
 		/// <summary>
 		/// Returns the io data, or null if this is a regular response.
 		/// </summary>
-		public PerforceIo? Io
-		{
-			get { return InternalData as PerforceIo; }
-		}
+		public PerforceIo? Io => InternalData as PerforceIo;
 
 		/// <summary>
 		/// Throws an exception if the response is an error
 		/// </summary>
 		public void EnsureSuccess()
 		{
-			PerforceError? Error = InternalData as PerforceError;
-			if(Error != null)
+			PerforceError? error = InternalData as PerforceError;
+			if (error != null)
 			{
-				throw new PerforceException(Error);
+				throw new PerforceException(error);
 			}
 		}
 
@@ -111,36 +94,36 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Data">The successful response data</param>
-		public PerforceResponse(T Data)
-			: base(Data)
+		/// <param name="data">The successful response data</param>
+		public PerforceResponse(T data)
+			: base(data)
 		{
 		}
-		
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Info">The info data</param>
-		public PerforceResponse(PerforceInfo Info)
-			: base(Info)
+		/// <param name="info">The info data</param>
+		public PerforceResponse(PerforceInfo info)
+			: base(info)
 		{
 		}
-		
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Error">The error data</param>
-		public PerforceResponse(PerforceError Error)
-			: base(Error)
+		/// <param name="error">The error data</param>
+		public PerforceResponse(PerforceError error)
+			: base(error)
 		{
 		}
 
 		/// <summary>
 		/// Construct a typed response from an untyped response
 		/// </summary>
-		/// <param name="UntypedResponse">The untyped response</param>
-		public PerforceResponse(PerforceResponse UntypedResponse)
-			: base(UntypedResponse.Error ?? UntypedResponse.Info ?? (object)(T)UntypedResponse.Data)
+		/// <param name="untypedResponse">The untyped response</param>
+		public PerforceResponse(PerforceResponse untypedResponse)
+			: base(untypedResponse.Error ?? untypedResponse.Info ?? (object)(T)untypedResponse.Data)
 		{
 
 		}
@@ -152,14 +135,14 @@ namespace EpicGames.Perforce
 		{
 			get
 			{
-				T? Result = InternalData as T;
-				if (Result == null)
+				T? result = InternalData as T;
+				if (result == null)
 				{
 					if (InternalData is PerforceInfo)
 					{
 						throw new PerforceException($"Expected record of type '{typeof(T).Name}', got info: {InternalData}");
 					}
-					else if(InternalData is PerforceError)
+					else if (InternalData is PerforceError)
 					{
 						throw new PerforceException($"{InternalData}");
 					}
@@ -168,7 +151,7 @@ namespace EpicGames.Perforce
 						throw new PerforceException($"Expected record of type '{typeof(T).Name}', got: {InternalData}");
 					}
 				}
-				return Result;
+				return result;
 			}
 		}
 	}
@@ -181,22 +164,22 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Whether all responses in this list are successful
 		/// </summary>
-		public static bool Succeeded<T>(this IEnumerable<PerforceResponse<T>> Responses) where T : class
+		public static bool Succeeded<T>(this IEnumerable<PerforceResponse<T>> responses) where T : class
 		{
-			return Responses.All(x => x.Succeeded);
+			return responses.All(x => x.Succeeded);
 		}
 
 		/// <summary>
 		/// Sequence of all the error responses.
 		/// </summary>
-		public static IEnumerable<PerforceError> GetErrors<T>(this IEnumerable<PerforceResponse<T>> Responses) where T : class
+		public static IEnumerable<PerforceError> GetErrors<T>(this IEnumerable<PerforceResponse<T>> responses) where T : class
 		{
-			foreach (PerforceResponse<T> Response in Responses)
+			foreach (PerforceResponse<T> response in responses)
 			{
-				PerforceError? Error = Response.Error;
-				if (Error != null)
+				PerforceError? error = response.Error;
+				if (error != null)
 				{
-					yield return Error;
+					yield return error;
 				}
 			}
 		}
@@ -204,20 +187,20 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Throws an exception if any response is an error
 		/// </summary>
-		public static void EnsureSuccess<T>(this IEnumerable<PerforceResponse<T>> Responses) where T : class
+		public static void EnsureSuccess<T>(this IEnumerable<PerforceResponse<T>> responses) where T : class
 		{
-			foreach (PerforceResponse<T> Response in Responses)
+			foreach (PerforceResponse<T> response in responses)
 			{
-				Response.EnsureSuccess();
+				response.EnsureSuccess();
 			}
 		}
 
 		/// <summary>
 		/// Unwrap a task returning a response object
 		/// </summary>
-		public static async Task<T> UnwrapAsync<T>(this Task<PerforceResponse<T>> Response) where T : class
+		public static async Task<T> UnwrapAsync<T>(this Task<PerforceResponse<T>> response) where T : class
 		{
-			return (await Response).Data;
+			return (await response).Data;
 		}
 	}
 }

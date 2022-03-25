@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
-using System.Buffers.Binary;
 using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -12,6 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 
 namespace EpicGames.Perforce
 {
@@ -29,13 +28,13 @@ namespace EpicGames.Perforce
 		/// Waits until more data has been read into the buffer. 
 		/// </summary>
 		/// <returns>True if more data was read, false otherwise</returns>
-		Task<bool> ReadAsync(CancellationToken Token);
+		Task<bool> ReadAsync(CancellationToken token);
 
 		/// <summary>
 		/// Discard bytes from the start of the result buffer
 		/// </summary>
-		/// <param name="NumBytes">Number of bytes to discard</param>
-		void Discard(int NumBytes);
+		/// <param name="numBytes">Number of bytes to discard</param>
+		void Discard(int numBytes);
 	}
 
 	/// <summary>
@@ -58,356 +57,350 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Standard prefix for a returned record: record indicator, string, 4 bytes, 'code', string, [value]
 		/// </summary>
-		static readonly byte[] RecordPrefix = { (byte)'{', (byte)'s', 4, 0, 0, 0, (byte)'c', (byte)'o', (byte)'d', (byte)'e', (byte)'s' };
+		static readonly byte[] s_recordPrefix = { (byte)'{', (byte)'s', 4, 0, 0, 0, (byte)'c', (byte)'o', (byte)'d', (byte)'e', (byte)'s' };
 
 		/// <summary>
 		/// Formats the current contents of the buffer to a string
 		/// </summary>
-		/// <param name="Data">The next byte that was read</param>
+		/// <param name="data">The next byte that was read</param>
 		/// <returns>String representation of the buffer</returns>
-		private static string FormatDataAsString(ReadOnlySpan<byte> Data)
+		private static string FormatDataAsString(ReadOnlySpan<byte> data)
 		{
-			StringBuilder Result = new StringBuilder();
-			if (Data.Length > 0)
+			StringBuilder result = new StringBuilder();
+			if (data.Length > 0)
 			{
-				for (int Idx = 0; Idx < Data.Length && Idx < 1024;)
+				for (int idx = 0; idx < data.Length && idx < 1024;)
 				{
-					Result.Append("\n   ");
+					result.Append("\n   ");
 
 					// Output to the end of the line
-					for (; Idx < Data.Length && Idx < 1024 && Data[Idx] != '\r' && Data[Idx] != '\n'; Idx++)
+					for (; idx < data.Length && idx < 1024 && data[idx] != '\r' && data[idx] != '\n'; idx++)
 					{
-						if (Data[Idx] == '\t')
+						if (data[idx] == '\t')
 						{
-							Result.Append('\t');
+							result.Append('\t');
 						}
-						else if (Data[Idx] == '\\')
+						else if (data[idx] == '\\')
 						{
-							Result.Append('\\');
+							result.Append('\\');
 						}
-						else if (Data[Idx] >= 0x20 && Data[Idx] <= 0x7f)
+						else if (data[idx] >= 0x20 && data[idx] <= 0x7f)
 						{
-							Result.Append((char)Data[Idx]);
+							result.Append((char)data[idx]);
 						}
 						else
 						{
-							Result.AppendFormat("\\x{0:x2}", Data[Idx]);
+							result.AppendFormat("\\x{0:x2}", data[idx]);
 						}
 					}
 
 					// Skip the newline characters
-					if (Idx < Data.Length && Data[Idx] == '\r')
+					if (idx < data.Length && data[idx] == '\r')
 					{
-						Idx++;
+						idx++;
 					}
-					if (Idx < Data.Length && Data[Idx] == '\n')
+					if (idx < data.Length && data[idx] == '\n')
 					{
-						Idx++;
+						idx++;
 					}
 				}
 			}
-			return Result.ToString();
+			return result.ToString();
 		}
 
 		/// <summary>
 		/// Formats the current contents of the buffer to a string
 		/// </summary>
-		/// <param name="Data">The data to format</param>
-		/// <param name="MaxLength"></param>
+		/// <param name="data">The data to format</param>
+		/// <param name="maxLength"></param>
 		/// <returns>String representation of the buffer</returns>
-		private static string FormatDataAsHexDump(ReadOnlySpan<byte> Data, int MaxLength = 1024)
+		private static string FormatDataAsHexDump(ReadOnlySpan<byte> data, int maxLength = 1024)
 		{
 			// Format the result
-			StringBuilder Result = new StringBuilder();
+			StringBuilder result = new StringBuilder();
 
 			const int RowLength = 16;
-			for (int BaseIdx = 0; BaseIdx < Data.Length && BaseIdx < MaxLength; BaseIdx += RowLength)
+			for (int baseIdx = 0; baseIdx < data.Length && baseIdx < maxLength; baseIdx += RowLength)
 			{
-				Result.Append("\n    ");
-				for (int Offset = 0; Offset < RowLength; Offset++)
+				result.Append("\n    ");
+				for (int offset = 0; offset < RowLength; offset++)
 				{
-					int Idx = BaseIdx + Offset;
-					if (Idx >= Data.Length)
+					int idx = baseIdx + offset;
+					if (idx >= data.Length)
 					{
-						Result.Append("   ");
+						result.Append("   ");
 					}
 					else
 					{
-						Result.AppendFormat("{0:x2} ", Data[Idx]);
+						result.AppendFormat("{0:x2} ", data[idx]);
 					}
 				}
-				Result.Append("   ");
-				for (int Offset = 0; Offset < RowLength; Offset++)
+				result.Append("   ");
+				for (int offset = 0; offset < RowLength; offset++)
 				{
-					int Idx = BaseIdx + Offset;
-					if (Idx >= Data.Length)
+					int idx = baseIdx + offset;
+					if (idx >= data.Length)
 					{
 						break;
 					}
-					else if (Data[Idx] < 0x20 || Data[Idx] >= 0x7f)
+					else if (data[idx] < 0x20 || data[idx] >= 0x7f)
 					{
-						Result.Append('.');
+						result.Append('.');
 					}
 					else
 					{
-						Result.Append((char)Data[Idx]);
+						result.Append((char)data[idx]);
 					}
 				}
 			}
-			return Result.ToString();
+			return result.ToString();
 		}
 
 		/// <summary>
 		/// Read a list of responses from the child process
 		/// </summary>
-		/// <param name="Perforce">The response to read from</param>
-		/// <param name="StatRecordType">The type of stat record to parse</param>
-		/// <param name="CancellationToken">Cancellation token for the read</param>
+		/// <param name="perforce">The response to read from</param>
+		/// <param name="statRecordType">The type of stat record to parse</param>
+		/// <param name="cancellationToken">Cancellation token for the read</param>
 		/// <returns>Async task</returns>
-		public static async IAsyncEnumerable<PerforceResponse> ReadStreamingResponsesAsync(this IPerforceOutput Perforce, Type? StatRecordType, [EnumeratorCancellation] CancellationToken CancellationToken)
+		public static async IAsyncEnumerable<PerforceResponse> ReadStreamingResponsesAsync(this IPerforceOutput perforce, Type? statRecordType, [EnumeratorCancellation] CancellationToken cancellationToken)
 		{
-			CachedRecordInfo? StatRecordInfo = (StatRecordType == null) ? null : PerforceReflection.GetCachedRecordInfo(StatRecordType);
+			CachedRecordInfo? statRecordInfo = (statRecordType == null) ? null : PerforceReflection.GetCachedRecordInfo(statRecordType);
 
-			List<PerforceResponse> Responses = new List<PerforceResponse>();
+			List<PerforceResponse> responses = new List<PerforceResponse>();
 
 			// Read all the records into a list
-			long ParsedLen = 0;
-			long MaxParsedLen = 0;
-			while (await Perforce.ReadAsync(CancellationToken))
+			long parsedLen = 0;
+			long maxParsedLen = 0;
+			while (await perforce.ReadAsync(cancellationToken))
 			{
 				// Check for the whole message not being a marshalled python object, and produce a better response in that scenario
-				ReadOnlyMemory<byte> Data = Perforce.Data;
-				if (Data.Length > 0 && Responses.Count == 0 && Data.Span[0] != '{')
+				ReadOnlyMemory<byte> data = perforce.Data;
+				if (data.Length > 0 && responses.Count == 0 && data.Span[0] != '{')
 				{
-					throw new PerforceException("Unexpected response from server (expected '{'):{0}", FormatDataAsString(Data.Span));
+					throw new PerforceException("Unexpected response from server (expected '{'):{0}", FormatDataAsString(data.Span));
 				}
 
 				// Parse the responses from the current buffer
-				int BufferPos = 0;
+				int bufferPos = 0;
 				for (; ; )
 				{
-					int NewBufferPos = BufferPos;
-					if (!TryReadResponse(Data, ref NewBufferPos, StatRecordInfo, out PerforceResponse? Response))
+					int newBufferPos = bufferPos;
+					if (!TryReadResponse(data, ref newBufferPos, statRecordInfo, out PerforceResponse? response))
 					{
-						MaxParsedLen = ParsedLen + NewBufferPos;
+						maxParsedLen = parsedLen + newBufferPos;
 						break;
 					}
-					if (Response.Error == null || Response.Error.Generic != PerforceGenericCode.Empty)
+					if (response.Error == null || response.Error.Generic != PerforceGenericCode.Empty)
 					{
-						yield return Response;
+						yield return response;
 					}
-					BufferPos = NewBufferPos;
+					bufferPos = newBufferPos;
 				}
 
 				// Discard all the data that we've processed
-				Perforce.Discard(BufferPos);
-				ParsedLen += BufferPos;
+				perforce.Discard(bufferPos);
+				parsedLen += bufferPos;
 			}
 
 			// If the stream is complete but we couldn't parse a response from the server, treat it as an error
-			if (Perforce.Data.Length > 0)
+			if (perforce.Data.Length > 0)
 			{
-				long DumpOffset = Math.Max(MaxParsedLen - 32, ParsedLen);
-				int SliceOffset = (int)(DumpOffset - ParsedLen);
-				string StrDump = FormatDataAsString(Perforce.Data.Span.Slice(SliceOffset));
-				string HexDump = FormatDataAsHexDump(Perforce.Data.Span.Slice(SliceOffset, Math.Min(1024, Perforce.Data.Length - SliceOffset)));
-				throw new PerforceException("Unparsable data at offset {0}+{1}/{2}.\nString data from offset {3}:{4}\nHex data from offset {3}:{5}", ParsedLen, MaxParsedLen - ParsedLen, ParsedLen + Perforce.Data.Length, DumpOffset, StrDump, HexDump);
+				long dumpOffset = Math.Max(maxParsedLen - 32, parsedLen);
+				int sliceOffset = (int)(dumpOffset - parsedLen);
+				string strDump = FormatDataAsString(perforce.Data.Span.Slice(sliceOffset));
+				string hexDump = FormatDataAsHexDump(perforce.Data.Span.Slice(sliceOffset, Math.Min(1024, perforce.Data.Length - sliceOffset)));
+				throw new PerforceException("Unparsable data at offset {0}+{1}/{2}.\nString data from offset {3}:{4}\nHex data from offset {3}:{5}", parsedLen, maxParsedLen - parsedLen, parsedLen + perforce.Data.Length, dumpOffset, strDump, hexDump);
 			}
 		}
 
 		/// <summary>
 		/// Read a list of responses from the child process
 		/// </summary>
-		/// <param name="Perforce">The response to read from</param>
-		/// <param name="StatRecordType">The type of stat record to parse</param>
-		/// <param name="CancellationToken">Cancellation token for the read</param>
+		/// <param name="perforce">The response to read from</param>
+		/// <param name="statRecordType">The type of stat record to parse</param>
+		/// <param name="cancellationToken">Cancellation token for the read</param>
 		/// <returns>Async task</returns>
-		public static async Task<List<PerforceResponse>> ReadResponsesAsync(this IPerforceOutput Perforce, Type? StatRecordType, CancellationToken CancellationToken)
+		public static async Task<List<PerforceResponse>> ReadResponsesAsync(this IPerforceOutput perforce, Type? statRecordType, CancellationToken cancellationToken)
 		{
-			CachedRecordInfo? StatRecordInfo = (StatRecordType == null) ? null : PerforceReflection.GetCachedRecordInfo(StatRecordType);
+			CachedRecordInfo? statRecordInfo = (statRecordType == null) ? null : PerforceReflection.GetCachedRecordInfo(statRecordType);
 
-			List<PerforceResponse> Responses = new List<PerforceResponse>();
+			List<PerforceResponse> responses = new List<PerforceResponse>();
 
 			// Read all the records into a list
-			long MaxParsedLen;
-			for(; ;)
+			long maxParsedLen;
+			for (; ; )
 			{
 				// Check for the whole message not being a marshalled python object, and produce a better response in that scenario
-				ReadOnlyMemory<byte> Data = Perforce.Data;
-				if (Data.Length > 0 && Responses.Count == 0 && Data.Span[0] != '{')
+				ReadOnlyMemory<byte> data = perforce.Data;
+				if (data.Length > 0 && responses.Count == 0 && data.Span[0] != '{')
 				{
-					throw new PerforceException("Unexpected response from server (expected '{'):{0}", FormatDataAsString(Data.Span));
+					throw new PerforceException("Unexpected response from server (expected '{'):{0}", FormatDataAsString(data.Span));
 				}
 
-				// Reset the max parsed length. This will be measured against the current buffer position.
-				MaxParsedLen = 0;
-
 				// Parse the responses from the current buffer
-				int BufferPos = 0;
+				int bufferPos = 0;
 				for (; ; )
 				{
-					int NewBufferPos = BufferPos;
-					if (!TryReadResponse(Data, ref NewBufferPos, StatRecordInfo, out PerforceResponse? Response))
+					int newBufferPos = bufferPos;
+					if (!TryReadResponse(data, ref newBufferPos, statRecordInfo, out PerforceResponse? response))
 					{
-						MaxParsedLen = NewBufferPos;
+						maxParsedLen = newBufferPos;
 						break;
 					}
-					if (Response.Error == null || Response.Error.Generic != PerforceGenericCode.Empty)
+					if (response.Error == null || response.Error.Generic != PerforceGenericCode.Empty)
 					{
-						Responses.Add(Response);
+						responses.Add(response);
 					}
-					BufferPos = NewBufferPos;
+					bufferPos = newBufferPos;
 				}
 
 				// Discard all the data that we've processed
-				Perforce.Discard(BufferPos);
-				MaxParsedLen -= BufferPos;
+				perforce.Discard(bufferPos);
+				maxParsedLen -= bufferPos;
 
 				// Try to read more data into the buffer
-				if (!await Perforce.ReadAsync(CancellationToken))
+				if (!await perforce.ReadAsync(cancellationToken))
 				{
 					break;
 				}
 			}
 
 			// If the stream is complete but we couldn't parse a response from the server, treat it as an error
-			if (Perforce.Data.Length > 0)
+			if (perforce.Data.Length > 0)
 			{
-				int SliceOffset = (int)Math.Max(MaxParsedLen - 32, 0);
-				string StrDump = FormatDataAsString(Perforce.Data.Span.Slice(SliceOffset));
-				string HexDump = FormatDataAsHexDump(Perforce.Data.Span.Slice(SliceOffset, Math.Min(1024, Perforce.Data.Length - SliceOffset)));
-				throw new PerforceException("Unparsable data at offset {0}.\nString data from offset {1}:{2}\nHex data from offset {1}:{3}", MaxParsedLen, SliceOffset, StrDump, HexDump);
+				int sliceOffset = (int)Math.Max(maxParsedLen - 32, 0);
+				string strDump = FormatDataAsString(perforce.Data.Span.Slice(sliceOffset));
+				string hexDump = FormatDataAsHexDump(perforce.Data.Span.Slice(sliceOffset, Math.Min(1024, perforce.Data.Length - sliceOffset)));
+				throw new PerforceException("Unparsable data at offset {0}.\nString data from offset {1}:{2}\nHex data from offset {1}:{3}", maxParsedLen, sliceOffset, strDump, hexDump);
 			}
 
-			return Responses;
+			return responses;
 		}
 
 		/// <summary>
 		/// Read a list of responses from the child process
 		/// </summary>
-		/// <param name="Perforce">The Perforce response</param>
-		/// <param name="HandleRecord">Delegate to invoke for each record read</param>
-		/// <param name="CancellationToken">Cancellation token for the read</param>
+		/// <param name="perforce">The Perforce response</param>
+		/// <param name="handleRecord">Delegate to invoke for each record read</param>
+		/// <param name="cancellationToken">Cancellation token for the read</param>
 		/// <returns>Async task</returns>
-		public static async Task ReadRecordsAsync(this IPerforceOutput Perforce, Action<PerforceRecord> HandleRecord, CancellationToken CancellationToken)
+		public static async Task ReadRecordsAsync(this IPerforceOutput perforce, Action<PerforceRecord> handleRecord, CancellationToken cancellationToken)
 		{
-			PerforceRecord Record = new PerforceRecord();
-			while (await Perforce.ReadAsync(CancellationToken))
+			PerforceRecord record = new PerforceRecord();
+			while (await perforce.ReadAsync(cancellationToken))
 			{
 				// Start a read to add more data
-				ReadOnlyMemory<byte> Data = Perforce.Data;
+				ReadOnlyMemory<byte> data = perforce.Data;
 
 				// Parse the responses from the current buffer
-				int BufferPos = 0;
+				int bufferPos = 0;
 				for (; ; )
 				{
-					int InitialBufferPos = BufferPos;
-					if (!ParseRecord(Data, ref BufferPos, Record.Rows))
+					int initialBufferPos = bufferPos;
+					if (!ParseRecord(data, ref bufferPos, record.Rows))
 					{
-						BufferPos = InitialBufferPos;
+						bufferPos = initialBufferPos;
 						break;
 					}
-					HandleRecord(Record);
+					handleRecord(record);
 				}
-				Perforce.Discard(BufferPos);
+				perforce.Discard(bufferPos);
 			}
 
 			// If the stream is complete but we couldn't parse a response from the server, treat it as an error
-			if (Perforce.Data.Length > 0)
+			if (perforce.Data.Length > 0)
 			{
-				throw new PerforceException("Unexpected trailing response data from server:{0}", FormatDataAsString(Perforce.Data.Span));
+				throw new PerforceException("Unexpected trailing response data from server:{0}", FormatDataAsString(perforce.Data.Span));
 			}
 		}
 
 		/// <summary>
 		/// Reads from the buffer into a record object
 		/// </summary>
-		/// <param name="Buffer">The buffer to read from</param>
-		/// <param name="BufferPos">Current read position within the buffer</param>
-		/// <param name="Rows">List of rows to read into</param>
+		/// <param name="buffer">The buffer to read from</param>
+		/// <param name="bufferPos">Current read position within the buffer</param>
+		/// <param name="rows">List of rows to read into</param>
 		/// <returns>True if a record could be read; false if more data is required</returns>
 		[SuppressMessage("Design", "CA1045:Do not pass types by reference", Justification = "<Pending>")]
-		public static bool ParseRecord(ReadOnlyMemory<byte> Buffer, ref int BufferPos, List<KeyValuePair<Utf8String, PerforceValue>> Rows)
+		public static bool ParseRecord(ReadOnlyMemory<byte> buffer, ref int bufferPos, List<KeyValuePair<Utf8String, PerforceValue>> rows)
 		{
-			Rows.Clear();
-			ReadOnlySpan<byte> BufferSpan = Buffer.Span;
+			rows.Clear();
+			ReadOnlySpan<byte> bufferSpan = buffer.Span;
 
 			// Check we can read the initial record marker
-			if (BufferPos >= Buffer.Length)
+			if (bufferPos >= buffer.Length)
 			{
 				return false;
 			}
-			if (BufferSpan[BufferPos] != '{')
+			if (bufferSpan[bufferPos] != '{')
 			{
 				throw new PerforceException("Invalid record start");
 			}
-			BufferPos++;
+			bufferPos++;
 
 			// Capture the start of the string
-			int StartPos = BufferPos;
 			for (; ; )
 			{
 				// Check that we've got a string field
-				if (BufferPos >= Buffer.Length)
+				if (bufferPos >= buffer.Length)
 				{
 					return false;
 				}
 
 				// If this is the end of the record, break out
-				byte KeyType = Buffer.Span[BufferPos++];
-				if (KeyType == '0')
+				byte keyType = buffer.Span[bufferPos++];
+				if (keyType == '0')
 				{
 					break;
 				}
-				else if (KeyType != 's')
+				else if (keyType != 's')
 				{
-					throw new PerforceException("Unexpected key field type while parsing marshalled output ({0}) - expected 's', got: {1}", (int)KeyType, FormatDataAsHexDump(Buffer.Slice(BufferPos - 1).Span));
+					throw new PerforceException("Unexpected key field type while parsing marshalled output ({0}) - expected 's', got: {1}", (int)keyType, FormatDataAsHexDump(buffer.Slice(bufferPos - 1).Span));
 				}
 
 				// Read the tag
-				Utf8String Key;
-				if (!TryReadString(Buffer, ref BufferPos, out Key))
+				Utf8String key;
+				if (!TryReadString(buffer, ref bufferPos, out key))
 				{
 					return false;
 				}
 
 				// Remember the start of the value
-				int ValueOffset = BufferPos;
+				int valueOffset = bufferPos;
 
 				// Read the value type
-				byte ValueType;
-				if (!TryReadByte(BufferSpan, ref BufferPos, out ValueType))
+				byte valueType;
+				if (!TryReadByte(bufferSpan, ref bufferPos, out valueType))
 				{
 					return false;
 				}
 
 				// Parse the appropriate value
-				PerforceValue Value;
-				if (ValueType == 's')
+				PerforceValue value;
+				if (valueType == 's')
 				{
-					Utf8String String;
-					if (!TryReadString(Buffer, ref BufferPos, out String))
+					if (!TryReadString(buffer, ref bufferPos, out _))
 					{
 						return false;
 					}
-					Value = new PerforceValue(Buffer.Slice(ValueOffset, BufferPos - ValueOffset).ToArray());
+					value = new PerforceValue(buffer.Slice(valueOffset, bufferPos - valueOffset).ToArray());
 				}
-				else if (ValueType == 'i')
+				else if (valueType == 'i')
 				{
-					int Integer;
-					if (!TryReadInt(BufferSpan, ref BufferPos, out Integer))
+					if (!TryReadInt(bufferSpan, ref bufferPos, out _))
 					{
 						return false;
 					}
-					Value = new PerforceValue(Buffer.Slice(ValueOffset, BufferPos - ValueOffset).ToArray());
+					value = new PerforceValue(buffer.Slice(valueOffset, bufferPos - valueOffset).ToArray());
 				}
 				else
 				{
-					throw new PerforceException("Unrecognized value type {0}", ValueType);
+					throw new PerforceException("Unrecognized value type {0}", valueType);
 				}
 
 				// Construct the response object with the record
-				Rows.Add(KeyValuePair.Create(Key.Clone(), Value));
+				rows.Add(KeyValuePair.Create(key.Clone(), value));
 			}
 			return true;
 		}
@@ -415,224 +408,224 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Reads a response object from the buffer
 		/// </summary>
-		/// <param name="Buffer">The buffer to read from</param>
-		/// <param name="BufferPos">Current read position within the buffer</param>
-		/// <param name="StatRecordInfo">The type of record expected to parse from the response</param>
-		/// <param name="Response">Receives the response object on success</param>
+		/// <param name="buffer">The buffer to read from</param>
+		/// <param name="bufferPos">Current read position within the buffer</param>
+		/// <param name="statRecordInfo">The type of record expected to parse from the response</param>
+		/// <param name="response">Receives the response object on success</param>
 		/// <returns>True if a response was read, false if the buffer needs more data</returns>
-		static bool TryReadResponse(ReadOnlyMemory<byte> Buffer, ref int BufferPos, CachedRecordInfo? StatRecordInfo, [NotNullWhen(true)] out PerforceResponse? Response)
+		static bool TryReadResponse(ReadOnlyMemory<byte> buffer, ref int bufferPos, CachedRecordInfo? statRecordInfo, [NotNullWhen(true)] out PerforceResponse? response)
 		{
-			if (BufferPos + RecordPrefix.Length + 4 > Buffer.Length)
+			if (bufferPos + s_recordPrefix.Length + 4 > buffer.Length)
 			{
-				Response = null;
+				response = null;
 				return false;
 			}
 
-			ReadOnlyMemory<byte> Prefix = Buffer.Slice(BufferPos, RecordPrefix.Length);
-			if (!Prefix.Span.SequenceEqual(RecordPrefix))
+			ReadOnlyMemory<byte> prefix = buffer.Slice(bufferPos, s_recordPrefix.Length);
+			if (!prefix.Span.SequenceEqual(s_recordPrefix))
 			{
 				throw new PerforceException("Expected 'code' field at the start of record");
 			}
-			BufferPos += Prefix.Length;
+			bufferPos += prefix.Length;
 
-			Utf8String Code;
-			if (!TryReadString(Buffer, ref BufferPos, out Code))
+			Utf8String code;
+			if (!TryReadString(buffer, ref bufferPos, out code))
 			{
-				Response = null;
+				response = null;
 				return false;
 			}
 
 			// Dispatch it to the appropriate handler
-			object? Record;
-			if (Code == ReadOnlyUtf8StringConstants.Stat && StatRecordInfo != null)
+			object? record;
+			if (code == ReadOnlyUtf8StringConstants.Stat && statRecordInfo != null)
 			{
-				if (!TryReadTypedRecord(Buffer, ref BufferPos, Utf8String.Empty, StatRecordInfo, out Record))
+				if (!TryReadTypedRecord(buffer, ref bufferPos, Utf8String.Empty, statRecordInfo, out record))
 				{
-					Response = null;
+					response = null;
 					return false;
 				}
 			}
-			else if (Code == ReadOnlyUtf8StringConstants.Info)
+			else if (code == ReadOnlyUtf8StringConstants.Info)
 			{
-				if (!TryReadTypedRecord(Buffer, ref BufferPos, Utf8String.Empty, PerforceReflection.InfoRecordInfo, out Record))
+				if (!TryReadTypedRecord(buffer, ref bufferPos, Utf8String.Empty, PerforceReflection.InfoRecordInfo, out record))
 				{
-					Response = null;
+					response = null;
 					return false;
 				}
 			}
-			else if (Code == ReadOnlyUtf8StringConstants.Error)
+			else if (code == ReadOnlyUtf8StringConstants.Error)
 			{
-				if (!TryReadTypedRecord(Buffer, ref BufferPos, Utf8String.Empty, PerforceReflection.ErrorRecordInfo, out Record))
+				if (!TryReadTypedRecord(buffer, ref bufferPos, Utf8String.Empty, PerforceReflection.ErrorRecordInfo, out record))
 				{
-					Response = null;
+					response = null;
 					return false;
 				}
 			}
-			else if (Code == ReadOnlyUtf8StringConstants.Io)
+			else if (code == ReadOnlyUtf8StringConstants.Io)
 			{
-				if (!TryReadTypedRecord(Buffer, ref BufferPos, Utf8String.Empty, PerforceReflection.IoRecordInfo, out Record))
+				if (!TryReadTypedRecord(buffer, ref bufferPos, Utf8String.Empty, PerforceReflection.IoRecordInfo, out record))
 				{
-					Response = null;
+					response = null;
 					return false;
 				}
 			}
 			else
 			{
-				throw new PerforceException("Unknown return code for record: {0}", Code);
+				throw new PerforceException("Unknown return code for record: {0}", code);
 			}
 
 			// Skip over the record terminator
-			if (BufferPos >= Buffer.Length || Buffer.Span[BufferPos] != '0')
+			if (bufferPos >= buffer.Length || buffer.Span[bufferPos] != '0')
 			{
 				throw new PerforceException("Unexpected record terminator");
 			}
-			BufferPos++;
+			bufferPos++;
 
 			// Create the response
-			Response = new PerforceResponse(Record);
+			response = new PerforceResponse(record);
 			return true;
 		}
 
 		/// <summary>
 		/// Parse an individual record from the server.
 		/// </summary>
-		/// <param name="Buffer">The buffer to read from</param>
-		/// <param name="BufferPos">Current read position within the buffer</param>
-		/// <param name="RequiredSuffix">The required suffix for any subobject arrays.</param>
-		/// <param name="RecordInfo">Reflection information for the type being serialized into.</param>
-		/// <param name="Record">Receives the record on success</param>
+		/// <param name="buffer">The buffer to read from</param>
+		/// <param name="bufferPos">Current read position within the buffer</param>
+		/// <param name="requiredSuffix">The required suffix for any subobject arrays.</param>
+		/// <param name="recordInfo">Reflection information for the type being serialized into.</param>
+		/// <param name="record">Receives the record on success</param>
 		/// <returns>The parsed object.</returns>
-		static bool TryReadTypedRecord(ReadOnlyMemory<byte> Buffer, ref int BufferPos, Utf8String RequiredSuffix, CachedRecordInfo RecordInfo, [NotNullWhen(true)] out object? Record)
+		static bool TryReadTypedRecord(ReadOnlyMemory<byte> buffer, ref int bufferPos, Utf8String requiredSuffix, CachedRecordInfo recordInfo, [NotNullWhen(true)] out object? record)
 		{
 			// Create a bitmask for all the required tags
-			ulong RequiredTagsBitMask = 0;
+			ulong requiredTagsBitMask = 0;
 
 			// Create the new record
-			object? NewRecord = RecordInfo.CreateInstance();
-			if (NewRecord == null)
+			object? newRecord = recordInfo._createInstance();
+			if (newRecord == null)
 			{
-				throw new InvalidDataException($"Unable to construct record of type {RecordInfo.Type}");
+				throw new InvalidDataException($"Unable to construct record of type {recordInfo._type}");
 			}
 
 			// Get the record info, and parse it into the object
-			ReadOnlySpan<byte> BufferSpan = Buffer.Span;
+			ReadOnlySpan<byte> bufferSpan = buffer.Span;
 			for (; ; )
 			{
 				// Check that we've got a string field
-				if (BufferPos >= Buffer.Length)
+				if (bufferPos >= buffer.Length)
 				{
-					Record = null;
+					record = null;
 					return false;
 				}
 
 				// If this is the end of the record, break out
-				byte KeyType = BufferSpan[BufferPos];
-				if (KeyType == '0')
+				byte keyType = bufferSpan[bufferPos];
+				if (keyType == '0')
 				{
 					break;
 				}
-				else if (KeyType != 's')
+				else if (keyType != 's')
 				{
-					throw new PerforceException("Unexpected key field type while parsing marshalled output ({0}) - expected 's', got: {1}", (int)KeyType, FormatDataAsHexDump(Buffer.Slice(BufferPos).Span));
+					throw new PerforceException("Unexpected key field type while parsing marshalled output ({0}) - expected 's', got: {1}", (int)keyType, FormatDataAsHexDump(buffer.Slice(bufferPos).Span));
 				}
 
 				// Capture the initial buffer position, in case we have to roll back
-				int StartBufferPos = BufferPos;
-				BufferPos++;
+				int startBufferPos = bufferPos;
+				bufferPos++;
 
 				// Read the tag
-				Utf8String Tag;
-				if (!TryReadString(Buffer, ref BufferPos, out Tag))
+				Utf8String tag;
+				if (!TryReadString(buffer, ref bufferPos, out tag))
 				{
-					Record = null;
+					record = null;
 					return false;
 				}
 
 				// Find the start of the array suffix
-				int SuffixIdx = Tag.Length;
-				while (SuffixIdx > 0 && (Tag[SuffixIdx - 1] == (byte)',' || (Tag[SuffixIdx - 1] >= '0' && Tag[SuffixIdx - 1] <= '9')))
+				int suffixIdx = tag.Length;
+				while (suffixIdx > 0 && (tag[suffixIdx - 1] == (byte)',' || (tag[suffixIdx - 1] >= '0' && tag[suffixIdx - 1] <= '9')))
 				{
-					SuffixIdx--;
+					suffixIdx--;
 				}
 
 				// Separate the key into tag and suffix
-				Utf8String Suffix = Tag.Slice(SuffixIdx);
-				Tag = Tag.Slice(0, SuffixIdx);
+				Utf8String suffix = tag.Slice(suffixIdx);
+				tag = tag.Slice(0, suffixIdx);
 
 				// Try to find the matching field
-				CachedTagInfo? TagInfo;
-				if (RecordInfo.NameToInfo.TryGetValue(Tag, out TagInfo))
+				CachedTagInfo? tagInfo;
+				if (recordInfo._nameToInfo.TryGetValue(tag, out tagInfo))
 				{
-					RequiredTagsBitMask |= TagInfo.RequiredTagBitMask;
+					requiredTagsBitMask |= tagInfo._requiredTagBitMask;
 				}
 
 				// Check whether it's a subobject or part of the current object.
-				if (Suffix == RequiredSuffix)
+				if (suffix == requiredSuffix)
 				{
-					if (!TryReadValue(Buffer, ref BufferPos, NewRecord, TagInfo))
+					if (!TryReadValue(buffer, ref bufferPos, newRecord, tagInfo))
 					{
-						Record = null;
+						record = null;
 						return false;
 					}
 				}
-				else if (Suffix.StartsWith(RequiredSuffix) && (RequiredSuffix.Length == 0 || Suffix[RequiredSuffix.Length] == ','))
+				else if (suffix.StartsWith(requiredSuffix) && (requiredSuffix.Length == 0 || suffix[requiredSuffix.Length] == ','))
 				{
 					// Part of a subobject. If this record doesn't have any listed subobject type, skip the field and continue.
-					if (TagInfo != null)
+					if (tagInfo != null)
 					{
 						// Get the list field
-						System.Collections.IList? List = (System.Collections.IList?)TagInfo.Property.GetValue(NewRecord);
-						if (List == null)
+						System.Collections.IList? list = (System.Collections.IList?)tagInfo._property.GetValue(newRecord);
+						if (list == null)
 						{
-							throw new PerforceException($"Empty list for {TagInfo.Property.Name}");
+							throw new PerforceException($"Empty list for {tagInfo._property.Name}");
 						}
 
 						// Check the suffix matches the index of the next element
-						if (!IsCorrectIndex(Suffix, RequiredSuffix, List.Count))
+						if (!IsCorrectIndex(suffix, requiredSuffix, list.Count))
 						{
-							throw new PerforceException("Subobject element received out of order: got {0}", Suffix);
+							throw new PerforceException("Subobject element received out of order: got {0}", suffix);
 						}
 
 						// Add it to the list
-						if (!TryReadValue(Buffer, ref BufferPos, NewRecord, TagInfo))
+						if (!TryReadValue(buffer, ref bufferPos, newRecord, tagInfo))
 						{
-							Record = null;
+							record = null;
 							return false;
 						}
 					}
-					else if (RecordInfo.SubElementProperty != null)
+					else if (recordInfo._subElementProperty != null)
 					{
 						// Move back to the start of this tag
-						BufferPos = StartBufferPos;
+						bufferPos = startBufferPos;
 
 						// Get the list field
-						System.Collections.IList? List = (System.Collections.IList?)RecordInfo.SubElementProperty.GetValue(NewRecord);
-						if (List == null)
+						System.Collections.IList? list = (System.Collections.IList?)recordInfo._subElementProperty.GetValue(newRecord);
+						if (list == null)
 						{
-							throw new PerforceException($"Invalid field for {RecordInfo.SubElementProperty.Name}");
+							throw new PerforceException($"Invalid field for {recordInfo._subElementProperty.Name}");
 						}
 
 						// Check the suffix matches the index of the next element
-						if (!IsCorrectIndex(Suffix, RequiredSuffix, List.Count))
+						if (!IsCorrectIndex(suffix, requiredSuffix, list.Count))
 						{
-							throw new PerforceException("Subobject element received out of order: got {0}", Suffix);
+							throw new PerforceException("Subobject element received out of order: got {0}", suffix);
 						}
 
 						// Parse the subobject and add it to the list
-						object? SubRecord;
-						if (!TryReadTypedRecord(Buffer, ref BufferPos, Suffix, RecordInfo.SubElementRecordInfo!, out SubRecord))
+						object? subRecord;
+						if (!TryReadTypedRecord(buffer, ref bufferPos, suffix, recordInfo._subElementRecordInfo!, out subRecord))
 						{
-							Record = null;
+							record = null;
 							return false;
 						}
-						List.Add(SubRecord);
+						list.Add(subRecord);
 					}
 					else
 					{
 						// Just discard the value
-						if (!TryReadValue(Buffer, ref BufferPos, NewRecord, TagInfo))
+						if (!TryReadValue(buffer, ref bufferPos, newRecord, tagInfo))
 						{
-							Record = null;
+							record = null;
 							return false;
 						}
 					}
@@ -640,70 +633,70 @@ namespace EpicGames.Perforce
 				else
 				{
 					// Roll back
-					BufferPos = StartBufferPos;
+					bufferPos = startBufferPos;
 					break;
 				}
 			}
 
 			// Make sure we've got all the required tags we need
-			if (RequiredTagsBitMask != RecordInfo.RequiredTagsBitMask)
+			if (requiredTagsBitMask != recordInfo._requiredTagsBitMask)
 			{
-				string MissingTagNames = String.Join(", ", RecordInfo.NameToInfo.Where(x => (RequiredTagsBitMask | x.Value.RequiredTagBitMask) != RequiredTagsBitMask).Select(x => x.Key));
-				throw new PerforceException("Missing '{0}' tag when parsing '{1}'", MissingTagNames, RecordInfo.Type.Name);
+				string missingTagNames = String.Join(", ", recordInfo._nameToInfo.Where(x => (requiredTagsBitMask | x.Value._requiredTagBitMask) != requiredTagsBitMask).Select(x => x.Key));
+				throw new PerforceException("Missing '{0}' tag when parsing '{1}'", missingTagNames, recordInfo._type.Name);
 			}
 
 			// Construct the response object with the record
-			Record = NewRecord;
+			record = newRecord;
 			return true;
 		}
 
 		/// <summary>
 		/// Reads a value from the input buffer
 		/// </summary>
-		/// <param name="Buffer">The buffer to read from</param>
-		/// <param name="BufferPos">Current read position within the buffer</param>
-		/// <param name="NewRecord">The new record</param>
-		/// <param name="TagInfo">The current tag</param>
+		/// <param name="buffer">The buffer to read from</param>
+		/// <param name="bufferPos">Current read position within the buffer</param>
+		/// <param name="newRecord">The new record</param>
+		/// <param name="tagInfo">The current tag</param>
 		/// <returns></returns>
-		static bool TryReadValue(ReadOnlyMemory<byte> Buffer, ref int BufferPos, object NewRecord, CachedTagInfo? TagInfo)
+		static bool TryReadValue(ReadOnlyMemory<byte> buffer, ref int bufferPos, object newRecord, CachedTagInfo? tagInfo)
 		{
-			ReadOnlySpan<byte> BufferSpan = Buffer.Span;
+			ReadOnlySpan<byte> bufferSpan = buffer.Span;
 
 			// Read the value type
-			byte ValueType;
-			if (!TryReadByte(BufferSpan, ref BufferPos, out ValueType))
+			byte valueType;
+			if (!TryReadByte(bufferSpan, ref bufferPos, out valueType))
 			{
 				return false;
 			}
 
 			// Parse the appropriate value
-			if (ValueType == 's')
+			if (valueType == 's')
 			{
-				Utf8String String;
-				if (!TryReadString(Buffer, ref BufferPos, out String))
+				Utf8String @string;
+				if (!TryReadString(buffer, ref bufferPos, out @string))
 				{
 					return false;
 				}
-				if (TagInfo != null)
+				if (tagInfo != null)
 				{
-					TagInfo.SetFromString(NewRecord, String);
+					tagInfo._setFromString(newRecord, @string);
 				}
 			}
-			else if (ValueType == 'i')
+			else if (valueType == 'i')
 			{
-				int Integer;
-				if (!TryReadInt(BufferSpan, ref BufferPos, out Integer))
+				int integer;
+				if (!TryReadInt(bufferSpan, ref bufferPos, out integer))
 				{
 					return false;
 				}
-				if (TagInfo != null)
+				if (tagInfo != null)
 				{
-					TagInfo.SetFromInteger(NewRecord, Integer);
+					tagInfo._setFromInteger(newRecord, integer);
 				}
 			}
 			else
 			{
-				throw new PerforceException("Unrecognized value type {0}", ValueType);
+				throw new PerforceException("Unrecognized value type {0}", valueType);
 			}
 
 			return true;
@@ -712,100 +705,100 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Attempts to read a single byte from the buffer
 		/// </summary>
-		/// <param name="Buffer">The buffer to read from</param>
-		/// <param name="BufferPos">Current read position within the buffer</param>
-		/// <param name="Value">Receives the byte that was read</param>
+		/// <param name="buffer">The buffer to read from</param>
+		/// <param name="bufferPos">Current read position within the buffer</param>
+		/// <param name="value">Receives the byte that was read</param>
 		/// <returns>True if a byte was read from the buffer, false if there was not enough data</returns>
-		static bool TryReadByte(ReadOnlySpan<byte> Buffer, ref int BufferPos, out byte Value)
+		static bool TryReadByte(ReadOnlySpan<byte> buffer, ref int bufferPos, out byte value)
 		{
-			if (BufferPos >= Buffer.Length)
+			if (bufferPos >= buffer.Length)
 			{
-				Value = 0;
+				value = 0;
 				return false;
 			}
 
-			Value = Buffer[BufferPos];
-			BufferPos++;
+			value = buffer[bufferPos];
+			bufferPos++;
 			return true;
 		}
 
 		/// <summary>
 		/// Attempts to read a single int from the buffer
 		/// </summary>
-		/// <param name="Buffer">The buffer to read from</param>
-		/// <param name="BufferPos">Current read position within the buffer</param>
-		/// <param name="Value">Receives the value that was read</param>
+		/// <param name="buffer">The buffer to read from</param>
+		/// <param name="bufferPos">Current read position within the buffer</param>
+		/// <param name="value">Receives the value that was read</param>
 		/// <returns>True if an int was read from the buffer, false if there was not enough data</returns>
-		static bool TryReadInt(ReadOnlySpan<byte> Buffer, ref int BufferPos, out int Value)
+		static bool TryReadInt(ReadOnlySpan<byte> buffer, ref int bufferPos, out int value)
 		{
-			if (BufferPos + 4 > Buffer.Length)
+			if (bufferPos + 4 > buffer.Length)
 			{
-				Value = 0;
+				value = 0;
 				return false;
 			}
 
-			Value = Buffer[BufferPos + 0] | (Buffer[BufferPos + 1] << 8) | (Buffer[BufferPos + 2] << 16) | (Buffer[BufferPos + 3] << 24);
-			BufferPos += 4;
+			value = buffer[bufferPos + 0] | (buffer[bufferPos + 1] << 8) | (buffer[bufferPos + 2] << 16) | (buffer[bufferPos + 3] << 24);
+			bufferPos += 4;
 			return true;
 		}
 
 		/// <summary>
 		/// Attempts to read a string from the buffer
 		/// </summary>
-		/// <param name="Buffer">The buffer to read from</param>
-		/// <param name="BufferPos">Current read position within the buffer</param>
-		/// <param name="String">Receives the value that was read</param>
+		/// <param name="buffer">The buffer to read from</param>
+		/// <param name="bufferPos">Current read position within the buffer</param>
+		/// <param name="string">Receives the value that was read</param>
 		/// <returns>True if a string was read from the buffer, false if there was not enough data</returns>
-		static bool TryReadString(ReadOnlyMemory<byte> Buffer, ref int BufferPos, out Utf8String String)
+		static bool TryReadString(ReadOnlyMemory<byte> buffer, ref int bufferPos, out Utf8String @string)
 		{
-			int Length;
-			if (!TryReadInt(Buffer.Span, ref BufferPos, out Length))
+			int length;
+			if (!TryReadInt(buffer.Span, ref bufferPos, out length))
 			{
-				String = Utf8String.Empty;
+				@string = Utf8String.Empty;
 				return false;
 			}
 
-			if (BufferPos + Length > Buffer.Length)
+			if (bufferPos + length > buffer.Length)
 			{
-				String = Utf8String.Empty;
+				@string = Utf8String.Empty;
 				return false;
 			}
 
-			String = new Utf8String(Buffer.Slice(BufferPos, Length));
-			BufferPos += Length;
+			@string = new Utf8String(buffer.Slice(bufferPos, length));
+			bufferPos += length;
 			return true;
 		}
 
 		/// <summary>
 		/// Determines if the given text contains the expected prefix followed by an array index
 		/// </summary>
-		/// <param name="Text">The text to check</param>
-		/// <param name="Prefix">The required prefix</param>
-		/// <param name="Index">The required index</param>
+		/// <param name="text">The text to check</param>
+		/// <param name="prefix">The required prefix</param>
+		/// <param name="index">The required index</param>
 		/// <returns>True if the index is correct</returns>
-		static bool IsCorrectIndex(Utf8String Text, Utf8String Prefix, int Index)
+		static bool IsCorrectIndex(Utf8String text, Utf8String prefix, int index)
 		{
-			if (Prefix.Length > 0)
+			if (prefix.Length > 0)
 			{
-				return Text.StartsWith(Prefix) && Text.Length > Prefix.Length && Text[Prefix.Length] == (byte)',' && IsCorrectIndex(Text.Span.Slice(Prefix.Length + 1), Index);
+				return text.StartsWith(prefix) && text.Length > prefix.Length && text[prefix.Length] == (byte)',' && IsCorrectIndex(text.Span.Slice(prefix.Length + 1), index);
 			}
 			else
 			{
-				return IsCorrectIndex(Text.Span, Index);
+				return IsCorrectIndex(text.Span, index);
 			}
 		}
 
 		/// <summary>
 		/// Determines if the given text matches the expected array index
 		/// </summary>
-		/// <param name="Span">The text to check</param>
-		/// <param name="ExpectedIndex">The expected array index</param>
+		/// <param name="span">The text to check</param>
+		/// <param name="expectedIndex">The expected array index</param>
 		/// <returns>True if the span matches</returns>
-		static bool IsCorrectIndex(ReadOnlySpan<byte> Span, int ExpectedIndex)
+		static bool IsCorrectIndex(ReadOnlySpan<byte> span, int expectedIndex)
 		{
-			int Index;
-			int BytesConsumed;
-			return Utf8Parser.TryParse(Span, out Index, out BytesConsumed) && BytesConsumed == Span.Length && Index == ExpectedIndex;
+			int index;
+			int bytesConsumed;
+			return Utf8Parser.TryParse(span, out index, out bytesConsumed) && bytesConsumed == span.Length && index == expectedIndex;
 		}
 	}
 }

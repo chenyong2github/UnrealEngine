@@ -32,13 +32,13 @@ namespace EpicGames.Perforce
 		/// The upper changelist 
 		/// </summary>
 		[PerforceTag("upper", Optional = true)]
-		public string UpperCL { get; set; }
+		public string UpperCl { get; set; }
 
 		/// <summary>
 		/// The lower changelist 
 		/// </summary>
 		[PerforceTag("lower", Optional = true)]
-		public string LowerCL { get; set; }
+		public string LowerCl { get; set; }
 
 		/// <summary>
 		/// Author of the changelist
@@ -63,7 +63,7 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("data", Optional = true)]
 		public string Data { get; set; }
-		
+
 		/// <summary>
 		/// 
 		/// </summary>
@@ -79,8 +79,8 @@ namespace EpicGames.Perforce
 			UserName = null!;
 			ClientName = null!;
 			Data = null!;
-			UpperCL = null!;
-			LowerCL = null!;
+			UpperCl = null!;
+			LowerCl = null!;
 		}
 
 		/// <summary>
@@ -95,7 +95,7 @@ namespace EpicGames.Perforce
 			}
 			else
 			{
-				return String.Format("CL {0} by {1}, on {2}, line = {3}", LowerCL, UserName, Time, Data);
+				return String.Format("CL {0} by {1}, on {2}, line = {3}", LowerCl, UserName, Time, Data);
 			}
 		}
 	}

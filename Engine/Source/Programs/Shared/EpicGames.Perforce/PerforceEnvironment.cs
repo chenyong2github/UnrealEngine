@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Microsoft.Win32;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
+using EpicGames.Core;
+using Microsoft.Win32;
 
 namespace EpicGames.Perforce
 {
@@ -20,9 +19,9 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Get the value of a particular variable
 		/// </summary>
-		/// <param name="Name">Name of the variable to retrieve</param>
+		/// <param name="name">Name of the variable to retrieve</param>
 		/// <returns>The variable value, or null if it's not set</returns>
-		string? GetValue(string Name);
+		string? GetValue(string name);
 	}
 
 	/// <summary>
@@ -40,24 +39,24 @@ namespace EpicGames.Perforce
 		/// </summary>
 		public GlobalPerforceEnvironment()
 		{
-			foreach (DictionaryEntry Entry in Environment.GetEnvironmentVariables().OfType<DictionaryEntry>())
+			foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables().OfType<DictionaryEntry>())
 			{
-				(string? Key, string? Value) = ((string?)Entry.Key, (string?)Entry.Value);
-				if (!String.IsNullOrEmpty(Key) && !String.IsNullOrEmpty(Value))
+				(string? key, string? value) = ((string?)entry.Key, (string?)entry.Value);
+				if (!String.IsNullOrEmpty(key) && !String.IsNullOrEmpty(value))
 				{
-					if (Key.StartsWith("P4", StringComparison.OrdinalIgnoreCase))
+					if (key.StartsWith("P4", StringComparison.OrdinalIgnoreCase))
 					{
-						Variables[Key] = Value;
+						Variables[key] = value;
 					}
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public string? GetValue(string Name)
+		public string? GetValue(string name)
 		{
-			Variables.TryGetValue(Name, out string? Value);
-			return String.IsNullOrEmpty(Value) ? null : Value;
+			Variables.TryGetValue(name, out string? value);
+			return String.IsNullOrEmpty(value) ? null : value;
 		}
 	}
 
@@ -68,16 +67,16 @@ namespace EpicGames.Perforce
 	{
 		public WindowsGlobalPerforceEnvironment()
 		{
-			using (RegistryKey? Key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\perforce\\environment", false))
+			using (RegistryKey? key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\perforce\\environment", false))
 			{
-				if (Key != null)
+				if (key != null)
 				{
-					foreach (string ValueName in Key.GetValueNames())
+					foreach (string valueName in key.GetValueNames())
 					{
-						string? Value = Key.GetValue(ValueName) as string;
-						if (!String.IsNullOrEmpty(Value) && !Variables.ContainsKey(ValueName))
+						string? value = key.GetValue(valueName) as string;
+						if (!String.IsNullOrEmpty(value) && !Variables.ContainsKey(valueName))
 						{
-							Variables[ValueName] = Value;
+							Variables[valueName] = value;
 						}
 					}
 				}
@@ -101,42 +100,42 @@ namespace EpicGames.Perforce
 		/// </summary>
 		public FileReference Location { get; }
 
-		Dictionary<string, string> Variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+		readonly Dictionary<string, string> _variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Parent"></param>
-		/// <param name="Location"></param>
-		internal PerforceEnvironmentFile(IPerforceEnvironment Parent, FileReference Location)
+		/// <param name="parent"></param>
+		/// <param name="location"></param>
+		internal PerforceEnvironmentFile(IPerforceEnvironment parent, FileReference location)
 		{
-			this.Parent = Parent;
-			this.Location = Location;
+			Parent = parent;
+			Location = location;
 
-			string[] Lines = FileReference.ReadAllLines(Location);
-			foreach (string Line in Lines)
+			string[] lines = FileReference.ReadAllLines(location);
+			foreach (string line in lines)
 			{
-				string TrimLine = Line.Trim();
-				int EqualsIdx = TrimLine.IndexOf('=', StringComparison.Ordinal);
-				if (EqualsIdx != -1)
+				string trimLine = line.Trim();
+				int equalsIdx = trimLine.IndexOf('=', StringComparison.Ordinal);
+				if (equalsIdx != -1)
 				{
-					string Name = TrimLine.Substring(0, EqualsIdx).TrimEnd();
-					string Value = TrimLine.Substring(EqualsIdx + 1).TrimStart();
-					Variables[Name] = Value;
+					string name = trimLine.Substring(0, equalsIdx).TrimEnd();
+					string value = trimLine.Substring(equalsIdx + 1).TrimStart();
+					_variables[name] = value;
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public string? GetValue(string Name)
+		public string? GetValue(string name)
 		{
-			if (Variables.TryGetValue(Name, out string? Value))
+			if (_variables.TryGetValue(name, out string? value))
 			{
-				return Value;
+				return value;
 			}
 			else
 			{
-				return Parent.GetValue(Name);
+				return Parent.GetValue(name);
 			}
 		}
 	}
@@ -151,62 +150,62 @@ namespace EpicGames.Perforce
 		/// </summary>
 		public static IPerforceEnvironment Default { get; } = CreateDefaultEnvironment();
 
-		static Dictionary<DirectoryReference, IPerforceEnvironment> DirectoryToEnvironment = new Dictionary<DirectoryReference, IPerforceEnvironment>();
+		static readonly Dictionary<DirectoryReference, IPerforceEnvironment> s_directoryToEnvironment = new Dictionary<DirectoryReference, IPerforceEnvironment>();
 
 		static IPerforceEnvironment CreateDefaultEnvironment()
 		{
-			IPerforceEnvironment Environment;
+			IPerforceEnvironment environment;
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				Environment = new WindowsGlobalPerforceEnvironment();
+				environment = new WindowsGlobalPerforceEnvironment();
 			}
 			else
 			{
-				Environment = new GlobalPerforceEnvironment();
+				environment = new GlobalPerforceEnvironment();
 			}
 
-			string? EnviroValue = Environment.GetValue("P4ENVIRO");
-			if (EnviroValue != null)
+			string? enviroValue = environment.GetValue("P4ENVIRO");
+			if (enviroValue != null)
 			{
-				FileReference Location = new FileReference(EnviroValue);
-				Environment = new PerforceEnvironmentFile(Environment, Location);
+				FileReference location = new FileReference(enviroValue);
+				environment = new PerforceEnvironmentFile(environment, location);
 			}
 
-			return Environment;
+			return environment;
 		}
 
 		/// <summary>
 		/// Read the default Perforce settings reading any config file from the given directory
 		/// </summary>
-		/// <param name="Directory">The directory to read from</param>
+		/// <param name="directory">The directory to read from</param>
 		/// <returns>Default settings for the given directory</returns>
-		public static IPerforceEnvironment FromDirectory(DirectoryReference Directory)
+		public static IPerforceEnvironment FromDirectory(DirectoryReference directory)
 		{
-			IPerforceEnvironment? Environment;
-			if (!DirectoryToEnvironment.TryGetValue(Directory, out Environment))
+			IPerforceEnvironment? environment;
+			if (!s_directoryToEnvironment.TryGetValue(directory, out environment))
 			{
-				DirectoryReference? ParentDirectory = Directory.ParentDirectory;
-				if (ParentDirectory == null)
+				DirectoryReference? parentDirectory = directory.ParentDirectory;
+				if (parentDirectory == null)
 				{
-					Environment = Default;
+					environment = Default;
 				}
 				else
 				{
-					Environment = FromDirectory(ParentDirectory);
+					environment = FromDirectory(parentDirectory);
 
-					string? ConfigFileName = Environment.GetValue("P4CONFIG");
-					if (ConfigFileName != null)
+					string? configFileName = environment.GetValue("P4CONFIG");
+					if (configFileName != null)
 					{
-						FileReference Location = FileReference.Combine(Directory, ConfigFileName);
-						if (FileReference.Exists(Location))
+						FileReference location = FileReference.Combine(directory, configFileName);
+						if (FileReference.Exists(location))
 						{
-							Environment = new PerforceEnvironmentFile(Environment, Location);
+							environment = new PerforceEnvironmentFile(environment, location);
 						}
 					}
 				}
-				DirectoryToEnvironment[Directory] = Environment;
+				s_directoryToEnvironment[directory] = environment;
 			}
-			return Environment;
+			return environment;
 		}
 	}
 }

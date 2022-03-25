@@ -22,7 +22,7 @@ public class AgentServiceTest : TestSetup
 	[TestMethod]
 	public async Task GetJobs()
 	{
-		Fixture fixture = await CreateFixtureAsync();
+		await CreateFixtureAsync();
 
 		ActionResult<List<object>> res = await JobsController.FindJobsAsync();
 		Assert.AreEqual(2, res.Value!.Count);

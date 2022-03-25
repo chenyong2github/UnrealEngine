@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Perforce
 {
@@ -29,37 +27,37 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Private constructor. Use implicit conversion operators below instead.
 		/// </summary>
-		/// <param name="FileSpecList">List of filespecs</param>
-		private FileSpecList(IReadOnlyList<string> FileSpecList)
+		/// <param name="fileSpecList">List of filespecs</param>
+		private FileSpecList(IReadOnlyList<string> fileSpecList)
 		{
-			this.List = FileSpecList;
+			List = fileSpecList;
 		}
 
 		/// <summary>
 		/// Implicit conversion operator from a list of filespecs
 		/// </summary>
-		/// <param name="List">The list to construct from</param>
-		public static implicit operator FileSpecList(List<string> List)
+		/// <param name="list">The list to construct from</param>
+		public static implicit operator FileSpecList(List<string> list)
 		{
-			return new FileSpecList(List);
+			return new FileSpecList(list);
 		}
 
 		/// <summary>
 		/// Implicit conversion operator from an array of filespecs
 		/// </summary>
-		/// <param name="Array">The array to construct from</param>
-		public static implicit operator FileSpecList(string[] Array)
+		/// <param name="array">The array to construct from</param>
+		public static implicit operator FileSpecList(string[] array)
 		{
-			return new FileSpecList(Array);
+			return new FileSpecList(array);
 		}
 
 		/// <summary>
 		/// Implicit conversion operator from a single filespec
 		/// </summary>
-		/// <param name="FileSpec">The single filespec to construct from</param>
-		public static implicit operator FileSpecList(string FileSpec)
+		/// <param name="fileSpec">The single filespec to construct from</param>
+		public static implicit operator FileSpecList(string fileSpec)
 		{
-			return new FileSpecList(new string[] { FileSpec });
+			return new FileSpecList(new string[] { fileSpec });
 		}
 	}
 }

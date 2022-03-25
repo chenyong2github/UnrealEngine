@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Serialization;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using EpicGames.Core;
 
 namespace EpicGames.Perforce.Managed
 {
@@ -47,11 +43,11 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Copy constructor
 		/// </summary>
-		/// <param name="Tree"></param>
-		public StreamTreeBuilder(StreamTree Tree)
+		/// <param name="tree"></param>
+		public StreamTreeBuilder(StreamTree tree)
 		{
-			this.NameToFile = new Dictionary<Utf8String, StreamFile>(Tree.NameToFile, FileUtils.PlatformPathComparerUtf8);
-			this.NameToTree = new Dictionary<Utf8String, StreamTreeRef>(Tree.NameToTree, FileUtils.PlatformPathComparerUtf8);
+			NameToFile = new Dictionary<Utf8String, StreamFile>(tree.NameToFile, FileUtils.PlatformPathComparerUtf8);
+			NameToTree = new Dictionary<Utf8String, StreamTreeRef>(tree.NameToTree, FileUtils.PlatformPathComparerUtf8);
 		}
 
 		/// <summary>
@@ -59,51 +55,51 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="Objects">Dictionary of encoded objects</param>
 		/// <returns></returns>
-		public StreamTree Encode(Func<StreamTree, IoHash> WriteTree)
+		public StreamTree Encode(Func<StreamTree, IoHash> writeTree)
 		{
 			// Recursively serialize all the child items
-			EncodeChildren(WriteTree);
+			EncodeChildren(writeTree);
 
 			// Find the common base path for all items in this tree.
-			Dictionary<Utf8String, int> BasePathToCount = new Dictionary<Utf8String, int>();
-			foreach ((Utf8String Name, StreamFile File) in NameToFile)
+			Dictionary<Utf8String, int> basePathToCount = new Dictionary<Utf8String, int>();
+			foreach ((Utf8String name, StreamFile file) in NameToFile)
 			{
-				AddBasePath(BasePathToCount, File.Path, Name);
+				AddBasePath(basePathToCount, file.Path, name);
 			}
-			foreach ((Utf8String Name, StreamTreeRef Tree) in NameToTree)
+			foreach ((Utf8String name, StreamTreeRef tree) in NameToTree)
 			{
-				AddBasePath(BasePathToCount, Tree.Path, Name);
+				AddBasePath(basePathToCount, tree.Path, name);
 			}
 
 			// Create the new tree
-			Utf8String BasePath = (BasePathToCount.Count == 0) ? Utf8String.Empty : BasePathToCount.MaxBy(x => x.Value).Key;
-			return new StreamTree(BasePath, NameToFile, NameToTree);
+			Utf8String basePath = (basePathToCount.Count == 0) ? Utf8String.Empty : basePathToCount.MaxBy(x => x.Value).Key;
+			return new StreamTree(basePath, NameToFile, NameToTree);
 		}
 
 		/// <summary>
 		/// Encodes a StreamTreeRef from this tree
 		/// </summary>
-		/// <param name="WriteTree"></param>
+		/// <param name="writeTree"></param>
 		/// <returns>The new tree ref</returns>
-		public StreamTreeRef EncodeRef(Func<StreamTree, IoHash> WriteTree)
+		public StreamTreeRef EncodeRef(Func<StreamTree, IoHash> writeTree)
 		{
-			StreamTree Tree = Encode(WriteTree);
-			return new StreamTreeRef(Tree.Path, WriteTree(Tree));
+			StreamTree tree = Encode(writeTree);
+			return new StreamTreeRef(tree.Path, writeTree(tree));
 		}
 
 		/// <summary>
 		/// Collapses all of the builders underneath this node
 		/// </summary>
-		/// <param name="WriteTree"></param>
-		public void EncodeChildren(Func<StreamTree, IoHash> WriteTree)
+		/// <param name="writeTree"></param>
+		public void EncodeChildren(Func<StreamTree, IoHash> writeTree)
 		{
-			foreach ((Utf8String SubTreeName, StreamTreeBuilder SubTreeBuilder) in NameToTreeBuilder)
+			foreach ((Utf8String subTreeName, StreamTreeBuilder subTreeBuilder) in NameToTreeBuilder)
 			{
-				StreamTree SubTree = SubTreeBuilder.Encode(WriteTree);
-				if (SubTree.NameToFile.Count > 0 || SubTree.NameToTree.Count > 0)
+				StreamTree subTree = subTreeBuilder.Encode(writeTree);
+				if (subTree.NameToFile.Count > 0 || subTree.NameToTree.Count > 0)
 				{
-					IoHash Hash = WriteTree(SubTree);
-					NameToTree[SubTreeName] = new StreamTreeRef(SubTree.Path, Hash);
+					IoHash hash = writeTree(subTree);
+					NameToTree[subTreeName] = new StreamTreeRef(subTree.Path, hash);
 				}
 			}
 			NameToTreeBuilder.Clear();
@@ -112,16 +108,16 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Adds the base path of the given item to the count of similar items
 		/// </summary>
-		/// <param name="BasePathToCount"></param>
-		/// <param name="Path"></param>
-		/// <param name="Name"></param>
-		static void AddBasePath(Dictionary<Utf8String, int> BasePathToCount, Utf8String Path, Utf8String Name)
+		/// <param name="basePathToCount"></param>
+		/// <param name="path"></param>
+		/// <param name="name"></param>
+		static void AddBasePath(Dictionary<Utf8String, int> basePathToCount, Utf8String path, Utf8String name)
 		{
-			if (Path.EndsWith(Name) && Path[^(Name.Length + 1)] == '/')
+			if (path.EndsWith(name) && path[^(name.Length + 1)] == '/')
 			{
-				Utf8String BasePath = Path[..^(Name.Length + 1)];
-				BasePathToCount.TryGetValue(BasePath, out int Count);
-				BasePathToCount[BasePath] = Count + 1;
+				Utf8String basePath = path[..^(name.Length + 1)];
+				basePathToCount.TryGetValue(basePath, out int count);
+				basePathToCount[basePath] = count + 1;
 			}
 		}
 	}

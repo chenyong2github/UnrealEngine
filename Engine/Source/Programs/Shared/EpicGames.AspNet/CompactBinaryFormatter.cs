@@ -38,57 +38,57 @@ namespace EpicGames.AspNet
 		}
 
 		/// <inheritdoc/>
-		protected override bool CanReadType(Type Type)
+		protected override bool CanReadType(Type type)
 		{
 			return true;
 		}
 
 		/// <inheritdoc/>
-		public override async Task<InputFormatterResult> ReadRequestBodyAsync(InputFormatterContext Context)
+		public override async Task<InputFormatterResult> ReadRequestBodyAsync(InputFormatterContext context)
 		{
 			// Buffer the data into an array
-			byte[] Data;
-			using (MemoryStream Stream = new MemoryStream())
+			byte[] data;
+			using (MemoryStream stream = new MemoryStream())
 			{
-				await Context.HttpContext.Request.Body.CopyToAsync(Stream);
-				Data = Stream.ToArray();
+				await context.HttpContext.Request.Body.CopyToAsync(stream);
+				data = stream.ToArray();
 			}
 
 			// Serialize the object
-			CbField Field;
+			CbField field;
 			try
 			{
-				Field = new CbField(Data);
+				field = new CbField(data);
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				ILogger<CbInputFormatter> Logger = Context.HttpContext.RequestServices.GetRequiredService<ILogger<CbInputFormatter>>();
-				Logger.LogError("Unable to parse compact binary: {Dump}", FormatHexDump(Data, 256));
-				foreach ((string Name, StringValues Values) in Context.HttpContext.Request.Headers)
+				ILogger<CbInputFormatter> logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<CbInputFormatter>>();
+				logger.LogError(ex, "Unable to parse compact binary: {Dump}", FormatHexDump(data, 256));
+				foreach ((string name, StringValues values) in context.HttpContext.Request.Headers)
 				{
-					foreach (string Value in Values)
+					foreach (string value in values)
 					{
-						Logger.LogInformation("Header {Name}: {Value}", Name, Value);
+						logger.LogInformation("Header {Name}: {Value}", name, value);
 					}
 				}
-				throw new Exception($"Unable to parse compact binary request: {FormatHexDump(Data, 256)}", Ex);
+				throw new Exception($"Unable to parse compact binary request: {FormatHexDump(data, 256)}", ex);
 			}
-			return await InputFormatterResult.SuccessAsync(CbSerializer.Deserialize(new CbField(Data), Context.ModelType)!);
+			return await InputFormatterResult.SuccessAsync(CbSerializer.Deserialize(new CbField(data), context.ModelType)!);
 		}
 
-		static string FormatHexDump(byte[] Data, int MaxLength)
+		static string FormatHexDump(byte[] data, int maxLength)
 		{
-			ReadOnlySpan<byte> Span = Data.AsSpan(0, Math.Min(Data.Length, MaxLength));
-			string HexString = StringUtils.FormatHexString(Span);
+			ReadOnlySpan<byte> span = data.AsSpan(0, Math.Min(data.Length, maxLength));
+			string hexString = StringUtils.FormatHexString(span);
 
-			char[] HexDump = new char[Span.Length * 3];
-			for (int Idx = 0; Idx < Span.Length; Idx++)
+			char[] hexDump = new char[span.Length * 3];
+			for (int idx = 0; idx < span.Length; idx++)
 			{
-				HexDump[(Idx * 3) + 0] = ((Idx & 15) == 0) ? '\n' : ' ';
-				HexDump[(Idx * 3) + 1] = HexString[(Idx * 2) + 0];
-				HexDump[(Idx * 3) + 2] = HexString[(Idx * 2) + 1];
+				hexDump[(idx * 3) + 0] = ((idx & 15) == 0) ? '\n' : ' ';
+				hexDump[(idx * 3) + 1] = hexString[(idx * 2) + 0];
+				hexDump[(idx * 3) + 2] = hexString[(idx * 2) + 1];
 			}
-			return new string(HexDump);
+			return new string(hexDump);
 		}
 	}
 
@@ -106,24 +106,24 @@ namespace EpicGames.AspNet
 		}
 
 		/// <inheritdoc/>
-		protected override bool CanWriteType(Type? Type)
+		protected override bool CanWriteType(Type? type)
 		{
 			return true;
 		}
 
 		/// <inheritdoc/>
-		public override async Task WriteResponseBodyAsync(OutputFormatterWriteContext Context)
+		public override async Task WriteResponseBodyAsync(OutputFormatterWriteContext context)
 		{
-			ReadOnlyMemory<byte> Data;
-			if (Context.Object is CbObject Object)
+			ReadOnlyMemory<byte> data;
+			if (context.Object is CbObject obj)
 			{
-				Data = Object.GetView();
+				data = obj.GetView();
 			}
 			else
 			{
-				Data = CbSerializer.Serialize(Context.ObjectType!, Context.Object!).GetView();
+				data = CbSerializer.Serialize(context.ObjectType!, context.Object!).GetView();
 			}
-			await Context.HttpContext.Response.BodyWriter.WriteAsync(Data);
+			await context.HttpContext.Response.BodyWriter.WriteAsync(data);
 		}
 	}
 
@@ -134,9 +134,9 @@ namespace EpicGames.AspNet
 	public class CbPreferredOutputFormatter : CbOutputFormatter
 	{
 		/// <inheritdoc/>
-		protected override bool CanWriteType(Type? Type)
+		protected override bool CanWriteType(Type? type)
 		{
-			return Type == typeof(CbObject);
+			return type == typeof(CbObject);
 		}
 	}
 }

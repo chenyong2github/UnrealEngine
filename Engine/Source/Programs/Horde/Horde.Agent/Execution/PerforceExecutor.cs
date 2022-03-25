@@ -255,7 +255,7 @@ namespace Horde.Agent.Execution
 						}
 
 						// Check the edge server id matches
-						if (!String.IsNullOrEmpty(client.ServerID) && !String.Equals(client.ServerID, info.ServerID, StringComparison.OrdinalIgnoreCase))
+						if (!String.IsNullOrEmpty(client.ServerId) && !String.Equals(client.ServerId, info.ServerId, StringComparison.OrdinalIgnoreCase))
 						{
 							continue;
 						}
@@ -356,7 +356,7 @@ namespace Horde.Agent.Execution
 					else
 					{
 						ManagedWorkspace repository = firstWorkspace.Repository;
-						Tuple<int, StreamSnapshot>[] streamStates = await repository.PopulateCleanAsync(populateRequests, false, cancellationToken);
+						Tuple<int, StreamSnapshot>[] streamStates = await repository.PopulateCleanAsync(populateRequests, cancellationToken);
 						syncFuncs.Add(() => repository.PopulateSyncAsync(populateRequests, streamStates, false, cancellationToken));
 					}
 				}

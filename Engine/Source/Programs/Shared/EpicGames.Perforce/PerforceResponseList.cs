@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Perforce
 {
@@ -25,27 +22,21 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Responses">Initial contents of the list</param>
-		public PerforceResponseList(IEnumerable<PerforceResponse<T>> Responses)
-			: base(Responses)
+		/// <param name="responses">Initial contents of the list</param>
+		public PerforceResponseList(IEnumerable<PerforceResponse<T>> responses)
+			: base(responses)
 		{
 		}
 
 		/// <summary>
 		/// Whether all responses in this list are successful
 		/// </summary>
-		public bool Succeeded
-		{
-			get { return this.All(x => x.Succeeded); }
-		}
+		public bool Succeeded => this.All(x => x.Succeeded);
 
 		/// <summary>
 		/// Returns the first error, or null.
 		/// </summary>
-		public PerforceError FirstError
-		{
-			get { return Errors.FirstOrDefault(); }
-		}
+		public PerforceError FirstError => Errors.FirstOrDefault();
 
 		/// <summary>
 		/// Sequence of all the data objects from the responses.
@@ -56,8 +47,8 @@ namespace EpicGames.Perforce
 			{
 				if (Count == 1)
 				{
-					PerforceError? Error = this[0].Error;
-					if (Error != null && Error.Generic == PerforceGenericCode.Empty)
+					PerforceError? error = this[0].Error;
+					if (error != null && error.Generic == PerforceGenericCode.Empty)
 					{
 						return new List<T>();
 					}
@@ -73,12 +64,12 @@ namespace EpicGames.Perforce
 		{
 			get
 			{
-				foreach (PerforceResponse<T> Response in this)
+				foreach (PerforceResponse<T> response in this)
 				{
-					PerforceError? Error = Response.Error;
-					if (Error != null)
+					PerforceError? error = response.Error;
+					if (error != null)
 					{
-						yield return Error;
+						yield return error;
 					}
 				}
 			}
@@ -89,9 +80,9 @@ namespace EpicGames.Perforce
 		/// </summary>
 		public void EnsureSuccess()
 		{
-			foreach (PerforceResponse<T> Response in this)
+			foreach (PerforceResponse<T> response in this)
 			{
-				Response.EnsureSuccess();
+				response.EnsureSuccess();
 			}
 		}
 	}

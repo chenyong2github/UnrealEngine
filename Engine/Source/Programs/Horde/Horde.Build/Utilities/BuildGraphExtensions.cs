@@ -170,7 +170,7 @@ namespace Horde.Build.Utilities
 				List<NewNode> newNodes = new List<NewNode>();
 				foreach (BgNode node in agent.Nodes)
 				{
-					const bool allowRetry = true;
+					bool allowRetry = true;
 					NewNode newNode = new NewNode(node.Name, node.InputDependencies.Select(x => x.Name).ToList(), node.OrderDependencies.Select(x => x.Name).ToList(), HordeCommon.Priority.Normal, allowRetry, node.RunEarly, node.NotifyOnWarnings, new Dictionary<string, string>(), new Dictionary<string, string>());
 					newNodes.Add(newNode);
 				}

@@ -1,15 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Microsoft.Win32;
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Text;
+using EpicGames.Core;
 
 namespace EpicGames.Perforce
 {
@@ -88,57 +82,57 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		public PerforceSettings(IPerforceEnvironment Environment)
+		public PerforceSettings(IPerforceEnvironment environment)
 		{
-			ServerAndPort = Environment.GetValue("P4PORT") ?? "perforce:1666";
-			UserName = Environment.GetValue("P4USER") ?? System.Environment.UserName;
-			Password = Environment.GetValue("P4PASSWD");
-			ClientName = Environment.GetValue("P4CLIENT");
+			ServerAndPort = environment.GetValue("P4PORT") ?? "perforce:1666";
+			UserName = environment.GetValue("P4USER") ?? System.Environment.UserName;
+			Password = environment.GetValue("P4PASSWD");
+			ClientName = environment.GetValue("P4CLIENT");
 
-			AssemblyName EntryAssemblyName = Assembly.GetEntryAssembly()!.GetName();
-			if (EntryAssemblyName.Name != null)
+			AssemblyName entryAssemblyName = Assembly.GetEntryAssembly()!.GetName();
+			if (entryAssemblyName.Name != null)
 			{
-				AppName = EntryAssemblyName.Name;
-				AppVersion = EntryAssemblyName.Version?.ToString() ?? String.Empty;
+				AppName = entryAssemblyName.Name;
+				AppVersion = entryAssemblyName.Version?.ToString() ?? String.Empty;
 			}
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ServerAndPort">Server and port to connect with</param>
-		/// <param name="UserName">Username to connect with</param>
-		public PerforceSettings(string ServerAndPort, string UserName)
+		/// <param name="serverAndPort">Server and port to connect with</param>
+		/// <param name="userName">Username to connect with</param>
+		public PerforceSettings(string serverAndPort, string userName)
 		{
-			this.ServerAndPort = ServerAndPort;
-			this.UserName = UserName;
-			this.AppName = Default.AppName;
-			this.AppVersion = Default.AppVersion;
+			ServerAndPort = serverAndPort;
+			UserName = userName;
+			AppName = Default.AppName;
+			AppVersion = Default.AppVersion;
 		}
 
 		/// <summary>
 		/// Copy constructor
 		/// </summary>
-		public PerforceSettings(IPerforceSettings Other)
+		public PerforceSettings(IPerforceSettings other)
 		{
-			ServerAndPort = Other.ServerAndPort;
-			UserName = Other.UserName;
-			Password = Other.Password;
-			ClientName = Other.ClientName;
-			AppName = Other.AppName;
-			AppVersion = Other.AppVersion;
-			PreferNativeClient = Other.PreferNativeClient;
+			ServerAndPort = other.ServerAndPort;
+			UserName = other.UserName;
+			Password = other.Password;
+			ClientName = other.ClientName;
+			AppName = other.AppName;
+			AppVersion = other.AppVersion;
+			PreferNativeClient = other.PreferNativeClient;
 		}
 
 		/// <summary>
 		/// Get the Perforce settings for a particular directory, reading any necessary P4CONFIG and P4ENVIRO files
 		/// </summary>
-		/// <param name="Directory"></param>
+		/// <param name="directory"></param>
 		/// <returns></returns>
-		public static PerforceSettings FromDirectory(DirectoryReference Directory)
+		public static PerforceSettings FromDirectory(DirectoryReference directory)
 		{
-			IPerforceEnvironment Environment = PerforceEnvironment.FromDirectory(Directory);
-			return new PerforceSettings(Environment);
+			IPerforceEnvironment environment = PerforceEnvironment.FromDirectory(directory);
+			return new PerforceSettings(environment);
 		}
 	}
 
@@ -150,44 +144,43 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Update common fields in a IPerforceSettings object
 		/// </summary>
-		public static IPerforceSettings MergeWith(this IPerforceSettings Settings, string? NewServerAndPort = null, string? NewUserName = null, string? NewClientName = null)
+		public static IPerforceSettings MergeWith(this IPerforceSettings settings, string? newServerAndPort = null, string? newUserName = null, string? newClientName = null)
 		{
-			PerforceSettings NewSettings = new PerforceSettings(Settings);
-			if (!String.IsNullOrEmpty(NewServerAndPort))
+			PerforceSettings newSettings = new PerforceSettings(settings);
+			if (!String.IsNullOrEmpty(newServerAndPort))
 			{
-				NewSettings.ServerAndPort = NewServerAndPort;
+				newSettings.ServerAndPort = newServerAndPort;
 			}
-			if (!String.IsNullOrEmpty(NewUserName))
+			if (!String.IsNullOrEmpty(newUserName))
 			{
-				NewSettings.UserName = NewUserName;
+				newSettings.UserName = newUserName;
 			}
-			if (!String.IsNullOrEmpty(NewClientName))
+			if (!String.IsNullOrEmpty(newClientName))
 			{
-				NewSettings.ClientName = NewClientName;
+				newSettings.ClientName = newClientName;
 			}
-			return NewSettings;
+			return newSettings;
 		}
 
 		/// <summary>
 		/// Gets the command line arguments to launch an external program, such as P4V or P4VC
 		/// </summary>
-		/// <param name="Settings"></param>
+		/// <param name="settings"></param>
 		/// <param name="bIncludeClient"></param>
 		/// <returns></returns>
-		public static string GetArgumentsForExternalProgram(this IPerforceSettings Settings, bool bIncludeClient)
+		public static string GetArgumentsForExternalProgram(this IPerforceSettings settings, bool bIncludeClient)
 		{
-			StringBuilder BasicCommandArgs = new StringBuilder();
-			
-			BasicCommandArgs.AppendFormat("-p \"{0}\"", Settings.ServerAndPort);
-			BasicCommandArgs.AppendFormat(" -u \"{0}\"", Settings.UserName);
+			StringBuilder basicCommandArgs = new StringBuilder();
 
-			if (bIncludeClient && Settings.ClientName != null)
+			basicCommandArgs.AppendFormat("-p \"{0}\"", settings.ServerAndPort);
+			basicCommandArgs.AppendFormat(" -u \"{0}\"", settings.UserName);
+
+			if (bIncludeClient && settings.ClientName != null)
 			{
-				BasicCommandArgs.AppendFormat(" -c \"{0}\" ", Settings.ClientName);
+				basicCommandArgs.AppendFormat(" -c \"{0}\" ", settings.ClientName);
 			}
 
-			return BasicCommandArgs.ToString();
+			return basicCommandArgs.ToString();
 		}
-
 	}
 }

@@ -9,7 +9,6 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Security;
-using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -406,45 +405,6 @@ namespace Horde.Build.Services
 			}
 
 			return collection;
-		}
-
-		/// <summary>
-		/// Tests connection to the given server
-		/// </summary>
-		/// <param name="host">Host name</param>
-		/// <param name="port">Port number to connect on</param>
-		/// <param name="logger">Logger for diagnostic messages</param>
-		/// <returns>True if the connection was valid</returns>
-		static bool TestSslConnection(string host, int port, ILogger logger)
-		{
-			using (TcpClient client = new TcpClient())
-			{
-				try
-				{
-					client.Connect(host, port);
-					logger.LogInformation("Successfully connected to {Host} on port {Port}", host, port);
-				}
-				catch (Exception ex)
-				{
-					logger.LogError(ex, "Unable to connect to {Host} on port {Port}", host, port);
-					return false;
-				}
-
-				using (SslStream stream = new SslStream(client.GetStream()))
-				{
-					try
-					{
-						stream.AuthenticateAsClient(host);
-						logger.LogInformation("Successfully authenticated host {Host}", host);
-					}
-					catch (Exception ex)
-					{
-						logger.LogError(ex, "Unable to authenticate as client");
-						return false;
-					}
-				}
-			}
-			return true;
 		}
 
 		/// <summary>

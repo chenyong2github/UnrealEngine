@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Serialization;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace EpicGames.Perforce.Managed
 {
@@ -19,9 +15,9 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Reads a node of the tree
 		/// </summary>
-		/// <param name="Ref"></param>
+		/// <param name="ref"></param>
 		/// <returns></returns>
-		public abstract Task<StreamTree> ReadAsync(StreamTreeRef Ref);
+		public abstract Task<StreamTree> ReadAsync(StreamTreeRef @ref);
 	}
 
 	/// <summary>
@@ -32,22 +28,22 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Map from hash to encoded CB tree object
 		/// </summary>
-		Dictionary<IoHash, CbObject> HashToTree;
+		readonly Dictionary<IoHash, CbObject> _hashToTree;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Root"></param>
-		/// <param name="HashToTree"></param>
-		public StreamTreeMemoryReader(Dictionary<IoHash, CbObject> HashToTree)
+		/// <param name="hashToTree"></param>
+		public StreamTreeMemoryReader(Dictionary<IoHash, CbObject> hashToTree)
 		{
-			this.HashToTree = HashToTree;
+			_hashToTree = hashToTree;
 		}
 
 		/// <inheritdoc/>
-		public override Task<StreamTree> ReadAsync(StreamTreeRef Ref)
+		public override Task<StreamTree> ReadAsync(StreamTreeRef @ref)
 		{
-			return Task.FromResult(new StreamTree(Ref.Path, HashToTree[Ref.Hash]));
+			return Task.FromResult(new StreamTree(@ref.Path, _hashToTree[@ref.Hash]));
 		}
 	}
 }

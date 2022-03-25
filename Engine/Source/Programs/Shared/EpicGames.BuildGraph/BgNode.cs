@@ -131,10 +131,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Returns the default output for this node, which includes all build products
 		/// </summary>
-		public BgNodeOutput DefaultOutput
-		{
-			get { return Outputs[0]; }
-		}
+		public BgNodeOutput DefaultOutput => Outputs[0];
 
 		/// <summary>
 		/// Determines the minimal set of direct input dependencies for this node to run

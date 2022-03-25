@@ -908,7 +908,7 @@ namespace EpicGames.BuildGraph
 					LogWarning(element, "Node {0}'s Separator attribute is more than one character ({1}). Defaulting to ;", name, separator);
 					separator = ";";
 				}
-				if (string.IsNullOrEmpty(separator))
+				if (String.IsNullOrEmpty(separator))
 				{
 					separator = ";";
 				}
@@ -924,7 +924,7 @@ namespace EpicGames.BuildGraph
 						string[] values = ReadListAttribute(element, "Values", Convert.ToChar(separator));
 						foreach (string value in values)
 						{
-							ScopedProperties[ScopedProperties.Count - 1][name] = value;
+							ScopedProperties[^1][name] = value;
 							await readContentsAsync(element);
 						}
 					}
@@ -987,7 +987,7 @@ namespace EpicGames.BuildGraph
 							EnterScope();
 							foreach (KeyValuePair<string, int> pair in macro.ArgumentNameToIndex)
 							{
-								ScopedProperties[ScopedProperties.Count - 1][pair.Key] = arguments[pair.Value] ?? "";
+								ScopedProperties[^1][pair.Key] = arguments[pair.Value] ?? "";
 							}
 							foreach (BgScriptElement macroElement in macro.Elements)
 							{
@@ -1572,7 +1572,7 @@ namespace EpicGames.BuildGraph
 					{
 						if (types.Length != agent.PossibleTypes.Length || !types.SequenceEqual(agent.PossibleTypes, StringComparer.InvariantCultureIgnoreCase))
 						{
-							LogError(element, "Agent types ({0}) were different than previous agent definition with types ({1}). Must either be empty or match exactly.", string.Join(",", types), string.Join(",", agent.PossibleTypes));
+							LogError(element, "Agent types ({0}) were different than previous agent definition with types ({1}). Must either be empty or match exactly.", String.Join(",", types), String.Join(",", agent.PossibleTypes));
 						}
 					}
 				}
@@ -1882,7 +1882,7 @@ namespace EpicGames.BuildGraph
 		protected override async Task ReadTaskAsync(BgScriptElement element)
 		{
 			// If we're running a single node and this element's parent isn't the single node to run, ignore the error and return.
-			if (!string.IsNullOrWhiteSpace(_singleNodeName) && _enclosingNode!.Name != _singleNodeName)
+			if (!String.IsNullOrWhiteSpace(_singleNodeName) && _enclosingNode!.Name != _singleNodeName)
 			{
 				return;
 			}
@@ -1917,7 +1917,7 @@ namespace EpicGames.BuildGraph
 				string[] users = ReadListAttribute(element, "Users");
 				string[] submitters = ReadListAttribute(element, "Submitters");
 				bool? bWarnings = element.HasAttribute("Warnings") ? (bool?)ReadBooleanAttribute(element, "Warnings", true) : null;
-				bool bAbsolute = element.HasAttribute("Absolute") ? ReadBooleanAttribute(element, "Absolute", true) : false;
+				bool bAbsolute = element.HasAttribute("Absolute") && ReadBooleanAttribute(element, "Absolute", true);
 
 				// Find the list of targets which are included, and recurse through all their dependencies
 				HashSet<BgNode> nodes = new HashSet<BgNode>();

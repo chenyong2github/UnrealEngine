@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Perforce
 {
@@ -21,30 +17,30 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Message">Message for the exception</param>
-		public PerforceException(string Message)
-			: base(Message)
+		/// <param name="message">Message for the exception</param>
+		public PerforceException(string message)
+			: base(message)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Format">Format string</param>
-		/// <param name="Args">Arguments for the formatted string</param>
-		public PerforceException(string Format, params object[] Args)
-			: base(String.Format(Format, Args))
+		/// <param name="format">Format string</param>
+		/// <param name="args">Arguments for the formatted string</param>
+		public PerforceException(string format, params object[] args)
+			: base(String.Format(format, args))
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Error">The error from the server</param>
-		public PerforceException(PerforceError Error)
-			: base(Error.ToString())
+		/// <param name="error">The error from the server</param>
+		public PerforceException(PerforceError error)
+			: base(error.ToString())
 		{
-			this.Error = Error;
+			Error = error;
 		}
 	}
 }

@@ -180,12 +180,12 @@ namespace Horde.Agent.Utility
 
 			// if running on an edge server, append the server id to the client name
 			string edgeSuffix = String.Empty;
-			if(info.Services != null && info.ServerID != null)
+			if(info.Services != null && info.ServerId != null)
 			{
 				string[] services = info.Services.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 				if (services.Any(x => x.Equals("edge-server", StringComparison.OrdinalIgnoreCase)))
 				{
-					edgeSuffix = $"+{info.ServerID}";
+					edgeSuffix = $"+{info.ServerId}";
 				}
 			}
 
@@ -299,7 +299,7 @@ namespace Horde.Agent.Utility
 			// if we're running a preflight
 			if (preflightChange > 0)
 			{
-				await Repository.UnshelveAsync(PerforceClient, StreamName, preflightChange, cancellationToken);
+				await Repository.UnshelveAsync(PerforceClient, preflightChange, cancellationToken);
 			}
 		}
 

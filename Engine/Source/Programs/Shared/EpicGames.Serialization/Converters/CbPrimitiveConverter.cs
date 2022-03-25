@@ -2,10 +2,8 @@
 
 using EpicGames.Core;
 using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
 
 namespace EpicGames.Serialization.Converters
 {
@@ -22,14 +20,14 @@ namespace EpicGames.Serialization.Converters
 
 		public CbPrimitiveConverter(Expression<Func<CbField, T>> read, Expression<Action<CbWriter, T>> write, Expression<Action<CbWriter, Utf8String, T>> writeNamed)
 		{
-			this.ReadMethod = ((MethodCallExpression)read.Body).Method;
-			this.ReadFunc = read.Compile();
+			ReadMethod = ((MethodCallExpression)read.Body).Method;
+			ReadFunc = read.Compile();
 
-			this.WriteMethod = ((MethodCallExpression)write.Body).Method;
-			this.WriteFunc = write.Compile();
+			WriteMethod = ((MethodCallExpression)write.Body).Method;
+			WriteFunc = write.Compile();
 
-			this.WriteNamedMethod = ((MethodCallExpression)writeNamed.Body).Method;
-			this.WriteNamedFunc = writeNamed.Compile();
+			WriteNamedMethod = ((MethodCallExpression)writeNamed.Body).Method;
+			WriteNamedFunc = writeNamed.Compile();
 		}
 
 		public override T Read(CbField field) => ReadFunc(field);

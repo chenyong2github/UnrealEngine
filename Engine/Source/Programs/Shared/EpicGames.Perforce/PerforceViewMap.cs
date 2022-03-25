@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -33,75 +29,75 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Construct from an existing set of entries
 		/// </summary>
-		/// <param name="Entries"></param>
-		public PerforceViewMap(IEnumerable<PerforceViewMapEntry> Entries)
+		/// <param name="entries"></param>
+		public PerforceViewMap(IEnumerable<PerforceViewMapEntry> entries)
 		{
-			this.Entries = Entries.ToList();
+			Entries = entries.ToList();
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Other"></param>
-		public PerforceViewMap(PerforceViewMap Other)
+		/// <param name="other"></param>
+		public PerforceViewMap(PerforceViewMap other)
 		{
-			Entries = new List<PerforceViewMapEntry>(Other.Entries);
+			Entries = new List<PerforceViewMapEntry>(other.Entries);
 		}
 
 		/// <summary>
 		/// Construct a view map from a set of entries
 		/// </summary>
-		/// <param name="Entries"></param>
-		public static PerforceViewMap Parse(IEnumerable<string> Entries)
+		/// <param name="entries"></param>
+		public static PerforceViewMap Parse(IEnumerable<string> entries)
 		{
-			return new PerforceViewMap(Entries.Select(x => PerforceViewMapEntry.Parse(x)));
+			return new PerforceViewMap(entries.Select(x => PerforceViewMapEntry.Parse(x)));
 		}
 
 		/// <summary>
 		/// Determines if a file is included in the view
 		/// </summary>
-		/// <param name="File">The file to test</param>
-		/// <param name="Comparison">The comparison type</param>
+		/// <param name="file">The file to test</param>
+		/// <param name="comparison">The comparison type</param>
 		/// <returns>True if the file is included in the view</returns>
-		public bool MatchFile(string File, StringComparison Comparison)
+		public bool MatchFile(string file, StringComparison comparison)
 		{
-			bool Included = false;
-			foreach (PerforceViewMapEntry Entry in Entries)
+			bool included = false;
+			foreach (PerforceViewMapEntry entry in Entries)
 			{
-				if (Entry.MatchFile(File, Comparison))
+				if (entry.MatchFile(file, comparison))
 				{
-					Included = Entry.Include;
+					included = entry.Include;
 				}
 			}
-			return Included;
+			return included;
 		}
 
 		/// <summary>
 		/// Attempts to convert a source file to its target path
 		/// </summary>
-		/// <param name="SourceFile"></param>
-		/// <param name="Comparison">The comparison type</param>
-		/// <param name="TargetFile"></param>
+		/// <param name="sourceFile"></param>
+		/// <param name="comparison">The comparison type</param>
+		/// <param name="targetFile"></param>
 		/// <returns></returns>
-		public bool TryMapFile(string SourceFile, StringComparison Comparison, out string TargetFile)
+		public bool TryMapFile(string sourceFile, StringComparison comparison, out string targetFile)
 		{
-			PerforceViewMapEntry? MapEntry = null;
-			foreach (PerforceViewMapEntry Entry in Entries)
+			PerforceViewMapEntry? mapEntry = null;
+			foreach (PerforceViewMapEntry entry in Entries)
 			{
-				if (Entry.MatchFile(SourceFile, Comparison))
+				if (entry.MatchFile(sourceFile, comparison))
 				{
-					MapEntry = Entry;
+					mapEntry = entry;
 				}
 			}
 
-			if (MapEntry != null && MapEntry.Include)
+			if (mapEntry != null && mapEntry.Include)
 			{
-				TargetFile = MapEntry.MapFile(SourceFile);
+				targetFile = mapEntry.MapFile(sourceFile);
 				return true;
 			}
 			else
 			{
-				TargetFile = String.Empty;
+				targetFile = String.Empty;
 				return false;
 			}
 		}
@@ -110,36 +106,36 @@ namespace EpicGames.Perforce
 		/// Gets the root paths from the view entries
 		/// </summary>
 		/// <returns></returns>
-		public List<string> GetRootPaths(StringComparison Comparison)
+		public List<string> GetRootPaths(StringComparison comparison)
 		{
-			List<string> RootPaths = new List<string>();
-			foreach (PerforceViewMapEntry Entry in Entries)
+			List<string> rootPaths = new List<string>();
+			foreach (PerforceViewMapEntry entry in Entries)
 			{
-				if (Entry.Include)
+				if (entry.Include)
 				{
-					int LastSlashIdx = Entry.SourcePrefix.LastIndexOf('/');
-					ReadOnlySpan<char> RootPath = Entry.SourcePrefix.AsSpan(0, LastSlashIdx + 1);
+					int lastSlashIdx = entry.SourcePrefix.LastIndexOf('/');
+					ReadOnlySpan<char> rootPath = entry.SourcePrefix.AsSpan(0, lastSlashIdx + 1);
 
-					for (int Idx = 0; ; Idx++)
+					for (int idx = 0; ; idx++)
 					{
-						if (Idx == RootPaths.Count)
+						if (idx == rootPaths.Count)
 						{
-							RootPaths.Add(RootPath.ToString());
+							rootPaths.Add(rootPath.ToString());
 							break;
 						}
-						else if (RootPaths[Idx].AsSpan().StartsWith(RootPath, Comparison))
+						else if (rootPaths[idx].AsSpan().StartsWith(rootPath, comparison))
 						{
-							RootPaths[Idx] = RootPath.ToString();
+							rootPaths[idx] = rootPath.ToString();
 							break;
 						}
-						else if (RootPath.StartsWith(RootPaths[Idx], Comparison))
+						else if (rootPath.StartsWith(rootPaths[idx], comparison))
 						{
 							break;
 						}
 					}
 				}
 			}
-			return RootPaths;
+			return rootPaths;
 		}
 	}
 
@@ -203,45 +199,45 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Other"></param>
-		public PerforceViewMapEntry(PerforceViewMapEntry Other)
-			: this(Other.Include, Other.Wildcard, Other.SourcePrefix, Other.SourceSuffix, Other.TargetPrefix, Other.TargetSuffix)
+		/// <param name="other"></param>
+		public PerforceViewMapEntry(PerforceViewMapEntry other)
+			: this(other.Include, other.Wildcard, other.SourcePrefix, other.SourceSuffix, other.TargetPrefix, other.TargetSuffix)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Include"></param>
-		/// <param name="Source"></param>
-		/// <param name="Target"></param>
-		public PerforceViewMapEntry(bool Include, string Source, string Target)
+		/// <param name="include"></param>
+		/// <param name="source"></param>
+		/// <param name="target"></param>
+		public PerforceViewMapEntry(bool include, string source, string target)
 		{
-			this.Include = Include;
+			Include = include;
 
-			Match Match = Regex.Match(Source, @"^(.*)(\*|\.\.\.|%%1)(.*)$");
-			if (Match.Success)
+			Match match = Regex.Match(source, @"^(.*)(\*|\.\.\.|%%1)(.*)$");
+			if (match.Success)
 			{
-				string WildcardStr = Match.Groups[2].Value;
+				string wildcardStr = match.Groups[2].Value;
 
-				SourcePrefix = Match.Groups[1].Value;
-				SourceSuffix = Match.Groups[3].Value;
-				Wildcard = Match.Groups[2].Value;
+				SourcePrefix = match.Groups[1].Value;
+				SourceSuffix = match.Groups[3].Value;
+				Wildcard = match.Groups[2].Value;
 
-				int OtherIdx = Target.IndexOf(WildcardStr, StringComparison.Ordinal);
-				TargetPrefix = Target.Substring(0, OtherIdx);
-				TargetSuffix = Target.Substring(OtherIdx + Wildcard.Length);
+				int otherIdx = target.IndexOf(wildcardStr, StringComparison.Ordinal);
+				TargetPrefix = target.Substring(0, otherIdx);
+				TargetSuffix = target.Substring(otherIdx + Wildcard.Length);
 
-				if (WildcardStr.Equals("%%1", StringComparison.Ordinal))
+				if (wildcardStr.Equals("%%1", StringComparison.Ordinal))
 				{
 					Wildcard = "*";
 				}
 			}
 			else
 			{
-				SourcePrefix = Source;
+				SourcePrefix = source;
 				SourceSuffix = String.Empty;
-				TargetPrefix = Target;
+				TargetPrefix = target;
 				TargetSuffix = String.Empty;
 				Wildcard = String.Empty;
 			}
@@ -250,67 +246,67 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Include"></param>
-		/// <param name="Wildcard"></param>
-		/// <param name="SourcePrefix"></param>
-		/// <param name="SourceSuffix"></param>
-		/// <param name="TargetPrefix"></param>
-		/// <param name="TargetSuffix"></param>
-		public PerforceViewMapEntry(bool Include, string Wildcard, string SourcePrefix, string SourceSuffix, string TargetPrefix, string TargetSuffix)
+		/// <param name="include"></param>
+		/// <param name="wildcard"></param>
+		/// <param name="sourcePrefix"></param>
+		/// <param name="sourceSuffix"></param>
+		/// <param name="targetPrefix"></param>
+		/// <param name="targetSuffix"></param>
+		public PerforceViewMapEntry(bool include, string wildcard, string sourcePrefix, string sourceSuffix, string targetPrefix, string targetSuffix)
 		{
-			this.Include = Include;
-			this.Wildcard = Wildcard;
-			this.SourcePrefix = SourcePrefix;
-			this.SourceSuffix = SourceSuffix;
-			this.TargetPrefix = TargetPrefix;
-			this.TargetSuffix = TargetSuffix;
+			Include = include;
+			Wildcard = wildcard;
+			SourcePrefix = sourcePrefix;
+			SourceSuffix = sourceSuffix;
+			TargetPrefix = targetPrefix;
+			TargetSuffix = targetSuffix;
 		}
 
 		/// <summary>
 		/// Parse a view map entry from a string, as returned by spec documents
 		/// </summary>
-		/// <param name="Entry"></param>
+		/// <param name="entry"></param>
 		/// <returns></returns>
-		public static PerforceViewMapEntry Parse(string Entry)
+		public static PerforceViewMapEntry Parse(string entry)
 		{
-			Match Match = Regex.Match(Entry, @"^\s*(-?)\s*([^ ]+)\s+([^ ]+)\s*$");
-			if(!Match.Success)
+			Match match = Regex.Match(entry, @"^\s*(-?)\s*([^ ]+)\s+([^ ]+)\s*$");
+			if (!match.Success)
 			{
-				throw new PerforceException($"Unable to parse view map entry: {Entry}");
+				throw new PerforceException($"Unable to parse view map entry: {entry}");
 			}
-			return new PerforceViewMapEntry(Match.Groups[1].Length == 0, Match.Groups[2].Value, Match.Groups[3].Value);
+			return new PerforceViewMapEntry(match.Groups[1].Length == 0, match.Groups[2].Value, match.Groups[3].Value);
 		}
 
 		/// <summary>
 		/// Maps a file to the target path
 		/// </summary>
-		/// <param name="SourceFile"></param>
+		/// <param name="sourceFile"></param>
 		/// <returns></returns>
-		public string MapFile(string SourceFile)
+		public string MapFile(string sourceFile)
 		{
-			int Count = SourceFile.Length - SourceSuffix.Length - SourcePrefix.Length;
-			return String.Concat(TargetPrefix, SourceFile.AsSpan(SourcePrefix.Length, Count), TargetSuffix);
+			int count = sourceFile.Length - SourceSuffix.Length - SourcePrefix.Length;
+			return String.Concat(TargetPrefix, sourceFile.AsSpan(SourcePrefix.Length, count), TargetSuffix);
 		}
 
 		/// <summary>
 		/// Determine if a file matches the current entry
 		/// </summary>
-		/// <param name="Path">Path to the file</param>
-		/// <param name="Comparison">The comparison type</param>
+		/// <param name="path">Path to the file</param>
+		/// <param name="comparison">The comparison type</param>
 		/// <returns>True if the path matches the entry</returns>
-		public bool MatchFile(string Path, StringComparison Comparison)
+		public bool MatchFile(string path, StringComparison comparison)
 		{
 			if (Wildcard.Length == 0)
 			{
-				return String.Equals(Path, SourcePrefix, Comparison);
+				return String.Equals(path, SourcePrefix, comparison);
 			}
 			else
 			{
-				if (!Path.StartsWith(SourcePrefix, Comparison) || !Path.EndsWith(SourceSuffix, Comparison))
+				if (!path.StartsWith(SourcePrefix, comparison) || !path.EndsWith(SourceSuffix, comparison))
 				{
 					return false;
 				}
-				if (IsFileWildcard() && Path.AsSpan(SourcePrefix.Length, Path.Length - SourceSuffix.Length - SourcePrefix.Length).IndexOf('/') != -1)
+				if (IsFileWildcard() && path.AsSpan(SourcePrefix.Length, path.Length - SourceSuffix.Length - SourcePrefix.Length).IndexOf('/') != -1)
 				{
 					return false;
 				}
@@ -321,13 +317,13 @@ namespace EpicGames.Perforce
 		/// <inheritdoc/>
 		public override string ToString()
 		{
-			StringBuilder Builder = new StringBuilder();
+			StringBuilder builder = new StringBuilder();
 			if (!Include)
 			{
-				Builder.Append('-');
+				builder.Append('-');
 			}
-			Builder.Append($"{SourcePrefix}{Wildcard}{SourceSuffix} {TargetPrefix}{Wildcard}{TargetSuffix}");
-			return Builder.ToString();
+			builder.Append($"{SourcePrefix}{Wildcard}{SourceSuffix} {TargetPrefix}{Wildcard}{TargetSuffix}");
+			return builder.ToString();
 		}
 	}
 }

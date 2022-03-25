@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Perforce
 {
@@ -27,7 +23,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Rename existing files without altering content or type to a new target.
 		/// </summary>
-		RenameOnly = 2, 
+		RenameOnly = 2,
 
 		/// <summary>
 		/// Preview which files would be opened for edit, without actually changing any files or metadata.

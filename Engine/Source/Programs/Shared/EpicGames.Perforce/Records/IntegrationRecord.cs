@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Perforce
 {
@@ -51,7 +47,7 @@ namespace EpicGames.Perforce
 		/// <returns>Formatted integration record</returns>
 		public override string ToString()
 		{
-			if(StartRevisionNumber + 1 == EndRevisionNumber)
+			if (StartRevisionNumber + 1 == EndRevisionNumber)
 			{
 				return String.Format("{0} {1}#{2}", Action, OtherFile, EndRevisionNumber);
 			}

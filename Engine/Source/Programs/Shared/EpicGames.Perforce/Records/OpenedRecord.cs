@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Perforce
 {
@@ -20,7 +16,7 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("depotFile")]
 		public string DepotFile { get; set; } = String.Empty;
-		
+
 		/// <summary>
 		/// Client path to file (not returned if OpenedOptions.ShortOutput is set)
 		/// </summary>

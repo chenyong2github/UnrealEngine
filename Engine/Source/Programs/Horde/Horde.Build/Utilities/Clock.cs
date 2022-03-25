@@ -137,44 +137,39 @@ namespace HordeCommon
 	/// </summary>
 	public class Clock : IClock
 	{
-		class TickerImpl : ITicker
+		sealed class TickerImpl : ITicker, IDisposable
 		{
 			readonly string _name;
-			CancellationTokenSource? _cancellationSource;
+			readonly CancellationTokenSource _cancellationSource;
 			readonly Func<Task> _tickFunc;
 			Task? _backgroundTask;
 
 			public TickerImpl(string name, TimeSpan delay, Func<CancellationToken, ValueTask<TimeSpan?>> triggerAsync, ILogger logger)
 			{
 				_name = name;
+				_cancellationSource = new CancellationTokenSource();
 				_tickFunc = () => Run(delay, triggerAsync, logger);
 			}
 
 			public async Task StartAsync()
 			{
 				await StopAsync();
-				_cancellationSource = new CancellationTokenSource();
+
 				_backgroundTask = Task.Run(_tickFunc);
 			}
 
 			public async Task StopAsync()
 			{
-				if (_cancellationSource != null)
+				if (_backgroundTask != null)
 				{
 					_cancellationSource.Cancel();
-					await _backgroundTask!;
-					_cancellationSource.Dispose();
-					_cancellationSource = null;
+					await _backgroundTask;
 				}
 			}
 
 			public void Dispose()
 			{
-				StopAsync().Wait();
-				if (_cancellationSource != null)
-				{
-					_cancellationSource.Dispose();
-				}
+				_cancellationSource.Dispose();
 			}
 
 			public async Task Run(TimeSpan delay, Func<CancellationToken, ValueTask<TimeSpan?>> triggerAsync, ILogger logger)
@@ -210,6 +205,8 @@ namespace HordeCommon
 					}
 				}
 			}
+
+			public override string ToString() => _name;
 		}
 
 		readonly RedisService _redis;

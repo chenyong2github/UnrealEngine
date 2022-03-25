@@ -6,7 +6,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 
@@ -18,91 +17,91 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public void TestDirectoryNode()
 		{
-			DirectoryNode Node = new DirectoryNode();
+			DirectoryNode node = new DirectoryNode();
 			{
-				DirectoryNode Foo = Node.AddDirectory("Foo");
+				DirectoryNode foo = node.AddDirectory("Foo");
 
-				FileNode File1 = Foo.AddFile("first file.txt", 0);
-				File1.Append(Encoding.UTF8.GetBytes("first file file contents"), new ChunkingOptions());
+				FileNode file1 = foo.AddFile("first file.txt", 0);
+				file1.Append(Encoding.UTF8.GetBytes("first file file contents"), new ChunkingOptions());
 
-				DirectoryNode Bar = Node.AddDirectory("Bar");
+				node.AddDirectory("Bar");
 
-				FileNode File2 = Foo.AddFile("second file.txt", 0);
-				File2.Append(Encoding.UTF8.GetBytes("second file's contents"), new ChunkingOptions());
+				FileNode file2 = foo.AddFile("second file.txt", 0);
+				file2.Append(Encoding.UTF8.GetBytes("second file's contents"), new ChunkingOptions());
 			}
 
-			Dictionary<IoHash, ReadOnlyMemory<byte>> HashToData = new Dictionary<IoHash, ReadOnlyMemory<byte>>();
-			IoHash Hash = Serialize(Node, HashToData);
+			Dictionary<IoHash, ReadOnlyMemory<byte>> hashToData = new Dictionary<IoHash, ReadOnlyMemory<byte>>();
+			IoHash hash = Serialize(node, hashToData);
 
-			DirectoryNode Node2 = DeserializeDirectory(Hash, HashToData);
+			DirectoryNode node2 = DeserializeDirectory(hash, hashToData);
 			{
-				Assert.AreEqual(2, Node2.Directories.Count);
-				Assert.AreEqual(0, Node2.Files.Count);
+				Assert.AreEqual(2, node2.Directories.Count);
+				Assert.AreEqual(0, node2.Files.Count);
 
-				Assert.IsTrue(Node2.TryGetDirectoryEntry("Foo", out DirectoryEntry? FooEntry));
-				Assert.IsNotNull(FooEntry);
-				DirectoryNode? Foo = FooEntry!.Node!;
-				Assert.IsNotNull(Foo);
+				Assert.IsTrue(node2.TryGetDirectoryEntry("Foo", out DirectoryEntry? fooEntry));
+				Assert.IsNotNull(fooEntry);
+				DirectoryNode? foo = fooEntry!.Node!;
+				Assert.IsNotNull(foo);
 
-				Assert.AreEqual(0, Foo.Directories.Count);
-				Assert.AreEqual(2, Foo.Files.Count);
+				Assert.AreEqual(0, foo.Directories.Count);
+				Assert.AreEqual(2, foo.Files.Count);
 
-				Assert.IsTrue(Foo.TryGetFileEntry("first file.txt", out FileEntry? File1));
-				Assert.IsTrue(Foo.TryGetFileEntry("second file.txt", out FileEntry? File2));
+				Assert.IsTrue(foo.TryGetFileEntry("first file.txt", out FileEntry? _));
+				Assert.IsTrue(foo.TryGetFileEntry("second file.txt", out FileEntry? _));
 
-				Assert.IsTrue(Node2.TryGetDirectoryEntry("Bar", out DirectoryEntry? BarEntry));
-				Assert.IsNotNull(BarEntry);
-				DirectoryNode? Bar = BarEntry!.Node!;
-				Assert.IsNotNull(Bar);
+				Assert.IsTrue(node2.TryGetDirectoryEntry("Bar", out DirectoryEntry? barEntry));
+				Assert.IsNotNull(barEntry);
+				DirectoryNode? bar = barEntry!.Node!;
+				Assert.IsNotNull(bar);
 			}
 		}
 
-		static IoHash Serialize(BundleNode Node, Dictionary<IoHash, ReadOnlyMemory<byte>> HashToData)
+		static IoHash Serialize(BundleNode node, Dictionary<IoHash, ReadOnlyMemory<byte>> hashToData)
 		{
-			foreach (BundleNodeRef Ref in Node.GetReferences())
+			foreach (BundleNodeRef @ref in node.GetReferences())
 			{
-				if (Ref.Node != null)
+				if (@ref.Node != null)
 				{
-					IoHash RefHash = Serialize(Ref.Node, HashToData);
-					Ref.MarkAsClean(RefHash);
+					IoHash refHash = Serialize(@ref.Node, hashToData);
+					@ref.MarkAsClean(refHash);
 				}
 			}
 
-			byte[] Data = Node.Serialize().ToArray();
-			IoHash Hash = IoHash.Compute(Data);
-			HashToData[Hash] = Data;
-			return Hash;
+			byte[] data = node.Serialize().ToArray();
+			IoHash hash = IoHash.Compute(data);
+			hashToData[hash] = data;
+			return hash;
 		}
 
-		static DirectoryNode DeserializeDirectory(IoHash Hash, Dictionary<IoHash, ReadOnlyMemory<byte>> HashToData)
+		static DirectoryNode DeserializeDirectory(IoHash hash, Dictionary<IoHash, ReadOnlyMemory<byte>> hashToData)
 		{
-			ReadOnlyMemory<byte> Data = HashToData[Hash];
-			DirectoryNode Node = DirectoryNode.Deserialize(Data);
+			ReadOnlyMemory<byte> data = hashToData[hash];
+			DirectoryNode node = DirectoryNode.Deserialize(data);
 
-			foreach (FileEntry FileEntry in Node.Files)
+			foreach (FileEntry fileEntry in node.Files)
 			{
-				FileEntry.Node = DeserializeFile(FileEntry.Hash, HashToData);
+				fileEntry.Node = DeserializeFile(fileEntry.Hash, hashToData);
 			}
 
-			foreach (DirectoryEntry DirectoryEntry in Node.Directories)
+			foreach (DirectoryEntry directoryEntry in node.Directories)
 			{
-				DirectoryEntry.Node = DeserializeDirectory(DirectoryEntry.Hash, HashToData);
+				directoryEntry.Node = DeserializeDirectory(directoryEntry.Hash, hashToData);
 			}
 
-			return Node;
+			return node;
 		}
 
-		static FileNode DeserializeFile(IoHash Hash, Dictionary<IoHash, ReadOnlyMemory<byte>> HashToData)
+		static FileNode DeserializeFile(IoHash hash, Dictionary<IoHash, ReadOnlyMemory<byte>> hashToData)
 		{
-			ReadOnlyMemory<byte> Data = HashToData[Hash];
-			FileNode Node = FileNode.Deserialize(Data);
+			ReadOnlyMemory<byte> data = hashToData[hash];
+			FileNode node = FileNode.Deserialize(data);
 
-			foreach (BundleNodeRef<FileNode> ChildRef in Node.Children)
+			foreach (BundleNodeRef<FileNode> childRef in node.Children)
 			{
-				ChildRef.Node = DeserializeFile(Hash, HashToData);
+				childRef.Node = DeserializeFile(hash, hashToData);
 			}
 
-			return Node;
+			return node;
 		}
 	}
 }

@@ -7,7 +7,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Text;
 
 namespace EpicGames.Serialization.Converters
 {
@@ -24,7 +23,7 @@ namespace EpicGames.Serialization.Converters
 			}
 		}
 
-		static Utf8String s_discriminatorKey = "_t";
+		static readonly Utf8String s_discriminatorKey = "_t";
 
 		public Type ClassType { get; }
 		public bool IsPolymorphic { get; }
@@ -38,8 +37,8 @@ namespace EpicGames.Serialization.Converters
 		public DynamicMethod ReadConcreteMethod { get; }
 		public DynamicMethod WriteConcreteContentsMethod { get; }
 
-		static Dictionary<PropertyInfo, CbClassConverterMethods> s_propertyToMethods = new Dictionary<PropertyInfo, CbClassConverterMethods>();
-		static Dictionary<Type, CbClassConverterMethods> s_typeToMethods = new Dictionary<Type, CbClassConverterMethods>();
+		static readonly Dictionary<PropertyInfo, CbClassConverterMethods> s_propertyToMethods = new Dictionary<PropertyInfo, CbClassConverterMethods>();
+		static readonly Dictionary<Type, CbClassConverterMethods> s_typeToMethods = new Dictionary<Type, CbClassConverterMethods>();
 
 		public static CbClassConverterMethods Create(Type classType)
 		{
@@ -55,8 +54,8 @@ namespace EpicGames.Serialization.Converters
 
 		private CbClassConverterMethods(Type classType)
 		{
-			this.ClassType = classType;
-			this.IsPolymorphic = (classType.GetCustomAttribute<CbPolymorphicAttribute>(true) != null);
+			ClassType = classType;
+			IsPolymorphic = (classType.GetCustomAttribute<CbPolymorphicAttribute>(true) != null);
 
 			ReadConcreteMethod = new DynamicMethod($"ReadConcrete_{classType.Name}", classType, new Type[] { typeof(CbField) });
 			WriteConcreteContentsMethod = new DynamicMethod($"WriteConcreteContents_{classType.Name}", null, new Type[] { typeof(CbWriter), classType });
@@ -82,8 +81,8 @@ namespace EpicGames.Serialization.Converters
 			CreateConcreteObjectReader(ClassType, ReadConcreteMethod.GetILGenerator());
 			CreateConcreteObjectContentsWriter(ClassType, WriteConcreteContentsMethod.GetILGenerator());
 
-			CreateObjectWriter(ClassType, WriteMethod.GetILGenerator(), WriteContentsMethod);
-			CreateNamedObjectWriter(ClassType, WriteNamedMethod.GetILGenerator(), WriteContentsMethod);
+			CreateObjectWriter(WriteMethod.GetILGenerator(), WriteContentsMethod);
+			CreateNamedObjectWriter(WriteNamedMethod.GetILGenerator(), WriteContentsMethod);
 
 			// Create the extra polymorphic methods
 			if (IsPolymorphic)
@@ -168,7 +167,7 @@ namespace EpicGames.Serialization.Converters
 			}
 		}
 
-		static void CreateObjectWriter(Type type, ILGenerator generator, DynamicMethod contentsWriter)
+		static void CreateObjectWriter(ILGenerator generator, DynamicMethod contentsWriter)
 		{
 			generator.Emit(OpCodes.Ldarg_1);
 
@@ -189,7 +188,7 @@ namespace EpicGames.Serialization.Converters
 			generator.Emit(OpCodes.Ret);
 		}
 
-		static void CreateNamedObjectWriter(Type type, ILGenerator generator, DynamicMethod contentsWriter)
+		static void CreateNamedObjectWriter(ILGenerator generator, DynamicMethod contentsWriter)
 		{
 			generator.Emit(OpCodes.Ldarg_2);
 
@@ -458,11 +457,11 @@ namespace EpicGames.Serialization.Converters
 
 	class CbClassConverter<T> : CbConverterBase<T>, ICbConverterMethods where T : class
 	{
-		CbClassConverterMethods _methods;
+		readonly CbClassConverterMethods _methods;
 
-		Func<CbField, T> _readFunc;
-		Action<CbWriter, T> _writeFunc;
-		Action<CbWriter, Utf8String, T> _writeNamedFunc;
+		readonly Func<CbField, T> _readFunc;
+		readonly Action<CbWriter, T> _writeFunc;
+		readonly Action<CbWriter, Utf8String, T> _writeNamedFunc;
 
 		public CbClassConverter()
 		{

@@ -231,7 +231,6 @@ namespace Horde.Build.Tests
 		
 		private LeasesController GetLeasesController()
 		{
-			ILogger<LeasesController> logger = ServiceProvider.GetRequiredService<ILogger<LeasesController>>();
 			LeasesController controller = new LeasesController(AclService, AgentService);
 			controller.ControllerContext = GetControllerContext();
 			return controller;

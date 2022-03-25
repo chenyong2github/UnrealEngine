@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using EpicGames.Core;
 
 namespace EpicGames.Perforce
 {
@@ -87,6 +83,6 @@ namespace EpicGames.Perforce
 		/// The server unique id
 		/// </summary>
 		[PerforceTag("ServerID", Optional = true)]
-		public string? ServerID { get; set; }
+		public string? ServerId { get; set; }
 	}
 }

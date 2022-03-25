@@ -6,8 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Reflection.Emit;
-using System.Text;
 
 namespace EpicGames.Serialization
 {
@@ -28,7 +26,7 @@ namespace EpicGames.Serialization
 		/// <param name="converterType"></param>
 		public CbConverterAttribute(Type converterType)
 		{
-			this.ConverterType = converterType;
+			ConverterType = converterType;
 		}
 	}
 
@@ -137,8 +135,8 @@ namespace EpicGames.Serialization
 			}
 		}
 
-		static Dictionary<PropertyInfo, ICbConverterMethods> s_propertyToMethods = new Dictionary<PropertyInfo, ICbConverterMethods>();
-		static Dictionary<Type, ICbConverterMethods> s_typeToMethods = new Dictionary<Type, ICbConverterMethods>();
+		static readonly Dictionary<PropertyInfo, ICbConverterMethods> s_propertyToMethods = new Dictionary<PropertyInfo, ICbConverterMethods>();
+		static readonly Dictionary<Type, ICbConverterMethods> s_typeToMethods = new Dictionary<Type, ICbConverterMethods>();
 
 		static ICbConverterMethods CreateWrapper(Type type, ICbConverter converter)
 		{
@@ -227,12 +225,12 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Object used for locking access to shared objects
 		/// </summary>
-		static object s_lockObject = new object();
+		static readonly object s_lockObject = new object();
 
 		/// <summary>
 		/// Cache of property to converter
 		/// </summary>
-		static Dictionary<PropertyInfo, ICbConverter> s_propertyToConverter = new Dictionary<PropertyInfo, ICbConverter>();
+		static readonly Dictionary<PropertyInfo, ICbConverter> s_propertyToConverter = new Dictionary<PropertyInfo, ICbConverter>();
 
 		/// <summary>
 		/// Cache of type to converter
@@ -296,9 +294,9 @@ namespace EpicGames.Serialization
 			/// </summary>
 			class CbConverterWrapper : CbConverterBase<T>
 			{
-				ICbConverter _inner;
+				readonly ICbConverter _inner;
 
-				public CbConverterWrapper(ICbConverter inner) => this._inner = inner;
+				public CbConverterWrapper(ICbConverter inner) => _inner = inner;
 
 				/// <inheritdoc/>
 				public override T Read(CbField field) => (T)_inner.ReadObject(field)!;

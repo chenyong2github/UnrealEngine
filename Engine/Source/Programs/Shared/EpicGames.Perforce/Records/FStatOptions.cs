@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Perforce
 {
@@ -27,7 +23,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Output all revisions for the given files, suppressing the other[...] and resolve[...] fields.
 		/// </summary>
-		AllRevisions = 0x02, 
+		AllRevisions = 0x02,
 
 		/// <summary>
 		/// Output a fileSize field displaying the length of the file and a digest field for each revision.

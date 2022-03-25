@@ -67,7 +67,7 @@ namespace EpicGames.BuildGraph
 			string? ugsProject = _config.UgsBadge?.Compute(context);
 
 			BgLabelChange labelChange;
-			if ((object?)_config.Change == null)
+			if (_config.Change is null)
 			{
 				labelChange = BgLabelChange.Current;
 			}

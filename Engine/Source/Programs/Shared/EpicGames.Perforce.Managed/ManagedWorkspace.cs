@@ -1,21 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Perforce;
-using System.Runtime.InteropServices;
-using System.Runtime.Serialization.Json;
-using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Perforce.Managed
 {
@@ -27,9 +24,9 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Message">Error message</param>
-		public InsufficientSpaceException(string Message)
-			: base(Message)
+		/// <param name="message">Error message</param>
+		public InsufficientSpaceException(string message)
+			: base(message)
 		{
 		}
 	}
@@ -42,29 +39,29 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// The Perforce connection
 		/// </summary>
-		public IPerforceConnection PerforceClient;
+		public IPerforceConnection _perforceClient;
 
 		/// <summary>
 		/// Stream to sync it to
 		/// </summary>
-		public string StreamName;
+		public string _streamName;
 
 		/// <summary>
 		/// View for this client
 		/// </summary>
-		public IReadOnlyList<string> View;
+		public IReadOnlyList<string> _view;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="PerforceClient">The perforce connection</param>
-		/// <param name="StreamName">Stream to be synced</param>
-		/// <param name="View">List of filters for the stream</param>
-		public PopulateRequest(IPerforceConnection PerforceClient, string StreamName, IReadOnlyList<string> View)
+		/// <param name="perforceClient">The perforce connection</param>
+		/// <param name="streamName">Stream to be synced</param>
+		/// <param name="view">List of filters for the stream</param>
+		public PopulateRequest(IPerforceConnection perforceClient, string streamName, IReadOnlyList<string> view)
 		{
-			this.PerforceClient = PerforceClient;
-			this.StreamName = StreamName;
-			this.View = View;
+			_perforceClient = perforceClient;
+			_streamName = streamName;
+			_view = view;
 		}
 	}
 
@@ -141,188 +138,187 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Name of the host
 		/// </summary>
-		string HostName;
+		readonly string _hostName;
 
 		/// <summary>
 		/// Incrementing number assigned to sequential operations that modify files. Used to age out files in the cache.
 		/// </summary>
-		uint NextSequenceNumber;
+		uint _nextSequenceNumber;
 
 		/// <summary>
 		/// Whether a repair operation should be run on this workspace. Set whenever the state may be inconsistent.
 		/// </summary>
-		bool bRequiresRepair;
+		bool _bRequiresRepair;
 
 		/// <summary>
 		/// The log output device
 		/// </summary>
-		readonly ILogger Logger;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// The root directory for the stash
 		/// </summary>
-		readonly DirectoryReference BaseDir;
+		readonly DirectoryReference _baseDir;
 
 		/// <summary>
 		/// Root directory for storing cache files
 		/// </summary>
-		readonly DirectoryReference CacheDir;
+		readonly DirectoryReference _cacheDir;
 
 		/// <summary>
 		/// Root directory for storing workspace files
 		/// </summary>
-		readonly DirectoryReference WorkspaceDir;
+		readonly DirectoryReference _workspaceDir;
 
 		/// <summary>
 		/// Set of clients that we're created. Used to avoid updating multiple times during one run.
 		/// </summary>
-		Dictionary<string, ClientRecord> CreatedClients = new Dictionary<string, ClientRecord>();
+		readonly Dictionary<string, ClientRecord> _createdClients = new Dictionary<string, ClientRecord>();
 
 		/// <summary>
 		/// Set of unique cache entries. We use this to ensure new names in the cache are unique.
 		/// </summary>
-		HashSet<ulong> CacheEntries = new HashSet<ulong>();
+		readonly HashSet<ulong> _cacheEntries = new HashSet<ulong>();
 
 		/// <summary>
 		/// List of all the staged files
 		/// </summary>
-		WorkspaceDirectoryInfo Workspace;
+		WorkspaceDirectoryInfo _workspace;
 
 		/// <summary>
 		/// All the files which are currently being tracked
 		/// </summary>
-		Dictionary<FileContentId, CachedFileInfo> ContentIdToTrackedFile = new Dictionary<FileContentId, CachedFileInfo>();
+		Dictionary<FileContentId, CachedFileInfo> _contentIdToTrackedFile = new Dictionary<FileContentId, CachedFileInfo>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="HostName">Name of the current host</param>
-		/// <param name="NextSequenceNumber">The next sequence number for operations</param>
-		/// <param name="BaseDir">The root directory for the stash</param>
-		/// <param name="Logger">The log output device</param>
-		private ManagedWorkspace(string HostName, uint NextSequenceNumber, DirectoryReference BaseDir, ILogger Logger)
+		/// <param name="hostName">Name of the current host</param>
+		/// <param name="nextSequenceNumber">The next sequence number for operations</param>
+		/// <param name="baseDir">The root directory for the stash</param>
+		/// <param name="logger">The log output device</param>
+		private ManagedWorkspace(string hostName, uint nextSequenceNumber, DirectoryReference baseDir, ILogger logger)
 		{
 			// Save the Perforce settings
-			this.HostName = HostName;
-			this.NextSequenceNumber = NextSequenceNumber;
-			this.Logger = Logger;
+			_hostName = hostName;
+			_nextSequenceNumber = nextSequenceNumber;
+			_logger = logger;
 
 			// Get all the directories
-			this.BaseDir = BaseDir;
-			DirectoryReference.CreateDirectory(BaseDir);
+			_baseDir = baseDir;
+			DirectoryReference.CreateDirectory(baseDir);
 
-			this.CacheDir = DirectoryReference.Combine(BaseDir, "Cache");
-			DirectoryReference.CreateDirectory(CacheDir);
+			_cacheDir = DirectoryReference.Combine(baseDir, "Cache");
+			DirectoryReference.CreateDirectory(_cacheDir);
 
-			this.WorkspaceDir = DirectoryReference.Combine(BaseDir, "Sync");
-			DirectoryReference.CreateDirectory(WorkspaceDir);
+			_workspaceDir = DirectoryReference.Combine(baseDir, "Sync");
+			DirectoryReference.CreateDirectory(_workspaceDir);
 
 			// Create the workspace
-			this.Workspace = new WorkspaceDirectoryInfo(WorkspaceDir);
+			_workspace = new WorkspaceDirectoryInfo(_workspaceDir);
 		}
 
 		/// <summary>
 		/// Loads a repository from the given directory, or create it if it doesn't exist
 		/// </summary>
-		/// <param name="HostName">Name of the current machine. Will be automatically detected from the host settings if not present.</param>
-		/// <param name="BaseDir">The base directory for the repository</param>
+		/// <param name="hostName">Name of the current machine. Will be automatically detected from the host settings if not present.</param>
+		/// <param name="baseDir">The base directory for the repository</param>
 		/// <param name="bOverwrite">Whether to allow overwriting a repository that's not up to date</param>
-		/// <param name="Logger">The logging interface</param>
-		/// <param name="CancellationToken">Cancellation token for this operation</param>
+		/// <param name="logger">The logging interface</param>
+		/// <param name="cancellationToken">Cancellation token for this operation</param>
 		/// <returns></returns>
-		public static async Task<ManagedWorkspace> LoadOrCreateAsync(string HostName, DirectoryReference BaseDir, bool bOverwrite, ILogger Logger, CancellationToken CancellationToken)
+		public static async Task<ManagedWorkspace> LoadOrCreateAsync(string hostName, DirectoryReference baseDir, bool bOverwrite, ILogger logger, CancellationToken cancellationToken)
 		{
-			if (Exists(BaseDir))
+			if (Exists(baseDir))
 			{
 				try
 				{
-					return await LoadAsync(HostName, BaseDir, Logger, CancellationToken);
+					return await LoadAsync(hostName, baseDir, logger, cancellationToken);
 				}
-				catch (Exception Ex)
+				catch (Exception ex)
 				{
 					if (bOverwrite)
 					{
-						Logger.LogWarning(Ex, "Unable to load existing repository.");
+						logger.LogWarning(ex, "Unable to load existing repository.");
 					}
 					else
 					{
 						throw;
 					}
-
 				}
 			}
 
-			return await CreateAsync(HostName, BaseDir, Logger, CancellationToken);
+			return await CreateAsync(hostName, baseDir, logger, cancellationToken);
 		}
-/*
-		public static PerforceConnection GetPerforceConnection(PerforceConnection Perforce)
-		{
-			if (Perforce.UserName == null || HostName == null)
-			{
-				InfoRecord ServerInfo = await Perforce.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken);
-				if (Perforce.UserName == null)
+		/*
+				public static PerforceConnection GetPerforceConnection(PerforceConnection Perforce)
 				{
-					Perforce = new PerforceConnection(Perforce) { UserName = ServerInfo.UserName };
-				}
-				if (HostName == null)
-				{
-					if (ServerInfo.ClientHost == null)
+					if (Perforce.UserName == null || HostName == null)
 					{
-						throw new Exception("Unable to determine host name");
+						InfoRecord ServerInfo = await Perforce.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken);
+						if (Perforce.UserName == null)
+						{
+							Perforce = new PerforceConnection(Perforce) { UserName = ServerInfo.UserName };
+						}
+						if (HostName == null)
+						{
+							if (ServerInfo.ClientHost == null)
+							{
+								throw new Exception("Unable to determine host name");
+							}
+							else
+							{
+								HostName = ServerInfo.ClientHost;
+							}
+						}
 					}
-					else
-					{
-						HostName = ServerInfo.ClientHost;
-					}
+					return Perforce;
 				}
-			}
-			return Perforce;
-		}
-*/
+		*/
 
 		/// <summary>
 		/// Creates a repository at the given location
 		/// </summary>
-		/// <param name="HostName">Name of the current machine.</param>
-		/// <param name="BaseDir">The base directory for the repository</param>
-		/// <param name="Logger">The log output device</param>
-		/// <param name="CancellationToken">Cancellation token for this operation</param>
+		/// <param name="hostName">Name of the current machine.</param>
+		/// <param name="baseDir">The base directory for the repository</param>
+		/// <param name="logger">The log output device</param>
+		/// <param name="cancellationToken">Cancellation token for this operation</param>
 		/// <returns>New repository instance</returns>
-		public static async Task<ManagedWorkspace> CreateAsync(string HostName, DirectoryReference BaseDir, ILogger Logger, CancellationToken CancellationToken)
+		public static async Task<ManagedWorkspace> CreateAsync(string hostName, DirectoryReference baseDir, ILogger logger, CancellationToken cancellationToken)
 		{
-			Logger.LogInformation("Creating repository at {Location}...", BaseDir);
+			logger.LogInformation("Creating repository at {Location}...", baseDir);
 
 			// Make sure all the fields are valid
-			DirectoryReference.CreateDirectory(BaseDir);
-			FileUtils.ForceDeleteDirectoryContents(BaseDir);
+			DirectoryReference.CreateDirectory(baseDir);
+			FileUtils.ForceDeleteDirectoryContents(baseDir);
 
-			ManagedWorkspace Repo = new ManagedWorkspace(HostName, 1, BaseDir, Logger);
-			await Repo.SaveAsync(TransactionState.Clean, CancellationToken);
-			Repo.CreateCacheHierarchy();
+			ManagedWorkspace repo = new ManagedWorkspace(hostName, 1, baseDir, logger);
+			await repo.SaveAsync(TransactionState.Clean, cancellationToken);
+			repo.CreateCacheHierarchy();
 
-			FileReference SignatureFile = FileReference.Combine(BaseDir, SignatureFileName);
-			using(BinaryWriter Writer = new BinaryWriter(File.Open(SignatureFile.FullName, FileMode.Create, FileAccess.Write, FileShare.Read)))
+			FileReference signatureFile = FileReference.Combine(baseDir, SignatureFileName);
+			using (BinaryWriter writer = new BinaryWriter(File.Open(signatureFile.FullName, FileMode.Create, FileAccess.Write, FileShare.Read)))
 			{
-				Writer.Write(CurrentSignature);
+				writer.Write(CurrentSignature);
 			}
 
-			return Repo;
+			return repo;
 		}
 
 		/// <summary>
 		/// Tests whether a repository exists in the given directory
 		/// </summary>
-		/// <param name="BaseDir"></param>
+		/// <param name="baseDir"></param>
 		/// <returns></returns>
-		public static bool Exists(DirectoryReference BaseDir)
+		public static bool Exists(DirectoryReference baseDir)
 		{
-			FileReference SignatureFile = FileReference.Combine(BaseDir, SignatureFileName);
-			if(FileReference.Exists(SignatureFile))
+			FileReference signatureFile = FileReference.Combine(baseDir, SignatureFileName);
+			if (FileReference.Exists(signatureFile))
 			{
-				using(BinaryReader Reader = new BinaryReader(File.Open(SignatureFile.FullName, FileMode.Open, FileAccess.Read, FileShare.Read)))
+				using (BinaryReader reader = new BinaryReader(File.Open(signatureFile.FullName, FileMode.Open, FileAccess.Read, FileShare.Read)))
 				{
-					int Signature = Reader.ReadInt32();
-					if(Signature == CurrentSignature)
+					int signature = reader.ReadInt32();
+					if (signature == CurrentSignature)
 					{
 						return true;
 					}
@@ -334,76 +330,76 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Loads a repository from disk
 		/// </summary>
-		/// <param name="HostName">Name of the current host. Will be obtained from a 'p4 info' call if not specified</param>
-		/// <param name="BaseDir">The base directory for the repository</param>
-		/// <param name="Logger">The log output device</param>
-		/// <param name="CancellationToken">Cancellation token for this command</param>
-		public static async Task<ManagedWorkspace> LoadAsync(string HostName, DirectoryReference BaseDir, ILogger Logger, CancellationToken CancellationToken)
+		/// <param name="hostName">Name of the current host. Will be obtained from a 'p4 info' call if not specified</param>
+		/// <param name="baseDir">The base directory for the repository</param>
+		/// <param name="logger">The log output device</param>
+		/// <param name="cancellationToken">Cancellation token for this command</param>
+		public static async Task<ManagedWorkspace> LoadAsync(string hostName, DirectoryReference baseDir, ILogger logger, CancellationToken cancellationToken)
 		{
-			if(!Exists(BaseDir))
+			if (!Exists(baseDir))
 			{
-				throw new FatalErrorException("No valid repository found at {0}", BaseDir);
+				throw new FatalErrorException("No valid repository found at {0}", baseDir);
 			}
 
-			FileReference DataFile = FileReference.Combine(BaseDir, DataFileName);
-			RestoreBackup(DataFile);
+			FileReference dataFile = FileReference.Combine(baseDir, DataFileName);
+			RestoreBackup(dataFile);
 
-			byte[] Data = await FileReference.ReadAllBytesAsync(DataFile, CancellationToken);
-			MemoryReader Reader = new MemoryReader(Data.AsMemory());
+			byte[] data = await FileReference.ReadAllBytesAsync(dataFile, cancellationToken);
+			MemoryReader reader = new MemoryReader(data.AsMemory());
 
-			int Version = Reader.ReadInt32();
-			if(Version > CurrentVersion)
+			int version = reader.ReadInt32();
+			if (version > CurrentVersion)
 			{
-				throw new FatalErrorException("Unsupported data format (version {0}, current {1})", Version, CurrentVersion);
+				throw new FatalErrorException("Unsupported data format (version {0}, current {1})", version, CurrentVersion);
 			}
 
-			bool bRequiresRepair = Reader.ReadBoolean();
-			uint NextSequenceNumber = Reader.ReadUInt32();
+			bool bRequiresRepair = reader.ReadBoolean();
+			uint nextSequenceNumber = reader.ReadUInt32();
 
-			ManagedWorkspace Repo = new ManagedWorkspace(HostName, NextSequenceNumber, BaseDir, Logger);
-			Repo.bRequiresRepair = bRequiresRepair;
+			ManagedWorkspace repo = new ManagedWorkspace(hostName, nextSequenceNumber, baseDir, logger);
+			repo._bRequiresRepair = bRequiresRepair;
 
-			int NumTrackedFiles = Reader.ReadInt32();
-			for(int Idx = 0; Idx < NumTrackedFiles; Idx++)
+			int numTrackedFiles = reader.ReadInt32();
+			for (int idx = 0; idx < numTrackedFiles; idx++)
 			{
-				CachedFileInfo TrackedFile = Reader.ReadCachedFileInfo(Repo.CacheDir);
-				Repo.ContentIdToTrackedFile.Add(TrackedFile.ContentId, TrackedFile);
-				Repo.CacheEntries.Add(TrackedFile.CacheId);
+				CachedFileInfo trackedFile = reader.ReadCachedFileInfo(repo._cacheDir);
+				repo._contentIdToTrackedFile.Add(trackedFile.ContentId, trackedFile);
+				repo._cacheEntries.Add(trackedFile.CacheId);
 			}
 
-			Reader.ReadWorkspaceDirectoryInfo(Repo.Workspace, (ManagedWorkspaceVersion)Version);
+			reader.ReadWorkspaceDirectoryInfo(repo._workspace, (ManagedWorkspaceVersion)version);
 
-			await Repo.RunOptionalRepairAsync(CancellationToken);
-			return Repo;
+			await repo.RunOptionalRepairAsync(cancellationToken);
+			return repo;
 		}
 
 		/// <summary>
 		/// Save the state of the repository
 		/// </summary>
-		private async Task SaveAsync(TransactionState State, CancellationToken CancellationToken)
+		private async Task SaveAsync(TransactionState state, CancellationToken cancellationToken)
 		{
 			// Allocate the buffer for writing
-			int SerializedSize = sizeof(int) + sizeof(byte) + sizeof(int) + sizeof(int) + ContentIdToTrackedFile.Values.Sum(x => x.GetSerializedSize()) + Workspace.GetSerializedSize();
-			byte[] Buffer = new byte[SerializedSize];
+			int serializedSize = sizeof(int) + sizeof(byte) + sizeof(int) + sizeof(int) + _contentIdToTrackedFile.Values.Sum(x => x.GetSerializedSize()) + _workspace.GetSerializedSize();
+			byte[] buffer = new byte[serializedSize];
 
 			// Write the data to memory
-			MemoryWriter Writer = new MemoryWriter(Buffer.AsMemory());
-			Writer.WriteInt32(CurrentVersion);
-			Writer.WriteBoolean(bRequiresRepair || (State != TransactionState.Clean));
-			Writer.WriteUInt32(NextSequenceNumber);
-			Writer.WriteInt32(ContentIdToTrackedFile.Count);
-			foreach (CachedFileInfo TrackedFile in ContentIdToTrackedFile.Values)
+			MemoryWriter writer = new MemoryWriter(buffer.AsMemory());
+			writer.WriteInt32(CurrentVersion);
+			writer.WriteBoolean(_bRequiresRepair || (state != TransactionState.Clean));
+			writer.WriteUInt32(_nextSequenceNumber);
+			writer.WriteInt32(_contentIdToTrackedFile.Count);
+			foreach (CachedFileInfo trackedFile in _contentIdToTrackedFile.Values)
 			{
-				Writer.WriteCachedFileInfo(TrackedFile);
+				writer.WriteCachedFileInfo(trackedFile);
 			}
-			Writer.WriteWorkspaceDirectoryInfo(Workspace);
-			Writer.CheckOffset(SerializedSize);
+			writer.WriteWorkspaceDirectoryInfo(_workspace);
+			writer.CheckOffset(serializedSize);
 
 			// Write it to disk
-			FileReference DataFile = FileReference.Combine(BaseDir, DataFileName);
-			BeginTransaction(DataFile);
-			await FileReference.WriteAllBytesAsync(DataFile, Buffer, CancellationToken);
-			CompleteTransaction(DataFile);
+			FileReference dataFile = FileReference.Combine(_baseDir, DataFileName);
+			BeginTransaction(dataFile);
+			await FileReference.WriteAllBytesAsync(dataFile, buffer, cancellationToken);
+			CompleteTransaction(dataFile);
 		}
 
 		#region Commands
@@ -412,94 +408,94 @@ namespace EpicGames.Perforce.Managed
 		/// Cleans the current workspace
 		/// </summary>
 		/// <param name="bRemoveUntracked">Whether to remove untracked files</param>
-		/// <param name="CancellationToken">Cancellation token</param>
-		public async Task CleanAsync(bool bRemoveUntracked, CancellationToken CancellationToken)
+		/// <param name="cancellationToken">Cancellation token</param>
+		public async Task CleanAsync(bool bRemoveUntracked, CancellationToken cancellationToken)
 		{
-			Stopwatch Timer = Stopwatch.StartNew();
+			Stopwatch timer = Stopwatch.StartNew();
 
-			Logger.LogInformation("Cleaning workspace...");
-			using (Logger.BeginIndentScope("  "))
+			_logger.LogInformation("Cleaning workspace...");
+			using (_logger.BeginIndentScope("  "))
 			{
-				await CleanInternalAsync(bRemoveUntracked, CancellationToken);
+				await CleanInternalAsync(bRemoveUntracked, cancellationToken);
 			}
 
-			Logger.LogInformation("Completed in {ElapsedTime}s", $"{Timer.Elapsed.TotalSeconds:0.0}");
+			_logger.LogInformation("Completed in {ElapsedTime}s", $"{timer.Elapsed.TotalSeconds:0.0}");
 		}
 
 		/// <summary>
 		/// Cleans the current workspace
 		/// </summary>
 		/// <param name="bRemoveUntracked">Whether to remove untracked files</param>
-		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task CleanInternalAsync(bool bRemoveUntracked, CancellationToken CancellationToken)
+		/// <param name="cancellationToken">Cancellation token</param>
+		private async Task CleanInternalAsync(bool bRemoveUntracked, CancellationToken cancellationToken)
 		{
-			FileInfo[] FilesToDelete;
-			DirectoryInfo[] DirectoriesToDelete;
+			FileInfo[] filesToDelete;
+			DirectoryInfo[] directoriesToDelete;
 			using (Trace("FindFilesToClean"))
-			using (ILoggerProgress Status = Logger.BeginProgressScope("Finding files to clean..."))
+			using (ILoggerProgress status = _logger.BeginProgressScope("Finding files to clean..."))
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
+				Stopwatch timer = Stopwatch.StartNew();
 
-				Workspace.Refresh(bRemoveUntracked, out FilesToDelete, out DirectoriesToDelete);
+				_workspace.Refresh(bRemoveUntracked, out filesToDelete, out directoriesToDelete);
 
-				Status.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+				status.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 			}
 
-			if(FilesToDelete.Length > 0 || DirectoriesToDelete.Length > 0)
+			if (filesToDelete.Length > 0 || directoriesToDelete.Length > 0)
 			{
-				List<string> Paths = new List<string>();
-				Paths.AddRange(DirectoriesToDelete.Select(x => String.Format("/{0}/...", new DirectoryReference(x).MakeRelativeTo(WorkspaceDir).Replace(Path.DirectorySeparatorChar, '/'))));
-				Paths.AddRange(FilesToDelete.Select(x => String.Format("/{0}", new FileReference(x).MakeRelativeTo(WorkspaceDir).Replace(Path.DirectorySeparatorChar, '/'))));
+				List<string> paths = new List<string>();
+				paths.AddRange(directoriesToDelete.Select(x => String.Format("/{0}/...", new DirectoryReference(x).MakeRelativeTo(_workspaceDir).Replace(Path.DirectorySeparatorChar, '/'))));
+				paths.AddRange(filesToDelete.Select(x => String.Format("/{0}", new FileReference(x).MakeRelativeTo(_workspaceDir).Replace(Path.DirectorySeparatorChar, '/'))));
 
 				const int MaxDisplay = 1000;
-				foreach (string Path in Paths.OrderBy(x => x).Take(MaxDisplay))
+				foreach (string path in paths.OrderBy(x => x).Take(MaxDisplay))
 				{
-					Logger.LogInformation($"  {Path}");
+					_logger.LogInformation($"  {path}");
 				}
-				if (Paths.Count > MaxDisplay)
+				if (paths.Count > MaxDisplay)
 				{
-					Logger.LogInformation("  +{NumPaths:n0} more", Paths.Count - MaxDisplay);
+					_logger.LogInformation("  +{NumPaths:n0} more", paths.Count - MaxDisplay);
 				}
 
-				using(Trace("CleanFiles"))
-				using(ILoggerProgress Scope = Logger.BeginProgressScope("Cleaning files..."))
+				using (Trace("CleanFiles"))
+				using (ILoggerProgress scope = _logger.BeginProgressScope("Cleaning files..."))
 				{
-					Stopwatch Timer = Stopwatch.StartNew();
-					using(ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
+					Stopwatch timer = Stopwatch.StartNew();
+					using (ThreadPoolWorkQueue queue = new ThreadPoolWorkQueue())
 					{
-						foreach(FileInfo FileToDelete in FilesToDelete)
+						foreach (FileInfo fileToDelete in filesToDelete)
 						{
-							Queue.Enqueue(() => FileUtils.ForceDeleteFile(FileToDelete));
+							queue.Enqueue(() => FileUtils.ForceDeleteFile(fileToDelete));
 						}
-						foreach(DirectoryInfo DirectoryToDelete in DirectoriesToDelete)
+						foreach (DirectoryInfo directoryToDelete in directoriesToDelete)
 						{
-							Queue.Enqueue(() => FileUtils.ForceDeleteDirectory(DirectoryToDelete));
+							queue.Enqueue(() => FileUtils.ForceDeleteDirectory(directoryToDelete));
 						}
 					}
-					Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+					scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 				}
 
-				await SaveAsync(TransactionState.Clean, CancellationToken);
+				await SaveAsync(TransactionState.Clean, cancellationToken);
 			}
 		}
 
 		/// <summary>
 		/// Empties the staging directory of any staged files
 		/// </summary>
-		public async Task ClearAsync(CancellationToken CancellationToken)
+		public async Task ClearAsync(CancellationToken cancellationToken)
 		{
-			Stopwatch Timer = Stopwatch.StartNew();
+			Stopwatch timer = Stopwatch.StartNew();
 
-			Logger.LogInformation("Clearing workspace...");
+			_logger.LogInformation("Clearing workspace...");
 			using (Trace("Clear"))
-			using (Logger.BeginIndentScope("  "))
+			using (_logger.BeginIndentScope("  "))
 			{
-				await CleanInternalAsync(true, CancellationToken);
-				await RemoveFilesFromWorkspaceAsync(StreamSnapshot.Empty, CancellationToken);
-				await SaveAsync(TransactionState.Clean, CancellationToken);
+				await CleanInternalAsync(true, cancellationToken);
+				await RemoveFilesFromWorkspaceAsync(StreamSnapshot.Empty, cancellationToken);
+				await SaveAsync(TransactionState.Clean, cancellationToken);
 			}
 
-			Logger.LogInformation("Completed in {ElapsedTime}s", $"{Timer.Elapsed.TotalSeconds:0.0}");
+			_logger.LogInformation("Completed in {ElapsedTime}s", $"{timer.Elapsed.TotalSeconds:0.0}");
 		}
 
 		/// <summary>
@@ -507,158 +503,158 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		public void Dump()
 		{
-			Stopwatch Timer = Stopwatch.StartNew();
+			Stopwatch timer = Stopwatch.StartNew();
 
-			Logger.LogInformation("Dumping repository to log...");
+			_logger.LogInformation("Dumping repository to log...");
 
-			WorkspaceFileInfo[] WorkspaceFiles = Workspace.GetFiles().OrderBy(x => x.GetLocation().FullName).ToArray();
-			if(WorkspaceFiles.Length > 0)
+			WorkspaceFileInfo[] workspaceFiles = _workspace.GetFiles().OrderBy(x => x.GetLocation().FullName).ToArray();
+			if (workspaceFiles.Length > 0)
 			{
-				Logger.LogDebug("  Workspace:");
-				foreach(WorkspaceFileInfo File in WorkspaceFiles)
+				_logger.LogDebug("  Workspace:");
+				foreach (WorkspaceFileInfo file in workspaceFiles)
 				{
-					Logger.LogDebug("    {File,-128} [{ContentId,-48}] [{Length,20:n0}] [{LastModified,20}]{Writable}", File.GetClientPath(), File.ContentId, File.Length, File.LastModifiedTicks, File.bReadOnly? "" : " [ writable ]");
+					_logger.LogDebug("    {File,-128} [{ContentId,-48}] [{Length,20:n0}] [{LastModified,20}]{Writable}", file.GetClientPath(), file.ContentId, file._length, file._lastModifiedTicks, file._bReadOnly ? "" : " [ writable ]");
 				}
 			}
 
-			if(ContentIdToTrackedFile.Count > 0)
+			if (_contentIdToTrackedFile.Count > 0)
 			{
-				Logger.LogDebug("  Cache:");
-				foreach(KeyValuePair<FileContentId, CachedFileInfo> Pair in ContentIdToTrackedFile)
+				_logger.LogDebug("  Cache:");
+				foreach (KeyValuePair<FileContentId, CachedFileInfo> pair in _contentIdToTrackedFile)
 				{
-					Logger.LogDebug("    {File,-128} [{ContentId,-48}] [{Length,20:n0}] [{LastModified,20}]{Writable}", Pair.Value.GetLocation(), Pair.Key, Pair.Value.Length, Pair.Value.LastModifiedTicks, Pair.Value.bReadOnly? "" : "[ writable ]");
+					_logger.LogDebug("    {File,-128} [{ContentId,-48}] [{Length,20:n0}] [{LastModified,20}]{Writable}", pair.Value.GetLocation(), pair.Key, pair.Value.Length, pair.Value.LastModifiedTicks, pair.Value.BReadOnly ? "" : "[ writable ]");
 				}
 			}
 
-			Logger.LogInformation("Completed in {ElapsedTime}s", $"{Timer.Elapsed.TotalSeconds:0.0}");
+			_logger.LogInformation("Completed in {ElapsedTime}s", $"{timer.Elapsed.TotalSeconds:0.0}");
 		}
 
 		/// <summary>
 		/// Checks the integrity of the cache
 		/// </summary>
-		public async Task RepairAsync(CancellationToken CancellationToken)
+		public async Task RepairAsync(CancellationToken cancellationToken)
 		{
 			using (Trace("Repair"))
-			using (ILoggerProgress Status = Logger.BeginProgressScope("Checking cache..."))
+			using (ILoggerProgress status = _logger.BeginProgressScope("Checking cache..."))
 			{
 				// Make sure all the folders exist in the cache
 				CreateCacheHierarchy();
 
 				// Check that all the files in the cache appear as we expect them to
-				List<CachedFileInfo> TrackedFiles = ContentIdToTrackedFile.Values.ToList();
-				foreach(CachedFileInfo TrackedFile in TrackedFiles)
+				List<CachedFileInfo> trackedFiles = _contentIdToTrackedFile.Values.ToList();
+				foreach (CachedFileInfo trackedFile in trackedFiles)
 				{
-					if(!TrackedFile.CheckIntegrity(Logger))
+					if (!trackedFile.CheckIntegrity(_logger))
 					{
-						RemoveTrackedFile(TrackedFile);
+						RemoveTrackedFile(trackedFile);
 					}
 				}
 
 				// Clear the repair flag
-				bRequiresRepair = false;
+				_bRequiresRepair = false;
 
-				await SaveAsync(TransactionState.Clean, CancellationToken);
+				await SaveAsync(TransactionState.Clean, cancellationToken);
 
-				Status.Progress = "Done";
+				status.Progress = "Done";
 			}
 		}
 
 		/// <summary>
 		/// Cleans the current workspace
 		/// </summary>
-		public async Task RevertAsync(IPerforceConnection PerforceClient, CancellationToken CancellationToken)
+		public async Task RevertAsync(IPerforceConnection perforceClient, CancellationToken cancellationToken)
 		{
-			Stopwatch Timer = Stopwatch.StartNew();
+			Stopwatch timer = Stopwatch.StartNew();
 
-			await RevertInternalAsync(PerforceClient, CancellationToken);
+			await RevertInternalAsync(perforceClient, cancellationToken);
 
-			Logger.LogInformation("Completed in {ElapsedTime}s", $"{Timer.Elapsed.TotalSeconds:0.0}");
+			_logger.LogInformation("Completed in {ElapsedTime}s", $"{timer.Elapsed.TotalSeconds:0.0}");
 		}
 
 		/// <summary>
 		/// Checks the bRequiresRepair flag, and repairs/resets it if set.
 		/// </summary>
-		private async Task RunOptionalRepairAsync(CancellationToken CancellationToken)
+		private async Task RunOptionalRepairAsync(CancellationToken cancellationToken)
 		{
-			if(bRequiresRepair)
+			if (_bRequiresRepair)
 			{
-				await RepairAsync(CancellationToken);
+				await RepairAsync(cancellationToken);
 			}
 		}
 
 		/// <summary>
 		/// Shrink the size of the cache to the given size
 		/// </summary>
-		/// <param name="MaxSize">The maximum cache size, in bytes</param>
-		/// <param name="CancellationToken">Cancellation token</param>
-		public async Task PurgeAsync(long MaxSize, CancellationToken CancellationToken)
+		/// <param name="maxSize">The maximum cache size, in bytes</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		public async Task PurgeAsync(long maxSize, CancellationToken cancellationToken)
 		{
-			Logger.LogInformation("Purging cache (limit {MaxSize:n0} bytes)...", MaxSize);
+			_logger.LogInformation("Purging cache (limit {MaxSize:n0} bytes)...", maxSize);
 			using (Trace("Purge"))
-			using (Logger.BeginIndentScope("  "))
+			using (_logger.BeginIndentScope("  "))
 			{
-				List<CachedFileInfo> CachedFiles = ContentIdToTrackedFile.Values.OrderBy(x => x.SequenceNumber).ToList();
+				List<CachedFileInfo> cachedFiles = _contentIdToTrackedFile.Values.OrderBy(x => x.SequenceNumber).ToList();
 
-				int NumRemovedFiles = 0;
-				long TotalSize = CachedFiles.Sum(x => x.Length);
+				int numRemovedFiles = 0;
+				long totalSize = cachedFiles.Sum(x => x.Length);
 
-				while(MaxSize < TotalSize && NumRemovedFiles < CachedFiles.Count)
+				while (maxSize < totalSize && numRemovedFiles < cachedFiles.Count)
 				{
-					CachedFileInfo File = CachedFiles[NumRemovedFiles];
+					CachedFileInfo file = cachedFiles[numRemovedFiles];
 
-					RemoveTrackedFile(File);
-					TotalSize -= File.Length;
+					RemoveTrackedFile(file);
+					totalSize -= file.Length;
 
-					NumRemovedFiles++;
+					numRemovedFiles++;
 				}
 
-				await SaveAsync(TransactionState.Clean, CancellationToken);
+				await SaveAsync(TransactionState.Clean, cancellationToken);
 
-				Logger.LogInformation("{NumFilesRemoved} files removed, {NumFilesRemaining} files remaining, new size {NewSize:n0} bytes.", NumRemovedFiles, CachedFiles.Count - NumRemovedFiles, TotalSize);
+				_logger.LogInformation("{NumFilesRemoved} files removed, {NumFilesRemaining} files remaining, new size {NewSize:n0} bytes.", numRemovedFiles, cachedFiles.Count - numRemovedFiles, totalSize);
 			}
 		}
 
 		/// <summary>
 		/// Configures the client for the given stream
 		/// </summary>
-		/// <param name="PerforceClient">The Perforce connection</param>
-		/// <param name="StreamName">Name of the stream</param>
-		/// <param name="CancellationToken">Cancellation token</param>
-		public async Task SetupAsync(IPerforceConnection PerforceClient, string StreamName, CancellationToken CancellationToken)
+		/// <param name="perforceClient">The Perforce connection</param>
+		/// <param name="streamName">Name of the stream</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		public async Task SetupAsync(IPerforceConnection perforceClient, string streamName, CancellationToken cancellationToken)
 		{
-			await UpdateClientAsync(PerforceClient, StreamName, CancellationToken);
+			await UpdateClientAsync(perforceClient, streamName, cancellationToken);
 		}
 
 		/// <summary>
 		/// Prints stats showing coherence between different streams
 		/// </summary>
-		public async Task StatsAsync(IPerforceConnection PerforceClient, List<string> StreamNames, List<string> View, CancellationToken CancellationToken)
+		public async Task StatsAsync(IPerforceConnection perforceClient, List<string> streamNames, List<string> view, CancellationToken cancellationToken)
 		{
-			Logger.LogInformation("Finding stats for {NumStreams} streams", StreamNames.Count);
-			using (Logger.BeginIndentScope("  "))
+			_logger.LogInformation("Finding stats for {NumStreams} streams", streamNames.Count);
+			using (_logger.BeginIndentScope("  "))
 			{
 				// Update the list of files in each stream
-				Tuple<int, StreamSnapshot>[] StreamState = new Tuple<int, StreamSnapshot>[StreamNames.Count];
-				for (int Idx = 0; Idx < StreamNames.Count; Idx++)
+				Tuple<int, StreamSnapshot>[] streamState = new Tuple<int, StreamSnapshot>[streamNames.Count];
+				for (int idx = 0; idx < streamNames.Count; idx++)
 				{
-					string StreamName = StreamNames[Idx];
-					Logger.LogInformation("Finding contents of {StreamName}:", StreamName);
+					string streamName = streamNames[idx];
+					_logger.LogInformation("Finding contents of {StreamName}:", streamName);
 
-					using (Logger.BeginIndentScope("  "))
+					using (_logger.BeginIndentScope("  "))
 					{
-						CreatedClients.Remove(PerforceClient.Settings.ClientName!); // Force the client to be updated
+						_createdClients.Remove(perforceClient.Settings.ClientName!); // Force the client to be updated
 
-						await UpdateClientAsync(PerforceClient, StreamName, CancellationToken);
+						await UpdateClientAsync(perforceClient, streamName, cancellationToken);
 
-						int ChangeNumber = await GetLatestClientChangeAsync(PerforceClient, CancellationToken);
-						Logger.LogInformation("Latest change is CL {ChangeNumber}", ChangeNumber);
+						int changeNumber = await GetLatestClientChangeAsync(perforceClient, cancellationToken);
+						_logger.LogInformation("Latest change is CL {ChangeNumber}", changeNumber);
 
-						await RevertInternalAsync(PerforceClient, CancellationToken);
-						await ClearClientHaveTableAsync(PerforceClient, CancellationToken);
-						await UpdateClientHaveTableAsync(PerforceClient, ChangeNumber, View, CancellationToken);
+						await RevertInternalAsync(perforceClient, cancellationToken);
+						await ClearClientHaveTableAsync(perforceClient, cancellationToken);
+						await UpdateClientHaveTableAsync(perforceClient, changeNumber, view, cancellationToken);
 
-						StreamSnapshot Contents = await FindClientContentsAsync(PerforceClient, ChangeNumber, false, CancellationToken);
-						StreamState[Idx] = Tuple.Create(ChangeNumber, Contents);
+						StreamSnapshot contents = await FindClientContentsAsync(perforceClient, changeNumber, cancellationToken);
+						streamState[idx] = Tuple.Create(changeNumber, contents);
 
 						GC.Collect();
 					}
@@ -666,67 +662,67 @@ namespace EpicGames.Perforce.Managed
 
 				// Find stats for 
 				using (Trace("Stats"))
-				using (ILoggerProgress Scope = Logger.BeginProgressScope("Finding usage stats..."))
+				using (ILoggerProgress scope = _logger.BeginProgressScope("Finding usage stats..."))
 				{
-					Stopwatch Timer = Stopwatch.StartNew();
+					Stopwatch timer = Stopwatch.StartNew();
 
 					// Find the set of files in each stream
-					HashSet<FileContentId>[] FilesInStream = new HashSet<FileContentId>[StreamNames.Count];
-					for (int Idx = 0; Idx < StreamNames.Count; Idx++)
+					HashSet<FileContentId>[] filesInStream = new HashSet<FileContentId>[streamNames.Count];
+					for (int idx = 0; idx < streamNames.Count; idx++)
 					{
-						List<StreamFile> Files = StreamState[Idx].Item2.GetFiles();
-						FilesInStream[Idx] = new HashSet<FileContentId>(Files.Select(x => x.ContentId));
+						List<StreamFile> files = streamState[idx].Item2.GetFiles();
+						filesInStream[idx] = new HashSet<FileContentId>(files.Select(x => x.ContentId));
 					}
 
 					// Build a table showing amount of unique content in each stream
-					string[,] Cells = new string[StreamNames.Count + 1, StreamNames.Count + 1];
-					Cells[0, 0] = "";
-					for (int Idx = 0; Idx < StreamNames.Count; Idx++)
+					string[,] cells = new string[streamNames.Count + 1, streamNames.Count + 1];
+					cells[0, 0] = "";
+					for (int idx = 0; idx < streamNames.Count; idx++)
 					{
-						Cells[Idx + 1, 0] = StreamNames[Idx];
-						Cells[0, Idx + 1] = StreamNames[Idx];
+						cells[idx + 1, 0] = streamNames[idx];
+						cells[0, idx + 1] = streamNames[idx];
 					}
 
 					// Populate the table
-					for (int RowIdx = 0; RowIdx < StreamNames.Count; RowIdx++)
+					for (int rowIdx = 0; rowIdx < streamNames.Count; rowIdx++)
 					{
-						List<StreamFile> Files = StreamState[RowIdx].Item2.GetFiles();
-						for (int ColIdx = 0; ColIdx < StreamNames.Count; ColIdx++)
+						List<StreamFile> files = streamState[rowIdx].Item2.GetFiles();
+						for (int colIdx = 0; colIdx < streamNames.Count; colIdx++)
 						{
-							long DiffSize = Files.Where(x => !FilesInStream[ColIdx].Contains(x.ContentId)).Sum(x => x.Length);
-							Cells[RowIdx + 1, ColIdx + 1] = String.Format("{0:0.0}mb", DiffSize / (1024.0 * 1024.0));
+							long diffSize = files.Where(x => !filesInStream[colIdx].Contains(x.ContentId)).Sum(x => x.Length);
+							cells[rowIdx + 1, colIdx + 1] = String.Format("{0:0.0}mb", diffSize / (1024.0 * 1024.0));
 						}
 					}
 
 					// Find the width of each row
-					int[] ColWidths = new int[StreamNames.Count + 1];
-					for (int ColIdx = 0; ColIdx < StreamNames.Count + 1; ColIdx++)
+					int[] colWidths = new int[streamNames.Count + 1];
+					for (int colIdx = 0; colIdx < streamNames.Count + 1; colIdx++)
 					{
-						for (int RowIdx = 0; RowIdx < StreamNames.Count + 1; RowIdx++)
+						for (int rowIdx = 0; rowIdx < streamNames.Count + 1; rowIdx++)
 						{
-							ColWidths[ColIdx] = Math.Max(ColWidths[ColIdx], Cells[RowIdx, ColIdx].Length);
+							colWidths[colIdx] = Math.Max(colWidths[colIdx], cells[rowIdx, colIdx].Length);
 						}
 					}
 
 					// Print the table
-					Logger.LogInformation("");
-					Logger.LogInformation("Each row shows the size of files in a stream which are unique to that stream compared to each column:");
-					Logger.LogInformation("");
-					for (int RowIdx = 0; RowIdx < StreamNames.Count + 1; RowIdx++)
+					_logger.LogInformation("");
+					_logger.LogInformation("Each row shows the size of files in a stream which are unique to that stream compared to each column:");
+					_logger.LogInformation("");
+					for (int rowIdx = 0; rowIdx < streamNames.Count + 1; rowIdx++)
 					{
-						StringBuilder Row = new StringBuilder();
-						for (int ColIdx = 0; ColIdx < StreamNames.Count + 1; ColIdx++)
+						StringBuilder row = new StringBuilder();
+						for (int colIdx = 0; colIdx < streamNames.Count + 1; colIdx++)
 						{
-							string Cell = Cells[RowIdx, ColIdx];
-							Row.Append(' ', ColWidths[ColIdx] - Cell.Length);
-							Row.Append(Cell);
-							Row.Append(" | ");
+							string cell = cells[rowIdx, colIdx];
+							row.Append(' ', colWidths[colIdx] - cell.Length);
+							row.Append(cell);
+							row.Append(" | ");
 						}
-						Logger.LogInformation(Row.ToString());
+						_logger.LogInformation(row.ToString());
 					}
-					Logger.LogInformation("");
+					_logger.LogInformation("");
 
-					Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+					scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 				}
 			}
 		}
@@ -737,25 +733,25 @@ namespace EpicGames.Perforce.Managed
 		public void Status()
 		{
 			// Print size stats
-			Logger.LogInformation("Cache contains {NumFiles:n0} files, {TotalSize:n1}mb", ContentIdToTrackedFile.Count, ContentIdToTrackedFile.Values.Sum(x => x.Length) / (1024.0 * 1024.0));
-			Logger.LogInformation("Stage contains {NumFiles:n0} files, {TotalSize:n1}mb", Workspace.GetFiles().Count, Workspace.GetFiles().Sum(x => x.Length) / (1024.0 * 1024.0));
+			_logger.LogInformation("Cache contains {NumFiles:n0} files, {TotalSize:n1}mb", _contentIdToTrackedFile.Count, _contentIdToTrackedFile.Values.Sum(x => x.Length) / (1024.0 * 1024.0));
+			_logger.LogInformation("Stage contains {NumFiles:n0} files, {TotalSize:n1}mb", _workspace.GetFiles().Count, _workspace.GetFiles().Sum(x => x._length) / (1024.0 * 1024.0));
 
 			// Print the contents of the workspace
-			string[] Differences = Workspace.FindDifferences();
-			if(Differences.Length > 0)
+			string[] differences = _workspace.FindDifferences();
+			if (differences.Length > 0)
 			{
-				Logger.LogInformation("Local changes:");
-				foreach(string Difference in Differences)
+				_logger.LogInformation("Local changes:");
+				foreach (string difference in differences)
 				{
-					if(Difference.StartsWith("+"))
+					if (difference.StartsWith("+"))
 					{
 						Console.ForegroundColor = ConsoleColor.Green;
 					}
-					else if(Difference.StartsWith("-"))
+					else if (difference.StartsWith("-"))
 					{
 						Console.ForegroundColor = ConsoleColor.Red;
 					}
-					else if(Difference.StartsWith("!"))
+					else if (difference.StartsWith("!"))
 					{
 						Console.ForegroundColor = ConsoleColor.Yellow;
 					}
@@ -763,7 +759,7 @@ namespace EpicGames.Perforce.Managed
 					{
 						Console.ResetColor();
 					}
-					Logger.LogInformation("  {0}", Difference);
+					_logger.LogInformation("  {0}", difference);
 				}
 				Console.ResetColor();
 			}
@@ -772,307 +768,307 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Switches to the given stream
 		/// </summary>
-		/// <param name="Perforce">The perforce connection</param>
-		/// <param name="StreamName">Name of the stream to sync</param>
-		/// <param name="ChangeNumber">Changelist number to sync. -1 to sync to latest.</param>
-		/// <param name="View">View of the workspace</param>
+		/// <param name="perforce">The perforce connection</param>
+		/// <param name="streamName">Name of the stream to sync</param>
+		/// <param name="changeNumber">Changelist number to sync. -1 to sync to latest.</param>
+		/// <param name="view">View of the workspace</param>
 		/// <param name="bRemoveUntracked">Whether to remove untracked files from the workspace</param>
 		/// <param name="bFakeSync">Whether to simulate the syncing operation rather than actually getting files from the server</param>
-		/// <param name="CacheFile">If set, uses the given file to cache the contents of the workspace. This can improve sync times when multiple machines sync the same workspace.</param>
-		/// <param name="CancellationToken">Cancellation token</param>
-		public async Task SyncAsync(IPerforceConnection Perforce, string StreamName, int ChangeNumber, IReadOnlyList<string> View, bool bRemoveUntracked, bool bFakeSync, FileReference? CacheFile, CancellationToken CancellationToken)
+		/// <param name="cacheFile">If set, uses the given file to cache the contents of the workspace. This can improve sync times when multiple machines sync the same workspace.</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		public async Task SyncAsync(IPerforceConnection perforce, string streamName, int changeNumber, IReadOnlyList<string> view, bool bRemoveUntracked, bool bFakeSync, FileReference? cacheFile, CancellationToken cancellationToken)
 		{
-			Stopwatch Timer = Stopwatch.StartNew();
-			if(ChangeNumber == -1)
+			Stopwatch timer = Stopwatch.StartNew();
+			if (changeNumber == -1)
 			{
-				Logger.LogInformation("Syncing to {StreamName} at latest", StreamName);
+				_logger.LogInformation("Syncing to {StreamName} at latest", streamName);
 			}
 			else
 			{
-				Logger.LogInformation("Syncing to {StreamName} at CL {CL}", StreamName, ChangeNumber);
+				_logger.LogInformation("Syncing to {StreamName} at CL {CL}", streamName, changeNumber);
 			}
 
-			using (Logger.BeginIndentScope("  "))
+			using (_logger.BeginIndentScope("  "))
 			{
 				// Update the client to the current stream
-				await UpdateClientAsync(Perforce, StreamName, CancellationToken);
+				await UpdateClientAsync(perforce, streamName, cancellationToken);
 
 				// Get the latest change number
-				if(ChangeNumber == -1)
+				if (changeNumber == -1)
 				{
-					ChangeNumber = await GetLatestClientChangeAsync(Perforce, CancellationToken);
+					changeNumber = await GetLatestClientChangeAsync(perforce, cancellationToken);
 				}
 
 				// Revert any open files
-				await RevertInternalAsync(Perforce, CancellationToken);
+				await RevertInternalAsync(perforce, cancellationToken);
 
 				// Force the P4 metadata to match up
-				Task UpdateHaveTableTask = Task.Run(() => UpdateClientHaveTableAsync(Perforce, ChangeNumber, View, CancellationToken), CancellationToken);
+				Task updateHaveTableTask = Task.Run(() => UpdateClientHaveTableAsync(perforce, changeNumber, view, cancellationToken), cancellationToken);
 
 				// Clean the current workspace
-				await CleanInternalAsync(bRemoveUntracked, CancellationToken);
+				await CleanInternalAsync(bRemoveUntracked, cancellationToken);
 
 				// Wait for the have table update to finish
-				await UpdateHaveTableTask;
+				await updateHaveTableTask;
 
 				// Update the state of the current stream, if necessary
-				StreamSnapshot? Contents;
-				if(CacheFile == null)
+				StreamSnapshot? contents;
+				if (cacheFile == null)
 				{
-					Contents = await FindClientContentsAsync(Perforce, ChangeNumber, bFakeSync, CancellationToken);
+					contents = await FindClientContentsAsync(perforce, changeNumber, cancellationToken);
 				}
 				else
 				{
-					Contents = await TryLoadClientContentsAsync(CacheFile, StreamName, CancellationToken);
-					if(Contents == null)
+					contents = await TryLoadClientContentsAsync(cacheFile, streamName, cancellationToken);
+					if (contents == null)
 					{
-						Contents = await FindAndSaveClientContentsAsync(Perforce, StreamName, ChangeNumber, bFakeSync, CacheFile, CancellationToken);
+						contents = await FindAndSaveClientContentsAsync(perforce, streamName, changeNumber, cacheFile, cancellationToken);
 					}
 				}
 
 				// Sync all the appropriate files
-				await RemoveFilesFromWorkspaceAsync(Contents, CancellationToken);
-				await AddFilesToWorkspaceAsync(Perforce, Contents, bFakeSync, CancellationToken);
+				await RemoveFilesFromWorkspaceAsync(contents, cancellationToken);
+				await AddFilesToWorkspaceAsync(perforce, contents, bFakeSync, cancellationToken);
 			}
 
-			Logger.LogInformation("Completed in {ElapsedTime}s", $"{Timer.Elapsed.TotalSeconds:0.0}");
+			_logger.LogInformation("Completed in {ElapsedTime}s", $"{timer.Elapsed.TotalSeconds:0.0}");
 		}
 
 		/// <summary>
 		/// Replays the effects of unshelving a changelist, but clobbering files in the workspace rather than actually unshelving them (to prevent problems with multiple machines locking them)
 		/// </summary>
 		/// <returns>Async task</returns>
-		public async Task UnshelveAsync(IPerforceConnection Perforce, string StreamName, int UnshelveChangelist, CancellationToken CancellationToken)
+		public async Task UnshelveAsync(IPerforceConnection perforce, int unshelveChangelist, CancellationToken cancellationToken)
 		{
 			// Need to mark those files as dirty - update the workspace with those files 
 			// Delete is fine, but need to flag anything added
 
-			Stopwatch Timer = Stopwatch.StartNew();
-			Logger.LogInformation("Unshelving changelist {Change}...", UnshelveChangelist);
+			Stopwatch timer = Stopwatch.StartNew();
+			_logger.LogInformation("Unshelving changelist {Change}...", unshelveChangelist);
 
 			// query the contents of the shelved changelist
-			List<DescribeRecord> Records = await Perforce.DescribeAsync(DescribeOptions.Shelved, -1, new int[] { UnshelveChangelist }, CancellationToken);
-			if (Records.Count != 1)
+			List<DescribeRecord> records = await perforce.DescribeAsync(DescribeOptions.Shelved, -1, new int[] { unshelveChangelist }, cancellationToken);
+			if (records.Count != 1)
 			{
-				throw new PerforceException($"Changelist {UnshelveChangelist} is not shelved");
+				throw new PerforceException($"Changelist {unshelveChangelist} is not shelved");
 			}
-			DescribeRecord LastRecord = Records[0];
-			if (LastRecord.Files.Count == 0)
+			DescribeRecord lastRecord = records[0];
+			if (lastRecord.Files.Count == 0)
 			{
-				throw new PerforceException($"Changelist {UnshelveChangelist} does not contain any shelved files");
+				throw new PerforceException($"Changelist {unshelveChangelist} does not contain any shelved files");
 			}
 
 			// query the location of each file
-			List<PerforceResponse<WhereRecord>> WhereResponseList = await Perforce.TryWhereAsync(LastRecord.Files.Select(x => x.DepotFile).ToArray(), CancellationToken).ToListAsync(CancellationToken);
-			List<WhereRecord> WhereRecords = WhereResponseList.Where(x => x.Succeeded).Select(x => x.Data).ToList();
+			List<PerforceResponse<WhereRecord>> whereResponseList = await perforce.TryWhereAsync(lastRecord.Files.Select(x => x.DepotFile).ToArray(), cancellationToken).ToListAsync(cancellationToken);
+			List<WhereRecord> whereRecords = whereResponseList.Where(x => x.Succeeded).Select(x => x.Data).ToList();
 
 			// parse out all the list of deleted and modified files
-			List<WhereRecord> DeleteFiles = new List<WhereRecord>();
-			List<WhereRecord> WriteFiles = new List<WhereRecord>();
-			foreach(DescribeFileRecord FileRecord in LastRecord.Files)
+			List<WhereRecord> deleteFiles = new List<WhereRecord>();
+			List<WhereRecord> writeFiles = new List<WhereRecord>();
+			foreach (DescribeFileRecord fileRecord in lastRecord.Files)
 			{
-				WhereRecord? WhereRecord = WhereRecords.FirstOrDefault(x => x.DepotFile.Equals(FileRecord.DepotFile, StringComparison.OrdinalIgnoreCase));
-				if (WhereRecord == null)
+				WhereRecord? whereRecord = whereRecords.FirstOrDefault(x => x.DepotFile.Equals(fileRecord.DepotFile, StringComparison.OrdinalIgnoreCase));
+				if (whereRecord == null)
 				{
-					Logger.LogInformation("Unable to get location of {File} in current workspace; ignoring.", FileRecord.DepotFile);
+					_logger.LogInformation("Unable to get location of {File} in current workspace; ignoring.", fileRecord.DepotFile);
 					continue;
 				}
 
-				switch (FileRecord.Action)
+				switch (fileRecord.Action)
 				{
 					case FileAction.Delete:
 					case FileAction.MoveDelete:
-						DeleteFiles.Add(WhereRecord);
+						deleteFiles.Add(whereRecord);
 						break;
 					case FileAction.Add:
 					case FileAction.Edit:
 					case FileAction.MoveAdd:
 					case FileAction.Branch:
 					case FileAction.Integrate:
-						WriteFiles.Add(WhereRecord);
+						writeFiles.Add(whereRecord);
 						break;
 					default:
-						throw new Exception($"Unknown action '{FileRecord.Action}' for shelved file {FileRecord.DepotFile}");
+						throw new Exception($"Unknown action '{fileRecord.Action}' for shelved file {fileRecord.DepotFile}");
 				}
 			}
 
 			// Add all the files to be written to the workspace with invalid metadata. This will ensure they're removed on next clean.
-			if(WriteFiles.Count > 0)
+			if (writeFiles.Count > 0)
 			{
-				Logger.LogInformation("Removing {NumFiles} files from tracked workspace", WriteFiles.Count);
-				foreach (WhereRecord WriteFile in WriteFiles)
+				_logger.LogInformation("Removing {NumFiles} files from tracked workspace", writeFiles.Count);
+				foreach (WhereRecord writeFile in writeFiles)
 				{
-					string Path = Regex.Replace(WriteFile.ClientFile, "^//[^/]+/", "");
-					Workspace.AddFile(new Utf8String(Path), 0, 0, false, new FileContentId(Md5Hash.Zero, default));
+					string path = Regex.Replace(writeFile.ClientFile, "^//[^/]+/", "");
+					_workspace.AddFile(new Utf8String(path), 0, 0, false, new FileContentId(Md5Hash.Zero, default));
 				}
 				await SaveAsync(TransactionState.Clean, CancellationToken.None);
 			}
 
 			// Delete all the files
-			foreach (WhereRecord DeleteFile in DeleteFiles)
+			foreach (WhereRecord deleteFile in deleteFiles)
 			{
-				string LocalPath = DeleteFile.Path;
-				if (File.Exists(LocalPath))
+				string localPath = deleteFile.Path;
+				if (File.Exists(localPath))
 				{
-					Logger.LogInformation("  Deleting {LocalPath}", LocalPath);
-					FileUtils.ForceDeleteFile(LocalPath);
+					_logger.LogInformation("  Deleting {LocalPath}", localPath);
+					FileUtils.ForceDeleteFile(localPath);
 				}
 			}
 
 			// Add all the new files
-			foreach (WhereRecord WriteFile in WriteFiles)
+			foreach (WhereRecord writeFile in writeFiles)
 			{
-				string LocalPath = WriteFile.Path;
-				Logger.LogInformation("  Writing {LocalPath}", LocalPath);
+				string localPath = writeFile.Path;
+				_logger.LogInformation("  Writing {LocalPath}", localPath);
 
-				Directory.CreateDirectory(Path.GetDirectoryName(LocalPath));
+				Directory.CreateDirectory(Path.GetDirectoryName(localPath));
 
-				PerforceResponse PrintResponse = await Perforce.TryPrintAsync(LocalPath, $"{WriteFile}@={UnshelveChangelist}", CancellationToken);
-				if (!PrintResponse.Succeeded)
+				PerforceResponse printResponse = await perforce.TryPrintAsync(localPath, $"{writeFile}@={unshelveChangelist}", cancellationToken);
+				if (!printResponse.Succeeded)
 				{
-					Logger.LogWarning("Unable to print {LocalPath}: {Error}", LocalPath, PrintResponse.ToString());
+					_logger.LogWarning("Unable to print {LocalPath}: {Error}", localPath, printResponse.ToString());
 				}
 			}
 
-			Logger.LogInformation("Completed in {TimeSeconds}s", $"{Timer.Elapsed.TotalSeconds:0.0}");
+			_logger.LogInformation("Completed in {TimeSeconds}s", $"{timer.Elapsed.TotalSeconds:0.0}");
 		}
 
 		/// <summary>
 		/// Populates the cache with the head revision of the given streams.
 		/// </summary>
-		public async Task PopulateAsync(List<PopulateRequest> Requests, bool bFakeSync, CancellationToken CancellationToken)
+		public async Task PopulateAsync(List<PopulateRequest> requests, bool bFakeSync, CancellationToken cancellationToken)
 		{
-			Logger.LogInformation("Populating with {NumStreams} streams", Requests.Count);
-			using (Logger.BeginIndentScope("  "))
+			_logger.LogInformation("Populating with {NumStreams} streams", requests.Count);
+			using (_logger.BeginIndentScope("  "))
 			{
-				Tuple<int, StreamSnapshot>[] StreamState = await PopulateCleanAsync(Requests, bFakeSync, CancellationToken);
-				await PopulateSyncAsync(Requests, StreamState, bFakeSync, CancellationToken);
+				Tuple<int, StreamSnapshot>[] streamState = await PopulateCleanAsync(requests, cancellationToken);
+				await PopulateSyncAsync(requests, streamState, bFakeSync, cancellationToken);
 			}
 		}
 
 		/// <summary>
 		/// Perform the clean part of a populate command
 		/// </summary>
-		public async Task<Tuple<int, StreamSnapshot>[]> PopulateCleanAsync(List<PopulateRequest> Requests, bool bFakeSync, CancellationToken CancellationToken)
+		public async Task<Tuple<int, StreamSnapshot>[]> PopulateCleanAsync(List<PopulateRequest> requests, CancellationToken cancellationToken)
 		{
 			// Revert all changes in each of the unique clients
-			foreach (PopulateRequest Request in Requests)
+			foreach (PopulateRequest request in requests)
 			{
-				using IPerforceConnection Perforce = await Request.PerforceClient.WithoutClientAsync();
+				using IPerforceConnection perforce = await request._perforceClient.WithoutClientAsync();
 
-				PerforceResponse<ClientRecord> Response = await Perforce.TryGetClientAsync(Request.PerforceClient.Settings.ClientName!, CancellationToken);
-				if (Response.Succeeded)
+				PerforceResponse<ClientRecord> response = await perforce.TryGetClientAsync(request._perforceClient.Settings.ClientName!, cancellationToken);
+				if (response.Succeeded)
 				{
-					await RevertInternalAsync(Request.PerforceClient, CancellationToken);
+					await RevertInternalAsync(request._perforceClient, cancellationToken);
 				}
 			}
 
 			// Clean the current workspace
-			await CleanAsync(true, CancellationToken);
+			await CleanAsync(true, cancellationToken);
 
 			// Update the list of files in each stream
-			Tuple<int, StreamSnapshot>[] StreamState = new Tuple<int, StreamSnapshot>[Requests.Count];
-			for (int Idx = 0; Idx < Requests.Count; Idx++)
+			Tuple<int, StreamSnapshot>[] streamState = new Tuple<int, StreamSnapshot>[requests.Count];
+			for (int idx = 0; idx < requests.Count; idx++)
 			{
-				PopulateRequest Request = Requests[Idx];
-				string StreamName = Request.StreamName;
-				Logger.LogInformation("Finding contents of {StreamName}:", StreamName);
+				PopulateRequest request = requests[idx];
+				string streamName = request._streamName;
+				_logger.LogInformation("Finding contents of {StreamName}:", streamName);
 
-				using (Logger.BeginIndentScope("  "))
+				using (_logger.BeginIndentScope("  "))
 				{
-					await DeleteClientAsync(Request.PerforceClient, CancellationToken);
-					await UpdateClientAsync(Request.PerforceClient, StreamName, CancellationToken);
+					await DeleteClientAsync(request._perforceClient, cancellationToken);
+					await UpdateClientAsync(request._perforceClient, streamName, cancellationToken);
 
-					int ChangeNumber = await GetLatestClientChangeAsync(Request.PerforceClient, CancellationToken);
-					Logger.LogInformation("Latest change is CL {CL}", ChangeNumber);
+					int changeNumber = await GetLatestClientChangeAsync(request._perforceClient, cancellationToken);
+					_logger.LogInformation("Latest change is CL {CL}", changeNumber);
 
-					await UpdateClientHaveTableAsync(Request.PerforceClient, ChangeNumber, Request.View, CancellationToken);
+					await UpdateClientHaveTableAsync(request._perforceClient, changeNumber, request._view, cancellationToken);
 
-					StreamSnapshot Contents = await FindClientContentsAsync(Request.PerforceClient, ChangeNumber, bFakeSync, CancellationToken);
-					StreamState[Idx] = Tuple.Create(ChangeNumber, Contents);
+					StreamSnapshot contents = await FindClientContentsAsync(request._perforceClient, changeNumber, cancellationToken);
+					streamState[idx] = Tuple.Create(changeNumber, contents);
 
 					GC.Collect();
 				}
 			}
 
 			// Remove any files from the workspace not referenced by the first stream. This ensures we can purge things from the cache that we no longer need.
-			if (Requests.Count > 0)
+			if (requests.Count > 0)
 			{
-				await RemoveFilesFromWorkspaceAsync(StreamState[0].Item2, CancellationToken);
+				await RemoveFilesFromWorkspaceAsync(streamState[0].Item2, cancellationToken);
 			}
 
 			// Shrink the contents of the cache
 			using (Trace("UpdateCache"))
-			using (ILoggerProgress Status = Logger.BeginProgressScope("Updating cache..."))
+			using (ILoggerProgress status = _logger.BeginProgressScope("Updating cache..."))
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
+				Stopwatch timer = Stopwatch.StartNew();
 
-				HashSet<FileContentId> CommonContentIds = new HashSet<FileContentId>();
-				Dictionary<FileContentId, long> ContentIdToLength = new Dictionary<FileContentId, long>();
-				for (int Idx = 0; Idx < Requests.Count; Idx++)
+				HashSet<FileContentId> commonContentIds = new HashSet<FileContentId>();
+				Dictionary<FileContentId, long> contentIdToLength = new Dictionary<FileContentId, long>();
+				for (int idx = 0; idx < requests.Count; idx++)
 				{
-					List<StreamFile> Files = StreamState[Idx].Item2.GetFiles();
-					foreach (StreamFile File in Files)
+					List<StreamFile> files = streamState[idx].Item2.GetFiles();
+					foreach (StreamFile file in files)
 					{
-						ContentIdToLength[File.ContentId] = File.Length;
+						contentIdToLength[file.ContentId] = file.Length;
 					}
 
-					if (Idx == 0)
+					if (idx == 0)
 					{
-						CommonContentIds.UnionWith(Files.Select(x => x.ContentId));
+						commonContentIds.UnionWith(files.Select(x => x.ContentId));
 					}
 					else
 					{
-						CommonContentIds.IntersectWith(Files.Select(x => x.ContentId));
+						commonContentIds.IntersectWith(files.Select(x => x.ContentId));
 					}
 				}
 
-				List<CachedFileInfo> TrackedFiles = ContentIdToTrackedFile.Values.ToList();
-				foreach (CachedFileInfo TrackedFile in TrackedFiles)
+				List<CachedFileInfo> trackedFiles = _contentIdToTrackedFile.Values.ToList();
+				foreach (CachedFileInfo trackedFile in trackedFiles)
 				{
-					if (!ContentIdToLength.ContainsKey(TrackedFile.ContentId))
+					if (!contentIdToLength.ContainsKey(trackedFile.ContentId))
 					{
-						RemoveTrackedFile(TrackedFile);
+						RemoveTrackedFile(trackedFile);
 					}
 				}
 
 				GC.Collect();
 
-				double TotalSize = ContentIdToLength.Sum(x => x.Value) / (1024.0 * 1024.0);
-				Status.Progress = String.Format("{0:n1}mb total, {1:n1}mb differences ({2:0.0}s)", TotalSize, TotalSize - CommonContentIds.Sum(x => ContentIdToLength[x]) / (1024.0 * 1024.0), Timer.Elapsed.TotalSeconds);
+				double totalSize = contentIdToLength.Sum(x => x.Value) / (1024.0 * 1024.0);
+				status.Progress = String.Format("{0:n1}mb total, {1:n1}mb differences ({2:0.0}s)", totalSize, totalSize - commonContentIds.Sum(x => contentIdToLength[x]) / (1024.0 * 1024.0), timer.Elapsed.TotalSeconds);
 			}
 
-			return StreamState;
+			return streamState;
 		}
 
 		/// <summary>
 		/// Perform the sync part of a populate command
 		/// </summary>
-		public async Task PopulateSyncAsync(List<PopulateRequest> Requests, Tuple<int, StreamSnapshot>[] StreamState, bool bFakeSync, CancellationToken CancellationToken)
+		public async Task PopulateSyncAsync(List<PopulateRequest> requests, Tuple<int, StreamSnapshot>[] streamState, bool bFakeSync, CancellationToken cancellationToken)
 		{
 			// Sync all the new files
-			for (int Idx = 0; Idx < Requests.Count; Idx++)
+			for (int idx = 0; idx < requests.Count; idx++)
 			{
-				PopulateRequest Request = Requests[Idx];
-				string StreamName = Request.StreamName;
-				Logger.LogInformation("Syncing files for {StreamName}:", StreamName);
+				PopulateRequest request = requests[idx];
+				string streamName = request._streamName;
+				_logger.LogInformation("Syncing files for {StreamName}:", streamName);
 
-				using(Logger.BeginIndentScope("  "))
+				using (_logger.BeginIndentScope("  "))
 				{
-					await DeleteClientAsync(Request.PerforceClient, CancellationToken);
-					await UpdateClientAsync(Request.PerforceClient, StreamName, CancellationToken);
+					await DeleteClientAsync(request._perforceClient, cancellationToken);
+					await UpdateClientAsync(request._perforceClient, streamName, cancellationToken);
 
-					int ChangeNumber = StreamState[Idx].Item1;
-					await UpdateClientHaveTableAsync(Request.PerforceClient, ChangeNumber, Requests[Idx].View, CancellationToken);
+					int changeNumber = streamState[idx].Item1;
+					await UpdateClientHaveTableAsync(request._perforceClient, changeNumber, requests[idx]._view, cancellationToken);
 
-					StreamSnapshot Contents = StreamState[Idx].Item2;
-					await RemoveFilesFromWorkspaceAsync(Contents, CancellationToken);
-					await AddFilesToWorkspaceAsync(Request.PerforceClient, Contents, bFakeSync, CancellationToken);
+					StreamSnapshot contents = streamState[idx].Item2;
+					await RemoveFilesFromWorkspaceAsync(contents, cancellationToken);
+					await AddFilesToWorkspaceAsync(request._perforceClient, contents, bFakeSync, cancellationToken);
 				}
 			}
 
 			// Save the new repo state
-			await SaveAsync(TransactionState.Clean, CancellationToken);
+			await SaveAsync(TransactionState.Clean, cancellationToken);
 		}
 
 		#endregion
@@ -1082,227 +1078,227 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Deletes a client
 		/// </summary>
-		/// <param name="PerforceClient">The Perforce connection</param>
-		/// <param name="CancellationToken">Cancellation token</param>
+		/// <param name="perforceClient">The Perforce connection</param>
+		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Async task</returns>
-		public async Task DeleteClientAsync(IPerforceConnection PerforceClient, CancellationToken CancellationToken)
+		public async Task DeleteClientAsync(IPerforceConnection perforceClient, CancellationToken cancellationToken)
 		{
-			PerforceResponse Response = await PerforceClient.TryDeleteClientAsync(DeleteClientOptions.None, PerforceClient.Settings.ClientName!, CancellationToken);
-			if (Response.Error != null && Response.Error.Generic != PerforceGenericCode.Unknown)
+			PerforceResponse response = await perforceClient.TryDeleteClientAsync(DeleteClientOptions.None, perforceClient.Settings.ClientName!, cancellationToken);
+			if (response.Error != null && response.Error.Generic != PerforceGenericCode.Unknown)
 			{
-				if(Response.Error.Generic == PerforceGenericCode.NotYet)
+				if (response.Error.Generic == PerforceGenericCode.NotYet)
 				{
-					await RevertInternalAsync(PerforceClient, CancellationToken);
-					Response = await PerforceClient.TryDeleteClientAsync(DeleteClientOptions.None, PerforceClient.Settings.ClientName!, CancellationToken);
+					await RevertInternalAsync(perforceClient, cancellationToken);
+					response = await perforceClient.TryDeleteClientAsync(DeleteClientOptions.None, perforceClient.Settings.ClientName!, cancellationToken);
 				}
-				Response.EnsureSuccess();
+				response.EnsureSuccess();
 			}
-			CreatedClients.Remove(PerforceClient.Settings.ClientName!);
+			_createdClients.Remove(perforceClient.Settings.ClientName!);
 		}
 
 		/// <summary>
 		/// Sets the stream for the current client
 		/// </summary>
-		/// <param name="PerforceClient">The Perforce connection</param>
-		/// <param name="StreamName">New stream for the client</param>
-		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task UpdateClientAsync(IPerforceConnection PerforceClient, string StreamName, CancellationToken CancellationToken)
+		/// <param name="perforceClient">The Perforce connection</param>
+		/// <param name="streamName">New stream for the client</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		private async Task UpdateClientAsync(IPerforceConnection perforceClient, string streamName, CancellationToken cancellationToken)
 		{
 			// Create or update the client if it doesn't exist already
-			ClientRecord? Client;
-			if(!CreatedClients.TryGetValue(PerforceClient.Settings.ClientName!, out Client) || Client.Stream != StreamName)
+			ClientRecord? client;
+			if (!_createdClients.TryGetValue(perforceClient.Settings.ClientName!, out client) || client.Stream != streamName)
 			{
 				using (Trace("UpdateClient"))
-				using (ILoggerProgress Status = Logger.BeginProgressScope("Updating client..."))
+				using (ILoggerProgress status = _logger.BeginProgressScope("Updating client..."))
 				{
-					Stopwatch Timer = Stopwatch.StartNew();
+					Stopwatch timer = Stopwatch.StartNew();
 
-					Client = new ClientRecord(PerforceClient.Settings.ClientName!, PerforceClient.Settings.UserName!, WorkspaceDir.FullName);
-					Client.Host = HostName;
-					Client.Stream = StreamName;
-					Client.Type = "partitioned";
+					client = new ClientRecord(perforceClient.Settings.ClientName!, perforceClient.Settings.UserName!, _workspaceDir.FullName);
+					client.Host = _hostName;
+					client.Stream = streamName;
+					client.Type = "partitioned";
 
-					using IPerforceConnection Perforce = await PerforceClient.WithoutClientAsync();
+					using IPerforceConnection perforce = await perforceClient.WithoutClientAsync();
 
-					PerforceResponse Response = await Perforce.TryCreateClientAsync(Client, CancellationToken);
-					if (!Response.Succeeded)
+					PerforceResponse response = await perforce.TryCreateClientAsync(client, cancellationToken);
+					if (!response.Succeeded)
 					{
-						await PerforceClient.TryDeleteClientAsync(DeleteClientOptions.None, PerforceClient.Settings.ClientName!, CancellationToken);
-						await PerforceClient.CreateClientAsync(Client, CancellationToken);
+						await perforceClient.TryDeleteClientAsync(DeleteClientOptions.None, perforceClient.Settings.ClientName!, cancellationToken);
+						await perforceClient.CreateClientAsync(client, cancellationToken);
 					}
 
-					Status.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+					status.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 				}
-				CreatedClients[PerforceClient.Settings.ClientName!] = Client;
+				_createdClients[perforceClient.Settings.ClientName!] = client;
 			}
 
 			// Update the config file with the name of the client
-			FileReference ConfigFile = FileReference.Combine(BaseDir, "p4.ini");
-			using(StreamWriter Writer = new StreamWriter(ConfigFile.FullName))
+			FileReference configFile = FileReference.Combine(_baseDir, "p4.ini");
+			using (StreamWriter writer = new StreamWriter(configFile.FullName))
 			{
-				Writer.WriteLine("P4PORT={0}", PerforceClient.Settings.ServerAndPort);
-				Writer.WriteLine("P4CLIENT={0}", PerforceClient.Settings.ClientName);
+				writer.WriteLine("P4PORT={0}", perforceClient.Settings.ServerAndPort);
+				writer.WriteLine("P4CLIENT={0}", perforceClient.Settings.ClientName);
 			}
 		}
 
 		/// <summary>
 		/// Gets the latest change submitted for the given stream
 		/// </summary>
-		/// <param name="PerforceClient">The Perforce connection</param>
-		/// <param name="StreamName">The stream to sync</param>
-		/// <param name="CancellationToken">Cancellation token</param>
+		/// <param name="perforceClient">The Perforce connection</param>
+		/// <param name="streamName">The stream to sync</param>
+		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>The latest changelist number</returns>
-		public async Task<int> GetLatestChangeAsync(IPerforceConnection PerforceClient, string StreamName, CancellationToken CancellationToken)
+		public async Task<int> GetLatestChangeAsync(IPerforceConnection perforceClient, string streamName, CancellationToken cancellationToken)
 		{
 			// Update the client to the current stream
-			await UpdateClientAsync(PerforceClient, StreamName, CancellationToken);
+			await UpdateClientAsync(perforceClient, streamName, cancellationToken);
 
 			// Get the latest change number
-			return await GetLatestClientChangeAsync(PerforceClient, CancellationToken);
+			return await GetLatestClientChangeAsync(perforceClient, cancellationToken);
 		}
 
 		/// <summary>
 		/// Get the latest change number in the current client
 		/// </summary>
-		/// <param name="PerforceClient">The perforce client connection</param>
-		/// <param name="CancellationToken">Cancellation token</param>
+		/// <param name="perforceClient">The perforce client connection</param>
+		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>The latest submitted change number</returns>
-		private async Task<int> GetLatestClientChangeAsync(IPerforceConnection PerforceClient, CancellationToken CancellationToken)
+		private async Task<int> GetLatestClientChangeAsync(IPerforceConnection perforceClient, CancellationToken cancellationToken)
 		{
-			int ChangeNumber;
+			int changeNumber;
 			using (Trace("FindChange"))
-			using (ILoggerProgress Status = Logger.BeginProgressScope("Finding latest change..."))
+			using (ILoggerProgress status = _logger.BeginProgressScope("Finding latest change..."))
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
+				Stopwatch timer = Stopwatch.StartNew();
 
-				List<ChangesRecord> Changes = await PerforceClient.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, new[] { String.Format("//{0}/...", PerforceClient.Settings.ClientName) }, CancellationToken);
-				ChangeNumber = Changes[0].Number;
+				List<ChangesRecord> changes = await perforceClient.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, new[] { String.Format("//{0}/...", perforceClient.Settings.ClientName) }, cancellationToken);
+				changeNumber = changes[0].Number;
 
-				Status.Progress = String.Format("CL {0} ({1:0.0}s)", ChangeNumber, Timer.Elapsed.TotalSeconds);
+				status.Progress = String.Format("CL {0} ({1:0.0}s)", changeNumber, timer.Elapsed.TotalSeconds);
 			}
-			return ChangeNumber;
+			return changeNumber;
 		}
 
 		/// <summary>
 		/// Revert all files that are open in the current workspace. Does not replace them with valid revisions.
 		/// </summary>
-		/// <param name="PerforceClient">The current client connection</param>
-		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task RevertInternalAsync(IPerforceConnection PerforceClient, CancellationToken CancellationToken)
+		/// <param name="perforceClient">The current client connection</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		private async Task RevertInternalAsync(IPerforceConnection perforceClient, CancellationToken cancellationToken)
 		{
 			using (Trace("Revert"))
-			using (ILoggerProgress Status = Logger.BeginProgressScope("Reverting changes..."))
+			using (ILoggerProgress status = _logger.BeginProgressScope("Reverting changes..."))
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
+				Stopwatch timer = Stopwatch.StartNew();
 
 				// Get a list of open files
-				List<OpenedRecord> OpenedFilesResponse = await PerforceClient.OpenedAsync(OpenedOptions.ShortOutput, -1, PerforceClient.Settings.ClientName!, null, 1, FileSpecList.Any, CancellationToken).ToListAsync(CancellationToken);
+				List<OpenedRecord> openedFilesResponse = await perforceClient.OpenedAsync(OpenedOptions.ShortOutput, -1, perforceClient.Settings.ClientName!, null, 1, FileSpecList.Any, cancellationToken).ToListAsync(cancellationToken);
 
 				// If there are any files, revert them
-				if(OpenedFilesResponse.Any())
+				if (openedFilesResponse.Any())
 				{
-					await PerforceClient.RevertAsync(-1, null, RevertOptions.KeepWorkspaceFiles, new[] { "//..." }, CancellationToken);
+					await perforceClient.RevertAsync(-1, null, RevertOptions.KeepWorkspaceFiles, new[] { "//..." }, cancellationToken);
 				}
 
 				// Find all the open changes
-				List<ChangesRecord> Changes = await PerforceClient.GetChangesAsync(ChangesOptions.None, PerforceClient.Settings.ClientName!, -1, ChangeStatus.Pending, null, new string[0], CancellationToken);
+				List<ChangesRecord> changes = await perforceClient.GetChangesAsync(ChangesOptions.None, perforceClient.Settings.ClientName!, -1, ChangeStatus.Pending, null, new string[0], cancellationToken);
 
 				// Delete the changelist
-				foreach(ChangesRecord Change in Changes)
+				foreach (ChangesRecord change in changes)
 				{
 					// Delete the shelved files
-					List<DescribeRecord> DescribeResponse = await PerforceClient.DescribeAsync(DescribeOptions.Shelved, -1, new[] { Change.Number }, CancellationToken);
-					foreach(DescribeRecord Record in DescribeResponse)
+					List<DescribeRecord> describeResponse = await perforceClient.DescribeAsync(DescribeOptions.Shelved, -1, new[] { change.Number }, cancellationToken);
+					foreach (DescribeRecord record in describeResponse)
 					{
-						if(Record.Files.Count > 0)
+						if (record.Files.Count > 0)
 						{
-							await PerforceClient.DeleteShelvedFilesAsync(Record.Number, new string[0], CancellationToken);
+							await perforceClient.DeleteShelvedFilesAsync(record.Number, new string[0], cancellationToken);
 						}
 					}
 
 					// Delete the changelist
-					await PerforceClient.DeleteChangeAsync(DeleteChangeOptions.None, Change.Number, CancellationToken);
+					await perforceClient.DeleteChangeAsync(DeleteChangeOptions.None, change.Number, cancellationToken);
 				}
 
-				Status.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+				status.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 			}
 		}
 
 		/// <summary>
 		/// Clears the have table. This ensures that we'll always fetch the names of files at head revision, which aren't updated otherwise.
 		/// </summary>
-		/// <param name="PerforceClient">The client connection</param>
-		/// <param name="CancellationToken">The cancellation token</param>
-		private async Task ClearClientHaveTableAsync(IPerforceConnection PerforceClient, CancellationToken CancellationToken)
+		/// <param name="perforceClient">The client connection</param>
+		/// <param name="cancellationToken">The cancellation token</param>
+		private async Task ClearClientHaveTableAsync(IPerforceConnection perforceClient, CancellationToken cancellationToken)
 		{
 			using (Trace("ClearHaveTable"))
-			using (ILoggerProgress Scope = Logger.BeginProgressScope("Clearing have table..."))
+			using (ILoggerProgress scope = _logger.BeginProgressScope("Clearing have table..."))
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
-				await PerforceClient.SyncQuietAsync(SyncOptions.KeepWorkspaceFiles, -1, new[] { String.Format("//{0}/...#0", PerforceClient.Settings.ClientName!) }, CancellationToken);
-				Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+				Stopwatch timer = Stopwatch.StartNew();
+				await perforceClient.SyncQuietAsync(SyncOptions.KeepWorkspaceFiles, -1, new[] { String.Format("//{0}/...#0", perforceClient.Settings.ClientName!) }, cancellationToken);
+				scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 			}
 		}
 
 		/// <summary>
 		/// Updates the have table to reflect the given stream
 		/// </summary>
-		/// <param name="PerforceClient">The client connection</param>
-		/// <param name="ChangeNumber">The change number to sync. May be -1, for latest.</param>
-		/// <param name="View">View of the stream. Each entry should be a path relative to the stream root, with an optional '-'prefix.</param>
-		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task UpdateClientHaveTableAsync(IPerforceConnection PerforceClient, int ChangeNumber, IReadOnlyList<string> View, CancellationToken CancellationToken)
+		/// <param name="perforceClient">The client connection</param>
+		/// <param name="changeNumber">The change number to sync. May be -1, for latest.</param>
+		/// <param name="view">View of the stream. Each entry should be a path relative to the stream root, with an optional '-'prefix.</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		private async Task UpdateClientHaveTableAsync(IPerforceConnection perforceClient, int changeNumber, IReadOnlyList<string> view, CancellationToken cancellationToken)
 		{
 			using (Trace("UpdateHaveTable"))
-			using (ILoggerProgress Scope = Logger.BeginProgressScope("Updating have table..."))
+			using (ILoggerProgress scope = _logger.BeginProgressScope("Updating have table..."))
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
+				Stopwatch timer = Stopwatch.StartNew();
 
 				// Sync an initial set of files. Either start with a full workspace and remove files, or start with nothing and add files.
-				if (View.Count == 0 || View[0].StartsWith("-"))
+				if (view.Count == 0 || view[0].StartsWith("-"))
 				{
-					await UpdateHaveTablePathAsync(PerforceClient, $"//{PerforceClient.Settings.ClientName}/...@{ChangeNumber}", CancellationToken);
+					await UpdateHaveTablePathAsync(perforceClient, $"//{perforceClient.Settings.ClientName}/...@{changeNumber}", cancellationToken);
 				}
 				else
 				{
-					await UpdateHaveTablePathAsync(PerforceClient, $"//{PerforceClient.Settings.ClientName}/...#0", CancellationToken);
+					await UpdateHaveTablePathAsync(perforceClient, $"//{perforceClient.Settings.ClientName}/...#0", cancellationToken);
 				}
 
 				// Update with the contents of each filter
-				foreach(string Filter in View)
+				foreach (string filter in view)
 				{
-					string SyncPath;
-					if(Filter.StartsWith("-"))
+					string syncPath;
+					if (filter.StartsWith("-"))
 					{
-						SyncPath = String.Format("//{0}/{1}#0", PerforceClient.Settings.ClientName, RemoveLeadingSlash(Filter.Substring(1)));
+						syncPath = String.Format("//{0}/{1}#0", perforceClient.Settings.ClientName, RemoveLeadingSlash(filter.Substring(1)));
 					}
 					else
 					{
-						SyncPath = String.Format("//{0}/{1}@{2}", PerforceClient.Settings.ClientName, RemoveLeadingSlash(Filter), ChangeNumber);
+						syncPath = String.Format("//{0}/{1}@{2}", perforceClient.Settings.ClientName, RemoveLeadingSlash(filter), changeNumber);
 					}
-					await UpdateHaveTablePathAsync(PerforceClient, SyncPath, CancellationToken);
+					await UpdateHaveTablePathAsync(perforceClient, syncPath, cancellationToken);
 				}
 
-				Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+				scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 			}
 		}
 
 		/// <summary>
 		/// Update a path in the have table
 		/// </summary>
-		/// <param name="PerforceClient">The Perforce client</param>
-		/// <param name="SyncPath">Path to sync</param>
-		/// <param name="CancellationToken">Cancellation token</param>
+		/// <param name="perforceClient">The Perforce client</param>
+		/// <param name="syncPath">Path to sync</param>
+		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Async task</returns>
-		private async Task UpdateHaveTablePathAsync(IPerforceConnection PerforceClient, string SyncPath, CancellationToken CancellationToken)
+		private async Task UpdateHaveTablePathAsync(IPerforceConnection perforceClient, string syncPath, CancellationToken cancellationToken)
 		{
-			PerforceResponseList<SyncSummaryRecord> ResponseList = await PerforceClient.TrySyncQuietAsync(SyncOptions.KeepWorkspaceFiles, -1, new[] { SyncPath }, CancellationToken);
-			foreach (PerforceResponse<SyncSummaryRecord> Response in ResponseList)
+			PerforceResponseList<SyncSummaryRecord> responseList = await perforceClient.TrySyncQuietAsync(SyncOptions.KeepWorkspaceFiles, -1, new[] { syncPath }, cancellationToken);
+			foreach (PerforceResponse<SyncSummaryRecord> response in responseList)
 			{
-				PerforceError? Error = Response.Error;
-				if(Error != null && Error.Generic != PerforceGenericCode.Empty)
+				PerforceError? error = response.Error;
+				if (error != null && error.Generic != PerforceGenericCode.Empty)
 				{
-					throw new PerforceException(Error);
+					throw new PerforceException(error);
 				}
 			}
 		}
@@ -1316,630 +1312,610 @@ namespace EpicGames.Perforce.Managed
 		{
 			enum Field
 			{
-				code,
-				depotFile,
-				clientFile,
-				headType,
-				haveRev,
-				fileSize,
-				digest
+				Code,
+				DepotFile,
+				ClientFile,
+				HeadType,
+				HaveRev,
+				FileSize,
+				Digest
 			}
 
 			public static readonly string[] FieldNames = Enum.GetNames(typeof(Field));
 			public static readonly Utf8String[] Utf8FieldNames = Array.ConvertAll(FieldNames, x => new Utf8String(x));
 
-			public PerforceValue[] Values = new PerforceValue[FieldNames.Length];
+			public PerforceValue[] Values { get; } = new PerforceValue[FieldNames.Length];
 
-			public Utf8String DepotFile
-			{
-				get { return Values[(int)Field.depotFile].GetString(); }
-			}
+			public Utf8String DepotFile => Values[(int)Field.DepotFile].GetString();
 
-			public Utf8String ClientFile
-			{
-				get { return Values[(int)Field.clientFile].GetString(); }
-			}
+			public Utf8String ClientFile => Values[(int)Field.ClientFile].GetString();
 
-			public Utf8String HeadType
-			{
-				get { return Values[(int)Field.headType].GetString(); }
-			}
+			public Utf8String HeadType => Values[(int)Field.HeadType].GetString();
 
-			public Utf8String HaveRev
-			{
-				get { return Values[(int)Field.haveRev].GetString(); }
-			}
+			public Utf8String HaveRev => Values[(int)Field.HaveRev].GetString();
 
-			public long FileSize
-			{
-				get { return Values[(int)Field.fileSize].AsLong(); }
-			}
+			public long FileSize => Values[(int)Field.FileSize].AsLong();
 
-			public Utf8String Digest
-			{
-				get { return Values[(int)Field.digest].GetString(); }
-			}
+			public Utf8String Digest => Values[(int)Field.Digest].GetString();
 		}
 
 		/// <summary>
 		/// Get the contents of the client, as synced.
 		/// </summary>
-		/// <param name="PerforceClient">The client connection</param>
-		/// <param name="ChangeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
-		/// <param name="bFakeSync">Whether this is for a fake sync. Poisons the file type to ensure that the cache is not corrupted.</param>
-		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task<StreamSnapshotFromMemory> FindClientContentsAsync(IPerforceConnection PerforceClient, int ChangeNumber, bool bFakeSync, CancellationToken CancellationToken)
+		/// <param name="perforceClient">The client connection</param>
+		/// <param name="changeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		private async Task<StreamSnapshotFromMemory> FindClientContentsAsync(IPerforceConnection perforceClient, int changeNumber, CancellationToken cancellationToken)
 		{
-			StreamTreeBuilder Builder = new StreamTreeBuilder();
+			StreamTreeBuilder builder = new StreamTreeBuilder();
 
 			using (Trace("FetchMetadata"))
-			using (ILoggerProgress Scope = Logger.BeginProgressScope("Fetching metadata..."))
+			using (ILoggerProgress scope = _logger.BeginProgressScope("Fetching metadata..."))
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
+				Stopwatch timer = Stopwatch.StartNew();
 
 				// Get the expected prefix for any paths in client syntax
-				Utf8String ClientPrefix = $"//{PerforceClient.Settings.ClientName}/";
+				Utf8String clientPrefix = $"//{perforceClient.Settings.ClientName}/";
 
 				// List of the last path fragments. Since file records that are returned are typically sorted by their position in the tree, we can save quite a lot of processing by
 				// reusing as many fragemnts as possible.
-				List<(Utf8String, StreamTreeBuilder)> Fragments = new List<(Utf8String, StreamTreeBuilder)>();
+				List<(Utf8String, StreamTreeBuilder)> fragments = new List<(Utf8String, StreamTreeBuilder)>();
 
 				// Handler for each returned record
-				FStatIndexedRecord Record = new FStatIndexedRecord();
-				Action<PerforceRecord> HandleRecord = RawRecord =>
+				FStatIndexedRecord record = new FStatIndexedRecord();
+				void HandleRecord(PerforceRecord rawRecord)
 				{
 					// Copy into the values array
-					RawRecord.CopyInto(FStatIndexedRecord.Utf8FieldNames, Record.Values);
+					rawRecord.CopyInto(FStatIndexedRecord.Utf8FieldNames, record.Values);
 
 					// Make sure it has all the fields we're interested in
-					if (Record.Digest.IsEmpty)
+					if (record.Digest.IsEmpty)
 					{
 						return;
 					}
-					if (Record.ClientFile.IsEmpty)
+					if (record.ClientFile.IsEmpty)
 					{
 						throw new InvalidDataException("Record returned by Peforce does not have ClientFile set");
 					}
-					if (!Record.ClientFile.StartsWith(ClientPrefix))
+					if (!record.ClientFile.StartsWith(clientPrefix))
 					{
-						throw new InvalidDataException($"Client path returned by Perforce ('{Record.ClientFile}') does not begin with client name ('{ClientPrefix}')");
+						throw new InvalidDataException($"Client path returned by Perforce ('{record.ClientFile}') does not begin with client name ('{clientPrefix}')");
 					}
 
 					// Duplicate the client path. If we reference into the raw record, we'll prevent all the raw P4 output from being garbage collected.
-					Utf8String ClientFile = Record.ClientFile.Clone();
+					Utf8String clientFile = record.ClientFile.Clone();
 
 					// Get the client path after the initial client prefix
-					ReadOnlySpan<byte> PathSpan = ClientFile.Span;
+					ReadOnlySpan<byte> pathSpan = clientFile.Span;
 
 					// Parse out the data
-					StreamTreeBuilder LastStreamDirectory = Builder;
+					StreamTreeBuilder lastStreamDirectory = builder;
 
 					// Try to match up as many fragments from the last file.
-					int FragmentMinIdx = ClientPrefix.Length;
-					for (int FragmentIdx = 0; ; FragmentIdx++)
+					int fragmentMinIdx = clientPrefix.Length;
+					for (int fragmentIdx = 0; ; fragmentIdx++)
 					{
 						// Find the next directory separator
-						int FragmentMaxIdx = FragmentMinIdx;
-						while (FragmentMaxIdx < PathSpan.Length && PathSpan[FragmentMaxIdx] != '/')
+						int fragmentMaxIdx = fragmentMinIdx;
+						while (fragmentMaxIdx < pathSpan.Length && pathSpan[fragmentMaxIdx] != '/')
 						{
-							FragmentMaxIdx++;
+							fragmentMaxIdx++;
 						}
-						if(FragmentMaxIdx == PathSpan.Length)
+						if (fragmentMaxIdx == pathSpan.Length)
 						{
-							Fragments.RemoveRange(FragmentIdx, Fragments.Count - FragmentIdx);
+							fragments.RemoveRange(fragmentIdx, fragments.Count - fragmentIdx);
 							break;
 						}
 
 						// Get the fragment text
-						Utf8String Fragment = new Utf8String(ClientFile.Memory.Slice(FragmentMinIdx, FragmentMaxIdx - FragmentMinIdx));
+						Utf8String fragment = new Utf8String(clientFile.Memory.Slice(fragmentMinIdx, fragmentMaxIdx - fragmentMinIdx));
 
 						// If this fragment matches the same fragment from the previous iteration, take the last stream directory straight away
-						if (FragmentIdx < Fragments.Count)
+						if (fragmentIdx < fragments.Count)
 						{
-							if (Fragments[FragmentIdx].Item1 == Fragment)
+							if (fragments[fragmentIdx].Item1 == fragment)
 							{
-								LastStreamDirectory = Fragments[FragmentIdx].Item2;
+								lastStreamDirectory = fragments[fragmentIdx].Item2;
 							}
 							else
 							{
-								Fragments.RemoveRange(FragmentIdx, Fragments.Count - FragmentIdx);
+								fragments.RemoveRange(fragmentIdx, fragments.Count - fragmentIdx);
 							}
 						}
 
 						// Otherwise, find or add a directory for this fragment into the last directory
-						if (FragmentIdx >= Fragments.Count)
+						if (fragmentIdx >= fragments.Count)
 						{
-							Utf8String UnescapedFragment = PerforceUtils.UnescapePath(Fragment);
+							Utf8String unescapedFragment = PerforceUtils.UnescapePath(fragment);
 
-							StreamTreeBuilder? NextStreamDirectory;
-							if (!LastStreamDirectory.NameToTreeBuilder.TryGetValue(UnescapedFragment, out NextStreamDirectory))
+							StreamTreeBuilder? nextStreamDirectory;
+							if (!lastStreamDirectory.NameToTreeBuilder.TryGetValue(unescapedFragment, out nextStreamDirectory))
 							{
-								NextStreamDirectory = new StreamTreeBuilder();
-								LastStreamDirectory.NameToTreeBuilder.Add(UnescapedFragment, NextStreamDirectory);
+								nextStreamDirectory = new StreamTreeBuilder();
+								lastStreamDirectory.NameToTreeBuilder.Add(unescapedFragment, nextStreamDirectory);
 							}
-							LastStreamDirectory = NextStreamDirectory;
+							lastStreamDirectory = nextStreamDirectory;
 
-							Fragments.Add((Fragment, LastStreamDirectory));
+							fragments.Add((fragment, lastStreamDirectory));
 						}
 
 						// Move to the next fragment
-						FragmentMinIdx = FragmentMaxIdx + 1;
+						fragmentMinIdx = fragmentMaxIdx + 1;
 					}
 
-					Md5Hash Digest = Md5Hash.Parse(Record.Digest);
-					FileContentId ContentId = new FileContentId(Digest, Record.HeadType.Clone());
-					int Revision = (int)Utf8String.ParseUnsignedInt(Record.HaveRev);
+					Md5Hash digest = Md5Hash.Parse(record.Digest);
+					FileContentId contentId = new FileContentId(digest, record.HeadType.Clone());
+					int revision = (int)Utf8String.ParseUnsignedInt(record.HaveRev);
 
 					// Add a new StreamFileInfo to the last directory object
-					Utf8String FileName = PerforceUtils.UnescapePath(ClientFile.Slice(FragmentMinIdx));
-					LastStreamDirectory.NameToFile.Add(FileName, new StreamFile(Record.DepotFile.Clone(), Record.FileSize, ContentId, Revision));
-				};
+					Utf8String fileName = PerforceUtils.UnescapePath(clientFile.Slice(fragmentMinIdx));
+					lastStreamDirectory.NameToFile.Add(fileName, new StreamFile(record.DepotFile.Clone(), record.FileSize, contentId, revision));
+				}
 
 				// Create the workspace, and add records for all the files. Exclude deleted files with digest = null.
-				List<string> Arguments = new List<string>();
-				Arguments.Add("-Ol");
-				Arguments.Add("-Op");
-				Arguments.Add("-Os");
-				Arguments.Add("-Rh");
-				Arguments.Add("-T");
-				Arguments.Add(String.Join(",", FStatIndexedRecord.FieldNames));
-				Arguments.Add($"//{PerforceClient.Settings.ClientName}/...@{ChangeNumber}");
-				await PerforceClient.RecordCommandAsync("fstat", Arguments, null, HandleRecord, CancellationToken);
+				List<string> arguments = new List<string>();
+				arguments.Add("-Ol");
+				arguments.Add("-Op");
+				arguments.Add("-Os");
+				arguments.Add("-Rh");
+				arguments.Add("-T");
+				arguments.Add(String.Join(",", FStatIndexedRecord.FieldNames));
+				arguments.Add($"//{perforceClient.Settings.ClientName}/...@{changeNumber}");
+				await perforceClient.RecordCommandAsync("fstat", arguments, null, HandleRecord, cancellationToken);
 
 				// Output the elapsed time
-				Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+				scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 			}
 
-			return new StreamSnapshotFromMemory(Builder);
+			return new StreamSnapshotFromMemory(builder);
 		}
 
 		/// <summary>
 		/// Loads the contents of a client from disk
 		/// </summary>
-		/// <param name="CacheFile">The cache file to read from</param>
-		/// <param name="BasePath">Default path for the stream</param>
-		/// <param name="CancellationToken">Cancellation token</param>
+		/// <param name="cacheFile">The cache file to read from</param>
+		/// <param name="basePath">Default path for the stream</param>
+		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Contents of the workspace</returns>
-		async Task<StreamSnapshot?> TryLoadClientContentsAsync(FileReference CacheFile, Utf8String BasePath, CancellationToken CancellationToken)
+		async Task<StreamSnapshot?> TryLoadClientContentsAsync(FileReference cacheFile, Utf8String basePath, CancellationToken cancellationToken)
 		{
-			StreamSnapshot? Contents = null;
-			if (FileReference.Exists(CacheFile))
+			StreamSnapshot? contents = null;
+			if (FileReference.Exists(cacheFile))
 			{
 				using (Trace("ReadMetadata"))
-				using (ILoggerProgress Scope = Logger.BeginProgressScope($"Reading cached metadata from {CacheFile}..."))
+				using (ILoggerProgress scope = _logger.BeginProgressScope($"Reading cached metadata from {cacheFile}..."))
 				{
-					Stopwatch Timer = Stopwatch.StartNew();
-					Contents = await StreamSnapshotFromMemory.TryLoadAsync(CacheFile, BasePath, CancellationToken);
-					Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+					Stopwatch timer = Stopwatch.StartNew();
+					contents = await StreamSnapshotFromMemory.TryLoadAsync(cacheFile, basePath, cancellationToken);
+					scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 				}
 			}
-			return Contents;
+			return contents;
 		}
 
 		/// <summary>
 		/// Finds the contents of a workspace, and saves it to disk
 		/// </summary>
-		/// <param name="PerforceClient">The client connection</param>
-		/// <param name="BasePath">Base path for the stream</param>
-		/// <param name="ChangeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
-		/// <param name="bFakeSync">Whether this is for a fake sync. Poisons the file type to ensure that the cache is not corrupted.</param>
-		/// <param name="CacheFile">Location of the file to save the cached contents</param>
-		/// <param name="CancellationToken">Cancellation token</param>
+		/// <param name="perforceClient">The client connection</param>
+		/// <param name="basePath">Base path for the stream</param>
+		/// <param name="changeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
+		/// <param name="cacheFile">Location of the file to save the cached contents</param>
+		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Contents of the workspace</returns>
-		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(IPerforceConnection PerforceClient, Utf8String BasePath, int ChangeNumber, bool bFakeSync, FileReference CacheFile, CancellationToken CancellationToken)
+		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(IPerforceConnection perforceClient, Utf8String basePath, int changeNumber, FileReference cacheFile, CancellationToken cancellationToken)
 		{
-			StreamSnapshotFromMemory Contents = await FindClientContentsAsync(PerforceClient, ChangeNumber, bFakeSync, CancellationToken);
+			StreamSnapshotFromMemory contents = await FindClientContentsAsync(perforceClient, changeNumber, cancellationToken);
 
 			using (Trace("WriteMetadata"))
-			using (ILoggerProgress Scope = Logger.BeginProgressScope($"Saving metadata to {CacheFile}..."))
+			using (ILoggerProgress scope = _logger.BeginProgressScope($"Saving metadata to {cacheFile}..."))
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
+				Stopwatch timer = Stopwatch.StartNew();
 
 				// Handle the case where two machines may try to write to the cache file at once by writing to a temporary file
-				FileReference TempCacheFile = new FileReference(String.Format("{0}.{1}", CacheFile, Guid.NewGuid()));
-				await Contents.Save(TempCacheFile, BasePath);
+				FileReference tempCacheFile = new FileReference(String.Format("{0}.{1}", cacheFile, Guid.NewGuid()));
+				await contents.Save(tempCacheFile, basePath);
 
 				// Try to move it into place
 				try
 				{
-					FileReference.Move(TempCacheFile, CacheFile);
+					FileReference.Move(tempCacheFile, cacheFile);
 				}
-				catch(IOException)
+				catch (IOException)
 				{
-					if(!FileReference.Exists(CacheFile))
+					if (!FileReference.Exists(cacheFile))
 					{
 						throw;
 					}
-					FileReference.Delete(TempCacheFile);
+					FileReference.Delete(tempCacheFile);
 				}
 
-				Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+				scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 			}
-			return Contents;
+			return contents;
 		}
 
 		/// <summary>
 		/// Remove files from the workspace
 		/// </summary>
-		/// <param name="Contents">Contents of the target stream</param>
-		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task RemoveFilesFromWorkspaceAsync(StreamSnapshot Contents, CancellationToken CancellationToken)
+		/// <param name="contents">Contents of the target stream</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		private async Task RemoveFilesFromWorkspaceAsync(StreamSnapshot contents, CancellationToken cancellationToken)
 		{
 			// Make sure the repair flag is clear before we start
-			await RunOptionalRepairAsync(CancellationToken);
+			await RunOptionalRepairAsync(cancellationToken);
 
 			// Figure out what to remove
-			RemoveTransaction Transaction;
+			RemoveTransaction transaction;
 			using (Trace("GatherFilesToRemove"))
-			using (ILoggerProgress Scope = Logger.BeginProgressScope("Gathering files to remove..."))
+			using (ILoggerProgress scope = _logger.BeginProgressScope("Gathering files to remove..."))
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
+				Stopwatch timer = Stopwatch.StartNew();
 
-				Transaction = new RemoveTransaction(Workspace, Contents, ContentIdToTrackedFile);
+				transaction = new RemoveTransaction(_workspace, contents, _contentIdToTrackedFile);
 
-				Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+				scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 			}
 
 			// Move files into the cache
-			KeyValuePair<FileContentId, WorkspaceFileInfo>[] FilesToMove = Transaction.FilesToMove.ToArray();
-			if(FilesToMove.Length > 0)
+			KeyValuePair<FileContentId, WorkspaceFileInfo>[] filesToMove = transaction._filesToMove.ToArray();
+			if (filesToMove.Length > 0)
 			{
 				using (Trace("MoveToCache"))
-				using (ILoggerProgress Scope = Logger.BeginProgressScope(String.Format("Moving {0} {1} to cache...", FilesToMove.Length, (FilesToMove.Length == 1)? "file" : "files")))
+				using (ILoggerProgress scope = _logger.BeginProgressScope(String.Format("Moving {0} {1} to cache...", filesToMove.Length, (filesToMove.Length == 1) ? "file" : "files")))
 				{
-					Stopwatch Timer = Stopwatch.StartNew();
+					Stopwatch timer = Stopwatch.StartNew();
 
 					// Add any new files to the cache
-					List<KeyValuePair<FileReference, FileReference>> SourceAndTargetFiles = new List<KeyValuePair<FileReference, FileReference>>();
-					foreach(KeyValuePair<FileContentId, WorkspaceFileInfo> FileToMove in FilesToMove)
+					List<KeyValuePair<FileReference, FileReference>> sourceAndTargetFiles = new List<KeyValuePair<FileReference, FileReference>>();
+					foreach (KeyValuePair<FileContentId, WorkspaceFileInfo> fileToMove in filesToMove)
 					{
-						ulong CacheId = GetUniqueCacheId(FileToMove.Key);
-						CachedFileInfo NewTrackingInfo = new CachedFileInfo(CacheDir, FileToMove.Key, CacheId, FileToMove.Value.Length, FileToMove.Value.LastModifiedTicks, FileToMove.Value.bReadOnly, NextSequenceNumber);
-						ContentIdToTrackedFile.Add(FileToMove.Key, NewTrackingInfo);
-						SourceAndTargetFiles.Add(new KeyValuePair<FileReference, FileReference>(FileToMove.Value.GetLocation(), NewTrackingInfo.GetLocation()));
+						ulong cacheId = GetUniqueCacheId(fileToMove.Key);
+						CachedFileInfo newTrackingInfo = new CachedFileInfo(_cacheDir, fileToMove.Key, cacheId, fileToMove.Value._length, fileToMove.Value._lastModifiedTicks, fileToMove.Value._bReadOnly, _nextSequenceNumber);
+						_contentIdToTrackedFile.Add(fileToMove.Key, newTrackingInfo);
+						sourceAndTargetFiles.Add(new KeyValuePair<FileReference, FileReference>(fileToMove.Value.GetLocation(), newTrackingInfo.GetLocation()));
 					}
-					NextSequenceNumber++;
+					_nextSequenceNumber++;
 
 					// Save the current state of the repository as dirty. If we're interrupted, we will have two places to check for each file (the cache and workspace).
-					await SaveAsync(TransactionState.Dirty, CancellationToken);
+					await SaveAsync(TransactionState.Dirty, cancellationToken);
 
 					// Execute all the moves and deletes
-					await ParallelTask.ForEachAsync(SourceAndTargetFiles, SourceAndTargetFile => FileUtils.ForceMoveFile(SourceAndTargetFile.Key, SourceAndTargetFile.Value));
+					await ParallelTask.ForEachAsync(sourceAndTargetFiles, sourceAndTargetFile => FileUtils.ForceMoveFile(sourceAndTargetFile.Key, sourceAndTargetFile.Value));
 
-					Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+					scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 				}
 			}
 
 			// Remove files which are no longer needed
-			WorkspaceFileInfo[] FilesToDelete = Transaction.FilesToDelete.ToArray();
-			if(FilesToDelete.Length > 0)
+			WorkspaceFileInfo[] filesToDelete = transaction._filesToDelete.ToArray();
+			if (filesToDelete.Length > 0)
 			{
 				using (Trace("DeleteFiles"))
-				using (ILoggerProgress Scope = Logger.BeginProgressScope(String.Format("Deleting {0} {1}...", FilesToDelete.Length, (FilesToDelete.Length == 1)? "file" : "files")))
+				using (ILoggerProgress scope = _logger.BeginProgressScope(String.Format("Deleting {0} {1}...", filesToDelete.Length, (filesToDelete.Length == 1) ? "file" : "files")))
 				{
-					Stopwatch Timer = Stopwatch.StartNew();
+					Stopwatch timer = Stopwatch.StartNew();
 
-					await ParallelTask.ForEachAsync(FilesToDelete, FileToDelete => RemoveFile(FileToDelete));
+					await ParallelTask.ForEachAsync(filesToDelete, fileToDelete => RemoveFile(fileToDelete));
 
-					Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+					scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 				}
 			}
 
 			// Remove directories which are no longer needed
-			WorkspaceDirectoryInfo[] DirectoriesToDelete = Transaction.DirectoriesToDelete.ToArray();
-			if(DirectoriesToDelete.Length > 0)
+			WorkspaceDirectoryInfo[] directoriesToDelete = transaction._directoriesToDelete.ToArray();
+			if (directoriesToDelete.Length > 0)
 			{
 				using (Trace("DeleteDirectories"))
-				using (ILoggerProgress Scope = Logger.BeginProgressScope(String.Format("Deleting {0} {1}...", DirectoriesToDelete.Length, (DirectoriesToDelete.Length == 1)? "directory" : "directories")))
+				using (ILoggerProgress scope = _logger.BeginProgressScope(String.Format("Deleting {0} {1}...", directoriesToDelete.Length, (directoriesToDelete.Length == 1) ? "directory" : "directories")))
 				{
-					Stopwatch Timer = Stopwatch.StartNew();
+					Stopwatch timer = Stopwatch.StartNew();
 
-					foreach(string DirectoryToDelete in DirectoriesToDelete.Select(x => x.GetFullName()).OrderByDescending(x => x.Length))
+					foreach (string directoryToDelete in directoriesToDelete.Select(x => x.GetFullName()).OrderByDescending(x => x.Length))
 					{
-						RemoveDirectory(DirectoryToDelete);
+						RemoveDirectory(directoryToDelete);
 					}
 
-					Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+					scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 				}
 			}
 
 			// Update the workspace and save the new state
-			Workspace = Transaction.NewWorkspaceRootDir;
-			await SaveAsync(TransactionState.Clean, CancellationToken);
+			_workspace = transaction._newWorkspaceRootDir;
+			await SaveAsync(TransactionState.Clean, cancellationToken);
 		}
 
 		/// <summary>
 		/// Helper function to delete a file from the workspace, and output any failure as a warning.
 		/// </summary>
-		/// <param name="FileToDelete">The file to be deleted</param>
-		void RemoveFile(WorkspaceFileInfo FileToDelete)
+		/// <param name="fileToDelete">The file to be deleted</param>
+		void RemoveFile(WorkspaceFileInfo fileToDelete)
 		{
 			try
 			{
-				FileUtils.ForceDeleteFile(FileToDelete.GetLocation());
+				FileUtils.ForceDeleteFile(fileToDelete.GetLocation());
 			}
-			catch(Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogWarning(Ex, "warning: Unable to delete file {FileName}.", FileToDelete.GetFullName());
-				bRequiresRepair = true;
+				_logger.LogWarning(ex, "warning: Unable to delete file {FileName}.", fileToDelete.GetFullName());
+				_bRequiresRepair = true;
 			}
 		}
 
 		/// <summary>
 		/// Helper function to delete a directory from the workspace, and output any failure as a warning.
 		/// </summary>
-		/// <param name="DirectoryToDelete">The directory to be deleted</param>
-		void RemoveDirectory(string DirectoryToDelete)
+		/// <param name="directoryToDelete">The directory to be deleted</param>
+		void RemoveDirectory(string directoryToDelete)
 		{
 			try
 			{
-				Directory.Delete(DirectoryToDelete, false);
+				Directory.Delete(directoryToDelete, false);
 			}
-			catch(Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogWarning(Ex, "warning: Unable to delete directory {0}", DirectoryToDelete);
-				bRequiresRepair = true;
+				_logger.LogWarning(ex, "warning: Unable to delete directory {0}", directoryToDelete);
+				_bRequiresRepair = true;
 			}
 		}
 
 		/// <summary>
 		/// Update the workspace to match the given stream, syncing files and moving to/from the cache as necessary.
 		/// </summary>
-		/// <param name="Client">The client connection</param>
-		/// <param name="Stream">Contents of the stream</param>
+		/// <param name="client">The client connection</param>
+		/// <param name="stream">Contents of the stream</param>
 		/// <param name="bFakeSync">Whether to simulate the sync operation, rather than actually syncing files</param>
-		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task AddFilesToWorkspaceAsync(IPerforceConnection Client, StreamSnapshot Stream, bool bFakeSync, CancellationToken CancellationToken)
+		/// <param name="cancellationToken">Cancellation token</param>
+		private async Task AddFilesToWorkspaceAsync(IPerforceConnection client, StreamSnapshot stream, bool bFakeSync, CancellationToken cancellationToken)
 		{
 			// Make sure the repair flag is reset
-			await RunOptionalRepairAsync(CancellationToken);
+			await RunOptionalRepairAsync(cancellationToken);
 
 			// Figure out what we need to do
-			AddTransaction Transaction;
+			AddTransaction transaction;
 			using (Trace("GatherFilesToAdd"))
-			using (ILoggerProgress Status = Logger.BeginProgressScope("Gathering files to add..."))
+			using (ILoggerProgress status = _logger.BeginProgressScope("Gathering files to add..."))
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
+				Stopwatch timer = Stopwatch.StartNew();
 
-				Transaction = new AddTransaction(Workspace, Stream, ContentIdToTrackedFile);
-				Workspace = Transaction.NewWorkspaceRootDir;
-				await SaveAsync(TransactionState.Dirty, CancellationToken);
+				transaction = new AddTransaction(_workspace, stream, _contentIdToTrackedFile);
+				_workspace = transaction._newWorkspaceRootDir;
+				await SaveAsync(TransactionState.Dirty, cancellationToken);
 
-				Status.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+				status.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 			}
 
 			// Swap files in and out of the cache
-			WorkspaceFileToMove[] FilesToMove = Transaction.FilesToMove.Values.ToArray();
-			if(FilesToMove.Length > 0)
+			WorkspaceFileToMove[] filesToMove = transaction._filesToMove.Values.ToArray();
+			if (filesToMove.Length > 0)
 			{
 				using (Trace("MoveFromCache"))
-				using (ILoggerProgress Status = Logger.BeginProgressScope(String.Format("Moving {0} {1} from cache...", FilesToMove.Length, (FilesToMove.Length == 1)? "file" : "files")))
+				using (ILoggerProgress status = _logger.BeginProgressScope(String.Format("Moving {0} {1} from cache...", filesToMove.Length, (filesToMove.Length == 1) ? "file" : "files")))
 				{
-					Stopwatch Timer = Stopwatch.StartNew();
-					await ParallelTask.ForEachAsync(FilesToMove, FileToMove => MoveFileFromCache(FileToMove, Transaction.FilesToSync));
-					ContentIdToTrackedFile = ContentIdToTrackedFile.Where(x => !Transaction.FilesToMove.ContainsKey(x.Value)).ToDictionary(x => x.Key, x => x.Value);
-					Status.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+					Stopwatch timer = Stopwatch.StartNew();
+					await ParallelTask.ForEachAsync(filesToMove, fileToMove => MoveFileFromCache(fileToMove, transaction._filesToSync));
+					_contentIdToTrackedFile = _contentIdToTrackedFile.Where(x => !transaction._filesToMove.ContainsKey(x.Value)).ToDictionary(x => x.Key, x => x.Value);
+					status.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 				}
 			}
 
 			// Swap files in and out of the cache
-			WorkspaceFileToCopy[] FilesToCopy = Transaction.FilesToCopy.ToArray();
-			if(FilesToCopy.Length > 0)
+			WorkspaceFileToCopy[] filesToCopy = transaction._filesToCopy.ToArray();
+			if (filesToCopy.Length > 0)
 			{
 				using (Trace("CopyFiles"))
-				using (ILoggerProgress Status = Logger.BeginProgressScope(String.Format("Copying {0} {1} within workspace...", FilesToCopy.Length, (FilesToCopy.Length == 1)? "file" : "files")))
+				using (ILoggerProgress status = _logger.BeginProgressScope(String.Format("Copying {0} {1} within workspace...", filesToCopy.Length, (filesToCopy.Length == 1) ? "file" : "files")))
 				{
-					Stopwatch Timer = Stopwatch.StartNew();
-					await ParallelTask.ForEachAsync(FilesToCopy, FileToCopy => CopyFileWithinWorkspace(FileToCopy, Transaction.FilesToSync));
-					Status.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+					Stopwatch timer = Stopwatch.StartNew();
+					await ParallelTask.ForEachAsync(filesToCopy, fileToCopy => CopyFileWithinWorkspace(fileToCopy, transaction._filesToSync));
+					status.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 				}
 			}
 
 			// Find all the files we want to sync
-			WorkspaceFileToSync[] FilesToSync = Transaction.FilesToSync.ToArray();
-			if(FilesToSync.Length > 0)
+			WorkspaceFileToSync[] filesToSync = transaction._filesToSync.ToArray();
+			if (filesToSync.Length > 0)
 			{
-				long SyncSize = FilesToSync.Sum(x => x.StreamFile.Length);
+				long syncSize = filesToSync.Sum(x => x._streamFile.Length);
 
 				// Make sure there's enough space on this drive
-				if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
-					long FreeSpace = new DriveInfo(Path.GetPathRoot(BaseDir.FullName)).AvailableFreeSpace;
-					if (FreeSpace - SyncSize < MinScratchSpace)
+					long freeSpace = new DriveInfo(Path.GetPathRoot(_baseDir.FullName)).AvailableFreeSpace;
+					if (freeSpace - syncSize < MinScratchSpace)
 					{
-						throw new InsufficientSpaceException($"Not enough space to sync new files (free space: {FreeSpace / (1024.0 * 1024.0):n1}mb, sync size: {SyncSize / (1024.0 * 1024.0):n1}mb, min scratch space: {MinScratchSpace / (1024.0 * 1024.0):n1}mb)");
+						throw new InsufficientSpaceException($"Not enough space to sync new files (free space: {freeSpace / (1024.0 * 1024.0):n1}mb, sync size: {syncSize / (1024.0 * 1024.0):n1}mb, min scratch space: {MinScratchSpace / (1024.0 * 1024.0):n1}mb)");
 					}
 				}
 
 				// Sync all the files
 				using (Trace("SyncFiles"))
-				using (ILoggerProgress Status = Logger.BeginProgressScope(String.Format("Syncing {0} {1} using {2} threads...", FilesToSync.Length, (FilesToSync.Length == 1)? "file" : "files", NumParallelSyncThreads)))
+				using (ILoggerProgress status = _logger.BeginProgressScope(String.Format("Syncing {0} {1} using {2} threads...", filesToSync.Length, (filesToSync.Length == 1) ? "file" : "files", NumParallelSyncThreads)))
 				{
-					Stopwatch Timer = Stopwatch.StartNew();
+					Stopwatch timer = Stopwatch.StartNew();
 
 					// Remove all the previous response files
-					foreach (FileReference File in DirectoryReference.EnumerateFiles(BaseDir, "SyncList-*.txt"))
+					foreach (FileReference file in DirectoryReference.EnumerateFiles(_baseDir, "SyncList-*.txt"))
 					{
-						FileUtils.ForceDeleteFile(File);
+						FileUtils.ForceDeleteFile(file);
 					}
 
 					// Create a list of all the batches that we want to sync
-					List<(int, int)> Batches = new List<(int, int)>();
-					for (int EndIdx = 0; EndIdx < FilesToSync.Length;)
+					List<(int, int)> batches = new List<(int, int)>();
+					for (int endIdx = 0; endIdx < filesToSync.Length;)
 					{
-						int BeginIdx = EndIdx;
+						int beginIdx = endIdx;
 
 						// Figure out the next batch of files to sync
-						long BatchSize = 0;
-						for (; EndIdx < FilesToSync.Length && BatchSize < 256 * 1024 * 1024; EndIdx++)
+						long batchSize = 0;
+						for (; endIdx < filesToSync.Length && batchSize < 256 * 1024 * 1024; endIdx++)
 						{
-							BatchSize += FilesToSync[EndIdx].StreamFile.Length;
+							batchSize += filesToSync[endIdx]._streamFile.Length;
 						}
 
 						// Add this batch to the list
-						Batches.Add((BeginIdx, EndIdx));
+						batches.Add((beginIdx, endIdx));
 					}
 
 					// The next batch to be synced
-					int NextBatchIdx = 0;
+					int nextBatchIdx = 0;
 
 					// Total size of synced files
-					long SyncedSize = 0;
+					long syncedSize = 0;
 
 					// Spawn some background threads to sync them
-					Dictionary<Task, int> Tasks = new Dictionary<Task, int>();
+					Dictionary<Task, int> tasks = new Dictionary<Task, int>();
 					try
 					{
-						while (Tasks.Count > 0 || NextBatchIdx < Batches.Count)
+						while (tasks.Count > 0 || nextBatchIdx < batches.Count)
 						{
 							// Create new tasks
-							while (Tasks.Count < NumParallelSyncThreads && NextBatchIdx < Batches.Count)
+							while (tasks.Count < NumParallelSyncThreads && nextBatchIdx < batches.Count)
 							{
-								(int BatchBeginIdx, int BatchEndIdx) = Batches[NextBatchIdx];
+								(int batchBeginIdx, int batchEndIdx) = batches[nextBatchIdx];
 
-								Task Task = Task.Run(() => SyncBatch(Client, FilesToSync, BatchBeginIdx, BatchEndIdx, bFakeSync, CancellationToken));
-								Tasks[Task] = NextBatchIdx++;
+								Task task = Task.Run(() => SyncBatch(client, filesToSync, batchBeginIdx, batchEndIdx, bFakeSync, cancellationToken));
+								tasks[task] = nextBatchIdx++;
 							}
 
 							// Wait for anything to complete
-							Task CompleteTask = await Task.WhenAny(Tasks.Keys);
-							await CompleteTask; // Make sure we re-throw any exceptions from the task that completed
+							Task completeTask = await Task.WhenAny(tasks.Keys);
+							await completeTask; // Make sure we re-throw any exceptions from the task that completed
 
-							int BatchIdx = Tasks[CompleteTask];
-							Tasks.Remove(CompleteTask);
+							int batchIdx = tasks[completeTask];
+							tasks.Remove(completeTask);
 
 							// Update metadata for the complete batch
-							(int BeginIdx, int EndIdx) = Batches[BatchIdx];
-							await ParallelTask.ForAsync(BeginIdx, EndIdx, Idx => FilesToSync[Idx].WorkspaceFile.UpdateMetadata());
+							(int beginIdx, int endIdx) = batches[batchIdx];
+							await ParallelTask.ForAsync(beginIdx, endIdx, idx => filesToSync[idx]._workspaceFile.UpdateMetadata());
 
 							// Save the current state every minute
-							TimeSpan Elapsed = Timer.Elapsed;
-							if (Elapsed > TimeSpan.FromMinutes(5.0))
+							TimeSpan elapsed = timer.Elapsed;
+							if (elapsed > TimeSpan.FromMinutes(5.0))
 							{
-								await SaveAsync(TransactionState.Dirty, CancellationToken);
-								Logger.LogInformation("Saved workspace state ({Elapsed:0.0}s)", (Timer.Elapsed - Elapsed).TotalSeconds);
-								Timer.Restart();
+								await SaveAsync(TransactionState.Dirty, cancellationToken);
+								_logger.LogInformation("Saved workspace state ({Elapsed:0.0}s)", (timer.Elapsed - elapsed).TotalSeconds);
+								timer.Restart();
 							}
 
 							// Update the status
-							for (int Idx = BeginIdx; Idx < EndIdx; Idx++)
+							for (int idx = beginIdx; idx < endIdx; idx++)
 							{
-								SyncedSize += FilesToSync[Idx].StreamFile.Length;
+								syncedSize += filesToSync[idx]._streamFile.Length;
 							}
-							Status.Progress = String.Format("{0:n1}% ({1:n1}mb/{2:n1}mb)", SyncedSize * 100.0 / SyncSize, SyncedSize / (1024.0 * 1024.0), SyncSize / (1024.0 * 1024.0));
+							status.Progress = String.Format("{0:n1}% ({1:n1}mb/{2:n1}mb)", syncedSize * 100.0 / syncSize, syncedSize / (1024.0 * 1024.0), syncSize / (1024.0 * 1024.0));
 						}
 					}
 					finally
 					{
-						await Task.WhenAll(Tasks.Keys);
+						await Task.WhenAll(tasks.Keys);
 					}
 				}
 			}
 
 			// Save the clean state
-			Workspace = Transaction.NewWorkspaceRootDir;
-			await SaveAsync(TransactionState.Clean, CancellationToken);
+			_workspace = transaction._newWorkspaceRootDir;
+			await SaveAsync(TransactionState.Clean, cancellationToken);
 		}
 
 		/// <summary>
 		/// Syncs a batch of files
 		/// </summary>
-		/// <param name="Client">The client to sync</param>
-		/// <param name="FilesToSync">List of files to sync</param>
-		/// <param name="BeginIdx">First file to sync</param>
-		/// <param name="EndIdx">Index of the last file to sync (exclusive)</param>
+		/// <param name="client">The client to sync</param>
+		/// <param name="filesToSync">List of files to sync</param>
+		/// <param name="beginIdx">First file to sync</param>
+		/// <param name="endIdx">Index of the last file to sync (exclusive)</param>
 		/// <param name="bFakeSync">Whether to fake a sync</param>
-		/// <param name="CancellationToken">Cancellation token for the request</param>
+		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>Async task</returns>
-		async Task SyncBatch(IPerforceConnection Client, WorkspaceFileToSync[] FilesToSync, int BeginIdx, int EndIdx, bool bFakeSync, CancellationToken CancellationToken)
+		async Task SyncBatch(IPerforceConnection client, WorkspaceFileToSync[] filesToSync, int beginIdx, int endIdx, bool bFakeSync, CancellationToken cancellationToken)
 		{
 			if (bFakeSync)
 			{
-				for (int Idx = BeginIdx; Idx < EndIdx; Idx++)
+				for (int idx = beginIdx; idx < endIdx; idx++)
 				{
-					FileReference LocalFile = FilesToSync[Idx].WorkspaceFile.GetLocation();
-					DirectoryReference.CreateDirectory(LocalFile.Directory);
-					FileReference.WriteAllBytes(LocalFile, new byte[0]);
+					FileReference localFile = filesToSync[idx]._workspaceFile.GetLocation();
+					DirectoryReference.CreateDirectory(localFile.Directory);
+					FileReference.WriteAllBytes(localFile, new byte[0]);
 				}
 			}
 			else
 			{
-				FileReference SyncFileName = FileReference.Combine(BaseDir, $"SyncList-{BeginIdx}.txt");
-				using (StreamWriter Writer = new StreamWriter(SyncFileName.FullName))
+				FileReference syncFileName = FileReference.Combine(_baseDir, $"SyncList-{beginIdx}.txt");
+				using (StreamWriter writer = new StreamWriter(syncFileName.FullName))
 				{
-					for (int Idx = BeginIdx; Idx < EndIdx; Idx++)
+					for (int idx = beginIdx; idx < endIdx; idx++)
 					{
-						Writer.WriteLine("{0}#{1}", FilesToSync[Idx].StreamFile.Path, FilesToSync[Idx].StreamFile.Revision);
+						writer.WriteLine("{0}#{1}", filesToSync[idx]._streamFile.Path, filesToSync[idx]._streamFile.Revision);
 					}
 				}
 
-				using PerforceConnection ClientWithFileList = new PerforceConnection(Client.Settings, Client.Logger);
-				ClientWithFileList.GlobalOptions.Add($"-x\"{SyncFileName}\"");
+				using PerforceConnection clientWithFileList = new PerforceConnection(client.Settings, client.Logger);
+				clientWithFileList.GlobalOptions.Add($"-x\"{syncFileName}\"");
 
-				await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken).ToListAsync(CancellationToken);
+				await clientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], cancellationToken).ToListAsync(cancellationToken);
 			}
 		}
 
 		/// <summary>
 		/// Helper function to move a file from the cache into the workspace. If it fails, adds the file to a list to be synced.
 		/// </summary>
-		/// <param name="FileToMove">Information about the file to move</param>
-		/// <param name="FilesToSync">List of files to be synced. If the move fails, the file will be added to this list of files to sync.</param>
-		void MoveFileFromCache(WorkspaceFileToMove FileToMove, ConcurrentQueue<WorkspaceFileToSync> FilesToSync)
+		/// <param name="fileToMove">Information about the file to move</param>
+		/// <param name="filesToSync">List of files to be synced. If the move fails, the file will be added to this list of files to sync.</param>
+		void MoveFileFromCache(WorkspaceFileToMove fileToMove, ConcurrentQueue<WorkspaceFileToSync> filesToSync)
 		{
 			try
 			{
-				FileReference.Move(FileToMove.TrackedFile.GetLocation(), FileToMove.WorkspaceFile.GetLocation());
+				FileReference.Move(fileToMove._trackedFile.GetLocation(), fileToMove._workspaceFile.GetLocation());
 			}
-			catch(Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogWarning(Ex, "warning: Unable to move {CacheFile} from cache to {WorkspaceFile}. Syncing instead.", FileToMove.TrackedFile.GetLocation(), FileToMove.WorkspaceFile.GetLocation());
-				FilesToSync.Enqueue(new WorkspaceFileToSync(FileToMove.StreamFile, FileToMove.WorkspaceFile));
-				bRequiresRepair = true;
+				_logger.LogWarning(ex, "warning: Unable to move {CacheFile} from cache to {WorkspaceFile}. Syncing instead.", fileToMove._trackedFile.GetLocation(), fileToMove._workspaceFile.GetLocation());
+				filesToSync.Enqueue(new WorkspaceFileToSync(fileToMove._streamFile, fileToMove._workspaceFile));
+				_bRequiresRepair = true;
 			}
 		}
 
 		/// <summary>
 		/// Helper function to copy a file within the workspace. If it fails, adds the file to a list to be synced.
 		/// </summary>
-		/// <param name="FileToCopy">Information about the file to move</param>
-		/// <param name="FilesToSync">List of files to be synced. If the move fails, the file will be added to this list of files to sync.</param>
-		void CopyFileWithinWorkspace(WorkspaceFileToCopy FileToCopy, ConcurrentQueue<WorkspaceFileToSync> FilesToSync)
+		/// <param name="fileToCopy">Information about the file to move</param>
+		/// <param name="filesToSync">List of files to be synced. If the move fails, the file will be added to this list of files to sync.</param>
+		void CopyFileWithinWorkspace(WorkspaceFileToCopy fileToCopy, ConcurrentQueue<WorkspaceFileToSync> filesToSync)
 		{
 			try
 			{
-				FileReference.Copy(FileToCopy.SourceWorkspaceFile.GetLocation(), FileToCopy.TargetWorkspaceFile.GetLocation());
-				FileToCopy.TargetWorkspaceFile.UpdateMetadata();
+				FileReference.Copy(fileToCopy._sourceWorkspaceFile.GetLocation(), fileToCopy._targetWorkspaceFile.GetLocation());
+				fileToCopy._targetWorkspaceFile.UpdateMetadata();
 			}
-			catch(Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogWarning(Ex, "warning: Unable to copy {SourceFile} to {TargetFile}. Syncing instead.", FileToCopy.SourceWorkspaceFile.GetLocation(), FileToCopy.TargetWorkspaceFile.GetLocation());
-				FilesToSync.Enqueue(new WorkspaceFileToSync(FileToCopy.StreamFile, FileToCopy.TargetWorkspaceFile));
-				bRequiresRepair = true;
+				_logger.LogWarning(ex, "warning: Unable to copy {SourceFile} to {TargetFile}. Syncing instead.", fileToCopy._sourceWorkspaceFile.GetLocation(), fileToCopy._targetWorkspaceFile.GetLocation());
+				filesToSync.Enqueue(new WorkspaceFileToSync(fileToCopy._streamFile, fileToCopy._targetWorkspaceFile));
+				_bRequiresRepair = true;
 			}
 		}
 
-		void RemoveTrackedFile(CachedFileInfo TrackedFile)
+		void RemoveTrackedFile(CachedFileInfo trackedFile)
 		{
-			ContentIdToTrackedFile.Remove(TrackedFile.ContentId);
-			CacheEntries.Remove(TrackedFile.CacheId);
-			FileUtils.ForceDeleteFile(TrackedFile.GetLocation());
+			_contentIdToTrackedFile.Remove(trackedFile.ContentId);
+			_cacheEntries.Remove(trackedFile.CacheId);
+			FileUtils.ForceDeleteFile(trackedFile.GetLocation());
 		}
 
 		void CreateCacheHierarchy()
 		{
-			for(int IdxA = 0; IdxA < 16; IdxA++)
+			for (int idxA = 0; idxA < 16; idxA++)
 			{
-				DirectoryReference DirA = DirectoryReference.Combine(CacheDir, String.Format("{0:X}", IdxA));
-				DirectoryReference.CreateDirectory(DirA);
-				for(int IdxB = 0; IdxB < 16; IdxB++)
+				DirectoryReference dirA = DirectoryReference.Combine(_cacheDir, String.Format("{0:X}", idxA));
+				DirectoryReference.CreateDirectory(dirA);
+				for (int idxB = 0; idxB < 16; idxB++)
 				{
-					DirectoryReference DirB = DirectoryReference.Combine(DirA, String.Format("{0:X}", IdxB));
-					DirectoryReference.CreateDirectory(DirB);
-					for(int IdxC = 0; IdxC < 16; IdxC++)
+					DirectoryReference dirB = DirectoryReference.Combine(dirA, String.Format("{0:X}", idxB));
+					DirectoryReference.CreateDirectory(dirB);
+					for (int idxC = 0; idxC < 16; idxC++)
 					{
-						DirectoryReference DirC = DirectoryReference.Combine(DirB, String.Format("{0:X}", IdxC));
-						DirectoryReference.CreateDirectory(DirC);
+						DirectoryReference dirC = DirectoryReference.Combine(dirB, String.Format("{0:X}", idxC));
+						DirectoryReference.CreateDirectory(dirC);
 					}
 				}
 			}
@@ -1948,116 +1924,98 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Determines a unique cache id for a file content id
 		/// </summary>
-		/// <param name="ContentId">File content id to get a unique id for</param>
+		/// <param name="contentId">File content id to get a unique id for</param>
 		/// <returns>The unique cache id</returns>
-		ulong GetUniqueCacheId(FileContentId ContentId)
+		ulong GetUniqueCacheId(FileContentId contentId)
 		{
 			// Initialize the cache id to the top 16 bytes of the digest, then increment it until we find a unique id
-			ulong CacheId = 0;
-			for(int Idx = 0; Idx < 8; Idx++)
+			ulong cacheId = 0;
+			for (int idx = 0; idx < 8; idx++)
 			{
-				CacheId = (CacheId << 8) | ContentId.Digest.Span[Idx];
+				cacheId = (cacheId << 8) | contentId.Digest.Span[idx];
 			}
-			while(!CacheEntries.Add(CacheId))
+			while (!_cacheEntries.Add(cacheId))
 			{
-				CacheId++;
+				cacheId++;
 			}
-			return CacheId;
-		}
-
-		/// <summary>
-		/// Sanitizes a string for use in a Perforce client name
-		/// </summary>
-		/// <param name="Text">Text to sanitize</param>
-		/// <returns>Sanitized text</returns>
-		static string Sanitize(string Text)
-		{
-			StringBuilder Result = new StringBuilder();
-			for(int Idx = 0; Idx < Text.Length; Idx++)
-			{
-				if((Text[Idx] >= '0' && Text[Idx] <= '9') || (Text[Idx] >= 'a' && Text[Idx] <= 'z') || (Text[Idx] >= 'A' && Text[Idx] <= 'Z') || Text[Idx] == '-' || Text[Idx] == '_' || Text[Idx] == '.')
-				{
-					Result.Append(Text[Idx]);
-				}
-			}
-			return Result.ToString();
+			return cacheId;
 		}
 
 		/// <summary>
 		/// Removes the leading slash from a path
 		/// </summary>
-		/// <param name="Path">The path to remove a slash from</param>
+		/// <param name="path">The path to remove a slash from</param>
 		/// <returns>The path without a leading slash</returns>
-		static string RemoveLeadingSlash(string Path)
+		static string RemoveLeadingSlash(string path)
 		{
-			if(Path.Length > 0 && Path[0] == '/')
+			if (path.Length > 0 && path[0] == '/')
 			{
-				return Path.Substring(1);
+				return path.Substring(1);
 			}
 			else
 			{
-				return Path;
+				return path;
 			}
 		}
 
 		/// <summary>
 		/// Gets the path to a backup file used while a new file is being written out
 		/// </summary>
-		/// <param name="TargetFile">The file being written to</param>
+		/// <param name="targetFile">The file being written to</param>
 		/// <returns>The path to a backup file</returns>
-		private static FileReference GetBackupFile(FileReference TargetFile)
+		private static FileReference GetBackupFile(FileReference targetFile)
 		{
-			return new FileReference(TargetFile.FullName + ".transaction");
+			return new FileReference(targetFile.FullName + ".transaction");
 		}
 
 		/// <summary>
 		/// Begins a write transaction on the given file. Assumes only one process will be reading/writing at a time, but the operation can be interrupted.
 		/// </summary>
-		/// <param name="TargetFile">The file being written to</param>
-		public static void BeginTransaction(FileReference TargetFile)
+		/// <param name="targetFile">The file being written to</param>
+		public static void BeginTransaction(FileReference targetFile)
 		{
-			FileReference TransactionFile = GetBackupFile(TargetFile);
-			if (FileReference.Exists(TargetFile))
+			FileReference transactionFile = GetBackupFile(targetFile);
+			if (FileReference.Exists(targetFile))
 			{
-				FileUtils.ForceMoveFile(TargetFile, TransactionFile);
+				FileUtils.ForceMoveFile(targetFile, transactionFile);
 			}
-			else if (FileReference.Exists(TransactionFile))
+			else if (FileReference.Exists(transactionFile))
 			{
-				FileUtils.ForceDeleteFile(TransactionFile);
+				FileUtils.ForceDeleteFile(transactionFile);
 			}
 		}
 
 		/// <summary>
 		/// Mark a transaction on the given file as complete, and removes the backup file.
 		/// </summary>
-		/// <param name="TargetFile">The file being written to</param>
-		public static void CompleteTransaction(FileReference TargetFile)
+		/// <param name="targetFile">The file being written to</param>
+		public static void CompleteTransaction(FileReference targetFile)
 		{
-			FileReference TransactionFile = GetBackupFile(TargetFile);
-			FileUtils.ForceDeleteFile(TransactionFile);
+			FileReference transactionFile = GetBackupFile(targetFile);
+			FileUtils.ForceDeleteFile(transactionFile);
 		}
 
 		/// <summary>
 		/// Restores the backup for a target file, if it exists. This allows recovery from an incomplete transaction.
 		/// </summary>
-		/// <param name="TargetFile">The file being written to</param>
-		public static void RestoreBackup(FileReference TargetFile)
+		/// <param name="targetFile">The file being written to</param>
+		public static void RestoreBackup(FileReference targetFile)
 		{
-			FileReference TransactionFile = GetBackupFile(TargetFile);
-			if (FileReference.Exists(TransactionFile))
+			FileReference transactionFile = GetBackupFile(targetFile);
+			if (FileReference.Exists(transactionFile))
 			{
-				FileUtils.ForceMoveFile(TransactionFile, TargetFile);
+				FileUtils.ForceMoveFile(transactionFile, targetFile);
 			}
 		}
 
 		/// <summary>
 		/// Creates a scoped trace object
 		/// </summary>
-		/// <param name="Operation">Name of the operation</param>
+		/// <param name="operation">Name of the operation</param>
 		/// <returns>Disposable object for the trace</returns>
-		private IDisposable Trace(string Operation)
+		private IDisposable Trace(string operation)
 		{
-			return TraceSpan.Create(Operation, service: "hordeagent_repository");
+			return TraceSpan.Create(operation, service: "hordeagent_repository");
 		}
 
 		#endregion

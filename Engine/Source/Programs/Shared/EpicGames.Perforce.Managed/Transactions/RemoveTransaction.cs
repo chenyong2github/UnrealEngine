@@ -1,96 +1,92 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 
 namespace EpicGames.Perforce.Managed
 {
 	class RemoveTransaction
 	{
-		Dictionary<FileContentId, CachedFileInfo> ContentIdToTrackedFile;
+		readonly Dictionary<FileContentId, CachedFileInfo> _contentIdToTrackedFile;
 
-		public WorkspaceDirectoryInfo NewWorkspaceRootDir;
-		public StreamSnapshot StreamSnapshot;
-		public ConcurrentDictionary<FileContentId, WorkspaceFileInfo> FilesToMove = new ConcurrentDictionary<FileContentId, WorkspaceFileInfo>();
-		public ConcurrentQueue<WorkspaceFileInfo> FilesToDelete = new ConcurrentQueue<WorkspaceFileInfo>();
-		public ConcurrentQueue<WorkspaceDirectoryInfo> DirectoriesToDelete = new ConcurrentQueue<WorkspaceDirectoryInfo>();
+		public WorkspaceDirectoryInfo _newWorkspaceRootDir;
+		public StreamSnapshot _streamSnapshot;
+		public ConcurrentDictionary<FileContentId, WorkspaceFileInfo> _filesToMove = new ConcurrentDictionary<FileContentId, WorkspaceFileInfo>();
+		public ConcurrentQueue<WorkspaceFileInfo> _filesToDelete = new ConcurrentQueue<WorkspaceFileInfo>();
+		public ConcurrentQueue<WorkspaceDirectoryInfo> _directoriesToDelete = new ConcurrentQueue<WorkspaceDirectoryInfo>();
 
-		public RemoveTransaction(WorkspaceDirectoryInfo WorkspaceRootDir, StreamSnapshot StreamSnapshot, Dictionary<FileContentId, CachedFileInfo> ContentIdToTrackedFile)
+		public RemoveTransaction(WorkspaceDirectoryInfo workspaceRootDir, StreamSnapshot streamSnapshot, Dictionary<FileContentId, CachedFileInfo> contentIdToTrackedFile)
 		{
-			this.NewWorkspaceRootDir = new WorkspaceDirectoryInfo(WorkspaceRootDir.GetLocation());
-			this.StreamSnapshot = StreamSnapshot;
-			this.ContentIdToTrackedFile = ContentIdToTrackedFile;
+			_newWorkspaceRootDir = new WorkspaceDirectoryInfo(workspaceRootDir.GetLocation());
+			_streamSnapshot = streamSnapshot;
+			_contentIdToTrackedFile = contentIdToTrackedFile;
 
-			using(ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
+			using (ThreadPoolWorkQueue queue = new ThreadPoolWorkQueue())
 			{
-				Queue.Enqueue(() => Merge(WorkspaceRootDir, NewWorkspaceRootDir, StreamSnapshot.Root, Queue));
+				queue.Enqueue(() => Merge(workspaceRootDir, _newWorkspaceRootDir, streamSnapshot.Root, queue));
 			}
 		}
 
-		void Merge(WorkspaceDirectoryInfo WorkspaceDir, WorkspaceDirectoryInfo NewWorkspaceDir, StreamTreeRef StreamTreeRef, ThreadPoolWorkQueue Queue)
+		void Merge(WorkspaceDirectoryInfo workspaceDir, WorkspaceDirectoryInfo newWorkspaceDir, StreamTreeRef streamTreeRef, ThreadPoolWorkQueue queue)
 		{
-			StreamTree StreamDir = StreamSnapshot.Lookup(StreamTreeRef);
+			StreamTree streamDir = _streamSnapshot.Lookup(streamTreeRef);
 
 			// Update all the subdirectories
-			foreach(WorkspaceDirectoryInfo WorkspaceSubDir in WorkspaceDir.NameToSubDirectory.Values)
+			foreach (WorkspaceDirectoryInfo workspaceSubDir in workspaceDir.NameToSubDirectory.Values)
 			{
-				StreamTreeRef? StreamSubTreeRef;
-				if(StreamDir.NameToTree.TryGetValue(WorkspaceSubDir.Name, out StreamSubTreeRef))
+				StreamTreeRef? streamSubTreeRef;
+				if (streamDir.NameToTree.TryGetValue(workspaceSubDir.Name, out streamSubTreeRef))
 				{
-					MergeSubDirectory(WorkspaceSubDir.Name, NewWorkspaceDir, WorkspaceSubDir, StreamSubTreeRef, Queue);
+					MergeSubDirectory(workspaceSubDir.Name, newWorkspaceDir, workspaceSubDir, streamSubTreeRef, queue);
 				}
 				else
 				{
-					RemoveDirectory(WorkspaceSubDir, Queue);
+					RemoveDirectory(workspaceSubDir, queue);
 				}
 			}
 
 			// Update the staged files
-			foreach(WorkspaceFileInfo WorkspaceFile in WorkspaceDir.NameToFile.Values)
+			foreach (WorkspaceFileInfo workspaceFile in workspaceDir.NameToFile.Values)
 			{
-				StreamFile? StreamFile;
-				if(StreamDir != null && StreamDir.NameToFile.TryGetValue(WorkspaceFile.Name, out StreamFile) && StreamFile.ContentId.Equals(WorkspaceFile.ContentId))
+				StreamFile? streamFile;
+				if (streamDir != null && streamDir.NameToFile.TryGetValue(workspaceFile.Name, out streamFile) && streamFile.ContentId.Equals(workspaceFile.ContentId))
 				{
-					NewWorkspaceDir.NameToFile.Add(WorkspaceFile.Name, WorkspaceFile);
+					newWorkspaceDir.NameToFile.Add(workspaceFile.Name, workspaceFile);
 				}
 				else
 				{
-					RemoveFile(WorkspaceFile);
+					RemoveFile(workspaceFile);
 				}
 			}
 		}
 
-		void MergeSubDirectory(Utf8String Name, WorkspaceDirectoryInfo NewWorkspaceDir, WorkspaceDirectoryInfo WorkspaceSubDir, StreamTreeRef StreamSubTreeRef, ThreadPoolWorkQueue Queue)
+		void MergeSubDirectory(Utf8String name, WorkspaceDirectoryInfo newWorkspaceDir, WorkspaceDirectoryInfo workspaceSubDir, StreamTreeRef streamSubTreeRef, ThreadPoolWorkQueue queue)
 		{
-			WorkspaceDirectoryInfo NewWorkspaceSubDir = new WorkspaceDirectoryInfo(NewWorkspaceDir, Name, StreamSubTreeRef);
-			NewWorkspaceDir.NameToSubDirectory.Add(NewWorkspaceSubDir.Name, NewWorkspaceSubDir);
-			Queue.Enqueue(() => Merge(WorkspaceSubDir, NewWorkspaceSubDir, StreamSubTreeRef, Queue));
+			WorkspaceDirectoryInfo newWorkspaceSubDir = new WorkspaceDirectoryInfo(newWorkspaceDir, name, streamSubTreeRef);
+			newWorkspaceDir.NameToSubDirectory.Add(newWorkspaceSubDir.Name, newWorkspaceSubDir);
+			queue.Enqueue(() => Merge(workspaceSubDir, newWorkspaceSubDir, streamSubTreeRef, queue));
 		}
 
-		void RemoveDirectory(WorkspaceDirectoryInfo WorkspaceDir, ThreadPoolWorkQueue Queue)
+		void RemoveDirectory(WorkspaceDirectoryInfo workspaceDir, ThreadPoolWorkQueue queue)
 		{
-			DirectoriesToDelete.Enqueue(WorkspaceDir);
+			_directoriesToDelete.Enqueue(workspaceDir);
 
-			foreach(WorkspaceDirectoryInfo WorkspaceSubDir in WorkspaceDir.NameToSubDirectory.Values)
+			foreach (WorkspaceDirectoryInfo workspaceSubDir in workspaceDir.NameToSubDirectory.Values)
 			{
-				Queue.Enqueue(() => RemoveDirectory(WorkspaceSubDir, Queue));
+				queue.Enqueue(() => RemoveDirectory(workspaceSubDir, queue));
 			}
-			foreach(WorkspaceFileInfo WorkspaceFile in WorkspaceDir.NameToFile.Values)
+			foreach (WorkspaceFileInfo workspaceFile in workspaceDir.NameToFile.Values)
 			{
-				RemoveFile(WorkspaceFile);
+				RemoveFile(workspaceFile);
 			}
 		}
 
-		void RemoveFile(WorkspaceFileInfo WorkspaceFile)
+		void RemoveFile(WorkspaceFileInfo workspaceFile)
 		{
-			if(ContentIdToTrackedFile.ContainsKey(WorkspaceFile.ContentId) || !FilesToMove.TryAdd(WorkspaceFile.ContentId, WorkspaceFile))
+			if (_contentIdToTrackedFile.ContainsKey(workspaceFile.ContentId) || !_filesToMove.TryAdd(workspaceFile.ContentId, workspaceFile))
 			{
-				FilesToDelete.Enqueue(WorkspaceFile);
+				_filesToDelete.Enqueue(workspaceFile);
 			}
 		}
 	}

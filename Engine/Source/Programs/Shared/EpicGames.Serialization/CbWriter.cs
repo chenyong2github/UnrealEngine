@@ -5,9 +5,6 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
 
 namespace EpicGames.Serialization
 {
@@ -62,13 +59,13 @@ namespace EpicGames.Serialization
 
 			public void Reset(CbFieldType fieldType, CbFieldType uniformFieldType, int offset)
 			{
-				this._fieldType = fieldType;
-				this._uniformFieldType = uniformFieldType;
-				this._offset = offset;
-				this._length = 0;
-				this._count = 0;
-				this._children.Clear();
-				this._sizeOfChildHeaders = 0;
+				_fieldType = fieldType;
+				_uniformFieldType = uniformFieldType;
+				_offset = offset;
+				_length = 0;
+				_count = 0;
+				_children.Clear();
+				_sizeOfChildHeaders = 0;
 			}
 		}
 
@@ -84,27 +81,27 @@ namespace EpicGames.Serialization
 
 			public Chunk(int offset, int maxLength)
 			{
-				this._data = new byte[maxLength];
+				_data = new byte[maxLength];
 				Reset(offset);
 			}
 
 			public void Reset(int offset)
 			{
-				this._offset = offset;
-				this._length = 0;
-				this._scopes.Clear();
+				_offset = offset;
+				_length = 0;
+				_scopes.Clear();
 			}
 		}
 
 		const int DefaultChunkSize = 1024;
 
-		List<Chunk> _chunks = new List<Chunk>();
-		Stack<Scope> _openScopes = new Stack<Scope>();
-		Chunk CurrentChunk => _chunks[_chunks.Count - 1];
+		readonly List<Chunk> _chunks = new List<Chunk>();
+		readonly Stack<Scope> _openScopes = new Stack<Scope>();
+		Chunk CurrentChunk => _chunks[^1];
 		Scope CurrentScope => _openScopes.Peek();
 		int _currentOffset;
-		List<Chunk> _freeChunks = new List<Chunk>();
-		List<Scope> _freeScopes = new List<Scope>();
+		readonly List<Chunk> _freeChunks = new List<Chunk>();
+		readonly List<Scope> _freeScopes = new List<Scope>();
 
 		/// <summary>
 		/// Constructor
@@ -196,7 +193,7 @@ namespace EpicGames.Serialization
 		{
 			if (_freeScopes.Count > 0)
 			{
-				Scope scope = _freeScopes[_freeScopes.Count - 1];
+				Scope scope = _freeScopes[^1];
 				scope.Reset(fieldType, uniformFieldType, offset);
 				_freeScopes.RemoveAt(_freeScopes.Count - 1);
 				return scope;
@@ -930,14 +927,14 @@ namespace EpicGames.Serialization
 
 		class ReadStream : Stream
 		{
-			IEnumerator<ReadOnlyMemory<byte>> _enumerator;
+			readonly IEnumerator<ReadOnlyMemory<byte>> _enumerator;
 			ReadOnlyMemory<byte> _segment;
 			long _positionInternal;
 
 			public ReadStream(IEnumerator<ReadOnlyMemory<byte>> enumerator, long length)
 			{
-				this._enumerator = enumerator;
-				this.Length = length;
+				_enumerator = enumerator;
+				Length = length;
 			}
 
 			/// <inheritdoc/>

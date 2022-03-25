@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Perforce
 {
@@ -27,10 +23,10 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name of the tag</param>
-		public PerforceTagAttribute(string Name)
+		/// <param name="name">Name of the tag</param>
+		public PerforceTagAttribute(string name)
 		{
-			this.Name = Name;
+			Name = name;
 		}
 	}
 
@@ -48,10 +44,10 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name of the serialized value</param>
-		public PerforceEnumAttribute(string Name)
+		/// <param name="name">Name of the serialized value</param>
+		public PerforceEnumAttribute(string name)
 		{
-			this.Name = Name;
+			Name = name;
 		}
 	}
 

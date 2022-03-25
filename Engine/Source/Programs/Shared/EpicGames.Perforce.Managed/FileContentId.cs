@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 
 namespace EpicGames.Perforce.Managed
@@ -24,15 +19,15 @@ namespace EpicGames.Perforce.Managed
 			get;
 		}
 
-		public FileContentId(Md5Hash Digest, Utf8String Type)
+		public FileContentId(Md5Hash digest, Utf8String type)
 		{
-			this.Digest = Digest;
-			this.Type = Type;
+			Digest = digest;
+			Type = type;
 		}
 
-		public override bool Equals(object? Other)
+		public override bool Equals(object? other)
 		{
-			return (Other is FileContentId OtherFile) && Digest == OtherFile.Digest && Type == OtherFile.Type;
+			return (other is FileContentId otherFile) && Digest == otherFile.Digest && Type == otherFile.Type;
 		}
 
 		public override int GetHashCode()
@@ -43,22 +38,22 @@ namespace EpicGames.Perforce.Managed
 
 	static class FileContentIdExtensions
 	{
-		public static FileContentId ReadFileContentId(this MemoryReader Reader)
+		public static FileContentId ReadFileContentId(this MemoryReader reader)
 		{
-			Md5Hash Digest = Reader.ReadMd5Hash();
-			Utf8String Type = Reader.ReadString();
-			return new FileContentId(Digest, Type);
+			Md5Hash digest = reader.ReadMd5Hash();
+			Utf8String type = reader.ReadString();
+			return new FileContentId(digest, type);
 		}
 
-		public static void WriteFileContentId(this MemoryWriter Writer, FileContentId FileContentId)
+		public static void WriteFileContentId(this MemoryWriter writer, FileContentId fileContentId)
 		{
-			Writer.WriteMd5Hash(FileContentId.Digest);
-			Writer.WriteString(FileContentId.Type);
+			writer.WriteMd5Hash(fileContentId.Digest);
+			writer.WriteString(fileContentId.Type);
 		}
 
-		public static int GetSerializedSize(this FileContentId FileContentId)
+		public static int GetSerializedSize(this FileContentId fileContentId)
 		{
-			return Digest<Md5>.Length + FileContentId.Type.GetSerializedSize();
+			return Digest<Md5>.Length + fileContentId.Type.GetSerializedSize();
 		}
 	}
 }

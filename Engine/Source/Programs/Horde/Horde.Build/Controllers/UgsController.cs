@@ -59,16 +59,7 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="issueService">The issue service</param>
-		/// <param name="jobService">The job service</param>
-		/// <param name="streamService">Collection of stream documents</param>
-		/// <param name="ugsMetadataCollection">Collection of UGS metadata documents</param>
-		/// <param name="logEventCollection">Collection of log event documents</param>
-		/// <param name="userCollection">Collection of user documents</param>
-		/// <param name="logFileService">The log file service</param>
-		/// <param name="optionsMonitor">The server settings</param>
-		/// <param name="logger">Logger</param>
-		public UgsController(IIssueService issueService, JobService jobService, StreamService streamService, IUgsMetadataCollection ugsMetadataCollection, ILogEventCollection logEventCollection, IUserCollection userCollection, ILogFileService logFileService, IOptionsMonitor<ServerSettings> optionsMonitor, ILogger<UgsController> logger)
+		public UgsController(IIssueService issueService, IUgsMetadataCollection ugsMetadataCollection, IUserCollection userCollection, ILogFileService logFileService, IOptionsMonitor<ServerSettings> optionsMonitor, ILogger<UgsController> logger)
 		{
 			_issueService = issueService;
 			_ugsMetadataCollection = ugsMetadataCollection;

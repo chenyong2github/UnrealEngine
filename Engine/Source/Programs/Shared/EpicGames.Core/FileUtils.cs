@@ -568,7 +568,6 @@ namespace EpicGames.Core
 			public FILETIME ProcessStartTime;
 		}
 
-		const int RmRebootReasonNone = 0;
 		static readonly int RM_SESSION_KEY_LEN = Marshal.SizeOf<Guid>();
 		static readonly int CCH_RM_SESSION_KEY = RM_SESSION_KEY_LEN * 2;
 		const int CCH_RM_MAX_APP_NAME = 255;

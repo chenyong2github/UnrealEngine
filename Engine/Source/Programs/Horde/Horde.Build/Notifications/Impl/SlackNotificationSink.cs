@@ -192,7 +192,6 @@ namespace Horde.Build.Notifications.Impl
 
 		readonly IIssueService _issueService;
 		readonly IUserCollection _userCollection;
-		readonly ILogFileService _logFileService;
 		readonly StreamService _streamService;
 		readonly ServerSettings _settings;
 		readonly IMongoCollection<MessageStateDocument> _messageStates;
@@ -211,15 +210,13 @@ namespace Horde.Build.Notifications.Impl
 		/// <param name="databaseService"></param>
 		/// <param name="issueService"></param>
 		/// <param name="userCollection">The user collection</param>
-		/// <param name="logFileService"></param>
 		/// <param name="streamService"></param>
 		/// <param name="settings">The current configuration settings</param>
 		/// <param name="logger">Logging device</param>
-		public SlackNotificationSink(DatabaseService databaseService, IIssueService issueService, IUserCollection userCollection, ILogFileService logFileService, StreamService streamService, IOptions<ServerSettings> settings, ILogger<SlackNotificationSink> logger)
+		public SlackNotificationSink(DatabaseService databaseService, IIssueService issueService, IUserCollection userCollection, StreamService streamService, IOptions<ServerSettings> settings, ILogger<SlackNotificationSink> logger)
 		{
 			_issueService = issueService;
 			_userCollection = userCollection;
-			_logFileService = logFileService;
 			_streamService = streamService;
 			_settings = settings.Value;
 			_messageStates = databaseService.Database.GetCollection<MessageStateDocument>("Slack");
@@ -643,7 +640,6 @@ namespace Horde.Build.Notifications.Impl
 
 		async Task NotifyIssueUpdatedAsync(IUser user, IIssue issue, IIssueDetails details)
 		{
-
 			string? slackUserId = await GetSlackUserId(user);
 			if (slackUserId == null)
 			{
@@ -651,33 +647,6 @@ namespace Horde.Build.Notifications.Impl
 			}
 
 			await SendIssueMessageAsync(slackUserId, issue, details, user.Id);
-		}
-
-		async Task<string> GetSampleText(IIssueDetails details)
-		{
-			StringBuilder sampleText = new StringBuilder();
-			if (details.Spans.Count > 0)
-			{
-				IIssueSpan span = details.Spans[0];
-				if (span.FirstFailure.LogId != null)
-				{
-					ILogFile? logFile = await _logFileService.GetCachedLogFileAsync(span.FirstFailure.LogId.Value);
-					if (logFile != null)
-					{
-						List<ILogEvent> logEvents = await _logFileService.FindEventsForSpansAsync(details.Spans.Select(x => x.Id).Take(1), null, 0, 1);
-						foreach (ILogEvent logEvent in logEvents)
-						{
-							ILogEventData data = await _logFileService.GetEventDataAsync(logFile, logEvent.LineIndex, logEvent.LineCount);
-							if (sampleText.Length > 0)
-							{
-								sampleText.Append("\n\n");
-							}
-							sampleText.Append(CultureInfo.InvariantCulture, $"```{data.Message}```");
-						}
-					}
-				}
-			}
-			return sampleText.ToString();
 		}
 
 		async Task SendIssueMessageAsync(string recipient, IIssue issue, IIssueDetails details, UserId? userId)

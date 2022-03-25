@@ -147,10 +147,12 @@ namespace Horde.Build.Services
 			};
 		}
 
+#pragma warning disable IDE0060
 		static bool ShouldClonePreflightChange(StreamId streamId)
 		{
 			return false; //			return StreamId == new StreamId("ue5-main");
 		}
+#pragma warning restore IDE0060
 
 		/// <summary>
 		/// Creates a new job
