@@ -918,6 +918,7 @@ void SWidget::UpdateFastPathVolatility(bool bParentVolatile)
 	}
 	else
 	{
+		AddUpdateFlags(EWidgetUpdateFlags::NeedsRepaint);
 		RemoveUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
 	}
 
