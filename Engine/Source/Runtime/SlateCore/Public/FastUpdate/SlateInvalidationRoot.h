@@ -28,7 +28,8 @@ namespace UE::Slate::Private
 struct FSlateInvalidationContext
 {
 	FSlateInvalidationContext(FSlateWindowElementList& InWindowElementList, const FWidgetStyle& InWidgetStyle)
-		: PaintArgs(nullptr)
+		: ViewOffset(0.0f, 0.0f)
+		, PaintArgs(nullptr)
 		, WidgetStyle(InWidgetStyle)
 		, WindowElementList(&InWindowElementList)
 		, LayoutScaleMultiplier(1.0f)
@@ -39,6 +40,7 @@ struct FSlateInvalidationContext
 	} 
 
 	FSlateRect CullingRect;
+	FVector2f ViewOffset;
 	const FPaintArgs* PaintArgs;
 	const FWidgetStyle& WidgetStyle;
 	FSlateWindowElementList* WindowElementList;
@@ -58,10 +60,13 @@ enum class ESlateInvalidationPaintType
 struct FSlateInvalidationResult
 {
 	FSlateInvalidationResult()
-		: MaxLayerIdPainted(0)
+		: ViewOffset(0.0f, 0.0f)
+		, MaxLayerIdPainted(0)
 		, bRepaintedWidgets(false)
 	{}
 
+	/** The view offset to use with the draw buffer */
+	FVector2f ViewOffset;
 	/** The max layer id painted or cached */
 	int32 MaxLayerIdPainted;
 	/** If we had to repaint any widget */
@@ -199,6 +204,8 @@ private:
 
 	/** Widgets that will be updated. */
 	TArray<FSlateInvalidationWidgetHeapElement> FinalUpdateList;
+
+	FVector2f CachedViewOffset;
 
 	FSlateCachedElementData* CachedElementData;
 

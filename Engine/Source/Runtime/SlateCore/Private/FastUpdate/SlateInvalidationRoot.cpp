@@ -194,7 +194,8 @@ FAutoConsoleVariableRef CVarSlateInvalidationEnableReindexLayerId(
 FSlateInvalidationRootList GSlateInvalidationRootListInstance;
 
 FSlateInvalidationRoot::FSlateInvalidationRoot()
-	: CachedElementData(new FSlateCachedElementData)
+	: CachedViewOffset(0.0f, 0.0f)
+	, CachedElementData(new FSlateCachedElementData)
 	, InvalidationRootWidget(nullptr)
 	, RootHittestGrid(nullptr)
 	, CachedMaxLayerId(0)
@@ -388,6 +389,8 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 		GSlateIsOnFastUpdatePath = false;
 		bNeedsSlowPath = false;
 
+		CachedViewOffset = Context.ViewOffset;
+
 		{
 			if (Context.bAllowFastPathUpdate)
 			{
@@ -427,6 +430,7 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 	}
 #endif
 
+	Result.ViewOffset = CachedViewOffset;
 	Result.MaxLayerIdPainted = CachedMaxLayerId;
 	return Result;
 }

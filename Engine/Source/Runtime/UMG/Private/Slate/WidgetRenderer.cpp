@@ -297,6 +297,7 @@ bool FWidgetRenderer::DrawInvalidationRoot(TSharedRef<SVirtualWindow>& VirtualWi
 	{
 		// Need to set a new window element list so make a copy
 		FSlateInvalidationContext ContextCopy = Context;
+		ContextCopy.ViewOffset = ViewOffset;
 
 		{
 			// Get the free buffer & add our virtual window
@@ -315,7 +316,7 @@ bool FWidgetRenderer::DrawInvalidationRoot(TSharedRef<SVirtualWindow>& VirtualWi
 
 				Renderer->DrawWindow_GameThread(ScopedDrawBuffer.GetDrawBuffer());
 
-				ScopedDrawBuffer.GetDrawBuffer().ViewOffset = ViewOffset;
+				ScopedDrawBuffer.GetDrawBuffer().ViewOffset = Result.ViewOffset;
 
 				FRenderThreadUpdateContext RenderThreadUpdateContext =
 				{
