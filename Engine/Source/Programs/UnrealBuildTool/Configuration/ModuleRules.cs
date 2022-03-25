@@ -704,6 +704,27 @@ namespace UnrealBuildTool
 		private BuildSettingsVersion? DefaultBuildSettingsPrivate;
 
 		/// <summary>
+		/// What version of include order to use when compiling this module. Can be overridden via -ForceIncludeOrder on the command line or in a module's rules.
+		/// </summary>
+		public EngineIncludeOrderVersion IncludeOrderVersion
+		{
+			get
+			{
+				if (Target.ForcedIncludeOrder != null)
+				{
+					return Target.ForcedIncludeOrder.Value;
+				}
+				if (bTreatAsEngineModule)
+				{
+					return EngineIncludeOrderVersion.Latest;
+				}
+				return IncludeOrderVersionPrivate ?? Target.IncludeOrderVersion;
+			}
+			set { IncludeOrderVersionPrivate = value; }
+		}
+		private EngineIncludeOrderVersion? IncludeOrderVersionPrivate;
+
+		/// <summary>
 		/// Use run time type information
 		/// </summary>
 		public bool bUseRTTI = false;

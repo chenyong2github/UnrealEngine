@@ -8,6 +8,7 @@ public class UnrealEditorTarget : TargetRules
 	public UnrealEditorTarget( TargetInfo Target ) : base(Target)
 	{
 		Type = TargetType.Editor;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		BuildEnvironment = TargetBuildEnvironment.Shared;
 		bBuildAllModules = true;
 		ExtraModuleNames.Add("UnrealGame");

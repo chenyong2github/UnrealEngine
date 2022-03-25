@@ -8,6 +8,7 @@ public class UnrealClientTarget : TargetRules
     public UnrealClientTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Client;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		BuildEnvironment = TargetBuildEnvironment.Shared;
 		ExtraModuleNames.Add("UnrealGame");
 	}

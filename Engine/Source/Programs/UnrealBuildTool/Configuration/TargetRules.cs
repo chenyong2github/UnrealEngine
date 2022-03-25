@@ -131,6 +131,65 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// What version of include order to use when compiling.
+	/// </summary>
+	public enum EngineIncludeOrderVersion
+	{
+		/// <summary>
+		/// Include order used in Unreal 5.0
+		/// </summary>
+		Unreal5_0,
+
+		/// <summary>
+		/// Include order used in Unreal 5.1
+		/// </summary>
+		Unreal5_1,
+
+		// *** When adding new entries here, be sure to update UEBuildModuleCPP.CurrentIncludeOrderDefine to ensure that the correct guard is used. ***
+
+		/// <summary>
+		/// Always use the latest version of include order.
+		/// </summary>
+		Latest = Unreal5_1,
+
+		/// <summary>
+		/// Contains the oldest version of include order that the engine supports.
+		/// </summary>
+		Oldest = Unreal5_0,
+	}
+
+	/// <summary>
+	/// Utility class for EngineIncludeOrderVersion defines
+	/// </summary>
+	public class EngineIncludeOrderHelper
+	{
+		/// <summary>
+		/// Returns a list of every deprecation define available.
+		/// </summary>
+		/// <returns></returns>
+		public static List<string> GetAllDeprecationDefines()
+		{
+			return new List<string>()
+			{
+				"UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1",
+			};
+		}
+
+		/// <summary>
+		/// Get a list of every deprecation define and their value for the specified engine include order.
+		/// </summary>
+		/// <param name="InVersion"></param>
+		/// <returns></returns>
+		public static List<string> GetDeprecationDefines(EngineIncludeOrderVersion InVersion)
+		{
+			return new List<string>()
+			{
+				"UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1=" + (InVersion < EngineIncludeOrderVersion.Unreal5_1 ? "1" : "0"),
+			};
+		}
+	}
+
+	/// <summary>
 	/// Attribute used to mark fields which much match between targets in the shared build environment
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
@@ -280,6 +339,29 @@ namespace UnrealBuildTool
 			set { DefaultBuildSettingsPrivate = value; }
 		}
 		private BuildSettingsVersion? DefaultBuildSettingsPrivate; // Cannot be initialized inline; potentially overridden before the constructor is called.
+
+		/// <summary>
+		/// Force the include order to a specific version. Overrides any Target and Module rules.
+		/// </summary>
+		[CommandLine("-ForceIncludeOrder=")]
+		public EngineIncludeOrderVersion? ForcedIncludeOrder = null;
+
+		/// <summary>
+		/// What version of include order to use when compiling this target. Can be overridden via -ForceIncludeOrder on the command line. ModuleRules.IncludeOrderVersion takes precedence.
+		/// </summary>
+		public EngineIncludeOrderVersion IncludeOrderVersion
+		{
+			get
+			{
+				if (ForcedIncludeOrder != null)
+				{
+					return ForcedIncludeOrder.Value;
+				}
+				return IncludeOrderVersionPrivate ?? EngineIncludeOrderVersion.Oldest;
+			}
+			set { IncludeOrderVersionPrivate = value; }
+		}
+		private EngineIncludeOrderVersion? IncludeOrderVersionPrivate;
 
 		/// <summary>
 		/// Tracks a list of config values read while constructing this target
@@ -2023,6 +2105,18 @@ namespace UnrealBuildTool
 				Diagnostics.Add(String.Format("[Upgrade] Suppress this message by setting 'DefaultBuildSettings = BuildSettingsVersion.{1};' in {2}, and explicitly overriding settings that differ from the new defaults.", Version, (BuildSettingsVersion)(BuildSettingsVersion.Latest - 1), File!.GetFileName()));
 				Diagnostics.Add("[Upgrade]");
 			}
+
+			if (IncludeOrderVersion <= (EngineIncludeOrderVersion)(EngineIncludeOrderVersion.Latest - 1) && ForcedIncludeOrder == null)
+			{
+				Diagnostics.Add("[Upgrade]");
+				Diagnostics.Add("[Upgrade] Using backward-compatible include order. The latest version of UE has changed the order of includes, which may require code changes. The current setting is:");
+				Diagnostics.Add(String.Format("[Upgrade]     IncludeOrderVersion = EngineIncludeOrderVersion.{0}", IncludeOrderVersion));
+				Diagnostics.Add(String.Format("[Upgrade] Suppress this message by setting 'IncludeOrderVersion = EngineIncludeOrderVersion.{0};' in {1}.", EngineIncludeOrderVersion.Latest, File!.GetFileName()));
+				Diagnostics.Add("[Upgrade] Alternatively you can set this to 'EngineIncludeOrderVersion.Latest' to always use the latest include order. This will potentially cause compile errors when integrating new versions of the engine.");
+				Diagnostics.Add("[Upgrade]");
+			}
+
+			Log.TraceLog("Using EngineIncludeOrderVersion.{0} for target {1}", IncludeOrderVersion, File!.GetFileName());
 		}
 	}
 
@@ -2118,6 +2212,16 @@ namespace UnrealBuildTool
 		public BuildSettingsVersion DefaultBuildSettings
 		{
 			get { return Inner.DefaultBuildSettings; }
+		}
+
+		public EngineIncludeOrderVersion? ForcedIncludeOrder
+		{
+			get { return Inner.ForcedIncludeOrder; }
+		}
+
+		public EngineIncludeOrderVersion IncludeOrderVersion
+		{
+			get { return Inner.IncludeOrderVersion; }
 		}
 
 		internal ConfigValueTracker ConfigValueTracker

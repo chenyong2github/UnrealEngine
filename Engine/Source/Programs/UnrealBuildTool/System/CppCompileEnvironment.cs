@@ -411,6 +411,11 @@ namespace UnrealBuildTool
 		public bool bEnableCoroutines = false;
 
 		/// <summary>
+		/// What version of include order specified by the module rules. Used to determine shared PCH variants.
+		/// </summary>
+		public EngineIncludeOrderVersion IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+
+		/// <summary>
 		/// Default constructor.
 		/// </summary>
         public CppCompileEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, string Architecture, SourceFileMetadataCache MetadataCache)
@@ -492,6 +497,7 @@ namespace UnrealBuildTool
 			bHideSymbolsByDefault = Other.bHideSymbolsByDefault;
 			CppStandard = Other.CppStandard;
 			bEnableCoroutines = Other.bEnableCoroutines;
+			IncludeOrderVersion = Other.IncludeOrderVersion;
 		}
 	}
 }

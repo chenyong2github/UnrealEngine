@@ -9,6 +9,7 @@ public class UnrealGameTarget : TargetRules
 	public UnrealGameTarget( TargetInfo Target ) : base(Target)
 	{
 		Type = TargetType.Game;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		BuildEnvironment = TargetBuildEnvironment.Shared;
 
 		ExtraModuleNames.Add("UnrealGame");

@@ -739,12 +739,25 @@ namespace UnrealBuildTool
 			PrecompiledHeaderInstance? Instance = Template.Instances.Find(x => IsCompatibleForSharedPCH(x.CompileEnvironment, ModuleCompileEnvironment));
 			if(Instance == null)
 			{
+				List<string> Definitions = Template.BaseCompileEnvironment.Definitions;
+
+				// Modify definitions if we need to create a new shared pch for the include order
+				if (ModuleCompileEnvironment.IncludeOrderVersion != Template.BaseCompileEnvironment.IncludeOrderVersion)
+				{
+					Definitions = new List<string>(Definitions);
+					foreach (string OldDefine in EngineIncludeOrderHelper.GetDeprecationDefines(Template.BaseCompileEnvironment.IncludeOrderVersion))
+					{
+						Definitions.Remove(OldDefine);
+					}
+					Definitions.AddRange(EngineIncludeOrderHelper.GetDeprecationDefines(ModuleCompileEnvironment.IncludeOrderVersion));
+				}
+
 				// Create a suffix to distinguish this shared PCH variant from any others. Currently only optimized and non-optimized shared PCHs are supported.
 				string Variant = GetSuffixForSharedPCH(ModuleCompileEnvironment, Template.BaseCompileEnvironment);
 
 				// Create the wrapper file, which sets all the definitions needed to compile it
 				FileReference WrapperLocation = FileReference.Combine(Template.OutputDir, String.Format("SharedPCH.{0}{1}.h", Template.Module.Name, Variant));
-				FileItem WrapperFile = CreatePCHWrapperFile(WrapperLocation, Template.BaseCompileEnvironment.Definitions, Template.HeaderFile, Graph);
+				FileItem WrapperFile = CreatePCHWrapperFile(WrapperLocation, Definitions, Template.HeaderFile, Graph);
 
 				// Create the compile environment for this PCH
 				CppCompileEnvironment CompileEnvironment = new CppCompileEnvironment(Template.BaseCompileEnvironment);
@@ -802,6 +815,10 @@ namespace UnrealBuildTool
 				return false;
 			}
 			if (ModuleCompileEnvironment.CppStandard != CompileEnvironment.CppStandard)
+			{
+				return false;
+			}
+			if (ModuleCompileEnvironment.IncludeOrderVersion != CompileEnvironment.IncludeOrderVersion)
 			{
 				return false;
 			}
@@ -899,6 +916,14 @@ namespace UnrealBuildTool
 				Variant += String.Format(".{0}", CompileEnvironment.CppStandard);
 			}
 
+			if (CompileEnvironment.IncludeOrderVersion != BaseCompileEnvironment.IncludeOrderVersion)
+			{
+				if (CompileEnvironment.IncludeOrderVersion != EngineIncludeOrderVersion.Latest)
+				{
+					Variant += ".InclOrder" + CompileEnvironment.IncludeOrderVersion.ToString();
+				}
+			}
+
 			return Variant;
 		}
 
@@ -916,6 +941,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.UnsafeTypeCastWarningLevel = ModuleCompileEnvironment.UnsafeTypeCastWarningLevel;
 			CompileEnvironment.bEnableUndefinedIdentifierWarnings = ModuleCompileEnvironment.bEnableUndefinedIdentifierWarnings;
 			CompileEnvironment.CppStandard = ModuleCompileEnvironment.CppStandard;
+			CompileEnvironment.IncludeOrderVersion = ModuleCompileEnvironment.IncludeOrderVersion;
 		}
 
 		/// <summary>
@@ -1153,6 +1179,10 @@ namespace UnrealBuildTool
 								Writer.WriteLine("#define DEPRECATED_FORGAME DEPRECATED");
 								Writer.WriteLine("#undef UE_DEPRECATED_FORGAME");
 								Writer.WriteLine("#define UE_DEPRECATED_FORGAME UE_DEPRECATED");
+								foreach (string DeprecationDefine in EngineIncludeOrderHelper.GetAllDeprecationDefines())
+								{
+									Writer.WriteLine("#undef " + DeprecationDefine);
+								}
 							}
 
 							WriteDefinitions(CompileEnvironment.Definitions, Writer);
@@ -1405,6 +1435,7 @@ namespace UnrealBuildTool
 			Result.ShadowVariableWarningLevel = Rules.ShadowVariableWarningLevel;
 			Result.UnsafeTypeCastWarningLevel = Rules.UnsafeTypeCastWarningLevel;
 			Result.bEnableUndefinedIdentifierWarnings = Rules.bEnableUndefinedIdentifierWarnings;
+			Result.IncludeOrderVersion = Rules.IncludeOrderVersion;
 
 			// If the module overrides the C++ language version, override it on the compile environment
 			if (Rules.CppStandard != CppStandardVersion.Default)
@@ -1431,6 +1462,8 @@ namespace UnrealBuildTool
 			{
 				Result.Definitions.Add("UE_IS_ENGINE_MODULE=0");
 			}
+
+			Result.Definitions.AddRange(EngineIncludeOrderHelper.GetDeprecationDefines(Rules.IncludeOrderVersion));
 
 			// For game modules, set the define for the project and target names, which will be used by the IMPLEMENT_PRIMARY_GAME_MODULE macro.
 			if (!Rules.bTreatAsEngineModule)
@@ -1486,6 +1519,8 @@ namespace UnrealBuildTool
 			{
 				CompileEnvironment.Definitions.Add("UE_IS_ENGINE_MODULE=0");
 			}
+
+			CompileEnvironment.Definitions.AddRange(EngineIncludeOrderHelper.GetDeprecationDefines(Rules.IncludeOrderVersion));
 
 			// Add the module's private definitions.
 			CompileEnvironment.Definitions.AddRange(PublicDefinitions);

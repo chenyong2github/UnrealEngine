@@ -10,6 +10,7 @@ public class InterchangeWorkerTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		LaunchModuleName = "InterchangeWorker";
 		SolutionDirectory = "Programs/InterchangeWorker";
 

@@ -11,6 +11,7 @@ public class ShaderCompileWorkerTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Modular;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 		LaunchModuleName = "ShaderCompileWorker";
 

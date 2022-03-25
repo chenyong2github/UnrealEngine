@@ -9,6 +9,7 @@ public class UnrealPakTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Modular;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		LaunchModuleName = "UnrealPak";
 
 		bBuildDeveloperTools = false;

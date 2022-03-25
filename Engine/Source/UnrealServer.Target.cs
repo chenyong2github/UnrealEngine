@@ -9,6 +9,7 @@ public class UnrealServerTarget : TargetRules
     public UnrealServerTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Server;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		BuildEnvironment = TargetBuildEnvironment.Shared;
 		ExtraModuleNames.Add("UnrealGame");
 	}
