@@ -45,6 +45,6 @@ public:
 	FString GetLastError() const;
 
 private:
+	TUniquePtr<class FDatasmithMeshExporterLegacyImpl> LegacyImpl;
 	TUniquePtr<class FDatasmithMeshExporterImpl> Impl;
-	TUniquePtr<class FDatasmithMeshExporterImpl2> Impl2;
 };

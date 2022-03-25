@@ -145,6 +145,25 @@ public:
 	 * @param Channel	The UV channel to validate, starting at 0
 	 */
 	static bool IsUVChannelValid(const FDatasmithMesh& DsMesh, const int32 Channel);
+
+	/**
+	 * Generate simple UV data at channel 0.
+	 *
+	 * @param DatasmithMesh    The DatasmithMesh in which the UV data will be created.
+	 */
+	 // static void CreateDefaultUVs(FDatasmithMesh& Mesh);
+
+	/**
+	 * Generate simple UV data at channel 0 for the base mesh and it's various LOD variants.
+	 *
+	 * @param DatasmithMesh    The DatasmithMesh in which the UV data will be created.
+	 */
+	static void CreateDefaultUVsWithLOD(FDatasmithMesh& Mesh);
+
+	/**
+	 * Build an array of point from a MeshDescription
+	 */
+	static void ExtractVertexPositions(const FMeshDescription& Mesh, TArray<FVector3f>& OutPositions);
 };
 
 enum class EDSTextureUtilsError : int32

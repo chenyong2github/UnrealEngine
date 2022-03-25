@@ -5,8 +5,6 @@
 #include "CoreMinimal.h"
 #include "DatasmithTranslator.h"
 
-#include "Logging/LogMacros.h"
-DECLARE_LOG_CATEGORY_EXTERN(LogDatasmithNativeTranslator, Log, All);
 
 class DATASMITHNATIVETRANSLATOR_API FDatasmithNativeTranslator : public IDatasmithTranslator
 {

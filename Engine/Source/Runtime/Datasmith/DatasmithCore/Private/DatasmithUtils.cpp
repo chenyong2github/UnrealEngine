@@ -20,6 +20,7 @@
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "UObject/NameTypes.h"
+#include "UVMapSettings.h"
 
 static const float DATASMITH_FORMAT_VERSION = 0.24f; // Major.Minor - A change in the major version means that backward compatibility is broken
 
@@ -422,6 +423,87 @@ bool FDatasmithMeshUtils::IsUVChannelValid(const FDatasmithMesh& DsMesh, const i
 	}
 
 	return true;
+}
+
+void CreateDefaultUVs( FDatasmithMesh& Mesh )
+{
+	if ( Mesh.GetUVChannelsCount() > 0 )
+	{
+		return;
+	}
+
+	// Get the mesh description to generate BoxUV.
+	FMeshDescription MeshDescription;
+	FStaticMeshAttributes(MeshDescription).Register();
+	FDatasmithMeshUtils::ToMeshDescription(Mesh, MeshDescription);
+	FUVMapParameters UVParameters(
+		FVector(Mesh.GetExtents().GetCenter()),
+		FQuat::Identity,
+		FVector(Mesh.GetExtents().GetSize()),
+		FVector::OneVector,
+		FVector2D::UnitVector
+	);
+	TMap<FVertexInstanceID, FVector2D> TexCoords;
+	FStaticMeshOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
+
+	// Put the results in a map to determine the number of unique values.
+	TMap<FVector2D, TArray<int32>> UniqueTexCoordMap;
+	for (const TPair<FVertexInstanceID, FVector2D>& Pair : TexCoords)
+	{
+		TArray<int32>& MappedIndices = UniqueTexCoordMap.FindOrAdd(Pair.Value);
+		MappedIndices.Add(Pair.Key.GetValue());
+	}
+
+	//Set the UV values
+	Mesh.AddUVChannel();
+	Mesh.SetUVCount(0, UniqueTexCoordMap.Num());
+	int32 UVIndex = 0;
+	TArray<int32> IndicesMapping;
+	IndicesMapping.AddZeroed(TexCoords.Num());
+	for (const TPair<FVector2D, TArray<int32>>& UniqueCoordPair : UniqueTexCoordMap)
+	{
+		Mesh.SetUV(0, UVIndex, UniqueCoordPair.Key.X, UniqueCoordPair.Key.Y);
+		for (int32 IndicesIndex : UniqueCoordPair.Value)
+		{
+			IndicesMapping[IndicesIndex] = UVIndex;
+		}
+		UVIndex++;
+	}
+
+	//Map the UV indices.
+	for (int32 FaceIndex = 0; FaceIndex < Mesh.GetFacesCount(); ++FaceIndex)
+	{
+		const int32 IndicesOffset = FaceIndex * 3;
+		check(IndicesOffset + 2 < IndicesMapping.Num());
+		Mesh.SetFaceUV(FaceIndex, 0, IndicesMapping[IndicesOffset + 0], IndicesMapping[IndicesOffset + 1], IndicesMapping[IndicesOffset + 2]);
+	}
+}
+
+void FDatasmithMeshUtils::CreateDefaultUVsWithLOD(FDatasmithMesh& Mesh)
+{
+	CreateDefaultUVs( Mesh );
+
+	for ( int32 LODIndex = 0; LODIndex < Mesh.GetLODsCount(); ++LODIndex )
+	{
+		if ( FDatasmithMesh* LODMesh = Mesh.GetLOD( LODIndex ) )
+		{
+			CreateDefaultUVs( *LODMesh );
+		}
+	}
+}
+
+void FDatasmithMeshUtils::ExtractVertexPositions(const FMeshDescription& Mesh, TArray<FVector3f>& OutPositions)
+{
+	FStaticMeshConstAttributes Attributes(Mesh);
+	const TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
+	if (VertexPositions.IsValid())
+	{
+		OutPositions.Reserve(VertexPositions.GetNumElements());
+		for (const FVertexID VertexID : Mesh.Vertices().GetElementIDs())
+		{
+			OutPositions.Add(VertexPositions[VertexID]);
+		}
+	}
 }
 
 bool FDatasmithTextureUtils::CalculateTextureHash(const TSharedPtr<class IDatasmithTextureElement>& TextureElement)
