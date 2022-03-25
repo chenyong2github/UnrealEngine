@@ -25,8 +25,9 @@ public class OpenSSL : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.a"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64)
+		else if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
+			PlatformSubdir = "Win64";
 			string VSVersion = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 
 			// Add includes
