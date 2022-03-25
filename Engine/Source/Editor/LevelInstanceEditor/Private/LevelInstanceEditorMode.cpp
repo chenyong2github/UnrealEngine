@@ -120,8 +120,19 @@ bool ULevelInstanceEditorMode::IsSelectionDisallowed(AActor* InActor, bool bInSe
 			{
 				ALevelInstance* EditingLevelInstance = LevelInstanceSubsystem->GetEditingLevelInstance();
 				ALevelInstance* LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(InActor);
+				// Allow selection on actors that are part of the currently edited Level Instance hierarchy because AActor::GetRootSelectionParent() will eventually
+				// Bubble up the selection to its parent.
+				while (LevelInstance != nullptr)
+				{
+					if (LevelInstance == EditingLevelInstance)
+					{
+						return false;
+					}
 
-				return EditingLevelInstance != LevelInstance;
+					LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(LevelInstance);
+				}
+								
+				return EditingLevelInstance != nullptr;
 			}
 		}
 	}

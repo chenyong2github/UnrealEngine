@@ -1588,14 +1588,14 @@ bool ULevelInstanceSubsystem::CanDiscardLevelInstance(const ALevelInstance* Leve
 
 void ULevelInstanceSubsystem::EditLevelInstance(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr)
 {
-	if (EditLevelInstanceInternal(LevelInstanceActor, ContextActorPtr, false))
+	if (EditLevelInstanceInternal(LevelInstanceActor, ContextActorPtr, FString(), false))
 	{
 		ILevelInstanceEditorModule& EditorModule = FModuleManager::GetModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
 		EditorModule.ActivateEditorMode();
 	}
 }
 
-bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr, bool bRecursive)
+bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr, const FString& InActorNameToSelect, bool bRecursive)
 {
 	check(CanEditLevelInstance(LevelInstanceActor));
 		
@@ -1603,7 +1603,7 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 	SlowTask.MakeDialog();
 
 	// Gather information from the context actor to try and select something meaningful after the loading
-	FString ActorNameToSelect;
+	FString ActorNameToSelect = InActorNameToSelect;
 	if (AActor* ContextActor = ContextActorPtr.Get())
 	{
 		ActorNameToSelect = ContextActor->GetName();
@@ -1651,7 +1651,7 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 		ALevelInstance* LevelInstanceToEdit = GetLevelInstance(PendingEditId);
 		check(LevelInstanceToEdit);
 
-		return EditLevelInstanceInternal(LevelInstanceToEdit, nullptr, /*bRecursive=*/true);
+		return EditLevelInstanceInternal(LevelInstanceToEdit, nullptr, ActorNameToSelect, /*bRecursive=*/true);
 	}
 
 	// Cleanup async requests in case
