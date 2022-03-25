@@ -181,7 +181,7 @@ bool FOnlineLeaderboardsEOSPlus::WriteLeaderboards(const FName& SessionName, con
 		{
 			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::WriteLeaderboards] Unable to call method in base interface. IsBaseNetIdValid=%s IsBaseLeaderboardsInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBaseLeaderboardsInterfaceValid));
 		}
-}
+	}
 	else
 	{
 		UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::WriteLeaderboards] Unable to call method in base interface. Unknown user (%s)"), *Player.ToString());
@@ -235,4 +235,5 @@ void FOnlineLeaderboardsEOSPlus::OnLeaderboardFlushComplete(const FName SessionN
 {
 	TriggerOnLeaderboardFlushCompleteDelegates(SessionName, bWasSuccessful);
 }
+
 // ~IOnlineLeaderboards Interface

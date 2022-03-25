@@ -37,9 +37,9 @@ namespace SkeletalSimplifier
 			// NB: Required that these all have float storage.
 			// - Base Attributes: size = 13 + 2 * NumTexCoord
 
-			FVector3f			Normal;      // 0, 1, 2
-			FVector3f			Tangent;     // 3, 4, 5
-			FVector3f         BiTangent;   // 6, 7, 8
+			FVector3f		Normal;      // 0, 1, 2
+			FVector3f		Tangent;     // 3, 4, 5
+			FVector3f       BiTangent;   // 6, 7, 8
 			FLinearColor	Color;       // 9, 10, 11, 12
 			FVector2f		TexCoords[NumTexCoords];  // 13, .. 13 + NumTexCoords * 2 - 1
 

@@ -245,13 +245,13 @@ private:
 	TSharedPtr<SWidget> ScriptScratchpad;
 	
 	static IConsoleVariable* VmStatEnabledVar;
-	static IConsoleVariable* GpuStatEnabledVar;
-	
-	friend class FNiagaraSystemToolkitModeBase;
 
 #if WITH_NIAGARA_GPU_PROFILER
 	TUniquePtr<FNiagaraGpuProfilerListener> GpuProfilerListener;
 #endif
+	static IConsoleVariable* GpuStatEnabledVar;
+	
+	friend class FNiagaraSystemToolkitModeBase;
 
 public:
 	static const FName DefaultModeName;
