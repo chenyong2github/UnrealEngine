@@ -30,6 +30,8 @@ $ bIsEngineInstalled (Boolean): Expose a setting for whether or not the engine i
 ### Read/Write Properties
 $ Type (TargetType): The type of target.
 
+$ ForcedIncludeOrder (Nullable&lt;EngineIncludeOrderVersion&gt;): Force the include order to a specific version. Overrides any Target and Module rules.
+
 $ bUsesSteam (Boolean): Whether the target uses Steam.
 
 $ bUsesCEF3 (Boolean): Whether the target uses CEF3.
@@ -343,6 +345,8 @@ $ OptedInModulePlatforms (UnrealTargetPlatform[]): If this is non-null, then any
 $ Name (String): The name of this target
 
 $ DefaultBuildSettings (BuildSettingsVersion): Specifies the engine version to maintain backwards-compatible default build settings with (eg. DefaultSettingsVersion.Release_4_23, DefaultSettingsVersion.Release_4_24). Specify DefaultSettingsVersion.Latest to always use defaults for the current engine version, at the risk of introducing build errors while upgrading.
+
+$ IncludeOrderVersion (EngineIncludeOrderVersion): What version of include order to use when compiling this target. Can be overridden via -ForceIncludeOrder on the command line. ModuleRules.IncludeOrderVersion takes precedence.
 
 $ bAllowHotReload (Boolean): Whether this target supports hot reload
 
