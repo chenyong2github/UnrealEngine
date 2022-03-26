@@ -54,4 +54,7 @@ namespace ImgMedia
 
 	/** Name of the NumTilesY media option. */
 	static const FName NumTilesYOption("ImgNumTilesY");
+
+	/** Name of the ReadVirtualTextureTiles media option. */
+	static const FName ReadVirtualTextureTiles("ImgReadVirtualTextureTiles");
 }

@@ -19,6 +19,7 @@ UImgMediaSource::UImgMediaSource()
 	: IsPathRelativeToProjectRoot(false)
 	, FrameRateOverride(0, 0)
 	, bFillGapsInSequence(true)
+	, bReadVirtualTextureTiles(false)
 	, MipMapInfo(MakeShared<FImgMediaMipMapInfo, ESPMode::ThreadSafe>())
 {
 }
@@ -97,6 +98,10 @@ bool UImgMediaSource::GetMediaOption(const FName& Key, bool DefaultValue) const
 	{
 		return bFillGapsInSequence;
 	}
+	if (Key == ImgMedia::ReadVirtualTextureTiles)
+	{
+		return bReadVirtualTextureTiles;
+	}
 
 	return Super::GetMediaOption(Key, DefaultValue);
 }
@@ -143,7 +148,8 @@ bool UImgMediaSource::HasMediaOption(const FName& Key) const
 		(Key == ImgMedia::FrameRateOverrideDenonimatorOption) ||
 		(Key == ImgMedia::FrameRateOverrideNumeratorOption) ||
 		(Key == ImgMedia::ProxyOverrideOption) ||
-		(Key == ImgMedia::MipMapInfoOption))
+		(Key == ImgMedia::MipMapInfoOption) ||
+		(Key == ImgMedia::ReadVirtualTextureTiles))
 	{
 		return true;
 	}

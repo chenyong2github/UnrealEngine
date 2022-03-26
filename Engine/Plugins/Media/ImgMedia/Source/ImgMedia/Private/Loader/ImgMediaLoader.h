@@ -40,7 +40,8 @@ public:
 	FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::ThreadSafe>& InScheduler,
 		const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache,
 		const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& InMipMapInfo,
-		bool bInFillGapsInSequence);
+		bool bInFillGapsInSequence,
+		bool bInReadVirtualTextureTiles);
 
 	/** Virtual destructor. */
 	virtual ~FImgMediaLoader();
@@ -454,7 +455,10 @@ private:
 	bool Initialized;
 
 	/** If true, then any gaps in the sequence will be filled with blank frames. */
-	bool bFillGapsInSequence;
+	const bool bFillGapsInSequence;
+
+	/** If true, then virtual texture tiles will be used instead of the MipMapInfo object (applicable for tiled image sequences). */
+	const bool bReadVirtualTextureTiles;
 
 	/** True if this sequence contains tiles. */
 	bool bIsTiled;

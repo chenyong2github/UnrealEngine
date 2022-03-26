@@ -121,11 +121,13 @@ namespace ImgMediaLoader
 FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::ThreadSafe>& InScheduler,
 	const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache,
 	const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& InMipMapInfo,
-	bool bInFillGapsInSequence)
+	bool bInFillGapsInSequence,
+	bool bInReadVirtualTextureTiles)
 	: Frames(1)
 	, ImageWrapperModule(FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper"))
 	, Initialized(false)
 	, bFillGapsInSequence(bInFillGapsInSequence)
+	, bReadVirtualTextureTiles(bInReadVirtualTextureTiles)
 	, bIsTiled(false)
 	, NumTilesX(0)
 	, NumTilesY(0)
@@ -1345,7 +1347,7 @@ void FImgMediaLoader::AddFrameToCache(int32 FrameNumber, const TSharedPtr<FImgMe
 
 void FImgMediaLoader::GetDesiredMipTiles(int32 FrameIndex, TMap<int32, FImgMediaTileSelection>& OutMipsAndTiles)
 {
-	if(GetDefault<UImgMediaSettings>()->bUseVirtualTextureTiles)
+	if(bReadVirtualTextureTiles)
 	{
 		TMap<int32, TSet<FMediaTileCoordinate>> VisibleTiles;
 		GetVisibleTiles(VisibleTiles);

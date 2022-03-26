@@ -8,7 +8,6 @@
 
 UImgMediaSettings::UImgMediaSettings()
 	: DefaultFrameRate(24, 1)
-	, bUseVirtualTextureTiles(false)
 	, CacheBehindPercentage(25)
 	, CacheSizeGB(1.0f)
 	, CacheThreads(8)
