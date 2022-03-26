@@ -69,21 +69,21 @@ UOptimusNode* UOptimusNodePin::GetOwningNode() const
 
 TArray<FName> UOptimusNodePin::GetPinNamePath() const
 {
-	TArray<const UOptimusNodePin*> Nodes;
-	Nodes.Reserve(4);
+	TArray<const UOptimusNodePin*> Pins;
+	Pins.Reserve(4);
 	const UOptimusNodePin* CurrentPin = this;
 	while (CurrentPin)
 	{
-		Nodes.Add(CurrentPin);
+		Pins.Add(CurrentPin);
 		CurrentPin = CurrentPin->GetParentPin();
 	}
 
 	TArray<FName> Path;
-	Path.Reserve(Nodes.Num());
+	Path.Reserve(Pins.Num());
 
-	for (int32 i = Nodes.Num(); i-- > 0; /**/)
+	for (int32 i = Pins.Num(); i-- > 0; /**/)
 	{
-		Path.Add(Nodes[i]->GetFName());
+		Path.Add(Pins[i]->GetFName());
 	}
 
 	return Path;
