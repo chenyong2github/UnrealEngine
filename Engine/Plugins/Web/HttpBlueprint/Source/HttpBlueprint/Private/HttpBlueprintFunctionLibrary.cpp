@@ -49,7 +49,7 @@ void UHttpBlueprintFunctionLibrary::AddHeader(FHttpHeader& HeaderObject, FString
 		return;
 	}
 	
-	TPair<FString, FString> NewPair(NewHeader, NewHeaderValue);
+	TPair<FString, FString> NewPair(MoveTemp(NewHeader), MoveTemp(NewHeaderValue));
 	HeaderObject.AddHeader(MoveTemp(NewPair));
 }
 

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HttpHeader.h"
 
@@ -37,16 +37,6 @@ TArray<FString> FHttpHeader::GetAllHeaders() const
 	}
 
 	return OutArray;
-}
-
-const TMap<FString, FString>& FHttpHeader::GetAllHeadersAsMap() const
-{
-	return Headers;
-}
-
-bool FHttpHeader::IsValid() const
-{
-	return Headers.Num() > 0;
 }
 
 void FHttpHeader::AssignHeadersToRequest(const TSharedRef<IHttpRequest> Request)

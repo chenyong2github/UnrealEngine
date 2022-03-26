@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -43,12 +43,18 @@ struct HTTPBLUEPRINT_API FHttpHeader
 	/**
 	 * Returns a copy of the internal header map
 	 */
-	UE_NODISCARD inline const TMap<FString, FString>& GetAllHeadersAsMap() const;
+	UE_NODISCARD const TMap<FString, FString>& GetAllHeadersAsMap() const
+	{
+		return Headers;
+	}
 
 	/**
 	 * Returns if the header is valid or not. This is done by checking the map size
 	 */
-	UE_NODISCARD inline bool IsValid() const;
+	UE_NODISCARD bool IsValid() const
+	{
+		return Headers.Num() > 0;
+	}
 
 	/**
 	 * Convenience function to set all of the headers in the internal header map on the request object.
