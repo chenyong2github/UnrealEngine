@@ -2,6 +2,7 @@
 
 #include "DumpGPU.h"
 #include "DumpGPUServices.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
