@@ -96,9 +96,6 @@ namespace EpicGames.UHT.Parsers
 	[UnrealHeaderTool]
 	public class UhtFunctionParser : UhtFunction
 	{
-		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.Function);
-		private static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.Function);
-
 		/// <summary>
 		/// Construct a new function parser
 		/// </summary>
@@ -212,7 +209,7 @@ namespace EpicGames.UHT.Parsers
 		{
 			UhtFunctionParser Function = new UhtFunctionParser(ParentScope.ScopeType, Token.InputLine);
 
-			using (var TopScope = new UhtParsingScope(ParentScope, Function, KeywordTable, UhtAccessSpecifier.Public))
+			using (var TopScope = new UhtParsingScope(ParentScope, Function, ParentScope.Session.GetKeywordTable(UhtTableNames.Function), UhtAccessSpecifier.Public))
 			{
 				const string ScopeName = "delegate declaration";
 
@@ -221,7 +218,7 @@ namespace EpicGames.UHT.Parsers
 					TopScope.AddModuleRelativePathToMetaData();
 
 					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, Function.MetaData);
-					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, SpecifierTable);
+					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Function));
 
 					// If this is a UDELEGATE, parse the specifiers
 					StringView DelegateMacro = new StringView();
@@ -250,14 +247,14 @@ namespace EpicGames.UHT.Parsers
 					bool bIsSparse = DelegateMacro.Span.Contains("_SPARSE".AsSpan(), StringComparison.Ordinal);
 
 					// Determine the parameter count
-					int FoundParamIndex = UhtConfig.Instance.FindDelegateParameterCount(DelegateMacro);
+					int FoundParamIndex = TopScope.Session.Config!.FindDelegateParameterCount(DelegateMacro);
 
 					// Try reconstructing the string to make sure it matches our expectations
 					string ExpectedOriginalString = string.Format("DECLARE_DYNAMIC{0}{1}_DELEGATE{2}{3}{4}",
 						bIsMulticast ? "_MULTICAST" : "",
 						bIsSparse ? "_SPARSE" : "",
 						bHasReturnValue ? "_RetVal" : "",
-						UhtConfig.Instance.GetDelegateParameterCountString(FoundParamIndex),
+						TopScope.Session.Config!.GetDelegateParameterCountString(FoundParamIndex),
 						bDeclaredConst ? "_Const" : "");
 					if (DelegateMacro != ExpectedOriginalString)
 					{
@@ -382,7 +379,7 @@ namespace EpicGames.UHT.Parsers
 		{
 			UhtFunctionParser Function = new UhtFunctionParser(ParentScope.ScopeType, Token.InputLine);
 
-			using (var TopScope = new UhtParsingScope(ParentScope, Function, KeywordTable, UhtAccessSpecifier.Public))
+			using (var TopScope = new UhtParsingScope(ParentScope, Function, ParentScope.Session.GetKeywordTable(UhtTableNames.Function), UhtAccessSpecifier.Public))
 			{
 				UhtParsingScope OuterClassScope = TopScope.CurrentClassScope;
 				UhtClass OuterClass = (UhtClass)OuterClassScope.ScopeType;
@@ -393,7 +390,7 @@ namespace EpicGames.UHT.Parsers
 					TopScope.AddModuleRelativePathToMetaData();
 
 					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, Function.MetaData);
-					UhtSpecifierParser SpecifierParser = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, SpecifierTable);
+					UhtSpecifierParser SpecifierParser = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Function));
 					SpecifierParser.ParseSpecifiers();
 
 					if (!OuterClass.ClassFlags.HasAnyFlags(EClassFlags.Native))

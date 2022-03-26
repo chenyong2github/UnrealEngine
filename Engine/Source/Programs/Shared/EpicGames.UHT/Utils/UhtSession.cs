@@ -857,6 +857,16 @@ namespace EpicGames.UHT.Utils
 		/// harness to generate more stable console output.
 		/// </summary>
 		public bool bCacheMessages = false;
+
+		/// <summary>
+		/// Collection of UHT tables
+		/// </summary>
+		public UhtTables? Tables;
+
+		/// <summary>
+		/// Configuration for the session
+		/// </summary>
+		public IUhtConfig? Config;
 		#endregion
 
 		/// <summary>
@@ -1080,6 +1090,11 @@ namespace EpicGames.UHT.Utils
 		public int ObjectTypeCount => this.ObjectTypeCountInternal.Count;
 
 		/// <summary>
+		/// Return the collection of exporters
+		/// </summary>
+		public UhtExporterTable ExporterTable => this.Tables!.ExporterTable;
+
+		/// <summary>
 		/// Enable/Disable an exporter.  This overrides the default state of the exporter.
 		/// </summary>
 		/// <param name="Name">Name of the exporter</param>
@@ -1087,6 +1102,99 @@ namespace EpicGames.UHT.Utils
 		public void SetExporterStatus(string Name, bool Enabled)
 		{
 			this.ExporterStates[Name] = Enabled;
+		}
+
+		/// <summary>
+		/// Return the keyword table for the given table name
+		/// </summary>
+		/// <param name="TableName">Name of the table</param>
+		/// <returns>The requested table</returns>
+		public UhtKeywordTable GetKeywordTable(string TableName)
+		{
+			return this.Tables!.KeywordTables.Get(TableName);
+		}
+
+		/// <summary>
+		/// Return the specifier table for the given table name
+		/// </summary>
+		/// <param name="TableName">Name of the table</param>
+		/// <returns>The requested table</returns>
+		public UhtSpecifierTable GetSpecifierTable(string TableName)
+		{
+			return this.Tables!.SpecifierTables.Get(TableName);
+		}
+
+		/// <summary>
+		/// Return the specifier validator table for the given table name
+		/// </summary>
+		/// <param name="TableName">Name of the table</param>
+		/// <returns>The requested table</returns>
+		public UhtSpecifierValidatorTable GetSpecifierValidatorTable(string TableName)
+		{
+			return this.Tables!.SpecifierValidatorTables.Get(TableName);
+		}
+
+		/// <summary>
+		/// Generate an error for the given unhandled keyword
+		/// </summary>
+		/// <param name="TokenReader">Token reader</param>
+		/// <param name="Token">Unhandled token</param>
+		public void LogUnhandledKeywordError(IUhtTokenReader TokenReader, UhtToken Token)
+		{
+			this.Tables!.KeywordTables.LogUnhandledError(TokenReader, Token);
+		}
+
+		/// <summary>
+		/// Test to see if the given class name is a property
+		/// </summary>
+		/// <param name="Name">Name of the class without the prefix</param>
+		/// <returns>True if the class name is a property.  False if the class name isn't a property or isn't an engine class.</returns>
+		public bool IsValidPropertyTypeName(StringView Name)
+		{
+			return this.Tables!.EngineClassTable.IsValidPropertyTypeName(Name);
+		}
+
+		/// <summary>
+		/// Return the loc text default value associated with the given name
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <param name="LocTextDefaultValue">Loc text default value handler</param>
+		/// <returns></returns>
+		public bool TryGetLocTextDefaultValue(StringView Name, out UhtLocTextDefaultValue LocTextDefaultValue)
+		{
+			return this.Tables!.LocTextDefaultValueTable.TryGet(Name, out LocTextDefaultValue);
+		}
+
+		/// <summary>
+		/// Return the default processor
+		/// </summary>
+		public UhtPropertyType DefaultPropertyType => this.Tables!.PropertyTypeTable.Default;
+
+		/// <summary>
+		/// Return the property type associated with the given name
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <param name="PropertyType">Property type if matched</param>
+		/// <returns></returns>
+		public bool TryGetPropertyType(StringView Name, out UhtPropertyType PropertyType)
+		{
+			return this.Tables!.PropertyTypeTable.TryGet(Name, out PropertyType);
+		}
+
+		/// <summary>
+		/// Fetch the default sanitizer
+		/// </summary>
+		public UhtStructDefaultValue DefaultStructDefaultValue => this.Tables!.StructDefaultValueTable.Default;
+
+		/// <summary>
+		/// Return the structure default value associated with the given name
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <param name="StructDefaultValue">Structure default value handler</param>
+		/// <returns></returns>
+		public bool TryGetStructDefaultValue(StringView Name, out UhtStructDefaultValue StructDefaultValue)
+		{
+			return this.Tables!.StructDefaultValueTable.TryGet(Name, out StructDefaultValue);
 		}
 
 		/// <summary>
@@ -1102,11 +1210,19 @@ namespace EpicGames.UHT.Utils
 				return;
 			}
 
-			// Initialize
-			Try(null, () => {
-				_ = UhtConfig.Instance;
-				UhtAttributeScanner.Scan();
-			});
+			if (this.Config == null)
+			{
+				Interlocked.Increment(ref this.ErrorCountInternal);
+				Log.Logger.LogError("No configuration supplied, aborting.");
+				return;
+			}
+
+			if (this.Tables == null)
+			{
+				Interlocked.Increment(ref this.ErrorCountInternal);
+				Log.Logger.LogError("No parsing tables supplied, aborting.");
+				return;
+			}
 
 			switch (this.ReferenceMode)
 			{
@@ -2370,12 +2486,12 @@ namespace EpicGames.UHT.Utils
 				Log.Logger.LogTrace("Step - Exports");
 				UhtExportOptions Options = UhtExportOptions.None;
 
-				foreach (UhtExporter Exporter in UhtExporterTable.Instance)
+				foreach (UhtExporter Exporter in this.ExporterTable)
 				{
 					bool Run = false;
 					if (!this.ExporterStates.TryGetValue(Exporter.Name, out Run))
 					{
-						Run = UhtConfig.Instance.IsExporterEnabled(Exporter.Name) || 
+						Run = Config!.IsExporterEnabled(Exporter.Name) || 
 							(Exporter.Options.HasAnyFlags(UhtExporterOptions.Default) && !this.bNoDefaultExporters);
 					}
 

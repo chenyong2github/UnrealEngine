@@ -14,9 +14,6 @@ namespace EpicGames.UHT.Parsers
 	[UnrealHeaderTool]
 	public class UhtEnumParser : UhtEnum
 	{
-		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.Enum);
-		private static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.Enum);
-
 		/// <summary>
 		/// Construct a new enum parser
 		/// </summary>
@@ -37,7 +34,7 @@ namespace EpicGames.UHT.Parsers
 		private static UhtParseResult ParseUEnum(UhtParsingScope ParentScope, UhtToken KeywordToken)
 		{
 			UhtEnumParser Enum = new UhtEnumParser(ParentScope.ScopeType, KeywordToken.InputLine);
-			using (var TopScope = new UhtParsingScope(ParentScope, Enum, KeywordTable, UhtAccessSpecifier.Public))
+			using (var TopScope = new UhtParsingScope(ParentScope, Enum, ParentScope.Session.GetKeywordTable(UhtTableNames.Enum), UhtAccessSpecifier.Public))
 			{
 				const string ScopeName = "UENUM";
 
@@ -46,7 +43,7 @@ namespace EpicGames.UHT.Parsers
 
 					// Parse the specifiers
 					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, Enum.MetaData);
-					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, SpecifierTable);
+					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Enum));
 					Specifiers.ParseSpecifiers();
 
 					// Read the name and the CPP type

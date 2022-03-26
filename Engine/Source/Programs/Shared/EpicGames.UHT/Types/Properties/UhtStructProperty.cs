@@ -158,9 +158,9 @@ namespace EpicGames.UHT.Types
 		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			UhtStructDefaultValue StructDefaultValue;
-			if (!UhtStructDefaultValueTable.Instance.TryGet(this.ScriptStruct.SourceName, out StructDefaultValue))
+			if (!this.Session.TryGetStructDefaultValue(this.ScriptStruct.SourceName, out StructDefaultValue))
 			{
-				StructDefaultValue = UhtStructDefaultValueTable.Instance.Default;
+				StructDefaultValue = this.Session.DefaultStructDefaultValue;
 			}
 			return StructDefaultValue.Delegate(this, DefaultValueReader, InnerDefaultValue);
 		}

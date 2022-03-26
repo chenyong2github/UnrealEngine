@@ -105,8 +105,6 @@ namespace EpicGames.UHT.Types
 	[UhtEngineClass(Name = "Enum")]
 	public class UhtEnum : UhtField, IUhtMetaDataKeyConversion
 	{
-		private static UhtSpecifierValidatorTable EnumSpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.Enum);
-
 		/// <summary>
 		/// Engine enumeration flags
 		/// </summary>
@@ -149,7 +147,7 @@ namespace EpicGames.UHT.Types
 
 		///<inheritdoc/>
 		[JsonIgnore]
-		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable { get => UhtEnum.EnumSpecifierValidatorTable; }
+		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable { get => this.Session.GetSpecifierValidatorTable(UhtTableNames.Enum); }
 
 		/// <summary>
 		/// Construct a new enumeration

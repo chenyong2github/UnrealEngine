@@ -96,6 +96,7 @@ namespace EpicGames.UHT.Types
 		[UhtPropertyType(Keyword = "TObjectPtr")]
 		private static UhtProperty? ObjectPtrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
+			UhtSession Session = PropertySettings.Outer.Session;
 			int TypeStartPos = TokenReader.PeekToken().InputStartPos;
 
 			UhtClass? PropertyClass = ParseTemplateObject(PropertySettings, TokenReader, MatchedToken, true);
@@ -104,7 +105,8 @@ namespace EpicGames.UHT.Types
 				return null;
 			}
 
-			ConditionalLogPointerUsage(PropertySettings, UhtConfig.Instance.EngineObjectPtrMemberBehavior, UhtConfig.Instance.NonEngineObjectPtrMemberBehavior, "ObjectPtr", TokenReader, TypeStartPos, null);
+			ConditionalLogPointerUsage(PropertySettings, Session.Config!.EngineObjectPtrMemberBehavior, 
+				Session.Config!.NonEngineObjectPtrMemberBehavior, "ObjectPtr", TokenReader, TypeStartPos, null);
 
 			if (PropertyClass.IsChildOf(PropertyClass.Session.UClass))
 			{

@@ -15,9 +15,6 @@ namespace EpicGames.UHT.Parsers
 	[UnrealHeaderTool]
 	public class UhtInterfaceClassParser : UhtClassBaseParser
 	{
-		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.Interface);
-		private static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.Interface);
-
 		/// <summary>
 		/// Construct a new interface class parser
 		/// </summary>
@@ -91,7 +88,7 @@ namespace EpicGames.UHT.Parsers
 		{
 			UhtClass Class = (UhtClass)TopScope.ScopeType;
 
-			UhtParserHelpers.ParseCompileVersionDeclaration(TopScope.TokenReader, Class);
+			UhtParserHelpers.ParseCompileVersionDeclaration(TopScope.TokenReader, TopScope.Session.Config!, Class);
 
 			Class.GeneratedBodyAccessSpecifier = TopScope.AccessSpecifier;
 			Class.GeneratedBodyLineNumber = TopScope.TokenReader.InputLine;
@@ -109,7 +106,7 @@ namespace EpicGames.UHT.Parsers
 			UhtInterfaceClassParser Class = new UhtInterfaceClassParser(ParentScope.ScopeType, Token.InputLine);
 			Class.ClassType = UhtClassType.Interface;
 
-			using (var TopScope = new UhtParsingScope(ParentScope, Class, KeywordTable, UhtAccessSpecifier.Private))
+			using (var TopScope = new UhtParsingScope(ParentScope, Class, ParentScope.Session.GetKeywordTable(UhtTableNames.Interface), UhtAccessSpecifier.Private))
 			{
 				const string ScopeName = "interface";
 
@@ -117,7 +114,7 @@ namespace EpicGames.UHT.Parsers
 				{
 					// Parse the specifiers
 					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, Class.MetaData);
-					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, SpecifierTable);
+					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Interface));
 					Specifiers.ParseSpecifiers();
 					Class.PrologLineNumber = TopScope.TokenReader.InputLine;
 					Class.ClassFlags |= EClassFlags.Native | EClassFlags.Interface | EClassFlags.Abstract;

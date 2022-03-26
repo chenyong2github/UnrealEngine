@@ -152,6 +152,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Referenced class</returns>
 		public static UhtClass? ParseTemplateObject(UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken, bool bReturnUInterface)
 		{
+			UhtSession Session = PropertySettings.Outer.Session;
 			if (TokenReader.TryOptional("const"))
 			{
 				PropertySettings.MetaData.Add(UhtNames.NativeConst, "");
@@ -174,7 +175,7 @@ namespace EpicGames.UHT.Types
 			{
 				PropertySettings.MetaData.Add(UhtNames.NativeConstTemplateArg, "");
 			}
-			UhtConfig.Instance.RedirectTypeIdentifier(ref Identifier);
+			Session.Config!.RedirectTypeIdentifier(ref Identifier);
 			UhtClass? Return = PropertySettings.Outer.FindType(UhtFindOptions.SourceName | UhtFindOptions.Class, ref Identifier, TokenReader) as UhtClass;
 			if (Return != null && Return.AlternateObject != null && bReturnUInterface)
 			{
@@ -192,6 +193,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Referenced class</returns>
 		public static UhtClass? ParseTemplateClass(UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
+			UhtSession Session = PropertySettings.Outer.Session;
 			UhtToken Identifier = new UhtToken();
 
 			if (TokenReader.TryOptional("const"))
@@ -212,7 +214,7 @@ namespace EpicGames.UHT.Types
 				.RequireIdentifier((ref UhtToken Token) => { Identifier = Token; })
 				.Require('>');
 
-			UhtConfig.Instance.RedirectTypeIdentifier(ref Identifier);
+			Session.Config!.RedirectTypeIdentifier(ref Identifier);
 			UhtClass? Return = PropertySettings.Outer.FindType(UhtFindOptions.SourceName | UhtFindOptions.Class, ref Identifier, TokenReader) as UhtClass;
 			if (Return != null && Return.AlternateObject != null)
 			{

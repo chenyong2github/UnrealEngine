@@ -108,32 +108,4 @@ namespace EpicGames.UHT.Utils
 		/// <returns>True if the exporter is enabled, false if not</returns>
 		public bool IsExporterEnabled(string Name);
 	}
-
-	/// <summary>
-	/// Helper class to house the IUhtConfig instance
-	/// </summary>
-	public static class UhtConfig
-	{
-		private static IUhtConfig? InstanceInternal = null;
-
-		/// <summary>
-		/// Get/Set the instance of IUhtConfig
-		/// </summary>
-		public static IUhtConfig Instance 
-		{ 
-			get
-			{
-				if (UhtConfig.InstanceInternal == null)
-				{
-					throw new UhtIceException("UhtConfig instance has not been set");
-				}
-				return UhtConfig.InstanceInternal;
-			}
-
-			set
-			{
-				UhtConfig.InstanceInternal = value;
-			}
-		}
-	}
 }

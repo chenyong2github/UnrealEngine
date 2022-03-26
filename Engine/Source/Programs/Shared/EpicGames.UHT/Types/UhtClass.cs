@@ -274,9 +274,6 @@ namespace EpicGames.UHT.Types
 	[UhtEngineClass(Name = "Class")]
 	public class UhtClass : UhtStruct
 	{
-		private static UhtSpecifierValidatorTable ClassSpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.Class);
-		private static UhtSpecifierValidatorTable InterfaceSpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.Interface);
-		private static UhtSpecifierValidatorTable NativeInterfaceSpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.NativeInterface);
 		private List<UhtDeclaration>? DeclarationsInternal = null;
 
 		/// <summary>
@@ -392,11 +389,11 @@ namespace EpicGames.UHT.Types
 				switch (this.ClassType)
 				{
 					case UhtClassType.Class:
-						return UhtClass.ClassSpecifierValidatorTable;
+						return this.Session.GetSpecifierValidatorTable(UhtTableNames.Class);
 					case UhtClassType.Interface:
-						return UhtClass.InterfaceSpecifierValidatorTable;
+						return this.Session.GetSpecifierValidatorTable(UhtTableNames.Interface);
 					case UhtClassType.NativeInterface:
-						return UhtClass.NativeInterfaceSpecifierValidatorTable;
+						return this.Session.GetSpecifierValidatorTable(UhtTableNames.NativeInterface);
 					default:
 						throw new UhtIceException("Unknown class type");
 				}

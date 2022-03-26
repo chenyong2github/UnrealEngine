@@ -538,11 +538,6 @@ namespace EpicGames.UHT.Tables
 	{
 
 		/// <summary>
-		/// Returns the global instance for all specifiers
-		/// </summary>
-		public static UhtSpecifierTables Instance = new UhtSpecifierTables();
-
-		/// <summary>
 		/// Construct the specifier table
 		/// </summary>
 		public UhtSpecifierTables() : base("specifiers")

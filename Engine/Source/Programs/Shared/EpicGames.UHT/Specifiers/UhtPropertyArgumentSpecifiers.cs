@@ -14,17 +14,6 @@ namespace EpicGames.UHT.Parsers
 	[UnrealHeaderTool]
 	public static class UhtPropertyArgumentSpecifiers
 	{
-
-		/// <summary>
-		/// Table for property argument specifiers
-		/// </summary>
-		public static readonly UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.PropertyArgument);
-
-		/// <summary>
-		/// Table for property argument specifier validators
-		/// </summary>
-		public static readonly UhtSpecifierValidatorTable SpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.PropertyArgument);
-
 		#region Argument Property Specifiers
 		[UhtSpecifier(Extends = UhtTableNames.PropertyArgument, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void ConstSpecifier(UhtSpecifierContext SpecifierContext)

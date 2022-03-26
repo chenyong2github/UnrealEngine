@@ -129,7 +129,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Empty collection of meta data
 		/// </summary>
-		public static UhtMetaData Empty = new UhtMetaData(null);
+		public static UhtMetaData Empty = new UhtMetaData(null, null);
 
 		/// <summary>
 		/// The meta data of the outer object for the type that owns this meta data
@@ -140,6 +140,11 @@ namespace EpicGames.UHT.Types
 		/// Message site associated with the meta data.  That in combination with the line number is used to generate errors
 		/// </summary>
 		public IUhtMessageSite? MessageSite = null;
+
+		/// <summary>
+		/// Configuration object used to redirect meta data
+		/// </summary>
+		public IUhtConfig? Config = null;
 		
 		/// <summary>
 		/// Source code line number where the meta data is declared
@@ -166,9 +171,11 @@ namespace EpicGames.UHT.Types
 		/// Construct new meta data
 		/// </summary>
 		/// <param name="MessageSite">Message site for generating errors</param>
-		public UhtMetaData(IUhtMessageSite? MessageSite)
+		/// <param name="Config">Configuration for redirects</param>
+		public UhtMetaData(IUhtMessageSite? MessageSite, IUhtConfig? Config)
 		{
 			this.MessageSite = MessageSite;
+			this.Config = Config;
 		}
 
 		/// <summary>
@@ -414,11 +421,14 @@ namespace EpicGames.UHT.Types
 		public void Add(string Name, int NameIndex, string Value)
 		{
 			string RemappedName;
-			if (UhtConfig.Instance.RedirectMetaDataKey(Name, out RemappedName))
+			if (this.Config != null)
 			{
-				if (this.MessageSite != null)
+				if (this.Config.RedirectMetaDataKey(Name, out RemappedName))
 				{
-					this.MessageSite.LogWarning(this.LineNumber, $"Remapping old metadata key '{Name}' to new key '{RemappedName}', please update the declaration.");
+					if (this.MessageSite != null)
+					{
+						this.MessageSite.LogWarning(this.LineNumber, $"Remapping old metadata key '{Name}' to new key '{RemappedName}', please update the declaration.");
+					}
 				}
 			}
 			GetDictionary()[new UhtMetaDataKey(Name, NameIndex)] = Value;

@@ -17,9 +17,6 @@ namespace EpicGames.UHT.Parsers
 	[UnrealHeaderTool]
 	public class UhtClassParser : UhtClassBaseParser
 	{
-		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.Class);
-		private static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.Class);
-
 		/// <summary>
 		/// Engine class flags removed
 		/// </summary>
@@ -392,7 +389,7 @@ namespace EpicGames.UHT.Parsers
 				TopScope.AccessSpecifier = UhtAccessSpecifier.Public;
 			}
 
-			UhtParserHelpers.ParseCompileVersionDeclaration(TopScope.TokenReader, Class);
+			UhtParserHelpers.ParseCompileVersionDeclaration(TopScope.TokenReader, TopScope.Session.Config!, Class);
 
 			Class.GeneratedBodyLineNumber = TopScope.TokenReader.InputLine;
 
@@ -404,7 +401,7 @@ namespace EpicGames.UHT.Parsers
 		private static UhtParseResult ParseUClass(UhtParsingScope ParentScope, ref UhtToken Token)
 		{
 			UhtClassParser Class = new UhtClassParser(ParentScope.ScopeType, Token.InputLine);
-			using (var TopScope = new UhtParsingScope(ParentScope, Class, UhtClassParser.KeywordTable, UhtAccessSpecifier.Private))
+			using (var TopScope = new UhtParsingScope(ParentScope, Class, ParentScope.Session.GetKeywordTable(UhtTableNames.Class), UhtAccessSpecifier.Private))
 			{
 				const string ScopeName = "class";
 
@@ -412,7 +409,7 @@ namespace EpicGames.UHT.Parsers
 				{
 					// Parse the specifiers
 					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, Class.MetaData);
-					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, UhtClassParser.SpecifierTable);
+					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Class));
 					Specifiers.ParseSpecifiers();
 					Class.PrologLineNumber = TopScope.TokenReader.InputLine;
 					Class.ClassFlags |= EClassFlags.Native;
@@ -446,7 +443,7 @@ namespace EpicGames.UHT.Parsers
 					TopScope.TokenReader.Optional("final");
 
 					// Parse the inheritance
-					UhtParserHelpers.ParseInheritance(TopScope.TokenReader, out Class.SuperIdentifier, out Class.BaseIdentifiers);
+					UhtParserHelpers.ParseInheritance(TopScope.TokenReader, TopScope.Session.Config!, out Class.SuperIdentifier, out Class.BaseIdentifiers);
 
 					if (APIMacroToken)
 					{

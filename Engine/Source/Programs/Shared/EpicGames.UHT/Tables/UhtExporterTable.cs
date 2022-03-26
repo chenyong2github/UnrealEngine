@@ -161,11 +161,6 @@ namespace EpicGames.UHT.Tables
 	public class UhtExporterTable : IEnumerable<UhtExporter>
 	{
 
-		/// <summary>
-		/// Global instance of the table
-		/// </summary>
-		public static UhtExporterTable Instance = new UhtExporterTable();
-
 		private Dictionary<string, UhtExporter> ExporterValues = new Dictionary<string, UhtExporter>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>

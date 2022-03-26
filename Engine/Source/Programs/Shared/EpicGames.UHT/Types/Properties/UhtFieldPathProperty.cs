@@ -123,7 +123,7 @@ namespace EpicGames.UHT.Types
 					.Require('>');
 
 				StringView FieldClassName = new StringView(Identifier.Value, 1);
-				if (!UhtEngineClassTable.Instance.IsValidPropertyTypeName(FieldClassName))
+				if (!PropertySettings.Outer.Session.IsValidPropertyTypeName(FieldClassName))
 				{
 					throw new UhtException($"Undefined property type: {Identifier.Value}");
 				}

@@ -16,9 +16,6 @@ namespace EpicGames.UHT.Parsers
 	[UnrealHeaderTool]
 	public class UhtScriptStructParser : UhtScriptStruct
 	{
-		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.ScriptStruct);
-		private static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.ScriptStruct);
-
 		/// <summary>
 		/// Super identifier
 		/// </summary>
@@ -97,7 +94,7 @@ namespace EpicGames.UHT.Parsers
 
 			ScriptStruct.MacroDeclaredLineNumber = TopScope.TokenReader.InputLine;
 
-			UhtParserHelpers.ParseCompileVersionDeclaration(TopScope.TokenReader, ScriptStruct);
+			UhtParserHelpers.ParseCompileVersionDeclaration(TopScope.TokenReader, TopScope.Session.Config!, ScriptStruct);
 
 			TopScope.TokenReader.Optional(';');
 			return UhtParseResult.Handled;
@@ -114,7 +111,7 @@ namespace EpicGames.UHT.Parsers
 		private static UhtParseResult ParseUScriptStruct(UhtParsingScope ParentScope, UhtToken KeywordToken)
 		{
 			UhtScriptStructParser ScriptStruct = new UhtScriptStructParser(ParentScope.ScopeType, KeywordToken.InputLine);
-			using (var TopScope = new UhtParsingScope(ParentScope, ScriptStruct, KeywordTable, UhtAccessSpecifier.Public))
+			using (var TopScope = new UhtParsingScope(ParentScope, ScriptStruct, ParentScope.Session.GetKeywordTable(UhtTableNames.ScriptStruct), UhtAccessSpecifier.Public))
 			{
 				const string ScopeName = "struct";
 
@@ -122,7 +119,7 @@ namespace EpicGames.UHT.Parsers
 				{
 					// Parse the specifiers
 					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, ScriptStruct.MetaData);
-					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, SpecifierTable);
+					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.ScriptStruct));
 					Specifiers.ParseSpecifiers();
 
 					// Consume the struct specifier
@@ -155,7 +152,7 @@ namespace EpicGames.UHT.Parsers
 					}
 
 					// Parse the inheritance
-					UhtParserHelpers.ParseInheritance(TopScope.TokenReader, out ScriptStruct.SuperIdentifier, out ScriptStruct.BaseIdentifiers);
+					UhtParserHelpers.ParseInheritance(TopScope.TokenReader, TopScope.Session.Config!, out ScriptStruct.SuperIdentifier, out ScriptStruct.BaseIdentifiers);
 
 					// Add the comments here for compatibility with old UHT
 					//COMPATIBILITY-TODO - Move this back to where the AddModuleRelativePathToMetaData is called.

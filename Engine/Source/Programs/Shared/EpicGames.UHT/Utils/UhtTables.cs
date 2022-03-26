@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using UnrealBuildBase;
 
 namespace EpicGames.UHT.Utils
 {
@@ -339,7 +340,6 @@ namespace EpicGames.UHT.Utils
 	/// <summary>
 	/// Bootstraps the standard UHT tables
 	/// </summary>
-	[UnrealHeaderTool(InitMethod= "InitStandardTables")]
 	public static class UhtStandardTables
 	{
 
@@ -363,42 +363,248 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Create all of the standard scope tables.
 		/// </summary>
-		public static void InitStandardTables()
+		/// <param name="Tables">UHT tables</param>
+		public static void InitStandardTables(UhtTables Tables)
 		{
-			CreateTables(UhtTableNames.Default, "Default", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, null, true);
-			CreateTables(UhtTableNames.Global, "Global", EUhtCreateTablesFlags.Keyword, UhtTableNames.Default, false);
-			CreateTables(UhtTableNames.PropertyArgument, "Argument/Return", EUhtCreateTablesFlags.Specifiers, UhtTableNames.Default, false);
-			CreateTables(UhtTableNames.PropertyMember, "Member", EUhtCreateTablesFlags.Specifiers, UhtTableNames.Default, false);
-			CreateTables(UhtTableNames.Object, "Object", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Default, true);
-			CreateTables(UhtTableNames.Field, "Field", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Object, true);
-			CreateTables(UhtTableNames.Enum, "Enum", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Field, false);
-			CreateTables(UhtTableNames.Struct, "Struct", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Field, true);
-			CreateTables(UhtTableNames.ClassBase, "ClassBase", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Struct, true);
-			CreateTables(UhtTableNames.Class, "Class", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.ClassBase, false);
-			CreateTables(UhtTableNames.Interface, "Interface", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.ClassBase, false);
-			CreateTables(UhtTableNames.NativeInterface, "IInterface", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.ClassBase, false);
-			CreateTables(UhtTableNames.Function, "Function", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Struct, false);
-			CreateTables(UhtTableNames.ScriptStruct, "Struct", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Struct, false);
+			CreateTables(Tables, UhtTableNames.Default, "Default", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, null, true);
+			CreateTables(Tables, UhtTableNames.Global, "Global", EUhtCreateTablesFlags.Keyword, UhtTableNames.Default, false);
+			CreateTables(Tables, UhtTableNames.PropertyArgument, "Argument/Return", EUhtCreateTablesFlags.Specifiers, UhtTableNames.Default, false);
+			CreateTables(Tables, UhtTableNames.PropertyMember, "Member", EUhtCreateTablesFlags.Specifiers, UhtTableNames.Default, false);
+			CreateTables(Tables, UhtTableNames.Object, "Object", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Default, true);
+			CreateTables(Tables, UhtTableNames.Field, "Field", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Object, true);
+			CreateTables(Tables, UhtTableNames.Enum, "Enum", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Field, false);
+			CreateTables(Tables, UhtTableNames.Struct, "Struct", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Field, true);
+			CreateTables(Tables, UhtTableNames.ClassBase, "ClassBase", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Struct, true);
+			CreateTables(Tables, UhtTableNames.Class, "Class", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.ClassBase, false);
+			CreateTables(Tables, UhtTableNames.Interface, "Interface", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.ClassBase, false);
+			CreateTables(Tables, UhtTableNames.NativeInterface, "IInterface", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.ClassBase, false);
+			CreateTables(Tables, UhtTableNames.Function, "Function", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Struct, false);
+			CreateTables(Tables, UhtTableNames.ScriptStruct, "Struct", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Struct, false);
 		}
 
 		/// <summary>
 		/// Creates a series of tables given the supplied setup
 		/// </summary>
+		/// <param name="Tables">UHT tables</param>
 		/// <param name="TableName">Name of the table.</param>
 		/// <param name="TableUserName">Name presented to the user via error messages.</param>
 		/// <param name="CreateTables">Types of tables to be created.</param>
 		/// <param name="ParentTableName">Name of the parent table or null for none.</param>
 		/// <param name="bInternal">If true, this table will not be included in any error messages.</param>
-		public static void CreateTables(string TableName, string TableUserName, EUhtCreateTablesFlags CreateTables, string? ParentTableName, bool bInternal = false)
+		public static void CreateTables(UhtTables Tables, string TableName, string TableUserName, 
+			EUhtCreateTablesFlags CreateTables, string? ParentTableName, bool bInternal = false)
 		{
 			if (CreateTables.HasFlag(EUhtCreateTablesFlags.Keyword))
 			{
-				UhtKeywordTables.Instance.Create(TableName, TableUserName, ParentTableName, bInternal);
+				Tables.KeywordTables.Create(TableName, TableUserName, ParentTableName, bInternal);
 			}
 			if (CreateTables.HasFlag(EUhtCreateTablesFlags.Specifiers))
 			{
-				UhtSpecifierTables.Instance.Create(TableName, TableUserName, ParentTableName, bInternal);
-				UhtSpecifierValidatorTables.Instance.Create(TableName, TableUserName, ParentTableName, bInternal);
+				Tables.SpecifierTables.Create(TableName, TableUserName, ParentTableName, bInternal);
+				Tables.SpecifierValidatorTables.Create(TableName, TableUserName, ParentTableName, bInternal);
+			}
+		}
+	}
+
+	/// <summary>
+	/// This attribute must be applied to any class that contains other UHT attributes.
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Class)]
+	public class UnrealHeaderToolAttribute : Attribute
+	{
+
+		/// <summary>
+		/// If specified, this method will be invoked once during the scan for attributes.
+		/// It can be used to perform some one time initialization.
+		/// </summary>
+		public string InitMethod = string.Empty;
+	}
+
+	/// <summary>
+	/// UnrealHeaderTool avoids hard coding any table contents by using attributes to add entries to the tables.
+	/// 
+	/// There are two basic styles of tables in UHT.  
+	/// 
+	/// The first style is just a simple association of a string and an attribute.  For example, 
+	/// the engine class table is just a collection of all the engine class names supported by the engine.
+	/// 
+	/// The second style is a table of tables.  Depending on the context (i.e. is a "class" or "function" 
+	/// being parsed), attributes will "extend" a given table adding an entry to that table and every
+	/// table the derives from that table.  For example, the Keywords table will add "private" to the 
+	/// "ClassBase" table.  Since the "Class", "Interface", and "NativeInterface" tables derive from
+	/// "ClassBase", all of those tables will contain the keyword "private".
+	/// 
+	/// See UhtTables.cs for a list of table names and how they relate to each other.
+	/// 
+	/// Tables are implemented in the following source files:
+	/// 
+	///		UhtEngineClassTable.cs - Collection of all the engine class names.
+	///		UhtKeywordTable.cs - Collection of the C++ keywords that UHT understands.
+	///		UhtLocTextDefaultValueTable.cs - Collection of loctext default value parsing
+	///		UhtPropertyTypeTable.cs - Collection of the property type keywords.
+	///		UhtSpecifierTable.cs - Collection of the known specifiers
+	///		UhtSpecifierValidatorTable.cs - Collection of the specifier validators
+	///		UhtStructDefaultValueTable.cs - Collection of structure default value parsing
+	/// </summary>
+	public class UhtTables
+	{
+		/// <summary>
+		/// Collection of specifier tables
+		/// </summary>
+		public readonly UhtSpecifierTables SpecifierTables = new UhtSpecifierTables();
+
+		/// <summary>
+		/// Collection of specifier validator tables
+		/// </summary>
+		public readonly UhtSpecifierValidatorTables SpecifierValidatorTables = new UhtSpecifierValidatorTables();
+
+		/// <summary>
+		/// Collection of keyword tables
+		/// </summary>
+		public readonly UhtKeywordTables KeywordTables = new UhtKeywordTables();
+
+		/// <summary>
+		/// Collection of property types
+		/// </summary>
+		public readonly UhtPropertyTypeTable PropertyTypeTable = new UhtPropertyTypeTable();
+
+		/// <summary>
+		/// Collection of structure default values
+		/// </summary>
+		public readonly UhtStructDefaultValueTable StructDefaultValueTable = new UhtStructDefaultValueTable();
+
+		/// <summary>
+		/// Collection of engine class types
+		/// </summary>
+		public readonly UhtEngineClassTable EngineClassTable = new UhtEngineClassTable();
+
+		/// <summary>
+		/// Collection of exporters
+		/// </summary>
+		public readonly UhtExporterTable ExporterTable = new UhtExporterTable();
+
+		/// <summary>
+		/// Collection loc text default values
+		/// </summary>
+		public readonly UhtLocTextDefaultValueTable LocTextDefaultValueTable = new UhtLocTextDefaultValueTable();
+
+		/// <summary>
+		/// Construct a new table collection
+		/// </summary>
+		public UhtTables()
+		{
+			Initialize();
+		}
+
+		/// <summary>
+		/// Perform one time initialization of the system
+		/// </summary>
+		private void Initialize()
+		{
+			UhtStandardTables.InitStandardTables(this);
+
+			IEnumerable<Assembly> LoadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+
+			// Collect all of the types from the loaded assemblies
+			foreach (Assembly LoadedAssembly in LoadedAssemblies)
+			{
+				Type[] Types = LoadedAssembly.SafeGetLoadedTypes();
+				foreach (Type Type in Types)
+				{
+					CheckForAttributes(Type);
+				}
+			}
+
+			PerformPostInitialization();
+		}
+
+		/// <summary>
+		/// For the given type, look for any table related attributes 
+		/// </summary>
+		/// <param name="Type">Type in question</param>
+		private void CheckForAttributes(Type Type)
+		{
+			if (Type.IsClass)
+			{
+
+				// Loop through the attributes
+				foreach (Attribute ClassAttribute in Type.GetCustomAttributes(false))
+				{
+					if (ClassAttribute is UnrealHeaderToolAttribute ParserAttribute)
+					{
+						HandleUnrealHeaderToolAttribute(Type, ParserAttribute);
+					}
+					else if (ClassAttribute is UhtEngineClassAttribute EngineClassAttribute)
+					{
+						this.EngineClassTable.OnEngineClassAttribute(Type, EngineClassAttribute);
+					}
+				}
+			}
+		}
+
+		private void PerformPostInitialization()
+		{
+			this.KeywordTables.Merge();
+			this.SpecifierTables.Merge();
+			this.SpecifierValidatorTables.Merge();
+
+			// Invoke this to generate an exception if there is no default
+			_ = this.PropertyTypeTable.Default;
+			_ = this.StructDefaultValueTable.Default;
+		}
+
+		private void HandleUnrealHeaderToolAttribute(Type Type, UnrealHeaderToolAttribute ParserAttribute)
+		{
+			if (!string.IsNullOrEmpty(ParserAttribute.InitMethod))
+			{
+				MethodInfo? InitInfo = Type.GetMethod(ParserAttribute.InitMethod, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+				if (InitInfo == null)
+				{
+					throw new Exception($"Unable to find UnrealHeaderTool attribute InitMethod {ParserAttribute.InitMethod}");
+				}
+				InitInfo.Invoke(null, new Object[] { });
+			}
+
+			// Scan the methods for things we are interested in
+			foreach (MethodInfo MethodInfo in Type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+			{
+
+				// Scan for attributes we care about
+				foreach (Attribute MethodAttribute in MethodInfo.GetCustomAttributes())
+				{
+					if (MethodAttribute is UhtSpecifierAttribute SpecifierAttribute)
+					{
+						this.SpecifierTables.OnSpecifierAttribute(Type, MethodInfo, SpecifierAttribute);
+					}
+					else if (MethodAttribute is UhtSpecifierValidatorAttribute SpecifierValidatorAttribute)
+					{
+						this.SpecifierValidatorTables.OnSpecifierValidatorAttribute(Type, MethodInfo, SpecifierValidatorAttribute);
+					}
+					else if (MethodAttribute is UhtKeywordCatchAllAttribute KeywordCatchAllAttribute)
+					{
+						this.KeywordTables.OnKeywordCatchAllAttribute(Type, MethodInfo, KeywordCatchAllAttribute);
+					}
+					else if (MethodAttribute is UhtKeywordAttribute KeywordAttribute)
+					{
+						this.KeywordTables.OnKeywordAttribute(Type, MethodInfo, KeywordAttribute);
+					}
+					else if (MethodAttribute is UhtPropertyTypeAttribute PropertyTypeAttribute)
+					{
+						this.PropertyTypeTable.OnPropertyTypeAttribute(Type, MethodInfo, PropertyTypeAttribute);
+					}
+					else if (MethodAttribute is UhtStructDefaultValueAttribute StructDefaultValueAttribute)
+					{
+						this.StructDefaultValueTable.OnStructDefaultValueAttribute(Type, MethodInfo, StructDefaultValueAttribute);
+					}
+					else if (MethodAttribute is UhtExporterAttribute ExporterAttribute)
+					{
+						this.ExporterTable.OnExporterAttribute(Type, MethodInfo, ExporterAttribute);
+					}
+					else if (MethodAttribute is UhtLocTextDefaultValueAttribute LocTextDefaultValueAttribute)
+					{
+						this.LocTextDefaultValueTable.OnLocTextDefaultValueAttribute(Type, MethodInfo, LocTextDefaultValueAttribute);
+					}
+				}
 			}
 		}
 	}

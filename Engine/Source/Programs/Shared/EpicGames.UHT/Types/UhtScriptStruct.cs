@@ -538,8 +538,6 @@ namespace EpicGames.UHT.Types
 	[UhtEngineClass(Name = "ScriptStruct")]
 	public class UhtScriptStruct : UhtStruct
 	{
-		private static UhtSpecifierValidatorTable ScriptStructSpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.ScriptStruct);
-
 		/// <summary>
 		/// Script struct engine flags
 		/// </summary>
@@ -599,13 +597,13 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				return UhtConfig.Instance.IsStructWithTPrefix(this.EngineName) ? "T" : "F";
+				return this.Session.Config!.IsStructWithTPrefix(this.EngineName) ? "T" : "F";
 			}
 		}
 
 		///<inheritdoc/>
 		[JsonIgnore]
-		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable { get => UhtScriptStruct.ScriptStructSpecifierValidatorTable; }
+		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable { get => this.Session.GetSpecifierValidatorTable(UhtTableNames.ScriptStruct); }
 
 		/// <summary>
 		/// Super struct

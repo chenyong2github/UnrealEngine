@@ -547,7 +547,7 @@ namespace EpicGames.UHT.Parsers
 		/// <returns></returns>
 		public static UhtProperty? ResolveProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, ReadOnlyMemory<char> Data, ReadOnlyMemory<UhtToken> TypeTokens)
 		{
-			UhtPropertyTypeTable PropertyTypeTable = UhtPropertyTypeTable.Instance;
+			UhtSession Session = PropertySettings.Outer.Session;
 			IUhtTokenReader ReplayReader = UhtTokenReplayReader.GetThreadInstance(PropertySettings.Outer, Data, TypeTokens, UhtTokenType.EndOfType);
 
 			// Loop through the tokens until we find a known property type or the start of a template argument list
@@ -564,7 +564,7 @@ namespace EpicGames.UHT.Parsers
 				}
 				else
 				{
-					if (PropertyTypeTable.TryGet(TypeTokens.Span[Index].Value, out PropertyType))
+					if (Session.TryGetPropertyType(TypeTokens.Span[Index].Value, out PropertyType))
 					{
 						if (ResolvePhase == UhtPropertyResolvePhase.Resolving || PropertyType.Options.HasAnyFlags(UhtPropertyTypeOptions.Immediate))
 						{
@@ -577,7 +577,7 @@ namespace EpicGames.UHT.Parsers
 			// Try the default processor.  We only use the default processor when trying to resolve something post parsing phase.
 			if (ResolvePhase == UhtPropertyResolvePhase.Resolving)
 			{
-				return ResolvePropertyType(ResolvePhase, PropertySettings, ReplayReader, PropertyTypeTable.Default, new UhtToken(), false);
+				return ResolvePropertyType(ResolvePhase, PropertySettings, ReplayReader, Session.DefaultPropertyType, new UhtToken(), false);
 			}
 			return null;
 		}
@@ -632,7 +632,7 @@ namespace EpicGames.UHT.Parsers
 		/// <returns>Parsed property</returns>
 		public static UhtProperty? ParseTemplateParam(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings ParentPropertySettings, StringView ParamName, IUhtTokenReader TokenReader)
 		{
-			UhtPropertyTypeTable PropertyTypeTable = UhtPropertyTypeTable.Instance;
+			UhtSession Session = ParentPropertySettings.Outer.Session;
 
 			// Save the token reader state.  We need this to restore back to the start when invoking the resolve methods.
 			using (var SaveState = new UhtTokenSaveState(TokenReader))
@@ -649,7 +649,7 @@ namespace EpicGames.UHT.Parsers
 						break;
 					}
 
-					if (PropertyTypeTable.TryGet(Token.Value, out PropertyType))
+					if (Session.TryGetPropertyType(Token.Value, out PropertyType))
 					{
 						if (ResolvePhase == UhtPropertyResolvePhase.Resolving || PropertyType.Options.HasAnyFlags(UhtPropertyTypeOptions.Immediate))
 						{
@@ -663,7 +663,7 @@ namespace EpicGames.UHT.Parsers
 				if (ResolvePhase == UhtPropertyResolvePhase.Resolving)
 				{
 					SaveState.RestoreState();
-					return ResolvePropertyType(ResolvePhase, PropertySettings, TokenReader, PropertyTypeTable.Default, new UhtToken(), true);
+					return ResolvePropertyType(ResolvePhase, PropertySettings, TokenReader, Session.DefaultPropertyType, new UhtToken(), true);
 				}
 				return null;
 			}
@@ -775,7 +775,7 @@ namespace EpicGames.UHT.Parsers
 			bool bIsParamList = this.SpecifierContext.PropertySettings.PropertyCategory != UhtPropertyCategory.Member && this.TokenReader.TryOptional("UPARAM");
 
 			UhtSpecifierParser Specifiers = this.TopScope.HeaderParser.GetSpecifierParser(this.SpecifierContext, "Variable", 
-				bIsParamList ? UhtPropertyArgumentSpecifiers.SpecifierTable : UhtPropertyMemberSpecifiers.SpecifierTable);
+				bIsParamList ? this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyArgument) : this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyMember));
 			if (DeclarationStyle == UhtParsePropertyDeclarationStyle.UPROPERTY || bIsParamList)
 			{
 				Specifiers.ParseSpecifiers();
@@ -1112,7 +1112,7 @@ namespace EpicGames.UHT.Parsers
 			// Try gathering metadata for member fields
 			if (NewProperty.PropertyCategory == UhtPropertyCategory.Member)
 			{
-				UhtSpecifierParser Specifiers = this.TopScope.HeaderParser.GetSpecifierParser(this.SpecifierContext, NewProperty.SourceName, UhtPropertyMemberSpecifiers.SpecifierTable);
+				UhtSpecifierParser Specifiers = this.TopScope.HeaderParser.GetSpecifierParser(this.SpecifierContext, NewProperty.SourceName, this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyMember));
 				Specifiers.ParseFieldMetaData(NewProperty.SourceName);
 				this.TopScope.AddFormattedCommentsAsTooltipMetaData(NewProperty);
 			}
@@ -1231,6 +1231,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtPropertyType(Options = UhtPropertyTypeOptions.Default)]
 		private static UhtProperty? DefaultProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
+			UhtSession Session = PropertySettings.Outer.Session;
 			int TypeStartPos = TokenReader.PeekToken().InputStartPos;
 
 			if (TokenReader.TryOptional("const"))
@@ -1305,8 +1306,8 @@ namespace EpicGames.UHT.Parsers
 				TokenReader.Require('*');
 
 				// Optionally emit messages about native pointer members and swallow trailing 'const' after pointer properties
-				UhtObjectPropertyBase.ConditionalLogPointerUsage(PropertySettings, UhtConfig.Instance.EngineNativePointerMemberBehavior,
-					UhtConfig.Instance.NonEngineNativePointerMemberBehavior, "Native pointer", TokenReader, TypeStartPos, "TObjectPtr");
+				UhtObjectPropertyBase.ConditionalLogPointerUsage(PropertySettings, Session.Config!.EngineNativePointerMemberBehavior,
+					Session.Config!.NonEngineNativePointerMemberBehavior, "Native pointer", TokenReader, TypeStartPos, "TObjectPtr");
 
 				if (PropertySettings.PropertyCategory == UhtPropertyCategory.Member)
 				{
@@ -1319,10 +1320,10 @@ namespace EpicGames.UHT.Parsers
 				{
 					return new UhtInterfaceProperty(PropertySettings, Class);
 				}
-				else if (Class.IsChildOf(Class.Session.UClass))
+				else if (Class.IsChildOf(Session.UClass))
 				{
 					// UObject here specifies that there is no limiter
-					return new UhtClassProperty(PropertySettings, Class, Class.Session.UObject);
+					return new UhtClassProperty(PropertySettings, Class, Session.UObject);
 				}
 				else
 				{

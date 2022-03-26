@@ -196,7 +196,6 @@ namespace EpicGames.UHT.Types
 	/// </summary>
 	public class UhtFunction : UhtStruct
 	{
-		private static UhtSpecifierValidatorTable FunctionSpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.Function);
 		private string? StrippedFunctionNameInternal = null;
 
 		/// <summary>
@@ -287,7 +286,7 @@ namespace EpicGames.UHT.Types
 
 		///<inheritdoc/>
 		[JsonIgnore]
-		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable { get => UhtFunction.FunctionSpecifierValidatorTable; }
+		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable { get => this.Session.GetSpecifierValidatorTable(UhtTableNames.Function); }
 
 		/// <summary>
 		/// Identifier for an RPC call to a platform service

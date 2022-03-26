@@ -186,11 +186,6 @@ namespace EpicGames.UHT.Tables
 	{
 
 		/// <summary>
-		/// Global instance of the tables
-		/// </summary>
-		public static UhtKeywordTables Instance = new UhtKeywordTables();
-
-		/// <summary>
 		/// Construct the keyword tables
 		/// </summary>
 		public UhtKeywordTables() : base("keywords")

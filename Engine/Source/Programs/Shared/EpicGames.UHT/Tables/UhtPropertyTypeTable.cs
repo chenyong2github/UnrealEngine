@@ -154,12 +154,6 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtPropertyTypeTable
 	{
-
-		/// <summary>
-		/// Global instance of the property type table
-		/// </summary>
-		public static UhtPropertyTypeTable Instance = new UhtPropertyTypeTable();
-
 		private Dictionary<StringView, UhtPropertyType> CaseSensitive = new Dictionary<StringView, UhtPropertyType>();
 		private Dictionary<StringView, UhtPropertyType> CaseInsensitive = new Dictionary<StringView, UhtPropertyType>(StringViewComparer.OrdinalIgnoreCase);
 		private UhtPropertyType? DefaultInternal = null;

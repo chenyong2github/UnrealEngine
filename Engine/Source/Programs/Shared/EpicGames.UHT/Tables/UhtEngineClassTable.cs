@@ -48,11 +48,6 @@ namespace EpicGames.UHT.Tables
 	public class UhtEngineClassTable
 	{
 		/// <summary>
-		/// Global instance of the engine class table
-		/// </summary>
-		public static UhtEngineClassTable Instance = new UhtEngineClassTable();
-
-		/// <summary>
 		/// Internal mapping from engine class name to information
 		/// </summary>
 		private Dictionary<StringView, UhtEngineClass> EngineClasses = new Dictionary<StringView, UhtEngineClass>();

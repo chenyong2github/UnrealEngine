@@ -95,11 +95,6 @@ namespace EpicGames.UHT.Tables
 	{
 
 		/// <summary>
-		/// Global instance of the validator tables
-		/// </summary>
-		public static UhtSpecifierValidatorTables Instance = new UhtSpecifierValidatorTables();
-
-		/// <summary>
 		/// Construct the validator tables
 		/// </summary>
 		public UhtSpecifierValidatorTables() : base("specifier validators")

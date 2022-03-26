@@ -52,11 +52,6 @@ namespace EpicGames.UHT.Tables
 	public class UhtLocTextDefaultValueTable
 	{
 
-		/// <summary>
-		/// Global instance of the table
-		/// </summary>
-		public static UhtLocTextDefaultValueTable Instance = new UhtLocTextDefaultValueTable();
-
 		private Dictionary<StringView, UhtLocTextDefaultValue> LocTextDefaultValues = new Dictionary<StringView, UhtLocTextDefaultValue>();
 
 		/// <summary>

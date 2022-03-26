@@ -116,12 +116,6 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtStructDefaultValueTable
 	{
-
-		/// <summary>
-		/// Global instance of the structure default value sanitizers
-		/// </summary>
-		public static UhtStructDefaultValueTable Instance = new UhtStructDefaultValueTable();
-
 		private Dictionary<StringView, UhtStructDefaultValue> StructDefaultValues = new Dictionary<StringView, UhtStructDefaultValue>();
 		private UhtStructDefaultValue? DefaultInternal = null;
 

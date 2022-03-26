@@ -395,7 +395,7 @@ namespace EpicGames.UHT.Types
 			{
 				case UhtTokenType.Identifier:
 					UhtLocTextDefaultValue LocTextDefaultValue;
-					if (UhtLocTextDefaultValueTable.Instance.TryGet(Token.Value, out LocTextDefaultValue))
+					if (Property.Session.TryGetLocTextDefaultValue(Token.Value, out LocTextDefaultValue))
 					{
 						if (LocTextDefaultValue.Delegate(Property, DefaultValueReader, ref Token, InnerDefaultValue))
 						{

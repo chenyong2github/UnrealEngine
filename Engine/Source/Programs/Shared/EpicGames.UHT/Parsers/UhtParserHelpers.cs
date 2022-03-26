@@ -19,16 +19,17 @@ namespace EpicGames.UHT.Parsers
 		/// Parse the inheritance 
 		/// </summary>
 		/// <param name="TokenReader">Token reader</param>
+		/// <param name="Config">Configuration</param>
 		/// <param name="SuperIdentifier">Output super identifier</param>
 		/// <param name="BaseIdentifiers">Output base identifiers</param>
-		public static void ParseInheritance(IUhtTokenReader TokenReader, out UhtToken SuperIdentifier, out List<UhtToken[]>? BaseIdentifiers)
+		public static void ParseInheritance(IUhtTokenReader TokenReader, IUhtConfig Config, out UhtToken SuperIdentifier, out List<UhtToken[]>? BaseIdentifiers)
 		{
 			UhtToken SuperIdentifierTemp = new UhtToken();
 			List<UhtToken[]>? BaseIdentifiersTemp = null;
 			TokenReader.OptionalInheritance(
 				(ref UhtToken Identifier) =>
 				{
-					UhtConfig.Instance.RedirectTypeIdentifier(ref Identifier);
+					Config.RedirectTypeIdentifier(ref Identifier);
 					SuperIdentifierTemp = Identifier;
 				},
 				(UhtTokenList Identifier) =>
@@ -47,15 +48,16 @@ namespace EpicGames.UHT.Parsers
 		/// Parse compiler version declaration
 		/// </summary>
 		/// <param name="TokenReader">Token reader</param>
+		/// <param name="Config">Configuration</param>
 		/// <param name="Struct">Struct being parsed</param>
-		public static void ParseCompileVersionDeclaration(IUhtTokenReader TokenReader, UhtStruct Struct)
+		public static void ParseCompileVersionDeclaration(IUhtTokenReader TokenReader, IUhtConfig Config, UhtStruct Struct)
 		{
 
 			// Fetch the default generation code version. If supplied, then package code version overrides the default.
 			EGeneratedCodeVersion Version = Struct.Package.Module.GeneratedCodeVersion;
 			if (Version == EGeneratedCodeVersion.None)
 			{
-				Version = UhtConfig.Instance.DefaultGeneratedCodeVersion;
+				Version = Config.DefaultGeneratedCodeVersion;
 			}
 
 			// Fetch the code version from header file

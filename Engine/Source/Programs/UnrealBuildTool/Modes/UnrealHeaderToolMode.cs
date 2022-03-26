@@ -170,13 +170,8 @@ namespace UnrealBuildTool.Modes
 		/// <summary>
 		/// Read the UHT configuration
 		/// </summary>
-		public static void Read(CommandLineArguments Args)
-		{
-			UhtConfigImpl Instance = new UhtConfigImpl(Args);
-			UhtConfig.Instance = Instance;
-		}
-
-		private UhtConfigImpl(CommandLineArguments Args)
+		/// <param name="Args">Extra command line arguments</param>
+		public UhtConfigImpl(CommandLineArguments Args)
 		{
 			DirectoryReference ConfigDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Programs/UnrealBuildTool");
 			this.Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ConfigDirectory, BuildHostPlatform.Current.Platform, "", Args.GetRawArray());
@@ -524,7 +519,7 @@ namespace UnrealBuildTool.Modes
 			public bool External;
 		}
 
-		private static bool RunScriptTest(UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, string Script)
+		private static bool RunScriptTest(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, string Script)
 		{
 			string InPath = Path.Combine(TestDirectory, Script);
 			string OutPath = Path.Combine(TestOutputDirectory, Script);
@@ -532,6 +527,8 @@ namespace UnrealBuildTool.Modes
 			UhtTestFileManager TestFileManager = new UhtTestFileManager(TestDirectory);
 			UhtSession Session = new UhtSession
 			{
+				Tables = Tables,
+				Config = Config,
 				FileManager = TestFileManager,
 				RootDirectory = TestDirectory,
 				bWarningsAsErrors = Options.bWarningsAsErrors,
@@ -814,27 +811,27 @@ namespace UnrealBuildTool.Modes
 			return true;
 		}
 
-		private static bool RunScriptTests(UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, List<string> Scripts)
+		private static bool RunScriptTests(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, List<string> Scripts)
 		{
 			bool bResult = true;
 			foreach (string Script in Scripts)
 			{
-				bResult &= RunScriptTest(Options, TestDirectory, TestOutputDirectory, Script);
+				bResult &= RunScriptTest(Tables, Config, Options, TestDirectory, TestOutputDirectory, Script);
 			}
 			return bResult;
 		}
 
-		private static bool RunDirectoryTests(UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, List<string> Directories)
+		private static bool RunDirectoryTests(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, List<string> Directories)
 		{
 			bool bResult = true;
 			foreach (string Directory in Directories)
 			{
-				bResult &= RunTests(Options, Path.Combine(TestDirectory, Directory), Path.Combine(TestOutputDirectory, Directory));
+				bResult &= RunTests(Tables, Config, Options, Path.Combine(TestDirectory, Directory), Path.Combine(TestOutputDirectory, Directory));
 			}
 			return bResult;
 		}
 
-		private static bool RunTests(UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory)
+		private static bool RunTests(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory)
 		{
 			// Create output directory
 			Directory.CreateDirectory(TestOutputDirectory);
@@ -862,11 +859,11 @@ namespace UnrealBuildTool.Modes
 
 			return
 				RunManifestTests(Options, TestDirectory, TestOutputDirectory, Manifests) &&
-				RunScriptTests(Options, TestDirectory, TestOutputDirectory, Scripts) &&
-				RunDirectoryTests(Options, TestDirectory, TestOutputDirectory, Directories);
+				RunScriptTests(Tables, Config, Options, TestDirectory, TestOutputDirectory, Scripts) &&
+				RunDirectoryTests(Tables, Config, Options, TestDirectory, TestOutputDirectory, Directories);
 		}
 
-		public static bool RunTests(UhtGlobalOptions Options)
+		public static bool RunTests(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options)
 		{
 			DirectoryReference EngineSourceProgramDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Source", "Programs");
 			string TestDirectory = FileReference.Combine(EngineSourceProgramDirectory, "UnrealBuildTool.Tests", "UHT").FullName;
@@ -885,7 +882,7 @@ namespace UnrealBuildTool.Modes
 			Log.TraceInformation("Output can be compared in {0}", TestOutputDirectory);
 
 			// Run the tests on the directory
-			return RunTests(Options, TestDirectory, TestOutputDirectory);
+			return RunTests(Tables, Config, Options, TestDirectory, TestOutputDirectory);
 		}
 	}
 
@@ -925,7 +922,9 @@ namespace UnrealBuildTool.Modes
 		/// <summary>
 		/// Print (incomplete) usage information
 		/// </summary>
-		private static void PrintUsage()
+		/// <param name="ExporterTable">Defined exporters</param>
+		/// <param name="Config">Configuration</param>
+		private static void PrintUsage(UhtExporterTable ExporterTable, IUhtConfig Config)
 		{
 			Console.WriteLine("UnrealBuildTool -Mode=UnrealHeaderTool [ProjectFile ManifestFile] -OR [\"-Target...\"] [Options]");
 			Console.WriteLine("");
@@ -942,7 +941,7 @@ namespace UnrealBuildTool.Modes
 				}
 			}
 
-			foreach (UhtExporter Generator in UhtExporterTable.Instance)
+			foreach (UhtExporter Generator in ExporterTable)
 			{
 				LongestPrefix = Generator.Name.Length + 2 > LongestPrefix ? Generator.Name.Length + 2 : LongestPrefix;
 			}
@@ -960,9 +959,9 @@ namespace UnrealBuildTool.Modes
 
 			Console.WriteLine("");
 			Console.WriteLine("Generators: Prefix with 'no' to disable a generator");
-			foreach (UhtExporter Generator in UhtExporterTable.Instance)
+			foreach (UhtExporter Generator in ExporterTable)
 			{
-				string IsDefault = UhtConfig.Instance.IsExporterEnabled(Generator.Name) || Generator.Options.HasAnyFlags(UhtExporterOptions.Default) ? " (Default)" : "";
+				string IsDefault = Config.IsExporterEnabled(Generator.Name) || Generator.Options.HasAnyFlags(UhtExporterOptions.Default) ? " (Default)" : "";
 				Console.WriteLine($"  -{Generator.Name.PadRight(LongestPrefix)} :  {Generator.Description}{IsDefault}");
 			}
 			Console.WriteLine("");
@@ -979,10 +978,10 @@ namespace UnrealBuildTool.Modes
 			{
 
 				// Initialize the attributes
-				UhtAttributeScanner.Scan();
+				UhtTables Tables = new UhtTables();
 
 				// Initialize the config
-				UhtConfigImpl.Read(Arguments);
+				IUhtConfig Config = new UhtConfigImpl(Arguments);
 
 				// Parse the global options
 				UhtGlobalOptions Options = new UhtGlobalOptions(Arguments);
@@ -1001,7 +1000,7 @@ namespace UnrealBuildTool.Modes
 				int RequiredArgCount = TargetArgumentIndex >= 0 || Options.bTest ? 0 : 2;
 				if (Arguments.GetPositionalArgumentCount() != RequiredArgCount || Options.bGetHelp)
 				{
-					PrintUsage();
+					PrintUsage(Tables.ExporterTable, Config);
 					return Options.bGetHelp ? (int)CompilationResult.Succeeded : (int)CompilationResult.OtherCompilationError;
 				}
 
@@ -1035,7 +1034,7 @@ namespace UnrealBuildTool.Modes
 				// If we are running test scripts
 				if (Options.bTest)
 				{
-					return UhtTestHarness.RunTests(Options) ? (int)CompilationResult.Succeeded : (int)CompilationResult.OtherCompilationError;
+					return UhtTestHarness.RunTests(Tables, Config, Options) ? (int)CompilationResult.Succeeded : (int)CompilationResult.OtherCompilationError;
 				}
 
 				string? ProjectPath = null;
@@ -1086,6 +1085,8 @@ namespace UnrealBuildTool.Modes
 
 				UhtSession Session = new UhtSession
 				{
+					Tables = Tables,
+					Config = Config,
 					FileManager = new UhtStdFileManager(),
 					EngineDirectory = Unreal.EngineDirectory.FullName,
 					ProjectDirectory = string.IsNullOrEmpty(ProjectPath) ? null : ProjectPath,
@@ -1108,7 +1109,7 @@ namespace UnrealBuildTool.Modes
 					Session.ReferenceMode = UhtReferenceMode.Verify;
 				}
 
-				foreach(UhtExporter Exporter in UhtExporterTable.Instance)
+				foreach(UhtExporter Exporter in Session.ExporterTable)
 				{
 					if (Arguments.HasOption($"-{Exporter.Name}"))
 					{

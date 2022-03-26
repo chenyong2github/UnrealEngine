@@ -823,7 +823,7 @@ namespace EpicGames.UHT.Types
 			this.SourceName = string.Empty;
 			this.LineNumber = 1;
 			this.TypeIndex = Session.GetNextTypeIndex();
-			this.MetaData = new UhtMetaData(this);
+			this.MetaData = new UhtMetaData(this, this.Session.Config);
 		}
 
 		/// <summary>
@@ -839,8 +839,9 @@ namespace EpicGames.UHT.Types
 			this.SourceName = string.Empty;
 			this.LineNumber = LineNumber;
 			this.TypeIndex = this.Session.GetNextTypeIndex();
-			this.MetaData = MetaData ?? new UhtMetaData(this);
+			this.MetaData = MetaData ?? new UhtMetaData(this, this.Session.Config);
 			this.MetaData.MessageSite = this; // Make sure the site is correct
+			this.MetaData.Config = this.Session.Config;
 		}
 
 		/// <summary>

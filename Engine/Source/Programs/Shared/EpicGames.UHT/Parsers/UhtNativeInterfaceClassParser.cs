@@ -15,9 +15,6 @@ namespace EpicGames.UHT.Parsers
 	[UnrealHeaderTool]
 	public class UhtParserNativeInterfaceClass : UhtClassBaseParser
 	{
-		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.NativeInterface);
-		private static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.NativeInterface);
-
 		/// <summary>
 		/// Construct a new native interface
 		/// </summary>
@@ -91,7 +88,7 @@ namespace EpicGames.UHT.Parsers
 		{
 			UhtClass Class = (UhtClass)TopScope.ScopeType;
 
-			UhtParserHelpers.ParseCompileVersionDeclaration(TopScope.TokenReader, Class);
+			UhtParserHelpers.ParseCompileVersionDeclaration(TopScope.TokenReader, TopScope.Session.Config!, Class);
 
 			Class.GeneratedBodyAccessSpecifier = TopScope.AccessSpecifier;
 			Class.GeneratedBodyLineNumber = TopScope.TokenReader.InputLine;
@@ -173,7 +170,7 @@ namespace EpicGames.UHT.Parsers
 
 			Class.SuperIdentifier = SuperName;
 
-			using (var TopScope = new UhtParsingScope(ParentScope, Class, KeywordTable, UhtAccessSpecifier.Private))
+			using (var TopScope = new UhtParsingScope(ParentScope, Class, ParentScope.Session.GetKeywordTable(UhtTableNames.NativeInterface), UhtAccessSpecifier.Private))
 			{
 				const string ScopeName = "native interface";
 

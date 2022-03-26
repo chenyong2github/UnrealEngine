@@ -48,6 +48,11 @@ namespace EpicGames.UHT.Parsers
 		public UhtAccessSpecifier AccessSpecifier = UhtAccessSpecifier.Public;
 
 		/// <summary>
+		/// Current session
+		/// </summary>
+		public UhtSession Session => this.ScopeType.Session;
+
+		/// <summary>
 		/// Return the current class scope being compiled
 		/// </summary>
 		public UhtParsingScope CurrentClassScope

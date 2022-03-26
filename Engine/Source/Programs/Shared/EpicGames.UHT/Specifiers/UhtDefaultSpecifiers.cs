@@ -228,7 +228,7 @@ namespace EpicGames.UHT.Parsers
 				}
 			}
 
-			if (!UhtConfig.Instance.IsValidUnits(Value))
+			if (!Type.Session.Config!.IsValidUnits(Value))
 			{
 				Type.LogError($"Unrecognized units '{Value}' specified for '{Type.FullName}'");
 			}

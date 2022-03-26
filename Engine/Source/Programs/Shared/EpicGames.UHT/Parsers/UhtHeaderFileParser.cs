@@ -170,8 +170,6 @@ namespace EpicGames.UHT.Parsers
 	/// </summary>
 	public class UhtHeaderFileParser : IUhtTokenPreprocessor
 	{
-		private static UhtKeywordTable KeywordTable = UhtKeywordTables.Instance.Get(UhtTableNames.Global);
-
 		private struct CompilerDirective
 		{
 			public UhtCompilerDirective Element;
@@ -237,7 +235,7 @@ namespace EpicGames.UHT.Parsers
 		public static UhtHeaderFileParser Parse(UhtHeaderFile HeaderFile)
 		{
 			UhtHeaderFileParser HeaderParser = new UhtHeaderFileParser(HeaderFile);
-			using (UhtParsingScope TopScope = new UhtParsingScope(HeaderParser, HeaderParser.HeaderFile, UhtHeaderFileParser.KeywordTable))
+			using (UhtParsingScope TopScope = new UhtParsingScope(HeaderParser, HeaderParser.HeaderFile, HeaderFile.Session.GetKeywordTable(UhtTableNames.Global)))
 			{
 				HeaderParser.ParseStatements();
 
@@ -476,7 +474,7 @@ namespace EpicGames.UHT.Parsers
 
 			if (ParseResult == UhtParseResult.Unhandled && bLogUnhandledKeywords)
 			{
-				UhtKeywordTables.Instance.LogUnhandledError(TopScope.TokenReader, Token);
+				TopScope.Session.LogUnhandledKeywordError(TopScope.TokenReader, Token);
 			}
 
 			if (ParseResult == UhtParseResult.Unhandled || ParseResult == UhtParseResult.Invalid)

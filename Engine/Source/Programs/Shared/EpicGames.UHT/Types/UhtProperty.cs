@@ -709,7 +709,7 @@ namespace EpicGames.UHT.Types
 		{
 			this.SourceName = SourceName;
 			this.EngineName = SourceName;
-			this.MetaData = new UhtMetaData(MessageSite);
+			this.MetaData = new UhtMetaData(MessageSite, ParentPropertySettings.Outer.Session.Config);
 			this.Outer = ParentPropertySettings.Outer;
 			this.LineNumber = ParentPropertySettings.LineNumber;
 			this.PropertyCategory = ParentPropertySettings.PropertyCategory;
@@ -738,7 +738,7 @@ namespace EpicGames.UHT.Types
 		{
 			this.SourceName = string.Empty;
 			this.EngineName = string.Empty;
-			this.MetaData = new UhtMetaData(Outer);
+			this.MetaData = new UhtMetaData(Outer, Outer.Session.Config);
 			this.Outer = Outer;
 			this.LineNumber = LineNumber;
 			this.PropertyCategory = PropertyCategory;
@@ -941,11 +941,11 @@ namespace EpicGames.UHT.Types
 				switch (this.PropertyCategory)
 				{
 					case UhtPropertyCategory.Member:
-						return UhtPropertyMemberSpecifiers.SpecifierValidatorTable;
+						return this.Session.GetSpecifierValidatorTable(UhtTableNames.PropertyMember);
 					case UhtPropertyCategory.RegularParameter:
 					case UhtPropertyCategory.ReplicatedParameter:
 					case UhtPropertyCategory.Return:
-						return UhtPropertyArgumentSpecifiers.SpecifierValidatorTable;
+						return this.Session.GetSpecifierValidatorTable(UhtTableNames.PropertyArgument);
 					default:
 						throw new UhtIceException("Unknown property category type");
 				}

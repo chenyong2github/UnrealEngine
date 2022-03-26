@@ -18,13 +18,13 @@ namespace UnrealBuildToolTests
 			UhtGlobalOptions Options = new UhtGlobalOptions(CommandLineArguments);
 
 			// Initialize the attributes
-			UhtAttributeScanner.Scan();
+			UhtTables Tables = new UhtTables();
 
 			// Initialize the config
-			UhtConfigImpl.Read(CommandLineArguments);
+			IUhtConfig Config = new UhtConfigImpl(CommandLineArguments);
 
 			// Run the tests
-			Assert.IsTrue(UhtTestHarness.RunTests(Options));
+			Assert.IsTrue(UhtTestHarness.RunTests(Tables, Config, Options));
 		}
 	}
 }

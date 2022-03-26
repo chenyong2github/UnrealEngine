@@ -15,17 +15,6 @@ namespace EpicGames.UHT.Parsers
 	[UnrealHeaderTool]
 	public static class UhtPropertyMemberSpecifiers
 	{
-
-		/// <summary>
-		/// Property member specifier table
-		/// </summary>
-		public static UhtSpecifierTable SpecifierTable = UhtSpecifierTables.Instance.Get(UhtTableNames.PropertyMember);
-
-		/// <summary>
-		/// Property member specifier validator table
-		/// </summary>
-		public static UhtSpecifierValidatorTable SpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.PropertyMember);
-
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void EditAnywhereSpecifier(UhtSpecifierContext SpecifierContext)
 		{
