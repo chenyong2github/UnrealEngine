@@ -223,7 +223,7 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 			Source.UnlockMip(MipIndex);
 		}
 
-		UpdateMipGenSettings();
+		ValidateSettingsAfterImportOrEdit();
 		SetLightingGuid();
 		UpdateResource();
 	}
@@ -317,32 +317,10 @@ uint32 UTexture2DArray::GetMaximumDimension() const
 
 }
 
-void UTexture2DArray::UpdateMipGenSettings()
-{
-	if (PowerOfTwoMode == ETexturePowerOfTwoSetting::None && !Source.IsPowerOfTwo())
-	{
-		// Force NPT textures to have no mip maps.
-		MipGenSettings = TMGS_NoMipmaps;
-		NeverStream = true;
-	}
-}
-
 ENGINE_API void UTexture2DArray::PostEditChangeProperty(FPropertyChangedEvent & PropertyChangedEvent)
 {	
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
-
-	if (PowerOfTwoMode == ETexturePowerOfTwoSetting::None && (!Source.IsPowerOfTwo()))
-	{
-		// Force NPT textures to have no mip maps.
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UTexture2DArray, MipGenSettings)) 
-		{
-			UE_LOG(LogTexture, Warning, TEXT("Cannot use mip maps for non-power of two textures."));
-		}
-
-		MipGenSettings = TMGS_NoMipmaps;
-		NeverStream = true;
-	}
-
+	
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTexture2DArray, SourceTextures))
 	{
 		// Empty SourceTextures, remove any resources if present.

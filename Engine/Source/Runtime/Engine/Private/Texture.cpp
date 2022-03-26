@@ -363,11 +363,76 @@ bool UTexture::CanEditChange(const FProperty* InProperty) const
 	return true;
 }
 
+// we're in WITH_EDITOR but not sure that's right, maybe move out?
+void UTexture::ValidateSettingsAfterImportOrEdit()
+{	
+	// calling ValidateSettingsAfterImportOrEdit if all settings are already valid should be a nop
+	// if you call ValidateSettingsAfterImportOrEdit twice, the second should do nothing
+
+	// this will be called by PostEditChange() with no arg
+		
+#if WITH_EDITORONLY_DATA
+
+	bool IsPowerOfTwo = Source.IsPowerOfTwo();
+	if ( GetTextureClass() == ETextureClass::Volume && ! FMath::IsPowerOfTwo(Source.NumSlices) )
+	{
+		IsPowerOfTwo = false;
+
+		if ( PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
+		{
+			UE_LOG(LogTexture, Warning, TEXT("PowerOfTwoMode not supported for volume Z"));
+			PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
+		}
+	}
+
+	if (!IsPowerOfTwo && (PowerOfTwoMode == ETexturePowerOfTwoSetting::None))
+	{
+		// Force NPT textures to have no mipmaps.
+		MipGenSettings = TMGS_NoMipmaps;
+		NeverStream = true;
+		if (VirtualTextureStreaming)
+		{
+			UE_LOG(LogTexture, Warning, TEXT("VirtualTextureStreaming not supported for \"%s\", texture size is not a power-of-2"), *GetName());
+			VirtualTextureStreaming = false;
+		}
+	}
+
+	// Make sure settings are correct for LUT textures.
+	if(LODGroup == TEXTUREGROUP_ColorLookupTable)
+	{
+		MipGenSettings = TMGS_NoMipmaps;
+		SRGB = false;
+	}
+#endif // #if WITH_EDITORONLY_DATA
+
+	const bool bPreventSRGB = (CompressionSettings == TC_Alpha || CompressionSettings == TC_Normalmap || CompressionSettings == TC_Masks || CompressionSettings == TC_HDR || CompressionSettings == TC_HDR_Compressed || CompressionSettings == TC_HalfFloat);
+	if (bPreventSRGB && SRGB == true)
+	{
+		SRGB = false;
+	}
+
+#if WITH_EDITORONLY_DATA
+	if (MaxTextureSize <= 0)
+	{
+		MaxTextureSize = 0;
+	}
+	else
+	{
+		MaxTextureSize = FMath::Min<int32>(FMath::RoundUpToPowerOfTwo(MaxTextureSize), GetMaximumDimension());
+	}
+#endif
+	
+	NumCinematicMipLevels = FMath::Max<int32>( NumCinematicMipLevels, 0 );
+
+}
+
 void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture_PostEditChangeProperty);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	// this whole function is in WITH_EDITOR so these ifs don't make much sense
 
 #if WITH_EDITOR
 	ON_SCOPE_EXIT
@@ -385,7 +450,10 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 	}
 #endif // WITH_EDITOR
 
+	// assume there was a change that needs a new lighting guid :
 	SetLightingGuid();
+
+	ValidateSettingsAfterImportOrEdit();
 
 	// Determine whether any property that requires recompression of the texture, or notification to Materials has changed.
 	bool RequiresNotifyMaterials = false;
@@ -402,7 +470,6 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 		static const FName VirtualTextureStreamingName = GET_MEMBER_NAME_CHECKED(UTexture, VirtualTextureStreaming);
 #if WITH_EDITORONLY_DATA
 		static const FName SourceColorSpaceName = GET_MEMBER_NAME_CHECKED(FTextureSourceColorSettings, ColorSpace);
-		static const FName MaxTextureSizeName = GET_MEMBER_NAME_CHECKED(UTexture, MaxTextureSize);
 		static const FName CompressionQualityName = GET_MEMBER_NAME_CHECKED(UTexture, CompressionQuality);
 		static const FName OodleTextureSdkVersionName = GET_MEMBER_NAME_CHECKED(UTexture, OodleTextureSdkVersion);
 #endif //WITH_EDITORONLY_DATA
@@ -414,9 +481,10 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 			(PropertyName == SrgbName))
 		{
 			RequiresNotifyMaterials = true;
-
+			
 			if (PropertyName == LODGroupName)
 			{
+				// should this be in Validate ? or only when switching to this LODGroup ? (allowing change after)
 				if (LODGroup == TEXTUREGROUP_8BitData)
 				{
 					CompressionSettings = TC_VectorDisplacementmap;
@@ -452,17 +520,6 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 			RequiresNotifyMaterials = true;
 			bInvalidatesMaterialShaders = false;
 		}
-		else if (PropertyName == MaxTextureSizeName)
-		{
-			if (MaxTextureSize <= 0)
-			{
-				MaxTextureSize = 0;
-			}
-			else
-			{
-				MaxTextureSize = FMath::Min<int32>(FMath::RoundUpToPowerOfTwo(MaxTextureSize), GetMaximumDimension());
-			}
-		}
 		else if (PropertyName == VirtualTextureStreamingName)
 		{
 			RequiresNotifyMaterials = true;
@@ -480,11 +537,6 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 #endif //WITH_EDITORONLY_DATA
 	}
 
-	const bool bPreventSRGB = (CompressionSettings == TC_Alpha || CompressionSettings == TC_Normalmap || CompressionSettings == TC_Masks || CompressionSettings == TC_HDR || CompressionSettings == TC_HDR_Compressed || CompressionSettings == TC_HalfFloat);
-	if (bPreventSRGB && SRGB == true)
-	{
-		SRGB = false;
-	}
 
 	if (!PropertyThatChanged && !GDisableAutomaticTextureMaterialUpdateDependencies)
 	{
@@ -522,8 +574,6 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 			}
 		}
 	}
-
-	NumCinematicMipLevels = FMath::Max<int32>( NumCinematicMipLevels, 0 );
 
 	// Don't update the texture resource if we've turned "DeferCompression" on, as this 
 	// would cause it to immediately update as an uncompressed texture

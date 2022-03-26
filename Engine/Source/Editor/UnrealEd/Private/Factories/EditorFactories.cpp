@@ -4219,6 +4219,8 @@ UObject* UTextureFactory::FactoryCreateBinary
 	CompressionSettings = Texture->CompressionSettings;
 
 	// Figure out whether we're using a normal map LOD group.
+	// @@!! LODGroup is a member var on TextureFactory not pulled from Texture->LODGroup ?
+
 	bool bIsNormalMapLODGroup = false;
 	if( LODGroup == TEXTUREGROUP_WorldNormalMap 
 	||	LODGroup == TEXTUREGROUP_CharacterNormalMap
@@ -4365,6 +4367,8 @@ UObject* UTextureFactory::FactoryCreateBinary
 	}
 
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, Texture);
+
+	// PostEditChange calls ValidateSettingsAfterImportOrEdit();
 
 	// Invalidate any materials using the newly imported texture. (occurs if you import over an existing texture)
 	Texture->PostEditChange();

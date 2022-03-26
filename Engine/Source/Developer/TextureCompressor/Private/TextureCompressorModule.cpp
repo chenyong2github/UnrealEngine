@@ -1183,6 +1183,13 @@ void ITextureCompressorModule::GenerateMipChain(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.GenerateMipChain);
 
+	// MipChainDepth is the number more to make, OutMipChain has some already
+	// typically BaseImage == OutMipChain.Last()
+	if ( MipChainDepth == 0 )
+	{
+		return;
+	}
+
 	check(BaseImage.Format == ERawImageFormat::RGBA32F);
 
 	const FImage& BaseMip = BaseImage;
@@ -1252,6 +1259,13 @@ void ITextureCompressorModule::GenerateMipChain(
 		check(IntermediateSrcPtr && IntermediateDstPtr);
 		const FImage& IntermediateSrc = *IntermediateSrcPtr;
 		FImage& IntermediateDst = *IntermediateDstPtr;
+		
+		if ( IntermediateSrc.SizeX == 1 && IntermediateSrc.SizeY == 1 && (!Settings.bVolume || IntermediateSrc.NumSlices == 1))
+		{
+			// should not have been called, starting mip is already small enough
+			check(0);
+			break;
+		}
 
 		// add new mip to TArray<FImage> &OutMipChain :
 		//	placement new on TArray does AddUninitialized then constructs in the last element
@@ -2806,6 +2820,13 @@ private:
 			}
 		}
 
+		// @@!! this is broken for non-pow2 sizes
+		//	if size is non-pow2, outer code should have set TMGS_NoMipmaps
+		
+		// problem 1 : this should be FloorLogTwo not Ceil
+		// problem 2 : if you then do that, it's broken for padding to pow2 mode, because the pad is after the mip count calculation
+		// problem 3 : pad+leave existing is broken
+
 		// Determine the maximum possible mip counts for source and dest.
 		const int32 MaxSourceMipCount = bLongLatCubemap ?
 			1 + FMath::CeilLogTwo(ComputeLongLatCubemapExtents(InSourceMips[0], BuildSettings.MaxTextureResolution)) :
@@ -2823,15 +2844,26 @@ private:
 
 		if (BuildSettings.MipGenSettings == TMGS_LeaveExistingMips)
 		{
-			NumOutputMips = InSourceMips.Num() - StartMip;
-			if (NumOutputMips <= 0)
+			// @@!! if LeaveExistingMips and we want 10 mips but are only given 8, we don't make the lower ones?
+			//	 is that right?
+			int32 NumExistingMips = NumSourceMips - StartMip;
+			check( NumExistingMips <= NumOutputMips );
+
+			if (NumExistingMips <= 0)
 			{
 				// We can't generate 0 mip maps
 				UE_LOG(LogTextureCompressor, Warning,
-					TEXT("The source image has %d mips while the first mip would be %d. Please verify the maximun texture size or change the mips gen settings."),
+					TEXT("The source image has %d mips while the first mip would be %d. Please verify the maximum texture size or change the mips gen settings."),
 					NumSourceMips,
 					StartMip);
 				return false;
+			}
+			else
+			{
+				// if NumExistingMips < NumOutputMips
+				// a non-complete mip tail will be generated
+
+				NumOutputMips = NumExistingMips;
 			}
 		}
 
@@ -2846,6 +2878,8 @@ private:
 		TArray<FImage> PaddedSourceMips;
 
 		{
+			// @@!! Padded + leave existing is broken but that's not enforced ?
+
 			const FImage& FirstSourceMipImage = InSourceMips[0];
 			int32 TargetTextureSizeX = FirstSourceMipImage.SizeX;
 			int32 TargetTextureSizeY = FirstSourceMipImage.SizeY;
@@ -2870,6 +2904,7 @@ private:
 			case ETexturePowerOfTwoSetting::PadToSquarePowerOfTwo:
 				bPadOrStretchTexture = true;
 				TargetTextureSizeX = TargetTextureSizeY = FMath::Max3<int32>(PowerOfTwoTextureSizeX, PowerOfTwoTextureSizeY, PowerOfTwoTextureSizeZ);
+				// @@!! doesn't change or check TargetTextureSizeZ ?
 				break;
 
 			default:
@@ -2941,6 +2976,8 @@ private:
 		TArray<FImage> GeneratedSourceMips;
 		if (bBuildSourceImage)
 		{
+			// should not get in here with LeaveExistingMips because NumExistingMips would be < 0
+
 			// the source is larger than the compressor allows and no mip image exists to act as a smaller source.
 			// We must generate a suitable source image:
 			bool bSuitableFormat = PostOptionalUpscaleSourceMips.Last().Format == ERawImageFormat::RGBA32F;
@@ -2975,6 +3012,7 @@ private:
 
 			check(GeneratedSourceMips.Num() != 0);
 			// Note: The newly generated mip chain does not include the original top level mip.
+			check( StartMip > 0 );
 			StartMip--;
 		}
 
@@ -2985,10 +3023,12 @@ private:
 		check(StartMip < SourceMips.Num());
 		int32 CopyCount = SourceMips.Num() - StartMip;
 
+		int32 GenerateCount = NumOutputMips - CopyCount;
+
 		// avoid converting to RGBA32F linear format if there's no need for any extra processing of pixels
 		// image will be left in BGRA8 format if possible
 		const bool bNeedAdjustImageColors = NeedAdjustImageColors(BuildSettings);
-		const bool bLinearize = bNeedLinearize || NumOutputMips != 1 || BuildSettings.bRenormalizeTopMip || (BuildSettings.Downscale > 1.f)
+		const bool bLinearize = bNeedLinearize || (GenerateCount > 0) || BuildSettings.bRenormalizeTopMip || (BuildSettings.Downscale > 1.f)
 			|| BuildSettings.bHasColorSpaceDefinition || BuildSettings.bComputeBokehAlpha || BuildSettings.bFlipGreenChannel
 			|| BuildSettings.bReplicateRed || BuildSettings.bReplicateAlpha || BuildSettings.bApplyYCoCgBlockScale
 			|| BuildSettings.SourceEncodingOverride != 0 || bNeedAdjustImageColors;
@@ -3075,6 +3115,9 @@ private:
 			}
 		}
 
+		check( OutMipChain.Num() == CopyCount );
+		check( GenerateCount == NumOutputMips - OutMipChain.Num() );
+
 		// Generate any missing mips in the chain.
 		if (NumOutputMips > OutMipChain.Num())
 		{
@@ -3085,7 +3128,10 @@ private:
 			}
 			else
 			{
-				GenerateMipChain(BuildSettings, OutMipChain.Last(), OutMipChain);
+				// @@!! GenerateMipChain should bring us up to NumOutputMips
+				//	but it doesn't take NumOutputMips as a param, makes its own decision
+
+				GenerateMipChain(BuildSettings, OutMipChain.Last(), OutMipChain, MAX_uint32);
 			}
 		}
 		check(OutMipChain.Num() == NumOutputMips);

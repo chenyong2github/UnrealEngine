@@ -24,6 +24,7 @@ enum class EARTextureType : uint8
 /**
  * Base class for all AR texture types.
  * Derived from UTexture instead of UTexture2D because UTexture2D is all about streaming and source art
+ * ? probably should have been UTexture2DDynamic
  */
 UCLASS(Abstract, BlueprintType)
 class AUGMENTEDREALITY_API UARTexture : public UTexture
@@ -49,6 +50,7 @@ public:
 	virtual float GetSurfaceDepth() const override { return 0; }
 	virtual uint32 GetSurfaceArraySize() const override { return 0; }
 	virtual FGuid GetExternalTextureGuid() const override { return ExternalTextureGuid; }
+	virtual ETextureClass GetTextureClass() const { return ETextureClass::Other2DNoSource; }
 	// End UTexture interface
 	
 	/** The type of texture this is */

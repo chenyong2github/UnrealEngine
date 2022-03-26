@@ -119,6 +119,7 @@ public:
 	//~ End UObject Interface.
 
 	//~ Begin UTexture Interface.
+	virtual ETextureClass GetTextureClass() const override { return ETextureClass::TwoD; }
 	virtual float GetSurfaceWidth() const override { return static_cast<float>(GetSizeX()); }
 	virtual float GetSurfaceHeight() const override { return static_cast<float>(GetSizeY()); }
 	virtual float GetSurfaceDepth() const override { return 0.0f; }

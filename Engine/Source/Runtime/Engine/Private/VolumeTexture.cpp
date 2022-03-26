@@ -100,8 +100,8 @@ bool UVolumeTexture::UpdateSourceFromSourceTexture()
 			*PlatformData = FTexturePlatformData();
 		}
 	}
-
-	UpdateMipGenSettings();
+	
+	ValidateSettingsAfterImportOrEdit();
 #endif // WITH_EDITOR
 
 	return bSourceValid;
@@ -155,7 +155,7 @@ ENGINE_API bool UVolumeTexture::UpdateSourceFromFunction(TFunction<void(int32, i
 
 	SetLightingGuid(); // Because the content has changed, use a new GUID.
 
-	UpdateMipGenSettings();
+	ValidateSettingsAfterImportOrEdit();
 
 	// Make sure to update the texture resource so the results of filling the texture 
 	UpdateResource();
@@ -369,8 +369,6 @@ void UVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		}
 	}
 	
-	UpdateMipGenSettings();
-
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
@@ -378,16 +376,6 @@ void UVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 uint32 UVolumeTexture::GetMaximumDimension() const
 {
 	return GetMax2DTextureDimension();
-}
-
-void UVolumeTexture::UpdateMipGenSettings()
-{
-	if (PowerOfTwoMode == ETexturePowerOfTwoSetting::None && (!Source.IsPowerOfTwo() || !FMath::IsPowerOfTwo(Source.NumSlices)))
-	{
-		// Force NPT textures to have no mipmaps.
-		MipGenSettings = TMGS_NoMipmaps;
-		NeverStream = true;
-	}
 }
 
 #endif // #if WITH_EDITOR

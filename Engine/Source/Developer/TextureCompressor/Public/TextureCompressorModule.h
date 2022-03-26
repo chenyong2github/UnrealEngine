@@ -318,7 +318,7 @@ public:
 		const FTextureBuildSettings& Settings,
 		const FImage& BaseImage,
 		TArray<FImage> &OutMipChain,
-		uint32 MipChainDepth = MAX_uint32
+		uint32 MipChainDepth
 		);
 
 	/**

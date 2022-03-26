@@ -48,6 +48,7 @@ FColorSpace::FColorSpace(EColorSpace ColorSpaceType)
 	switch (ColorSpaceType)
 	{
 	case EColorSpace::None:
+		// leaves FVector2d::Zero from the constructor
 		break;
 	case EColorSpace::sRGB:
 		Chromaticities[0] = FVector2d(0.64, 0.33);

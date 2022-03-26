@@ -314,7 +314,7 @@ struct FTextureSource
 	/** Computes the number of bytes per-pixel. */
 	ENGINE_API int32 GetBytesPerPixel(int32 LayerIndex = 0) const;
 
-	/** Return true if the source data is power-of-2. */
+	/** Return true if the source XY size is power-of-2.  Does not check Z size for volumes.  */
 	ENGINE_API bool IsPowerOfTwo(int32 BlockIndex = 0) const;
 
 	/** Returns true if source art is available. */
@@ -1061,6 +1061,7 @@ class UTexture : public UStreamableRenderAsset, public IInterface_AssetUserData,
 	--------------------------------------------------------------------------*/
 
 #if WITH_EDITORONLY_DATA
+	/* Dynamic textures will have ! Source.IsValid() */
 	UPROPERTY()
 	FTextureSource Source;
 #endif
@@ -1367,6 +1368,9 @@ public:
 	ENGINE_API virtual void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn) override;
 	ENGINE_API virtual void PostEditImport() override;
 
+	/** Get Texture Class */
+	ENGINE_API virtual ETextureClass GetTextureClass() const PURE_VIRTUAL(UTexture::GetTextureClass, return ETextureClass::Invalid; );
+
 	/**
 	 * Resets the resource for the texture.
 	 */
@@ -1516,13 +1520,26 @@ public:
 	ENGINE_API void GetDefaultFormatSettings(FTextureFormatSettings& OutSettings) const;
 	
 	ENGINE_API ETextureEncodeSpeed GetDesiredEncodeSpeed() const;
+		
+	/** Ensure settings are valid after import or edit; this is called by PostEditChange. */
+	ENGINE_API virtual void ValidateSettingsAfterImportOrEdit();
+#endif // WITH_EDITOR
 
 	ENGINE_API EGammaSpace GetGammaSpace() const
 	{
 		// note: does not validate that the Format respects gamma (TextureSource::GetGammaSpace does)
-		return SRGB ? ( bUseLegacyGamma ? EGammaSpace::Pow22 : EGammaSpace::sRGB ) : EGammaSpace::Linear;
+		
+		#if WITH_EDITORONLY_DATA
+		// Pow22 only affects texture *Source* encoding of import
+		// PlatformData is always sRGB even if bUseLegacyGamma was on
+		if ( SRGB && bUseLegacyGamma )
+		{
+			return EGammaSpace::Pow22;
+		}
+		#endif
+
+		return SRGB ? EGammaSpace::sRGB : EGammaSpace::Linear;
 	}
-#endif
 
 	/** @return the width of the surface represented by the texture. */
 	virtual float GetSurfaceWidth() const PURE_VIRTUAL(UTexture::GetSurfaceWidth,return 0;);

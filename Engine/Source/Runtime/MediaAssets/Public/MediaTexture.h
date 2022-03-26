@@ -41,6 +41,9 @@ enum MediaTextureOrientation
 
 /**
  * Implements a texture asset for rendering video tracks from UMediaPlayer assets.
+ * 
+ * note: derives directly from UTexture, not from UTexture2D or UTexture2DDynamic
+ *    maybe should have been UTexture2DDynamic?
  */
 UCLASS(hidecategories=(Adjustments, Compositing, LevelOfDetail, ImportSettings, Object))
 class MEDIAASSETS_API UMediaTexture
@@ -206,6 +209,7 @@ public:
 	virtual uint32 GetSurfaceArraySize() const override { return 0; }
 	virtual FGuid GetExternalTextureGuid() const override;
 	void SetRenderedExternalTextureGuid(const FGuid& InNewGuid);
+	virtual ETextureClass GetTextureClass() const { return ETextureClass::Other2DNoSource; }
 
 public:
 

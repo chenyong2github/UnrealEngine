@@ -245,6 +245,26 @@ enum class ETextureEncodeSpeed : uint8
 };
 
 UENUM()
+enum class ETextureClass : uint8
+{
+	Invalid,
+	// Engine types with source data :
+	TwoD,
+	Cube,
+	Array,
+	CubeArray,
+	Volume,
+	
+	// Engine types without source data :
+	TwoDDynamic,
+	RenderTarget, // can be 2D or Cube
+
+	// User types :
+	Other2DNoSource, // Media, Web, etc. that should have derived from TwoDDynamic but didn't
+	OtherUnknown
+};
+
+UENUM()
 enum ECompositeTextureMode
 {
 	CTM_Disabled UMETA(DisplayName="Disabled"),

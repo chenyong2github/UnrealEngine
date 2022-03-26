@@ -44,6 +44,7 @@ public:
 	}
 
 	//~ Begin UTexture Interface
+	virtual ETextureClass GetTextureClass() const override { return ETextureClass::CubeArray; }
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;

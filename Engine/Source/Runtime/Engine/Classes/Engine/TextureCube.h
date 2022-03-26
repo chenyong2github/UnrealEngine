@@ -65,6 +65,7 @@ public:
 	ENGINE_API void GetMipData(int32 FirstMipToLoad, void** OutMipData);
 	
 	//~ Begin UTexture Interface
+	virtual ETextureClass GetTextureClass() const override { return ETextureClass::Cube; }
 	virtual float GetSurfaceWidth() const override { return (float)GetSizeX(); }
 	virtual float GetSurfaceHeight() const override { return (float)GetSizeY(); }
 	virtual float GetSurfaceDepth() const override { return 0; }

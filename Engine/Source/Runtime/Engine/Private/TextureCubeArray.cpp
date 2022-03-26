@@ -451,6 +451,9 @@ ENGINE_API bool UTextureCubeArray::UpdateSourceFromSourceTextures(bool bCreating
 	Source.Init(SizeX, SizeY, ArraySize * NumSlices, NumMips, Format);
 	Source.bLongLatCubemap = (NumSlices == 1);
 
+	// this path sets bLongLatCubemap for CubeArray
+	//  most paths do not, so it is not reliable
+
 	// We only copy the top level Mip map.
 	TArray<uint8*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DestMipData;
 	TArray<uint64, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipSizeBytes;
@@ -485,6 +488,7 @@ ENGINE_API bool UTextureCubeArray::UpdateSourceFromSourceTextures(bool bCreating
 	}
 
 	SetLightingGuid();
+	ValidateSettingsAfterImportOrEdit();
 	UpdateResource();
 
 	return true;

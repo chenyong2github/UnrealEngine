@@ -491,27 +491,6 @@ void UTexture2D::PostEditUndo()
 
 void UTexture2D::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-#if WITH_EDITORONLY_DATA
-	if (!Source.IsPowerOfTwo() && (PowerOfTwoMode == ETexturePowerOfTwoSetting::None))
-	{
-		// Force NPT textures to have no mipmaps.
-		MipGenSettings = TMGS_NoMipmaps;
-		NeverStream = true;
-		if (VirtualTextureStreaming)
-		{
-			UE_LOG(LogTexture, Warning, TEXT("VirtualTextureStreaming not supported for \"%s\", texture size is not a power-of-2"), *GetName());
-			VirtualTextureStreaming = false;
-		}
-	}
-
-	// Make sure settings are correct for LUT textures.
-	if(LODGroup == TEXTUREGROUP_ColorLookupTable)
-	{
-		MipGenSettings = TMGS_NoMipmaps;
-		SRGB = false;
-	}
-#endif // #if WITH_EDITORONLY_DATA
-
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UTexture2D, AddressX)
 		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UTexture2D, AddressY))
 	{
@@ -528,6 +507,9 @@ float UTexture2D::GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale
 {
 	float AvgBrightness = -1.0f;
 #if WITH_EDITOR
+
+	// @@!! this is done in a few places ; factor out to an FImage helper?
+
 	TArray64<uint8> RawData;
 	// use the source art if it exists
 	if (Source.IsValid() && Source.GetFormat() == TSF_BGRA8)
@@ -545,8 +527,7 @@ float UTexture2D::GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale
 		int32 SizeY = Source.GetSizeY();
 		double PixelSum = 0.0f;
 		int32 Divisor = SizeX * SizeY;
-		FColor* ColorData = (FColor*)RawData.GetData();
-		FLinearColor CurrentColor;
+		const FColor* ColorData = (const FColor*)RawData.GetData();
 		for (int32 Y = 0; Y < SizeY; Y++)
 		{
 			for (int32 X = 0; X < SizeX; X++)
@@ -558,6 +539,7 @@ float UTexture2D::GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale
 					continue;
 				}
 
+				FLinearColor CurrentColor;
 				if (SRGB == true)
 				{
 					CurrentColor = bUseLegacyGamma ? FLinearColor::FromPow22Color(*ColorData) : FLinearColor(*ColorData);

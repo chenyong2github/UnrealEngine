@@ -82,6 +82,7 @@ public:
 	}
 
 	//~ Begin UTexture Interface
+	virtual ETextureClass GetTextureClass() const override { return ETextureClass::Volume; }
 	virtual float GetSurfaceWidth() const override { return static_cast<float>(GetSizeX()); }
 	virtual float GetSurfaceHeight() const override { return static_cast<float>(GetSizeY()); }
 	virtual float GetSurfaceDepth() const override { return static_cast<float>(GetSizeZ()); }

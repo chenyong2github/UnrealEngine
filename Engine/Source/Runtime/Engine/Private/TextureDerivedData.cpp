@@ -733,27 +733,46 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.MaxTextureResolution = Texture.MaxTextureSize;
 	}
 
-	if (Texture.IsA(UTextureCube::StaticClass()))
+	ETextureClass TextureClass = Texture.GetTextureClass();
+	
+	if ( TextureClass == ETextureClass::TwoD )
+	{
+		// nada
+	}
+	else if ( TextureClass == ETextureClass::Cube )
 	{
 		OutBuildSettings.bCubemap = true;
 		OutBuildSettings.DiffuseConvolveMipLevel = GDiffuseConvolveMipLevel;
+		// beware IsLongLatCubemap is pretty useless , GetNumSlices() is doing the work here
 		check( Texture.Source.GetNumSlices() == 1 || Texture.Source.GetNumSlices() == 6 );
 		OutBuildSettings.bLongLatSource = (Texture.Source.GetNumSlices() == 1) || Texture.Source.IsLongLatCubemap();
 	}
-	else if (Texture.IsA(UTexture2DArray::StaticClass()))
+	else if ( TextureClass == ETextureClass::Array )
 	{
 		OutBuildSettings.bTextureArray = true;
 	}
-	else if (Texture.IsA(UTextureCubeArray::StaticClass()))
+	else if ( TextureClass == ETextureClass::CubeArray )
 	{
 		OutBuildSettings.bCubemap = true;
 		OutBuildSettings.bTextureArray = true;
+		// beware IsLongLatCubemap
+		// ambiguous with longlat cube arrays with multiple of 6 array size
 		OutBuildSettings.bLongLatSource = Texture.Source.IsLongLatCubemap();
 		check( ((Texture.Source.GetNumSlices()%6)==0) || OutBuildSettings.bLongLatSource );
 	}
-	else if (Texture.IsA(UVolumeTexture::StaticClass()))
+	else if ( TextureClass == ETextureClass::Volume )
 	{
 		OutBuildSettings.bVolume = true;
+	}
+	else if ( TextureClass == ETextureClass::TwoDDynamic ||
+		TextureClass == ETextureClass::Other2DNoSource )
+	{
+		UE_LOG(LogTexture, Warning, TEXT("Unexpected texture build for dynamic texture? (%s)"),*Texture.GetName());
+	}
+	else
+	{
+		// unknown TextureType ?
+		UE_LOG(LogTexture, Error, TEXT("Unexpected texture build for unknown texture class? (%s)"),*Texture.GetName());
 	}
 
 	bool bDownsampleWithAverage;

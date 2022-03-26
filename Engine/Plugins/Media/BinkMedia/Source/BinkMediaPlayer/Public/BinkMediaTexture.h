@@ -14,6 +14,9 @@ enum TextureAddress;
 
 /**
  * Implements a texture asset for rendering video tracks from UBinkMediaPlayer assets.
+ * 
+ * note: derives directly from UTexture, not from UTexture2D or UTexture2DDynamic
+ *    maybe should have been UTexture2DDynamic?
  */
 UCLASS(hidecategories=(Compression, LevelOfDetail, Object))
 class BINKMEDIAPLAYER_API UBinkMediaTexture : public UTexture 
@@ -38,6 +41,7 @@ class BINKMEDIAPLAYER_API UBinkMediaTexture : public UTexture
 	virtual float GetSurfaceHeight() const override { return CachedDimensions.Y; }
 	virtual float GetSurfaceDepth() const override { return 0; }
 	virtual uint32 GetSurfaceArraySize() const override { return 0; }
+	virtual ETextureClass GetTextureClass() const { return ETextureClass::Other2DNoSource; }
 
 	// UObject overrides.
 

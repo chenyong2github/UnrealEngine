@@ -17,6 +17,8 @@
 
 /**
 * Implements a texture asset for rendering webbrowser output for Android.
+* 
+*  probably should have derived from UTexture2DDynamic (not UTexture)
 */
 UCLASS(hidecategories = (Adjustments, Compositing, LevelOfDetail, Object))
 class WEBBROWSERTEXTURE_API UWebBrowserTexture
@@ -72,6 +74,7 @@ public:
 	virtual float GetSurfaceDepth() const override { return 0; }
 	virtual uint32 GetSurfaceArraySize() const override { return 0; }
 	virtual FGuid GetExternalTextureGuid() const override;
+	virtual ETextureClass GetTextureClass() const { return ETextureClass::Other2DNoSource; }
 
 public:
 	//~ UObject interface.
