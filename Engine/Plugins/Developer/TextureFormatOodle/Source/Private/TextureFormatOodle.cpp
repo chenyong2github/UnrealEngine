@@ -920,6 +920,14 @@ public:
 
 			// Object paths a) can contain slashes as its a path, and we dont want a hierarchy and b) can have random characters we don't want
 			FileName = FPaths::MakeValidFileName(FileName, TEXT('_'));
+
+			// limit file name len
+			// full path will still likely be longer than _MAX_PATH which breaks many programs
+			if ( FileName.Len() >= 256 )
+			{
+				FileName = FileName.Right(255);
+			}
+
 			FileName = FPaths::ProjectSavedDir() + TEXT("OodleDebugImages/") + FileName;
 				
 			FArchive* Ar = IFileManager::Get().CreateFileWriter(*FileName);
