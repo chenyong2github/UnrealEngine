@@ -11,6 +11,7 @@
 #include "InterchangeStaticMeshFactory.generated.h"
 
 
+class UBodySetup;
 class UStaticMesh;
 class UInterchangeStaticMeshLodDataNode;
 struct FMeshDescription;

@@ -2,12 +2,14 @@
 
 #include "AutoReimportManager.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "Async/Async.h"
 #include "ExternalSource.h"
 #include "SourceUri.h"
 #include "EditorReimportHandler.h"
 #include "ExternalSourceModule.h"
 #include "Stats/Stats.h"
+#include "Misc/App.h"
 
 DEFINE_LOG_CATEGORY(LogAutoReimportManager);
 

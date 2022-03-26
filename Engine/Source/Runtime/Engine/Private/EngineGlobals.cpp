@@ -18,6 +18,7 @@
 #include "Modules/ModuleManager.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "RendererInterface.h"
 
 #if !UE_BUILD_SHIPPING && PLATFORM_DESKTOP 
 #include "ISlateReflectorModule.h"

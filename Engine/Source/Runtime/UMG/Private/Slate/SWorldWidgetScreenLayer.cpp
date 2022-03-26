@@ -7,6 +7,7 @@
 #include "Blueprint/SlateBlueprintLibrary.h"
 #include "Engine/GameViewportClient.h"
 #include "Widgets/SViewport.h"
+#include "SceneView.h"
 #include "Slate/SGameLayerManager.h"
 
 static int32 GSlateWorldWidgetZOrder = 1;

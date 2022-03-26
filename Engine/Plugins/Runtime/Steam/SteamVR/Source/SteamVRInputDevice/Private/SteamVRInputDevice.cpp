@@ -43,6 +43,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "SteamVRControllerKeys.h"
 #include "Runtime/HeadMountedDisplay/Public/IXRTrackingSystem.h"
 #include "SteamVRSkeletonDefinition.h"
+#include "Misc/EngineVersion.h"
 #include "Misc/MessageDialog.h"
 
 #if PLATFORM_WINDOWS

@@ -9,6 +9,7 @@
 #include "MediaUtils/Public/MediaSamples.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
 #include "Misc/MessageDialog.h"
+#include "RenderingThread.h"
 
 #include "HLMediaLibrary.h"
 #include "HLMediaPlayerTracks.h"

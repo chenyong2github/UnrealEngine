@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "ShaderCore.h"
+
 struct FD3D11ShaderResourceTable : public FBaseShaderResourceTable
 {
 	/** Mapping of bound Textures to their location in resource tables. */

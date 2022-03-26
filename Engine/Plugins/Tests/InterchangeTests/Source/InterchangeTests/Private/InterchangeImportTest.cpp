@@ -16,6 +16,7 @@
 #include "UObject/StrongObjectPtr.h"
 #include "AssetRegistryModule.h"
 #include "AssetData.h"
+#include "Editor.h"
 #include "InterchangeManager.h"
 #include "UObject/SavePackage.h"
 #include "ObjectTools.h"

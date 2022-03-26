@@ -8,6 +8,7 @@
 #include "LidarPointCloudComponent.generated.h"
 
 class UBodySetup;
+class FViewportClient;
 
 UENUM(BlueprintType)
 enum class ELidarPointCloudSpriteOrientation : uint8

@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Classes/Components/MeshComponent.h"
+#include "Engine/Scene.h"
 #include "ColorCorrectRegion.generated.h"
 
 
