@@ -58,6 +58,10 @@ public:
 	// TODO: Consider having the internal mesh remember what edges have been constrained, so we can set an error flag when constrained edges cross previous constrained edges
 	bool bValidateEdges = true;
 
+	// Option to automatically track duplicate vertices and treat edges that reference them as if they referenced the instance that was actually used in the triangulation
+	// Note: Cannot change this to 'true' *after* triangulation and then call ConstrainEdges; duplicate vertices will only be detected on their initial insertion
+	bool bAutomaticallyFixEdgesToDuplicateVertices = false;
+
 	// TODO: it would often be useful to pass in sparse vertex data
 	//// Optional function to allow Triangulate to skip vertices
 	//TFunction<bool(int32)> SkipVertexFn = nullptr;
@@ -162,8 +166,29 @@ public:
 	/**
 	 * Return the triangles that are inside the given edges, removing the outer boundary triangles
 	 * If a Winding-Number-based fill mode is used, assumes edges are oriented and tracks the winding number across edges
+	 * 
+	 * @param Edges						The array of edges that were already constrained in the triangulation (by a previous call to Triangulate or ConstrainEdges)
+	 * @param FillMode					Strategy to use to define which triangles to include in the output
+	 * @return							A subset of the triangulation that is 'inside' the given edges, as defined by the FillMode
 	 */
-	TArray<FIndex3i> GetFilledTriangles(TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding);
+	TArray<FIndex3i> GetFilledTriangles(TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding)
+	{
+		TArray<FIndex3i> Triangles;
+		GetFilledTriangles(Triangles, Edges, FillMode);
+		return Triangles;
+	}
+
+	/**
+	 * Get (by reference) the triangles that are inside the given edges, removing the outer boundary triangles
+	 * If a Winding-Number-based fill mode is used, assumes edges are oriented and tracks the winding number across edges
+	 *
+	 * @param TrianglesOut				Will be filled with a subset of the triangulation that is 'inside' the given edges, as defined by the FillMode
+	 * @param Edges						The array of edges that were already constrained in the triangulation (by a previous call to Triangulate or ConstrainEdges)
+	 * @param FillMode					Strategy to use to define which triangles to include in the output
+	 * @return							true if the result was well defined and consistent; false otherwise. Solid fill mode always has a well defined result; Winding-number-based fills do not if the edges have open spans.
+	 *									Note the triangulation will still be filled by best-effort even if the function returns false.
+	 */
+	bool GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding);
 
 	// @return true if this is a constrained Delaunay triangulation
 	bool IsConstrained() const

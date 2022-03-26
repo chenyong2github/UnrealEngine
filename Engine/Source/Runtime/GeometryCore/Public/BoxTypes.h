@@ -36,6 +36,16 @@ struct TInterval1
 		return TInterval1(TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max());
 	}
 
+	static TInterval1<RealType> MakeFromUnordered(const RealType& A, const RealType& B)
+	{
+		TInterval1<RealType> Result(A, B);
+		if (A > B)
+		{
+			Swap(Result.Min, Result.Max);
+		}
+		return Result;
+	}
+
 	RealType Center() const
 	{
 		return (Min + Max) * (RealType)0.5;
