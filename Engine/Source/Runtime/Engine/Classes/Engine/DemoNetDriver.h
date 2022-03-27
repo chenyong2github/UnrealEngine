@@ -676,6 +676,9 @@ private:
 
 	void OnPostLoadMapWithWorld(UWorld* World);
 
+	// Diff Actor plus it's Components and Subobjects from given ActorChannel
+	void DiffActorProperties(UActorChannel* const ActorChannel);
+
 protected:
 
 	void ProcessSeamlessTravel(int32 LevelIndex);

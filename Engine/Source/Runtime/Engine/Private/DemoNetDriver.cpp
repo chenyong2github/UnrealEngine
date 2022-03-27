@@ -1149,6 +1149,42 @@ void UDemoNetDriver::OnPostLoadMapWithWorld(UWorld* InWorld)
 	}
 }
 
+void UDemoNetDriver::DiffActorProperties(UActorChannel* const ActorChannel)
+{
+	if (!ActorChannel || !ActorChannel->GetActor())
+	{
+		return;
+	}
+
+	auto DiffObjectProperties = [](const FObjectReplicator& ObjectReplicator)
+	{
+		if (const UObject* const ReplicatedObject = ObjectReplicator.GetObject())
+		{
+			FReceivingRepState* const ReceivingRepState = ObjectReplicator.RepState->GetReceivingRepState();
+			const FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
+			const FConstRepObjectDataBuffer RepObjectData(ReplicatedObject);
+
+			ObjectReplicator.RepLayout->DiffProperties(&(ReceivingRepState->RepNotifies), ShadowData, RepObjectData, EDiffPropertiesFlags::Sync);
+		}
+	};
+
+	// Make sure we diff Actor first
+	const FObjectReplicator& ActorReplicator = ActorChannel->GetActorReplicationData();
+	DiffObjectProperties(ActorReplicator);
+
+	// Diff any Components and SubObjects
+	for (const auto& ReplicatorPair : ActorChannel->ReplicationMap)
+	{
+		const FObjectReplicator& ObjectReplicator = ReplicatorPair.Value.Get();
+		// We don't need to diff Actor again
+		if (ActorReplicator.GetObject() == ObjectReplicator.GetObject())
+		{
+			continue;
+		}
+		DiffObjectProperties(ObjectReplicator);
+	}
+}
+
 bool UDemoNetDriver::ContinueListen(FURL& ListenURL)
 {
 	if (IsRecording() && ensure(IsRecordingPaused()))
@@ -2923,16 +2959,9 @@ void UDemoNetDriver::FinalizeFastForward(const double StartTime)
 				continue;
 			}
 
-			if (const FObjectReplicator* const ActorReplicator = ActorChannel->ActorReplicator.Get())
+			if (Actor->IsNetStartupActor())
 			{
-				if (Actor->IsNetStartupActor())
-				{
-					FReceivingRepState* ReceivingRepState = ActorReplicator->RepState->GetReceivingRepState();
-					FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
-					FConstRepObjectDataBuffer ActorData(Actor);
-
-					ActorReplicator->RepLayout->DiffProperties(&(ReceivingRepState->RepNotifies), ShadowData, ActorData, EDiffPropertiesFlags::Sync);
-				}
+				DiffActorProperties(ActorChannel);
 			}
 		}
 	}
@@ -3790,14 +3819,7 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 				{
 					ChannelsToUpdate.Add(ActorChannel);
 
-					if (const FObjectReplicator* const ActorReplicator = ActorChannel->ActorReplicator.Get())
-					{
-						FReceivingRepState* ReceivingRepState = ActorReplicator->RepState->GetReceivingRepState();
-						FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
-						FConstRepObjectDataBuffer ActorData(Actor);
-
-						ActorReplicator->RepLayout->DiffProperties(&(ReceivingRepState->RepNotifies), ShadowData, ActorData, EDiffPropertiesFlags::Sync);
-					}
+					DiffActorProperties(ActorChannel);
 				}
 			}
 		}
