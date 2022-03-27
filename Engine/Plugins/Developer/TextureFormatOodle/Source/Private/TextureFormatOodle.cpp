@@ -26,6 +26,7 @@
 #include "TextureBuildFunction.h"
 #include "HAL/FileManager.h"
 #include "Misc/WildcardString.h"
+#include "Misc/CommandLine.h"
 
 #include "oodle2tex.h"
 
@@ -518,7 +519,12 @@ public:
 		GConfig->GetString(IniSection, TEXT("DebugDumpFilter"), LocalDebugConfig.DebugDumpFilter, GEngineIni);
 		GConfig->GetInt(IniSection, TEXT("LogVerbosity"), LocalDebugConfig.LogVerbosity, GEngineIni);
 		GConfig->GetFloat(IniSection, TEXT("GlobalLambdaMultiplier"), GlobalLambdaMultiplier, GEngineIni);
-
+		
+		FString CmdLineString;
+		if (FParse::Value(FCommandLine::Get(), TEXT("-OodleDebugDumpFilter="), CmdLineString) )
+		{
+			LocalDebugConfig.DebugDumpFilter = CmdLineString;
+		}
 
 		// sanitize config values :
 		if ( GlobalLambdaMultiplier <= 0.f )
