@@ -230,8 +230,12 @@ const FClassNetCache* FClassNetCacheMgr::GetClassNetCache( UClass* Class )
 			Result->FieldChecksumMap.Add( It->FieldChecksum, &*It );
 		}
 
-		// Initialize class checksum (just use properties for this)
-		SortProperties( Properties );
+		const bool bIsNativeClass = Class->HasAnyClassFlags(CLASS_Native);
+		if (!bIsNativeClass)
+		{
+			// Initialize class checksum (just use properties for this)
+			SortProperties(Properties);
+		}
 
 		for ( auto Property : Properties )
 		{
