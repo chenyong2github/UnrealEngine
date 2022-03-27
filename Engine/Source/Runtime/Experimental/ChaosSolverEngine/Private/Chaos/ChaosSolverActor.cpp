@@ -10,6 +10,7 @@
 #include "ChaosSolversModule.h"
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 #include "Chaos/Framework/DebugSubstep.h"
+#include "Engine/Texture2D.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Session/Activity/SConcertSessionActivities.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FConcertSessionActivitiesOptions;

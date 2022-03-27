@@ -8,6 +8,7 @@
 #include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
 #include "Components/BillboardComponent.h"
+#include "Engine/Texture2D.h"
 #include "Engine/TriggerBox.h"
 #include "Engine/TriggerCapsule.h"
 #include "Engine/TriggerSphere.h"
