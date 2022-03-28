@@ -974,11 +974,11 @@ private:
 	{
 	public:
 		FAutomationTestOutputDevice() 
-			: CurTest( NULL ) {}
+			: CurTest( nullptr ) {}
 
 		~FAutomationTestOutputDevice()
 		{
-			CurTest = NULL;
+			CurTest = nullptr;
 		}
 
 		/**
@@ -1002,7 +1002,7 @@ private:
 
 	private:
 		/** Associated automation test; all warnings, errors, etc. are routed to the automation test to track */
-		class FAutomationTestBase* CurTest;
+		std::atomic<class FAutomationTestBase*>CurTest;
 
 		/** Tests that we've logged the failure cause when an error is involved */
 		TSet<FAutomationTestBase*> LoggedFailureCause;
@@ -1054,7 +1054,7 @@ private:
 		 }
 
 	 private:
-		 class FAutomationTestBase* CurTest;
+		 std::atomic<class FAutomationTestBase*> CurTest;
 		 std::atomic<FFeedbackContext*> DestinationContext;
 	 };
 

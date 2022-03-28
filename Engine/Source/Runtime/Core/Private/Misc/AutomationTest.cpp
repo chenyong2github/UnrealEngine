@@ -91,37 +91,38 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 	}
 
 	// Ensure there's a valid unit test associated with the context
-	if (CurTest)
+	class FAutomationTestBase* const LocalCurTest = CurTest.load(std::memory_order_relaxed);
+	if (LocalCurTest)
 	{
-		bool CaptureLog = !CurTest->SuppressLogs()
+		bool CaptureLog = !LocalCurTest->SuppressLogs()
 			&& (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Display);
 
 		if (CaptureLog)
 		{
 		
-			ELogVerbosity::Type EffectiveVerbosity = GetAutomationLogLevel(Verbosity, Category, CurTest);
+			ELogVerbosity::Type EffectiveVerbosity = GetAutomationLogLevel(Verbosity, Category, LocalCurTest);
 
 			FString FormattedMsg = FString::Printf(TEXT("%s: %s"), *Category.ToString(), V);
 			
 			// Errors
 			if (EffectiveVerbosity == ELogVerbosity::Error)
 			{
-				if (!LoggedFailureCause.Contains(CurTest))
+				if (!LoggedFailureCause.Contains(LocalCurTest))
 				{
-					CurTest->AddError(FString::Printf(TEXT("%s will be marked as failing due to errors being logged"), *CurTest->GetTestFullName()), STACK_OFFSET);
-					LoggedFailureCause.Add(CurTest);
+					LocalCurTest->AddError(FString::Printf(TEXT("%s will be marked as failing due to errors being logged"), *LocalCurTest->GetTestFullName()), STACK_OFFSET);
+					LoggedFailureCause.Add(LocalCurTest);
 				}
-				CurTest->AddError(FormattedMsg, STACK_OFFSET);
+				LocalCurTest->AddError(FormattedMsg, STACK_OFFSET);
 			}
 			// Warnings
 			else if (EffectiveVerbosity == ELogVerbosity::Warning)
 			{
-				CurTest->AddWarning(FormattedMsg, STACK_OFFSET);
+				LocalCurTest->AddWarning(FormattedMsg, STACK_OFFSET);
 			}
 			// Display
 			else
 			{
-				CurTest->AddInfo(FormattedMsg, STACK_OFFSET);
+				LocalCurTest->AddInfo(FormattedMsg, STACK_OFFSET);
 			}
 		}
 		// Log...etc
@@ -139,11 +140,11 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 				//Remove "analytics" from the string
 				LogString.RightInline(LogString.Len() - (AnalyticsString.Len() + 1), false);
 
-				CurTest->AddAnalyticsItem(LogString);
+				LocalCurTest->AddAnalyticsItem(LogString);
 			}
 			//else
 			//{
-			//	CurTest->AddInfo(LogString, STACK_OFFSET);
+			//	LocalCurTest->AddInfo(LogString, STACK_OFFSET);
 			//}
 		}
 	}
@@ -153,11 +154,12 @@ void FAutomationTestFramework::FAutomationTestMessageFilter::Serialize(const TCH
 {
 	// Prevent null dereference if logging happens in async tasks while changing DestinationContext
 	FFeedbackContext* const LocalDestinationContext = DestinationContext.load(std::memory_order_relaxed);
+	class FAutomationTestBase* const LocalCurTest = CurTest.load(std::memory_order_relaxed);
 	if (LocalDestinationContext)
 	{
 		if ((Verbosity == ELogVerbosity::Warning) || (Verbosity == ELogVerbosity::Error))
 		{
-			if (CurTest->IsExpectedError(FString(V)))
+			if (LocalCurTest->IsExpectedError(FString(V)))
 			{
 				Verbosity = ELogVerbosity::Verbose;
 			}
