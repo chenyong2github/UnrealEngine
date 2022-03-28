@@ -16,10 +16,11 @@ struct FConcertSessionActivity;
 struct FConcertClientInfo;
 struct FConcertPackageInfo;
 struct FConcertTransactionEventBase;
-class SUndoHistoryDetails;
-class SPackageDetails;
-class STextBlock;
 class SExpendableArea;
+class SHeaderRow;
+class SPackageDetails;
+class SUndoHistoryDetails;
+class STextBlock;
 
 /** Filters for the concert session activity view. */
 enum class EConcertActivityFilterFlags
@@ -122,7 +123,7 @@ public:
 		/** Show/hide a message overlay above the activities list explaining why no activities are displayed. */
 		SLATE_ATTRIBUTE(FText, NoActivitiesReasonText)
 	SLATE_END_ARGS();
-
+	
 	/**
 	 * Construct the recovery widget.
 	 * @param InArgs The widgets arguments and attributes.
@@ -169,7 +170,7 @@ public:
 private:
 
 	// Widget creation
-	TSharedRef<SHeaderRow> CreateHeaderRow();
+	TSharedRef<SHeaderRow> CreateHeaderRow(const FArguments& InArgs);
 	TSharedRef<ITableRow> OnGenerateActivityRowWidget(TSharedPtr<FConcertSessionActivity> Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void FetchActivities();
 
@@ -199,9 +200,6 @@ private:
 	void OnPostTick(float);
 
 private:
-
-	/** The columns that are being displayed */
-	TArray<FActivityColumn> Columns;
 	
 	/** List of all activities (including the filtered out ones). */
 	TArray<TSharedPtr<FConcertSessionActivity>> AllActivities;
@@ -268,10 +266,12 @@ private:
 
 	/** True once the activity provider function (FetchActivitiesFn) returns true. */
 	bool bAllActivitiesFetched = false;
-
+	
 	/** Utility class used to tokenize and match text displayed in the list view. */
 	TSharedPtr<TTextFilter<const FConcertSessionActivity&>> SearchTextFilter;
 
+	TSharedPtr<SHeaderRow> HeaderRow;
+	
 	/** The expandable area under which the activity details are displayed. */
 	TSharedPtr<SExpandableArea> ExpandableDetails;
 
