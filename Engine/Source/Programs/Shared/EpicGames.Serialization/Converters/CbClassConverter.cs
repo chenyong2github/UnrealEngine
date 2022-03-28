@@ -436,6 +436,10 @@ namespace EpicGames.Serialization.Converters
 					propertyList.Add((name, property));
 				}
 			}
+			if (propertyList.Count == 0 && type.GetCustomAttribute<CbObjectAttribute>() == null)
+			{
+				throw new CbEmptyClassException(type);
+			}
 			return propertyList.ToArray();
 		}
 
@@ -495,7 +499,14 @@ namespace EpicGames.Serialization.Converters
 			if (type.IsClass)
 			{
 				Type converterType = typeof(CbClassConverter<>).MakeGenericType(type);
-				converter = (ICbConverter?)Activator.CreateInstance(converterType);
+				try
+				{
+					converter = (ICbConverter?)Activator.CreateInstance(converterType);
+				}
+				catch (TargetInvocationException ex) when (ex.InnerException is object)
+				{
+					throw ex.InnerException;
+				}
 			}
 			return converter;
 		}

@@ -89,5 +89,45 @@ namespace EpicGames.Serialization.Tests
 
 			return obj;
 		}
+
+		class EmptyObject
+		{
+		}
+
+		[CbObject]
+		class EmptyObjectWithAttribute
+		{
+		}
+
+		[TestMethod]
+		public void EmptyObjectSerializationTest()
+		{
+			Assert.ThrowsException<CbEmptyClassException>(() => CbSerializer.Serialize(new EmptyObject()));
+			Assert.ThrowsException<CbEmptyClassException>(() => CbSerializer.Deserialize<EmptyObject>(CbField.Empty));
+
+			EmptyObjectWithAttribute obj2 = new EmptyObjectWithAttribute();
+			CbObject cbObj2 = CbSerializer.Serialize(obj2);
+			CbSerializer.Deserialize<EmptyObjectWithAttribute>(cbObj2);
+		}
+
+		class ObjectWithNullField
+		{
+			[CbField("a")]
+			public int Value { get; set; }
+
+			[CbField("b")]
+			public List<int>? Items { get; set; }
+		}
+
+		[TestMethod]
+		public void NullFieldTest()
+		{
+			ObjectWithNullField input = new ObjectWithNullField { Value = 123 };
+			CbObject obj = CbSerializer.Serialize(input);
+
+			ObjectWithNullField output = CbSerializer.Deserialize<ObjectWithNullField>(obj.AsField());
+			Assert.AreEqual(output.Value, 123);
+			Assert.AreEqual(output.Items, null);
+		}
 	}
 }

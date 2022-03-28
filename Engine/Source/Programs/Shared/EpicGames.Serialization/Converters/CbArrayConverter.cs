@@ -15,6 +15,11 @@ namespace EpicGames.Serialization.Converters
 		/// <inheritdoc/>
 		public override T[] Read(CbField field)
 		{
+			if (field.IsNull())
+			{
+				return null!;
+			}
+
 			List<T> list = new List<T>();
 			foreach (CbField elementField in field)
 			{
@@ -26,23 +31,37 @@ namespace EpicGames.Serialization.Converters
 		/// <inheritdoc/>
 		public override void Write(CbWriter writer, T[] list)
 		{
-			writer.BeginArray();
-			foreach (T element in list)
+			if (list == null)
 			{
-				CbSerializer.Serialize<T>(writer, element);
+				writer.WriteNullValue();
 			}
-			writer.EndArray();
+			else
+			{
+				writer.BeginArray();
+				foreach (T element in list)
+				{
+					CbSerializer.Serialize<T>(writer, element);
+				}
+				writer.EndArray();
+			}
 		}
 
 		/// <inheritdoc/>
 		public override void WriteNamed(CbWriter writer, Utf8String name, T[] array)
 		{
-			writer.BeginArray(name);
-			foreach (T element in array)
+			if (array == null)
 			{
-				CbSerializer.Serialize<T>(writer, element);
+				writer.WriteNull(name);
 			}
-			writer.EndArray();
+			else
+			{
+				writer.BeginArray(name);
+				foreach (T element in array)
+				{
+					CbSerializer.Serialize<T>(writer, element);
+				}
+				writer.EndArray();
+			}
 		}
 	}
 	

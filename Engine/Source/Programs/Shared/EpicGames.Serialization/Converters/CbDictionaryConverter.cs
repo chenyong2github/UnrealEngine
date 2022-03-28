@@ -14,6 +14,11 @@ namespace EpicGames.Serialization.Converters
 		/// <inheritdoc/>
 		public override Dictionary<TKey, TValue> Read(CbField field)
 		{
+			if (field.IsNull())
+			{
+				return null!;
+			}
+
 			Dictionary<TKey, TValue> dictionary = new Dictionary<TKey, TValue>();
 			foreach (CbField element in field)
 			{
@@ -39,7 +44,11 @@ namespace EpicGames.Serialization.Converters
 		/// <inheritdoc/>
 		public override void Write(CbWriter writer, Dictionary<TKey, TValue> value)
 		{
-			if (value.Count > 0)
+			if (value == null)
+			{
+				writer.WriteNullValue();
+			}
+			else
 			{
 				writer.BeginUniformArray(CbFieldType.Array);
 				foreach (KeyValuePair<TKey, TValue> pair in value)
@@ -56,7 +65,11 @@ namespace EpicGames.Serialization.Converters
 		/// <inheritdoc/>
 		public override void WriteNamed(CbWriter writer, Utf8String name, Dictionary<TKey, TValue> value)
 		{
-			if (value.Count > 0)
+			if (value == null)
+			{
+				writer.WriteNull(name);
+			}
+			else if (value.Count > 0)
 			{
 				writer.BeginUniformArray(name, CbFieldType.Array);
 				foreach (KeyValuePair<TKey, TValue> pair in value)

@@ -381,7 +381,14 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public static ICbConverter<T> GetConverter<T>()
 		{
-			return CbConverterCache<T>.Instance;
+			try
+			{
+				return CbConverterCache<T>.Instance;
+			}
+			catch (TypeInitializationException ex) when (ex.InnerException != null)
+			{
+				throw ex.InnerException;
+			}
 		}
 	}
 }

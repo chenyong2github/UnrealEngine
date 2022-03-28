@@ -6,6 +6,15 @@ using System;
 namespace EpicGames.Serialization
 {
 	/// <summary>
+	/// Marks a class as supporting serialization to compact-binary, even if it does not have exposed fields. This suppresses errors
+	/// when base class objects are empty.
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Class)]
+	public class CbObjectAttribute : Attribute
+	{
+	}
+
+	/// <summary>
 	/// Attribute used to mark a property that should be serialized to compact binary
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Property)]
@@ -70,6 +79,26 @@ namespace EpicGames.Serialization
 		/// <inheritdoc cref="Exception(String?, Exception)"/>
 		public CbException(string message, Exception inner) : base(message, inner)
 		{
+		}
+	}
+
+	/// <summary>
+	/// Exception indicating that a class does not have any fields to serialize
+	/// </summary>
+	public sealed class CbEmptyClassException : CbException
+	{
+		/// <summary>
+		/// Type with missing field annotations
+		/// </summary>
+		public Type Type { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public CbEmptyClassException(Type type)
+			: base($"{type.Name} does not have any fields marked with a [CbField] attribute. If this is intended, explicitly mark the class with a [CbObject] attribute.")
+		{
+			Type = type;
 		}
 	}
 

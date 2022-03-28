@@ -15,34 +15,55 @@ namespace EpicGames.Serialization.Converters
 		/// <inheritdoc/>
 		public override List<T> Read(CbField field)
 		{
-			List<T> list = new List<T>();
-			foreach (CbField elementField in field)
+			if (field.IsNull())
 			{
-				list.Add(CbSerializer.Deserialize<T>(elementField));
+				return null!;
 			}
-			return list;
+			else
+			{
+				List<T> list = new List<T>();
+				foreach (CbField elementField in field)
+				{
+					list.Add(CbSerializer.Deserialize<T>(elementField));
+				}
+				return list;
+			}
 		}
 
 		/// <inheritdoc/>
 		public override void Write(CbWriter writer, List<T> list)
 		{
-			writer.BeginArray();
-			foreach (T element in list)
+			if (list == null)
 			{
-				CbSerializer.Serialize<T>(writer, element);
+				writer.WriteNullValue();
 			}
-			writer.EndArray();
+			else
+			{
+				writer.BeginArray();
+				foreach (T element in list)
+				{
+					CbSerializer.Serialize<T>(writer, element);
+				}
+				writer.EndArray();
+			}
 		}
 
 		/// <inheritdoc/>
 		public override void WriteNamed(CbWriter writer, Utf8String name, List<T> list)
 		{
-			writer.BeginArray(name);
-			foreach (T element in list)
+			if (list == null)
 			{
-				CbSerializer.Serialize<T>(writer, element);
+				writer.WriteNull(name);
 			}
-			writer.EndArray();
+			else
+			{
+				writer.BeginArray(name);
+				foreach (T element in list)
+				{
+					CbSerializer.Serialize<T>(writer, element);
+				}
+				writer.EndArray();
+			}
 		}
 	}
 
