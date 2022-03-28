@@ -20,6 +20,6 @@ public class TextureCompressor : ModuleRules
 			}
 			);
 
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "nvTextureTools");
+		//AddEngineThirdPartyPrivateStaticDependencies(Target, "nvTextureTools");
 	}
 }

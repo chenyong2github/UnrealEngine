@@ -13,6 +13,6 @@ public class TextureFormat : ModuleRules
 			}
 			);
 
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "nvTextureTools");
+		//AddEngineThirdPartyPrivateStaticDependencies(Target, "nvTextureTools");
 	}
 }
