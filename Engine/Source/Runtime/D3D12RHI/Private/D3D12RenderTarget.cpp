@@ -462,6 +462,16 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 		check(SourceTexture == DestTexture);
 	}
 
+	// Force transtion to readable since RHI user expects both source and dest to be in readable state after calling RHICopyToResolveTarget
+	if (SourceTextureRHI && ResolveParams.SourceAccessFinal != ERHIAccess::Unknown)
+	{
+		RHICmdList.TransitionResource(ResolveParams.SourceAccessFinal, SourceTextureRHI);
+	}
+	if (DestTextureRHI && SourceTextureRHI != DestTextureRHI && ResolveParams.DestAccessFinal != ERHIAccess::Unknown)
+	{
+		RHICmdList.TransitionResource(ResolveParams.DestAccessFinal, DestTextureRHI);
+	}
+
 	ConditionalFlushCommandList();
 
 	DEBUG_EXECUTE_COMMAND_LIST(this);
