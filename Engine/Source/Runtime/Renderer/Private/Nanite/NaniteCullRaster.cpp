@@ -847,7 +847,7 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 			return false;
 		}
 
-		if( PermutationVector.Get<FVirtualTextureTargetDim>() &&
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() &&
 			( !PermutationVector.Get<FMultiViewDim>() || PermutationVector.Get<FRasterTechniqueDim>() != (int32)Nanite::ERasterTechnique::DepthOnly ) )
 		{
 			return false;
@@ -1543,7 +1543,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 
 	const bool bMultiView = Views.Num() > 1 || VirtualShadowMapArray != nullptr;
 
-	FRDGBufferRef Dummy = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride8(), TEXT("Nanite.StructuredBufferStride8"));
+	FRDGBufferRef Dummy = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, 8);
 
 	if (VirtualShadowMapArray && (CullingPass != CULLING_PASS_OCCLUSION_POST))
 	{
@@ -1988,8 +1988,8 @@ void AddPass_Rasterize(
 
 	const EShaderPlatform ShaderPlatform = Scene.GetShaderPlatform();
 
-	FRDGBufferRef DummyBuffer8 = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride8(), TEXT("Nanite.StructuredBufferStride8"));
-	FRDGBufferRef DummyBuffer16 = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride16(), TEXT("Nanite.StructuredBufferStride16"));
+	FRDGBufferRef DummyBuffer8 = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, 8);
+	FRDGBufferRef DummyBuffer16 = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, 16);
 
 	if (bMainPass)
 	{
@@ -2440,6 +2440,13 @@ void AddPass_Rasterize(
 			{
 				PatchRasterizePassParameters(Parameters, RasterizerPass, CullMode);
 
+				FRHIBuffer* IndirectArgsBuffer = Parameters.IndirectArgs->GetIndirectRHICallBuffer();
+				FRHIComputeShader* ShaderRHI = RasterizerPass.RasterComputeShader.GetComputeShader();
+
+				FComputeShaderUtils::ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), RasterizerPass.IndirectOffset);
+				SetComputePipelineState(RHICmdList, ShaderRHI);
+				SetShaderParameters(RHICmdList, RasterizerPass.RasterComputeShader, ShaderRHI, Parameters);
+				
 				RasterizerPass.RasterComputeShader->SetParameters(
 					RHICmdList,
 					RasterizerPass.RasterComputeShader.GetComputeShader(),
@@ -2447,14 +2454,9 @@ void AddPass_Rasterize(
 					RasterizerPass.ComputeMaterialProxy,
 					*RasterizerPass.ComputeMaterial
 				);
-
-				FComputeShaderUtils::DispatchIndirect(
-					RHICmdList,
-					RasterizerPass.RasterComputeShader,
-					Parameters,
-					Parameters.IndirectArgs->GetIndirectRHICallBuffer(),
-					RasterizerPass.IndirectOffset
-				);
+				
+				RHICmdList.DispatchIndirectComputeShader(IndirectArgsBuffer, RasterizerPass.IndirectOffset);
+				UnsetShaderUAVs(RHICmdList, RasterizerPass.RasterComputeShader, ShaderRHI);
 			}
 		});
 	}
