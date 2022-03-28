@@ -3,6 +3,7 @@
 #include "LiveConcertSessionTab.h"
 
 #include "IConcertSession.h"
+#include "LiveServerSessionHistoryController.h"
 #include "PackageViewer/ConcertSessionPackageViewerController.h"
 #include "SConcertSessionInspector.h"
 #include "Widgets/StatusBar/SConcertStatusBar.h"
@@ -13,7 +14,7 @@ FLiveConcertSessionTab::FLiveConcertSessionTab(TSharedRef<IConcertServerSession>
 	: FConcertSessionTabBase(SyncServer)
 	, InspectedSession(MoveTemp(InspectedSession))
 	, ConstructUnderWindow(MoveTemp(ConstructUnderWindow))
-	, SessionHistoryController(MakeShared<FServerSessionHistoryController>(InspectedSession, SyncServer))
+	, SessionHistoryController(MakeShared<FLiveServerSessionHistoryController>(InspectedSession, SyncServer))
 	, PackageViewerController(MakeShared<FConcertSessionPackageViewerController>(InspectedSession, SyncServer))
 {}
 

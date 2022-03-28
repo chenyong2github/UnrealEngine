@@ -1,8 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IConcertSyncServer.h"
 #include "Session/History/AbstractSessionHistoryController.h"
 
 struct FConcertSyncActivity;
@@ -10,12 +11,15 @@ class FConcertSyncSessionDatabase;
 class IConcertSyncServer;
 class IConcertServerSession;
 
-class FServerSessionHistoryController : public FAbstractSessionHistoryController
+/**
+ * Abstract base class providing most functionality.
+ * Subclasses control which session database is used: archived or live.
+ */
+class FServerSessionHistoryControllerBase : public FAbstractSessionHistoryController
 {
 public:
 
-	FServerSessionHistoryController(TSharedRef<IConcertServerSession> InspectedSession, TSharedRef<IConcertSyncServer> SyncServer);
-	virtual ~FServerSessionHistoryController() override;
+	FServerSessionHistoryControllerBase(FGuid SessionId);
 	
 protected:
 
@@ -25,12 +29,15 @@ protected:
 	virtual TFuture<TOptional<FConcertSyncTransactionEvent>> GetTransactionEvent(const FConcertSessionActivity& Activity) const override;
 	//~ End FAbstractSessionHistoryController Interface
 
+	/** Subclasses control which types of transaction are displayed: archived or live */
+	virtual TOptional<FConcertSyncSessionDatabaseNonNullPtr> GetSessionDatabase(const FGuid& InSessionId) const = 0;
+
+	const FGuid& GetSessionId() const { return SessionId; }
+	
 private:
 
-	TSharedRef<IConcertServerSession> InspectedSession;
-	TSharedRef<IConcertSyncServer> SyncServer;
+	/** The ID of the managed session */
+	FGuid SessionId;
 
 	TFuture<TOptional<FConcertSyncTransactionEvent>> FindOrRequestTransactionEvent(const FConcertSyncSessionDatabase& Database, const int64 TransactionEventId) const;
-	
-	void OnSessionProduced(const FConcertSyncActivity& ProducedActivity);
 };

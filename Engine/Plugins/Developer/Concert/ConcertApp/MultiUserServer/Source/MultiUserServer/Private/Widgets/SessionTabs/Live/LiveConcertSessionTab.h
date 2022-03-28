@@ -3,12 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/SessionTabs/Live/ServerSessionHistoryController.h"
 #include "Widgets/SessionTabs/ConcertSessionTabBase.h"
 
 class FConcertSessionPackageViewerController;
+class FLiveServerSessionHistoryController;
 class IConcertSyncServer;
-class FServerSessionHistoryController;
 class IConcertServerSession;
 class SDockTab;
 class SWindow;
@@ -40,7 +39,7 @@ private:
 	TAttribute<TSharedRef<SWindow>> ConstructUnderWindow;
 
 	/** Manages the session history widget */
-	const TSharedRef<FServerSessionHistoryController> SessionHistoryController;
+	const TSharedRef<FLiveServerSessionHistoryController> SessionHistoryController;
 	/** Manages the package viewer widget */
 	const TSharedRef<FConcertSessionPackageViewerController> PackageViewerController;
 };
