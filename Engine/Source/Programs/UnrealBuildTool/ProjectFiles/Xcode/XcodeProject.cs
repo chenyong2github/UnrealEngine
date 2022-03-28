@@ -1364,7 +1364,7 @@ namespace UnrealBuildTool
 
 						if (bCreateMacInfoPlist)
 						{
-							Directory.CreateDirectory(Path.GetDirectoryName(MacInfoPlistPath));
+							Directory.CreateDirectory(Path.GetDirectoryName(MacInfoPlistPath)!);
 							UEDeployMac.GeneratePList(ProjectPath.FullName, bIsUnrealGame, GameName, Config.BuildTarget, EngineDir.FullName, MacExecutableFileName);
 						}
 						if (bCreateIOSInfoPlist)
@@ -1379,7 +1379,7 @@ namespace UnrealBuildTool
 							{
 								ReceiptFilename = TargetReceipt.GetDefaultPath(ProjectPath, GameName, UnrealTargetPlatform.IOS, Config.BuildConfig, "");
 							}
-							Directory.CreateDirectory(Path.GetDirectoryName(IOSInfoPlistPath));
+							Directory.CreateDirectory(Path.GetDirectoryName(IOSInfoPlistPath)!);
                             bool bSupportPortrait, bSupportLandscape;
 							TargetReceipt? Receipt;
 							TargetReceipt.TryRead(ReceiptFilename, out Receipt);
@@ -1388,7 +1388,7 @@ namespace UnrealBuildTool
 						}
 						if (bCreateTVOSInfoPlist)
 						{
-							Directory.CreateDirectory(Path.GetDirectoryName(TVOSInfoPlistPath));
+							Directory.CreateDirectory(Path.GetDirectoryName(TVOSInfoPlistPath)!);
 							UEDeployTVOS.GenerateTVOSPList(ProjectPath.FullName, bIsUnrealGame, GameName, bIsClient, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/TVOS/Payload", null, BundleIdentifier);
 						}
 					}

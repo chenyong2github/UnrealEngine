@@ -300,13 +300,9 @@ namespace AutomationTool
 
 		static async Task<BgFileSet> CompileRulesAssemblies(BgContext State)
 		{
-			FileReference UbtPath = FileReference.Combine(RootDir, "Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool");
-			if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64)
-			{
-				UbtPath = UbtPath.ChangeExtension(".exe");
-			}
+			FileReference UnrealBuildToolDll = FileReference.Combine(RootDir, "Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll");
 
-			await SpawnAsync(UbtPath.FullName, Arguments: "-Mode=QueryTargets");
+			await SpawnAsync(Unreal.DotnetPath.FullName, Arguments: $"\"{UnrealBuildToolDll}\" -Mode=QueryTargets");
 
 			return Workspace.Filter("Engine/Intermediate/Build/BuildRules/...");
 		}

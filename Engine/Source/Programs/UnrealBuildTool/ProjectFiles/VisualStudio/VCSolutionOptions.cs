@@ -15,6 +15,7 @@ using STATSTG = System.Runtime.InteropServices.ComTypes.STATSTG;
 using FILETIME = System.Runtime.InteropServices.ComTypes.FILETIME;
 using UnrealBuildBase;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.Versioning;
 
 namespace UnrealBuildTool
 {
@@ -130,6 +131,7 @@ namespace UnrealBuildTool
 		}
 	}
 
+	[SupportedOSPlatform("windows")]
 	class VCOleContainer
 	{
 		[Flags]
@@ -533,6 +535,7 @@ namespace UnrealBuildTool
 		}
 	}
 
+	[SupportedOSPlatform("windows")]
 	class VCSolutionOptions : VCOleContainer
 	{
 		VCProjectFileFormat Format;

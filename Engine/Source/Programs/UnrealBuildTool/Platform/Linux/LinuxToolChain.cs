@@ -366,15 +366,18 @@ namespace UnrealBuildTool
 						// read just the first string
 						string? VersionString = Proc.StandardOutput.ReadLine();
 
-						Regex VersionPattern = new Regex("version \\d+(\\.\\d+)+");
-						Match VersionMatch = VersionPattern.Match(VersionString);
-
-						// version match will be like "version 3.3", so remove the "version"
-						if (VersionMatch.Value.StartsWith("version "))
+						if (VersionString != null)
 						{
-							CompilerVersionString = VersionMatch.Value.Replace("version ", "");
+							Regex VersionPattern = new Regex("version \\d+(\\.\\d+)+");
+							Match VersionMatch = VersionPattern.Match(VersionString);
 
-							DetermineCompilerMajMinPatchFromVersionString();
+							// version match will be like "version 3.3", so remove the "version"
+							if (VersionMatch.Value.StartsWith("version "))
+							{
+								CompilerVersionString = VersionMatch.Value.Replace("version ", "");
+
+								DetermineCompilerMajMinPatchFromVersionString();
+							}
 						}
 					}
 				}
@@ -803,8 +806,8 @@ namespace UnrealBuildTool
 		internal static string EscapeArgument(string definition)
 		{
 			string[] splitData = definition.Split('=');
-			string myKey = splitData.ElementAtOrDefault(0);
-			string myValue = splitData.ElementAtOrDefault(1);
+			string? myKey = splitData.ElementAtOrDefault(0);
+			string? myValue = splitData.ElementAtOrDefault(1);
 
 			if (string.IsNullOrEmpty(myKey)) { return ""; }
 			if (!string.IsNullOrEmpty(myValue))
@@ -1861,7 +1864,7 @@ namespace UnrealBuildTool
 			string LinkScriptName = string.Format((bUseCmdExe ? "Link-{0}.link.bat" : "Link-{0}.link.sh"), OutputFile.Location.GetFileName());
 			string LinkScriptFullPath = Path.Combine(LinkEnvironment.LocalShadowDirectory!.FullName, LinkScriptName);
 			Log.TraceVerbose("Creating link script: {0}", LinkScriptFullPath);
-			Directory.CreateDirectory(Path.GetDirectoryName(LinkScriptFullPath));
+			Directory.CreateDirectory(Path.GetDirectoryName(LinkScriptFullPath)!);
 			using (StreamWriter LinkWriter = File.CreateText(LinkScriptFullPath))
 			{
 				if (bUseCmdExe)
@@ -1931,7 +1934,7 @@ namespace UnrealBuildTool
 					{
 						bHasWipedFixDepsScript = true;
 						Log.TraceVerbose("Creating script: {0}", FixDepsScriptPath);
-						Directory.CreateDirectory(Path.GetDirectoryName(FixDepsScriptPath));
+						Directory.CreateDirectory(Path.GetDirectoryName(FixDepsScriptPath)!);
 						using (StreamWriter Writer = File.CreateText(FixDepsScriptPath))
 						{
 						if (bUseCmdExe)
@@ -2022,7 +2025,7 @@ namespace UnrealBuildTool
 					string RelinkScriptFullPath = Path.Combine(LinkEnvironment.LocalShadowDirectory.FullName, RelinkScriptName);
 
 					Log.TraceVerbose("Creating script: {0}", RelinkScriptFullPath);
-					Directory.CreateDirectory(Path.GetDirectoryName(RelinkScriptFullPath));
+					Directory.CreateDirectory(Path.GetDirectoryName(RelinkScriptFullPath)!);
 					using (StreamWriter RelinkWriter = File.CreateText(RelinkScriptFullPath))
 					{
 					string RelinkInvocation = LinkCommandString;

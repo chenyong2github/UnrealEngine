@@ -41,18 +41,6 @@ namespace AutomationTool
 		abstract public string GetFrameworkMsbuildExe();
 
 		/// <summary>
-		/// Gets the path to dotnet
-		/// </summary>
-		/// <returns></returns>
-		abstract public FileReference GetDotnetExe();
-
-		/// <summary>
-		/// Gets the build executable filename for NET Core projects. Typically, the path to the bundled dotnet executable.
-		/// </summary>
-		/// <returns></returns>
-		abstract public string GetDotnetMsbuildExe();
-
-		/// <summary>
 		/// Folder under UE/ to the platform's binaries.
 		/// </summary>
 		abstract public string RelativeBinariesFolder { get; }

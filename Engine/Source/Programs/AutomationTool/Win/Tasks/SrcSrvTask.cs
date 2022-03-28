@@ -17,6 +17,7 @@ using EpicGames.Core;
 using UnrealBuildBase;
 using EpicGames.BuildGraph;
 using AutomationTool.Tasks;
+using System.Runtime.Versioning;
 
 namespace Win.Automation
 {
@@ -76,6 +77,7 @@ namespace Win.Automation
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
+		[SupportedOSPlatform("windows")]
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			FileReference[] BinaryFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.BinaryFiles, TagNameToFileSet).ToArray();
@@ -83,6 +85,7 @@ namespace Win.Automation
 			Execute(BinaryFiles, SourceFiles, Parameters.Branch, Parameters.Change);
 		}
 
+		[SupportedOSPlatform("windows")]
 		internal static void Execute(FileReference[] BinaryFiles, FileReference[] SourceFiles, string Branch, int Change)
 		{
 			FileReference[] PdbFiles = BinaryFiles.Where(x => x.HasExtension(".pdb")).ToArray();
@@ -206,6 +209,7 @@ namespace Win.Automation
 		/// Try to get the PDBSTR.EXE path from the Windows SDK
 		/// </summary>
 		/// <returns>Path to PDBSTR.EXE</returns>
+		[SupportedOSPlatform("windows")]
 		public static FileReference GetPdbStrExe()
 		{
 			List<KeyValuePair<string, DirectoryReference>> WindowsSdkDirs = WindowsExports.GetWindowsSdkDirs();
@@ -237,6 +241,7 @@ namespace Win.Automation
 		/// <param name="Branch">Branch to base all the depot source files from.</param>
 		/// <param name="Change">Changelist to sync files from.</param>
 		/// <returns></returns>
+		[SupportedOSPlatform("windows")]
 		public static void SrcSrv(this BgContext State, HashSet<FileReference> BinaryFiles, HashSet<FileReference> SourceFiles, string Branch, int Change)
 		{
 			SrcSrvTask.Execute(BinaryFiles.ToArray(), SourceFiles.ToArray(), Branch, Change);

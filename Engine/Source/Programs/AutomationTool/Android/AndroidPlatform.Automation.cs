@@ -78,20 +78,21 @@ public class AndroidPlatform : Platform
 
 	private static string GetAndroidStudioExe()
 	{
-		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Linux)
+		if (OperatingSystem.IsLinux())
 		{
 			string UserHome = Environment.GetEnvironmentVariable("HOME");
 			string AndroidStudioExe = Path.Combine(UserHome, "android-studio", "bin", "studio.sh");
 
 			return AndroidStudioExe;
 		}
-		else if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Mac)
+		else if (OperatingSystem.IsMacOS())
 		{
 			// TODO
 			return "";
 		}
 
-		// Win64
+		Debug.Assert(OperatingSystem.IsWindows());
+
 		string DefaultAndroidStudioInstallDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Android", "Android Studio");
 		string RegValue = Microsoft.Win32.Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Android Studio", "Path", null) as string;
 		string AndroidStudioInstallDir = RegValue == null ? DefaultAndroidStudioInstallDir : RegValue;
@@ -105,20 +106,21 @@ public class AndroidPlatform : Platform
 			return AndroidHome;
 		}
 
-		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Linux)
+		if (OperatingSystem.IsLinux())
 		{
 			string UserHome = Environment.GetEnvironmentVariable("HOME");
 			string AndroidSdkPath = Path.Combine(UserHome, "Android", "Sdk");
 
 			return AndroidSdkPath;
 		}
-		else if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Mac)
+		else if (OperatingSystem.IsMacOS())
 		{
 			// TODO
 			return "";
 		}
 
-		// Win64
+		Debug.Assert(OperatingSystem.IsWindows());
+
 		string DefaultSdkDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Android", "Sdk");
 		string RegValue = Microsoft.Win32.Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Android", "SdkPath", null) as string;
 		return RegValue == null ? DefaultSdkDir : RegValue;

@@ -385,7 +385,7 @@ namespace UnrealBuildTool
 			string ProjectConfigurationName = "Invalid";
 
 			// Get the default platform. If there were not valid platforms for this project, just use one that will always be available in VS.
-			string ProjectPlatformName = InvalidConfigPlatformNames.First();
+			string ProjectPlatformName = InvalidConfigPlatformNames!.First();
 
 			// Whether the configuration should be built automatically as part of the solution
 			bool bBuildByDefault = false;
@@ -895,13 +895,20 @@ namespace UnrealBuildTool
 				}
 
 				// Add all the default system include paths
-				if (InPlatforms.Contains(UnrealTargetPlatform.Win64))
+				if (OperatingSystem.IsWindows())
 				{
-					SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, GetCompilerForIntellisense(), null) + ";");
+					if (InPlatforms.Contains(UnrealTargetPlatform.Win64))
+					{
+						SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, GetCompilerForIntellisense(), null) + ";");
+					}
+					else if (InPlatforms.Contains(UnrealTargetPlatform.HoloLens))
+					{
+						SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.HoloLens, GetCompilerForIntellisense(), null) + ";");
+					}
 				}
-				else if (InPlatforms.Contains(UnrealTargetPlatform.HoloLens))
+				else
 				{
-					SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.HoloLens, GetCompilerForIntellisense(), null) + ";");
+					Log.TraceInformation("Unable to compute VC include paths on non-Windows host");
 				}
 			}
 
@@ -1853,9 +1860,9 @@ namespace UnrealBuildTool
 				Document.Load(InitFilePath.FullName);
 
 				// Check the root element is the right type
-				if (Document.DocumentElement.Name != "Project")
+				if (Document.DocumentElement?.Name != "Project")
 				{
-					throw new BuildException("Unexpected root element '{0}' in project file", Document.DocumentElement.Name);
+					throw new BuildException("Unexpected root element '{0}' in project file", Document.DocumentElement?.Name);
 				}
 
 				// Parse all the configurations and platforms
@@ -1900,10 +1907,13 @@ namespace UnrealBuildTool
 							Log.TraceWarning("Unable to parse configuration from property group with condition '{0}': {1}. UBT Requires you to set the configuration without conditionals.", InitFilePath, Condition);
 							continue;
 						}
-						string[] ParsedConfigurations = ConfigNodeList[0].FirstChild.Value.Split(';');
-						foreach (string c in ParsedConfigurations)
+						string[]? ParsedConfigurations = ConfigNodeList[0]?.FirstChild?.Value?.Split(';');
+						if (ParsedConfigurations != null)
 						{
-							Configurations.Add(c);
+							foreach (string c in ParsedConfigurations)
+							{
+								Configurations.Add(c);
+							}
 						}
 
 						// platforms change meaning quite a bit in .net core but typically you do not specify this and its derived from the build instead

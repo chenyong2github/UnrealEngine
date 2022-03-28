@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32;
 using EpicGames.Core;
 using UnrealBuildBase;
+using System.Runtime.Versioning;
 
 namespace UnrealBuildTool
 {
@@ -21,6 +22,7 @@ namespace UnrealBuildTool
 		}
 	}
 
+	[SupportedOSPlatform("windows")]
 	class HoloLensToolChain : VCToolChain
 	{
 		public HoloLensToolChain(ReadOnlyTargetRules Target)

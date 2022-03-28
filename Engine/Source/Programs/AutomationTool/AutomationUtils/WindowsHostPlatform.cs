@@ -9,24 +9,16 @@ using System.Diagnostics;
 using UnrealBuildTool;
 using EpicGames.Core;
 using UnrealBuildBase;
+using System.Runtime.Versioning;
 
 namespace AutomationTool
 {
 	class WindowsHostPlatform : HostPlatform
 	{
+		[SupportedOSPlatform("windows")]
 		public override string GetFrameworkMsbuildExe()
 		{
 			return WindowsExports.GetMSBuildToolPath();
-		}
-
-		public override FileReference GetDotnetExe()
-		{
-			return FileReference.Combine(Unreal.EngineDirectory, @"Binaries\ThirdParty\DotNet\Windows\dotnet.exe");
-		}
-
-		public override string GetDotnetMsbuildExe()
-		{
-			return @"..\..\ThirdParty\DotNet\Windows\dotnet.exe";
 		}
 
 		public override string RelativeBinariesFolder

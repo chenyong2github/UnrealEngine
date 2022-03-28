@@ -39,6 +39,13 @@ namespace UnrealBuildTool
 
 		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue)
 		{
+			OutValue = 0;
+
+			if (StringValue == null)
+			{
+				return false;
+			}
+
 			// 8 bits per component, with high getting extra from high 32
 			Match Result = Regex.Match(StringValue, @"^(\d+).(\d+)(.(\d+))?(.(\d+))?$");
 			if (Result.Success)
@@ -54,7 +61,7 @@ namespace UnrealBuildTool
 				}
 				return true;
 			}
-			OutValue = 0;
+
 			return false;
 		}
 

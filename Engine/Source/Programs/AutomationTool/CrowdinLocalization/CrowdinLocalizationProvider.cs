@@ -16,6 +16,9 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Text.Json;
 using System.Net.Http.Headers;
+using System.Text.Json.Serialization;
+
+#pragma warning disable SYSLIB0014
 
 namespace EpicGames.CrowdinLocalization
 {
@@ -120,7 +123,7 @@ namespace EpicGames.CrowdinLocalization
 			
 			JsonOptions = new JsonSerializerOptions();
 			JsonOptions.PropertyNameCaseInsensitive = true;
-			JsonOptions.IgnoreNullValues = true;
+			JsonOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 		}
 
 		public async override Task InitializeProjectWithLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectImportInfo)

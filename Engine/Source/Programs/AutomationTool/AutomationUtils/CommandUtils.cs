@@ -22,6 +22,7 @@ using System.IO.Compression;
 using JetBrains.Annotations;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using System.Runtime.Versioning;
 
 namespace AutomationTool
 {
@@ -97,9 +98,6 @@ namespace AutomationTool
 		static internal void InitCommandEnvironment()
 		{
 			CmdEnvironment = new CommandEnvironment();
-
-			// Initializing a type in system.Security.Permissions to make sure it is present as Ionic.Zip requires this assembly
-			EnvironmentPermission _ = new EnvironmentPermission(PermissionState.None);
 		}
 
 		/// <summary>
@@ -2866,12 +2864,14 @@ namespace AutomationTool
 			"http://rfc3161timestamp.globalsign.com/advanced"
 		};
 
+		[SupportedOSPlatform("windows")]
 		public static void Sign(FileReference File, SignatureType SignatureType)
 		{
 			List<FileReference> Files = new List<FileReference> { File };
 			Sign(Files, SignatureType);
 		}
 
+		[SupportedOSPlatform("windows")]
 		public static void Sign(List<FileReference> Files, SignatureType SignatureType)
 		{
 			string SignToolPath = GetSignToolPath();
@@ -2935,6 +2935,7 @@ namespace AutomationTool
 		/// Finds the path to SignTool.exe, or throws an exception.
 		/// </summary>
 		/// <returns>Path to signtool.exe</returns>
+		[SupportedOSPlatform("windows")]
 		static string GetSignToolPath()
 		{
 			List<KeyValuePair<string, DirectoryReference>> WindowsSdkDirs = WindowsExports.GetWindowsSdkDirs();
@@ -2976,7 +2977,7 @@ namespace AutomationTool
 		/// </summary>
 		public static void SignSingleExecutableIfEXEOrDLL(string Filename, bool bIgnoreExtension = false)
 		{
-            if (!RuntimePlatform.IsWindows)
+            if (!OperatingSystem.IsWindows())
             {
                 CommandUtils.LogLog(String.Format("Can't sign '{0}' on non-Windows platform.", Filename));
                 return;
@@ -3170,7 +3171,7 @@ namespace AutomationTool
 
 		public static void SignMultipleFilesIfEXEOrDLL(List<FileReference> Files, bool bIgnoreExtension = false)
 		{
-			if (!RuntimePlatform.IsWindows)
+			if (!OperatingSystem.IsWindows())
 			{
 				CommandUtils.LogLog(String.Format("Can't sign on non-Windows platform."));
 				return;

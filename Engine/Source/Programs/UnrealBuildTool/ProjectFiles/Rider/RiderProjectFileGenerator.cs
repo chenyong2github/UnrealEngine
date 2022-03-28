@@ -208,7 +208,7 @@ namespace UnrealBuildTool
 				{
 					RulesAssembly RulesAssembly;
 
-					FileReference CheckProjectFile =
+					FileReference? CheckProjectFile =
 						AllGames.FirstOrDefault(x => TargetFilePath.IsUnderDirectory(x.Directory));
 					if (CheckProjectFile == null)
 					{

@@ -574,7 +574,8 @@ namespace AutomationToolDriver
 		{
 			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference _)> BuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>();
 			
-			Dictionary<string, Project> Projects = new Dictionary<string, Project>();
+			var Projects = new Dictionary<string, Project>();
+			var	SkippedProjects = new HashSet<string>();
 			
 			// Microsoft.Build.Evaluation.Project provides access to information stored in the .csproj xml that is 
 			// not available when using Microsoft.Build.Execution.ProjectInstance (used later in this function and
@@ -586,7 +587,7 @@ namespace AutomationToolDriver
 				void LoadProjectAndReferences(string ProjectPath, string ReferencedBy)
 				{
 					ProjectPath = Path.GetFullPath(ProjectPath);
-					if (!Projects.ContainsKey(ProjectPath))
+					if (!Projects.ContainsKey(ProjectPath) && !SkippedProjects.Contains(ProjectPath))
 					{
 						Project Project;
 
@@ -617,6 +618,18 @@ namespace AutomationToolDriver
 							throw IPFEx;
 						}
 
+						if (!OperatingSystem.IsWindows())
+						{
+							// check the TargetFramework of the project: we can't build Windows-only projects on 
+							// non-Windows platforms.
+							if (Project.GetProperty("TargetFramework").EvaluatedValue.Contains("windows"))
+							{
+								SkippedProjects.Add(ProjectPath);
+								Log.TraceInformation($"Skipping windows-only project {ProjectPath}");
+								return;
+							}
+						}
+						
 						Projects.Add(ProjectPath, Project);
 						ReferencedBy = String.IsNullOrEmpty(ReferencedBy) ? ProjectPath : $"{ProjectPath}{Environment.NewLine}{ReferencedBy}";
 						foreach (string ReferencedProject in Project.GetItems("ProjectReference").
@@ -774,7 +787,10 @@ namespace AutomationToolDriver
 			// Potential optimization: Contructing the ProjectGraph here gives the full graph of dependencies - which is nice,
 			// but not strictly necessary, and slower than doing it some other way.
 			ProjectGraph InputProjectGraph;
-			InputProjectGraph = new ProjectGraph(FoundAutomationProjects.Select(P => P.FullName), GlobalProperties);
+			InputProjectGraph = new ProjectGraph(FoundAutomationProjects
+				// Build the graph without anything that can't be built on this platform
+				.Where(x => !SkippedProjects.Contains(x.FullName))
+				.Select(P => P.FullName), GlobalProperties);
 
 			// A ProjectGraph that will represent the set of projects that we actually want to build
 			ProjectGraph BuildProjectGraph = null;

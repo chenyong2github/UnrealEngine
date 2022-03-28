@@ -82,10 +82,15 @@ namespace AutomationTool
 		}
 		
 		private void PrepareUBT()
-		{			
-			if (CommandUtils.FileExists(UBTExecutable) == false)
+		{
+			if (!FileReference.Exists(UnrealBuildToolDll))
 			{
-				throw new UnrealBuildException("UBT does not exist in {0}.", UBTExecutable);
+				throw new UnrealBuildException($"UnrealBuildTool.dll does not exist at {UnrealBuildToolDll}");
+			}
+
+			if (!FileReference.Exists(Unreal.DotnetPath))
+			{
+				throw new UnrealBuildException($"dotnet executable does not exist at {Unreal.DotnetPath}");
 			}
 		}
 
@@ -120,7 +125,7 @@ namespace AutomationTool
 
 			string UHTArg = this.AlwaysBuildUHT ? "" : "-nobuilduht";
 
-			CommandUtils.RunUBT(CommandUtils.CmdEnv, UBTExecutable: UBTExecutable, Project: UprojectPath, Target: TargetName, Platform: Platform, Config: Config, AdditionalArgs: String.Format("-Manifest={0} {1} -NoHotReload -xgeexport {2}", CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFile.FullName), UHTArg, AddArgs));
+			CommandUtils.RunUBT(CommandUtils.CmdEnv, UnrealBuildToolDll: UnrealBuildToolDll, Project: UprojectPath, Target: TargetName, Platform: Platform, Config: Config, AdditionalArgs: String.Format("-Manifest={0} {1} -NoHotReload -xgeexport {2}", CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFile.FullName), UHTArg, AddArgs));
 
 			XGEItem Result = new XGEItem();
 			Result.Platform = Platform;
@@ -163,7 +168,7 @@ namespace AutomationTool
 			// run the deployment steps, if necessary
 			foreach(string DeployTargetFile in Item.Manifest.DeployTargetFiles)
 			{
-				CommandUtils.RunUBT(CommandUtils.CmdEnv, UBTExecutable, String.Format("-Mode=Deploy -Receipt=\"{0}\"", DeployTargetFile));
+				CommandUtils.RunUBT(CommandUtils.CmdEnv, UnrealBuildToolDll, String.Format("-Mode=Deploy -Receipt=\"{0}\"", DeployTargetFile));
 			}
 
 			foreach (string ManifestItem in Item.Manifest.BuildProducts)
@@ -196,7 +201,7 @@ namespace AutomationTool
 				Scope.Span.SetTag("target", TargetName);
 				Scope.Span.SetTag("platform", Platform.ToString());
 				Scope.Span.SetTag("config", Config.ToString());
-				CommandUtils.RunUBT(CommandUtils.CmdEnv, UBTExecutable: UBTExecutable, Project: UprojectPath, Target: TargetName, Platform: Platform, Config: Config, AdditionalArgs: "-Clean -NoHotReload" + AddArgs);
+				CommandUtils.RunUBT(CommandUtils.CmdEnv, UnrealBuildToolDll: UnrealBuildToolDll, Project: UprojectPath, Target: TargetName, Platform: Platform, Config: Config, AdditionalArgs: "-Clean -NoHotReload" + AddArgs);
 			}
         }
 
@@ -223,7 +228,7 @@ namespace AutomationTool
 			FileReference ManifestFile = GetManifestFile(UprojectPath);
 			CommandUtils.DeleteFile(ManifestFile);
 
-			CommandUtils.RunUBT(CommandUtils.CmdEnv, UBTExecutable: UBTExecutable, Project: UprojectPath, Target: TargetName, Platform: TargetPlatform, Config: Config, AdditionalArgs: String.Format("{0} -Manifest={1} -NoHotReload", AddArgs, CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFile.FullName)));
+			CommandUtils.RunUBT(CommandUtils.CmdEnv, UnrealBuildToolDll: UnrealBuildToolDll, Project: UprojectPath, Target: TargetName, Platform: TargetPlatform, Config: Config, AdditionalArgs: String.Format("{0} -Manifest={1} -NoHotReload", AddArgs, CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFile.FullName)));
 
 			BuildManifest Manifest = AddBuildProductsFromManifest(ManifestFile);
 			CommandUtils.DeleteFile(ManifestFile);
@@ -1111,6 +1116,8 @@ namespace AutomationTool
 			string Args = null;
 			if (XGETool != null) 
 			{
+				Debug.Assert(OperatingSystem.IsWindows());
+
 				Args = "\"" + TaskFilePath + "\" /Rebuild /NoLogo /ShowAgent /ShowTime";
 				if (ParseParam("StopOnErrors"))
 				{
@@ -1225,7 +1232,7 @@ namespace AutomationTool
 		/// </summary>
 		public void AddUBTFilesToBuildProducts()
 		{
-			string UBTLocation = Path.GetDirectoryName(GetUBTExecutable());
+			string UBTLocation = UnrealBuildToolDll.Directory.FullName;
 			// copy all the files from the UBT output directory
 			string[] UBTFiles = CommandUtils.FindFiles_NoExceptions("*.*", true, UBTLocation);
 
@@ -1265,11 +1272,13 @@ namespace AutomationTool
 			}
 		}
 
+		[Obsolete("Deprecated in UE5.1; use UnrealBuildToolDll")]
 		public static string GetUBTExecutable()
 		{
 			return CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool" + (RuntimePlatform.IsWindows ? ".exe" : ""));
 		}
 
+		[Obsolete("Deprecated in UE5.1; use UnrealBuildToolDll")]
 		public string UBTExecutable
 		{
 			get
@@ -1277,6 +1286,9 @@ namespace AutomationTool
 				return GetUBTExecutable();							
 			}
 		}
+
+		public static FileReference UnrealBuildToolDll => 
+			FileReference.FromString(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll"));
 
 		// List of everything we built so far
 		public readonly HashSet<string> BuildProductFiles = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);

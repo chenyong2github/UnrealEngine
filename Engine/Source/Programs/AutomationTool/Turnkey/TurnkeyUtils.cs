@@ -313,7 +313,7 @@ namespace Turnkey
 				// look for manual entry option
 				if (Choice == ProjectNames.Count - 1)
 				{
-					if (RuntimePlatform.IsWindows)
+					if (OperatingSystem.IsWindows())
 					{
 						string ChosenFile = null;
 						System.Threading.Thread t = new System.Threading.Thread(x =>

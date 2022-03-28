@@ -38,7 +38,7 @@ namespace UnrealBuildTool
 		public AndroidProjectGenerator(CommandLineArguments Arguments)
 			: base(Arguments)
 		{
-			if (HostSupportsVSAndroid())
+			if (OperatingSystem.IsWindows())
 			{
 				if (Arguments.HasOption("-vsdebugandroid"))
 				{
@@ -82,7 +82,7 @@ namespace UnrealBuildTool
 				VSDebuggingEnabled = true;
 				VSSandboxedSDK = true;
 			}
-			else
+			else if (OperatingSystem.IsWindows())
 			{
 				// If the sandboxed SDK is not present (pre Visual Studio 15.4) then the non-Sandboxed SDK tools should have the correct build tools for building
 				string? SDKToolsPath = Microsoft.Win32.Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Android SDK Tools", "Path", null) as string;

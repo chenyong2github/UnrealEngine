@@ -360,7 +360,7 @@ namespace UnrealBuildTool
 		/// <returns>An enumerable containing the dependencies of the module.</returns>
 		public IEnumerable<UEBuildModule> GetDirectDependencyModules()
 		{
-			return PublicDependencyModules.Concat(PrivateDependencyModules).Concat(DynamicallyLoadedModules);
+			return PublicDependencyModules!.Concat(PrivateDependencyModules!).Concat(DynamicallyLoadedModules!);
 		}
 
 		/// <summary>
@@ -432,14 +432,14 @@ namespace UnrealBuildTool
 
 				// Remove all the allow listed folders
 				ReferencedDirs.ExceptWith(RestrictedFoldersAllowList);
-				ReferencedDirs.ExceptWith(PublicDependencyModules.SelectMany(x => x.RestrictedFoldersAllowList));
-				ReferencedDirs.ExceptWith(PrivateDependencyModules.SelectMany(x => x.RestrictedFoldersAllowList));
+				ReferencedDirs.ExceptWith(PublicDependencyModules!.SelectMany(x => x.RestrictedFoldersAllowList));
+				ReferencedDirs.ExceptWith(PrivateDependencyModules!.SelectMany(x => x.RestrictedFoldersAllowList));
 
 				// Add flags for each of them
 				foreach(DirectoryReference ReferencedDir in ReferencedDirs)
 				{
 					// Find the base directory containing this reference
-					DirectoryReference BaseDir = RootDirectories.FirstOrDefault(x => ReferencedDir.IsUnderDirectory(x));
+					DirectoryReference? BaseDir = RootDirectories.FirstOrDefault(x => ReferencedDir.IsUnderDirectory(x));
 					// @todo platplug does this need to check platform extension engine directories? what are ReferencedDir's here?
 					if (BaseDir == null)
 					{
@@ -896,8 +896,8 @@ namespace UnrealBuildTool
 		public List<UEBuildModule> GetUnboundReferences()
 		{
 			List<UEBuildModule> Modules = new List<UEBuildModule>();
-			Modules.AddRange(PrivateDependencyModules.Where(x => x.Binary == null));
-			Modules.AddRange(PublicDependencyModules.Where(x => x.Binary == null));
+			Modules.AddRange(PrivateDependencyModules!.Where(x => x.Binary == null));
+			Modules.AddRange(PublicDependencyModules!.Where(x => x.Binary == null));
 			return Modules;
 		}
 

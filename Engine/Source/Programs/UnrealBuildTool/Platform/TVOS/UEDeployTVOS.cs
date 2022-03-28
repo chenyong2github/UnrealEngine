@@ -181,9 +181,9 @@ namespace UnrealBuildTool
 					throw new BuildException("plist is invalid {0}\n{1}", e, Text.ToString());
 				}
 
-				XDoc.DocumentType.InternalSubset = "";
+				XDoc.DocumentType!.InternalSubset = "";
 				UPL.ProcessPluginNode("None", "iosPListUpdates", "", ref XDoc);
-                string result = XDoc.Declaration.ToString() + "\n" + XDoc.ToString().Replace("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"[]>", "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
+                string result = XDoc.Declaration?.ToString() + "\n" + XDoc.ToString().Replace("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"[]>", "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
                 File.WriteAllText(PListFile, result);
 			}
 			else

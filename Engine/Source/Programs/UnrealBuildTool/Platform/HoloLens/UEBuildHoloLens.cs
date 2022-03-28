@@ -9,6 +9,7 @@ using System.Linq;
 using Microsoft.Win32;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
+using System.Runtime.Versioning;
 
 namespace UnrealBuildTool
 {
@@ -149,6 +150,7 @@ namespace UnrealBuildTool
 		#endregion
 	}
 
+	[SupportedOSPlatform("windows")]
 	class HoloLensPlatform : WindowsPlatform
 	{
 		public static readonly Version MinimumSDKVersionRecommended = new Version(10, 0, 17763, 0);
@@ -746,12 +748,15 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override void RegisterBuildPlatforms()
 		{
-			// for GetValidSoftwareVersionRange reasons we probably want a HoloLensePlatformSDK class
-			MicrosoftPlatformSDK SDK = new MicrosoftPlatformSDK();
+			if (OperatingSystem.IsWindows())
+			{
+				// for GetValidSoftwareVersionRange reasons we probably want a HoloLensePlatformSDK class
+				MicrosoftPlatformSDK SDK = new MicrosoftPlatformSDK();
 
-			UEBuildPlatform.RegisterBuildPlatform(new HoloLensPlatform(SDK));
-			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.Microsoft);
-			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.HoloLens);
+				UEBuildPlatform.RegisterBuildPlatform(new HoloLensPlatform(SDK));
+				UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.Microsoft);
+				UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.HoloLens);
+			}
 		}
 	}
 }

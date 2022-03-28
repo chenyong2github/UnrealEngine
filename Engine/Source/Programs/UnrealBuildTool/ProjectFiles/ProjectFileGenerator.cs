@@ -619,7 +619,7 @@ namespace UnrealBuildTool
 				Writer.WriteLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
 
 				Writer.WriteLine("  <PropertyGroup>");
-				Writer.WriteLine("    <TargetFramework>netcoreapp3.1</TargetFramework>");
+				Writer.WriteLine("    <TargetFramework>net6.0</TargetFramework>");
 				Writer.WriteLine("    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>"); // Shorten intermediate filepath slightly
 				Writer.WriteLine("    <Configurations>Debug;Release;Development</Configurations>"); // VCSharpProject requires at least Debug & Development configurations
 				Writer.WriteLine("    <DefineConstants>$(DefineConstants);" + String.Join(';', RulesAssembly.PreprocessorDefines!) + "</DefineConstants>");
@@ -1041,7 +1041,7 @@ namespace UnrealBuildTool
 					foreach (KeyValuePair<FileReference, ProjectFile> CurProgramProject in ProgramProjects)
 					{
 						FileReference UnrealProjectFile = CurProgramProject.Value.ProjectTargets.First().UnrealProjectFilePath!;
-						Project Target = CurProgramProject.Value.ProjectTargets.FirstOrDefault(t => !String.IsNullOrEmpty(t.TargetRules!.SolutionDirectory));
+						Project? Target = CurProgramProject.Value.ProjectTargets.FirstOrDefault(t => !String.IsNullOrEmpty(t.TargetRules!.SolutionDirectory));
 						if (!bIncludeEnginePrograms && UnrealProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
 						{
 							continue;
@@ -1830,48 +1830,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Check the registry for MVC3 project support
-		/// </summary>
-		/// <param name="RootKey"></param>
-		/// <param name="VisualStudioVersion"></param>
-		/// <returns></returns>
-		private bool CheckRegistryKey(RegistryKey RootKey, string VisualStudioVersion)
-		{
-			bool bInstalled = false;
-			RegistryKey? VSSubKey = RootKey.OpenSubKey("SOFTWARE\\Microsoft\\VisualStudio\\" + VisualStudioVersion + "\\Projects\\{E53F8FEA-EAE0-44A6-8774-FFD645390401}");
-			if (VSSubKey != null)
-			{
-				bInstalled = true;
-				VSSubKey.Close();
-			}
-
-			return bInstalled;
-		}
-
-		/// <summary>
-		/// Check to see if a Visual Studio Extension is installed
-		/// </summary>
-		/// <param name="VisualStudioFolder"></param>
-		/// <param name="VisualStudioVersion"></param>
-		/// <param name="Extension"></param>
-		/// <returns></returns>
-		private bool CheckVisualStudioExtensionPackage(string VisualStudioFolder, string VisualStudioVersion, string Extension)
-		{
-			DirectoryInfo DirInfo = new DirectoryInfo(Path.Combine(VisualStudioFolder, VisualStudioVersion, "Extensions"));
-			if (DirInfo.Exists)
-			{
-				List<FileInfo> PackageDefs = DirInfo.GetFiles("*.pkgdef", SearchOption.AllDirectories).ToList();
-				List<string> PackageDefNames = PackageDefs.Select(x => x.Name).ToList();
-				if (PackageDefNames.Contains(Extension))
-				{
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		/// <summary>
 		/// Adds all of the config files for program targets to their project files
 		/// </summary>
 		private void AddEngineProgramConfigFiles(Dictionary<FileReference, ProjectFile> ProgramProjects)
@@ -2378,7 +2336,7 @@ namespace UnrealBuildTool
 				{
 					RulesAssembly RulesAssembly;
 
-					FileReference CheckProjectFile = AllGames.FirstOrDefault(x => TargetFilePath.IsUnderDirectory(x.Directory));
+					FileReference? CheckProjectFile = AllGames.FirstOrDefault(x => TargetFilePath.IsUnderDirectory(x.Directory));
 					if (CheckProjectFile == null)
 					{
 						RulesAssembly = RulesCompiler.CreateEngineRulesAssembly(false, false, false);
@@ -2889,7 +2847,7 @@ namespace UnrealBuildTool
 				// Save the file
 				try
 				{
-					Directory.CreateDirectory(Path.GetDirectoryName(FileName));
+					Directory.CreateDirectory(Path.GetDirectoryName(FileName)!);
 					// When WriteAllText is passed Encoding.UTF8 it likes to write a BOM marker
 					// at the start of the file (adding two bytes to the file length).  For most
 					// files this is only mildly annoying but for Makefiles it can actually make
@@ -2997,8 +2955,7 @@ namespace UnrealBuildTool
 					// Parse the project and ensure both Development and Debug configurations are present
 					foreach (string Config in XElement.Load(InProject.ProjectFilePath.FullName).Elements("{http://schemas.microsoft.com/developer/msbuild/2003}PropertyGroup")
 										   .Where(node => node.Attribute("Condition") != null)
-										   .Select(node => node.Attribute("Condition").ToString())
-										   .ToList())
+										   .Select(node => node.Attribute("Condition")!.ToString()))
 					{
 						configsFound = true;
 

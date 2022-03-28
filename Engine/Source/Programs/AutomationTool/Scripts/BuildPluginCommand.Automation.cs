@@ -24,14 +24,14 @@ public sealed class BuildPlugin : BuildCommand
 {
 	const string AndroidArchitectures = "armv7+arm64";
 	const string HoloLensArchitecture = "arm64+x64";
-	string UBTExeRelativePath = @"Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool" + (RuntimePlatform.IsWindows ? ".exe" : "");
-	string UBTExe;
+	string UnrealBuildToolDllRelativePath = @"Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll";
+	FileReference UnrealBuildToolDll;
 
 	public override void ExecuteBuild()
 	{
 		// See if an engine dir was specified, fall back on default if not.
 		DirectoryReference EngineDirParam = ParseOptionalDirectoryReferenceParam("EngineDir");
-		UBTExe = EngineDirParam == null ? UnrealBuild.GetUBTExecutable() : CommandUtils.CombinePaths(EngineDirParam.ToString(), UBTExeRelativePath);
+		UnrealBuildToolDll = EngineDirParam == null ? UnrealBuild.UnrealBuildToolDll : FileReference.FromString(CommandUtils.CombinePaths(EngineDirParam.ToString(), UnrealBuildToolDllRelativePath));
 
 		// Get the plugin filename
 		string PluginParam = ParseParamValue("Plugin");
@@ -114,7 +114,7 @@ public sealed class BuildPlugin : BuildCommand
 		// Compile the plugin for all the target platforms
 		List<UnrealTargetPlatform> HostPlatforms = GetHostPlatforms(this);
 		List<UnrealTargetPlatform> TargetPlatforms = GetTargetPlatforms(this, BuildHostPlatform.Current.Platform);
-		FileReference[] BuildProducts = CompilePlugin(UBTExe, HostProjectFile, HostProjectPluginFile, Plugin, HostPlatforms, TargetPlatforms, AdditionalArgs.ToString());
+		FileReference[] BuildProducts = CompilePlugin(UnrealBuildToolDll, HostProjectFile, HostProjectPluginFile, Plugin, HostPlatforms, TargetPlatforms, AdditionalArgs.ToString());
 
 		// Package up the final plugin data
 		PackagePlugin(HostProjectPluginFile, BuildProducts, PackageDir, ParseParam("unversioned"), TargetPlatforms);
@@ -143,6 +143,7 @@ public sealed class BuildPlugin : BuildCommand
 		return FileReference.Combine(HostProjectPluginDir, PluginFile.GetFileName());
 	}
 
+	[Obsolete("Deprecated in UE5.1; function signature changed")]
 	public static FileReference[] CompilePlugin(string UBTExe, FileReference HostProjectFile, FileReference HostProjectPluginFile, PluginDescriptor Plugin, List<UnrealTargetPlatform> HostPlatforms, List<UnrealTargetPlatform> TargetPlatforms, string AdditionalArgs = "")
 	{
 		List<FileReference> ManifestFileNames = new List<FileReference>();
@@ -184,6 +185,48 @@ public sealed class BuildPlugin : BuildCommand
 		return BuildProducts.ToArray();
 	}
 
+	public static FileReference[] CompilePlugin(FileReference UnrealBuildToolDll, FileReference HostProjectFile, FileReference HostProjectPluginFile, PluginDescriptor Plugin, List<UnrealTargetPlatform> HostPlatforms, List<UnrealTargetPlatform> TargetPlatforms, string AdditionalArgs = "")
+	{
+		List<FileReference> ManifestFileNames = new List<FileReference>();
+
+		// Build the host platforms
+		if(HostPlatforms.Count > 0)
+		{
+			CommandUtils.LogInformation("Building plugin for host platforms: {0}", String.Join(", ", HostPlatforms));
+			foreach (UnrealTargetPlatform HostPlatform in HostPlatforms)
+			{
+				if (Plugin.SupportedPrograms != null && Plugin.SupportedPrograms.Contains("UnrealHeaderTool"))
+				{
+					CompilePluginWithUBT(UnrealBuildToolDll, HostProjectFile, HostProjectPluginFile, Plugin, "UnrealHeaderTool", TargetType.Program, HostPlatform, UnrealTargetConfiguration.Development, ManifestFileNames, String.Format("{0} -plugin={1}", AdditionalArgs, CommandUtils.MakePathSafeToUseWithCommandLine(HostProjectPluginFile.FullName)));
+				}
+				CompilePluginWithUBT(UnrealBuildToolDll, HostProjectFile, HostProjectPluginFile, Plugin, "UnrealEditor", TargetType.Editor, HostPlatform, UnrealTargetConfiguration.Development, ManifestFileNames, AdditionalArgs);
+			}
+		}
+
+		// Add the supported game targets
+		if(TargetPlatforms.Count > 0)
+		{
+			List<UnrealTargetPlatform> SupportedTargetPlatforms = TargetPlatforms.FindAll(Plugin.SupportsTargetPlatform);
+			CommandUtils.LogInformation("Building plugin for target platforms: {0}", String.Join(", ", SupportedTargetPlatforms));
+			foreach (UnrealTargetPlatform TargetPlatform in SupportedTargetPlatforms)
+			{
+				string AdditionalTargetArgs = AdditionalArgs;
+				CompilePluginWithUBT(UnrealBuildToolDll, HostProjectFile, HostProjectPluginFile, Plugin, "UnrealGame", TargetType.Game, TargetPlatform, UnrealTargetConfiguration.Development, ManifestFileNames, AdditionalTargetArgs);
+				CompilePluginWithUBT(UnrealBuildToolDll, HostProjectFile, HostProjectPluginFile, Plugin, "UnrealGame", TargetType.Game, TargetPlatform, UnrealTargetConfiguration.Shipping, ManifestFileNames, AdditionalTargetArgs);
+			}
+		}
+
+		// Package the plugin to the output folder
+		HashSet<FileReference> BuildProducts = new HashSet<FileReference>();
+		foreach(FileReference ManifestFileName in ManifestFileNames)
+		{
+			BuildManifest Manifest = CommandUtils.ReadManifest(ManifestFileName);
+			BuildProducts.UnionWith(Manifest.BuildProducts.Select(x => new FileReference(x)));
+		}
+		return BuildProducts.ToArray();
+	}
+
+	[Obsolete("Deprecated in UE5.1; function signature has changed")]
 	static void CompilePluginWithUBT(string UBTExe, FileReference HostProjectFile, FileReference HostProjectPluginFile, PluginDescriptor Plugin, string TargetName, TargetType TargetType, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, List<FileReference> ManifestFileNames, string InAdditionalArgs)
 	{
 		// Find a list of modules that need to be built for this plugin
@@ -240,6 +283,66 @@ public sealed class BuildPlugin : BuildCommand
 				}
 
 				CommandUtils.RunUBT(CmdEnv, UBTExe, HostProjectFile, TargetName, Platform, Configuration, Arguments);
+			}
+		}
+	}
+
+	static void CompilePluginWithUBT(FileReference UnrealBuildToolDll, FileReference HostProjectFile, FileReference HostProjectPluginFile, PluginDescriptor Plugin, string TargetName, TargetType TargetType, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, List<FileReference> ManifestFileNames, string InAdditionalArgs)
+	{
+		// Find a list of modules that need to be built for this plugin
+		bool bCompilePlatform = false;
+		if (Plugin.Modules != null)
+		{
+			bool bBuildDeveloperTools = (TargetType == TargetType.Editor || TargetType == TargetType.Program || (Configuration != UnrealTargetConfiguration.Test && Configuration != UnrealTargetConfiguration.Shipping));
+			bool bBuildRequiresCookedData = (TargetType != TargetType.Editor && TargetType != TargetType.Program);
+
+			foreach (ModuleDescriptor Module in Plugin.Modules)
+			{
+				if (Module.IsCompiledInConfiguration(Platform, Configuration, TargetName, TargetType, bBuildDeveloperTools, bBuildRequiresCookedData))
+				{
+					bCompilePlatform = true;
+				}
+			}
+		}
+
+		// Add these modules to the build agenda
+		if(bCompilePlatform)
+		{
+			if (Platform == UnrealTargetPlatform.HoloLens)
+			{
+				// Make sure to save the manifests for each architecture with unique names so they don't get overwritten.
+				// This fixes packaging issues when building from binary engine releases, where the build produces a manifest for the plugin for ARM64, which
+				// then gets overwritten by the manifest for x64. Then during packaging, the plugin is referencing a manifest for the wrong architecture.
+				foreach (string Arch in HoloLensArchitecture.Split('+'))
+				{
+					FileReference ManifestFileName = FileReference.Combine(HostProjectFile.Directory, "Saved", String.Format("Manifest-{0}-{1}-{2}-{3}.xml", TargetName, Platform, Configuration, Arch));
+					ManifestFileNames.Add(ManifestFileName);
+					string Arguments = String.Format("-plugin={0} -iwyu -noubtmakefiles -manifest={1} -nohotreload", CommandUtils.MakePathSafeToUseWithCommandLine(HostProjectPluginFile.FullName), CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFileName.FullName));
+					Arguments += String.Format(" -Architecture={0}", Arch);
+					if (!String.IsNullOrEmpty(InAdditionalArgs))
+					{
+						Arguments += InAdditionalArgs;
+					}
+					CommandUtils.RunUBT(CmdEnv, UnrealBuildToolDll, HostProjectFile, TargetName, Platform, Configuration, Arguments);
+				}
+			}
+			else
+			{
+				FileReference ManifestFileName = FileReference.Combine(HostProjectFile.Directory, "Saved", String.Format("Manifest-{0}-{1}-{2}.xml", TargetName, Platform, Configuration));
+				ManifestFileNames.Add(ManifestFileName);
+				
+				string Arguments = String.Format("-plugin={0} -iwyu -noubtmakefiles -manifest={1} -nohotreload", CommandUtils.MakePathSafeToUseWithCommandLine(HostProjectPluginFile.FullName), CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFileName.FullName));
+				if (Platform == UnrealTargetPlatform.Android)
+				{
+					Arguments += String.Format(" -architectures={0}", AndroidArchitectures);
+				}
+
+				if (!String.IsNullOrEmpty(InAdditionalArgs))
+				{
+					Arguments += InAdditionalArgs;
+				}
+
+				CommandUtils.RunUBT(CmdEnv, UnrealBuildToolDll, HostProjectFile, TargetName, Platform, Configuration, Arguments);
 			}
 		}
 	}

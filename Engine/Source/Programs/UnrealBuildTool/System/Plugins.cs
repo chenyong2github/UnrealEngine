@@ -378,7 +378,7 @@ namespace UnrealBuildTool
 				{
 					foreach (ModuleDescriptor ChildModule in Child.Descriptor.Modules)
 					{
-						ModuleDescriptor ParentModule = Parent.Descriptor.Modules.FirstOrDefault(x => x.Name.Equals(ChildModule.Name) && x.Type == ChildModule.Type);
+						ModuleDescriptor? ParentModule = Parent.Descriptor.Modules.FirstOrDefault(x => x.Name.Equals(ChildModule.Name) && x.Type == ChildModule.Type);
 						if (ParentModule != null)
 						{
 							// merge allow/deny lists (if the parent had a list, and child didn't specify a list, just add the child platform to the parent list - for allow/deny lists!)
@@ -424,7 +424,7 @@ namespace UnrealBuildTool
 				{ 
 					foreach (PluginReferenceDescriptor ChildPluginReference in Child.Descriptor.Plugins)
 					{
-						PluginReferenceDescriptor ParentPluginReference = Parent.Descriptor.Plugins.FirstOrDefault(x => x.Name.Equals(ChildPluginReference.Name));
+						PluginReferenceDescriptor? ParentPluginReference = Parent.Descriptor.Plugins.FirstOrDefault(x => x.Name.Equals(ChildPluginReference.Name));
 						if (ParentPluginReference != null)
 						{
 							// we only need to explicitly list the platform in an allow list if the parent also had an allow list (otherwise, we could mistakenly remove all other platforms)

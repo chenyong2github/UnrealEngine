@@ -224,16 +224,7 @@ namespace AutomationTool
 			Log.TraceVerbose("CompilationEvironment.HasCapabilityToCompile={0}", HasCapabilityToCompile);
 			Log.TraceVerbose("CompilationEvironment.FrameworkMsbuildExe={0}", FrameworkMsbuildPath);
 
-			try
-			{
-				DotnetMsbuildPath = HostPlatform.Current.GetDotnetMsbuildExe();
-			}
-			catch (Exception Ex)
-			{
-				Log.WriteLine(LogEventType.Warning, Ex.Message);
-				Log.WriteLine(LogEventType.Warning, "Assuming no compilation capability for NET Core projects.");
-				FrameworkMsbuildPath = "";
-			}
+			DotnetMsbuildPath = Unreal.DotnetPath.FullName;
 			Log.TraceVerbose("CompilationEvironment.DotnetMsbuildExe={0}", DotnetMsbuildPath);
 		}
 

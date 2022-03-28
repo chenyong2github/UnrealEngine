@@ -67,7 +67,7 @@ namespace AutomationScripts.Automation
                 LogInformation("********** REBUILD HLODS COMMAND FAILED **********");
                 LogInformation("Error message: {0}", ProcessEx.Message);
                 HandleFailure(ProcessEx.Message);
-                throw ProcessEx;
+                throw;
             }
 
             // The processes steps have completed successfully.

@@ -240,7 +240,7 @@ namespace UnrealBuildTool
 			{
 				bool bCloudKitSupported = false;
 				PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableCloudKitSupport", out bCloudKitSupported);
-				Directory.CreateDirectory(Path.GetDirectoryName(OutputFileName));
+				Directory.CreateDirectory(Path.GetDirectoryName(OutputFileName)!);
 				// we need to have something so Xcode will compile, so we just set the get-task-allow, since we know the value,
 				// which is based on distribution or not (true means debuggable)
 				StringBuilder Text = new StringBuilder();
@@ -354,17 +354,17 @@ namespace UnrealBuildTool
 							XDoc.DocumentType.InternalSubset = null;
 						}
 
-						XElement dictElement = XDoc.Root.Element("dict");
+						XElement? dictElement = XDoc.Root?.Element("dict");
 						if (dictElement != null)
 						{
 							XElement containerIdKeyNew = new XElement("key", "ICloudContainerIdentifier");
 							XElement containerIdValueNew = new XElement("string", iCloudContainerIdentifier);
 
-							XElement containerIdKey = dictElement.Elements("key").FirstOrDefault(x => x.Value == "ICloudContainerIdentifier");
+							XElement? containerIdKey = dictElement.Elements("key").FirstOrDefault(x => x.Value == "ICloudContainerIdentifier");
 							if (containerIdKey != null)
 							{
 								// if ICloudContainerIdentifier already exists in the pList file, update its value
-								XElement containerIdValue = containerIdKey.ElementsAfterSelf("string").FirstOrDefault();
+								XElement? containerIdValue = containerIdKey.ElementsAfterSelf("string").FirstOrDefault();
 								if (containerIdValue != null)
 								{
 									containerIdValue.Value = iCloudContainerIdentifier;

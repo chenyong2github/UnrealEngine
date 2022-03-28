@@ -33,7 +33,7 @@ class ListThirdPartySoftware : BuildCommand
 
 			IProcessResult Result;
 
-			Result = Run(UnrealBuild.GetUBTExecutable(), String.Format("{0} {1} -Mode=JsonExport -OutputFile=\"{2}\"", Target.Replace('|', ' '),  ProjectPath, OutputFile.FullName), Options: ERunOptions.Default);
+			Result = Run(Unreal.DotnetPath.FullName, $"\"{UnrealBuild.UnrealBuildToolDll}\" {Target.Replace('|', ' ')} {ProjectPath} -Mode=JsonExport -OutputFile=\"{OutputFile.FullName}\"", Options: ERunOptions.Default);
 
 			if (Result.ExitCode != 0)
 			{

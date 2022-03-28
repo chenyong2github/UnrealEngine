@@ -13,8 +13,6 @@ using EpicGames.Core;
 using System.IO;
 using System.Collections.Generic;
 using System.Text;
-using Microsoft.Build.Execution;
-using Microsoft.Build.Framework.Profiler;
 using UnrealBuildBase;
 
 namespace AutomationToolDriver
