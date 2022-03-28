@@ -1069,11 +1069,11 @@ public:
 
 	/** Find the first extension of the requested type. */
 	UFUNCTION(BlueprintCallable, Category = "User Interface|Extension")
-	UUserWidgetExtension* GetExtension(TSubclassOf<UUserWidgetExtension> InExtensionType) const;
+	UUserWidgetExtension* GetExtension(TSubclassOf<UUserWidgetExtension> ExtensionType) const;
 
 	/** Find the extensions of the requested type. */
 	UFUNCTION(BlueprintCallable, Category = "User Interface|Extension")
-	TArray<UUserWidgetExtension*> GetExtensions(TSubclassOf<UUserWidgetExtension> InExtensionType) const;
+	TArray<UUserWidgetExtension*> GetExtensions(TSubclassOf<UUserWidgetExtension> ExtensionType) const;
 
 	/** Add the extension of the requested type. */
 	template<typename ExtensionType>

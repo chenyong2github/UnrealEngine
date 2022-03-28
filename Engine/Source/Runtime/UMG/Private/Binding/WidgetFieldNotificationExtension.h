@@ -11,7 +11,7 @@
 
 class UVisual;
 
-UCLASS(MinimalAPI, Transient)
+UCLASS(MinimalAPI, Transient, NotBlueprintType)
 class UWidgetFieldNotificationExtension : public UUserWidgetExtension
 {
 	GENERATED_BODY()
