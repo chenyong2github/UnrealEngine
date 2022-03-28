@@ -29,12 +29,12 @@ void UPCGMetadata::Initialize(const UPCGMetadata* InParent)
 	check(!Parent && Attributes.Num() == 0);
 	Parent = (InParent != this ? InParent : nullptr);
 	ItemKeyOffset = Parent ? Parent->GetItemCountForChild() : 0;
-	GetAllAttributeNames(AttributeNames);
+	AddAttributes(InParent);
 }
 
 void UPCGMetadata::AddAttributes(const UPCGMetadata* InOther)
 {
-	if (!InOther || InOther == Parent)
+	if (!InOther)
 	{
 		return;
 	}
@@ -47,11 +47,14 @@ void UPCGMetadata::AddAttributes(const UPCGMetadata* InOther)
 		}
 		else
 		{
-			CopyAttribute(OtherAttribute.Value, OtherAttribute.Key, /*bKeepParent=*/false, /*bCopyEntries=*/false, /*bCopyValues=*/false);
+			CopyAttribute(OtherAttribute.Value, OtherAttribute.Key, /*bKeepParent=*/InOther == Parent, /*bCopyEntries=*/false, /*bCopyValues=*/false);
 		}
 	}
 
-	OtherParents.Add(InOther);
+	if(InOther != Parent)
+	{
+		OtherParents.Add(InOther);
+	}
 }
 
 const UPCGMetadata* UPCGMetadata::GetRoot() const
@@ -86,17 +89,11 @@ void UPCGMetadata::AddAttributeInternal(FName AttributeName, FPCGMetadataAttribu
 {
 	// This call assumes we have a write lock on the attribute map.
 	Attributes.Add(AttributeName, Attribute);
-	AttributeNames.Add(AttributeName);
-	HiddenAttributes.Remove(AttributeName);
 }
 
 void UPCGMetadata::RemoveAttributeInternal(FName AttributeName)
 {
 	Attributes.Remove(AttributeName);
-	if (!Parent || !Parent->HasAttribute(AttributeName))
-	{
-		AttributeNames.Remove(AttributeName);
-	}
 }
 
 template<typename T>
@@ -139,11 +136,6 @@ FPCGMetadataAttributeBase* UPCGMetadata::GetMutableAttribute(FName AttributeName
 	}
 	AttributeLock.ReadUnlock();
 
-	if (!Attribute && ParentHasAttribute(AttributeName))
-	{
-		Attribute = CopyAttribute(AttributeName, AttributeName, /*bKeepParent=*/true, /*bCopyEntries=*/false, /*bCopyValues=*/false);
-	}
-
 	return Attribute;
 }
 
@@ -158,33 +150,18 @@ const FPCGMetadataAttributeBase* UPCGMetadata::GetConstAttribute(FName Attribute
 	}
 	AttributeLock.ReadUnlock();
 
-	if (!Attribute && ParentHasAttribute(AttributeName))
-	{
-		return Parent->GetConstAttribute(AttributeName);
-	}
-	else
-	{
-		return Attribute;
-	}
+	return Attribute;
 }
 
 bool UPCGMetadata::HasAttribute(FName AttributeName) const
 {
 	FReadScopeLock ScopeLock(AttributeLock);
-	return AttributeNames.Contains(AttributeName);
+	return Attributes.Contains(AttributeName);
 }
 
 bool UPCGMetadata::ParentHasAttribute(FName AttributeName) const
 {
-	if (Parent && Parent->HasAttribute(AttributeName))
-	{
-		FReadScopeLock ScopeLock(AttributeLock);
-		return !HiddenAttributes.Contains(AttributeName);
-	}
-	else
-	{
-		return false;
-	}
+	return Parent && Parent->HasAttribute(AttributeName);
 }
 
 void UPCGMetadata::CreateFloatAttribute(FName AttributeName, float DefaultValue, bool bAllowsInterpolation, bool bOverrideParent)
@@ -276,13 +253,6 @@ void UPCGMetadata::RenameAttribute(FName AttributeToRename, FName NewAttributeNa
 	}
 	AttributeLock.WriteUnlock();
 
-	if(!bRenamed && ParentHasAttribute(AttributeToRename))
-	{
-		// If attribute is present in the parent, we'll otherwise copy the attribute from the parent with a new name
-		CopyAttribute(AttributeToRename, NewAttributeName, /*bKeepParent=*/true);
-		bRenamed = true;
-	}
-
 	if (!bRenamed)
 	{
 		UE_LOG(LogPCG, Warning, TEXT("Attribute %s does not exist and therefore cannot be renamed"), *AttributeToRename.ToString());
@@ -306,10 +276,6 @@ void UPCGMetadata::ClearAttribute(FName AttributeToClear)
 	{
 		Attribute->ClearEntries();
 	}
-	else if(ParentHasAttribute(AttributeToClear))
-	{
-		CopyAttribute(AttributeToClear, AttributeToClear, /*bKeepParent=*/true, /*bCopyEntries=*/false, /*bCopyValues=*/false);
-	}
 }
 
 void UPCGMetadata::DeleteAttribute(FName AttributeToDelete)
@@ -329,13 +295,6 @@ void UPCGMetadata::DeleteAttribute(FName AttributeToDelete)
 	{
 		delete Attribute;
 	}
-	else if(ParentHasAttribute(AttributeToDelete))
-	{
-		// Otherwise, if it exists in parent hierarchy, then hide it
-		FWriteScopeLock ScopeLock(AttributeLock);
-		HiddenAttributes.Add(AttributeToDelete);
-		AttributeNames.Remove(AttributeToDelete);
-	}
 	else
 	{
 		UE_LOG(LogPCG, Verbose, TEXT("Attribute %s does not exist and therefore cannot be deleted"), *AttributeToDelete.ToString());
@@ -354,18 +313,43 @@ int64 UPCGMetadata::AddEntry(int64 ParentEntry)
 	return ParentKeys.Add(ParentEntry) + ItemKeyOffset;
 }
 
+bool UPCGMetadata::InitializeOnSet(PCGMetadataEntryKey& InKey, PCGMetadataEntryKey InParentKeyA, const UPCGMetadata* InParentMetadataA, PCGMetadataEntryKey InParentKeyB, const UPCGMetadata* InParentMetadataB)
+{
+	if (InKey == PCGInvalidEntryKey)
+	{
+		if (InParentKeyA != PCGInvalidEntryKey && Parent == InParentMetadataA)
+		{
+			InKey = AddEntry(InParentKeyA);
+			return true;
+		}
+		else if (InParentKeyB != PCGInvalidEntryKey && Parent == InParentMetadataB)
+		{
+			InKey = AddEntry(InParentKeyB);
+			return true;
+		}
+		else
+		{
+			InKey = AddEntry();
+			return false;
+		}
+	}
+	else if(InKey < ItemKeyOffset)
+	{
+		InKey = AddEntry(InKey);
+		return false;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 PCGMetadataEntryKey UPCGMetadata::GetParentKey(PCGMetadataEntryKey LocalItemKey) const
 {
 	if (LocalItemKey < ItemKeyOffset)
 	{
-		if (Parent)
-		{
-			return Parent->GetParentKey(LocalItemKey);
-		}
-		else
-		{
-			return PCGInvalidEntryKey;
-		}
+		// Key is already in parent referential
+		return LocalItemKey;
 	}
 	else
 	{
@@ -375,20 +359,17 @@ PCGMetadataEntryKey UPCGMetadata::GetParentKey(PCGMetadataEntryKey LocalItemKey)
 	}
 }
 
-void UPCGMetadata::GetAllAttributeNames(TSet<FName>& FoundAttributeNames) const
+void UPCGMetadata::MergeAttributes(const FPCGPoint& InPointA, const FPCGPoint& InPointB, FPCGPoint& OutPoint, EPCGMetadataOp Op)
 {
-	for (const TPair<FName, FPCGMetadataAttributeBase*>& Attribute : Attributes)
-	{
-		FoundAttributeNames.Add(Attribute.Key);
-	}
-
-	if (Parent)
-	{
-		Parent->GetAllAttributeNames(FoundAttributeNames);
-	}
+	MergeAttributes(InPointA.MetadataEntry, this, InPointB.MetadataEntry, this, OutPoint.MetadataEntry, Op);
 }
 
 void UPCGMetadata::MergeAttributes(const FPCGPoint& InPointA, const UPCGMetadata* InMetadataA, const FPCGPoint& InPointB, const UPCGMetadata* InMetadataB, FPCGPoint& OutPoint, EPCGMetadataOp Op)
+{
+	MergeAttributes(InPointA.MetadataEntry, InMetadataA, InPointB.MetadataEntry, InMetadataB, OutPoint.MetadataEntry, Op);
+}
+
+void UPCGMetadata::MergeAttributes(PCGMetadataEntryKey InKeyA, const UPCGMetadata* InMetadataA, PCGMetadataEntryKey InKeyB, const UPCGMetadata* InMetadataB, PCGMetadataEntryKey& OutKey, EPCGMetadataOp Op)
 {
 	// Early out: nothing to do if both input metadata are null / points have no assigned metadata
 	if (!InMetadataA && !InMetadataB)
@@ -397,35 +378,18 @@ void UPCGMetadata::MergeAttributes(const FPCGPoint& InPointA, const UPCGMetadata
 	}
 
 	// For each attribute in the current metadata, query the values from point A & B, apply operation on the result and finally store in the out point.
-	if (OutPoint.MetadataEntry == PCGInvalidEntryKey)
-	{
-		if (InPointA.MetadataEntry != PCGInvalidEntryKey && (Parent == InMetadataA || this == InMetadataA))
-		{
-			OutPoint.MetadataEntry = AddEntry(InPointA.MetadataEntry);
-		}
-		else if (InPointB.MetadataEntry != PCGInvalidEntryKey && (Parent == InMetadataB || this == InMetadataB))
-		{
-			OutPoint.MetadataEntry = AddEntry(InPointB.MetadataEntry);
-		}
-		else
-		{
-			OutPoint.MetadataEntry = AddEntry();
-		}
-	}
+	InitializeOnSet(OutKey, InKeyA, InMetadataA, InKeyB, InMetadataB);
 
-	//METADATA TODO: This isn't great, we're allocating memory for no reason here
 	AttributeLock.ReadLock();
-	TSet<FName> KnownAttributeNames = AttributeNames;
-	AttributeLock.ReadUnlock();
-
-	for(const FName& AttributeName : KnownAttributeNames)
+	for(const TPair<FName, FPCGMetadataAttributeBase*>& AttributePair : Attributes)
 	{
-		const FPCGMetadataAttributeBase* ConstAttribute = GetConstAttribute(AttributeName);
+		const FName& AttributeName = AttributePair.Key;
+		FPCGMetadataAttributeBase* Attribute = AttributePair.Value;
 
 		// Get attribute from A
 		const FPCGMetadataAttributeBase* AttributeA = InMetadataA ? InMetadataA->GetConstAttribute(AttributeName) : nullptr;
 
-		if (AttributeA && AttributeA->GetTypeId() != ConstAttribute->GetTypeId())
+		if (AttributeA && AttributeA->GetTypeId() != Attribute->GetTypeId())
 		{
 			UE_LOG(LogPCG, Error, TEXT("Metadata type mismatch with attribute %s"), *AttributeName.ToString());
 			AttributeA = nullptr;
@@ -434,7 +398,7 @@ void UPCGMetadata::MergeAttributes(const FPCGPoint& InPointA, const UPCGMetadata
 		// Get attribute from B
 		const FPCGMetadataAttributeBase* AttributeB = InMetadataB ? InMetadataB->GetConstAttribute(AttributeName) : nullptr;
 
-		if (AttributeB && AttributeB->GetTypeId() != ConstAttribute->GetTypeId())
+		if (AttributeB && AttributeB->GetTypeId() != Attribute->GetTypeId())
 		{
 			UE_LOG(LogPCG, Error, TEXT("Metadata type mismatch with attribute %s"), *AttributeName.ToString());
 			AttributeB = nullptr;
@@ -442,144 +406,122 @@ void UPCGMetadata::MergeAttributes(const FPCGPoint& InPointA, const UPCGMetadata
 
 		if (AttributeA || AttributeB)
 		{
-			FPCGMetadataAttributeBase* Attribute = GetMutableAttribute(AttributeName);
 			if (Attribute)
 			{
-				Attribute->SetValue(OutPoint.MetadataEntry, AttributeA, InPointA.MetadataEntry, AttributeB, InPointB.MetadataEntry, Op);
+				Attribute->SetValue(OutKey, AttributeA, InKeyA, AttributeB, InKeyB, Op);
 			}
 		}
 	}
+	AttributeLock.ReadUnlock();
 }
 
 void UPCGMetadata::ResetWeightedAttributes(FPCGPoint& OutPoint)
 {
-	if (OutPoint.MetadataEntry == PCGInvalidEntryKey)
-	{
-		OutPoint.MetadataEntry = AddEntry();
-	}
+	ResetWeightedAttributes(OutPoint.MetadataEntry);
+}
 
-	//METADATA TODO: This isn't great, we're allocating memory for no reason here
+void UPCGMetadata::ResetWeightedAttributes(PCGMetadataEntryKey& OutKey)
+{
+	InitializeOnSet(OutKey);
+
 	AttributeLock.ReadLock();
-	TSet<FName> KnownAttributeNames = AttributeNames;
-	AttributeLock.ReadUnlock();
-
-	for (const FName& AttributeName : KnownAttributeNames)
+	for(const TPair<FName, FPCGMetadataAttributeBase*>& AttributePair : Attributes)
 	{
-		const FPCGMetadataAttributeBase* ConstAttribute = GetConstAttribute(AttributeName);
+		FPCGMetadataAttributeBase* Attribute = AttributePair.Value;
 		
-		if (!ConstAttribute->AllowsInterpolation())
+		if (!Attribute->AllowsInterpolation())
 		{
 			continue;
 		}
 
-		FPCGMetadataAttributeBase* Attribute = GetMutableAttribute(AttributeName);
 		if (Attribute)
 		{
 			check(Attribute->AllowsInterpolation());
-			Attribute->SetZeroValue(OutPoint.MetadataEntry);
+			Attribute->SetZeroValue(OutKey);
 		}
 	}
+	AttributeLock.ReadUnlock();
 }
 
 void UPCGMetadata::AccumulateWeightedAttributes(const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, float Weight, bool bSetNonInterpolableAttributes, FPCGPoint& OutPoint)
 {
-	if (!InMetadata)
-	{
-		return;
-	}
-
-	bool bHasSetParent = false;
-
-	if (OutPoint.MetadataEntry == PCGInvalidEntryKey)
-	{
-		if (InPoint.MetadataEntry != PCGInvalidEntryKey && Parent == InMetadata)
-		{
-			OutPoint.MetadataEntry = AddEntry(InPoint.MetadataEntry);
-			// No early out here, since we'll need to set the weighted value
-			bHasSetParent = true;
-		}
-		else
-		{
-			OutPoint.MetadataEntry = AddEntry();
-		}
-	}
-
-	const bool bShouldSetNonInterpolableAttributes = bSetNonInterpolableAttributes && !bHasSetParent;
-
-	//METADATA TODO: This isn't great, we're allocating memory for no reason here
-	AttributeLock.ReadLock();
-	TSet<FName> KnownAttributeNames = AttributeNames;
-	AttributeLock.ReadUnlock();
-
-	for(const FName& AttributeName : KnownAttributeNames)
-	{
-		const FPCGMetadataAttributeBase* ConstAttribute = GetConstAttribute(AttributeName);
-
-		if (const FPCGMetadataAttributeBase* OtherAttribute = InMetadata->GetConstAttribute(AttributeName))
-		{
-			if (OtherAttribute->GetTypeId() != ConstAttribute->GetTypeId())
-			{
-				UE_LOG(LogPCG, Error, TEXT("Metadata type mismatch with attribute %s"), *AttributeName.ToString());
-				continue;
-			}
-
-			FPCGMetadataAttributeBase* Attribute = GetMutableAttribute(AttributeName);
-
-			if (Attribute->AllowsInterpolation())
-			{
-				Attribute->AccumulateValue(OutPoint.MetadataEntry, OtherAttribute, InPoint.MetadataEntry, Weight);
-			}
-			else if (bShouldSetNonInterpolableAttributes)
-			{
-				Attribute->SetValue(OutPoint.MetadataEntry, OtherAttribute, InPoint.MetadataEntry);
-			}
-		}
-	}
+	AccumulateWeightedAttributes(InPoint.MetadataEntry, InMetadata, Weight, bSetNonInterpolableAttributes, OutPoint.MetadataEntry);
 }
 
-void UPCGMetadata::SetAttributes(const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, FPCGPoint& OutPoint)
+void UPCGMetadata::AccumulateWeightedAttributes(PCGMetadataEntryKey InKey, const UPCGMetadata* InMetadata, float Weight, bool bSetNonInterpolableAttributes, PCGMetadataEntryKey& OutKey)
 {
 	if (!InMetadata)
 	{
 		return;
 	}
 
-	if (OutPoint.MetadataEntry == PCGInvalidEntryKey)
-	{
-		if (InPoint.MetadataEntry != PCGInvalidEntryKey && Parent == InMetadata)
-		{
-			OutPoint.MetadataEntry = AddEntry(InPoint.MetadataEntry);
+	bool bHasSetParent = InitializeOnSet(OutKey, InKey, InMetadata);
 
-			// Early out; we don't need to do anything else at this point
-			return;
-		}
-		else
-		{
-			OutPoint.MetadataEntry = AddEntry();
-		}
-	}
+	const bool bShouldSetNonInterpolableAttributes = bSetNonInterpolableAttributes && !bHasSetParent;
 
-	//METADATA TODO: This isn't great, we're allocating memory for no reason here
 	AttributeLock.ReadLock();
-	TSet<FName> KnownAttributeNames = AttributeNames;
-	AttributeLock.ReadUnlock();
-
-	for(const FName& AttributeName : KnownAttributeNames)
+	for(const TPair<FName, FPCGMetadataAttributeBase*>& AttributePair : Attributes)
 	{
-		const FPCGMetadataAttributeBase* ConstAttribute = GetConstAttribute(AttributeName);
+		const FName& AttributeName = AttributePair.Key;
+		FPCGMetadataAttributeBase* Attribute = AttributePair.Value;
 
 		if (const FPCGMetadataAttributeBase* OtherAttribute = InMetadata->GetConstAttribute(AttributeName))
 		{
-			if (OtherAttribute->GetTypeId() != ConstAttribute->GetTypeId())
+			if (OtherAttribute->GetTypeId() != Attribute->GetTypeId())
 			{
 				UE_LOG(LogPCG, Error, TEXT("Metadata type mismatch with attribute %s"), *AttributeName.ToString());
 				continue;
 			}
 
-			FPCGMetadataAttributeBase* Attribute = GetMutableAttribute(AttributeName);
-			Attribute->SetValue(OutPoint.MetadataEntry, OtherAttribute, InPoint.MetadataEntry);
+			if (Attribute->AllowsInterpolation())
+			{
+				Attribute->AccumulateValue(OutKey, OtherAttribute, InKey, Weight);
+			}
+			else if (bShouldSetNonInterpolableAttributes)
+			{
+				Attribute->SetValue(OutKey, OtherAttribute, InKey);
+			}
 		}
 	}
+	AttributeLock.ReadUnlock();
+}
+
+void UPCGMetadata::SetAttributes(const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, FPCGPoint& OutPoint)
+{
+	SetAttributes(InPoint.MetadataEntry, InMetadata, OutPoint.MetadataEntry);
+}
+
+void UPCGMetadata::SetAttributes(PCGMetadataEntryKey InKey, const UPCGMetadata* InMetadata, PCGMetadataEntryKey& OutKey)
+{
+	if (!InMetadata)
+	{
+		return;
+	}
+
+	if (InitializeOnSet(OutKey, InKey, InMetadata))
+	{
+		// Early out; we don't need to do anything else at this point
+		return;
+	}
+
+	AttributeLock.ReadLock();
+	for(const TPair<FName, FPCGMetadataAttributeBase*>& AttributePair : Attributes)
+	{
+		const FName& AttributeName = AttributePair.Key;
+		FPCGMetadataAttributeBase* Attribute = AttributePair.Value;
+
+		if (const FPCGMetadataAttributeBase* OtherAttribute = InMetadata->GetConstAttribute(AttributeName))
+		{
+			if (OtherAttribute->GetTypeId() != Attribute->GetTypeId())
+			{
+				UE_LOG(LogPCG, Error, TEXT("Metadata type mismatch with attribute %s"), *AttributeName.ToString());
+				continue;
+			}
+
+			Attribute->SetValue(OutKey, OtherAttribute, InKey);
+		}
+	}
+	AttributeLock.ReadUnlock();
 }
 
 void UPCGMetadata::SetAttributes(const TArrayView<const FPCGPoint>& InPoints, const UPCGMetadata* InMetadata, const TArrayView<FPCGPoint>& OutPoints)
@@ -595,37 +537,22 @@ void UPCGMetadata::SetAttributes(const TArrayView<const FPCGPoint>& InPoints, co
 	{
 		const FPCGPoint& InPoint = InPoints[PointIndex];
 		FPCGPoint& OutPoint = OutPoints[PointIndex];
-		if (OutPoint.MetadataEntry == PCGInvalidEntryKey)
-		{
-			if (InPoint.MetadataEntry != PCGInvalidEntryKey && Parent == InMetadata)
-			{
-				OutPoint.MetadataEntry = AddEntry(InPoint.MetadataEntry);
-			}
-			else
-			{
-				OutPoint.MetadataEntry = AddEntry();
-			}
-		}
+		InitializeOnSet(OutPoint.MetadataEntry, InPoint.MetadataEntry, InMetadata);
 	}
 
-	//METADATA TODO: This isn't great, we're allocating memory for no reason here
 	AttributeLock.ReadLock();
-	TSet<FName> KnownAttributeNames = AttributeNames;
-	AttributeLock.ReadUnlock();
-
-	for(const FName& AttributeName : KnownAttributeNames)
+	for(const TPair<FName, FPCGMetadataAttributeBase*>& AttributePair : Attributes)
 	{
-		const FPCGMetadataAttributeBase* ConstAttribute = GetConstAttribute(AttributeName);
+		const FName& AttributeName = AttributePair.Key;
+		FPCGMetadataAttributeBase* Attribute = AttributePair.Value;
 
 		if (const FPCGMetadataAttributeBase* OtherAttribute = InMetadata->GetConstAttribute(AttributeName))
 		{
-			if (OtherAttribute->GetTypeId() != ConstAttribute->GetTypeId())
+			if (OtherAttribute->GetTypeId() != Attribute->GetTypeId())
 			{
 				UE_LOG(LogPCG, Error, TEXT("Metadata type mismatch with attribute %s"), *AttributeName.ToString());
 				continue;
 			}
-
-			FPCGMetadataAttributeBase* Attribute = GetMutableAttribute(AttributeName);
 
 			for (int32 PointIndex = 0; PointIndex < InPoints.Num(); ++PointIndex)
 			{
@@ -636,4 +563,42 @@ void UPCGMetadata::SetAttributes(const TArrayView<const FPCGPoint>& InPoints, co
 			}
 		}
 	}
+	AttributeLock.ReadUnlock();
+}
+
+void UPCGMetadata::SetAttributes(const TArrayView<PCGMetadataEntryKey>& InKeys, const UPCGMetadata* InMetadata, const TArrayView<PCGMetadataEntryKey>& OutKeys)
+{
+	if (!InMetadata)
+	{
+		return;
+	}
+
+	check(InKeys.Num() == OutKeys.Num());
+
+	for (int32 KeyIndex = 0; KeyIndex < InKeys.Num(); ++KeyIndex)
+	{
+		InitializeOnSet(OutKeys[KeyIndex], InKeys[KeyIndex], InMetadata);
+	}
+
+	AttributeLock.ReadLock();
+	for(const TPair<FName, FPCGMetadataAttributeBase*>& AttributePair : Attributes)
+	{
+		const FName& AttributeName = AttributePair.Key;
+		FPCGMetadataAttributeBase* Attribute = AttributePair.Value;
+
+		if (const FPCGMetadataAttributeBase* OtherAttribute = InMetadata->GetConstAttribute(AttributeName))
+		{
+			if (OtherAttribute->GetTypeId() != Attribute->GetTypeId())
+			{
+				UE_LOG(LogPCG, Error, TEXT("Metadata type mismatch with attribute %s"), *AttributeName.ToString());
+				continue;
+			}
+
+			for (int32 KeyIndex = 0; KeyIndex < InKeys.Num(); ++KeyIndex)
+			{
+				Attribute->SetValue(OutKeys[KeyIndex], OtherAttribute, InKeys[KeyIndex]);
+			}
+		}
+	}
+	AttributeLock.ReadUnlock();
 }

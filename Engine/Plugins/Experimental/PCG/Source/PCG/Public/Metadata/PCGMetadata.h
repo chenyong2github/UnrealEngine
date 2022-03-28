@@ -87,15 +87,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	int64 AddEntry(int64 ParentEntryKey = -1);
 
+	/** Initializes the metadata entry key. Returns true if key set from either parent */
+	bool InitializeOnSet(PCGMetadataEntryKey& InKey, PCGMetadataEntryKey InParentKeyA = PCGInvalidEntryKey, const UPCGMetadata* InParentMetadataA = nullptr, PCGMetadataEntryKey InParentKeyB = PCGInvalidEntryKey, const UPCGMetadata* InParentMetadataB = nullptr);
+
 	/** Metadata chaining mechanism */
 	PCGMetadataEntryKey GetParentKey(PCGMetadataEntryKey LocalItemKey) const;
 
 	/** Attributes operations */
-	void MergeAttributes(const FPCGPoint& InPointA, const FPCGPoint& InPointB, FPCGPoint& OutPoint, EPCGMetadataOp Op)
+	void MergeAttributes(PCGMetadataEntryKey InKeyA, const UPCGMetadata* InMetadataA, PCGMetadataEntryKey InKeyB, const UPCGMetadata* InMetadataB, PCGMetadataEntryKey& OutKey, EPCGMetadataOp Op);
+	void MergeAttributes(PCGMetadataEntryKey InKeyA, PCGMetadataEntryKey InKeyB, PCGMetadataEntryKey& OutKey, EPCGMetadataOp Op)
 	{
-		MergeAttributes(InPointA, this, InPointB, this, OutPoint, Op);
+		MergeAttributes(InKeyA, this, InKeyB, this, OutKey, Op);
 	}
 
+	void ResetWeightedAttributes(PCGMetadataEntryKey& OutKey);
+	void AccumulateWeightedAttributes(PCGMetadataEntryKey InKey, const UPCGMetadata* InMetadata, float Weight, bool bSetNonInterpolableAttributes, PCGMetadataEntryKey& OutKey);
+
+	void SetAttributes(PCGMetadataEntryKey InKey, const UPCGMetadata* InMetadata, PCGMetadataEntryKey& OutKey);
+	void SetAttributes(const TArrayView<PCGMetadataEntryKey>& InKeys, const UPCGMetadata* InMetadata, const TArrayView<PCGMetadataEntryKey>& OutKeys);
+
+	/** Attributes operations - shorthand for points */
+	void MergeAttributes(const FPCGPoint& InPointA, const FPCGPoint& InPointB, FPCGPoint& OutPoint, EPCGMetadataOp Op);
 	void MergeAttributes(const FPCGPoint& InPointA, const UPCGMetadata* InMetadataA, const FPCGPoint& InPointB, const UPCGMetadata* InMetadataB, FPCGPoint& OutPoint, EPCGMetadataOp Op);
 
 	void ResetWeightedAttributes(FPCGPoint& OutPoint);
@@ -112,7 +124,6 @@ protected:
 	FPCGMetadataAttributeBase* CopyAttribute(const FPCGMetadataAttributeBase* OriginalAttribute, FName NewAttributeName, bool bKeepParent, bool bCopyEntries, bool bCopyValues);
 
 	bool ParentHasAttribute(FName AttributeName) const;
-	void GetAllAttributeNames(TSet<FName>& AttributeNames) const;
 	int64 GetItemCountForChild() const;
 
 	void AddAttributeInternal(FName AttributeName, FPCGMetadataAttributeBase* Attribute);
@@ -127,11 +138,7 @@ protected:
 	TSet<TSoftObjectPtr<const UPCGMetadata>> OtherParents;
 
 	TMap<FName, FPCGMetadataAttributeBase*> Attributes;
-	TSet<FName> AttributeNames; // Will contain also parent attributes
-
 	PCGMetadataAttributeKey NextAttributeId = 0;
-
-	TSet<FName> HiddenAttributes;
 
 	TArray<PCGMetadataEntryKey> ParentKeys;
 	int64 ItemKeyOffset = 0;
