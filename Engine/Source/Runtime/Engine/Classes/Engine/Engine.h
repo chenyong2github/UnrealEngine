@@ -3653,6 +3653,10 @@ private:
 #endif
 
 	FDelegateHandle HandleScreenshotCapturedDelegateHandle;
+
+public:
+	/** Set priority and affinity on game thread either from ini file or from FPlatformAffinity::GetGameThreadPriority()*/
+	void SetPriorityAndAffinityOnGameThread();
 };
 
 /** Global engine pointer. Can be 0 so don't use without checking. */

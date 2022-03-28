@@ -17403,6 +17403,8 @@ static FAutoConsoleCommand SetupThreadConfigCmd(
 
 void InitThreadConfig()
 {
+	GetDefaultThreadConfigs();
+
 	if (GConfig)
 	{
 		TArray<FString> ThreadConfigEntries;
@@ -17412,6 +17414,11 @@ void InitThreadConfig()
 			SetupThreadConfig(ThreadConfigEntries);
 		}
 	}
+}
+
+void UEngine::SetPriorityAndAffinityOnGameThread()
+{
+	::SetPriorityAndAffinityOnGameThread();
 }
 
 #if !UE_BUILD_SHIPPING
