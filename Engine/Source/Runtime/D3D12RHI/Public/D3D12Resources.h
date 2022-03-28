@@ -30,6 +30,7 @@ class FD3D12CommandListHandle;
 class FD3D12SegListAllocator;
 class FD3D12PoolAllocator;
 struct FD3D12GraphicsPipelineState;
+struct FD3D12ResourceDesc;
 typedef FD3D12StateCacheBase FD3D12StateCache;
 
 #if D3D12_RHI_RAYTRACING
@@ -38,6 +39,14 @@ class FD3D12RayTracingScene;
 class FD3D12RayTracingPipelineState;
 class FD3D12RayTracingShader;
 #endif // D3D12_RHI_RAYTRACING
+
+#ifndef D3D12_WITH_CUSTOM_TEXTURE_LAYOUT
+#define D3D12_WITH_CUSTOM_TEXTURE_LAYOUT 0
+#endif
+
+#if D3D12_WITH_CUSTOM_TEXTURE_LAYOUT
+extern void ApplyCustomTextureLayout(FD3D12ResourceDesc& TextureLayout, FD3D12Adapter& Adapter);
+#endif
 
 enum class ED3D12ResourceStateMode
 {

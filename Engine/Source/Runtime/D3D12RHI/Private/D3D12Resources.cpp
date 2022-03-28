@@ -577,6 +577,10 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const FD3D12ResourceDesc& InDesc,
 	}
 #endif // D3D12_RHI_RAYTRACING
 
+#if D3D12_WITH_CUSTOM_TEXTURE_LAYOUT
+	ApplyCustomTextureLayout(LocalDesc, *this);
+#endif
+
 	HRESULT hr = S_OK;
 #if INTEL_EXTENSIONS
 	if (InDesc.bRequires64BitAtomicSupport && IsRHIDeviceIntel() && GRHISupportsAtomicUInt64)
