@@ -147,7 +147,7 @@ FName FSkeletalMeshComponentEndPhysicsTickFunction::DiagnosticContext(bool bDeta
 	return FName(TEXT("SkeletalMeshComponentEndPhysicsTick"));
 }
 
-USkeletalMeshComponent::FClothCollisionSource::FClothCollisionSource(USkeletalMeshComponent* InSourceComponent, UPhysicsAsset* InSourcePhysicsAsset, const FOnBoneTransformsFinalizedMultiCast::FDelegate& InOnBoneTransformsFinalizedDelegate)
+FClothCollisionSource::FClothCollisionSource(USkeletalMeshComponent* InSourceComponent, UPhysicsAsset* InSourcePhysicsAsset, const FOnBoneTransformsFinalizedMultiCast::FDelegate& InOnBoneTransformsFinalizedDelegate)
 	: SourceComponent(InSourceComponent)
 	, SourcePhysicsAsset(InSourcePhysicsAsset)
 	, bCached(false)
@@ -158,7 +158,7 @@ USkeletalMeshComponent::FClothCollisionSource::FClothCollisionSource(USkeletalMe
 	}
 }
 
-USkeletalMeshComponent::FClothCollisionSource::~FClothCollisionSource()
+FClothCollisionSource::~FClothCollisionSource()
 {
 	if (SourceComponent.IsValid() && OnBoneTransformsFinalizedHandle.IsValid())
 	{
@@ -785,6 +785,16 @@ void USkeletalMeshComponent::InstantiatePhysicsAsset(const UPhysicsAsset& PhysAs
 	InstantiatePhysicsAsset_Internal(PhysAsset, Scale3D, OutBodies, OutConstraints, BoneTMCallable, PhysScene, OwningComponent, UseRootBodyIndex, UseAggregate);
 }
 
+void USkeletalMeshComponent::InstantiatePhysicsAssetBodies(const UPhysicsAsset& PhysAsset, TArray<FBodyInstance*>& OutBodies, FPhysScene* PhysScene /*= nullptr*/, USkeletalMeshComponent* OwningComponent /*= nullptr*/, int32 UseRootBodyIndex /*= INDEX_NONE*/, const FPhysicsAggregateHandle& UseAggregate /*= FPhysicsAggregateHandle()*/) const
+{
+	auto BoneTMCallable = [this](int32 BoneIndex)
+	{
+		return GetBoneTransform(BoneIndex);
+	};
+
+	InstantiatePhysicsAssetBodies_Internal(PhysAsset, OutBodies, BoneTMCallable, nullptr, PhysScene, OwningComponent, UseRootBodyIndex, UseAggregate);
+}
+
 void USkeletalMeshComponent::InstantiatePhysicsAssetRefPose(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene /*= nullptr*/, USkeletalMeshComponent* OwningComponent /*= nullptr*/, int32 UseRootBodyIndex /*= INDEX_NONE*/, const FPhysicsAggregateHandle& UseAggregate, bool bCreateBodiesInRefPose) const
 {
 	if(SkeletalMesh)
@@ -823,18 +833,18 @@ void USkeletalMeshComponent::InstantiatePhysicsAssetRefPose(const UPhysicsAsset&
 	}
 }
 
-void USkeletalMeshComponent::InstantiatePhysicsAsset_Internal(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, TFunctionRef<FTransform(int32)> BoneTransformGetter, FPhysScene* PhysScene /*= nullptr*/, USkeletalMeshComponent* OwningComponent /*= nullptr*/, int32 UseRootBodyIndex /*= INDEX_NONE*/, const FPhysicsAggregateHandle& UseAggregate) const
+void USkeletalMeshComponent::InstantiatePhysicsAssetBodies_Internal(const UPhysicsAsset& PhysAsset, TArray<FBodyInstance*>& OutBodies, TFunctionRef<FTransform(int32)> BoneTransformGetter, TMap<FName, FBodyInstance*>* OutNameToBodyMap, FPhysScene* PhysScene /*= nullptr*/, USkeletalMeshComponent* OwningComponent /*= nullptr*/, int32 UseRootBodyIndex /*= INDEX_NONE*/, const FPhysicsAggregateHandle& UseAggregate) const
 {
-	const float ActualScale = Scale3D.GetAbsMin();
-	const float Scale = ActualScale == 0.f ? KINDA_SMALL_NUMBER : ActualScale;
-
 	const int32 NumOutBodies = PhysAsset.SkeletalBodySetups.Num();
-
-	TMap<FName, FBodyInstance*> NameToBodyMap;
 
 	// Create all the OutBodies.
 	check(OutBodies.Num() == 0);
 	OutBodies.AddZeroed(NumOutBodies);
+	
+	if (OutNameToBodyMap)
+	{
+		OutNameToBodyMap->Reserve(NumOutBodies);
+	}
 
 	for(int32 BodyIdx = 0; BodyIdx < NumOutBodies; BodyIdx++)
 	{
@@ -904,9 +914,23 @@ void USkeletalMeshComponent::InstantiatePhysicsAsset_Internal(const UPhysicsAsse
 			SpawnParams.Aggregate = UseAggregate;
 			BodyInst->InitBody(PhysicsAssetBodySetup, BoneTransform, OwningComponent, PhysScene, SpawnParams);
 
-			NameToBodyMap.Add(PhysicsAssetBodySetup->BoneName, BodyInst);
+			if (OutNameToBodyMap)
+			{
+				OutNameToBodyMap->Add(PhysicsAssetBodySetup->BoneName, BodyInst);
+			}
 		}
 	}
+}
+
+void USkeletalMeshComponent::InstantiatePhysicsAsset_Internal(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, TFunctionRef<FTransform(int32)> BoneTransformGetter, FPhysScene* PhysScene /*= nullptr*/, USkeletalMeshComponent* OwningComponent /*= nullptr*/, int32 UseRootBodyIndex /*= INDEX_NONE*/, const FPhysicsAggregateHandle& UseAggregate) const
+{
+	const float ActualScale = Scale3D.GetAbsMin();
+	const float Scale = ActualScale == 0.f ? KINDA_SMALL_NUMBER : ActualScale;
+
+	TMap<FName, FBodyInstance*> NameToBodyMap;
+
+	// Create all the OutBodies.
+	InstantiatePhysicsAssetBodies_Internal(PhysAsset, OutBodies, BoneTransformGetter, &NameToBodyMap, PhysScene, OwningComponent, UseRootBodyIndex, UseAggregate);
 
 	if(PhysScene && Aggregate.IsValid())
 	{

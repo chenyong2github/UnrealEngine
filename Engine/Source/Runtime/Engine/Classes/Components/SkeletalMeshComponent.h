@@ -302,6 +302,35 @@ struct ENGINE_API FClosestPointOnPhysicsAsset
 	}
 };
 
+/** Helper struct used to store info about a cloth collision source */
+struct FClothCollisionSource
+{
+	FClothCollisionSource(USkeletalMeshComponent* InSourceComponent, UPhysicsAsset* InSourcePhysicsAsset, const FOnBoneTransformsFinalizedMultiCast::FDelegate& InOnBoneTransformsFinalizedDelegate);
+	~FClothCollisionSource();
+
+	/** Component that collision data will be copied from */
+	TWeakObjectPtr<USkeletalMeshComponent> SourceComponent;
+
+	/** Physics asset to use to generate collision against the source component */
+	TWeakObjectPtr<UPhysicsAsset> SourcePhysicsAsset;
+
+	/** Callback used to remove the cloth transform updates delegate */
+	FDelegateHandle OnBoneTransformsFinalizedHandle;
+
+	/** Cached skeletal mesh used to invalidate the cache if the skeletal mesh has changed */
+	TWeakObjectPtr<USkeletalMesh> CachedSkeletalMesh;
+
+	/** Cached spheres from physics asset */
+	TArray<FClothCollisionPrim_Sphere> CachedSpheres;
+
+	/** Cached sphere connections from physics asset */
+	TArray<FClothCollisionPrim_SphereConnection> CachedSphereConnections;
+
+	/** Flag whether the cache is valid */
+	bool bCached;
+};
+
+
 /**
  * SkeletalMeshComponent is used to create an instance of an animated SkeletalMesh asset.
  *
@@ -1439,34 +1468,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UClothingSimulationInteractor> ClothingInteractor;
 
-	/** Helper struct used to store info about a cloth collision source */
-	struct FClothCollisionSource
-	{
-		FClothCollisionSource(USkeletalMeshComponent* InSourceComponent, UPhysicsAsset* InSourcePhysicsAsset, const FOnBoneTransformsFinalizedMultiCast::FDelegate& InOnBoneTransformsFinalizedDelegate);
-		~FClothCollisionSource();
-
-		/** Component that collision data will be copied from */
-		TWeakObjectPtr<USkeletalMeshComponent> SourceComponent;
-
-		/** Physics asset to use to generate collision against the source component */
-		TWeakObjectPtr<UPhysicsAsset> SourcePhysicsAsset;
-
-		/** Callback used to remove the cloth transform updates delegate */
-		FDelegateHandle OnBoneTransformsFinalizedHandle;
-
-		/** Cached skeletal mesh used to invalidate the cache if the skeletal mesh has changed */
-		TWeakObjectPtr<USkeletalMesh> CachedSkeletalMesh;
-
-		/** Cached spheres from physics asset */
-		TArray<FClothCollisionPrim_Sphere> CachedSpheres;
-
-		/** Cached sphere connections from physics asset */
-		TArray<FClothCollisionPrim_SphereConnection> CachedSphereConnections;
-
-		/** Flag whether the cache is valid */
-		bool bCached;
-	};
-
 	/** Array of sources for cloth collision */
 	TArray<FClothCollisionSource> ClothCollisionSources;
 
@@ -1945,6 +1946,9 @@ public:
 	/** Instantiates bodies given a physics asset. Typically you should call InitArticulated unless you are planning to do something special with the bodies. The Created bodies and constraints are owned by the calling code and must be freed when necessary.*/
 	void InstantiatePhysicsAsset(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene = nullptr, USkeletalMeshComponent* OwningComponent = nullptr, int32 UseRootBodyIndex = INDEX_NONE, const FPhysicsAggregateHandle& UseAggregate = FPhysicsAggregateHandle()) const;
 
+	/** Instantiates only the bodies given a physics asset, not the constraints. The Created bodies are owned by the calling code and must be freed when necessary.*/
+	void InstantiatePhysicsAssetBodies(const UPhysicsAsset& PhysAsset, TArray<FBodyInstance*>& OutBodies, FPhysScene* PhysScene = nullptr, USkeletalMeshComponent* OwningComponent = nullptr, int32 UseRootBodyIndex = INDEX_NONE, const FPhysicsAggregateHandle& UseAggregate = FPhysicsAggregateHandle()) const;
+
 	/** Instantiates bodies given a physics asset like InstantiatePhysicsAsset but instead of reading the current component state, this reads the ref-pose from the reference skeleton of the mesh. Useful if trying to create bodies to be used during any evaluation work */
 	void InstantiatePhysicsAssetRefPose(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene = nullptr, USkeletalMeshComponent* OwningComponent = nullptr, int32 UseRootBodyIndex = INDEX_NONE, const FPhysicsAggregateHandle& UseAggregate = FPhysicsAggregateHandle(), bool bCreateBodiesInRefPose = false) const;
 
@@ -2208,6 +2212,8 @@ public:
 	/** if the vertex index is valid for simulated vertices, returns the position in world space */
 	bool GetClothSimulatedPosition_GameThread(const FGuid& AssetGuid, int32 VertexIndex, FVector& OutSimulPos) const;
 
+	const TArray<FClothCollisionSource>& GetClothCollisionSources() const { return ClothCollisionSources; }
+
 #if WITH_CLOTH_COLLISION_DETECTION
 
 	/**
@@ -2311,6 +2317,7 @@ private:
 	void GetWindForCloth_GameThread(FVector& WindVector, float& WindAdaption) const;
 
 	void InstantiatePhysicsAsset_Internal(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, TFunctionRef<FTransform(int32)> BoneTransformGetter, FPhysScene* PhysScene = nullptr, USkeletalMeshComponent* OwningComponent = nullptr, int32 UseRootBodyIndex = INDEX_NONE, const FPhysicsAggregateHandle& UseAggregate = FPhysicsAggregateHandle()) const;
+	void InstantiatePhysicsAssetBodies_Internal(const UPhysicsAsset& PhysAsset, TArray<FBodyInstance*>& OutBodies, TFunctionRef<FTransform(int32)> BoneTransformGetter, TMap<FName, FBodyInstance*>* OutNameToBodyMap = nullptr, FPhysScene* PhysScene = nullptr, USkeletalMeshComponent* OwningComponent = nullptr, int32 UseRootBodyIndex = INDEX_NONE, const FPhysicsAggregateHandle& UseAggregate = FPhysicsAggregateHandle()) const;
 
 	// Reference to our current parallel animation evaluation task (if there is one)
 	FGraphEventRef				ParallelAnimationEvaluationTask;

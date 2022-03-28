@@ -51,6 +51,9 @@ FAutoConsoleVariableRef CVarRigidBodyNodeEnableTimeBasedReset(TEXT("p.RigidBodyN
 FAutoConsoleVariableRef CVarRigidBodyNodeEnableComponentAcceleration(TEXT("p.RigidBodyNode.EnableComponentAcceleration"), bRBAN_EnableComponentAcceleration, TEXT("Enable/Disable the simple acceleration transfer system for component- or bone-space simulation"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeWorldObjectExpiry(TEXT("p.RigidBodyNode.WorldObjectExpiry"), RBAN_WorldObjectExpiry, TEXT("World objects are removed from the simulation if not detected after this many tests"), ECVF_Default);
 
+bool bRBAN_IncludeClothColliders = true;
+FAutoConsoleVariableRef CVarRigidBodyNodeIncludeClothColliders(TEXT("p.RigidBodyNode.IncludeClothColliders"), bRBAN_IncludeClothColliders, TEXT("Include cloth colliders as kinematic bodies in the immediate physics simulation."), ECVF_Default);
+
 // FSimSpaceSettings forced overrides for testing
 bool bRBAN_SimSpace_EnableOverride = false;
 FSimSpaceSettings RBAN_SimSpaceOverride;
@@ -142,6 +145,7 @@ FAnimNode_RigidBody::FAnimNode_RigidBody()
 	, OverlapChannel(ECC_WorldStatic)
 	, SimulationSpace(ESimulationSpace::ComponentSpace)
 	, bForceDisableCollisionBetweenConstraintBodies(false)
+	, bUseExternalClothCollision(false)
 	, ResetSimulatedTeleportType(ETeleportType::None)
 	, bEnableWorldGeometry(false)
 	, bOverrideWorldGravity(false)
@@ -515,6 +519,7 @@ void FAnimNode_RigidBody::FlushDeferredSimulationTask()
 
 void FAnimNode_RigidBody::DestroyPhysicsSimulation()
 {
+	ClothColliders.Reset();
 	FlushDeferredSimulationTask();
 	delete PhysicsSimulation;
 	PhysicsSimulation = nullptr;
@@ -821,6 +826,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				SimulationAngularAcceleration);
 
 			UpdateWorldObjects(SimulationTransform);
+			UpdateClothColliderObjects(SimulationTransform);
 
 			PhysicsSimulation->UpdateSimulationSpace(
 				SimulationTransform, 
@@ -1262,6 +1268,8 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 		PhysicsSimulation->SetIgnoreCollisionPairTable(IgnorePairs);
 		PhysicsSimulation->SetIgnoreCollisionActors(IgnoreCollisionActors);
 
+		CollectClothColliderObjects(SkeletalMeshComp);
+
 #if WITH_CHAOS
 		SolverSettings = UsePhysicsAsset->SolverSettings;
 		PhysicsSimulation->SetSolverSettings(
@@ -1558,6 +1566,88 @@ void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 	UnsafeWorld = nullptr;
 	UnsafeOwner = nullptr;
 	PhysScene = nullptr;
+}
+
+void FAnimNode_RigidBody::CollectClothColliderObjects(const USkeletalMeshComponent* SkeletalMeshComp)
+{
+	if (bUseExternalClothCollision && bRBAN_IncludeClothColliders && SkeletalMeshComp && PhysicsSimulation)
+	{
+		// @todo(ccaulfield): is there an engine-independent way to do this?
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+		SCOPED_SCENE_READ_LOCK(PhysScene ? PhysScene->GetPxScene() : nullptr);
+#endif
+
+		const TArray<FClothCollisionSource>& SkeletalMeshClothCollisionSources = SkeletalMeshComp->GetClothCollisionSources();
+		
+		for (const FClothCollisionSource& ClothCollisionSource : SkeletalMeshClothCollisionSources)
+		{
+			const USkeletalMeshComponent* const SourceComponent = ClothCollisionSource.SourceComponent.Get();
+			const UPhysicsAsset* const PhysicsAsset = ClothCollisionSource.SourcePhysicsAsset.Get();
+
+			if (SourceComponent && PhysicsAsset)
+			{
+				TArray<FBodyInstance*> BodyInstances;
+				SourceComponent->InstantiatePhysicsAssetBodies(*PhysicsAsset, BodyInstances);
+
+				for (uint32 BodyInstanceIndex = 0, BodyInstanceMax = BodyInstances.Num(); BodyInstanceIndex < BodyInstanceMax; ++BodyInstanceIndex)
+				{
+					FBodyInstance* const BodyInstance = BodyInstances[BodyInstanceIndex];
+
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+					// Not sure why this happens, adding check to fix crash in CheckRBN engine test.
+					if (BodyInstance.BodySetup != nullptr)
+					{
+						ImmediatePhysics::FActorHandle* const ActorHandle = PhysicsSimulation->CreateActor(ImmediatePhysics::EActorType::StaticActor, BodyInstance, BodyInstance->GetUnrealWorldTransform());
+						ClothColliders.Add(FClothCollider(ActorHandle, SourceComponent, BodyInstance->InstanceBoneIndex));
+					}
+#elif WITH_CHAOS
+					ImmediatePhysics::FActorHandle* const ActorHandle = PhysicsSimulation->CreateActor(ImmediatePhysics::EActorType::KinematicActor, BodyInstance, BodyInstance->GetUnrealWorldTransform());
+					PhysicsSimulation->AddToCollidingPairs(ActorHandle); // <-allow collision between this actor and all dynamic actors.
+					ClothColliders.Add(FClothCollider(ActorHandle, SourceComponent, BodyInstance->InstanceBoneIndex));
+#endif
+					// Terminate the instance.
+					if (BodyInstance->IsValidBodyInstance())
+					{
+						BodyInstance->TermBody(true);
+					}
+
+					delete BodyInstance;
+					BodyInstances[BodyInstanceIndex] = nullptr;
+				}
+
+				BodyInstances.Reset();
+			}
+		}
+	}
+}
+
+void FAnimNode_RigidBody::RemoveClothColliderObjects()
+{
+	for (const FClothCollider& ClothCollider : ClothColliders)
+	{
+		PhysicsSimulation->DestroyActor(ClothCollider.ActorHandle);
+	}
+	
+	ClothColliders.Reset();
+}
+
+void FAnimNode_RigidBody::UpdateClothColliderObjects(const FTransform& SpaceTransform)
+{
+	for (FClothCollider& ClothCollider : ClothColliders)
+	{
+		if (ClothCollider.ActorHandle && ClothCollider.SkeletalMeshComponent)
+		{
+			// Calculate the sim-space transform of this object
+			const FTransform CompWorldTransform = ClothCollider.SkeletalMeshComponent->GetBoneTransform(ClothCollider.BoneIndex);
+			FTransform CompSpaceTransform;
+			CompSpaceTransform.SetTranslation(SpaceTransform.InverseTransformPosition(CompWorldTransform.GetLocation()));
+			CompSpaceTransform.SetRotation(SpaceTransform.InverseTransformRotation(CompWorldTransform.GetRotation()));
+			CompSpaceTransform.SetScale3D(FVector::OneVector);	// TODO - sort out scale for world objects in local sim
+
+			// Update the sim's copy of the world object
+			ClothCollider.ActorHandle->SetWorldTransform(CompSpaceTransform);
+		}
+	}
 }
 
 void FAnimNode_RigidBody::CollectWorldObjects()

@@ -231,6 +231,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bForceDisableCollisionBetweenConstraintBodies;
 
+	/** If true, kinematic objects will be added to the simulation at runtime to represent any cloth colliders defined for the parent object. */
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bUseExternalClothCollision;
 
 private:
 	ETeleportType ResetSimulatedTeleportType;
@@ -318,6 +321,15 @@ private:
 		FVector& SpaceAngularVel,
 		FVector& SpaceLinearAcc,
 		FVector& SpaceAngularAcc);
+
+	// Gather cloth collision sources from the supplied Skeltal Mesh and add a kinematic actor representing each one of them to the sim.
+	void CollectClothColliderObjects(const USkeletalMeshComponent* SkeletalMeshComp);
+	
+	// Remove all cloth collider objects from the sim.
+	void RemoveClothColliderObjects();
+
+	// Update the sim-space transforms of all cloth collider objects.
+	void UpdateClothColliderObjects(const FTransform& SpaceTransform);
 
 	// Gather nearby world objects and add them to the sim
 	void CollectWorldObjects();
@@ -427,6 +439,23 @@ private:
 
 	FPerSolverFieldSystem PerSolverField;
 
+	// Information required to identify and update a kinematic object representing a cloth collision source in the sim.
+	struct FClothCollider
+	{
+		FClothCollider(ImmediatePhysics::FActorHandle* const InActorHandle, const USkeletalMeshComponent* const InSkeletalMeshComponent, const uint32 InBoneIndex)
+			: ActorHandle(InActorHandle)
+			, SkeletalMeshComponent(InSkeletalMeshComponent)
+			, BoneIndex(InBoneIndex)
+		{}
+
+		ImmediatePhysics::FActorHandle* ActorHandle; // Identifies the physics actor in the sim.
+		const USkeletalMeshComponent* SkeletalMeshComponent; // Parent skeleton.
+		uint32 BoneIndex; // Bone within parent skeleton that drives physics actors transform.
+	};
+
+	// List of actors in the sim that represent objects collected from other parts of this character.
+	TArray<FClothCollider> ClothColliders; 
+	
 	TMap<const UPrimitiveComponent*, FWorldObject> ComponentsInSim;
 	int32 ComponentsInSimTick;
 
