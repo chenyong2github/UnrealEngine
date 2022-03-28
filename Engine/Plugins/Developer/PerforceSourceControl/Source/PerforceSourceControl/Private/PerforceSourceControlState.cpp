@@ -175,7 +175,7 @@ FText FPerforceSourceControlState::GetDisplayTooltip() const
 {
 	if (IsConflicted())
 	{
-		return LOCTEXT("Conflicted_Tooltip", "The files(s) have local changes that need to be resolved with changes submitted to the Perforce depot");
+		return LOCTEXT("Conflicted_Tooltip", "The file(s) have local changes that need to be resolved with changes submitted to the Perforce depot");
 	}
 	else if( !IsCurrent() )
 	{

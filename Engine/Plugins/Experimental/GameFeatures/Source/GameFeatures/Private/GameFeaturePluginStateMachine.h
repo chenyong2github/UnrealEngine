@@ -146,7 +146,7 @@ enum class EGameFeaturePluginState : uint8
 	ErrorRegistering,			// Error state for Installed -> Registered and Registered -> Installed transitions.
 	WaitingForDependencies,		// Transition state Installed -> Registered. In the process of loading code/content for all dependencies into memory.
 	Unmounting,					// Transition state Registered -> Installed. The content file(s) (i.e. pak file) for the plugin is unmounting.
-	Mounting,					// Transition state Installed -> Registered. The content files(s) (i.e. pak file) for the plugin is getting mounted.
+	Mounting,					// Transition state Installed -> Registered. The content file(s) (i.e. pak file) for the plugin is getting mounted.
 	Unregistering,				// Transition state Registered -> Installed. Cleaning up data gathered in Registering.
 	Registering,				// Transition state Installed -> Registered. Discovering assets in the plugin, but not loading them, except a few for discovery reasons.
 	Registered,					// The assets in the plugin are known, but have not yet been loaded, except a few for discovery reasons.

@@ -130,7 +130,7 @@ FText SGameFeatureStateWidget::GetTooltipOfState(EGameFeaturePluginState State)
 	case EGameFeaturePluginState::Unmounting:
 		return LOCTEXT("StateTooltip_Unmounting", "Transition state Registered -> Installed. The content file(s) (i.e. pak file) for the plugin is unmounting.");
 	case EGameFeaturePluginState::Mounting:
-		return LOCTEXT("StateTooltip_Mounting", "Transition state Installed -> Registered. The content files(s) (i.e. pak file) for the plugin is getting mounted.");
+		return LOCTEXT("StateTooltip_Mounting", "Transition state Installed -> Registered. The content file(s) (i.e. pak file) for the plugin is getting mounted.");
 	case EGameFeaturePluginState::Unregistering:
 		return LOCTEXT("StateTooltip_Unregistering", "Transition state Registered -> Installed. Cleaning up data gathered in Registering.");
 	case EGameFeaturePluginState::Registering:
