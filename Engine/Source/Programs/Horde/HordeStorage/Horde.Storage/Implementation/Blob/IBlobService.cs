@@ -129,6 +129,8 @@ public class BlobService : IBlobService
     {
         using IScope scope = Tracer.Instance.StartActive("put_blob");
         scope.Span.ResourceName = identifier.ToString();
+        scope.Span.SetTag("Content-Length", payload.Length.ToString());
+
         await using Stream hashStream = payload.GetStream();
         BlobIdentifier id = BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier));
 
@@ -143,6 +145,8 @@ public class BlobService : IBlobService
     {
         using IScope scope = Tracer.Instance.StartActive("put_blob");
         scope.Span.ResourceName = identifier.ToString();
+        scope.Span.SetTag("Content-Length", payload.Length.ToString());
+
         await using Stream hashStream = new MemoryStream(payload);
         BlobIdentifier id = BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier));
 
@@ -156,6 +160,8 @@ public class BlobService : IBlobService
     {
         using IScope scope = Tracer.Instance.StartActive("put_blob");
         scope.Span.ResourceName = identifier.ToString();
+        scope.Span.SetTag("Content-Length", content.Length.ToString());
+
         BlobIdentifier objectStoreIdentifier = await PutObjectToStores(ns, content, identifier);
         await _blobIndex.AddBlobToIndex(ns, identifier);
 

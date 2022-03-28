@@ -73,8 +73,10 @@ namespace Jupiter.Common.Implementation
             {
                 await using FileStream fs = payload._tempFile.OpenWrite();
                 await s.CopyToAsync(fs);
-                payload._length = payload._tempFile.Length;
             }
+            
+            payload._tempFile.Refresh();
+            payload._length = payload._tempFile.Length;
 
             return payload;
         }
