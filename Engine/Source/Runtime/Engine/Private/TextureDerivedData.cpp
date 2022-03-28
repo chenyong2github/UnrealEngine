@@ -753,9 +753,8 @@ static void GetTextureBuildSettings(
 	{
 		OutBuildSettings.bCubemap = true;
 		OutBuildSettings.DiffuseConvolveMipLevel = GDiffuseConvolveMipLevel;
-		// beware IsLongLatCubemap is pretty useless , GetNumSlices() is doing the work here
 		check( Texture.Source.GetNumSlices() == 1 || Texture.Source.GetNumSlices() == 6 );
-		OutBuildSettings.bLongLatSource = (Texture.Source.GetNumSlices() == 1) || Texture.Source.IsLongLatCubemap();
+		OutBuildSettings.bLongLatSource = Texture.Source.IsLongLatCubemap();
 	}
 	else if ( TextureClass == ETextureClass::Array )
 	{

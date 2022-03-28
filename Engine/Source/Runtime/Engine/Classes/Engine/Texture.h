@@ -363,11 +363,13 @@ struct FTextureSource
 	UE_DEPRECATED(5.1, "Use GetSourceCompression instead")
 	FORCEINLINE bool IsPNGCompressed() const { return GetSourceCompression() == ETextureSourceCompressionFormat::TSCF_PNG; }
 	
-	// Warning: IsLongLatCubemap() is not correct.  LongLat Cubemaps have bLongLatCubemap == false
-	// the correct check is to see if the texture class is CubeMap and (NumSlices%6) == 0
+	// Warning: bLongLatCubemap is not correct.  LongLat Cubemaps often have bLongLatCubemap == false
 	// bLongLatCubemap is sometimes set to true for cube arrays to disambiguate the case of 6 longlat cubemaps in an array
-	// @@!! consider putting the NumSlices check in IsLongLatCubemap()
-	FORCEINLINE bool IsLongLatCubemap() const { return bLongLatCubemap; }
+	ENGINE_API bool IsCubeOrCubeArray() const;
+	ENGINE_API bool IsVolume() const;
+	ENGINE_API bool IsLongLatCubemap() const;
+	// returns volume depth, or 1 if not a volume
+	ENGINE_API int GetVolumeSizeZ() const;
 
 	FORCEINLINE int64 GetSizeOnDisk() const { return BulkData.GetPayloadSize(); }
 	inline bool HasPayloadData() const { return BulkData.HasPayloadData(); }

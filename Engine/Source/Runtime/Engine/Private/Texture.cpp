@@ -373,17 +373,11 @@ void UTexture::ValidateSettingsAfterImportOrEdit()
 		
 #if WITH_EDITORONLY_DATA
 
+	// IsPowerOfTwo only checks XY :
 	bool IsPowerOfTwo = Source.IsPowerOfTwo();
-	if ( GetTextureClass() == ETextureClass::Volume && ! FMath::IsPowerOfTwo(Source.NumSlices) )
+	if ( ! FMath::IsPowerOfTwo(Source.GetVolumeSizeZ()) )
 	{
 		IsPowerOfTwo = false;
-
-		if ( PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
-		{
-			// @@!! yes it is? fix and remove this?
-			UE_LOG(LogTexture, Warning, TEXT("PowerOfTwoMode not supported for volume Z"));
-			PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
-		}
 	}
 	
 	if (VirtualTextureStreaming)
@@ -1346,6 +1340,58 @@ int32 FTextureSource::GetBytesPerPixel(ETextureSourceFormat Format)
 }
 
 #if WITH_EDITOR
+
+bool FTextureSource::IsCubeOrCubeArray() const
+{
+	check( Owner != nullptr );
+	ETextureClass TextureClass = Owner->GetTextureClass();
+	return TextureClass == ETextureClass::Cube || TextureClass == ETextureClass::CubeArray;
+}
+
+bool FTextureSource::IsVolume() const
+{
+	check( Owner != nullptr );
+	ETextureClass TextureClass = Owner->GetTextureClass();
+	return TextureClass == ETextureClass::Volume;
+}
+
+bool FTextureSource::IsLongLatCubemap() const
+{
+	if ( IsCubeOrCubeArray() )
+	{
+		check( NumLayers == 1 );
+
+		// bLongLatCubemap is sometimes set for LongLat Cube Arrays but not always
+		if ( bLongLatCubemap )
+		{
+			return true;
+		}
+		else
+		{
+			// if NumSlices is not a multiple of 6, must be longlat !?
+			return (NumSlices % 6) != 0;
+		}
+	}
+	else
+	{
+		check( ! bLongLatCubemap );
+		return false;
+	}
+}
+
+// returns volume depth, or 1 if not a volume
+int FTextureSource::GetVolumeSizeZ() const
+{
+	if ( IsVolume() )
+	{
+		check( NumLayers == 1 );
+		return NumSlices;
+	}
+	else
+	{
+		return 1;
+	}
+}
 
 void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 	const FTextureSourceBlock* InBlocks,
