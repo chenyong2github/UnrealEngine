@@ -647,7 +647,7 @@ void ULandscapeComponent::PreFeatureLevelChange(ERHIFeatureLevel::Type PendingFe
 {
 	Super::PreFeatureLevelChange(PendingFeatureLevel);
 
-	if (PendingFeatureLevel <= ERHIFeatureLevel::ES3_1)
+	if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[PendingFeatureLevel]))
 	{
 		// See if we need to cook platform data for mobile preview in editor
 		CheckGenerateLandscapePlatformData(false, nullptr);
@@ -5153,7 +5153,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 			UWorld* World = GetWorld();
 
-			if (World != nullptr && World->FeatureLevel <= ERHIFeatureLevel::ES3_1)
+			if (World != nullptr && UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
 			{
 				for (ULandscapeComponent * Component : LandscapeComponents)
 				{
@@ -5557,7 +5557,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 				UWorld* World = GetWorld();
 
-				if (World != nullptr && World->FeatureLevel <= ERHIFeatureLevel::ES3_1)
+				if (World != nullptr && UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
 				{
 					for (ULandscapeComponent * Component : LandscapeComponents)
 					{
@@ -5701,7 +5701,7 @@ void ULandscapeComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 
 			UWorld* World = GetWorld();
 
-			if (World != nullptr && World->FeatureLevel <= ERHIFeatureLevel::ES3_1)
+			if (World != nullptr && UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
 			{
 				CheckGenerateLandscapePlatformData(false, nullptr);
 			}

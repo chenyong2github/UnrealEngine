@@ -32,6 +32,7 @@ public:
 		FVector4f    HeightmapScaleBias;
 		FVector4f    WeightmapScaleBias;
 		float       WeightmapSubsectionOffset;
+		bool		bUseMobileLandscapeMesh;
 	};
 
 	struct FLandscapeSectionRayTracingState

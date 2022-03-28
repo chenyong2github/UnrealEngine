@@ -9,6 +9,11 @@
 #define VERTEX_FACTORY_MODIFIES_INTERPOLATION 1
 #define VERTEX_FACTORY_HEIGHTFIELD 1
 
+#ifndef MOBILE_LANDSCAPE_MESH
+#define MOBILE_LANDSCAPE_MESH 0
+#endif
+
+
 // Set by FLightMapTexturePolicy
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
 
@@ -16,7 +21,7 @@
 	#define XYOFFSET_SCALE (1.0f/256.f)
 #endif
 
-#if (ES3_1_PROFILE)
+#if MOBILE_LANDSCAPE_MESH
 /* Offset for UV localization for large UV values. */
 float2 TexCoordOffset;
 #endif
@@ -65,7 +70,7 @@ float4 GetLodValues(uint ComponentIndex)
 #if FIXED_GRID 
 	// Fixed grid has fixed Lod
 	return LandscapeFixedGrid.LodValues;
-#elif FEATURE_LEVEL < FEATURE_LEVEL_SM4
+#elif MOBILE_LANDSCAPE_MESH
 	// On mobile we always use the Lod 0 mesh data
 	return float4(0, 0, LandscapeParameters.SubsectionSizeVertsLayerUVPan.xy);
 #else
@@ -82,7 +87,7 @@ float4 GetLodValues(uint ComponentIndex)
  */
 float2 GetLodBias(uint ComponentIndex)
 {
-#if FIXED_GRID || FEATURE_LEVEL < FEATURE_LEVEL_SM4
+#if FIXED_GRID || MOBILE_LANDSCAPE_MESH
 	// Fixed grid and mobile don't use LodBias
 	return 0;
 #else
@@ -159,15 +164,14 @@ float CalcLOD(uint ComponentIndex, float2 xyLocalToSubsection, float2 Subsection
 
 struct FVertexFactoryInput
 {
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
-	float4 Position: ATTRIBUTE0;
-
+#if MOBILE_LANDSCAPE_MESH
+	float4 PackedPosition : ATTRIBUTE0;
+	float4 LODHeights0 : ATTRIBUTE1;
+	float4 LODHeights1 : ATTRIBUTE2;
+#else
+	float4 Position : ATTRIBUTE0;
 	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE1
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
-#else
-	float4 PackedPosition: ATTRIBUTE0; 
-	float4 LODHeights0 : ATTRIBUTE1;  
-	float4 LODHeights1 : ATTRIBUTE2;
 #endif
 };
 
@@ -245,7 +249,7 @@ uint GetNumRayTracingDynamicMeshVerticesIndirect()
 struct FVertexFactoryInterpolantsVSToPS
 {
 	float2	LayerTexCoord			: TEXCOORD0; // xy == texcoord
-#if (ES3_1_PROFILE)
+#if MOBILE_LANDSCAPE_MESH
 	float2	WeightMapTexCoord		: TEXCOORD1;
 	float4	TransformedTexCoord0	: TEXCOORD2;
 	float4  TransformedTexCoord1	: TEXCOORD3;
@@ -254,7 +258,7 @@ struct FVertexFactoryInterpolantsVSToPS
 	float4	TransformedTexCoords	: TEXCOORD2;
 #endif
 #if NEEDS_LIGHTMAP_COORDINATE
-#if (ES3_1_PROFILE)
+#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
 	float2	LightMapCoordinate[2]	: TEXCOORD4;
 	float2	ShadowMapCoordinate		: TEXCOORD6;
 #else
@@ -275,7 +279,7 @@ struct FLandscapeTexCoords
 {
 	float2	LayerTexCoord : TEXCOORD0; // xy == texcoord
 	float2	WeightMapTexCoord;
-#if !(ES3_1_PROFILE)
+#if !MOBILE_LANDSCAPE_MESH
 	float2	HeightMapTexCoord;
 #endif
 #if NEEDS_LIGHTMAP_COORDINATE
@@ -300,7 +304,7 @@ struct FVertexFactoryRayTracingInterpolants
 #if NEEDS_VERTEX_FACTORY_INTERPOLATION
 float2 VertexFactoryGetRayTracingTextureCoordinate( FVertexFactoryRayTracingInterpolants Interpolants )
 {
-#if (ES3_1_PROFILE)
+#if MOBILE_LANDSCAPE_MESH
 	return Interpolants.InterpolantsVSToPS.WeightMapTexCoord.xy;
 #else
 	return Interpolants.InterpolantsVSToPS.WeightHeightMapTexCoord.zw;
@@ -370,7 +374,7 @@ FLandscapeTexCoords GetLandscapeTexCoords(FVertexFactoryInput Input, FVertexFact
 
 	Result.WeightMapTexCoord = Intermediates.LocalPosition.xy * LandscapeParameters.WeightmapUVScaleBias.xy + LandscapeParameters.WeightmapUVScaleBias.zw + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.zz;
 
-#if !(ES3_1_PROFILE)
+#if !MOBILE_LANDSCAPE_MESH
 	Result.HeightMapTexCoord = Intermediates.LocalPosition.xy * LandscapeParameters.HeightmapUVScaleBias.xy + LandscapeParameters.HeightmapUVScaleBias.zw + 0.5*LandscapeParameters.HeightmapUVScaleBias.xy + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.xy;
 #endif
 
@@ -396,10 +400,10 @@ float3x3 VertexFactoryGetPerPixelTangentBasis(FVertexFactoryInterpolantsVSToPS I
 {
 	float3x3 Result;
 #if PIXELSHADER || RAYHITGROUPSHADER || COMPUTESHADER
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
-	float4 SampleValue = Texture2DSample(LandscapeParameters.NormalmapTexture, LandscapeParameters.NormalmapTextureSampler, Interpolants.WeightHeightMapTexCoord.zw);
-#else
+#if MOBILE_LANDSCAPE_MESH
 	float4 SampleValue = Texture2DSample(LandscapeParameters.NormalmapTexture, LandscapeParameters.NormalmapTextureSampler, Interpolants.WeightMapTexCoord);
+#else
+	float4 SampleValue = Texture2DSample(LandscapeParameters.NormalmapTexture, LandscapeParameters.NormalmapTextureSampler, Interpolants.WeightHeightMapTexCoord.zw);
 #endif
 #if WEBGL
 	float2 SampleNormal = float2(SampleValue.b, SampleValue.a) * float2(2.0,2.0) - float2(1.0,1.0);
@@ -420,7 +424,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
 
 #if NEEDS_LIGHTMAP_COORDINATE
-	#if (ES3_1_PROFILE)
+	#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
 		// Not supported in pixel shader
 		float2 LightmapUVs = float2(0, 0);
 	#else
@@ -433,19 +437,19 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 #if NUM_MATERIAL_TEXCOORDS     // XY layer
 	Result.TexCoords[0] = Interpolants.LayerTexCoord.xy;
 #if NUM_MATERIAL_TEXCOORDS > 1 // VS calcualted TexCoord 1, default is XZ layer
-	#if (ES3_1_PROFILE)
+	#if MOBILE_LANDSCAPE_MESH
 		Result.TexCoords[1] = Interpolants.TransformedTexCoord0.xy;
 	#else
 		Result.TexCoords[1] = Interpolants.TransformedTexCoords.xy;
 	#endif
 #if NUM_MATERIAL_TEXCOORDS > 2 // VS calcualted TexCoord 2, default is YZ layer
-	#if (ES3_1_PROFILE)
+	#if MOBILE_LANDSCAPE_MESH
 		Result.TexCoords[2] = Interpolants.TransformedTexCoord1.xy;
 	#else
 		Result.TexCoords[2] = Interpolants.TransformedTexCoords.zw;
 	#endif
 #if NUM_MATERIAL_TEXCOORDS > 3 // Weightmap
-	#if (ES3_1_PROFILE)
+	#if MOBILE_LANDSCAPE_MESH
 		Result.TexCoords[3] = Interpolants.WeightMapTexCoord;
 	#else
 		Result.TexCoords[3] = Interpolants.WeightHeightMapTexCoord.xy;
@@ -457,7 +461,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 		Result.TexCoords[4] = float2(0,0);
 	#endif
 #if NUM_MATERIAL_TEXCOORDS > 5 // Height map
-	#if (ES3_1_PROFILE)
+	#if MOBILE_LANDSCAPE_MESH
 		Result.TexCoords[5] = float2(0,0); // Height map UV not supported
 	#else
 		Result.TexCoords[5] = Interpolants.WeightHeightMapTexCoord.zw;
@@ -486,7 +490,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.LightmapUVs = LightmapUVs;
 #endif
 
-#if (ES3_1_PROFILE) && PIXELSHADER
+#if MOBILE_LANDSCAPE_MESH && PIXELSHADER
 	Result.LayerWeights.xy = Texture2DSample(LandscapeParameters.NormalmapTexture, LandscapeParameters.NormalmapTextureSampler, Interpolants.WeightMapTexCoord).rg;
 	Result.LayerWeights.z = saturate(LandscapeParameters.BlendableLayerMask.z - dot(Result.LayerWeights.xy, LandscapeParameters.BlendableLayerMask.xy));
 	Result.LayerWeights.w = 0; // Total weight need to be 1
@@ -519,7 +523,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX     // XY layer
 	Result.TexCoords[0] = LandscapeTexCoords.LayerTexCoord.xy;
-	#if (ES3_1_PROFILE)
+	#if MOBILE_LANDSCAPE_MESH
 		Result.TexCoordOffset = TexCoordOffset;
 	#endif
 #if NUM_MATERIAL_TEXCOORDS_VERTEX > 1 // XZ layer
@@ -535,7 +539,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 		Result.TexCoords[4] = float2(0,0);
 	#endif
 #if NUM_MATERIAL_TEXCOORDS_VERTEX > 5 // Height map
-	#if (ES3_1_PROFILE)
+	#if MOBILE_LANDSCAPE_MESH
 		Result.TexCoords[5] = float2(0,0); // Height map UV not supported
 	#else
 		Result.TexCoords[5] = LandscapeTexCoords.HeightMapTexCoord;
@@ -560,7 +564,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 #if NEEDS_LIGHTMAP_COORDINATE
 void GetLightMapCoordinates(FVertexFactoryInterpolantsVSToPS Interpolants, out float2 LightmapUV0, out float2 LightmapUV1, out uint LightmapDataIndex)
 {
-#if (ES3_1_PROFILE)
+#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
 	LightmapUV0 = Interpolants.LightMapCoordinate[0].xy;
 	LightmapUV1 = Interpolants.LightMapCoordinate[1].xy;
 #else
@@ -577,7 +581,7 @@ void GetLightMapCoordinates(FVertexFactoryInterpolantsVSToPS Interpolants, out f
 
 void GetShadowMapCoordinate(FVertexFactoryInterpolantsVSToPS Interpolants, out float2 ShadowMapCoordinate, out uint LightmapDataIndex)
 {
-#if (ES3_1_PROFILE)
+#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
 	ShadowMapCoordinate = Interpolants.ShadowMapCoordinate.xy;
 #else
 	ShadowMapCoordinate = Interpolants.LightMapCoordinate.zw;
@@ -600,9 +604,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.LodValues = GetLodValues(Intermediates.ComponentIndex);
 	Intermediates.LodBias = GetLodBias(Intermediates.ComponentIndex);
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
-	Intermediates.InputPosition = Input.Position;
-#else
+#if MOBILE_LANDSCAPE_MESH
 	Intermediates.InputPosition.xy = Input.PackedPosition.xy * 255.f;
 
 	uint PackedExtraData = (uint)(Input.PackedPosition.z * 255.f);
@@ -611,6 +613,8 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.InputPosition.zw = float2(SubX, SubY);
 	float HoleMaxLod = (float)(PackedExtraData >> 5);
 	float HoleVertexLod = (float)((PackedExtraData >> 2) & 7);
+#else
+	Intermediates.InputPosition = Input.Position;
 #endif
 
 	float2 xy = Intermediates.InputPosition.xy * Intermediates.LodValues.w;
@@ -620,11 +624,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float MorphAlpha = LODCalculated - LodValue;
 
 	// InputPositionLODAdjusted : Position for actual LOD in base LOD units
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
-	float2 ActualLODCoordsInt = floor(Intermediates.InputPosition.xy * pow(2, -(LodValue - Intermediates.LodValues.x)));
-	float InvLODScaleFactor = pow(2, -LodValue);
-#else
-
+#if MOBILE_LANDSCAPE_MESH
 	// Clamp lod values around holes until we reach HoleMaxLod. Kill morphing when clamped.
 	bool bMorph = LodValue < HoleVertexLod || HoleMaxLod <= LodValue;
 	MorphAlpha = bMorph ? MorphAlpha : 0;
@@ -650,6 +650,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float InvLODScaleFactor = 1.f / (float)(1 << (uint)LodValue);
 	// LodValues.x is always 0 on mobile.
 	float2 ActualLODCoordsInt = floor(Intermediates.InputPosition.xy * InvLODScaleFactor);
+#else
+	float2 ActualLODCoordsInt = floor(Intermediates.InputPosition.xy * pow(2, -(LodValue - Intermediates.LodValues.x)));
+	float InvLODScaleFactor = pow(2, -LodValue);
 #endif
 
 	// Base to Actual LOD, Base to Next LOD
@@ -661,7 +664,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float2 InputPositionNextLOD = NextLODCoordsInt / CoordTranslate.y;
 
 	// Get the height and normal XY for current and next LOD out of the textures
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
+#if !MOBILE_LANDSCAPE_MESH
 	float2 SampleCoords = InputPositionLODAdjusted * LandscapeParameters.HeightmapUVScaleBias.xy + LandscapeParameters.HeightmapUVScaleBias.zw + 0.5*LandscapeParameters.HeightmapUVScaleBias.xy + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.xy;
 	float4 SampleValue = Texture2DSampleLevel(LandscapeParameters.HeightmapTexture, LandscapeParameters.HeightmapTextureSampler, SampleCoords, LodValue-Intermediates.LodBias.x);
 	float Height = DecodePackedHeight(SampleValue.xy);
@@ -686,13 +689,13 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	Intermediates.LocalPosition = lerp( float3(InputPositionLODAdjusted, Height), float3(InputPositionNextLOD, HeightNextLOD), MorphAlpha );
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
+#if MOBILE_LANDSCAPE_MESH
+	Intermediates.WorldNormal = float3(0.0, 0.0, 1.0);
+#else
 	float2 Normal = float2(SampleValue.b, SampleValue.a);
 	float2 NormalNextLOD = float2(SampleValueNextLOD.b, SampleValueNextLOD.a);
 	float2 InterpNormal = lerp( Normal, NormalNextLOD, MorphAlpha ) * float2(2.0,2.0) - float2(1.0,1.0);
 	Intermediates.WorldNormal = float3( InterpNormal, sqrt(max(1.0-dot(InterpNormal,InterpNormal),0.0)) );
-#else
-	Intermediates.WorldNormal = float3( 0.0, 0.0, 1.0 );
 #endif
 	
 	return Intermediates;
@@ -729,7 +732,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
 	FLandscapeTexCoords LandscapeTexCoords = GetLandscapeTexCoords(Input, Intermediates);
 
-#if (ES3_1_PROFILE)
+#if MOBILE_LANDSCAPE_MESH
 	Interpolants.LayerTexCoord	= LandscapeTexCoords.LayerTexCoord;
 	Interpolants.WeightMapTexCoord	= LandscapeTexCoords.WeightMapTexCoord; 
 	#if NUM_MATERIAL_TEXCOORDS
@@ -764,10 +767,10 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 		#endif // 1
 
 	#endif // NUM_MATERIAL_TEXCOORDS
-#endif // (ES3_1_PROFILE)
+#endif // MOBILE_LANDSCAPE_MESH
 
 #if NEEDS_LIGHTMAP_COORDINATE
-	#if (ES3_1_PROFILE)
+	#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
 		Interpolants.LightMapCoordinate[0].xy = LandscapeTexCoords.LightMapCoordinate * PrecomputedLightingBuffer.LightMapCoordinateScaleBias.xy + PrecomputedLightingBuffer.LightMapCoordinateScaleBias.zw;
 		Interpolants.LightMapCoordinate[0].y *= 0.5;
 		Interpolants.LightMapCoordinate[1].xy = Interpolants.LightMapCoordinate[0].xy;
@@ -823,12 +826,12 @@ FVertexFactoryRayTracingInterpolants VertexFactoryInterpolate(FVertexFactoryRayT
 {
 	FVertexFactoryRayTracingInterpolants O;
 	
-#if NEEDS_LIGHTMAP_COORDINATE && !(ES3_1_PROFILE)
+#if NEEDS_LIGHTMAP_COORDINATE && FEATURE_LEVEL > FEATURE_LEVEL_ES3_1
 	INTERPOLATE_MEMBER(InterpolantsVSToPS.LightMapCoordinate);
 #endif
 
 	INTERPOLATE_MEMBER(InterpolantsVSToPS.LayerTexCoord);
-#if (ES3_1_PROFILE)
+#if MOBILE_LANDSCAPE_MESH
 	INTERPOLATE_MEMBER(InterpolantsVSToPS.WeightMapTexCoord);
 	INTERPOLATE_MEMBER(InterpolantsVSToPS.TransformedTexCoord0);
 	INTERPOLATE_MEMBER(InterpolantsVSToPS.TransformedTexCoord1);

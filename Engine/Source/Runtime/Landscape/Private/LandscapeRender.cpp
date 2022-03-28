@@ -1115,7 +1115,13 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	EnableGPUSceneSupportFlags();
 
 	const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
-	if (FeatureLevel >= ERHIFeatureLevel::SM5)
+	const bool bMobileLandscapeMesh = UseMobileLandscapeMesh(GetScene().GetShaderPlatform());
+
+	if (bMobileLandscapeMesh)
+	{
+		AvailableMaterials.Append(InComponent->MobileMaterialInterfaces);
+	}
+	else
 	{
 		if (InComponent->GetLandscapeProxy()->bUseDynamicMaterialInstance)
 		{
@@ -1126,17 +1132,14 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 			AvailableMaterials.Append(InComponent->MaterialInstances);
 		}
 	}
-	else
-	{
-		AvailableMaterials.Append(InComponent->MobileMaterialInterfaces);
-	}
+
 
 	LODIndexToMaterialIndex = InComponent->LODIndexToMaterialIndex;
 	check(LODIndexToMaterialIndex.Num() == MaxLOD + 1);
 
 	SetLevelColor(FLinearColor(1.f, 1.f, 1.f));
-
-	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
+			
+	if (bMobileLandscapeMesh)
 	{
 		HeightmapTexture = nullptr;
 		HeightmapSubsectionOffsetU = 0;
@@ -1291,12 +1294,12 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		}
 	}
 #endif
-
+	
 	const int8 SubsectionSizeLog2 = FMath::CeilLogTwo(InComponent->SubsectionSizeQuads + 1);
 	SharedBuffersKey = (SubsectionSizeLog2 & 0xf) | ((NumSubsections & 0xf) << 4) |
-		(FeatureLevel <= ERHIFeatureLevel::ES3_1 ? 0 : 1 << 30) | (XYOffsetmapTexture == nullptr ? 0 : 1 << 31);
+		(bMobileLandscapeMesh ? 0 : 1 << 30) | (XYOffsetmapTexture == nullptr ? 0 : 1 << 31);
 
-	bSupportsHeightfieldRepresentation = FeatureLevel > ERHIFeatureLevel::ES3_1;
+	bSupportsHeightfieldRepresentation = !bMobileLandscapeMesh;
 	bSupportsMeshCardRepresentation = true;
 
 #if WITH_EDITOR
@@ -1345,7 +1348,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 	{
 		SharedBuffers = new FLandscapeSharedBuffers(
 			SharedBuffersKey, SubsectionSizeQuads, NumSubsections,
-			FeatureLevel);
+			FeatureLevel, false);
 
 		FLandscapeComponentSceneProxy::SharedBuffersMap.Add(SharedBuffersKey, SharedBuffers);
 
@@ -2651,14 +2654,11 @@ void FLandscapeVertexBuffer::InitRHI()
 //
 
 template <typename INDEX_TYPE>
-void FLandscapeSharedBuffers::CreateIndexBuffers(ERHIFeatureLevel::Type InFeatureLevel)
+void FLandscapeSharedBuffers::CreateIndexBuffers()
 {
-	if (InFeatureLevel <= ERHIFeatureLevel::ES3_1)
+	if (bUseMobileLandscapeMesh && !bVertexScoresComputed)
 	{
-		if (!bVertexScoresComputed)
-		{
-			bVertexScoresComputed = ComputeVertexScores();
-		}
+		bVertexScoresComputed = ComputeVertexScores();
 	}
 
 	TArray<INDEX_TYPE> VertexToIndexMap;
@@ -2683,7 +2683,7 @@ void FLandscapeSharedBuffers::CreateIndexBuffers(ERHIFeatureLevel::Type InFeatur
 		MaxIndexFull = 0;
 		MinIndexFull = MAX_int32;
 
-		if (InFeatureLevel <= ERHIFeatureLevel::ES3_1)
+		if (bUseMobileLandscapeMesh)
 		{
 			// mobile version shares vertices across LODs to save memory
 			float MipRatio = (float)SubsectionSizeQuads / (float)LodSubsectionSizeQuads; // Morph current MIP to base MIP
@@ -2893,7 +2893,7 @@ void FLandscapeSharedBuffers::CreateGrassIndexBuffer()
 }
 #endif
 
-FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey, const int32 InSubsectionSizeQuads, const int32 InNumSubsections, const ERHIFeatureLevel::Type InFeatureLevel)
+FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey, const int32 InSubsectionSizeQuads, const int32 InNumSubsections, const ERHIFeatureLevel::Type InFeatureLevel, bool bInUseMobileLandscapeMesh)
 	: SharedBuffersKey(InSharedBuffersKey)
 	, NumIndexBuffers(FMath::CeilLogTwo(InSubsectionSizeQuads + 1))
 	, SubsectionSizeVerts(InSubsectionSizeQuads + 1)
@@ -2902,14 +2902,16 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 	, FixedGridVertexFactory(nullptr)
 	, VertexBuffer(nullptr)
 	, bUse32BitIndices(false)
+
+	, bUseMobileLandscapeMesh(bInUseMobileLandscapeMesh)
 #if WITH_EDITOR
 	, GrassIndexBuffer(nullptr)
 #endif
 {
 	NumVertices = FMath::Square(SubsectionSizeVerts) * FMath::Square(NumSubsections);
-	if (InFeatureLevel > ERHIFeatureLevel::ES3_1)
+	if (!bUseMobileLandscapeMesh)
 	{
-		// Vertex Buffer cannot be shared
+		// Vertex Buffer cannot be shared 
 		VertexBuffer = new FLandscapeVertexBuffer(InFeatureLevel, NumVertices, SubsectionSizeVerts, NumSubsections);
 	}
 	IndexBuffers = new FIndexBuffer * [NumIndexBuffers];
@@ -2927,7 +2929,7 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 	if (NumVertices > 65535)
 	{
 		bUse32BitIndices = true;
-		CreateIndexBuffers<uint32>(InFeatureLevel);
+		CreateIndexBuffers<uint32>();
 #if WITH_EDITOR
 		if (InFeatureLevel > ERHIFeatureLevel::ES3_1)
 		{
@@ -2937,7 +2939,7 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 	}
 	else
 	{
-		CreateIndexBuffers<uint16>(InFeatureLevel);
+		CreateIndexBuffers<uint16>();
 #if WITH_EDITOR
 		if (InFeatureLevel > ERHIFeatureLevel::ES3_1)
 		{
@@ -3122,8 +3124,8 @@ bool FLandscapeVertexFactory::ShouldCompilePermutation(const FVertexFactoryShade
 {
 	// only compile landscape materials for landscape vertex factory
 	// The special engine materials must be compiled for the landscape vertex factory because they are used with it for wireframe, etc.
-	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
-		(Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
+	const bool  bSupportsHeightfieldRepresentation = IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) || !UseMobileLandscapeMesh(Parameters.Platform);
+	return bSupportsHeightfieldRepresentation && (Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
 void FLandscapeVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -3718,11 +3720,12 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 	}
 
 	ERHIFeatureLevel::Type FeatureLevel = LevelContext.GetFeatureLevel();
-	int32 MaterialInstanceCount = FeatureLevel >= ERHIFeatureLevel::SM5 ? GetMaterialInstanceCount() : MobileMaterialInterfaces.Num();
+	const bool bUseMobileLandscapeMesh = UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[FeatureLevel]);
+	int32 MaterialInstanceCount = bUseMobileLandscapeMesh ? MobileMaterialInterfaces.Num() : GetMaterialInstanceCount();
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialInstanceCount; ++MaterialIndex)
 	{
-		const UMaterialInterface* MaterialInterface = FeatureLevel >= ERHIFeatureLevel::SM5 ? GetMaterialInstance(MaterialIndex) : ToRawPtr(MobileMaterialInterfaces[MaterialIndex]);
+		const UMaterialInterface* MaterialInterface = bUseMobileLandscapeMesh ? ToRawPtr(MobileMaterialInterfaces[MaterialIndex]) : GetMaterialInstance(MaterialIndex);
 
 		// Normal usage...
 		// Enumerate the textures used by the material.

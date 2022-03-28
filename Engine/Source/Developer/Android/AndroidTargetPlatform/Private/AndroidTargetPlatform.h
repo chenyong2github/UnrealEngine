@@ -185,6 +185,7 @@ protected:
 	bool SupportsVulkan() const;
 	bool SupportsLandscapeMeshLODStreaming() const;
 	bool SupportsVulkanSM5() const;
+	bool UseMobileLandscapeMesh() const;
 
 protected:
 

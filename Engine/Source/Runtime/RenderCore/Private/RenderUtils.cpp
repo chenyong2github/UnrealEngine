@@ -1681,6 +1681,16 @@ RENDERCORE_API bool UseVirtualTextureLightmap(const FStaticFeatureLevel InFeatur
 	return bUseVirtualTextureLightmap;
 }
 
+RENDERCORE_API bool UseMobileLandscapeMesh(EShaderPlatform ShaderPlatform)
+{
+	if (IsMobilePlatform(ShaderPlatform))
+	{
+		static FShaderPlatformCachedIniValue<bool> PerPlatformCVar(TEXT("r.Mobile.LandscapeMesh"));
+		return (PerPlatformCVar.Get(ShaderPlatform) != 0);
+	}
+	return false;
+}
+
 RENDERCORE_API bool ExcludeNonPipelinedShaderTypes(EShaderPlatform ShaderPlatform)
 {
 	if (RHISupportsShaderPipelines(ShaderPlatform))

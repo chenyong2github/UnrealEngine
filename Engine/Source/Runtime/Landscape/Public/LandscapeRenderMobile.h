@@ -50,6 +50,7 @@ public:
 	{
 		FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("NUM_VF_PACKED_INTERPOLANTS"), TEXT("1"));
+		OutEnvironment.SetDefine(TEXT("MOBILE_LANDSCAPE_MESH"), TEXT("1"));
 	}
 
 	// FRenderResource interface.

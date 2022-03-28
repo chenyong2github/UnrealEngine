@@ -114,6 +114,8 @@ public:
 	{
 		return bDistanceField;
 	}
+
+	bool UseMobileLandscapeMesh() const;
 private:
 
 	// Handles received pong messages from the LauncherDaemon.

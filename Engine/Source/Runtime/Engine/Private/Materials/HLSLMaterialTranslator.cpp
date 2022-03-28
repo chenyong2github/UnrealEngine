@@ -7103,7 +7103,8 @@ bool FHLSLMaterialTranslator::GetStaticBoolValue(int32 BoolIndex, bool& bSucceed
 
 int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName LayerName,int32 Default)
 {
-	if (GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && ShaderFrequency != SF_Pixel)
+	const bool bUseMobileLandscapeMesh = UseMobileLandscapeMesh(Platform);
+	if (bUseMobileLandscapeMesh && ShaderFrequency != SF_Pixel)
 	{
 		return Errorf(TEXT("Landscape layer weights are only available in the pixel shader."));
 	}
@@ -7143,7 +7144,7 @@ int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName LayerName,int32 De
 	else
 	{			
 		int32 WeightmapCode;
-		if (GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && NumActiveTerrainLayerWeightParameters <= 3 && bAtLeastOneWeightBasedBlend)
+		if (bUseMobileLandscapeMesh && NumActiveTerrainLayerWeightParameters <= 3 && bAtLeastOneWeightBasedBlend)
 		{
 			// Mobile can pack 3 layers into the normal map texture B and A channels, implying the 3rd using weight based blending
 			// Layer texture is sampled into Parameters.LayerWeights in LandscapeVertexFactory.ush
@@ -11192,7 +11193,7 @@ int32 FHLSLMaterialTranslator::SpeedTree(int32 GeometryArg, int32 WindArg, int32
 	*/
 int32 FHLSLMaterialTranslator::TextureCoordinateOffset()
 {
-	if (FeatureLevel < ERHIFeatureLevel::SM5 && ShaderFrequency == SF_Vertex)
+	if (UseMobileLandscapeMesh(Platform) && ShaderFrequency == SF_Vertex)
 	{
 		return AddInlinedCodeChunkZeroDeriv(MCT_Float2, TEXT("Parameters.TexCoordOffset"));
 	}

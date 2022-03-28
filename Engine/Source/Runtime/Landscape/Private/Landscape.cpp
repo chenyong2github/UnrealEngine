@@ -131,6 +131,11 @@ namespace LandscapeCookStats
 // Set this to 0 to disable landscape cooking and thus disable it on device.
 #define ENABLE_LANDSCAPE_COOKING 1
 
+static bool UseMobileLandscapeMesh(const ITargetPlatform* TargetPlatform)
+{
+	return TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MobileLandscapeMesh);
+}
+
 #define LOCTEXT_NAMESPACE "Landscape"
 
 static void PrintNumLandscapeShadows()
@@ -252,7 +257,7 @@ void ULandscapeComponent::BeginCacheForCookedPlatformData(const ITargetPlatform*
 {
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
 
-	if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MobileRendering) && !HasAnyFlags(RF_ClassDefaultObject))
+	if (UseMobileLandscapeMesh(TargetPlatform) && !HasAnyFlags(RF_ClassDefaultObject))
 	{
 		CheckGenerateLandscapePlatformData(true, TargetPlatform);
 	}
@@ -350,7 +355,7 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 
 #if WITH_EDITOR
-	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject) && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MobileRendering))
+	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject) && UseMobileLandscapeMesh(Ar.CookingTarget()))
 	{
 		// for -oldcook:
 		// the old cooker calls BeginCacheForCookedPlatformData after the package export set is tagged, so the mobile material doesn't get saved, so we have to do CheckGenerateLandscapePlatformData in serialize
@@ -421,30 +426,33 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 			Ar.Serialize(Object, sizeof(UObject*));
 		}
 	}
-	else if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject) && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering))
+	else if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject))
 	{
-		// These properties are only used for SM4+ so we back them up and clear them before serializing them.
-		UTexture2D* BackupHeightmapTexture = nullptr;
-		UTexture2D* BackupXYOffsetmapTexture = nullptr;
-		TArray<UMaterialInstanceConstant*> BackupMaterialInstances;
-		TArray<UTexture2D*> BackupWeightmapTextures;
-
-		Exchange(HeightmapTexture, BackupHeightmapTexture);
-		Exchange(BackupXYOffsetmapTexture, XYOffsetmapTexture);
-		Exchange(BackupMaterialInstances, MaterialInstances);
-		Exchange(BackupWeightmapTextures, WeightmapTextures);
-
-		Super::Serialize(Ar);
-
-		Exchange(HeightmapTexture, BackupHeightmapTexture);
-		Exchange(BackupXYOffsetmapTexture, XYOffsetmapTexture);
-		Exchange(BackupMaterialInstances, MaterialInstances);
-		Exchange(BackupWeightmapTextures, WeightmapTextures);
-	}
-	else
-		if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject) && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MobileRendering))
+		const bool bUseMobileLandscapeMesh = UseMobileLandscapeMesh(Ar.CookingTarget());
+		
+		if (bUseMobileLandscapeMesh && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering))
 		{
-			// These properties are only used for mobile so we back them up and clear them before serializing them.
+			// These are used for SM5 rendering or if MobileLandscapeMesh is disabled 
+			UTexture2D* BackupHeightmapTexture = nullptr;
+			UTexture2D* BackupXYOffsetmapTexture = nullptr;
+			TArray<UMaterialInstanceConstant*> BackupMaterialInstances;
+			TArray<UTexture2D*> BackupWeightmapTextures;
+
+			Exchange(HeightmapTexture, BackupHeightmapTexture);
+			Exchange(BackupXYOffsetmapTexture, XYOffsetmapTexture);
+			Exchange(BackupMaterialInstances, MaterialInstances);
+			Exchange(BackupWeightmapTextures, WeightmapTextures);
+
+			Super::Serialize(Ar);
+
+			Exchange(HeightmapTexture, BackupHeightmapTexture);
+			Exchange(BackupXYOffsetmapTexture, XYOffsetmapTexture);
+			Exchange(BackupMaterialInstances, MaterialInstances);
+			Exchange(BackupWeightmapTextures, WeightmapTextures);
+		}
+		else if (!bUseMobileLandscapeMesh)
+		{
+			// These properties are only when MobileLandscapeMesh is enabled so we back them up and clear them before serializing them.
 			TArray<UMaterialInterface*> BackupMobileMaterialInterfaces;
 			TArray<UTexture2D*> BackupMobileWeightmapTextures;
 
@@ -457,10 +465,16 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 			Exchange(MobileWeightmapTextures, BackupMobileWeightmapTextures);
 		}
 		else
-#endif
 		{
+			// Serialize both mobile landscape mesh and heightmap properties
 			Super::Serialize(Ar);
 		}
+	}
+	else
+#endif
+	{
+		Super::Serialize(Ar);
+	}
 
 	if (Ar.IsLoading() && Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::MapBuildDataSeparatePackage)
 	{
@@ -540,7 +554,7 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 #if ENABLE_LANDSCAPE_COOKING
 	if (bCooked)
 	{
-		bool bCookedMobileData = Ar.IsCooking() && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MobileRendering);
+		bool bCookedMobileData = Ar.IsCooking() && UseMobileLandscapeMesh(Ar.CookingTarget());
 		Ar << bCookedMobileData;
 
 		// Saving for cooking path
@@ -981,7 +995,7 @@ void ULandscapeComponent::PostLoad()
 		}
 		else
 		{
-			if (GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1)
+			if (UseMobileLandscapeMesh(GMaxRHIShaderPlatform))
 			{
 				UE_LOG(LogLandscape, Error, TEXT("Landscape component (%d, %d) Does not have a valid mobile combination material. To correct this issue, open the map in the editor and resave the map."), SectionBaseX, SectionBaseY);
 			}
@@ -992,9 +1006,11 @@ void ULandscapeComponent::PostLoad()
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		UWorld* World = GetWorld();
-
+		ERHIFeatureLevel::Type FeatureLevel = ((GEngine->GetDefaultWorldFeatureLevel() == ERHIFeatureLevel::ES3_1) || (World && (World->FeatureLevel <= ERHIFeatureLevel::ES3_1))) 
+			? ERHIFeatureLevel::ES3_1 : GMaxRHIFeatureLevel;
+				
 		// If we're loading on a platform that doesn't require cooked data, but defaults to a mobile feature level, generate or preload data from the DDC
-		if (!FPlatformProperties::RequiresCookedData() && ((GEngine->GetDefaultWorldFeatureLevel() <= ERHIFeatureLevel::ES3_1) || (World && (World->FeatureLevel <= ERHIFeatureLevel::ES3_1))))
+		if (!FPlatformProperties::RequiresCookedData() && UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[FeatureLevel]))
 		{
 			CheckGenerateLandscapePlatformData(false, nullptr);
 		}
@@ -1426,7 +1442,7 @@ FPrimitiveSceneProxy* ULandscapeComponent::CreateSceneProxy()
 
 	const auto FeatureLevel = GetWorld()->FeatureLevel;
 	FPrimitiveSceneProxy* Proxy = nullptr;
-	if (FeatureLevel >= ERHIFeatureLevel::SM5)
+	if (FeatureLevel >= ERHIFeatureLevel::SM5 || !UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[FeatureLevel]))
 	{
 		Proxy = new FLandscapeComponentSceneProxy(this);
 	}
@@ -2182,7 +2198,7 @@ void ALandscapeProxy::OnFeatureLevelChanged(ERHIFeatureLevel::Type NewFeatureLev
 
 	UpdateAllComponentMaterialInstances();
 
-	if (NewFeatureLevel <= ERHIFeatureLevel::ES3_1)
+	if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[NewFeatureLevel]))
 	{
 		for (ULandscapeComponent* Component : LandscapeComponents)
 		{

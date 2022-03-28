@@ -20,10 +20,15 @@ static TAutoConsoleVariable<int32> CVarMobileLandscapeHoleMesh(
 	TEXT("Set to 0 to skip loading of landscape hole meshes on mobile."),
 	ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarUseMobileLandscapeMesh(
+	TEXT("r.Mobile.LandscapeMesh"),
+	1,
+	TEXT("Whether to use baked landscape mesh for a mobile"),
+	ECVF_ReadOnly);
+
 bool FLandscapeVertexFactoryMobile::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	auto FeatureLevel = GetMaxSupportedFeatureLevel(Parameters.Platform);
-	return (FeatureLevel == ERHIFeatureLevel::ES3_1) &&
+	return UseMobileLandscapeMesh(Parameters.Platform) &&
 		(Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
@@ -197,7 +202,7 @@ void FLandscapeFixedGridVertexFactoryMobile::ModifyCompilationEnvironment(const 
 	
 bool FLandscapeFixedGridVertexFactoryMobile::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return GetMaxSupportedFeatureLevel(Parameters.Platform) == ERHIFeatureLevel::ES3_1 &&
+	return UseMobileLandscapeMesh(Parameters.Platform) &&
 		(Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
@@ -381,7 +386,7 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 	{
 		SharedBuffers = new FLandscapeSharedBuffers(
 			SharedBuffersKey, SubsectionSizeQuads, NumSubsections,
-			GetScene().GetFeatureLevel());
+			FeatureLevel, true); 
 
 		FLandscapeComponentSceneProxy::SharedBuffersMap.Add(SharedBuffersKey, SharedBuffers);
 	}

@@ -417,7 +417,7 @@ struct FMaterialPixelParameters
 	/** Per-particle properties. Only valid for particle vertex factories. */
 	FMaterialParticleParameters Particle;
 
-#if ES3_1_PROFILE
+#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
 	float4 LayerWeights;
 #endif
 
@@ -426,7 +426,7 @@ struct FMaterialPixelParameters
 	FTexCoordScalesParams TexCoordScalesParams;
 #endif
 
-#if POST_PROCESS_MATERIAL && (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1)
+#if POST_PROCESS_MATERIAL && FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
 	/** Used in mobile custom pp material to preserve original SceneColor Alpha */
 	half BackupSceneColorAlpha;
 #endif
@@ -526,7 +526,7 @@ struct FMaterialVertexParameters
 	half4 VertexColor;
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	float2 TexCoords[NUM_MATERIAL_TEXCOORDS_VERTEX];
-	#if ES3_1_PROFILE
+	#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
 	float2 TexCoordOffset; // Offset for UV localization for large UV values
 	#endif
 #endif

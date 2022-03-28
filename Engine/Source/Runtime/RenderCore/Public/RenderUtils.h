@@ -768,6 +768,11 @@ inline bool UseNonNaniteVirtualShadowMaps(EShaderPlatform ShaderPlatform, const 
 RENDERCORE_API bool UseVirtualTextureLightmap(const FStaticFeatureLevel InFeatureLevel, const class ITargetPlatform* TargetPlatform = nullptr);
 
 /**
+*	Checks if platform uses a baked landscape mesh (mobile)
+*/
+RENDERCORE_API bool UseMobileLandscapeMesh(EShaderPlatform ShaderPlatform);
+
+/**
  *  Checks if the non-pipeline shaders will not be compild and ones from FShaderPipeline used instead.
  */
 RENDERCORE_API bool ExcludeNonPipelinedShaderTypes(EShaderPlatform ShaderPlatform);

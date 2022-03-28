@@ -323,6 +323,19 @@ bool FAndroidTargetPlatform::SupportsLandscapeMeshLODStreaming() const
 	return bStreamLandscapeMeshLODs;
 }
 
+bool FAndroidTargetPlatform::UseMobileLandscapeMesh() const
+{
+	// By default mobile uses landscape mesh
+	static bool bUseMobileLandscapeMesh = true;
+	static bool bInitialized = false;
+	if (!bInitialized)
+	{
+		GetConfigSystem()->GetBool(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.LandscapeMesh"), bUseMobileLandscapeMesh, GEngineIni);
+		bInitialized = true;
+	}
+	return bUseMobileLandscapeMesh;
+}
+
 /* ITargetPlatform overrides
  *****************************************************************************/
 
@@ -419,6 +432,9 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 
 		case ETargetPlatformFeatures::DistanceFieldAO:
 			return UsesDistanceFields();
+
+		case ETargetPlatformFeatures::MobileLandscapeMesh:
+			return SupportsFeature(ETargetPlatformFeatures::MobileRendering) && UseMobileLandscapeMesh();
 			
 		default:
 			break;

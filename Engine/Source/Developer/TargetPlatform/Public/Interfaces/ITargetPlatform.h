@@ -110,6 +110,9 @@ enum class ETargetPlatformFeatures
 
 	/** The platform supports communication (reading and writing data) between a target a connected PC. */
 	DirectDataExchange,
+
+	/** Whether platform uses a baked landscape mesh */
+	MobileLandscapeMesh,
 };
 
 enum class EPlatformAuthentication
