@@ -61,6 +61,8 @@ void FContentBrowserModule::ContentBrowserSettingChanged(FName InName)
 		ContentBrowserData->RefreshVirtualPathTreeIfNeeded();
 	}
 
+	ContentBrowserSingleton->SetPrivateContentPermissionListDirty();
+
 	// Resize the recently opened asset list
 	if (InName == NumberOfRecentAssetsName)
 	{
