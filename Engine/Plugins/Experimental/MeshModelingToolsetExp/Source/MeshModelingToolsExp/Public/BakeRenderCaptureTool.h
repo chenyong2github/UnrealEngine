@@ -189,14 +189,6 @@ public:
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MaterialSettings, meta = (ClampMin = "0.001", ClampMax = "1000.0"))
 	float NearPlaneDist = 1.0f;
-	
-	//
-	// Debug Output Settings
-	//
-
-	/** If true, print out debugging messages */
-	UPROPERTY(EditAnywhere, Category = DebugSettings)
-	bool bPrintDebugMessages = false;
 };
 
 
