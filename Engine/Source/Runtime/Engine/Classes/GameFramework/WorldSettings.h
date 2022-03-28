@@ -794,6 +794,11 @@ public:
 	void SetWorldPartition(UWorldPartition* InWorldPartition);
 	void ApplyWorldPartitionForcedSettings();
 
+#if WITH_EDITOR
+	virtual bool SupportsWorldPartitionStreaming() const { return true; }
+	void SupportsWorldPartitionStreamingChanged();
+#endif
+
 	/**
 	 * Returns the Z component of the current world gravity and initializes it to the default
 	 * gravity if called for the first time.

@@ -354,7 +354,7 @@ void UWorldPartition::OnEndPlay()
 
 FName UWorldPartition::GetWorldPartitionEditorName() const
 {
-	if (bEnableStreaming)
+	if (SupportsStreaming())
 	{
 		return EditorHash->GetWorldPartitionEditorName();
 	}
@@ -403,6 +403,13 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	const bool bPIEWorldTravel = (World->WorldType == EWorldType::PIE) && !StreamingPolicy;
 
 	UE_LOG(LogWorldPartition, Log, TEXT("UWorldPartition::Initialize(IsEditor=%d, bPIEWorldTravel=%d IsGame=%d, IsCooking=%d)"), bIsEditor ? 1 : 0, bPIEWorldTravel ? 1 : 0, bIsGame ? 1 : 0, bIsCooking ? 1 : 0);
+
+	FWorldPartitionActorDesc::bForceAlwaysLoaded = !IsStreamingEnabled();
+
+	if (bEnableStreaming)
+	{
+		bStreamingWasEnabled = true;
+	}
 
 	if (bIsGame || bIsCooking)
 	{
@@ -1069,7 +1076,7 @@ void UWorldPartition::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 	Super::OnActorDescAdded(NewActorDesc);
 
 	HashActorDesc(NewActorDesc);
-		
+
 	if (WorldPartitionEditor)
 	{
 		WorldPartitionEditor->Refresh();
@@ -1144,12 +1151,54 @@ bool UWorldPartition::GetInstancingContext(const FLinkerInstancingContext*& OutI
 	return false;
 }
 
-void UWorldPartition::OnEnableStreaming()
+bool UWorldPartition::SupportsStreaming() const
 {
-	if (!bStreamingWasEnabled)
+	return World->GetWorldSettings()->SupportsWorldPartitionStreaming();
+}
+
+bool UWorldPartition::IsStreamingEnabled() const
+{
+	return bEnableStreaming && SupportsStreaming();
+}
+
+void UWorldPartition::SetEnableStreaming(bool bInEnableStreaming)
+{
+	if (bEnableStreaming != bInEnableStreaming)
 	{
-		bStreamingWasEnabled = true;
-		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionEnableStreamingDialolg", "Please refer to https://docs.unrealengine.com/5.0/en-US/building-virtual-worlds/world-partition for how to set up streaming."));
+		bEnableStreaming = bInEnableStreaming;
+		OnEnableStreamingChanged();
+	}
+}
+
+void UWorldPartition::OnEnableStreamingChanged()
+{
+	// Pin the actor handles on the actor to prevent unloading it when unhashing
+	TArray<FWorldPartitionHandlePinRefScope> PinRefScopes;
+	PinRefScopes.Reserve(ActorDescList.Num());
+
+	for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+	{
+		FWorldPartitionHandle ExistingActorHandle(this, ActorDescIterator->GetGuid());
+		PinRefScopes.Emplace(ExistingActorHandle);
+
+		UnhashActorDesc(*ActorDescIterator);
+	}
+
+	FWorldPartitionActorDesc::bForceAlwaysLoaded = !IsStreamingEnabled();
+
+	for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+	{
+		HashActorDesc(*ActorDescIterator);
+	}
+
+	if (!IsStreamingEnabled())
+	{
+		UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true, false);
+	}
+
+	if (WorldPartitionEditor)
+	{
+		WorldPartitionEditor->Reconstruct();
 	}
 }
 
@@ -1169,86 +1218,6 @@ void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 	check(EditorHash);
 	FWorldPartitionHandle ActorHandle(this, ActorDesc->GetGuid());
 	EditorHash->UnhashActor(ActorHandle);
-}
-
-void UWorldPartition::PostLoad()
-{
-	FWorldPartitionActorDesc::bForceAlwaysLoaded = !bEnableStreaming;
-
-	if (bEnableStreaming)
-	{
-		bStreamingWasEnabled = true;
-	}
-
-	Super::PostLoad();
-}
-
-void UWorldPartition::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWorldPartition, bEnableStreaming))
-	{
-		bool bApplyStreamingChange = true;
-
-		if (bEnableStreaming)
-		{
-			if (!bStreamingWasEnabled)
-			{
-				if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionConfirmEnableStreaming", "You are about to enable streaming, the world will be setup to stream. Continue?")) == EAppReturnType::No)
-				{
-					bEnableStreaming = false;
-					bApplyStreamingChange = false;
-				}
-				else
-				{
-					bStreamingWasEnabled = true;
-
-					FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionEnableStreamingDialolg", "Please refer to https://docs.unrealengine.com/5.0/en-US/building-virtual-worlds/world-partition for how to set up streaming."));
-				}
-			}
-		}
-		else
-		{
-			if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionConfirmDisableStreaming", "You are about to disable streaming, all actors in the world will be always loaded. Continue?")) == EAppReturnType::No)
-			{
-				bEnableStreaming = true;
-				bApplyStreamingChange = false;
-			}
-		}
-
-		if (bApplyStreamingChange)
-		{
-			// Pin the actor handles on the actor to prevent unloading it when unhashing
-			TArray<FWorldPartitionHandlePinRefScope> PinRefScopes;
-			PinRefScopes.Reserve(ActorDescList.Num());
-
-			for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
-			{
-				FWorldPartitionHandle ExistingActorHandle(this, ActorDescIterator->GetGuid());
-				PinRefScopes.Emplace(ExistingActorHandle);
-
-				UnhashActorDesc(*ActorDescIterator);
-			}
-
-			FWorldPartitionActorDesc::bForceAlwaysLoaded = !bEnableStreaming;
-
-			for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
-			{
-				HashActorDesc(*ActorDescIterator);
-			}
-
-			if (!bEnableStreaming)
-			{
-				UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true, false);
-			}
-
-			if (WorldPartitionEditor)
-			{
-				WorldPartitionEditor->Reconstruct();
-			}
-		}
-	}
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
 
@@ -1319,7 +1288,7 @@ void UWorldPartition::Tick(float DeltaSeconds)
 	{
 		bShouldCheckEnableStreamingWarning = false;
 
-		if (!bEnableStreaming && !bStreamingWasEnabled && !bShouldEnableStreamingWarned)
+		if (!IsStreamingEnabled() && SupportsStreaming() && !bStreamingWasEnabled && !bShouldEnableStreamingWarned)
 		{
 			FBox AllActorsBounds(ForceInit);
 			for (UActorDescContainer::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
@@ -1330,9 +1299,12 @@ void UWorldPartition::Tick(float DeltaSeconds)
 				if (AllActorsBounds.GetSize().GetMax() >= 400000.0f)
 				{
 					bShouldEnableStreamingWarned = true;
+
 					if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionShouldEnableStreaming", "The size of your world has grown enough to justify enabling streaming. Enable streaming now?")) == EAppReturnType::Yes)
 					{
-						OnEnableStreaming();
+						bEnableStreaming = true;
+						bStreamingWasEnabled = true;
+						FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionEnableStreamingDialolg", "Please refer to https://docs.unrealengine.com/5.0/en-US/building-virtual-worlds/world-partition for how to set up streaming."));			
 					}
 
 					break;

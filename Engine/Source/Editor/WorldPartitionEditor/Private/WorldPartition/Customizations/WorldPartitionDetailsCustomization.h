@@ -23,6 +23,9 @@ private:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
+	// Callback for changes in the world partition enable streaming.
+	void HandleWorldPartitionEnableStreamingChanged(ECheckBoxState CheckState);
+
 	// Callback for changes in the world partition editor cell size.
 	void HandleWorldPartitionEditorCellSizeChanged(uint32 NewValue);
 

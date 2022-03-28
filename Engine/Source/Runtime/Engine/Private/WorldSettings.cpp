@@ -249,6 +249,16 @@ float AWorldSettings::GetGravityZ() const
 	return WorldGravityZ;
 }
 
+#if WITH_EDITOR
+void AWorldSettings::SupportsWorldPartitionStreamingChanged()
+{
+	if (WorldPartition)
+	{
+		WorldPartition->OnEnableStreamingChanged();
+	}
+}
+#endif
+
 void AWorldSettings::OnRep_WorldGravityZ()
 {
 	bWorldGravitySet = true;

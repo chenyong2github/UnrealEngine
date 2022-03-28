@@ -6,6 +6,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Misc/MessageDialog.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
@@ -30,6 +31,22 @@ void FWorldPartitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 
 	IDetailCategoryBuilder& WorldPartitionCategory = DetailBuilder.EditCategory("WorldPartition");
 
+	WorldPartitionCategory.AddCustomRow(LOCTEXT("EnableStreaming", "Enable Streaming"), false)
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("WorldPartitionEnableStreaming", "Enable Streaming"))
+			.ToolTipText(LOCTEXT("WorldPartitionEnableStreaming_ToolTip", "Set the world partition enable streaming state."))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SCheckBox)
+			.IsChecked(MakeAttributeLambda([this]() { return WorldPartition->IsStreamingEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }))
+			.OnCheckStateChanged(this, &FWorldPartitionDetails::HandleWorldPartitionEnableStreamingChanged)
+		]
+		.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition->SupportsStreaming() ? EVisibility::Visible : EVisibility::Hidden; }));
+
 	if (WorldPartition->RuntimeHash)
 	{
 		FAddPropertyParams Params;
@@ -38,18 +55,18 @@ void FWorldPartitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 
 		if (IDetailPropertyRow* RuntimeHashRow = WorldPartitionCategory.AddExternalObjects({ WorldPartition->RuntimeHash }, EPropertyLocation::Default, Params))
 		{
-			// use TAttribute::CreateLambda?
-			RuntimeHashRow->ShouldAutoExpand(true)
+			(*RuntimeHashRow)
+				.ShouldAutoExpand(true)
 				.DisplayName(LOCTEXT("RuntimeHash", "Runtime Hash"))
-				.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this]() { return WorldPartition->bEnableStreaming ? EVisibility::Visible : EVisibility::Hidden; })));
+				.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; }));
 		}
 	}
 
-	WorldPartitionCategory.AddCustomRow(LOCTEXT("WorldPartitionEditorCellSizeRow", "WorldPartitionEditorCellSize"), true)
+	WorldPartitionCategory.AddCustomRow(LOCTEXT("EditorCellSizeRow", "Editor Cell Size"), true)
 		.NameContent()
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("WorldPartitionCellSize", "World Partition Editor Cell Size"))
+			.Text(LOCTEXT("WorldPartitionCellSize", "Editor Cell Size"))
 			.ToolTipText(LOCTEXT("WorldPartitionEditorCellSize_ToolTip", "Set the world partition editor cell size, will take effect on the next world reload."))
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 		]
@@ -67,7 +84,33 @@ void FWorldPartitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 				.OnValueChanged(this, &FWorldPartitionDetails::HandleWorldPartitionEditorCellSizeChanged)
 				.Value(this, &FWorldPartitionDetails::HandleWorldPartitionEditorCellSizeValue)
 			]
-		];
+		];		
+}
+
+void FWorldPartitionDetails::HandleWorldPartitionEnableStreamingChanged(ECheckBoxState CheckState)
+{
+	if (CheckState == ECheckBoxState::Checked)
+	{
+		if (!WorldPartition->bStreamingWasEnabled)
+		{
+			if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionConfirmEnableStreaming", "You are about to enable streaming for the first time, the world will be setup to stream. Continue?")) == EAppReturnType::No)
+			{
+				return;
+			}
+			
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionEnableStreamingDialolg", "Please refer to https://docs.unrealengine.com/5.0/en-US/building-virtual-worlds/world-partition for how to set up streaming."));
+			WorldPartition->bStreamingWasEnabled = true;
+		}
+
+		WorldPartition->SetEnableStreaming(true);
+	}
+	else
+	{
+		if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionConfirmDisableStreaming", "You are about to disable streaming, all actors in the world will be always loaded. Continue?")) == EAppReturnType::Yes)
+		{
+			WorldPartition->SetEnableStreaming(false);
+		}
+	}
 }
 
 void FWorldPartitionDetails::HandleWorldPartitionEditorCellSizeChanged(uint32 NewValue)

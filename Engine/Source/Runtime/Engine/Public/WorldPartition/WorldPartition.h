@@ -74,8 +74,11 @@ class ENGINE_API UWorldPartition final : public UActorDescContainer
 	GENERATED_UCLASS_BODY()
 
 	friend class FWorldPartitionActorDesc;
+	friend class FWorldPartitionConverter;
 	friend class UWorldPartitionEditorCell;
+	friend class UWorldPartitionConvertCommandlet;
 	friend class FWorldPartitionEditorModule;
+	friend class FWorldPartitionDetails;
 	friend class FUnrealEdMisc;
 
 public:
@@ -95,8 +98,14 @@ public:
 
 #if WITH_EDITOR
 	TArray<FName> GetUserLoadedEditorGridCells() const;
-private:
 
+public:
+	bool SupportsStreaming() const;
+	bool IsStreamingEnabled() const;
+	void SetEnableStreaming(bool bInEnableStreaming);
+	void OnEnableStreamingChanged();
+
+private:
 	void SavePerUserSettings();
 		
 	void OnGCPostReachabilityAnalysis();
@@ -121,16 +130,10 @@ private:
 
 	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext, FSoftObjectPathFixupArchive*& OutSoftObjectPathFixupArchive) const override;
 	//~ End UActorDescContainer Interface
-
-	void OnEnableStreaming();
 #endif
 
 public:
 	//~ Begin UObject Interface
-#if WITH_EDITOR
-	virtual void PostLoad() override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 	virtual bool ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists) override;
 	//~ End UObject Interface
 
@@ -208,8 +211,9 @@ public:
 	UPROPERTY()
 	TSubclassOf<UWorldPartitionStreamingPolicy> WorldPartitionStreamingPolicyClass;
 
+private:
 	/** Enables streaming for this world. */
-	UPROPERTY(EditAnywhere, Category=WorldPartition)
+	UPROPERTY()
 	bool bEnableStreaming;
 
 	/** Used to know if it's the first time streaming is enabled on this world. */
@@ -217,22 +221,26 @@ public:
 	bool bStreamingWasEnabled;
 
 	/** Used to know if the user has already been warned about that it should enable streaming based on world size. */
+	UPROPERTY()
 	bool bShouldEnableStreamingWarned;
 
 	/** Used to know if we need to recheck if the user should enable streaming based on world size. */
 	bool bShouldCheckEnableStreamingWarning;
 #endif
 
+public:
 	UPROPERTY()
 	TObjectPtr<UWorldPartitionRuntimeHash> RuntimeHash;
 
 #if WITH_EDITOR
+private:
 	bool bForceGarbageCollection;
 	bool bForceGarbageCollectionPurge;
 	bool bIsPIE;
 #endif
 
 #if WITH_EDITORONLY_DATA
+public:
 	// Default HLOD layer
 	UPROPERTY(EditAnywhere, Category=WorldPartition, meta = (DisplayName = "Default HLOD Layer", EditCondition="bEnableStreaming", EditConditionHides, HideEditConditionToggle))
 	TObjectPtr<class UHLODLayer> DefaultHLODLayer;

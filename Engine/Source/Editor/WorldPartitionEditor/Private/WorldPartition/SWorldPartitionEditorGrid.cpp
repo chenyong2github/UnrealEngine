@@ -18,7 +18,7 @@ void SWorldPartitionEditorGrid::Construct(const FArguments& InArgs)
 	World = InArgs._InWorld;
 	WorldPartition = World ? World->GetWorldPartition() : nullptr;
 
-	if (!WorldPartition || !WorldPartition->bEnableStreaming)
+	if (!WorldPartition || !WorldPartition->IsStreamingEnabled())
 	{
 		const FText Message = WorldPartition ? 
 			LOCTEXT("WorldPartitionHasStreamingDisabled", "World Partition streaming is not enabled for this map") : 
@@ -110,7 +110,7 @@ void SWorldPartitionEditorGrid::Refresh()
 
 bool SWorldPartitionEditorGrid::IsDisabled() const
 {
-	return !WorldPartition || !WorldPartition->bEnableStreaming;
+	return !WorldPartition || !WorldPartition->IsStreamingEnabled();
 }
 
 #undef LOCTEXT_NAMESPACE
