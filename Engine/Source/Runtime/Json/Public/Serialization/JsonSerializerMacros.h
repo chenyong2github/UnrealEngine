@@ -240,6 +240,29 @@ else \
 	Serializer.Serialize(TEXT(JsonName), JsonTextValue); \
 }
 
+#define JSON_SERIALIZE_ENUM_ARRAY(JsonName, JsonArray, EnumType) \
+if (Serializer.IsLoading()) \
+{ \
+	if (Serializer.GetObject()->HasTypedField<EJson::Array>(JsonName)) \
+	{ \
+		EnumType EnumValue; \
+		for (auto It = Serializer.GetObject()->GetArrayField(JsonName).CreateConstIterator(); It; ++It) \
+		{ \
+			LexFromString(EnumValue, *(*It)->AsString()); \
+			JsonArray.Add(EnumValue); \
+		} \
+	} \
+} \
+else \
+{ \
+	Serializer.StartArray(JsonName); \
+	for (EnumType& EnumValue : JsonArray) \
+	{ \
+		FString JsonTextValue = LexToString(EnumValue); \
+		Serializer.Serialize(TEXT(JsonName), JsonTextValue); \
+	} \
+	Serializer.EndArray(); \
+}
 
 struct FJsonSerializerBase;
 
