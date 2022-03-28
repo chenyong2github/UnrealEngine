@@ -156,7 +156,7 @@ FText SEnumComboBox::GetCurrentValueTooltip() const
 	{
 		return OnGetToolTipForValue.Execute(ValueNameIndex);
 	}
-	return VisibleEnums[ValueNameIndex].TooltipText;
+	return Enum->GetToolTipTextByIndex(ValueNameIndex);
 }
 
 TSharedRef<SWidget> SEnumComboBox::OnGetMenuContent()
