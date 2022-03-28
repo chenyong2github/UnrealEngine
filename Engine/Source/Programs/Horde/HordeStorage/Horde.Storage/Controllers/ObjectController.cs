@@ -125,6 +125,32 @@ namespace Horde.Storage.Controllers
             return Ok(new HeadMultipleResponse {Needs = missingBlobs.ToArray()});
         }
 
+        [HttpPost("{ns}/exist")]
+        [Authorize("Storage.read")]
+        [ProducesDefaultResponseType]
+        public async Task<IActionResult> ExistsBody(
+            [Required] NamespaceId ns,
+            [FromBody] BlobIdentifier[] bodyIds)
+        {
+            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+
+            if (!authorizationResult.Succeeded)
+            {
+                return Forbid();
+            }
+
+            ConcurrentBag<BlobIdentifier> missingBlobs = new ConcurrentBag<BlobIdentifier>();
+
+            IEnumerable<Task> tasks = bodyIds.Select(async blob =>
+            {
+                if (!await _storage.Exists(ns, blob))
+                    missingBlobs.Add(blob);
+            });
+            await Task.WhenAll(tasks);
+
+            return Ok(new HeadMultipleResponse { Needs = missingBlobs.ToArray() });
+        }
+
         [HttpPut("{ns}/{id}")]
         [Authorize("Storage.write")]
         [RequiredContentType(CustomMediaTypeNames.UnrealCompactBinary)]
