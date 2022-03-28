@@ -148,9 +148,17 @@ namespace Horde.Storage.Implementation
 
         private bool NamespaceShouldBeCleaned(NamespaceId ns)
         {
-            NamespaceSettings.PerNamespaceSettings policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
+            try
+            {
+                NamespaceSettings.PerNamespaceSettings policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
 
-            return policy.IsLegacyNamespace.HasValue && !policy.IsLegacyNamespace.Value;
+                return policy.IsLegacyNamespace.HasValue && !policy.IsLegacyNamespace.Value;
+            }
+            catch (UnknownNamespaceException)
+            {
+                _logger.Warning("Namespace {Namespace} does not configure any policy, not running cleanup on it.", ns);
+                return false;
+            }
         }
 
         private IAsyncEnumerable<NamespaceId> ListNamespaces()

@@ -83,7 +83,7 @@ namespace Horde.Storage.Implementation
                 }
                 catch (IncrementalLogNotAvailableException)
                 {
-                    _logger.Error("Unable to generate a snapshot for {Namespace} as there was no incremental state available", ns);
+                    _logger.Warning("Unable to generate a snapshot for {Namespace} as there was no incremental state available", ns);
                 }
 
                 ran = true;
