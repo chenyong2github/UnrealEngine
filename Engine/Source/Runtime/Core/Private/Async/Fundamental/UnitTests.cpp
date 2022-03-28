@@ -5,6 +5,10 @@
 
 #include "Async/Fundamental/Scheduler.h"
 #include "Experimental/Async/AwaitableTask.h"
+#include "Experimental/Coroutine/CoroEvent.h"
+#include "Experimental/Coroutine/CoroParallelFor.h"
+#include "Experimental/Coroutine/CoroSpinLock.h"
+#include "Experimental/Coroutine/CoroTimeout.h"
 
 #include <atomic>
 
@@ -590,6 +594,84 @@ namespace Tasks2Tests
 			TryLaunch(Task);
 		}
 
+		return true;
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksCoroutineTests, "System.Core.Coroutine.UnitTests", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	bool FTasksCoroutineTests::RunTest(const FString& Parameters)
+	{
+#if WITH_CPP_COROUTINES
+		{
+			FCoroEvent Event;
+			auto InnerFrame = [&]() -> CORO_FRAME(void)
+			{
+				CO_AWAIT Event;
+			};
+
+			auto WorkLambda = [&]() -> CORO_TASK(int)
+			{
+				CORO_INVOKE(InnerFrame());
+				CO_RETURN_TASK(42);
+			};
+
+			LAUNCHED_TASK(int) Task = WorkLambda().Launch(TEXT("CoroUnitTest"), ETaskPriority::BackgroundLow);
+			FPlatformProcess::Sleep(0.001f);
+			Event.Trigger();
+			int Value = Task.SpinWait();
+			verify(Value == 42);
+		}
+		{
+			TCoroLocal<int> CLS(0);
+			auto WorkLambda = [&]() -> CORO_TASK(void)
+			{
+				for(int i = 0; i < 1000; i++)
+				{
+					*CLS += 1;
+					int intermediate_value = *CLS;
+					verify(intermediate_value == i+1);
+				}
+				int final_value = *CLS;
+				verify(final_value == 1000);
+				CO_RETURN_TASK();
+			};
+
+			TArray<LAUNCHED_TASK(void)> Tasks;
+			for(int i = 0; i < 100; i++)
+			{
+				Tasks.Emplace(WorkLambda().Launch(TEXT("CoroLocalStateTest")));
+			}
+
+			for(int i = 0; i < 100; i++)
+			{
+				Tasks[i].SpinWait();
+			}
+		}
+		{
+			FCoroSpinLock SpinLock;
+			int Mutable = 0;
+			auto WorkLambda = [&](int32) -> CORO_FRAME(void)
+			{
+				auto LockScope = CO_AWAIT SpinLock.Lock();
+				Mutable++;
+				LockScope.Release();
+				CO_RETURN;
+			};
+
+			CoroParallelFor(TEXT("CoroParallelForTest"), 100, WorkLambda, EParallelForFlags::None);
+			verify(Mutable == 100);
+		}
+		{	
+			auto WorkLambda = [&](int32) -> CORO_FRAME(void)
+			{
+				FCoroTimeoutAwaitable Timeout(FTimespan::FromMilliseconds(1), ECoroTimeoutFlags::Suspend_Worker);
+				FPlatformProcess::Sleep(0.001f);
+				CO_AWAIT Timeout;
+				CO_RETURN;
+			};
+
+			CoroParallelFor(TEXT("CoroTimeoutForTest"), 100, WorkLambda, EParallelForFlags::None);
+		}
+#endif
 		return true;
 	}
 }

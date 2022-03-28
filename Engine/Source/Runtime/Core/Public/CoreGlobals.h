@@ -602,6 +602,11 @@ public:
 	 */
 	static void CORE_API SetTagStaticInit();
 
+	/**
+	* Swap the Tag this is only used when Thread contexts move between different threads.
+	*/
+	static ETaskTag CORE_API SwapTag(ETaskTag Tag);
+
 protected:
 	CORE_API FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag);
 
@@ -689,6 +694,9 @@ extern CORE_API bool IsRHIThreadRunning();
 
 /** @return True if called from the RHI thread, or if called from ANY thread during single threaded rendering */
 extern CORE_API bool IsInRHIThread();
+
+/** @return True if called from any parallel RHI thread, or if called from ANY thread during single threaded rendering */
+extern CORE_API bool IsInParallelRHIThread();
 
 /** Thread used for RHI */
 UE_DEPRECATED(4.26, "Please use `IsRHIThreadRunning()`")

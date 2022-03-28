@@ -25,6 +25,11 @@ public:
 	 * @return an instance of the singleton if it exists on the current thread.
 	 */
 	static CORE_API FTlsAutoCleanup* TryGet(uint32& TlsSlot);
+
+	/**
+	* @return sets the TLS store to the instance and returns the previous instance.
+	*/
+	static CORE_API FTlsAutoCleanup* Inject(FTlsAutoCleanup* Instance, uint32& TlsSlot);
 };
 
 
@@ -105,5 +110,13 @@ public:
 	FORCEINLINE static T* TryGet()
 	{
 		return (T*)FThreadSingletonInitializer::TryGet( T::GetTlsSlot() );
+	}
+
+	/**
+	* @return sets the TLS store to the instance and returns the previous instance.
+	*/
+	FORCEINLINE static T* Inject(T* Instance)
+	{
+		return (T*)FThreadSingletonInitializer::Inject(Instance, T::GetTlsSlot());
 	}
 };
