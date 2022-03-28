@@ -434,7 +434,7 @@ namespace UnrealBuildTool
 			using (GlobalTracer.Instance.BuildSpan("Checking makefile validity").StartActive())
 			{
 				// Check if the arguments are different
-				if(!Enumerable.SequenceEqual(Makefile.AdditionalArguments!, Arguments))
+				if(!Enumerable.SequenceEqual(Makefile.AdditionalArguments, Arguments))
 				{
 					ReasonNotLoaded = "command line arguments changed";
 					return null;

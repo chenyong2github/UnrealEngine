@@ -507,13 +507,27 @@ namespace AutomationToolDriver
 
 			void eventSource_WarningRaised(object Sender, BuildWarningEventArgs e)
 			{
+				string Message = $"{e.File}({e.LineNumber},{e.ColumnNumber}): warning {e.Code}: {e.Message} ({e.ProjectFile})";
+
+
+				{
+					// workaround for warnings that appear after revert of net6.0 upgrade. Delete this block when the net6.0 upgrade is done.
+					// ...\Engine\Binaries\ThirdParty\DotNet\Windows\sdk\3.1.403\Microsoft.Common.CurrentVersion.targets(3036,5): warning MSB3088: Could not read state file "obj\Development\[projectname].csproj.GenerateResource.cache". The input stream is not a valid binary format.
+					// The starting contents (in bytes) are: 06-01-01-00-00-00-01-19-50-72-6F-70-65-72-74-69-65 ... (...\[projectname].csproj)
+					if (String.Equals(e.Code, "MSB3088"))
+					{
+						Log.TraceLog("Suppressed warning: " + Message);
+						return;
+					}
+				}
+
 				if (bFirstError)
                 {
 					Trace.WriteLine("");
 					Log.WriteLine(LogEventType.Console, "");
 					bFirstError = false;
                 }
-				string Message = $"{e.File}({e.LineNumber},{e.ColumnNumber}): warning {e.Code}: {e.Message} ({e.ProjectFile})";
+
 				Trace.WriteLine(Message); // double-clickable message in VS output
 				Log.WriteLine(LogEventType.Console, Message);
 			}
@@ -574,8 +588,7 @@ namespace AutomationToolDriver
 		{
 			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference _)> BuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>();
 			
-			var Projects = new Dictionary<string, Project>();
-			var	SkippedProjects = new HashSet<string>();
+			Dictionary<string, Project> Projects = new Dictionary<string, Project>();
 			
 			// Microsoft.Build.Evaluation.Project provides access to information stored in the .csproj xml that is 
 			// not available when using Microsoft.Build.Execution.ProjectInstance (used later in this function and
@@ -587,7 +600,7 @@ namespace AutomationToolDriver
 				void LoadProjectAndReferences(string ProjectPath, string ReferencedBy)
 				{
 					ProjectPath = Path.GetFullPath(ProjectPath);
-					if (!Projects.ContainsKey(ProjectPath) && !SkippedProjects.Contains(ProjectPath))
+					if (!Projects.ContainsKey(ProjectPath))
 					{
 						Project Project;
 
@@ -618,18 +631,6 @@ namespace AutomationToolDriver
 							throw IPFEx;
 						}
 
-						if (!OperatingSystem.IsWindows())
-						{
-							// check the TargetFramework of the project: we can't build Windows-only projects on 
-							// non-Windows platforms.
-							if (Project.GetProperty("TargetFramework").EvaluatedValue.Contains("windows"))
-							{
-								SkippedProjects.Add(ProjectPath);
-								Log.TraceInformation($"Skipping windows-only project {ProjectPath}");
-								return;
-							}
-						}
-						
 						Projects.Add(ProjectPath, Project);
 						ReferencedBy = String.IsNullOrEmpty(ReferencedBy) ? ProjectPath : $"{ProjectPath}{Environment.NewLine}{ReferencedBy}";
 						foreach (string ReferencedProject in Project.GetItems("ProjectReference").
@@ -787,10 +788,7 @@ namespace AutomationToolDriver
 			// Potential optimization: Contructing the ProjectGraph here gives the full graph of dependencies - which is nice,
 			// but not strictly necessary, and slower than doing it some other way.
 			ProjectGraph InputProjectGraph;
-			InputProjectGraph = new ProjectGraph(FoundAutomationProjects
-				// Build the graph without anything that can't be built on this platform
-				.Where(x => !SkippedProjects.Contains(x.FullName))
-				.Select(P => P.FullName), GlobalProperties);
+			InputProjectGraph = new ProjectGraph(FoundAutomationProjects.Select(P => P.FullName), GlobalProperties);
 
 			// A ProjectGraph that will represent the set of projects that we actually want to build
 			ProjectGraph BuildProjectGraph = null;

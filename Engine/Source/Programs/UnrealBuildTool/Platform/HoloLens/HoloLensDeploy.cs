@@ -8,14 +8,12 @@ using System.Diagnostics;
 using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
-using System.Runtime.Versioning;
 
 namespace UnrealBuildTool
 {
 	/// <summary>
 	///  Base class to handle deploy of a target for a given platform
 	/// </summary>
-	[SupportedOSPlatform("windows")]
 	class HoloLensDeploy : UEBuildDeploy
 	{
 		private FileReference? MakeAppXPath;

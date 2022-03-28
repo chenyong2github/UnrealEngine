@@ -124,7 +124,7 @@ namespace UnrealBuildTool
 
 		private string GetElementValue(XElement SourceElement, XName ElementName, string DefaultValue)
 		{
-			XElement? Element = SourceElement.Element(ElementName);
+			XElement Element = SourceElement.Element(ElementName);
 			return (Element != null) ? Element.Value : DefaultValue;
 		}
 
@@ -296,7 +296,7 @@ namespace UnrealBuildTool
 				return;
 			}
 
-			string NameSpace = DependsXML.Root!.Name.NamespaceName;
+			string NameSpace = DependsXML.Root.Name.NamespaceName;
 			XName DependencyName = XName.Get("dependency", NameSpace);
 			XName GroupIdName = XName.Get("groupId", NameSpace);
 			XName ArtifactIdName = XName.Get("artifactId", NameSpace);
@@ -407,7 +407,7 @@ namespace UnrealBuildTool
 				return;
 			}
 
-			string NameSpace = DependsXML.Root!.Name.NamespaceName;
+			string NameSpace = DependsXML.Root.Name.NamespaceName;
 			XName DependencyName = XName.Get("dependency", NameSpace);
 			XName GroupIdName = XName.Get("groupId", NameSpace);
 			XName ArtifactIdName = XName.Get("artifactId", NameSpace);
@@ -554,8 +554,8 @@ namespace UnrealBuildTool
 								}
 
 								ManifestXML = XDocument.Load(ManifestFilename);
-								XElement UsesSdk = ManifestXML.Root!.Element(XName.Get("uses-sdk", ManifestXML.Root.Name.NamespaceName))!;
-								XAttribute Target = UsesSdk.Attribute(XName.Get("minSdkVersion", "http://schemas.android.com/apk/res/android"))!;
+								XElement UsesSdk = ManifestXML.Root.Element(XName.Get("uses-sdk", ManifestXML.Root.Name.NamespaceName));
+								XAttribute Target = UsesSdk.Attribute(XName.Get("minSdkVersion", "http://schemas.android.com/apk/res/android"));
 								MinSDK = Target.Value;
 							}
 							catch (Exception e)
@@ -617,7 +617,7 @@ namespace UnrealBuildTool
 						OutputFileName = NewOutputFileName;
 					}
 
-					Directory.CreateDirectory(Path.GetDirectoryName(OutputFileName)!);
+					Directory.CreateDirectory(Path.GetDirectoryName(OutputFileName));
 					if (!Entry.IsDirectory)
 					{
 						using (FileStream OutputStream = new FileStream(OutputFileName, FileMode.Create, FileAccess.Write))

@@ -384,7 +384,7 @@ namespace UnrealBuildTool
 			}
 			else 
 			{
-				return Other.Literal != null && Enumerable.SequenceEqual(Literal, Other.Literal);
+				return Enumerable.SequenceEqual(Literal, Other.Literal);
 			}
 		}
 

@@ -9,8 +9,6 @@ using System.Text.RegularExpressions;
 using System.Drawing;
 using EpicGames.Core;
 
-#pragma warning disable SYSLIB0014
-
 namespace Turnkey
 {
 	class HybridIOProvider : ConsoleIOProvider
@@ -45,7 +43,7 @@ namespace Turnkey
 		{
 			string Result = "";
 
-			if (OperatingSystem.IsWindows())
+			if (RuntimePlatform.IsWindows)
 			{
 				System.Threading.Thread t = new System.Threading.Thread(x =>
 				{
@@ -56,7 +54,7 @@ namespace Turnkey
 				t.Start();
 				t.Join();
 			}
-			else if (OperatingSystem.IsMacOS())
+			else if (RuntimePlatform.IsMac)
 			{
 				Result = ShowMacDialog(Prompt, Default);
 			}

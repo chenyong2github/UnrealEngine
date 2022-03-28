@@ -17,7 +17,6 @@ using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using UnrealBuildBase;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.Versioning;
 
 namespace UnrealBuildTool
 {
@@ -85,14 +84,12 @@ namespace UnrealBuildTool
 			XmlConfig.ApplyTo(this);
 		}
 
-		[SupportedOSPlatform("windows")]
 		public override string Name
 		{
 			get { return "XGE"; }
 		}
 
-		[SupportedOSPlatform("windows")]
-		public static bool TryGetXgConsoleExecutable([NotNullWhen(true)] out string? OutXgConsoleExe)
+		public static bool TryGetXgConsoleExecutable(out string? OutXgConsoleExe)
 		{
 			// Try to get the path from the registry
 			if(BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
@@ -147,8 +144,7 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		[SupportedOSPlatform("windows")]
-		private static bool TryGetXgConsoleExecutableFromRegistry(RegistryView View, [NotNullWhen(true)] out string? OutXgConsoleExe)
+		private static bool TryGetXgConsoleExecutableFromRegistry(RegistryView View, out string? OutXgConsoleExe)
 		{
 			try
 			{
@@ -181,7 +177,6 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		[SupportedOSPlatform("windows")]
 		static bool TryReadRegistryValue(RegistryHive Hive, RegistryView View, string KeyName, string ValueName, [NotNullWhen(true)] out string? OutCoordinator)
 		{
 			using (RegistryKey BaseKey = RegistryKey.OpenBaseKey(Hive, View))
@@ -206,7 +201,7 @@ namespace UnrealBuildTool
 
 		static bool TryGetCoordinatorHost([NotNullWhen(true)] out string? OutCoordinator)
 		{
-			if (OperatingSystem.IsWindows())
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
 				const string KeyName = @"SOFTWARE\Xoreax\IncrediBuild\BuildService";
 				const string ValueName = "CoordHost";
@@ -252,11 +247,6 @@ namespace UnrealBuildTool
 
 		public static bool IsHostOnVpn(string HostName)
 		{
-			if (!OperatingSystem.IsWindows())
-			{
-				return false;
-			}
-
 			// If there aren't any defined subnets, just early out
 			if (VpnSubnets == null || VpnSubnets.Length == 0)
 			{
@@ -303,11 +293,6 @@ namespace UnrealBuildTool
 
 		public static bool IsAvailable()
 		{
-			if (!OperatingSystem.IsWindows())
-			{
-				return false;
-			}
-
 			string? XgConsoleExe;
 			if (!TryGetXgConsoleExecutable(out XgConsoleExe))
 			{
@@ -388,7 +373,6 @@ namespace UnrealBuildTool
 			Log.TraceInformation("XGEEXPORT: Exported '{0}'", OutFile);
 		}
 
-		[SupportedOSPlatform("windows")]
 		public override bool ExecuteActions(List<LinkedAction> ActionsToExecute)
 		{
 			bool XGEResult = true;
@@ -410,7 +394,6 @@ namespace UnrealBuildTool
 			return XGEResult;
 		}
 
-		[SupportedOSPlatform("windows")]
 		bool ExecuteActionBatch(List<LinkedAction> Actions)
 		{
 			bool XGEResult = true;
@@ -630,7 +613,6 @@ namespace UnrealBuildTool
 		/// <param name="OutputEventHandler"></param>
 		/// <param name="ActionCount"></param>
 		/// <returns>Indicates whether the tasks were successfully executed.</returns>
-		[SupportedOSPlatform("windows")]
 		bool ExecuteTaskFile(string TaskFilePath, DataReceivedEventHandler OutputEventHandler, int ActionCount)
 		{
 			// A bug in the UCRT can cause XGE to hang on VS2015 builds. Figure out if this hang is likely to effect this build and workaround it if able.
@@ -720,7 +702,6 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Executes the tasks in the specified file, parsing progress markup as part of the output.
 		/// </summary>
-		[SupportedOSPlatform("windows")]
 		bool ExecuteTaskFileWithProgressMarkup(string TaskFilePath, int NumActions)
 		{
 			using (ProgressWriter Writer = new ProgressWriter("Compiling C++ source files...", false))

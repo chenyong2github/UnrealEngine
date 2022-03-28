@@ -325,13 +325,13 @@ namespace UnrealBuildTool
 			bool UsingClang = true;
 			FileReference? CompilerPath = null;
 			DirectoryReference? SysRootPath = null;
-			if (OperatingSystem.IsWindows())
+			if (HostPlatform == UnrealTargetPlatform.Win64)
 			{
 				VCEnvironment Environment = VCEnvironment.Create(WindowsPlatform.GetDefaultCompiler(null, Target.Rules.WindowsPlatform.Architecture), Target.Platform, Target.Rules.WindowsPlatform.Architecture, null, Target.Rules.WindowsPlatform.WindowsSdkVersion, null);
 				CompilerPath = FileReference.FromString(Environment.CompilerPath.FullName);
 				UsingClang = false;
 			}
-			else if (OperatingSystem.IsLinux())
+			else if (HostPlatform == UnrealTargetPlatform.Linux)
 			{
 				CompilerPath = FileReference.FromString(LinuxCommon.WhichClang());
 				string? InternalSDKPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux)?.GetInternalSDKPath();
@@ -340,7 +340,7 @@ namespace UnrealBuildTool
 					SysRootPath = DirectoryReference.FromString(InternalSDKPath);
 				}
 			}
-			else if (OperatingSystem.IsMacOS())
+			else if (HostPlatform == UnrealTargetPlatform.Mac)
 			{
 				MacToolChainSettings Settings = new MacToolChainSettings(false);
 				CompilerPath = FileReference.FromString(Settings.ToolchainDir + "clang++");
@@ -608,7 +608,7 @@ namespace UnrealBuildTool
 
 						foreach (ProjectData.Target ProjectTarget in Project.Targets)
 						{
-							BuildTarget? BuildTarget = BuildTargets.FirstOrDefault(Target => Target.Name == ProjectTarget.Name);
+							BuildTarget BuildTarget = BuildTargets.FirstOrDefault(Target => Target.Name == ProjectTarget.Name);
 
 							// we do not generate intellisense for every target, as that just causes a lot of redundancy, as such we will not find a mapping for a lot of the targets
 							if (BuildTarget == null)
@@ -1498,12 +1498,12 @@ namespace UnrealBuildTool
 					PreLaunchTask = "UnrealBuildTool " + HostPlatform.ToString() + " Development Build";
 				}
 
-				FileReference RunUbtPath = FileReference.Combine(ProjectRoot, "Engine", "Build", "BatchFiles", "RunUBT.bat");
+				FileReference UbtPath = FileReference.Combine(ProjectRoot, "Engine", "Binaries", "DotNET", "UnrealBuildTool", "UnrealBuildTool");
 				WriteSingleCSharpLaunchConfig(
 					OutFile,
 					"Generate Project Files",
 					PreLaunchTask,
-					RunUbtPath,
+					UbtPath,
 					Args.ToArray()
 				);
 

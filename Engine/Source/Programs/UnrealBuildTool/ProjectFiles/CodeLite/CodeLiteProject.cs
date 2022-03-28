@@ -193,8 +193,8 @@ namespace UnrealBuildTool
 							{
 								//
 								// Look the the following folder
-								XAttribute? attribute = element.Attribute("Name");
-								if (attribute?.Value == FolderName)
+								XAttribute attribute = element.Attribute("Name");
+								if (attribute.Value == FolderName)
 								{
 									// Ok, we found the folder as subfolder, let's use it.
 									root = element;
@@ -397,7 +397,7 @@ namespace UnrealBuildTool
 					// Add the working directory for the custom build commands.
 					//
 					XElement CustomBuildWorkingDirectory = new XElement("WorkingDirectory");
-					XText CustuomBuildWorkingDirectory = new XText(Unreal.UnrealBuildToolDllPath.Directory.FullName);
+					XText CustuomBuildWorkingDirectory = new XText(UnrealBuildTool.GetUBTPath().Directory.FullName);
 					CustomBuildWorkingDirectory.Add(CustuomBuildWorkingDirectory);
 					CodeLiteConfigurationCustomBuild.Add(CustomBuildWorkingDirectory);
 
@@ -426,7 +426,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						BuildTarget = $"{Unreal.DotnetPath} \"{Unreal.UnrealBuildToolDllPath}\" {BuildTarget}";
+						BuildTarget = UnrealBuildTool.GetUBTPath().GetFileName() + " " + BuildTarget;
 					}
 
 					if (GameProjectFile.Length > 0)

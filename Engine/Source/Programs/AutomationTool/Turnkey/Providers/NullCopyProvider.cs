@@ -7,9 +7,6 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using System.Security.AccessControl;
 using System.Security.Principal;
-using System;
-
-#pragma warning disable SYSLIB0014
 
 namespace Turnkey
 {
@@ -123,14 +120,8 @@ namespace Turnkey
 			return OutputPath;
 		}
 
-		
 		private bool VerifyPathAccess( string PathString )
 		{
-			if (!OperatingSystem.IsWindows())
-			{
-				return true;
-			}
-
 			bool bResult = false;
 
 			DirectoryInfo DirInfo = new DirectoryInfo(PathString);

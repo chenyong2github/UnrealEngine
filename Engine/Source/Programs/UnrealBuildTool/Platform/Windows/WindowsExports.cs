@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -30,7 +29,6 @@ namespace UnrealBuildTool
 		/// Gets the path to MSBuild.exe
 		/// </summary>
 		/// <returns>Path to MSBuild.exe</returns>
-		[SupportedOSPlatform("windows")]
 		public static string GetMSBuildToolPath()
 		{
 			return WindowsPlatform.GetMsBuildToolPath().FullName;
@@ -53,7 +51,6 @@ namespace UnrealBuildTool
 		/// <param name="OutSdkVersion">Version of SDK</param>
 		/// <param name="OutSdkDir">Path to SDK root folder</param>
 		/// <returns>String with the name</returns>
-		[SupportedOSPlatform("windows")]
 		public static bool TryGetWindowsSdkDir(string DesiredVersion, [NotNullWhen(true)] out Version? OutSdkVersion, [NotNullWhen(true)] out DirectoryReference? OutSdkDir)
 		{
 			VersionNumber? vn;
@@ -70,7 +67,6 @@ namespace UnrealBuildTool
 		/// Gets a list of Windows Sdk installation directories, ordered by preference
 		/// </summary>
 		/// <returns>String with the name</returns>
-		[SupportedOSPlatform("windows")]
 		public static List<KeyValuePair<string, DirectoryReference>> GetWindowsSdkDirs()
 		{
 			List<KeyValuePair<string, DirectoryReference>> WindowsSdkDirs = new List<KeyValuePair<string, DirectoryReference>>();

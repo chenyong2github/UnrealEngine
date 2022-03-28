@@ -76,13 +76,10 @@ namespace UnrealBuildTool
 				LocalProcess.StartInfo = new ProcessStartInfo(SNDBSUtilExe, $"-connected");
 				LocalProcess.OutputDataReceived += (Sender, Args) =>
 				{
-					if (Args.Data != null)
+					Match Result = FindHost.Match(Args.Data);
+					if (Result.Success)
 					{
-						Match Result = FindHost.Match(Args.Data);
-						if (Result.Success)
-						{
-							BrokerHostName = Result.Groups[1].Value;
-						}
+						BrokerHostName = Result.Groups[1].Value;
 					}
 				};
 				if (Utils.RunLocalProcess(LocalProcess) == 1 && BrokerHostName.Length > 0)

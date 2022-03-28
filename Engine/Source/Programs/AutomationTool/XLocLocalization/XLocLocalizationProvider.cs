@@ -13,8 +13,6 @@ using UnrealBuildTool;
 using EpicGames.Localization;
 using System.Threading.Tasks;
 
-#pragma warning disable SYSLIB0014
-
 namespace EpicGames.XLocLocalization
 {
 	public struct XLocConfig
@@ -369,7 +367,7 @@ namespace EpicGames.XLocLocalization
 				{
 					return RequestAuthToken(XLocApiClient);
 				}
-				catch
+				catch (Exception Ex)
 				{
 					if (++Count < MAX_COUNT)
 					{
@@ -378,7 +376,7 @@ namespace EpicGames.XLocLocalization
 					}
 
 					BuildCommand.LogWarning("RequestAuthToken attempt {0}/{1} failed.", Count, MAX_COUNT);
-					throw;
+					throw Ex;
 				}
 			}
 		}

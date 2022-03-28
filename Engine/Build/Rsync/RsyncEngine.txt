@@ -62,6 +62,8 @@ protect /Binaries/TVOS/
 # Binaries/ThirdParty, just DotNet and VisualStudio required to run UnrealBuildTool, and libtbb used by UHT
 + /Binaries/ThirdParty/
 + /Binaries/ThirdParty/DotNet/
++ /Binaries/ThirdParty/DotNet/Mac/
++ /Binaries/ThirdParty/DotNet/Mac/**
 - /Binaries/ThirdParty/DotNet/**
 + /Binaries/ThirdParty/VisualStudio/
 + /Binaries/ThirdParty/VisualStudio/**

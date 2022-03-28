@@ -401,7 +401,7 @@ namespace UnrealBuildTool
 			
 			Writer.WriteValue("File", Plugin.File.FullName );
 			Writer.WriteValue("Type", Plugin.Type.ToString());
-			if(Plugin.Dependencies != null && Plugin.Dependencies.Any())
+			if(Plugin.Dependencies.Any())
 			{
 				Writer.WriteStringArrayField("Dependencies", Plugin.Dependencies.Select(it => it.Name));
 			}
@@ -421,7 +421,7 @@ namespace UnrealBuildTool
 		private static void ExportPluginsFromTarget(UEBuildTarget Target, JsonWriter Writer)
 		{
 			Target.SetupPlugins();
-			if (Target.BuildPlugins == null || !Target.BuildPlugins.Any()) return;
+			if (!Target.BuildPlugins.Any()) return;
 			
 			Writer.WriteObjectStart("Plugins");
 			foreach (UEBuildPlugin plugin in Target.BuildPlugins!)

@@ -371,7 +371,7 @@ namespace DriveHelper
 			{
 				if (!ex.Message.Contains("File not found:"))
 				{
-					throw;
+					throw ex;
 				}
 			}
 			return ReturnFile;

@@ -477,13 +477,11 @@ namespace UnrealBuildTool
 
 		public override int GetHashCode()
 		{
-#pragma warning disable RS1024
 			return String.GetHashCode(ProjectFile?.FullName) + 
 				Name.GetHashCode() + 
 				Platform.GetHashCode() + 
 				Configuration.GetHashCode() + 
 				Architecture.GetHashCode();
-#pragma warning restore RE1024
 		}
 
 		public override bool Equals(object? Obj) 

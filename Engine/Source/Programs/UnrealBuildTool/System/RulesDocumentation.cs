@@ -207,7 +207,7 @@ namespace UnrealBuildTool
 					break;
 				}
 
-				XmlNode? InheritNode = Documentation.SelectSingleNode($"//member[@name='{XmlMemberName}']/inheritdoc/@cref");
+				XmlNode InheritNode = Documentation.SelectSingleNode($"//member[@name='{XmlMemberName}']/inheritdoc/@cref");
 				if (InheritNode == null || !VisitedProperties.Add(InheritNode.InnerText))
 				{
 					break;

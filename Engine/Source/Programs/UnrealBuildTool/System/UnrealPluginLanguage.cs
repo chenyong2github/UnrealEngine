@@ -599,9 +599,9 @@ namespace UnrealBuildTool
 			}
 
 			// merge in the nodes
-			foreach (XElement Element in MergeDoc.Root!.Elements())
+			foreach (XElement Element in MergeDoc.Root.Elements())
 			{
-				XElement? Parent = XDoc.Root!.Element(Element.Name);
+				XElement Parent = XDoc.Root.Element(Element.Name);
 				if (Parent != null)
 				{
 					XElement Entry = new XElement("Context", new XAttribute("index", ContextIndex.ToString()));
@@ -824,7 +824,7 @@ namespace UnrealBuildTool
 		[return: NotNullIfNotNull("Fallback")]
 		private string? GetAttribute(UPLContext Context, XElement Node, string AttributeName, bool bExpand = true, bool bRequired = true, string? Fallback = null)
 		{
-			XAttribute? Attribute = Node.Attribute(AttributeName);
+			XAttribute Attribute = Node.Attribute(AttributeName);
 			if (Attribute == null)
 			{
 				if (bRequired)
@@ -840,7 +840,7 @@ namespace UnrealBuildTool
 		[return: NotNullIfNotNull("Fallback")]
 		private string? GetAttributeWithNamespace(UPLContext Context, XElement Node, XNamespace Namespace, string AttributeName, bool bExpand = true, bool bRequired = true, string? Fallback = null)
 		{
-			XAttribute? Attribute = Node.Attribute(Namespace + AttributeName);
+			XAttribute Attribute = Node.Attribute(Namespace + AttributeName);
 			if (Attribute == null)
 			{
 				if (bRequired)
@@ -964,7 +964,7 @@ namespace UnrealBuildTool
 
 		private void AddAttribute(XElement Element, string Name, string Value)
 		{
-			XAttribute? Attribute;
+			XAttribute Attribute;
 			int Index = Name.IndexOf(":");
 			if (Index >= 0)
 			{
@@ -995,7 +995,7 @@ namespace UnrealBuildTool
 
 		private void RemoveAttribute(XElement Element, string Name)
 		{
-			XAttribute? Attribute;
+			XAttribute Attribute;
 			int Index = Name.IndexOf(":");
 			if (Index >= 0)
 			{
@@ -1036,7 +1036,7 @@ namespace UnrealBuildTool
 		{
 			// add all instructions to execution list
 			Stack<XElement> ExecutionStack = new Stack<XElement>();
-			XElement? StartNode = XDoc.Root!.Element(NodeName);
+			XElement StartNode = XDoc.Root.Element(NodeName);
 			if (StartNode != null)
 			{
 				foreach (XElement Instruction in StartNode.Elements().Reverse())
@@ -1157,7 +1157,7 @@ namespace UnrealBuildTool
 							bool Result;
 							if (GetCondition(CurrentContext, Node, GetAttribute(CurrentContext, Node, "condition"), out Result))
 							{
-								XElement? ResultNode = Node.Element(Result ? "true" : "false");
+								XElement ResultNode = Node.Element(Result ? "true" : "false");
 								if (ResultNode != null)
 								{
 									foreach (XElement Instruction in ResultNode.Elements().Reverse())
@@ -1277,7 +1277,7 @@ namespace UnrealBuildTool
 											}
 										}
 									}
-									AddAttribute(Target!, Name, Value);
+									AddAttribute(Target, Name, Value);
 								}
 								else
 								{
@@ -1340,7 +1340,7 @@ namespace UnrealBuildTool
 								bool bFound = false;
 								foreach (XElement Element in XMLWork.Descendants("uses-permission"))
 								{
-									XAttribute? Attribute = Element.Attribute(XMLNameSpace + "name");
+									XAttribute Attribute = Element.Attribute(XMLNameSpace + "name");
 									if (Attribute != null)
 									{
 										if (Attribute.Value == Name)
@@ -1362,7 +1362,7 @@ namespace UnrealBuildTool
 										Attribute.SetValue(NewValue);
 									}
 
-									XMLWork.Element("manifest")?.Add(new XElement("uses-permission", AttributeList));
+									XMLWork.Element("manifest").Add(new XElement("uses-permission", AttributeList));
 								}
 							}
 						}
@@ -1375,7 +1375,7 @@ namespace UnrealBuildTool
 							{
 								foreach (XElement Element in XMLWork.Descendants("uses-permission"))
 								{
-									XAttribute? Attribute = Element.Attribute(XMLNameSpace + "name");
+									XAttribute Attribute = Element.Attribute(XMLNameSpace + "name");
 									if (Attribute != null)
 									{
 										if (Attribute.Value == Name)
@@ -1398,7 +1398,7 @@ namespace UnrealBuildTool
 								bool bFound = false;
 								foreach (XElement Element in XMLWork.Descendants("uses-feature"))
 								{
-									XAttribute? Attribute = Element.Attribute(XMLNameSpace + "name");
+									XAttribute Attribute = Element.Attribute(XMLNameSpace + "name");
 									if (Attribute != null)
 									{
 										if (Attribute.Value == Name)
@@ -1420,7 +1420,7 @@ namespace UnrealBuildTool
 										Attribute.SetValue(NewValue);
 									}
 
-									XMLWork.Element("manifest")?.Add(new XElement("uses-feature", AttributeList));
+									XMLWork.Element("manifest").Add(new XElement("uses-feature", AttributeList));
 								}
 							}
 						}
@@ -1433,7 +1433,7 @@ namespace UnrealBuildTool
 							{
 								foreach (XElement Element in XMLWork.Descendants("uses-feature"))
 								{
-									XAttribute? Attribute = Element.Attribute(XMLNameSpace + "name");
+									XAttribute Attribute = Element.Attribute(XMLNameSpace + "name");
 									if (Attribute != null)
 									{
 										if (Attribute.Value == Name)
@@ -1456,7 +1456,7 @@ namespace UnrealBuildTool
 								bool bFound = false;
 								foreach (XElement Element in XMLWork.Descendants("uses-library"))
 								{
-									XAttribute? Attribute = Element.Attribute(XMLNameSpace + "name");
+									XAttribute Attribute = Element.Attribute(XMLNameSpace + "name");
 									if (Attribute != null)
 									{
 										if (Attribute.Value == Name)
@@ -1478,7 +1478,7 @@ namespace UnrealBuildTool
 										Attribute.SetValue(NewValue);
 									}
 
-									XMLWork.Element("manifest")?.Element("application")?.Add(new XElement("uses-library", AttributeList));
+									XMLWork.Element("manifest").Element("application").Add(new XElement("uses-library", AttributeList));
 								}
 							}
 						}
@@ -1491,7 +1491,7 @@ namespace UnrealBuildTool
 							{
 								foreach (XElement Element in XMLWork.Descendants("uses-library"))
 								{
-									XAttribute? Attribute = Element.Attribute(XMLNameSpace + "name");
+									XAttribute Attribute = Element.Attribute(XMLNameSpace + "name");
 									if (Attribute != null)
 									{
 										if (Attribute.Value == Name)
@@ -1513,7 +1513,7 @@ namespace UnrealBuildTool
 							{
 								if (Tag == "$")
 								{
-									XElement Parent = CurrentElement.Parent!;
+									XElement Parent = CurrentElement.Parent;
 									CurrentElement.Remove();
 									CurrentElement = Parent;
 								}
@@ -1721,7 +1721,7 @@ namespace UnrealBuildTool
 											File.SetAttributes(Dst, FileAttributes.Normal);
 											File.Delete(Dst);
 										}
-										Directory.CreateDirectory(Path.GetDirectoryName(Dst)!);
+										Directory.CreateDirectory(Path.GetDirectoryName(Dst));
 										File.Copy(Src, Dst, true);
 										Log.TraceInformation("\nFile {0} copied to {1}", Src, Dst);
 
@@ -2239,7 +2239,7 @@ namespace UnrealBuildTool
 									}
 								}
 
-								XAttribute? Attribute;
+								XAttribute Attribute;
 								int Index = Name.IndexOf(":");
 								if (Index >= 0)
 								{

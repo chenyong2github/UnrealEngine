@@ -640,7 +640,7 @@ namespace UnrealBuildTool
 			}
 
 			// Parse the document
-			foreach(XmlElement CategoryElement in ConfigFile.DocumentElement!.ChildNodes.OfType<XmlElement>())
+			foreach(XmlElement CategoryElement in ConfigFile.DocumentElement.ChildNodes.OfType<XmlElement>())
 			{
 				Dictionary<string, FieldInfo>? NameToField;
 				if(CategoryToFields.TryGetValue(CategoryElement.Name, out NameToField))

@@ -10,7 +10,6 @@ using Microsoft.Win32;
 using System.Text;
 using EpicGames.Core;
 using UnrealBuildBase;
-using System.Runtime.Versioning;
 
 namespace UnrealBuildTool
 {
@@ -103,7 +102,6 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="Params">Main constructor parameters</param>
-		[SupportedOSPlatform("windows")]
 		public VCEnvironment(VCEnvironmentParameters Params)
 		{
 			this.Compiler = Params.Compiler;
@@ -309,7 +307,6 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Sets up the standard compile environment for the toolchain
 		/// </summary>
-		[SupportedOSPlatform("windows")]
 		private void SetupEnvironment(UnrealTargetPlatform Platform)
 		{
 			string ArchFolder = WindowsExports.GetArchitectureSubpath(Architecture);
@@ -391,7 +388,6 @@ namespace UnrealBuildTool
 		/// <param name="WindowsSdkVersion">Version of the Windows SDK to use</param>
 		/// <param name="SuppliedSdkDirectoryForVersion">If specified, this is the SDK directory to use, otherwise, attempt to look up via registry. If specified, the WindowsSdkVersion is used directly</param>
 		/// <returns>New environment object with paths for the given settings</returns>
-		[SupportedOSPlatform("windows")]
 		public static VCEnvironment Create(WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion)
 		{
 			return Create( new VCEnvironmentParameters(Compiler, Platform, Architecture, CompilerVersion, WindowsSdkVersion, SuppliedSdkDirectoryForVersion) );
@@ -400,7 +396,6 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates an environment with the given parameters
 		/// </summary>
-		[SupportedOSPlatform("windows")]
 		public static VCEnvironment Create( VCEnvironmentParameters Params)
 		{
 			return new VCEnvironment(Params);
@@ -457,7 +452,6 @@ namespace UnrealBuildTool
 		/// <param name="WindowsSdkVersion">Version of the Windows SDK to use</param>
 		/// <param name="SuppliedSdkDirectoryForVersion">If specified, this is the SDK directory to use, otherwise, attempt to look up via registry. If specified, the WindowsSdkVersion is used directly</param>
 		/// <returns>Creation parameters for VC environment</returns>
-		[SupportedOSPlatform("windows")]
 		public VCEnvironmentParameters (WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion)
 		{
 			// Get the compiler version info

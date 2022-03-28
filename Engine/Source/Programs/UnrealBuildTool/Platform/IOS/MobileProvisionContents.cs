@@ -35,25 +35,21 @@ namespace UnrealBuildTool
 		{
 			this.Document = Document;
 
-			XmlNodeList? Nodes = Document.SelectNodes("/plist/dict/key");
-			if (Nodes != null)
+			foreach(XmlElement? KeyElement in Document.SelectNodes("/plist/dict/key"))
 			{
-				foreach (XmlElement? KeyElement in Nodes)
+				if (KeyElement == null)
 				{
-					if (KeyElement == null)
-					{
-						continue;
-					}
+					continue;
+				}
 
-					XmlNode? ValueNode = KeyElement.NextSibling;
-					while (ValueNode != null)
+				XmlNode ValueNode = KeyElement.NextSibling;
+				while(ValueNode != null)
+				{
+					XmlElement? ValueElement = ValueNode as XmlElement;
+					if(ValueElement != null)
 					{
-						XmlElement? ValueElement = ValueNode as XmlElement;
-						if (ValueElement != null)
-						{
-							NameToValue[KeyElement.InnerText] = ValueElement;
-							break;
-						}
+						NameToValue[KeyElement.InnerText] = ValueElement;
+						break;
 					}
 				}
 			}
@@ -86,24 +82,20 @@ namespace UnrealBuildTool
 				throw new BuildException("Missing Entitlements in MobileProvision");
 			}
 
-			XmlNodeList? Nodes = UniqueIdEntitlement.SelectNodes("key");
-			if (Nodes != null)
+			foreach (XmlElement? KeyElement in UniqueIdEntitlement.SelectNodes("key"))
 			{
-				foreach (XmlElement? KeyElement in Nodes)
+				if (KeyElement == null)
 				{
-					if (KeyElement == null)
-					{
-						continue;
-					}
-
-					Console.WriteLine("Found entitlement node:" + KeyElement.InnerText);
-					if (!KeyElement.InnerText.Equals("application-identifier"))
-					{
-						continue;
-					}
-					UniqueIdElement = KeyElement.NextSibling as XmlElement;
-					break;
+					continue;
 				}
+
+				Console.WriteLine("Found entitlement node:" + KeyElement.InnerText);
+				if (!KeyElement.InnerText.Equals("application-identifier"))
+				{
+					continue;
+				}
+				UniqueIdElement = KeyElement.NextSibling as XmlElement;
+				break;
 			}
 
 
@@ -203,10 +195,9 @@ namespace UnrealBuildTool
 			XmlNodeList elemList = this.Document.GetElementsByTagName("key");
 			for (int i = 0; i < elemList.Count; i++)
 			{
-				XmlNode? Node = elemList[i];
-				if (Node != null && Node.InnerXml.Equals(InValue))
+				if (elemList[i].InnerXml.Equals(InValue))
 				{
-					XmlNode? valueNode = Node.NextSibling;
+					XmlNode valueNode = elemList[i].NextSibling;
 
 					if (valueNode != null)
 					{
@@ -223,15 +214,14 @@ namespace UnrealBuildTool
 			XmlNodeList elemList = this.Document.GetElementsByTagName("key");
 			for (int i = 0; i < elemList.Count; i++)
 			{
-				XmlNode? Node = elemList[i];
-				if (Node != null && Node.InnerXml.Equals(InValue))
+				if (elemList[i].InnerXml.Equals(InValue))
 				{
-					XmlNode? valueNode = Node.NextSibling;
+					XmlNode valueNode = elemList[i].NextSibling;
 					if (valueNode != null)
 					{
 						if (valueNode.Name.Equals("array"))
 						{
-							XmlNode? firstChildNode = valueNode.FirstChild;
+							XmlNode firstChildNode = valueNode.FirstChild;
 							if (firstChildNode != null)
 							{
 								return firstChildNode.InnerXml;

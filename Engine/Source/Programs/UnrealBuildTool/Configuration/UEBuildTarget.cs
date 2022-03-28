@@ -289,7 +289,7 @@ namespace UnrealBuildTool
 
 	internal class UnrealTargetPlatformTypeConverter : TypeConverter
 	{
-		public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
+		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
 		{
 			if (sourceType == typeof(string))
 				return true;
@@ -297,7 +297,7 @@ namespace UnrealBuildTool
 			return base.CanConvertFrom(context, sourceType);
 		}
 
-		public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
+		public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType)
 		{
 			if (destinationType == typeof(string))
 				return true;
@@ -305,7 +305,7 @@ namespace UnrealBuildTool
 			return base.CanConvertTo(context, destinationType);
 		}
 
-		public override object? ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)
+		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
 		{
 			if (value.GetType() == typeof(string))
 			{
@@ -314,9 +314,9 @@ namespace UnrealBuildTool
 			return base.ConvertFrom(context, culture, value);
 		}
 
-		public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value, Type destinationType)
+		public override object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType)
 		{
-			if (destinationType == typeof(string) && value != null)
+			if (destinationType == typeof(string))
 			{
 				UnrealTargetPlatform Platform = (UnrealTargetPlatform)value;
 				return Platform.ToString();
@@ -1725,7 +1725,7 @@ namespace UnrealBuildTool
 			// For installed builds, filter out all the binaries that aren't in mods
 			if (UnrealBuildTool.IsProjectInstalled())
 			{
-				List<DirectoryReference> ModDirectories = EnabledPlugins!.Where(x => x.Type == PluginType.Mod).Select(x => x.Directory).ToList();
+				List<DirectoryReference> ModDirectories = EnabledPlugins.Where(x => x.Type == PluginType.Mod).Select(x => x.Directory).ToList();
 
 				List<UEBuildBinary> FilteredBinaries = new List<UEBuildBinary>();
 				foreach (UEBuildBinary DLLBinary in Binaries)
@@ -2675,7 +2675,7 @@ namespace UnrealBuildTool
 			{
 				PreBuildCommandBatches.Add(new Tuple<string[], UEBuildPlugin?>(Rules.PreBuildSteps.ToArray(), null));
 			}
-			foreach (UEBuildPlugin BuildPlugin in BuildPlugins!.Where(x => x.Descriptor.PreBuildSteps != null))
+			foreach (UEBuildPlugin BuildPlugin in BuildPlugins.Where(x => x.Descriptor.PreBuildSteps != null))
 			{
 				AddCustomBuildSteps(BuildPlugin.Descriptor.PreBuildSteps!, BuildPlugin, PreBuildCommandBatches);
 			}
@@ -2700,7 +2700,7 @@ namespace UnrealBuildTool
 				{
 					PostBuildCommandBatches.Add(new Tuple<string[], UEBuildPlugin?>(Rules.PostBuildSteps.ToArray(), null));
 				}
-				foreach (UEBuildPlugin BuildPlugin in BuildPlugins!.Where(x => x.Descriptor.PostBuildSteps != null))
+				foreach (UEBuildPlugin BuildPlugin in BuildPlugins.Where(x => x.Descriptor.PostBuildSteps != null))
 				{
 					AddCustomBuildSteps(BuildPlugin.Descriptor.PostBuildSteps!, BuildPlugin, PostBuildCommandBatches);
 				}
@@ -2816,7 +2816,7 @@ namespace UnrealBuildTool
 					List<UEBuildModule> GameModules = Binary.FindHotReloadModules();
 					if (GameModules != null && GameModules.Count > 0)
 					{
-						if (!UnrealBuildTool.IsProjectInstalled() || EnabledPlugins!.Where(x => x.Type == PluginType.Mod).Any(x => Binary.OutputFilePaths[0].IsUnderDirectory(x.Directory)))
+						if (!UnrealBuildTool.IsProjectInstalled() || EnabledPlugins.Where(x => x.Type == PluginType.Mod).Any(x => Binary.OutputFilePaths[0].IsUnderDirectory(x.Directory)))
 						{
 							HotReloadModuleNames.UnionWith(GameModules.OfType<UEBuildModuleCPP>().Where(x => !x.Rules.bUsePrecompiled).Select(x => x.Name));
 						}
@@ -4112,7 +4112,7 @@ namespace UnrealBuildTool
 			// Reads additional dependencies array for project module from project file and fills PrivateDependencyModuleNames.
 			if (ProjectDescriptor != null && ProjectDescriptor.Modules != null)
 			{
-				ModuleDescriptor? Module = ProjectDescriptor.Modules.FirstOrDefault(x => x.Name.Equals(ModuleName, StringComparison.InvariantCultureIgnoreCase));
+				ModuleDescriptor Module = ProjectDescriptor.Modules.FirstOrDefault(x => x.Name.Equals(ModuleName, StringComparison.InvariantCultureIgnoreCase));
 				if (Module != null && Module.AdditionalDependencies != null)
 				{
 					RulesObject.PrivateDependencyModuleNames.AddRange(Module.AdditionalDependencies);
@@ -4148,13 +4148,13 @@ namespace UnrealBuildTool
 				if (RulesObject.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs && RulesObject.PCHUsage != ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs && RulesObject.PrivatePCHHeaderFile == null)
 				{
 					// Try to figure out the legacy PCH file
-					FileReference? CppFile = DirectoryReference.EnumerateFiles(RulesObject.Directory, "*.cpp", SearchOption.AllDirectories).FirstOrDefault();
+					FileReference CppFile = DirectoryReference.EnumerateFiles(RulesObject.Directory, "*.cpp", SearchOption.AllDirectories).FirstOrDefault();
 					if (CppFile != null)
 					{
 						string? IncludeFile = MetadataCache.GetFirstInclude(FileItem.GetItemByFileReference(CppFile));
 						if (IncludeFile != null)
 						{
-							FileReference? PchIncludeFile = DirectoryReference.EnumerateFiles(RulesObject.Directory, Path.GetFileName(IncludeFile), SearchOption.AllDirectories).FirstOrDefault();
+							FileReference PchIncludeFile = DirectoryReference.EnumerateFiles(RulesObject.Directory, Path.GetFileName(IncludeFile), SearchOption.AllDirectories).FirstOrDefault();
 							if (PchIncludeFile != null)
 							{
 								RulesObject.PrivatePCHHeaderFile = PchIncludeFile.MakeRelativeTo(RulesObject.Directory).Replace(Path.DirectorySeparatorChar, '/');

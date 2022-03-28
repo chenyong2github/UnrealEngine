@@ -70,13 +70,15 @@ namespace UnrealBuildTool
 		private void WriteCommandSubSection(ref StringBuilder FileContent, string TargetName, string ConfName, int BuildConfigIndex, int Type)
 		{
 			string ToolType = "";
-			string Executable = "bash";
+			string Executable = "";
 			string ProjectCmdArg = "";
-			string BuildCommand = "Engine/Build/BatchFiles/Linux/Build.sh";
+			string BuildCommand = "";
 
 			if (TargetName == GameProjectName)
 			{
 				ProjectCmdArg = " -project=\"" + OnlyGameProject!.FullName + "\"";
+				Executable = "Engine/Build/BatchFiles/Linux/RunMono.sh";
+				BuildCommand = "Engine/Binaries/DotNET/UnrealBuildTool.exe";
 
 				if (Type == 1)
 				{
@@ -87,6 +89,8 @@ namespace UnrealBuildTool
 			else if (TargetName == (GameProjectName + "Editor"))
 			{
 				ProjectCmdArg = " -editorrecompile -project=\"" + OnlyGameProject!.FullName + "\"";
+				Executable = "Engine/Build/BatchFiles/Linux/RunMono.sh";
+				BuildCommand = "Engine/Binaries/DotNET/UnrealBuildTool.exe";
 
 				if (Type == 1)
 				{
@@ -96,6 +100,9 @@ namespace UnrealBuildTool
 			}
 			else
 			{
+				Executable = "bash";
+				BuildCommand = "Engine/Build/BatchFiles/Linux/Build.sh";
+
 				if (Type == 1)
 				{
 					// Override BuildCommand and ProjectCmdArg
@@ -252,7 +259,7 @@ namespace UnrealBuildTool
 
 			int IncludeIndex = 1;
 			// Iterate through all the include paths that
-			// UnrealBuildTool generates
+			// UnrealBuildTool.exe generates
 
 			foreach (ProjectFile CurProject in GeneratedProjectFiles)
 			{

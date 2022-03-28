@@ -382,7 +382,7 @@ namespace UnrealBuildTool
 							FileReference? MainModuleFile;
 							try
 							{
-								MainModuleFile = new FileReference(RunningProcess!.MainModule!.FileName!);
+								MainModuleFile = new FileReference(RunningProcess!.MainModule.FileName);
 							}
 							catch
 							{
@@ -1307,7 +1307,7 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteObjectStart();
 
-				IExternalAction? LinkAction = Actions.FirstOrDefault(x => x.ActionType == ActionType.Link && x.ProducedItems.Any(y => y.HasExtension(".exe") || y.HasExtension(".dll")));
+				IExternalAction LinkAction = Actions.FirstOrDefault(x => x.ActionType == ActionType.Link && x.ProducedItems.Any(y => y.HasExtension(".exe") || y.HasExtension(".dll")));
 				if(LinkAction != null)
 				{
 					Writer.WriteValue("LinkerPath", LinkAction.CommandPath.FullName);
@@ -1328,7 +1328,7 @@ namespace UnrealBuildTool
 				{
 					if(Action.ActionType == ActionType.Link)
 					{
-						FileItem? OutputFile = Action.ProducedItems.FirstOrDefault(x => x.HasExtension(".exe") || x.HasExtension(".dll"));
+						FileItem OutputFile = Action.ProducedItems.FirstOrDefault(x => x.HasExtension(".exe") || x.HasExtension(".dll"));
 						if(OutputFile != null && Action.PrerequisiteItems.Any(x => OriginalFileToPatchedFile.ContainsKey(x.Location)))
 						{
 							Writer.WriteObjectStart();

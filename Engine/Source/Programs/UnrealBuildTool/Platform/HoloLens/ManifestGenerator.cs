@@ -10,7 +10,6 @@ using System.Resources;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
-using System.Runtime.Versioning;
 
 namespace UnrealBuildTool
 {
@@ -729,7 +728,6 @@ namespace UnrealBuildTool
         /// <param name="InExecutables">The launch executable for each configuration. Must match the length and order of InTargetConfigs.</param>
         /// <param name="InWinMDReferences">The WinMD references that should be added as activatable types</param>
         /// <returns>A list of all updated target files</returns>
-		[SupportedOSPlatform("windows")]
         public List<string>? CreateManifest(UnrealTargetPlatform TargetPlatform, WindowsArchitecture TargetArchitecture, string InOutputPath, string InIntermediatePath, FileReference? InProjectFile, string InProjectDirectory, List<UnrealTargetConfiguration> InTargetConfigs, List<string> InExecutables, IEnumerable<WinMDRegistrationInfo>? InWinMDReferences)
 		{
 			// Check parameter values are valid
@@ -1023,60 +1021,54 @@ namespace UnrealBuildTool
 				PriConfig.Load(ResourceConfigFile);
 
 				// Remove the 'Packaging' node so that we have no autoResourcePackage entries
-				XmlNodeList? PackagingNodes = PriConfig.SelectNodes("/resources/packaging");
-				if (PackagingNodes != null)
+				XmlNodeList PackagingNodes = PriConfig.SelectNodes("/resources/packaging");
+				foreach (XmlNode? Node in PackagingNodes)
 				{
-					foreach (XmlNode? Node in PackagingNodes)
-					{
-						Node?.ParentNode?.RemoveChild(Node);
-					}
+					Node?.ParentNode.RemoveChild(Node);
 				}
 
 				// The approach to limiting the indexer causes files to have dodgy uris in the generated pri e.g.
 				// ms-resource://PackageIdentityName/Files/Logo.png instead of ms-resource://PackageIdentityName/Files/Resources/Logo.png
 				// This appears to affect Windows's ability to locate a valid image in some scenarios such as a
 				// desktop shortcut.  So on HoloLens we start from the root and add exclusions.
-				XmlNodeList? ConfigNodes = PriConfig.SelectNodes("/resources/index/indexer-config");
-				if (ConfigNodes != null)
+				XmlNodeList ConfigNodes = PriConfig.SelectNodes("/resources/index/indexer-config");
+				foreach (XmlNode? ConfigNode in ConfigNodes)
 				{
-					foreach (XmlNode? ConfigNode in ConfigNodes)
-					{
-						if (ConfigNode == null)
-						{
-							continue;
-						}
+					if (ConfigNode == null)
+					{ 
+						continue;
+					}	
 
-						if (ConfigNode.Attributes?["type"]?.Value == "folder")
+					if (ConfigNode.Attributes["type"].Value == "folder")
+					{
+						IEnumerable<string> AllSubItems = Directory.EnumerateFileSystemEntries(OutputPath);
+						foreach (string FileSystemEntry in AllSubItems)
 						{
-							IEnumerable<string> AllSubItems = Directory.EnumerateFileSystemEntries(OutputPath);
-							foreach (string FileSystemEntry in AllSubItems)
+							if (Path.GetFileName(FileSystemEntry) != "Resources")
 							{
-								if (Path.GetFileName(FileSystemEntry) != "Resources")
+								XmlElement ExcludeElement = PriConfig.CreateElement("exclude");
+								if (File.Exists(FileSystemEntry))
 								{
-									XmlElement ExcludeElement = PriConfig.CreateElement("exclude");
-									if (File.Exists(FileSystemEntry))
-									{
-										ExcludeElement.SetAttribute("type", "path");
-									}
-									else
-									{
-										ExcludeElement.SetAttribute("type", "tree");
-									}
-									ExcludeElement.SetAttribute("value", Path.GetFileName(FileSystemEntry));
-									ExcludeElement.SetAttribute("doNotTraverse", "true");
-									ExcludeElement.SetAttribute("doNotIndex", "true");
-									ConfigNode.AppendChild(ExcludeElement);
+									ExcludeElement.SetAttribute("type", "path");
 								}
+								else
+								{
+									ExcludeElement.SetAttribute("type", "tree");
+								}
+								ExcludeElement.SetAttribute("value", Path.GetFileName(FileSystemEntry));
+								ExcludeElement.SetAttribute("doNotTraverse", "true");
+								ExcludeElement.SetAttribute("doNotIndex", "true");
+								ConfigNode.AppendChild(ExcludeElement);
 							}
 						}
 					}
 				}
 
-				XmlNode ResNode = PriConfig.SelectSingleNode("/resources")!;
+				var ResNode = PriConfig.SelectSingleNode("/resources");
 				{
-					XmlAttribute Attr = PriConfig.CreateAttribute("isDeploymentMergeable");
+					var Attr = PriConfig.CreateAttribute("isDeploymentMergeable");
 					Attr.Value = "true";
-					ResNode.Attributes!.Append(Attr);
+					ResNode.Attributes.Append(Attr);
 				}
 
 				PriConfig.Save(ResourceConfigFile);
@@ -1128,7 +1120,6 @@ namespace UnrealBuildTool
 		/// <param name="InProjectFile">Path to the uproject file</param>
 		/// <param name="InProjectDirectory">Directory containing the uproject file or the base engine path if no project file is specified (for content only builds).</param>
 		/// <returns>A list of all updated target files</returns>
-		[SupportedOSPlatform("windows")]
 		public List<string>? CreateAssetsManifest(UnrealTargetPlatform TargetPlatform, string InOutputPath, string InIntermediatePath, FileReference InProjectFile, string InProjectDirectory)
 		{
 			if (File.Exists(InOutputPath))
@@ -1997,7 +1988,7 @@ namespace UnrealBuildTool
 
 				XmlAttribute LanguageAttribute = AppxManifestXmlDocument.CreateAttribute("Language");
 				LanguageAttribute.Value = CulturesToStage[ResourceIndex];
-				Resource.Attributes!.Append(LanguageAttribute);
+				Resource.Attributes.Append(LanguageAttribute);
 
 				Resources.AppendChild(Resource);
 			}
@@ -2363,7 +2354,6 @@ namespace UnrealBuildTool
 			return Extensions;
 		}
 
-		[SupportedOSPlatform("windows")]
 		private void ValidateAppxManifest(string ManifestPath)
 		{
 			System.Xml.Schema.XmlSchemaSet AppxSchema = new System.Xml.Schema.XmlSchemaSet();

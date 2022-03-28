@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 using EpicGames.Core;
 
 namespace UnrealBuildTool
@@ -65,9 +64,9 @@ namespace UnrealBuildTool
 			return LatestVersion;
 		}
 
-		[SupportedOSPlatform("windows")]
 		private List<string> ExpandWinMDReferences(string SdkVersion, string[] WinMDReferences)
 		{
+			
 			// Allow bringing in Windows SDK contracts just by naming the contract
 			// These are files that look like References/10.0.98765.0/AMadeUpWindowsApiContract/5.0.0.0/AMadeUpWindowsApiContract.winmd
 			List<string> ExpandedWinMDReferences = new List<string>();
@@ -121,7 +120,6 @@ namespace UnrealBuildTool
 		/// <param name="InWindMDSourcePath"></param>
 		/// <param name="InPackageRelativeDllPath"></param>
 		/// <param name="SdkVersion"></param>
-		[SupportedOSPlatform("windows")]
 		public WinMDRegistrationInfo(FileReference InWindMDSourcePath, string InPackageRelativeDllPath, string SdkVersion)
 		{
 			PackageRelativeDllPath = InPackageRelativeDllPath;

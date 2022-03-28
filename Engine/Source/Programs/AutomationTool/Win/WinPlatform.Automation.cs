@@ -11,7 +11,6 @@ using Microsoft.Win32;
 using System.Diagnostics;
 using EpicGames.Core;
 using UnrealBuildBase;
-using System.Runtime.Versioning;
 
 
 public class Win64Platform : Platform
@@ -370,7 +369,6 @@ public class Win64Platform : Platform
     /// Try to get the SYMSTORE.EXE path from the given Windows SDK version
     /// </summary>
     /// <returns>Path to SYMSTORE.EXE</returns>
-	[SupportedOSPlatform("windows")]
     private static FileReference GetSymStoreExe()
     {
 		List<KeyValuePair<string, DirectoryReference>> WindowsSdkDirs = WindowsExports.GetWindowsSdkDirs();
@@ -391,7 +389,6 @@ public class Win64Platform : Platform
 		throw new AutomationException("Unable to find a Windows SDK installation containing PDBSTR.EXE");
     }
 
-	[SupportedOSPlatform("windows")]
 	public static bool TryGetPdbCopyLocation(out FileReference OutLocation)
 	{
 		// Try to find an installation of the Windows 10 SDK
@@ -427,7 +424,6 @@ public class Win64Platform : Platform
 		return false;
 	}
 
-	[SupportedOSPlatform("windows")]
 	public override void StripSymbols(FileReference SourceFile, FileReference TargetFile)
 	{
 		bool bStripInPlace = false;
@@ -460,7 +456,6 @@ public class Win64Platform : Platform
 		}
 	}
 
-	[SupportedOSPlatform("windows")]
 	public override bool PublishSymbols(DirectoryReference SymbolStoreDirectory, List<FileReference> Files, string Product, string BuildVersion = null)
     {
         // Get the SYMSTORE.EXE path, using the latest SDK version we can find.

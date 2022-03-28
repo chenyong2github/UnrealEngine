@@ -994,7 +994,7 @@ namespace UnrealBuildTool
 		/// <param name="LocalFile">The file to download</param>
 		void DownloadFile(FileReference LocalFile)
 		{
-			RemoteMapping? Mapping = Mappings.FirstOrDefault(x => LocalFile.IsUnderDirectory(x.LocalDirectory));
+			RemoteMapping Mapping = Mappings.FirstOrDefault(x => LocalFile.IsUnderDirectory(x.LocalDirectory));
 			if(Mapping == null)
 			{
 				throw new BuildException("File for download '{0}' is not under any mapped directory.", LocalFile);

@@ -796,8 +796,7 @@ namespace UnrealBuildTool
 
 
 			// Save a solution config file which selects the development editor configuration by default.
-			// .suo file writable only on Windows, requires ole32
-			if (bSuccess && Settings.bWriteSolutionOptionFile && OperatingSystem.IsWindows())
+			if (bSuccess && Settings.bWriteSolutionOptionFile)
 			{
 				// Figure out the filename for the SUO file. VS will automatically import the options from earlier versions if necessary.
 				FileReference SolutionOptionsFileName;

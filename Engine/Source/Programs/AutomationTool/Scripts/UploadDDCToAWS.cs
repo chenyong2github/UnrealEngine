@@ -382,6 +382,7 @@ namespace AutomationTool
 					}
 
 					// Generate new data
+					using (RNGCryptoServiceProvider Crypto = new RNGCryptoServiceProvider())
 					{
 						// Flag for whether to update the manifest
 						bool bUpdateManifest = false;
@@ -428,7 +429,7 @@ namespace AutomationTool
 								string NewBundleName = String.Format("Bundle-{0:yyyy.MM.dd-HH.mm}{1}.ddb", NewBundleTime.ToLocalTime(), NewBundleSuffix);
 
 								// Create a random number for the object key
-								string NewBundleObjectKey = KeyPrefix + "bulk/" + CreateObjectName();
+								string NewBundleObjectKey = KeyPrefix + "bulk/" + CreateObjectName(Crypto);
 
 								// Create the bundle header
 								byte[] Header;
@@ -506,7 +507,7 @@ namespace AutomationTool
 							{
 								RootManifest.Entry NewEntry = new RootManifest.Entry();
 								NewEntry.CreateTime = UtcNow;
-								NewEntry.Key = KeyPrefix + CreateObjectName();
+								NewEntry.Key = KeyPrefix + CreateObjectName(Crypto);
 								NewRootManifest.Entries.Add(NewEntry);
 							}
 
@@ -606,9 +607,10 @@ namespace AutomationTool
 			}
 		}
 
-		private string CreateObjectName()
+		private string CreateObjectName(RNGCryptoServiceProvider Crypto)
 		{
-			byte[] NameBytes = RandomNumberGenerator.GetBytes(40);
+			byte[] NameBytes = new byte[40];
+			Crypto.GetBytes(NameBytes);
 			return StringUtils.FormatHexString(NameBytes);
 		}
 

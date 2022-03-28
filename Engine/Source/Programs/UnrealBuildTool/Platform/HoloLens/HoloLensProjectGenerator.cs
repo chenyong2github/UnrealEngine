@@ -9,14 +9,12 @@ using System.Security;
 using System.Xml.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
-using System.Runtime.Versioning;
 
 namespace UnrealBuildTool
 {
 	/// <summary>
 	/// Base class for platform-specific project generators
 	/// </summary>
-	[SupportedOSPlatform("windows")]
 	class HoloLensProjectGenerator : PlatformProjectGenerator
 	{
 		const string PlatformString = "HoloLens";

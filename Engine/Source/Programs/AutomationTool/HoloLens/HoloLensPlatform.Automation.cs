@@ -10,16 +10,21 @@ using AutomationTool;
 using UnrealBuildTool;
 using System.Diagnostics;
 using EpicGames.Core;
+using System.Xml;
 using System.Text.RegularExpressions;
 
+#if !__MonoCS__
 using Windows.Management.Deployment;
 using Windows.Foundation;
+#if false
+using Windows.ApplicationModel.Core;
+#endif
+#endif
 using System.Threading;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Tools.WindowsDevicePortal;
 using UnrealBuildBase;
 using AutomationScripts;
-using System.Runtime.Versioning;
 
 namespace HoloLens.Automation
 {
@@ -193,6 +198,7 @@ namespace HoloLens.Automation
 		}
 	}
 
+#if !__MonoCS__
 	class HoloLensDevicePortalCreatedProcess : IProcessResult
 	{
 		object StateLock;
@@ -349,8 +355,8 @@ namespace HoloLens.Automation
 			}
 		}
 	}
+#endif
 
-	[SupportedOSPlatform("windows10.0.10240.0")]
 	public class HoloLensPlatform : Platform
     {
 		private WindowsArchitecture[] ActualArchitectures = { };
@@ -1251,6 +1257,7 @@ namespace HoloLens.Automation
 			return !result;
 		}
 
+#if !__MonoCS__
 		private void WaitFor(IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> deploymentOperation)
 		{
 			// This event is signaled when the operation completes
@@ -1284,9 +1291,11 @@ namespace HoloLens.Automation
 				//LogInformation("Operation status unknown");
 			}
 		}
+#endif
 
 		private void DeployToLocalDevice(ProjectParams Params, DeploymentContext SC)
 		{
+#if !__MonoCS__
             if (!RuntimePlatform.IsWindows)
             {
                 return;
@@ -1339,10 +1348,12 @@ namespace HoloLens.Automation
 			{
 				LogWarning("Failed to apply a loopback exemption to the deployed app.  Connection to a local cook server will fail.");
 			}
+#endif
 		}
 
 		private WindowsArchitecture RemoteDeviceArchitecture(string DeviceAddress, ProjectParams Params)
 		{
+#if !__MonoCS__
 			string OsVersionString = "";
 			try
 			{
@@ -1394,10 +1405,14 @@ namespace HoloLens.Automation
 				LogError(String.Format("Unsupported OS architecture {0} from {1} device", osArchBlock, DeviceAddress));
 				throw new AutomationException(ExitCode.Error_AppInstallFailed, "Unsupported OS architecture");
 			}
+#else
+			return WindowsArchitecture.x64;
+#endif
 		}
 
 		private void DeployToRemoteDevice(string DeviceAddress, ProjectParams Params, DeploymentContext SC)
 		{
+#if !__MonoCS__
 			if (!RuntimePlatform.IsWindows)
             {
                 return;
@@ -1481,6 +1496,7 @@ namespace HoloLens.Automation
 			{
 				throw new AutomationException(ExitCode.Error_AppInstallFailed, "Remote deployment of unpackaged apps is not supported.");
 			}
+#endif
 		}
 
 
@@ -1498,6 +1514,7 @@ namespace HoloLens.Automation
 #if false
 		private async Task<HoloLensLauncherCreatedProcess> RunUsingLauncherToolAsync(ProjectParams Params, ERunOptions ClientRunFlags)
 		{
+#if !__MonoCS__
 			string Name;
 			string Publisher;
 			GetPackageInfo(Params, out Name, out Publisher);
@@ -1563,6 +1580,9 @@ namespace HoloLens.Automation
 				UwpProcessResult.DisposeProcess();
 			}
 			return UwpProcessResult;
+#else
+			return null;
+#endif
 		}
 #else
 		private Task<HoloLensLauncherCreatedProcess> RunUsingLauncherToolAsync(ProjectParams Params, ERunOptions ClientRunFlags)
@@ -1573,6 +1593,7 @@ namespace HoloLens.Automation
 
 		private IProcessResult RunUsingDevicePortal(string DeviceAddress, ERunOptions ClientRunFlags, string ClientApp, string ClientCmdLine, ProjectParams Params)
 		{
+#if !__MonoCS__
             if (!RuntimePlatform.IsWindows)
             {
                 return null;
@@ -1640,6 +1661,9 @@ namespace HoloLens.Automation
 			{
 				throw new AutomationException(ExitCode.Error_LauncherFailed, e, e.Message);
 			}
+#else
+			return null;
+#endif
 		}
 
 		private void GetPackageInfo(ProjectParams Params, out string Name, out string Publisher)
@@ -1674,6 +1698,7 @@ namespace HoloLens.Automation
 
 		private bool ShouldAcceptCertificate(System.Security.Cryptography.X509Certificates.X509Certificate2 Certificate, bool Unattended)
 		{
+#if !__MonoCS__
             if (!RuntimePlatform.IsWindows)
             {
                 return false;
@@ -1702,8 +1727,12 @@ namespace HoloLens.Automation
 			}
 
 			throw new AutomationException(ExitCode.Error_CertificateNotFound, "Cannot connect to remote device: certificate is untrusted and user declined to accept.");
+#else
+			return false;
+#endif
 		}
 
+#if !__MonoCS__
 		private void Portal_AppInstallStatus(Microsoft.Tools.WindowsDevicePortal.DevicePortal sender, Microsoft.Tools.WindowsDevicePortal.ApplicationInstallStatusEventArgs args)
 		{
 			if (args.Status == Microsoft.Tools.WindowsDevicePortal.ApplicationInstallStatus.Failed)
@@ -1727,6 +1756,7 @@ namespace HoloLens.Automation
 				LogLog(args.Message);
 			}
 		}
+#endif
 
         private string[] GetPathToVCLibsPackages(bool UseDebugCrt, WindowsCompiler Compiler)
 		{

@@ -10,8 +10,6 @@ using UnrealBuildTool;
 using System.Text;
 using System.Text.RegularExpressions;
 
-#pragma warning disable SYSLIB0014
-
 namespace AutomationTool.DeviceReservation
 {
 	/// <summary>

@@ -175,7 +175,7 @@ namespace UnrealBuildTool
 		{
 			UnrealTargetPlatform HostPlatform = BuildHostPlatform.Current.Platform;
 
-			if (OperatingSystem.IsWindows())
+			if (HostPlatform == UnrealTargetPlatform.Win64)
 			{
 				VCEnvironment Environment = VCEnvironment.Create(WindowsCompiler.Clang, Target.Platform,
 					Target.Rules.WindowsPlatform.Architecture, null,
@@ -183,7 +183,7 @@ namespace UnrealBuildTool
 
 				return Environment.CompilerPath;
 			}
-			else if (OperatingSystem.IsLinux())
+			else if (HostPlatform == UnrealTargetPlatform.Linux)
 			{
 				string? Clang = LinuxCommon.WhichClang();
 
@@ -192,7 +192,7 @@ namespace UnrealBuildTool
 					return FileReference.FromString(Clang);
 				}
 			}
-			else if (OperatingSystem.IsMacOS())
+			else if (HostPlatform == UnrealTargetPlatform.Mac)
 			{
 				MacToolChainSettings Settings = new MacToolChainSettings(false);
 				DirectoryReference? ToolchainDir = DirectoryReference.FromString(Settings.ToolchainDir);

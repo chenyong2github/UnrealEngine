@@ -98,7 +98,7 @@ namespace UnrealBuildTool
 					string TypeName = Reader.ReadString();
 
 					// Try to find it in the list of configurable types
-					Type? Type = Types.FirstOrDefault(x => x.Name == TypeName);
+					Type Type = Types.FirstOrDefault(x => x.Name == TypeName);
 					if(Type == null)
 					{
 						Data = null;

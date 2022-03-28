@@ -664,7 +664,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected XElement GetResources()
 		{
-			List<string> ResourceCulturesList = new List<string>(CulturesToStage!);
+			var ResourceCulturesList = CulturesToStage.ToList();
 			// Move the default culture to the front of the list
 			ResourceCulturesList.Remove(DefaultCulture!);
 			ResourceCulturesList.Insert(0, DefaultCulture!);
@@ -739,16 +739,16 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected XElement GetIdentity(string? TargetName, out string IdentityName)
         {
-            string PackageName = GetIdentityPackageName(TargetName);
-            string PublisherName = GetIdentityPublisherName();
-            string? VersionNumber = GetIdentityVersionNumber();
+            var PackageName = GetIdentityPackageName(TargetName);
+            var PublisherName = GetIdentityPublisherName();
+            var VersionNumber = GetIdentityVersionNumber();
 
             IdentityName = PackageName;
 
             return new XElement(GetName("Identity", Schema2010NS),
                 new XAttribute("Name", PackageName),
                 new XAttribute("Publisher", PublisherName),
-                new XAttribute("Version", VersionNumber!));
+                new XAttribute("Version", VersionNumber));
         }
 
 		/// <summary>
@@ -981,17 +981,17 @@ namespace UnrealBuildTool
 				PriConfig.Load(ResourceConfigFile);
 
 				// remove the packaging node - we do not want to split the pri & only want one .pri file
-				XmlNode PackagingNode = PriConfig.SelectSingleNode("/resources/packaging")!;
-				PackagingNode.ParentNode!.RemoveChild(PackagingNode);
+				XmlNode PackagingNode = PriConfig.SelectSingleNode("/resources/packaging");
+				PackagingNode.ParentNode.RemoveChild(PackagingNode);
 
 				// all required resources are explicitly listed in resources.resfiles, rather than relying on makepri to discover them
 				string ResourcesResFile = Path.Combine(IntermediatePath, "resources.resfiles");
-				XmlNode PriIndexNode = PriConfig.SelectSingleNode("/resources/index")!;
-				XmlAttribute PriStartIndex = PriIndexNode.Attributes!["startIndexAt"]!;
+				XmlNode PriIndexNode = PriConfig.SelectSingleNode("/resources/index");
+				XmlAttribute PriStartIndex = PriIndexNode.Attributes["startIndexAt"];
 				PriStartIndex.Value = ResourcesResFile;
 
 				// swap the folder indexer-config to a RESFILES indexer-config.
-				XmlElement FolderIndexerConfigNode = (XmlElement)PriConfig.SelectSingleNode("/resources/index/indexer-config[@type='folder']")!;
+				XmlElement FolderIndexerConfigNode = (XmlElement)PriConfig.SelectSingleNode("/resources/index/indexer-config[@type='folder']");
 				FolderIndexerConfigNode.SetAttribute("type", "RESFILES");
 				FolderIndexerConfigNode.RemoveAttribute("foldernameAsQualifier");
 				FolderIndexerConfigNode.RemoveAttribute("filenameAsQualifier");

@@ -10,7 +10,6 @@ using Microsoft.Win32;
 using System.Text;
 using EpicGames.Core;
 using UnrealBuildBase;
-using System.Runtime.Versioning;
 
 namespace UnrealBuildTool
 {
@@ -2067,8 +2066,8 @@ namespace UnrealBuildTool
 				// Copy the files there and make them writable...
 				Log.TraceInformation("...copying the profile guided optimization files to output directory...");
 
-				string[] PGDFiles = Directory.GetFiles(LinkEnvironment.PGODirectory!, "*.pgd");
-				string[] PGCFiles = Directory.GetFiles(LinkEnvironment.PGODirectory!, "*.pgc");
+				string[] PGDFiles = Directory.GetFiles(LinkEnvironment.PGODirectory, "*.pgd");
+				string[] PGCFiles = Directory.GetFiles(LinkEnvironment.PGODirectory, "*.pgc");
 
 				if (PGDFiles.Length > 1)
 				{
@@ -2175,14 +2174,13 @@ namespace UnrealBuildTool
 			{
 				ObjectFileDirectories.Add(LibraryPath);
 			}
-			Directory.CreateDirectory(Path.GetDirectoryName(FileName)!);
+			Directory.CreateDirectory(Path.GetDirectoryName(FileName));
 			File.WriteAllLines(FileName, ObjectFileDirectories.Select(x => x.FullName).OrderBy(x => x).ToArray());
 		}
 
 		/// <summary>
 		/// Gets the default include paths for the given platform.
 		/// </summary>
-		[SupportedOSPlatform("windows")]
 		public static string GetVCIncludePaths(UnrealTargetPlatform Platform, WindowsCompiler Compiler, string? CompilerVersion)
 		{
 			// Make sure we've got the environment variables set up for this target

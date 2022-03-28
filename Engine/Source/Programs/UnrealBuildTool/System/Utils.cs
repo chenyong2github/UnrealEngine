@@ -421,7 +421,7 @@ namespace UnrealBuildTool
 			// see https://github.com/dotnet/runtime/issues/29857
 			// also see UE-102580
 			// for rules see https://docs.microsoft.com/en-us/cpp/cpp/main-function-command-line-args
-			Args = Args?.Replace('\'', '\"') ?? String.Empty;
+			Args = Args?.Replace('\'', '\"');
 
 			ProcessStartInfo StartInfo = new ProcessStartInfo(Command, Args);
 			StartInfo.UseShellExecute = false;
@@ -433,7 +433,7 @@ namespace UnrealBuildTool
 
 			string FullOutput = "";
 			string ErrorOutput = "";
-			using (Process LocalProcess = Process.Start(StartInfo)!)
+			using (Process LocalProcess = Process.Start(StartInfo))
 			{
 				StreamReader OutputReader = LocalProcess.StandardOutput;
 				// trim off any extraneous new lines, helpful for those one-line outputs
@@ -788,11 +788,11 @@ namespace UnrealBuildTool
 		/*
 		 * Read and write classes with xml specifiers
 		 */
-		static private void UnknownAttributeDelegate(object? sender, XmlAttributeEventArgs e)
+		static private void UnknownAttributeDelegate(object sender, XmlAttributeEventArgs e)
 		{
 		}
 
-		static private void UnknownNodeDelegate(object? sender, XmlNodeEventArgs e)
+		static private void UnknownNodeDelegate(object sender, XmlNodeEventArgs e)
 		{
 		}
 
@@ -818,7 +818,7 @@ namespace UnrealBuildTool
 				Serialiser.UnknownAttribute += new XmlAttributeEventHandler(UnknownAttributeDelegate);
 
 				// Create an object graph from the XML data
-				Instance = (T)Serialiser.Deserialize(XmlStream)!;
+				Instance = (T)Serialiser.Deserialize(XmlStream);
 			}
 			catch (Exception E)
 			{
@@ -857,7 +857,7 @@ namespace UnrealBuildTool
 				}
 
 				// Make sure the output directory exists
-				Directory.CreateDirectory(Path.GetDirectoryName(FileName)!);
+				Directory.CreateDirectory(Path.GetDirectoryName(FileName));
 
 				XmlSerializerNamespaces EmptyNameSpace = new XmlSerializerNamespaces();
 				EmptyNameSpace.Add("", DefaultNameSpace);

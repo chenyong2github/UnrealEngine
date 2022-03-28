@@ -223,7 +223,6 @@ namespace UnrealBuildTool
 		/// Gets the absolute path to the UBT assembly.
 		/// </summary>
 		/// <returns>A string containing the path to the UBT assembly.</returns>
-		[Obsolete("Deprecated in UE5.1 - use UnrealBuildTool.DotnetPath Unreal.UnrealBuildToolDllPath")]
 		static public FileReference GetUBTPath()
 		{
 			return Unreal.UnrealBuildToolPath;
@@ -534,7 +533,7 @@ namespace UnrealBuildTool
 				{
 					using (GlobalTracer.Instance.BuildSpan("XmlConfig.ReadConfigFiles()").StartActive())
 					{
-						string XmlConfigMutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex_XmlConfig", Assembly.GetExecutingAssembly().Location);
+						string XmlConfigMutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex_XmlConfig", Assembly.GetExecutingAssembly().CodeBase!);
 						using(SingleInstanceMutex XmlConfigMutex = new SingleInstanceMutex(XmlConfigMutexName, true))
 						{
 							FileReference? XmlConfigCache = Arguments.GetFileReferenceOrDefault("-XmlConfigCache=", null);
@@ -559,7 +558,7 @@ namespace UnrealBuildTool
 				{
 					using (GlobalTracer.Instance.BuildSpan("SingleInstanceMutex.Acquire()").StartActive())
 					{
-						string MutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex", Assembly.GetExecutingAssembly().Location);
+						string MutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex", Assembly.GetExecutingAssembly().CodeBase!);
 						Mutex = new SingleInstanceMutex(MutexName, Options.bWaitMutex);
 					}
 				}

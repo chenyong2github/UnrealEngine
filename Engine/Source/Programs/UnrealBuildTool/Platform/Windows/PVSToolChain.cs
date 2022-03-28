@@ -137,7 +137,7 @@ namespace UnrealBuildTool
 					XmlSerializer Serializer = new XmlSerializer(typeof(PVSApplicationSettings));
 					using (FileStream Stream = new FileStream(SettingsPath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
 					{
-						return (PVSApplicationSettings?)Serializer.Deserialize(Stream);
+						return (PVSApplicationSettings)Serializer.Deserialize(Stream);
 					}
 				}
 				catch (Exception Ex)
@@ -635,8 +635,8 @@ namespace UnrealBuildTool
 			Action AnalyzeAction = Makefile.CreateAction(ActionType.Compile);
 			AnalyzeAction.ActionType = ActionType.PostBuildStep;
 			AnalyzeAction.CommandDescription = "Process PVS-Studio Results";
-			AnalyzeAction.CommandPath = Unreal.DotnetPath;
-			AnalyzeAction.CommandArguments = $"\"{Unreal.UnrealBuildToolDllPath}\" -Mode=PVSGather -Input=\"{InputFileListItem.Location}\" -Output=\"{OutputFile}\" ";
+			AnalyzeAction.CommandPath = UnrealBuildTool.GetUBTPath();
+			AnalyzeAction.CommandArguments = String.Format("-Mode=PVSGather -Input=\"{0}\" -Output=\"{1}\" ", InputFileListItem.Location, OutputFile);
 			AnalyzeAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 			AnalyzeAction.PrerequisiteItems.Add(InputFileListItem);
 			AnalyzeAction.PrerequisiteItems.AddRange(Makefile.OutputItems);

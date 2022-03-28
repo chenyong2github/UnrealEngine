@@ -145,7 +145,7 @@ namespace AutomationTool
 					}
 				}
 				// Re-throw, this is still a critical error!
-				throw;
+				throw Ex;
 			}
 			foreach (var PotentialPlatformType in AllTypes)
 			{

@@ -125,17 +125,16 @@ fi
 if [ "$UE_DesktopUnrealProcess" = "1" ]; then
 	# you can't set a dotted env var nicely in sh, but env will run a command with
 	# a list of env vars set, including dotted ones
-	echo Start UAT Non-Interactively: dotnet AutomationTool.dll "$@"
+	echo Start UAT Non-Interactively: ./AutomationTool "$@"
 	trap TermHandler SIGTERM SIGINT
-	env uebp_LogFolder="$LogDir" dotnet AutomationTool.dll "$@" &
+	env uebp_LogFolder="$LogDir" ./AutomationTool "$@" &
 	UATPid=$!
 	wait $UATPid
 else
 	# you can't set a dotted env var nicely in sh, but env will run a command with
 	# a list of env vars set, including dotted ones
-	echo Start UAT Interactively: dotnet AutomationTool.dll "$@"
-	which dotnet
-	env uebp_LogFolder="$LogDir" dotnet AutomationTool.dll "$@"
+	echo Start UAT Interactively: ./AutomationTool "$@"
+	env uebp_LogFolder="$LogDir" ./AutomationTool "$@"
 fi
 
 UATReturn=$?

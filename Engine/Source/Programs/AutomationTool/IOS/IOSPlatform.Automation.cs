@@ -1062,8 +1062,10 @@ public class IOSPlatform : Platform
 			// If engine is installed then UBT doesn't need to be built
 			if (Unreal.IsEngineInstalled())
 			{
+				// Get the path to UBT
+				string InstalledUBT = UnrealBuild.GetUBTExecutable();
 				Arguments = "-XcodeProjectFiles " + Arguments;
-				RunUBT(CmdEnv, UnrealBuild.UnrealBuildToolDll, Arguments);
+				RunUBT(CmdEnv, InstalledUBT, Arguments);
 			}
 			else
 			{
@@ -1465,7 +1467,8 @@ public class IOSPlatform : Platform
 		if (bXCArchive && !RuntimePlatform.IsWindows)
 		{
 			// Always put the archive in the current user's Library/Developer/Xcode/Archives path if not on the build machine
-			string ArchivePath = "/Users/" + Environment.UserName + "/Library/Developer/Xcode/Archives";
+			WindowsIdentity id = WindowsIdentity.GetCurrent();
+			string ArchivePath = "/Users/" + id.Name + "/Library/Developer/Xcode/Archives";
 			if (IsBuildMachine)
 			{
 				ArchivePath = Params.ArchiveDirectoryParam;

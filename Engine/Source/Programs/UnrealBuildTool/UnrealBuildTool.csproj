@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
     <Configuration Condition=" '$(Configuration)' == '' ">Development</Configuration>
     <OutputType>Exe</OutputType>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -18,6 +18,19 @@
     <DebugType>pdbonly</DebugType> 
     <Nullable>enable</Nullable>
   </PropertyGroup>
+  <Choose>
+    <When Condition="'$(IsLinux)'=='true'">
+      <PropertyGroup>
+        <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(IsOSX)'=='true'">
+      <PropertyGroup>
+        <!-- Set runtie identifier for osx so that it produces a app host executable (consistency with the other platforms) -->
+        <RuntimeIdentifier>osx-x64</RuntimeIdentifier>
+      </PropertyGroup>
+    </When>
+  </Choose>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Development|AnyCPU' ">
     <Optimize>false</Optimize>
     <OutputPath>..\..\..\Binaries\DotNET\UnrealBuildTool</OutputPath>
@@ -98,7 +111,7 @@
     <ProjectReference Include="..\Shared\EpicGames.UHT\EpicGames.UHT.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.11.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.7.0" />
     <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
     <PackageReference Include="OpenTracing" Version="0.12.1" />
     <PackageReference Include="System.Management" Version="4.7.0" />

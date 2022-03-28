@@ -224,7 +224,7 @@ namespace AutomationTool.Tasks
 				}
 				else
 				{
-					Arguments[Idx] = TypeDescriptor.GetConverter(ParameterType).ConvertFromString(ArgumentString)!;
+					Arguments[Idx] = TypeDescriptor.GetConverter(ParameterType).ConvertFromString(ArgumentString);
 				}
 			}
 

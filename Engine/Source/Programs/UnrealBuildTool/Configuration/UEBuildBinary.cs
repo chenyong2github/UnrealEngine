@@ -605,7 +605,7 @@ namespace UnrealBuildTool
 			foreach (FileReference OutputFilePath in OutputFilePaths)
 			{
 				// Find the base directory for this binary
-				DirectoryReference? BaseDir = RootDirectories.FirstOrDefault(x => OutputFilePath.IsUnderDirectory(x));
+				DirectoryReference BaseDir = RootDirectories.FirstOrDefault(x => OutputFilePath.IsUnderDirectory(x));
 				if (BaseDir == null)
 				{
 					continue;

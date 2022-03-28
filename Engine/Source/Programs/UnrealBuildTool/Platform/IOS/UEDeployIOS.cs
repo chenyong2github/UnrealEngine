@@ -141,7 +141,7 @@ namespace UnrealBuildTool
 				string ResultVersionString = ConstructVersion(MajorVersion, MinorVersion);
 
 				// Update the running version file
-				Directory.CreateDirectory(Path.GetDirectoryName(RunningVersionFilename)!);
+				Directory.CreateDirectory(Path.GetDirectoryName(RunningVersionFilename));
 				File.WriteAllText(RunningVersionFilename, ResultVersionString);
 
 				return ResultVersionString;
@@ -635,9 +635,9 @@ namespace UnrealBuildTool
 					throw new BuildException("plist is invalid {0}\n{1}", e, Text.ToString());
 				}
 
-				XDoc.DocumentType!.InternalSubset = "";
+				XDoc.DocumentType.InternalSubset = "";
 				UPL.ProcessPluginNode("None", "iosPListUpdates", "", ref XDoc);
-				string result = XDoc.Declaration?.ToString() + "\n" + XDoc.ToString().Replace("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"[]>", "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
+				string result = XDoc.Declaration.ToString() + "\n" + XDoc.ToString().Replace("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"[]>", "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
 				File.WriteAllText(PListFile, result);
 
 				Text = new StringBuilder(result);
@@ -675,7 +675,7 @@ namespace UnrealBuildTool
 		{
 			if (Receipt != null)
 			{
-				ReceiptProperty? CompileAsDllProperty = Receipt.AdditionalProperties.FirstOrDefault(x => x.Name == "CompileAsDll");
+				ReceiptProperty CompileAsDllProperty = Receipt.AdditionalProperties.FirstOrDefault(x => x.Name == "CompileAsDll");
 				if (CompileAsDllProperty != null && CompileAsDllProperty.Value == "true")
 				{
 					return true;
@@ -1103,7 +1103,7 @@ namespace UnrealBuildTool
 				DI.Delete();
 			}
 
-			Directory.CreateDirectory(Path.GetDirectoryName(DestinationPath)!);
+			Directory.CreateDirectory(Path.GetDirectoryName(DestinationPath));
 			SourceFile.CopyTo(DestinationPath, bOverwrite);
 
 			FileInfo DI2 = new FileInfo(DestinationPath);
