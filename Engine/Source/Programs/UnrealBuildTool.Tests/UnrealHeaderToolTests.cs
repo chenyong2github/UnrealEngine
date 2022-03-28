@@ -20,7 +20,7 @@ namespace UnrealBuildToolTests
 			// Initialize the attributes
 			UhtTables Tables = new UhtTables();
 
-			// Initialize the config
+			// Initialize the configuration
 			IUhtConfig Config = new UhtConfigImpl(CommandLineArguments);
 
 			// Run the tests
