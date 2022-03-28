@@ -17,17 +17,16 @@ VirtualShadowMapProjectionCommon.ush:
 
 #define VIRTUAL_SHADOW_MAP_MIN_OCCLUDER_DISTANCE 1e-6f
 
-float CalcClipmapLevelFloat(FVirtualShadowMapProjectionShaderData BaseProjectionData, FLWCVector3 WorldPosition)
+float CalcAbsoluteClipmapLevel(FVirtualShadowMapProjectionShaderData BaseProjectionData, FLWCVector3 WorldPosition)
 {
 	float DistanceToClipmapOrigin = length(LWCToFloat(LWCSubtract(WorldPosition, BaseProjectionData.ClipmapWorldOrigin)));
-	float Log2Distance = log2(DistanceToClipmapOrigin);
-	float AbsoluteLevel = Log2Distance + BaseProjectionData.ClipmapResolutionLodBias;
-	return AbsoluteLevel;
+	return log2(DistanceToClipmapOrigin);
 }
 
 int CalcClipmapLevel(FVirtualShadowMapProjectionShaderData BaseProjectionData, FLWCVector3 WorldPosition)
 {
-	return int(floor(CalcClipmapLevelFloat(BaseProjectionData, WorldPosition)));
+	float BiasedLevel = CalcAbsoluteClipmapLevel(BaseProjectionData, WorldPosition) + BaseProjectionData.ClipmapResolutionLodBias;
+	return int(floor(BiasedLevel));
 }
 
 struct FVirtualShadowMapSample
@@ -149,13 +148,11 @@ FVirtualShadowMapSample SampleVirtualShadowMapClipmap(int VirtualShadowMapId, fl
 
 #define DEBUG_VSM_CLIPMAP_LEVEL_SEARCH 0
 #if !DEBUG_VSM_CLIPMAP_LEVEL_SEARCH
-	FShadowPageTranslationResult Page = ShadowVirtualToPhysicalUV(VirtualShadowMapId, ShadowMapUV);	
-
 	uint2 BasePage = uint2(ShadowMapUV * VSM_LEVEL0_DIM_PAGES_XY);
 	FShadowPhysicalPage PhysicalPageEntry = ShadowGetPhysicalPage(CalcPageOffset(VirtualShadowMapId, 0, BasePage));
 	if (PhysicalPageEntry.bAnyLODValid)
 	{	
-		uint ClipmapLevelOffset = Page.LODOffset;
+		uint ClipmapLevelOffset = PhysicalPageEntry.LODOffset;
 		int ClipmapLevelId = VirtualShadowMapId + ClipmapLevelOffset;
 
 		Result.VirtualTexelAddressFloat = ShadowMapUV * float(CalcLevelDimsTexels(0));
@@ -172,7 +169,7 @@ FVirtualShadowMapSample SampleVirtualShadowMapClipmap(int VirtualShadowMapId, fl
 			uint2 VirtualTexelAddressMin = vPage * VSM_PAGE_SIZE;
 			uint2 VirtualTexelAddressMax = VirtualTexelAddressMin + (VSM_PAGE_SIZE - 1);
 
-			FVirtualShadowMapClipmapRelativeTransform Transform = CalcClipmapRelativeTransform(VirtualShadowMapId, Page.LODOffset);
+			FVirtualShadowMapClipmapRelativeTransform Transform = CalcClipmapRelativeTransform(VirtualShadowMapId, ClipmapLevelOffset);
 			float2 ClipmapUV = ShadowMapUV * Transform.Scale + Transform.Bias.xy;
 			DepthLevelScale = Transform.Scale;
 			DepthLevelBias = Transform.Bias.z;
