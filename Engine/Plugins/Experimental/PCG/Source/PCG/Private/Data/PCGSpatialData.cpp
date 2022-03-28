@@ -63,3 +63,14 @@ UPCGDifferenceData* UPCGSpatialData::Subtract(const UPCGSpatialData* InOther) co
 
 	return DifferenceData;
 }
+
+UPCGMetadata* UPCGSpatialData::CreateEmptyMetadata()
+{
+	if (Metadata)
+	{
+		UE_LOG(LogPCG, Warning, TEXT("Spatial data already had metadata"));
+	}
+
+	Metadata = NewObject<UPCGMetadata>(this);
+	return Metadata;
+}

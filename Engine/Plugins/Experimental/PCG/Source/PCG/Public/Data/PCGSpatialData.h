@@ -102,6 +102,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Metadata)
 	UPCGMetadata* MutableMetadata() { return Metadata; }
 
+	UFUNCTION(BlueprintCallable, Category = Metadata)
+	UPCGMetadata* CreateEmptyMetadata();
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	AActor* TargetActor = nullptr;
 
