@@ -34,7 +34,7 @@ namespace EpicGames.Core
 					foreach ((int offset, int length) in offsets)
 					{
 						ReadOnlySpan<char> name = format.AsSpan(offset, length);
-						if (int.TryParse(name, out int number))
+						if (Int32.TryParse(name, out int number))
 						{
 							outputProperties[name.ToString()] = properties.ElementAtOrDefault(number).Value;
 						}
@@ -203,7 +203,7 @@ namespace EpicGames.Core
 					string name = format.Substring(offsets[idx].Item1, offsets[idx].Item2);
 
 					int number;
-					if (int.TryParse(name, out number))
+					if (Int32.TryParse(name, out number))
 					{
 						if (number >= 0 && number < args.Length)
 						{
@@ -231,7 +231,7 @@ namespace EpicGames.Core
 		public static bool TryGetPropertyValue(ReadOnlySpan<char> name, IEnumerable<KeyValuePair<string, object?>> properties, out object? value)
 		{
 			int number;
-			if (int.TryParse(name, System.Globalization.NumberStyles.Integer, null, out number))
+			if (Int32.TryParse(name, System.Globalization.NumberStyles.Integer, null, out number))
 			{
 				foreach (KeyValuePair<string, object?> property in properties)
 				{

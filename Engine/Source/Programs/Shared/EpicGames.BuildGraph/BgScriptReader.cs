@@ -542,7 +542,7 @@ namespace EpicGames.BuildGraph
 			{
 				string[] tokens = name.Split(':');
 				name = tokens[0];
-				valueLength = int.Parse(tokens[1]);
+				valueLength = Int32.Parse(tokens[1]);
 			}
 
 			// Check each scope for the property

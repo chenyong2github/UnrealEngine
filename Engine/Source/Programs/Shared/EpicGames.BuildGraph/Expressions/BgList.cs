@@ -107,7 +107,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <inheritdoc cref="Enumerable.Select{TSource, TResult}(IEnumerable{TSource}, Func{TSource, TResult})"/>
 		public BgList<TResult> Select<TResult>(Func<T, TResult> function) where TResult : IBgExpr<TResult> => new BgListSelectExpr<T, TResult>(this, function);
 
-		/// <inheritdoc cref="Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>
+		/// <inheritdoc cref="Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
 		public BgList<T> Where(Func<T, BgBool> predicate) => new BgListWhereExpr<T>(this, predicate);
 
 		/// <inheritdoc cref="Enumerable.Contains{TSource}(IEnumerable{TSource}, TSource)"/>

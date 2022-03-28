@@ -67,7 +67,7 @@ namespace EpicGames.BuildGraph.Expressions
 	class BgIntTraits : BgTypeBase<BgInt>
 	{
 		/// <inheritdoc/>
-		public override BgInt DeserializeArgument(string value) => (BgInt)int.Parse(value);
+		public override BgInt DeserializeArgument(string value) => (BgInt)Int32.Parse(value);
 
 		/// <inheritdoc/>
 		public override string SerializeArgument(BgInt value, BgExprContext context) => value.Compute(context).ToString();

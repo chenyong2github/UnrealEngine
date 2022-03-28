@@ -260,9 +260,9 @@ namespace EpicGames.BuildGraph
 		{
 			// Create a lookup from standard types to their qualified names
 			Dictionary<Type, XmlQualifiedName> typeToSchemaTypeName = new Dictionary<Type, XmlQualifiedName>();
-			typeToSchemaTypeName.Add(typeof(String), GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
-			typeToSchemaTypeName.Add(typeof(Boolean), GetQualifiedTypeName(ScriptSchemaStandardType.Boolean));
-			typeToSchemaTypeName.Add(typeof(Int32), GetQualifiedTypeName(ScriptSchemaStandardType.Integer));
+			typeToSchemaTypeName.Add(typeof(string), GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
+			typeToSchemaTypeName.Add(typeof(bool), GetQualifiedTypeName(ScriptSchemaStandardType.Boolean));
+			typeToSchemaTypeName.Add(typeof(int), GetQualifiedTypeName(ScriptSchemaStandardType.Integer));
 			foreach ((Type type, ScriptSchemaStandardType schemaType) in primitiveTypes)
 			{
 				typeToSchemaTypeName.Add(type, GetQualifiedTypeName(schemaType));

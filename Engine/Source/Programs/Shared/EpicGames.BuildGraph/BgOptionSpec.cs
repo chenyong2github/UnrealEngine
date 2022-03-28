@@ -80,7 +80,7 @@ namespace EpicGames.BuildGraph
 			if (context.Options.TryGetValue(Name, out value))
 			{
 				bool boolValue;
-				if (!bool.TryParse(value, out boolValue))
+				if (!Boolean.TryParse(value, out boolValue))
 				{
 					throw new BgOptionValidationException($"Argument for {Name} is not a valid bool ({value})");
 				}

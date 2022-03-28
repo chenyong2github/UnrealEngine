@@ -68,7 +68,7 @@ namespace EpicGames.BuildGraph.Expressions
 	class BgBoolType : BgTypeBase<BgBool>
 	{
 		/// <inheritdoc/>
-		public override BgBool DeserializeArgument(string text) => bool.Parse(text);
+		public override BgBool DeserializeArgument(string text) => Boolean.Parse(text);
 
 		/// <inheritdoc/>
 		public override string SerializeArgument(BgBool value, BgExprContext context) => value.Compute(context).ToString();
