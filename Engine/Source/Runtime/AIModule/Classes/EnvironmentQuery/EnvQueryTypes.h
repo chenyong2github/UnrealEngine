@@ -1221,7 +1221,8 @@ public:
 				}
 				break;
 			case EEnvTestScoreOperator::Multiply:
-				ItemScore *= Score;
+				// ItemScore defaults to 0, so for first test we need to initialize the score, otherwise we end up constantly multiplying by 0
+				ItemScore = (NumTestsForItem == 0) ? Score : (ItemScore * Score);
 				break;
 			}
 		}
