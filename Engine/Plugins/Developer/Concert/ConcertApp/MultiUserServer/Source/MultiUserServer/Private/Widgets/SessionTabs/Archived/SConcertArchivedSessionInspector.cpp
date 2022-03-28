@@ -7,7 +7,6 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/SNullWidget.h"
 
 #define LOCTEXT_NAMESPACE "SConcertArchivedSessionInspector"
 
@@ -22,13 +21,6 @@ void SConcertArchivedSessionInspector::Construct(const FArguments& InArgs, const
 		.Padding(FMargin(1.0f, 2.0f))
 		[
 			SNew(SVerticalBox)
-
-			// Toolbar
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNullWidget::NullWidget
-			]
 
 			// Content
 			+SVerticalBox::Slot()
@@ -57,7 +49,7 @@ TSharedRef<SWidget> SConcertArchivedSessionInspector::CreateTabs(const FRequired
 {
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(RequiredArgs.ConstructUnderMajorTab);
 	
-	TabManager->RegisterTabSpawner(HistoryTabId, FOnSpawnTab::CreateSP(this, &SConcertArchivedSessionInspector::SpawnActivityHistory))
+	TabManager->RegisterTabSpawner(HistoryTabId, FOnSpawnTab::CreateSP(this, &SConcertArchivedSessionInspector::SpawnActivityHistory, RequiredArgs.SessionHistory))
 		.SetDisplayName(LOCTEXT("ActivityHistoryLabel", "History"));
 
 	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("ConcertArchivedSessionLayout_v0.1")
@@ -76,13 +68,13 @@ TSharedRef<SWidget> SConcertArchivedSessionInspector::CreateTabs(const FRequired
 	return TabManager->RestoreFrom(Layout, RequiredArgs.ConstructUnderWindow).ToSharedRef();
 }
 
-TSharedRef<SDockTab> SConcertArchivedSessionInspector::SpawnActivityHistory(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> SConcertArchivedSessionInspector::SpawnActivityHistory(const FSpawnTabArgs& Args, TSharedRef<SSessionHistory> SessionHistory)
 {
 	return SNew(SDockTab)
 		.Label(LOCTEXT("ActivityHistoryLabel", "History"))
 		.TabRole(PanelTab)
 		[
-			SNullWidget::NullWidget
+			SessionHistory
 		]; 
 }
 

@@ -7,6 +7,8 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SSessionHistory;
+
 /** Designed as content for a tab. Displays information about an archived session. */
 class SConcertArchivedSessionInspector : public SCompoundWidget
 {
@@ -16,10 +18,12 @@ public:
 	{
 		TSharedRef<SDockTab> ConstructUnderMajorTab;
 		TSharedRef<SWindow> ConstructUnderWindow;
+		TSharedRef<SSessionHistory> SessionHistory;
 
-		FRequiredArgs(TSharedRef<SDockTab> ConstructUnderMajorTab, TSharedRef<SWindow> ConstructUnderWindow)
+		FRequiredArgs(TSharedRef<SDockTab> ConstructUnderMajorTab, TSharedRef<SWindow> ConstructUnderWindow, TSharedRef<SSessionHistory> SessionHistory)
 			: ConstructUnderMajorTab(MoveTemp(ConstructUnderMajorTab))
 			, ConstructUnderWindow(MoveTemp(ConstructUnderWindow))
+			, SessionHistory(SessionHistory)
 		{}
 	};
 	
@@ -38,5 +42,5 @@ private:
 	TSharedPtr<FTabManager> TabManager;
 	
 	TSharedRef<SWidget> CreateTabs(const FRequiredArgs& RequiredArgs);
-	TSharedRef<SDockTab> SpawnActivityHistory(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnActivityHistory(const FSpawnTabArgs& Args, TSharedRef<SSessionHistory> SessionHistory);
 };

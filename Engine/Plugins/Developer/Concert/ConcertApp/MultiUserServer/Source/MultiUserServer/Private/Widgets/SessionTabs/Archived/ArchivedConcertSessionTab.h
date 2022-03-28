@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SessionTabs/ConcertSessionTabBase.h"
 
+class FArchivedSessionHistoryController;
 class SConcertArchivedSessionInspector;
 
 /** Manages the tab for an archived session.  */
@@ -12,7 +13,7 @@ class FArchivedConcertSessionTab : public FConcertSessionTabBase
 {
 public:
 
-	FArchivedConcertSessionTab(const FGuid& InspectedSessionID, TSharedRef<IConcertSyncServer> SyncServer, TAttribute<TSharedRef<SWindow>> ConstructUnderWindow);
+	FArchivedConcertSessionTab(FGuid InspectedSessionID, TSharedRef<IConcertSyncServer> SyncServer, TAttribute<TSharedRef<SWindow>> ConstructUnderWindow);
 
 protected:
 
@@ -25,11 +26,13 @@ protected:
 private:
 
 	/** The inspected session's ID */
-	FGuid InspectedSessionID;
+	const FGuid InspectedSessionID;
 
 	/** Used later to obtain the window into which to add the tab */
-	TAttribute<TSharedRef<SWindow>> ConstructUnderWindow;
-    
+	const TAttribute<TSharedRef<SWindow>> ConstructUnderWindow;
+
+	const TSharedRef<FArchivedSessionHistoryController> HistoryController;
+	
 	/** Displays session */
 	TSharedPtr<SConcertArchivedSessionInspector> Inspector;
 };
