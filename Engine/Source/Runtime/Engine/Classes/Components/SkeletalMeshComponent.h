@@ -306,7 +306,7 @@ struct ENGINE_API FClosestPointOnPhysicsAsset
 struct FClothCollisionSource
 {
 	FClothCollisionSource(USkeletalMeshComponent* InSourceComponent, UPhysicsAsset* InSourcePhysicsAsset, const FOnBoneTransformsFinalizedMultiCast::FDelegate& InOnBoneTransformsFinalizedDelegate);
-	~FClothCollisionSource();
+	ENGINE_API ~FClothCollisionSource();
 
 	/** Component that collision data will be copied from */
 	TWeakObjectPtr<USkeletalMeshComponent> SourceComponent;
