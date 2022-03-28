@@ -1302,7 +1302,7 @@ struct FRigVMCollapseNodesAction : public FRigVMBaseAction
 public:
 
 	FRigVMCollapseNodesAction();
-	FRigVMCollapseNodesAction(URigVMController* InController, const TArray<URigVMNode*>& InNodes, const FString& InNodePath);
+	FRigVMCollapseNodesAction(URigVMController* InController, const TArray<URigVMNode*>& InNodes, const FString& InNodePath, const bool bIsAggregate);
 	virtual ~FRigVMCollapseNodesAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMCollapseNodesAction::StaticStruct(); }
 	virtual bool Undo(URigVMController* InController) override;
@@ -1319,6 +1319,9 @@ public:
 
 	UPROPERTY()
 	TArray<FString> CollapsedNodesLinks;
+
+	UPROPERTY()
+	bool bIsAggregate;
 };
 
 /**
@@ -1461,7 +1464,7 @@ struct FRigVMRemoveExposedPinAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMRemoveExposedPinAction() {}
+	FRigVMRemoveExposedPinAction();
 	FRigVMRemoveExposedPinAction(URigVMPin* InPin);
 	virtual ~FRigVMRemoveExposedPinAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMRemoveExposedPinAction::StaticStruct(); }
@@ -1482,6 +1485,9 @@ public:
 
 	UPROPERTY()
 	FString DefaultValue;
+
+	UPROPERTY()
+	int32 PinIndex;
 };
 
 /**

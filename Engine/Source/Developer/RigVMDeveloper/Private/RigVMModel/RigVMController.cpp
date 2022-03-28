@@ -5,6 +5,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
+#include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "RigVMCore/RigVMUnknownType.h"
@@ -3487,7 +3488,7 @@ FName URigVMController::GetUniqueName(const FName& InName, TFunction<bool(const 
 	return *Name;
 }
 
-URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<FName>& InNodeNames, const FString& InCollapseNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
+URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<FName>& InNodeNames, const FString& InCollapseNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand, bool bIsAggregate)
 {
 	if (!IsValidGraph())
 	{
@@ -3509,7 +3510,7 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<FName>& InNodeN
 		Nodes.AddUnique(Node);
 	}
 
-	URigVMCollapseNode* Node = CollapseNodes(Nodes, InCollapseNodeName, bSetupUndoRedo);
+	URigVMCollapseNode* Node = CollapseNodes(Nodes, InCollapseNodeName, bSetupUndoRedo, bIsAggregate);
 	if (Node && bPrintPythonCommand)
 	{
 		FString ArrayStr = TEXT("[");
@@ -3577,7 +3578,7 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(const FName& InNodeName,
 
 #endif
 
-URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& InNodes, const FString& InCollapseNodeName, bool bSetupUndoRedo)
+URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& InNodes, const FString& InCollapseNodeName, bool bSetupUndoRedo, bool bIsAggregate)
 {
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
@@ -3587,6 +3588,48 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 		ReportError(TEXT("Cannot collapse nodes in function library graphs."));
 		return nullptr;
 	}
+
+	if (InNodes.IsEmpty())
+	{
+		ReportError(TEXT("No nodes specified to collapse."));
+		return nullptr;
+	}
+
+#if UE_RIGVM_ENABLE_AGGREGATE_NODES
+	if (bIsAggregate)
+	{
+		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNodes[0]))
+		{
+			for (int32 i=1; i<InNodes.Num(); ++i)
+			{
+				if (URigVMUnitNode* OtherUnitNode = Cast<URigVMUnitNode>(InNodes[i]))
+				{
+					if (UnitNode->GetScriptStruct() == OtherUnitNode->GetScriptStruct())
+					{
+						continue;
+					}
+				}
+				ReportError(TEXT("Cannot aggregate nodes of different types."));
+				return nullptr;
+			}
+		}
+		else if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(InNodes[0]))
+		{
+			for (int32 i=1; i<InNodes.Num(); ++i)
+			{
+				if (URigVMFunctionReferenceNode* OtherFunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(InNodes[i]))
+				{
+					if(FunctionReferenceNode->GetReferencedNode() == OtherFunctionReferenceNode->GetReferencedNode())
+					{
+						continue;
+					}
+				}
+				ReportError(TEXT("Cannot aggregate nodes of different types."));
+				return nullptr;
+			}
+		}
+	}
+#endif
 
 	TArray<URigVMNode*> Nodes;
 	for (URigVMNode* Node : InNodes)
@@ -3797,12 +3840,24 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 
 	if (bSetupUndoRedo)
 	{
-		CollapseAction = FRigVMCollapseNodesAction(this, Nodes, CollapseNodeName); 
+		CollapseAction = FRigVMCollapseNodesAction(this, Nodes, CollapseNodeName, bIsAggregate); 
 		CollapseAction.Title = TEXT("Collapse Nodes");
 		ActionStack->BeginAction(CollapseAction);
 	}
 
+#if UE_RIGVM_ENABLE_AGGREGATE_NODES
+	URigVMCollapseNode* CollapseNode = nullptr;
+	if (bIsAggregate)
+	{
+		CollapseNode = NewObject<URigVMAggregateNode>(Graph, *CollapseNodeName);		
+	}
+	else
+	{
+		CollapseNode = NewObject<URigVMCollapseNode>(Graph, *CollapseNodeName);		
+	}
+#else
 	URigVMCollapseNode* CollapseNode = NewObject<URigVMCollapseNode>(Graph, *CollapseNodeName);
+#endif
 	CollapseNode->ContainedGraph = NewObject<URigVMGraph>(CollapseNode, TEXT("ContainedGraph"));
 	CollapseNode->Position = Center;
 	Graph->Nodes.Add(CollapseNode);
@@ -4143,6 +4198,15 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 	for (const FName& NodeToRemove : NodeNames)
 	{
 		RemoveNodeByName(NodeToRemove, false, true);
+	}
+
+	if (!InCollapseNodeName.IsEmpty() && CollapseNodeName != InCollapseNodeName)
+	{		
+		FString ValidName = GetValidNodeName(InCollapseNodeName);
+		if (ValidName == InCollapseNodeName)
+		{
+			RenameNode(CollapseNode, *ValidName, bSetupUndoRedo);
+		}
 	}
 
 	if (bSetupUndoRedo)
@@ -6868,6 +6932,438 @@ FString URigVMController::GetPinInitialDefaultValueFromStruct(UScriptStruct* Scr
 	return DefaultValue;
 }
 
+FString URigVMController::AddAggregatePin(const FString& InNodeName, const FString& InPinName, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
+{
+#if UE_RIGVM_ENABLE_AGGREGATE_NODES
+	 
+	if (!IsValidGraph())
+	{
+		return FString();
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	URigVMNode* Node = Graph->FindNodeByName(*InNodeName);
+	if (!Node)
+	{
+		return FString();
+	}
+
+	return AddAggregatePin(Node, InPinName, InDefaultValue, bSetupUndoRedo, bPrintPythonCommand);
+}
+
+FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InPinName, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
+{
+	if (!InNode)
+	{
+		return FString();
+	}
+
+	if (!IsValidNodeForGraph(InNode))
+	{
+		return FString();
+	}
+
+	URigVMAggregateNode* AggregateNode = Cast<URigVMAggregateNode>(InNode);
+	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode);
+	URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(InNode);
+
+	FRigVMControllerCompileBracketScope CompileScope(this);
+	FRigVMBaseAction Action;
+	if (bSetupUndoRedo)
+	{
+		Action.Title = FString::Printf(TEXT("Add Aggregate Pin"));
+		ActionStack->BeginAction(Action);
+	}
+
+	if (UnitNode || FunctionReferenceNode)
+	{
+		if (UnitNode && !UnitNode->IsAggregate())
+		{
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			return FString();
+		}
+
+		bool bAggregateInputs = false;
+		URigVMPin* Arg1 = nullptr;
+		URigVMPin* Arg2 = nullptr;
+		URigVMPin* ArgOpposite = nullptr;
+		if (UnitNode)
+		{
+			const TArray<URigVMPin*> AggregateInputs = UnitNode->GetAggregateInputs();
+			const TArray<URigVMPin*> AggregateOutputs = UnitNode->GetAggregateOutputs();
+
+			if (AggregateInputs.Num() == 2 && AggregateOutputs.Num() == 1)
+			{
+				bAggregateInputs = true;
+				Arg1 = AggregateInputs[0];
+				Arg2 = AggregateInputs[1];
+				ArgOpposite = AggregateOutputs[0];
+			}
+			else if (AggregateInputs.Num() == 1 && AggregateOutputs.Num() == 2)
+			{
+				bAggregateInputs = false;
+				Arg1 = AggregateOutputs[0];
+				Arg2 = AggregateOutputs[1];
+				ArgOpposite = AggregateInputs[0];
+			}
+			else
+			{
+				if (bSetupUndoRedo)
+				{
+					ActionStack->CancelAction(Action);
+				}
+				return FString();	
+			}
+		}
+		else if (FunctionReferenceNode)
+		{
+			
+		}
+
+		if (!Arg1 || !Arg2 || !ArgOpposite)
+		{
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			return FString();
+		}
+
+		if (Arg1->GetCPPType() != Arg2->GetCPPType() || Arg1->GetCPPTypeObject() != Arg2->GetCPPTypeObject() ||
+			Arg1->GetCPPType() != ArgOpposite->GetCPPType() || Arg1->GetCPPTypeObject() != ArgOpposite->GetCPPTypeObject())
+		{
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			return FString();
+		}
+
+		const FString AggregateArg1 = Arg1->GetName();
+		const FString AggregateArg2 = Arg2->GetName();
+		const FString AggregateOppositeArg = ArgOpposite->GetName();
+	
+		TArray<URigVMNode*> Nodes = {InNode};
+		URigVMCollapseNode* CollapseNode = CollapseNodes(Nodes, InNode->GetName(), bSetupUndoRedo, true);
+		if (!CollapseNode)
+		{
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			return FString();
+		}
+
+		AggregateNode = Cast<URigVMAggregateNode>(CollapseNode);
+		if (AggregateNode)
+		{
+			FRigVMControllerGraphGuard GraphGuard(this, AggregateNode->GetContainedGraph(), bSetupUndoRedo);
+			if (UnitNode)
+			{
+				uint16 Index = 0;
+				for (TFieldIterator<FProperty> It(UnitNode->GetScriptStruct()); It; ++It, ++Index)
+				{
+					FName PropertyName = It->GetFName();
+					if (URigVMPin* AggregatePin = AggregateNode->FindPin(PropertyName.ToString()))
+					{
+						SetExposedPinIndex(PropertyName, Index, bSetupUndoRedo);
+						continue;
+					}
+
+					URigVMPin* Pin = UnitNode->FindPin(PropertyName.ToString());
+					AddExposedPin(PropertyName, Pin->GetDirection(), Pin->GetCPPType(), *Pin->GetCPPTypeObject()->GetPathName(), Pin->GetDefaultValue());
+
+					FString PropertyNameStr = PropertyName.ToString();
+					if (Pin->GetDirection() == ERigVMPinDirection::Input)
+					{
+						AddLink(FString::Printf(TEXT("Entry.%s"), *PropertyNameStr), FString::Printf(TEXT("%s.%s"), *InNode->GetName(), *PropertyNameStr), bSetupUndoRedo);
+					}
+					else
+					{
+						AddLink(FString::Printf(TEXT("%s.%s"), *InNode->GetName(), *PropertyNameStr), FString::Printf(TEXT("Return.%s"), *PropertyNameStr), bSetupUndoRedo);
+					}
+				}
+			}
+			else if (FunctionReferenceNode)
+			{
+				
+			}
+		}
+		else
+		{
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			return FString();
+		}
+	}
+	
+	if (!AggregateNode)
+	{
+		if (bSetupUndoRedo)
+		{
+			ActionStack->CancelAction(Action);
+		}
+		return FString();
+	}
+
+	URigVMPin* NewPin = nullptr;	
+	{
+		FRigVMControllerGraphGuard GraphGuard(this, AggregateNode->GetContainedGraph(), bSetupUndoRedo);
+
+		URigVMNode* InnerNode = (AggregateNode == nullptr) ?
+									((UnitNode == nullptr) ? (URigVMNode*) FunctionReferenceNode : UnitNode)
+								: AggregateNode->GetFirstInnerNode();
+		URigVMNode* NewNode = nullptr;
+		if (URigVMUnitNode* InnerUnitNode = Cast<URigVMUnitNode>(InnerNode))
+		{		
+			NewNode = AddUnitNode(InnerUnitNode->GetScriptStruct(), InnerUnitNode->GetMethodName(), FVector2D::ZeroVector, FString(), bSetupUndoRedo);		
+		}
+		else if (URigVMFunctionReferenceNode* InnerReferenceNode = Cast<URigVMFunctionReferenceNode>(InnerNode))
+		{
+			NewNode = AddFunctionReferenceNode(FunctionReferenceNode->GetReferencedNode(), FVector2D::ZeroVector, FString(), bSetupUndoRedo);
+		}
+		else
+		{
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			return FString();
+		}
+
+		const URigVMPin* Arg1 = AggregateNode->GetFirstAggregatePin();
+		FName NewPinName = AddExposedPin(*InPinName, Arg1->GetDirection(), Arg1->GetCPPType(), *Arg1->GetCPPTypeObject()->GetPathName(), InDefaultValue, bSetupUndoRedo);
+		NewPin = AggregateNode->FindPin(NewPinName.ToString());
+		URigVMPin* NewUnitPinArg1 = NewNode->GetFirstAggregatePin();
+		URigVMPin* NewUnitPinArg2 = NewNode->GetSecondAggregatePin();
+		URigVMPin* NewUnitPinOppositeArg = NewNode->GetOppositeAggregatePin();
+		if(AggregateNode->IsInputAggregate())
+		{		
+			URigVMFunctionEntryNode* EntryNode = AggregateNode->GetEntryNode();
+			URigVMPin* EntryPin = EntryNode->FindPin(NewPinName.ToString());
+			URigVMPin* ReturnPin = AggregateNode->GetReturnNode()->FindPin(NewUnitPinOppositeArg->GetName());
+			URigVMPin* PreviousReturnPin = ReturnPin->GetLinkedSourcePins()[0];					
+		
+			BreakAllLinks(ReturnPin, true, bSetupUndoRedo);
+			AddLink(PreviousReturnPin, NewUnitPinArg1, bSetupUndoRedo);						
+			AddLink(EntryPin, NewUnitPinArg2, bSetupUndoRedo);
+			AddLink(NewUnitPinOppositeArg, ReturnPin, bSetupUndoRedo);
+		}
+		else
+		{
+			URigVMFunctionReturnNode* ReturnNode = AggregateNode->GetReturnNode();
+			URigVMPin* NewReturnPin = ReturnNode->FindPin(NewPinName.ToString());
+			URigVMPin* OldReturnPin = ReturnNode->GetPins()[ReturnNode->GetPins().Num()-2];
+			URigVMPin* PreviousReturnPin = OldReturnPin->GetLinkedSourcePins()[0];
+
+			BreakAllLinks(OldReturnPin, true, bSetupUndoRedo);
+			AddLink(PreviousReturnPin, NewUnitPinOppositeArg, bSetupUndoRedo);						
+			AddLink(NewUnitPinArg1, OldReturnPin, bSetupUndoRedo);
+			AddLink(NewUnitPinArg2, NewReturnPin, bSetupUndoRedo);
+
+		}
+
+		// Connect other input pins
+		for (URigVMPin* OtherEntryPin : AggregateNode->GetEntryNode()->GetPins())
+		{
+			if (OtherEntryPin->GetName() != NewUnitPinArg1->GetName() &&
+				OtherEntryPin->GetName() != NewUnitPinArg2->GetName() &&
+				OtherEntryPin->GetName() != NewUnitPinOppositeArg->GetName())
+			{
+				AddLink(OtherEntryPin, NewNode->FindPin(OtherEntryPin->GetName()), bSetupUndoRedo);
+			}
+		}
+	}
+
+	if (!NewPin)
+	{
+		if (bSetupUndoRedo)
+		{
+			ActionStack->CancelAction(Action);
+		}
+		return FString();
+	}
+
+	if (bSetupUndoRedo)
+	{
+		ActionStack->EndAction(Action);
+	}
+
+	if (bPrintPythonCommand)
+	{
+		const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
+		const FString NodePath = GetSanitizedPinPath(InNode->GetNodePath());
+
+		RigVMPythonUtils::Print(GetGraphOuterName(),
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_aggregate_pin('%s', '%s', '%s')"),
+			*GraphName,
+			*NodePath,
+			*InPinName,
+			*InDefaultValue));
+	}
+	
+	return NewPin->GetPinPath();
+
+#else
+	return FString();
+#endif
+}
+
+bool URigVMController::RemoveAggregatePin(const FString& InPinPath, bool bSetupUndoRedo, bool bPrintPythonCommand)
+{
+#if UE_RIGVM_ENABLE_AGGREGATE_NODES
+	
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	URigVMPin* Pin = Graph->FindPin(*InPinPath);
+	if (!Pin)
+	{
+		return false;
+	}
+
+	return RemoveAggregatePin(Pin, bSetupUndoRedo, bPrintPythonCommand);
+}
+
+bool URigVMController::RemoveAggregatePin(URigVMPin* InPin, bool bSetupUndoRedo, bool bPrintPythonCommand)
+{
+	if (!InPin)
+	{
+		return false;
+	}
+
+	if (InPin->GetParentPin())
+	{
+		return false;
+	}
+
+	FRigVMControllerCompileBracketScope CompileScope(this);
+	FRigVMBaseAction Action;
+	if (bSetupUndoRedo)
+	{
+		Action.Title = FString::Printf(TEXT("Remove Aggregate Pin"));
+		ActionStack->BeginAction(Action);
+	}
+
+	bool bSuccess = false;
+	if (URigVMAggregateNode* AggregateNode = Cast<URigVMAggregateNode>(InPin->GetNode()))
+	{
+		URigVMGraph* Graph = AggregateNode->GetContainedGraph();
+		if (AggregateNode->IsInputAggregate())
+		{
+			if (URigVMFunctionEntryNode* EntryNode = Graph->GetEntryNode())
+			{
+				if (URigVMPin* EntryPin = EntryNode->FindPin(InPin->GetName()))
+				{
+					if (EntryPin->GetLinkedTargetPins().Num() > 0)
+					{
+						FRigVMControllerGraphGuard GraphGuard(this, AggregateNode->GetContainedGraph(), bSetupUndoRedo);
+						URigVMPin* TargetPin = EntryPin->GetLinkedTargetPins()[0];
+					
+						URigVMNode* NodeToRemove = TargetPin->GetNode();
+						URigVMPin* ResultPin = NodeToRemove->GetOppositeAggregatePin();
+						URigVMPin* NextNodePin = ResultPin->GetLinkedTargetPins()[0];
+
+						if (NodeToRemove == AggregateNode->FirstInnerNodeCache)
+						{
+							AggregateNode->InvalidateCache();
+						}
+
+						const FString FirstAggregatePin = AggregateNode->GetFirstAggregatePin()->GetName();
+						const FString SecondAggregatePin = AggregateNode->GetSecondAggregatePin()->GetName();
+						FString OtherArg = TargetPin->GetName() == FirstAggregatePin ? SecondAggregatePin : FirstAggregatePin;
+						BreakAllLinks(NextNodePin, true, bSetupUndoRedo);
+						RewireLinks(NodeToRemove->FindPin(OtherArg), NextNodePin, true, bSetupUndoRedo);
+						RemoveNode(NodeToRemove, bSetupUndoRedo);
+						RemoveExposedPin(*InPin->GetName(), bSetupUndoRedo);
+						bSuccess = true;						
+					}
+				}
+			}
+		}
+		else
+		{
+			if (URigVMFunctionReturnNode* ReturnNode = Graph->GetReturnNode())
+			{
+				if (URigVMPin* ReturnPin = ReturnNode->FindPin(InPin->GetName()))
+				{
+					if (ReturnPin->GetLinkedSourcePins().Num() > 0)
+					{
+						FRigVMControllerGraphGuard GraphGuard(this, AggregateNode->GetContainedGraph(), bSetupUndoRedo);
+						URigVMPin* SourcePin = ReturnPin->GetLinkedSourcePins()[0];
+					
+						URigVMNode* NodeToRemove = SourcePin->GetNode();
+						URigVMPin* OppositePin = NodeToRemove->GetOppositeAggregatePin();
+						URigVMPin* NextNodePin = OppositePin->GetLinkedSourcePins()[0];
+						URigVMNode* NextNode = NextNodePin->GetNode();
+
+						if (NodeToRemove == AggregateNode->FirstInnerNodeCache)
+						{
+							AggregateNode->InvalidateCache();
+						}
+
+						const FString FirstAggregatePin = AggregateNode->GetFirstAggregatePin()->GetName();
+						const FString SecondAggregatePin = AggregateNode->GetSecondAggregatePin()->GetName();
+						FString OtherArg = SourcePin->GetName() == FirstAggregatePin ? SecondAggregatePin : FirstAggregatePin;
+						BreakAllLinks(NextNodePin, false, bSetupUndoRedo);
+						RewireLinks(NodeToRemove->FindPin(OtherArg), NextNodePin, false, bSetupUndoRedo);
+						RemoveNode(NodeToRemove, bSetupUndoRedo);
+						RemoveExposedPin(*InPin->GetName(), bSetupUndoRedo);
+						bSuccess = true;	
+					}
+				}
+			}			
+		}
+
+		if (bSuccess && AggregateNode->GetContainedNodes().Num() == 3)
+		{
+			TArray<URigVMNode*> NodesEjected = ExpandLibraryNode(AggregateNode, bSetupUndoRedo);
+			bSuccess = NodesEjected.Num() == 1;
+		}		
+	}
+
+	if (bSetupUndoRedo)
+	{
+		if (bSuccess)
+		{
+			ActionStack->EndAction(Action);
+		}
+		else
+		{
+			ActionStack->CancelAction(Action);			
+		}
+	}
+
+	if (bSuccess && bPrintPythonCommand)
+	{
+		const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
+		const FString PinPath = GetSanitizedPinPath(InPin->GetPinPath());
+
+		RigVMPythonUtils::Print(GetGraphOuterName(),
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').remove_aggregate_pin('%s')"),
+			*GraphName,
+			*PinPath));
+	}
+
+	return bSuccess;
+
+#else
+	return false;
+#endif
+}
+
 FString URigVMController::AddArrayPin(const FString& InArrayPinPath, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	return InsertArrayPin(InArrayPinPath, INDEX_NONE, InDefaultValue, bSetupUndoRedo, bPrintPythonCommand);
@@ -7742,8 +8238,7 @@ bool URigVMController::AddLink(const FString& InOutputPinPath, const FString& In
 	return bSuccess;
 }
 
-bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo,
-	ERigVMPinDirection InUserDirection)
+bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo, ERigVMPinDirection InUserDirection)
 {
 	if(OutputPin == nullptr)
 	{
@@ -8404,7 +8899,7 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 
 	bool bSuccessfullyRemovedPin = false;
 	{
-		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetGraph(), false);
+		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetGraph(), bSetupUndoRedo);
 		bSuccessfullyRemovedPin = RemovePin(Pin, bSetupUndoRedo, true);
 	}
 
@@ -8815,7 +9310,7 @@ bool URigVMController::SetExposedPinIndex(const FName& InPinName, int32 InNewInd
 
 	if (Pin->GetPinIndex() == InNewIndex)
 	{
-		return false;
+		return true; // Nothing to do, do not fail
 	}
 
 	if (InNewIndex < 0 || InNewIndex >= LibraryNode->GetPins().Num())

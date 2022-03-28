@@ -27,10 +27,20 @@ public:
 	virtual FName GetEventName() const override;
 	virtual bool IsLoopNode() const override;
 	virtual bool CanBeUpgraded() const override { return GetUpgradeInfo().IsValid(); }
+	virtual bool IsAggregate() const override;
+	virtual URigVMPin* GetFirstAggregatePin() const override;
+	virtual URigVMPin* GetSecondAggregatePin() const override;
+	virtual URigVMPin* GetOppositeAggregatePin() const override;
+	virtual bool IsInputAggregate() const override;
+	
+	TArray<URigVMPin*> GetAggregateInputs() const;
+	TArray<URigVMPin*> GetAggregateOutputs() const;
 
 	bool IsDeprecated() const;
 	FString GetDeprecatedMetadata() const;
 
+	
+	
 	// Returns the UStruct for this unit node
 	// (the struct declaring the RIGVM_METHOD)
 	UFUNCTION(BlueprintCallable, Category = RigVMUnitNode)

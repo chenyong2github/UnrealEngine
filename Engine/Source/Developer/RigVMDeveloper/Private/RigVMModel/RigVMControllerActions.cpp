@@ -1507,12 +1507,12 @@ bool FRigVMImportNodeFromTextAction::Redo(URigVMController* InController)
 }
 
 FRigVMCollapseNodesAction::FRigVMCollapseNodesAction()
-	: LibraryNodePath()
+	: LibraryNodePath(), bIsAggregate(false)
 {
 }
 
-FRigVMCollapseNodesAction::FRigVMCollapseNodesAction(URigVMController* InController, const TArray<URigVMNode*>& InNodes, const FString& InNodePath)
-	: LibraryNodePath(InNodePath)
+FRigVMCollapseNodesAction::FRigVMCollapseNodesAction(URigVMController* InController, const TArray<URigVMNode*>& InNodes, const FString& InNodePath, const bool bIsAggregate)
+	: LibraryNodePath(InNodePath), bIsAggregate(bIsAggregate)
 {
 	TArray<FName> NodesToExport;
 	for (URigVMNode* InNode : InNodes)
@@ -1576,7 +1576,7 @@ bool FRigVMCollapseNodesAction::Redo(URigVMController* InController)
 		NodeNames.Add(*NodePath);
 	}
 
-	URigVMLibraryNode* LibraryNode = InController->CollapseNodes(NodeNames, LibraryNodePath, false);
+	URigVMLibraryNode* LibraryNode = InController->CollapseNodes(NodeNames, LibraryNodePath, false, false, bIsAggregate);
 	if (LibraryNode)
 	{
 		return FRigVMBaseAction::Redo(InController);
@@ -1768,12 +1768,18 @@ bool FRigVMAddExposedPinAction::Redo(URigVMController* InController)
 	return false;
 }
 
+FRigVMRemoveExposedPinAction::FRigVMRemoveExposedPinAction()
+	: PinIndex(INDEX_NONE)
+{
+}
+
 FRigVMRemoveExposedPinAction::FRigVMRemoveExposedPinAction(URigVMPin* InPin)
 	: PinName(InPin->GetName())
 	, Direction(InPin->GetDirection())
 	, CPPType(InPin->GetCPPType())
 	, CPPTypeObjectPath()
 	, DefaultValue(InPin->GetDefaultValue())
+	, PinIndex(InPin->GetPinIndex())
 {
 	if (UObject* CPPTypeObject = InPin->GetCPPTypeObject())
 	{
@@ -1785,7 +1791,10 @@ bool FRigVMRemoveExposedPinAction::Undo(URigVMController* InController)
 {
 	if(!InController->AddExposedPin(*PinName, Direction, CPPType, *CPPTypeObjectPath, DefaultValue, false).IsNone())
 	{
-		return FRigVMBaseAction::Undo(InController);
+		if (InController->SetExposedPinIndex(*PinName, PinIndex, false))
+		{
+			return FRigVMBaseAction::Undo(InController);
+		}
 	}
 	return false;
 }
@@ -1831,7 +1840,7 @@ FRigVMSetPinIndexAction::FRigVMSetPinIndexAction()
 }
 
 FRigVMSetPinIndexAction::FRigVMSetPinIndexAction(URigVMPin* InPin, int32 InNewIndex)
-	: PinPath(InPin->GetPinPath())
+	: PinPath(InPin->GetName())
 	, OldIndex(InPin->GetPinIndex())
 	, NewIndex(InNewIndex)
 {
@@ -1843,12 +1852,12 @@ bool FRigVMSetPinIndexAction::Undo(URigVMController* InController)
 	{
 		return false;
 	}
-	return InController->SetExposedPinIndex(*PinPath, OldIndex);
+	return InController->SetExposedPinIndex(*PinPath, OldIndex, false);
 }
 
 bool FRigVMSetPinIndexAction::Redo(URigVMController* InController)
 {
-	if (!InController->SetExposedPinIndex(*PinPath, NewIndex))
+	if (!InController->SetExposedPinIndex(*PinPath, NewIndex, false))
 	{
 		return false;
 	}

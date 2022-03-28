@@ -27,7 +27,6 @@ public:
 	virtual FString GetNodeTitle() const override;
 	virtual FName GetMethodName() const;
 	virtual  FText GetToolTipText() const override;
-
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const override;
 
 	// Returns the notation of the node

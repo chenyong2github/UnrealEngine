@@ -217,6 +217,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	void SetExecutionIsHaltedAtThisNode(const bool bValue) { bHaltedAtThisNode = bValue; }
+
+	virtual bool IsAggregate() const { return false; }
+	virtual URigVMPin* GetFirstAggregatePin() const { return nullptr; }
+	virtual URigVMPin* GetSecondAggregatePin() const { return nullptr; }
+	virtual URigVMPin* GetOppositeAggregatePin() const { return nullptr; }
+	virtual bool IsInputAggregate() const { return false; }
 private:
 
 	static const FString NodeColorName;

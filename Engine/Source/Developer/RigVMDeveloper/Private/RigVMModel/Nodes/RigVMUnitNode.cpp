@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
+
+#include "Animation/Rig.h"
 #include "RigVMCore/RigVMStruct.h"
 
 FString URigVMUnitNode::GetNodeTitle() const
@@ -105,6 +107,125 @@ FString URigVMUnitNode::GetDeprecatedMetadata() const
 		}
 	}
 	return FString();
+}
+
+bool URigVMUnitNode::IsAggregate() const
+{
+	TArray<URigVMPin*> AggregateInputs = GetAggregateInputs();
+	TArray<URigVMPin*> AggregateOutputs = GetAggregateOutputs();
+
+	if ((AggregateInputs.Num() == 2 && AggregateOutputs.Num() == 1) ||
+		(AggregateInputs.Num() == 1 && AggregateOutputs.Num() == 2))
+	{
+		TArray<URigVMPin*> AggregateAll = AggregateInputs;
+		AggregateAll.Append(AggregateOutputs);
+		for (int32 i = 1; i < 3; ++i)
+		{
+			if (AggregateAll[0]->GetCPPType() != AggregateAll[i]->GetCPPType() ||
+				AggregateAll[0]->GetCPPTypeObject() != AggregateAll[i]->GetCPPTypeObject())
+			{
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
+	return false;
+}
+
+URigVMPin* URigVMUnitNode::GetFirstAggregatePin() const
+{
+	TArray<URigVMPin*> Inputs = GetAggregateInputs();
+	TArray<URigVMPin*> Outputs = GetAggregateOutputs();
+	if (Inputs.Num() == 2 && Outputs.Num() == 1)
+	{
+		return Inputs[0];
+	}
+	if (Inputs.Num() == 1 && Outputs.Num() == 2)
+	{
+		return Outputs[0];
+	}
+	return nullptr;
+}
+
+URigVMPin* URigVMUnitNode::GetSecondAggregatePin() const
+{
+	TArray<URigVMPin*> Inputs = GetAggregateInputs();
+	TArray<URigVMPin*> Outputs = GetAggregateOutputs();
+	if (Inputs.Num() == 2 && Outputs.Num() == 1)
+	{
+		return Inputs[1];
+	}
+	if (Inputs.Num() == 1 && Outputs.Num() == 2)
+	{
+		return Outputs[1];
+	}
+	return nullptr;
+}
+
+URigVMPin* URigVMUnitNode::GetOppositeAggregatePin() const
+{
+	TArray<URigVMPin*> Inputs = GetAggregateInputs();
+	TArray<URigVMPin*> Outputs = GetAggregateOutputs();
+	if (Inputs.Num() == 2 && Outputs.Num() == 1)
+	{
+		return Outputs[0];
+	}
+	if (Inputs.Num() == 1 && Outputs.Num() == 2)
+	{
+		return Inputs[0];
+	}
+	return nullptr;
+}
+
+bool URigVMUnitNode::IsInputAggregate() const
+{
+	return GetAggregateInputs().Num() == 2;
+}
+
+TArray<URigVMPin*> URigVMUnitNode::GetAggregateInputs() const
+{
+	TArray<URigVMPin*> AggregateInputs;
+	if (UScriptStruct* Struct = GetScriptStruct())
+	{
+		for (URigVMPin* Pin : GetPins())
+		{
+			if (Pin->GetDirection() == ERigVMPinDirection::Input)
+			{
+				if (FProperty* Property = Struct->FindPropertyByName(Pin->GetFName()))
+				{
+					if (Property->HasMetaData(FRigVMStruct::AggregateMetaName))
+					{
+						AggregateInputs.Add(Pin);
+					}
+				}			
+			}
+		}
+	}
+	return AggregateInputs;
+}
+
+TArray<URigVMPin*> URigVMUnitNode::GetAggregateOutputs() const
+{
+	TArray<URigVMPin*> AggregateOutputs;
+	if (UScriptStruct* Struct = GetScriptStruct())
+	{
+		for (URigVMPin* Pin : GetPins())
+		{
+			if (Pin->GetDirection() == ERigVMPinDirection::Output)
+			{
+				if (FProperty* Property = Struct->FindPropertyByName(Pin->GetFName()))
+				{
+					if (Property->HasMetaData(FRigVMStruct::AggregateMetaName))
+					{
+						AggregateOutputs.Add(Pin);
+					}
+				}			
+			}
+		}
+	}
+	return AggregateOutputs;
 }
 
 UScriptStruct* URigVMUnitNode::GetScriptStruct() const
