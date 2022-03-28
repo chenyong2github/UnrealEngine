@@ -363,15 +363,15 @@ ERawImageFormat::Type FBmpImageWrapper::GetSupportedRawFormat(const ERawImageFor
 
 void FBmpImageWrapper::Compress(int32 Quality)
 {
-	check( RawFormat == ERGBFormat::BGRA || RawFormat == ERGBFormat::Gray );
-	check( RawBitDepth == 8 );
+	check( Format == ERGBFormat::BGRA || Format == ERGBFormat::Gray );
+	check( BitDepth == 8 );
 
 	// write 8,24, or 32 bit bmp
 
 	int64 NumPixels = Width*Height;
 	int64 RawDataSize = RawData.Num();
 
-	int RawBytesPerPel = (RawFormat == ERGBFormat::BGRA) ? 4 : 1;
+	int RawBytesPerPel = (Format == ERGBFormat::BGRA) ? 4 : 1;
 
 	check( RawDataSize == NumPixels*RawBytesPerPel );
 

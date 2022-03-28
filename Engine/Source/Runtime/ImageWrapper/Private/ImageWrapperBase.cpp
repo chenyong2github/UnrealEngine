@@ -9,10 +9,7 @@
 
 FImageWrapperBase::FImageWrapperBase()
 	: Format(ERGBFormat::Invalid)
-	, RawFormat(ERGBFormat::Invalid)
 	, BitDepth(0)
-	, RawBitDepth(0)
-	, RawBytesPerRow(0)
 	, Width(0)
 	, Height(0)
 { }
@@ -25,14 +22,9 @@ void FImageWrapperBase::Reset()
 {
 	LastError.Empty();
 	
-	//@@!!
-	// not reset ?
-	//TArray64<uint8> RawData;
-	//TArray64<uint8> CompressedData;
+	RawData.Empty();
+	CompressedData.Empty();
 
-	RawFormat = ERGBFormat::Invalid;
-	RawBitDepth = 0;
-	RawBytesPerRow = 0;
 	Format = ERGBFormat::Invalid;
 	BitDepth = 0;
 	Width = 0;
@@ -117,6 +109,18 @@ bool FImageWrapperBase::SetRaw(const void* InRawData, int64 InRawSize, const int
 		return false;
 	}
 	
+	Format = InFormat;
+	BitDepth = InBitDepth;
+	Width = InWidth;
+	Height = InHeight;
+
+	int BytesPerRow = GetBytesPerRow();
+	
+	// stride not supported :
+	check( InBytesPerRow == 0 || BytesPerRow == InBytesPerRow );
+
+	check( InRawSize == BytesPerRow * Height );
+
 	// this is usually an unnecessary allocation and copy
 	// we should compress directly from the source buffer
 
@@ -124,19 +128,73 @@ bool FImageWrapperBase::SetRaw(const void* InRawData, int64 InRawSize, const int
 	RawData.AddUninitialized(InRawSize);
 	FMemory::Memcpy(RawData.GetData(), InRawData, InRawSize);
 
-	RawFormat = InFormat;
-	RawBitDepth = InBitDepth;
-	RawBytesPerRow = InBytesPerRow;
-
-	Format = RawFormat;
-	BitDepth = RawBitDepth;
-
-	Width = InWidth;
-	Height = InHeight;
-
 	return true;
 }
 
+
+int IImageWrapper::GetRGBFormatBytesPerPel(ERGBFormat RGBFormat,int BitDepth)
+{
+	switch(RGBFormat)
+	{
+	case ERGBFormat::RGBA:
+	case ERGBFormat::BGRA:
+		if ( BitDepth == 8 )
+		{
+			return 4;
+		}
+		else if ( BitDepth == 16 )
+		{
+			return 8;
+		}
+		break;
+						
+	case ERGBFormat::Gray:
+		if ( BitDepth == 8 )
+		{
+			return 1;
+		}
+		else if ( BitDepth == 16 )
+		{
+			return 2;
+		}
+		break;
+			
+	case ERGBFormat::BGRE:
+		if ( BitDepth == 8 )
+		{
+			return 4;
+		}
+		break;
+			
+	case ERGBFormat::RGBAF:
+		if ( BitDepth == 16 )
+		{
+			return 8;
+		}
+		else if ( BitDepth == 32 )
+		{
+			return 16;
+		}
+		break;
+			
+	case ERGBFormat::GrayF:
+		if ( BitDepth == 16 )
+		{
+			return 2;
+		}
+		else if ( BitDepth == 32 )
+		{
+			return 4;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	UE_LOG(LogImageWrapper, Error, TEXT("GetRGBFormatBytesPerPel not handled : %d,%d"), (int)RGBFormat,BitDepth );
+	return 0;
+}
 
 
 ERawImageFormat::Type IImageWrapper::ConvertRGBFormat(ERGBFormat RGBFormat,int BitDepth,bool * bIsExactMatch)

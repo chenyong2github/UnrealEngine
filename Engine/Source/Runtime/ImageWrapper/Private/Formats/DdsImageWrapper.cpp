@@ -41,7 +41,7 @@ void FDdsImageWrapper::Compress(int32 Quality)
 	{
 		// handle non-mapped cases :
 	
-		switch(RawFormat)
+		switch(Format)
 		{
 		case ERGBFormat::RGBA:
 		{
@@ -127,7 +127,7 @@ bool FDdsImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 	// change RGBA8 to BGRA8 before DXGIFormatGetClosestRawFormat :
 	DDS->ConvertChannelOrder(UE::DDS::EChannelOrder::BGRA);
 
-	// map format to RawFormat and ETextureSourceFormat
+	// map format to RawImageFormat and ETextureSourceFormat
 	ERawImageFormat::Type RawImageFormat = UE::DDS::DXGIFormatGetClosestRawFormat(DDS->DXGIFormat);
 	if ( RawImageFormat == ERawImageFormat::Invalid )
 	{
@@ -144,16 +144,11 @@ bool FDdsImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 		UE_LOG(LogImageWrapper, Warning, TEXT("DDS is a complex 3d/cube/array image, DdsImageWrapper will just import the first 2d surface"));
 	}
 	
-	int OutBitDepth;
-	ConvertRawImageFormat(RawImageFormat, RawFormat,OutBitDepth);
-	Format = RawFormat;
-	BitDepth = RawBitDepth = OutBitDepth;
+	ConvertRawImageFormat(RawImageFormat, Format,BitDepth);
 
 	Width = DDS->Width;
 	Height = DDS->Height;
 
-	RawBytesPerRow = Width * ERawImageFormat::GetBytesPerPixel(RawImageFormat);
-	
 	return true;
 }
 

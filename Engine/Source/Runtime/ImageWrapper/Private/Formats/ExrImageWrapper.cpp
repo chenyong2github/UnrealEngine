@@ -324,7 +324,7 @@ void FExrImageWrapper::Compress(int32 Quality)
 	TArray64<uint8> ConvertedRawData;
 	bool bNeedsConversion = false;
 
-	if (RawBitDepth == 8)
+	if (BitDepth == 8)
 	{
 		// uint8 channels are linearly converted into FFloat16 channels.
 		// note: NO GAMMA CORRECTION
@@ -339,14 +339,14 @@ void FExrImageWrapper::Compress(int32 Quality)
 	}
 	else
 	{
-		ImfPixelType = (RawBitDepth == 16) ? Imf::HALF : Imf::FLOAT;
+		ImfPixelType = (BitDepth == 16) ? Imf::HALF : Imf::FLOAT;
 	}
 
 	const TArray64<uint8>& PixelData = bNeedsConversion ? ConvertedRawData : RawData;
 
 	const char* const* ChannelNames;
-	int32 ChannelCount = GetChannelNames(RawFormat, ChannelNames);
-	check((int64)ChannelCount * Width * Height * RawBitDepth == RawData.Num() * 8);
+	int32 ChannelCount = GetChannelNames(Format, ChannelNames);
+	check((int64)ChannelCount * Width * Height * BitDepth == RawData.Num() * 8);
 
 	int32 BytesPerChannelPixel = (ImfPixelType == Imf::HALF) ? 2 : 4;
 	TArray<TArray64<uint8>> ChannelData;
@@ -405,7 +405,7 @@ void FExrImageWrapper::Uncompress(const ERGBFormat InFormat, const int32 InBitDe
 	check(CompressedData.Num());
 
 	// Ensure we haven't already uncompressed the file.
-	if (RawData.Num() && InFormat == RawFormat && InBitDepth == RawBitDepth)
+	if (RawData.Num() && InFormat == Format && InBitDepth == BitDepth)
 	{
 		return;
 	}
@@ -485,8 +485,8 @@ void FExrImageWrapper::Uncompress(const ERGBFormat InFormat, const int32 InBitDe
 		}
 	}
 
-	RawFormat = InFormat;
-	RawBitDepth = InBitDepth;
+	Format = InFormat;
+	BitDepth = InBitDepth;
 }
 
 

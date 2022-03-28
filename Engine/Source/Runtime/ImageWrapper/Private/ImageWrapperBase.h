@@ -107,19 +107,16 @@ public:
 
 protected:
 
+	int GetBytesPerPel() const { return GetRGBFormatBytesPerPel(Format,BitDepth); }
+	int GetBytesPerRow() const { return Width * GetBytesPerPel(); }
+
 	/** Arrays of compressed/raw data */
 	TArray64<uint8> RawData;
 	TArray64<uint8> CompressedData;
 
 	/** Format of the raw data */
-	// @@!! two format vars ugh
 	ERGBFormat Format;
-	ERGBFormat RawFormat;
-	int8 BitDepth;
-	int8 RawBitDepth;
-
-	/** Bytes per row for the raw data */
-	int32 RawBytesPerRow; // @@!! not supported, remove me
+	int BitDepth;
 
 	/** Width/Height of the image data */
 	int32 Width;

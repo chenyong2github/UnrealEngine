@@ -218,11 +218,11 @@ void FPngImageWrapper::Compress(int32 Quality)
 			}
 
 			png_set_compression_level(png_ptr, ZlibLevel);
-			png_set_IHDR(png_ptr, info_ptr, Width, Height, RawBitDepth, (RawFormat == ERGBFormat::Gray) ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+			png_set_IHDR(png_ptr, info_ptr, Width, Height, BitDepth, (Format == ERGBFormat::Gray) ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 			png_set_write_fn(png_ptr, this, FPngImageWrapper::user_write_compressed, FPngImageWrapper::user_flush_data);
 
-			const uint64 PixelChannels = (RawFormat == ERGBFormat::Gray) ? 1 : 4;
-			const uint64 BytesPerPixel = (RawBitDepth * PixelChannels) / 8;
+			const uint64 PixelChannels = (Format == ERGBFormat::Gray) ? 1 : 4;
+			const uint64 BytesPerPixel = (BitDepth * PixelChannels) / 8;
 			const uint64 BytesPerRow = BytesPerPixel * Width;
 
 			for (int64 i = 0; i < Height; i++)
@@ -231,12 +231,12 @@ void FPngImageWrapper::Compress(int32 Quality)
 			}
 			png_set_rows(png_ptr, info_ptr, row_pointers);
 
-			uint32 Transform = (RawFormat == ERGBFormat::BGRA) ? PNG_TRANSFORM_BGR : PNG_TRANSFORM_IDENTITY;
+			uint32 Transform = (Format == ERGBFormat::BGRA) ? PNG_TRANSFORM_BGR : PNG_TRANSFORM_IDENTITY;
 
 			// PNG files store 16-bit pixels in network byte order (big-endian, ie. most significant bits first).
 #if PLATFORM_LITTLE_ENDIAN
 			// We're little endian so we need to swap
-			if (RawBitDepth == 16)
+			if (BitDepth == 16)
 			{
 				Transform |= PNG_TRANSFORM_SWAP_ENDIAN;
 			}
@@ -268,7 +268,7 @@ bool FPngImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 
 void FPngImageWrapper::Uncompress(const ERGBFormat InFormat, const int32 InBitDepth)
 {
-	if(!RawData.Num() || InFormat != RawFormat || InBitDepth != RawBitDepth)
+	if(!RawData.Num() || InFormat != Format || InBitDepth != BitDepth)
 	{
 		check(CompressedData.Num());
 		UncompressPNGData(InFormat, InBitDepth);
@@ -444,8 +444,8 @@ void FPngImageWrapper::UncompressPNGData(const ERGBFormat InFormat, const int32 
 	}
 #endif
 
-	RawFormat = InFormat;
-	RawBitDepth = InBitDepth;
+	Format = InFormat;
+	BitDepth = InBitDepth;
 }
 
 

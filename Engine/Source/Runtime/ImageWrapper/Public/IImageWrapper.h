@@ -302,10 +302,12 @@ public:
 		return GetBitDepth() == 8 && GetFormat() != ERGBFormat::BGRE;
 	}
 
-	// call these from ImageWrapperModule.h , see documentation there
+	// external users call these from ImageWrapperModule.h , see documentation there
 	IMAGEWRAPPER_API static void ConvertRawImageFormat(ERawImageFormat::Type RawFormat, ERGBFormat & OutFormat,int & OutBitDepth);
 	IMAGEWRAPPER_API static ERawImageFormat::Type ConvertRGBFormat(ERGBFormat RGBFormat,int BitDepth,bool * bIsExactMatch = nullptr);
 	
+	IMAGEWRAPPER_API static int GetRGBFormatBytesPerPel(ERGBFormat RGBFormat,int BitDepth);
+
 	/* get the current image format, mapped to an ERawImageFormat
 	 * if ! *bIsExactMatch , conversion is needed
 	 * can call after SetCompressed()

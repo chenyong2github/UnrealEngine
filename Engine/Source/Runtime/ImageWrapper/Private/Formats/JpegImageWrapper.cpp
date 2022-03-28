@@ -50,7 +50,7 @@ namespace
 			case ERGBFormat::BGRA:	return TJPF_BGRA;
 			case ERGBFormat::Gray:	return TJPF_GRAY;
 			case ERGBFormat::RGBA:	return TJPF_RGBA;
-			default:				return TJPF_RGBA;
+			default:	check(0);	return TJPF_RGBA;
 		}
 	}
 }
@@ -204,7 +204,7 @@ void FJpegImageWrapper::Compress(int32 Quality)
 		check(Height > 0);
 
 		// re-order components if required - JPEGs expect RGBA
-		if(RawFormat == ERGBFormat::BGRA)
+		if(Format == ERGBFormat::BGRA)
 		{
 			FColor* Colors = (FColor*)RawData.GetData();
 			const int32 NumColors = RawData.Num() / 4;
@@ -326,8 +326,9 @@ void FJpegImageWrapper::CompressTurbo(int32 Quality)
 		check(RawData.Num());
 		check(Width > 0);
 		check(Height > 0);
+		check(BitDepth == 8);
 
-		const int PixelFormat = ConvertTJpegPixelFormat(RawFormat);
+		const int PixelFormat = ConvertTJpegPixelFormat(Format);
 		const int Subsampling = TJSAMP_420;
 		const int Flags = TJFLAG_NOREALLOC | TJFLAG_FASTDCT;
 
@@ -335,7 +336,9 @@ void FJpegImageWrapper::CompressTurbo(int32 Quality)
 		CompressedData.SetNum(OutBufferSize);
 		unsigned char* OutBuffer = CompressedData.GetData();
 
-		const bool bSuccess = tjCompress2(Compressor, RawData.GetData(), Width, RawBytesPerRow, Height, PixelFormat, &OutBuffer, &OutBufferSize, Subsampling, Quality, Flags) == 0;
+		int BytesPerRow = GetBytesPerRow();
+
+		const bool bSuccess = tjCompress2(Compressor, RawData.GetData(), Width, BytesPerRow, Height, PixelFormat, &OutBuffer, &OutBufferSize, Subsampling, Quality, Flags) == 0;
 		check(bSuccess);
 
 		CompressedData.SetNum(OutBufferSize);
