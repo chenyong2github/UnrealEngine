@@ -12,8 +12,6 @@
 
 class UObject;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogAutoReimportManager, Log, All);
-
 namespace UE::DatasmithImporter
 {
 	class FExternalSource;

@@ -11,8 +11,6 @@
 #include "Stats/Stats.h"
 #include "Misc/App.h"
 
-DEFINE_LOG_CATEGORY(LogAutoReimportManager);
-
 namespace UE::DatasmithImporter
 {
 	struct FAutoReimportInfo
