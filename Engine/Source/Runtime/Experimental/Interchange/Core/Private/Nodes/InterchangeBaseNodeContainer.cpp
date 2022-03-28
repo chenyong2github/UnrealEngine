@@ -99,7 +99,7 @@ void UInterchangeBaseNodeContainer::GetNodes(const UClass* ClassNode, TArray<FSt
 	});
 }
 
-UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNode(const FString& NodeUniqueID)
+UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNode(const FString& NodeUniqueID) const
 {
 	if (NodeUniqueID == UInterchangeBaseNode::InvalidNodeUid())
 	{
@@ -111,11 +111,6 @@ UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNode(const FString& Node
 	}
 	UInterchangeBaseNode* Node = Nodes.FindChecked(NodeUniqueID);
 	return Node;
-}
-
-const UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNode(const FString& NodeUniqueID) const
-{
-	return const_cast<UInterchangeBaseNodeContainer*>(this)->GetNode(NodeUniqueID);
 }
 
 bool UInterchangeBaseNodeContainer::SetNodeParentUid(const FString& NodeUniqueID, const FString& NewParentNodeUid)

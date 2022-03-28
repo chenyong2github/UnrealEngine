@@ -56,10 +56,7 @@ public:
 
 	/** Get an node pointer */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	UInterchangeBaseNode* GetNode(const FString& NodeUniqueID);
-
-	/** Get an node pointer */
-	const UInterchangeBaseNode* GetNode(const FString& NodeUniqueID) const;
+	UInterchangeBaseNode* GetNode(const FString& NodeUniqueID) const;
 
 	/** Set node ParentUid */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
