@@ -168,7 +168,8 @@ void FControlRigSpaceChannelCurveModel::GetKeys(const FCurveEditor& CurveEditor,
 void FControlRigSpaceChannelCurveModel::GetKeyDrawInfo(ECurvePointType PointType, const FKeyHandle InKeyHandle, FKeyDrawInfo& OutDrawInfo) const
 {
 	OutDrawInfo.Brush = FEditorStyle::Get().GetBrush("FilledBorder");
-	OutDrawInfo.ScreenSize = FVector2D(10, 100);
+	// NOTE Y is set to SCurveEditorKeyBarView::TrackHeight
+	OutDrawInfo.ScreenSize = FVector2D(10, 24);
 }
 
 void FControlRigSpaceChannelCurveModel::GetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<FKeyPosition> OutKeyPositions) const
