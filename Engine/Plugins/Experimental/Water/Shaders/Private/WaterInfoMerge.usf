@@ -6,6 +6,7 @@
 Texture2D<float4> DepthTexture;
 Texture2D<float4> ColorTexture;
 
+
 float2 WaterHeightExtents;
 float GroundZMin;
 float CaptureZ;
