@@ -65,7 +65,7 @@ public:
 
 	static FString GetActualPath(const TCHAR* OriginalPath);
 
-	static FString GetRandomSubMaterial(Mtl* Material, FVector RandomSeed);
+	static FString GetRandomSubMaterial(Mtl* Material, FVector3f RandomSeed);
 
 	/**
 	 * Extract the Node to Object transform in UE coordinates
@@ -78,7 +78,7 @@ public:
 	static FTransform GetPivotTransform(INode* Node, float UnitMultiplier);
 	static void MaxToUnrealCoordinates(Matrix3 Matrix, FVector& Translation, FQuat& Rotation, FVector& Scale, float UnitMultiplier, const FMaxLightCoordinateConversionParams& LightParams = FMaxLightCoordinateConversionParams());
 
-	static void ParseMaterialForMeshActor(Mtl* Material, TSharedRef< IDatasmithMeshActorElement >& MeshActor, TSet<uint16>& SupportedChannels, FVector RandomSeed);
+	static void ParseMaterialForMeshActor(Mtl* Material, TSharedRef< IDatasmithMeshActorElement >& MeshActor, TSet<uint16>& SupportedChannels, const FVector3f& RandomSeed);
 	
 	static TSharedPtr< IDatasmithLightActorElement > CreateLightElementForNode(INode* Node, const TCHAR* Name);
 	static bool ParseLight(INode* Node, TSharedRef< IDatasmithLightActorElement > LightElement, TSharedRef< IDatasmithScene > DatasmithScene);

@@ -225,8 +225,9 @@ public:
 	virtual IDatasmithExpressionInput& GetClearCoatRoughness() = 0;
 	virtual IDatasmithExpressionInput& GetMaterialAttributes() = 0;
 
+	/** InBlendMode must match the values of EBlendMode from EngineTypes.h */
 	virtual int GetBlendMode() const = 0;
-	virtual void SetBlendMode( int bInBlendMode ) = 0;
+	virtual void SetBlendMode( int InBlendMode ) = 0;
 
 	virtual bool GetTwoSided() const = 0;
 	virtual void SetTwoSided( bool bTwoSided ) = 0;

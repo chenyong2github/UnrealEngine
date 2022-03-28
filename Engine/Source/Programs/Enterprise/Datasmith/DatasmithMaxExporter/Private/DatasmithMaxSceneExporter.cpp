@@ -203,7 +203,7 @@ int FDatasmithMaxSceneExporter::GetSeedFromMaterial(Mtl* Material)
 	return Seed;
 }
 
-FString FDatasmithMaxSceneExporter::GetRandomSubMaterial(Mtl* Material, FVector RandomSeed)
+FString FDatasmithMaxSceneExporter::GetRandomSubMaterial(Mtl* Material, FVector3f RandomSeed)
 {
 	uint32 RandomIndex = int(FMath::Abs(RandomSeed.X - RandomSeed.Y + RandomSeed.Z)) + GetSeedFromMaterial(Material);
 
@@ -306,7 +306,7 @@ void FDatasmithMaxSceneExporter::ExportMeshActor(TSharedRef< IDatasmithScene > D
 
 	if (ExportMode == EStaticMeshExportMode::Default && StaticMeshMtl != Node->GetMtl())
 	{
-		ParseMaterialForMeshActor( Node->GetMtl(), MeshActor, SupportedChannels, MeshActor->GetTranslation() );
+		ParseMaterialForMeshActor( Node->GetMtl(), MeshActor, SupportedChannels, FVector3f(MeshActor->GetTranslation()) );
 	}
 
 	if ( bPivotIsBakedInGeometry || bNeedPivotComponent )
@@ -339,14 +339,14 @@ void FDatasmithMaxSceneExporter::ExportMeshActor(TSharedRef< IDatasmithScene > D
 TSharedRef< IDatasmithActorElement > FDatasmithMaxSceneExporter::ExportHierarchicalInstanceStaticMeshActor(TSharedRef< IDatasmithScene > DatasmithScene, INode* Node, INode* CustomMeshNode, const TCHAR* Label, TSet<uint16>& SupportedChannels, Mtl* StaticMeshMtl, const TArray<Matrix3>* Instances,
 	const TCHAR* MeshName, float UnitMultiplier, const EStaticMeshExportMode& ExportMode, TSharedPtr< IDatasmithActorElement >& OutInversedHISMActor)
 {
-	check( Node && Instances && MeshName);
+	check(Node && Instances && MeshName);
 
 	TSharedPtr< IDatasmithMeshActorElement > MeshActor;
 	FVector Pos, Scale;
 	FQuat Rotation;
 
-	const FVector RandomSeed(FMath::Rand(), FMath::Rand(), FMath::Rand());
-	auto FinalizeHISMActor = [&](TSharedPtr< IDatasmithMeshActorElement >& FinalizingActor, FVector Seed, const TCHAR* ActorLabel)
+	const FVector3f RandomSeed(FMath::Rand(), FMath::Rand(), FMath::Rand());
+	auto FinalizeHISMActor = [&](TSharedPtr< IDatasmithMeshActorElement >& FinalizingActor, FVector3f Seed, const TCHAR* ActorLabel)
 	{
 		FinalizingActor->SetStaticMeshPathName(MeshName);
 
@@ -464,7 +464,7 @@ TSharedRef< IDatasmithActorElement > FDatasmithMaxSceneExporter::ExportHierarchi
 	return MeshActor.ToSharedRef();
 }
 
-void FDatasmithMaxSceneExporter::ParseMaterialForMeshActor(Mtl* Material, TSharedRef< IDatasmithMeshActorElement >& MeshActor, TSet<uint16>& SupportedChannels, FVector RandomSeed)
+void FDatasmithMaxSceneExporter::ParseMaterialForMeshActor(Mtl* Material, TSharedRef< IDatasmithMeshActorElement >& MeshActor, TSet<uint16>& SupportedChannels, const FVector3f& RandomSeed)
 {
 	if (FDatasmithMaxMatHelper::GetMaterialClass(Material) == EDSMaterialType::XRefMat)
 	{

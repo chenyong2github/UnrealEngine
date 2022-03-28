@@ -56,8 +56,8 @@ public class FDatasmithFacadeTransformAnimation : FDatasmithFacadeBaseAnimation 
     return ret;
   }
 
-  public void GetFrame(EDatasmithFacadeAnimationTransformType TransformType, int Index, out int OutFrameNumber, ref double OutX, ref double OutY, ref double OutZ) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeTransformAnimation_GetFrame(swigCPtr, (int)TransformType, Index, out OutFrameNumber, ref OutX, ref OutY, ref OutZ);
+  public void GetFrame(EDatasmithFacadeAnimationTransformType TransformType, int Index, out int OutFrameNumber, out double OutX, out double OutY, out double OutZ) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeTransformAnimation_GetFrame(swigCPtr, (int)TransformType, Index, out OutFrameNumber, out OutX, out OutY, out OutZ);
   }
 
   public void RemoveFrame(EDatasmithFacadeAnimationTransformType TransformType, int Index) {

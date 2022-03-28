@@ -26,9 +26,9 @@ FDatasmithFacadeActorCamera::FDatasmithFacadeActorCamera(
 {}
 
 void FDatasmithFacadeActorCamera::SetCameraPosition(
-	float InX,
-	float InY,
-	float InZ
+	double InX,
+	double InY,
+	double InZ
 )
 {
 	// Scale and convert the camera position into a Datasmith actor world translation.
@@ -36,12 +36,12 @@ void FDatasmithFacadeActorCamera::SetCameraPosition(
 }
 
 void FDatasmithFacadeActorCamera::SetCameraRotation(
-	float InForwardX,
-	float InForwardY,
-	float InForwardZ,
-	float InUpX,
-	float InUpY,
-	float InUpZ
+	double InForwardX,
+	double InForwardY,
+	double InForwardZ,
+	double InUpX,
+	double InUpY,
+	double InUpZ
 )
 {
 	// Convert the camera orientation into a Datasmith actor world look-at rotation quaternion.
@@ -82,9 +82,10 @@ void FDatasmithFacadeActorCamera::SetFocusDistance(
 {
 	TSharedRef<IDatasmithCameraActorElement> CameraActor(GetDatasmithActorCameraElement());
 	FVector CameraPosition(CameraActor->GetTranslation());
+	FVector Target(InTargetX, InTargetY, InTargetZ);
 
-	FVector DistanceVector(InTargetX - CameraPosition.X, InTargetY - CameraPosition.Y, InTargetZ - CameraPosition.Z);
-	CameraActor->SetFocusDistance((float)DistanceVector.Size() * WorldUnitScale);	// LWC_TODO: Precision loss
+	FVector DistanceVector = Target - CameraPosition;
+	CameraActor->SetFocusDistance((float)DistanceVector.Size() * WorldUnitScale);
 }
 
 void FDatasmithFacadeActorCamera::SetFocusDistance(

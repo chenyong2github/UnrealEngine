@@ -69,7 +69,7 @@ typedef Texmap* FTexmapKey;
 class FDatasmith3dsMaxScene
 {
 public:
-	FDatasmith3dsMaxScene() 
+	FDatasmith3dsMaxScene()
 	{
 		ResetScene();
 	}
@@ -341,7 +341,7 @@ private:
 	TMap<TPair<uint32, TPair<uint32, uint32>>, MAXClass*> KnownMaxDesc;
 	// Same for the lookup_MAXSuperClass.
 	TMap<uint32, MAXSuperClass*> KnownMaxSuperClass;
-	
+
 };
 
 
@@ -440,7 +440,7 @@ public:
 
 	FBeginRefEnumProc BeginProc;
 	FEndRefEnumProc EndProc;
-	
+
 	TSet<INode*> NodesPrepared;
 };
 
@@ -816,7 +816,7 @@ public:
 		{
 			PROGRESS_STAGE("Refresh collisions") // Update set of nodes used for collision
 			PROGRESS_STAGE_COUNTER(InvalidatedNodeTrackers.Num());
-			
+
 			TSet<FNodeTracker*> NodesWithChangedCollisionStatus; // Need to invalidate these nodes to make them renderable or to keep them from renderable depending on collision status
 			for (FNodeTracker* NodeTracker : InvalidatedNodeTrackers)
 			{
@@ -835,7 +835,7 @@ public:
 				UpdateNode(*NodeTracker);
 			}
 		}
-		
+
 		{
 			PROGRESS_STAGE("Process invalidated instances")
 			PROGRESS_STAGE_COUNTER(InvalidatedInstances.Num());
@@ -944,10 +944,10 @@ public:
 		for (TPair<FNodeKey, FNodeTrackerHandle> NodeKeyAndNodeTracker: NodeTrackers)
 		{
 			FNodeTracker* NodeTracker = NodeKeyAndNodeTracker.Value.GetNodeTracker();
-			
+
 			if (NodeTracker->DatasmithActorElement)
 			{
-				
+
 				if (Lights.Contains(NodeTracker))
 				{
 					const TSharedPtr<IDatasmithLightActorElement> LightElement = StaticCastSharedPtr< IDatasmithLightActorElement >(NodeTracker->DatasmithActorElement);
@@ -972,7 +972,7 @@ public:
 	{
 		LogDebugNode(TEXT("AddNode"), Node);
 		FNodeTracker* NodeTracker = NodeTrackers.Emplace(NodeKey, FNodeTrackerHandle(NodeKey, Node)).GetNodeTracker();
-		
+
 		NodeTrackersNames.FindOrAdd(NodeTracker->Name).Add(NodeTracker);
 		InvalidatedNodeTrackers.Add(NodeTracker);
 
@@ -981,7 +981,7 @@ public:
 
 	virtual void RemoveMaterial(const TSharedPtr<IDatasmithBaseMaterialElement>& DatasmithMaterial) override
 	{
-		ExportedScene.DatasmithSceneRef->RemoveMaterial(DatasmithMaterial);		
+		ExportedScene.DatasmithSceneRef->RemoveMaterial(DatasmithMaterial);
 	}
 
 	virtual void RemoveTexture(const TSharedPtr<IDatasmithTextureElement>& DatasmithTextureElement) override
@@ -995,7 +995,7 @@ public:
 
 		if (NodeTracker.bDeleted)
 		{
-			// Change events sometimes received for nodes that are already deleted 
+			// Change events sometimes received for nodes that are already deleted
 			// skipping processing of node subtree because INode pointer may already be invalid
 			// Test case: create container, add node to it. Close it, open it, close again, then sync
 			// Change event will be received for NodeKey that returns NULL from NodeEventNamespace::GetNodeByKey
@@ -1118,7 +1118,7 @@ public:
 		Helpers.Remove(&NodeTracker);
 		Cameras.Remove(&NodeTracker);
 		Lights.Remove(&NodeTracker);
-		
+
 		{
 			// remove static meshes used by the RailClone
 			TUniquePtr<FRailClonesConverted> RailClonesConverted;
@@ -1275,7 +1275,7 @@ public:
 	void UpdateNode(FNodeTracker& NodeTracker)
 	{
 
-		// Forget anything that this node was before update: place in datasmith hierarchy, datasmith objects, instances connection. Updating may change anything 
+		// Forget anything that this node was before update: place in datasmith hierarchy, datasmith objects, instances connection. Updating may change anything
 		RemoveFromConverted(NodeTracker);
 		ConvertNodeObject(NodeTracker);
 	}
@@ -1419,7 +1419,7 @@ public:
 		{
 			return nullptr; // Max node not known, assume it doesn't exist
 		}
-		
+
 		return ParentNodeTrackerHandle->GetNodeTracker();
 	}
 
@@ -1517,7 +1517,7 @@ public:
 		FString UniqueName = FString::FromInt(NodeTracker.Node->GetHandle());
 		FString Label = FString((const TCHAR*)NodeTracker.Node->GetName());
 
-		// Create and setup mesh actor if there's a mesh 
+		// Create and setup mesh actor if there's a mesh
 		if (bHasMesh)
 		{
 			FString MeshActorName = UniqueName;
@@ -1573,7 +1573,7 @@ public:
 			NodeTracker.DatasmithActorElement->SetLayer(*NodeTracker.Layer->Name);
 		}
 
-		// Apply material 
+		// Apply material
 		if (DatasmithMeshElement)
 		{
 			if (Mtl* Material = NodeTracker.Node->GetMtl())
@@ -1602,7 +1602,7 @@ public:
 					if (Instances.Material != Material)
 					{
 						TSharedRef<IDatasmithMeshActorElement> DatasmithMeshActorRef = NodeTracker.DatasmithMeshActor.ToSharedRef();
-						FDatasmithMaxSceneExporter::ParseMaterialForMeshActor(Material, DatasmithMeshActorRef, Instances.SupportedChannels, NodeTracker.DatasmithMeshActor->GetTranslation());
+						FDatasmithMaxSceneExporter::ParseMaterialForMeshActor(Material, DatasmithMeshActorRef, Instances.SupportedChannels, FVector3f(NodeTracker.DatasmithMeshActor->GetTranslation()));
 					}
 				}
 			}
@@ -1775,7 +1775,7 @@ public:
 		SetupActor(NodeTracker);
 
 		//Cylinder shaped lights don't have the same default orientations, so we recalculate their transform and add the shape information.
-		if (LightElement->IsA(EDatasmithElementType::AreaLight) 
+		if (LightElement->IsA(EDatasmithElementType::AreaLight)
 			&& StaticCastSharedPtr<IDatasmithAreaLightElement>(LightElement)->GetLightShape() == EDatasmithLightShape::Cylinder)
 		{
 			FVector Translation, Scale;
@@ -1809,7 +1809,7 @@ public:
 		FString MeshName = FString::FromInt(NodeTracker.Node->GetHandle()) + TEXT("_") + FString::FromInt(MeshIndex);
 
 		// note: when export Mesh goes to other place due to parallellizing it's result would be unknown here so MeshIndex handling will change(i.e. increment for any mesh)
-				
+
 		TSharedPtr<IDatasmithMeshElement> DatasmithMeshElement;
 		TSet<uint16> SupportedChannels;
 
@@ -1829,11 +1829,11 @@ public:
 			DatasmithMeshElement->SetLabel(*MeshLabel);
 
 			FDatasmithConverter Converter;
-				
+
 			// todo: override material
 			TSharedPtr< IDatasmithActorElement > InversedHISMActor;
 			// todo: ExportHierarchicalInstanceStaticMeshActor CustomMeshNode only used for Material - can be simplified, Material anyway is dealt with outside too
-			TSharedRef<IDatasmithActorElement> HismActorElement = FDatasmithMaxSceneExporter::ExportHierarchicalInstanceStaticMeshActor( 
+			TSharedRef<IDatasmithActorElement> HismActorElement = FDatasmithMaxSceneExporter::ExportHierarchicalInstanceStaticMeshActor(
 				ExportedScene.GetDatasmithScene(), NodeTracker.Node, GeometryNode, *MeshLabel, SupportedChannels,
 				Material, &Transforms, *MeshName, Converter.UnitToCentimeter, EStaticMeshExportMode::Default, InversedHISMActor);
 			NodeTracker.DatasmithActorElement->AddChild(HismActorElement, EDatasmithActorAttachmentRule::KeepWorldTransform);
@@ -1855,7 +1855,7 @@ public:
 			return bResult;
 		}
 
-		// AnimHandle is unique and never reused for new objects 
+		// AnimHandle is unique and never reused for new objects
 		// todo: reset instances and nodes when one node of an instance changes??? Check how it should be done actually, dependencies - nodes, object, invalidation place(Update, Event) etc...
 		AnimHandle Handle = Animatable::GetHandleByAnim(Obj);
 
@@ -1911,8 +1911,8 @@ public:
 	virtual void NodeAdded(INode* Node) override
 	{
 		// Node sometimes is null. 'Added' NodeEvent might come after node was actually deleted(immediately after creation)
-		// e.g.[mxs]: b = box(); delete b 
-		// NodeEvents are delayed(not executed in the same stack frame as command that causes them) so they come later. 
+		// e.g.[mxs]: b = box(); delete b
+		// NodeEvents are delayed(not executed in the same stack frame as command that causes them) so they come later.
 		if (!Node)
 		{
 			return;
@@ -1998,7 +1998,7 @@ public:
 		if (FNodeTrackerHandle* NodeTracker = NodeTrackers.Find(NodeKey))
 		{
 			// todo: investigate why NodeEventNamespace::GetNodeByKey may stil return NULL
-			// testcase - add XRef Material - this will immediately have this 
+			// testcase - add XRef Material - this will immediately have this
 			// even though NOTIFY_SCENE_ADDED_NODE was called for node and NOTIFY_SCENE_PRE_DELETED_NODE wasn't!
 			INode* Node = NodeEventNamespace::GetNodeByKey(NodeKey);
 			if (Node)
@@ -2024,7 +2024,7 @@ public:
 
 	virtual void NodeHideChanged(FNodeKey NodeKey) override
 	{
-		// todo: invalidate visibility only - note to handle this not enought add/remove 
+		// todo: invalidate visibility only - note to handle this not enought add/remove
 		// actor. make sure to invalidate instances(in case geometry usage changed - like hidden node with multimat), materials
 
 		InvalidateNode(NodeKey);
@@ -2032,7 +2032,7 @@ public:
 
 	virtual void NodePropertiesChanged(FNodeKey NodeKey) override
 	{
-		// todo: invalidate visibility only - note to handle this not enought add/remove 
+		// todo: invalidate visibility only - note to handle this not enought add/remove
 		// actor. make sure to invalidate instances(in case geometry usage changed - like hidden node with multimat), materials
 
 		InvalidateNode(NodeKey);
@@ -2042,7 +2042,7 @@ public:
 	{
 		InvalidateNode(NodeKey);
 	}
-	
+
 	///////////////////////////////////////////////
 
 	const FExportOptions& Options;
@@ -2058,7 +2058,7 @@ public:
 	TSet<FNodeTracker*> InvalidatedNodeTrackers; // Nodes that need to be rebuilt
 	TMap<FNodeTracker*, TSharedPtr<IDatasmithMetaDataElement>> NodeDatasmithMetadata; // All scene nodes
 
-	TMap<FNodeTracker*, TSet<FNodeTracker*>> CollisionNodes; // Nodes used as collision meshes for other nodes, counted by each user 
+	TMap<FNodeTracker*, TSet<FNodeTracker*>> CollisionNodes; // Nodes used as collision meshes for other nodes, counted by each user
 
 	FMaterialsCollectionTracker MaterialsCollectionTracker;
 
@@ -2073,7 +2073,7 @@ public:
 	TMap<FLayerTracker*, TSet<FNodeTracker*>> NodesPerLayer;
 
 	FNodesPreparer NodesPreparer;
-	
+
 	struct FRailClonesConverted
 	{
 		TArray<TSharedPtr<IDatasmithMeshElement>> Meshes; // Meshes created for this railclones object
@@ -2100,7 +2100,7 @@ public:
 	virtual void SetOutputPath(const TCHAR* Path) override
 	{
 		OutputPath = Path;
-		ExportedScene.SetOutputPath(*OutputPath);		
+		ExportedScene.SetOutputPath(*OutputPath);
 	}
 
 	virtual void SetName(const TCHAR* Name) override
@@ -2120,17 +2120,17 @@ public:
 
 	virtual void InitializeDirectLinkForScene() override
 	{
-		if (DirectLinkImpl) 
+		if (DirectLinkImpl)
 		{
 			return;
 		}
 
 		InitializeScene();
 
-		// XXX: PreExport needs to be called before DirectLink instance is constructed - 
+		// XXX: PreExport needs to be called before DirectLink instance is constructed -
 		// Reason - it calls initialization of FTaskGraphInterface. Callstack:
 		// PreExport:
-		//  - FDatasmithExporterManager::Initialize 
+		//  - FDatasmithExporterManager::Initialize
 		//	-- DatasmithGameThread::InitializeInCurrentThread
 		//  --- GEngineLoop.PreInit
 		//  ---- PreInitPreStartupScreen
@@ -2147,7 +2147,7 @@ public:
 
 	virtual void UpdateDirectLinkScene() override
 	{
-		if (!DirectLinkImpl) 
+		if (!DirectLinkImpl)
 		{
 			// InitializeDirectLinkForScene wasn't called yet. This rarely happens when Sync is pressed right before event like PostSceneReset(for New All UI command) was handled
 			// Very quickly! Unfortunately code needs to wait for PostSceneReset to get proper scene name there(no earlier event signals that name is available)
@@ -2161,7 +2161,7 @@ public:
 
 	static VOID AutoSyncTimerProc(HWND, UINT, UINT_PTR TimerIdentifier, DWORD)
 	{
-		reinterpret_cast<FExporter*>(TimerIdentifier)->UpdateAutoSync(); 
+		reinterpret_cast<FExporter*>(TimerIdentifier)->UpdateAutoSync();
 	}
 
 	// Update is user was idle for some time
@@ -2355,7 +2355,7 @@ void ShutdownExporter()
 
 IExporter* GetExporter()
 {
-	return Exporter.Get();	
+	return Exporter.Get();
 }
 
 IPersistentExportOptions& GetPersistentExportOptions()
@@ -2363,7 +2363,7 @@ IPersistentExportOptions& GetPersistentExportOptions()
 	return PersistentExportOptions;
 }
 
-void FExporter::Shutdown() 
+void FExporter::Shutdown()
 {
 	Exporter.Reset();
 	FDatasmithDirectLink::Shutdown();

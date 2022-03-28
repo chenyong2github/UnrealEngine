@@ -18,10 +18,10 @@ public:
 
 	FString Name;
 
-	TArray< FVector > Vertices;
+	TArray< FVector3f > Vertices;
 	TArray< uint32 > Indices;
 
-	TArray< FVector > Normals;
+	TArray< FVector3f > Normals;
 	TArray< int32 > MaterialIndices;
 
 	TArray< TArray< FVector2D > > UVs;
@@ -35,7 +35,7 @@ public:
 
 	int32 LightmapUVChannel;
 
-	FBox Extents;
+	FBox3f Extents;
 
 private:
 	TSet< int32 > IdsInUse;
@@ -114,7 +114,7 @@ void FDatasmithMesh::SetFacesCount(int32 NumFaces)
 	Impl->MaterialIndices.Init(0, NumFaces);
 
 	Impl->Normals.Empty(NumFaces * 3);
-	Impl->Normals.Init( FVector(ForceInitToZero), NumFaces * 3 );
+	Impl->Normals.Init( FVector3f::ZeroVector, NumFaces * 3 );
 
 	Impl->FaceSmoothingMasks.Empty( NumFaces * 3 );
 	Impl->FaceSmoothingMasks.AddZeroed( NumFaces * 3 );
@@ -172,7 +172,7 @@ bool FDatasmithMesh::IsMaterialIdUsed(int32 MaterialId) const
 void FDatasmithMesh::SetVerticesCount(int32 NumVerts)
 {
 	Impl->Vertices.Empty(NumVerts);
-	Impl->Vertices.Init( FVector(ForceInit), NumVerts );
+	Impl->Vertices.Init( FVector3f::ZeroVector, NumVerts );
 }
 
 int32 FDatasmithMesh::GetVerticesCount() const
@@ -184,7 +184,7 @@ void FDatasmithMesh::SetVertex(int32 Index, float X, float Y, float Z)
 {
 	if ( Impl->Vertices.IsValidIndex( Index ) )
 	{
-		FVector Vertex(X, Y, Z);
+		FVector3f Vertex(X, Y, Z);
 
 		Impl->Vertices[Index] = Vertex;
 
@@ -192,7 +192,7 @@ void FDatasmithMesh::SetVertex(int32 Index, float X, float Y, float Z)
 	}
 }
 
-FVector FDatasmithMesh::GetVertex(int32 Index) const
+FVector3f FDatasmithMesh::GetVertex(int32 Index) const
 {
 	if ( Impl->Vertices.IsValidIndex( Index ) )
 	{
@@ -200,7 +200,7 @@ FVector FDatasmithMesh::GetVertex(int32 Index) const
 	}
 	else
 	{
-		return FVector::ZeroVector;
+		return FVector3f::ZeroVector;
 	}
 }
 
@@ -208,11 +208,11 @@ void FDatasmithMesh::SetNormal(int32 Index, float X, float Y, float Z)
 {
 	if ( Impl->Normals.IsValidIndex( Index ) )
 	{
-		Impl->Normals[Index] = FVector(X, Y, Z).GetSafeNormal();
+		Impl->Normals[Index] = FVector3f(X, Y, Z).GetSafeNormal();
 	}
 }
 
-FVector FDatasmithMesh::GetNormal(int32 Index) const
+FVector3f FDatasmithMesh::GetNormal(int32 Index) const
 {
 	if ( Impl->Normals.IsValidIndex( Index ) )
 	{
@@ -220,7 +220,7 @@ FVector FDatasmithMesh::GetNormal(int32 Index) const
 	}
 	else
 	{
-		return FVector::ZeroVector;
+		return FVector3f::ZeroVector;
 	}
 }
 
@@ -463,7 +463,7 @@ float FDatasmithMesh::ComputeArea() const
 	return Area;
 }
 
-FBox FDatasmithMesh::GetExtents() const
+FBox3f FDatasmithMesh::GetExtents() const
 {
 	return Impl->Extents;
 }

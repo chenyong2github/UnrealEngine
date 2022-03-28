@@ -208,12 +208,10 @@ const TCHAR* FDatasmithUtils::GetShortAppName()
 	return TEXT("Datasmith");
 }
 
-double FDatasmithUtils::AreaTriangle3D(FVector v0, FVector v1, FVector v2)
+float FDatasmithUtils::AreaTriangle3D(const FVector3f& v0, const FVector3f& v1, const FVector3f& v2)
 {
-	FVector TriangleNormal = (v1 - v2) ^ (v0 - v2);
-	double Area = TriangleNormal.Size() * 0.5;
-
-	return Area;
+	FVector3f TriangleNormal = (v1 - v2) ^ (v0 - v2);
+	return TriangleNormal.Size() * 0.5f;
 }
 
 bool FDatasmithMeshUtils::ToRawMesh(const FDatasmithMesh& Mesh, FRawMesh& RawMesh, bool bValidateRawMesh)
@@ -229,7 +227,7 @@ bool FDatasmithMeshUtils::ToRawMesh(const FDatasmithMesh& Mesh, FRawMesh& RawMes
 
 	for ( int32 i = 0; i < Mesh.GetVerticesCount(); ++i )
 	{
-		RawMesh.VertexPositions.Add( (FVector3f)Mesh.GetVertex( i ) );
+		RawMesh.VertexPositions.Add( Mesh.GetVertex( i ) );
 	}
 
 	RawMesh.FaceMaterialIndices.Reserve( Mesh.GetFacesCount() );
@@ -255,7 +253,7 @@ bool FDatasmithMeshUtils::ToRawMesh(const FDatasmithMesh& Mesh, FRawMesh& RawMes
 
 		for ( int32 j = 0; j < 3; ++j )
 		{
-			RawMesh.WedgeTangentZ.Add( (FVector3f)Mesh.GetNormal( FaceIndex * 3 + j ) );
+			RawMesh.WedgeTangentZ.Add( Mesh.GetNormal( FaceIndex * 3 + j ) );
 		}
 	}
 

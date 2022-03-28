@@ -21,18 +21,6 @@ public:
 		RightHandedZup // right-handed Z-up coordinate system: Revit
 	};
 
-	// Type of a method that converts a vertex from world coordinates to Unreal coordinates.
-	typedef FVector (* ConvertVertexMethod)(
-		float InX, // vertex X in world coordinates
-		float InY, // vertex Y in world coordinates
-		float InZ  // vertex Z in world coordinates
-	);
-
-	// Type of a method that converts an FVector from Unreal coordinates to world coordinates.
-	typedef FVector (* ConvertVectorMethod )(
-		const FVector& InVector
-	);
-
 public:
 
 	// Set the coordinate system type of the world geometries and transforms.
@@ -40,7 +28,7 @@ public:
 		ECoordinateSystemType InWorldCoordinateSystemType // world coordinate system type
 	);
 
-	/** 
+	/**
 	 * Set the scale factor from world units to Datasmith centimeters.
 	 * If the given value is too close to 0, it is clamped to SMALL_NUMBER value.
 	 */
@@ -73,22 +61,30 @@ public:
 protected:
 #endif
 
-	// Convert a position from world unit coordinates to Unreal centimeter coordinates.
-	static ConvertVertexMethod ConvertPosition;
+	template<bool kIsForward, bool kIsDirection, typename Vec_t> static Vec_t Convert(const Vec_t& V);
 
-	// Convert a position from Unreal centimeter coordinates to world unit coordinates.
-	static ConvertVectorMethod ConvertBackPosition;
+	static FVector   ConvertDirection    (const FVector& In);
+	static FVector   ConvertBackDirection(const FVector& In);
+	static FVector   ConvertPosition     (const FVector& In);
+	static FVector   ConvertBackPosition (const FVector& In);
 
-	// Convert a direction from the world coordinate system to the Unreal coordinate system.
-	static ConvertVertexMethod ConvertDirection;
+	static FVector   ConvertDirection    (double InX, double InY, double InZ);
+	static FVector   ConvertBackDirection(double InX, double InY, double InZ);
+	static FVector   ConvertPosition     (double InX, double InY, double InZ);
+	static FVector   ConvertBackPosition (double InX, double InY, double InZ);
 
-	// Convert a direction from the Unreal coordinate system to the world coordinate system.
-	static ConvertVectorMethod ConvertBackDirection;
+	static FVector3f ConvertDirection    (const FVector3f& In);
+	static FVector3f ConvertBackDirection(const FVector3f& In);
+	static FVector3f ConvertPosition     (const FVector3f& In);
+	static FVector3f ConvertBackPosition (const FVector3f& In);
 
-	// Convert a translation from world unit coordinates to Unreal centimeter coordinates.
-	static FVector ConvertTranslation(
-		FVector const& InVertex // translation in world unit coordinates
-	);
+	static FVector3f ConvertDirection    (float InX, float InY, float InZ);
+	static FVector3f ConvertBackDirection(float InX, float InY, float InZ);
+	static FVector3f ConvertPosition     (float InX, float InY, float InZ);
+	static FVector3f ConvertBackPosition (float InX, float InY, float InZ);
+
+	static FVector   ConvertTranslation(FVector const& InVertex) { return ConvertPosition(InVertex); }
+	static FVector3f ConvertTranslation(FVector3f const& InVertex) { return ConvertPosition(InVertex); }
 
 	// Build and export the Datasmith scene element asset when required.
 	// This must be done before building a Datasmith scene element.
@@ -99,77 +95,6 @@ protected:
 	TSharedRef<IDatasmithElement>& GetDatasmithElement() { return InternalDatasmithElement;	}
 
 	const TSharedRef<IDatasmithElement>& GetDatasmithElement() const { return InternalDatasmithElement;	}
-
-private:
-
-	// Scale and convert a position from left-handed Y-up coordinates to Unreal left-handed Z-up centimeter coordinates.
-	static FVector ConvertFromPositionLeftHandedYup(
-		float InX, // position X in world unit coordinates
-		float InY, // position Y in world unit coordinates
-		float InZ  // position Z in world unit coordinates
-	);
-
-	// Scale and convert a position from Unreal left-handed Z-up centimeter coordinates to left-handed Y-up coordinates.
-	static FVector ConvertToPositionLeftHandedYup(
-		const FVector& InVector
-	);
-
-	// Scale a position to Unreal left-handed Z-up centimeter coordinates.
-	static FVector ConvertFromPositionLeftHandedZup(
-		float InX, // position X in world unit coordinates
-		float InY, // position Y in world unit coordinates
-		float InZ  // position Z in world unit coordinates
-	);
-
-	// Scale a position from Unreal left-handed Z-up centimeter coordinates.
-	static FVector ConvertToPositionLeftHandedZup(
-		const FVector& InVector
-	);
-
-	// Scale and convert a position from right-handed Z-up coordinates to Unreal left-handed Z-up centimeter coordinates.
-	static FVector ConvertFromPositionRightHandedZup(
-		float InX, // position X in world unit coordinates
-		float InY, // position Y in world unit coordinates
-		float InZ  // position Z in world unit coordinates
-	);
-
-	// Scale and convert a position from Unreal left-handed Z-up centimeter coordinates to right-handed Z-up coordinates.
-	static FVector ConvertToPositionRightHandedZup(
-		const FVector& InVector
-	);
-
-	// Convert a direction from a left-handed Y-up coordinate system to Unreal left-handed Z-up coordinate system.
-	static FVector ConvertFromDirectionLeftHandedYup(
-		float InX, // direction X in world coordinates
-		float InY, // direction Y in world coordinates
-		float InZ  // direction Z in world coordinates
-	);
-
-	static FVector ConvertToDirectionLeftHandedYup(
-		const FVector& InVector
-	);
-
-	// Convert a direction to Unreal left-handed Z-up coordinate system.
-	static FVector ConvertFromDirectionLeftHandedZup(
-		float InX, // direction X in world coordinates
-		float InY, // direction Y in world coordinates
-		float InZ  // direction Z in world coordinates
-	);
-
-	static FVector ConvertToDirectionLeftHandedZup(
-		const FVector& InVector
-	);
-
-	// Convert a direction from a right-handed Z-up coordinate system to Unreal left-handed Z-up coordinate system.
-	static FVector ConvertFromDirectionRightHandedZup(
-		float InX, // direction X in world coordinates
-		float InY, // direction Y in world coordinates
-		float InZ  // direction Z in world coordinates
-	);
-
-	static FVector ConvertToDirectionRightHandedZup(
-		const FVector& InVector
-	);
 
 protected:
 

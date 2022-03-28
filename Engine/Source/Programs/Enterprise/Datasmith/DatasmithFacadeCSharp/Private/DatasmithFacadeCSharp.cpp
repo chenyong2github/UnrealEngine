@@ -2867,18 +2867,18 @@ SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeMesh_GetHashForUVChan
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeMesh_GetUV(void * jarg1, int jarg2, int jarg3, float * jarg4, float * jarg5) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeMesh_GetUV(void * jarg1, int jarg2, int jarg3, double * jarg4, double * jarg5) {
   FDatasmithFacadeMesh *arg1 = (FDatasmithFacadeMesh *) 0 ;
   int32 arg2 ;
   int32 arg3 ;
-  float *arg4 = 0 ;
-  float *arg5 = 0 ;
+  double *arg4 = 0 ;
+  double *arg5 = 0 ;
   
   arg1 = (FDatasmithFacadeMesh *)jarg1; 
   arg2 = (int32)jarg2; 
   arg3 = (int32)jarg3; 
-  arg4 = (float *)jarg4; 
-  arg5 = (float *)jarg5; 
+  arg4 = (double *)jarg4; 
+  arg5 = (double *)jarg5; 
   ((FDatasmithFacadeMesh const *)arg1)->GetUV(arg2,arg3,*arg4,*arg5);
 }
 
@@ -3455,7 +3455,29 @@ SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeActor(void * jarg1) {
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetWorldTransform__SWIG_0(void * jarg1, float * jarg2, unsigned int jarg3) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetWorldTransform__SWIG_0(void * jarg1, double * jarg2, unsigned int jarg3) {
+  FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
+  double *arg2 ;
+  bool arg3 ;
+  
+  arg1 = (FDatasmithFacadeActor *)jarg1; 
+  arg2 = (double *)jarg2; 
+  arg3 = jarg3 ? true : false; 
+  (arg1)->SetWorldTransform((double const (*))arg2,arg3);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetWorldTransform__SWIG_1(void * jarg1, double * jarg2) {
+  FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
+  double *arg2 ;
+  
+  arg1 = (FDatasmithFacadeActor *)jarg1; 
+  arg2 = (double *)jarg2; 
+  (arg1)->SetWorldTransform((double const (*))arg2);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetWorldTransform__SWIG_2(void * jarg1, float * jarg2, unsigned int jarg3) {
   FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
   float *arg2 ;
   bool arg3 ;
@@ -3467,7 +3489,7 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetWorldTransform__SWIG
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetWorldTransform__SWIG_1(void * jarg1, float * jarg2) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetWorldTransform__SWIG_3(void * jarg1, float * jarg2) {
   FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
   float *arg2 ;
   
@@ -3477,118 +3499,118 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetWorldTransform__SWIG
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetScale(void * jarg1, float jarg2, float jarg3, float jarg4) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetScale(void * jarg1, double jarg2, double jarg3, double jarg4) {
   FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
-  float arg2 ;
-  float arg3 ;
-  float arg4 ;
+  double arg2 ;
+  double arg3 ;
+  double arg4 ;
   
   arg1 = (FDatasmithFacadeActor *)jarg1; 
-  arg2 = (float)jarg2; 
-  arg3 = (float)jarg3; 
-  arg4 = (float)jarg4; 
+  arg2 = (double)jarg2; 
+  arg3 = (double)jarg3; 
+  arg4 = (double)jarg4; 
   (arg1)->SetScale(arg2,arg3,arg4);
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_GetScale(void * jarg1, float * jarg2, float * jarg3, float * jarg4) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_GetScale(void * jarg1, double * jarg2, double * jarg3, double * jarg4) {
   FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
-  float *arg2 = 0 ;
-  float *arg3 = 0 ;
-  float *arg4 = 0 ;
+  double *arg2 = 0 ;
+  double *arg3 = 0 ;
+  double *arg4 = 0 ;
   
   arg1 = (FDatasmithFacadeActor *)jarg1; 
-  arg2 = (float *)jarg2; 
-  arg3 = (float *)jarg3; 
-  arg4 = (float *)jarg4; 
+  arg2 = (double *)jarg2; 
+  arg3 = (double *)jarg3; 
+  arg4 = (double *)jarg4; 
   ((FDatasmithFacadeActor const *)arg1)->GetScale(*arg2,*arg3,*arg4);
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetRotation__SWIG_0(void * jarg1, float jarg2, float jarg3, float jarg4) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetRotation__SWIG_0(void * jarg1, double jarg2, double jarg3, double jarg4) {
   FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
-  float arg2 ;
-  float arg3 ;
-  float arg4 ;
+  double arg2 ;
+  double arg3 ;
+  double arg4 ;
   
   arg1 = (FDatasmithFacadeActor *)jarg1; 
-  arg2 = (float)jarg2; 
-  arg3 = (float)jarg3; 
-  arg4 = (float)jarg4; 
+  arg2 = (double)jarg2; 
+  arg3 = (double)jarg3; 
+  arg4 = (double)jarg4; 
   (arg1)->SetRotation(arg2,arg3,arg4);
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_GetRotation__SWIG_0(void * jarg1, float * jarg2, float * jarg3, float * jarg4) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_GetRotation__SWIG_0(void * jarg1, double * jarg2, double * jarg3, double * jarg4) {
   FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
-  float *arg2 = 0 ;
-  float *arg3 = 0 ;
-  float *arg4 = 0 ;
+  double *arg2 = 0 ;
+  double *arg3 = 0 ;
+  double *arg4 = 0 ;
   
   arg1 = (FDatasmithFacadeActor *)jarg1; 
-  arg2 = (float *)jarg2; 
-  arg3 = (float *)jarg3; 
-  arg4 = (float *)jarg4; 
+  arg2 = (double *)jarg2; 
+  arg3 = (double *)jarg3; 
+  arg4 = (double *)jarg4; 
   ((FDatasmithFacadeActor const *)arg1)->GetRotation(*arg2,*arg3,*arg4);
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetRotation__SWIG_1(void * jarg1, float jarg2, float jarg3, float jarg4, float jarg5) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetRotation__SWIG_1(void * jarg1, double jarg2, double jarg3, double jarg4, double jarg5) {
   FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
-  float arg2 ;
-  float arg3 ;
-  float arg4 ;
-  float arg5 ;
+  double arg2 ;
+  double arg3 ;
+  double arg4 ;
+  double arg5 ;
   
   arg1 = (FDatasmithFacadeActor *)jarg1; 
-  arg2 = (float)jarg2; 
-  arg3 = (float)jarg3; 
-  arg4 = (float)jarg4; 
-  arg5 = (float)jarg5; 
+  arg2 = (double)jarg2; 
+  arg3 = (double)jarg3; 
+  arg4 = (double)jarg4; 
+  arg5 = (double)jarg5; 
   (arg1)->SetRotation(arg2,arg3,arg4,arg5);
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_GetRotation__SWIG_1(void * jarg1, float * jarg2, float * jarg3, float * jarg4, float * jarg5) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_GetRotation__SWIG_1(void * jarg1, double * jarg2, double * jarg3, double * jarg4, double * jarg5) {
   FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
-  float *arg2 = 0 ;
-  float *arg3 = 0 ;
-  float *arg4 = 0 ;
-  float *arg5 = 0 ;
+  double *arg2 = 0 ;
+  double *arg3 = 0 ;
+  double *arg4 = 0 ;
+  double *arg5 = 0 ;
   
   arg1 = (FDatasmithFacadeActor *)jarg1; 
-  arg2 = (float *)jarg2; 
-  arg3 = (float *)jarg3; 
-  arg4 = (float *)jarg4; 
-  arg5 = (float *)jarg5; 
+  arg2 = (double *)jarg2; 
+  arg3 = (double *)jarg3; 
+  arg4 = (double *)jarg4; 
+  arg5 = (double *)jarg5; 
   ((FDatasmithFacadeActor const *)arg1)->GetRotation(*arg2,*arg3,*arg4,*arg5);
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetTranslation(void * jarg1, float jarg2, float jarg3, float jarg4) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetTranslation(void * jarg1, double jarg2, double jarg3, double jarg4) {
   FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
-  float arg2 ;
-  float arg3 ;
-  float arg4 ;
+  double arg2 ;
+  double arg3 ;
+  double arg4 ;
   
   arg1 = (FDatasmithFacadeActor *)jarg1; 
-  arg2 = (float)jarg2; 
-  arg3 = (float)jarg3; 
-  arg4 = (float)jarg4; 
+  arg2 = (double)jarg2; 
+  arg3 = (double)jarg3; 
+  arg4 = (double)jarg4; 
   (arg1)->SetTranslation(arg2,arg3,arg4);
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_GetTranslation(void * jarg1, float * jarg2, float * jarg3, float * jarg4) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_GetTranslation(void * jarg1, double * jarg2, double * jarg3, double * jarg4) {
   FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
-  float *arg2 = 0 ;
-  float *arg3 = 0 ;
-  float *arg4 = 0 ;
+  double *arg2 = 0 ;
+  double *arg3 = 0 ;
+  double *arg4 = 0 ;
   
   arg1 = (FDatasmithFacadeActor *)jarg1; 
-  arg2 = (float *)jarg2; 
-  arg3 = (float *)jarg3; 
-  arg4 = (float *)jarg4; 
+  arg2 = (double *)jarg2; 
+  arg3 = (double *)jarg3; 
+  arg4 = (double *)jarg4; 
   ((FDatasmithFacadeActor const *)arg1)->GetTranslation(*arg2,*arg3,*arg4);
 }
 
@@ -3815,36 +3837,36 @@ SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeActorCamera(void * jar
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorCamera_SetCameraPosition(void * jarg1, float jarg2, float jarg3, float jarg4) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorCamera_SetCameraPosition(void * jarg1, double jarg2, double jarg3, double jarg4) {
   FDatasmithFacadeActorCamera *arg1 = (FDatasmithFacadeActorCamera *) 0 ;
-  float arg2 ;
-  float arg3 ;
-  float arg4 ;
+  double arg2 ;
+  double arg3 ;
+  double arg4 ;
   
   arg1 = (FDatasmithFacadeActorCamera *)jarg1; 
-  arg2 = (float)jarg2; 
-  arg3 = (float)jarg3; 
-  arg4 = (float)jarg4; 
+  arg2 = (double)jarg2; 
+  arg3 = (double)jarg3; 
+  arg4 = (double)jarg4; 
   (arg1)->SetCameraPosition(arg2,arg3,arg4);
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorCamera_SetCameraRotation(void * jarg1, float jarg2, float jarg3, float jarg4, float jarg5, float jarg6, float jarg7) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorCamera_SetCameraRotation(void * jarg1, double jarg2, double jarg3, double jarg4, double jarg5, double jarg6, double jarg7) {
   FDatasmithFacadeActorCamera *arg1 = (FDatasmithFacadeActorCamera *) 0 ;
-  float arg2 ;
-  float arg3 ;
-  float arg4 ;
-  float arg5 ;
-  float arg6 ;
-  float arg7 ;
+  double arg2 ;
+  double arg3 ;
+  double arg4 ;
+  double arg5 ;
+  double arg6 ;
+  double arg7 ;
   
   arg1 = (FDatasmithFacadeActorCamera *)jarg1; 
-  arg2 = (float)jarg2; 
-  arg3 = (float)jarg3; 
-  arg4 = (float)jarg4; 
-  arg5 = (float)jarg5; 
-  arg6 = (float)jarg6; 
-  arg7 = (float)jarg7; 
+  arg2 = (double)jarg2; 
+  arg3 = (double)jarg3; 
+  arg4 = (double)jarg4; 
+  arg5 = (double)jarg5; 
+  arg6 = (double)jarg6; 
+  arg7 = (double)jarg7; 
   (arg1)->SetCameraRotation(arg2,arg3,arg4,arg5,arg6,arg7);
 }
 
@@ -6929,65 +6951,87 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_RemovePropertyCa
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeLocationCapture(void * jarg1, float jarg2, float jarg3, float jarg4) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeLocationCapture(void * jarg1, double jarg2, double jarg3, double jarg4) {
   FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
-  float arg2 ;
-  float arg3 ;
-  float arg4 ;
+  double arg2 ;
+  double arg3 ;
+  double arg4 ;
   
   arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
-  arg2 = (float)jarg2; 
-  arg3 = (float)jarg3; 
-  arg4 = (float)jarg4; 
+  arg2 = (double)jarg2; 
+  arg3 = (double)jarg3; 
+  arg4 = (double)jarg4; 
   (arg1)->AddRelativeLocationCapture(arg2,arg3,arg4);
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeRotationCapture__SWIG_0(void * jarg1, float jarg2, float jarg3, float jarg4) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeRotationCapture__SWIG_0(void * jarg1, double jarg2, double jarg3, double jarg4) {
   FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
-  float arg2 ;
-  float arg3 ;
-  float arg4 ;
+  double arg2 ;
+  double arg3 ;
+  double arg4 ;
   
   arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
-  arg2 = (float)jarg2; 
-  arg3 = (float)jarg3; 
-  arg4 = (float)jarg4; 
+  arg2 = (double)jarg2; 
+  arg3 = (double)jarg3; 
+  arg4 = (double)jarg4; 
   (arg1)->AddRelativeRotationCapture(arg2,arg3,arg4);
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeRotationCapture__SWIG_1(void * jarg1, float jarg2, float jarg3, float jarg4, float jarg5) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeRotationCapture__SWIG_1(void * jarg1, double jarg2, double jarg3, double jarg4, double jarg5) {
   FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
-  float arg2 ;
-  float arg3 ;
-  float arg4 ;
-  float arg5 ;
+  double arg2 ;
+  double arg3 ;
+  double arg4 ;
+  double arg5 ;
   
   arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
-  arg2 = (float)jarg2; 
-  arg3 = (float)jarg3; 
-  arg4 = (float)jarg4; 
-  arg5 = (float)jarg5; 
+  arg2 = (double)jarg2; 
+  arg3 = (double)jarg3; 
+  arg4 = (double)jarg4; 
+  arg5 = (double)jarg5; 
   (arg1)->AddRelativeRotationCapture(arg2,arg3,arg4,arg5);
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeScaleCapture(void * jarg1, float jarg2, float jarg3, float jarg4) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeScaleCapture(void * jarg1, double jarg2, double jarg3, double jarg4) {
   FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
-  float arg2 ;
-  float arg3 ;
-  float arg4 ;
+  double arg2 ;
+  double arg3 ;
+  double arg4 ;
   
   arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
-  arg2 = (float)jarg2; 
-  arg3 = (float)jarg3; 
-  arg4 = (float)jarg4; 
+  arg2 = (double)jarg2; 
+  arg3 = (double)jarg3; 
+  arg4 = (double)jarg4; 
   (arg1)->AddRelativeScaleCapture(arg2,arg3,arg4);
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_0(void * jarg1, float * jarg2, unsigned int jarg3) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_0(void * jarg1, double * jarg2, unsigned int jarg3) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  double *arg2 ;
+  bool arg3 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = (double *)jarg2; 
+  arg3 = jarg3 ? true : false; 
+  (arg1)->AddRelativeTransformCapture((double const (*))arg2,arg3);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_1(void * jarg1, double * jarg2) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  double *arg2 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = (double *)jarg2; 
+  (arg1)->AddRelativeTransformCapture((double const (*))arg2);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_2(void * jarg1, float * jarg2, unsigned int jarg3) {
   FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
   float *arg2 ;
   bool arg3 ;
@@ -6999,7 +7043,7 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeTrans
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_1(void * jarg1, float * jarg2) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_3(void * jarg1, float * jarg2) {
   FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
   float *arg2 ;
   

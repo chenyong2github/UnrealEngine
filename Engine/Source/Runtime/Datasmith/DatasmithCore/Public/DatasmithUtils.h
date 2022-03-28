@@ -50,7 +50,7 @@ public:
 	static const TCHAR* GetShortAppName();
 
 	/** Computes the area of a triangle */
-	static double AreaTriangle3D(FVector v0, FVector v1, FVector v2);
+	static float AreaTriangle3D(const FVector3f& v0, const FVector3f& v1, const FVector3f& v2);
 
 	enum class EModelCoordSystem : uint8
 	{
@@ -136,7 +136,6 @@ public:
 	 */
 	static bool ToRawMesh(const FDatasmithMesh& Mesh, FRawMesh& RawMesh, bool bValidateRawMesh = true);
 	static bool ToMeshDescription(const FDatasmithMesh& DsMesh, FMeshDescription& MeshDescription);
-
 
 	/**
 	 * Validates that the given UV Channel does not contain a degenerated triangle.

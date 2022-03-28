@@ -153,7 +153,7 @@ namespace DatasmithRuntime
 		// Packing expects at least one texel per chart. This is the absolute minimum to generate valid UVs.
 		float ChartCount = FStaticMeshOperations::GetUVChartCount(Mesh, SrcLightmapIndex, ELightmapUVVersion::Latest, OverlappingCorners);
 		const int32 AbsoluteMinResolution = 1 << FMath::CeilLogTwo(FMath::Sqrt(ChartCount));
-		
+
 		return FMath::Clamp(MinLightmapResolution, AbsoluteMinResolution, 512);
 	}
 
@@ -165,7 +165,7 @@ namespace DatasmithRuntime
 			return;
 		}
 
-		TArray< FVector > VertexPositions;
+		TArray< FVector3f > VertexPositions;
 		DatasmithMeshHelper::ExtractVertexPositions(Payload.CollisionMesh, VertexPositions);
 		if (VertexPositions.Num() == 0)
 		{
@@ -188,9 +188,9 @@ namespace DatasmithRuntime
 			FKConvexElem& ConvexElem = AggGeom.ConvexElems.AddDefaulted_GetRef();
 
 			ConvexElem.VertexData.Reserve(VertexPositions.Num());
-			for (const FVector& Position : VertexPositions)
+			for (const FVector3f& Position : VertexPositions)
 			{
-				ConvexElem.VertexData.Add(Position);
+				ConvexElem.VertexData.Add(FVector(Position));
 			}
 
 			ConvexElem.UpdateElemBox();
@@ -452,7 +452,7 @@ namespace DatasmithRuntime
 	#define RCP_SQRT2 (0.70710678118654752440084436210485f)
 	#define RCP_SQRT3 (0.57735026918962576450914878050196f)
 
-	const FVector KDopDir26[26] = 
+	const FVector KDopDir26[26] =
 	{
 		FVector( 1.f, 0.f, 0.f),
 		FVector(-1.f, 0.f, 0.f),

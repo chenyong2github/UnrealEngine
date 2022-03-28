@@ -256,7 +256,7 @@ UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< ID
 	}
 
 	// 4. Collisions
-	TArray< FVector > VertexPositions;
+	TArray< FVector3f > VertexPositions;
 	DatasmithMeshHelper::ExtractVertexPositions(Payload.CollisionMesh, VertexPositions);
 	if ( VertexPositions.Num() == 0 )
 	{
@@ -318,7 +318,7 @@ bool FDatasmithStaticMeshImporter::PreBuildStaticMesh( UStaticMesh* StaticMesh )
 			DatasmithMeshHelper::CreateDefaultUVs(MeshDescription);
 		}
 
-		if (DatasmithMeshHelper::IsMeshValid(MeshDescription, BuildSettings.BuildScale3D))
+		if (DatasmithMeshHelper::IsMeshValid(MeshDescription, FVector3f(BuildSettings.BuildScale3D)))
 		{
 			if (BuildSettings.bGenerateLightmapUVs)
 			{
@@ -361,7 +361,7 @@ void FDatasmithStaticMeshImporter::BuildStaticMeshes(const TArray< UStaticMesh* 
 	UStaticMesh::BatchBuild(StaticMeshes, true, ProgressCallback);
 }
 
-void FDatasmithStaticMeshImporter::ProcessCollision(UStaticMesh* StaticMesh, const TArray< FVector >& VertexPositions)
+void FDatasmithStaticMeshImporter::ProcessCollision(UStaticMesh* StaticMesh, const TArray< FVector3f >& VertexPositions)
 {
 	// The following code is copied from StaticMeshEdit AddConvexGeomFromVertices (inaccessible outside UnrealEd)
 	if ( !StaticMesh )
@@ -382,9 +382,9 @@ void FDatasmithStaticMeshImporter::ProcessCollision(UStaticMesh* StaticMesh, con
 	FKConvexElem& ConvexElem = AggGeom.ConvexElems.AddDefaulted_GetRef();
 
 	ConvexElem.VertexData.Reserve( VertexPositions.Num() );
-	for ( const FVector& Position : VertexPositions )
+	for ( const FVector3f& Position : VertexPositions )
 	{
-		ConvexElem.VertexData.Add( Position );
+		ConvexElem.VertexData.Add( FVector(Position) );
 	}
 
 	ConvexElem.UpdateElemBox();

@@ -133,7 +133,7 @@ namespace DatasmithSolidworks
 			ExportInfo.Label = InLight.LightName;
 			ExportInfo.Name = InLight.LightName;
 			ExportInfo.bVisible = true;
-		
+
 			FVec3 LightPosition = null;
 			FVec3 LightDirection = null;
 
@@ -452,7 +452,7 @@ namespace DatasmithSolidworks
 		{
 			// Request existing VariantSet, or create a new one
 			FDatasmithFacadeLevelVariantSets LevelVariantSets = null;
-			
+
 			if (DatasmithScene.GetLevelVariantSetsCount() == 0)
 			{
 				LevelVariantSets = new FDatasmithFacadeLevelVariantSets("LevelVariantSets");

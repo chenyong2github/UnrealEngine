@@ -38,11 +38,11 @@ public class FDatasmithFacadeActorCamera : FDatasmithFacadeActor {
   public FDatasmithFacadeActorCamera(string InElementName) : this(DatasmithFacadeCSharpPINVOKE.new_FDatasmithFacadeActorCamera(InElementName), true) {
   }
 
-  public void SetCameraPosition(float InX, float InY, float InZ) {
+  public void SetCameraPosition(double InX, double InY, double InZ) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorCamera_SetCameraPosition(swigCPtr, InX, InY, InZ);
   }
 
-  public void SetCameraRotation(float InForwardX, float InForwardY, float InForwardZ, float InUpX, float InUpY, float InUpZ) {
+  public void SetCameraRotation(double InForwardX, double InForwardY, double InForwardZ, double InUpX, double InUpY, double InUpZ) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorCamera_SetCameraRotation(swigCPtr, InForwardX, InForwardY, InForwardZ, InUpX, InUpY, InUpZ);
   }
 

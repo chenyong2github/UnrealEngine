@@ -74,7 +74,7 @@ public:
 	 * @z position on the z axis
 	 */
 	void SetVertex(int32 Index, float X, float Y, float Z);
-	FVector GetVertex(int32 Index) const;
+	FVector3f GetVertex(int32 Index) const;
 
 	//--------------------------
 	// Normals
@@ -88,7 +88,7 @@ public:
 	 * @z direction on the z axis
 	 */
 	void SetNormal(int32 Index, float X, float Y, float Z);
-	FVector GetNormal(int32 Index) const;
+	FVector3f GetNormal(int32 Index) const;
 
 	//--------------------------
 	// UVs
@@ -215,7 +215,7 @@ public:
 	float ComputeArea() const;
 
 	/** Returns the bounding box containing all vertices of this mesh */
-	FBox GetExtents() const;
+	FBox3f GetExtents() const;
 
 private:
 	class FDatasmithMeshImpl;

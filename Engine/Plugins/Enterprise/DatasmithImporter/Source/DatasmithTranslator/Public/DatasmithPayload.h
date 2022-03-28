@@ -14,7 +14,7 @@ struct FDatasmithMeshElementPayload : public FDatasmithPayload
 {
 	TArray<FMeshDescription> LodMeshes;
 	FMeshDescription CollisionMesh;
-	TArray<FVector> CollisionPointCloud; // compatibility, favor the CollisionMesh member
+	TArray<FVector3f> CollisionPointCloud; // compatibility, favor the CollisionMesh member
 };
 
 struct FDatasmithLevelSequencePayload : public FDatasmithPayload

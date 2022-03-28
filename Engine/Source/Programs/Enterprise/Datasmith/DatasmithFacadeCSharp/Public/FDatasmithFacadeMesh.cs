@@ -157,7 +157,7 @@ public class FDatasmithFacadeMesh : global::System.IDisposable {
     return ret;
   }
 
-  public void GetUV(int Channel, int Index, out float OutU, out float OutV) {
+  public void GetUV(int Channel, int Index, out double OutU, out double OutV) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMesh_GetUV(swigCPtr, Channel, Index, out OutU, out OutV);
   }
 

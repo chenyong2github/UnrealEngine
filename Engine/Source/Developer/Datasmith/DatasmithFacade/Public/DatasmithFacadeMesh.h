@@ -14,18 +14,18 @@ class DATASMITHFACADE_API FDatasmithFacadeMesh
 {
 public:
 
-	FDatasmithFacadeMesh() 
+	FDatasmithFacadeMesh()
 		: RootOwnerMesh(MakeShared<FDatasmithMesh>())
 		, InternalMesh(RootOwnerMesh.Get())
 	{}
 
 	void SetName(
 		const TCHAR* InName
-	) 
-	{ 
-		GetDatasmithMesh().SetName(InName); 
+	)
+	{
+		GetDatasmithMesh().SetName(InName);
 	}
-	
+
 	const TCHAR* GetName() const
 	{
 		return GetDatasmithMesh().GetName();
@@ -38,12 +38,12 @@ public:
 	void SetFacesCount(
 		int32 NumFaces
 	)
-	{ 
+	{
 		GetDatasmithMesh().SetFacesCount(NumFaces);
 	}
 
 	/** Retrieves the amount of faces */
-	int32 GetFacesCount() const 
+	int32 GetFacesCount() const
 	{
 		return GetDatasmithMesh().GetFacesCount();
 	}
@@ -88,7 +88,7 @@ public:
 		int32 Index,
 		uint32 SmoothingMask
 	)
-	{ 
+	{
 		GetDatasmithMesh().SetFaceSmoothingMask(Index, SmoothingMask);
 	}
 
@@ -100,15 +100,15 @@ public:
 	uint32 GetFaceSmoothingMask(
 		int32 Index
 	) const
-	{ 
+	{
 		return GetDatasmithMesh().GetFaceSmoothingMask(Index);
 	}
 
-	int32 GetMaterialsCount() const 
-	{ 
+	int32 GetMaterialsCount() const
+	{
 		return GetDatasmithMesh().GetMaterialsCount();
 	}
-	
+
 	bool IsMaterialIdUsed(
 		int32 MaterialId
 	) const
@@ -123,7 +123,7 @@ public:
 	void SetVerticesCount(
 		int32 NumVerts
 	)
-	{ 
+	{
 		GetDatasmithMesh().SetVerticesCount(NumVerts);
 	}
 
@@ -172,7 +172,7 @@ public:
 		float Y,
 		float Z
 	);
-	
+
 	void GetNormal(
 		int32 Index,
 		float& OutX,
@@ -191,7 +191,7 @@ public:
 	void SetUVChannelsCount(
 		int32 ChannelCount
 	)
-	{ 
+	{
 		GetDatasmithMesh().SetUVChannelsCount(ChannelCount);
 	}
 
@@ -199,7 +199,7 @@ public:
 	 * Add a UV channel at the end
 	 */
 	void AddUVChannel()
-	{ 
+	{
 		GetDatasmithMesh().AddUVChannel();
 	}
 
@@ -212,8 +212,8 @@ public:
 	}
 
 	/** Gets the amount of UV channels on this mesh */
-	int32 GetUVChannelsCount() const 
-	{ 
+	int32 GetUVChannelsCount() const
+	{
 		return GetDatasmithMesh().GetUVChannelsCount();
 	}
 
@@ -227,7 +227,7 @@ public:
 		int32 Channel,
 		int32 NumVerts
 	)
-	{ 
+	{
 		return GetDatasmithMesh().SetUVCount(Channel, NumVerts);
 	}
 
@@ -251,8 +251,8 @@ public:
 		int32 Index,
 		double U,
 		double V
-	) 
-	{ 
+	)
+	{
 		return GetDatasmithMesh().SetUV(Channel, Index, U, V);
 	}
 
@@ -261,8 +261,8 @@ public:
 	 */
 	uint32 GetHashForUVChannel(
 		int32 Channel
-	) const 
-	{ 
+	) const
+	{
 		return GetDatasmithMesh().GetHashForUVChannel(Channel);
 	}
 
@@ -273,15 +273,15 @@ public:
 	 * @param Index		The UV coordinates to retrieve
 	 */
 	void GetUV(
-		int32 Channel, 
-		int32 Index, 
-		float& OutU, 
-		float& OutV
-	) const 
-	{ 
+		int32 Channel,
+		int32 Index,
+		double& OutU,
+		double& OutV
+	) const
+	{
 		FVector2D UV(GetDatasmithMesh().GetUV(Channel, Index));
-		OutU = (float)UV.X;			// LWC_TODO: Precision loss
-		OutV = (float)UV.Y;
+		OutU = UV.X;
+		OutV = UV.Y;
 	}
 
 	/**
@@ -294,10 +294,10 @@ public:
 	 * @param Vertex3	Index of the third uv vertex that defines this face
 	 */
 	void SetFaceUV(
-		int32 Index, 
-		int32 Channel, 
-		int32 Vertex1, 
-		int32 Vertex2, 
+		int32 Index,
+		int32 Channel,
+		int32 Vertex1,
+		int32 Vertex2,
 		int32 Vertex3
 	)
 	{
@@ -314,10 +314,10 @@ public:
 	 * @param Vertex3	Index of the third uv vertex that defines this face
 	 */
 	void GetFaceUV(
-		int32 Index, 
-		int32 Channel, 
-		int32& OutVertex1, 
-		int32& OutVertex2, 
+		int32 Index,
+		int32 Channel,
+		int32& OutVertex1,
+		int32& OutVertex2,
 		int32& OutVertex3
 	) const
 	{
@@ -326,7 +326,7 @@ public:
 
 	/** Get the number of vertex color */
 	int32 GetVertexColorCount() const
-	{ 
+	{
 		return GetDatasmithMesh().GetVertexColorCount();
 	}
 
@@ -337,13 +337,13 @@ public:
 	 * @param Color		The color for the vertex
 	 */
 	void SetVertexColor(
-		int32 Index, 
-		uint8 R, 
-		uint8 G, 
-		uint8 B, 
+		int32 Index,
+		uint8 R,
+		uint8 G,
+		uint8 B,
 		uint8 A
 	)
-	{ 
+	{
 		return GetDatasmithMesh().SetVertexColor( Index, FColor(R, G, B, A) );
 	}
 
@@ -353,13 +353,13 @@ public:
 	 * @param Index		Index of the vertex color to retrieve
 	 */
 	void GetVertexColor(
-		int32 Index, 
-		uint8& OutR, 
-		uint8 OutG, 
-		uint8& OutB, 
+		int32 Index,
+		uint8& OutR,
+		uint8 OutG,
+		uint8& OutB,
 		uint8& OutA
 	) const
-	{ 
+	{
 		FColor VertexColor(GetDatasmithMesh().GetVertexColor(Index));
 		OutR = VertexColor.R;
 		OutG = VertexColor.G;
@@ -373,15 +373,15 @@ public:
 	 */
 	void SetLightmapSourceUVChannel(
 		int32 Channel
-	) 
-	{ 
+	)
+	{
 		return GetDatasmithMesh().SetLightmapSourceUVChannel(Channel);
 	}
 
 	/** Gets the UV channel that will be used for lightmap UVs generation at import */
-	int32 GetLightmapSourceUVChannel() const 
-	{ 
-		return GetDatasmithMesh().GetLightmapSourceUVChannel(); 
+	int32 GetLightmapSourceUVChannel() const
+	{
+		return GetDatasmithMesh().GetLightmapSourceUVChannel();
 	}
 
 	//--------------------------
@@ -405,9 +405,9 @@ public:
 	// Misc
 	//--------------------------
 	/** Returns the total surface area */
-	float ComputeArea() const 
-	{ 
-		return GetDatasmithMesh().ComputeArea(); 
+	float ComputeArea() const
+	{
+		return GetDatasmithMesh().ComputeArea();
 	}
 
 	///////////////////////////////
@@ -417,7 +417,7 @@ protected:
 #endif
 
 	FDatasmithFacadeMesh(
-		const TSharedRef<FDatasmithMesh>& InRootOwnerMesh, 
+		const TSharedRef<FDatasmithMesh>& InRootOwnerMesh,
 		FDatasmithMesh& InReferencedMesh
 	)
 		: RootOwnerMesh(InRootOwnerMesh)
@@ -441,7 +441,7 @@ public:
 
 	/** Get the output filename, it can be absolute or relative to the scene file */
 	const TCHAR* GetFile() const
-	{ 
+	{
 		return GetDatasmithMeshElement()->GetFile();
 	}
 
@@ -449,7 +449,7 @@ public:
 	void SetFile(
 		const TCHAR* InFile
 	)
-	{ 
+	{
 		GetDatasmithMeshElement()->SetFile(InFile);
 	}
 
@@ -473,9 +473,9 @@ public:
 	 * @param InDepth bounding box depth
 	 */
 	void SetDimensions(
-		float InArea, 
-		float InWidth, 
-		float InHeight, 
+		float InArea,
+		float InWidth,
+		float InHeight,
 		float InDepth
 	)
 	{
@@ -495,7 +495,7 @@ public:
 	}
 
 	/** Get the bounding box height */
-	float GetHeight() const 
+	float GetHeight() const
 	{
 		return GetDatasmithMeshElement()->GetHeight();
 	}
@@ -508,7 +508,7 @@ public:
 
 	/** Get the UV channel that will be used for the lightmap */
 	int32 GetLightmapCoordinateIndex() const
-	{ 
+	{
 		return GetDatasmithMeshElement()->GetLightmapCoordinateIndex();
 	}
 
@@ -522,7 +522,7 @@ public:
 	}
 
 	/** Get the source UV channel that will be used at import to generate the lightmap UVs */
-	int32 GetLightmapSourceUV() const 
+	int32 GetLightmapSourceUV() const
 	{
 		return GetDatasmithMeshElement()->GetLightmapSourceUV();
 	}

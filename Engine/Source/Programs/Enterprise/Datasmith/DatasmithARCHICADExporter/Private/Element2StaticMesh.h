@@ -116,7 +116,7 @@ class FElement2StaticMesh
 		int		UV0 = kInvalidIndex;
 		int		UV1 = kInvalidIndex;
 		int		UV2 = kInvalidIndex;
-		FVector Normals[3] = {};
+		FVector3f Normals[3] = {};
 
 		// Material
 		int	 LocalMatID = 0;

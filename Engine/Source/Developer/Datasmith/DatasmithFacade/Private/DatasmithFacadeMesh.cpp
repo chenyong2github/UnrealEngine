@@ -16,8 +16,8 @@ void FDatasmithFacadeMesh::SetVertex(int32 Index, float X, float Y, float Z)
 }
 
 void FDatasmithFacadeMesh::GetVertex(int32 Index, float& OutX, float& OutY, float& OutZ) const
-{ 
-	FVector3f Position(FDatasmithFacadeElement::ConvertBackPosition(GetDatasmithMesh().GetVertex(Index)));
+{
+	FVector3f Position = FDatasmithFacadeElement::ConvertBackPosition(GetDatasmithMesh().GetVertex(Index));
 	OutX = Position.X;
 	OutY = Position.Y;
 	OutZ = Position.Z;

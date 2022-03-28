@@ -34,60 +34,72 @@ public:
 
 	virtual ~FDatasmithFacadeActor() {}
 
-	/** Set the world transform of the Datasmith actor. */
 	void SetWorldTransform(
-		const float InWorldMatrix[16],
+		const double InWorldMatrix[16],
 		bool bRowMajor = false
 	);
 
+	void SetWorldTransform(
+		const float InWorldMatrix[16],
+		bool bRowMajor = false
+	)
+	{
+		double InMatrixD[16];
+		for(int I = 0; I < 16; ++I)
+		{
+			InMatrixD[I] = InWorldMatrix[I];
+		}
+		SetWorldTransform(InMatrixD, bRowMajor);
+	}
+
 	void SetScale(
-		float X,
-		float Y,
-		float Z
+		double X,
+		double Y,
+		double Z
 	);
 
 	void GetScale(
-		float& OutX,
-		float& OutY,
-		float& OutZ
+		double& OutX,
+		double& OutY,
+		double& OutZ
 	) const;
 
 	void SetRotation(
-		float Pitch,
-		float Yaw,
-		float Roll
+		double Pitch,
+		double Yaw,
+		double Roll
 	);
 
 	void GetRotation(
-		float& OutPitch,
-		float& OutYaw,
-		float& OutRoll
+		double& OutPitch,
+		double& OutYaw,
+		double& OutRoll
 	) const;
 
 	void SetRotation(
-		float X,
-		float Y,
-		float Z,
-		float W
+		double X,
+		double Y,
+		double Z,
+		double W
 	);
 
 	void GetRotation(
-		float& OutX,
-		float& OutY,
-		float& OutZ,
-		float& OutW
+		double& OutX,
+		double& OutY,
+		double& OutZ,
+		double& OutW
 	) const;
 
 	void SetTranslation(
-		float X,
-		float Y,
-		float Z
+		double X,
+		double Y,
+		double Z
 	);
 
 	void GetTranslation(
-		float& OutX,
-		float& OutY,
-		float& OutZ
+		double& OutX,
+		double& OutY,
+		double& OutZ
 	) const;
 
 	// Set the layer of the Datasmith actor.
@@ -187,7 +199,7 @@ protected:
 
 	// Convert a source matrix into a Datasmith actor transform.
 	FTransform ConvertTransform(
-		const float InSourceMatrix[16],
+		const double InSourceMatrix[16],
 		bool bRowMajor
 	) const;
 

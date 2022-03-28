@@ -145,7 +145,7 @@ bool FDatasmithMeshExporterImpl::DoExport(TSharedPtr< IDatasmithMeshElement >& M
 		MeshElement->SetFile( *ExportOptions.MeshFullPath );
 		MeshElement->SetFileHash( Hash );
 
-		FBox Extents = Mesh.GetExtents();
+		FBox3f Extents = Mesh.GetExtents();
 		float Width = Extents.Max[0] - Extents.Min[0];
 		float Height = Extents.Max[2] - Extents.Min[2];
 		float Depth = Extents.Max[1] - Extents.Min[1];
@@ -358,7 +358,7 @@ void FDatasmithMeshExporterLegacyImpl::PreExport( const FDatasmithMeshExporterOp
 
 void FDatasmithMeshExporterLegacyImpl::PostExport( const FDatasmithMesh& DatasmithMesh, TSharedPtr< IDatasmithMeshElement >& MeshElement )
 {
-	FBox Extents = DatasmithMesh.GetExtents();
+	FBox3f Extents = DatasmithMesh.GetExtents();
 	float Width = Extents.Max[0] - Extents.Min[0];
 	float Height = Extents.Max[2] - Extents.Min[2];
 	float Depth = Extents.Max[1] - Extents.Min[1];

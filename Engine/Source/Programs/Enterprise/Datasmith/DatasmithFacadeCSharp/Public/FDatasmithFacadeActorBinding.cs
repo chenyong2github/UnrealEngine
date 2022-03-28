@@ -63,28 +63,36 @@ public class FDatasmithFacadeActorBinding : FDatasmithFacadeElement {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorBinding_RemovePropertyCapture(swigCPtr, FDatasmithFacadePropertyCapture.getCPtr(InPropertyCapturePtr));
   }
 
-  public void AddRelativeLocationCapture(float X, float Y, float Z) {
+  public void AddRelativeLocationCapture(double X, double Y, double Z) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorBinding_AddRelativeLocationCapture(swigCPtr, X, Y, Z);
   }
 
-  public void AddRelativeRotationCapture(float Pitch, float Yaw, float Roll) {
+  public void AddRelativeRotationCapture(double Pitch, double Yaw, double Roll) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorBinding_AddRelativeRotationCapture__SWIG_0(swigCPtr, Pitch, Yaw, Roll);
   }
 
-  public void AddRelativeRotationCapture(float X, float Y, float Z, float W) {
+  public void AddRelativeRotationCapture(double X, double Y, double Z, double W) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorBinding_AddRelativeRotationCapture__SWIG_1(swigCPtr, X, Y, Z, W);
   }
 
-  public void AddRelativeScaleCapture(float X, float Y, float Z) {
+  public void AddRelativeScaleCapture(double X, double Y, double Z) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorBinding_AddRelativeScaleCapture(swigCPtr, X, Y, Z);
   }
 
-  public void AddRelativeTransformCapture(float[] InMatrix, bool bRowMajor) {
+  public void AddRelativeTransformCapture(double[] InMatrix, bool bRowMajor) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_0(swigCPtr, InMatrix, bRowMajor);
   }
 
-  public void AddRelativeTransformCapture(float[] InMatrix) {
+  public void AddRelativeTransformCapture(double[] InMatrix) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_1(swigCPtr, InMatrix);
+  }
+
+  public void AddRelativeTransformCapture(float[] InMatrix, bool bRowMajor) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_2(swigCPtr, InMatrix, bRowMajor);
+  }
+
+  public void AddRelativeTransformCapture(float[] InMatrix) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_3(swigCPtr, InMatrix);
   }
 
   public void AddVisibilityCapture(bool bInVisibility) {

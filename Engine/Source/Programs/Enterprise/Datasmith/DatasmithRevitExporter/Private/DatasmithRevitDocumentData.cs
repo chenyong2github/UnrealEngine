@@ -157,7 +157,7 @@ namespace DatasmithRevitExporter
 			{
 				InToActor.SetLabel(InFromActor.GetLabel());
 
-				float X, Y, Z, W;
+				double X, Y, Z, W;
 				InFromActor.GetTranslation(out X, out Y, out Z);
 				InToActor.SetTranslation(X, Y, Z);
 				InFromActor.GetScale(out X, out Y, out Z);
@@ -202,9 +202,9 @@ namespace DatasmithRevitExporter
 					}
 				}
 
-				bool bIsCached = 
-					ThisElement != null && 
-					ThisElement.IsValidObject && 
+				bool bIsCached =
+					ThisElement != null &&
+					ThisElement.IsValidObject &&
 					(DocumentData.DirectLink?.IsElementCached(ThisElement) ?? false);
 
 				// Check if actor type has changed for this element (f.e. static mesh actor -> regular actor),
@@ -314,7 +314,7 @@ namespace DatasmithRevitExporter
 					if (!InOutWorldTransform.IsIdentity)
 					{
 						InOutWorldTransform = InOutWorldTransform * PivotTransform;
-					} 
+					}
 					else
 					{
 						InOutWorldTransform = PivotTransform;
@@ -378,8 +378,8 @@ namespace DatasmithRevitExporter
 				{
 					Translation = (InElement as StructuralConnectionHandler).GetOrigin();
 				}
-				else if (InElement.GetType() == typeof(Floor) 
-					|| InElement.GetType() == typeof(Ceiling) 
+				else if (InElement.GetType() == typeof(Floor)
+					|| InElement.GetType() == typeof(Ceiling)
 					|| InElement.GetType() == typeof(RoofBase)
 					|| InElement.GetType().IsSubclassOf(typeof(RoofBase)))
 				{
@@ -415,14 +415,14 @@ namespace DatasmithRevitExporter
 				if (InElement.GetType() == typeof(Wall))
 				{
 					// In rare cases, wall may not support orientation.
-					// If this happens, we need to use the direction of its Curve property and 
+					// If this happens, we need to use the direction of its Curve property and
 					// derive orientation from there.
 					try
 					{
 						BasisY = (InElement as Wall).Orientation.Normalize();
 						BasisX = BasisY.CrossProduct(XYZ.BasisZ).Normalize();
 						BasisZ = BasisX.CrossProduct(BasisY).Normalize();
-					} 
+					}
 					catch
 					{
 						if (InElement.Location.GetType() == typeof(LocationCurve))
@@ -433,15 +433,15 @@ namespace DatasmithRevitExporter
 							{
 								BasisX = (CurveLocation.Curve as Line).Direction;
 								ComputeBasis(BasisX, ref BasisY, ref BasisZ);
-							} 
+							}
 							else if (CurveLocation.Curve.IsBound)
 							{
 								Transform Derivatives = CurveLocation.Curve.ComputeDerivatives(0f, true);
 								BasisX = Derivatives.BasisX.Normalize();
 								BasisY = Derivatives.BasisY.Normalize();
 								BasisZ = Derivatives.BasisZ.Normalize();
-							} 
-							else 
+							}
+							else
 							{
 								BasisX = XYZ.BasisX;
 								BasisY = XYZ.BasisY;
@@ -493,7 +493,7 @@ namespace DatasmithRevitExporter
 					BasisX = (InElement as FlexPipe).StartTangent;
 					ComputeBasis(BasisX, ref BasisY, ref BasisZ);
 				}
-				else if (InElement.GetType() == typeof(Floor) 
+				else if (InElement.GetType() == typeof(Floor)
 					|| InElement.GetType() == typeof(Ceiling)
 					|| InElement.GetType() == typeof(RoofBase)
 					|| InElement.GetType().IsSubclassOf(typeof(RoofBase)))
@@ -714,7 +714,7 @@ namespace DatasmithRevitExporter
 					FDatasmithFacadeActorMesh RPCMeshActor = new FDatasmithFacadeActorMesh(HashedActorName);
 					RPCMeshActor.SetMesh(RPCMesh.GetName());
 					FacadeActor = RPCMeshActor;
-					
+
 					OutDatasmithMesh = RPCMesh;
 					OutDatasmithMeshElement = new FDatasmithFacadeMeshElement(HashedName);
 					OutDatasmithMeshElement.SetLabel(GetActorLabel());
@@ -775,8 +775,8 @@ namespace DatasmithRevitExporter
 			}
 
 			public void AddChildActor(
-				FDatasmithFacadeActor ChildActor, 
-				FDatasmithFacadeMetaData MetaData, 
+				FDatasmithFacadeActor ChildActor,
+				FDatasmithFacadeMetaData MetaData,
 				bool bOptimizeHierarchy
 			)
 			{
@@ -922,14 +922,14 @@ namespace DatasmithRevitExporter
 
 			private string GenerateUniqueInstanceName()
 			{
-				// GenerateUniqueInstanceName is being called when generating a name for instance. 
-				// After the call, the intance is added as a child to its parent. 
+				// GenerateUniqueInstanceName is being called when generating a name for instance.
+				// After the call, the intance is added as a child to its parent.
 				// Next time the method gets called for the next instance, ChildElements.Count will be different/incremented.
 
-				// To add uniqueness to the generated name, we construct a string with child counts from 
+				// To add uniqueness to the generated name, we construct a string with child counts from
 				// current parent instance, up to the root:
 				// Elem->Instance->Instance->Instace can produce something like: "1:5:3" for example.
-				// However, this is not enough because elsewhere we might encounter the same sequence in terms of child counts, 
+				// However, this is not enough because elsewhere we might encounter the same sequence in terms of child counts,
 				// but adding the CurrentElement unique id ensures we get unique name string in the end.
 
 				StringBuilder ChildCounts = new StringBuilder();
@@ -1063,7 +1063,7 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		public Dictionary<string, Tuple<FDatasmithFacadeMeshElement, Task<bool>>> 
+		public Dictionary<string, Tuple<FDatasmithFacadeMeshElement, Task<bool>>>
 														MeshMap = new Dictionary<string, Tuple<FDatasmithFacadeMeshElement, Task<bool>>>();
 		public Dictionary<ElementId, FBaseElementData>	ActorMap = new Dictionary<ElementId, FDocumentData.FBaseElementData>();
 		public Dictionary<string, FMaterialData>		MaterialDataMap = null;
@@ -1180,7 +1180,7 @@ namespace DatasmithRevitExporter
 				}
 				ElementData = ActorMap[InElement.Id] as FElementData;
 			}
-			
+
 			if (ElementData == null)
 			{
 				if (DirectLink?.IsElementCached(InElement) ?? false)
@@ -1201,13 +1201,13 @@ namespace DatasmithRevitExporter
 							if (ElementData.ChildElements.Count > 0)
 							{
 								List<FBaseElementData> ChildrenToRemove = new List<FBaseElementData>();
-					
+
 								for(int ChildIndex = 0; ChildIndex < ElementData.ChildElements.Count; ++ChildIndex)
 								{
 									FBaseElementData ChildElement = ElementData.ChildElements[ChildIndex];
 
-									bool bIsFamilyIntance = 
-										((ChildElement as FElementData) == null) && 
+									bool bIsFamilyIntance =
+										((ChildElement as FElementData) == null) &&
 										ChildElement.ElementActor.IsComponent();
 
 									if (bIsFamilyIntance)
@@ -1302,7 +1302,7 @@ namespace DatasmithRevitExporter
 			FDatasmithFacadeActor CloneActor = new FDatasmithFacadeActor(SourceActor.GetName());
 			CloneActor.SetLabel(SourceActor.GetLabel());
 
-			float X, Y, Z, W;
+			double X, Y, Z, W;
 			SourceActor.GetTranslation(out X, out Y, out Z);
 			CloneActor.SetTranslation(X, Y, Z);
 			SourceActor.GetScale(out X, out Y, out Z);
@@ -1830,13 +1830,13 @@ namespace DatasmithRevitExporter
 			{
 				ElementData = new FBaseElementData(SiteLocationActor, null, this);
 				// Prevent the Datasmith placeholder actor from being removed by optimization.
-				ElementData.bOptimizeHierarchy = false; 
+				ElementData.bOptimizeHierarchy = false;
 			}
 			else
 			{
 				ElementData.ElementMetaData = SiteLocationMetaData;
 			}
-			
+
 			ActorMap[InSiteLocation.Id] = ElementData;
 
 			DirectLink?.CacheElement(CurrentDocument, InSiteLocation, ElementData);
@@ -1982,7 +1982,7 @@ namespace DatasmithRevitExporter
 					// Export the DatasmithMesh in a task while we parse the rest of the document.
 					// The task result indicates if the export was successful and if the associated FDatasmithFacadeMeshElement can be added to the scene.
 					MeshMap[MeshName] = new Tuple<FDatasmithFacadeMeshElement, Task<bool>>(InMeshElement, Task.Run<bool>(
-						() => 
+						() =>
 						{
 							using (FDatasmithFacadeMesh DatasmithMesh = ParsePolymesh(InPolymesh, MeshName))
 							{
@@ -2015,7 +2015,7 @@ namespace DatasmithRevitExporter
 			for (int UVIndex = 0; UVIndex < InPolymesh.UVs.Count; ++UVIndex)
 			{
 				UV CurrentUV = InPolymesh.UVs[UVIndex];
-				DatasmithMesh.SetUV(UVChannelIndex, UVIndex, (float)CurrentUV.U, (float)CurrentUV.V);
+				DatasmithMesh.SetUV(UVChannelIndex, UVIndex, CurrentUV.U, CurrentUV.V);
 			}
 
 			// Add the triangle vertex indexes to the Datasmith mesh.
@@ -2031,7 +2031,7 @@ namespace DatasmithRevitExporter
 				XYZ Normal = InPolymesh.Normals[NormalIndex];
 				DatasmithMesh.SetNormal(NormalIndex, (float)Normal.X, (float)Normal.Y, (float)Normal.Z);
 			}
-		
+
 			return DatasmithMesh;
 		}
 
@@ -2162,9 +2162,9 @@ namespace DatasmithRevitExporter
 			}
 
 			// DirectLink: if host is hidden, go up the hierarchy (NOTE this does not apply for linked documents)
-			if (DirectLink != null && 
-				HostElement != null && 
-				CurrentDocument.ActiveView != null && 
+			if (DirectLink != null &&
+				HostElement != null &&
+				CurrentDocument.ActiveView != null &&
 				HostElement.IsHidden(CurrentDocument.ActiveView))
 			{
 				return GetHostElement(HostElement.Id);
@@ -2248,7 +2248,7 @@ namespace DatasmithRevitExporter
 
 				FBaseElementData ElementData = ActorMap[ElemId];
 				FBaseElementData ParentElementData = ActorMap[ParentElementId];
-				
+
 				if (!ParentElementData.ChildElements.Contains(ElementData))
 				{
 					ParentElementData.ChildElements.Add(ElementData);
@@ -2294,24 +2294,24 @@ namespace DatasmithRevitExporter
 				}
 			}
 
-			float[] worldMatrix = new float[16];
+			double[] worldMatrix = new double[16];
 
-			worldMatrix[0] = (float)transformBasisX.X;
-			worldMatrix[1] = (float)transformBasisX.Y;
-			worldMatrix[2] = (float)transformBasisX.Z;
-			worldMatrix[3] = 0.0F;
-			worldMatrix[4] = (float)transformBasisY.X;
-			worldMatrix[5] = (float)transformBasisY.Y;
-			worldMatrix[6] = (float)transformBasisY.Z;
-			worldMatrix[7] = 0.0F;
-			worldMatrix[8] = (float)transformBasisZ.X;
-			worldMatrix[9] = (float)transformBasisZ.Y;
-			worldMatrix[10] = (float)transformBasisZ.Z;
-			worldMatrix[11] = 0.0F;
-			worldMatrix[12] = (float)transformOrigin.X;
-			worldMatrix[13] = (float)transformOrigin.Y;
-			worldMatrix[14] = (float)transformOrigin.Z;
-			worldMatrix[15] = 1.0F;
+			worldMatrix[0] = transformBasisX.X;
+			worldMatrix[1] = transformBasisX.Y;
+			worldMatrix[2] = transformBasisX.Z;
+			worldMatrix[3] = 0.0;
+			worldMatrix[4] = transformBasisY.X;
+			worldMatrix[5] = transformBasisY.Y;
+			worldMatrix[6] = transformBasisY.Z;
+			worldMatrix[7] = 0.0;
+			worldMatrix[8] = transformBasisZ.X;
+			worldMatrix[9] = transformBasisZ.Y;
+			worldMatrix[10] = transformBasisZ.Z;
+			worldMatrix[11] = 0.0;
+			worldMatrix[12] = transformOrigin.X;
+			worldMatrix[13] = transformOrigin.Y;
+			worldMatrix[14] = transformOrigin.Z;
+			worldMatrix[15] = 1.0;
 
 			// Set the world transform of the Datasmith actor.
 			IOActor.SetWorldTransform(worldMatrix);

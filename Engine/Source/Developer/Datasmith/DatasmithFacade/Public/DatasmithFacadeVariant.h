@@ -94,34 +94,47 @@ public:
 	);
 
 	void AddRelativeLocationCapture(
-		float X,
-		float Y,
-		float Z
+		double X,
+		double Y,
+		double Z
 	);
 
 	void AddRelativeRotationCapture(
-		float Pitch,
-		float Yaw,
-		float Roll
+		double Pitch,
+		double Yaw,
+		double Roll
 	);
 
 	void AddRelativeRotationCapture(
-		float X,
-		float Y,
-		float Z,
-		float W
+		double X,
+		double Y,
+		double Z,
+		double W
 	);
 
 	void AddRelativeScaleCapture(
-		float X,
-		float Y,
-		float Z
+		double X,
+		double Y,
+		double Z
+	);
+
+	void AddRelativeTransformCapture(
+		const double InMatrix[16],
+		bool bRowMajor = false
 	);
 
 	void AddRelativeTransformCapture(
 		const float InMatrix[16],
 		bool bRowMajor = false
-	);
+	)
+	{
+		double InMatrixD[16];
+		for(int I = 0; I < 16; ++I)
+		{
+			InMatrixD[I] = InMatrix[I];
+		}
+		AddRelativeTransformCapture(InMatrixD, bRowMajor);
+	}
 
 	void AddVisibilityCapture(
 		bool bInVisibility

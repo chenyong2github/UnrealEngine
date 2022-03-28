@@ -67,7 +67,7 @@ public:
 	static void BuildStaticMeshes(const TArray< UStaticMesh* >& StaticMeshes, TFunction<bool(UStaticMesh*)> ProgressCallback = nullptr);
 
 private:
-	static void ProcessCollision( UStaticMesh* StaticMesh, const TArray< FVector >& VertexPositions );
+	static void ProcessCollision( UStaticMesh* StaticMesh, const TArray< FVector3f >& VertexPositions );
 
 	/**
 	 * Applies the UMaterialInterfaces related to the IDatasmithMeshElement to the UStaticMesh.

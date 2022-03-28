@@ -19,19 +19,19 @@ public:
 
 	// Set the world position of the Datasmith camera actor.
 	void SetCameraPosition(
-		float InX, // camera position on the X axis
-		float InY, // camera position on the Y axis
-		float InZ  // camera position on the Z axis
+		double InX, // camera position on the X axis
+		double InY, // camera position on the Y axis
+		double InZ  // camera position on the Z axis
 	);
 
 	// Set the world rotation of the Datasmith camera actor with the camera world forward and up directions.
 	void SetCameraRotation(
-		float InForwardX, // camera forward direction on the X axis
-		float InForwardY, // camera forward direction on the Y axis
-		float InForwardZ, // camera forward direction on the Z axis
-		float InUpX,      // camera up direction on the X axis
-		float InUpY,      // camera up direction on the Y axis
-		float InUpZ       // camera up direction on the Z axis
+		double InForwardX, // camera forward direction on the X axis
+		double InForwardY, // camera forward direction on the Y axis
+		double InForwardZ, // camera forward direction on the Z axis
+		double InUpX,      // camera up direction on the X axis
+		double InUpY,      // camera up direction on the Y axis
+		double InUpZ       // camera up direction on the Z axis
 	);
 
 	// Set the sensor width of the Datasmith camera.

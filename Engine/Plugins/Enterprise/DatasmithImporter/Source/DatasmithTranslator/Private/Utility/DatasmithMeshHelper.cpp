@@ -26,18 +26,9 @@ namespace DatasmithMeshHelper
 		return Mesh.Triangles().Num();
 	}
 
-	void ExtractVertexPositions(const FMeshDescription& Mesh, TArray<FVector>& Positions)
+	void ExtractVertexPositions(const FMeshDescription& Mesh, TArray<FVector3f>& OutPositions)
 	{
-		FStaticMeshConstAttributes Attributes(Mesh);
-		const TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
-		if (VertexPositions.IsValid())
-		{
-			Positions.Reserve(VertexPositions.GetNumElements());
-			for (const FVertexID VertexID : Mesh.Vertices().GetElementIDs())
-			{
-				Positions.Add((FVector)VertexPositions[VertexID]);
-			}
-		}
+		FDatasmithMeshUtils::ExtractVertexPositions(Mesh, OutPositions);
 	}
 
 	void PrepareAttributeForStaticMesh(FMeshDescription& Mesh)
@@ -297,24 +288,24 @@ namespace DatasmithMeshHelper
 		}
 	}
 
-	bool IsMeshValid(const FMeshDescription& Mesh, FVector BuildScale)
+	bool IsMeshValid(const FMeshDescription& Mesh, FVector3f BuildScale)
 	{
 		TVertexAttributesConstRef<FVector3f> VertexPositions = Mesh.GetVertexPositions();
-		FVector RawNormalScale(BuildScale.Y*BuildScale.Z, BuildScale.X*BuildScale.Z, BuildScale.X*BuildScale.Y); // Component-wise scale
+		FVector3f RawNormalScale(BuildScale.Y*BuildScale.Z, BuildScale.X*BuildScale.Z, BuildScale.X*BuildScale.Y); // Component-wise scale
 
 		for (const FTriangleID TriangleID : Mesh.Triangles().GetElementIDs())
 		{
 			TArrayView<const FVertexID> VertexIDs = Mesh.GetTriangleVertices(TriangleID);
-			FVector Corners[3] =
+			FVector3f Corners[3] =
 			{
-				(FVector)VertexPositions[VertexIDs[0]],
-				(FVector)VertexPositions[VertexIDs[1]],
-				(FVector)VertexPositions[VertexIDs[2]]
+				VertexPositions[VertexIDs[0]],
+				VertexPositions[VertexIDs[1]],
+				VertexPositions[VertexIDs[2]]
 			};
 
-			FVector RawNormal = (Corners[1] - Corners[2]) ^ (Corners[0] - Corners[2]);
+			FVector3f RawNormal = (Corners[1] - Corners[2]) ^ (Corners[0] - Corners[2]);
 			RawNormal *= RawNormalScale;
-			double FourSquaredTriangleArea = RawNormal.SizeSquared();
+			float FourSquaredTriangleArea = RawNormal.SizeSquared();
 
 			// We support even small triangles, but this function is still useful to
 			// see if we have at least one valid triangle in the mesh

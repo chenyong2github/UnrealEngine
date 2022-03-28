@@ -159,7 +159,7 @@ void FDatasmithHashTools::ComputeDatasmithMeshHash(const FDatasmithMesh& Mesh)
 	TUpdate(VerticesCount);
 	for (int32 IdxVertice = 0; IdxVertice < VerticesCount; ++IdxVertice)
 	{
-		HashFixVector(Mesh.GetVertex(IdxVertice));
+		HashFixVector(FVector(Mesh.GetVertex(IdxVertice)));
 		TUpdate(Mesh.GetVertexColor(IdxVertice));
 	}
 
@@ -193,7 +193,7 @@ void FDatasmithHashTools::ComputeDatasmithMeshHash(const FDatasmithMesh& Mesh)
 
 		for (int32 IdxComponent = 0; IdxComponent < 3; IdxComponent++)
 		{
-			HashFloatVector(Mesh.GetNormal(IdxFace * 3 + IdxComponent));
+			HashFloatVector(FVector(Mesh.GetNormal(IdxFace * 3 + IdxComponent)));
 			TUpdate(Mesh.GetFaceSmoothingMask(IdxFace * 3 + IdxComponent));
 		}
 

@@ -77,7 +77,7 @@ public:
 	virtual FVector GetTranslation() const = 0;
 
 	/** Set absolute translation of this entity */
-	virtual void SetTranslation(float InX, float InY, float InZ, bool bKeepChildrenRelative = true) = 0;
+	virtual void SetTranslation(double InX, double InY, double InZ, bool bKeepChildrenRelative = true) = 0;
 
 	/** Set absolute translation of this entity */
 	virtual void SetTranslation(const FVector& Value, bool bKeepChildrenRelative = true) = 0;
@@ -86,7 +86,7 @@ public:
 	virtual FVector GetScale() const = 0;
 
 	/** Set absolute scale of this entity */
-	virtual void SetScale(float InX, float InY, float InZ, bool bKeepChildrenRelative = true) = 0;
+	virtual void SetScale(double InX, double InY, double InZ, bool bKeepChildrenRelative = true) = 0;
 
 	/** Set absolute scale of this entity */
 	virtual void SetScale(const FVector& Value, bool bKeepChildrenRelative = true) = 0;
@@ -95,7 +95,7 @@ public:
 	virtual FQuat GetRotation() const = 0;
 
 	/** Set rotation (in quaternion format) of this entity */
-	virtual void SetRotation(float InX, float InY, float InZ, float InW, bool bKeepChildrenRelative = true) = 0;
+	virtual void SetRotation(double InX, double InY, double InZ, double InW, bool bKeepChildrenRelative = true) = 0;
 
 	/** Set rotation (in quaternion format) of this entity */
 	virtual void SetRotation(const FQuat& Value, bool bKeepChildrenRelative = true) = 0;
@@ -183,10 +183,10 @@ public:
 	 * @param InHeight bounding box height
 	 * @param InDepth bounding box depth
 	 */
-	virtual void SetDimensions(const float InArea, const float InWidth, const float InHeight, const float InDepth) = 0;
+	virtual void SetDimensions(float InArea, float InWidth, float InHeight, float InDepth) = 0;
 
 	/** Get the bounding box dimension of the mesh, in a vector in the form of (Width, Height, Depth )*/
-	virtual FVector GetDimensions() const = 0;
+	virtual FVector3f GetDimensions() const = 0;
 
 	/** Get the total surface area */
 	virtual float GetArea() const = 0;
@@ -252,7 +252,7 @@ public:
 	 * Adds a new material override to the Actor Element
 	 *
 	 * @param MaterialName name of the material, it should be unique
-	 * @param Id material identifier to be used with mesh sub-material indices
+	 * @param Id material identifier to be used with mesh sub-material indices. Use -1 to override all material slots.
 	 */
 	virtual void AddMaterialOverride(const TCHAR* MaterialName, int32 Id) = 0;
 
@@ -1443,7 +1443,7 @@ public:
 	/** Resets all the settings on the scene */
 	virtual void Reset() = 0;
 
-	/** Sets the name of the host application which created the scene */
+	/** Returns the name of the host application which created the scene */
 	virtual const TCHAR* GetHost() const = 0;
 
 	/**

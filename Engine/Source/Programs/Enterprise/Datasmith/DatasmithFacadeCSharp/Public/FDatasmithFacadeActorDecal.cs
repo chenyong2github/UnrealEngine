@@ -38,8 +38,8 @@ public class FDatasmithFacadeActorDecal : FDatasmithFacadeActor {
   public FDatasmithFacadeActorDecal(string InElementName) : this(DatasmithFacadeCSharpPINVOKE.new_FDatasmithFacadeActorDecal(InElementName), true) {
   }
 
-  public void GetDimensions(ref double OutX, ref double OutY, ref double OutZ) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorDecal_GetDimensions(swigCPtr, ref OutX, ref OutY, ref OutZ);
+  public void GetDimensions(out double OutX, out double OutY, out double OutZ) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActorDecal_GetDimensions(swigCPtr, out OutX, out OutY, out OutZ);
   }
 
   public void SetDimensions(double InX, double InY, double InZ) {

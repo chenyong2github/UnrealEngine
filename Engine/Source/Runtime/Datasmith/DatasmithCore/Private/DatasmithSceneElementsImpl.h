@@ -109,7 +109,7 @@ public:
 	FDatasmithActorElementImpl(const TCHAR* InName, EDatasmithElementType InType);
 
 	virtual FVector GetTranslation() const override { return Translation.Get(); }
-	virtual void SetTranslation(float InX, float InY, float InZ, bool bKeepChildrenRelative) override { SetTranslation( FVector( InX, InY, InZ ), bKeepChildrenRelative ); }
+	virtual void SetTranslation(double InX, double InY, double InZ, bool bKeepChildrenRelative) override { SetTranslation( FVector( InX, InY, InZ ), bKeepChildrenRelative ); }
 	virtual void SetTranslation(const FVector& Value, bool bKeepChildrenRelative) override
 	{
 		if (bKeepChildrenRelative)
@@ -124,7 +124,7 @@ public:
 	}
 
 	virtual FVector GetScale() const override { return Scale.Get(); }
-	virtual void SetScale(float InX, float InY, float InZ, bool bKeepChildrenRelative) override { SetScale( FVector( InX, InY, InZ ), bKeepChildrenRelative ); }
+	virtual void SetScale(double InX, double InY, double InZ, bool bKeepChildrenRelative) override { SetScale( FVector( InX, InY, InZ ), bKeepChildrenRelative ); }
 	virtual void SetScale(const FVector& Value, bool bKeepChildrenRelative) override
 	{
 		if (bKeepChildrenRelative)
@@ -139,7 +139,7 @@ public:
 	}
 
 	virtual FQuat GetRotation() const override { return Rotation; }
-	virtual void SetRotation(float InX, float InY, float InZ, float InW, bool bKeepChildrenRelative) override { SetRotation( FQuat( InX, InY, InZ, InW ), bKeepChildrenRelative ); }
+	virtual void SetRotation(double InX, double InY, double InZ, double InW, bool bKeepChildrenRelative) override { SetRotation( FQuat( InX, InY, InZ, InW ), bKeepChildrenRelative ); }
 	virtual void SetRotation(const FQuat& Value, bool bKeepChildrenRelative) override
 	{
 		if (bKeepChildrenRelative)
@@ -349,8 +349,8 @@ public:
 	virtual FMD5Hash GetFileHash() const override { return FileHash; }
 	virtual void SetFileHash(FMD5Hash Hash) override { FileHash = Hash; }
 
-	virtual void SetDimensions(const float InArea, const float InWidth, const float InHeight, const float InDepth) override { Area = InArea; Width = InWidth; Height = InHeight; Depth = InDepth;};
-	virtual FVector GetDimensions() const override { return FVector{ Width, Height, Depth }; }
+	virtual void SetDimensions(float InArea, float InWidth, float InHeight, float InDepth) override { Area = InArea; Width = InWidth; Height = InHeight; Depth = InDepth;};
+	virtual FVector3f GetDimensions() const override { return { Width, Height, Depth }; }
 
 	virtual float GetArea() const override { return Area; }
 	virtual float GetWidth() const override { return Width; }

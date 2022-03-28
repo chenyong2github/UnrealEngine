@@ -25,6 +25,7 @@ public:
 	static void WriteBool(FArchive& Archive, int32 Indent, const TCHAR* Prefix, bool bValue);
 	static void WriteRGB(FArchive& Archive, int32 Indent, const TCHAR* Prefix, FLinearColor Color);
 	static void WriteValue(FArchive& Archive, int32 Indent, const TCHAR* Prefix, float Value, bool bForceWriteAlways = false, FString Desc = FString());
+	static void WriteValue(FArchive& Archive, int32 Indent, const TCHAR* Prefix, double Value, bool bForceWriteAlways, FString Desc = FString()) = delete;
 	static void AppendXMLChild(FString& XmlString, int32 Indent, const TCHAR* Tag, const TCHAR* AttributeName, const TCHAR* AttributeValue);
 
 	static void WriteTexture(FArchive& Archive, int32 Indent, const TCHAR* Prefix, const TCHAR* Name, FDatasmithTextureSampler UV);
@@ -302,13 +303,8 @@ void FDatasmithSceneXmlWriterImpl::WriteTransform(const FTransform& Transform, F
 
 FString FDatasmithSceneXmlWriterImpl::QuatToHexString(FQuat Value)
 {
-	float Floats[4];
-	Floats[0] = Value.X;
-	Floats[1] = Value.Y;
-	Floats[2] = Value.Z;
-	Floats[3] = Value.W;
-
-	FString Result = TEXT("qhex=\"") + FString::FromHexBlob((uint8*)Floats, sizeof(Floats)) + TEXT("\"");
+	double Tmp[4] = {Value.X, Value.Y, Value.Z, Value.W};
+	FString Result = TEXT("qhex64=\"") + FString::FromHexBlob((uint8*)Tmp, sizeof(Tmp)) + TEXT("\"");
 	return Result;
 }
 
@@ -1012,7 +1008,7 @@ void FDatasmithSceneXmlWriterImpl::WritePostProcessElement(const TSharedPtr< IDa
 
 	WriteIndent(Archive, Indent);
 
-	FString XmlString = TEXT("<") + FString(DATASMITH_POSTPRODUCTIONNAME) + TEXT(">") + LINE_TERMINATOR;
+	FString XmlString = TEXT("<") DATASMITH_POSTPRODUCTIONNAME TEXT(">") LINE_TERMINATOR;
 	SerializeToArchive( Archive, XmlString );
 
 	if (PostProcessElement->GetTemperature() != 6500.0f)

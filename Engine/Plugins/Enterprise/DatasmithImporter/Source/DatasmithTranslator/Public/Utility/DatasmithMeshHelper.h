@@ -40,7 +40,7 @@ namespace DatasmithMeshHelper
 	 * @param Positions
 	 * @return DATASMITHIMPORTER_API void
 	 */
-	DATASMITHTRANSLATOR_API void ExtractVertexPositions(const FMeshDescription& Mesh, TArray<FVector>& Positions);
+	DATASMITHTRANSLATOR_API void ExtractVertexPositions(const FMeshDescription& Mesh, TArray<FVector3f>& OutPositions);
 
 	/**
 	 * Register all attributes required to correctly interact with StaticMesh.
@@ -152,5 +152,5 @@ namespace DatasmithMeshHelper
 	 * @param BuildScale
 	 * @return DATASMITHIMPORTER_API bool
 	 */
-	DATASMITHTRANSLATOR_API bool IsMeshValid(const FMeshDescription& Mesh, FVector BuildScale=FVector::OneVector);
+	DATASMITHTRANSLATOR_API bool IsMeshValid(const FMeshDescription& Mesh, FVector3f BuildScale=FVector3f::OneVector);
 }
