@@ -291,14 +291,18 @@ public:
 	 */
 	virtual ERGBFormat GetFormat() const = 0;
 	
+	
 	/* Should the pixels be treated as sRGB encoded? (or Linear)
 	* 
-	 * @@!! TODO: implement GetSRGB() on the formats that can report it (eg. DDS?)
-	 */
-	virtual bool GetSRGB() const
+	* note: ImageWrapper Format does not track if pixels are Gamma/SRGB or not
+	* assume they are ERawImageFormat::GetDefaultGammaSpace gammaspace
+	* eg. U8 is SRGB and everything else is Linear
+	*/
+	bool GetSRGB() const
 	{
 		// sRGB is guessed from bit depth
-		// 8 = on
+		// 8 = on (except BGRE)
+		// must match ERawImageFormat::GetDefaultGammaSpace
 		return GetBitDepth() == 8 && GetFormat() != ERGBFormat::BGRE;
 	}
 

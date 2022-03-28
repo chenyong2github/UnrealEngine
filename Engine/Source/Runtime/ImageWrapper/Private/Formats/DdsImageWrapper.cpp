@@ -25,7 +25,7 @@ void FDdsImageWrapper::Compress(int32 Quality)
 		return;
 	}
 
-	// @@!! SRGB
+	// we are not passed SRGB/Gamma info, just assume it is Default for now :
 	EGammaSpace GammaSpace = ERawImageFormat::GetDefaultGammaSpace(RawImageFormat);
 	
 	// some code dupe with IImageWrapper::GetRawImage
@@ -144,6 +144,10 @@ bool FDdsImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 		UE_LOG(LogImageWrapper, Warning, TEXT("DDS is a complex 3d/cube/array image, DdsImageWrapper will just import the first 2d surface"));
 	}
 	
+	// SRGB/Gamma : in some cases we can get SRGB info from the DDS file, so we could report that out
+	//		see EditorFactories
+	//		not doing for now
+
 	ConvertRawImageFormat(RawImageFormat, Format,BitDepth);
 
 	Width = DDS->Width;
@@ -163,7 +167,7 @@ void FDdsImageWrapper::Uncompress(const ERGBFormat InFormat, int32 InBitDepth)
 		
 	ERawImageFormat::Type RawImageFormat = UE::DDS::DXGIFormatGetClosestRawFormat(DDS->DXGIFormat);
 
-	// @@!! SRGB
+	// not setting SRGB/Gamma, just assume it is Default for now :
 	FImage RawImage(Width,Height,RawImageFormat);
 
 	if ( ! DDS->GetMipImage(RawImage,0) )

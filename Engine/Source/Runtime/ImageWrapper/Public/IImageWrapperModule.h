@@ -11,6 +11,18 @@
 
 /**
  * Interface for image wrapper modules.
+ * 
+ * 
+ * note on SRGB/Gamma handling :
+ * it is assumed that non-U8 data is always Linear
+ * U8 data is written without changing the bytes
+ * the gamma correction of U8 bytes is NOT persisted in the file formats (for read or write)
+ * loading will always give you SRGB for U8 (ERawImageFormat::GetDefaultGammaSpace)
+ * if U8-float conversions are required, they do respect gamma space
+ * 
+ * eg. if you write U8 Linear data to EXR, it will be converted to Linear float from U8 Linear correctly
+ * if you write U8 Linear to BMP , it will write the U8 bytes unchanged, and on load it will come back in as U8 SRGB
+ * 
  */
 class IImageWrapperModule
 	: public IModuleInterface

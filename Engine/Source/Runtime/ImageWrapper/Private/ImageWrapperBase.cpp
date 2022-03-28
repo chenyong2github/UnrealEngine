@@ -354,11 +354,9 @@ bool IImageWrapper::GetRawImage(FImage & OutImage)
 		return false;
 	}
 
-	EGammaSpace GammaSpace = EGammaSpace::Linear;
-	if ( GetSRGB() )
-	{
-		GammaSpace = EGammaSpace::sRGB;
-	}
+	// ImageWrapper RGBFormat doesn't track if pixels are Gamma/sRGB or not
+	//	just assume they are Default for now :
+	EGammaSpace GammaSpace = ERawImageFormat::GetDefaultGammaSpace(RawFormat);
 
 	if ( bExactMatch )
 	{

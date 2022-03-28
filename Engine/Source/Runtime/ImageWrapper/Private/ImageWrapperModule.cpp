@@ -357,15 +357,12 @@ public:
 		{
 			// output image format may not support this pixel format
 			//	in that case conversion is needed
-			// 
-			// @@!! warn or set a flag when this conversion is lossy?
 
 			ERawImageFormat::Type NewFormat = ImageWrapper->GetSupportedRawFormat(InImage.Format);
 			check( NewFormat != InImage.Format );
 			
 			// we will write to the image wrapper using "NewFormat"
 			// do a blit to convert InImage to NewFormat
-			// 
 
 			TempImage.Init(InImage.SizeX,InImage.SizeY,NewFormat,ERawImageFormat::GetDefaultGammaSpace(NewFormat));
 			WriteImage = TempImage;
@@ -385,7 +382,9 @@ public:
 			// go ahead and write the U8 bytes without changing them
 			// I think that's probably what is intended
 			// when someone writes Linear U8 to PNG they don't want me to do a gamma transform
-			// @@!! TODO: write the gamma setting to the output when possible, eg. for DDS output
+			
+			// in some cases we could write the gamma setting to the output when possible, eg. for DDS output
+			//  not doing that for now
 		}
 
 		if ( ! ImageWrapper->SetRaw(WriteImage.RawData,WriteImage.GetImageSizeBytes(),WriteImage.SizeX,WriteImage.SizeY,RGBFormat,BitDepth) )
