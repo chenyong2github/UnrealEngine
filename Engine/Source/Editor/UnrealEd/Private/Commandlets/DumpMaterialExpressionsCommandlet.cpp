@@ -254,6 +254,7 @@ void WriteOutMaterialFunctions(FArchive* FileWriter, const FString& OutputFilePa
 	int32 MaxDescriptionLength = DescriptionField.Len();
 	int32 MaxPathLength = PathField.Len();
 
+	// See UMaterialGraphSchema::GetMaterialFunctionActions for reference
 	TArray<FAssetData> AssetDataList;
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().GetAssetsByClass(UMaterialFunction::StaticClass()->GetFName(), AssetDataList);
