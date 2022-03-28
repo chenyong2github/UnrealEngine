@@ -112,6 +112,9 @@ namespace Horde.Storage.Implementation
                 {
                     return objectName;
                 }
+
+                if (e.StatusCode == HttpStatusCode.TooManyRequests)
+                    throw new ResourceHasToManyRequestsException(e);
                 throw;
             }
 

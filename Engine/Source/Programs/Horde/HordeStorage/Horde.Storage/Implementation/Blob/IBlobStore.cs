@@ -80,4 +80,12 @@ namespace Horde.Storage.Implementation
 
     }
 
+    public class ResourceHasToManyRequestsException : Exception
+    {
+        public ResourceHasToManyRequestsException(Exception originalException) : base($"To many requests to resource", originalException)
+        {
+        }
+    }
+
+
 }

@@ -181,12 +181,18 @@ namespace Horde.Storage.Controllers
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
             using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
 
-            BlobIdentifier identifier = await _storage.PutObject(ns, payload, id);
-
-            return Ok(new
+            try
             {
-                Identifier = identifier.ToString()
-            });
+                BlobIdentifier identifier = await _storage.PutObject(ns, payload, id);
+                return Ok(new
+                {
+                    Identifier = identifier.ToString()
+                });
+            }
+            catch (ResourceHasToManyRequestsException)
+            {
+                return StatusCode(StatusCodes.Status429TooManyRequests);
+            }
         }
 
         [HttpPost("{ns}")]
