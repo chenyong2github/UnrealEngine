@@ -1,6 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AbstractConcertSessionTab.h"
+#include "ConcertSessionTabBase.h"
 
 #include "IConcertServer.h"
 #include "IConcertSyncServer.h"
@@ -25,11 +25,11 @@ namespace UE::ConcertServerUI::Private
 	}
 }
 
-FAbstractConcertSessionTab::FAbstractConcertSessionTab(TSharedRef<IConcertSyncServer> SyncServer)
+FConcertSessionTabBase::FConcertSessionTabBase(TSharedRef<IConcertSyncServer> SyncServer)
 	: SyncServer(MoveTemp(SyncServer))
 {}
 
-void FAbstractConcertSessionTab::OpenSessionTab()
+void FConcertSessionTabBase::OpenSessionTab()
 {
 	const TSharedRef<FGlobalTabmanager>& TabManager = FGlobalTabmanager::Get();
 	const FTabId TabId { *GetTabId() };
@@ -48,7 +48,7 @@ void FAbstractConcertSessionTab::OpenSessionTab()
 	}
 }
 
-void FAbstractConcertSessionTab::EnsureInitDockTab()
+void FConcertSessionTabBase::EnsureInitDockTab()
 {
 	if (!DockTab.IsValid())
 	{

@@ -6,7 +6,7 @@
 #include "Widgets/StatusBar/SConcertStatusBar.h"
 
 FArchivedConcertSessionTab::FArchivedConcertSessionTab(const FGuid& InspectedSessionID, TSharedRef<IConcertSyncServer> SyncServer, TAttribute<TSharedRef<SWindow>> ConstructUnderWindow)
-	: FAbstractConcertSessionTab(SyncServer)
+	: FConcertSessionTabBase(SyncServer)
 	, InspectedSessionID(InspectedSessionID)
 	, ConstructUnderWindow(ConstructUnderWindow)
 {}

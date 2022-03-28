@@ -10,7 +10,7 @@
 #include "Widgets/Docking/SDockTab.h"
 
 FLiveConcertSessionTab::FLiveConcertSessionTab(TSharedRef<IConcertServerSession> InspectedSession, TSharedRef<IConcertSyncServer> SyncServer, TAttribute<TSharedRef<SWindow>> ConstructUnderWindow)
-	: FAbstractConcertSessionTab(SyncServer)
+	: FConcertSessionTabBase(SyncServer)
 	, InspectedSession(MoveTemp(InspectedSession))
 	, ConstructUnderWindow(MoveTemp(ConstructUnderWindow))
 	, SessionHistoryController(MakeShared<FServerSessionHistoryController>(InspectedSession, SyncServer))

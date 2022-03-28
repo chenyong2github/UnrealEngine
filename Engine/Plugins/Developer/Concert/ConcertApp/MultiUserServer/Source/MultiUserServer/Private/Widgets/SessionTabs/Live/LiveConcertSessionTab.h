@@ -3,9 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ServerSessionHistoryController.h"
-#include "Widgets/SessionTabs/AbstractConcertSessionTab.h"
-#include "Types/SlateAttribute.h"
+#include "Widgets/SessionTabs/Live/ServerSessionHistoryController.h"
+#include "Widgets/SessionTabs/ConcertSessionTabBase.h"
 
 class FConcertSessionPackageViewerController;
 class IConcertSyncServer;
@@ -18,7 +17,7 @@ class SWindow;
  * Manages the tab that contains the UI for a session.
  * It has access to the controllers and views needed for displaying a session.
  */
-class FLiveConcertSessionTab : public FAbstractConcertSessionTab
+class FLiveConcertSessionTab : public FConcertSessionTabBase
 {
 public:
 

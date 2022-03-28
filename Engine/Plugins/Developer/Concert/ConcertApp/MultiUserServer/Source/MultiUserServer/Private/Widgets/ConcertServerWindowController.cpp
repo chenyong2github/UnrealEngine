@@ -82,15 +82,15 @@ void FConcertServerWindowController::CreateWindow()
 
 void FConcertServerWindowController::OpenSessionTab(const FGuid& SessionId)
 {
-	if (TSharedPtr<FAbstractConcertSessionTab> SessionTab = GetOrRegisterSessionTab(SessionId))
+	if (TSharedPtr<FConcertSessionTabBase> SessionTab = GetOrRegisterSessionTab(SessionId))
 	{
 		SessionTab->OpenSessionTab();
 	}
 }
 
-TSharedPtr<FAbstractConcertSessionTab> FConcertServerWindowController::GetOrRegisterSessionTab(const FGuid& SessionId)
+TSharedPtr<FConcertSessionTabBase> FConcertServerWindowController::GetOrRegisterSessionTab(const FGuid& SessionId)
 {
-	if (TSharedRef<FAbstractConcertSessionTab>* FoundId = RegisteredSessions.Find(SessionId))
+	if (TSharedRef<FConcertSessionTabBase>* FoundId = RegisteredSessions.Find(SessionId))
 	{
 		return *FoundId;
 	}

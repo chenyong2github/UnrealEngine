@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Framework/Docking/TabManager.h"
 
-class FAbstractConcertSessionTab;
+class FConcertSessionTabBase;
 class FLiveConcertSessionTab;
 class IConcertServerSession;
 class IConcertSyncServer;
@@ -49,7 +49,7 @@ private:
 
 	/** The main window being managed */
 	TSharedPtr<SWindow> RootWindow;
-	TMap<FGuid, TSharedRef<FAbstractConcertSessionTab>> RegisteredSessions;
+	TMap<FGuid, TSharedRef<FConcertSessionTabBase>> RegisteredSessions;
 	
 	/** Manages the session browser */
 	TSharedPtr<FConcertServerSessionBrowserController> SessionBrowserController;
@@ -57,7 +57,7 @@ private:
 	void InitComponents();
 
 	/** Gets the manager for a session tab if the session ID is valid */
-	TSharedPtr<FAbstractConcertSessionTab> GetOrRegisterSessionTab(const FGuid& SessionId);
+	TSharedPtr<FConcertSessionTabBase> GetOrRegisterSessionTab(const FGuid& SessionId);
 
 	void OnWindowClosed(const TSharedRef<SWindow>& Window);
 	void SaveLayout() const;

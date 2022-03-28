@@ -3,12 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SConcertArchivedSessionInspector.h"
+#include "Widgets/SessionTabs/ConcertSessionTabBase.h"
 
-#include "Widgets/SessionTabs/AbstractConcertSessionTab.h"
+class SConcertArchivedSessionInspector;
 
 /** Manages the tab for an archived session.  */
-class FArchivedConcertSessionTab : public FAbstractConcertSessionTab
+class FArchivedConcertSessionTab : public FConcertSessionTabBase
 {
 public:
 
@@ -29,7 +29,7 @@ private:
 
 	/** Used later to obtain the window into which to add the tab */
 	TAttribute<TSharedRef<SWindow>> ConstructUnderWindow;
-
+    
 	/** Displays session */
 	TSharedPtr<SConcertArchivedSessionInspector> Inspector;
 };

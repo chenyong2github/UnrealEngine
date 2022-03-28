@@ -9,12 +9,12 @@ class SDockTab;
 class SWindow;
 
 /** Shared functionality for a tab that manages a session */
-class FAbstractConcertSessionTab
+class FConcertSessionTabBase
 {
 public:
 
-    FAbstractConcertSessionTab(TSharedRef<IConcertSyncServer> SyncServer);
-	virtual ~FAbstractConcertSessionTab() = default;
+    FConcertSessionTabBase(TSharedRef<IConcertSyncServer> SyncServer);
+	virtual ~FConcertSessionTabBase() = default;
 	
 	/** Opens or draws attention to the given tab */
 	void OpenSessionTab();
