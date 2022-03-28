@@ -235,27 +235,25 @@ void FTextureRenderTargetCubeResource::InitDynamicRHI()
 		}
 
 		// Create the RHI texture. Only one mip is used and the texture is targetable for resolve.
-		ETextureCreateFlags TexCreateFlags = bIsSRGB ? TexCreate_SRGB : TexCreate_None;
+		ETextureCreateFlags TexCreateFlags = bIsSRGB ? ETextureCreateFlags::SRGB : ETextureCreateFlags::None;
 		if (Owner->bCanCreateUAV)
 		{
-			TexCreateFlags |= TexCreate_UAV;
+			TexCreateFlags |= ETextureCreateFlags::UAV;
 		}
 
 		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("FTextureRenderTargetCubeResource"), FClearValueBinding(Owner->ClearColor));
-			RHICreateTargetableShaderResourceCube(
-				Owner->SizeX,
-				Owner->GetFormat(), 
-				Owner->GetNumMips(),
-				TexCreateFlags, 
-				TexCreate_RenderTargetable,
-				false,
-				CreateInfo,
-				RenderTargetCubeRHI,
-				TextureCubeRHI );
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::CreateCube(TEXT("FTextureRenderTargetCubeResource"))
+				.SetExtent(Owner->SizeX)
+				.SetFormat(Owner->GetFormat())
+				.SetNumMips(Owner->GetNumMips())
+				.SetFlags(TexCreateFlags)
+				.SetClearValue(FClearValueBinding(Owner->ClearColor));
+
+			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetCubeRHI, TextureCubeRHI);
 		}
 
-		if (EnumHasAnyFlags(TexCreateFlags, TexCreate_UAV))
+		if (EnumHasAnyFlags(TexCreateFlags, ETextureCreateFlags::UAV))
 		{
 			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTargetCubeRHI);
 		}
@@ -272,7 +270,7 @@ void FTextureRenderTargetCubeResource::InitDynamicRHI()
 				Owner->GetFormat(),
 				Owner->GetNumMips(), 
 				/* NumSamples =*/ 1,
-				TexCreate_RenderTargetable|TexCreateFlags,
+				ETextureCreateFlags::RenderTargetable|TexCreateFlags,
 				CreateInfo
 				);
 			SetGPUMask(CreateInfo.GPUMask);

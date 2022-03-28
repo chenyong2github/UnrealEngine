@@ -1621,44 +1621,33 @@ namespace WindowsMixedReality
 			return false;
 		}
 
+		bool bMultiView = false;
+#if PLATFORM_HOLOLENS
+		bMultiView = (bIsMobileMultiViewEnabled && !HMD->IsThirdCameraActive());
+#endif
+
 		// Since our textures must be BGRA, this plugin did require a change to WindowsD3D11Device.cpp
 		// to add the D3D11_CREATE_DEVICE_BGRA_SUPPORT flag to the graphics device.
 		FRHIResourceCreateInfo CreateInfo(TEXT("FWindowsMixedRealityHMD"));
 
-#if PLATFORM_HOLOLENS
-		if (bIsMobileMultiViewEnabled && !HMD->IsThirdCameraActive())
-		{
-			FTexture2DArrayRHIRef texture, resource;
-			RHICreateTargetableShaderResource2DArray(
-				sizeX,
-				sizeY,
-				2,
-				PF_B8G8R8A8, // must be BGRA
-				numMips,
-				flags,
-				targetableTextureFlags,
-				CreateInfo,
-				texture,
-				resource);
-			outTargetableTexture = texture;
-			outShaderResourceTexture = resource;
+		FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FWindowsMixedRealityHMD"))
+			.SetExtent(sizeX, sizeY)
+			.SetFormat(PF_B8G8R8A8) // must be BGRA
+			.SetNumMips(numMips)
+			.SetFlags(flags);
 
-			CurrentBackBuffer = outTargetableTexture;
-		}
-		else
-#endif
+		if (bMultiView)
 		{
-			RHICreateTargetableShaderResource2D(
-				sizeX,
-				sizeY,
-				PF_B8G8R8A8, // must be BGRA
-				numMips,
-				flags,
-				targetableTextureFlags,
-				false,
-				CreateInfo,
-				outTargetableTexture,
-				outShaderResourceTexture);
+			Desc.SetDimension(ETextureDimension::Texture2DArray)
+				.SetArraySize(2);
+		}
+
+		RHICreateTargetableShaderResource(Desc, targetableTextureFlags, outTargetableTexture, outShaderResourceTexture);
+
+		if (bMultiView)
+		{
+			CurrentBackBuffer = outTargetableTexture;
 		}
 
 		bNeedReallocateDepthTexture = true;
@@ -1687,53 +1676,36 @@ namespace WindowsMixedReality
 			OutShaderResourceTexture = CurrentDepthBuffer;
 			return true;
 		}
-		
-		FRHIResourceCreateInfo CreateInfo(TEXT("FWindowsMixedRealityHMD"));
-		// This binding is necessary - without it there will be a runtime error.
-		// Current shader assumes far depth since scene depth uses far depth.
-		CreateInfo.ClearValueBinding = FClearValueBinding::DepthFar;
 
+		bool bMultiView = false;
 #if PLATFORM_HOLOLENS
-		if (bIsMobileMultiViewEnabled && !HMD->IsThirdCameraActive())
-		{
-			FIntPoint size = GetIdealRenderTargetSize();
+		bMultiView = (bIsMobileMultiViewEnabled && !HMD->IsThirdCameraActive());
+#endif
 
-			FTexture2DArrayRHIRef texture, resource;
-			RHICreateTargetableShaderResource2DArray(
-				size.X,
-				size.Y,
-				2,
-				// Do not use input format - this will resolve to X32_TYPELESS_G8X24_UINT which cannot be used for a depthstencil buffer.
-				// DepthStencil will resolve to R32G8X24_TYPELESS which is usable for a depthstencil buffer!
-				PF_DepthStencil,
-				// Do not use input mips, this will resolve to 0 which will throw creating the texture.
-				1,
-				InTexFlags,
-				TargetableTextureFlags,
-				CreateInfo,
-				texture,
-				resource);
-			OutTargetableTexture = texture;
-			OutShaderResourceTexture = resource;
+		FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FWindowsMixedRealityHMD"))
+			// Do not use input format - this will resolve to X32_TYPELESS_G8X24_UINT which cannot be used for a depthstencil buffer.
+			// DepthStencil will resolve to R32G8X24_TYPELESS which is usable for a depthstencil buffer!
+			.SetFormat(PF_DepthStencil) // must be BGRA
+			// Do not use input mips, this will resolve to 0 which will throw creating the texture.
+			.SetNumMips(1)
+			.SetFlags(InTexFlags)
+			// This binding is necessary - without it there will be a runtime error.
+			// Current shader assumes far depth since scene depth uses far depth.
+			.SetClearValue(FClearValueBinding::DepthFar);
+
+		if (bMultiView)
+		{
+			Desc.SetDimension(ETextureDimension::Texture2DArray)
+				.SetExtent(GetIdealRenderTargetSize())
+				.SetArraySize(2);
 		}
 		else
-#endif
 		{
-			RHICreateTargetableShaderResource2D(
-				SizeX,
-				SizeY,
-				// Do not use input format - this will resolve to X32_TYPELESS_G8X24_UINT which cannot be used for a depthstencil buffer.
-				// DepthStencil will resolve to R32G8X24_TYPELESS which is usable for a depthstencil buffer!
-				PF_DepthStencil,
-				// Do not use input mips, this will resolve to 0 which will throw creating the texture.
-				1,
-				InTexFlags,
-				TargetableTextureFlags,
-				false,
-				CreateInfo,
-				OutTargetableTexture,
-				OutShaderResourceTexture);
+			Desc.SetExtent(SizeX, SizeY);
 		}
+
+		RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, OutTargetableTexture, OutShaderResourceTexture);
 
 		CurrentDepthBuffer = OutTargetableTexture;
 		bNeedReallocateDepthTexture = false;

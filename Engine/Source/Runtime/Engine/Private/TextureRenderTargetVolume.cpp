@@ -247,20 +247,16 @@ void FTextureRenderTargetVolumeResource::InitDynamicRHI()
 		}
 
 		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("FTextureRenderTargetVolumeResource"), FClearValueBinding(Owner->ClearColor));
-			RHICreateTargetableShaderResource3D(
-				Owner->SizeX,
-				Owner->SizeY,
-				Owner->SizeZ,
-				Owner->GetFormat(),
-				Owner->GetNumMips(),
-				TexCreateFlags, 
-				TexCreate_RenderTargetable,
-				false,
-				CreateInfo,
-				RenderTargetVolumeRHI,
-				TextureVolumeRHI
-			);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create3D(TEXT("FTextureRenderTargetVolumeResource"))
+				.SetExtent(Owner->SizeX, Owner->SizeY)
+				.SetDepth(Owner->SizeZ)
+				.SetFormat(Owner->GetFormat())
+				.SetNumMips(Owner->GetNumMips())
+				.SetFlags(TexCreateFlags)
+				.SetClearValue(FClearValueBinding(Owner->ClearColor));
+
+			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetVolumeRHI, TextureVolumeRHI);
 		}
 
 		if (EnumHasAnyFlags(TexCreateFlags, TexCreate_UAV))

@@ -674,6 +674,11 @@ inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIR
 	RHICmdList.Transition(MakeArrayView(Transitions, TransitionIndex));
 }
 
+RHI_API void RHICreateTargetableShaderResource(
+	const FRHITextureCreateDesc& BaseDesc,
+	ETextureCreateFlags TargetableTextureFlags,
+	FTextureRHIRef& OutTargetableTexture);
+
 /**
  * Creates 1 or 2 textures with the same dimensions/format.
  * If the RHI supports textures that can be used as both shader resources and render targets,
@@ -682,133 +687,31 @@ inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIR
  * Two texture references are always returned, but they may reference the same texture.
  * If two different textures are returned, the render-target texture must be manually copied to the shader-resource texture.
  */
-inline void RHICreateTargetableShaderResource2D(
-	uint32 SizeX,
-	uint32 SizeY,
-	uint8 Format,	
-	uint32 NumMips,
-	ETextureCreateFlags Flags,
+RHI_API void RHICreateTargetableShaderResource(
+	const FRHITextureCreateDesc& Desc,
 	ETextureCreateFlags TargetableTextureFlags,
 	bool bForceSeparateTargetAndShaderResource,
 	bool bForceSharedTargetAndShaderResource,
-	FRHIResourceCreateInfo& CreateInfo,
-	FTexture2DRHIRef& OutTargetableTexture,
-	FTexture2DRHIRef& OutShaderResourceTexture,
-	uint32 NumSamples = 1
-)
-{
-	// Ensure none of the usage flags are passed in.
-	check(!(Flags & TexCreate_RenderTargetable));
-	check(!(Flags & TexCreate_ResolveTargetable));
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture);
 
-	// Ensure we aren't forcing separate and shared textures at the same time.
-	check(!(bForceSeparateTargetAndShaderResource && bForceSharedTargetAndShaderResource));
-
-	// Ensure that the targetable texture is either render or depth-stencil targetable.
-	check(EnumHasAnyFlags(TargetableTextureFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV));
-
-	if (NumSamples > 1 && !bForceSharedTargetAndShaderResource)
-	{
-		bForceSeparateTargetAndShaderResource = RHISupportsSeparateMSAAAndResolveTextures(GMaxRHIShaderPlatform);
-	}
-
-	if (!bForceSeparateTargetAndShaderResource)
-	{
-		// Create a single texture that has both TargetableTextureFlags and TexCreate_ShaderResource set.
-		OutTargetableTexture = OutShaderResourceTexture = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags | TargetableTextureFlags | TexCreate_ShaderResource, ERHIAccess::SRVMask, CreateInfo);
-	}
-	else
-	{
-		ETextureCreateFlags ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
-		if (EnumHasAnyFlags(TargetableTextureFlags, TexCreate_DepthStencilTargetable))
-		{
-			ResolveTargetableTextureFlags |= TexCreate_DepthStencilResolveTarget;
-		}
-		// Create a texture that has TargetableTextureFlags set, and a second texture that has TexCreate_ResolveTargetable and TexCreate_ShaderResource set.
-		OutTargetableTexture = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags | TargetableTextureFlags, ERHIAccess::SRVMask, CreateInfo);
-		OutShaderResourceTexture = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, 1, Flags | ResolveTargetableTextureFlags | TexCreate_ShaderResource, ERHIAccess::SRVMask, CreateInfo);
-	}
-}
-
-inline void RHICreateTargetableShaderResource2D(
-	uint32 SizeX,
-	uint32 SizeY,
-	uint8 Format,
-	uint32 NumMips,
-	ETextureCreateFlags Flags,
+inline void RHICreateTargetableShaderResource(
+	const FRHITextureCreateDesc& Desc,
 	ETextureCreateFlags TargetableTextureFlags,
 	bool bForceSeparateTargetAndShaderResource,
-	FRHIResourceCreateInfo& CreateInfo,
-	FTexture2DRHIRef& OutTargetableTexture,
-	FTexture2DRHIRef& OutShaderResourceTexture,
-	uint32 NumSamples = 1)
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture)
 {
-	RHICreateTargetableShaderResource2D(SizeX, SizeY, Format, NumMips, Flags, TargetableTextureFlags, bForceSeparateTargetAndShaderResource, false, CreateInfo, OutTargetableTexture, OutShaderResourceTexture, NumSamples);
+	RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, bForceSeparateTargetAndShaderResource, false, OutTargetableTexture, OutShaderResourceTexture);
 }
 
-inline void RHICreateTargetableShaderResource2DArray(
-	uint32 SizeX,
-	uint32 SizeY,
-	uint32 SizeZ,
-	uint8 Format,
-	uint32 NumMips,
-	ETextureCreateFlags Flags,
+inline void RHICreateTargetableShaderResource(
+	const FRHITextureCreateDesc& Desc,
 	ETextureCreateFlags TargetableTextureFlags,
-	bool bForceSeparateTargetAndShaderResource,
-	bool bForceSharedTargetAndShaderResource,
-	FRHIResourceCreateInfo& CreateInfo,
-	FTexture2DArrayRHIRef& OutTargetableTexture,
-	FTexture2DArrayRHIRef& OutShaderResourceTexture,
-	uint32 NumSamples = 1
-)
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture)
 {
-	// Ensure none of the usage flags are passed in.
-	check(!(Flags & TexCreate_RenderTargetable));
-	check(!(Flags & TexCreate_ResolveTargetable));
-
-	// Ensure we aren't forcing separate and shared textures at the same time.
-	check(!(bForceSeparateTargetAndShaderResource && bForceSharedTargetAndShaderResource));
-
-	// Ensure that the targetable texture is either render or depth-stencil targetable.
-	check(EnumHasAnyFlags(TargetableTextureFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV));
-
-	if (NumSamples > 1 && !bForceSharedTargetAndShaderResource)
-	{
-		bForceSeparateTargetAndShaderResource = RHISupportsSeparateMSAAAndResolveTextures(GMaxRHIShaderPlatform);
-	}
-
-	if (!bForceSeparateTargetAndShaderResource)
-	{
-		// Create a single texture that has both TargetableTextureFlags and TexCreate_ShaderResource set.
-		OutTargetableTexture = OutShaderResourceTexture = RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags | TargetableTextureFlags | TexCreate_ShaderResource, CreateInfo);
-	}
-	else
-	{
-		ETextureCreateFlags ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
-		if (EnumHasAnyFlags(TargetableTextureFlags, TexCreate_DepthStencilTargetable))
-		{
-			ResolveTargetableTextureFlags |= TexCreate_DepthStencilResolveTarget;
-		}
-		// Create a texture that has TargetableTextureFlags set, and a second texture that has TexCreate_ResolveTargetable and TexCreate_ShaderResource set.
-		OutTargetableTexture = RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags | TargetableTextureFlags, CreateInfo);
-		OutShaderResourceTexture = RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, 1,  Flags | ResolveTargetableTextureFlags | TexCreate_ShaderResource, CreateInfo);
-	}
-}
-
-inline void RHICreateTargetableShaderResource2DArray(
-	uint32 SizeX,
-	uint32 SizeY,
-	uint32 SizeZ,
-	uint8 Format,
-	uint32 NumMips,
-	ETextureCreateFlags Flags,
-	ETextureCreateFlags TargetableTextureFlags,
-	FRHIResourceCreateInfo& CreateInfo,
-	FTexture2DArrayRHIRef& OutTargetableTexture,
-	FTexture2DArrayRHIRef& OutShaderResourceTexture,
-	uint32 NumSamples = 1)
-{
-	RHICreateTargetableShaderResource2DArray(SizeX, SizeY, SizeZ, Format, NumMips, Flags, TargetableTextureFlags, false, false, CreateInfo, OutTargetableTexture, OutShaderResourceTexture, NumSamples);
+	RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, false, false, OutTargetableTexture, OutShaderResourceTexture);
 }
 
 /**
@@ -819,37 +722,84 @@ inline void RHICreateTargetableShaderResource2DArray(
  * Two texture references are always returned, but they may reference the same texture.
  * If two different textures are returned, the render-target texture must be manually copied to the shader-resource texture.
  */
-inline void RHICreateTargetableShaderResourceCube(
+//UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2D is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+RHI_API void RHICreateTargetableShaderResource2D(
+	uint32 SizeX,
+	uint32 SizeY,
+	uint8 Format,
+	uint32 NumMips,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
+	bool bForceSeparateTargetAndShaderResource,
+	bool bForceSharedTargetAndShaderResource,
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture,
+	uint32 NumSamples = 1);
+
+//UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2D is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+RHI_API void RHICreateTargetableShaderResource2D(
+	uint32 SizeX,
+	uint32 SizeY,
+	uint8 Format,
+	uint32 NumMips,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
+	bool bForceSeparateTargetAndShaderResource,
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture,
+	uint32 NumSamples = 1);
+
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2DArray is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+RHI_API void RHICreateTargetableShaderResource2DArray(
+	uint32 SizeX,
+	uint32 SizeY,
+	uint32 SizeZ,
+	uint8 Format,
+	uint32 NumMips,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
+	bool bForceSeparateTargetAndShaderResource,
+	bool bForceSharedTargetAndShaderResource,
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture,
+	uint32 NumSamples = 1);
+
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2DArray is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+RHI_API void RHICreateTargetableShaderResource2DArray(
+	uint32 SizeX,
+	uint32 SizeY,
+	uint32 SizeZ,
+	uint8 Format,
+	uint32 NumMips,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture,
+	uint32 NumSamples = 1);
+
+/**
+ * Creates 1 or 2 textures with the same dimensions/format.
+ * If the RHI supports textures that can be used as both shader resources and render targets,
+ * and bForceSeparateTargetAndShaderResource=false, then a single texture is created.
+ * Otherwise two textures are created, one of them usable as a shader resource and resolve target, and one of them usable as a render target.
+ * Two texture references are always returned, but they may reference the same texture.
+ * If two different textures are returned, the render-target texture must be manually copied to the shader-resource texture.
+ */
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResourceCube is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+RHI_API void RHICreateTargetableShaderResourceCube(
 	uint32 LinearSize,
 	uint8 Format,
 	uint32 NumMips,
 	ETextureCreateFlags Flags,
 	ETextureCreateFlags TargetableTextureFlags,
 	bool bForceSeparateTargetAndShaderResource,
-	FRHIResourceCreateInfo& CreateInfo,
-	FTextureCubeRHIRef& OutTargetableTexture,
-	FTextureCubeRHIRef& OutShaderResourceTexture
-	)
-{
-	// Ensure none of the usage flags are passed in.
-	check(!(Flags & TexCreate_RenderTargetable));
-	check(!(Flags & TexCreate_ResolveTargetable));
-
-	// Ensure that the targetable texture is either render or depth-stencil targetable.
-	check(EnumHasAnyFlags(TargetableTextureFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
-
-	if(!bForceSeparateTargetAndShaderResource/* && GSupportsRenderDepthTargetableShaderResources*/)
-	{
-		// Create a single texture that has both TargetableTextureFlags and TexCreate_ShaderResource set.
-		OutTargetableTexture = OutShaderResourceTexture = RHICreateTextureCube(LinearSize, Format, NumMips, Flags | TargetableTextureFlags | TexCreate_ShaderResource, CreateInfo);
-	}
-	else
-	{
-		// Create a texture that has TargetableTextureFlags set, and a second texture that has TexCreate_ResolveTargetable and TexCreate_ShaderResource set.
-		OutTargetableTexture = RHICreateTextureCube(LinearSize, Format, NumMips, Flags | TargetableTextureFlags, CreateInfo);
-		OutShaderResourceTexture = RHICreateTextureCube(LinearSize, Format, NumMips, Flags | TexCreate_ResolveTargetable | TexCreate_ShaderResource, CreateInfo);
-	}
-}
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture);
 
 /**
  * Creates 1 or 2 textures with the same dimensions/format.
@@ -859,7 +809,8 @@ inline void RHICreateTargetableShaderResourceCube(
  * Two texture references are always returned, but they may reference the same texture.
  * If two different textures are returned, the render-target texture must be manually copied to the shader-resource texture.
  */
-inline void RHICreateTargetableShaderResourceCubeArray(
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResourceCubeArray is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+RHI_API void RHICreateTargetableShaderResourceCubeArray(
 	uint32 LinearSize,
 	uint32 ArraySize,
 	uint8 Format,
@@ -867,30 +818,9 @@ inline void RHICreateTargetableShaderResourceCubeArray(
 	ETextureCreateFlags Flags,
 	ETextureCreateFlags TargetableTextureFlags,
 	bool bForceSeparateTargetAndShaderResource,
-	FRHIResourceCreateInfo& CreateInfo,
-	FTextureCubeRHIRef& OutTargetableTexture,
-	FTextureCubeRHIRef& OutShaderResourceTexture
-	)
-{
-	// Ensure none of the usage flags are passed in.
-	check(!(Flags & TexCreate_RenderTargetable));
-	check(!(Flags & TexCreate_ResolveTargetable));
-
-	// Ensure that the targetable texture is either render or depth-stencil targetable.
-	check(EnumHasAnyFlags(TargetableTextureFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
-
-	if(!bForceSeparateTargetAndShaderResource/* && GSupportsRenderDepthTargetableShaderResources*/)
-	{
-		// Create a single texture that has both TargetableTextureFlags and TexCreate_ShaderResource set.
-		OutTargetableTexture = OutShaderResourceTexture = RHICreateTextureCubeArray(LinearSize, ArraySize, Format, NumMips, Flags | TargetableTextureFlags | TexCreate_ShaderResource, CreateInfo);
-	}
-	else
-	{
-		// Create a texture that has TargetableTextureFlags set, and a second texture that has TexCreate_ResolveTargetable and TexCreate_ShaderResource set.
-		OutTargetableTexture = RHICreateTextureCubeArray(LinearSize, ArraySize, Format, NumMips, Flags | TargetableTextureFlags, CreateInfo);
-		OutShaderResourceTexture = RHICreateTextureCubeArray(LinearSize, ArraySize, Format, NumMips, Flags | TexCreate_ResolveTargetable | TexCreate_ShaderResource, CreateInfo);
-	}
-}
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture);
 
 /**
  * Creates 1 or 2 textures with the same dimensions/format.
@@ -900,44 +830,19 @@ inline void RHICreateTargetableShaderResourceCubeArray(
  * Two texture references are always returned, but they may reference the same texture.
  * If two different textures are returned, the render-target texture must be manually copied to the shader-resource texture.
  */
-inline void RHICreateTargetableShaderResource3D(
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource3D is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+RHI_API void RHICreateTargetableShaderResource3D(
 	uint32 SizeX,
 	uint32 SizeY,
 	uint32 SizeZ,
-	uint8 Format,	
+	uint8 Format,
 	uint32 NumMips,
 	ETextureCreateFlags Flags,
 	ETextureCreateFlags TargetableTextureFlags,
 	bool bForceSeparateTargetAndShaderResource,
-	FRHIResourceCreateInfo& CreateInfo,
-	FTexture3DRHIRef& OutTargetableTexture,
-	FTexture3DRHIRef& OutShaderResourceTexture
-	)
-{
-	// Ensure none of the usage flags are passed in.
-	check(!(Flags & TexCreate_RenderTargetable));
-	check(!(Flags & TexCreate_ResolveTargetable));
-
-	// Ensure that the targetable texture is either render or depth-stencil targetable.
-	check(EnumHasAnyFlags(TargetableTextureFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV));
-
-	if (!bForceSeparateTargetAndShaderResource/* && GSupportsRenderDepthTargetableShaderResources*/)
-	{
-		// Create a single texture that has both TargetableTextureFlags and TexCreate_ShaderResource set.
-		OutTargetableTexture = OutShaderResourceTexture = RHICreateTexture3D(SizeX, SizeY, SizeZ, Format, NumMips, Flags | TargetableTextureFlags | TexCreate_ShaderResource, CreateInfo);
-	}
-	else
-	{
-		ETextureCreateFlags ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
-		if (EnumHasAnyFlags(TargetableTextureFlags, TexCreate_DepthStencilTargetable))
-		{
-			ResolveTargetableTextureFlags |= TexCreate_DepthStencilResolveTarget;
-		}
-		// Create a texture that has TargetableTextureFlags set, and a second texture that has TexCreate_ResolveTargetable and TexCreate_ShaderResource set.
-		OutTargetableTexture = RHICreateTexture3D(SizeX, SizeY, SizeZ, Format, NumMips, Flags | TargetableTextureFlags, CreateInfo);
-		OutShaderResourceTexture = RHICreateTexture3D(SizeX, SizeY, SizeZ, Format, NumMips, Flags | ResolveTargetableTextureFlags | TexCreate_ShaderResource, CreateInfo);
-	}
-}
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture);
 
 /**
  * Computes the vertex count for a given number of primitives of the specified type.

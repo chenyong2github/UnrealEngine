@@ -44,7 +44,7 @@ public:
 	* Accessor for the surface RHI when setting this render target
 	* @return render target surface RHI resource
 	*/
-	ENGINE_API virtual const FTexture2DRHIRef& GetRenderTargetTexture() const;
+	ENGINE_API virtual const FTextureRHIRef& GetRenderTargetTexture() const;
 	ENGINE_API virtual FUnorderedAccessViewRHIRef GetRenderTargetUAV() const;
 
 	/**
@@ -111,7 +111,7 @@ public:
 
 protected:
 
-	FTexture2DRHIRef RenderTargetTextureRHI;
+	FTextureRHIRef RenderTargetTextureRHI;
 
 	/**
 	 * Reads the viewport's displayed pixels into a preallocated color buffer.
@@ -1215,13 +1215,7 @@ public:
 	//~ End FViewport Interface
 
 	//~ Begin FRenderResource Interface
-	virtual void InitDynamicRHI() override
-	{
-		FTexture2DRHIRef ShaderResourceTextureRHI;
-
-		FRHIResourceCreateInfo CreateInfo(TEXT("FDummyViewport"));
-		RHICreateTargetableShaderResource2D( SizeX, SizeY, PF_A2B10G10R10, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, RenderTargetTextureRHI, ShaderResourceTextureRHI );
-	}
+	virtual void InitDynamicRHI() override;
 
 	// @todo DLL: Without these functions we get unresolved linker errors with FRenderResource
 	virtual void InitRHI() override{}

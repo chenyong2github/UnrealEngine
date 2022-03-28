@@ -268,7 +268,7 @@ float FRenderTarget::GetDisplayGamma() const
 * Accessor for the surface RHI when setting this render target
 * @return render target surface RHI resource
 */
-const FTexture2DRHIRef& FRenderTarget::GetRenderTargetTexture() const
+const FTextureRHIRef& FRenderTarget::GetRenderTargetTexture() const
 {
 	return RenderTargetTextureRHI;
 }
@@ -2097,12 +2097,22 @@ void FViewport::FHitProxyMap::Init(uint32 NewSizeX,uint32 NewSizeY)
 
 	// Create a render target to store the hit proxy map.
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("HitProxyTexture"), FClearValueBinding::White);
-		RHICreateTargetableShaderResource2D(SizeX,SizeY,PF_B8G8R8A8,1,TexCreate_None,TexCreate_RenderTargetable,false,CreateInfo,RenderTargetTextureRHI,HitProxyTexture);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("HitProxyTexture"))
+			.SetExtent(SizeX, SizeY)
+			.SetFormat(PF_B8G8R8A8)
+			.SetClearValue(FClearValueBinding::White);
+
+		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI, HitProxyTexture);
 	}
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("HitProxyCPUTexture"));
-		HitProxyCPUTexture = RHICreateTexture2D(SizeX, SizeY, PF_B8G8R8A8,1,1,TexCreate_CPUReadback,CreateInfo);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("HitProxyCPUTexture"))
+			.SetExtent(SizeX, SizeY)
+			.SetFormat(PF_B8G8R8A8)
+			.SetFlags(ETextureCreateFlags::CPUReadback);
+
+		HitProxyCPUTexture = RHICreateTexture(Desc);
 	}
 }
 
@@ -2370,4 +2380,14 @@ FDummyViewport::~FDummyViewport()
 		delete DebugCanvas;
 		DebugCanvas = NULL;
 	}
+}
+
+void FDummyViewport::InitDynamicRHI()
+{
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("FDummyViewport"))
+		.SetExtent(SizeX, SizeY)
+		.SetFormat(PF_A2B10G10R10);
+
+	RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI);
 }

@@ -43,22 +43,13 @@ public:
 		);
 		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 
-		FTexture2DRHIRef Texture2DRHI;
-		FRHIResourceCreateInfo CreateInfo = { TEXT("FPlanarReflectionRenderTarget"), FClearValueBinding(FLinearColor::Black) };
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FPlanarReflectionRenderTarget"))
+			.SetExtent(GetSizeXY())
+			.SetFormat(PF_FloatRGBA)
+			.SetClearValue(FClearValueBinding::Black);
 
-		RHICreateTargetableShaderResource2D(
-			GetSizeX(), 
-			GetSizeY(), 
-			PF_FloatRGBA,
-			1,
-			TexCreate_None,
-			TexCreate_RenderTargetable,
-			false,
-			CreateInfo,
-			RenderTargetTextureRHI,
-			Texture2DRHI
-			);
-		TextureRHI = (FTextureRHIRef&)Texture2DRHI;
+		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI, TextureRHI);
 	}
 
 	virtual FIntPoint GetSizeXY() const { return Size; }

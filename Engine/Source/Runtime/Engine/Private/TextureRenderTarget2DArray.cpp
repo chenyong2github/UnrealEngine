@@ -233,29 +233,26 @@ void FTextureRenderTarget2DArrayResource::InitDynamicRHI()
 		}
 
 		// Create the RHI texture. Only one mip is used and the texture is targetable for resolve.
-		ETextureCreateFlags TexCreateFlags = bIsSRGB ? TexCreate_SRGB : TexCreate_None;
+		ETextureCreateFlags TexCreateFlags = bIsSRGB ? ETextureCreateFlags::SRGB : ETextureCreateFlags::None;
 		if (Owner->bCanCreateUAV)
 		{
-			TexCreateFlags |= TexCreate_UAV;
+			TexCreateFlags |= ETextureCreateFlags::UAV;
 		}
 
 		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("FTextureRenderTarget2DArrayResource"), FClearValueBinding(Owner->ClearColor));
-			RHICreateTargetableShaderResource2DArray(
-				Owner->SizeX,
-				Owner->SizeY,
-				Owner->Slices,
-				Owner->GetFormat(),
-				Owner->GetNumMips(),
-				TexCreateFlags,
-				TexCreate_RenderTargetable,
-				CreateInfo,
-				RenderTarget2DArrayRHI,
-				Texture2DArrayRHI
-			);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2DArray(TEXT("FTextureRenderTarget2DArrayResource"))
+				.SetExtent(Owner->SizeX, Owner->SizeY)
+				.SetArraySize(Owner->Slices)
+				.SetFormat(Owner->GetFormat())
+				.SetNumMips(Owner->GetNumMips())
+				.SetFlags(TexCreateFlags)
+				.SetClearValue(FClearValueBinding(Owner->ClearColor));
+
+			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTarget2DArrayRHI, Texture2DArrayRHI);
 		}
 
-		if (EnumHasAnyFlags(TexCreateFlags, TexCreate_UAV))
+		if (EnumHasAnyFlags(TexCreateFlags, ETextureCreateFlags::UAV))
 		{
 			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTarget2DArrayRHI);
 		}

@@ -148,17 +148,21 @@ void FViewportInfo::RecreateDepthBuffer_RenderThread()
 	DepthStencil.SafeRelease();
 	if (bRequiresStencilTest)
 	{
-		FTexture2DRHIRef ShaderResourceUnused;
-		FRHIResourceCreateInfo CreateInfo(TEXT("SlateViewportDepthStencil"), FClearValueBinding::DepthZero);
-
 		ETextureCreateFlags TargetableTextureFlags = TexCreate_DepthStencilTargetable;
 		if (CVarMemorylessDepthStencil.GetValueOnAnyThread() != 0)
 		{
 			// Use Memoryless target, expecting that DepthStencil content is intermediate and can't be preserved between renderpasses
-			TargetableTextureFlags|= TexCreate_Memoryless;
+			TargetableTextureFlags |= TexCreate_Memoryless;
 		}
+
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("SlateViewportDepthStencil"))
+			.SetExtent(Width, Height)
+			.SetFormat(PF_DepthStencil)
+			.SetClearValue(FClearValueBinding::DepthZero);
+
+		RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, DepthStencil);
 		
-		RHICreateTargetableShaderResource2D(Width, Height, PF_DepthStencil, 1, TexCreate_None, TargetableTextureFlags, false, CreateInfo, DepthStencil, ShaderResourceUnused);
 		check(IsValidRef(DepthStencil));
 	}
 }
@@ -787,29 +791,38 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				|| !ViewportInfo.HDRSourceRT || ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture->GetFormat() != BackBuffer->GetFormat()))
 			{
 				// Composition buffers
-				ETextureCreateFlags BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
+				{
+					ETextureCreateFlags BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
+					FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(ViewportWidth, ViewportHeight),
+						GetSlateRecommendedColorFormat(),
+						FClearValueBinding::Transparent,
+						BaseFlags,
+						TexCreate_ShaderResource | TexCreate_RenderTargetable,
+						false,
+						1,
+						true,
+						true));
 
-				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(ViewportWidth, ViewportHeight),
-					GetSlateRecommendedColorFormat(),
-					FClearValueBinding::Transparent,
-					BaseFlags,
-					TexCreate_ShaderResource | TexCreate_RenderTargetable,
-					false,
-					1,
-					true,
-					true));
+					GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.UITargetRT, TEXT("UITargetRT"));
 
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.UITargetRT, TEXT("UITargetRT"));
-
-				Desc.Format = BackBuffer->GetFormat();
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.HDRSourceRT, TEXT("HDRSourceRT"));
+					Desc.Format = BackBuffer->GetFormat();
+					GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.HDRSourceRT, TEXT("HDRSourceRT"));
+				}
 
 				// LUT
-				ViewportInfo.ColorSpaceLUTRT.SafeRelease();
-				ViewportInfo.ColorSpaceLUTSRV.SafeRelease();
+				{
+					ViewportInfo.ColorSpaceLUTRT.SafeRelease();
+					ViewportInfo.ColorSpaceLUTSRV.SafeRelease();
 
-				FRHIResourceCreateInfo CreateInfo(TEXT("ColorSpaceLUT"));
-				RHICreateTargetableShaderResource3D(CompositionLUTSize, CompositionLUTSize, CompositionLUTSize, PF_A2B10G10R10, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, ViewportInfo.ColorSpaceLUTRT, ViewportInfo.ColorSpaceLUTSRV);
+					const FRHITextureCreateDesc Desc =
+						FRHITextureCreateDesc::Create3D(TEXT("ColorSpaceLUT"))
+						.SetExtent(CompositionLUTSize)
+						.SetDepth(CompositionLUTSize)
+						.SetFormat(PF_A2B10G10R10);
+
+					RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, ViewportInfo.ColorSpaceLUTRT, ViewportInfo.ColorSpaceLUTSRV);
+				}
+
 				bLUTStale = true;
 			}
 

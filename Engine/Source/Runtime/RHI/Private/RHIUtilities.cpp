@@ -604,3 +604,260 @@ RHI_API ERHIAccess RHIGetDefaultResourceState(EBufferUsageFlags InUsage, bool bI
 	return ResourceState;
 }
 
+void RHICreateTargetableShaderResource(
+	const FRHITextureCreateDesc& BaseDesc,
+	ETextureCreateFlags TargetableTextureFlags,
+	FTextureRHIRef& OutTargetableTexture)
+{
+	// Ensure none of the usage flags are passed in.
+	check(!EnumHasAnyFlags(BaseDesc.Flags, ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ResolveTargetable));
+
+	// Ensure that the targetable texture is either render or depth-stencil targetable.
+	check(EnumHasAnyFlags(TargetableTextureFlags, ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::DepthStencilTargetable | ETextureCreateFlags::UAV));
+
+	FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc(BaseDesc)
+		.SetFlags(TargetableTextureFlags | ETextureCreateFlags::ShaderResource)
+		.SetInitialState(ERHIAccess::SRVMask);
+
+	OutTargetableTexture = RHICreateTexture(Desc);
+}
+
+void RHICreateTargetableShaderResource(
+	const FRHITextureCreateDesc& BaseDesc,
+	ETextureCreateFlags TargetableTextureFlags,
+	bool bForceSeparateTargetAndShaderResource,
+	bool bForceSharedTargetAndShaderResource,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture
+	)
+{
+	// Ensure none of the usage flags are passed in.
+	check(!EnumHasAnyFlags(BaseDesc.Flags, ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ResolveTargetable));
+
+	// Ensure we aren't forcing separate and shared textures at the same time.
+	check(!(bForceSeparateTargetAndShaderResource && bForceSharedTargetAndShaderResource));
+
+	// Ensure that the targetable texture is either render or depth-stencil targetable.
+	check(EnumHasAnyFlags(TargetableTextureFlags, ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::DepthStencilTargetable | ETextureCreateFlags::UAV));
+
+	if (BaseDesc.NumSamples > 1 && !bForceSharedTargetAndShaderResource)
+	{
+		bForceSeparateTargetAndShaderResource = RHISupportsSeparateMSAAAndResolveTextures(GMaxRHIShaderPlatform);
+	}
+
+	if (!bForceSeparateTargetAndShaderResource)
+	{
+		FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc(BaseDesc)
+			.AddFlags(TargetableTextureFlags | ETextureCreateFlags::ShaderResource)
+			.SetInitialState(ERHIAccess::SRVMask);
+
+		// Create a single texture that has both TargetableTextureFlags and ETextureCreateFlags::ShaderResource set.
+		OutTargetableTexture = OutShaderResourceTexture = RHICreateTexture(Desc);
+	}
+	else
+	{
+		ETextureCreateFlags ResolveTargetableTextureFlags = ETextureCreateFlags::ResolveTargetable;
+		if (EnumHasAnyFlags(TargetableTextureFlags, ETextureCreateFlags::DepthStencilTargetable))
+		{
+			ResolveTargetableTextureFlags |= ETextureCreateFlags::DepthStencilResolveTarget;
+		}
+
+		FRHITextureCreateDesc TargetableDesc =
+			FRHITextureCreateDesc(BaseDesc)
+			.AddFlags(TargetableTextureFlags)
+			.SetInitialState(ERHIAccess::SRVMask);
+
+		FRHITextureCreateDesc ResourceDesc =
+			FRHITextureCreateDesc(BaseDesc)
+			.AddFlags(ResolveTargetableTextureFlags | ETextureCreateFlags::ShaderResource)
+			.SetInitialState(ERHIAccess::SRVMask)
+			.SetNumSamples(1);
+
+		// Create a texture that has TargetableTextureFlags set, and a second texture that has ETextureCreateFlags::ResolveTargetable and ETextureCreateFlags::ShaderResource set.
+		OutTargetableTexture = RHICreateTexture(TargetableDesc);
+		OutShaderResourceTexture = RHICreateTexture(ResourceDesc);
+	}
+}
+
+void RHICreateTargetableShaderResource2D(
+	uint32 SizeX,
+	uint32 SizeY,
+	uint8 Format,
+	uint32 NumMips,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
+	bool bForceSeparateTargetAndShaderResource,
+	bool bForceSharedTargetAndShaderResource,
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture,
+	uint32 NumSamples
+)
+{
+	FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(CreateInfo.DebugName)
+		.SetExtent(SizeX, SizeY)
+		.SetFormat((EPixelFormat)Format)
+		.SetNumMips(NumMips)
+		.SetNumSamples(NumSamples)
+		.SetFlags(Flags)
+		.SetBulkData(CreateInfo.BulkData)
+		.SetClearValue(CreateInfo.ClearValueBinding)
+		.SetExtData(CreateInfo.ExtData)
+		.SetGPUMask(CreateInfo.GPUMask);
+
+	RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, bForceSeparateTargetAndShaderResource, bForceSharedTargetAndShaderResource, OutTargetableTexture, OutShaderResourceTexture);
+}
+
+void RHICreateTargetableShaderResource2D(
+	uint32 SizeX,
+	uint32 SizeY,
+	uint8 Format,
+	uint32 NumMips,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
+	bool bForceSeparateTargetAndShaderResource,
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTexture2DRHIRef& OutTargetableTexture,
+	FTexture2DRHIRef& OutShaderResourceTexture,
+	uint32 NumSamples)
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	RHICreateTargetableShaderResource2D(SizeX, SizeY, Format, NumMips, Flags, TargetableTextureFlags, bForceSeparateTargetAndShaderResource, false, CreateInfo, OutTargetableTexture, OutShaderResourceTexture, NumSamples);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void RHICreateTargetableShaderResource2DArray(
+	uint32 SizeX,
+	uint32 SizeY,
+	uint32 SizeZ,
+	uint8 Format,
+	uint32 NumMips,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
+	bool bForceSeparateTargetAndShaderResource,
+	bool bForceSharedTargetAndShaderResource,
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture,
+	uint32 NumSamples
+)
+{
+	FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2DArray(CreateInfo.DebugName)
+		.SetExtent(SizeX, SizeY)
+		.SetArraySize(SizeZ)
+		.SetFormat((EPixelFormat)Format)
+		.SetNumMips(NumMips)
+		.SetNumSamples(NumSamples)
+		.SetFlags(Flags)
+		.SetBulkData(CreateInfo.BulkData)
+		.SetClearValue(CreateInfo.ClearValueBinding)
+		.SetExtData(CreateInfo.ExtData)
+		.SetGPUMask(CreateInfo.GPUMask);
+
+	RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, bForceSeparateTargetAndShaderResource, bForceSharedTargetAndShaderResource, OutTargetableTexture, OutShaderResourceTexture);
+}
+
+void RHICreateTargetableShaderResource2DArray(
+	uint32 SizeX,
+	uint32 SizeY,
+	uint32 SizeZ,
+	uint8 Format,
+	uint32 NumMips,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture,
+	uint32 NumSamples)
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	RHICreateTargetableShaderResource2DArray(SizeX, SizeY, SizeZ, Format, NumMips, Flags, TargetableTextureFlags, false, false, CreateInfo, OutTargetableTexture, OutShaderResourceTexture, NumSamples);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void RHICreateTargetableShaderResourceCube(
+	uint32 LinearSize,
+	uint8 Format,
+	uint32 NumMips,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
+	bool bForceSeparateTargetAndShaderResource,
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture
+)
+{
+	FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::CreateCube(CreateInfo.DebugName)
+		.SetExtent(LinearSize)
+		.SetFormat((EPixelFormat)Format)
+		.SetNumMips(NumMips)
+		.SetFlags(Flags)
+		.SetBulkData(CreateInfo.BulkData)
+		.SetClearValue(CreateInfo.ClearValueBinding)
+		.SetExtData(CreateInfo.ExtData)
+		.SetGPUMask(CreateInfo.GPUMask);
+
+	RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, bForceSeparateTargetAndShaderResource, false, OutTargetableTexture, OutShaderResourceTexture);
+}
+
+void RHICreateTargetableShaderResourceCubeArray(
+	uint32 LinearSize,
+	uint32 ArraySize,
+	uint8 Format,
+	uint32 NumMips,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
+	bool bForceSeparateTargetAndShaderResource,
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture
+)
+{
+	FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::CreateCubeArray(CreateInfo.DebugName)
+		.SetExtent(LinearSize)
+		.SetArraySize(ArraySize)
+		.SetFormat((EPixelFormat)Format)
+		.SetNumMips(NumMips)
+		.SetFlags(Flags)
+		.SetBulkData(CreateInfo.BulkData)
+		.SetClearValue(CreateInfo.ClearValueBinding)
+		.SetExtData(CreateInfo.ExtData)
+		.SetGPUMask(CreateInfo.GPUMask);
+
+	RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, bForceSeparateTargetAndShaderResource, false, OutTargetableTexture, OutShaderResourceTexture);
+}
+
+void RHICreateTargetableShaderResource3D(
+	uint32 SizeX,
+	uint32 SizeY,
+	uint32 SizeZ,
+	uint8 Format,
+	uint32 NumMips,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
+	bool bForceSeparateTargetAndShaderResource,
+	const FRHIResourceCreateInfo& CreateInfo,
+	FTextureRHIRef& OutTargetableTexture,
+	FTextureRHIRef& OutShaderResourceTexture
+)
+{
+	FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create3D(CreateInfo.DebugName)
+		.SetExtent(SizeX, SizeY)
+		.SetDepth(SizeZ)
+		.SetFormat((EPixelFormat)Format)
+		.SetNumMips(NumMips)
+		.SetFlags(Flags)
+		.SetBulkData(CreateInfo.BulkData)
+		.SetClearValue(CreateInfo.ClearValueBinding)
+		.SetExtData(CreateInfo.ExtData)
+		.SetGPUMask(CreateInfo.GPUMask);
+
+	RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, bForceSeparateTargetAndShaderResource, false, OutTargetableTexture, OutShaderResourceTexture);
+}
