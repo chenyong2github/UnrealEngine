@@ -2216,7 +2216,6 @@ extern bool ParseResolution( const TCHAR* InResolution, uint32& OutX, uint32& Ou
 
 ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, uint32& OutXRes, uint32& OutYRes, float& OutResMult, FIntRect& OutCaptureRegion, bool& OutShouldEnableMask, bool& OutDumpBufferVisualizationTargets, bool& OutCaptureHDR, FString& OutFilenameOverride, bool& OutUseDateTimeAsFileName)
 {
-	FString CmdString = Cmd;
 	TArray<FString> Arguments;
 	const FString FilenameSearchString = TEXT("filename=");
 
@@ -2234,11 +2233,6 @@ ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, u
 		{
 			Arguments.Add(Arg);
 		}
-	}
-
-	if (CmdString.Len() > 0)
-	{
-		Arguments.Add(CmdString);
 	}
 
 	int32 NumArguments = Arguments.Num();
