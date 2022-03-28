@@ -1153,7 +1153,7 @@ bool UWorldPartition::GetInstancingContext(const FLinkerInstancingContext*& OutI
 
 bool UWorldPartition::SupportsStreaming() const
 {
-	return World->GetWorldSettings()->SupportsWorldPartitionStreaming();
+	return World ? World->GetWorldSettings()->SupportsWorldPartitionStreaming() : false;
 }
 
 bool UWorldPartition::IsStreamingEnabled() const
