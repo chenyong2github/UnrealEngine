@@ -3,6 +3,9 @@
 #pragma once 
 
 #include "Sessions/MLAdapterSession.h"
+#include "Engine/EngineTypes.h"
+#include "GenericPlatform/GenericPlatformMisc.h"
+#include "Misc/DateTime.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "MLAdapterLocalDataCollectionSession.generated.h"
 
@@ -15,6 +18,8 @@ class MLADAPTER_API UMLAdapterLocalDataCollectionSession : public UMLAdapterSess
 {
 	GENERATED_BODY()
 public:
+	virtual void PostInitProperties() override;
+
 	virtual void OnPostWorldInit(UWorld& World) override;
 
 	UFUNCTION()
@@ -24,10 +29,17 @@ public:
 
 	virtual void Close() override;
 
-	UPROPERTY(EditAnywhere, Category = MLAdapter)
+	UPROPERTY(EditDefaultsOnly, Category = MLAdapter)
+	FDirectoryPath FilePath;
+
+	UPROPERTY(EditDefaultsOnly, Category = MLAdapter)
 	FString FileName;
 
+	UPROPERTY(EditDefaultsOnly, Category = MLAdapter)
+	bool bPrefixOutputFilenameWithTimestamp;
+
 private:
+	FString OutputFilePath;
 
 	UPROPERTY()
 	TWeakObjectPtr<UMLAdapterAgent> PlayerControlledAgent;
