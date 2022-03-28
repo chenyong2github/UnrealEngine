@@ -3383,7 +3383,6 @@ bool UGeometryCollectionComponent::CalculateInnerSphere(int32 TransformIndex, FS
 	}
 }
 
-
 void UGeometryCollectionComponent::PostLoad()
 {
 	Super::PostLoad();

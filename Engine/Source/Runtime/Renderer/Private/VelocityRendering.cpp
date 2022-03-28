@@ -331,7 +331,6 @@ void FSceneRenderer::RenderVelocities(
 			}
 			else
 			{
-
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("Velocity"),
 					PassParameters,

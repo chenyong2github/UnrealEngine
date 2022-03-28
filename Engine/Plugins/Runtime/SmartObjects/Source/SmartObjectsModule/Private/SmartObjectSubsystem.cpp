@@ -72,11 +72,11 @@ void USmartObjectSubsystem::OnWorldComponentsUpdated(UWorld& World)
 	{
 		SpacePartitionClass = LoadClass<USmartObjectSpacePartition>(this, *SpacePartitionClassName.ToString());
 		UE_CVLOG_UELOG(*SpacePartitionClass == nullptr, this, LogSmartObject, Error, TEXT("Unable to load class %s"), *SpacePartitionClassName.ToString());
-	}
+}
 
 	// Class not specified or invalid, use some default
 	if (SpacePartitionClass.Get() == nullptr)
-	{
+{
 		SpacePartitionClassName = FSoftClassPath(USmartObjectHashGrid::StaticClass());
 		SpacePartitionClass = USmartObjectHashGrid::StaticClass();
 		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Using default class %s"), *SpacePartitionClassName.ToString());
