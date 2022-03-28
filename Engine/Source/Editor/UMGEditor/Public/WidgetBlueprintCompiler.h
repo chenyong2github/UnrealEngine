@@ -83,7 +83,11 @@ public:
 
 	struct UMGEDITOR_API FCreateVariableContext
 	{
+	public:
 		FProperty* CreateVariable(const FName Name, const FEdGraphPinType& Type) const;
+		UWidgetBlueprint* GetWidgetBlueprint() const;
+		UWidgetBlueprintGeneratedClass* GetSkeletonGeneratedClass() const;
+
 	private:
 		friend FWidgetBlueprintCompilerContext;
 		FCreateVariableContext(FWidgetBlueprintCompilerContext& InContext);

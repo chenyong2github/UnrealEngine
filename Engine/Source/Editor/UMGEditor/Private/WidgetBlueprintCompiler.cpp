@@ -43,6 +43,16 @@ FProperty* FWidgetBlueprintCompilerContext::FCreateVariableContext::CreateVariab
 	return Context.CreateVariable(Name, Type);
 }
 
+UWidgetBlueprint* FWidgetBlueprintCompilerContext::FCreateVariableContext::GetWidgetBlueprint() const
+{
+	return Context.WidgetBlueprint();
+}
+
+UWidgetBlueprintGeneratedClass* FWidgetBlueprintCompilerContext::FCreateVariableContext::GetSkeletonGeneratedClass() const
+{
+	return Context.NewWidgetBlueprintClass;
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // FWidgetBlueprintCompiler
