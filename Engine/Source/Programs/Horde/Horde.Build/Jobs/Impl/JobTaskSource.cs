@@ -162,12 +162,12 @@ namespace Horde.Build.Tasks.Impl
 			/// <summary>
 			/// Task to wait for a lease to be assigned
 			/// </summary>
-			public Task<AgentLease?> Task => LeaseSource.Task;
+			public Task<AgentLease> Task => LeaseSource.Task;
 
 			/// <summary>
 			/// Completion source for the waiting agent. If a new queue item becomes available, the result will be passed through 
 			/// </summary>
-			public TaskCompletionSource<AgentLease?> LeaseSource { get; } = new TaskCompletionSource<AgentLease?>();
+			public TaskCompletionSource<AgentLease> LeaseSource { get; } = new TaskCompletionSource<AgentLease>();
 
 			/// <summary>
 			/// Constructor
@@ -295,7 +295,7 @@ namespace Horde.Build.Tasks.Impl
 			}
 			if(waiter != null)
 			{
-				waiter.LeaseSource.TrySetResult(null);
+				waiter.LeaseSource.TrySetCanceled();
 			}
 		}
 
@@ -661,7 +661,7 @@ namespace Horde.Build.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public override async Task<AgentLease?> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
+		public override async Task<Task<AgentLease>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
 			QueueWaiter waiter = new QueueWaiter(agent);
 			lock (_lockObject)
@@ -669,13 +669,17 @@ namespace Horde.Build.Tasks.Impl
 				AssignAnyQueueItemToWaiter(waiter);
 				if (waiter.LeaseSource.Task.TryGetResult(out AgentLease? result))
 				{
-					return result;
+					if (result == null)
+					{
+						return Skip(cancellationToken);
+					}
+					return Lease(result);
 				}
 				_waiters.Add(waiter);
 			}
 
 			AgentLease? lease;
-			using (cancellationToken.Register(() => waiter.LeaseSource.TrySetResult(null)))
+			using (cancellationToken.Register(() => waiter.LeaseSource.TrySetCanceled()))
 			{
 				lease = await waiter.Task;
 			}
@@ -685,7 +689,7 @@ namespace Horde.Build.Tasks.Impl
 				_waiters.Remove(waiter);
 			}
 
-			return lease;
+			return Lease(lease);
 		}
 
 		/// <inheritdoc/>

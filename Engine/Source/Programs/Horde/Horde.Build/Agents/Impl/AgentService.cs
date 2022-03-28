@@ -334,24 +334,6 @@ namespace Horde.Build.Services
 			return agent;
 		}
 
-		async Task<(ITaskSource, AgentLease)?> GuardedWaitForLeaseAsync(ITaskSource source, IAgent agent, CancellationToken cancellationToken)
-		{
-			try
-			{
-				AgentLease? lease = await source.AssignLeaseAsync(agent, cancellationToken);
-				return (lease != null) ? (source, lease) : null;
-			}
-			catch (TaskCanceledException)
-			{
-				return null;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Exception while trying to assign lease"); 
-				return null;
-			}
-		}
-
 		/// <summary>
 		/// Determines whether a task source can currently issue tasks
 		/// </summary>
@@ -407,12 +389,13 @@ namespace Horde.Build.Services
 					}
 
 					// Create all the tasks to wait for
-					List<Task<(ITaskSource, AgentLease)?>> tasks = new List<Task<(ITaskSource, AgentLease)?>>();
+					List<Task<(ITaskSource source, AgentLease lease)>> tasks = new List<Task<(ITaskSource, AgentLease)>>();
 					foreach (ITaskSource taskSource in _taskSources)
 					{
-						if (CanUseTaskSource(agent, taskSource))
+						if (CanUseTaskSource(agent, taskSource) && !cancellationSource.IsCancellationRequested)
 						{
-							tasks.Add(GuardedWaitForLeaseAsync(taskSource, agent, cancellationSource.Token));
+							Task<(ITaskSource, AgentLease)> task = await GuardedAssignLeaseAsync(taskSource, agent, cancellationSource);
+							tasks.Add(task);
 						}
 					}
 
@@ -423,35 +406,23 @@ namespace Horde.Build.Services
 						break;
 					}
 
-					// Wait for a lease to be available
-					while (tasks.Count > 0)
+					// Wait for all the tasks to complete. Once the first task completes it will set the cancellation source, triggering the 
+					// others to terminate.
+					await Task.WhenAll(tasks);
+
+					// Find the first result
+					foreach (Task<(ITaskSource, AgentLease)> task in tasks)
 					{
-						await Task.WhenAny(tasks);
-
-						for (int idx = 0; idx < tasks.Count; idx++)
+						(ITaskSource source, AgentLease lease) taskResult;
+						if (task.TryGetResult(out taskResult))
 						{
-							(ITaskSource, AgentLease)? taskResult;
-							if (!tasks[idx].TryGetResult(out taskResult))
-							{
-								continue;
-							}
-
-							tasks.RemoveAt(idx--);
-
-							if (!taskResult.HasValue)
-							{
-								continue;
-							}
-
 							if (result == null)
 							{
 								result = taskResult;
-								cancellationSource.Cancel();
 							}
-							else if (taskResult.Value.Item2 != AgentLease.Drain)
+							else
 							{
-								(ITaskSource taskSource, AgentLease taskLease) = taskResult.Value;
-								await taskSource.CancelLeaseAsync(agent, taskLease.Id, Any.Parser.ParseFrom(taskLease.Payload));
+								await taskResult.source.CancelLeaseAsync(agent, taskResult.lease.Id, Any.Parser.ParseFrom(taskResult.lease.Payload));
 							}
 						}
 					}
@@ -476,11 +447,6 @@ namespace Horde.Build.Services
 
 				// Get the resulting lease
 				(ITaskSource source, AgentLease lease) = result.Value;
-				if (lease == AgentLease.Drain)
-				{
-					await AsyncUtils.DelayNoThrow(maxWaitTime, cancellationToken);
-					break;
-				}
 
 				// Add the new lease to the agent
 				IAgent? newAgent = await Agents.TryAddLeaseAsync(agent, lease);
@@ -495,6 +461,31 @@ namespace Horde.Build.Services
 				agent = await GetAgentAsync(agent.Id);
 			}
 			return agent;
+		}
+
+		async Task<Task<(ITaskSource, AgentLease)>> GuardedAssignLeaseAsync(ITaskSource source, IAgent agent, CancellationTokenSource cancellationSource)
+		{
+			CancellationToken cancellationToken = cancellationSource.Token;
+			try
+			{
+				Task<AgentLease> task = await source.AssignLeaseAsync(agent, cancellationToken);
+				return task.ContinueWith(x => WrapAssignedLease(source, x.Result, cancellationSource), CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
+			}
+			catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+			{
+				return Task.FromCanceled<(ITaskSource, AgentLease)>(cancellationToken);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Exception while trying to assign lease");
+				return Task.FromException<(ITaskSource, AgentLease)>(ex);
+			}
+		}
+
+		static (ITaskSource, AgentLease) WrapAssignedLease(ITaskSource source, AgentLease lease, CancellationTokenSource cancellationSource)
+		{
+			cancellationSource.Cancel();
+			return (source, lease);
 		}
 
 		/// <summary>

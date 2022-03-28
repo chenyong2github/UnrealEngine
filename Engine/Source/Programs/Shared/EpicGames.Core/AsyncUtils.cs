@@ -23,6 +23,16 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Converts a cancellation token to a waitable task
+		/// </summary>
+		/// <param name="token">Cancellation token</param>
+		/// <returns></returns>
+		public static Task<T> AsTask<T>(this CancellationToken token)
+		{
+			return Task.Delay(-1, token).ContinueWith(_ => Task.FromCanceled<T>(token)).Unwrap();
+		}
+
+		/// <summary>
 		/// Attempts to get the result of a task, if it has finished
 		/// </summary>
 		/// <typeparam name="T"></typeparam>

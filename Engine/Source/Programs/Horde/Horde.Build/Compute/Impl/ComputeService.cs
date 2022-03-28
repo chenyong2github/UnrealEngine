@@ -272,57 +272,65 @@ namespace Horde.Build.Compute.Impl
 		}
 
 		/// <inheritdoc/>
-		public override async Task<AgentLease?> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
+		public override async Task<Task<AgentLease>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
-			// If the agent is disabled, just block until we cancel
-			if (!agent.Enabled)
+			Task<(QueueKey, ComputeTaskInfo)> task = await _taskScheduler.DequeueAsync(queueKey => CheckRequirements(agent, queueKey), cancellationToken);
+			return WaitForLeaseAsync(agent, task, cancellationToken);
+		}
+
+		private async Task<AgentLease> WaitForLeaseAsync(IAgent agent, Task<(QueueKey, ComputeTaskInfo)> task, CancellationToken cancellationToken)
+		{
+			for (; ; )
 			{
-				using CancellationTask task = new CancellationTask(cancellationToken);
-				await task.Task;
+				(QueueKey, ComputeTaskInfo) entry = await task;
+
+				AgentLease? lease = await CreateLeaseForEntryAsync(agent, await task);
+				if (lease != null)
+				{
+					return lease;
+				}
+
+				task = await _taskScheduler.DequeueAsync(queueKey => CheckRequirements(agent, queueKey), cancellationToken);
+			}
+		}
+
+		private async Task<AgentLease?> CreateLeaseForEntryAsync(IAgent agent, (QueueKey, ComputeTaskInfo) entry)
+		{
+			(QueueKey queueKey, ComputeTaskInfo taskInfo) = entry;
+
+			ComputeClusterConfig? cluster = await GetClusterAsync(taskInfo.ClusterId);
+			if (cluster == null)
+			{
+				_logger.LogWarning("Invalid cluster '{ClusterId}'; failing task {TaskRefId}", taskInfo.ClusterId, taskInfo.TaskRefId);
+				ComputeTaskStatus status = new ComputeTaskStatus(taskInfo.TaskRefId, ComputeTaskState.Complete, agent.Id, null) { Detail = $"Invalid cluster '{taskInfo.ClusterId}'" };
+				await PostStatusMessageAsync(taskInfo, status);
 				return null;
 			}
 
-			// Find a task to execute
-			(QueueKey, ComputeTaskInfo)? entry = await _taskScheduler.DequeueAsync(queueKey => CheckRequirements(agent, queueKey), cancellationToken);
-			if (entry != null)
+			Requirements? requirements = await GetCachedRequirementsAsync(queueKey);
+			if (requirements == null)
 			{
-				(QueueKey queueKey, ComputeTaskInfo taskInfo) = entry.Value;
-
-				ComputeClusterConfig? cluster = await GetClusterAsync(taskInfo.ClusterId);
-				if (cluster == null)
-				{
-					_logger.LogWarning("Invalid cluster '{ClusterId}'; failing task {TaskRefId}", taskInfo.ClusterId, taskInfo.TaskRefId);
-					ComputeTaskStatus status = new ComputeTaskStatus(taskInfo.TaskRefId, ComputeTaskState.Complete, agent.Id, null) { Detail = $"Invalid cluster '{taskInfo.ClusterId}'" };
-					await PostStatusMessageAsync(taskInfo, status);
-					return null;
-				}
-
-				Requirements? requirements = await GetCachedRequirementsAsync(queueKey);
-				if (requirements == null)
-				{
-					_logger.LogWarning("Unable to fetch requirements {RequirementsHash}", queueKey);
-					ComputeTaskStatus status = new ComputeTaskStatus(taskInfo.TaskRefId, ComputeTaskState.Complete, agent.Id, null) { Detail = $"Unable to retrieve requirements '{queueKey}'" };
-					await PostStatusMessageAsync(taskInfo, status);
-					return null;
-				}
-
-				ComputeTaskMessage computeTask = new ComputeTaskMessage();
-				computeTask.ClusterId = taskInfo.ClusterId.ToString();
-				computeTask.ChannelId = taskInfo.ChannelId.ToString();
-				computeTask.NamespaceId = cluster.NamespaceId.ToString();
-				computeTask.InputBucketId = cluster.RequestBucketId.ToString();
-				computeTask.OutputBucketId = cluster.ResponseBucketId.ToString();
-				computeTask.RequirementsHash = queueKey.RequirementsHash;
-				computeTask.TaskRefId = taskInfo.TaskRefId;
-
-				string leaseName = $"Remote action ({taskInfo.TaskRefId})";
-				byte[] payload = Any.Pack(computeTask).ToByteArray();
-
-				AgentLease lease = new AgentLease(LeaseId.GenerateNewId(), leaseName, null, null, null, LeaseState.Pending, requirements.Resources, requirements.Exclusive, payload);
-				_logger.LogDebug("Created lease {LeaseId} for channel {ChannelId} task {TaskHash} req {RequirementsHash}", lease.Id, computeTask.ChannelId, computeTask.TaskRefId, computeTask.RequirementsHash);
-				return lease;
+				_logger.LogWarning("Unable to fetch requirements {RequirementsHash}", queueKey);
+				ComputeTaskStatus status = new ComputeTaskStatus(taskInfo.TaskRefId, ComputeTaskState.Complete, agent.Id, null) { Detail = $"Unable to retrieve requirements '{queueKey}'" };
+				await PostStatusMessageAsync(taskInfo, status);
+				return null;
 			}
-			return null;
+
+			ComputeTaskMessage computeTask = new ComputeTaskMessage();
+			computeTask.ClusterId = taskInfo.ClusterId.ToString();
+			computeTask.ChannelId = taskInfo.ChannelId.ToString();
+			computeTask.NamespaceId = cluster.NamespaceId.ToString();
+			computeTask.InputBucketId = cluster.RequestBucketId.ToString();
+			computeTask.OutputBucketId = cluster.ResponseBucketId.ToString();
+			computeTask.RequirementsHash = queueKey.RequirementsHash;
+			computeTask.TaskRefId = taskInfo.TaskRefId;
+
+			string leaseName = $"Remote action ({taskInfo.TaskRefId})";
+			byte[] payload = Any.Pack(computeTask).ToByteArray();
+
+			AgentLease lease = new AgentLease(LeaseId.GenerateNewId(), leaseName, null, null, null, LeaseState.Pending, requirements.Resources, requirements.Exclusive, payload);
+			_logger.LogDebug("Created lease {LeaseId} for channel {ChannelId} task {TaskHash} req {RequirementsHash}", lease.Id, computeTask.ChannelId, computeTask.TaskRefId, computeTask.RequirementsHash);
+			return lease;
 		}
 
 		/// <inheritdoc/>

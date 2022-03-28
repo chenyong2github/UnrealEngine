@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
 using Google.Protobuf.WellKnownTypes;
@@ -63,12 +64,22 @@ namespace Horde.Build.Tasks
 		TaskSourceFlags Flags { get; }
 
 		/// <summary>
-		/// Assigns a lease or waits for one to be available
+		/// Assigns a lease or waits for one to be available.
+		/// 
+		/// This method returns a wrapped task object. Issuing of tasks is done in two phases; all task sources are queried sequentially for a lease with immediate 
+		/// availability, and if one isn't found we wait for leases to become available in parallel. Task sources are specificially ordered to allow one to take precedence
+		/// over another.
+		/// 
+		/// Performing the lease allocation in two steps allows for the following patterns:
+		/// - A lease cannot be assigned immediately (due to dependencies on some limited external resource, or due to other leases already running on an agent), 
+		///   but we should not assign any other leases to the agent either. In this situation, the method can just block immediately until the lease criteria are 
+		///   satisfied.
+		/// - The determination of a lease's availability requires some async setup, which can be done before the secondary task returns.
 		/// </summary>
 		/// <param name="agent">The agent to assign a lease to</param>
 		/// <param name="cancellationToken">Cancellation token for the wait</param>
-		/// <returns>New lease object</returns>
-		Task<AgentLease?> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken);
+		/// <returns>Task returning a new lease object.</returns>
+		Task<Task<AgentLease>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Cancel a lease that was previously assigned to an agent, allowing it to be assigned out again
@@ -162,7 +173,7 @@ namespace Horde.Build.Tasks
 		public MessageDescriptor Descriptor => s_message.Descriptor;
 
 		/// <inheritdoc/>
-		public abstract Task<AgentLease?> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken);
+		public abstract Task<Task<AgentLease>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken);
 
 		/// <inheritdoc/>
 		public Task CancelLeaseAsync(IAgent agent, LeaseId leaseId, Any payload) => CancelLeaseAsync(agent, leaseId, payload.Unpack<TMessage>());
@@ -213,5 +224,36 @@ namespace Horde.Build.Tasks
 				}
 			}
 		}
-	}
+
+        /// <summary>
+        /// Creates a lease task which will wait until the given cancellation token is signalled.
+        /// </summary>
+        /// <param name="token">The cancellation token</param>
+        /// <returns>Lease task</returns>
+        protected static Task<AgentLease> Skip(CancellationToken token)
+        {
+            return token.AsTask<AgentLease>();
+        }
+
+        /// <summary>
+        /// Waits until the cancellation token is signalled, then return an cancelled lease task.
+        /// </summary>
+        /// <param name="token">The cancellation token</param>
+        /// <returns>Lease task</returns>
+        protected static async Task<Task<AgentLease>> DrainAsync(CancellationToken token)
+        {
+            await token.AsTask();
+            return Task.FromCanceled<AgentLease>(token);
+        }
+
+        /// <summary>
+        /// Creates a lease task from a given lease
+        /// </summary>
+        /// <param name="lease">Lease to create the task from</param>
+        /// <returns></returns>
+        protected static Task<AgentLease> Lease(AgentLease lease)
+        {
+            return Task.FromResult<AgentLease>(lease);
+        }
+    }
 }

@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Api;
@@ -32,15 +35,15 @@ namespace Horde.Build.Tasks.Impl
 			OnLeaseStartedProperties.Add(nameof(RestartTask.LogId), x => new LogId(x.LogId));
 		}
 
-		public override async Task<AgentLease?> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
+		public override async Task<Task<AgentLease>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
 			if (!agent.RequestRestart)
 			{
-				return null;
+				return Skip(cancellationToken);
 			}
 			if (agent.Leases.Count > 0)
 			{
-				return AgentLease.Drain;
+				return await DrainAsync(cancellationToken);
 			}
 
 			ILogFile log = await _logService.CreateLogFileAsync(JobId.Empty, agent.SessionId, LogType.Json);
@@ -50,7 +53,7 @@ namespace Horde.Build.Tasks.Impl
 
 			byte[] payload = Any.Pack(task).ToByteArray();
 
-			return new AgentLease(LeaseId.GenerateNewId(), "Restart", null, null, log.Id, LeaseState.Pending, null, true, payload);
+			return Lease(new AgentLease(LeaseId.GenerateNewId(), "Restart", null, null, log.Id, LeaseState.Pending, null, true, payload));
 		}
 	}
 }

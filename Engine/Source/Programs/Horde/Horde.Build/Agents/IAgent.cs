@@ -179,11 +179,6 @@ namespace Horde.Build.Models
 	public class AgentLease
 	{
 		/// <summary>
-		/// Lease returned when a task source wants to run, but needs to wait for other tasks to finish first.
-		/// </summary>
-		public static AgentLease Drain { get; } = new AgentLease(LeaseId.Empty, String.Empty, null, null, null, LeaseState.Pending, null, true, null);
-
-		/// <summary>
 		/// Name of this lease
 		/// </summary>
 		[BsonRequired]

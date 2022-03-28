@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
@@ -38,38 +40,38 @@ namespace Horde.Build.Tasks.Impl
 			OnLeaseStartedProperties.Add(nameof(UpgradeTask.LogId), x => new LogId(x.LogId));
 		}
 
-		public override async Task<AgentLease?> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
+		public override async Task<Task<AgentLease>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
 			string? requiredVersion = await GetRequiredSoftwareVersion(agent);
-			if (requiredVersion != null && agent.Version != requiredVersion)
+			if (requiredVersion == null || agent.Version == requiredVersion)
 			{
-				AgentLease? lease = null;
-				if (agent.Leases.Count == 0 && (agent.LastUpgradeTime == null || agent.LastUpgradeTime.Value + TimeSpan.FromMinutes(5.0) < _clock.UtcNow || agent.LastUpgradeVersion != requiredVersion.ToString()))
-				{
-					ILogFile logFile = await _logService.CreateLogFileAsync(JobId.Empty, agent.SessionId, LogType.Json);
-
-					UpgradeTask task = new UpgradeTask();
-					task.SoftwareId = requiredVersion.ToString();
-					task.LogId = logFile.Id.ToString();
-
-					byte[] payload;
-					if (agent.Version == "5.0.0-17425336" || agent.Version == "5.0.0-17448746")
-					{
-						Any any = new Any();
-						any.TypeUrl = "type.googleapis.com/Horde.UpgradeTask";
-						any.Value = task.ToByteString();
-						payload = any.ToByteArray();
-					}
-					else
-					{
-						payload = Any.Pack(task).ToByteArray();
-					}
-
-					lease = new AgentLease(LeaseId.GenerateNewId(), $"Upgrade to {requiredVersion}", null, null, logFile.Id, LeaseState.Pending, null, true, payload);
-				}
-				return lease;
+				return Skip(cancellationToken);
 			}
-			return null;
+			if (agent.Leases.Count > 0 || !(agent.LastUpgradeTime == null || agent.LastUpgradeTime.Value + TimeSpan.FromMinutes(5.0) < _clock.UtcNow || agent.LastUpgradeVersion != requiredVersion.ToString()))
+			{
+				return await DrainAsync(cancellationToken);
+			}
+
+			ILogFile logFile = await _logService.CreateLogFileAsync(JobId.Empty, agent.SessionId, LogType.Json);
+
+			UpgradeTask task = new UpgradeTask();
+			task.SoftwareId = requiredVersion.ToString();
+			task.LogId = logFile.Id.ToString();
+
+			byte[] payload;
+			if (agent.Version == "5.0.0-17425336" || agent.Version == "5.0.0-17448746")
+			{
+				Any any = new Any();
+				any.TypeUrl = "type.googleapis.com/Horde.UpgradeTask";
+				any.Value = task.ToByteString();
+				payload = any.ToByteArray();
+			}
+			else
+			{
+				payload = Any.Pack(task).ToByteArray();
+			}
+
+			return Lease(new AgentLease(LeaseId.GenerateNewId(), $"Upgrade to {requiredVersion}", null, null, logFile.Id, LeaseState.Pending, null, true, payload));
 		}
 
 		/// <summary>
