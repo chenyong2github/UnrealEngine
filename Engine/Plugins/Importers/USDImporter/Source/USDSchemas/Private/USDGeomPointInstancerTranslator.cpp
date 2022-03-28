@@ -7,7 +7,9 @@
 #include "USDAssetImportData.h"
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
+#include "USDGeomMeshTranslator.h"
 #include "USDLog.h"
+#include "USDPrimConversion.h"
 #include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
 
@@ -31,6 +33,7 @@
 	#include "pxr/usd/usdGeom/camera.h"
 	#include "pxr/usd/usdGeom/mesh.h"
 	#include "pxr/usd/usdGeom/pointInstancer.h"
+	#include "pxr/usd/usdGeom/xform.h"
 	#include "pxr/usd/usdGeom/xformable.h"
 #include "USDIncludesEnd.h"
 
@@ -38,44 +41,6 @@
 
 namespace UsdGeomPointInstancerTranslatorImpl
 {
-	bool GetPointInstancerTransforms( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomPointInstancer& PointInstancer, const int32 ProtoIndex, pxr::UsdTimeCode EvalTime, TArray<FTransform>& OutInstanceTransforms )
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE( GetPointInstancerTransforms );
-
-		FScopedUsdAllocs UsdAllocs;
-
-		pxr::VtArray< int > ProtoIndices = UsdUtils::GetUsdValue< pxr::VtArray< int > >( PointInstancer.GetProtoIndicesAttr(), EvalTime );
-
-		pxr::VtMatrix4dArray UsdInstanceTransforms;
-
-		// We don't want the prototype root prim's transforms to be included in these, as they'll already be baked into the meshes
-		// themselves
-		if ( !PointInstancer.ComputeInstanceTransformsAtTime( &UsdInstanceTransforms, EvalTime, EvalTime, pxr::UsdGeomPointInstancer::ExcludeProtoXform ) )
-		{
-			return false;
-		}
-
-		FUsdStageInfo StageInfo( Stage );
-
-		int32 Index = 0;
-
-		FScopedUnrealAllocs UnrealAllocs;
-
-		OutInstanceTransforms.Reset( UsdInstanceTransforms.size() );
-
-		for ( pxr::GfMatrix4d& UsdMatrix : UsdInstanceTransforms )
-		{
-			if ( ProtoIndices[ Index ] == ProtoIndex )
-			{
-				OutInstanceTransforms.Add( UsdToUnreal::ConvertMatrix( StageInfo, UsdMatrix ) );
-			}
-
-			++Index;
-		}
-
-		return true;
-	}
-
 	void ApplyPointInstanceTransforms( UInstancedStaticMeshComponent* Component, TArray<FTransform>& InstanceTransforms )
 	{
 		if ( Component )
@@ -109,8 +74,13 @@ namespace UsdGeomPointInstancerTranslatorImpl
 	}
 }
 
-FUsdGeomPointInstancerCreateAssetsTaskChain::FUsdGeomPointInstancerCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FSdfPath& InPrimPath )
+FUsdGeomPointInstancerCreateAssetsTaskChain::FUsdGeomPointInstancerCreateAssetsTaskChain(
+	const TSharedRef< FUsdSchemaTranslationContext >& InContext,
+	const UE::FSdfPath& InPrimPath,
+	bool bInIgnoreTopLevelTransformAndVisibility
+)
 	: FBuildStaticMeshTaskChain( InContext, InPrimPath )
+	, bIgnoreTopLevelTransformAndVisibility( bInIgnoreTopLevelTransformAndVisibility )
 {
 	SetupTasks();
 }
@@ -139,10 +109,6 @@ void FUsdGeomPointInstancerCreateAssetsTaskChain::SetupTasks()
 				RenderContextToken = UnrealToUsd::ConvertToken( *Context->RenderContext.ToString() ).Get();
 			}
 
-			// We want to bake even the top level prim's transform and visibility into the combined mesh, as we'll only apply the instancing
-			// transform later
-			const bool bSkipRootPrimTransformAndVis = false;
-
 			UsdToUnreal::ConvertGeomMeshHierarchy(
 				GetPrim(),
 				pxr::UsdTimeCode( Context->Time ),
@@ -151,7 +117,7 @@ void FUsdGeomPointInstancerCreateAssetsTaskChain::SetupTasks()
 				*MaterialToPrimvarToUVIndex,
 				AddedMeshDescription,
 				AssignmentInfo,
-				bSkipRootPrimTransformAndVis,
+				bIgnoreTopLevelTransformAndVisibility,
 				Context->bMergeIdenticalMaterialSlots
 			);
 
@@ -169,30 +135,85 @@ void FUsdGeomPointInstancerTranslator::CreateAssets()
 
 	pxr::UsdPrim Prim = GetPrim();
 	pxr::UsdGeomPointInstancer PointInstancer( Prim );
-
 	if ( !PointInstancer )
 	{
 		return;
 	}
 
-	const pxr::UsdRelationship& Prototypes = PointInstancer.GetPrototypesRel();
-
-	pxr::SdfPathVector PrototypePaths;
-	if ( !Prototypes.GetTargets( &PrototypePaths ) )
+	// If another FUsdGeomXformableTranslator is collapsing the point instancer prim, it will do so by calling
+	// UsdToUnreal::ConvertGeomMeshHierarchy which will consume the prim directly.
+	// This case right here is if we're collapsing *ourselves*, where we'll essentially pretend we're a single static mesh.
+	if ( Context->bCollapseTopLevelPointInstancers )
 	{
-		return;
+		// Don't bake our actual point instancer's transform or visibility into the mesh as its nice to have these on the static mesh component instead
+		const bool bIgnoreTopLevelTransformAndVisibility = true;
+		Context->TranslatorTasks.Add( MakeShared< FUsdGeomPointInstancerCreateAssetsTaskChain >( Context, PrimPath, bIgnoreTopLevelTransformAndVisibility ) );
 	}
-
-	for ( const pxr::SdfPath& PrototypePath : PrototypePaths )
+	// Otherwise we're just going to spawn HISM components instead
+	else
 	{
-		pxr::UsdPrim PrototypeUsdPrim = Prim.GetStage()->GetPrimAtPath( PrototypePath );
-		if ( !PrototypeUsdPrim )
+		const pxr::UsdRelationship& Prototypes = PointInstancer.GetPrototypesRel();
+
+		pxr::SdfPathVector PrototypePaths;
+		if ( !Prototypes.GetTargets( &PrototypePaths ) )
 		{
-			UE_LOG( LogUsd, Warning, TEXT( "Failed to find prototype '%s' for PointInstancer '%s' when collapsing assets" ), *UsdToUnreal::ConvertPath( PrototypePath ), *PrimPath.GetString() );
-			continue;
+			return;
 		}
 
-		Context->TranslatorTasks.Add( MakeShared< FUsdGeomPointInstancerCreateAssetsTaskChain >( Context, UE::FSdfPath{ *UsdToUnreal::ConvertPath( PrototypePath ) } ) );
+		for ( const pxr::SdfPath& PrototypePath : PrototypePaths )
+		{
+			pxr::UsdPrim PrototypeUsdPrim = Prim.GetStage()->GetPrimAtPath( PrototypePath );
+			UE::FSdfPath UEPrototypePath{ PrototypePath };
+
+			if ( !PrototypeUsdPrim )
+			{
+				UE_LOG( LogUsd, Warning, TEXT( "Failed to find prototype '%s' for PointInstancer '%s' when collapsing assets" ), *UEPrototypePath.GetString(), *PrimPath.GetString() );
+				continue;
+			}
+
+			if ( Context->bAllowInterpretingLODs && UsdUtils::DoesPrimContainMeshLODs( PrototypeUsdPrim ) )
+			{
+				// We have to provide one of the LOD meshes to the task chain, so find the path to one
+				UE::FSdfPath ChildMeshPath;
+				pxr::UsdPrimSiblingRange PrimRange = PrototypeUsdPrim.GetChildren();
+				for ( pxr::UsdPrimSiblingRange::iterator PrimRangeIt = PrimRange.begin(); PrimRangeIt != PrimRange.end(); ++PrimRangeIt )
+				{
+					const pxr::UsdPrim& Child = *PrimRangeIt;
+					if ( pxr::UsdGeomMesh ChildMesh{ Child } )
+					{
+						ChildMeshPath = UE::FSdfPath{ Child.GetPrimPath() };
+						break;
+					}
+				}
+
+				// This is in charge of baking in 'Prim's transform into the generated static mesh for the prototype, as it
+				// otherwise wouldn't end up anywhere else. Note that in the default/export case 'Prim' (the prim that actually contains the LOD
+				// variant set) is schema-less (and so not an Xform), but this is just in case the user manually made it an Xform instead
+				FTransform AdditionalUESpaceTransform = FTransform::Identity;
+				if ( pxr::UsdGeomXform ParentXform{ PrototypeUsdPrim } )
+				{
+					// Skip this LOD mesh if its invisible
+					pxr::TfToken Visibility;
+					pxr::UsdAttribute VisibilityAttr = ParentXform.GetVisibilityAttr();
+					if ( VisibilityAttr && VisibilityAttr.Get( &Visibility, Context->Time ) && Visibility == pxr::UsdGeomTokens->invisible )
+					{
+						continue;
+					}
+
+					// TODO: Handle the resetXformStack op for LOD parents
+					bool bOutResetTransformStack = false;
+					UsdToUnreal::ConvertXformable( Prim.GetStage(), ParentXform, AdditionalUESpaceTransform, Context->Time, &bOutResetTransformStack );
+				}
+
+				Context->TranslatorTasks.Add( MakeShared< FGeomMeshCreateAssetsTaskChain >( Context, ChildMeshPath, AdditionalUESpaceTransform ) );
+			}
+			else
+			{
+				// Fully bake the prototype top level transform and visibility into its own static mesh
+				const bool bIgnoreTopLevelTransformAndVisibility = false;
+				Context->TranslatorTasks.Add( MakeShared< FUsdGeomPointInstancerCreateAssetsTaskChain >( Context, UEPrototypePath, bIgnoreTopLevelTransformAndVisibility ) );
+			}
+		}
 	}
 }
 
@@ -200,15 +221,24 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomPointInstancerTranslator::CreateComponents );
 
-	// The plan here is to create an USceneComponent that corresponds to the PointInstancer prim itself, and then spawn a child
+	// If we're going to be collapsing ourselves, just make a static mesh component that can receive the collapsed mesh
+	if ( Context->bCollapseTopLevelPointInstancers )
+	{
+		USceneComponent* MeshComponent = CreateComponentsEx( { UStaticMeshComponent::StaticClass() }, {} );
+		UpdateComponents( MeshComponent );
+		return MeshComponent;
+	}
+
+	// Otherwise, the plan here is to create an USceneComponent that corresponds to the PointInstancer prim itself, and then spawn a child
 	// HISM component for each prototype.
 	// We always request a scene component here explicitly or else we'll be upgraded to a static mesh component by the mechanism that
-	// handles collapsed Meshes/static mesh components for the GeomXFormable translator.
+	// handles collapsed meshes/static mesh components for the GeomXFormable translator.
 	USceneComponent* MainSceneComponent = CreateComponentsEx( { USceneComponent::StaticClass() }, {} );
 	if ( !MainSceneComponent )
 	{
-		return nullptr;
+		return MainSceneComponent;
 	}
+	UpdateComponents( MainSceneComponent );
 
 	FScopedUsdAllocs UsdAllocs;
 
@@ -238,13 +268,30 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 		PrototypePathsSlowTask.EnterProgressFrame();
 
 		const pxr::SdfPath& PrototypePath = PrototypePaths[ PrototypeIndex ];
-		const FString PrototypePathStr = UsdToUnreal::ConvertPath( PrototypePath );
+		FString PrototypePathStr = UsdToUnreal::ConvertPath( PrototypePath );
 
 		pxr::UsdPrim PrototypeUsdPrim = Prim.GetStage()->GetPrimAtPath( PrototypePath );
 		if ( !PrototypeUsdPrim )
 		{
 			UE_LOG( LogUsd, Warning, TEXT( "Failed to find prototype '%s' for PointInstancer '%s' when creating components" ), *PrototypePathStr, *PrimPath.GetString() );
 			continue;
+		}
+
+		// If our prototype was a LOD mesh we will have used the path of one of the actual LOD meshes to start the FGeomMeshCreateAssetsTaskChain,
+		// so we have to look for our resulting mesh with the same path
+		if ( Context->bAllowInterpretingLODs && UsdUtils::DoesPrimContainMeshLODs( PrototypeUsdPrim ) )
+		{
+			pxr::UsdPrimSiblingRange PrimRange = PrototypeUsdPrim.GetChildren();
+			for ( pxr::UsdPrimSiblingRange::iterator PrimRangeIt = PrimRange.begin(); PrimRangeIt != PrimRange.end(); ++PrimRangeIt )
+			{
+				const pxr::UsdPrim& Child = *PrimRangeIt;
+				if ( pxr::UsdGeomMesh ChildMesh{ Child } )
+				{
+					PrototypeUsdPrim = Child;
+					PrototypePathStr = UsdToUnreal::ConvertPath( Child.GetPrimPath() );
+					break;
+				}
+			}
 		}
 
 		using UHISMComponent = UHierarchicalInstancedStaticMeshComponent;
@@ -264,13 +311,14 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 
 		// Evaluating point instancer can take a long time and is thread-safe. Move to async task while we work on something else.
 		pxr::UsdTimeCode TimeCode{ Context->Time };
+		FUsdStageInfo StageInfo{ Prim.GetStage() };
 		Tasks.Emplace(
 			Async(
 				EAsyncExecution::ThreadPool,
-				[ TimeCode, Stage = Prim.GetStage(), PointInstancer, PrototypeIndex, HISMComponent ]()
+				[ TimeCode, StageInfo, PointInstancer, PrototypeIndex, HISMComponent ]()
 				{
 					TArray<FTransform> InstanceTransforms;
-					UsdGeomPointInstancerTranslatorImpl::GetPointInstancerTransforms( Stage, PointInstancer, PrototypeIndex, TimeCode, InstanceTransforms );
+					UsdUtils::GetPointInstancerTransforms( StageInfo, PointInstancer, PrototypeIndex, TimeCode, InstanceTransforms );
 
 					return MakeTuple( HISMComponent, MoveTemp( InstanceTransforms ) );
 				}

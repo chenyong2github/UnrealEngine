@@ -11,6 +11,7 @@
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
 #include "USDLog.h"
+#include "USDPrimConversion.h"
 #include "USDTypesConversion.h"
 
 #include "UsdWrappers/SdfPath.h"
@@ -48,6 +49,7 @@
 	#include "pxr/usd/usd/editContext.h"
 	#include "pxr/usd/usd/prim.h"
 	#include "pxr/usd/usd/stage.h"
+	#include "pxr/usd/usd/typed.h"
 	#include "pxr/usd/usdGeom/mesh.h"
 	#include "pxr/usd/usdGeom/xformable.h"
 	#include "pxr/usd/usdShade/material.h"
@@ -451,7 +453,7 @@ namespace UsdGeomMeshTranslatorImpl
 	// Note that these other LODs will be hidden in other variants, and won't show up on traversal unless we actively switch the variants (which we do here).
 	// We use a separate function for this because there is a very specific set of conditions where we successfully can do this, and we
 	// want to fall back to just parsing UsdMesh as a simple single-LOD mesh if we fail.
-	bool TryLoadingMultipleLODs( const pxr::UsdTyped& UsdMesh, TArray<FMeshDescription>& OutLODIndexToMeshDescription, TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo, const TMap< FString, TMap< FString, int32 > >& InMaterialToPrimvarToUVIndex, const pxr::UsdTimeCode InTimeCode, const pxr::TfToken& RenderContext, bool bCombineIdenticalMaterialSlots )
+	bool TryLoadingMultipleLODs( const pxr::UsdTyped& UsdMesh, TArray<FMeshDescription>& OutLODIndexToMeshDescription, TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo, const TMap< FString, TMap< FString, int32 > >& InMaterialToPrimvarToUVIndex, const FTransform& AdditionalTransform, const pxr::UsdTimeCode InTimeCode, const pxr::TfToken& RenderContext, bool bCombineIdenticalMaterialSlots )
 	{
 		FScopedUsdAllocs Allocs;
 
@@ -478,7 +480,38 @@ namespace UsdGeomMeshTranslatorImpl
 			FStaticMeshAttributes StaticMeshAttributes( TempMeshDescription );
 			StaticMeshAttributes.Register();
 
-			bool bSuccess = UsdToUnreal::ConvertGeomMesh( LODMesh, TempMeshDescription, TempMaterialInfo, FTransform::Identity, InMaterialToPrimvarToUVIndex, InTimeCode, RenderContext, bCombineIdenticalMaterialSlots );
+			bool bSuccess = true;
+
+			// The user can't manually hide/unhide a particular LOD in the engine after it is imported, so we should probably bake
+			// the particular LOD visibility into the combined mesh. Note how we don't use computed visibility here, as we only really
+			// care if this mesh in particular has been marked as invisible
+			pxr::TfToken Visibility;
+			pxr::UsdAttribute VisibilityAttr = LODMesh.GetVisibilityAttr();
+			if ( VisibilityAttr && VisibilityAttr.Get( &Visibility, InTimeCode ) && Visibility == pxr::UsdGeomTokens->inherited )
+			{
+				// If we're interpreting LODs we must bake the transform from each LOD Mesh into the vertices, because there's no guarantee
+				// all LODs have the same transform, so we can't just put the transforms directly on the component. If we are not interpreting
+				// LODs we can do that though
+				// TODO: Handle resetXformOp here
+				bool bResetXformStack = false;
+				FTransform MeshTransform = FTransform::Identity;
+				bSuccess &= UsdToUnreal::ConvertXformable( LODMesh.GetPrim().GetStage(), LODMesh, MeshTransform, InTimeCode.GetValue(), &bResetXformStack );
+
+				if ( bSuccess )
+				{
+					bSuccess &= UsdToUnreal::ConvertGeomMesh(
+						LODMesh,
+						TempMeshDescription,
+						TempMaterialInfo,
+						MeshTransform * AdditionalTransform,
+						InMaterialToPrimvarToUVIndex,
+						InTimeCode,
+						RenderContext,
+						bCombineIdenticalMaterialSlots
+					);
+				}
+			}
+
 			if ( bSuccess )
 			{
 				LODIndexToMeshDescriptionMap.Add( LODIndex, MoveTemp( TempMeshDescription ) );
@@ -504,7 +537,7 @@ namespace UsdGeomMeshTranslatorImpl
 	}
 
 	void LoadMeshDescriptions( const pxr::UsdTyped& UsdMesh, TArray<FMeshDescription>& OutLODIndexToMeshDescription, TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo,
-		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarToUVIndex, const pxr::UsdTimeCode TimeCode, bool bInterpretLODs, const FName& RenderContext, bool bCombineIdenticalMaterialSlots = true )
+		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarToUVIndex, const FTransform& AdditionalTransform, const pxr::UsdTimeCode TimeCode, bool bInterpretLODs, const FName& RenderContext, bool bCombineIdenticalMaterialSlots = true )
 	{
 		if ( !UsdMesh )
 		{
@@ -520,7 +553,7 @@ namespace UsdGeomMeshTranslatorImpl
 		bool bInterpretedLODs = false;
 		if ( bInterpretLODs )
 		{
-			bInterpretedLODs = TryLoadingMultipleLODs( UsdMesh, OutLODIndexToMeshDescription, OutLODIndexToMaterialInfo, MaterialToPrimvarToUVIndex, TimeCode, RenderContextToken, bCombineIdenticalMaterialSlots );
+			bInterpretedLODs = TryLoadingMultipleLODs( UsdMesh, OutLODIndexToMeshDescription, OutLODIndexToMaterialInfo, MaterialToPrimvarToUVIndex, AdditionalTransform, TimeCode, RenderContextToken, bCombineIdenticalMaterialSlots );
 		}
 
 		if ( !bInterpretedLODs )
@@ -531,7 +564,30 @@ namespace UsdGeomMeshTranslatorImpl
 			FStaticMeshAttributes StaticMeshAttributes( TempMeshDescription );
 			StaticMeshAttributes.Register();
 
-			bool bSuccess = UsdToUnreal::ConvertGeomMesh( UsdMesh, TempMeshDescription, TempMaterialInfo, FTransform::Identity, MaterialToPrimvarToUVIndex, TimeCode, RenderContextToken, bCombineIdenticalMaterialSlots );
+			// If we're being *asked* to intrepret LODs (regardless of whether that succeeded or not), we won't place our mesh transform on
+			// the static mesh component itself, and will instead expect it to be baked into the mesh. So here we do that
+			bool bSuccess = true;
+			FTransform MeshTransform = FTransform::Identity;
+			if ( bInterpretLODs )
+			{
+				// TODO: Handle resetXformOp here
+				bool bResetXformStack = false;
+				bSuccess &= UsdToUnreal::ConvertXformable( UsdMesh.GetPrim().GetStage(), UsdMesh, MeshTransform, TimeCode.GetValue(), &bResetXformStack );
+			}
+
+			if ( bSuccess )
+			{
+				bSuccess &= UsdToUnreal::ConvertGeomMesh(
+					UsdMesh,
+					TempMeshDescription,
+					TempMaterialInfo,
+					MeshTransform * AdditionalTransform,
+					MaterialToPrimvarToUVIndex,
+					TimeCode,
+					RenderContextToken,
+					bCombineIdenticalMaterialSlots
+				);
+			}
 
 			if ( bSuccess )
 			{
@@ -851,6 +907,7 @@ namespace UsdGeomMeshTranslatorImpl
 						LODIndexToMeshDescription,
 						LODIndexToMaterialInfo,
 						Track->MaterialToPrimvarToUVIndex,
+						FTransform::Identity,
 						pxr::UsdTimeCode( Time ),
 						bAllowInterpretingLODs,
 						Track->RenderContext
@@ -1166,8 +1223,9 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 		} );
 }
 
-FGeomMeshCreateAssetsTaskChain::FGeomMeshCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FSdfPath& InPrimPath )
+FGeomMeshCreateAssetsTaskChain::FGeomMeshCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FSdfPath& InPrimPath, const FTransform& InAdditionalTransform )
 	: FBuildStaticMeshTaskChain( InContext, InPrimPath )
+	, AdditionalTransform( InAdditionalTransform )
 {
 	SetupTasks();
 }
@@ -1196,6 +1254,7 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 				LODIndexToMeshDescription,
 				LODIndexToMaterialInfo,
 				*MaterialToPrimvarToUVIndex,
+				AdditionalTransform,
 				pxr::UsdTimeCode( Context->Time ),
 				Context->bAllowInterpretingLODs,
 				Context->RenderContext,
@@ -1251,6 +1310,7 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 				LODIndexToMeshDescription,
 				LODIndexToMaterialInfo,
 				*MaterialToPrimvarToUVIndex,
+				FTransform::Identity,
 				pxr::UsdTimeCode( TimeCode ),
 				bAllowInterpretingLODs,
 				Context->RenderContext
@@ -1335,6 +1395,7 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 #endif // WITH_EDITOR
 
 	USceneComponent* SceneComponent = CreateComponentsEx( ComponentType, {} );
+	UpdateComponents( SceneComponent );
 
 	const FString PrimPathString = PrimPath.GetString();
 

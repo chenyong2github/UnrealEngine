@@ -55,7 +55,11 @@ protected:
 class FGeomMeshCreateAssetsTaskChain : public FBuildStaticMeshTaskChain
 {
 public:
-	explicit FGeomMeshCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FSdfPath& PrimPath );
+	explicit FGeomMeshCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FSdfPath& PrimPath, const FTransform& AdditionalTransform = FTransform::Identity );
+
+protected:
+	// Inputs
+	FTransform AdditionalTransform;
 
 protected:
 	virtual void SetupTasks() override;

@@ -62,6 +62,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
 	bool bMergeIdenticalMaterialSlots;
 
+	/**
+	 * If true, will cause us to collapse any point instancer prim into a single static mesh and static mesh component.
+	 * If false, will cause us to use HierarchicalInstancedStaticMeshComponents to replicate the instancing behavior.
+	 * Point instancers inside other point instancer prototypes are *always* collapsed into the prototype's static mesh.
+	 */
+	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD" )
+	bool bCollapseTopLevelPointInstancers;
+
 	/* Only load prims with these specific purposes from the USD file */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
 	int32 PurposesToLoad;
@@ -89,6 +97,9 @@ public:
 
 	UFUNCTION( BlueprintCallable, Category = "USD", meta = ( CallInEditor = "true" ) )
 	USDSTAGE_API void SetMergeIdenticalMaterialSlots( bool bMerge );
+
+	UFUNCTION( BlueprintCallable, Category = "USD", meta = ( CallInEditor = "true" ) )
+	USDSTAGE_API void SetCollapseTopLevelPointInstancers( bool bCollapse );
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	USDSTAGE_API void SetPurposesToLoad( int32 NewPurposesToLoad );

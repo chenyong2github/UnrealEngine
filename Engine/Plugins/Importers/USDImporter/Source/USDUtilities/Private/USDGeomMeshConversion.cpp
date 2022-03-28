@@ -27,6 +27,7 @@
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 #include "StaticMeshResources.h"
 
 #if WITH_EDITOR
@@ -43,6 +44,7 @@
 	#include "pxr/usd/usd/prim.h"
 	#include "pxr/usd/usd/primRange.h"
 	#include "pxr/usd/usdGeom/mesh.h"
+	#include "pxr/usd/usdGeom/pointInstancer.h"
 	#include "pxr/usd/usdGeom/primvarsAPI.h"
 	#include "pxr/usd/usdGeom/subset.h"
 	#include "pxr/usd/usdGeom/tokens.h"
@@ -565,32 +567,54 @@ namespace UE
 				}
 
 				bool bSuccess = true;
+				bool bTraverseChildren = true;
+
 				if ( pxr::UsdGeomMesh Mesh = pxr::UsdGeomMesh( Prim ) )
 				{
 					bSuccess = UsdToUnreal::ConvertGeomMesh( Mesh, OutMeshDescription, OutMaterialAssignments, ChildTransform, MaterialToPrimvarToUVIndex, TimeCode, RenderContext, bCombineIdenticalMaterialSlots );
 				}
-
-				for ( const pxr::UsdPrim& ChildPrim : Prim.GetFilteredChildren( pxr::UsdTraverseInstanceProxies() ) )
+				else if ( pxr::UsdGeomPointInstancer PointInstancer = pxr::UsdGeomPointInstancer{ Prim } )
 				{
-					if ( !bSuccess )
-					{
-						break;
-					}
-
-					const bool bChildIsFirstPrim = false;
-
-					bSuccess &= RecursivelyCollapseChildMeshes(
-						ChildPrim,
+					bSuccess = UsdToUnreal::ConvertPointInstancerToMesh(
+						PointInstancer,
 						ChildTransform,
-						TimeCode,
-						PurposesToLoad,
-						RenderContext,
 						MaterialToPrimvarToUVIndex,
+						PurposesToLoad,
 						OutMeshDescription,
 						OutMaterialAssignments,
-						bChildIsFirstPrim,
+						TimeCode,
+						RenderContext,
 						bCombineIdenticalMaterialSlots
 					);
+
+					// We never want to step into point instancers when fetching prims for drawing
+					bTraverseChildren = false;
+				}
+
+				if ( bTraverseChildren )
+				{
+					for ( const pxr::UsdPrim& ChildPrim : Prim.GetFilteredChildren( pxr::UsdTraverseInstanceProxies() ) )
+					{
+						if ( !bSuccess )
+						{
+							break;
+						}
+
+						const bool bChildIsFirstPrim = false;
+
+						bSuccess &= RecursivelyCollapseChildMeshes(
+							ChildPrim,
+							ChildTransform,
+							TimeCode,
+							PurposesToLoad,
+							RenderContext,
+							MaterialToPrimvarToUVIndex,
+							OutMeshDescription,
+							OutMaterialAssignments,
+							bChildIsFirstPrim,
+							bCombineIdenticalMaterialSlots
+						);
+					}
 				}
 
 				return bSuccess;
@@ -1034,6 +1058,195 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 			NumPolygons,
 			*UsdToUnreal::ConvertPath( UsdPrim.GetPath() )
 		);
+	}
+
+	return true;
+}
+
+bool UsdToUnreal::ConvertPointInstancerToMesh(
+	const pxr::UsdGeomPointInstancer& PointInstancer,
+	const FTransform& AdditionalTransform,
+	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
+	const EUsdPurpose PurposesToLoad,
+	FMeshDescription& MeshDescription,
+	UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments,
+	const pxr::UsdTimeCode TimeCode,
+	const pxr::TfToken& RenderContext,
+	bool bCombineIdenticalMaterialSlots
+)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertPointInstancerToMesh );
+
+	FScopedUsdAllocs Allocs;
+
+	if ( !PointInstancer )
+	{
+		return false;
+	}
+
+	pxr::UsdStageRefPtr Stage = PointInstancer.GetPrim().GetStage();
+	if ( !Stage )
+	{
+		return false;
+	}
+
+	// Bake each prototype to a single mesh description and material assignment struct
+	TArray<FMeshDescription> PrototypeMeshDescriptions;
+	TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo> PrototypeMaterialAssignments;
+	TArray<TMap<FPolygonGroupID, FPolygonGroupID>> PrototypePolygonGroupRemapping;
+	uint32 NumPrototypes = 0;
+	{
+		const pxr::UsdRelationship& Prototypes = PointInstancer.GetPrototypesRel();
+
+		pxr::SdfPathVector PrototypePaths;
+		if ( !Prototypes.GetTargets( &PrototypePaths ) )
+		{
+			return false;
+		}
+
+		NumPrototypes = PrototypePaths.size();
+		if ( NumPrototypes == 0 )
+		{
+			return true;
+		}
+
+		PrototypeMeshDescriptions.SetNum( NumPrototypes );
+		PrototypeMaterialAssignments.SetNum( NumPrototypes );
+		PrototypePolygonGroupRemapping.SetNum( NumPrototypes );
+
+		for ( uint32 PrototypeIndex = 0; PrototypeIndex < NumPrototypes; ++PrototypeIndex )
+		{
+			const pxr::SdfPath& PrototypePath = PrototypePaths[ PrototypeIndex ];
+
+			pxr::UsdPrim PrototypeUsdPrim = Stage->GetPrimAtPath( PrototypePath );
+			if ( !PrototypeUsdPrim )
+			{
+				UE_LOG( LogUsd, Warning, TEXT( "Failed to find prototype '%s' for PointInstancer '%s' within ConvertPointInstancerToMesh" ),
+					*UsdToUnreal::ConvertPath( PrototypePath ),
+					*UsdToUnreal::ConvertPath( PointInstancer.GetPrim().GetPrimPath() )
+				);
+				continue;
+			}
+
+			const bool bSkipRootPrimTransformAndVisibility = false;
+			ConvertGeomMeshHierarchy(
+				PrototypeUsdPrim,
+				TimeCode,
+				PurposesToLoad,
+				RenderContext,
+				MaterialToPrimvarsUVSetNames,
+				PrototypeMeshDescriptions[ PrototypeIndex ],
+				PrototypeMaterialAssignments[ PrototypeIndex ],
+				bSkipRootPrimTransformAndVisibility,
+				bCombineIdenticalMaterialSlots
+			);
+		}
+	}
+
+	// Handle combined prototype material slots.
+	// Sets up PrototypePolygonGroupRemapping so that our new faces are remapped from the prototype's mesh description polygon groups to the
+	// combined mesh description's polygon groups when AppendMeshDescription is called.
+	// Note: We always setup our mesh description polygon groups in the same order as the material assignment slots, so this is not so complicated
+	for ( uint32 PrototypeIndex = 0; PrototypeIndex < NumPrototypes; ++PrototypeIndex )
+	{
+		UsdUtils::FUsdPrimMaterialAssignmentInfo& PrototypeMaterialAssignment = PrototypeMaterialAssignments[ PrototypeIndex ];
+		TMap<FPolygonGroupID, FPolygonGroupID>& PrototypeToCombinedMeshPolygonGroupMap = PrototypePolygonGroupRemapping[ PrototypeIndex ];
+
+		if ( bCombineIdenticalMaterialSlots )
+		{
+			// Build a map of our existing slots since we can hash the entire slot, and our incoming mesh may have an arbitrary number of new slots
+			TMap< UsdUtils::FUsdPrimMaterialSlot, int32 > CombinedMaterialSlotsToIndex;
+			for ( int32 Index = 0; Index < MaterialAssignments.Slots.Num(); ++Index )
+			{
+				const UsdUtils::FUsdPrimMaterialSlot& Slot = MaterialAssignments.Slots[ Index ];
+				CombinedMaterialSlotsToIndex.Add( Slot, Index );
+			}
+
+			for ( int32 PrototypeMaterialSlotIndex = 0; PrototypeMaterialSlotIndex < PrototypeMaterialAssignment.Slots.Num(); ++PrototypeMaterialSlotIndex )
+			{
+				const UsdUtils::FUsdPrimMaterialSlot& LocalSlot = PrototypeMaterialAssignment.Slots[ PrototypeMaterialSlotIndex ];
+				if ( int32* ExistingCombinedIndex = CombinedMaterialSlotsToIndex.Find( LocalSlot ) )
+				{
+					PrototypeToCombinedMeshPolygonGroupMap.Add( PrototypeMaterialSlotIndex, *ExistingCombinedIndex );
+				}
+				else
+				{
+					MaterialAssignments.Slots.Add( LocalSlot );
+					PrototypeToCombinedMeshPolygonGroupMap.Add( PrototypeMaterialSlotIndex, MaterialAssignments.Slots.Num() - 1 );
+				}
+			}
+		}
+		else
+		{
+			const int32 NumExistingMaterialSlots = MaterialAssignments.Slots.Num();
+			MaterialAssignments.Slots.Append( PrototypeMaterialAssignment.Slots );
+
+			for ( int32 PrototypeMaterialSlotIndex = 0; PrototypeMaterialSlotIndex < PrototypeMaterialAssignment.Slots.Num(); ++PrototypeMaterialSlotIndex )
+			{
+				PrototypeToCombinedMeshPolygonGroupMap.Add( PrototypeMaterialSlotIndex, NumExistingMaterialSlots + PrototypeMaterialSlotIndex );
+			}
+		}
+	}
+
+	// Make sure we have the polygon groups we expect. Appending the mesh descriptions will not create new polygon groups if we're using a
+	// PolygonGroupsDelegate, which we will
+	const int32 NumExistingPolygonGroups = MeshDescription.PolygonGroups().Num();
+	for ( int32 NumMissingPolygonGroups = MaterialAssignments.Slots.Num() - NumExistingPolygonGroups; NumMissingPolygonGroups > 0; --NumMissingPolygonGroups )
+	{
+		MeshDescription.CreatePolygonGroup();
+	}
+
+	// Double-check our target mesh description has the attributes we need
+	FStaticMeshAttributes StaticMeshAttributes( MeshDescription );
+	StaticMeshAttributes.Register();
+
+	// Append mesh descriptions
+	FUsdStageInfo StageInfo{ PointInstancer.GetPrim().GetStage() };
+	for ( uint32 PrototypeIndex = 0; PrototypeIndex < NumPrototypes; ++PrototypeIndex )
+	{
+		const FMeshDescription& PrototypeMeshDescription = PrototypeMeshDescriptions[ PrototypeIndex ];
+		UsdUtils::FUsdPrimMaterialAssignmentInfo& PrototypeMaterialAssignment = PrototypeMaterialAssignments[ PrototypeIndex ];
+
+		// We may generate some empty meshes in case a prototype is invisible, for example
+		if ( PrototypeMeshDescription.IsEmpty() )
+		{
+			continue;
+		}
+
+		TArray<FTransform> InstanceTransforms;
+		bool bSuccess = UsdUtils::GetPointInstancerTransforms( StageInfo, PointInstancer, PrototypeIndex, TimeCode, InstanceTransforms );
+		if ( !bSuccess )
+		{
+			UE_LOG( LogUsd, Error, TEXT( "Failed to retrieve point instancer transforms for prototype index '%u' of point instancer '%s'" ),
+				PrototypeIndex,
+				*UsdToUnreal::ConvertPath( PointInstancer.GetPrim().GetPrimPath() )
+			);
+
+			continue;
+		}
+
+		const int32 NumInstances = InstanceTransforms.Num();
+
+		MeshDescription.ReserveNewVertices( PrototypeMeshDescription.Vertices().Num() * NumInstances );
+		MeshDescription.ReserveNewVertexInstances( PrototypeMeshDescription.VertexInstances().Num() * NumInstances );
+		MeshDescription.ReserveNewEdges( PrototypeMeshDescription.Edges().Num() * NumInstances );
+		MeshDescription.ReserveNewTriangles( PrototypeMeshDescription.Triangles().Num() * NumInstances );
+
+		FStaticMeshOperations::FAppendSettings Settings;
+		Settings.PolygonGroupsDelegate = FAppendPolygonGroupsDelegate::CreateLambda(
+			[&PrototypePolygonGroupRemapping, PrototypeIndex]( const FMeshDescription& SourceMesh, FMeshDescription& TargetMesh, PolygonGroupMap& RemapPolygonGroups )
+			{
+				RemapPolygonGroups = PrototypePolygonGroupRemapping[ PrototypeIndex ];
+			}
+		);
+
+		// TODO: Maybe we should make a new overload of AppendMeshDescriptions that can do this more efficiently, since all we need is to change the
+		// transform repeatedly?
+		for ( const FTransform& Transform : InstanceTransforms )
+		{
+			Settings.MeshTransform = Transform * AdditionalTransform;
+			FStaticMeshOperations::AppendMeshDescription( PrototypeMeshDescription, MeshDescription, Settings );
+		}
 	}
 
 	return true;
@@ -1913,38 +2126,70 @@ TOptional<UsdUtils::FDisplayColorMaterial> UsdUtils::ExtractDisplayColorMaterial
 	return Desc;
 }
 
+namespace UE::UsdGeomMeshConversion::Private
+{
+	bool DoesPrimContainMeshLODsInternal( const pxr::UsdPrim& Prim )
+	{
+		FScopedUsdAllocs Allocs;
+
+		if ( !Prim )
+		{
+			return false;
+		}
+
+		const std::string LODString = UnrealIdentifiers::LOD.GetString();
+
+		pxr::UsdVariantSets VariantSets = Prim.GetVariantSets();
+		if ( !VariantSets.HasVariantSet( LODString ) )
+		{
+			return false;
+		}
+
+		std::string Selection = VariantSets.GetVariantSet( LODString ).GetVariantSelection();
+		int32 LODIndex = UsdGeomMeshImpl::GetLODIndexFromName( Selection );
+		if ( LODIndex == INDEX_NONE )
+		{
+			return false;
+		}
+
+		return true;
+	}
+}
+
+bool UsdUtils::DoesPrimContainMeshLODs( const pxr::UsdPrim& Prim )
+{
+	const bool bHasValidVariantSetup = UE::UsdGeomMeshConversion::Private::DoesPrimContainMeshLODsInternal( Prim );
+	if ( bHasValidVariantSetup )
+	{
+		FScopedUsdAllocs Allocs;
+
+		// Check if it has at least one mesh too
+		pxr::UsdPrimSiblingRange PrimRange = Prim.GetChildren();
+		for ( pxr::UsdPrimSiblingRange::iterator PrimRangeIt = PrimRange.begin(); PrimRangeIt != PrimRange.end(); ++PrimRangeIt )
+		{
+			const pxr::UsdPrim& Child = *PrimRangeIt;
+			if ( pxr::UsdGeomMesh ChildMesh{ Child } )
+			{
+				return true;
+				break;
+			}
+		}
+	}
+
+	return false;
+}
+
 bool UsdUtils::IsGeomMeshALOD( const pxr::UsdPrim& UsdMeshPrim )
 {
+	FScopedUsdAllocs Allocs;
+
 	pxr::UsdGeomMesh UsdMesh{ UsdMeshPrim };
 	if ( !UsdMesh )
 	{
 		return false;
 	}
 
-	FScopedUsdAllocs Allocs;
-
-	pxr::UsdPrim ParentPrim = UsdMeshPrim.GetParent();
-	if ( !ParentPrim )
-	{
-		return false;
-	}
-
-	const std::string LODString = UnrealIdentifiers::LOD.GetString();
-
-	pxr::UsdVariantSets VariantSets = ParentPrim.GetVariantSets();
-	if ( !VariantSets.HasVariantSet( LODString ) )
-	{
-		return false;
-	}
-
-	std::string Selection = VariantSets.GetVariantSet( LODString ).GetVariantSelection();
-	int32 LODIndex = UsdGeomMeshImpl::GetLODIndexFromName( Selection );
-	if ( LODIndex == INDEX_NONE )
-	{
-		return false;
-	}
-
-	return true;
+	return UE::UsdGeomMeshConversion::Private::DoesPrimContainMeshLODsInternal( UsdMeshPrim.GetParent() );
 }
 
 int32 UsdUtils::GetNumberOfLODVariants( const pxr::UsdPrim& Prim )
@@ -2471,6 +2716,46 @@ FString UsdUtils::HashGeomMeshPrim( const UE::FUsdStage& Stage, const FString& P
 		Hash += FString::Printf( TEXT( "%02x" ), Digest[ i ] );
 	}
 	return Hash;
+}
+
+bool UsdUtils::GetPointInstancerTransforms( const FUsdStageInfo& StageInfo, const pxr::UsdGeomPointInstancer& PointInstancer, const int32 ProtoIndex, pxr::UsdTimeCode EvalTime, TArray<FTransform>& OutInstanceTransforms )
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE( GetPointInstancerTransforms );
+
+	if ( !PointInstancer )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::VtArray< int > ProtoIndices = UsdUtils::GetUsdValue< pxr::VtArray< int > >( PointInstancer.GetProtoIndicesAttr(), EvalTime );
+
+	pxr::VtMatrix4dArray UsdInstanceTransforms;
+
+	// We don't want the prototype root prim's transforms to be included in these, as they'll already be baked into the meshes themselves
+	if ( !PointInstancer.ComputeInstanceTransformsAtTime( &UsdInstanceTransforms, EvalTime, EvalTime, pxr::UsdGeomPointInstancer::ExcludeProtoXform ) )
+	{
+		return false;
+	}
+
+	int32 Index = 0;
+
+	FScopedUnrealAllocs UnrealAllocs;
+
+	OutInstanceTransforms.Reset( UsdInstanceTransforms.size() );
+
+	for ( pxr::GfMatrix4d& UsdMatrix : UsdInstanceTransforms )
+	{
+		if ( ProtoIndices[ Index ] == ProtoIndex )
+		{
+			OutInstanceTransforms.Add( UsdToUnreal::ConvertMatrix( StageInfo, UsdMatrix ) );
+		}
+
+		++Index;
+	}
+
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

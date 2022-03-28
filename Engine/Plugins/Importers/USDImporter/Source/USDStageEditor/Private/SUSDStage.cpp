@@ -989,7 +989,7 @@ void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )
 				if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
 				{
 					FScopedTransaction Transaction( FText::Format(
-						LOCTEXT( "ToggleCollapsingTransaction", "Toggle bMergeIdenticalMaterialSlots on USD stage actor '{1}'" ),
+						LOCTEXT( "MergeIdenticalMaterialSlotsTransaction", "Toggle bMergeIdenticalMaterialSlots on USD stage actor '{1}'" ),
 						FText::FromString( StageActor->GetActorLabel() )
 					) );
 
@@ -1006,6 +1006,41 @@ void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )
 				if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
 				{
 					return StageActor->bMergeIdenticalMaterialSlots;
+				}
+				return false;
+			})
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT( "CollapseTopLevelPointInstancers", "Collapse simple point instancers" ),
+		LOCTEXT( "CollapseTopLevelPointInstancersToolTip", "If true, will cause us to collapse any point instancer prim into a single static mesh and static mesh component.\nIf false, will cause us to use HierarchicalInstancedStaticMeshComponents to replicate the instancing behavior.\nPoint instancers inside other point instancer prototypes are * always * collapsed into the prototype's static mesh." ),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda( [this]()
+			{
+				if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+				{
+					FScopedTransaction Transaction( FText::Format(
+						LOCTEXT( "CollapseTopLevelPointInstancersTransaction", "Toggle bCollapseTopLevelPointInstancers on USD stage actor '{1}'" ),
+						FText::FromString( StageActor->GetActorLabel() )
+					) );
+
+					TGuardValue<bool> MaintainSelectionGuard( bUpdatingViewportSelection, true );
+					StageActor->SetCollapseTopLevelPointInstancers( !StageActor->bCollapseTopLevelPointInstancers );
+				}
+			}),
+			FCanExecuteAction::CreateLambda( [this]()
+			{
+				return ViewModel.UsdStageActor.Get() != nullptr;
+			}),
+			FIsActionChecked::CreateLambda( [this]()
+			{
+				if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+				{
+					return StageActor->bCollapseTopLevelPointInstancers;
 				}
 				return false;
 			})

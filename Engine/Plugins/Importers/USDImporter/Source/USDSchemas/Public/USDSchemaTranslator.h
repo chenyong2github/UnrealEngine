@@ -179,6 +179,13 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	bool bMergeIdenticalMaterialSlots = true;
 
 	/**
+	 * If true, will cause us to collapse any point instancer prim into a single static mesh and static mesh component.
+	 * If false, will cause us to use HierarchicalInstancedStaticMeshComponents to replicate the instancing behavior.
+	 * Point instancers inside other point instancer prototypes are *always* collapsed into the prototype's static mesh.
+	 */
+	bool bCollapseTopLevelPointInstancers = false;
+
+	/**
 	 * If true, prims with a "LOD" variant set, and "LOD0", "LOD1", etc. variants containing each
 	 * a prim can be parsed into a single UStaticMesh asset with multiple LODs
 	 */

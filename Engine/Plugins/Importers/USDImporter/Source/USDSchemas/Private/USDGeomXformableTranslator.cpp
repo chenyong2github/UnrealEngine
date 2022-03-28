@@ -138,7 +138,12 @@ FUsdGeomXformableTranslator::FUsdGeomXformableTranslator( TSubclassOf< USceneCom
 
 USceneComponent* FUsdGeomXformableTranslator::CreateComponents()
 {
-	return CreateComponentsEx( {}, {} );
+	USceneComponent* Component = CreateComponentsEx( {}, {} );
+
+	// We pulled UpdateComponents outside CreateComponentsEx as in some cases we don't want to do it
+	// right away (like on FUsdGeomPointInstancerTranslator::CreateComponents)
+	UpdateComponents( Component );
+	return Component;
 }
 
 USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSubclassOf< USceneComponent > > ComponentType, TOptional< bool > bNeedsActor )
@@ -370,8 +375,6 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 		// UpdateComponents with all the components already attached
 		SceneComponent->AttachToComponent( Context->ParentComponent, FAttachmentTransformRules::KeepRelativeTransform );
 
-		UpdateComponents( SceneComponent );
-
 		if ( !SceneComponent->IsRegistered() )
 		{
 			SceneComponent->RegisterComponent();
@@ -397,18 +400,16 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 			SceneComponent->UnregisterComponent();
 		}
 
-		// Don't convert transform/visibility for HISM components as we only create these for point instancer prototype prims,
-		// and we don't want the actual prototype prim transform/visibility on the component itself: It will always be baked into the mesh
-		if ( !SceneComponent->IsA< UHierarchicalInstancedStaticMeshComponent >() )
-		{
-			UsdToUnreal::ConvertXformable( Context->Stage, pxr::UsdGeomXformable( GetPrim() ), *SceneComponent, Context->Time );
-		}
-
 		// If the user modified a mesh parameter (e.g. vertex color), the hash will be different and it will become a separate asset
 		// so we must check for this and assign the new StaticMesh
+		bool bHasMultipleLODs = false;
 		if ( UStaticMeshComponent* StaticMeshComponent = Cast< UStaticMeshComponent >( SceneComponent ) )
 		{
 			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->AssetCache->GetAssetForPrim( PrimPath.GetString() ) );
+			if ( PrimStaticMesh )
+			{
+				bHasMultipleLODs = PrimStaticMesh->GetNumLODs() > 1;
+			}
 
 			if ( PrimStaticMesh != StaticMeshComponent->GetStaticMesh() )
 			{
@@ -428,6 +429,13 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 
 				StaticMeshComponent->RegisterComponent();
 			}
+		}
+
+		// Only put the transform into the component if we haven't parsed LODs for our static mesh: The Mesh transforms will already be baked
+		// into the mesh at that case, as each LOD could technically have a separate transform
+		if ( !Context->bAllowInterpretingLODs || !bHasMultipleLODs )
+		{
+			UsdToUnreal::ConvertXformable( Context->Stage, pxr::UsdGeomXformable( GetPrim() ), *SceneComponent, Context->Time );
 		}
 
 		// Note how we should only register if we unregistered ourselves: If we did this every time we would

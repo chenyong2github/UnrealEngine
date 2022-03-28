@@ -35,7 +35,9 @@
 USceneComponent* FUsdLuxLightTranslator::CreateComponents()
 {
 	const bool bNeedsActor = true;
-	return CreateComponentsEx( {}, bNeedsActor );
+	USceneComponent* LightComponent = CreateComponentsEx( {}, bNeedsActor );
+	UpdateComponents( LightComponent );
+	return LightComponent;
 }
 
 void FUsdLuxLightTranslator::UpdateComponents( USceneComponent* SceneComponent )

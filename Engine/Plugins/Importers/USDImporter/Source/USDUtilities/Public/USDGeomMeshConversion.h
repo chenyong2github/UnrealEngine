@@ -17,6 +17,7 @@
 PXR_NAMESPACE_OPEN_SCOPE
 	class TfToken;
 	class UsdGeomMesh;
+	class UsdGeomPointInstancer;
 	class UsdPrim;
 	class UsdShadeMaterial;
 	class UsdTyped;
@@ -27,6 +28,7 @@ class UMaterialInstanceDynamic;
 class UStaticMesh;
 struct FMeshDescription;
 struct FStaticMeshLODResources;
+struct FUsdStageInfo;
 namespace UsdUtils
 {
 	struct FDisplayColorMaterial;
@@ -60,6 +62,31 @@ namespace UsdToUnreal
 	USDUTILITIES_API bool ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
 	USDUTILITIES_API bool ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, const FTransform& AdditionalTransform, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
 	USDUTILITIES_API bool ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, const FTransform& AdditionalTransform, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
+
+	/** Bake a point instancer prim into a single FMeshDescription and MaterialAssignments, manually "instancing" all the prototype instances into a single combined mesh.
+	 *
+	 * @param PointInstancer - UsdGeomPointInstancer to bake
+	 * @param AdditionalTransform - Transform (in UnrealEditor space) to bake into the vertex positions and normals of the converted mesh
+	 * @param MaterialToPrimvarsUVSetNames - Maps from a material prim path, to pairs indicating which primvar names are used as 'st' coordinates for this mesh, and which UVIndex materials will sample from (e.g. ["st0", 0], ["myUvSet2", 2], etc). This is used to pick which primvars will become UV sets.
+	 * @param PurposesToLoad - Display purposes to consider when baking the prototypes into meshes
+	 * @param OutMeshDescription - Output parameter that will be filled with the converted data
+	 * @param OutMaterialAssignments - Output parameter that will be filled with the material data extracted from UsdSchema
+	 * @param TimeCode - USD timecode when the UsdGeomPointInstancer should be sampled for mesh data and converted
+	 * @param RenderContext - The render context to use when parsing material assignments from the prototype meshes
+	 * @param bCombineIdenticalMaterialSlots - Whether to try reusing material slots (both local and the ones already in MaterialAssignments) when converting the material assignments from the prototype meshes
+	 * @return Whether the conversion was successful or not.
+	 */
+	USDUTILITIES_API bool ConvertPointInstancerToMesh(
+		const pxr::UsdGeomPointInstancer& PointInstancer,
+		const FTransform& AdditionalTransform,
+		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
+		const EUsdPurpose PurposesToLoad,
+		FMeshDescription& OutMeshDescription,
+		UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments,
+		const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime(),
+		const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext,
+		bool bCombineIdenticalMaterialSlots = true
+	);
 
 	/**
 	 * Recursively traverses down Prim's subtree parsing all Mesh data (including Prim's), baking all transforms and putting the resulting
@@ -191,7 +218,10 @@ namespace UsdUtils
 	 */
 	USDUTILITIES_API TArray<FString> GetMaterialUsers( const UE::FUsdPrim& MaterialPrim );
 
-	/** Returns whether this UsdMesh can be interpreted as a LOD of a mesh with multiple LODs */
+	/** Returns whether this prim can be interpreted as describing a static mesh with multiple LODs (i.e. if the prim holds the LOD variant set itself) */
+	USDUTILITIES_API bool DoesPrimContainMeshLODs( const pxr::UsdPrim& Prim );
+
+	/** Returns whether this UsdMesh can be interpreted as a LOD of a mesh with multiple LODs (i.e. if the Mesh prim is inside a LOD variant) */
 	USDUTILITIES_API bool IsGeomMeshALOD( const pxr::UsdPrim& UsdMeshPrim );
 
 	/** Returns how many LOD variants the Prim has. Note that this will return 0 if called on one of the LOD meshes themselves, it's meant to be called on its parent */
@@ -226,6 +256,12 @@ namespace UsdUtils
 	 * If the prim path is invalid or not a GeomMesh, it will return an empty hash
 	 */
 	USDUTILITIES_API FString HashGeomMeshPrim( const UE::FUsdStage& Stage, const FString& PrimPath, double TimeCode );
+
+	/**
+	 * Places in OutInstanceTransforms the UE-space instance transforms for a given point instancer prototype index.
+	 * Returns whether the transforms were successfully retrieved or not.
+	 */
+	USDUTILITIES_API bool GetPointInstancerTransforms( const FUsdStageInfo& StageInfo, const pxr::UsdGeomPointInstancer& PointInstancer, const int32 ProtoIndex, pxr::UsdTimeCode EvalTime, TArray<FTransform>& OutInstanceTransforms );
 }
 
 #endif // #if USE_USD_SDK
