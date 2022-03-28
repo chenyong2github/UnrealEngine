@@ -2287,18 +2287,7 @@ void FControlRigParameterTrackEditor::SetUpEditModeIfNeeded(UControlRig* Control
 		}
 	}
 	else
-	{
-
-		TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
-		ControlRigEditMode->GetAllSelectedControls(SelectedControls);
-		for (TPair<UControlRig*, TArray<FRigElementKey>>& Selection : SelectedControls)
-		{
-			if(Selection.Key)
-			{
-				Selection.Key->ClearControlSelection();
-			}
-		}
-		
+	{	
 		if (ControlRigEditMode->AddControlRigObject(ControlRig, GetSequencer()))
 		{
 			//force an evaluation, this will get the control rig setup so edit mode looks good.

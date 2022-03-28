@@ -201,6 +201,8 @@ void SControlRigOutlinerItem::HandleControlSelected(UControlRig* Subject, FRigCo
 		TSharedPtr<FRigTreeElement> Found = HierarchyTreeView->GetTreeView()->FindElement(Key, HierarchyTreeView->GetTreeView()->GetRootElements()[RootIndex]);
 		if (Found.IsValid())
 		{
+			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+
 			HierarchyTreeView->GetTreeView()->SetItemSelection(Found, bSelected, ESelectInfo::OnNavigation);
 
 			TArray<TSharedPtr<FRigTreeElement>> SelectedItems = HierarchyTreeView->GetTreeView()->GetSelectedItems();
@@ -240,7 +242,6 @@ void SControlRigOutlinerItem::HandleSelectionChanged(TSharedPtr<FRigTreeElement>
 		check(Controller);
 
 		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
-
 		const TArray<FRigElementKey> NewSelection = HierarchyTreeView->GetTreeView()->GetSelectedKeys();
 		if (!Controller->SetSelection(NewSelection))
 		{
