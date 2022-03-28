@@ -7,7 +7,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "IDumpGPUServices.h"
-
+#include "DumpGPU.h"
 
 class FDumpGPUServices : public IDumpGPUServices
 {
@@ -34,6 +34,14 @@ void FDumpGPUServices::StartupModule()
 
 	FString UploadURLPattern;
 	GConfig->GetString(TEXT("Rendering.DumpGPUServices"), TEXT("UploadURLPattern"), UploadURLPattern, GEngineIni);
+
+	// If the project has not set UploadURLPattern, uses the engine default that maybe set in a NotForLicensees/ config.
+	#if defined(DUMPGPU_SERVICES_DEFAULT_URL_PATTERN)
+	if (UploadURLPattern.IsEmpty())
+	{
+		UploadURLPattern = TEXT(DUMPGPU_SERVICES_DEFAULT_URL_PATTERN);
+	}
+	#endif
 
 	if (UploadURLPattern.StartsWith(TEXT("http://")))
 	{
