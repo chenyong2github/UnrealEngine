@@ -2529,6 +2529,17 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 #if WITH_EDITOR
 void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<FVertexFactoryType*>& VFTypes, const TArray<FShaderType*>& ShaderTypes, const ITargetPlatform* TargetPlatform)
 {
+	if (CompileErrors.Num())
+	{
+		UE_LOG(LogMaterial, Warning, TEXT("Material failed to compile."));
+		for (const FString& CompileError : CompileErrors)
+		{
+			UE_LOG(LogMaterial, Warning, TEXT("%s"), *CompileError);
+		}
+
+		return;
+	}
+
 	if (GameThreadShaderMap)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::CacheGivenTypes);

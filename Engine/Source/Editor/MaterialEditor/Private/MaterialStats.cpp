@@ -227,10 +227,13 @@ bool FShaderPlatformSettings::CheckShaders()
 				}
 
 				// Prepare the resource for compilation, but don't compile the completed shader map.
-				Data.MaterialResourcesStats->CacheShaders(PlatformShaderID, EMaterialShaderPrecompileMode::None);
+				const bool bSuccess = Data.MaterialResourcesStats->CacheShaders(PlatformShaderID, EMaterialShaderPrecompileMode::None);
 
-				// Compile just the types we want.
-				Data.MaterialResourcesStats->CacheGivenTypes(PlatformShaderID, VFTypes, ShaderTypes);
+				if (bSuccess)
+				{
+					// Compile just the types we want.
+					Data.MaterialResourcesStats->CacheGivenTypes(PlatformShaderID, VFTypes, ShaderTypes);
+				}
 
 				Data.bCompilingShaders = true;
 				Data.bUpdateShaderCode = true;
