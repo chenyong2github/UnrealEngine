@@ -250,8 +250,6 @@ UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSe
 			CurrentHLODLayer = Cast<UHLODLayer>(CurrentHLODLayer->GetParentLayer().Get());
 		}
 	}
-
-	WorldPartition->EditorHash->Initialize();
 	
 	return WorldPartition;
 }
@@ -837,7 +835,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	AWorldSettings* MainWorldSettings = MainWorld->GetWorldSettings();
 	if (MainWorldSettings->IsPartitionedWorld())
 	{
-		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Level '%s' is already partitionned"), *Tokens[0]);
+		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Level '%s' is already partitioned"), *Tokens[0]);
 		return 1;
 	}
 
