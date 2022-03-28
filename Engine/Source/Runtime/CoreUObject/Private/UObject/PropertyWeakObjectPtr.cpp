@@ -63,6 +63,11 @@ UObject* FWeakObjectProperty::GetObjectPropertyValue(const void* PropertyValueAd
 	return GetPropertyValue(PropertyValueAddress).Get();
 }
 
+UObject* FWeakObjectProperty::GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex) const
+{
+	return GetWrappedObjectPropertyValue_InContainer<FWeakObjectPtr>(ContainerAddress, ArrayIndex);
+}
+
 void FWeakObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
 {
 	SetPropertyValue(PropertyValueAddress, TCppType(Value));

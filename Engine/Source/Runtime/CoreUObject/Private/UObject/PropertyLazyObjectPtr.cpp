@@ -110,6 +110,11 @@ UObject* FLazyObjectProperty::GetObjectPropertyValue(const void* PropertyValueAd
 	return GetPropertyValue(PropertyValueAddress).Get();
 }
 
+UObject* FLazyObjectProperty::GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex) const
+{
+	return GetWrappedObjectPropertyValue_InContainer<FLazyObjectPtr>(ContainerAddress, ArrayIndex);
+}
+
 void FLazyObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
 {
 	SetPropertyValue(PropertyValueAddress, TCppType(Value));

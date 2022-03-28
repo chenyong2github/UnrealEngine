@@ -236,6 +236,11 @@ UObject* FSoftObjectProperty::GetObjectPropertyValue(const void* PropertyValueAd
 	return GetPropertyValue(PropertyValueAddress).Get();
 }
 
+UObject* FSoftObjectProperty::GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex) const
+{
+	return GetWrappedObjectPropertyValue_InContainer<FSoftObjectPtr>(ContainerAddress, ArrayIndex);
+}
+
 void FSoftObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
 {
 	SetPropertyValue(PropertyValueAddress, TCppType(Value));

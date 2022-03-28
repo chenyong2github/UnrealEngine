@@ -567,7 +567,13 @@ FName FObjectPropertyBase::GetID() const
 
 UObject* FObjectPropertyBase::GetObjectPropertyValue(const void* PropertyValueAddress) const
 {
-	check(0);
+	checkf(false, TEXT("%s is missing implementation of GetObjectPropertyValue"), *GetFullName());
+	return nullptr;
+}
+
+UObject* FObjectPropertyBase::GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex) const
+{
+	checkf(false, TEXT("%s is missing implementation of GetObjectPropertyValue_InContainer"), *GetFullName());
 	return nullptr;
 }
 

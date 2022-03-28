@@ -142,6 +142,11 @@ UObject* FObjectPtrProperty::GetObjectPropertyValue(const void* PropertyValueAdd
 	return ((FObjectPtr&)GetPropertyValue(PropertyValueAddress)).Get();
 }
 
+UObject* FObjectPtrProperty::GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex) const
+{
+	return GetWrappedObjectPropertyValue_InContainer<FObjectPtr>(ContainerAddress, ArrayIndex);
+}
+
 void FObjectPtrProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
 {
 	SetPropertyValue(PropertyValueAddress, TCppType(Value));
