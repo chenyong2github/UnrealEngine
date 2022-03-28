@@ -4,8 +4,10 @@
 
 #include "D3D11TextureTransfer.h"
 #include "D3D12TextureTransfer.h"
+#include "VulkanTextureTransfer.h"
 #include "RHI.h"
 #include "DynamicRHI.h"
+#include "IVulkanDynamicRHI.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "HAL/PlatformMisc.h"
 #include "Misc/CoreDelegates.h"
@@ -23,6 +25,7 @@ namespace
 		{
 		case ERHIInterfaceType::D3D11: return UE::GPUTextureTransfer::ERHI::D3D11;
 		case ERHIInterfaceType::D3D12: return UE::GPUTextureTransfer::ERHI::D3D12;
+		case ERHIInterfaceType::Vulkan: return UE::GPUTextureTransfer::ERHI::Vulkan;
 		default: return UE::GPUTextureTransfer::ERHI::Invalid;
 		}
 	};
@@ -130,6 +133,9 @@ void FGPUTextureTransferModule::InitializeTextureTransfer()
 		case UE::GPUTextureTransfer::ERHI::D3D12:
 			TextureTransfer = MakeShared<UE::GPUTextureTransfer::Private::FD3D12TextureTransfer>();
 			break;
+		case UE::GPUTextureTransfer::ERHI::Vulkan:
+			TextureTransfer = MakeShared<UE::GPUTextureTransfer::Private::FVulkanTextureTransfer>();
+			break;
 		default:
 			ensureAlways(false);
 			break;
@@ -139,15 +145,12 @@ void FGPUTextureTransferModule::InitializeTextureTransfer()
 		InitializeArgs.RHI = RHI;
 		InitializeArgs.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
 		InitializeArgs.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
-		/* Re-enable when adding vulkan support
-		if (RHI == AJA::ERHI::Vulkan)
+		if (RHI == UE::GPUTextureTransfer::ERHI::Vulkan)
 		{
-			FVulkanDynamicRHI* vkDynamicRHI = GetDynamicRHI<FVulkanDynamicRHI>();
-			InitializeArgs.VulkanInstance = vkDynamicRHI->GetInstance();
-
-			FMemory::Memcpy(InitializeArgs.RHIDeviceUUID, vkDynamicRHI->GetDevice()->GetDeviceIdProperties().deviceUUID, 16);
+			IVulkanDynamicRHI* DynRHI = GetIVulkanDynamicRHI();
+			InitializeArgs.VulkanInstance = DynRHI->RHIGetVkInstance();
+			FMemory::Memcpy(InitializeArgs.RHIDeviceUUID, DynRHI->RHIGetVulkanDeviceUUID(), 16);
 		}
-		*/
 
 		const uint8 RHIIndex = static_cast<uint8>(RHI);
 		if (TextureTransfer->Initialize(InitializeArgs))

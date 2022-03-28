@@ -9,8 +9,9 @@ namespace UnrealBuildTool.Rules
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "GPUDirect");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 			}
-			
+
 			PublicDefinitions.Add("PERF_LOGGING=0");
 
 			PublicDependencyModuleNames.AddRange(
@@ -34,6 +35,7 @@ namespace UnrealBuildTool.Rules
 					"GPUDirect",
 					"RenderCore",
 					"RHI",
+					"VulkanRHI",
 				});
 
 			if (Target.bBuildEditor == true)
