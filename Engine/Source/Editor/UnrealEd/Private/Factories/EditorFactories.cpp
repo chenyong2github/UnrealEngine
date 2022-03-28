@@ -4743,6 +4743,17 @@ bool UTextureExporterDDS::SupportsObject(UObject* Object) const
 	{
 		return false;
 	}
+
+	if ( Texture->Source.GetFormat() == TSF_BGRE8 )
+	{
+		// exclude BGRE export from DDS, use HDR files if possible
+		if ( Texture->Source.GetNumSlices() == 1 )
+		{
+			// HDR can handle it, say I won't
+			return false;
+		}
+		// BGRE format, but something HDR can't handle, so I'll do it...
+	}
 	
 	return true;
 }
