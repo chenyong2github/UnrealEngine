@@ -65,8 +65,8 @@ public:
 
 	void Refresh();
 
-	UWorld* World;
-	UWorldPartition* WorldPartition;
+	UWorld* World = nullptr;
+	UWorldPartition* WorldPartition = nullptr;
 
 protected:
 	static TMap<FName, PartitionEditorGridCreateInstanceFunc> PartitionEditorGridCreateInstanceFactory;

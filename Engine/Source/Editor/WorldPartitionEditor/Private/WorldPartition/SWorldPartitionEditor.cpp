@@ -71,7 +71,12 @@ TSharedRef<SWidget> SWorldPartitionEditor::ConstructContentWidget()
 		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 		{
 			check(WorldPartition->World == World);
-			EditorName = WorldPartition->GetWorldPartitionEditorName();
+
+			if (WorldPartition->IsStreamingEnabled())
+			{
+				EditorName = WorldPartition->GetWorldPartitionEditorName();
+			}
+
 			WorldPartition->WorldPartitionEditor = this;
 		}
 	}
