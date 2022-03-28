@@ -1303,6 +1303,13 @@ FORCEINLINE void RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, con
 
 FORCEINLINE FDynamicRHI::FRHICalcTextureSizeResult RHICalcTexturePlatformSize(FRHITextureDesc const& Desc, uint32 FirstMipIndex = 0)
 {
+	if ( ! Desc.IsValid() )
+	{
+		// Invalid texture desc; return zero to indicate failure
+		FDynamicRHI::FRHICalcTextureSizeResult ZeroResult = { 0 };
+		return ZeroResult;
+	}
+
 	return GDynamicRHI->RHICalcTexturePlatformSize(Desc, FirstMipIndex);
 }
 
