@@ -4,6 +4,7 @@
 #include "Misc/CommandLine.h"
 #include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
+#include "Serialization/BulkData.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Misc/ScopedSlowTask.h"
@@ -22,6 +23,14 @@
 #include "Sound/SoundWaveProcedural.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAudioDerivedData, Log, All);
+
+static int32 AllowAsyncCompression = 1;
+FAutoConsoleVariableRef CVarAllowAsyncCompression(
+	TEXT("au.compression.AsyncCompression"),
+	AllowAsyncCompression,
+	TEXT("1: Allow async compression of USoundWave when supported by the codec.\n")
+	TEXT("0: Disable async compression."),
+	ECVF_Default);
 
 #define FORCE_RESAMPLE 0
 
@@ -294,6 +303,8 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 	/** Build the streamed audio. This function is safe to call from any thread. */
 	void BuildStreamedAudio()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(BuildStreamedAudio);
+
 		if (SoundWave.IsA<USoundWaveProcedural>())
 		{
 			return;
@@ -530,6 +541,8 @@ public:
 	/** Does the work to cache derived data. Safe to call from any thread. */
 	void DoWork()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FStreamedAudioCacheDerivedDataWorker::DoWork);
+
 		TArray<uint8> RawDerivedData;
 		bool bForceRebuild = (CacheFlags & EStreamedAudioCacheFlags::ForceRebuild) != 0;
 		bool bInlineChunks = (CacheFlags & EStreamedAudioCacheFlags::InlineChunks) != 0;
@@ -622,6 +635,8 @@ struct FStreamedAudioAsyncCacheDerivedDataTask : public FAsyncTask<FStreamedAudi
 
 void FStreamedAudioPlatformData::Cache(USoundWave& InSoundWave, const FPlatformAudioCookOverrides* CompressionOverrides, FName AudioFormatName,  uint32 InFlags)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamedAudioPlatformData::Cache);
+
 	// Flush any existing async task and ignore results.
 	FinishCache();
 
@@ -656,7 +671,7 @@ void FStreamedAudioPlatformData::Cache(USoundWave& InSoundWave, const FPlatformA
 
 bool FStreamedAudioPlatformData::IsFinishedCache() const
 {
-	return AsyncTask == NULL ? true : false;
+	return AsyncTask == nullptr ? true : false;
 }
 
 void FStreamedAudioPlatformData::FinishCache()
@@ -813,6 +828,8 @@ int32 FStreamedAudioPlatformData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutC
 		UE_LOG(LogAudioDerivedData, Display, TEXT("No streamed audio chunks found!"));
 		return 0;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamedAudioPlatformData::GetChunkFromDDC);
 
 	// if bMakeSureChunkIsLoaded is true, we don't actually know the size of the chunk's bulk data,
 	// so it will need to be allocated in GetCopy.
@@ -1057,56 +1074,129 @@ static void ResampleWaveData(TArray<uint8>& WaveData, size_t& NumBytes, int32 Nu
 	UE_LOG(LogAudioDerivedData, Display, TEXT("Resampling file from %f to %f took %f seconds."), SourceSampleRate, DestinationSampleRate, TimeDelta);
 }
 
+struct FAudioCookInputs
+{
+	FString                     SoundName;
+	FName                       BaseFormat;
+	FName                       HashedFormat;
+	const IAudioFormat*         Compressor;
+	FGuid                       CompressedDataGuid;
+#if WITH_EDITORONLY_DATA
+	FString                     SoundFullName;
+	TArray<int32>               ChannelOffsets;
+	TArray<int32>               ChannelSizes;
+	bool                        bIsASourceBus;
+	bool                        bIsSoundWaveProcedural;
+	int32                       CompressionQuality;
+	float                       SampleRateOverride = -1.0f;
+	bool                        bIsStreaming;
+	float                       CompressionQualityModifier;
+
+	// Those are the only refs we keep on the actual USoundWave until
+	// we have a mechanism in place to reference a bulkdata using a 
+	// copy-on-write mechanism that doesn't require us to make
+	// a copy in memory to get immutability.
+	FCriticalSection& BulkDataCriticalSection;
+	FByteBulkData& BulkData;
+#endif
+
+	FAudioCookInputs(USoundWave* InSoundWave, FName InBaseFormat, FName InHashFormat, const FPlatformAudioCookOverrides* InCookOverrides)
+		: SoundName(InSoundWave->GetName())
+		, BaseFormat(InBaseFormat)
+		, HashedFormat(InHashFormat)
+		, CompressedDataGuid(InSoundWave->CompressedDataGuid)
+#if WITH_EDITORONLY_DATA
+		, SoundFullName(InSoundWave->GetFullName())
+		, ChannelOffsets(InSoundWave->ChannelOffsets)
+		, ChannelSizes(InSoundWave->ChannelSizes)
+		, bIsASourceBus(InSoundWave->IsA<USoundSourceBus>())
+		, bIsSoundWaveProcedural(InSoundWave->IsA<USoundWaveProcedural>())
+		, CompressionQuality(InSoundWave->GetCompressionQuality())
+		, CompressionQualityModifier(InCookOverrides ? InCookOverrides->CompressionQualityModifier : 1.0f)
+		, BulkDataCriticalSection(InSoundWave->RawDataCriticalSection)
+		, BulkData(InSoundWave->RawData)
+#endif
+	{
+#if WITH_EDITORONLY_DATA
+		checkf(IsInGameThread(), TEXT("FAudioCookInputs creation must happen on the game-thread as it reads from many non-thread safe properties of USoundWave"));
+
+#if FORCE_RESAMPLE
+		FPlatformAudioCookOverrides NewCompressionOverrides = FPlatformAudioCookOverrides();
+		NewCompressionOverrides.bResampleForDevice = true;
+		if (InCookOverrides == nullptr)
+		{
+			InCookOverrides = &NewCompressionOverrides;
+		}
+#endif //FORCE_RESAMPLE
+
+		if (InCookOverrides && InCookOverrides->bResampleForDevice)
+		{
+			SampleRateOverride = InSoundWave->GetSampleRateForCompressionOverrides(InCookOverrides);
+		}
+
+		// without overrides, we don't know the target platform's name to be able to look up, and passing nullptr will use editor platform's settings, which could be wrong
+		// @todo: Pass in TargetPlatform/PlatformName maybe?
+		bIsStreaming = InSoundWave->IsStreaming(InCookOverrides ? *InCookOverrides : FPlatformAudioCookOverrides());
+#endif // WITH_EDITORONLY_DATA
+
+		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
+		if (TPM)
+		{
+			Compressor = TPM->FindAudioFormat(InBaseFormat);
+		}
+	}
+};
+
+#if WITH_EDITORONLY_DATA
+
 /**
  * Cook a simple mono or stereo wave
  */
-static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudioFormat& Format, TArray<uint8>& Output, const FPlatformAudioCookOverrides* CompressionOverrides)
+static void CookSimpleWave(const FAudioCookInputs& Inputs, TArray<uint8>& OutputBuffer)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CookSimpleWave);
+
 	FWaveModInfo WaveInfo;
 	TArray<uint8> Input;
-	check(!Output.Num());
+	check(!OutputBuffer.Num());
 
 	bool bWasLocked = false;
 
 	int32 WaveSampleRate = 0;
-	int32 ImportSampleRate = 0;
 
 	// Don't need to cook source buses
-	if (USoundSourceBus* SourceBus = Cast<USoundSourceBus>(SoundWave))
+	if (Inputs.bIsASourceBus)
 	{
 		return;
 	}
 
-	if (SoundWave->IsA<USoundWaveProcedural>())
+	if (Inputs.bIsSoundWaveProcedural)
 	{
 		return;
 	}
 
-#if WITH_EDITORONLY_DATA
-	FScopeLock ScopeLock(&SoundWave->RawDataCriticalSection);
-#endif
+	FScopeLock ScopeLock(&Inputs.BulkDataCriticalSection);
 
-	if (!SoundWave->RawData.IsBulkDataLoaded())
+	if (!Inputs.BulkData.IsBulkDataLoaded())
 	{
-		SoundWave->RawData.ForceBulkDataResident();
+		Inputs.BulkData.ForceBulkDataResident();
 	}
 	
-	UE_CLOG(!SoundWave->RawData.IsBulkDataLoaded(), LogAudioDerivedData, Display, TEXT("Calling ForceBulkDataResident for LPCM data for USoundWave %s failed."), *SoundWave->GetFullName());
+	UE_CLOG(!Inputs.BulkData.IsBulkDataLoaded(), LogAudioDerivedData, Display, TEXT("Calling ForceBulkDataResident for LPCM data for USoundWave %s failed."), *Inputs.SoundFullName);
 	
 	// Lock raw wave data.
-	const uint8* RawWaveData = (const uint8*)SoundWave->RawData.LockReadOnly();
-	bWasLocked = true;
-	int32 RawDataSize = SoundWave->RawData.GetBulkDataSize();
-
+	const uint8* RawWaveData = (const uint8*)Inputs.BulkData.LockReadOnly();
+	int32 RawDataSize = Inputs.BulkData.GetBulkDataSize();
+	ON_SCOPE_EXIT { Inputs.BulkData.Unlock(); };
 
 	if (!RawWaveData || RawDataSize == 0)
 	{
-		UE_LOG(LogAudioDerivedData, Warning, TEXT("LPCM data failed to load for sound %s"), *SoundWave->GetFullName());
+		UE_LOG(LogAudioDerivedData, Warning, TEXT("LPCM data failed to load for sound %s"), *Inputs.SoundFullName);
 	}
 	else if (!WaveInfo.ReadWaveHeader(RawWaveData, RawDataSize, 0))
 	{
 		// If we failed to parse the wave header, it's either because of an invalid bitdepth or channel configuration.
-		UE_LOG(LogAudioDerivedData, Warning, TEXT("Only mono or stereo 16 bit waves allowed: %s (%d bytes)"), *SoundWave->GetFullName(), RawDataSize);
+		UE_LOG(LogAudioDerivedData, Warning, TEXT("Only mono or stereo 16 bit waves allowed: %s (%d bytes)"), *Inputs.SoundFullName, RawDataSize);
 	}
 	else
 	{
@@ -1116,127 +1206,92 @@ static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudio
 
 	if(!Input.Num())
 	{
-		UE_LOG(LogAudioDerivedData, Warning, TEXT( "Can't cook %s because there is no source LPCM data" ), *SoundWave->GetFullName() );
+		UE_LOG(LogAudioDerivedData, Warning, TEXT( "Can't cook %s because there is no source LPCM data" ), *Inputs.SoundFullName );
 	}
 	else
 	{
 		WaveSampleRate = *WaveInfo.pSamplesPerSec;
-		ImportSampleRate = WaveSampleRate;
 
-		float SampleRateOverride = -1.0f;
-
-		if (CompressionOverrides && CompressionOverrides->bResampleForDevice)
 		{
-			SampleRateOverride = SoundWave->GetSampleRateForCompressionOverrides(CompressionOverrides);
-			// Check for a platform resample override here and resample if neccesary:
-			if (SampleRateOverride > 0 && SampleRateOverride != (float)WaveSampleRate)
+			// Check for a platform resample override here and resample if necessary:
+			if (Inputs.SampleRateOverride > 0 && Inputs.SampleRateOverride != (float)WaveSampleRate)
 			{
 				size_t TotalDataSize = WaveInfo.SampleDataSize;
 
-				ResampleWaveData(Input, TotalDataSize, *WaveInfo.pChannels, WaveSampleRate, SampleRateOverride);
-				WaveSampleRate = SampleRateOverride;
+				ResampleWaveData(Input, TotalDataSize, *WaveInfo.pChannels, WaveSampleRate, Inputs.SampleRateOverride);
+				WaveSampleRate = Inputs.SampleRateOverride;
 				WaveInfo.SampleDataSize = TotalDataSize;
 			}
 		}
 
 		FSoundQualityInfo QualityInfo = { 0 };
-		if (CompressionOverrides)
+		float ModifiedCompressionQuality = (float)Inputs.CompressionQuality * Inputs.CompressionQualityModifier;
+		if (ModifiedCompressionQuality >= 1.0f)
 		{
-			float ModifiedCompressionQuality = (float)SoundWave->GetCompressionQuality() * CompressionOverrides->CompressionQualityModifier;
-			if (ModifiedCompressionQuality >= 1.0f)
-			{
-				QualityInfo.Quality = FMath::FloorToInt(ModifiedCompressionQuality);
-				UE_LOG(LogAudioDerivedData, Display, TEXT("Compression Quality for %s will be modified from %d to %d."), *SoundWave->GetFullName(), SoundWave->GetCompressionQuality(), QualityInfo.Quality);
-			}
-			else
-			{
-				QualityInfo.Quality = SoundWave->GetCompressionQuality();
-			}
+			QualityInfo.Quality = FMath::FloorToInt(ModifiedCompressionQuality);
+			UE_CLOG(Inputs.CompressionQuality != QualityInfo.Quality, LogAudioDerivedData, Display, TEXT("Compression Quality for %s will be modified from %d to %d."), *Inputs.SoundFullName, Inputs.CompressionQuality, QualityInfo.Quality);
 		}
 		else
 		{
-			QualityInfo.Quality = SoundWave->GetCompressionQuality();
+			QualityInfo.Quality = Inputs.CompressionQuality;
 		}
 
 		QualityInfo.NumChannels = *WaveInfo.pChannels;
 		QualityInfo.SampleRate = WaveSampleRate;
 		QualityInfo.SampleDataSize = Input.Num();
-		// without overrides, we don't know the target platform's name to be able to look up, and passing nullptr will use editor platform's settings, which could be wrong
-		// @todo: Pass in TargetPlatform/PlatformName maybe?
-		QualityInfo.bStreaming = SoundWave->IsStreaming(CompressionOverrides ? *CompressionOverrides : FPlatformAudioCookOverrides());
-		QualityInfo.DebugName = SoundWave->GetFullName();
+
+		QualityInfo.bStreaming = Inputs.bIsStreaming;
+		QualityInfo.DebugName = Inputs.SoundFullName;
 
 		static const FName NAME_BINKA(TEXT("BINKA"));
 		if (WaveSampleRate > 48000 &&
-			FormatName == NAME_BINKA)
+			Inputs.BaseFormat == NAME_BINKA)
 		{
 			// We have to do this here because we don't know the name of the wave inside the codec.
-			UE_LOG(LogAudioDerivedData, Warning, TEXT("[%s] High sample rate wave (%d) with Bink Audio - perf waste - high frequencies are discarded by Bink Audio (like most perceptual codecs)."), *SoundWave->GetFullName(), WaveSampleRate);
+			UE_LOG(LogAudioDerivedData, Warning, TEXT("[%s] High sample rate wave (%d) with Bink Audio - perf waste - high frequencies are discarded by Bink Audio (like most perceptual codecs)."), *Inputs.SoundFullName, WaveSampleRate);
 		}
 
 		// Cook the data.
-		if(Format.Cook(FormatName, Input, QualityInfo, Output))
+		if (!Inputs.Compressor->Cook(Inputs.BaseFormat, Input, QualityInfo, OutputBuffer))
 		{
-			SoundWave->SetSampleRate(QualityInfo.SampleRate);
-			SoundWave->SetImportedSampleRate(ImportSampleRate);
-
-			if (SoundWave->NumChannels != *WaveInfo.pChannels)
-			{
-				UE_LOG(LogAudioDerivedData, Warning, TEXT( "Updated SoundWave->NumChannels from %d to %u while cooking %s." ), SoundWave->NumChannels, *WaveInfo.pChannels, *SoundWave->GetFullName());
-				SoundWave->NumChannels = *WaveInfo.pChannels;
-			}
-			if (SoundWave->RawPCMDataSize != Input.Num())
-			{
-				UE_LOG(LogAudioDerivedData, Display, TEXT( "Updated SoundWave->RawPCMDataSize from %d to %d while cooking %s." ), SoundWave->RawPCMDataSize, Input.Num(), *SoundWave->GetFullName() );
-				SoundWave->RawPCMDataSize = Input.Num();
-			}
-
-			// Update duration if it has changed > 1ms
-			float NewDuration = (float)SoundWave->RawPCMDataSize / (QualityInfo.SampleRate * sizeof(int16) * SoundWave->NumChannels);
-			if (!FMath::IsNearlyEqual(SoundWave->Duration, NewDuration, 0.001f))
-			{
-				UE_LOG(LogAudioDerivedData, Display, TEXT( "Updated SoundWave->Duration from %f to %f while cooking %s." ), SoundWave->Duration, NewDuration, *SoundWave->GetFullName());
-				SoundWave->Duration = NewDuration;
-			}
+			UE_LOG(LogAudioDerivedData, Warning, TEXT("Cooking sound failed: %s"), *Inputs.SoundFullName);
 		}
-	}
-	if (bWasLocked)
-	{
-		SoundWave->RawData.Unlock();
 	}
 }
 
 /**
  * Cook a multistream (normally 5.1) wave
  */
-static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAudioFormat& Format, TArray<uint8>& Output, const FPlatformAudioCookOverrides* CompressionOverrides)
+static void CookSurroundWave(const FAudioCookInputs& Inputs,  TArray<uint8>& OutputBuffer)
 {
-	check(!Output.Num());
-#if WITH_EDITORONLY_DATA
+	TRACE_CPUPROFILER_EVENT_SCOPE(CookSurroundWave);
+
+	check(!OutputBuffer.Num());
+
 	int32					i;
 	size_t					SampleDataSize = 0;
 	FWaveModInfo			WaveInfo;
 	TArray<TArray<uint8> >	SourceBuffers;
 	TArray<int32>			RequiredChannels;
 
-
-	if (SoundWave->IsA<USoundWaveProcedural>())
+	if (Inputs.bIsSoundWaveProcedural)
 	{
 		return;
 	}
 
-#if WITH_EDITORONLY_DATA
-	FScopeLock ScopeLock(&SoundWave->RawDataCriticalSection);
-#endif
+	FScopeLock ScopeLock(&Inputs.BulkDataCriticalSection);
 
-	uint8* RawWaveData = ( uint8* )SoundWave->RawData.Lock( LOCK_READ_ONLY );
-	if (RawWaveData == nullptr)
+	if (!Inputs.BulkData.IsBulkDataLoaded())
 	{
-		SoundWave->RawData.Unlock();
-
-		UE_LOG(LogAudioDerivedData, Display, TEXT("No raw wave data for: %s"), *SoundWave->GetFullName());
-		return;
+		Inputs.BulkData.ForceBulkDataResident();
 	}
+	
+	UE_CLOG(!Inputs.BulkData.IsBulkDataLoaded(), LogAudioDerivedData, Display, TEXT("Calling ForceBulkDataResident for LPCM data for USoundWave %s failed."), *Inputs.SoundFullName);
+
+	// Lock raw wave data.
+	const uint8* RawWaveData = (const uint8*)Inputs.BulkData.LockReadOnly();
+	int32 RawDataSize = Inputs.BulkData.GetBulkDataSize();
+	ON_SCOPE_EXIT { Inputs.BulkData.Unlock(); };
 
 	// Front left channel is the master
 	static_assert(SPEAKER_FrontLeft == 0, "Front-left speaker must be first.");
@@ -1247,7 +1302,7 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 		FWaveModInfo WaveInfoInner;
 
 		// Only mono files allowed
-		if (WaveInfoInner.ReadWaveHeader(RawWaveData, SoundWave->ChannelSizes[i], SoundWave->ChannelOffsets[i])
+		if (WaveInfoInner.ReadWaveHeader(RawWaveData, Inputs.ChannelSizes[i], Inputs.ChannelOffsets[i])
 			&& *WaveInfoInner.pChannels == 1)
 		{
 			if (SampleDataSize == 0)
@@ -1298,7 +1353,7 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 		for( i = 0; i < SPEAKER_Count; i++ )
 		{
 			FWaveModInfo WaveInfoInner;
-			if( WaveInfoInner.ReadWaveHeader( RawWaveData, SoundWave->ChannelSizes[ i ], SoundWave->ChannelOffsets[ i ] )
+			if( WaveInfoInner.ReadWaveHeader( RawWaveData, Inputs.ChannelSizes[ i ], Inputs.ChannelOffsets[ i ] )
 				&& *WaveInfoInner.pChannels == 1 )
 			{
 				ChannelCount++;
@@ -1321,19 +1376,13 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 		{
 			int32 WaveSampleRate = *WaveInfo.pSamplesPerSec;
 
-			// Check for a platform resample override here and resample if neccesary:
-			float SampleRateOverride = -1.0f;
-			if (CompressionOverrides && CompressionOverrides->bResampleForDevice)
-			{
-				SampleRateOverride = SoundWave->GetSampleRateForCompressionOverrides(CompressionOverrides);
-			}
-
-			if (SampleRateOverride > 0 && SampleRateOverride != (float)WaveSampleRate)
+			// Check for a platform resample override here and resample if necessary:
+			if (Inputs.SampleRateOverride > 0 && Inputs.SampleRateOverride != (float)WaveSampleRate)
 			{
 				for (int32 ChannelIndex = 0; ChannelIndex < ChannelCount; ChannelIndex++)
 				{
 					size_t DataSize = SourceBuffers[ChannelIndex].Num();
-					ResampleWaveData(SourceBuffers[ChannelIndex], DataSize, 1, WaveSampleRate, SampleRateOverride);
+					ResampleWaveData(SourceBuffers[ChannelIndex], DataSize, 1, WaveSampleRate, Inputs.SampleRateOverride);
 				}
 
 				// Since each channel is resampled independently, we may have slightly different sample counts in each channel.
@@ -1351,25 +1400,19 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 					}
 				}
 
-				WaveSampleRate = SampleRateOverride;
+				WaveSampleRate = Inputs.SampleRateOverride;
 				SampleDataSize = SizeOfZerothChannel;
 			}
 
-			UE_LOG(LogAudioDerivedData, Display, TEXT("Cooking %d channels for: %s"), ChannelCount, *SoundWave->GetFullName());
+			UE_LOG(LogAudioDerivedData, Display, TEXT("Cooking %d channels for: %s"), ChannelCount, *Inputs.SoundFullName);
 
 			FSoundQualityInfo QualityInfo = { 0 };
 
-			float CompressionQualityModifier = 1.0f;
-			if (CompressionOverrides)
-			{
-				CompressionQualityModifier = CompressionOverrides->CompressionQualityModifier;
-			}
+			float ModifiedCompressionQuality = (float)Inputs.CompressionQuality;
 
-			float ModifiedCompressionQuality = (float)SoundWave->GetCompressionQuality();
-
-			if (!FMath::IsNearlyEqual(CompressionQualityModifier, 1.0f))
+			if (!FMath::IsNearlyEqual(Inputs.CompressionQualityModifier, 1.0f))
 			{
-				ModifiedCompressionQuality = (float)SoundWave->GetCompressionQuality() * CompressionQualityModifier;
+				ModifiedCompressionQuality = (float)Inputs.CompressionQuality * Inputs.CompressionQualityModifier;
 			}
 			
 			if (ModifiedCompressionQuality >= 1.0f)
@@ -1378,130 +1421,94 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 			}
 			else
 			{
-				QualityInfo.Quality = SoundWave->GetCompressionQuality();
+				QualityInfo.Quality = Inputs.CompressionQuality;
 			}
 
 			QualityInfo.NumChannels = ChannelCount;
 			QualityInfo.SampleRate = WaveSampleRate;
 			QualityInfo.SampleDataSize = SampleDataSize;
-			QualityInfo.bStreaming = SoundWave->IsStreaming(CompressionOverrides ? *CompressionOverrides : FPlatformAudioCookOverrides());
-			QualityInfo.DebugName = SoundWave->GetFullName();
+			QualityInfo.bStreaming = Inputs.bIsStreaming;
+			QualityInfo.DebugName = Inputs.SoundFullName;
 
 			static const FName NAME_BINKA(TEXT("BINKA"));
 			if (WaveSampleRate > 48000 &&
-				FormatName == NAME_BINKA)
+				Inputs.BaseFormat == NAME_BINKA)
 			{
 				// We have to do this here because we don't know the name of the wave inside the codec.
-				UE_LOG(LogAudioDerivedData, Warning, TEXT("[%s] High sample rate wave (%d) with Bink Audio - perf waste - high frequencies are discarded by Bink Audio (like most perceptual codecs)."), *SoundWave->GetFullName(), WaveSampleRate);
+				UE_LOG(LogAudioDerivedData, Warning, TEXT("[%s] High sample rate wave (%d) with Bink Audio - perf waste - high frequencies are discarded by Bink Audio (like most perceptual codecs)."), *Inputs.SoundFullName, WaveSampleRate);
 			}
 
 			//@todo tighten up the checking for empty results here
-			if(Format.CookSurround(FormatName, SourceBuffers, QualityInfo, Output))
+			if (!Inputs.Compressor->CookSurround(Inputs.BaseFormat, SourceBuffers, QualityInfo, OutputBuffer))
 			{
-				SoundWave->SetSampleRate(QualityInfo.SampleRate);
-
-				if (SoundWave->NumChannels != ChannelCount)
-				{
-					UE_LOG(LogAudioDerivedData, Warning, TEXT( "Updated SoundWave->NumChannels during cooking %s." ), *SoundWave->GetFullName() );
-					SoundWave->NumChannels = ChannelCount;
-				}
-
-				const int32 PCMDataSize = SampleDataSize * ChannelCount;
-				if (SoundWave->RawPCMDataSize != PCMDataSize)
-				{
-					UE_LOG(LogAudioDerivedData, Display, TEXT("Updated SoundWave->RawPCMDataSize during cooking %s."), *SoundWave->GetFullName() );
-					SoundWave->RawPCMDataSize = PCMDataSize;
-				}
-
-				const float NewDuration = (float)SampleDataSize / (QualityInfo.SampleRate * sizeof(int16));
-				if (SoundWave->Duration != NewDuration)
-				{
-					UE_LOG(LogAudioDerivedData, Display, TEXT("Updated SoundWave->Duration during cooking %s."), *SoundWave->GetFullName());
-					SoundWave->Duration = NewDuration;
-				}
-			}
-			else
-			{
-				UE_LOG(LogAudioDerivedData, Warning, TEXT("Cooking surround sound failed: %s"), *SoundWave->GetPathName());
+				UE_LOG(LogAudioDerivedData, Warning, TEXT("Cooking surround sound failed: %s"), *Inputs.SoundFullName);
 			}
 		}
 		else
 		{
-			UE_LOG(LogAudioDerivedData, Warning, TEXT( "No format available for a %d channel surround sound: %s" ), ChannelCount, *SoundWave->GetFullName() );
+			UE_LOG(LogAudioDerivedData, Warning, TEXT( "No format available for a %d channel surround sound: %s" ), ChannelCount, *Inputs.SoundFullName );
 		}
 	}
 	else
 	{
-		UE_LOG(LogAudioDerivedData, Warning, TEXT( "Cooking surround sound failed: %s" ), *SoundWave->GetPathName() );
+		UE_LOG(LogAudioDerivedData, Warning, TEXT( "Cooking surround sound failed: %s" ), *Inputs.SoundFullName );
 	}
-	SoundWave->RawData.Unlock();
-#endif
 }
 
+#endif // WITH_EDITORONLY_DATA
+
 FDerivedAudioDataCompressor::FDerivedAudioDataCompressor(USoundWave* InSoundNode, FName InBaseFormat, FName InHashedFormat, const FPlatformAudioCookOverrides* InCompressionOverrides)
-	: SoundNode(InSoundNode)
-	, BaseFormat(InBaseFormat)
-	, HashedFormat(InHashedFormat)
-	, Compressor(NULL)
-	, CompressionOverrides(InCompressionOverrides)
+	: CookInputs(MakeUnique<FAudioCookInputs>(InSoundNode, InBaseFormat, InHashedFormat, InCompressionOverrides))
 {
-	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
-	if (TPM)
-	{
-		Compressor = TPM->FindAudioFormat(BaseFormat);
-	}
 }
 
 FString FDerivedAudioDataCompressor::GetPluginSpecificCacheKeySuffix() const
 {
 	int32 FormatVersion = 0xffff; // if the compressor is NULL, this will be used as the version...and in that case we expect everything to fail anyway
-	if (Compressor)
+	if (CookInputs->Compressor)
 	{
-		FormatVersion = (int32)Compressor->GetVersion(BaseFormat);
+		FormatVersion = (int32)CookInputs->Compressor->GetVersion(CookInputs->BaseFormat);
 	}
 
-	check(SoundNode->CompressedDataGuid.IsValid());
-	FString FormatHash = HashedFormat.ToString().ToUpper();
-	return FString::Printf(TEXT("%s_%04X_%s"), *FormatHash, FormatVersion, *SoundNode->CompressedDataGuid.ToString());
+	check(CookInputs->CompressedDataGuid.IsValid());
+	FString FormatHash = CookInputs->HashedFormat.ToString().ToUpper();
+	return FString::Printf(TEXT("%s_%04X_%s"), *FormatHash, FormatVersion, *CookInputs->CompressedDataGuid.ToString());
 }
 
+bool FDerivedAudioDataCompressor::IsBuildThreadsafe() const
+{
+	return AllowAsyncCompression && CookInputs->Compressor ? CookInputs->Compressor->AllowParallelBuild() : false;
+}
 
 bool FDerivedAudioDataCompressor::Build(TArray<uint8>& OutData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDerivedAudioDataCompressor::Build);
+
 #if WITH_EDITORONLY_DATA
-	if (!Compressor)
+	if (!CookInputs->Compressor)
 	{
-		UE_LOG(LogAudioDerivedData, Warning, TEXT("Could not find audio format to cook: %s"), *BaseFormat.ToString());
+		UE_LOG(LogAudioDerivedData, Warning, TEXT("Could not find audio format to cook: %s"), *CookInputs->BaseFormat.ToString());
 		return false;
 	}
 
 	FFormatNamedArguments Args;
-	Args.Add(TEXT("AudioFormat"), FText::FromName(BaseFormat));
-	Args.Add(TEXT("Hash"), FText::FromName(HashedFormat));
-	Args.Add(TEXT("SoundNodeName"), FText::FromString(SoundNode->GetName()));
+	Args.Add(TEXT("AudioFormat"), FText::FromName(CookInputs->BaseFormat));
+	Args.Add(TEXT("Hash"), FText::FromName(CookInputs->HashedFormat));
+	Args.Add(TEXT("SoundNodeName"), FText::FromString(CookInputs->SoundName));
 	FAudioStatusMessageContext StatusMessage(FText::Format(NSLOCTEXT("Engine", "BuildingCompressedAudioTaskStatus", "Building compressed audio format {AudioFormat} hash {Hash} wave {SoundNodeName}..."), Args));
 
-
-#if FORCE_RESAMPLE
-	FPlatformAudioCookOverrides NewCompressionOverrides = FPlatformAudioCookOverrides();
-	NewCompressionOverrides.bResampleForDevice = true;
-	if (CompressionOverrides == nullptr)
+	if (!CookInputs->ChannelSizes.Num())
 	{
-		CompressionOverrides = &NewCompressionOverrides;
-	}
-#endif
-
-	if (!SoundNode->ChannelSizes.Num())
-	{
-		check(!SoundNode->ChannelOffsets.Num());
-		CookSimpleWave(SoundNode, BaseFormat, *Compressor, OutData, CompressionOverrides);
+		check(!CookInputs->ChannelOffsets.Num());
+		CookSimpleWave(*CookInputs, OutData);
 	}
 	else
 	{
-		check(SoundNode->ChannelOffsets.Num() == SPEAKER_Count);
-		check(SoundNode->ChannelSizes.Num() == SPEAKER_Count);
-		CookSurroundWave(SoundNode, BaseFormat, *Compressor, OutData, CompressionOverrides);
+		check(CookInputs->ChannelOffsets.Num() == SPEAKER_Count);
+		check(CookInputs->ChannelSizes.Num() == SPEAKER_Count);
+		CookSurroundWave(*CookInputs, OutData);
 	}
+
 #endif
 	return OutData.Num() > 0;
 }
@@ -1654,7 +1661,7 @@ bool USoundWave::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* Target
 		FStreamedAudioPlatformData *PlatformData = CookedPlatformData.FindRef(DerivedDataKey);
 		if (PlatformData == NULL)
 		{
-			// we havne't called begincache
+			// we haven't called begincache
 			return false;
 		}
 
@@ -1727,10 +1734,12 @@ void USoundWave::WillNeverCacheCookedPlatformDataAgain()
 
 void USoundWave::FinishCachePlatformData()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(USoundWave::FinishCachePlatformData);
+
 	check(SoundWaveDataPtr);
 	if (SoundWaveDataPtr->RunningPlatformData.NumChunks == 0)
 	{
-		// begin cache never called, but we are running with, or targeting platforms that need, audio redner data
+		// begin cache never called, but we are running with, or targeting platforms that need, audio render data
 		if (WillNeedAudioVisualData())
 		{
 			CachePlatformData();

@@ -445,7 +445,7 @@ class FAudioFormatADPCM : public IAudioFormat
 public:
 	virtual bool AllowParallelBuild() const
 	{
-		return false;
+		return true;
 	}
 
 	virtual uint16 GetVersion(FName Format) const override

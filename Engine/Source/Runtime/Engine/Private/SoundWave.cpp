@@ -344,6 +344,8 @@ const TArrayView<uint8> FSoundWaveData::GetZerothChunkDataView() const
 
 bool FSoundWaveData::LoadZerothChunk()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSoundWaveData::LoadZerothChunk);
+
 	LLM_SCOPE(ELLMTag::AudioSoundWaves);
 
 	// If the zeroth chunk is already loaded, early exit.
@@ -886,9 +888,12 @@ void USoundWave::Serialize( FArchive& Ar )
 			}
 		}
 	}
-	else
+	else if (!Ar.IsObjectReferenceCollector()) // Skip bulk data serialization when collecting references
 	{
 		// only save the raw data for non-cooked packages
+#if WITH_EDITORONLY_DATA
+		FScopeLock ScopeLock(&RawDataCriticalSection);
+#endif
 		RawData.Serialize(Ar, this, INDEX_NONE, false);
 	}
 
@@ -1111,6 +1116,10 @@ bool USoundWave::GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& 
 	OutSampleRate = 0;
 	OutChannelOrder.Reset();
 
+#if WITH_EDITORONLY_DATA
+	FScopeLock ScopeLock(&RawDataCriticalSection);
+#endif
+
 	// Can only get sound wave data if there is bulk data 
 	if (RawData.GetBulkDataSize() > 0)
 	{
@@ -1305,6 +1314,7 @@ FName USoundWave::GetPlatformSpecificFormat(FName Format, const FPlatformAudioCo
 
 void USoundWave::BeginGetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(USoundWave::BeginGetCompressedData);
 	check(SoundWaveDataPtr);
 
 #if WITH_EDITOR
@@ -1400,6 +1410,8 @@ FByteBulkData* USoundWave::GetCompressedData(FName Format, const FPlatformAudioC
 
 void USoundWave::InvalidateCompressedData(bool bFreeResources, bool bRebuildStreamingChunks)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(USoundWave::InvalidateCompressedData);
+
 	check(SoundWaveDataPtr);
 
 	CompressedDataGuid = FGuid::NewGuid();
@@ -1566,6 +1578,9 @@ void USoundWave::PostLoad()
 		// remove bulk data if no AudioDevice is used and no sounds were initialized
 		else if (IsRunningGame())
 		{
+#if WITH_EDITORONLY_DATA
+			FScopeLock ScopeLock(&RawDataCriticalSection);
+#endif
 			RawData.RemoveBulkData();
 		}
 	}
@@ -1845,7 +1860,7 @@ void USoundWave::InvalidateSoundWaveIfNeccessary()
 		InvalidateCompressedData(true);
 		bWasStreamCachingEnabledOnLastCook = bIsStreamCachingEnabled;
 
-		// If stream caching is now turned on, recook the streaming audio if neccessary.
+		// If stream caching is now turned on, recook the streaming audio if necessary.
 		if (bIsStreamCachingEnabled && IsStreaming(nullptr))
 		{
 			LoadZerothChunk();

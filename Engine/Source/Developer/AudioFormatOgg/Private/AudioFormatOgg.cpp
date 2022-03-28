@@ -38,7 +38,7 @@ class FAudioFormatOgg : public IAudioFormat
 public:
 	virtual bool AllowParallelBuild() const override
 	{
-		return false;
+		return true;
 	}
 
 	virtual uint16 GetVersion(FName Format) const override

@@ -21,6 +21,10 @@ class FAudioFormatBink : public IAudioFormat
 	};
 
 public:
+	virtual bool AllowParallelBuild() const override
+	{
+		return true;
+	}
 
 	virtual uint16 GetVersion(FName Format) const override
 	{

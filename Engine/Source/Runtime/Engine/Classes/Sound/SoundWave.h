@@ -778,8 +778,8 @@ public:
 #if WITH_EDITORONLY_DATA
 	TMap<FName, uint32> AsyncLoadingDataFormats;
 
-	/** FByteBulkData doesn't currently support readonly access from multiple threads, so we limit access to RawData with a critical section on cook. */
-	FCriticalSection RawDataCriticalSection;
+	/** FByteBulkData doesn't currently support read-only access from multiple threads, so we limit access to RawData with a critical section on cook. */
+	mutable FCriticalSection RawDataCriticalSection;
 
 #endif // WITH_EDITORONLY_DATA
 	/** cooked streaming platform data for this sound */

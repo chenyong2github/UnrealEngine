@@ -8,18 +8,14 @@
 class IAudioFormat;
 class USoundWave;
 struct FPlatformAudioCookOverrides;
+struct FAudioCookInputs;
 
 class FDerivedAudioDataCompressor : public FDerivedDataPluginInterface
 {
 private:
-	USoundWave*			SoundNode;
-	FName				BaseFormat;
-	FName				HashedFormat;
-	const IAudioFormat*	Compressor;
-	const FPlatformAudioCookOverrides* CompressionOverrides;
+	TUniquePtr<FAudioCookInputs> CookInputs;
 
 public:
-
 	FDerivedAudioDataCompressor(USoundWave* InSoundNode, FName InBaseFormat, FName InHashedFormat, const FPlatformAudioCookOverrides* InCompressionOverrides);
 
 	virtual const TCHAR* GetPluginName() const override
@@ -38,10 +34,7 @@ public:
 
 	virtual FString GetPluginSpecificCacheKeySuffix() const override;
 	
-	virtual bool IsBuildThreadsafe() const override
-	{
-		return false;
-	}
+	virtual bool IsBuildThreadsafe() const override;
 
 	virtual bool Build(TArray<uint8>& OutData) override;
 };
