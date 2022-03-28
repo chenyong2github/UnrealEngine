@@ -4,7 +4,7 @@
 #include "Misc/MessageDialog.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Engine/Texture.h"
-#include "Engine/Texture2D.h"
+//#include "Engine/Texture2D.h"
 #include "Editor.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
@@ -137,25 +137,6 @@ void FTextureDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	}
 }
 
-bool FTextureDetails::CanEditMaxTextureSize() const
-{
-	if (UTexture2D* Texture2D = Cast<UTexture2D>(TextureBeingCustomized.Get()))
-	{
-		if (!Texture2D->Source.IsPowerOfTwo() && Texture2D->PowerOfTwoMode == ETexturePowerOfTwoSetting::None)
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-void FTextureDetails::CreateMaxTextureSizeMessage() const
-{
-	FMessageDialog::Open(EAppMsgType::Ok,
-		LOCTEXT("CannotEditMaxTextureSize", "Maximum Texture Size cannot be changed for this texture as it is a non power of two size. Change the Power of Two Mode to allow it to be padded to a power of two."));
-}
-
 /** @return The value or unset if properties with multiple values are viewed */
 TOptional<int32> FTextureDetails::OnGetMaxTextureSize() const
 {
@@ -171,11 +152,6 @@ TOptional<int32> FTextureDetails::OnGetMaxTextureSize() const
 
 void FTextureDetails::OnMaxTextureSizeChanged(int32 NewValue)
 {
-	if (!CanEditMaxTextureSize())
-	{
-		return;
-	}
-
 	if (bIsUsingSlider)
 	{
 		int32 OrgValue(0);
@@ -196,15 +172,6 @@ void FTextureDetails::OnMaxTextureSizeChanged(int32 NewValue)
 
 void FTextureDetails::OnMaxTextureSizeCommitted(int32 NewValue, ETextCommit::Type CommitInfo)
 {
-	if (!CanEditMaxTextureSize())
-	{
-		if (CommitInfo == ETextCommit::OnEnter)
-		{
-			CreateMaxTextureSizeMessage();
-		}
-		return;
-	}
-
 	MaxTextureSizePropertyHandle->SetValue(NewValue);
 }
 
@@ -213,11 +180,6 @@ void FTextureDetails::OnMaxTextureSizeCommitted(int32 NewValue, ETextCommit::Typ
  */
 void FTextureDetails::OnBeginSliderMovement()
 {
-	if (!CanEditMaxTextureSize())
-	{
-		return;
-	}
-
 	bIsUsingSlider = true;
 
 	GEditor->BeginTransaction(TEXT("TextureDetails"), LOCTEXT("SetMaximumTextureSize", "Edit Maximum Texture Size"), nullptr /* MaxTextureSizePropertyHandle->GetProperty() */ );
@@ -229,33 +191,9 @@ void FTextureDetails::OnBeginSliderMovement()
  */
 void FTextureDetails::OnEndSliderMovement(int32 NewValue)
 {
-	if (!CanEditMaxTextureSize())
-	{
-		return;
-	}
-
 	bIsUsingSlider = false;
 
 	GEditor->EndTransaction();
-}
-
-bool FTextureDetails::CanEditPowerOfTwoMode(int32 NewPowerOfTwoMode) const
-{
-	if (UTexture2D* Texture2D = Cast<UTexture2D>(TextureBeingCustomized.Get()))
-	{
-		if (!Texture2D->Source.IsPowerOfTwo() && Texture2D->MaxTextureSize > 0 && NewPowerOfTwoMode == ETexturePowerOfTwoSetting::None)
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-void FTextureDetails::CreatePowerOfTwoModeMessage() const
-{
-	FMessageDialog::Open(EAppMsgType::Ok,
-						 LOCTEXT("CannotEditPowerOfTwoMode", "Power of Two Mode cannot be changed to None for this texture as it is a non power of two size and has a Maximum Texture Size override. Change the Maximum Texture Size to 0 before attempting to change the Power of Two Mode."));
 }
 
 void FTextureDetails::OnPropertyResetToDefault() const
@@ -269,14 +207,6 @@ void FTextureDetails::OnPowerOfTwoModeChanged(TSharedPtr<FString> NewValue, ESel
 {
 	int32 NewPowerOfTwoMode = PowerOfTwoModeComboBoxList.Find(NewValue);
 	check(NewPowerOfTwoMode != INDEX_NONE);
-	if (!CanEditPowerOfTwoMode(NewPowerOfTwoMode))
-	{
-		CreatePowerOfTwoModeMessage();
-		uint8 CurrentPowerOfTwoMode;
-		ensure(PowerOfTwoModePropertyHandle->GetValue(CurrentPowerOfTwoMode) == FPropertyAccess::Success);
-		TextComboBox->SetSelectedItem(PowerOfTwoModeComboBoxList[CurrentPowerOfTwoMode]);
-		return;
-	}
 
 	int32 PowerOfTwoMode = PowerOfTwoModeComboBoxList.Find(NewValue);
 	check(PowerOfTwoMode != INDEX_NONE);

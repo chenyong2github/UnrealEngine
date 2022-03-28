@@ -207,6 +207,8 @@ struct FTextureBuildSettings
 	// ETextureEncodeSpeed, either Final or Fast.
 	uint8 RepresentsEncodeSpeedNoSend;
 
+	static constexpr uint32 MaxTextureResolutionDefault = TNumericLimits<uint32>::Max();
+
 	/** Default settings. */
 	FTextureBuildSettings()
 		: bDoScaleMipsForAlphaCoverage(false)
@@ -214,7 +216,7 @@ struct FTextureBuildSettings
 		, MipSharpening(0.0f)
 		, DiffuseConvolveMipLevel(0)
 		, SharpenMipKernelSize(2)
-		, MaxTextureResolution(TNumericLimits<uint32>::Max())
+		, MaxTextureResolution(MaxTextureResolutionDefault)
 		, bHDRSource(false)
 		, MipGenSettings(1 /*TMGS_SimpleAverage*/)
 		, bCubemap(false)

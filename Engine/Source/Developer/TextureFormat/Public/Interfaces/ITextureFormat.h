@@ -14,12 +14,13 @@ struct FTextureBuildSettings;
 struct FTextureFormatCompressorCaps
 {
 	FTextureFormatCompressorCaps()
-		: MaxTextureDimension(TNumericLimits<uint32>::Max())
+		: MaxTextureDimension_DEPRECATED(TNumericLimits<uint32>::Max())
 		, NumMipsInTail(0)
 		, ExtData(0)
 	{ }
 
-	uint32 MaxTextureDimension;
+	// MaxTextureDimension is never set, remove it
+	uint32 MaxTextureDimension_DEPRECATED;
 	uint32 NumMipsInTail;
 	uint32 ExtData;
 };

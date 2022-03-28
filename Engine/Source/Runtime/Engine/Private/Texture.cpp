@@ -380,17 +380,15 @@ void UTexture::ValidateSettingsAfterImportOrEdit()
 
 		if ( PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
 		{
+			// @@!! yes it is? fix and remove this?
 			UE_LOG(LogTexture, Warning, TEXT("PowerOfTwoMode not supported for volume Z"));
 			PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
 		}
 	}
-
-	if (!IsPowerOfTwo && (PowerOfTwoMode == ETexturePowerOfTwoSetting::None))
+	
+	if (VirtualTextureStreaming)
 	{
-		// Force NPT textures to have no mipmaps.
-		MipGenSettings = TMGS_NoMipmaps;
-		NeverStream = true;
-		if (VirtualTextureStreaming)
+		if (!IsPowerOfTwo && (PowerOfTwoMode == ETexturePowerOfTwoSetting::None))
 		{
 			UE_LOG(LogTexture, Warning, TEXT("VirtualTextureStreaming not supported for \"%s\", texture size is not a power-of-2"), *GetName());
 			VirtualTextureStreaming = false;
