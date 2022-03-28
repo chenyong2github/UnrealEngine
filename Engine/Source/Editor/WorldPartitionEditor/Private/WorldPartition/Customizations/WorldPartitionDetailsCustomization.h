@@ -9,6 +9,8 @@
 class IDetailLayoutBuilder;
 class UWorldPartition;
 
+enum class ECheckBoxState : uint8;
+
 class FWorldPartitionDetails : public IDetailCustomization
 {
 public:
