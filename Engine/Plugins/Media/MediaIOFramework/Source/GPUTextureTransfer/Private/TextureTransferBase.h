@@ -67,7 +67,7 @@ namespace UE::GPUTextureTransfer::Private
 			DVPBufferHandle DVPHandle = 0;
 			union 
 			{
-				void* Handle;
+				void* Handle = nullptr;
 				int Fd;
 			} External; // D3D12 and Vulkan only
 		};
