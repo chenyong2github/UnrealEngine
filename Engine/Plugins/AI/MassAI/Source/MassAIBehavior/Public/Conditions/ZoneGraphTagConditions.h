@@ -31,10 +31,6 @@ struct MASSAIBEHAVIOR_API FZoneGraphTagFilterCondition : public FStateTreeCondit
 	virtual const UStruct* GetInstanceDataType() const override { return FZoneGraphTagFilterConditionInstanceData::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
-#if WITH_EDITOR
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
-#endif
-
 	TStateTreeInstanceDataPropertyHandle<FZoneGraphTagMask> TagsHandle;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
@@ -70,10 +66,6 @@ struct MASSAIBEHAVIOR_API FZoneGraphTagMaskCondition : public FStateTreeConditio
 	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual const UStruct* GetInstanceDataType() const override { return FZoneGraphTagMaskConditionInstanceData::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
-
-#if WITH_EDITOR
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
-#endif
 
 	TStateTreeInstanceDataPropertyHandle<FZoneGraphTagMask> LeftHandle;
 	TStateTreeInstanceDataPropertyHandle<FZoneGraphTagMask> RightHandle;
@@ -111,10 +103,6 @@ struct MASSAIBEHAVIOR_API FZoneGraphTagCondition : public FStateTreeConditionBas
 	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual const UStruct* GetInstanceDataType() const override { return FZoneGraphTagConditionInstanceData::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
-
-#if WITH_EDITOR
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
-#endif
 
 	TStateTreeInstanceDataPropertyHandle<FZoneGraphTag> LeftHandle;
 	TStateTreeInstanceDataPropertyHandle<FZoneGraphTag> RightHandle;

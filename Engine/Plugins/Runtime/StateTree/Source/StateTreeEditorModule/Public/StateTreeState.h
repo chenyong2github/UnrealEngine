@@ -72,6 +72,12 @@ struct STATETREEEDITORMODULE_API FStateTreeEditorNode
 	
 	UPROPERTY(EditDefaultsOnly, Category = Node)
 	FGuid ID;
+
+	UPROPERTY(EditDefaultsOnly, Category = Node)
+	uint8 ConditionIndent = 0;
+
+	UPROPERTY(EditDefaultsOnly, Category = Node)
+	EStateTreeConditionOperand ConditionOperand = EStateTreeConditionOperand::And; 
 };
 
 template <typename T>
@@ -81,7 +87,6 @@ struct TStateTreeEditorNode : public FStateTreeEditorNode
 	FORCEINLINE T& GetItem() { return Node.template GetMutable<T>(); }
 	FORCEINLINE typename T::InstanceDataType& GetInstance() { return Instance.template GetMutable<typename T::InstanceDataType>(); }
 };
-
 
 /**
  * Editor representation of a transition in StateTree

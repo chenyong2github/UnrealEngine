@@ -56,6 +56,7 @@ void UStateTree::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 void UStateTree::PostLoad()
 {
 	Super::PostLoad();
+
 	Link();
 }
 
@@ -96,7 +97,7 @@ void UStateTree::Link()
 	// This data will be used to allocate runtime instance on all StateTree users.
 	InstanceDataDefaultValue.Reset();
 	if (Instances.Num() > 0)
-		{
+	{
 		InstanceDataDefaultValue.Initialize(*this, Instances, InstanceObjects);
 	}
 

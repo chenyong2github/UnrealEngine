@@ -36,7 +36,8 @@ private:
 	bool CreateStates();
 	bool CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent);
 	bool CreateStateTransitions();
-	bool CreateCondition(const FStateTreeEditorNode& CondNode);
+	bool CreateConditions(TConstArrayView<FStateTreeEditorNode> Conditions);
+	bool CreateCondition(const FStateTreeEditorNode& CondNode, const EStateTreeConditionOperand Operand, const int8 DeltaIndent);
 	bool CreateTask(const FStateTreeEditorNode& TaskNode);
 	bool CreateEvaluator(const FStateTreeEditorNode& EvalNode);
 	bool GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const;

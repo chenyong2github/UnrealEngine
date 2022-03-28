@@ -95,45 +95,6 @@ bool FStateTreeCondition_CompareInt::TestCondition(FStateTreeExecutionContext& C
 	return bResult ^ bInvert;
 }
 
-#if WITH_EDITOR
-FText FStateTreeCondition_CompareInt::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
-{
-	const FStateTreeCondition_CompareIntInstanceData& Instance = InstanceData.Get<FStateTreeCondition_CompareIntInstanceData>();
-	const FStateTreeEditorPropertyPath LeftPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCondition_CompareIntInstanceData, Left));
-	const FStateTreeEditorPropertyPath RightPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCondition_CompareIntInstanceData, Right));
-
-	FText InvertText;
-	if (bInvert)
-	{
-		InvertText = LOCTEXT("Not", "Not");
-	}
-
-	FText LeftText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(LeftPath))
-	{
-		LeftText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		LeftText = LOCTEXT("NotBound", "Not Bound");
-	}
-
-	FText OperatorText = UE::StateTree::Conditions::GetOperatorText(Operator);
-
-	FText RightText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(RightPath))
-	{
-		RightText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		RightText = FText::AsNumber(Instance.Right);
-	}
-
-	return FText::Format(LOCTEXT("CompareIntDesc", "{0} <Details.Bold>{1}</> {2} <Details.Bold>{3}</>"), InvertText, LeftText, OperatorText, RightText);
-}
-#endif
-
 
 //----------------------------------------------------------------------//
 //  FStateTreeCondition_CompareFloat
@@ -156,46 +117,6 @@ bool FStateTreeCondition_CompareFloat::TestCondition(FStateTreeExecutionContext&
 }
 
 
-#if WITH_EDITOR
-FText FStateTreeCondition_CompareFloat::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
-{
-	const FStateTreeCondition_CompareFloatInstanceData& Instance = InstanceData.Get<FStateTreeCondition_CompareFloatInstanceData>();
-	const FStateTreeEditorPropertyPath LeftPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCondition_CompareFloatInstanceData, Left));
-	const FStateTreeEditorPropertyPath RightPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCondition_CompareFloatInstanceData, Right));
-
-	FText InvertText;
-	if (bInvert)
-	{
-		InvertText = LOCTEXT("Not", "Not");
-	}
-
-	FText LeftText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(LeftPath))
-	{
-		LeftText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		LeftText = LOCTEXT("NotBound", "Not Bound");
-	}
-
-	FText OperatorText = UE::StateTree::Conditions::GetOperatorText(Operator);
-
-	FText RightText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(RightPath))
-	{
-		RightText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		RightText = FText::AsNumber(Instance.Right);
-	}
-
-	return FText::Format(LOCTEXT("CompareFloatDesc", "{0} <Details.Bold>{1}</> {2} <Details.Bold>{3}</>"), InvertText, LeftText, OperatorText, RightText);
-}
-#endif
-
-
 //----------------------------------------------------------------------//
 //  FStateTreeCondition_CompareBool
 //----------------------------------------------------------------------//
@@ -214,43 +135,6 @@ bool FStateTreeCondition_CompareBool::TestCondition(FStateTreeExecutionContext& 
 	const bool bRight = Context.GetInstanceData(RightHandle);
 	return (bLeft == bRight) ^ bInvert;
 }
-
-#if WITH_EDITOR
-FText FStateTreeCondition_CompareBool::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
-{
-	const FStateTreeCondition_CompareBoolInstanceData& Instance = InstanceData.Get<FStateTreeCondition_CompareBoolInstanceData>();
-	const FStateTreeEditorPropertyPath LeftPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCondition_CompareBoolInstanceData, bLeft));
-	const FStateTreeEditorPropertyPath RightPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCondition_CompareBoolInstanceData, bRight));
-
-	FText InvertText;
-	if (bInvert)
-	{
-		InvertText = LOCTEXT("Not", "Not");
-	}
-
-	FText LeftText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(LeftPath))
-	{
-		LeftText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		LeftText = LOCTEXT("NotBound", "Not Bound");
-	}
-
-	FText RightText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(RightPath))
-	{
-		RightText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		RightText = FText::FromString(LexToSanitizedString(Instance.bRight));
-	}
-
-	return FText::Format(LOCTEXT("CompareBoolDesc", "{0} <Details.Bold>{1}</> is <Details.Bold>{2}</>"), InvertText, LeftText, RightText);
-}
-#endif
 
 
 //----------------------------------------------------------------------//
@@ -273,48 +157,6 @@ bool FStateTreeCondition_CompareEnum::TestCondition(FStateTreeExecutionContext& 
 }
 
 #if WITH_EDITOR
-FText FStateTreeCondition_CompareEnum::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
-{
-	const FStateTreeCondition_CompareEnumInstanceData& Instance = InstanceData.Get<FStateTreeCondition_CompareEnumInstanceData>();
-	const FStateTreeEditorPropertyPath LeftPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCondition_CompareEnumInstanceData, Left));
-	const FStateTreeEditorPropertyPath RightPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCondition_CompareEnumInstanceData, Right));
-
-	FText InvertText;
-	if (bInvert)
-	{
-		InvertText = LOCTEXT("Not", "Not");
-	}
-
-	FText LeftText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(LeftPath))
-	{
-		LeftText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		LeftText = LOCTEXT("NotBound", "Not Bound");
-	}
-
-	FText RightText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(RightPath))
-	{
-		RightText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		if (Instance.Right.Enum)
-		{
-			RightText = Instance.Right.Enum->GetDisplayNameTextByValue(int64(Instance.Right.Value));
-		}
-		else
-		{
-			RightText = LOCTEXT("Invalid", "Invalid");
-		}
-	}
-
-	return FText::Format(LOCTEXT("EnumEqualsDesc", "{0} <Details.Bold>{1}</> is <Details.Bold>{2}</>"), InvertText, LeftText, RightText);
-}
-
 void FStateTreeCondition_CompareEnum::OnBindingChanged(const FGuid& ID, FStateTreeDataView InstanceData, const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath, const IStateTreeBindingLookup& BindingLookup)
 {
 	if (!TargetPath.IsValid())
@@ -385,55 +227,6 @@ bool FStateTreeCondition_CompareDistance::TestCondition(FStateTreeExecutionConte
 	return bResult ^ bInvert;
 }
 
-#if WITH_EDITOR
-FText FStateTreeCondition_CompareDistance::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
-{
-	const FStateTreeCondition_CompareDistanceInstanceData& Instance = InstanceData.Get<FStateTreeCondition_CompareDistanceInstanceData>();
-	const FStateTreeEditorPropertyPath SourcePath(ID, GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCondition_CompareDistanceInstanceData, Source));
-	const FStateTreeEditorPropertyPath TargetPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCondition_CompareDistanceInstanceData, Target));
-	const FStateTreeEditorPropertyPath DistancePath(ID, GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCondition_CompareDistanceInstanceData, Distance));
-
-	FText InvertText;
-	if (bInvert)
-	{
-		InvertText = LOCTEXT("Not", "Not");
-	}
-
-	FText SourceText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(SourcePath))
-	{
-		SourceText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		SourceText = LOCTEXT("NotBound", "Not Bound");
-	}
-
-	FText TargetText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(TargetPath))
-	{
-		TargetText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		TargetText = Instance.Target.ToCompactText();
-	}
-
-	FText OperatorText = UE::StateTree::Conditions::GetOperatorText(Operator);
-
-	FText DistanceText;
-	if (const FStateTreeEditorPropertyPath* DistanceBinding = BindingLookup.GetPropertyBindingSource(DistancePath))
-	{
-		DistanceText = BindingLookup.GetPropertyPathDisplayName(*DistanceBinding);
-	}
-	else
-	{
-		DistanceText = FText::AsNumber(Instance.Distance);
-	}
-
-	return FText::Format(LOCTEXT("CompareDistanceDesc", "{0} Distance <Details.Subdued>from</> <Details.Bold>{1}</> <Details.Subdued>to</> <Details.Bold>{2}</> {3} <Details.Bold>{4}</>"), InvertText, SourceText, TargetText, OperatorText, DistanceText);
-}
-#endif
 
 //----------------------------------------------------------------------//
 //  FStateTreeCondition_Random
@@ -452,24 +245,5 @@ bool FStateTreeCondition_Random::TestCondition(FStateTreeExecutionContext& Conte
 	return FMath::FRandRange(0.0f, 1.0f) < Threshold;
 }
 
-#if WITH_EDITOR
-FText FStateTreeCondition_Random::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
-{
-	const FStateTreeCondition_RandomInstanceData& Instance = InstanceData.Get<FStateTreeCondition_RandomInstanceData>();
-	const FStateTreeEditorPropertyPath ThresholdPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCondition_RandomInstanceData, Threshold));
-
-	FText ThresholdText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(ThresholdPath))
-	{
-		ThresholdText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		ThresholdText = FText::AsPercent(Instance.Threshold);
-	}
-
-	return FText::Format(LOCTEXT("RandomDesc", "<Details.Bold>Random</> {1}"), ThresholdText);
-}
-#endif
 
 #undef LOCTEXT_NAMESPACE

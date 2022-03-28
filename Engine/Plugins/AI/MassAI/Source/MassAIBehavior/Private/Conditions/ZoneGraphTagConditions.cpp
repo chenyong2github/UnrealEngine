@@ -97,52 +97,6 @@ bool FZoneGraphTagFilterCondition::TestCondition(FStateTreeExecutionContext& Con
 	return Filter.Pass(Tags) ^ bInvert;
 }
 
-#if WITH_EDITOR
-FText FZoneGraphTagFilterCondition::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
-{
-	const FStateTreeEditorPropertyPath LeftPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FZoneGraphTagFilterConditionInstanceData, Tags));
-
-	FText InvertText;
-	if (bInvert)
-	{
-		InvertText = LOCTEXT("Not", "Not");
-	}
-
-	FText LeftText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(LeftPath))
-	{
-		LeftText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		LeftText = LOCTEXT("NotBound", "Not Bound");
-	}
-
-	FText FilterParts[6] = { FText::GetEmpty(), FText::GetEmpty(), FText::GetEmpty(), FText::GetEmpty(), FText::GetEmpty(), FText::GetEmpty() };
-	int32 PartIndex = 0;
-	if (Filter.AnyTags != FZoneGraphTagMask::None)
-	{
-		FilterParts[PartIndex++] = UE::MassBehavior::ZoneGraph::GetMaskOperatorText(EZoneLaneTagMaskComparison::Any);
-		FilterParts[PartIndex++] = UE::MassBehavior::ZoneGraph::GetTagMaskName(Filter.AnyTags);
-	}
-
-	if (Filter.AllTags != FZoneGraphTagMask::None)
-	{
-		FilterParts[PartIndex++] = UE::MassBehavior::ZoneGraph::GetMaskOperatorText(EZoneLaneTagMaskComparison::All);
-		FilterParts[PartIndex++] = UE::MassBehavior::ZoneGraph::GetTagMaskName(Filter.AllTags);
-	}
-
-	if (Filter.NotTags != FZoneGraphTagMask::None)
-	{
-		FilterParts[PartIndex++] = UE::MassBehavior::ZoneGraph::GetMaskOperatorText(EZoneLaneTagMaskComparison::Not);
-		FilterParts[PartIndex++] = UE::MassBehavior::ZoneGraph::GetTagMaskName(Filter.NotTags);
-	}
-
-	return FText::Format(LOCTEXT("CompareZoneGraphTagFilterDesc", "{0} <Details.Bold>{1}</> contains {2} <Details.Bold>{3}</> {4} <Details.Bold>{5}</> {6} <Details.Bold>{7}</>"),
-		InvertText, LeftText, FilterParts[0], FilterParts[1], FilterParts[2], FilterParts[3], FilterParts[4], FilterParts[5]);
-}
-#endif// WITH_EDITOR
-
 
 //----------------------------------------------------------------------//
 //  FZoneGraphTagMaskCondition
@@ -162,46 +116,6 @@ bool FZoneGraphTagMaskCondition::TestCondition(FStateTreeExecutionContext& Conte
 	const FZoneGraphTagMask Right = Context.GetInstanceData(RightHandle);
 	return Left.CompareMasks(Right, Operator) ^ bInvert;
 }
-
-#if WITH_EDITOR
-FText FZoneGraphTagMaskCondition::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
-{
-	const FZoneGraphTagMaskConditionInstanceData& Instance = InstanceData.Get<FZoneGraphTagMaskConditionInstanceData>();
-	const FStateTreeEditorPropertyPath LeftPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FZoneGraphTagMaskConditionInstanceData, Left));
-	const FStateTreeEditorPropertyPath RightPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FZoneGraphTagMaskConditionInstanceData, Right));
-
-	FText InvertText;
-	if (bInvert)
-	{
-		InvertText = LOCTEXT("Not", "Not");
-	}
-
-	FText LeftText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(LeftPath))
-	{
-		LeftText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		LeftText = LOCTEXT("NotBound", "Not Bound");
-	}
-
-	FText OperatorText = UE::MassBehavior::ZoneGraph::GetMaskOperatorText(Operator);
-
-	FText RightText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(RightPath))
-	{
-		RightText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		RightText = UE::MassBehavior::ZoneGraph::GetTagMaskName(Instance.Right);
-	}
-
-	return FText::Format(LOCTEXT("CompareZoneGraphTagMaskDesc", "{0} <Details.Bold>{1}</> contains {2} <Details.Bold>{3}</>"),
-		InvertText, LeftText, OperatorText, RightText);
-}
-#endif// WITH_EDITOR
 
 
 //----------------------------------------------------------------------//
@@ -223,43 +137,6 @@ bool FZoneGraphTagCondition::TestCondition(FStateTreeExecutionContext& Context) 
 	return (Left == Right) ^ bInvert;
 }
 
-#if WITH_EDITOR
-FText FZoneGraphTagCondition::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
-{
-	const FZoneGraphTagConditionInstanceData& Instance = InstanceData.Get<FZoneGraphTagConditionInstanceData>();
-	const FStateTreeEditorPropertyPath LeftPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FZoneGraphTagConditionInstanceData, Left));
-	const FStateTreeEditorPropertyPath RightPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FZoneGraphTagConditionInstanceData, Right));
-
-	FText InvertText;
-	if (bInvert)
-	{
-		InvertText = LOCTEXT("Not", "Not");
-	}
-
-	FText LeftText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(LeftPath))
-	{
-		LeftText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		LeftText = LOCTEXT("NotBound", "Not Bound");
-	}
-
-	FText RightText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(RightPath))
-	{
-		RightText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		RightText = UE::MassBehavior::ZoneGraph::GetTagName(Instance.Right);
-	}
-
-	return FText::Format(LOCTEXT("CompareZoneGraphTagDesc", "{0} <Details.Bold>{1}</> is <Details.Bold>{2}</>"),
-		InvertText, LeftText, RightText);
-}
-#endif// WITH_EDITOR
 
 #if WITH_EDITOR
 #undef LOCTEXT_NAMESPACE

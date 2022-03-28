@@ -34,10 +34,6 @@ struct STATETREEMODULE_API FGameplayTagMatchCondition : public FStateTreeConditi
 	virtual const UStruct* GetInstanceDataType() const override { return FGameplayTagMatchConditionInstanceData::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
-#if WITH_EDITOR
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
-#endif
-
 	TStateTreeInstanceDataPropertyHandle<FGameplayTagContainer> TagContainerHandle;
 	TStateTreeInstanceDataPropertyHandle<FGameplayTag> TagHandle;
 	
@@ -74,10 +70,6 @@ struct STATETREEMODULE_API FGameplayTagContainerMatchCondition : public FStateTr
 	virtual const UStruct* GetInstanceDataType() const override { return FGameplayTagContainerMatchConditionInstanceData::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
-#if WITH_EDITOR
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
-#endif
-
 	TStateTreeInstanceDataPropertyHandle<FGameplayTagContainer> TagContainerHandle;
 	TStateTreeInstanceDataPropertyHandle<FGameplayTagContainer> OtherContainerHandle;
 
@@ -113,10 +105,6 @@ struct STATETREEMODULE_API FGameplayTagQueryCondition : public FStateTreeConditi
 	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual const UStruct* GetInstanceDataType() const override { return FGameplayTagQueryConditionInstanceData::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
-
-#if WITH_EDITOR
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
-#endif
 
 	TStateTreeInstanceDataPropertyHandle<FGameplayTagContainer> TagContainerHandle;
 

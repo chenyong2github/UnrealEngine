@@ -654,9 +654,19 @@ bool FStateTreeExecutionContext::TestAllConditions(FStateTreeInstanceData& Insta
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TestConditions);
 
-	for (uint32 i = 0; i < ConditionsNum; i++)
+	if (ConditionsNum == 0)
 	{
-		const FStateTreeConditionBase& Cond = GetNode<FStateTreeConditionBase>(ConditionsOffset + i);
+		return true;
+	}
+	
+	TStaticArray<EStateTreeConditionOperand, UE::StateTree::MaxConditionIndent + 1> Operands(InPlace, EStateTreeConditionOperand::Copy);
+	TStaticArray<bool, UE::StateTree::MaxConditionIndent + 1> Values(InPlace, false);
+
+	int32 Level = 0;
+	
+	for (uint32 Index = 0; Index < ConditionsNum; Index++)
+	{
+		const FStateTreeConditionBase& Cond = GetNode<FStateTreeConditionBase>(ConditionsOffset + Index);
 		const FStateTreeDataView CondInstanceView = GetInstanceData(InstanceData, Cond.bInstanceIsObject, Cond.InstanceIndex);
 		DataViews[Cond.DataViewIndex] = CondInstanceView;
 
@@ -665,13 +675,46 @@ bool FStateTreeExecutionContext::TestAllConditions(FStateTreeInstanceData& Insta
 		{
 			StateTree->PropertyBindings.CopyTo(DataViews, Cond.BindingsBatch.Index, CondInstanceView);
 		}
-		
-		if (!Cond.TestCondition(*this))
+
+		const bool bValue = Cond.TestCondition(*this);
+
+		const int32 DeltaIndent = Cond.DeltaIndent;
+		const int32 OpenParens = FMath::Max(0, DeltaIndent) + 1;	// +1 for the current value that is stored at the empty slot at the top of the value stack.
+		const int32 ClosedParens = FMath::Max(0, -DeltaIndent) + 1;
+
+		// Store the operand to apply when merging higher level down when returning to this level.
+		// @todo: remove this conditions in 5.1, needs resaving existing StateTrees.
+		const EStateTreeConditionOperand Operand = Index == 0 ? EStateTreeConditionOperand::Copy : Cond.Operand;
+		Operands[Level] = Operand;
+
+		// Store current value at the top of the stack.
+		Level += OpenParens;
+		Values[Level] = bValue;
+
+		// Evaluate and merge down values based on closed braces.
+		// The current value is placed in parens (see +1 above), which makes merging down and applying the new value consistent.
+		// The default operand is copy, so if the value is needed immediately, it is just copied down, or if we're on the same level,
+		// the operand storing above gives handles with the right logic.
+		for (int32 Paren = 0; Paren < ClosedParens; Paren++)
 		{
-			return false;
+			Level--;
+			switch (Operands[Level])
+			{
+			case EStateTreeConditionOperand::Copy:
+				Values[Level] = Values[Level + 1];
+				break;
+			case EStateTreeConditionOperand::And:
+				Values[Level] &= Values[Level + 1];
+				break;
+			case EStateTreeConditionOperand::Or:
+				Values[Level] |= Values[Level + 1];
+				break;
+			}
+			Operands[Level] = EStateTreeConditionOperand::Copy;
 		}
 	}
-	return true;
+	
+	return Values[0];
 }
 
 FStateTreeTransitionResult FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& InstanceData, const FStateTreeStateStatus CurrentStatus, const int32 Depth)

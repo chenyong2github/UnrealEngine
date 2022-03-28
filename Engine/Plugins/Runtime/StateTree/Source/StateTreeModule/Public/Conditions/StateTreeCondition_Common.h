@@ -47,10 +47,6 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareInt : public FStateTreeCon
 	virtual const UStruct* GetInstanceDataType() const override { return FStateTreeCondition_CompareIntInstanceData::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
-#if WITH_EDITOR
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
-#endif
-
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	bool bInvert = false;
 
@@ -92,10 +88,6 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareFloat : public FStateTreeC
 	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual const UStruct* GetInstanceDataType() const override { return FStateTreeCondition_CompareFloatInstanceData::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
-
-#if WITH_EDITOR
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
-#endif
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	bool bInvert = false;
@@ -142,10 +134,6 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareBool : public FStateTreeCo
 	virtual const UStruct* GetInstanceDataType() const override { return FStateTreeCondition_CompareBoolInstanceData::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
-#if WITH_EDITOR
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
-#endif
-
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	bool bInvert = false;
 
@@ -189,7 +177,6 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareEnum : public FStateTreeCo
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 #if WITH_EDITOR
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
 	virtual void OnBindingChanged(const FGuid& ID, FStateTreeDataView InstanceData, const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath, const IStateTreeBindingLookup& BindingLookup) override;
 #endif
 
@@ -235,10 +222,6 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareDistance : public FStateTr
 	virtual const UStruct* GetInstanceDataType() const override { return FStateTreeCondition_CompareDistanceInstanceData::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
-#if WITH_EDITOR
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
-#endif
-
 	UPROPERTY(EditAnywhere, Category = Condition)
 	bool bInvert = false;
 
@@ -274,10 +257,6 @@ struct STATETREEMODULE_API FStateTreeCondition_Random : public FStateTreeConditi
 	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual const UStruct* GetInstanceDataType() const override { return FStateTreeCondition_RandomInstanceData::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
-
-#if WITH_EDITOR
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
-#endif
 
 	TStateTreeInstanceDataPropertyHandle<float> ThresholdHandle;
 };

@@ -24,8 +24,6 @@ struct STATETREEMODULE_API FStateTreeConditionBase : public FStateTreeNodeBase
 	GENERATED_BODY()
 
 #if WITH_EDITOR
-	/** @return Rich text description of the condition. */
-	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const { return FText::GetEmpty(); }
 	/**
 	 * Called when binding of any of the properties in the condition changes.
 	 * @param ID ID of the item, can be used make property paths to this item.
@@ -39,6 +37,12 @@ struct STATETREEMODULE_API FStateTreeConditionBase : public FStateTreeNodeBase
 	
 	/** @return True if the condition passes. */
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const { return false; }
+
+	UPROPERTY()
+	EStateTreeConditionOperand Operand = EStateTreeConditionOperand::And;
+
+	UPROPERTY()
+	int8 DeltaIndent = 0;
 };
 
 /**

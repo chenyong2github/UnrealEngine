@@ -78,6 +78,31 @@ bool FStateTreeBaker::CreateStates()
 	return true;
 }
 
+bool FStateTreeBaker::CreateConditions(TConstArrayView<FStateTreeEditorNode> Conditions)
+{
+	for (int32 Index = 0; Index < Conditions.Num(); Index++)
+	{
+		const bool bIsFirst = Index == 0;
+		const FStateTreeEditorNode& CondNode = Conditions[Index];
+		// First operand should be copy as we dont have a previous item to operate on.
+		const EStateTreeConditionOperand Operand = bIsFirst ? EStateTreeConditionOperand::Copy : CondNode.ConditionOperand;
+		// First indent must be 0 to make the parentheses calculation match.
+		const int32 CurrIndent = bIsFirst ? 0 : CondNode.ConditionIndent;
+		// Next indent, or terminate at zero.
+		const int32 NextIndent = Conditions.IsValidIndex(Index + 1) ? Conditions[Index].ConditionIndent : 0;
+		const int32 DeltaIndent = NextIndent - CurrIndent;
+		
+		check(DeltaIndent >= MIN_int8 && DeltaIndent <= MAX_int8);
+
+		if (!CreateCondition(CondNode, Operand, (int8)DeltaIndent))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 bool FStateTreeBaker::CreateStateTransitions()
 {
 	for (int32 i = 0; i < StateTree->States.Num(); i++)
@@ -90,14 +115,11 @@ bool FStateTreeBaker::CreateStateTransitions()
 		
 		// Enter conditions.
 		BakedState.EnterConditionsBegin = uint16(StateTree->Nodes.Num());
-		for (FStateTreeEditorNode& CondNode : SourceState->EnterConditions)
+		if (!CreateConditions(SourceState->EnterConditions))
 		{
-			if (!CreateCondition(CondNode))
-			{
-				Log.Reportf(EMessageSeverity::Error,
-					TEXT("Failed to create state enter condition."));
-				return false;
-			}
+			Log.Reportf(EMessageSeverity::Error,
+				TEXT("Failed to create state enter condition."));
+			return false;
 		}
 		BakedState.EnterConditionsNum = uint8(uint16(StateTree->Nodes.Num()) - BakedState.EnterConditionsBegin);
 
@@ -117,15 +139,12 @@ bool FStateTreeBaker::CreateStateTransitions()
 			// Note: Unset transition is allowed here. It can be used to mask a transition at parent.
 
 			BakedTransition.ConditionsBegin = uint16(StateTree->Nodes.Num());
-			for (FStateTreeEditorNode& CondNode : Transition.Conditions)
+			if (!CreateConditions(Transition.Conditions))
 			{
-				if (!CreateCondition(CondNode))
-				{
-					Log.Reportf(EMessageSeverity::Error,
-						TEXT("Failed to create condition for transition to %s."),
-						*Transition.State.Name.ToString());
-					return false;
-				}
+				Log.Reportf(EMessageSeverity::Error,
+					TEXT("Failed to create condition for transition to %s."),
+					*Transition.State.Name.ToString());
+				return false;
 			}
 			BakedTransition.ConditionsNum = uint8(uint16(StateTree->Nodes.Num()) - BakedTransition.ConditionsBegin);
 		}
@@ -173,7 +192,7 @@ bool FStateTreeBaker::ResolveTransitionState(const UStateTreeState& SourceState,
 	return true;
 }
 
-bool FStateTreeBaker::CreateCondition(const FStateTreeEditorNode& CondNode)
+bool FStateTreeBaker::CreateCondition(const FStateTreeEditorNode& CondNode, const EStateTreeConditionOperand Operand, const int8 DeltaIndent)
 {
 	if (!CondNode.Node.IsValid())
 	{
@@ -199,6 +218,9 @@ bool FStateTreeBaker::CreateCondition(const FStateTreeEditorNode& CondNode)
 
 	FStateTreeConditionBase& Cond = Item.GetMutable<FStateTreeConditionBase>();
 
+	Cond.Operand = Operand;
+	Cond.DeltaIndent = DeltaIndent;
+	
 	if (CondNode.Instance.IsValid())
 	{
 		// Struct instance

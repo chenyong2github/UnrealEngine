@@ -66,44 +66,6 @@ bool FGameplayTagMatchCondition::TestCondition(FStateTreeExecutionContext& Conte
 	return (bExactMatch ? TagContainer.HasTagExact(Tag) : TagContainer.HasTag(Tag)) ^ bInvert;
 }
 
-#if WITH_EDITOR
-FText FGameplayTagMatchCondition::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
-{
-	const FGameplayTagMatchConditionInstanceData& Instance = InstanceData.Get<FGameplayTagMatchConditionInstanceData>();
-	const FStateTreeEditorPropertyPath TagContainerPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FGameplayTagMatchConditionInstanceData, TagContainer));
-	const FStateTreeEditorPropertyPath TagPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FGameplayTagMatchConditionInstanceData, Tag));
-
-	FText InvertText;
-	if (bInvert)
-	{
-		InvertText = LOCTEXT("Not", "Not");
-	}
-
-	FText TagContainerText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(TagContainerPath))
-	{
-		TagContainerText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		TagContainerText = UE::StateTree::Conditions::GetContainerAsText(Instance.TagContainer);
-	}
-
-	FText TagText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(TagContainerPath))
-	{
-		TagText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		TagText = FText::FromString(Instance.Tag.ToString());
-	}
-
-	return FText::Format(LOCTEXT("GameplayTagMatchDesc", "{0} <Details.Bold>{1}</> has <Details.Bold>{2}</>"),
-		InvertText, TagContainerText, TagText);
-}
-#endif// WITH_EDITOR
-
 //----------------------------------------------------------------------//
 //  FGameplayTagContainerMatchCondition
 //----------------------------------------------------------------------//
@@ -137,45 +99,6 @@ bool FGameplayTagContainerMatchCondition::TestCondition(FStateTreeExecutionConte
 	return bResult ^ bInvert;
 }
 
-#if WITH_EDITOR
-FText FGameplayTagContainerMatchCondition::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
-{
-	const FGameplayTagContainerMatchConditionInstanceData& Instance = InstanceData.Get<FGameplayTagContainerMatchConditionInstanceData>();
-	const FStateTreeEditorPropertyPath TagContainerPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FGameplayTagContainerMatchConditionInstanceData, TagContainer));
-	const FStateTreeEditorPropertyPath OtherContainerPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FGameplayTagContainerMatchConditionInstanceData, OtherContainer));
-
-	FText InvertText;
-	if (bInvert)
-	{
-		InvertText = LOCTEXT("Not", "Not");
-	}
-
-	FText TagContainerText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(TagContainerPath))
-	{
-		TagContainerText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		TagContainerText = LOCTEXT("NotBound", "Not Bound");
-	}
-
-	FText MatchTypeText = UEnum::GetDisplayValueAsText(MatchType);
-
-	FText OtherContainerText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(TagContainerPath))
-	{
-		OtherContainerText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		OtherContainerText = UE::StateTree::Conditions::GetContainerAsText(Instance.TagContainer);
-	}
-
-	return FText::Format(LOCTEXT("GameplayTagContainerMatchDesc", "{0} <Details.Bold>{1}</> {2} <Details.Bold>{3}</>"),
-		InvertText, TagContainerText, MatchTypeText, OtherContainerText);
-}
-#endif// WITH_EDITOR
 
 //----------------------------------------------------------------------//
 //  FGameplayTagQueryCondition
@@ -193,33 +116,6 @@ bool FGameplayTagQueryCondition::TestCondition(FStateTreeExecutionContext& Conte
 	const FGameplayTagContainer& TagContainer = Context.GetInstanceData(TagContainerHandle);
 	return TagQuery.Matches(TagContainer) ^ bInvert;
 }
-
-#if WITH_EDITOR
-FText FGameplayTagQueryCondition::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
-{
-	const FGameplayTagQueryConditionInstanceData& Instance = InstanceData.Get<FGameplayTagQueryConditionInstanceData>();
-	const FStateTreeEditorPropertyPath TagContainerPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FGameplayTagQueryConditionInstanceData, TagContainer));
-
-	FText InvertText;
-	if (bInvert)
-	{
-		InvertText = LOCTEXT("Not", "Not");
-	}
-
-	FText TagContainerText;
-	if (const FStateTreeEditorPropertyPath* Binding = BindingLookup.GetPropertyBindingSource(TagContainerPath))
-	{
-		TagContainerText = BindingLookup.GetPropertyPathDisplayName(*Binding);
-	}
-	else
-	{
-		TagContainerText = LOCTEXT("NotBound", "Not Bound");
-	}
-
-	return FText::Format(LOCTEXT("GameplayTagQueryMatchDesc", "{0} <Details.Bold>{1}</> matches query</>"),
-		InvertText, TagContainerText);
-}
-#endif// WITH_EDITOR
 
 
 #if WITH_EDITOR

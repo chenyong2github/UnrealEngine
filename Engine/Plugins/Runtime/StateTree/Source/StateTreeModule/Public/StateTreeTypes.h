@@ -11,45 +11,58 @@ STATETREEMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTree, Warning, All);
 #define WITH_STATETREE_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && 1)
 #endif // WITH_STATETREE_DEBUG
 
-/**
- * Status describing current ticking state. 
- */
+/** Status describing current ticking state. */
 UENUM()
 enum class EStateTreeRunStatus : uint8
 {
-	Running,			/** Tree is still running. */
-	Failed,				/** Tree execution has stopped on failure. */
-	Succeeded,			/** Tree execution has stopped on success. */
-	Unset,				/** Status not set. */
+	Running,			/// Tree is still running.
+	Failed,				/// Tree execution has stopped on failure.
+	Succeeded,			/// Tree execution has stopped on success.
+	Unset,				/// Status not set.
 };
 
 /**  Evaluator evaluation type. */
 UENUM()
 enum class EStateTreeEvaluationType : uint8
 {
-	PreSelect,			/** Called during selection process on states that have not been visited yet. */
-    Tick,				/** Called during tick on active states. */
+	PreSelect,			/// Called during selection process on states that have not been visited yet.
+    Tick,				/// Called during tick on active states.
 };
 
 /**  State change type. Passed to EnterState() and ExitState() to indicate how the state change affects the state and Evaluator or Task is on. */
 UENUM()
 enum class EStateTreeStateChangeType : uint8
 {
-	None,				/** Not an activation */
-	Changed,			/** The state became activated or deactivated. */
-    Sustained,			/** The state is parent of new active state and sustained previous active state. */
+	None,				/// Not an activation
+	Changed,			/// The state became activated or deactivated.
+    Sustained,			/// The state is parent of new active state and sustained previous active state.
 };
 
 /** Transitions behavior. */
 UENUM()
 enum class EStateTreeTransitionType : uint8
 {
-	Succeeded,			// Signal StateTree execution succeeded.
-	Failed,				// Signal StateTree execution failed.
-	GotoState,			// Transition to specified state.
-	NotSet,				// No transition.
-	NextState,			// Goto next sibling state.
+	Succeeded,			/// Signal StateTree execution succeeded.
+	Failed,				/// Signal StateTree execution failed.
+	GotoState,			/// Transition to specified state.
+	NotSet,				/// No transition.
+	NextState,			/// Goto next sibling state.
 };
+
+/** Operand between conditions */
+UENUM()
+enum class EStateTreeConditionOperand : uint8
+{
+	Copy UMETA(Hidden),	/// Copy result
+	And,				/// Combine results with AND.
+	Or,					/// Combine results with OR.
+};
+
+namespace UE::StateTree
+{
+	constexpr int32 MaxConditionIndent = 4; 
+}; // UE::StateTree
+
 
 
 /** Transitions event. */

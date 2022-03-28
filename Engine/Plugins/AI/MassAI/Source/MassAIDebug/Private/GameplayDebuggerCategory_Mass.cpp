@@ -564,7 +564,6 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 							}
 							else
 							{
-								Status += StateTreeContext.GetActiveStateName(InstanceData);
 								Status += TEXT("{red}<No StateTree instance>{white}\n");
 							}
 						}
