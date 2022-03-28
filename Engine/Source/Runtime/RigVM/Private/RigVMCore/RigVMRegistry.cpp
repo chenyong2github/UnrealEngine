@@ -16,14 +16,14 @@ void FRigVMRegistry::Refresh()
 {
 }
 
-void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct)
+void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct, const TArray<FRigVMFunctionArgument>& InArguments)
 {
 	if (FindFunction(InName) != nullptr)
 	{
 		return;
 	}
 
-	const FRigVMFunction Function(InName, InFunctionPtr, InStruct, Functions.Num());
+	const FRigVMFunction Function(InName, InFunctionPtr, InStruct, Functions.Num(), InArguments);
 	Functions.Add(Function);
 	FunctionNameToIndex.Add(InName, Function.Index);
 

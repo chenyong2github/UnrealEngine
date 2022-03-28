@@ -44,6 +44,17 @@ FString FRigVMFunction::GetModuleRelativeHeaderPath() const
 	return FString();
 }
 
+bool FRigVMFunction::IsAdditionalArgument(const FRigVMFunctionArgument& InArgument) const
+{
+#if WITH_EDITOR
+	if (Struct)
+	{
+		return Struct->FindPropertyByName(InArgument.Name) == nullptr;
+	}
+#endif
+	return false;
+}
+
 const FRigVMTemplate* FRigVMFunction::GetTemplate() const
 {
 	if(TemplateIndex == INDEX_NONE)
