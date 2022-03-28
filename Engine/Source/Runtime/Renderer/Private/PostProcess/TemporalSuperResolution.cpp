@@ -178,6 +178,7 @@ public:
 	{
 		OutEnvironment.CompilerFlags.Add(CFLAG_AllowRealTypes);
 		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
+		OutEnvironment.CompilerFlags.Add(CFLAG_HLSL2021);
 	}
 }; // class FTemporalSuperResolutionShader
 
