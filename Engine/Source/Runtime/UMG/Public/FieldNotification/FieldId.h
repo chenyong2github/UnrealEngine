@@ -98,7 +98,7 @@ public:
 public:
 	bool IsValid() const
 	{
-		return FieldName.IsNone();
+		return !FieldName.IsNone();
 	}
 
 	FName GetFieldName() const
