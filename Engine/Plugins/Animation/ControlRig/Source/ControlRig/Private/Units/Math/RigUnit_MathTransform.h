@@ -3,7 +3,7 @@
 #pragma once
 
 #include "EulerTransform.h"
-#include "Units/Math/RigUnit_MathBase.h"
+#include "RigUnit_MathBase.h"
 #include "Math/ControlRigMathLibrary.h"
 #include "RigUnit_MathTransform.generated.h"
 

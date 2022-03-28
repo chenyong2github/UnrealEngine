@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Units/Animation/RigUnit_AnimBase.h"
+#include "RigUnit_AnimBase.h"
 #include "Math/ControlRigMathLibrary.h"
 #include "RigUnit_AnimEasing.generated.h"
 

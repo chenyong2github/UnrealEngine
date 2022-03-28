@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Units/Debug/RigUnit_DebugBase.h"
+#include "RigUnit_DebugBase.h"
 #include "Drawing/ControlRigDrawInterface.h"
 #include "RigUnit_DebugHierarchy.generated.h"
 

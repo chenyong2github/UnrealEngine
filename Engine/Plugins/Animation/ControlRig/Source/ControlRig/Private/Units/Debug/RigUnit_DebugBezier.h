@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Units/Debug/RigUnit_DebugBase.h"
+#include "RigUnit_DebugBase.h"
 #include "Math/ControlRigMathLibrary.h"
 #include "RigUnit_DebugBezier.generated.h"
 

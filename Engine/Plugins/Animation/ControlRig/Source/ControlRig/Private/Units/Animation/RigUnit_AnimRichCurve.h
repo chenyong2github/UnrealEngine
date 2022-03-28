@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Units/Animation/RigUnit_AnimBase.h"
+#include "RigUnit_AnimBase.h"
 #include "Curves/CurveFloat.h"
 #include "RigUnit_AnimRichCurve.generated.h"
 

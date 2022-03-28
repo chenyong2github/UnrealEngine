@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Units/Animation/RigUnit_AnimBase.h"
+#include "RigUnit_AnimBase.h"
 #include "RigUnit_GetDeltaTime.generated.h"
 
 /**

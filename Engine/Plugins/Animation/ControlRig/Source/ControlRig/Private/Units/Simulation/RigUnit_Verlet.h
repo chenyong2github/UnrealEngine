@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Units/Simulation/RigUnit_SimBase.h"
+#include "RigUnit_SimBase.h"
 #include "Math/Simulation/CRSimPoint.h"
 #include "RigUnit_Verlet.generated.h"
 

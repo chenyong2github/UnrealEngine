@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Units/Debug/RigUnit_DebugBase.h"
+#include "RigUnit_DebugBase.h"
 #include "RigUnit_DebugLine.generated.h"
 
 USTRUCT(meta=(DisplayName="Draw Line", Deprecated = "4.25"))

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Units/Simulation/RigUnit_SimBase.h"
+#include "RigUnit_SimBase.h"
 #include "RigUnit_Kalman.generated.h"
 
 /**

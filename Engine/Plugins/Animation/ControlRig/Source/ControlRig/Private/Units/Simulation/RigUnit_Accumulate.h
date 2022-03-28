@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Units/Simulation/RigUnit_SimBase.h"
+#include "RigUnit_SimBase.h"
 #include "RigUnit_Accumulate.generated.h"
 
 USTRUCT(meta=(Category="Simulation|Accumulate"))
