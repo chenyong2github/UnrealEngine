@@ -174,11 +174,6 @@ FORCEINLINE_DEBUGGABLE bool PrePreSimFilterImp(const FCollisionFilterData& SimFi
 	uint8  OtherMaskFilter;
 	const uint32 OtherChannel = GetChaosCollisionChannelAndExtraFilter(OtherSimFilterData.Word3, OtherMaskFilter);
 
-	if ((QuerierMaskFilter & OtherMaskFilter) != 0)
-	{
-		return true;
-	}
-
 	//uint32 const QuerierBit = ECC_TO_BITFIELD(QuerierChannel);
 	const uint32 QuerierBit = (1 << (QuerierChannel));
 	const uint32 OtherBit = (1 << (OtherChannel));

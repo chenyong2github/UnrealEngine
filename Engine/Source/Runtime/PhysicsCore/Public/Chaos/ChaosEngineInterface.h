@@ -534,7 +534,7 @@ public:
 
 	// @todo(mlentine): Which of these do we need to support?
 	// Set the mask filter of a shape, which is an extra level of filtering during collision detection / query for extra channels like "Blue Team" and "Red Team"
-	static void SetMaskFilter(const FPhysicsShapeHandle& InShape,FMaskFilter InFilter) {}
+	static void SetMaskFilter(const FPhysicsShapeHandle& InShape,FMaskFilter InFilter);
 	static void SetSimulationFilter(const FPhysicsShapeHandle& InShape,const FCollisionFilterData& InFilter);
 	static void SetQueryFilter(const FPhysicsShapeHandle& InShape,const FCollisionFilterData& InFilter);
 	static void SetIsSimulationShape(const FPhysicsShapeHandle& InShape,bool bIsSimShape);

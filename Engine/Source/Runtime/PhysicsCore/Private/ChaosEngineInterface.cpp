@@ -1521,6 +1521,26 @@ FPhysicsGeometryCollection_Chaos FChaosEngineInterface::GetGeometryCollection(co
 	return NewCollection;
 }
 
+void FChaosEngineInterface::SetMaskFilter(const FPhysicsShapeHandle& InShape, FMaskFilter InFilter)
+{
+	FCollisionFilterData SimFilter = GetSimulationFilter(InShape);
+	FCollisionFilterData QueryFilter = GetQueryFilter(InShape);
+
+	auto ApplyMask = [](uint32& Word3, FMaskFilter Mask)
+	{
+		// #CHAOSTODO - definitions for filter behavior are in the Engine module.
+		// Move all to PhysicsCore so we handle things in a safe way here.
+		static constexpr int32 LocalNumExtraBits = 6;
+		static_assert(LocalNumExtraBits <= 8, "Only up to 8 extra filter bits are supported.");
+		Word3 &= (0xFFFFFFFFu >> LocalNumExtraBits);	//we drop the top NumExtraFilterBits bits because that's where the new mask filter is going
+		Word3 |= uint32(Mask) << (32 - LocalNumExtraBits);
+	};
+	ApplyMask(SimFilter.Word3, InFilter);
+	ApplyMask(QueryFilter.Word3, InFilter);
+
+	SetSimulationFilter(InShape, SimFilter);
+	SetQueryFilter(InShape, QueryFilter);
+}
 
 FCollisionFilterData FChaosEngineInterface::GetSimulationFilter(const FPhysicsShapeReference_Chaos& InShape)
 {
