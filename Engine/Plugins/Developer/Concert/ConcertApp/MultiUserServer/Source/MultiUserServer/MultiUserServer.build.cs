@@ -2,13 +2,10 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class ConcertServerUI : ModuleRules
+	public class MultiUserServer : ModuleRules
 	{
-		public ConcertServerUI(ReadOnlyTargetRules Target) : base(Target)
+		public MultiUserServer(ReadOnlyTargetRules Target) : base(Target)
 		{
-			// Make the linking path shorter (to prevent busting the Windows limit) when linking ConcertServerUI.lib against an executable that have a long name.
-			ShortName = "CncrtSvrUI";
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

@@ -4,7 +4,7 @@
 
 #include "ConcertSettings.h"
 #include "ConcertSyncServerLoop.h"
-#include "IConcertServerUIModule.h"
+#include "IMultiUserServerModule.h"
 
 #include "Misc/Parse.h"
 
@@ -23,14 +23,14 @@ namespace UE::UnrealMultiUserServer
 			ServerLoopInitArgs.bShowConsole = false;
 			ServerLoopInitArgs.PreInitServerLoop.AddLambda([&ServerLoopInitArgs]()	
 			{
-				TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("ConcertServerUI"));
+				TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("MultiUserServer"));
 				if (!Plugin || !Plugin->IsEnabled())
 				{
 					UE_LOG(LogSyncServer, Error, TEXT("The 'ConcertServerUI' plugin is disabled."));
 				}
 				else
 				{
-					IConcertServerUIModule::Get().InitSlateForServer(ServerLoopInitArgs);
+					IMultiUserServerModule::Get().InitSlateForServer(ServerLoopInitArgs);
 				}
 			});
 		}

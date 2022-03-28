@@ -11,10 +11,6 @@ TSharedPtr<FSlateStyleSet> FConcertServerStyle::StyleInstance = nullptr;
 
 void FConcertServerStyle::Initialize()
 {
-	// The core style must be initialized before the editor style
-	//FSlateApplication::InitializeCoreStyle();
-	//FEditorStyle::ResetToDefault();
-
 	if (!StyleInstance.IsValid())
 	{
 		StyleInstance = Create();
@@ -50,7 +46,7 @@ FName FConcertServerStyle::GetStyleSetName()
 
 FString FConcertServerStyle::InContent(const FString& RelativePath, const ANSICHAR* Extension)
 {
-	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("ConcertServerUI"))->GetContentDir();
+	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("MultiUserServer"))->GetContentDir();
 	return (ContentDir / RelativePath) + Extension;
 }
 

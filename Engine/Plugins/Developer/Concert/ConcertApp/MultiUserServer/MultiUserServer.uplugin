@@ -2,8 +2,8 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "0.2",
-	"FriendlyName": "Concert Sync Server UI",
-	"Description": "UI plugin that visualizes the multi-user server",
+	"FriendlyName": "Multi User Server",
+	"Description": "Visualizes the multi-user server",
 	"Category": "Networking",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
@@ -18,7 +18,7 @@
 	"SupportedPrograms": [ "UnrealMultiUserServer", "UnrealRecoverySvc", "CrashReportClientEditor" ],
 	"Modules": [
         {
-          "Name": "ConcertServerUI",
+          "Name": "MultiUserServer",
           "Type": "UncookedOnly",
           "LoadingPhase": "Default",
           "ProgramAllowList": [ "UnrealMultiUserServer", "UnrealRecoverySvc", "CrashReportClientEditor" ]

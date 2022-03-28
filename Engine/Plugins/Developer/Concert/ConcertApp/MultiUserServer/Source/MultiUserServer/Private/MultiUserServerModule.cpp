@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IConcertServerUIModule.h"
+#include "IMultiUserServerModule.h"
 
 #include "ConcertConsoleCommandExecutor.h"
 #include "ConcertFrontendStyle.h"
@@ -18,7 +18,7 @@
 /**
  * 
  */
-class FConcertServerUIModule : public IConcertServerUIModule
+class FConcertServerUIModule : public IMultiUserServerModule
 {
 public:
 	virtual void StartupModule() override 
