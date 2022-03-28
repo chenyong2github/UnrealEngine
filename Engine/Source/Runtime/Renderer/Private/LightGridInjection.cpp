@@ -533,10 +533,13 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 
 								for (const FProjectedShadowInfo* ShadowInfo : DirectionalLightShadowInfos)
 								{
-
-									if (ShadowInfo->DependentView && ShadowInfo->DependentView != &View)
+									if (ShadowInfo->DependentView)
 									{
-										continue;
+										// when rendering stereo views, allow using the shadows rendered for the primary view as 'close enough'
+										if (ShadowInfo->DependentView != &View && ShadowInfo->DependentView != View.GetPrimaryView())
+										{
+											continue;
+										}
 									}
 
 									const int32 CascadeIndex = ShadowInfo->CascadeSettings.ShadowSplitIndex;
