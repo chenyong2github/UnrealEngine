@@ -37,6 +37,8 @@ private:
 	void UnregisterSettings();
 	void RegisterCustomLayouts();
 	void UnregisterCustomLayouts();
+	void RegisterSectionMappings();
+	void UnregisterSectionMappings();
 
 	/** Register items to show up in the Place Actors panel. */
 	void RegisterPlacementModeItems();
