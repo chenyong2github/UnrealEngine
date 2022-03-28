@@ -921,7 +921,7 @@ namespace Horde.Build.Controllers
 
 			response.Name = device.Name;
 			response.Type = platformName;
-			response.IpOrHostName = device.Address ?? "";
+			response.IPOrHostName = device.Address ?? "";
 			response.AvailableStartTime = "00:00:00";
 			response.AvailableEndTime = "00:00:00";
 			response.Enabled = true;

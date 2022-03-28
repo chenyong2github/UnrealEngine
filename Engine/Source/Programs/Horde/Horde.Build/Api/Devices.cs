@@ -667,7 +667,7 @@ namespace Horde.Build.Api
 		/// The IP or hostname of device
 		/// </summary>
 		[Required]
-		public string IpOrHostName { get; set; } = null!;
+		public string IPOrHostName { get; set; } = null!;
 
 		/// <summary>
 		/// The (legacy) perf spec of the device
