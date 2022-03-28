@@ -5839,7 +5839,7 @@ bool FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 			TFuture<bool> CompletionFuture = HighResScreenshotConfig.ImageWriteQueue->Enqueue(MoveTemp(ImageTask));
 			if (CompletionFuture.IsValid())
 			{
-				// @@!! this queues it then immediately waits? what's the point of ImageWriteQueue then?
+				// this queues it then immediately waits? what's the point of ImageWriteQueue then?
 				// just use FImageUtils::Save
 				bIsScreenshotSaved = CompletionFuture.Get();
 			}
