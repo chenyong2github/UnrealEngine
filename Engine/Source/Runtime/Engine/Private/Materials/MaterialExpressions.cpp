@@ -21041,21 +21041,16 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 {
 	int32 RoughnessCodeChunk = CompileWithDefaultFloat1(Compiler, Roughness, 0.5f);
 	int32 AnisotropyCodeChunk = CompileWithDefaultFloat1(Compiler, Anisotropy, 0.0f);
+
 	// As long as both roughness are potentially different, we must take it into account in our encoding.
 	// We also cannot ignore the tangent when using the default Tangent because GetTangentBasis
 	// used in StrataGetBSDFSharedBasis cannot be relied on for smooth tangent used for lighting on any mesh.
 	const bool bHasAnisotropy = HasAnisotropy();
 
-	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
-
-	int32 TangentCodeChunk = bHasAnisotropy ? CompileWithDefaultTangentWS(Compiler, Tangent) : INDEX_NONE;
-	const FStrataRegisteredSharedLocalBasis NewRegisteredSharedLocalBasis = StrataCompilationInfoCreateSharedLocalBasis(Compiler, NormalCodeChunk, TangentCodeChunk);
-
-	const bool bHasEdgeColor = HasEdgeColor(); // This accounts for EdgeColor and also F90 when the non metalness worfklow is selected.
+	const bool bHasEdgeColor = HasEdgeColor(); // This accounts for EdgeColor and also F90 when the non metalness workflow is selected.
 	const bool bHasFuzz = HasFuzz();
 	const bool bHasHaziness = HasHaziness();
 	const bool bHasMFPPluggedIn = HasMFPPluggedIn();
-
 	int32 SSSProfileCodeChunk = INDEX_NONE;
 	const bool bHasSSS = HasSSS();
 	if (bHasSSS)
@@ -21070,13 +21065,12 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	const float DefaultSpecular = 0.5f;
 	const float DefaultF0 = DielectricSpecularToF0(DefaultSpecular);
 
+	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
+	int32 TangentCodeChunk = bHasAnisotropy ? CompileWithDefaultTangentWS(Compiler, Tangent) : INDEX_NONE;
+	const FStrataRegisteredSharedLocalBasis NewRegisteredSharedLocalBasis = StrataCompilationInfoCreateSharedLocalBasis(Compiler, NormalCodeChunk, TangentCodeChunk);
+
 	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
 	StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
-	StrataOperator.bBSDFHasEdgeColor = bHasEdgeColor;
-	StrataOperator.bBSDFHasFuzz = bHasFuzz;
-	StrataOperator.bBSDFHasHaziness = bHasHaziness;
-	StrataOperator.bBSDFHasSSS = bHasSSS;
-	StrataOperator.bBSDFHasMFPPluggedIn = bHasMFPPluggedIn;
 
 	int32 OutputCodeChunk = Compiler->StrataSlabBSDF(
 		bUseMetalness ? Compiler->Constant(1.0f) : Compiler->Constant(0.0f),
@@ -21514,6 +21508,12 @@ FStrataOperator* UMaterialExpressionStrataSlabBSDF::StrataGenerateMaterialTopolo
 {
 	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
 	StrataOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
+	StrataOperator.bBSDFHasEdgeColor = HasEdgeColor();
+	StrataOperator.bBSDFHasFuzz = HasFuzz();
+	StrataOperator.bBSDFHasHaziness = HasHaziness();
+	StrataOperator.bBSDFHasSSS = HasSSS();
+	StrataOperator.bBSDFHasMFPPluggedIn = HasMFPPluggedIn();
+	StrataOperator.bBSDFHasAnisotropy = HasAnisotropy();
 	return &StrataOperator;
 }
 

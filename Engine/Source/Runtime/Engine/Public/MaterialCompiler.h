@@ -95,6 +95,7 @@ struct FStrataOperator
 	bool  bBSDFHasEdgeColor;
 	bool  bBSDFHasFuzz;
 	bool  bBSDFHasHaziness;
+	bool  bBSDFHasAnisotropy;
 
 	// Data derived after the tree has been built.
 	int32 MaxDistanceFromLeaves;
@@ -120,6 +121,7 @@ struct FStrataOperator
 		bBSDFHasEdgeColor = false;
 		bBSDFHasFuzz = false;
 		bBSDFHasHaziness = false;
+		bBSDFHasAnisotropy = false;
 
 		MaxDistanceFromLeaves = 0;
 		LayerDepth = 0;
@@ -136,6 +138,7 @@ struct FStrataOperator
 		bBSDFHasEdgeColor = A.bBSDFHasEdgeColor || B.bBSDFHasEdgeColor;
 		bBSDFHasFuzz = A.bBSDFHasFuzz || B.bBSDFHasFuzz;
 		bBSDFHasHaziness = A.bBSDFHasHaziness || B.bBSDFHasHaziness;
+		bBSDFHasAnisotropy = A.bBSDFHasAnisotropy || B.bBSDFHasAnisotropy;
 	}
 
 	void CopyFlagsForParameterBlending(FStrataOperator& A)
@@ -145,6 +148,7 @@ struct FStrataOperator
 		bBSDFHasEdgeColor = A.bBSDFHasEdgeColor;
 		bBSDFHasFuzz = A.bBSDFHasFuzz;
 		bBSDFHasHaziness = A.bBSDFHasHaziness;
+		bBSDFHasAnisotropy = A.bBSDFHasAnisotropy;
 	}
 
 	bool IsDiscarded()

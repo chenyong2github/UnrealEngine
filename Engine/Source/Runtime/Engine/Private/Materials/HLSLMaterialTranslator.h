@@ -428,6 +428,8 @@ protected:
 	FStrataOperator* StrataMaterialRootOperator;
 	uint32 StrataMaterialBSDFCount;
 	uint32 StrataMaterialRequestedSizeByte;
+	bool bStrataMaterialIsSimple;
+	bool bStrataMaterialIsSingle;
 	bool bStrataUsesConversionFromLegacy;
 	bool bStrataOutputsOpaqueRoughRefractions;
 
@@ -642,6 +644,7 @@ protected:
 	int32 GenericSwitch(const TCHAR* Function, int32 IfTrue, int32 IfFalse);
 
 	bool StrataGenerateDerivedMaterialOperatorData();
+	void StrataEvaluateSharedLocalBases(uint8& UsedSharedLocalBasesCount, FString* OutStrataPixelNormalInitializerValues, FShaderCompilerEnvironment* OutEnvironment);
 
 	// FMaterialCompiler interface.
 
