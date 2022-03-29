@@ -343,9 +343,8 @@ namespace Horde.Storage.FunctionalTests.Ref
             byte[] buffer = await response.Content.ReadAsByteArrayAsync();
             CbObject o = new CbObject(buffer);
             List<CbField> fields = o.ToList();
-            Assert.AreEqual(6, fields.Count);
+            Assert.AreEqual(5, fields.Count);
             Assert.AreEqual($"{TestNamespace}.bucket.testObjectWithMetadata", o["name"]!.AsString());
-            Assert.IsNotNull(o["metadata"]);
 
             Assert.IsNotNull(o["contentHash"]);
 

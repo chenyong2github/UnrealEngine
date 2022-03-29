@@ -41,7 +41,6 @@ namespace Horde.Storage.Implementation
         [CbField("lastAccessTime")]
         public DateTime? LastAccessTime { get; set; }
 
-        [CbField("metadata")]
         public Dictionary<string, object>? Metadata { get; set; }
 
         [CbField("contentHash")]
