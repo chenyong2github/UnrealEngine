@@ -5,8 +5,8 @@
 #include "Session/History/SSessionHistory.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
-FAbstractSessionHistoryController::FAbstractSessionHistoryController(FName PackageFilter)
-	: SessionHistory(MakeSessionHistory(PackageFilter))
+FAbstractSessionHistoryController::FAbstractSessionHistoryController(SSessionHistory::FArguments Arguments)
+	: SessionHistory(MakeSessionHistory(MoveTemp(Arguments)))
 {}
 
 void FAbstractSessionHistoryController::ReloadActivities()
@@ -23,10 +23,11 @@ void FAbstractSessionHistoryController::ReloadActivities()
 		);
 }
 
-TSharedRef<SSessionHistory> FAbstractSessionHistoryController::MakeSessionHistory(FName PackageFilter) const
+TSharedRef<SSessionHistory> FAbstractSessionHistoryController::MakeSessionHistory(SSessionHistory::FArguments Arguments) const
 {
-	return SNew(SSessionHistory)
-		.PackageFilter(PackageFilter)
-		.GetPackageEvent_Raw(this, &FAbstractSessionHistoryController::GetPackageEvent)
-		.GetTransactionEvent_Raw(this, &FAbstractSessionHistoryController::GetTransactionEvent);
+	return SArgumentNew(
+		Arguments
+			.GetPackageEvent_Raw(this, &FAbstractSessionHistoryController::GetPackageEvent)
+			.GetTransactionEvent_Raw(this, &FAbstractSessionHistoryController::GetTransactionEvent),
+		SSessionHistory);
 }

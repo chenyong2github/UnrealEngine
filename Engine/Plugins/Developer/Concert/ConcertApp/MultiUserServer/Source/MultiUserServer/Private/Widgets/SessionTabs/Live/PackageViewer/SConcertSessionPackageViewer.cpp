@@ -20,7 +20,6 @@ void SConcertSessionPackageViewer::Construct(const FArguments& InArgs)
 
 	SAssignNew(ActivityListView, SConcertSessionActivities)
 		.OnGetPackageEvent(InArgs._GetPackageEvent)
-		.OnFetchActivities(InArgs._FetchInitialActivities)
 		.OnMapActivityToClient(InArgs._GetClientInfo)
 		.HighlightText(this, &SConcertSessionPackageViewer::HighlightSearchedText)
 		.Columns({

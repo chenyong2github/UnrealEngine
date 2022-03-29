@@ -9,7 +9,7 @@
 #include "Session/History/SSessionHistory.h"
 
 FClientSessionHistoryController::FClientSessionHistoryController(TSharedRef<IConcertSyncClient> Client, FName PackageFilter)
-	: FAbstractSessionHistoryController(PackageFilter)
+	: FAbstractSessionHistoryController(SSessionHistory::FArguments().PackageFilter(PackageFilter))
 	, Client(MoveTemp(Client))
 {
 	SubscribeToWorkspaceEvents();

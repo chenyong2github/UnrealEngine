@@ -24,7 +24,6 @@ public:
 	SLATE_BEGIN_ARGS(SConcertSessionPackageViewer) {}
 		SLATE_EVENT(SConcertSessionActivities::FGetPackageEvent, GetPackageEvent)
 		SLATE_EVENT(SConcertSessionActivities::FGetActivityClientInfoFunc, GetClientInfo)
-		SLATE_EVENT(SConcertSessionActivities::FFetchActivitiesFunc, FetchInitialActivities)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SessionTabs/ConcertSessionTabBase.h"
 
+struct FConcertSessionActivity;
 class FArchivedSessionHistoryController;
 class SConcertArchivedSessionInspector;
 
@@ -20,7 +21,7 @@ protected:
 	//~ Begin FAbstractConcertSessionTab Interface
 	virtual FGuid GetSessionID() const override;
 	virtual void CreateDockContent(const TSharedRef<SDockTab>& InDockTab) override;
-	virtual void OnOpenTab() override;
+	virtual void OnOpenTab() override {}
 	//~ End FAbstractConcertSessionTab Interface
 	
 private:
@@ -28,11 +29,17 @@ private:
 	/** The inspected session's ID */
 	const FGuid InspectedSessionID;
 
+	/** Used later to construct Inspector */
+	const TSharedRef<IConcertSyncServer> SyncServer;
+	
 	/** Used later to obtain the window into which to add the tab */
 	const TAttribute<TSharedRef<SWindow>> ConstructUnderWindow;
-
-	const TSharedRef<FArchivedSessionHistoryController> HistoryController;
+	
+	TSharedPtr<FArchivedSessionHistoryController> HistoryController;
 	
 	/** Displays session */
 	TSharedPtr<SConcertArchivedSessionInspector> Inspector;
+
+	void OnRequestDeleteActivity(const TSharedRef<FConcertSessionActivity>& DeleteActivity) const;
+	bool CanDeleteActivity(const TSharedRef<FConcertSessionActivity>& DeleteActivity) const;
 };

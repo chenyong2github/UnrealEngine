@@ -9,7 +9,7 @@ class FArchivedSessionHistoryController : public FServerSessionHistoryController
 {
 public:
 	
-	FArchivedSessionHistoryController(FGuid SessionId, TSharedRef<IConcertSyncServer> SyncServer);
+	FArchivedSessionHistoryController(FGuid SessionId, TSharedRef<IConcertSyncServer> SyncServer, SSessionHistory::FArguments Arguments);
 	
 protected:
 

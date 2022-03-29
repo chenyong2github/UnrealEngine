@@ -6,8 +6,9 @@
 #include "IConcertSession.h"
 #include "IConcertSyncServer.h"
 
-FServerSessionHistoryControllerBase::FServerSessionHistoryControllerBase(FGuid SessionId)
-	: SessionId(MoveTemp(SessionId))
+FServerSessionHistoryControllerBase::FServerSessionHistoryControllerBase(FGuid SessionId, SSessionHistory::FArguments Arguments)
+	: FAbstractSessionHistoryController(MoveTemp(Arguments))
+	, SessionId(MoveTemp(SessionId))
 {}
 
 void FServerSessionHistoryControllerBase::GetActivities(int64 MaximumNumberOfActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, TArray<FConcertSessionActivity>& OutFetchedActivities) const

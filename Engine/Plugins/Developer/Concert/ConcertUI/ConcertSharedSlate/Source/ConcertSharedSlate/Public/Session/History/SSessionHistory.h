@@ -8,7 +8,6 @@
 #include "Widgets/SCompoundWidget.h"
 
 class SSearchBox;
-class SConcertSessionActivities;
 class FConcertSessionActivitiesOptions;
 
 class CONCERTSHAREDSLATE_API SSessionHistory : public SCompoundWidget
@@ -22,6 +21,8 @@ public:
 		SLATE_ARGUMENT(FName, PackageFilter)
 		SLATE_EVENT(SConcertSessionActivities::FGetPackageEvent, GetPackageEvent)
 		SLATE_EVENT(SConcertSessionActivities::FGetTransactionEvent, GetTransactionEvent)
+		/** If bound, invoked when generating a row to add an overlay to a column. */
+		SLATE_EVENT(SConcertSessionActivities::FMakeColumnOverlayWidgetFunc, OnMakeColumnOverlayWidget)
 	SLATE_END_ARGS()
 
 	/**
@@ -38,6 +39,8 @@ public:
 	
 	/** Callback for handling the a new or updated activity item. */ 
 	void HandleActivityAddedOrUpdated(const FConcertClientInfo& InClientInfo, const FConcertSyncActivity& InActivity, const FStructOnScope& InActivitySummary);
+
+	bool IsLastColumn(FName ColumnId) const { return ActivityListView->IsLastColumn(ColumnId); }
 
 private:
 

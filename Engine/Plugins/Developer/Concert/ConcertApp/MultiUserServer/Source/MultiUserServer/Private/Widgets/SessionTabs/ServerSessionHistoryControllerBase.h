@@ -19,7 +19,7 @@ class FServerSessionHistoryControllerBase : public FAbstractSessionHistoryContro
 {
 public:
 
-	FServerSessionHistoryControllerBase(FGuid SessionId);
+	FServerSessionHistoryControllerBase(FGuid SessionId, SSessionHistory::FArguments Arguments = SSessionHistory::FArguments());
 	
 protected:
 

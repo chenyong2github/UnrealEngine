@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SSessionHistory.h"
+
 #include "Async/Future.h"
 
 struct FConcertClientInfo;
@@ -10,14 +12,13 @@ struct FConcertSyncTransactionEvent;
 struct FConcertSyncPackageEventMetaData;
 struct FConcertSessionActivity;
 class IConcertSyncClient;
-class SSessionHistory;
 
 /** Acts as controller of SSessionHistory in model-view-component pattern. */
 class CONCERTSHAREDSLATE_API FAbstractSessionHistoryController : public TSharedFromThis<FAbstractSessionHistoryController>
 {
 public:
 
-	FAbstractSessionHistoryController(FName PackageFilter = EName::None);
+	FAbstractSessionHistoryController(SSessionHistory::FArguments Arguments = SSessionHistory::FArguments());
 	virtual ~FAbstractSessionHistoryController() = default;
 	
 	/** Fetches activities from the server and updates the list view. */
@@ -41,5 +42,5 @@ private:
 	/** The widget being managed */
 	TSharedRef<SSessionHistory> SessionHistory;
 
-	TSharedRef<SSessionHistory> MakeSessionHistory(FName PackageFilter) const;
+	TSharedRef<SSessionHistory> MakeSessionHistory(SSessionHistory::FArguments Arguments) const;
 };
