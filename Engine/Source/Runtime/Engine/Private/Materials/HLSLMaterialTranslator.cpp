@@ -299,6 +299,7 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 	StrataMaterialExpressionRegisteredOperators.Reserve(STRATA_MAX_OPERATOR_COUNT);
 	StrataMaterialExpressionToOperatorIndex.Reserve(STRATA_MAX_OPERATOR_COUNT);
 	StrataMaterialBSDFCount = 0;
+	StrataMaterialRequestedSizeByte = 0;
 	bStrataUsesConversionFromLegacy = false;
 	bStrataOutputsOpaqueRoughRefractions = false;
 }
@@ -2013,8 +2014,10 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 
 			StrataMaterialDescription += FString::Printf(TEXT("----- STRATA -----\r\n"));
 			StrataMaterialDescription += FString::Printf(TEXT("StrataCompilationInfo -\r\n"));
-			StrataMaterialDescription += FString::Printf(TEXT(" - TotalBSDFCount    = %i\r\n"), StrataMaterialBSDFCount);
-			StrataMaterialDescription += FString::Printf(TEXT(" - SharedLocalBasesCount = %i\r\n"), FinalUsedSharedLocalBasesCount);
+			StrataMaterialDescription += FString::Printf(TEXT(" - Byte Per Pixel Budget      %u\r\n"), StrataBytePerPixel);
+			StrataMaterialDescription += FString::Printf(TEXT(" - Requested Byte Size        %u (%d UINT32)\r\n"), StrataMaterialRequestedSizeByte, StrataMaterialRequestedSizeByte / 4);
+			StrataMaterialDescription += FString::Printf(TEXT(" - TotalBSDFCount             %i\r\n"), StrataMaterialBSDFCount);
+			StrataMaterialDescription += FString::Printf(TEXT(" - SharedLocalBasesCount      %i\r\n"), FinalUsedSharedLocalBasesCount);
 
 			for (int32 OpIt = 0; OpIt < StrataMaterialExpressionRegisteredOperators.Num(); ++OpIt)
 			{
@@ -2044,17 +2047,13 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 					{
 						if (!It.IsDiscarded() && It.MaxDistanceFromLeaves == DistanceToLeaves)
 						{
-							StrataMaterialDescription += FString::Printf(TEXT("\tIdx=%d Op=%s ParentIdx=%d LeftIndex=%d RightIndex=%d BSDFIdx=%d LayerDepth=%d IsTop=%d IsBot=%d\r\n"),
-								It.Index, GetStrataOperatorStr(It.OperatorType), It.ParentIndex, It.LeftIndex, It.RightIndex, It.BSDFIndex, It.LayerDepth, It.bIsTop, It.bIsBottom);
+							StrataMaterialDescription += FString::Printf(TEXT("\tIdx=%d Op=%s ParentIdx=%d LeftIndex=%d RightIndex=%d BSDFIdx=%d LayerDepth=%d IsTop=%d IsBot=%d BSDFType=%s SSS=%d MFP=%d F90=%d Hazy=%d Fuzz=%d \r\n"),
+								It.Index, GetStrataOperatorStr(It.OperatorType), It.ParentIndex, It.LeftIndex, It.RightIndex, It.BSDFIndex, It.LayerDepth, It.bIsTop, It.bIsBottom, 
+								*GetStrataBSDFName(It.BSDFType), It.bBSDFHasSSS, It.bBSDFHasMFPPluggedIn, It.bBSDFHasEdgeColor, It.bBSDFHasHaziness, It.bBSDFHasFuzz);
 						}
 					}
 				}
 			}
-			StrataMaterialDescription += FString::Printf(TEXT("-----------------------------------\r\n"));
-
-			StrataMaterialDescription += FString::Printf(TEXT("Byte Per Pixel Budget      %u\r\n"), StrataBytePerPixel);
-			// STRATA_TODO: display RequestedByteCount (fit in budget or not)
-			StrataMaterialDescription += FString::Printf(TEXT("------------------\r\n"));
 
 			ResourcesString += TEXT("/*");
 			ResourcesString += StrataMaterialDescription;
@@ -9631,7 +9630,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 	}
 
 	//
-	// Make sure each and every path of the strata tree ends up on a valid BSDF.
+	// Make sure each and every path of the strata tree have valid children and path.
 	//
 	for (auto& It : StrataMaterialExpressionRegisteredOperators)
 	{
@@ -9682,7 +9681,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 	//
 	// Parse the tree and mark nodes that are the root of a subtree using parameter blending, while other nodes in that tree are forced to use parameter blending.
 	// Allocate BSDFIndex at the same time.
-	// Check BSDF that should be uinique
+	// Check BSDF that should be unique.
 	//
 	{
 		bool bHasUnlit = false;
@@ -9917,6 +9916,97 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 		};
 
 		WalkOperators(*StrataMaterialRootOperator);
+	}
+
+	//
+	// Compute the size of the material
+	//
+	{
+		const uint32 UintByteSize = sizeof(uint32);
+		StrataMaterialRequestedSizeByte = 0;
+
+		// 1. Header
+
+		// Packed Header
+		StrataMaterialRequestedSizeByte += UintByteSize;
+
+		// Shared local bases between BSDFs
+		StrataMaterialRequestedSizeByte += FinalUsedSharedLocalBasesCount * STRATA_PACKED_SHAREDLOCALBASIS_STRIDE_BYTES;
+
+		// 2. The list of BSDFs
+		for (auto& It : StrataMaterialExpressionRegisteredOperators)
+		{
+			if (It.IsDiscarded())
+			{
+				continue; // ignore discarded operations in sub tree using parameter blending
+			}
+
+			switch (It.OperatorType)
+			{
+			case STRATA_OPERATOR_BSDF:
+			{
+				// BSDF state
+				StrataMaterialRequestedSizeByte += UintByteSize;
+
+				// From the compiler side, we can only assume the top layer has gray scale luminance weight.
+				const bool bMayHaveColoredWeight = !It.bIsTop;
+				if (bMayHaveColoredWeight)
+				{
+					StrataMaterialRequestedSizeByte += UintByteSize;
+				}
+
+				switch (It.BSDFType)
+				{
+				case STRATA_BSDF_TYPE_SLAB:
+				{
+					// Compute values closer to the reality for HasSSS and IsSimpleVolume, now that we know that we know the topology of the material.
+					const bool bIsSimpleVolume = !It.bIsBottom && It.bBSDFHasMFPPluggedIn;
+					const bool bHasSSS = It.bIsBottom && It.bBSDFHasSSS;
+				
+					StrataMaterialRequestedSizeByte += UintByteSize;
+					StrataMaterialRequestedSizeByte += UintByteSize;
+
+					if (It.bBSDFHasEdgeColor || It.bBSDFHasHaziness)
+					{
+						StrataMaterialRequestedSizeByte += UintByteSize;
+					}
+					if (bHasSSS || bIsSimpleVolume)
+					{
+						StrataMaterialRequestedSizeByte += UintByteSize;
+					}
+					if (It.bBSDFHasFuzz)
+					{
+						StrataMaterialRequestedSizeByte += UintByteSize;
+					}
+					break;
+				}
+				case STRATA_BSDF_TYPE_HAIR:
+				{
+					StrataMaterialRequestedSizeByte += UintByteSize;
+					StrataMaterialRequestedSizeByte += UintByteSize;
+					break;
+				}
+				case STRATA_BSDF_TYPE_SINGLELAYERWATER:
+				{
+					StrataMaterialRequestedSizeByte += UintByteSize;
+					StrataMaterialRequestedSizeByte += UintByteSize;
+					break;
+				}
+				case STRATA_BSDF_TYPE_UNLIT:
+				{
+					// Never stored, it goes directly into the scene as emitted luminance.
+					break;
+				}
+				default:
+				{
+					Errorf(TEXT("Unkownd BSDF type encountered in %s (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+					break;
+				}
+				}
+				break;
+			}
+			}
+		}
 	}
 
 	return true; // Success

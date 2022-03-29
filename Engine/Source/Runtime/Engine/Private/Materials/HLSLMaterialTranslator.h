@@ -427,6 +427,7 @@ protected:
 	TArray<FStrataOperator> StrataMaterialExpressionRegisteredOperators;
 	FStrataOperator* StrataMaterialRootOperator;
 	uint32 StrataMaterialBSDFCount;
+	uint32 StrataMaterialRequestedSizeByte;
 	bool bStrataUsesConversionFromLegacy;
 	bool bStrataOutputsOpaqueRoughRefractions;
 
