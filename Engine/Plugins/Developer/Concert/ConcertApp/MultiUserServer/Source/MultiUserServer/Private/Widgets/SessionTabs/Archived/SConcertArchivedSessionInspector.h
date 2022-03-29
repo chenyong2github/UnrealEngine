@@ -8,8 +8,9 @@
 #include "Session/History/SSessionHistory.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Framework/Docking/TabManager.h"
+#include "Widgets/Docking/SDockTab.h"
 
-class SDockTab;
 class SSessionHistory;
 
 /** Designed as content for a tab. Displays information about an archived session. */

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SessionTabs/ConcertSessionTabBase.h"
+#include "Types/SlateAttribute.h"
 
 struct FConcertSessionActivity;
 class FArchivedSessionHistoryController;
