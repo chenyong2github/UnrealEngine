@@ -344,6 +344,7 @@ namespace Horde.Build.Commits.Impl
 			}
 
 			// Update the database with all the commits
+			HashSet<StreamId> newStreamIds = new HashSet<StreamId>();
 			await foreach (NewCommit newCommit in FindCommitsForClusterAsync(clusterName, streamToFirstChange))
 			{
 				ICommit commit = await _commitCollection.AddOrReplaceAsync(newCommit);
@@ -352,8 +353,14 @@ namespace Horde.Build.Commits.Impl
 				RedisList<int> streamCommitsKey = RedisStreamChanges(commit.StreamId);
 				await streamCommitsKey.RightPushAsync(commit.Change);
 
-				await _redisDirtyStreams.AddAsync(commit.StreamId);
-				await _redis.PublishAsync(RedisUpdateChannel, commit.StreamId);
+				newStreamIds.Add(commit.StreamId);
+			}
+
+			// Signal to any listeners that we have new data to process
+			foreach (StreamId newStreamId in newStreamIds)
+			{
+				await _redisDirtyStreams.AddAsync(newStreamId);
+				await _redis.PublishAsync(RedisUpdateChannel, newStreamId);
 			}
 		}
 
@@ -609,9 +616,10 @@ namespace Horde.Build.Commits.Impl
 
 		RedisKey RedisBaseKey { get; } = new RedisKey("commits/");
 		RedisChannel<StreamId> RedisUpdateChannel { get; } = new RedisChannel<StreamId>("commits/streams");
+		bool _stopping;
+		readonly AsyncEvent _updateStreamsEvent = new AsyncEvent();
 		readonly RedisSet<StreamId> _redisDirtyStreams;
 		readonly RedisSortedSet<StreamId> _redisReservations;
-		Channel<StreamId>? _redisUpdateStreams;
 		RedisChannelSubscription<StreamId>? _redisUpdateSubscription;
 		Task? _streamUpdateTask;
 
@@ -619,18 +627,16 @@ namespace Horde.Build.Commits.Impl
 
 		async Task StartContentReplicationAsync()
 		{
-			_redisUpdateStreams = Channel.CreateUnbounded<StreamId>();
-			_redisUpdateSubscription = await _redis.Multiplexer.GetSubscriber().SubscribeAsync(RedisUpdateChannel, (_, streamId) => _redisUpdateStreams.Writer.TryWrite(streamId));
+			_stopping = false;
+			_updateStreamsEvent.Reset();
+			_redisUpdateSubscription = await _redis.Multiplexer.GetSubscriber().SubscribeAsync(RedisUpdateChannel, (_, _) => _updateStreamsEvent.Pulse());
 			_streamUpdateTask = Task.Run(() => UpdateContentAsync());
 		}
 
 		async Task StopContentReplicationAsync()
 		{
-			if (_redisUpdateStreams != null)
-			{
-				_redisUpdateStreams.Writer.Complete();
-				_redisUpdateStreams = null;
-			}
+			_stopping = true;
+			_updateStreamsEvent.Latch();
 			if (_redisUpdateSubscription != null)
 			{
 				await _redisUpdateSubscription.DisposeAsync();
@@ -642,7 +648,7 @@ namespace Horde.Build.Commits.Impl
 		async Task UpdateContentAsync()
 		{
 			List<(StreamId, Task)> backgroundTasks = new List<(StreamId, Task)>(MaxBackgroundTasks);
-			while (!_redisUpdateStreams!.Reader.Completion.IsCompleted || backgroundTasks.Count > 0)
+			while (!_stopping || backgroundTasks.Count > 0)
 			{
 				try
 				{
@@ -673,11 +679,10 @@ namespace Horde.Build.Commits.Impl
 
 			// Create a list of events to wait for
 			List<Task> waitTasks = new List<Task>(backgroundTasks.Select(x => x.Item2));
-			if (!_redisUpdateStreams!.Reader.Completion.IsCompleted)
+			if (!_stopping)
 			{
-				waitTasks.Add(_redisUpdateStreams.Reader.WaitToReadAsync().AsTask());
-
 				// If we have spare slots for executing background tasks, check if there are any dirty streams
+				Task newStreamTask = _updateStreamsEvent.Task;
 				if (backgroundTasks.Count < MaxBackgroundTasks)
 				{
 					// Expire any reservations that are no longer valid
@@ -724,6 +729,12 @@ namespace Horde.Build.Commits.Impl
 							}
 						}
 					}
+				}
+
+				// If we still have bandwidth to process more tasks, wait for new streams to become available
+				if (backgroundTasks.Count < MaxBackgroundTasks)
+				{
+					waitTasks.Add(newStreamTask);
 				}
 			}
 
