@@ -11,7 +11,7 @@
 
 
 //------------------------------------------------------- RECOMPILE HASH
-// BE1AEDD9-8FB8-4039-8E36-8C888D492EC7
+// 7C48165B-DF1A-4FA1-88CF-F64C6B7DF2D7
 
 
 //------------------------------------------------------- COMPILER CONFIG
@@ -863,8 +863,8 @@ void IsOffScreenOrDisoccluded(uint bCameraCut, float2x2 ScreenPos, tsr_half2 Par
 	bool2 bIsOutOfBounds = max(abs(ScreenPos[0]), abs(ScreenPos[1])) >= 1.0;
 	bool2 bIsParallaxRejected = ParallaxRejectionMask < tsr_half(PARALLAX_REJECTION_MASK_THRESHOLD);
 
-	bIsOffScreen = bIsCameraCut || bIsOutOfBounds;
-	bIsDisoccluded = !bIsOffScreen && bIsParallaxRejected;
+	bIsOffScreen = or(bIsCameraCut, bIsOutOfBounds);
+	bIsDisoccluded = and(!bIsOffScreen, bIsParallaxRejected);
 }
 
 tsr_half MeasureBackbufferLDRQuantizationError()
