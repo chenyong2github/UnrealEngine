@@ -8,10 +8,6 @@
 #include "ControlRigDefines.h"
 #include "RigUnit_ApplyFK.generated.h"
 
-/**
-* Spec define: https://wiki.it.epicgames.net/display/TeamOnline/Apply+Fk
-*/
-
 UENUM()
 enum class EApplyTransformMode : uint8
 {

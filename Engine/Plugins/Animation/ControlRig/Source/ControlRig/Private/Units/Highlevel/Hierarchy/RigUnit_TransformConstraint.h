@@ -11,9 +11,6 @@
 
 #include "RigUnit_TransformConstraint.generated.h"
 
-/** 
- * Spec define: https://wiki.it.epicgames.net/display/TeamOnline/Transform+Constraint
- */
 
 USTRUCT()
 struct FConstraintTarget

@@ -7,9 +7,6 @@
 #include "ControlRigDefines.h"
 #include "RigUnit_TwoBoneIKFK.generated.h"
 
-/** 
- * Spec define: https://wiki.it.epicgames.net/display/TeamOnline/FKIK
- */
 
 USTRUCT(meta=(DisplayName="TwoBoneIK/FK", Category="Transforms", Deprecated = "4.23.0"))
 struct CONTROLRIG_API FRigUnit_TwoBoneIKFK : public FRigUnitMutable

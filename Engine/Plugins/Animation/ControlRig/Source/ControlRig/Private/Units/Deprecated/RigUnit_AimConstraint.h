@@ -8,10 +8,6 @@
 #include "ControlRigDefines.h"
 #include "RigUnit_AimConstraint.generated.h"
 
-/** 
- * Spec define: https://wiki.it.epicgames.net/pages/viewpage.action?spaceKey=TeamOnline&title=Aim+Constraint
- */
-
  /*
  ENUM: Aim Mode (Default: Aim At Target Transform )  # How to perform an aim
  Aim At Target Transforms
