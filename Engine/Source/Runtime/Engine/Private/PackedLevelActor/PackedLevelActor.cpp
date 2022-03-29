@@ -7,8 +7,8 @@
 #include "LevelInstance/LevelInstancePrivate.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 
-APackedLevelActor::APackedLevelActor(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+APackedLevelActor::APackedLevelActor()
+	: Super()
 #if WITH_EDITORONLY_DATA
 	, bChildChanged(false)
 #endif
@@ -33,7 +33,7 @@ void APackedLevelActor::Serialize(FArchive& Ar)
 #endif
 }
 
-bool APackedLevelActor::SupportsLoading() const
+bool APackedLevelActor::IsLoadingEnabled() const
 {
 #if WITH_EDITOR
 	return HasChildEdit() || IsLoaded();
@@ -104,13 +104,13 @@ FName APackedLevelActor::GetPackedComponentTag()
 	return PackedComponentTag;
 }
 
-void APackedLevelActor::UpdateFromLevel()
+void APackedLevelActor::UpdateLevelInstanceFromWorldAsset()
 {
-	Super::UpdateFromLevel();
+	Super::UpdateLevelInstanceFromWorldAsset();
 
 	if (!Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
 	{
-		if (IsLevelInstancePathValid())
+		if (IsWorldAssetValid())
 		{
 			TSharedPtr<FPackedLevelActorBuilder> Builder = FPackedLevelActorBuilder::CreateDefaultBuilder();
 			Builder->PackActor(this, GetWorldAsset());

@@ -84,58 +84,58 @@ bool ULevelInstanceSubsystem::DoesSupportWorldType(EWorldType::Type WorldType) c
 	return Super::DoesSupportWorldType(WorldType) || WorldType == EWorldType::EditorPreview;
 }
 
-ALevelInstance* ULevelInstanceSubsystem::GetLevelInstance(FLevelInstanceID LevelInstanceID) const
+ILevelInstanceInterface* ULevelInstanceSubsystem::GetLevelInstance(FLevelInstanceID LevelInstanceID) const
 {
-	if (ALevelInstance*const* LevelInstanceActor = RegisteredLevelInstances.Find(LevelInstanceID))
+	if (ILevelInstanceInterface*const* LevelInstance = RegisteredLevelInstances.Find(LevelInstanceID))
 	{
-		return *LevelInstanceActor;
+		return *LevelInstance;
 	}
 
 	return nullptr;
 }
 
-FLevelInstanceID::FLevelInstanceID(ULevelInstanceSubsystem* LevelInstanceSubsystem, ALevelInstance* LevelInstanceActor)
+FLevelInstanceID::FLevelInstanceID(ULevelInstanceSubsystem* LevelInstanceSubsystem, ILevelInstanceInterface* LevelInstance)
 {
-	LevelInstanceSubsystem->ForEachLevelInstanceAncestorsAndSelf(LevelInstanceActor, [this](const ALevelInstance* AncestorOrSelf)
-		{
-			Guids.Add(AncestorOrSelf->GetLevelInstanceActorGuid());
-			return true;
-		});
+	LevelInstanceSubsystem->ForEachLevelInstanceAncestorsAndSelf(CastChecked<AActor>(LevelInstance), [this](const ILevelInstanceInterface* AncestorOrSelf)
+	{
+		Guids.Add(AncestorOrSelf->GetLevelInstanceGuid());
+		return true;
+	});
 	check(!Guids.IsEmpty());
 	Hash = CityHash64((const char*)Guids.GetData(), Guids.Num() * sizeof(FGuid));
 }
 
-FLevelInstanceID ULevelInstanceSubsystem::RegisterLevelInstance(ALevelInstance* LevelInstanceActor)
+FLevelInstanceID ULevelInstanceSubsystem::RegisterLevelInstance(ILevelInstanceInterface* LevelInstance)
 {
-	FLevelInstanceID LevelInstanceID(this, LevelInstanceActor);
+	FLevelInstanceID LevelInstanceID(this, LevelInstance);
 	check(LevelInstanceID.IsValid());
-	ALevelInstance*& Value = RegisteredLevelInstances.FindOrAdd(LevelInstanceID);
-	check(GIsReinstancing || Value == nullptr || Value == LevelInstanceActor);
-	Value = LevelInstanceActor;
+	ILevelInstanceInterface*& Value = RegisteredLevelInstances.FindOrAdd(LevelInstanceID);
+	check(GIsReinstancing || Value == nullptr || Value == LevelInstance);
+	Value = LevelInstance;
 
 	return LevelInstanceID;
 }
 
-void ULevelInstanceSubsystem::UnregisterLevelInstance(ALevelInstance* LevelInstanceActor)
+void ULevelInstanceSubsystem::UnregisterLevelInstance(ILevelInstanceInterface* LevelInstance)
 {
-	RegisteredLevelInstances.Remove(LevelInstanceActor->GetLevelInstanceID());
+	RegisteredLevelInstances.Remove(LevelInstance->GetLevelInstanceID());
 }
 
-void ULevelInstanceSubsystem::RequestLoadLevelInstance(ALevelInstance* LevelInstanceActor, bool bForce /* = false */)
+void ULevelInstanceSubsystem::RequestLoadLevelInstance(ILevelInstanceInterface* LevelInstance, bool bForce /* = false */)
 {
-	check(LevelInstanceActor && IsValidChecked(LevelInstanceActor) && !LevelInstanceActor->IsUnreachable());
-	if (LevelInstanceActor->IsLevelInstancePathValid())
+	check(LevelInstance && IsValidChecked(CastChecked<AActor>(LevelInstance)) && !CastChecked<AActor>(LevelInstance)->IsUnreachable());
+	if (LevelInstance->IsWorldAssetValid())
 	{
 #if WITH_EDITOR
-		if (!IsEditingLevelInstance(LevelInstanceActor))
+		if (!IsEditingLevelInstance(LevelInstance))
 #endif
 		{
-			LevelInstancesToUnload.Remove(LevelInstanceActor->GetLevelInstanceID());
+			LevelInstancesToUnload.Remove(LevelInstance->GetLevelInstanceID());
 
-			bool* bForcePtr = LevelInstancesToLoadOrUpdate.Find(LevelInstanceActor);
+			bool* bForcePtr = LevelInstancesToLoadOrUpdate.Find(LevelInstance);
 
 			// Avoid loading if already loaded. Can happen if actor requests unload/load in same frame. Without the force it means its not necessary.
-			if (IsLoaded(LevelInstanceActor) && !bForce && (bForcePtr == nullptr || !(*bForcePtr)))
+			if (IsLoaded(LevelInstance) && !bForce && (bForcePtr == nullptr || !(*bForcePtr)))
 			{
 				return;
 			}
@@ -146,26 +146,26 @@ void ULevelInstanceSubsystem::RequestLoadLevelInstance(ALevelInstance* LevelInst
 			}
 			else
 			{
-				LevelInstancesToLoadOrUpdate.Add(LevelInstanceActor, bForce);
+				LevelInstancesToLoadOrUpdate.Add(LevelInstance, bForce);
 			}
 		}
 	}
 }
 
-void ULevelInstanceSubsystem::RequestUnloadLevelInstance(ALevelInstance* LevelInstanceActor)
+void ULevelInstanceSubsystem::RequestUnloadLevelInstance(ILevelInstanceInterface* LevelInstance)
 {
-	const FLevelInstanceID& LevelInstanceID = LevelInstanceActor->GetLevelInstanceID();
+	const FLevelInstanceID& LevelInstanceID = LevelInstance->GetLevelInstanceID();
 	if (LevelInstances.Contains(LevelInstanceID))
 	{
-		// LevelInstancesToUnload uses FLevelInstanceID because LevelInstanceActor* can be destroyed in later Tick and we don't need it.
+		// LevelInstancesToUnload uses FLevelInstanceID because LevelInstance* can be destroyed in later Tick and we don't need it.
 		LevelInstancesToUnload.Add(LevelInstanceID);
 	}
-	LevelInstancesToLoadOrUpdate.Remove(LevelInstanceActor);
+	LevelInstancesToLoadOrUpdate.Remove(LevelInstance);
 }
 
-bool ULevelInstanceSubsystem::IsLoaded(const ALevelInstance* LevelInstanceActor) const
+bool ULevelInstanceSubsystem::IsLoaded(const ILevelInstanceInterface* LevelInstance) const
 {
-	return LevelInstanceActor->HasValidLevelInstanceID() && LevelInstances.Contains(LevelInstanceActor->GetLevelInstanceID());
+	return LevelInstance->HasValidLevelInstanceID() && LevelInstances.Contains(LevelInstance->GetLevelInstanceID());
 }
 
 void ULevelInstanceSubsystem::UpdateStreamingState()
@@ -204,16 +204,16 @@ void ULevelInstanceSubsystem::UpdateStreamingState()
 	if (LevelInstancesToLoadOrUpdate.Num())
 	{
 		// Unload levels before doing any loading
-		TMap<ALevelInstance*, bool> LevelInstancesToLoadOrUpdateCopy(MoveTemp(LevelInstancesToLoadOrUpdate));
-		for (const TPair<ALevelInstance*, bool>& Pair : LevelInstancesToLoadOrUpdateCopy)
+		TMap<ILevelInstanceInterface*, bool> LevelInstancesToLoadOrUpdateCopy(MoveTemp(LevelInstancesToLoadOrUpdate));
+		for (const TPair<ILevelInstanceInterface*, bool>& Pair : LevelInstancesToLoadOrUpdateCopy)
 		{
 #if WITH_EDITOR
 			SlowTask.EnterProgressFrame(1.f, LOCTEXT("UnloadingLevelInstance", "Unloading Level Instance"));
 #endif
-			ALevelInstance* LevelInstanceActor = Pair.Key;
+			ILevelInstanceInterface* LevelInstance = Pair.Key;
 			if (Pair.Value)
 			{
-				UnloadLevelInstance(LevelInstanceActor->GetLevelInstanceID());
+				UnloadLevelInstance(LevelInstance->GetLevelInstanceID());
 			}
 		}
 
@@ -221,7 +221,7 @@ void ULevelInstanceSubsystem::UpdateStreamingState()
 		LevelsToRemoveScope.Reset();
 		double StartTime = FPlatformTime::Seconds();
 #endif
-		for (const TPair<ALevelInstance*, bool>& Pair : LevelInstancesToLoadOrUpdateCopy)
+		for (const TPair<ILevelInstanceInterface*, bool>& Pair : LevelInstancesToLoadOrUpdateCopy)
 		{
 #if WITH_EDITOR
 			SlowTask.EnterProgressFrame(1.f, LOCTEXT("LoadingLevelInstance", "Loading Level Instance"));
@@ -241,13 +241,13 @@ void ULevelInstanceSubsystem::UpdateStreamingState()
 
 void ULevelInstanceSubsystem::RegisterLoadedLevelStreamingLevelInstance(ULevelStreamingLevelInstance* LevelStreaming)
 {
-	ALevelInstance* LevelInstanceActor = LevelStreaming->GetLevelInstanceActor();
-	const FLevelInstanceID LevelInstanceID = LevelStreaming->GetLevelInstanceActor()->GetLevelInstanceID();
+	ILevelInstanceInterface* LevelInstance = LevelStreaming->GetLevelInstance();
+	const FLevelInstanceID LevelInstanceID = LevelInstance->GetLevelInstanceID();
 	check(!LevelInstances.Contains(LevelInstanceID));
-	FLevelInstance& LevelInstance = LevelInstances.Add(LevelInstanceID);
-	LevelInstance.LevelStreaming = LevelStreaming;
+	FLevelInstance& LevelInstanceEntry = LevelInstances.Add(LevelInstanceID);
+	LevelInstanceEntry.LevelStreaming = LevelStreaming;
 #if WITH_EDITOR
-	LevelInstanceActor->OnLevelInstanceLoaded();
+	LevelInstance->OnLevelInstanceLoaded();
 #endif
 }
 
@@ -257,8 +257,8 @@ void ULevelInstanceSubsystem::RegisterLoadedLevelStreamingLevelInstanceEditor(UL
 	if (!bIsCreatingLevelInstance)
 	{
 		check(!LevelInstanceEdit.IsValid());
-		ALevelInstance* LevelInstanceActor = LevelStreaming->GetLevelInstanceActor();
-		LevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, LevelInstanceActor->GetLevelInstanceID());
+		ILevelInstanceInterface* LevelInstance = LevelStreaming->GetLevelInstance();
+		LevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, LevelInstance->GetLevelInstanceID());
 
 		if (ILevelInstanceEditorModule* EditorModule = FModuleManager::GetModulePtr<ILevelInstanceEditorModule>("LevelInstanceEditor"))
 		{
@@ -291,18 +291,19 @@ void ULevelInstanceSubsystem::ResetEdit(TUniquePtr<FLevelInstanceEdit>& InLevelI
 }
 #endif
 
-void ULevelInstanceSubsystem::LoadLevelInstance(ALevelInstance* LevelInstanceActor)
+void ULevelInstanceSubsystem::LoadLevelInstance(ILevelInstanceInterface* LevelInstance)
 {
-	check(LevelInstanceActor);
-	if (IsLoaded(LevelInstanceActor) || !IsValidChecked(LevelInstanceActor) || LevelInstanceActor->IsUnreachable() || !LevelInstanceActor->IsLevelInstancePathValid())
+	check(LevelInstance);
+	AActor* LevelInstanceActor = CastChecked<AActor>(LevelInstance);
+	if (IsLoaded(LevelInstance) || !IsValidChecked(LevelInstanceActor) || LevelInstanceActor->IsUnreachable() || !LevelInstance->IsWorldAssetValid())
 	{
 		return;
 	}
 
-	const FLevelInstanceID& LevelInstanceID = LevelInstanceActor->GetLevelInstanceID();
+	const FLevelInstanceID& LevelInstanceID = LevelInstance->GetLevelInstanceID();
 	check(!LevelInstances.Contains(LevelInstanceID));
 
-	if (ULevelStreamingLevelInstance* LevelStreaming = ULevelStreamingLevelInstance::LoadInstance(LevelInstanceActor))
+	if (ULevelStreamingLevelInstance* LevelStreaming = ULevelStreamingLevelInstance::LoadInstance(LevelInstance))
 	{
 #if WITH_EDITOR
 		check(LevelInstanceActor->GetWorld()->IsGameWorld() || LevelInstances.Contains(LevelInstanceID));
@@ -329,12 +330,12 @@ void ULevelInstanceSubsystem::UnloadLevelInstance(const FLevelInstanceID& LevelI
 		{
 			ForEachActorInLevel(LoadedLevel, [this](AActor* LevelActor)
 			{
-				if (ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(LevelActor))
+				if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(LevelActor))
 				{
 					// Make sure to remove from pending loads if we are unloading child can't be loaded
-					LevelInstancesToLoadOrUpdate.Remove(LevelInstanceActor);
+					LevelInstancesToLoadOrUpdate.Remove(LevelInstance);
 					
-					UnloadLevelInstance(LevelInstanceActor->GetLevelInstanceID());
+					UnloadLevelInstance(LevelInstance->GetLevelInstanceID());
 				}
 				return true;
 			});
@@ -365,11 +366,11 @@ void ULevelInstanceSubsystem::ForEachActorInLevel(ULevel* Level, TFunctionRef<bo
 	}
 }
 
-void ULevelInstanceSubsystem::ForEachLevelInstanceAncestorsAndSelf(AActor* Actor, TFunctionRef<bool(ALevelInstance*)> Operation) const
+void ULevelInstanceSubsystem::ForEachLevelInstanceAncestorsAndSelf(AActor* Actor, TFunctionRef<bool(ILevelInstanceInterface*)> Operation) const
 {
-	if (ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
+	if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(Actor))
 	{
-		if (!Operation(LevelInstanceActor))
+		if (!Operation(LevelInstance))
 		{
 			return;
 		}
@@ -378,31 +379,31 @@ void ULevelInstanceSubsystem::ForEachLevelInstanceAncestorsAndSelf(AActor* Actor
 	ForEachLevelInstanceAncestors(Actor, Operation);
 }
 
-void ULevelInstanceSubsystem::ForEachLevelInstanceAncestors(AActor* Actor, TFunctionRef<bool(ALevelInstance*)> Operation) const
+void ULevelInstanceSubsystem::ForEachLevelInstanceAncestors(AActor* Actor, TFunctionRef<bool(ILevelInstanceInterface*)> Operation) const
 {
-	ALevelInstance* ParentLevelInstance = nullptr;
+	ILevelInstanceInterface* ParentLevelInstance = nullptr;
 	do
 	{
 		ParentLevelInstance = GetOwningLevelInstance(Actor->GetLevel());
-		Actor = ParentLevelInstance;
+		Actor = Cast<AActor>(ParentLevelInstance);
 
 	} while (ParentLevelInstance != nullptr && Operation(ParentLevelInstance));
 }
 
-ALevelInstance* ULevelInstanceSubsystem::GetOwningLevelInstance(const ULevel* Level) const
+ILevelInstanceInterface* ULevelInstanceSubsystem::GetOwningLevelInstance(const ULevel* Level) const
 {
 	if (ULevelStreaming* BaseLevelStreaming = FLevelUtils::FindStreamingLevel(Level))
 	{
 #if WITH_EDITOR
 		if (ULevelStreamingLevelInstanceEditor* LevelStreamingEditor = Cast<ULevelStreamingLevelInstanceEditor>(BaseLevelStreaming))
 		{
-			return LevelStreamingEditor->GetLevelInstanceActor();
+			return LevelStreamingEditor->GetLevelInstance();
 		}
 		else 
 #endif
 		if (ULevelStreamingLevelInstance* LevelStreaming = Cast<ULevelStreamingLevelInstance>(BaseLevelStreaming))
 		{
-			return LevelStreaming->GetLevelInstanceActor();
+			return LevelStreaming->GetLevelInstance();
 		}
 		else if (UWorldPartitionLevelStreamingDynamic* WorldPartitionLevelStreaming = Cast<UWorldPartitionLevelStreamingDynamic>(BaseLevelStreaming))
 		{
@@ -448,11 +449,11 @@ bool ULevelInstanceSubsystem::OnExitEditorModeInternal(bool bForceExit)
 	if (LevelInstanceEdit)
 	{
 		TGuardValue<bool> CommitScope(bIsCommittingLevelInstance, true);
-		ALevelInstance* LevelInstance = GetEditingLevelInstance();
+		ILevelInstanceInterface* LevelInstance = GetEditingLevelInstance();
 
 		bool bDiscard = false;
 		bool bIsDirty = IsLevelInstanceEditDirty(LevelInstanceEdit.Get());
-		if (bIsDirty && CanDiscardLevelInstance(LevelInstance))
+		if (bIsDirty && CanCommitLevelInstance(LevelInstance, /*bDiscardEdits=*/true))
 		{
 			FText Title = LOCTEXT("CommitOrDiscardChangesTitle", "Save changes?");
 			// if bForceExit we can't cancel the exiting of the mode so the user needs to decide between saving or discarding
@@ -559,27 +560,27 @@ void ULevelInstanceSubsystem::PackAllLoadedActors()
 
 	for (APackedLevelActor* PackedLevelActor : PackedLevelActorsToUpdate)
 	{
-		PackedLevelActor->UpdateFromLevel();
+		PackedLevelActor->UpdateLevelInstanceFromWorldAsset();
 		UpdateProgress();
 	}
 }
 
-bool ULevelInstanceSubsystem::GetLevelInstanceBounds(const ALevelInstance* LevelInstanceActor, FBox& OutBounds) const
+bool ULevelInstanceSubsystem::GetLevelInstanceBounds(const ILevelInstanceInterface* LevelInstance, FBox& OutBounds) const
 {
-	if (IsLoaded(LevelInstanceActor))
+	if (IsLoaded(LevelInstance))
 	{
-		const FLevelInstance& LevelInstance = LevelInstances.FindChecked(LevelInstanceActor->GetLevelInstanceID());
-		OutBounds = LevelInstance.LevelStreaming->GetBounds();
+		const FLevelInstance& LevelInstanceEntry = LevelInstances.FindChecked(LevelInstance->GetLevelInstanceID());
+		OutBounds = LevelInstanceEntry.LevelStreaming->GetBounds();
 		return true;
 	}
-	else if (const FLevelInstanceEdit* CurrentEdit = GetLevelInstanceEdit(LevelInstanceActor))
+	else if (const FLevelInstanceEdit* CurrentEdit = GetLevelInstanceEdit(LevelInstance))
 	{
 		OutBounds = CurrentEdit->LevelStreaming->GetBounds();
 		return true;
 	}
-	else if(LevelInstanceActor->IsLevelInstancePathValid())
+	else if(LevelInstance->IsWorldAssetValid())
 	{
-		return GetLevelInstanceBoundsFromPackage(LevelInstanceActor->GetActorTransform(), FName(*LevelInstanceActor->GetWorldAssetPackage()), OutBounds);
+		return GetLevelInstanceBoundsFromPackage(CastChecked<AActor>(LevelInstance)->GetActorTransform(), FName(*LevelInstance->GetWorldAssetPackage()), OutBounds);
 	}
 
 	return false;
@@ -605,19 +606,19 @@ bool ULevelInstanceSubsystem::GetLevelInstanceBoundsFromPackage(const FTransform
 	return false;
 }
 
-void ULevelInstanceSubsystem::ForEachActorInLevelInstance(const ALevelInstance* LevelInstanceActor, TFunctionRef<bool(AActor * LevelActor)> Operation) const
+void ULevelInstanceSubsystem::ForEachActorInLevelInstance(const ILevelInstanceInterface* LevelInstance, TFunctionRef<bool(AActor * LevelActor)> Operation) const
 {
-	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor))
+	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstance))
 	{
 		ForEachActorInLevel(LevelInstanceLevel, Operation);
 	}
 }
 
-void ULevelInstanceSubsystem::ForEachLevelInstanceAncestorsAndSelf(const AActor* Actor, TFunctionRef<bool(const ALevelInstance*)> Operation) const
+void ULevelInstanceSubsystem::ForEachLevelInstanceAncestorsAndSelf(const AActor* Actor, TFunctionRef<bool(const ILevelInstanceInterface*)> Operation) const
 {
-	if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
+	if (const ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(Actor))
 	{
-		if (!Operation(LevelInstanceActor))
+		if (!Operation(LevelInstance))
 		{
 			return;
 		}
@@ -626,36 +627,36 @@ void ULevelInstanceSubsystem::ForEachLevelInstanceAncestorsAndSelf(const AActor*
 	ForEachLevelInstanceAncestors(Actor, Operation);
 }
 
-void ULevelInstanceSubsystem::ForEachLevelInstanceAncestors(const AActor* Actor, TFunctionRef<bool(const ALevelInstance*)> Operation) const
+void ULevelInstanceSubsystem::ForEachLevelInstanceAncestors(const AActor* Actor, TFunctionRef<bool(const ILevelInstanceInterface*)> Operation) const
 {
-	const ALevelInstance* ParentLevelInstance = nullptr;
+	const ILevelInstanceInterface* ParentLevelInstance = nullptr;
 	do 
 	{
 		ParentLevelInstance = GetOwningLevelInstance(Actor->GetLevel());
-		Actor = ParentLevelInstance;
+		Actor = Cast<AActor>(ParentLevelInstance);
 	} 
 	while (ParentLevelInstance != nullptr && Operation(ParentLevelInstance));
 }
 
-void ULevelInstanceSubsystem::ForEachLevelInstanceChild(const ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(const ALevelInstance*)> Operation) const
+void ULevelInstanceSubsystem::ForEachLevelInstanceChild(const ILevelInstanceInterface* LevelInstance, bool bRecursive, TFunctionRef<bool(const ILevelInstanceInterface*)> Operation) const
 {
-	ForEachLevelInstanceChildImpl(LevelInstanceActor, bRecursive, Operation);
+	ForEachLevelInstanceChildImpl(LevelInstance, bRecursive, Operation);
 }
 
-bool ULevelInstanceSubsystem::ForEachLevelInstanceChildImpl(const ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(const ALevelInstance*)> Operation) const
+bool ULevelInstanceSubsystem::ForEachLevelInstanceChildImpl(const ILevelInstanceInterface* LevelInstance, bool bRecursive, TFunctionRef<bool(const ILevelInstanceInterface*)> Operation) const
 {
 	bool bContinue = true;
-	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor))
+	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstance))
 	{
 		ForEachActorInLevel(LevelInstanceLevel, [&bContinue, this, Operation,bRecursive](AActor* LevelActor)
 		{
-			if (const ALevelInstance* ChildLevelInstanceActor = Cast<ALevelInstance>(LevelActor))
+			if (const ILevelInstanceInterface* ChildLevelInstance = Cast<ILevelInstanceInterface>(LevelActor))
 			{
-				bContinue = Operation(ChildLevelInstanceActor);
+				bContinue = Operation(ChildLevelInstance);
 				
 				if (bContinue && bRecursive)
 				{
-					bContinue = ForEachLevelInstanceChildImpl(ChildLevelInstanceActor, bRecursive, Operation);
+					bContinue = ForEachLevelInstanceChildImpl(ChildLevelInstance, bRecursive, Operation);
 				}
 			}
 			return bContinue;
@@ -665,25 +666,25 @@ bool ULevelInstanceSubsystem::ForEachLevelInstanceChildImpl(const ALevelInstance
 	return bContinue;
 }
 
-void ULevelInstanceSubsystem::ForEachLevelInstanceChild(ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(ALevelInstance*)> Operation) const
+void ULevelInstanceSubsystem::ForEachLevelInstanceChild(ILevelInstanceInterface* LevelInstance, bool bRecursive, TFunctionRef<bool(ILevelInstanceInterface*)> Operation) const
 {
-	ForEachLevelInstanceChildImpl(LevelInstanceActor, bRecursive, Operation);
+	ForEachLevelInstanceChildImpl(LevelInstance, bRecursive, Operation);
 }
 
-bool ULevelInstanceSubsystem::ForEachLevelInstanceChildImpl(ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(ALevelInstance*)> Operation) const
+bool ULevelInstanceSubsystem::ForEachLevelInstanceChildImpl(ILevelInstanceInterface* LevelInstance, bool bRecursive, TFunctionRef<bool(ILevelInstanceInterface*)> Operation) const
 {
 	bool bContinue = true;
-	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor))
+	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstance))
 	{
 		ForEachActorInLevel(LevelInstanceLevel, [&bContinue, this, Operation, bRecursive](AActor* LevelActor)
 		{
-			if (ALevelInstance* ChildLevelInstanceActor = Cast<ALevelInstance>(LevelActor))
+			if (ILevelInstanceInterface* ChildLevelInstance = Cast<ILevelInstanceInterface>(LevelActor))
 			{
-				bContinue = Operation(ChildLevelInstanceActor);
+				bContinue = Operation(ChildLevelInstance);
 
 				if (bContinue && bRecursive)
 				{
-					bContinue = ForEachLevelInstanceChildImpl(ChildLevelInstanceActor, bRecursive, Operation);
+					bContinue = ForEachLevelInstanceChildImpl(ChildLevelInstance, bRecursive, Operation);
 				}
 			}
 			return bContinue;
@@ -693,12 +694,12 @@ bool ULevelInstanceSubsystem::ForEachLevelInstanceChildImpl(ALevelInstance* Leve
 	return bContinue;
 }
 
-bool ULevelInstanceSubsystem::HasDirtyChildrenLevelInstances(const ALevelInstance* LevelInstanceActor) const
+bool ULevelInstanceSubsystem::HasDirtyChildrenLevelInstances(const ILevelInstanceInterface* LevelInstance) const
 {
 	bool bDirtyChildren = false;
-	ForEachLevelInstanceChild(LevelInstanceActor, /*bRecursive=*/true, [this, &bDirtyChildren](const ALevelInstance* ChildLevelInstanceActor)
+	ForEachLevelInstanceChild(LevelInstance, /*bRecursive=*/true, [this, &bDirtyChildren](const ILevelInstanceInterface* ChildLevelInstance)
 	{
-		if (IsEditingLevelInstanceDirty(ChildLevelInstanceActor))
+		if (IsEditingLevelInstanceDirty(ChildLevelInstance))
 		{
 			bDirtyChildren = true;
 			return false;
@@ -708,9 +709,9 @@ bool ULevelInstanceSubsystem::HasDirtyChildrenLevelInstances(const ALevelInstanc
 	return bDirtyChildren;
 }
 
-void ULevelInstanceSubsystem::SetIsHiddenEdLayer(ALevelInstance* LevelInstanceActor, bool bIsHiddenEdLayer)
+void ULevelInstanceSubsystem::SetIsHiddenEdLayer(ILevelInstanceInterface* LevelInstance, bool bIsHiddenEdLayer)
 {
-	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor))
+	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstance))
 	{
 		ForEachActorInLevel(LevelInstanceLevel, [bIsHiddenEdLayer](AActor* LevelActor)
 		{
@@ -720,9 +721,9 @@ void ULevelInstanceSubsystem::SetIsHiddenEdLayer(ALevelInstance* LevelInstanceAc
 	}
 }
 
-void ULevelInstanceSubsystem::SetIsTemporarilyHiddenInEditor(ALevelInstance* LevelInstanceActor, bool bIsHidden)
+void ULevelInstanceSubsystem::SetIsTemporarilyHiddenInEditor(ILevelInstanceInterface* LevelInstance, bool bIsHidden)
 {
-	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor))
+	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstance))
 	{
 		ForEachActorInLevel(LevelInstanceLevel, [bIsHidden](AActor* LevelActor)
 		{
@@ -732,21 +733,21 @@ void ULevelInstanceSubsystem::SetIsTemporarilyHiddenInEditor(ALevelInstance* Lev
 	}
 }
 
-bool ULevelInstanceSubsystem::SetCurrent(ALevelInstance* LevelInstanceActor) const
+bool ULevelInstanceSubsystem::SetCurrent(ILevelInstanceInterface* LevelInstance) const
 {
-	if (IsEditingLevelInstance(LevelInstanceActor))
+	if (IsEditingLevelInstance(LevelInstance))
 	{
-		return GetWorld()->SetCurrentLevel(GetLevelInstanceLevel(LevelInstanceActor));
+		return GetWorld()->SetCurrentLevel(GetLevelInstanceLevel(LevelInstance));
 	}
 
 	return false;
 }
 
-bool ULevelInstanceSubsystem::IsCurrent(const ALevelInstance* LevelInstanceActor) const
+bool ULevelInstanceSubsystem::IsCurrent(const ILevelInstanceInterface* LevelInstance) const
 {
-	if (IsEditingLevelInstance(LevelInstanceActor))
+	if (IsEditingLevelInstance(LevelInstance))
 	{
-		return GetLevelInstanceLevel(LevelInstanceActor) == GetWorld()->GetCurrentLevel();
+		return GetLevelInstanceLevel(LevelInstance) == GetWorld()->GetCurrentLevel();
 	}
 
 	return false;
@@ -765,7 +766,7 @@ bool ULevelInstanceSubsystem::MoveActorsToLevel(const TArray<AActor*>& ActorsToR
 		return false;
 	}
 
-	ALevelInstance* OwningInstance = GetOwningLevelInstance(DestinationLevel);
+	ILevelInstanceInterface* OwningInstance = GetOwningLevelInstance(DestinationLevel);
 	if (!OwningInstance || !OwningInstance->IsEditing())
 	{
 		for (const auto& Actor : ActorsToRemove)
@@ -778,16 +779,16 @@ bool ULevelInstanceSubsystem::MoveActorsToLevel(const TArray<AActor*>& ActorsToR
 	return true;
 }
 
-bool ULevelInstanceSubsystem::MoveActorsTo(ALevelInstance* LevelInstanceActor, const TArray<AActor*>& ActorsToMove, TArray<AActor*>* OutActors /*= nullptr*/)
+bool ULevelInstanceSubsystem::MoveActorsTo(ILevelInstanceInterface* LevelInstance, const TArray<AActor*>& ActorsToMove, TArray<AActor*>* OutActors /*= nullptr*/)
 {
-	check(IsEditingLevelInstance(LevelInstanceActor));
-	ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor);
+	check(IsEditingLevelInstance(LevelInstance));
+	ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstance);
 	check(LevelInstanceLevel);
 
 	return MoveActorsToLevel(ActorsToMove, LevelInstanceLevel, OutActors);
 }
 
-ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, const FNewLevelInstanceParams& CreationParams)
+ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, const FNewLevelInstanceParams& CreationParams)
 {
 	check(!bIsCreatingLevelInstance);
 	TGuardValue<bool> CreateLevelInstanceGuard(bIsCreatingLevelInstance, true);
@@ -893,15 +894,23 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.OverrideLevel = CurrentLevel;
-	ALevelInstance* NewLevelInstanceActor = nullptr;
+	AActor* NewLevelInstanceActor = nullptr;
 	TSoftObjectPtr<UWorld> WorldPtr(LoadedLevel->GetTypedOuter<UWorld>());
-	
+			
 	// Make sure newly created level asset gets scanned
 	ULevel::ScanLevelAssets(LoadedLevel->GetPackage()->GetName());
 
 	if (CreationParams.Type == ELevelInstanceCreationType::LevelInstance)
 	{
-		NewLevelInstanceActor = GetWorld()->SpawnActor<ALevelInstance>(ALevelInstance::StaticClass(), SpawnParams);
+		TSubclassOf<AActor> ActorClass = ALevelInstance::StaticClass();
+		if (CreationParams.LevelInstanceClass)
+		{
+			ActorClass = CreationParams.LevelInstanceClass;
+		}
+
+		check(ActorClass->ImplementsInterface(ULevelInstanceInterface::StaticClass()));
+
+		NewLevelInstanceActor = GetWorld()->SpawnActor<AActor>(ActorClass, SpawnParams);
 	}
 	else
 	{
@@ -934,7 +943,9 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	}
 	
 	check(NewLevelInstanceActor);
-	NewLevelInstanceActor->SetWorldAsset(WorldPtr);
+
+	ILevelInstanceInterface* NewLevelInstance = CastChecked<ILevelInstanceInterface>(NewLevelInstanceActor);
+	NewLevelInstance->SetWorldAsset(WorldPtr);
 	NewLevelInstanceActor->SetActorLocation(LevelInstanceLocation);
 	
 	// Actors were moved and kept their World positions so when saving we want their positions to actually be relative to the LevelInstance Actor
@@ -946,11 +957,11 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	GEditor->SelectNone(false, true);
 	GEditor->SelectActor(NewLevelInstanceActor, true, true);
 
-	NewLevelInstanceActor->OnEdit();
+	NewLevelInstance->OnEdit();
 
 	// Notify parents of edit
 	TArray<FLevelInstanceID> AncestorIDs;
-	ForEachLevelInstanceAncestors(NewLevelInstanceActor, [&AncestorIDs](ALevelInstance* InAncestor)
+	ForEachLevelInstanceAncestors(NewLevelInstanceActor, [&AncestorIDs](ILevelInstanceInterface* InAncestor)
 	{
 		AncestorIDs.Add(InAncestor->GetLevelInstanceID());
 		return true;
@@ -962,8 +973,8 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	}
 	
 	// New level instance
-	const FLevelInstanceID NewLevelInstanceID = NewLevelInstanceActor->GetLevelInstanceID();
-	TUniquePtr<FLevelInstanceEdit> TempLevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, NewLevelInstanceActor->GetLevelInstanceID());
+	const FLevelInstanceID NewLevelInstanceID = NewLevelInstance->GetLevelInstanceID();
+	TUniquePtr<FLevelInstanceEdit> TempLevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, NewLevelInstance->GetLevelInstanceID());
 	// Force mark it as changed
 	TempLevelInstanceEdit->MarkCommittedChanges();
 
@@ -991,7 +1002,7 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	return GetLevelInstance(NewLevelInstanceID);
 }
 
-bool ULevelInstanceSubsystem::BreakLevelInstance(ALevelInstance* LevelInstanceActor, uint32 Levels /* = 1 */, TArray<AActor*>* OutMovedActors /* = nullptr */)
+bool ULevelInstanceSubsystem::BreakLevelInstance(ILevelInstanceInterface* LevelInstance, uint32 Levels /* = 1 */, TArray<AActor*>* OutMovedActors /* = nullptr */)
 {
 	const double StartTime = FPlatformTime::Seconds();
 
@@ -1000,7 +1011,7 @@ bool ULevelInstanceSubsystem::BreakLevelInstance(ALevelInstance* LevelInstanceAc
 	GetMutableDefault<ULevelEditorMiscSettings>()->bAvoidRelabelOnPasteSelected = 1;
 
 	TArray<AActor*> MovedActors;
-	BreakLevelInstance_Impl(LevelInstanceActor, Levels, MovedActors);
+	BreakLevelInstance_Impl(LevelInstance, Levels, MovedActors);
 
 	USelection* ActorSelection = GEditor->GetSelectedActors();
 	ActorSelection->BeginBatchSelectOperation();
@@ -1023,30 +1034,31 @@ bool ULevelInstanceSubsystem::BreakLevelInstance(ALevelInstance* LevelInstanceAc
 	return bStatus;
 }
 
-void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInstanceActor, uint32 Levels, TArray<AActor*>& OutMovedActors)
+void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ILevelInstanceInterface* LevelInstance, uint32 Levels, TArray<AActor*>& OutMovedActors)
 {
 	if (Levels > 0)
 	{
+		AActor* LevelInstanceActor = CastChecked<AActor>(LevelInstance);
 		// Can only break the top level LevelInstance
 		check(LevelInstanceActor->GetLevel() == GetWorld()->GetCurrentLevel());
 
 		// Actors in a packed level actor will not be streamed in unless they are editing. Must force this before moving.
 		if (LevelInstanceActor->IsA<APackedLevelActor>())
 		{
-			BlockLoadLevelInstance(LevelInstanceActor);
+			BlockLoadLevelInstance(LevelInstance);
 		}
 
-		// need to ensure that LevelInstanceActor has been streamed in fully
+		// need to ensure that LevelInstance has been streamed in fully
 		GEngine->BlockTillLevelStreamingCompleted(LevelInstanceActor->GetWorld());
 
 		// Cannot break a level instance which has a level script
-		if (LevelInstanceHasLevelScriptBlueprint(LevelInstanceActor))
+		if (LevelInstanceHasLevelScriptBlueprint(LevelInstance))
 		{
 			UE_LOG(LogLevelInstance, Warning, TEXT("Failed to completely break Level Instance because some children have Level Scripts."));
 
 			if (LevelInstanceActor->IsA<APackedLevelActor>())
 			{
-				BlockUnloadLevelInstance(LevelInstanceActor);
+				BlockUnloadLevelInstance(LevelInstance);
 			}
 			return;
 		}
@@ -1094,7 +1106,7 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 			return false;
 		};
 
-		ForEachActorInLevelInstance(LevelInstanceActor, [this, &ActorsToMove, &AddActorToMove](AActor* Actor)
+		ForEachActorInLevelInstance(LevelInstance, [this, &ActorsToMove, &AddActorToMove](AActor* Actor)
 		{
 			AddActorToMove(Actor);
 			return true;
@@ -1114,14 +1126,14 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 
 		if (LevelInstanceActor->IsA<APackedLevelActor>())
 		{
-			BlockUnloadLevelInstance(LevelInstanceActor);
+			BlockUnloadLevelInstance(LevelInstance);
 		}
 
 		// Destroy the old LevelInstance instance actor
 		GetWorld()->DestroyActor(LevelInstanceActor);
 	
 		const bool bContinueBreak = Levels > 1;
-		TArray<ALevelInstance*> Children;
+		TArray<ILevelInstanceInterface*> Children;
 
 		for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
 		{
@@ -1135,9 +1147,9 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 			// Break up any sub LevelInstances if more levels are requested
 			if (bContinueBreak)
 			{
-				if (ALevelInstance* ChildLevelInstance = Cast<ALevelInstance>(Actor))
+				if (ILevelInstanceInterface* ChildLevelInstance = Cast<ILevelInstanceInterface>(Actor))
 				{
-					OutMovedActors.Remove(ChildLevelInstance);
+					OutMovedActors.Remove(Actor);
 
 					Children.Add(ChildLevelInstance);
 				}
@@ -1153,24 +1165,24 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 	return;
 }
 
-ULevel* ULevelInstanceSubsystem::GetLevelInstanceLevel(const ALevelInstance* LevelInstanceActor) const
+ULevel* ULevelInstanceSubsystem::GetLevelInstanceLevel(const ILevelInstanceInterface* LevelInstance) const
 {
-	if (LevelInstanceActor->HasValidLevelInstanceID())
+	if (LevelInstance->HasValidLevelInstanceID())
 	{
-		if (const FLevelInstanceEdit* CurrentEdit = GetLevelInstanceEdit(LevelInstanceActor))
+		if (const FLevelInstanceEdit* CurrentEdit = GetLevelInstanceEdit(LevelInstance))
 		{
 			return LevelInstanceEdit->LevelStreaming->GetLoadedLevel();
 		}
-		else if (const FLevelInstance* LevelInstance = LevelInstances.Find(LevelInstanceActor->GetLevelInstanceID()))
+		else if (const FLevelInstance* LevelInstanceEntry = LevelInstances.Find(LevelInstance->GetLevelInstanceID()))
 		{
-			return LevelInstance->LevelStreaming->GetLoadedLevel();
+			return LevelInstanceEntry->LevelStreaming->GetLoadedLevel();
 		}
 	}
 
 	return nullptr;
 }
 
-bool ULevelInstanceSubsystem::LevelInstanceHasLevelScriptBlueprint(const ALevelInstance* LevelInstance) const
+bool ULevelInstanceSubsystem::LevelInstanceHasLevelScriptBlueprint(const ILevelInstanceInterface* LevelInstance) const
 {
 	if (LevelInstance)
 	{
@@ -1243,9 +1255,9 @@ bool ULevelInstanceSubsystem::CanMoveActorToLevel(const AActor* Actor, FText* Ou
 
 	if (Actor->GetWorld() == GetWorld())
 	{
-		if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
+		if (const ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(Actor))
 		{
-			if (IsEditingLevelInstance(LevelInstanceActor))
+			if (IsEditingLevelInstance(LevelInstance))
 			{
 				if (OutReason != nullptr)
 				{
@@ -1255,9 +1267,9 @@ bool ULevelInstanceSubsystem::CanMoveActorToLevel(const AActor* Actor, FText* Ou
 			}
 
 			bool bEditingChildren = false;
-			ForEachLevelInstanceChild(LevelInstanceActor, true, [this, &bEditingChildren](const ALevelInstance* ChildLevelInstanceActor)
+			ForEachLevelInstanceChild(LevelInstance, true, [this, &bEditingChildren](const ILevelInstanceInterface* ChildLevelInstance)
 			{
-				if (IsEditingLevelInstance(ChildLevelInstanceActor))
+				if (IsEditingLevelInstance(ChildLevelInstance))
 				{
 					bEditingChildren = true;
 					return false;
@@ -1281,7 +1293,7 @@ bool ULevelInstanceSubsystem::CanMoveActorToLevel(const AActor* Actor, FText* Ou
 
 void ULevelInstanceSubsystem::OnActorDeleted(AActor* Actor)
 {
-	if (ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
+	if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(Actor))
 	{
 		if (Actor->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists))
 		{
@@ -1292,37 +1304,37 @@ void ULevelInstanceSubsystem::OnActorDeleted(AActor* Actor)
 		}
 
 		// Unregistered Level Instance Actor nothing to do.
-		if (!LevelInstanceActor->HasValidLevelInstanceID())
+		if (!LevelInstance->HasValidLevelInstanceID())
 		{
 			return;
 		}
 
-		const bool bIsEditingLevelInstance = IsEditingLevelInstance(LevelInstanceActor);
-		if (!bIsEditingLevelInstance && LevelInstanceActor->IsA<APackedLevelActor>())
+		const bool bIsEditingLevelInstance = IsEditingLevelInstance(LevelInstance);
+		if (!bIsEditingLevelInstance && Actor->IsA<APackedLevelActor>())
 		{
 			return;
 		}
 
-		const bool bAlreadyRooted = LevelInstanceActor->IsRooted();
+		const bool bAlreadyRooted = Actor->IsRooted();
 		// Unloading LevelInstances leads to GC and Actor can be collected. Add to root temp. It will get collected after the OnActorDeleted callbacks
 		if (!bAlreadyRooted)
 		{
-			LevelInstanceActor->AddToRoot();
+			Actor->AddToRoot();
 		}
 
 		FScopedSlowTask SlowTask(0, LOCTEXT("UnloadingLevelInstances", "Unloading Level Instances..."), !GetWorld()->IsGameWorld());
 		SlowTask.MakeDialog();
-		check(!IsEditingLevelInstanceDirty(LevelInstanceActor) && !HasDirtyChildrenLevelInstances(LevelInstanceActor));
+		check(!IsEditingLevelInstanceDirty(LevelInstance) && !HasDirtyChildrenLevelInstances(LevelInstance));
 		if (bIsEditingLevelInstance)
 		{
-			CommitLevelInstance(LevelInstanceActor);
+			CommitLevelInstance(LevelInstance);
 		}
 		else
 		{
 			// We are ending editing. Discard Non dirty child edits
-			ForEachLevelInstanceChild(LevelInstanceActor, /*bRecursive=*/true, [this](const ALevelInstance* ChildLevelInstanceActor)
+			ForEachLevelInstanceChild(LevelInstance, /*bRecursive=*/true, [this](const ILevelInstanceInterface* ChildLevelInstance)
 			{
-				if (const FLevelInstanceEdit* ChildLevelInstanceEdit = GetLevelInstanceEdit(ChildLevelInstanceActor))
+				if (const FLevelInstanceEdit* ChildLevelInstanceEdit = GetLevelInstanceEdit(ChildLevelInstance))
 				{
 					check(!IsLevelInstanceEditDirty(ChildLevelInstanceEdit));
 					ResetEdit(LevelInstanceEdit);
@@ -1332,14 +1344,14 @@ void ULevelInstanceSubsystem::OnActorDeleted(AActor* Actor)
 			});
 		}
 
-		LevelInstancesToLoadOrUpdate.Remove(LevelInstanceActor);
+		LevelInstancesToLoadOrUpdate.Remove(LevelInstance);
 				
-		UnloadLevelInstance(LevelInstanceActor->GetLevelInstanceID());
+		UnloadLevelInstance(LevelInstance->GetLevelInstanceID());
 		
 		// Remove from root so it gets collected on the next GC if it can be.
 		if (!bAlreadyRooted)
 		{
-			LevelInstanceActor->RemoveFromRoot();
+			Actor->RemoveFromRoot();
 		}
 	}
 }
@@ -1439,9 +1451,9 @@ FLevelInstanceID ULevelInstanceSubsystem::FLevelInstanceEdit::GetLevelInstanceID
 	return LevelStreaming ? LevelStreaming->GetLevelInstanceID() : FLevelInstanceID();
 }
 
-const ULevelInstanceSubsystem::FLevelInstanceEdit* ULevelInstanceSubsystem::GetLevelInstanceEdit(const ALevelInstance* LevelInstanceActor) const
+const ULevelInstanceSubsystem::FLevelInstanceEdit* ULevelInstanceSubsystem::GetLevelInstanceEdit(const ILevelInstanceInterface* LevelInstance) const
 {
-	if (LevelInstanceEdit && LevelInstanceEdit->GetLevelInstanceID() == LevelInstanceActor->GetLevelInstanceID())
+	if (LevelInstanceEdit && LevelInstanceEdit->GetLevelInstanceID() == LevelInstance->GetLevelInstanceID())
 	{
 		return LevelInstanceEdit.Get();
 	}
@@ -1449,9 +1461,9 @@ const ULevelInstanceSubsystem::FLevelInstanceEdit* ULevelInstanceSubsystem::GetL
 	return nullptr;
 }
 
-bool ULevelInstanceSubsystem::IsEditingLevelInstanceDirty(const ALevelInstance* LevelInstanceActor) const
+bool ULevelInstanceSubsystem::IsEditingLevelInstanceDirty(const ILevelInstanceInterface* LevelInstance) const
 {
-	const FLevelInstanceEdit* CurrentEdit = GetLevelInstanceEdit(LevelInstanceActor);
+	const FLevelInstanceEdit* CurrentEdit = GetLevelInstanceEdit(LevelInstance);
 	if (!CurrentEdit)
 	{
 		return false;
@@ -1467,7 +1479,7 @@ bool ULevelInstanceSubsystem::IsLevelInstanceEditDirty(const FLevelInstanceEdit*
 	return OutPackagesToSave.Num() > 0;
 }
 
-ALevelInstance* ULevelInstanceSubsystem::GetEditingLevelInstance() const
+ILevelInstanceInterface* ULevelInstanceSubsystem::GetEditingLevelInstance() const
 {
 	if (LevelInstanceEdit)
 	{
@@ -1477,7 +1489,7 @@ ALevelInstance* ULevelInstanceSubsystem::GetEditingLevelInstance() const
 	return nullptr;
 }
 
-bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason) const
+bool ULevelInstanceSubsystem::CanEditLevelInstance(const ILevelInstanceInterface* LevelInstance, FText* OutReason) const
 {
 	// Only allow Editing in Editor World
 	if (GetWorld()->WorldType != EWorldType::Editor)
@@ -1485,13 +1497,13 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 		return false;
 	}
 
-	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor))
+	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstance))
 	{
 		if (LevelInstanceLevel->GetWorldPartition())
 		{
 			if (OutReason)
 			{
-				*OutReason = FText::Format(LOCTEXT("CanEditPartitionedLevelInstance", "Can't edit partitioned Level Instance ({0})."), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
+				*OutReason = FText::Format(LOCTEXT("CanEditPartitionedLevelInstance", "Can't edit partitioned Level Instance ({0})."), FText::FromString(LevelInstance->GetWorldAssetPackage()));
 			}
 			return false;
 		}
@@ -1499,11 +1511,11 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 	
 	if (LevelInstanceEdit)
 	{
-		if (LevelInstanceEdit->GetLevelInstanceID() == LevelInstanceActor->GetLevelInstanceID())
+		if (LevelInstanceEdit->GetLevelInstanceID() == LevelInstance->GetLevelInstanceID())
 		{
 			if (OutReason)
 			{
-				*OutReason = FText::Format(LOCTEXT("CanEditLevelInstanceAlreadyBeingEdited", "Level Instance already being edited ({0})."), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
+				*OutReason = FText::Format(LOCTEXT("CanEditLevelInstanceAlreadyBeingEdited", "Level Instance already being edited ({0})."), FText::FromString(LevelInstance->GetWorldAssetPackage()));
 			}
 			return false;
 		}
@@ -1518,7 +1530,7 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 		}
 	}
 	
-	if (!LevelInstanceActor->IsLevelInstancePathValid())
+	if (!LevelInstance->IsWorldAssetValid())
 	{
 		if (OutReason)
 		{
@@ -1527,30 +1539,30 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 		return false;
 	}
 
-	if (GetWorld()->PersistentLevel->GetPackage()->GetName() == LevelInstanceActor->GetWorldAssetPackage())
+	if (GetWorld()->PersistentLevel->GetPackage()->GetName() == LevelInstance->GetWorldAssetPackage())
 	{
 		if (OutReason)
 		{
-			*OutReason = FText::Format(LOCTEXT("CanEditLevelInstancePersistentLevel", "The Persistent level and the Level Instance are the same ({0})."), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
+			*OutReason = FText::Format(LOCTEXT("CanEditLevelInstancePersistentLevel", "The Persistent level and the Level Instance are the same ({0})."), FText::FromString(LevelInstance->GetWorldAssetPackage()));
 		}
 		return false;
 	}
 
-	if (FLevelUtils::FindStreamingLevel(GetWorld(), *LevelInstanceActor->GetWorldAssetPackage()))
+	if (FLevelUtils::FindStreamingLevel(GetWorld(), *LevelInstance->GetWorldAssetPackage()))
 	{
 		if (OutReason)
 		{
-			*OutReason = FText::Format(LOCTEXT("CanEditLevelInstanceAlreadyExists", "The same level was added to world outside of Level Instances ({0})."), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
+			*OutReason = FText::Format(LOCTEXT("CanEditLevelInstanceAlreadyExists", "The same level was added to world outside of Level Instances ({0})."), FText::FromString(LevelInstance->GetWorldAssetPackage()));
 		}
 		return false;
 	}
 
 	FPackagePath WorldAssetPath;
-	if (!FPackagePath::TryFromPackageName(LevelInstanceActor->GetWorldAssetPackage(), WorldAssetPath) || !FPackageName::DoesPackageExist(WorldAssetPath))
+	if (!FPackagePath::TryFromPackageName(LevelInstance->GetWorldAssetPackage(), WorldAssetPath) || !FPackageName::DoesPackageExist(WorldAssetPath))
 	{
 		if (OutReason)
 		{
-			*OutReason = FText::Format(LOCTEXT("CanEditLevelInstanceInvalidAsset", "Level Instance asset is invalid ({0})."), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
+			*OutReason = FText::Format(LOCTEXT("CanEditLevelInstanceInvalidAsset", "Level Instance asset is invalid ({0})."), FText::FromString(LevelInstance->GetWorldAssetPackage()));
 		}
 		return false;
 	}
@@ -1558,25 +1570,11 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 	return true;
 }
 
-bool ULevelInstanceSubsystem::CanCommitLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason) const
+bool ULevelInstanceSubsystem::CanCommitLevelInstance(const ILevelInstanceInterface* LevelInstance, bool bDiscardEdits, FText* OutReason) const
 {
-	if (!IsEditingLevelInstance(LevelInstanceActor))
+	if (const FLevelInstanceEdit* CurrentEdit = GetLevelInstanceEdit(LevelInstance))
 	{
-		if (OutReason)
-		{
-			*OutReason = LOCTEXT("CanCommitLevelInstanceNotEditing", "Level Instance is not currently being edited");
-		}
-		return false;
-	}
-
-	return true;
-}
-
-bool ULevelInstanceSubsystem::CanDiscardLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason) const
-{
-	if (const FLevelInstanceEdit* CurrentEdit = GetLevelInstanceEdit(LevelInstanceActor))
-	{
-		return LevelInstanceEdit->CanDiscard(OutReason);
+		return !bDiscardEdits || LevelInstanceEdit->CanDiscard(OutReason);
 	}
 
 	if (OutReason)
@@ -1586,18 +1584,18 @@ bool ULevelInstanceSubsystem::CanDiscardLevelInstance(const ALevelInstance* Leve
 	return false;
 }
 
-void ULevelInstanceSubsystem::EditLevelInstance(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr)
+void ULevelInstanceSubsystem::EditLevelInstance(ILevelInstanceInterface* LevelInstance, TWeakObjectPtr<AActor> ContextActorPtr)
 {
-	if (EditLevelInstanceInternal(LevelInstanceActor, ContextActorPtr, FString(), false))
+	if (EditLevelInstanceInternal(LevelInstance, ContextActorPtr, FString(), false))
 	{
 		ILevelInstanceEditorModule& EditorModule = FModuleManager::GetModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
 		EditorModule.ActivateEditorMode();
 	}
 }
 
-bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr, const FString& InActorNameToSelect, bool bRecursive)
+bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ILevelInstanceInterface* LevelInstance, TWeakObjectPtr<AActor> ContextActorPtr, const FString& InActorNameToSelect, bool bRecursive)
 {
-	check(CanEditLevelInstance(LevelInstanceActor));
+	check(CanEditLevelInstance(LevelInstance));
 		
 	FScopedSlowTask SlowTask(0, LOCTEXT("BeginEditLevelInstance", "Loading Level Instance for edit..."), !GetWorld()->IsGameWorld());
 	SlowTask.MakeDialog();
@@ -1607,15 +1605,15 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 	if (AActor* ContextActor = ContextActorPtr.Get())
 	{
 		ActorNameToSelect = ContextActor->GetName();
-		ForEachLevelInstanceAncestorsAndSelf(ContextActor, [&ActorNameToSelect,LevelInstanceActor](const ALevelInstance* AncestorLevelInstanceActor)
+		ForEachLevelInstanceAncestorsAndSelf(ContextActor, [&ActorNameToSelect,LevelInstance](const ILevelInstanceInterface* AncestorLevelInstance)
 		{
 			// stop when we hit the LevelInstance we are about to edit
-			if (AncestorLevelInstanceActor == LevelInstanceActor)
+			if (AncestorLevelInstance == LevelInstance)
 			{
 				return false;
 			}
 			
-			ActorNameToSelect = AncestorLevelInstanceActor->GetName();
+			ActorNameToSelect = CastChecked<AActor>(AncestorLevelInstance)->GetName();
 			return true;
 		});
 	}
@@ -1626,7 +1624,7 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 	if (!bRecursive)
 	{
 		TArray<FLevelInstanceID> AncestorIDs;
-		ForEachLevelInstanceAncestors(LevelInstanceActor, [&AncestorIDs](ALevelInstance* InAncestor)
+		ForEachLevelInstanceAncestors(CastChecked<AActor>(LevelInstance), [&AncestorIDs](ILevelInstanceInterface* InAncestor)
 		{
 			AncestorIDs.Add(InAncestor->GetLevelInstanceID());
 			return true;
@@ -1643,33 +1641,33 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 	{	
 		// Only support one level of recursion to commit current edit
 		check(!bRecursive);
-		FLevelInstanceID PendingEditId = LevelInstanceActor->GetLevelInstanceID();
+		FLevelInstanceID PendingEditId = LevelInstance->GetLevelInstanceID();
 		
 		check(!IsLevelInstanceEditDirty(LevelInstanceEdit.Get()));
 		CommitLevelInstanceInternal(LevelInstanceEdit);
 
-		ALevelInstance* LevelInstanceToEdit = GetLevelInstance(PendingEditId);
+		ILevelInstanceInterface* LevelInstanceToEdit = GetLevelInstance(PendingEditId);
 		check(LevelInstanceToEdit);
 
 		return EditLevelInstanceInternal(LevelInstanceToEdit, nullptr, ActorNameToSelect, /*bRecursive=*/true);
 	}
 
 	// Cleanup async requests in case
-	LevelInstancesToUnload.Remove(LevelInstanceActor->GetLevelInstanceID());
-	LevelInstancesToLoadOrUpdate.Remove(LevelInstanceActor);
+	LevelInstancesToUnload.Remove(LevelInstance->GetLevelInstanceID());
+	LevelInstancesToLoadOrUpdate.Remove(LevelInstance);
 	// Unload right away
-	UnloadLevelInstance(LevelInstanceActor->GetLevelInstanceID());
+	UnloadLevelInstance(LevelInstance->GetLevelInstanceID());
 		
 	// Load Edit LevelInstance level
-	ULevelStreamingLevelInstanceEditor* LevelStreaming = ULevelStreamingLevelInstanceEditor::Load(LevelInstanceActor);
+	ULevelStreamingLevelInstanceEditor* LevelStreaming = ULevelStreamingLevelInstanceEditor::Load(LevelInstance);
 	if (!LevelStreaming)
 	{
-		LevelInstanceActor->LoadLevelInstance();
+		LevelInstance->LoadLevelInstance();
 		return false;
 	}
 
 	check(LevelInstanceEdit.IsValid());
-	check(LevelInstanceEdit->GetLevelInstanceID() == LevelInstanceActor->GetLevelInstanceID());
+	check(LevelInstanceEdit->GetLevelInstanceID() == LevelInstance->GetLevelInstanceID());
 	check(LevelInstanceEdit->LevelStreaming == LevelStreaming);
 		
 	// Try and select something meaningful
@@ -1680,6 +1678,7 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 	}
 
 	// default to LevelInstance
+	AActor* LevelInstanceActor = CastChecked<AActor>(LevelInstance);
 	if (!ActorToSelect)
 	{
 		ActorToSelect = LevelInstanceActor;
@@ -1687,7 +1686,7 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 	LevelInstanceActor->SetIsTemporarilyHiddenInEditor(false);
 
 	// Notify
-	LevelInstanceActor->OnEdit();
+	LevelInstance->OnEdit();
 
 	GEditor->SelectActor(ActorToSelect, true, true);
 
@@ -1709,10 +1708,10 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 	return true;
 }
 
-bool ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits, TSet<FName>* DirtyPackages)
+bool ULevelInstanceSubsystem::CommitLevelInstance(ILevelInstanceInterface* LevelInstance, bool bDiscardEdits, TSet<FName>* DirtyPackages)
 {
-	check(LevelInstanceEdit.Get() == GetLevelInstanceEdit(LevelInstanceActor));
-	check(CanCommitLevelInstance(LevelInstanceActor));
+	check(LevelInstanceEdit.Get() == GetLevelInstanceEdit(LevelInstance));
+	check(CanCommitLevelInstance(LevelInstance));
 	if (CommitLevelInstanceInternal(LevelInstanceEdit, bDiscardEdits, /*bDiscardOnFailure=*/false, DirtyPackages))
 	{
 		ILevelInstanceEditorModule& EditorModule = FModuleManager::GetModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
@@ -1727,7 +1726,7 @@ bool ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceA
 bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits, bool bDiscardOnFailure, TSet<FName>* DirtyPackages)
 {
 	TGuardValue<bool> CommitScope(bIsCommittingLevelInstance, true);
-	ALevelInstance* LevelInstanceActor = GetLevelInstance(InLevelInstanceEdit->GetLevelInstanceID());
+	ILevelInstanceInterface* LevelInstance = GetLevelInstance(InLevelInstanceEdit->GetLevelInstanceID());
 	check(InLevelInstanceEdit);
 	UWorld* EditingWorld = InLevelInstanceEdit->GetEditWorld();
 	check(EditingWorld);
@@ -1790,7 +1789,7 @@ bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInsta
 
 	GEditor->SelectNone(false, true);
 
-	const FString EditPackage = LevelInstanceActor->GetWorldAssetPackage();
+	const FString EditPackage = LevelInstance->GetWorldAssetPackage();
 
 	// Remove from streaming level...
 	ResetEdit(InLevelInstanceEdit);
@@ -1801,47 +1800,50 @@ bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInsta
 	}
 	
 	// Backup ID on Commit in case Actor gets recreated
-	const FLevelInstanceID LevelInstanceID = LevelInstanceActor->GetLevelInstanceID();
+	const FLevelInstanceID LevelInstanceID = LevelInstance->GetLevelInstanceID();
 
 	// Notify (Actor might get destroyed by this call if its a packed bp)
-	LevelInstanceActor->OnCommit(bChangesCommitted);
+	LevelInstance->OnCommit(bChangesCommitted);
 
-	// Update pointer since BP Compilation might have invalidated LevelInstanceActor
-	LevelInstanceActor = GetLevelInstance(LevelInstanceID);
+	// Update pointer since BP Compilation might have invalidated LevelInstance
+	LevelInstance = GetLevelInstance(LevelInstanceID);
 
-	TArray<FLevelInstanceID> LevelInstancesToUpdate;
+	TArray<TPair<ULevelInstanceSubsystem*, FLevelInstanceID>> LevelInstancesToUpdate;
 	// Gather list to update
 	for (TObjectIterator<UWorld> It(RF_ClassDefaultObject | RF_ArchetypeObject, true); It; ++It)
 	{
 		UWorld* CurrentWorld = *It;
-		if (IsValid(CurrentWorld) && CurrentWorld->GetSubsystem<ULevelInstanceSubsystem>() != nullptr)
+		if (IsValid(CurrentWorld))
 		{
-			for (TActorIterator<ALevelInstance> LevelInstanceIt(CurrentWorld); LevelInstanceIt; ++LevelInstanceIt)
+			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = CurrentWorld->GetSubsystem<ULevelInstanceSubsystem>())
 			{
-				ALevelInstance* CurrentLevelInstanceActor = *LevelInstanceIt;
-				if (CurrentLevelInstanceActor->GetWorldAssetPackage() == EditPackage && (LevelInstanceActor == CurrentLevelInstanceActor || bChangesCommitted))
+				TArray<ILevelInstanceInterface*> WorldLevelInstances = LevelInstanceSubsystem->GetLevelInstances(EditPackage);
+				for (ILevelInstanceInterface* CurrentLevelInstance : WorldLevelInstances)
 				{
-					LevelInstancesToUpdate.Add(CurrentLevelInstanceActor->GetLevelInstanceID());
+					if (CurrentLevelInstance == LevelInstance || bChangesCommitted)
+					{
+						LevelInstancesToUpdate.Add({ LevelInstanceSubsystem, CurrentLevelInstance->GetLevelInstanceID() });
+					}
 				}
 			}
 		}
 	}
 
 	// Do update
-	for (const FLevelInstanceID& LevelInstanceToUpdateID : LevelInstancesToUpdate)
+	for (const auto& KeyValuePair : LevelInstancesToUpdate)
 	{
-		if (ALevelInstance* LevelInstance = GetLevelInstance(LevelInstanceToUpdateID))
+		if (ILevelInstanceInterface* LevelInstanceToUpdate = KeyValuePair.Key->GetLevelInstance(KeyValuePair.Value))
 		{
-			LevelInstance->UpdateFromLevel();
+			LevelInstanceToUpdate->UpdateLevelInstanceFromWorldAsset();
 		}
 	}
 
-	LevelInstanceActor = GetLevelInstance(LevelInstanceID);
+	LevelInstance = GetLevelInstance(LevelInstanceID);
 	
 	// Notify Ancestors
 	FLevelInstanceID LevelInstanceToSelectID = LevelInstanceID;
 	TArray<FLevelInstanceID> AncestorIDs;
-	ForEachLevelInstanceAncestors(LevelInstanceActor, [&LevelInstanceToSelectID, &AncestorIDs](ALevelInstance* AncestorLevelInstance)
+	ForEachLevelInstanceAncestors(CastChecked<AActor>(LevelInstance), [&LevelInstanceToSelectID, &AncestorIDs](ILevelInstanceInterface* AncestorLevelInstance)
 	{
 		LevelInstanceToSelectID = AncestorLevelInstance->GetLevelInstanceID();
 		AncestorIDs.Add(AncestorLevelInstance->GetLevelInstanceID());
@@ -1853,9 +1855,9 @@ bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInsta
 		OnCommitChild(AncestorID, bChangesCommitted);
 	}
 		
-	if (ALevelInstance* Actor = GetLevelInstance(LevelInstanceToSelectID))
+	if (ILevelInstanceInterface* LevelInstanceToSelect = GetLevelInstance(LevelInstanceToSelectID))
 	{
-		GEditor->SelectActor(Actor, true, true);
+		GEditor->SelectActor(CastChecked<AActor>(LevelInstanceToSelect), true, true);
 	}
 				
 	// Wait for Level Instances to be loaded
@@ -1869,7 +1871,7 @@ bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInsta
 	return true;
 }
 
-ALevelInstance* ULevelInstanceSubsystem::GetParentLevelInstance(const AActor* Actor) const
+ILevelInstanceInterface* ULevelInstanceSubsystem::GetParentLevelInstance(const AActor* Actor) const
 {
 	check(Actor);
 	const ULevel* OwningLevel = Actor->GetLevel();
@@ -1889,25 +1891,25 @@ void ULevelInstanceSubsystem::BlockOnLoading()
 	}
 }
 
-void ULevelInstanceSubsystem::BlockLoadLevelInstance(ALevelInstance* LevelInstanceActor)
+void ULevelInstanceSubsystem::BlockLoadLevelInstance(ILevelInstanceInterface* LevelInstance)
 {
-	check(!LevelInstanceActor->IsEditing());
-	RequestLoadLevelInstance(LevelInstanceActor, true);
+	check(!LevelInstance->IsEditing());
+	RequestLoadLevelInstance(LevelInstance, true);
 
 	BlockOnLoading();
 }
 
-void ULevelInstanceSubsystem::BlockUnloadLevelInstance(ALevelInstance* LevelInstanceActor)
+void ULevelInstanceSubsystem::BlockUnloadLevelInstance(ILevelInstanceInterface* LevelInstance)
 {
-	check(!LevelInstanceActor->IsEditing());
-	RequestUnloadLevelInstance(LevelInstanceActor);
+	check(!LevelInstance->IsEditing());
+	RequestUnloadLevelInstance(LevelInstance);
 
 	BlockOnLoading();
 }
 
-bool ULevelInstanceSubsystem::HasChildEdit(const ALevelInstance* LevelInstanceActor) const
+bool ULevelInstanceSubsystem::HasChildEdit(const ILevelInstanceInterface* LevelInstance) const
 {
-	const int32* ChildEditCountPtr = ChildEdits.Find(LevelInstanceActor->GetLevelInstanceID());
+	const int32* ChildEditCountPtr = ChildEdits.Find(LevelInstance->GetLevelInstanceID());
 	return ChildEditCountPtr && *ChildEditCountPtr;
 }
 
@@ -1917,7 +1919,7 @@ void ULevelInstanceSubsystem::OnCommitChild(FLevelInstanceID LevelInstanceID, bo
 	check(ChildEditCount > 0);
 	ChildEditCount--;
 
-	if (ALevelInstance* LevelInstance = GetLevelInstance(LevelInstanceID))
+	if (ILevelInstanceInterface* LevelInstance = GetLevelInstance(LevelInstanceID))
 	{
 		LevelInstance->OnCommitChild(bChildChanged);
 	}
@@ -1931,10 +1933,117 @@ void ULevelInstanceSubsystem::OnEditChild(FLevelInstanceID LevelInstanceID)
 	check(ChildEditCount < 2);
 	ChildEditCount++;
 
-	if (ALevelInstance* LevelInstance = GetLevelInstance(LevelInstanceID))
+	if (ILevelInstanceInterface* LevelInstance = GetLevelInstance(LevelInstanceID))
 	{
 		LevelInstance->OnEditChild();
 	}
+}
+
+TArray<ILevelInstanceInterface*> ULevelInstanceSubsystem::GetLevelInstances(const FString& WorldAssetPackage)
+{
+	TArray<ILevelInstanceInterface*> MatchingLevelInstances;
+	for (const auto& KeyValuePair : RegisteredLevelInstances)
+	{
+		if (KeyValuePair.Value->GetWorldAssetPackage() == WorldAssetPackage)
+		{
+			MatchingLevelInstances.Add(KeyValuePair.Value);
+		}
+	}
+
+	return MatchingLevelInstances;
+}
+
+bool ULevelInstanceSubsystem::CheckForLoop(const ILevelInstanceInterface* LevelInstance, TArray<TPair<FText, TSoftObjectPtr<UWorld>>>* LoopInfo, const ILevelInstanceInterface** LoopStart)
+{
+	return CheckForLoop(LevelInstance, LevelInstance->GetWorldAsset(), LoopInfo, LoopStart);
+}
+
+bool ULevelInstanceSubsystem::CheckForLoop(const ILevelInstanceInterface* LevelInstance, TSoftObjectPtr<UWorld> WorldAsset, TArray<TPair<FText, TSoftObjectPtr<UWorld>>>* LoopInfo, const ILevelInstanceInterface** LoopStart)
+{
+	bool bValid = true;
+		
+	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = LevelInstance->GetLevelInstanceSubsystem())
+	{
+		LevelInstanceSubsystem->ForEachLevelInstanceAncestorsAndSelf(CastChecked<AActor>(LevelInstance), [&bValid, &WorldAsset, LevelInstance, LoopInfo, LoopStart](const ILevelInstanceInterface* CurrentLevelInstance)
+		{
+			FName PackageToTest(*WorldAsset.GetLongPackageName());
+			// Check to exclude NAME_None since Preview Levels are in the transient package
+			// Check the level we are spawned in to detect the loop (this will handle loops caused by LevelInstances and by regular level streaming)
+			const AActor* CurrentActor = CastChecked<AActor>(CurrentLevelInstance);
+			if (PackageToTest != NAME_None && CurrentActor->GetLevel()->GetPackage()->GetLoadedPath() == FPackagePath::FromPackageNameChecked(PackageToTest))
+			{
+				bValid = false;
+				if (LoopStart)
+				{
+					*LoopStart = CurrentLevelInstance;
+				}
+			}
+
+			if (LoopInfo)
+			{
+				TSoftObjectPtr<UWorld> CurrentAsset = CurrentLevelInstance == LevelInstance ? WorldAsset : CurrentLevelInstance->GetWorldAsset();
+				FText LevelInstanceName = FText::FromString(CurrentActor->GetPathName());
+				FText Description = FText::Format(LOCTEXT("LevelInstanceLoopLink", "-> Actor: {0} loads"), LevelInstanceName);
+				LoopInfo->Emplace(Description, CurrentAsset);
+			}
+			
+			return bValid;
+		});
+	}
+	
+	return bValid;
+}
+
+bool ULevelInstanceSubsystem::CanUseWorldAsset(const ILevelInstanceInterface* LevelInstance, TSoftObjectPtr<UWorld> WorldAsset, FString* OutReason)
+{
+	if (WorldAsset.IsNull())
+	{
+		return true;
+	}
+
+	FString PackageName;
+	if (!FPackageName::DoesPackageExist(WorldAsset.GetLongPackageName()))
+	{
+		if (OutReason)
+		{
+			*OutReason = FString::Format(TEXT("Attempting to set Level Instance to package {0} which does not exist. Ensure the level was saved before attepting to set the level instance world asset."), { WorldAsset.GetLongPackageName() });
+		}
+		return false;
+	}
+
+	TArray<TPair<FText, TSoftObjectPtr<UWorld>>> LoopInfo;
+	const ILevelInstanceInterface* LoopStart = nullptr;
+
+	if (ULevel::GetIsLevelPartitionedFromPackage(*WorldAsset.GetLongPackageName()))
+	{
+		if (OutReason)
+		{
+			*OutReason = FString::Format(TEXT("LevelInstance doesn't support partitioned world {0}\n"), { WorldAsset.GetLongPackageName() });
+		}
+
+		return false;
+	}
+
+	if (!CheckForLoop(LevelInstance, WorldAsset, OutReason ? &LoopInfo : nullptr, OutReason ? &LoopStart : nullptr))
+	{
+		if (OutReason)
+		{
+			if (ensure(LoopStart))
+			{
+				const AActor* LoopStartActor = CastChecked<AActor>(LoopStart);
+				TSoftObjectPtr<UWorld> LoopStartAsset(LoopStartActor->GetLevel()->GetTypedOuter<UWorld>());
+				*OutReason = FString::Format(TEXT("Setting LevelInstance to {0} would cause loop {1}:{2}\n"), { WorldAsset.GetLongPackageName(), LoopStartActor->GetName(), LoopStartAsset.GetLongPackageName() });
+				for (int32 i = LoopInfo.Num() - 1; i >= 0; --i)
+				{
+					OutReason->Append(FString::Format(TEXT("{0} {1}\n"), { *LoopInfo[i].Key.ToString(), *LoopInfo[i].Value.GetLongPackageName() }));
+				}
+			}
+		}
+
+		return false;
+	}
+
+	return true;
 }
 
 #endif

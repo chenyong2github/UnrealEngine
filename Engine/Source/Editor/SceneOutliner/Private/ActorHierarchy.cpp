@@ -17,7 +17,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "EditorActorFolders.h"
 #include "EditorFolderUtils.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Modules/ModuleManager.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
@@ -167,20 +167,21 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOu
 			}
 
 			// Parent Level Instance
-			if (ALevelInstance* OwningLevelInstance = Cast<ALevelInstance>(Folder.GetRootObjectPtr()))
+			if (ILevelInstanceInterface* OwningLevelInstance = Cast<ILevelInstanceInterface>(Folder.GetRootObjectPtr()))
 			{
-				const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor);
-				const bool bIsAnEditingLevelInstance = LevelInstanceActor ? LevelInstanceActor->IsEditing() : false;
+				const ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(Actor);
+				const bool bIsAnEditingLevelInstance = LevelInstance ? LevelInstance->IsEditing() : false;
 				// Parent this to a LevelInstance if the parent LevelInstance is being edited or if this is a sub LevelInstance which is being edited
 				if (bShowingLevelInstances || (OwningLevelInstance->IsEditing() || bIsAnEditingLevelInstance))
 				{
-					if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(OwningLevelInstance))
+					AActor* OwningActor = CastChecked<AActor>(OwningLevelInstance);
+					if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(OwningActor))
 					{
 						return *ParentItem;
 					}
 					else
 					{
-						return bCreate ? Mode->CreateItemFor<FActorTreeItem>(OwningLevelInstance, true) : nullptr;
+						return bCreate ? Mode->CreateItemFor<FActorTreeItem>(OwningActor, true) : nullptr;
 					}
 				}
 			}
@@ -219,17 +220,18 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOu
 			}
 		}
 		// Parent Level Instance
-		else if (ALevelInstance* OwningLevelInstance = Cast<ALevelInstance>(ParentPath.GetRootObjectPtr()))
+		else if (ILevelInstanceInterface* OwningLevelInstance = Cast<ILevelInstanceInterface>(ParentPath.GetRootObjectPtr()))
 		{
 			if (bShowingLevelInstances || OwningLevelInstance->IsEditing())
 			{
-				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(OwningLevelInstance))
+				AActor* OwningActor = CastChecked<AActor>(OwningLevelInstance);
+				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(OwningActor))
 				{
 					return *ParentItem;
 				}
 				else
 				{
-					return bCreate ? Mode->CreateItemFor<FActorTreeItem>(OwningLevelInstance, true) : nullptr;
+					return bCreate ? Mode->CreateItemFor<FActorTreeItem>(OwningActor, true) : nullptr;
 				}
 			}
 		}
@@ -371,7 +373,7 @@ void FActorHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTr
 		// If we are not showing LevelInstances, LevelInstance sub actor items should not be created unless they belong to a LevelInstance which is being edited
 		if (LevelInstanceSubsystem)
 		{
-			if (const ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
+			if (const ILevelInstanceInterface* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
 			{
 				if (!bShowingLevelInstances && !ParentLevelInstance->IsEditing())
 				{
@@ -472,25 +474,25 @@ void FActorHierarchy::CreateChildren(const FSceneOutlinerTreeItemPtr& Item, TArr
 
 		TArray<AActor*> ChildActors;
 
-		if (const ALevelInstance* LevelInstanceParentActor = Cast<ALevelInstance>(ParentActor))
+		if (const ILevelInstanceInterface* LevelInstanceParent = Cast<ILevelInstanceInterface>(ParentActor))
 		{
 			const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>();
 			check(LevelInstanceSubsystem);
 
-			LevelInstanceSubsystem->ForEachActorInLevelInstance(LevelInstanceParentActor, [this, LevelInstanceParentActor, LevelInstanceSubsystem, &ChildActors](AActor* SubActor)
+			LevelInstanceSubsystem->ForEachActorInLevelInstance(LevelInstanceParent, [this, LevelInstanceParent, LevelInstanceSubsystem, &ChildActors](AActor* SubActor)
 			{
-				const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(SubActor);
-				const bool bIsAnEditingLevelInstance = LevelInstanceActor ? LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstanceActor) : false;
-				if (bShowingLevelInstances || (LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstanceParentActor) || bIsAnEditingLevelInstance))
+				const ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(SubActor);
+				const bool bIsAnEditingLevelInstance = LevelInstance ? LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstance) : false;
+				if (bShowingLevelInstances || (LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstanceParent) || bIsAnEditingLevelInstance))
 				{
 					ChildActors.Add(SubActor);
 				}
 				return true;
 			});
 
-			check(World == LevelInstanceParentActor->GetWorld());
-			FFolder ParentFolder = LevelInstanceParentActor->GetFolder();
-			CreateChildrenFolders(World, ParentFolder, LevelInstanceParentActor, OutChildren);
+			check(World == CastChecked<AActor>(LevelInstanceParent)->GetWorld());
+			FFolder ParentFolder = ParentActor->GetFolder();
+			CreateChildrenFolders(World, ParentFolder, ParentActor, OutChildren);
 		}
 		else
 		{

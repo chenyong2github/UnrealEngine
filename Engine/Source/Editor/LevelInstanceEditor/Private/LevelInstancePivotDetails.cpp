@@ -10,7 +10,7 @@
 #include "ScopedTransaction.h"
 #include "Engine/Brush.h"
 #include "Engine/World.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceEditorPivotActor.h"
 
 #define LOCTEXT_NAMESPACE "FLevelInstancePivotDetails"

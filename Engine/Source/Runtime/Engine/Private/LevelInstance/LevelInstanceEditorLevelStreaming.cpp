@@ -3,7 +3,7 @@
 #include "LevelInstance/LevelInstanceEditorLevelStreaming.h"
 
 #if WITH_EDITOR
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceEditorPivotActor.h"
 #include "EditorLevelUtils.h"
@@ -35,15 +35,18 @@ ULevelStreamingLevelInstanceEditor::ULevelStreamingLevelInstanceEditor(const FOb
 #if WITH_EDITOR
 TOptional<FFolder::FRootObject> ULevelStreamingLevelInstanceEditor::GetFolderRootObject() const
 {
-	if (ALevelInstance* LevelInstance = GetLevelInstanceActor())
+	if (ILevelInstanceInterface* LevelInstance = GetLevelInstance())
 	{
-		return FFolder::FRootObject(LevelInstance);
+		if (AActor* Actor = CastChecked<AActor>(LevelInstance))
+		{
+			return FFolder::FRootObject(Actor);
+		}
 	}
 
 	return TOptional<FFolder::FRootObject>();
 }
 
-ALevelInstance* ULevelStreamingLevelInstanceEditor::GetLevelInstanceActor() const
+ILevelInstanceInterface* ULevelStreamingLevelInstanceEditor::GetLevelInstance() const
 {
 	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 	{
@@ -53,20 +56,21 @@ ALevelInstance* ULevelStreamingLevelInstanceEditor::GetLevelInstanceActor() cons
 	return nullptr;
 }
 
-ULevelStreamingLevelInstanceEditor* ULevelStreamingLevelInstanceEditor::Load(ALevelInstance* LevelInstanceActor)
+ULevelStreamingLevelInstanceEditor* ULevelStreamingLevelInstanceEditor::Load(ILevelInstanceInterface* LevelInstance)
 {
+	AActor* LevelInstanceActor = CastChecked<AActor>(LevelInstance);
 	UWorld* CurrentWorld = LevelInstanceActor->GetWorld();
 
-	TGuardValue<FLevelInstanceID> GuardEditLevelInstanceID(EditLevelInstanceID, LevelInstanceActor->GetLevelInstanceID());
-	if (ULevelStreamingLevelInstanceEditor* LevelStreaming = Cast<ULevelStreamingLevelInstanceEditor>(EditorLevelUtils::AddLevelToWorld(CurrentWorld, *LevelInstanceActor->GetWorldAssetPackage(), ULevelStreamingLevelInstanceEditor::StaticClass(), LevelInstanceActor->GetTransform())))
+	TGuardValue<FLevelInstanceID> GuardEditLevelInstanceID(EditLevelInstanceID, LevelInstance->GetLevelInstanceID());
+	if (ULevelStreamingLevelInstanceEditor* LevelStreaming = Cast<ULevelStreamingLevelInstanceEditor>(EditorLevelUtils::AddLevelToWorld(CurrentWorld, *LevelInstance->GetWorldAssetPackage(), ULevelStreamingLevelInstanceEditor::StaticClass(), LevelInstanceActor->GetTransform())))
 	{
 		check(LevelStreaming);
-		check(LevelStreaming->LevelInstanceID == LevelInstanceActor->GetLevelInstanceID());
+		check(LevelStreaming->LevelInstanceID == LevelInstance->GetLevelInstanceID());
 
 		GEngine->BlockTillLevelStreamingCompleted(LevelInstanceActor->GetWorld());
 
 		// Create special actor that will handle changing the pivot of this level
-		ALevelInstancePivot::Create(LevelInstanceActor, LevelStreaming);
+		ALevelInstancePivot::Create(LevelInstance, LevelStreaming);
 
 		return LevelStreaming;
 	}

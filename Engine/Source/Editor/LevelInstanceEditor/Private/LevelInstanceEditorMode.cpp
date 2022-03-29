@@ -7,7 +7,7 @@
 #include "EditorModes.h"
 #include "Engine/World.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/ILevelInstanceEditorModule.h"
 #include "LevelEditorViewport.h"
 #include "LevelEditorActions.h"
@@ -108,9 +108,9 @@ bool ULevelInstanceEditorMode::IsSelectionDisallowed(AActor* InActor, bool bInSe
 	{
 		if (UWorld* World = InActor->GetWorld())
 		{
-			if (ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(InActor))
+			if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(InActor))
 			{
-				if (LevelInstanceActor->IsEditing())
+				if (LevelInstance->IsEditing())
 				{
 					return false;
 				}
@@ -118,8 +118,8 @@ bool ULevelInstanceEditorMode::IsSelectionDisallowed(AActor* InActor, bool bInSe
 
 			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>())
 			{
-				ALevelInstance* EditingLevelInstance = LevelInstanceSubsystem->GetEditingLevelInstance();
-				ALevelInstance* LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(InActor);
+				ILevelInstanceInterface* EditingLevelInstance = LevelInstanceSubsystem->GetEditingLevelInstance();
+				ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(InActor);
 				// Allow selection on actors that are part of the currently edited Level Instance hierarchy because AActor::GetRootSelectionParent() will eventually
 				// Bubble up the selection to its parent.
 				while (LevelInstance != nullptr)
@@ -129,9 +129,9 @@ bool ULevelInstanceEditorMode::IsSelectionDisallowed(AActor* InActor, bool bInSe
 						return false;
 					}
 
-					LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(LevelInstance);
+					LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(CastChecked<AActor>(LevelInstance));
 				}
-								
+
 				return EditingLevelInstance != nullptr;
 			}
 		}

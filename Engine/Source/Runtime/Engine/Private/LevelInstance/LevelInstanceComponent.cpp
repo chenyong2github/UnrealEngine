@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "LevelInstance/LevelInstanceComponent.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
+#include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 
@@ -60,8 +62,25 @@ void ULevelInstanceComponent::UpdateEditorInstanceActor()
 {
 	if (!CachedEditorInstanceActorPtr.IsValid())
 	{
-		check(GetOuterALevelInstance());
-		CachedEditorInstanceActorPtr = GetOuterALevelInstance()->FindEditorInstanceActor();
+		if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(GetOwner()))
+		{
+			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = LevelInstance->GetLevelInstanceSubsystem())
+			{
+				if (LevelInstanceSubsystem->IsLoaded(LevelInstance))
+				{
+					LevelInstanceSubsystem->ForEachActorInLevelInstance(LevelInstance, [this, LevelInstance](AActor* LevelActor)
+					{
+						if (ALevelInstanceEditorInstanceActor* LevelInstanceEditorInstanceActor = Cast<ALevelInstanceEditorInstanceActor>(LevelActor))
+						{
+							check(LevelInstanceEditorInstanceActor->GetLevelInstanceID() == LevelInstance->GetLevelInstanceID());
+							CachedEditorInstanceActorPtr = LevelInstanceEditorInstanceActor;
+							return false;
+						}
+						return true;
+					});
+				}
+			}
+		}
 	}
 
 	if (AActor* EditorInstanceActor = CachedEditorInstanceActorPtr.Get())

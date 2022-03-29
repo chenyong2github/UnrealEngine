@@ -10,7 +10,7 @@
 #include "EngineUtils.h"
 #include "EditorActorFolders.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 
 #define LOCTEXT_NAMESPACE "UnrealEd.WorldFolders"
 
@@ -186,8 +186,9 @@ FFolder UWorldFolders::GetActorEditorContextFolder() const
 	if (ContainsFolder(Folder))
 	{
 		ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>();
-		UObject* EditingLevelInstance = LevelInstanceSubsystem ? LevelInstanceSubsystem->GetEditingLevelInstance() : nullptr;
-		FFolder::FRootObject RootObject = FFolder::FRootObject(EditingLevelInstance ? EditingLevelInstance : (GetWorld()->GetCurrentLevel() == GetWorld()->PersistentLevel) ? nullptr : GetWorld()->GetCurrentLevel());
+		ILevelInstanceInterface* EditingLevelInstance = LevelInstanceSubsystem ? LevelInstanceSubsystem->GetEditingLevelInstance() : nullptr;
+		UObject* EditingLevelInstanceObject = EditingLevelInstance ? CastChecked<UObject>(EditingLevelInstance) : nullptr;
+		FFolder::FRootObject RootObject = FFolder::FRootObject(EditingLevelInstanceObject ? EditingLevelInstanceObject : (GetWorld()->GetCurrentLevel() == GetWorld()->PersistentLevel) ? nullptr : GetWorld()->GetCurrentLevel());
 		if (Folder.GetRootObject() == RootObject)
 		{
 			return Folder;

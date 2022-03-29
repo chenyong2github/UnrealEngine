@@ -19,7 +19,7 @@ namespace LevelInstanceActorDetailsCallbacks
 	{
 		if (ALevelInstance* LevelInstanceActor = LevelInstanceActorPtr.Get())
 		{
-			return LevelInstanceActor->CanEdit() || LevelInstanceActor->CanCommit();
+			return LevelInstanceActor->CanEnterEdit() || LevelInstanceActor->CanExitEdit();
 		}
 
 		return false;
@@ -29,7 +29,7 @@ namespace LevelInstanceActorDetailsCallbacks
 	{
 		if (ALevelInstance* LevelInstanceActor = LevelInstanceActorPtr.Get())
 		{
-			if (LevelInstanceActor->CanCommit())
+			if (LevelInstanceActor->CanExitEdit())
 			{
 				return LOCTEXT("CommitChanges", "Commit Changes");
 			}
@@ -45,11 +45,11 @@ namespace LevelInstanceActorDetailsCallbacks
 		{
 			if (!LevelInstanceActor->IsEditing())
 			{
-				LevelInstanceActor->CanEdit(&Reason);
+				LevelInstanceActor->CanEnterEdit(&Reason);
 				return Reason;
 			}
 
-			LevelInstanceActor->CanCommit(&Reason);
+			LevelInstanceActor->CanExitEdit(/*bDiscardEdits=*/false, &Reason);
 		}
 		return Reason;
 	}
@@ -68,13 +68,13 @@ namespace LevelInstanceActorDetailsCallbacks
 	{
 		if (ALevelInstance* LevelInstanceActor = LevelInstanceActorPtr.Get())
 		{
-			if (LevelInstanceActor->CanCommit())
+			if (LevelInstanceActor->CanExitEdit())
 			{
-				LevelInstanceActor->Commit();
+				LevelInstanceActor->ExitEdit();
 			}
-			else if (LevelInstanceActor->CanEdit())
+			else if (LevelInstanceActor->CanEnterEdit())
 			{
-				LevelInstanceActor->Edit();
+				LevelInstanceActor->EnterEdit();
 			}
 		}
 		return FReply::Handled();

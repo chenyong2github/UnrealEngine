@@ -16,7 +16,7 @@
 #include "ComponentTreeItem.h"
 #include "ActorDescTreeItem.h"
 #include "WorldTreeItem.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 
@@ -97,7 +97,7 @@ FActorMode::FActorMode(const FActorModeParams& Params)
 		{
 			return true;
 		}
-		if (ALevelInstance* LevelInstance = Cast<ALevelInstance>(InFolder.GetRootObjectPtr()))
+		if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(InFolder.GetRootObjectPtr()))
 		{
 			if (LevelInstance->IsEditing())
 			{

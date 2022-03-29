@@ -31,7 +31,7 @@
 #include "ActorBrowsingModeSettings.h"
 #include "ActorDescTreeItem.h"
 #include "ScopedTransaction.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "EditorLevelUtils.h"
@@ -152,7 +152,7 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 				{
 					// if actor has a valid parent and the parent is not being edited,
 					// then the actor should not be selectable.
-					if (const ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
+					if (const ILevelInstanceInterface* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
 					{
 						if (!LevelInstanceSubsystem->IsEditingLevelInstance(ParentLevelInstance))
 						{
@@ -337,7 +337,7 @@ TSharedRef<FSceneOutlinerFilter> FActorBrowsingMode::CreateHideLevelInstancesFil
 			// Check if actor belongs to a LevelInstance
 			if (const ULevelInstanceSubsystem* LevelInstanceSubsystem = Actor->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 			{
-				if (const ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
+				if (const ILevelInstanceInterface* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
 				{
 					if (!LevelInstanceSubsystem->IsEditingLevelInstance(ParentLevelInstance))
 					{
@@ -765,16 +765,16 @@ void FActorBrowsingMode::OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item)
 		AActor* Actor = ActorItem->Actor.Get();
 		check(Actor);
 
-		ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor);
-		if (LevelInstanceActor && FSlateApplication::Get().GetModifierKeys().IsAltDown())
+		ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(Actor);
+		if (LevelInstance && FSlateApplication::Get().GetModifierKeys().IsAltDown())
 		{
-			if (LevelInstanceActor->CanEdit())
+			if (LevelInstance->CanEnterEdit())
 			{
-				LevelInstanceActor->Edit();
+				LevelInstance->EnterEdit();
 			}
-			else if (LevelInstanceActor->CanCommit())
+			else if (LevelInstance->CanExitEdit())
 			{
-				LevelInstanceActor->Commit();
+				LevelInstance->ExitEdit();
 			}
 		}
 		else if (Item->CanInteract())
@@ -1054,7 +1054,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 			return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, FText());
 		}
 
-		const ALevelInstance* LevelInstanceTarget = Cast<ALevelInstance>(ActorTarget);
+		const ILevelInstanceInterface* LevelInstanceTarget = Cast<ILevelInstanceInterface>(ActorTarget);
 		const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>();
 		if (LevelInstanceTarget)
 		{
@@ -1091,7 +1091,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 					if (LevelInstanceSubsystem)
 					{
 						// Either all actors must be in a LevelInstance or none of them
-						if (const ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(DragActor))
+						if (const ILevelInstanceInterface* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(DragActor))
 						{
 							if (!ParentLevelInstance->IsEditing())
 							{
@@ -1169,7 +1169,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 		// WorldTreeItem and LevelTreeItem are treated as root folders (path = none), with the difference that LevelTreeItem has a RootObject.
 		const FFolder DestinationPath = FolderItem ? FolderItem->GetFolder() : (LevelItem ? FFolder(FFolder::GetEmptyPath(), FFolder::GetOptionalFolderRootObject(LevelItem->Level.Get()).Get(FFolder::GetDefaultRootObject())) : GWorldRoot);
 		const FFolder::FRootObject& DestinationRootObject = DestinationPath.GetRootObject();
-		ALevelInstance* LevelInstanceTarget = Cast<ALevelInstance>(DestinationPath.GetRootObjectPtr());
+		ILevelInstanceInterface* LevelInstanceTarget = Cast<ILevelInstanceInterface>(DestinationPath.GetRootObjectPtr());
 		if (LevelInstanceTarget && !LevelInstanceTarget->IsEditing())
 		{
 			return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("Error_DragInNonEditingLevelInstance", "Cannot drag into a LevelInstance which is not being edited"));
@@ -1251,7 +1251,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 				bool bActorContainedInLevelInstance = false;
 				if (LevelInstanceSubsystem)
 				{
-					if (const ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
+					if (const ILevelInstanceInterface* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
 					{
 						if (!ParentLevelInstance->IsEditing())
 						{
@@ -1260,10 +1260,10 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 						bActorContainedInLevelInstance = true;
 					}
 
-					if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
+					if (const ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(Actor))
 					{
 						FText Reason;
-						if (!LevelInstanceSubsystem->CanMoveActorToLevel(LevelInstanceActor, &Reason))
+						if (!LevelInstanceSubsystem->CanMoveActorToLevel(Actor, &Reason))
 						{
 							return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, Reason);
 						}
@@ -1362,12 +1362,12 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 		{
 			// Show socket chooser if we have sockets to select
 
-			if (ALevelInstance* TargetLevelInstance = Cast<ALevelInstance>(DropActor))
+			if (ILevelInstanceInterface* TargetLevelInstance = Cast<ILevelInstanceInterface>(DropActor))
 			{
 				check(TargetLevelInstance->IsEditing());
 				const FScopedTransaction Transaction(LOCTEXT("UndoAction_MoveActorsToLevelInstance", "Move actors to LevelInstance"));
 
-				const FFolder DestinationPath(FFolder::GetEmptyPath(), FFolder::FRootObject(TargetLevelInstance));
+				const FFolder DestinationPath(FFolder::GetEmptyPath(), FFolder::FRootObject(DropActor));
 				auto MoveToDestination = [&DestinationPath](FFolderTreeItem& Item)
 				{
 					Item.MoveTo(DestinationPath);
@@ -1534,7 +1534,7 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 				Payload.ForEachItem<FActorTreeItem>([LevelInstanceSubsystem, &LevelInstanceActorsToMove, &ActorsToMoveToPersistentLevel](const FActorTreeItem& ActorItem)
 				{
 					AActor* Actor = ActorItem.Actor.Get();
-					if (const ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
+					if (const ILevelInstanceInterface* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
 					{
 						check(ParentLevelInstance->IsEditing());
 						LevelInstanceActorsToMove.Add(Actor);
@@ -1563,7 +1563,7 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 			}
 			else if (MovingActorsToValidRootObject.Num())
 			{
-				if (ALevelInstance* TargetLevelInstance = Cast<ALevelInstance>(DestinationPath.GetRootObjectPtr()))
+				if (ILevelInstanceInterface* TargetLevelInstance = Cast<ILevelInstanceInterface>(DestinationPath.GetRootObjectPtr()))
 				{
 					// We are moving actors inside an editing level instance
 					check(TargetLevelInstance->IsEditing());

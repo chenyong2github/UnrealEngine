@@ -21,7 +21,7 @@
 #include "Styling/SlateIconFinder.h"
 #include "Subsystems/ActorEditorContextSubsystem.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "ClassIconFinder.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LevelEditorSubsystem, Log, All);
@@ -725,7 +725,7 @@ public:
 						SNew(STextBlock)
 						.Text_Lambda([this]() 
 						{
-							ALevelInstance* LevelInstance = GetEditingLevelInstance();
+							AActor* LevelInstance = GetEditingLevelInstance();
 							return LevelInstance ? FText::FromString(LevelInstance->GetActorLabel()) : FText::GetEmpty();
 						})
 						.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.AccentGreen"))
@@ -762,10 +762,10 @@ public:
 	}
 
 private:
-	ALevelInstance* GetEditingLevelInstance() const
+	AActor* GetEditingLevelInstance() const
 	{
 		ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>();
-		return LevelInstanceSubsystem ? LevelInstanceSubsystem->GetEditingLevelInstance() : nullptr;
+		return LevelInstanceSubsystem ? Cast<AActor>(LevelInstanceSubsystem->GetEditingLevelInstance()) : nullptr;
 	}
 
 	FText GetCurrentLevelText() const

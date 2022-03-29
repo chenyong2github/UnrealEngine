@@ -17,7 +17,7 @@
 #include "ISceneOutlinerMode.h"
 #include "Logging/MessageLog.h"
 #include "SSocketChooser.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "WorldPartition/WorldPartition.h"
 #include "ToolMenu.h"
 #include "Engine/Level.h"
@@ -120,9 +120,9 @@ private:
 		if (const FSceneOutlinerTreeItemPtr TreeItem = TreeItemPtr.Pin())
 		{
 			const AActor* Actor = ActorPtr.Get();
-			if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
+			if (const ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(Actor))
 			{
-				if (LevelInstanceActor->IsDirty() && !bInEditingMode)
+				if (LevelInstance->IsDirty() && !bInEditingMode)
 				{
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("ActorLabel"), FText::FromString(TreeItem->GetDisplayString()));
@@ -255,9 +255,9 @@ private:
 		AActor* Actor = ActorPtr.Get();
 
 		// Color LevelInstances differently if they are being edited
-		if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
+		if (const ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(Actor))
 		{
-			if (LevelInstanceActor->IsEditing())
+			if (LevelInstance->IsEditing())
 			{
 				return FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
 			}
@@ -450,8 +450,8 @@ void FActorTreeItem::OnLabelChanged()
 void FActorTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner)
 {
 	const AActor* ActorPtr = Actor.Get();
-	const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(ActorPtr);
-	if (LevelInstanceActor && LevelInstanceActor->IsEditing())
+	const ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(ActorPtr);
+	if (LevelInstance && LevelInstance->IsEditing())
 	{
 		auto SharedOutliner = StaticCastSharedRef<SSceneOutliner>(Outliner.AsShared());
 		const FSlateIcon NewFolderIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon");

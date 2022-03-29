@@ -8,7 +8,7 @@
 #include "LevelInstance/LevelInstanceTypes.h"
 #include "LevelInstanceLevelStreaming.generated.h"
 
-class ALevelInstance;
+class ILevelInstanceInterface;
 
 UCLASS(Transient)
 class ENGINE_API ULevelStreamingLevelInstance : public ULevelStreamingDynamic
@@ -16,7 +16,7 @@ class ENGINE_API ULevelStreamingLevelInstance : public ULevelStreamingDynamic
 	GENERATED_UCLASS_BODY()
 
 public:
-	ALevelInstance* GetLevelInstanceActor() const;
+	ILevelInstanceInterface* GetLevelInstance() const;
 
 #if WITH_EDITOR
 	virtual bool ShowInLevelCollection() const override { return false; }
@@ -26,7 +26,7 @@ public:
 #endif
 	
 protected:
-	static ULevelStreamingLevelInstance* LoadInstance(ALevelInstance* LevelInstanceActor);
+	static ULevelStreamingLevelInstance* LoadInstance(ILevelInstanceInterface* LevelInstanceActor);
 	static void UnloadInstance(ULevelStreamingLevelInstance* LevelStreaming);
 
 	virtual void OnLevelLoadedChanged(ULevel* Level) override;

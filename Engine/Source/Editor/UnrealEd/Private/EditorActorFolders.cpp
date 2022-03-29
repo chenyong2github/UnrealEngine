@@ -15,7 +15,7 @@
 #include "EditorFolderUtils.h"
 #include "ScopedTransaction.h"
 #include "UObject/ObjectSaveContext.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "ActorFolder.h"
 #include "Subsystems/ActorEditorContextSubsystem.h"
 
@@ -267,11 +267,11 @@ FFolder FActorFolders::GetDefaultFolderForSelection(UWorld& InWorld, TArray<FFol
 
 		FFolder Folder = Actor->GetFolder();
 		// Special case for Level Instance, make root as level instance if editing
-		if (ALevelInstance* LevelInstance = Cast<ALevelInstance>(Actor))
+		if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(Actor))
 		{
 			if (LevelInstance->IsEditing())
 			{
-				Folder = FFolder(FFolder::GetEmptyPath(), FFolder::FRootObject(LevelInstance));
+				Folder = FFolder(FFolder::GetEmptyPath(), FFolder::FRootObject(Actor));
 			}
 		}
 		if (!MergeFolders(Folder))

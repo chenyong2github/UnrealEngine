@@ -16,7 +16,7 @@
 #include "WorldPersistentFolders.h"
 #include "Engine/Level.h"
 #include "LevelUtils.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorFolderTreeItem"
@@ -337,9 +337,9 @@ bool FActorFolderTreeItem::CanInteract() const
 
 	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World.IsValid() ? World->GetSubsystem<ULevelInstanceSubsystem>() : nullptr)
 	{
-		if (ALevelInstance* EditingLevelInstance = LevelInstanceSubsystem->GetEditingLevelInstance())
+		if (ILevelInstanceInterface* EditingLevelInstance = LevelInstanceSubsystem->GetEditingLevelInstance())
 		{
-			if (GetRootObject() != FFolder::FRootObject(EditingLevelInstance))
+			if (GetRootObject() != FFolder::FRootObject(CastChecked<AActor>(EditingLevelInstance)))
 			{
 				return false;
 			}

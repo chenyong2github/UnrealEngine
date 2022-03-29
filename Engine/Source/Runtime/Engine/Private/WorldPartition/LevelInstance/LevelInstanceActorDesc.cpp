@@ -6,7 +6,7 @@
 #if WITH_EDITOR
 #include "Engine/World.h"
 #include "Engine/Level.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
@@ -45,16 +45,17 @@ void FLevelInstanceActorDesc::Init(const AActor* InActor)
 {
 	FWorldPartitionActorDesc::Init(InActor);
 
-	const ALevelInstance* LevelInstanceActor = CastChecked<ALevelInstance>(InActor);
-	LevelPackage = *LevelInstanceActor->GetWorldAssetPackage();
-	LevelInstanceTransform = LevelInstanceActor->GetActorTransform();
-	DesiredRuntimeBehavior = LevelInstanceActor->GetDesiredRuntimeBehavior();
+	const ILevelInstanceInterface* LevelInstance = CastChecked<ILevelInstanceInterface>(InActor);
+	LevelPackage = *LevelInstance->GetWorldAssetPackage();
+	LevelInstanceTransform = InActor->GetActorTransform();
+	DesiredRuntimeBehavior = LevelInstance->GetDesiredRuntimeBehavior();
 }
 
 void FLevelInstanceActorDesc::Init(const FWorldPartitionActorDescInitData& DescData)
 {
-	ALevelInstance* CDO = DescData.NativeClass->GetDefaultObject<ALevelInstance>();
-	DesiredRuntimeBehavior = CDO->GetDefaultRuntimeBehavior();
+	AActor* CDO = DescData.NativeClass->GetDefaultObject<AActor>();
+	ILevelInstanceInterface* LevelInstanceCDO = CastChecked<ILevelInstanceInterface>(CDO);
+	DesiredRuntimeBehavior = LevelInstanceCDO->GetDefaultRuntimeBehavior();
 
 	FWorldPartitionActorDesc::Init(DescData);
 }
@@ -157,7 +158,9 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 		const bool bFixupOldVersion = (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::PackedLevelInstanceBoundsFix) && 
 									  (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::PackedLevelInstanceBoundsFix);
 
-		if (!LevelPackage.IsNone() && (GetActorClass()->GetDefaultObject<ALevelInstance>()->SupportsLoading() || bFixupOldVersion))
+		const AActor* CDO = GetActorClass()->GetDefaultObject<AActor>();
+		const ILevelInstanceInterface* LevelInstanceCDO = CastChecked<ILevelInstanceInterface>(CDO);
+		if (!LevelPackage.IsNone() && (LevelInstanceCDO->IsLoadingEnabled() || bFixupOldVersion))
 		{
 			FBox OutBounds;
 			if (ULevelInstanceSubsystem::GetLevelInstanceBoundsFromPackage(LevelInstanceTransform, LevelPackage, OutBounds))

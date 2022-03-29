@@ -7,7 +7,7 @@
 #include "Engine/Level.h"
 #include "UObject/UObjectHash.h"
 #include "ExternalPackageHelper.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 
 #define LOCTEXT_NAMESPACE "UnrealEd.WorldPersistentFolders"
 
@@ -148,7 +148,7 @@ ULevel* FWorldPersistentFolders::GetRootObjectContainer(const FFolder& InFolder,
 	{
 		return WorldPtr->PersistentLevel;
 	}
-	else if (const ALevelInstance* LevelInstance = Cast<ALevelInstance>(RootObjectPtr))
+	else if (const ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(RootObjectPtr))
 	{
 		return LevelInstance->GetLoadedLevel();
 	}

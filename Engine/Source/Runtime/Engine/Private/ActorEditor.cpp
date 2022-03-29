@@ -762,7 +762,7 @@ bool AActor::SupportsLayers() const
 		// Actors part of Level Instance are not valid for layers
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 		{
-			if (ALevelInstance* LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(this))
+			if (ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(this))
 			{
 				return false;
 			}

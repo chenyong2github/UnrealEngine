@@ -8,11 +8,11 @@
 #include "LevelInstance/LevelInstanceTypes.h"
 #include "LevelInstanceEditorInstanceActor.generated.h"
 
-class ALevelInstance;
+class ILevelInstanceInterface;
 class ULevel;
 
 /**
- * Editor Only Actor that is spawned inside every LevelInstance Instance Level so that we can update its Actor Transforms through the ALevelInstance's root component(ULevelInstanceComponent)
+ * Editor Only Actor that is spawned inside every LevelInstance Instance Level so that we can update its Actor Transforms through the ILevelInstanceInterface's (ULevelInstanceComponent)
  * @see ULevelInstanceComponent
  */
 UCLASS(transient, notplaceable)
@@ -22,7 +22,7 @@ class ENGINE_API ALevelInstanceEditorInstanceActor : public AActor
 
 #if WITH_EDITOR
 public:
-	static ALevelInstanceEditorInstanceActor* Create(ALevelInstance* LevelInstanceActor, ULevel* LoadedLevel);
+	static ALevelInstanceEditorInstanceActor* Create(ILevelInstanceInterface* LevelInstance, ULevel* LoadedLevel);
 	
 	void SetLevelInstanceID(const FLevelInstanceID& InLevelInstanceID) { LevelInstanceID = InLevelInstanceID; }
 	const FLevelInstanceID& GetLevelInstanceID() const { return LevelInstanceID; }

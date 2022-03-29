@@ -24,10 +24,12 @@ class UBlueprint;
 UCLASS()
 class ENGINE_API APackedLevelActor : public ALevelInstance
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 public:
-	virtual bool SupportsLoading() const override;
+	APackedLevelActor();
+
+	virtual bool IsLoadingEnabled() const override;
 
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
@@ -39,7 +41,7 @@ public:
 	static FName GetPackedComponentTag();
 
 	virtual void PostLoad() override;
-	virtual void UpdateFromLevel() override;
+	virtual void UpdateLevelInstanceFromWorldAsset() override;
 	virtual void OnCommit(bool bChanged) override;
 	virtual void OnCommitChild(bool bChanged) override;
 	virtual void OnEdit() override;

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelInstance/LevelInstanceEditorPivotActor.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "GameFramework/WorldSettings.h"
 #include "LevelUtils.h"
@@ -23,7 +23,7 @@ ALevelInstancePivot::ALevelInstancePivot(const FObjectInitializer& ObjectInitial
 
 #if WITH_EDITOR
 
-ALevelInstancePivot* ALevelInstancePivot::Create(ALevelInstance* LevelInstanceActor, ULevelStreaming* LevelStreaming)
+ALevelInstancePivot* ALevelInstancePivot::Create(ILevelInstanceInterface* LevelInstance, ULevelStreaming* LevelStreaming)
 {
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.OverrideLevel = LevelStreaming->GetLoadedLevel();
@@ -32,6 +32,7 @@ ALevelInstancePivot* ALevelInstancePivot::Create(ALevelInstance* LevelInstanceAc
 	SpawnParams.bNoFail = true;
 		
 	// We place the pivot actor at the LevelInstance Transform so that it makes sense to the user (the pivot being the zero)
+	AActor* LevelInstanceActor = CastChecked<AActor>(LevelInstance);
 	ALevelInstancePivot* PivotActor = LevelInstanceActor->GetWorld()->SpawnActor<ALevelInstancePivot>(LevelInstanceActor->GetActorLocation(), LevelInstanceActor->GetActorRotation(), SpawnParams);
 	
 	AWorldSettings* WorldSettings = LevelStreaming->GetLoadedLevel()->GetWorldSettings();
@@ -40,7 +41,7 @@ ALevelInstancePivot* ALevelInstancePivot::Create(ALevelInstance* LevelInstanceAc
 	// Keep Spawn World Transform in case Level Instance transform changes.
 	PivotActor->SpawnTransform = PivotActor->GetActorTransform();
 	PivotActor->OriginalPivotOffset = WorldSettings->LevelInstancePivotOffset;
-	PivotActor->SetLevelInstanceID(LevelInstanceActor->GetLevelInstanceID());
+	PivotActor->SetLevelInstanceID(LevelInstance->GetLevelInstanceID());
 	// Set Label last as this will call PostEditChangeProperty and update the offset so other fields need to be setup first.
 	PivotActor->SetActorLabel(TEXT("Pivot"));
 
@@ -83,7 +84,7 @@ void ALevelInstancePivot::SetPivot(ELevelInstancePivotType PivotType, AActor* Pi
 	else if(PivotType == ELevelInstancePivotType::Center || PivotType == ELevelInstancePivotType::CenterMinZ)
 	{
 		ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(GetWorld());
-		ALevelInstance* LevelInstance = LevelInstanceSubsystem->GetLevelInstance(GetLevelInstanceID());
+		ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetLevelInstance(GetLevelInstanceID());
 		FBox OutBounds;
 		LevelInstanceSubsystem->GetLevelInstanceBounds(LevelInstance, OutBounds);
 		FVector Location = OutBounds.GetCenter();

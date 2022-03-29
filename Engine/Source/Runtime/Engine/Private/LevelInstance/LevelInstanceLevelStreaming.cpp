@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelInstance/LevelInstanceLevelStreaming.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstancePrivate.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Engine/LevelBounds.h"
@@ -25,7 +25,7 @@ ULevelStreamingLevelInstance::ULevelStreamingLevelInstance(const FObjectInitiali
 #endif
 }
 
-ALevelInstance* ULevelStreamingLevelInstance::GetLevelInstanceActor() const
+ILevelInstanceInterface* ULevelStreamingLevelInstance::GetLevelInstance() const
 {
 	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 	{
@@ -38,9 +38,12 @@ ALevelInstance* ULevelStreamingLevelInstance::GetLevelInstanceActor() const
 #if WITH_EDITOR
 TOptional<FFolder::FRootObject> ULevelStreamingLevelInstance::GetFolderRootObject() const
 {
-	if (ALevelInstance* LevelInstance = GetLevelInstanceActor())
+	if (ILevelInstanceInterface* LevelInstance = GetLevelInstance())
 	{
-		return FFolder::FRootObject(LevelInstance);
+		if (AActor* Actor = CastChecked<AActor>(LevelInstance))
+		{
+			return FFolder::FRootObject(Actor);
+		}
 	}
 
 	return TOptional<FFolder::FRootObject>();
@@ -53,34 +56,35 @@ FBox ULevelStreamingLevelInstance::GetBounds() const
 }
 #endif
 
-ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ALevelInstance* LevelInstanceActor)
+ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelInstanceInterface* LevelInstance)
 {
+	AActor* LevelInstanceActor = CastChecked<AActor>(LevelInstance);
 #if WITH_EDITOR
-	if (!LevelInstanceActor->CheckForLoop(LevelInstanceActor->GetWorldAsset()))
+	if (!ULevelInstanceSubsystem::CheckForLoop(LevelInstance))
 	{
 		UE_LOG(LogLevelInstance, Error, TEXT("Failed to load LevelInstance Actor '%s' because that would cause a loop. Run Map Check for more details."), *LevelInstanceActor->GetPathName());
 		return nullptr;
 	}
 
 	FPackagePath WorldAssetPath;
-	if (!FPackagePath::TryFromPackageName(LevelInstanceActor->GetWorldAssetPackage(), WorldAssetPath) || !FPackageName::DoesPackageExist(WorldAssetPath))
+	if (!FPackagePath::TryFromPackageName(LevelInstance->GetWorldAssetPackage(), WorldAssetPath) || !FPackageName::DoesPackageExist(WorldAssetPath))
 	{
-		UE_LOG(LogLevelInstance, Error, TEXT("Failed to load LevelInstance Actor '%s' because it refers to an invalid package ('%s'). Run Map Check for more details."), *LevelInstanceActor->GetPathName(), *LevelInstanceActor->GetWorldAsset().GetLongPackageName());
+		UE_LOG(LogLevelInstance, Error, TEXT("Failed to load LevelInstance Actor '%s' because it refers to an invalid package ('%s'). Run Map Check for more details."), *LevelInstanceActor->GetPathName(), *LevelInstance->GetWorldAsset().GetLongPackageName());
 		return nullptr;
 	}
 #endif
 
 	bool bOutSuccess = false;
 
-	const FString ShortPackageName = FPackageName::GetShortName(LevelInstanceActor->GetWorldAsset().GetLongPackageName());
+	const FString ShortPackageName = FPackageName::GetShortName(LevelInstance->GetWorldAsset().GetLongPackageName());
 	// Build a unique and deterministic LevelInstance level instance name by using LevelInstanceID. 
 	// Distinguish game from editor since we don't want to duplicate for PIE already loaded editor instances (not yet supported).
-	const FString Suffix = FString::Printf(TEXT("%s_LevelInstance_%016llx_%d"), *ShortPackageName, LevelInstanceActor->GetLevelInstanceID().GetHash(), LevelInstanceActor->GetWorld()->IsGameWorld() ? 1 : 0);
+	const FString Suffix = FString::Printf(TEXT("%s_LevelInstance_%016llx_%d"), *ShortPackageName, LevelInstance->GetLevelInstanceID().GetHash(), LevelInstanceActor->GetWorld()->IsGameWorld() ? 1 : 0);
 	const bool bLoadAsTempPackage = true;
-	ULevelStreamingLevelInstance* LevelStreaming = Cast<ULevelStreamingLevelInstance>(ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(LevelInstanceActor->GetWorld(), LevelInstanceActor->GetWorldAsset(), LevelInstanceActor->GetActorTransform(), bOutSuccess, Suffix, ULevelStreamingLevelInstance::StaticClass(), bLoadAsTempPackage));
+	ULevelStreamingLevelInstance* LevelStreaming = Cast<ULevelStreamingLevelInstance>(ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(LevelInstanceActor->GetWorld(), LevelInstance->GetWorldAsset(), LevelInstanceActor->GetActorTransform(), bOutSuccess, Suffix, ULevelStreamingLevelInstance::StaticClass(), bLoadAsTempPackage));
 	if (bOutSuccess)
 	{
-		LevelStreaming->LevelInstanceID = LevelInstanceActor->GetLevelInstanceID();
+		LevelStreaming->LevelInstanceID = LevelInstance->GetLevelInstanceID();
 		
 #if WITH_EDITOR
 		if (!LevelInstanceActor->GetWorld()->IsGameWorld())
@@ -120,7 +124,7 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ALevelI
 					}
 
 					LevelActor->PushSelectionToProxies();
-					LevelActor->PushLevelInstanceEditingStateToProxies(LevelInstanceActor->IsInEditingLevelInstance());
+					LevelActor->PushLevelInstanceEditingStateToProxies(CastChecked<AActor>(LevelInstance)->IsInEditingLevelInstance());
 				}
 			}
 			Level->ForEachActorFolder([](UActorFolder* ActorFolder)
@@ -134,7 +138,7 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ALevelI
 			});
 
 			// Create special actor that will handle selection and transform
-			ALevelInstanceEditorInstanceActor::Create(LevelInstanceActor, Level);
+			ALevelInstanceEditorInstanceActor::Create(LevelInstance, Level);
 		}
 #endif
 		return LevelStreaming;

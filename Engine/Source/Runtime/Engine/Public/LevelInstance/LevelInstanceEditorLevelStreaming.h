@@ -8,7 +8,7 @@
 #include "LevelInstance/LevelInstanceTypes.h"
 #include "LevelInstanceEditorLevelStreaming.generated.h"
 
-class ALevelInstance;
+class ILevelInstanceInterface;
 
 UCLASS(Transient, MinimalAPI)
 class ULevelStreamingLevelInstanceEditor : public ULevelStreamingAlwaysLoaded
@@ -18,7 +18,7 @@ class ULevelStreamingLevelInstanceEditor : public ULevelStreamingAlwaysLoaded
 public:
 #if WITH_EDITOR
 	virtual bool ShowInLevelCollection() const override { return false; }
-	ALevelInstance* GetLevelInstanceActor() const;
+	ILevelInstanceInterface* GetLevelInstance() const;
 	const FLevelInstanceID& GetLevelInstanceID() const { return LevelInstanceID; }
 	FBox GetBounds() const;
 
@@ -28,7 +28,7 @@ protected:
 
 	friend class ULevelInstanceSubsystem;
 
-	static ULevelStreamingLevelInstanceEditor* Load(ALevelInstance* LevelInstanceActor);
+	static ULevelStreamingLevelInstanceEditor* Load(ILevelInstanceInterface* LevelInstance);
 	static void Unload(ULevelStreamingLevelInstanceEditor* LevelStreaming);
 
 	virtual void OnLevelLoadedChanged(ULevel* Level) override;

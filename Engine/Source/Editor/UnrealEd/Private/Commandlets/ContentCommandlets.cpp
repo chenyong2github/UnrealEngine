@@ -50,7 +50,7 @@
 #include "CommandletSourceControlUtils.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
-#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 #include "AssetCompilingManager.h"
 #include "PackageHelperFunctions.h"
 #include "PackageTools.h"
@@ -2588,8 +2588,8 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 					}
 
 					// Add any levels referenced by Level Instance actors to the list of levels to load
-					ALevelInstance* LevelInstance = Cast<ALevelInstance>(Object);
-					if (LevelInstance && !LevelInstance->IsTemplate())
+					ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(Object);
+					if (LevelInstance && !CastChecked<AActor>(LevelInstance)->IsTemplate())
 					{
 						FString LevelPackageName = LevelInstance->GetWorldAssetPackage();
 						if (!LevelPackageName.IsEmpty() && PackagesToFullyLoad.FindKey(LevelPackageName) == nullptr)

@@ -8,7 +8,7 @@
 #include "LevelInstance/LevelInstanceTypes.h"
 #include "LevelInstanceEditorPivotActor.generated.h"
 
-class ALevelInstance;
+class ILevelInstanceInterface;
 class ULevelStreaming;
 
 /**
@@ -21,7 +21,7 @@ class ENGINE_API ALevelInstancePivot : public AActor
 
 #if WITH_EDITOR
 public:
-	static ALevelInstancePivot* Create(ALevelInstance* LevelInstanceActor, ULevelStreaming* LevelStreaming);
+	static ALevelInstancePivot* Create(ILevelInstanceInterface* LevelInstance, ULevelStreaming* LevelStreaming);
 	
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override { return false; }
 	virtual void PostEditMove(bool bFinished) override;
