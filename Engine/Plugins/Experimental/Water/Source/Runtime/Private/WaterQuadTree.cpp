@@ -94,17 +94,22 @@ void FWaterQuadTree::FNode::AddNodeForRender(const FNodeData& InNodeData, const 
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// Debug drawing
-	if (InTraversalDesc.DebugShowTile)
+	if (InTraversalDesc.DebugShowTile != 0)
 	{
 		FColor Color;
-		if (InTraversalDesc.DebugShowTypeColor)
+		if (InTraversalDesc.DebugShowTile == 1)
 		{
-			//static FColor WaterTypeColor[] = { FColor::Red, FColor::Green, FColor::Blue, FColor::Yellow, FColor::Purple };
-			Color = GColorList.GetFColorByIndex(DensityIndex + 1);
+			static FColor WaterTypeColor[] = { FColor::Red, FColor::Green, FColor::Blue, FColor::Yellow, FColor::Purple };
+			Color = WaterTypeColor[TileDebugID];
 		}
-		else
+		else if (InTraversalDesc.DebugShowTile == 2)
 		{
-			Color = GColorList.GetFColorByIndex(InLODLevel+1);
+			Color = GColorList.GetFColorByIndex(InLODLevel + 1);
+		}
+		else if (InTraversalDesc.DebugShowTile == 3)
+		{
+
+			Color = GColorList.GetFColorByIndex(DensityIndex + 1);
 		}
 
 		DrawWireBox(InTraversalDesc.DebugPDI, Bounds.ExpandBy(FVector(-20.0f, -20.0f, 0.0f)), Color, SDPG_World);

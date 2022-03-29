@@ -58,14 +58,7 @@ static TAutoConsoleVariable<int32> CVarWaterMeshShowLODLevels(
 static TAutoConsoleVariable<int32> CVarWaterMeshShowTileBounds(
 	TEXT("r.Water.WaterMesh.ShowTileBounds"),
 	0,
-	TEXT("Shows the tile bounds colored by r.Water.WaterMesh.TileBoundsColor"),
-	ECVF_RenderThreadSafe
-);
-
-static TAutoConsoleVariable<int32> CVarWaterMeshTileBoundsColor(
-	TEXT("r.Water.WaterMesh.TileBoundsColor"),
-	1,
-	TEXT("Color of the tile bounds visualized by r.Water.WaterMesh.ShowTileBounds. 0 is by LOD, 1 is by water body type"),
+	TEXT("Shows the tile bounds with optional color modes: 0 is disabled, 1 is by water body type, 2 is by LOD, 3 is by density index"),
 	ECVF_RenderThreadSafe
 );
 
@@ -268,8 +261,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			//Debug
 			TraversalDesc.DebugPDI = Collector.GetPDI(ViewIndex);
-			TraversalDesc.DebugShowTile = !!CVarWaterMeshShowTileBounds.GetValueOnRenderThread();
-			TraversalDesc.DebugShowTypeColor = !!CVarWaterMeshTileBoundsColor.GetValueOnRenderThread();
+			TraversalDesc.DebugShowTile = CVarWaterMeshShowTileBounds.GetValueOnRenderThread();
 #endif
 			WaterQuadTree.BuildWaterTileInstanceData(TraversalDesc, WaterInstanceData);
 

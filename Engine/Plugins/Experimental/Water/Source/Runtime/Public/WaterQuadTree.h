@@ -110,8 +110,7 @@ struct FWaterQuadTree
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		// Debug
-		bool DebugShowTile = false;
-		bool DebugShowTypeColor = true;
+		int32 DebugShowTile = 0;
 		class FPrimitiveDrawInterface* DebugPDI = nullptr;
 #endif
 	};
