@@ -811,9 +811,6 @@ FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, i
 
 	Input.VertexId = TriangleIndex * 3 + VertexIndex;
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER
-	Input.InstanceInd = 0;
-#endif
 	return Input;
 }
 
