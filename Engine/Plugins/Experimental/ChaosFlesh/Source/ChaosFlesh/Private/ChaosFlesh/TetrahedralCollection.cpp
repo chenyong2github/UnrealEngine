@@ -40,13 +40,13 @@ void FTetrahedralCollection::SetDefaults(FName Group, uint32 StartSize, uint32 N
 	}
 }
 
-FTetrahedralCollection* FTetrahedralCollection::NewTetrahedralCollection(const TArray<FVector3f>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements, bool bReverseVertexOrder)
+FTetrahedralCollection* FTetrahedralCollection::NewTetrahedralCollection(const TArray<FVector>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements, bool bReverseVertexOrder)
 {
 	FTetrahedralCollection* Collection = new FTetrahedralCollection();
 	FTetrahedralCollection::Init(Collection, Vertices, SurfaceElements, Elements, bReverseVertexOrder);
 	return Collection;
 }
-void FTetrahedralCollection::Init(FTetrahedralCollection* Collection, const TArray<FVector3f>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements, bool bReverseVertexOrder)
+void FTetrahedralCollection::Init(FTetrahedralCollection* Collection, const TArray<FVector>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements, bool bReverseVertexOrder)
 {
 	if (Collection)
 	{

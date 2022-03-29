@@ -26,7 +26,7 @@ namespace ChaosFlesh
 
 		TUniquePtr<FFleshCollection> Collection;
 
-		TArray<FVector3f> Vertices;
+		TArray<FVector> Vertices;
 		TArray<FIntVector4 > Elements;
 		TArray<FIntVector3> SurfaceElements;
 
@@ -67,7 +67,7 @@ namespace ChaosFlesh
 				ss >> x;
 				ss >> y;
 				ss >> z;
-				Vertices[i] = (FVector3f(x, y, z) + FVector3f(0, 4, 0));
+				Vertices[i] = (FVector(x, y, z) + FVector(0, 4, 0));
 			}
 		}
 		{

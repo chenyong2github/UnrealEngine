@@ -25,17 +25,26 @@ void FFleshCollection::Construct()
 {
 	// Vertices Group
 	AddExternalAttribute<float>(FFleshCollection::MassAttribute, FFleshCollection::VerticesGroup, Mass);
+	for (float& m : Mass) { m = 1; }
 }
 
-FFleshCollection* FFleshCollection::NewFleshCollection(const TArray<FVector3f>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements, bool bReverseVertexOrder)
+
+FFleshCollection* FFleshCollection::NewFleshCollection(const TArray<FVector>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements, bool bReverseVertexOrder)
 {
 
 	FFleshCollection* Collection = new FFleshCollection();
 	FFleshCollection::Init(Collection, Vertices,SurfaceElements, Elements, bReverseVertexOrder);
 	return Collection;
 }
+FFleshCollection* FFleshCollection::NewFleshCollection(const FTetrahedralCollection& Base)
+{
+	FFleshCollection* Collection = new FFleshCollection();
+	Collection->CopyMatchingAttributesFrom(Base);
+	for (float& m : Collection->Mass) { m = 1; }
+	return Collection;
+}
 
-void FFleshCollection::Init(FFleshCollection* Collection, const TArray<FVector3f>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements, bool bReverseVertexOrder)
+void FFleshCollection::Init(FFleshCollection* Collection, const TArray<FVector>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements, bool bReverseVertexOrder)
 {
 	if (Collection)
 	{

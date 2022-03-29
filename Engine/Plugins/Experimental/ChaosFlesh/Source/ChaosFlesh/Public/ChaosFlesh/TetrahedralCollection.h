@@ -27,23 +27,28 @@ public:
 	FTetrahedralCollection(FTetrahedralCollection &&) = default;
 	FTetrahedralCollection& operator=(FTetrahedralCollection &&) = default;
 
-
-	// groups
-	static const FName TetrahedralGroup;
-
-	// attributes
-	static const FName TetrahedronAttribute;
-
 	/**
 	 * Create a GeometryCollection from Vertex and Indices arrays
 	 */
-	static FTetrahedralCollection* NewTetrahedralCollection(const TArray<FVector3f>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements,bool bReverseVertexOrder = true);
-	static void Init(FTetrahedralCollection* Collection, const TArray<FVector3f>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements, bool bReverseVertexOrder = true);
+	static FTetrahedralCollection* NewTetrahedralCollection(const TArray<FVector>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements,bool bReverseVertexOrder = true);
+	static void Init(FTetrahedralCollection* Collection, const TArray<FVector>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements, bool bReverseVertexOrder = true);
 
-	void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements);
+	/*
+	*  SetDefaults for new entries on this collection. 
+	*/
+	virtual void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements);
 
-	// Transform Group
-	TManagedArray<FIntVector4>	Tetrahedron;
+	/*
+	*  Attribute Groupes
+	*/
+	static const FName TetrahedralGroup;
+
+	/*
+	*  Tetrahedron Attribute
+	*  TManagedArray<FIntVector4> Tetrahedron = this->FindAttribute<FIntVector4>(FTetrahedralCollection::TetrahedronAttribute,FTetrahedralCollection::TetrahedralGroup);
+	*/
+	static const FName TetrahedronAttribute;
+	TManagedArray<FIntVector4>Tetrahedron;
 	
 protected:
 
