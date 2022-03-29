@@ -363,7 +363,7 @@ enum class ERPCNotifyResult : uint8
 /**
  * RPC DoS escalation severity update types
  */
-enum class ESeverityUpdate : uint8
+enum class ERPCDoSSeverityUpdate : uint8
 {
 	Escalate,		// Escalating to a higher RPC DoS escalation state
 	AutoEscalate,	// Automatic/non-RPC escalation to a higher RPC DoS escalation state, e.g. when too much time was spent in a lower state
@@ -373,7 +373,7 @@ enum class ESeverityUpdate : uint8
 /**
  * The reason for an RPC DoS severity update
  */
-enum class EEscalateReason : uint8
+enum class ERPCDoSEscalateReason : uint8
 {
 	CountLimit,		// RPC Count quota's were hit
 	TimeLimit,		// RPC Time quota's were hit
@@ -457,7 +457,7 @@ public:
 	 * @param Update	Whether or not we are escalating or de-escalating the severity state
 	 * @param Reason	The reason for the escalation change
 	 */
-	void UpdateSeverity(ESeverityUpdate Update, EEscalateReason Reason);
+	void UpdateSeverity(ERPCDoSSeverityUpdate Update, ERPCDoSEscalateReason Reason);
 
 
 	/**
@@ -679,7 +679,7 @@ private:
 		// 64 RPC interval
 		if ((RPCIntervalCounter & 0x3F) == 0 && HasHitQuota_Count(CounterPerPeriodHistory, FrameCounter))
 		{
-			UpdateSeverity(ESeverityUpdate::Escalate, EEscalateReason::CountLimit);
+			UpdateSeverity(ERPCDoSSeverityUpdate::Escalate, ERPCDoSEscalateReason::CountLimit);
 		}
 	}
 
@@ -696,7 +696,7 @@ private:
 
 			if (HasHitQuota_Time(CounterPerPeriodHistory, FrameCounter))
 			{
-				UpdateSeverity(ESeverityUpdate::Escalate, EEscalateReason::TimeLimit);
+				UpdateSeverity(ERPCDoSSeverityUpdate::Escalate, ERPCDoSEscalateReason::TimeLimit);
 			}
 		}
 	}

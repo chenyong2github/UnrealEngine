@@ -72,29 +72,29 @@ TAutoConsoleVariable<FString> CVarRPCDoSForcedRPCTracking(
 
 
 /**
- * EEscalateReason
+ * ERPCDoSEscalateReason
  */
 
 /**
- * Convert EEscalateReason enum values, to a string.
+ * Convert ERPCDoSEscalateReason enum values, to a string.
  *
  * @param Reason	The enum value to convert.
  * @return			The string name for the enum value.
  */
-const TCHAR* LexToString(EEscalateReason Reason)
+const TCHAR* LexToString(ERPCDoSEscalateReason Reason)
 {
 	switch (Reason)
 	{
-	case EEscalateReason::CountLimit:
+	case ERPCDoSEscalateReason::CountLimit:
 		return TEXT("CountLimit");
 
-	case EEscalateReason::TimeLimit:
+	case ERPCDoSEscalateReason::TimeLimit:
 		return TEXT("TimeLimit");
 
-	case EEscalateReason::AutoEscalate:
+	case ERPCDoSEscalateReason::AutoEscalate:
 		return TEXT("AutoEscalate");
 
-	case EEscalateReason::Deescalate:
+	case ERPCDoSEscalateReason::Deescalate:
 		return TEXT("Deescalate");
 
 	default:
@@ -488,9 +488,9 @@ void FRPCDoSDetection::InitConfig(FName NetDriverName)
 	}
 }
 
-void FRPCDoSDetection::UpdateSeverity(ESeverityUpdate Update, EEscalateReason Reason)
+void FRPCDoSDetection::UpdateSeverity(ERPCDoSSeverityUpdate Update, ERPCDoSEscalateReason Reason)
 {
-	bool bEscalate = Update == ESeverityUpdate::Escalate || Update == ESeverityUpdate::AutoEscalate;
+	bool bEscalate = Update == ERPCDoSSeverityUpdate::Escalate || Update == ERPCDoSSeverityUpdate::AutoEscalate;
 	int32 NewStateIdx = FMath::Clamp(ActiveState + (bEscalate ? 1 : -1), 0, DetectionSeverity.Num()-1);
 
 	// If kicking is disabled, and the new state is the kick state, exclude that state (otherwise RPC DoS Detection will become stuck)
@@ -766,11 +766,11 @@ void FRPCDoSDetection::PreTickDispatch(double TimeSeconds)
 
 			if (CooloffTime > 0 && ActiveStateTime > CooloffTime)
 			{
-				UpdateSeverity(ESeverityUpdate::Deescalate, EEscalateReason::Deescalate);
+				UpdateSeverity(ERPCDoSSeverityUpdate::Deescalate, ERPCDoSEscalateReason::Deescalate);
 			}
 			else if (AutoEscalateTime > 0 && ActiveStateTime > AutoEscalateTime)
 			{
-				UpdateSeverity(ESeverityUpdate::AutoEscalate, EEscalateReason::AutoEscalate);
+				UpdateSeverity(ERPCDoSSeverityUpdate::AutoEscalate, ERPCDoSEscalateReason::AutoEscalate);
 			}
 		}
 
