@@ -38,20 +38,15 @@ void FDisplayClusterViewportResource::ImplInitDynamicRHI_RenderTargetResource2D(
 		NumMips = ViewportResourceSettings.NumMips;
 	}
 
-	FRHIResourceCreateInfo CreateInfo(TEXT("DisplayClusterViewportRenderTargetResource"), FClearValueBinding::Black);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("DisplayClusterViewportRenderTargetResource"))
+		.SetExtent(GetSizeX(), GetSizeY())
+		.SetFormat(ViewportResourceSettings.Format)
+		.SetNumMips(NumMips)
+		.SetFlags(CreateFlags)
+		.SetClearValue(FClearValueBinding::Black);
 
-	RHICreateTargetableShaderResource2D(
-		GetSizeX(),
-		GetSizeY(),
-		ViewportResourceSettings.Format,
-		NumMips,
-		CreateFlags,
-		TexCreate_RenderTargetable,
-		false,
-		CreateInfo,
-		OutRenderTargetTextureRHI,
-		OutTextureRHI
-	);
+	RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, OutRenderTargetTextureRHI, OutTextureRHI);
 }
 
 void FDisplayClusterViewportResource::ImplInitDynamicRHI_TextureResource2D(FTexture2DRHIRef& OutTextureRHI)

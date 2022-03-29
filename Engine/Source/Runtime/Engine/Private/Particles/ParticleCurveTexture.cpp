@@ -515,20 +515,13 @@ FParticleCurveTexture::FParticleCurveTexture()
 void FParticleCurveTexture::InitRHI()
 {
 	// 8-bit per channel RGBA texture for curves.
-	FRHIResourceCreateInfo CreateInfo(TEXT("ParticleCurveTexture"), FClearValueBinding(FLinearColor::Blue));
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("ParticleCurveTexture"))
+		.SetExtent(GParticleCurveTextureSizeX, GParticleCurveTextureSizeY)
+		.SetFormat(PF_B8G8R8A8)
+		.SetClearValue(FClearValueBinding(FLinearColor::Blue));
 
-	RHICreateTargetableShaderResource2D(
-		GParticleCurveTextureSizeX,
-		GParticleCurveTextureSizeY,
-		PF_B8G8R8A8,
-		/*NumMips=*/ 1,
-		TexCreate_None,
-		TexCreate_RenderTargetable | TexCreate_NoFastClear,
-		/*bForceSeparateTargetAndShaderResource=*/ false,
-		CreateInfo,
-		CurveTextureTargetRHI,
-		CurveTextureRHI
-	);
+	RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::NoFastClear, CurveTextureTargetRHI, CurveTextureRHI);
 }
 
 /**

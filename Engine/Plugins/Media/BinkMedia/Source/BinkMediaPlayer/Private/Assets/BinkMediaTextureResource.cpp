@@ -19,7 +19,6 @@ void FBinkMediaTextureResource::InitDynamicRHI()
 
 	// Create the RHI texture. Only one mip is used and the texture is targetable or resolve.
 	ETextureCreateFlags TexCreateFlags = Owner->SRGB ? TexCreate_SRGB : TexCreate_None;
-	FRHIResourceCreateInfo CreateInfo(TEXT("Bink"));
 	
 	if (bink_force_pixel_format != PF_Unknown) 
 	{
@@ -32,27 +31,22 @@ void FBinkMediaTextureResource::InitDynamicRHI()
 		TexCreateFlags = TexCreate_None;
 	}
 
+	const TCHAR* DebugName = TEXT("Bink");
+
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
 	FString DebugNameString = TEXT("Bink:");
 	DebugNameString += Owner->GetName();
-	CreateInfo.DebugName = *DebugNameString;
+	DebugName = *DebugNameString;
 #endif // ARK_EXTRA_RESOURCE_NAMES
 
-	TRefCountPtr<FRHITexture2D> Texture2DRHI;
-	RHICreateTargetableShaderResource2D(
-		w, h,
-		PixelFormat,
-		1,
-		TexCreateFlags,
-		TexCreate_RenderTargetable,
-		false,
-		CreateInfo,
-		RenderTargetTextureRHI,
-		Texture2DRHI
-	);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(DebugName)
+		.SetExtent(w, h)
+		.SetFormat(PixelFormat)
+		.SetFlags(TexCreateFlags);
 
-	TextureRHI = (FTextureRHIRef&)Texture2DRHI;
-	
+	RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, TextureRHI);
+
 	// Don't bother updating if its not a valid video
 	if (Owner->GetSurfaceWidth() && Owner->GetSurfaceHeight()) 
 	{

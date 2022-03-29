@@ -42,21 +42,13 @@ void FSlatePostProcessResource::ResizeTargets(const FIntPoint& NewSize)
 	{
 		for (int32 TexIndex = 0; TexIndex < RenderTargetCount; ++TexIndex)
 		{
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("FSlatePostProcessResource"))
+				.SetExtent(RenderTargetSize)
+				.SetFormat(PixelFormat);
+
 			FTexture2DRHIRef RenderTargetTextureRHI;
-			FTexture2DRHIRef ShaderResourceUnused;
-			FRHIResourceCreateInfo CreateInfo(TEXT("FSlatePostProcessResource"));
-			RHICreateTargetableShaderResource2D(
-				RenderTargetSize.X,
-				RenderTargetSize.Y,
-				PixelFormat,
-				1,
-				TexCreate_None,
-				TexCreate_RenderTargetable,
-				/*bNeedsTwoCopies=*/false,
-				CreateInfo,
-				RenderTargetTextureRHI,
-				ShaderResourceUnused
-			);
+			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI);
 
 			RenderTargets.Add(RenderTargetTextureRHI);
 		}

@@ -20,23 +20,13 @@ void FWebMMediaTextureSample::CreateTexture()
 {
 	check(IsInRenderingThread());
 
-	const ETextureCreateFlags CreateFlags = TexCreate_Dynamic | TexCreate_SRGB;
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("FWebMMediaTextureSample_DummyTexture2D"))
+		.SetExtent(TotalSize)
+		.SetFormat(PF_B8G8R8A8)
+		.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::SRGB);
 
-	TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
-	FRHIResourceCreateInfo CreateInfo(TEXT("FWebMMediaTextureSample_DummyTexture2D"));
-
-	RHICreateTargetableShaderResource2D(
-		TotalSize.X,
-		TotalSize.Y,
-		PF_B8G8R8A8,
-		1,
-		CreateFlags,
-		TexCreate_RenderTargetable,
-		false,
-		CreateInfo,
-		Texture,
-		DummyTexture2DRHI
-	);
+	RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, Texture);
 }
 
 const void* FWebMMediaTextureSample::GetBuffer()

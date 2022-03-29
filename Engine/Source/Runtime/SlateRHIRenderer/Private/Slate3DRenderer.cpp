@@ -195,9 +195,14 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 				{
 					DepthStencil.SafeRelease();
 
-					FTexture2DRHIRef ShaderResourceUnused;
-					FRHIResourceCreateInfo CreateInfo(TEXT("SlateWindowDepthStencil"), FClearValueBinding::DepthZero);
-					RHICreateTargetableShaderResource2D(ColorTarget->GetSizeX(), ColorTarget->GetSizeY(), PF_DepthStencil, 1, TexCreate_None, TexCreate_DepthStencilTargetable, false, CreateInfo, DepthStencil, ShaderResourceUnused);
+					const FRHITextureCreateDesc Desc =
+						FRHITextureCreateDesc::Create2D(TEXT("SlateWindowDepthStencil"))
+						.SetExtent(ColorTarget->GetSizeXY())
+						.SetFormat(PF_DepthStencil)
+						.SetClearValue(FClearValueBinding::DepthZero);
+
+					RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::DepthStencilTargetable, DepthStencil);
+
 					check(IsValidRef(DepthStencil));
 				}
 			}

@@ -1199,24 +1199,17 @@ void FMediaTextureResource::CreateOutputRenderTarget(const FIntPoint & InDim, EP
 
 	if ((InClearColor != CurrentClearColor) || !OutputTarget.IsValid() || (OutputTarget->GetSizeXY() != InDim) || (OutputTarget->GetFormat() != InPixelFormat) || ((OutputTarget->GetFlags() & OutputCreateFlags) != OutputCreateFlags) || CurrentNumMips != InNumMips)
 	{
-		TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
-
 		MipGenerationCache.SafeRelease();
 
-		FRHIResourceCreateInfo CreateInfo(TEXT("MediaTextureResourceOutput"), FClearValueBinding(InClearColor));
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("MediaTextureResourceOutput"))
+			.SetExtent(InDim)
+			.SetFormat(InPixelFormat)
+			.SetNumMips(InNumMips)
+			.SetFlags(OutputCreateFlags)
+			.SetClearValue(FClearValueBinding(InClearColor));
 
-		RHICreateTargetableShaderResource2D(
-			InDim.X,
-			InDim.Y,
-			InPixelFormat,
-			InNumMips,
-			OutputCreateFlags,
-			TexCreate_RenderTargetable,
-			false,
-			CreateInfo,
-			OutputTarget,
-			DummyTexture2DRHI
-		);
+		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, OutputTarget);
 
 		OutputTarget->SetName(TEXT("MediaTextureResourceOutput"));
 

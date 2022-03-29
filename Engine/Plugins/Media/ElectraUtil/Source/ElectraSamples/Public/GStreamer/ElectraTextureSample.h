@@ -34,23 +34,13 @@ public:
 	{
 		check(IsInRenderingThread());
 
-		const ETextureCreateFlags CreateFlags = TexCreate_Dynamic | TexCreate_SRGB;
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("DummyTexture2D"))
+			.SetExtent(TotalSize)
+			.SetFormat(PF_B8G8R8A8)
+			.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::SRGB);
 
-		TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
-		FRHIResourceCreateInfo CreateInfo(TEXT("DummyTexture2D"));
-
-		RHICreateTargetableShaderResource2D(
-			TotalSize.X,
-			TotalSize.Y,
-			PF_B8G8R8A8,
-			1,
-			CreateFlags,
-			TexCreate_RenderTargetable,
-			false,
-			CreateInfo,
-			Texture,
-			DummyTexture2DRHI
-		);
+		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, Texture);
 	}	
 
 public:

@@ -422,21 +422,13 @@ void FElectraTextureSample::InitializeTexture()
 		return;
 	}
 
-	TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
-	FRHIResourceCreateInfo CreateInfo(TEXT("FElectraTextureSample"));
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("FElectraTextureSample"))
+		.SetExtent(Dim)
+		.SetFormat(PF_B8G8R8A8)
+		.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::SRGB);
 
-	RHICreateTargetableShaderResource2D(
-		Dim.X,
-		Dim.Y,
-		PF_B8G8R8A8,
-		1,
-		TexCreate_Dynamic | TexCreate_SRGB,
-		TexCreate_RenderTargetable,
-		false,
-		CreateInfo,
-		Texture,
-		DummyTexture2DRHI
-	);
+	RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, Texture);
 
 	return;
 }

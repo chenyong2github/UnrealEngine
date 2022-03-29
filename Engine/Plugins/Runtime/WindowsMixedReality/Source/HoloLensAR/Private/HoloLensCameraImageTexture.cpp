@@ -217,15 +217,25 @@ public:
 
 			// Create the copy target
 			{
-				FRHIResourceCreateInfo CreateInfo(TEXT("FHoloLensCameraImageResource_CopyTextureRef"));
-				CopyTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_NV12, 1, 1, TexCreate_Dynamic | TexCreate_ShaderResource, CreateInfo);
+				const FRHITextureCreateDesc CreateDesc =
+					FRHITextureCreateDesc::Create2D(TEXT("FHoloLensCameraImageResource_CopyTextureRef"))
+					.SetExtent(Size)
+					.SetFormat(PF_NV12)
+					.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::ShaderResource);
+
+				CopyTextureRef = RHICreateTexture(CreateDesc);
 			}
 			// Create the render target
 			{
-				FRHIResourceCreateInfo CreateInfo(TEXT("FHoloLensCameraImageResource_DummyTexture2D"));
-				TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
+
+				const FRHITextureCreateDesc CreateDesc =
+					FRHITextureCreateDesc::Create2D(TEXT("FHoloLensCameraImageResource_DummyTexture2D"))
+					.SetExtent(Size)
+					.SetFormat(PF_B8G8R8A8)
+					.SetFlags(ETextureCreateFlags::Dynamic);
+
 				// Create our render target that we'll convert to
-				RHICreateTargetableShaderResource2D(Size.X, Size.Y, PF_B8G8R8A8, 1, TexCreate_Dynamic, TexCreate_RenderTargetable, false, CreateInfo, DecodedTextureRef, DummyTexture2DRHI);
+				RHICreateTargetableShaderResource(CreateDesc, ETextureCreateFlags::RenderTargetable, DecodedTextureRef);
 			}
 
 			if (PerformCopy(cameraImageTexture, D3D11DeviceContext))

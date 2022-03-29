@@ -557,44 +557,40 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 	if( TargetSizeX > 0 && TargetSizeY > 0 )
 	{
 		// Create the RHI texture. Only one mip is used and the texture is targetable for resolve.
-		ETextureCreateFlags TexCreateFlags = Owner->IsSRGB() ? TexCreate_SRGB : TexCreate_None;
-		TexCreateFlags |= Owner->bGPUSharedFlag ? TexCreate_Shared : TexCreate_None;
+		ETextureCreateFlags TexCreateFlags = Owner->IsSRGB() ? ETextureCreateFlags::SRGB : ETextureCreateFlags::None;
+		TexCreateFlags |= Owner->bGPUSharedFlag ? ETextureCreateFlags::Shared : ETextureCreateFlags::None;
 		FString ResourceName = Owner->GetName();
-		FRHIResourceCreateInfo CreateInfo = FRHIResourceCreateInfo(*ResourceName, FClearValueBinding(ClearColor));
 
 		if (Owner->bAutoGenerateMips)
 		{
-			TexCreateFlags |= TexCreate_GenerateMipCapable;
+			TexCreateFlags |= ETextureCreateFlags::GenerateMipCapable;
 			if (FGenerateMips::WillFormatSupportCompute(Format))
 			{
-				TexCreateFlags |= TexCreate_UAV;
+				TexCreateFlags |= ETextureCreateFlags::UAV;
 			}
 		}
 
 		if (Owner->bCanCreateUAV)
 		{
-			TexCreateFlags |= TexCreate_UAV;
+			TexCreateFlags |= ETextureCreateFlags::UAV;
 		}
 
-		RHICreateTargetableShaderResource2D(
-			Owner->SizeX, 
-			Owner->SizeY, 
-			Format,
-			Owner->GetNumMips(),
-			TexCreateFlags,
-			TexCreate_RenderTargetable,
-			Owner->bNeedsTwoCopies,
-			CreateInfo,
-			RenderTargetTextureRHI,
-			Texture2DRHI
-			);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(*ResourceName)
+			.SetExtent(Owner->SizeX, Owner->SizeY)
+			.SetFormat(Format)
+			.SetNumMips(Owner->GetNumMips())
+			.SetFlags(TexCreateFlags)
+			.SetClearValue(FClearValueBinding(ClearColor));
 
-		if (EnumHasAnyFlags(TexCreateFlags, TexCreate_UAV))
+		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, Owner->bNeedsTwoCopies, RenderTargetTextureRHI, Texture2DRHI);
+
+		if (EnumHasAnyFlags(TexCreateFlags, ETextureCreateFlags::UAV))
 		{
 			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTargetTextureRHI);
 		}
 
-		SetGPUMask(CreateInfo.GPUMask);
+		SetGPUMask(Desc.GPUMask);
 		TextureRHI = (FTextureRHIRef&)Texture2DRHI;
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);
 

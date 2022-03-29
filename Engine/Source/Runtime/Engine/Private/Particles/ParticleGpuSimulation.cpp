@@ -251,37 +251,29 @@ public:
 #define PARTICLE_STATE_POSITION_TEXTURE_NAME	TEXT("ParticleStatePosition")
 #define PARTICLE_STATE_VELOCITY_TEXTURE_NAME	TEXT("ParticleStateVelocity")
 
-		FRHIResourceCreateInfo CreateInfo(PARTICLE_STATE_POSITION_TEXTURE_NAME, FClearValueBinding::Transparent);
-		RHICreateTargetableShaderResource2D(
-			SizeX,
-			SizeY,
-			PF_A32B32G32R32F,
-			/*NumMips=*/ 1,
-			TexCreate_None,
-			TexCreate_RenderTargetable,
-			/*bForceSeparateTargetAndShaderResource=*/ false,
-			CreateInfo,
-			PositionTextureTargetRHI,
-			PositionTextureRHI
-			);
+		{
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(PARTICLE_STATE_POSITION_TEXTURE_NAME)
+				.SetExtent(SizeX, SizeY)
+				.SetFormat(PF_A32B32G32R32F)
+				.SetClearValue(FClearValueBinding::Transparent);
+
+			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, PositionTextureTargetRHI, PositionTextureRHI);
+		}
 
 		// 16-bit per channel RGBA texture for velocity.
 		check( !IsValidRef( VelocityTextureTargetRHI ) );
 		check( !IsValidRef( VelocityTextureRHI ) );
 
-		CreateInfo.DebugName = PARTICLE_STATE_VELOCITY_TEXTURE_NAME;
-		RHICreateTargetableShaderResource2D(
-			SizeX,
-			SizeY,
-			PF_FloatRGBA,
-			/*NumMips=*/ 1,
-			TexCreate_None,
-			TexCreate_RenderTargetable,
-			/*bForceSeparateTargetAndShaderResource=*/ false,
-			CreateInfo,
-			VelocityTextureTargetRHI,
-			VelocityTextureRHI
-			);
+		{
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(PARTICLE_STATE_VELOCITY_TEXTURE_NAME)
+				.SetExtent(SizeX, SizeY)
+				.SetFormat(PF_FloatRGBA)
+				.SetClearValue(FClearValueBinding::Transparent);
+
+			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, VelocityTextureTargetRHI, VelocityTextureRHI);
+		}
 
 		// using FName's ability to append a number to a string (..._0) without an extra string allocation, except suffixing is done when number > 0 hence the +1 here : 
 		FName PositionTextureName(PARTICLE_STATE_POSITION_TEXTURE_NAME, ParticleStateIndex + 1); 
@@ -331,19 +323,14 @@ public:
 		const ETextureCreateFlags ExtraFlags = CVarGPUParticleAFRReinject.GetValueOnRenderThread() == 1 ? TexCreate_AFRManual : TexCreate_None;
 
 #define ATTRIBUTES_TEXTURE_NAME	TEXT("ParticleAttributes")
-		FRHIResourceCreateInfo CreateInfo(ATTRIBUTES_TEXTURE_NAME, FClearValueBinding::Transparent);
-		RHICreateTargetableShaderResource2D(
-			SizeX,
-			SizeY,
-			PF_B8G8R8A8,
-			/*NumMips=*/ 1,
-			TexCreate_None,
-			TexCreate_RenderTargetable | TexCreate_NoFastClear | ExtraFlags,
-			/*bForceSeparateTargetAndShaderResource=*/ false,
-			CreateInfo,
-			TextureTargetRHI,
-			TextureRHI
-			);
+
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(ATTRIBUTES_TEXTURE_NAME)
+			.SetExtent(SizeX, SizeY)
+			.SetFormat(PF_B8G8R8A8)
+			.SetClearValue(FClearValueBinding::Transparent);
+
+		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::NoFastClear | ExtraFlags, TextureTargetRHI, TextureRHI);
 
 		static FName AttributesTextureName(ATTRIBUTES_TEXTURE_NAME);
 		TextureTargetRHI->SetName(AttributesTextureName);

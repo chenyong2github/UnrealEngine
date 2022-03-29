@@ -49,8 +49,12 @@ bool FPFMExporterMesh::SaveToFile(const FString& FileName)
 bool FPFMExporterMesh::BeginExport_RenderThread(FRHICommandListImmediate& RHICmdList)
 {
 	// Allocate RT+SR RHI resources
-	FRHIResourceCreateInfo CreateInfo(TEXT("FPFMExporterMesh"));
-	RHICreateTargetableShaderResource2D(DimWidth, DimHeight, PFMTextureFormat, 1, TexCreate_None, TexCreate_RenderTargetable, true, CreateInfo, RenderTargetTexture, ShaderResourceTexture);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("FPFMExporterMesh"))
+		.SetExtent(DimWidth, DimHeight)
+		.SetFormat(PFMTextureFormat);
+
+	RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, true, RenderTargetTexture, ShaderResourceTexture);
 
 	return true;
 }

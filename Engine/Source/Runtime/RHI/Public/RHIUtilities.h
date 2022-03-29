@@ -722,7 +722,7 @@ inline void RHICreateTargetableShaderResource(
  * Two texture references are always returned, but they may reference the same texture.
  * If two different textures are returned, the render-target texture must be manually copied to the shader-resource texture.
  */
-//UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2D is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2D is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
 RHI_API void RHICreateTargetableShaderResource2D(
 	uint32 SizeX,
 	uint32 SizeY,
@@ -737,7 +737,7 @@ RHI_API void RHICreateTargetableShaderResource2D(
 	FTextureRHIRef& OutShaderResourceTexture,
 	uint32 NumSamples = 1);
 
-//UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2D is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
+UE_DEPRECATED(5.1, "RHICreateTargetableShaderResource2D is deprecated, RHICreateTargetableShaderResource with a FRHITextureCreateDesc should be used instead")
 RHI_API void RHICreateTargetableShaderResource2D(
 	uint32 SizeX,
 	uint32 SizeY,

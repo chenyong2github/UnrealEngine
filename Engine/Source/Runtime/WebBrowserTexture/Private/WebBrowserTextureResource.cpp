@@ -148,24 +148,16 @@ void FWebBrowserTextureResource::ClearTexture(const FLinearColor& ClearColor)
 	// create output render target if we don't have one yet
 	const ETextureCreateFlags OutputCreateFlags = TexCreate_Dynamic | TexCreate_SRGB;
 
-	if ((ClearColor != CurrentClearColor) || !OutputTarget.IsValid() || ((OutputTarget->GetFlags() & OutputCreateFlags) != OutputCreateFlags))
+	if ((ClearColor != CurrentClearColor) || !OutputTarget.IsValid() || !EnumHasAllFlags(OutputTarget->GetFlags(), OutputCreateFlags))
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("FWebBrowserTextureResource"), FClearValueBinding(ClearColor));
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FWebBrowserTextureResource"))
+			.SetExtent(2, 2)
+			.SetFormat(PF_B8G8R8A8)
+			.SetFlags(OutputCreateFlags)
+			.SetClearValue(FClearValueBinding(ClearColor));
 
-		TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
-
-		RHICreateTargetableShaderResource2D(
-			2,
-			2,
-			PF_B8G8R8A8,
-			1,
-			OutputCreateFlags,
-			TexCreate_RenderTargetable,
-			false,
-			CreateInfo,
-			OutputTarget,
-			DummyTexture2DRHI
-		);
+		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, OutputTarget);
 
 		CurrentClearColor = ClearColor;
 		UpdateResourceSize();
@@ -219,22 +211,15 @@ void FWebBrowserTextureResource::CopySample(const TSharedPtr<FWebBrowserTextureS
 		if ((ClearColor != CurrentClearColor) || !OutputTarget.IsValid() || (OutputTarget->GetSizeXY() != SampleDim) || ((OutputTarget->GetFlags() & OutputCreateFlags) != OutputCreateFlags))
 		{
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FWebBrowserTextureResource:CopySample 1"));
-			TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
 
-			FRHIResourceCreateInfo CreateInfo(TEXT("FWebBrowserTextureResource"), FClearValueBinding(ClearColor));
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("FWebBrowserTextureResource"))
+				.SetExtent(SampleDim)
+				.SetFormat(PF_B8G8R8A8)
+				.SetFlags(OutputCreateFlags)
+				.SetClearValue(FClearValueBinding(ClearColor));
 
-			RHICreateTargetableShaderResource2D(
-				SampleDim.X,
-				SampleDim.Y,
-				PF_B8G8R8A8,
-				1,
-				OutputCreateFlags,
-				TexCreate_RenderTargetable,
-				false,
-				CreateInfo,
-				OutputTarget,
-				DummyTexture2DRHI
-			);
+			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, OutputTarget);
 
 			CurrentClearColor = ClearColor;
 			UpdateResourceSize();

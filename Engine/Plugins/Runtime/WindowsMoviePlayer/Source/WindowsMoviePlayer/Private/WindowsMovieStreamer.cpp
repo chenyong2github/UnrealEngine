@@ -88,21 +88,13 @@ void FMediaFoundationMovieStreamer::ConvertSample()
 		// create a new input render target if necessary
 		if (!InputTarget.IsValid() || (InputTarget->GetSizeXY() != SourceFormat.BufferDim) || (InputTarget->GetFormat() != InputPixelFormat) || ((InputTarget->GetFlags() & InputCreateFlags) != InputCreateFlags))
 		{
-			TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
-			FRHIResourceCreateInfo CreateInfo(TEXT("FMediaFoundationMovieStreamer"));
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("FMediaFoundationMovieStreamer"))
+				.SetExtent(SourceFormat.BufferDim)
+				.SetFormat(InputPixelFormat)
+				.SetFlags(InputCreateFlags);
 
-			RHICreateTargetableShaderResource2D(
-				SourceFormat.BufferDim.X,
-				SourceFormat.BufferDim.Y,
-				InputPixelFormat,
-				1,
-				InputCreateFlags,
-				TexCreate_RenderTargetable,
-				false,
-				CreateInfo,
-				InputTarget,
-				DummyTexture2DRHI
-			);
+			RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, InputTarget);
 		}
 
 		// copy sample data to input render target

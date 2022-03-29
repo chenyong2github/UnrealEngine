@@ -1649,21 +1649,25 @@ bool FSteamVRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32
 		return true;
 	}
 
+	FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("FSteamVRHMD"))
+		.SetExtent(SizeX, SizeY)
+		.SetFormat(PF_B8G8R8A8)
+		.SetNumSamples(NumSamples);
+
 	for (uint32 SwapChainIter = 0; SwapChainIter < SteamVRSwapChainLength; ++SwapChainIter)
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("FSteamVRHMD"));
 #if PLATFORM_MAC
 		IOSurfaceRef Surface = MetalBridgePtr->GetSurface(SizeX, SizeY);
 		check(Surface != nil);
 
-		CreateInfo.BulkData = new FIOSurfaceResourceWrapper(Surface);
+		Desc.BulkData = new FIOSurfaceResourceWrapper(Surface);
 		CFRelease(Surface);
-		CreateInfo.ResourceArray = nullptr;
 #endif
 
-		FTexture2DRHIRef TargetableTexture, ShaderResourceTexture;
-		RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_B8G8R8A8, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, TargetableTexture, ShaderResourceTexture, NumSamples);
-		check(TargetableTexture == ShaderResourceTexture);
+		FTexture2DRHIRef TargetableTexture;
+
+		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, TargetableTexture);
 
 		SwapChainTextures.Add((FTextureRHIRef&)TargetableTexture);
 
@@ -1711,28 +1715,21 @@ bool FSteamVRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY,
 
 	FClearValueBinding ClearValue(0.0f, 0);
 	ClearValue.ColorBinding = EClearBinding::EDepthStencilBound;
-	FRHIResourceCreateInfo CreateInfo(TEXT("SteamVRDepthStencil"), ClearValue);
+
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("SteamVRDepthStencil"))
+		.SetExtent(SizeX, SizeY)
+		.SetFormat(PF_DepthStencil)
+		.SetFlags(Flags)
+		.SetClearValue(ClearValue);
 
 	for (uint32 SwapChainIter = 0; SwapChainIter < SteamVRSwapChainLength; ++SwapChainIter)
 	{
-		FTexture2DRHIRef TargetableTexture, ShaderResourceTexture;
+		FTextureRHIRef TargetableTexture;
 
-		RHICreateTargetableShaderResource2D(
-			SizeX,
-			SizeY,
-			PF_DepthStencil,
-			1,			// 1 mip for depth (0 is usually passed in above, which is invalid).
-			Flags,
-			TargetableTextureFlags,
-			false,
-			CreateInfo,
-			TargetableTexture,
-			ShaderResourceTexture,
-			1);
+		RHICreateTargetableShaderResource(Desc, TargetableTextureFlags, TargetableTexture);
 
-		check(TargetableTexture == ShaderResourceTexture);
-
-		SwapChainTextures.Add((FTextureRHIRef&)TargetableTexture);
+		SwapChainTextures.Add(TargetableTexture);
 
 		if (BindingTexture == nullptr)
 		{

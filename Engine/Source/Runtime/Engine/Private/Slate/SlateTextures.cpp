@@ -315,20 +315,13 @@ void FSlateTextureRenderTarget2DResource::InitDynamicRHI()
 	if( TargetSizeX > 0 && TargetSizeY > 0 )
 	{
 		// Create the RHI texture. Only one mip is used and the texture is targetable for resolve.
-		FRHIResourceCreateInfo CreateInfo(TEXT("FSlateTextureRenderTarget2DResource"), FClearValueBinding(ClearColor));
-		RHICreateTargetableShaderResource2D(
-			TargetSizeX, 
-			TargetSizeY, 
-			Format, 
-			1,
-			/*TexCreateFlags=*/TexCreate_None,
-			TexCreate_RenderTargetable,
-			/*bNeedsTwoCopies=*/false,
-			CreateInfo,
-			RenderTargetTextureRHI,
-			Texture2DRHI
-			);
-		TextureRHI = (FTextureRHIRef&)Texture2DRHI;
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FSlateTextureRenderTarget2DResource"))
+			.SetExtent(TargetSizeX, TargetSizeY)
+			.SetFormat((EPixelFormat)Format)
+			.SetClearValue(FClearValueBinding(ClearColor));
+
+		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI, Texture2DRHI);
 	}
 
 	// Create the sampler state RHI resource.

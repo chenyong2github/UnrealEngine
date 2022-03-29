@@ -2008,16 +2008,20 @@ void FSceneViewport::InitDynamicRHI()
 		}
 #endif
 
-		FRHIResourceCreateInfo CreateInfo(TEXT("BufferedRT"));
-		FTexture2DRHIRef BufferedRTRHI;
-		FTexture2DRHIRef BufferedSRVRHI;
+		FTextureRHIRef BufferedRTRHI;
+		FTextureRHIRef BufferedSRVRHI;
 
 		for (int32 i = 0; i < NumBufferedFrames; ++i)
 		{
 			// try to allocate texture via StereoRenderingDevice; if not successful, use the default way
 			if (StereoRenderTargetManager == nullptr || !StereoRenderTargetManager->AllocateRenderTargetTexture(i, TexSizeX, TexSizeY, SceneTargetFormat, 1, TexCreate_None, TexCreate_RenderTargetable, BufferedRTRHI, BufferedSRVRHI))
 			{
-				RHICreateTargetableShaderResource2D(TexSizeX, TexSizeY, SceneTargetFormat, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, BufferedRTRHI, BufferedSRVRHI);
+				const FRHITextureCreateDesc Desc =
+					FRHITextureCreateDesc::Create2D(TEXT("BufferedRT"))
+					.SetExtent(TexSizeX, TexSizeY)
+					.SetFormat(SceneTargetFormat);
+
+				RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, BufferedRTRHI, BufferedSRVRHI);
 			}
 			BufferedRenderTargetsRHI[i] = BufferedRTRHI;
 			BufferedShaderResourceTexturesRHI[i] = BufferedSRVRHI;
