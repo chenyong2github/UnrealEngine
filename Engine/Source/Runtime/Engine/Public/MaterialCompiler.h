@@ -29,7 +29,6 @@ class UMaterialParameterCollection;
 class URuntimeVirtualTexture;
 class UTexture;
 struct FMaterialParameterInfo;
-struct FStrataMaterialCompilationInfo;
 
 enum EMaterialForceCastFlags
 {
@@ -66,6 +65,15 @@ struct FStrataRegisteredSharedLocalBasis
 	uint64 NormalCodeChunkHash;
 	uint64 TangentCodeChunkHash;
 	uint8 GraphSharedLocalBasisIndex;
+
+	FStrataRegisteredSharedLocalBasis()
+	{
+		NormalCodeChunk = INDEX_NONE;
+		TangentCodeChunk = INDEX_NONE;
+		NormalCodeChunkHash = 0;
+		TangentCodeChunkHash = 0;
+		GraphSharedLocalBasisIndex = 0;
+	}
 };
 
 struct FStrataOperator
@@ -78,7 +86,15 @@ struct FStrataOperator
 	int32 LeftIndex;	// Left child operator index
 	int32 RightIndex;	// Right child operator index
 
+	// Data used for BSDF type nodes only
 	int32 BSDFIndex;	// Index in the array of BSDF if a BSDF operator
+	uint8 BSDFType;
+	FStrataRegisteredSharedLocalBasis BSDFRegisteredSharedLocalBasis;
+	bool  bBSDFHasSSS;
+	bool  bBSDFHasMFPPluggedIn;
+	bool  bBSDFHasEdgeColor;
+	bool  bBSDFHasFuzz;
+	bool  bBSDFHasHaziness;
 
 	// Data derived after the tree has been built.
 	int32 MaxDistanceFromLeaves;
@@ -96,13 +112,39 @@ struct FStrataOperator
 		ParentIndex = INDEX_NONE;
 		LeftIndex = INDEX_NONE;
 		RightIndex = INDEX_NONE;
+
 		BSDFIndex = INDEX_NONE;
+		BSDFType = 0;
+		bBSDFHasSSS = false;
+		bBSDFHasMFPPluggedIn = false;
+		bBSDFHasEdgeColor = false;
+		bBSDFHasFuzz = false;
+		bBSDFHasHaziness = false;
+
 		MaxDistanceFromLeaves = 0;
 		LayerDepth = 0;
 		bIsTop = false;
 		bIsBottom = false;
 		bUseParameterBlending = false;
 		bRootOfParameterBlendingSubTree = false;
+	}
+
+	void CombineFlagsForParameterBlending(FStrataOperator& A, FStrataOperator& B)
+	{
+		bBSDFHasSSS = A.bBSDFHasSSS || B.bBSDFHasSSS;
+		bBSDFHasMFPPluggedIn = A.bBSDFHasMFPPluggedIn || B.bBSDFHasMFPPluggedIn;
+		bBSDFHasEdgeColor = A.bBSDFHasEdgeColor || B.bBSDFHasEdgeColor;
+		bBSDFHasFuzz = A.bBSDFHasFuzz || B.bBSDFHasFuzz;
+		bBSDFHasHaziness = A.bBSDFHasHaziness || B.bBSDFHasHaziness;
+	}
+
+	void CopyFlagsForParameterBlending(FStrataOperator& A)
+	{
+		bBSDFHasSSS = A.bBSDFHasSSS;
+		bBSDFHasMFPPluggedIn = A.bBSDFHasMFPPluggedIn;
+		bBSDFHasEdgeColor = A.bBSDFHasEdgeColor;
+		bBSDFHasFuzz = A.bBSDFHasFuzz;
+		bBSDFHasHaziness = A.bBSDFHasHaziness;
 	}
 
 	bool IsDiscarded()
@@ -539,13 +581,13 @@ public:
 	 * Return the operator information for a given expression.
 	 */
 	virtual FStrataOperator& StrataCompilationGetOperator(UMaterialExpression* Expression) = 0;
+	/**
+	 * Return the operator information for a given index.
+	 */
+	virtual FStrataOperator* StrataCompilationGetOperatorFromIndex(int32 OperatorIndex) = 0;
 
-	virtual void StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) = 0;
-	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) = 0;
-	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) = 0;
 	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk) = 0;
 	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk, int32 TangentCodeChunk) = 0;
-	virtual uint8 StrataCompilationInfoGetSharedLocalBasesCount() = 0;
 	FString GetStrataSharedLocalBasisIndexMacro(const FStrataRegisteredSharedLocalBasis& SharedLocalBasis)
 	{
 		return FString::Printf(TEXT("SHAREDLOCALBASIS_INDEX_%u"), SharedLocalBasis.GraphSharedLocalBasisIndex);
@@ -1169,11 +1211,6 @@ public:
 		return Compiler->StrataMetalnessToDiffuseAlbedoF0(BaseColor, Specular, Metallic, OutputIndex);
 	}
 
-	virtual void StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) override
-	{
-		Compiler->StrataCompilationInfoRegisterCodeChunk(CodeChunk, StrataMaterialCompilationInfo);
-	}
-
 	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, UMaterialExpression* Expression, UMaterialExpression* Parent, bool bUseParameterBlending = false) override
 	{
 		return Compiler->StrataCompilationRegisterOperator(OperatorType, Expression, Parent, bUseParameterBlending);
@@ -1184,10 +1221,11 @@ public:
 		return Compiler->StrataCompilationGetOperator(Expression);
 	}
 
-	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) override
+	virtual FStrataOperator* StrataCompilationGetOperatorFromIndex(int32 OperatorIndex) override
 	{
-		return Compiler->StrataCompilationInfoContainsCodeChunk(CodeChunk);
+		return Compiler->StrataCompilationGetOperatorFromIndex(OperatorIndex);
 	}
+
 
 	virtual int32 StrataAddParameterBlendingBSDFCoverageToNormalMixCodeChunk(int32 ACodeChunk, int32 BCodeChunk) override
 	{
@@ -1203,11 +1241,6 @@ public:
 	{
 		return Compiler->StrataHorizontalMixingParameterBlendingBSDFCoverageToNormalMixCodeChunk(BackgroundCodeChunk, ForegroundCodeChunk, HorizontalMixCodeChunk);
 	}
-	
-	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) override
-	{
-		return Compiler->GetStrataCompilationInfo(CodeChunk);
-	}
 
 	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk) override
 	{
@@ -1217,11 +1250,6 @@ public:
 	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk, int32 TangentCodeChunk) override
 	{
 		return Compiler->StrataCompilationInfoRegisterSharedLocalBasis(NormalCodeChunk, TangentCodeChunk);
-	}
-
-	virtual uint8 StrataCompilationInfoGetSharedLocalBasesCount() override
-	{
-		return Compiler->StrataCompilationInfoGetSharedLocalBasesCount();
 	}
 
 protected:

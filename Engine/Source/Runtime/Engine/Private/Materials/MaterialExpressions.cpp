@@ -20746,85 +20746,44 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 		ClearCoat_TangentCodeChunk,
 		ClearCoat_BasisIndexMacro);
 
-	// In case we don't know in advance what the conversion output looks like, we setup the info for the wost case (clear coat / eye)
-	auto AddDefaultWorstCase = [Compiler, OutputCodeChunk, &NewRegisteredSharedLocalBasis, &ClearCoat_NewRegisteredSharedLocalBasis](bool bSSS)
-	{
-		// Worst case for ClearCoat / Eye
-		FStrataMaterialCompilationInfo StrataInfo;
-		StrataInfo.LayerCount = 2;
-		StrataInfo.TotalBSDFCount = 2;
+	// Now update the local shared basis
 
-		StrataInfo.Layers[0].BSDFCount = 1;
-		StrataInfo.Layers[0].BSDFs[0].Type = STRATA_BSDF_TYPE_SLAB;
-		StrataInfo.Layers[0].BSDFs[0].RegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
-		StrataInfo.Layers[0].BSDFs[0].bHasSSS = bSSS;
-		StrataInfo.Layers[0].BSDFs[0].bHasMFPPluggedIn = true;
-		StrataInfo.Layers[0].BSDFs[0].bHasEdgeColor = false;
-		StrataInfo.Layers[0].BSDFs[0].bHasThinFilm = false;
-		StrataInfo.Layers[0].BSDFs[0].bHasFuzz = false;
-		StrataInfo.Layers[0].BSDFs[0].bHasHaziness = false;
-
-		StrataInfo.Layers[1].BSDFCount = 1;
-		StrataInfo.Layers[1].BSDFs[0].Type = STRATA_BSDF_TYPE_SLAB;
-		StrataInfo.Layers[1].BSDFs[0].RegisteredSharedLocalBasis = ClearCoat_NewRegisteredSharedLocalBasis;
-		StrataInfo.Layers[1].BSDFs[0].bHasSSS = bSSS;
-		StrataInfo.Layers[1].BSDFs[0].bHasMFPPluggedIn = false;
-		StrataInfo.Layers[1].BSDFs[0].bHasEdgeColor = false;
-		StrataInfo.Layers[1].BSDFs[0].bHasThinFilm = false;
-		StrataInfo.Layers[1].BSDFs[0].bHasFuzz = true;
-		StrataInfo.Layers[1].BSDFs[0].bHasHaziness = false;
-
-		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
-	};
-
-	// Fill in Strata layer info
+	// The legacy node can only be added once and we know the worst shape it can take so we hard code it here, 
+	// with fake addresses for BSDF defined in shader code.
+	UMaterialExpression* ChildTopExpression = reinterpret_cast<UMaterialExpression*>(1);
+	UMaterialExpression* ChildBottomExpression = reinterpret_cast<UMaterialExpression*>(2);
 	if (ConvertedStrataMaterialInfo.CountShadingModels() > 1 || ConvertedStrataMaterialInfo.HasShadingModelFromExpression())
 	{
-		AddDefaultWorstCase(true);
+		Compiler->StrataCompilationGetOperator(ChildTopExpression).BSDFRegisteredSharedLocalBasis = ClearCoat_NewRegisteredSharedLocalBasis;
+		Compiler->StrataCompilationGetOperator(ChildBottomExpression).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
 	}
 	else
 	{
 		check(ConvertedStrataMaterialInfo.CountShadingModels() == 1);
 
-		if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Unlit)) 
-		{ 
-			StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis,
-				STRATA_BSDF_TYPE_UNLIT, 
-				false /*bHasSSS*/, 
-				false /*bHasMFPPluggedIn*/, 
-				false /*bHasEdgeColor*/, 
-				false /*bHasFuzz*/, 
-				false /*bHasHaziness*/);
+		if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Unlit))
+		{
+			Compiler->StrataCompilationGetOperator(this).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
 		}
 		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_DefaultLit))
 		{
-			AddDefaultWorstCase(false);
+			Compiler->StrataCompilationGetOperator(ChildTopExpression).BSDFRegisteredSharedLocalBasis = ClearCoat_NewRegisteredSharedLocalBasis;
+			Compiler->StrataCompilationGetOperator(ChildBottomExpression).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
 		}
 		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_SubsurfaceLit))
 		{
-			AddDefaultWorstCase(true);
+			Compiler->StrataCompilationGetOperator(ChildTopExpression).BSDFRegisteredSharedLocalBasis = ClearCoat_NewRegisteredSharedLocalBasis;
+			Compiler->StrataCompilationGetOperator(ChildBottomExpression).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
 		}
 		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Hair))
 		{
-			StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis,
-				STRATA_BSDF_TYPE_HAIR,
-				false /*bHasSSS*/,
-				false /*bHasMFPPluggedIn*/,
-				false /*bHasEdgeColor*/,
-				false /*bHasFuzz*/,
-				false /*bHasHaziness*/);
+			Compiler->StrataCompilationGetOperator(this).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
 		}
 		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_SingleLayerWater))
 		{
-			StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis,
-				STRATA_BSDF_TYPE_SINGLELAYERWATER,
-				false /*bHasSSS*/,
-				false /*bHasMFPPluggedIn*/,
-				false /*bHasEdgeColor*/,
-				false /*bHasFuzz*/,
-				false /*bHasHaziness*/);
+			Compiler->StrataCompilationGetOperator(this).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
 		}
-	}	
+	}
 
 	return OutputCodeChunk;
 }
@@ -20967,17 +20926,72 @@ void UMaterialExpressionStrataLegacyConversion::GatherStrataMaterialInfo(FStrata
 
 FStrataOperator* UMaterialExpressionStrataLegacyConversion::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
 {
-	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_VERTICAL, this, Parent);
-
 	// The legacy node can only be added once and we know the worst shape it can take so we hard code it here, 
 	// with fake addresses for BSDF defined in shader code.
-	UMaterialExpression* ChildAExpression = reinterpret_cast<UMaterialExpression*>(0);
-	UMaterialExpression* ChildBExpression = reinterpret_cast<UMaterialExpression*>(1);
+	UMaterialExpression* ChildTopExpression = reinterpret_cast<UMaterialExpression*>(1);
+	UMaterialExpression* ChildBottomExpression = reinterpret_cast<UMaterialExpression*>(2);
 
-	AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, &Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, ChildAExpression, this));
-	AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, &Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, ChildBExpression, this));
+	auto AddDefaultWorstCase = [&](bool bSSS)
+	{
+		FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_VERTICAL, this, Parent);
 
-	return &StrataOperator;
+		FStrataOperator& TopOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, ChildTopExpression, this);
+		TopOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
+		TopOperator.bBSDFHasSSS = false;
+		TopOperator.bBSDFHasMFPPluggedIn = true;
+		TopOperator.bBSDFHasFuzz = true;
+		FStrataOperator& BottomOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, ChildBottomExpression, this);
+		BottomOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
+		BottomOperator.bBSDFHasSSS = true;
+		BottomOperator.bBSDFHasMFPPluggedIn = true;
+		TopOperator.bBSDFHasFuzz = false;
+
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, &TopOperator);
+		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, &BottomOperator);
+
+		return &StrataOperator;
+	};
+
+	// Logic about shading models and complexity should match UMaterialExpressionStrataLegacyConversion::Compile.
+	if (ConvertedStrataMaterialInfo.CountShadingModels() > 1 || ConvertedStrataMaterialInfo.HasShadingModelFromExpression())
+	{
+		return AddDefaultWorstCase(true);
+	}
+	// else
+	{
+		check(ConvertedStrataMaterialInfo.CountShadingModels() == 1);
+
+		if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Unlit))
+		{
+			FStrataOperator& Operator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, this, Parent);
+			Operator.BSDFType = STRATA_BSDF_TYPE_UNLIT;
+			return &Operator;
+		}
+		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_DefaultLit))
+		{
+			return AddDefaultWorstCase(false);
+		}
+		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_SubsurfaceLit))
+		{
+			return AddDefaultWorstCase(true);
+		}
+		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Hair))
+		{
+			FStrataOperator& Operator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, this, Parent);
+			Operator.BSDFType = STRATA_BSDF_TYPE_HAIR;
+			return &Operator;
+		}
+		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_SingleLayerWater))
+		{
+			FStrataOperator& Operator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, this, Parent);
+			Operator.BSDFType = STRATA_BSDF_TYPE_SINGLELAYERWATER;
+			return &Operator;
+		}
+
+		check(false);
+		static FStrataOperator DefaultOperatorOnError;
+		return &DefaultOperatorOnError;
+	}
 }
 
 bool UMaterialExpressionStrataLegacyConversion::HasSSS() const
@@ -21057,6 +21071,12 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	const float DefaultF0 = DielectricSpecularToF0(DefaultSpecular);
 
 	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
+	StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
+	StrataOperator.bBSDFHasEdgeColor = bHasEdgeColor;
+	StrataOperator.bBSDFHasFuzz = bHasFuzz;
+	StrataOperator.bBSDFHasHaziness = bHasHaziness;
+	StrataOperator.bBSDFHasSSS = bHasSSS;
+	StrataOperator.bBSDFHasMFPPluggedIn = bHasMFPPluggedIn;
 
 	int32 OutputCodeChunk = Compiler->StrataSlabBSDF(
 		bUseMetalness ? Compiler->Constant(1.0f) : Compiler->Constant(0.0f),
@@ -21086,7 +21106,6 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		TangentCodeChunk,
 		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis),
 		!StrataOperator.bUseParameterBlending || (StrataOperator.bUseParameterBlending && StrataOperator.bRootOfParameterBlendingSubTree) ? &StrataOperator : nullptr);
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis, STRATA_BSDF_TYPE_SLAB, bHasSSS, bHasMFPPluggedIn, bHasEdgeColor, bHasFuzz, bHasHaziness);
 
 	return OutputCodeChunk;
 }
@@ -21493,7 +21512,9 @@ void UMaterialExpressionStrataSlabBSDF::GatherStrataMaterialInfo(FStrataMaterial
 
 FStrataOperator* UMaterialExpressionStrataSlabBSDF::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
 {
-	return &Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	StrataOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
+	return &StrataOperator;
 }
 
 bool UMaterialExpressionStrataSlabBSDF::HasSSS() const
@@ -21557,8 +21578,6 @@ int32 UMaterialExpressionStrataVolumetricFogCloudBSDF::Compile(class FMaterialCo
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, AmbientOcclusion, 1.0f));
 
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, StrataCompilationInfoCreateNullSharedLocalBasis(), STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD);
-
 	return OutputCodeChunk;
 }
 
@@ -21606,7 +21625,9 @@ void UMaterialExpressionStrataVolumetricFogCloudBSDF::GatherStrataMaterialInfo(F
 
 FStrataOperator* UMaterialExpressionStrataVolumetricFogCloudBSDF::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
 {
-	return &Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	StrataOperator.BSDFType = STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD;
+	return &StrataOperator;
 }
 #endif // WITH_EDITOR
 
@@ -21632,8 +21653,6 @@ int32 UMaterialExpressionStrataLightFunction::Compile(class FMaterialCompiler* C
 	int32 OutputCodeChunk = Compiler->StrataUnlitBSDF(
 		CompileWithDefaultFloat3(Compiler, Color, 0.0f, 0.0f, 0.0f),
 		Compiler->Constant(1.0f));	// Opacity / Transmittance is ignored by light functions.
-
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, StrataCompilationInfoCreateNullSharedLocalBasis(), STRATA_BSDF_TYPE_UNLIT);
 
 	return OutputCodeChunk;
 }
@@ -21673,7 +21692,9 @@ void UMaterialExpressionStrataLightFunction::GatherStrataMaterialInfo(FStrataMat
 
 FStrataOperator* UMaterialExpressionStrataLightFunction::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
 {
-	return &Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	StrataOperator.BSDFType = STRATA_BSDF_TYPE_UNLIT;
+	return &StrataOperator;
 }
 #endif // WITH_EDITOR
 
@@ -21702,8 +21723,6 @@ int32 UMaterialExpressionStrataPostProcess::Compile(class FMaterialCompiler* Com
 	int32 OutputCodeChunk = Compiler->StrataUnlitBSDF(
 		CompileWithDefaultFloat3(Compiler, Color, 0.0f, 0.0f, 0.0f),
 		TransmittanceCodeChunk);
-
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, StrataCompilationInfoCreateNullSharedLocalBasis(), STRATA_BSDF_TYPE_UNLIT);
 
 	return OutputCodeChunk;
 }
@@ -21746,7 +21765,9 @@ void UMaterialExpressionStrataPostProcess::GatherStrataMaterialInfo(FStrataMater
 
 FStrataOperator* UMaterialExpressionStrataPostProcess::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
 {
-	return &Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	StrataOperator.BSDFType = STRATA_BSDF_TYPE_UNLIT;
+	return &StrataOperator;
 }
 #endif // WITH_EDITOR
 
@@ -21794,10 +21815,6 @@ int32 UMaterialExpressionStrataConvertToDecal::Compile(class FMaterialCompiler* 
 		OutputCodeChunk = Compiler->StrataWeightParameterBlending(
 			DecalMaterialCodeChunk, WeightOfOneCodeChunk,
 			StrataOperator.bRootOfParameterBlendingSubTree ? &StrataOperator : nullptr);
-
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoWeightParamBlend(Compiler, Compiler->GetStrataCompilationInfo(DecalMaterialCodeChunk));
-
-		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
 	}
 	return OutputCodeChunk;
 }
@@ -21868,8 +21885,6 @@ int32 UMaterialExpressionStrataUnlitBSDF::Compile(class FMaterialCompiler* Compi
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat3(Compiler, TransmittanceColor, 1.0f, 1.0f, 1.0f));
 
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, StrataCompilationInfoCreateNullSharedLocalBasis(), STRATA_BSDF_TYPE_UNLIT);
-
 	return OutputCodeChunk;
 }
 
@@ -21912,7 +21927,9 @@ void UMaterialExpressionStrataUnlitBSDF::GatherStrataMaterialInfo(FStrataMateria
 
 FStrataOperator* UMaterialExpressionStrataUnlitBSDF::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
 {
-	return &Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	StrataOperator.BSDFType = STRATA_BSDF_TYPE_UNLIT;
+	return &StrataOperator;
 }
 #endif // WITH_EDITOR
 
@@ -21948,8 +21965,6 @@ int32 UMaterialExpressionStrataHairBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat3(Compiler, EmissiveColor,1.0f, 0.0f, 0.0f),
 		TangentCodeChunk,
 		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis));
-
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis, STRATA_BSDF_TYPE_HAIR);
 
 	return OutputCodeChunk;
 }
@@ -22014,7 +22029,9 @@ void UMaterialExpressionStrataHairBSDF::GatherStrataMaterialInfo(FStrataMaterial
 
 FStrataOperator* UMaterialExpressionStrataHairBSDF::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
 {
-	return &Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	StrataOperator.BSDFType = STRATA_BSDF_TYPE_HAIR;
+	return &StrataOperator;
 }
 #endif // WITH_EDITOR
 
@@ -22053,8 +22070,6 @@ int32 UMaterialExpressionStrataSingleLayerWaterBSDF::Compile(class FMaterialComp
 		CompileWithDefaultFloat3(Compiler, ColorScaleBehindWater, 1.0f, 1.0f, 1.0f),
 		NormalCodeChunk,
 		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis));
-
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis, STRATA_BSDF_TYPE_SINGLELAYERWATER);
 
 	return OutputCodeChunk;
 }
@@ -22132,7 +22147,9 @@ void UMaterialExpressionStrataSingleLayerWaterBSDF::GatherStrataMaterialInfo(FSt
 
 FStrataOperator* UMaterialExpressionStrataSingleLayerWaterBSDF::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
 {
-	return &Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	StrataOperator.BSDFType = STRATA_BSDF_TYPE_SINGLELAYERWATER;
+	return &StrataOperator;
 }
 #endif // WITH_EDITOR
 
@@ -22167,12 +22184,6 @@ int32 UMaterialExpressionStrataHorizontalMixing::Compile(class FMaterialCompiler
 
 	int32 ForegroundCodeChunk = Foreground.Compile(Compiler);
 	int32 BackgroundCodeChunk = Background.Compile(Compiler);
-	if (!Compiler->StrataCompilationInfoContainsCodeChunk(ForegroundCodeChunk) || !Compiler->StrataCompilationInfoContainsCodeChunk(BackgroundCodeChunk))
-	{
-		return Compiler->Errorf(TEXT("Could not find ForegroundCodeChunk or BackgroundCodeChunk to mix"));
-	}
-	const FStrataMaterialCompilationInfo& ForegroundStrataData = Compiler->GetStrataCompilationInfo(ForegroundCodeChunk);
-	const FStrataMaterialCompilationInfo& BackgroundStrataData = Compiler->GetStrataCompilationInfo(BackgroundCodeChunk);
 
 	const int32 HorizontalMixCodeChunk = CompileWithDefaultFloat1(Compiler, Mix, 0.5f);
 
@@ -22183,41 +22194,28 @@ int32 UMaterialExpressionStrataHorizontalMixing::Compile(class FMaterialCompiler
 	{
 		const int32 NormalMixCodeChunk = Compiler->StrataHorizontalMixingParameterBlendingBSDFCoverageToNormalMixCodeChunk(BackgroundCodeChunk, ForegroundCodeChunk, HorizontalMixCodeChunk);
 
-		if (ForegroundStrataData.TotalBSDFCount != 1)
+		FStrataOperator* BackgroundBSDFOperator = Compiler->StrataCompilationGetOperatorFromIndex(StrataOperator.LeftIndex);
+		FStrataOperator* ForegroundBSDFOperator = Compiler->StrataCompilationGetOperatorFromIndex(StrataOperator.RightIndex);
+		if (!BackgroundBSDFOperator || !ForegroundBSDFOperator)
 		{
-			return Compiler->Errorf(TEXT("Foreground: cannot parameter horizontal blend complex material topology using parameter blending. Only a one-to-one blending is supported today."));
-		}
-		if (BackgroundStrataData.TotalBSDFCount != 1)
-		{
-			return Compiler->Errorf(TEXT("Background: cannot parameter horizontal blend complex material topology using parameter blending. Only a one-to-one blending is supported today."));
-		}
-
-		const FStrataMaterialCompilationInfo::FBSDF& ForegroundBSDF = ForegroundStrataData.Layers[0].BSDFs[0];
-		const FStrataMaterialCompilationInfo::FBSDF& BackgroundBSDF = BackgroundStrataData.Layers[0].BSDFs[0];
-		if (ForegroundBSDF.Type != STRATA_BSDF_TYPE_SLAB)
-		{
-			return Compiler->Errorf(TEXT("Foreground: we can only apply parameter blending to Slab BSDF."));
-		}
-		if (BackgroundBSDF.Type != STRATA_BSDF_TYPE_SLAB)
-		{
-			return Compiler->Errorf(TEXT("Background: we can only apply parameter blending to Slab BSDF."));
+			return Compiler->Errorf(TEXT("Missing input on horizontal blending node."));
 		}
 
 		// Compute the new Normal and Tangent resulting from the blending using code chunk
-		const int32 NewNormalCodeChunk = StrataBlendNormal(Compiler, BackgroundBSDF.RegisteredSharedLocalBasis.NormalCodeChunk, ForegroundBSDF.RegisteredSharedLocalBasis.NormalCodeChunk, NormalMixCodeChunk);
+		const int32 NewNormalCodeChunk = StrataBlendNormal(Compiler, BackgroundBSDFOperator->BSDFRegisteredSharedLocalBasis.NormalCodeChunk, ForegroundBSDFOperator->BSDFRegisteredSharedLocalBasis.NormalCodeChunk, NormalMixCodeChunk);
 		// The tangent is optional so we treat it differently if INDEX_NONE is specified
 		int32 NewTangentCodeChunk = INDEX_NONE;
-		if (ForegroundBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE && BackgroundBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
+		if (ForegroundBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE && BackgroundBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
 		{
-			NewTangentCodeChunk = StrataBlendNormal(Compiler, BackgroundBSDF.RegisteredSharedLocalBasis.TangentCodeChunk, ForegroundBSDF.RegisteredSharedLocalBasis.TangentCodeChunk, NormalMixCodeChunk);
+			NewTangentCodeChunk = StrataBlendNormal(Compiler, BackgroundBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk, ForegroundBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk, NormalMixCodeChunk);
 		}
-		else if (ForegroundBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
+		else if (ForegroundBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
 		{
-			NewTangentCodeChunk = ForegroundBSDF.RegisteredSharedLocalBasis.TangentCodeChunk;
+			NewTangentCodeChunk = ForegroundBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk;
 		}
-		else if (BackgroundBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
+		else if (BackgroundBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
 		{
-			NewTangentCodeChunk = BackgroundBSDF.RegisteredSharedLocalBasis.TangentCodeChunk;
+			NewTangentCodeChunk = BackgroundBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk;
 		}
 		const FStrataRegisteredSharedLocalBasis NewRegisteredSharedLocalBasis = StrataCompilationInfoCreateSharedLocalBasis(Compiler, NewNormalCodeChunk, NewTangentCodeChunk);
 
@@ -22225,10 +22223,9 @@ int32 UMaterialExpressionStrataHorizontalMixing::Compile(class FMaterialCompiler
 			BackgroundCodeChunk, ForegroundCodeChunk, HorizontalMixCodeChunk, NormalMixCodeChunk, Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis),
 			StrataOperator.bRootOfParameterBlendingSubTree ? &StrataOperator : nullptr);
 
-		StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis, STRATA_BSDF_TYPE_SLAB);
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoHorizontalMixingParamBlend(Compiler, BackgroundStrataData, ForegroundStrataData, NewRegisteredSharedLocalBasis);
-
-		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
+		// Propagate the parameter blended normal
+		StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
+		StrataOperator.CombineFlagsForParameterBlending(*BackgroundBSDFOperator, *ForegroundBSDFOperator);
 	}
 	else
 	{
@@ -22238,10 +22235,6 @@ int32 UMaterialExpressionStrataHorizontalMixing::Compile(class FMaterialCompiler
 			HorizontalMixCodeChunk,
 			StrataOperator.Index,
 			StrataOperator.MaxDistanceFromLeaves);
-
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoHorizontalMixing(Compiler, BackgroundStrataData, ForegroundStrataData);
-
-		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
 	}
 
 	return OutputCodeChunk;
@@ -22336,12 +22329,6 @@ int32 UMaterialExpressionStrataVerticalLayering::Compile(class FMaterialCompiler
 
 	int32 TopCodeChunk = Top.Compile(Compiler);
 	int32 BaseCodeChunk = Base.Compile(Compiler);
-	if (!Compiler->StrataCompilationInfoContainsCodeChunk(TopCodeChunk) || !Compiler->StrataCompilationInfoContainsCodeChunk(BaseCodeChunk))
-	{
-		return Compiler->Errorf(TEXT("Could not find Top CodeChunk or BaseCodeChunk to VerticalLayer"));
-	}
-	const FStrataMaterialCompilationInfo& TopStrataData = Compiler->GetStrataCompilationInfo(TopCodeChunk);
-	const FStrataMaterialCompilationInfo& BaseStrataData = Compiler->GetStrataCompilationInfo(BaseCodeChunk);
 
 	const int32 TopNormalMixCodeChunk = Compiler->StrataVerticalLayeringParameterBlendingBSDFCoverageToNormalMixCodeChunk(TopCodeChunk);
 
@@ -22349,60 +22336,42 @@ int32 UMaterialExpressionStrataVerticalLayering::Compile(class FMaterialCompiler
 	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
 	if (StrataOperator.bUseParameterBlending)
 	{
-		if (TopStrataData.TotalBSDFCount != 1)
+		FStrataOperator* TopBSDFOperator = Compiler->StrataCompilationGetOperatorFromIndex(StrataOperator.LeftIndex);
+		FStrataOperator* BaseBSDFOperator = Compiler->StrataCompilationGetOperatorFromIndex(StrataOperator.RightIndex);
+		if (!TopBSDFOperator || !BaseBSDFOperator)
 		{
-			return Compiler->Errorf(TEXT("Top input: cannot vertical layer complex material topology using parameter blending. Only a one-to-one blending is supported today."));
-		}
-		if (BaseStrataData.TotalBSDFCount != 1)
-		{
-			return Compiler->Errorf(TEXT("Base input: cannot vertical layer complex material topology using parameter blending. Only a one-to-one blending is supported today."));
-		}
-
-		const FStrataMaterialCompilationInfo::FBSDF& TopBSDF = TopStrataData.Layers[0].BSDFs[0];
-		const FStrataMaterialCompilationInfo::FBSDF& BaseBSDF = BaseStrataData.Layers[0].BSDFs[0];
-		if (TopBSDF.Type != STRATA_BSDF_TYPE_SLAB)
-		{
-			return Compiler->Errorf(TEXT("Top input: we can only apply parameter blending to Slab BSDF."));
-		}
-		if (BaseBSDF.Type != STRATA_BSDF_TYPE_SLAB)
-		{
-			return Compiler->Errorf(TEXT("Base input: we can only apply parameter blending to Slab BSDF."));
+			return Compiler->Errorf(TEXT("Missing input on vertical layering node."));
 		}
 
 		// Compute the new Normal and Tangent resulting from the blending using code chunk
-		const int32 NewNormalCodeChunk = StrataBlendNormal(Compiler, BaseBSDF.RegisteredSharedLocalBasis.NormalCodeChunk, TopBSDF.RegisteredSharedLocalBasis.NormalCodeChunk, TopNormalMixCodeChunk);
+		const int32 NewNormalCodeChunk = StrataBlendNormal(Compiler, BaseBSDFOperator->BSDFRegisteredSharedLocalBasis.NormalCodeChunk, TopBSDFOperator->BSDFRegisteredSharedLocalBasis.NormalCodeChunk, TopNormalMixCodeChunk);
 		// The tangent is optional so we treat it differently if INDEX_NONE is specified
 		int32 NewTangentCodeChunk = INDEX_NONE;
-		if (TopBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE && BaseBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
+		if (TopBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE && BaseBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
 		{
-			NewTangentCodeChunk = StrataBlendNormal(Compiler, BaseBSDF.RegisteredSharedLocalBasis.TangentCodeChunk, TopBSDF.RegisteredSharedLocalBasis.TangentCodeChunk, TopNormalMixCodeChunk);
+			NewTangentCodeChunk = StrataBlendNormal(Compiler, BaseBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk, TopBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk, TopNormalMixCodeChunk);
 		}
-		else if (TopBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
+		else if (TopBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
 		{
-			NewTangentCodeChunk = TopBSDF.RegisteredSharedLocalBasis.TangentCodeChunk;
+			NewTangentCodeChunk = TopBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk;
 		}
-		else if (BaseBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
+		else if (BaseBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
 		{
-			NewTangentCodeChunk = BaseBSDF.RegisteredSharedLocalBasis.TangentCodeChunk;
+			NewTangentCodeChunk = BaseBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk;
 		}
 		const FStrataRegisteredSharedLocalBasis NewRegisteredSharedLocalBasis = StrataCompilationInfoCreateSharedLocalBasis(Compiler, NewNormalCodeChunk, NewTangentCodeChunk);
 
 		OutputCodeChunk = Compiler->StrataVerticalLayeringParameterBlending(
-			TopCodeChunk, BaseCodeChunk, Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis), TopBSDF.RegisteredSharedLocalBasis.NormalCodeChunk,
+			TopCodeChunk, BaseCodeChunk, Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis), TopBSDFOperator->BSDFRegisteredSharedLocalBasis.NormalCodeChunk,
 			StrataOperator.bRootOfParameterBlendingSubTree ? &StrataOperator : nullptr);
 
-		StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis, STRATA_BSDF_TYPE_SLAB);
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoVerticalLayeringParamBlend(Compiler, TopStrataData, BaseStrataData, NewRegisteredSharedLocalBasis);
-
-		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
+		// Propagate the parameter blended normal
+		StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
+		StrataOperator.CombineFlagsForParameterBlending(*TopBSDFOperator, *BaseBSDFOperator);
 	}
 	else
 	{
 		OutputCodeChunk = Compiler->StrataVerticalLayering(TopCodeChunk, BaseCodeChunk, StrataOperator.Index, StrataOperator.MaxDistanceFromLeaves);
-
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoVerticalLayering(Compiler, Compiler->GetStrataCompilationInfo(TopCodeChunk), Compiler->GetStrataCompilationInfo(BaseCodeChunk));
-
-		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
 	}
 
 
@@ -22498,12 +22467,6 @@ int32 UMaterialExpressionStrataAdd::Compile(class FMaterialCompiler* Compiler, i
 
 	int32 ACodeChunk = A.Compile(Compiler);
 	int32 BCodeChunk = B.Compile(Compiler);
-	if (!Compiler->StrataCompilationInfoContainsCodeChunk(ACodeChunk) || !Compiler->StrataCompilationInfoContainsCodeChunk(BCodeChunk))
-	{
-		return Compiler->Errorf(TEXT("Could not find ACodeChunk or BCodeChunk to add"));
-	}
-	const FStrataMaterialCompilationInfo& AStrataData = Compiler->GetStrataCompilationInfo(ACodeChunk);
-	const FStrataMaterialCompilationInfo& BStrataData = Compiler->GetStrataCompilationInfo(BCodeChunk);
 
 	const int32 ANormalMixCodeChunk = Compiler->StrataAddParameterBlendingBSDFCoverageToNormalMixCodeChunk(ACodeChunk, BCodeChunk);
 
@@ -22511,41 +22474,28 @@ int32 UMaterialExpressionStrataAdd::Compile(class FMaterialCompiler* Compiler, i
 	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
 	if (StrataOperator.bUseParameterBlending)
 	{
-		if (AStrataData.TotalBSDFCount != 1)
+		FStrataOperator* ABSDFOperator = Compiler->StrataCompilationGetOperatorFromIndex(StrataOperator.LeftIndex);
+		FStrataOperator* BBSDFOperator = Compiler->StrataCompilationGetOperatorFromIndex(StrataOperator.RightIndex);
+		if (!ABSDFOperator || !BBSDFOperator)
 		{
-			return Compiler->Errorf(TEXT("A input: cannot add complex material topology using parameter blending. Only a one-to-one blending is supported today."));
-		}
-		if (BStrataData.TotalBSDFCount != 1)
-		{
-			return Compiler->Errorf(TEXT("B input: cannot add complex material topology using parameter blending. Only a one-to-one blending is supported today."));
-		}
-
-		const FStrataMaterialCompilationInfo::FBSDF& ABSDF = AStrataData.Layers[0].BSDFs[0];
-		const FStrataMaterialCompilationInfo::FBSDF& BBSDF = BStrataData.Layers[0].BSDFs[0];
-		if (ABSDF.Type != STRATA_BSDF_TYPE_SLAB)
-		{
-			return Compiler->Errorf(TEXT("A input: we can only apply parameter blending to Slab BSDF."));
-		}
-		if (BBSDF.Type != STRATA_BSDF_TYPE_SLAB)
-		{
-			return Compiler->Errorf(TEXT("B input: we can only apply parameter blending to Slab BSDF."));
+			return Compiler->Errorf(TEXT("Missing input on add node."));
 		}
 
 		// Compute the new Normal and Tangent resulting from the blending using code chunk
-		const int32 NewNormalCodeChunk = StrataBlendNormal(Compiler, BBSDF.RegisteredSharedLocalBasis.NormalCodeChunk, ABSDF.RegisteredSharedLocalBasis.NormalCodeChunk, ANormalMixCodeChunk);
+		const int32 NewNormalCodeChunk = StrataBlendNormal(Compiler, BBSDFOperator->BSDFRegisteredSharedLocalBasis.NormalCodeChunk, ABSDFOperator->BSDFRegisteredSharedLocalBasis.NormalCodeChunk, ANormalMixCodeChunk);
 		// The tangent is optional so we treat it differently if INDEX_NONE is specified
 		int32 NewTangentCodeChunk = INDEX_NONE;
-		if (ABSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE && BBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
+		if (ABSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE && BBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
 		{
-			NewTangentCodeChunk = StrataBlendNormal(Compiler, BBSDF.RegisteredSharedLocalBasis.TangentCodeChunk, ABSDF.RegisteredSharedLocalBasis.TangentCodeChunk, ANormalMixCodeChunk);
+			NewTangentCodeChunk = StrataBlendNormal(Compiler, BBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk, ABSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk, ANormalMixCodeChunk);
 		}
-		else if (ABSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
+		else if (ABSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
 		{
-			NewTangentCodeChunk = ABSDF.RegisteredSharedLocalBasis.TangentCodeChunk;
+			NewTangentCodeChunk = ABSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk;
 		}
-		else if (BBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
+		else if (BBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
 		{
-			NewTangentCodeChunk = BBSDF.RegisteredSharedLocalBasis.TangentCodeChunk;
+			NewTangentCodeChunk = BBSDFOperator->BSDFRegisteredSharedLocalBasis.TangentCodeChunk;
 		}
 		const FStrataRegisteredSharedLocalBasis NewRegisteredSharedLocalBasis = StrataCompilationInfoCreateSharedLocalBasis(Compiler, NewNormalCodeChunk, NewTangentCodeChunk);
 
@@ -22553,18 +22503,13 @@ int32 UMaterialExpressionStrataAdd::Compile(class FMaterialCompiler* Compiler, i
 			ACodeChunk, BCodeChunk, ANormalMixCodeChunk, Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis),
 			StrataOperator.bRootOfParameterBlendingSubTree ? &StrataOperator : nullptr);
 
-		StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis, STRATA_BSDF_TYPE_SLAB);
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoAddParamBlend(Compiler, AStrataData, BStrataData, NewRegisteredSharedLocalBasis);
-
-		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
+		// Propagate the parameter blended normal
+		StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
+		StrataOperator.CombineFlagsForParameterBlending(*ABSDFOperator, *BBSDFOperator);
 	}
 	else
 	{
 		OutputCodeChunk = Compiler->StrataAdd(ACodeChunk, BCodeChunk, StrataOperator.Index, StrataOperator.MaxDistanceFromLeaves);
-
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoAdd(Compiler, Compiler->GetStrataCompilationInfo(ACodeChunk), Compiler->GetStrataCompilationInfo(BCodeChunk));
-
-		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
 	}
 
 	return OutputCodeChunk;
@@ -22659,24 +22604,22 @@ int32 UMaterialExpressionStrataWeight::Compile(class FMaterialCompiler* Compiler
 	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
 	if (StrataOperator.bUseParameterBlending)
 	{
+		// Propagate the parameter blended normal
+		FStrataOperator* Operator = Compiler->StrataCompilationGetOperatorFromIndex(StrataOperator.LeftIndex);
+		if (!Operator)
+		{
+			return Compiler->Errorf(TEXT("Missing input on weight node."));
+		}
+		StrataOperator.BSDFRegisteredSharedLocalBasis = Operator->BSDFRegisteredSharedLocalBasis;
+		StrataOperator.CopyFlagsForParameterBlending(*Operator);
+
 		OutputCodeChunk = Compiler->StrataWeightParameterBlending(
 			ACodeChunk, WeightCodeChunk, 
 			StrataOperator.bRootOfParameterBlendingSubTree ? &StrataOperator : nullptr);
-
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoWeightParamBlend(Compiler, Compiler->GetStrataCompilationInfo(ACodeChunk));
-
-		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
 	}
 	else
 	{
 		OutputCodeChunk = Compiler->StrataWeight(ACodeChunk, WeightCodeChunk, StrataOperator.Index, StrataOperator.MaxDistanceFromLeaves);
-
-		if (!Compiler->StrataCompilationInfoContainsCodeChunk(ACodeChunk))
-		{
-			return Compiler->Errorf(TEXT("Could not find ACodeChunk to multiply"));
-		}
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoWeight(Compiler, Compiler->GetStrataCompilationInfo(ACodeChunk));
-		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
 	}
 
 	return OutputCodeChunk;
@@ -22760,26 +22703,21 @@ int32 UMaterialExpressionStrataThinFilm::Compile(class FMaterialCompiler* Compil
 	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
 	if (StrataOperator.bUseParameterBlending)
 	{
-		// Extra normal
-		const FStrataMaterialCompilationInfo& AStrataData = Compiler->GetStrataCompilationInfo(ACodeChunk);
-		const FStrataMaterialCompilationInfo::FBSDF& ABSDF = AStrataData.Layers[0].BSDFs[0];
-		int32 NormalCodeChunk = ABSDF.RegisteredSharedLocalBasis.NormalCodeChunk;
+		// Propagate the parameter blended normal
+		FStrataOperator* Operator = Compiler->StrataCompilationGetOperatorFromIndex(StrataOperator.LeftIndex);
+		if (!Operator)
+		{
+			return Compiler->Errorf(TEXT("Missing input on ThinFilm node."));
+		}
+		StrataOperator.BSDFRegisteredSharedLocalBasis = Operator->BSDFRegisteredSharedLocalBasis;
+		StrataOperator.CopyFlagsForParameterBlending(*Operator);
 
+		int32 NormalCodeChunk = Operator->BSDFRegisteredSharedLocalBasis.NormalCodeChunk;
 		OutputCodeChunk = Compiler->StrataThinFilmParameterBlending(ACodeChunk, ThicknessCodeChunk, IORCodeChunk, NormalCodeChunk, StrataOperator.bRootOfParameterBlendingSubTree ? &StrataOperator : nullptr);
-
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoThinFilmParamBlend(Compiler, Compiler->GetStrataCompilationInfo(ACodeChunk));
-		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
 	}
 	else
 	{
 		OutputCodeChunk = Compiler->StrataThinFilm(ACodeChunk, ThicknessCodeChunk, IORCodeChunk, StrataOperator.Index, StrataOperator.MaxDistanceFromLeaves);
-
-		if (!Compiler->StrataCompilationInfoContainsCodeChunk(ACodeChunk))
-		{
-			return Compiler->Errorf(TEXT("Could not find ACodeChunk to coat with thin-film"));
-		}
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoThinFilm(Compiler, Compiler->GetStrataCompilationInfo(ACodeChunk));
-		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
 	}
 
 	return OutputCodeChunk;
