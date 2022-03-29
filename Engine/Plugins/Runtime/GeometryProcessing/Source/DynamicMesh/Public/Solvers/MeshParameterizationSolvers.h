@@ -14,10 +14,16 @@ namespace UE
 		using namespace UE::Geometry;
 
 		/**
-		 * Create solver for Free-Boundary UV Parameterization for this mesh.
-		 * @warning Assumption is that mesh is a single connected component
+		 * Create solver for the Least Squares Conformal UV Parameterization for this mesh.
+		 * @warning Assumption is that mesh is a single connected component.
 		 */
 		TUniquePtr<UE::Solvers::IConstrainedMeshUVSolver> DYNAMICMESH_API ConstructNaturalConformalParamSolver(const FDynamicMesh3& DynamicMesh);
+	
+		/**
+		 * Create solver for the Spectral Conformal UV Parameterization for this mesh.
+		 * @warning Assumption is that mesh is a single connected component.
+		 */
+		TUniquePtr<UE::Solvers::IConstrainedMeshUVSolver> DYNAMICMESH_API ConstructSpectralConformalParamSolver(const FDynamicMesh3& DynamicMesh, bool bPreserveIrregularity);
 	}
 }
 

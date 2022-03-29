@@ -18,8 +18,10 @@ enum class ERecomputeUVsPropertiesUnwrapType
 	ExpMap = 0 UMETA(DisplayName = "ExpMap"),
 	/** Conformal UV flattening is increasingly expensive on large islands but reduces distortion */
 	Conformal = 1,
+	/** Compared to the default Conformal method does not pin two vertices along the boundary which reduces the distortion but is more expensive to compute. */
+	SpectralConformal = 2,
 	/** UV islands will be merged into larger islands if it does not increase stretching and distortion beyond defined limits */
-	IslandMerging = 2
+	IslandMerging = 3
 };
 
 
@@ -74,11 +76,15 @@ public:
 
 	/** Type of UV flattening algorithm to use */
 	UPROPERTY(EditAnywhere, Category = "UV Unwrap")
-	ERecomputeUVsPropertiesUnwrapType UnwrapType = ERecomputeUVsPropertiesUnwrapType::Conformal;
+	ERecomputeUVsPropertiesUnwrapType UnwrapType = ERecomputeUVsPropertiesUnwrapType::SpectralConformal;
 
 	/** Type of automatic rotation applied to each UV island */
 	UPROPERTY(EditAnywhere, Category = "UV Unwrap")
 	ERecomputeUVsToolOrientationMode AutoRotation = ERecomputeUVsToolOrientationMode::MinBounds;
+
+	/**  If enabled, reduces distortion for meshes with triangles of vastly different sizes, This is only enabled if the Unwrap Type is set to Spectral Conformal. */
+	UPROPERTY(EditAnywhere, Category = "UV Unwrap", meta = (EditCondition = "UnwrapType == ERecomputeUVsPropertiesUnwrapType::SpectralConformal"))
+	bool bPreserveIrregularity = true;
 
 	/** Number of smoothing steps to apply; this slightly increases distortion but produces more stable results. This is only enabled if the Unwrap Type is set to ExpMap or Island Merging. */
 	UPROPERTY(EditAnywhere, Category = "UV Unwrap", meta = (UIMin = "0", UIMax = "25", ClampMin = "0", ClampMax = "1000",

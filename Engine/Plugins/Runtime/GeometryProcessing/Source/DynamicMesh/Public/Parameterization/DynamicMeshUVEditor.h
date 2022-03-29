@@ -172,6 +172,15 @@ public:
 	bool SetTriangleUVsFromFreeBoundaryConformal(const TArray<int32>& Triangles, bool bUseExistingUVTopology, FUVEditResult* Result = nullptr);
 
 	/**
+	 * Create new UV island for given Triangles, and set UVs for that island using Spectral Conformal Map.
+	 * @param Triangles list of triangles
+	 * @param bUseExistingUVTopology if true, re-solve for existing UV set, rather than constructing per-vertex UVs from triangle set. Allows for solving w/ partial seams, interior cuts, etc. 
+	 * @param bPreserveIrregularity if true, reduces distortion for meshes with triangles of vastly different sizes.
+	 * @warning computes a single parameterization, so input triangle set must be connected, however this is not verified internally
+	 */
+	bool SetTriangleUVsFromFreeBoundarySpectralConformal(const TArray<int32>& Triangles, bool bUseExistingUVTopology, bool bPreserveIrregularity, FUVEditResult* Result = nullptr);
+
+	/**
 	 * Cut existing UV topolgy with a set of edges. This allows for creating partial seams/darts, interior cuts, etc.
 	 * 
 	 * Avoids creating bowties. In cases where an edge is not next to any present or future seams/borders, some
@@ -260,6 +269,13 @@ public:
 	* @param BoundingBox if not null, return the overall bounding box of the UVs for the specified triangles along with the exact area occupied.
 	*/
 	static double DetermineAreaFromUVs(const FDynamicMeshUVOverlay& UVOverlay, const TArray<int32>& Triangles, FAxisAlignedBox2f* BoundingBox = nullptr);
+
+private: 
+
+	/**
+	 * Helper method to solve either the Least Squares Conformal Map or the Spectral Conformal Map problems.
+	 */
+	bool SetTriangleUVsFromConformal(const TArray<int32>& Triangles, bool bUseExistingUVTopology, bool bUseSpectral, bool bPreserveIrregularity, FUVEditResult* Result);
 };
 
 

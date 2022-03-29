@@ -158,23 +158,36 @@ bool FRecomputeUVsOp::CalculateResult_Basic(FProgressCancel* Progress)
 		bComponentSolved[k] = false;
 		switch (UnwrapType)
 		{
-		case ERecomputeUVsUnwrapType::ExpMap:
-		{
-			FDynamicMeshUVEditor::FExpMapOptions Options;
-			Options.NormalSmoothingRounds = this->NormalSmoothingRounds;
-			Options.NormalSmoothingAlpha = this->NormalSmoothingAlpha;
-			bComponentSolved[k] = UVEditor.SetTriangleUVsFromExpMap(ComponentTris, Options);
-		}
-		break;
-
-		case ERecomputeUVsUnwrapType::ConformalFreeBoundary:
-			bComponentSolved[k] = UVEditor.SetTriangleUVsFromFreeBoundaryConformal(ComponentTris, bUseExisingUVTopology);
-			if (bComponentSolved[k])
+			case ERecomputeUVsUnwrapType::ExpMap:
 			{
-				UVEditor.ScaleUVAreaTo3DArea(ComponentTris, true);
+				FDynamicMeshUVEditor::FExpMapOptions Options;
+				Options.NormalSmoothingRounds = this->NormalSmoothingRounds;
+				Options.NormalSmoothingAlpha = this->NormalSmoothingAlpha;
+				bComponentSolved[k] = UVEditor.SetTriangleUVsFromExpMap(ComponentTris, Options);
+				break;
 			}
-			break;
+
+			case ERecomputeUVsUnwrapType::ConformalFreeBoundary:
+			{
+				bComponentSolved[k] = UVEditor.SetTriangleUVsFromFreeBoundaryConformal(ComponentTris, bUseExisingUVTopology);
+				if (bComponentSolved[k])
+				{
+					UVEditor.ScaleUVAreaTo3DArea(ComponentTris, true);
+				}
+				break;
+			}
+			
+			case ERecomputeUVsUnwrapType::SpectralConformal:
+			{
+				bComponentSolved[k] = UVEditor.SetTriangleUVsFromFreeBoundarySpectralConformal(ComponentTris, bUseExisingUVTopology, bPreserveIrregularity);
+				if (bComponentSolved[k])
+				{
+					UVEditor.ScaleUVAreaTo3DArea(ComponentTris, true);
+				}
+				break;
+			}
 		}
+		
 
 		if (bComponentSolved[k])
 		{
@@ -401,12 +414,18 @@ TUniquePtr<FDynamicMeshOperator> URecomputeUVsOpFactory::MakeNewOperator()
 		RecomputeUVsOp->UnwrapType = ERecomputeUVsUnwrapType::ConformalFreeBoundary;
 		RecomputeUVsOp->bMergingOptimization = false;
 		break;
+	case ERecomputeUVsPropertiesUnwrapType::SpectralConformal:
+		RecomputeUVsOp->UnwrapType = ERecomputeUVsUnwrapType::SpectralConformal;
+		RecomputeUVsOp->bMergingOptimization = false;
+		break;
 	case ERecomputeUVsPropertiesUnwrapType::IslandMerging:
 		RecomputeUVsOp->UnwrapType = ERecomputeUVsUnwrapType::ExpMap;
 		RecomputeUVsOp->bMergingOptimization = true;
 	}
 
 	RecomputeUVsOp->bAutoRotate = (Settings->AutoRotation == ERecomputeUVsToolOrientationMode::MinBounds);
+
+	RecomputeUVsOp->bPreserveIrregularity = Settings->bPreserveIrregularity;
 
 	RecomputeUVsOp->NormalSmoothingRounds = Settings->SmoothingSteps;
 	RecomputeUVsOp->NormalSmoothingAlpha = Settings->SmoothingAlpha;

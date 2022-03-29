@@ -523,7 +523,18 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromFreeBoundaryConformal(const TArray<
 {
 	return SetTriangleUVsFromFreeBoundaryConformal(Triangles, false, Result);
 }
-bool FDynamicMeshUVEditor::SetTriangleUVsFromFreeBoundaryConformal(const TArray<int32>& Triangles, bool bUseExistingUVTopology, FUVEditResult* Result)
+
+bool FDynamicMeshUVEditor::SetTriangleUVsFromFreeBoundaryConformal(const TArray<int32>& Triangles, bool bUseExistingUVTopology, FUVEditResult* Result) 
+{
+	return SetTriangleUVsFromConformal(Triangles, bUseExistingUVTopology, false, false, Result);
+}
+
+bool FDynamicMeshUVEditor::SetTriangleUVsFromFreeBoundarySpectralConformal(const TArray<int32>& Triangles, bool bUseExistingUVTopology, bool bPreserveIrregularity, FUVEditResult* Result) 
+{
+	return SetTriangleUVsFromConformal(Triangles, bUseExistingUVTopology, true, bPreserveIrregularity, Result);
+}
+
+bool FDynamicMeshUVEditor::SetTriangleUVsFromConformal(const TArray<int32>& Triangles, bool bUseExistingUVTopology, bool bUseSpectral, bool bPreserveIrregularity, FUVEditResult* Result)
 {
 	if (ensure(UVOverlay) == false) return false;
 	if (Triangles.Num() == 0) return false;
@@ -566,38 +577,59 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromFreeBoundaryConformal(const TArray<
 	}
 
 	// is there a quick check we can do to ensure that we have a single connected component?
+	
+	TUniquePtr<UE::Solvers::IConstrainedMeshUVSolver> Solver = nullptr;
 
-	// make the UV solver
-	TUniquePtr<UE::Solvers::IConstrainedMeshUVSolver> Solver = UE::MeshDeformation::ConstructNaturalConformalParamSolver(Submesh);
-
-	// find pair of vertices to constrain. The standard procedure is to find the two furthest-apart vertices on the
-	// largest boundary loop. 
 	FMeshBoundaryLoops Loops(&Submesh, true);
-	if (Loops.GetLoopCount() == 0) return false;
+	if (Loops.GetLoopCount() == 0) 
+	{ 
+		return false; 
+	}
 	const TArray<int32>& ConstrainLoop = Loops[Loops.GetLongestLoopIndex()].Vertices;
 	int32 LoopNum = ConstrainLoop.Num();
-	FIndex2i MaxDistPair = FIndex2i::Invalid();
-	double MaxDistSqr = 0;
-	for (int32 i = 0; i < LoopNum; ++i)
+
+	if (bUseSpectral) 
 	{
-		for (int32 j = i + 1; j < LoopNum; ++j)
+		Solver = UE::MeshDeformation::ConstructSpectralConformalParamSolver(Submesh, bPreserveIrregularity);
+		
+		for (int32 Idx = 0; Idx < LoopNum; ++Idx)
 		{
-			double DistSqr = DistanceSquared(Submesh.GetVertex(ConstrainLoop[i]), Submesh.GetVertex(ConstrainLoop[j]));
-			if (DistSqr > MaxDistSqr)
-			{
-				MaxDistSqr = DistSqr;
-				MaxDistPair = FIndex2i(ConstrainLoop[i], ConstrainLoop[j]);
-			}
+			// It doesnt matter what the uv values or weights are, we are only interested in the indicies of the
+			// boundary vertices.
+			Solver->AddConstraint(ConstrainLoop[Idx], 0.0, FVector2d(0.0, 0.0), false);
 		}
 	}
-	if (ensure(MaxDistPair != FIndex2i::Invalid()) == false)
+	else 
 	{
-		return false;
-	}
+		Solver = UE::MeshDeformation::ConstructNaturalConformalParamSolver(Submesh);
 
-	// pin those vertices
-	Solver->AddConstraint(MaxDistPair.A, 1.0, FVector2d(0.0, 0.5), false);
-	Solver->AddConstraint(MaxDistPair.B, 1.0, FVector2d(1.0, 0.5), false);
+		// Find a pair of vertices to constrain. The standard procedure is to find the two furthest-apart vertices 
+		// on the largest boundary loop. 
+		FIndex2i MaxDistPair = FIndex2i::Invalid();
+		double MaxDistSqr = 0;
+		for (int32 Idx = 0; Idx < LoopNum; ++Idx)
+		{
+			for (int32 NextIdx = Idx + 1; NextIdx < LoopNum; ++NextIdx)
+			{
+				const double DistSqr = DistanceSquared(Submesh.GetVertex(ConstrainLoop[Idx]), 
+													   Submesh.GetVertex(ConstrainLoop[NextIdx]));
+				if (DistSqr > MaxDistSqr)
+				{
+					MaxDistSqr = DistSqr;
+					MaxDistPair = FIndex2i(ConstrainLoop[Idx], ConstrainLoop[NextIdx]);
+				}
+			}
+		}
+
+		if (ensure(MaxDistPair != FIndex2i::Invalid()) == false)
+		{
+			return false;
+		}
+
+		// pin those vertices
+		Solver->AddConstraint(MaxDistPair.A, 1.0, FVector2d(0.0, 0.5), false);
+		Solver->AddConstraint(MaxDistPair.B, 1.0, FVector2d(1.0, 0.5), false);
+	}
 
 	// solve for UVs
 	TArray<FVector2d> UVBuffer;

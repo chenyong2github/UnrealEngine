@@ -21,7 +21,8 @@ namespace Geometry
 enum class ERecomputeUVsUnwrapType
 {
 	ExpMap = 0,
-	ConformalFreeBoundary = 1
+	ConformalFreeBoundary = 1,
+	SpectralConformal = 2
 };
 
 
@@ -66,6 +67,11 @@ public:
 	ERecomputeUVsUnwrapType UnwrapType = ERecomputeUVsUnwrapType::ExpMap;
 	ERecomputeUVsIslandMode IslandMode = ERecomputeUVsIslandMode::PolyGroups;
 
+	//
+	// Conformal Map Options 
+	//
+	bool bPreserveIrregularity = false;
+	
 	// 
 	// ExpMap Options
 	//

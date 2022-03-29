@@ -4,12 +4,15 @@
 
 #include "Solvers/MatrixInterfaces.h"
 #include "Solvers/LaplacianMatrixAssembly.h"
+#include "PowerMethodSolver.h"
 #include "MatrixSolver.h"
 #include "MeshBoundaryLoops.h"
 #include "MeshQueries.h"
 
 using namespace UE::Geometry;
 
+using ScalarT = FSparseMatrixD::Scalar;
+using MatrixTripletT = Eigen::Triplet<ScalarT>;
 
 //
 // Extension of TSparseMatrixAssembler suitable for eigen sparse matrix,
@@ -21,32 +24,24 @@ using namespace UE::Geometry;
 class FEigenDNCPSparseMatrixAssembler : public UE::Solvers::TSparseMatrixAssembler<double>
 {
 public:
-	typedef FSparseMatrixD::Scalar    ScalarT;
-	typedef Eigen::Triplet<ScalarT>  MatrixTripletT;
-
-	TUniquePtr<FSparseMatrixD> Matrix;
-	std::vector<MatrixTripletT> EntryTriplets;
-
-	int32 N;
-
-	FEigenDNCPSparseMatrixAssembler(int32 RowsI, int32 ColsJ)
+	
+	FEigenDNCPSparseMatrixAssembler(const int32 InNumVert)
 	{
-		check(RowsI == ColsJ);
-		N = RowsI;
+		NumVert = InNumVert;
 
-		Matrix = MakeUnique<FSparseMatrixD>(2 * N, 2 * N);
+		Matrix = MakeUnique<FSparseMatrixD>(2 * NumVert, 2 * NumVert);
 
 		ReserveEntriesFunc = [this](int32 NumElements)
 		{
 			EntryTriplets.reserve(NumElements);
 		};
 
-		AddEntryFunc = [this](int32 i, int32 j, double Value)
+		AddEntryFunc = [this](int32 RowIdx, int32 ColIdx, double Value)
 		{
 			// set upper-left block value
-			EntryTriplets.push_back(MatrixTripletT(i, j, Value));
+			EntryTriplets.push_back(MatrixTripletT(RowIdx, ColIdx, Value));
 			// set lower-right block value
-			EntryTriplets.push_back(MatrixTripletT(N + i, N + j, Value));
+			EntryTriplets.push_back(MatrixTripletT(NumVert + RowIdx, NumVert + ColIdx, Value));
 		};
 	}
 
@@ -56,232 +51,27 @@ public:
 		Matrix->makeCompressed();
 		Result.swap(*Matrix);
 	}
+
+public:
+
+	TUniquePtr<FSparseMatrixD> Matrix;
+	std::vector<MatrixTripletT> EntryTriplets;
+
+	int32 NumVert;
 };
 
 
-
-
 //
-// Build DNCP matrix
+// FConstrainedMeshUVSolver
 //
-//
-static void ConstructNaturalConformalLaplacianSystem(
-	const FDynamicMesh3& DynamicMesh,
-	const FVertexLinearization& VertexMap,
-	const TArray<int32>& PinnedVertices,
-	FSparseMatrixD& Laplacian)
+
+FConstrainedMeshUVSolver::FConstrainedMeshUVSolver(const FDynamicMesh3& DynamicMesh)
+:
+IConstrainedMeshUVSolver(), Mesh(DynamicMesh)
 {
-	typedef FSparseMatrixD::Scalar  ScalarT;
-	typedef Eigen::Triplet<ScalarT> MatrixTripletT;
-
-	const TArray<int32>& ToMeshV = VertexMap.ToId();
-	const TArray<int32>& ToIndex = VertexMap.ToIndex();
-	const int32 NumVerts = VertexMap.NumVerts();
-
-	// Construct 2Nx2N system that includes both X and Y values for UVs. We will use block form [X, 0; 0, Y]
-	FEigenDNCPSparseMatrixAssembler DNCPLaplacianAssembler(NumVerts, NumVerts);
-	UE::MeshDeformation::ConstructFullCotangentLaplacian<double>(DynamicMesh, VertexMap, DNCPLaplacianAssembler, 
-		UE::MeshDeformation::ECotangentWeightMode::ClampedMagnitude,
-		UE::MeshDeformation::ECotangentAreaMode::NoArea );
-	FSparseMatrixD CotangentMatrix;
-	DNCPLaplacianAssembler.ExtractResult(CotangentMatrix);
-	// we want diagonal to be positive, so that sign of quadratic form is the same as
-	// the area matrix (which is a positive area)
-	CotangentMatrix = CotangentMatrix * -1.0;
-
-	// construct Area matrix. This matrix calculates the 2D area of the mesh.
-	int32 N = NumVerts;
-	FSparseMatrixD AreaMatrix(2 * N, 2 * N);
-	FMeshBoundaryLoops Loops(&DynamicMesh, true);
-	for (FEdgeLoop& Loop : Loops.Loops)
-	{
-		Algo::Reverse(Loop.Vertices);		// reverse loop to handle UE mesh orientation
-		int32 NumV = Loop.GetVertexCount();
-		for (int32 k = 0; k < NumV; ++k)
-		{
-			int32 a = Loop.Vertices[k];
-			int32 jx = ToIndex[a];
-			int32 jy = jx + N;
-			int32 b = Loop.Vertices[(k + 1) % NumV];
-			int32 kx = ToIndex[b];
-			int32 ky = kx + N;
-
-			AreaMatrix.coeffRef(jx, ky) = AreaMatrix.coeffRef(jx, ky) + 1;
-			AreaMatrix.coeffRef(ky, jx) = AreaMatrix.coeffRef(ky, jx) + 1;
-			AreaMatrix.coeffRef(kx, jy) = AreaMatrix.coeffRef(kx, jy) - 1;
-			AreaMatrix.coeffRef(jy, kx) = AreaMatrix.coeffRef(jy, kx) - 1;
-		}
-	}
-
-
-	// test code that computes the 2D area of the input mesh, as well as the quadratic forms for the Cotan and
-	// Area matrices. On a planar mesh these should all produce the same value
-	//Eigen::Matrix<double, Eigen::Dynamic, 1> UVVector(2 * N);
-	//for (int32 vid : DynamicMesh.VertexIndicesItr())
-	//{
-	//	int32 Index = VertexMap.GetIndex(vid);
-	//	FVector3d Pos = DynamicMesh.GetVertex(vid);
-	//	UVVector.coeffRef(Index) = Pos.X;
-	//	UVVector.coeffRef(Index + N) = Pos.Y;
-	//}
-	//FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(DynamicMesh);
-	//Eigen::Matrix<double, Eigen::Dynamic, 1> AreaMeasure = 0.5 * UVVector.transpose() * AreaMatrix * UVVector;
-	//Eigen::Matrix<double, Eigen::Dynamic, 1> CotanMeasure = 0.5 * UVVector.transpose() * CotangentMatrix * UVVector;
-
-	// assemble Conformal energy matrix
-	FSparseMatrixD Lc = CotangentMatrix - AreaMatrix;
-
-	// test code that computes the conformal energy quadratic form. This should be zero on a planar mesh.
-	//Eigen::Matrix<double, Eigen::Dynamic, 1> ConformalMeasure = 0.5 * UVVector.transpose() * Lc * UVVector;
-
-	// set fixed vertex rows to M(i,i) = 1;
-	FSparseMatrixD LcCons = Lc;
-	for (int32 PinnedVertID : PinnedVertices)
-	{
-		int32 k = ToIndex[PinnedVertID];
-		// clear existing rows
-		LcCons.row(k) *= 0;
-		LcCons.row(k + N) *= 0;
-		// set to identity rows
-		LcCons.coeffRef(k, k) = 1.0;
-		LcCons.coeffRef(k + N, k + N) = 1.0;
-	}
-
-	// TODO: we can move the constrained columns to the RHS to keep the matrix symmetric.
-	// This would allow for more efficient solving, if we had a symmetric solver...however it
-	// also means we need a way to pass back the vector that needs to be added to the RHS
-
-	// make the compressed result
-	Laplacian = MoveTemp(LcCons);
-	Laplacian.makeCompressed();
-}
-
-
-
-
-
-
-//
-// Solve a the natural/free-boundary conformal parameterization problem defined by the given system matrix
-// (likely generated by ConstructNaturalConformalLaplacianSystem() above) using the specified linear solver.
-// 
-// Requires that FixedIndices/Positions pairs define at least two constraint points for the solution to be well-defined.
-// Assumes that these rows are also constrained in the System Matrix
-static bool SolveDiscreteNaturalConformalSystem(
-	const FSparseMatrixD& CombinedUVSystemMatrix, const EMatrixSolverType MatrixSolverType,
-	const TArray<int32>& FixedIndices, const TArray<FVector2d>& FixedPositions, TArray<FVector2d>& Solution)
-{
-	// create a suitable matrix solver
-	TUniquePtr<IMatrixSolverBase> MatrixSolver = ContructMatrixSolver(MatrixSolverType);
-	MatrixSolver->SetUp(CombinedUVSystemMatrix, false);
-
-	// set the constraint positions in the RHS
-	int32 N = CombinedUVSystemMatrix.rows() / 2;
-	Eigen::Matrix<double, Eigen::Dynamic, 1> RHSVector(2 * N);
-	RHSVector.setZero();
-	for (int32 k = 0; k < FixedIndices.Num(); ++k)
-	{
-		int32 Index = FixedIndices[k];
-		RHSVector.coeffRef(Index) = FixedPositions[k].X;
-		RHSVector.coeffRef(Index + N) = FixedPositions[k].Y;
-	}
-
-	// solve the linear system
-	Eigen::Matrix<double, Eigen::Dynamic, 1> SolutionVector(2 * N);
-	MatrixSolver->Solve(RHSVector, SolutionVector);
-	bool bSuccess = MatrixSolver->bSucceeded();
-
-	// extract the solution if matrix solve succeeded, or set result to zero
-	Solution.SetNum(N);
-	if (bSuccess)
-	{
-		for (int32 k = 0; k < N; ++k)
-		{
-			Solution[k] = FVector2d(SolutionVector.coeffRef(k), SolutionVector.coeffRef(k + N));
-		}
-	}
-	else
-	{
-		for (int32 k = 0; k < N; ++k)
-		{
-			Solution[k] = FVector2d::Zero();
-		}
-	}
-
-	return bSuccess;
-}
-
-
-
-
-
-
-
-
-
-
-FConstrainedMeshUVSolver::~FConstrainedMeshUVSolver()
-{
-}
-
-FConstrainedMeshUVSolver::FConstrainedMeshUVSolver(const FDynamicMesh3& DynamicMesh, EUVSolveType UVSolveTypeIn)
-{
-	UVSolveType = UVSolveTypeIn;
-
 	// compute linearization so we can store constraints at linearized indices
-	VtxLinearization.Reset(DynamicMesh);
+	VtxLinearization.Reset(DynamicMesh, false);
 }
-
-
-
-
-
-bool FConstrainedMeshUVSolver::SolveUVs(const FDynamicMesh3* DynamicMesh, TArray<FVector2d>& UVBuffer)
-{
-	check(UVSolveType == EUVSolveType::NaturalConformal);
-
-	// create list of pinned vertices and positions
-	TArray<int32> FixedVertexIDs;
-	TArray<int32> FixedIndices;
-	TArray<FVector2d> FixedUVs;
-	for (auto& ElemPair : ConstraintMap)
-	{
-		FixedIndices.Add(ElemPair.Value.ConstraintIndex);
-		FixedVertexIDs.Add(ElemPair.Value.ElementID);
-		FixedUVs.Add(ElemPair.Value.Position);
-	}
-
-	// build DNCP system
-	TUniquePtr<FSparseMatrixD> UVSystemMatrix = MakeUnique<FSparseMatrixD>();
-	ConstructNaturalConformalLaplacianSystem(*DynamicMesh, VtxLinearization, FixedVertexIDs, *UVSystemMatrix);
-
-	// transfer to solver and solve
-	TArray<FVector2d> Solution;
-	bool bSolveOK = SolveDiscreteNaturalConformalSystem(*UVSystemMatrix, EMatrixSolverType::LU,
-		FixedIndices, FixedUVs, Solution);
-
-	ensure(bSolveOK);
-	if (bSolveOK == false)
-	{
-		// If solve failed we will try QR solver which is more robust.
-		// This should perhaps be optional as the QR solve is much more expensive...
-		Solution.Reset();
-		bSolveOK = SolveDiscreteNaturalConformalSystem(*UVSystemMatrix, EMatrixSolverType::QR,
-			FixedIndices, FixedUVs, Solution);
-		ensure(bSolveOK);
-	}
-
-	// copy back to input buffer
-	UVBuffer.SetNum(DynamicMesh->MaxVertexID());
-	for (int32 Index = 0; Index < VtxLinearization.NumIndices(); ++Index)
-	{
-		int32 Id = VtxLinearization.GetId(Index);
-		UVBuffer[Id] = Solution[Index];
-	}
-
-	return true;
-}
-
 
 
 void FConstrainedMeshUVSolver::AddConstraint(const int32 VtxId, const double Weight, const FVector2d& Pos, const bool bPostFix)
@@ -352,4 +142,425 @@ void FConstrainedMeshUVSolver::ClearConstraints()
 }
 
 
+//
+//  FConformalMeshUVSolver
+//
 
+void FConformalMeshUVSolver::ConstructVectorAreaMatrix(FSparseMatrixD& OutAreaMatrix) 
+{
+	const int32 NumVert = VtxLinearization.NumVerts();
+	 
+	FMeshBoundaryLoops Loops(&Mesh, true);	
+
+	// Compute how many matrix entries to expect 
+	int32 NumTripletEntries = 0; 
+	for (const FEdgeLoop& Loop : Loops.Loops)
+	{
+		NumTripletEntries += 4*Loop.GetVertexCount(); // 4 entries per loop edge
+	}	
+
+	std::vector<MatrixTripletT> Triplets;
+	Triplets.reserve(NumTripletEntries);
+
+	for (FEdgeLoop& Loop : Loops.Loops)
+	{
+		const int32 NumLoopVert = Loop.GetVertexCount();
+		for (int32 Idx = 0; Idx < NumLoopVert; ++Idx)
+		{
+			// Directed edge is [EdgeVertex1, EdgeVertex2] with UVs [(U1,V1), (U2,V2)]
+			// Note we are reversing the direction of the edge to handle UE mesh orientation.
+			// Otherwise our Area matrix will be the negative of the correct Area matrix.
+			const int32 EdgeVertex1 = Loop.Vertices[(Idx + 1) % NumLoopVert];
+			const int32 EdgeVertex2 = Loop.Vertices[Idx];
+			
+			const int32 U1 = VtxLinearization.GetIndex(EdgeVertex1);
+			const int32 V1 = U1 + NumVert;
+			
+			const int32 U2 = VtxLinearization.GetIndex(EdgeVertex2);
+			const int32 V2 = U2 + NumVert;
+
+			Triplets.push_back(MatrixTripletT(U1, V2, 1));
+			Triplets.push_back(MatrixTripletT(U2, V1, -1));
+			
+			// Make it symmetric
+			Triplets.push_back(MatrixTripletT(V2, U1, 1));
+			Triplets.push_back(MatrixTripletT(V1, U2, -1));
+		}
+	}
+
+	OutAreaMatrix.resize(2 * NumVert, 2 * NumVert);
+	OutAreaMatrix.setFromTriplets(Triplets.begin(), Triplets.end());
+}
+
+
+void FConformalMeshUVSolver::ConstructWeightedVectorAreaMatrix(FSparseMatrixD& OutAreaMatrix,
+															   double& OutMaxTriArea,
+											  				   const double InSmallTriangleArea) 
+{
+	const int32 NumVert = VtxLinearization.NumVerts();
+	
+	std::vector<MatrixTripletT> Triplets;
+
+	const int32 NumTripletEntries = 4*3*Mesh.TriangleCount(); // 4 entries for each of the 3 edges of each triangle
+	Triplets.reserve(NumTripletEntries);
+
+	// Compute the areas of all triangles and find max.
+	// At the same time cache the results to be used later
+	TArray<double> TriAreasArray;
+	TriAreasArray.SetNum(Mesh.MaxTriangleID());
+	OutMaxTriArea = -1;
+	for (const int32 TriId : Mesh.TriangleIndicesItr()) 
+	{
+		const double TriArea = Mesh.GetTriArea(TriId);
+		OutMaxTriArea = FMathd::Max(OutMaxTriArea, TriArea);
+		TriAreasArray[TriId] = TriArea;
+	}
+
+	for (const int32 TriId : Mesh.TriangleIndicesItr()) 
+	{
+		const FIndex3i TriVert = Mesh.GetTriangle(TriId);
+		
+		double TriArea = TriAreasArray[TriId];
+
+		if (TriArea < InSmallTriangleArea) 
+		{
+			TriArea = InSmallTriangleArea;
+		}
+
+		// Normalize all area values with respect to the largest area among all triangles.
+		// This helps with the numerics being affected by the mesh scale and doesn't affect 
+		// the result of the solve.
+		TriArea /= OutMaxTriArea;
+		
+		const double Value = 1.0/TriArea;
+
+		// Iterator over each edge of the triangle
+		for (int32 VertIndex = 0; VertIndex < 3; ++VertIndex) 
+		{
+			// Directed edge is [EdgeVertex1, EdgeVertex2] with UVs [(U1,V1), (U2,V2)]
+			// Note we are reversing the direction of the edge to handle UE mesh orientation.
+			// Otherwise our Area matrix will be the negative of the correct Area matrix.
+			const int32 EdgeVertex1 = TriVert[(VertIndex + 1) % 3];
+			const int32 EdgeVertex2 = TriVert[VertIndex];
+
+			const int32 U1 = VtxLinearization.GetIndex(EdgeVertex1);
+			const int32 V1 = U1 + NumVert;
+			
+			const int32 U2 = VtxLinearization.GetIndex(EdgeVertex2);
+			const int32 V2 = U2 + NumVert;
+	
+			Triplets.push_back(MatrixTripletT(U1, V2,  Value));
+			Triplets.push_back(MatrixTripletT(V1, U2, -Value));
+
+			// Make it symmetric
+			Triplets.push_back(MatrixTripletT(V2, U1,  Value));
+			Triplets.push_back(MatrixTripletT(U2, V1, -Value));
+		}
+	}
+
+	OutAreaMatrix.resize(2 * NumVert, 2 * NumVert);
+	OutAreaMatrix.setFromTriplets(Triplets.begin(), Triplets.end());
+}
+
+
+void FConformalMeshUVSolver::ConstructConformalEnergyMatrix(FSparseMatrixD& OutConfromalEnergy,
+															const bool bInAreaWeighted, 
+															const double InSmallTriangleArea,
+															FSparseMatrixD* OutCotangentMatrix,
+															FSparseMatrixD* OutAreaMatrix)
+{
+	using namespace UE::MeshDeformation;
+
+	const int32 NumVerts = VtxLinearization.NumVerts();
+	
+	// Construct 2Nx2N system that includes both X and Y values for UVs. We will use block form [X, 0; 0, Y]
+	FEigenDNCPSparseMatrixAssembler DNCPLaplacianAssembler(NumVerts);
+
+	ConstructFullCotangentLaplacian<double>(Mesh,
+											VtxLinearization, 
+											DNCPLaplacianAssembler, 
+											bInAreaWeighted ? ECotangentWeightMode::TriangleArea : ECotangentWeightMode::ClampedMagnitude,
+											ECotangentAreaMode::NoArea);
+	
+	FSparseMatrixD CotangentMatrixLocal;
+	FSparseMatrixD* CotangentMatrix = OutCotangentMatrix == nullptr ? &CotangentMatrixLocal : OutCotangentMatrix;
+	DNCPLaplacianAssembler.ExtractResult(*CotangentMatrix);
+	
+	FSparseMatrixD AreaMatrixLocal;
+	FSparseMatrixD* AreaMatrix = OutAreaMatrix == nullptr ? &AreaMatrixLocal : OutAreaMatrix;
+
+	
+	// we want diagonal of the CotangentMatrix to be positive, so that sign of quadratic form is the same as
+	// the area matrix (which is a positive area)
+	if (bInAreaWeighted) 
+	{
+		double MaxTriArea;
+		ConstructWeightedVectorAreaMatrix(*AreaMatrix, MaxTriArea, InSmallTriangleArea);
+		
+		OutConfromalEnergy = -MaxTriArea*(*CotangentMatrix) - *AreaMatrix;
+	}
+	else 
+	{
+		ConstructVectorAreaMatrix(*AreaMatrix); 
+		
+		OutConfromalEnergy = -1*(*CotangentMatrix) - *AreaMatrix;
+	}
+}
+
+
+//
+// FLeastSquaresConformalMeshUVSolver
+//
+
+void FLeastSquaresConformalMeshUVSolver::ConstructSystemMatrices(FSparseMatrixD& OutSystemMatrix)
+{
+	const int32 NumVerts = VtxLinearization.NumVerts();
+	
+	ConstructConformalEnergyMatrix(OutSystemMatrix);
+
+	// Set fixed vertex rows to M(i,i) = 1;
+	// TODO: we can move the constrained columns to the RHS to keep the matrix symmetric.
+	// This would allow for more efficient solving, if we had a symmetric solver...however it
+	// also means we need a way to pass back the vector that needs to be added to the RHS
+	for (const TPair<int32, FUVConstraint>& ElemPair : ConstraintMap)
+	{
+		const int32 RowIdx = ElemPair.Value.ConstraintIndex;
+		
+		// clear existing rows
+		OutSystemMatrix.row(RowIdx) *= 0;
+		OutSystemMatrix.row(RowIdx + NumVerts) *= 0;
+
+		// set rows to identity, these coefficients should already exist so no insertion happens here
+		OutSystemMatrix.coeffRef(RowIdx, RowIdx) = 1.0;
+		OutSystemMatrix.coeffRef(RowIdx + NumVerts, RowIdx + NumVerts) = 1.0;
+	}	
+	
+	OutSystemMatrix.makeCompressed();
+}
+
+bool FLeastSquaresConformalMeshUVSolver::SolveParameterization(const FSparseMatrixD& InSystemMatrix, 
+															   const EMatrixSolverType InSolverType,
+															   FColumnVectorD& OutSolution)
+{
+	const int32 NumVerts = VtxLinearization.NumVerts();
+	
+	// create a suitable matrix solver
+	TUniquePtr<IMatrixSolverBase> MatrixSolver = ContructMatrixSolver(InSolverType);
+	MatrixSolver->SetUp(InSystemMatrix, false);
+	if (MatrixSolver->bSucceeded() == false)  // check that the factorization succeeded 
+	{
+		return false;
+	}
+
+	// set the constraint positions in the RHS
+	FColumnVectorD RHSVector(2 * NumVerts);
+	RHSVector.setZero();
+	for (const TPair<int32, FUVConstraint>& ElemPair : ConstraintMap)
+	{
+		const int32 RowIdx = ElemPair.Value.ConstraintIndex;
+
+		RHSVector(RowIdx) = ElemPair.Value.Position.X;
+		RHSVector(RowIdx + NumVerts) = ElemPair.Value.Position.Y;
+	}
+
+	// solve the linear system
+	OutSolution.resize(2 * NumVerts, 1);
+	MatrixSolver->Solve(RHSVector, OutSolution);
+	const bool bSuccess = MatrixSolver->bSucceeded();
+
+	return bSuccess;
+}
+
+
+bool FLeastSquaresConformalMeshUVSolver::SolveUVs(const FDynamicMesh3* InMeshPtr /*ignored*/, TArray<FVector2d>& OutUVBuffer)
+{
+	// InMeshPtr and Mesh class member variable should be the same meshes.
+	checkSlow(InMeshPtr->IsSameAs(Mesh, FDynamicMesh3::FSameAsOptions()));
+
+	// build DNCP system
+	FSparseMatrixD SystemMatrix;
+	ConstructSystemMatrices(SystemMatrix);
+
+	// Transfer to solver and solve
+	FColumnVectorD Solution;
+	bool bSolveOK = SolveParameterization(SystemMatrix, EMatrixSolverType::LU, Solution);
+
+	if (ensure(bSolveOK) == false)
+	{
+		// If solve failed we will try QR solver which is more robust.
+		// This should perhaps be optional as the QR solve is much more expensive.
+		bSolveOK = SolveParameterization(SystemMatrix, EMatrixSolverType::QR, Solution);
+	}
+	
+	OutUVBuffer.SetNum(Mesh.MaxVertexID());
+	if (ensure(bSolveOK)) 
+	{
+		// Copy back to input buffer
+		const int32 NumVerts = VtxLinearization.NumVerts();
+		for (int32 Idx = 0; Idx < VtxLinearization.NumVerts(); ++Idx)
+		{
+			const int32 VertexID = VtxLinearization.GetId(Idx);
+			OutUVBuffer[VertexID] = FVector2d(Solution(Idx), Solution(Idx + NumVerts)); //Solution[Idx];
+		}
+	}
+	else 
+	{
+		// TODO: This should be deleted, the caller of the method should handle the case if SolveUVs returns false.
+		// Keeping this for now for the backwards compatibility
+		for (int32 Idx = 0; Idx < VtxLinearization.NumVerts(); ++Idx)
+		{
+			const int32 VertexID = VtxLinearization.GetId(Idx);
+			OutUVBuffer[VertexID] = FVector2d::Zero();
+		}
+	}
+
+	return bSolveOK;
+}
+
+
+//
+// FSpectralConformalMeshUVSolver
+//
+
+void FSpectralConformalMeshUVSolver::ConstructSystemMatrices(FSparseMatrixD& OutConformalEnergy,
+															 FSparseMatrixD& OutMatrixB,
+															 FSparseMatrixD& OutMatrixE)
+{
+	using namespace UE::MeshDeformation;
+
+	const int32 NumVerts = VtxLinearization.NumVerts();
+
+	// Ensures that we are using the same area floor value as UE::MeshDeformation::CotanTriangleData::Initialize
+	// method which computes cotangent entries for the Laplacian matrix.
+	const double SmallTriangleArea = UE::MeshDeformation::CotanTriangleData::SmallTriangleArea;
+	ConstructConformalEnergyMatrix(OutConformalEnergy, bPreserveIrregularity, SmallTriangleArea);
+	OutConformalEnergy.makeCompressed();
+
+	// construct matrix B
+	const int32 NumBndrVerts = ConstraintMap.Num();
+	std::vector<MatrixTripletT> TripletsB;	
+	TripletsB.reserve(2*NumBndrVerts);
+
+	for (const TPair<int32, FUVConstraint>& ElemPair : ConstraintMap)
+	{
+		const int32 RowIdx = ElemPair.Value.ConstraintIndex;
+		checkSlow(RowIdx < NumVerts);
+
+		TripletsB.push_back(MatrixTripletT(RowIdx, RowIdx, 1.0));
+		TripletsB.push_back(MatrixTripletT(RowIdx + NumVerts, RowIdx + NumVerts, 1.0));
+	}
+
+	OutMatrixB = FSparseMatrixD(2*NumVerts, 2*NumVerts); 
+	OutMatrixB.setFromTriplets(TripletsB.begin(), TripletsB.end());
+	OutMatrixB.makeCompressed();
+		
+	// construct matrix E
+	std::vector<MatrixTripletT> TripletsE;
+	TripletsE.reserve(2*NumBndrVerts);
+
+	const ScalarT SqrtBndrNum = 1.0/FMath::Sqrt(static_cast<ScalarT>(NumBndrVerts));		
+	for (const TPair<int32, FUVConstraint>& ElemPair : ConstraintMap)
+	{
+		const int32 RowIdx = ElemPair.Value.ConstraintIndex;
+
+		TripletsE.push_back(MatrixTripletT(RowIdx, 0, SqrtBndrNum));
+		TripletsE.push_back(MatrixTripletT(RowIdx + NumVerts, 1, SqrtBndrNum)) ;
+	}
+	
+	OutMatrixE = FSparseMatrixD(2*NumVerts, 2); 
+	OutMatrixE.setFromTriplets(TripletsE.begin(), TripletsE.end());
+	OutMatrixE.makeCompressed();
+}
+
+
+bool FSpectralConformalMeshUVSolver::SolveParameterization(const FSparseMatrixD& InSystemMatrix,
+														   const FSparseMatrixD& InMatrixB,
+														   const FSparseMatrixD& InMatrixE,
+														   FColumnVectorD& OutSolution)
+{	
+	static constexpr FSparseMatrixD::Scalar Eps = 1e-8;
+	FSparseMatrixD IdentityMat(InSystemMatrix.rows(), InSystemMatrix.cols());
+	IdentityMat.setIdentity();
+	
+	// Make sure we are working with a PSD matrix
+	FSparseMatrixD SystemMatrixPSD = InSystemMatrix + Eps * IdentityMat;
+	
+	// Setup a custom matrix operator to avoid the expensive computation of the large dense matrix E*E^T and avoid 
+	// turning (B-E*E^T)*x into a dense matrix-vector product.
+	FPowerMethod::MatrixOperator OpMatrixB;
+	OpMatrixB.Product = [&InMatrixB, &InMatrixE](const FPowerMethod::RealVectorType& InVector, 
+												 FPowerMethod::RealVectorType& OutVector)
+	{
+		FPowerMethod::RealVectorType EEVector = (InMatrixE.transpose() * InVector).eval();
+		OutVector = InMatrixB * InVector - InMatrixE * EEVector;
+	};
+
+	// User-specified solver parameters
+	FPowerMethod::Parameters Parms;
+	Parms.Tolerance = 1e-10;
+	
+	FPowerMethod::ScalarType EigenValue;
+	FPowerMethod::RealVectorType EigenVector;
+	TUniquePtr<FPowerMethod> PMSolverPtr = MakeUnique<FSparsePowerMethod>(SystemMatrixPSD, 
+																		  FSparsePowerMethod::FMatrixHints(true), 
+																		  Parms);
+	PMSolverPtr->OpMatrixB = OpMatrixB;
+	
+	FPowerMethod::ESolveStatus SolveStatus = PMSolverPtr->Solve(EigenValue, OutSolution);
+	
+	if (ensure(SolveStatus == FPowerMethod::ESolveStatus::Success || SolveStatus == FPowerMethod::ESolveStatus::NotConverged))
+	{
+		// We allow the NotConverged case to go through since most likely the result should still be ok.
+		// But let the user know that tha result is not optimal.
+		if (SolveStatus == FPowerMethod::ESolveStatus::NotConverged)
+		{
+			checkSlow(false);
+			UE_LOG(LogTemp, Error, TEXT("Spectral Conformal UV Solver failed to converge. Resulting parametarization \
+										 might be invalid. You alternatively can try the default Conformal solve instead."));
+		} 
+		
+		return true;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Spectral Conformal UV Solver failed."));
+		
+		return false;
+	}
+}
+
+
+bool FSpectralConformalMeshUVSolver::SolveUVs(const FDynamicMesh3* InMeshPtr, TArray<FVector2d>& OutUVBuffer)
+{
+	// InMeshPtr and Mesh class member variable should be the same meshes.
+	checkSlow(InMeshPtr->IsSameAs(Mesh, FDynamicMesh3::FSameAsOptions()));
+
+	FSparseMatrixD SystemMatrix, MatrixB, MatrixE;
+	ConstructSystemMatrices(SystemMatrix, MatrixB, MatrixE);
+
+	FColumnVectorD Solution;
+	const bool bSolveOK = SolveParameterization(SystemMatrix, MatrixB, MatrixE, Solution);
+	
+	OutUVBuffer.SetNum(Mesh.MaxVertexID());
+	if (ensure(bSolveOK)) 
+	{
+		const int32 NumVerts = VtxLinearization.NumVerts();
+		for (int32 Idx = 0; Idx < VtxLinearization.NumVerts(); ++Idx)
+		{
+			const int32 VertexID = VtxLinearization.GetId(Idx);
+			OutUVBuffer[VertexID] = FVector2d(Solution(Idx), Solution(Idx + NumVerts));
+		}
+	}
+	else 
+	{
+		// TODO: This should be deleted, the caller of the method should handle the case if SolveUVs returns false.
+		// Keeping this for now for the backwards compatibility
+		for (int32 Idx = 0; Idx < VtxLinearization.NumVerts(); ++Idx)
+		{
+			const int32 VertexID = VtxLinearization.GetId(Idx);
+			OutUVBuffer[VertexID] = FVector2d::Zero();
+		}
+	}	
+
+	return bSolveOK;;
+}
