@@ -56,6 +56,8 @@ namespace Jupiter
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            CbConvertersAspNet.AddAspnetConverters();
+
             // aws specific settings
             services.AddOptions<AWSCredentialsSettings>().Bind(Configuration.GetSection("AWSCredentials")).ValidateDataAnnotations();
             services.AddDefaultAWSOptions(Configuration.GetAWSOptions());
