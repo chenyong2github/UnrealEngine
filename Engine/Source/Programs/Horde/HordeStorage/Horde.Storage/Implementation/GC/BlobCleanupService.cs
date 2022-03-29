@@ -79,8 +79,6 @@ namespace Horde.Storage.Implementation
 
         public async Task Cleanup(BlobCleanupState state, CancellationToken cancellationToken)
         {
-            List<BlobIdentifier> removedBlobs = new List<BlobIdentifier>();
-            
             foreach (IBlobCleanup blobCleanup in state.BlobCleanups)
             {
                 if (!blobCleanup.ShouldRun())

@@ -41,7 +41,16 @@ namespace Horde.Storage.Implementation
 
         public Task<List<OldRecord>> Cleanup(NamespaceId ns, CancellationToken cancellationToken)
         {
-            NamespaceSettings.PerNamespaceSettings policies = _namespacePolicyResolver.GetPoliciesForNs(ns);
+            NamespaceSettings.PerNamespaceSettings policies;
+            try
+            {
+                policies = _namespacePolicyResolver.GetPoliciesForNs(ns);
+            }
+            catch (UnknownNamespaceException)
+            {
+                _logger.Warning("Namespace {Namespace} does not configure any policy, not running ref cleanup on it.", ns);
+                return Task.FromResult(new List<OldRecord>());
+            }
 
             using IScope scope = Tracer.Instance.StartActive("gc.refs.namespace");
             scope.Span.ResourceName = ns.ToString();
