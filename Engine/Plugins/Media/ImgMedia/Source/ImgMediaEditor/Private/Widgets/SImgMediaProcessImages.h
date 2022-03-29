@@ -37,6 +37,15 @@ private:
 	void ProcessAllImages(TSharedPtr<SNotificationItem> ConfirmNotification);
 	
 	/**
+	  * Checks if this file has an alpha channel.
+	  *
+	  * @param Ext			File extension.
+	  * @param File			Full path to file.
+	  * @return				True if the file has an alpha channel.
+	  */
+	bool HasAlphaChannel(const FString& Ext, const FString& File);
+
+	/**
 	 * Processess a single image and writes out 1 or more files.
 	 * Tiles and mips may be generated.
 	 * This does NOT run on the game thread.
@@ -60,11 +69,12 @@ private:
 	 * @param InTileHeight		Desired height of tiles.
 	 * @param InTileBorder		Number of pixels to duplicate along a tile edge.
 	 * @param bInEnableMips		Turn on mip mapping.
+	 * @param bHasAlphaChannel	True if there really is an alpha channel.
 	 * @param InName			Full path and name of file to write.
 	 */
 	void ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageWrapper,
 		int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, 
-		bool bInEnableMips, const FString& InName);
+		bool bInEnableMips, bool bHasAlphaChannel, const FString& InName);
 
 	/** Holds our details view. */
 	TSharedPtr<class IDetailsView> DetailsView;
