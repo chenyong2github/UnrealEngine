@@ -559,11 +559,16 @@ void FPyWrapperTypeRegistry::GenerateWrappedTypes()
 		// Need to use Get rather than ForEach as generating wrapped types 
 		// may generate new objects which breaks the iteration
 		TArray<UObject*> ObjectsToProcess;
-		GetObjectsOfClass(UObject::StaticClass(), ObjectsToProcess);
+		GetObjectsOfClass(UField::StaticClass(), ObjectsToProcess);
 
+		FNameBuilder ObjectPackageName;
 		for (UObject* ObjectToProcess : ObjectsToProcess)
 		{
-			GenerateWrappedTypeForObject(ObjectToProcess, GeneratedWrappedTypeReferences, DirtyModules);
+			ObjectToProcess->GetPackage()->GetFName().ToString(ObjectPackageName);
+			if (FPackageName::IsScriptPackage(ObjectPackageName.ToView()))
+			{
+				GenerateWrappedTypeForObject(ObjectToProcess, GeneratedWrappedTypeReferences, DirtyModules);
+			}
 		}
 
 		GenerateWrappedTypesForReferences(GeneratedWrappedTypeReferences, DirtyModules);
