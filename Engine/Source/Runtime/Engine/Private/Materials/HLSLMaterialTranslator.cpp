@@ -9762,8 +9762,13 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 
 		if ((bHasUnlit || bHasVFogCloud || bHasHair || bHasSLW) && StrataMaterialBSDFCount > 1)
 		{
-			Errorf(TEXT("Unlit, Fog/Cloud, Hair or SingleLayerWater must be used in isolation %s (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+			Errorf(TEXT("Unlit, Fog/Cloud, Hair or SingleLayerWater must be used in isolation. See %s (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 			// Even though we could support Unlit with slab.
+		}
+
+		if (StrataMaterialBSDFCount > STRATA_MAX_BSDF_COUNT)
+		{
+			Errorf(TEXT("Material tries to register more BSDF than can be supproted (%d > %d). See %s (asset: %s).\r\n"), StrataMaterialBSDFCount, STRATA_MAX_BSDF_COUNT, *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 		}
 	}
 
