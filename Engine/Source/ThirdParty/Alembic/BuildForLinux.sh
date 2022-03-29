@@ -49,7 +49,7 @@ C_COMPILER="$UE_TOOLCHAIN_LOCATION/bin/clang"
 CXX_COMPILER="$UE_TOOLCHAIN_LOCATION/bin/clang++"
 
 CXX_FLAGS="-fvisibility=hidden -fPIC -I$UE_THIRD_PARTY_LOCATION/Unix/LibCxx/include/c++/v1"
-CXX_LINKER="-nodefaultlibs -L$UE_THIRD_PARTY_LOCATION/Unix/LibCxx/lib/Unix/$ARCH_NAME/ $UE_THIRD_PARTY_LOCATION/Unix/LibCxx/lib/Linux/$ARCH_NAME/libc++.a $UE_THIRD_PARTY_LOCATION/Unix/LibCxx/lib/Linux/$ARCH_NAME/libc++abi.a -lm -lc -lgcc_s -lgcc"
+CXX_LINKER="-nodefaultlibs -L$UE_THIRD_PARTY_LOCATION/Unix/LibCxx/lib/Unix/$ARCH_NAME/ -lc++ -lc++abi -lm -lc -lgcc_s -lgcc"
 
 CMAKE_ARGS=(
     -DCMAKE_INSTALL_PREFIX="$INSTALL_LOCATION"
