@@ -75,10 +75,11 @@ struct FVertexFactoryInput
 #endif // !MANUAL_VERTEX_FETCH
 
 #if (VF_USE_PRIMITIVE_SCENE_DATA == 1)
-	uint InstanceIdOffset : ATTRIBUTE13;
+	VF_GPUSCENE_DECLARE_INPUT_BLOCK(13)
+#else
+	uint InstanceId	: SV_InstanceID;
 #endif
 
-	uint InstanceId	: SV_InstanceID;
 #if PASS_NEEDS_VERTEX_ID || MANUAL_VERTEX_FETCH
 	uint VertexId : SV_VertexID;
 #endif // #if PASS_NEEDS_VERTEX_ID
@@ -457,7 +458,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
 
 #if (VF_USE_PRIMITIVE_SCENE_DATA == 1)
-	Intermediates.SceneData = GetSceneDataIntermediates(Input.InstanceIdOffset, Input.InstanceId);
+	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
 
 	// Pull the particle index from the custom data for the instance
 	Intermediates.ParticleIndex = asuint(LoadInstanceCustomDataFloat(Intermediates.SceneData.InstanceData, 0));
@@ -914,8 +915,6 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 
 		FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
 		uint VertexId = Tri.Indices[VertexIndex];
-		
-		Input.InstanceId = InstanceIndex() - GetBaseInstanceIndex();
 
 		// Fill FVertexFactoryInput with dummy values, the real ones will be fetched later from NiagaraMeshVF using InstanceId  
 		Input.Position = float4(Tri.LocalPositions[VertexIndex], 1.0f);
@@ -924,10 +923,11 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 		Input.VertexId = VertexId;
 #endif // #if PASS_NEEDS_VERTEX_ID
 
-#if VF_USE_PRIMITIVE_SCENE_DATA
+#if (VF_USE_PRIMITIVE_SCENE_DATA == 1)
 		// Note: GetInstanceUserData() stores the GPU-Scene primitive ID
-		int PrimitiveId = GetInstanceUserData();
-		Input.InstanceIdOffset = PrimitiveId | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
+		VF_GPUSCENE_SET_INPUT_FOR_RT(Input, GetInstanceUserData(), InstanceIndex() - GetBaseInstanceIndex());
+#else
+		Input.InstanceId = InstanceIndex() - GetBaseInstanceIndex(); // TIAGO_TODO
 #endif
 
 		return Input;

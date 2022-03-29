@@ -605,12 +605,8 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 	Input.VertexId = Tri.Indices[VertexIndex];
 	Input.Position = float4(Tri.LocalPositions[VertexIndex], 1.0f);
 
-#if VF_USE_PRIMITIVE_SCENE_DATA
 	// Note: GetInstanceUserData() stores the GPU-Scene primitive ID
-	int PrimitiveId = GetInstanceUserData();
-	Input.InstanceIdOffset = PrimitiveId | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
-	Input.DrawInstanceId = 0;
-#endif // VF_USE_PRIMITIVE_SCENE_DATA
+	VF_GPUSCENE_SET_INPUT_FOR_RT(Input, GetInstanceUserData(), 0U);
 
 	return Input;
 }
@@ -637,10 +633,8 @@ FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, i
 	Input.Position.z = GeometryCollectionVF.VertexFetch_PositionBuffer[VertexOffset + 2];
 #endif
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && VF_USE_PRIMITIVE_SCENE_DATA
-	Input.DrawInstanceId = 0;
-	Input.InstanceIdOffset = PrimitiveId | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
-#endif
+	VF_GPUSCENE_SET_INPUT_FOR_RT(Input, PrimitiveId, 0U);
+
 	return Input;
 }
 
