@@ -1044,13 +1044,6 @@ const TCHAR* FMacPlatformProcess::BaseDir()
 
 			FCString::Strcpy(Result, MAC_MAX_PATH, *FString(BasePath));
 			FCString::Strcat(Result, TEXT("/"));
-
-			FString CollapseResult(Result);
-#ifdef UE_RELATIVE_BASE_DIR
-			CollapseResult /= UE_RELATIVE_BASE_DIR;
-#endif
-			FPaths::CollapseRelativeDirectories(CollapseResult);
-			FCString::Strcpy(Result, *CollapseResult);		
 		}
 	}
 	return Result;
