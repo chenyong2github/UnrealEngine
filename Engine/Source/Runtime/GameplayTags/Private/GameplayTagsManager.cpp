@@ -259,7 +259,7 @@ void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 			{
 				const FName TagSource = FName(*FPaths::GetCleanFilename(IniFilePath));
 				PathInfo->SourcesInPath.Add(TagSource);
-				PathInfo->TagIniList.Add(IniFilePath);
+				PathInfo->TagIniList.Add(FPaths::CreateStandardFilename(IniFilePath));
 			}
 		}
 		
