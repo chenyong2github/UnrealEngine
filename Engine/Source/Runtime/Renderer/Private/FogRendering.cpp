@@ -424,7 +424,7 @@ void FDeferredShadingSceneRenderer::RenderUnderWaterFog(
 		// Fog must be done in the base pass for MSAA to work
 		&& !IsForwardShadingEnabled(ShaderPlatform))
 	{
-		RDG_EVENT_SCOPE(GraphBuilder, "ExponentialHeightFog");
+		RDG_EVENT_SCOPE(GraphBuilder, "SLW::ExponentialHeightFog");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, Fog);
 
 		FRDGTextureRef LinearDepthTexture = SceneWithoutWaterTextures.DepthTexture;
