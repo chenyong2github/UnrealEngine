@@ -760,6 +760,7 @@ void FRigCurveElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializati
 
 	if(SerializationPhase == ESerializationPhase::StaticData)
 	{
+		Ar << bIsValueSet;
 		Ar << Value;
 	}
 }
@@ -770,6 +771,14 @@ void FRigCurveElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializati
 
 	if(SerializationPhase == ESerializationPhase::StaticData)
 	{
+		if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::CurveElementValueStateFlag)
+		{
+			Ar << bIsValueSet;
+		}
+		else
+		{
+			bIsValueSet = true;
+		}
 		Ar << Value;
 	}
 }
@@ -778,8 +787,9 @@ void FRigCurveElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bI
 {
 	Super::CopyPose(InOther, bCurrent, bInitial, bWeights);
 	
-	if(FRigCurveElement* Other = Cast<FRigCurveElement>(InOther))
+	if(const FRigCurveElement* Other = Cast<FRigCurveElement>(InOther))
 	{
+		bIsValueSet = Other->bIsValueSet;
 		Value = Other->Value;
 	}
 }
@@ -787,7 +797,12 @@ void FRigCurveElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bI
 void FRigCurveElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy)
 {
 	Super::CopyFrom(InHierarchy, InOther, InOtherHierarchy);
-	Value = CastChecked<FRigCurveElement>(InOther)->Value;
+	
+	if(const FRigCurveElement* Other = CastChecked<FRigCurveElement>(InOther))
+	{
+		bIsValueSet = Other->bIsValueSet;
+		Value = Other->Value;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

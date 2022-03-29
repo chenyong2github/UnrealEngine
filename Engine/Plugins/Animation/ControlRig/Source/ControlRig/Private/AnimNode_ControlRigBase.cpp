@@ -231,8 +231,16 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 				const uint16 ControlRigIndex = Pair.Key;
 				const uint16 SkeletonIndex = Pair.Value;
 
-				const float Value = InOutput.Curve.Get(SkeletonIndex);
-				ControlRig->GetHierarchy()->SetCurveValueByIndex(ControlRigIndex, Value);
+				bool bIsValid;
+				const float Value = InOutput.Curve.Get(SkeletonIndex, bIsValid);
+				if (bIsValid)
+				{
+					ControlRig->GetHierarchy()->SetCurveValueByIndex(ControlRigIndex, Value);
+				}
+				else
+				{
+					ControlRig->GetHierarchy()->UnsetCurveValueByIndex(ControlRigIndex);
+				}
 			}
 		}
 		else
@@ -243,7 +251,16 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 				const uint16 SkeletonIndex = Iter.Value();
 				const FRigElementKey Key(Name, ERigElementType::Curve);
 
-				ControlRig->GetHierarchy()->SetCurveValue(Key, InOutput.Curve.Get(SkeletonIndex));
+				bool bIsValid;
+				const float Value = InOutput.Curve.Get(SkeletonIndex, bIsValid);
+				if (bIsValid)
+				{
+					ControlRig->GetHierarchy()->SetCurveValue(Key, Value);
+				}
+				else
+				{
+					ControlRig->GetHierarchy()->UnsetCurveValue(Key);
+				}
 			}
 		}
 	}
@@ -364,14 +381,17 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
 				const uint16 ControlRigIndex = Pair.Key;
 				const uint16 SkeletonIndex = Pair.Value;
 
-				const float PreviousValue = InOutput.Curve.Get(SkeletonIndex);
-				const float Value = ControlRig->GetHierarchy()->GetCurveValueByIndex(ControlRigIndex);
-
-				if(!FMath::IsNearlyEqual(PreviousValue, Value))
+				if (ControlRig->GetHierarchy()->IsCurveValueSetByIndex(ControlRigIndex))
 				{
-					// this causes a side effect of marking the curve as "valid"
-					// so only apply it for curves that have really changed
-					InOutput.Curve.Set(SkeletonIndex, Value);
+					InOutput.Curve.Set(SkeletonIndex, ControlRig->GetHierarchy()->GetCurveValueByIndex(ControlRigIndex));
+				}
+				else
+				{
+					const int32 WeightIndex = InOutput.Curve.GetArrayIndexByUID(SkeletonIndex);
+					if (WeightIndex != INDEX_NONE)
+					{
+						InOutput.Curve.ValidCurveWeights[WeightIndex] = false;
+					}
 				}
 			}
 		}
@@ -383,14 +403,17 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
 				const uint16 Index = Iter.Value();
 				const FRigElementKey Key(Name, ERigElementType::Curve);
 
-				const float PreviousValue = InOutput.Curve.Get(Index);
-				const float Value = ControlRig->GetHierarchy()->GetCurveValue(Key);
-
-				if(!FMath::IsNearlyEqual(PreviousValue, Value))
+				if (ControlRig->GetHierarchy()->IsCurveValueSet(Key))
 				{
-					// this causes a side effect of marking the curve as "valid"
-					// so only apply it for curves that have really changed
-					InOutput.Curve.Set(Index, Value);
+					InOutput.Curve.Set(Index, ControlRig->GetHierarchy()->GetCurveValue(Key));
+				}
+				else
+				{
+					const int32 WeightIndex = InOutput.Curve.GetArrayIndexByUID(Index);
+					if (WeightIndex != INDEX_NONE)
+					{
+						InOutput.Curve.ValidCurveWeights[WeightIndex] = false;
+					}
 				}
 			}
 		}
@@ -429,7 +452,21 @@ void FAnimNode_ControlRigBase::Evaluate_AnyThread(FPoseContext& Output)
 		if (FAnimWeight::IsFullWeight(InternalBlendAlpha))
 		{
 			ExecuteControlRig(SourcePose);
+			
+			FSmartName SM;
+			if (SourcePose.AnimInstanceProxy->GetSkeleton()->GetSmartNameByName(USkeleton::AnimCurveMappingName, FName("CTRL_expressions_eyeLookDownL"), SM))
+			{
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SC %g [%d]\n"),
+					SourcePose.Curve.CurveWeights[SM.UID], int32(SourcePose.Curve.ValidCurveWeights[SM.UID]));
+			}
+			
 			Output = SourcePose;
+
+			if (Output.AnimInstanceProxy->GetSkeleton()->GetSmartNameByName(USkeleton::AnimCurveMappingName, FName("CTRL_expressions_eyeLookDownL"), SM))
+			{
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("OC %g [%d]\n"),
+					Output.Curve.CurveWeights[SM.UID], int32(Output.Curve.ValidCurveWeights[SM.UID]));
+			}
 		}
 		else 
 		{

@@ -21,7 +21,7 @@ FRigUnit_SetCurveValue_Execute()
 				const FRigElementKey Key(Curve, ERigElementType::Curve);
 				if (CachedCurveIndex.UpdateCache(Key, Hierarchy))
 				{
-					Hierarchy->SetCurveValue(CachedCurveIndex, Value);
+					Hierarchy->SetCurveValueByIndex(CachedCurveIndex, Value);
 				}
 			}
 			default:

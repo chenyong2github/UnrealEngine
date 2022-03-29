@@ -1043,12 +1043,13 @@ public:
 
 	FRigCurveElement()
 		: FRigBaseElement()
+		, bIsValueSet(true)
 		, Value(0.f)
 	{
 		Key.Type = ERigElementType::Curve;
 	}
 
-	virtual ~FRigCurveElement(){}
+	virtual ~FRigCurveElement() override {}
 
 	virtual void Save(FArchive& A, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
@@ -1058,9 +1059,12 @@ private:
 	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
 
 public:
+	// Set to true if the value was actually set. Used to carry back and forth blend curve
+	// value validity state.
+	bool bIsValueSet;
 	
 	float Value;
-	
+
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Curve;

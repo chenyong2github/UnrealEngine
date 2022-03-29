@@ -3179,14 +3179,22 @@ void URigHierarchy::SetControlVisibility(FRigControlElement* InControlElement, b
 #endif
 }
 
+
 float URigHierarchy::GetCurveValue(FRigCurveElement* InCurveElement) const
 {
 	if(InCurveElement == nullptr)
 	{
 		return 0.f;
 	}
-	return InCurveElement->Value;
+	return InCurveElement->bIsValueSet ? InCurveElement->Value : 0.f;
 }
+
+
+bool URigHierarchy::IsCurveValueSet(FRigCurveElement* InCurveElement) const
+{
+	return InCurveElement && InCurveElement->bIsValueSet;
+}
+
 
 void URigHierarchy::SetCurveValue(FRigCurveElement* InCurveElement, float InValue, bool bSetupUndo, bool bForce)
 {
@@ -3196,18 +3204,20 @@ void URigHierarchy::SetCurveValue(FRigCurveElement* InCurveElement, float InValu
 		return;
 	}
 
+	const bool bPreviousIsValueSet = InCurveElement->bIsValueSet; 
 	const float PreviousValue = InCurveElement->Value;
-	if(!bForce && FMath::IsNearlyZero(PreviousValue - InValue))
+	if(!bForce && InCurveElement->bIsValueSet && FMath::IsNearlyZero(PreviousValue - InValue))
 	{
 		return;
 	}
 
+	InCurveElement->bIsValueSet = true;
 	InCurveElement->Value = InValue;
 
 #if WITH_EDITOR
 	if(bSetupUndo || IsTracingChanges())
 	{
-		PushCurveToStack(InCurveElement->GetKey(), PreviousValue, InCurveElement->Value, bSetupUndo);
+		PushCurveToStack(InCurveElement->GetKey(), PreviousValue, InCurveElement->Value, bPreviousIsValueSet, true, bSetupUndo);
 	}
 
 	if (ensure(!bPropagatingChange))
@@ -3221,12 +3231,11 @@ void URigHierarchy::SetCurveValue(FRigCurveElement* InCurveElement, float InValu
 				continue;
 			}
 
-			URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
-			if (ListeningHierarchy)
+			if (URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get())
 			{
 				if(FRigCurveElement* ListeningElement = Cast<FRigCurveElement>(ListeningHierarchy->Find(InCurveElement->GetKey())))
 				{
-					// bSetupUndo = false such that all listening hierarchies performs undo at the same time the root hierachy undos
+					// bSetupUndo = false such that all listening hierarchies performs undo at the same time the root hierarchy undoes
 					ListeningHierarchy->SetCurveValue(ListeningElement, InValue, false, bForce);
 				}
 			}
@@ -3234,6 +3243,54 @@ void URigHierarchy::SetCurveValue(FRigCurveElement* InCurveElement, float InValu
 	}
 #endif
 }
+
+
+void URigHierarchy::UnsetCurveValue(FRigCurveElement* InCurveElement, bool bSetupUndo, bool bForce)
+{
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
+	if(InCurveElement == nullptr)
+	{
+		return;
+	}
+
+	const bool bPreviousIsValueSet = InCurveElement->bIsValueSet; 
+	if(!bForce && !InCurveElement->bIsValueSet)
+	{
+		return;
+	}
+
+	InCurveElement->bIsValueSet = false;
+
+#if WITH_EDITOR
+	if(bSetupUndo || IsTracingChanges())
+	{
+		PushCurveToStack(InCurveElement->GetKey(), InCurveElement->Value, InCurveElement->Value, bPreviousIsValueSet, false, bSetupUndo);
+	}
+
+	if (ensure(!bPropagatingChange))
+	{
+		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
+			
+		for(FRigHierarchyListener& Listener : ListeningHierarchies)
+		{
+			if(!Listener.Hierarchy.IsValid())
+			{
+				continue;
+			}
+
+			if (URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get())
+			{
+				if(FRigCurveElement* ListeningElement = Cast<FRigCurveElement>(ListeningHierarchy->Find(InCurveElement->GetKey())))
+				{
+					// bSetupUndo = false such that all listening hierarchies performs undo at the same time the root hierarchy undoes
+					ListeningHierarchy->UnsetCurveValue(ListeningElement, false, bForce);
+				}
+			}
+		}
+	}
+#endif
+}
+
 
 FName URigHierarchy::GetPreviousName(const FRigElementKey& InKey) const
 {
@@ -4475,15 +4532,15 @@ void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ERigTransf
 #endif
 }
 
-void URigHierarchy::PushCurveToStack(const FRigElementKey& InKey, float InOldCurveValue, float InNewCurveValue, bool bModify)
+void URigHierarchy::PushCurveToStack(const FRigElementKey& InKey, float InOldCurveValue, float InNewCurveValue, bool bInOldIsCurveValueSet, bool bInNewIsCurveValueSet, bool bModify)
 {
 #if WITH_EDITOR
 
 	FTransform OldTransform = FTransform::Identity;
 	FTransform NewTransform = FTransform::Identity;
 
-	OldTransform.SetTranslation(FVector(InOldCurveValue, 0.f, 0.f));
-	NewTransform.SetTranslation(FVector(InNewCurveValue, 0.f, 0.f));
+	OldTransform.SetTranslation(FVector(InOldCurveValue, bInOldIsCurveValueSet ? 1.f : 0.f, 0.f));
+	NewTransform.SetTranslation(FVector(InNewCurveValue, bInNewIsCurveValueSet ? 1.f : 0.f, 0.f));
 
 	PushTransformToStack(InKey, ERigTransformStackEntryType::CurveValue, ERigTransformType::CurrentLocal, OldTransform, NewTransform, false, bModify);
 

@@ -57,6 +57,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Deprecation of parameters
 		RemoveParameters,
 
+		// Added rig curve element value state flag
+		CurveElementValueStateFlag,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

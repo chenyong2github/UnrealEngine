@@ -15,6 +15,7 @@ struct CONTROLRIG_API FRigUnit_GetCurveValue : public FRigUnit
 
 	FRigUnit_GetCurveValue()
 		: Curve(NAME_None)
+		, Valid(true)
 		, Value(0.f)
 		, CachedCurveIndex(FCachedRigElement())
 	{}
@@ -27,6 +28,9 @@ struct CONTROLRIG_API FRigUnit_GetCurveValue : public FRigUnit
 	 */
 	UPROPERTY(meta = (Input, CustomWidget = "CurveName"))
 	FName Curve;
+	
+	UPROPERTY(meta=(Output)) 
+	bool Valid;
 
 	// The current transform of the given Curve - or identity in case it wasn't found.
 	UPROPERTY(meta=(Output, UIMin = 0.f, UIMax = 1.f))

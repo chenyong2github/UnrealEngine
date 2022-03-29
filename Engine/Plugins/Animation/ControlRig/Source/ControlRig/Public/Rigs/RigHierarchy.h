@@ -1365,11 +1365,41 @@ public:
 		return 0.f;
 	}
 
+	// TODO: Deprecate?
 	FORCEINLINE_DEBUGGABLE float GetCurveValue(int32 InElementIndex) const
 	{
 		return GetCurveValueByIndex(InElementIndex);
 	}
 
+	/**
+	 * Returns whether a curve's value is set, given its key
+	 * @param InKey The key of the element to retrieve the value for
+	 * @return Returns true if the value is set, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE_DEBUGGABLE bool IsCurveValueSet(FRigElementKey InKey) const
+	{
+		return IsCurveValueSetByIndex(GetIndex(InKey));
+	}
+
+	/**
+	 * Returns a curve's value given its index
+	 * @param InElementIndex The index of the element to retrieve the value for
+	 * @return Returns true if the value is set, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE_DEBUGGABLE bool IsCurveValueSetByIndex(int32 InElementIndex) const
+	{
+		if(Elements.IsValidIndex(InElementIndex))
+		{
+			if(FRigCurveElement* CurveElement = Cast<FRigCurveElement>(Elements[InElementIndex]))
+			{
+				return IsCurveValueSet(CurveElement);
+			}
+		}
+		return false;
+	}
+	
 	/**
 	 * Sets a curve's value given its key
 	 * @param InKey The key of the element to set the value for
@@ -1400,9 +1430,40 @@ public:
 		}
 	}
 
+	// TODO: Deprecate?
 	FORCEINLINE_DEBUGGABLE void SetCurveValue(int32 InElementIndex, float InValue, bool bSetupUndo = false)
 	{
 		SetCurveValueByIndex(InElementIndex, InValue, bSetupUndo);
+	}
+
+	/**
+	 * Sets a curve's value given its key
+	 * @param InKey The key of the element to set the value for
+	 * @param InValue The value to set on the curve
+	 * @param bSetupUndo If true the transform stack will be setup for undo / redo
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+    FORCEINLINE_DEBUGGABLE void UnsetCurveValue(FRigElementKey InKey, bool bSetupUndo = false)
+	{
+		UnsetCurveValueByIndex(GetIndex(InKey), bSetupUndo);
+	}
+
+	/**
+	 * Sets a curve's value given its index
+	 * @param InElementIndex The index of the element to set the value for
+	 * @param InValue The value to set on the curve
+	 * @param bSetupUndo If true the transform stack will be setup for undo / redo
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE_DEBUGGABLE void UnsetCurveValueByIndex(int32 InElementIndex, bool bSetupUndo = false)
+	{
+		if(Elements.IsValidIndex(InElementIndex))
+		{
+			if(FRigCurveElement* CurveElement = Cast<FRigCurveElement>(Elements[InElementIndex]))
+			{
+				UnsetCurveValue(CurveElement, bSetupUndo);
+			}
+		}
 	}
 
 	/**
@@ -2420,11 +2481,18 @@ public:
 	void SetControlVisibility(FRigControlElement* InControlElement, bool bVisibility);
 
 	/**
-	 * Returns a curve's value
+	 * Returns a curve's value. If the curve value is not set, returns 
 	 * @param InCurveElement The element to retrieve the value for
 	 * @return Returns the value of the curve
 	 */
 	float GetCurveValue(FRigCurveElement* InCurveElement) const;
+
+	/**
+	 * Returns whether a curve's value is set. If the curve value is not set, returns false. 
+	 * @param InCurveElement The element to retrieve the value for
+	 * @return Returns true if the value is set, false otherwise.
+	 */
+	bool IsCurveValueSet(FRigCurveElement* InCurveElement) const;
 
 	/**
 	 * Sets a curve's value
@@ -2434,6 +2502,14 @@ public:
 	 * @param bForce Set the transform even if it is the same as the previously set one
 	 */
 	void SetCurveValue(FRigCurveElement* InCurveElement, float InValue, bool bSetupUndo = false, bool bForce = false);
+
+	/**
+	 * Unsets a curve's value. Basically the curve's value becomes meaningless.
+	 * @param InCurveElement The element to set the value for
+	 * @param bSetupUndo If true the transform stack will be setup for undo / redo
+	 * @param bForce Unset the curve even if it was already unset.
+	 */
+	void UnsetCurveValue(FRigCurveElement* InCurveElement, bool bSetupUndo = false, bool bForce = false);
 
 	/**
 	 * Returns the previous name of an element prior to a rename operation
@@ -2675,6 +2751,8 @@ private:
             const FRigElementKey& InKey,
             float InOldCurveValue,
             float InNewCurveValue,
+            bool bInOldIsCurveValueSet,
+            bool bInNewIsCurveValueSet,
             bool bModify);
 
 	/**
