@@ -1293,21 +1293,24 @@ void UWorldPartition::Tick(float DeltaSeconds)
 			FBox AllActorsBounds(ForceInit);
 			for (UActorDescContainer::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 			{
-				AllActorsBounds += ActorDescIterator->GetBounds();
-
-				// Warn the user if the world becomes larger that 4km in any axis
-				if (AllActorsBounds.GetSize().GetMax() >= 400000.0f)
+				if (ActorDescIterator->GetIsSpatiallyLoadedRaw())
 				{
-					bShouldEnableStreamingWarned = true;
+					AllActorsBounds += ActorDescIterator->GetBounds();
 
-					if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionShouldEnableStreaming", "The size of your world has grown enough to justify enabling streaming. Enable streaming now?")) == EAppReturnType::Yes)
+					// Warn the user if the world becomes larger that 4km in any axis
+					if (AllActorsBounds.GetSize().GetMax() >= 400000.0f)
 					{
-						bEnableStreaming = true;
-						bStreamingWasEnabled = true;
-						FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionEnableStreamingDialolg", "Please refer to https://docs.unrealengine.com/5.0/en-US/building-virtual-worlds/world-partition for how to set up streaming."));			
-					}
+						bShouldEnableStreamingWarned = true;
 
-					break;
+						if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionShouldEnableStreaming", "The size of your world has grown enough to justify enabling streaming. Enable streaming now?")) == EAppReturnType::Yes)
+						{
+							SetEnableStreaming(true);
+							bStreamingWasEnabled = true;
+							FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionEnableStreamingDialolg", "Please refer to https://docs.unrealengine.com/5.0/en-US/building-virtual-worlds/world-partition for how to set up streaming."));			
+						}
+
+						break;
+					}
 				}
 			}
 		}
