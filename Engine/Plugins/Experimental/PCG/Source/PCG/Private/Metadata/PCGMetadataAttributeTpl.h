@@ -50,6 +50,7 @@ public:
 
 	virtual void SetValue(PCGMetadataEntryKey ItemKey, const FPCGMetadataAttributeBase* InAttribute, PCGMetadataEntryKey InEntryKey) override
 	{
+		check(ItemKey != PCGInvalidEntryKey);
 		if (InAttribute == this)
 		{
 			SetValueFromValueKey(ItemKey, GetValueKey(InEntryKey));
@@ -74,6 +75,7 @@ public:
 
 	virtual void SetValue(PCGMetadataEntryKey ItemKey, const FPCGMetadataAttributeBase* InAttributeA, PCGMetadataEntryKey InEntryKeyA, const FPCGMetadataAttributeBase* InAttributeB, PCGMetadataEntryKey InEntryKeyB, EPCGMetadataOp Op) override
 	{
+		check(ItemKey != PCGInvalidEntryKey);
 		bool bAppliedValue = false;
 
 		if (InAttributeA && InAttributeB && bAllowsInterpolation)
@@ -153,12 +155,14 @@ public:
 
 	void SetValue(PCGMetadataEntryKey ItemKey, const T& InValue)
 	{
+		check(ItemKey != PCGInvalidEntryKey);
 		SetValueFromValueKey(ItemKey, AddValue(InValue));
 	}
 
 	template<typename U>
 	void SetValue(PCGMetadataEntryKey ItemKey, const U& InValue)
 	{
+		check(ItemKey != PCGInvalidEntryKey);
 		SetValueFromValueKey(ItemKey, AddValue(T(InValue)));
 	}
 

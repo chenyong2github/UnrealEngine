@@ -9,13 +9,14 @@
 namespace PCGMetadataOperations
 {
 	template<typename U, typename T>
-	bool SetValue(const TArray<FPCGPoint>& InPoints, FPCGMetadataAttributeBase* AttributeBase, TFunctionRef<U(const FPCGPoint& InPoint)> PropGetter)
+	bool SetValue(TArray<FPCGPoint>& InPoints, FPCGMetadataAttributeBase* AttributeBase, UPCGMetadata* Metadata, TFunctionRef<U(const FPCGPoint& InPoint)> PropGetter)
 	{
 		if (AttributeBase && AttributeBase->GetTypeId() == PCG::Private::MetadataTypes<T>::Id)
 		{
 			FPCGMetadataAttribute<T>* Attribute = static_cast<FPCGMetadataAttribute<T>*>(AttributeBase);
-			for (const FPCGPoint& Point : InPoints)
+			for (FPCGPoint& Point : InPoints)
 			{
+				Metadata->InitializeOnSet(Point.MetadataEntry);
 				Attribute->SetValue(Point.MetadataEntry, PropGetter(Point));
 			}
 
@@ -123,9 +124,9 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 				}
 
 				FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetMutableAttribute(Settings->DestinationAttribute);
-				if(!PCGMetadataOperations::SetValue<float, float>(SampledPoints, AttributeBase, DensityGetter) &&
-					!PCGMetadataOperations::SetValue<float, FVector>(SampledPoints, AttributeBase, DensityGetter) &&
-					!PCGMetadataOperations::SetValue<float, FVector4>(SampledPoints, AttributeBase, DensityGetter))
+				if(!PCGMetadataOperations::SetValue<float, float>(SampledPoints, AttributeBase, SampledData->Metadata, DensityGetter) &&
+					!PCGMetadataOperations::SetValue<float, FVector>(SampledPoints, AttributeBase, SampledData->Metadata, DensityGetter) &&
+					!PCGMetadataOperations::SetValue<float, FVector4>(SampledPoints, AttributeBase, SampledData->Metadata, DensityGetter))
 				{
 					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *Settings->DestinationAttribute.ToString());
 				}
@@ -140,8 +141,8 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 				}
 
 				FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetMutableAttribute(Settings->DestinationAttribute);
-				if(!PCGMetadataOperations::SetValue<FVector, FVector>(SampledPoints, AttributeBase, ExtentsGetter) &&
-					!PCGMetadataOperations::SetValue<FVector, FTransform>(SampledPoints, AttributeBase, ExtentsGetter))
+				if(!PCGMetadataOperations::SetValue<FVector, FVector>(SampledPoints, AttributeBase, SampledData->Metadata, ExtentsGetter) &&
+					!PCGMetadataOperations::SetValue<FVector, FTransform>(SampledPoints, AttributeBase, SampledData->Metadata, ExtentsGetter))
 				{
 					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *Settings->DestinationAttribute.ToString());
 				}
@@ -156,7 +157,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 				}
 
 				FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetMutableAttribute(Settings->DestinationAttribute);
-				if(!PCGMetadataOperations::SetValue<FVector4, FVector4>(SampledPoints, AttributeBase, ColorGetter))
+				if(!PCGMetadataOperations::SetValue<FVector4, FVector4>(SampledPoints, AttributeBase, SampledData->Metadata, ColorGetter))
 				{
 					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *Settings->DestinationAttribute.ToString());
 				}
@@ -171,8 +172,8 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 				}
 
 				FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetMutableAttribute(Settings->DestinationAttribute);
-				if (!PCGMetadataOperations::SetValue<FVector, FVector>(SampledPoints, AttributeBase, PositionGetter) &&
-					!PCGMetadataOperations::SetValue<FVector, FTransform>(SampledPoints, AttributeBase, PositionGetter))
+				if (!PCGMetadataOperations::SetValue<FVector, FVector>(SampledPoints, AttributeBase, SampledData->Metadata, PositionGetter) &&
+					!PCGMetadataOperations::SetValue<FVector, FTransform>(SampledPoints, AttributeBase, SampledData->Metadata, PositionGetter))
 				{
 					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *Settings->DestinationAttribute.ToString());
 				}
@@ -187,7 +188,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 				}
 
 				FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetMutableAttribute(Settings->DestinationAttribute);
-				if (!PCGMetadataOperations::SetValue<FQuat, FQuat>(SampledPoints, AttributeBase, RotationGetter))
+				if (!PCGMetadataOperations::SetValue<FQuat, FQuat>(SampledPoints, AttributeBase, SampledData->Metadata, RotationGetter))
 				{
 					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *Settings->DestinationAttribute.ToString());
 				}
@@ -202,7 +203,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 				}
 
 				FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetMutableAttribute(Settings->DestinationAttribute);
-				if (!PCGMetadataOperations::SetValue<FVector, FVector>(SampledPoints, AttributeBase, ScaleGetter))
+				if (!PCGMetadataOperations::SetValue<FVector, FVector>(SampledPoints, AttributeBase, SampledData->Metadata, ScaleGetter))
 				{
 					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *Settings->DestinationAttribute.ToString());
 				}
@@ -217,7 +218,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 				}
 
 				FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetMutableAttribute(Settings->DestinationAttribute);
-				if (!PCGMetadataOperations::SetValue<FTransform, FTransform>(SampledPoints, AttributeBase, TransformGetter))
+				if (!PCGMetadataOperations::SetValue<FTransform, FTransform>(SampledPoints, AttributeBase, SampledData->Metadata, TransformGetter))
 				{
 					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *Settings->DestinationAttribute.ToString());
 				}
