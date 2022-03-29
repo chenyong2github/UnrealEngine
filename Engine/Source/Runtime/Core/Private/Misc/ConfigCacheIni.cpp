@@ -397,7 +397,7 @@ static void ExtractPropertyValue(const FString& FullStructValue, const FString& 
 		}
 
 		// pull out the token
-		Out.AppendChars(*FullStructValue + MatchLoc, UE_PTRDIFF_TO_INT32(Travel - Start));
+		Out.AppendChars(Start, UE_PTRDIFF_TO_INT32(Travel - Start));
 	}
 }
 
