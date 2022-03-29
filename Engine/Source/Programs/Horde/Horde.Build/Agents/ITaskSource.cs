@@ -79,7 +79,7 @@ namespace Horde.Build.Tasks
 		/// <param name="agent">The agent to assign a lease to</param>
 		/// <param name="cancellationToken">Cancellation token for the wait</param>
 		/// <returns>Task returning a new lease object.</returns>
-		Task<Task<AgentLease>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken);
+		Task<Task<AgentLease?>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Cancel a lease that was previously assigned to an agent, allowing it to be assigned out again
@@ -173,7 +173,7 @@ namespace Horde.Build.Tasks
 		public MessageDescriptor Descriptor => s_message.Descriptor;
 
 		/// <inheritdoc/>
-		public abstract Task<Task<AgentLease>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken);
+		public abstract Task<Task<AgentLease?>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken);
 
 		/// <inheritdoc/>
 		public Task CancelLeaseAsync(IAgent agent, LeaseId leaseId, Any payload) => CancelLeaseAsync(agent, leaseId, payload.Unpack<TMessage>());
@@ -230,9 +230,9 @@ namespace Horde.Build.Tasks
         /// </summary>
         /// <param name="token">The cancellation token</param>
         /// <returns>Lease task</returns>
-        protected static Task<AgentLease> Skip(CancellationToken token)
+        protected static Task<AgentLease?> Skip(CancellationToken token)
         {
-            return token.AsTask<AgentLease>();
+            return Task.FromResult<AgentLease?>(null);
         }
 
         /// <summary>
@@ -240,10 +240,10 @@ namespace Horde.Build.Tasks
         /// </summary>
         /// <param name="token">The cancellation token</param>
         /// <returns>Lease task</returns>
-        protected static async Task<Task<AgentLease>> DrainAsync(CancellationToken token)
+        protected static async Task<Task<AgentLease?>> DrainAsync(CancellationToken token)
         {
             await token.AsTask();
-            return Task.FromCanceled<AgentLease>(token);
+            return Task.FromResult<AgentLease?>(null);
         }
 
         /// <summary>
@@ -251,9 +251,9 @@ namespace Horde.Build.Tasks
         /// </summary>
         /// <param name="lease">Lease to create the task from</param>
         /// <returns></returns>
-        protected static Task<AgentLease> Lease(AgentLease lease)
+        protected static Task<AgentLease?> Lease(AgentLease lease)
         {
-            return Task.FromResult<AgentLease>(lease);
+            return Task.FromResult<AgentLease?>(lease);
         }
     }
 }

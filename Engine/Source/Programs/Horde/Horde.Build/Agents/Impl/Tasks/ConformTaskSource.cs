@@ -149,7 +149,7 @@ namespace Horde.Build.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public override async Task<Task<AgentLease>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
+		public override async Task<Task<AgentLease?>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
 			DateTime utcNow = DateTime.UtcNow;
 			if (!await IsConformPendingAsync(agent, utcNow))

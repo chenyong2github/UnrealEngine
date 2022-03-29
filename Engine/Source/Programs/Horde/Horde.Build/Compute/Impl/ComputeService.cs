@@ -272,19 +272,23 @@ namespace Horde.Build.Compute.Impl
 		}
 
 		/// <inheritdoc/>
-		public override async Task<Task<AgentLease>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
+		public override async Task<Task<AgentLease?>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
-			Task<(QueueKey, ComputeTaskInfo)> task = await _taskScheduler.DequeueAsync(queueKey => CheckRequirements(agent, queueKey), cancellationToken);
+			Task<(QueueKey, ComputeTaskInfo)?> task = await _taskScheduler.DequeueAsync(queueKey => CheckRequirements(agent, queueKey), cancellationToken);
 			return WaitForLeaseAsync(agent, task, cancellationToken);
 		}
 
-		private async Task<AgentLease> WaitForLeaseAsync(IAgent agent, Task<(QueueKey, ComputeTaskInfo)> task, CancellationToken cancellationToken)
+		private async Task<AgentLease?> WaitForLeaseAsync(IAgent agent, Task<(QueueKey, ComputeTaskInfo)?> task, CancellationToken cancellationToken)
 		{
 			for (; ; )
 			{
-				(QueueKey, ComputeTaskInfo) entry = await task;
+				(QueueKey, ComputeTaskInfo)? entry = await task;
+				if (entry == null)
+				{
+					return null;
+				}
 
-				AgentLease? lease = await CreateLeaseForEntryAsync(agent, await task);
+				AgentLease? lease = await CreateLeaseForEntryAsync(agent, entry.Value);
 				if (lease != null)
 				{
 					return lease;

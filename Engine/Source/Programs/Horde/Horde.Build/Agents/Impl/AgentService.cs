@@ -469,7 +469,7 @@ namespace Horde.Build.Services
 			CancellationToken cancellationToken = cancellationSource.Token;
 			try
 			{
-				Task<AgentLease> task = await source.AssignLeaseAsync(agent, cancellationToken);
+				Task<AgentLease?> task = await source.AssignLeaseAsync(agent, cancellationToken);
 				return task.ContinueWith(x => WrapAssignedLease(source, x, cancellationSource), TaskScheduler.Default);
 			}
 			catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -483,16 +483,23 @@ namespace Horde.Build.Services
 			}
 		}
 
-		(ITaskSource, AgentLease)? WrapAssignedLease(ITaskSource source, Task<AgentLease> task, CancellationTokenSource cancellationSource)
+		(ITaskSource, AgentLease)? WrapAssignedLease(ITaskSource source, Task<AgentLease?> task, CancellationTokenSource cancellationSource)
 		{
 			if (task.IsCanceled)
 			{
 				return null;
 			}
-			else if (task.IsCompletedSuccessfully)
+			else if (task.TryGetResult(out AgentLease? lease))
 			{
-				cancellationSource.Cancel();
-				return (source, task.Result);
+				if (lease == null)
+				{
+					return null;
+				}
+				else
+				{
+					cancellationSource.Cancel();
+					return (source, lease);
+				}
 			}
 			else if (task.IsFaulted)
 			{

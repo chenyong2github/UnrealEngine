@@ -40,7 +40,7 @@ namespace Horde.Build.Tasks.Impl
 			OnLeaseStartedProperties.Add(nameof(UpgradeTask.LogId), x => new LogId(x.LogId));
 		}
 
-		public override async Task<Task<AgentLease>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
+		public override async Task<Task<AgentLease?>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
 			string? requiredVersion = await GetRequiredSoftwareVersion(agent);
 			if (requiredVersion == null || agent.Version == requiredVersion)
