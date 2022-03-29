@@ -1393,6 +1393,20 @@ int FTextureSource::GetVolumeSizeZ() const
 	}
 }
 
+static int GetFullMipCount(int32 SizeX,int32 SizeY,int32 SizeZ = 1)
+{
+	if ( SizeX == 0 || SizeY == 0 || SizeZ == 0 )
+	{
+		return 0;
+	}
+	
+	int MaxDim = FMath::Max3(SizeX,SizeY,SizeZ);
+
+	int32 MipCount = FMath::FloorLog2(MaxDim) + 1;
+
+	return MipCount;
+}
+
 void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 	const FTextureSourceBlock* InBlocks,
 	int32 InNumLayers,
@@ -1538,7 +1552,7 @@ void FTextureSource::Init2DWithMipChain(
 	ETextureSourceFormat NewFormat
 	)
 {
-	int32 NewMipCount = FMath::Max(FMath::CeilLogTwo(NewSizeX),FMath::CeilLogTwo(NewSizeY)) + 1;
+	int32 NewMipCount = GetFullMipCount(NewSizeX,NewSizeY);
 	Init(NewSizeX, NewSizeY, 1, NewMipCount, NewFormat);
 }
 
@@ -1548,7 +1562,7 @@ void FTextureSource::InitLayered2DWithMipChain(
 	int32 NewNumLayers,
 	const ETextureSourceFormat* NewFormat)
 {
-	int32 NewMipCount = FMath::Max(FMath::CeilLogTwo(NewSizeX), FMath::CeilLogTwo(NewSizeY)) + 1;
+	int32 NewMipCount = GetFullMipCount(NewSizeX,NewSizeY);
 	InitLayered(NewSizeX, NewSizeY, 1, NewNumLayers, NewMipCount, NewFormat);
 }
 
@@ -1558,7 +1572,7 @@ void FTextureSource::InitCubeWithMipChain(
 	ETextureSourceFormat NewFormat
 	)
 {
-	int32 NewMipCount = FMath::Max(FMath::CeilLogTwo(NewSizeX),FMath::CeilLogTwo(NewSizeY)) + 1;
+	int32 NewMipCount = GetFullMipCount(NewSizeX,NewSizeY);
 	Init(NewSizeX, NewSizeY, 6, NewMipCount, NewFormat);
 }
 
@@ -1579,6 +1593,8 @@ void FTextureSource::InitWithCompressedSourceData(
 	NumLayers = 1;
 	NumSlices = 1;
 	NumMips = NewNumMips;
+
+	check( NewNumMips <= GetFullMipCount(SizeX,SizeY) );
 
 	Format = NewFormat;
 	LayerFormat.SetNum(1, true);
@@ -1784,6 +1800,12 @@ uint8* FTextureSource::LockMipInternal(int32 BlockIndex, int32 LayerIndex, int32
 		else
 		{
 			MipData = LockedMipData.GetDataReadWrite();
+		}
+
+		if ( MipData == nullptr )
+		{
+			// no data, you did not get the lock, do not call Unlock
+			return nullptr;
 		}
 		
 		MipData += CalcMipOffset(BlockIndex, LayerIndex, MipIndex);
@@ -3017,6 +3039,11 @@ void FTextureSource::InitLayeredImpl(
 	NumLayers = NewNumLayers;
 	NumSlices = NewNumSlices;
 	NumMips = NewNumMips;
+	
+	//check( NewNumMips <= MAX_TEXTURE_MIP_COUNT );
+	// NumSlices could be volume size Z or not
+	check( NewNumMips <= GetFullMipCount(SizeX,SizeY,GetVolumeSizeZ()) );
+
 	Format = NewLayerFormat[0];
 	LayerFormat.SetNum(NewNumLayers, true);
 	for (int i = 0; i < NewNumLayers; ++i)
@@ -3045,6 +3072,8 @@ void FTextureSource::InitBlockedImpl(const ETextureSourceFormat* InLayerFormats,
 	SizeY = InBlocks[0].SizeY;
 	NumSlices = InBlocks[0].NumSlices;
 	NumMips = InBlocks[0].NumMips;
+	
+	check( NumMips <= GetFullMipCount(SizeX,SizeY) );
 
 	NumLayers = InNumLayers;
 	Format = InLayerFormats[0];

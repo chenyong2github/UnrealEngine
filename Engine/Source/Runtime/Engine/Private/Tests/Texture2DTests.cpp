@@ -48,18 +48,18 @@ bool FTexture2DTestLockingWhenEmpty::RunTest(const FString& Parameters)
 		// Test that we can lock and unlock repeatedly
 		uint8* FirstLockPtr = EmptyTexture->Source.LockMip(0);
 		TestNull(TEXT("Locking an empty texture"), FirstLockPtr);
-		EmptyTexture->Source.UnlockMip(0);
 
-		// If a lock on the primary mip (0) fails because the bulkdata is empty we still
-		// get a successful lock and so need to unlock it
+		// If LockMip returns null you do not get the lock, you do not need to unlock it
 		uint8* SecondLockPtr = EmptyTexture->Source.LockMip(0);
 		TestNull(TEXT("Locking an empty texture a second time"), SecondLockPtr);
-		EmptyTexture->Source.UnlockMip(0);
 
 		// If we fail to get the lock because the mip does not exist then we do not get
 		// a lock and don't need to unlock it.
 		uint8* InvalidLockPtr = EmptyTexture->Source.LockMip(1);
 		TestNull(TEXT("Locking a submip of an empty texture"), InvalidLockPtr);
+
+		FTextureSource::FMipLock MipLock(FTextureSource::ELockState::ReadOnly,&EmptyTexture->Source,0);
+		TestFalse( TEXT("MipLock on empty texture should not be valid"), MipLock.IsValid() );
 	}
 
 	// Create a texture with  valid dimensions and default data
@@ -76,6 +76,11 @@ bool FTexture2DTestLockingWhenEmpty::RunTest(const FString& Parameters)
 		TestNotNull(TEXT("Locking a valid a second time"), SecondLockPtr);
 		Texture->Source.UnlockMip(0);
 
+		{
+			FTextureSource::FMipLock MipLock(FTextureSource::ELockState::ReadOnly,&Texture->Source,0);
+			TestTrue( TEXT("MipLock on valid texture should be valid"), MipLock.IsValid() );
+		}
+
 		// Test that we can lock each mip before unlocking them all
 		for (int32 MipIndex = 0; MipIndex < Texture->Source.GetNumMips(); ++MipIndex)
 		{
@@ -86,6 +91,16 @@ bool FTexture2DTestLockingWhenEmpty::RunTest(const FString& Parameters)
 		for (int32 MipIndex = 0; MipIndex < Texture->Source.GetNumMips(); ++MipIndex)
 		{
 			Texture->Source.UnlockMip(MipIndex);
+		}
+		
+		for (int32 MipIndex = 0; MipIndex < Texture->Source.GetNumMips(); ++MipIndex)
+		{
+			FTextureSource::FMipLock MipLock(FTextureSource::ELockState::ReadOnly,&Texture->Source,MipIndex);
+			TestTrue( TEXT("MipLock on valid texture should be valid"), MipLock.IsValid() );
+			
+			// does fail, but fails with a check, so we can't test it :
+			//uint8* MipPtr = Texture->Source.LockMip(MipIndex);
+			//TestNull(TEXT("Locking for write after readonly should fail"), MipPtr);
 		}
 	}
 
