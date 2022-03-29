@@ -156,14 +156,14 @@ namespace Gauntlet
 					Log.Verbose("\tCopying {0} to {1}", BuildPath, DestPath);
 					Utils.SystemHelpers.CopyDirectory(BuildPath, DestPath, Utils.SystemHelpers.CopyOptions.Mirror);
 				}
-				catch (Exception Ex)
+				catch
 				{
 					lock (Globals.MainLock)
 					{
 						LocalInstalls[InBuild].Status = InstallStatus.Error;
 					}
 
-					throw Ex;
+					throw;
 				}
 
 				lock (Globals.MainLock)

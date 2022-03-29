@@ -57,7 +57,7 @@ namespace AutomationScripts.Automation
 				LogInformation("********** RESAVE PACKAGES COMMAND FAILED **********");
                 LogInformation("Error message: {0}", ProcessEx.Message);
 				HandleFailure(ProcessEx.Message);
-				throw ProcessEx;
+				throw;
 			}
 
 			// The processes steps have completed successfully.

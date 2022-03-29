@@ -14,6 +14,8 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
 
+#pragma warning disable SYSLIB0014
+
 namespace AutomationTool.Tasks
 {
 	/// <summary>

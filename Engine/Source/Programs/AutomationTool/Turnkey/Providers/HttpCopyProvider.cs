@@ -8,6 +8,8 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using System.Net;
 
+#pragma warning disable SYSLIB0014
+
 namespace Turnkey
 {
 	// there is an Https subclass below - so the operation will supply http: or https: and this class will handle both, by using the ProviderToken for Uris

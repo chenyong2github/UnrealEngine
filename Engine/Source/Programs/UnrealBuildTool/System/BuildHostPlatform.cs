@@ -120,7 +120,7 @@ namespace UnrealBuildTool
 			{
 				PID = Proc.Id;
 				Name = Proc.ProcessName;
-				Filename = Path.GetFullPath(Proc.MainModule.FileName);
+				Filename = Proc.MainModule?.FileName != null ? Path.GetFullPath(Proc.MainModule.FileName) : String.Empty;
 			}
 
 			/// <summary>
@@ -208,7 +208,10 @@ namespace UnrealBuildTool
 				{
 					foreach (ProcessModule Module in Proc.Modules.Cast<System.Diagnostics.ProcessModule>())
 					{
-						Modules.Add(Path.GetFullPath(Module.FileName));
+						if (Module.FileName != null)
+						{
+							Modules.Add(Path.GetFullPath(Module.FileName));
+						}
 					}
 				}
 			}

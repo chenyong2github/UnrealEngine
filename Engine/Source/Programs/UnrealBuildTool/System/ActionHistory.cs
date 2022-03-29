@@ -114,7 +114,7 @@ namespace UnrealBuildTool
 		{
 			string InvariantText = Text.ToUpperInvariant();
 			byte[] InvariantBytes = Encoding.Unicode.GetBytes(InvariantText);
-			return new MD5CryptoServiceProvider().ComputeHash(InvariantBytes);
+			return MD5.Create().ComputeHash(InvariantBytes);
 		}
 
 		/// <summary>
@@ -275,7 +275,7 @@ namespace UnrealBuildTool
 		{
 			FileReference LayerLocation = GetLayerLocationForFile(File.Location);
 
-			ActionHistoryLayer Layer = Layers.FirstOrDefault(x => x.Location == LayerLocation);
+			ActionHistoryLayer? Layer = Layers.FirstOrDefault(x => x.Location == LayerLocation);
 			if (Layer == null)
 			{
 				lock (LockObject)
@@ -412,7 +412,7 @@ namespace UnrealBuildTool
 		{
 			lock (LockObject)
 			{
-				ActionHistoryPartition Partition = Partitions.FirstOrDefault(x => x.BaseDir == BaseDir);
+				ActionHistoryPartition? Partition = Partitions.FirstOrDefault(x => x.BaseDir == BaseDir);
 				if(Partition == null)
 				{
 					Partition = new ActionHistoryPartition(BaseDir);

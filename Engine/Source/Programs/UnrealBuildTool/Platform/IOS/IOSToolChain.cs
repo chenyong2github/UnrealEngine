@@ -2197,7 +2197,7 @@ namespace UnrealBuildTool
 			PSI.RedirectStandardOutput = true;
 			PSI.UseShellExecute = false;
 			PSI.CreateNoWindow = true;
-			Process NewProcess = Process.Start(PSI);
+			Process NewProcess = Process.Start(PSI)!;
 
 			// Wait for the process to exit and grab it's output
 			StdOutResults = NewProcess.StandardOutput.ReadToEnd();
