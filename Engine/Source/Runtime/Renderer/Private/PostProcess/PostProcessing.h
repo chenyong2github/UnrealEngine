@@ -53,12 +53,7 @@ void AddPostProcessingPasses(
 
 void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults);
 
-#if !(UE_BUILD_SHIPPING)
-
 void AddVisualizeCalibrationMaterialPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const UMaterialInterface* InMaterialInterface);
-
-#endif
-
 
 struct FMobilePostProcessingInputs
 {

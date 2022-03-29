@@ -1615,8 +1615,6 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 	}
 }
 
-#if !(UE_BUILD_SHIPPING)
-
 void AddVisualizeCalibrationMaterialPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const UMaterialInterface* InMaterialInterface)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderPostProcessing);
@@ -1655,8 +1653,6 @@ void AddVisualizeCalibrationMaterialPostProcessingPasses(FRDGBuilder& GraphBuild
 
 	SceneColor = AddDeviceEncodingOnlyPass(GraphBuilder, View, PassInputs);
 }
-
-#endif
 
 ///////////////////////////////////////////////////////////////////////////
 // Mobile Post Processing
