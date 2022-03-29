@@ -16,6 +16,14 @@
 #define SUBPIXEL_MASK				(SUBPIXEL_SAMPLES - 1)
 #define SUBPIXEL_DILATE				0	// To correct for mismatch with HW rasterizer
 
+#ifndef NANITE_MESH_SHADER
+#define NANITE_MESH_SHADER 0
+#endif
+
+#ifndef NANITE_PRIM_SHADER
+#define NANITE_PRIM_SHADER 0
+#endif
+
 uint ActiveRasterizerBin;
 
 // .x = count of SW clusters in bin
@@ -137,7 +145,7 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, FBarycentrics
 
 	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
 	
-	FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(Raster.NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, false, Interpolants, SvPosition);
+	FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(Raster.NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, false, uint3(0,0,0), true, Interpolants, SvPosition);
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
 
@@ -919,6 +927,13 @@ void MicropolyRasterize(
 #define PIXEL_VALUE					(RASTER_TECHNIQUE != RASTER_TECHNIQUE_DEPTHONLY)
 #define VERTEX_TO_TRIANGLE_MASKS	(NANITE_PRIM_SHADER && PIXEL_VALUE)
 
+// Use barycentric intrinsics when available, otherwise prefer SV_Barycentrics.
+// If all else fails export them explicitly (incompatible with vertex reuse).
+#define BARYCENTRIC_MODE_INTRINSICS			((NANITE_MESH_SHADER || NANITE_PRIM_SHADER) && COMPILER_SUPPORTS_BARYCENTRIC_INTRINSICS)
+#define BARYCENTRIC_MODE_SV_BARYCENTRICS	(NANITE_MESH_SHADER && !COMPILER_SUPPORTS_BARYCENTRIC_INTRINSICS)
+#define BARYCENTRIC_MODE_EXPORT				(!BARYCENTRIC_MODE_INTRINSICS && !BARYCENTRIC_MODE_SV_BARYCENTRICS)
+
+
 struct VSOut
 {
 	float2 ClipZW								: TEXCOORD0; // Only used when not near clipping
@@ -929,16 +944,22 @@ struct VSOut
 #if VERTEX_TO_TRIANGLE_MASKS
 	CUSTOM_INTERPOLATION uint4 ToTriangleMasks	: TEXCOORD3;
 #endif
-#if NANITE_MESH_SHADER_INTERP == 1
-	float4 InterpPosition						: TEXCOORD4;
+
+#if IS_NANITE_PROGRAMMABLE
+#if BARYCENTRIC_MODE_INTRINSICS
+	CUSTOM_INTERPOLATION uint VertexID			: TEXCOORD4;	
+#elif BARYCENTRIC_MODE_EXPORT
+	float2 BarycentricsUV						: TEXCOORD4;
 #endif
-#if NANITE_USE_HW_BARYCENTRICS
-	float3 HWBarycentrics						: TEXCOORD5;
+#endif
+
+#if NANITE_MESH_SHADER_INTERP
+	float4 InterpPosition						: TEXCOORD5;
 #endif
 	float4 Position								: SV_Position;
 };
 
-VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData, FVisibleCluster VisibleCluster, FCluster Cluster, uint VertIndex, uint PixelValue, float3 WorldPositionOffset, out float4 PointClipNoScaling)
+VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData, FVisibleCluster VisibleCluster, FCluster Cluster, uint VertIndex, uint PixelValue, float3 WorldPositionOffset)
 {
 	VSOut Out;
 
@@ -947,7 +968,6 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	float3 PointRotated = LocalToTranslatedWorld[0].xyz * PointLocal.xxx + LocalToTranslatedWorld[1].xyz * PointLocal.yyy + LocalToTranslatedWorld[2].xyz * PointLocal.zzz;
 	float3 PointTranslatedWorld = PointRotated + LocalToTranslatedWorld[3].xyz + WorldPositionOffset;
 	float4 PointClip = mul( float4( PointTranslatedWorld, 1 ), NaniteView.TranslatedWorldToClip );
-	PointClipNoScaling = PointClip;
 #if VIRTUAL_TEXTURE_TARGET
 	/*
 	float2 vUV = PointClip.xy * float2(0.5, -0.5) + 0.5 * PointClip.w;
@@ -994,8 +1014,8 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	Out.InterpPosition = Out.Position;
 #endif
 
-#if NANITE_USE_HW_BARYCENTRICS
-	Out.HWBarycentrics = float3(0.0f, 0.0f, 0.0f);
+#if IS_NANITE_PROGRAMMABLE && BARYCENTRIC_MODE_INTRINSICS
+	Out.VertexID = VertIndex;
 #endif
 
 	return Out;
@@ -1207,10 +1227,9 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 
 	if (GroupThreadID < NumExportVertices)
 	{
-		float4 PointClipNoScaling;
 		float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f); // TODO: PROG_RASTER
 		const uint PixelValue = ((VisibleIndex + 1) << 7);
-		PrimOutput.Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, SrcVertexIndex, PixelValue, WorldPositionOffset, PointClipNoScaling);
+		PrimOutput.Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, SrcVertexIndex, PixelValue, WorldPositionOffset);
 	}
 
 #if VERTEX_TO_TRIANGLE_MASKS
@@ -1344,9 +1363,8 @@ void HWRasterizeMS(
 	const uint Vertex0 = GroupThreadID + 0;
 	if (Vertex0 < Cluster.NumVerts)
 	{
-		float4 PointClipNoScaling;
 		const uint PixelValue = 0;
-		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex0, PixelValue, WorldPositionOffset, PointClipNoScaling);
+		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex0, PixelValue, WorldPositionOffset);
 		MESH_SHADER_WRITE_VERTEX(Vertex0, VertexOutput);
 	}
 
@@ -1354,9 +1372,8 @@ void HWRasterizeMS(
 	const uint Vertex1 = GroupThreadID + 128;
 	if (Vertex1 < Cluster.NumVerts)
 	{
-		float4 PointClipNoScaling;
 		const uint PixelValue = 0;
-		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex1, PixelValue, WorldPositionOffset, PointClipNoScaling);
+		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex1, PixelValue, WorldPositionOffset);
 		MESH_SHADER_WRITE_VERTEX(Vertex1, VertexOutput);
 	}
 #endif
@@ -1458,16 +1475,12 @@ VSOut HWRasterizeVS(
 		}
 	#endif
 
-		float4 PointClipNoScaling;
 		const uint PixelValue = ((VisibleIndex + 1) << 7) | TriIndex;
-		Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, VertIndex, PixelValue, WorldPositionOffset, PointClipNoScaling);
-	#if NANITE_USE_HW_BARYCENTRICS
-		// TODO: PROG_RASTER (Implement support for SM6.1 SV_Barycentrics if available)
-		// https://github.com/microsoft/DirectXShaderCompiler/wiki/SV_Barycentrics
-		Out.HWBarycentrics = float3(
+		Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, VertIndex, PixelValue, WorldPositionOffset);
+	#if IS_NANITE_PROGRAMMABLE && BARYCENTRIC_MODE_EXPORT
+		Out.BarycentricsUV = float2(
 			VertexID == 0 ? 1 : 0,
-			VertexID == 1 ? 1 : 0,
-			VertexID == 2 ? 1 : 0
+			VertexID == 1 ? 1 : 0
 		);
 	#endif
 	}
@@ -1477,11 +1490,15 @@ VSOut HWRasterizeVS(
 
 #endif // NANITE_PRIM_SHADER
 
-#if NANITE_MESH_SHADER
-void HWRasterizePS(VSOut In, PrimitiveAttributes Primitive)
-#else
-void HWRasterizePS(VSOut In)
+
+void HWRasterizePS(VSOut In
+#if NANITE_MESH_SHADER	
+	, PrimitiveAttributes Primitive
+#if IS_NANITE_PROGRAMMABLE && BARYCENTRIC_MODE_SV_BARYCENTRICS
+	, float3 InBarycentrics : SV_Barycentrics
 #endif
+#endif
+)
 {
 #if NANITE_MESH_SHADER_INTERP == 1
 	float3 InterpPos = In.InterpPosition.xyz / In.InterpPosition.www;
@@ -1494,10 +1511,10 @@ void HWRasterizePS(VSOut In)
 
 	uint PixelValue = In.PixelValuePageInfo.x;
 
-#if VERTEX_TO_TRIANGLE_MASKS // TODO: PROG_RASTER (Need this enabled for material graph evaluation to work, TriangleIndex is needed for decode)
-	uint4 Masks0 = LoadParameterCacheP0( In.ToTriangleMasks );
-	uint4 Masks1 = LoadParameterCacheP1( In.ToTriangleMasks );
-	uint4 Masks2 = LoadParameterCacheP2( In.ToTriangleMasks );
+#if VERTEX_TO_TRIANGLE_MASKS
+	uint4 Masks0 = GetAttributeAtVertex0( In.ToTriangleMasks );
+	uint4 Masks1 = GetAttributeAtVertex1( In.ToTriangleMasks );
+	uint4 Masks2 = GetAttributeAtVertex2( In.ToTriangleMasks );
 
 	uint4 Masks = Masks0 & Masks1 & Masks2;
 	uint TriangleIndex =	Masks.x ? firstbitlow( Masks.x ) :
@@ -1549,18 +1566,50 @@ void HWRasterizePS(VSOut In)
 
 		// Material parameter inputs
 		FBarycentrics Barycentrics = (FBarycentrics)0;
-		bool bCalcBarycentrics = true;
 		
-		#if NANITE_USE_HW_BARYCENTRICS
-			Barycentrics.UVW = In.HWBarycentrics;
-			#if USE_ANALYTIC_DERIVATIVES
-				Barycentrics.UVW_dx = ddx(Barycentrics.UVW);
-				Barycentrics.UVW_dy = ddy(Barycentrics.UVW);
-			#endif
-			bCalcBarycentrics = false;
-		#endif
+		bool bCalcTriangleIndices = true;
+		uint3 TriangleIndices = 0;
+	#if BARYCENTRIC_MODE_INTRINSICS
+		const uint VertexID0 = GetAttributeAtVertex0(In.VertexID);
+		const uint VertexID1 = GetAttributeAtVertex1(In.VertexID);
+		const uint VertexID2 = GetAttributeAtVertex2(In.VertexID);
+		TriangleIndices = uint3(VertexID0, VertexID1, VertexID2);
 
-		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, bCalcBarycentrics, Interpolants, In.Position /*SvPosition*/);
+		// Recover barycentrics from hardware ViVj:
+		// v = v0 + I (v1 - v0) + J (v2 - v0) = (1 - I - J) v0 + I v1 + J v2
+		const float2 ViVj = GetViVjPerspectiveCenter();
+		const float3 UVW = float3(1.0f - ViVj.x - ViVj.y, ViVj);
+
+		// The vertex order can be rotated during the rasterization process,
+		// so the original order needs to be recovered to make sense of the barycentrics.
+		
+		// Fortunately, for compression purposes, triangle indices already have the form (base, base+a, base+b), where a,b>0.
+		// This turns out to be convenient as it allows us to recover the original vertex order by simply rotating
+		// the lowest vertex index into the first position. This saves an export compared to the usual provoking vertex trick
+		// that compares with an additional nointerpolation export.
+		const uint MinVertexID = min3(VertexID0, VertexID1, VertexID2);	
+
+		Barycentrics.UVW =	(MinVertexID == VertexID1) ? UVW.yzx :
+							(MinVertexID == VertexID2) ? UVW.zxy :
+							UVW;
+
+		// As we already have the indices on hand, so we might as well use them instead of decoding them again from memory
+		TriangleIndices =	(MinVertexID == VertexID1) ? TriangleIndices.yzx :
+							(MinVertexID == VertexID2) ? TriangleIndices.zxy :
+							TriangleIndices;
+		
+		bCalcTriangleIndices = false;
+	#elif BARYCENTRIC_MODE_SV_BARYCENTRICS
+		Barycentrics.UVW = InBarycentrics;
+	#elif BARYCENTRIC_MODE_EXPORT
+		Barycentrics.UVW = float3(In.BarycentricsUV, 1.0f - In.BarycentricsUV.x - In.BarycentricsUV.y);
+	#endif
+	#if USE_ANALYTIC_DERIVATIVES
+		Barycentrics.UVW_dx = ddx(Barycentrics.UVW);
+		Barycentrics.UVW_dy = ddy(Barycentrics.UVW);
+	#endif
+		
+		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, false, TriangleIndices, bCalcTriangleIndices, Interpolants, In.Position /*SvPosition*/);
 		FPixelMaterialInputs PixelMaterialInputs;
 		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, In.Position /*SvPosition*/, true /*bIsFrontFace*/);
 

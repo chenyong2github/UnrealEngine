@@ -188,7 +188,7 @@ void SetVertexParameterAttributeData(inout FMaterialVertexParameters VertexParam
 }
 
 // Shared function (for Nanite raster and shading passes) to fetch a valid FMaterialPixelParameters struct, which is used by material inputs.
-FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteView, UlongType PackedPixel, bool bHasPageData, FBarycentrics Barycentrics, bool bCalcBarycentrics, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
+FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteView, UlongType PackedPixel, bool bHasPageData, FBarycentrics Barycentrics, bool bCalcBarycentrics, uint3 TriIndices, bool bCalcTriangleIndices, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
 {
 	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
 
@@ -205,7 +205,10 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 		FPrimitiveSceneData PrimitiveData        = GetPrimitiveData(InstanceData.PrimitiveId);
 		FCluster Cluster                         = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-		const uint3 TriIndices = ReadTriangleIndices(Cluster, TriIndex);
+		if(bCalcTriangleIndices)
+		{
+			TriIndices = ReadTriangleIndices(Cluster, TriIndex);
+		}
 
 		const float3 PointLocalNoWPO0 = DecodePosition(TriIndices.x, Cluster);
 		const float3 PointLocalNoWPO1 = DecodePosition(TriIndices.y, Cluster);
@@ -445,7 +448,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 	const uint2 PixelPos = SvPosition.xy - float2(0.5f, 0.5f);
 	const UlongType PackedPixel = Nanite.VisBuffer64[PixelPos];
 	const FBarycentrics Barycentrics = (FBarycentrics)0; // Unused for shading pass (barycentrics are invalid here for full screen tile grid)
-	return FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, true, Interpolants, SvPosition);
+	return FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, true, uint3(0,0,0), true, Interpolants, SvPosition);
 }
 
 FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)

@@ -323,18 +323,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("IS_NANITE_PASS"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 0);
 
-		if (Parameters.MaterialParameters.bIsDefaultMaterial)
-		{
-			// We use the default material for the "fixed function" path (i.e. not programmable)
-			// Don't evaluate the material graph at all for efficiency
-			OutEnvironment.SetDefine(TEXT("IS_NANITE_PROGRAMMABLE"), 0);
-		}
-		else
-		{
-			// Any non-default materials will require some form of graph evaluation
-			OutEnvironment.SetDefine(TEXT("IS_NANITE_PROGRAMMABLE"), 1);
-		}
-
 		OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 0);
 		OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 0);
 

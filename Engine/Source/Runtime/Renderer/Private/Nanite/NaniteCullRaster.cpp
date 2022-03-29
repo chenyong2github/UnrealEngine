@@ -810,7 +810,8 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
 	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
-	using FPermutationDomain = TShaderPermutationDomain<FMultiViewDim, FRasterTechniqueDim, FVisualizeDim, FVirtualTextureTargetDim>;
+	class FProgrammableRasterDim : SHADER_PERMUTATION_BOOL("IS_NANITE_PROGRAMMABLE");
+	using FPermutationDomain = TShaderPermutationDomain<FMultiViewDim, FRasterTechniqueDim, FVisualizeDim, FVirtualTextureTargetDim, FProgrammableRasterDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -853,6 +854,12 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 			return false;
 		}
 
+		// Only default material should compile non-programmable path
+		if (!PermutationVector.Get<FProgrammableRasterDim>() && !Parameters.MaterialParameters.bIsDefaultMaterial)
+		{
+			return false;
+		}
+
 		const bool bAllow = GNaniteAllowProgrammableRaster != 0 && GNaniteAllowProgrammableRasterSW != 0;
 		return FNaniteMaterialShader::ShouldCompileComputePermutation(Parameters, bAllow);
 	}
@@ -865,10 +872,6 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 1);
-
-		// TODO: PROG_RASTER: Implement support for SM6.6 compute derivative operations (if available)
-		// https://microsoft.github.io/DirectX-Specs/d3d/HLSL_SM_6_6_Derivatives.html
-		OutEnvironment.SetDefine(TEXT("NANITE_USE_HW_BARYCENTRICS"), 0);
 
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
@@ -899,7 +902,8 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
 	class FAutoShaderCullDim : SHADER_PERMUTATION_BOOL("NANITE_AUTO_SHADER_CULL");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
-	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FMultiViewDim, FPrimShaderDim, FAutoShaderCullDim, FVirtualTextureTargetDim>;
+	class FProgrammableRasterDim : SHADER_PERMUTATION_BOOL("IS_NANITE_PROGRAMMABLE");
+	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FMultiViewDim, FPrimShaderDim, FAutoShaderCullDim, FVirtualTextureTargetDim, FProgrammableRasterDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -944,6 +948,12 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 			return false;
 		}
 
+		// Only default material should compile non-programmable path
+		if (!PermutationVector.Get<FProgrammableRasterDim>() && !Parameters.MaterialParameters.bIsDefaultMaterial)
+		{
+			return false;
+		}
+
 		return FNaniteMaterialShader::ShouldCompileVertexPermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
 	}
 
@@ -965,16 +975,6 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 		else if (PermutationVector.Get<FAutoShaderCullDim>())
 		{
 			OutEnvironment.CompilerFlags.Add(CFLAG_VertexUseAutoCulling);
-		}
-
-		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !bIsPrimitiveShader) // TODO: PROG_RASTER: Implement support for FPrimShaderDim
-		{
-			// Performance optimize for VSMs with standard VS/PS
-			OutEnvironment.SetDefine(TEXT("NANITE_USE_HW_BARYCENTRICS"), 1);
-		}
-		else
-		{
-			OutEnvironment.SetDefine(TEXT("NANITE_USE_HW_BARYCENTRICS"), 0);
 		}
 
 		OutEnvironment.SetDefine(TEXT("NANITE_HW_COUNTER_INDEX"), bIsPrimitiveShader ? 4 : 5); // Mesh and primitive shaders use an index of 4 instead of 5
@@ -1001,7 +1001,8 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
-	using FPermutationDomain = TShaderPermutationDomain<FInterpOptDim, FRasterTechniqueDim, FMultiViewDim, FVirtualTextureTargetDim>;
+	class FProgrammableRasterDim : SHADER_PERMUTATION_BOOL("IS_NANITE_PROGRAMMABLE");
+	using FPermutationDomain = TShaderPermutationDomain<FInterpOptDim, FRasterTechniqueDim, FMultiViewDim, FVirtualTextureTargetDim, FProgrammableRasterDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -1045,6 +1046,12 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 			return false;
 		}
 
+		// Only default material should compile non-programmable path
+		if (!PermutationVector.Get<FProgrammableRasterDim>() && !Parameters.MaterialParameters.bIsDefaultMaterial)
+		{
+			return false;
+		}
+
 		return FNaniteMaterialShader::ShouldCompileVertexPermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
 	}
 
@@ -1053,7 +1060,6 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 		FNaniteMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
-		OutEnvironment.SetDefine(TEXT("NANITE_USE_HW_BARYCENTRICS"), 0); // TODO: PROG_RASTER: Implement support to match VS path
 		OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER"), 1);
 		OutEnvironment.SetDefine(TEXT("NANITE_HW_COUNTER_INDEX"), 4); // Mesh and primitive shaders use an index of 4 instead of 5
 
@@ -1093,6 +1099,7 @@ public:
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
 	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
+	class FProgrammableRasterDim : SHADER_PERMUTATION_BOOL("IS_NANITE_PROGRAMMABLE");
 
 	using FPermutationDomain = TShaderPermutationDomain
 	<
@@ -1102,7 +1109,8 @@ public:
 		FMeshShaderDim,
 		FPrimShaderDim,
 		FVisualizeDim,
-		FVirtualTextureTargetDim
+		FVirtualTextureTargetDim,
+		FProgrammableRasterDim
 	>;
 
 	using FParameters = FRasterizePassParameters;
@@ -1173,6 +1181,12 @@ public:
 			return false;
 		}
 
+		// Only default material should compile non-programmable path
+		if (!PermutationVector.Get<FProgrammableRasterDim>() && !Parameters.MaterialParameters.bIsDefaultMaterial)
+		{
+			return false;
+		}
+
 		return FNaniteMaterialShader::ShouldCompilePixelPermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
 	}
 
@@ -1185,16 +1199,6 @@ public:
 
 		OutEnvironment.SetRenderTargetOutputFormat(0, EPixelFormat::PF_R32_UINT);
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
-
-		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FPrimShaderDim>()) // TODO: PROG_RASTER: Implement support for FPrimShaderDim
-		{
-			// Performance optimize for VSMs with standard VS/PS
-			OutEnvironment.SetDefine(TEXT("NANITE_USE_HW_BARYCENTRICS"), 1);
-		}
-		else
-		{
-			OutEnvironment.SetDefine(TEXT("NANITE_USE_HW_BARYCENTRICS"), 0);
-		}
 
 		return FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());		
 	}
@@ -2101,6 +2105,7 @@ void AddPass_Rasterize(
 	PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>(bUsePrimitiveShader);
 	PermutationVectorPS.Set<FHWRasterizePS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
 	PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
+	PermutationVectorPS.Set<FHWRasterizePS::FProgrammableRasterDim>(bProgrammableRaster);
 
 	FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
 	PermutationVectorVS.Set<FHWRasterizeVS::FRasterTechniqueDim>(int32(Technique));
@@ -2108,12 +2113,14 @@ void AddPass_Rasterize(
 	PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderDim>(bUsePrimitiveShader);
 	PermutationVectorVS.Set<FHWRasterizeVS::FAutoShaderCullDim>(bUseAutoCullingShader);
 	PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
+	PermutationVectorVS.Set<FHWRasterizeVS::FProgrammableRasterDim>(bProgrammableRaster);
 
 	FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
 	PermutationVectorMS.Set<FHWRasterizeMS::FInterpOptDim>(GNaniteMSInterp != 0);
 	PermutationVectorMS.Set<FHWRasterizeMS::FRasterTechniqueDim>(int32(Technique));
 	PermutationVectorMS.Set<FHWRasterizeMS::FMultiViewDim>(bMultiView);
 	PermutationVectorMS.Set<FHWRasterizeMS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
+	PermutationVectorMS.Set<FHWRasterizeMS::FProgrammableRasterDim>(bProgrammableRaster);
 
 	// SW Rasterize
 	FMicropolyRasterizeCS::FPermutationDomain PermutationVectorCS;
@@ -2121,6 +2128,7 @@ void AddPass_Rasterize(
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FRasterTechniqueDim>(int32(Technique));
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
+	PermutationVectorCS.Set<FMicropolyRasterizeCS::FProgrammableRasterDim>(bProgrammableRaster);
 
 	const FMaterialRenderProxy* FixedMaterialProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 	check(FixedMaterialProxy);
