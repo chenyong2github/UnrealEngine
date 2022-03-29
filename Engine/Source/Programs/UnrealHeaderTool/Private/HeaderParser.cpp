@@ -5518,20 +5518,29 @@ static bool ParseAccessorType(FString& OutAccessorType, FTokenReplay& Tokens)
 		}
 		Tokens.GetToken(Token);
 	}
-	// Skip '&' and add any '*'
-	for (; !Token.IsIdentifier(); Tokens.GetToken(Token))
+	// Skip '&', 'const' and retain '*'
+	do
 	{
 		if (Token.TokenType == ETokenType::None)
 		{
 			return false;
 		}
 
+		if (Token.IsIdentifier())
+		{
+			if (!Token.IsIdentifier(TEXT("const"), ESearchCase::CaseSensitive))
+			{
+				break;
+			}
+			// else skip const
+		}
 		// Support for passing values by ref for setters
-		if (!Token.IsSymbol(TEXT("&"), ESearchCase::CaseSensitive))
+		else if (!Token.IsSymbol(TEXT("&"), ESearchCase::CaseSensitive))
 		{
 			OutAccessorType += Token.Value;
 		}
-	}
+	} while (Tokens.GetToken(Token));
+
 	// Return the last token since it's either ')' in case of setters or the getter name which will be parsed by the caller
 	Tokens.UngetToken(Token);
 
@@ -5647,6 +5656,10 @@ bool FHeaderParser::CheckForPropertySetterFunction(FUnrealStructDefinitionInfo& 
 	FString PropertyType = PropertyWithSetter->GetCPPType(&ExtendedPropertyType, CPPF_Implementation | CPPF_ArgumentOrReturnValue | CPPF_NoRef);
 	ExtendedPropertyType.RemoveSpacesInline();
 	PropertyType += ExtendedPropertyType;
+	if (PropertyWithSetter->GetArrayDimensions())
+	{
+		PropertyType += TEXT("*");
+	}
 	if (ParameterType.Compare(PropertyType, ESearchCase::CaseSensitive) != 0)
 	{
 		if (bExplicitSetter)
@@ -5745,6 +5758,10 @@ bool FHeaderParser::CheckForPropertyGetterFunction(FUnrealStructDefinitionInfo& 
 	FString ExtendedPropertyType;
 	FString PropertyType = PropertyWithGetter->GetCPPType(&ExtendedPropertyType, CPPF_Implementation | CPPF_ArgumentOrReturnValue);
 	PropertyType += ExtendedPropertyType;
+	if (PropertyWithGetter->GetArrayDimensions())
+	{
+		PropertyType += TEXT("*");
+	}
 	if (GetterType.Compare(PropertyType, ESearchCase::CaseSensitive) != 0)
 	{
 		if (bExplicitGetter)

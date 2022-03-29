@@ -5018,8 +5018,27 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 				FString ExtendedType;
 				FString PropertyType = Prop->GetCPPType(&ExtendedType, CPPF_Implementation | CPPF_ArgumentOrReturnValue);
 				PropertyType += ExtendedType;
-				RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t%s& Result = *(%s*)OutValue;\r\n"), *PropertyType, *PropertyType);
-				RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\tResult = (%s)Obj->%s();\r\n"), *PropertyType, *Prop->GetPropertyBase().GetterName);
+				if (Prop->GetArrayDimensions())
+				{
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t%s* Source = (%s*)Obj->%s();\r\n"), *PropertyType, *PropertyType, *Prop->GetPropertyBase().GetterName);
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t%s* Result = (%s*)OutValue;\r\n"), *PropertyType, *PropertyType);
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\tif (TIsZeroConstructType<%s>::Value)\r\n"), *PropertyType);
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t{\r\n"));
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t\tFMemory::Memcpy(Result, Source, sizeof(%s) * %s);\r\n"), *PropertyType, Prop->GetArrayDimensions());
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t}\r\n"));
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\telse\r\n"));
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t{\r\n"));
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t\tfor (int32 Index = 0; Index < %s; ++Index)\r\n"), Prop->GetArrayDimensions());
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t\t{\r\n"));
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t\t\tResult[Index] = Source[Index];\r\n"));
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t\t}\r\n"));
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t}\r\n"));
+				}
+				else
+				{
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t%s& Result = *(%s*)OutValue;\r\n"), *PropertyType, *PropertyType);
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\tResult = (%s)Obj->%s();\r\n"), *PropertyType, *Prop->GetPropertyBase().GetterName);
+				}
 				if (bEditorOnlyProperty)
 				{
 					RuntimeStringBuilders.AccessorWrapperImplementations += TEXT("\t#endif // WITH_EDITORONLY_DATA\r\n");
@@ -5040,7 +5059,14 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 				FString ExtendedType;
 				FString PropertyType = Prop->GetCPPType(&ExtendedType, CPPF_Implementation | CPPF_ArgumentOrReturnValue);
 				PropertyType += ExtendedType;
-				RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t%s& Value = *(%s*)InValue;\r\n"), *PropertyType, *PropertyType);
+				if (Prop->GetArrayDimensions())
+				{
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t%s* Value = (%s*)InValue;\r\n"), *PropertyType, *PropertyType);
+				}
+				else
+				{
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t%s& Value = *(%s*)InValue;\r\n"), *PropertyType, *PropertyType);
+				}
 				RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\tObj->%s(Value);\r\n"), *Prop->GetPropertyBase().SetterName);
 				if (bEditorOnlyProperty)
 				{
