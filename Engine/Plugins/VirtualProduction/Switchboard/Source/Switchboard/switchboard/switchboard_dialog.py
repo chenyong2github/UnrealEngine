@@ -6,7 +6,10 @@ import os
 import threading
 import time
 import re
-from typing import List, Optional, Set
+import shutil
+from typing import List, Optional, Set, Union
+
+from pathlib import Path
 
 from PySide2 import QtCore
 from PySide2 import QtGui
@@ -167,6 +170,7 @@ class DeviceAdditionalSettingsUI(QtCore.QObject):
         return button
 
 class SwitchboardDialog(QtCore.QObject):
+
     STYLESHEET_PATH = os.path.join(RELATIVE_PATH, 'ui/switchboard.qss')
 
     _stylesheet_watcher: Optional[QtCore.QFileSystemWatcher] = None
@@ -188,8 +192,10 @@ class SwitchboardDialog(QtCore.QObject):
             stylesheet = styling.read()
             QtWidgets.QApplication.instance().setStyleSheet(stylesheet)
 
-    def __init__(self):
+    def __init__(self, script_manager):
         super().__init__()
+
+        self.script_manager = script_manager
 
         font_dir = os.path.join(ENGINE_PATH, 'Content/Slate/Fonts')
         font_files = ['Roboto-Regular.ttf', 'Roboto-Bold.ttf',
@@ -394,6 +400,7 @@ class SwitchboardDialog(QtCore.QObject):
 
         # Menu items
         self.window.menu_new_config.triggered.connect(self.menu_new_config)
+        self.window.menu_save_config_as.triggered.connect(self.menu_save_config_as)
         self.window.menu_delete_config.triggered.connect(self.menu_delete_config)
         self.window.update_settings.triggered.connect(self.menu_update_settings)
 
@@ -404,12 +411,11 @@ class SwitchboardDialog(QtCore.QObject):
         # Plugin UI
         self.device_manager.plug_into_ui(self.window.menu_bar, self.window.tabs_main)
 
-        # If starting up with new config, open the menu to create a new one
-        if not CONFIG.file_path:
-            self.menu_new_config()
-        else:
+        if CONFIG.file_path:
             self.toggle_p4_controls(CONFIG.P4_ENABLED.get_value())
             self.refresh_levels()
+        else:
+            self.menu_new_config()
 
         self.set_config_hooks()
 
@@ -426,6 +432,8 @@ class SwitchboardDialog(QtCore.QObject):
         self.window.current_ip_value.editingFinished.connect(self._try_change_ip_address)
 
         self.refresh_window_title()
+
+        self.script_manager.on_postinit(self)
         
     def _try_change_ip_address(self):
         def is_valid_ip_format(address):
@@ -756,6 +764,27 @@ class SwitchboardDialog(QtCore.QObject):
             if config_path == SETTINGS.CONFIG:
                 config_action.setEnabled(False)
 
+        # Make a special entry for a config not in the normal area
+        externalconfig_action = QtWidgets.QAction("Browse...", self.window.menu_load_config)
+        externalconfig_action.triggered.connect(self._on_open_external_config)
+        self.window.menu_load_config.addAction(externalconfig_action)
+
+    def _on_open_external_config(self):
+        ''' When the user wants to open a config located outside of the designated area
+        This is useful when the user keeps the configs somewhere else (e.g. under the project)
+        '''
+        config_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.window,
+            'Select config file', str(config.ROOT_CONFIGS_PATH),
+            f'Config files (*{config.CONFIG_SUFFIX})'
+        )
+
+        # Do nothing if the user didn't choose a config path
+        if not config_path:
+            return
+
+        # ok, let's open it
+        self.set_current_config(config_path)
+
     def set_current_config(self, config_path):
 
         # Update to the new config
@@ -813,6 +842,84 @@ class SwitchboardDialog(QtCore.QObject):
     def update_current_ip_address_text(self):
         self.window.current_ip_value.setText(SETTINGS.IP_ADDRESS.get_value())
 
+    def create_new_config(self, file_path: Union[str, Path], uproject, engine_dir, p4_settings):
+        ''' Creates a new config file
+
+        Args:
+            file_path: Path to the new config file
+            uproject: Path to the unreal project (.uproject) file
+            engine_dir: Path to the Engine/ directory
+            p4_settings: Desired Perforce settings
+        '''
+
+        CONFIG.init_new_config(
+            file_path=file_path,
+            uproject=uproject,
+            engine_dir=engine_dir,
+            p4_settings=p4_settings
+        )
+
+        # Disable saving while loading
+        CONFIG.push_saving_allowed(False)
+        try:
+            # Remove all devices
+            self.device_manager.clear_device_list()
+            self.device_list_widget.clear_widgets()
+
+            # Reset plugin settings
+            self.device_manager.reset_plugins_settings(CONFIG)
+
+            # Set hooks to this dialog's UI
+            self.set_config_hooks()
+        finally:
+            # Re-enable saving after loading
+            CONFIG.pop_saving_allowed()
+
+        # Update the UI
+        self.toggle_p4_controls(CONFIG.P4_ENABLED.get_value())
+        self.refresh_levels()
+        self.update_current_config_text()
+        self.refresh_muserver_autojoin()
+        self.refresh_trace_settings()
+        self.refresh_window_title()
+
+    def menu_save_config_as(self):
+        ''' Copy the current config file and move to it '''
+
+        # get the destination path for the copy
+
+        new_config_path, _ = QtWidgets.QFileDialog.getSaveFileName(self.window,
+            'Select config file', str(config.ROOT_CONFIGS_PATH),
+            f'Config files (*{config.CONFIG_SUFFIX})',
+            #options=QtWidgets.QFileDialog.DontUseNativeDialog
+        )
+
+        # Do nothing if the user didn't choose a destination config path
+        if not new_config_path:
+            return
+
+        # If replacing the same config, just save
+        if Path(new_config_path).resolve() == Path(SETTINGS.CONFIG).resolve():
+            CONFIG.save()
+            return
+
+        # Switch to the new config
+        CONFIG.replace(new_config_path)
+
+        # Update the settings
+        SETTINGS.CONFIG = new_config_path
+        SETTINGS.save()
+
+        # Make sure we reflect the new config in the status bar
+        self.update_current_config_text()
+
+        # Reset mu server name
+        # * unless it is running to avoid devices failing to connect to the current server
+        # * if there are devices running, they won't auto-connect when you launch the renamed server
+        mu_server = switchboard_application.get_multi_user_server_instance()
+        if not mu_server.is_running():
+            CONFIG.MUSERVER_SERVER_NAME.update_value(CONFIG.default_mu_server_name())
+
     def menu_new_config(self):
         uproject_search_path = os.path.dirname(CONFIG.UPROJECT_PATH.get_value().replace('"',''))
 
@@ -827,33 +934,12 @@ class SwitchboardDialog(QtCore.QObject):
 
         if dialog.result() == QtWidgets.QDialog.Accepted:
 
-            CONFIG.init_new_config(file_path=dialog.config_path,
-                uproject=dialog.uproject, engine_dir=dialog.engine_dir,
-                p4_settings=dialog.p4_settings())
-
-            # Disable saving while loading
-            CONFIG.push_saving_allowed(False)
-            try:
-                # Remove all devices
-                self.device_manager.clear_device_list()
-                self.device_list_widget.clear_widgets()
-
-                # Reset plugin settings
-                self.device_manager.reset_plugins_settings(CONFIG)
-
-                # Set hooks to this dialog's UI
-                self.set_config_hooks()
-            finally:
-                # Re-enable saving after loading
-                CONFIG.pop_saving_allowed()
-
-            # Update the UI
-            self.toggle_p4_controls(CONFIG.P4_ENABLED.get_value())
-            self.refresh_levels()
-            self.update_current_config_text()
-            self.refresh_muserver_autojoin()
-            self.refresh_trace_settings()
-            self.refresh_window_title()
+            self.create_new_config(
+                file_path=dialog.config_path,
+                uproject=dialog.uproject, 
+                engine_dir=dialog.engine_dir,
+                p4_settings=dialog.p4_settings()
+            )
 
     def menu_delete_config(self):
         """
@@ -900,7 +986,7 @@ class SwitchboardDialog(QtCore.QObject):
         settings_dialog.select_all_tab()
 
         old_ip_address = SETTINGS.IP_ADDRESS.get_value()
-        old_transport_path = SETTINGS.TRANSPORT_PATH.get_value()
+
         # avoid saving the config all the time while in the settings dialog
         CONFIG.push_saving_allowed(False)
         try:

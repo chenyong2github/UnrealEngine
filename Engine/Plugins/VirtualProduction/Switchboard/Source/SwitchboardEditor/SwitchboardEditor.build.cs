@@ -8,15 +8,19 @@ public class SwitchboardEditor : ModuleRules
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"AssetRegistry",
 				"Blutility",
 				"Core",
 				"CoreUObject",
+				"DesktopPlatform",
 				"Engine",
 				"EditorStyle",
 				"InputCore",
 				"Json",
+				"JsonUtilities",
 				"MessageLog",
 				"Projects",
+				"PropertyEditor",
 				"Settings",
 				"Slate",
 				"SlateCore",

@@ -1817,7 +1817,6 @@ def get_absolute_config_path(
     The string/path is validated to ensure that:
       - It is not empty, or all whitespace
       - It ends with the config path suffix
-      - If it is already absolute, that it is underneath the root configs path
       - It is not the same path as the user settings file path
     '''
     if isinstance(config_path, str):
@@ -1834,16 +1833,7 @@ def get_absolute_config_path(
         config_path = config_path.with_name(
             f'{config_path.name}{CONFIG_SUFFIX}')
 
-    if config_path.is_absolute():
-        # Paths that are already absolute must have the root configs path as a
-        # parent path.
-        # Python 3.9 introduced pathlib.Path.is_relative_to(), which would read
-        # a bit nicer here.
-        if ROOT_CONFIGS_PATH not in config_path.parents:
-            raise ConfigPathLocationError(
-                f'Config path "{config_path}" is not underneath the root '
-                f'configs path "{ROOT_CONFIGS_PATH}"')
-    else:
+    if not config_path.is_absolute():
         # Relative paths can simply be made absolute.
         config_path = ROOT_CONFIGS_PATH.joinpath(config_path)
 
@@ -2155,12 +2145,16 @@ class Config(object):
         self.INSIGHTS_TRACE_ARGS = self.unreal_insight_settings["tracing_args"]
         self.INSIGHTS_STAT_EVENTS = self.unreal_insight_settings["tracing_stat_events"]
 
+    def default_mu_server_name(self):
+        ''' Returns default server name based on current settings '''
+        return f'{self.PROJECT_NAME.get_value()}_MU_Server'
+
     def init_muserver(self, data={}):
         self.mu_settings = {
             "muserver_server_name": StringSetting(
                 "muserver_server_name",
                 "Server name",
-                data.get('muserver_server_name', f'{self.PROJECT_NAME.get_value()}_MU_Server'),
+                data.get('muserver_server_name', self.default_mu_server_name()),
                 tool_tip="The name that will be given to the server"
             ),
             "muserver_command_line_arguments": StringSetting(
@@ -2291,7 +2285,7 @@ class Config(object):
 
         if self.file_path:
             new_config_path.parent.mkdir(parents=True, exist_ok=True)
-            self.file_path.replace(new_config_path)
+            shutil.move(self.file_path, new_config_path)
 
         self.file_path = new_config_path
         self.save()
@@ -2580,6 +2574,8 @@ class UserSettings(object):
                 data['config'] = str(get_relative_config_path(self.CONFIG))
             except ConfigPathError as e:
                 LOGGER.error(e)
+            except ValueError as e:
+                data['config'] = str(self.CONFIG)
 
         with open(USER_SETTINGS_FILE_PATH, 'w') as f:
             json.dump(data, f, indent=4)

@@ -1,17 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SwitchboardEditorModule.h"
+
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Async/Async.h"
+#include "DesktopPlatformModule.h"
+#include "DisplayClusterRootActorReferenceDetailCustomization.h"
+#include "Editor.h"
+#include "EditorUtilitySubsystem.h"
+#include "Interfaces/IPluginManager.h"
+#include "ISettingsModule.h"
+#include "ISettingsSection.h"
+#include "JsonObjectConverter.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/FeedbackContext.h"
+#include "Misc/FileHelper.h"
+#include "Misc/ScopedSlowTask.h"
+#include "Misc/ScopeExit.h"
 #include "SwitchboardEditorSettings.h"
 #include "SwitchboardMenuEntry.h"
 #include "SwitchboardProjectSettings.h"
 #include "SwitchboardSettingsCustomization.h"
-#include "Async/Async.h"
-#include "Editor.h"
-#include "EditorUtilitySubsystem.h"
-#include "ISettingsModule.h"
-#include "ISettingsSection.h"
-#include "Misc/CoreDelegates.h"
-#include "Misc/ScopeExit.h"
+#include "SwitchboardTypes.h"
+
+#include <filesystem>
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -32,6 +44,8 @@ bool RemoveListenerAutolaunchEntry();
 
 DEFINE_LOG_CATEGORY(LogSwitchboardPlugin);
 
+
+TSoftObjectPtr<UClass> FSwitchboardEditorModule::DisplayClusterRootActorClass;
 
 // static
 const FString& FSwitchboardEditorModule::GetSbScriptsPath()
@@ -65,6 +79,23 @@ const FString& FSwitchboardEditorModule::GetSbExePath()
 	return ExePath;
 }
 
+// static
+UClass* FSwitchboardEditorModule::GetDisplayClusterRootActorClass()
+{
+	// Searching by name of the class avoids dependency on nDisplay plugin
+
+	// Early return if we have already found it
+	if (DisplayClusterRootActorClass.IsValid())
+	{
+		return DisplayClusterRootActorClass.Get();
+	}
+
+	// Try to find it by name.
+	DisplayClusterRootActorClass = FindObject<UClass>(ANY_PACKAGE, TEXT("DisplayClusterRootActor"));
+
+	return DisplayClusterRootActorClass.Get();
+}
+
 
 void FSwitchboardEditorModule::StartupModule()
 {
@@ -88,8 +119,21 @@ void FSwitchboardEditorModule::StartupModule()
 	}
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.RegisterCustomClassLayout(USwitchboardEditorSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FSwitchboardEditorSettingsCustomization::MakeInstance));
-	PropertyModule.RegisterCustomClassLayout(USwitchboardProjectSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FSwitchboardProjectSettingsCustomization::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout(
+		USwitchboardEditorSettings::StaticClass()->GetFName(), 
+		FOnGetDetailCustomizationInstance::CreateStatic(&FSwitchboardEditorSettingsCustomization::MakeInstance)
+	);
+
+	PropertyModule.RegisterCustomClassLayout(
+		USwitchboardProjectSettings::StaticClass()->GetFName(), 
+		FOnGetDetailCustomizationInstance::CreateStatic(&FSwitchboardProjectSettingsCustomization::MakeInstance)
+	);
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FDisplayClusterRootActorReference::StaticStruct()->GetFName(), 
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterRootActorReferenceDetailCustomization::MakeInstance)
+	);
 
 	DeferredStartDelegateHandle = FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FSwitchboardEditorModule::OnEngineInitComplete);
 
@@ -118,22 +162,129 @@ void FSwitchboardEditorModule::ShutdownModule()
 }
 
 
-bool FSwitchboardEditorModule::LaunchSwitchboard()
+bool FSwitchboardEditorModule::LaunchSwitchboard(const FString& Arguments)
 {
-	const FString ScriptArgs = FString::Printf(TEXT("\"%s\""),
-		*GetDefault<USwitchboardEditorSettings>()->VirtualEnvironmentPath.Path);
+	const FString ScriptArgs = FString::Printf(TEXT("\"%s\" %s"),
+		*GetDefault<USwitchboardEditorSettings>()->VirtualEnvironmentPath.Path,
+		*Arguments
+	);
 
 	return RunProcess(GetSbExePath(), ScriptArgs);
 }
 
+bool FSwitchboardEditorModule::CompileSwitchboardListener() const
+{
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+
+	if (!DesktopPlatform || !DesktopPlatform->IsUnrealBuildToolAvailable() || DesktopPlatform->IsUnrealBuildToolRunning())
+	{
+		return false;
+	}
+
+	FFeedbackContext* FeedbackContext = GWarn;
+	check(FeedbackContext);
+
+	FScopedSlowTask SlowTask(1.0f, LOCTEXT("BuildingSwitchboardListener", "Building SwitchboardListener..."), true /* bIsEnabled */, *FeedbackContext);
+	SlowTask.MakeDialog(false /*bShowCancelButton*/, false /*bAllowInPie*/);
+
+	const FString Arguments = FString::Printf(TEXT("SwitchboardListener Development %s -Progress"),
+		FPlatformMisc::GetUBTPlatform()
+	);
+
+	int32 ExitCode;
+
+	DesktopPlatform->RunUnrealBuildTool(
+		LOCTEXT("BuildingSwitchboardListener", "Building SwitchboardListener..."),
+		FPaths::RootDir(),
+		Arguments,
+		FeedbackContext,
+		ExitCode
+	);
+
+	return !ExitCode;
+}
 
 bool FSwitchboardEditorModule::LaunchListener()
 {
 	const FString ListenerPath = GetDefault<USwitchboardEditorSettings>()->GetListenerPlatformPath();
 	const FString ListenerArgs = GetDefault<USwitchboardEditorSettings>()->ListenerCommandlineArguments;
+
 	return RunProcess(ListenerPath, ListenerArgs);
 }
 
+bool FSwitchboardEditorModule::CreateNewConfig(const FSwitchboardNewConfigUserOptions& NewConfigUserOptions)
+{
+	FSwitchboardScriptArguments ScriptArgs;
+
+	ScriptArgs.ConfigName = NewConfigUserOptions.ConfigName;
+	ScriptArgs.EngineDir = FPaths::ConvertRelativePathToFull(FPaths::EngineDir());
+	ScriptArgs.ProjectPath = FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath());
+
+	// Find persistent map
+	if (const UWorld* World = GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr)
+	{
+		FString ClassName, PackageName, ObjectName, SubObjectName;
+		FPackageName::SplitFullObjectPath(World->PersistentLevel.GetPath(), ClassName, PackageName, ObjectName, SubObjectName, true);
+		ScriptArgs.Map = PackageName;
+	}
+
+	// Get path to DCRA asset
+	if (const AActor* DCRA = NewConfigUserOptions.DCRA.DCRA.Get())
+	{
+		FString ClassName, PackageName, ObjectName, SubObjectName;
+
+		FPackageName::SplitFullObjectPath(DCRA->GetClass()->GetFullName(), ClassName, PackageName, ObjectName, SubObjectName, true);
+
+		const FString Extension = FPackageName::GetAssetPackageExtension();
+		const FString RelativeFilepath = FPackageName::LongPackageNameToFilename(PackageName, Extension);
+		const FString AbsoluteFilepath = FPaths::ConvertRelativePathToFull(RelativeFilepath);
+
+		if (FPaths::FileExists(AbsoluteFilepath))
+		{
+			ScriptArgs.DisplayClusterConfigPath = AbsoluteFilepath;
+		}
+	}
+
+	ScriptArgs.bUseLocalhost = NewConfigUserOptions.bUseLocalhost;
+	ScriptArgs.bAutoConnect = NewConfigUserOptions.bAutoConnect;
+	ScriptArgs.NumEditorDevices = NewConfigUserOptions.NumEditorDevices;
+
+	// Convert to Json and save it to a temp file
+
+	FString ScriptArgsString;
+	{
+		const bool bSBArgsOk = FJsonObjectConverter::UStructToJsonObjectString(ScriptArgs, ScriptArgsString, 0, 0, 0, nullptr, false);
+		check(bSBArgsOk); // This should always succeed because we're converting a known USTRUCT.
+	}
+
+	const FString ScriptArgsFilepath = FPaths::CreateTempFilename(
+		WCHAR_TO_TCHAR(std::filesystem::temp_directory_path().wstring().c_str()),
+		TEXT("sb_script_args_"),
+		TEXT(".json")
+	);
+
+	if (!FFileHelper::SaveStringToFile(ScriptArgsString, *ScriptArgsFilepath))
+	{
+		UE_LOG(LogSwitchboardPlugin, Log, TEXT("Could not save temp script arguments file '%s'"), *ScriptArgsFilepath);
+		return false;
+	}
+	
+	// The script that we will pass to Switchoard is in this plugin's Content/Python folder.
+	const FString PluginContentDir = IPluginManager::Get().FindPlugin(TEXT("Switchboard"))->GetContentDir();
+	const FString ScriptPath = UE::Switchboard::Private::ConcatPaths(PluginContentDir, "Python", "sb_script_new_config.py");
+
+	// Here we tell Switchboard to run the given script with the given argument, 
+	// and the argument is the path to a json file that will be interpreted by the script.
+	// We also pass --defaultenv so that SB doesn't interpret the first argument as the virtual environment.
+	const FString Arguments = FString::Printf(TEXT("--defaultenv --script \"%s\" --scriptargs \"%s\""),
+		*ScriptPath,
+		*ScriptArgsFilepath
+	);
+
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *Arguments);
+
+	return LaunchSwitchboard(Arguments);
+}
 
 bool FSwitchboardEditorModule::RunProcess(const FString& InExe, const FString& InArgs)
 {

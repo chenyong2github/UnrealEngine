@@ -2,20 +2,25 @@
 
 #include "SwitchboardMenuEntry.h"
 
+#include "Dialog/SCustomDialog.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
+#include "IStructureDetailsView.h"
+#include "Kismet/GameplayStatics.h"
 #include "LevelEditor.h"
 #include "Misc/FileHelper.h"
+#include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "SwitchboardEditorModule.h"
 #include "SwitchboardEditorSettings.h"
 #include "SwitchboardEditorStyle.h"
 #include "SwitchboardSetupWizard.h"
+#include "SwitchboardTypes.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "SwitchboardEditor"
@@ -32,10 +37,12 @@ public:
 	{
 		UI_COMMAND(LaunchSwitchboard, "Launch Switchboard", "Launch Switchboard", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(LaunchSwitchboardListener, "Launch Switchboard Listener", "Launch Switchboard Listener", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(CreateNewConfig, "Create Config", "Create Config", EUserInterfaceActionType::Button, FInputChord());
 	}
 
 	TSharedPtr<FUICommandInfo> LaunchSwitchboard;
 	TSharedPtr<FUICommandInfo> LaunchSwitchboardListener;
+	TSharedPtr<FUICommandInfo> CreateNewConfig;
 };
 
 
@@ -53,6 +60,10 @@ struct FSwitchboardMenuEntryImpl
 			FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::OnLaunchSwitchboardListener),
 			FCanExecuteAction());
 
+		Actions->MapAction(FSwitchboardUICommands::Get().CreateNewConfig,
+			FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::OnLaunchWithNewConfig),
+			FCanExecuteAction());
+
 		AddMenu();
 	}
 
@@ -66,21 +77,28 @@ struct FSwitchboardMenuEntryImpl
 
 		FToolMenuSection& Section = Menu->AddSection("Switchboard");
 
-		FToolMenuEntry SwitchboardButtonEntry = FToolMenuEntry::InitToolBarButton(FSwitchboardUICommands::Get().LaunchSwitchboard);
-		SwitchboardButtonEntry.SetCommandList(Actions);
+		// Toolbar button
+		{
+			FToolMenuEntry SwitchboardButtonEntry = FToolMenuEntry::InitToolBarButton(FSwitchboardUICommands::Get().LaunchSwitchboard);
+			SwitchboardButtonEntry.SetCommandList(Actions);
 
-		const FToolMenuEntry SwitchboardComboEntry = FToolMenuEntry::InitComboButton(
-			"SwitchboardMenu",
-			FUIAction(),
-			FOnGetContent::CreateRaw(this, &FSwitchboardMenuEntryImpl::CreateListenerEntries),
-			TAttribute<FText>::Create([this]() { return LOCTEXT("LaunchSwitchboard", "Switchboard"); }),
-			LOCTEXT("SwitchboardTooltip", "Actions related to the SwitchboardListener"),
-			FSlateIcon(),
-			true //bInSimpleComboBox
-		);
+			Section.AddEntry(SwitchboardButtonEntry);
+		}
 
-		Section.AddEntry(SwitchboardButtonEntry);
-		Section.AddEntry(SwitchboardComboEntry);
+		// Entries
+		{
+			const FToolMenuEntry SwitchboardComboEntry = FToolMenuEntry::InitComboButton(
+				"SwitchboardMenu",
+				FUIAction(),
+				FOnGetContent::CreateRaw(this, &FSwitchboardMenuEntryImpl::CreateMenuEntries),
+				TAttribute<FText>::Create([this]() { return LOCTEXT("LaunchSwitchboard", "Switchboard"); }),
+				LOCTEXT("SwitchboardTooltip", "Actions related to the SwitchboardListener"),
+				FSlateIcon(),
+				true //bInSimpleComboBox
+			);
+
+			Section.AddEntry(SwitchboardComboEntry);
+		}
 	}
 
 	void RemoveMenu()
@@ -100,7 +118,7 @@ struct FSwitchboardMenuEntryImpl
 		}
 	}
 
-	TSharedRef<SWidget> CreateListenerEntries()
+	TSharedRef<SWidget> CreateMenuEntries()
 	{
 		const bool bShouldCloseWindowAfterMenuSelection = true;
 		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, Actions);
@@ -131,16 +149,46 @@ struct FSwitchboardMenuEntryImpl
 		}
 		MenuBuilder.EndSection();
 
+		MenuBuilder.BeginSection("Switchboard", LOCTEXT("SwitchboardConfig", "Config"));
+		{
+			MenuBuilder.AddMenuEntry(FSwitchboardUICommands::Get().CreateNewConfig);
+		}
+		MenuBuilder.EndSection();
+
 		return MenuBuilder.MakeWidget();
 	}
 
 	void OnLaunchSwitchboardListener()
 	{
 		const FString ListenerPath = GetDefault<USwitchboardEditorSettings>()->GetListenerPlatformPath();
+
 		if (!FPaths::FileExists(ListenerPath))
 		{
-			const FString ErrorMsg = TEXT("Could not find SwitchboardListener! Make sure it was compiled.");
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMsg, TEXT("Error starting listener"));
+			// Since SwitchboardListener (SBL) doesn't exist, ask the user if he wants us to compile it.
+
+			const FText Msg = LOCTEXT("CouldNotFindSwitchboardListenerCompile", "Could not find SwitchboardListener. Would you like to compile it? ");
+
+			if (EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, Msg))
+			{
+				// Compile SBL
+				if (!FSwitchboardEditorModule::Get().CompileSwitchboardListener())
+				{
+					const FText ErrorMsg = LOCTEXT("FailedToCompileSwitchboardListenerCompileIDE", "Failed to compile SwitchboardListener. Please compile with UGS or your IDE");
+					FMessageDialog::Open(EAppMsgType::Ok, ErrorMsg);
+					return;
+				}
+			}
+			else
+			{
+				// User did not want us to compile SBL, so we return.
+				return;
+			}
+		}
+
+		if (!FPaths::FileExists(ListenerPath))
+		{
+			const FText ErrorMsg = LOCTEXT("CouldNotFindSwitchboardListenerCompile", "Could not find SwitchboardListener! Make sure it was compiled.");
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMsg);
 			return;
 		}
 
@@ -150,8 +198,8 @@ struct FSwitchboardMenuEntryImpl
 		}
 		else
 		{
-			const FString ErrorMsg = TEXT("Unable to start the listener! Make sure it was compiled. Check the log for details.");
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMsg, TEXT("Error starting listener"));
+			const FText ErrorMsg = LOCTEXT("UnableToStartTheListener", "Unable to start the listener! Make sure it was compiled. Check the log for details.");
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMsg);
 		}
 	}
 
@@ -166,8 +214,8 @@ struct FSwitchboardMenuEntryImpl
 		{
 			if (!FPaths::FileExists(GetDefault<USwitchboardEditorSettings>()->GetListenerPlatformPath()))
 			{
-				const FString ErrorMsg = TEXT("Could not find SwitchboardListener! Make sure it has been compiled.");
-				FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMsg, TEXT("Error enabling SwitchboardListener auto-launch"));
+				const FText ErrorMsg = LOCTEXT("CouldNotFindSwitchboardListenerCompile", "Could not find SwitchboardListener! Make sure it has been compiled.");
+				FMessageDialog::Open(EAppMsgType::Ok, ErrorMsg);
 				return;
 			}
 
@@ -191,9 +239,69 @@ struct FSwitchboardMenuEntryImpl
 		}
 		else
 		{
-			const FString ErrorMsg = TEXT("Unable to start Switchboard! Check the log for details.");
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMsg, TEXT("Error starting Switchboard"));
+			const FText ErrorMsg = LOCTEXT("UnableToStartSwitchboardCheckLog", "Unable to start Switchboard! Check the log for details.");
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMsg);
 		}
+	}
+
+	void OnLaunchWithNewConfig()
+	{
+		const FSwitchboardVerifyResult& VerifyResult = FSwitchboardEditorModule::Get().GetVerifyResult().Get();
+		if (VerifyResult.Summary != FSwitchboardVerifyResult::ESummary::Success)
+		{
+			SSwitchboardSetupWizard::OpenWindow();
+			return;
+		}
+
+		TSharedPtr<TStructOnScope<FSwitchboardNewConfigUserOptions>> NewConfigUserOptions
+			= MakeShared<TStructOnScope<FSwitchboardNewConfigUserOptions>>();
+
+		NewConfigUserOptions->InitializeAs<FSwitchboardNewConfigUserOptions>();
+
+		// Pre-populate the DCRA
+		if (UClass* DisplayClusterRootActorClass = FSwitchboardEditorModule::GetDisplayClusterRootActorClass())
+		{
+			const UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+
+			TArray<AActor*> DCRAs;
+			UGameplayStatics::GetAllActorsOfClass(World, DisplayClusterRootActorClass, DCRAs);
+
+			if (DCRAs.Num())
+			{
+				// Pick the first one
+				NewConfigUserOptions->Get()->DCRA.DCRA = DCRAs[0];
+			}
+		}
+
+		FPropertyEditorModule& PropertyEditor = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+
+		FStructureDetailsViewArgs StructureViewArgs;
+		FDetailsViewArgs DetailArgs;
+
+		DetailArgs.bAllowSearch = false;
+		DetailArgs.bShowScrollBar = true;
+
+		TSharedPtr<IStructureDetailsView> NewConfigUsernOptionsDetailsView
+			= PropertyEditor.CreateStructureDetailView(DetailArgs, StructureViewArgs, NewConfigUserOptions);
+
+		TSharedRef<SCustomDialog> OptionsWindow = SNew(SCustomDialog)
+			.Title(LOCTEXT("SwitchboardNewConfigOptions", "Switchboard New Config Options"))
+			.ToolTipText(LOCTEXT("CreateNewConfigTooltip", "This will open Switchboard and create a new config from the parameters below and the current map."))
+			.Content()
+			[
+				NewConfigUsernOptionsDetailsView->GetWidget().ToSharedRef()
+			]
+			.Buttons
+			({
+				SCustomDialog::FButton(LOCTEXT("Ok", "Ok"), FSimpleDelegate::CreateLambda([NewConfigUserOptions]() -> void
+				{
+					check(NewConfigUserOptions.IsValid());
+					FSwitchboardEditorModule::Get().CreateNewConfig(*NewConfigUserOptions->Get());
+				})),
+				SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel")),
+			});
+
+		OptionsWindow->Show(); // Showing it non-modal mostly because its DCRA actor picker doesn't work if the window is modal.
 	}
 
 public:

@@ -3,12 +3,13 @@
 # This script optionally takes a single argument, representing the path to the desired Python
 # virtual environment directory. If omitted, it defaults to the value of $_defaultVenvDir.
 
+_Args=$@
 _switchboardDir=$(dirname "$0")
 _engineDir=$(cd "$_switchboardDir/../../../../.."; pwd)
 _enginePythonDir="$_engineDir/Binaries/ThirdParty/Python3/Linux"
 _defaultVenvDir="$_engineDir/Extras/ThirdPartyNotUE/SwitchboardThirdParty/Python"
 
-if [ $# -lt 1 ]; then
+if [ $# -lt 1 ] || [ $1 == "--defaultenv" ]; then
     _venvDir=$_defaultVenvDir
 else
     _venvDir="$1"
@@ -23,4 +24,4 @@ if [ ! -x "$_venvDir/bin/python3" ]; then
     fi
 fi
 
-(cd "$_switchboardDir" && PYTHONPATH="$_switchboardDir:$PYTHONPATH" "$_venvDir/bin/python3" -m switchboard)
+(cd "$_switchboardDir" && PYTHONPATH="$_switchboardDir:$PYTHONPATH" "$_venvDir/bin/python3" -m switchboard $_Args)

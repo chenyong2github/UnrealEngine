@@ -1,16 +1,26 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 from switchboard.config import SETTINGS, CONFIG
+from switchboard.switchboard_scripting import ScriptManager
 from .switchboard_dialog import SwitchboardDialog
 from .switchboard_logging import LOGGER
 
 import signal
 import sys
+import argparse
 
 from PySide2 import QtCore, QtWidgets
 
 # Build resources
 # "C:\Program Files (x86)\Python37-32\Lib\site-packages\PySide2\pyside2-rcc" -o D:\Switchboard\switchboard\resources.py D:\Switchboard\switchboard\ui\resources.qrc
 
+def parse_arguments():
+    ''' Parses command line arguments and returns the populated namespace 
+    '''
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--script'    , default='', help='Path to script that contains a SwichboardScriptBase subclass')
+    parser.add_argument('--scriptargs', default='', help='String to pass to SwichboardScriptBase subclass as arguments')
+    args, unknown = parser.parse_known_args()
+    return args
 
 def launch():
     """
@@ -29,7 +39,24 @@ def launch():
     SETTINGS.init()
     CONFIG.init(SETTINGS.CONFIG)
     
-    main_window = SwitchboardDialog()
+    # parse arguments
+    args = parse_arguments()
+
+    # script manager
+    script_manager = ScriptManager()
+
+    # add script passed from command line
+    if args.script:
+        try:
+            script_manager.add_script_from_path(args.script, args.scriptargs)
+        except Exception as e:
+            LOGGER.warning(f"Could not initialize '{args.script}': {e}")
+
+    # script pre-init
+    script_manager.on_preinit()
+
+    # create main window
+    main_window = SwitchboardDialog(script_manager)
 
     if not main_window.window:
         return
@@ -57,8 +84,13 @@ def launch():
     timer.start(200)
     timer.timeout.connect(lambda: None)
 
-    sys.exit(app.exec_())
+    # execute the app
+    appresult = app.exec_()
 
+    # script exit
+    script_manager.on_exit()
+
+    sys.exit(appresult)
 
 if __name__ == "__main__":
     launch()

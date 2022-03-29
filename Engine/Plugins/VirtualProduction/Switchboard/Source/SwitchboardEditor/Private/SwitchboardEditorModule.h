@@ -10,6 +10,7 @@
 #include "Modules/ModuleManager.h"
 #include "SwitchboardShortcuts.h"
 #include "SwitchboardScriptInterop.h"
+#include "SwitchboardTypes.h"
 
 
 
@@ -50,8 +51,24 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface
 
-	bool LaunchSwitchboard();
+	bool LaunchSwitchboard(const FString& Arguments = FString());
 	bool LaunchListener();
+
+	/**
+	 * Launches Switchboard with a new config that matches the current scene
+	 *
+	 * @param NewConfigUserOptions User options for New Config creation
+	 * 
+	 * @return Returns true if successful
+	 */
+	bool CreateNewConfig(const FSwitchboardNewConfigUserOptions& NewConfigUserOptions);
+
+	/**
+	 * Compiles SwitchboardListener (Development configuration)
+	 *
+	 * @return Returns true if successful
+	 */
+	bool CompileSwitchboardListener() const;
 
 	enum class ESwitchboardInstallState
 	{
@@ -92,14 +109,18 @@ public:
 	bool CreateOrUpdateShortcut(EShortcutApp App, EShortcutLocation Location);
 #endif
 
+	/** Returns the DCRA class, nullptr if it doesn't exist (i.e. nDisplay plugin is not enabled) */
+	static UClass* GetDisplayClusterRootActorClass();
+
 private:
 	void OnEngineInitComplete();
 	bool OnEditorSettingsModified();
 
 	void RunDefaultOSCListener();
 
-private:
 	bool RunProcess(const FString& InExe, const FString& InArgs);
+
+private:
 
 	FDelegateHandle DeferredStartDelegateHandle;
 
@@ -115,4 +136,7 @@ private:
 #if SWITCHBOARD_SHORTCUTS
 	TMap< TPair<EShortcutApp, EShortcutLocation>, EShortcutCompare > CachedShortcutCompares;
 #endif
+
+	/** Cached DCRA Class */
+	static TSoftObjectPtr<UClass> DisplayClusterRootActorClass;
 };
