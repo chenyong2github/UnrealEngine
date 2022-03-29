@@ -30,6 +30,9 @@ public:
 	bool ConfigureFromScript(const FString& GatherTextConfigPath, const FString& SectionName);
 
 	//~ End UCommandlet Interface
+	//~ Begin UGatherTextCommandletBase  Interface
+	virtual bool ShouldRunInPreview(const TArray<FString>& Switches, const TMap<FString, FString>& ParamVals) const override;
+	//~ End UGatherTextCommandletBase  Interface
 
 	/** Localization cache states of a package */
 	enum class EPackageLocCacheState : uint8

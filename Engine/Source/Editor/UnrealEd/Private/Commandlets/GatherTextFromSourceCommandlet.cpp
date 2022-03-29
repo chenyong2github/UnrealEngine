@@ -33,6 +33,13 @@ const FString UGatherTextFromSourceCommandlet::FPreProcessorDescriptor::IniNames
 const FString UGatherTextFromSourceCommandlet::FMacroDescriptor::TextMacroString(TEXT("TEXT"));
 const FString UGatherTextFromSourceCommandlet::ChangelistName(TEXT("Update Localization"));
 
+bool UGatherTextFromSourceCommandlet::ShouldRunInPreview(const TArray<FString>& Switches, const TMap<FString, FString>& ParamVals) const
+{
+	const FString* GatherType = ParamVals.Find(UGatherTextCommandletBase::GatherTypeParam);
+	// If the param is not specified, it is assumed that both source and assets are to be gathered 
+	return !GatherType || *GatherType == TEXT("Source") || *GatherType == TEXT("All");
+}
+
 int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 {
 	// Parse command line - we're interested in the param vals
@@ -40,7 +47,7 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 	TArray<FString> Switches;
 	TMap<FString, FString> ParamVals;
 	UCommandlet::ParseCommandLine(*Params, Tokens, Switches, ParamVals);
-
+	
 	//Set config file
 	const FString* ParamVal = ParamVals.Find(FString(TEXT("Config")));
 	FString GatherTextConfigPath;

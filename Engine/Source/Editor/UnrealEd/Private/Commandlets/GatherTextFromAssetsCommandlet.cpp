@@ -416,6 +416,13 @@ bool IsGatherableTextDataIdentical(const TArray<FGatherableTextData>& Gatherable
 	return true;
 }
 
+bool UGatherTextFromAssetsCommandlet::ShouldRunInPreview(const TArray<FString>& Switches, const TMap<FString, FString>& ParamVals) const
+{
+	const FString* GatherType = ParamVals.Find(UGatherTextCommandletBase::GatherTypeParam);
+	// If the param is not specified, it is assumed that both source and assets are to be gathered 
+	return !GatherType || *GatherType == TEXT("Asset") || *GatherType == TEXT("All");
+}
+
 int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 {
 	// Parse command line.

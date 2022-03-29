@@ -82,6 +82,16 @@ public:
 	// Utility to get the correct base path (engine or project) for the current environment
 	static const FString& GetProjectBasePath();
 
+	/**
+* Returns true if this commandlet should run during a preview run.
+* Override in child classes to conditionally skip a commandlet from being run.
+* Most commandlets that require source control, write to files etc should be skipped for preview runs
+*/
+	virtual bool ShouldRunInPreview(const TArray<FString>& Switches, const TMap<FString, FString>& ParamVals) const
+	{
+		return false;
+	}
+
 protected:
 	TSharedPtr< FLocTextHelper > GatherManifestHelper;
 
@@ -89,6 +99,13 @@ protected:
 
 	/** Mapping from platform name to the path marker for that platform */
 	TMap<FName, FString> SplitPlatforms;
+
+	// Common params and switches among all text gathering commadnlets 
+	static const TCHAR* ConfigParam;
+	static const TCHAR* EnableSourceControlSwitch;
+	static const TCHAR* DisableSubmitSwitch;
+	static const TCHAR* PreviewSwitch;
+	static const TCHAR* GatherTypeParam;
 
 private:
 	virtual void CreateCustomEngine(const FString& Params) override ; //Disallow other text commandlets to make their own engine.	

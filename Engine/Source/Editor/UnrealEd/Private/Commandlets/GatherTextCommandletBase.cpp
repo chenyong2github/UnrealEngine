@@ -23,6 +23,12 @@ FGatherTextDelegates::FGetAdditionalGatherPaths FGatherTextDelegates::GetAdditio
 //////////////////////////////////////////////////////////////////////////
 //UGatherTextCommandletBase
 
+const TCHAR* UGatherTextCommandletBase::ConfigParam = TEXT("Config");
+const TCHAR* UGatherTextCommandletBase::EnableSourceControlSwitch = TEXT("EnableSCC");
+const TCHAR* UGatherTextCommandletBase::DisableSubmitSwitch = TEXT("DisableSCCSubmit");
+const TCHAR* UGatherTextCommandletBase::PreviewSwitch = TEXT("Preview");
+const TCHAR* UGatherTextCommandletBase::GatherTypeParam = TEXT("GatherType");
+
 UGatherTextCommandletBase::UGatherTextCommandletBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

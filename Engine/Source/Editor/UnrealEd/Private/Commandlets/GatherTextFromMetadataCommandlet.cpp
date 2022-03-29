@@ -22,6 +22,13 @@ UGatherTextFromMetaDataCommandlet::UGatherTextFromMetaDataCommandlet(const FObje
 {
 }
 
+bool UGatherTextFromMetaDataCommandlet::ShouldRunInPreview(const TArray<FString>& Switches, const TMap<FString, FString>& ParamVals) const
+{
+	const FString* GatherType = ParamVals.Find(UGatherTextCommandletBase::GatherTypeParam);
+	// If the param is not specified, it is assumed that both source and assets are to be gathered 
+	return !GatherType || *GatherType == TEXT("Metadata") || *GatherType == TEXT("All");
+}
+
 int32 UGatherTextFromMetaDataCommandlet::Main( const FString& Params )
 {
 	// Parse command line - we're interested in the param vals

@@ -30,5 +30,13 @@ public:
 	FText GetChangelistDescription(const TArray<FString>& GatherTextConfigPaths);
 
 	static const FString UsageText;
-
+//~ Begin UGatherTextCommandletBase  Interface
+	virtual bool ShouldRunInPreview(const TArray<FString>& Switches, const TMap<FString, FString>& ParamVals) const override
+	{
+		// This commandlet is the driver for other commandlet. This should always run even in preview
+		return true;
+	}
+	//~ End UGatherTextCommandletBase  Interface
+private:
+	 
 };

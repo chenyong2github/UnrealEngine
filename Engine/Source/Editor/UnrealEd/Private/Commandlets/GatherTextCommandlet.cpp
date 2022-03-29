@@ -23,9 +23,14 @@ UGatherTextCommandlet::UGatherTextCommandlet(const FObjectInitializer& ObjectIni
 const FString UGatherTextCommandlet::UsageText
 	(
 	TEXT("GatherTextCommandlet usage...\r\n")
-	TEXT("    <GameName> GatherTextCommandlet -Config=<path to config ini file>\r\n")
+	TEXT("    <GameName> GatherTextCommandlet -Config=<path to config ini file> [-Preview -EnableSCC -DisableSCCSubmit -GatherType=<All | Source | Asset | Metadata>]\r\n")
 	TEXT("    \r\n")
 	TEXT("    <path to config ini file> Full path to the .ini config file that defines what gather steps the commandlet will run.\r\n")
+	TEXT("    Preview\t Runs the commandlet and its child commandlets in preview. Some commandlets will not be executed in preview mode. Use this to dump all generated warnings without writing any files. Using this switch implies -DisableSCCSubmit\r\n")
+	TEXT("    EnableSCC\t Enables source control and allows the commandlet to check out files for editing.\r\n")
+	TEXT("    DisableSCCSubmit\t Prevents the commandlet from submitting checked out files in source control that have been edited.\r\n")
+	TEXT("    GatherType\t Only performs a gather on the specified type of file (currently only works in preview mode). Source only runs commandlets that gather source files. Asset only runs commandlets that gather asset files. All runs commandlets that gather both source and asset files. Leaving this param out implies a gather type of All.")
+	TEXT("Metadata only runs commandlets that gather metadata files. All runs commandlets that gather both source and asset files. Leaving this param out implies a gather type of All.\r\n")
 	);
 
 
@@ -35,10 +40,15 @@ int32 UGatherTextCommandlet::Main( const FString& Params )
 	TArray<FString> Switches;
 	TMap<FString, FString> ParamVals;
 	UCommandlet::ParseCommandLine(*Params, Tokens, Switches, ParamVals);
-	
+	if (Switches.Contains(TEXT("help")) || Switches.Contains(TEXT("Help")))
+	{
+		UE_LOG(LogGatherTextCommandlet, Display, TEXT("%s"), *UsageText);
+		return 0;
+	}
+
 	// Build up the complete list of config files to process
 	TArray<FString> GatherTextConfigPaths;
-	if (const FString* ConfigParamPtr = ParamVals.Find(TEXT("config")))
+	if (const FString* ConfigParamPtr = ParamVals.Find(UGatherTextCommandletBase::ConfigParam))
 	{
 		ConfigParamPtr->ParseIntoArray(GatherTextConfigPaths, TEXT(";"));
 
@@ -59,8 +69,25 @@ int32 UGatherTextCommandlet::Main( const FString& Params )
 		return -1;
 	}
 
-	const bool bEnableSourceControl = Switches.Contains(TEXT("EnableSCC"));
-	const bool bDisableSubmit = Switches.Contains(TEXT("DisableSCCSubmit"));
+	const bool bRunningInPreview = Switches.Contains(UGatherTextCommandletBase::PreviewSwitch);
+	if (bRunningInPreview)
+	{
+		UE_LOG(LogGatherTextCommandlet, Display, TEXT("Running commandlet in preview mode. Some child commandlets and steps will be skipped."));
+		// -GatherType is only valid in preview mode right now 
+		if (const FString* GatherTypeParamPtr = ParamVals.Find(UGatherTextCommandletBase::GatherTypeParam))
+		{
+			UE_LOG(LogGatherTextCommandlet, Display, TEXT("Running commandlet with gather type %s. Only %s files will be gathered."), **GatherTypeParamPtr, **GatherTypeParamPtr);
+		}
+		else
+		{
+			// if the -GatherType param is not specified, we default to gathering both source, asset and metadata
+			UE_LOG(LogGatherTextCommandlet, Display, TEXT("-GatherType param not specified. Commandlet will gather source, assset and metadata."));
+		}
+	}
+
+	// If we are only doing a preview run, we will not be writing to any files that will need to be submitted to source control 
+	const bool bEnableSourceControl = Switches.Contains(UGatherTextCommandletBase::EnableSourceControlSwitch) && !bRunningInPreview;
+	const bool bDisableSubmit = Switches.Contains(UGatherTextCommandletBase::DisableSubmitSwitch) || bRunningInPreview;
 
 	TSharedPtr<FLocalizationSCC> CommandletSourceControlInfo;
 	if (bEnableSourceControl)
@@ -75,6 +102,7 @@ int32 UGatherTextCommandlet::Main( const FString& Params )
 		}
 	}
 
+	double AllCommandletExecutionStartTime = FPlatformTime::Seconds();
 	for (const FString& GatherTextConfigPath : GatherTextConfigPaths)
 	{
 		const int32 Result = ProcessGatherConfig(GatherTextConfigPath, CommandletSourceControlInfo, Tokens, Switches, ParamVals);
@@ -101,6 +129,7 @@ int32 UGatherTextCommandlet::Main( const FString& Params )
 			return -1;
 		}
 	}
+	UE_LOG(LogGatherTextCommandlet, Display, TEXT("Completed all steps in %.2f seconds"), FPlatformTime::Seconds() - AllCommandletExecutionStartTime);
 
 	return 0;
 }
@@ -164,7 +193,27 @@ int32 UGatherTextCommandlet::ProcessGatherConfig(const FString& GatherTextConfig
 
 		return NumericalSuffixOne < NumericalSuffixTwo;
 	});
+	// Generate the switches and params to be passed on to child commandlets
+	FString GeneratedParamsAndSwitches;
+	// Add all the command params with the exception of config
+	for (auto ParamIter = ParamVals.CreateConstIterator(); ParamIter; ++ParamIter)
+	{
+		const FString& Key = ParamIter.Key();
+		const FString& Val = ParamIter.Value();
+		if (Key != UGatherTextCommandletBase::ConfigParam)
+		{
+			GeneratedParamsAndSwitches += FString::Printf(TEXT(" -%s=%s"), *Key, *Val);
+		}
+	}
 
+	// Add all the command switches
+	for (auto SwitchIter = Switches.CreateConstIterator(); SwitchIter; ++SwitchIter)
+	{
+		const FString& Switch = *SwitchIter;
+		GeneratedParamsAndSwitches += FString::Printf(TEXT(" -%s"), *Switch);
+	}
+
+	const bool bRunningInPreview = Switches.Contains(TEXT("Preview"));
 	// Execute each step defined in the config file.
 	for (const FString& StepName : StepNames)
 	{
@@ -179,9 +228,16 @@ int32 UGatherTextCommandlet::ProcessGatherConfig(const FString& GatherTextConfig
 
 		UGatherTextCommandletBase* Commandlet = NewObject<UGatherTextCommandletBase>(GetTransientPackage(), CommandletClass);
 		check(Commandlet);
-		
 		FGCObjectScopeGuard CommandletGCGuard(Commandlet);
 		Commandlet->Initialize( CommandletGatherManifestHelper, CommandletSourceControlInfo );
+		// As of now, all params and switches (with the exception of config) is passed on to child commandlets
+		// Instead of parsing in child commandlets, we'll just pass the params and switches along to determine if we need to run the child commandlet 
+		// If we are running in preview mode, then most commandlets should be skipped as ShouldRunInPreview() defaults to false in the base class.
+		if (bRunningInPreview && !Commandlet->ShouldRunInPreview(Switches, ParamVals))
+		{
+			UE_LOG(LogGatherTextCommandlet, Display, TEXT("Should not run %s: %s in preview. Skipping."), *StepName, *CommandletClassName);
+			continue;
+		}
 
 		// Execute the commandlet.
 		double CommandletExecutionStartTime = FPlatformTime::Seconds();
@@ -189,24 +245,7 @@ int32 UGatherTextCommandlet::ProcessGatherConfig(const FString& GatherTextConfig
 		UE_LOG(LogGatherTextCommandlet, Display, TEXT("Executing %s: %s"), *StepName, *CommandletClassName);
 		
 		FString GeneratedCmdLine = FString::Printf(TEXT("-Config=\"%s\" -Section=%s"), *GatherTextConfigPath , *StepName);
-
-		// Add all the command params with the exception of config
-		for(auto ParamIter = ParamVals.CreateConstIterator(); ParamIter; ++ParamIter)
-		{
-			const FString& Key = ParamIter.Key();
-			const FString& Val = ParamIter.Value();
-			if(Key != TEXT("config"))
-			{
-				GeneratedCmdLine += FString::Printf(TEXT(" -%s=%s"), *Key , *Val);
-			}	
-		}
-
-		// Add all the command switches
-		for(auto SwitchIter = Switches.CreateConstIterator(); SwitchIter; ++SwitchIter)
-		{
-			const FString& Switch = *SwitchIter;
-			GeneratedCmdLine += FString::Printf(TEXT(" -%s"), *Switch);
-		}
+		GeneratedCmdLine += GeneratedParamsAndSwitches;
 
 		if( 0 != Commandlet->Main( GeneratedCmdLine ) )
 		{
