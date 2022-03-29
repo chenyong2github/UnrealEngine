@@ -102,7 +102,7 @@ public:
 		{
 			const UEdGraphPin*const* Pin = EdNode->Pins.FindByPredicate([this](UEdGraphPin* Pin) -> bool
 			{
-				return Pin->PersistentGuid == PersistentPinGuid && Pin->Direction == PinDirection;
+				return Pin->PersistentGuid.IsValid() && Pin->PersistentGuid == PersistentPinGuid && Pin->Direction == PinDirection;
 			});
 
 			if(Pin == nullptr)
