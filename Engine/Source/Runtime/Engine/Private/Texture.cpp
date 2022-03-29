@@ -1300,6 +1300,8 @@ FTextureSource::FTextureSource()
 	: 
 #if WITH_EDITOR
 	  Owner(nullptr),
+	  TornOffTextureClass(ETextureClass::Invalid),
+	  TornOffGammaSpace(EGammaSpace::Invalid),
 #endif
 	  NumLockedMips(0u)
 	, LockState(ELockState::None)
@@ -1343,15 +1345,13 @@ int32 FTextureSource::GetBytesPerPixel(ETextureSourceFormat Format)
 
 bool FTextureSource::IsCubeOrCubeArray() const
 {
-	check( Owner != nullptr );
-	ETextureClass TextureClass = Owner->GetTextureClass();
+	ETextureClass TextureClass = GetTextureClass();
 	return TextureClass == ETextureClass::Cube || TextureClass == ETextureClass::CubeArray;
 }
 
 bool FTextureSource::IsVolume() const
 {
-	check( Owner != nullptr );
-	ETextureClass TextureClass = Owner->GetTextureClass();
+	ETextureClass TextureClass = GetTextureClass();
 	return TextureClass == ETextureClass::Volume;
 }
 
@@ -1611,6 +1611,10 @@ FTextureSource FTextureSource::CopyTornOff() const
 	// Use the default copy constructor to copy all the fields without having to write them manually
 	Result = *this;
 	Result.Owner = nullptr; // TornOffs don't count as belonging to the same owner
+	// Result can't talk to Owner any more, so save info we need :
+	check( Owner != nullptr );
+	Result.TornOffGammaSpace = Owner->GetGammaSpace();
+	Result.TornOffTextureClass = Owner->GetTextureClass();
 	return Result;
 }
 
@@ -2017,18 +2021,9 @@ FString FTextureSource::GetIdString() const
 
 int FTextureSource::GetMippedNumSlices(int InNumSlices,int InMipIndex) const
 {
-	// @@!! test me!  before was always returning InNumSlices
-	//  not sure you can change this, does it break old content?
-	//  but I think any old content that had TextureSource mips for volumes was broken anyway
-	//	so maybe it's okay?
+	// old behavior was to not mip down NumSlices in TextureSource for volume SizeZ
+	//return InNumSlices;
 
-	#if 1
-
-	// match old behavior
-	return InNumSlices;
-
-	#else
-	
 	// what to do with NumSlices on the mip ?
 	// if this is an Array, it should stay the same
 	// if this is a Volume, it should mip down
@@ -2036,8 +2031,14 @@ int FTextureSource::GetMippedNumSlices(int InNumSlices,int InMipIndex) const
 	// TextureSource does not know if it's a volume or not
 	// need to check type of Owner Texture
 
-	bool bIsVolume = Owner ? Owner->IsA(UVolumeTexture::StaticClass()) : false;
-	if ( bIsVolume )
+	check( InNumSlices > 0 );
+	// fast path short cut : 1 slice is always 1 slice
+	if ( InNumSlices == 1 )
+	{
+		return 1;
+	}
+
+	if ( IsVolume() )
 	{
 		return FMath::Max(InNumSlices >> InMipIndex, 1);
 	}
@@ -2045,12 +2046,26 @@ int FTextureSource::GetMippedNumSlices(int InNumSlices,int InMipIndex) const
 	{
 		return InNumSlices;
 	}	
+}
 
-	#endif
+ETextureClass FTextureSource::GetTextureClass() const
+{
+	// TextureSource does not know its own class, but its owning Texture does :
+	if ( Owner != nullptr )
+	{
+		return Owner->GetTextureClass();
+	}
+	else
+	{
+		// torn off, should have saved TornOffTextureClass
+		check( TornOffTextureClass != ETextureClass::Invalid );
+		return TornOffTextureClass;
+	}
 }
 
 EGammaSpace FTextureSource::GetGammaSpace(int LayerIndex) const
 {
+	// Texture->GetGammaSpace does not validate against format, but I do? a bit weird, fix that
 	if ( ! ERawImageFormat::GetFormatNeedsGammaSpace( FImageCoreUtils::ConvertToRawImageFormat(GetFormat(LayerIndex)) ) )
 	{
 		return EGammaSpace::Linear;
@@ -2063,9 +2078,9 @@ EGammaSpace FTextureSource::GetGammaSpace(int LayerIndex) const
 	}
 	else
 	{
-		// TextureSource does not have gamma information, just guess it ?
-		// we know format GetFormatNeedsGammaSpace is true, so default is SRGB
-		return EGammaSpace::sRGB;
+		// torn off, should have saved TornOffGammaSpace
+		check( TornOffGammaSpace != EGammaSpace::Invalid );
+		return TornOffGammaSpace;
 	}
 }
 

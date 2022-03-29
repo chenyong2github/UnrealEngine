@@ -28,6 +28,8 @@
 /* Types
  *****************************************************************************/
 
+// EGammaSpace is in Color.h
+
 namespace ERawImageFormat
 {
 	/**

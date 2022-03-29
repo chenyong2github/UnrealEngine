@@ -266,11 +266,11 @@ void FTextureSourceData::GetSourceMips(FTextureSource& Source, IImageWrapperModu
 				{
 					int32 MipSizeX = SourceBlock.SizeX;
 					int32 MipSizeY = SourceBlock.SizeY;
+					int32 MipSizeZ = SourceBlock.NumSlices;
 					for (int32 MipIndex = 0; MipIndex < BlockData.NumMips; ++MipIndex)
 					{
 						FImage* SourceMip = new(BlockData.MipsPerLayer[LayerIndex]) FImage(
-							MipSizeX, MipSizeY,
-							BlockData.NumSlices,
+							MipSizeX, MipSizeY, MipSizeZ,
 							LayerData.ImageFormat,
 							LayerData.GammaSpace
 						);
@@ -285,6 +285,10 @@ void FTextureSourceData::GetSourceMips(FTextureSource& Source, IImageWrapperModu
 
 						MipSizeX = FMath::Max(MipSizeX / 2, 1);
 						MipSizeY = FMath::Max(MipSizeY / 2, 1);
+						if ( Source.IsVolume() )
+						{
+							MipSizeZ = FMath::Max(MipSizeZ / 2, 1);
+						}
 					}
 				}
 			}
@@ -821,6 +825,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 
 				if (bSucceeded && ActiveBuildSettingsPerLayer.Num() > 0)
 				{
+					// Bandaid code to prevent loading bad data from DDC
 					// Code inspired by the texture compressor module as a hot fix for the bad data that might have been push into the ddc in 4.23 or 4.24 
 					const bool bLongLatCubemap = DerivedData->IsCubemap() && DerivedData->GetNumSlices() == 1;
 					int32 MaximumNumberOfMipMaps = TNumericLimits<int32>::Max();
@@ -830,6 +835,8 @@ void FTextureCacheDerivedDataWorker::DoWork()
 					}
 					else
 					{
+						// this looks wrong, should be floor
+						// that's okay because an over-estimate here doesn't hurt
 						MaximumNumberOfMipMaps = FMath::CeilLogTwo(FMath::Max3(DerivedData->SizeX, DerivedData->SizeY, ActiveBuildSettingsPerLayer[0].bVolume ? DerivedData->GetNumSlices() : 1)) + 1;
 					}
 
@@ -1305,6 +1312,7 @@ public:
 
 	static FTexturePlatformData::FStructuredDerivedDataKey GetKey(const UE::DerivedData::FBuildDefinition& BuildDefinition, const UTexture& Texture, bool bUseCompositeTexture)
 	{
+		// DDC2 Key SerializeForKey is here!
 		FTexturePlatformData::FStructuredDerivedDataKey Key;
 		Key.BuildDefinitionKey = BuildDefinition.GetKey().Hash;
 		Key.SourceGuid = Texture.Source.GetId();

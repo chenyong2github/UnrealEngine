@@ -3578,18 +3578,6 @@ UTexture * UTextureFactory::ImportDDS(const uint8* Buffer,int64 Length,UObject* 
 		MipCount = MAX_TEXTURE_MIP_COUNT;
 	}
 
-	#if 1
-	if ( DDS->Dimension == 3 )
-	{
-		// Unreal doesn't handle volume mips correctly?
-		//  (slices doesn't mip down)
-		// force mip import off for now
-		// @@!! fix Unreal volume mips?
-		// see also GetMippedNumSlices
-		MipCount = 1;
-	}
-	#endif
-
 	Texture->Source.Init(DDS->Width,DDS->Height,NumSlices,MipCount,TSFormat);
 
 	for(int MipIndex=0;MipIndex<MipCount;MipIndex++)
@@ -3599,20 +3587,6 @@ UTexture * UTextureFactory::ImportDDS(const uint8* Buffer,int64 Length,UObject* 
 		if ( DDS->Dimension == 3 )
 		{
 			check( DDS->Mips.Num() == DDS->MipCount );
-
-			#if 0
-			// hack for Unreal not mipping volumes correctly (NumSlices doesn't go down like it should)
-			//  (moot because we now force MipCount to 1 for volumes)
-			// @@!! if the fix is made in GetMippedNumSlices , this is unnecessary
-			if ( MipIndex > 0 && MipLock.Image.NumSlices > (int32)DDS->Mips[MipIndex].Depth )
-			{
-				// memset the miplock to zero : last slices won't be written :
-				memset(MipLock.Image.RawData,0,MipLock.Image.GetImageSizeBytes());
-				// only copy the portion the DDS has :
-				MipLock.Image.NumSlices = DDS->Mips[MipIndex].Depth;
-			}
-			#endif
-
 			check( DDS->Mips[MipIndex].Depth == MipLock.Image.NumSlices );
 
 			if ( ! DDS->GetMipImage( MipLock.Image, MipIndex ) )

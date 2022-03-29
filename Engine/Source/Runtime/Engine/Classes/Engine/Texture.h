@@ -339,9 +339,12 @@ struct FTextureSource
 	FORCEINLINE ETextureSourceCompressionFormat GetSourceCompression() const { return CompressionFormat; }
 	FORCEINLINE bool IsSourceCompressed() const { return GetSourceCompression() != ETextureSourceCompressionFormat::TSCF_None; }
 
-	/** Get GammaSpace for this Format */
+	/** Get GammaSpace for this Source (asks owner) */
 	ENGINE_API EGammaSpace GetGammaSpace(int LayerIndex) const;
 	
+	/** Get TextureClass for this Source (asks owner) */
+	ENGINE_API ETextureClass GetTextureClass() const;
+
 	/** Get mipped number of slices (volumes mip but arrays don't) */
 	ENGINE_API int GetMippedNumSlices(int NumSlices,int MipIndex) const;
 
@@ -551,6 +554,11 @@ private:
 	TDontCopy<FRWLock> BulkDataLock;
 	/** Owner for associating BulkData with a package */
 	UTexture* Owner;
+	/** TextureClass == Owner->GetTextureClass(); a copy is kept here for torn-off **/
+	ETextureClass TornOffTextureClass;
+	/** if Owner != null, check Owner->GetGammaSpace , if it is null, use TornOffGammaSpace
+	* do not check this directly, use GetGammaSpace **/
+	EGammaSpace TornOffGammaSpace;
 #endif
 	/** The bulk source data. */
 	UE::Serialization::FEditorBulkData BulkData;
@@ -853,6 +861,7 @@ public:
 	 * @returns true if all requested mips have been loaded.
 	 */
 	bool TryLoadMips(int32 FirstMipToLoad, void** OutMipData, FStringView DebugContext);
+	bool TryLoadMipsWithSizes(int32 FirstMipToLoad, void** OutMipData, int64 * OutMipSize, FStringView DebugContext);
 
 	/** Serialization. */
 	void Serialize(FArchive& Ar, class UTexture* Owner);

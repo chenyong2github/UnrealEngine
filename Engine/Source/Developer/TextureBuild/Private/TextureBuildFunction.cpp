@@ -110,6 +110,7 @@ static FTextureBuildSettings ReadBuildSettingsFromCompactBinary(const FCbObjectV
 	ReadCbField(Object["DiffuseConvolveMipLevel"], BuildSettings.DiffuseConvolveMipLevel);
 	ReadCbField(Object["SharpenMipKernelSize"], BuildSettings.SharpenMipKernelSize);
 	ReadCbField(Object["MaxTextureResolution"], BuildSettings.MaxTextureResolution);
+	check( BuildSettings.MaxTextureResolution != 0 );
 	ReadCbField(Object["TextureFormatName"], BuildSettings.TextureFormatName);
 	ReadCbField(Object["bHDRSource"], BuildSettings.bHDRSource);
 	ReadCbField(Object["MipGenSettings"], BuildSettings.MipGenSettings);
@@ -180,7 +181,8 @@ static ERawImageFormat::Type ComputeRawImageFormat(ETextureSourceFormat SourceFo
 	return FImageCoreUtils::ConvertToRawImageFormat(SourceFormat);
 }
 
-static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::DerivedData::FBuildContext& Context, TArray<FImage>& OutMips)
+static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::DerivedData::FBuildContext& Context,
+												const FTextureBuildSettings & BuildSettings, TArray<FImage>& OutMips)
 {
 	FSharedBuffer InputBuffer = Context.FindInput(Source.GetName());
 	if (!InputBuffer)
@@ -207,6 +209,8 @@ static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::Deriv
 	int32 MipSizeY = SizeY;
 
 	const uint8* DecompressedSourceData = (const uint8*)InputBuffer.GetData();
+	int64 DecompressedSourceDataSize = InputBuffer.GetSize();
+
 	TArray64<uint8> IntermediateDecompressedData;
 	if (CompressionFormat != TSCF_None)
 	{
@@ -232,6 +236,7 @@ static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::Deriv
 			return false;
 		}
 		DecompressedSourceData = IntermediateDecompressedData.GetData();
+		DecompressedSourceDataSize = IntermediateDecompressedData.Num();
 		InputBuffer.Reset();
 	}
 
@@ -250,9 +255,13 @@ static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::Deriv
 			GammaSpace
 		);
 
+		check( MipOffset + MipSize <= DecompressedSourceDataSize );
+		check( SourceMip->GetImageSizeBytes() == MipSize );
+
 		if ((MipsCbArrayView.Num() == 1) && (CompressionFormat != TSCF_None))
 		{
 			// In the case where there is only one mip and its already in a TArray, there is no need to allocate new array contents, just use a move instead
+			check( MipOffset == 0 );
 			SourceMip->RawData = MoveTemp(IntermediateDecompressedData);
 		}
 		else
@@ -268,6 +277,10 @@ static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::Deriv
 
 		MipSizeX = FMath::Max(MipSizeX / 2, 1);
 		MipSizeY = FMath::Max(MipSizeY / 2, 1);
+		if ( BuildSettings.bVolume )
+		{
+			NumSlices = FMath::Max(NumSlices / 2, 1);
+		}
 	}
 
 	return true;
@@ -342,14 +355,14 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 	ReadOutputSettingsFromCompactBinary(Settings["Output"].AsObjectView(), NumInlineMips);
 
 	TArray<FImage> SourceMips;
-	if (!TryReadTextureSourceFromCompactBinary(Settings["Source"], Context, SourceMips))
+	if (!TryReadTextureSourceFromCompactBinary(Settings["Source"], Context,BuildSettings, SourceMips))
 	{
 		return;
 	}
 
 	TArray<FImage> AssociatedNormalSourceMips;
 	if (FCbFieldView CompositeSource = Settings["CompositeSource"];
-		CompositeSource && !TryReadTextureSourceFromCompactBinary(CompositeSource, Context, AssociatedNormalSourceMips))
+		CompositeSource && !TryReadTextureSourceFromCompactBinary(CompositeSource, Context,BuildSettings, AssociatedNormalSourceMips))
 	{
 		return;
 	}
@@ -359,6 +372,14 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 	TArray<FCompressedImage2D> CompressedMips;
 	uint32 NumMipsInTail;
 	uint32 ExtData;
+	
+	/*
+	for( const FImage & Image : SourceMips )
+	{
+		UE_LOG(LogInit,Display,TEXT("FTextureBuildFunction: SourceMips : %dx%dx%d"),
+			Image.SizeX,Image.SizeY,Image.NumSlices);
+	}
+	*/
 
 	bool bBuildSucceeded = FModuleManager::GetModuleChecked<ITextureCompressorModule>(TEXTURE_COMPRESSOR_MODULENAME).BuildTexture(
 		SourceMips,
@@ -385,6 +406,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 		DescriptionWriter.BeginArray("Size"_ASV);
 		DescriptionWriter.AddInteger(CompressedMips[0].SizeX);
 		DescriptionWriter.AddInteger(CompressedMips[0].SizeY);
+		// this is brittle ; CompressedMips[] should report NumSlices itself
 		const int32 NumSlices = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? CompressedMips[0].SizeZ : BuildSettings.bCubemap ? 6 : 1;
 		DescriptionWriter.AddInteger(NumSlices);
 		DescriptionWriter.EndArray();
@@ -409,6 +431,11 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 			DescriptionWriter.AddInteger(CompressedMip.SizeY);
 			DescriptionWriter.AddInteger(CompressedMip.SizeZ);
 			DescriptionWriter.EndArray();
+
+			/*
+			UE_LOG(LogInit,Display,TEXT("FTextureBuildFunction: CompressedMip: %d = %dx%dx%d"),MipIndex,
+				CompressedMip.SizeX,CompressedMip.SizeY,CompressedMip.SizeZ);
+			*/
 
 			const bool bIsInlineMip = MipIndex >= FirstInlineMip;
 

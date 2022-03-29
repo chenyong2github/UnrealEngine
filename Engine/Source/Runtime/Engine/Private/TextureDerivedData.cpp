@@ -87,7 +87,8 @@ namespace TextureCookStats
 ------------------------------------------------------------------------------*/
 
 /**
- * Serialize build settings for use when generating the derived data key.
+ * Serialize build settings for use when generating the derived data key. (DDC1)
+ * Must keep in sync with DDC2 Key WriteBuildSettings
  */
 static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 {
@@ -214,6 +215,12 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	{
 		// behavior of MaxTextureResolution + LeaveExistingMips or bDoScaleMipsForAlphaCoverage changed, so modify the key :
 		TempGuid = FGuid(0x418B8584, 0x72D54EA5, 0xBA8E8C2B, 0xECC880DE);
+		Ar << TempGuid;
+	}
+
+	if ( Settings.bVolume )
+	{
+		TempGuid = FGuid(0xCC4348B8,0x84714993,0xAB1E2C93,0x8EA6C9E0);
 		Ar << TempGuid;
 	}
 
@@ -737,7 +744,8 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.BlueChromaticityCoordinate = FVector2f(Texture.SourceColorSettings.BlueChromaticityCoordinate);
 	OutBuildSettings.WhiteChromaticityCoordinate = FVector2f(Texture.SourceColorSettings.WhiteChromaticityCoordinate);
 	OutBuildSettings.ChromaticAdaptationMethod = static_cast<uint8>(Texture.SourceColorSettings.ChromaticAdaptationMethod);
-
+	
+	check( OutBuildSettings.MaxTextureResolution == FTextureBuildSettings::MaxTextureResolutionDefault );
 	if (Texture.MaxTextureSize > 0)
 	{
 		OutBuildSettings.MaxTextureResolution = Texture.MaxTextureSize;
@@ -1867,6 +1875,14 @@ bool FTexturePlatformData::IsReadyForAsyncPostLoad() const
 
 bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, FStringView DebugContext)
 {
+	// TryLoadMips fills mip pointers but not sizes
+	//  dangerous, not robust, use TryLoadMipsWithSizes instead
+
+	return TryLoadMipsWithSizes(FirstMipToLoad,OutMipData,nullptr,DebugContext);
+}
+
+bool FTexturePlatformData::TryLoadMipsWithSizes(int32 FirstMipToLoad, void** OutMipData, int64 * OutMipSize, FStringView DebugContext)
+{
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTexturePlatformData::TryLoadMips);
 
 	int32 NumMipsCached = 0;
@@ -1879,7 +1895,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 	FAsyncMipHandles AsyncHandles;
 	FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
 	if (!BeginLoadDerivedMips(*this, FirstMipToLoad, DebugContext, AsyncHandles,
-		[this, OutMipData, FirstMipToLoad, &NumMipsCached](int32 MipIndex, FSharedBuffer MipBuffer)
+		[this, OutMipData,OutMipSize, FirstMipToLoad, &NumMipsCached](int32 MipIndex, FSharedBuffer MipBuffer)
 		{
 			FTexture2DMipMap& Mip = Mips[MipIndex];
 
@@ -1891,6 +1907,10 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 			{
 				OutMipData[MipIndex - FirstMipToLoad] = FMemory::Malloc(MipSize);
 				FMemory::Memcpy(OutMipData[MipIndex - FirstMipToLoad], MipBuffer.GetData(), MipSize);
+			}
+			if ( OutMipSize ) 
+			{
+				OutMipSize[MipIndex - FirstMipToLoad] = MipSize;
 			}
 		}))
 	{
@@ -1932,6 +1952,10 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 #endif
 				Mip.BulkData.GetCopy(&OutMipData[MipIndex - FirstMipToLoad], true);
 			}
+			if ( OutMipSize )
+			{
+				OutMipSize[MipIndex - FirstMipToLoad] = BulkDataSize;
+			}
 			NumMipsCached++;
 		}
 	}
@@ -1957,6 +1981,10 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 					{
 						OutMipData[MipIndex - FirstMipToLoad] = FMemory::Malloc(TempData.Num());
 						Ar.Serialize(OutMipData[MipIndex - FirstMipToLoad], TempData.Num());
+					}
+					if ( OutMipSize )
+					{
+						OutMipSize[MipIndex - FirstMipToLoad] = TempData.Num();
 					}
 				}
 				else

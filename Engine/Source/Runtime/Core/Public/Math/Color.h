@@ -23,6 +23,8 @@ enum class EGammaSpace : uint8
 	Pow22,
 	/** Use the standard sRGB conversion. */
 	sRGB,
+
+	Invalid
 };
 
 

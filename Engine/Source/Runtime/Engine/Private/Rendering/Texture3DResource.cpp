@@ -33,9 +33,10 @@ void FVolumeTextureBulkData::MergeMips(int32 NumMips)
 {
 	check(NumMips < MAX_TEXTURE_MIP_COUNT);
 
-	uint64 MergedSize = 0;
+	int64 MergedSize = 0;
 	for (int32 MipIndex = FirstMipIdx; MipIndex < NumMips; ++MipIndex)
 	{
+		check( MipSize[MipIndex] != 0 );
 		MergedSize += MipSize[MipIndex];
 	}
 
@@ -69,9 +70,13 @@ FTexture3DResource::FTexture3DResource(UVolumeTexture* InOwner, const FStreamabl
 , InitialData(InState.RequestedFirstLODIdx())
 {
 	const int32 FirstLODIdx = InState.RequestedFirstLODIdx();
-	if (PlatformData && const_cast<FTexturePlatformData*>(PlatformData)->TryLoadMips(FirstLODIdx + InState.AssetLODBias, InitialData.GetMipData() + FirstLODIdx, InOwner->GetPathName()))
+
+	// changed to use TryLoadMipsWithSizes
+	if (PlatformData && const_cast<FTexturePlatformData*>(PlatformData)->TryLoadMipsWithSizes(FirstLODIdx + InState.AssetLODBias, 
+		InitialData.GetMipData() + FirstLODIdx, InitialData.GetMipSize() + FirstLODIdx, InOwner->GetPathName()))
 	{
 		// Compute the size of each mips so that they can be merged into a single allocation.
+		// -> this should be unnecessary now that TryLoadMipsWithSizes reports the sizes
 		if (GUseTexture3DBulkDataRHI)
 		{
 			for (int32 MipIndex = FirstLODIdx; MipIndex < InState.MaxNumLODs; ++MipIndex)
@@ -86,12 +91,17 @@ FTexture3DResource::FTexture3DResource(UVolumeTexture* InOwner, const FStreamabl
 
 				uint32 TextureAlign = 0;
 				uint64 PlatformMipSize = RHICalcTexture3DPlatformSize(MipExtentX, MipExtentY, MipExtentZ, (EPixelFormat)PixelFormat, State.NumRequestedLODs, CreationFlags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
+				
+				UE_LOG(LogTexture,Verbose,TEXT("FTexture3DResource::FTexture3DResource %d : %dx%dx%d : MipBytes=%d"),
+					MipIndex,MipExtentX,MipExtentY,MipExtentZ,
+					(int)PlatformMipSize);
 
 				// The bulk data can be bigger because of memory alignment constraints on each slice and mips.
-				InitialData.GetMipSize()[MipIndex] = FMath::Max<uint64>(
-					MipMap.BulkData.GetBulkDataSize(), 
-					CalcTextureMipMapSize3D(SizeX, SizeY, SizeZ, (EPixelFormat)PixelFormat, MipIndex)
-				);
+				int64 BulkDataSize = MipMap.BulkData.GetBulkDataSize();
+				int64 CalcMipSize = CalcTextureMipMapSize3D(SizeX, SizeY, SizeZ, (EPixelFormat)PixelFormat, MipIndex);
+				check( BulkDataSize >= CalcMipSize );
+				//InitialData.GetMipSize()[MipIndex] = BulkDataSize;
+				check( InitialData.GetMipSize()[MipIndex] == BulkDataSize );
 			}
 		}
 
@@ -140,6 +150,18 @@ void FTexture3DResource::CreateTexture()
 				// We check if this is really the rendering thread to find out if the engine is initializing.
 				const uint32 NumBlockX = (uint32)FMath::DivideAndRoundUp<int32>(Mip.SizeX, BlockSizeX);
 				const uint32 NumBlockY = (uint32)FMath::DivideAndRoundUp<int32>(Mip.SizeY, BlockSizeY);
+
+				{
+				int64 MipBytes = InitialData.GetMipSize()[ResourceMipIdx];
+				int64 UploadSize = NumBlockX * NumBlockY * BlockBytes * Mip.SizeZ;
+				check( MipBytes >= UploadSize );
+
+				UE_LOG(LogTexture,Verbose,TEXT("FTexture3DResource::CreateTexture:RHIUpdateTexture3D %d : %dx%dx%d : RowStride=%d, SliceStride=%d, MipBytes=%d"),
+					ResourceMipIdx,Mip.SizeX,Mip.SizeY,Mip.SizeZ,
+					NumBlockX * BlockBytes, NumBlockX * NumBlockY * BlockBytes,
+					(int)MipBytes);
+				}
+
 				RHIUpdateTexture3D(Texture3DRHI, RHIMipIdx, UpdateRegion, NumBlockX * BlockBytes, NumBlockX * NumBlockY * BlockBytes, MipData);
 			}
 		}

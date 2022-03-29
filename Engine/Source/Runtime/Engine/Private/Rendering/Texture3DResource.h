@@ -50,13 +50,13 @@ public:
 	void MergeMips(int32 NumMips);
 
 	void** GetMipData() { return MipData; }
-	uint64* GetMipSize() { return MipSize; }
+	int64* GetMipSize() { return MipSize; }
 	int32 GetFirstMipIdx() const { return FirstMipIdx; }
 
 protected:
 
 	void* MipData[MAX_TEXTURE_MIP_COUNT];
-	uint64 MipSize[MAX_TEXTURE_MIP_COUNT];
+	int64 MipSize[MAX_TEXTURE_MIP_COUNT];
 	int32 FirstMipIdx;
 };
 

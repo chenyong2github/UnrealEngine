@@ -3025,7 +3025,7 @@ private:
 				const FImage& BaseImage = pSourceMips->Last();
 				bool bSuitableFormat = BaseImage.Format == ERawImageFormat::RGBA32F;
 			
-				check( MaxTextureResolution > 1 );
+				check( MaxTextureResolution > 0 );
 				check( BaseImage.SizeX > MaxTextureResolution || 
 					   BaseImage.SizeY > MaxTextureResolution );
 
