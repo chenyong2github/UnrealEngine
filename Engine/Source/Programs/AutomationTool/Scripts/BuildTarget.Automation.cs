@@ -193,8 +193,6 @@ namespace AutomationTool
 			}
 			else
 			{
-				// Get the path to UBT
-				FileReference InstalledUBT = FileReference.Combine(Unreal.EngineDirectory, "Binaries", "DotNET", "UnrealBuildTool", "UnrealBuildTool.exe");
 				UnrealTargetPlatform PlatformToBuild = PlatformList.First();
 				UnrealTargetConfiguration ConfigToBuild = ConfigurationList.First();
 				string TargetToBuild = BuildTargets.First().TargetName;
@@ -206,9 +204,9 @@ namespace AutomationTool
 
 					if (Clean)
 					{
-						CommandUtils.RunUBT(CommandUtils.CmdEnv, InstalledUBT.FullName, CommandLine + " -clean");
+						CommandUtils.RunUBT(CommandUtils.CmdEnv, Unreal.UnrealBuildToolDllPath, CommandLine + " -clean");
 					}
-					CommandUtils.RunUBT(CommandUtils.CmdEnv, InstalledUBT.FullName, CommandLine);
+					CommandUtils.RunUBT(CommandUtils.CmdEnv, Unreal.UnrealBuildToolDllPath, CommandLine);
 				}
 				else
 				{ 

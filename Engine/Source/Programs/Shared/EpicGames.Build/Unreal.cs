@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace UnrealBuildBase
@@ -63,43 +64,54 @@ namespace UnrealBuildBase
 			return FoundRootDirectory;
 		}
 
-		private static FileReference FindUnrealBuildTool()
+		private static FileReference FindUnrealBuildToolDll()
 		{
-			// todo: use UnrealBuildTool.dll (same on all platforms). Will require changes wherever UnrealBuildTool is invoked.
-			string UBTName = "UnrealBuildTool" + RuntimePlatform.ExeExtension;
+			// UnrealBuildTool.dll is assumed to be located under {RootDirectory}/Engine/Binaries/DotNET/UnrealBuildTool/
+			FileReference UnrealBuildToolDllPath = FileReference.Combine(EngineDirectory, "Binaries", "DotNET", "UnrealBuildTool", "UnrealBuildTool.dll");
 
-			// the UnrealBuildTool executable is assumed to be located under {RootDirectory}/Engine/Binaries/DotNET/UnrealBuildTool/
-			FileReference UnrealBuildToolPath = FileReference.Combine(EngineDirectory, "Binaries", "DotNET", "UnrealBuildTool", UBTName);
+			UnrealBuildToolDllPath = FileReference.FindCorrectCase(UnrealBuildToolDllPath);
 
-			UnrealBuildToolPath = FileReference.FindCorrectCase(UnrealBuildToolPath);
-
-			if (!FileReference.Exists(UnrealBuildToolPath))
+			if (!FileReference.Exists(UnrealBuildToolDllPath))
 			{
-				// if there's no exe found, use the dll as a fallback
-				UnrealBuildToolPath = FileReference.FindCorrectCase(UnrealBuildToolPath.ChangeExtension(".dll"));
+				throw new Exception($"Unable to find UnrealBuildTool.dll in the expected location at {UnrealBuildToolDllPath.FullName}");
 			}
 
-			if (!FileReference.Exists(UnrealBuildToolPath))
-			{
-				throw new Exception($"Unable to find UnrealBuildTool in the expected location at {UnrealBuildToolPath.FullName}");
-			}
-
-			return UnrealBuildToolPath;
+			return UnrealBuildToolDllPath;
 		}
 
-		static private DirectoryReference FindDotnetDirectory()
+		//static private string DotnetVersionDirectory = "6.0.200";
+			
+		static private string FindRelativeDotnetDirectory()
 		{
 			string HostDotNetDirectoryName;
 			switch (RuntimePlatform.Current)
 			{
 				case RuntimePlatform.Type.Windows: HostDotNetDirectoryName = "Windows"; break;
-				case RuntimePlatform.Type.Mac:     HostDotNetDirectoryName = "Mac"; break;
+				case RuntimePlatform.Type.Mac: HostDotNetDirectoryName = "Mac"; break;
+					/*
+				{
+					HostDotNetDirectoryName = "mac-x64";
+					if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+					{
+						HostDotNetDirectoryName = "mac-arm64";
+					}
+					break;
+				}
+					*/
 				case RuntimePlatform.Type.Linux:   HostDotNetDirectoryName = "Linux"; break;
 				default: throw new Exception("Unknown host platform");
 			}
 
-			return DirectoryReference.Combine(EngineDirectory, "Binaries", "ThirdParty", "DotNet", HostDotNetDirectoryName);
+			return Path.Combine("Binaries", "ThirdParty", "DotNet", /*DotnetVersionDirectory,*/ HostDotNetDirectoryName);
 		}
+
+		/// <summary>
+		/// Relative path to the dotnet executable from EngineDir
+		/// </summary>
+		/// <returns></returns>
+		static public string RelativeDotnetDirectory = FindRelativeDotnetDirectory();
+
+		static private DirectoryReference FindDotnetDirectory() => DirectoryReference.Combine(EngineDirectory, RelativeDotnetDirectory);
 
 		/// <summary>
 		/// The full name of the root UE directory
@@ -114,12 +126,13 @@ namespace UnrealBuildBase
 		/// <summary>
 		/// The path to UBT
 		/// </summary>
-		public static readonly FileReference UnrealBuildToolPath = FindUnrealBuildTool();
+		[Obsolete("Deprecated in UE5.1; to launch UnrealBuildTool, use this dll as the first argument with DonetPath")]
+		public static readonly FileReference UnrealBuildToolPath = FindUnrealBuildToolDll().ChangeExtension(RuntimePlatform.ExeExtension);
 
 		/// <summary>
 		/// The path to UBT
 		/// </summary>
-		public static readonly FileReference UnrealBuildToolDllPath = FindUnrealBuildTool().ChangeExtension(".dll");
+		public static readonly FileReference UnrealBuildToolDllPath = FindUnrealBuildToolDll();
 
 		/// <summary>
 		/// The directory containing the bundled .NET installation
