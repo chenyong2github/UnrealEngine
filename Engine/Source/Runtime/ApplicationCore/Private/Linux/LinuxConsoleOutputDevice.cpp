@@ -67,28 +67,24 @@ void FLinuxConsoleOutputDevice::Serialize(const TCHAR* Data, ELogVerbosity::Type
 		}
 		else
 		{
-			bool bNeedToResetColor = false;
+			const ANSICHAR *ConsoleColorStr = "";
 
 			if (bOutputtingToTerminal && !bOverrideColorSet)
 			{
 				if (Verbosity == ELogVerbosity::Error)
 				{
-					printf(CONSOLE_RED);
-					bNeedToResetColor = true;
+					ConsoleColorStr = CONSOLE_RED;
 				}
 				else if (Verbosity == ELogVerbosity::Warning)
 				{
-					printf(CONSOLE_YELLOW);
-					bNeedToResetColor = true;
+					ConsoleColorStr = CONSOLE_YELLOW;
 				}
 			}
 
-			printf("%s\n", TCHAR_TO_UTF8(*FOutputDeviceHelper::FormatLogLine(Verbosity, Category, Data, GPrintLogTimes)));
-
-			if (bNeedToResetColor)
-			{
-				printf(CONSOLE_NONE);
-			}
+			printf("%s%s%s\n",
+				ConsoleColorStr,
+				TCHAR_TO_UTF8(*FOutputDeviceHelper::FormatLogLine(Verbosity, Category, Data, GPrintLogTimes)),
+				ConsoleColorStr[0] ? CONSOLE_NONE : "");
 		}
 	}
 	else
@@ -108,4 +104,9 @@ void FLinuxConsoleOutputDevice::Serialize(const TCHAR* Data, ELogVerbosity::Type
 #endif // !PLATFORM_EXCEPTIONS_DISABLED
 		bEntry = false;
 	}
+}
+
+bool FLinuxConsoleOutputDevice::CanBeUsedOnAnyThread() const 
+{
+	return true;
 }

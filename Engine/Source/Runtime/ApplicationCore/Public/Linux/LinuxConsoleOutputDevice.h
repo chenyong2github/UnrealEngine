@@ -49,6 +49,8 @@ public:
 
 	virtual bool IsAttached() {return false;}
 
+	virtual bool CanBeUsedOnAnyThread() const override;
+
 	/**
 	 * Displays text on the console and scrolls if necessary.
 	 *
