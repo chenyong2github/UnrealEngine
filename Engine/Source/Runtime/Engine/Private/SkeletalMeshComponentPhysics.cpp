@@ -717,7 +717,7 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 	UWorld* World = GetWorld();
 	if (PhysicsAsset->bNotForDedicatedServer && World && (World->GetNetMode() == NM_DedicatedServer) && bAllowNotForDedServerPhysicsAssets)
 	{
-		UE_LOG(LogSkeletalMesh, Log, TEXT("Skipping PhysicsAsset creation on dedicated server (%s : %s) %s"), *GetNameSafe(GetOuter()), *GetName(), *PhysicsAsset->GetName());
+		UE_LOG(LogSkeletalMesh, Verbose, TEXT("Skipping PhysicsAsset creation on dedicated server (%s : %s) %s"), *GetNameSafe(GetOuter()), *GetName(), *PhysicsAsset->GetName());
 		return;
 	}
 
