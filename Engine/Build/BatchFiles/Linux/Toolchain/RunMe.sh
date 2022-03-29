@@ -12,6 +12,11 @@ if ! $(grep -q "/docker/" /proc/1/cgroup); then
   # host commands
   ##############################################################################
 
+  ZLIB_PATH=../../../../../Engine/Source/ThirdParty/zlib/v1.2.8/
+
+  # Need to static link zlib for being able to compress debug files
+  cp -rpvf $ZLIB_PATH ./
+
   ImageName=build_linux_toolchain
 
   echo docker run -t --name ${ImageName} -v "${SCRIPT_DIR}:/src" centos:7 /src/${SCRIPT_NAME}

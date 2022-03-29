@@ -1,7 +1,7 @@
 @REM @echo off
 
-set TOOLCHAIN_VERSION=v19
-set LLVM_VERSION=11.0.1
+set TOOLCHAIN_VERSION=v20
+set LLVM_VERSION=13.0.1
 
 set SVN_BINARY=%CD%\..\..\..\..\Binaries\ThirdParty\svn\Win64\svn.exe
 set CMAKE_BINARY=%CD%\..\..\..\..\Extras\ThirdPartyNotUE\CMake\bin\cmake.exe
