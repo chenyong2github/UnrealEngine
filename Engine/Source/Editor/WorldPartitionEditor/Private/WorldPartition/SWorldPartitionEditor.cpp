@@ -65,7 +65,7 @@ void SWorldPartitionEditor::OnBrowseWorld(UWorld* InWorld)
 
 TSharedRef<SWidget> SWorldPartitionEditor::ConstructContentWidget()
 {
-	FName EditorName = NAME_None;	
+	FName EditorName = NAME_None;
 	if (World.IsValid())
 	{
 		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
