@@ -838,7 +838,7 @@ void MicropolyRasterize(
 	FRaster Raster;
 	Raster.NaniteView		= NaniteView;
 	Raster.ViewRect			= ViewRect;
-#if CLUSTER_PER_PAGE
+#if VIRTUAL_TEXTURE_TARGET
 	Raster.vPage			= vPage;
 #endif
 #if VISUALIZE
