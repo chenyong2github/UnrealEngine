@@ -757,8 +757,7 @@ EVisibility SControlRigGraphNode::GetArrayPlusButtonVisibility(URigVMPin* InMode
 {
 	if(InModelPin)
 	{
-		URigVMNode* RigVMNode = InModelPin->GetNode();
-		if (RigVMNode->IsA<URigVMFunctionReturnNode>())
+		if (Cast<URigVMFunctionReturnNode>(InModelPin->GetNode()))
 		{
 			return EVisibility::Hidden;
 		}
