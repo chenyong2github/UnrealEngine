@@ -1834,7 +1834,7 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 			}
 			else
 			{
-				UE_LOG(LogLandscape, Log, TEXT("ULandscapeMeshCollisionComponent::OnCreatePhysicsState(): TriMesh invalid"));
+				UE_LOG(LogLandscape, Warning, TEXT("ULandscapeMeshCollisionComponent::OnCreatePhysicsState(): TriMesh invalid"));
 			}
 		}
 	}
