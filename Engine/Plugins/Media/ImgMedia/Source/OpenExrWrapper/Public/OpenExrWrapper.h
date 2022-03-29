@@ -56,6 +56,40 @@ private:
 	void* InputFile;
 };
 
+class OPENEXRWRAPPER_API FOpenExrHeaderReader
+{
+public:
+
+	FOpenExrHeaderReader(const FString& FilePath);
+	~FOpenExrHeaderReader();
+
+public:
+
+	const TCHAR* GetCompressionName() const;
+	FIntPoint GetDataWindow() const;
+	FFrameRate GetFrameRate(const FFrameRate& DefaultValue) const;
+	int32 GetUncompressedSize() const;
+	int32 GetNumChannels() const;
+
+	// Gets tile dimensions. Returns false if image has no tiles.
+	bool GetTileSize(FIntPoint& OutTileSize) const;
+
+	bool HasInputFile() const;
+
+	/**
+	 * Get an attribute from the image.
+	 *
+	 * @param Name		Name of attribute.
+	 * @param Value		Will be set to the value of the attribute if the attribute is found.
+	 *					Will NOT be set if the attribute is not found.
+	 * @return			True if the attribute was found, false otherwise.
+	 */
+	bool GetIntAttribute(const FString& Name, int32& Value);
+
+private:
+	TSharedPtr<void> FileContext;
+};
+
 /**
  * Base class for our classes that output EXR files.
  */

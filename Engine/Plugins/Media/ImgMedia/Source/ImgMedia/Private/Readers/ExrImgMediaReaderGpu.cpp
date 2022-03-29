@@ -28,7 +28,6 @@
 
 #include "ID3D12DynamicRHI.h"
 
-#define READ_IN_CHUNKS 1
 
 DECLARE_GPU_STAT_NAMED(ExrImgMediaReaderGpu, TEXT("ExrImgMediaReaderGpu"));
 
@@ -137,9 +136,8 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 
 
 	const FString& LargestImagePath = Loader->GetImagePath(FrameId, 0);
-	FRgbaInputFile InputFile(LargestImagePath);
 
-	if (!GetInfo(InputFile, OutFrame->Info))
+	if (!GetInfo(LargestImagePath, OutFrame->Info))
 	{
 		return false;
 	}
@@ -202,8 +200,7 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 				
 				EReadResult ReadResult = Fail;
 
-#if READ_IN_CHUNKS
-				FRgbaInputFile InputTileFile(ImagePath);
+				FOpenExrHeaderReader InputTileFile(ImagePath);
 				if (InputTileFile.HasInputFile())
 				{
 					// read frame data
@@ -233,36 +230,13 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 					UE_LOG(LogImgMedia, Error, TEXT("Could not load %s"), *ImagePath);
 					return false;
 				}
-#else
-				FRgbaInputFile InputTileFile(ImagePath);
-				if (InputTileFile.HasInputFile())
-				{
-					// read frame data
-					bool bResult = FExrReader::GenerateTextureData(MipDataPtr, BufferSize, ImagePath, CurrentMipDim.Y, NumChannels);
-					ReadResult = bResult ? Success : Fail;
-					if (bResult)
-					{
-						OutFrame->MipMapsPresent |= 1 << CurrentMipLevel;
-					}
-				}
-				else
-				{
-					UE_LOG(LogImgMedia, Error, TEXT("Could not load %s"), *ImagePath);
-					return false;
-				}
-#endif
 				if (ReadResult == Fail)
 				{
 					// Check if we have a compressed file.
-					FRgbaInputFile InputFileMip(ImagePath);
-					FImgMediaFrameInfo Info;
-					if (GetInfo(InputFileMip, Info))
+					if (OutFrame->Info.CompressionName != "Uncompressed")
 					{
-						if (Info.CompressionName != "Uncompressed")
-						{
-							UE_LOG(LogImgMedia, Error, TEXT("GPU Reader cannot read compressed file %s."), *ImagePath);
-							UE_LOG(LogImgMedia, Error, TEXT("Compressed and uncompressed files should not be mixed in a single sequence."));
-						}
+						UE_LOG(LogImgMedia, Error, TEXT("GPU Reader cannot read compressed file %s."), *ImagePath);
+						UE_LOG(LogImgMedia, Error, TEXT("Compressed and uncompressed files should not be mixed in a single sequence."));
 					}
 
 					// Fall back to CPU.

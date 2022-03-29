@@ -60,9 +60,7 @@ bool FExrImgMediaReader::GetFrameInfo(const FString& ImagePath, FImgMediaFrameIn
 	// Get tile info.
 	int32 NumTilesX = Loader->GetNumTilesX();
 	int32 NumTilesY = Loader->GetNumTilesY();
-	FRgbaInputFile InputFile(ImagePath, 2);
-
-	if (GetInfo(InputFile, OutInfo))
+	if (GetInfo(ImagePath, OutInfo))
 	{
 		OutInfo.Dim.X *= NumTilesX;
 		OutInfo.Dim.Y *= NumTilesY;
@@ -95,8 +93,7 @@ bool FExrImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTil
 	{
 		// Nope. Create it.
 		const FString& LargestImage = Loader->GetImagePath(FrameId, 0);
-		FRgbaInputFile InputFile(LargestImage, 2);
-		if (!GetInfo(InputFile, OutFrame->Info))
+		if (!GetInfo(LargestImage, OutFrame->Info))
 		{
 			return false;
 		}
@@ -254,8 +251,7 @@ TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> FExrImgMediaReader::GetReader(c
 	}
 	
 	FImgMediaFrameInfo Info;
-
-	if (!GetInfo(InputFile, Info))
+	if (!GetInfo(FirstImageInSequencePath, Info))
 	{
 		return MakeShareable(new FExrImgMediaReader(InLoader));
 	}
@@ -291,40 +287,41 @@ TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> FExrImgMediaReader::GetReader(c
 /* FExrImgMediaReader implementation
  *****************************************************************************/
 
-bool FExrImgMediaReader::GetInfo(FRgbaInputFile& InputFile, FImgMediaFrameInfo& OutInfo)
+bool FExrImgMediaReader::GetInfo(const FString& FilePath, FImgMediaFrameInfo& OutInfo)
 {
-	if (InputFile.HasInputFile() == false)
+	FOpenExrHeaderReader HeaderReader(FilePath);
+	if (HeaderReader.HasInputFile() == false)
 	{
 		return false;
 	}
 
-	OutInfo.CompressionName = InputFile.GetCompressionName();
-	OutInfo.Dim = InputFile.GetDataWindow();
+	OutInfo.CompressionName = HeaderReader.GetCompressionName();
+	OutInfo.Dim = HeaderReader.GetDataWindow();
 	OutInfo.FormatName = TEXT("EXR");
-	OutInfo.FrameRate = InputFile.GetFrameRate(ImgMedia::DefaultFrameRate);
+	OutInfo.FrameRate = HeaderReader.GetFrameRate(ImgMedia::DefaultFrameRate);
 	OutInfo.Srgb = false;
-	OutInfo.UncompressedSize = InputFile.GetUncompressedSize();
-	OutInfo.NumChannels = InputFile.GetNumChannels();
+	OutInfo.UncompressedSize = HeaderReader.GetUncompressedSize();
+	OutInfo.NumChannels = HeaderReader.GetNumChannels();
 
 	int32 CustomFormat = 0;
-	InputFile.GetIntAttribute(IImgMediaModule::CustomFormatAttributeName.Resolve().ToString(), CustomFormat);
+	HeaderReader.GetIntAttribute(IImgMediaModule::CustomFormatAttributeName.Resolve().ToString(), CustomFormat);
 	bool bIsCustomFormat = CustomFormat > 0;
 	if (bIsCustomFormat)
 	{
 		// Get tile size.
-		OutInfo.bHasTiles = InputFile.GetIntAttribute(IImgMediaModule::CustomFormatTileWidthAttributeName.Resolve().ToString(), OutInfo.TileDimensions.X);
-		OutInfo.bHasTiles = OutInfo.bHasTiles && InputFile.GetIntAttribute(IImgMediaModule::CustomFormatTileHeightAttributeName.Resolve().ToString(), OutInfo.TileDimensions.Y);
-		InputFile.GetIntAttribute(IImgMediaModule::CustomFormatTileBorderAttributeName.Resolve().ToString(), OutInfo.TileBorder);
+		HeaderReader.GetIntAttribute(IImgMediaModule::CustomFormatTileBorderAttributeName.Resolve().ToString(), OutInfo.TileBorder);
+		OutInfo.bHasTiles = HeaderReader.GetIntAttribute(IImgMediaModule::CustomFormatTileWidthAttributeName.Resolve().ToString(), OutInfo.TileDimensions.X);
+		OutInfo.bHasTiles = OutInfo.bHasTiles && HeaderReader.GetIntAttribute(IImgMediaModule::CustomFormatTileHeightAttributeName.Resolve().ToString(), OutInfo.TileDimensions.Y);
 	}
 	else
 	{
-		OutInfo.bHasTiles = InputFile.GetTileSize(OutInfo.TileDimensions);
+		OutInfo.bHasTiles = HeaderReader.GetTileSize(OutInfo.TileDimensions);
 		OutInfo.TileBorder = 0;
 	}
 
 	if (OutInfo.bHasTiles)
 	{
-		OutInfo.NumTiles = FIntPoint(OutInfo.Dim.X / OutInfo.TileDimensions.X, OutInfo.Dim.Y / OutInfo.TileDimensions.Y);
+		OutInfo.NumTiles = FIntPoint(OutInfo.Dim.X / (OutInfo.TileDimensions.X + OutInfo.TileBorder * 2), OutInfo.Dim.Y / (OutInfo.TileDimensions.Y + OutInfo.TileBorder * 2));
 	}
 	else
 	{
@@ -334,6 +331,7 @@ bool FExrImgMediaReader::GetInfo(FRgbaInputFile& InputFile, FImgMediaFrameInfo& 
 
 	return (OutInfo.UncompressedSize > 0) && (OutInfo.Dim.GetMin() > 0);
 }
+
 
 void FExrImgMediaReader::SetCustomFormatInfo(bool bInIsCustomFormat, const FIntPoint& InTileSize)
 {

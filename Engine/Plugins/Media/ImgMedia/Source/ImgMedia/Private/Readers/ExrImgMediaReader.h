@@ -9,6 +9,7 @@
 #include "IImgMediaReader.h"
 
 class FImgMediaLoader;
+class FOpenExrHeaderReader;
 class FRgbaInputFile;
 
 
@@ -49,7 +50,7 @@ protected:
 	 * @param OutInfo Will contain the frame information.
 	 * @return true on success, false otherwise.
 	 */
-	static bool GetInfo(FRgbaInputFile& InputFile, FImgMediaFrameInfo& OutInfo);
+	static bool GetInfo(const FString& FilePath, FImgMediaFrameInfo& OutInfo);
 
 	/**
 	 * Sets parameters of our custom format images.
