@@ -10,6 +10,7 @@
 #include "ConcertSyncSessionFlags.h"
 #include "ConcertWorkspaceMessages.h"
 #include "ConcertClientWorkspaceData.h"
+#include "Delegates/Delegate.h"
 
 class IConcertClientSession;
 class IConcertClientPackageBridge;
@@ -24,6 +25,8 @@ class ISourceControlProvider;
 class FConcertClientDataStore;
 
 struct FScopedSlowTask;
+
+DECLARE_MULTICAST_DELEGATE(FOnWorkspaceEndFrameCompleted);
 
 class FConcertClientWorkspace : public IConcertClientWorkspace
 {
@@ -70,6 +73,9 @@ public:
 
 	/** Indicates if we can finalize activity sync. */
 	bool CanFinalize() const;
+
+	/** Gets the delegate called after the workspace has completed its handling at the end of an engine frame. */
+	FOnWorkspaceEndFrameCompleted& OnWorkspaceEndFrameCompleted();
 
 private:
 
@@ -237,6 +243,9 @@ private:
 
 	/** The delegate called after the workspace has been synced and finalized. */
 	FOnFinalizeWorkspaceSyncCompleted OnFinalizeWorkspaceSyncCompletedDelegate;
+
+	/** The delegate called after the workspace has completed its handling at the end of an engine frame. */
+	FOnWorkspaceEndFrameCompleted OnWorkspaceEndFrameCompletedDelegate;
 
 	/** The session key/value store proxy. The real store is held by the server and shared across all clients. */
 	TUniquePtr<FConcertClientDataStore> DataStore;

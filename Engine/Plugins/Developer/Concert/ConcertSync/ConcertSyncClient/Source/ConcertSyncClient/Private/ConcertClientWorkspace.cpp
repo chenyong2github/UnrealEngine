@@ -452,6 +452,11 @@ FOnFinalizeWorkspaceSyncCompleted& FConcertClientWorkspace::OnFinalizeWorkspaceS
 	return OnFinalizeWorkspaceSyncCompletedDelegate;
 }
 
+FOnWorkspaceEndFrameCompleted& FConcertClientWorkspace::OnWorkspaceEndFrameCompleted()
+{
+	return OnWorkspaceEndFrameCompletedDelegate;
+}
+
 IConcertClientDataStore& FConcertClientWorkspace::GetDataStore()
 {
 	return *DataStore;
@@ -871,6 +876,8 @@ void FConcertClientWorkspace::OnEndFrame()
 			LiveSession->GetSession().SendCustomEvent(StateChangeEvent, LiveSession->GetSession().GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
 			bPendingStopIgnoringActivityOnRestore = false;
 		}
+
+		OnWorkspaceEndFrameCompletedDelegate.Broadcast();
 	}
 	LiveSession->GetSessionDatabase().UpdateAsynchronousTasks();
 	IConcertClientRef ConcertClient = OwnerSyncClient->GetConcertClient();

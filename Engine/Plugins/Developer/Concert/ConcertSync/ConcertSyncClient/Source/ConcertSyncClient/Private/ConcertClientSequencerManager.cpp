@@ -7,7 +7,6 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "Modules/ModuleManager.h"
-#include "Misc/CoreDelegates.h"
 #include "Logging/LogMacros.h"
 
 #include "IConcertClient.h"
@@ -24,6 +23,7 @@
 #include "LevelSequenceActor.h"
 
 #include "UObject/PackageReload.h"
+#include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITOR
 	#include "ISequencerModule.h"
@@ -61,7 +61,7 @@ FConcertClientSequencerManager::FConcertClientSequencerManager(IConcertSyncClien
 
 	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
 	OnSequencerCreatedHandle = SequencerModule.RegisterOnSequencerCreated(FOnSequencerCreated::FDelegate::CreateRaw(this, &FConcertClientSequencerManager::OnSequencerCreated));
-	FCoreDelegates::OnEndFrame.AddRaw(this, &FConcertClientSequencerManager::OnEndFrame);
+
 	FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &FConcertClientSequencerManager::HandleAssetReload);
 }
 
@@ -73,7 +73,7 @@ FConcertClientSequencerManager::~FConcertClientSequencerManager()
 		SequencerModulePtr->UnregisterOnSequencerCreated(OnSequencerCreatedHandle);
 	}
 
-	FCoreDelegates::OnEndFrame.RemoveAll(this);
+	SetActiveWorkspace(nullptr);
 
 	for (FOpenSequencerData& OpenSequencer : OpenSequencers)
 	{
@@ -154,7 +154,17 @@ FConcertClientSequencerManager::GatherRootSequencersByState(const FString& InSeq
 
 void FConcertClientSequencerManager::SetActiveWorkspace(TSharedPtr<FConcertClientWorkspace> InWorkspace)
 {
+	if (TSharedPtr<FConcertClientWorkspace> SharedWorkspace = Workspace.Pin())
+	{
+		SharedWorkspace->OnWorkspaceEndFrameCompleted().RemoveAll(this);
+	}
+
 	Workspace = InWorkspace;
+
+	if (InWorkspace.IsValid())
+	{
+		InWorkspace->OnWorkspaceEndFrameCompleted().AddRaw(this, &FConcertClientSequencerManager::OnWorkspaceEndFrameCompleted);
+	}
 }
 
 float FConcertClientSequencerManager::GetLatencyCompensationMs() const
@@ -925,20 +935,8 @@ bool FConcertClientSequencerManager::CanSendSequencerEvent(const FString& Object
 	return true;
 }
 
-void FConcertClientSequencerManager::OnEndFrame()
+void FConcertClientSequencerManager::OnWorkspaceEndFrameCompleted()
 {
-	TSharedPtr<FConcertClientWorkspace> SharedWorkspace = Workspace.Pin();
-	if (SharedWorkspace)
-	{
-		if (!SharedWorkspace->CanProcessPendingPackages())
-		{
-			// There is currently a lock on the workspace.  We should wait for those to finish before processing
-			// sequencer events.
-			//
-			return;
-		}
-	}
-
 	for (const FConcertSequencerCloseEvent& CloseEvent: PendingSequenceCloseEvents)
 	{
 		ApplyTransportCloseEvent(CloseEvent);

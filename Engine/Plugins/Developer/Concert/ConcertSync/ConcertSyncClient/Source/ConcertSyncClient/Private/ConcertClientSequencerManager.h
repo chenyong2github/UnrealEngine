@@ -205,9 +205,13 @@ private:
 	void OnSequencerCreated(TSharedRef<ISequencer> InSequencer);
 
 	/**
-	 * Handle the end of frame callback to apply pending sequencer events
+	 * Handle the end of frame callback to apply pending sequencer events.
+	 * 
+	 * Note that this is called through a delegate on the workspace instead of
+	 * being called directly by a core engine delegate. This is to ensure that
+	 * all workspace operations have completed first.
 	 */
-	void OnEndFrame();
+	void OnWorkspaceEndFrameCompleted();
 
 	/**
 	 * Apply a Sequencer open event
