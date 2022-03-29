@@ -7,6 +7,7 @@
 #include "K2Node_FunctionEntry.h"
 #include "Misc/EngineVersion.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Kismet2/KismetEditorUtilities.h"
 
 #define LOCTEXT_NAMESPACE "FHeaderViewFunctionListItem"
 
@@ -17,6 +18,12 @@ FHeaderViewListItemPtr FHeaderViewFunctionListItem::Create(const UK2Node_Functio
 
 void FHeaderViewFunctionListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint)
 {
+	InMenuBuilder.AddMenuEntry(LOCTEXT("JumpToDefinition", "Jump to Definition"),
+		LOCTEXT("JumpToDefinitionTooltip", "Opens this function in the Blueprint Editor"),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateSP(this, &FHeaderViewFunctionListItem::JumpToDefinition, InBlueprint))
+	);
+
 	if (!IllegalName.IsNone())
 	{
 		InMenuBuilder.AddEditableText(LOCTEXT("RenameItem", "Rename Function"),
@@ -36,6 +43,11 @@ void FHeaderViewFunctionListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder,
 			FOnTextCommitted::CreateSP(this, &FHeaderViewFunctionListItem::OnRenameParameterTextCommitted, InBlueprint, GraphName, IllegalParam)
 		);
 	}
+}
+
+void FHeaderViewFunctionListItem::OnMouseButtonDoubleClick(TWeakObjectPtr<UBlueprint> Blueprint)
+{
+	JumpToDefinition(Blueprint);
 }
 
 FString FHeaderViewFunctionListItem::GetConditionalUFunctionSpecifiers(const UFunction* SigFunction) const
@@ -337,6 +349,27 @@ void FHeaderViewFunctionListItem::OnRenameParameterTextCommitted(const FText& Co
 				{
 					UE_LOG(LogBlueprintHeaderView, Warning, TEXT("Could not find Function Graph named \"%s\" in Blueprint \"%s\""), *OldGraphName.ToString(), *Blueprint->GetName());
 				}
+			}
+		}
+	}
+}
+
+void FHeaderViewFunctionListItem::JumpToDefinition(TWeakObjectPtr<UBlueprint> WeakBlueprint) const
+{
+	if (const UBlueprint* Blueprint = WeakBlueprint.Get())
+	{
+		const TObjectPtr<UEdGraph>* FunctionGraph = Blueprint->FunctionGraphs.FindByPredicate([GraphName=GraphName](const TObjectPtr<UEdGraph>& Graph)
+			{
+				return Graph->GetFName() == GraphName;
+			});
+
+		if (FunctionGraph)
+		{
+			TArray<UK2Node_FunctionEntry*> Entry;
+			FunctionGraph->Get()->GetNodesOfClass<UK2Node_FunctionEntry>(Entry);
+			if (ensureMsgf(Entry.Num() == 1 && Entry[0], TEXT("Function Graph \"%s\" in Blueprint \"%s\" does not have exactly one Entry Node"), *FunctionGraph->Get()->GetName(), *Blueprint->GetName()))
+			{
+				FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(Entry[0]);
 			}
 		}
 	}

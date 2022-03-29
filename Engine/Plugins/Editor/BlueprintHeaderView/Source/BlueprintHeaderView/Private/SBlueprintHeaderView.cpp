@@ -287,6 +287,7 @@ void SBlueprintHeaderView::Construct(const FArguments& InArgs)
 				.ListItemsSource(&ListItems)
 				.OnGenerateRow(this, &SBlueprintHeaderView::GenerateRowForItem)
 				.OnContextMenuOpening(this, &SBlueprintHeaderView::OnContextMenuOpening)
+				.OnMouseButtonDoubleClick(this, &SBlueprintHeaderView::OnItemDoubleClicked)
 //			]
 		]
 	];
@@ -562,6 +563,11 @@ TSharedPtr<SWidget> SBlueprintHeaderView::OnContextMenuOpening()
 	}
 
 	return MenuBuilder.MakeWidget();
+}
+
+void SBlueprintHeaderView::OnItemDoubleClicked(FHeaderViewListItemPtr Item)
+{
+	Item->OnMouseButtonDoubleClick(SelectedBlueprint);
 }
 
 void SBlueprintHeaderView::OnBlueprintChanged(UBlueprint* InBlueprint)

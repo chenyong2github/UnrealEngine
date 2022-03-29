@@ -46,6 +46,9 @@ struct FHeaderViewListItem : public TSharedFromThis<FHeaderViewListItem>
 	/** Allows the item to add items to the context menu if it is the only item selected */
 	virtual void ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint) {}
 
+	/** Called when this List Item is double clicked */
+	virtual void OnMouseButtonDoubleClick(TWeakObjectPtr<UBlueprint> Blueprint) {};
+
 protected:
 	/** Empty base constructor hidden from public */
 	FHeaderViewListItem() {};
@@ -132,6 +135,9 @@ private:
 
 	/** Creates a context menu for the list view */
 	TSharedPtr<SWidget> OnContextMenuOpening();
+
+	/** Called when a List Item is double clicked */
+	void OnItemDoubleClicked(FHeaderViewListItemPtr Item);
 
 	/** Callback for when the selected blueprint is modified */
 	void OnBlueprintChanged(UBlueprint* InBlueprint);

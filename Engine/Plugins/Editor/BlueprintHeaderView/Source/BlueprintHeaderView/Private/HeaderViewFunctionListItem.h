@@ -15,6 +15,7 @@ struct FHeaderViewFunctionListItem : public FHeaderViewListItem
 
 	//~ FHeaderViewListItem Interface
 	virtual void ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint) override;
+	virtual void OnMouseButtonDoubleClick(TWeakObjectPtr<UBlueprint> Blueprint) override;
 	//~ End FHeaderViewListItem Interface
 
 protected:
@@ -26,9 +27,10 @@ protected:
 	/** Adds Function parameters to the RichText and PlainText strings */
 	void AppendFunctionParameters(const UFunction* SignatureFunction);
 
+	// UI Callback Functions
 	void OnRenameFunctionTextCommitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> WeakBlueprint, FName OldGraphName);
 	void OnRenameParameterTextCommitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> WeakBlueprint, FName OldGraphName, FName OldParamName);
-
+	void JumpToDefinition(TWeakObjectPtr<UBlueprint> WeakBlueprint) const;
 protected:
 	/** None if the function name is legal C++, else the name of the function */
 	FName IllegalName = NAME_None;
