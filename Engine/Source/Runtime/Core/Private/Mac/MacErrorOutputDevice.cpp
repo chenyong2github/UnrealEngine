@@ -91,7 +91,7 @@ void FMacErrorOutputDevice::HandleError()
 	UE_LOG(LogMac, Log, TEXT("=== Critical error: ===") LINE_TERMINATOR TEXT("%s") LINE_TERMINATOR, GErrorExceptionDescription);
 	UE_LOG(LogMac, Log, TEXT("%s"), GErrorHist);
     
-    GLog->Flush();
+    GLog->Panic();
     
 #if PLATFORM_MAC_ARM64
     // stack dumping seems broken on arm, so for the time being spin so we can dump callstacks

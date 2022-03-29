@@ -88,7 +88,7 @@ public:
 			AutomationControllerModule.Tick();
 
 			// Flush threaded logs.
-			GLog->FlushThreadedLogs();
+			GLog->FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions::Async);
 
 			// Throttle frame rate.
 			FPlatformProcess::Sleep(FMath::Max<float>(0.0f, MainsFrameTime - (FPlatformTime::Seconds() - LastTime)));

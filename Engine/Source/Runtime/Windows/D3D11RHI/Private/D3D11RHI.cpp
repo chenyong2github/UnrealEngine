@@ -645,7 +645,7 @@ bool FD3DGPUProfiler::CheckGpuHeartbeat(bool bShowActiveStatus) const
 					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Invalid context handle"));
 					NVAFTERMATH_ON_ERROR();
 				}
-				GLog->PanicFlush();
+				GLog->Flush();
 				return false;
 			}
 		}

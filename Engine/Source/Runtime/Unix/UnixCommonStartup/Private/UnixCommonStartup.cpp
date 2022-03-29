@@ -35,7 +35,7 @@ void CommonUnixCrashHandler(const FGenericCrashContext& GenericContext)
 	const_cast< FUnixCrashContext& >(Context).CaptureStackTrace(Context.ErrorFrame);
 	if (GLog)
 	{
-		GLog->PanicFlush();
+		GLog->Panic();
 	}
 	if (GWarn)
 	{

@@ -1412,7 +1412,7 @@ private:
 		{
 			// Panic flush the logs to make sure there are no entries queued.
 			// This is will skip output devices that are not safe to flush during a crash, for example, the editor log.
-			GLog->PanicFlush();
+			GLog->Panic();
 		}
 		
 		// Get the default settings for the crash context

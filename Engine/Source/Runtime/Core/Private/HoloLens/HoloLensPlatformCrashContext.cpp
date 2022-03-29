@@ -254,7 +254,7 @@ enum class EErrorReportUI
 int32 ReportCrashUsingWindowsErrorReporting(EXCEPTION_POINTERS* ExceptionInfo, const TCHAR* ErrorMessage, EErrorReportUI ReportUI)
 {
 	// Flush out the log
-	GLog->Flush();
+	GLog->Panic();
 
 	// Construct the report details
 	WER_REPORT_INFORMATION ReportInformation = {sizeof( WER_REPORT_INFORMATION )};

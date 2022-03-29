@@ -489,7 +489,7 @@ void EngineCrashHandler(const FGenericCrashContext& GenericContext)
 
 		if (GLog)
 		{
-			GLog->PanicFlush();
+			GLog->Panic();
 		}
 		
 		if (GWarn)

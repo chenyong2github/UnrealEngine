@@ -595,7 +595,7 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			FPaths::NormalizeDirectoryName(LogDstAbsolute);
 
 			// Flush out the log
-			GLog->Flush();
+			GLog->Panic();
 
 #if !NO_LOGGING
 			bool bMemoryOnly = FPlatformOutputDevices::GetLog()->IsMemoryOnly();
@@ -847,7 +847,7 @@ void DefaultCrashHandler(const FUnixCrashContext & Context)
 	const_cast<FUnixCrashContext&>(Context).CaptureStackTrace(Context.ErrorFrame);
 	if (GLog)
 	{
-		GLog->PanicFlush();
+		GLog->Panic();
 	}
 	if (GWarn)
 	{

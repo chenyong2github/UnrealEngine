@@ -84,7 +84,7 @@ void FOutputDeviceAnsiError::HandleError()
 		UE_LOG( LogHAL, Log, TEXT( "=== Critical error: ===" ) LINE_TERMINATOR LINE_TERMINATOR TEXT( "%s" ) LINE_TERMINATOR, GErrorExceptionDescription );
 		UE_LOG(LogHAL, Log, TEXT("%s"), GErrorHist);
 
-		GLog->Flush();
+		GLog->Panic();
 	}
 	else
 	{

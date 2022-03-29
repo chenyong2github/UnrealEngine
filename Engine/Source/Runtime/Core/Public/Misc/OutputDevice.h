@@ -200,9 +200,9 @@ public:
 	}
 
 	/**
-	 * @return whether this output device can be used when flushing after a fatal error.
+	 * @return whether this output device can be used after a panic (crash or fatal error) has been flagged.
 	 */
-	virtual bool CanBeUsedByPanicFlush() const
+	virtual bool CanBeUsedOnPanicThread() const
 	{
 		return CanBeUsedOnAnyThread();
 	}

@@ -1022,7 +1022,7 @@ namespace VulkanRHI
 			}
 			DumpRenderTargetPoolMemory(*GLog);
 			Device->GetMemoryManager().DumpMemory();
-			GLog->PanicFlush();
+			GLog->Panic();
 
 			UE_LOG(LogVulkanRHI, Fatal, TEXT("Out of %s Memory, Requested%.2fKB MemTypeIndex=%d\n"), MemoryType, AllocationSize / 1024.f, MemoryTypeIndex);
 		}
@@ -3624,7 +3624,7 @@ namespace VulkanRHI
 		}
 
 
-		GLog->PanicFlush();
+		GLog->Flush();
 
 
 #undef VULKAN_LOGMEMORY_PAD
@@ -3643,9 +3643,9 @@ namespace VulkanRHI
 			case VK_ERROR_OUT_OF_DEVICE_MEMORY: MemoryType = TEXT("Local"); break;
 			}
 			DumpMemory();
-			GLog->PanicFlush();
+			GLog->Panic();
 			DumpRenderTargetPoolMemory(*GLog);
-			GLog->PanicFlush();
+			GLog->Flush();
 
 			UE_LOG(LogVulkanRHI, Fatal, TEXT("Out of %s Memory, Requested%.2fKB MemTypeIndex=%d\n"), MemoryType, AllocationSize, MemoryTypeIndex);
 		}

@@ -26,7 +26,7 @@ void CrashReporterCrashHandler(const FGenericCrashContext& GenericContext)
 	const_cast< FUnixCrashContext& >(Context).CaptureStackTrace(Context.FirstCrashHandlerFrame);
 	if (GLog)
 	{
-		GLog->Flush();
+		GLog->Panic();
 	}
 	if (GWarn)
 	{

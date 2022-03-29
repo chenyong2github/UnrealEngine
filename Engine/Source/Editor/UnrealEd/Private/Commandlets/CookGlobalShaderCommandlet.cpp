@@ -184,7 +184,7 @@ void UCookGlobalShadersCommandlet::CookGlobalShadersOnDirectoriesChanges()
 		DirectoryWatcherModule.Get()->Tick(FApp::GetDeltaTime());
 		
 		// flush log
-		GLog->FlushThreadedLogs();
+		GLog->FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions::Async);
 
 #if PLATFORM_WINDOWS
 		if (ComWrapperShutdownEvent->Wait(0))

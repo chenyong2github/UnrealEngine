@@ -1916,7 +1916,7 @@ static void DefaultCrashHandler(FMacCrashContext const& Context)
 	Context.ReportCrash();
 	if (GLog)
 	{
-		GLog->PanicFlush();
+		GLog->Panic();
 	}
 	if (GWarn)
 	{
@@ -2020,7 +2020,7 @@ static void GracefulTerminationHandler(int32 Signal, siginfo_t* Info, void* Cont
 	// make sure as much data is written to disk as possible
 	if (GLog)
 	{
-		GLog->Flush();
+		GLog->Panic();
 	}
 	if (GWarn)
 	{

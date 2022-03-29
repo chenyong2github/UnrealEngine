@@ -231,9 +231,8 @@ void FAndroidMisc::RequestExit( bool Force )
 #endif
 
 	UE_LOG(LogAndroid, Log, TEXT("FAndroidMisc::RequestExit(%i)"), Force);
-	if(GLog)
+	if (GLog)
 	{
-		GLog->FlushThreadedLogs();
 		GLog->Flush();
 	}
 
@@ -1040,7 +1039,7 @@ void DefaultCrashHandler(const FAndroidCrashContext& Context)
 
 		if (GLog)
 		{
-			GLog->PanicFlush();
+			GLog->Panic();
 		}
 
 		if (GWarn)
@@ -1409,7 +1408,7 @@ void FAndroidMisc::TriggerCrashHandler(ECrashContextType InType, const TCHAR* In
 		// we dont flush logs during a fatal signal, malloccrash can cause us to deadlock.
 		if (GLog)
 		{
-			GLog->PanicFlush();
+			GLog->Panic();
 		}
 		if (GWarn)
 		{

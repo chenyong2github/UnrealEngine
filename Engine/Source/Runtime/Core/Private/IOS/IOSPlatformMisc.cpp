@@ -1362,7 +1362,7 @@ static void DefaultCrashHandler(FIOSCrashContext const& Context)
     Context.ReportCrash();
     if (GLog)
     {
-        GLog->PanicFlush();
+        GLog->Panic();
     }
     if (GWarn)
     {
@@ -1412,7 +1412,7 @@ static void GracefulTerminationHandler(int32 Signal, siginfo_t* Info, void* Cont
     // make sure we write out as much as possible
     if (GLog)
     {
-        GLog->Flush();
+        GLog->Panic();
     }
     if (GWarn)
     {

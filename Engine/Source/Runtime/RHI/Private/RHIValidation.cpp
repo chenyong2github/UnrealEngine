@@ -449,7 +449,7 @@ void FValidationRHI::ReportValidationFailure(const TCHAR* InMessage)
 		// Print the message again using the debug output function, because UE_LOG doesn't always reach
 		// the VS output window before the breakpoint is triggered, despite the log flush call below.
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), InMessage);
-		GLog->PanicFlush();
+		GLog->Flush();
 		PLATFORM_BREAK();
 	}
 }

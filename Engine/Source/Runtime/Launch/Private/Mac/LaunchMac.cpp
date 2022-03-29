@@ -32,7 +32,7 @@ void LogCrashCallstack(const FMacCrashContext& Context)
     Context.ReportCrash();
     if (GLog)
     {
-        GLog->PanicFlush();
+        GLog->Panic();
     }
     if (GWarn)
     {

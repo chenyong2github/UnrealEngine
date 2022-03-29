@@ -64,7 +64,7 @@ void FAndroidErrorOutputDevice::HandleError()
 	FDebug::LogFormattedMessageWithCallstack(LogAndroid.GetCategoryName(), __FILE__, __LINE__, TEXT("=== Critical error: ==="), GErrorHist, ELogVerbosity::Error);
 #endif
 	
-	GLog->PanicFlush();
+	GLog->Panic();
 
 	FCoreDelegates::OnHandleSystemError.Broadcast();
 	FCoreDelegates::OnShutdownAfterError.Broadcast();

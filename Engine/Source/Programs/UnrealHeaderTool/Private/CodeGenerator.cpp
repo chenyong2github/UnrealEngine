@@ -5911,7 +5911,7 @@ void FNativeClassHeaderGenerator::GenerateSourceFiles(
 
 		// This is strange, but flushing the log can take a long time.  Without an explicit flush, we were getting a long stall in the UE_LOG message
 		// during the detection of script plugins.  By doing it here, the flush should easily complete during code generation.
-		GLog->FlushThreadedLogs();
+		GLog->FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions::Async);
 
 		FTaskGraphInterface::Get().WaitUntilTasksComplete(ExportSourceTasks);
 	}

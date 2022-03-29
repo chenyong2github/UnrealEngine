@@ -140,7 +140,7 @@ int32 UFileServerCommandlet::Main( const FString& Params )
 		}
 
 		// flush log
-		GLog->FlushThreadedLogs();
+		GLog->FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions::Async);
 
 #if PLATFORM_WINDOWS
 		if (ComWrapperShutdownEvent->Wait(0))
