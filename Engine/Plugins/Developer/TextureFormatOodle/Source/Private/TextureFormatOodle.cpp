@@ -1055,7 +1055,7 @@ public:
 		// because Unreal only does Gamma correction on the 8 bit conversion
 		//	(this loses precision for BC4,5 which would like 16 bit input)
 		
-		EGammaSpace Gamma = InBuildSettings.GetGammaSpace();		
+		EGammaSpace Gamma = InBuildSettings.GetDestGammaSpace();		
 		// note in unreal if Gamma == Pow22 due to legacy Gamma,
 		//	we still want to encode to sRGB
 		// (CopyTo does that even without this change, but let's make it explicit)

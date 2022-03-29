@@ -499,7 +499,7 @@ class FTextureFormatDXT : public ITextureFormat
 		TRACE_CPUPROFILER_EVENT_SCOPE(FTextureFormatDXT::CompressImage);
 
 		FImage Image;
-		InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
+		InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
 		EPixelFormat CompressedPixelFormat = GetPixelFormatForImage(BuildSettings, InImage, bImageHasAlphaChannel);
 		bool bIsNormalMap = BuildSettings.TextureFormatName == GTextureFormatNameDXT5n || BuildSettings.TextureFormatName == GTextureFormatNameBC5;

@@ -18,6 +18,7 @@ struct FCompressedImage2D
 	int32 SizeY;
 	int32 SizeZ; // Only for Volume Texture
 	uint8 PixelFormat; // EPixelFormat, opaque to avoid dependencies on Engine headers.
+	// @@!! fix me - this is missing NumSlices
 };
 
 /**
@@ -275,9 +276,23 @@ struct FTextureBuildSettings
 	{
 	}
 
-	FORCEINLINE EGammaSpace GetGammaSpace() const
+	// GammaSpace is TextureCompressorModule is always a Destination gamma
+	// we get FImages as input with source gamma space already set on them
+
+	FORCEINLINE EGammaSpace GetSourceGammaSpace() const
 	{
 		return bSRGB ? ( bUseLegacyGamma ? EGammaSpace::Pow22 : EGammaSpace::sRGB ) : EGammaSpace::Linear;
+	}
+	
+	FORCEINLINE EGammaSpace GetDestGammaSpace() const
+	{
+		return bSRGB ? EGammaSpace::sRGB : EGammaSpace::Linear;
+	}
+
+	UE_DEPRECATED(5.1, "Use GetDestGammaSpace or GetSourceGammaSpace (probably Dest)")
+	FORCEINLINE EGammaSpace GetGammaSpace() const
+	{
+		return GetDestGammaSpace();
 	}
 };
 

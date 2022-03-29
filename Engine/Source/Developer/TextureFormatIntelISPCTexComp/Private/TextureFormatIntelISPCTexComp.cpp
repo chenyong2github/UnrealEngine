@@ -765,7 +765,7 @@ public:
 		else if ( BuildSettings.TextureFormatName == GTextureFormatNameBC7 )
 		{
 			FImage Image;
-			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
+			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
 			bc7_enc_settings settings;
 			if ( bImageHasAlphaChannel )
@@ -841,7 +841,7 @@ public:
 			if (bCompressionSucceeded)
 			{
 				FImage Image;
-				InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
+				InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
 				SetupScans(Image, EncoderSettings.block_width, EncoderSettings.block_height, OutCompressedImage, MultithreadSettings);
 				PadImageToBlockSize(Image, EncoderSettings.block_width, EncoderSettings.block_height, 4 * 1);

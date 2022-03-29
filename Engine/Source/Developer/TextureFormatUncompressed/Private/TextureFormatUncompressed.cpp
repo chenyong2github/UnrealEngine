@@ -173,7 +173,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 		if (BuildSettings.TextureFormatName == GTextureFormatNameG8)
 		{
 			FImage Image;
-			InImage.CopyTo(Image, ERawImageFormat::G8, BuildSettings.GetGammaSpace());
+			InImage.CopyTo(Image, ERawImageFormat::G8, BuildSettings.GetDestGammaSpace());
 
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;
@@ -197,7 +197,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameVU8)
 		{
 			FImage Image;
-			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
+			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;
@@ -221,7 +221,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameBGRA8)
 		{
 			FImage Image;
-			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
+			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;
@@ -233,7 +233,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameRGBA8)
 		{
 			FImage Image;
-			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
+			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;
@@ -260,7 +260,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameXGXR8)
 		{
 			FImage Image;
-			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
+			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;
@@ -345,7 +345,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameR5G6B5 || BuildSettings.TextureFormatName == GTextureFormatNameRGB555A1 || BuildSettings.TextureFormatName == GTextureFormatNameA1RGB555)
 		{
 			FImage Image;
-			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
+			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;

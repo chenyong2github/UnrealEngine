@@ -62,11 +62,12 @@
 // with a guid ( ex.: TEXT("855EE5B3574C43ABACC6700C4ADC62E6") )
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new
 // guid as version
-
+// this is put in the DDC1 and the DDC2 key
 #define TEXTURE_DERIVEDDATA_VER		TEXT("596BF8F951D64FD7A48E0C99F80E2F36")
 
 // This GUID is mixed into DDC version for virtual textures only, this allows updating DDC version for VT without invalidating DDC for all textures
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
+// This is put in the DDC1 key but NOT in the DDC2 key
 #define TEXTURE_VT_DERIVEDDATA_VER	TEXT("F36E4B807BC24Y818FE085C655C45176")
 
 #if ENABLE_COOK_STATS

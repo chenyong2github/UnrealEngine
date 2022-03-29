@@ -593,7 +593,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		TBSettings.OodleRDO = BuildSettingsForLayer.OodleRDO;
 		TBSettings.OodleTextureSdkVersion = BuildSettingsForLayer.OodleTextureSdkVersion;
 
-		check(TBSettings.GetGammaSpace() == BuildSettingsForLayer.GetGammaSpace());
+		check(TBSettings.GetDestGammaSpace() == BuildSettingsForLayer.GetDestGammaSpace());
  
 		GeneratedData.TilePayload.AddDefaulted(TileList.Num());
 
@@ -617,7 +617,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 				const_cast<uint8*>(SourceMip.RawData.GetData()));
 
 			TArray<FImage> TileImages;
-			FImage* TileImage = new(TileImages) FImage(PhysicalTileSize, PhysicalTileSize, LayerData.ImageFormat, BuildSettingsForLayer.GetGammaSpace());
+			FImage* TileImage = new(TileImages) FImage(PhysicalTileSize, PhysicalTileSize, LayerData.ImageFormat, BuildSettingsForLayer.GetDestGammaSpace());
 			FPixelDataRectangle TileData(LayerData.SourceFormat, PhysicalTileSize, PhysicalTileSize, TileImage->RawData.GetData());
 
 			TileData.Clear();
@@ -840,7 +840,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 		const FTextureBuildSettings& BuildSettingsForLayer = SettingsPerLayer[LayerIndex];
 		FVirtualTextureSourceLayerData& LayerData = SourceLayers[LayerIndex];
 
-		LayerData.GammaSpace = BuildSettingsForLayer.GetGammaSpace();
+		LayerData.GammaSpace = BuildSettingsForLayer.GetDestGammaSpace();
 		LayerData.bHasAlpha = BuildSettingsForLayer.bForceAlphaChannel;
 
 		FName TextureFormatPrefix;
@@ -930,7 +930,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 			}
 
 			// Make sure the output of the texture builder is in the same gamma space as we expect it.
-			check(TBSettings.GetGammaSpace() == BuildSettingsForLayer.GetGammaSpace());
+			check(TBSettings.GetDestGammaSpace() == BuildSettingsForLayer.GetDestGammaSpace());
 
 			// Leave original mip settings alone unless it's none at which point we will just generate them using a simple average
 			if (TBSettings.MipGenSettings == TMGS_NoMipmaps)
@@ -1022,7 +1022,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 				Image->SizeX = CompressedMip.SizeX;
 				Image->SizeY = CompressedMip.SizeY;
 				Image->Format = LayerData.ImageFormat;
-				Image->GammaSpace = BuildSettingsForLayer.GetGammaSpace();
+				Image->GammaSpace = BuildSettingsForLayer.GetDestGammaSpace();
 				Image->NumSlices = 1;
 				Image->RawData = MoveTemp(CompressedMip.RawData);
 			}
@@ -1106,7 +1106,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 			TBSettings.bUseLegacyGamma = BuildSettingsForLayer.bUseLegacyGamma;
 
 			// Make sure the output of the texture builder is in the same gamma space as we expect it.
-			check(TBSettings.GetGammaSpace() == BuildSettingsForLayer.GetGammaSpace());
+			check(TBSettings.GetDestGammaSpace() == BuildSettingsForLayer.GetDestGammaSpace());
 
 			// Leave original mip settings alone unless it's none at which point we will just generate them using a simple average
 			if (TBSettings.MipGenSettings == TMGS_NoMipmaps || TBSettings.MipGenSettings == TMGS_LeaveExistingMips)
@@ -1141,7 +1141,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 				Image->SizeX = CompressedMip.SizeX;
 				Image->SizeY = CompressedMip.SizeY;
 				Image->Format = LayerData.ImageFormat;
-				Image->GammaSpace = BuildSettingsForLayer.GetGammaSpace();
+				Image->GammaSpace = BuildSettingsForLayer.GetDestGammaSpace();
 				Image->NumSlices = 1;
 				Image->RawData = MoveTemp(CompressedMip.RawData);
 			}

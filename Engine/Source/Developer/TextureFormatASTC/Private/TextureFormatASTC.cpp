@@ -465,7 +465,7 @@ public:
 		bool bHDRImage = BuildSettings.bHDRSource && GASTCHDRProfile;
 		// Get Raw Image Data from passed in FImage
 		FImage Image;
-		InImage.CopyTo(Image, bHDRImage ? ERawImageFormat::RGBA16F : ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
+		InImage.CopyTo(Image, bHDRImage ? ERawImageFormat::RGBA16F : ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
 		// Determine the compressed pixel format and compression parameters
 		EPixelFormat CompressedPixelFormat = GetPixelFormatForImage(BuildSettings, InImage, bImageHasAlphaChannel);

@@ -795,8 +795,8 @@ void FImage::CopyTo(FImage& DestImage, ERawImageFormat::Type DestFormat, EGammaS
 	// so that Float->int->Float roundtrips correctly
 	if ( DestGammaSpace == EGammaSpace::Pow22 && GammaSpace != EGammaSpace::Pow22 )
 	{
-		// @@!! todo: log warning and fix call sites that trigger this
-
+		// fix call sites that hit this
+		UE_LOG(LogImageCore, Warning, TEXT("Pow22 should not be used as a Dest GammaSpace.  Pow22 Source should encode to sRGB Dest."));
 		DestGammaSpace = EGammaSpace::sRGB;
 	}
 
