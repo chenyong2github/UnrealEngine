@@ -29,10 +29,8 @@ public:
 	}
 
 	// -- IOptimusDataInterfaceProvider implementations
-	UOptimusComputeDataInterface *GetDataInterface(UObject *InOuter) const override
-	{
-		return NewObject<UOptimusComputeDataInterface>(InOuter, DataInterfaceClass);
-	}
+	UOptimusComputeDataInterface *GetDataInterface(UObject *InOuter) const override;
+
 	int32 GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const override;
 
 	void SetDataInterfaceClass(TSubclassOf<UOptimusComputeDataInterface> InDataInterfaceClass);
@@ -53,6 +51,8 @@ private:
 	// data interfaces get tied closer to the objects they proxy.
 	UPROPERTY()
 	TObjectPtr<UClass> DataInterfaceClass; 
+
+	// Editable copy of the DataInterface for storing properties that will customize behavior on on the data interface.
+	UPROPERTY(VisibleAnywhere, Instanced, Category=DataInterface)
+	TObjectPtr<UOptimusComputeDataInterface> DataInterfaceData;
 };
-
-

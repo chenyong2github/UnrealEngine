@@ -14,6 +14,19 @@ UOptimusNode_DataInterface::UOptimusNode_DataInterface()
 }
 
 
+UOptimusComputeDataInterface* UOptimusNode_DataInterface::GetDataInterface(UObject* InOuter) const
+{
+	// Legacy data may not have a DataInterfaceData object.
+	if (DataInterfaceData == nullptr || !DataInterfaceData->IsA(DataInterfaceClass))
+	{
+		return NewObject<UOptimusComputeDataInterface>(InOuter, DataInterfaceClass);
+	}
+
+	FObjectDuplicationParameters DupParams = InitStaticDuplicateObjectParams(DataInterfaceData, InOuter);
+	return Cast<UOptimusComputeDataInterface>(StaticDuplicateObjectEx(DupParams));
+}
+
+
 int32 UOptimusNode_DataInterface::GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const
 {
 	if (!InPin || InPin->GetParentPin() != nullptr)
@@ -55,6 +68,7 @@ void UOptimusNode_DataInterface::SetDataInterfaceClass(
 	)
 {
 	DataInterfaceClass = InDataInterfaceClass;
+	DataInterfaceData = NewObject<UOptimusComputeDataInterface>(this, DataInterfaceClass);
 }
 
 
