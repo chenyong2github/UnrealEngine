@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/PBDCollisionSpringConstraintsBase.h"
 #include "Chaos/Plane.h"
+#include "Chaos/Triangle.h"
 #include "Chaos/TriangleCollisionPoint.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/PBDSoftsSolverParticles.h"
@@ -18,7 +19,8 @@ FPBDCollisionSpringConstraintsBase::FPBDCollisionSpringConstraintsBase(
 	const TArray<FSolverVec3>* InReferencePositions,
 	TSet<TVec2<int32>>&& InDisabledCollisionElements,
 	const FSolverReal InThickness,
-	const FSolverReal InStiffness)
+	const FSolverReal InStiffness,
+	const FSolverReal InFrictionCoefficient)
 	: TriangleMesh(InTriangleMesh)
 	, Elements(InTriangleMesh.GetSurfaceElements())
 	, ReferencePositions(InReferencePositions)
@@ -27,6 +29,8 @@ FPBDCollisionSpringConstraintsBase::FPBDCollisionSpringConstraintsBase(
 	, NumParticles(InNumParticles)
 	, Thickness(InThickness)
 	, Stiffness(InStiffness)
+	, FrictionCoefficient(InFrictionCoefficient)
+	, bGlobalIntersectionAnalysis(false)
 {
 }
 
@@ -34,6 +38,9 @@ void FPBDCollisionSpringConstraintsBase::Init(const FSolverParticles& Particles)
 {
 	if (!Elements.Num())
 	{
+		Constraints.Reset();
+		Barys.Reset();
+		FlipNormal.Reset();
 		return;
 	}
 
@@ -42,33 +49,57 @@ void FPBDCollisionSpringConstraintsBase::Init(const FSolverParticles& Particles)
 		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDCollisionSpring_BuildBVH);
 		TriangleMesh.BuildBVH(static_cast<const TArrayView<const FSolverVec3>&>(Particles.XArray()), BVH);
 	}
+	TArray<FPBDTriangleMeshCollisions::FGIAColor> EmptyGIAColors;
+	return Init(Particles, BVH, static_cast<TConstArrayView<FPBDTriangleMeshCollisions::FGIAColor>>(EmptyGIAColors), EmptyGIAColors);
+}
+
+void FPBDCollisionSpringConstraintsBase::Init(const FSolverParticles& Particles, const FTriangleMesh::TBVHType<FSolverReal>& BVH, 
+	const TConstArrayView<FPBDTriangleMeshCollisions::FGIAColor>& VertexGIAColors, const TArray<FPBDTriangleMeshCollisions::FGIAColor>& TriangleGIAColors)
+{
+	if (!Elements.Num())
 	{
+		Constraints.Reset();
+		Barys.Reset();
+		FlipNormal.Reset();
+		return;
+	}
+	{
+		bGlobalIntersectionAnalysis = VertexGIAColors.Num() == NumParticles + Offset && TriangleGIAColors.Num() == Elements.Num();
 		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDCollisionSpring_ProximityQuery);
 
 		// Preallocate enough space for all possible connections.
 		constexpr int32 MaxConnectionsPerPoint = 3;
 		Constraints.SetNum(NumParticles * MaxConnectionsPerPoint);
 		Barys.SetNum(NumParticles * MaxConnectionsPerPoint);
+		FlipNormal.SetNum(NumParticles * MaxConnectionsPerPoint);
 
 		std::atomic<int32> ConstraintIndex(0);
 
 		const FSolverReal HeightSq = FMath::Square(Thickness + Thickness);
+
 		PhysicsParallelFor(NumParticles,
-			[this, &BVH, &Particles, &ConstraintIndex, HeightSq, MaxConnectionsPerPoint](int32 i)
+			[this, &BVH, &Particles, &ConstraintIndex, HeightSq, MaxConnectionsPerPoint, &VertexGIAColors, &TriangleGIAColors](int32 i)
 			{
 				const int32 Index = i + Offset;
+				constexpr FSolverReal ExtraThicknessMult = 1.5f;
 
 				TArray< TTriangleCollisionPoint<FSolverReal> > Result;
-				if (TriangleMesh.PointProximityQuery(BVH, static_cast<const TArrayView<const FSolverVec3>&>(Particles.XArray()), Index, Particles.X(Index), Thickness, Thickness,
-					[this](const int32 PointIndex, const int32 TriangleIndex)->bool
+				if (TriangleMesh.PointProximityQuery(BVH, static_cast<const TArrayView<const FSolverVec3>&>(Particles.XArray()), Index, Particles.X(Index), Thickness * ExtraThicknessMult, Thickness * ExtraThicknessMult,
+					[this, &VertexGIAColors, &TriangleGIAColors](const int32 PointIndex, const int32 TriangleIndex)->bool
 					{
 						const TVector<int32, 3>& Elem = Elements[TriangleIndex];
+						if (bGlobalIntersectionAnalysis && VertexGIAColors[PointIndex].IsLoop() && (VertexGIAColors[Elem[0]].IsLoop() || VertexGIAColors[Elem[1]].IsLoop() || VertexGIAColors[Elem[2]].IsLoop() || TriangleGIAColors[TriangleIndex].IsLoop()))
+						{
+							return false;
+						}
+
 						if (DisabledCollisionElements.Contains({ PointIndex, Elem[0] }) ||
 							DisabledCollisionElements.Contains({ PointIndex, Elem[1] }) ||
 							DisabledCollisionElements.Contains({ PointIndex, Elem[2] }))
 						{
 							return false;
 						}
+
 						return true;
 					},
 					Result))
@@ -101,10 +132,27 @@ void FPBDCollisionSpringConstraintsBase::Init(const FSolverParticles& Particles)
 								continue;
 							}
 						}
+
+						// NOTE: CollisionPoint.Normal has already been flipped to point toward the Point, so need to recalculate here.
+						const TTriangle<FSolverReal> Triangle(Particles.X(Elem[0]), Particles.X(Elem[1]), Particles.X(Elem[2]));
+						bool bFlipNormal = (Particles.X(Index) - CollisionPoint.Location).Dot(Triangle.GetNormal()) < 0; // Is Point currently behind Triangle?
+
+						// Doing a check against ANY (plus the TriangleGIAColors which captures sub-triangle intersections) seems to work better than checking against ALL vertex colors where the triangle must agree.
+						// In particular, it's better at handling thin regions of intersection where a single vertex or line of vertices intersect through faces.
+						if (bGlobalIntersectionAnalysis &&
+							(FPBDTriangleMeshCollisions::FGIAColor::ShouldFlipNormal(VertexGIAColors[Index], VertexGIAColors[Elem[0]]) ||
+								FPBDTriangleMeshCollisions::FGIAColor::ShouldFlipNormal(VertexGIAColors[Index], VertexGIAColors[Elem[1]]) ||
+								FPBDTriangleMeshCollisions::FGIAColor::ShouldFlipNormal(VertexGIAColors[Index], VertexGIAColors[Elem[2]]) ||
+								FPBDTriangleMeshCollisions::FGIAColor::ShouldFlipNormal(VertexGIAColors[Index], TriangleGIAColors[CollisionPoint.Indices[1]])))
+						{
+							// Want Point to push to opposite side of triangle
+							bFlipNormal = !bFlipNormal;
+						}
 						const int32 IndexToWrite = ConstraintIndex.fetch_add(1);
 
 						Constraints[IndexToWrite] = { Index, Elem[0], Elem[1], Elem[2] };
 						Barys[IndexToWrite] = { CollisionPoint.Bary[1], CollisionPoint.Bary[2], CollisionPoint.Bary[3] };
+						FlipNormal[IndexToWrite] = bFlipNormal;
 					}
 				}
 			}
@@ -114,6 +162,7 @@ void FPBDCollisionSpringConstraintsBase::Init(const FSolverParticles& Particles)
 		const int32 ConstraintNum = ConstraintIndex.load();
 		Constraints.SetNum(ConstraintNum, /*bAllowShrinking*/ true);
 		Barys.SetNum(ConstraintNum, /*bAllowShrinking*/ true);
+		FlipNormal.SetNum(ConstraintNum, /*bAllowShrinking*/ true);
 	}
 }
 
@@ -125,10 +174,12 @@ FSolverVec3 FPBDCollisionSpringConstraintsBase::GetDelta(const FSolverParticles&
 	const int32 i3 = Constraint[2];
 	const int32 i4 = Constraint[3];
 
-	const FSolverReal CombinedMass = Particles.InvM(i1) +
+	const FSolverReal TrianglePointInvM =
 		Particles.InvM(i2) * Barys[i][0] +
 		Particles.InvM(i3) * Barys[i][1] +
 		Particles.InvM(i4) * Barys[i][2];
+
+	const FSolverReal CombinedMass = Particles.InvM(i1) + TrianglePointInvM;
 	if (CombinedMass <= (FSolverReal)1e-7)
 	{
 		return FSolverVec3(0);
@@ -142,13 +193,36 @@ FSolverVec3 FPBDCollisionSpringConstraintsBase::GetDelta(const FSolverParticles&
 	const FSolverReal Height = Thickness + Thickness;
 	const FSolverVec3 P = Barys[i][0] * P2 + Barys[i][1] * P3 + Barys[i][2] * P4;
 	const FSolverVec3 Difference = P1 - P;
-	const FSolverReal DistSq = Difference.SizeSquared();
-	if (DistSq > Height * Height)
+
+	// Normal repulsion with friction
+	const TTriangle<FSolverReal> Triangle(P2, P3, P4);
+	const FSolverVec3 Normal = FlipNormal[i] ? -Triangle.GetNormal() : Triangle.GetNormal();
+
+	const FSolverReal NormalDifference = Difference.Dot(Normal);
+	if (NormalDifference > Height)
 	{
 		return FSolverVec3(0);
 	}
-	const FSolverVec3 Delta = Difference * Height * FMath::InvSqrt(DistSq) - Difference;
-	return Stiffness * Delta / CombinedMass;
+
+	const FSolverReal NormalDelta = Height - NormalDifference;
+	const FSolverVec3 RepulsionDelta = Stiffness * NormalDelta * Normal / CombinedMass;
+
+	if (FrictionCoefficient > 0)
+	{
+		const FSolverVec3& X1 = Particles.X(i1);
+		const FSolverVec3 X = Barys[i][0] * Particles.X(i2) + Barys[i][1] * Particles.X(i3) + Barys[i][2] * Particles.X(i4);
+		const FSolverVec3 RelativeDisplacement = (P1 - X1) - (P - X) + (Particles.InvM(i1) - TrianglePointInvM) * RepulsionDelta;
+		const FSolverVec3 RelativeDisplacementTangent = RelativeDisplacement - RelativeDisplacement.Dot(Normal) * Normal;
+		const FSolverReal RelativeDisplacementTangentLength = RelativeDisplacementTangent.Length();
+		const FSolverReal PositionCorrection = FMath::Min(NormalDelta * FrictionCoefficient, RelativeDisplacementTangentLength);
+		const FSolverReal CorrectionRatio = RelativeDisplacementTangentLength < SMALL_NUMBER ? 0.f : PositionCorrection / RelativeDisplacementTangentLength;
+		const FSolverVec3 FrictionDelta = -CorrectionRatio * RelativeDisplacementTangent / CombinedMass;
+		return RepulsionDelta + FrictionDelta;
+	}
+	else
+	{
+		return RepulsionDelta;
+	}
 }
 
 }  // End namespace Chaos::Softs

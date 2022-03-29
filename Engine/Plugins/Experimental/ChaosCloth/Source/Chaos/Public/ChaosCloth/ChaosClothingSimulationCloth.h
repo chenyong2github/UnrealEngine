@@ -63,6 +63,8 @@ namespace Chaos
 			bool bInUseCCD,
 			bool bInUseSelfCollisions,
 			FRealSingle InSelfCollisionThickness,
+			FRealSingle InSelfCollisionFrictionCoefficient,
+			bool bInUseSelfIntersections,
 			bool bInUseLegacyBackstop,
 			bool bInUseLODIndexOverride,
 			int32 InLODIndexOverride);
@@ -223,6 +225,8 @@ namespace Chaos
 		bool bUseCCD;
 		bool bUseSelfCollisions;
 		FRealSingle SelfCollisionThickness;
+		FRealSingle SelfCollisionFrictionCoefficient;
+		bool bUseSelfIntersections;
 		bool bEnableBackstop;
 		bool bUseLegacyBackstop;
 		bool bUseLODIndexOverride;

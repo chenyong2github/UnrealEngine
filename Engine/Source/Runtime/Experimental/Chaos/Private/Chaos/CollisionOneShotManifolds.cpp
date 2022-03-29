@@ -1744,7 +1744,7 @@ namespace Chaos
 		// @todo(chaos): all ConstructConvexConvexOneShotManifold taking a triangle are still used in FHeightField::ContactManifoldImp and the 
 		// TriMesh version, but they should changed to use ConstructPlanarConvexTriangleOneShotManifold
 		template
-		void ConstructConvexConvexOneShotManifold<class FCapsule, FTriangle>(
+		void ConstructConvexConvexOneShotManifold<FCapsule, FTriangle>(
 			const FCapsule& Implicit1,
 			const FRigidTransform3& Convex1Transform, //world
 			const FTriangle& Implicit2,
@@ -1753,7 +1753,7 @@ namespace Chaos
 			FPBDCollisionConstraint& Constraint);
 
 		template
-		void ConstructConvexConvexOneShotManifold<TImplicitObjectScaled<class FCapsule, 1>, class FTriangle>(
+		void ConstructConvexConvexOneShotManifold<TImplicitObjectScaled<FCapsule, 1>, FTriangle>(
 			const TImplicitObjectScaled<class FCapsule, 1>& Implicit1,
 			const FRigidTransform3& Convex1Transform, //world
 			const FTriangle& Implicit2,

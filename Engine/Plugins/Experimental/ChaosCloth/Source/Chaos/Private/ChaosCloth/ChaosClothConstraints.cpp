@@ -11,6 +11,8 @@
 #include "Chaos/PBDAnimDriveConstraint.h"
 #include "Chaos/PBDShapeConstraints.h"
 #include "Chaos/PBDCollisionSpringConstraints.h"
+#include "Chaos/PBDTriangleMeshCollisions.h"
+#include "Chaos/PBDTriangleMeshIntersections.h"
 #include "Chaos/PBDEvolution.h"
 
 namespace Chaos {
@@ -24,8 +26,10 @@ FClothConstraints::FClothConstraints()
 	, NumParticles(0)
 	, ConstraintInitOffset(INDEX_NONE)
 	, ConstraintRuleOffset(INDEX_NONE)
+	, PostCollisionConstraintRuleOffset(INDEX_NONE)
 	, NumConstraintInits(0)
 	, NumConstraintRules(0)
+	, NumPostCollisionConstraintRules(0)
 {
 }
 
@@ -60,6 +64,10 @@ void FClothConstraints::Enable(bool bEnable)
 	{
 		Evolution->ActivateConstraintRuleRange(ConstraintRuleOffset, bEnable);
 	}
+	if (PostCollisionConstraintRuleOffset != INDEX_NONE)
+	{
+		Evolution->ActivatePostCollisionConstraintRuleRange(PostCollisionConstraintRuleOffset, bEnable);
+	}
 }
 
 void FClothConstraints::CreateRules()
@@ -75,12 +83,19 @@ void FClothConstraints::CreateRules()
 	{
 		ConstraintRuleOffset = Evolution->AddConstraintRuleRange(NumConstraintRules, false);
 	}
+	check(PostCollisionConstraintRuleOffset == INDEX_NONE);
+	if (NumPostCollisionConstraintRules)
+	{
+		PostCollisionConstraintRuleOffset = Evolution->AddPostCollisionConstraintRuleRange(NumPostCollisionConstraintRules, false);
+	}
 
 	TFunction<void(Softs::FSolverParticles&, const Softs::FSolverReal)>* const ConstraintInits = Evolution->ConstraintInits().GetData() + ConstraintInitOffset;
 	TFunction<void(Softs::FSolverParticles&, const Softs::FSolverReal)>* const ConstraintRules = Evolution->ConstraintRules().GetData() + ConstraintRuleOffset;
+	TFunction<void(Softs::FSolverParticles&, const Softs::FSolverReal)>* const PostCollisionConstraintRules = Evolution->PostCollisionConstraintRules().GetData() + PostCollisionConstraintRuleOffset;
 
 	int32 ConstraintInitIndex = 0;
 	int32 ConstraintRuleIndex = 0;
+	int32 PostCollisionConstraintRuleIndex = 0;
 
 	if (XEdgeConstraints)
 	{
@@ -188,25 +203,6 @@ void FClothConstraints::CreateRules()
 				VolumeConstraints->Apply(Particles, Dt);
 			};
 	}
-	if (XLongRangeConstraints)
-	{
-		ConstraintInits[ConstraintInitIndex++] =
-			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
-			{
-				XLongRangeConstraints->Init();
-				XLongRangeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
-				XLongRangeConstraints->Apply(Particles, Dt);  // Run the LRA constraint only once per timestep
-			};
-	}
-	if (LongRangeConstraints)
-	{
-		ConstraintInits[ConstraintInitIndex++] =
-			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
-			{
-				LongRangeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
-				LongRangeConstraints->Apply(Particles, Dt);  // Run the LRA constraint only once per timestep
-			};
-	}
 	if (MaximumDistanceConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] =
@@ -245,21 +241,58 @@ void FClothConstraints::CreateRules()
 				ShapeConstraints->Apply(Particles, Dt);
 			};
 	}
-	if (SelfCollisionConstraints)
+
+	if (SelfCollisionInit && SelfCollisionConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
 			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal /*Dt*/)
 			{
-				SelfCollisionConstraints->Init(Particles);
+				SelfCollisionInit->Init(Particles);
+				SelfCollisionConstraints->Init(Particles, SelfCollisionInit->GetBVH(), SelfCollisionInit->GetVertexGIAColors(), SelfCollisionInit->GetTriangleGIAColors());
 			};
-		ConstraintRules[ConstraintRuleIndex++] =
+
+		PostCollisionConstraintRules[PostCollisionConstraintRuleIndex++] =
 			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
 			{
 				SelfCollisionConstraints->Apply(Particles, Dt);
 			};
 	}
+
+	// The following constraints only run once per subframe, so we do their Apply as part of the Init() which modifies P
+	// To avoid possible dependency order issues, add them last
+	if (SelfCollisionInit && SelfIntersectionConstraints)
+	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
+			{
+				SelfIntersectionConstraints->Apply(Particles, SelfCollisionInit->GetContourMinimizationIntersections(), Dt);
+			};
+	}
+
+	// Long range constraints modify particle P as part of Init. To avoid possible dependency order issues,
+	// add them last
+	if (XLongRangeConstraints)
+	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
+			{
+				XLongRangeConstraints->Init();
+				XLongRangeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+				XLongRangeConstraints->Apply(Particles, Dt);  // Run the LRA constraint only once per timestep
+			};
+	}
+	if (LongRangeConstraints)
+	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
+			{
+				LongRangeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+				LongRangeConstraints->Apply(Particles, Dt);  // Run the LRA constraint only once per timestep
+			};
+	}
 	check(ConstraintInitIndex == NumConstraintInits);
 	check(ConstraintRuleIndex == NumConstraintRules);
+	check(PostCollisionConstraintRuleIndex == NumPostCollisionConstraintRules);
 }
 
 void FClothConstraints::SetEdgeConstraints(const TArray<TVec3<int32>>& SurfaceElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints)
@@ -467,8 +500,15 @@ void FClothConstraints::SetShapeTargetConstraints(Softs::FSolverReal ShapeTarget
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetSelfCollisionConstraints(const FTriangleMesh& TriangleMesh, TSet<TVec2<int32>>&& DisabledCollisionElements, Softs::FSolverReal SelfCollisionThickness)
+void FClothConstraints::SetSelfCollisionConstraints(const FTriangleMesh& TriangleMesh, TSet<TVec2<int32>>&& DisabledCollisionElements, Softs::FSolverReal SelfCollisionThickness, Softs::FSolverReal SelfCollisionFrictionCoefficient, bool bGlobalIntersectionAnalysis, bool bContourMinimization)
 {
+	SelfCollisionInit = MakeShared<Softs::FPBDTriangleMeshCollisions>(
+		ParticleOffset,
+		NumParticles,
+		TriangleMesh,
+		bGlobalIntersectionAnalysis,
+		bContourMinimization);
+
 	SelfCollisionConstraints = MakeShared<Softs::FPBDCollisionSpringConstraints>(
 		ParticleOffset,
 		NumParticles,
@@ -476,9 +516,17 @@ void FClothConstraints::SetSelfCollisionConstraints(const FTriangleMesh& Triangl
 		AnimationPositions,
 		MoveTemp(DisabledCollisionElements),
 		SelfCollisionThickness,
-		/*Stiffness =*/ (Softs::FSolverReal)1.);
-	++NumConstraintInits;  // Self collision has an init
-	++NumConstraintRules;  // and a rule
+		Softs::FPBDCollisionSpringConstraintsBase::BackCompatStiffness,
+		SelfCollisionFrictionCoefficient);
+
+	++NumConstraintInits;
+	++NumPostCollisionConstraintRules;
+
+	SelfIntersectionConstraints = MakeShared<Softs::FPBDTriangleMeshIntersections>(
+		ParticleOffset,
+		NumParticles,
+		TriangleMesh);
+	++NumConstraintInits;
 }
 
 void FClothConstraints::SetEdgeProperties(const Softs::FSolverVec2& EdgeStiffness)
@@ -563,11 +611,17 @@ void FClothConstraints::SetAnimDriveProperties(const Softs::FSolverVec2& AnimDri
 	}
 }
 
-void FClothConstraints::SetSelfCollisionProperties(Softs::FSolverReal SelfCollisionThickness)
+void FClothConstraints::SetSelfCollisionProperties(Softs::FSolverReal SelfCollisionThickness, Softs::FSolverReal SelfCollisionFrictionCoefficient, bool bGlobalIntersectionAnalysis, bool bContourMinimization)
 {
+	if (SelfCollisionInit)
+	{
+		SelfCollisionInit->SetGlobalIntersectionAnalysis(bGlobalIntersectionAnalysis);
+		SelfCollisionInit->SetContourMinimization(bContourMinimization);
+	}
 	if (SelfCollisionConstraints)
 	{
 		SelfCollisionConstraints->SetThickness(SelfCollisionThickness);
+		SelfCollisionConstraints->SetFrictionCoefficient(SelfCollisionFrictionCoefficient);
 	}
 }
 

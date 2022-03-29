@@ -57,6 +57,8 @@ namespace Chaos
 		class FPBDAnimDriveConstraint;
 		class FPBDShapeConstraints;
 		class FPBDCollisionSpringConstraints;
+		class FPBDTriangleMeshIntersections;
+		class FPBDTriangleMeshCollisions;
 
 		// Softs solver forces
 		class FVelocityField;

@@ -3,6 +3,7 @@
 
 #include "Chaos/Array.h"
 #include "Chaos/GeometryParticles.h"
+#include "Chaos/ImplicitFwd.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/SegmentMesh.h"
 #include "Chaos/Triangle.h"
@@ -22,10 +23,6 @@ namespace Chaos
 {
 	extern CHAOS_API bool TriMeshPerPolySupport;
 
-	class FCapsule;
-	class FTriangle;
-	class FConvex;
-	class FTriangle;
 	struct FMTDInfo;
 	class FContactPoint;
 

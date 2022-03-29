@@ -70,25 +70,38 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	const TPBDActiveView<FSolverRigidParticles>& CollisionParticlesActiveView() { return MCollisionParticlesActiveView; }
 
 	// Reset all constraint init and rule functions.
-	void ResetConstraintRules() { MConstraintInits.Reset(); MConstraintRules.Reset(); MConstraintInitsActiveView.Reset(); MConstraintRulesActiveView.Reset();  };
+	void ResetConstraintRules() 
+	{ 
+		MConstraintInits.Reset(); 
+		MConstraintRules.Reset(); 
+		MPostCollisionConstraintRules.Reset();
+		MConstraintInitsActiveView.Reset(); 
+		MConstraintRulesActiveView.Reset();  
+		MPostCollisionConstraintRulesActiveView.Reset();
+	}
 
 	// Add constraints. Return the index of the first added constraint.
 	int32 AddConstraintInitRange(int32 NumConstraints, bool bActivate);
 	int32 AddConstraintRuleRange(int32 NumConstraints, bool bActivate);
+	int32 AddPostCollisionConstraintRuleRange(int32 NumConstraints, bool bActivate);
 	
 	// Return the number of particles of the block starting at Offset
 	int32 GetConstraintInitRangeSize(int32 Offset) const { return MConstraintInitsActiveView.GetRangeSize(Offset); }
 	int32 GetConstraintRuleRangeSize(int32 Offset) const { return MConstraintRulesActiveView.GetRangeSize(Offset); }
+	int32 GetPostCollisionConstraintRuleRangeSize(int32 Offset) const { return MPostCollisionConstraintRulesActiveView.GetRangeSize(Offset); }
 
 	// Set a block of constraints active or inactive, using the index of the first added particle to identify the block.
 	void ActivateConstraintInitRange(int32 Offset, bool bActivate) { MConstraintInitsActiveView.ActivateRange(Offset, bActivate); }
 	void ActivateConstraintRuleRange(int32 Offset, bool bActivate) { MConstraintRulesActiveView.ActivateRange(Offset, bActivate); }
+	void ActivatePostCollisionConstraintRuleRange(int32 Offset, bool bActivate) { MPostCollisionConstraintRulesActiveView.ActivateRange(Offset, bActivate); }
 
 	// Constraint accessors
 	const TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>& ConstraintInits() const { return MConstraintInits; }
 	TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>& ConstraintInits() { return MConstraintInits; }
 	const TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>& ConstraintRules() const { return MConstraintRules; }
 	TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>& ConstraintRules() { return MConstraintRules; }
+	const TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>& PostCollisionConstraintRules() const { return MPostCollisionConstraintRules; }
+	TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>& PostCollisionConstraintRules() { return MPostCollisionConstraintRules; }
 	
 	void SetKinematicUpdateFunction(TFunction<void(FSolverParticles&, const FSolverReal, const FSolverReal, const int32)> KinematicUpdate) { MKinematicUpdate = KinematicUpdate; }
 	void SetCollisionKinematicUpdateFunction(TFunction<void(FSolverRigidParticles&, const FSolverReal, const FSolverReal, const int32)> KinematicUpdate) { MCollisionKinematicUpdate = KinematicUpdate; }
@@ -104,9 +117,6 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 
 	int32 GetIterations() const { return MNumIterations; }
 	void SetIterations(const int32 Iterations) { MNumIterations = Iterations; }
-
-	FSolverReal GetSelfCollisionThickness(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupSelfCollisionThicknesses[GroupId]; }
-	void SetSelfCollisionThickness(const FSolverReal SelfCollisionThickness, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupSelfCollisionThicknesses[GroupId] = SelfCollisionThickness; }
 
 	FSolverReal GetCollisionThickness(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupCollisionThicknesses[GroupId]; }
 	void SetCollisionThickness(const FSolverReal CollisionThickness, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupCollisionThicknesses[GroupId] = CollisionThickness; }
@@ -158,7 +168,6 @@ private:
 	TArrayCollectionArray<FVelocityField> MGroupVelocityFields;
 	TArrayCollectionArray<TFunction<void(FSolverParticles&, const FSolverReal, const int32)>> MGroupForceRules;
 	TArrayCollectionArray<FSolverReal> MGroupCollisionThicknesses;
-	TArrayCollectionArray<FSolverReal> MGroupSelfCollisionThicknesses;
 	TArrayCollectionArray<FSolverReal> MGroupCoefficientOfFrictions;
 	TArrayCollectionArray<FSolverReal> MGroupDampings;
 	TArrayCollectionArray<FSolverReal> MGroupLocalDampings;
@@ -168,6 +177,8 @@ private:
 	TPBDActiveView<TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>> MConstraintInitsActiveView;
 	TArray<TFunction<void(FSolverParticles&, const FSolverReal)>> MConstraintRules;
 	TPBDActiveView<TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>> MConstraintRulesActiveView;
+	TArray<TFunction<void(FSolverParticles&, const FSolverReal)>> MPostCollisionConstraintRules;
+	TPBDActiveView<TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>> MPostCollisionConstraintRulesActiveView;
 
 	TFunction<void(FSolverParticles&, const FSolverReal, const FSolverReal, const int32)> MKinematicUpdate;
 	TFunction<void(FSolverRigidParticles&, const FSolverReal, const FSolverReal, const int32)> MCollisionKinematicUpdate;
@@ -175,7 +186,6 @@ private:
 	int32 MNumIterations;
 	FSolverVec3 MGravity;
 	FSolverReal MCollisionThickness;
-	FSolverReal MSelfCollisionThickness;
 	FSolverReal MCoefficientOfFriction;
 	FSolverReal MDamping;
 	FSolverReal MLocalDamping;

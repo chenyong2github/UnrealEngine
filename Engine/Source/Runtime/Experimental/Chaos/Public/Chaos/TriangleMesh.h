@@ -167,13 +167,23 @@ namespace Chaos
 		{ return GetConvexHullFromParticles(InParticles.X()); }
 
 		/**
+		 * @brief Note that the SegmentMesh is lazily calculated (this method is not threadsafe unless it is known that the SegmentMesh is already up to date)
 		 * @ret The connectivity of this mesh represented as a collection of unique segments.
 		 */
-		CHAOS_API FSegmentMesh& GetSegmentMesh();
-		/** @ret A map from all face indices, to the indices of their associated edges. */
-		CHAOS_API const TArray<TVec3<int32>>& GetFaceToEdges();
-		/** @ret A map from all edge indices, to the indices of their containing faces. */
-		CHAOS_API const TArray<TVec2<int32>>& GetEdgeToFaces();
+		CHAOS_API const FSegmentMesh& GetSegmentMesh() const;
+		/**
+		 * @brief Note that this data is lazily calculated with the SegmentMesh (this method is not threadsafe unless it is known that the SegmentMesh is already up to date)
+		 * @ret A map from all face indices, to the indices of their associated edges.
+		 */
+		CHAOS_API const TArray<TVec3<int32>>& GetFaceToEdges() const;
+		/**
+		 * @brief Note that this data is lazily calculated with the SegmentMesh (this method is not threadsafe unless it is known that the SegmentMesh is already up to date)
+		 * @ret A map from all edge indices, to the indices of their containing faces. 
+		 */
+		CHAOS_API const TArray<TVec2<int32>>& GetEdgeToFaces() const;
+
+		UE_DEPRECATED(5.1, "Non-const access to GetSegmentMesh will be removed. Use const version instead.")
+		CHAOS_API FSegmentMesh& GetSegmentMesh() { return const_cast<FSegmentMesh&>(const_cast<const FTriangleMesh*>(this)->GetSegmentMesh()); }
 
 		/**
 		 * @ret Curvature between adjacent faces, specified on edges in radians.
@@ -271,12 +281,16 @@ namespace Chaos
 		using TBVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, /*bComputeBounds=*/false, T>, /*bMutable=*/true, T>;
 
 		template<typename T>
-		CHAOS_API void BuildBVH(const TConstArrayView<TVec3<T>>& Points, TBVHType<T>& BVH) const;
+		void BuildBVH(const TConstArrayView<TVec3<T>>& Points, TBVHType<T>& BVH) const;
 
 		// NOTE: This method assumes the BVH has already been built/fitted to Points.
 		template<typename T>
-		CHAOS_API bool PointProximityQuery(const TBVHType<T>& BVH, const TConstArrayView<TVec3<T>>& Points, const int32 PointIndex, const TVec3<T>& PointPosition, const T PointThickness, const T ThisThickness, 
+		bool PointProximityQuery(const TBVHType<T>& BVH, const TConstArrayView<TVec3<T>>& Points, const int32 PointIndex, const TVec3<T>& PointPosition, const T PointThickness, const T ThisThickness, 
 			TFunctionRef<bool (const int32 PointIndex, const int32 TriangleIndex)> BroadphaseTest, TArray<TTriangleCollisionPoint<T>>& Result) const;
+
+		template<typename T>
+		bool EdgeIntersectionQuery(const TBVHType<T>& BVH, const TConstArrayView<TVec3<T>>& Points, const int32 EdgeIndex, const TVec3<T>& EdgePosition1, const TVec3<T>& EdgePosition2,
+			TFunctionRef<bool(const int32 EdgeIndex, const int32 TriangleIndex)> BroadphaseTest, TArray<TTriangleCollisionPoint<T>>& Result) const;
 		
 	private:
 		CHAOS_API void InitHelper(const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements=true);
@@ -300,9 +314,9 @@ namespace Chaos
 		mutable TArray<TArray<int32>> MPointToTriangleMap;  // !! Unlike the TArrayView returned by GetPointToTriangleMap, this array starts at 0 for the point of index MStartIdx. Use GlobalToLocal to access with a global index. Note that this array's content is always indexed in global index.
 		mutable TMap<int32, TSet<int32>> MPointToNeighborsMap;
 
-		FSegmentMesh MSegmentMesh;
-		TArray<TVec3<int32>> MFaceToEdges;
-		TArray<TVec2<int32>> MEdgeToFaces;
+		mutable FSegmentMesh MSegmentMesh;
+		mutable TArray<TVec3<int32>> MFaceToEdges;
+		mutable TArray<TVec2<int32>> MEdgeToFaces;
 
 		int32 MStartIdx;
 		int32 MNumIndices;

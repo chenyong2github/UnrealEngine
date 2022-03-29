@@ -202,13 +202,21 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Collision Properties")
 	bool bUseCCD = false;
 
-	/** Enable self collision. */
-	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (InlineEditConditionToggle))
+	/** Enable self collision repulsion forces (point-face). */
+	UPROPERTY(EditAnywhere, Category = "Collision Properties")
 	bool bUseSelfCollisions = false;
 
-	/** The radius of the spheres used in self collision. */
+	/** The radius of the spheres used in self collision. (i.e., offset per side. total thickness of cloth is 2x this value) */
 	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", EditCondition = "bUseSelfCollisions"))
 	float SelfCollisionThickness = 2.0f;
+
+	/**Friction coefficient for cloth - cloth interaction. */
+	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10", EditCondition = "bUseSelfCollisions"))
+	float SelfCollisionFriction = 0.0f;
+
+	/** Enable self intersection resolution. This will try to fix any cloth intersections that are not handled by collision repulsions. */
+	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (EditCondition = "bUseSelfCollisions"))
+	bool bUseSelfIntersections = false;
 
 	/**
 	 * This parameter is automatically set by the migration code. It can be overridden here to use the old way of authoring the backstop distances.

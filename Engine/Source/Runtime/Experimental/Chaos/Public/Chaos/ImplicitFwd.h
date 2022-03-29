@@ -7,7 +7,8 @@ namespace Chaos
 	class FImplicitObject;
 	class FConvex;
 	class FCapsule;
-	class FTriangle;
+	template<class T> class TTriangle;
+	using FTriangle = TTriangle<FReal>;
 
 	template<class T, int d> class TBox;
 	template<class T, int d> class TPlane;

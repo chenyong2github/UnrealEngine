@@ -6,6 +6,7 @@
 #include "Templates/SharedPointer.h"
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/PBDLongRangeConstraints.h"
+#include "Chaos/PBDCollisionSpringConstraintsBase.h"
 
 namespace Chaos
 {
@@ -41,7 +42,9 @@ namespace Chaos
 		void SetBackstopConstraints(const TConstArrayView<FRealSingle>& BackstopDistances, const TConstArrayView<FRealSingle>& BackstopRadiuses, bool bUseLegacyBackstop);
 		void SetAnimDriveConstraints(const TConstArrayView<FRealSingle>& AnimDriveStiffnessMultipliers, const TConstArrayView<FRealSingle>& AnimDriveDampingMultipliers);
 		void SetShapeTargetConstraints(Softs::FSolverReal ShapeTargetStiffness);
-		void SetSelfCollisionConstraints(const class FTriangleMesh& TriangleMesh, TSet<TVec2<int32>>&& DisabledCollisionElements, Softs::FSolverReal SelfCollisionThickness);
+		void SetSelfCollisionConstraints(const class FTriangleMesh& TriangleMesh, TSet<TVec2<int32>>&& DisabledCollisionElements, Softs::FSolverReal SelfCollisionThickness,
+			Softs::FSolverReal SelfCollisionFriction = Softs::FPBDCollisionSpringConstraintsBase::BackCompatFrictionCoefficient, bool bGlobalIntersectionAnalysis = false,
+			bool bContourMinimization = false);
 
 		void CreateRules();
 		void Enable(bool bEnable);
@@ -54,7 +57,8 @@ namespace Chaos
 		void SetLongRangeAttachmentProperties(const Softs::FSolverVec2& TetherStiffness, const Softs::FSolverVec2& TetherScale);
 		void SetMaximumDistanceProperties(Softs::FSolverReal MaxDistancesMultiplier);
 		void SetAnimDriveProperties(const Softs::FSolverVec2& AnimDriveStiffness, const Softs::FSolverVec2& AnimDriveDamping);
-		void SetSelfCollisionProperties(Softs::FSolverReal SelfCollisionThickness);
+		void SetSelfCollisionProperties(Softs::FSolverReal SelfCollisionThickness, Softs::FSolverReal SelfCollisionFriction = Softs::FPBDCollisionSpringConstraintsBase::BackCompatFrictionCoefficient, 
+			bool bGlobalIntersectionAnalysis = false, bool bContourMinimization = false);
 		UE_DEPRECATED(5.0, "Use SetBackstopProperties(bool, FSolverReal) instead.")
 		void SetBackstopProperties(bool bEnabled) { SetBackstopProperties(bEnabled, (Softs::FSolverReal)1.); }
 		void SetBackstopProperties(bool bEnabled, Softs::FSolverReal BackstopDistancesMultiplier);
@@ -77,6 +81,8 @@ namespace Chaos
 		const TSharedPtr<Softs::FPBDAnimDriveConstraint>& GetAnimDriveConstraints() const { return AnimDriveConstraints; }
 		const TSharedPtr<Softs::FPBDShapeConstraints>& GetShapeConstraints() const { return ShapeConstraints; }
 		const TSharedPtr<Softs::FPBDCollisionSpringConstraints>& GetSelfCollisionConstraints() const { return SelfCollisionConstraints; }
+		const TSharedPtr<Softs::FPBDTriangleMeshIntersections>& GetSelfIntersectionConstraints() const { return SelfIntersectionConstraints; }
+		const TSharedPtr<Softs::FPBDTriangleMeshCollisions>& GetSelfCollisionInit() const { return SelfCollisionInit; }
 		// ---- End of debug functions ----
 
 	private:
@@ -95,7 +101,9 @@ namespace Chaos
 		TSharedPtr<Softs::FPBDSphericalBackstopConstraint> BackstopConstraints;
 		TSharedPtr<Softs::FPBDAnimDriveConstraint> AnimDriveConstraints;
 		TSharedPtr<Softs::FPBDShapeConstraints> ShapeConstraints;
+		TSharedPtr<Softs::FPBDTriangleMeshCollisions> SelfCollisionInit;
 		TSharedPtr<Softs::FPBDCollisionSpringConstraints> SelfCollisionConstraints;
+		TSharedPtr<Softs::FPBDTriangleMeshIntersections> SelfIntersectionConstraints;
 		
 		Softs::FPBDEvolution* Evolution;
 		const TArray<Softs::FSolverVec3>* AnimationPositions;
@@ -106,7 +114,9 @@ namespace Chaos
 		int32 NumParticles;
 		int32 ConstraintInitOffset;
 		int32 ConstraintRuleOffset;
+		int32 PostCollisionConstraintRuleOffset;
 		int32 NumConstraintInits;
 		int32 NumConstraintRules;
+		int32 NumPostCollisionConstraintRules;
 	};
 } // namespace Chaos

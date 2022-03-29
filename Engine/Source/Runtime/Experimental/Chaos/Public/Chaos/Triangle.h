@@ -10,54 +10,55 @@
 
 namespace Chaos
 {
-	class FTriangle
+	template<typename T>
+	class TTriangle
 	{
 	public:
-		FTriangle()
+		TTriangle()
 		{
 		}
 
-		FTriangle(const FVec3& InA, const FVec3& InB, const FVec3& InC)
+		TTriangle(const TVec3<T>& InA, const TVec3<T>& InB, const TVec3<T>& InC)
 			: ABC{ InA, InB, InC }
 		{
 		}
 
-		FORCEINLINE FVec3& operator[](uint32 InIndex)
+		FORCEINLINE TVec3<T>& operator[](uint32 InIndex)
 		{
 			checkSlow(InIndex < 3);
 			return ABC[InIndex];
 		}
 
-		FORCEINLINE const FVec3& operator[](uint32 InIndex) const
+		FORCEINLINE const TVec3<T>& operator[](uint32 InIndex) const
 		{
 			checkSlow(InIndex < 3);
 			return ABC[InIndex];
 		}
 
-		FORCEINLINE const FVec3& GetVertex(const int32 InIndex) const
+		FORCEINLINE const TVec3<T>& GetVertex(const int32 InIndex) const
 		{
 			checkSlow(InIndex < 3);
 			return ABC[InIndex];
 		}
 
-		FORCEINLINE FVec3 GetNormal() const
+		FORCEINLINE TVec3<T> GetNormal() const
 		{
-			return FVec3::CrossProduct(ABC[1] - ABC[0], ABC[2] - ABC[0]).GetSafeNormal();
+			return TVec3<T>::CrossProduct(ABC[1] - ABC[0], ABC[2] - ABC[0]).GetSafeNormal();
 		}
 
-		FORCEINLINE TPlane<FReal, 3> GetPlane() const
+		FORCEINLINE TPlane<T, 3> GetPlane() const
 		{
-			return TPlane<FReal, 3>(ABC[0], GetNormal());
+			return TPlane<T, 3>(ABC[0], GetNormal());
 		}
 
 		// Face index is ignored since we only have one face
 		// Used for manifold generation
-		FORCEINLINE TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
+		FORCEINLINE TPlaneConcrete<T, 3> GetPlane(int32 FaceIndex) const
 		{
-			return TPlaneConcrete < FReal, 3> (ABC[0], GetNormal());
+			return TPlaneConcrete <T, 3> (ABC[0], GetNormal());
 		}
 
-		FORCEINLINE void GetPlaneNX(const int32 FaceIndex, FVec3& OutN, FVec3& OutX) const
+		FORCEINLINE void GetPlaneNX(const int32 FaceIndex, TVec3<T>& OutN, TVec3<T>& OutX) const
 		{
 			OutN = GetNormal();
 			OutX = ABC[0];
@@ -65,20 +66,20 @@ namespace Chaos
 
 		// Get the nearest point on an edge and the edge vertices
 		// Used for manifold generation
-		FVec3 GetClosestEdge(int32 PlaneIndexHint, const FVec3& Position, FVec3& OutEdgePos0, FVec3& OutEdgePos1) const
+		TVec3<T> GetClosestEdge(int32 PlaneIndexHint, const TVec3<T>& Position, TVec3<T>& OutEdgePos0, TVec3<T>& OutEdgePos1) const
 		{
-			FVec3 ClosestEdgePosition = FVec3(0);
-			FReal ClosestDistanceSq = TNumericLimits<FReal>::Max();
+			TVec3<T> ClosestEdgePosition = TVec3<T>(0);
+			T ClosestDistanceSq = TNumericLimits<T>::Max();
 
 			int32 PlaneVerticesNum = 3;
 			
-			FVec3 P0 = ABC[2];
+			TVec3<T> P0 = ABC[2];
 			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVerticesNum; ++PlaneVertexIndex)
 			{
-				const TVector<FReal, 3>& P1 = GetVertex(PlaneVertexIndex);
+				const TVector<T, 3>& P1 = GetVertex(PlaneVertexIndex);
 				
-				const FVec3 EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
-				const FReal EdgeDistanceSq = (EdgePosition - Position).SizeSquared();
+				const TVec3<T> EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
+				const T EdgeDistanceSq = (EdgePosition - Position).SizeSquared();
 
 				if (EdgeDistanceSq < ClosestDistanceSq)
 				{
@@ -96,9 +97,9 @@ namespace Chaos
 
 		// Get the nearest point on an edge
 		// Used for manifold generation
-		FVec3 GetClosestEdgePosition(int32 PlaneIndexHint, const FVec3& Position) const
+		TVec3<T> GetClosestEdgePosition(int32 PlaneIndexHint, const TVec3<T>& Position) const
 		{
-			FVec3 Unused0, Unused1;
+			TVec3<T> Unused0, Unused1;
 			return GetClosestEdge(PlaneIndexHint, Position, Unused0, Unused1);
 		}
 
@@ -112,7 +113,7 @@ namespace Chaos
 
 		// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)
 		// Used for manifold generation
-		FORCEINLINE FReal GetWindingOrder() const
+		FORCEINLINE T GetWindingOrder() const
 		{
 			return 1.0f;
 		}
@@ -137,7 +138,7 @@ namespace Chaos
 		}
 		
 		// Get the index of the plane that most opposes the normal
-		int32 GetMostOpposingPlane(const FVec3& Normal) const
+		int32 GetMostOpposingPlane(const TVec3<T>& Normal) const
 		{
 			return 0; // Only have one plane
 		}
@@ -153,18 +154,18 @@ namespace Chaos
 		// Used for manifold generation
 		int32 NumPlanes() const { return 1; }
 
-		FORCEINLINE FReal PhiWithNormal(const FVec3& InSamplePoint, FVec3& OutNormal) const
+		FORCEINLINE T PhiWithNormal(const TVec3<T>& InSamplePoint, TVec3<T>& OutNormal) const
 		{
 			OutNormal = GetNormal();
-			FVec3 ClosestPoint = FindClosestPointOnTriangle(GetPlane(), ABC[0], ABC[1], ABC[2], InSamplePoint);
-			return FVec3::DotProduct((InSamplePoint - ClosestPoint), OutNormal);
+			TVec3<T> ClosestPoint = FindClosestPointOnTriangle(GetPlane(), ABC[0], ABC[1], ABC[2], InSamplePoint);
+			return TVec3<T>::DotProduct((InSamplePoint - ClosestPoint), OutNormal);
 		}
 
-		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness, int32& VertexIndex) const
+		FORCEINLINE TVec3<T> Support(const TVec3<T>& Direction, const T Thickness, int32& VertexIndex) const
 		{
-			const FReal DotA = FVec3::DotProduct(ABC[0], Direction);
-			const FReal DotB = FVec3::DotProduct(ABC[1], Direction);
-			const FReal DotC = FVec3::DotProduct(ABC[2], Direction);
+			const T DotA = TVec3<T>::DotProduct(ABC[0], Direction);
+			const T DotB = TVec3<T>::DotProduct(ABC[1], Direction);
+			const T DotC = TVec3<T>::DotProduct(ABC[2], Direction);
 
 			if(DotA >= DotB && DotA >= DotC)
 			{
@@ -192,12 +193,12 @@ namespace Chaos
 			return ABC[2];
 		}
 
-		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta,int32& VertexIndex) const
+		FORCEINLINE_DEBUGGABLE TVec3<T> SupportCore(const TVec3<T>& Direction, const T InMargin, T* OutSupportDelta,int32& VertexIndex) const
 		{
 			// Note: assumes margin == 0
-			const FReal DotA = FVec3::DotProduct(ABC[0], Direction);
-			const FReal DotB = FVec3::DotProduct(ABC[1], Direction);
-			const FReal DotC = FVec3::DotProduct(ABC[2], Direction);
+			const T DotA = TVec3<T>::DotProduct(ABC[0], Direction);
+			const T DotB = TVec3<T>::DotProduct(ABC[1], Direction);
+			const T DotC = TVec3<T>::DotProduct(ABC[2], Direction);
 
 			if (DotA >= DotB && DotA >= DotC)
 			{
@@ -213,30 +214,30 @@ namespace Chaos
 			return ABC[2];
 		}
 
-		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta, int32& VertexIndex) const
+		FORCEINLINE TVec3<T> SupportCoreScaled(const TVec3<T>& Direction, T InMargin, const TVec3<T>& Scale, T* OutSupportDelta, int32& VertexIndex) const
 		{
 			// Note: ignores InMargin, assumed 0 (triangles cannot have a margin as they are zero thickness)
 			return SupportCore(Direction * Scale, 0.0f, OutSupportDelta, VertexIndex) * Scale;
 		}
 
-		FORCEINLINE FReal GetMargin() const { return 0; }
-		FORCEINLINE FReal GetRadius() const { return 0; }
+		FORCEINLINE T GetMargin() const { return 0; }
+		FORCEINLINE T GetRadius() const { return 0; }
 
-		FORCEINLINE bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const
+		FORCEINLINE bool Raycast(const TVec3<T>& StartPoint, const TVec3<T>& Dir, const T Length, const T Thickness, T& OutTime, TVec3<T>& OutPosition, TVec3<T>& OutNormal, int32& OutFaceIndex) const
 		{
 			// No face as this is only one triangle
 			OutFaceIndex = INDEX_NONE;
 
 			// Pass through GJK #BGTODO Maybe specialise if it's possible to be faster
 			const FRigidTransform3 StartTM(StartPoint, FRotation3::FromIdentity());
-			const TSphere<FReal, 3> Sphere(FVec3(0), Thickness);
+			const TSphere<T, 3> Sphere(TVec3<T>(0), Thickness);
 			return GJKRaycast(*this, Sphere, StartTM, Dir, Length, OutTime, OutPosition, OutNormal);
 		}
 
-		FORCEINLINE bool Overlap(const FVec3& Point, const FReal Thickness) const
+		FORCEINLINE bool Overlap(const TVec3<T>& Point, const T Thickness) const
 		{
-			const FVec3 ClosestPoint = FindClosestPointOnTriangle(GetPlane(), ABC[0], ABC[1], ABC[2], Point);
-			const FReal AdjustedThickness = FMath::Max(Thickness, KINDA_SMALL_NUMBER);
+			const TVec3<T> ClosestPoint = FindClosestPointOnTriangle(GetPlane(), ABC[0], ABC[1], ABC[2], Point);
+			const T AdjustedThickness = FMath::Max(Thickness, KINDA_SMALL_NUMBER);
 			return (Point - ClosestPoint).SizeSquared() <= (AdjustedThickness * AdjustedThickness);
 		}
 
@@ -245,17 +246,82 @@ namespace Chaos
 			return true;
 		}
 
+
+		struct FLineIntersectionToleranceProvider
+		{
+			static constexpr T ParallelTolerance = (T)SMALL_NUMBER;
+			static constexpr T BaryTolerance = (T)0;
+		};
+		FORCEINLINE bool LineIntersection(const TVec3<T>& StartPoint, const TVec3<T>& EndPoint, TVector<T, 2>& OutBary, T& OutTime) const;
+
 	private:
 
-		friend FChaosArchive& operator<<(FChaosArchive& Ar, FTriangle& Value);
+		friend FChaosArchive& operator<<(FChaosArchive& Ar, TTriangle& Value);
 
-		FVec3 ABC[3];
+		TVec3<T> ABC[3];
 	};
 
-	inline FChaosArchive& operator<<(FChaosArchive& Ar, FTriangle& Value)
+	using FTriangle = TTriangle<FReal>;
+
+	template<typename T>
+	inline FChaosArchive& operator<<(FChaosArchive& Ar, TTriangle<T>& Value)
 	{
 		Ar << Value.ABC[0] << Value.ABC[1] << Value.ABC[2];
 		return Ar;
+	}
+
+	template<typename T>
+	struct TRayTriangleIntersectionDefaultToleranceProvider
+	{
+		static constexpr T ParallelTolerance = (T)SMALL_NUMBER;
+		static constexpr T BaryTolerance = (T)SMALL_NUMBER;
+	};
+
+	template<typename T, typename ToleranceProvider = TRayTriangleIntersectionDefaultToleranceProvider<T> >
+	FORCEINLINE_DEBUGGABLE bool RayTriangleIntersectionAndBary(const TVec3<T>& RayStart, const TVec3<T>& RayDir, T RayLength,
+		const TVec3<T>& A, const TVec3<T>& B, const TVec3<T>& C, T& OutT, TVec2<T>& OutBary, TVec3<T>& OutN)
+	{
+		const TVec3<T> AB = B - A; // edge 1
+		const TVec3<T> AC = C - A; // edge 2
+		const TVec3<T> Normal = TVec3<T>::CrossProduct(AB, AC);
+		const TVec3<T> NegRayDir = -RayDir;
+
+		const T Den = TVec3<T>::DotProduct(NegRayDir, Normal);
+		if (FMath::Abs(Den) < ToleranceProvider::ParallelTolerance)
+		{
+			// ray is parallel or away to the triangle plane it is a miss
+			return false;
+		}
+
+		const T InvDen = (T)1 / Den;
+
+		// let's compute the time to intersection
+		const TVec3<T> RayToA = RayStart - A;
+		const T Time = TVec3<T>::DotProduct(RayToA, Normal) * InvDen;
+		if (Time < (T)0 || Time > RayLength)
+		{
+			return false;
+		}
+
+		// now compute barycentric coordinates
+		const TVec3<T> RayToACrossNegDir = FVec3::CrossProduct(NegRayDir, RayToA);
+		const T UU = TVec3<T>::DotProduct(AC, RayToACrossNegDir) * InvDen;
+		if (UU < -ToleranceProvider::BaryTolerance || UU >(1 + ToleranceProvider::BaryTolerance))
+		{
+			return false; // outside of the triangle
+		}
+		const T VV = -TVec3<T>::DotProduct(AB, RayToACrossNegDir) * InvDen;
+		if (VV < -ToleranceProvider::BaryTolerance || (VV + UU) >(1 + ToleranceProvider::BaryTolerance))
+		{
+			return false; // outside of the triangle
+		}
+
+		// point is within the triangle, let's compute 
+		OutT = Time;
+		OutBary = { UU, VV };
+		OutN = Normal.GetSafeNormal();
+		OutN *= FMath::Sign(Den);
+		return true;
 	}
 
 	/**
@@ -263,56 +329,40 @@ namespace Chaos
 	* this provides a double sided test
 	* note : this method assumes that the triangle formed by A,B and C is well formed
 	*/
-	FORCEINLINE_DEBUGGABLE bool RayTriangleIntersection(
-		const FVec3& RayStart, const FVec3& RayDir, FReal RayLength,
-		const FVec3& A, const FVec3& B, const FVec3& C,
-		FReal& OutT, FVec3& OutN
+	template<typename T>
+	FORCEINLINE bool RayTriangleIntersection(
+		const TVec3<T>& RayStart, const TVec3<T>& RayDir, T RayLength,
+		const TVec3<T>& A, const TVec3<T>& B, const TVec3<T>& C,
+		T& OutT, TVec3<T>& OutN
 	)
 	{
-		const FVec3 AB = B - A; // edge 1
-		const FVec3 AC = C - A; // edge 2
-		const FVec3 Normal = FVec3::CrossProduct(AB, AC);
-		const FVec3 NegRayDir = -RayDir;
-
-		FReal Den = FVec3::DotProduct(NegRayDir, Normal);
-		if (FMath::Abs(Den) < SMALL_NUMBER)
-		{
-			// ray is parallel or away to the triangle plane it is a miss
-			return false;
-		}
-
-		const FReal InvDen = (FReal)1 / Den;
-
-		// let's compute the time to intersection
-		const FVec3 RayToA = RayStart - A;
-		const FReal Time = FVec3::DotProduct(RayToA, Normal) * InvDen;
-		if (Time < (FReal)0 || Time > RayLength)
-		{
-			return false;
-		}
-
-		// now compute baricentric coordinates
-		const FVec3 RayToACrossNegDir = FVec3::CrossProduct(NegRayDir, RayToA);
-		constexpr FReal Epsilon = SMALL_NUMBER;
-		const FReal UU = FVec3::DotProduct(AC, RayToACrossNegDir) * InvDen;
-		if (UU < -Epsilon || UU >(1 + Epsilon))
-		{
-			return false; // outside of the triangle
-		}
-		const FReal VV = -FVec3::DotProduct(AB, RayToACrossNegDir) * InvDen;
-		if (VV < -Epsilon || (VV + UU) >(1 + Epsilon))
-		{
-			return false; // outside of the triangle
-		}
-
-		// point is within the triangle, let's compute 
-		OutT = Time;
-		OutN = Normal.GetSafeNormal();
-		OutN *= FMath::Sign(Den);
-		return true;
+		TVec2<T> BaryUnused;
+		return RayTriangleIntersectionAndBary(RayStart, RayDir, RayLength, A, B, C, OutT, BaryUnused, OutN);
 	}
 
-	template<typename T> using TTriangle = FTriangle;
+	template<typename T>
+	FORCEINLINE bool TTriangle<T>::LineIntersection(const TVec3<T>& StartPoint, const TVec3<T>& EndPoint, TVector<T, 2>& OutBary, T& OutTime) const
+	{
+		const TVec3<T> StartToEnd = EndPoint - StartPoint;
+		const T SegmentLenSq = StartToEnd.SizeSquared();
+		if (SegmentLenSq < SMALL_NUMBER)
+		{
+			return false;
+		}
+		const T SegmentLen = FMath::Sqrt(SegmentLenSq);
+		const T OneOverSegmentLen = (T)1 / SegmentLen;
+		const TVec3<T> Ray = StartToEnd * OneOverSegmentLen;
+
+		TVec3<T> NormalUnused;
+		if (RayTriangleIntersectionAndBary<T, FLineIntersectionToleranceProvider>(StartPoint, Ray, SegmentLen, ABC[0], ABC[1], ABC[2], OutTime, OutBary, NormalUnused))
+		{
+			// OutTime is between 0 and SegmentLen. Convert to 0 to 1
+			OutTime *= OneOverSegmentLen;
+			return true;
+		}
+
+		return false;
+	}
 	
 	template<typename T>
 	class UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use other triangle based ImplicitObjects") TImplicitTriangle final : public FImplicitObject

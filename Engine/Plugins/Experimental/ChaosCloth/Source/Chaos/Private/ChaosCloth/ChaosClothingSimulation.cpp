@@ -24,11 +24,13 @@
 #include "Chaos/Capsule.h"
 #include "Chaos/TaperedCapsule.h"
 #include "Chaos/Convex.h"
+#include "Chaos/Triangle.h"
 #include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/PBDAnimDriveConstraint.h"
 #include "Chaos/PBDLongRangeConstraints.h"
 #include "Chaos/PBDSpringConstraints.h"
 #include "Chaos/PBDCollisionSpringConstraints.h"
+#include "Chaos/PBDTriangleMeshCollisions.h"
 #include "Chaos/VelocityField.h"
 #endif  // #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 
@@ -102,6 +104,7 @@ namespace ClothingSimulationCVar
 	TAutoConsoleVariable<bool> DebugDrawLongRangeConstraint (TEXT("p.ChaosCloth.DebugDrawLongRangeConstraint" ), false, TEXT("Whether to debug draw the Chaos Cloth long range constraint (aka tether constraint)"), ECVF_Cheat);
 	TAutoConsoleVariable<bool> DebugDrawWindForces          (TEXT("p.ChaosCloth.DebugDrawWindForces"          ), false, TEXT("Whether to debug draw the Chaos Cloth wind forces"), ECVF_Cheat);
 	TAutoConsoleVariable<bool> DebugDrawSelfCollision       (TEXT("p.ChaosCloth.DebugDrawSelfCollision"       ), false, TEXT("Whether to debug draw the Chaos Cloth self collision information"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawSelfIntersection    (TEXT("p.ChaosCloth.DebugDrawSelfIntersection"    ), false, TEXT("Whether to debug draw the Chaos Cloth self intersection information"), ECVF_Cheat);
 }
 #endif  // #if CHAOS_DEBUG_DRAW
 
@@ -420,6 +423,8 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->bUseCCD,
 		ClothConfig->bUseSelfCollisions,
 		ClothConfig->SelfCollisionThickness,
+		ClothConfig->SelfCollisionFriction,
+		ClothConfig->bUseSelfIntersections,
 		ClothConfig->bUseLegacyBackstop,
 		/*bUseLODIndexOverride =*/ false,
 		/*LODIndexOverride =*/ INDEX_NONE));
@@ -594,6 +599,7 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	if (ClothingSimulationCVar::DebugDrawLongRangeConstraint .GetValueOnAnyThread()) { DebugDrawLongRangeConstraint (); }
 	if (ClothingSimulationCVar::DebugDrawWindForces          .GetValueOnAnyThread()) { DebugDrawWindForces          (); }
 	if (ClothingSimulationCVar::DebugDrawSelfCollision       .GetValueOnAnyThread()) { DebugDrawSelfCollision       (); }
+	if (ClothingSimulationCVar::DebugDrawSelfIntersection    .GetValueOnAnyThread()) { DebugDrawSelfIntersection    (); }
 #endif  // #if CHAOS_DEBUG_DRAW
 }
 
@@ -841,6 +847,8 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->bUseCCD,
 			ClothConfig->bUseSelfCollisions,
 			ClothConfig->SelfCollisionThickness,
+			ClothConfig->SelfCollisionFriction,
+			ClothConfig->bUseSelfIntersections,
 			ClothConfig->bUseLegacyBackstop,
 			/*bUseLODIndexOverride =*/ false,
 			/*LODIndexOverride =*/ INDEX_NONE);
@@ -1064,12 +1072,12 @@ void FClothingSimulation::DebugDrawMaxDistanceValues(FCanvas* Canvas, const FSce
 #endif  // #if WITH_EDITOR
 
 #if WITH_EDITOR || CHAOS_DEBUG_DRAW
-static void DrawPoint(FPrimitiveDrawInterface* PDI, const FVector& Pos, const FLinearColor& Color, UMaterial* DebugClothMaterialVertex)  // Use color or material
+static void DrawPoint(FPrimitiveDrawInterface* PDI, const FVector& Pos, const FLinearColor& Color, UMaterial* DebugClothMaterialVertex, const float Thickness = 1.f)  // Use color or material
 {
 #if CHAOS_DEBUG_DRAW
 	if (!PDI)
 	{
-		FDebugDrawQueue::GetInstance().DrawDebugPoint(Pos, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, 1.f);
+		FDebugDrawQueue::GetInstance().DrawDebugPoint(Pos, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, Thickness);
 		return;
 	}
 #endif
@@ -1080,6 +1088,10 @@ static void DrawPoint(FPrimitiveDrawInterface* PDI, const FVector& Pos, const FL
 		const FVector XAxis = ViewMatrix.GetColumn(0); // Just using transpose here (orthogonal transform assumed)
 		const FVector YAxis = ViewMatrix.GetColumn(1);
 		DrawDisc(PDI, Pos, XAxis, YAxis, Color.ToFColor(true), 0.5f, 10, DebugClothMaterialVertex->GetRenderProxy(), SDPG_World);
+	}
+	else
+	{
+		PDI->DrawPoint(Pos, Color, Thickness, SDPG_World);
 	}
 #endif
 }
@@ -1987,6 +1999,7 @@ void FClothingSimulation::DebugDrawSelfCollision(FPrimitiveDrawInterface* PDI) c
 			const TArray<Softs::FSolverVec3>& Barys = SelfCollisionConstraints->GetBarys();
 			const FReal Thickness = (FReal)SelfCollisionConstraints->GetThickness();
 			const FReal Height = Thickness + Thickness;
+			const TArray<bool>& FlipNormals = SelfCollisionConstraints->GetFlipNormals();
 
 			for (int32 Index = 0; Index < Constraints.Num(); ++Index)
 			{
@@ -2002,21 +2015,133 @@ void FClothingSimulation::DebugDrawSelfCollision(FPrimitiveDrawInterface* PDI) c
 				const FVector Pos0 = P0 * Bary[0] + P1 * Bary[1] + P2 * Bary[2];
 
 				static const FLinearColor Brown(0.1f, 0.05f, 0.f);
-
-				// Draw barycentric coordinate
-				DrawLine(PDI, Pos0, P0, Brown);
-				DrawLine(PDI, Pos0, P1, Brown);
-				DrawLine(PDI, Pos0, P2, Brown);
-
-				// Draw connection to point
-				static const FLinearColor Orange(0.3f, 0.15f, 0.f);
-				DrawLine(PDI, Pos0, P, Orange);
-
-				// Draw hit triangle (with thickness and added colliding particle's thickness)
 				static const FLinearColor Red(0.3f, 0.f, 0.f);
-				DrawLine(PDI, P0, P1, Red);
-				DrawLine(PDI, P1, P2, Red);
-				DrawLine(PDI, P2, P0, Red);
+				const FTriangle Triangle(P0, P1, P2);
+				const FVector Normal = FlipNormals[Index] ? -Triangle.GetNormal() : Triangle.GetNormal();
+
+				// Draw point to surface line (=normal)
+				const FVector Pos1 = Pos0 + Height * Normal;
+				DrawPoint(PDI, Pos0, Brown, nullptr, 2.f);
+				DrawLine(PDI, Pos0, Pos1, FlipNormals[Index] ? Red : Brown);
+
+				// Draw pushup to point
+				static const FLinearColor Orange(0.3f, 0.15f, 0.f);
+				DrawPoint(PDI, P, Orange, nullptr, 2.f);
+				DrawLine(PDI, Pos1, P, Orange);
+			}
+		}
+	}
+}
+
+void FClothingSimulation::DebugDrawSelfIntersection(FPrimitiveDrawInterface* PDI) const
+{
+	const FVec3& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
+
+	for (const FClothingSimulationCloth* const Cloth : Solver->GetCloths())
+	{
+		const int32 Offset = Cloth->GetOffset(Solver.Get());
+		if (Offset == INDEX_NONE)
+		{
+			continue;
+		}
+
+		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
+
+		static const FLinearColor Red(1.f, 0.f, 0.f);
+		static const FLinearColor White(1.f, 1.f, 1.f);
+		static const FLinearColor Black(0.f, 0.f, 0.f);
+		static const FLinearColor Teal(0.f, 0.5f, 0.5f);
+		static const FLinearColor Green(0.f, 1.f, 0.f);
+
+		if (const Softs::FPBDTriangleMeshCollisions* const SelfCollisionInit = ClothConstraints.GetSelfCollisionInit().Get())
+		{
+			const TConstArrayView<Softs::FSolverVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
+			const FTriangleMesh& TriangleMesh = Cloth->GetTriangleMesh(Solver.Get());
+
+			// Draw contours
+			const TArray<TArray<Softs::FPBDTriangleMeshCollisions::FBarycentricPoint>>& ContourPoints = SelfCollisionInit->GetIntersectionContourPoints();
+			const TArray<Softs::FPBDTriangleMeshCollisions::FContourType>& ContourTypes = SelfCollisionInit->GetIntersectionContourTypes();
+			check(ContourPoints.Num() == ContourTypes.Num());
+
+			static const FLinearColor ColorsForType[(int8)Softs::FPBDTriangleMeshCollisions::FContourType::Count] =
+			{
+				Teal,
+				Red,
+				White,
+				Black
+			};
+			for( int32 ContourIndex = 0; ContourIndex < ContourPoints.Num(); ++ContourIndex)
+			{
+				const TArray<Softs::FPBDTriangleMeshCollisions::FBarycentricPoint>& Contour = ContourPoints[ContourIndex];
+				const FLinearColor& ContourColor = ColorsForType[(int8)ContourTypes[ContourIndex]];
+				for (int32 PointIdx = 0; PointIdx < Contour.Num() - 1; ++PointIdx)
+				{
+					const Softs::FPBDTriangleMeshCollisions::FBarycentricPoint& Point0 = Contour[PointIdx];
+					const FVector EndPoint0 = LocalSpaceLocation + (1.f - Point0.Bary[0] - Point0.Bary[1]) * Positions[Point0.Vertices[0] - Offset] + Point0.Bary[0] * Positions[Point0.Vertices[1] - Offset] + Point0.Bary[1] * Positions[Point0.Vertices[2] - Offset];
+					const Softs::FPBDTriangleMeshCollisions::FBarycentricPoint& Point1 = Contour[PointIdx+1];
+					const FVector EndPoint1 = LocalSpaceLocation + (1.f - Point1.Bary[0] - Point1.Bary[1]) * Positions[Point1.Vertices[0] - Offset] + Point1.Bary[0] * Positions[Point1.Vertices[1] - Offset] + Point1.Bary[1] * Positions[Point1.Vertices[2] - Offset];
+					DrawLine(PDI, EndPoint0, EndPoint1, ContourColor);
+					DrawPoint(PDI, EndPoint0, ContourColor, nullptr, 1.f);
+					DrawPoint(PDI, EndPoint1, ContourColor, nullptr, 1.f);
+				}
+			}
+
+			// Draw GIA colors
+			const TConstArrayView<Softs::FPBDTriangleMeshCollisions::FGIAColor>& VertexGIAColors = SelfCollisionInit->GetVertexGIAColors();
+			static const FLinearColor Gray(0.5f, 0.5f, 0.5f);
+			if (VertexGIAColors.Num())
+			{
+				const TArray<TVec3<int32>>& Elements = TriangleMesh.GetElements();
+				for (int32 ParticleIdx = Offset; ParticleIdx < VertexGIAColors.Num(); ++ParticleIdx)
+				{
+					if (VertexGIAColors[ParticleIdx].ContourIndexBits)
+					{
+						const bool bIsLoop = VertexGIAColors[ParticleIdx].IsLoop();
+						const bool bAnyWhite = (VertexGIAColors[ParticleIdx].ContourIndexBits & ~VertexGIAColors[ParticleIdx].ColorBits);
+						const bool bAnyBlack = (VertexGIAColors[ParticleIdx].ContourIndexBits & VertexGIAColors[ParticleIdx].ColorBits);
+						const FLinearColor& VertColor = bIsLoop ? Red : (bAnyWhite && bAnyBlack) ? Gray : bAnyWhite ? White : Black;
+						
+						DrawPoint(PDI, LocalSpaceLocation + Positions[ParticleIdx - Offset], VertColor, nullptr, 5.f);
+					}
+				}
+			}
+			const TArray<Softs::FPBDTriangleMeshCollisions::FGIAColor>& TriangleGIAColors = SelfCollisionInit->GetTriangleGIAColors();
+			if (TriangleGIAColors.Num() == TriangleMesh.GetNumElements())
+			{
+				const TArray<TVec3<int32>>& Elements = TriangleMesh.GetElements();
+				for (int32 TriangleIdx = 0; TriangleIdx < TriangleGIAColors.Num(); ++TriangleIdx)
+				{
+					if (TriangleGIAColors[TriangleIdx].ContourIndexBits)
+					{
+						const bool bIsLoop = TriangleGIAColors[TriangleIdx].IsLoop();
+						const bool bAnyWhite = (TriangleGIAColors[TriangleIdx].ContourIndexBits & ~TriangleGIAColors[TriangleIdx].ColorBits);
+						const bool bAnyBlack = (TriangleGIAColors[TriangleIdx].ContourIndexBits & TriangleGIAColors[TriangleIdx].ColorBits);
+						const FLinearColor& TriColor = bIsLoop ? Red : (bAnyWhite && bAnyBlack) ? Gray : bAnyWhite ? White : Black;
+						DrawLine(PDI, LocalSpaceLocation + Positions[Elements[TriangleIdx][0] - Offset], LocalSpaceLocation + Positions[Elements[TriangleIdx][1] - Offset], TriColor);
+						DrawLine(PDI, LocalSpaceLocation + Positions[Elements[TriangleIdx][1] - Offset], LocalSpaceLocation + Positions[Elements[TriangleIdx][2] - Offset], TriColor);
+						DrawLine(PDI, LocalSpaceLocation + Positions[Elements[TriangleIdx][0] - Offset], LocalSpaceLocation + Positions[Elements[TriangleIdx][2] - Offset], TriColor);
+					}
+				}
+			}
+
+			// Draw contour minimization gradients
+			const TArray<Softs::FPBDTriangleMeshCollisions::FContourMinimizationIntersection>& ContourMinimizationIntersections = SelfCollisionInit->GetContourMinimizationIntersections();
+			constexpr FReal MaxDrawImpulse = 1.;
+			constexpr FReal RegularizeEpsilonSq = 1.;
+			for (const Softs::FPBDTriangleMeshCollisions::FContourMinimizationIntersection& Intersection : ContourMinimizationIntersections)
+			{
+				Softs::FSolverReal GradientLength;
+				Softs::FSolverVec3 GradientDir;
+				Intersection.GlobalGradientVector.ToDirectionAndLength(GradientDir, GradientLength);
+				const FVector Delta = FVector(GradientDir) * MaxDrawImpulse * GradientLength * FMath::InvSqrt(GradientLength * GradientLength + RegularizeEpsilonSq);
+
+				const FVector EdgeCenter = LocalSpaceLocation + .5 * (Positions[Intersection.EdgeVertices[0] - Offset] + Positions[Intersection.EdgeVertices[1] - Offset]);
+				const FVector TriCenter = LocalSpaceLocation + (Positions[Intersection.FaceVertices[0] - Offset] + Positions[Intersection.FaceVertices[1] - Offset] + Positions[Intersection.FaceVertices[2] - Offset]) / 3.;
+
+				DrawPoint(PDI, EdgeCenter, Green, nullptr, 2.f);
+				DrawLine(PDI, EdgeCenter, EdgeCenter + Delta, Green);
+				DrawPoint(PDI, TriCenter, Green, nullptr, 2.f);
+				DrawLine(PDI, TriCenter, TriCenter - Delta, Green);
 			}
 		}
 	}

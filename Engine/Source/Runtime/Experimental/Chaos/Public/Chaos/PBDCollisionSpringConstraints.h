@@ -20,8 +20,9 @@ public:
 		const FTriangleMesh& InTriangleMesh,
 		const TArray<FSolverVec3>* InRestPositions,
 		TSet<TVec2<int32>>&& InDisabledCollisionElements,
-		const FSolverReal InThickness = (FSolverReal)1.,
-		const FSolverReal InStiffness = (FSolverReal)1.)
+		const FSolverReal InThickness = Base::BackCompatThickness,
+		const FSolverReal InStiffness = Base::BackCompatStiffness,
+		const FSolverReal InFrictionCoefficient = Base::BackCompatFrictionCoefficient)
 		: Base(InOffset, InNumParticles, InTriangleMesh, InRestPositions, MoveTemp(InDisabledCollisionElements), InThickness, InStiffness)
 	{}
 
@@ -38,22 +39,21 @@ public:
 		const int32 i3 = Constraint[2];
 		const int32 i4 = Constraint[3];
 		const FSolverVec3 Delta = Base::GetDelta(Particles, i);
-		static const FSolverReal Multiplier = (FSolverReal)0.5;  // TODO(mlentine): Figure out what the best multiplier here is
 		if (Particles.InvM(i1) > 0)
 		{
-			Particles.P(i1) += Multiplier * Particles.InvM(i1) * Delta;
+			Particles.P(i1) += Particles.InvM(i1) * Delta;
 		}
 		if (Particles.InvM(i2) > (FSolverReal)0.)
 		{
-			Particles.P(i2) -= Multiplier * Particles.InvM(i2) * Barys[i][0] * Delta;
+			Particles.P(i2) -= Particles.InvM(i2) * Barys[i][0] * Delta;
 		}
 		if (Particles.InvM(i3) > (FSolverReal)0.)
 		{
-			Particles.P(i3) -= Multiplier * Particles.InvM(i3) * Barys[i][1] * Delta;
+			Particles.P(i3) -= Particles.InvM(i3) * Barys[i][1] * Delta;
 		}
 		if (Particles.InvM(i4) > (FSolverReal)0.)
 		{
-			Particles.P(i4) -= Multiplier * Particles.InvM(i4) * Barys[i][2] * Delta;
+			Particles.P(i4) -= Particles.InvM(i4) * Barys[i][2] * Delta;
 		}
 	}
 

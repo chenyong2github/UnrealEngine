@@ -17,8 +17,6 @@ namespace Chaos
 {
 	class FHeightfieldRaycastVisitor;
 	class FContactPoint;
-	class FConvex;
-	class FTriangle;
 	struct FMTDInfo;
 }
 

@@ -4,6 +4,7 @@
 #include "Chaos/Box.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Plane.h"
+#include "Chaos/Triangle.h"
 #include "Chaos/TriangleCollisionPoint.h"
 #include "HAL/IConsoleManager.h"
 #include "Math/NumericLimits.h"
@@ -684,7 +685,7 @@ struct OrderedEdgeKeyFuncs : BaseKeyFuncs<TVec2<int32>, TVec2<int32>, false>
 	}
 };
 
-FSegmentMesh& FTriangleMesh::GetSegmentMesh()
+const FSegmentMesh& FTriangleMesh::GetSegmentMesh() const
 {
 	if (MSegmentMesh.GetNumElements() != 0)
 	{
@@ -759,13 +760,13 @@ FSegmentMesh& FTriangleMesh::GetSegmentMesh()
 	return MSegmentMesh;
 }
 
-const TArray<TVec3<int32>>& FTriangleMesh::GetFaceToEdges()
+const TArray<TVec3<int32>>& FTriangleMesh::GetFaceToEdges() const
 {
 	GetSegmentMesh();
 	return MFaceToEdges;
 }
 
-const TArray<TVec2<int32>>& FTriangleMesh::GetEdgeToFaces()
+const TArray<TVec2<int32>>& FTriangleMesh::GetEdgeToFaces() const
 {
 	GetSegmentMesh();
 	return MEdgeToFaces;
@@ -774,7 +775,7 @@ const TArray<TVec2<int32>>& FTriangleMesh::GetEdgeToFaces()
 
 TSet<int32> FTriangleMesh::GetBoundaryPoints()
 {
-	FSegmentMesh& SegmentMesh = GetSegmentMesh();
+	const FSegmentMesh& SegmentMesh = const_cast<const FTriangleMesh*>(this)->GetSegmentMesh();
 	const TArray<TVec2<int32>>& Edges = SegmentMesh.GetElements();
 	const TArray<TVec2<int32>>& EdgeToFaces = GetEdgeToFaces();
 	TSet<int32> OpenBoundaryPoints;
@@ -913,7 +914,7 @@ TArray<FReal> FTriangleMesh::GetCurvatureOnEdges(const TArray<FVec3>& FaceNormal
 {
 	const int32 NumNormals = FaceNormals.Num();
 	check(NumNormals == MElements.Num());
-	const FSegmentMesh& SegmentMesh = GetSegmentMesh(); // builds MEdgeToFaces
+	const FSegmentMesh& SegmentMesh = const_cast<const FTriangleMesh*>(this)->GetSegmentMesh(); // builds MEdgeToFaces
 	TArray<FReal> EdgeAngles;
 	EdgeAngles.SetNumZeroed(MEdgeToFaces.Num());
 	for (int32 EdgeId = 0; EdgeId < MEdgeToFaces.Num(); EdgeId++)
@@ -940,7 +941,7 @@ TArray<FReal> FTriangleMesh::GetCurvatureOnEdges(const TConstArrayView<FVec3>& P
 
 TArray<FReal> FTriangleMesh::GetCurvatureOnPoints(const TArray<FReal>& EdgeCurvatures)
 {
-	const FSegmentMesh& SegmentMesh = GetSegmentMesh();
+	const FSegmentMesh& SegmentMesh = const_cast<const FTriangleMesh*>(this)->GetSegmentMesh();
 	const TArray<TVec2<int32>>& Segments = SegmentMesh.GetElements();
 	check(EdgeCurvatures.Num() == Segments.Num());
 
@@ -1468,8 +1469,8 @@ void FTriangleMesh::BuildBVH(const TConstArrayView<TVec3<T>>& Points, TBVHType<T
 	}
 	BVH.Reinitialize(BVEntries);
 }
-template CHAOS_API void FTriangleMesh::BuildBVH<FRealSingle>(const TConstArrayView<TVec3<FRealSingle>>& Points, TBVHType<FRealSingle>& BVH) const;
-template CHAOS_API void FTriangleMesh::BuildBVH<FRealDouble>(const TConstArrayView<TVec3<FRealDouble>>& Points, TBVHType<FRealDouble>& BVH) const;
+template void FTriangleMesh::BuildBVH<FRealSingle>(const TConstArrayView<TVec3<FRealSingle>>& Points, TBVHType<FRealSingle>& BVH) const;
+template void FTriangleMesh::BuildBVH<FRealDouble>(const TConstArrayView<TVec3<FRealDouble>>& Points, TBVHType<FRealDouble>& BVH) const;
 
 template<typename T>
 bool FTriangleMesh::PointProximityQuery(const TBVHType<T>& BVH, const TConstArrayView<TVec3<T>>& Points, const int32 PointIndex, const TVec3<T>& PointPosition, const T PointThickness, const T ThisThickness, 
@@ -1519,7 +1520,52 @@ bool FTriangleMesh::PointProximityQuery(const TBVHType<T>& BVH, const TConstArra
 	}
 	return Result.Num() > 0;
 }
-template CHAOS_API bool FTriangleMesh::PointProximityQuery<FRealSingle>(const TBVHType<FRealSingle>& BVH, const TConstArrayView<TVector<FRealSingle, 3>>& Points, const int32 PointIndex, const TVector<FRealSingle, 3>& PointPosition, const FRealSingle PointThickness, const FRealSingle ThisThickness, TFunctionRef<bool(const int32 PointIndex, const int32 TriangleIndex)> BroadphaseTest, TArray<TTriangleCollisionPoint<FRealSingle>>& Result) const;
-template CHAOS_API bool FTriangleMesh::PointProximityQuery<FRealDouble>(const TBVHType<FRealDouble>& BVH, const TConstArrayView<TVector<FRealDouble, 3>>& Points, const int32 PointIndex, const TVector<FRealDouble, 3>& PointPosition, const FRealDouble PointThickness, const FRealDouble ThisThickness, TFunctionRef<bool(const int32 PointIndex, const int32 TriangleIndex)> BroadphaseTest, TArray<TTriangleCollisionPoint<FRealDouble>>& Result) const;
+template bool FTriangleMesh::PointProximityQuery<FRealSingle>(const TBVHType<FRealSingle>& BVH, const TConstArrayView<TVector<FRealSingle, 3>>& Points, const int32 PointIndex, const TVector<FRealSingle, 3>& PointPosition, const FRealSingle PointThickness, const FRealSingle ThisThickness, TFunctionRef<bool(const int32 PointIndex, const int32 TriangleIndex)> BroadphaseTest, TArray<TTriangleCollisionPoint<FRealSingle>>& Result) const;
+template bool FTriangleMesh::PointProximityQuery<FRealDouble>(const TBVHType<FRealDouble>& BVH, const TConstArrayView<TVector<FRealDouble, 3>>& Points, const int32 PointIndex, const TVector<FRealDouble, 3>& PointPosition, const FRealDouble PointThickness, const FRealDouble ThisThickness, TFunctionRef<bool(const int32 PointIndex, const int32 TriangleIndex)> BroadphaseTest, TArray<TTriangleCollisionPoint<FRealDouble>>& Result) const;
 
+template<typename T>
+bool FTriangleMesh::EdgeIntersectionQuery(const TBVHType<T>& BVH, const TConstArrayView<TVec3<T>>& Points, const int32 EdgeIndex, const TVec3<T>& EdgePosition1, const TVec3<T>& EdgePosition2,
+	TFunctionRef<bool(const int32 EdgeIndex, const int32 TriangleIndex)> BroadphaseTest, TArray<TTriangleCollisionPoint<T>>& Result) const
+{
+	FAABB3 QueryBounds(EdgePosition1, EdgePosition1);
+	QueryBounds.GrowToInclude(EdgePosition2);
+
+	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
+
+	Result.Reset(PotentialIntersections.Num());
+
+	for (int32 TriIdx : PotentialIntersections)
+	{
+		if (!BroadphaseTest(EdgeIndex, TriIdx))
+		{
+			continue;
+		}
+
+		const TVec3<T>& A = Points[MElements[TriIdx][0]];
+		const TVec3<T>& B = Points[MElements[TriIdx][1]];
+		const TVec3<T>& C = Points[MElements[TriIdx][2]];
+
+		const TTriangle<T> Triangle(A, B, C);
+
+		T Time;
+		TVector<T, 2> Bary;
+		if (Triangle.LineIntersection(EdgePosition1, EdgePosition2, Bary, Time))
+		{
+			TTriangleCollisionPoint<T> CollisionPoint;
+			CollisionPoint.ContactType = TTriangleCollisionPoint<T>::EContactType::EdgeFace;
+			CollisionPoint.Indices[0] = EdgeIndex;
+			CollisionPoint.Indices[1] = TriIdx;
+			CollisionPoint.Bary = TVec4<T>(Time, (T)1. - Bary.X - Bary.Y, Bary.X, Bary.Y);
+			CollisionPoint.Location = ((T)1. - Time) * EdgePosition1 + Time * EdgePosition2;
+			CollisionPoint.Normal = Triangle.GetNormal();
+			CollisionPoint.Phi = 0;
+			Result.Add(CollisionPoint);
+		}
+	}
+	return Result.Num() > 0;
+}
+template bool FTriangleMesh::EdgeIntersectionQuery<FRealSingle>(const TBVHType<FRealSingle>& BVH, const TConstArrayView<TVec3<FRealSingle>>& Points, const int32 EdgeIndex, const TVec3<FRealSingle>& EdgePosition1, const TVec3<FRealSingle>& EdgePosition2,
+	TFunctionRef<bool(const int32 EdgeIndex, const int32 TriangleIndex)> BroadphaseTest, TArray<TTriangleCollisionPoint<FRealSingle>>& Result) const;
+template bool FTriangleMesh::EdgeIntersectionQuery<FRealDouble>(const TBVHType<FRealDouble>& BVH, const TConstArrayView<TVec3<FRealDouble>>& Points, const int32 EdgeIndex, const TVec3<FRealDouble>& EdgePosition1, const TVec3<FRealDouble>& EdgePosition2,
+	TFunctionRef<bool(const int32 EdgeIndex, const int32 TriangleIndex)> BroadphaseTest, TArray<TTriangleCollisionPoint<FRealDouble>>& Result) const;
 }  // End namespace Chaos
