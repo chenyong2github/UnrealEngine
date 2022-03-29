@@ -613,6 +613,11 @@ TMap<FName, FDynamicClassStaticData>& GetDynamicClassMap()
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+FName UObjectBase::GetFNameForStatID() const
+{
+	return GetFName();
+}
+
 /** Removes prefix from the native class name */
 FString UObjectBase::RemoveClassPrefix(const TCHAR* ClassName)
 {

@@ -43,7 +43,7 @@ void FUObjectItem::CreateStatID() const
 	for (int32 i = ClassChain.Num() - 1; i >= 0; i--)
 	{
 		Target = ClassChain[i];
-		const FNameEntry* NameEntry = Target->GetFName().GetDisplayNameEntry();
+		const FNameEntry* NameEntry = Target->GetFNameForStatID().GetDisplayNameEntry();
 		if (bFirstEntry)
 		{
 			NameEntry->AppendNameToPathString(LongName);

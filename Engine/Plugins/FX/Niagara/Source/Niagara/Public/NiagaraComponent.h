@@ -60,6 +60,8 @@ public:
 	virtual void ActivateSystem(bool bFlagAsJustAttached = false) override;
 	/********* UFXSystemComponent *********/
 
+	virtual FName GetFNameForStatID() const override;
+
 private:
 	UPROPERTY(EditAnywhere, Category="Niagara", meta = (DisplayName = "Niagara System Asset"))
 	TObjectPtr<UNiagaraSystem> Asset;

@@ -656,6 +656,10 @@ void UNiagaraComponent::ActivateSystem(bool bFlagAsJustAttached)
 
 /********* UFXSystemComponent *********/
 
+FName UNiagaraComponent::GetFNameForStatID() const
+{
+	return Asset ? Asset->GetFNameForStatID() : Super::GetFNameForStatID();
+}
 
 void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {

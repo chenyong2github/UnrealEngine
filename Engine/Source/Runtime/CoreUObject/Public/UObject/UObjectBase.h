@@ -139,6 +139,9 @@ public:
 		return NamePrivate;
 	}
 
+	/** Overridable method to return a logical name for identification in stats. */
+	virtual FName GetFNameForStatID() const;
+
 	/** Removes the class prefix from the given string */
 	static FString RemoveClassPrefix(const TCHAR* ClassName);
 
