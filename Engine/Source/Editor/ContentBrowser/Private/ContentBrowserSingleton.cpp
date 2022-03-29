@@ -88,6 +88,7 @@ FContentBrowserSingleton::FContentBrowserSingleton()
 	PopulateConfigValues();
 
 	ShowPrivateContentState.InvariantPaths = MakeShared<FPathPermissionList>();
+	ShowPrivateContentState.InvariantPaths->OnFilterChanged().AddRaw(this, &FContentBrowserSingleton::SetPrivateContentPermissionListDirty);
 	ShowPrivateContentState.CachedVirtualPaths = MakeShared<FPathPermissionList>();
 }
 
