@@ -171,11 +171,26 @@ bool UDMXEntityFixturePatch::IsTickable() const
 bool UDMXEntityFixturePatch::IsTickableInEditor() const
 {
 	const bool bHasListener = OnFixturePatchReceivedDMX.IsBound();
+	if (!bHasListener)
+	{
+		return false;
+	}
 
-#if WITH_EDITORONLY_DATA
-	return bHasListener && bReceiveDMXInEditor;
+#if WITH_EDITOR
+	if (GIsEditor && !GIsPlayInEditorWorld)
+	{
+		if (bReceiveDMXInEditor)
+		{
+			return true;
+		}
+
+		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+		const bool bAllFixturePatchesReceiveDMXInEditor = ProtocolSettings->ShouldAllFixturePatchesReceiveDMXInEditor();
+		return bAllFixturePatchesReceiveDMXInEditor;
+	}
 #endif
-	return bHasListener; 
+
+	return true; 
 }
 
 ETickableTickType UDMXEntityFixturePatch::GetTickableTickType() const

@@ -67,11 +67,14 @@ void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, U
 {
 	GetComponents<UStaticMeshComponent>(StaticMeshComponents);
 
-	// Create dynamic materials
-	DynamicMaterialLens = UMaterialInstanceDynamic::Create(LensMaterialInstance, NULL);
-	DynamicMaterialBeam = UMaterialInstanceDynamic::Create(BeamMaterialInstance, NULL);
-	DynamicMaterialSpotLight = UMaterialInstanceDynamic::Create(SpotLightMaterialInstance, NULL);
-	DynamicMaterialPointLight = UMaterialInstanceDynamic::Create(PointLightMaterialInstance, NULL);
+	// Create dynamic materials if needed
+	if (!DynamicMaterialLens || !DynamicMaterialBeam || !DynamicMaterialSpotLight || !DynamicMaterialPointLight)
+	{
+		DynamicMaterialLens = UMaterialInstanceDynamic::Create(LensMaterialInstance, nullptr);
+		DynamicMaterialBeam = UMaterialInstanceDynamic::Create(BeamMaterialInstance, nullptr);
+		DynamicMaterialSpotLight = UMaterialInstanceDynamic::Create(SpotLightMaterialInstance, nullptr);
+		DynamicMaterialPointLight = UMaterialInstanceDynamic::Create(PointLightMaterialInstance, nullptr);
+	}
 
 	// Get lens width (support scaling)
 	if (StaticMeshLens)

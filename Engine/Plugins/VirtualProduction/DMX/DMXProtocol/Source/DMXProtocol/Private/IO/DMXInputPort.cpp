@@ -380,7 +380,7 @@ FDMXInputPortSharedRef FDMXInputPort::CreateFromConfig(FDMXInputPortConfig& Inpu
 	NewInputPort->bReceiveDMXEnabled = Settings->IsReceiveDMXEnabled();
 
 	// Bind to receive dmx changes
-	Settings->OnSetReceiveDMXEnabled.AddThreadSafeSP(NewInputPort, &FDMXInputPort::OnSetReceiveDMXEnabled);
+	Settings->GetOnSetReceiveDMXEnabled().AddThreadSafeSP(NewInputPort, &FDMXInputPort::OnSetReceiveDMXEnabled);
 
 	NewInputPort->UpdateFromConfig(InputPortConfig);
 

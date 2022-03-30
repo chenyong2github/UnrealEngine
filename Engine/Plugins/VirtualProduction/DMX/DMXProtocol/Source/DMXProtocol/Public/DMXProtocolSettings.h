@@ -26,6 +26,7 @@ class DMXPROTOCOL_API UDMXProtocolSettings
 {
 	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnSendDMXEnabled, bool /** bEnabled */);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnReceiveDMXEnabled, bool /** bEnabled */);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnAllFixturePatchesReceiveDMXInEditorEnabled, bool /** bEnabled */);
 
 public:
 	GENERATED_BODY()
@@ -80,12 +81,6 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Fixture Settings", Meta = (DisplayName = "Fixture Attributes"))
 	TSet<FDMXAttribute> Attributes;
 
-	/** Broadcast when send DMX is enabled or disabled */
-	FDMXOnSendDMXEnabled OnSetSendDMXEnabled;
-
-	/** Broadcast when receive DMX is enabled or disabled */
-	FDMXOnReceiveDMXEnabled OnSetReceiveDMXEnabled;
-
 	/** Returns whether send DMX is currently enabled, considering runtime override */
 	bool IsSendDMXEnabled() const { return bOverrideSendDMXEnabled; }
 
@@ -104,6 +99,48 @@ public:
 	/** Returns an automatic/unique name for an OutputPort */
 	FString GetUniqueOutputPortName() const;
 
+	/** Gets a Delegate Broadcast when send DMX is enabled or disabled */
+	FDMXOnSendDMXEnabled& GetOnSetSendDMXEnabled()
+	{
+		return OnSetSendDMXEnabledDelegate;
+	}
+
+	/** Gets a Delegate Broadcast when receive DMX is enabled or disabled */
+	FDMXOnSendDMXEnabled& GetOnSetReceiveDMXEnabled()
+	{
+		return OnSetReceiveDMXEnabledDelegate;
+	}
+
+#if WITH_EDITOR
+	/** Returns true if Fixture Patches should receive DMX in Editor */
+	bool ShouldAllFixturePatchesReceiveDMXInEditor() const { return bAllFixturePatchesReceiveDMXInEditor; }
+
+	/** Gets a Delegate Broadcast when receive DMX is enabled or disabled */
+	FDMXOnAllFixturePatchesReceiveDMXInEditorEnabled& GetOnAllFixturePatchesReceiveDMXInEditorEnabled()
+	{
+		return OnAllFixturePatchesReceiveDMXInEditorEnabled;
+	}
+#endif
+	
+	/** DEPRECATED 5.1 */
+	UE_DEPRECATED(5.1, "The OnSetSendDMXEnabled delegate is no longer directly accessible. Please use UDMXProtocolSettings::GetOnSetDMXEnabled() instead to access the delegate")
+	FDMXOnSendDMXEnabled OnSetSendDMXEnabled;
+
+	/** DEPRECATED 5.1 */
+	UE_DEPRECATED(5.1, "The OnSetReceiveDMXEnabled delegate is no longer directly accessible. Please use UDMXProtocolSettings::GetOnSetReceiveDMXEnabled() instead to access the delegate")
+	FDMXOnReceiveDMXEnabled OnSetReceiveDMXEnabled;
+
+	/** Returns the property name of the bDefaultSendDMXEnabled Property */
+	FORCEINLINE static FName GetDefaultSendDMXEnabledPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, bDefaultSendDMXEnabled); }
+
+	/** Returns the property name of the bDefaultReceiveDMXEnabled Property */
+	FORCEINLINE static FName GetDefaultReceiveDMXEnabledPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, bDefaultReceiveDMXEnabled); }
+
+#if WITH_EDITOR	
+	/** Returns the property name of the bDMXComponentRecievesDMXInEditor Property */
+	FORCEINLINE static FName GetAllFixturePatchesReceiveDMXInEditorPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, bAllFixturePatchesReceiveDMXInEditor); }
+#endif
+
 private:
 	/** Whether DMX is sent to the network. Recalled whenever editor or game starts.  */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Send DMX by default"))
@@ -118,6 +155,21 @@ private:
 
 	/** Overrides the default bDefaultReceiveDMXEnabled value at runtime */
 	bool bOverrideReceiveDMXEnabled;
+
+	/** Broadcast when send DMX is enabled or disabled */
+	FDMXOnSendDMXEnabled OnSetSendDMXEnabledDelegate;
+
+	/** Broadcast when receive DMX is enabled or disabled */
+	FDMXOnReceiveDMXEnabled OnSetReceiveDMXEnabledDelegate;
+
+#if WITH_EDITORONLY_DATA
+	/** If true, all fixture patches receive DMX in Editor. This overrides the fixture patches 'Receive DMX In Editor' property. */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (DisplayName = "All Fixture Patches receive DMX in Editor"))
+	bool bAllFixturePatchesReceiveDMXInEditor = false;
+
+	/** Broadcast when Fixture Patches recieve DMX in Editor is enabled or disabled */
+	FDMXOnAllFixturePatchesReceiveDMXInEditorEnabled OnAllFixturePatchesReceiveDMXInEditorEnabled;
+#endif 
 
 	///////////////////
 	// DEPRECATED 4.27

@@ -255,7 +255,7 @@ public:
 
 	/** 
 	 * If true, the patch receives dmx and raises the OnFixturePatchReceivedDMX event in editor. 
-	 * NOTE: DMXComponent does not support this. To receive the patch in editor, drag out from the patch and bind its OnFixturePatchReceivedDMX event!
+	 * NOTE: If 'All Fixture Patches receive DMX in editor' is set to true in Project Settings -> Plugins -> DMX, this setting here is ignored.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
 	bool bReceiveDMXInEditor;

@@ -26,6 +26,7 @@ public class DMXProtocolEditor : ModuleRules
 				"EditorStyle",
 				"Engine",
 				"InputCore",
+				"Projects",
 				"Slate",
 				"SlateCore",
 				"TimeManagement",

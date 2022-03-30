@@ -2,6 +2,7 @@
 
 #include "Game/DMXComponent.h"
 
+#include "DMXProtocolSettings.h"
 #include "DMXRuntimeLog.h"
 #include "DMXStats.h"
 #include "Library/DMXEntityFixturePatch.h"
@@ -11,7 +12,18 @@ UDMXComponent::UDMXComponent()
 	: bReceiveDMXFromPatch(true)
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	bTickInEditor = false;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
+	PrimaryComponentTick.TickGroup = ETickingGroup::TG_PrePhysics;
+
+#if WITH_EDITOR
+	bTickInEditor = true;
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	{
+		UDMXProtocolSettings* DMXProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+		DMXProtocolSettings->GetOnAllFixturePatchesReceiveDMXInEditorEnabled().AddUObject(this, &UDMXComponent::OnAllFixturePatchesReceiveDMXInEditorEnabled);
+		UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddUObject(this, &UDMXComponent::OnFixturePatchPropertiesChanged);
+	}
+#endif
 }
 
 UDMXEntityFixturePatch* UDMXComponent::GetFixturePatch() const
@@ -31,8 +43,10 @@ void UDMXComponent::SetFixturePatch(UDMXEntityFixturePatch* InFixturePatch)
 			PreviousFixturePatch->OnFixturePatchReceivedDMX.RemoveAll(this);
 		}
 
+		// Set the new patch and setup the new binding
 		FixturePatchRef.SetEntity(InFixturePatch);
 		SetupReceiveDMXBinding();
+		UpdateTickEnabled();
 	}
 }
 
@@ -41,10 +55,15 @@ void UDMXComponent::SetReceiveDMXFromPatch(bool bReceive)
 	bReceiveDMXFromPatch = bReceive;
 
 	SetupReceiveDMXBinding();
+	UpdateTickEnabled();
 }
 
 void UDMXComponent::OnFixturePatchReceivedDMX(UDMXEntityFixturePatch* FixturePatch, const FDMXNormalizedAttributeValueMap& NormalizedValuePerAttribute)
 {
+#if WITH_EDITOR
+	FEditorScriptExecutionGuard ScriptGuard;
+#endif
+	
 	OnFixturePatchReceived.Broadcast(FixturePatch, NormalizedValuePerAttribute);
 }
 
@@ -53,17 +72,88 @@ void UDMXComponent::SetupReceiveDMXBinding()
 	UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
 	if (IsValid(FixturePatch))
 	{
-		if (bReceiveDMXFromPatch && !FixturePatch->OnFixturePatchReceivedDMX.Contains(this, GET_FUNCTION_NAME_CHECKED(UDMXComponent, OnFixturePatchReceivedDMX)))
+		const bool bReceiveDMX = [this, FixturePatch]()
+		{
+#if WITH_EDITOR
+			if (bReceiveDMXFromPatch && GIsEditor && !GIsPlayInEditorWorld)
+			{
+				const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+				const bool bFixturePatchReceivesDMXInEditor = FixturePatch->bReceiveDMXInEditor;
+				const bool bAllFixturePatchesReceiveDMXInEditor = ProtocolSettings->ShouldAllFixturePatchesReceiveDMXInEditor();
+
+				return bFixturePatchReceivesDMXInEditor || bAllFixturePatchesReceiveDMXInEditor;
+			}
+#endif
+			return bReceiveDMXFromPatch;
+		}();
+		
+		if (bReceiveDMX && !FixturePatch->OnFixturePatchReceivedDMX.Contains(this, GET_FUNCTION_NAME_CHECKED(UDMXComponent, OnFixturePatchReceivedDMX)))
 		{
 			// Enable receive DMX
 			FixturePatch->OnFixturePatchReceivedDMX.AddDynamic(this, &UDMXComponent::OnFixturePatchReceivedDMX);
+
+			FDMXNormalizedAttributeValueMap NormalizeAttributeValues;
+			FixturePatch->GetNormalizedAttributesValues(NormalizeAttributeValues);
+
+			if (NormalizeAttributeValues.Map.Num() > 0)
+			{
+				OnFixturePatchReceived.Broadcast(FixturePatch, NormalizeAttributeValues);
+			}
 		}
-		else if (!bReceiveDMXFromPatch && FixturePatch->OnFixturePatchReceivedDMX.Contains(this, GET_FUNCTION_NAME_CHECKED(UDMXComponent, OnFixturePatchReceivedDMX)))
-		{
+		else if (!bReceiveDMX)
+		{			
 			// Disable receive DMX
 			FixturePatch->OnFixturePatchReceivedDMX.RemoveAll(this);
 		}
 	}
+}
+
+void UDMXComponent::UpdateTickEnabled()
+{
+#if WITH_EDITOR
+	FEditorScriptExecutionGuard ScriptGuard;
+#endif
+
+	if (!OnDMXComponentTick.IsBound())
+	{
+		SetComponentTickEnabled(false);
+		return;
+	}
+
+	if (!bReceiveDMXFromPatch)
+	{
+		SetComponentTickEnabled(false);
+		return;
+	}
+
+	UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
+	if (!FixturePatch)
+	{
+		SetComponentTickEnabled(false);
+		return;
+	}
+
+#if WITH_EDITOR
+	if (GIsEditor && !GIsPlayInEditorWorld)
+	{
+		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+		if (!FixturePatch->bReceiveDMXInEditor && !ProtocolSettings->ShouldAllFixturePatchesReceiveDMXInEditor())
+		{
+			SetComponentTickEnabled(false);
+			return;
+		} 
+	}
+#endif 
+
+	SetComponentTickEnabled(true);
+}
+
+void UDMXComponent::OnRegister()
+{
+	Super::OnRegister();
+
+	SetupReceiveDMXBinding();
+	UpdateTickEnabled();
 }
 
 void UDMXComponent::BeginPlay()
@@ -82,6 +172,14 @@ void UDMXComponent::BeginPlay()
 	}
 
 	SetupReceiveDMXBinding();
+	UpdateTickEnabled();
+}
+
+void UDMXComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	OnDMXComponentTick.Broadcast(DeltaTime);
 }
 
 void UDMXComponent::DestroyComponent(bool bPromoteChildren)
@@ -109,7 +207,25 @@ void UDMXComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXComponent, bReceiveDMXFromPatch))
 	{
 		SetupReceiveDMXBinding();
+		UpdateTickEnabled();
 	}
 }
 #endif // WITH_EDITOR
 
+#if WITH_EDITOR
+void UDMXComponent::OnAllFixturePatchesReceiveDMXInEditorEnabled(bool bEnabled)
+{
+	SetupReceiveDMXBinding();
+	UpdateTickEnabled();
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
+void UDMXComponent::OnFixturePatchPropertiesChanged(const UDMXEntityFixturePatch* FixturePatch)
+{
+	if (FixturePatch == GetFixturePatch())
+	{
+		UpdateTickEnabled();
+	}
+}
+#endif // WITH_EDITOR
