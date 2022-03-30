@@ -3981,8 +3981,6 @@ void FEngineLoop::LoadPreInitModules()
 	// Load audio editor module before engine class CDOs are loaded
 	FModuleManager::Get().LoadModule(TEXT("AudioEditor"));
 	FModuleManager::Get().LoadModule(TEXT("AnimationModifiers"));
-
-	FModuleManager::Get().LoadModule(TEXT("WorldPartitionHLODUtilities"));
 #endif	
 }
 
