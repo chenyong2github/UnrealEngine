@@ -10,11 +10,12 @@ public abstract class DatasmithNavisworksBaseTarget : TargetRules
 		: base(Target)
 	{
 		Type = TargetType.Program;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		SolutionDirectory = "Programs/Datasmith";
 		bBuildInSolutionByDefault = false;
 
 		string NavisworksVersionString = GetVersion();
-		
+
 		ExeBinariesSubFolder = Path.Combine("Navisworks", NavisworksVersionString);
 		LaunchModuleName = "DatasmithNavisworks" + NavisworksVersionString;
 

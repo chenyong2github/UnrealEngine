@@ -10,6 +10,7 @@ public class DatasmithCADWorkerTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		LaunchModuleName = "DatasmithCADWorker";
 		SolutionDirectory = "Programs/Datasmith";
 

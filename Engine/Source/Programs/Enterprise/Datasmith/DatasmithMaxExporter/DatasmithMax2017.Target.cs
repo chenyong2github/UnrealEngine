@@ -9,6 +9,7 @@ public abstract class DatasmithMaxBaseTarget : TargetRules
 		: base(Target)
 	{
 		Type = TargetType.Program;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		SolutionDirectory = "Programs/Datasmith";
 		bBuildInSolutionByDefault = false;
 		bLegalToDistributeBinary = true;

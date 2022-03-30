@@ -11,6 +11,7 @@ public class DatasmithFacadeCSharpTarget : TargetRules
 		: base(Target)
 	{
 		Type = TargetType.Program;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		SolutionDirectory = Path.Combine("Programs","Datasmith");
 		bBuildInSolutionByDefault = false;
 

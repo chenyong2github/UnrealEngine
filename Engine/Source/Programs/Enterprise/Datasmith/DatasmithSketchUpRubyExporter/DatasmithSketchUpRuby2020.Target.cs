@@ -9,6 +9,7 @@ public abstract class DatasmithSketchUpRubyBaseTarget : TargetRules
 		: base(Target)
 	{
 		Type = TargetType.Program;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		SolutionDirectory = "Programs/Datasmith";
 		bBuildInSolutionByDefault = false;
 
@@ -46,7 +47,7 @@ public abstract class DatasmithSketchUpRubyBaseTarget : TargetRules
 		ReadOnlyBuildVersion BuildVersion = Target.Version;
 		string VersionString = string.Format("{0}.{1}.{2}", BuildVersion.MajorVersion, BuildVersion.MinorVersion, BuildVersion.PatchVersion);
 
-		PostBuildSteps.Add(string.Format("echo {1}> \"{0}\"", 
+		PostBuildSteps.Add(string.Format("echo {1}> \"{0}\"",
 			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/Plugin/UnrealDatasmithSketchUp/version", ExeBinariesSubFolder), VersionString));
 
 		// Copy plugin dll

@@ -47,6 +47,7 @@ public abstract class DatasmithSolidworksBaseTarget : TargetRules
 	public DatasmithSolidworksBaseTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Program;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		SolutionDirectory = "Programs/Datasmith";
 		bBuildInSolutionByDefault = false;
 		ExeBinariesSubFolder = "Solidworks/" + GetVersionShort();
