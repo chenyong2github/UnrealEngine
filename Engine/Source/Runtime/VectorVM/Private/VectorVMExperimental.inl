@@ -411,9 +411,10 @@ static uint8 *SetupBatchStatePtrs(FVectorVMState *VVMState, FVectorVMBatchState 
 		size_t PtrBeforeExtFnDecodeReg = (size_t)BatchDataPtr;
 		BatchState->ChunkLocalData.ExtFnDecodedReg.RegData       = (FVecReg **)BatchDataPtr;  BatchDataPtr += sizeof(FVecReg *) * VVMState->MaxExtFnRegisters;
 		BatchState->ChunkLocalData.ExtFnDecodedReg.RegInc        = (uint32 *)BatchDataPtr;    BatchDataPtr += sizeof(uint32)    * VVMState->MaxExtFnRegisters;
+		BatchDataPtr = (uint8 *)VVM_ALIGN_16(BatchDataPtr);
 		BatchState->ChunkLocalData.ExtFnDecodedReg.DummyRegs     = (FVecReg *)BatchDataPtr;   BatchDataPtr += sizeof(FVecReg)   * VVMState->NumDummyRegsReq;
 		size_t PtrAfterExtFnDecodeReg = (size_t)BatchDataPtr;
-		check(PtrAfterExtFnDecodeReg - PtrBeforeExtFnDecodeReg == VVMState->PerBatchChunkLocalNumExtFnDecodeRegisterBytesRequired);
+		check(PtrAfterExtFnDecodeReg - PtrBeforeExtFnDecodeReg <= VVMState->PerBatchChunkLocalNumExtFnDecodeRegisterBytesRequired);
 	}
 	
 	{ //after everything, likely outside of what the chunk will cache, setup the almost-never-used random counters and
@@ -535,8 +536,8 @@ VECTORVM_API FVectorVMState *InitVectorVMState(FVectorVMInitData *InitData, FVec
 	const uint32 MaxExtFnRegisters                                     = InitData->OptimizeContext->MaxExtFnRegisters == 0 ? 0 : VVM_ALIGN_4(InitData->OptimizeContext->MaxExtFnRegisters + 3); //we decode 4 at a time, so if we need any, we need a multiuple of 4
 	const size_t PerBatchChunkLocalDataOutputIdxBytesRequired	       = sizeof(uint32)                                        * InitData->OptimizeContext->NumOutputDataSets;                  //chunk local bytes required for instance offset
 	const size_t PerBatchChunkLocalNumOutputBytesRequired		       = sizeof(uint32)                                        * InitData->OptimizeContext->NumOutputDataSets;                  //chunk local bytes for num outputs
-	const size_t ConstantBufferSize					                   = sizeof(FVecReg)                                       * InitData->OptimizeContext->NumConstsRemapped;
-	const size_t PerBatchChunkLocalNumExtFnDecodeRegisterBytesRequired = (sizeof(FVecReg *) + sizeof(uint32)) * MaxExtFnRegisters + sizeof(FVecReg) * InitData->OptimizeContext->NumDummyRegsReq;
+	const size_t ConstantBufferSize					       = sizeof(FVecReg)                                       * InitData->OptimizeContext->NumConstsRemapped;
+	const size_t PerBatchChunkLocalNumExtFnDecodeRegisterBytesRequired = (sizeof(FVecReg *) + sizeof(uint32)) * MaxExtFnRegisters + sizeof(FVecReg) * (InitData->OptimizeContext->NumDummyRegsReq + 1); //+1 for potential padding
 
 	const size_t BatchOverheadSize                                     = ConstantBufferSize + 
 		                                                                 PerBatchChunkLocalDataOutputIdxBytesRequired + 

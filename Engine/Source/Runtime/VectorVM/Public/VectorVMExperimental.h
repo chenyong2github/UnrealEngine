@@ -66,8 +66,8 @@ struct FVectorVMSerializeDataSet
 	uint32 * InputBuffers;
 	uint32 * OutputBuffers;
 
-	uint32  InputOffset[3];	    //float, int, half (half must be 0)
-	uint32  OutputOffset[3];    //float, int, half (half must be 0)
+	uint32  InputOffset[4];	    //float, int, half (half must be 0)
+	uint32  OutputOffset[4];    //float, int, half (half must be 0)
 
 	int32   InputInstanceOffset;
 	int32   InputDataSetAccessIndex;
@@ -151,7 +151,7 @@ struct FVectorVMSerializeState
 	uint32                              NumChunks;
 	FVectorVMSerializeChunk *           Chunks;
 
-	struct FVectorVMOptimizeContext *   OptimizeCtx;
+	const struct FVectorVMOptimizeContext *   OptimizeCtx;
 
 	volatile int64                      ChunkComplete; //1 bit for each of the first 64 chunks
 
@@ -261,18 +261,20 @@ struct FVectorVMOptimizeInstruction
 
 enum EVectorVMOptimizeError
 {
-	VVMOptErr_OutOfMemory        = 1 << 0,
-	VVMOptErr_Bytecode           = 1 << 1,
-	VVMOptErr_RegisterUsage      = 1 << 2,
-	VVMOptErr_ConstRemap         = 1 << 3,
-	VVMOptErr_Instructions       = 1 << 4,
-	VVMOptErr_InputFuseBuffer    = 1 << 5,
-	VVMOptErr_InstructionReOrder = 1 << 6,
-	VVMOptErr_SSARemap           = 1 << 7,
-	VVMOptErr_OptimizedBytecode  = 1 << 8,
-	VVMOptErr_ExternalFunction   = 1 << 9,
+	VVMOptErr_OutOfMemory           = 1 << 0,
+	VVMOptErr_Overflow			    = 1 << 1,
+	VVMOptErr_Bytecode              = 1 << 2,
+	VVMOptErr_RegisterUsage         = 1 << 3,
+	VVMOptErr_ConstRemap            = 1 << 4,
+	VVMOptErr_Instructions          = 1 << 5,
+	VVMOptErr_InputFuseBuffer       = 1 << 6,
+	VVMOptErr_InstructionReOrder    = 1 << 7,
+	VVMOptErr_SSARemap              = 1 << 8,
+	VVMOptErr_OptimizedBytecode     = 1 << 9,
+	VVMOptErr_ExternalFunction      = 1 << 10,
+	VVMOptErr_RedundantInstruction  = 1 << 11,
 
-	VVMOptErr_Fatal              = 1 << 31
+	VVMOptErr_Fatal                 = 1 << 31
 };
 
 struct FVectorVMOptimizeContext
@@ -337,7 +339,7 @@ struct FVectorVMExternalFnPerInstanceData
 struct FVectorVMInitData
 {
 	struct FVectorVMState *					ExistingVectorVMState;
-	const FVectorVMOptimizeContext *              OptimizeContext;
+	const FVectorVMOptimizeContext *        OptimizeContext;
 	TArrayView<FDataSetMeta>                DataSets;
 	TArrayView<const FVMExternalFunction *> ExtFunctionTable;
 	
@@ -428,7 +430,7 @@ struct FVectorVMState
 class FVectorVMExternalFunctionContextExperimental
 {
 public:
-	uint32** RegisterData;
+	MS_ALIGN(16) uint32** RegisterData GCC_ALIGN(16);
 	uint16* RawVecIndices; //undecoded, for compatbility with the previous VM
 	uint32* RegInc;
 
