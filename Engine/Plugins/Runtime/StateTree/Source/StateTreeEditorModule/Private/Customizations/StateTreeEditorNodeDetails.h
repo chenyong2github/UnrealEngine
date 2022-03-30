@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UnrealClient.h"
+#include "Types/SlateStructs.h"
 #include "IPropertyTypeCustomization.h"
 
 class IPropertyHandle;
