@@ -47,16 +47,22 @@ public:
 		return &CallbackImpl;
 	}
 
+	/** Is this callback intended for the game thread */
+	bool bIsGameThreadCallback = true;
+
 private:
 	/** The object that needs to be checked for lifetime before calling the callback */
 	TWeakPtr<OwningType> Owner;
 
 	static void EOS_CALL CallbackImpl(const CallbackType* Data)
 	{
-		check(IsInGameThread());
-
 		TEOSGlobalCallback* CallbackThis = (TEOSGlobalCallback*)Data->ClientData;
 		check(CallbackThis);
+
+		if (CallbackThis->bIsGameThreadCallback)
+		{
+			check(IsInGameThread());
+		}
 
 		if (CallbackThis->Owner.IsValid())
 		{
