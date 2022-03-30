@@ -164,7 +164,7 @@ struct ZONEGRAPH_API FZoneGraphTagMask
 		case EZoneLaneTagMaskComparison::Not:
 			return !ContainsAny(InTags);
 		default:
-			ensureMsgf(false, TEXT("Unhandled operand %s."), *StaticEnum<EZoneLaneTagMaskComparison>()->GetNameStringByValue((int32)Operand));
+			ensureMsgf(false, TEXT("Unhandled operand %s."), *UEnum::GetValueAsString(Operand));
 		}
 		return false;
 	}

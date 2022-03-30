@@ -288,13 +288,15 @@ void FZoneGraphBuilder::FindShapeConnections(const UZoneShapeComponent& SourceSh
 					&& FVector::DotProduct(SourceWorldNormal, -DestWorldNormal) > ConnectionSnapAngleCos)
 				{
 					// Check that the profile orientation matches before connecting.
-					const FZoneLaneProfile* LaneProfile = ZoneGraphSettings->GetLaneProfileByRef(SourceConnector.LaneProfile);
-					if (LaneProfile->IsSymmetrical() || SourceConnector.bReverseLaneProfile != DestConnector.bReverseLaneProfile)
+					if (const FZoneLaneProfile* LaneProfile = ZoneGraphSettings->GetLaneProfileByRef(SourceConnector.LaneProfile))
 					{
-						OutShapeConnections[i].ShapeComponent = DestShapeComp;
-						OutShapeConnections[i].ConnectorIndex = j;
-						bFound = true;
-						break;
+						if (LaneProfile->IsSymmetrical() || SourceConnector.bReverseLaneProfile != DestConnector.bReverseLaneProfile)
+						{
+							OutShapeConnections[i].ShapeComponent = DestShapeComp;
+							OutShapeConnections[i].ConnectorIndex = j;
+							bFound = true;
+							break;
+						}
 					}
 				}
 			}
