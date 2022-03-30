@@ -43,6 +43,10 @@ class TRange;
 	Floating point constants.
 -----------------------------------------------------------------------------*/
 
+// These macros can have different values across modules inside a single codebase.
+// Tell the IncludeTool static analyzer to ignore that divergence in state:
+#define UE_INCLUDETOOL_IGNORE_INCONSISTENT_STATE
+
 // Define this to 1 in a module's .Build.cs to make legacy names issue deprecation warnings.
 #ifndef UE_DEPRECATE_LEGACY_MATH_CONSTANT_MACRO_NAMES
 	#define UE_DEPRECATE_LEGACY_MATH_CONSTANT_MACRO_NAMES 0
@@ -129,6 +133,8 @@ class TRange;
 	#define DOUBLE_THRESH_VECTOR_NORMALIZED			UE_PRIVATE_MATH_DEPRECATION(DOUBLE_THRESH_VECTOR_NORMALIZED			, UE_DOUBLE_THRESH_VECTOR_NORMALIZED		) UE_DOUBLE_THRESH_VECTOR_NORMALIZED
 	#define DOUBLE_THRESH_QUAT_NORMALIZED			UE_PRIVATE_MATH_DEPRECATION(DOUBLE_THRESH_QUAT_NORMALIZED			, UE_DOUBLE_THRESH_QUAT_NORMALIZED			) UE_DOUBLE_THRESH_QUAT_NORMALIZED
 #endif
+
+#undef UE_INCLUDETOOL_IGNORE_INCONSISTENT_STATE
 
 #define UE_PI 					(3.1415926535897932f)	/* Extra digits if needed: 3.1415926535897932384626433832795f */
 #define UE_SMALL_NUMBER			(1.e-8f)

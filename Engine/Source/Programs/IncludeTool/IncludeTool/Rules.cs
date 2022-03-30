@@ -560,10 +560,6 @@ namespace IncludeTool
 			{
 				return true;
 			}
-			if(Markup.Type == PreprocessorMarkupType.Define && (Markup.Tokens[0].Text == "UE_DEFINE_LEGACY_MATH_CONSTANT_MACRO_NAMES" || Markup.Tokens[0].Text == "UE_DEPRECATE_LEGACY_MATH_CONSTANT_MACRO_NAMES"))
-			{
-				return true;
-			}
 			if(Markup.Type == PreprocessorMarkupType.Undef && Markup.Tokens[0].Text == "TEXT")
 			{
 				return true;

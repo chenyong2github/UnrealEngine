@@ -1089,9 +1089,29 @@ namespace IncludeTool
 					}
 					else if((File.Flags & SourceFileFlags.External) == 0)
 					{
+						bool bIgnoreInconsistentState = false;
+						int IgnoreInconsistentStateIdx = -1;
+
 						// Another thread has already derived the active markup for this file; check it's identical.
 						for(int Idx = 0; Idx < File.Markup.Length; Idx++)
 						{
+							if (File.Markup[Idx].Type == PreprocessorMarkupType.Define && File.Markup[Idx].Tokens[0].Text == "UE_INCLUDETOOL_IGNORE_INCONSISTENT_STATE")
+							{
+								IgnoreInconsistentStateIdx = Idx;
+								bIgnoreInconsistentState = true;
+							}
+
+							if (bIgnoreInconsistentState)
+							{
+								if (File.Markup[Idx].Type == PreprocessorMarkupType.Undef && File.Markup[Idx].Tokens[0].Text == "UE_INCLUDETOOL_IGNORE_INCONSISTENT_STATE")
+								{
+									IgnoreInconsistentStateIdx = -1;
+									bIgnoreInconsistentState = false;
+								}
+
+								continue;
+							}
+
 							if(ActiveMarkup.Flags[Idx] != CurrentActiveMarkup.Flags[Idx] && !Rules.AllowDifferentMarkup(File, Idx))
 							{
 								lock(Log)
@@ -1109,6 +1129,11 @@ namespace IncludeTool
 									}
 								}
 							}
+						}
+
+						if (bIgnoreInconsistentState)
+						{
+							Log.WriteLine($"{File.Location.FullName}({File.Markup[IgnoreInconsistentStateIdx].Location.LineIdx + 1}): warning: UE_INCLUDE_IGNORE_INCONSISTENT_STATE was defined, but not undefined. Add '#undef UE_INCLUDE_IGNORE_INCONSISTENT_STATE' to this file.");
 						}
 					}
 				}
