@@ -4,6 +4,7 @@
 
 #include "MediaSource.h"
 #include "MediaPlate.h"
+#include "MediaPlateComponent.h"
 
 #define LOCTEXT_NAMESPACE "ActorFactoryMediaPlate"
 
@@ -54,9 +55,9 @@ void UActorFactoryMediaPlate::SetUpActor(UObject* Asset, AActor* Actor)
 
 		// Hook up media source.
 		UMediaSource* MediaSource = Cast<UMediaSource>(Asset);
-		if (MediaSource != nullptr)
+		if ((MediaSource != nullptr) && (MediaPlate->MediaPlateComponent != nullptr))
 		{
-			MediaPlate->MediaSource = MediaSource;
+			MediaPlate->MediaPlateComponent->MediaSource = MediaSource;
 		}
 	}
 }

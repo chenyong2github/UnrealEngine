@@ -5,7 +5,7 @@
 #include "AssetTools/MediaPlateActions.h"
 #include "Editor.h"
 #include "LevelEditorViewport.h"
-#include "MediaPlate.h"
+#include "MediaPlateComponent.h"
 #include "MediaPlateCustomization.h"
 #include "MediaPlateEditorStyle.h"
 #include "MediaPlayer.h"
@@ -23,7 +23,7 @@ void FMediaPlateEditorModule::StartupModule()
 	RegisterAssetTools();
 
 	// Register customizations.
-	MediaPlateName = AMediaPlate::StaticClass()->GetFName();
+	MediaPlateName = UMediaPlateComponent::StaticClass()->GetFName();
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout(MediaPlateName,
@@ -47,8 +47,8 @@ void FMediaPlateEditorModule::Tick(float DeltaTime)
 	for (int Index = 0; Index < ActiveMediaPlates.Num(); ++Index)
 	{
 		// Get the player.
-		TWeakObjectPtr<AMediaPlate>& PlatePtr = ActiveMediaPlates[Index];
-		TObjectPtr<AMediaPlate> MediaPlate = PlatePtr.Get();
+		TWeakObjectPtr<UMediaPlateComponent>& PlatePtr = ActiveMediaPlates[Index];
+		TObjectPtr<UMediaPlateComponent> MediaPlate = PlatePtr.Get();
 		bool bIsMediaPlateToBeRemoved = true;
 		if (MediaPlate != nullptr)
 		{
@@ -84,7 +84,7 @@ void FMediaPlateEditorModule::Tick(float DeltaTime)
 	}
 }
 
-void FMediaPlateEditorModule::MediaPlateStartedPlayback(TObjectPtr<AMediaPlate> MediaPlate)
+void FMediaPlateEditorModule::MediaPlateStartedPlayback(TObjectPtr<UMediaPlateComponent> MediaPlate)
 {
 	if (MediaPlate != nullptr)
 	{

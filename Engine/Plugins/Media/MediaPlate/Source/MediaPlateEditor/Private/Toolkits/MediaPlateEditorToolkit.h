@@ -9,7 +9,7 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "UObject/GCObject.h"
 
-class AMediaPlate;
+class UMediaPlateComponent;
 
 /**
  * Implements an Editor toolkit for media plates.
@@ -33,11 +33,11 @@ public:
 	/**
 	 * Initializes the editor tool kit.
 	 *
-	 * @param InMediaPlate The AMediaPlate asset to edit.
+	 * @param InMediaPlate The media plate asset to edit.
 	 * @param InMode The mode to create the toolkit in.
 	 * @param InToolkitHost The toolkit host.
 	 */
-	void Initialize(AMediaPlate* InMediaPlate, const EToolkitMode::Type InMode, const TSharedPtr<IToolkitHost>& InToolkitHost);
+	void Initialize(UMediaPlateComponent* InMediaPlate, const EToolkitMode::Type InMode, const TSharedPtr<IToolkitHost>& InToolkitHost);
 
 	//~ FAssetEditorToolkit interface
 	virtual FString GetDocumentationLink() const override;
@@ -90,7 +90,7 @@ private:
 	TSharedRef<SDockTab> HandleTabManagerSpawnTab(const FSpawnTabArgs& Args, FName TabIdentifier);
 
 	/** The media plate asset being edited. */
-	AMediaPlate* MediaPlate;
+	TObjectPtr<UMediaPlateComponent> MediaPlate;
 
 	/** Pointer to the style set to use for toolkits. */
 	TSharedRef<ISlateStyle> Style;

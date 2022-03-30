@@ -1,0 +1,137 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MediaPlateComponent.h"
+
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "MediaComponent.h"
+#include "MediaPlayer.h"
+#include "MediaPlateModule.h"
+#include "MediaSource.h"
+#include "MediaTexture.h"
+#include "MediaTextureTracker.h"
+
+#define LOCTEXT_NAMESPACE "MediaPlate"
+
+FLazyName UMediaPlateComponent::MediaComponentName(TEXT("MediaComponent0"));
+
+UMediaPlateComponent::UMediaPlateComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Set up media component.
+	MediaComponent = CreateDefaultSubobject<UMediaComponent>(MediaComponentName);
+	if (MediaComponent != nullptr)
+	{
+		// Set up media texture.
+		UMediaTexture* MediaTexture = MediaComponent->GetMediaTexture();
+		if (MediaTexture != nullptr)
+		{
+			MediaTexture->NewStyleOutput = true;
+		}
+	}
+}
+
+void UMediaPlateComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// Start playing?
+	if (bAutoPlay)
+	{
+		Play();
+	}
+}
+
+UMediaPlayer* UMediaPlateComponent::GetMediaPlayer()
+{
+	TObjectPtr<UMediaPlayer> MediaPlayer = nullptr;
+	if (MediaComponent != nullptr)
+	{
+		MediaPlayer = MediaComponent->GetMediaPlayer();
+	}
+
+	return MediaPlayer;
+}
+
+UMediaTexture* UMediaPlateComponent::GetMediaTexture()
+{
+	TObjectPtr<UMediaTexture> MediaTexture = nullptr;
+	if (MediaComponent != nullptr)
+	{
+		MediaTexture = MediaComponent->GetMediaTexture();
+	}
+
+	return MediaTexture;
+}
+
+void UMediaPlateComponent::Play()
+{
+	bool bIsPlaying = false;
+	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
+	if (MediaPlayer != nullptr)
+	{
+		MediaPlayer->PlayOnOpen = true;
+		MediaPlayer->SetLooping(bLoop);
+		
+		// Try and play the media path.
+		if (MediaPath.FilePath.IsEmpty() == false)
+		{
+			MediaPathMediaSource = UMediaSource::SpawnMediaSourceForString(MediaPath.FilePath);
+			if (MediaPathMediaSource != nullptr)
+			{
+				bIsPlaying = MediaPlayer->OpenSource(MediaPathMediaSource);
+				return;
+			}
+		}
+
+		// If we did not get anything, try the media source.
+		if (bIsPlaying == false)
+		{
+			bIsPlaying = MediaPlayer->OpenSource(MediaSource);
+		}
+	}
+
+	// Did anything play?
+	if (bIsPlaying == false)
+	{
+		UE_LOG(LogMediaPlate, Warning, TEXT("Could not play anything."));
+	}
+}
+
+void UMediaPlateComponent::Stop()
+{
+	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
+	if (MediaPlayer != nullptr)
+	{
+		MediaPlayer->Close();
+	}
+}
+
+void UMediaPlateComponent::RegisterWithMediaTextureTracker()
+{
+	// Set up object.
+	MediaTextureTrackerObject = MakeShared<FMediaTextureTrackerObject, ESPMode::ThreadSafe>();
+	MediaTextureTrackerObject->Object = GetOwner();
+	MediaTextureTrackerObject->MipMapLODBias = 0.0f;
+
+	// Add our texture.
+	TObjectPtr<UMediaTexture> MediaTexture = GetMediaTexture();
+	if (MediaTexture != nullptr)
+	{
+		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
+		MediaTextureTracker.RegisterTexture(MediaTextureTrackerObject, MediaTexture);
+	}
+}
+
+void UMediaPlateComponent::UnregisterWithMediaTextureTracker()
+{
+	// Remove out texture.
+	if (MediaTextureTrackerObject != nullptr)
+	{
+		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
+		TObjectPtr<UMediaTexture> MediaTexture = GetMediaTexture();
+		MediaTextureTracker.UnregisterTexture(MediaTextureTrackerObject, MediaTexture);
+	}
+}
+
+#undef LOCTEXT_NAMESPACE

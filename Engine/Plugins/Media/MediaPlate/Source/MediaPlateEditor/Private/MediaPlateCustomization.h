@@ -7,11 +7,11 @@
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"
 
-class AMediaPlate;
 class IDetailLayoutBuilder;
+class UMediaPlateComponent;
 
 /**
- * Implements a details view customization for the AMediaPlate class.
+ * Implements a details view customization for the UMediaPlateComponent class.
  */
 class FMediaPlateCustomization
 	: public IDetailCustomization
@@ -34,8 +34,8 @@ public:
 
 private:
 
-	/** List of the actors we are editing. */
-	TArray<TWeakObjectPtr<AMediaPlate>> ActorsList;
+	/** List of the media plates we are editing. */
+	TArray<TWeakObjectPtr<UMediaPlateComponent>> MediaPlatesList;
 
 	/** Stores our media source property. */
 	TSharedPtr<IPropertyHandle> MediaSourceProperty;

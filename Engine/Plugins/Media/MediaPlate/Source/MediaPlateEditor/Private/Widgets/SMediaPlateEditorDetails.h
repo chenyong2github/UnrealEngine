@@ -7,7 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class AMediaPlate;
+class UMediaPlateComponent;
 
 /**
  * Implements the details panel of the MediaPlate asset editor.
@@ -29,10 +29,10 @@ public:
 	 * @param InMediaPlate	The MediaPlate to show the details for.
 	 * @param InStyleSet	The style set to use.
 	 */
-	void Construct(const FArguments& InArgs, AMediaPlate& InMediaPlate, const TSharedRef<ISlateStyle>& InStyle);
+	void Construct(const FArguments& InArgs, UMediaPlateComponent& InMediaPlate, const TSharedRef<ISlateStyle>& InStyle);
 
 private:
 
 	/** Pointer to the MediaPlate that is being viewed. */
-	TObjectPtr<AMediaPlate> MediaPlate;
+	TObjectPtr<UMediaPlateComponent> MediaPlate;
 };

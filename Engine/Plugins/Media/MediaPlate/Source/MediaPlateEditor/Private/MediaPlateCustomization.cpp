@@ -7,6 +7,7 @@
 #include "DetailWidgetRow.h"
 #include "EditorStyleSet.h"
 #include "MediaPlate.h"
+#include "MediaPlateComponent.h"
 #include "MediaPlateEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Widgets/Input/SButton.h"
@@ -24,21 +25,21 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	// Get objects we are editing.
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	DetailBuilder.GetObjectsBeingCustomized(Objects);
-	ActorsList.Reserve(Objects.Num());
+	MediaPlatesList.Reserve(Objects.Num());
 	for (TWeakObjectPtr<UObject>& Obj : Objects)
 	{
-		TWeakObjectPtr<AMediaPlate> ActorPtr = Cast<AMediaPlate>(Obj.Get());
-		if (ActorPtr.IsValid())
+		TWeakObjectPtr<UMediaPlateComponent> MediaPlate = Cast<UMediaPlateComponent>(Obj.Get());
+		if (MediaPlate.IsValid())
 		{
-			ActorsList.Add(ActorPtr);
+			MediaPlatesList.Add(MediaPlate);
 		}
 	}
 
 	// Get media source property.
-	MediaSourceProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AMediaPlate, MediaSource));
+	MediaSourceProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMediaPlateComponent, MediaSource));
 	
 	// Get media path property.
-	TSharedRef<IPropertyHandle> Property = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AMediaPlate, MediaPath));
+	TSharedRef<IPropertyHandle> Property = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMediaPlateComponent, MediaPath));
 	if (Property->IsValidHandle())
 	{
 		MediaPathProperty = Property->GetChildHandle("FilePath");
@@ -86,9 +87,9 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						.VAlign(VAlign_Center)
 						.OnClicked_Lambda([this]() -> FReply
 						{
-							for (TWeakObjectPtr<AMediaPlate>& ActorPtr : ActorsList)
+							for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
 							{
-								AMediaPlate* MediaPlate = ActorPtr.Get();
+								UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 								if (MediaPlate != nullptr)
 								{
 									// Tell the editor module that this media plate is playing.
@@ -120,9 +121,9 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						.VAlign(VAlign_Center)
 						.OnClicked_Lambda([this]() -> FReply
 						{
-							for (TWeakObjectPtr<AMediaPlate>& ActorPtr : ActorsList)
+							for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
 							{
-								AMediaPlate* MediaPlate = ActorPtr.Get();
+								UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 								if (MediaPlate != nullptr)
 								{
 									MediaPlate->Stop();
@@ -162,9 +163,9 @@ FReply FMediaPlateCustomization::OnOpenMediaPlate()
 {
 	// Get all our objects.
 	TArray<UObject*> AssetArray;
-	for (TWeakObjectPtr<AMediaPlate>& ActorPtr : ActorsList)
+	for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
 	{
-		AMediaPlate* MediaPlate = ActorPtr.Get();
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 		if (MediaPlate != nullptr)
 		{
 			AssetArray.Add(MediaPlate);

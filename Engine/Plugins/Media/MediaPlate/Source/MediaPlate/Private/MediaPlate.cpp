@@ -5,17 +5,14 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "MediaComponent.h"
-#include "MediaPlayer.h"
+#include "MediaPlateComponent.h"
 #include "MediaPlateModule.h"
-#include "MediaSource.h"
 #include "MediaTexture.h"
-#include "MediaTextureTracker.h"
 #include "UObject/ConstructorHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MediaPlate"
 
-FLazyName AMediaPlate::MediaComponentName(TEXT("MediaComponent0"));
+FLazyName AMediaPlate::MediaPlateComponentName(TEXT("MediaPlateComponent0"));
 FLazyName AMediaPlate::MediaTextureName("MediaTexture");
 
 AMediaPlate::AMediaPlate(const FObjectInitializer& ObjectInitializer)
@@ -24,16 +21,7 @@ AMediaPlate::AMediaPlate(const FObjectInitializer& ObjectInitializer)
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 
 	// Set up media component.
-	MediaComponent = CreateDefaultSubobject<UMediaComponent>(MediaComponentName);
-	if (MediaComponent != nullptr)
-	{
-		// Set up media texture.
-		UMediaTexture* MediaTexture = MediaComponent->GetMediaTexture();
-		if (MediaTexture != nullptr)
-		{
-			MediaTexture->NewStyleOutput = true;
-		}
-	}
+	MediaPlateComponent = CreateDefaultSubobject<UMediaPlateComponent>(MediaPlateComponentName);
 
 	// Set up static mesh component.
 	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
@@ -60,142 +48,46 @@ void AMediaPlate::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
 
-	if (StaticMeshComponent != nullptr)
+	if (MediaPlateComponent != nullptr)
 	{
-		// Do we have a material?
-		if (StaticMeshComponent->GetNumOverrideMaterials() == 0)
+		if (StaticMeshComponent != nullptr)
 		{
-			// Add material.
-			UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MediaPlate/M_MediaPlate"));
-			if (Material != nullptr)
+			// Do we have a material?
+			if (StaticMeshComponent->GetNumOverrideMaterials() == 0)
 			{
-				UMaterialInstanceDynamic* MaterialInstance = StaticMeshComponent->CreateAndSetMaterialInstanceDynamicFromMaterial(0, Material);
+				// Add material.
+				UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MediaPlate/M_MediaPlate"));
+				if (Material != nullptr)
+				{
+					UMaterialInstanceDynamic* MaterialInstance = StaticMeshComponent->CreateAndSetMaterialInstanceDynamicFromMaterial(0, Material);
+				}
+			}
+
+			// Set up the material to point to our media texture.
+			if (StaticMeshComponent->GetNumMaterials() > 0)
+			{
+				UMaterialInstanceDynamic* MaterialInstance = Cast< UMaterialInstanceDynamic>(StaticMeshComponent->GetMaterial(0));
+				if (MaterialInstance != nullptr)
+				{
+					MaterialInstance->SetTextureParameterValue(MediaTextureName, MediaPlateComponent->GetMediaTexture());
+				}
 			}
 		}
 
-		// Set up the material to point to our media texture.
-		if (StaticMeshComponent->GetNumMaterials() > 0)
-		{
-			UMaterialInstanceDynamic* MaterialInstance = Cast< UMaterialInstanceDynamic>(StaticMeshComponent->GetMaterial(0));
-			if (MaterialInstance != nullptr)
-			{
-				MaterialInstance->SetTextureParameterValue(MediaTextureName, MediaComponent->GetMediaTexture());
-			}
-		}
-	}
-
-	// Add our media texture to the tracker.
-	RegisterWithMediaTextureTracker();
-}
-
-void AMediaPlate::BeginPlay()
-{
-	Super::BeginPlay();
-
-	if (bAutoPlay)
-	{
-		Play();
+		// Add our media texture to the tracker.
+		MediaPlateComponent->RegisterWithMediaTextureTracker();
 	}
 }
 
 void AMediaPlate::BeginDestroy()
 {
-	// Remove our media texture.
-	UnregisterWithMediaTextureTracker();
+	if (MediaPlateComponent != nullptr)
+	{
+		// Remove our media texture.
+		MediaPlateComponent->UnregisterWithMediaTextureTracker();
+	}
 	
 	Super::BeginDestroy();
-}
-
-UMediaPlayer* AMediaPlate::GetMediaPlayer()
-{
-	TObjectPtr<UMediaPlayer> MediaPlayer = nullptr;
-	if (MediaComponent != nullptr)
-	{
-		MediaPlayer = MediaComponent->GetMediaPlayer();
-	}
-
-	return MediaPlayer;
-}
-
-UMediaTexture* AMediaPlate::GetMediaTexture()
-{
-	TObjectPtr<UMediaTexture> MediaTexture = nullptr;
-	if (MediaComponent != nullptr)
-	{
-		MediaTexture = MediaComponent->GetMediaTexture();
-	}
-
-	return MediaTexture;
-}
-
-void AMediaPlate::Play()
-{
-	bool bIsPlaying = false;
-	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
-	if (MediaPlayer != nullptr)
-	{
-		MediaPlayer->PlayOnOpen = true;
-		MediaPlayer->SetLooping(bLoop);
-		
-		// Try and play the media path.
-		if (MediaPath.FilePath.IsEmpty() == false)
-		{
-			MediaPathMediaSource = UMediaSource::SpawnMediaSourceForString(MediaPath.FilePath);
-			if (MediaPathMediaSource != nullptr)
-			{
-				bIsPlaying = MediaPlayer->OpenSource(MediaPathMediaSource);
-				return;
-			}
-		}
-
-		// If we did not get anything, try the media source.
-		if (bIsPlaying == false)
-		{
-			bIsPlaying = MediaPlayer->OpenSource(MediaSource);
-		}
-	}
-
-	// Did anything play?
-	if (bIsPlaying == false)
-	{
-		UE_LOG(LogMediaPlate, Warning, TEXT("Could not play anything."));
-	}
-}
-
-void AMediaPlate::Stop()
-{
-	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
-	if (MediaPlayer != nullptr)
-	{
-		MediaPlayer->Close();
-	}
-}
-
-void AMediaPlate::RegisterWithMediaTextureTracker()
-{
-	// Set up object.
-	MediaTextureTrackerObject = MakeShared<FMediaTextureTrackerObject, ESPMode::ThreadSafe>();
-	MediaTextureTrackerObject->Object = this;
-	MediaTextureTrackerObject->MipMapLODBias = 0.0f;
-
-	// Add our texture.
-	TObjectPtr<UMediaTexture> MediaTexture = GetMediaTexture();
-	if (MediaTexture != nullptr)
-	{
-		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
-		MediaTextureTracker.RegisterTexture(MediaTextureTrackerObject, MediaTexture);
-	}
-}
-
-void AMediaPlate::UnregisterWithMediaTextureTracker()
-{
-	// Remove out texture.
-	if (MediaTextureTrackerObject != nullptr)
-	{
-		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
-		TObjectPtr<UMediaTexture> MediaTexture = GetMediaTexture();
-		MediaTextureTracker.UnregisterTexture(MediaTextureTrackerObject, MediaTexture);
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -7,6 +7,7 @@
 #include "EditorReimportHandler.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "MediaPlate.h"
+#include "MediaPlateComponent.h"
 #include "MediaPlateEditorModule.h"
 #include "MediaPlayer.h"
 #include "MediaPlaylist.h"
@@ -45,7 +46,7 @@ FMediaPlateEditorToolkit::~FMediaPlateEditorToolkit()
 /* FMediaPlateEditorToolkit interface
  *****************************************************************************/
 
-void FMediaPlateEditorToolkit::Initialize(AMediaPlate* InMediaPlate, const EToolkitMode::Type InMode, const TSharedPtr<IToolkitHost>& InToolkitHost)
+void FMediaPlateEditorToolkit::Initialize(UMediaPlateComponent* InMediaPlate, const EToolkitMode::Type InMode, const TSharedPtr<IToolkitHost>& InToolkitHost)
 {
 	MediaPlate = InMediaPlate;
 

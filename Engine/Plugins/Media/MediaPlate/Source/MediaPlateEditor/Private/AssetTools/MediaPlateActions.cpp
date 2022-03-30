@@ -5,7 +5,7 @@
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
-#include "MediaPlate.h"
+#include "MediaPlateComponent.h"
 #include "MediaTexture.h"
 #include "Misc/PackageName.h"
 #include "Toolkits/MediaPlateEditorToolkit.h"
@@ -40,7 +40,7 @@ FText FMediaPlateActions::GetName() const
 
 UClass* FMediaPlateActions::GetSupportedClass() const
 {
-	return AMediaPlate::StaticClass();
+	return UMediaPlateComponent::StaticClass();
 }
 
 FColor FMediaPlateActions::GetTypeColor() const
@@ -56,7 +56,7 @@ void FMediaPlateActions::OpenAssetEditor(const TArray<UObject*>& InObjects, TSha
 
 	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
 	{
-		AMediaPlate* MediaPlate = Cast<AMediaPlate>(*ObjIt);
+		UMediaPlateComponent* MediaPlate = Cast<UMediaPlateComponent>(*ObjIt);
 
 		if (MediaPlate != nullptr)
 		{

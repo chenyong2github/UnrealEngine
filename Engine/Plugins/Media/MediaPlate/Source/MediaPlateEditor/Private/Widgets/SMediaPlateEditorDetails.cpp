@@ -2,7 +2,7 @@
 
 #include "Widgets/SMediaPlateEditorDetails.h"
 #include "IDetailsView.h"
-#include "MediaPlate.h"
+#include "MediaPlateComponent.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 
@@ -11,7 +11,7 @@
 /* SMediaPlateEditorDetails interface
  *****************************************************************************/
 
-void SMediaPlateEditorDetails::Construct(const FArguments& InArgs, AMediaPlate& InMediaPlate, const TSharedRef<ISlateStyle>& InStyle)
+void SMediaPlateEditorDetails::Construct(const FArguments& InArgs, UMediaPlateComponent& InMediaPlate, const TSharedRef<ISlateStyle>& InStyle)
 {
 	MediaPlate = &InMediaPlate;
 

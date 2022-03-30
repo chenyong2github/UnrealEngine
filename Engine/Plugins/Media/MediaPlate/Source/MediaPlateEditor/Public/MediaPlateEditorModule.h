@@ -8,10 +8,10 @@
 #include "TickableEditorObject.h"
 #include "UObject/ObjectPtr.h"
 
-class AMediaPlate;
 class IAssetTools;
 class IAssetTypeActions;
 class ISlateStyle;
+class UMediaPlateComponent;
 
 /** Log category for this module. */
 DECLARE_LOG_CATEGORY_EXTERN(LogMediaPlateEditor, Log, All);
@@ -31,14 +31,14 @@ public:
 	/**
 	 * Call this when a media plate starts playing so we can track it.
 	 */
-	void MediaPlateStartedPlayback(TObjectPtr<AMediaPlate> MediaPlate);
+	void MediaPlateStartedPlayback(TObjectPtr<UMediaPlateComponent> MediaPlate);
 	
 private:
 
 	/** Customization name to avoid reusing staticstruct during shutdown. */
 	FName MediaPlateName;
 	/** Holds all the media plates that are playing. */
-	TArray<TWeakObjectPtr<AMediaPlate>> ActiveMediaPlates;
+	TArray<TWeakObjectPtr<UMediaPlateComponent>> ActiveMediaPlates;
 
 	/** Holds the plug-ins style set. */
 	TSharedPtr<ISlateStyle> Style;
