@@ -445,6 +445,7 @@ bool UNiagaraNode::ConvertNumericPinToType(UEdGraphPin* InGraphPin, FNiagaraType
 	InGraphPin->Modify();
 	InGraphPin->PinType = PinType;
 	InGraphPin->ResetDefaultValue();
+	PinTypeChanged(InGraphPin);
 	ReallocatePins();
 
 	return true;

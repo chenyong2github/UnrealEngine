@@ -108,6 +108,22 @@ FLinearColor UNiagaraNodeOp::GetNodeTitleColor() const
 	return GetDefault<UGraphEditorSettings>()->FunctionCallNodeTitleColor;
 }
 
+void UNiagaraNodeOp::PinTypeChanged(UEdGraphPin* Pin)
+{
+	FName PinName = Pin->PinName;
+
+	for(FAddedPinData& AddedPinData : AddedPins)
+	{
+		if(AddedPinData.PinName == PinName)
+		{
+			AddedPinData.PinType = Pin->PinType;
+			break;
+		}
+	}
+	
+	Super::PinTypeChanged(Pin);
+}
+
 void UNiagaraNodeOp::OnPostSynchronizationInReallocatePins() 
 {
 	FPinCollectorArray InputPins;

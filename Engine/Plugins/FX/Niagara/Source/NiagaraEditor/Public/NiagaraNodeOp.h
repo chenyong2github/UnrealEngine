@@ -56,6 +56,7 @@ public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetTooltipText() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual void PinTypeChanged(UEdGraphPin* Pin) override;
 	//~ End EdGraphNode Interface
 
 	//~ Begin UNiagaraNode Interface
