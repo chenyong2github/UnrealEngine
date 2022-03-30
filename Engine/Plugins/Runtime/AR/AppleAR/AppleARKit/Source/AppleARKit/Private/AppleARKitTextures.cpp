@@ -578,8 +578,11 @@ public:
 		{
 			Size.X = Size.Y = Owner->Size.X;
 
-			const ETextureCreateFlags CreateFlags = TexCreate_SRGB;
-			EnvCubemapTextureRHIRef = RHICreateTextureCube(Size.X, PF_B8G8R8A8, 1, CreateFlags, CreateInfo);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::CreateCube(TEXT("FARMetalResource"), Size.X, PF_B8G8R8A8)
+				.SetFlags(ETextureCreateFlags::SRGB);
+
+			EnvCubemapTextureRHIRef = RHICreateTexture(Desc);
 
 			/**
 			 * To map their texture faces into our space we need:
@@ -600,8 +603,12 @@ public:
 		else
 		{
 			Size.X = Size.Y = 1;
+
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::CreateCube(TEXT("FARMetalResource"), Size.X, PF_B8G8R8A8);
+
 			// Start with a 1x1 texture
-			EnvCubemapTextureRHIRef = RHICreateTextureCube(Size.X, PF_B8G8R8A8, 1, TexCreate_None, CreateInfo);
+			EnvCubemapTextureRHIRef = RHICreateTexture(Desc);
 		}
 
 

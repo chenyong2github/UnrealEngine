@@ -159,7 +159,7 @@ void RasterizationGrid3DRWInstanceData::ResizeBuffers()
 	if (NumTotalCells > (uint32)GMaxNiagaraRasterizationGridCells)
 		return;
 
-	RasterizationBuffer.Initialize(TEXT("NiagaraRasterizationGrid3D::IntGrid"), sizeof(int32), NumCells.X * NumTiles.X, NumCells.Y * NumTiles.Y, NumCells.Z * NumTiles.Z, EPixelFormat::PF_R32_SINT);
+	RasterizationBuffer.Initialize3D(TEXT("NiagaraRasterizationGrid3D::IntGrid"), sizeof(int32), NumCells.X * NumTiles.X, NumCells.Y * NumTiles.Y, NumCells.Z * NumTiles.Z, EPixelFormat::PF_R32_SINT);
 
 	#if STATS
 		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemory);

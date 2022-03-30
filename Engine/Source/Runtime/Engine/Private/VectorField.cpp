@@ -208,12 +208,14 @@ public:
 		{
 			const uint32 DataSize = SizeX * SizeY * SizeZ * sizeof(FFloat16Color);
 			FVectorFieldStaticResourceBulkDataInterface BulkDataInterface(VolumeData, DataSize);
-			FRHIResourceCreateInfo CreateInfo(TEXT("FVectorFieldStaticResource"), &BulkDataInterface);
-			VolumeTextureRHI = RHICreateTexture3D(
-				SizeX, SizeY, SizeZ, PF_FloatRGBA,
-				/*NumMips=*/ 1,
-				/*Flags=*/ TexCreate_ShaderResource,
-				/*BulkData=*/ CreateInfo );
+
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create3D(TEXT("FVectorFieldStaticResource"), SizeX, SizeY, SizeZ, PF_FloatRGBA)
+				.SetFlags(ETextureCreateFlags::ShaderResource)
+				.SetBulkData(&BulkDataInterface);
+
+			VolumeTextureRHI = RHICreateTexture(Desc);
+
 			FMemory::Free(VolumeData);
 			VolumeData = NULL;
 		}
@@ -1096,13 +1098,11 @@ public:
 				TexCreateFlags = TexCreate_ShaderResource | TexCreate_UAV;
 			}
 
-			FRHIResourceCreateInfo CreateInfo(TEXT("FVectorFieldAnimatedResource"));
-			VolumeTextureRHI = RHICreateTexture3D(
-				SizeX, SizeY, SizeZ,
-				PF_FloatRGBA,
-				/*NumMips=*/ 1,
-				TexCreateFlags,
-				CreateInfo);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create3D(TEXT("FVectorFieldAnimatedResource"), SizeX, SizeY, SizeZ, PF_FloatRGBA)
+				.SetFlags(TexCreateFlags);
+
+			VolumeTextureRHI = RHICreateTexture(Desc);
 
 			if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 			{

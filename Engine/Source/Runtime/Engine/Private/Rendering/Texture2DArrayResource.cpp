@@ -73,10 +73,13 @@ void FTexture2DArrayResource::CreateTexture()
 	TArrayView<const FTexture2DMipMap*> MipsView = GetPlatformMipsView();
 	const FTexture2DMipMap& FirstMip = *MipsView[RequestedFirstLODIdx];
 
-	FRHIResourceCreateInfo CreateInfo(TEXT("FTexture2DArrayResource"));
-	CreateInfo.ExtData = PlatformData->GetExtData();
-	TRefCountPtr<FRHITexture2DArray> TextureArray = RHICreateTexture2DArray(FirstMip.SizeX, FirstMip.SizeY, FirstMip.SizeZ, PixelFormat, State.NumRequestedLODs, 1, CreationFlags, CreateInfo);
-	TextureRHI = TextureArray;
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2DArray(TEXT("FTexture2DArrayResource"), FirstMip.SizeX, FirstMip.SizeY, FirstMip.SizeZ, PixelFormat)
+		.SetNumMips(State.NumRequestedLODs)
+		.SetFlags(CreationFlags)
+		.SetExtData(PlatformData->GetExtData());
+
+	TextureRHI = RHICreateTexture(Desc);
 
 	// Read the initial cached mip levels into the RHI texture.
 	const int32 NumLoadableMips = State.NumRequestedLODs - FMath::Max(1, PlatformData->GetNumMipsInTail()) + 1;
@@ -86,12 +89,12 @@ void FTexture2DArrayResource::CreateTexture()
 		for (uint32 SliceIdx = 0; SliceIdx < SizeZ; ++SliceIdx)
 		{
 			uint32 DestStride = 0;
-			void* DestData = RHILockTexture2DArray(TextureArray, SliceIdx, RHIMipIdx, RLM_WriteOnly, DestStride, false);
+			void* DestData = RHILockTexture2DArray(TextureRHI, SliceIdx, RHIMipIdx, RLM_WriteOnly, DestStride, false);
 			if (DestData)
 			{
 				GetData(SliceIdx, MipIdx, DestData, DestStride);
 			}
-			RHIUnlockTexture2DArray(TextureArray, SliceIdx, RHIMipIdx, false);
+			RHIUnlockTexture2DArray(TextureRHI, SliceIdx, RHIMipIdx, false);
 		}
 	}
 		

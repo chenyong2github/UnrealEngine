@@ -274,23 +274,29 @@ public:
 	 */
 	virtual void InitRHI() override
 	{
-		const TCHAR* Name = TEXT("BlackVolumeTexture");
-
 		if (GSupportsTexture3D)
 		{
 			// Create the texture.
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(Alpha);
-			FRHIResourceCreateInfo CreateInfo(TEXT("BlackVolumeTexture3D"), &BlackTextureBulkData);
-			FTexture3DRHIRef Texture3D = RHICreateTexture3D(1,1,1,PixelFormat,1,TexCreate_ShaderResource,CreateInfo);
-			TextureRHI = Texture3D;	
+
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create3D(TEXT("BlackVolumeTexture3D"), 1, 1, 1, PixelFormat)
+				.SetFlags(ETextureCreateFlags::ShaderResource)
+				.SetBulkData(&BlackTextureBulkData);
+
+			TextureRHI = RHICreateTexture(Desc);
 		}
 		else
 		{
 			// Create a texture, even though it's not a volume texture
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(Alpha);
-			FRHIResourceCreateInfo CreateInfo(TEXT("BlackVolumeTexture2D"), &BlackTextureBulkData);
-			FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
-			TextureRHI = Texture2D;
+
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("BlackVolumeTexture2D"), 1, 1, PixelFormat)
+				.SetFlags(ETextureCreateFlags::ShaderResource)
+				.SetBulkData(&BlackTextureBulkData);
+
+			TextureRHI = RHICreateTexture(Desc);
 		}
 
 		// Create the sampler state.
@@ -330,9 +336,13 @@ public:
 	{
 		// Create the texture RHI.
 		FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(0);
-		FRHIResourceCreateInfo CreateInfo(TEXT("BlackArrayTexture"), &BlackTextureBulkData);
-		FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(1, 1, 1, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
-		TextureRHI = TextureArray;
+
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2DArray(TEXT("BlackArrayTexture"), 1, 1, 1, PF_B8G8R8A8)
+			.SetFlags(ETextureCreateFlags::ShaderResource)
+			.SetBulkData(&BlackTextureBulkData);
+
+		TextureRHI = RHICreateTexture(Desc);
 
 		// Create the sampler state RHI resource.
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Point, AM_Wrap, AM_Wrap, AM_Wrap);
@@ -461,10 +471,11 @@ public:
 	virtual void InitRHI() override
 	{
 		// Create the texture RHI.
-		const TCHAR* Name = TEXT("SolidColorCube");
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::CreateCube(TEXT("SolidColorCube"), 1, PixelFormat)
+			.SetFlags(ETextureCreateFlags::ShaderResource);
 
-		FRHIResourceCreateInfo CreateInfo(Name);
-		FTextureCubeRHIRef TextureCube = RHICreateTextureCube(1, (uint8)PixelFormat, 1, TexCreate_ShaderResource, CreateInfo);
+		FTextureCubeRHIRef TextureCube = RHICreateTexture(Desc);
 		TextureRHI = TextureCube;
 
 		// Write the contents of the texture.
@@ -540,18 +551,20 @@ public:
 		{
 			const TCHAR* Name = TEXT("BlackCubeArray");
 
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::CreateCubeArray(TEXT("BlackCubeArray"), 1, 1, PF_B8G8R8A8)
+				.SetFlags(ETextureCreateFlags::ShaderResource);
+
 			// Create the texture RHI.
-			FRHIResourceCreateInfo CreateInfo(Name);
-			FTextureCubeRHIRef TextureCubeArray = RHICreateTextureCubeArray(1,1,PF_B8G8R8A8,1,TexCreate_ShaderResource,CreateInfo);
-			TextureRHI = TextureCubeArray;
+			TextureRHI = RHICreateTexture(Desc);
 
 			for(uint32 FaceIndex = 0;FaceIndex < 6;FaceIndex++)
 			{
 				uint32 DestStride;
-				FColor* DestBuffer = (FColor*)RHILockTextureCubeFace(TextureCubeArray, FaceIndex, 0, 0, RLM_WriteOnly, DestStride, false);
+				FColor* DestBuffer = (FColor*)RHILockTextureCubeFace(TextureRHI, FaceIndex, 0, 0, RLM_WriteOnly, DestStride, false);
 				// Note: alpha is used by reflection environment to say how much of the foreground texture is visible, so 0 says it is completely invisible
 				*DestBuffer = FColor(0, 0, 0, 0);
-				RHIUnlockTextureCubeFace(TextureCubeArray, FaceIndex, 0, 0, false);
+				RHIUnlockTextureCubeFace(TextureRHI, FaceIndex, 0, 0, false);
 			}
 
 			// Create the sampler state RHI resource.

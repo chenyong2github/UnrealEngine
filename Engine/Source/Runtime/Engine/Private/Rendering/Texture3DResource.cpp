@@ -112,21 +112,24 @@ void FTexture3DResource::CreateTexture()
 {
 	TArrayView<const FTexture2DMipMap*> MipsView = GetPlatformMipsView();
 	const int32 FirstMipIdx = InitialData.GetFirstMipIdx(); // == State.RequestedFirstLODIdx()
-	FTexture3DRHIRef Texture3DRHI;
 
 	// Create the RHI texture.
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("FTexture3DResource"));
+		const FTexture2DMipMap& FirstMip = *MipsView[FirstMipIdx];
+
+		FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create3D(TEXT("FTexture3DResource"), FirstMip.SizeX, FirstMip.SizeY, FirstMip.SizeZ, PixelFormat)
+			.SetNumMips(State.NumRequestedLODs)
+			.SetFlags(CreationFlags)
+			.SetExtData(PlatformData->GetExtData());
+
 		if (GUseTexture3DBulkDataRHI)
 		{
 			InitialData.MergeMips(State.MaxNumLODs);
-			CreateInfo.BulkData = &InitialData;
+			Desc.SetBulkData(&InitialData);
 		}
 
-		const FTexture2DMipMap& FirstMip = *MipsView[FirstMipIdx];
-		CreateInfo.ExtData = PlatformData->GetExtData();
-		Texture3DRHI = RHICreateTexture3D(FirstMip.SizeX, FirstMip.SizeY, FirstMip.SizeZ, PixelFormat, State.NumRequestedLODs, CreationFlags, CreateInfo);
-		TextureRHI = Texture3DRHI; 
+		TextureRHI = RHICreateTexture(Desc);
 	}
 
 	if (!GUseTexture3DBulkDataRHI) 
@@ -162,7 +165,7 @@ void FTexture3DResource::CreateTexture()
 					(int)MipBytes);
 				}
 
-				RHIUpdateTexture3D(Texture3DRHI, RHIMipIdx, UpdateRegion, NumBlockX * BlockBytes, NumBlockX * NumBlockY * BlockBytes, MipData);
+				RHIUpdateTexture3D(TextureRHI, RHIMipIdx, UpdateRegion, NumBlockX * BlockBytes, NumBlockX * NumBlockY * BlockBytes, MipData);
 			}
 		}
 		InitialData.Discard();

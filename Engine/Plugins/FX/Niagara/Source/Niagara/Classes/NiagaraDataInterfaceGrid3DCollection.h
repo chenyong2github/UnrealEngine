@@ -18,7 +18,7 @@ class FGrid3DBuffer
 public:
 	FGrid3DBuffer(int NumX, int NumY, int NumZ, EPixelFormat PixelFormat)
 	{
-		GridBuffer.Initialize(TEXT("FGrid3DBuffer"), GPixelFormats[PixelFormat].BlockBytes, NumX, NumY, NumZ, PixelFormat);
+		GridBuffer.Initialize3D(TEXT("FGrid3DBuffer"), GPixelFormats[PixelFormat].BlockBytes, NumX, NumY, NumZ, PixelFormat);
 		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GridBuffer.NumBytes);
 	}
 
@@ -28,7 +28,7 @@ public:
 		GridBuffer.Release();
 	}
 
-	FTextureRWBuffer3D GridBuffer;	
+	FTextureRWBuffer GridBuffer;
 };
 
 struct FGrid3DCollectionRWInstanceData_GameThread

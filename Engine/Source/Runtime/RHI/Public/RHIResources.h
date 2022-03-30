@@ -1533,6 +1533,20 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		return FRHITextureCreateDesc(InDebugName, ETextureDimension::TextureCubeArray);
 	}
 
+	static FRHITextureCreateDesc Create2D(const TCHAR* DebugName, FIntPoint Size, EPixelFormat Format)
+	{
+		return Create2D(DebugName)
+			.SetExtent(Size)
+			.SetFormat(Format);
+	}
+
+	static FRHITextureCreateDesc Create2D(const TCHAR* DebugName, int32 SizeX, int32 SizeY, EPixelFormat Format)
+	{
+		return Create2D(DebugName)
+			.SetExtent(SizeX, SizeY)
+			.SetFormat(Format);
+	}
+
 	static FRHITextureCreateDesc Create2D(
 		  TCHAR const*                DebugName
 		, FIntPoint                   Size
@@ -1558,6 +1572,22 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 			.SetBulkData(BulkData)
 			.SetGPUMask(GPUMask)
 			.SetInitialState(InitialState == ERHIAccess::Unknown ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState);
+	}
+
+	static FRHITextureCreateDesc Create2DArray(const TCHAR* DebugName, FIntPoint Size, uint16 ArraySize, EPixelFormat Format)
+	{
+		return Create2DArray(DebugName)
+			.SetExtent(Size)
+			.SetFormat(Format)
+			.SetArraySize(ArraySize);
+	}
+
+	static FRHITextureCreateDesc Create2DArray(const TCHAR* DebugName, int32 SizeX, int32 SizeY, int32 ArraySize, EPixelFormat Format)
+	{
+		return Create2DArray(DebugName)
+			.SetExtent(SizeY, SizeY)
+			.SetFormat(Format)
+			.SetArraySize(ArraySize);
 	}
 
 	static FRHITextureCreateDesc Create2DArray(
@@ -1589,6 +1619,22 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 			.SetInitialState(InitialState == ERHIAccess::Unknown ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState);
 	}
 
+	static FRHITextureCreateDesc Create3D(const TCHAR* DebugName, FIntVector Size, EPixelFormat Format)
+	{
+		return Create3D(DebugName)
+			.SetExtent(Size.X, Size.Y)
+			.SetDepth(Size.Z)
+			.SetFormat(Format);
+	}
+
+	static FRHITextureCreateDesc Create3D(const TCHAR* DebugName, int32 SizeX, int32 SizeY, int32 SizeZ, EPixelFormat Format)
+	{
+		return Create3D(DebugName)
+			.SetExtent(SizeX, SizeY)
+			.SetDepth(SizeZ)
+			.SetFormat(Format);
+	}
+
 	static FRHITextureCreateDesc Create3D(
 		  TCHAR const*                DebugName
 		, FIntVector                  Size
@@ -1613,6 +1659,13 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 			.SetBulkData(BulkData)
 			.SetGPUMask(GPUMask)
 			.SetInitialState(InitialState == ERHIAccess::Unknown ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState);
+	}
+
+	static FRHITextureCreateDesc CreateCube(const TCHAR* DebugName, uint32 Size, EPixelFormat Format)
+	{
+		return CreateCube(DebugName)
+			.SetExtent(Size)
+			.SetFormat(Format);
 	}
 
 	static FRHITextureCreateDesc CreateCube(
@@ -1640,6 +1693,14 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 			.SetBulkData(BulkData)
 			.SetGPUMask(GPUMask)
 			.SetInitialState(InitialState == ERHIAccess::Unknown ? RHIGetDefaultResourceState(Flags, BulkData != nullptr) : InitialState);
+	}
+
+	static FRHITextureCreateDesc CreateCubeArray(const TCHAR* DebugName, uint32 Size, uint16 ArraySize, EPixelFormat Format)
+	{
+		return CreateCubeArray(DebugName)
+			.SetExtent(Size)
+			.SetFormat(Format)
+			.SetArraySize(ArraySize);
 	}
 
 	static FRHITextureCreateDesc CreateCubeArray(

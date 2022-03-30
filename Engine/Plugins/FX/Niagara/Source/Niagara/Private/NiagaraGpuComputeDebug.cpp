@@ -137,14 +137,7 @@ void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, F
 		return;
 	}
 
-	FRHITexture2D* SrcTexture2D = Texture->GetTexture2D();
-	FRHITexture2DArray* SrcTexture2DArray = Texture->GetTexture2DArray();
-	FRHITexture3D* SrcTexture3D = Texture->GetTexture3D();
-	FRHITextureCube* SrcTextureCube = Texture->GetTextureCube();
-	if ( (SrcTexture2D == nullptr) && (SrcTexture2DArray == nullptr) && (SrcTexture3D == nullptr) && (SrcTextureCube == nullptr) )
-	{
-		return;
-	}
+	const FRHITextureDesc& TextureDesc = Texture->GetDesc();
 
 	bool bCreateTexture = false;
 
@@ -171,27 +164,18 @@ void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, F
 	FTextureRHIRef Destination;
 	if ( bCreateTexture )
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("FNiagaraGpuComputeDebug"));
-		if (SrcTexture2D != nullptr)
-		{
-			Destination = RHICreateTexture2D(SrcSize.X, SrcSize.Y, SrcFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
-			VisualizeEntry->Texture = Destination;
-		}
-		else if (SrcTexture2DArray != nullptr)
-		{
-			Destination = RHICreateTexture2DArray(SrcSize.X, SrcSize.Y, SrcSize.Z, SrcFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
-			VisualizeEntry->Texture = Destination;
-		}
-		else if (SrcTexture3D != nullptr)
-		{
-			Destination = RHICreateTexture3D(SrcSize.X, SrcSize.Y, SrcSize.Z, SrcFormat, 1, TexCreate_ShaderResource, CreateInfo);
-			VisualizeEntry->Texture = Destination;
-		}
-		else if (SrcTextureCube != nullptr)
-		{
-			Destination = RHICreateTextureCube(SrcSize.X, SrcFormat, 1, TexCreate_ShaderResource, CreateInfo);
-			VisualizeEntry->Texture = Destination;
-		}
+		// Create a minimal copy of the Texture's Desc
+		const FRHITextureCreateDesc NewTextureDesc =
+			FRHITextureCreateDesc(TEXT("FNiagaraGpuComputeDebug"), TextureDesc.Dimension)
+			.SetExtent(TextureDesc.Extent)
+			.SetDepth(TextureDesc.Depth)
+			.SetArraySize(TextureDesc.ArraySize)
+			.SetFormat(TextureDesc.Format)
+			.SetFlags(ETextureCreateFlags::ShaderResource)
+			.SetInitialState(ERHIAccess::SRVMask);
+
+		Destination = RHICreateTexture(NewTextureDesc);
+		VisualizeEntry->Texture = Destination;
 	}
 	else
 	{

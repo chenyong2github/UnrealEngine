@@ -81,51 +81,54 @@ public:
 class FNiagaraEmptyTextureSRV : public FRenderResource
 {
 public:
-	enum ETextureType
-	{
-		Texture2D,
-		Texture2DArray,
-		Texture3D
-	};
+	FNiagaraEmptyTextureSRV(EPixelFormat InPixelFormat, const FString& InDebugName, ETextureDimension InDimension)
+		: PixelFormat(InPixelFormat)
+		, DebugName(InDebugName)
+		, Dimension(InDimension)
+	{}
 
-	FNiagaraEmptyTextureSRV(EPixelFormat InPixelFormat, const FString& InDebugName, ETextureType InType) : PixelFormat(InPixelFormat), DebugName(InDebugName), Type(InType) {}
 	EPixelFormat PixelFormat;
 	FString DebugName;
-	ETextureType Type;
+	ETextureDimension Dimension;
 	FTextureRHIRef Texture;
 	FShaderResourceViewRHIRef SRV;
 
 	virtual void InitRHI() override
 	{
+		const FRHITextureCreateDesc Desc = FRHITextureCreateDesc(*DebugName, Dimension)
+			.SetExtent(1, 1)
+			.SetDepth(1)
+			.SetArraySize(1)
+			.SetFormat(PixelFormat)
+			.SetFlags(ETextureCreateFlags::ShaderResource);
+
 		// Create a 1x1 texture.
 		FRHIResourceCreateInfo CreateInfo(*DebugName);
 
 		uint32 Stride;
-		switch (Type)
+		switch (Dimension)
 		{
-			case Texture2D:
+			case ETextureDimension::Texture2D:
 			{
-				FTexture2DRHIRef Tex2D = RHICreateTexture2D(1, 1, PixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
-				void* Pixels = RHILockTexture2D(Tex2D, 0, RLM_WriteOnly, Stride, false);
+				Texture = RHICreateTexture(Desc);
+				void* Pixels = RHILockTexture2D(Texture, 0, RLM_WriteOnly, Stride, false);
 				FMemory::Memset(Pixels, 0, Stride);
-				RHIUnlockTexture2D(Tex2D, 0, 0, false);
-				Texture = Tex2D;
+				RHIUnlockTexture2D(Texture, 0, 0, false);
 				break;
 			}
 
-			case Texture2DArray:
+			case ETextureDimension::Texture2DArray:
 			{
-				FTexture2DArrayRHIRef Tex2DArray = RHICreateTexture2DArray(1, 1, 1, PixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
-				void* Pixels = RHILockTexture2DArray(Tex2DArray, 0, 0, RLM_WriteOnly, Stride, false);
+				Texture = RHICreateTexture(Desc);
+				void* Pixels = RHILockTexture2DArray(Texture, 0, 0, RLM_WriteOnly, Stride, false);
 				FMemory::Memset(Pixels, 0, Stride);
-				RHIUnlockTexture2DArray(Tex2DArray, 0, 0, false);
-				Texture = Tex2DArray;
+				RHIUnlockTexture2DArray(Texture, 0, 0, false);
 				break;
 			}
 
-			case Texture3D:
+			case ETextureDimension::Texture3D:
 			{
-				Texture = RHICreateTexture3D(1, 1, 1, PixelFormat, 1, TexCreate_ShaderResource, CreateInfo);
+				Texture = RHICreateTexture(Desc);
 				break;
 			}
 
@@ -204,21 +207,21 @@ FRHIShaderResourceView* FNiagaraRenderer::GetDummyUInt4Buffer()
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyTextureReadBuffer2D()
 {
 	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer2D(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer2D"), FNiagaraEmptyTextureSRV::Texture2D);
+	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer2D(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer2D"), ETextureDimension::Texture2D);
 	return DummyTextureReadBuffer2D.SRV;
 }
 
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyTextureReadBuffer2DArray()
 {
 	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer2DArray(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer2DArray"), FNiagaraEmptyTextureSRV::Texture2DArray);
+	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer2DArray(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer2DArray"), ETextureDimension::Texture2DArray);
 	return DummyTextureReadBuffer2DArray.SRV;
 }
 
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyTextureReadBuffer3D()
 {
 	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer3D(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer3D"), FNiagaraEmptyTextureSRV::Texture3D);
+	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer3D(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer3D"), ETextureDimension::Texture3D);
 	return DummyTextureReadBuffer3D.SRV;
 }
 

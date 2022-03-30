@@ -73,15 +73,20 @@ bool FVolumeTextureMipAllocator_Reallocate::FinalizeMips(const FTextureUpdateCon
 
 	// Create new Texture.
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("FinalizeMips"));
+		const FTexture2DMipMap& FirstMip = *Context.MipsView[PendingFirstLODIdx];
+
+		FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create3D(TEXT("FinalizeMips"), FirstMip.SizeX, FirstMip.SizeY, FirstMip.SizeZ, PixelFormat)
+			.SetNumMips(ResourceState.NumRequestedLODs)
+			.SetFlags(Context.Resource->GetCreationFlags())
+			.SetExtData(Context.Resource->GetExtData());
+
 		if (GUseTexture3DBulkDataRHI)
 		{
-			CreateInfo.BulkData = &StreamedInMipData;
+			Desc.SetBulkData(&StreamedInMipData);
 		}
 
-		const FTexture2DMipMap& FirstMip = *Context.MipsView[PendingFirstLODIdx];
-		CreateInfo.ExtData = Context.Resource->GetExtData();
-		IntermediateTextureRHI = RHICreateTexture3D(FirstMip.SizeX, FirstMip.SizeY, FirstMip.SizeZ, PixelFormat, ResourceState.NumRequestedLODs, Context.Resource->GetCreationFlags(), CreateInfo);
+		IntermediateTextureRHI = RHICreateTexture(Desc);
 	}
 
 	// Copy shared mips.

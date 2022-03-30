@@ -92,16 +92,14 @@ public:
 		FString TestName = FString::Printf(TEXT("Test_RHIClearUAV_Texture2D (%dx%d, %d Slice(s), %d Mip(s)) - %s"), Width, Height, NumMips, NumSlices, *ClearValueToString(ClearValue));
 
 		{
-			FRHIResourceCreateInfo CreateInfo(*TestName);
-			FTextureRHIRef Texture;
-			if (NumSlices == 1)
-			{
-				Texture = RHICreateTexture2D(Width, Height, Format, NumMips, 1, TexCreate_UAV | TexCreate_ShaderResource, CreateInfo);
-			}
-			else
-			{
-				Texture = RHICreateTexture2DArray(Width, Height, NumSlices, Format, NumMips, 1, TexCreate_UAV | TexCreate_ShaderResource, CreateInfo);
-			}
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc(*TestName, (NumSlices == 1) ? ETextureDimension::Texture2D : ETextureDimension::Texture2DArray)
+				.SetExtent(Width, Height)
+				.SetArraySize(NumSlices)
+				.SetNumMips(NumMips)
+				.SetFlags(ETextureCreateFlags::UAV | ETextureCreateFlags::ShaderResource);
+
+			FTextureRHIRef Texture = RHICreateTexture(Desc);
 
 			for (uint32 Mip = 0; Mip < NumMips; ++Mip)
 			{
@@ -173,8 +171,12 @@ public:
 		bool bResult = true;
 
 		{
-			FRHIResourceCreateInfo CreateInfo(*TestName);
-			FTexture3DRHIRef Texture = RHICreateTexture3D(Width, Height, Depth, Format, NumMips, TexCreate_UAV | TexCreate_ShaderResource, CreateInfo);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create3D(*TestName, Width, Height, Depth, Format)
+				.SetNumMips(NumMips)
+				.SetFlags(ETextureCreateFlags::UAV | ETextureCreateFlags::ShaderResource);
+
+			FTexture3DRHIRef Texture = RHICreateTexture(Desc);
 
 			for (uint32 Mip = 0; Mip < NumMips; ++Mip)
 			{
@@ -241,10 +243,11 @@ public:
 		bool bResult = true;
 		FString TestName = FString::Printf(TEXT("Test_RHIFormat (%s, %s, %s, %d)"), GPixelFormats[ResourceFormat].Name, GPixelFormats[SRVFormat].Name, GPixelFormats[UAVFormat].Name, Flags);
 		{
-			FRHIResourceCreateInfo CreateInfo(*TestName);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(*TestName, Width, Height, ResourceFormat)
+				.SetFlags(Flags);
 
-			FTextureRHIRef Texture;
-			Texture = RHICreateTexture2D(Width, Height, ResourceFormat, 1, 1, Flags, CreateInfo);
+			FTextureRHIRef Texture = RHICreateTexture(Desc);
 			bResult = (Texture != nullptr);
 
 			if (Texture && SRVFormat != PF_Unknown)
@@ -519,11 +522,11 @@ public:
 				return true;
 			}
 
-			FRHIResourceCreateInfo CreateInfo(*TestName);
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(*TestName, TextureWidth, TextureHeight, Format)
+				.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
 
-			FTexture2DRHIRef Texture;
-			ETextureCreateFlags TexCreateFlags = TexCreate_ShaderResource | TexCreate_UAV;
-			Texture = RHICreateTexture2D(TextureWidth, TextureHeight, Format, 1, 1, TexCreateFlags, CreateInfo);
+			FTexture2DRHIRef Texture = RHICreateTexture(Desc);
 			if (Texture == nullptr)
 			{
 				UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test failed (couldn't create texture). \"%s\""), *TestName);

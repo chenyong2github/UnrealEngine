@@ -21,31 +21,21 @@ DECLARE_MEMORY_STAT(TEXT("Volumetric Lightmap"),STAT_VolumetricLightmapBuildData
 
 void FVolumetricLightmapDataLayer::CreateTexture(FIntVector Dimensions)
 {
-	FRHIResourceCreateInfo CreateInfo(TEXT("VolumetricLightmap"));
-	CreateInfo.BulkData = this;
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create3D(TEXT("VolumetricLightmap"), Dimensions, Format)
+		.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV)
+		.SetBulkData(this);
 
-	Texture = RHICreateTexture3D(
-		Dimensions.X, 
-		Dimensions.Y, 
-		Dimensions.Z, 
-		Format,
-		1,
-		TexCreate_ShaderResource | TexCreate_UAV,
-		CreateInfo);
+	Texture = RHICreateTexture(Desc);
 }
 
 void FVolumetricLightmapDataLayer::CreateTargetTexture(FIntVector Dimensions)
 {
-	FRHIResourceCreateInfo CreateInfo(TEXT("VolumetricLightmap"));
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create3D(TEXT("VolumetricLightmap"), Dimensions, Format)
+		.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
 
-	Texture = RHICreateTexture3D(
-		Dimensions.X,
-		Dimensions.Y,
-		Dimensions.Z,
-		Format,
-		1,
-		TexCreate_ShaderResource | TexCreate_UAV,
-		CreateInfo);
+	Texture = RHICreateTexture(Desc);
 }
 
 void FVolumetricLightmapDataLayer::CreateUAV()

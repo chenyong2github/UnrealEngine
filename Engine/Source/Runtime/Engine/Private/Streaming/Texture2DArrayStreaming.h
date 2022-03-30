@@ -51,7 +51,7 @@ protected:
 	};
 
 	// The intermediate texture async created in the update process.
-	FTexture2DArrayRHIRef IntermediateTextureRHI;
+	FTextureRHIRef IntermediateTextureRHI;
 
 	// The temporary main memory allocations holding the mip data
 	TArray<TUniquePtr<uint8, FMallocDeleter>, TInlineAllocator<MAX_TEXTURE_MIP_COUNT>> StreamedMipData;

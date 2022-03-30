@@ -152,37 +152,6 @@ void UpdateInternalBuffer(const uint32 ElementCount, const BufferType* InputData
 	}
 }
 
-template<typename BufferType, int ElementSize, EPixelFormat PixelFormat>
-void InitInternalTexture(const uint32 SizeX, const uint32 SizeY, const uint32 SizeZ, FTextureRWBuffer3D& OutputBuffer)
-{
-	if (SizeX * SizeY * SizeZ > 0)
-	{
-		const uint32 BlockBytes = sizeof(BufferType) * ElementSize;
-
-		OutputBuffer.Initialize(TEXT("FPhysicsFieldResource"), BlockBytes, SizeX, SizeY, SizeZ, PixelFormat);
-
-		if (OutputBuffer.UAV)
-		{
-			FRHICommandListExecutor::GetImmediateCommandList().ClearUAVFloat(OutputBuffer.UAV, FVector4f(ForceInitToZero));
-		}
-	}
-}
-
-template<typename BufferType, int ElementSize, EPixelFormat PixelFormat>
-void UpdateInternalTexture(const uint32 SizeX, const uint32 SizeY, const uint32 SizeZ, const BufferType* InputData, FTextureRWBuffer3D& OutputBuffer)
-{
-	if (SizeX * SizeY * SizeZ > 0 && InputData)
-	{
-		const uint32 BlockBytes = sizeof(BufferType) * ElementSize;
-
-		FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, SizeX, SizeY, SizeZ);
-
-		const uint8* TextureDatas = (const uint8*)InputData;
-		RHIUpdateTexture3D(OutputBuffer.Buffer, 0, UpdateRegion, SizeX * BlockBytes,
-			SizeX * SizeY * BlockBytes, TextureDatas);
-	}
-}
-
 FVector MinVector(const FVector& VectorA, const FVector& VectorB)
 {
 	return FVector(FMath::Min(VectorA.X, VectorB.X), FMath::Min(VectorA.Y, VectorB.Y), FMath::Min(VectorA.Z, VectorB.Z));

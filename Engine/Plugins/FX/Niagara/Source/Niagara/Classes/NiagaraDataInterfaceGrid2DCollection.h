@@ -18,8 +18,12 @@ class FGrid2DBuffer
 public:
 	FGrid2DBuffer(int NumX, int NumY, int NumAttributes, EPixelFormat PixelFormat)
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("FGrid2DBuffer"));
-		GridTexture = RHICreateTexture2DArray(NumX, NumY, NumAttributes, PixelFormat, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2DArray(TEXT("FGrid2DBuffer"), NumX, NumY, NumAttributes, PixelFormat)
+			.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
+
+		GridTexture = RHICreateTexture(Desc);
+
 		FRHITextureSRVCreateInfo SRVCreateInfo;
 		GridSRV = RHICreateShaderResourceView(GridTexture, SRVCreateInfo);
 		GridUAV = RHICreateUnorderedAccessView(GridTexture);
@@ -34,7 +38,7 @@ public:
 		GridUAV.SafeRelease();
 	}
 
-	FTexture2DArrayRHIRef GridTexture;
+	FTextureRHIRef GridTexture;
 	FShaderResourceViewRHIRef GridSRV;
 	FUnorderedAccessViewRHIRef GridUAV;
 };

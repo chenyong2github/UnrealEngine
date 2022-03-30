@@ -177,47 +177,48 @@ extern RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage
 /** Get the best default resource state for the given buffer creation flags */
 extern RHI_API ERHIAccess RHIGetDefaultResourceState(EBufferUsageFlags InUsage, bool bInHasInitialData);
 
-
 /** Encapsulates a GPU read/write texture 2D with its UAV and SRV. */
-struct FTextureRWBuffer2D
+struct FTextureRWBuffer
 {
-	FTexture2DRHIRef Buffer;
+	FTextureRHIRef Buffer;
 	FUnorderedAccessViewRHIRef UAV;
 	FShaderResourceViewRHIRef SRV;
-	uint32 NumBytes;
+	uint32 NumBytes = 0;
 
-	FTextureRWBuffer2D()
-		: NumBytes(0)
-	{}
+	FTextureRWBuffer() = default;
 
-	~FTextureRWBuffer2D()
+	~FTextureRWBuffer()
 	{
 		Release();
 	}
 
 	static constexpr ETextureCreateFlags DefaultTextureInitFlag = TexCreate_ShaderResource | TexCreate_UAV;
-	void Initialize(const TCHAR* InDebugName, const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
+
+	void Initialize2D(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 SizeX, uint32 SizeY, EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
 	{
 		NumBytes = SizeX * SizeY * BytesPerElement;
 
-		FRHIResourceCreateInfo CreateInfo(InDebugName);
-		Buffer = RHICreateTexture2D(
-			SizeX, SizeY, UE_PIXELFORMAT_TO_UINT8(Format), //PF_R32_FLOAT,
-			/*NumMips=*/ 1,
-			1,
-			Flags,
-			/*BulkData=*/ CreateInfo);
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(InDebugName, SizeX, SizeY, Format)
+			.SetFlags(Flags);
 
-							
+		Buffer = RHICreateTexture(Desc);
 		UAV = RHICreateUnorderedAccessView(Buffer, 0);
 		SRV = RHICreateShaderResourceView(Buffer, 0);
 	}
 
-	UE_DEPRECATED(5.0, "AcquireTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
-	void AcquireTransientResource() {}
+	void Initialize3D(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 SizeX, uint32 SizeY, uint32 SizeZ, EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
+	{
+		NumBytes = SizeX * SizeY * SizeZ * BytesPerElement;
 
-	UE_DEPRECATED(5.0, "DiscardTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
-	void DiscardTransientResource() {}
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create3D(InDebugName, SizeX, SizeY, SizeZ, Format)
+			.SetFlags(Flags);
+
+		Buffer = RHICreateTexture(Desc);
+		UAV = RHICreateUnorderedAccessView(Buffer, 0);
+		SRV = RHICreateShaderResourceView(Buffer, 0);
+	}
 
 	void Release()
 	{
@@ -228,51 +229,36 @@ struct FTextureRWBuffer2D
 	}
 };
 
-/** Encapsulates a GPU read/write texture 3d with its UAV and SRV. */
-struct FTextureRWBuffer3D
+struct UE_DEPRECATED(5.1, "FTextureRWBuffer should be used instead of FTextureRWBuffer2D.") FTextureRWBuffer2D;
+struct FTextureRWBuffer2D : public FTextureRWBuffer
 {
-	FTexture3DRHIRef Buffer;
-	FUnorderedAccessViewRHIRef UAV;
-	FShaderResourceViewRHIRef SRV;
-	uint32 NumBytes;
-
-	FTextureRWBuffer3D()
-		: NumBytes(0)
-	{}
-
-	~FTextureRWBuffer3D()
+	UE_DEPRECATED(5.1, "FTextureRWBuffer::Initialize2D should be used instead of FTextureRWBuffer2D::Initialize.")
+	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 SizeX, uint32 SizeY, EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
 	{
-		Release();
+		Initialize2D(InDebugName, BytesPerElement, SizeX, SizeY, Format, Flags);
 	}
 
-	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 SizeX, uint32 SizeY, uint32 SizeZ, EPixelFormat Format)
-	{
-		NumBytes = SizeX * SizeY * SizeZ * BytesPerElement;
-
-		FRHIResourceCreateInfo CreateInfo(InDebugName);
-		Buffer = RHICreateTexture3D(
-			SizeX, SizeY, SizeZ, UE_PIXELFORMAT_TO_UINT8(Format),
-			/*NumMips=*/ 1,
-			/*Flags=*/ TexCreate_ShaderResource | TexCreate_UAV,
-			/*BulkData=*/ CreateInfo);
-
-		UAV = RHICreateUnorderedAccessView(Buffer, 0);
-		SRV = RHICreateShaderResourceView(Buffer, 0);
-	}
-	
 	UE_DEPRECATED(5.0, "AcquireTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
 	void AcquireTransientResource() {}
 
 	UE_DEPRECATED(5.0, "DiscardTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
 	void DiscardTransientResource() {}
+};
 
-	void Release()
+struct UE_DEPRECATED(5.1, "FTextureRWBuffer should be used instead of FTextureRWBuffer3D.") FTextureRWBuffer3D;
+struct FTextureRWBuffer3D : public FTextureRWBuffer
+{
+	UE_DEPRECATED(5.1, "FTextureRWBuffer::Initialize3D should be used instead of FTextureRWBuffer3D::Initialize.")
+	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 SizeX, uint32 SizeY, uint32 SizeZ, EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
 	{
-		NumBytes = 0;
-		Buffer.SafeRelease();
-		UAV.SafeRelease();
-		SRV.SafeRelease();
+		Initialize3D(InDebugName, BytesPerElement, SizeX, SizeY, SizeZ, Format, Flags);
 	}
+
+	UE_DEPRECATED(5.0, "AcquireTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
+	void AcquireTransientResource() {}
+
+	UE_DEPRECATED(5.0, "DiscardTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
+	void DiscardTransientResource() {}
 };
 
 /** Encapsulates a GPU read/write buffer with its UAV and SRV. */

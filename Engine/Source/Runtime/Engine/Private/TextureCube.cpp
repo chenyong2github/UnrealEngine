@@ -438,11 +438,19 @@ public:
 		INC_DWORD_STAT_FNAME_BY( LODGroupStatName, TextureSize );
 
 		// Create the RHI texture.
-		ETextureCreateFlags TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : TexCreate_None)  | (Owner->bNotOfflineProcessed ? TexCreate_None : TexCreate_OfflineProcessed);
-		FString Name = Owner->GetPathName();
-		FRHIResourceCreateInfo CreateInfo(*Name);
-		CreateInfo.ExtData = Owner->GetPlatformData() ? Owner->GetPlatformData()->GetExtData() : 0;
-		TextureCubeRHI = RHICreateTextureCube( Owner->GetSizeX(), Owner->GetPixelFormat(), Owner->GetNumMips(), TexCreateFlags, CreateInfo );
+		const ETextureCreateFlags TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : TexCreate_None)  | (Owner->bNotOfflineProcessed ? TexCreate_None : TexCreate_OfflineProcessed);
+		const FString Name = Owner->GetPathName();
+
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::CreateCube(*Name)
+			.SetExtent(Owner->GetSizeX())
+			.SetFormat(Owner->GetPixelFormat())
+			.SetNumMips(Owner->GetNumMips())
+			.SetFlags(TexCreateFlags)
+			.SetExtData(Owner->GetPlatformData() ? Owner->GetPlatformData()->GetExtData() : 0);
+
+		TextureCubeRHI = RHICreateTexture(Desc);
+
 		TextureRHI = TextureCubeRHI;
 		TextureRHI->SetName(Owner->GetFName());
 		RHIBindDebugLabelName(TextureRHI, *Name);

@@ -34,7 +34,8 @@ FRHIUnorderedAccessView* FNiagaraEmptyUAVPool::GetEmptyUAVFromPool(FRHICommandLi
 		FEmptyUAV& NewUAV = Pool.UAVs.AddDefaulted_GetRef();
 
 		// Initialize the UAV
-		FRHIResourceCreateInfo CreateInfo(TEXT("FNiagaraGpuComputeDispatch::EmptyUAV"));
+		const TCHAR* ResourceName = TEXT("FNiagaraGpuComputeDispatch::EmptyUAV");
+		FRHIResourceCreateInfo CreateInfo(ResourceName);
 		switch ( Type )
 		{
 			case ENiagaraEmptyUAVType::Buffer:
@@ -47,21 +48,33 @@ FRHIUnorderedAccessView* FNiagaraEmptyUAVPool::GetEmptyUAVFromPool(FRHICommandLi
 			
 			case ENiagaraEmptyUAVType::Texture2D:
 			{
-				NewUAV.Texture = RHICreateTexture2D(1, 1, Format, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+				const FRHITextureCreateDesc Desc =
+					FRHITextureCreateDesc::Create2D(ResourceName, 1, 1, Format)
+					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
+
+				NewUAV.Texture = RHICreateTexture(Desc);
 				NewUAV.UAV = RHICreateUnorderedAccessView(NewUAV.Texture, 0);
 				break;
 			}
 			
 			case ENiagaraEmptyUAVType::Texture2DArray:
 			{
-				NewUAV.Texture = RHICreateTexture2DArray(1, 1, 1, Format, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+				const FRHITextureCreateDesc Desc =
+					FRHITextureCreateDesc::Create2DArray(ResourceName, 1, 1, 1, Format)
+					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
+
+				NewUAV.Texture = RHICreateTexture(Desc);
 				NewUAV.UAV = RHICreateUnorderedAccessView(NewUAV.Texture, 0);
 				break;
 			}
 			
 			case ENiagaraEmptyUAVType::Texture3D:
 			{
-				NewUAV.Texture = RHICreateTexture3D(1, 1, 1, Format, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+				const FRHITextureCreateDesc Desc =
+					FRHITextureCreateDesc::Create3D(ResourceName, 1, 1, 1, Format)
+					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
+
+				NewUAV.Texture = RHICreateTexture(Desc);
 				NewUAV.UAV = RHICreateUnorderedAccessView(NewUAV.Texture, 0);
 				break;
 			}

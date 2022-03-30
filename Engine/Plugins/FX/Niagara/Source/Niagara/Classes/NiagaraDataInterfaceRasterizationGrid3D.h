@@ -35,7 +35,7 @@ public:
 
 	bool NeedsRealloc = false;
 	
-	FTextureRWBuffer3D RasterizationBuffer;
+	FTextureRWBuffer RasterizationBuffer;
 
 	FReadBuffer PerAttributeData;
 

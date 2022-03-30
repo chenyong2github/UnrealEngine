@@ -113,7 +113,12 @@ void FLandscapeTexture2DArrayResource::InitRHI()
 		Flags |= TexCreate_ShaderResource;
 	}
 
-	TextureRHI = RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, 1, Flags, CreateInfo);
+	const FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2DArray(TEXT("FLandscapeTexture2DArrayResource"), SizeX, SizeY, SizeZ, Format)
+		.SetNumMips(NumMips)
+		.SetFlags(Flags);
+
+	TextureRHI = RHICreateTexture(Desc);
 
 	if (bCreateUAVs)
 	{
