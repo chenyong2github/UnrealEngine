@@ -19,6 +19,7 @@
 #include "ToolMenus.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Toolkits/AssetEditorToolkitMenuContext.h"
+#include "BlueprintHeaderViewSettings.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintHeaderViewApp"
 
@@ -36,6 +37,9 @@ namespace BlueprintHeaderViewModule
 	}
 }
 
+FTextBlockStyle FBlueprintHeaderViewModule::HeaderViewTextStyle;
+FTableRowStyle FBlueprintHeaderViewModule::HeaderViewTableRowStyle;
+
 void FBlueprintHeaderViewModule::StartupModule()
 {
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(BlueprintHeaderViewModule::HeaderViewTabName, FOnSpawnTab::CreateStatic(&BlueprintHeaderViewModule::CreateHeaderViewTab))
@@ -43,6 +47,15 @@ void FBlueprintHeaderViewModule::StartupModule()
 		.SetTooltipText(LOCTEXT("TooltipText", "Displays a Blueprint Class in C++ Header format."))
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Class"));
+
+	HeaderViewTextStyle = FTextBlockStyle()
+		.SetFont(FAppStyle::Get().GetFontStyle("Mono"))
+		.SetFontSize(GetDefault<UBlueprintHeaderViewSettings>()->FontSize)
+		.SetColorAndOpacity(FSlateColor::UseForeground());
+
+	HeaderViewTableRowStyle = FCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
+	HeaderViewTableRowStyle.ActiveBrush.TintColor = GetDefault<UBlueprintHeaderViewSettings>()->SelectionColor;
+	HeaderViewTableRowStyle.ActiveHoveredBrush.TintColor = GetDefault<UBlueprintHeaderViewSettings>()->SelectionColor;
 
 	SetupAssetEditorMenuExtender();
 	SetupContentBrowserContextMenuExtender();

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "AssetRegistry/AssetData.h"
+#include "Styling/SlateTypes.h"
 
 class FExtender;
 
@@ -26,6 +27,13 @@ private:
 	void SetupContentBrowserContextMenuExtender();
 
 	static TSharedRef<FExtender> OnExtendContentBrowserAssetSelectionMenu(const TArray<FAssetData>& SelectedAssets);
+
+public:
+	/** Text style for the Header View Output */
+	static FTextBlockStyle HeaderViewTextStyle;
+
+	/** TableRow style for the Header View Output */
+	static FTableRowStyle HeaderViewTableRowStyle;
 
 private: 
 	/** Handle to our delegate so we can remove it at module shutdown */

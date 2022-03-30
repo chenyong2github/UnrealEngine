@@ -16,25 +16,27 @@ USTRUCT(NotBlueprintable)
 struct FHeaderViewSyntaxColors
 {
 	GENERATED_BODY()
-	
+
+	FHeaderViewSyntaxColors();
+
 public:
 	UPROPERTY(config, EditAnywhere, Category="Settings")
-	FLinearColor Comment = FLinearColor(0.3f, 0.7f, 0.1f, 1.0f);
+	FLinearColor Comment;
 	
 	UPROPERTY(config, EditAnywhere, Category="Settings")
-	FLinearColor Error = FLinearColor(1.0f, 0.0f, 0.0f, 1.0f);
+	FLinearColor Error;
 	
 	UPROPERTY(config, EditAnywhere, Category="Settings")
-	FLinearColor Macro = FLinearColor(0.6f, 0.2f, 0.8f, 1.0f);
+	FLinearColor Macro;
 	
 	UPROPERTY(config, EditAnywhere, Category="Settings")
-	FLinearColor Typename = FLinearColor::White;
+	FLinearColor Typename;
 	
 	UPROPERTY(config, EditAnywhere, Category="Settings")
-	FLinearColor Identifier = FLinearColor::White;
+	FLinearColor Identifier;
 	
 	UPROPERTY(config, EditAnywhere, Category="Settings")
-	FLinearColor Keyword = FLinearColor(0.0f, 0.4f, 0.8f, 1.0f);
+	FLinearColor Keyword;
 	
 };
 
@@ -53,12 +55,25 @@ public:
 	virtual FName GetSectionName() const override;
 	//~ End UDeveloperSettings interface
 
-public:
-	
-	/** Syntax Highlighting colors for Blueprint Header View output */
-	UPROPERTY(config, EditAnywhere, Category="Settings")
-	FHeaderViewSyntaxColors SyntaxColors;
+protected:
+	//~ Begin UObject interface
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	//~ End UObject interface
 
+public:
+
+	/** Syntax Highlighting colors for Blueprint Header View output */
+	UPROPERTY(config, EditAnywhere, Category="Settings|Style")
+	FHeaderViewSyntaxColors SyntaxColors;
+	
+	/** Highlight color for selected items in the Blueprint Header View output */
+	UPROPERTY(config, EditAnywhere, Category="Settings|Style")
+	FLinearColor SelectionColor = FLinearColor(0.3f, 0.3f, 1.0f, 1.0f);
+
+	/** Font Size for the Blueprint Header View output */
+	UPROPERTY(config, EditAnywhere, Category="Settings|Style")
+	int32 FontSize = 9;
+	
 	/** Sorting Method for Header View Functions and Properties */
 	UPROPERTY(config, EditAnywhere, Category="Settings")
 	EHeaderViewSortMethod SortMethod = EHeaderViewSortMethod::None;

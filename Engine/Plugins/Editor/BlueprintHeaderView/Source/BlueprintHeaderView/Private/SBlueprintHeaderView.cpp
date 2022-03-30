@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SBlueprintHeaderView.h"
+#include "BlueprintHeaderView.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SBox.h"
 //#include "Widgets/Layout/SScrollBox.h"
@@ -68,6 +69,9 @@ namespace
 
 			ModelText->Append(OriginalText.Mid(RunParseResult.ContentRange.BeginIndex, RunParseResult.ContentRange.Len()));
 
+			FTextBlockStyle TextStyle = FBlueprintHeaderViewModule::HeaderViewTextStyle;
+			TextStyle.SetColorAndOpacity(TextColor);
+
 			return FSlateTextRun::Create(RunInfo, ModelText, TextStyle);
 		}
 
@@ -75,9 +79,8 @@ namespace
 
 		FHeaderViewSyntaxDecorator(FString&& InName, const FSlateColor& InColor)
 			: DecoratorName(MoveTemp(InName))
-			, TextStyle(FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("Log.Normal"))
+			, TextColor(InColor)
 		{
-			TextStyle.SetColorAndOpacity(InColor);
 		}
 
 	private:
@@ -85,8 +88,8 @@ namespace
 		/** Name of this decorator */
 		FString DecoratorName;
 
-		/** Style of this decorator */
-		FTextBlockStyle TextStyle;
+		/** Color of this decorator */
+		FSlateColor TextColor;
 
 	};
 
@@ -105,7 +108,7 @@ TSharedRef<SWidget> FHeaderViewListItem::GenerateWidgetForItem()
 		[
 			SNew(SRichTextBlock)
 			.Text(FText::FromString(RichTextString))
-			.TextStyle(FEditorStyle::Get(), "Log.Normal")
+			.TextStyle(&FBlueprintHeaderViewModule::HeaderViewTextStyle)
 			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::CommentDecorator, SyntaxColors.Comment))
 			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::ErrorDecorator, SyntaxColors.Error))
 			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::IdentifierDecorator, SyntaxColors.Identifier))
@@ -308,6 +311,9 @@ void SBlueprintHeaderView::NotifyPostChange(const FPropertyChangedEvent& Propert
 	UBlueprintHeaderViewSettings* BlueprintHeaderViewSettings = GetMutableDefault<UBlueprintHeaderViewSettings>();
 	check(BlueprintHeaderViewSettings);
 	BlueprintHeaderViewSettings->SaveConfig();
+
+	// repopulate the list view to update text style/sorting method based on settings
+	RepopulateListView();
 }
 
 FText SBlueprintHeaderView::GetClassPickerText() const
@@ -373,6 +379,7 @@ void SBlueprintHeaderView::OnAssetSelected(const FAssetData& SelectedAsset)
 TSharedRef<ITableRow> SBlueprintHeaderView::GenerateRowForItem(FHeaderViewListItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable) const
 {
 	return SNew(STableRow<FHeaderViewListItemPtr>, OwnerTable)
+		.Style(&FBlueprintHeaderViewModule::HeaderViewTableRowStyle)
 		.Content()
 		[
 			Item->GenerateWidgetForItem()
