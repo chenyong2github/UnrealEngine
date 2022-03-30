@@ -513,8 +513,7 @@ FFileCacheHandle::FFileCacheHandle(IAsyncReadFileHandle* InHandle, int64 InBaseO
 		this->FileSize = Request->GetSizeResults();
 		check(this->FileSize > 0);
 
-		TArray<FBaseGraphTask*> NewTasks;
-		CompletionEvent->DispatchSubsequents(NewTasks);
+		CompletionEvent->DispatchSubsequents();
 		GetCache().PushCompletedRequest(Request);
 	};
 
@@ -589,8 +588,7 @@ IMemoryReadStreamRef FFileCacheHandle::ReadDataUncached(FGraphEventArray& OutCom
 
 	FAsyncFileCallBack ReadCallbackFunction = [CompletionEvent](bool bWasCancelled, IAsyncReadRequest* Request)
 	{
-		TArray<FBaseGraphTask*> NewTasks;
-		CompletionEvent->DispatchSubsequents(NewTasks);
+		CompletionEvent->DispatchSubsequents();
 	};
 
 	OutCompletionEvents.Add(CompletionEvent);
@@ -668,8 +666,7 @@ void FFileCacheHandle::ReadLine(FFileCache& Cache, CacheSlotID SlotID, CacheLine
 	// callback triggered when async read operation is complete, used to signal task graph event
 	FAsyncFileCallBack ReadCallbackFunction = [CompletionEvent](bool bWasCancelled, IAsyncReadRequest* Request)
 	{
-		TArray<FBaseGraphTask*> NewTasks;
-		CompletionEvent->DispatchSubsequents(NewTasks);
+		CompletionEvent->DispatchSubsequents();
 		GetCache().PushCompletedRequest(Request);
 	};
 

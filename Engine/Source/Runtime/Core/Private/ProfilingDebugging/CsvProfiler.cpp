@@ -3073,8 +3073,7 @@ TSharedFuture<FString> FCsvProfiler::EndCapture(FGraphEventRef EventToSignal)
 	{
 		if (EventToSignal)
 		{
-			TArray<FBaseGraphTask*> Subsequents;
-			EventToSignal->DispatchSubsequents(Subsequents);
+			EventToSignal->DispatchSubsequents();
 		}
 	});
 

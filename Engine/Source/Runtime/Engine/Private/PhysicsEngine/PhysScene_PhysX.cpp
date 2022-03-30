@@ -1175,8 +1175,7 @@ void FPhysScene_PhysX::TickPhysScene(FGraphEventRef& InOutCompletionEvent)
 
 	if (!bTaskOutstanding)
 	{
-		TArray<FBaseGraphTask*> NewTasks;
-		InOutCompletionEvent->DispatchSubsequents(NewTasks, ENamedThreads::AnyThread); // nothing to do, so nothing to wait for
+		InOutCompletionEvent->DispatchSubsequents(); // nothing to do, so nothing to wait for
 	}
 
 	bSubstepping = UPhysicsSettings::Get()->bSubstepping;

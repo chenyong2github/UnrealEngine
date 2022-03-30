@@ -423,8 +423,7 @@ struct FAudioAsyncBatcher
 			FGraphEventRef Dispatch = DispatchEvent[0];
 			TFunction<void()> FlushAudioCommands = [Dispatch]()
 			{
-				TArray<FBaseGraphTask*> NewTasks;
-				Dispatch->DispatchSubsequents(NewTasks);
+				Dispatch->DispatchSubsequents();
 			};
 
 			FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(FlushAudioCommands), TStatId(), nullptr, ENamedThreads::AudioThread);

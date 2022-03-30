@@ -972,8 +972,7 @@ FRHICOMMAND_MACRO(FRHICommandRHIThreadFence)
 	void Execute(FRHICommandListBase& CmdList)
 	{
 		check(IsInRHIThread());
-		static TArray<FBaseGraphTask*> NewTasks;
-		Fence->DispatchSubsequents(NewTasks, IsRunningRHIInDedicatedThread() ? ENamedThreads::RHIThread : ENamedThreads::AnyThread);
+		Fence->DispatchSubsequents(IsRunningRHIInDedicatedThread() ? ENamedThreads::RHIThread : ENamedThreads::AnyThread);
 		Fence = nullptr;
 	}
 };

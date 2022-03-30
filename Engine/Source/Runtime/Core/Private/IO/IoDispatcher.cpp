@@ -646,8 +646,7 @@ private:
 		}
 		if (Batch->GraphEvent)
 		{
-			TArray<FBaseGraphTask*> NewTasks;
-			Batch->GraphEvent->DispatchSubsequents(NewTasks);
+			Batch->GraphEvent->DispatchSubsequents();
 		}
 		BatchAllocator.Destroy(Batch);
 	}

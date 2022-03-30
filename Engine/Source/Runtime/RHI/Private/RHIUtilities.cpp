@@ -371,8 +371,7 @@ uint32 FRHIFrameFlipTrackingRunnable::Run()
 			if (Pair.PresentIndex <= SyncFrame)
 			{
 				// "Complete" the task graph event
-				TArray<FBaseGraphTask*> Subsequents;
-				Pair.Event->DispatchSubsequents(Subsequents);
+				Pair.Event->DispatchSubsequents();
 
 				FramePairs.RemoveAtSwap(PairIndex);
 			}
@@ -430,8 +429,7 @@ void FRHIFrameFlipTrackingRunnable::Shutdown()
 	for (auto const& Pair : Singleton.FramePairs)
 	{
 		// "Complete" the task graph event
-		TArray<FBaseGraphTask*> Subsequents;
-		Pair.Event->DispatchSubsequents(Subsequents);
+		Pair.Event->DispatchSubsequents();
 	}
 
 	Singleton.FramePairs.Empty();
@@ -468,9 +466,7 @@ void FRHIFrameFlipTrackingRunnable::CompleteGraphEventOnFlip(uint64 PresentIndex
 	{
 		// Platform does not support flip tracking.
 		// Signal the event now...
-
-		TArray<FBaseGraphTask*> Subsequents;
-		Event->DispatchSubsequents(Subsequents);
+		Event->DispatchSubsequents();
 	}
 }
 

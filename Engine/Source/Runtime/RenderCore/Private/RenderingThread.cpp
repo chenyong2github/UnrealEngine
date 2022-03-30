@@ -988,8 +988,7 @@ void StopRenderCommandFenceBundler()
 
 	EndBatchedRelease();
 	check(IsInGameThread() && BundledCompletionEvent.GetReference() && !BundledCompletionEvent->IsComplete() && BundledCompletionEventPrereq.GetReference() && !BundledCompletionEventPrereq->IsComplete()); // can't use this in a nested fashion
-	TArray<FBaseGraphTask*> NewTasks;
-	BundledCompletionEventPrereq->DispatchSubsequents(NewTasks);
+	BundledCompletionEventPrereq->DispatchSubsequents();
 	BundledCompletionEventPrereq = nullptr;
 	BundledCompletionEvent = nullptr;
 }
@@ -1021,8 +1020,7 @@ FRHICOMMAND_MACRO(FRHISyncFrameCommand)
 			// Sync the Game Thread with the RHI Thread
 
 			// "Complete" the graph event
-			TArray<FBaseGraphTask*> Subsequents;
-			GraphEvent->DispatchSubsequents(Subsequents);
+			GraphEvent->DispatchSubsequents();
 		}
 		else
 		{

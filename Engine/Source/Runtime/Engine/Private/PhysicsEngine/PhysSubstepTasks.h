@@ -46,8 +46,7 @@ public:
 		FinishSceneStat();
 		if (EventToFire.GetReference())
 		{
-			TArray<FBaseGraphTask*> NewTasks;
-			EventToFire->DispatchSubsequents(NewTasks);
+			EventToFire->DispatchSubsequents();
 		}
 		delete this;
 	}

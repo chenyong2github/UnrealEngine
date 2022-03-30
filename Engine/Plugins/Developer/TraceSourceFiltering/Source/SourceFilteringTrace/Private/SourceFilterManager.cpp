@@ -116,8 +116,7 @@ FSourceFilterManager::~FSourceFilterManager()
 	if (IsValidRef(DrawTask) && !DrawTask->IsComplete())
 	{
 		// Mark drawing task as finished (would otherwise have been executed on GT)
-		TArray<FBaseGraphTask*> NewTasks;
-		DrawTask->DispatchSubsequents(NewTasks, ENamedThreads::GameThread);
+		DrawTask->DispatchSubsequents(ENamedThreads::GameThread);
 	}
 
 	if (Settings)
@@ -757,9 +756,7 @@ void FSourceFilterManager::WaitForAsyncTasks()
 		if (IsValidRef(AsyncTasks[0]) && !AsyncTasks[0]->IsComplete())
 		{			
 			ApplyGameThreadFilters();
-
-			TArray<FBaseGraphTask*> NewTasks;
-			AsyncTasks[0]->DispatchSubsequents(NewTasks, ENamedThreads::GameThread);
+			AsyncTasks[0]->DispatchSubsequents(ENamedThreads::GameThread);
 		}
 
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(FinishTask);

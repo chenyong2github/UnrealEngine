@@ -4871,8 +4871,7 @@ public:
 				{
 					check(FinalizePrereq.GetReference() && !FinalizePrereq->IsComplete());
 					{
-						TArray<FBaseGraphTask*> NewTasks;
-						FinalizePrereq->DispatchSubsequents(NewTasks);
+						FinalizePrereq->DispatchSubsequents();
 					}
 					delete FinalizeDispatchCounter;
 				}
@@ -4910,8 +4909,7 @@ public:
 	{
 		check(Target.GetReference() && !Target->IsComplete());
 		{
-			TArray<FBaseGraphTask*> NewTasks;
-			Target->DispatchSubsequents(NewTasks);
+			Target->DispatchSubsequents();
 		}
 	}
 };
