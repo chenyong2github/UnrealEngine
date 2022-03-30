@@ -45,6 +45,7 @@ void UMeshSurfacePointToolBuilder::InitializeNewTool(UMeshSurfacePointTool* NewT
 	check(Target);
 	NewTool->SetTarget(Target);
 	NewTool->SetStylusAPI(this->StylusAPI);
+	NewTool->SetWorld(SceneState.World);
 }
 
 
@@ -200,6 +201,16 @@ FInputRayHit UMeshSurfacePointTool::BeginHoverSequenceHitTest(const FInputDevice
 float UMeshSurfacePointTool::GetCurrentDevicePressure() const
 {
 	return (StylusAPI != nullptr) ? FMath::Clamp(StylusAPI->GetCurrentPressure(), 0.0f, 1.0f) : 1.0f;
+}
+
+void UMeshSurfacePointTool::SetWorld(UWorld* World)
+{
+	TargetWorld = World;
+}
+
+UWorld* UMeshSurfacePointTool::GetTargetWorld()
+{
+	return TargetWorld.Get();
 }
 
 

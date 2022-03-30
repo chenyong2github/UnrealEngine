@@ -134,6 +134,9 @@ public:
 	/** @return current input device pressure in range 0-1 */
 	virtual float GetCurrentDevicePressure() const;
 
+	void SetWorld(UWorld* World);
+	UWorld* GetTargetWorld();
+
 protected:
 	/** Current state of the shift modifier toggle */
 	bool bShiftToggle = false;
@@ -144,5 +147,8 @@ protected:
 	FRay LastWorldRay;
 
 	IToolStylusStateProviderAPI* StylusAPI = nullptr;
+
+	UPROPERTY()
+	TWeakObjectPtr<UWorld> TargetWorld = nullptr;
 };
 
