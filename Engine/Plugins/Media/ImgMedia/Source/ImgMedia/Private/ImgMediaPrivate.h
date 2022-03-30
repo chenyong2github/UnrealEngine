@@ -57,4 +57,10 @@ namespace ImgMedia
 
 	/** Name of the ReadVirtualTextureTiles media option. */
 	static const FName ReadVirtualTextureTiles("ImgReadVirtualTextureTiles");
+
+	/** Name of the smart cache media option. */
+	static const FName SmartCacheEnabled("ImgMediaSmartCacheEnabled");
+
+	/** Name of the smart cache time to look ahead media option. */
+	static const FName SmartCacheTimeToLookAhead("ImgMediaSmartCacheTimeToLookAhead");
 }

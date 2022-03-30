@@ -23,6 +23,23 @@ class IQueuedWork;
 
 struct FImgMediaFrame;
 
+/**
+ * Settings for the smart cache.
+ */
+struct FImgMediaLoaderSmartCacheSettings
+{
+	/** True if we are using the smart cache. */
+	bool bIsEnabled;
+	/** The cache will fill up with frames that are up to this time from the current time. */
+	float TimeToLookAhead;
+
+	/** Constructor. */
+	FImgMediaLoaderSmartCacheSettings(bool bInIsEnabled, float InTimeToLookAhead)
+		: bIsEnabled(bInIsEnabled)
+		, TimeToLookAhead(InTimeToLookAhead)
+	{
+	}
+};
 
 /**
  * Loads image sequence frames from disk.
@@ -41,7 +58,8 @@ public:
 		const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache,
 		const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& InMipMapInfo,
 		bool bInFillGapsInSequence,
-		bool bInReadVirtualTextureTiles);
+		bool bInReadVirtualTextureTiles,
+		const FImgMediaLoaderSmartCacheSettings& InSmartCacheSettings);
 
 	/** Virtual destructor. */
 	virtual ~FImgMediaLoader();
@@ -534,4 +552,7 @@ private:
 
 	/** List of visible tiles updated through the IMediaView interface. */
 	TMap<int32, TSet<FMediaTileCoordinate>> ActiveTilesPerMipLevel;
+
+	/** Settings for the smart cache. */
+	FImgMediaLoaderSmartCacheSettings SmartCacheSettings;
 };

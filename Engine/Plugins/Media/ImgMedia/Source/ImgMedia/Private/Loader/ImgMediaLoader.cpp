@@ -122,7 +122,8 @@ FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::T
 	const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache,
 	const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& InMipMapInfo,
 	bool bInFillGapsInSequence,
-	bool bInReadVirtualTextureTiles)
+	bool bInReadVirtualTextureTiles,
+	const FImgMediaLoaderSmartCacheSettings& InSmartCacheSettings)
 	: Frames(1)
 	, ImageWrapperModule(FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper"))
 	, Initialized(false)
@@ -142,6 +143,7 @@ FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::T
 	, LastRequestedFrame(INDEX_NONE)
 	, RetryCount(0)
 	, UseGlobalCache(false)
+	, SmartCacheSettings(InSmartCacheSettings)
 {
 	ResetFetchLogic();
 	UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Created"), this);
@@ -817,6 +819,11 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 
 	const UImgMediaSettings* Settings = GetDefault<UImgMediaSettings>();
 	UseGlobalCache = Settings->UseGlobalCache;
+	if (SmartCacheSettings.bIsEnabled)
+	{
+		// Smart cache does not use the global cache.
+		UseGlobalCache = false;
+	}
 	SequenceName = FName(*SequencePath);
 
 	// fetch sequence attributes from first image
@@ -895,15 +902,30 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 
 	// initialize loader
 	const FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
-	const SIZE_T DesiredCacheSize = Settings->CacheSizeGB * 1024 * 1024 * 1024;
-	const SIZE_T CacheSize = FMath::Clamp(DesiredCacheSize, (SIZE_T)0, (SIZE_T)Stats.AvailablePhysical);
+	
+	// Are we using the smart cache?
+	if (SmartCacheSettings.bIsEnabled)
+	{
+		// Load frames that are a certain amount of time ahead of us.
+		float TimeToLookAhead = SmartCacheSettings.TimeToLookAhead;
+		
+		NumFramesToLoad = TimeToLookAhead / SequenceFrameRate.AsInterval();
+		NumFramesToLoad = FMath::Clamp(NumFramesToLoad, 0, GetNumImages());
+		NumLoadBehind = 0;
+		NumLoadAhead = NumFramesToLoad;
+	}
+	else
+	{
+		const SIZE_T DesiredCacheSize = Settings->CacheSizeGB * 1024 * 1024 * 1024;
+		const SIZE_T CacheSize = FMath::Clamp(DesiredCacheSize, (SIZE_T)0, (SIZE_T)Stats.AvailablePhysical);
 
-	const int32 MaxFramesToLoad = (int32)(CacheSize / UncompressedSize);
-	NumFramesToLoad = FMath::Clamp(MaxFramesToLoad, 0, GetNumImages());
-	const float LoadBehindScale = FMath::Clamp(Settings->CacheBehindPercentage, 0.0f, 100.0f) / 100.0f;
+		const int32 MaxFramesToLoad = (int32)(CacheSize / UncompressedSize);
+		NumFramesToLoad = FMath::Clamp(MaxFramesToLoad, 0, GetNumImages());
+		const float LoadBehindScale = FMath::Clamp(Settings->CacheBehindPercentage, 0.0f, 100.0f) / 100.0f;
 
-	NumLoadBehind = (int32)(LoadBehindScale * MaxFramesToLoad);
-	NumLoadAhead = (int32)((1.0f - LoadBehindScale) * MaxFramesToLoad);
+		NumLoadBehind = (int32)(LoadBehindScale * MaxFramesToLoad);
+		NumLoadAhead = (int32)((1.0f - LoadBehindScale) * MaxFramesToLoad);
+	}
 
 	// Giving our reader a chance to handle RAM allocation.
 	// Not all readers use this, only those that need to handle large files 
