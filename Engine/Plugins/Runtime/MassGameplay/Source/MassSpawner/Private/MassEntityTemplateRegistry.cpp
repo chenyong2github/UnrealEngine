@@ -7,6 +7,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "HAL/IConsoleManager.h"
 #include "MassSpawnerSubsystem.h"
+#include "MassEntityTypes.h"
+#include "MassEntityTraitBase.h"
 
 namespace FTemplateRegistryHelpers
 {
@@ -189,3 +191,74 @@ void UMassEntityTemplateRegistry::DestroyTemplate(const uint32 HashLookup, FMass
 	TemplateIDToTemplateMap.Remove(TemplateID);
 }
 
+//----------------------------------------------------------------------//
+// FMassEntityTemplateBuildContext 
+//----------------------------------------------------------------------//
+void FMassEntityTemplateBuildContext::BuildFromTraits(TConstArrayView<UMassEntityTraitBase*> Traits, UWorld& World)
+{
+	TraitAddedTypes.Reset();
+	TraitsDependencies.Reset();
+
+	for (const UMassEntityTraitBase* Trait : Traits)
+	{
+		check(Trait);
+		BuildingTrait = Trait;
+		BuildingTrait->BuildTemplate(*this, World);
+	}
+
+	BuildingTrait = nullptr;
+
+	ValidateBuildContext(World);
+}
+
+void FMassEntityTemplateBuildContext::ValidateBuildContext(UWorld& World)
+{
+	// Group same types(key) together
+	TraitAddedTypes.KeySort( [](const UStruct& LHS, const UStruct& RHS) { return LHS.GetName() < RHS.GetName(); } );
+
+	// Loop through all the registered fragments and make sure only one trait registered them.
+	const UStruct* CurrentStruct = nullptr;
+	const UMassEntityTraitBase* CurrentTrait = nullptr;
+	bool bHeaderOutputed = false;
+	for (const auto& Pair : TraitAddedTypes)
+	{
+		if (CurrentStruct != Pair.Key)
+		{
+			CurrentStruct = Pair.Key;
+			CurrentTrait = Pair.Value;
+			CurrentTrait->ValidateTemplate(*this, World);
+			bHeaderOutputed = false;
+		}
+		else
+		{
+			if (!bHeaderOutputed)
+			{
+				UE_LOG(LogMass, Error, TEXT("Fragment(%s) was added multiple time and can only be added by one trait. Fragment was added by:"), *CurrentStruct->GetName());
+				UE_LOG(LogMass, Error, TEXT("\t\t%s"), *CurrentTrait->GetClass()->GetName());
+				bHeaderOutputed = true;
+			}
+			UE_LOG(LogMass, Error, TEXT("\t\t%s"), *Pair.Value->GetClass()->GetName());
+		}
+ 	}
+
+	// Loop through all the traits dependencies and check if they have been added
+	CurrentTrait = nullptr;
+	bHeaderOutputed = false;
+	for (const auto& Dependency : TraitsDependencies)
+	{
+		if (CurrentTrait != Dependency.Get<1>())
+		{
+			CurrentTrait = Dependency.Get<1>();
+			bHeaderOutputed = false;
+		}
+		if (!TraitAddedTypes.Contains(Dependency.Get<0>()))
+		{
+			if (!bHeaderOutputed)
+			{
+				UE_LOG(LogMass, Error, TEXT("Trait(%s) has missing dependency:"),  *CurrentTrait->GetClass()->GetName() );
+				bHeaderOutputed = true;
+			}
+			UE_LOG(LogMass, Error, TEXT("\t\t%s"), *Dependency.Get<0>()->GetName());
+		}
+	}
+}

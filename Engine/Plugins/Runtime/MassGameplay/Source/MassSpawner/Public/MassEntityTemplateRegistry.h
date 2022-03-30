@@ -12,6 +12,7 @@
 
 class UWorld;
 class UMassEntitySubsystem;
+class UMassEntityTraitBase;
 
 enum class EFragmentInitialization : uint8
 {
@@ -31,55 +32,68 @@ struct FMassEntityTemplateBuildContext
 	template<typename T>
 	T& AddFragment_GetRef()
 	{
+		TypeAdded(*T::StaticStruct());
 		return Template.AddFragment_GetRef<T>();
 	}
 
 	template<typename T>
 	void AddFragment()
 	{
+		TypeAdded(*T::StaticStruct());
 		Template.AddFragment<T>();
 	}
 
 	void AddFragment(FConstStructView InFragment)
 	{ 
+		checkf(InFragment.GetScriptStruct(), TEXT("Expecting a valid fragment type"));
+		TypeAdded(*InFragment.GetScriptStruct());
 		Template.AddFragment(InFragment);
 	}
 
 	template<typename T>
 	void AddTag()
 	{
+		// Tags can be added by multiple traits, so they do not follow the same rules as fragments
 		Template.AddTag<T>();
 	}
 
 	void AddTag(const UScriptStruct& TagType)
 	{
+		// Tags can be added by multiple traits, so they do not follow the same rules as fragments
 		Template.AddTag(TagType);
 	}
 
 	template<typename T>
 	void AddChunkFragment()
 	{
+		TypeAdded(*T::StaticStruct());
 		Template.AddChunkFragment<T>();
 	}
 
 	void AddConstSharedFragment(const FConstSharedStruct& InSharedFragment)
 	{
+		checkf(InSharedFragment.GetScriptStruct(), TEXT("Expecting a valide shared fragment type"));
+		TypeAdded(*InSharedFragment.GetScriptStruct());
 		Template.AddConstSharedFragment(InSharedFragment);
 	}
 
 	void AddSharedFragment(const FSharedStruct& InSharedFragment)
 	{
+		checkf(InSharedFragment.GetScriptStruct(), TEXT("Expecting a valide shared fragment type"));
+		TypeAdded(*InSharedFragment.GetScriptStruct());
 		Template.AddSharedFragment(InSharedFragment);
 	}
 
 	template<typename T>
 	bool HasFragment() const
 	{
+		ensureMsgf(!BuildingTrait, TEXT("This method is not expected to be called within the build from trait call."));
 		return Template.HasFragment<T>();
 	}
 	
 	bool HasFragment(const UScriptStruct& ScriptStruct) const
 	{
+		ensureMsgf(!BuildingTrait, TEXT("This method is not expected to be called within the build from trait call."));
 		return Template.HasFragment(ScriptStruct);
 	}
 
@@ -92,17 +106,20 @@ struct FMassEntityTemplateBuildContext
 	template<typename T>
 	bool HasChunkFragment() const
 	{
+		ensureMsgf(!BuildingTrait, TEXT("This method is not expected to be called within the build from trait call."));
 		return Template.HasChunkFragment<T>();
 	}
 
 	template<typename T>
 	bool HasSharedFragment() const
 	{
+		ensureMsgf(!BuildingTrait, TEXT("This method is not expected to be called within the build from trait call."));
 		return Template.HasSharedFragment<T>();
 	}
 
 	bool HasSharedFragment(const UScriptStruct& ScriptStruct) const
 	{
+		ensureMsgf(!BuildingTrait, TEXT("This method is not expected to be called within the build from trait call."));
 		return Template.HasSharedFragment(ScriptStruct);
 	}
 
@@ -112,8 +129,22 @@ struct FMassEntityTemplateBuildContext
 	template<typename T>
 	void AddTranslator()
 	{
-		TArray<UScriptStruct*> TagTypes;
+		TypeAdded(*T::StaticClass());
 		GetDefault<T>()->AppendRequiredTags(Template.GetMutableTags());
+	}
+
+	//----------------------------------------------------------------------//
+	// Dependencies
+	//----------------------------------------------------------------------//
+	template<typename T>
+	void RequireFragment()
+	{
+		AddDependency(T::StaticStruct());
+	}
+
+	void AddDependency(const UStruct* Dependency)
+	{
+		TraitsDependencies.Add( {Dependency, BuildingTrait} );
 	}
 
 	//----------------------------------------------------------------------//
@@ -122,7 +153,26 @@ struct FMassEntityTemplateBuildContext
 	FMassEntityTemplateID GetTemplateID() const { return Template.GetTemplateID(); }
 	TArray<FMassEntityTemplate::FObjectFragmentInitializerFunction>& GetMutableObjectFragmentInitializers() { return Template.GetMutableObjectFragmentInitializers(); }
 
+	//----------------------------------------------------------------------//
+	// Build methods
+	//----------------------------------------------------------------------//
+	void BuildFromTraits(TConstArrayView<UMassEntityTraitBase*> Traits, UWorld& World);
+
 protected:
+
+	void TypeAdded(const UStruct& Type)
+	{
+		if (ensureMsgf(BuildingTrait, TEXT("Expected to be called within the BuildTemplateFromTrait method")))
+		{
+			TraitAddedTypes.Add(&Type, BuildingTrait);
+		}
+	}
+	void ValidateBuildContext(UWorld& World);
+
+	const UMassEntityTraitBase* BuildingTrait = nullptr;
+	TMultiMap<const UStruct*, const UMassEntityTraitBase*> TraitAddedTypes;
+	TArray< TTuple<const UStruct*, const UMassEntityTraitBase*> > TraitsDependencies;
+
 	FMassEntityTemplate& Template;
 };
 

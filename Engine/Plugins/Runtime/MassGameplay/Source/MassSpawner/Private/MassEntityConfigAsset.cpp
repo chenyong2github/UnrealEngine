@@ -61,17 +61,7 @@ const FMassEntityTemplate* FMassEntityConfig::GetOrCreateEntityTemplate(AActor& 
 	FMassEntityTemplate& Template = TemplateRegistry.CreateTemplate(Hash, TemplateID);
 	FMassEntityTemplateBuildContext BuildContext(Template);
 
-	for (const UMassEntityTraitBase* Trait : CombinedTraits)
-	{
-		check(Trait);
-		Trait->BuildTemplate(BuildContext, *World);
-	}
-
-	for (const UMassEntityTraitBase* Trait : CombinedTraits)
-	{
-		check(Trait);
-		Trait->ValidateTemplate(BuildContext, *World);
-	}
+	BuildContext.BuildFromTraits(CombinedTraits, *World);
 
 	if (ensureMsgf(!Template.IsEmpty(), TEXT("Need at least one fragment to create an Archetype")))
 	{
