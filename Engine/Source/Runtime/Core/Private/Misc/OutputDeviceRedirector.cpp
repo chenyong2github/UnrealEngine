@@ -509,15 +509,13 @@ void FOutputDeviceRedirector::Serialize(const TCHAR* const Data, const ELogVerbo
 	UE::Private::FOutputDevicesReadScopeLock Lock(*State);
 
 #if PLATFORM_DESKTOP
-	// this is for errors which occur after shutdown we might be able to salvage information from stdout
-	if (State->BufferedOutputDevices.IsEmpty() && IsEngineExitRequested())
+	// Print anything that arrives after logging has shut down to at least have it in stdout.
+	if (UNLIKELY(State->BufferedOutputDevices.IsEmpty() && IsEngineExitRequested()))
 	{
-#if PLATFORM_WINDOWS
+	#if PLATFORM_WINDOWS
 		_tprintf(_T("%s\n"), Data);
-#else
+	#endif
 		FGenericPlatformMisc::LocalPrint(Data);
-		// printf("%s\n", TCHAR_TO_ANSI(Data));
-#endif
 		return;
 	}
 #endif
@@ -528,43 +526,40 @@ void FOutputDeviceRedirector::Serialize(const TCHAR* const Data, const ELogVerbo
 	State->BroadcastTo(ThreadId, State->UnbufferedOutputDevices, UE_PROJECTION_MEMBER(FOutputDevice, Serialize),
 		Data, Verbosity, Category, RealTime);
 
-	if (State->bEnableBacklog)
+	// Serialize to the backlog when not in panic mode. This will deadlock in panic mode when the
+	// FPlatformMallocCrash allocator has been enabled and logging occurs on a non-panic thread.
+	if (UNLIKELY(State->bEnableBacklog && !State->IsPanicThread(ThreadId)))
 	{
 		FWriteScopeLock ScopeLock(State->BacklogLock);
 		State->BacklogLines.Emplace(Data, Category, Verbosity, RealTime);
 	}
 
-	const auto EnqueueLine = [this, Data, Category, Verbosity, RealTime]
+	// Serialize to buffered output devices from the master thread.
+	// Lines are queued until buffered output devices are added to avoid missing early log lines.
+	if (State->IsMasterThread(ThreadId) && !State->BufferedOutputDevices.IsEmpty())
 	{
-		if (State->BufferedLines.EnqueueAndReturnWasEmpty(Data, Category, Verbosity, RealTime))
-		{
-			if (FEvent* WakeEvent = State->ThreadWakeEvent.load(std::memory_order_acquire))
-			{
-				WakeEvent->Trigger();
-			}
-		}
-	};
-
-	if (!State->IsMasterThread(ThreadId) || State->BufferedOutputDevices.IsEmpty())
-	{
-		EnqueueLine();
-	}
-	else if (UE::Private::FOutputDevicesMasterScope MasterLock(*State); MasterLock.IsLocked())
-	{
-		if (!State->IsMasterThread(ThreadId) && !State->IsPanicThread(ThreadId))
-		{
-			EnqueueLine();
-		}
-		else
+		// Verify that this is the master thread again because another thread may have become
+		// the master thread between the previous check and the lock.
+		if (UE::Private::FOutputDevicesMasterScope MasterLock(*State); MasterLock.IsLocked() && State->IsMasterThread(ThreadId))
 		{
 			State->FlushBufferedLines();
 			State->BroadcastTo(ThreadId, State->BufferedOutputDevices, UE_PROJECTION_MEMBER(FOutputDevice, Serialize),
 				Data, Verbosity, Category, RealTime);
+			if (UNLIKELY(State->IsPanicThread(ThreadId)))
+			{
+				Flush();
+			}
+			return;
 		}
 	}
-	else
+
+	// Queue the line to serialize to buffered output devices from the master thread.
+	if (State->BufferedLines.EnqueueAndReturnWasEmpty(Data, Category, Verbosity, RealTime))
 	{
-		// Another thread has triggered a panic and this data will be lost.
+		if (FEvent* WakeEvent = State->ThreadWakeEvent.load(std::memory_order_acquire))
+		{
+			WakeEvent->Trigger();
+		}
 	}
 }
 
@@ -598,11 +593,7 @@ void FOutputDeviceRedirector::Panic()
 {
 	uint32 PreviousThreadId = MAX_uint32;
 	const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
-	if (!State->PanicThreadId.compare_exchange_strong(PreviousThreadId, ThreadId, std::memory_order_relaxed))
-	{
-		return;
-	}
-	else
+	if (State->PanicThreadId.compare_exchange_strong(PreviousThreadId, ThreadId, std::memory_order_relaxed))
 	{
 		// Another thread may be holding the lock. Wait a while for it, but avoid waiting forever
 		// because the thread holding the lock may be unable to progress. After the timeout is
@@ -622,10 +613,18 @@ void FOutputDeviceRedirector::Panic()
 			}
 			FPlatformProcess::Yield();
 		}
-		State->MasterThreadId.exchange(ThreadId, std::memory_order_relaxed);
-	}
 
-	Flush();
+		// Make the panic thread the master thread. Neither thread can be changed after this point.
+		State->MasterThreadId.exchange(ThreadId, std::memory_order_relaxed);
+
+		// Flush. Every log from the panic thread after this point will also flush.
+		Flush();
+	}
+	else if (PreviousThreadId == ThreadId)
+	{
+		// Calling Panic() multiple times from the panic thread is equivalent to calling Flush().
+		Flush();
+	}
 }
 
 void FOutputDeviceRedirector::TearDown()

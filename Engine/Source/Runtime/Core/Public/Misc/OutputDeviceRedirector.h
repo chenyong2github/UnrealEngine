@@ -158,8 +158,9 @@ public:
 	/**
 	 * Attempts to set the calling thread as the panic thread and enable panic mode.
 	 *
-	 * Returns with no side effects if another thread is the panic thread.
+	 * Only one thread can be the panic thread. Subsequent calls from other threads are ignored.
 	 * Only redirects logs to panic-safe output devices from this point forward.
+	 * Makes the calling thread the master thread as well.
 	 * Flushes buffered logs to panic-safe output devices.
 	 * Flushes panic-safe output devices.
 	 */
