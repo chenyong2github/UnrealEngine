@@ -91,9 +91,10 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 	}
 
 	// Ensure there's a valid unit test associated with the context
-	class FAutomationTestBase* const LocalCurTest = CurTest.load(std::memory_order_relaxed);
+	FAutomationTestBase* const LocalCurTest = CurTest.load(std::memory_order_relaxed);
 	if (LocalCurTest)
 	{
+		FScopeLock Lock(&ActionCS);
 		bool CaptureLog = !LocalCurTest->SuppressLogs()
 			&& (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Display);
 
@@ -154,9 +155,10 @@ void FAutomationTestFramework::FAutomationTestMessageFilter::Serialize(const TCH
 {
 	// Prevent null dereference if logging happens in async tasks while changing DestinationContext
 	FFeedbackContext* const LocalDestinationContext = DestinationContext.load(std::memory_order_relaxed);
-	class FAutomationTestBase* const LocalCurTest = CurTest.load(std::memory_order_relaxed);
+	FAutomationTestBase* const LocalCurTest = CurTest.load(std::memory_order_relaxed);
 	if (LocalDestinationContext)
 	{
+		FScopeLock Lock(&ActionCS);
 		if ((Verbosity == ELogVerbosity::Warning) || (Verbosity == ELogVerbosity::Error))
 		{
 			if (LocalCurTest->IsExpectedError(FString(V)))
@@ -180,7 +182,7 @@ FString FAutomationTestFramework::GetUserAutomationDirectory() const
 	return FString(FPlatformProcess::UserDir()) + DefaultAutomationSubFolder;
 }
 
-bool FAutomationTestFramework::RegisterAutomationTest( const FString& InTestNameToRegister, class FAutomationTestBase* InTestToRegister )
+bool FAutomationTestFramework::RegisterAutomationTest( const FString& InTestNameToRegister, FAutomationTestBase* InTestToRegister )
 {
 	const bool bAlreadyRegistered = AutomationTestClassNameToInstanceMap.Contains( InTestNameToRegister );
 	if ( !bAlreadyRegistered )
@@ -1028,6 +1030,7 @@ void FAutomationTestBase::AddError(const FString& InError, int32 StackOffset)
 {
 	if( !IsExpectedError(InError))
 	{
+		FScopeLock Lock(&ActionCS);
 		ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Error, InError), StackOffset + 1);
 	}
 }
@@ -1044,6 +1047,7 @@ void FAutomationTestBase::AddErrorS(const FString& InError, const FString& InFil
 {
 	if ( !IsExpectedError(InError))
 	{
+		FScopeLock Lock(&ActionCS);
 		//ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Error, InError, ExecutionInfo.GetContext(), InFilename, InLineNumber));
 	}
 }
@@ -1052,6 +1056,7 @@ void FAutomationTestBase::AddWarningS(const FString& InWarning, const FString& I
 {
 	if ( !IsExpectedError(InWarning))
 	{
+		FScopeLock Lock(&ActionCS);
 		//ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Warning, InWarning, ExecutionInfo.GetContext(), InFilename, InLineNumber));
 	}
 }
@@ -1060,27 +1065,32 @@ void FAutomationTestBase::AddWarning( const FString& InWarning, int32 StackOffse
 {
 	if ( !IsExpectedError(InWarning))
 	{
+		FScopeLock Lock(&ActionCS);
 		ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Warning, InWarning), StackOffset + 1);
 	}
 }
 
 void FAutomationTestBase::AddInfo( const FString& InLogItem, int32 StackOffset )
 {
+	FScopeLock Lock(&ActionCS);
 	ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Info, InLogItem), StackOffset + 1);
 }
 
 void FAutomationTestBase::AddAnalyticsItem(const FString& InAnalyticsItem)
 {
+	FScopeLock Lock(&ActionCS);
 	ExecutionInfo.AnalyticsItems.Add(InAnalyticsItem);
 }
 
 void FAutomationTestBase::AddTelemetryData(const FString& DataPoint, double Measurement, const FString& Context)
 {
+	FScopeLock Lock(&ActionCS);
 	ExecutionInfo.TelemetryItems.Add(FAutomationTelemetryData(DataPoint, Measurement, Context));
 }
 
 void FAutomationTestBase::AddTelemetryData(const TMap <FString, double>& ValuePairs, const FString& Context)
 {
+	FScopeLock Lock(&ActionCS);
 	for (const TPair<FString, double>& Item : ValuePairs)
 	{
 		ExecutionInfo.TelemetryItems.Add(FAutomationTelemetryData(Item.Key, Item.Value, Context));
@@ -1094,6 +1104,7 @@ void FAutomationTestBase::SetTelemetryStorage(const FString& StorageName)
 
 void FAutomationTestBase::AddEvent(const FAutomationEvent& InEvent, int32 StackOffset)
 {
+	FScopeLock Lock(&ActionCS);
 	ExecutionInfo.AddEvent(InEvent, StackOffset + 1);
 }
 
@@ -1104,6 +1115,7 @@ bool FAutomationTestBase::HasAnyErrors() const
 
 bool FAutomationTestBase::HasMetExpectedErrors()
 {
+	FScopeLock Lock(&ActionCS);
 	bool HasMetAllExpectedErrors = true;
 
 	for (auto& EError : ExpectedErrors)

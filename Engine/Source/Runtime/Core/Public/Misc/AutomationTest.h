@@ -16,7 +16,7 @@
 #include "HAL/PlatformTime.h"
 #include "HAL/ThreadSafeBool.h" 
 #include "HAL/PlatformStackWalk.h"
-#include "GenericPlatform/GenericPlatformStackWalk.h" 
+#include "GenericPlatform/GenericPlatformStackWalk.h"
 #include "Containers/Queue.h"
 #include "Misc/CString.h"
 #include "Misc/FeedbackContext.h"
@@ -27,6 +27,7 @@
 #include "Math/Color.h"
 #include "Math/Rotator.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/CriticalSection.h"
 #include "Misc/AutomationEvent.h"
 #include "Internationalization/Regex.h"
 #include <atomic>
@@ -809,7 +810,7 @@ public:
 	 * @return	true if the test was successfully registered; false if a test was already registered under the same
 	 *			name as before
 	 */
-	bool RegisterAutomationTest( const FString& InTestNameToRegister, class FAutomationTestBase* InTestToRegister );
+	bool RegisterAutomationTest( const FString& InTestNameToRegister, FAutomationTestBase* InTestToRegister );
 
 	/**
 	 * Unregister a automation test with the provided name from the framework.
@@ -990,19 +991,32 @@ private:
 		virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
 
 		/**
+		 * FOutputDevice interface
+		 *
+		 * Make it unbuffered by returning true
+		 */
+		virtual bool CanBeUsedOnMultipleThreads() const override
+		{
+			return true;
+		}
+
+		/**
 		 * Set the automation test associated with the output device. The automation test is where all warnings, errors, etc.
 		 * will be routed to.
 		 *
 		 * @param	InAutomationTest	Automation test to associate with the output device.
 		 */
-		void SetCurrentAutomationTest( class FAutomationTestBase* InAutomationTest )
+		void SetCurrentAutomationTest( FAutomationTestBase* InAutomationTest )
 		{
 			CurTest = InAutomationTest;
 		}
 
 	private:
 		/** Associated automation test; all warnings, errors, etc. are routed to the automation test to track */
-		std::atomic<class FAutomationTestBase*>CurTest;
+		std::atomic<FAutomationTestBase*>CurTest;
+
+		/** Critical section */
+		FCriticalSection ActionCS;
 
 		/** Tests that we've logged the failure cause when an error is involved */
 		TSet<FAutomationTestBase*> LoggedFailureCause;
@@ -1031,13 +1045,23 @@ private:
 		 virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override;
 
 		 /**
+		  * FOutputDevice interface
+		  *
+		  * Make it unbuffered by returning true
+		  */
+		 virtual bool CanBeUsedOnMultipleThreads() const override
+		 {
+			 return true;
+		 }
+
+		 /**
 		  * Set the automation test associated with the feedback context. The automation test is what will be used
 		  * to determine if a given warning or error is expected and thus should not be treated as a warning or error
 		  * by the destination context.
 		  *
 		  * @param	InAutomationTest	Automation test to associate with the feedback context.
 		  */
-		 void SetCurrentAutomationTest(class FAutomationTestBase* InAutomationTest)
+		 void SetCurrentAutomationTest(FAutomationTestBase* InAutomationTest)
 		 {
 			 CurTest = InAutomationTest;
 		 }
@@ -1054,8 +1078,9 @@ private:
 		 }
 
 	 private:
-		 std::atomic<class FAutomationTestBase*> CurTest;
+		 std::atomic<FAutomationTestBase*> CurTest;
 		 std::atomic<FFeedbackContext*> DestinationContext;
+		 FCriticalSection ActionCS;;
 	 };
 
 	friend class FAutomationTestOutputDevice;
@@ -1108,7 +1133,7 @@ private:
 	FFeedbackContext* OriginalGWarn = nullptr;
 
 	/** Mapping of automation test names to their respective object instances */
-	TMap<FString, class FAutomationTestBase*> AutomationTestClassNameToInstanceMap;
+	TMap<FString, FAutomationTestBase*> AutomationTestClassNameToInstanceMap;
 
 	/** Queue of deferred commands */
 	TQueue< TSharedPtr<IAutomationLatentCommand> > LatentCommands;
@@ -1797,6 +1822,8 @@ private:
 	/* Errors to be expected while processing this test.*/
 	TArray< FAutomationExpectedError> ExpectedErrors;
 
+	/** Critical section lock */
+	FCriticalSection ActionCS;
 };
 
 class CORE_API FBDDAutomationTestBase : public FAutomationTestBase
