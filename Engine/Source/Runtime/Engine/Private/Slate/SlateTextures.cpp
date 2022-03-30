@@ -321,7 +321,7 @@ void FSlateTextureRenderTarget2DResource::InitDynamicRHI()
 			.SetFormat((EPixelFormat)Format)
 			.SetClearValue(FClearValueBinding(ClearColor));
 
-		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI, Texture2DRHI);
+		RHICreateTargetableShaderResource(Desc, ETextureCreateFlags::RenderTargetable, RenderTargetTextureRHI, TextureRHI);
 	}
 
 	// Create the sampler state RHI resource.
@@ -342,7 +342,6 @@ void FSlateTextureRenderTarget2DResource::ReleaseDynamicRHI()
 	// Release the FTexture RHI resources here as well
 	ReleaseRHI();
 
-	Texture2DRHI.SafeRelease();
 	RenderTargetTextureRHI.SafeRelease();	
 
 	// Remove from global list of deferred clears

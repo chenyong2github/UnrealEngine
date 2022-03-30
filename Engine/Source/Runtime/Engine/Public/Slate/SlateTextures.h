@@ -154,7 +154,7 @@ public:
 	virtual void SetSize(int32 InSizeX,int32 InSizeY);
 
 	/** Gets the RHI resource for this render target */
-	FTexture2DRHIRef GetTextureRHI() { return Texture2DRHI; }
+	FTexture2DRHIRef GetTextureRHI() { return TextureRHI; }
 
 public:
 	// FTextureRenderTargetResource implementation
@@ -177,7 +177,6 @@ protected:
 
 
 private:
-	FTexture2DRHIRef Texture2DRHI;
 	FLinearColor ClearColor;
 	int32 TargetSizeX,TargetSizeY;
 
