@@ -191,4 +191,14 @@ bool FConcertSessionVersionInfo::Validate(const FConcertSessionVersionInfo& InOt
 	return true;
 }
 
+FText FConcertSessionVersionInfo::AsText() const
+{
+	return FText::Format(
+		LOCTEXT("EngineVersionFmt", "{0}.{1}.{2}-{3}"),
+		FText::AsNumber(EngineVersion.Major, &FNumberFormattingOptions::DefaultNoGrouping()),
+		FText::AsNumber(EngineVersion.Minor, &FNumberFormattingOptions::DefaultNoGrouping()),
+		FText::AsNumber(EngineVersion.Patch, &FNumberFormattingOptions::DefaultNoGrouping()),
+		FText::AsNumber(EngineVersion.Changelist, &FNumberFormattingOptions::DefaultNoGrouping())
+		);
+}
 #undef LOCTEXT_NAMESPACE

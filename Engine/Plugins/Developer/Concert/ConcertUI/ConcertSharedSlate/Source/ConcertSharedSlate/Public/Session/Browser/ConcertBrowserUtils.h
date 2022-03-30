@@ -26,6 +26,8 @@ namespace ConcertBrowserUtils
 	static const FName IconColName(TEXT("Icon"));
 	static const FName SessionColName(TEXT("Session"));
 	static const FName ServerColName(TEXT("Server"));
+	static const FName ProjectColName(TEXT("Project"));
+	static const FName VersionColName(TEXT("Version"));
 
 	// Name of the filter box in the View option.
 	static const FName ActiveSessionsCheckBoxMenuName(TEXT("ActiveSessions"));

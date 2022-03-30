@@ -98,18 +98,22 @@ TOptional<FConcertSessionInfo> FConcertServerSessionBrowserController::GetArchiv
 	return ServerInstance->GetConcertServer()->GetArchivedSessionInfo(SessionId);
 }
 
-void FConcertServerSessionBrowserController::CreateSession(const FGuid& ServerAdminEndpointId, const FString& SessionName)
+void FConcertServerSessionBrowserController::CreateSession(const FGuid& ServerAdminEndpointId, const FString& SessionName, const FString& ProjectName)
 {
 	FConcertSessionInfo SessionInfo = ServerInstance->GetConcertServer()->CreateSessionInfo();
 	SessionInfo.SessionName = SessionName;
 	SessionInfo.Settings.Initialize();
+	if (!ProjectName.IsEmpty())
+	{
+		SessionInfo.Settings.ProjectName = ProjectName;
+	}
 	FConcertSessionVersionInfo VersionInfo;
 	VersionInfo.Initialize();
 	SessionInfo.VersionInfos.Emplace(VersionInfo);
-	
+
 	FText FailureReason = FText::GetEmpty();
 	const bool bSuccess = ServerInstance->GetConcertServer()->CreateSession(SessionInfo, FailureReason) != nullptr;
-	
+
 	NotifyUserOfFinishedSessionAction(bSuccess,
 		bSuccess ? FText::Format(LOCTEXT("CreatedSessionFmt", "Created Session '{0}'"), FText::FromString(SessionName)) : FText::Format(LOCTEXT("FailedToCreateSessionFmt", "Failed to create Session '{0}'"), FText::FromString(SessionName)),
 		FailureReason

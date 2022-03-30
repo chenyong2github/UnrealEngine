@@ -24,19 +24,16 @@ public:
 		ArchivedSession, // Read-only item representing an archived session.
 	};
 
-	FConcertSessionItem(EType Type, const FString& InSessionName, const FGuid& InSessionId, const FString& InServerName, const FGuid& InServerEndpoint, EConcertServerFlags InServerFlags)
-		: Type(Type)
-		, ServerAdminEndpointId(InServerEndpoint)
-		, SessionId(InSessionId)
-		, SessionName(InSessionName)
-		, ServerName(InServerName)
-		, ServerFlags(InServerFlags)
-	{
-	}
-
 	bool operator==(const FConcertSessionItem& Other) const
 	{
 		return Type == Other.Type && ServerAdminEndpointId == Other.ServerAdminEndpointId && SessionId == Other.SessionId;
+	}
+
+	FConcertSessionItem MakeCopyAsType(EType NewType)
+	{
+		FConcertSessionItem NewItem = *this;
+		Type = NewType;
+		return NewItem;
 	}
 
 	EType Type = EType::None;
@@ -44,6 +41,9 @@ public:
 	FGuid SessionId;
 	FString SessionName;
 	FString ServerName;
+	FString ProjectName;
+	FString ProjectVersion;
+	EConcertServerFlags ServerFlags = EConcertServerFlags::None;
+
 	FOnBeginEditConcertSessionNameRequest OnBeginEditSessionNameRequest; // Emitted when user press 'F2' or select 'Rename' from context menu.
-	EConcertServerFlags ServerFlags;
 };

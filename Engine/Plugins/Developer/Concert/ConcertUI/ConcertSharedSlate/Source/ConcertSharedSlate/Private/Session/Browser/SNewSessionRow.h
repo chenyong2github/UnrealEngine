@@ -35,19 +35,19 @@ public:
 	SLATE_ARGUMENT(FGetServersFunc, GetServerFunc)
 	SLATE_ARGUMENT(FAcceptFunc, OnAcceptFunc)
 	SLATE_ARGUMENT(FDeclineFunc, OnDeclineFunc)
-	
+
 	SLATE_ATTRIBUTE(FText, HighlightText)
 	SLATE_ATTRIBUTE(FString, DefaultServerURL)
 
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionItem> InItem, const TSharedRef<STableViewBase>& InOwnerTableView);
-	
+
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
-	
+
 	TSharedRef<SWidget> OnGenerateServersComboOptionWidget(TSharedPtr<FConcertServerInfo> Item);
 	TSharedRef<SWidget> MakeSelectedServerWidget();
 	FText GetSelectedServerText() const;
@@ -57,6 +57,8 @@ private:
 
 	void OnSessionNameChanged(const FText& NewName);
 	void OnSessionNameCommitted(const FText& NewText, ETextCommit::Type CommitType);
+	void OnProjectNameCommitted(const FText& NewProjectName, ETextCommit::Type CommitType);
+
 	FReply OnAccept();
 	FReply OnDecline();
 	FReply OnKeyDownHandler(const FGeometry&, const FKeyEvent&); // Registered as handler to the editable text (vs. OnKeyDown() virtual method).
@@ -67,14 +69,15 @@ private:
 	TWeakPtr<FConcertSessionItem> Item;
 	/** Servers displayed in the server combo box. */
 	TArray<TSharedPtr<FConcertServerInfo>> Servers;
-	
+
 	TSharedPtr<SComboBox<TSharedPtr<FConcertServerInfo>>> ServersComboBox;
 	TSharedPtr<SEditableTextBox> EditableSessionName;
-	
+	TSharedPtr<SEditableTextBox> ProjectNameTextBox;
+
 	FGetServersFunc GetServersFunc;
 	FAcceptFunc AcceptFunc;
 	FDeclineFunc DeclineFunc;
-	
+
 	TAttribute<FText> HighlightText;
 	TAttribute<FString> DefaultServerURL;
 	bool bInitialFocusTaken = false;

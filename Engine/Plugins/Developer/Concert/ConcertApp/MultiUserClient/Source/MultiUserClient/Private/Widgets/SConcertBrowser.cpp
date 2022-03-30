@@ -135,7 +135,7 @@ public:
 	virtual TOptional<FConcertSessionInfo> GetActiveSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const override;
 	virtual TOptional<FConcertSessionInfo> GetArchivedSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const override;
 
-	virtual void CreateSession(const FGuid& ServerAdminEndpointId, const FString& SessionName) override;
+	virtual void CreateSession(const FGuid& ServerAdminEndpointId, const FString& SessionName, const FString& ProjectName) override;
 	virtual void ArchiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& ArchiveName, const FConcertSessionFilter& SessionFilter) override;
 	virtual void RestoreSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& RestoredName, const FConcertSessionFilter& SessionFilter) override;
 	virtual void RenameActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName) override;
@@ -296,7 +296,7 @@ TOptional<FConcertSessionInfo> FConcertClientSessionBrowserController::GetArchiv
 	return SessionInfo != nullptr ? (*SessionInfo)->SessionInfo : TOptional<FConcertSessionInfo>{};
 }
 
-void FConcertClientSessionBrowserController::CreateSession(const FGuid& ServerAdminEndpointId, const FString& SessionName)
+void FConcertClientSessionBrowserController::CreateSession(const FGuid& ServerAdminEndpointId, const FString& SessionName, const FString& ProjectName)
 {
 	FAsyncRequest& CreateRequest = CreateSessionRequests.AddDefaulted_GetRef();
 	TWeakPtr<uint8, ESPMode::ThreadSafe> CreateRequestExecutionToken = CreateRequest.ResetExecutionToken();
@@ -305,6 +305,7 @@ void FConcertClientSessionBrowserController::CreateSession(const FGuid& ServerAd
 	// On failure: An async notification banner will be displayer to the user.
 	FConcertCreateSessionArgs CreateSessionArgs;
 	CreateSessionArgs.SessionName = SessionName;
+	// Project Name is not used an override for the client session create.
 	ConcertClient->CreateSession(ServerAdminEndpointId, CreateSessionArgs).Next([this, CreateRequestExecutionToken, ServerAdminEndpointId, SessionName](EConcertResponseCode ResponseCode)
 	{
 		if (TSharedPtr<uint8, ESPMode::ThreadSafe> ExecutionToken = CreateRequestExecutionToken.Pin())
@@ -1647,18 +1648,10 @@ void SConcertClientSessionBrowser::PopulateSessionInfoGrid(SGridPanel& Grid, con
 	AddDetailRow(Grid, Row++, LOCTEXT("SessionName", "Session Name:"), FText::FromString(SessionInfo.SessionName));
 	AddDetailRow(Grid, Row++, LOCTEXT("Owner", "Owner:"), FText::FromString(SessionInfo.OwnerUserName));
 	AddDetailRow(Grid, Row++, LOCTEXT("Project", "Project:"), FText::FromString(SessionInfo.Settings.ProjectName));
-	//AddDetailRow(Grid, Row++, LOCTEXT("BaseVersion", "Base Version:"), FText::AsNumber(SessionInfo.Settings.BaseRevision, &FNumberFormattingOptions::DefaultNoGrouping()));
 	if (SessionInfo.VersionInfos.Num() > 0)
 	{
 		const FConcertSessionVersionInfo& VersionInfo = SessionInfo.VersionInfos.Last();
-		AddDetailRow(Grid, Row++, LOCTEXT("EngineVersion", "Engine Version:"),
-			FText::Format(
-				LOCTEXT("EngineVersionFmt", "{0}.{1}.{2}-{3}"),
-				FText::AsNumber(VersionInfo.EngineVersion.Major, &FNumberFormattingOptions::DefaultNoGrouping()),
-				FText::AsNumber(VersionInfo.EngineVersion.Minor, &FNumberFormattingOptions::DefaultNoGrouping()),
-				FText::AsNumber(VersionInfo.EngineVersion.Patch, &FNumberFormattingOptions::DefaultNoGrouping()),
-				FText::AsNumber(VersionInfo.EngineVersion.Changelist, &FNumberFormattingOptions::DefaultNoGrouping())
-			));
+		AddDetailRow(Grid, Row++, LOCTEXT("EngineVersion", "Engine Version:"), VersionInfo.AsText());
 	}
 	AddDetailRow(Grid, Row++, LOCTEXT("ServerEndPointId", "Server Endpoint ID:"), FText::FromString(SessionInfo.ServerEndpointId.ToString()));
 }

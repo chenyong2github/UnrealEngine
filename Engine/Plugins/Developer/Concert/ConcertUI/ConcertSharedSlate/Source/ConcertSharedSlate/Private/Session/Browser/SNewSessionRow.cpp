@@ -79,7 +79,7 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 				.OnTextChanged(this, &SNewSessionRow::OnSessionNameChanged)
 			];
 	}
-	else
+	else if (ColumnName == ConcertBrowserUtils::ServerColName)
 	{
 		return SNew(SHorizontalBox)
 
@@ -95,8 +95,11 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 				[
 					MakeSelectedServerWidget()
 				]
-			]
-
+			];
+	}
+	else if (ColumnName == ConcertBrowserUtils::VersionColName)
+	{
+		return SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			.Padding(2.0f)
@@ -124,6 +127,21 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 						true, // Always enabled.
 						FOnClicked::CreateRaw(this, &SNewSessionRow::OnDecline))
 				]
+			];
+	}
+	else
+	{
+		check(ColumnName == ConcertBrowserUtils::ProjectColName);
+		FText ProjectName = FText::AsCultureInvariant(FApp::GetProjectName());
+		return SNew(SBox)
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(0, 0, 2, 0))
+			[
+				SAssignNew(ProjectNameTextBox, SEditableTextBox)
+				.HintText(ProjectName)
+				.Text(ProjectName)
+				.OnTextCommitted(this, &SNewSessionRow::OnProjectNameCommitted)
+				.OnKeyDownHandler(this, &SNewSessionRow::OnKeyDownHandler)
 			];
 	}
 }
@@ -302,13 +320,19 @@ FReply SNewSessionRow::OnAccept()
 {
 	TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
 	FString NewSessionName = EditableSessionName->GetText().ToString();
-
 	FText InvalidNameErrorMsg = ConcertSettingsUtils::ValidateSessionName(NewSessionName);
+
 	if (InvalidNameErrorMsg.IsEmpty())
 	{
-		ItemPin->SessionName = EditableSessionName->GetText().ToString();
+		ItemPin->SessionName = NewSessionName;
 		ItemPin->ServerName = ServersComboBox->GetSelectedItem()->ServerName;
 		ItemPin->ServerAdminEndpointId = ServersComboBox->GetSelectedItem()->AdminEndpointId;
+		FString CandidateProjectName = ProjectNameTextBox->GetText().ToString();
+		if (CandidateProjectName.IsEmpty())
+		{
+			CandidateProjectName = FApp::GetProjectName();
+		}
+		ItemPin->ProjectName = CandidateProjectName;
 		AcceptFunc(ItemPin); // Delegate to create the session.
 	}
 	else
@@ -329,6 +353,14 @@ FReply SNewSessionRow::OnDecline()
 void SNewSessionRow::OnSessionNameChanged(const FText& NewName)
 {
 	EditableSessionName->SetError(ConcertSettingsUtils::ValidateSessionName(NewName.ToString()));
+}
+
+void SNewSessionRow::OnProjectNameCommitted(const FText &NewProjectName, ETextCommit::Type CommitType)
+{
+	if (CommitType == ETextCommit::OnEnter)
+	{
+		OnAccept(); // Create the session;.
+	}
 }
 
 void SNewSessionRow::OnSessionNameCommitted(const FText& NewText, ETextCommit::Type CommitType)

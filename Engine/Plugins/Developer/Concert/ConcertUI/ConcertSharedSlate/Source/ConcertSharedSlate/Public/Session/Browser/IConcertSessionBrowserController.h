@@ -39,7 +39,6 @@ public:
 	};
 
 public:
-
 	/** Returns the latest list of server known to this controller. */
 	virtual TArray<FConcertServerInfo> GetServers() const = 0;
 
@@ -55,7 +54,7 @@ public:
 	/** Returns the archived sessions info corresponding to the specified parameters. Used to display the sessions details. */
 	virtual TOptional<FConcertSessionInfo> GetArchivedSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const = 0;
 
-	virtual void CreateSession(const FGuid& ServerAdminEndpointId, const FString& SessionName) = 0;
+	virtual void CreateSession(const FGuid& ServerAdminEndpointId, const FString& SessionName, const FString& ProjectName) = 0;
 	virtual void ArchiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& ArchiveName, const FConcertSessionFilter& SessionFilter) = 0;
 	virtual void RestoreSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& RestoredName, const FConcertSessionFilter& SessionFilter) = 0;
 	virtual void RenameActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName) = 0;

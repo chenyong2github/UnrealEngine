@@ -2,6 +2,7 @@
 
 #include "Session/Browser/SConcertSessionBrowser.h"
 
+#include "Algo/ForEach.h"
 #include "ConcertFrontendStyle.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionBrowserSettings.h"
@@ -111,6 +112,41 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeBrowserContent(const FArguments&
 		];
 }
 
+namespace UE::SessionBrowser::Private
+{
+
+template <typename SessionType>
+constexpr FConcertSessionItem::EType GetEType()
+{
+	if constexpr(std::is_same<IConcertSessionBrowserController::FActiveSessionInfo,SessionType>::value)
+	{
+		return FConcertSessionItem::EType::ActiveSession;
+	}
+	return FConcertSessionItem::EType::ArchivedSession;
+}
+
+template <typename SessionType>
+static FConcertSessionItem GenerateSessionItem(const SessionType& Session)
+{
+	FText Version = LOCTEXT("ConcertEmptyVersion", "Unset");
+	if (Session.SessionInfo.VersionInfos.Num()>0)
+	{
+		const FConcertSessionVersionInfo& VersionInfo = Session.SessionInfo.VersionInfos.Last();
+		Version = VersionInfo.AsText();
+	}
+	return FConcertSessionItem{
+		GetEType<SessionType>(),
+		Session.ServerInfo.AdminEndpointId,
+		Session.SessionInfo.SessionId,
+		Session.SessionInfo.SessionName,
+		Session.ServerInfo.ServerName,
+		Session.SessionInfo.Settings.ProjectName,
+		Version.ToString(),
+		Session.ServerInfo.ServerFlags,{}};
+}
+
+}
+
 void SConcertSessionBrowser::RefreshSessionList()
 {
 	// Remember the selected instances (if any).
@@ -123,7 +159,6 @@ void SConcertSessionBrowser::RefreshSessionList()
 	{
 		return SelectedItems.ContainsByPredicate([Item](const TSharedPtr<FConcertSessionItem>& Visited) { return *Visited == Item; });
 	};
-
 	// Matches the object instances before the update to the new instance after the update.
 	auto ReconcileObjectInstances = [&](TSharedPtr<FConcertSessionItem> NewItem)
 	{
@@ -136,31 +171,22 @@ void SConcertSessionBrowser::RefreshSessionList()
 			NewEditableRowParent = NewItem;
 		}
 	};
-
-	// Clear sessions.
+	auto ConvertSession = [&](const auto& Session)
+	{
+		FConcertSessionItem NewItem = UE::SessionBrowser::Private::GenerateSessionItem(Session);
+		if (!IsFilteredOut(NewItem))
+		{
+			Sessions.Emplace(
+				MakeShared<FConcertSessionItem>(MoveTemp(NewItem)));
+			ReconcileObjectInstances(Sessions.Last());
+		}
+	};
 	Sessions.Reset();
 
-	// Populate the live sessions.
-	for (const IConcertSessionBrowserController::FActiveSessionInfo& ActiveSession : GetController()->GetActiveSessions())
-	{
-		FConcertSessionItem NewItem(FConcertSessionItem::EType::ActiveSession, ActiveSession.SessionInfo.SessionName, ActiveSession.SessionInfo.SessionId, ActiveSession.ServerInfo.ServerName, ActiveSession.ServerInfo.AdminEndpointId, ActiveSession.ServerInfo.ServerFlags);
-		if (!IsFilteredOut(NewItem))
-		{
-			Sessions.Emplace(MakeShared<FConcertSessionItem>(MoveTemp(NewItem)));
-			ReconcileObjectInstances(Sessions.Last());
-		}
-	}
-
-	// Populate the archived.
-	for (const IConcertSessionBrowserController::FArchivedSessionInfo& ArchivedSession : GetController()->GetArchivedSessions())
-	{
-		FConcertSessionItem NewItem(FConcertSessionItem::EType::ArchivedSession, ArchivedSession.SessionInfo.SessionName, ArchivedSession.SessionInfo.SessionId, ArchivedSession.ServerInfo.ServerName, ArchivedSession.ServerInfo.AdminEndpointId, ArchivedSession.ServerInfo.ServerFlags);
-		if (!IsFilteredOut(NewItem))
-		{
-			Sessions.Emplace(MakeShared<FConcertSessionItem>(MoveTemp(NewItem)));
-			ReconcileObjectInstances(Sessions.Last());
-		}
-	}
+	TArray<IConcertSessionBrowserController::FActiveSessionInfo> ActiveSessions = GetController()->GetActiveSessions();
+	TArray<IConcertSessionBrowserController::FArchivedSessionInfo> ArchivedSessions = GetController()->GetArchivedSessions();
+	Algo::ForEach(ActiveSessions, ConvertSession);
+	Algo::ForEach(ArchivedSessions, ConvertSession);
 
 	// Restore the editable row state. (SortSessionList() below will ensure the parent/child relationship)
 	EditableSessionRowParent = NewEditableRowParent;
@@ -224,9 +250,9 @@ bool SConcertSessionBrowser::IsFilteredOut(const FConcertSessionItem& Item) cons
 	bool bIsDefaultServer = LastDefaultServerUrl.IsEmpty() || Item.ServerName == LastDefaultServerUrl;
 
 	return (!PersistentSettings->bShowActiveSessions && (Item.Type == FConcertSessionItem::EType::ActiveSession || Item.Type == FConcertSessionItem::EType::SaveSession)) ||
-	       (!PersistentSettings->bShowArchivedSessions && (Item.Type == FConcertSessionItem::EType::ArchivedSession || Item.Type == FConcertSessionItem::EType::RestoreSession)) ||
-	       (PersistentSettings->bShowDefaultServerSessionsOnly && !bIsDefaultServer) ||
-	       !SearchTextFilter->PassesFilter(Item);
+		   (!PersistentSettings->bShowArchivedSessions && (Item.Type == FConcertSessionItem::EType::ArchivedSession || Item.Type == FConcertSessionItem::EType::RestoreSession)) ||
+		   (PersistentSettings->bShowDefaultServerSessionsOnly && !bIsDefaultServer) ||
+		   !SearchTextFilter->PassesFilter(Item);
 }
 
 FText SConcertSessionBrowser::HighlightSearchText() const
@@ -347,6 +373,18 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView()
 			.DefaultLabel(LOCTEXT("Server", "Server"))
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::ServerColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::ServerColName)
+			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
+
+			+SHeaderRow::Column(ConcertBrowserUtils::ProjectColName)
+			.DefaultLabel(LOCTEXT("Project", "Project"))
+			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::ProjectColName)
+			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::ProjectColName)
+			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
+
+			+SHeaderRow::Column(ConcertBrowserUtils::VersionColName)
+			.DefaultLabel(LOCTEXT("Version", "Version"))
+			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::VersionColName)
+			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::VersionColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged));
 }
 
@@ -559,19 +597,20 @@ TSharedRef<ITableRow> SConcertSessionBrowser::MakeRestoreSessionRowWidget(const 
 void SConcertSessionBrowser::InsertNewSessionEditableRowInternal()
 {
 	// Insert a 'new session' editable row.
-	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(FConcertSessionItem::EType::NewSession, FString(), FGuid(), FString(), FGuid(), EConcertServerFlags::None), nullptr);
+	FConcertSessionItem Item{FConcertSessionItem::EType::NewSession};
+	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(MoveTemp(Item)), nullptr);
 }
 
 void SConcertSessionBrowser::InsertRestoreSessionAsEditableRowInternal(const TSharedPtr<FConcertSessionItem>& ArchivedItem)
 {
 	// Insert the 'restore session as ' editable row just below the 'archived' item to restore.
-	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(FConcertSessionItem::EType::RestoreSession, ArchivedItem->SessionName, ArchivedItem->SessionId, ArchivedItem->ServerName, ArchivedItem->ServerAdminEndpointId, ArchivedItem->ServerFlags), ArchivedItem);
+	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(ArchivedItem->MakeCopyAsType(FConcertSessionItem::EType::RestoreSession)), ArchivedItem);
 }
 
 void SConcertSessionBrowser::InsertArchiveSessionAsEditableRow(const TSharedPtr<FConcertSessionItem>& LiveItem)
 {
 	// Insert the 'save session as' editable row just below the 'active' item to save.
-	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(FConcertSessionItem::EType::SaveSession, LiveItem->SessionName, LiveItem->SessionId, LiveItem->ServerName, LiveItem->ServerAdminEndpointId, LiveItem->ServerFlags), LiveItem);
+	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(LiveItem->MakeCopyAsType(FConcertSessionItem::EType::SaveSession)), LiveItem);
 }
 
 void SConcertSessionBrowser::InsertEditableSessionRow(TSharedPtr<FConcertSessionItem> EditableItem, TSharedPtr<FConcertSessionItem> ParentItem)
@@ -991,7 +1030,7 @@ FReply SConcertSessionBrowser::OnKeyDown(const FGeometry& MyGeometry, const FKey
 
 void SConcertSessionBrowser::RequestCreateSession(const TSharedPtr<FConcertSessionItem>& NewItem)
 {
-	GetController()->CreateSession(NewItem->ServerAdminEndpointId, NewItem->SessionName);
+	GetController()->CreateSession(NewItem->ServerAdminEndpointId, NewItem->SessionName, NewItem->ProjectName);
 	RemoveSessionRow(NewItem); // The row used to edit the session name and pick the server.
 }
 

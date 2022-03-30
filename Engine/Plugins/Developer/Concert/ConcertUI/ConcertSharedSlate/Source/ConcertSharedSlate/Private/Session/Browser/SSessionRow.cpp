@@ -37,118 +37,194 @@ void SSessionRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertSession
 	InItem->OnBeginEditSessionNameRequest.AddSP(this, &SSessionRow::OnBeginEditingSessionName);
 }
 
-TSharedRef<SWidget> SSessionRow::GenerateWidgetForColumn(const FName& ColumnName)
+
+FSlateColor SSessionRow::GetFontColor(bool bIsActiveSession, bool bIsDefault)
+{
+	if (bIsActiveSession)
+	{
+		return bIsDefault ? FSlateColor(FLinearColor::White) : FSlateColor(FLinearColor::White * 0.8f);
+	}
+
+	return FSlateColor::UseSubduedForeground();
+}
+
+
+FSlateFontInfo SSessionRow::GetFontInfo(bool bIsActiveSession, bool bIsDefault)
+{
+	if (bIsActiveSession)
+	{
+		return FAppStyle::Get().GetFontStyle("NormalFont");
+	}
+	return  FCoreStyle::GetDefaultFontStyle("Italic", 9);
+}
+
+TSharedRef<SWidget> SSessionRow::GenerateSessionColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor)
+{
+	return SNew(SBox)
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(SessionNameText, SInlineEditableTextBlock)
+			.Text_Lambda([this]() { return FText::AsCultureInvariant(Item.Pin()->SessionName); })
+			.HighlightText(HighlightText)
+			.OnTextCommitted(this, &SSessionRow::OnSessionNameCommitted)
+			.IsReadOnly(false)
+			.IsSelected(FIsSelected::CreateLambda([this]() { return IsSelected.Get(); }))
+			.OnVerifyTextChanged(this, &SSessionRow::OnValidatingSessionName)
+			.Font(FontInfo)
+			.ColorAndOpacity(FontColor)
+			];
+}
+
+TSharedRef<SWidget> SSessionRow::GenerateServerColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor)
 {
 	TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
+	return SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(FText::AsCultureInvariant(ItemPin->ServerName))
+			.HighlightText(HighlightText)
+			.Font(FontInfo)
+			.ColorAndOpacity(FontColor)
+		]
+		+SHorizontalBox::Slot()
+		[
+			SNew(SSpacer)
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		[
+			ConcertBrowserUtils::MakeServerVersionIgnoredWidget(ItemPin->ServerFlags)
+		];
+}
 
-	if (ColumnName == ConcertBrowserUtils::IconColName)
-	{
-		return SNew(SBox)
+TSharedRef<SWidget> SSessionRow::GenerateServerDefaultColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor)
+{
+	TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
+	return SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(FText::Format(INVTEXT("{0} * "), FText::AsCultureInvariant(ItemPin->ServerName)))
+			.HighlightText(HighlightText)
+			.Font(FontInfo)
+			.ColorAndOpacity(FontColor)
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("DefaultServerSession", "(Default Session/Server)"))
+			.HighlightText(HighlightText)
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
+			.ColorAndOpacity(FontColor)
+		]
+		+SHorizontalBox::Slot()
+		[
+			SNew(SSpacer)
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		[
+			ConcertBrowserUtils::MakeServerVersionIgnoredWidget(ItemPin->ServerFlags)
+		];
+}
+
+TSharedRef<SWidget> SSessionRow::GenerateProjectColumn(const FSlateFontInfo &FontInfo, const FSlateColor &FontColor)
+{
+	//TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
+	return SNew(SBox)
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(SessionNameText, SInlineEditableTextBlock)
+			.Text_Lambda([this]() { return FText::AsCultureInvariant(Item.Pin()->ProjectName); })
+			.HighlightText(HighlightText)
+			.IsReadOnly(true)
+			.Font(FontInfo)
+			.ColorAndOpacity(FontColor)
+			];
+}
+
+TSharedRef<SWidget> SSessionRow::GenerateVersionColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor)
+{
+	return SNew(SBox)
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(SessionNameText, SInlineEditableTextBlock)
+			.Text_Lambda([this]() { return FText::AsCultureInvariant(Item.Pin()->ProjectVersion); })
+			.HighlightText(HighlightText)
+			.IsReadOnly(true)
+			.Font(FontInfo)
+			.ColorAndOpacity(FontColor)
+			];
+}
+
+
+TSharedRef<SWidget> SSessionRow::GenerateIconColumn()
+{
+	TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
+	const FText Tooltip = ItemPin->Type == FConcertSessionItem::EType::ActiveSession ?
+		LOCTEXT("ActiveIconTooltip", "Active session") : LOCTEXT("ArchivedIconTooltip", "Archived Session");
+	const FSlateColor InStyle = ItemPin->Type == FConcertSessionItem::EType::ActiveSession ?
+		FAppStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Success").Normal.TintColor : FSlateColor::UseSubduedForeground();
+	const FText InGlyph = ItemPin->Type == FConcertSessionItem::EType::ActiveSession ? FEditorFontGlyphs::Circle : FEditorFontGlyphs::Archive;
+	return SNew(SBox)
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Center)
 		.Padding(2)
-		.ToolTipText(ItemPin->Type == FConcertSessionItem::EType::ActiveSession ? LOCTEXT("ActiveIconTooltip", "Active session") : LOCTEXT("ArchivedIconTooltip", "Archived Session"))
+		.ToolTipText(Tooltip)
 		[
 			SNew(STextBlock)
 			.Font(FAppStyle::Get().GetFontStyle(ConcertBrowserUtils::IconColumnFontName))
-			.Text(ItemPin->Type == FConcertSessionItem::EType::ActiveSession ? FEditorFontGlyphs::Circle : FEditorFontGlyphs::Archive)
-			.ColorAndOpacity(ItemPin->Type == FConcertSessionItem::EType::ActiveSession ? FAppStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Success").Normal.TintColor : FSlateColor::UseSubduedForeground())
+			.Text(InGlyph)
+			.ColorAndOpacity(InStyle)
 		];
+}
+
+TSharedRef<SWidget> SSessionRow::GenerateWidgetForColumn(const FName& ColumnName)
+{
+	if (ColumnName == ConcertBrowserUtils::IconColName)
+	{
+		return GenerateIconColumn();
 	}
-	
+
+	TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
+	const bool bIsActiveSession = ItemPin->Type == FConcertSessionItem::EType::ActiveSession;
 	const bool bIsDefaultConfig = IsDefaultSession(ItemPin);
-	FSlateFontInfo FontInfo;
-	FSlateColor FontColor;
-	if (ItemPin->Type == FConcertSessionItem::EType::ActiveSession)
-	{
-		FontColor = bIsDefaultConfig ? FSlateColor(FLinearColor::White) : FSlateColor(FLinearColor::White * 0.8f);
-		FontInfo = FAppStyle::Get().GetFontStyle("NormalFont");
-	}
-	else
-	{
-		FontColor = FSlateColor::UseSubduedForeground();
-		FontInfo = FCoreStyle::GetDefaultFontStyle("Italic", 9);
-	}
+	FSlateFontInfo FontInfo = GetFontInfo(bIsActiveSession, bIsDefaultConfig);
+	FSlateColor FontColor = GetFontColor(bIsActiveSession, bIsDefaultConfig);
 
 	if (ColumnName == ConcertBrowserUtils::SessionColName)
 	{
-		return SNew(SBox)
-			.VAlign(VAlign_Center)
-			[
-				SAssignNew(SessionNameText, SInlineEditableTextBlock)
-				.Text_Lambda([this]() { return FText::AsCultureInvariant(Item.Pin()->SessionName); })
-				.HighlightText(HighlightText)
-				.OnTextCommitted(this, &SSessionRow::OnSessionNameCommitted)
-				.IsReadOnly(false)
-				.IsSelected(FIsSelected::CreateLambda([this]() { return IsSelected.Get(); }))
-				.OnVerifyTextChanged(this, &SSessionRow::OnValidatingSessionName)
-				.Font(FontInfo)
-				.ColorAndOpacity(FontColor)
-			];
+		return GenerateSessionColumn(FontInfo, FontColor);
 	}
 
-	check(ColumnName == ConcertBrowserUtils::ServerColName);
+	if (ColumnName == ConcertBrowserUtils::ServerColName)
+	{
+		if (bIsDefaultConfig)
+		{
+			return GenerateServerDefaultColumn(FontInfo, FontColor);
+		}
+		return GenerateServerColumn(FontInfo, FontColor);
+	}
 
-	if (bIsDefaultConfig)
+	if (ColumnName == ConcertBrowserUtils::ProjectColName)
 	{
-		return SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(FText::Format(INVTEXT("{0} * "), FText::AsCultureInvariant(ItemPin->ServerName)))
-				.HighlightText(HighlightText)
-				.Font(FontInfo)
-				.ColorAndOpacity(FontColor)
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("DefaultServerSession", "(Default Session/Server)"))
-				.HighlightText(HighlightText)
-				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
-				.ColorAndOpacity(FontColor)
-			]
-			+SHorizontalBox::Slot()
-			[
-				SNew(SSpacer)
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			[
-				ConcertBrowserUtils::MakeServerVersionIgnoredWidget(ItemPin->ServerFlags)
-			];
+		return GenerateProjectColumn(FontInfo, FontColor);
 	}
-	else
-	{
-		return SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(FText::AsCultureInvariant(ItemPin->ServerName))
-				.HighlightText(HighlightText)
-				.Font(FontInfo)
-				.ColorAndOpacity(FontColor)
-			]
-			+SHorizontalBox::Slot()
-			[
-				SNew(SSpacer)
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			[
-				ConcertBrowserUtils::MakeServerVersionIgnoredWidget(ItemPin->ServerFlags)
-			];
-	}
+
+	check(ColumnName == ConcertBrowserUtils::VersionColName);
+
+	return GenerateVersionColumn(FontInfo, FontColor);
 }
 
 FReply SSessionRow::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)

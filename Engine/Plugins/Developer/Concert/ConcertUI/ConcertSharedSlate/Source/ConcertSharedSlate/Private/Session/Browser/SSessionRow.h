@@ -42,9 +42,18 @@ public:
 	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 
 	void OnSessionNameCommitted(const FText& NewSessionName, ETextCommit::Type CommitType);
-
-private:
 	
+private:
+	FSlateFontInfo GetFontInfo(bool bIsActiveSession, bool bIsDefault);
+	FSlateColor    GetFontColor(bool bIsActiveSession, bool bIsDefault);
+
+	TSharedRef<SWidget> GenerateIconColumn();
+	TSharedRef<SWidget> GenerateSessionColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor);
+	TSharedRef<SWidget> GenerateServerColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor);
+	TSharedRef<SWidget> GenerateServerDefaultColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor);
+	TSharedRef<SWidget> GenerateProjectColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor);
+	TSharedRef<SWidget> GenerateVersionColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor);
+
 	void OnBeginEditingSessionName() { SessionNameText->EnterEditingMode(); }
 	bool OnValidatingSessionName(const FText& NewSessionName, FText& OutError);
 
