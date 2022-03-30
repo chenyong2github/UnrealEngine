@@ -947,7 +947,7 @@ struct VSOut
 
 #if IS_NANITE_PROGRAMMABLE
 #if BARYCENTRIC_MODE_INTRINSICS
-	CUSTOM_INTERPOLATION uint VertexID			: TEXCOORD4;	
+	CUSTOM_INTERPOLATION uint VertexID			: TEXCOORD4;
 #elif BARYCENTRIC_MODE_EXPORT
 	float2 BarycentricsUV						: TEXCOORD4;
 #endif
@@ -1456,7 +1456,7 @@ VSOut HWRasterizeVS(
 		#if USES_WORLD_POSITION_OFFSET
 			FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-			const float3 PointLocalNoWPO = DecodePosition(TriangleIndices[VertIndex], Cluster); // TODO: PROG_RASTER - Optimize (CommonRasterizerVS also decodes positions)
+			const float3 PointLocalNoWPO = DecodePosition(VertIndex, Cluster); // TODO: PROG_RASTER - Optimize (CommonRasterizerVS also decodes positions)
 			const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, TriangleIndices, NUM_TEX_COORD_INTERPOLATORS);
 
 			// Should be Pow2(InvScale) but that requires renormalization
@@ -1468,7 +1468,7 @@ VSOut HWRasterizeVS(
 
 			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
 			SetVertexParameterInstanceData(VertexParameters, InstanceData);
-			SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData, LocalToWorld, VertIndex, PointLocalNoWPO);
+			SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData, LocalToWorld, VertexID, PointLocalNoWPO);
 
 			WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
 		#endif
