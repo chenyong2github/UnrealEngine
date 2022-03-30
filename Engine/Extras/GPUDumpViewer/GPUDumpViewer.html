@@ -3923,6 +3923,27 @@ function init_page()
 		return;
 	}
 
+	// Verify the status of the dump, to check whether a crash happened during the dump.
+	{
+		var dump_status = load_text_file('Base/Status.txt');
+		if (dump_status == 'ok')
+		{
+			add_console_event('log', `The dump completed gracefully.`);
+		}
+		else if (dump_status == 'crash')
+		{
+			add_console_event('error', `A crash happened while the frame was being dumped.`);
+		}
+		else if (dump_status == 'dumping')
+		{
+			add_console_event('error', `The dump has not completed. This may be due to opening the viewer before completion, or serious problem that has not been handled with FCoreDelegates::OnShutdownAfterError`);
+		}
+		else
+		{
+			add_console_event('error', `The dump completed with status: ${dump_status}`);
+		}
+	}
+
 	// Load the cvars used for dumping.
 	{
 		g_dump_cvars = {};
