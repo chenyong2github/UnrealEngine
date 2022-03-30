@@ -52,6 +52,9 @@ private:
 	float ReadFLOAT(int32& ScriptIndex);
 	double ReadDOUBLE(int32& ScriptIndex);
 	FVector ReadFVECTOR(int32& ScriptIndex);
+	FRotator ReadFROTATOR(int32& ScriptIndex);
+	FQuat ReadFQUAT(int32& ScriptIndex);
+	FTransform ReadFTRANSFORM(int32& ScriptIndex);
 	CodeSkipSizeType ReadSkipCount(int32& ScriptIndex);
 	FString ReadString(int32& ScriptIndex);
 	FString ReadString8(int32& ScriptIndex);
