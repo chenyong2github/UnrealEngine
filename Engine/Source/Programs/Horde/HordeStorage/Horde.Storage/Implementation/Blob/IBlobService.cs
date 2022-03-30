@@ -86,12 +86,12 @@ public class BlobService : IBlobService
         _namespacePolicyResolver = namespacePolicyResolver;
     }
 
-    private IEnumerable<IBlobStore> GetBlobStores(IServiceProvider provider, IOptionsMonitor<HordeStorageSettings> settings)
+    public static IEnumerable<IBlobStore> GetBlobStores(IServiceProvider provider, IOptionsMonitor<HordeStorageSettings> settings)
     {
         return settings.CurrentValue.GetStorageImplementations().Select(impl => ToStorageImplementation(provider, impl));
     }
 
-    private IBlobStore ToStorageImplementation(IServiceProvider provider, HordeStorageSettings.StorageBackendImplementations impl)
+    private static IBlobStore ToStorageImplementation(IServiceProvider provider, HordeStorageSettings.StorageBackendImplementations impl)
     {
         IBlobStore? store = impl switch
         {
