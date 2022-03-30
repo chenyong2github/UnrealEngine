@@ -200,7 +200,9 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 		}
 
 		// Invoke static WorldPartition Validation from the ActorDescContainer
-		UWorldPartition::CheckForErrors(this, ActorDescContainer);		
+		const FSoftObjectPath MapPath = FSoftObjectPath(MapName);
+		const bool bIsStreamingDisabled = ULevel::GetIsStreamingDisabledFromPackage(MapPath.GetLongPackageFName());
+		UWorldPartition::CheckForErrors(this, ActorDescContainer, !bIsStreamingDisabled);
 	}
 
 	if (Errors->Num())

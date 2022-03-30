@@ -24,13 +24,13 @@
 
 #if WITH_EDITOR
 uint32 FWorldPartitionActorDesc::GlobalTag = 0;
-bool FWorldPartitionActorDesc::bForceAlwaysLoaded = false;
 
 FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	: bIsUsingDataLayerAsset(false)
 	, SoftRefCount(0)
 	, HardRefCount(0)
 	, Container(nullptr)
+	, bIsForcedNonSpatiallyLoaded(false)
 	, Tag(0)
 {}
 

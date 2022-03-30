@@ -770,12 +770,13 @@ public:
 	ENGINE_API static bool GetIsLevelPartitionedFromAsset(const FAssetData& Asset);
 	ENGINE_API static bool GetIsLevelUsingExternalActorsFromAsset(const FAssetData& Asset);
 	ENGINE_API static bool GetIsUsingActorFoldersFromAsset(const FAssetData& Asset);
-
+	ENGINE_API static bool GetIsStreamingDisabledFromAsset(const FAssetData& Asset);
 
 	ENGINE_API static bool GetLevelBoundsFromPackage(FName LevelPackage, FBox& OutLevelBounds);
 	ENGINE_API static bool GetIsLevelPartitionedFromPackage(FName LevelPackage);
 	ENGINE_API static bool GetIsLevelUsingExternalActorsFromPackage(FName LevelPackage);
 	ENGINE_API static bool GetIsUsingActorFoldersFromPackage(FName LevelPackage);
+	ENGINE_API static bool GetIsStreamingDisabledFromPackage(FName LevelPackage);
 
 	ENGINE_API bool GetPromptWhenAddingToLevelOutsideBounds() const;
 	ENGINE_API bool GetPromptWhenAddingToLevelBeforeCheckout() const;

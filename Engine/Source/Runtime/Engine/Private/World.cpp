@@ -8414,10 +8414,9 @@ void UWorld::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		}
 		// If there are no blueprints FiBData will be empty, the search manager will treat this as indexed
 								
-		if(IsPartitionedWorld())
+		if(UWorldPartition* WorldPartition = GetWorldPartition())
 		{
-			static const FName NAME_LevelIsPartitioned(TEXT("LevelIsPartitioned"));
-			OutTags.Add(FAssetRegistryTag(NAME_LevelIsPartitioned, TEXT("1"), FAssetRegistryTag::TT_Hidden));
+			WorldPartition->AppendAssetRegistryTags(OutTags);
 		}
 		else
 		{

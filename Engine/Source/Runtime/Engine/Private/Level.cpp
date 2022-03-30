@@ -2188,6 +2188,26 @@ bool ULevel::GetIsUsingActorFoldersFromPackage(FName LevelPackage)
 	});
 }
 
+bool ULevel::GetIsStreamingDisabledFromAsset(const FAssetData& Asset)
+{
+	FString LevelHasStreamingDisabledStr;
+	static const FName NAME_LevelHasStreamingDisabled(TEXT("LevelHasStreamingDisabled"));
+	if (Asset.GetTagValue(NAME_LevelHasStreamingDisabled, LevelHasStreamingDisabledStr))
+	{
+		check(LevelHasStreamingDisabledStr == TEXT("1"));
+		return true;
+	}
+	return false;
+}
+
+bool ULevel::GetIsStreamingDisabledFromPackage(FName LevelPackage)
+{
+	return LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [](const FAssetData& Asset)
+	{
+		return GetIsStreamingDisabledFromAsset(Asset);
+	});
+}
+
 bool ULevel::GetLevelBoundsFromAsset(const FAssetData& Asset, FBox& OutLevelBounds)
 {
 	FString LevelBoundsLocationStr;

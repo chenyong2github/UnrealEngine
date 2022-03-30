@@ -35,6 +35,7 @@ class ENGINE_API FWorldPartitionActorDesc
 #if WITH_EDITOR
 	friend class AActor;
 	friend class UActorDescContainer;
+	friend class UWorldPartition;
 	friend struct FWorldPartitionHandleImpl;
 	friend struct FWorldPartitionReferenceImpl;
 	friend class UDataLayerEditorSubsystem;
@@ -49,7 +50,7 @@ public:
 	inline UClass* GetActorClass() const { return ActorClass; }
 	inline FVector GetOrigin() const { return GetBounds().GetCenter(); }
 	inline FName GetRuntimeGrid() const { return RuntimeGrid; }
-	inline bool GetIsSpatiallyLoaded() const { return bForceAlwaysLoaded ? false : bIsSpatiallyLoaded; }
+	inline bool GetIsSpatiallyLoaded() const { return bIsForcedNonSpatiallyLoaded ? false : bIsSpatiallyLoaded; }
 	inline bool GetIsSpatiallyLoadedRaw() const { return bIsSpatiallyLoaded; }
 	inline bool GetActorIsEditorOnly() const { return bActorIsEditorOnly; }
 	inline bool GetLevelBoundsRelevant() const { return bLevelBoundsRelevant; }
@@ -160,6 +161,7 @@ protected:
 		Container = From->Container;
 		SoftRefCount = From->SoftRefCount;
 		HardRefCount = From->HardRefCount;
+		bIsForcedNonSpatiallyLoaded = From->bIsForcedNonSpatiallyLoaded;
 	}
 
 	virtual void TransferWorldData(const FWorldPartitionActorDesc* From)
@@ -199,13 +201,11 @@ protected:
 	mutable TWeakObjectPtr<AActor>	ActorPtr;
 	UActorDescContainer*			Container;
 	TArray<FName>					DataLayerInstanceNames;
+	bool							bIsForcedNonSpatiallyLoaded;
 
 public:
 	// Tagging
 	mutable uint32					Tag;
 	static uint32					GlobalTag;
-
-	// Temp
-	static bool						bForceAlwaysLoaded;
 #endif
 };

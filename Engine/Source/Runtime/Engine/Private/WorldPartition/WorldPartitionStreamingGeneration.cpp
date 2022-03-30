@@ -38,21 +38,32 @@ class FWorldPartitionStreamingGenerator
 {
 	void CreateActorDescViewMap(const UActorDescContainer* InContainer, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap, const FActorContainerID& InContainerID)
 	{
+		// should we handle unsaved or newly created actors?
 		const bool bHandleUnsavedActors = ModifiedActorsDescList && InContainerID.IsMainContainer();
 
 		// Consider all actors of a /Temp/ container package as Unsaved because loading them from disk will fail (Outer world name mismatch)
 		const bool bIsTempContainerPackage = FPackageName::IsTempPackage(InContainer->GetPackage()->GetName());
 		
-		// Test whether an actor is editor only. Will fallback to the actor descriptor only if the actor is not loaded.
+		// Test whether an actor is editor only. Will fallback to the actor descriptor only if the actor is not loaded
 		auto IsActorEditorOnly = [](const FWorldPartitionActorDesc* ActorDesc) { return ActorDesc->IsLoaded() ? ActorDesc->GetActor()->IsEditorOnly() : ActorDesc->GetActorIsEditorOnly(); };
 
-		auto GetModifiedActorDesc = [this, InContainer](AActor* InActor)
+		// Create an actor descriptor view for the specified actor (modified or unsaved actors)
+		auto GetModifiedActorDesc = [this](AActor* InActor) { return ModifiedActorsDescList->AddActor(InActor); };
+
+		// Adjust and register the actor descriptor view
+		auto RegisterActorDescView = [this, InContainer, &OutActorDescViewMap](const FGuid& ActorGuid, FWorldPartitionActorDescView& ActorDescView, bool bResolveRuntimeDataLayers)
 		{
-			FWorldPartitionActorDesc* ModifiedActorDesc = ModifiedActorsDescList->AddActor(InActor);
-			FWorldPartitionActorDescView ModifiedActorDescView(ModifiedActorDesc);
-			// ModifiedActorDescView's ActorDesc doesn't have a container, resolve view RuntimeDataLayers with provided ActorDescContainer
-			ModifiedActorDescView.ResolveRuntimeDataLayers(InContainer);
-			return ModifiedActorDescView;
+			if (!bEnableStreaming)
+			{
+				ActorDescView.SetForcedNonSpatiallyLoaded();
+			}
+
+			if (bResolveRuntimeDataLayers)
+			{
+				ActorDescView.ResolveRuntimeDataLayers(InContainer);
+			}
+
+			OutActorDescViewMap.Emplace(ActorGuid, ActorDescView);
 		};
 		
 		TMap<FGuid, FGuid> ContainerGuidsRemap;
@@ -74,13 +85,14 @@ class FWorldPartitionStreamingGenerator
 					{
 						// Dirty, unsaved actor for PIE
 						FWorldPartitionActorDescView ModifiedActorDescView = GetModifiedActorDesc(Actor);
-						OutActorDescViewMap.Emplace(ActorDescIt->GetGuid(), ModifiedActorDescView);
+						RegisterActorDescView(ActorDescIt->GetGuid(), ModifiedActorDescView, true);
 						continue;
 					}
 				}
 
 				// Non-dirty actor
-				OutActorDescViewMap.Emplace(ActorDescIt->GetGuid(), *ActorDescIt);
+				FWorldPartitionActorDescView ActorDescView(*ActorDescIt);
+				RegisterActorDescView(ActorDescIt->GetGuid(), ActorDescView, false);
 			}
 		}
 
@@ -92,7 +104,7 @@ class FWorldPartitionStreamingGenerator
 				if (IsValid(Actor) && Actor->IsPackageExternal() && Actor->IsMainPackageActor() && !Actor->IsEditorOnly() && !InContainer->GetActorDesc(Actor->GetActorGuid()))
 				{
 					FWorldPartitionActorDescView ModifiedActorDescView = GetModifiedActorDesc(Actor);
-					OutActorDescViewMap.Emplace(Actor->GetActorGuid(), ModifiedActorDescView);
+					RegisterActorDescView(Actor->GetActorGuid(), ModifiedActorDescView, true);
 				}
 			}
 		}
@@ -434,9 +446,10 @@ class FWorldPartitionStreamingGenerator
 	}
 
 public:
-	FWorldPartitionStreamingGenerator(FActorDescList* InModifiedActorsDescList, IStreamingGenerationErrorHandler* InErrorHandler)
-	: ModifiedActorsDescList(InModifiedActorsDescList)
-	, ErrorHandler(InErrorHandler ? InErrorHandler : &NullErrorHandler)
+	FWorldPartitionStreamingGenerator(FActorDescList* InModifiedActorsDescList, IStreamingGenerationErrorHandler* InErrorHandler, bool bInEnableStreaming)
+	: bEnableStreaming(bInEnableStreaming)
+	, ModifiedActorsDescList(InModifiedActorsDescList)
+	, ErrorHandler(InErrorHandler ? InErrorHandler : &NullErrorHandler)	
 	{}
 
 	void PreparationPhase(const UActorDescContainer* Container)
@@ -549,6 +562,7 @@ public:
 	}
 
 private:
+	bool bEnableStreaming;
 	FActorDescList* ModifiedActorsDescList;
 	IStreamingGenerationErrorHandler* ErrorHandler;
 	FStreamingGenerationNullErrorHandler NullErrorHandler;
@@ -592,12 +606,12 @@ bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 		ModifiedActorsDescList = &RuntimeHash->ModifiedActorDescListForPIE;
 		
 		// In PIE, we always want to populate the map check dialog
-		ErrorHandler = &MapCheckErrorHandler;		
+		ErrorHandler = &MapCheckErrorHandler;
 	}
 
 	FActorClusterContext ActorClusterContext;
 	{
-		FWorldPartitionStreamingGenerator StreamingGenerator(ModifiedActorsDescList, ErrorHandler);
+		FWorldPartitionStreamingGenerator StreamingGenerator(ModifiedActorsDescList, ErrorHandler, IsStreamingEnabled());
 
 		// Preparation Phase
 		StreamingGenerator.PreparationPhase(this);
@@ -627,7 +641,7 @@ bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly)
 {
 	FStreamingGenerationLogErrorHandler LogErrorHandler;
-	FWorldPartitionStreamingGenerator StreamingGenerator(nullptr, &LogErrorHandler);
+	FWorldPartitionStreamingGenerator StreamingGenerator(nullptr, &LogErrorHandler, IsStreamingEnabled());
 	StreamingGenerator.PreparationPhase(this);
 	StreamingGenerator.DumpStateLog(TEXT("HLOD"));
 
@@ -642,15 +656,15 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 
 void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const
 {
-	CheckForErrors(ErrorHandler, this);
+	CheckForErrors(ErrorHandler, this, IsStreamingEnabled());
 }
 
-void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler, const UActorDescContainer* ActorDescContainer)
+void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler, const UActorDescContainer* ActorDescContainer, bool bEnableStreaming)
 {
 	FActorClusterContext ActorClusterContext;
 	{
 		FActorDescList ModifiedActorDescList;
-		FWorldPartitionStreamingGenerator StreamingGenerator(ActorDescContainer->GetWorld() ? &ModifiedActorDescList : nullptr, ErrorHandler);
+		FWorldPartitionStreamingGenerator StreamingGenerator(ActorDescContainer->GetWorld() ? &ModifiedActorDescList : nullptr, ErrorHandler, bEnableStreaming);
 		StreamingGenerator.PreparationPhase(ActorDescContainer);
 	}
 }

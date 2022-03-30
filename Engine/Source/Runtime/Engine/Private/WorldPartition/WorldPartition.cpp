@@ -404,8 +404,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	UE_LOG(LogWorldPartition, Log, TEXT("UWorldPartition::Initialize(IsEditor=%d, bPIEWorldTravel=%d IsGame=%d, IsCooking=%d)"), bIsEditor ? 1 : 0, bPIEWorldTravel ? 1 : 0, bIsGame ? 1 : 0, bIsCooking ? 1 : 0);
 
-	FWorldPartitionActorDesc::bForceAlwaysLoaded = !IsStreamingEnabled();
-
 	if (bEnableStreaming)
 	{
 		bStreamingWasEnabled = true;
@@ -467,6 +465,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 					ActorDescIterator->TransformInstance(SourceWorldPath, RemappedWorldPath, InstanceTransform);
 				}
+
+				ActorDescIterator->bIsForcedNonSpatiallyLoaded = !IsStreamingEnabled();
 
 				if (bIsEditor && !bIsCooking)
 				{
@@ -1075,6 +1075,8 @@ void UWorldPartition::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 {
 	Super::OnActorDescAdded(NewActorDesc);
 
+	NewActorDesc->bIsForcedNonSpatiallyLoaded = !IsStreamingEnabled();
+
 	HashActorDesc(NewActorDesc);
 
 	if (WorldPartitionEditor)
@@ -1184,10 +1186,9 @@ void UWorldPartition::OnEnableStreamingChanged()
 		UnhashActorDesc(*ActorDescIterator);
 	}
 
-	FWorldPartitionActorDesc::bForceAlwaysLoaded = !IsStreamingEnabled();
-
 	for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 	{
+		ActorDescIterator->bIsForcedNonSpatiallyLoaded = !IsStreamingEnabled();
 		HashActorDesc(*ActorDescIterator);
 	}
 
@@ -1466,6 +1467,18 @@ void UWorldPartition::DumpActorDescs(const FString& Path)
 
 		LogFile->Close();
 		delete LogFile;
+	}
+}
+
+void UWorldPartition::AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	static const FName NAME_LevelIsPartitioned(TEXT("LevelIsPartitioned"));
+	OutTags.Add(FAssetRegistryTag(NAME_LevelIsPartitioned, TEXT("1"), FAssetRegistryTag::TT_Hidden));
+
+	if (!IsStreamingEnabled())
+	{
+		static const FName NAME_LevelHasStreamingDisabled(TEXT("LevelHasStreamingDisabled"));
+		OutTags.Add(FAssetRegistryTag(NAME_LevelHasStreamingDisabled, TEXT("1"), FAssetRegistryTag::TT_Hidden));
 	}
 }
 
