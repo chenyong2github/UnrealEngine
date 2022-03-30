@@ -9,10 +9,6 @@
 
 struct FPrivateTextFormatArguments;
 
-/// @cond DOXYGEN_WARNINGS
-template<typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs > class TMap;
-/// @endcond
-
 /**
  * Plural form argument modifier.
  * Takes a set of key->value arguments, where the key is a valid plural form identifier, and the value is an optionally quoted string that may contain format markers.
@@ -33,7 +29,7 @@ public:
 	virtual void EstimateLength(int32& OutLength, bool& OutUsesFormatArgs) const override;
 
 private:
-	FTextFormatArgumentModifier_PluralForm(const ETextPluralType InPluralType, const TMap<FTextFormatString, FTextFormat>& InPluralForms, const int32 InLongestPluralFormStringLen, const bool InDoPluralFormsUseFormatArgs);
+	FTextFormatArgumentModifier_PluralForm(const ETextPluralType InPluralType, const TSortedMap<FTextFormatString, FTextFormat>& InPluralForms, const int32 InLongestPluralFormStringLen, const bool InDoPluralFormsUseFormatArgs);
 
 	ETextPluralType PluralType;
 	int32 LongestPluralFormStringLen;

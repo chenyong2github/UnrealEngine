@@ -2,6 +2,7 @@
 
 #include "Internationalization/TextFormatter.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/ScopeRWLock.h"
 #include "Internationalization/TextFormatArgumentModifier.h"
 #include "Internationalization/TextHistory.h"
 #include "Misc/ExpressionParser.h"
@@ -337,6 +338,11 @@ class FTextFormatData
 {
 public:
 	/**
+	 * Get the common "empty" instance to use for a default constructed FTextFormat.
+	 */
+	static TSharedRef<FTextFormatData, ESPMode::ThreadSafe> GetSharedEmptyInstance();
+
+	/**
 	 * Construct an instance from an FText.
 	 * The text will be immediately compiled. 
 	 */
@@ -536,22 +542,22 @@ private:
 
 
 FTextFormat::FTextFormat()
-	: TextFormatData(new FTextFormatData(FText(), FTextFormatPatternDefinition::GetDefault()))
+	: TextFormatData(FTextFormatData::GetSharedEmptyInstance())
 {
 }
 
 FTextFormat::FTextFormat(const FText& InText)
-	: TextFormatData(new FTextFormatData(CopyTemp(InText), FTextFormatPatternDefinition::GetDefault()))
+	: TextFormatData(MakeShared<FTextFormatData, ESPMode::ThreadSafe>(CopyTemp(InText), FTextFormatPatternDefinition::GetDefault()))
 {
 }
 
 FTextFormat::FTextFormat(const FText& InText, FTextFormatPatternDefinitionConstRef InCustomPatternDef)
-	: TextFormatData(new FTextFormatData(CopyTemp(InText), MoveTemp(InCustomPatternDef)))
+	: TextFormatData(MakeShared<FTextFormatData, ESPMode::ThreadSafe>(CopyTemp(InText), MoveTemp(InCustomPatternDef)))
 {
 }
 
 FTextFormat::FTextFormat(FString&& InString, FTextFormatPatternDefinitionConstRef InCustomPatternDef)
-	: TextFormatData(new FTextFormatData(MoveTemp(InString), MoveTemp(InCustomPatternDef)))
+	: TextFormatData(MakeShared<FTextFormatData, ESPMode::ThreadSafe>(MoveTemp(InString), MoveTemp(InCustomPatternDef)))
 {
 }
 
@@ -615,6 +621,12 @@ void FTextFormat::GetFormatArgumentNames(TArray<FString>& OutArgumentNames) cons
 	TextFormatData->GetFormatArgumentNames(OutArgumentNames);
 }
 
+
+TSharedRef<FTextFormatData, ESPMode::ThreadSafe> FTextFormatData::GetSharedEmptyInstance()
+{
+	static const TSharedRef<FTextFormatData> EmptyInstance = MakeShared<FTextFormatData, ESPMode::ThreadSafe>(FText(), FTextFormatPatternDefinition::GetDefault());
+	return EmptyInstance;
+}
 
 FTextFormatData::FTextFormatData(FText&& InText, FTextFormatPatternDefinitionConstRef InPatternDef)
 	: SourceType(ESourceType::Text)
@@ -930,19 +942,19 @@ FTextFormatter& FTextFormatter::Get()
 
 void FTextFormatter::RegisterTextArgumentModifier(const FTextFormatString& InKeyword, FCompileTextArgumentModifierFuncPtr InCompileFunc)
 {
-	FScopeLock Lock(&TextArgumentModifiersCS);
+	FWriteScopeLock Lock(TextArgumentModifiersRW);
 	TextArgumentModifiers.Add(InKeyword, MoveTemp(InCompileFunc));
 }
 
 void FTextFormatter::UnregisterTextArgumentModifier(const FTextFormatString& InKeyword)
 {
-	FScopeLock Lock(&TextArgumentModifiersCS);
+	FWriteScopeLock Lock(TextArgumentModifiersRW);
 	TextArgumentModifiers.Remove(InKeyword);
 }
 
 FTextFormatter::FCompileTextArgumentModifierFuncPtr FTextFormatter::FindTextArgumentModifier(const FTextFormatString& InKeyword) const
 {
-	FScopeLock Lock(&TextArgumentModifiersCS);
+	FReadScopeLock Lock(TextArgumentModifiersRW);
 	return TextArgumentModifiers.FindRef(InKeyword);
 }
 

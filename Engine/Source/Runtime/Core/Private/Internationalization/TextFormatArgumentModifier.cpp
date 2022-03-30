@@ -6,7 +6,7 @@
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/TextFormatter.h"
 
-bool ITextFormatArgumentModifier::ParseKeyValueArgs(const FTextFormatString& InArgsString, TMap<FTextFormatString, FTextFormatString>& OutArgKeyValues, const TCHAR InValueSeparator, const TCHAR InArgSeparator)
+bool ITextFormatArgumentModifier::ParseKeyValueArgs(const FTextFormatString& InArgsString, TSortedMap<FTextFormatString, FTextFormatString>& OutArgKeyValues, const TCHAR InValueSeparator, const TCHAR InArgSeparator)
 {
 	const TCHAR* BufferPtr = InArgsString.StringPtr;
 	const TCHAR* BufferEnd = InArgsString.StringPtr + InArgsString.StringLen;
@@ -166,14 +166,14 @@ bool ITextFormatArgumentModifier::ParseValueArgs(const FTextFormatString& InArgs
 
 TSharedPtr<ITextFormatArgumentModifier> FTextFormatArgumentModifier_PluralForm::Create(const ETextPluralType InPluralType, const FTextFormatString& InArgsString, const FTextFormatPatternDefinitionConstRef& InPatternDef)
 {
-	TMap<FTextFormatString, FTextFormatString> ArgKeyValues;
+	TSortedMap<FTextFormatString, FTextFormatString> ArgKeyValues;
 	if (ParseKeyValueArgs(InArgsString, ArgKeyValues))
 	{
 		int32 LongestPluralFormStringLen = 0;
 		bool bDoPluralFormsUseFormatArgs = false;
 
 		// Plural forms may contain format markers, so pre-compile all the variants now so that Evaluate doesn't have to (this also lets us validate the plural form strings and fail if they're not correct)
-		TMap<FTextFormatString, FTextFormat> PluralForms;
+		TSortedMap<FTextFormatString, FTextFormat> PluralForms;
 		PluralForms.Reserve(ArgKeyValues.Num());
 		for (const auto& Pair : ArgKeyValues)
 		{
@@ -339,7 +339,7 @@ void FTextFormatArgumentModifier_PluralForm::EstimateLength(int32& OutLength, bo
 	OutUsesFormatArgs = bDoPluralFormsUseFormatArgs;
 }
 
-FTextFormatArgumentModifier_PluralForm::FTextFormatArgumentModifier_PluralForm(const ETextPluralType InPluralType, const TMap<FTextFormatString, FTextFormat>& InPluralForms, const int32 InLongestPluralFormStringLen, const bool InDoPluralFormsUseFormatArgs)
+FTextFormatArgumentModifier_PluralForm::FTextFormatArgumentModifier_PluralForm(const ETextPluralType InPluralType, const TSortedMap<FTextFormatString, FTextFormat>& InPluralForms, const int32 InLongestPluralFormStringLen, const bool InDoPluralFormsUseFormatArgs)
 	: PluralType(InPluralType)
 	, LongestPluralFormStringLen(InLongestPluralFormStringLen)
 	, bDoPluralFormsUseFormatArgs(InDoPluralFormsUseFormatArgs)

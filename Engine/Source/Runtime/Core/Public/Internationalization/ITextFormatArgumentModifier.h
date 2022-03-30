@@ -29,7 +29,6 @@ public:
 	FTextFormatString()
 		: StringPtr(TEXT(""))
 		, StringLen(0)
-		, StringHash(0)
 		, InternalString()
 	{
 	}
@@ -38,24 +37,20 @@ public:
 	FTextFormatString(FString InStr)
 		: StringPtr(nullptr)
 		, StringLen(0)
-		, StringHash(0)
 		, InternalString(MoveTemp(InStr))
 	{
 		StringPtr = *InternalString;
 		StringLen = InternalString.Len();
-		StringHash = FCrc::MemCrc32(StringPtr, sizeof(TCHAR) * StringLen);
 	}
 
 	/** Construct from the given string (takes a copy, expected to be null terminated) */
 	FTextFormatString(const TCHAR* InStr)
 		: StringPtr(nullptr)
 		, StringLen(0)
-		, StringHash(0)
 		, InternalString(InStr)
 	{
 		StringPtr = *InternalString;
 		StringLen = InternalString.Len();
-		StringHash = FCrc::MemCrc32(StringPtr, sizeof(TCHAR) * StringLen);
 	}
 
 	/** Construct from the given string (takes a reference, expected to be null terminated) */
@@ -73,7 +68,6 @@ public:
 	FTextFormatString(const FTextFormatString& Other)
 		: StringPtr(Other.StringPtr)
 		, StringLen(Other.StringLen)
-		, StringHash(Other.StringHash)
 		, InternalString(Other.InternalString)
 	{
 		if (Other.StringPtr == *Other.InternalString)
@@ -85,7 +79,6 @@ public:
 	FTextFormatString(FTextFormatString&& Other)
 		: StringPtr(Other.StringPtr)
 		, StringLen(Other.StringLen)
-		, StringHash(Other.StringHash)
 		, InternalString(MoveTemp(Other.InternalString))
 	{
 	}
@@ -96,7 +89,6 @@ public:
 		{
 			StringPtr = Other.StringPtr;
 			StringLen = Other.StringLen;
-			StringHash = Other.StringHash;
 			InternalString = Other.InternalString;
 
 			if (Other.StringPtr == *Other.InternalString)
@@ -113,7 +105,6 @@ public:
 		{
 			StringPtr = Other.StringPtr;
 			StringLen = Other.StringLen;
-			StringHash = Other.StringHash;
 			InternalString = MoveTemp(Other.InternalString);
 		}
 		return *this;
@@ -121,7 +112,7 @@ public:
 
 	friend inline uint32 GetTypeHash(const FTextFormatString& InStr)
 	{
-		return InStr.StringHash;
+		return FCrc::MemCrc32(InStr.StringPtr, sizeof(TCHAR) * InStr.StringLen);
 	}
 
 	/** The start of the string */
@@ -131,9 +122,6 @@ public:
 	int32 StringLen;
 
 private:
-	/** Cached hash of the string */
-	uint32 StringHash;
-
 	/** Internal copy if constructed from a string */
 	FString InternalString;
 
@@ -141,7 +129,6 @@ private:
 	FTextFormatString(const TCHAR* InStr, const int32 InLen)
 		: StringPtr(InStr)
 		, StringLen(InLen)
-		, StringHash(FCrc::MemCrc32(StringPtr, sizeof(TCHAR) * StringLen))
 		, InternalString()
 	{
 	}
@@ -157,6 +144,19 @@ inline bool operator!=(const FTextFormatString& LHS, const FTextFormatString& RH
 {
 	return LHS.StringLen != RHS.StringLen
 		|| FCString::Strncmp(LHS.StringPtr, RHS.StringPtr, LHS.StringLen) != 0;
+}
+
+inline bool operator<(const FTextFormatString& LHS, const FTextFormatString& RHS)
+{
+	if (LHS.StringLen < RHS.StringLen)
+	{
+		return true;
+	}
+	if (LHS.StringLen > RHS.StringLen)
+	{
+		return false;
+	}
+	return FCString::Strncmp(LHS.StringPtr, RHS.StringPtr, LHS.StringLen) < 0;
 }
 
 /**
@@ -182,7 +182,7 @@ public:
 
 protected:
 	/** Utility helper to parse out a list of key->value pair arguments. The keys are assumed to only contain valid identifier characters, and the values may be optionally quoted (parsed strings are sub-string references to within the source args string) */
-	CORE_API static bool ParseKeyValueArgs(const FTextFormatString& InArgsString, TMap<FTextFormatString, FTextFormatString>& OutArgKeyValues, const TCHAR InValueSeparator = TEXT('='), const TCHAR InArgSeparator = TEXT(','));
+	CORE_API static bool ParseKeyValueArgs(const FTextFormatString& InArgsString, TSortedMap<FTextFormatString, FTextFormatString>& OutArgKeyValues, const TCHAR InValueSeparator = TEXT('='), const TCHAR InArgSeparator = TEXT(','));
 
 	/** Utility helper to parse out a list of value arguments. The values may be optionally quoted (parsed strings are sub-string references to within the source args string) */
 	CORE_API static bool ParseValueArgs(const FTextFormatString& InArgsString, TArray<FTextFormatString>& OutArgValues, const TCHAR InArgSeparator = TEXT(','));
