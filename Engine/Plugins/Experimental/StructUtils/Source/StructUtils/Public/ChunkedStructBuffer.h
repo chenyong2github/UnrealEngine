@@ -89,7 +89,7 @@ struct STRUCTUTILS_API FChunkedStructBuffer
 	template<typename T, typename... TArgs>
 	void Emplace(TArgs&&... InArgs)
 	{
-		const UScriptStruct* InScriptStruct = T::StaticStruct();
+		const UScriptStruct* InScriptStruct = TBaseStructure<T>::Get();
 		uint8* ItemMemory = AllocItem(InScriptStruct);
 		new (ItemMemory) T(Forward<TArgs>(InArgs)...);
 	}
@@ -98,7 +98,7 @@ struct STRUCTUTILS_API FChunkedStructBuffer
 	template<typename T, typename... TArgs>
 	T& Emplace_GetRef(TArgs&&... InArgs)
 	{
-		const UScriptStruct* InScriptStruct = T::StaticStruct();
+		const UScriptStruct* InScriptStruct = TBaseStructure<T>::Get();
 		uint8* ItemMemory = AllocItem(InScriptStruct);
 		return *new (ItemMemory) T(Forward<TArgs>(InArgs)...);
 	}
@@ -107,7 +107,7 @@ struct STRUCTUTILS_API FChunkedStructBuffer
 	template<typename T>
 	void Add(const T& InStruct)
 	{
-		const UScriptStruct* InScriptStruct = T::StaticStruct();
+		const UScriptStruct* InScriptStruct = TBaseStructure<T>::Get();
 		uint8* ItemMemory = AllocItem(InScriptStruct);
 		new (ItemMemory) T(InStruct);
 	}
@@ -116,7 +116,7 @@ struct STRUCTUTILS_API FChunkedStructBuffer
 	template<typename T>
 	T& Add_GetRef(const T& InStruct)
 	{
-		const UScriptStruct* InScriptStruct = T::StaticStruct();
+		const UScriptStruct* InScriptStruct = TBaseStructure<T>::Get();
 		uint8* ItemMemory = AllocItem(InScriptStruct);
 		return *new (ItemMemory) T(InStruct);
 	}
@@ -160,7 +160,7 @@ struct STRUCTUTILS_API FChunkedStructBuffer
 		for (FChunkHeader* Chunk = First; Chunk != nullptr; Chunk = Chunk->Next)
 		{
 			// Build mask of the accepted struct in the chunk.
-			const int32 StructIndex = Chunk->GetScriptStructIndex(T::StaticStruct());
+			const int32 StructIndex = Chunk->GetScriptStructIndex(TBaseStructure<T>::Get());
 			if (StructIndex == INDEX_NONE)
 			{
 				continue;

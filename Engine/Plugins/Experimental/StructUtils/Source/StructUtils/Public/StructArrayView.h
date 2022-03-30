@@ -73,7 +73,7 @@ struct FStructArrayView
 	template<typename T>
 	const T& GetElementAtChecked(const int32 Index) const
 	{
-		check(T::StaticStruct() == &FragmentType);
+		check(TBaseStructure<T>::Get() == &FragmentType);
 		return *((T*)GetDataAt(Index));
 	}
 
@@ -86,7 +86,7 @@ struct FStructArrayView
 	template<typename T>
 	T& GetMutableElementAtChecked(const int32 Index)
 	{
-		check(T::StaticStruct() == &FragmentType);
+		check(TBaseStructure<T>::Get() == &FragmentType);
 		return *((T*)GetDataAt(Index));
 	}
 

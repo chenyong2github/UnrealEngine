@@ -303,7 +303,7 @@ public:
 	static int32 GetTypeIndex()
 	{
 		static_assert(TIsDerivedFrom<T, TBaseStruct>::IsDerived, "Given struct type doesn't match the expected base struct type.");
-		static const int32 TypeIndex = CreateTypeIndex(*T::StaticStruct());
+		static const int32 TypeIndex = CreateTypeIndex(*TBaseStructure<T>::Get());
 		return TypeIndex;
 	}
 

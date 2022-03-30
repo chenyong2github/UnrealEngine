@@ -127,7 +127,7 @@ struct STRUCTUTILS_API FConstSharedStruct
 		const UScriptStruct* Struct = GetScriptStruct();
 		check(Memory != nullptr);
 		check(Struct != nullptr);
-		check(Struct->IsChildOf(T::StaticStruct()));
+		check(Struct->IsChildOf(TBaseStructure<T>::Get()));
 		return *((T*)Memory);
 	}
 
@@ -137,7 +137,7 @@ struct STRUCTUTILS_API FConstSharedStruct
 	{
 		const uint8* Memory = GetMemory();
 		const UScriptStruct* Struct = GetScriptStruct();
-		if (Memory != nullptr && Struct && Struct->IsChildOf(T::StaticStruct()))
+		if (Memory != nullptr && Struct && Struct->IsChildOf(TBaseStructure<T>::Get()))
 		{
 			return ((T*)Memory);
 		}
@@ -242,7 +242,7 @@ struct STRUCTUTILS_API FSharedStruct : public FConstSharedStruct
 		UE::StructUtils::CheckStructType<T>();
 
 		Reset();
-		StructMemoryPtr = FStructSharedMemory::Create(*T::StaticStruct());
+		StructMemoryPtr = FStructSharedMemory::Create(*TBaseStructure<T>::Get());
 		new (GetMutableMemory()) T(Forward<TArgs>(InArgs)...);
 	}
 
@@ -253,7 +253,7 @@ struct STRUCTUTILS_API FSharedStruct : public FConstSharedStruct
 		UE::StructUtils::CheckStructType<T>();
 
 		FSharedStruct SharedStruct;
-		SharedStruct.InitializeAs(T::StaticStruct(), nullptr);
+		SharedStruct.InitializeAs(TBaseStructure<T>::Get(), nullptr);
 		return SharedStruct;
 	}
 
@@ -264,7 +264,7 @@ struct STRUCTUTILS_API FSharedStruct : public FConstSharedStruct
 		UE::StructUtils::CheckStructType<T>();
 
 		FSharedStruct SharedStruct;
-		SharedStruct.InitializeAs(T::StaticStruct(), reinterpret_cast<const uint8*>(&Struct));
+		SharedStruct.InitializeAs(TBaseStructure<T>::Get(), reinterpret_cast<const uint8*>(&Struct));
 		return SharedStruct;
 	}
 
@@ -294,7 +294,7 @@ struct STRUCTUTILS_API FSharedStruct : public FConstSharedStruct
 		const UScriptStruct* Struct = GetScriptStruct();
 		check(Memory != nullptr);
 		check(Struct != nullptr);
-		check(Struct->IsChildOf(T::StaticStruct()));
+		check(Struct->IsChildOf(TBaseStructure<T>::Get()));
 		return *((T*)Memory);
 	}
 
@@ -304,7 +304,7 @@ struct STRUCTUTILS_API FSharedStruct : public FConstSharedStruct
 	{
 		uint8* Memory = GetMutableMemory();
 		const UScriptStruct* Struct = GetScriptStruct();
-		if (Memory != nullptr && Struct && Struct->IsChildOf(T::StaticStruct()))
+		if (Memory != nullptr && Struct && Struct->IsChildOf(TBaseStructure<T>::Get()))
 		{
 			return ((T*)Memory);
 		}
