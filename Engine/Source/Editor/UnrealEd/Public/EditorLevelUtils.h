@@ -128,9 +128,9 @@ public:
 	*/
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FCanMoveActorToLevelDelegate, const AActor* /* ActorToMove */, const ULevel* /* DestLevel */, bool& /* bOutCanMove */);
 	static UNREALED_API FCanMoveActorToLevelDelegate CanMoveActorToLevelDelegate;
-		
-	/** 
-	* Delegate used by MoveActorsToLevel() to notify about actors being moved 
+
+	/**
+	* Delegate used by MoveActorsToLevel() to notify about actors being moved
 	*/
 	DECLARE_EVENT_TwoParams(UEditorLevelUtils, FOnMoveActorsToLevelEvent, const TArray<AActor*>& /* ActorsToMove */, const ULevel* /* DestLevel */);
 	static UNREALED_API FOnMoveActorsToLevelEvent OnMoveActorsToLevelEvent;
