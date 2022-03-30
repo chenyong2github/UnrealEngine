@@ -87,7 +87,31 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 		FName(TEXT("int")), {}, 
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
-	// int -> int
+	// FIntPoint -> int2
+	Registry.RegisterType(
+		TBaseStructure<FIntPoint>::Get(),
+		FShaderValueType::Get(EShaderFundamentalType::Int, 2),
+		{},
+		bShowElements,
+		EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
+
+	// FIntVector -> int3
+	Registry.RegisterType(
+		TBaseStructure<FIntVector>::Get(),
+		FShaderValueType::Get(EShaderFundamentalType::Int, 3),
+		{},
+		bShowElements,
+		EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
+
+	// FIntVector4 -> int4
+	Registry.RegisterType(
+		TBaseStructure<FIntVector4>::Get(),
+		FShaderValueType::Get(EShaderFundamentalType::Int, 4),
+		{},
+		bShowElements,
+		EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
+
+	// uint -> uint
 	Registry.RegisterType(
 		*FUInt32Property::StaticClass(),
 	    FText::FromString(TEXT("Unsigned Int")),
@@ -188,61 +212,6 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	    {},
 	    bHideElements,
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
-
-// 	Registry.RegisterType(
-// 	    TBaseStructure<FTransform>::Get(),
-// 	    FShaderValueType::Get(FName("transform"), 
-// 			{{FName("trn"), FShaderValueType::Get(EShaderFundamentalType::Float, 3)},
-// 			 {FName("scl"), FShaderValueType::Get(EShaderFundamentalType::Float, 3)},
-// 			 {FName("rot"), FShaderValueType::Get(EShaderFundamentalType::Float, 4)}}),
-// 	    {},
-// 	    bShowElements,
-// 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
-
-	// String types
-	Registry.RegisterType(
-	    *FNameProperty::StaticClass(),
-	    FText::FromString(TEXT("Name")),
-	    FShaderValueTypeHandle(),
-	    [](UStruct* InScope, FName InName) {
-		    auto Prop = new FNameProperty(InScope, InName, RF_Public);
-		    Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
-		    return Prop;
-	    },
-	    {},
-	    /*
-	    [](const uint8* InRawValue, TArray<uint8>& OutShaderValue) -> const uint8 * {
-			const int32 Offset = OutShaderValue.Num();
-			OutShaderValue.AddUninitialized(4);
-			*reinterpret_cast<int32*>(OutShaderValue.GetData() + Offset) = (*reinterpret_cast<const FName*>(InRawValue)).GetComparisonIndex();
-			return InRawValue + sizeof(FName);
-		},
-		*/
-	    FName(TEXT("name")), 
-		{},
-	    EOptimusDataTypeUsageFlags::Variable);
-
-	Registry.RegisterType(
-	    *FStrProperty::StaticClass(),
-	    FText::FromString(TEXT("String")),
-	    FShaderValueTypeHandle(),
-	    [](UStruct* InScope, FName InName) {
-		    auto Prop = new FStrProperty(InScope, InName, RF_Public);
-		    Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
-		    return Prop;
-	    },
-	    {},	// No conversion function.	
-	    FName(TEXT("string")),
-	    {},
-	    EOptimusDataTypeUsageFlags::Variable);
-
-	// UObject types
-	/*
-	Registry.RegisterType(
-		USkeletalMesh::StaticClass(),
-	    FLinearColor::White,
-	    EOptimusDataTypeUsageFlags::Variable);
-	*/
 
 	// HLSL types
 	Registry.RegisterType(
