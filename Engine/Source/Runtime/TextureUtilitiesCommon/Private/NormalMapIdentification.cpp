@@ -83,8 +83,8 @@ public:
 	}
 
 	UTexture* SourceTexture;
-	int32 TextureSizeX;
-	int32 TextureSizeY;
+	int64 TextureSizeX;
+	int64 TextureSizeY;
 	const uint8* SourceTextureData;
 };
 

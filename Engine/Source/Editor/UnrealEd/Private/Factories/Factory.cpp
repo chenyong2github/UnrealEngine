@@ -99,13 +99,15 @@ UObject* UFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName I
 
 	// load as binary
 	{
-		TArray<uint8> Data;
+		TArray64<uint8> Data;
 		if (!FFileHelper::LoadFileToArray(Data, *Filename))
 		{
 			UE_LOG(LogFactory, Error, TEXT("Failed to load file '%s' to array"), *Filename);
 			return nullptr;
 		}
 
+		// adds an extra null byte
+		// data loaders must be able to ignore an unexpected extra zero byte at the end of the file
 		Data.Add(0);
 		ParseParms(Parms);
 		const uint8* Ptr = &Data[0];
