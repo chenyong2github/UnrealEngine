@@ -951,8 +951,8 @@ static int SolveCubic(double Coeff[4], double Solution[3])
 		double t = 2 * sqrt(-P);
 
 		Solution[0] = t * cos(phi);
-		Solution[1] = -t * cos(phi + PI / 3);
-		Solution[2] = -t * cos(phi - PI / 3);
+		Solution[1] = -t * cos(phi + UE_DOUBLE_PI / 3);
+		Solution[2] = -t * cos(phi - UE_DOUBLE_PI / 3);
 		NumSolutions = 3;
 	}
 	else /* one real solution */

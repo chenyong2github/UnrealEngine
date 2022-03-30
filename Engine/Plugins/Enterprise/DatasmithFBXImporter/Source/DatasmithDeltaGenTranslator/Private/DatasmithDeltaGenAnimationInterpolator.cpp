@@ -103,8 +103,8 @@ namespace DeltaGen
 			double T = 2 * sqrt(-P);
 
 			Solution[0] = T * cos(Phi);
-			Solution[1] = -T * cos(Phi + PI / 3);
-			Solution[2] = -T * cos(Phi - PI / 3);
+			Solution[1] = -T * cos(Phi + UE_DOUBLE_PI / 3);
+			Solution[2] = -T * cos(Phi - UE_DOUBLE_PI / 3);
 			NumSolutions = 3;
 		}
 		// One real solution
