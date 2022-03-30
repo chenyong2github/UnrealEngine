@@ -1369,7 +1369,7 @@ struct FRDGResourceDumpContext
 	{
 		if (GLog)
 		{
-			GLog->PanicFlush();
+			GLog->Panic();
 		}
 		DumpStatusToFile(TEXT("crash"));
 		FGenericCrashContext::DumpLog(DumpingDirectoryPath / FRDGResourceDumpContext::kBaseDir);
