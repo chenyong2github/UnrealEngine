@@ -21,6 +21,8 @@ namespace ChaosTest {
 
 	void DoForSweepIntersectCellsImpTest();
 
+	void AABBTreeDirtyGridFunctionsWithEdgeCase();
+
 	void BroadphaseCollectionTest();
 
 	void BoundingVolumeNoBoundsTest();

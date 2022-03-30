@@ -235,6 +235,7 @@ TEST(EPA, EPATests) {
 }
 
 TEST(BP, BroadphaseTests) {
+	ChaosTest::AABBTreeDirtyGridFunctionsWithEdgeCase();
 	ChaosTest::GridBPTest();
 	ChaosTest::GridBPTest2();
 	ChaosTest::AABBTreeTest();

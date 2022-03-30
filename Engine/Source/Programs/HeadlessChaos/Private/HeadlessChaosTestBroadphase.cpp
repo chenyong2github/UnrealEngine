@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+
 #include "HeadlessChaosTestBroadphase.h"
 
 #include "HeadlessChaos.h"
@@ -852,6 +853,34 @@ namespace ChaosTest
 		}
 	}
 
+	// specific  sweep query seems to generate infinite loop
+	// the values are outside of the function to avoid optimizing away the values
+	// (the issue would only appear when optimization is enable)
+	namespace EdgeCase
+	{
+		FVec3 QueryHalfExtents{ 5.51277924f, 4.77557945f, 4.96569443f };
+		FVec3 StartPoint{ -40.7950134f, -4.77560043f, -11.2947388f };
+		FVec3 Dir{ 0, 0, -1 };
+		FReal CurrentLength = 146.779785f;
+	}
+
+	void AABBTreeDirtyGridFunctionsWithEdgeCase()
+	{
+		constexpr FReal DirtyElementGridCellSize = 1000.0;
+		constexpr FReal DirtyElementGridCellSizeInv = 1.0 / DirtyElementGridCellSize;
+		constexpr int32 DirtyElementMaxGridCellQueryCount = 340;
+
+		TArray<TVec2<FReal>> VisitedCells;
+		// this should report only be as much as 4 hits as teh grid is 2D and the ray downward vertical and the halfextends are smaller than a cell size
+		DoForSweepIntersectCells(EdgeCase::QueryHalfExtents, EdgeCase::StartPoint, EdgeCase::Dir, EdgeCase::CurrentLength, DirtyElementGridCellSize, DirtyElementGridCellSizeInv,
+			[&VisitedCells](FReal X, FReal Y)
+			{
+				VisitedCells.Add({ X,Y });
+				EXPECT_TRUE(VisitedCells.Num() <= 4 );
+			});
+		EXPECT_TRUE(VisitedCells.Num() <= 4);
+	}
+	
 	void BroadphaseCollectionTest()
 	{
 		using TreeType = TAABBTree<int32, TAABBTreeLeafArray<int32>>;

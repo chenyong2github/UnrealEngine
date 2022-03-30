@@ -324,6 +324,14 @@ namespace Chaos
 		int64 LastCellIndexX = GetDirtyCellIndexFromWorldCoordinate(XEndPointExpanded + LocalCoordinatesOrigin.X, DirtyElementGridCellSizeInv);
 		int64 LastCellIndexY = GetDirtyCellIndexFromWorldCoordinate(YEndPointExpanded + LocalCoordinatesOrigin.Y, DirtyElementGridCellSizeInv);
 
+		// Because of floating point math precision there's case where we can get LastCellIndexY to be smaller than CurrentCellIndexY0 when the ray is stright down
+		// that would cause the while loop to go on forever as it relies on an strict equality
+		// we then need to adjust the value of LastCellIndexY accordingly
+		if (DxTooSmall)
+		{
+			LastCellIndexY = FMath::Max(CurrentCellIndexY0, LastCellIndexY);
+		}
+
 		bool Done = false;
 		while (!Done)
 		{
@@ -414,21 +422,43 @@ namespace Chaos
 	}
 
 	template <typename FunctionType>
-	FORCEINLINE_DEBUGGABLE void DoForSweepIntersectCells(const FVec3 QueryHalfExtents, const FVec3& StartPoint, const FVec3& Dir, FReal Length, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType InFunction)
+	void DoForSweepIntersectCells(const FVec3 QueryHalfExtents, const FVec3& StartPoint, const FVec3& Dir, FReal Length, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType InFunction)
 	{
-		FReal AbsDx = FMath::Abs(Dir.X);
-		FReal AbsDy = FMath::Abs(Dir.Y);
+		FReal AbsDx = FMath::Abs(Dir.X * Length);
+		FReal AbsDy = FMath::Abs(Dir.Y * Length);
 
 		bool XDirectionDominant = AbsDx >= AbsDy;
 
-		if (XDirectionDominant)
+		// if the ray is mostly vertical then we can default to an simple overlap 
+		if (AbsDx <= SMALL_NUMBER && AbsDy <= SMALL_NUMBER)
 		{
-			DoForSweepIntersectCellsImp(QueryHalfExtents.X, QueryHalfExtents.Y, StartPoint.X, StartPoint.Y, Dir.X * Length, Dir.Y * Length, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, InFunction);
+			// no need to account for the ray length as we only collect 2 dimensional cell coordinates and the ray is already proven to be vertical
+			const FAABB3 QueryBounds(StartPoint- QueryHalfExtents, StartPoint + QueryHalfExtents);
+
+			const int64 CellStartX = GetDirtyCellIndexFromWorldCoordinate(QueryBounds.Min().X, DirtyElementGridCellSizeInv);
+			const int64 CellStartY = GetDirtyCellIndexFromWorldCoordinate(QueryBounds.Min().Y, DirtyElementGridCellSizeInv);
+			const int64 CellEndX = GetDirtyCellIndexFromWorldCoordinate(QueryBounds.Max().X, DirtyElementGridCellSizeInv);
+			const int64 CellEndY = GetDirtyCellIndexFromWorldCoordinate(QueryBounds.Max().Y, DirtyElementGridCellSizeInv);
+			
+			for (int64 X = CellStartX; X <= CellEndX; X++)
+			{
+				for (int64 Y = CellStartY; Y <= CellEndY; Y++)
+				{
+					InFunction((FReal)X * DirtyElementGridCellSize, (FReal)Y * DirtyElementGridCellSize);
+				}
+			}
 		}
 		else
 		{
-			// Swap Y and X
-			DoForSweepIntersectCellsImp(QueryHalfExtents.Y, QueryHalfExtents.X, StartPoint.Y, StartPoint.X, Dir.Y * Length, Dir.X * Length, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](auto X, auto Y) {InFunction(Y, X); });
+			if (XDirectionDominant)
+			{
+				DoForSweepIntersectCellsImp(QueryHalfExtents.X, QueryHalfExtents.Y, StartPoint.X, StartPoint.Y, Dir.X * Length, Dir.Y * Length, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, InFunction);
+			}
+			else
+			{
+				// Swap Y and X
+				DoForSweepIntersectCellsImp(QueryHalfExtents.Y, QueryHalfExtents.X, StartPoint.Y, StartPoint.X, Dir.Y * Length, Dir.X * Length, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](auto X, auto Y) {InFunction(Y, X); });
+			}
 		}
 
 	}
