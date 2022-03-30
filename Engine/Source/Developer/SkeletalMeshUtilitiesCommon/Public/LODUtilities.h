@@ -176,7 +176,7 @@ private:
 	FLODUtilities() {}
 
 	/** Generate the editor-only data stored for a skin weight profile (relies on bone indices) */
-	static void GenerateImportedSkinWeightProfileData(const FSkeletalMeshLODModel& LODModelDest, FImportedSkinWeightProfileData& ImportedProfileData);
+	static void GenerateImportedSkinWeightProfileData(FSkeletalMeshLODModel& LODModelDest, FImportedSkinWeightProfileData& ImportedProfileData);
 	
 
 	/**
