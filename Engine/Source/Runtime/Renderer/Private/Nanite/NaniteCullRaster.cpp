@@ -122,8 +122,7 @@ static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRaster(
 	ECVF_ReadOnly
 );
 
-// TODO: PROG_RASTER - Disabled for now because FMicropolyRasterizeCS requires DXC, and compile times are slow
-int32 GNaniteAllowProgrammableRasterSW = 0;
+int32 GNaniteAllowProgrammableRasterSW = 1;
 static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRasterSW(
 	TEXT("r.Nanite.AllowProgrammableRasterSW"),
 	GNaniteAllowProgrammableRasterSW,

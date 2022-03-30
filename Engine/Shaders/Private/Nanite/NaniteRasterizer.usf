@@ -24,6 +24,13 @@
 #define NANITE_PRIM_SHADER 0
 #endif
 
+// Use a larger thread group when programmable, as it seems to provide the best occupancy
+#if IS_NANITE_PROGRAMMABLE
+	#define SWRASTER_NUM_THREADS 128
+#else
+	#define SWRASTER_NUM_THREADS 64
+#endif
+
 uint ActiveRasterizerBin;
 
 // .x = count of SW clusters in bin
@@ -115,58 +122,21 @@ uint2 GetVisualizeValues()
 
 struct FRaster
 {
-	FNaniteView	NaniteView;
-	int4		ViewRect;
+	FInstanceSceneData			InstanceData;
+	FInstanceDynamicData		InstanceDynamicData;
+	FNaniteVertTransforms		VertTransforms;
+	FNaniteView					NaniteView;
+	int4						ViewRect;
+	FCluster					Cluster;
 #if VIRTUAL_TEXTURE_TARGET
-	uint2		vPage;
+	uint2						pPageAddress;
+	uint2						vPage;
 #endif
 #if VISUALIZE
-	uint2		VisualizeValues;
+	uint2						VisualizeValues;
 #endif
-	WritePixelPageTranslation PageTranslation;
+	WritePixelPageTranslation	PageTranslation;
 };
-
-void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, FBarycentrics Barycentrics, bool bDepthClamp, FRaster Raster )
-{
-	float MaterialMask = 1.0f; // TODO: PROG_RASTER
-	float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
-
-#if IS_NANITE_PROGRAMMABLE
-	const uint DepthInt = asuint(DeviceZ);
-	const UlongType PackedPixel = PackUlongType(uint2(PixelValue, DepthInt));
-
-	// Material parameter inputs
-	float4 SvPosition = float4(float(PixelPos.x) + 0.5f, float(PixelPos.y) + 0.5f, DeviceZ, 1.0f);
-	
-#if VIRTUAL_TEXTURE_TARGET
-	// SvPosition is in physical coords; translate it to virtual page
-	SvPosition.xy = SvPosition.xy - Raster.ViewRect.xy + Raster.vPage * VSM_PAGE_SIZE;
-#endif
-
-	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
-	
-	FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(Raster.NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, false, uint3(0,0,0), true, Interpolants, SvPosition);
-	FPixelMaterialInputs PixelMaterialInputs;
-	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
-
-	// TODO: PROG_RASTER
-
-	#if MATERIALBLENDING_MASKED
-	MaterialMask = GetMaterialMask(PixelMaterialInputs);
-	#endif
-#endif
-
-	DeviceZ += MaterialDepthOffset;
-
-	if (MaterialMask >= 0)
-	{
-		WritePixel( OutVisBuffer64, PixelValue, PixelPos, DeviceZ, bDepthClamp, Raster.PageTranslation );
-	#if VISUALIZE
-		WritePixel( OutDbgBuffer64, Raster.VisualizeValues.x, PixelPos, DeviceZ, bDepthClamp, Raster.PageTranslation );
-		InterlockedAdd( OutDbgBuffer32[ PixelPos ], Raster.VisualizeValues.y );
-	#endif
-	}
-}
 
 struct FRasterTri
 {
@@ -185,24 +155,133 @@ struct FRasterTri
 
 	float3	InvW;
 
+#if IS_NANITE_PROGRAMMABLE
+	FNaniteTransformedTri TransformedTri;
+#endif
+
 	bool	bIsValid;
 };
 
-struct FRasterVert
-{
-	float3 SubpixelPos;
-#if IS_NANITE_PROGRAMMABLE
-	float InvW;
+#if NANITE_USE_CONSTRAINED_CLUSTERS
+	#define VERTEX_CACHE_SIZE 256
+#else
+	#define VERTEX_CACHE_SIZE 384
 #endif
-};
+groupshared float3 GroupVerts[VERTEX_CACHE_SIZE];
 
-FRasterTri SetupTriangle( FRaster Raster, FRasterVert Verts[3] )
+float3 GetPerspectiveCorrectBarycentrics(float3 C, float3 InvW)
+{
+	float3 CInvW = C * InvW; // Perspective weighting by (1/w0, 1/w1, 1/w2)
+	float3 UVW = CInvW * rcp(CInvW.x + CInvW.y + CInvW.z); // renormalize
+
+	return UVW;
+}
+
+FBarycentrics CalculateBarycentrics(FRasterTri Tri, float3 C)
+{
+	FBarycentrics Barycentrics = (FBarycentrics)0;
+
+	// For now, micropoly barycentrics are only required for the programmable raster path, so help DCE out as much as possible
+#if IS_NANITE_PROGRAMMABLE
+	const float3 OffsetX	= { -Tri.Edge12.y, -Tri.Edge20.y, -Tri.Edge01.y };
+	const float3 OffsetY	= {  Tri.Edge12.x,  Tri.Edge20.x,  Tri.Edge01.x };
+	const float3 UVW		= GetPerspectiveCorrectBarycentrics(C, Tri.InvW);
+	const float3 UVW_X		= GetPerspectiveCorrectBarycentrics(C + OffsetX, Tri.InvW);
+	const float3 UVW_Y		= GetPerspectiveCorrectBarycentrics(C + OffsetY, Tri.InvW);
+
+	Barycentrics.UVW 	= UVW;
+	Barycentrics.UVW_dx	= UVW_X - UVW;
+	Barycentrics.UVW_dy	= UVW_Y - UVW;
+#endif
+
+	return Barycentrics;
+}
+
+float3 CalculateSubpixelCoordinates(FRaster Raster, float4 PointClip)
+{
+	const float2 ViewPos = Raster.NaniteView.ViewRect.xy;
+	const float2 ViewSize = Raster.NaniteView.ViewSizeAndInvSize.xy;
+	const float2 SubpixelScale = float2(0.5, -0.5) * ViewSize * SUBPIXEL_SAMPLES;
+	float2 SubpixelBias = (0.5 * ViewSize + ViewPos) * SUBPIXEL_SAMPLES + 0.5f;
+#if VIRTUAL_TEXTURE_TARGET
+	SubpixelBias += ( (float2)Raster.pPageAddress - (float2)Raster.vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
+#endif
+
+	float3 SubpixelPos = PointClip.xyz / PointClip.w;
+	SubpixelPos.xy = floor(SubpixelPos.xy * SubpixelScale.xy + SubpixelBias.xy);
+
+	return SubpixelPos;
+}
+
+void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, bool bDepthClamp, FRaster Raster, FRasterTri Tri )
+{
+	float MaterialMask = 1.0f;
+	float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
+
+#if IS_NANITE_PROGRAMMABLE
+	// Material parameter inputs
+	float4 SvPosition = float4(float(PixelPos.x) + 0.5f, float(PixelPos.y) + 0.5f, DeviceZ, 1.0f);
+	
+#if VIRTUAL_TEXTURE_TARGET
+	// SvPosition is in physical coords; translate it to virtual page
+	SvPosition.xy = SvPosition.xy - Raster.ViewRect.xy + Raster.vPage * VSM_PAGE_SIZE;
+#endif
+
+	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
+	FBarycentrics Barycentrics = CalculateBarycentrics(Tri, C);
+	
+	FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(Raster.InstanceData, Raster.InstanceDynamicData, Raster.NaniteView, Tri.TransformedTri, Raster.Cluster, Barycentrics, Interpolants, SvPosition);
+
+	FPixelMaterialInputs PixelMaterialInputs;
+	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
+
+	// TODO: PROG_RASTER - MaterialDepthOffset
+
+	#if MATERIALBLENDING_MASKED
+	MaterialMask = GetMaterialMask(PixelMaterialInputs);
+	#endif
+#endif
+
+	DeviceZ += MaterialDepthOffset;
+
+	if (MaterialMask >= 0)
+	{
+		WritePixel( OutVisBuffer64, PixelValue, PixelPos, DeviceZ, bDepthClamp, Raster.PageTranslation );
+	#if VISUALIZE
+		WritePixel( OutDbgBuffer64, Raster.VisualizeValues.x, PixelPos, DeviceZ, bDepthClamp, Raster.PageTranslation );
+		InterlockedAdd( OutDbgBuffer32[ PixelPos ], Raster.VisualizeValues.y );
+	#endif
+	}
+}
+
+FRasterTri SetupTriangle( FRaster Raster, uint3 VertIndexes )
 {
 	FRasterTri Tri;
 	Tri.bIsValid = true;
 
-	float3 v01 = Verts[1].SubpixelPos - Verts[0].SubpixelPos;
-	float3 v02 = Verts[2].SubpixelPos - Verts[0].SubpixelPos;
+	float3 Verts[3];
+#if IS_NANITE_PROGRAMMABLE
+	// Transform the triangle from local space points
+	const float3 PointLocal[3] =
+	{
+		GroupVerts[VertIndexes.x],
+		GroupVerts[VertIndexes.y],
+		GroupVerts[VertIndexes.z]	
+	};
+	const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Raster.Cluster, VertIndexes, NUM_TEX_COORD_INTERPOLATORS);
+	Tri.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, PointLocal, RawAttributeData);
+
+	Verts[0] = CalculateSubpixelCoordinates(Raster, Tri.TransformedTri.PointClip[0]);
+	Verts[1] = CalculateSubpixelCoordinates(Raster, Tri.TransformedTri.PointClip[1]);
+	Verts[2] = CalculateSubpixelCoordinates(Raster, Tri.TransformedTri.PointClip[2]);
+#else
+	Verts[0] = GroupVerts[VertIndexes.x];
+	Verts[1] = GroupVerts[VertIndexes.y];
+	Verts[2] = GroupVerts[VertIndexes.z];
+#endif
+
+	float3 v01 = Verts[1] - Verts[0];
+	float3 v02 = Verts[2] - Verts[0];
 
 	const bool bIsTwoSided = (RenderFlags & NANITE_RENDER_FLAG_TWO_SIDED) != 0u;
 
@@ -218,9 +297,9 @@ FRasterTri SetupTriangle( FRaster Raster, FRasterVert Verts[3] )
 	GradZ.y = ( v01.x * v02.z - v01.z * v02.x ) * InvDet;
 
 	// 16.8 fixed point
-	float2 Vert0 = Verts[0].SubpixelPos.xy;
-	float2 Vert1 = Verts[1].SubpixelPos.xy;
-	float2 Vert2 = Verts[2].SubpixelPos.xy;
+	float2 Vert0 = Verts[0].xy;
+	float2 Vert1 = Verts[1].xy;
+	float2 Vert2 = Verts[2].xy;
 
 	// Bounding rect
 	const float2 MinSubpixel = min3( Vert0, Vert1, Vert2 );
@@ -290,7 +369,7 @@ FRasterTri SetupTriangle( FRaster Raster, FRasterVert Verts[3] )
 	Tri.C2 -= ( Tri.Edge01.y < 0 || ( Tri.Edge01.y == 0 && Tri.Edge01.x > 0 ) ) ? 0 : 1;
 #endif
 
-	float Z0 = Verts[0].SubpixelPos.z - ( GradZ.x * Vert0.x + GradZ.y * Vert0.y );
+	float Z0 = Verts[0].z - ( GradZ.x * Vert0.x + GradZ.y * Vert0.y );
 	GradZ *= SUBPIXEL_SAMPLES;
 	
 	Tri.DepthPlane = float3( GradZ, Z0 );
@@ -308,43 +387,14 @@ FRasterTri SetupTriangle( FRaster Raster, FRasterVert Verts[3] )
 	Tri.C2 *= (1.0f / SUBPIXEL_SAMPLES);
 #endif
 
-	// Cache 1/w for each point to calculate perspective-correct barycentrics
+	// Cache 1/w for each point to calculate perspective-correct barycentrics (only needed if programmable)
 #if IS_NANITE_PROGRAMMABLE
-	const float3 InvW = float3(Verts[0].InvW, Verts[1].InvW, Verts[2].InvW);
+	Tri.InvW = rcp(float3(Tri.TransformedTri.PointClip[0].w, Tri.TransformedTri.PointClip[1].w, Tri.TransformedTri.PointClip[2].w));
 #else
-	const float3 InvW = (float3)1.0f;
+	Tri.InvW = 1.0f;
 #endif
-	Tri.InvW = InvW;
 
 	return Tri;
-}
-
-float3 GetPerspectiveCorrectBarycentrics(float3 C, float3 InvW)
-{
-	float3 CInvW = C * InvW; // Perspective weighting by (1/w0, 1/w1, 1/w2)
-	float3 UVW = CInvW * rcp(CInvW.x + CInvW.y + CInvW.z); // renormalize
-
-	return UVW;
-}
-
-FBarycentrics CalculateBarycentrics(FRasterTri Tri, float3 C)
-{
-	FBarycentrics Barycentrics = (FBarycentrics)0;
-
-	// For now, micropoly barycentrics are only required for the programmable raster path, so help DCE out as much as possible
-#if IS_NANITE_PROGRAMMABLE
-	const float3 OffsetX	= { -Tri.Edge12.y, -Tri.Edge20.y, -Tri.Edge01.y };
-	const float3 OffsetY	= {  Tri.Edge12.x,  Tri.Edge20.x,  Tri.Edge01.x };
-	const float3 UVW		= GetPerspectiveCorrectBarycentrics(C, Tri.InvW);
-	const float3 UVW_X		= GetPerspectiveCorrectBarycentrics(C + OffsetX, Tri.InvW);
-	const float3 UVW_Y		= GetPerspectiveCorrectBarycentrics(C + OffsetY, Tri.InvW);
-
-	Barycentrics.UVW 	= UVW;
-	Barycentrics.UVW_dx	= UVW_X - UVW;
-	Barycentrics.UVW_dy	= UVW_Y - UVW;
-#endif
-
-	return Barycentrics;
 }
 
 void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
@@ -362,8 +412,7 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		int x = Tri.MinPixel.x;
 		if (min3(CY0, CY1, CY2) >= 0)
 		{
-			FBarycentrics Barycentrics = CalculateBarycentrics(Tri, float3(CY0, CY1, CY2));
-			WritePixelSW( PixelValue, uint2(x,y), ZY, Barycentrics, bDepthClamp, Raster );
+			WritePixelSW( PixelValue, uint2(x,y), ZY, float3(CY0, CY1, CY2), bDepthClamp, Raster, Tri );
 		}
 
 		if (x < Tri.MaxPixel.x)
@@ -379,8 +428,7 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 			{
 				if (min3(CX0, CX1, CX2) >= 0)
 				{
-					FBarycentrics Barycentrics = CalculateBarycentrics(Tri, float3(CX0, CX1, CX2));
-					WritePixelSW( PixelValue, uint2(x,y), ZX, Barycentrics, bDepthClamp, Raster );
+					WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), bDepthClamp, Raster, Tri );
 				}
 
 				if (x >= Tri.MaxPixel.x)
@@ -427,8 +475,7 @@ void RasterizeTri_RectSingle( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	{
 		if( min3( CX0, CX1, CX2 ) >= 0 )
 		{
-			FBarycentrics Barycentrics = CalculateBarycentrics(Tri, float3(CX0, CX1, CX2));
-			WritePixelSW( PixelValue, uint2(x,y), ZX, Barycentrics, bDepthClamp, Raster );
+			WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), bDepthClamp, Raster, Tri );
 		}
 
 		if( x < Tri.MaxPixel.x )
@@ -503,8 +550,7 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		x1 += Tri.MinPixel.x;
 		for( float x = x0; x <= x1; x++ )
 		{
-			FBarycentrics Barycentrics = CalculateBarycentrics(Tri, float3(CX0, CX1, CX2));
-			WritePixelSW( PixelValue, uint2(x,y), ZX, Barycentrics, bDepthClamp, Raster );
+			WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), bDepthClamp, Raster, Tri );
 
 			CX0 -= Tri.Edge12.y;
 			CX1 -= Tri.Edge20.y;
@@ -522,12 +568,6 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		y++;
 	}
 }
-
-#if NANITE_USE_CONSTRAINED_CLUSTERS
-groupshared FRasterVert GroupVerts[256];
-#else
-groupshared FRasterVert GroupVerts[384];
-#endif
 
 uint EdgeToTileMask( float2 Edge, float C, int2 TileOffset )
 {
@@ -613,6 +653,25 @@ struct FWorkSourceType
 	uint	TileMask;
 };
 
+void StoreWorkData(uint GroupThreadIndex, float3 DepthPlane, uint2 MinPixel)
+{
+	uint PackedMinPixel = (MinPixel.x & 0xFFFFu) | (MinPixel.y << 16);
+	
+	// re-use the vertex cache
+	GroupVerts[GroupThreadIndex] = DepthPlane;
+	GroupVerts[GroupThreadIndex + SWRASTER_NUM_THREADS].x = asfloat(PackedMinPixel);
+}
+
+void LoadWorkData(uint GroupThreadIndex, out float3 DepthPlane, out uint2 MinPixel)
+{
+	// re-use the vertex cache
+	DepthPlane = GroupVerts[GroupThreadIndex];
+	const uint PackedMinPixel = asuint(GroupVerts[GroupThreadIndex + SWRASTER_NUM_THREADS].x);
+
+	MinPixel.x = PackedMinPixel & 0xFFFFu;
+	MinPixel.y = PackedMinPixel >> 16;
+}
+
 uint GenerateWork( inout FWorkContext Context, uint GroupIndex, inout FWorkSourceType WorkSource, inout bool bDone )
 {
 	bDone = bDone || !Context.Tri.bIsValid;
@@ -659,15 +718,13 @@ void DoWork( FWorkContext Context, FWorkSourceType WorkSource, uint LocalItemInd
 	TilePos.x += BitIndex & 7;
 	TilePos.y += BitIndex / 8;
 	
-	uint MinPixelPack = asuint( GroupVerts[ TriIndex + 128 ].SubpixelPos.x );
-	int2 MinPixel;
-	MinPixel.x = MinPixelPack & 0xffff;
-	MinPixel.y = MinPixelPack >> 16;
+	uint2 MinPixel;
+	float3 DepthPlane;
+	LoadWorkData(TriIndex, DepthPlane, MinPixel);
 
 	uint2 PixelPos = TilePos + MinPixel;
 	if( all( PixelPos >= Context.Raster.ViewRect.xy && PixelPos < Context.Raster.ViewRect.zw ) )
 	{
-		float3 DepthPlane = GroupVerts[ TriIndex ].SubpixelPos;
 		float ZX = dot( DepthPlane, float3( TilePos, 1 ) );
 		
 		uint PixelValue = Context.PixelValue | TriIndex;
@@ -678,14 +735,13 @@ void DoWork( FWorkContext Context, FWorkSourceType WorkSource, uint LocalItemInd
 		const float CX1 = Context.Tri.C1 - TilePos.x * Context.Tri.Edge20.y + TilePos.y * Context.Tri.Edge20.x;
 		const float CX2 = Context.Tri.C2 - TilePos.x * Context.Tri.Edge01.y + TilePos.y * Context.Tri.Edge01.x;
 
-		FBarycentrics Barycentrics = CalculateBarycentrics(Context.Tri, float3(CX0, CX1, CX2));
-		WritePixelSW( PixelValue, PixelPos, ZX, Barycentrics, bDepthClamp, Context.Raster );
+		WritePixelSW( PixelValue, PixelPos, ZX, float3(CX0, CX1, CX2), bDepthClamp, Context.Raster, Context.Tri );
 	}
 }
 
 #define DISTRIBUTE		0//COMPILER_SUPPORTS_WAVE_VOTE
 #if DISTRIBUTE
-#define THREADGROUP_SIZE	64
+#define THREADGROUP_SIZE	SWRASTER_NUM_THREADS
 //#define GENERATE_WORK
 #include "../WorkDistribution.ush"
 
@@ -703,9 +759,7 @@ void RasterizeTri_Distribute( FRaster Raster, FRasterTri Tri, uint PixelValue, u
 	
 	if( Tri.bIsValid )
 	{
-		uint MinPixel = Tri.MinPixel.x | ( Tri.MinPixel.y << 16 );
-		GroupVerts[ GroupIndex ].SubpixelPos = Tri.DepthPlane;
-		GroupVerts[ GroupIndex + 128 ].SubpixelPos.x = asfloat( MinPixel );
+		StoreWorkData(GroupIndex, Tri.DepthPlane, Tri.MinPixel);
 	}
 
 #ifdef GENERATE_WORK
@@ -746,7 +800,7 @@ bool ReverseWindingOrder(FInstanceSceneData InstanceData)
 StructuredBuffer< uint2 >	InTotalPrevDrawClusters;
 Buffer<uint>				InClusterOffsetSWHW;
 
-[numthreads(64, 1, 1)]
+[numthreads(SWRASTER_NUM_THREADS, 1, 1)]
 void MicropolyRasterize(
 	uint	VisibleIndex	: SV_GroupID,
 	uint	GroupIndex		: SV_GroupIndex) 
@@ -803,38 +857,7 @@ void MicropolyRasterize(
 
 	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-	float2 SubpixelScale = float2(0.5, -0.5) * NaniteView.ViewSizeAndInvSize.xy * SUBPIXEL_SAMPLES;
-	float2 SubpixelBias = (0.5 * NaniteView.ViewSizeAndInvSize.xy + NaniteView.ViewRect.xy) * SUBPIXEL_SAMPLES + 0.5f;
-#if VIRTUAL_TEXTURE_TARGET
-	SubpixelBias += ( (float2)pPageAddress - (float2)vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
-#endif
-
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-
-	UNROLL
-	for( uint i = 0; i < 4; i++ )
-	{
-		uint VertIndex = GroupIndex + i * 64;
-		if( VertIndex < Cluster.NumVerts )
-		{
-			// Transform vertex and store in group shared memory.
-			float3 PointLocal = DecodePosition( VertIndex, Cluster );
-			float4 PointClipSubpixel = mul( mul( float4( PointLocal, 1 ), InstanceDynamicData.LocalToTranslatedWorld ), NaniteView.TranslatedWorldToClip );
-
-			float InvW = rcp(PointClipSubpixel.w);
-			float3 Subpixel = PointClipSubpixel.xyz * InvW;
-			Subpixel.xy = Subpixel.xy * SubpixelScale.xy + SubpixelBias.xy;
-
-			FRasterVert Vertex;
-			Vertex.SubpixelPos	= float3(floor(Subpixel.xy), Subpixel.z);
-		#if IS_NANITE_PROGRAMMABLE
-			Vertex.InvW			= InvW;
-		#endif
-			GroupVerts[ VertIndex ] = Vertex;
-		}
-	}
-	
-	GroupMemoryBarrierWithGroupSync();
 
 	int4 ViewRect = NaniteView.ViewRect;
 
@@ -843,21 +866,46 @@ void MicropolyRasterize(
 	ViewRect.zw = ViewRect.xy + VSM_PAGE_SIZE;
 #endif
 
+	// Set up the rasterization context
 	FRaster Raster;
-	Raster.NaniteView		= NaniteView;
-	Raster.ViewRect			= ViewRect;
+	Raster.InstanceData			= InstanceData;
+	Raster.InstanceDynamicData	= InstanceDynamicData;
+	Raster.NaniteView			= NaniteView;
+	Raster.Cluster 				= Cluster;
+	Raster.ViewRect				= ViewRect;
+	Raster.VertTransforms 		= CalculateNaniteVertexTransforms(InstanceData, InstanceDynamicData, NaniteView);
 #if VIRTUAL_TEXTURE_TARGET
-	Raster.vPage			= vPage;
+	Raster.pPageAddress			= pPageAddress;
+	Raster.vPage				= vPage;
 #endif
 #if VISUALIZE
-	Raster.VisualizeValues	= GetVisualizeValues();
+	Raster.VisualizeValues		= GetVisualizeValues();
 #endif
-	Raster.PageTranslation	= PageTranslation;
+	Raster.PageTranslation		= PageTranslation;
 
-	UNROLL_N(2)
-	for( uint j = 0; j < 2; j++ )
+	UNROLL
+	for( uint i = 0; i < VERTEX_CACHE_SIZE; i += SWRASTER_NUM_THREADS )
 	{
-		uint TriIndex = GroupIndex + j * 64;
+		uint VertIndex = GroupIndex + i;
+		if( VertIndex < Cluster.NumVerts )
+		{
+			// Transform vertex and store in group shared memory.
+			float3 PointLocal = DecodePosition(VertIndex, Cluster);
+		#if IS_NANITE_PROGRAMMABLE
+			GroupVerts[VertIndex] = PointLocal;
+		#else
+			float4 PointClip = mul(float4( PointLocal, 1 ), InstanceDynamicData.LocalToClip);
+			GroupVerts[VertIndex] = CalculateSubpixelCoordinates(Raster, PointClip);
+		#endif
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	UNROLL
+	for( uint j = 0; j < NANITE_MAX_CLUSTER_TRIANGLES; j += SWRASTER_NUM_THREADS )
+	{
+		uint TriIndex = GroupIndex + j;
 
 		BRANCH
 		if (bHasRasterBin && (TriIndex < RasterBin.y || TriIndex >= RasterBin.z))
@@ -875,13 +923,8 @@ void MicropolyRasterize(
 				VertIndexes.yz = VertIndexes.zy;
 			}
 		}
-	
-		FRasterVert Verts[3];
-		Verts[0] = GroupVerts[ VertIndexes.x ];
-		Verts[1] = GroupVerts[ VertIndexes.y ];
-		Verts[2] = GroupVerts[ VertIndexes.z ];
 
-		FRasterTri Tri = SetupTriangle( Raster, Verts );
+		FRasterTri Tri = SetupTriangle( Raster, VertIndexes );
 
 		uint PixelValue = (VisibleIndex + 1) << 7;
 
@@ -1468,7 +1511,7 @@ VSOut HWRasterizeVS(
 
 			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
 			SetVertexParameterInstanceData(VertexParameters, InstanceData);
-			SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData, LocalToWorld, VertexID, PointLocalNoWPO);
+			SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData.LocalToTranslatedWorld, LocalToWorld, VertexID, PointLocalNoWPO);
 
 			WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
 		#endif

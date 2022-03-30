@@ -159,9 +159,9 @@ void SetVertexParameterInstanceData(inout FMaterialVertexParameters VertexParame
 #endif
 }
 
-void SetVertexParameterAttributeData(inout FMaterialVertexParameters VertexParameters, FNaniteRawAttributeData RawAttributeData, FInstanceDynamicData InstanceDynamicData, float3x3 LocalToWorld, uint VertIndex, float3 PointLocalNoWPO)
+void SetVertexParameterAttributeData(inout FMaterialVertexParameters VertexParameters, FNaniteRawAttributeData RawAttributeData, float4x4 LocalToTranslatedWorld, float3x3 LocalToWorld, uint VertIndex, float3 PointLocalNoWPO)
 {
-	VertexParameters.WorldPosition		= mul(float4(PointLocalNoWPO, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
+	VertexParameters.WorldPosition		= mul(float4(PointLocalNoWPO, 1), LocalToTranslatedWorld).xyz;
 	VertexParameters.TangentToWorld		= mul(GetTangentBasis(RawAttributeData.TangentZ[VertIndex]), LocalToWorld);
 
 #if INTERPOLATE_VERTEX_COLOR
@@ -187,8 +187,270 @@ void SetVertexParameterAttributeData(inout FMaterialVertexParameters VertexParam
 #endif
 }
 
+// Group of transforms needed to transform a Nanite vertex
+struct FNaniteVertTransforms
+{
+	float4x4 LocalToTranslatedWorld;
+	float4x4 PrevLocalToTranslatedWorld;
+	float4x4 LocalToClip;
+	float4x4 TranslatedWorldToClip;
+	float3x3 LocalToWorldNoScale;
+	float3x3 PrevLocalToWorldNoScale;
+	float3x3 WorldToLocalVector;
+	float3x3 PrevWorldToLocalVector;
+};
+
+// Post-transformed Nanite triangle data
+struct FNaniteTransformedTri
+{
+	float3 PointLocal[3];
+	float3 PrevPointLocal[3];
+	float3 PointWorld[3];
+	float4 PointClip[3];
+	FNaniteRawAttributeData RawAttributeData;
+};
+
+FNaniteVertTransforms CalculateNaniteVertexTransforms(FInstanceSceneData InstanceData, FInstanceDynamicData InstanceDynamicData, FNaniteView NaniteView)
+{
+	const float4x4 LocalToTranslatedWorld = InstanceDynamicData.LocalToTranslatedWorld;
+	const float4x4 PrevLocalToTranslatedWorld = InstanceDynamicData.PrevLocalToTranslatedWorld;
+	const float4x4 LocalToClip = InstanceDynamicData.LocalToClip;
+	const float4x4 TranslatedWorldToClip = NaniteView.TranslatedWorldToClip;
+	const float3 InvNonUniformScale = InstanceData.InvNonUniformScale;
+
+	// Should be Pow2(InvScale) but that requires renormalization
+	float3x3 LocalToWorldNoScale = (float3x3)LocalToTranslatedWorld;
+	LocalToWorldNoScale[0] *= InvNonUniformScale.x;
+	LocalToWorldNoScale[1] *= InvNonUniformScale.y;
+	LocalToWorldNoScale[2] *= InvNonUniformScale.z;
+
+	float3x3 PrevLocalToWorldNoScale = (float3x3)PrevLocalToTranslatedWorld;
+	PrevLocalToWorldNoScale[0] *= InvNonUniformScale.x;
+	PrevLocalToWorldNoScale[1] *= InvNonUniformScale.y;
+	PrevLocalToWorldNoScale[2] *= InvNonUniformScale.z;
+
+	float3x3 WorldToLocalVector = LWCToFloat3x3(InstanceData.WorldToLocal);
+	
+	// TODO: We need PrevWorldToLocal here, but we don't have it
+	const float3 SqInvNonUniformScale = Pow2(InvNonUniformScale);
+	float3x3 PrevWorldToLocalVector = LWCToFloat3x3(InstanceData.PrevLocalToWorld);
+	PrevWorldToLocalVector[0] *= SqInvNonUniformScale.x;
+	PrevWorldToLocalVector[1] *= SqInvNonUniformScale.y;
+	PrevWorldToLocalVector[2] *= SqInvNonUniformScale.z;
+	PrevWorldToLocalVector = transpose(PrevWorldToLocalVector);
+
+	FNaniteVertTransforms Transforms;
+	Transforms.LocalToTranslatedWorld		= LocalToTranslatedWorld;
+	Transforms.PrevLocalToTranslatedWorld	= PrevLocalToTranslatedWorld;
+	Transforms.LocalToClip					= LocalToClip;
+	Transforms.TranslatedWorldToClip		= TranslatedWorldToClip;
+	Transforms.LocalToWorldNoScale			= LocalToWorldNoScale;
+	Transforms.PrevLocalToWorldNoScale		= PrevLocalToWorldNoScale;
+	Transforms.WorldToLocalVector			= WorldToLocalVector;
+	Transforms.PrevWorldToLocalVector		= PrevWorldToLocalVector;
+
+	return Transforms;
+}
+
+FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, FNaniteVertTransforms Transforms, float3 PointLocalNoWPO[3], FNaniteRawAttributeData RawAttributeData)
+{
+	FNaniteTransformedTri Tri = (FNaniteTransformedTri)0;
+
+	Tri.RawAttributeData = RawAttributeData;
+
+	// TODO: PROG_RASTER: Optimize
+#if USES_WORLD_POSITION_OFFSET
+	UNROLL_N(3)
+	for (int i = 0; i < 3; ++i)
+	{
+		FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
+		SetVertexParameterInstanceData(VertexParameters, InstanceData);
+		SetVertexParameterAttributeData(VertexParameters, RawAttributeData, Transforms.LocalToTranslatedWorld, Transforms.LocalToWorldNoScale, i, PointLocalNoWPO[i]);
+
+		FMaterialVertexParameters PrevVertexParameters = (FMaterialVertexParameters)0;
+		SetVertexParameterInstanceData(PrevVertexParameters, InstanceData);
+		SetVertexParameterAttributeData(PrevVertexParameters, RawAttributeData, Transforms.PrevLocalToTranslatedWorld, Transforms.PrevLocalToWorldNoScale, i, PointLocalNoWPO[i]);
+
+		const float3 WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
+		const float3 PrevWorldPositionOffset = GetMaterialPreviousWorldPositionOffset(PrevVertexParameters);
+		const float3 LocalOffset = mul(WorldPositionOffset, Transforms.WorldToLocalVector);
+		const float3 PrevLocalOffset = mul(PrevWorldPositionOffset, Transforms.PrevWorldToLocalVector);
+
+		Tri.PointLocal[i]		= PointLocalNoWPO[i] + LocalOffset;
+		Tri.PrevPointLocal[i]	= PointLocalNoWPO[i] + PrevLocalOffset;
+		Tri.PointWorld[i]		= VertexParameters.WorldPosition + WorldPositionOffset;
+		Tri.PointClip[i]		= mul(float4(Tri.PointWorld[i], 1), Transforms.TranslatedWorldToClip);
+	}
+#else
+	UNROLL_N(3)
+	for (int i = 0; i < 3; ++i)
+	{
+		Tri.PointLocal[i]		= PointLocalNoWPO[i];
+		Tri.PrevPointLocal[i]	= PointLocalNoWPO[i];
+		Tri.PointWorld[i]		= mul(float4(Tri.PointLocal[i], 1), Transforms.LocalToTranslatedWorld).xyz;
+		Tri.PointClip[i]		= mul(float4(Tri.PointLocal[i], 1), Transforms.LocalToClip);
+	}
+#endif // USES WORLD_POSITION_OFFSET
+
+	return Tri;
+}
+
+FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData InstanceData, FInstanceDynamicData InstanceDynamicData, FNaniteView NaniteView, FNaniteTransformedTri Tri, FCluster Cluster, FBarycentrics Barycentrics, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
+{
+	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
+
+	const float SignTest = dot(cross(Tri.PointClip[1].xyw - Tri.PointClip[0].xyw, Tri.PointClip[2].xyw - Tri.PointClip[0].xyw), Tri.PointClip[0].xyw);
+	Result.TwoSidedSign = CondMask(SignTest >= 0.0f, -1.0f, 1.0f);
+
+	const FNaniteAttributeData AttributeData = GetAttributeData(
+		Tri.RawAttributeData,
+		Cluster,
+		Tri.PointLocal[0],
+		Tri.PointLocal[1],
+		Tri.PointLocal[2],
+		Barycentrics,
+		InstanceData,
+		NUM_TEX_COORD_INTERPOLATORS
+	);
+
+#if INTERPOLATE_VERTEX_COLOR
+	Result.VertexColor = AttributeData.VertexColor;
+	Result.VertexColor_DDX = AttributeData.VertexColor_DDX;
+	Result.VertexColor_DDY = AttributeData.VertexColor_DDY;
+#else
+	// Coerce compiler into DCE as much code as possible.
+	Result.VertexColor = float4(1, 1, 1, 1);
+	Result.VertexColor_DDX = 0.0f;
+	Result.VertexColor_DDY = 0.0f;
+#endif
+
+	Result.TangentToWorld = AttributeData.TangentToWorld;
+	Result.UnMirrored = AttributeData.UnMirrored;
+
+#if NUM_TEX_COORD_INTERPOLATORS > 0
+	UNROLL
+	for (uint TexCoordIndex = 0; TexCoordIndex < NUM_TEX_COORD_INTERPOLATORS; TexCoordIndex++)
+	{
+		// Protect against case where Nanite max UV count is lower than what the material may define.
+		if (TexCoordIndex < NANITE_MAX_UVS)
+		{
+			Result.TexCoords[TexCoordIndex] = AttributeData.TexCoords[TexCoordIndex];
+			Result.TexCoords_DDX[TexCoordIndex] = AttributeData.TexCoords_DDX[TexCoordIndex];
+			Result.TexCoords_DDY[TexCoordIndex] = AttributeData.TexCoords_DDY[TexCoordIndex];
+		}
+	}
+#endif
+
+	const float3 PrevPointLocal = Barycentrics.UVW.x * Tri.PrevPointLocal[0] + Barycentrics.UVW.y * Tri.PrevPointLocal[1] + Barycentrics.UVW.z * Tri.PrevPointLocal[2];
+	Result.PrevScreenPosition = mul( float4(PrevPointLocal, 1), InstanceDynamicData.PrevLocalToClip );
+	//Result.PrevScreenPosition = float4( Result.PrevScreenPosition.xyz / Result.PrevScreenPosition.w, 1 );
+
+	const float3 PointWorld = Barycentrics.UVW.x * Tri.PointWorld[0] + Barycentrics.UVW.y * Tri.PointWorld[1] + Barycentrics.UVW.z * Tri.PointWorld[2];
+	
+	Result.WorldPosition_CamRelative = PointWorld;
+	Result.WorldPosition_DDX = Barycentrics.UVW_dx.x * Tri.PointWorld[0] + Barycentrics.UVW_dx.y * Tri.PointWorld[1] + Barycentrics.UVW_dx.z * Tri.PointWorld[2];
+	Result.WorldPosition_DDY = Barycentrics.UVW_dy.x * Tri.PointWorld[0] + Barycentrics.UVW_dy.y * Tri.PointWorld[1] + Barycentrics.UVW_dy.z * Tri.PointWorld[2];
+
+	// Update screen W and all screen derivatives. This is rarely used and will be dead code eliminated most of the time.
+	{
+		const float2 PointClipZW = Barycentrics.UVW.x * Tri.PointClip[0].zw + Barycentrics.UVW.y * Tri.PointClip[1].zw + Barycentrics.UVW.z * Tri.PointClip[2].zw;
+		SvPosition.w = PointClipZW.y;
+
+		float2 Z_DDX_DDY = float2(	Barycentrics.UVW_dx.x * Tri.PointClip[0].zw.x + Barycentrics.UVW_dx.y * Tri.PointClip[1].zw.x + Barycentrics.UVW_dx.z * Tri.PointClip[2].zw.x,
+									Barycentrics.UVW_dy.x * Tri.PointClip[0].zw.x + Barycentrics.UVW_dy.y * Tri.PointClip[1].zw.x + Barycentrics.UVW_dy.z * Tri.PointClip[2].zw.x);
+		float2 W_DDX_DDY = float2(	Barycentrics.UVW_dx.x * Tri.PointClip[0].zw.y + Barycentrics.UVW_dx.y * Tri.PointClip[1].zw.y + Barycentrics.UVW_dx.z * Tri.PointClip[2].zw.y,
+									Barycentrics.UVW_dy.x * Tri.PointClip[0].zw.y + Barycentrics.UVW_dy.y * Tri.PointClip[1].zw.y + Barycentrics.UVW_dy.z * Tri.PointClip[2].zw.y);
+
+		// PPZ = Z / W
+		// PPZ' = (Z'W - ZW')/W^2
+		float2 PPZ_DDX_DDY = (Z_DDX_DDY * PointClipZW.y - PointClipZW.x * W_DDX_DDY) / (PointClipZW.y * PointClipZW.y);
+		SvPositionToResolvedScreenPositionDeriv(SvPosition, PPZ_DDX_DDY, W_DDX_DDY, Result.ScreenPosition, Result.ScreenPosition_DDX, Result.ScreenPosition_DDY);
+	}
+	
+#if USE_PARTICLE_SUBUVS && NUM_TEX_COORD_INTERPOLATORS > 0
+	// Output TexCoord0 for when previewing materials that use ParticleSubUV.
+	Result.Particle.SubUVCoords[0] = Result.TexCoords[0];
+	Result.Particle.SubUVCoords[1] = Result.TexCoords[0];
+#endif
+
+	// Required for previewing materials that use ParticleColor
+	Result.Particle.Color = half4(1, 1, 1, 1);
+
+#if USES_PER_INSTANCE_RANDOM
+	// X = per-instance random, Y = per-instance fade out amount, Z = hide/show flag, W = dither fade cutoff
+	Result.PerInstanceParams = float4(InstanceData.RandomID, 0.0f, 0.0f, 0.0f);
+#endif
+
+#if NEEDS_LIGHTMAP_COORDINATE
+	const uint LightMapDataIndex = PrimitiveData.LightmapDataIndex;
+	const uint LightMapUVIndex   = PrimitiveData.LightmapUVIndex;
+
+	float2 LightMapCoordinateInput;
+	float2 LightMapCoordinateInput_DDX;
+	float2 LightMapCoordinateInput_DDY;
+	if (LightMapUVIndex < NUM_TEX_COORD_INTERPOLATORS)
+	{
+		LightMapCoordinateInput = AttributeData.TexCoords[LightMapUVIndex];
+		LightMapCoordinateInput_DDX = AttributeData.TexCoords_DDX[LightMapUVIndex];
+		LightMapCoordinateInput_DDY = AttributeData.TexCoords_DDY[LightMapUVIndex];
+	}
+	else
+	{
+		FTexCoord TexCoord = GetTexCoord(Cluster, TriIndices, Barycentrics, LightMapUVIndex);
+		LightMapCoordinateInput = TexCoord.Value;
+		LightMapCoordinateInput_DDX = TexCoord.DDX;
+		LightMapCoordinateInput_DDY = TexCoord.DDY;
+	}
+
+	const bool bHasPerInstanceCoordinateScaleBias = (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS);
+
+	const float4 LightMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).LightMapCoordinateScaleBias;
+	const float2 InstanceLightMapScaleBias = CondMask(bHasPerInstanceCoordinateScaleBias, InstanceData.LightMapAndShadowMapUVBias.xy, LightMapCoordinateScaleBias.zw);
+	FloatDeriv2 LightMapCoordinate = ConstructFloatDeriv2(	LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + InstanceLightMapScaleBias,
+															LightMapCoordinateInput_DDX * LightMapCoordinateScaleBias.xy,
+															LightMapCoordinateInput_DDY * LightMapCoordinateScaleBias.xy);
+
+	FloatDeriv2 ShadowMapCoordinate = (FloatDeriv2)0;
+#if STATICLIGHTING_TEXTUREMASK
+	const float4 ShadowMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).ShadowMapCoordinateScaleBias;
+	const float2 InstanceShadowMapScaleBias = CondMask(bHasPerInstanceCoordinateScaleBias, InstanceData.LightMapAndShadowMapUVBias.zw, ShadowMapCoordinateScaleBias.zw);
+	ShadowMapCoordinate = ConstructFloatDeriv2(	LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + InstanceShadowMapScaleBias,
+												LightMapCoordinateInput_DDX * ShadowMapCoordinateScaleBias.xy,
+												LightMapCoordinateInput_DDY * ShadowMapCoordinateScaleBias.xy);
+#endif
+
+#if LIGHTMAP_UV_ACCESS
+	// Store unscaled/unbiased lightmap UVs
+	Result.LightmapUVs = LightMapCoordinateInput;
+	Result.LightmapUVs_DDX = LightMapCoordinateInput_DDX;
+	Result.LightmapUVs_DDY = LightMapCoordinateInput_DDY;
+#endif
+
+	SetLightMapCoordinate(Interpolants, LightMapCoordinate, ShadowMapCoordinate);
+	SetLightMapDataIndex(Interpolants, LightMapDataIndex);
+
+#endif // NEEDS_LIGHTMAP_COORDINATE
+
+#if USES_PER_INSTANCE_CUSTOM_DATA
+	Result.CustomDataOffset = InstanceData.CustomDataOffset;
+	Result.CustomDataCount  = InstanceData.CustomDataCount;
+#endif
+
+#if HAS_INSTANCE_LOCAL_TO_WORLD_PS
+	Result.InstanceLocalToWorld = InstanceData.LocalToWorld;
+#endif
+#if HAS_INSTANCE_WORLD_TO_LOCAL_PS
+	Result.InstanceWorldToLocal = InstanceData.WorldToLocal;
+#endif
+
+	Result.PrimitiveId  = InstanceData.PrimitiveId;
+	Result.InstanceId   = InstanceData.RelativeId;
+
+	return Result;
+}
+
 // Shared function (for Nanite raster and shading passes) to fetch a valid FMaterialPixelParameters struct, which is used by material inputs.
-FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteView, UlongType PackedPixel, bool bHasPageData, FBarycentrics Barycentrics, bool bCalcBarycentrics, uint3 TriIndices, bool bCalcTriangleIndices, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
+FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteView, UlongType PackedPixel, bool bHasPageData, FBarycentrics Barycentrics, bool bCalcBarycentrics, uint3 TriIndices, bool bCalcTriIndices, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
 {
 	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
 
@@ -205,232 +467,33 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 		FPrimitiveSceneData PrimitiveData        = GetPrimitiveData(InstanceData.PrimitiveId);
 		FCluster Cluster                         = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-		if(bCalcTriangleIndices)
+		if (bCalcTriIndices)
 		{
 			TriIndices = ReadTriangleIndices(Cluster, TriIndex);
 		}
 
-		const float3 PointLocalNoWPO0 = DecodePosition(TriIndices.x, Cluster);
-		const float3 PointLocalNoWPO1 = DecodePosition(TriIndices.y, Cluster);
-		const float3 PointLocalNoWPO2 = DecodePosition(TriIndices.z, Cluster);
-
 		const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, TriIndices, NUM_TEX_COORD_INTERPOLATORS);
-
-		// TODO: PROG_RASTER: Optimize
-#if USES_WORLD_POSITION_OFFSET
-		// Should be Pow2(InvScale) but that requires renormalization
-		float3x3 LocalToWorld = LWCToFloat3x3(InstanceData.LocalToWorld);
-		float3 InvScale = InstanceData.InvNonUniformScale;
-		LocalToWorld[0] *= InvScale.x;
-		LocalToWorld[1] *= InvScale.y;
-		LocalToWorld[2] *= InvScale.z;
-
-		FMaterialVertexParameters VertexParameters0 = (FMaterialVertexParameters)0;
-		SetVertexParameterInstanceData(VertexParameters0, InstanceData);
-		SetVertexParameterAttributeData(VertexParameters0, RawAttributeData, InstanceDynamicData, LocalToWorld, 0, PointLocalNoWPO0);
-
-		FMaterialVertexParameters VertexParameters1 = (FMaterialVertexParameters)0;
-		SetVertexParameterInstanceData(VertexParameters1, InstanceData);
-		SetVertexParameterAttributeData(VertexParameters1, RawAttributeData, InstanceDynamicData, LocalToWorld, 1, PointLocalNoWPO1);
-
-		FMaterialVertexParameters VertexParameters2 = (FMaterialVertexParameters)0;
-		SetVertexParameterInstanceData(VertexParameters2, InstanceData);
-		SetVertexParameterAttributeData(VertexParameters2, RawAttributeData, InstanceDynamicData, LocalToWorld, 2, PointLocalNoWPO2);
-
-		const float3 WorldPositionOffset0 = GetMaterialWorldPositionOffset(VertexParameters0);
-		const float3 WorldPositionOffset1 = GetMaterialWorldPositionOffset(VertexParameters1);
-		const float3 WorldPositionOffset2 = GetMaterialWorldPositionOffset(VertexParameters2);
-
-		const float3 PointWorld0 = VertexParameters0.WorldPosition + WorldPositionOffset0;
-		const float3 PointWorld1 = VertexParameters1.WorldPosition + WorldPositionOffset1;
-		const float3 PointWorld2 = VertexParameters2.WorldPosition + WorldPositionOffset2;
-
-		const float3x3 WorldToLocalVector = LWCToFloat3x3(InstanceData.WorldToLocal);
-		const float3 LocalOffset0 = mul(WorldPositionOffset0, WorldToLocalVector);
-		const float3 LocalOffset1 = mul(WorldPositionOffset1, WorldToLocalVector);
-		const float3 LocalOffset2 = mul(WorldPositionOffset2, WorldToLocalVector);
-
-		const float3 PointLocal0 = PointLocalNoWPO0 + LocalOffset0;
-		const float3 PointLocal1 = PointLocalNoWPO1 + LocalOffset1;
-		const float3 PointLocal2 = PointLocalNoWPO2 + LocalOffset2;
-
-		const float4 PointClip0 = mul(float4(PointWorld0, 1), NaniteView.TranslatedWorldToClip);
-		const float4 PointClip1 = mul(float4(PointWorld1, 1), NaniteView.TranslatedWorldToClip);
-		const float4 PointClip2 = mul(float4(PointWorld2, 1), NaniteView.TranslatedWorldToClip);
-#else
-		const float3 PointLocal0 = PointLocalNoWPO0;
-		const float3 PointLocal1 = PointLocalNoWPO1;
-		const float3 PointLocal2 = PointLocalNoWPO2;
-		const float3 PointWorld0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
-		const float3 PointWorld1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
-		const float3 PointWorld2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
-		const float4 PointClip0  = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToClip);
-		const float4 PointClip1  = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToClip);
-		const float4 PointClip2  = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToClip);
-#endif
-
-		const float SignTest = dot(cross(PointClip1.xyw - PointClip0.xyw, PointClip2.xyw - PointClip0.xyw), PointClip0.xyw);
-		Result.TwoSidedSign = CondMask(SignTest >= 0.0f, -1.0f, 1.0f);
-
-		const float2 PixelClip = (SvPosition.xy - NaniteView.ViewRect.xy) * NaniteView.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
+		const float3 PointLocalNoWPO[3] = 
+		{
+			DecodePosition(TriIndices.x, Cluster),
+			DecodePosition(TriIndices.y, Cluster),
+			DecodePosition(TriIndices.z, Cluster)
+		};
+		
+		const FNaniteVertTransforms Transforms = CalculateNaniteVertexTransforms(InstanceData, InstanceDynamicData, NaniteView);
+		const FNaniteTransformedTri Tri = TransformNaniteTriangle(InstanceData, Transforms, PointLocalNoWPO, RawAttributeData);
 
 		if (bCalcBarycentrics)
 		{
 			// Calculate perspective correct barycentric coordinates with screen derivatives
-			Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, NaniteView.ViewSizeAndInvSize.zw);
+			const float2 PixelClip = (SvPosition.xy - NaniteView.ViewRect.xy) * NaniteView.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
+			Barycentrics = CalculateTriangleBarycentrics(PixelClip, Tri.PointClip[0], Tri.PointClip[1], Tri.PointClip[2], NaniteView.ViewSizeAndInvSize.zw);
 		}
-
-		const FNaniteAttributeData AttributeData = GetAttributeData(
-			RawAttributeData,
-			Cluster,
-			PointLocal0,
-			PointLocal1,
-			PointLocal2,
-			Barycentrics,
-			InstanceData,
-			NUM_TEX_COORD_INTERPOLATORS
-		);
-
-	#if INTERPOLATE_VERTEX_COLOR
-		Result.VertexColor = AttributeData.VertexColor;
-		Result.VertexColor_DDX = AttributeData.VertexColor_DDX;
-		Result.VertexColor_DDY = AttributeData.VertexColor_DDY;
-	#else
-		// Coerce compiler into DCE as much code as possible.
-		Result.VertexColor = float4(1, 1, 1, 1);
-		Result.VertexColor_DDX = 0.0f;
-		Result.VertexColor_DDY = 0.0f;
-	#endif
-
-		Result.TangentToWorld = AttributeData.TangentToWorld;
-		Result.UnMirrored = AttributeData.UnMirrored;
-
-	#if NUM_TEX_COORD_INTERPOLATORS > 0
-		UNROLL
-		for (uint TexCoordIndex = 0; TexCoordIndex < NUM_TEX_COORD_INTERPOLATORS; TexCoordIndex++)
-		{
-			// Protect against case where Nanite max UV count is lower than what the material may define.
-			if (TexCoordIndex < NANITE_MAX_UVS)
-			{
-				Result.TexCoords[TexCoordIndex] = AttributeData.TexCoords[TexCoordIndex];
-				Result.TexCoords_DDX[TexCoordIndex] = AttributeData.TexCoords_DDX[TexCoordIndex];
-				Result.TexCoords_DDY[TexCoordIndex] = AttributeData.TexCoords_DDY[TexCoordIndex];
-			}
-		}
-	#endif
-
-		const float3 PointLocal = Barycentrics.UVW.x * PointLocal0 + Barycentrics.UVW.y * PointLocal1 + Barycentrics.UVW.z * PointLocal2;
-
-		Result.PrevScreenPosition = mul( float4(PointLocal, 1), InstanceDynamicData.PrevLocalToClip );
-		//Result.PrevScreenPosition = float4( Result.PrevScreenPosition.xyz / Result.PrevScreenPosition.w, 1 );
-
-		const float3 PointWorld = Barycentrics.UVW.x * PointWorld0 + Barycentrics.UVW.y * PointWorld1 + Barycentrics.UVW.z * PointWorld2;
-		
-		Result.WorldPosition_CamRelative = PointWorld;
-		Result.WorldPosition_DDX = Barycentrics.UVW_dx.x * PointWorld0 + Barycentrics.UVW_dx.y * PointWorld1 + Barycentrics.UVW_dx.z * PointWorld2;
-		Result.WorldPosition_DDY = Barycentrics.UVW_dy.x * PointWorld0 + Barycentrics.UVW_dy.y * PointWorld1 + Barycentrics.UVW_dy.z * PointWorld2;
 
 		// Update to real depth from VisBuffer
 		SvPosition.z = asfloat(DepthInt);
 
-		// Update screen W and all screen derivatives. This is rarely used and will be dead code eliminated most of the time.
-		{
-			const float2 PointClip0ZW = mul(float4(PointWorld0, 1.0f), NaniteView.TranslatedWorldToClip).zw;
-			const float2 PointClip1ZW = mul(float4(PointWorld1, 1.0f), NaniteView.TranslatedWorldToClip).zw;
-			const float2 PointClip2ZW = mul(float4(PointWorld2, 1.0f), NaniteView.TranslatedWorldToClip).zw;
-
-			const float2 PointClipZW = Barycentrics.UVW.x * PointClip0ZW + Barycentrics.UVW.y * PointClip1ZW + Barycentrics.UVW.z * PointClip2ZW;
-			SvPosition.w = PointClipZW.y;
-
-			float2 Z_DDX_DDY = float2(	Barycentrics.UVW_dx.x * PointClip0ZW.x + Barycentrics.UVW_dx.y * PointClip1ZW.x + Barycentrics.UVW_dx.z * PointClip2ZW.x,
-										Barycentrics.UVW_dy.x * PointClip0ZW.x + Barycentrics.UVW_dy.y * PointClip1ZW.x + Barycentrics.UVW_dy.z * PointClip2ZW.x);
-			float2 W_DDX_DDY = float2(	Barycentrics.UVW_dx.x * PointClip0ZW.y + Barycentrics.UVW_dx.y * PointClip1ZW.y + Barycentrics.UVW_dx.z * PointClip2ZW.y,
-										Barycentrics.UVW_dy.x * PointClip0ZW.y + Barycentrics.UVW_dy.y * PointClip1ZW.y + Barycentrics.UVW_dy.z * PointClip2ZW.y);
-
-			// PPZ = Z / W
-			// PPZ' = (Z'W - ZW')/W^2
-			float2 PPZ_DDX_DDY = (Z_DDX_DDY * PointClipZW.y - PointClipZW.x * W_DDX_DDY) / (PointClipZW.y * PointClipZW.y);
-			SvPositionToResolvedScreenPositionDeriv(SvPosition, PPZ_DDX_DDY, W_DDX_DDY, Result.ScreenPosition, Result.ScreenPosition_DDX, Result.ScreenPosition_DDY);
-		}
-		
-	#if USE_PARTICLE_SUBUVS && NUM_TEX_COORD_INTERPOLATORS > 0
-		// Output TexCoord0 for when previewing materials that use ParticleSubUV.
-		Result.Particle.SubUVCoords[0] = Result.TexCoords[0];
-		Result.Particle.SubUVCoords[1] = Result.TexCoords[0];
-	#endif
-
-		// Required for previewing materials that use ParticleColor
-		Result.Particle.Color = half4(1, 1, 1, 1);
-
-	#if USES_PER_INSTANCE_RANDOM
-		// X = per-instance random, Y = per-instance fade out amount, Z = hide/show flag, W = dither fade cutoff
-		Result.PerInstanceParams = float4(InstanceData.RandomID, 0.0f, 0.0f, 0.0f);
-	#endif
-
-	#if NEEDS_LIGHTMAP_COORDINATE
-		const uint LightMapDataIndex = PrimitiveData.LightmapDataIndex;
-		const uint LightMapUVIndex   = PrimitiveData.LightmapUVIndex;
-
-		float2 LightMapCoordinateInput;
-		float2 LightMapCoordinateInput_DDX;
-		float2 LightMapCoordinateInput_DDY;
-		if (LightMapUVIndex < NUM_TEX_COORD_INTERPOLATORS)
-		{
-			LightMapCoordinateInput = AttributeData.TexCoords[LightMapUVIndex];
-			LightMapCoordinateInput_DDX = AttributeData.TexCoords_DDX[LightMapUVIndex];
-			LightMapCoordinateInput_DDY = AttributeData.TexCoords_DDY[LightMapUVIndex];
-		}
-		else
-		{
-			FTexCoord TexCoord = GetTexCoord(Cluster, TriIndices, Barycentrics, LightMapUVIndex);
-			LightMapCoordinateInput = TexCoord.Value;
-			LightMapCoordinateInput_DDX = TexCoord.DDX;
-			LightMapCoordinateInput_DDY = TexCoord.DDY;
-		}
-
-		const bool bHasPerInstanceCoordinateScaleBias = (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS);
-
-		const float4 LightMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).LightMapCoordinateScaleBias;
-		const float2 InstanceLightMapScaleBias = CondMask(bHasPerInstanceCoordinateScaleBias, InstanceData.LightMapAndShadowMapUVBias.xy, LightMapCoordinateScaleBias.zw);
-		FloatDeriv2 LightMapCoordinate = ConstructFloatDeriv2(	LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + InstanceLightMapScaleBias,
-																LightMapCoordinateInput_DDX * LightMapCoordinateScaleBias.xy,
-																LightMapCoordinateInput_DDY * LightMapCoordinateScaleBias.xy);
-
-		FloatDeriv2 ShadowMapCoordinate = (FloatDeriv2)0;
-	#if STATICLIGHTING_TEXTUREMASK
-		const float4 ShadowMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).ShadowMapCoordinateScaleBias;
-		const float2 InstanceShadowMapScaleBias = CondMask(bHasPerInstanceCoordinateScaleBias, InstanceData.LightMapAndShadowMapUVBias.zw, ShadowMapCoordinateScaleBias.zw);
-		ShadowMapCoordinate = ConstructFloatDeriv2(	LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + InstanceShadowMapScaleBias,
-													LightMapCoordinateInput_DDX * ShadowMapCoordinateScaleBias.xy,
-													LightMapCoordinateInput_DDY * ShadowMapCoordinateScaleBias.xy);
-	#endif
-
-	#if LIGHTMAP_UV_ACCESS
-		// Store unscaled/unbiased lightmap UVs
-		Result.LightmapUVs = LightMapCoordinateInput;
-		Result.LightmapUVs_DDX = LightMapCoordinateInput_DDX;
-		Result.LightmapUVs_DDY = LightMapCoordinateInput_DDY;
-	#endif
-
-		SetLightMapCoordinate(Interpolants, LightMapCoordinate, ShadowMapCoordinate);
-		SetLightMapDataIndex(Interpolants, LightMapDataIndex);
-
-	#endif // NEEDS_LIGHTMAP_COORDINATE
-
-	#if USES_PER_INSTANCE_CUSTOM_DATA
-		Result.CustomDataOffset = InstanceData.CustomDataOffset;
-		Result.CustomDataCount  = InstanceData.CustomDataCount;
-	#endif
-
-	#if HAS_INSTANCE_LOCAL_TO_WORLD_PS
-		Result.InstanceLocalToWorld = InstanceData.LocalToWorld;
-	#endif
-	#if HAS_INSTANCE_WORLD_TO_LOCAL_PS
-		Result.InstanceWorldToLocal = InstanceData.WorldToLocal;
-	#endif
-
-		Result.PrimitiveId  = InstanceData.PrimitiveId;
-		Result.InstanceId   = InstanceData.RelativeId;
+		Result = FetchNaniteMaterialPixelParameters(InstanceData, InstanceDynamicData, NaniteView, Tri, Cluster, Barycentrics, Interpolants, SvPosition);
 	}
 
 	return Result;
