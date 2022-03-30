@@ -66,8 +66,8 @@ TImplicitObjectScaled<QueryGeomType> ScaleGeomIntoWorldHelper(const TImplicitObj
 	return MakeScaledHelper(QueryGeom, TriMeshScale);
 }
 
-void TransformSweepOutputsHelper(FVec3 TriMeshScale, const FVec3& HitNormal, const FVec3& HitPosition, const FReal LengthScale,
-	const FReal Time, FVec3& OutNormal, FVec3& OutPosition, FReal& OutTime)
+void TransformSweepOutputsHelper(FVec3 TriMeshScale, const FVec3& HitNormal, const FVec3& HitPosition, const FRealSingle LengthScale,
+	const FRealSingle Time, FVec3& OutNormal, FVec3& OutPosition, FRealSingle& OutTime)
 {
 	if (ensure(TriMeshScale != FVec3(0.0f)))
 	{
@@ -138,7 +138,7 @@ struct FTriangleMeshRaycastVisitor
 	 * find the intersection of a ray and the triangle at index TriIdx
 	 * @return true if the search should continue otherwise false to stop the search through the mesh 
 	 */
-	bool VisitRaycast(TSpatialVisitorData<int32> TriIdx, FQueryFastData& CurData)
+	bool VisitRaycast(TSpatialVisitorData<int32> TriIdx, FRealSingle& CurDataLength)
 	{
 		constexpr FReal Epsilon = 1e-4f;
 
@@ -165,19 +165,19 @@ struct FTriangleMeshRaycastVisitor
 
 		FVec3 HitNormal;
 		FReal HitTime;
-		if (RayTriangleIntersection(StartPoint, Dir, CurData.CurrentLength, A, B, C, HitTime, HitNormal))
+		if (RayTriangleIntersection(StartPoint, Dir, static_cast<FReal>(CurDataLength), A, B, C, HitTime, HitNormal))
 		{
 			OutPosition = StartPoint + (Dir * HitTime);
 			OutNormal = HitNormal;
 			OutTime = HitTime;
 			OutFaceIndex = FaceIndex;
-			CurData.SetLength(HitTime);	//prevent future rays from going any farther
+			CurDataLength = static_cast<FRealSingle>(HitTime); //prevent future rays from going any farther
 		}
 		// continue the visit
 		return true;
 	}
 	
-	bool VisitSweep(TSpatialVisitorData<int32> TriIdx, FQueryFastData& CurData)
+	bool VisitSweep(TSpatialVisitorData<int32> TriIdx, FRealSingle& CurDataLength)
 	{
 		constexpr FReal Epsilon = 1e-4f;
 		constexpr FReal Epsilon2 = Epsilon * Epsilon;
@@ -217,7 +217,7 @@ struct FTriangleMeshRaycastVisitor
 
 		//Check if we even intersect with triangle plane
 		int32 DummyFaceIndex;
-		if (TriPlane.Raycast(StartPoint, Dir, CurData.CurrentLength, Thickness, Time, RaycastPosition, RaycastNormal, DummyFaceIndex))
+		if (TriPlane.Raycast(StartPoint, Dir, CurDataLength, Thickness, Time, RaycastPosition, RaycastNormal, DummyFaceIndex))
 		{
 			FVec3 IntersectionPosition = RaycastPosition;
 			FVec3 IntersectionNormal = RaycastNormal;
@@ -252,19 +252,19 @@ struct FTriangleMeshRaycastVisitor
 				{
 					FVec3 ABCapsuleAxis = B - A;
 					FReal ABHeight = ABCapsuleAxis.SafeNormalize();
-					bBorderIntersections[0] = FCapsule::RaycastFast(Thickness, ABHeight, ABCapsuleAxis, A, B, StartPoint, Dir, CurData.CurrentLength, 0, BorderTimes[0], BorderPositions[0], BorderNormals[0], DummyFaceIndex);
+					bBorderIntersections[0] = FCapsule::RaycastFast(Thickness, ABHeight, ABCapsuleAxis, A, B, StartPoint, Dir, CurDataLength, 0, BorderTimes[0], BorderPositions[0], BorderNormals[0], DummyFaceIndex);
 				}
 				
 				{
 					FVec3 BCCapsuleAxis = C - B;
 					FReal BCHeight = BCCapsuleAxis.SafeNormalize();
-					bBorderIntersections[1] = FCapsule::RaycastFast(Thickness, BCHeight, BCCapsuleAxis, B, C, StartPoint, Dir, CurData.CurrentLength, 0, BorderTimes[1], BorderPositions[1], BorderNormals[1], DummyFaceIndex);
+					bBorderIntersections[1] = FCapsule::RaycastFast(Thickness, BCHeight, BCCapsuleAxis, B, C, StartPoint, Dir, CurDataLength, 0, BorderTimes[1], BorderPositions[1], BorderNormals[1], DummyFaceIndex);
 				}
 				
 				{
 					FVec3 ACCapsuleAxis = C - A;
 					FReal ACHeight = ACCapsuleAxis.SafeNormalize();
-					bBorderIntersections[2] = FCapsule::RaycastFast(Thickness, ACHeight, ACCapsuleAxis, A, C, StartPoint, Dir, CurData.CurrentLength, 0, BorderTimes[2], BorderPositions[2], BorderNormals[2], DummyFaceIndex);
+					bBorderIntersections[2] = FCapsule::RaycastFast(Thickness, ACHeight, ACCapsuleAxis, A, C, StartPoint, Dir, CurDataLength, 0, BorderTimes[2], BorderPositions[2], BorderNormals[2], DummyFaceIndex);
 				}
 
 				int32 MinBorderIdx = INDEX_NONE;
@@ -307,7 +307,7 @@ struct FTriangleMeshRaycastVisitor
 					OutPosition = IntersectionPosition;
 					OutNormal = RaycastNormal;	//We use the plane normal even when hitting triangle edges. This is to deal with triangles that approximate a single flat surface.
 					OutTime = Time;
-					CurData.SetLength(Time);	//prevent future rays from going any farther
+					CurDataLength = static_cast<FRealSingle>(Time);	//prevent future rays from going any farther
 					OutFaceIndex = FaceIndex;
 				}
 			}
@@ -343,12 +343,12 @@ struct FTriangleMeshOverlapVisitor
 		CollectedResults.Add(Instance);
 		return true;
 	}
-	bool VisitSweep(int32 Instance, FQueryFastData& CurData)
+	bool VisitSweep(int32 Instance, FRealSingle& CurDataLength)
 	{
 		check(false);
 		return true;
 	}
-	bool VisitRaycast(int32 Instance, FQueryFastData& CurData)
+	bool VisitRaycast(int32 Instance, FRealSingle& CurDataLength)
 	{
 		check(false);
 		return true;
@@ -361,7 +361,7 @@ TArray<int32> FTrimeshBVH::FindAllIntersections (const FAABB3& Intersection) con
 {
 	TArray<int32> Results;
 	FTriangleMeshOverlapVisitor Visitor(Results);
-	Overlap(Intersection, Visitor);
+	Overlap(FAABBVectorized(Intersection), Visitor);
 
 	return Results;
 }
@@ -948,25 +948,31 @@ bool FTriangleMeshImplicitObject::OverlapGeom(const TImplicitObjectScaled<FConve
 template <typename QueryGeomType, typename IdxType>
 struct FTriangleMeshSweepVisitor
 {
-	FTriangleMeshSweepVisitor(const FTriangleMeshImplicitObject& InTriMesh, const TArray<TVec3<IdxType>>& InElements, const QueryGeomType& InQueryGeom, const TRigidTransform<FReal,3>& InStartTM, const FVec3& InDir,
-		const FVec3& InScaledDirNormalized, const FReal InLengthScale, const FRigidTransform3& InScaledStartTM, const FReal InThickness, const bool InComputeMTD, FVec3 InTriMeshScale, FReal InCullsBackFaceSweepsCode)
+	FTriangleMeshSweepVisitor(const FTriangleMeshImplicitObject& InTriMesh, const TArray<TVec3<IdxType>>& InElements, const QueryGeomType& InQueryGeom,
+		const FVec3& InScaledDirNormalized, const FReal InLengthScale, const FRigidTransform3& InScaledStartTM, const bool InComputeMTD, FVec3 InTriMeshScale, FReal InCullsBackFaceSweepsCode)
 	: TriMesh(InTriMesh)
 	, Elements(InElements)
-	, StartTM(InStartTM)
 	, QueryGeom(InQueryGeom)
-	, Dir(InDir)
-	, Thickness(InThickness)
 	, bComputeMTD(InComputeMTD)
 	, CullsBackFaceSweepsCode(InCullsBackFaceSweepsCode)
 	, ScaledDirNormalized(InScaledDirNormalized)
-	, LengthScale(InLengthScale)
-	, ScaledStartTM(InScaledStartTM)
-	, OutTime(TNumericLimits<FReal>::Max())
+	, LengthScale(static_cast<FRealSingle>(InLengthScale))
+	, OutTime(TNumericLimits<FRealSingle>::Max())
 	, OutFaceIndex(INDEX_NONE)
 	, TriMeshScale(InTriMeshScale)
 	{
 		VectorScaledDirNormalized = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(InScaledDirNormalized.X, InScaledDirNormalized.Y, InScaledDirNormalized.Z, 0.0));
 		VectorCullsBackFaceSweepsCode = MakeVectorRegisterFloatFromDouble(VectorLoadFloat1(&InCullsBackFaceSweepsCode));
+
+		const UE::Math::TQuat<FReal>& RotationDouble = InScaledStartTM.GetRotation();
+		RotationSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(RotationDouble.X, RotationDouble.Y, RotationDouble.Z, RotationDouble.W));
+
+		const UE::Math::TVector<FReal>& TranslationDouble = InScaledStartTM.GetTranslation();
+		TranslationSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(TranslationDouble.X, TranslationDouble.Y, TranslationDouble.Z, 0.0));
+
+		// Normalize rotation
+		RotationSimd = VectorNormalizeSafe(RotationSimd, GlobalVectorConstants::Float0001);
+		RayDirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(ScaledDirNormalized[0], ScaledDirNormalized[1], ScaledDirNormalized[2], 0.0));
 	}
 
 	const void* GetQueryData() const { return nullptr; }
@@ -984,19 +990,15 @@ struct FTriangleMeshSweepVisitor
 		return true;
 	}
 
-	bool VisitRaycast(const TSpatialVisitorData<int32>& VisitData, FQueryFastData& CurData)
+	bool VisitRaycast(const TSpatialVisitorData<int32>& VisitData, FRealSingle& CurDataLength)
 	{
 		check(false);
 		return true;
 	}
 
-	bool VisitSweep(const TSpatialVisitorData<int32>& VisitData, FQueryFastData& CurData)
+	bool VisitSweep(const TSpatialVisitorData<int32>& VisitData, FRealSingle& CurDataLength)
 	{
 		const int32 TriIdx = VisitData.Payload;
-
-		FReal Time;
-		FVec3 HitPosition;
-		FVec3 HitNormal;
 
 		const VectorRegister4Float TriMeshScaleVector = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(TriMeshScale.X, TriMeshScale.Y, TriMeshScale.Z, 0.0));
 
@@ -1025,12 +1027,25 @@ struct FTriangleMeshSweepVisitor
 				return true;
 			}
 		}
-
-		if(GJKRaycast2<FReal>(Tri, QueryGeom, ScaledStartTM, ScaledDirNormalized, LengthScale * CurData.CurrentLength, Time, HitPosition, HitNormal, Thickness, bComputeMTD))
+		FRealSingle Time;
+		if(GJKRaycast2ImplSimd(Tri, QueryGeom, RotationSimd, TranslationSimd, RayDirSimd, LengthScale * CurDataLength, Time, OutPositionSimd, OutNormalSimd, bComputeMTD, GlobalVectorConstants::Float1000))
 		{
 			// Time is world scale, OutTime is local scale.
 			if(Time < LengthScale * OutTime)
 			{
+
+				FVec3 HitPosition;
+				FVec3 HitNormal;
+				alignas(16) FRealSingle OutFloat[4];
+				VectorStoreAligned(OutNormalSimd, OutFloat);
+				HitNormal.X = OutFloat[0];
+				HitNormal.Y = OutFloat[1];
+				HitNormal.Z = OutFloat[2];
+
+				VectorStoreAligned(OutPositionSimd, OutFloat);
+				HitPosition.X = OutFloat[0];
+				HitPosition.Y = OutFloat[1];
+				HitPosition.Z = OutFloat[2];
 				TransformSweepOutputsHelper(TriMeshScale, HitNormal, HitPosition, LengthScale, Time, OutNormal, OutPosition, OutTime);
 
 				OutFaceIndex = TriIdx;
@@ -1038,13 +1053,13 @@ struct FTriangleMeshSweepVisitor
 
 				if(Time <= 0)	//MTD or initial overlap
 				{
-					CurData.SetLength(0);
+					CurDataLength = 0.0f;
 
 					//initial overlap, no one will beat this
 					return false;
 				}
 
-				CurData.SetLength(OutTime);
+				CurDataLength = static_cast<FRealSingle>(OutTime);
 			}
 		}
 
@@ -1055,8 +1070,6 @@ struct FTriangleMeshSweepVisitor
 	const TArray<TVec3<IdxType>>& Elements;
 	const FRigidTransform3 StartTM;
 	const QueryGeomType& QueryGeom;
-	const FVec3& Dir;
-	const FReal Thickness;
 	const bool bComputeMTD;
 	const FReal CullsBackFaceSweepsCode; // 0: no culling, 1/-1: winding order
 	VectorRegister4Float VectorCullsBackFaceSweepsCode; // 0: no culling, 1/-1: winding order
@@ -1064,16 +1077,21 @@ struct FTriangleMeshSweepVisitor
 	// Cache these values for Scaled Triangle Mesh, as they are needed for transformation when sweeping against triangles.
 	FVec3 ScaledDirNormalized;
 	VectorRegister4Float VectorScaledDirNormalized;
-	FReal LengthScale;
-	FRigidTransform3 ScaledStartTM;
+	FRealSingle LengthScale;
 
-	FReal OutTime;
+	FRealSingle OutTime;
 	FVec3 OutPosition;
 	FVec3 OutNormal;
 	int32 OutFaceIndex;
 	FVec3 OutFaceNormal;
 
 	FVec3 TriMeshScale;
+
+	VectorRegister4Float RotationSimd;
+	VectorRegister4Float TranslationSimd;
+	VectorRegister4Float RayDirSimd;
+	VectorRegister4Float OutPositionSimd, OutNormalSimd;
+
 };
 
 void ComputeScaledSweepInputs(FVec3 TriMeshScale, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length,
@@ -1127,7 +1145,7 @@ bool FTriangleMeshImplicitObject::SweepGeomImp(const QueryGeomType& QueryGeom, c
 	{
 		const FReal CullsBackFaceRaycastCode = bCullsBackFaceRaycast ? GetWindingOrder(TriMeshScale) : 0.f;
 		using VisitorType = FTriangleMeshSweepVisitor<QueryGeomType,decltype(Elements[0][0])>;
-		VisitorType SQVisitor(*this,Elements, QueryGeom,StartTM,Dir,ScaledDirNormalized,LengthScale,ScaledStartTM,Thickness,bComputeMTD, TriMeshScale, CullsBackFaceRaycastCode);
+		VisitorType SQVisitor(*this, Elements, QueryGeom, ScaledDirNormalized, LengthScale, ScaledStartTM, bComputeMTD, TriMeshScale, CullsBackFaceRaycastCode);
 
 		const FAABB3 QueryBounds = QueryGeom.BoundingBox().TransformedAABB(FRigidTransform3(FVec3::ZeroVector,StartTM.GetRotation()));
 		const FVec3 InvTriMeshScale = SafeInvScale(TriMeshScale);
@@ -1465,12 +1483,12 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 
 		// make the node
 		FTrimeshBVH::FNode& NewNode = FastBVH.Nodes.Emplace_GetRef();
-		NewNode.Children[0].ChildOrFaceIndex = 0;
-		NewNode.Children[0].FaceCount = Leaf.Elems.Num();
-		NewNode.Children[0].Bounds = { BoundingBox().Min(), BoundingBox().Max() };
+		NewNode.Children[0].SetChildOrFaceIndex(0);
+		NewNode.Children[0].SetFaceCount(Leaf.Elems.Num());
+		NewNode.Children[0].SetBounds(BoundingBox());
 		for (const TPayloadBoundsElement<int32, FRealSingle>& LeafPayload: Leaf.Elems)
 		{
-			FastBVH.FaceBounds.Add(LeafPayload.Bounds);
+			FastBVH.FaceBounds.Add(FAABBVectorized(LeafPayload.Bounds));
 			FastBVH.Faces.Add(LeafPayload.Payload);
 		}
 		return;
@@ -1514,11 +1532,11 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 			{
 				// common infos
 				FTrimeshBVH::FChildData& ChildData = NewNode.Children[ChildIndex];
-				ChildData.Bounds = Node.ChildrenBounds[ChildIndex];
+				ChildData.SetBounds(Node.ChildrenBounds[ChildIndex]);
 				const int32 ChildNodeIndex = Node.ChildrenNodes[ChildIndex];
 				// index in the original BVH space, remapping is done at the end of the process
 				// this may be overwritten if the child is a leaf
-				ChildData.ChildOrFaceIndex = ChildNodeIndex;
+				ChildData.SetChildOrFaceIndex(ChildNodeIndex);
 
 				if (Nodes.IsValidIndex(ChildNodeIndex))
 				{
@@ -1529,15 +1547,15 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 						const LeafType& Leaf = Leaves[*LeafIndex];
 
 						// store face range in the node 
-						ChildData.ChildOrFaceIndex = FastBVH.Faces.Num();
-						ChildData.FaceCount = Leaf.Elems.Num();
-						check(ChildData.FaceCount > 0);
+						ChildData.SetChildOrFaceIndex(FastBVH.Faces.Num());
+						ChildData.SetFaceCount(Leaf.Elems.Num());
+						check(ChildData.GetFaceCount() > 0);
 
 						TMap<int32, int32> VertexReuse;
 						// copy indices in the linear face array
 						for (const auto& LeafPayload: Leaf.Elems)
 						{
-							FastBVH.FaceBounds.Add(LeafPayload.Bounds);
+							FastBVH.FaceBounds.Add(FAABBVectorized(LeafPayload.Bounds));
 							FastBVH.Faces.Add(LeafPayload.Payload);
 						}
 					}
@@ -1555,13 +1573,14 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 		for (int32 ChildIndex=0; ChildIndex<2; ++ChildIndex)
 		{
 			FTrimeshBVH::FChildData& ChildData = Node.Children[ChildIndex];
-			if (!ChildData.HasFaces())
+			const bool bHasFaces = ChildData.GetFaceCount() > 0;
+			if (!bHasFaces)
 			{
-				const int32 ChildNodeIndex = ChildData.ChildOrFaceIndex;
+				const int32 ChildNodeIndex = ChildData.GetChildOrFaceIndex();
 				const int32* FixedChildNodeIndex = BVHToFastBVHNodeIndexMap.Find(ChildNodeIndex);
 				if (ensure(FixedChildNodeIndex))
 				{
-					ChildData.ChildOrFaceIndex = *FixedChildNodeIndex;
+					ChildData.SetChildOrFaceIndex( *FixedChildNodeIndex);
 				}
 			}
 		}

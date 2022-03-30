@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/AABB.h"
 #include "Chaos/Core.h"
 #include "ChaosArchive.h"
 #include "Math/VectorRegister.h"
@@ -11,72 +12,85 @@
 namespace Chaos
 {
 
-class FAABBVectorized
-{
-public:
-
-	FORCEINLINE FAABBVectorized()
+	class alignas(16) FAABBVectorized
 	{
-		Min = GlobalVectorConstants::BigNumber;
-		Max = VectorNegate(GlobalVectorConstants::BigNumber);
-	}
+	public:
 
-	FORCEINLINE FAABBVectorized(const VectorRegister4Float& Min, const VectorRegister4Float& Max)
-		: Min(Min)
-		, Max(Max)
-	{
-	}
-
-	FORCEINLINE const VectorRegister4Float& GetMin() const { return Min; }
-	FORCEINLINE const VectorRegister4Float& GetMax() const { return Max; }
-
-	FORCEINLINE_DEBUGGABLE bool RaycastFast(const VectorRegister4Float& StartPoint, const VectorRegister4Float& Dir, const VectorRegister4Float& InvDir, const bool* bParallel, const VectorRegister4Float& Length, const VectorRegister4Float& InvLength, VectorRegister4Float& OutEntryTime, VectorRegister4Float& OutExitTime) const
-	{
-		const VectorRegister4Float StartToMin = VectorSubtract(Min, StartPoint);
-		const VectorRegister4Float StartToMax = VectorSubtract(Max, StartPoint);
-		const VectorRegister4Float Parallel = MakeVectorRegisterFloat(~uint32(0) * static_cast<uint32>(bParallel[0]), ~uint32(0) * static_cast<uint32>(bParallel[1]), ~uint32(0) * static_cast<uint32>(bParallel[2]), 0);
-		const VectorRegister4Float StarToMinGTZero = VectorCompareGT(StartToMin, VectorZero());
-		const VectorRegister4Float ZeroGTStarToMax = VectorCompareGT(VectorZero(), StartToMax);
-		VectorRegister4Float IsFalse = VectorBitwiseAnd(VectorBitwiseOr(StarToMinGTZero, ZeroGTStarToMax), Parallel);
-
-		if (VectorMaskBits(IsFalse))
+		FORCEINLINE_DEBUGGABLE FAABBVectorized()
 		{
-			return false;	//parallel and outside
+			Min = GlobalVectorConstants::BigNumber;
+			Max = VectorNegate(GlobalVectorConstants::BigNumber);
 		}
 
-		const VectorRegister4Float StartToMinInvDir = VectorMultiply(StartToMin, InvDir);
-		const VectorRegister4Float StartToMaxInvDir = VectorMultiply(StartToMax, InvDir);
-
-		VectorRegister4Float Time1 = VectorSelect(Parallel, VectorZero(), StartToMinInvDir);
-		VectorRegister4Float Time2 = VectorSelect(Parallel, Length, StartToMaxInvDir);
-		const VectorRegister4Float Time1GTTime2 = VectorCompareGT(Time1, Time2);
-
-		// Maybe could be optimized with a xor
-		const VectorRegister4Float TmpTime1 = VectorSelect(Time1GTTime2, Time2, Time1);
-		Time2 = VectorSelect(Time1GTTime2, Time1, Time2);
-		Time1 = TmpTime1;
-
-		VectorRegister4Float LatestStartTime = VectorMax(Time1, VectorSwizzle(Time1, 1, 2, 0, 3));
-		LatestStartTime = VectorMax(LatestStartTime, VectorSwizzle(Time1, 2, 0, 1, 3));
-		LatestStartTime = VectorMax(LatestStartTime, VectorZero());
-
-		VectorRegister4Float EarliestEndTime = VectorMin(Time2, VectorSwizzle(Time2, 1, 2, 0, 3));
-		EarliestEndTime = VectorMin(EarliestEndTime, VectorSwizzle(Time2, 2, 0, 1, 3));
-		EarliestEndTime = VectorMin(EarliestEndTime, Length);
-
-		//Outside of slab before entering another
-		IsFalse = VectorCompareGT(LatestStartTime, EarliestEndTime);
-
-		if (VectorMaskBits(IsFalse))
+		FORCEINLINE_DEBUGGABLE FAABBVectorized(const VectorRegister4Float& InMin, const VectorRegister4Float& InMax)
+			: Min(InMin)
+			, Max(InMax)
 		{
-			return false; 
 		}
-		OutEntryTime = LatestStartTime;
-		OutExitTime = EarliestEndTime;
-		return true;
-	}
+		template<typename T>
+		FORCEINLINE_DEBUGGABLE explicit FAABBVectorized(const TAABB<T, 3>& AABB)
+		{
+			const VectorRegister4Float MinSmid = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(AABB.Min().X, AABB.Min().Y, AABB.Min().Z, 0.0));
+			const VectorRegister4Float MaxSmid = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(AABB.Max().X, AABB.Max().Y, AABB.Max().Z, 0.0));
+			Min = MinSmid;
+			Max = MaxSmid;
+		}
 
-private:
-	VectorRegister4Float Min, Max;
-};
+		FORCEINLINE_DEBUGGABLE const VectorRegister4Float& GetMin() const { return Min; }
+		FORCEINLINE_DEBUGGABLE const VectorRegister4Float& GetMax() const { return Max; }
+
+		FORCEINLINE_DEBUGGABLE void SetMin(const VectorRegister4Float& InMin) { Min = InMin; }
+		FORCEINLINE_DEBUGGABLE void SetMax(const VectorRegister4Float& InMax) { Max = InMax; }
+
+		FORCEINLINE_DEBUGGABLE bool RaycastFast(const VectorRegister4Float& StartPoint, const VectorRegister4Float& InvDir, const VectorRegister4Float& Parallel, const VectorRegister4Float& Length) const
+		{
+			const VectorRegister4Float StarToMinGTZero = VectorCompareGT(Min, StartPoint);
+			const VectorRegister4Float ZeroGTStarToMax = VectorCompareGT(StartPoint, Max);
+			VectorRegister4Float IsFalse = VectorBitwiseAnd(VectorBitwiseOr(StarToMinGTZero, ZeroGTStarToMax), Parallel);
+
+			if (VectorMaskBits(IsFalse))
+			{
+				return false;	//parallel and outside
+			}
+
+			const VectorRegister4Float StartToMin = VectorSubtract(Min, StartPoint);
+			const VectorRegister4Float StartToMax = VectorSubtract(Max, StartPoint);
+			const VectorRegister4Float StartToMinInvDir = VectorMultiply(StartToMin, InvDir);
+			const VectorRegister4Float StartToMaxInvDir = VectorMultiply(StartToMax, InvDir);
+
+			const VectorRegister4Float Time1 = VectorBitwiseNotAnd(Parallel, StartToMinInvDir);
+			const VectorRegister4Float Time2 = VectorSelect(Parallel, Length, StartToMaxInvDir);
+
+			const VectorRegister4Float SortedTime1 = VectorMin(Time1, Time2);
+			const VectorRegister4Float SortedTime2 = VectorMax(Time1, Time2);
+
+			VectorRegister4Float LatestStartTime = VectorMax(SortedTime1, VectorSwizzle(SortedTime1, 1, 2, 0, 3));
+			LatestStartTime = VectorMax(LatestStartTime, VectorSwizzle(SortedTime1, 2, 0, 1, 3));
+			LatestStartTime = VectorMax(LatestStartTime, VectorZero());
+
+			VectorRegister4Float EarliestEndTime = VectorMin(SortedTime2, VectorSwizzle(SortedTime2, 1, 2, 0, 3));
+			EarliestEndTime = VectorMin(EarliestEndTime, VectorSwizzle(SortedTime2, 2, 0, 1, 3));
+			EarliestEndTime = VectorMin(EarliestEndTime, Length);
+
+			//Outside of slab before entering another
+			IsFalse = VectorCompareGT(LatestStartTime, EarliestEndTime);
+
+			if (VectorMaskBits(IsFalse))
+			{
+				return false;
+			}
+
+			return true;
+		}
+
+		FORCEINLINE_DEBUGGABLE bool Intersects(const FAABBVectorized& Other) const
+		{
+			VectorRegister4Float IsFalse = VectorBitwiseOr(VectorCompareGT(Min, Other.GetMax()), VectorCompareGT(Other.GetMin(), Max));
+
+			return !static_cast<bool>(VectorMaskBits(IsFalse));
+		}
+
+	private:
+		VectorRegister4Float Min, Max;
+	};
 }

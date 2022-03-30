@@ -67,6 +67,18 @@ FORCEINLINE VectorRegister4Float VectorMoveLh(const VectorRegister4Float& A, con
 }
 
 /**
+ * Combines two vectors using bitwise NOT AND (treating each vector as a 128 bit field)
+ *
+ * @param Vec1	1st vector
+ * @param Vec2	2nd vector
+ * @return		VectorRegister4Float( for each bit i: !Vec1[i] & Vec2[i] )
+ */
+FORCEINLINE VectorRegister4Float VectorBitwiseNotAnd(const VectorRegister4Float& A, const VectorRegister4Float& B)
+{
+	return (VectorRegister4Float)vandq_u32(vmvnq_u32((VectorRegister4Int)A), (VectorRegister4Int)B);
+}
+
+/**
  * Return square root.
  *
  * @param A	1st vector
@@ -102,6 +114,19 @@ FORCEINLINE VectorRegister4Float VectorUnpackLo(const VectorRegister4Float& A, c
 FORCEINLINE VectorRegister4Float VectorMoveLh(const VectorRegister4Float& A, const VectorRegister4Float& B)
 {
 	return _mm_movelh_ps(A, B);
+}
+
+
+/**
+ * Combines two vectors using bitwise NOT AND (treating each vector as a 128 bit field)
+ *
+ * @param Vec1	1st vector
+ * @param Vec2	2nd vector
+ * @return		VectorRegister4Float( for each bit i: !Vec1[i] & Vec2[i] )
+ */
+FORCEINLINE VectorRegister4Float VectorBitwiseNotAnd(const VectorRegister4Float& A, const VectorRegister4Float& B)
+{
+	return _mm_andnot_ps(A, B);
 }
 
 /**

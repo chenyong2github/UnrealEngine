@@ -152,8 +152,8 @@ struct TAABBTreeIntersectionHelper
 		check(false);
 		return true;
 	}
-	static bool IntersectsVectorized(const VectorRegister4Float& Start, FQueryFastData& QueryFastData, VectorRegister4Float& TOI, VectorRegister4Float& OutPosition,
-		const FAABBVectorized& Bounds, const FAABBVectorized& QueryBounds, const VectorRegister4Float& QueryHalfExtents, const VectorRegister4Float& Dir, const VectorRegister4Float InvDir, const bool bParallel[3])
+	FORCEINLINE_DEBUGGABLE static bool IntersectsVectorized(const VectorRegister4Float& Start, FQueryFastData& QueryFastData, const FAABBVectorized& Bounds, const FAABBVectorized& QueryBounds,
+		const VectorRegister4Float& QueryHalfExtents, const VectorRegister4Float& InvDir, const VectorRegister4Float& Parallel)
 	{
 		check(false);
 		return true;
@@ -169,8 +169,8 @@ struct TAABBTreeIntersectionHelper<FQueryFastData, EAABBQueryType::Raycast>
 		return Bounds.RaycastFast(Start, Dir, InvDir, bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, TOI, OutPosition);
 	}
 
-	FORCEINLINE_DEBUGGABLE static bool IntersectsVectorized(const VectorRegister4Float& Start, FQueryFastData& QueryFastData, VectorRegister4Float& TOI, VectorRegister4Float& OutPosition,
-		const FAABBVectorized& Bounds, const FAABBVectorized& QueryBounds, const VectorRegister4Float& QueryHalfExtents, const VectorRegister4Float& Dir, const VectorRegister4Float InvDir, const bool bParallel[3])
+	FORCEINLINE_DEBUGGABLE static bool IntersectsVectorized(const VectorRegister4Float& Start, FQueryFastData& QueryFastData, const FAABBVectorized& Bounds, const FAABBVectorized& QueryBounds,
+		const VectorRegister4Float& QueryHalfExtents, const VectorRegister4Float& InvDir, const VectorRegister4Float& Parallel)
 	{
 		check(false);
 		return true;
@@ -187,13 +187,12 @@ struct TAABBTreeIntersectionHelper<FQueryFastData, EAABBQueryType::Sweep>
 		return SweepBounds.RaycastFast(Start, Dir, InvDir, bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, TOI, OutPosition);
 	}
 
-	FORCEINLINE_DEBUGGABLE static bool IntersectsVectorized(const VectorRegister4Float& Start, FQueryFastData& QueryFastData, VectorRegister4Float& TOI, VectorRegister4Float& OutPosition,
-		const FAABBVectorized& Bounds, const FAABBVectorized& QueryBounds, const VectorRegister4Float& QueryHalfExtents, const VectorRegister4Float& Dir, const VectorRegister4Float InvDir, const bool bParallel[3])
+	FORCEINLINE_DEBUGGABLE static bool IntersectsVectorized(const VectorRegister4Float& Start, FQueryFastData& QueryFastData, const FAABBVectorized& Bounds, const FAABBVectorized& QueryBounds,
+															const VectorRegister4Float& QueryHalfExtents, const VectorRegister4Float& InvDir, const VectorRegister4Float& Parallel)
 	{
 		VectorRegister4Float CurrentLength = MakeVectorRegisterFloatFromDouble(VectorLoadDouble1(&QueryFastData.CurrentLength));
-		VectorRegister4Float InvCurrentLength = MakeVectorRegisterFloatFromDouble(VectorLoadDouble1(&QueryFastData.InvCurrentLength));
 		FAABBVectorized SweepBounds(VectorSubtract(Bounds.GetMin(), QueryHalfExtents), VectorAdd(Bounds.GetMax(), QueryHalfExtents));
-		return SweepBounds.RaycastFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, OutPosition);
+		return SweepBounds.RaycastFast(Start, InvDir, Parallel, CurrentLength);
 	}
 
 };
@@ -339,6 +338,7 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 		const VectorRegister4Float DirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(Dir.X, Dir.Y, Dir.Z, 0.0));
 		const VectorRegister4Float InvDirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(InvDir.X, InvDir.Y, InvDir.Z, 0.0));
 		const VectorRegister4Float QueryHalfExtentsSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(QueryHalfExtents.X, QueryHalfExtents.Y, QueryHalfExtents.Z, 0.0));
+		const VectorRegister4Float Parallel = VectorCompareGT(GlobalVectorConstants::SmallNumber, VectorAbs(DirSimd));
 		
 		for (const auto& Elem : Elems)
 		{
@@ -353,12 +353,10 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 				const VectorRegister4Float Min = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(InstanceBounds.Min().X, InstanceBounds.Min().Y, InstanceBounds.Min().Z, 0.0));
 				const VectorRegister4Float Max = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(InstanceBounds.Max().X, InstanceBounds.Max().Y, InstanceBounds.Max().Z, 0.0));
 				const FAABBVectorized InstanceBoundsSimd(Min, Max);
-				VectorRegister4Float TmpPosition;
-				VectorRegister4Float TOI;
 				VectorRegister4Float StartSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(Start.X, Start.Y, Start.Z, 0.0));
 
 				if (TAABBTreeIntersectionHelper<TQueryFastData, EAABBQueryType::Sweep>::IntersectsVectorized(
-					StartSimd, QueryFastData, TOI, TmpPosition, InstanceBoundsSimd, FAABBVectorized(), QueryHalfExtentsSimd, DirSimd, InvDirSimd, bParallel))
+					StartSimd, QueryFastData, InstanceBoundsSimd, FAABBVectorized(), QueryHalfExtentsSimd, InvDirSimd, Parallel))
 				{
 					TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 					const bool bContinue = (bSweep && Visitor.VisitSweep(VisitData, QueryFastData)) || (!bSweep && Visitor.VisitRaycast(VisitData, QueryFastData));

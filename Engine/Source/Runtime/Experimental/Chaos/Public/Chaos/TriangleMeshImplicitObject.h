@@ -25,6 +25,7 @@ namespace Chaos
 
 	struct FMTDInfo;
 	class FContactPoint;
+	FArchive& operator<<(FArchive& Ar, FAABBVectorized& Bounds);
 
 	struct CHAOS_API FTrimeshBVH
 	{
@@ -42,25 +43,56 @@ namespace Chaos
 			Keep,
 		};
 		
-		struct FChildData
+		struct alignas(16) FChildData
 		{
 			FChildData()
 				: ChildOrFaceIndex(INDEX_NONE)
 				, FaceCount(0)
-			{}
-			FAABBType Bounds;
-			int32 ChildOrFaceIndex;
-			int32 FaceCount;
+			{
+			}
 
-			bool HasFaces() const { return (FaceCount > 0); }
+			FORCEINLINE int32 GetChildOrFaceIndex() const
+			{
+				return ChildOrFaceIndex;
+			}
+
+			FORCEINLINE int32 GetFaceCount() const
+			{
+				return FaceCount;
+			}
+
+			FORCEINLINE void SetChildOrFaceIndex(int32 InChildOrFaceIndex)
+			{
+				ChildOrFaceIndex = InChildOrFaceIndex;
+			}
+
+			FORCEINLINE void SetFaceCount(int32 InFaceCount)
+			{
+				FaceCount = InFaceCount;
+			}
+
+			FORCEINLINE void SetBounds(const FAABB3& AABB)
+			{
+				Bounds = FAABBVectorized(AABB);
+			}
+			FORCEINLINE void SetBounds(const TAABB<FRealSingle, 3>& AABB)
+			{
+				Bounds = FAABBVectorized(AABB);
+			}
+
+			const FAABBVectorized& GetBounds() const { return Bounds; }
 
 			void Serialize(FArchive& Ar)
 			{
-				TBox<FRealSingle, 3>::SerializeAsAABB(Ar, Bounds);
-
+				Ar << Bounds;
 				Ar << ChildOrFaceIndex;
 				Ar << FaceCount;
 			}
+
+		private:
+			FAABBVectorized Bounds;
+			int32 ChildOrFaceIndex;
+			int32 FaceCount;
 		};
 		
 		struct FNode
@@ -78,26 +110,25 @@ namespace Chaos
 		template <typename SQVisitor>
 		FORCEINLINE_DEBUGGABLE void Raycast(const FVec3& Start, const FVec3& Dir, const FReal Length, SQVisitor& Visitor) const
 		{
-			FQueryFastData QueryFastData(Dir, Length);
-			const auto BoundsFilter = [&QueryFastData, &Start](const FAABBType& Bounds) -> EFilterResult
-			{
-				FReal HitTime;
-				FVec3 HitPosition;
+			FRealSingle CurrentLength = static_cast<FRealSingle>(Length);
+			const VectorRegister4Float StartSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(Start.X, Start.Y, Start.Z, 0.0));
+			const VectorRegister4Float DirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(Dir.X, Dir.Y, Dir.Z, 0.0));
+			const VectorRegister4Float Parallel = VectorCompareGT(GlobalVectorConstants::SmallNumber, VectorAbs(DirSimd));
+			const VectorRegister4Float InvDirSimd = VectorBitwiseNotAnd(Parallel, VectorDivide(VectorOne(), DirSimd));
 
-				bool bCulled = true;
-				const bool bHit = Bounds.RaycastFast(Start, QueryFastData.Dir, QueryFastData.InvDir, QueryFastData.bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, HitTime, HitPosition);
-				if (bHit)
-				{
-					// avoid going down teh nodes that are further than the current hit distance
-					bCulled = (QueryFastData.CurrentLength < HitTime);
-				}
-				
-				return (!bCulled) ? EFilterResult::Keep: EFilterResult::Skip;
+			const auto BoundsFilter = [&StartSimd, &InvDirSimd, &Parallel, &CurrentLength](const FAABBVectorized& Bounds) -> EFilterResult
+			{
+				const VectorRegister4Float CurDataLength = VectorLoadFloat1(&CurrentLength);
+
+				FAABBVectorized CleanBounds(Bounds.GetMin(), Bounds.GetMax());
+				const bool bHit = CleanBounds.RaycastFast(StartSimd, InvDirSimd, Parallel, CurDataLength);
+
+				return bHit ? EFilterResult::Keep : EFilterResult::Skip;
 			};
 
-			const auto FaceVisitor = [&Visitor, &QueryFastData](int32 FaceIndex)
+			const auto FaceVisitor = [&Visitor, &CurrentLength](int32 FaceIndex)
 			{
-				const bool bContinueVisiting = Visitor.VisitRaycast(FaceIndex, QueryFastData);
+				const bool bContinueVisiting = Visitor.VisitRaycast(FaceIndex, CurrentLength);
 				return bContinueVisiting? EVisitorResult::Continue: EVisitorResult::Stop;
 			};
 
@@ -107,27 +138,25 @@ namespace Chaos
 		template <typename SQVisitor>
 		FORCEINLINE_DEBUGGABLE void Sweep(const FVec3& Start, const FVec3& Dir, const FReal Length, const FVec3& QueryHalfExtents, SQVisitor& Visitor) const
 		{
-			FQueryFastData QueryFastData(Dir, Length);
-			const auto BoundsFilter = [&QueryFastData, &Start, &QueryHalfExtents](const FAABBType& Bounds) -> EFilterResult
+			FRealSingle CurrentLength = static_cast<FRealSingle>(Length);
+			const VectorRegister4Float StartSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(Start.X, Start.Y, Start.Z, 0.0));
+			const VectorRegister4Float DirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(Dir.X, Dir.Y, Dir.Z, 0.0));
+			const VectorRegister4Float Parallel = VectorCompareGT(GlobalVectorConstants::SmallNumber, VectorAbs(DirSimd));
+			const VectorRegister4Float InvDirSimd = VectorBitwiseNotAnd(Parallel, VectorDivide(VectorOne(), DirSimd));
+
+			const VectorRegister4Float QueryHalfExtentsSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(QueryHalfExtents.X, QueryHalfExtents.Y, QueryHalfExtents.Z, 0.0));
+			const auto BoundsFilter = [&StartSimd, &InvDirSimd, &Parallel, &CurrentLength, &QueryHalfExtentsSimd](const FAABBVectorized& Bounds) -> EFilterResult
 			{
-				FReal HitTime;
-				FVec3 HitPosition;
+				const VectorRegister4Float CurDataLength = VectorLoadFloat1(&CurrentLength);
+				const FAABBVectorized SweepBounds(VectorSubtract(Bounds.GetMin(), QueryHalfExtentsSimd), VectorAdd(Bounds.GetMax(), QueryHalfExtentsSimd));
+				const bool bHit = SweepBounds.RaycastFast(StartSimd, InvDirSimd, Parallel, CurDataLength);
 
-				bool bCulled = true;
-				const FAABB3 SweepBounds(Bounds.Min() - QueryHalfExtents, Bounds.Max() + QueryHalfExtents);
-				const bool bHit = SweepBounds.RaycastFast(Start, QueryFastData.Dir, QueryFastData.InvDir, QueryFastData.bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, HitTime, HitPosition);
-				if (bHit)
-				{
-					// avoid going down the nodes that are further than the current hit distance
-					bCulled = (QueryFastData.CurrentLength < HitTime);
-				}
-
-				return (!bCulled) ? EFilterResult::Keep : EFilterResult::Skip;
+				return bHit ? EFilterResult::Keep : EFilterResult::Skip;
 			};
 
-			const auto FaceVisitor = [&Visitor, &QueryFastData](int32 FaceIndex)
+			const auto FaceVisitor = [&Visitor, &CurrentLength](int32 FaceIndex)
 			{
-				const bool bContinueVisiting = Visitor.VisitSweep(FaceIndex, QueryFastData);
+				const bool bContinueVisiting = Visitor.VisitSweep(FaceIndex, CurrentLength);
 				return bContinueVisiting ? EVisitorResult::Continue : EVisitorResult::Stop;
 			};
 
@@ -135,11 +164,13 @@ namespace Chaos
 		}
 
 		template <typename SQVisitor>
-		FORCEINLINE_DEBUGGABLE void Overlap(const FAABB3& AABB, SQVisitor& Visitor) const
+		FORCEINLINE_DEBUGGABLE void Overlap(const FAABBVectorized& AABB, SQVisitor& Visitor) const
 		{
-			const auto BoundsFilter = [&AABB](const FAABBType& Bounds) -> EFilterResult
+			CSV_SCOPED_TIMING_STAT(PhysicsVerbose, BVHOverlap);
+			const auto BoundsFilter = [&AABB](const FAABBVectorized& Bounds) -> EFilterResult
 			{
-				const bool bHit = Bounds.Intersects(AABB);
+				FAABBVectorized CleanBounds(Bounds.GetMin(), Bounds.GetMax());
+				const bool bHit = CleanBounds.Intersects(AABB);
 				return bHit ? EFilterResult::Keep : EFilterResult::Skip;
 			};
 
@@ -171,7 +202,7 @@ namespace Chaos
 			}
 			return EVisitorResult::Continue;
 		}
-		
+
 		template <typename BoundsFilterType, typename FaceVisitorType>
 		FORCEINLINE_DEBUGGABLE void VisitTree(BoundsFilterType& BoundsFilter, FaceVisitorType& FaceVisitor) const
 		{
@@ -191,20 +222,22 @@ namespace Chaos
 				for (int32 ChildIndex = 0; ChildIndex < 2; ++ChildIndex)
 				{
 					const FChildData& ChildData = Node.Children[ChildIndex]; 
-					if (ChildData.ChildOrFaceIndex != INDEX_NONE)
+					const int32 FaceIndex = ChildData.GetChildOrFaceIndex();
+					if (FaceIndex != INDEX_NONE)
 					{
-						if (BoundsFilter(ChildData.Bounds) == EFilterResult::Keep)
+						if (BoundsFilter(ChildData.GetBounds()) == EFilterResult::Keep)
 						{
-							if (ChildData.HasFaces())
+							const uint32 FaceCount = ChildData.GetFaceCount();
+							if (FaceCount > 0)
 							{
-								if (EVisitorResult::Stop == VisitFaces(ChildData.ChildOrFaceIndex, ChildData.FaceCount, BoundsFilter, FaceVisitor))
+								if (EVisitorResult::Stop == VisitFaces(FaceIndex, FaceCount, BoundsFilter, FaceVisitor))
 								{
 									return;
 								}
 							}
 							else
 							{
-								NodeIndexStack.Push(ChildData.ChildOrFaceIndex);
+								NodeIndexStack.Push(FaceIndex);
 							}
 						}
 					}
@@ -220,7 +253,7 @@ namespace Chaos
 		}
 		
 		TArray<FNode> Nodes;
-		TArray<FAABBType> FaceBounds;
+		TArray<FAABBVectorized> FaceBounds;
 		TArray<int32> Faces;
 	};
 
@@ -239,6 +272,32 @@ namespace Chaos
 	FORCEINLINE_DEBUGGABLE FChaosArchive& operator<<(FChaosArchive& Ar, FTrimeshBVH::FAABBType& Bounds)
 	{
 		TBox<FRealSingle, 3>::SerializeAsAABB(Ar, Bounds);
+		return Ar;
+	}
+
+	FORCEINLINE_DEBUGGABLE FChaosArchive& operator<<(FChaosArchive& Ar, FAABBVectorized& Bounds)
+	{
+		alignas(16) FRealSingle Floats[4];
+		VectorStoreAligned(Bounds.GetMin(), Floats);
+		TVector<FRealSingle, 3>  Min(Floats[0], Floats[1], Floats[2]);
+		VectorStoreAligned(Bounds.GetMax(), Floats);
+		TVector<FRealSingle, 3>  Max(Floats[0], Floats[1], Floats[2]);
+		FTrimeshBVH::FAABBType BoundsToSerialize(Min, Max);
+		TBox<FRealSingle, 3>::SerializeAsAABB(Ar, BoundsToSerialize);
+		Bounds = FAABBVectorized(BoundsToSerialize);
+		return Ar;
+	}
+
+	FORCEINLINE_DEBUGGABLE FArchive& operator<<(FArchive& Ar, FAABBVectorized& Bounds)
+	{
+		alignas(16) FRealSingle Floats[4];
+		VectorStoreAligned(Bounds.GetMin(), Floats);
+		TVector<FRealSingle, 3>  Min(Floats[0], Floats[1], Floats[2]);
+		VectorStoreAligned(Bounds.GetMax(), Floats);
+		TVector<FRealSingle, 3>  Max(Floats[0], Floats[1], Floats[2]);
+		FTrimeshBVH::FAABBType BoundsToSerialize(Min, Max);
+		TBox<FRealSingle, 3>::SerializeAsAABB(Ar, BoundsToSerialize);
+		Bounds = FAABBVectorized(BoundsToSerialize);
 		return Ar;
 	}
 
