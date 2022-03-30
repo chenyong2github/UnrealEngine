@@ -1349,6 +1349,37 @@ namespace UniformTessellateLocals
 
 			return MakeUnique<FVertexAttributeGenerator>(Mesh, TessellationNum, InProgress, bUseParallel, FPntr);
 		}
+
+		static TUniquePtr<FVertexAttributeGenerator> CreateFromVertexAttribute(const FDynamicMesh3* Mesh,
+			const int TessellationNum,
+			FProgressCancel* InProgress,
+			const bool bUseParallel,
+			const TDynamicMeshVertexAttribute<RealType, ElementSize>* Attribute)
+		{
+			if (Attribute == nullptr)
+			{
+				return nullptr;
+			}
+
+			TFunction<void(int, RealType*)> FPntr = [Attribute](const int VertexID, RealType* Value)
+			{
+				Attribute->GetValue(VertexID, Value);
+			};
+
+			return MakeUnique<FVertexAttributeGenerator>(Mesh, TessellationNum, InProgress, bUseParallel, FPntr);
+		}
+
+		void CopyToAttribute(TDynamicMeshVertexAttribute<RealType, ElementSize>* OutAttribute)
+		{
+			RealType Value[ElementSize];
+			for (int EID = 0; EID < OutElementCount; ++EID)
+			{
+				BaseType::GetElement(EID, Value);
+				OutAttribute->SetValue(EID, Value);
+			}
+		}
+
+
 	};
 
 	/**
@@ -1842,6 +1873,24 @@ namespace UniformTessellateLocals
 
 				OutAttributes->AttachSkinWeightsAttribute(AttributeInfo.Key, SkinAttribute);
 			}
+
+			if (InAttributes->NumWeightLayers() > 0)
+			{
+				OutAttributes->SetNumWeightLayers(InAttributes->NumWeightLayers());
+				for (int Idx = 0; Idx < InAttributes->NumWeightLayers(); ++Idx)
+				{
+					TUniquePtr<FVertexAttributeGenerator<float, 1>> Generator;
+					Generator = FVertexAttributeGenerator<float, 1>::CreateFromVertexAttribute(InMesh, TessellationNum, Progress, bUseParallel, InAttributes->GetWeightLayer(Idx));
+					if (Generator->Generate() == false)
+					{
+						return false;
+					}
+
+					Generator->CopyToAttribute(OutAttributes->GetWeightLayer(Idx));
+				}
+			}
+
+
 		}
 
 		if (InMesh->HasVertexNormals()) 

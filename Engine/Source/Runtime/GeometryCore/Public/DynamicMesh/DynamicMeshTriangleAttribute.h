@@ -60,6 +60,8 @@ protected:
 	/** List of per-triangle attribute values */
 	TDynamicVector<AttribValueType> AttribValues;
 
+	using Super = FDynamicMeshAttributeBase;
+
 	friend class FDynamicMesh3;
 	friend class FDynamicMeshAttributeSet;
 
@@ -300,7 +302,7 @@ public:
 	}
 
 
-	virtual TUniquePtr<FDynamicMeshAttributeChangeBase> NewBlankChange() override
+	virtual TUniquePtr<FDynamicMeshAttributeChangeBase> NewBlankChange() const override
 	{
 		return MakeUnique<FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>>();
 	}
@@ -448,6 +450,8 @@ public:
 	*/
 	void Serialize(FArchive& Ar, const FCompactMaps* CompactMaps, bool bUseCompression)
 	{
+		Super::Serialize(Ar);
+
 		Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DynamicMeshCompactedSerialization)
 		{

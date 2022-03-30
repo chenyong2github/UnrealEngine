@@ -55,6 +55,10 @@ protected:
 	/** List of per-vertex attribute values */
 	TDynamicVector<AttribValueType> AttribValues;
 
+	using Super = TDynamicAttributeBase<ParentType>;
+
+	friend class FDynamicMeshAttributeSet;
+
 public:
 	/** Create an empty overlay */
 	TDynamicVertexAttribute() : Parent(nullptr)
@@ -129,7 +133,7 @@ public:
 	void CompactCopy(const FCompactMaps& CompactMaps, const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>& ToCopy)
 	{
 		TDynamicAttributeBase<ParentType>::CopyParentClassData(ToCopy);
-		check(CompactMaps.NumVertexMappings() >= 0 && static_cast<size_t>(CompactMaps.NumVertexMappings()) <= AttribValues.Num() / AttribDimension);
+		check(CompactMaps.NumVertexMappings() <= int(ToCopy.AttribValues.Num() / AttribDimension));
 
 		AttribValueType Data[AttribDimension];
 		for (int VID = 0, NumVID = CompactMaps.NumVertexMappings(); VID < NumVID; VID++)
@@ -339,7 +343,7 @@ public:
 		CopyValue(SplitInfo.OriginalVertex, SplitInfo.NewVertex);
 	}
 
-	virtual TUniquePtr<TDynamicAttributeChangeBase<ParentType>> NewBlankChange() override
+	virtual TUniquePtr<TDynamicAttributeChangeBase<ParentType>> NewBlankChange() const override
 	{
 		return MakeUnique<TDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>>();
 	}
@@ -367,6 +371,135 @@ public:
 		}
 
 		return true;
+	}
+
+	/**
+	 * Returns true if this AttributeSet is the same as Other.
+	 * @param bIgnoreDataLayout Ignore gaps and padding in the data layout, i.e. the exact index is irrelevant as long as valid entries are equal in value and in the same order.
+	 */
+	bool IsSameAs(const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>& Other, bool bIgnoreDataLayout) const
+	{
+		if (!bIgnoreDataLayout)
+		{
+			if (AttribValues.Num() != Other.AttribValues.Num())
+			{
+				return false;
+			}
+
+			for (int Idx = 0, NumValues = AttribValues.Num(); Idx < NumValues; Idx++)
+			{
+				if (AttribValues[Idx] != Other.AttribValues[Idx])
+				{
+					return false;
+				}
+			}
+		}
+		else
+		{
+			// bIgnoreDataLayout
+
+			FRefCountVector::IndexIterator ItVid = Parent->GetVerticesRefCounts().BeginIndices();
+			const FRefCountVector::IndexIterator ItVidEnd = Parent->GetVerticesRefCounts().EndIndices();
+			FRefCountVector::IndexIterator ItVidOther = Other.Parent->GetVerticesRefCounts().BeginIndices();
+			const FRefCountVector::IndexIterator ItVidEndOther = Other.Parent->GetVerticesRefCounts().EndIndices();
+
+			while (ItVid != ItVidEnd && ItVidOther != ItVidEndOther)
+			{
+				for (int32 i = 0; i < AttribDimension; ++i)
+				{
+					const AttribValueType AttribValue = AttribValues[*ItVid * AttribDimension + i];
+					const AttribValueType AttribValueOther = Other.AttribValues[*ItVidOther * AttribDimension + i];
+					if (AttribValue != AttribValueOther)
+					{
+						// Vertex attribute value is not the same.
+						return false;
+					}
+				}
+				++ItVid;
+				++ItVidOther;
+			}
+
+			if (ItVid != ItVidEnd || ItVidOther != ItVidEndOther)
+			{
+				// Number of vertex attribute values is not the same.
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+
+	/**
+	 * Serialization operator for TDynamicVertexAttribute.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param Attr Vertex attribute to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>& Attr)
+	{
+		Attr.Serialize(Ar, nullptr, false);
+		return Ar;
+	}
+
+	/**
+	* Serialize to and from an archive.
+	*
+	* @param Ar Archive to serialize with.
+	* @param CompactMaps If this is not a null pointer, the mesh serialization compacted the vertex and/or triangle data using the provided mapping.
+	* @param bUseCompression Use compression for serializing bulk data.
+	*/
+	void Serialize(FArchive& Ar, const FCompactMaps* CompactMaps, bool bUseCompression)
+	{
+		Super::Serialize(Ar);
+
+		Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DynamicMeshCompactedSerialization)
+		{
+			Ar << AttribValues;
+		}
+		else
+		{
+			auto SerializeVector = [](FArchive& Ar, auto& Vector, bool bUseCompression)
+			{
+				if (bUseCompression)
+				{
+					Vector.template Serialize<true, true>(Ar);
+				}
+				else
+				{
+					Vector.template Serialize<true, false>(Ar);
+				}
+			};
+
+			Ar << bUseCompression;
+
+			if (CompactMaps == nullptr || !CompactMaps->VertexMapIsSet())
+			{
+				SerializeVector(Ar, AttribValues, bUseCompression);
+			}
+			else
+			{
+				TDynamicVector<AttribValueType> AttribValuesCompact;
+				AttribValuesCompact.SetNum(Parent->VertexCount() * AttribDimension);
+
+				int32 VidCompact = 0;
+				for (int32 Vid = 0, Num = AttribValues.Num() / AttribDimension; Vid < Num; ++Vid)
+				{
+					const int32 VidMapping = CompactMaps->GetVertexMapping(Vid);
+					if (VidMapping != FCompactMaps::InvalidID)
+					{
+						for (int32 i = 0; i < AttribDimension; ++i)
+						{
+							AttribValuesCompact[VidCompact++] = AttribValues[Vid * AttribDimension + i];
+						}
+					}
+				}
+
+				SerializeVector(Ar, AttribValuesCompact, bUseCompression);
+			}
+		}
 	}
 
 

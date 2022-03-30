@@ -197,6 +197,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Use special BVH for TriangleMesh, instead of the AABBTree
 		UseTriangleMeshBVH,
 
+		// FDynamicMeshAttributeSet has Weight Maps. TDynamicAttributeBase serializes its name.
+		DynamicMeshAttributesWeightMapsAndNames,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

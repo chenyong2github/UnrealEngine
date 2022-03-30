@@ -92,6 +92,9 @@ typedef TDynamicMeshAttributeChange<float, 4> FDynamicMeshColorChange;
 /** Standard per-triangle integer attribute change type */
 typedef FDynamicMeshTriangleAttributeChange<int32,1> FDynamicMeshTriGroupChange;
 
+/** Standard weight map change type - 1-element float */
+typedef TDynamicMeshAttributeChange<float, 1> FDynamicMeshWeightChange;
+
 /**
  * FDynamicMeshAttributeChangeSet stores a set of UV and Normal changes for a FDynamicMesh3
  */
@@ -106,6 +109,8 @@ public:
 	TOptional<FDynamicMeshColorChange> ColorChange;
 	TOptional<FDynamicMeshTriGroupChange> MaterialIDAttribChange;
 	TArray<FDynamicMeshTriGroupChange> PolygroupChanges;
+
+	TArray<TUniquePtr<FDynamicMeshAttributeChangeBase>> WeightChanges;
 	TArray<TUniquePtr<FDynamicMeshAttributeChangeBase>> RegisteredAttributeChanges;
 
 	/** call ::Apply() on all the UV and Normal changes */

@@ -6,6 +6,7 @@
 #include "DynamicMesh/DynamicMeshOverlay.h"
 #include "DynamicMesh/DynamicMeshTriangleAttribute.h"
 #include "DynamicMesh/DynamicAttribute.h"
+#include "DynamicMesh/DynamicVertexAttribute.h"
 #include "GeometryTypes.h"
 #include "InfoTypes.h"
 #include "Containers/IndirectArray.h"
@@ -26,6 +27,9 @@ typedef TDynamicMeshScalarTriangleAttribute<int32> FDynamicMeshMaterialAttribute
 
 /** Per-triangle integer polygroup ID */
 typedef TDynamicMeshScalarTriangleAttribute<int32> FDynamicMeshPolygroupAttribute;
+
+/** Per-vertex scalar float weight */
+typedef TDynamicMeshVertexAttribute<float, 1> FDynamicMeshWeightAttribute;
 
 /** Forward declarations */
 template<typename ParentType>
@@ -268,6 +272,21 @@ public:
 	/** @return the Polygroup layer at the given Index */
 	const FDynamicMeshPolygroupAttribute* GetPolygroupLayer(int Index) const;
 
+	//
+	// Weight layers
+	//
+
+	/** @return number of weight layers */
+	virtual int32 NumWeightLayers() const;
+
+	/** Set the number of weight layers */
+	virtual void SetNumWeightLayers(int32 Num);
+
+	/** @return the weight layer at the given Index */
+	FDynamicMeshWeightAttribute* GetWeightLayer(int Index);
+
+	/** @return the weight layer at the given Index */
+	const FDynamicMeshWeightAttribute* GetWeightLayer(int Index) const;
 
 
 
@@ -408,6 +427,7 @@ protected:
 
 	TUniquePtr<FDynamicMeshMaterialAttribute> MaterialIDAttrib;
 
+	TIndirectArray<FDynamicMeshWeightAttribute> WeightLayers;
 	TIndirectArray<FDynamicMeshPolygroupAttribute> PolygroupLayers;
 
 	using SkinWeightAttributesMap = TMap<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>;
@@ -474,6 +494,10 @@ protected:
 		for (int PolygroupLayerIndex = 0; PolygroupLayerIndex < NumPolygroupLayers(); PolygroupLayerIndex++)
 		{
 			bValid = GetPolygroupLayer(PolygroupLayerIndex)->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
+		}
+		for (int WeightLayerIndex = 0; WeightLayerIndex < NumWeightLayers(); WeightLayerIndex++)
+		{
+			bValid = GetWeightLayer(WeightLayerIndex)->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
 		}
 		return bValid;
 	}

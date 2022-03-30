@@ -4,6 +4,7 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "MeshIndexMappings.h"
+#include "Serialization/NameAsStringProxyArchive.h"
 
 namespace UE
 {
@@ -151,7 +152,7 @@ public:
 	}
 
 
-	virtual TUniquePtr<TDynamicAttributeChangeBase<ParentType>> NewBlankChange() = 0;
+	virtual TUniquePtr<TDynamicAttributeChangeBase<ParentType>> NewBlankChange() const = 0;
 
 
 
@@ -183,6 +184,34 @@ public:
 	/** Update to reflect an edge merge in the parent mesh */
 	virtual void OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate)
 	{
+	}
+
+	/**
+	 * Serialization operator for TDynamicAttributeBase.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param Attr Mesh attribute to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, TDynamicAttributeBase<ParentType>& Attr)
+	{
+		Attr.Serialize(Ar);
+		return Ar;
+	}
+
+	/**
+	* Serialize to and from an archive.
+	*
+	* @param Ar Archive to serialize with.
+	*/
+	void Serialize(FArchive& Ar)
+	{
+		Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+		if (!Ar.IsLoading() || Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::DynamicMeshAttributesWeightMapsAndNames)
+		{
+			FNameAsStringProxyArchive ProxyArchive(Ar);
+			ProxyArchive << Name;
+		}
 	}
 
 protected:

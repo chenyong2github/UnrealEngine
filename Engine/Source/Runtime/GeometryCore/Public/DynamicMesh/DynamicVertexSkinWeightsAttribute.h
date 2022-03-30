@@ -306,7 +306,7 @@ public:
 		CopyValue(SplitInfo.OriginalVertex, SplitInfo.NewVertex);
 	}
 
-	TUniquePtr<TDynamicAttributeChangeBase<ParentType>> NewBlankChange() override
+	TUniquePtr<TDynamicAttributeChangeBase<ParentType>> NewBlankChange() const override
 	{
 		return MakeUnique<TDynamicVertexSkinWeightsAttributeChange<ParentType>>();
 	}

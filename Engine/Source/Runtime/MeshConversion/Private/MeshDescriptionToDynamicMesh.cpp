@@ -470,6 +470,24 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		}
 	});
 
+
+	// find weight attribs
+	const TAttributesSet<FVertexID>& VertAttribsSet = MeshIn->VertexAttributes();
+	TArray<TVertexAttributesConstRef<float>> WeightAttribs;
+	TArray<FName> WeightAttribNames;
+	VertAttribsSet.ForEach([&](const FName AttributeName, auto AttributesRef)
+	{
+		if (FSkeletalMeshAttributes::IsReservedAttributeName(AttributeName)) return;
+		if (FSkeletalMeshAttributes::IsSkinWeightAttribute(AttributeName)) return;
+
+		if (VertAttribsSet.template HasAttributeOfType<float>(AttributeName))
+		{
+			WeightAttribs.Add(VertAttribsSet.GetAttributesRef<float>(AttributeName));
+			WeightAttribNames.Add(AttributeName);
+		}
+	});
+
+
 	if (!bDisableAttributes)
 	{
 		bool bFoundNonDefaultVertexInstanceColor = false;
@@ -481,6 +499,8 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		{
 			MeshOut.Attributes()->SetNumPolygroupLayers(PolygroupAttribs.Num());
 		}
+
+		MeshOut.Attributes()->SetNumWeightLayers(WeightAttribs.Num());
 
 		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
 		{
@@ -799,6 +819,27 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 				}
 			});
 			Pending.Add(MoveTemp(PolygroupFuture));
+		}
+
+		// initialize weight layers
+		for (int32 WeightLayerIdx = 0; WeightLayerIdx < WeightAttribs.Num(); WeightLayerIdx++)
+		{
+			auto WeightFuture = Async(EAsyncExecution::ThreadPool, [this, &WeightAttribs, &WeightAttribNames, &MeshOut, WeightLayerIdx]()
+			{
+				TVertexAttributesConstRef<float> InputWeights = WeightAttribs[WeightLayerIdx];
+				FDynamicMeshWeightAttribute* OutputWeights = MeshOut.Attributes()->GetWeightLayer(WeightLayerIdx);
+				if (ensure(OutputWeights))
+				{
+					OutputWeights->SetName(WeightAttribNames[WeightLayerIdx]);
+					for (int32 vid : MeshOut.VertexIndicesItr())
+					{
+						FVertexID SourceVertexID = VertIDMap[vid];
+						float Value = InputWeights.Get(SourceVertexID);
+						OutputWeights->SetValue(vid, &Value);
+					}
+				}
+			});
+			Pending.Add(MoveTemp(WeightFuture));
 		}
 
 		// wait for all work to be done

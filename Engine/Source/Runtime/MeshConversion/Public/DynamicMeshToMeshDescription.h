@@ -158,4 +158,11 @@ protected:
 	 */
 	void ConvertPolygroupLayers(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, const TArray<FTriangleID>& IndexToTriangleIDMap);
 
+	/**
+	* Transfer WeightLayers from DynamicMesh AttributeSet to MeshDescription.
+	* Will copy to existing MeshDescription VertexAttribute<float> if one with the same name exists.
+	* Otherwise will register a new one.
+	*/
+	void ConvertWeightLayers(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, const TArray<FVertexID>& IndexToVertexIDMap);
+
 };

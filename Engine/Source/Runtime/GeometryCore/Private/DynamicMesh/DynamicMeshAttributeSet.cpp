@@ -65,6 +65,12 @@ void FDynamicMeshAttributeSet::Copy(const FDynamicMeshAttributeSet& Copy)
 		PolygroupLayers[GroupIdx].Copy(Copy.PolygroupLayers[GroupIdx]);
 	}
 
+	SetNumWeightLayers(Copy.NumWeightLayers());
+	for (int WeightLayerIdx = 0; WeightLayerIdx < NumWeightLayers(); ++WeightLayerIdx)
+	{
+		WeightLayers[WeightLayerIdx].Copy(Copy.WeightLayers[WeightLayerIdx]);
+	}
+
 	ResetRegisteredAttributes();
 
 	SkinWeightAttributes.Reset();
@@ -151,6 +157,12 @@ void FDynamicMeshAttributeSet::CompactCopy(const FCompactMaps& CompactMaps, cons
 	{
 		PolygroupLayers[GroupIdx].CompactCopy(CompactMaps, Copy.PolygroupLayers[GroupIdx]);
 	}
+	
+	SetNumWeightLayers(Copy.NumWeightLayers());
+	for (int WeightLayerIdx = 0; WeightLayerIdx < NumWeightLayers(); ++WeightLayerIdx)
+	{
+		WeightLayers[WeightLayerIdx].CompactCopy(CompactMaps, Copy.WeightLayers[WeightLayerIdx]);
+	}
 
 	ResetRegisteredAttributes();
 
@@ -195,6 +207,11 @@ void FDynamicMeshAttributeSet::CompactInPlace(const FCompactMaps& CompactMaps)
 	for (int GroupIdx = 0; GroupIdx < NumPolygroupLayers(); ++GroupIdx)
 	{
 		PolygroupLayers[GroupIdx].CompactInPlace(CompactMaps);
+	}
+
+	for (int WeightLayerIdx = 0; WeightLayerIdx < NumWeightLayers(); ++WeightLayerIdx)
+	{
+		WeightLayers[WeightLayerIdx].CompactInPlace(CompactMaps);
 	}
 
 	for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : SkinWeightAttributes)
@@ -293,6 +310,12 @@ void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttrib
 		PolygroupLayers[GroupIdx].Initialize((int32)0);
 	}
 
+	SetNumWeightLayers(ToMatch.NumWeightLayers());
+	for (int WeightLayerIdx = 0; WeightLayerIdx < NumWeightLayers(); ++WeightLayerIdx)
+	{
+		WeightLayers[WeightLayerIdx].Initialize(0.0f);
+	}
+
 	ResetRegisteredAttributes();
 	
 	SkinWeightAttributes.Reset();
@@ -336,6 +359,11 @@ void FDynamicMeshAttributeSet::Reparent(FDynamicMesh3* NewParent)
 	for (int GroupIdx = 0; GroupIdx < NumPolygroupLayers(); ++GroupIdx)
 	{
 		PolygroupLayers[GroupIdx].Reparent(NewParent);
+	}
+
+	for (int WeightLayerIdx = 0; WeightLayerIdx < NumWeightLayers(); ++WeightLayerIdx)
+	{
+		WeightLayers[WeightLayerIdx].Reparent(NewParent);
 	}
 
 	for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : SkinWeightAttributes)
@@ -458,6 +486,41 @@ const FDynamicMeshPolygroupAttribute* FDynamicMeshAttributeSet::GetPolygroupLaye
 	return &PolygroupLayers[Index];
 }
 
+
+int32 FDynamicMeshAttributeSet::NumWeightLayers() const
+{
+	return WeightLayers.Num();
+}
+
+void FDynamicMeshAttributeSet::SetNumWeightLayers(int32 Num)
+{
+	if (WeightLayers.Num() == Num)
+	{
+		return;
+	}
+	if (Num >= WeightLayers.Num())
+	{
+		for (int i = (int)WeightLayers.Num(); i < Num; ++i)
+		{
+			WeightLayers.Add(new FDynamicMeshWeightAttribute(ParentMesh));
+		}
+	}
+	else
+	{
+		WeightLayers.RemoveAt(Num, WeightLayers.Num() - Num);
+	}
+	ensure(WeightLayers.Num() == Num);
+}
+
+FDynamicMeshWeightAttribute* FDynamicMeshAttributeSet::GetWeightLayer(int Index)
+{
+	return &WeightLayers[Index];
+}
+
+const FDynamicMeshWeightAttribute* FDynamicMeshAttributeSet::GetWeightLayer(int Index) const
+{
+	return &WeightLayers[Index];
+}
 
 
 void FDynamicMeshAttributeSet::EnableMaterialID()
@@ -624,12 +687,23 @@ bool FDynamicMeshAttributeSet::IsMaterialBoundaryEdge(int EdgeID) const
 void FDynamicMeshAttributeSet::OnNewVertex(int VertexID, bool bInserted)
 {
 	FDynamicMeshAttributeSetBase::OnNewVertex(VertexID, bInserted);
+
+	for (FDynamicMeshWeightAttribute& WeightLayer : WeightLayers)
+	{
+		float NewWeight = 0.0f;
+		WeightLayer.SetNewValue(VertexID, &NewWeight);
+	}
 }
 
 
 void FDynamicMeshAttributeSet::OnRemoveVertex(int VertexID)
 {
 	FDynamicMeshAttributeSetBase::OnRemoveVertex(VertexID);
+
+	for (FDynamicMeshWeightAttribute& WeightLayer : WeightLayers)
+	{
+		WeightLayer.OnRemoveVertex(VertexID);
+	}
 }
 
 
@@ -727,6 +801,12 @@ void FDynamicMeshAttributeSet::OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo& 
 	{
 		PolygroupLayer.OnSplitEdge(SplitInfo);
 	}
+
+	for (FDynamicMeshWeightAttribute& WeightLayer : WeightLayers)
+	{
+		WeightLayer.OnSplitEdge(SplitInfo);
+	}
+
 }
 
 void FDynamicMeshAttributeSet::OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & flipInfo)
@@ -754,6 +834,12 @@ void FDynamicMeshAttributeSet::OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & f
 	{
 		PolygroupLayer.OnFlipEdge(flipInfo);
 	}
+
+	for (FDynamicMeshWeightAttribute& WeightLayer : WeightLayers)
+	{
+		WeightLayer.OnFlipEdge(flipInfo);
+	}
+
 }
 
 
@@ -782,6 +868,12 @@ void FDynamicMeshAttributeSet::OnCollapseEdge(const FDynamicMesh3::FEdgeCollapse
 	{
 		PolygroupLayer.OnCollapseEdge(collapseInfo);
 	}
+
+	for (FDynamicMeshWeightAttribute& WeightLayer : WeightLayers)
+	{
+		WeightLayer.OnCollapseEdge(collapseInfo);
+	}
+
 }
 
 void FDynamicMeshAttributeSet::OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo & pokeInfo)
@@ -808,6 +900,11 @@ void FDynamicMeshAttributeSet::OnPokeTriangle(const FDynamicMesh3::FPokeTriangle
 	for (FDynamicMeshPolygroupAttribute& PolygroupLayer : PolygroupLayers)
 	{
 		PolygroupLayer.OnPokeTriangle(pokeInfo);
+	}
+
+	for (FDynamicMeshWeightAttribute& WeightLayer : WeightLayers)
+	{
+		WeightLayer.OnPokeTriangle(pokeInfo);
 	}
 }
 
@@ -836,6 +933,11 @@ void FDynamicMeshAttributeSet::OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo
 	{
 		PolygroupLayer.OnMergeEdges(mergeInfo);
 	}
+
+	for (FDynamicMeshWeightAttribute& WeightLayer : WeightLayers)
+	{
+		WeightLayer.OnMergeEdges(mergeInfo);
+	}
 }
 
 void FDynamicMeshAttributeSet::OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate)
@@ -863,13 +965,19 @@ void FDynamicMeshAttributeSet::OnSplitVertex(const DynamicMeshInfo::FVertexSplit
 	{
 		PolygroupLayer.OnSplitVertex(SplitInfo, TrianglesToUpdate);
 	}
+
+	for (FDynamicMeshWeightAttribute& WeightLayer : WeightLayers)
+	{
+		WeightLayer.OnSplitVertex(SplitInfo, TrianglesToUpdate);
+	}
 }
 
 bool FDynamicMeshAttributeSet::IsSameAs(const FDynamicMeshAttributeSet& Other, bool bIgnoreDataLayout) const
 {
 	if (UVLayers.Num() != Other.UVLayers.Num() ||
 		NormalLayers.Num() != Other.NormalLayers.Num() ||
-		PolygroupLayers.Num() != Other.PolygroupLayers.Num())
+		PolygroupLayers.Num() != Other.PolygroupLayers.Num() ||
+		WeightLayers.Num() != Other.WeightLayers.Num())
 	{
 		return false;
 	}
@@ -893,6 +1001,14 @@ bool FDynamicMeshAttributeSet::IsSameAs(const FDynamicMeshAttributeSet& Other, b
 	for (int Idx = 0; Idx < PolygroupLayers.Num(); Idx++)
 	{
 		if (!PolygroupLayers[Idx].IsSameAs(Other.PolygroupLayers[Idx], bIgnoreDataLayout))
+		{
+			return false;
+		}
+	}
+
+	for (int Idx = 0; Idx < WeightLayers.Num(); Idx++)
+	{
+		if (!WeightLayers[Idx].IsSameAs(Other.WeightLayers[Idx], bIgnoreDataLayout))
 		{
 			return false;
 		}
@@ -1020,6 +1136,12 @@ void FDynamicMeshAttributeSet::Serialize(FArchive& Ar, const FCompactMaps* Compa
 		SerializeLayers(UVLayers, Ar, CompactMaps, bUseCompression);
 		SerializeLayers(NormalLayers, Ar, CompactMaps, bUseCompression);
 		SerializeLayers(PolygroupLayers, Ar, CompactMaps, bUseCompression);
+
+		const bool bSerializeWeightLayers = !Ar.IsLoading() || Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::DynamicMeshAttributesWeightMapsAndNames;
+		if (bSerializeWeightLayers)
+		{
+			SerializeLayers(WeightLayers, Ar, CompactMaps, bUseCompression);
+		}
 	}
 
 	if (Ar.IsLoading())
@@ -1037,6 +1159,10 @@ void FDynamicMeshAttributeSet::Serialize(FArchive& Ar, const FCompactMaps* Compa
 		for (FDynamicMeshPolygroupAttribute& Attr : PolygroupLayers)
 		{
 			Attr.ParentMesh = ParentMesh;
+		}
+		for (FDynamicMeshWeightAttribute& Attr : WeightLayers)
+		{
+			Attr.Parent = ParentMesh;
 		}
 	}
 

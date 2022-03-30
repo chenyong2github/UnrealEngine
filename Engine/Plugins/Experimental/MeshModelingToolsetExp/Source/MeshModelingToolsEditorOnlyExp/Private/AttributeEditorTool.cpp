@@ -674,12 +674,6 @@ void UAttributeEditorTool::AddNewAttribute()
 
 void UAttributeEditorTool::AddNewWeightMap()
 {
-	if (bTargetIsStaticMesh == false)
-	{
-		GetToolManager()->DisplayMessage(LOCTEXT("ErrorAddingWeightMap", "Currently cannot add Weight Maps to Dynamic Mesh Components"), EToolMessageLevel::UserWarning);
-		return;
-	}
-
 	AddNewAttribute(EAttributeEditorElementType::Vertex, EAttributeEditorAttribType::Float, FName(NewAttributeProps->NewName));
 }
 

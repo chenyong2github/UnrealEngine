@@ -425,6 +425,11 @@ void FDynamicMeshAttributeSetChangeTracker::BeginChange()
 		Change->PolygroupChanges.SetNum(NumPolygroupLayers);
 	}
 
+	for (int k = 0, NumWeights = Attribs->NumWeightLayers(); k < NumWeights; k++)
+	{
+		Change->WeightChanges.Add(Attribs->GetWeightLayer(k)->NewBlankChange());
+	}
+
 	for (int k = 0, NumRegAttrib = Attribs->NumRegisteredAttributes(); k < NumRegAttrib; k++)
 	{
 		Change->RegisteredAttributeChanges.Add(Attribs->GetRegisteredAttribute(k)->NewBlankChange());
@@ -500,6 +505,13 @@ void FDynamicMeshAttributeSetChangeTracker::SaveInitialTriangle(int TriangleID)
 	{
 		Change->RegisteredAttributeChanges[k]->SaveInitialTriangle(Attribs->GetRegisteredAttribute(k), TriangleID);
 	}
+
+	int NumWeightLayers = Attribs->NumWeightLayers();
+	for (int k = 0; k < NumWeightLayers; ++k)
+	{
+		Change->WeightChanges[k]->SaveInitialTriangle(Attribs->GetWeightLayer(k), TriangleID);
+	}
+
 }
 
 
@@ -509,6 +521,13 @@ void FDynamicMeshAttributeSetChangeTracker::SaveInitialVertex(int VertexID)
 	{
 		Change->RegisteredAttributeChanges[k]->SaveInitialVertex(Attribs->GetRegisteredAttribute(k), VertexID);
 	}
+
+	int NumWeightLayers = Attribs->NumWeightLayers();
+	for (int k = 0; k < NumWeightLayers; ++k)
+	{
+		Change->WeightChanges[k]->SaveInitialVertex(Attribs->GetWeightLayer(k), VertexID);
+	}
+
 }
 
 
@@ -609,6 +628,11 @@ void FDynamicMeshAttributeSetChangeTracker::StoreAllFinalTriangles(const TArray<
 	{
 		Change->RegisteredAttributeChanges[k]->StoreAllFinalTriangles(Attribs->GetRegisteredAttribute(k), TriangleIDs);
 	}
+
+	for (int k = 0, NumWeightLayers = Attribs->NumWeightLayers(); k < NumWeightLayers; k++)
+	{
+		Change->WeightChanges[k]->StoreAllFinalTriangles(Attribs->GetWeightLayer(k), TriangleIDs);
+	}
 }
 
 
@@ -617,6 +641,11 @@ void FDynamicMeshAttributeSetChangeTracker::StoreAllFinalVertices(const TArray<i
 	for (int k = 0, NumRegAttrib = Attribs->NumRegisteredAttributes(); k < NumRegAttrib; k++)
 	{
 		Change->RegisteredAttributeChanges[k]->StoreAllFinalVertices(Attribs->GetRegisteredAttribute(k), VertexIDs);
+	}
+
+	for (int k = 0, NumWeightLayers = Attribs->NumWeightLayers(); k < NumWeightLayers; k++)
+	{
+		Change->WeightChanges[k]->StoreAllFinalVertices(Attribs->GetWeightLayer(k), VertexIDs);
 	}
 }
 
@@ -645,6 +674,11 @@ bool FDynamicMeshAttributeChangeSet::Apply(FDynamicMeshAttributeSet* Attributes,
 	{
 		RegisteredAttributeChanges[k]->Apply(Attributes->GetRegisteredAttribute(k), bRevert);
 	}
+	for (int k = 0, NumWeightLayers = Attributes->NumWeightLayers(); k < NumWeightLayers; k++)
+	{
+		WeightChanges[k]->Apply(Attributes->GetWeightLayer(k), bRevert);
+	}
+
 	if (ColorChange.IsSet())
 	{
 		FDynamicMeshColorOverlay* ColorLayer = Attributes->PrimaryColors();

@@ -1405,6 +1405,17 @@ int FDynamicMeshEditor::FindOrCreateDuplicateVertex(int VertexID, FMeshIndexMapp
 		NewVertexID = Mesh->AppendVertex(*Mesh, VertexID);
 		IndexMaps.SetVertex(VertexID, NewVertexID);
 		ResultOut.NewVertices.Add(NewVertexID);
+
+		if (Mesh->HasAttributes())
+		{
+			for (int WeightLayerIndex = 0; WeightLayerIndex < Mesh->Attributes()->NumWeightLayers(); ++WeightLayerIndex)
+			{
+				FDynamicMeshWeightAttribute* WeightAttr = Mesh->Attributes()->GetWeightLayer(WeightLayerIndex);
+				float Val;
+				WeightAttr->GetValue(VertexID, &Val);
+				WeightAttr->SetNewValue(NewVertexID, &Val);
+			}
+		}
 	}
 	return NewVertexID;
 }
@@ -1572,6 +1583,19 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 			for (const TPair<int32, int32>& MapTID : TriangleMap.GetForwardMap())
 			{
 				ToPolygroups->SetValue(MapTID.Value, FromPolygroups->GetValue(MapTID.Key));
+			}
+		}
+
+		int NumWeightLayers = FMath::Min(Mesh->Attributes()->NumWeightLayers(), AppendMesh->Attributes()->NumWeightLayers());
+		for (int WeightLayerIndex = 0; WeightLayerIndex < NumWeightLayers; WeightLayerIndex++)
+		{
+			const FDynamicMeshWeightAttribute* FromWeights = AppendMesh->Attributes()->GetWeightLayer(WeightLayerIndex);
+			FDynamicMeshWeightAttribute* ToWeights = Mesh->Attributes()->GetWeightLayer(WeightLayerIndex);
+			for (const TPair<int32, int32>& MapVID : VertexMap.GetForwardMap())
+			{
+				float Weight;
+				FromWeights->GetValue(MapVID.Key, &Weight);
+				ToWeights->SetValue(MapVID.Value, &Weight);
 			}
 		}
 
@@ -1894,12 +1918,25 @@ static void AppendTriangleAttributes(const FDynamicMesh3* FromMesh, int FromTria
 
 
 // Utility function for ::AppendTriangles()
-static void AppendGenericAttributes(const FDynamicMesh3* FromMesh, FDynamicMesh3* ToMesh, FMeshIndexMappings& IndexMaps)
+static void AppendVertexAttributes(const FDynamicMesh3* FromMesh, FDynamicMesh3* ToMesh, FMeshIndexMappings& IndexMaps)
 {
 
 	if (FromMesh->HasAttributes() == false || ToMesh->HasAttributes() == false)
 	{
 		return;
+	}
+
+	int NumWeightLayers = FMath::Min(FromMesh->Attributes()->NumWeightLayers(), ToMesh->Attributes()->NumWeightLayers());
+	for (int WeightLayerIndex = 0; WeightLayerIndex < NumWeightLayers; WeightLayerIndex++)
+	{
+		const FDynamicMeshWeightAttribute* FromWeights = FromMesh->Attributes()->GetWeightLayer(WeightLayerIndex);
+		FDynamicMeshWeightAttribute* ToWeights = ToMesh->Attributes()->GetWeightLayer(WeightLayerIndex);
+		for (const TPair<int32, int32>& MapVID : IndexMaps.GetVertexMap().GetForwardMap())
+		{
+			float Weight;
+			FromWeights->GetValue(MapVID.Key, &Weight);
+			ToWeights->SetValue(MapVID.Value, &Weight);
+		}
 	}
 
 	// Copy skin weight and generic attributes after full IndexMaps have been created. 	
@@ -2002,7 +2039,7 @@ void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const 
 		//Mesh->CheckValidity(true);
 	}
  
-	AppendGenericAttributes(SourceMesh, Mesh, IndexMaps);
+	AppendVertexAttributes(SourceMesh, Mesh, IndexMaps);
 	
 }
 
@@ -2108,7 +2145,7 @@ bool FDynamicMeshEditor::SplitMesh(const FDynamicMesh3* SourceMesh, TArray<FDyna
 
 	for (int Idx = 0; Idx < NumMeshes; Idx++)
 	{
-		AppendGenericAttributes(SourceMesh, &SplitMeshes[Idx], Mappings[Idx]);
+		AppendVertexAttributes(SourceMesh, &SplitMeshes[Idx], Mappings[Idx]);
 	}
 	
 	return true;

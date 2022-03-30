@@ -106,6 +106,22 @@ public:
 	 */
 	FPolygonGroupID AppendPolygonGroup(FName MaterialSlotName = NAME_None);
 
+	/**
+	 * Set the specified value for the named attribute / vertex index combination.
+	 * If a vertex attribute with the given name doesn't exist, it is created.
+	 */
+	template<typename T>
+	void SetVertexAttributeValue(FName AttributeName, FVertexID VertexID, const T& Value)
+	{
+		TAttributesSet<FVertexID>& VertexAttributes = MeshDescription->VertexAttributes();
+
+		if (!VertexAttributes.GetAttributesRef<T>(AttributeName).IsValid())
+		{
+			VertexAttributes.RegisterAttribute<T>(AttributeName);
+		}
+
+		VertexAttributes.GetAttributesRef<T>(AttributeName).Set(VertexID, Value);
+	}
 
 	/** Set MeshAttribute::Edge::IsHard to true for all edges */
 	void SetAllEdgesHardness(bool bHard);
