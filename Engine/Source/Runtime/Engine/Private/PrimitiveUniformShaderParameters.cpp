@@ -4,7 +4,17 @@
 #include "InstanceUniformShaderParameters.h"
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveSceneInfo.h"
+#include "NaniteSceneProxy.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+
+static TAutoConsoleVariable<bool> CVarOptimizedWPO(
+	TEXT("r.OptimizedWPO"),
+	false,
+	TEXT("Special mode where primitives can explicitly indicate if WPO should be evaluated or not as an optimization.\n")
+	TEXT(" False ( 0): Ignore WPO evaluation flag, and always evaluate WPO.\n")
+	TEXT(" True  ( 1): Only evaluate WPO on primitives with explicit activation."),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
 
 void FSinglePrimitiveStructured::InitRHI() 
 {
@@ -120,15 +130,21 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 	FBoxSphereBounds PreSkinnedLocalBounds;
 	Proxy->GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
 
+	const bool OptimizedWPO = CVarOptimizedWPO.GetValueOnRenderThread();
+
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = Proxy->GetPrimitiveSceneInfo();
 
 	uint32 NaniteResourceID = INDEX_NONE;
 	uint32 NaniteHierarchyOffset = INDEX_NONE;
 	uint32 NaniteImposterIndex = INDEX_NONE;
+
 	bool bHasNaniteImposterData = false;
-	if (Proxy->IsNaniteMesh())
+	bool bEvaluateWorldPositionOffset = !OptimizedWPO;
+
+	if (OptimizedWPO && Proxy->IsNaniteMesh())
 	{
 		Proxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, NaniteImposterIndex);
+		bEvaluateWorldPositionOffset = static_cast<const Nanite::FSceneProxyBase*>(Proxy)->EvaluateWorldPositionOffset();
 	}
 
 	FPrimitiveUniformShaderParametersBuilder Builder = FPrimitiveUniformShaderParametersBuilder{}
@@ -153,6 +169,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.ReceivesDecals(Proxy->ReceivesDecals())
 		.DrawsVelocity(Proxy->DrawsVelocity())
 		.OutputVelocity(bOutputVelocity || Proxy->AlwaysHasVelocity())
+		.EvaluateWorldPositionOffset(bEvaluateWorldPositionOffset)
 		.CastContactShadow(Proxy->CastsContactShadow())
 		.CastShadow(Proxy->CastsDynamicShadow())
 		.CastHiddenShadow(Proxy->CastsHiddenShadow())

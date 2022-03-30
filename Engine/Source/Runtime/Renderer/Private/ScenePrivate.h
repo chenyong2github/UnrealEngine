@@ -3139,13 +3139,15 @@ public:
 	virtual void DumpUnbuiltLightInteractions( FOutputDevice& Ar ) const override;
 	virtual void UpdateParameterCollections(const TArray<FMaterialParameterCollectionInstanceResource*>& InParameterCollections) override;
 
+	virtual bool RequestGPUSceneUpdate(FPrimitiveSceneInfo& PrimitiveSceneInfo, EPrimitiveDirtyState PrimitiveDirtyState) override;
+
 	bool HasSkyAtmosphere() const
 	{
-		return (SkyAtmosphere != NULL);
+		return (SkyAtmosphere != nullptr);
 	}
 	bool HasVolumetricCloud() const
 	{
-		return (VolumetricCloud != NULL);
+		return (VolumetricCloud != nullptr);
 	}
 
 	bool IsSecondAtmosphereLightEnabled()

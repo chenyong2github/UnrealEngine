@@ -10,6 +10,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "UObject/FortniteNCBranchObjectVersion.h"
 #include "GameFramework/WorldSettings.h"
 #include "Engine/CollisionProfile.h"
 #include "ContentStreaming.h"
@@ -17,6 +18,8 @@
 #include "UnrealEngine.h"
 #include "EngineUtils.h"
 #include "StaticMeshResources.h"
+#include "NaniteSceneProxy.h"
+#include "PrimitiveSceneInfo.h"
 #include "Net/UnrealNetwork.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
@@ -197,6 +200,7 @@ UStaticMeshComponent::UStaticMeshComponent(const FObjectInitializer& ObjectIniti
 	bOverrideNavigationExport = false;
 	bForceNavigationObstacle = true;
 	bDisallowMeshPaintPerInstance = false;
+	bEvaluateWorldPositionOffset = false;
 	DistanceFieldIndirectShadowMinVisibility = .1f;
 	GetBodyInstance()->bAutoWeld = true;	//static mesh by default has auto welding
 
@@ -306,6 +310,7 @@ void UStaticMeshComponent::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
 	if (Ar.IsCooking())
@@ -346,7 +351,7 @@ void UStaticMeshComponent::Serialize(FArchive& Ar)
 			{
 				LODData[LODIndex].LegacyMapBuildData->IrrelevantLights = IrrelevantLights_DEPRECATED;
 				LegacyComponentData.Data.Emplace(LODData[LODIndex].MapBuildDataId, LODData[LODIndex].LegacyMapBuildData);
-				LODData[LODIndex].LegacyMapBuildData = NULL;
+				LODData[LODIndex].LegacyMapBuildData = nullptr;
 			}
 		}
 
@@ -358,6 +363,12 @@ void UStaticMeshComponent::Serialize(FArchive& Ar)
 		GetBodyInstance()->bAutoWeld = false;	//existing content may rely on no auto welding
 	}
 #endif
+
+	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) < FFortniteNCBranchObjectVersion::RemappedEvaluateWorldPositionOffsetInRayTracing)
+	{
+		bEvaluateWorldPositionOffsetInRayTracing = bEvaluateWorldPositionOffset;
+		bEvaluateWorldPositionOffset = false; // Default WPO evaluation off
+	}
 
 	NotifyIfStaticMeshChanged();
 }
@@ -2161,26 +2172,65 @@ void UStaticMeshComponent::SetDistanceFieldSelfShadowBias(float NewValue)
 
 void UStaticMeshComponent::SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue)
 {
-	if (bEvaluateWorldPositionOffset != NewValue && GetScene() != nullptr)
+	// Skip when this doesn't have a valid static mesh or a valid scene
+	if (!GetStaticMesh() || GetScene() == nullptr || SceneProxy == nullptr)
 	{
-		// Update game thread data
-		bEvaluateWorldPositionOffset = NewValue;
+		return;
+	}
 
-		// Skip when this doesn't have a valid static mesh 
-		if (!GetStaticMesh())
-		{
-			return;
-		}
+	const bool bHasChanged = bEvaluateWorldPositionOffsetInRayTracing != NewValue;
 
+	// Update game thread data
+	bEvaluateWorldPositionOffsetInRayTracing = NewValue;
+
+	// Nanite doesn't support this hint yet, and the following code only works with regular SM proxies
+	if (SceneProxy->IsNaniteMesh())
+	{
+		return;
+	}
+
+	if (bHasChanged)
+	{
 		// Update render thread data
-		ENQUEUE_RENDER_COMMAND(UpdateDFSelfShadowBiasCmd)(
-			[NewValue, PrimitiveSceneProxy = (FStaticMeshSceneProxy*)SceneProxy](FRHICommandList&)
+		ENQUEUE_RENDER_COMMAND(UpdateEvaluateWPORTCmd)
+		([NewValue, Scene = GetScene(), PrimitiveSceneProxy = static_cast<FStaticMeshSceneProxy*>(SceneProxy)](FRHICommandList&)
+		{
+			PrimitiveSceneProxy->SetEvaluateWorldPositionOffsetInRayTracing(NewValue);
+		});
+	}
+}
+
+void UStaticMeshComponent::SetEvaluateWorldPositionOffset(bool NewValue)
+{
+	// Skip when this doesn't have a valid static mesh or a valid scene
+	if (!GetStaticMesh() || GetScene() == nullptr || SceneProxy == nullptr)
+	{
+		return;
+	}
+
+	const bool bHasChanged = bEvaluateWorldPositionOffset != NewValue;
+	
+	// Update game thread data
+	bEvaluateWorldPositionOffset = NewValue;
+
+	// Nanite is the only SM proxy that currently supports this optimization
+	if (!SceneProxy->IsNaniteMesh())
+	{
+		return;
+	}
+
+	if (bHasChanged)
+	{
+		// Update render thread data
+		ENQUEUE_RENDER_COMMAND(UpdateEvaluateWPOCmd)
+			([NewValue, Scene = GetScene(), PrimitiveSceneProxy = static_cast<Nanite::FSceneProxyBase*>(SceneProxy)](FRHICommandList&)
+		{
+			if (PrimitiveSceneProxy->SetEvaluateWorldPositionOffset(NewValue))
 			{
-				if (PrimitiveSceneProxy)
-				{
-					PrimitiveSceneProxy->SetEvaluateWorldPositionOffsetInRayTracing(NewValue);
-				}
-			});
+				// Upload the latest state to GPU Scene if the value has changed on the proxy
+				Scene->RequestGPUSceneUpdate(*PrimitiveSceneProxy->GetPrimitiveSceneInfo(), EPrimitiveDirtyState::ChangedOther);
+			}
+		});
 	}
 }
 

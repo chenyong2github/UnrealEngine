@@ -21,6 +21,9 @@ struct CORE_API FFortniteNCBranchObjectVersion
 		// Serialize DataLayerAssets in WorldPartitionActorDesc
 		WorldPartitionActorDescSerializeDataLayerAssets,
 
+		// Remapped bEvaluateWorldPositionOffset to bEvaluateWorldPositionOffsetInRayTracing
+		RemappedEvaluateWorldPositionOffsetInRayTracing,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

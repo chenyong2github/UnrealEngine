@@ -464,6 +464,13 @@ void FSceneProxyBase::DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* 
 	}
 }
 
+bool FSceneProxyBase::SetEvaluateWorldPositionOffset(bool NewValue)
+{
+	const bool bHasChanged = (bEvaluateWorldPositionOffset != NewValue);
+	bEvaluateWorldPositionOffset = NewValue;
+	return bHasChanged;
+}
+
 FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 : FSceneProxyBase(Component)
 , MeshInfo(Component)
@@ -496,6 +503,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	FMaterialAudit MaterialAudit;
 	AuditMaterials(Component, MaterialAudit);
 	FixupMaterials(MaterialAudit);
+
+	SetEvaluateWorldPositionOffset(Component->bEvaluateWorldPositionOffset);
 
 	// Nanite supports the GPUScene instance data buffer.
 	bSupportsInstanceDataBuffer = true;

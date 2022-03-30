@@ -266,6 +266,17 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		{
 			Result = float3(0, 1, 0);
 		}
+		else if (VisualizeMode == NANITE_VISUALIZE_EVALUATE_WORLD_POSITION_OFFSET)
+		{
+			if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
+			{
+				Result = float3(0, 1, 0);
+			}
+			else
+			{
+				Result = float3(1, 0, 0);
+			}
+		}
 		else if (VisualizeMode == NANITE_VISUALIZE_LIGHTMAP_UVS)
 		{
 			const float2 LightmapUVs = AttributeData.TexCoords[PrimitiveData.LightmapUVIndex];

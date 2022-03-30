@@ -223,8 +223,11 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta=(editcondition = "bOverrideWireframeColor"))
 	FColor WireframeColorOverride;
 
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=RayTracing)
-	uint8 bEvaluateWorldPositionOffset:1;
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=Rendering)
+	uint8 bEvaluateWorldPositionOffset : 1;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = RayTracing)
+	uint8 bEvaluateWorldPositionOffsetInRayTracing : 1;
 
 #if WITH_EDITORONLY_DATA
 	/** The section currently selected in the Editor. Used for highlighting */
@@ -324,7 +327,7 @@ public:
 	UPROPERTY(transient)
 	uint8 bDisplayPhysicalMaterialMasks : 1;
 
-	/** For nanite enabled meshes, we'll only show the proxy mesh if this is true */
+	/** For Nanite enabled meshes, we'll only show the proxy mesh if this is true */
 	UPROPERTY()
 	uint8 bDisplayNaniteFallbackMesh:1;
 #endif
@@ -399,7 +402,7 @@ public:
 	TObjectPtr<UStaticMesh> GetStaticMesh() const 
 	{ 
 #if WITH_EDITOR
-		// This should never happen and is a last resort, we should have catched the property overwrite well before we reach this code
+		// This should never happen and is a last resort, we should have caught the property overwrite well before we reach this code
 		if (KnownStaticMesh != StaticMesh)
 		{
 			OutdatedKnownStaticMeshDetected();
@@ -417,6 +420,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category=RayTracing)
 	void SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering|LOD")
+	void SetEvaluateWorldPositionOffset(bool NewValue);
 
 	/** 
 	 * Get Local bounds

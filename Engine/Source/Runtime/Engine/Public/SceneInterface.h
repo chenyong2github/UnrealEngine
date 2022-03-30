@@ -431,13 +431,14 @@ public:
 	 * @return UWorld instance used by this scene
 	 */
 	virtual class UWorld* GetWorld() const = 0;
+	
 	/**
-	 * Return the scene to be used for rendering. Note that this can return NULL if rendering has
+	 * Return the scene to be used for rendering. Note that this can return null if rendering has
 	 * been disabled!
 	 */
 	virtual class FScene* GetRenderScene()
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	virtual void OnWorldCleanup()
@@ -481,7 +482,6 @@ public:
 	virtual void Export( FArchive& Ar ) const
 	{}
 
-	
 	/**
 	 * Shifts scene data by provided delta
 	 * Called on world origin changes
@@ -560,6 +560,8 @@ public:
 	virtual class FRayTracingDynamicGeometryCollection* GetRayTracingDynamicGeometryCollection() { return nullptr; }
 	virtual class FRayTracingSkinnedGeometryUpdateQueue* GetRayTracingSkinnedGeometryUpdateQueue() { return nullptr; }
 #endif
+
+	virtual bool RequestGPUSceneUpdate(FPrimitiveSceneInfo& PrimitiveSceneInfo, EPrimitiveDirtyState PrimitiveDirtyState) { return false; }
 
 protected:
 	virtual ~FSceneInterface() {}

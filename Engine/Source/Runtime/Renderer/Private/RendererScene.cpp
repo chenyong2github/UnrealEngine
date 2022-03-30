@@ -730,6 +730,11 @@ void FScene::UpdateParameterCollections(const TArray<FMaterialParameterCollectio
 	});
 }
 
+bool FScene::RequestGPUSceneUpdate(FPrimitiveSceneInfo& PrimitiveSceneInfo, EPrimitiveDirtyState PrimitiveDirtyState)
+{
+	return PrimitiveSceneInfo.RequestGPUSceneUpdate(PrimitiveDirtyState);
+}
+
 SIZE_T FScene::GetSizeBytes() const
 {
 	return sizeof(*this) 
