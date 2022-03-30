@@ -904,7 +904,7 @@ public:
 
 private:
 	double						ElapsedTime;
-	
+
 	/** Whether or not the NetDriver is ticking */
 	bool bInTick;
 
@@ -1690,6 +1690,8 @@ public:
 	ENGINE_API int64 SendDestructionInfo(UNetConnection* Connection, FActorDestructionInfo* DestructionInfo);
 
 protected:
+
+	void SetIsInTick(bool bIsInTick) { bInTick = bIsInTick; }
 
 	/** Register all TickDispatch, TickFlush, PostTickFlush to tick in World */
 	ENGINE_API void RegisterTickEvents(class UWorld* InWorld);

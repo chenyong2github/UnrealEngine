@@ -1246,6 +1246,7 @@ void UDemoNetDriver::TickFlushAsyncEndOfFrame(float DeltaSeconds)
 	if (ShouldTickFlushAsyncEndOfFrame())
 	{
 		TickFlushInternal(DeltaSeconds);
+		SetIsInTick(false); //PostTickFlush isn't called after the async TickFlush, so set bInTick to false here
 	}
 }
 
