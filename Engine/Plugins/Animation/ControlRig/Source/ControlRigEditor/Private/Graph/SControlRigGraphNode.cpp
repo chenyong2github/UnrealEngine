@@ -580,6 +580,70 @@ bool SControlRigGraphNode::UseLowDetailPinNames() const
 	return false;
 }
 
+void SControlRigGraphNode::CreateInputSideAddButton(TSharedPtr<SVerticalBox> InputBox)
+{
+	if (ModelNode.IsValid() && ModelNode->IsAggregate() && ModelNode->IsInputAggregate())
+	{
+		TSharedRef<SWidget> AddPinButton = AddPinButtonContent(
+		   NSLOCTEXT("ControlRigAggregateNode", "ControlRigAggregateNodeAddPinButton", "Add pin"),
+		   NSLOCTEXT("ControlRigAggregateNode", "ControlRigAggregateNodeAddPinButton_Tooltip", "Adds a input pin to the node"),
+		   false);
+
+		FMargin AddPinPadding = Settings->GetInputPinPadding();
+		AddPinPadding.Top += 6.0f;
+
+		InputBox->AddSlot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(AddPinPadding)
+			[
+				AddPinButton
+			];
+	}
+	else
+	{
+		SGraphNode::CreateInputSideAddButton(InputBox);
+	}
+}
+
+void SControlRigGraphNode::CreateOutputSideAddButton(TSharedPtr<SVerticalBox> InputBox)
+{
+	if (ModelNode.IsValid() && ModelNode->IsAggregate() && !ModelNode->IsInputAggregate())
+	{
+		TSharedRef<SWidget> AddPinButton = AddPinButtonContent(
+		   NSLOCTEXT("LayeredBoneBlendNode", "LayeredBoneBlendNodeAddPinButton", "Add pin"),
+		   NSLOCTEXT("LayeredBoneBlendNode", "LayeredBoneBlendNodeAddPinButton_Tooltip", "Adds a output pin to the node"),
+		   false);
+
+		FMargin AddPinPadding = Settings->GetOutputPinPadding();
+		AddPinPadding.Top += 6.0f;
+
+		InputBox->AddSlot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(AddPinPadding)
+			[
+				AddPinButton
+			];
+	}
+	else
+	{
+		SGraphNode::CreateOutputSideAddButton(InputBox);
+	}
+}
+
+FReply SControlRigGraphNode::OnAddPin()
+{
+	if (ModelNode.IsValid())
+	{
+		if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
+		{
+			ControlRigGraphNode->HandleAddAggregateElement(ModelNode->GetNodePath());
+		}
+	}
+	return FReply::Handled();
+}
+
 bool SControlRigGraphNode::UseLowDetailNodeContent() const
 {
 	if(LastHighDetailSize.IsNearlyZero())

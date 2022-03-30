@@ -35,6 +35,7 @@ public:
 	
 	TArray<URigVMPin*> GetAggregateInputs() const;
 	TArray<URigVMPin*> GetAggregateOutputs() const;
+	FName GetNextAggregateName(const FName& InLastAggregatePinName)const;
 
 	bool IsDeprecated() const;
 	FString GetDeprecatedMetadata() const;

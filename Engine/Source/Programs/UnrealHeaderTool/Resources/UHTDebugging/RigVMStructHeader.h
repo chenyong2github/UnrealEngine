@@ -34,6 +34,8 @@ struct FRigVMStructBase
 	UPROPERTY(meta = (Output))
 	float InheritedOutput;
 
+	virtual FName GetNextAggregateName(const FName& InLastAggregateName) const {};
+
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const {};
 };
 
@@ -95,6 +97,9 @@ struct FRigVMMethodStruct : public FRigVMStructBase
 
 	UPROPERTY()
 	TEnumAsByte<ERigVMTestNameSpaceEnum::Type> HiddenNameSpaceEnum;
+
+	RIGVM_METHOD()
+	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;

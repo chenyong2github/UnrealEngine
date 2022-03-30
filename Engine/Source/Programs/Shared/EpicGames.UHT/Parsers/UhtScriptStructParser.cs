@@ -217,16 +217,23 @@ namespace EpicGames.UHT.Parsers
 					.RequireIdentifier((ref UhtToken Identifier) => MethodInfo.Name = Identifier.Value.ToString());
 
 				bool bIsGetUpgradeInfo = false;
+				bool bIsGetNextAggregateName = false;
 				if (MethodInfo.ReturnType == "FRigVMStructUpgradeInfo" && MethodInfo.Name == "GetUpgradeInfo")
 				{
 					StructInfo.bHasGetUpgradeInfoMethod = true;
 					bIsGetUpgradeInfo = true;
 				}
+				if (MethodInfo.Name == "GetNextAggregateName")
+				{
+					StructInfo.bHasGetNextAggregateNameMethod = true;
+					bIsGetNextAggregateName = true;
+				}
+				
 
 				TopScope.TokenReader
 					.RequireList('(', ')', ',', false, (IEnumerable<UhtToken> Tokens) =>
 					{
-						if (!bIsGetUpgradeInfo)
+						if (!bIsGetUpgradeInfo && !bIsGetNextAggregateName)
 						{
 							StringViewBuilder Builder = new StringViewBuilder();
 							UhtToken LastToken = new UhtToken();
@@ -251,7 +258,7 @@ namespace EpicGames.UHT.Parsers
 					})
 					.ConsumeUntil(';');
 
-				if (!bIsGetUpgradeInfo)
+				if (!bIsGetUpgradeInfo && !bIsGetNextAggregateName)
 				{
 					StructInfo.Methods.Add(MethodInfo);
 				}

@@ -248,6 +248,7 @@ bool FRigVMBaseAction::Undo(URigVMController* InController)
 	check(Stack);
 	TGuardValue<int32> TabDepthGuard(Stack->LogActionDepth, Stack->LogActionDepth + 1);
 #endif
+	TGuardValue<bool> TransactionGuard(InController->bIsTransacting, true);
 
 	bool Result = true;
 	for (int32 KeyIndex = SubActions.Num() - 1; KeyIndex >= 0; KeyIndex--)
@@ -272,6 +273,7 @@ bool FRigVMBaseAction::Redo(URigVMController* InController)
 	check(Stack);
 	TGuardValue<int32> TabDepthGuard(Stack->LogActionDepth, Stack->LogActionDepth + 1);
 #endif
+	TGuardValue<bool> TransactionGuard(InController->bIsTransacting, true);
 
 	bool Result = true;
 	for (int32 KeyIndex = 0; KeyIndex < SubActions.Num(); KeyIndex++)

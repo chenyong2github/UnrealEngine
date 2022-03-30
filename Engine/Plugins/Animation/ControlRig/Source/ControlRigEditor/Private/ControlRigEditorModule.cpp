@@ -125,6 +125,7 @@
 #include "ControlRigSpaceChannelEditors.h"
 #include "UserDefinedStructure/UserDefinedStructEditorData.h"
 #include "UObject/FieldIterator.h"
+#include "RigVMModel/Nodes/RigVMAggregateNode.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -1289,6 +1290,20 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							FSlateIcon(),
 							FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
 								Controller->DuplicateArrayPin(ModelPin->GetPinPath(), true, true);
+							})
+						));
+					}
+
+					if (URigVMAggregateNode* AggregateNode = Cast<URigVMAggregateNode>(ModelPin->GetNode()))
+					{
+						FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaAggregatePin", LOCTEXT("AggregatePin", "Aggregates"));
+						Section.AddMenuEntry(
+							"RemoveAggregatePin",
+							LOCTEXT("RemoveAggregatePin", "Remove Aggregate Element"),
+							LOCTEXT("RemoveAggregatePin_Tooltip", "Removes the selected element from the aggregate"),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
+								Controller->RemoveAggregatePin(ModelPin->GetPinPath(), true, true);
 							})
 						));
 					}

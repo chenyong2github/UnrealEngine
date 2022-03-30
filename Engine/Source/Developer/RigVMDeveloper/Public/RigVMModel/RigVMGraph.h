@@ -165,11 +165,15 @@ private:
 #endif
 
 	UPROPERTY()
+	bool bEditable;
+
+	UPROPERTY()
 	TArray<FRigVMGraphVariableDescription> LocalVariables;
 
 	bool IsNameAvailable(const FString& InName);
 
 	friend class URigVMController;
+	friend class UControlRigBlueprint;
 	friend class FRigVMControllerCompileBracketScope;
 	friend class URigVMCompiler;
 	friend struct FRigVMControllerObjectFactory;

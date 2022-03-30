@@ -135,6 +135,9 @@ public:
 
 	URigVMPin* GetModelPinFromPinPath(const FString& InPinPath) const;
 
+	/** Add a new element to the aggregate node referred to by the property path */
+	void HandleAddAggregateElement(const FString& InNodePath);
+
 	/** Add a new array element to the array referred to by the property path */
 	void HandleAddArrayElement(FString InPinPath);
 	

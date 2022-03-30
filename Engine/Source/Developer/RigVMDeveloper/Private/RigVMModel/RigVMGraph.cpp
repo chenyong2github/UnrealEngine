@@ -12,6 +12,7 @@
 URigVMGraph::URigVMGraph()
 : DiagnosticsAST(nullptr)
 , RuntimeAST(nullptr)
+, bEditable(true)
 {
 }
 

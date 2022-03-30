@@ -29,10 +29,13 @@ public:
 	virtual  FText GetToolTipText() const override;
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const override;
 
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	virtual bool IsAggregate() const override { return true; };
+#endif
 	virtual bool IsInputAggregate() const override;
 
 	URigVMNode* GetFirstInnerNode() const;
+	URigVMNode* GetLastInnerNode() const;
 
 	UFUNCTION(BlueprintPure, Category = Aggregate)
 	URigVMPin* GetFirstAggregatePin() const;
@@ -48,6 +51,7 @@ private:
 	void InvalidateCache();
 
 	mutable URigVMNode* FirstInnerNodeCache;
+	mutable URigVMNode* LastInnerNodeCache;
 
 	friend class URigVMController;
 };

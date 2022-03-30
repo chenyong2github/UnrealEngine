@@ -27,6 +27,7 @@
 #include "AssetRegistryModule.h"
 #include "RigVMPythonUtils.h"
 #include "RigVMTypeUtils.h"
+#include "RigVMModel/Nodes/RigVMAggregateNode.h"
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
@@ -454,6 +455,14 @@ void UControlRigBlueprint::PostLoad()
 		}
 		UbergraphPages = NewUberGraphPages;
 
+		TArray<TGuardValue<bool>> EditableGraphGuards;
+		{
+			for (URigVMGraph* Graph : GetAllModels())
+			{
+				EditableGraphGuards.Emplace(Graph->bEditable, true);
+			}
+		}
+		
 		InitializeModelIfRequired(false /* recompile vm */);
 
 		PatchFunctionReferencesOnLoad();
@@ -4550,11 +4559,17 @@ void UControlRigBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNo
 
 			if (!bSubGraphExists)
 			{
+				bool bEditable = true;
+				if (InNode->IsA<URigVMAggregateNode>())
+				{
+					bEditable = false;
+				}
+				
 				// create a sub graph
 				UControlRigGraph* SubRigGraph = NewObject<UControlRigGraph>(RigGraph, *InNode->GetEditorSubGraphName(), RF_Transactional);
 				SubRigGraph->Schema = UControlRigGraphSchema::StaticClass();
 				SubRigGraph->bAllowRenaming = 1;
-				SubRigGraph->bEditable = 1;
+				SubRigGraph->bEditable = bEditable;
 				SubRigGraph->bAllowDeletion = 1;
 				SubRigGraph->ModelNodePath = ContainedGraph->GetNodePath();
 				SubRigGraph->bIsFunctionDefinition = false;

@@ -66,6 +66,7 @@ URigVMController::URigVMController()
 	, bReportWarningsAndErrors(true)
 	, bIgnoreRerouteCompactnessChanges(false)
 	, UserLinkDirection(ERigVMPinDirection::Invalid)
+	, bIsTransacting(false)
 	, bIsRunningUnitTest(false)
 	, bIsFullyResolvingTemplateNode(false)
 {
@@ -79,6 +80,7 @@ URigVMController::URigVMController(const FObjectInitializer& ObjectInitializer)
 	, bReportWarningsAndErrors(true)
 	, bIgnoreRerouteCompactnessChanges(false)
 	, UserLinkDirection(ERigVMPinDirection::Invalid)
+	, bIsTransacting(false)
 	, bIsRunningUnitTest(false)
 	, bIsFullyResolvingTemplateNode(false)
 {
@@ -656,6 +658,11 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	if (GetGraph()->IsA<URigVMFunctionLibrary>())
 	{
 		ReportError(TEXT("Cannot add unit nodes to function library graphs."));
@@ -813,6 +820,11 @@ URigVMUnitNode* URigVMController::AddUnitNodeFromStructPath(const FString& InScr
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(InScriptStructPath);
 	if (ScriptStruct == nullptr)
 	{
@@ -826,6 +838,11 @@ URigVMUnitNode* URigVMController::AddUnitNodeFromStructPath(const FString& InScr
 URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bIsGetter, const FString& InDefaultValue, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return nullptr;
 	}
@@ -1022,6 +1039,11 @@ URigVMVariableNode* URigVMController::AddVariableNodeFromObjectPath(const FName&
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsEmpty())
 	{
@@ -1039,6 +1061,11 @@ URigVMVariableNode* URigVMController::AddVariableNodeFromObjectPath(const FName&
 void URigVMController::RefreshVariableNode(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bSetupOrphanPins)
 {
 	if (!IsValidGraph())
+	{
+		return;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return;
 	}
@@ -1109,6 +1136,11 @@ void URigVMController::OnExternalVariableRemoved(const FName& InVarName, bool bS
 		return;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return;
+	}
+
 	if (!InVarName.IsValid())
 	{
 		return;
@@ -1150,6 +1182,7 @@ void URigVMController::OnExternalVariableRemoved(const FName& InVarName, bool bS
 		else if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
 		{
 			FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), bSetupUndoRedo);
+			TGuardValue<bool> GuardEditGraph(CollapseNode->ContainedGraph->bEditable, true);
 
 			// call this function for the contained graph recursively 
 			OnExternalVariableRemoved(InVarName, bSetupUndoRedo);
@@ -1196,6 +1229,11 @@ bool URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	if (!InOldVarName.IsValid() || !InNewVarName.IsValid())
 	{
 		return false;
@@ -1237,6 +1275,7 @@ bool URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 		else if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
 		{
 			FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), bSetupUndoRedo);
+			TGuardValue<bool> GuardEditGraph(CollapseNode->ContainedGraph->bEditable, true);
 			OnExternalVariableRenamed(InOldVarName, InNewVarName, bSetupUndoRedo);
 
 			// if we are a function we need to notify all references!
@@ -1286,6 +1325,11 @@ void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, con
 		return;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return;
+	}
+
 	if (!InVarName.IsValid())
 	{
 		return;
@@ -1327,6 +1371,7 @@ void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, con
 		else if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
 		{
 			FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), bSetupUndoRedo);
+			TGuardValue<bool> GuardEditGraph(CollapseNode->ContainedGraph->bEditable, true);
 			OnExternalVariableTypeChanged(InVarName, InCPPType, InCPPTypeObject, bSetupUndoRedo);
 
 			// if we are a function we need to notify all references!
@@ -1383,6 +1428,11 @@ void URigVMController::OnExternalVariableTypeChangedFromObjectPath(const FName& 
 		return;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return;
+	}
+
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsEmpty())
 	{
@@ -1400,6 +1450,11 @@ void URigVMController::OnExternalVariableTypeChangedFromObjectPath(const FName& 
 URigVMVariableNode* URigVMController::ReplaceParameterNodeWithVariable(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo)
 {
 	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return nullptr;
 	}
@@ -1447,6 +1502,11 @@ URigVMVariableNode* URigVMController::ReplaceParameterNodeWithVariable(const FNa
 URigVMTemplateNode* URigVMController::ReplaceUnitNodeWithTemplateNode(const FName& InNodeName, bool bSetupUndoRedo)
 {
 	if(!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return nullptr;
 	}
@@ -1522,6 +1582,11 @@ bool URigVMController::UnresolveTemplateNodes(const TArray<FName>& InNodeNames, 
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	TArray<URigVMTemplateNode*> Nodes;
 	for (const FName& NodeName : InNodeNames)
 	{
@@ -1563,6 +1628,12 @@ bool URigVMController::UnresolveTemplateNodes(const TArray<URigVMTemplateNode*>&
 		return false;
 	}
 
+
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	// check if any of the nodes needs to be unresolved
 	const bool bHasNodeToResolve = InNodes.ContainsByPredicate( [](const URigVMTemplateNode* Node) -> bool
 	{
@@ -1674,6 +1745,11 @@ TArray<URigVMNode*> URigVMController::UpgradeNodes(const TArray<FName>& InNodeNa
 		return Nodes;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return Nodes;
+	}
+
 	for (const FName& NodeName : InNodeNames)
 	{
 		if (URigVMNode* Node = GetGraph()->FindNodeByName(NodeName))
@@ -1719,6 +1795,11 @@ TArray<URigVMNode*> URigVMController::UpgradeNodes(const TArray<FName>& InNodeNa
 TArray<URigVMNode*> URigVMController::UpgradeNodes(const TArray<URigVMNode*>& InNodes, bool bRecursive, bool bSetupUndoRedo)
 {
 	if (!IsValidGraph())
+	{
+		return TArray<URigVMNode*>();
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return TArray<URigVMNode*>();
 	}
@@ -1929,6 +2010,11 @@ URigVMParameterNode* URigVMController::AddParameterNodeFromObjectPath(const FNam
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsEmpty())
 	{
@@ -1946,6 +2032,11 @@ URigVMParameterNode* URigVMController::AddParameterNodeFromObjectPath(const FNam
 URigVMCommentNode* URigVMController::AddCommentNode(const FString& InCommentText, const FVector2D& InPosition, const FVector2D& InSize, const FLinearColor& InColor, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return nullptr;
 	}
@@ -2004,6 +2095,11 @@ URigVMCommentNode* URigVMController::AddCommentNode(const FString& InCommentText
 URigVMRerouteNode* URigVMController::AddRerouteNodeOnLink(URigVMLink* InLink, bool bShowAsFullNode, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if(!IsValidLinkForGraph(InLink))
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return nullptr;
 	}
@@ -2070,6 +2166,11 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnLinkPath(const FString& InL
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -2080,6 +2181,11 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnLinkPath(const FString& InL
 URigVMRerouteNode* URigVMController::AddRerouteNodeOnPin(const FString& InPinPath, bool bAsInput, bool bShowAsFullNode, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return nullptr;
 	}
@@ -2190,6 +2296,11 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnPin(const FString& InPinPat
 URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath, bool bAsInput, UScriptStruct* InScriptStruct, const FName& InMethodName, const FName& InInputPinName, const FName& InOutputPinName, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return nullptr;
 	}
@@ -2408,6 +2519,11 @@ URigVMInjectionInfo* URigVMController::AddInjectedNodeFromStructPath(const FStri
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(InScriptStructPath);
 	if (ScriptStruct == nullptr)
 	{
@@ -2421,6 +2537,11 @@ URigVMInjectionInfo* URigVMController::AddInjectedNodeFromStructPath(const FStri
 bool URigVMController::RemoveInjectedNode(const FString& InPinPath, bool bAsInput, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -2525,6 +2646,11 @@ URigVMInjectionInfo* URigVMController::InjectNodeIntoPin(const FString& InPinPat
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -2544,6 +2670,11 @@ URigVMInjectionInfo* URigVMController::InjectNodeIntoPin(URigVMPin* InPin, bool 
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+	
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -2658,6 +2789,11 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -2673,6 +2809,11 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 URigVMNode* URigVMController::EjectNodeFromPin(URigVMPin* InPin, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return nullptr;
 	}
@@ -2980,6 +3121,11 @@ bool URigVMController::CanImportNodesFromText(const FString& InText)
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	if (GetGraph()->IsA<URigVMFunctionLibrary>())
 	{
 		return false;
@@ -2993,6 +3139,11 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 {
 	TArray<FName> NodeNames;
 	if (!IsValidGraph())
+	{
+		return NodeNames;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return NodeNames;
 	}
@@ -3018,6 +3169,15 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 	if (bSetupUndoRedo)
 	{
 		ActionStack->BeginAction(AddNodesAction);
+	}
+
+	TArray<TGuardValue<bool>> EditGuards;
+	for (URigVMNode* CreatedNode : Factory.CreatedNodes)
+	{
+		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(CreatedNode))
+		{
+			EditGuards.Emplace(LibraryNode->GetContainedGraph()->bEditable, true);
+		}
 	}
 
 	FRigVMUnitNodeCreatedContext::FScope UnitNodeCreatedScope(UnitNodeCreatedContext, ERigVMNodeCreatedReason::Paste);
@@ -3057,6 +3217,7 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 			{
 				{
 					FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
+					TGuardValue<bool> GuardEditGraph(CollapseNode->ContainedGraph->bEditable, true);
 					ReattachLinksToPinObjects();
 				}
 				
@@ -3250,6 +3411,11 @@ URigVMLibraryNode* URigVMController::LocalizeFunction(
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	if(InFunctionDefinition == nullptr)
 	{
 		return nullptr;
@@ -3276,6 +3442,11 @@ TMap<URigVMLibraryNode*, URigVMLibraryNode*> URigVMController::LocalizeFunctions
 	TMap<URigVMLibraryNode*, URigVMLibraryNode*> LocalizedFunctions;
 
 	if(!IsValidGraph())
+	{
+		return LocalizedFunctions;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return LocalizedFunctions;
 	}
@@ -3495,6 +3666,11 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<FName>& InNodeN
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -3543,6 +3719,11 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(const FName& InNodeName,
 		return TArray<URigVMNode*>();
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return TArray<URigVMNode*>();
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -3583,6 +3764,11 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	if (Graph->IsA<URigVMFunctionLibrary>())
 	{
 		ReportError(TEXT("Cannot collapse nodes in function library graphs."));
@@ -3595,7 +3781,7 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 		return nullptr;
 	}
 
-#if UE_RIGVM_ENABLE_AGGREGATE_NODES
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	if (bIsAggregate)
 	{
 		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNodes[0]))
@@ -3845,7 +4031,7 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 		ActionStack->BeginAction(CollapseAction);
 	}
 
-#if UE_RIGVM_ENABLE_AGGREGATE_NODES
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	URigVMCollapseNode* CollapseNode = nullptr;
 	if (bIsAggregate)
 	{
@@ -3859,6 +4045,15 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 	URigVMCollapseNode* CollapseNode = NewObject<URigVMCollapseNode>(Graph, *CollapseNodeName);
 #endif
 	CollapseNode->ContainedGraph = NewObject<URigVMGraph>(CollapseNode, TEXT("ContainedGraph"));
+
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
+	if (bIsAggregate)
+	{
+		CollapseNode->ContainedGraph->bEditable = false;
+	}
+	TGuardValue<bool> GuardEditGraph(CollapseNode->ContainedGraph->bEditable, true);
+#endif
+	
 	CollapseNode->Position = Center;
 	Graph->Nodes.Add(CollapseNode);
 
@@ -4219,6 +4414,11 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 
 TArray<URigVMNode*> URigVMController::ExpandLibraryNode(URigVMLibraryNode* InNode, bool bSetupUndoRedo)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return TArray<URigVMNode*>();
+	}
+	
 	if (!IsValidNodeForGraph(InNode))
 	{
 		return TArray<URigVMNode*>();
@@ -4924,6 +5124,11 @@ FName URigVMController::PromoteCollapseNodeToFunctionReferenceNode(const FName& 
 		return NAME_None;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return NAME_None;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -4952,6 +5157,11 @@ FName URigVMController::PromoteFunctionReferenceNodeToCollapseNode(const FName& 
 		return NAME_None;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return NAME_None;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -4965,6 +5175,11 @@ FName URigVMController::PromoteFunctionReferenceNodeToCollapseNode(const FName& 
 
 URigVMFunctionReferenceNode* URigVMController::PromoteCollapseNodeToFunctionReferenceNode(URigVMCollapseNode* InCollapseNode, bool bSetupUndoRedo, const FString& InExistingFunctionDefinitionPath)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+	
 	if (!IsValidNodeForGraph(InCollapseNode))
 	{
 		return nullptr;
@@ -5092,6 +5307,11 @@ URigVMFunctionReferenceNode* URigVMController::PromoteCollapseNodeToFunctionRefe
 
 URigVMCollapseNode* URigVMController::PromoteFunctionReferenceNodeToCollapseNode(URigVMFunctionReferenceNode* InFunctionRefNode, bool bSetupUndoRedo, bool bRemoveFunctionDefinition)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+	
 	if (!IsValidNodeForGraph(InFunctionRefNode))
 	{
 		return nullptr;
@@ -5228,6 +5448,11 @@ void URigVMController::SetReferencedFunction(URigVMFunctionReferenceNode* InFunc
 	{
 		return;
 	}
+
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return;
+	}
 	
 	URigVMLibraryNode* OldReferencedNode = InFunctionRefNode->GetReferencedNode();
 	if(OldReferencedNode != InNewReferencedNode)
@@ -5291,6 +5516,11 @@ void URigVMController::ReportRemovedLink(const FString& InSourcePinPath, const F
 
 bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool bRecursive, bool bPrintPythonCommand, bool bRelinkPins)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidNodeForGraph(InNode))
 	{
 		return false;
@@ -5583,6 +5813,11 @@ bool URigVMController::RemoveNodeByName(const FName& InNodeName, bool bSetupUndo
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -5591,6 +5826,11 @@ bool URigVMController::RemoveNodeByName(const FName& InNodeName, bool bSetupUndo
 
 bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidNodeForGraph(InNode))
 	{
 		return false;
@@ -5664,6 +5904,11 @@ bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bo
 
 bool URigVMController::SelectNode(URigVMNode* InNode, bool bSelect, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidNodeForGraph(InNode))
 	{
 		return false;
@@ -5697,6 +5942,11 @@ bool URigVMController::SelectNodeByName(const FName& InNodeName, bool bSelect, b
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -5710,12 +5960,22 @@ bool URigVMController::ClearNodeSelection(bool bSetupUndoRedo, bool bPrintPython
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	return SetNodeSelection(TArray<FName>(), bSetupUndoRedo, bPrintPythonCommand);
 }
 
 bool URigVMController::SetNodeSelection(const TArray<FName>& InNodeNames, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -5818,6 +6078,11 @@ bool URigVMController::SetNodeSelection(const TArray<FName>& InNodeNames, bool b
 
 bool URigVMController::SetNodePosition(URigVMNode* InNode, const FVector2D& InPosition, bool bSetupUndoRedo, bool bMergeUndoAction, bool bPrintPythonCommand)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidNodeForGraph(InNode))
 	{
 		return false;
@@ -5867,6 +6132,11 @@ bool URigVMController::SetNodePositionByName(const FName& InNodeName, const FVec
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -5876,6 +6146,11 @@ bool URigVMController::SetNodePositionByName(const FName& InNodeName, const FVec
 
 bool URigVMController::SetNodeSize(URigVMNode* InNode, const FVector2D& InSize, bool bSetupUndoRedo, bool bMergeUndoAction, bool bPrintPythonCommand)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidNodeForGraph(InNode))
 	{
 		return false;
@@ -5924,6 +6199,11 @@ bool URigVMController::SetNodeSizeByName(const FName& InNodeName, const FVector2
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -5933,6 +6213,11 @@ bool URigVMController::SetNodeSizeByName(const FName& InNodeName, const FVector2
 
 bool URigVMController::SetNodeColor(URigVMNode* InNode, const FLinearColor& InColor, bool bSetupUndoRedo, bool bMergeUndoAction, bool bPrintPythonCommand)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	if (!IsValidNodeForGraph(InNode))
 	{
 		return false;
@@ -5993,6 +6278,11 @@ bool URigVMController::SetNodeColorByName(const FName& InNodeName, const FLinear
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -6002,6 +6292,11 @@ bool URigVMController::SetNodeColorByName(const FName& InNodeName, const FLinear
 
 bool URigVMController::SetNodeCategory(URigVMCollapseNode* InNode, const FString& InCategory, bool bSetupUndoRedo, bool bMergeUndoAction, bool bPrintPythonCommand)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidNodeForGraph(InNode))
 	{
 		return false;
@@ -6050,6 +6345,11 @@ bool URigVMController::SetNodeCategoryByName(const FName& InNodeName, const FStr
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -6059,6 +6359,11 @@ bool URigVMController::SetNodeCategoryByName(const FName& InNodeName, const FStr
 
 bool URigVMController::SetNodeKeywords(URigVMCollapseNode* InNode, const FString& InKeywords, bool bSetupUndoRedo, bool bMergeUndoAction, bool bPrintPythonCommand)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidNodeForGraph(InNode))
 	{
 		return false;
@@ -6107,6 +6412,11 @@ bool URigVMController::SetNodeKeywordsByName(const FName& InNodeName, const FStr
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -6116,6 +6426,11 @@ bool URigVMController::SetNodeKeywordsByName(const FName& InNodeName, const FStr
 
 bool URigVMController::SetNodeDescription(URigVMCollapseNode* InNode, const FString& InDescription, bool bSetupUndoRedo, bool bMergeUndoAction, bool bPrintPythonCommand)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidNodeForGraph(InNode))
 	{
 		return false;
@@ -6164,6 +6479,11 @@ bool URigVMController::SetNodeDescriptionByName(const FName& InNodeName, const F
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -6173,6 +6493,11 @@ bool URigVMController::SetNodeDescriptionByName(const FName& InNodeName, const F
 
 bool URigVMController::SetCommentText(URigVMNode* InNode, const FString& InCommentText, const int32& InCommentFontSize, const bool& bInCommentBubbleVisible, const bool& bInCommentColorBubble, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidNodeForGraph(InNode))
 	{
 		return false;
@@ -6229,6 +6554,11 @@ bool URigVMController::SetCommentTextByName(const FName& InNodeName, const FStri
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -6238,6 +6568,11 @@ bool URigVMController::SetCommentTextByName(const FName& InNodeName, const FStri
 
 bool URigVMController::SetRerouteCompactness(URigVMNode* InNode, bool bShowAsFullNode, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidNodeForGraph(InNode))
 	{
 		return false;
@@ -6279,6 +6614,11 @@ bool URigVMController::SetRerouteCompactnessByName(const FName& InNodeName, bool
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -6289,6 +6629,11 @@ bool URigVMController::SetRerouteCompactnessByName(const FName& InNodeName, bool
 bool URigVMController::RenameVariable(const FName& InOldName, const FName& InNewName, bool bSetupUndoRedo)
 {
 	if(!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -6410,6 +6755,11 @@ bool URigVMController::SetPinExpansion(const FString& InPinPath, bool bIsExpande
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -6437,6 +6787,11 @@ bool URigVMController::SetPinExpansion(const FString& InPinPath, bool bIsExpande
 
 bool URigVMController::SetPinExpansion(URigVMPin* InPin, bool bIsExpanded, bool bSetupUndoRedo)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	// If there is nothing to do, just return success
 	if (InPin->GetSubPins().Num() == 0 || InPin->IsExpanded() == bIsExpanded)
 	{
@@ -6477,6 +6832,11 @@ bool URigVMController::SetPinIsWatched(const FString& InPinPath, bool bIsWatched
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -6492,6 +6852,11 @@ bool URigVMController::SetPinIsWatched(const FString& InPinPath, bool bIsWatched
 
 bool URigVMController::SetPinIsWatched(URigVMPin* InPin, bool bIsWatched, bool bSetupUndoRedo)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidPinForGraph(InPin))
 	{
 		return false;
@@ -6569,6 +6934,11 @@ bool URigVMController::SetPinDefaultValue(const FString& InPinPath, const FStrin
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -6618,6 +6988,11 @@ bool URigVMController::SetPinDefaultValue(const FString& InPinPath, const FStrin
 
 bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDefaultValue, bool bResizeArrays, bool bSetupUndoRedo, bool bMergeUndoAction, bool bNotify)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	check(InPin);
 
 	if(!InPin->IsUObject())
@@ -6735,6 +7110,11 @@ bool URigVMController::ResetPinDefaultValue(const FString& InPinPath, bool bSetu
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -6768,6 +7148,11 @@ bool URigVMController::ResetPinDefaultValue(const FString& InPinPath, bool bSetu
 
 bool URigVMController::ResetPinDefaultValue(URigVMPin* InPin, bool bSetupUndoRedo)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	check(InPin);
 
 	URigVMNode* RigVMNode = InPin->GetNode();
@@ -6934,9 +7319,14 @@ FString URigVMController::GetPinInitialDefaultValueFromStruct(UScriptStruct* Scr
 
 FString URigVMController::AddAggregatePin(const FString& InNodeName, const FString& InPinName, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
-#if UE_RIGVM_ENABLE_AGGREGATE_NODES
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	 
 	if (!IsValidGraph())
+	{
+		return FString();
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return FString();
 	}
@@ -6955,6 +7345,11 @@ FString URigVMController::AddAggregatePin(const FString& InNodeName, const FStri
 
 FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InPinName, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return FString();
+	}
+	
 	if (!InNode)
 	{
 		return FString();
@@ -7063,6 +7458,7 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 		if (AggregateNode)
 		{
 			FRigVMControllerGraphGuard GraphGuard(this, AggregateNode->GetContainedGraph(), bSetupUndoRedo);
+			TGuardValue<bool> GuardEditGraph(GetGraph()->bEditable, true);
 			if (UnitNode)
 			{
 				uint16 Index = 0;
@@ -7116,6 +7512,7 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 	URigVMPin* NewPin = nullptr;	
 	{
 		FRigVMControllerGraphGuard GraphGuard(this, AggregateNode->GetContainedGraph(), bSetupUndoRedo);
+		TGuardValue<bool> GuardEditGraph(GetGraph()->bEditable, true);
 
 		URigVMNode* InnerNode = (AggregateNode == nullptr) ?
 									((UnitNode == nullptr) ? (URigVMNode*) FunctionReferenceNode : UnitNode)
@@ -7138,18 +7535,53 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 			return FString();
 		}
 
+		FName NewName = *InPinName;
+		if (NewName.IsNone())
+		{
+			URigVMNode* LastInnerNode = AggregateNode->GetLastInnerNode();
+			URigVMPin* SecondAggregateInnerPin = LastInnerNode->GetSecondAggregatePin();
+			FString LastAggregateName;
+			if (AggregateNode->IsInputAggregate())
+			{
+				TArray<URigVMPin*> SourcePins = SecondAggregateInnerPin->GetLinkedSourcePins();
+				if (SourcePins.Num() > 0)
+				{
+					LastAggregateName = SourcePins[0]->GetName();
+				}
+			}
+			else
+			{
+				TArray<URigVMPin*> TargetPins = SecondAggregateInnerPin->GetLinkedTargetPins();
+				if (TargetPins.Num() > 0)
+				{
+					LastAggregateName = TargetPins[0]->GetName();
+				}
+			}
+
+			if (URigVMUnitNode* InnerUnitNode = Cast<URigVMUnitNode>(LastInnerNode))
+			{
+				NewName = InnerUnitNode->GetNextAggregateName(*LastAggregateName);
+			}
+		}
+		if (NewName.IsNone())
+		{
+			NewName = InnerNode->GetSecondAggregatePin()->GetFName();
+		}
+		
 		const URigVMPin* Arg1 = AggregateNode->GetFirstAggregatePin();
-		FName NewPinName = AddExposedPin(*InPinName, Arg1->GetDirection(), Arg1->GetCPPType(), *Arg1->GetCPPTypeObject()->GetPathName(), InDefaultValue, bSetupUndoRedo);
+		FName NewPinName = AddExposedPin(NewName, Arg1->GetDirection(), Arg1->GetCPPType(), *Arg1->GetCPPTypeObject()->GetPathName(), InDefaultValue, bSetupUndoRedo);
 		NewPin = AggregateNode->FindPin(NewPinName.ToString());
 		URigVMPin* NewUnitPinArg1 = NewNode->GetFirstAggregatePin();
 		URigVMPin* NewUnitPinArg2 = NewNode->GetSecondAggregatePin();
 		URigVMPin* NewUnitPinOppositeArg = NewNode->GetOppositeAggregatePin();
+		URigVMNode* PreviousNode = nullptr;
 		if(AggregateNode->IsInputAggregate())
 		{		
 			URigVMFunctionEntryNode* EntryNode = AggregateNode->GetEntryNode();
 			URigVMPin* EntryPin = EntryNode->FindPin(NewPinName.ToString());
 			URigVMPin* ReturnPin = AggregateNode->GetReturnNode()->FindPin(NewUnitPinOppositeArg->GetName());
-			URigVMPin* PreviousReturnPin = ReturnPin->GetLinkedSourcePins()[0];					
+			URigVMPin* PreviousReturnPin = ReturnPin->GetLinkedSourcePins()[0];
+			PreviousNode = PreviousReturnPin->GetNode();
 		
 			BreakAllLinks(ReturnPin, true, bSetupUndoRedo);
 			AddLink(PreviousReturnPin, NewUnitPinArg1, bSetupUndoRedo);						
@@ -7162,24 +7594,33 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 			URigVMPin* NewReturnPin = ReturnNode->FindPin(NewPinName.ToString());
 			URigVMPin* OldReturnPin = ReturnNode->GetPins()[ReturnNode->GetPins().Num()-2];
 			URigVMPin* PreviousReturnPin = OldReturnPin->GetLinkedSourcePins()[0];
+			PreviousNode = PreviousReturnPin->GetNode();
 
 			BreakAllLinks(OldReturnPin, true, bSetupUndoRedo);
 			AddLink(PreviousReturnPin, NewUnitPinOppositeArg, bSetupUndoRedo);						
 			AddLink(NewUnitPinArg1, OldReturnPin, bSetupUndoRedo);
 			AddLink(NewUnitPinArg2, NewReturnPin, bSetupUndoRedo);
-
 		}
 
+		// Rearrange the graph nodes
+		URigVMFunctionReturnNode* ReturnNode = AggregateNode->GetReturnNode();
+		FVector2D NodeDimensions(200, 150);
+		SetNodePosition(NewNode, PreviousNode->GetPosition() + NodeDimensions, bSetupUndoRedo);
+		SetNodePosition(ReturnNode, NewNode->GetPosition() + NodeDimensions, bSetupUndoRedo);
+
 		// Connect other input pins
-		for (URigVMPin* OtherEntryPin : AggregateNode->GetEntryNode()->GetPins())
+		for (URigVMPin* OtherInputPin : AggregateNode->GetFirstInnerNode()->GetPins())
 		{
-			if (OtherEntryPin->GetName() != NewUnitPinArg1->GetName() &&
-				OtherEntryPin->GetName() != NewUnitPinArg2->GetName() &&
-				OtherEntryPin->GetName() != NewUnitPinOppositeArg->GetName())
+			if (OtherInputPin->GetName() != NewUnitPinArg1->GetName() &&
+				OtherInputPin->GetName() != NewUnitPinArg2->GetName() &&
+				OtherInputPin->GetName() != NewUnitPinOppositeArg->GetName())
 			{
+				URigVMPin* OtherEntryPin = AggregateNode->GetEntryNode()->FindPin(OtherInputPin->GetName());
 				AddLink(OtherEntryPin, NewNode->FindPin(OtherEntryPin->GetName()), bSetupUndoRedo);
 			}
 		}
+
+		AggregateNode->LastInnerNodeCache = NewNode;
 	}
 
 	if (!NewPin)
@@ -7218,9 +7659,14 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 
 bool URigVMController::RemoveAggregatePin(const FString& InPinPath, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
-#if UE_RIGVM_ENABLE_AGGREGATE_NODES
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	
 	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -7239,6 +7685,11 @@ bool URigVMController::RemoveAggregatePin(const FString& InPinPath, bool bSetupU
 
 bool URigVMController::RemoveAggregatePin(URigVMPin* InPin, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!InPin)
 	{
 		return false;
@@ -7270,13 +7721,15 @@ bool URigVMController::RemoveAggregatePin(URigVMPin* InPin, bool bSetupUndoRedo,
 					if (EntryPin->GetLinkedTargetPins().Num() > 0)
 					{
 						FRigVMControllerGraphGuard GraphGuard(this, AggregateNode->GetContainedGraph(), bSetupUndoRedo);
+						TGuardValue<bool> GuardEditGraph(GetGraph()->bEditable, true);
+						
 						URigVMPin* TargetPin = EntryPin->GetLinkedTargetPins()[0];
 					
 						URigVMNode* NodeToRemove = TargetPin->GetNode();
 						URigVMPin* ResultPin = NodeToRemove->GetOppositeAggregatePin();
 						URigVMPin* NextNodePin = ResultPin->GetLinkedTargetPins()[0];
 
-						if (NodeToRemove == AggregateNode->FirstInnerNodeCache)
+						if (NodeToRemove == AggregateNode->FirstInnerNodeCache || NodeToRemove == AggregateNode->LastInnerNodeCache)
 						{
 							AggregateNode->InvalidateCache();
 						}
@@ -7302,6 +7755,8 @@ bool URigVMController::RemoveAggregatePin(URigVMPin* InPin, bool bSetupUndoRedo,
 					if (ReturnPin->GetLinkedSourcePins().Num() > 0)
 					{
 						FRigVMControllerGraphGuard GraphGuard(this, AggregateNode->GetContainedGraph(), bSetupUndoRedo);
+						TGuardValue<bool> GuardEditGraph(GetGraph()->bEditable, true);
+						
 						URigVMPin* SourcePin = ReturnPin->GetLinkedSourcePins()[0];
 					
 						URigVMNode* NodeToRemove = SourcePin->GetNode();
@@ -7309,7 +7764,7 @@ bool URigVMController::RemoveAggregatePin(URigVMPin* InPin, bool bSetupUndoRedo,
 						URigVMPin* NextNodePin = OppositePin->GetLinkedSourcePins()[0];
 						URigVMNode* NextNode = NextNodePin->GetNode();
 
-						if (NodeToRemove == AggregateNode->FirstInnerNodeCache)
+						if (NodeToRemove == AggregateNode->FirstInnerNodeCache || NodeToRemove == AggregateNode->LastInnerNodeCache)
 						{
 							AggregateNode->InvalidateCache();
 						}
@@ -7376,6 +7831,11 @@ FString URigVMController::DuplicateArrayPin(const FString& InArrayElementPinPath
 		return FString();
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return FString();
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -7403,6 +7863,11 @@ FString URigVMController::DuplicateArrayPin(const FString& InArrayElementPinPath
 FString URigVMController::InsertArrayPin(const FString& InArrayPinPath, int32 InIndex, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return FString();
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return FString();
 	}
@@ -7440,6 +7905,11 @@ FString URigVMController::InsertArrayPin(const FString& InArrayPinPath, int32 In
 
 URigVMPin* URigVMController::InsertArrayPin(URigVMPin* ArrayPin, int32 InIndex, const FString& InDefaultValue, bool bSetupUndoRedo)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+	
 	if (!ArrayPin->IsArray())
 	{
 		ReportErrorf(TEXT("Pin '%s' is not an array."), *ArrayPin->GetPinPath());
@@ -7527,6 +7997,11 @@ bool URigVMController::RemoveArrayPin(const FString& InArrayElementPinPath, bool
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -7594,6 +8069,11 @@ bool URigVMController::RemoveArrayPin(const FString& InArrayElementPinPath, bool
 
 bool URigVMController::RemovePin(URigVMPin* InPinToRemove, bool bSetupUndoRedo, bool bNotify)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	if (bSetupUndoRedo)
 	{
@@ -7639,6 +8119,11 @@ bool URigVMController::ClearArrayPin(const FString& InArrayPinPath, bool bSetupU
 bool URigVMController::SetArrayPinSize(const FString& InArrayPinPath, int32 InSize, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -7729,6 +8214,11 @@ bool URigVMController::BindPinToVariable(const FString& InPinPath, const FString
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -7765,6 +8255,11 @@ bool URigVMController::BindPinToVariable(const FString& InPinPath, const FString
 
 bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewBoundVariablePath, bool bSetupUndoRedo, const FString& InVariableNodeName)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidPinForGraph(InPin))
 	{
 		return false;
@@ -7900,6 +8395,11 @@ bool URigVMController::UnbindPinFromVariable(const FString& InPinPath, bool bSet
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -7926,6 +8426,11 @@ bool URigVMController::UnbindPinFromVariable(const FString& InPinPath, bool bSet
 
 bool URigVMController::UnbindPinFromVariable(URigVMPin* InPin, bool bSetupUndoRedo)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidPinForGraph(InPin))
 	{
 		return false;
@@ -7969,6 +8474,11 @@ bool URigVMController::MakeBindingsFromVariableNode(const FName& InNodeName, boo
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -7982,6 +8492,11 @@ bool URigVMController::MakeBindingsFromVariableNode(const FName& InNodeName, boo
 
 bool URigVMController::MakeBindingsFromVariableNode(URigVMVariableNode* InNode, bool bSetupUndoRedo)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	check(InNode);
 
 	TArray<TPair<URigVMPin*, URigVMPin*>> Pairs;
@@ -8074,6 +8589,11 @@ bool URigVMController::PromotePinToVariable(const FString& InPinPath, bool bCrea
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -8102,6 +8622,11 @@ bool URigVMController::PromotePinToVariable(const FString& InPinPath, bool bCrea
 
 bool URigVMController::PromotePinToVariable(URigVMPin* InPin, bool bCreateVariableNode, const FVector2D& InNodePosition, bool bSetupUndoRedo)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	check(InPin);
 
 	if (GetGraph()->IsA<URigVMFunctionLibrary>())
@@ -8188,6 +8713,11 @@ bool URigVMController::AddLink(const FString& InOutputPinPath, const FString& In
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -8240,6 +8770,11 @@ bool URigVMController::AddLink(const FString& InOutputPinPath, const FString& In
 
 bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo, ERigVMPinDirection InUserDirection)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if(OutputPin == nullptr)
 	{
 		ReportError(TEXT("OutputPin is nullptr."));
@@ -8450,6 +8985,11 @@ bool URigVMController::BreakLink(const FString& InOutputPinPath, const FString& 
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -8485,6 +9025,11 @@ bool URigVMController::BreakLink(const FString& InOutputPinPath, const FString& 
 
 bool URigVMController::BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if(!IsValidPinForGraph(OutputPin) || !IsValidPinForGraph(InputPin))
 	{
 		return false;
@@ -8555,6 +9100,11 @@ bool URigVMController::BreakAllLinks(const FString& InPinPath, bool bAsInput, bo
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -8587,6 +9137,11 @@ bool URigVMController::BreakAllLinks(const FString& InPinPath, bool bAsInput, bo
 
 bool URigVMController::BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bSetupUndoRedo)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if(!Pin->IsLinked(false))
 	{
 		return false;
@@ -8660,6 +9215,11 @@ void URigVMController::BreakAllLinksRecursive(URigVMPin* Pin, bool bAsInput, boo
 FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection InDirection, const FString& InCPPType, const FName& InCPPTypeObjectPath, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return NAME_None;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return NAME_None;
 	}
@@ -8853,6 +9413,11 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -8951,6 +9516,11 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& InNewPinName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -9127,6 +9697,11 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -9284,6 +9859,11 @@ bool URigVMController::SetExposedPinIndex(const FName& InPinName, int32 InNewInd
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -9356,6 +9936,11 @@ bool URigVMController::SetExposedPinIndex(const FName& InPinName, int32 InNewInd
 URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLibraryNode* InFunctionDefinition, const FVector2D& InNodePosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return nullptr;
 	}
@@ -9471,6 +10056,11 @@ bool URigVMController::SetRemappedVariable(URigVMFunctionReferenceNode* InFuncti
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	if(InInnerVariableName.IsNone())
 	{
 		return false;
@@ -9553,6 +10143,11 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -9584,6 +10179,7 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 
 	{
 		FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
+		TGuardValue<bool> GuardEditGraph(CollapseNode->ContainedGraph->bEditable, true);
 
 		URigVMFunctionEntryNode* EntryNode = NewObject<URigVMFunctionEntryNode>(CollapseNode->ContainedGraph, TEXT("Entry"));
 		CollapseNode->ContainedGraph->Nodes.Add(EntryNode);
@@ -9635,6 +10231,11 @@ bool URigVMController::RemoveFunctionFromLibrary(const FName& InFunctionName, bo
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -9651,6 +10252,11 @@ bool URigVMController::RemoveFunctionFromLibrary(const FName& InFunctionName, bo
 bool URigVMController::RenameFunction(const FName& InOldFunctionName, const FName& InNewFunctionName, bool bSetupUndoRedo)
 {
 	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -9679,6 +10285,11 @@ FRigVMGraphVariableDescription URigVMController::AddLocalVariable(const FName& I
 {
 	FRigVMGraphVariableDescription NewVariable;
 	if (!IsValidGraph())
+	{
+		return NewVariable;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return NewVariable;
 	}
@@ -9771,6 +10382,11 @@ FRigVMGraphVariableDescription URigVMController::AddLocalVariableFromObjectPath(
 		return Description;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return Description;
+	}
+
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsEmpty())
 	{
@@ -9788,6 +10404,11 @@ FRigVMGraphVariableDescription URigVMController::AddLocalVariableFromObjectPath(
 bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -9925,6 +10546,11 @@ bool URigVMController::RenameLocalVariable(const FName& InVariableName, const FN
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -10010,6 +10636,11 @@ bool URigVMController::SetLocalVariableType(const FName& InVariableName, const F
                                             UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -10129,6 +10760,11 @@ bool URigVMController::SetLocalVariableTypeFromObjectPath(const FName& InVariabl
 bool URigVMController::SetLocalVariableDefaultValue(const FName& InVariableName, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand, bool bNotify)
 {
 	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -10380,6 +11016,11 @@ void URigVMController::ExpandPinRecursively(URigVMPin* InPin, bool bSetupUndoRed
 
 bool URigVMController::SetVariableName(URigVMVariableNode* InVariableNode, const FName& InVariableName, bool bSetupUndoRedo)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (!IsValidNodeForGraph(InVariableNode))
 	{
 		return false;
@@ -10449,6 +11090,11 @@ URigVMRerouteNode* URigVMController::AddFreeRerouteNode(bool bShowAsFullNode, co
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -10513,6 +11159,11 @@ URigVMBranchNode* URigVMController::AddBranchNode(const FVector2D& InPosition, c
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -10573,6 +11224,11 @@ URigVMBranchNode* URigVMController::AddBranchNode(const FVector2D& InPosition, c
 URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName& InCPPTypeObjectPath, const FVector2D& InPosition, const FString& InNodeName, bool  bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if(!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return nullptr;
 	}
@@ -10693,6 +11349,11 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -10790,6 +11451,11 @@ URigVMSelectNode* URigVMController::AddSelectNodeFromStruct(UScriptStruct* InScr
 URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return nullptr;
 	}
@@ -10949,6 +11615,11 @@ URigVMEnumNode* URigVMController::AddEnumNode(const FName& InCPPTypeObjectPath, 
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -11012,6 +11683,11 @@ URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FSt
 	bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return nullptr;
 	}
@@ -11308,6 +11984,11 @@ URigVMArrayNode* URigVMController::AddArrayNodeFromObjectPath(ERigVMOpCode InOpC
 		return nullptr;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsEmpty())
 	{
@@ -11367,9 +12048,27 @@ bool URigVMController::IsValidGraph() const
 	return true;
 }
 
+bool URigVMController::IsGraphEditable() const
+{
+	if(!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	return Graph->bEditable;
+}
+
 bool URigVMController::IsValidNodeForGraph(URigVMNode* InNode)
 {
 	if(!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -11401,6 +12100,11 @@ bool URigVMController::IsValidPinForGraph(URigVMPin* InPin)
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	if (InPin == nullptr)
 	{
 		ReportError(TEXT("InPin is nullptr."));
@@ -11423,6 +12127,11 @@ bool URigVMController::IsValidPinForGraph(URigVMPin* InPin)
 bool URigVMController::IsValidLinkForGraph(URigVMLink* InLink)
 {
 	if(!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -11472,6 +12181,11 @@ bool URigVMController::IsValidLinkForGraph(URigVMLink* InLink)
 bool URigVMController::CanAddNode(URigVMNode* InNode, bool bReportErrors, bool bIgnoreFunctionEntryReturnNodes)
 {
 	if(!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -11632,6 +12346,11 @@ bool URigVMController::CanAddEventNode(UScriptStruct* InScriptStruct, const bool
 	{
 		return false;
 	}
+
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
 	
 	check(InScriptStruct);
 	
@@ -11663,6 +12382,11 @@ bool URigVMController::CanAddEventNode(UScriptStruct* InScriptStruct, const bool
 bool URigVMController::CanAddFunctionRefForDefinition(URigVMLibraryNode* InFunctionDefinition, bool bReportErrors)
 {
 	if(!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
 	{
 		return false;
 	}
@@ -12149,6 +12873,7 @@ int32 URigVMController::DetachLinksFromPinObjects(const TArray<URigVMLink*>* InL
 			if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
 			{
 				FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
+				TGuardValue<bool> GuardEditGraph(CollapseNode->ContainedGraph->bEditable, true);
 				DetachLinksFromPinObjects(InLinks, bNotify);
 			}
 		}
@@ -12344,6 +13069,7 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 			if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
 			{
 				FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
+				TGuardValue<bool> GuardEditGraph(CollapseNode->ContainedGraph->bEditable, true);
 				ReattachLinksToPinObjects(bFollowCoreRedirectors, nullptr, bNotify, bSetupOrphanedPins);
 			}
 		}
@@ -12842,6 +13568,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		}
 
 		FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
+		TGuardValue<bool> GuardEditGraph(CollapseNode->ContainedGraph->bEditable, true);
 		// need to get a copy of the node array since the following function could remove nodes from the graph
 		// we don't want to remove elements from the array we are iterating over.
 		TArray<URigVMNode*> ContainedNodes = CollapseNode->GetContainedNodes();
@@ -13729,6 +14456,11 @@ bool URigVMController::ResolveWildCardPin(const FString& InPinPath, const FStrin
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -14017,6 +14749,11 @@ bool URigVMController::ChangePinType(const FString& InPinPath, const FString& In
 		return false;
 	}
 
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
@@ -14030,6 +14767,11 @@ bool URigVMController::ChangePinType(const FString& InPinPath, const FString& In
 
 bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins, bool bBreakLinks, bool bRemoveSubPins)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (InCPPType == TEXT("None") || InCPPType.IsEmpty())
 	{
 		return false;
@@ -14057,6 +14799,11 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 
 bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bSetupOrphanPins, bool bBreakLinks, bool bRemoveSubPins)
 {
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+	
 	if (InCPPType == TEXT("None") || InCPPType.IsEmpty())
 	{
 		return false;

@@ -111,6 +111,7 @@ FString URigVMUnitNode::GetDeprecatedMetadata() const
 
 bool URigVMUnitNode::IsAggregate() const
 {
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	TArray<URigVMPin*> AggregateInputs = GetAggregateInputs();
 	TArray<URigVMPin*> AggregateOutputs = GetAggregateOutputs();
 
@@ -130,12 +131,14 @@ bool URigVMUnitNode::IsAggregate() const
 		
 		return true;
 	}
+#endif
 	
 	return false;
 }
 
 URigVMPin* URigVMUnitNode::GetFirstAggregatePin() const
 {
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	TArray<URigVMPin*> Inputs = GetAggregateInputs();
 	TArray<URigVMPin*> Outputs = GetAggregateOutputs();
 	if (Inputs.Num() == 2 && Outputs.Num() == 1)
@@ -146,11 +149,13 @@ URigVMPin* URigVMUnitNode::GetFirstAggregatePin() const
 	{
 		return Outputs[0];
 	}
+#endif
 	return nullptr;
 }
 
 URigVMPin* URigVMUnitNode::GetSecondAggregatePin() const
 {
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	TArray<URigVMPin*> Inputs = GetAggregateInputs();
 	TArray<URigVMPin*> Outputs = GetAggregateOutputs();
 	if (Inputs.Num() == 2 && Outputs.Num() == 1)
@@ -161,11 +166,13 @@ URigVMPin* URigVMUnitNode::GetSecondAggregatePin() const
 	{
 		return Outputs[1];
 	}
+#endif
 	return nullptr;
 }
 
 URigVMPin* URigVMUnitNode::GetOppositeAggregatePin() const
 {
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	TArray<URigVMPin*> Inputs = GetAggregateInputs();
 	TArray<URigVMPin*> Outputs = GetAggregateOutputs();
 	if (Inputs.Num() == 2 && Outputs.Num() == 1)
@@ -176,6 +183,7 @@ URigVMPin* URigVMUnitNode::GetOppositeAggregatePin() const
 	{
 		return Inputs[0];
 	}
+#endif
 	return nullptr;
 }
 
@@ -187,6 +195,7 @@ bool URigVMUnitNode::IsInputAggregate() const
 TArray<URigVMPin*> URigVMUnitNode::GetAggregateInputs() const
 {
 	TArray<URigVMPin*> AggregateInputs;
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	if (UScriptStruct* Struct = GetScriptStruct())
 	{
 		for (URigVMPin* Pin : GetPins())
@@ -203,12 +212,14 @@ TArray<URigVMPin*> URigVMUnitNode::GetAggregateInputs() const
 			}
 		}
 	}
+#endif
 	return AggregateInputs;
 }
 
 TArray<URigVMPin*> URigVMUnitNode::GetAggregateOutputs() const
 {
 	TArray<URigVMPin*> AggregateOutputs;
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED	
 	if (UScriptStruct* Struct = GetScriptStruct())
 	{
 		for (URigVMPin* Pin : GetPins())
@@ -225,7 +236,23 @@ TArray<URigVMPin*> URigVMUnitNode::GetAggregateOutputs() const
 			}
 		}
 	}
+#endif
 	return AggregateOutputs;
+}
+
+FName URigVMUnitNode::GetNextAggregateName(const FName& InLastAggregatePinName) const
+{
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED	
+	if(UScriptStruct* Struct = GetScriptStruct())
+	{
+		check(Struct->IsChildOf(FRigVMStruct::StaticStruct()));
+
+		const TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance();
+		const FRigVMStruct* StructMemory = (const FRigVMStruct*)StructOnScope->GetStructMemory();
+		return StructMemory->GetNextAggregateName(InLastAggregatePinName);
+	}
+#endif
+	return FName();
 }
 
 UScriptStruct* URigVMUnitNode::GetScriptStruct() const

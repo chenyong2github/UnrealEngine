@@ -1062,6 +1062,16 @@ URigVMPin* UControlRigGraphNode::GetModelPinFromPinPath(const FString& InPinPath
 	return nullptr;
 }
 
+void UControlRigGraphNode::HandleAddAggregateElement(const FString& InNodePath)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	if (URigVMController* Controller = GetController())
+	{
+		Controller->AddAggregatePin(InNodePath, FString(), FString(), true, true);
+	}	
+}
+
 void UControlRigGraphNode::SetupPinDefaultsFromModel(UEdGraphPin* Pin)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()

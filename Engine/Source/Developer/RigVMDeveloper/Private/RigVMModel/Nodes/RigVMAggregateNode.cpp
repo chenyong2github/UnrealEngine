@@ -7,85 +7,180 @@
 URigVMAggregateNode::URigVMAggregateNode()
 	: Super()
 	, FirstInnerNodeCache(nullptr)
+	, LastInnerNodeCache(nullptr)
 {
 }
 
 bool URigVMAggregateNode::IsInputAggregate() const
 {
-	return GetFirstAggregatePin()->GetDirection() == ERigVMPinDirection::Input;
+	for (URigVMNode* Node : GetContainedNodes())
+	{
+		if (!Node->IsA<URigVMFunctionEntryNode>() && !Node->IsA<URigVMFunctionReturnNode>())
+		{
+			if (URigVMPin* FirstAggregatePin = Node->GetFirstAggregatePin())
+			{
+				return FirstAggregatePin->GetDirection() == ERigVMPinDirection::Input;
+			}
+		}
+	}
+	return false;
 }
 
 URigVMNode* URigVMAggregateNode::GetFirstInnerNode() const
 {
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
+
 	if (FirstInnerNodeCache == nullptr)
 	{
-		// Find any inner node (not entry or return)
-		URigVMNode* InnerNode = nullptr;
+		if (GetContainedNodes().Num() < 3)
 		{
-			for (URigVMNode* Node : GetContainedGraph()->GetNodes())
-			{
-				if (!Node->IsA<URigVMFunctionEntryNode>() && !Node->IsA<URigVMFunctionReturnNode>())
-				{
-					InnerNode = Node;
-					break;
-				}
-			}
-
-			if (!InnerNode || !InnerNode->IsAggregate())
-			{
-				return nullptr;
-			}
+			return nullptr;
 		}
-
-		// Find the aggregate pins
-		URigVMGraph* Graph = GetContainedGraph();
-		if (URigVMFunctionEntryNode* EntryNode = Graph->GetEntryNode())
+		
+		if (IsInputAggregate())
 		{
-			URigVMPin* Arg1Pin = nullptr;
-			const URigVMPin* Argument1 = InnerNode->GetFirstAggregatePin();
-			if (Argument1->GetDirection() == ERigVMPinDirection::Input)
+			// Find node connected twice to the entry (through aggregate arguments)
+			FString Arg1Name = GetFirstAggregatePin()->GetName();
+			FString Arg2Name = GetSecondAggregatePin()->GetName();
+			URigVMFunctionEntryNode* EntryNode = GetEntryNode();
+			TArray<URigVMNode*> ConnectedNodes;
+			for (URigVMPin* EntryPin : EntryNode->GetPins())
 			{
-				Arg1Pin = EntryNode->FindPin(Argument1->GetName());
-			}
-			else
-			{
-				const URigVMPin* OppositeArgument = InnerNode->GetOppositeAggregatePin();
-				Arg1Pin = EntryNode->FindPin(OppositeArgument->GetName());				
-			}
-			if (Arg1Pin)
-			{
-				TArray<URigVMPin*> TargetPins = Arg1Pin->GetLinkedTargetPins();
+				TArray<URigVMPin*> TargetPins = EntryPin->GetLinkedTargetPins();
 				if (TargetPins.Num() > 0)
 				{
-					FirstInnerNodeCache = TargetPins[0]->GetNode(); 
+					if (TargetPins[0]->GetName() == Arg1Name || TargetPins[0]->GetName() == Arg2Name)
+					{
+						URigVMNode* TargetNode = TargetPins[0]->GetNode();
+						if (ConnectedNodes.Contains(TargetNode))
+						{
+							FirstInnerNodeCache = TargetNode;
+							return FirstInnerNodeCache;
+						}
+
+						ConnectedNodes.Add(TargetNode);
+					}
+				}
+			}
+		}
+		else
+		{
+			// Find node connected to entry throught the opposite aggregate argument 
+			FString ArgOppositeName = GetOppositeAggregatePin()->GetName();
+			URigVMFunctionEntryNode* EntryNode = GetEntryNode();
+			if (URigVMPin* EntryPin = EntryNode->FindPin(ArgOppositeName))
+			{
+				TArray<URigVMPin*> TargetPins = EntryPin->GetLinkedTargetPins();
+				if (TargetPins.Num() > 0)
+				{
+					FirstInnerNodeCache = TargetPins[0]->GetNode();
+					return FirstInnerNodeCache;
 				}
 			}
 		}
 	}
+#endif
 	return FirstInnerNodeCache;
+}
+
+URigVMNode* URigVMAggregateNode::GetLastInnerNode() const
+{
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
+
+	if (LastInnerNodeCache == nullptr)
+	{
+		FString ArgOppositeName = GetOppositeAggregatePin()->GetName();
+		if (IsInputAggregate())
+		{
+			// Find node connected to return throught the opposite aggregate argument
+			URigVMFunctionReturnNode* ReturnNode = GetReturnNode();
+			if (URigVMPin* ReturnPin = ReturnNode->FindPin(ArgOppositeName))
+			{
+				TArray<URigVMPin*> SourcePins = ReturnPin->GetLinkedSourcePins();
+				if(SourcePins.Num() > 0)
+				{
+					LastInnerNodeCache = SourcePins[0]->GetNode();
+					return LastInnerNodeCache;
+				}
+			}
+		}
+		else
+		{
+			// Find node connected twice to the return (through aggregate arguments)
+			FString Arg1Name = GetFirstAggregatePin()->GetName();
+			FString Arg2Name = GetSecondAggregatePin()->GetName();
+			URigVMFunctionReturnNode* ReturnNode = GetReturnNode();
+			TArray<URigVMNode*> ConnectedNodes;
+			for (URigVMPin* ReturnPin : ReturnNode->GetPins())
+			{
+				TArray<URigVMPin*> SourcePins = ReturnPin->GetLinkedSourcePins();
+				if (SourcePins.Num() > 0)
+				{
+					if (SourcePins[0]->GetName() == Arg1Name || SourcePins[0]->GetName() == Arg2Name)
+					{
+						URigVMNode* SourceNode = SourcePins[0]->GetNode();
+						if (ConnectedNodes.Contains(SourceNode))
+						{
+							LastInnerNodeCache = SourceNode;
+							return LastInnerNodeCache;
+						}
+
+						ConnectedNodes.Add(SourceNode);
+					}
+				}
+			}
+		}
+	}
+#endif
+	return LastInnerNodeCache;
 }
 
 URigVMPin* URigVMAggregateNode::GetFirstAggregatePin() const
 {
-	const URigVMNode* FirstNode = GetFirstInnerNode();
-	return FirstNode->GetFirstAggregatePin();
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
+	for (URigVMNode* Node : GetContainedNodes())
+	{
+		if (!Node->IsA<URigVMFunctionEntryNode>() && !Node->IsA<URigVMFunctionReturnNode>())
+		{
+			return Node->GetFirstAggregatePin();
+		}
+	}
+#endif
+	return nullptr;
 }
 
 URigVMPin* URigVMAggregateNode::GetSecondAggregatePin() const
 {
-	const URigVMNode* FirstNode = GetFirstInnerNode();
-	return FirstNode->GetSecondAggregatePin();
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
+	for (URigVMNode* Node : GetContainedNodes())
+	{
+		if (!Node->IsA<URigVMFunctionEntryNode>() && !Node->IsA<URigVMFunctionReturnNode>())
+		{
+			return Node->GetSecondAggregatePin();
+		}
+	}
+#endif
+	return nullptr;
 }
 
 URigVMPin* URigVMAggregateNode::GetOppositeAggregatePin() const
 {
-	const URigVMNode* FirstNode = GetFirstInnerNode();
-	return FirstNode->GetOppositeAggregatePin();
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
+	for (URigVMNode* Node : GetContainedNodes())
+	{
+		if (!Node->IsA<URigVMFunctionEntryNode>() && !Node->IsA<URigVMFunctionReturnNode>())
+		{
+			return Node->GetOppositeAggregatePin();
+		}
+	}
+#endif
+	return nullptr;
 }
 
 void URigVMAggregateNode::InvalidateCache()
 {
 	FirstInnerNodeCache = nullptr;
+	LastInnerNodeCache = nullptr;
 }
 
 FString URigVMAggregateNode::GetNodeTitle() const

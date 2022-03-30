@@ -6410,6 +6410,15 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 		return;
 	}
 
+	// look out for the next aggregate name method
+	static const FString GetNextAggregateNameString = TEXT("GetNextAggregateName");
+	if(MethodInfo.Name == GetNextAggregateNameString)
+	{
+		FRigVMStructInfo& StructRigVMInfo = StructDef.GetRigVMInfo();
+		StructRigVMInfo.bHasGetNextAggregateNameMethod = true;
+		return;
+	}
+
 	FString ParamString = FString::Join(ParamsContent, TEXT(" "));
 	if (!ParamString.IsEmpty())
 	{

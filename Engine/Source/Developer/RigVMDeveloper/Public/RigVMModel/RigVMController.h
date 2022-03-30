@@ -24,10 +24,6 @@
 #define UE_RIGVM_ENABLE_TEMPLATE_NODES 1
 #endif
 
-#ifndef UE_RIGVM_ENABLE_AGGREGATE_NODES
-#define UE_RIGVM_ENABLE_AGGREGATE_NODES 0
-#endif
-
 class URigVMActionStack;
 
 UENUM()
@@ -604,7 +600,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool RemoveAggregatePin(const FString& InPinPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
-#if UE_RIGVM_ENABLE_AGGREGATE_NODES
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	FString AddAggregatePin(URigVMNode* InNode, const FString& InPinName, const FString& InDefaultValue = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 	bool RemoveAggregatePin(URigVMPin* InPin, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 #endif
@@ -881,6 +877,7 @@ private:
 
 	FString GetValidNodeName(const FString& InPrefix);
 	bool IsValidGraph() const;
+	bool IsGraphEditable() const;
 	bool IsValidNodeForGraph(URigVMNode* InNode);
 	bool IsValidPinForGraph(URigVMPin* InPin);
 	bool IsValidLinkForGraph(URigVMLink* InLink);
@@ -1057,6 +1054,7 @@ private:
 
 	FRigVMUnitNodeCreatedContext UnitNodeCreatedContext;
 
+	bool bIsTransacting; // Performing undo/redo transaction
 	bool bIsRunningUnitTest;
 	bool bIsFullyResolvingTemplateNode;
 

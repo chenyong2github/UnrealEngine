@@ -440,6 +440,11 @@ namespace EpicGames.UHT.Types
 		/// True if the GetUpgradeInfoMethod was found. 
 		/// </summary>
 		public bool bHasGetUpgradeInfoMethod = false;
+		
+		/// <summary>
+		/// True if the GetNextAggregateNameMethod was found. 
+		/// </summary>
+		public bool bHasGetNextAggregateNameMethod = false;
 
 		/// <summary>
 		/// Engine name of the owning script struct
