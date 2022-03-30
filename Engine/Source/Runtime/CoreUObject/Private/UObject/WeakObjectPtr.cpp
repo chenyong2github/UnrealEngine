@@ -50,11 +50,18 @@ bool FWeakObjectPtr::IsValid() const
 
 bool FWeakObjectPtr::IsStale(bool bEvenIfPendingKill, bool bThreadsafeTest) const
 {
+	using namespace UE::Core::Private;
+
 	if (ObjectSerialNumber == 0)
 	{
+#if UE_WEAKOBJECTPTR_ZEROINIT_FIX
+		checkSlow(ObjectIndex == InvalidWeakObjectIndex); // otherwise this is a corrupted weak pointer
+#else
 		checkSlow(ObjectIndex == 0 || ObjectIndex == -1); // otherwise this is a corrupted weak pointer
+#endif
 		return false;
 	}
+
 	if (ObjectIndex < 0)
 	{
 		return true;
@@ -91,7 +98,7 @@ UObject* FWeakObjectPtr::GetEvenIfUnreachable() const
 	UObject* Result = nullptr;
 	if (Internal_IsValid(true, true))
 	{
-		FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(GetObjectIndex(), true);
+		FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(GetObjectIndex_Private(), true);
 		Result = static_cast<UObject*>(ObjectItem->Object);
 	}
 	return Result;

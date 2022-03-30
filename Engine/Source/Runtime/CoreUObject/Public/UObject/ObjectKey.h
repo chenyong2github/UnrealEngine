@@ -13,14 +13,14 @@ struct FObjectKey
 public:
 	/** Default constructor */
 	FORCEINLINE FObjectKey()
-		: ObjectIndex(INDEX_NONE)
+		: ObjectIndex(UE::Core::Private::InvalidWeakObjectIndex)
 		, ObjectSerialNumber(0)
 	{
 	}
 
 	/** Construct from an object pointer */
 	FORCEINLINE FObjectKey(const UObject* Object)
-		: ObjectIndex(INDEX_NONE)
+		: ObjectIndex(UE::Core::Private::InvalidWeakObjectIndex)
 		, ObjectSerialNumber(0)
 	{
 		if (Object)
