@@ -9,7 +9,6 @@
 #include "Nodes/InterchangeBaseNode.h"
 
 class UInterchangeBaseNode;
-class UInterchangeFactoryBase;
 
 namespace UE
 {
@@ -22,16 +21,19 @@ namespace UE
 		private:
 			FString PackageBasePath;
 			int32 SourceIndex;
-			TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
+			TWeakPtr<FImportAsyncHelper> WeakAsyncHelper;
 			TArray<UInterchangeBaseNode*> Nodes;
-			UInterchangeFactoryBase* Factory;
-			bool bCreateSceneObjectsForChildren = false;
+			const UClass* FactoryClass;
 
 		public:
-			explicit FTaskCreateSceneObjects(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, TArrayView<UInterchangeBaseNode*> InNodes,
-				UInterchangeFactoryBase* InFactory, bool bInCreateSceneObjectsForChildren);
+			explicit FTaskCreateSceneObjects(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper> InAsyncHelper, TArrayView<UInterchangeBaseNode*> InNodes, const UClass* InFactoryClass);
 
-			ENamedThreads::Type GetDesiredThread();
+			ENamedThreads::Type GetDesiredThread()
+			{
+				// We are creating the factories in this task so it must execute on the GameThread.
+				// Also, there are no "CreatePackage Task" equivalent for scene objects right now, so the factories must create those on the game thread.
+				return ENamedThreads::GameThread;
+			}
 
 			static ESubsequentsMode::Type GetSubsequentsMode()
 			{

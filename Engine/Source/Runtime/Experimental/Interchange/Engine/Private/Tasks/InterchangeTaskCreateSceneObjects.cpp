@@ -21,21 +21,14 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
-UE::Interchange::FTaskCreateSceneObjects::FTaskCreateSceneObjects(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper,
-	TArrayView<UInterchangeBaseNode*> InNodes, UInterchangeFactoryBase* InFactory, bool bInCreateSceneObjectsForChildren)
+UE::Interchange::FTaskCreateSceneObjects::FTaskCreateSceneObjects(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper> InAsyncHelper, TArrayView<UInterchangeBaseNode*> InNodes, const UClass* InFactoryClass)
 	: PackageBasePath(InPackageBasePath)
 	, SourceIndex(InSourceIndex)
 	, WeakAsyncHelper(InAsyncHelper)
 	, Nodes(InNodes)
-	, Factory(InFactory)
-	, bCreateSceneObjectsForChildren(bInCreateSceneObjectsForChildren)
+	, FactoryClass(InFactoryClass)
 {
-	check(Factory);
-}
-
-ENamedThreads::Type UE::Interchange::FTaskCreateSceneObjects::GetDesiredThread()
-{
-	return Factory->CanExecuteOnAnyThread() ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::GameThread;
+	check(FactoryClass);
 }
 
 void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -50,7 +43,7 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 		GCScopeGuard.Emplace();
 	}
 
-	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
+	TSharedPtr<UE::Interchange::FImportAsyncHelper> AsyncHelper = WeakAsyncHelper.Pin();
 	check(WeakAsyncHelper.IsValid());
 
 	//Verify if the task was canceled
@@ -61,49 +54,45 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 
 	for (UInterchangeBaseNode* Node : Nodes)
 	{
+		UInterchangeFactoryBase* Factory = NewObject<UInterchangeFactoryBase>(GetTransientPackage(), FactoryClass);
+		Factory->SetResultsContainer(AsyncHelper->AssetImportResult->GetResults());
+		{
+			FScopeLock Lock(&AsyncHelper->CreatedFactoriesLock);
+			AsyncHelper->CreatedFactories.Add(Node->GetUniqueID(), Factory);
+		}
+
 		FString NodeDisplayName = Node->GetDisplayLabel();
 		SanitizeObjectName(NodeDisplayName);
 
 		UInterchangeFactoryBase::FCreateSceneObjectsParams CreateSceneObjectsParams;
 		CreateSceneObjectsParams.ObjectName = NodeDisplayName;
-		CreateSceneObjectsParams.ObjectNode = Node;
+		CreateSceneObjectsParams.FactoryNode = Node;
 		CreateSceneObjectsParams.Level = GWorld->GetCurrentLevel();
-		CreateSceneObjectsParams.bCreateSceneObjectsForChildren = bCreateSceneObjectsForChildren;
 
 		if (AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
 		{
 			CreateSceneObjectsParams.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
 		}
 
-		TMap<FString, UObject*> SceneObjects = Factory->CreateSceneObjects(CreateSceneObjectsParams);
-
-		for (const TPair<FString, UObject*>& SceneObject : SceneObjects)
+		UObject* SceneObject = Factory->CreateSceneObject(CreateSceneObjectsParams);
+		if (SceneObject)
 		{
-			if (UObject* NodeObject = SceneObject.Value)
+			FScopeLock Lock(&AsyncHelper->ImportedSceneObjectsPerSourceIndexLock);
+			TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedInfos = AsyncHelper->ImportedSceneObjectsPerSourceIndex.FindOrAdd(SourceIndex);
+			UE::Interchange::FImportAsyncHelper::FImportedObjectInfo* ImportedInfoPtr = ImportedInfos.FindByPredicate([SceneObject](const UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& CurInfo)
+				{
+					return CurInfo.ImportedObject == SceneObject;
+				});
+
+			if (!ImportedInfoPtr)
 			{
-				FScopeLock Lock(&AsyncHelper->ImportedSceneObjectsPerSourceIndexLock);
-				TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedInfos = AsyncHelper->ImportedSceneObjectsPerSourceIndex.FindOrAdd(SourceIndex);
-				UE::Interchange::FImportAsyncHelper::FImportedObjectInfo* ImportedInfoPtr = ImportedInfos.FindByPredicate([NodeObject](const UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& CurInfo)
-					{
-						return CurInfo.ImportedObject == NodeObject;
-					});
-
-				if (!ImportedInfoPtr)
-				{
-					UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& ObjectInfo = ImportedInfos.AddDefaulted_GetRef();
-					ObjectInfo.ImportedObject = NodeObject;
-					ObjectInfo.Factory = Factory;
-					ObjectInfo.FactoryNode = Node;
-				}
-
-				if (CreateSceneObjectsParams.NodeContainer)
-				{
-					if (const UInterchangeBaseNode* ActorNode = CreateSceneObjectsParams.NodeContainer->GetNode(SceneObject.Key))
-					{
-						ActorNode->ReferenceObject = FSoftObjectPath(SceneObject.Value);
-					}
-				}
+				UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& ObjectInfo = ImportedInfos.AddDefaulted_GetRef();
+				ObjectInfo.ImportedObject = SceneObject;
+				ObjectInfo.Factory = Factory;
+				ObjectInfo.FactoryNode = Node;
 			}
+
+			Node->ReferenceObject = FSoftObjectPath(SceneObject);
 		}
 	}
 }

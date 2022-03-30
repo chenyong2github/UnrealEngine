@@ -102,25 +102,21 @@ public:
 		FString ObjectName;
 
 		/** The base node that describe how to create the asset */
-		UInterchangeBaseNode* ObjectNode = nullptr;
+		UInterchangeBaseNode* FactoryNode = nullptr;
 
 		/** The node container associated with the current source index */
 		const UInterchangeBaseNodeContainer* NodeContainer = nullptr;
-
-		/** Whether to create the scene objects for the child nodes or not */
-		bool bCreateSceneObjectsForChildren = false;
 	};
 
 	/**
 	 * Creates the scene object from a Scene Node data.
-	 * If FCreateSceneObjectsParams::bCreateSceneObjectsForChildren is true, will also create the scene objects for our children.
 	 *
 	 * @param Arguments - The structure containing all necessary arguments, see the structure definition for the documentation.
-	 * @return The node uids and the scene objects that we created from them.
+	 * @return The scene object or nullptr if the operation was unsuccessful.
 	 */
-	virtual TMap<FString, UObject*> CreateSceneObjects(const FCreateSceneObjectsParams& Arguments)
+	virtual UObject* CreateSceneObject(const FCreateSceneObjectsParams& Arguments)
 	{
-		return {};
+		return nullptr;
 	}
 
 	/** Return true if the factory can create the asset asynchronously on any thread, false if it need to be on the main thread */

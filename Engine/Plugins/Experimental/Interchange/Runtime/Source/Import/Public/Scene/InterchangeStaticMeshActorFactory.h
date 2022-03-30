@@ -3,14 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InterchangeFactoryBase.h"
+#include "InterchangeActorFactory.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
-#include "InterchangeActorFactory.generated.h"
+#include "InterchangeStaticMeshActorFactory.generated.h"
+
+class AActor;
+class AStaticMeshActor;
+class UInterchangeActorFactoryNode;
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGEIMPORT_API UInterchangeActorFactory : public UInterchangeFactoryBase
+class INTERCHANGEIMPORT_API UInterchangeStaticMeshActorFactory : public UInterchangeFactoryBase
 {
 	GENERATED_BODY()
 public:
@@ -24,11 +28,15 @@ public:
 
 	virtual bool CanExecuteOnAnyThread() const override
 	{
-		return false;
+		return false; 
 	}
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////
+
+private:
+
+	void SetupStaticMeshActor(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeBaseNode* ActorFactoryNode, AStaticMeshActor* StaticMeshActor);
 };
 
 

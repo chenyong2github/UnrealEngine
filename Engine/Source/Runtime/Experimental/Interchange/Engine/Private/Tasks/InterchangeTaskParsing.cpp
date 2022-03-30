@@ -116,6 +116,7 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 			{
 				continue;
 			}
+			const bool bCanImportSceneNode = AsyncHelper->TaskData.ImportType == EImportType::ImportType_Scene;
 			BaseNodeContainer->IterateNodes([&](const FString& NodeUID, UInterchangeBaseNode* Node)
 			{
 				if (!Node->IsEnabled())
@@ -129,13 +130,6 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 					const UClass* RegisteredFactoryClass = InterchangeManager->GetRegisteredFactoryClass(Node->GetObjectClass());
 
 					const bool bIsAsset = !(Node->GetObjectClass()->IsChildOf<AActor>() || Node->GetObjectClass()->IsChildOf<UActorComponent>());
-					const bool bCanImportSceneNode = [&AsyncHelper, &Node]()
-					{
-						bool bCanImport = AsyncHelper->TaskData.ImportType == EImportType::ImportType_Scene;
-						bCanImport = bCanImport && Node->GetParentUid().IsEmpty(); // We only import root scene nodes since we ask the factory to spawn the children nodes
-
-						return bCanImport;
-					}();
 
 					if (!RegisteredFactoryClass || (!bIsAsset && !bCanImportSceneNode))
 					{
@@ -248,14 +242,12 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 	{
 		TFunction<FGraphEventRef(FTaskData&)> CreateTasksForSceneObject = [this, &AsyncHelper, &AssetsCompletionPrerequistes](FTaskData& TaskData)
 		{
-			const bool bSpawnChildren = true;
 			const int32 SourceIndex = TaskData.SourceIndex;
 			const UClass* const FactoryClass = TaskData.FactoryClass;
 
 			return AsyncHelper->SceneTasks.Add_GetRef(
 				TGraphTask<FTaskCreateSceneObjects>::CreateTask(&AssetsCompletionPrerequistes)
-				.ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, TaskData.Nodes, FactoryClass->GetDefaultObject<UInterchangeFactoryBase>(), bSpawnChildren));
-
+				.ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, TaskData.Nodes, FactoryClass));
 		};
 
 		ScenesCompletionPrerequistes = CreateTasksForEachTaskData(SceneTaskDatas, CreateTasksForSceneObject);

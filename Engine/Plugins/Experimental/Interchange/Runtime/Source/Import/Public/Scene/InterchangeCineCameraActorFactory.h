@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InterchangeFactoryBase.h"
+#include "InterchangeActorFactory.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
-#include "InterchangeActorFactory.generated.h"
+#include "InterchangeCineCameraActorFactory.generated.h"
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGEIMPORT_API UInterchangeActorFactory : public UInterchangeFactoryBase
+class INTERCHANGEIMPORT_API UInterchangeCineCameraActorFactory : public UInterchangeFactoryBase
 {
 	GENERATED_BODY()
 public:
@@ -24,7 +24,7 @@ public:
 
 	virtual bool CanExecuteOnAnyThread() const override
 	{
-		return false;
+		return false; 
 	}
 
 	// Interchange factory base interface end

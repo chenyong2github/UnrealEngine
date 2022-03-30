@@ -98,9 +98,11 @@ void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(UInterchangeBaseNo
 	if (!SceneNode->GetParentUid().IsEmpty())
 	{
 		ActorFactoryNode->SetParentUid(TEXT("Factory_") + SceneNode->GetParentUid());
+		ActorFactoryNode->AddFactoryDependencyUid(ActorFactoryNode->GetParentUid());
 	}
 
 	ActorFactoryNode->AddTargetNodeUid(SceneNode->GetUniqueID());
+	SceneNode->AddTargetNodeUid(ActorFactoryNode->GetUniqueID());
 
 	FTransform GlobalTransform;
 	if (SceneNode->GetCustomGlobalTransform(InBaseNodeContainer, GlobalTransform))

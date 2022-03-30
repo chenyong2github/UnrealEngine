@@ -17,6 +17,9 @@
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "Scene/InterchangeActorFactory.h"
+#include "Scene/InterchangeCineCameraActorFactory.h"
+#include "Scene/InterchangeStaticMeshActorFactory.h"
+#include "Scene/InterchangeSkeletalMeshActorFactory.h"
 #include "Texture/InterchangeBMPTranslator.h"
 #include "Texture/InterchangeDDSTranslator.h"
 #include "Texture/InterchangeEXRTranslator.h"
@@ -90,6 +93,9 @@ void FInterchangeImportModule::StartupModule()
 		InterchangeManager.RegisterFactory(UInterchangePhysicsAssetFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeActorFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeAnimSequenceFactory::StaticClass());
+		InterchangeManager.RegisterFactory(UInterchangeCineCameraActorFactory::StaticClass());
+		InterchangeManager.RegisterFactory(UInterchangeStaticMeshActorFactory::StaticClass());
+		InterchangeManager.RegisterFactory(UInterchangeSkeletalMeshActorFactory::StaticClass());
 	};
 
 	if (GEngine)

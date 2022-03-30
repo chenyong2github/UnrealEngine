@@ -3,14 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InterchangeFactoryBase.h"
+#include "InterchangeActorFactory.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
-#include "InterchangeActorFactory.generated.h"
+#include "InterchangeSkeletalMeshActorFactory.generated.h"
+
+class AActor;
+class ASkeletalMeshActor;
+class UInterchangeActorFactoryNode;
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGEIMPORT_API UInterchangeActorFactory : public UInterchangeFactoryBase
+class INTERCHANGEIMPORT_API UInterchangeSkeletalMeshActorFactory : public UInterchangeActorFactory
 {
 	GENERATED_BODY()
 public:
@@ -29,6 +33,10 @@ public:
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////
+
+private:
+
+	void SetupSkeletalMeshActor(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeBaseNode* ActorFactoryNode, ASkeletalMeshActor* SkeletalMeshActor);
 };
 
 
