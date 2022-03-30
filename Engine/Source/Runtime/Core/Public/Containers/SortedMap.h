@@ -48,6 +48,16 @@ public:
 	{
 	}
 
+	/** Constructor which gets its elements from a native initializer list */
+	TSortedMap(std::initializer_list<TPairInitializer<const KeyType&, const ValueType&>> InitList)
+	{
+		this->Reserve((int32)InitList.size());
+		for (const TPairInitializer<const KeyType&, const ValueType&>& Element : InitList)
+		{
+			this->Add(Element.Key, Element.Value);
+		}
+	}
+
 	/** Assignment operator for moving elements from a TSortedMap with a different ArrayAllocator. */
 	template<typename OtherArrayAllocator>
 	TSortedMap& operator=(TSortedMap<KeyType, ValueType, OtherArrayAllocator, SortPredicate>&& Other)
@@ -61,6 +71,17 @@ public:
 	TSortedMap& operator=(const TSortedMap<KeyType, ValueType, OtherArrayAllocator, SortPredicate>& Other)
 	{
 		Pairs = Other.Pairs;
+		return *this;
+	}
+
+	/** Assignment operator which gets its elements from a native initializer list */
+	TSortedMap& operator=(std::initializer_list<TPairInitializer<const KeyType&, const ValueType&>> InitList)
+	{
+		this->Empty((int32)InitList.size());
+		for (const TPairInitializer<const KeyType&, const ValueType&>& Element : InitList)
+		{
+			this->Add(Element.Key, Element.Value);
+		}
 		return *this;
 	}
 
