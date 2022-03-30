@@ -225,6 +225,12 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		Ar << TempGuid;
 	}
 
+	if ( Settings.bVirtualStreamable && Settings.bSRGB && Settings.bUseLegacyGamma )
+	{
+		TempGuid = FGuid(0xCAEDDFB6,0xEDC2455D,0x8D45B90C,0x3A1B7783);
+		Ar << TempGuid;
+	}
+
 	// Note - compression quality is added to the DDC by the formats (based on whether they
 	// use them or not).
 	// This is true for:

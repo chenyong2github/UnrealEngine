@@ -130,10 +130,6 @@ static void WriteBuildSettings(FCbWriter& Writer, const FTextureBuildSettings& B
 	WriteCbFieldWithDefault<bool>(Writer, "bCubemap", BuildSettings.bCubemap, DefaultSettings.bCubemap);
 	WriteCbFieldWithDefault<bool>(Writer, "bTextureArray", BuildSettings.bTextureArray, DefaultSettings.bTextureArray);
 	WriteCbFieldWithDefault<bool>(Writer, "bVolume", BuildSettings.bVolume, DefaultSettings.bVolume);
-	if ( BuildSettings.bVolume )
-	{
-		WriteCbField<bool>(Writer, "bVolume_ForceNewDDcKey", true); 
-	}
 	WriteCbFieldWithDefault<bool>(Writer, "bLongLatSource", BuildSettings.bLongLatSource, DefaultSettings.bLongLatSource);
 	WriteCbFieldWithDefault<bool>(Writer, "bSRGB", BuildSettings.bSRGB, DefaultSettings.bSRGB);
 	WriteCbFieldWithDefault(Writer, "SourceEncodingOverride", BuildSettings.SourceEncodingOverride, DefaultSettings.SourceEncodingOverride);
@@ -187,6 +183,15 @@ static void WriteBuildSettings(FCbWriter& Writer, const FTextureBuildSettings& B
 	
 	WriteCbFieldWithDefault(Writer, "OodleTextureSdkVersion", BuildSettings.OodleTextureSdkVersion, DefaultSettings.OodleTextureSdkVersion);
 	
+	if ( BuildSettings.bVolume )
+	{
+		WriteCbField<bool>(Writer, "bVolume_ForceNewDDcKey", true); 
+	}
+	if ( BuildSettings.bVirtualStreamable && BuildSettings.bSRGB && BuildSettings.bUseLegacyGamma )
+	{
+		WriteCbField<bool>(Writer, "VTPow22_ForceNewDDcKey", true); 
+	}
+
 	Writer.EndObject();
 }
 
