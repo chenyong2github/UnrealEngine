@@ -57,26 +57,18 @@ FTraceTileResult UnpackTraceTileResult(FTraceTileResultPacked TraceTileResultPac
 
 Buffer<uint> RayAllocatorBuffer;
 RWBuffer<uint> RWHardwareRayTracingIndirectArgs;
+uint2 OutputThreadGroupSize;
 
 [numthreads(1, 1, 1)]
 void LumenRadianceCacheHardwareRayTracingIndirectArgsCS()
 {
 	uint NumRays = RayAllocatorBuffer[0];
+	uint NumGroups = (NumRays + OutputThreadGroupSize.x - 1) / OutputThreadGroupSize.x;
 
-	int3 IndirectArgs = GetRayTracingThreadCountWrapped(NumRays, RADIANCE_CACHE_TRACE_TILE_SIZE_1D);
+	int3 IndirectArgs = GetRayTracingThreadCountWrapped(NumGroups, RADIANCE_CACHE_TRACE_TILE_SIZE_1D);
 	RWHardwareRayTracingIndirectArgs[0] = IndirectArgs.x;
 	RWHardwareRayTracingIndirectArgs[1] = IndirectArgs.y;
 	RWHardwareRayTracingIndirectArgs[2] = IndirectArgs.z;
-
-#if DIM_INLINE_RAYTRACING
-	// For RayTraceDispatchIndirect we dispatch in threads but for DispatchIndirectComputeShader we dispatch in thread groups.
-	// We need to adjust it to get the same number of threads running.
-	uint NumGroups = (NumRays + INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X - 1) / INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
-	IndirectArgs = GetRayTracingThreadCountWrapped(NumGroups, RADIANCE_CACHE_TRACE_TILE_SIZE_1D);
-	RWHardwareRayTracingIndirectArgs[0] = IndirectArgs.x;
-	RWHardwareRayTracingIndirectArgs[1] = IndirectArgs.y;
-	RWHardwareRayTracingIndirectArgs[2] = IndirectArgs.z;
-#endif
 }
 
 #if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING

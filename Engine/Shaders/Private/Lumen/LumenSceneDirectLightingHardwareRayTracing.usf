@@ -28,20 +28,14 @@
 
 Buffer<uint> DispatchLightTilesIndirectArgs;
 RWBuffer<uint> RWHardwareRayTracingIndirectArgs;
+uint2 OutputThreadGroupSize;
 
 [numthreads(1, 1, 1)]
 void LumenDirectLightingHardwareRayTracingIndirectArgsCS()
 {
-	RWHardwareRayTracingIndirectArgs[0] = CARD_TILE_SIZE * CARD_TILE_SIZE;
-	RWHardwareRayTracingIndirectArgs[1] = DispatchLightTilesIndirectArgs[0];
+	RWHardwareRayTracingIndirectArgs[0] = (CARD_TILE_SIZE * CARD_TILE_SIZE + OutputThreadGroupSize.x - 1) / OutputThreadGroupSize.x;
+	RWHardwareRayTracingIndirectArgs[1] = (DispatchLightTilesIndirectArgs[0] + OutputThreadGroupSize.y - 1) / OutputThreadGroupSize.y;
 	RWHardwareRayTracingIndirectArgs[2] = 1;
-
-#if DIM_INLINE_RAYTRACING
-	// For RayTraceDispatchIndirect we dispatch in threads but for DispatchIndirectComputeShader we dispatch in thread groups.
-	// We need to adjust it to get the same number of threads running.
-	RWHardwareRayTracingIndirectArgs[0] = (RWHardwareRayTracingIndirectArgs[0] + INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X - 1) / INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
-	RWHardwareRayTracingIndirectArgs[1] = (RWHardwareRayTracingIndirectArgs[1] + INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y - 1) / INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y;
-#endif
 }
 
 #if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING

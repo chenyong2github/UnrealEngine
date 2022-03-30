@@ -38,9 +38,21 @@ namespace Lumen
 		uint32 BaseInstanceIndex;
 		uint32 UserData;
 	};
+
+	enum class ERayTracingShaderDispatchSize
+	{
+		DispatchSize1D = 0,
+		DispatchSize2D = 1,
+	};
+
+	enum class ERayTracingShaderDispatchType
+	{
+		RayGen = 0,
+		Inline = 1
+	};
 }
 
-class FLumenHardwareRayTracingRGS : public FGlobalShader
+class FLumenHardwareRayTracingShaderBase : public FGlobalShader
 {
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FSharedParameters, )
@@ -57,15 +69,20 @@ public:
 
 		// Surface cache
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
+
+		// Inline data
+		SHADER_PARAMETER_SRV(StructuredBuffer<Lumen::FHitGroupRootConstants>, HitGroupData)
 	END_SHADER_PARAMETER_STRUCT()
 
-
-	FLumenHardwareRayTracingRGS() = default;
-	FLumenHardwareRayTracingRGS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
+	FLumenHardwareRayTracingShaderBase() = default;
+	FLumenHardwareRayTracingShaderBase(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
-	{}
+	{
+	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, Lumen::ESurfaceCacheSampling SurfaceCacheSampling, FShaderCompilerEnvironment& OutEnvironment)
+	static constexpr const Lumen::ERayTracingShaderDispatchSize DispatchSize = Lumen::ERayTracingShaderDispatchSize::DispatchSize2D;
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, Lumen::ERayTracingShaderDispatchType ShaderDispatchType, Lumen::ESurfaceCacheSampling SurfaceCacheSampling, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_FEEDBACK"), SurfaceCacheSampling == Lumen::ESurfaceCacheSampling::AlwaysResidentPagesWithoutFeedback ? 0 : 1);
 		OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_HIGH_RES_PAGES"), SurfaceCacheSampling == Lumen::ESurfaceCacheSampling::HighResPages ? 1 : 0);
@@ -74,53 +91,110 @@ public:
 		// GPU Scene definitions
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+
+		// Inline
+		const bool bInlineRayTracing = ShaderDispatchType == Lumen::ERayTracingShaderDispatchType::Inline;
+		if (bInlineRayTracing)
+		{
+			OutEnvironment.SetDefine(TEXT("LUMEN_HARDWARE_INLINE_RAYTRACING"), 1);
+			OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+			OutEnvironment.CompilerFlags.Add(CFLAG_InlineRayTracing);
+		}
 	}
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	static void ModifyCompilationEnvironmentInternal(Lumen::ERayTracingShaderDispatchSize Size, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform) && DoesPlatformSupportLumenGI(Parameters.Platform);
+		if (DispatchSize == Lumen::ERayTracingShaderDispatchSize::DispatchSize1D)
+		{
+			OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DISPATCH_1D"), 1);
+		}
+	}
+
+	static FIntPoint GetThreadGroupSizeInternal(Lumen::ERayTracingShaderDispatchType ShaderDispatchType, Lumen::ERayTracingShaderDispatchSize ShaderDispatchSize)
+	{
+		// Current inline ray tracing implementation requires 1:1 mapping between thread groups and waves and only supports wave32 mode.
+		const bool bInlineRayTracing = ShaderDispatchType == Lumen::ERayTracingShaderDispatchType::Inline;
+		if (bInlineRayTracing)
+		{
+			switch (ShaderDispatchSize)
+			{
+			case Lumen::ERayTracingShaderDispatchSize::DispatchSize2D: return FIntPoint(8, 4);
+			case Lumen::ERayTracingShaderDispatchSize::DispatchSize1D: return FIntPoint(32, 1);
+			default:
+				checkNoEntry();
+			}
+		}
+
+		return FIntPoint(1, 1);
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters, Lumen::ERayTracingShaderDispatchType ShaderDispatchType)
+	{
+		const bool bInlineRayTracing = ShaderDispatchType == Lumen::ERayTracingShaderDispatchType::Inline;
+		if (bInlineRayTracing)
+		{
+			return ShouldCompileRayTracingShadersForProject(Parameters.Platform) && DoesPlatformSupportLumenGI(Parameters.Platform) && FDataDrivenShaderPlatformInfo::GetSupportsInlineRayTracing(Parameters.Platform);
+			// Proper check pending dxc fixes
+			// return IsRayTracingEnabledForProject(Parameters.Platform) && DoesPlatformSupportLumenGI(Parameters.Platform) && RHISupportsRayTracing(Parameters.Platform) && RHISupportsInlineRayTracing(Parameters.Platform);
+		}
+		else
+		{
+			return ShouldCompileRayTracingShadersForProject(Parameters.Platform) && DoesPlatformSupportLumenGI(Parameters.Platform);
+		}
 	}
 };
 
-class FLumenHardwareRayTracingCS : public FGlobalShader
-{
-public:
-	BEGIN_SHADER_PARAMETER_STRUCT(FInlineParameters, )		
-		SHADER_PARAMETER_SRV(StructuredBuffer<Lumen::FHitGroupRootConstants>, HitGroupData)
-	END_SHADER_PARAMETER_STRUCT()
+#define DECLARE_LUMEN_RAYTRACING_SHADER(ShaderClass, ShaderDispatchSize) \
+	public: \
+	ShaderClass() = default; \
+	ShaderClass(const ShaderMetaType::CompiledShaderInitializerType & Initializer)\
+		: FLumenHardwareRayTracingShaderBase(Initializer) {}\
+	static constexpr const Lumen::ERayTracingShaderDispatchSize DispatchSize = ShaderDispatchSize; \
+	using TComputeShaderType = class ShaderClass##CS; \
+	using TRayGenShaderType = class ShaderClass##RGS;
 
+#define IMPLEMENT_LUMEN_COMPUTE_RAYTRACING_SHADER(ShaderClass) \
+	class ShaderClass##CS : public ShaderClass \
+	{ \
+		DECLARE_GLOBAL_SHADER(ShaderClass##CS) \
+		SHADER_USE_PARAMETER_STRUCT(ShaderClass##CS, ShaderClass) \
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) \
+		{ return ShaderClass::ShouldCompilePermutation(Parameters, Lumen::ERayTracingShaderDispatchType::Inline); }\
+		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)\
+		{ \
+			FIntPoint Size = GetThreadGroupSizeInternal(Lumen::ERayTracingShaderDispatchType::Inline, DispatchSize); \
+			OutEnvironment.SetDefine(TEXT("INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X"), Size.X); \
+			OutEnvironment.SetDefine(TEXT("INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y"), Size.Y); \
+			ShaderClass::ModifyCompilationEnvironment(Parameters, Lumen::ERayTracingShaderDispatchType::Inline, OutEnvironment); \
+			ModifyCompilationEnvironmentInternal(DispatchSize, OutEnvironment); \
+		}\
+		static FIntPoint GetThreadGroupSize() { return GetThreadGroupSizeInternal(Lumen::ERayTracingShaderDispatchType::Inline, DispatchSize); } \
+	};
 
-	FLumenHardwareRayTracingCS() = default;
-	FLumenHardwareRayTracingCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{}
+#define IMPLEMENT_LUMEN_RAYGEN_RAYTRACING_SHADER(ShaderClass) \
+	class ShaderClass##RGS : public ShaderClass \
+	{ \
+		DECLARE_GLOBAL_SHADER(ShaderClass##RGS) \
+		SHADER_USE_ROOT_PARAMETER_STRUCT(ShaderClass##RGS, ShaderClass) \
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) \
+		{ return ShaderClass::ShouldCompilePermutation(Parameters, Lumen::ERayTracingShaderDispatchType::RayGen); } \
+		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) \
+		{ \
+			ShaderClass::ModifyCompilationEnvironment(Parameters, Lumen::ERayTracingShaderDispatchType::RayGen, OutEnvironment); \
+			ModifyCompilationEnvironmentInternal(DispatchSize, OutEnvironment); \
+		} \
+		static FIntPoint GetThreadGroupSize() { return GetThreadGroupSizeInternal(Lumen::ERayTracingShaderDispatchType::RayGen, DispatchSize); } \
+	};
+	
+#define IMPLEMENT_LUMEN_RAYGEN_AND_COMPUTE_RAYTRACING_SHADERS(ShaderClass) \
+	IMPLEMENT_LUMEN_COMPUTE_RAYTRACING_SHADER(ShaderClass) \
+	IMPLEMENT_LUMEN_RAYGEN_RAYTRACING_SHADER(ShaderClass)
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, Lumen::ESurfaceCacheSampling SurfaceCacheSampling, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_FEEDBACK"), SurfaceCacheSampling == Lumen::ESurfaceCacheSampling::AlwaysResidentPagesWithoutFeedback ? 0 : 1);
-		OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_HIGH_RES_PAGES"), SurfaceCacheSampling == Lumen::ESurfaceCacheSampling::HighResPages ? 1 : 0);
-		OutEnvironment.SetDefine(TEXT("LUMEN_HARDWARE_INLINE_RAYTRACING"), 1);
-
-		// GPU Scene definitions
-		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
-
-		// Current inline ray tracing implementation only supports wave32 mode.
-		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
-		OutEnvironment.CompilerFlags.Add(CFLAG_InlineRayTracing);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return FLumenHardwareRayTracingRGS::ShouldCompilePermutation(Parameters) && FDataDrivenShaderPlatformInfo::GetSupportsInlineRayTracing(Parameters.Platform);
-	}
-};
-
-class FLumenHardwareRayTracingDeferredMaterialRGS : public FLumenHardwareRayTracingRGS
+class FLumenHardwareRayTracingDeferredMaterialRGS : public FLumenHardwareRayTracingShaderBase
 {
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FDeferredMaterialParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingShaderBase::FSharedParameters, SharedParameters)
 		SHADER_PARAMETER(int, TileSize)
 		SHADER_PARAMETER(FIntPoint, DeferredMaterialBufferResolution)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FDeferredMaterialPayload>, RWDeferredMaterialBuffer)
@@ -128,17 +202,17 @@ public:
 
 	FLumenHardwareRayTracingDeferredMaterialRGS() = default;
 	FLumenHardwareRayTracingDeferredMaterialRGS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
-		: FLumenHardwareRayTracingRGS(Initializer)
+		: FLumenHardwareRayTracingShaderBase(Initializer)
 	{}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, Lumen::ESurfaceCacheSampling SurfaceCacheSampling, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, Lumen::ERayTracingShaderDispatchType ShaderDispatchType, Lumen::ESurfaceCacheSampling SurfaceCacheSampling, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FLumenHardwareRayTracingRGS::ModifyCompilationEnvironment(Parameters, SurfaceCacheSampling, OutEnvironment);
+		FLumenHardwareRayTracingShaderBase::ModifyCompilationEnvironment(Parameters, ShaderDispatchType, SurfaceCacheSampling, OutEnvironment);
 	}
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters, Lumen::ERayTracingShaderDispatchType ShaderDispatchType)
 	{
-		return FLumenHardwareRayTracingRGS::ShouldCompilePermutation(Parameters);
+		return FLumenHardwareRayTracingShaderBase::ShouldCompilePermutation(Parameters, ShaderDispatchType);
 	}
 };
 
@@ -147,7 +221,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
-	FLumenHardwareRayTracingRGS::FSharedParameters* SharedParameters);
+	FLumenHardwareRayTracingShaderBase::FSharedParameters* SharedParameters);
 
 // Hardware ray-tracing pipeline
 namespace LumenHWRTPipeline
@@ -200,5 +274,71 @@ void LumenHWRTBucketRaysByMaterialID(
 	FRDGBufferRef& RayAllocatorBuffer,
 	FRDGBufferRef& TraceDataPackedBuffer
 );
+
+
+// Pass helpers
+template<typename TShaderClass>
+static void AddLumenRayTraceDispatchPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& PassName,
+	const TShaderRef<TShaderClass>& RayGenerationShader,
+	typename TShaderClass::FParameters* Parameters,
+	FIntPoint Resolution,
+	const FViewInfo& View,
+	bool bUseMinimalPayload)
+{
+	ClearUnusedGraphResources(RayGenerationShader, Parameters);
+
+	FRHIRayTracingScene* RayTracingSceneRHI_TEST = View.GetRayTracingSceneChecked();
+	GraphBuilder.AddPass(
+		Forward<FRDGEventName>(PassName),
+		Parameters,
+		ERDGPassFlags::Compute,
+		[Parameters, &View, RayGenerationShader, bUseMinimalPayload, Resolution](FRHIRayTracingCommandList& RHICmdList)
+		{
+			FRayTracingShaderBindingsWriter GlobalResources;
+			SetShaderParameters(GlobalResources, RayGenerationShader, *Parameters);
+
+			FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
+			FRayTracingPipelineState* Pipeline = bUseMinimalPayload ? View.LumenHardwareRayTracingMaterialPipeline : View.RayTracingMaterialPipeline;
+
+			RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources,
+					Resolution.X, Resolution.Y);
+		}
+	);
+}
+
+template<typename TShaderClass>
+static void AddLumenRayTraceDispatchIndirectPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& PassName,
+	const TShaderRef<TShaderClass>& RayGenerationShader,
+	typename TShaderClass::FParameters* Parameters,
+	FRDGBufferRef IndirectArgsBuffer,
+	uint32 IndirectArgsOffset,
+	const FViewInfo& View,
+	bool bUseMinimalPayload)
+{
+	ClearUnusedGraphResources(RayGenerationShader, Parameters, { IndirectArgsBuffer });
+
+	GraphBuilder.AddPass(
+		Forward<FRDGEventName>(PassName),
+		Parameters,
+		ERDGPassFlags::Compute,
+		[Parameters, &View, RayGenerationShader, bUseMinimalPayload, IndirectArgsBuffer, IndirectArgsOffset](FRHIRayTracingCommandList& RHICmdList)
+		{
+			IndirectArgsBuffer->MarkResourceAsUsed();
+
+			FRayTracingShaderBindingsWriter GlobalResources;
+			SetShaderParameters(GlobalResources, RayGenerationShader, *Parameters);
+
+			FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
+			FRayTracingPipelineState* Pipeline = bUseMinimalPayload ? View.LumenHardwareRayTracingMaterialPipeline : View.RayTracingMaterialPipeline;
+
+			RHICmdList.RayTraceDispatchIndirect(Pipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources,
+				IndirectArgsBuffer->GetIndirectRHICallBuffer(), IndirectArgsOffset);
+		}
+	);
+}
 
 #endif // RHI_RAYTRACING

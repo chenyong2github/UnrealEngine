@@ -168,7 +168,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
-	FLumenHardwareRayTracingRGS::FSharedParameters* SharedParameters
+	FLumenHardwareRayTracingShaderBase::FSharedParameters* SharedParameters
 )
 {
 	SharedParameters->SceneTextures = SceneTextures;
@@ -183,6 +183,9 @@ void SetLumenHardwareRayTracingSharedParameters(
 	SharedParameters->LightDataPacked = View.RayTracingLightData.UniformBuffer;
 	SharedParameters->LightDataBuffer = View.RayTracingLightData.LightBufferSRV;
 	SharedParameters->SSProfilesTexture = View.RayTracingSubSurfaceProfileTexture;
+
+	// Inline
+	SharedParameters->HitGroupData = View.LumenHardwareRayTracingHitDataBufferSRV;
 
 	// Use surface cache, instead
 	GetLumenCardTracingParameters(View, TracingInputs, SharedParameters->TracingParameters);

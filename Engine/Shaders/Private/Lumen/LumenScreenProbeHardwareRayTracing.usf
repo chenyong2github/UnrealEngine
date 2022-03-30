@@ -36,19 +36,14 @@ void FConvertRayAllocatorCS()
 
 Buffer<uint> RayAllocator;
 RWBuffer<uint> RWHardwareRayTracingIndirectArgs;
+uint2 OutputThreadGroupSize;
 
 [numthreads(1, 1, 1)]
 void FLumenScreenProbeHardwareRayTracingIndirectArgsCS()
 {
-	RWHardwareRayTracingIndirectArgs[0] = RayAllocator[0];
+	RWHardwareRayTracingIndirectArgs[0] = (RayAllocator[0] + OutputThreadGroupSize.x - 1) / OutputThreadGroupSize.x;
 	RWHardwareRayTracingIndirectArgs[1] = 1;
 	RWHardwareRayTracingIndirectArgs[2] = 1;
-
-#if DIM_INLINE_RAYTRACING
-	// For RayTraceDispatchIndirect we dispatch in threads but for DispatchIndirectComputeShader we dispatch in thread groups.
-	// We need to adjust it to get the same number of threads running.
-	RWHardwareRayTracingIndirectArgs[0] = (RWHardwareRayTracingIndirectArgs[0] + INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X - 1) / INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
-#endif
 }
 
 
