@@ -3,6 +3,8 @@
 #pragma once
 
 #include "WebAPISwaggerConverter.h"
+
+#include "IWebAPIEditorModule.h"
 #include "V2/WebAPISwaggerProvider.h"
 
 #define LOCTEXT_NAMESPACE "WebAPISwaggerConverter"
@@ -221,7 +223,7 @@ namespace UE::WebAPI::Swagger
 			}
 
 			template <>
-			bool FWebAPISwaggerSchemaConverter::PatchModel<OpenAPI::V2::FParameter>(const TSharedPtr<OpenAPI::V2::FParameter>& InSrcSchema, const FWebAPITypeNameVariant& InModelTypeName, const TObjectPtr<UWebAPIModel>& OutModel)
+			inline bool FWebAPISwaggerSchemaConverter::PatchModel<OpenAPI::V2::FParameter>(const TSharedPtr<OpenAPI::V2::FParameter>& InSrcSchema, const FWebAPITypeNameVariant& InModelTypeName, const TObjectPtr<UWebAPIModel>& OutModel)
 			{
 				FWebAPITypeNameVariant ModelTypeName;
 				if(InModelTypeName.IsValid() && InModelTypeName.HasTypeInfo())

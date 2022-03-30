@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SWebAPISchemaTreeTableRow.h"
+#include "SWebAPISchemaTreeTableRow.inl"
 #include "Details/ViewModels/WebAPIEnumViewModel.h"
 
 class SWebAPISchemaEnumValueRow

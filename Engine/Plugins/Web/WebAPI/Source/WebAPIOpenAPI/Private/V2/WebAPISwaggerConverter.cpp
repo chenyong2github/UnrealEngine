@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPISwaggerConverter.h"
+#include "WebAPISwaggerConverter.inl"
 
 #include "IWebAPIEditorModule.h"
 #include "WebAPIDefinition.h"
