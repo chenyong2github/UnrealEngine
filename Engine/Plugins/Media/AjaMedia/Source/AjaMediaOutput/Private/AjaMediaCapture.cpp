@@ -283,7 +283,7 @@ void UAjaMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess)
 			// Prevent the rendering thread from copying while we are stopping the capture.
 			FScopeLock ScopeLock(&RenderThreadCriticalSection);
 
-			ENQUEUE_RENDER_COMMAND(BlackmagicMediaCaptureInitialize)(
+			ENQUEUE_RENDER_COMMAND(AjaMediaCaptureInitialize)(
 			[this](FRHICommandListImmediate& RHICmdList) mutable
 			{
 				// Unregister texture before closing channel.
