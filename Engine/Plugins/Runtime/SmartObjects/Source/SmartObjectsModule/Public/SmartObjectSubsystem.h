@@ -117,6 +117,16 @@ enum class ESmartObjectCollectionRegistrationResult : uint8
 };
 
 /**
+ * Mode that indicates how the unregistration of the SmartObjectComponent affects its runtime instance.
+ */
+UENUM()
+enum class ESmartObjectUnregistrationMode : uint8
+{
+	KeepRuntimeInstanceActive,
+	DestroyRuntimeInstance
+};
+
+/**
  * Subsystem that holds all registered smart object instances and offers the API for spatial queries and reservations.
  */
 UCLASS(config = SmartObjects, defaultconfig, Transient)
@@ -130,7 +140,32 @@ public:
 	void UnregisterCollection(ASmartObjectCollection& InCollection);
 	ASmartObjectCollection* GetMainCollection() const { return MainCollection; }
 
+	/**
+	 * Registers to the runtime simulation all SmartObject components for a given actor.
+	 * @param SmartObjectActor Actor owning the components to register
+	 * @return true when components are found and all successfully registered, false otherwise
+	 */
+	bool RegisterSmartObjectActor(const AActor& SmartObjectActor);
+
+	/**
+	 * Unregisters from the simulation all SmartObject components for a given actor.
+	 * @param SmartObjectActor Actor owning the components to unregister
+	 * @return true when components are found and all successfully unregistered, false otherwise
+	 */
+	bool UnregisterSmartObjectActor(const AActor& SmartObjectActor);
+
+	/**
+	 * Registers a SmartObject components to the runtime simulation.
+	 * @param SmartObjectComponent SmartObject component to register
+	 * @return true when component is successfully registered, false otherwise
+	 */
 	bool RegisterSmartObject(USmartObjectComponent& SmartObjectComponent);
+	
+	/**
+	 * Unregisters a SmartObject components from the runtime simulation.
+	 * @param SmartObjectComponent SmartObject component to unregister
+	 * @return true when component is successfully unregistered, false otherwise
+	 */
 	bool UnregisterSmartObject(USmartObjectComponent& SmartObjectComponent);
 
 	/**
@@ -142,9 +177,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	USmartObjectComponent* GetSmartObjectComponent(const FSmartObjectClaimHandle& ClaimHandle) const;
-
-	bool RegisterSmartObjectActor(const AActor& SmartObjectActor);
-	bool UnregisterSmartObjectActor(const AActor& SmartObjectActor);
 
 	/**
 	 * Spatial lookup
@@ -397,6 +429,9 @@ public:
 protected:
 	friend class USmartObjectComponent;
 
+	bool RegisterSmartObjectInternal(USmartObjectComponent& SmartObjectComponent);
+	bool UnregisterSmartObjectInternal(USmartObjectComponent& SmartObjectComponent, const ESmartObjectUnregistrationMode UnregistrationMode);
+	
 	/**
 	 * Callback overriden to gather loaded collections, spawn missing one and set the main collection.
 	 * @note we use this method instead of `Initialize` or `PostInitialize` so active level is set and actors registered.

@@ -55,7 +55,7 @@ void USmartObjectComponent::RegisterToSubsystem()
 	// in various scenarios (e.g. inactive world)
 	if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World))
 	{
-		Subsystem->RegisterSmartObject(*this);
+		Subsystem->RegisterSmartObjectInternal(*this);
 	}
 }
 
@@ -92,7 +92,8 @@ void USmartObjectComponent::OnUnregister()
 	// in various scenarios (e.g. inactive world, AI system is cleaned up before the components gets unregistered, etc.)
 	if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World))
 	{
-		Subsystem->UnregisterSmartObject(*this);
+		// The default behavior is to maintain the runtime instance alive when the component is unregistered (streamed out).
+		Subsystem->UnregisterSmartObjectInternal(*this, ESmartObjectUnregistrationMode::KeepRuntimeInstanceActive);
 	}
 
 	ensureMsgf(!OnComponentTagsModifiedHandle.IsValid(), TEXT("AbilitySystemComponent delegate is expected to be unbound after unregistration"));

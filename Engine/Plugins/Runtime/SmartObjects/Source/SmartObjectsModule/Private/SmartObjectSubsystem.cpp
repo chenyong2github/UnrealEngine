@@ -23,42 +23,36 @@
 #include "WorldPartition/WorldPartition.h"
 #endif
 
-namespace UE::SmartObject
+namespace UE::SmartObject::Debug
 {
-	USmartObjectComponent* FindSmartObjectComponent(const AActor& SmartObjectActor)
-	{
-		return SmartObjectActor.FindComponentByClass<USmartObjectComponent>();
-	}
-
-	namespace Debug
-	{
 #if WITH_SMARTOBJECT_DEBUG
-		static FAutoConsoleCommandWithWorld RegisterAllSmartObjectsCmd(
-			TEXT("ai.debug.so.RegisterAllSmartObjects"),
-			TEXT("Force register all objects registered in the subsystem to simulate & debug runtime flows (will ignore already registered components)."),
-			FConsoleCommandWithWorldDelegate::CreateLambda([](const UWorld* InWorld)
+	static FAutoConsoleCommandWithWorld RegisterAllSmartObjectsCmd
+	(
+		TEXT("ai.debug.so.RegisterAllSmartObjects"),
+		TEXT("Force register all objects registered in the subsystem to simulate & debug runtime flows (will ignore already registered components)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](const UWorld* InWorld)
+		{
+			if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(InWorld))
 			{
-				if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(InWorld))
-				{
-					Subsystem->DebugRegisterAllSmartObjects();
-				}
-			})
-		);
+				Subsystem->DebugRegisterAllSmartObjects();
+			}
+		})
+	);
 
-		static FAutoConsoleCommandWithWorld UnregisterAllSmartObjectsCmd(
-			TEXT("ai.debug.so.UnregisterAllSmartObjects"),
-			TEXT("Force unregister all objects registered in the subsystem to simulate & debug runtime flows (will ignore already unregistered components)."),
-			FConsoleCommandWithWorldDelegate::CreateLambda([](const UWorld* InWorld)
+	static FAutoConsoleCommandWithWorld UnregisterAllSmartObjectsCmd
+	(
+		TEXT("ai.debug.so.UnregisterAllSmartObjects"),
+		TEXT("Force unregister all objects registered in the subsystem to simulate & debug runtime flows (will ignore already unregistered components)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](const UWorld* InWorld)
+		{
+			if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(InWorld))
 			{
-				if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(InWorld))
-				{
-					Subsystem->DebugUnregisterAllSmartObjects();
-				}
-			})
-		);
+				Subsystem->DebugUnregisterAllSmartObjects();
+			}
+		})
+	);
 #endif // WITH_SMARTOBJECT_DEBUG
-	}
-} // UE::SmartObject
+} // UE::SmartObject::Debug
 
 //----------------------------------------------------------------------//
 // USmartObjectSubsystem
@@ -290,6 +284,20 @@ void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime, co
 
 bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObjectComponent)
 {
+	if (!RegisteredSOComponents.Contains(&SmartObjectComponent))
+	{
+		return RegisterSmartObjectInternal(SmartObjectComponent);
+	}
+	
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Failed to register %s. Already registered"),
+		*GetFullNameSafe(SmartObjectComponent.GetOwner()),
+		*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
+
+	return false;
+}
+
+bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& SmartObjectComponent)
+{
 	UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("Registering %s using definition %s."),
 		*GetFullNameSafe(SmartObjectComponent.GetOwner()),
 		*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
@@ -361,6 +369,20 @@ bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObje
 
 bool USmartObjectSubsystem::UnregisterSmartObject(USmartObjectComponent& SmartObjectComponent)
 {
+	if (RegisteredSOComponents.Contains(&SmartObjectComponent))
+	{
+		return UnregisterSmartObjectInternal(SmartObjectComponent, ESmartObjectUnregistrationMode::DestroyRuntimeInstance);
+	}
+
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Failed to unregister %s. Already unregistered"),
+		*GetFullNameSafe(SmartObjectComponent.GetOwner()),
+		*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
+
+	return false;
+}
+
+bool USmartObjectSubsystem::UnregisterSmartObjectInternal(USmartObjectComponent& SmartObjectComponent, const ESmartObjectUnregistrationMode UnregistrationMode)
+{
 	UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("Unregistering %s using definition %s."),
 		*GetFullNameSafe(SmartObjectComponent.GetOwner()),
 		*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
@@ -391,7 +413,8 @@ bool USmartObjectSubsystem::UnregisterSmartObject(USmartObjectComponent& SmartOb
 		// At runtime, only entries created outside the initial collection are removed from simulation and collection
 		if (World.IsGameWorld() && bInitialCollectionAddedToSimulation)
 		{
-			bRemoveFromCollection = RuntimeCreatedEntries.Remove(SmartObjectComponent.GetRegisteredHandle()) != 0;
+			bRemoveFromCollection = RuntimeCreatedEntries.Remove(SmartObjectComponent.GetRegisteredHandle()) != 0
+				|| UnregistrationMode == ESmartObjectUnregistrationMode::DestroyRuntimeInstance;
 			if (bRemoveFromCollection)
 			{
 				RemoveComponentFromSimulation(SmartObjectComponent);
@@ -416,26 +439,38 @@ bool USmartObjectSubsystem::UnregisterSmartObject(USmartObjectComponent& SmartOb
 
 bool USmartObjectSubsystem::RegisterSmartObjectActor(const AActor& SmartObjectActor)
 {
-	USmartObjectComponent* SOComponent = UE::SmartObject::FindSmartObjectComponent(SmartObjectActor);
-	if (SOComponent == nullptr)
-	{
-		UE_VLOG_UELOG(&SmartObjectActor, LogSmartObject, Error, TEXT("Failed to register SmartObject for %s. USmartObjectComponent is missing."), *SmartObjectActor.GetName());
-		return false;
-	}
+	TArray<USmartObjectComponent*> Components;
+	SmartObjectActor.GetComponents(Components);
+	UE_CVLOG_UELOG(Components.Num() == 0, &SmartObjectActor, LogSmartObject, Log,
+		TEXT("Failed to register SmartObject components for %s. No components found."), *SmartObjectActor.GetName());
 
-	return RegisterSmartObject(*SOComponent);
+	int32 NumSuccess = 0;
+	for (USmartObjectComponent* SOComponent : Components)
+	{
+		if (RegisterSmartObject(*SOComponent))
+		{
+			NumSuccess++;
+		}
+	}
+	return NumSuccess > 0 && NumSuccess == Components.Num();
 }
 
 bool USmartObjectSubsystem::UnregisterSmartObjectActor(const AActor& SmartObjectActor)
 {
-	USmartObjectComponent* SOComponent = UE::SmartObject::FindSmartObjectComponent(SmartObjectActor);
-	if (SOComponent == nullptr)
-	{
-		UE_VLOG_UELOG(&SmartObjectActor, LogSmartObject, Error, TEXT("Failed to unregister SmartObject for %s. USmartObjectComponent is missing."), *SmartObjectActor.GetName());
-		return false;
-	}
+	TArray<USmartObjectComponent*> Components;
+	SmartObjectActor.GetComponents(Components);
+	UE_CVLOG_UELOG(Components.Num() == 0, &SmartObjectActor, LogSmartObject, Log,
+		TEXT("Failed to unregister SmartObject components for %s. No components found."), *SmartObjectActor.GetName());
 
-	return UnregisterSmartObject(*SOComponent);
+	int32 NumSuccess = 0;
+	for (USmartObjectComponent* SOComponent : Components)
+	{
+		if (UnregisterSmartObject(*SOComponent))
+		{
+			NumSuccess++;
+		}
+	}
+	return NumSuccess > 0 && NumSuccess == Components.Num();
 }
 
 FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter)
