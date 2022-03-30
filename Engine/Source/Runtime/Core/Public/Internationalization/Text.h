@@ -8,7 +8,7 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "Containers/Map.h"
+#include "Containers/SortedMap.h"
 #include "Containers/EnumAsByte.h"
 #include "Templates/SharedPointer.h"
 #include "Internationalization/TextKey.h"
@@ -146,7 +146,7 @@ namespace EFormatArgumentType
 	};
 }
 
-typedef TMap<FString, FFormatArgumentValue, FDefaultSetAllocator, FLocKeyMapFuncs<FFormatArgumentValue>> FFormatNamedArguments;
+typedef TSortedMap<FString, FFormatArgumentValue, FDefaultAllocator, FLocKeySortedMapLess> FFormatNamedArguments;
 typedef TArray<FFormatArgumentValue> FFormatOrderedArguments;
 
 typedef TSharedRef<FTextFormatPatternDefinition, ESPMode::ThreadSafe> FTextFormatPatternDefinitionRef;

@@ -190,3 +190,12 @@ struct FLocKeyMultiMapFuncs : BaseKeyFuncs<ValueType, FString, /*bInAllowDuplica
 		return FLocKey::ProduceHash(Key);
 	}
 };
+
+/** Case sensitive comparison function for TSortedMap */
+struct FLocKeySortedMapLess
+{
+	FORCEINLINE bool operator()(const FString& A, const FString& B) const
+	{
+		return A.Compare(B, ESearchCase::CaseSensitive) < 0;
+	}
+};
