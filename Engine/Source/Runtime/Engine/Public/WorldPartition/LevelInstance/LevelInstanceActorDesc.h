@@ -16,7 +16,7 @@ enum class ELevelInstanceRuntimeBehavior : uint8;
 /**
  * ActorDesc for Actors that are part of a LevelInstanceActor Level.
  */
-class ENGINE_API FLevelInstanceActorDesc : public FWorldPartitionActorDesc, public FGCObject
+class ENGINE_API FLevelInstanceActorDesc : public FWorldPartitionActorDesc
 {
 #if WITH_EDITOR
 	friend class ALevelInstance;
@@ -35,17 +35,18 @@ protected:
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual void TransferFrom(const FWorldPartitionActorDesc* From) override;
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void AddReferencedObjects(FReferenceCollector& Collector);
-	virtual FString GetReferencerName() const override { return TEXT("FLevelInstanceActorDesc"); }
 	virtual void SetContainer(UActorDescContainer* InContainer) override;
 
 	FName LevelPackage;
 	FTransform LevelInstanceTransform;
 	ELevelInstanceRuntimeBehavior DesiredRuntimeBehavior;
 
-	TObjectPtr<UActorDescContainer> LevelInstanceContainer;
+	TWeakObjectPtr<UActorDescContainer> LevelInstanceContainer;
 
 private:
+	void RegisterContainerInstance(UWorld* InWorld);
+	void UnregisterContainerInstance();
+
 	static UActorDescContainer* RegisterActorDescContainer(FName PackageName, UWorld* InWorld);
 	static void UnregisterActorDescContainer(UActorDescContainer* Container);
 #endif

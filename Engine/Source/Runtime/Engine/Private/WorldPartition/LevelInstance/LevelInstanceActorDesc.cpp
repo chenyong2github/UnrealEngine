@@ -18,12 +18,22 @@ static FAutoConsoleVariableRef CVarForceLevelStreaming(
 	GLevelInstanceDebugForceLevelStreaming,
 	TEXT("Set to 1 to force Level Instance to be streamed instead of embedded in World Partition grid."));
 
-struct FActorDescContainerInstance
+struct FActorDescContainerInstance : public FGCObject
 {
 	FActorDescContainerInstance()
 	: Container(nullptr)
 	, RefCount(0)
 	{}
+
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
+	{
+		if (Container)
+		{
+			Collector.AddReferencedObject(Container);
+		}
+	}
+
+	virtual FString GetReferencerName() const override { return TEXT("FActorDescContainerInstance"); }
 
 	UActorDescContainer* Container;
 	uint32 RefCount;
@@ -38,7 +48,8 @@ FLevelInstanceActorDesc::FLevelInstanceActorDesc()
 
 FLevelInstanceActorDesc::~FLevelInstanceActorDesc()
 {
-	check(!LevelInstanceContainer);
+	UnregisterContainerInstance();
+	check(!LevelInstanceContainer.IsValid());
 }
 
 void FLevelInstanceActorDesc::Init(const AActor* InActor)
@@ -75,38 +86,53 @@ bool FLevelInstanceActorDesc::Equals(const FWorldPartitionActorDesc* Other) cons
 	return false;
 }
 
+void FLevelInstanceActorDesc::RegisterContainerInstance(UWorld* InWorld)
+{
+	check(InWorld);
+	check(!LevelInstanceContainer.IsValid());
+	if (DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned && !GLevelInstanceDebugForceLevelStreaming)
+	{
+		if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && !ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
+		{
+			LevelInstanceContainer = FLevelInstanceActorDesc::RegisterActorDescContainer(LevelPackage, InWorld);
+			check(LevelInstanceContainer.IsValid());
+		}
+	}
+}
+
+void FLevelInstanceActorDesc::UnregisterContainerInstance()
+{
+	if (LevelInstanceContainer.IsValid())
+	{
+		FLevelInstanceActorDesc::UnregisterActorDescContainer(LevelInstanceContainer.Get());
+		LevelInstanceContainer.Reset();
+	}
+}
+
 void FLevelInstanceActorDesc::SetContainer(UActorDescContainer* InContainer)
 {
 	FWorldPartitionActorDesc::SetContainer(InContainer);
 
 	if (Container)
 	{
-		check(!LevelInstanceContainer);
-
-		if (DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned && !GLevelInstanceDebugForceLevelStreaming)
-		{
-			if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && !ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
-			{
-				LevelInstanceContainer = RegisterActorDescContainer(LevelPackage, Container->GetWorld());
-				check(LevelInstanceContainer);
-			}
-		}
+		RegisterContainerInstance(Container->GetWorld());
 	}
 	else
 	{
-		if (LevelInstanceContainer)
-		{
-			UnregisterActorDescContainer(LevelInstanceContainer);
-			LevelInstanceContainer = nullptr;
-		}
+		UnregisterContainerInstance();
 	}
 }
 
 bool FLevelInstanceActorDesc::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
 {
-	if (LevelInstanceContainer)
+	if (!LevelInstanceContainer.IsValid() && IsLoaded())
 	{
-		OutLevelContainer = LevelInstanceContainer;
+		// Lazy initialization of LevelInstanceContainer (used by ModifiedActorsDescList)
+		const_cast<FLevelInstanceActorDesc*>(this)->RegisterContainerInstance(GetActor()->GetWorld());
+	}
+	if (LevelInstanceContainer.IsValid())
+	{
+		OutLevelContainer = LevelInstanceContainer.Get();
 		OutLevelTransform = LevelInstanceTransform;
 		OutClusterMode = EContainerClusterMode::Partitioned;
 		return true;
@@ -171,11 +197,6 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 	}
 }
 
-void FLevelInstanceActorDesc::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	Collector.AddReferencedObject(LevelInstanceContainer);
-}
-
 UActorDescContainer* FLevelInstanceActorDesc::RegisterActorDescContainer(FName PackageName, UWorld* InWorld)
 {
 	FActorDescContainerInstance& ExistingContainerInstance = ActorDescContainers.FindOrAdd(PackageName);
@@ -190,6 +211,7 @@ UActorDescContainer* FLevelInstanceActorDesc::RegisterActorDescContainer(FName P
 		ActorDescContainer->Initialize(InWorld, PackageName);
 	}
 
+	check(ActorDescContainer->GetWorld() == InWorld);
 	return ActorDescContainer;
 }
 
