@@ -7956,11 +7956,12 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	{
 		// If we're cooking against a fixed base, we don't need to verify the packages exist on disk, we simply want to use the Release Data 
 		const bool bVerifyPackagesExist = !IsCookingAgainstFixedBase();
+		const bool bReevaluateUncookedPackages = !!(CookOptions & ECookByTheBookOptions::DlcReevaluateUncookedAssets);
 
 		// if we are cooking dlc we must be based on a release version cook
 		check( !BasedOnReleaseVersion.IsEmpty() );
 
-		auto ReadDevelopmentAssetRegistry = [this, &BasedOnReleaseVersion, bVerifyPackagesExist]
+		auto ReadDevelopmentAssetRegistry = [this, &BasedOnReleaseVersion, bVerifyPackagesExist, bReevaluateUncookedPackages]
 			(TArray<UE::Cook::FConstructPackageData>& OutPackageList, const FString& InPlatformName)
 		{
 			TArray<FString> AttemptedNames;
@@ -7968,12 +7969,12 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			AttemptedNames.Add(OriginalSandboxRegistryFilename);
 
 			// if this check fails probably because the asset registry can't be found or read
-			bool bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, OutPackageList);
+			bool bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, bReevaluateUncookedPackages, OutPackageList);
 			if (!bSucceeded)
 			{
 				OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, InPlatformName) / GetAssetRegistryFilename();
 				AttemptedNames.Add(OriginalSandboxRegistryFilename);
-				bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, OutPackageList);
+				bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, bReevaluateUncookedPackages, OutPackageList);
 			}
 
 			if (!bSucceeded)
@@ -7985,7 +7986,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 					{
 						OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformFlavor->Name.ToString()) / GetAssetRegistryFilename();
 						AttemptedNames.Add(OriginalSandboxRegistryFilename);
-						bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, OutPackageList);
+						bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, bReevaluateUncookedPackages, OutPackageList);
 						if (bSucceeded)
 						{
 							break;
@@ -8198,7 +8199,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 				FString OriginalAssetRegistryPath = GetBasedOnReleaseVersionAssetRegistryPath( BasedOnReleaseVersion, TargetPlatform->PlatformName() ) / GetAssetRegistryFilename();
 
 				TArray<UE::Cook::FConstructPackageData> BasedOnReleaseDatas;
-				verify( GetAllPackageFilenamesFromAssetRegistry(OriginalAssetRegistryPath, true, BasedOnReleaseDatas) );
+				verify( GetAllPackageFilenamesFromAssetRegistry(OriginalAssetRegistryPath, true, false, BasedOnReleaseDatas) );
 
 				TArray<const ITargetPlatform*, TInlineAllocator<1>> RequestPlatforms;
 				RequestPlatforms.Add(TargetPlatform);
@@ -8432,8 +8433,8 @@ void UCookOnTheFlyServer::GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform*
 	}
 }
 
-bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry(const FString& AssetRegistryPath,
-	bool bVerifyPackagesExist, TArray<UE::Cook::FConstructPackageData>& OutPackageDatas) const
+bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry(const FString& AssetRegistryPath, bool bVerifyPackagesExist,
+	bool bReevaluateUncookedPackages, TArray<UE::Cook::FConstructPackageData>& OutPackageDatas) const
 {
 	using namespace UE::Cook;
 
@@ -8465,7 +8466,22 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry(const FString&
 		}
 
 		// possibly use the preloaded state
-		const TMap<FName, const FAssetData*>& RegistryDataMap = GPreloadedARState.GetObjectPathToAssetDataMap();
+		const TMap<FName, const FAssetData*>& RegistryDataMapLoaded = GPreloadedARState.GetObjectPathToAssetDataMap();
+		TMap<FName, const FAssetData*> RegistryDataMapTrimmed;
+		
+		// if we want to reevaluate uncooked pacakges, then remove the uncooked packages from the set of known packages
+		// removing them from the map up here simplifies the logic below 
+		if (bReevaluateUncookedPackages)
+		{
+			for (TPair<FName, const FAssetData*> Pair : RegistryDataMapLoaded)
+			{
+				if (Pair.Value->PackageFlags != 0)
+				{
+					RegistryDataMapTrimmed.Add(Pair.Key, Pair.Value);
+				}
+			}
+		}
+		const TMap<FName, const FAssetData*>& RegistryDataMap = bReevaluateUncookedPackages ? RegistryDataMapTrimmed : RegistryDataMapLoaded;
 
 		check(OutPackageDatas.Num() == 0);
 

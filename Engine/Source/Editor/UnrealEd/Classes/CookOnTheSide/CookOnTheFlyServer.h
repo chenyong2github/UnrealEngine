@@ -77,6 +77,7 @@ enum class ECookByTheBookOptions
 	CookAgainstFixedBase =				0x00010000, // If cooking DLC, assume that the base content can not be modified. 
 	DlcLoadMainAssetRegistry =			0x00020000, // If cooking DLC, populate the main game asset registry
 	ZenStore =							0x00040000, // Store cooked data in Zen Store
+	DlcReevaluateUncookedAssets =		0x00080000, // If cooking DLC, ignore assets in the base asset registry that were not cooked, so that this cook has an opportunity to cook the assets
 
 	// Deprecated flags
 	NoSlatePackages UE_DEPRECATED(5.0, "The [UI]ContentDirectories is deprecated. You may use DirectoriesToAlwaysCook in your project settings instead.") = 0x00000400, // don't include slate content
@@ -781,11 +782,12 @@ private:
 	*
 	* @param AssetRegistryPath path of the assetregistry.bin file to read
 	* @param bVerifyPackagesExist whether or not we should verify the packages exist on disk.
+	* @param bSkipUncookedPackages whether or not we should skip over packages that are in the AR but were not cooked/saved
 	* @param OutPackageDatas out list of packagename/filenames for packages contained in the asset registry file
 	* @return true if successfully read false otherwise
 	*/
 	bool GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, bool bVerifyPackagesExist,
-		TArray<UE::Cook::FConstructPackageData>& OutPackageDatas) const;
+		 bool bSkipUncookedPackages, TArray<UE::Cook::FConstructPackageData>& OutPackageDatas) const;
 
 	/**
 	* BuildMapDependencyGraph

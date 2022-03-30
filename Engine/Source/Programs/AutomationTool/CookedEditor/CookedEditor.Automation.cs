@@ -988,6 +988,11 @@ public class MakeCookedEditor : BuildCommand
 		// cause the issues
 		Params.AdditionalCookerOptions += " -AllowUnsafeBlueprintCalls";
 
+		// if we are cooking the editor in Dlc mode, then we want to attempt to cook assets that the base game may have skipped, but still
+		// put into the AssetRegistry, so by default the DLC cooker will skip them. this will make the DLC cooker reevaluate these pacakges
+		// and choose to cook them or not (generally for editoronly assets)
+		Params.AdditionalCookerOptions += " -DlcReevaluateUncookedAssets";
+
 		// set up cooking against a client, as DLC
 		if (bIsDLC)
 		{
