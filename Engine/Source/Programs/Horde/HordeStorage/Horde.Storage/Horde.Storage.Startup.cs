@@ -255,13 +255,13 @@ namespace Horde.Storage
 
             services.AddSingleton(serviceType: typeof(IReplicationLog), ReplicationLogWriterFactory);
             
-            LastAccessTrackerRefRecord lastAccessTracker = new LastAccessTrackerRefRecord();
-            services.AddSingleton(serviceType: typeof(ILastAccessCache<RefRecord>), lastAccessTracker);
-            services.AddSingleton(serviceType: typeof(ILastAccessTracker<RefRecord>), lastAccessTracker);
+            services.AddSingleton<LastAccessTrackerRefRecord>();
+            services.AddSingleton(serviceType: typeof(ILastAccessCache<RefRecord>), p => p.GetService<LastAccessTrackerRefRecord>()!);
+            services.AddSingleton(serviceType: typeof(ILastAccessTracker<RefRecord>), p => p.GetService<LastAccessTrackerRefRecord>()!);
 
-            LastAccessTrackerReference lastAccessTrackerReferences = new LastAccessTrackerReference();
-            services.AddSingleton(serviceType: typeof(ILastAccessCache<LastAccessRecord>), lastAccessTrackerReferences);
-            services.AddSingleton(serviceType: typeof(ILastAccessTracker<LastAccessRecord>), lastAccessTrackerReferences);
+            services.AddSingleton<LastAccessTrackerReference>();
+            services.AddSingleton(serviceType: typeof(ILastAccessCache<LastAccessRecord>), p => p.GetService<LastAccessTrackerReference>()!);
+            services.AddSingleton(serviceType: typeof(ILastAccessTracker<LastAccessRecord>), p => p.GetService<LastAccessTrackerReference>()!);
 
             services.AddSingleton(serviceType: typeof(ILeaderElection), CreateLeaderElection);
 
