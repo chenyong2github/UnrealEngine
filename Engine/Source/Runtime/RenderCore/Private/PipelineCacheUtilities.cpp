@@ -8,6 +8,10 @@
 #include "PipelineFileCache.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
+#include "Policies/PrettyJsonPrintPolicy.h"
+#include "Serialization/JsonSerializer.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Misc/FileHelper.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPipelineCacheUtilities, Log, All);
 
@@ -278,6 +282,14 @@ namespace Private
 			}
 		}
 	}
+
+	struct FPSOCacheChunkInfo
+	{
+		enum class EVersion : int32
+		{
+			Current = 1
+		};
+	};
 }
 }
 }
@@ -786,6 +798,213 @@ bool UE::PipelineCacheUtilities::LoadStablePipelineCacheFile(const FString& File
 			// not yet supported
 			++OutPSOsRejected;
 			UE_LOG(LogPipelineCacheUtilities, Display, TEXT("Raytracing PSOs aren't yet supported in the PSO stable cache. Filename:%s PSO:%s"), *Filename, *NewPSO.ToStringReadable());
+		}
+	}
+
+	return true;
+}
+
+bool UE::PipelineCacheUtilities::SaveChunkInfo(const FString& ShaderLibraryName, const int32 InChunkId, const TSet<FName>& InPackagesInChunk, const ITargetPlatform* TargetPlatform, const FString& PathToSaveTo, TArray<FString>& OutChunkFilenames)
+{
+	checkf(OutChunkFilenames.IsEmpty(), TEXT("SaveChunkInfo() expects the array of chunk filenames to be empty."));
+
+	const FString InfoFile = FString::Printf(TEXT("%s_%s_Chunk%d.cacheinfo"), *TargetPlatform->PlatformName(), *ShaderLibraryName, InChunkId);
+	const FString FullPath = PathToSaveTo / InfoFile;
+
+	// Add names for the files that will be bundled with the game - they should be similar to name given to the monolithic file in UCookOnTheFlyServer::CreatePipelineCache.
+	// Note that at this point we don't know which formats will actually have the PSO cache, so add all targeted ones
+	TArray<FName> ShaderFormats;
+	TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
+	for (FName ShaderFormat : ShaderFormats)
+	{
+		FString BundledFile = FString::Printf(TEXT("%s_%s_Chunk%d.stable.upipelinecache"), *ShaderLibraryName, *ShaderFormat.ToString(), InChunkId);
+		OutChunkFilenames.Add(BundledFile);
+	}
+
+	TUniquePtr<FArchive> AssetInfoWriter(IFileManager::Get().CreateFileWriter(*FullPath, FILEWRITE_NoFail));
+	if (AssetInfoWriter)
+	{
+		FString JsonTcharText;
+		{
+			TSharedRef<TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>> Writer = TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&JsonTcharText);
+			Writer->WriteObjectStart();
+
+			Writer->WriteValue(TEXT("CacheChunkInfoVersion"), static_cast<int32>(UE::PipelineCacheUtilities::Private::FPSOCacheChunkInfo::EVersion::Current));
+
+			Writer->WriteValue(TEXT("ChunkId"), InChunkId);
+
+			Writer->WriteArrayStart(TEXT("OutputFilesPerFormat"));
+			for (int32 Idx = 0, Num = ShaderFormats.Num(); Idx < Num; ++Idx)
+			{
+				Writer->WriteObjectStart();
+				Writer->WriteValue(TEXT("ShaderFormat"), ShaderFormats[Idx].ToString());
+				Writer->WriteValue(TEXT("OutputFile"), OutChunkFilenames[Idx]);
+				Writer->WriteObjectEnd();
+			}
+			Writer->WriteArrayEnd();
+
+			Writer->WriteArrayStart(TEXT("Packages"));
+			for (TSet<FName>::TConstIterator Iter(InPackagesInChunk); Iter; ++Iter)
+			{
+				Writer->WriteValue((*Iter).ToString());
+			}
+			Writer->WriteArrayEnd();
+
+			Writer->WriteObjectEnd();
+			Writer->Close();
+		}
+
+		FTCHARToUTF8 JsonUtf8(*JsonTcharText);
+		AssetInfoWriter->Serialize(const_cast<void*>(reinterpret_cast<const void*>(JsonUtf8.Get())), JsonUtf8.Length() * sizeof(UTF8CHAR));
+	}
+
+	return true;
+}
+
+void UE::PipelineCacheUtilities::FindAllChunkInfos(const FString& ShaderLibraryName, const FString& TargetPlatformName, const FString& PathToSearchIn, TArray<FString>& OutInfoFilenames)
+{
+	TArray<FString> AllCacheInfoFiles;
+	IFileManager::Get().FindFiles(AllCacheInfoFiles, *PathToSearchIn, TEXT("cacheinfo"));
+
+	const FString Pattern = FString::Printf(TEXT("%s_%s"), *TargetPlatformName, *ShaderLibraryName);
+	for (const FString& FoundFile : AllCacheInfoFiles)
+	{
+		if (FoundFile.StartsWith(Pattern))
+		{
+			OutInfoFilenames.Add(PathToSearchIn / FoundFile);
+		}
+	}
+}
+
+bool UE::PipelineCacheUtilities::LoadChunkInfo(const FString& Filename, const FString& InShaderFormat, int32& OutChunkId, FString& OutChunkedCacheFilename, TSet<FName>& OutPackages)
+{
+	TArray<uint8> FileData;
+	if (!FFileHelper::LoadFileToArray(FileData, *Filename))
+	{
+		return false;
+	}
+
+	FString JsonText;
+	FFileHelper::BufferToString(JsonText, FileData.GetData(), FileData.Num());
+
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<TCHAR>> Reader = TJsonReaderFactory<TCHAR>::Create(JsonText);
+
+	// Attempt to deserialize JSON
+	if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+	{
+		return false;
+	}
+
+	// check version
+	{
+		TSharedPtr<FJsonValue> FileVersionValue = JsonObject->Values.FindRef(TEXT("CacheChunkInfoVersion"));
+		if (!FileVersionValue.IsValid())
+		{
+			UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting asset info file %s: missing CacheChunkInfoVersion (damaged file?)"),
+				*Filename);
+			return false;
+		}
+
+		const int32 FileVersion = static_cast<int32>(FileVersionValue->AsNumber());
+		if (FileVersion != static_cast<int32>(UE::PipelineCacheUtilities::Private::FPSOCacheChunkInfo::EVersion::Current))
+		{
+			UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting cache chunk info file %s: expected version %d, got unsupported version %d."),
+				*Filename, UE::PipelineCacheUtilities::Private::FPSOCacheChunkInfo::EVersion::Current, FileVersion);
+			return false;
+		}
+	}
+
+	// get ChunkID
+	{
+		TSharedPtr<FJsonValue> ChunkIdValue = JsonObject->Values.FindRef(TEXT("ChunkId"));
+		if (!ChunkIdValue.IsValid())
+		{
+			UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting asset info file %s: missing ChunkId (damaged file?)"),
+				*Filename);
+			return false;
+		}
+
+		OutChunkId = static_cast<int32>(ChunkIdValue->AsNumber());
+	}
+
+	// find what SF-specific output files we committed to producing
+	{
+		OutChunkedCacheFilename.Empty();
+
+		TSharedPtr<FJsonValue> OutputFilesPerFormatArrayValue = JsonObject->Values.FindRef(TEXT("OutputFilesPerFormat"));
+		if (!OutputFilesPerFormatArrayValue.IsValid())
+		{
+			UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting cache chunk info info file %s: missing OutputFilesPerFormat array (damaged file?)"),
+				*Filename);
+			return false;
+		}
+
+		TArray<TSharedPtr<FJsonValue>> OutputFilesPerFormatArray = OutputFilesPerFormatArrayValue->AsArray();
+		for (int32 IdxPair = 0, NumPairs = OutputFilesPerFormatArray.Num(); IdxPair < NumPairs; ++IdxPair)
+		{
+			TSharedPtr<FJsonObject> Pair = OutputFilesPerFormatArray[IdxPair]->AsObject();
+			if (UNLIKELY(!Pair.IsValid()))
+			{
+				UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting cache chunk info file %s: OutputFilesPerFormat array contains unreadable mapping format #%d (damaged file?)"),
+					*Filename,
+					IdxPair
+				);
+				return false;
+			}
+
+			TSharedPtr<FJsonValue> ShaderFormatJson = Pair->Values.FindRef(TEXT("ShaderFormat"));
+			if (UNLIKELY(!ShaderFormatJson.IsValid()))
+			{
+				UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting cache chunk info file %s: OutputFilesPerFormat array contains unreadable ShaderFormat %d (damaged file?)"),
+					*Filename,
+					IdxPair
+				);
+				return false;
+			}
+
+			FString ShaderFormat = ShaderFormatJson->AsString();
+			if (ShaderFormat == InShaderFormat)
+			{
+				TSharedPtr<FJsonValue> OutputFileValue = Pair->Values.FindRef(TEXT("OutputFile"));
+				if (UNLIKELY(!OutputFileValue.IsValid()))
+				{
+					UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting cache chunk info file %s: OutputFilesPerFormat array contains unreadable OutputFile %d (damaged file?)"),
+						*Filename,
+						IdxPair
+					);
+					return false;
+				}
+
+				OutChunkedCacheFilename = OutputFileValue->AsString();
+				break;
+			}
+		}
+
+		if (OutChunkedCacheFilename.IsEmpty())
+		{
+			UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting cache chunk info file %s: unable to determine output file format for shader format %s"),
+				*Filename,
+				*InShaderFormat
+			);
+			return false;
+		}
+	}
+
+	// read package (asset) names
+	{
+		TSharedPtr<FJsonValue> PackagesArrayValue = JsonObject->Values.FindRef(TEXT("Packages"));
+		if (!PackagesArrayValue.IsValid())
+		{
+			UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting cache chunk info info file %s: missing Packages array (damaged file?)"),
+				*Filename);
+			return false;
+		}
+
+		TArray<TSharedPtr<FJsonValue>> PackagesArray = PackagesArrayValue->AsArray();
+		for (int32 IdxPackage = 0, NumPackages = PackagesArray.Num(); IdxPackage < NumPackages; ++IdxPackage)
+		{
+			OutPackages.Add(FName(*PackagesArray[IdxPackage]->AsString()));
 		}
 	}
 

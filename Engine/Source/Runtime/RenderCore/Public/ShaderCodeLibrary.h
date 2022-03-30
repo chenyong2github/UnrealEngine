@@ -77,6 +77,7 @@ struct RENDERCORE_API FCompactFullName
 	}
 
 	FString ToString() const;
+	FString ToStringPathOnly() const;
 	void AppendString(FStringBuilderBase& Out) const;
 	void AppendString(FAnsiStringBuilderBase& Out) const;
 	void ParseFromString(const FStringView& Src);

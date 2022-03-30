@@ -105,6 +105,7 @@
 #include "ShaderCodeLibrary.h"
 #include "ShaderCompiler.h"
 #include "ShaderLibraryChunkDataGenerator.h"
+#include "PipelineCacheChunkDataGenerator.h"
 #include "String/Find.h"
 #include "String/ParseLines.h"
 #include "TargetDomain/TargetDomainUtils.h"
@@ -6823,6 +6824,14 @@ void UCookOnTheFlyServer::CreatePipelineCache(const ITargetPlatform* TargetPlatf
 					continue;
 				}
 
+				Args += TEXT(" -chunkinfodir=\"");
+				Args += ConvertToFullSandboxPath(FPaths::ProjectDir() / TEXT("Content"), true).Replace(TEXT("[Platform]"), *TargetPlatformName);
+				Args += TEXT("\" ");
+				Args += TEXT(" -library=");
+				Args += LibraryName;
+				Args += TEXT(" ");
+				Args += TEXT(" -platform=");
+				Args += TargetPlatformName;
 				Args += TEXT(" ");
 				Args += TEXT("\"");
 				Args += PCPath;
@@ -6964,6 +6973,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
+	// note: must agree with the name used in StartCookByTheBook
 	FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
 
 	{
@@ -8078,13 +8088,16 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		}
 	}
 	
-	// add shader library chunkers
+	// add shader library and PSO cache chunkers
+	// note: library name must agree with the name used in CookByTheBookFinished
+	FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
 	if (PackagingSettings->bShareMaterialShaderCode && IsUsingShaderCodeLibrary())
 	{
 		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 		{
 			FAssetRegistryGenerator& RegistryGenerator = *(PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator);
 			RegistryGenerator.RegisterChunkDataGenerator(MakeShared<FShaderLibraryChunkDataGenerator>(TargetPlatform));
+			RegistryGenerator.RegisterChunkDataGenerator(MakeShared<FPipelineCacheChunkDataGenerator>(TargetPlatform, LibraryName));
 		}
 	}
 
@@ -8230,7 +8243,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	// Open the shader code library for the current project or the current DLC pack, depending on which we are cooking
 	{
-		FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
 		if (LibraryName.Len() > 0)
 		{
 			OpenShaderLibrary(LibraryName);

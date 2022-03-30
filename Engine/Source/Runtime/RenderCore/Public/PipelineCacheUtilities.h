@@ -80,6 +80,48 @@ namespace PipelineCacheUtilities
 	 * @param OutPSOsMerged number of PSOs that mapped to the same shader code hashes despite using different build-agnostic ("stable") shader keys.
 	 */
 	RENDERCORE_API bool LoadStablePipelineCacheFile(const FString& Filename, const TMultiMap<FStableShaderKeyAndValue, FSHAHash>& StableMap, TSet<FPipelineCacheFileFormatPSO>& OutPSOs, FName& OutTargetPlatform, int32& OutPSOsRejected, int32& OutPSOsMerged);
+
+	/**
+	 * Saves description of assets in the chunk.
+	 *
+	 * This file is later used to split the cache into several files. 
+	 * Note that it is assumed that all possible shader format of the target platform share the same subdivision into chunks (which is the current behavior of other code, too).
+	 *
+	 * @param ShaderLibraryName shader library this info is associated with (usually either a project name or a DLC name)
+	 * @param InChunkId chunk id
+	 * @param InPackagesInChunk list of package names in chunk
+	 * @param TargetPlatform target platform for which we're cooking
+	 * @param PathToSaveTo directory where to save the info
+	 * @param OutChunkFilenames files that we need to include in this chunk
+	 * @return true if successfully saved
+	 */
+	RENDERCORE_API bool SaveChunkInfo(const FString& ShaderLibraryName, const int32 InChunkId, const TSet<FName>& InPackagesInChunk, const ITargetPlatform* TargetPlatform, const FString& PathToSaveTo, TArray<FString>& OutChunkFilenames);
+
+	/**
+	 * Finds all saved chunk info files for the given shaderlibrary and targetplatform.
+	 *
+	 * Note that it is assumed that all possible shader format of the target platform share the same subdivision into chunks (which is the current behavior of other code, too).
+	 *
+	 * @param ShaderLibraryName shader library that we chose to associate the info with (usually either a project name or a DLC name)
+	 * @param TargetPlatformName target platform name (ITargetPlatform::PlatformName()) of our target. Game and Client could have different packages
+	 * @param PathToSearchIn path where the search needs to be done (perhaps the same as where they were saved by SaveChunkInfo).
+	 * @param OutInfoFilenames found filenames, which can be loaded by LoadChunkInfo function when passed as is
+	 */
+	RENDERCORE_API void FindAllChunkInfos(const FString& ShaderLibraryName, const FString& TargetPlatformName, const FString& PathToSearchIn, TArray<FString>& OutInfoFilenames);
+
+	/**
+	 * Loads description of assets in the chunk
+	 *
+	 * Note that it is assumed that all possible shader format of the target platform share the same subdivision into chunks (which is the current behavior of other code, too).
+	 *
+	 * @param Filename file to be loaded
+	 * @param InShaderFormat shader format we're interested in (info file may have several, even if its contents aren't dependent on that)
+	 * @param OutChunkId chunk id this info is describing
+	 * @param OutPSOs the PSOs loaded from that file
+	 * @param OutChunkedCacheFilename filename of the PSO cache file that needs to be produced for this chunk.
+	 * @param OutPackages packages in this chunk
+	 */
+	RENDERCORE_API bool LoadChunkInfo(const FString& Filename, const FString& InShaderFormat, int32 &OutChunkId, FString& OutChunkedCacheFilename, TSet<FName>& OutPackages);
 }
 };
 

@@ -314,6 +314,27 @@ FString FCompactFullName::ToString() const
 	return FString(FStringView(RetString));
 }
 
+FString FCompactFullName::ToStringPathOnly() const
+{
+	const int32 ObjectClassAndPathCount = ObjectClassAndPath.Num();
+	if (!ObjectClassAndPathCount)
+	{
+		return FString();
+	}
+
+	TStringBuilder<256> RetString;
+	// skip the first element which is class name, and the last, which is the object name itself
+	for (int32 NameIdx = 1; NameIdx < ObjectClassAndPathCount - 1; NameIdx++)
+	{
+		RetString << ObjectClassAndPath[NameIdx];
+		if (NameIdx < ObjectClassAndPathCount - 2)
+		{
+			RetString << TEXT('/');
+		}
+	}
+	return FString(FStringView(RetString));
+}
+
 void FCompactFullName::AppendString(FStringBuilderBase& Out) const
 {
 	const int32 ObjectClassAndPathCount = ObjectClassAndPath.Num();
