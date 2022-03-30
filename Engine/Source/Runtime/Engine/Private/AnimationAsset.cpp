@@ -698,6 +698,19 @@ void UAnimationAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+EDataValidationResult UAnimationAsset::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = UObject::IsDataValid(ValidationErrors);
+	for (UAssetUserData* Datum : AssetUserData)
+	{
+		if(Datum != nullptr && Datum->IsDataValid(ValidationErrors) == EDataValidationResult::Invalid)
+		{
+			Result = EDataValidationResult::Invalid;
+		}
+	}
+	return Result;
+}
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////
