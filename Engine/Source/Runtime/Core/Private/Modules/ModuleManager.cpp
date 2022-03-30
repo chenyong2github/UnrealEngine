@@ -990,7 +990,7 @@ bool FModuleManager::HasAnyOverridenModuleFilename() const
 	for (const TPair<FName, ModuleInfoRef>& ModuleIt : Modules)
 	{
 		const FModuleInfo& CurModule = *ModuleIt.Value;
-		if(CurModule.Filename != CurModule.OriginalFilename)
+		if(!CurModule.OriginalFilename.IsEmpty() && CurModule.Filename != CurModule.OriginalFilename)
 		{
 			return true;
 		}
