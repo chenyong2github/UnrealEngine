@@ -246,6 +246,11 @@ void FSoftObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UOb
 	SetPropertyValue(PropertyValueAddress, TCppType(Value));
 }
 
+void FSoftObjectProperty::SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex) const
+{
+	SetWrappedObjectPropertyValue_InContainer<FSoftObjectPtr>(ContainerAddress, Value, ArrayIndex);
+}
+
 bool FSoftObjectProperty::AllowCrossLevel() const
 {
 	return true;

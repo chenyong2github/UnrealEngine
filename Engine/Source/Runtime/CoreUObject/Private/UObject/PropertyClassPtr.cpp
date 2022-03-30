@@ -61,6 +61,11 @@ void FClassPtrProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObje
 	SetPropertyValue(PropertyValueAddress, TCppType(Value));
 }
 
+void FClassPtrProperty::SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex) const
+{
+	SetWrappedObjectPropertyValue_InContainer<FObjectPtr>(ContainerAddress, Value, ArrayIndex);
+}
+
 uint32 FClassPtrProperty::GetValueTypeHashInternal(const void* Src) const
 {
 	return GetTypeHash((FObjectPtr&)GetPropertyValue(Src));

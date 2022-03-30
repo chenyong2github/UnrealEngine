@@ -577,6 +577,11 @@ UObject* FObjectPropertyBase::GetObjectPropertyValue_InContainer(const void* Con
 	return nullptr;
 }
 
+void FObjectPropertyBase::SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex) const
+{
+	checkf(false, TEXT("%s is missing implementation of SetObjectPropertyValue_InContainer"), *GetFullName());
+}
+
 void FObjectPropertyBase::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
 {
 	check(0);

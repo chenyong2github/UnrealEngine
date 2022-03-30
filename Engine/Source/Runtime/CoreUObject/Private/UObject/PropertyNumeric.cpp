@@ -243,6 +243,11 @@ uint64 FNumericProperty::GetUnsignedIntPropertyValue(void const* Data) const
 	check(0);
 	return 0;
 }
+uint64 FNumericProperty::GetUnsignedIntPropertyValue_InContainer(void const* Data) const
+{
+	check(0);
+	return 0;
+}
 
 /** 
 	* Gets the value of an floating point property type

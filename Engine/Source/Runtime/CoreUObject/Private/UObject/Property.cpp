@@ -1282,6 +1282,62 @@ void* FProperty::GetValueAddressAtIndex_Direct(const FProperty* Inner, void* InV
 	return (uint8*)InValueAddress + ElementSize * Index;
 }
 
+void FProperty::SetSingleValue_InContainer(void* InContainer, const void* InValue, int32 ArrayIndex) const
+{
+	checkf(ArrayIndex <= ArrayDim, TEXT("ArrayIndex (%d) must be less than the property %s array size (%d)"), ArrayIndex, *GetFullName(), ArrayDim);
+	if (!HasSetter())
+	{
+		// Fast path - direct memory access
+		CopySingleValue(ContainerVoidPtrToValuePtrInternal((void*)InContainer, ArrayIndex), InValue);
+	}
+	else
+	{
+		if (ArrayDim == 1)
+		{
+			// Slower but no mallocs. We can copy the value directly to the resulting param
+			CallSetter(InContainer, InValue);
+		}
+		else
+		{
+			// Malloc a temp value that is the size of the array. We will then copy the entire array to the temp value
+			uint8* ValueArray = (uint8*)AllocateAndInitializeValue();
+			GetValue_InContainer(InContainer, ValueArray);
+			// Replace the value at the specified index in the temp array with the InValue
+			CopySingleValue(ValueArray + ArrayIndex * ElementSize, InValue);
+			// Now call a setter to replace the entire array and then destroy the temp value
+			CallSetter(InContainer, ValueArray);
+			DestroyAndFreeValue(ValueArray);
+		}
+	}
+}
+
+void FProperty::GetSingleValue_InContainer(const void* InContainer, void* OutValue, int32 ArrayIndex) const
+{
+	checkf(ArrayIndex <= ArrayDim, TEXT("ArrayIndex (%d) must be less than the property %s array size (%d)"), ArrayIndex, *GetFullName(), ArrayDim);
+	if (!HasGetter())
+	{
+		// Fast path - direct memory access
+		CopySingleValue(OutValue, ContainerVoidPtrToValuePtrInternal((void*)InContainer, ArrayIndex));
+	}
+	else
+	{
+		if (ArrayDim == 1)
+		{
+			// Slower but no mallocs. We can copy the value directly to the resulting param
+			CallGetter(InContainer, OutValue);
+		}
+		else
+		{
+			// Malloc a temp value that is the size of the array. Getter will then copy the entire array to the temp value
+			uint8* ValueArray = (uint8*)AllocateAndInitializeValue();
+			GetValue_InContainer(InContainer, ValueArray);
+			// Copy the item we care about and free the temp array
+			CopySingleValue(OutValue, ValueArray + ArrayIndex * ElementSize);
+			DestroyAndFreeValue(ValueArray);
+		}
+	}
+}
+
 void FProperty::PerformOperationWithSetter(void* InContainer, void* DirectPropertyAddress, TFunctionRef<void(void*)> DirectValueAccessFunc) const
 {
 	if (InContainer && HasSetterOrGetter()) // If there's a getter we need to allocate a temp value even if there's no setter

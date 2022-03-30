@@ -152,6 +152,11 @@ void FObjectPtrProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObj
 	SetPropertyValue(PropertyValueAddress, TCppType(Value));
 }
 
+void FObjectPtrProperty::SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex) const
+{
+	SetWrappedObjectPropertyValue_InContainer<FObjectPtr>(ContainerAddress, Value, ArrayIndex);
+}
+
 bool FObjectPtrProperty::AllowCrossLevel() const
 {
 	return true;

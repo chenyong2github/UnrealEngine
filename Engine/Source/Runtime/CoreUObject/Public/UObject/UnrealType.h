@@ -557,6 +557,22 @@ public:
 		}
 	}
 
+	/**
+	* Copies a single value to the property even if the property represents a static array of values
+	* @param InContainer Instance owner of the property
+	* @param InValue Pointer to the memory that the value will be copied from. Must be at least ElementSize big
+	* @param ArrayIndex Index into the static array to copy the value from. If the property is not a static array it should be 0
+	*/
+	void SetSingleValue_InContainer(void* InContainer, const void* InValue, int32 ArrayIndex) const;
+
+	/**
+	* Copies a single value to OutValue even if the property represents a static array of values
+	* @param InContainer Instance owner of the property
+	* @param OutValue Pointer to the memory that the value will be copied to. Must be at least ElementSize big
+	* @param ArrayIndex Index into the static array to copy the value from. If the property is not a static array it should be 0
+	*/
+	void GetSingleValue_InContainer(const void* InContainer, void* OutValue, int32 ArrayIndex) const;
+
 	/** Allocates and initializes memory to hold a value this property represents */
 	void* AllocateAndInitializeValue() const;
 
@@ -1618,6 +1634,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 * @return Data as an unsigned int
 	**/
 	virtual uint64 GetUnsignedIntPropertyValue(void const* Data) const;
+	virtual uint64 GetUnsignedIntPropertyValue_InContainer(void const* Container) const;
 
 	/** 
 	 * Gets the value of an floating point property type
@@ -1873,6 +1890,13 @@ public:
 	{
 		check(TIsIntegral<TCppType>::Value);
 		return (uint64)TTypeFundamentals::GetPropertyValue(Data);
+	}
+	virtual uint64 GetUnsignedIntPropertyValue_InContainer(void const* Container) const override
+	{
+		check(TIsIntegral<TCppType>::Value);
+		TCppType LocalValue{};
+		FNumericProperty::GetValue_InContainer(Container, &LocalValue);
+		return (uint64)LocalValue;
 	}
 	virtual double GetFloatingPointPropertyValue(void const* Data) const override
 	{
@@ -2653,12 +2677,9 @@ public:
 		return LoadObjectPropertyValue(ContainerPtrToValuePtr<void>(PropertyValueAddress, ArrayIndex));
 	}
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const;
-	virtual UObject* GetObjectPropertyValue_InContainer(const void* PropertyValueAddress, int32 ArrayIndex = 0) const;
+	virtual UObject* GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex = 0) const;
 	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const;
-	FORCEINLINE void SetObjectPropertyValue_InContainer(void* PropertyValueAddress, UObject* Value, int32 ArrayIndex = 0) const
-	{
-		SetObjectPropertyValue(ContainerPtrToValuePtr<void>(PropertyValueAddress, ArrayIndex), Value);
-	}
+	virtual void SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex = 0) const;
 
 	/**
 	 * Setter function for this property's PropertyClass member. Favor this 
@@ -2682,7 +2703,7 @@ protected:
 	virtual bool AllowObjectTypeReinterpretationTo(const FObjectPropertyBase* Other) const;
 	// End of FObjectPropertyBase interface
 
-	/* Helper function for UObject property types that wrap the object pointer in a smart pointer */
+	/* Helper functions for UObject property types that wrap the object pointer in a smart pointer */
 	template <typename T>
 	UObject* GetWrappedObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex) const
 	{
@@ -2709,6 +2730,35 @@ protected:
 				DestroyAndFreeValue(ValueArray);
 			}
 			return Value.Get();
+		}
+	}
+	template <typename T>
+	void SetWrappedObjectPropertyValue_InContainer(void* ContainerAddress, UObject* InValue, int32 ArrayIndex) const
+	{
+		if (!HasSetter())
+		{
+			// Fast path - direct memory access
+			SetObjectPropertyValue(ContainerPtrToValuePtr<void>(ContainerAddress, ArrayIndex), InValue);
+		}
+		else
+		{			
+			if (ArrayDim == 1)
+			{
+				// Slower but no mallocs. We can copy a local wrapped value directly to the resulting param
+				T WrappedValue(InValue);
+				SetValue_InContainer(ContainerAddress, &WrappedValue);
+			}
+			else
+			{
+				// Malloc a temp value that is the size of the array. Getter will then copy the entire array to the temp value
+				T* ValueArray = (T*)AllocateAndInitializeValue();
+				FProperty::GetValue_InContainer(ContainerAddress, ValueArray);
+				// Replace the item we care about
+				ValueArray[ArrayIndex] = InValue;
+				// Now copy the entire array back to the property using a setter
+				SetValue_InContainer(ContainerAddress, ValueArray);
+				DestroyAndFreeValue(ValueArray);
+			}
 		}
 	}
 };
@@ -2843,6 +2893,7 @@ public:
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
 	virtual UObject* GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex = 0) const override;
 	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
+	virtual void SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex = 0) const override;
 	virtual FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName)  const override;
 	// End of FObjectPropertyBase interface
 };
@@ -2881,6 +2932,7 @@ class COREUOBJECT_API FObjectPtrProperty : public FObjectProperty
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
 	virtual UObject* GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex = 0) const override;
 	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
+	virtual void SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex = 0) const override;
 	virtual bool AllowCrossLevel() const override;
 	virtual bool AllowObjectTypeReinterpretationTo(const FObjectPropertyBase* Other) const override;
 private:
@@ -2942,6 +2994,7 @@ public:
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
 	virtual UObject* GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex = 0) const override;
 	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
+	virtual void SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex = 0) const override;
 	// End of FObjectProperty interface
 };
 
@@ -2998,6 +3051,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
 	virtual UObject* GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex = 0) const override;
 	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
+	virtual void SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex = 0) const override;
 	virtual bool AllowCrossLevel() const override;
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
@@ -3070,6 +3124,7 @@ public:
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
 	virtual UObject* GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex = 0) const override;
 	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
+	virtual void SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex = 0) const override;
 	virtual bool AllowCrossLevel() const override;
 	virtual FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName)  const override;
 
@@ -3212,6 +3267,7 @@ class COREUOBJECT_API FClassPtrProperty : public FClassProperty
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
 	virtual UObject* GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex = 0) const override;
 	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
+	virtual void SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex = 0) const override;
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 public:
