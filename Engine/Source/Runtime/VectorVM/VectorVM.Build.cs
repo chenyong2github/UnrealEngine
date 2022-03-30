@@ -28,7 +28,7 @@ public class VectorVM : ModuleRules
             new string[]
             {
                 "VECTORVM_SUPPORTS_EXPERIMENTAL=1",
-                "VECTORVM_SUPPORTS_LEGACY=0",
+                "VECTORVM_SUPPORTS_LEGACY=1"
             });
     }
 }
