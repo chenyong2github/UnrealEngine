@@ -73,6 +73,19 @@ struct TStructOpsTypeTraits<FIntVector> : public TStructOpsTypeTraitsBase2<FIntV
 };
 IMPLEMENT_STRUCT(IntVector);
 
+template<>
+struct TStructOpsTypeTraits<FIntVector4> : public TStructOpsTypeTraitsBase2<FIntVector4>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+		WithNoInitConstructor = true,
+		WithZeroConstructor = true,
+		WithSerializer = true,
+	};
+};
+IMPLEMENT_STRUCT(IntVector4);
+
 template<typename T>
 struct TVector2StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {

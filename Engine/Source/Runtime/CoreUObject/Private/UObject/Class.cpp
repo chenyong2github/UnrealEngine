@@ -6205,6 +6205,24 @@ static UScriptStruct* StaticGetBaseStructureInternal(FName Name)
 	return Result;
 }
 
+UScriptStruct* TBaseStructure<FIntPoint>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("IntPoint"));
+	return ScriptStruct;
+}
+
+UScriptStruct* TBaseStructure<FIntVector>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("IntVector"));
+	return ScriptStruct;
+}
+
+UScriptStruct* TBaseStructure<FIntVector4>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("IntVector4"));
+	return ScriptStruct;
+}
+
 UScriptStruct* TBaseStructure<FLinearColor>::Get()
 {
 	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("LinearColor"));

@@ -3534,6 +3534,21 @@ template< class T > struct TBaseStructure
 	}
 };
 
+template<> struct TBaseStructure<FIntPoint> 
+{
+	COREUOBJECT_API static UScriptStruct* Get(); 
+};
+
+template<> struct TBaseStructure<FIntVector> 
+{ 
+	COREUOBJECT_API static UScriptStruct* Get(); 
+};
+
+template<> struct TBaseStructure<FIntVector4>
+{
+	COREUOBJECT_API static UScriptStruct* Get();
+};
+
 template<> struct TBaseStructure<FLinearColor>
 {
 	COREUOBJECT_API static UScriptStruct* Get();

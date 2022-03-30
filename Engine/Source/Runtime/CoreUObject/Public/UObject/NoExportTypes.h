@@ -868,6 +868,26 @@ struct FIntVector
 };
 
 /**
+ * An integer vector in 4D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, BlueprintType, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FIntVector4
+{
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IntVector4, SaveGame)
+	int32 X;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IntVector4, SaveGame)
+	int32 Y;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IntVector4, SaveGame)
+	int32 Z;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IntVector4, SaveGame)
+	int32 W;
+};
+
+/**
  * Stores a color with 8 bits of precision per channel. (BGRA).
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Color.h
  */
