@@ -14,6 +14,11 @@
 #include "Misc/App.h"
 #include "EngineDefines.h"
 #include "PhysicsInterfaceDeclaresCore.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "RenderResource.h"
+#include "LocalVertexFactory.h"
+#include "DynamicMeshBuilder.h"
+#endif
 #include "PhysicsPublicCore.h"
 //#include "StaticMeshResources.h"
 

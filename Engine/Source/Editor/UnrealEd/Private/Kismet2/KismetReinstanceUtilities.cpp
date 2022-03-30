@@ -36,6 +36,7 @@
 #include "Engine/NetDriver.h"
 #include "Engine/ActorChannel.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Engine/ScopedMovementUpdate.h"
 
 // Enabling this will validate cached dependent Blueprints against the full set of loaded Blueprints when updating bytecode references.
 // Note: Enabling this may potentially increase editor/Blueprint load time and/or decrease performance related to Blueprint compilation.

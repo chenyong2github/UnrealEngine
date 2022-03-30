@@ -9,6 +9,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "CollisionQueryParams.h"
 #include "CollisionShape.h"
+#include "Engine/OverlapResult.h"
 
 struct FOverlapDatum;
 struct FTraceDatum;

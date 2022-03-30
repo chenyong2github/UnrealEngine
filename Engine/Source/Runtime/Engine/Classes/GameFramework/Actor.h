@@ -18,6 +18,8 @@
 #include "Misc/ITransaction.h"
 #include "Engine/Level.h"
 #include "Net/Core/Misc/NetSubObjectRegistry.h"
+#include "Engine/HitResult.h"
+#include "Engine/ReplicatedState.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/DataLayer/ActorDataLayer.h"

@@ -36,6 +36,9 @@
 #include "UObject/UE5PrivateFrostyStreamObjectVersion.h"
 #include "EngineModule.h"
 #include "UObject/ObjectSaveContext.h"
+#include "Engine/OverlapInfo.h"
+#include "Engine/DamageEvents.h"
+#include "Engine/ScopedMovementUpdate.h"
 
 #if WITH_EDITOR
 #include "Engine/LODActor.h"
@@ -114,6 +117,13 @@ DECLARE_CYCLE_STAT(TEXT("BeginComponentOverlap"), STAT_BeginComponentOverlap, ST
 DECLARE_CYCLE_STAT(TEXT("EndComponentOverlap"), STAT_EndComponentOverlap, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("PrimComp DispatchBlockingHit"), STAT_DispatchBlockingHit, STATGROUP_Game);
 
+FOverlapInfo::FOverlapInfo(UPrimitiveComponent* InComponent, int32 InBodyIndex)
+	: bFromSweep(false)
+{
+	OverlapInfo.HitObjectHandle = FActorInstanceHandle(InComponent ? InComponent->GetOwner() : nullptr);
+	OverlapInfo.Component = InComponent;
+	OverlapInfo.Item = InBodyIndex;
+}
 
 // Predicate to determine if an overlap is with a certain AActor.
 struct FPredicateOverlapHasSameActor
@@ -289,6 +299,9 @@ FThreadSafeCounter UPrimitiveComponent::NextRegistrationSerialNumber;
 
 // 0 is reserved to mean invalid
 FThreadSafeCounter UPrimitiveComponent::NextComponentId;
+
+UPrimitiveComponent::UPrimitiveComponent(FVTableHelper& Helper) : Super(Helper) { }
+UPrimitiveComponent::~UPrimitiveComponent() = default;
 
 UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/)
 	: Super(ObjectInitializer)

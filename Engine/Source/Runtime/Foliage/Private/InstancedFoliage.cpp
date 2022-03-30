@@ -55,6 +55,7 @@ InstancedFoliage.cpp: Instanced foliage implementation.
 #include "Algo/Transform.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Misc/CoreMisc.h"
+#include "Engine/DamageEvents.h"
 
 #define LOCTEXT_NAMESPACE "InstancedFoliage"
 

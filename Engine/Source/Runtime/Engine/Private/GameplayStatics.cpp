@@ -49,6 +49,7 @@
 #include "Sound/SoundCue.h"
 #include "Sound/SoundWave.h"
 #include "Audio/ActorSoundParameterInterface.h"
+#include "Engine/DamageEvents.h"
 
 #if WITH_ACCESSIBILITY
 #include "Framework/Application/SlateApplication.h"

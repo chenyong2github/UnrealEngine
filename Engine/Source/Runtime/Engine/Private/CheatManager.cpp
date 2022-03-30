@@ -39,6 +39,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Engine/NetConnection.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Engine/DamageEvents.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCheatManager, Log, All);
 

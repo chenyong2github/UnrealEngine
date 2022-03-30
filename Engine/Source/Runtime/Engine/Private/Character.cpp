@@ -17,6 +17,7 @@
 #include "DisplayDebugHelpers.h"
 #include "Engine/Canvas.h"
 #include "Animation/AnimInstance.h"
+#include "Engine/DamageEvents.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCharacter, Log, All);
 

@@ -51,6 +51,8 @@
 #include "GameFramework/InputSettings.h"
 #include "Algo/AnyOf.h"
 #include "PrimitiveSceneProxy.h"
+#include "Engine/DamageEvents.h"
+#include "Engine/OverlapInfo.h"
 
 #if WITH_EDITOR
 #include "FoliageHelper.h"

@@ -3,6 +3,7 @@
 #include "GameFramework/PainCausingVolume.h"
 #include "TimerManager.h"
 #include "GameFramework/Pawn.h"
+#include "Engine/DamageEvents.h"
 
 APainCausingVolume::APainCausingVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

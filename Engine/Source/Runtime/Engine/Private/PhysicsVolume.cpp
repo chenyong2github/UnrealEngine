@@ -5,6 +5,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/BrushComponent.h"
 #include "PhysicsEngine/PhysicsSettings.h"
+#include "Engine/OverlapInfo.h"
 
 APhysicsVolume::APhysicsVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

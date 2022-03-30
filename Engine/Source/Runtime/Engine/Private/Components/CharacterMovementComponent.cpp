@@ -33,6 +33,7 @@
 
 #include "Net/PerfCountersHelpers.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Engine/ScopedMovementUpdate.h"
 
 CSV_DEFINE_CATEGORY(CharacterMovement, true);
 
