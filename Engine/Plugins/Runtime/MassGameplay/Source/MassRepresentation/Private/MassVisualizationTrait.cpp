@@ -8,6 +8,7 @@
 #include "MassRepresentationActorManagement.h"
 #include "Engine/World.h"
 #include "MassLODFragments.h"
+#include "MassActorSubsystem.h"
 
 UMassVisualizationTrait::UMassVisualizationTrait()
 {
@@ -47,11 +48,9 @@ void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 		return;
 	}
 
-	// the following needs to be always there for mesh vis to work. Adding following fragments after already 
-	// adding Config.AdditionalDataFragments to let user configure the fragments first. Calling BuildContext.Add() 
-	// won't override any fragments that are already there
-	BuildContext.AddTag<FMassCollectLODViewerInfoTag>(); // Depends on FMassViewerInfoFragment
-	BuildContext.AddFragment<FTransformFragment>();
+	BuildContext.RequireFragment<FMassViewerInfoFragment>();
+	BuildContext.RequireFragment<FTransformFragment>();
+	BuildContext.RequireFragment<FMassActorFragment>();
 
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 	check(EntitySubsystem);

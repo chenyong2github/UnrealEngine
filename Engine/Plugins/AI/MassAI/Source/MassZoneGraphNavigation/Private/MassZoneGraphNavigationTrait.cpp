@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "MassZoneGraphNavigationTrait.h"
 #include "MassEntityTemplateRegistry.h"
 #include "MassCommonFragments.h"
@@ -12,10 +12,10 @@ void UMassZoneGraphNavigationTrait::BuildTemplate(FMassEntityTemplateBuildContex
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 	check(EntitySubsystem);
 
-	BuildContext.AddFragment<FAgentRadiusFragment>();
-	BuildContext.AddFragment<FTransformFragment>();
-	BuildContext.AddFragment<FMassVelocityFragment>();
-	BuildContext.AddFragment<FMassMoveTargetFragment>();
+	BuildContext.RequireFragment<FAgentRadiusFragment>();
+	BuildContext.RequireFragment<FTransformFragment>();
+	BuildContext.RequireFragment<FMassVelocityFragment>();
+	BuildContext.RequireFragment<FMassMoveTargetFragment>();
 
 	BuildContext.AddFragment<FMassZoneGraphLaneLocationFragment>();
 	BuildContext.AddFragment<FMassZoneGraphPathRequestFragment>();

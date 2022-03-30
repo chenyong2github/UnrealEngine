@@ -8,6 +8,7 @@
 #include "MassRepresentationFragments.h"
 #include "Engine/World.h"
 #include "MassCrowdRepresentationActorManagement.h"
+#include "MassActorSubsystem.h"
 
 UMassCrowdServerRepresentationTrait::UMassCrowdServerRepresentationTrait()
 {
@@ -31,10 +32,9 @@ void UMassCrowdServerRepresentationTrait::BuildTemplate(FMassEntityTemplateBuild
 		return;
 	}
 	
-	// the following needs to be always there for mesh vis to work. Adding following fragments after already 
-	// adding Config.AdditionalDataFragments to let user configure the fragments first. Calling BuildContext.Add() 
-	// won't override any fragments that are already there
-	BuildContext.AddFragment<FTransformFragment>();
+	BuildContext.RequireFragment<FMassViewerInfoFragment>();
+	BuildContext.RequireFragment<FTransformFragment>();
+	BuildContext.RequireFragment<FMassActorFragment>();
 
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 	check(EntitySubsystem);

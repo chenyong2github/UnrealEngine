@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Avoidance/MassAvoidanceTrait.h"
 #include "Avoidance/MassAvoidanceFragments.h"
@@ -13,12 +13,12 @@ void UMassObstacleAvoidanceTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 	check(EntitySubsystem);
 
-	BuildContext.AddFragment<FAgentRadiusFragment>();
+	BuildContext.RequireFragment<FAgentRadiusFragment>();
 	BuildContext.AddFragment<FMassNavigationEdgesFragment>();
-	BuildContext.AddFragment<FTransformFragment>();
-	BuildContext.AddFragment<FMassVelocityFragment>();
-	BuildContext.AddFragment<FMassForceFragment>();
-	BuildContext.AddFragment<FMassMoveTargetFragment>();
+	BuildContext.RequireFragment<FTransformFragment>();
+	BuildContext.RequireFragment<FMassVelocityFragment>();
+	BuildContext.RequireFragment<FMassForceFragment>();
+	BuildContext.RequireFragment<FMassMoveTargetFragment>();
 
 	const FMassMovingAvoidanceParameters MovingValidated = MovingParameters.GetValidated();
 	const uint32 MovingHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(MovingValidated));

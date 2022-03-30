@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Steering/MassSteeringTrait.h"
 #include "MassEntityTemplateRegistry.h"
@@ -13,12 +13,12 @@ void UMassSteeringTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildCon
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 	check(EntitySubsystem);
 
-	BuildContext.AddFragment<FAgentRadiusFragment>();
-	BuildContext.AddFragment<FTransformFragment>();
-	BuildContext.AddFragment<FMassVelocityFragment>();
-	BuildContext.AddFragment<FMassForceFragment>();
+	BuildContext.RequireFragment<FAgentRadiusFragment>();
+	BuildContext.RequireFragment<FTransformFragment>();
+	BuildContext.RequireFragment<FMassVelocityFragment>();
+	BuildContext.RequireFragment<FMassForceFragment>();
+
 	BuildContext.AddFragment<FMassMoveTargetFragment>();
-	
 	BuildContext.AddFragment<FMassSteeringFragment>();
 	BuildContext.AddFragment<FMassStandingSteeringFragment>();
 	BuildContext.AddFragment<FMassGhostLocationFragment>();
