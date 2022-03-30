@@ -21,6 +21,8 @@ namespace Horde.Storage.Implementation
 
         internal const int DefaultBufferSize = 4096;
 
+        private const int SharingViolationErrorCode = 32;
+
         public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings)
         {
             _settings = settings;
@@ -57,11 +59,22 @@ namespace Horde.Storage.Implementation
             FileInfo filePath = GetFilesystemPath(ns, blobIdentifier);
             filePath.Directory?.Create();
 
+            try
             {
                 await using FileStream fs = new FileStream(filePath.FullName, FileMode.Create, FileAccess.Write, FileShare.Read, DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
                 CancellationToken cancellationToken = default(CancellationToken);
                 await fs.WriteAsync(content, cancellationToken);
                 await fs.FlushAsync(cancellationToken);
+            }
+            catch (IOException e)
+            {
+                // ignore errors about accessing the file, it could be used by another call to write it at the same time, which is completely safe as the identifier is the content of the file
+                if (e.HResult == SharingViolationErrorCode)
+                {
+                    _logger.Warning("Sharing violation attempting to write {Blob} in {Namespace}", blobIdentifier, ns);
+                }
+                else
+                    throw;
             }
 
             if (content.Length == 0)
@@ -77,11 +90,22 @@ namespace Horde.Storage.Implementation
             FileInfo filePath = GetFilesystemPath(ns, blobIdentifier);
             filePath.Directory?.Create();
 
+            try
             {
                 await using FileStream fs = new FileStream(filePath.FullName, FileMode.Create, FileAccess.Write, FileShare.Read, DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
                 CancellationToken cancellationToken = default(CancellationToken);
                 await content.CopyToAsync(fs, cancellationToken);
                 await fs.FlushAsync(cancellationToken);
+            }
+            catch (IOException e)
+            {
+                // ignore errors about accessing the file, it could be used by another call to write it at the same time, which is completely safe as the identifier is the content of the file
+                if (e.HResult == SharingViolationErrorCode)
+                {
+                    _logger.Warning("Sharing violation attempting to write {Blob} in {Namespace}", blobIdentifier, ns);
+                }
+                else
+                    throw;
             }
             filePath.Refresh();
             if (filePath.Length == 0)
@@ -96,11 +120,22 @@ namespace Horde.Storage.Implementation
             FileInfo filePath = GetFilesystemPath(ns, blobIdentifier);
             filePath.Directory?.Create();
 
+            try
             {
                 await using FileStream fs = new FileStream(filePath.FullName, FileMode.Create, FileAccess.Write, FileShare.Read, DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
                 CancellationToken cancellationToken = default(CancellationToken);
                 await fs.WriteAsync(content, cancellationToken);
                 await fs.FlushAsync(cancellationToken);
+            }
+            catch (IOException e)
+            {
+                // ignore errors about accessing the file, it could be used by another call to write it at the same time, which is completely safe as the identifier is the content of the file
+                if (e.HResult == SharingViolationErrorCode)
+                {
+                    _logger.Warning("Sharing violation attempting to write {Blob} in {Namespace}", blobIdentifier, ns);
+                }
+                else
+                    throw;
             }
 
             if (content.Length == 0)
