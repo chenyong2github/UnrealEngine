@@ -133,7 +133,10 @@ class MultiUserApplication:
 
             cmdline = ''
             if sys.platform.startswith('win'):
-                cmdline = f'start "Multi User Server" "{self.exe_path()}"'
+                if CONFIG.MUSERVER_SLATE_MODE.get_value():
+                    cmdline = f'start /b "Multi User Server" "{self.exe_path()}"'
+                else:
+                    cmdline = f'start "Multi User Server" "{self.exe_path()}"'
             else:
                 cmdline = f'{self.exe_path()}'
 
@@ -147,6 +150,9 @@ class MultiUserApplication:
 
             if CONFIG.MUSERVER_CLEAN_HISTORY.get_value():
                 cmdline += " -ConcertClean"
+                
+            if CONFIG.MUSERVER_SLATE_MODE.get_value():
+                cmdline += " -WithSlate"
 
             if len(args) > 0:
                 cmdline += f' {" ".join(args)}'
