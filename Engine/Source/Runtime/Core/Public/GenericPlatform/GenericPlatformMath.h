@@ -26,6 +26,7 @@
 struct FGenericPlatformMath
 {
 
+	// load half (F16) to float
 	//https://gist.github.com/rygorous/2156668
 	static FORCEINLINE float LoadHalf(const uint16* Ptr)
 	{
@@ -56,7 +57,10 @@ struct FGenericPlatformMath
 		return FP32.f;
 	}
 
-	//https://gist.github.com/rygorous/2156668
+	// store float to half (F16)
+	// converts with RTNE = round to nearest even
+	// values too large for F16 are stored as +-Inf
+	// https://gist.github.com/rygorous/2156668
 	// float_to_half_fast3_rtne
 	static FORCEINLINE void StoreHalf(uint16* Ptr, float Value)
 	{
@@ -599,12 +603,12 @@ struct FGenericPlatformMath
 
 	static FORCEINLINE bool IsNegative(float A)
 	{
-		return ((*(uint32*)&A) >= (uint32)0x80000000); // Detects sign bit.
+		return ( A < 0.f );
 	}
 
 	static FORCEINLINE bool IsNegative(double A)
 	{
-		return ((*(uint64*)&A) >= (uint64)0x8000000000000000); // Detects sign bit.
+		return ( A < 0.0 );
 	}
 
 	/** Returns a random integer between 0 and RAND_MAX, inclusive */
@@ -631,7 +635,7 @@ struct FGenericPlatformMath
 	static CORE_API float SRand();
 
 	/**
-	 * Computes the base 2 logarithm for an integer value that is greater than 0.
+	 * Computes the base 2 logarithm for an integer value.
 	 * The result is rounded down to the nearest integer.
 	 *
 	 * @param Value		The value to compute the log of
@@ -639,72 +643,17 @@ struct FGenericPlatformMath
 	 */	
 	static FORCEINLINE uint32 FloorLog2(uint32 Value) 
 	{
-/*		// reference implementation 
-		// 1500ms on test data
-		uint32 Bit = 32;
-		for (; Bit > 0;)
-		{
-			Bit--;
-			if (Value & (1<<Bit))
-			{
-				break;
-			}
-		}
-		return Bit;
-*/
-		// same output as reference
-
-		// see http://codinggorilla.domemtech.com/?p=81 or http://en.wikipedia.org/wiki/Binary_logarithm but modified to return 0 for a input value of 0
-		// 686ms on test data
 		uint32 pos = 0;
 		if (Value >= 1<<16) { Value >>= 16; pos += 16; }
 		if (Value >= 1<< 8) { Value >>=  8; pos +=  8; }
 		if (Value >= 1<< 4) { Value >>=  4; pos +=  4; }
 		if (Value >= 1<< 2) { Value >>=  2; pos +=  2; }
 		if (Value >= 1<< 1) {				pos +=  1; }
-		return (Value == 0) ? 0 : pos;
-
-		// even faster would be method3 but it can introduce more cache misses and it would need to store the table somewhere
-		// 304ms in test data
-		/*int LogTable256[256];
-
-		void prep()
-		{
-			LogTable256[0] = LogTable256[1] = 0;
-			for (int i = 2; i < 256; i++)
-			{
-				LogTable256[i] = 1 + LogTable256[i / 2];
-			}
-			LogTable256[0] = -1; // if you want log(0) to return -1
-		}
-
-		int _forceinline method3(uint32 v)
-		{
-			int r;     // r will be lg(v)
-			uint32 tt; // temporaries
-
-			if ((tt = v >> 24) != 0)
-			{
-				r = (24 + LogTable256[tt]);
-			}
-			else if ((tt = v >> 16) != 0)
-			{
-				r = (16 + LogTable256[tt]);
-			}
-			else if ((tt = v >> 8 ) != 0)
-			{
-				r = (8 + LogTable256[tt]);
-			}
-			else
-			{
-				r = LogTable256[v];
-			}
-			return r;
-		}*/
+		return pos;
 	}
 
 	/**
-	 * Computes the base 2 logarithm for a 64-bit value that is greater than 0.
+	 * Computes the base 2 logarithm for a 64-bit value.
 	 * The result is rounded down to the nearest integer.
 	 *
 	 * @param Value		The value to compute the log of
@@ -718,8 +667,8 @@ struct FGenericPlatformMath
 		if (Value >= 1ull<< 8) { Value >>=  8; pos +=  8; }
 		if (Value >= 1ull<< 4) { Value >>=  4; pos +=  4; }
 		if (Value >= 1ull<< 2) { Value >>=  2; pos +=  2; }
-		if (Value >= 1ull<< 1) {				pos +=  1; }
-		return (Value == 0) ? 0 : pos;
+		if (Value >= 1ull<< 1) {               pos +=  1; }
+		return pos;
 	}
 
 	/**
@@ -807,18 +756,20 @@ struct FGenericPlatformMath
 
 	/**
 	 * Returns smallest N such that (1<<N)>=Arg.
-	 * Note: CeilLogTwo(0)=0 because (1<<0)=1 >= 0.
+	 * Note: CeilLogTwo(0)=0 
 	 */
 	static FORCEINLINE uint32 CeilLogTwo( uint32 Arg )
 	{
-		int32 Bitmask = ((int32)(CountLeadingZeros(Arg) << 26)) >> 31;
-		return (32 - CountLeadingZeros(Arg - 1)) & (~Bitmask);
+		// if Arg is 0, change it to 1 so that we return 0
+		Arg = Arg ? Arg : 1;
+		return 32 - CountLeadingZeros(Arg - 1);
 	}
 
 	static FORCEINLINE uint64 CeilLogTwo64( uint64 Arg )
 	{
-		int64 Bitmask = ((int64)(CountLeadingZeros64(Arg) << 57)) >> 63;
-		return (64 - CountLeadingZeros64(Arg - 1)) & (~Bitmask);
+		// if Arg is 0, change it to 1 so that we return 0
+		Arg = Arg ? Arg : 1;
+		return 64 - CountLeadingZeros64(Arg - 1);
 	}
 
 	/**
@@ -949,7 +900,7 @@ struct FGenericPlatformMath
 	template< class T > 
 	static CONSTEXPR FORCEINLINE T Abs( const T A )
 	{
-		return (A>=(T)0) ? A : -A;
+		return (A < (T)0) ? -A : A;
 	}
 
 	/** Returns 1, 0, or -1 depending on relation of T to 0 */

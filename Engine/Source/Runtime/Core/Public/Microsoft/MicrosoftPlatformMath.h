@@ -22,36 +22,29 @@ struct FMicrosoftPlatformMathBase : public TUnrealPlatformMathSSE4Base<FGenericP
 	static FORCEINLINE uint32 FloorLog2(uint32 Value)
 	{
 		// Use BSR to return the log2 of the integer
-		unsigned long Log2;
-		if(_BitScanReverse(&Log2, Value) != 0)
-		{
-			return Log2;
-		}
-
-		return 0;
+		// return 0 if value is 0
+		unsigned long BitIndex;
+		return _BitScanReverse(&BitIndex, Value) ? BitIndex : 0;
 	}
 	static FORCEINLINE uint8 CountLeadingZeros8(uint8 Value)
 	{
-		unsigned long Log2;
-		_BitScanReverse(&Log2, (uint32(Value) << 1) | 1);
-		return uint8(8 - Log2);
+		unsigned long BitIndex;
+		_BitScanReverse(&BitIndex, uint32(Value)*2 + 1);
+		return uint8(8 - BitIndex);
 	}
 
 	static FORCEINLINE uint32 CountTrailingZeros(uint32 Value)
 	{
-		if (Value == 0)
-		{
-			return 32;
-		}
+		// return 32 if value was 0
 		unsigned long BitIndex;	// 0-based, where the LSB is 0 and MSB is 31
-		_BitScanForward( &BitIndex, Value );	// Scans from LSB to MSB
-		return BitIndex;
+		return _BitScanForward( &BitIndex, Value ) ? BitIndex : 32;
 	}
 
 	static FORCEINLINE uint32 CeilLogTwo( uint32 Arg )
 	{
-		int32 Bitmask = ((int32)(CountLeadingZeros(Arg) << 26)) >> 31;
-		return (32 - CountLeadingZeros(Arg - 1)) & (~Bitmask);
+		// if Arg is 0, change it to 1 so that we return 0
+		Arg = Arg ? Arg : 1;
+		return 32 - CountLeadingZeros(Arg - 1);
 	}
 
 	static FORCEINLINE uint32 RoundUpToPowerOfTwo(uint32 Arg)
@@ -70,49 +63,49 @@ struct FMicrosoftPlatformMathBase : public TUnrealPlatformMathSSE4Base<FGenericP
 
 	static FORCEINLINE uint64 FloorLog2_64(uint64 Value)
 	{
-		unsigned long Log2;
-		long Mask = -long(_BitScanReverse64(&Log2, Value) != 0);
-		return Log2 & Mask;
+		unsigned long BitIndex;
+		return _BitScanReverse64(&BitIndex, Value) ? BitIndex : 0;
 	}
 
 	static FORCEINLINE uint64 CeilLogTwo64(uint64 Arg)
 	{
-		int64 Bitmask = ((int64)(CountLeadingZeros64(Arg) << 57)) >> 63;
-		return (64 - CountLeadingZeros64(Arg - 1)) & (~Bitmask);
+		// if Arg is 0, change it to 1 so that we return 0
+		Arg = Arg ? Arg : 1;
+		return 64 - CountLeadingZeros64(Arg - 1);
 	}
 
 	static FORCEINLINE uint64 CountLeadingZeros64(uint64 Value)
 	{
-		unsigned long Log2;
-		long Mask = -long(_BitScanReverse64(&Log2, Value) != 0);
-		return ((63 - Log2) & Mask) | (64 & ~Mask);
+		//https://godbolt.org/z/Ejh5G4vPK	
+		// return 64 if value if was 0
+		unsigned long BitIndex;
+		if ( ! _BitScanReverse64(&BitIndex, Value) ) BitIndex = -1;
+        return 63 - BitIndex;
 	}
 
 	static FORCEINLINE uint64 CountTrailingZeros64(uint64 Value)
 	{
-		if (Value == 0)
-		{
-			return 64;
-		}
-		unsigned long BitIndex;	// 0-based, where the LSB is 0 and MSB is 31
-		_BitScanForward64( &BitIndex, Value );	// Scans from LSB to MSB
-		return BitIndex;
+		// return 64 if Value is 0
+		unsigned long BitIndex;	// 0-based, where the LSB is 0 and MSB is 63
+		return _BitScanForward64( &BitIndex, Value ) ? BitIndex : 64;
 	}
 
 	static FORCEINLINE uint32 CountLeadingZeros(uint32 Value)
 	{
-		unsigned long Log2;
-		_BitScanReverse64(&Log2, (uint64(Value) << 1) | 1);
-		return 32 - Log2;
+		// return 32 if value is zero
+		unsigned long BitIndex;
+		_BitScanReverse64(&BitIndex, uint64(Value)*2 + 1);
+		return 32 - BitIndex;
 	}
 
 #else // 32-bit
 
 	static FORCEINLINE uint32 CountLeadingZeros(uint32 Value)
 	{
-		unsigned long Log2;
-		long Mask = -long(_BitScanReverse(&Log2, Value) != 0);
-		return ((31 - Log2) & Mask) | (32 & ~Mask);
+		// return 32 if value is zero
+		unsigned long BitIndex;
+		if ( ! _BitScanReverse(&BitIndex, Value) ) BitIndex = -1;
+        return 31 - BitIndex;
 	}
 
 #endif
