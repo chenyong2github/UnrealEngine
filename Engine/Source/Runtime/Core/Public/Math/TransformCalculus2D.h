@@ -505,10 +505,10 @@ public:
 		T E, F, G, H;
 		RHS.GetMatrix(E, F, G, H);
 		return
-			FMath::IsNearlyEqual(A, E, KINDA_SMALL_NUMBER) &&
-			FMath::IsNearlyEqual(B, F, KINDA_SMALL_NUMBER) &&
-			FMath::IsNearlyEqual(C, G, KINDA_SMALL_NUMBER) &&
-			FMath::IsNearlyEqual(D, H, KINDA_SMALL_NUMBER);
+			FMath::IsNearlyEqual(A, E, UE_KINDA_SMALL_NUMBER) &&
+			FMath::IsNearlyEqual(B, F, UE_KINDA_SMALL_NUMBER) &&
+			FMath::IsNearlyEqual(C, G, UE_KINDA_SMALL_NUMBER) &&
+			FMath::IsNearlyEqual(D, H, UE_KINDA_SMALL_NUMBER);
 	}
 
 	/** Inequality. */
@@ -573,7 +573,7 @@ public:
 			&& M[1][0] == 0.0f && M[1][1] == 1.0f;
 	}
 
-	bool IsNearlyIdentity(T ErrorTolerance = KINDA_SMALL_NUMBER) const
+	bool IsNearlyIdentity(T ErrorTolerance = UE_KINDA_SMALL_NUMBER) const
 	{
 		return
 			FMath::IsNearlyEqual(M[0][0], 1.0f, ErrorTolerance) &&

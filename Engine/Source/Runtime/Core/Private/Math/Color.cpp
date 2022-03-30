@@ -530,7 +530,7 @@ FColor FColor::MakeRedToGreenColorFromScalar(float Scalar)
 
 void ComputeAndFixedColorAndIntensity(const FLinearColor& InLinearColor,FColor& OutColor,float& OutIntensity)
 {
-	float MaxComponent = FMath::Max(DELTA,FMath::Max(InLinearColor.R,FMath::Max(InLinearColor.G,InLinearColor.B)));
+	float MaxComponent = FMath::Max(UE_DELTA,FMath::Max(InLinearColor.R,FMath::Max(InLinearColor.G,InLinearColor.B)));
 	OutColor = ( InLinearColor / MaxComponent ).ToFColor(true);
 	OutIntensity = MaxComponent;
 }
