@@ -3704,6 +3704,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bHideSymbolsByDefault = !Rules.bPublicSymbolsByDefault;
 			GlobalCompileEnvironment.CppStandard = Rules.CppStandard;
 			GlobalCompileEnvironment.AdditionalArguments = Rules.AdditionalCompilerArguments ?? String.Empty;
+			GlobalCompileEnvironment.CrashDiagnosticDirectory = Rules.CrashDiagnosticDirectory;
 
 			GlobalLinkEnvironment.bUseDebugCRT = bUseDebugCRT;
 			GlobalLinkEnvironment.bUseStaticCRT = Rules.bUseStaticCRT;
@@ -3715,6 +3716,7 @@ namespace UnrealBuildTool
 			GlobalLinkEnvironment.bHasExports = Rules.bHasExports;
 			GlobalLinkEnvironment.bUsePDBFiles = Rules.bUsePDBFiles;
 			GlobalLinkEnvironment.PackagePath = Rules.PackagePath;
+			GlobalLinkEnvironment.CrashDiagnosticDirectory = Rules.CrashDiagnosticDirectory;
 			GlobalLinkEnvironment.BundleDirectory = BuildPlatform.GetBundleDirectory(Rules, Binaries[0].OutputFilePaths);
 			GlobalLinkEnvironment.BundleVersion = Rules.BundleVersion;
 			GlobalLinkEnvironment.bAllowLTCG = Rules.bAllowLTCG;

@@ -416,6 +416,11 @@ namespace UnrealBuildTool
 		public EngineIncludeOrderVersion IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 		/// <summary>
+		/// Directory where to put crash report files for platforms that support it
+		/// </summary>
+		public string? CrashDiagnosticDirectory;
+
+		/// <summary>
 		/// Default constructor.
 		/// </summary>
         public CppCompileEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, string Architecture, SourceFileMetadataCache MetadataCache)
@@ -498,6 +503,7 @@ namespace UnrealBuildTool
 			CppStandard = Other.CppStandard;
 			bEnableCoroutines = Other.bEnableCoroutines;
 			IncludeOrderVersion = Other.IncludeOrderVersion;
+			CrashDiagnosticDirectory = Other.CrashDiagnosticDirectory;
 		}
 	}
 }

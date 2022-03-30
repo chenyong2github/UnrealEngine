@@ -273,6 +273,11 @@ namespace UnrealBuildTool
 		public string? PackagePath;
 
 		/// <summary>
+		/// Directory where to put crash report files for platforms that support it
+		/// </summary>
+		public string? CrashDiagnosticDirectory;
+
+		/// <summary>
 		/// Bundle version for Mac apps
 		/// </summary>
 		public string? BundleVersion;
@@ -376,6 +381,7 @@ namespace UnrealBuildTool
 			bIgnoreUnresolvedSymbols = Other.bIgnoreUnresolvedSymbols;
 			bPrintTimingInfo = Other.bPrintTimingInfo;
 			PackagePath = Other.PackagePath;
+			CrashDiagnosticDirectory = Other.CrashDiagnosticDirectory;
 			BundleVersion = Other.BundleVersion;
 			InstallName = Other.InstallName;
 			InputFiles.AddRange(Other.InputFiles);

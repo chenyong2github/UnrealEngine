@@ -1427,6 +1427,13 @@ namespace UnrealBuildTool
 		public string? PackagePath = null;
 
 		/// <summary>
+		/// Directory where to put crash report files for platforms that support it
+		/// </summary>
+		[CommandLine("-CrashDiagnosticDirectory")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public string? CrashDiagnosticDirectory = null;
+
+		/// <summary>
 		/// Bundle version for Mac apps.
 		/// </summary>
 		[CommandLine("-BundleVersion")]
@@ -2914,6 +2921,11 @@ namespace UnrealBuildTool
 		public string? PackagePath
 		{
 			get { return Inner.PackagePath; }
+		}
+
+		public string? CrashDiagnosticDirectory
+		{
+			get { return Inner.CrashDiagnosticDirectory; }
 		}
 
 		public string? BundleVersion
