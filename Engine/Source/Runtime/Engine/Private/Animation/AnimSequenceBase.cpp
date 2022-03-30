@@ -271,6 +271,18 @@ bool UAnimSequenceBase::RemoveNotifies(const TArray<FName>& NotifiesToRemove)
 	return bSequenceModified;
 }
 
+void UAnimSequenceBase::RemoveNotifies()
+{
+	if (Notifies.Num() == 0)
+	{
+		return;
+	}
+	Modify();
+	Notifies.Reset();
+	MarkPackageDirty();
+	RefreshCacheData();
+}
+
 bool UAnimSequenceBase::IsNotifyAvailable() const
 {
 	return (Notifies.Num() != 0) && (GetPlayLength() > 0.f);

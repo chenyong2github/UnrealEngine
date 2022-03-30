@@ -80,6 +80,9 @@ public:
 
 	/** Remove the notifies specified */
 	bool RemoveNotifies(const TArray<FName>& NotifiesToRemove);
+	
+	/** Remove all notifies */
+	void RemoveNotifies();
 
 	/** 
 	 * Retrieves AnimNotifies given a StartTime and a DeltaTime.
