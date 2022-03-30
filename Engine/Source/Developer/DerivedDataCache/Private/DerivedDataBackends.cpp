@@ -88,6 +88,7 @@ public:
 		, BootCache(nullptr)
 		, WritePakCache(nullptr)
 		, AsyncNode(nullptr)
+		, VerifyNode(nullptr)
 		, Hierarchy(nullptr)
 		, bUsingSharedDDC(false)
 		, bIsShuttingDown(false)
@@ -178,6 +179,19 @@ public:
 			AsyncNode = CreateCacheStoreAsync(RootNode.Key, RootNode.Value, GetMemoryCache());
 			CreatedNodes.AddUnique(AsyncNode);
 			RootNode.Key = AsyncNode;
+		}
+
+		// Create a Verify node when using -DDC-Verify[=Type1[@Rate2][+Type2[@Rate2]...]].
+		if (!VerifyNode)
+		{
+			FString VerifyArg;
+			if (FParse::Value(FCommandLine::Get(), TEXT("-DDC-Verify="), VerifyArg) ||
+				FParse::Param(FCommandLine::Get(), TEXT("-DDC-Verify")))
+			{
+				VerifyNode = CreateCacheStoreVerify(RootNode.Key, /*bPutOnError*/ false);
+				CreatedNodes.AddUnique(VerifyNode);
+				RootNode.Key = VerifyNode;
+			}
 		}
 
 		if (MaxKeyLength == 0)
@@ -276,7 +290,15 @@ public:
 				}
 				else if (NodeType == TEXT("Verify"))
 				{
-					ParsedNode = ParseVerify(*NodeName, *Entry, IniFilename, IniSection, InParsedNodes);
+					if (VerifyNode == nullptr)
+					{
+						ParsedNode = ParseVerify(*NodeName, *Entry, IniFilename, IniSection, InParsedNodes);
+						VerifyNode = ParsedNode.Key;
+					}
+					else
+					{
+						UE_LOG(LogDerivedDataCache, Warning, TEXT("Unable to create %s Verify because only one Verify node is supported."), *NodeName);
+					}
 				}
 				else if (NodeType == TEXT("ReadPak"))
 				{
@@ -1300,6 +1322,7 @@ private:
 	IMemoryCacheStore*	BootCache;
 	IPakFileCacheStore* WritePakCache;
 	ILegacyCacheStore*	AsyncNode;
+	ILegacyCacheStore*	VerifyNode;
 	ICacheStoreOwner* Hierarchy;
 	/** Support for multiple read only pak files. */
 	TArray<IPakFileCacheStore*> ReadPakCache;

@@ -4,13 +4,17 @@
 #include "Compression/OodleDataCompression.h"
 #include "Containers/Set.h"
 #include "DerivedDataCacheKey.h"
+#include "DerivedDataCacheKeyFilter.h"
 #include "DerivedDataLegacyCacheStore.h"
 #include "HAL/CriticalSection.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/FileHelper.h"
+#include "String/Find.h"
 #include "Templates/Tuple.h"
 #include "Templates/UniquePtr.h"
 
@@ -30,6 +34,35 @@ public:
 		, bPutOnError(bInPutOnError)
 	{
 		check(InnerCache);
+
+		const TCHAR* const CommandLine = FCommandLine::Get();
+
+		const bool bDefaultMatch = FParse::Param(CommandLine, TEXT("-DDC-Verify")) ||
+			String::FindFirst(CommandLine, TEXT("-DDC-Verify="), ESearchCase::IgnoreCase) == INDEX_NONE;
+		float DefaultRate = bDefaultMatch ? 100.0f : 0.0f;
+		FParse::Value(CommandLine, TEXT("-DDC-VerifyRate="), DefaultRate);
+
+		Filter = FCacheKeyFilter::Parse(CommandLine, TEXT("-DDC-Verify="), DefaultRate);
+
+		uint32 Salt;
+		if (FParse::Value(CommandLine, TEXT("-DDC-VerifySalt="), Salt))
+		{
+			if (Salt == 0)
+			{
+				UE_LOG(LogDerivedDataCache, Warning,
+					TEXT("Verify: Ignoring salt of 0. The salt must be a positive integer."));
+			}
+			else
+			{
+				Filter.SetSalt(Salt);
+			}
+		}
+
+		if (Filter)
+		{
+			UE_LOG(LogDerivedDataCache, Display,
+				TEXT("Verify: Using salt -DDC-VerifySalt=%d to filter cache keys to verify."), Filter.GetSalt());
+		}
 	}
 
 	void Put(
@@ -138,8 +171,9 @@ private:
 
 private:
 	ILegacyCacheStore* InnerCache;
-	FCriticalSection SynchronizationObject;
+	FCriticalSection AlreadyTestedLock;
 	TSet<FCacheKey> AlreadyTested;
+	FCacheKeyFilter Filter;
 	bool bPutOnError;
 };
 
@@ -151,12 +185,16 @@ void FCacheStoreVerify::Put(
 	TUniquePtr<FVerifyPutState> State = MakeUnique<FVerifyPutState>();
 	State->VerifyRequests.Reserve(Requests.Num());
 	{
-		FScopeLock ScopeLock(&SynchronizationObject);
+		FScopeLock Lock(&AlreadyTestedLock);
 		for (const FCachePutRequest& Request : Requests)
 		{
-			bool bAlreadyTested = false;
-			AlreadyTested.Add(Request.Record.GetKey(), &bAlreadyTested);
-			(bAlreadyTested ? State->ForwardRequests : State->VerifyRequests).Add(Request);
+			const FCacheKey& Key = Request.Record.GetKey();
+			bool bForward = !Filter.IsMatch(Key);
+			if (!bForward)
+			{
+				AlreadyTested.Add(Key, &bForward);
+			}
+			(bForward ? State->ForwardRequests : State->VerifyRequests).Add(Request);
 		}
 	}
 
@@ -288,11 +326,11 @@ void FCacheStoreVerify::Get(
 	ForwardRequests.Reserve(Requests.Num());
 	VerifyRequests.Reserve(Requests.Num());
 	{
-		FScopeLock ScopeLock(&SynchronizationObject);
+		FScopeLock Lock(&AlreadyTestedLock);
 		for (const FCacheGetRequest& Request : Requests)
 		{
-			bool bAlreadyTested = AlreadyTested.Contains(Request.Key);
-			(bAlreadyTested ? ForwardRequests : VerifyRequests).Add(Request);
+			const bool bForward = !Filter.IsMatch(Request.Key) || AlreadyTested.Contains(Request.Key);
+			(bForward ? ForwardRequests : VerifyRequests).Add(Request);
 		}
 	}
 
@@ -312,12 +350,15 @@ void FCacheStoreVerify::PutValue(
 	TUniquePtr<FVerifyPutValueState> State = MakeUnique<FVerifyPutValueState>();
 	State->VerifyRequests.Reserve(Requests.Num());
 	{
-		FScopeLock ScopeLock(&SynchronizationObject);
+		FScopeLock Lock(&AlreadyTestedLock);
 		for (const FCachePutValueRequest& Request : Requests)
 		{
-			bool bAlreadyTested = false;
-			AlreadyTested.Add(Request.Key, &bAlreadyTested);
-			(bAlreadyTested ? State->ForwardRequests : State->VerifyRequests).Add(Request);
+			bool bForward = !Filter.IsMatch(Request.Key);
+			if (!bForward)
+			{
+				AlreadyTested.Add(Request.Key, &bForward);
+			}
+			(bForward ? State->ForwardRequests : State->VerifyRequests).Add(Request);
 		}
 	}
 
@@ -448,11 +489,11 @@ void FCacheStoreVerify::GetValue(
 	ForwardRequests.Reserve(Requests.Num());
 	VerifyRequests.Reserve(Requests.Num());
 	{
-		FScopeLock ScopeLock(&SynchronizationObject);
+		FScopeLock Lock(&AlreadyTestedLock);
 		for (const FCacheGetValueRequest& Request : Requests)
 		{
-			bool bAlreadyTested = AlreadyTested.Contains(Request.Key);
-			(bAlreadyTested ? ForwardRequests : VerifyRequests).Add(Request);
+			const bool bForward = !Filter.IsMatch(Request.Key) || AlreadyTested.Contains(Request.Key);
+			(bForward ? ForwardRequests : VerifyRequests).Add(Request);
 		}
 	}
 
@@ -474,11 +515,11 @@ void FCacheStoreVerify::GetChunks(
 	ForwardRequests.Reserve(Requests.Num());
 	VerifyRequests.Reserve(Requests.Num());
 	{
-		FScopeLock ScopeLock(&SynchronizationObject);
+		FScopeLock Lock(&AlreadyTestedLock);
 		for (const FCacheGetChunkRequest& Request : Requests)
 		{
-			bool bAlreadyTested = AlreadyTested.Contains(Request.Key);
-			(bAlreadyTested ? ForwardRequests : VerifyRequests).Add(Request);
+			const bool bForward = !Filter.IsMatch(Request.Key) || AlreadyTested.Contains(Request.Key);
+			(bForward ? ForwardRequests : VerifyRequests).Add(Request);
 		}
 	}
 
@@ -498,12 +539,16 @@ void FCacheStoreVerify::LegacyPut(
 	TUniquePtr<FVerifyLegacyPutState> State = MakeUnique<FVerifyLegacyPutState>();
 	State->VerifyRequests.Reserve(Requests.Num());
 	{
-		FScopeLock ScopeLock(&SynchronizationObject);
+		FScopeLock Lock(&AlreadyTestedLock);
 		for (const FLegacyCachePutRequest& Request : Requests)
 		{
-			bool bAlreadyTested = false;
-			AlreadyTested.Add(Request.Key.GetKey(), &bAlreadyTested);
-			(bAlreadyTested ? State->ForwardRequests : State->VerifyRequests).Add(Request);
+			const FCacheKey& Key = Request.Key.GetKey();
+			bool bForward = !Filter.IsMatch(Key);
+			if (!bForward)
+			{
+				AlreadyTested.Add(Key, &bForward);
+			}
+			(bForward ? State->ForwardRequests : State->VerifyRequests).Add(Request);
 		}
 	}
 
@@ -602,11 +647,12 @@ void FCacheStoreVerify::LegacyGet(
 	ForwardRequests.Reserve(Requests.Num());
 	VerifyRequests.Reserve(Requests.Num());
 	{
-		FScopeLock ScopeLock(&SynchronizationObject);
+		FScopeLock Lock(&AlreadyTestedLock);
 		for (const FLegacyCacheGetRequest& Request : Requests)
 		{
-			bool bAlreadyTested = AlreadyTested.Contains(Request.Key.GetKey());
-			(bAlreadyTested ? ForwardRequests : VerifyRequests).Add(Request);
+			const FCacheKey& Key = Request.Key.GetKey();
+			const bool bForward = !Filter.IsMatch(Key) || AlreadyTested.Contains(Key);
+			(bForward ? ForwardRequests : VerifyRequests).Add(Request);
 		}
 	}
 
