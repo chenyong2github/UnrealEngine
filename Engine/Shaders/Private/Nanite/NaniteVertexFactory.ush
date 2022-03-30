@@ -203,6 +203,7 @@ struct FNaniteVertTransforms
 // Post-transformed Nanite triangle data
 struct FNaniteTransformedTri
 {
+	uint3 TriIndices;
 	float3 PointLocal[3];
 	float3 PrevPointLocal[3];
 	float3 PointWorld[3];
@@ -252,10 +253,11 @@ FNaniteVertTransforms CalculateNaniteVertexTransforms(FInstanceSceneData Instanc
 	return Transforms;
 }
 
-FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, FNaniteVertTransforms Transforms, float3 PointLocalNoWPO[3], FNaniteRawAttributeData RawAttributeData)
+FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, FNaniteVertTransforms Transforms, float3 PointLocalNoWPO[3], uint3 TriIndices, FNaniteRawAttributeData RawAttributeData)
 {
 	FNaniteTransformedTri Tri = (FNaniteTransformedTri)0;
 
+	Tri.TriIndices = TriIndices;
 	Tri.RawAttributeData = RawAttributeData;
 
 	// TODO: PROG_RASTER: Optimize
@@ -382,6 +384,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 #endif
 
 #if NEEDS_LIGHTMAP_COORDINATE
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 	const uint LightMapDataIndex = PrimitiveData.LightmapDataIndex;
 	const uint LightMapUVIndex   = PrimitiveData.LightmapUVIndex;
 
@@ -396,7 +399,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 	}
 	else
 	{
-		FTexCoord TexCoord = GetTexCoord(Cluster, TriIndices, Barycentrics, LightMapUVIndex);
+		FTexCoord TexCoord = GetTexCoord(Cluster, Tri.TriIndices, Barycentrics, LightMapUVIndex);
 		LightMapCoordinateInput = TexCoord.Value;
 		LightMapCoordinateInput_DDX = TexCoord.DDX;
 		LightMapCoordinateInput_DDY = TexCoord.DDY;
@@ -464,7 +467,6 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 		FVisibleCluster VisibleCluster           = GetVisibleCluster(VisibleClusterIndex, bHasPageData);
 		FInstanceSceneData InstanceData          = GetInstanceSceneData(VisibleCluster, false);
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-		FPrimitiveSceneData PrimitiveData        = GetPrimitiveData(InstanceData.PrimitiveId);
 		FCluster Cluster                         = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 		if (bCalcTriIndices)
@@ -481,7 +483,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 		};
 		
 		const FNaniteVertTransforms Transforms = CalculateNaniteVertexTransforms(InstanceData, InstanceDynamicData, NaniteView);
-		const FNaniteTransformedTri Tri = TransformNaniteTriangle(InstanceData, Transforms, PointLocalNoWPO, RawAttributeData);
+		const FNaniteTransformedTri Tri = TransformNaniteTriangle(InstanceData, Transforms, PointLocalNoWPO, TriIndices, RawAttributeData);
 
 		if (bCalcBarycentrics)
 		{

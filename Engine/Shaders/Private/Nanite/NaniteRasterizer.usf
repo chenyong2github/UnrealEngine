@@ -269,7 +269,7 @@ FRasterTri SetupTriangle( FRaster Raster, uint3 VertIndexes )
 		GroupVerts[VertIndexes.z]	
 	};
 	const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Raster.Cluster, VertIndexes, NUM_TEX_COORD_INTERPOLATORS);
-	Tri.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, PointLocal, RawAttributeData);
+	Tri.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, PointLocal, VertIndexes, RawAttributeData);
 
 	Verts[0] = CalculateSubpixelCoordinates(Raster, Tri.TransformedTri.PointClip[0]);
 	Verts[1] = CalculateSubpixelCoordinates(Raster, Tri.TransformedTri.PointClip[1]);
