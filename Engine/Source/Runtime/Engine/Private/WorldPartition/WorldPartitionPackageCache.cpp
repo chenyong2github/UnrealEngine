@@ -7,96 +7,78 @@
 #include "Engine/World.h"
 #include "PackageTools.h"
 #include "Misc/PackagePath.h"
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionPackageHelper.h"
 
-FWorldPartitionPackageCache::FWorldPartitionPackageCache()
-{}
+/*
+ * FWorldPartitionPackageGlobalCache
+ */
 
-FWorldPartitionPackageCache::~FWorldPartitionPackageCache()
+FWorldPartitionPackageGlobalCache FWorldPartitionPackageGlobalCache::GlobalCache;
+
+void FWorldPartitionPackageGlobalCache::UnloadPackages(FWorldPartitionPackageCache* InClient)
 {
-	check(!LoadingPackages.Num());
-	UnloadPackages();
-}
-
-void FWorldPartitionPackageCache::TrashPackage(UPackage* InPackage)
-{	
-	CachedPackages.Remove(InPackage->GetFName());
-	UnloadPackage(InPackage);
-
-	// Rename so it isn't found again
-	FName NewUniqueTrashName = MakeUniqueObjectName(nullptr, UPackage::StaticClass(), FName(*FString::Printf(TEXT("%s_Trashed"), *InPackage->GetName())));
-	InPackage->Rename(*NewUniqueTrashName.ToString(), nullptr, REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional | REN_DoNotDirty);
-}
-
-void FWorldPartitionPackageCache::UnloadPackages()
-{
-	if (CachedPackages.Num())
+	for (auto It = Cache.CreateIterator(); It; ++It)
 	{
-		for (const auto& Pair : CachedPackages)
+		FPackageCacheInfo& CacheInfo = It->Value;
+		CacheInfo.Referencers.Remove(InClient);
+		if (CacheInfo.Referencers.Num() == 0)
 		{
-			if (UPackage* CachedPackage = Pair.Value.Get())
+			check(!CacheInfo.HasPendingLoad());
+			if (UPackage* CachedPackage = CacheInfo.Package.Get())
 			{
-				UnloadPackage(CachedPackage);
+				FWorldPartitionPackageHelper::UnloadPackage(CachedPackage);
 			}
-		}
-				
-		CachedPackages.Empty();
-	}
-}
-
-void FWorldPartitionPackageCache::UnloadPackage(UPackage* InPackage)
-{
-	check(InPackage);
-	ForEachObjectWithPackage(InPackage, [](UObject* Object)
-	{
-		Object->ClearFlags(RF_Standalone);
-		return true;
-	}, false);
-
-	// World specific
-	if (UWorld* PackageWorld = UWorld::FindWorldInPackage(InPackage))
-	{
-		if (PackageWorld->PersistentLevel)
-		{
-			// Manual cleanup of level since world was not initialized
-			PackageWorld->PersistentLevel->CleanupLevel(/*bCleanupResources*/ true);
+			It.RemoveCurrent();
 		}
 	}
 }
 
-void FWorldPartitionPackageCache::LoadPackage(FName InPackageName, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate, bool bLoadAsync, bool bInWorldPackage)
+void FWorldPartitionPackageGlobalCache::LoadPackage(FWorldPartitionPackageCache* InClient, FName InPackageName, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate, bool bLoadAsync, bool bInWorldPackage)
 {
-	if (UPackage* CachedPackage = FindPackage(InPackageName))
+	FPackageCacheInfo& CacheInfo = Cache.FindOrAdd(InPackageName);
+	CacheInfo.Referencers.Add(InClient);
+
+	if (UPackage* CachedPackage = CacheInfo.Package.Get())
 	{
 		InCompletionDelegate.Execute(InPackageName, CachedPackage, EAsyncLoadingResult::Succeeded);
 		return;
 	}
+	check(!::FindPackage(nullptr, *InPackageName.ToString()));
 
-	// Find loading package
-	if (TArray<FLoadPackageAsyncDelegate>* CompletionDelegates = LoadingPackages.Find(InPackageName))
+	// If request already pending, simply push the delegate
+	if (CacheInfo.HasPendingLoad())
 	{
-		CompletionDelegates->Add(InCompletionDelegate);
+		CacheInfo.CompletionDelegates.Add(InCompletionDelegate);
 		return;
 	}
 
 	// Not found start loading
-	LoadingPackages.Add(InPackageName, { InCompletionDelegate });
+	CacheInfo.CompletionDelegates.Add(InCompletionDelegate);
 
-	FLoadPackageAsyncDelegate CompletionCallback = FLoadPackageAsyncDelegate::CreateLambda([this, bInWorldPackage](const FName& LoadedPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
+	FLoadPackageAsyncDelegate CompletionCallback = FLoadPackageAsyncDelegate::CreateLambda([this, bInWorldPackage, InClient](const FName& LoadedPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
 	{
+		FPackageCacheInfo& CacheInfo = Cache.FindChecked(LoadedPackageName);
+		check(CacheInfo.ScopedLoadAllExternalObjects.IsValid());
+		CacheInfo.ScopedLoadAllExternalObjects.Reset();
+
 		if (Result == EAsyncLoadingResult::Succeeded)
 		{
-			CachedPackages.Add(LoadedPackageName, LoadedPackage);
+			check(CacheInfo.Package.Get() == nullptr);
+			CacheInfo.Package = LoadedPackage;
 		}
 
 		if (bInWorldPackage)
 		{
 			if (UWorld* PackageWorld = UWorld::FindWorldInPackage(LoadedPackage))
 			{
+				check(PackageWorld->HasAnyFlags(RF_Standalone));
 				PackageWorld->PersistentLevel->OnLevelLoaded();
 			}
 		}
 	
-		TArray<FLoadPackageAsyncDelegate> CompletionDelegates = LoadingPackages.FindAndRemoveChecked(LoadedPackageName);
+		check(CacheInfo.HasPendingLoad());
+		TArray<FLoadPackageAsyncDelegate> CompletionDelegates = MoveTemp(CacheInfo.CompletionDelegates);
 		for (FLoadPackageAsyncDelegate& CompletionDelegate : CompletionDelegates)
 		{
 			CompletionDelegate.Execute(LoadedPackageName, LoadedPackage, Result);
@@ -109,6 +91,8 @@ void FWorldPartitionPackageCache::LoadPackage(FName InPackageName, const TCHAR* 
 		UWorld::WorldTypePreLoadMap.FindOrAdd(InPackageName) = EWorldType::Editor;
 	}
 
+	// Cache doesn't initialize the world, so make sure external objects will be loaded in ULevel::PostLoad
+	CacheInfo.ScopedLoadAllExternalObjects = TUniquePtr<FScopedLoadAllExternalObjects>(new FScopedLoadAllExternalObjects(InPackageName));
 	if (bLoadAsync)
 	{
 		::LoadPackageAsync(FPackagePath::FromPackageNameChecked(InPackageToLoadFrom), InPackageName, CompletionCallback);
@@ -121,45 +105,32 @@ void FWorldPartitionPackageCache::LoadPackage(FName InPackageName, const TCHAR* 
 	}
 }
 
-UPackage* FWorldPartitionPackageCache::FindPackage(FName InPackageName)
+/*
+ * FWorldPartitionPackageCache
+ */
+
+FWorldPartitionPackageCache::~FWorldPartitionPackageCache()
 {
-	if (TWeakObjectPtr<UPackage>* CachedPackagePtr = CachedPackages.Find(InPackageName))
-	{
-		if (UPackage* CachedPackage = CachedPackagePtr->Get())
-		{
-			return CachedPackage;
-		}
-		CachedPackages.Remove(InPackageName);
-	}
-
-	// Might have been cached by other instance of a FWorldPartitionPackageCache. Happens when cooking WP Cells that each have their own FWorldPartitionPackageCache.
-	if(UPackage* Package = ::FindPackage(nullptr, *InPackageName.ToString()))
-	{
-		CachedPackages.Add(InPackageName, Package);
-		return Package;
-	}
-
-	return nullptr;
+	UnloadPackages();
+	
 }
 
-UPackage* FWorldPartitionPackageCache::DuplicateWorldPackage(UPackage* InPackage, FName InDuplicatePackageName)
+void FWorldPartitionPackageCache::LoadPackage(FName InPackageName, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate, bool bLoadAsync, bool bInWorldPackage)
 {
-	check(!CachedPackages.Contains(InDuplicatePackageName));
+	FWorldPartitionPackageGlobalCache::Get().LoadPackage(this, InPackageName, InPackageToLoadFrom, InCompletionDelegate, bLoadAsync, bInWorldPackage);
+}
 
-	UPackage* DuplicatedPackage = nullptr;
-	if (UWorld* PackageWorld = UWorld::FindWorldInPackage(InPackage))
+void FWorldPartitionPackageCache::UnloadPackages()
+{
+	FWorldPartitionPackageGlobalCache::Get().UnloadPackages(this);
+
+	for (TWeakObjectPtr<UPackage>& Package : LocalCache)
 	{
-		DuplicatedPackage = CreatePackage(*InDuplicatePackageName.ToString());
-		FObjectDuplicationParameters DuplicationParameters(PackageWorld, DuplicatedPackage);
-		DuplicationParameters.bAssignExternalPackages = false;
-		DuplicationParameters.DuplicateMode = EDuplicateMode::World;
-
-		UWorld* DuplicatedWorld = Cast<UWorld>(StaticDuplicateObjectEx(DuplicationParameters));
-		check(DuplicatedWorld);
-		CachedPackages.Add(InDuplicatePackageName, DuplicatedPackage);
+		if (UPackage* CachedPackage = Package.Get())
+		{
+			FWorldPartitionPackageHelper::UnloadPackage(CachedPackage);
+		}
 	}
-	
-	return DuplicatedPackage;
 }
 
 #endif

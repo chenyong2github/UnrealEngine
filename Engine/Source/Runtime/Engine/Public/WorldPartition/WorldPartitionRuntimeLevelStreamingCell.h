@@ -54,7 +54,6 @@ private:
 	class UWorldPartitionLevelStreamingDynamic* GetOrCreateLevelStreaming() const;
 
 #if WITH_EDITOR
-	void LoadActorsForCook();
 	void MoveAlwaysLoadedContentToPersistentLevel();
 	class UWorldPartitionLevelStreamingDynamic* CreateLevelStreaming(const FString& InPackageName = FString()) const;
 #endif

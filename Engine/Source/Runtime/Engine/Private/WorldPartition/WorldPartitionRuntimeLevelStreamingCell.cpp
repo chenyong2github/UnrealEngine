@@ -142,19 +142,13 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 	return nullptr;
 }
 
-void UWorldPartitionRuntimeLevelStreamingCell::LoadActorsForCook()
-{
-	FWorldPartitionPackageCache PackageCache;
-	const bool bLoadAsync = false;
-	verify(FWorldPartitionLevelHelper::LoadActors(nullptr, Packages, PackageCache, [](bool){}, bLoadAsync));
-}
-
 void UWorldPartitionRuntimeLevelStreamingCell::MoveAlwaysLoadedContentToPersistentLevel()
 {
 	check(IsAlwaysLoaded());
 	if (GetActorCount() > 0)
 	{
-		LoadActorsForCook();
+		FWorldPartitionPackageCache PackageCache;
+		verify(FWorldPartitionLevelHelper::LoadActors(nullptr, Packages, PackageCache, [](bool) {}, /*bLoadAsync*/false));
 
 		UWorld* OuterWorld = GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
 		FWorldPartitionLevelHelper::MoveExternalActorsToLevel(Packages, OuterWorld->PersistentLevel);
@@ -198,7 +192,8 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(U
 		}
 
 		// Load cell Actors
-		LoadActorsForCook();
+		FWorldPartitionPackageCache PackageCache;
+		verify(FWorldPartitionLevelHelper::LoadActors(nullptr, Packages, PackageCache, [](bool) {}, /*bLoadAsync*/false));
 
 		// Create a level and move these actors in it
 		UWorldPartition* WorldPartition = GetOuterUWorldPartition();

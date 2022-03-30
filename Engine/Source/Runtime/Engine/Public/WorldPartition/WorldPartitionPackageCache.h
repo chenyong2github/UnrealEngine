@@ -8,6 +8,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/WeakObjectPtr.h"
+#include "Engine/World.h"
 #include "Misc/Guid.h"
 
 class FLinkerInstancingContext;
@@ -15,21 +16,37 @@ class FLinkerInstancingContext;
 class FWorldPartitionPackageCache
 {
 public:
-	FWorldPartitionPackageCache();
 	~FWorldPartitionPackageCache();
-
 	void LoadPackage(FName InPackageName, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate, bool bLoadAsync, bool bInWorldPackage);
-	UPackage* FindPackage(FName InPackageName);
-	UPackage* DuplicateWorldPackage(UPackage* InPackage, FName InPackageName);
 	void UnloadPackages();
-	void TrashPackage(UPackage* InPackage);
-	
+
+	// @todo_ow: This should be removed as soon as FWorldPartitionLevelHelper::LoadActors doesn't do package duplication
+	void CacheLoadedPackage(UPackage* InPackage) { LocalCache.Add(InPackage); }
+private:
+	TSet<TWeakObjectPtr<UPackage>> LocalCache;
+};
+
+class FWorldPartitionPackageGlobalCache
+{
+public:
+	static FWorldPartitionPackageGlobalCache& Get() { return GlobalCache; }
+
+	void LoadPackage(FWorldPartitionPackageCache* Client, FName InPackageName, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate, bool bLoadAsync, bool bInWorldPackage);
+	void UnloadPackages(FWorldPartitionPackageCache* Client);
+
 private:
 
-	void UnloadPackage(UPackage* InPackage);
+	struct FPackageCacheInfo
+	{
+		bool HasPendingLoad() const { return CompletionDelegates.Num() > 0; }
+		TSet<FWorldPartitionPackageCache*> Referencers;
+		TWeakObjectPtr<UPackage> Package;
+		TArray<FLoadPackageAsyncDelegate> CompletionDelegates;
+		TUniquePtr<FScopedLoadAllExternalObjects> ScopedLoadAllExternalObjects;
+	};
+	TMap<FName, FPackageCacheInfo> Cache;
 
-	TMap<FName, TWeakObjectPtr<UPackage>> CachedPackages;
-	TMap<FName, TArray<FLoadPackageAsyncDelegate>> LoadingPackages;
+	static FWorldPartitionPackageGlobalCache GlobalCache;
 };
 
 #endif

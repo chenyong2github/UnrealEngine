@@ -16,6 +16,7 @@
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionPackageHelper.h"
 #include "StaticMeshCompiler.h"
 #include "LevelUtils.h"
 #include "Templates/SharedPointer.h"
@@ -337,34 +338,12 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 			if (LoadedPackage)
 			{
 				FName DuplicatePackageName(*FString::Printf(TEXT("%s_%s"), *LoadedPackage->GetName(), *ContainerInstanceID.ToString()));
-				UPackage* DuplicatedPackage = InPackageCache.FindPackage(DuplicatePackageName);
-				UWorld* DuplicatedWorld = nullptr;
-
-				// Check that existing Package contains all actors (might be a previously used Dup package when loading unloaded cells)
-				if (DuplicatedPackage)
-				{
-					DuplicatedWorld = UWorld::FindWorldInPackage(DuplicatedPackage);
-					for (auto Mapping : Mappings)
-					{
-						FString ActorName = FPaths::GetExtension(Mapping->Path.ToString());
-						if (!FindObject<AActor>(DuplicatedWorld->PersistentLevel, *ActorName))
-						{
-							InPackageCache.TrashPackage(DuplicatedPackage);
-							DuplicatedPackage = nullptr;
-							DuplicatedWorld = nullptr;
-							break;
-						}
-					}
-				}
-
-				// Package wasn't found or was missing actors
-				if (!DuplicatedPackage)
-				{
-					DuplicatedPackage = InPackageCache.DuplicateWorldPackage(LoadedPackage, DuplicatePackageName);
-					check(DuplicatedPackage);
-					DuplicatedWorld = UWorld::FindWorldInPackage(DuplicatedPackage);
-				}
-
+				check(!FindPackage(nullptr, *DuplicatePackageName.ToString()));
+				UPackage* DuplicatedPackage = FWorldPartitionPackageHelper::DuplicateWorldPackage(LoadedPackage, DuplicatePackageName);
+				check(DuplicatedPackage);
+				UWorld* DuplicatedWorld = UWorld::FindWorldInPackage(DuplicatedPackage);
+				check(DuplicatedWorld);
+				
 				// Get Source Path for this world (ReplaceFrom)
 				UWorld* LoadedWorld = UWorld::FindWorldInPackage(LoadedPackage);
 				FString SourceWorldPath, RemappedWorldPath;
@@ -407,6 +386,18 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 						LoadProgress->NumFailedLoadedRequests++;
 						UE_LOG(LogEngine, Warning, TEXT("Failed to find actor %s in package %s"), *ActorName, *LoadedPackageName.ToString());
 					}
+				}
+
+				if (InDestLevel)
+				{
+					// In the case where we have a destination level, we don't need the duplicated package anymore
+					FWorldPartitionPackageHelper::UnloadPackage(DuplicatedPackage);
+				}
+				else
+				{
+					// Push the package in the cache so that package unloading will be handled by the cache destruction
+					// The only existing case is during cook (Actors are loaded with a null destination level, then MoveExternalActorsToLevel is called).
+					InPackageCache.CacheLoadedPackage(DuplicatedPackage);
 				}
 			}
 			else
