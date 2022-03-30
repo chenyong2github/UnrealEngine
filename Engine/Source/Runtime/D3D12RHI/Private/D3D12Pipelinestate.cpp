@@ -46,7 +46,7 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 	{
 		Desc.Desc.InputLayout.NumElements        = InputLayout->VertexElements.Num();
 		Desc.Desc.InputLayout.pInputElementDescs = InputLayout->VertexElements.GetData();
-		Desc.InputLayoutHash = InputLayout->Hash;
+		Desc.InputLayoutHash = InputLayout->HashNoStrides; // Vertex stream stride does not affect the D3D12 PSO
 	}
 
 #define COPY_SHADER(Initial, Name) \

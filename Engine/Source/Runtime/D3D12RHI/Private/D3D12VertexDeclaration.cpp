@@ -16,6 +16,9 @@ struct FD3D12VertexDeclarationKey
 	/** Hash of the vertex elements. */
 	uint32 Hash;
 
+	/** Hash of the vertex elements, without strides. */
+	uint32 HashNoStrides;
+
 	uint16 StreamStrides[MaxVertexElementCount];
 
 	/** Initialization constructor. */
@@ -88,6 +91,8 @@ struct FD3D12VertexDeclarationKey
 
 		// Hash once.
 		Hash = FCrc::MemCrc_DEPRECATED(VertexElements.GetData(), VertexElements.Num()*sizeof(D3D12_INPUT_ELEMENT_DESC));
+		HashNoStrides = Hash;
+
 		Hash = FCrc::MemCrc_DEPRECATED(StreamStrides, sizeof(StreamStrides), Hash);
 
 		// Assign all the SemanticName after hashing. It's a constant string, always the same, so no need to hash the data.
@@ -133,7 +138,7 @@ struct FVertexDeclarationCache
 		FVertexDeclarationRHIRef* VertexDeclarationRefPtr = Cache.Find(InKey);
 		if (VertexDeclarationRefPtr == nullptr)
 		{
-			VertexDeclarationRefPtr = &Cache.Add(InKey, new FD3D12VertexDeclaration(InKey.VertexElements, InKey.StreamStrides, InKey.Hash));
+			VertexDeclarationRefPtr = &Cache.Add(InKey, new FD3D12VertexDeclaration(InKey.VertexElements, InKey.StreamStrides, InKey.Hash, InKey.HashNoStrides));
 		}
 
 		return VertexDeclarationRefPtr;

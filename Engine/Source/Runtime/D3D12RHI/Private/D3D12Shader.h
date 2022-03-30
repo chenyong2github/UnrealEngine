@@ -24,11 +24,14 @@ public:
 
 	uint16 StreamStrides[MaxVertexElementCount];
 	uint32 Hash;
+	uint32 HashNoStrides;
+
 
 	/** Initialization constructor. */
-	explicit FD3D12VertexDeclaration(const FD3D12VertexElements& InElements, const uint16* InStrides, const uint32 InHash)
+	explicit FD3D12VertexDeclaration(const FD3D12VertexElements& InElements, const uint16* InStrides, const uint32 InHash, const uint32 InHashNoStrides)
 		: VertexElements(InElements)
 		, Hash(InHash)
+		, HashNoStrides(InHashNoStrides)
 	{
 		FMemory::Memcpy(StreamStrides, InStrides, sizeof(StreamStrides));
 	}
