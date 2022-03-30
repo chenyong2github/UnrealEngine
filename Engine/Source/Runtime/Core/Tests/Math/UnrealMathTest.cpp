@@ -2045,11 +2045,11 @@ TEST_CASE("Core::Math::Vector::Vector Register Abstraction", "[Core][Math][Smoke
 		FVector3d FV0, FV1;
 		FV0 = Rotator0.Vector();
 		FV1 = TRotationMatrix<double>( Rotator0 ).GetScaledAxis( EAxis::X );
-		LogTest<double>( TEXT("Test0 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6f));
+		LogTest<double>( TEXT("Test0 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6));
 		
 		FV0 = TRotationMatrix<double>( Rotator0 ).GetScaledAxis( EAxis::X );
 		FV1 = TQuatRotationMatrix<double>( FQuat4d(Q0.X, Q0.Y, Q0.Z, Q0.W) ).GetScaledAxis( EAxis::X );
-		LogTest<double>( TEXT("Test0 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-5f));
+		LogTest<double>( TEXT("Test0 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-5));
 
 		Rotator0 = FRotator3d(45.0f,  60.0f, 120.0f);
 		Q0 = FQuat4d(Rotator0);
@@ -2058,15 +2058,15 @@ TEST_CASE("Core::Math::Vector::Vector Register Abstraction", "[Core][Math][Smoke
 
 		FV0 = Rotator0.Vector();
 		FV1 = TRotationMatrix<double>( Rotator0 ).GetScaledAxis( EAxis::X );
-		LogTest<double>( TEXT("Test1 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6f));
+		LogTest<double>( TEXT("Test1 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6));
 
 		FV0 = TRotationMatrix<double>( Rotator0 ).GetScaledAxis( EAxis::X );
 		FV1 = TQuatRotationMatrix<double>(FQuat4d(Q0.X, Q0.Y, Q0.Z, Q0.W) ).GetScaledAxis( EAxis::X );
-		LogTest<double>(TEXT("Test1 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-5f));
+		LogTest<double>(TEXT("Test1 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-5));
 
 		FV0 = TRotationMatrix<double>( FRotator3d::ZeroRotator ).GetScaledAxis(EAxis::X);
 		FV1 = TQuatRotationMatrix<double>(FQuat4d::Identity ).GetScaledAxis(EAxis::X);
-		LogTest<double>(TEXT("Test2 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-6f));
+		LogTest<double>(TEXT("Test2 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-6));
 	}
 
 	// NaN / Inf tests

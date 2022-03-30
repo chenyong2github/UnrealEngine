@@ -43,12 +43,21 @@ inline bool PointsEqual(const FVector& V1,const FVector& V2, bool bUseEpsilonCom
 	return FMath::Abs(V1.X - V2.X) <= Epsilon && FMath::Abs(V1.Y - V2.Y) <= Epsilon && FMath::Abs(V1.Z - V2.Z) <= Epsilon;
 }
 
+inline bool PointsEqual(const FVector3f& V1,const FVector3f& V2, bool bUseEpsilonCompare = true )
+{
+	return PointsEqual(FVector(V1), FVector(V2), bUseEpsilonCompare);
+}
+
 inline bool PointsEqual(const FVector& V1, const FVector& V2, const FOverlappingThresholds& OverlappingThreshold)
 {
 	const float Epsilon = OverlappingThreshold.ThresholdPosition;
 	return FMath::Abs(V1.X - V2.X) <= Epsilon && FMath::Abs(V1.Y - V2.Y) <= Epsilon && FMath::Abs(V1.Z - V2.Z) <= Epsilon;
 }
 
+inline bool PointsEqual(const FVector3f& V1, const FVector3f& V2, const FOverlappingThresholds& OverlappingThreshold)
+{
+	return PointsEqual(FVector(V1), FVector(V2), OverlappingThreshold);
+}
 
 /**
  * Returns true if the specified normal vectors are about equal
