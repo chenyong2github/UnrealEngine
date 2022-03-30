@@ -87,7 +87,7 @@ public:
 		{
 //WE COULD ALSO CHECK FOR SINGLE THREADING ISSUES HERE!? -- kinda piggy back on this?
 			// to detect cooking and other commandlets that run with NullRHI
-			if (GDynamicRHI == nullptr || RHIGetInterfaceType() == ERHIInterfaceType::Null || RHIGetInterfaceType() == ERHIInterfaceType::Hidden)
+			if (GDynamicRHI == nullptr || RHIGetInterfaceType() == ERHIInterfaceType::Null)
 			{
 				UE_LOG(LogElectraPlayerPlugin, Log, TEXT("Dummy Dynamic RHI detected. Electra Player plugin is not initialised"));
 				return;
