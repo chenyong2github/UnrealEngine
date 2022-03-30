@@ -135,6 +135,7 @@ namespace Horde.Storage
         public int? MaxSingleBlobSize { get; set; } = null; // disable blob partitioning
 
         public int LastAccessRollupFrequencySeconds { get; set; } = 900; // 15 minutes
+        public bool EnableLastAccessTracking { get; set; } = true;
         public bool EnableOnDemandReplication { get; set; } = false;
     }
 
