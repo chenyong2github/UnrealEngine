@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMCore/RigVM.h"
+#include "RigVMCore/RigVMNativized.h"
 #include "UObject/Package.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
@@ -252,6 +253,61 @@ void URigVM::PostLoad()
 
 		InvalidateCachedMemory();
 	}
+}
+
+uint32 URigVM::GetVMHash() const
+{
+	uint32 Hash = 0;
+	for(const FName& FunctionName : GetFunctionNames())
+	{
+		Hash = HashCombine(Hash, GetTypeHash(FunctionName.ToString()));
+	}
+
+	Hash = HashCombine(Hash, GetTypeHash(GetByteCode()));
+
+	for(const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(ExternalVariable.Name.ToString()));
+		Hash = HashCombine(Hash, GetTypeHash(ExternalVariable.TypeName.ToString()));
+	}
+
+	if(LiteralMemoryStorageObject)
+	{
+		Hash = HashCombine(Hash, LiteralMemoryStorageObject->GetMemoryHash());
+	}
+	if(WorkMemoryStorageObject)
+	{
+		Hash = HashCombine(Hash, WorkMemoryStorageObject->GetMemoryHash());
+	}
+	
+	return Hash;
+}
+
+UClass* URigVM::GetNativizedClass(const TArray<FRigVMExternalVariable>& InExternalVariables)
+{
+	TSharedPtr<TGuardValue<TArray<FRigVMExternalVariable>>> GuardPtr;
+	if(!InExternalVariables.IsEmpty())
+	{
+		GuardPtr = MakeShareable(new TGuardValue<TArray<FRigVMExternalVariable>>(ExternalVariables, InExternalVariables));
+	}
+
+	const uint32 VMHash = GetVMHash();
+	
+	for (TObjectIterator<UClass> ClassIterator; ClassIterator; ++ClassIterator)
+	{
+		if (ClassIterator->IsChildOf(URigVMNativized::StaticClass()) && (*ClassIterator != URigVMNativized::StaticClass()))
+		{
+			if(const URigVM* NativizedVMCDO = ClassIterator->GetDefaultObject<URigVM>())
+			{
+				if(NativizedVMCDO->GetVMHash() == VMHash)
+				{
+					return *ClassIterator;
+				}
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 bool URigVM::ValidateAllOperandsDuringLoad()
@@ -910,7 +966,7 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 		return;
 	}
 
-	if (Instructions.Num() != FirstHandleForInstruction.Num())
+	if ((Instructions.Num() + 1) != FirstHandleForInstruction.Num())
 	{
 		InvalidateCachedMemory();
 	}
@@ -930,7 +986,7 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 		}
 	}
 
-	if (Instructions.Num() == FirstHandleForInstruction.Num())
+	if ((Instructions.Num() + 1) == FirstHandleForInstruction.Num())
 	{
 		return;
 	}
@@ -1577,7 +1633,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 		{
 			return false;
 		}
-		Context.PublicData.InstructionIndex = (uint16)ByteCode.GetEntry(EntryIndex).InstructionIndex;
+		SetInstructionIndex((uint16)ByteCode.GetEntry(EntryIndex).InstructionIndex);
 	}
 
 #if WITH_EDITOR
@@ -1999,6 +2055,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty());
 				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayHandle.GetData());
 				int32 Index = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.PublicData.InstructionIndex] + 1].GetData()));
+
 				if(Context.IsValidArrayIndex(Index, ArrayHelper))
 				{
 					FRigVMMemoryHandle& ElementHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.PublicData.InstructionIndex] + 2];
@@ -2228,11 +2285,11 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 			case ERigVMOpCode::ArrayIntersection:
 			{
 				FRigVMMemoryHandle& ArrayHandleA = CachedMemoryHandles[FirstHandleForInstruction[Context.PublicData.InstructionIndex]]; 					
-				FRigVMMemoryHandle& ArrayHandleB = CachedMemoryHandles[FirstHandleForInstruction[Context.PublicData.InstructionIndex] + 1]; 					
-				FScriptArrayHelper ArrayHelperA(CastFieldChecked<FArrayProperty>(ArrayHandleA.GetProperty()), ArrayHandleA.GetData());
-				FScriptArrayHelper ArrayHelperB(CastFieldChecked<FArrayProperty>(ArrayHandleB.GetProperty()), ArrayHandleB.GetData());
-				const FArrayProperty* ArrayPropertyA = CastFieldChecked<FArrayProperty>(ArrayHandleA.GetProperty());
-				const FArrayProperty* ArrayPropertyB = CastFieldChecked<FArrayProperty>(ArrayHandleB.GetProperty());
+				FRigVMMemoryHandle& ArrayHandleB = CachedMemoryHandles[FirstHandleForInstruction[Context.PublicData.InstructionIndex] + 1];
+				const FArrayProperty* ArrayPropertyA = CastFieldChecked<FArrayProperty>(ArrayHandleA.GetProperty()); 					
+				const FArrayProperty* ArrayPropertyB = CastFieldChecked<FArrayProperty>(ArrayHandleB.GetProperty()); 					
+				FScriptArrayHelper ArrayHelperA(ArrayPropertyA, ArrayHandleA.GetData());
+				FScriptArrayHelper ArrayHelperB(ArrayPropertyB, ArrayHandleB.GetData());
 				const FProperty* ElementPropertyA = ArrayPropertyA->Inner;
 				const FProperty* ElementPropertyB = ArrayPropertyB->Inner;
 

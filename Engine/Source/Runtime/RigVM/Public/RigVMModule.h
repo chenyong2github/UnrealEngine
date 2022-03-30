@@ -9,7 +9,7 @@
 #include "CoreMinimal.h"
 #include "RigVMDefines.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogRigVM, Log, All);
+RIGVM_API DECLARE_LOG_CATEGORY_EXTERN(LogRigVM, Log, All);
 
 namespace RigVMCore
 {

@@ -132,6 +132,11 @@ struct RIGVM_API FRigVMBaseOp
 	}
 
 	ERigVMOpCode OpCode;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMBaseOp& Op)
+	{
+		return GetTypeHash(Op.OpCode);
+	}
 };
 
 
@@ -154,6 +159,11 @@ struct RIGVM_API FRigVMExecuteOp : public FRigVMBaseOp
 	}
 
 	uint16 FunctionIndex;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMExecuteOp& Op)
+	{
+		return HashCombine(GetTypeHash((const FRigVMBaseOp&)Op), GetTypeHash(Op.FunctionIndex));
+	}
 
 	FORCEINLINE uint8 GetOperandCount() const { return uint8(OpCode) - uint8(ERigVMOpCode::Execute_0_Operands); }
 
@@ -198,6 +208,11 @@ struct RIGVM_API FRigVMUnaryOp : public FRigVMBaseOp
 
 	FRigVMOperand Arg;
 
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMUnaryOp& Op)
+	{
+		return HashCombine(GetTypeHash((const FRigVMBaseOp&)Op), GetTypeHash(Op.Arg));
+	}
+
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMUnaryOp& P)
 	{
@@ -237,6 +252,14 @@ struct RIGVM_API FRigVMBinaryOp : public FRigVMBaseOp
 
 	FRigVMOperand ArgA;
 	FRigVMOperand ArgB;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMBinaryOp& Op)
+	{
+		uint32 Hash = GetTypeHash((const FRigVMBaseOp&)Op);
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgA));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgB));
+		return Hash;
+	}
 
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMBinaryOp& P)
@@ -280,6 +303,15 @@ struct RIGVM_API FRigVMTernaryOp : public FRigVMBaseOp
 	FRigVMOperand ArgB;
 	FRigVMOperand ArgC;
 
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMTernaryOp& Op)
+	{
+		uint32 Hash = GetTypeHash((const FRigVMBaseOp&)Op);
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgA));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgB));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgC));
+		return Hash;
+	}
+
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMTernaryOp& P)
 	{
@@ -320,6 +352,16 @@ struct RIGVM_API FRigVMQuaternaryOp : public FRigVMBaseOp
 	FRigVMOperand ArgC;
 	FRigVMOperand ArgD;
 
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMQuaternaryOp& Op)
+	{
+		uint32 Hash = GetTypeHash((const FRigVMBaseOp&)Op);
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgA));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgB));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgC));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgD));
+		return Hash;
+	}
+
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMQuaternaryOp& P)
 	{
@@ -359,6 +401,17 @@ struct RIGVM_API FRigVMQuinaryOp : public FRigVMBaseOp
 	FRigVMOperand ArgC;
 	FRigVMOperand ArgD;
 	FRigVMOperand ArgE;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMQuinaryOp& Op)
+	{
+		uint32 Hash = GetTypeHash((const FRigVMBaseOp&)Op);
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgA));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgB));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgC));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgD));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgE));
+		return Hash;
+	}
 
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMQuinaryOp& P)
@@ -405,6 +458,18 @@ struct RIGVM_API FRigVMSenaryOp : public FRigVMBaseOp
 	FRigVMOperand ArgD;
 	FRigVMOperand ArgE;
 	FRigVMOperand ArgF;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMSenaryOp& Op)
+	{
+		uint32 Hash = GetTypeHash((const FRigVMBaseOp&)Op);
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgA));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgB));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgC));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgD));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgE));
+		Hash = HashCombine(Hash, GetTypeHash(Op.ArgF));
+		return Hash;
+	}
 
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMSenaryOp& P)
@@ -466,6 +531,14 @@ public:
 	FRigVMOperand Source;
 	FRigVMOperand Target;
 
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMCopyOp& Op)
+	{
+		uint32 Hash = GetTypeHash((const FRigVMBaseOp&)Op);
+		Hash = HashCombine(Hash, GetTypeHash(Op.Source));
+		Hash = HashCombine(Hash, GetTypeHash(Op.Target));
+		return Hash;
+	}
+
 private:
 	uint16 NumBytes;
 	ERigVMRegisterType RegisterType;
@@ -515,6 +588,15 @@ struct RIGVM_API FRigVMComparisonOp : public FRigVMBaseOp
 	FRigVMOperand B;
 	FRigVMOperand Result;
 
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMComparisonOp& Op)
+	{
+		uint32 Hash = GetTypeHash((const FRigVMBaseOp&)Op);
+		Hash = HashCombine(Hash, GetTypeHash(Op.A));
+		Hash = HashCombine(Hash, GetTypeHash(Op.B));
+		Hash = HashCombine(Hash, GetTypeHash(Op.Result));
+		return Hash;
+	}
+
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMComparisonOp& P)
 	{
@@ -546,6 +628,13 @@ struct RIGVM_API FRigVMJumpOp : public FRigVMBaseOp
 	}
 
 	int32 InstructionIndex;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMJumpOp& Op)
+	{
+		uint32 Hash = GetTypeHash((const FRigVMBaseOp&)Op);
+		Hash = HashCombine(Hash, GetTypeHash(Op.InstructionIndex));
+		return Hash;
+	}
 
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMJumpOp& P)
@@ -581,6 +670,14 @@ struct RIGVM_API FRigVMJumpIfOp : public FRigVMUnaryOp
 
 	int32 InstructionIndex;
 	bool Condition;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMJumpIfOp& Op)
+	{
+		uint32 Hash = GetTypeHash((const FRigVMBaseOp&)Op);
+		Hash = HashCombine(Hash, GetTypeHash(Op.InstructionIndex));
+		Hash = HashCombine(Hash, GetTypeHash(Op.Condition));
+		return Hash;
+	}
 
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMJumpIfOp& P)
@@ -720,6 +817,18 @@ public:
 	// resets the container and removes all memory
 	void Empty();
 
+	// returns a unique hash identifying this bytecode
+	uint32 GetByteCodeHash() const;
+
+	// returns a unique hash for an operator at a given instruction index
+	uint32 GetOperatorHash(const FRigVMInstruction& InInstruction) const;
+
+	// overload for GetTypeHash
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMByteCode& InByteCode)
+	{
+		return InByteCode.GetByteCodeHash();
+	}
+	
 	// returns the number of instructions in this container
 	uint64 Num() const;
 
@@ -891,6 +1000,9 @@ public:
 		ByteCodeIndex += sizeof(FRigVMExecuteOp) + (uint64)InInstruction.OperandAlignment;
 		return GetOperandsAt(ByteCodeIndex, ExecuteOp.GetOperandCount());
 	}
+
+	// returns all of the operands for a given instruction
+	FRigVMOperandArray GetOperandsForOp(const FRigVMInstruction& InInstruction) const;
 
 	// returns the raw data of the byte code
 	FORCEINLINE const TArrayView<const uint8> GetByteCode() const

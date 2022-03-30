@@ -40,6 +40,9 @@ struct RIGVM_API FRigVMPropertyPathDescription
 		, SegmentPath(InSegmentPath)
 	{}
 
+	// returns true if this property path is valid
+	bool IsValid() const { return PropertyIndex != INDEX_NONE && !HeadCPPType.IsEmpty() && !SegmentPath.IsEmpty(); }
+
 	// Archive operator for serialization
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMPropertyPathDescription& Path)
 	{

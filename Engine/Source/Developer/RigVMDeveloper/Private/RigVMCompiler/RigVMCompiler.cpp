@@ -3,6 +3,7 @@
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "RigVMModel/RigVMController.h"
 #include "RigVMCore/RigVMExecuteContext.h"
+#include "RigVMCore/RigVMNativized.h"
 #include "RigVMDeveloperModule.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/Interface.h"
@@ -138,6 +139,12 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 	if (OutVM == nullptr)
 	{
 		ReportError(TEXT("Provided vm is nullptr."));
+		return false;
+	}
+
+	if(OutVM->GetClass()->IsChildOf(URigVMNativized::StaticClass()))
+	{
+		ReportError(TEXT("Provided vm is nativized."));
 		return false;
 	}
 

@@ -28,6 +28,7 @@ protected:
 	FReply OnCopyASTClicked();
 	FReply OnCopyByteCodeClicked();
 	FReply OnCopyHierarchyGraphClicked();
+	FReply OnCopyGeneratedCodeClicked();
 	
 	UControlRigBlueprint* BlueprintBeingCustomized;
 };

@@ -690,6 +690,185 @@ void FRigVMByteCode::Empty()
 #endif
 }
 
+uint32 FRigVMByteCode::GetByteCodeHash() const
+{
+	uint32 Hash = 0;
+
+	for(int32 EntryIndex = 0; EntryIndex < NumEntries(); EntryIndex++)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(GetEntry(EntryIndex).Name.ToString()));
+		Hash = HashCombine(Hash, GetTypeHash(GetEntry(EntryIndex).InstructionIndex));
+	}
+
+	const FRigVMInstructionArray Instructions = GetInstructions();
+	for(const FRigVMInstruction& Instruction : Instructions)
+	{
+		Hash = HashCombine(Hash, GetOperatorHash(Instruction));
+	}
+
+	return Hash;
+}
+
+uint32 FRigVMByteCode::GetOperatorHash(const FRigVMInstruction& InInstruction) const
+{
+	const ERigVMOpCode OpCode = GetOpCodeAt(InInstruction.ByteCodeIndex);
+	switch (OpCode)
+	{
+		case ERigVMOpCode::Execute_0_Operands:
+		case ERigVMOpCode::Execute_1_Operands:
+		case ERigVMOpCode::Execute_2_Operands:
+		case ERigVMOpCode::Execute_3_Operands:
+		case ERigVMOpCode::Execute_4_Operands:
+		case ERigVMOpCode::Execute_5_Operands:
+		case ERigVMOpCode::Execute_6_Operands:
+		case ERigVMOpCode::Execute_7_Operands:
+		case ERigVMOpCode::Execute_8_Operands:
+		case ERigVMOpCode::Execute_9_Operands:
+		case ERigVMOpCode::Execute_10_Operands:
+		case ERigVMOpCode::Execute_11_Operands:
+		case ERigVMOpCode::Execute_12_Operands:
+		case ERigVMOpCode::Execute_13_Operands:
+		case ERigVMOpCode::Execute_14_Operands:
+		case ERigVMOpCode::Execute_15_Operands:
+		case ERigVMOpCode::Execute_16_Operands:
+		case ERigVMOpCode::Execute_17_Operands:
+		case ERigVMOpCode::Execute_18_Operands:
+		case ERigVMOpCode::Execute_19_Operands:
+		case ERigVMOpCode::Execute_20_Operands:
+		case ERigVMOpCode::Execute_21_Operands:
+		case ERigVMOpCode::Execute_22_Operands:
+		case ERigVMOpCode::Execute_23_Operands:
+		case ERigVMOpCode::Execute_24_Operands:
+		case ERigVMOpCode::Execute_25_Operands:
+		case ERigVMOpCode::Execute_26_Operands:
+		case ERigVMOpCode::Execute_27_Operands:
+		case ERigVMOpCode::Execute_28_Operands:
+		case ERigVMOpCode::Execute_29_Operands:
+		case ERigVMOpCode::Execute_30_Operands:
+		case ERigVMOpCode::Execute_31_Operands:
+		case ERigVMOpCode::Execute_32_Operands:
+		case ERigVMOpCode::Execute_33_Operands:
+		case ERigVMOpCode::Execute_34_Operands:
+		case ERigVMOpCode::Execute_35_Operands:
+		case ERigVMOpCode::Execute_36_Operands:
+		case ERigVMOpCode::Execute_37_Operands:
+		case ERigVMOpCode::Execute_38_Operands:
+		case ERigVMOpCode::Execute_39_Operands:
+		case ERigVMOpCode::Execute_40_Operands:
+		case ERigVMOpCode::Execute_41_Operands:
+		case ERigVMOpCode::Execute_42_Operands:
+		case ERigVMOpCode::Execute_43_Operands:
+		case ERigVMOpCode::Execute_44_Operands:
+		case ERigVMOpCode::Execute_45_Operands:
+		case ERigVMOpCode::Execute_46_Operands:
+		case ERigVMOpCode::Execute_47_Operands:
+		case ERigVMOpCode::Execute_48_Operands:
+		case ERigVMOpCode::Execute_49_Operands:
+		case ERigVMOpCode::Execute_50_Operands:
+		case ERigVMOpCode::Execute_51_Operands:
+		case ERigVMOpCode::Execute_52_Operands:
+		case ERigVMOpCode::Execute_53_Operands:
+		case ERigVMOpCode::Execute_54_Operands:
+		case ERigVMOpCode::Execute_55_Operands:
+		case ERigVMOpCode::Execute_56_Operands:
+		case ERigVMOpCode::Execute_57_Operands:
+		case ERigVMOpCode::Execute_58_Operands:
+		case ERigVMOpCode::Execute_59_Operands:
+		case ERigVMOpCode::Execute_60_Operands:
+		case ERigVMOpCode::Execute_61_Operands:
+		case ERigVMOpCode::Execute_62_Operands:
+		case ERigVMOpCode::Execute_63_Operands:
+		case ERigVMOpCode::Execute_64_Operands:
+		{
+			const FRigVMExecuteOp& Op = GetOpAt<FRigVMExecuteOp>(InInstruction);
+			uint32 Hash = GetTypeHash(Op);
+			const FRigVMOperandArray Operands = GetOperandsForExecuteOp(InInstruction);
+			for(const FRigVMOperand& Operand : Operands)
+			{
+				Hash = HashCombine(Hash, GetTypeHash(Operand));
+			}
+			return Hash;
+		}
+		case ERigVMOpCode::Copy:
+		{
+			return GetTypeHash(GetOpAt<FRigVMCopyOp>(InInstruction));
+		}
+		case ERigVMOpCode::Zero:
+		case ERigVMOpCode::BoolFalse:
+		case ERigVMOpCode::BoolTrue:
+		case ERigVMOpCode::Increment:
+		case ERigVMOpCode::Decrement:
+		case ERigVMOpCode::ArrayReset:
+		case ERigVMOpCode::ArrayReverse:
+		{
+			return GetTypeHash(GetOpAt<FRigVMUnaryOp>(InInstruction));
+		}
+		case ERigVMOpCode::Equals:
+		case ERigVMOpCode::NotEquals:
+		{
+			return GetTypeHash(GetOpAt<FRigVMComparisonOp>(InInstruction));
+		}
+		case ERigVMOpCode::JumpAbsolute:
+		case ERigVMOpCode::JumpForward:
+		case ERigVMOpCode::JumpBackward:
+		{
+			return GetTypeHash(GetOpAt<FRigVMJumpOp>(InInstruction));
+		}
+		case ERigVMOpCode::JumpAbsoluteIf:
+		case ERigVMOpCode::JumpForwardIf:
+		case ERigVMOpCode::JumpBackwardIf:
+		{
+			return GetTypeHash(GetOpAt<FRigVMJumpIfOp>(InInstruction));
+		}
+		case ERigVMOpCode::ChangeType:
+		{
+			checkNoEntry();
+			return 0;
+		}
+		case ERigVMOpCode::Exit:
+		{
+			return GetTypeHash(GetOpAt<FRigVMBaseOp>(InInstruction));
+		}
+		case ERigVMOpCode::BeginBlock:
+		case ERigVMOpCode::ArrayGetNum:
+		case ERigVMOpCode::ArraySetNum:
+		case ERigVMOpCode::ArrayAppend:
+		case ERigVMOpCode::ArrayClone:
+		case ERigVMOpCode::ArrayRemove:
+		case ERigVMOpCode::ArrayUnion:
+		{
+			return GetTypeHash(GetOpAt<FRigVMBinaryOp>(InInstruction));
+		}
+		case ERigVMOpCode::ArrayAdd:
+		case ERigVMOpCode::ArrayGetAtIndex:
+		case ERigVMOpCode::ArraySetAtIndex:
+		case ERigVMOpCode::ArrayInsert:
+		case ERigVMOpCode::ArrayDifference:
+		case ERigVMOpCode::ArrayIntersection:
+		{				
+			return GetTypeHash(GetOpAt<FRigVMTernaryOp>(InInstruction));
+		}
+		case ERigVMOpCode::ArrayFind:
+		{				
+			return GetTypeHash(GetOpAt<FRigVMQuaternaryOp>(InInstruction));
+		}
+		case ERigVMOpCode::ArrayIterator:
+		{				
+			return GetTypeHash(GetOpAt<FRigVMSenaryOp>(InInstruction));
+		}
+		case ERigVMOpCode::EndBlock:
+		{
+			return GetTypeHash(GetOpAt<FRigVMBaseOp>(InInstruction));
+		}
+		case ERigVMOpCode::Invalid:
+		{
+			ensure(false);
+			return 0;
+		}
+	}
+	return 0;
+}
+
 uint64 FRigVMByteCode::Num() const
 {
 	return (uint64)ByteCode.Num();
@@ -1347,6 +1526,154 @@ uint64 FRigVMByteCode::AddArrayIntersectionOp(FRigVMOperand InArrayArg, FRigVMOp
 uint64 FRigVMByteCode::AddArrayReverseOp(FRigVMOperand InArrayArg)
 {
 	return AddOp(FRigVMUnaryOp(ERigVMOpCode::ArrayReverse, InArrayArg));
+}
+
+FRigVMOperandArray FRigVMByteCode::GetOperandsForOp(const FRigVMInstruction& InInstruction) const
+{
+	switch(InInstruction.OpCode)
+	{
+		case ERigVMOpCode::Execute_0_Operands:
+		case ERigVMOpCode::Execute_1_Operands:
+		case ERigVMOpCode::Execute_2_Operands:
+		case ERigVMOpCode::Execute_3_Operands:
+		case ERigVMOpCode::Execute_4_Operands:
+		case ERigVMOpCode::Execute_5_Operands:
+		case ERigVMOpCode::Execute_6_Operands:
+		case ERigVMOpCode::Execute_7_Operands:
+		case ERigVMOpCode::Execute_8_Operands:
+		case ERigVMOpCode::Execute_9_Operands:
+		case ERigVMOpCode::Execute_10_Operands:
+		case ERigVMOpCode::Execute_11_Operands:
+		case ERigVMOpCode::Execute_12_Operands:
+		case ERigVMOpCode::Execute_13_Operands:
+		case ERigVMOpCode::Execute_14_Operands:
+		case ERigVMOpCode::Execute_15_Operands:
+		case ERigVMOpCode::Execute_16_Operands:
+		case ERigVMOpCode::Execute_17_Operands:
+		case ERigVMOpCode::Execute_18_Operands:
+		case ERigVMOpCode::Execute_19_Operands:
+		case ERigVMOpCode::Execute_20_Operands:
+		case ERigVMOpCode::Execute_21_Operands:
+		case ERigVMOpCode::Execute_22_Operands:
+		case ERigVMOpCode::Execute_23_Operands:
+		case ERigVMOpCode::Execute_24_Operands:
+		case ERigVMOpCode::Execute_25_Operands:
+		case ERigVMOpCode::Execute_26_Operands:
+		case ERigVMOpCode::Execute_27_Operands:
+		case ERigVMOpCode::Execute_28_Operands:
+		case ERigVMOpCode::Execute_29_Operands:
+		case ERigVMOpCode::Execute_30_Operands:
+		case ERigVMOpCode::Execute_31_Operands:
+		case ERigVMOpCode::Execute_32_Operands:
+		case ERigVMOpCode::Execute_33_Operands:
+		case ERigVMOpCode::Execute_34_Operands:
+		case ERigVMOpCode::Execute_35_Operands:
+		case ERigVMOpCode::Execute_36_Operands:
+		case ERigVMOpCode::Execute_37_Operands:
+		case ERigVMOpCode::Execute_38_Operands:
+		case ERigVMOpCode::Execute_39_Operands:
+		case ERigVMOpCode::Execute_40_Operands:
+		case ERigVMOpCode::Execute_41_Operands:
+		case ERigVMOpCode::Execute_42_Operands:
+		case ERigVMOpCode::Execute_43_Operands:
+		case ERigVMOpCode::Execute_44_Operands:
+		case ERigVMOpCode::Execute_45_Operands:
+		case ERigVMOpCode::Execute_46_Operands:
+		case ERigVMOpCode::Execute_47_Operands:
+		case ERigVMOpCode::Execute_48_Operands:
+		case ERigVMOpCode::Execute_49_Operands:
+		case ERigVMOpCode::Execute_50_Operands:
+		case ERigVMOpCode::Execute_51_Operands:
+		case ERigVMOpCode::Execute_52_Operands:
+		case ERigVMOpCode::Execute_53_Operands:
+		case ERigVMOpCode::Execute_54_Operands:
+		case ERigVMOpCode::Execute_55_Operands:
+		case ERigVMOpCode::Execute_56_Operands:
+		case ERigVMOpCode::Execute_57_Operands:
+		case ERigVMOpCode::Execute_58_Operands:
+		case ERigVMOpCode::Execute_59_Operands:
+		case ERigVMOpCode::Execute_60_Operands:
+		case ERigVMOpCode::Execute_61_Operands:
+		case ERigVMOpCode::Execute_62_Operands:
+		case ERigVMOpCode::Execute_63_Operands:
+		case ERigVMOpCode::Execute_64_Operands:
+		{
+			return GetOperandsForExecuteOp(InInstruction);
+		}
+		case ERigVMOpCode::Copy:
+		{
+			const FRigVMCopyOp& Op = GetOpAt<FRigVMCopyOp>(InInstruction.ByteCodeIndex);
+			return FRigVMOperandArray(&Op.Source, 2);
+		}
+		case ERigVMOpCode::Zero:
+		case ERigVMOpCode::BoolFalse:
+		case ERigVMOpCode::BoolTrue:
+		case ERigVMOpCode::Increment:
+		case ERigVMOpCode::Decrement:
+		case ERigVMOpCode::ArrayReset:
+		case ERigVMOpCode::ArrayReverse:
+		{
+			const FRigVMUnaryOp& Op = GetOpAt<FRigVMUnaryOp>(InInstruction.ByteCodeIndex);
+			return FRigVMOperandArray(&Op.Arg, 1);
+		}
+		case ERigVMOpCode::Equals:
+		case ERigVMOpCode::NotEquals:
+		{
+			const FRigVMComparisonOp& Op = GetOpAt<FRigVMComparisonOp>(InInstruction.ByteCodeIndex);
+			return FRigVMOperandArray(&Op.A, 3);
+		}
+		case ERigVMOpCode::JumpAbsoluteIf:
+		case ERigVMOpCode::JumpForwardIf:
+		case ERigVMOpCode::JumpBackwardIf:
+		{
+			const FRigVMJumpIfOp& Op = GetOpAt<FRigVMJumpIfOp>(InInstruction.ByteCodeIndex);
+			return FRigVMOperandArray(&Op.Arg, 1);
+		}
+		case ERigVMOpCode::BeginBlock:
+		case ERigVMOpCode::ArrayGetNum:
+		case ERigVMOpCode::ArraySetNum:
+		case ERigVMOpCode::ArrayAppend:
+		case ERigVMOpCode::ArrayClone:
+		case ERigVMOpCode::ArrayRemove:
+		case ERigVMOpCode::ArrayUnion:
+		{
+			const FRigVMBinaryOp& Op = GetOpAt<FRigVMBinaryOp>(InInstruction.ByteCodeIndex);
+			return FRigVMOperandArray(&Op.ArgA, 2);
+		}
+		case ERigVMOpCode::ArrayAdd:
+		case ERigVMOpCode::ArrayGetAtIndex:
+		case ERigVMOpCode::ArraySetAtIndex:
+		case ERigVMOpCode::ArrayInsert:
+		case ERigVMOpCode::ArrayDifference:
+		case ERigVMOpCode::ArrayIntersection:
+		{
+			const FRigVMTernaryOp& Op = GetOpAt<FRigVMTernaryOp>(InInstruction.ByteCodeIndex);
+			return FRigVMOperandArray(&Op.ArgA, 3);
+		}
+		case ERigVMOpCode::ArrayFind:
+		{
+			const FRigVMQuaternaryOp& Op = GetOpAt<FRigVMQuaternaryOp>(InInstruction.ByteCodeIndex);
+			return FRigVMOperandArray(&Op.ArgA, 4);
+		}
+		case ERigVMOpCode::ArrayIterator:
+		{
+			const FRigVMSenaryOp& Op = GetOpAt<FRigVMSenaryOp>(InInstruction.ByteCodeIndex);
+			return FRigVMOperandArray(&Op.ArgA, 6);
+		}
+		case ERigVMOpCode::JumpAbsolute:
+		case ERigVMOpCode::JumpForward:
+		case ERigVMOpCode::JumpBackward:
+		case ERigVMOpCode::ChangeType:
+		case ERigVMOpCode::Exit:
+		case ERigVMOpCode::EndBlock:
+		case ERigVMOpCode::Invalid:
+		default:
+		{
+			break;
+		}
+	}
+
+	return FRigVMOperandArray();
 }
 
 uint64 FRigVMByteCode::GetOpAlignment(ERigVMOpCode InOpCode) const

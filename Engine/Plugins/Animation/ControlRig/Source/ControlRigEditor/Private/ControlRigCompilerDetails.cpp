@@ -15,6 +15,7 @@
 #include "RigVMPythonUtils.h"
 #include "ControlRigVisualGraphUtils.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "RigVMCompiler/RigVMCodeGenerator.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigCompilerDetails"
 
@@ -128,6 +129,22 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 				+ SVerticalBox::Slot()
 				[
 					SNew(SButton)
+					.OnClicked(this, &FRigVMCompileSettingsDetails::OnCopyGeneratedCodeClicked)
+					.ContentPadding(FMargin(2))
+					.Visibility_Lambda([]()
+					{
+						return UControlRig::AreNativizedVMsDisabled() ? EVisibility::Collapsed : EVisibility::Visible;
+					})
+					.Content()
+					[
+						SNew(STextBlock)
+						.Justification(ETextJustify::Center)
+						.Text(LOCTEXT("CopyGeneratedCodeToClipboard", "Copy Nativized C++ Code"))
+					]
+				]
+				+ SVerticalBox::Slot()
+				[
+					SNew(SButton)
 					.OnClicked(this, &FRigVMCompileSettingsDetails::OnCopyHierarchyGraphClicked)
 					.ContentPadding(FMargin(2))
 					.Content()
@@ -200,6 +217,35 @@ FReply FRigVMCompileSettingsDetails::OnCopyHierarchyGraphClicked()
 			
 			const FString DotGraphContent = FControlRigVisualGraphUtils::DumpRigHierarchyToDotGraph(ControlRig->GetHierarchy(), EventName);
 			FPlatformApplicationMisc::ClipboardCopy(*DotGraphContent);
+		}
+	}
+	return FReply::Handled();
+}
+
+FReply FRigVMCompileSettingsDetails::OnCopyGeneratedCodeClicked()
+{
+	if (BlueprintBeingCustomized)
+	{
+		const FString ClassName = FString::Printf(TEXT("%sVM"), *BlueprintBeingCustomized->GetName());
+		if (BlueprintBeingCustomized->GeneratedClass)
+		{
+			if (UControlRig* CDO = Cast<UControlRig>(BlueprintBeingCustomized->GeneratedClass->GetDefaultObject()))
+			{
+				if(CDO->GetVM())
+				{
+					CDO->GetVM()->ClearExternalVariables();
+					TArray<FRigVMExternalVariable> ExternalVariables = CDO->GetExternalVariables();
+					for(const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+					{
+						CDO->GetVM()->AddExternalVariable(ExternalVariable);
+					}
+					
+					FRigVMCodeGenerator CodeGenerator(ClassName,
+						TEXT("TestModule"), BlueprintBeingCustomized->GetModel(), CDO->GetVM(), BlueprintBeingCustomized->PinToOperandMap);
+					const FString Content = CodeGenerator.DumpHeader() + TEXT("\r\n\r\n") + CodeGenerator.DumpSource();
+					FPlatformApplicationMisc::ClipboardCopy(*Content);
+				}
+			}
 		}
 	}
 	return FReply::Handled();

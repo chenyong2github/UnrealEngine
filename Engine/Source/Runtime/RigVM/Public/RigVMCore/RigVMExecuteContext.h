@@ -267,6 +267,7 @@ private:
 
 	friend struct FRigVMExtendedExecuteContext;
 	friend class URigVM;
+	friend class URigVMNativized;
 	friend class UControlRig;
 	friend class UAdditiveControlRig;
 	friend struct FRigUnit_BeginExecution;
@@ -347,18 +348,23 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 
 	FORCEINLINE bool IsValidArrayIndex(int32& InOutIndex, const FScriptArrayHelper& InArrayHelper) const
 	{
+		return IsValidArrayIndex(InOutIndex, InArrayHelper.Num());
+	}
+
+	FORCEINLINE bool IsValidArrayIndex(int32& InOutIndex, int32 InArraySize) const
+	{
 		const int32 InOriginalIndex = InOutIndex;
 
 		// we support wrapping the index around similar to python
 		if(InOutIndex < 0)
 		{
-			InOutIndex = InArrayHelper.Num() + InOutIndex;
+			InOutIndex = InArraySize + InOutIndex;
 		}
 
-		if(!InArrayHelper.IsValidIndex(InOutIndex))
+		if(InOutIndex < 0 || InOutIndex >= InArraySize)
 		{
 			static const TCHAR OutOfBoundsFormat[] = TEXT("Array Index (%d) out of bounds (count %d).");
-			PublicData.Logf(EMessageSeverity::Error, OutOfBoundsFormat, InOriginalIndex, InArrayHelper.Num());
+			PublicData.Logf(EMessageSeverity::Error, OutOfBoundsFormat, InOriginalIndex, InArraySize);
 			return false;
 		}
 		return true;

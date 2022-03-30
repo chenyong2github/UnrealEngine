@@ -147,19 +147,28 @@ public:
 	virtual ~URigVM();
 
 	// UObject interface
-	void Serialize(FArchive& Ar);
-	void Save(FArchive& Ar);
-	void Load(FArchive& Ar);
-	void PostLoad() override;
+	virtual void Serialize(FArchive& Ar);
+	virtual void Save(FArchive& Ar);
+	virtual void Load(FArchive& Ar);
+	virtual void PostLoad() override;
+
+	// returns true if this is a nativized VM
+	virtual bool IsNativized() const { return false; }
+
+	// returns a unique hash to compare VMs
+	virtual uint32 GetVMHash() const;
+
+	// returns the VM's matching nativized class if it exists
+	UClass* GetNativizedClass(const TArray<FRigVMExternalVariable>& InExternalVariables = TArray<FRigVMExternalVariable>());
 	
 	// resets the container and maintains all memory
-	void Reset(bool IsIgnoringArchetypeRef = false);
+	virtual void Reset(bool IsIgnoringArchetypeRef = false);
 
 	// resets the container and removes all memory
-	void Empty();
+	virtual void Empty();
 
 	// resets the container and clones the input VM
-	void CopyFrom(URigVM* InVM, bool bDeferCopy = false, bool bReferenceLiteralMemory = false, bool bReferenceByteCode = false, bool bCopyExternalVariables = false, bool bCopyDynamicRegisters = false);
+	virtual void CopyFrom(URigVM* InVM, bool bDeferCopy = false, bool bReferenceLiteralMemory = false, bool bReferenceByteCode = false, bool bCopyExternalVariables = false, bool bCopyDynamicRegisters = false);
 
 	// sets the max array size allowed by this VM
 	FORCEINLINE void SetRuntimeSettings(FRigVMRuntimeSettings InRuntimeSettings)
@@ -168,30 +177,30 @@ public:
 	}
 
 	// Initializes all execute ops and their memory.
-	bool Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, bool bInitializeMemory = true);
+	virtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, bool bInitializeMemory = true);
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
 	// and provide optional additional operands.
-	bool Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
+	virtual bool Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
 	// and provide optional additional operands.
 	UFUNCTION(BlueprintCallable, Category = RigVM)
-	bool Execute(const FName& InEntryName = NAME_None);
+	virtual bool Execute(const FName& InEntryName = NAME_None);
 
 	// Add a function for execute instructions to this VM.
 	// Execute instructions can then refer to the function by index.
 	UFUNCTION()
-	int32 AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InMethodName);
+	virtual int32 AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InMethodName);
 
 	// Returns the name of a function given its index
 	UFUNCTION()
-	FString GetRigVMFunctionName(int32 InFunctionIndex) const;
+	virtual FString GetRigVMFunctionName(int32 InFunctionIndex) const;
 
 	// Returns a memory storage by type
-	URigVMMemoryStorage* GetMemoryByType(ERigVMMemoryType InMemoryType, bool bCreateIfNeeded = true);
+	virtual URigVMMemoryStorage* GetMemoryByType(ERigVMMemoryType InMemoryType, bool bCreateIfNeeded = true);
 	
 	// The default mutable work memory
 	FORCEINLINE URigVMMemoryStorage* GetWorkMemory(bool bCreateIfNeeded = true) { return GetMemoryByType(ERigVMMemoryType::Work, bCreateIfNeeded); }
@@ -213,7 +222,7 @@ public:
 	}
 
 	// Removes all memory from this VM
-	void ClearMemory();
+	virtual void ClearMemory();
 
 	UPROPERTY()
 	TObjectPtr<URigVMMemoryStorage> WorkMemoryStorageObject;
@@ -235,13 +244,13 @@ public:
 	FORCEINLINE const FRigVMByteCode& GetByteCode() const { return *ByteCodePtr; }
 
 	// Returns the instructions of the VM
-	const FRigVMInstructionArray& GetInstructions();
+	virtual const FRigVMInstructionArray& GetInstructions();
 
 	// Returns true if this VM's bytecode contains a given entry
-	bool ContainsEntry(const FName& InEntryName) const;
+	virtual bool ContainsEntry(const FName& InEntryName) const;
 
 	// Returns a list of all valid entry names for this VM's bytecode
-	TArray<FName> GetEntryNames() const;
+	virtual TArray<FName> GetEntryNames() const;
 
 #if WITH_EDITOR
 	
@@ -634,9 +643,13 @@ private:
 	UPROPERTY(transient)
 	FRigVMInstructionArray Instructions;
 
+protected:
 	UPROPERTY(transient)
 	FRigVMExtendedExecuteContext Context;
 
+	FORCEINLINE void SetInstructionIndex(uint16 InInstructionIndex) { Context.PublicData.InstructionIndex = InInstructionIndex; }
+
+private:
 	UPROPERTY(transient)
 	uint32 NumExecutions;
 
@@ -741,6 +754,6 @@ private:
 	FExecutionHaltedEvent OnExecutionHalted;
 #endif
 
-	
 	friend class URigVMCompiler;
+	friend struct FRigVMCodeGenerator;
 };

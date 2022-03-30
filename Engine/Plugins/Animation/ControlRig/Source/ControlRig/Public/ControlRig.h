@@ -45,6 +45,15 @@ struct FRigControl;
 
 CONTROLRIG_API DECLARE_LOG_CATEGORY_EXTERN(LogControlRig, Log, All);
 
+// set this to something larger than 0 to profile N runs
+#ifndef UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
+#define UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM 0
+#endif
+
+#if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
+#include "HAL/PlatformTime.h"
+#endif
+
 /** Runs logic for mapping input data to transforms (the "Rig") */
 UCLASS(Blueprintable, Abstract, editinlinenew)
 class CONTROLRIG_API UControlRig : public UObject, public INodeMappingProviderInterface, public IInterface_AssetUserData
@@ -432,6 +441,8 @@ public:
 	void SetControlCustomization(const FRigElementKey& InControl, const FRigControlElementCustomization& InCustomization);
 
 	void PostInitInstanceIfRequired();
+	void SwapVMToNativizedIfRequired(UClass* InNativizedClass = nullptr);
+	static bool AreNativizedVMsDisabled() ;
 
 private:
 
@@ -843,8 +854,13 @@ public:
 		FRigPose CachedPose;	
 	};	
 
-private:
+#endif
 	
+private:
+
+#if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
+	int32 ProfilingRunsLeft;
+	uint64 AccumulatedCycles;
 #endif
 
 	friend class FControlRigBlueprintCompilerContext;

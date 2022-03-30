@@ -7,6 +7,7 @@
 #include "RigVMDefines.h"
 #include "RigVMMemory.h"
 #include "RigVMModule.h"
+#include "RigVMTypeUtils.h"
 #include "UObject/UnrealType.h"
 
 /**
@@ -553,6 +554,15 @@ struct RIGVM_API FRigVMExternalVariable
 			TypeName.IsValid() &&
 			!TypeName.IsNone() &&
 			(bAllowNullPtr || Memory != nullptr);
+	}
+
+	FORCEINLINE FName GetExtendedCPPType() const
+	{
+		if(bIsArray)
+		{
+			return *RigVMTypeUtils::ArrayTypeFromBaseType(TypeName.ToString());
+		}
+		return TypeName;
 	}
 
 	FORCEINLINE static void MergeExternalVariable(TArray<FRigVMExternalVariable>& OutVariables, const FRigVMExternalVariable& InVariable)

@@ -48,6 +48,9 @@ static TAutoConsoleVariable<int32> CVarControlRigCreateFloatControlsForCurves(
 // CVar to disable all control rig execution 
 static TAutoConsoleVariable<int32> CVarControlRigDisableExecutionAll(TEXT("ControlRig.DisableExecutionAll"), 0, TEXT("if nonzero we disable all execution of Control Rigs."));
 
+// CVar to disable swapping to nativized vms 
+static TAutoConsoleVariable<int32> CVarControlRigDisableNativizedVMs(TEXT("ControlRig.DisableNativizedVMs"), 1, TEXT("if nonzero we disable swapping to nativized VMs."));
+
 UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DeltaTime(0.0f)
@@ -81,6 +84,11 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, VMSnapshotBeforeExecution(nullptr)
 #endif
 	, DebugBoneRadiusMultiplier(1.f)
+#if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
+	, ProfilingRunsLeft(0)
+	, AccumulatedCycles(0)
+#endif
+
 {
 	EventQueue.Add(FRigUnit_BeginExecution::EventName);
 }
@@ -501,13 +509,18 @@ void UControlRig::InstantiateVMFromCDO()
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
+		SwapVMToNativizedIfRequired();
+
 		UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
 		if (VM && CDO && CDO->VM)
 		{
-			// reference the literal memory + byte code
-			// only defer if called from worker thread,
-			// which should be unlikely
-			VM->CopyFrom(CDO->VM, !IsInGameThread(), true);
+			if(!VM->IsNativized())
+			{
+				// reference the literal memory + byte code
+				// only defer if called from worker thread,
+				// which should be unlikely
+				VM->CopyFrom(CDO->VM, !IsInGameThread(), true);
+			}
 		}
 		else if (VM)
 		{
@@ -1169,13 +1182,23 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 {
 	if (VM)
 	{
+#if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
+		const uint64 StartCycles = FPlatformTime::Cycles64();
+		if(ProfilingRunsLeft <= 0)
+		{
+			ProfilingRunsLeft = UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM;
+			AccumulatedCycles = 0;
+		}
+#endif
+		
+		const bool bUseSnapshots = !VM->IsNativized();
 		TArray<URigVMMemoryStorage*> LocalMemory = VM->GetLocalMemoryArray();
 		TArray<void*> AdditionalArguments;
 		AdditionalArguments.Add(&InOutContext);
 
 		if (InOutContext.State == EControlRigState::Init)
 		{
-			if(IsInGameThread())
+			if(IsInGameThread() && bUseSnapshots)
 			{
 				const uint32 SnapshotHash = GetHashForInitializeVMSnapShot();
 				UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject());
@@ -1219,15 +1242,18 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 		else
 		{
 #if WITH_EDITOR
-			if(URigVM* SnapShotVM = GetSnapshotVM(false)) // don't create it for normal runs
+			if(bUseSnapshots)
 			{
-				if (VM->GetHaltedAtBreakpoint() != nullptr)
+				if(URigVM* SnapShotVM = GetSnapshotVM(false)) // don't create it for normal runs
 				{
-					VM->CopyFrom(SnapShotVM, false, false, false, true, true);	
-				}
-				else
-				{
-					SnapShotVM->CopyFrom(VM, false, false, false, true, true);
+					if (VM->GetHaltedAtBreakpoint() != nullptr)
+					{
+						VM->CopyFrom(SnapShotVM, false, false, false, true, true);	
+					}
+					else
+					{
+						SnapShotVM->CopyFrom(VM, false, false, false, true, true);
+					}
 				}
 			}
 #endif
@@ -1246,6 +1272,19 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 
 			VM->Execute(LocalMemory, AdditionalArguments, InEventName);
 		}
+
+#if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
+		const uint64 EndCycles = FPlatformTime::Cycles64();
+		const uint64 Cycles = EndCycles - StartCycles;
+		AccumulatedCycles += Cycles;
+		ProfilingRunsLeft--;
+		if(ProfilingRunsLeft == 0)
+		{
+			const double Milliseconds = FPlatformTime::ToMilliseconds64(AccumulatedCycles);
+			UE_LOG(LogControlRig, Display, TEXT("%s: %d runs took %.03lfms."), *GetClass()->GetName(), UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM, Milliseconds);
+		}
+#endif
+
 	}
 }
 
@@ -2794,6 +2833,80 @@ void UControlRig::PostInitInstanceIfRequired()
 			PostInitInstance(CDO);
 		}
 	}
+}
+
+void UControlRig::SwapVMToNativizedIfRequired(UClass* InNativizedClass)
+{
+	if (HasAnyFlags(RF_NeedPostLoad))
+	{
+		return;
+	}
+	if(VM == nullptr)
+	{
+		return;
+	}
+
+	const bool bNativizedVMDisabled = AreNativizedVMsDisabled();
+
+	if(InNativizedClass == nullptr)
+	{
+		if(!HasAnyFlags(RF_ClassDefaultObject))
+		{
+			if(UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>())
+			{
+				if(CDO->VM)
+				{
+					if(CDO->VM->IsNativized())
+					{
+						InNativizedClass = CDO->VM->GetClass();
+					}
+					else
+					{
+						InNativizedClass = CDO->VM->GetNativizedClass(GetExternalVariables());
+					}
+				}
+			}
+		}
+		else
+		{
+			InNativizedClass = VM->GetNativizedClass(GetExternalVariablesImpl(true));
+		}
+	}	
+
+	if(VM->IsNativized())
+	{
+		if((InNativizedClass == nullptr) || bNativizedVMDisabled)
+		{
+			const EObjectFlags PreviousFlags = VM->GetFlags();
+			VM->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+			VM->MarkAsGarbage();
+			VM = NewObject<URigVM>(this, TEXT("VM"), PreviousFlags);
+#if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
+			ProfilingRunsLeft = 0;
+			AccumulatedCycles = 0;
+#endif
+		}
+	}
+	else
+	{
+		if(InNativizedClass && !bNativizedVMDisabled)
+		{
+			const EObjectFlags PreviousFlags = VM->GetFlags();
+			VM->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+			VM->MarkAsGarbage();
+			VM = NewObject<URigVM>(this, InNativizedClass, TEXT("VM"), PreviousFlags);
+			VM->ExecutionReachedExit().AddUObject(this, &UControlRig::HandleExecutionReachedExit);
+#if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
+			ProfilingRunsLeft = 0;
+			AccumulatedCycles = 0;
+#endif
+		}
+	}
+}
+
+bool UControlRig::AreNativizedVMsDisabled()
+{
+	return (CVarControlRigDisableNativizedVMs->GetInt() != 0);
 }
 
 void UControlRig::PostInitInstance(UControlRig* InCDO)

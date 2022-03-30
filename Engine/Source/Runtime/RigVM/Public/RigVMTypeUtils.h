@@ -23,6 +23,7 @@ namespace RigVMTypeUtils
 	const FString FloatArrayType = TEXT("TArray<float>");
 	const FString DoubleArrayType = TEXT("TArray<double>");
 	const FString Int32ArrayType = TEXT("TArray<int32>");
+	const FString UInt8ArrayType = TEXT("TArray<uint8>");
 	const FString FNameArrayType = TEXT("TArray<FName>");
 	const FString FStringArrayType = TEXT("TArray<FString>");
 
@@ -37,6 +38,7 @@ namespace RigVMTypeUtils
 	const FName FloatArrayTypeName = *FloatArrayType;
 	const FName DoubleArrayTypeName = *DoubleArrayType;
 	const FName Int32ArrayTypeName = *Int32ArrayType;
+	const FName UInt8ArrayTypeName = *UInt8ArrayType;
 	const FName FNameArrayTypeName = *FNameArrayType;
 	const FName FStringArrayTypeName = *FStringArrayType;
 
@@ -53,7 +55,7 @@ namespace RigVMTypeUtils
 
 	FORCEINLINE FString BaseTypeFromArrayType(const FString& InCPPType)
 	{
-		return InCPPType.RightChop(7).LeftChop(1);
+		return InCPPType.RightChop(7).LeftChop(1).TrimStartAndEnd();
 	}
 
 	FORCEINLINE FString CPPTypeFromEnum(UEnum* InEnum)

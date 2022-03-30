@@ -216,6 +216,7 @@ public:
 	URigVMMemoryStorageGeneratorClass()
 		: Super()
 		, MemoryType(ERigVMMemoryType::Literal)
+		, CachedMemoryHash(0)
 	{}
 	
 	// UClass overrides
@@ -255,6 +256,9 @@ public:
 	// Returns the type of memory of this class (literal, work, etc)
 	ERigVMMemoryType GetMemoryType() const { return MemoryType; }
 
+	// Returns a hash of unique to the configuration of the memory
+	uint32 GetMemoryHash() const;
+
 	// The properties stored within this class
 	const TArray<const FProperty*>& GetProperties() const { return LinkedProperties; }
 
@@ -288,9 +292,12 @@ private:
 	// A list of decriptions for the property paths - used for serialization
 	TArray<FRigVMPropertyPathDescription> PropertyPathDescriptions;
 
+	mutable uint32 CachedMemoryHash;
+
 	friend class URigVMMemoryStorage;
 	friend class URigVMCompiler;
 	friend class URigVM;
+	friend struct FRigVMCodeGenerator;
 };
 
 /**
@@ -317,6 +324,17 @@ public:
 		}
 		// empty debug containers don't have a generator class
 		return ERigVMMemoryType::Debug;
+	}
+
+	// Returns a hash of unique to the configuration of the memory
+	FORCEINLINE uint32 GetMemoryHash() const
+	{
+		if(URigVMMemoryStorageGeneratorClass* Class = Cast<URigVMMemoryStorageGeneratorClass>(GetClass()))
+		{
+			return Class->GetMemoryHash();
+		}
+		// empty debug containers don't have a generator class
+		return 0;
 	}
 
 	// Returns the number of properties stored in this instance
