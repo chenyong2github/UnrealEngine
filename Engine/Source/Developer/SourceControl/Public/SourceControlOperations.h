@@ -543,6 +543,43 @@ public:
 };
 
 /**
+ * This operations query the source control to extract all the details available for a given changelist. The operations returns a collection of key/value corresponding to the details available. 
+ * The list of key/value is specific to the source control implementation.
+ */
+class FGetChangelistDetails : public FSourceControlOperationBase
+{
+public:
+	// ISourceControlOperation interface
+	virtual FName GetName() const override
+	{
+		return "GetChangelistDetails";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_GetChangelistDetails", "Retrieving changelist details from Source Control...");
+	}
+
+	const FString& GetChangelistNumber() { return ChangelistNumber; }
+
+	const TArray<TMap<FString, FString>>& GetChangelistDetails() { return OutChangelistDetails; }
+	
+	void SetChangelistNumber(const FString& InChangelistNumber)
+	{
+		ChangelistNumber = InChangelistNumber;
+	}
+
+	void SetChangelistDetails(TArray<TMap<FString, FString>>&& InChangelistDetails)
+	{
+		OutChangelistDetails = MoveTemp(InChangelistDetails);
+	}
+
+private:
+	FString ChangelistNumber;
+	TArray<TMap<FString, FString>> OutChangelistDetails;
+};
+
+/**
  * Operation used to update the source control status of changelist(s)
  */
 class FUpdatePendingChangelistsStatus : public FSourceControlOperationBase

@@ -51,6 +51,7 @@ void IPerforceSourceControlWorker::RegisterWorkers()
 	WorkersMap.Add("Resolve", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceResolveWorker>));
 	WorkersMap.Add("ChangeStatus", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceChangeStatusWorker>));
 	WorkersMap.Add("UpdateChangelistsStatus", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceGetPendingChangelistsWorker>));
+	WorkersMap.Add("GetChangelistDetails", FPerforceGetChangelistDetailsWorker::CreateStatic(&InstantiateWorker<FPerforceGetChangelistDetailsWorker>));
 	WorkersMap.Add("NewChangelist", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceNewChangelistWorker>));
 	WorkersMap.Add("DeleteChangelist", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceDeleteChangelistWorker>));
 	WorkersMap.Add("EditChangelist", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceEditChangelistWorker>));
@@ -2228,7 +2229,7 @@ FName FPerforceCopyWorker::GetName() const
 	return "Copy";
 }
 
-bool FPerforceCopyWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+bool FPerforceCopyWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
@@ -2276,7 +2277,7 @@ FName FPerforceResolveWorker::GetName() const
 	return "Resolve";
 }
 
-bool FPerforceResolveWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+bool FPerforceResolveWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
@@ -2317,7 +2318,7 @@ FName FPerforceChangeStatusWorker::GetName() const
 	return "ChangeStatus";
 }
 
-bool FPerforceChangeStatusWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+bool FPerforceChangeStatusWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
@@ -2372,7 +2373,7 @@ FName FPerforceNewChangelistWorker::GetName() const
 	return "NewChangelist";
 }
 
-bool FPerforceNewChangelistWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+bool FPerforceNewChangelistWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
 
@@ -2458,7 +2459,7 @@ FName FPerforceDeleteChangelistWorker::GetName() const
 	return "DeleteChangelist";
 }
 
-bool FPerforceDeleteChangelistWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+bool FPerforceDeleteChangelistWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
 
@@ -2510,7 +2511,7 @@ FName FPerforceEditChangelistWorker::GetName() const
 	return "EditChangelist";
 }
 
-bool FPerforceEditChangelistWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+bool FPerforceEditChangelistWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
@@ -2558,7 +2559,7 @@ FName FPerforceRevertUnchangedWorker::GetName() const
 	return "RevertUnchanged";
 }
 
-bool FPerforceRevertUnchangedWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+bool FPerforceRevertUnchangedWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
@@ -2640,7 +2641,7 @@ FName FPerforceShelveWorker::GetName() const
 	return "Shelve";
 }
 
-bool FPerforceShelveWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+bool FPerforceShelveWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
@@ -2770,7 +2771,7 @@ FName FPerforceDeleteShelveWorker::GetName() const
 	return "DeleteShelved";
 }
 
-bool FPerforceDeleteShelveWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+bool FPerforceDeleteShelveWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
@@ -2834,7 +2835,7 @@ FName FPerforceUnshelveWorker::GetName() const
 	return "Unshelve";
 }
 
-bool FPerforceUnshelveWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+bool FPerforceUnshelveWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
@@ -2995,7 +2996,7 @@ FName FPerforceCreateWorkspaceWorker::GetName() const
 	return "CreateWorkspace";
 }
 
-bool FPerforceCreateWorkspaceWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+bool FPerforceCreateWorkspaceWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
 
@@ -3068,7 +3069,7 @@ FName FPerforceDeleteWorkspaceWorker::GetName() const
 	return "DeleteWorkspace";
 }
 
-bool FPerforceDeleteWorkspaceWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+bool FPerforceDeleteWorkspaceWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
 
@@ -3100,6 +3101,57 @@ bool FPerforceDeleteWorkspaceWorker::Execute(class FPerforceSourceControlCommand
 }
 
 bool FPerforceDeleteWorkspaceWorker::UpdateStates() const
+{
+	return false;
+}
+
+FName FPerforceGetChangelistDetailsWorker::GetName() const
+{
+	return "GetChangelistDetails";
+}
+
+bool FPerforceGetChangelistDetailsWorker::Execute(FPerforceSourceControlCommand& InCommand)
+{
+	FScopedPerforceConnection ScopedConnection(InCommand);
+
+	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
+	{
+		FPerforceConnection& Connection = ScopedConnection.GetConnection();
+		TSharedRef<FGetChangelistDetails, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FGetChangelistDetails>(InCommand.Operation);
+
+		TArray<FString> Parameters;
+		Parameters.Add(TEXT("-s"));
+		Parameters.Add(TEXT("-S"));
+		Parameters.Add(Operation->GetChangelistNumber());
+
+		FP4RecordSet Records;
+		InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("describe"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+
+		if (InCommand.bCommandSuccessful)
+		{
+			TArray<TMap<FString, FString>> ChangelistRecord;
+			ChangelistRecord.Reserve(Records.Num());
+
+			for (FP4Record& P4Record : Records)
+			{
+				TMap<FString, FString> Record;
+
+				for (TPair<FString, FString>& P4RecordPair : P4Record)
+				{
+					Record.Add(MoveTemp(P4RecordPair));
+				}
+
+				ChangelistRecord.Add(MoveTemp(Record));
+			}
+
+			Operation->SetChangelistDetails(MoveTemp(ChangelistRecord));
+		}
+	}
+
+	return InCommand.bCommandSuccessful;
+}
+
+bool FPerforceGetChangelistDetailsWorker::UpdateStates() const
 {
 	return false;
 }

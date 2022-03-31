@@ -8,6 +8,7 @@
 #include "PerforceSourceControlChangelistState.h"
 
 class FPerforceSourceControlRevision;
+class FPerforceSourceControlCommand;
 typedef TMap<FString, TArray< TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> > > FPerforceFileHistoryMap;
 
 class FPerforceConnectWorker final : public IPerforceSourceControlWorker
@@ -20,7 +21,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 };
 
@@ -34,7 +35,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -53,7 +54,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -77,7 +78,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -95,7 +96,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -114,7 +115,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -133,7 +134,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -154,7 +155,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -172,7 +173,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -202,7 +203,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 };
 
@@ -216,7 +217,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -241,7 +242,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -259,7 +260,7 @@ public:
 	virtual ~FPerforceResolveWorker() = default;
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 private:
 	TArray< FString > UpdatedFiles;
@@ -275,7 +276,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 };
 
@@ -287,7 +288,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -309,7 +310,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -326,7 +327,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 public:
@@ -344,7 +345,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 protected:
 	/** Map of filenames to perforce state */
@@ -364,7 +365,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 protected:
@@ -385,7 +386,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 protected:
@@ -416,7 +417,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 protected:
@@ -437,7 +438,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 protected:
@@ -458,7 +459,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 };
 
@@ -472,7 +473,7 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
 private:
@@ -489,6 +490,20 @@ public:
 
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
-	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+};
+
+class FPerforceGetChangelistDetailsWorker final : public IPerforceSourceControlWorker
+{
+public:
+	FPerforceGetChangelistDetailsWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceGetChangelistDetailsWorker() = default;
+
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 };
