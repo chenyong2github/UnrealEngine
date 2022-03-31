@@ -12,7 +12,7 @@ namespace Optimus::DomainName
 	extern OPTIMUSCORE_API const FName Vertex;
 	extern OPTIMUSCORE_API const FName Triangle;
 	extern OPTIMUSCORE_API const FName Bone;
-	extern OPTIMUSCORE_API const FName TexCoord;
+	extern OPTIMUSCORE_API const FName UVChannel;
 }
 
 /** A struct to hold onto a single-level data domain such as kernel execution domain and 

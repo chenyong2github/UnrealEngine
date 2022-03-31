@@ -9,6 +9,6 @@ namespace Optimus::DomainName
 	const FName Vertex("Vertex");
 	const FName Triangle("Triangle");
 	const FName Bone("Bone");
-	const FName TexCoord("TexCoord");
+	const FName UVChannel("UVChannel");
 }
 
