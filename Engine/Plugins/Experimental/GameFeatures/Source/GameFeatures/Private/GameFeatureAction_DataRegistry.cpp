@@ -10,9 +10,40 @@
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
 
+void UGameFeatureAction_DataRegistry::OnGameFeatureRegistering()
+{
+	Super::OnGameFeatureRegistering();
+
+	if (ShouldPreloadAtRegistration())
+	{
+		// TODO: Right now this loads the source for both editor and runtime usage, in the future the preload could be changed to only allow resolves and not full data gets
+
+		UDataRegistrySubsystem* DataRegistrySubsystem = UDataRegistrySubsystem::Get();
+		if (ensure(DataRegistrySubsystem))
+		{
+			for (const TSoftObjectPtr<UDataRegistry>& RegistryToAdd : RegistriesToAdd)
+			{
+				if (!RegistryToAdd.IsNull())
+				{
+					const FSoftObjectPath RegistryPath = RegistryToAdd.ToSoftObjectPath();
+
+					UE_LOG(LogGameFeatures, Log, TEXT("OnGameFeatureRegistering %s: Preloading DataRegistry %s for editor preview"), *GetPathName(), *RegistryPath.ToString())
+					DataRegistrySubsystem->LoadRegistryPath(RegistryPath);
+				}
+			}
+		}
+	}
+}
+
 void UGameFeatureAction_DataRegistry::OnGameFeatureActivating()
 {
 	Super::OnGameFeatureActivating();
+
+	if (ShouldPreloadAtRegistration())
+	{
+		// This already happened at registration
+		return;
+	}
 
 	UDataRegistrySubsystem* DataRegistrySubsystem = UDataRegistrySubsystem::Get();
 	if (ensure(DataRegistrySubsystem))
@@ -44,9 +75,6 @@ void UGameFeatureAction_DataRegistry::OnGameFeatureActivating()
 						}
 					}
 				}
-
-				// @TODO: If game features get an editor refresh function, this code should be changed to handle it
-				// @TODO: Registries that are late-loaded may not show correct picker UI in editor
 #endif
 
 				DataRegistrySubsystem->LoadRegistryPath(RegistryPath);
@@ -55,9 +83,40 @@ void UGameFeatureAction_DataRegistry::OnGameFeatureActivating()
 	}
 }
 
+void UGameFeatureAction_DataRegistry::OnGameFeatureUnregistering()
+{
+	Super::OnGameFeatureUnregistering();
+
+	if (ShouldPreloadAtRegistration())
+	{
+		UDataRegistrySubsystem* DataRegistrySubsystem = UDataRegistrySubsystem::Get();
+		if (ensure(DataRegistrySubsystem))
+		{
+			for (const TSoftObjectPtr<UDataRegistry>& RegistryToAdd : RegistriesToAdd)
+			{
+				if (!RegistryToAdd.IsNull())
+				{
+					const FSoftObjectPath RegistryPath = RegistryToAdd.ToSoftObjectPath();
+
+					// This should only happen when the user is manually changing phase via the feature editor UI
+					UE_LOG(LogGameFeatures, Log, TEXT("OnGameFeatureUnregistering %s: Temporarily disabling preloaded DataRegistry %s"), *GetPathName(), *RegistryPath.ToString())
+
+					DataRegistrySubsystem->IgnoreRegistryPath(RegistryPath);
+				}
+			}
+		}
+	}
+}
+
 void UGameFeatureAction_DataRegistry::OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context)
 {
 	Super::OnGameFeatureDeactivating(Context);
+
+	if (ShouldPreloadAtRegistration())
+	{
+		// This will only happen at unregistration
+		return;
+	}
 
 	UDataRegistrySubsystem* DataRegistrySubsystem = UDataRegistrySubsystem::Get();
 	if (ensure(DataRegistrySubsystem))
@@ -72,6 +131,12 @@ void UGameFeatureAction_DataRegistry::OnGameFeatureDeactivating(FGameFeatureDeac
 			}
 		}
 	}
+}
+
+bool UGameFeatureAction_DataRegistry::ShouldPreloadAtRegistration()
+{
+	// We want to preload in interactive editor sessions only
+	return (GIsEditor && !IsRunningCommandlet() && bPreloadInEditor);
 }
 
 #if WITH_EDITORONLY_DATA

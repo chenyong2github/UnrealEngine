@@ -52,9 +52,13 @@ class UGameFeatureAction_DataRegistrySource : public UGameFeatureAction
 	GENERATED_BODY()
 
 public:
+	virtual void OnGameFeatureRegistering() override;
+	virtual void OnGameFeatureUnregistering() override;
 	virtual void OnGameFeatureActivating() override;
-
 	virtual void OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context) override;
+
+	/** If true, we should load the sources at registration time instead of activation time */
+	virtual bool ShouldPreloadAtRegistration();
 
 #if WITH_EDITORONLY_DATA
 	virtual void AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData) override;
@@ -67,6 +71,11 @@ public:
 	//~End of UObject interface
 
 private:
+	/** List of sources to add when this feature is activated */
 	UPROPERTY(EditAnywhere, Category = "Registry Data")
 	TArray<FDataRegistrySourceToAdd> SourcesToAdd;
+
+	/** If true, this will preload the sources when the feature is registered in the editor to support the editor pickers */
+	UPROPERTY(EditAnywhere, Category = "Registry Data")
+	bool bPreloadInEditor;
 };
