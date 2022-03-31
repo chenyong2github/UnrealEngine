@@ -53,8 +53,8 @@ namespace Metasound
 {
 	namespace MathOpNames
 	{
-		METASOUND_PARAM(PrimaryOperand, "Primary Operand", "Initial operand")
-		METASOUND_PARAM(AdditionalOperands, "Additional Operand", "Additional operand(s)")
+		METASOUND_PARAM(PrimaryOperand, "PrimaryOperand", "Initial operand")
+		METASOUND_PARAM(AdditionalOperands, "AdditionalOperands", "Additional operand(s)")
 
 		METASOUND_PARAM(OutMath, "Out", "Math operation result.")
 		METASOUND_PARAM(OutAudio, "Out", "Resulting buffer.")

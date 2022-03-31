@@ -56,7 +56,7 @@ namespace Metasound
 		METASOUND_PARAM(InputValue, "Value", "Value to set.")
 
 		METASOUND_PARAM(OutputNum, "Num", "Number of elements in the array.")
-		METASOUND_PARAM(OutputValue, "Value", "Value of element at array index.")
+		METASOUND_PARAM(OutputValue, "Element", "Value of element at array index.")
 		METASOUND_PARAM(OutputArrayConcat, "Array", "Array after concatenation.")
 		METASOUND_PARAM(OutputArraySet, "Array", "Array after setting.")
 		METASOUND_PARAM(OutputArraySubset, "Array", "Subset of input array.")
