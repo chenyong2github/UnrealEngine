@@ -210,6 +210,8 @@ FORCEINLINE bool IsParallelExecuteEnabled()
 #if WITH_DUMPGPU
 		&& !IsDumpingRDGResources()
 #endif
+		// Only run parallel RDG if we have a rendering thread.
+		&& IsInActualRenderingThread()
 		;
 }
 
