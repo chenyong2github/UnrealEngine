@@ -87,75 +87,60 @@ void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			.MaxWidth(25.f)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			[
+				SAssignNew(NumberWidget, STextBlock)
+				.Text(this, &SRigStackItem::GetIndexText)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			+ SHorizontalBox::Slot()
+			.MaxWidth(22.f)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
+			[
+				SNew(SImage)
+				.Image(Icon)
+			]
+			
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			.MaxWidth(200.f)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.MaxWidth(25.f)
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Right)
-				[
-					SAssignNew(NumberWidget, STextBlock)
-					.Text(this, &SRigStackItem::GetIndexText)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-				+ SHorizontalBox::Slot()
-				.MaxWidth(22.f)
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				[
-					SNew(SImage)
-					.Image(Icon)
-				]
-				
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.f)
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Fill)
-				[
-					SAssignNew(TextWidget, STextBlock)
-					.Text(this, &SRigStackItem::GetLabelText)
-					.Font(this, &SRigStackItem::GetLabelFont)
-					.Justification(ETextJustify::Left)
-				]
+				SAssignNew(TextWidget, STextBlock)
+				.Text(this, &SRigStackItem::GetLabelText)
+				.Font(this, &SRigStackItem::GetLabelFont)
 			]
 
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.f)
+			.MaxWidth(40.f)
 			[
 				SNew(SSpacer)
 			]
 
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-	            .HAlign(HAlign_Left)
-	            [
-	                SNew(STextBlock)
-	                .Text(this, &SRigStackItem::GetVisitedCountText)
-	                .Font(IDetailLayoutBuilder::GetDetailFont())
-	            ]
-	            
-	            + SHorizontalBox::Slot()
-	            .Padding(20, 0, 0, 0)
-				.AutoWidth()
-	            .VAlign(VAlign_Center)
-	            .HAlign(HAlign_Left)
-	            [
-	                SNew(STextBlock)
-	                .Text(this, &SRigStackItem::GetDurationText)
-	                .Font(IDetailLayoutBuilder::GetDetailFont())
-	            ]
-	        ]
+			.MaxWidth(36.f)
+            .VAlign(VAlign_Center)
+            .HAlign(HAlign_Right)
+            [
+                SNew(STextBlock)
+                .Text(this, &SRigStackItem::GetVisitedCountText)
+                .Font(IDetailLayoutBuilder::GetDetailFont())
+            ]
+
+			+ SHorizontalBox::Slot()
+			.MaxWidth(80.f)
+            .VAlign(VAlign_Center)
+            .HAlign(HAlign_Right)
+            [
+                SNew(STextBlock)
+                .Text(this, &SRigStackItem::GetDurationText)
+                .Font(IDetailLayoutBuilder::GetDetailFont())
+            ]
         ], OwnerTable);
 }
 
