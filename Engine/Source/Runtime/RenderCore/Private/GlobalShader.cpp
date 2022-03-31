@@ -263,7 +263,7 @@ private:
 					if (ShaderType == nullptr || ShaderType->GetGlobalShaderType() == nullptr)
 					{
 						// This global shader doesn't actually exist
-						UE_LOG(LogShaders, Error, TEXT("Global shader definition '%s' found in engine config for global shader '%s', which does not exist"), *DefineName, *ShaderName);
+						UE_LOG(LogShaders, Warning, TEXT("Global shader definition '%s' found in engine config for global shader '%s', which does not exist"), *DefineName, *ShaderName);
 						continue;
 					}
 
