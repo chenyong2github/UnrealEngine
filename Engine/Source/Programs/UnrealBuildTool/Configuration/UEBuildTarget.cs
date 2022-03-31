@@ -4277,8 +4277,8 @@ namespace UnrealBuildTool
 						GeneratedCodeDirectory = DirectoryReference.Combine(GeneratedCodeDirectory, RulesObject.BinariesSubFolder);
 					}
 
-					// Finally, append the module name.
-					GeneratedCodeDirectory = DirectoryReference.Combine(GeneratedCodeDirectory, ModuleName);
+					// Finally, append the module name (using the ShortName if it has been set)
+					GeneratedCodeDirectory = DirectoryReference.Combine(GeneratedCodeDirectory, RulesObject.ShortName ?? ModuleName);
 				}
 
 				// For legacy modules, add a bunch of default include paths.
