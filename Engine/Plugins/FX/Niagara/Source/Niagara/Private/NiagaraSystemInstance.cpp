@@ -1739,24 +1739,16 @@ float FNiagaraSystemInstance::GetLODDistance()
 	LODDistance = DefaultLODDistance;
 
 	// If we are inside the WorldManager tick we will use the cache player view locations as we can be ticked on different threads
-	if (WorldManager->CachedPlayerViewLocationsValid())
+	if (WorldManager->GetCachedViewInfo().Num() > 0)
 	{
-		TArrayView<const FVector> PlayerViewLocations = WorldManager->GetCachedPlayerViewLocations();
-		if (PlayerViewLocations.Num() == 0)
+		// We are being ticked inside the WorldManager and can safely use the list of cached player view locations
+		float LODDistanceSqr = FMath::Square(WORLD_MAX);
+		for (const FNiagaraCachedViewInfo& ViewInfo : WorldManager->GetCachedViewInfo())
 		{
-			LODDistance = DefaultLODDistance;
+			const float DistanceToEffectSqr = FVector(ViewInfo.ViewToWorld.GetOrigin() - EffectLocation).SizeSquared();
+			LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
 		}
-		else
-		{
-			// We are being ticked inside the WorldManager and can safely use the list of cached player view locations
-			float LODDistanceSqr = FMath::Square(WORLD_MAX);
-			for (const FVector& ViewLocation : PlayerViewLocations)
-			{
-				const float DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
-				LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
-			}
-			LODDistance = FMath::Sqrt(LODDistanceSqr);
-		}
+		LODDistance = FMath::Sqrt(LODDistanceSqr);
 	}
 	else
 	{

@@ -65,6 +65,16 @@ enum class NIAGARA_API ENiagaraScalabilityCullingMode : uint8
 	Disabled,
 };
 
+struct FNiagaraCachedViewInfo
+{
+	FMatrix ViewMat;
+	FMatrix ProjectionMat;
+	FMatrix ViewProjMat;
+	FMatrix ViewToWorld;
+	TArray<FPlane, TInlineAllocator<6>> FrutumPlanes;
+
+	void Init(const FWorldCachedViewInfo& WorldViewInfo);
+};
 /**
 * Manager class for any data relating to a particular world.
 */
@@ -140,8 +150,7 @@ public:
 		return static_cast<T&>(**ExistingValue);
 	}
 
-	NIAGARA_API bool CachedPlayerViewLocationsValid() const { return bCachedPlayerViewLocationsValid; }
-	NIAGARA_API TArrayView<const FVector> GetCachedPlayerViewLocations() const { check(bCachedPlayerViewLocationsValid); return MakeArrayView(CachedPlayerViewLocations); }
+	NIAGARA_API TArrayView<const FNiagaraCachedViewInfo> GetCachedViewInfo() const { return MakeArrayView(CachedViewInfo); }
 
 	UNiagaraComponentPool* GetComponentPool() { return ComponentPool; }
 
@@ -243,7 +252,7 @@ private:
 
 	void DistanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FVector Location, FNiagaraScalabilityState& OutState);
 	void DistanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
-	void VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
+	void ViewBasedCulling(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FSphere BoundingSphere, float ComponentTimeSinceRendered, bool bIsPrecull, FNiagaraScalabilityState& OutState);
 	void InstanceCountCull(UNiagaraEffectType* EffectType, UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState);
 	void GlobalBudgetCull(const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float WorstGlobalBudgetUse, FNiagaraScalabilityState& OutState);
 
@@ -281,8 +290,7 @@ private:
 
 	int32 CachedEffectsQuality;
 
-	bool bCachedPlayerViewLocationsValid = false;
-	TArray<FVector, TInlineAllocator<8> > CachedPlayerViewLocations;
+	TArray<FNiagaraCachedViewInfo, TInlineAllocator<8> > CachedViewInfo;
 
 	UNiagaraComponentPool* ComponentPool;
 	bool bPoolIsPrimed = false;

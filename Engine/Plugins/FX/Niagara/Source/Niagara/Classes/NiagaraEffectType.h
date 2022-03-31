@@ -128,20 +128,52 @@ struct FNiagaraGlobalBudgetScaling
 	uint32 bScaleSystemInstanceCountByGlobalBudgetUse : 1;
 
 	/** Effects will be culled if the global budget usage exceeds this fraction. A global budget usage of 1.0 means current global FX workload has reached it's max budget. Budgets are set by CVars under FX.Budget... */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByGlobalBudget"))
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByGlobalBudget", DisplayInScalabilityValuesBar))
 	float MaxGlobalBudgetUsage;
 
 	/** When enabled, MaxDistance is scaled down by the global budget use based on this curve. Allows us to cull more aggressively when performance is poor.	*/
-	UPROPERTY(EditAnywhere, Category = "Budget Scaling", meta = (EditCondition = "bScaleMaxDistanceByGlobalBudgetUse"))
+	UPROPERTY(EditAnywhere, Category = "Budget Scaling", meta = (EditCondition = "bScaleMaxDistanceByGlobalBudgetUse", DisplayInScalabilityValuesBar))
 	FNiagaraLinearRamp MaxDistanceScaleByGlobalBudgetUse;
 	
 	/** When enabled, Max Effect Type Instances is scaled down by the global budget use based on this curve. Allows us to cull more aggressively when performance is poor.	*/
-	UPROPERTY(EditAnywhere, Category = "Budget Scaling", meta = (EditCondition = "bScaleMaxInstanceCountByGlobalBudgetUse"))
+	UPROPERTY(EditAnywhere, Category = "Budget Scaling", meta = (EditCondition = "bScaleMaxInstanceCountByGlobalBudgetUse", DisplayInScalabilityValuesBar))
 	FNiagaraLinearRamp MaxInstanceCountScaleByGlobalBudgetUse;
 	
 	/** When enabled, Max System Instances is scaled down by the global budget use based on this curve. Allows us to cull more aggressively when performance is poor.	*/
-	UPROPERTY(EditAnywhere, Category = "Budget Scaling", meta = (EditCondition = "bScaleSystemInstanceCountByGlobalBudgetUse"))
+	UPROPERTY(EditAnywhere, Category = "Budget Scaling", meta = (EditCondition = "bScaleSystemInstanceCountByGlobalBudgetUse", DisplayInScalabilityValuesBar))
 	FNiagaraLinearRamp MaxSystemInstanceCountScaleByGlobalBudgetUse;
+};
+
+/** Scalability settings for Niagara Systems for a particular platform set (unless overridden). */
+USTRUCT()
+struct FNiagaraSystemVisibilityCullingSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	FNiagaraSystemVisibilityCullingSettings();
+
+	/** Controls whether we cull when not rendered. This includes all reasons for being not rendered such as view frustum, occlusion and hidden flags etc. As this requires feedback form the rendering system, it cannot be used for pre-culling. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
+	uint32 bCullWhenNotRendered : 1;
+
+	/**
+	Controls whether view frustum culling is enabled. Niagara can do it's own separate view frustum culling to give coarse visibility culling that does not depend directly on rendering like CullWhenNotRendered.
+	This requires fixed bounds to be used in pre-culling.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
+	uint32 bCullByViewFrustum : 1;
+
+	/** If true and bCullByViewFrustum is enabled, we allow view frustum checks in pre-culling. Meaning we can cull off screen systems before they even spawn. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByViewFrustum"))
+	uint32 bAllowPreCullingByViewFrustum : 1;
+
+	/** Effects will be culled if they go longer than this time outside the view frustum. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByViewFrustum", DisplayInScalabilityValuesBar))
+	float MaxTimeOutsideViewFrustum;
+
+	/** Effects will be culled if they go longer than this time without being rendered. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullWhenNotRendered", DisplayInScalabilityValuesBar))
+	float MaxTimeWithoutRender;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -165,14 +197,14 @@ struct FNiagaraSystemScalabilitySettings
 	/** Controls whether we should cull systems based on how many instances of the system are active. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", DisplayName = "Cull By System Instance Count", meta = (InlineEditConditionToggle))
 	uint32 bCullPerSystemMaxInstanceCount : 1;
-	/** Controls whether visibility culling is enabled. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
-	uint32 bCullByMaxTimeWithoutRender : 1;
-
 
 	/** Effects of this type are culled beyond this distance. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByDistance", DisplayInScalabilityValuesBar))
 	float MaxDistance;
+
+	/** Deprecated visibility culling property. Moved into FNiagaraSystemVisibilityCullingSettings. */
+	UPROPERTY()
+	uint32 bCullByMaxTimeWithoutRender_DEPRECATED : 1;
 
 	/** 
 	Effects of this type will be culled when total active instances using this same EffectType exceeds this number. 
@@ -190,14 +222,10 @@ struct FNiagaraSystemScalabilitySettings
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullPerSystemMaxInstanceCount", DisplayInScalabilityValuesBar))
 	int32 MaxSystemInstances;
 
-	//TODO:
-	/** The effect is culled when it's bounds take up less that this fraction of the total screen area. Only usable with fixed bounds. */
-	//float ScreenFraction;
+	/** Depreceated visibiltiy culling property. Moved into FNiagaraSystemVisibilityCullingSettings. */
+	UPROPERTY()
+	float MaxTimeWithoutRender_DEPRECATED;
 
-	/** Effects will be culled if they go more than this length of time without being rendered. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByMaxTimeWithoutRender", DisplayInScalabilityValuesBar))
-	float MaxTimeWithoutRender;
-		
 	/** Controls what, if any, proxy will be used in place of culled systems.  */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (DisplayInScalabilityValuesBar))
 	ENiagaraCullProxyMode CullProxyMode = ENiagaraCullProxyMode::None;
@@ -209,14 +237,19 @@ struct FNiagaraSystemScalabilitySettings
 	*/
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "CullProxyMode != ENiagaraCullProxyMode::None", DisplayInScalabilityValuesBar))
 	int32 MaxSystemProxies = 32;
+	
+	/** Settings controlling how systems are culled by visibility. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (DisplayInScalabilityValuesBar))
+	FNiagaraSystemVisibilityCullingSettings VisibilityCulling;
 
 	/** Settings related to scaling down FX based on the current budget usage. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (DisplayInScalabilityValuesBar))
 	FNiagaraGlobalBudgetScaling BudgetScaling;
 	
 	FNiagaraSystemScalabilitySettings();
 
 	void Clear();
+	void PostLoad(int32 Version);
 };
 
 /** Container struct for an array of system scalability settings. Enables details customization and data validation. */
@@ -247,7 +280,7 @@ struct FNiagaraSystemScalabilityOverride : public FNiagaraSystemScalabilitySetti
 	uint32 bOverridePerSystemInstanceCountSettings : 1;
 	/** Controls whether we override the visibility culling settings. */
 	UPROPERTY(EditAnywhere, Category = "Override")
-	uint32 bOverrideTimeSinceRendererSettings : 1;
+	uint32 bOverrideVisibilitySettings : 1;
 	/** Controls whether we override the global budget scaling settings. */
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideGlobalBudgetScalingSettings : 1;

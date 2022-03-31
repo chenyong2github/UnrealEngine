@@ -2261,6 +2261,19 @@ bool UEditorEngine::UpdateSingleViewportClient(FEditorViewportClient* InViewport
 			InViewportClient->bNeedsRedraw = false;
 			bUpdatedNonRealtimeViewport = true;
 		}
+		else if(UWorld* World = GetWorld())
+		{
+			// We're not rendering but calculate the view anyway so that we can cache the last "rendered" view info in the UWorld.
+			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(InViewportClient->Viewport, InViewportClient->GetScene(), InViewportClient->EngineShowFlags));
+			FSceneView* View = InViewportClient->CalcSceneView(&ViewFamily);
+
+			FWorldCachedViewInfo& WorldViewInfo = World->CachedViewInfoRenderedLastFrame.AddDefaulted_GetRef();
+			WorldViewInfo.ViewMatrix = View->ViewMatrices.GetViewMatrix();
+			WorldViewInfo.ProjectionMatrix = View->ViewMatrices.GetProjectionMatrix();
+			WorldViewInfo.ViewProjectionMatrix = View->ViewMatrices.GetViewProjectionMatrix();
+			WorldViewInfo.ViewToWorld = View->ViewMatrices.GetInvViewMatrix();
+			World->LastRenderTime = World->GetTimeSeconds();
+		}
 
 		if (InViewportClient->bNeedsInvalidateHitProxy)
 		{

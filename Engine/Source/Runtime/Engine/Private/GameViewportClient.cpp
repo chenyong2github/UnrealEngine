@@ -1568,6 +1568,12 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 					const float StreamingScale = 1.f / FMath::Clamp<float>(View->LODDistanceFactor, .2f, 1.f);
 					IStreamingManager::Get().AddViewInformation(View->ViewMatrices.GetViewOrigin(), View->UnscaledViewRect.Width(), View->UnscaledViewRect.Width() * View->ViewMatrices.GetProjectionMatrix().M[0][0], StreamingScale);
 					MyWorld->ViewLocationsRenderedLastFrame.Add(View->ViewMatrices.GetViewOrigin());
+					FWorldCachedViewInfo& WorldViewInfo = World->CachedViewInfoRenderedLastFrame.AddDefaulted_GetRef();
+					WorldViewInfo.ViewMatrix = View->ViewMatrices.GetViewMatrix();
+					WorldViewInfo.ProjectionMatrix = View->ViewMatrices.GetProjectionMatrix();
+					WorldViewInfo.ViewProjectionMatrix = View->ViewMatrices.GetViewProjectionMatrix();
+					WorldViewInfo.ViewToWorld = View->ViewMatrices.GetInvViewMatrix();
+					World->LastRenderTime = World->GetTimeSeconds();
 				}
 			}
 		}

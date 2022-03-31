@@ -186,7 +186,6 @@ public:
 
 	FORCEINLINE bool IsComplete() const { return SystemInstanceController ? SystemInstanceController->IsComplete() : true; }
 
-	FORCEINLINE float GetSafeTimeSinceRendered(float WorldTime)const;
 private:
 
 	//Internal versions that can be called from the scalability code.
@@ -884,12 +883,6 @@ private:
 
 	FDynamicData DynamicData;
 };
-
-extern float GLastRenderTimeSafetyBias;
-FORCEINLINE float UNiagaraComponent::GetSafeTimeSinceRendered(float WorldTime)const
-{
-	return FMath::Max(0.0f, WorldTime - GetLastRenderTime() - GLastRenderTimeSafetyBias);
-}
 
 FORCEINLINE void UNiagaraComponent::SetLODDistance(float InLODDistance, float InMaxLODDistance)
 {

@@ -79,9 +79,9 @@ bool IsSystemScalabilityValueOverridden(FName PropertyName, const FNiagaraSystem
 	{
 		return ActiveOverrides.bOverridePerSystemInstanceCountSettings;
 	}
-	else if(PropertyName == GET_MEMBER_NAME_CHECKED(FNiagaraSystemScalabilitySettings, MaxTimeWithoutRender))
+	else if(PropertyName == GET_MEMBER_NAME_CHECKED(FNiagaraSystemScalabilitySettings, VisibilityCulling))
 	{
-		return ActiveOverrides.bOverrideTimeSinceRendererSettings;
+		return ActiveOverrides.bOverrideVisibilitySettings;
 	}
 	// cull proxy mode and max system proxies are controlled via the same override bool
 	else if(PropertyName == GET_MEMBER_NAME_CHECKED(FNiagaraSystemScalabilitySettings, CullProxyMode))

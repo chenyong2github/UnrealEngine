@@ -993,6 +993,14 @@ public:
 	void Reevaluate(ULevelStreaming* StreamingLevel);
 };
 
+struct FWorldCachedViewInfo
+{
+	FMatrix ViewMatrix;
+	FMatrix ProjectionMatrix;
+	FMatrix ViewProjectionMatrix;
+	FMatrix ViewToWorld;
+};
+
 /**
  * Scope can be used to force load all external objects when loading a world. 
  */
@@ -1209,6 +1217,11 @@ public:
 
 	/** View locations rendered in the previous frame, if any. */
 	TArray<FVector>								ViewLocationsRenderedLastFrame;
+
+	/** Cached view information from the last rendered frame. */
+	TArray<FWorldCachedViewInfo>				CachedViewInfoRenderedLastFrame;
+	/** WorldTimeSeconds when this world was last rendered. */
+	float										LastRenderTime = 0.0f;
 
 	/** The current renderer feature level of this world */
 	TEnumAsByte<ERHIFeatureLevel::Type> FeatureLevel;

@@ -59,6 +59,8 @@
 #include "GPUSkinCacheVisualizationData.h"
 #include "UnrealWidget.h"
 #include "EdModeInteractiveToolsContext.h"
+#include "Engine/World.h"
+
 #include "CustomEditorStaticScreenPercentage.h"
 #include "IImageWrapperModule.h"
 
@@ -3972,6 +3974,16 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	    {
 		    View->CameraConstrainedViewRect = FIntRect(SafeFrame.Left, SafeFrame.Top, SafeFrame.Right, SafeFrame.Bottom);
 	    }
+
+		if (World)
+		{		
+			FWorldCachedViewInfo& WorldViewInfo = World->CachedViewInfoRenderedLastFrame.AddDefaulted_GetRef();
+			WorldViewInfo.ViewMatrix = View->ViewMatrices.GetViewMatrix();
+			WorldViewInfo.ProjectionMatrix = View->ViewMatrices.GetProjectionMatrix();
+			WorldViewInfo.ViewProjectionMatrix = View->ViewMatrices.GetViewProjectionMatrix();
+			WorldViewInfo.ViewToWorld = View->ViewMatrices.GetInvViewMatrix();
+			World->LastRenderTime = World->GetTimeSeconds();
+		}
  	}
 
 	{

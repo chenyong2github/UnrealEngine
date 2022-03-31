@@ -1791,6 +1791,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 
 	// Dump the viewpoints with which we were rendered last frame. They will be updated when the world is next rendered.
 	ViewLocationsRenderedLastFrame.Reset();
+	CachedViewInfoRenderedLastFrame.Reset();
 
 	if (GEngine->XRSystem.IsValid())
 	{

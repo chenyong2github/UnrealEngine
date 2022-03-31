@@ -780,6 +780,11 @@ void UNiagaraSystem::PostLoad()
 		}
 	}
 
+	for (FNiagaraSystemScalabilityOverride& Override : SystemScalabilityOverrides.Overrides)
+	{
+		Override.PostLoad(NiagaraVer);
+	}
+
 #if UE_EDITOR
 	ExposedParameters.RecreateRedirections();
 #endif
@@ -3378,10 +3383,13 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 					CurrentScalabilitySettings.MaxSystemInstances = Override.MaxSystemInstances;
 				}
 
-				if (Override.bOverrideTimeSinceRendererSettings)
+				if (Override.bOverrideVisibilitySettings)
 				{
-					CurrentScalabilitySettings.bCullByMaxTimeWithoutRender = Override.bCullByMaxTimeWithoutRender;
-					CurrentScalabilitySettings.MaxTimeWithoutRender = Override.MaxTimeWithoutRender;
+					CurrentScalabilitySettings.VisibilityCulling.bCullWhenNotRendered = Override.VisibilityCulling.bCullWhenNotRendered;
+					CurrentScalabilitySettings.VisibilityCulling.bCullByViewFrustum = Override.VisibilityCulling.bCullByViewFrustum;
+					CurrentScalabilitySettings.VisibilityCulling.bAllowPreCullingByViewFrustum = Override.VisibilityCulling.bAllowPreCullingByViewFrustum;
+					CurrentScalabilitySettings.VisibilityCulling.MaxTimeWithoutRender = Override.VisibilityCulling.MaxTimeWithoutRender;
+					CurrentScalabilitySettings.VisibilityCulling.MaxTimeOutsideViewFrustum = Override.VisibilityCulling.MaxTimeOutsideViewFrustum;
 				}
 
  				if (Override.bOverrideGlobalBudgetScalingSettings)

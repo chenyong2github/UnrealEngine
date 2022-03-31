@@ -1046,6 +1046,8 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 	// Draw in world components
 	DrawComponents(WorldManager, Canvas);
 
+	DrawDebugGeomerty(WorldManager, Canvas);
+
 	// Draw overview
 	DrawOverview(WorldManager, Canvas->Canvas);
 
@@ -1074,6 +1076,101 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 #endif
 
 	LastDrawTime = CurrTime;
+}
+
+void FNiagaraDebugHud::AddLine2D(FVector2D Start, FVector2D End, FLinearColor Color, float Thickness, float Lifetime)
+{
+	if (NiagaraDebugLocal::Settings.bEnabled)
+	{
+		FDebugLine2D NewLine;
+		NewLine.Start = Start;
+		NewLine.End = End;
+		NewLine.Color = Color;
+		NewLine.Thickness = Thickness;
+		NewLine.Lifetime = Lifetime;
+		Lines2D.Add(NewLine);
+	}
+}
+
+void FNiagaraDebugHud::AddCircle2D(FVector2D Pos, float Rad, float Segments, FLinearColor Color, float Thickness, float Lifetime)
+{
+	if (NiagaraDebugLocal::Settings.bEnabled)
+	{
+		FDebugCircle2D NewCircle;
+		NewCircle.Pos = Pos;
+		NewCircle.Rad = Rad;
+		NewCircle.Segments = Segments;
+		NewCircle.Color = Color;
+		NewCircle.Thickness = Thickness;
+		NewCircle.Lifetime = Lifetime;
+		Circles2D.Add(NewCircle);
+	}
+}
+
+void FNiagaraDebugHud::AddBox2D(FVector2D Pos, FVector2D Extents, FLinearColor Color, float Thickness, float Lifetime)
+{
+	if (NiagaraDebugLocal::Settings.bEnabled)
+	{
+		FDebugBox2D NewBox;
+		NewBox.Pos = Pos;
+		NewBox.Extents = Extents;
+		NewBox.Color = Color;
+		NewBox.Thickness = Thickness;
+		NewBox.Lifetime = Lifetime;
+		Boxes2D.Add(NewBox);
+	}
+}
+
+void FNiagaraDebugHud::DrawDebugGeomerty(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas)
+{
+	UWorld* World = WorldManager->GetWorld();
+
+	if (World == nullptr || Canvas == nullptr)
+	{
+		return;
+	}
+
+	FCanvas* DrawCanvas = Canvas->Canvas;
+
+	FVector2D Size(Canvas->ClipX, Canvas->ClipY);
+	
+	for (auto it = Lines2D.CreateIterator(); it; ++it)
+	{
+		FDebugLine2D& Line = *it;
+		DrawDebugCanvas2DLine(Canvas, Line.Start * Size, Line.End* Size, Line.Color, Line.Thickness);
+
+		Line.Lifetime -= DeltaSeconds;
+		if (Line.Lifetime <= 0.0f)
+		{
+			it.RemoveCurrent();
+		}
+	}
+	for (auto it = Circles2D.CreateIterator(); it; ++it)
+	{
+		FDebugCircle2D& Circle = *it;
+		DrawDebugCanvas2DCircle(Canvas, Circle.Pos * Size, Circle.Rad * Size.X, Circle.Segments, Circle.Color, Circle.Thickness);
+
+		Circle.Lifetime -= DeltaSeconds;
+		if (Circle.Lifetime <= 0.0f)
+		{
+			it.RemoveCurrent();
+		}
+	}
+	for (auto it = Boxes2D.CreateIterator(); it; ++it)
+	{
+		FDebugBox2D& Box = *it;
+
+		FBox2D Box2D;
+		Box2D.Min = (Box.Pos - Box.Extents) * Size;
+		Box2D.Max = (Box.Pos + Box.Extents) * Size;
+		DrawDebugCanvas2DBox(Canvas, Box2D, Box.Color, Box.Thickness);
+
+		Box.Lifetime -= DeltaSeconds;
+		if (Box.Lifetime <= 0.0f)
+		{
+			it.RemoveCurrent();
+		}
+	}
 }
 
 template<typename T>

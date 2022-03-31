@@ -36,6 +36,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "IDetailGroup.h"
 
 
 #define LOCTEXT_NAMESPACE "FNiagaraVariableAttributeBindingCustomization"
@@ -1920,6 +1921,57 @@ void FNiagaraVariableMetaDataCustomization::CustomizeChildren(TSharedRef<IProper
 			ChildBuilder.AddProperty(ChildPropertyHandle);
 		}
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void FNiagaraSystemScalabilityOverrideCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	HeaderRow.NameContent()
+	[
+		InPropertyHandle->CreatePropertyNameWidget()
+	];
+	HeaderRow.ValueContent()
+	[
+		InPropertyHandle->CreatePropertyValueWidget()
+	];
+}
+
+void FNiagaraSystemScalabilityOverrideCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	auto AddOverrideProperties = [&](FName MasterPropertyName, TArray<FName> OverrideProperties)
+	{
+		if (TSharedPtr<IPropertyHandle> MasterProperty = PropertyHandle->GetChildHandle(MasterPropertyName))
+		{
+			bool bMasterProp;
+			if (MasterProperty->GetValue(bMasterProp) == FPropertyAccess::Success && bMasterProp)
+			{
+				IDetailGroup& PropGroup = ChildBuilder.AddGroup(MasterPropertyName, MasterProperty->GetPropertyDisplayName());
+				PropGroup.HeaderProperty(MasterProperty.ToSharedRef());
+				for (FName OverridePropName : OverrideProperties)
+				{
+					if (TSharedPtr<IPropertyHandle> OverrideProp = PropertyHandle->GetChildHandle(OverridePropName))
+					{
+						PropGroup.AddPropertyRow(OverrideProp.ToSharedRef());
+					}
+				}
+			}
+			else
+			{
+				ChildBuilder.AddProperty(MasterProperty.ToSharedRef());
+			}
+		}
+	}; 
+	
+	TSharedPtr<IPropertyHandle> PlatformsProperty = PropertyHandle->GetChildHandle(TEXT("Platforms"));
+	ChildBuilder.AddProperty(PlatformsProperty.ToSharedRef());
+
+	AddOverrideProperties(TEXT("bOverrideDistanceSettings"), { TEXT("bCullByDistance"), TEXT("MaxDistance") });
+	AddOverrideProperties(TEXT("bOverrideInstanceCountSettings"), { TEXT("bCullMaxInstanceCount"), TEXT("MaxInstances") });
+	AddOverrideProperties(TEXT("bOverridePerSystemInstanceCountSettings"), { TEXT("bCullPerSystemMaxInstanceCount"), TEXT("MaxSystemInstances") });
+	AddOverrideProperties(TEXT("bOverrideVisibilitySettings"), { TEXT("VisibilityCulling") });
+	AddOverrideProperties(TEXT("bOverrideGlobalBudgetScalingSettings"), { TEXT("BudgetScaling") });
+	AddOverrideProperties(TEXT("bOverrideCullProxySettings"), { TEXT("CullProxyMode"), TEXT("MaxSystemProxies") });
 }
 
 #undef LOCTEXT_NAMESPACE

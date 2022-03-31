@@ -239,6 +239,7 @@ private:
 	void DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation);
 	void DrawComponents(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas);
 	void DrawMessages(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation);
+	void DrawDebugGeomerty(class FNiagaraWorldManager* WorldManager, class UCanvas* DrawCanvas);
 
 private:
 	TWeakObjectPtr<class UWorld>	WeakWorld;
@@ -315,4 +316,41 @@ private:
 
 	/** Generic messages that the debugger or other parts of Niagara can post to the HUD. */
 	TMap<FName, FNiagaraDebugMessage> Messages;
+
+	//Additional debug geometry helpers
+	struct FDebugLine2D
+	{
+		FVector2D Start;
+		FVector2D End;
+		FLinearColor Color;
+		float Thickness;
+		float Lifetime;
+	};
+	TArray<FDebugLine2D> Lines2D;
+	struct FDebugCircle2D
+	{
+		FVector2D Pos;
+		float Rad;
+		float Segments;
+		FLinearColor Color;
+		float Thickness;
+		float Lifetime;
+	};
+	TArray<FDebugCircle2D> Circles2D;
+	struct FDebugBox2D
+	{
+		FVector2D Pos;
+		FVector2D Extents;
+		FLinearColor Color;
+		float Thickness;
+		float Lifetime;
+	};
+	TArray<FDebugBox2D> Boxes2D;
+
+public:
+	/** Add a 2D line to the debug renering. Positions are in normalized screen space. (0,0) in top left, (1,1) bottom right.*/
+	void AddLine2D(FVector2D Start, FVector2D End, FLinearColor Color, float Thickness, float Lifetime);
+	void AddCircle2D(FVector2D Pos, float Rad, float Segments, FLinearColor Color, float Thickness, float Lifetime);
+	void AddBox2D(FVector2D Pos, FVector2D Extents, FLinearColor Color, float Thickness, float Lifetime);
+	//Additional debug geometry helpers END
 };

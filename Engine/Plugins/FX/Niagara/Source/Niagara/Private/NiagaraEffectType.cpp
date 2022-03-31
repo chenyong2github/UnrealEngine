@@ -58,6 +58,11 @@ void UNiagaraEffectType::PostLoad()
 		}
 	}
 
+	for (FNiagaraSystemScalabilitySettings& SysScalabilitySetting : SystemScalabilitySettings.Settings)
+	{
+		SysScalabilitySetting.PostLoad(NiagaraVer);
+	}
+
 	//Apply platform set redirectors
 	auto ApplyPlatformSetRedirects = [](UObject* Owner, FNiagaraPlatformSet& Platforms)
 	{
@@ -168,12 +173,23 @@ FNiagaraGlobalBudgetScaling::FNiagaraGlobalBudgetScaling()
 }
 
 //////////////////////////////////////////////////////////////////////////
+ 
+FNiagaraSystemVisibilityCullingSettings::FNiagaraSystemVisibilityCullingSettings()
+	: bCullWhenNotRendered(false)
+	, bCullByViewFrustum(false)
+	, bAllowPreCullingByViewFrustum(false)
+	, MaxTimeOutsideViewFrustum(1.0f)
+	, MaxTimeWithoutRender(1.0f)
+{
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 FNiagaraSystemScalabilityOverride::FNiagaraSystemScalabilityOverride()
 	: bOverrideDistanceSettings(false)
 	, bOverrideInstanceCountSettings(false)
 	, bOverridePerSystemInstanceCountSettings(false)
-	, bOverrideTimeSinceRendererSettings(false)
+	, bOverrideVisibilitySettings(false)
 	, bOverrideGlobalBudgetScalingSettings(false)
 	, bOverrideCullProxySettings(false)
 {
@@ -188,17 +204,29 @@ void FNiagaraSystemScalabilitySettings::Clear()
 {
 	Platforms = FNiagaraPlatformSet();
 	bCullByDistance = false;
-	bCullByMaxTimeWithoutRender = false;
 	bCullMaxInstanceCount = false;
-	bCullPerSystemMaxInstanceCount = false;
+	bCullPerSystemMaxInstanceCount = false;	
 	MaxDistance = 0.0f;
 	MaxInstances = 0;
 	MaxSystemInstances = 0;
-	MaxTimeWithoutRender = 0.0f;
+
+
+	MaxTimeWithoutRender_DEPRECATED = 0.0f;
+	bCullByMaxTimeWithoutRender_DEPRECATED = false;
+	VisibilityCulling = FNiagaraSystemVisibilityCullingSettings();
 
 	BudgetScaling = FNiagaraGlobalBudgetScaling();
 	CullProxyMode = ENiagaraCullProxyMode::None;
 	MaxSystemProxies = 32;
+}
+
+void FNiagaraSystemScalabilitySettings::PostLoad(int32 Version)
+{
+	if (Version < FNiagaraCustomVersion::VisibilityCullingImprovements)
+	{
+		VisibilityCulling.bCullWhenNotRendered = bCullByMaxTimeWithoutRender_DEPRECATED;
+		VisibilityCulling.MaxTimeWithoutRender = MaxTimeWithoutRender_DEPRECATED;
+	}
 }
 
 FNiagaraEmitterScalabilitySettings::FNiagaraEmitterScalabilitySettings()
