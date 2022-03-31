@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Misc/OutputDeviceConsole.h"
+#include "UObject/NameTypes.h"
 
 /**
  * Windows implementation of console log window, utilizing the Win32 console API
