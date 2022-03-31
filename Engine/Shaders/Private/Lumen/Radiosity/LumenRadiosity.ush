@@ -86,8 +86,8 @@ struct FRadiosityTexel
 {
 	bool bInsideAtlas;
 	bool bHeightfield;
+	bool bValid;
 
-	float Opacity;
 	float3 WorldPosition;
 	float3 WorldNormal;
 	float3x3 WorldToLocalRotation;
@@ -100,9 +100,9 @@ struct FRadiosityTexel
 FRadiosityTexel GetRadiosityTexel(FLumenCardPageData CardPage, uint2 CoordInCardPage)
 {
 	FRadiosityTexel RadiosityTexel = (FRadiosityTexel)0;
-	RadiosityTexel.Opacity = 0.0f;
 	RadiosityTexel.bInsideAtlas = false;
 	RadiosityTexel.bHeightfield = false;
+	RadiosityTexel.bValid = false;
 	RadiosityTexel.WorldPosition = float3(0.0f, 0.0f, 0.0f);
 	RadiosityTexel.WorldNormal = float3(0.0f, 0.0f, 0.0f);
 
@@ -121,35 +121,42 @@ FRadiosityTexel GetRadiosityTexel(FLumenCardPageData CardPage, uint2 CoordInCard
 
 		#if RADIOSITY_ATLAS_DOWNSAMPLE_FACTOR == 2
 		{
-			float4 Opacity4 = LumenCardScene.OpacityAtlas.GatherRed(GlobalBilinearClampedSampler, AtlasUV);
+			FSurfaceCacheDepthData DepthData[4];
+			GatherSurfaceCacheDepthData(LumenCardScene.DepthAtlas, AtlasUV, /*inout*/ DepthData);
 
-			float TotalOpacity = dot(Opacity4, 1.0f);
-			RadiosityTexel.Opacity = TotalOpacity / 4.0f;
+			float4 NormalX4 = LumenCardScene.NormalAtlas.GatherRed(GlobalPointClampedSampler, AtlasUV);
+			float4 NormalY4 = LumenCardScene.NormalAtlas.GatherGreen(GlobalPointClampedSampler, AtlasUV);
 
-			if (RadiosityTexel.Opacity > 0.0f)
+			float NumValidTexels = 0.0f;
+			float DepthSum = 0.0f;
+			float2 EncodedNormalSum = float2(0.0f, 0.0f);
+			for (uint TexelIndex = 0; TexelIndex < 4; ++TexelIndex)
 			{
-				float4 Depth4 = 1.0f - LumenCardScene.DepthAtlas.GatherRed(GlobalBilinearClampedSampler, AtlasUV);
-				float4 NormalX4 = LumenCardScene.NormalAtlas.GatherRed(GlobalBilinearClampedSampler, AtlasUV);
-				float4 NormalY4 = LumenCardScene.NormalAtlas.GatherGreen(GlobalBilinearClampedSampler, AtlasUV);
+				if (DepthData[TexelIndex].bValid)
+				{
+					NumValidTexels += 1.0f;
+					DepthSum += DepthData[TexelIndex].Depth;
+					EncodedNormalSum.x += NormalX4[TexelIndex];
+					EncodedNormalSum.y += NormalY4[TexelIndex];
+				}
+			}
 
-				float Depth = dot(Depth4, Opacity4) / TotalOpacity;
-				float2 EncodedNormal;
-				EncodedNormal.x = dot(NormalX4, Opacity4) / TotalOpacity;
-				EncodedNormal.y = dot(NormalY4, Opacity4) / TotalOpacity;
+			if (NumValidTexels > 0.0f)
+			{
+				float AvgDepth = DepthSum / NumValidTexels;
+				float2 AvgEncodedNormal = EncodedNormalSum / NumValidTexels;
 
-				RadiosityTexel.WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-				RadiosityTexel.WorldNormal = DecodeSurfaceCacheNormal(Card, EncodedNormal);
+				RadiosityTexel.bValid = true;
+				RadiosityTexel.WorldPosition = GetCardWorldPosition(Card, CardUV, AvgDepth);
+				RadiosityTexel.WorldNormal = DecodeSurfaceCacheNormal(Card, AvgEncodedNormal);
 			}
 		}
 		#else
 		{
-			RadiosityTexel.Opacity = Texture2DSampleLevel(LumenCardScene.OpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
-			if (RadiosityTexel.Opacity > 0.0f)
-			{
-				float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
-				RadiosityTexel.WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-				RadiosityTexel.WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
-			}
+			FLumenSurfaceCacheData SurfaceCacheData = GetSurfaceCacheData(Card, CardUV, AtlasUV);
+			RadiosityTexel.bValid = SurfaceCacheData.bValid;
+			RadiosityTexel.WorldPosition = SurfaceCacheData.WorldPosition;
+			RadiosityTexel.WorldNormal = SurfaceCacheData.WorldNormal;
 		}
 		#endif
 	}

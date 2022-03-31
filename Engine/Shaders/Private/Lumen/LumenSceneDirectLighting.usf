@@ -7,6 +7,7 @@
 #include "../Common.ush"
 #include "LumenCardCommon.ush"
 #include "LumenCardTile.ush"
+#include "SurfaceCache/LumenSurfaceCache.ush"
 #define SUPPORT_CONTACT_SHADOWS 0
 #define USE_IES_PROFILE 1
 #include "../DeferredLightingCommon.ush"
@@ -57,30 +58,25 @@ void LumenCardDirectLightingPS(
 	ShadowMaskRay.bShadowFactorComplete = true;
 	ShadowMaskRay.ShadowFactor = 1.0f;
 
-	bool bValidTexel = true;
+	FLumenCardPageData CardPage = GetLumenCardPageData(CardInterpolants.CardPageIndex);
+	FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+	FLumenSurfaceCacheData SurfaceCacheData = GetSurfaceCacheData(Card, CardInterpolants.CardUV, CardInterpolants.AtlasUV);
+
 	#if SHADOW_MASK
 	{
 		uint2 CoordInCardTile = SvPosition.xy % CARD_TILE_SIZE;
 		ReadShadowMaskRay(CardInterpolants.CardTileIndex, CoordInCardTile, ShadowMaskRay);
 	}
-	#else
-	{
-		float Opacity = Texture2DSampleLevel(LumenCardScene.OpacityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).x;
-		bValidTexel = Opacity > 0.0f;
-	}
 	#endif
 
 	float3 Irradiance = 0.0f;
 
-	if (bValidTexel && ShadowMaskRay.ShadowFactor > 0.0f)
+	if (SurfaceCacheData.bValid && ShadowMaskRay.ShadowFactor > 0.0f)
 	{
 		FDeferredLightData LightData = LoadLightData(LIGHT_TYPE);
 
-		float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).x;
-
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardInterpolants.CardPageIndex);
-		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
-		float3 WorldPosition = GetCardWorldPosition(Card, CardInterpolants.CardUV, Depth);
+		float3 WorldNormal = SurfaceCacheData.WorldNormal;
+		float3 WorldPosition = SurfaceCacheData.WorldPosition;
 		float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 		float3 LightColor = DeferredLightUniforms.Color;
@@ -115,12 +111,12 @@ void LumenCardDirectLightingPS(
 
 		if (CombinedAttenuation > 0)
 		{
-			float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xy);
-
 			if (dot(WorldNormal, L) > 0)
 			{
 				#if LIGHT_FUNCTION
+				{
 					ShadowMaskRay.ShadowFactor *= GetLightFunction(TranslatedWorldPosition);
+				}
 				#endif
 
 				#if USE_CLOUD_TRANSMITTANCE
@@ -141,6 +137,6 @@ void LumenCardDirectLightingPS(
 			}
 		}
 	}
-		
+
 	OutColor = float4(Irradiance, 0);
 }

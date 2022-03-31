@@ -162,7 +162,7 @@ class FBuildFeedbackHashTableIndirectArgsCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FBuildFeedbackHashTableIndirectArgsCS, "/Engine/Private/Lumen/LumenSurfaceCacheFeedback.usf", "BuildFeedbackHashTableIndirectArgsCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBuildFeedbackHashTableIndirectArgsCS, "/Engine/Private/Lumen/SurfaceCache/LumenSurfaceCacheFeedback.usf", "BuildFeedbackHashTableIndirectArgsCS", SF_Compute);
 
 
 // Takes a list of feedback elements and builds a hash table with element counts
@@ -201,7 +201,7 @@ class FBuildFeedbackHashTableCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FBuildFeedbackHashTableCS, "/Engine/Private/Lumen/LumenSurfaceCacheFeedback.usf", "BuildFeedbackHashTableCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBuildFeedbackHashTableCS, "/Engine/Private/Lumen/SurfaceCache/LumenSurfaceCacheFeedback.usf", "BuildFeedbackHashTableCS", SF_Compute);
 
 // Compacts feedback element hash table into a unique and tightly packed array of feedback elements with counts
 class FCompactFeedbackHashTableCS : public FGlobalShader
@@ -239,7 +239,7 @@ class FCompactFeedbackHashTableCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FCompactFeedbackHashTableCS, "/Engine/Private/Lumen/LumenSurfaceCacheFeedback.usf", "CompactFeedbackHashTableCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FCompactFeedbackHashTableCS, "/Engine/Private/Lumen/SurfaceCache/LumenSurfaceCacheFeedback.usf", "CompactFeedbackHashTableCS", SF_Compute);
 
 
 void FLumenSurfaceCacheFeedback::SubmitFeedbackBuffer(

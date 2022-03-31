@@ -130,7 +130,6 @@ class FLumenCardCombineLightingPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DirectLightingAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectLightingAtlas)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 		SHADER_PARAMETER(float, DiffuseReflectivityOverride)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -174,7 +173,6 @@ void Lumen::CombineLumenSceneLighting(
 	PassParameters->PS.EmissiveAtlas = TracingInputs.EmissiveAtlas;
 	PassParameters->PS.DirectLightingAtlas = TracingInputs.DirectLightingAtlas;
 	PassParameters->PS.IndirectLightingAtlas = TracingInputs.IndirectLightingAtlas;
-	PassParameters->PS.OpacityAtlas = TracingInputs.OpacityAtlas;
 	PassParameters->PS.DiffuseReflectivityOverride = LumenSurfaceCache::GetDiffuseReflectivityOverride();
 
 	GraphBuilder.AddPass(

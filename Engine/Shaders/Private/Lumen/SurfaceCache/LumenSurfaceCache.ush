@@ -1,0 +1,99 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+struct FSurfaceCacheDepthData
+{
+	bool bValid;
+	float Depth;
+};
+
+/**
+ * Encode FLumenSurfaceCacheDepthTexel into surface cache depth channel
+ * Landscape ray marching requires it to be HW filterable
+ */
+float EncodeSurfaceCacheDepth(FSurfaceCacheDepthData DepthData)
+{
+	uint DepthUNorm = saturate(DepthData.Depth) * 0xFFFF;
+
+	// Clear and set bit 0 and set it to bValid flag
+	DepthUNorm = DepthUNorm & 0xFFFE;
+	DepthUNorm |= DepthData.bValid ? 0x1 : 0;
+
+	return DepthUNorm / float(0xFFFF);
+}
+
+FSurfaceCacheDepthData DecodeSurfaceCacheDepth(float EncodedDepthFloat)
+{
+	uint EncodedDepthUNorm = saturate(EncodedDepthFloat) * 0xFFFF;
+
+	FSurfaceCacheDepthData DepthData;
+	DepthData.Depth = (EncodedDepthUNorm & 0xFFFE) / float(0xFFFF);
+	DepthData.bValid = EncodedDepthUNorm & 0x1 ? true : false;
+	return DepthData;
+}
+
+void GatherSurfaceCacheDepthData(Texture2D DepthAtlas, float2 AtlasUV, inout FSurfaceCacheDepthData TexelDepths[4])
+{
+	float4 EncodedTexelDepths = DepthAtlas.Gather(GlobalPointClampedSampler, AtlasUV, 0.0f);
+
+	TexelDepths[0] = DecodeSurfaceCacheDepth(EncodedTexelDepths[0]);
+	TexelDepths[1] = DecodeSurfaceCacheDepth(EncodedTexelDepths[1]);
+	TexelDepths[2] = DecodeSurfaceCacheDepth(EncodedTexelDepths[2]);
+	TexelDepths[3] = DecodeSurfaceCacheDepth(EncodedTexelDepths[3]);
+}
+
+#ifdef LUMEN_CARD_DATA_STRIDE
+float3 DecodeSurfaceCacheNormal(FLumenCardData Card, float2 EncodedNormal)
+{
+	float3 CardSpaceNormal;
+	CardSpaceNormal.xy = EncodedNormal.xy * 2.0f - 1.0f;
+	CardSpaceNormal.z = sqrt(max(1.0f - length2(CardSpaceNormal.xy), 0.0001f));
+	return mul(Card.WorldToLocalRotation, CardSpaceNormal);
+}
+#endif
+
+float3 DecodeSurfaceCacheAlbedo(float3 EncodedAlbedo)
+{
+	return EncodedAlbedo * EncodedAlbedo;
+}
+
+struct FLumenSurfaceCacheData
+{
+	bool bValid;
+
+	float Depth;
+	float3 Albedo;
+	float3 Emissive;
+
+	// Derived
+	float3 WorldPosition;
+	float3 WorldNormal;
+};
+
+#ifdef LUMEN_CARD_DATA_STRIDE
+FLumenSurfaceCacheData GetSurfaceCacheData(FLumenCardData Card, float2 CardUV, float2 AtlasUV)
+{
+	FSurfaceCacheDepthData SurfaceCacheDepthData = DecodeSurfaceCacheDepth(Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x);
+
+	FLumenSurfaceCacheData SurfaceCacheData;
+	SurfaceCacheData.Depth = SurfaceCacheDepthData.Depth;
+	SurfaceCacheData.bValid = SurfaceCacheDepthData.bValid;
+	SurfaceCacheData.Albedo = float3(0.0f, 0.0f, 0.0f);
+	SurfaceCacheData.Emissive = float3(0.0f, 0.0f, 0.0f);
+
+	float2 NormalXY = float2(0.0f, 0.0f);
+
+	if (SurfaceCacheData.bValid)
+	{
+		SurfaceCacheData.Albedo = DecodeSurfaceCacheAlbedo(Texture2DSampleLevel(LumenCardScene.AlbedoAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz);
+		SurfaceCacheData.Emissive = Texture2DSampleLevel(LumenCardScene.EmissiveAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
+		NormalXY = Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalPointClampedSampler, AtlasUV, 0).xy;
+	}
+
+	SurfaceCacheData.WorldNormal = DecodeSurfaceCacheNormal(Card, NormalXY);
+	SurfaceCacheData.WorldPosition = GetCardWorldPosition(Card, CardUV, SurfaceCacheData.Depth);
+
+	return SurfaceCacheData;
+}
+#endif

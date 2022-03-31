@@ -77,7 +77,7 @@ void LumenRadiosityDistanceFieldTracingCS(
 		float3 Radiance = 0.0f;
 		float TraceHitDistance = MaxTraceDistance;
 
-		if (RadiosityTexel.Opacity > 0.0f)
+		if (RadiosityTexel.bValid)
 		{
 			float3 WorldPosition = RadiosityTexel.WorldPosition;
 			float3 WorldNormal = RadiosityTexel.WorldNormal;
@@ -191,7 +191,7 @@ void SampleTraceRadianceAtlas(
 
 				if (ProbeTexel.bInsideAtlas)
 				{
-					float Weight = ProbeTexel.Opacity * InterpolationWeight;
+					float Weight = ProbeTexel.bValid ? InterpolationWeight : 0.0f;
 
 					#if FILTERING_PLANE_WEIGHTING
 					{
@@ -243,7 +243,7 @@ void LumenRadiositySpatialFilterProbeRadiance(
 		float3 Radiance = TraceRadianceAtlas[RadiosityProbeTracingAtlasCoord] * CenterWeight;
 		float TotalWeight = CenterWeight;
 
-		if (RadiosityTexel.Opacity > 0.0f)
+		if (RadiosityTexel.bValid)
 		{
 			uint2 ResLevelSizeInProbes = CardPage.ResLevelSizeInTiles * RadiosityTileSize;
 			uint2 CardPageProbeCoord = CardPage.CardUVRect.xy * ResLevelSizeInProbes;
@@ -318,7 +318,7 @@ void LumenRadiosityConvertToSH(
 		FTwoBandSHVectorRGB IrradianceSH = (FTwoBandSHVectorRGB)0;
 		float NumValidSamples = 0.0f;
 
-		if (RadiosityTexel.bInsideAtlas && RadiosityTexel.Opacity > 0.0f)
+		if (RadiosityTexel.bInsideAtlas && RadiosityTexel.bValid)
 		{
 			for (uint TraceY = 0; TraceY < HemisphereProbeResolution; ++TraceY)
 			{
@@ -399,7 +399,7 @@ void SampleRadiositySH(
 			{
 				FRadiosityTexel NeighborProbeTexel = GetRadiosityTexel(CardPage, CoordInCardPage);
 
-				float Weight = NeighborProbeTexel.Opacity * InterpolationWeight;
+				float Weight = NeighborProbeTexel.bValid ? InterpolationWeight : 0.0f;
 
 				#if INTERPOLATION_PLANE_WEIGHTING
 				{
@@ -447,7 +447,7 @@ void LumenRadiosityIntegrateCS(
 
 	FRadiosityTexel RadiosityTexel = GetRadiosityTexelFromCardTile(CardTileIndex, CoordInCardTile);
 
-	if (RadiosityTexel.bInsideAtlas && RadiosityTexel.Opacity > 0.0f)
+	if (RadiosityTexel.bInsideAtlas && RadiosityTexel.bValid)
 	{
 		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
 		FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);

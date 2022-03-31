@@ -66,7 +66,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectLightingAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FinalLightingAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NormalAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthAtlas)
@@ -82,7 +81,6 @@ public:
 	FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries, bool bSurfaceCacheFeedback = true);
 
 	FRDGTextureRef AlbedoAtlas;
-	FRDGTextureRef OpacityAtlas;
 	FRDGTextureRef NormalAtlas;
 	FRDGTextureRef EmissiveAtlas;
 	FRDGTextureRef DepthAtlas;

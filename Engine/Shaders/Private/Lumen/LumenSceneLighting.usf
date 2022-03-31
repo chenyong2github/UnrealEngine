@@ -9,7 +9,7 @@
 #include "LumenCardCommon.ush"
 #include "LumenCardTile.ush"
 #include "LumenSceneLighting.ush"
-#include "LumenSurfaceCacheSampling.ush"
+#include "SurfaceCache/LumenSurfaceCacheSampling.ush"
 #include "Radiosity/LumenRadiosity.ush"
 
 #ifndef THREADGROUP_SIZE

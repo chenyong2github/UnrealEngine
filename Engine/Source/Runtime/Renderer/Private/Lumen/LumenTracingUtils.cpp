@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSceneLighting.cpp
-=============================================================================*/
-
 #include "LumenTracingUtils.h"
 #include "LumenSceneRendering.h"
 
@@ -22,7 +18,6 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 	check(LumenSceneData.FinalLightingAtlas);
 
 	AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
-	OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 	NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
 	EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
 	DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
@@ -150,7 +145,6 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.IndirectLightingAtlas = TracingInputs.IndirectLightingAtlas;
 	TracingParameters.FinalLightingAtlas = TracingInputs.FinalLightingAtlas;
 	TracingParameters.AlbedoAtlas = TracingInputs.AlbedoAtlas;
-	TracingParameters.OpacityAtlas = TracingInputs.OpacityAtlas;
 	TracingParameters.NormalAtlas = TracingInputs.NormalAtlas;
 	TracingParameters.EmissiveAtlas = TracingInputs.EmissiveAtlas;
 	TracingParameters.DepthAtlas = TracingInputs.DepthAtlas;

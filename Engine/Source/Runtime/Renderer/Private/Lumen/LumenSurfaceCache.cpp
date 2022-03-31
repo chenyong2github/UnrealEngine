@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenScenePrefilter.cpp
-=============================================================================*/
-
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "SceneUtils.h"
@@ -47,7 +43,6 @@ enum class ELumenSurfaceCacheLayer : uint8
 {
 	Depth,
 	Albedo,
-	Opacity,
 	Normal,
 	Emissive,
 
@@ -67,11 +62,10 @@ const FLumenSurfaceLayerConfig& GetSurfaceLayerConfig(ELumenSurfaceCacheLayer La
 {
 	static FLumenSurfaceLayerConfig Configs[(uint32)ELumenSurfaceCacheLayer::MAX] =
 	{
-		{ TEXT("Depth"),	PF_G16,				PF_Unknown,	PF_Unknown,				FVector(0.0f, 1.0f, 0.0f)		},
-		{ TEXT("Albedo"),	PF_R8G8B8A8,		PF_BC7,		PF_R32G32B32A32_UINT,	FVector(0.0f, 1.0f, 1.0f)		},
-		{ TEXT("Opacity"),	PF_G8,				PF_BC4,		PF_R32G32_UINT,			FVector(1.0f, 0.0f, 0.0f)		},
-		{ TEXT("Normal"),	PF_R8G8,			PF_BC5,		PF_R32G32B32A32_UINT,	FVector(0.5f, 0.5f, 0.0f)		},
-		{ TEXT("Emissive"), PF_FloatR11G11B10,	PF_BC6H,	PF_R32G32B32A32_UINT,	FVector(1000.0f, 1000.0f, 0.0f)	}
+		{ TEXT("Depth"),		PF_G16,				PF_Unknown,	PF_Unknown,				FVector(1.0f, 0.0f, 0.0f) },
+		{ TEXT("Albedo"),		PF_R8G8B8A8,		PF_BC7,		PF_R32G32B32A32_UINT,	FVector(0.0f, 0.0f, 0.0f) },
+		{ TEXT("Normal"),		PF_R8G8,			PF_BC5,		PF_R32G32B32A32_UINT,	FVector(0.5f, 0.5f, 0.0f) },
+		{ TEXT("Emissive"),		PF_FloatR11G11B10,	PF_BC6H,	PF_R32G32B32A32_UINT,	FVector(0.0f, 0.0f, 0.0f) }
 	};
 
 	check((uint32)Layer < UE_ARRAY_COUNT(Configs));
@@ -89,7 +83,10 @@ class FLumenCardCopyPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint4>, RWAtlasBlock4)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, RWAtlasBlock2)
 		SHADER_PARAMETER(FVector2f, OneOverSourceAtlasSize)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SourceAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SourceAlbedoAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SourceNormalAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SourceEmissiveAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SourceDepthAtlas)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FSurfaceCacheLayer : SHADER_PERMUTATION_ENUM_CLASS("SURFACE_LAYER", ELumenSurfaceCacheLayer);
@@ -102,7 +99,7 @@ class FLumenCardCopyPS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FLumenCardCopyPS, "/Engine/Private/Lumen/LumenSurfaceCache.usf", "LumenCardCopyPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FLumenCardCopyPS, "/Engine/Private/Lumen/SurfaceCache/LumenSurfaceCache.usf", "LumenCardCopyPS", SF_Pixel);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardCopyParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FPixelShaderUtils::FRasterizeToRectsVS::FParameters, VS)
@@ -161,7 +158,6 @@ void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder, const FView
 	const FIntPoint PageAtlasSize = GetPhysicalAtlasSize();
 
 	AlbedoAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Albedo, TEXT("Lumen.SceneAlbedo"));
-	OpacityAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Opacity, TEXT("Lumen.SceneOpacity"));
 	DepthAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Depth, TEXT("Lumen.SceneDepth"));
 	NormalAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Normal, TEXT("Lumen.SceneNormal"));
 	EmissiveAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Emissive, TEXT("Lumen.SceneEmissive"));
@@ -209,7 +205,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 
 	FRDGTextureRef DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
 	FRDGTextureRef AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
-	FRDGTextureRef OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 	FRDGTextureRef NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
 	FRDGTextureRef EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
 	FRDGTextureRef DirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DirectLightingAtlas);
@@ -244,18 +239,16 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 
 	struct FPassConfig
 	{
-		FRDGTextureRef CardCaptureAtlas = nullptr;
 		FRDGTextureRef SurfaceCacheAtlas = nullptr;
 		ELumenSurfaceCacheLayer Layer = ELumenSurfaceCacheLayer::MAX;
 	};
 
 	FPassConfig PassConfigs[(uint32)ELumenSurfaceCacheLayer::MAX] =
 	{
-		{ CardCaptureAtlas.DepthStencil,	DepthAtlas,		ELumenSurfaceCacheLayer::Depth },
-		{ CardCaptureAtlas.Albedo,			AlbedoAtlas,	ELumenSurfaceCacheLayer::Albedo },
-		{ CardCaptureAtlas.Albedo,			OpacityAtlas,	ELumenSurfaceCacheLayer::Opacity },
-		{ CardCaptureAtlas.Normal,			NormalAtlas,	ELumenSurfaceCacheLayer::Normal },
-		{ CardCaptureAtlas.Emissive,		EmissiveAtlas,	ELumenSurfaceCacheLayer::Emissive },
+		{ DepthAtlas,		ELumenSurfaceCacheLayer::Depth },
+		{ AlbedoAtlas,		ELumenSurfaceCacheLayer::Albedo },
+		{ NormalAtlas,		ELumenSurfaceCacheLayer::Normal },
+		{ EmissiveAtlas,	ELumenSurfaceCacheLayer::Emissive },
 	};
 
 	for (FPassConfig& Pass : PassConfigs)
@@ -273,7 +266,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 				PassParameters->PS.View = View.ViewUniformBuffer;
 				PassParameters->PS.RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(Pass.SurfaceCacheAtlas) : nullptr;
 				PassParameters->PS.RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(Pass.SurfaceCacheAtlas) : nullptr;
-				PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
+				PassParameters->PS.SourceAlbedoAtlas = CardCaptureAtlas.Albedo;
+				PassParameters->PS.SourceNormalAtlas = CardCaptureAtlas.Normal;
+				PassParameters->PS.SourceEmissiveAtlas = CardCaptureAtlas.Emissive;
+				PassParameters->PS.SourceDepthAtlas = CardCaptureAtlas.DepthStencil;
 				PassParameters->PS.OneOverSourceAtlasSize = FVector2f(1.0f, 1.0f) / FVector2f(CardCaptureAtlasSize);
 
 				FLumenCardCopyPS::FPermutationDomain PermutationVector;
@@ -320,7 +316,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 				PassParameters->PS.View = View.ViewUniformBuffer;
 				PassParameters->PS.RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(TempAtlas) : nullptr;
 				PassParameters->PS.RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(TempAtlas) : nullptr;
-				PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
+				PassParameters->PS.SourceAlbedoAtlas = CardCaptureAtlas.Albedo;
+				PassParameters->PS.SourceNormalAtlas = CardCaptureAtlas.Normal;
+				PassParameters->PS.SourceEmissiveAtlas = CardCaptureAtlas.Emissive;
+				PassParameters->PS.SourceDepthAtlas = CardCaptureAtlas.DepthStencil;
 				PassParameters->PS.OneOverSourceAtlasSize = FVector2f(1.0f, 1.0f) / FVector2f(CardCaptureAtlasSize);
 
 				FLumenCardCopyPS::FPermutationDomain PermutationVector;
@@ -386,7 +385,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 
 				PassParameters->RenderTargets[0] = FRenderTargetBinding(Pass.SurfaceCacheAtlas, ERenderTargetLoadAction::ELoad, 0);
 				PassParameters->PS.View = View.ViewUniformBuffer;
-				PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
+				PassParameters->PS.SourceAlbedoAtlas = CardCaptureAtlas.Albedo;
+				PassParameters->PS.SourceNormalAtlas = CardCaptureAtlas.Normal;
+				PassParameters->PS.SourceEmissiveAtlas = CardCaptureAtlas.Emissive;
+				PassParameters->PS.SourceDepthAtlas = CardCaptureAtlas.DepthStencil;
 				PassParameters->PS.OneOverSourceAtlasSize = FVector2f(1.0f, 1.0f) / FVector2f(CardCaptureAtlasSize);
 
 				FLumenCardCopyPS::FPermutationDomain PermutationVector;
@@ -460,7 +462,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 
 	LumenSceneData.DepthAtlas = GraphBuilder.ConvertToExternalTexture(DepthAtlas);
 	LumenSceneData.AlbedoAtlas = GraphBuilder.ConvertToExternalTexture(AlbedoAtlas);
-	LumenSceneData.OpacityAtlas = GraphBuilder.ConvertToExternalTexture(OpacityAtlas);
 	LumenSceneData.NormalAtlas = GraphBuilder.ConvertToExternalTexture(NormalAtlas);
 	LumenSceneData.EmissiveAtlas = GraphBuilder.ConvertToExternalTexture(EmissiveAtlas);
 	LumenSceneData.DirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(DirectLightingAtlas);
@@ -503,7 +504,7 @@ class FClearCompressedAtlasCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FClearCompressedAtlasCS, "/Engine/Private/Lumen/LumenSurfaceCache.usf", "ClearCompressedAtlasCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FClearCompressedAtlasCS, "/Engine/Private/Lumen/SurfaceCache/LumenSurfaceCache.usf", "ClearCompressedAtlasCS", SF_Compute);
 
 void ClearAtlas(FRDGBuilder& GraphBuilder, TRefCountPtr<IPooledRenderTarget>& Atlas)
 {
@@ -524,7 +525,6 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 
 	FRDGTextureRef DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
 	FRDGTextureRef AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
-	FRDGTextureRef OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 	FRDGTextureRef NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
 	FRDGTextureRef EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
 
@@ -538,7 +538,6 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 	{
 		{ DepthAtlas,		ELumenSurfaceCacheLayer::Depth },
 		{ AlbedoAtlas,		ELumenSurfaceCacheLayer::Albedo },
-		{ OpacityAtlas,		ELumenSurfaceCacheLayer::Opacity },
 		{ NormalAtlas,		ELumenSurfaceCacheLayer::Normal },
 		{ EmissiveAtlas,	ELumenSurfaceCacheLayer::Emissive },
 	};
@@ -658,7 +657,6 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 
 	LumenSceneData.DepthAtlas = GraphBuilder.ConvertToExternalTexture(DepthAtlas);
 	LumenSceneData.AlbedoAtlas = GraphBuilder.ConvertToExternalTexture(AlbedoAtlas);
-	LumenSceneData.OpacityAtlas = GraphBuilder.ConvertToExternalTexture(OpacityAtlas);
 	LumenSceneData.NormalAtlas = GraphBuilder.ConvertToExternalTexture(NormalAtlas);
 	LumenSceneData.EmissiveAtlas = GraphBuilder.ConvertToExternalTexture(EmissiveAtlas);
 

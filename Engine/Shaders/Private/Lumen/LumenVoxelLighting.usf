@@ -666,7 +666,7 @@ void VisBufferShadingCS(
 						AtlasId);
 
 					Lighting = SurfaceCacheSample.Lighting;
-					Opacity = SurfaceCacheSample.Opacity;
+					Opacity = 1.0f;
 				}
 
 				uint3 WriteCoord = uint3(VoxelCoord.x, ClipmapIndex * ClipmapGridResolution.y + VoxelCoord.y, DirectionIndex * ClipmapGridResolution.z + VoxelCoord.z);

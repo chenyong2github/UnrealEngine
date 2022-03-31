@@ -202,18 +202,6 @@ FAutoConsoleVariableRef CVarLumenGIRecaptureLumenSceneEveryFrame(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneNaniteMultiViewRaster = 1;
-FAutoConsoleVariableRef CVarLumenSceneNaniteMultiViewRaster(
-	TEXT("r.LumenScene.SurfaceCache.NaniteMultiViewRaster"),
-	GLumenSceneNaniteMultiViewRaster,
-	TEXT("Toggle multi view Lumen Nanite Card rasterization for debugging."),
-	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-		{
-			Lumen::DebugResetSurfaceCache();
-		}),
-	ECVF_RenderThreadSafe
-);
-
 int32 GLumenSceneNaniteMultiViewCapture = 1;
 FAutoConsoleVariableRef CVarLumenSceneNaniteMultiViewCapture(
 	TEXT("r.LumenScene.SurfaceCache.NaniteMultiViewCapture"),
@@ -1791,7 +1779,6 @@ class FResampleLightingHistoryToCardCaptureAtlasPS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DirectLightingAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectLightingAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityNumFramesAccumulatedAtlas)
@@ -1933,7 +1920,6 @@ void ResampleLightingHistory(
 				PassParameters->PS.LumenCardScene = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
 			}
 
-			PassParameters->PS.OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 			PassParameters->PS.DirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DirectLightingAtlas);
 			PassParameters->PS.IndirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.IndirectLightingAtlas);
 			PassParameters->PS.RadiosityNumFramesAccumulatedAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityNumFramesAccumulatedAtlas);
@@ -2166,7 +2152,6 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 
 	if (LumenSceneData.AlbedoAtlas.IsValid())
 	{
-		OutParameters.OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas, TEXT("Lumen.SceneOpacity"));
 		OutParameters.AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas, TEXT("Lumen.SceneAlbedo"));
 		OutParameters.NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas, TEXT("Lumen.SceneNormal"));
 		OutParameters.EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas, TEXT("Lumen.SceneEmissive"));
@@ -2175,7 +2160,6 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	else
 	{
 		FRDGTextureRef BlackDummyTextureRef = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy, TEXT("Lumen.BlackDummy"));
-		OutParameters.OpacityAtlas = BlackDummyTextureRef;
 		OutParameters.AlbedoAtlas = BlackDummyTextureRef;
 		OutParameters.NormalAtlas = BlackDummyTextureRef;
 		OutParameters.EmissiveAtlas = BlackDummyTextureRef;
@@ -2297,7 +2281,7 @@ void AllocateCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint CardCaptureAt
 		FRDGTextureDesc::Create2D(
 			CardCaptureAtlasSize,
 			PF_R8G8B8A8,
-			FClearValueBinding::Green,
+			FClearValueBinding::Black,
 			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear),
 		TEXT("Lumen.CardCaptureAlbedoAtlas"));
 
@@ -2305,7 +2289,7 @@ void AllocateCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint CardCaptureAt
 		FRDGTextureDesc::Create2D(
 			CardCaptureAtlasSize,
 			PF_R8G8,
-			FClearValueBinding::Green,
+			FClearValueBinding::Black,
 			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear),
 		TEXT("Lumen.CardCaptureNormalAtlas"));
 

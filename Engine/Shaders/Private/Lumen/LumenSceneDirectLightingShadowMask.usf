@@ -73,19 +73,18 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 	float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * (TexelInCardPageCoord + 0.5f);
 	float2 CardUV = CardPage.CardUVRect.xy + CardPage.CardUVTexelScale * (TexelInCardPageCoord + 0.5f);
 
-	float Opacity = Texture2DSampleLevel(LumenCardScene.OpacityAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
-
 	FShadowMaskRay ShadowMaskRay;
 	ShadowMaskRay.ShadowFactor = 0.0f;
 	ShadowMaskRay.bShadowFactorComplete = true;
 
-	if (Opacity > 0.0f)
+	FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+	FLumenSurfaceCacheData SurfaceCacheData = GetSurfaceCacheData(Card, CardUV, AtlasUV);
+
+	if (SurfaceCacheData.bValid)
 	{
 		FDeferredLightData LightData = LoadLightData(LIGHT_TYPE);
-
-		float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
-		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
-		float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
+		float3 WorldNormal = SurfaceCacheData.WorldNormal;
+		float3 WorldPosition = SurfaceCacheData.WorldPosition;
 		float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 		float3 L = LightData.Direction;
@@ -119,8 +118,6 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 
 		if (CombinedAttenuation > 0)
 		{
-			const float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalPointClampedSampler, AtlasUV, 0).xy);
-
 			if (dot(WorldNormal, L) > 0)
 			{
 				ShadowMaskRay.ShadowFactor = 1.0f;
@@ -363,10 +360,11 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 	{
 		FDeferredLightData LightData = LoadLightData(LIGHT_TYPE);
 
-		float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
 		FLumenCardData CardData = GetLumenCardData(CardPage.CardIndex);
-		float3 WorldPosition = GetCardWorldPosition(CardData, CardUV, Depth);
-		float3 WorldNormal = DecodeSurfaceCacheNormal(CardData, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalPointClampedSampler, AtlasUV, 0).xy);
+		FLumenSurfaceCacheData SurfaceCacheData = GetSurfaceCacheData(CardData, CardUV, AtlasUV);
+
+		float3 WorldPosition = SurfaceCacheData.WorldPosition;
+		float3 WorldNormal = SurfaceCacheData.WorldNormal;
 
 		float3 L = LightData.Direction;
 		float3 ToLight = L;

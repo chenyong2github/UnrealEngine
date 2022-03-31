@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSurfaceCacheSampling.ush
-=============================================================================*/
-
 #pragma once
+
+#include "LumenSurfaceCache.ush"
 
 Texture2D DirectLightingAtlas;
 Texture2D IndirectLightingAtlas;
@@ -15,7 +13,6 @@ Texture2D FinalLightingAtlas;
 #define INDIRECT_IRRADIANCE_ATLAS_ID 2
 
 Texture2D AlbedoAtlas;
-Texture2D OpacityAtlas;
 Texture2D NormalAtlas;
 Texture2D EmissiveAtlas;
 Texture2D DepthAtlas;
@@ -33,16 +30,15 @@ Texture2D DepthAtlas;
 	#define VISUALIZE_MODE_GEOMETRY_NORMALS 6
 	#define VISUALIZE_MODE_NORMALS 7
 	#define VISUALIZE_MODE_EMISSIVE 8
-	#define VISUALIZE_MODE_OPACITY 9
-	#define VISUALIZE_MODE_CARD_WEIGHTS 10
-	#define VISUALIZE_MODE_DIRECT_LIGHTING 11
-	#define VISUALIZE_MODE_INDIRECT_LIGHTING 12
-	#define VISUALIZE_MODE_LOCAL_POSITION 13
-	#define VISUALIZE_MODE_VELOCITY 14
-	#define VISUALIZE_MODE_DIRECT_LIGHTING_UPDATES 15
-	#define VISUALIZE_MODE_INDIRECT_LIGHTING_UPDATES 16
-	#define VISUALIZE_MODE_LAST_USED_PAGE 17
-	#define VISUALIZE_MODE_LAST_USED_PAGE_HIGH_RES 18
+	#define VISUALIZE_MODE_CARD_WEIGHTS 9
+	#define VISUALIZE_MODE_DIRECT_LIGHTING 10
+	#define VISUALIZE_MODE_INDIRECT_LIGHTING 11
+	#define VISUALIZE_MODE_LOCAL_POSITION 12
+	#define VISUALIZE_MODE_VELOCITY 13
+	#define VISUALIZE_MODE_DIRECT_LIGHTING_UPDATES 14
+	#define VISUALIZE_MODE_INDIRECT_LIGHTING_UPDATES 15
+	#define VISUALIZE_MODE_LAST_USED_PAGE 16
+	#define VISUALIZE_MODE_LAST_USED_PAGE_HIGH_RES 17
 
 	uint VisualizeMode;
 #endif
@@ -66,6 +62,7 @@ struct FLumenCardSample
 	uint CardIndex;
 	uint CardPageIndex;
 	float2 PhysicalAtlasUV;
+	float4 TexelBilinearWeights;
 	float2 IndirectLightingPhysicalAtlasUV;
 	uint2 PackedFeedback;
 	bool bValid;
@@ -159,10 +156,19 @@ FLumenCardSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardIndex, 
 	}
 	#endif
 
+	float2 FracUV = frac(PhysicalAtlasUV * LumenCardScene.PhysicalAtlasSize + 0.5f + 1.0f / 512.0f);
+
+	float4 TexelBilinearWeights;
+	TexelBilinearWeights.x = (1.0 - FracUV.x) * (FracUV.y);
+	TexelBilinearWeights.y = (FracUV.x) * (FracUV.y);
+	TexelBilinearWeights.z = (FracUV.x) * (1 - FracUV.y);
+	TexelBilinearWeights.w = (1 - FracUV.x) * (1 - FracUV.y);
+
 	FLumenCardSample CardSample;
 	CardSample.CardIndex = CardIndex;
 	CardSample.CardPageIndex = CardPageIndex;
 	CardSample.PhysicalAtlasUV = PhysicalAtlasUV;
+	CardSample.TexelBilinearWeights = TexelBilinearWeights;
 	CardSample.IndirectLightingPhysicalAtlasUV = IndirectLightingPhysicalAtlasUV;
 	CardSample.bValid = ResLevelXY.x > 0;
 	CardSample.PackedFeedback = PackedFeedback;
@@ -176,7 +182,6 @@ struct FCardSampleAccumulator
 
 	float MaxSampleWeight;
 	float3 LightingSum;
-	float OpacitySum;
 	float SampleWeightSum;
 };
 
@@ -184,14 +189,9 @@ void InitCardSampleAccumulator(inout FCardSampleAccumulator CardSampleAccumulato
 {
 	CardSampleAccumulator.MaxSampleWeight = 0.0f;
 	CardSampleAccumulator.LightingSum = 0.0f;
-	CardSampleAccumulator.OpacitySum = 0.0f;
 	CardSampleAccumulator.SampleWeightSum = 0.0f;
 
-	CardSampleAccumulator.CardSample.CardIndex = 0;
-	CardSampleAccumulator.CardSample.CardPageIndex = 0;
-	CardSampleAccumulator.CardSample.PackedFeedback = uint2(0, 0);
-	CardSampleAccumulator.CardSample.PhysicalAtlasUV = float2(0.0f, 0.0f);
-	CardSampleAccumulator.CardSample.IndirectLightingPhysicalAtlasUV = float2(0.0f, 0.0f);
+	CardSampleAccumulator.CardSample = (FLumenCardSample) 0;
 	CardSampleAccumulator.CardSample.bValid = false;
 }
 
@@ -199,7 +199,6 @@ struct FSurfaceCacheSample
 {
 	// Surface properties
 	float3 Lighting;
-	float Opacity;
 	bool bValid;
 };
 
@@ -251,48 +250,40 @@ void SampleLumenCard(
 
 					if (NormalWeight > 0.0f)
 					{
-						float4 TexelDepths = DepthAtlas.Gather(GlobalPointClampedSampler, CardSample.PhysicalAtlasUV, 0.0f);
+						FSurfaceCacheDepthData DepthData[4];
+						GatherSurfaceCacheDepthData(DepthAtlas, CardSample.PhysicalAtlasUV, /*inout*/ DepthData);
 
-						float NormalizedHitDistance = (-(CardSpacePosition.z) / LumenCardData.LocalExtent.z) * 0.5f + 0.5f;
+						float NormalizedHitDistance = -(CardSpacePosition.z / LumenCardData.LocalExtent.z) * 0.5f + 0.5f;
 						float BiasTreshold = SurfaceCacheBias / LumenCardData.LocalExtent.z;
 						float BiasFalloff = 0.25f * BiasTreshold;
 
-						float4 TexelVisibility = 1.0f;
+						float4 TexelVisibility = 0.0f;
 						for (uint TexelIndex = 0; TexelIndex < 4; ++TexelIndex)
 						{
-							TexelVisibility[TexelIndex] = 1.0f - saturate((abs(NormalizedHitDistance - TexelDepths[TexelIndex]) - BiasTreshold) / BiasFalloff);
-
-							// Skip invalid texels (depth = 1)
-							if (TexelDepths[TexelIndex] >= 1.0f)
+							// Skip invalid texels
+							if (DepthData[TexelIndex].bValid)
 							{
-								TexelVisibility[TexelIndex] = 0.0f;
-							}
-
-							// No need to depth test heightfields
-							if (bHeightfield)
-							{
-								TexelVisibility[TexelIndex] = 1.0f;
+								// No need to depth test heightfields
+								if (bHeightfield)
+								{
+									TexelVisibility[TexelIndex] = 1.0f;
+								}
+								else
+								{
+									TexelVisibility[TexelIndex] = 1.0f - saturate((abs(NormalizedHitDistance - DepthData[TexelIndex].Depth) - BiasTreshold) / BiasFalloff);
+								}
 							}
 						}
 
-						float2 FracUV = frac(CardSample.PhysicalAtlasUV * LumenCardScene.PhysicalAtlasSize + 0.5f + 1.0f / 512.0f);
+						float4 TexelWeights = CardSample.TexelBilinearWeights * TexelVisibility;
 
-						float4 TexelBilinearWeights;
-						TexelBilinearWeights.x = (1.0 - FracUV.x) * (FracUV.y);
-						TexelBilinearWeights.y = (FracUV.x) * (FracUV.y);
-						TexelBilinearWeights.z = (FracUV.x) * (1 - FracUV.y);
-						TexelBilinearWeights.w = (1 - FracUV.x) * (1 - FracUV.y);
-
-						float4 TexelWeights = TexelBilinearWeights * TexelVisibility;
-
-						float CardSampleWeight = NormalWeight * dot(TexelVisibility, TexelBilinearWeights);
+						float CardSampleWeight = NormalWeight * dot(TexelWeights, 1.0f);
 						if (CardSampleWeight > 0.0f)
 						{
 							// Normalize weights
 							float TexelWeightSum = dot(TexelWeights, 1.0f);
 							TexelWeights /= TexelWeightSum;
 
-							float Opacity = SampleSurfaceCacheAtlas(OpacityAtlas, CardSample.PhysicalAtlasUV, TexelWeights).x;
 							float3 Lighting = 0.0f;
 
 							if (AtlasId == FINAL_LIGHTING_ATLAS_ID)
@@ -383,7 +374,6 @@ void SampleLumenCard(
 							#endif
 
 							CardSampleAccumulator.LightingSum += Lighting * CardSampleWeight;
-							CardSampleAccumulator.OpacitySum += Opacity * CardSampleWeight;
 							CardSampleAccumulator.SampleWeightSum += CardSampleWeight;
 
 							// Pick single sample based on the max weight
@@ -415,14 +405,12 @@ FSurfaceCacheSample SampleLumenMeshCards(
 {
 	FSurfaceCacheSample SurfaceCacheSample;
 	SurfaceCacheSample.Lighting = float3(0.0f, 0.0f, 0.0f);
-	SurfaceCacheSample.Opacity = 1.0f;
 	SurfaceCacheSample.bValid = false;
 
 #if ENABLE_VISUALIZE_MODE == 1
 	if (VisualizeMode == VISUALIZE_MODE_SURFACE_CACHE)
 	{
 		SurfaceCacheSample.Lighting = (MeshCardsIndex < LumenCardScene.NumMeshCards ? float3(1, 0, 1) : float3(1, 1, 0)) * View.OneOverPreExposure;
-		SurfaceCacheSample.Opacity = 1.0f;
 	}
 #endif
 
@@ -507,7 +495,6 @@ FSurfaceCacheSample SampleLumenMeshCards(
 		if (CardSampleAccumulator.SampleWeightSum > 0.0f)
 		{
 			SurfaceCacheSample.Lighting = CardSampleAccumulator.LightingSum / CardSampleAccumulator.SampleWeightSum;
-			SurfaceCacheSample.Opacity = CardSampleAccumulator.OpacitySum / CardSampleAccumulator.SampleWeightSum;
 			SurfaceCacheSample.bValid = true;
 		}
 
@@ -545,12 +532,6 @@ FSurfaceCacheSample SampleLumenMeshCards(
 			if (VisualizeMode == VISUALIZE_MODE_GEOMETRY_NORMALS)
 			{
 				SurfaceCacheSample.Lighting = (WorldSpaceNormal * 0.5f + 0.5f) * View.OneOverPreExposure;
-				SurfaceCacheSample.Opacity = 1.0f;
-			}
-			else if (VisualizeMode == VISUALIZE_MODE_OPACITY)
-			{
-				SurfaceCacheSample.Lighting = SurfaceCacheSample.Opacity * View.OneOverPreExposure;
-				SurfaceCacheSample.Opacity = 1.0f;
 			}
 		}
 		#endif

@@ -275,7 +275,7 @@ float3 GetCardLocalPosition(float3 CardLocalExtent, float2 CardUV, float Depth)
 
 	float3 LocalPosition;
 	LocalPosition.xy = CardLocalExtent.xy * (1.0f - 2.0f * CardUV);
-	LocalPosition.z = -CardLocalExtent.z + Depth * 2.0f * CardLocalExtent.z;
+	LocalPosition.z = -(2.0f * Depth - 1.0f) * CardLocalExtent.z;
 
 	return LocalPosition;
 }
@@ -284,8 +284,8 @@ void GetCardLocalBBox(FLumenCardPageData CardPage, FLumenCardData Card, float2 U
 {
 	float2 CardUVMin = lerp(CardPage.CardUVRect.xw, CardPage.CardUVRect.zy, UVMin);
 	float2 CardUVMax = lerp(CardPage.CardUVRect.xw, CardPage.CardUVRect.zy, UVMax);
-	float3 CardPageLocalBoxMin = GetCardLocalPosition(Card.LocalExtent, CardUVMin, 0.0f);
-	float3 CardPageLocalBoxMax = GetCardLocalPosition(Card.LocalExtent, CardUVMax, 1.0f);
+	float3 CardPageLocalBoxMin = GetCardLocalPosition(Card.LocalExtent, CardUVMin, 1.0f);
+	float3 CardPageLocalBoxMax = GetCardLocalPosition(Card.LocalExtent, CardUVMax, 0.0f);
 
 	CardPageLocalCenter = 0.5f * (CardPageLocalBoxMax + CardPageLocalBoxMin);
 	CardPageLocalExtent = 0.5f * (CardPageLocalBoxMax - CardPageLocalBoxMin);
@@ -325,21 +325,6 @@ float2 SamplePositonToCardUV(FLumenCardData Card, float2 LocalSamplePosition)
 {
 	float2 CardUV = saturate(float2(+0.5f, -0.5f) * (LocalSamplePosition / Card.LocalExtent.xy) + 0.5f);
 	return CardUV;
-}
-
-// Return decoded world space normal
-float3 DecodeSurfaceCacheNormal(FLumenCardData Card, float2 EncodedNormal)
-{
-	float3 CardSpaceNormal;
-	CardSpaceNormal.xy = EncodedNormal.xy * 2.0f - 1.0f;
-	CardSpaceNormal.z = sqrt(max(1.0f - length2(CardSpaceNormal.xy), 0.0001f));
-	return mul(Card.WorldToLocalRotation, CardSpaceNormal);
-}
-
-// Return decoded albedo
-float3 DecodeSurfaceCacheAlbedo(float3 EncodedAlbedo)
-{
-	return EncodedAlbedo * EncodedAlbedo;
 }
 
 uint GetMeshCardsIndexFromSceneInstanceIndex(uint SceneInstanceIndex)

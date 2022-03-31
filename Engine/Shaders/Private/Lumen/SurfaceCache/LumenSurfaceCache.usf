@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenCardSceneLighting.usf
-=============================================================================*/
-
-#include "../Common.ush"
-#include "../BRDF.ush"
-#include "LumenCardCommon.ush"
-#include "../BlockCompressionCommon.ush"
-#include "../BCCompressionCommon.ush"
+#include "../../Common.ush"
+#include "../../BRDF.ush"
+#include "../../BlockCompressionCommon.ush"
+#include "../../BCCompressionCommon.ush"
+#include "LumenSurfaceCache.ush"
 
 #ifndef THREADGROUP_SIZE
 	#define THREADGROUP_SIZE 0
@@ -16,14 +12,18 @@
 
 RWTexture2D<uint4> RWAtlasBlock4;
 RWTexture2D<uint2> RWAtlasBlock2;
-Texture2D SourceAtlas;
+
+Texture2D SourceAlbedoAtlas;
+Texture2D SourceNormalAtlas;
+Texture2D SourceEmissiveAtlas;
+Texture2D SourceDepthAtlas;
+
 float2 OneOverSourceAtlasSize;
 
 #define SURFACE_LAYER_DEPTH 0
 #define SURFACE_LAYER_ALBEDO 1
-#define SURFACE_LAYER_OPACITY 2
-#define SURFACE_LAYER_NORMAL 3
-#define SURFACE_LAYER_EMISSIVE 4
+#define SURFACE_LAYER_NORMAL 2
+#define SURFACE_LAYER_EMISSIVE 3
 
 void LumenCardCopyPS(
 	float4 Position : SV_POSITION,
@@ -41,7 +41,7 @@ void LumenCardCopyPS(
 		{
 			float BlockTexels[16];
 			float BlockTexelsY[16];
-			ReadBlockX(SourceAtlas, GlobalPointClampedSampler, AtlasUV - OneOverSourceAtlasSize, OneOverSourceAtlasSize, BlockTexels);
+			ReadBlockX(SourceDepthAtlas, GlobalPointClampedSampler, AtlasUV - OneOverSourceAtlasSize, OneOverSourceAtlasSize, BlockTexels);
 
 			for (uint TexelIndex = 0; TexelIndex < 16; ++TexelIndex)
 			{
@@ -53,10 +53,16 @@ void LumenCardCopyPS(
 		}
 		#else
 		{
-			float SourceDepth = Texture2DSampleLevel(SourceAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
+			bool bValid = Texture2DSampleLevel(SourceAlbedoAtlas, GlobalPointClampedSampler, AtlasUV, 0).w > 0.5f ? true : false;
+
 			// Reverse inverted Z from the HW depth buffer
-			float Depth = 1.0f - SourceDepth;
-			OutColor0 = float4(Depth, 0.0f, 0.0f, 0.0f);
+			float SourceDepth = 1.0f - Texture2DSampleLevel(SourceDepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
+
+			FSurfaceCacheDepthData DepthData;
+			DepthData.bValid = bValid;
+			DepthData.Depth = SourceDepth;
+
+			OutColor0 = float4(EncodeSurfaceCacheDepth(DepthData), 0.0f, 0.0f, 0.0f);
 		}
 		#endif
 	}
@@ -65,28 +71,13 @@ void LumenCardCopyPS(
 		#if COMPRESS
 		{
 			float3 BlockTexels[16];
-			ReadBlockRGB(SourceAtlas, GlobalPointClampedSampler, AtlasUV - OneOverSourceAtlasSize, OneOverSourceAtlasSize, BlockTexels);
+			ReadBlockRGB(SourceAlbedoAtlas, GlobalPointClampedSampler, AtlasUV - OneOverSourceAtlasSize, OneOverSourceAtlasSize, BlockTexels);
 			RWAtlasBlock4[WriteCoord] = CompressBC7Block(BlockTexels);
 		}
 		#else
 		{
-			float3 Albedo = Texture2DSampleLevel(SourceAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
+			float3 Albedo = Texture2DSampleLevel(SourceAlbedoAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
 			OutColor0 = float4(Albedo, 0.0f);
-		}
-		#endif
-	}
-	#elif SURFACE_LAYER == SURFACE_LAYER_OPACITY
-	{
-		#if COMPRESS
-		{
-			float BlockTexels[16];
-			ReadBlockAlpha(SourceAtlas, GlobalPointClampedSampler, AtlasUV - OneOverSourceAtlasSize, OneOverSourceAtlasSize, BlockTexels);
-			RWAtlasBlock2[WriteCoord] = CompressBC4Block(BlockTexels);
-		}
-		#else
-		{
-			float Opacity = Texture2DSampleLevel(SourceAtlas, GlobalPointClampedSampler, AtlasUV, 0).w;
-			OutColor0 = float4(Opacity, 0.0f, 0.0f, 0.0f);
 		}
 		#endif
 	}
@@ -96,12 +87,12 @@ void LumenCardCopyPS(
 		{
 			float BlockTexelsX[16];
 			float BlockTexelsY[16];
-			ReadBlockXY(SourceAtlas, GlobalPointClampedSampler, AtlasUV - OneOverSourceAtlasSize, OneOverSourceAtlasSize, BlockTexelsX, BlockTexelsY);
+			ReadBlockXY(SourceNormalAtlas, GlobalPointClampedSampler, AtlasUV - OneOverSourceAtlasSize, OneOverSourceAtlasSize, BlockTexelsX, BlockTexelsY);
 			RWAtlasBlock4[WriteCoord] = CompressBC5Block(BlockTexelsX, BlockTexelsY);
 		}
 		#else
 		{
-			float3 Normal = Texture2DSampleLevel(SourceAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
+			float3 Normal = Texture2DSampleLevel(SourceNormalAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
 			OutColor0 = float4(Normal.xy, 0.0f, 0.0f);
 		}
 		#endif
@@ -111,12 +102,12 @@ void LumenCardCopyPS(
 		#if COMPRESS
 		{
 			float3 BlockTexels[16];
-			ReadBlockRGB(SourceAtlas, GlobalPointClampedSampler, AtlasUV - OneOverSourceAtlasSize, OneOverSourceAtlasSize, BlockTexels);
+			ReadBlockRGB(SourceEmissiveAtlas, GlobalPointClampedSampler, AtlasUV - OneOverSourceAtlasSize, OneOverSourceAtlasSize, BlockTexels);
 			RWAtlasBlock4[WriteCoord] = CompressBC6HBlock(BlockTexels);
 		}
 		#else
 		{
-			float3 Emissive = Texture2DSampleLevel(SourceAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
+			float3 Emissive = Texture2DSampleLevel(SourceEmissiveAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
 			OutColor0 = float4(Emissive, 0.0f);
 		}
 		#endif
@@ -155,15 +146,6 @@ void ClearCompressedAtlasCS(
 				BlockTexels[TexelIndex] = ClearValue;
 			}
 			RWAtlasBlock4[WriteCoord] = CompressBC7Block(BlockTexels);
-		}
-		#elif SURFACE_LAYER == SURFACE_LAYER_OPACITY
-		{
-			float BlockTexels[16];
-			for (uint TexelIndex = 0; TexelIndex < 16; ++TexelIndex)
-			{
-				BlockTexels[TexelIndex] = ClearValue.x;
-			}
-			RWAtlasBlock2[WriteCoord] = CompressBC4Block(BlockTexels);
 		}
 		#elif SURFACE_LAYER == SURFACE_LAYER_NORMAL
 		{

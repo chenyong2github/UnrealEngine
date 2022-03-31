@@ -16,7 +16,7 @@
 #include "../DistanceFieldLightingShared.ush"
 #define USE_GLOBAL_GPU_SCENE_DATA 1
 #include "../SceneData.ush"
-#include "LumenSurfaceCacheSampling.ush"
+#include "SurfaceCache/LumenSurfaceCacheSampling.ush"
 
 #ifndef VISIBILITY_ONLY_TRACE
 	#define VISIBILITY_ONLY_TRACE 0
@@ -811,12 +811,12 @@ FHeightfieldRayStep HeightfieldRayStep(FLumenCardData LumenCardData, uint LocalC
 
 	FLumenCardSample CardSample = ComputeSurfaceCacheSample(LumenCardData, LocalCardIndex, LocalSamplePosition.xy, SampleRadius, bHiResSurface);
 
-	float NormalizedDepth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, CardSample.PhysicalAtlasUV, 0).x;
+	float NormalizedDepth = Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, CardSample.PhysicalAtlasUV, 0).x;
 
 	FHeightfieldRayStep RayStep;
 	RayStep.tValue = tValue;
 	RayStep.LocalSamplePosition = LocalSamplePosition;
-	RayStep.LocalHeightfieldDepth = -LumenCardData.LocalExtent.z + NormalizedDepth * 2.0f * LumenCardData.LocalExtent.z;
+	RayStep.LocalHeightfieldDepth = -(2.0f * NormalizedDepth - 1.0f) * LumenCardData.LocalExtent.z;
 	RayStep.bAboveHeightfield = RayStep.LocalSamplePosition.z > RayStep.LocalHeightfieldDepth;
 	return RayStep;
 }
@@ -829,7 +829,15 @@ float GetHeightfieldAlpha(FLumenCardData LumenCardData, uint LocalCardIndex, FCo
 
 	FLumenCardSample CardSample = ComputeSurfaceCacheSample(LumenCardData, LocalCardIndex, LocalSamplePosition.xy, SampleRadius, bHiResSurface);
 
-	return Texture2DSampleLevel(LumenCardScene.OpacityAtlas, GlobalBilinearClampedSampler, CardSample.PhysicalAtlasUV, 0).x;
+	float4 AlphaWeights = 1.0f;
+	FSurfaceCacheDepthData DepthData[4];
+	GatherSurfaceCacheDepthData(LumenCardScene.DepthAtlas, CardSample.PhysicalAtlasUV, /*inout*/ DepthData);
+	for (uint TexelIndex = 0; TexelIndex < 4; ++TexelIndex)
+	{
+		AlphaWeights[TexelIndex] = DepthData[TexelIndex].bValid ? 1.0f : 0.0f;
+	}
+
+	return dot(CardSample.TexelBilinearWeights, AlphaWeights);
 }
 
 bool EvaluateHeightfieldHit(

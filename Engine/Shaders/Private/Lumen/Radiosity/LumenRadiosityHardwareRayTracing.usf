@@ -63,7 +63,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 			float3 Radiance = 0.0f;
 			float TraceHitDistance = MaxTraceDistance;
 
-			if (RadiosityTexel.Opacity > 0.0f)
+			if (RadiosityTexel.bValid)
 			{
 				float3 TranslatedWorldPosition = RadiosityTexel.WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 				float3 WorldNormal = RadiosityTexel.WorldNormal;

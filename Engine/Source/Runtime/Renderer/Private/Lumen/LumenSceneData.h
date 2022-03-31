@@ -52,7 +52,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, HeightfieldData)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, PageTableBuffer)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, SceneInstanceIndexToMeshCardsIndexBuffer)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NormalAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
@@ -439,7 +438,6 @@ public:
 
 	// Captured from the triangle scene
 	TRefCountPtr<IPooledRenderTarget> AlbedoAtlas;
-	TRefCountPtr<IPooledRenderTarget> OpacityAtlas;
 	TRefCountPtr<IPooledRenderTarget> NormalAtlas;
 	TRefCountPtr<IPooledRenderTarget> EmissiveAtlas;
 	TRefCountPtr<IPooledRenderTarget> DepthAtlas;

@@ -120,17 +120,16 @@ void Main(
 #else // TEMPLATE_USES_STRATA
 
 	float3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
-	float  Metallic = GetMaterialMetallic(PixelMaterialInputs);
-	float  Specular = GetMaterialSpecular(PixelMaterialInputs);
-
+	float Metallic = GetMaterialMetallic(PixelMaterialInputs);
+	float Specular = GetMaterialSpecular(PixelMaterialInputs);
 	float Roughness = GetMaterialRoughness(PixelMaterialInputs);
+	float3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
 
+	bool bValidPixel = true;
 #if MATERIALBLENDING_ANY_TRANSLUCENT
-	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	bValidPixel = GetMaterialOpacity(PixelMaterialInputs) > 0.5f;
 #elif MATERIALBLENDING_MASKED
-	float Opacity = GetMaterialMask(PixelMaterialInputs) >= 0.0f ? 1.0f : 0.0f;
-#else
-	float Opacity = 1.0f;
+	bValidPixel = GetMaterialMask(PixelMaterialInputs) >= 0.0f;
 #endif
 
 	float3 DiffuseColor = BaseColor - BaseColor * Metallic;
@@ -140,6 +139,7 @@ void Main(
 
 	uint ShadingModel = GetMaterialShadingModel(PixelMaterialInputs);
 
+	float3 SubsurfaceColor = 0.0f;
 #if MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_CLOTH || MATERIAL_SHADINGMODEL_EYE
 	if (ShadingModel == SHADINGMODELID_SUBSURFACE || ShadingModel == SHADINGMODELID_PREINTEGRATED_SKIN || ShadingModel == SHADINGMODELID_SUBSURFACE_PROFILE || ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE || ShadingModel == SHADINGMODELID_CLOTH || ShadingModel == SHADINGMODELID_EYE)
 	{
@@ -151,11 +151,9 @@ void Main(
 	// Normals are stored in local card space
 	const float3 CardSpaceNormal = mul(float4(MaterialParameters.WorldNormal, 0.0f), ResolvedView.TranslatedWorldToView).xyz;
 
-	const float3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
-
 #endif // TEMPLATE_USES_STRATA
 
-	OutTarget0 = float4(sqrt(DiffuseColor), Opacity);
+	OutTarget0 = float4(sqrt(DiffuseColor), bValidPixel ? 1.0f : 0.0f);
 	OutTarget1 = float4(CardSpaceNormal.xy * 0.5f + 0.5f, 0.0f, 0.0f);
 	OutTarget2 = float4(Emissive, 0.0f);
 }
