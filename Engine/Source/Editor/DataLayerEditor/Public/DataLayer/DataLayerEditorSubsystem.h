@@ -18,6 +18,24 @@ class ULevel;
 class UWorld;
 template<typename TItemType> class IFilter;
 
+USTRUCT(BlueprintType)
+struct FDataLayerCreationParameters
+{
+	GENERATED_USTRUCT_BODY()
+
+	// Required. Will assign the asset to the created instance.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data Layer")
+	TObjectPtr<UDataLayerAsset> DataLayerAsset;
+
+	// Optional. Will create the Data Layer at root level is unset.
+	UPROPERTY()
+	TObjectPtr<UDataLayerInstance> ParentDataLayer;
+
+	// Optional. Will default at the level WorldDataLayers if unset.
+	UPROPERTY()
+	TObjectPtr<AWorldDataLayers> WorlDataLayers;
+};
+
 UCLASS()
 class DATALAYEREDITOR_API UDataLayerEditorSubsystem final : public UEditorSubsystem, public IActorEditorContextClient
 {
@@ -485,11 +503,11 @@ public:
 	/**
 	 * Creates a UDataLayerInstance Object
 	 *
-	 * @param	ParentDataLayer	An optional data layer that will parent the newly created data layer
+	 * @param	Parameters The Data Layer Instance creation parameters
 	 * @return	The newly created UDataLayerInstance Object
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	UDataLayerInstance* CreateDataLayer(UDataLayerInstance* ParentDataLayer = nullptr);
+	UDataLayerInstance* CreateDataLayerInstance(const FDataLayerCreationParameters& Parameters);
 
 	/**
 	 * Sets a Parent DataLayer for a specified DataLayer
@@ -587,6 +605,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	bool RenameDataLayer(UDataLayerInstance* DataLayer, const FName& NewDataLayerLabel);
 
+	UE_DEPRECATED(5.1, "Use CreateDataLayerInstance with FDataLayerCreationParameters instead")
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	UDataLayerInstance* CreateDataLayer(UDataLayerInstance* ParentDataLayer = nullptr) { return nullptr; }
+
 	//~ End Deprecated
 
 private:
@@ -645,8 +667,6 @@ private:
 	void OnSelectionChanged();
 	void RebuildSelectedDataLayersFromEditorSelection();
 
-	bool PromptDataLayerAssetSelection(FAssetData& OutAsset) const;
-
 	/** Contains Data Layers that contain actors that are part of the editor selection */
 	TSet<TWeakObjectPtr<const UDataLayerInstance>> SelectedDataLayersFromEditorSelection;
 
@@ -661,9 +681,6 @@ private:
 
 	/** Delegate used to notify changes to ActorEditorContextSubsystem */
 	FOnActorEditorContextClientChanged ActorEditorContextClientChanged;
-
-	/** The path at which the "Pick A Data Layer Asset" will be opened*/
-	mutable FString PickDataLayerDialogPath;
 
 	static void OnActorDescContainerInitialized(class UActorDescContainer* InActorDescContainer);
 

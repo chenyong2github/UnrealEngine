@@ -25,8 +25,6 @@
 #include "EngineUtils.h"
 #include "Editor.h"
 #include "Subsystems/ActorEditorContextSubsystem.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
@@ -1030,39 +1028,14 @@ void UDataLayerEditorSubsystem::AddAllDataLayersTo(TArray<TWeakObjectPtr<UDataLa
 	}
 }
 
-UDataLayerInstance* UDataLayerEditorSubsystem::CreateDataLayer(UDataLayerInstance* ParentDataLayer)
+UDataLayerInstance* UDataLayerEditorSubsystem::CreateDataLayerInstance(const FDataLayerCreationParameters& Parameters)
 {
 	UDataLayerInstance* NewDataLayer = nullptr;
 
-
-	AWorldDataLayers* WorldDataLayers = GetWorldDataLayers(/*bCreateIfNotFound*/true);
-	if (!WorldDataLayers->HasDeprecatedDataLayers())
+	AWorldDataLayers* WorldDataLayers = Parameters.WorlDataLayers != nullptr ? Parameters.WorlDataLayers.Get() : GetWorld()->GetWorldDataLayers();
+	if (!HasDeprecatedDataLayers())
 	{
-		bool bContinuePrompt = true;
-		while (bContinuePrompt)
-		{
-			FAssetData AssetData;
-			bContinuePrompt = PromptDataLayerAssetSelection(AssetData);
-			if (bContinuePrompt)
-			{
-				UDataLayerAsset* DataLayerAsset = CastChecked<UDataLayerAsset>(AssetData.GetAsset());
-				if (UDataLayerInstance* DataLayerInstance = GetDataLayerInstance(DataLayerAsset))
-				{
-					FText WarningMessage(LOCTEXT("CreateDataLayerAlreadyExist", "A Data Layer of that asset already exists. Pick another Data Layer?"));
-					bContinuePrompt = FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage) == EAppReturnType::Yes;
-				}
-				else if (ParentDataLayer != nullptr && ParentDataLayer->GetType() != DataLayerAsset->GetType())
-				{
-					FText WarningMessage(LOCTEXT("CreateDataLayerDiffType", "The parent data layer is of a different type. Pick another Data Layer?"));
-					bContinuePrompt = FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage) == EAppReturnType::Yes;
-				}
-				else
-				{
-					NewDataLayer = WorldDataLayers->CreateDataLayer<UDataLayerInstanceWithAsset>(DataLayerAsset);
-					bContinuePrompt = false;
-				}
-			}
-		}
+		NewDataLayer = WorldDataLayers->CreateDataLayer<UDataLayerInstanceWithAsset>(Parameters.DataLayerAsset);
 	}
 	else
 	{
@@ -1072,7 +1045,7 @@ UDataLayerInstance* UDataLayerEditorSubsystem::CreateDataLayer(UDataLayerInstanc
 	if (NewDataLayer != nullptr)
 	{
 		BroadcastDataLayerChanged(EDataLayerAction::Add, NewDataLayer, NAME_None);
-		SetParentDataLayer(NewDataLayer, ParentDataLayer);
+		SetParentDataLayer(NewDataLayer, Parameters.ParentDataLayer);
 	}
 	
 	return NewDataLayer;
@@ -1131,28 +1104,6 @@ void UDataLayerEditorSubsystem::RebuildSelectedDataLayersFromEditorSelection()
 			SelectedDataLayersFromEditorSelection.Add(DataLayerInstance);
 		}
 	}
-}
-
-
-bool UDataLayerEditorSubsystem::PromptDataLayerAssetSelection(FAssetData& OutAsset) const
-{
-	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
-
-	FOpenAssetDialogConfig Config;
-	Config.bAllowMultipleSelection = false;
-	Config.AssetClassNames.Add(UDataLayerAsset::StaticClass()->GetFName());
-	Config.DefaultPath = PickDataLayerDialogPath;
-	Config.DialogTitleOverride = LOCTEXT("PickDataLayerAssetDialogTitle", "Pick A Data Layer Asset");
-
-	TArray<FAssetData> Assets = ContentBrowserSingleton.CreateModalOpenAssetDialog(Config);
-	if (Assets.Num() == 1)
-	{
-		OutAsset = Assets[0];
-		OutAsset.PackagePath.ToString(PickDataLayerDialogPath);
-		return true;
-	}
-
-	return false;
 }
 
 //~ Begin Deprecated

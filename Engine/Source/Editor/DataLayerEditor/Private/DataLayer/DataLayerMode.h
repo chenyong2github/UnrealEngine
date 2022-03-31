@@ -111,6 +111,8 @@ private:
 	void RefreshSelection();
 	FSceneOutlinerDragValidationInfo ValidateDrop(const ISceneOutlinerTreeItem& DropTarget, bool bMoveOperation = false) const;
 
+	UDataLayerAsset* PromptDataLayerAssetSelection();
+
 	/** Filter factories */
 	static TSharedRef<FSceneOutlinerFilter> CreateShowOnlySelectedActorsFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideEditorDataLayersFilter();
@@ -132,6 +134,8 @@ private:
 	uint32 FilteredDataLayerCount = 0;
 	/** List of datalayers which passed the regular filters and may or may not have passed the search filter */
 	TSet<TWeakObjectPtr<UDataLayerInstance>> ApplicableDataLayers;
+	/** The path at which the "Pick A Data Layer Asset" will be opened*/
+	mutable FString PickDataLayerDialogPath;
 
 	TSet<TWeakObjectPtr<const UDataLayerInstance>> SelectedDataLayersSet;
 	typedef TPair<TWeakObjectPtr<const UDataLayerInstance>, TWeakObjectPtr<const AActor>> FSelectedDataLayerActor;

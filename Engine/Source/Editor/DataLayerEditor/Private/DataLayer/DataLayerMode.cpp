@@ -3,9 +3,12 @@
 #include "DataLayerMode.h"
 #include "SSceneOutliner.h"
 #include "SDataLayerBrowser.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "DataLayer/DataLayerOutlinerDeleteButtonColumn.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "DataLayer/SDataLayerOutliner.h"
 #include "DataLayerHierarchy.h"
 #include "DataLayerActorTreeItem.h"
@@ -928,11 +931,17 @@ void FDataLayerMode::RegisterContextMenu()
 					const FScopedDataLayerTransaction Transaction(LOCTEXT("CreateNewDataLayer", "Create New Data Layer"), RepresentingWorld.Get());
 					SelectedDataLayersSet.Empty();
 					SelectedDataLayerActors.Empty();
-					if (UDataLayerInstance* NewDataLayerInstance = DataLayerEditorSubsystem->CreateDataLayer(ParentDataLayer))
+					if (UDataLayerAsset* DataLayerAsset = PromptDataLayerAssetSelection())
 					{
-						SelectedDataLayersSet.Add(NewDataLayerInstance);
-						// Select it and open a rename when it gets refreshed
-						SceneOutliner->OnItemAdded(NewDataLayerInstance, SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename);
+						FDataLayerCreationParameters CreationParams;
+						CreationParams.DataLayerAsset = DataLayerAsset;
+						CreationParams.ParentDataLayer = ParentDataLayer;
+						if (UDataLayerInstance* NewDataLayerInstance = DataLayerEditorSubsystem->CreateDataLayerInstance(CreationParams))
+						{
+							SelectedDataLayersSet.Add(NewDataLayerInstance);
+							// Select it and open a rename when it gets refreshed
+							SceneOutliner->OnItemAdded(NewDataLayerInstance, SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename);
+						}
 					}
 				};
 
@@ -949,10 +958,15 @@ void FDataLayerMode::RegisterContextMenu()
 				Section.AddMenuEntry("AddSelectedActorsToNewDataLayer", LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Selected Actors to New Data Layer"), FText(), FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([this]() {
-							const FScopedDataLayerTransaction Transaction(LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Selected Actors to New Data Layer"), RepresentingWorld.Get());
-							if (UDataLayerInstance* NewDataLayer = DataLayerEditorSubsystem->CreateDataLayer())
+							if (UDataLayerAsset* DataLayerAsset = PromptDataLayerAssetSelection())
 							{
-								DataLayerEditorSubsystem->AddSelectedActorsToDataLayer(NewDataLayer);
+								const FScopedDataLayerTransaction Transaction(LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Selected Actors to New Data Layer"), RepresentingWorld.Get());
+								FDataLayerCreationParameters CreationParams;
+								CreationParams.DataLayerAsset = DataLayerAsset;
+								if (UDataLayerInstance* NewDataLayerInstance = DataLayerEditorSubsystem->CreateDataLayerInstance(CreationParams))
+								{
+									DataLayerEditorSubsystem->AddSelectedActorsToDataLayer(NewDataLayerInstance);
+								}
 							}}),
 						FCanExecuteAction::CreateLambda([] { return GEditor->GetSelectedActorCount() > 0; })
 					));
@@ -1518,6 +1532,26 @@ TSharedRef<FSceneOutlinerFilter> FDataLayerMode::CreateShowOnlySelectedActorsFil
 		return InActor && InActor->IsSelected();
 	};
 	return MakeShareable(new FDataLayerActorFilter(FDataLayerActorTreeItem::FFilterPredicate::CreateStatic(IsActorSelected), FSceneOutlinerFilter::EDefaultBehaviour::Pass, FDataLayerActorTreeItem::FFilterPredicate::CreateStatic(IsActorSelected)));
+}
+
+UDataLayerAsset* FDataLayerMode::PromptDataLayerAssetSelection()
+{
+	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
+
+	FOpenAssetDialogConfig Config;
+	Config.bAllowMultipleSelection = false;
+	Config.AssetClassNames.Add(UDataLayerAsset::StaticClass()->GetFName());
+	Config.DefaultPath = PickDataLayerDialogPath;
+	Config.DialogTitleOverride = LOCTEXT("PickDataLayerAssetDialogTitle", "Pick a Data Layer Asset");
+
+	TArray<FAssetData> Assets = ContentBrowserSingleton.CreateModalOpenAssetDialog(Config);
+	if (Assets.Num() == 1)
+	{
+		Assets[0].PackagePath.ToString(PickDataLayerDialogPath);
+		return CastChecked<UDataLayerAsset>(Assets[0].GetAsset());
+	}
+
+	return nullptr;
 }
 
 void FDataLayerMode::SynchronizeSelection()
