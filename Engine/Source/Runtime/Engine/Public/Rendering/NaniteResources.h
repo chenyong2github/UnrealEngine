@@ -296,4 +296,6 @@ private:
 
 extern ENGINE_API TGlobalResource< FVertexFactoryResource > GVertexFactoryResource;
 
+ENGINE_API bool GetSupportsRayTracingProceduralPrimitive(EShaderPlatform InShaderPlatform);
+
 } // namespace Nanite

@@ -161,8 +161,6 @@ static FAutoConsoleVariableRef CVarStaticMeshMinLodQualityLevel(
 	FConsoleVariableDelegate::CreateStatic(&UStaticMesh::OnLodStrippingQualityLevelChanged),
 	ECVF_Scalability);
 
-bool GetSupportsRaytracingNaniteProceduralPrimitive(EShaderPlatform InShaderPlatform);
-
 #if ENABLE_COOK_STATS
 namespace StaticMeshCookStats
 {
@@ -1335,7 +1333,7 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled() && Parent->bSupportRayTracing)
 	{
-		const bool bProceduralPrimitive = Parent->HasValidNaniteData() && GetSupportsRaytracingNaniteProceduralPrimitive(GMaxRHIShaderPlatform);
+		const bool bProceduralPrimitive = Parent->HasValidNaniteData() && Nanite::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform);
 		ENQUEUE_RENDER_COMMAND(InitStaticMeshRayTracingGeometry)(
 			[this, DebugName = Parent->GetFName(), bProceduralPrimitive](FRHICommandListImmediate& RHICmdList)
 			{

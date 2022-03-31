@@ -114,13 +114,12 @@ static FAutoConsoleVariableRef CVarNaniteRaytracingProceduralPrimitive(
 	TEXT("Whether to raytrace nanite meshes using procedural primitives instead of a proxy."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
-bool GetSupportsRaytracingNaniteProceduralPrimitive(EShaderPlatform InShaderPlatform)
+namespace Nanite
+{
+bool GetSupportsRayTracingProceduralPrimitive(EShaderPlatform InShaderPlatform)
 {
 	return GNaniteRaytracingProceduralPrimitive && VF_NANITE_PROCEDURAL_INTERSECTOR && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(InShaderPlatform);
 }
-
-namespace Nanite
-{
 
 static_assert(sizeof(FPackedCluster) == NANITE_NUM_PACKED_CLUSTER_FLOAT4S * 16, "NANITE_NUM_PACKED_CLUSTER_FLOAT4S out of sync with sizeof(FPackedCluster)");
 

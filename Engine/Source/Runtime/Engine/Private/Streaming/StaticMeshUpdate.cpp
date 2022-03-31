@@ -21,8 +21,6 @@ static FAutoConsoleVariableRef CVarStreamingMaxReferenceChecksBeforeStreamOut(
 	ECVF_Default
 );
 
-bool GetSupportsRaytracingNaniteProceduralPrimitive(EShaderPlatform InShaderPlatform);
-
 // Instantiate TRenderAssetUpdate for FStaticMeshUpdateContext
 template class TRenderAssetUpdate<FStaticMeshUpdateContext>;
 
@@ -177,7 +175,7 @@ void FStaticMeshStreamIn::CreateBuffers_Internal(const FContext& Context)
 				LODResource.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
 			{
 				FRayTracingGeometryInitializer Initializer;
-				if (Context.Mesh->HasValidNaniteData() && GetSupportsRaytracingNaniteProceduralPrimitive(GMaxRHIShaderPlatform))
+				if (Context.Mesh->HasValidNaniteData() && Nanite::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform))
 				{
 					FStaticMeshLODResources::SetupRayTracingProceduralGeometryInitializer(Initializer, Context.Mesh->GetFName());
 				}
@@ -265,7 +263,7 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 				{
 					// Rebuild the initializer because it could have been reset during a previous release
 					FRayTracingGeometryInitializer Initializer;
-					if (Context.Mesh->HasValidNaniteData() && GetSupportsRaytracingNaniteProceduralPrimitive(GMaxRHIShaderPlatform))
+					if (Context.Mesh->HasValidNaniteData() && Nanite::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform))
 					{
 						FStaticMeshLODResources::SetupRayTracingProceduralGeometryInitializer(Initializer, Context.Mesh->GetFName());
 					}
