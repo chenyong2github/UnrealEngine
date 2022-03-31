@@ -101,7 +101,7 @@ namespace Metasound
 		const FInputDataVertex& ToVertex = ToVertexInterface.GetInputVertex(ToKey);
 
 
-		if (FromVertex.GetDataTypeName() != ToVertex.GetDataTypeName())
+		if (FromVertex.DataTypeName != ToVertex.DataTypeName)
 		{
 			return false;
 		}

@@ -59,9 +59,9 @@ namespace Metasound
 				static const FVertexInterface DefaultInterface(
 					FInputVertexInterface(
 
-						TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputTrigger)),
-						TInputDataVertexModel<FString>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputLabel)),
-						TInputDataVertexModel<PrintLogType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputValueToLog))
+						TInputDataVertex<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputTrigger)),
+						TInputDataVertex<FString>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputLabel)),
+						TInputDataVertex<PrintLogType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputValueToLog))
 					),
 					FOutputVertexInterface(
 					)

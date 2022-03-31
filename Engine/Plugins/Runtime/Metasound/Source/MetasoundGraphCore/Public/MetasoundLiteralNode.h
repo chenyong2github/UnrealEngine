@@ -113,7 +113,7 @@ namespace Metasound
 			return FVertexInterface(
 				FInputVertexInterface(),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<DataType>(METASOUND_GET_PARAM_NAME(OutputValue), OutputMetadata)
+					TOutputDataVertex<DataType>(METASOUND_GET_PARAM_NAME(OutputValue), OutputMetadata)
 				)
 			);
 		}

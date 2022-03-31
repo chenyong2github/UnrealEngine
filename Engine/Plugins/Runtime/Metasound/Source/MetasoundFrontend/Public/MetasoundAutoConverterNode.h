@@ -64,10 +64,10 @@ namespace Metasound
 
 			return FVertexInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FromDataType>(GetInputName(), InputDesc)
+					TInputDataVertex<FromDataType>(GetInputName(), FDataVertexMetadata{ InputDesc })
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<ToDataType>(GetOutputName(), OutputDesc)
+					TOutputDataVertex<ToDataType>(GetOutputName(), FDataVertexMetadata{ OutputDesc })
 				)
 			);
 		}

@@ -49,15 +49,15 @@ namespace Metasound
 			{
 				static const FVertexInterface DefaultInterface(
 					FInputVertexInterface(
-						TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputValueName)),
-						TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInRangeAName), 0),
-						TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInRangeBName), 100),
-						TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOutRangeAName), 0),
-						TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOutRangeBName), 100),
-						TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputClampedName), true)
+						TInputDataVertex<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputValueName)),
+						TInputDataVertex<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInRangeAName), 0),
+						TInputDataVertex<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInRangeBName), 100),
+						TInputDataVertex<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOutRangeAName), 0),
+						TInputDataVertex<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOutRangeBName), 100),
+						TInputDataVertex<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputClampedName), true)
 					),
 					FOutputVertexInterface(
-						TOutputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValueName))
+						TOutputDataVertex<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValueName))
 					)
 				);
 				return DefaultInterface;
@@ -133,15 +133,15 @@ namespace Metasound
 			{
 				static const FVertexInterface DefaultInterface(
 					FInputVertexInterface(
-						TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputValueName)),
-						TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInRangeAName), 0.0f),
-						TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInRangeBName), 1.0f),
-						TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOutRangeAName), 0.0f),
-						TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOutRangeBName), 1.0f),
-						TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputClampedName), true)
+						TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputValueName)),
+						TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInRangeAName), 0.0f),
+						TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInRangeBName), 1.0f),
+						TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOutRangeAName), 0.0f),
+						TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOutRangeBName), 1.0f),
+						TInputDataVertex<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputClampedName), true)
 					),
 					FOutputVertexInterface(
-						TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValueName))
+						TOutputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValueName))
 					)
 				);
 				return DefaultInterface;
@@ -217,15 +217,15 @@ namespace Metasound
 			{
 				static const FVertexInterface DefaultInterface(
 					FInputVertexInterface(
-						TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputValueName)),
-						TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInRangeAName), -1.0f),
-						TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInRangeBName), 1.0f),
-						TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOutRangeAName), -1.0f),
-						TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOutRangeBName), 1.0f),
-						TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputClampedName), true)
+						TInputDataVertex<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputValueName)),
+						TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInRangeAName), -1.0f),
+						TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInRangeBName), 1.0f),
+						TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOutRangeAName), -1.0f),
+						TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputOutRangeBName), 1.0f),
+						TInputDataVertex<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputClampedName), true)
 					),
 					FOutputVertexInterface(
-						TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValueName))
+						TOutputDataVertex<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValueName))
 					)
 				);
 

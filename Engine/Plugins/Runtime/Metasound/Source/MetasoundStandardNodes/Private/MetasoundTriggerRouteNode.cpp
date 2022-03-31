@@ -113,13 +113,13 @@ namespace Metasound
 						, GetInputValueDisplayName(i) // display name
 					};
 
-					InputInterface.Add(TInputDataVertexModel<FTrigger>(GetInputTriggerName(i), InputTriggerMetadata));
-					InputInterface.Add(TInputDataVertexModel<ValueType>(GetInputValueName(i), InputValueMetadata));
+					InputInterface.Add(TInputDataVertex<FTrigger>(GetInputTriggerName(i), InputTriggerMetadata));
+					InputInterface.Add(TInputDataVertex<ValueType>(GetInputValueName(i), InputValueMetadata));
 				}
 
 				FOutputVertexInterface OutputInterface;
-				OutputInterface.Add(TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTrigger)));
-				OutputInterface.Add(TOutputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValue)));
+				OutputInterface.Add(TOutputDataVertex<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTrigger)));
+				OutputInterface.Add(TOutputDataVertex<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValue)));
 				return FVertexInterface(InputInterface, OutputInterface);
 			};
 

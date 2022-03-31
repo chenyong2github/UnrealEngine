@@ -55,11 +55,11 @@ namespace Metasound
 			};
 			return FVertexInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput), AddressInputMetadata),
-					TInputDataVertexModel<TDataType>(METASOUND_GET_PARAM_NAME(DefaultDataInput), DefaultDataInputMetadata)
+					TInputDataVertex<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput), AddressInputMetadata),
+					TInputDataVertex<TDataType>(METASOUND_GET_PARAM_NAME(DefaultDataInput), DefaultDataInputMetadata)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<TDataType>(METASOUND_GET_PARAM_NAME(Output), OutputMetadata)
+					TOutputDataVertex<TDataType>(METASOUND_GET_PARAM_NAME(Output), OutputMetadata)
 				)
 			);
 		}

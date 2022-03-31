@@ -146,7 +146,7 @@ namespace Metasound
 			{
 				FInputVertexInterface InputInterface;
 
-				InputInterface.Add(TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputCrossfadeValue)));
+				InputInterface.Add(TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputCrossfadeValue)));
 
 				for (uint32 i = 0; i < NumInputs; ++i)
 				{
@@ -156,11 +156,11 @@ namespace Metasound
 						GetInputDisplayName(i)
 					};
 
-					InputInterface.Add(TInputDataVertexModel<ValueType>(GetInputName(i), InputMetadata));
+					InputInterface.Add(TInputDataVertex<ValueType>(GetInputName(i), InputMetadata));
 				}
 
 				FOutputVertexInterface OutputInterface;
-				OutputInterface.Add(TOutputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTrigger)));
+				OutputInterface.Add(TOutputDataVertex<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputTrigger)));
 
 				return FVertexInterface(InputInterface, OutputInterface);
 			};

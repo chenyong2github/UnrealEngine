@@ -83,7 +83,7 @@ namespace Metasound
 						FInputVertexInterface{},
 						FOutputVertexInterface
 						{
-							TOutputDataVertexModel<FSendAddress>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAddress))
+							TOutputDataVertex<FSendAddress>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAddress))
 						}
 					};
 
@@ -133,8 +133,8 @@ namespace Metasound
 			// should never contain null nodes for input destination.
 			check(InputDestination.Node != nullptr);
 
-			const FVertexName& VertexKey = InputDestination.Vertex.GetVertexName();
-			const FName& DataType = InputDestination.Vertex.GetDataTypeName();
+			const FVertexName& VertexKey = InputDestination.Vertex.VertexName;
+			const FName& DataType = InputDestination.Vertex.DataTypeName;
 
 			// Create a receive node.
 			const FGuid ReceiveNodeID = FGuid::NewGuid();
@@ -142,7 +142,7 @@ namespace Metasound
 
 			if (!ReceiveNode.IsValid())
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create receive node while injecting receive node for graph input [VertexKey:%s, VertexDescription:%s, DataTypeName:%s]"), *VertexKey.ToString(), *InputDestination.Vertex.GetMetadata().Description.ToString(), *DataType.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create receive node while injecting receive node for graph input [VertexKey:%s, VertexDescription:%s, DataTypeName:%s]"), *VertexKey.ToString(), *InputDestination.Vertex.Metadata.Description.ToString(), *DataType.ToString());
 				return false;
 			}
 
@@ -152,7 +152,7 @@ namespace Metasound
 
 			if (!AddressNode.IsValid())
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create address node while injecting receive node for graph input [VertexKey:%s, VertexDescription:%s, DataTypeName:%s]"), *VertexKey.ToString(), *InputDestination.Vertex.GetMetadata().Description.ToString(), *DataType.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create address node while injecting receive node for graph input [VertexKey:%s, VertexDescription:%s, DataTypeName:%s]"), *VertexKey.ToString(), *InputDestination.Vertex.Metadata.Description.ToString(), *DataType.ToString());
 				return false;
 			}
 
@@ -165,7 +165,7 @@ namespace Metasound
 
 			auto IsEdgeConnectedToCurrentInput = [&InputDestination](const FDataEdge& InEdge)
 			{
-				return (InEdge.From.Node == InputDestination.Node) && (InEdge.From.Vertex.GetVertexName() == InputDestination.Vertex.GetVertexName());
+				return (InEdge.From.Node == InputDestination.Node) && (InEdge.From.Vertex.VertexName == InputDestination.Vertex.VertexName);
 			};
 
 			// Cache previous connections from input node.
@@ -205,7 +205,7 @@ namespace Metasound
 					continue;
 				}
 
-				const FVertexName& VertexKey = InputDestination.Vertex.GetVertexName();
+				const FVertexName& VertexKey = InputDestination.Vertex.VertexName;
 				if (InInputVertexNames.Contains(VertexKey))
 				{
 					const bool bInjectionSuccess = InjectReceiveNode(InGraph, InAddressFunction, InputDestination);

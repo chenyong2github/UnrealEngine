@@ -191,7 +191,7 @@ namespace Metasound
 				FInputVertexInterface(
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), OutputVariableMetadata)
+					TOutputDataVertex<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), OutputVariableMetadata)
 				)
 			);
 		}
@@ -338,11 +338,11 @@ namespace Metasound
 
 		return FVertexInterface(
 			FInputVertexInterface(
-				TInputDataVertexModel<DataType>(METASOUND_GET_PARAM_NAME(InputData), InputDataMetadata),
-				TInputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable), InputVariableMetadata)
+				TInputDataVertex<DataType>(METASOUND_GET_PARAM_NAME(InputData), InputDataMetadata),
+				TInputDataVertex<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable), InputVariableMetadata)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), OutputVariableMetadata)
+				TOutputDataVertex<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), OutputVariableMetadata)
 			)
 		);
 	}
@@ -454,11 +454,11 @@ namespace Metasound
 
 		return FVertexInterface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable), InputVariableMetadata)
+				TInputDataVertex<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable), InputVariableMetadata)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), OutputVariableMetadata),
-				TOutputDataVertexModel<DataType>(METASOUND_GET_PARAM_NAME(OutputData), OutputDataMetadata)
+				TOutputDataVertex<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), OutputVariableMetadata),
+				TOutputDataVertex<DataType>(METASOUND_GET_PARAM_NAME(OutputData), OutputDataMetadata)
 			)
 		);
 	}
@@ -568,11 +568,11 @@ namespace Metasound
 
 		return FVertexInterface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable), InputDataMetadata)
+				TInputDataVertex<FVariable>(METASOUND_GET_PARAM_NAME(InputVariable), InputDataMetadata)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<DataType>(METASOUND_GET_PARAM_NAME(OutputData), OutputDataMetadata),
-				TOutputDataVertexModel<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), OutputVariableMetadata)
+				TOutputDataVertex<DataType>(METASOUND_GET_PARAM_NAME(OutputData), OutputDataMetadata),
+				TOutputDataVertex<FVariable>(METASOUND_GET_PARAM_NAME(OutputVariable), OutputVariableMetadata)
 			)
 		);
 	}

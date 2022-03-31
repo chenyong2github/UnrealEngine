@@ -271,8 +271,8 @@ namespace Metasound
 
 				// inputs
 				FInputVertexInterface InputInterface(
-					TInputDataVertexModel<FString>(METASOUND_GET_PARAM_NAME_AND_METADATA(InFilenamePrefixPin), GetDefaultFileName()),
-					TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InEnabledPin), true)
+					TInputDataVertex<FString>(METASOUND_GET_PARAM_NAME_AND_METADATA(InFilenamePrefixPin), GetDefaultFileName()),
+					TInputDataVertex<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InEnabledPin), true)
 				);
 
 
@@ -285,7 +285,7 @@ namespace Metasound
 						, GetAudioInputDisplayName(InputIndex) // display name
 					};
 
-					InputInterface.Add(TInputDataVertexModel<FAudioBuffer>(GetAudioInputName(InputIndex), AudioInputMetadata));
+					InputInterface.Add(TInputDataVertex<FAudioBuffer>(GetAudioInputName(InputIndex), AudioInputMetadata));
 				}
 				FOutputVertexInterface OutputInterface;
 

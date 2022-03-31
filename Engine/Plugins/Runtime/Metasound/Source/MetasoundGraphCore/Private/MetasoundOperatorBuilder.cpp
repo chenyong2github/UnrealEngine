@@ -338,15 +338,15 @@ namespace Metasound
 
 			bool bSuccess = false;
 
-			if (FromDataReferenceCollection.ContainsDataWriteReference(Edge->From.Vertex.GetVertexName(), Edge->From.Vertex.GetDataTypeName()))
+			if (FromDataReferenceCollection.ContainsDataWriteReference(Edge->From.Vertex.VertexName, Edge->From.Vertex.DataTypeName))
 			{
 				// Contains data write reference
-				bSuccess = OutCollection.AddDataWriteReferenceFrom(Edge->To.Vertex.GetVertexName(), FromDataReferenceCollection, Edge->From.Vertex.GetVertexName(), Edge->From.Vertex.GetDataTypeName());
+				bSuccess = OutCollection.AddDataWriteReferenceFrom(Edge->To.Vertex.VertexName, FromDataReferenceCollection, Edge->From.Vertex.VertexName, Edge->From.Vertex.DataTypeName);
 			}
-			else if (FromDataReferenceCollection.ContainsDataReadReference(Edge->From.Vertex.GetVertexName(), Edge->From.Vertex.GetDataTypeName()))
+			else if (FromDataReferenceCollection.ContainsDataReadReference(Edge->From.Vertex.VertexName, Edge->From.Vertex.DataTypeName))
 			{
 				// Contains data read reference
-				bSuccess = OutCollection.AddDataReadReferenceFrom(Edge->To.Vertex.GetVertexName(), FromDataReferenceCollection, Edge->From.Vertex.GetVertexName(), Edge->From.Vertex.GetDataTypeName());
+				bSuccess = OutCollection.AddDataReadReferenceFrom(Edge->To.Vertex.VertexName, FromDataReferenceCollection, Edge->From.Vertex.VertexName, Edge->From.Vertex.DataTypeName);
 			}
 
 			if (!bSuccess)
@@ -376,10 +376,10 @@ namespace Metasound
 		{
 			if (const FInputDataDestination* Destination = *DestinationPtr)
 			{
-				const bool bReferenceExists = InExternalCollection.ContainsDataReadReference(Destination->Vertex.GetVertexName(), Destination->Vertex.GetDataTypeName());
+				const bool bReferenceExists = InExternalCollection.ContainsDataReadReference(Destination->Vertex.VertexName, Destination->Vertex.DataTypeName);
 				if (bReferenceExists)
 				{
-					const bool bSuccess = OutDataReferences.AddDataReadReferenceFrom(Destination->Vertex.GetVertexName(), InExternalCollection, Destination->Vertex.GetVertexName(), Destination->Vertex.GetDataTypeName());
+					const bool bSuccess = OutDataReferences.AddDataReadReferenceFrom(Destination->Vertex.VertexName, InExternalCollection, Destination->Vertex.VertexName, Destination->Vertex.DataTypeName);
 
 					if (!bSuccess)
 					{
@@ -477,8 +477,8 @@ namespace Metasound
 			// Get either readable or writable values for inputs. 
 			// Readable inputs can occur when the data reference is provided outside
 			// of the graph being built. 
-			const bool bContainsWritableInput = Collection.ContainsDataWriteReference(InputDestination.Vertex.GetVertexName(), InputDestination.Vertex.GetDataTypeName());
-			const bool bContainsReadableInput = Collection.ContainsDataReadReference(InputDestination.Vertex.GetVertexName(), InputDestination.Vertex.GetDataTypeName());
+			const bool bContainsWritableInput = Collection.ContainsDataWriteReference(InputDestination.Vertex.VertexName, InputDestination.Vertex.DataTypeName);
+			const bool bContainsReadableInput = Collection.ContainsDataReadReference(InputDestination.Vertex.VertexName, InputDestination.Vertex.DataTypeName);
 
 			const bool bContainsInput = bContainsWritableInput || bContainsReadableInput;
 
@@ -493,11 +493,11 @@ namespace Metasound
 			bool bSuccess = true;
 			if (bContainsWritableInput)
 			{
-				bSuccess = OutGraphInputs.AddDataWriteReferenceFrom(InputDestination.Vertex.GetVertexName(), Collection, InputDestination.Vertex.GetVertexName(), InputDestination.Vertex.GetDataTypeName());
+				bSuccess = OutGraphInputs.AddDataWriteReferenceFrom(InputDestination.Vertex.VertexName, Collection, InputDestination.Vertex.VertexName, InputDestination.Vertex.DataTypeName);
 			}
 			else
 			{
-				bSuccess = OutGraphInputs.AddDataReadReferenceFrom(InputDestination.Vertex.GetVertexName(), Collection, InputDestination.Vertex.GetVertexName(), InputDestination.Vertex.GetDataTypeName());
+				bSuccess = OutGraphInputs.AddDataReadReferenceFrom(InputDestination.Vertex.VertexName, Collection, InputDestination.Vertex.VertexName, InputDestination.Vertex.DataTypeName);
 			}
 
 			if (!bSuccess)
@@ -526,7 +526,7 @@ namespace Metasound
 
 			FDataReferenceCollection& Collection = InNodeDataReferences[OutputSource.Node].Outputs;
 
-			if (!Collection.ContainsDataReadReference(OutputSource.Vertex.GetVertexName(), OutputSource.Vertex.GetDataTypeName()))
+			if (!Collection.ContainsDataReadReference(OutputSource.Vertex.VertexName, OutputSource.Vertex.DataTypeName))
 			{
 				// This will likely produce an IOperator which does not work as
 				// expected.
@@ -537,7 +537,7 @@ namespace Metasound
 				continue;
 			}
 
-			bool bSuccess = OutGraphOutputs.AddDataReadReferenceFrom(OutputSource.Vertex.GetVertexName(), Collection, OutputSource.Vertex.GetVertexName(), OutputSource.Vertex.GetDataTypeName());
+			bool bSuccess = OutGraphOutputs.AddDataReadReferenceFrom(OutputSource.Vertex.VertexName, Collection, OutputSource.Vertex.VertexName, OutputSource.Vertex.DataTypeName);
 
 			if (!bSuccess)
 			{

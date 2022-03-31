@@ -179,11 +179,11 @@ namespace Metasound
 						GetAudioInputDisplayName(ChannelIndex)
 					};
 
-					InputInterface.Add(TInputDataVertexModel<FAudioBuffer>(GetAudioInputName(ChannelIndex), AudioInputMetadata));
+					InputInterface.Add(TInputDataVertex<FAudioBuffer>(GetAudioInputName(ChannelIndex), AudioInputMetadata));
 				}
 
-				InputInterface.Add(TInputDataVertexModel<FEnumBandSplitterFilterOrder>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputFilterOrder)));
-				InputInterface.Add(TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputPhaseCompensate), true));
+				InputInterface.Add(TInputDataVertex<FEnumBandSplitterFilterOrder>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputFilterOrder)));
+				InputInterface.Add(TInputDataVertex<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputPhaseCompensate), true));
 
 				// Crossover frequencies
 				for (uint32 InputIndex = 0; InputIndex < NumBands - 1; InputIndex++)
@@ -194,7 +194,7 @@ namespace Metasound
 						GetCrossoverInputDisplayName(InputIndex)
 					};
 
-					InputInterface.Add(TInputDataVertexModel<float>(GetCrossoverInputName(InputIndex), CrossoverInputMetadata, (1 + InputIndex) * 500.0f));
+					InputInterface.Add(TInputDataVertex<float>(GetCrossoverInputName(InputIndex), CrossoverInputMetadata, (1 + InputIndex) * 500.0f));
 				}
 
 				// outputs
@@ -209,7 +209,7 @@ namespace Metasound
 							GetAudioOutputDisplayName(OutputIndex, ChannelIndex)
 						};
 
-						OutputInterface.Add(TOutputDataVertexModel<FAudioBuffer>(GetAudioOutputName(OutputIndex, ChannelIndex), AudioOutputMetadata));
+						OutputInterface.Add(TOutputDataVertex<FAudioBuffer>(GetAudioOutputName(OutputIndex, ChannelIndex), AudioOutputMetadata));
 					}
 				}
 

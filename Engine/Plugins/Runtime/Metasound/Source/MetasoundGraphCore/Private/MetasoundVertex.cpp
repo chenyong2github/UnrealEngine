@@ -6,76 +6,9 @@
 
 namespace Metasound
 {
-	FInputDataVertex::FInputDataVertex()
-	:	VertexModel(MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty()))
-	{}
-
-	FInputDataVertex::FInputDataVertex(const FInputDataVertex& InOther)
-	:	VertexModel()
-	{
-		// Copy constructor has to call underlying model's clone.
-		if (InOther.VertexModel.IsValid())
-		{
-			VertexModel = InOther.VertexModel->Clone();
-		}
-
-		if (!VertexModel.IsValid())
-		{
-			// Default to empty vertex if there was a failure. 
-			VertexModel = MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty());
-		}
-	}
-
-	FInputDataVertex& FInputDataVertex::operator=(const FInputDataVertex& InOther)
-	{
-		// Assignment operator has to call underlying model's clone.
-		if (InOther.VertexModel.IsValid())
-		{
-			VertexModel = InOther.VertexModel->Clone();
-		}
-
-		if (!VertexModel.IsValid())
-		{
-			// Default to empty vertex if there was a failure. 
-			VertexModel = MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty());
-		}
-
-		return *this;
-	}
-
-	const FVertexName& FInputDataVertex::GetVertexName() const
-	{
-		return VertexModel->VertexName;
-	}
-
-	const FName& FInputDataVertex::GetDataTypeName() const
-	{
-		return VertexModel->DataTypeName;
-	}
-
-	FLiteral FInputDataVertex::GetDefaultLiteral() const
-	{
-		return VertexModel->CreateDefaultLiteral();
-	}
-
-	const FDataVertexMetadata& FInputDataVertex::GetMetadata() const
-	{
-		return VertexModel->VertexMetadata;
-	}
-
-	bool FInputDataVertex::IsReferenceOfSameType(const IDataReference& InReference) const
-	{
-		return VertexModel->IsReferenceOfSameType(InReference);
-	}
-
-	const FName& FInputDataVertex::GetVertexTypeName() const 
-	{
-		return VertexModel->GetVertexTypeName();
-	}
-
 	bool operator==(const FInputDataVertex& InLHS, const FInputDataVertex& InRHS)
 	{
-		return (InLHS.VertexModel->IsEqual(*InRHS.VertexModel) && (InRHS.VertexModel->IsEqual(*InLHS.VertexModel)));
+		return (InLHS.VertexName == InRHS.VertexName) && (InLHS.DataTypeName == InRHS.DataTypeName);
 	}
 
 	bool operator!=(const FInputDataVertex& InLHS, const FInputDataVertex& InRHS)
@@ -85,87 +18,19 @@ namespace Metasound
 
 	bool operator<(const FInputDataVertex& InLHS, const FInputDataVertex& InRHS)
 	{
-		if (InLHS == InRHS)
+		if (InLHS.VertexName == InRHS.VertexName)
 		{
-			return false;
-		}
-		
-		if (InLHS.GetVertexName() == InRHS.GetVertexName())
-		{
-			return InLHS.GetDataTypeName().FastLess(InRHS.GetDataTypeName());
+			return InLHS.DataTypeName.FastLess(InRHS.DataTypeName);
 		}
 		else
 		{
-			return InLHS.GetVertexName().FastLess(InRHS.GetVertexName());
+			return InLHS.VertexName.FastLess(InRHS.VertexName);
 		}
 	}
-
-	FOutputDataVertex::FOutputDataVertex()
-	:	VertexModel(MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty()))
-	{}
-
-	FOutputDataVertex::FOutputDataVertex(const FOutputDataVertex& InOther)
-	:	VertexModel()
-	{
-		// Copy constructor has to call underlying model's clone.
-		if (InOther.VertexModel.IsValid())
-		{
-			VertexModel = InOther.VertexModel->Clone();
-		}
-
-		if (!VertexModel.IsValid())
-		{
-			// Default to empty vertex if there was a failure. 
-			VertexModel = MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty());
-		}
-	}
-
-	FOutputDataVertex& FOutputDataVertex::operator=(const FOutputDataVertex& InOther)
-	{
-		// assignment operator has to call underlying model's clone.
-		if (InOther.VertexModel.IsValid())
-		{
-			VertexModel = InOther.VertexModel->Clone();
-		}
-
-		if (!VertexModel.IsValid())
-		{
-			// Default to empty vertex if there was a failure. 
-			VertexModel = MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty());
-		}
-
-		return *this;
-	}
-
-	FVertexName FOutputDataVertex::GetVertexName() const
-	{
-		return VertexModel->VertexName;
-	}
-
-	const FName& FOutputDataVertex::GetDataTypeName() const
-	{
-		return VertexModel->DataTypeName;
-	}
-
-	const FDataVertexMetadata& FOutputDataVertex::GetMetadata() const
-	{
-		return VertexModel->VertexMetadata;
-	}
-
-	bool FOutputDataVertex::IsReferenceOfSameType(const IDataReference& InReference) const
-	{
-		return VertexModel->IsReferenceOfSameType(InReference);
-	}
-
-	const FName& FOutputDataVertex::GetVertexTypeName() const
-	{
-		return VertexModel->GetVertexTypeName();
-	}
-
 
 	bool operator==(const FOutputDataVertex& InLHS, const FOutputDataVertex& InRHS)
 	{
-		return (InLHS.VertexModel->IsEqual(*InRHS.VertexModel) && (InRHS.VertexModel->IsEqual(*InLHS.VertexModel)));
+		return (InLHS.VertexName == InRHS.VertexName) && (InLHS.DataTypeName == InRHS.DataTypeName);
 	}
 
 	bool operator!=(const FOutputDataVertex& InLHS, const FOutputDataVertex& InRHS)
@@ -175,75 +40,19 @@ namespace Metasound
 
 	bool operator<(const FOutputDataVertex& InLHS, const FOutputDataVertex& InRHS)
 	{
-		if (InLHS == InRHS)
+		if (InLHS.VertexName == InRHS.VertexName)
 		{
-			return false;
-		}
-		
-		if (InLHS.GetVertexName() == InRHS.GetVertexName())
-		{
-			return InLHS.GetDataTypeName().FastLess(InRHS.GetDataTypeName());
+			return InLHS.DataTypeName.FastLess(InRHS.DataTypeName);
 		}
 		else
 		{
-			return InLHS.GetVertexName().FastLess(InRHS.GetVertexName());
+			return InLHS.VertexName.FastLess(InRHS.VertexName);
 		}
-	}
-
-	FEnvironmentVertex::FEnvironmentVertex()
-	:	VertexModel(MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty()))
-	{
-	}
-
-	/** Copy constructor */
-	FEnvironmentVertex::FEnvironmentVertex(const FEnvironmentVertex& InOther)
-	{
-		if (InOther.VertexModel.IsValid())
-		{
-			// call underlying model's clone to copy model.
-			VertexModel = InOther.VertexModel->Clone();
-		}
-		else
-		{
-			// Make an empty model if no valid model exists.
-			VertexModel = MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty());
-		}
-	}
-
-	FEnvironmentVertex& FEnvironmentVertex::operator=(const FEnvironmentVertex& InOther)
-	{
-		if (InOther.VertexModel.IsValid())
-		{
-			// call underlying model's clone to copy model.
-			VertexModel = InOther.VertexModel->Clone();
-		}
-		else
-		{
-			// Make an empty model if no valid model exists.
-			VertexModel = MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty());
-		}
-
-		return *this;
-	}
-
-	const FVertexName& FEnvironmentVertex::GetVertexName() const
-	{
-		return VertexModel->VertexName;
-	}
-
-	const FText& FEnvironmentVertex::GetDescription() const
-	{
-		return VertexModel->Description;
-	}
-
-	bool FEnvironmentVertex::IsVariableOfSameType(const IMetasoundEnvironmentVariable& InVariable) const
-	{
-		return VertexModel->IsVariableOfSameType(InVariable);
 	}
 
 	bool operator==(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS)
 	{
-		return (InLHS.VertexModel->IsEqual(*InRHS.VertexModel) && InRHS.VertexModel->IsEqual(*InLHS.VertexModel));
+		return (InLHS.VertexName == InRHS.VertexName);
 	}
 
 	bool operator!=(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS)
@@ -253,12 +62,7 @@ namespace Metasound
 
 	bool operator<(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS)
 	{
-		if (InLHS == InRHS)
-		{
-			return false;
-		}
-
-		return InLHS.GetVertexName().FastLess(InRHS.GetVertexName());
+		return InLHS.VertexName.FastLess(InRHS.VertexName);
 	}
 
 	FVertexInterface::FVertexInterface(const FInputVertexInterface& InInputs, const FOutputVertexInterface& InOutputs)

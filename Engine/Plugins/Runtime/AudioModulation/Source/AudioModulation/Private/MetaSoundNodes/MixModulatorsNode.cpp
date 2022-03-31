@@ -19,15 +19,17 @@ namespace AudioModulation
 	public:
 		static const Metasound::FVertexInterface& GetDefaultInterface()
 		{
-			static const Metasound::FVertexInterface DefaultInterface(
-				Metasound::FInputVertexInterface(
-					Metasound::TInputDataVertexModel<FSoundModulatorAsset>("In1", LOCTEXT("MixModulatorsNode_InputModulator1Name", "In 1")),
-					Metasound::TInputDataVertexModel<FSoundModulatorAsset>("In2", LOCTEXT("MixModulatorsNode_InputModulator2Name", "In 2")),
-					Metasound::TInputDataVertexModel<FSoundModulationParameterAsset>("MixParameter", LOCTEXT("MixModulatorsNode_InputMixParameterName", "Mix Parameter")),
-					Metasound::TInputDataVertexModel<bool>("Normalized", LOCTEXT("MixModulatorsNode_InputNormalizedName", "Normalized"), true)
+			using namespace Metasound;
+
+			static const FVertexInterface DefaultInterface(
+				FInputVertexInterface(
+					TInputDataVertex<FSoundModulatorAsset>("In1", FDataVertexMetadata{ LOCTEXT("MixModulatorsNode_InputModulator1Name", "In 1") }),
+					TInputDataVertex<FSoundModulatorAsset>("In2", FDataVertexMetadata{ LOCTEXT("MixModulatorsNode_InputModulator2Name", "In 2") }),
+					TInputDataVertex<FSoundModulationParameterAsset>("MixParameter", FDataVertexMetadata{ LOCTEXT("MixModulatorsNode_InputMixParameterName", "Mix Parameter") }),
+					TInputDataVertex<bool>("Normalized", FDataVertexMetadata{ LOCTEXT("MixModulatorsNode_InputNormalizedName", "Normalized") }, true)
 				),
-				Metasound::FOutputVertexInterface(
-					Metasound::TOutputDataVertexModel<float>("Out", LOCTEXT("MixModulatorsNode_OutputModulatorValue", "Out"))
+				FOutputVertexInterface(
+					TOutputDataVertex<float>("Out", FDataVertexMetadata{ LOCTEXT("MixModulatorsNode_OutputModulatorValue", "Out") })
 				)
 			);
 

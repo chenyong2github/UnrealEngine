@@ -22,7 +22,7 @@ namespace Metasound
 			if (InDest.Node)
 			{
 				const FInputVertexInterface& Interface = InDest.Node->GetVertexInterface().GetInputInterface();
-				if (const FInputDataVertex* Vertex = Interface.Find(InDest.Vertex.GetVertexName()))
+				if (const FInputDataVertex* Vertex = Interface.Find(InDest.Vertex.VertexName))
 				{
 					return *Vertex == InDest.Vertex;
 				}
@@ -37,7 +37,7 @@ namespace Metasound
 			if (InSource.Node)
 			{
 				const FOutputVertexInterface& Interface = InSource.Node->GetVertexInterface().GetOutputInterface();
-				if (const FOutputDataVertex* Vertex = Interface.Find(InSource.Vertex.GetVertexName()))
+				if (const FOutputDataVertex* Vertex = Interface.Find(InSource.Vertex.VertexName))
 				{
 					return *Vertex == InSource.Vertex;
 				}
@@ -66,7 +66,7 @@ namespace Metasound
 
 		for (const FDataEdge& Edge : InGraph.GetDataEdges())
 		{
-			if (Edge.From.Vertex.GetDataTypeName() != Edge.To.Vertex.GetDataTypeName())
+			if (Edge.From.Vertex.DataTypeName != Edge.To.Vertex.DataTypeName)
 			{
 				AddBuildError<FInvalidConnectionDataTypeError>(OutErrors, Edge);
 

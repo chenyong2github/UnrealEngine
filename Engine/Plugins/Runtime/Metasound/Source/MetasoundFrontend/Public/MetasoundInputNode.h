@@ -265,10 +265,10 @@ namespace Metasound
 			{
 				return FVertexInterface(
 					FInputVertexInterface(
-						TInputDataVertexModel<DataType>(InVertexName, FText::GetEmpty())
+						TInputDataVertex<DataType>(InVertexName, FDataVertexMetadata{ FText::GetEmpty() })
 					),
 					FOutputVertexInterface(
-						TOutputDataVertexModel<DataType>(InVertexName, FText::GetEmpty())
+						TOutputDataVertex<DataType>(InVertexName, FDataVertexMetadata{ FText::GetEmpty() })
 					)
 				);
 			}

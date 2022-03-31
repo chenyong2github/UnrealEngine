@@ -63,7 +63,7 @@ namespace Metasound
 							GetAudioInputDescription(InputIndex, ChanIndex),
 							GetAudioInputDisplayName(InputIndex, ChanIndex)
 						};
-						InputInterface.Add(TInputDataVertexModel<FAudioBuffer>(GetAudioInputName(InputIndex, ChanIndex), AudioInputMetadata));
+						InputInterface.Add(TInputDataVertex<FAudioBuffer>(GetAudioInputName(InputIndex, ChanIndex), AudioInputMetadata));
 					}
 
 					// gain scalar
@@ -72,7 +72,7 @@ namespace Metasound
 						GetGainInputDescription(InputIndex),
 						GetGainInputDisplayName(InputIndex)
 					};
-					TInputDataVertexModel<float>GainVertexModel(GetGainInputName(InputIndex), GainPinMetaData, 1.0f);
+					TInputDataVertex<float>GainVertexModel(GetGainInputName(InputIndex), GainPinMetaData, 1.0f);
 
 					InputInterface.Add(GainVertexModel);
 				}
@@ -87,7 +87,7 @@ namespace Metasound
 						GetAudioOutputDisplayName(i)
 					};
 
-					OutputInterface.Add(TOutputDataVertexModel<FAudioBuffer>(GetAudioOutputName(i), AudioOutputMetadata));
+					OutputInterface.Add(TOutputDataVertex<FAudioBuffer>(GetAudioOutputName(i), AudioOutputMetadata));
 				}
 
 				return FVertexInterface(InputInterface, OutputInterface);

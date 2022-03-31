@@ -105,10 +105,10 @@ namespace Metasound
 
 			return FVertexInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<DataType>(InVertexName, VertexDescription)
+					TInputDataVertex<DataType>(InVertexName, FDataVertexMetadata{VertexDescription})
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<DataType>(InVertexName, VertexDescription)
+					TOutputDataVertex<DataType>(InVertexName, FDataVertexMetadata{VertexDescription})
 				)
 			);
 		}

@@ -198,16 +198,15 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 		FMetasoundFrontendInterfaceStyle InputStyle;
 #endif // WITH_EDITOR
 
-		for (const TPair<FVertexName, FInputDataVertex>& InputTuple : InputInterface)
+		for (const FInputDataVertex& InputVertex : InputInterface)
 		{
 			FMetasoundFrontendClassInput ClassInput;
 
-			const FInputDataVertex& InputVertex = InputTuple.Value;
-			ClassInput.Name = InputVertex.GetVertexName();
-			ClassInput.TypeName = InputVertex.GetDataTypeName();
+			ClassInput.Name = InputVertex.VertexName;
+			ClassInput.TypeName = InputVertex.DataTypeName;
 			ClassInput.VertexID = FGuid::NewGuid();
 
-			const FDataVertexMetadata& VertexMetadata = InputVertex.GetMetadata();
+			const FDataVertexMetadata& VertexMetadata = InputVertex.Metadata;
 
 #if WITH_EDITOR
 			ClassInput.Metadata.SetSerializeText(false);
@@ -216,7 +215,7 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 			ClassInput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
 
 			// Advanced display items are pushed to bottom of sort order
-			ClassInput.Metadata.SortOrderIndex = InputInterface.GetSortOrderIndex(InputTuple.Key);
+			ClassInput.Metadata.SortOrderIndex = InputInterface.GetSortOrderIndex(InputVertex.VertexName);
 			if (ClassInput.Metadata.bIsAdvancedDisplay)
 			{
 				ClassInput.Metadata.SortOrderIndex += InputInterface.Num();
@@ -251,15 +250,16 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 		FMetasoundFrontendInterfaceStyle OutputStyle;
 #endif // WITH_EDITOR
 
-		for (const TPair<FVertexName, FOutputDataVertex>& OutputTuple : OutputInterface)
+		for (const FOutputDataVertex& OutputVertex: OutputInterface)
 		{
 			FMetasoundFrontendClassOutput ClassOutput;
 
-			ClassOutput.Name = OutputTuple.Value.GetVertexName();
-			ClassOutput.TypeName = OutputTuple.Value.GetDataTypeName();
+
+			ClassOutput.Name = OutputVertex.VertexName;
+			ClassOutput.TypeName = OutputVertex.DataTypeName;
 			ClassOutput.VertexID = FGuid::NewGuid();
 
-			const FDataVertexMetadata& VertexMetadata = OutputTuple.Value.GetMetadata();
+			const FDataVertexMetadata& VertexMetadata = OutputVertex.Metadata;
 
 #if WITH_EDITOR
 			ClassOutput.Metadata.SetSerializeText(false);
@@ -268,7 +268,7 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 			ClassOutput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
 
 			// Advanced display items are pushed to bottom below non-advanced
-			ClassOutput.Metadata.SortOrderIndex = OutputInterface.GetSortOrderIndex(OutputTuple.Key);
+			ClassOutput.Metadata.SortOrderIndex = OutputInterface.GetSortOrderIndex(OutputVertex.VertexName);
 			if (ClassOutput.Metadata.bIsAdvancedDisplay)
 			{
 				ClassOutput.Metadata.SortOrderIndex += OutputInterface.Num();
@@ -288,11 +288,11 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 #endif // WITH_EDITOR
 	}
 
-	for (auto& EnvTuple : InVertexInterface.GetEnvironmentInterface())
+	for (const FEnvironmentVertex& EnvVertex : InVertexInterface.GetEnvironmentInterface())
 	{
 		FMetasoundFrontendClassEnvironmentVariable EnvVar;
 
-		EnvVar.Name = EnvTuple.Value.GetVertexName();
+		EnvVar.Name = EnvVertex.VertexName;
 		EnvVar.bIsRequired = true;
 
 		ClassInterface.Environment.Add(EnvVar);
