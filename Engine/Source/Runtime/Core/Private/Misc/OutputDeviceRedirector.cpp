@@ -370,6 +370,10 @@ void FOutputDeviceRedirectorState::ThreadLoop()
 				{
 					FlushBufferedLines();
 				}
+				else
+				{
+					break;
+				}
 			}
 			while (!BufferedLines.IsEmpty());
 			ThreadIdleEvents.Deplete([](FEvent* Event) { Event->Trigger(); });
