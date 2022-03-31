@@ -4,6 +4,7 @@
 
 #include "OptimusNodePin.h"
 #include "OptimusNodeSubGraph.h"
+#include "OptimusBindingTypes.h"
 #include "OptimusNode_GraphTerminal.h"
 
 

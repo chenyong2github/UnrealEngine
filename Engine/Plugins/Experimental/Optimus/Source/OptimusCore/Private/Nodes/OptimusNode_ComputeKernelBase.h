@@ -12,46 +12,6 @@
 struct FOptimusCompilerDiagnostic;
 
 
-USTRUCT()
-struct FOptimus_ShaderBinding
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category=Binding)
-	FName Name;
-
-	UPROPERTY(EditAnywhere, Category = Binding, meta=(UseInResource))
-	FOptimusDataTypeRef DataType;
-
-	/** Returns true if the binding is valid and has defined entries */
-	bool IsValid() const
-	{
-		return !Name.IsNone() && DataType.IsValid();
-	}
-};
-
-// FIXME: Fold FOptimus_ShaderBinding into this and do a post-load fix in CustomComputeKernel.
-// FIXME: Move to OptimusNode.h
-USTRUCT()
-struct FOptimusParameterBinding :
-	public FOptimus_ShaderBinding
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = Binding)
-	FOptimusMultiLevelDataDomain DataDomain;
-};
-
-USTRUCT()
-struct FOptimus_ShaderValuedBinding :
-	public FOptimus_ShaderBinding
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	TArray<uint8> RawValue;
-};
-
 
 UCLASS(Abstract)
 class UOptimusNode_ComputeKernelBase :

@@ -6,6 +6,8 @@
 #include "OptimusNode_ComputeKernelBase.h"
 #include "OptimusShaderText.h"
 #include "IOptimusShaderTextProvider.h"
+#include "OptimusBindingTypes.h"
+#include "IOptimusParameterBindingProvider.h"
 
 #include "OptimusNode_CustomComputeKernel.generated.h"
 
@@ -16,7 +18,8 @@ enum class EOptimusNodePinDirection : uint8;
 UCLASS()
 class UOptimusNode_CustomComputeKernel :
 	public UOptimusNode_ComputeKernelBase,
-	public IOptimusShaderTextProvider
+	public IOptimusShaderTextProvider,
+	public IOptimusParameterBindingProvider
 {
 	GENERATED_BODY()
 
@@ -50,6 +53,9 @@ public:
 
 	virtual const TArray<FOptimusCompilerDiagnostic>& GetCompilationDiagnostics() const override;
 
+	// IOptimusParameterBindingProvider
+	virtual FString GetBindingDeclaration(FName BindingName) const override;
+	
 	// FIXME: Use drop-down with a preset list + allow custom entry.
 	UPROPERTY(EditAnywhere, Category=Settings)
 	FName Category = CategoryName::Deformers;
@@ -71,13 +77,21 @@ public:
 	TArray<FOptimus_ShaderBinding> Parameters;
 	
 	/** Input bindings. Each one is a function that should be connected to an implementation in a data interface. */
-	UPROPERTY(EditAnywhere, Category = Bindings)
-	TArray<FOptimusParameterBinding> InputBindings;
+	UPROPERTY(meta=(DeprecatedProperty))
+	TArray<FOptimusParameterBinding> InputBindings_DEPRECATED;
 
 	/** Output bindings. Each one is a function that should be connected to an implementation in a data interface. */
-	UPROPERTY(EditAnywhere, Category = Bindings)
-	TArray<FOptimusParameterBinding> OutputBindings;
+	UPROPERTY(meta=(DeprecatedProperty))
+	TArray<FOptimusParameterBinding> OutputBindings_DEPRECATED;	
 
+	/** Input bindings. Each one is a function that should be connected to an implementation in a data interface. */
+	UPROPERTY(EditAnywhere, Category = Bindings, DisplayName = "Input Bindings")
+	FOptimusParameterBindingArray InputBindingArray;
+
+	/** Output bindings. Each one is a function that should be connected to an implementation in a data interface. */
+	UPROPERTY(EditAnywhere, Category = Bindings, DisplayName = "Output Bindings")
+	FOptimusParameterBindingArray OutputBindingArray;
+	
 	/** 
 	 * The kernel source code. 
 	 * If the code contains more than just the kernel entry function, then place the kernel entry function inside a KERNEL {} block.
@@ -96,9 +110,16 @@ public:
 	void PostLoad() override;
 	
 protected:
-	void ConstructNode() override;;
+	void ConstructNode() override;
 
 private:
+
+
+	static bool IsParameterBinding(FName InBindingPropertyName);
+	
+	void RefreshBindingPins(FName InBindingPropertyName);
+	void ClearBindingPins(FName InBindingPropertyName);
+	
 	void UpdatePinTypes(
 		EOptimusNodePinDirection InPinDirection
 		);
@@ -111,6 +132,13 @@ private:
 		);
 	
 	void UpdatePreamble();
+
+	TMap<FName, UOptimusNodePin*> GetFilteredPins(
+		EOptimusNodePinDirection InDirection,
+		EOptimusNodePinStorageType InStorageType) const;
+
+	static FString GetDeclarationForBinding(const FOptimus_ShaderBinding& Binding);
+	static FString GetDeclarationForBinding(const FOptimusParameterBinding& Binding, bool bIsInput);
 
 	TArray<UOptimusNodePin *> GetKernelPins(
 		EOptimusNodePinDirection InPinDirection

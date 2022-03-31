@@ -14,6 +14,7 @@ struct OPTIMUSCORE_API FOptimusObjectVersion
 
 		SwitchToMeshDeformerBase,
 		ReparentResourcesAndVariables,
+		SwitchToParameterBindingArrayStruct,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

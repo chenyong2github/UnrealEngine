@@ -7,6 +7,7 @@
 #include "OptimusDataDomain.h"
 #include "OptimusCoreModule.h"
 #include "OptimusDataTypeRegistry.h"
+#include "OptimusBindingTypes.h"
 #include "OptimusDeformer.h"
 #include "OptimusDiagnostic.h"
 #include "OptimusNodeGraph.h"

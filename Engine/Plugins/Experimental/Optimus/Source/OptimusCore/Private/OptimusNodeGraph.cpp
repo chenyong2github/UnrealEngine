@@ -570,7 +570,7 @@ UOptimusNode* UOptimusNodeGraph::ConvertCustomKernelToFunction(UOptimusNode* InC
 	}
 
 	// The node has to have at least one input and one output binding.
-	if (CustomKernelNode->InputBindings.IsEmpty() || CustomKernelNode->OutputBindings.IsEmpty())
+	if (CustomKernelNode->InputBindingArray.IsEmpty() || CustomKernelNode->OutputBindingArray.IsEmpty())
 	{
 		UE_LOG(LogOptimusCore, Error, TEXT("%s: Need at least one input binding and one output binding."), *CustomKernelNode->GetName());
 		return nullptr;

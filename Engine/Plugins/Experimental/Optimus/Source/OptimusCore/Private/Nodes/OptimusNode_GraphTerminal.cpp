@@ -4,6 +4,7 @@
 
 #include "OptimusFunctionNodeGraph.h"
 #include "OptimusNodePin.h"
+#include "OptimusBindingTypes.h"
 #include "OptimusNode_ComputeKernelBase.h"
 
 

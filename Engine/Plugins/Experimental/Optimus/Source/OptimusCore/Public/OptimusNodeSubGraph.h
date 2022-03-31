@@ -2,8 +2,7 @@
 
 #pragma once
 #include "OptimusNodeGraph.h"
-#include "Nodes/OptimusNode_ComputeKernelBase.h"
-
+#include "OptimusBindingTypes.h"
 #include "OptimusNodeSubGraph.generated.h"
 
 class UOptimusNode_GraphTerminal;

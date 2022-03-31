@@ -2,6 +2,8 @@
 
 #include "OptimusNode_CustomComputeKernel.h"
 
+#include "OptimusObjectVersion.h"
+
 #include "OptimusComputeDataInterface.h"
 #include "OptimusNodePin.h"
 #include "OptimusHelpers.h"
@@ -11,6 +13,9 @@
 #include "OptimusNodeGraph.h"
 #include "DataInterfaces/DataInterfaceRawBuffer.h"
 
+static const FName ParametersName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, Parameters);;
+static const FName InputBindingsName= GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, InputBindingArray);;
+static const FName OutputBindingsName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, OutputBindingArray);;
 
 UOptimusNode_CustomComputeKernel::UOptimusNode_CustomComputeKernel()
 {
@@ -90,16 +95,37 @@ const TArray<FOptimusCompilerDiagnostic>& UOptimusNode_CustomComputeKernel::GetC
 }
 
 
+FString UOptimusNode_CustomComputeKernel::GetBindingDeclaration(FName BindingName) const
+{
+	auto ParameterBindingPredicate = [BindingName](const FOptimusParameterBinding& InBinding)
+	{
+		if (InBinding.Name == BindingName)
+		{
+			return true;	
+		}
+			
+		return false;
+	};
+
+	if (const FOptimusParameterBinding* Binding = InputBindingArray.FindByPredicate(ParameterBindingPredicate))
+	{
+		return GetDeclarationForBinding(*Binding, true);
+	}
+	if (const FOptimusParameterBinding* Binding = OutputBindingArray.FindByPredicate(ParameterBindingPredicate))
+	{
+		return GetDeclarationForBinding(*Binding, false);
+	}
+
+	return FString();
+}
+
+
 #if WITH_EDITOR
 void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 	FPropertyChangedEvent& PropertyChangedEvent
 	)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	
-	static const FName ParametersName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, Parameters);
-	static const FName InputBindingsName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, InputBindings);
-	static const FName OutputBindingsName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, OutputBindings);
 
 	const FName BasePropertyName = (PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None);
 	const FName PropertyName = (PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None);
@@ -147,6 +173,10 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 			}
 			UpdatePreamble();
 		}
+		else if (PropertyName == ParametersName || PropertyName == InputBindingsName || PropertyName == OutputBindingsName)
+		{
+			RefreshBindingPins(PropertyName);
+		}
 	}
 	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayAdd)
 	{
@@ -163,7 +193,7 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 			Name = FName("Param");
 			StorageConfig = {};
 
-			if (!InputBindings.IsEmpty())
+			if (!InputBindingArray.IsEmpty())
 			{
 				BeforePin = GetPins()[Parameters.Num() - 1];
 			}
@@ -171,7 +201,7 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 		else if (BasePropertyName == InputBindingsName)
 		{
 			Direction = EOptimusNodePinDirection::Input;
-			Binding = &InputBindings.Last();
+			Binding = &InputBindingArray.Last();
 			Name = FName("Input");
 
 			StorageConfig = FOptimusNodePinStorageConfig({Optimus::DomainName::Vertex});
@@ -179,7 +209,7 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 		else if (BasePropertyName == OutputBindingsName)
 		{
 			Direction = EOptimusNodePinDirection::Output;
-			Binding = &OutputBindings.Last();
+			Binding = &OutputBindingArray.Last();
 			Name = FName("Output");
 
 			StorageConfig = FOptimusNodePinStorageConfig({Optimus::DomainName::Vertex});
@@ -197,19 +227,6 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 	}
 	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayRemove)
 	{
-		auto GetFilteredPins = [this](EOptimusNodePinDirection InDirection, EOptimusNodePinStorageType InStorageType)
-		{
-			TMap<FName, UOptimusNodePin *> FilteredPins;
-			for (UOptimusNodePin *Pin: GetPins())
-			{
-				if (Pin->GetDirection() == InDirection && Pin->GetStorageType() == InStorageType)
-				{
-					FilteredPins.Add(Pin->GetFName(), Pin);
-				}
-			}
-			return FilteredPins;
-		};
-
 		TMap<FName, UOptimusNodePin *> RemovedPins;
 		if (BasePropertyName == ParametersName)
 		{
@@ -224,7 +241,7 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 		{
 			RemovedPins = GetFilteredPins(EOptimusNodePinDirection::Input, EOptimusNodePinStorageType::Resource);
 			
-			for (const FOptimus_ShaderBinding& Binding: InputBindings)
+			for (const FOptimus_ShaderBinding& Binding: InputBindingArray)
 			{
 				RemovedPins.Remove(Binding.Name);
 			}
@@ -233,7 +250,7 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 		{
 			RemovedPins = GetFilteredPins(EOptimusNodePinDirection::Output, EOptimusNodePinStorageType::Resource);
 			
-			for (const FOptimus_ShaderBinding& Binding: OutputBindings)
+			for (const FOptimus_ShaderBinding& Binding: OutputBindingArray)
 			{
 				RemovedPins.Remove(Binding.Name);
 			}
@@ -246,11 +263,26 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 			UpdatePreamble();
 		}
 	}
+	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayClear)
+	{
+		ClearBindingPins(BasePropertyName);
+	}
+	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::Unspecified)
+	{
+		RefreshBindingPins(BasePropertyName);
+	}
 }
 #endif
 
 void UOptimusNode_CustomComputeKernel::PostLoad()
 {
+	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::SwitchToParameterBindingArrayStruct)
+	{
+		Modify();
+		InputBindingArray.InnerArray = InputBindings_DEPRECATED;
+		OutputBindingArray.InnerArray = OutputBindings_DEPRECATED;
+	}
+	
 	Super::PostLoad();
 }
 
@@ -263,16 +295,146 @@ void UOptimusNode_CustomComputeKernel::ConstructNode()
 	{
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, {}, Binding.DataType);
 	}
-	for (const FOptimusParameterBinding& Binding: InputBindings)
+	for (const FOptimusParameterBinding& Binding: InputBindingArray)
 	{
 		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, StorageConfig, Binding.DataType);
 	}
-	for (const FOptimusParameterBinding& Binding: OutputBindings)
+	for (const FOptimusParameterBinding& Binding: OutputBindingArray)
 	{
 		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Output, StorageConfig, Binding.DataType);
 	}
+}
+
+void UOptimusNode_CustomComputeKernel::RefreshBindingPins(FName InBindingPropertyName)
+{
+	// This event can indicate that a reordering action was applied to an array
+	if (!IsParameterBinding(InBindingPropertyName))
+	{
+		return;
+	}
+	
+	TArray<FOptimus_ShaderBinding>* ShaderBindingArray = nullptr;
+	TArray<FOptimusParameterBinding>* ParameterBindingArray = nullptr;
+	EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Input;;
+	EOptimusNodePinStorageType StorageType = EOptimusNodePinStorageType::Value;;
+	UOptimusNodePin* BeforePin = nullptr;
+	if (InBindingPropertyName == ParametersName)
+	{
+		Direction = EOptimusNodePinDirection::Input;
+		StorageType = EOptimusNodePinStorageType::Value;
+		ShaderBindingArray = &Parameters;
+		if (!InputBindingArray.IsEmpty())
+		{
+			BeforePin = GetPins()[Parameters.Num()];
+		}	
+	}
+	else if (InBindingPropertyName == InputBindingsName)
+	{
+		Direction = EOptimusNodePinDirection::Input;
+		StorageType = EOptimusNodePinStorageType::Resource;
+		ParameterBindingArray = &InputBindingArray.InnerArray;
+	}
+	else if (InBindingPropertyName == OutputBindingsName)
+	{
+		Direction = EOptimusNodePinDirection::Output;
+		StorageType = EOptimusNodePinStorageType::Resource;
+		ParameterBindingArray = &OutputBindingArray.InnerArray;
+	}
+
+	const TMap<FName, UOptimusNodePin *> RemovedPins = GetFilteredPins(Direction, StorageType);
+
+	// Save the links and readd them later when new pins are created
+	TMap<FName, TArray<UOptimusNodePin*>> ConnectedPinsMap;
+	for (const TTuple<FName, UOptimusNodePin*>& Pin : RemovedPins.Array())
+	{
+		ConnectedPinsMap.FindOrAdd(Pin.Key) = Pin.Value->GetConnectedPins();
+	}
+	
+	ClearBindingPins(InBindingPropertyName);
+
+	TArray<UOptimusNodePin*> AddedPins;
+	if (ShaderBindingArray)
+	{
+		for (const FOptimus_ShaderBinding& Binding: *ShaderBindingArray)
+		{
+			AddedPins.Add(AddPin(Binding.Name, Direction, {}, Binding.DataType, BeforePin));
+		}
+	}
+	else if (ParameterBindingArray)
+	{
+		for (const FOptimusParameterBinding& Binding: *ParameterBindingArray)
+		{
+			AddedPins.Add(AddPin(Binding.Name, Direction, Binding.DataDomain.LevelNames, Binding.DataType, nullptr));
+		}
+	}
+
+	for (UOptimusNodePin* AddedPin : AddedPins)
+	{
+		if (TArray<UOptimusNodePin*>* ConnectedPins = ConnectedPinsMap.Find(AddedPin->GetFName()))
+		{
+			for (UOptimusNodePin* ConnectedPin : *ConnectedPins)
+			{
+				if (Direction == EOptimusNodePinDirection::Input)
+				{
+					GetOwningGraph()->AddLink(ConnectedPin, AddedPin);
+				}
+				else if (Direction == EOptimusNodePinDirection::Output)
+				{
+					GetOwningGraph()->AddLink(AddedPin, ConnectedPin);
+				}
+			}
+		}
+	}
+		
+	UpdatePreamble();
+}
+
+void UOptimusNode_CustomComputeKernel::ClearBindingPins(FName InBindingPropertyName)
+{
+	if (!IsParameterBinding(InBindingPropertyName))
+	{
+		return;
+	}
+
+	EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Input;;
+	EOptimusNodePinStorageType StorageType = EOptimusNodePinStorageType::Value;;
+	if (InBindingPropertyName == ParametersName)
+	{
+		Direction = EOptimusNodePinDirection::Input;
+		StorageType = EOptimusNodePinStorageType::Value;
+	}
+	else if (InBindingPropertyName == InputBindingsName)
+	{
+		Direction = EOptimusNodePinDirection::Input;
+		StorageType = EOptimusNodePinStorageType::Resource;	
+	}
+	else if (InBindingPropertyName == OutputBindingsName)
+	{
+		Direction = EOptimusNodePinDirection::Output;
+		StorageType = EOptimusNodePinStorageType::Resource;	
+	}
+
+
+	const TMap<FName, UOptimusNodePin *> RemovedPins = GetFilteredPins(Direction, StorageType);
+	for (const TTuple<FName, UOptimusNodePin*>& Pin : RemovedPins.Array())
+	{
+		RemovePin(Pin.Value);
+	}
+		
+	UpdatePreamble();
+}
+
+bool UOptimusNode_CustomComputeKernel::IsParameterBinding(FName InBindingPropertyName)
+{
+	if (InBindingPropertyName == ParametersName
+	|| InBindingPropertyName == InputBindingsName
+	|| InBindingPropertyName == OutputBindingsName)
+	{
+		return true;
+	}
+	return false;
 }
 
 
@@ -288,14 +450,14 @@ void UOptimusNode_CustomComputeKernel::UpdatePinTypes(
 		{
 			DataTypes.Add(Binding.DataType.Resolve());
 		}
-		for (const FOptimus_ShaderBinding& Binding: InputBindings)
+		for (const FOptimus_ShaderBinding& Binding: InputBindingArray)
 		{
 			DataTypes.Add(Binding.DataType.Resolve());
 		}
 	}
 	else if (InPinDirection == EOptimusNodePinDirection::Output)
 	{
-		for (const FOptimus_ShaderBinding& Binding: OutputBindings)
+		for (const FOptimus_ShaderBinding& Binding: OutputBindingArray)
 		{
 			DataTypes.Add(Binding.DataType.Resolve());
 		}
@@ -329,14 +491,14 @@ void UOptimusNode_CustomComputeKernel::UpdatePinNames(
 		{
 			Names.Add(Binding.Name);
 		}
-		for (const FOptimus_ShaderBinding& Binding: InputBindings)
+		for (const FOptimus_ShaderBinding& Binding: InputBindingArray)
 		{
 			Names.Add(Binding.Name);
 		}
 	}
 	else if (InPinDirection == EOptimusNodePinDirection::Output)
 	{
-		for (const FOptimus_ShaderBinding& Binding: OutputBindings)
+		for (const FOptimus_ShaderBinding& Binding: OutputBindingArray)
 		{
 			Names.Add(Binding.Name);
 		}
@@ -376,7 +538,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePinNames(
 				}
 				else
 				{
-					InputBindings[Index - Parameters.Num()].Name = Names[Index];
+					InputBindingArray[Index - Parameters.Num()].Name = Names[Index];
 				}
 			}
 		}
@@ -384,7 +546,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePinNames(
 		{
 			for (int32 Index = 0; Index < Names.Num(); Index++)
 			{
-				OutputBindings[Index].Name = Names[Index];
+				OutputBindingArray[Index].Name = Names[Index];
 			}
 		}
 	}
@@ -402,14 +564,14 @@ void UOptimusNode_CustomComputeKernel::UpdatePinDataDomains(
 		{
 			PinDataDomains.Add({});
 		}
-		for (const FOptimusParameterBinding& Binding: InputBindings)
+		for (const FOptimusParameterBinding& Binding: InputBindingArray)
 		{
 			PinDataDomains.Add(Binding.DataDomain.LevelNames);
 		}
 	}
 	else if (InPinDirection == EOptimusNodePinDirection::Output)
 	{
-		for (const FOptimusParameterBinding& Binding: OutputBindings)
+		for (const FOptimusParameterBinding& Binding: OutputBindingArray)
 		{
 			PinDataDomains.Add(Binding.DataDomain.LevelNames);
 		}
@@ -451,15 +613,14 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 	};
 
 	CollectStructs(Parameters);
-	CollectStructs(InputBindings);
-	CollectStructs(OutputBindings);
+	CollectStructs(InputBindingArray);
+	CollectStructs(OutputBindingArray);
 	
 	TArray<FString> Declarations;
 
 	for (const FOptimus_ShaderBinding& Binding: Parameters)
 	{
-		Declarations.Add(FString::Printf(TEXT("%s Read%s();"),
-			*Binding.DataType->ShaderValueType->ToString(), *Binding.Name.ToString()));
+		Declarations.Add(GetDeclarationForBinding(Binding));
 	}
 	if (!Parameters.IsEmpty())
 	{
@@ -480,7 +641,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 	};
 	
 	TSet<TArray<FName>> SeenDataDomains;
-	TArray<FOptimusParameterBinding> Bindings = InputBindings;
+	TArray<FOptimusParameterBinding> Bindings = InputBindingArray.InnerArray;
 	Bindings.Sort(ContextsPredicate);
 
 	auto AddCountFunctionIfNeeded = [&Declarations, &SeenDataDomains](const TArray<FName>& InContextNames)
@@ -508,11 +669,10 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 			Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
 		}
 		
-		Declarations.Add(FString::Printf(TEXT("%s Read%s(%s);"),
-			*Binding.DataType->ShaderValueType->ToString(), *Binding.Name.ToString(), *FString::Join(Indexes, TEXT(", "))));
+		Declarations.Add(GetDeclarationForBinding(Binding, true));
 	}
 
-	Bindings = OutputBindings;
+	Bindings = OutputBindingArray.InnerArray;
 	Bindings.Sort(ContextsPredicate);
 	for (const FOptimusParameterBinding& Binding: Bindings)
 	{
@@ -524,8 +684,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 			Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
 		}
 		
-		Declarations.Add(FString::Printf(TEXT("void Write%s(%s, %s Value);"),
-			*Binding.Name.ToString(), *FString::Join(Indexes, TEXT(", ")), *Binding.DataType->ShaderValueType->ToString()));
+		Declarations.Add(GetDeclarationForBinding(Binding, false));
 	}
 
 	ShaderSource.Declarations.Reset();
@@ -541,6 +700,44 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 	}
 	ShaderSource.Declarations += "\n// Resource Indexing\n";
 	ShaderSource.Declarations += "uint Index;	// From SV_DispatchThreadID.x\n";
+}
+
+TMap<FName, UOptimusNodePin*> UOptimusNode_CustomComputeKernel::GetFilteredPins(
+	EOptimusNodePinDirection InDirection,
+	EOptimusNodePinStorageType InStorageType) const
+{
+	TMap<FName, UOptimusNodePin *> FilteredPins;
+	for (UOptimusNodePin *Pin: GetPins())
+	{
+		if (Pin->GetDirection() == InDirection && Pin->GetStorageType() == InStorageType)
+		{
+			FilteredPins.Add(Pin->GetFName(), Pin);
+		}
+	}
+	return FilteredPins;
+}
+
+FString UOptimusNode_CustomComputeKernel::GetDeclarationForBinding(const FOptimus_ShaderBinding& Binding) 
+{
+	return FString::Printf(TEXT("%s Read%s();"),
+				*Binding.DataType->ShaderValueType->ToString(), *Binding.Name.ToString());	
+}
+
+FString UOptimusNode_CustomComputeKernel::GetDeclarationForBinding(const FOptimusParameterBinding& Binding, bool bIsInput)
+{
+	TArray<FString> Indexes;
+	for (FString IndexName: GetIndexNamesFromDataDomainLevels(Binding.DataDomain.LevelNames))
+	{
+		Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
+	}
+
+	if (bIsInput)
+	{
+		return FString::Printf(TEXT("%s Read%s(%s);"),
+				*Binding.DataType->ShaderValueType->ToString(), *Binding.Name.ToString(), *FString::Join(Indexes, TEXT(", ")));
+	}
+	return FString::Printf(TEXT("void Write%s(%s, %s Value);"),
+				*Binding.Name.ToString(), *FString::Join(Indexes, TEXT(", ")), *Binding.DataType->ShaderValueType->ToString());
 }
 
 

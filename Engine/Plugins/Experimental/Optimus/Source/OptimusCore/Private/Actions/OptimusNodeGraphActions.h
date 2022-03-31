@@ -18,6 +18,8 @@ class UOptimusNode;
 class UOptimusNodeGraph;
 class UOptimusNodeLink;
 class UOptimusNodePin;
+struct FOptimus_ShaderValuedBinding;
+struct FOptimusParameterBinding;
 
 
 USTRUCT()

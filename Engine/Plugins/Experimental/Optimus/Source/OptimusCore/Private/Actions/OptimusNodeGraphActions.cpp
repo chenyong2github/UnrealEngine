@@ -636,8 +636,8 @@ FOptimusNodeGraphAction_PackageKernelFunction::FOptimusNodeGraphAction_PackageKe
 			
 			Parameters.Add(ValueParameter);
 		}
-		InputBindings = InKernelNode->InputBindings;
-		OutputBindings = InKernelNode->OutputBindings;
+		InputBindings = InKernelNode->InputBindingArray.InnerArray;
+		OutputBindings = InKernelNode->OutputBindingArray.InnerArray;
 		ShaderSource = InKernelNode->ShaderSource.ShaderText;
 	}
 }
@@ -784,8 +784,8 @@ bool FOptimusNodeGraphAction_UnpackageKernelFunction::Do(
 				Parameter.DataType = ParamBinding.DataType;
 				KernelNode->Parameters.Add(Parameter);
 			}
-			KernelNode->InputBindings = Class->InputBindings;
-			KernelNode->OutputBindings = Class->OutputBindings;
+			KernelNode->InputBindingArray = Class->InputBindings;
+			KernelNode->OutputBindingArray = Class->OutputBindings;
 			KernelNode->ShaderSource.ShaderText = Class->ShaderSource;
 			return InNode->SetGraphPositionDirect(NodePosition);
 		});

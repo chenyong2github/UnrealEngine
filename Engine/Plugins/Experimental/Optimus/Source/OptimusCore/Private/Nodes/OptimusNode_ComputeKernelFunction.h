@@ -6,6 +6,9 @@
 
 #include "OptimusNode_ComputeKernelFunction.generated.h"
 
+struct FOptimus_ShaderValuedBinding;
+struct FOptimusParameterBinding;
+
 UCLASS()
 class UOptimusNode_ComputeKernelFunctionGeneratorClass :
 	public UClass

@@ -6,6 +6,7 @@
 #include "OptimusHelpers.h"
 #include "OptimusNodePin.h"
 #include "OptimusShaderText.h"
+#include "OptimusBindingTypes.h"
 
 
 UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
