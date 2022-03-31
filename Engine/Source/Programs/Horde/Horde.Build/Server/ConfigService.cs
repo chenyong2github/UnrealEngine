@@ -16,6 +16,7 @@ using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Models;
 using Horde.Build.Notifications;
+using Horde.Build.Services;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.AspNetCore.StaticFiles;
@@ -24,7 +25,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Server
 {
 	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;
@@ -42,7 +43,7 @@ namespace Horde.Build.Services
 		/// Config file version number
 		/// </summary>
 		const int Version = 10;
-		readonly DatabaseService _databaseService;
+		readonly MongoService _mongoService;
 		readonly ProjectService _projectService;
 		readonly StreamService _streamService;
 		readonly IPerforceService _perforceService;
@@ -56,9 +57,9 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigService(DatabaseService databaseService, IPerforceService perforceService, ProjectService projectService, StreamService streamService, INotificationService notificationService, PoolService poolService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigService> logger)
+		public ConfigService(MongoService mongoService, IPerforceService perforceService, ProjectService projectService, StreamService streamService, INotificationService notificationService, PoolService poolService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigService> logger)
 		{
-			_databaseService = databaseService;
+			_mongoService = mongoService;
 			_perforceService = perforceService;
 			_projectService = projectService;
 			_streamService = streamService;
@@ -66,7 +67,7 @@ namespace Horde.Build.Services
 			_poolService = poolService;
 			_agentService = agentService;
 			_settings = settings;
-			if (databaseService.ReadOnlyMode)
+			if (mongoService.ReadOnlyMode)
 			{
 				_ticker = new NullTicker();
 			}
@@ -123,7 +124,7 @@ namespace Horde.Build.Services
 				}
 				globalConfig = _cachedGlobalConfig;
 
-				Globals globals = await _databaseService.GetGlobalsAsync();
+				Globals globals = await _mongoService.GetGlobalsAsync();
 				if (globals.ConfigRevision == revision)
 				{
 					_logger.LogInformation("Updating configuration from {ConfigPath}", globals.ConfigRevision);
@@ -137,7 +138,7 @@ namespace Horde.Build.Services
 				globals.ComputeClusters = _cachedGlobalConfig.Compute;
 				globals.RootAcl = Acl.Merge(null, _cachedGlobalConfig.Acl);
 
-				if (await _databaseService.TryUpdateSingletonAsync(globals))
+				if (await _mongoService.TryUpdateSingletonAsync(globals))
 				{
 					break;
 				}
@@ -176,7 +177,7 @@ namespace Horde.Build.Services
 				}
 
 				IProject? project = projects.FirstOrDefault(x => x.Id == projectRef.Id);
-				bool update = (project == null || project.ConfigPath != projectPath.ToString() || project.ConfigRevision != revision);
+				bool update = project == null || project.ConfigPath != projectPath.ToString() || project.ConfigRevision != revision;
 
 				ProjectConfig? projectConfig;
 				if (!update && prevCachedProjectConfigs.TryGetValue(projectRef.Id, out (ProjectConfig Config, string Revision) result) && result.Revision == revision)
@@ -374,7 +375,7 @@ namespace Horde.Build.Services
 
 		Task<byte[]> ReadDataAsync(Uri configPath)
 		{
-			switch(configPath.Scheme)
+			switch (configPath.Scheme)
 			{
 				case FileScheme:
 					return File.ReadAllBytesAsync(configPath.LocalPath);
@@ -421,16 +422,16 @@ namespace Horde.Build.Services
 		{
 
 			Uri? configUri = null;
-			
+
 			if (Path.IsPathRooted(_settings.CurrentValue.ConfigPath) && !_settings.CurrentValue.ConfigPath.StartsWith("//", StringComparison.Ordinal))
 			{
 				// absolute path to config
-				configUri = new Uri(_settings.CurrentValue.ConfigPath);					
+				configUri = new Uri(_settings.CurrentValue.ConfigPath);
 			}
 			else if (_settings.CurrentValue.ConfigPath != null)
 			{
 				// relative (development) or perforce path
-				configUri = CombinePaths(new Uri(FileReference.Combine(Program.AppDir, "_").FullName), _settings.CurrentValue.ConfigPath);				
+				configUri = CombinePaths(new Uri(FileReference.Combine(Program.AppDir, "_").FullName), _settings.CurrentValue.ConfigPath);
 			}
 
 			if (configUri != null)
@@ -454,7 +455,7 @@ namespace Horde.Build.Services
 			{
 				throw new Exception($"Global config path must be rooted for service updates.  (Perforce paths are not currently supported for live updates), {_settings.CurrentValue.ConfigPath}");
 			}
-			
+
 			FileReference globalConfigFile = new FileReference(_settings.CurrentValue.ConfigPath);
 			DirectoryReference globalConfigDirectory = globalConfigFile.Directory;
 
@@ -505,8 +506,8 @@ namespace Horde.Build.Services
 			}
 
 			if (configDirty == true)
-			{				
-				await UpdateConfigAsync(new Uri("file://" + globalConfigFile.ToString()));				
+			{
+				await UpdateConfigAsync(new Uri("file://" + globalConfigFile.ToString()));
 			}
 
 			// create the default pool 
@@ -606,7 +607,7 @@ namespace Horde.Build.Services
 					{
 						userProps.Remove(pair.Key);
 						continue;
-					}					
+					}
 
 					JsonElement element = (JsonElement)pair.Value;
 
@@ -633,33 +634,33 @@ namespace Horde.Build.Services
 					{
 						response.Errors.Add($"Unable to map type for Property {property.Name}");
 						continue;
-					}					
+					}
 
 					// handle common conversions
 					if (property.GetType() != value.GetType())
 					{
 						try
 						{
-							value =	Convert.ChangeType(value, property.PropertyType, CultureInfo.CurrentCulture);						
+							value = Convert.ChangeType(value, property.PropertyType, CultureInfo.CurrentCulture);
 						}
 						catch (Exception ex)
 						{
 							response.Errors.Add($"Property {property.Name} raised exception during conversion, {ex.Message}");
-							continue;							
+							continue;
 						}
-						
+
 						if (value == null)
 						{
 							response.Errors.Add($"Property {property.Name} had null value on conversion");
-							continue;							
+							continue;
 						}
 					}
-					else 
+					else
 					{
 						response.Errors.Add($"Property {property.Name} is not assignable to {value}");
 						continue;
 					}
-					
+
 
 					//  Set the value, providing some validation
 					try

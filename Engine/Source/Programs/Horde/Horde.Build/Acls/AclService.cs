@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -65,16 +65,16 @@ namespace Horde.Build.Acls
 		public static AclClaim AgentRoleClaim { get; } = new AclClaim(HordeClaimTypes.Role, "agent");
 
 		private readonly Acl _defaultAcl = new();
-		private readonly DatabaseService _databaseService;
+		private readonly MongoService _mongoService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service instance</param>
+		/// <param name="mongoService">The database service instance</param>
 		/// <param name="settings">The settings object</param>
-		public AclService(DatabaseService databaseService, IOptionsMonitor<ServerSettings> settings)
+		public AclService(MongoService mongoService, IOptionsMonitor<ServerSettings> settings)
 		{
-			_databaseService = databaseService;
+			_mongoService = mongoService;
 
             List<AclAction> adminActions = new();
 			foreach (AclAction? action in Enum.GetValues(typeof(AclAction)))
@@ -104,7 +104,7 @@ namespace Horde.Build.Acls
 		/// <returns>Scopes instance</returns>
 		public async Task<Acl> GetRootAcl()
 		{
-			Globals globals = await _databaseService.GetGlobalsAsync();
+			Globals globals = await _mongoService.GetGlobalsAsync();
 			return globals.RootAcl ?? new Acl();
 		}
 
@@ -152,9 +152,9 @@ namespace Horde.Build.Acls
 		/// <returns>JWT security token with a claim for creating new agents</returns>
 		public string IssueBearerToken(IEnumerable<Claim> claims, TimeSpan? expiry)
 		{
-			SigningCredentials signingCredentials = new(_databaseService.JwtSigningKey, SecurityAlgorithms.HmacSha256);
+			SigningCredentials signingCredentials = new(_mongoService.JwtSigningKey, SecurityAlgorithms.HmacSha256);
 
-			JwtSecurityToken token = new(_databaseService.JwtIssuer, null, claims, null, DateTime.UtcNow + expiry, signingCredentials);
+			JwtSecurityToken token = new(_mongoService.JwtIssuer, null, claims, null, DateTime.UtcNow + expiry, signingCredentials);
 			return new JwtSecurityTokenHandler().WriteToken(token);
 		}
 

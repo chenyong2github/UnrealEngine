@@ -6,7 +6,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Horde.Build.Api;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -109,10 +109,10 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service singleton</param>
-		public LogFileCollection(DatabaseService databaseService)
+		/// <param name="mongoService">The database service singleton</param>
+		public LogFileCollection(MongoService mongoService)
 		{
-			_logFiles = databaseService.GetCollection<LogFileDocument>("LogFiles");
+			_logFiles = mongoService.GetCollection<LogFileDocument>("LogFiles");
 			_hostName = Dns.GetHostName();
 		}
 

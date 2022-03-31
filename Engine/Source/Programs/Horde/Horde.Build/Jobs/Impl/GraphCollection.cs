@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using HordeCommon;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -352,10 +352,10 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service singleton</param>
-		public GraphCollection(DatabaseService databaseService)
+		/// <param name="mongoService">The database service singleton</param>
+		public GraphCollection(MongoService mongoService)
 		{
-			_graphs = databaseService.GetCollection<GraphDocument>("Graphs");
+			_graphs = mongoService.GetCollection<GraphDocument>("Graphs");
 		}
 
 		/// <summary>

@@ -13,7 +13,7 @@ using EpicGames.Serialization;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Tasks;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -183,14 +183,14 @@ namespace Horde.Build.Compute.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeService(DatabaseService databaseService, IDatabase redis, IStorageClient storageClient, IClock clock, ILogger<ComputeService> logger)
+		public ComputeService(MongoService mongoService, RedisService redisService, IStorageClient storageClient, IClock clock, ILogger<ComputeService> logger)
 		{
 			_storageClient = storageClient;
-			_taskScheduler = new RedisTaskScheduler<QueueKey, ComputeTaskInfo>(redis, "compute/tasks/", logger);
-			_messageQueue = new RedisMessageQueue<ComputeTaskStatus>(redis, "compute/messages/");
+			_taskScheduler = new RedisTaskScheduler<QueueKey, ComputeTaskInfo>(redisService.Database, "compute/tasks/", logger);
+			_messageQueue = new RedisMessageQueue<ComputeTaskStatus>(redisService.Database, "compute/messages/");
 			_expireTasksTicker = clock.AddTicker<ComputeService>(TimeSpan.FromMinutes(2.0), ExpireTasksAsync, logger);
 			_requirementsCache = new MemoryCache(new MemoryCacheOptions());
-			_globals = new LazyCachedValue<Task<Globals>>(() => databaseService.GetGlobalsAsync(), TimeSpan.FromSeconds(120.0));
+			_globals = new LazyCachedValue<Task<Globals>>(() => mongoService.GetGlobalsAsync(), TimeSpan.FromSeconds(120.0));
 			_logger = logger;
 
 			OnLeaseStartedProperties.Add(x => x.TaskRefId);

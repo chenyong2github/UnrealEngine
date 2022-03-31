@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -88,11 +88,11 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service singleton</param>
-		public AgentSoftwareCollection(DatabaseService databaseService)
+		/// <param name="mongoService">The database service singleton</param>
+		public AgentSoftwareCollection(MongoService mongoService)
 		{
-			_collection = databaseService.GetCollection<AgentSoftwareDocument>("AgentSoftware");
-			_agentChunks = databaseService.GetCollection<ChunkDocument>("AgentSoftwareChunks");
+			_collection = mongoService.GetCollection<AgentSoftwareDocument>("AgentSoftware");
+			_agentChunks = mongoService.GetCollection<ChunkDocument>("AgentSoftwareChunks");
 		}
 
 		/// <inheritdoc/>

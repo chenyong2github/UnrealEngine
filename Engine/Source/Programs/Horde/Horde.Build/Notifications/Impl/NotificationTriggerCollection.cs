@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -65,11 +65,11 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database singleton</param>
+		/// <param name="mongoService">The database singleton</param>
 		/// <param name="userCollection"></param>
-		public NotificationTriggerCollection(DatabaseService databaseService, IUserCollection userCollection)
+		public NotificationTriggerCollection(MongoService mongoService, IUserCollection userCollection)
 		{
-			_triggers = databaseService.GetCollection<TriggerDocument>("NotificationTriggers");
+			_triggers = mongoService.GetCollection<TriggerDocument>("NotificationTriggers");
 			_userCollection = userCollection;
 		}
 

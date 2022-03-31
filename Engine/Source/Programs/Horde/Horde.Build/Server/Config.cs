@@ -7,9 +7,10 @@ using EpicGames.Core;
 using EpicGames.Horde.Common;
 using EpicGames.Serialization;
 using Horde.Build.Api;
+using Horde.Build.Models;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Server
 {
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;

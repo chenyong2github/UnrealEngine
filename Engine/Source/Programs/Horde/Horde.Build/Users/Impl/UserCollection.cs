@@ -6,7 +6,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -85,12 +85,12 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService"></param>
-		public UserCollectionV1(DatabaseService databaseService)
+		/// <param name="mongoService"></param>
+		public UserCollectionV1(MongoService mongoService)
 		{
-			_users = databaseService.GetCollection<UserDocument>("Users");
+			_users = mongoService.GetCollection<UserDocument>("Users");
 
-			if (!databaseService.ReadOnlyMode)
+			if (!mongoService.ReadOnlyMode)
 			{
 				_users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.PrimaryClaim), new CreateIndexOptions { Unique = true }));
 			}

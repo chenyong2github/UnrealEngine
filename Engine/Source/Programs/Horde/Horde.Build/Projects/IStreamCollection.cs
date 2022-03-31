@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Collections

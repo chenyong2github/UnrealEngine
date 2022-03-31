@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using MongoDB.Bson;
@@ -100,11 +100,11 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service instance</param>
-		public LeaseCollection(DatabaseService databaseService)
+		/// <param name="mongoService">The database service instance</param>
+		public LeaseCollection(MongoService mongoService)
 		{
-			_leases = databaseService.GetCollection<LeaseDocument>("Leases");
-			_indexes = new DatabaseIndexes(_leases, databaseService.ReadOnlyMode);
+			_leases = mongoService.GetCollection<LeaseDocument>("Leases");
+			_indexes = new DatabaseIndexes(_leases, mongoService.ReadOnlyMode);
 		}
 
 		/// <inheritdoc/>

@@ -19,6 +19,7 @@ using EpicGames.Redis;
 using EpicGames.Serialization;
 using Horde.Build.Collections;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -188,13 +189,13 @@ namespace Horde.Build.Commits.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CommitService(IDatabase redis, ICommitCollection commitCollection, IStorageClient storageClient, IStreamCollection streamCollection, IPerforceService perforceService, IUserCollection userCollection, IClock clock, IMemoryCache memoryCache, IOptions<CommitServiceOptions> options, ILogger<CommitService> logger)
+		public CommitService(RedisService redisService, ICommitCollection commitCollection, IStorageClient storageClient, IStreamCollection streamCollection, IPerforceService perforceService, IUserCollection userCollection, IClock clock, IMemoryCache memoryCache, IOptions<CommitServiceOptions> options, ILogger<CommitService> logger)
 		{
 			Options = options.Value;
 
-			_redis = redis;
-			_redisDirtyStreams = new RedisSet<StreamId>(redis, RedisBaseKey.Append("streams"));
-			_redisReservations = new RedisSortedSet<StreamId>(redis, RedisBaseKey.Append("reservations"));
+			_redis = redisService.Database;
+			_redisDirtyStreams = new RedisSet<StreamId>(_redis, RedisBaseKey.Append("streams"));
+			_redisReservations = new RedisSortedSet<StreamId>(_redis, RedisBaseKey.Append("reservations"));
 
 			_commitCollection = commitCollection;
 			_storageClient = storageClient;

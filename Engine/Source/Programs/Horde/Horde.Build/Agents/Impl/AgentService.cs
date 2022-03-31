@@ -14,6 +14,7 @@ using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Acls;
 using Horde.Build.Collections;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Tasks;
 using Horde.Build.Utilities;
 using HordeCommon;

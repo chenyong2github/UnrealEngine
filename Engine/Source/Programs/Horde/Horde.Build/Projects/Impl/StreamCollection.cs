@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using MongoDB.Bson.Serialization.Attributes;
@@ -120,12 +120,12 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service instance</param>
+		/// <param name="mongoService">The database service instance</param>
 		/// <param name="clock"></param>
 		/// <param name="templateCollection"></param>
-		public StreamCollection(DatabaseService databaseService, IClock clock, ITemplateCollection templateCollection)
+		public StreamCollection(MongoService mongoService, IClock clock, ITemplateCollection templateCollection)
 		{
-			_streams = databaseService.GetCollection<StreamDocument>("Streams");
+			_streams = mongoService.GetCollection<StreamDocument>("Streams");
 			_clock = clock;
 			_templateCollection = templateCollection;
 		}

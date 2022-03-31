@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Horde.Build.Collections;
 using Horde.Build.Collections.Impl;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 
@@ -19,8 +19,8 @@ namespace Horde.Build.Tests
 		
 		public ServiceAccountCollectionTests()
 		{
-			DatabaseService databaseService = GetDatabaseServiceSingleton();
-			_serviceAccounts = new ServiceAccountCollection(databaseService);
+			MongoService mongoService = GetMongoServiceSingleton();
+			_serviceAccounts = new ServiceAccountCollection(mongoService);
 			_serviceAccount = _serviceAccounts.AddAsync(ObjectId.GenerateNewId().ToString(), new List<string> {"myclaim###myvalue"}, "mydesc").Result;
 		}
 

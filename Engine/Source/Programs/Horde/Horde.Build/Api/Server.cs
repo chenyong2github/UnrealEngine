@@ -32,7 +32,6 @@ namespace Horde.Build.Api
 		/// </summary>
 		public GetServerInfoResponse( bool singleInstance)
         {
-
             FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);		
 			ServerVersion = versionInfo.ProductVersion ?? String.Empty;			
 			OsDescription = RuntimeInformation.OSDescription;

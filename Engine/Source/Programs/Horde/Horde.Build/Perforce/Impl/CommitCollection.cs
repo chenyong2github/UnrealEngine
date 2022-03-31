@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -82,11 +82,11 @@ namespace Horde.Build.Commits.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CommitCollection(DatabaseService databaseService)
+		public CommitCollection(MongoService mongoService)
 		{
-			_commits = databaseService.Database.GetCollection<Commit>("Commits");
+			_commits = mongoService.Database.GetCollection<Commit>("Commits");
 
-			if (!databaseService.ReadOnlyMode)
+			if (!mongoService.ReadOnlyMode)
 			{
 				_commits.Indexes.CreateOne(new CreateIndexModel<Commit>(Builders<Commit>.IndexKeys.Ascending(x => x.StreamId).Descending(x => x.Change), new CreateIndexOptions { Unique = true }));
 			}

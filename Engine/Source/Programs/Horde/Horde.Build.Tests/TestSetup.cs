@@ -20,6 +20,7 @@ using Horde.Build.Logs.Storage.Impl;
 using Horde.Build.Models;
 using Horde.Build.Notifications;
 using Horde.Build.Notifications.Impl;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Services.Impl;
 using Horde.Build.Storage;
@@ -69,7 +70,7 @@ namespace Horde.Build.Tests
 		public AclService AclService => ServiceProvider.GetRequiredService<AclService>();
 		public AgentSoftwareService AgentSoftwareService => ServiceProvider.GetRequiredService<AgentSoftwareService>();
 		public AgentService AgentService => ServiceProvider.GetRequiredService<AgentService>();
-		public DatabaseService DatabaseService => ServiceProvider.GetRequiredService<DatabaseService>();
+		public MongoService MongoService => ServiceProvider.GetRequiredService<MongoService>();
 		public ITemplateCollection TemplateCollection => ServiceProvider.GetRequiredService<ITemplateCollection>();
 		internal PerforceServiceStub PerforceService => (PerforceServiceStub)ServiceProvider.GetRequiredService<IPerforceService>();
 		public ILogFileService LogFileService => ServiceProvider.GetRequiredService<ILogFileService>();

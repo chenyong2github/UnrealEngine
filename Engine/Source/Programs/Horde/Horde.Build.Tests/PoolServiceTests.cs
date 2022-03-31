@@ -46,7 +46,7 @@ namespace Horde.Build.Tests
         [TestMethod]
         public async Task GetPoolsTest()
         {
-            await GetDatabaseServiceSingleton().Database.DropCollectionAsync("Pools");
+            await GetMongoServiceSingleton().Database.DropCollectionAsync("Pools");
             
             List<IPool> pools = await PoolService.GetPoolsAsync();
             Assert.AreEqual(pools.Count, 0);

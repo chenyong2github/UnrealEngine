@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using EpicGames.Horde.Common;
 using Horde.Build.Fleet.Autoscale;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -84,10 +84,10 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service instance</param>
-		public PoolCollection(DatabaseService databaseService)
+		/// <param name="mongoService">The database service instance</param>
+		public PoolCollection(MongoService mongoService)
 		{
-			_pools = databaseService.GetCollection<PoolDocument>("Pools");
+			_pools = mongoService.GetCollection<PoolDocument>("Pools");
 		}
 
 		/// <inheritdoc/>

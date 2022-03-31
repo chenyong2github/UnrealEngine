@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -60,9 +60,9 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public NoticeCollection(DatabaseService databaseService)
+		public NoticeCollection(MongoService mongoService)
 		{
-			_notices = databaseService.GetCollection<NoticeDocument>("Notices");
+			_notices = mongoService.GetCollection<NoticeDocument>("Notices");
 		}
 
 		/// <inheritdoc/>

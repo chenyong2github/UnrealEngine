@@ -14,6 +14,7 @@ using EpicGames.Serialization;
 using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
@@ -152,7 +153,7 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ScheduleService(RedisService redis, IGraphCollection graphs, IPerforceService perforce, IJobCollection jobCollection, JobService jobService, StreamService streamService, ITemplateCollection templateCollection, DatabaseService databaseService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ScheduleService> logger)
+		public ScheduleService(RedisService redis, IGraphCollection graphs, IPerforceService perforce, IJobCollection jobCollection, JobService jobService, StreamService streamService, ITemplateCollection templateCollection, MongoService mongoService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ScheduleService> logger)
 		{
 			_graphs = graphs;
 			_perforce = perforce;
@@ -171,7 +172,7 @@ namespace Horde.Build.Services
 			_baseLockKey = "scheduler/locks";
 			_tickLockKey = _baseLockKey.Append("/tick");
 			_queue = new RedisSortedSet<QueueItem>(redis.Database, "scheduler/queue");
-			if (databaseService.ReadOnlyMode)
+			if (mongoService.ReadOnlyMode)
 			{
 				_ticker = new NullTicker();
 			}

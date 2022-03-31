@@ -9,6 +9,7 @@ using EpicGames.Redis;
 using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Acls;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -150,14 +151,14 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AgentCollection(DatabaseService databaseService, RedisService redisService, IAuditLog<AgentId> auditLog)
+		public AgentCollection(MongoService mongoService, RedisService redisService, IAuditLog<AgentId> auditLog)
 		{
-			_agents = databaseService.GetCollection<AgentDocument>("Agents");
+			_agents = mongoService.GetCollection<AgentDocument>("Agents");
 			_redisService = redisService;
 			_updateEventChannel = new RedisChannel<AgentId>("agents/notify");
 			_auditLog = auditLog;
 
-			if (!databaseService.ReadOnlyMode)
+			if (!mongoService.ReadOnlyMode)
 			{
 				_agents.Indexes.CreateOne(new CreateIndexModel<AgentDocument>(Builders<AgentDocument>.IndexKeys.Ascending(x => x.Deleted).Ascending(x => x.Id).Ascending(x => x.Pools)));
 			}

@@ -9,6 +9,7 @@ using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Jobs;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using HordeCommon;

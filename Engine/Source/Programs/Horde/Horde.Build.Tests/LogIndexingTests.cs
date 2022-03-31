@@ -36,7 +36,7 @@ namespace Horde.Build.Tests
 
 		public LogIndexingTests()
 		{
-			LogFileCollection logFileCollection = new LogFileCollection(GetDatabaseServiceSingleton());
+			LogFileCollection logFileCollection = new LogFileCollection(GetMongoServiceSingleton());
 
 			ServiceProvider serviceProvider = new ServiceCollection()
 				.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Debug))

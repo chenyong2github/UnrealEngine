@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Redis.Utility;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 

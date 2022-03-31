@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -30,14 +31,14 @@ namespace Horde.Build.Services
 		/// Constructor
 		/// </summary>
 		/// <param name="aclService">The ACL service instance</param>
-		/// <param name="databaseService">The database service instance</param>
-		public CredentialService(AclService aclService, DatabaseService databaseService)
+		/// <param name="mongoService">The database service instance</param>
+		public CredentialService(AclService aclService, MongoService mongoService)
 		{
 			_aclService = aclService;
 
-			_credentials = databaseService.Credentials;
+			_credentials = mongoService.Credentials;
 
-			if (!databaseService.ReadOnlyMode)
+			if (!mongoService.ReadOnlyMode)
 			{
 				_credentials.Indexes.CreateOne(new CreateIndexModel<Credential>(Builders<Credential>.IndexKeys.Ascending(x => x.NormalizedName), new CreateIndexOptions { Unique = true }));
 			}

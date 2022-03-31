@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Horde.Build.Collections;
 using Horde.Build.Collections.Impl;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -23,7 +24,7 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// The database service instance
 		/// </summary>
-		DatabaseService DatabaseService { get; set; }
+		readonly MongoService _mongoService;
 
 		/// <summary>
 		/// The DI service provider
@@ -38,12 +39,12 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service singleton</param>
+		/// <param name="mongoService">The database service singleton</param>
 		/// <param name="serviceProvider">The DI service provider</param>
 		/// <param name="logger">Logger instance</param>
-		public UpgradeService(DatabaseService databaseService, IServiceProvider serviceProvider, ILogger<UpgradeService> logger)
+		public UpgradeService(MongoService mongoService, IServiceProvider serviceProvider, ILogger<UpgradeService> logger)
 		{
-			DatabaseService = databaseService;
+			_mongoService = mongoService;
 			_serviceProvider = serviceProvider;
 			_logger = logger;
 		}
@@ -55,7 +56,7 @@ namespace Horde.Build.Services
 		/// <returns>Async task</returns>
 		public async Task UpgradeSchemaAsync(int? fromVersion)
 		{
-			Globals globals = await DatabaseService.GetGlobalsAsync();
+			Globals globals = await _mongoService.GetGlobalsAsync();
 			int schemaVersion = fromVersion ?? globals.SchemaVersion ?? 0;
 
 			while (schemaVersion < LatestSchemaVersion)
@@ -82,8 +83,8 @@ namespace Horde.Build.Services
 				}
 				if (schemaVersion == 4)
 				{
-					UserCollectionV1 userCollectionV1 = new UserCollectionV1(_serviceProvider.GetRequiredService<DatabaseService>());
-					using UserCollectionV2 userCollectionV2 = new UserCollectionV2(_serviceProvider.GetRequiredService<DatabaseService>(), _serviceProvider.GetRequiredService<ILogger<UserCollectionV2>>());
+					UserCollectionV1 userCollectionV1 = new UserCollectionV1(_serviceProvider.GetRequiredService<MongoService>());
+					using UserCollectionV2 userCollectionV2 = new UserCollectionV2(_serviceProvider.GetRequiredService<MongoService>(), _serviceProvider.GetRequiredService<ILogger<UserCollectionV2>>());
 					await userCollectionV2.ResaveDocumentsAsync(userCollectionV1);
 				}
 
@@ -94,11 +95,11 @@ namespace Horde.Build.Services
 				while (globals.SchemaVersion == null || globals.SchemaVersion < schemaVersion)
 				{
 					globals.SchemaVersion = schemaVersion;
-					if (await DatabaseService.TryUpdateSingletonAsync(globals))
+					if (await _mongoService.TryUpdateSingletonAsync(globals))
 					{
 						break;
 					}
-					globals = await DatabaseService.GetGlobalsAsync();
+					globals = await _mongoService.GetGlobalsAsync();
 				}
 			}
 		}

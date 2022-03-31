@@ -11,6 +11,7 @@ using Horde.Agent.Parser;
 using Horde.Agent.Utility;
 using Horde.Build.IssueHandlers.Impl;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Tests.Stubs.Services;
 using Horde.Build.Utilities;

@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Collections;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
@@ -134,7 +135,7 @@ namespace Horde.Build.Services
 			public List<PerforceServerEntry> Servers { get; set; } = new List<PerforceServerEntry>();
 		}
 
-		readonly DatabaseService _databaseService;
+		readonly MongoService _mongoService;
 		readonly ILeaseCollection _leaseCollection;
 		readonly SingletonDocument<PerforceServerList> _serverListSingleton;
 		readonly Random _random = new Random();
@@ -144,13 +145,13 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceLoadBalancer(DatabaseService databaseService, ILeaseCollection leaseCollection, IClock clock, ILogger<PerforceLoadBalancer> logger)
+		public PerforceLoadBalancer(MongoService mongoService, ILeaseCollection leaseCollection, IClock clock, ILogger<PerforceLoadBalancer> logger)
 		{
-			_databaseService = databaseService;
+			_mongoService = mongoService;
 			_leaseCollection = leaseCollection;
-			_serverListSingleton = new SingletonDocument<PerforceServerList>(databaseService);
+			_serverListSingleton = new SingletonDocument<PerforceServerList>(mongoService);
 			_logger = logger;
-			if (databaseService.ReadOnlyMode)
+			if (mongoService.ReadOnlyMode)
 			{
 				_ticker = new NullTicker();
 			}
@@ -320,7 +321,7 @@ namespace Horde.Build.Services
 		/// <inheritdoc/>
 		async ValueTask TickInternalAsync(CancellationToken cancellationToken)
 		{
-			Globals globals = await _databaseService.GetGlobalsAsync();
+			Globals globals = await _mongoService.GetGlobalsAsync();
 
 			// Set of new server entries
 			List<PerforceServerEntry> newServers = new List<PerforceServerEntry>();

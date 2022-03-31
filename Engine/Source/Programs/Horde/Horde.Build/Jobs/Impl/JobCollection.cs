@@ -10,6 +10,7 @@ using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -383,16 +384,16 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service singleton</param>
+		/// <param name="mongoService">The database service singleton</param>
 		/// <param name="clock"></param>
 		/// <param name="logger">The logger instance</param>
-		public JobCollection(DatabaseService databaseService, IClock clock, ILogger<JobCollection> logger)
+		public JobCollection(MongoService mongoService, IClock clock, ILogger<JobCollection> logger)
 		{
 			_clock = clock;
 			_logger = logger;
 
-			_jobs = databaseService.GetCollection<JobDocument>("Jobs");
-			_indexes = new DatabaseIndexes(_jobs, databaseService.ReadOnlyMode);
+			_jobs = mongoService.GetCollection<JobDocument>("Jobs");
+			_indexes = new DatabaseIndexes(_jobs, mongoService.ReadOnlyMode);
 		}
 
 		static Task PostLoadAsync(JobDocument job)

@@ -16,6 +16,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Models;
+using Horde.Build.Services;
 using Horde.Build.Utiltiies;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -25,12 +26,12 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Events;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Server
 {
 	/// <summary>
 	/// Singleton for accessing the database
 	/// </summary>
-	public sealed class DatabaseService : IDisposable
+	public sealed class MongoService : IDisposable
 	{
 		/// <summary>
 		/// The database instance
@@ -65,8 +66,8 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Logger for this instance
 		/// </summary>
-		readonly ILogger<DatabaseService> _logger;
-		
+		readonly ILogger<MongoService> _logger;
+
 		/// <summary>
 		/// Access the database in a read-only mode (don't create indices or modify content)
 		/// </summary>
@@ -102,10 +103,10 @@ namespace Horde.Build.Services
 		/// </summary>
 		/// <param name="settingsSnapshot">The settings instance</param>
 		/// <param name="loggerFactory">Instance of the logger for this service</param>
-		public DatabaseService(IOptions<ServerSettings> settingsSnapshot, ILoggerFactory loggerFactory)
+		public MongoService(IOptions<ServerSettings> settingsSnapshot, ILoggerFactory loggerFactory)
 		{
 			Settings = settingsSnapshot.Value;
-			_logger = loggerFactory.CreateLogger<DatabaseService>();
+			_logger = loggerFactory.CreateLogger<MongoService>();
 			_loggerFactory = loggerFactory;
 
 			try
@@ -157,7 +158,7 @@ namespace Horde.Build.Services
 						clusterBuilder.Subscribe<CommandStartedEvent>(ev => TraceMongoCommand(ev.Command));
 					}
 				};
-				
+
 				mongoSettings.SslSettings = new SslSettings();
 				mongoSettings.SslSettings.ServerCertificateValidationCallback = CertificateValidationCallBack;
 				mongoSettings.MaxConnectionPoolSize = 300; // Default is 100
@@ -193,7 +194,7 @@ namespace Horde.Build.Services
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Exception while initializing DatabaseService");
+				_logger.LogError(ex, "Exception while initializing MongoService");
 				throw;
 			}
 		}
@@ -217,7 +218,7 @@ namespace Horde.Build.Services
 				_mongoProcess.Dispose();
 				_mongoProcess = null;
 			}
-			if(_mongoProcessGroup != null)
+			if (_mongoProcessGroup != null)
 			{
 				_mongoProcessGroup.Dispose();
 				_mongoProcessGroup = null;
@@ -269,7 +270,7 @@ namespace Horde.Build.Services
 			FileReference mongoLogFile = FileReference.Combine(mongoDir, "mongod.log");
 
 			FileReference configFile = FileReference.Combine(mongoDir, "mongod.conf");
-			if(!FileReference.Exists(configFile))
+			if (!FileReference.Exists(configFile))
 			{
 				DirectoryReference.CreateDirectory(configFile.Directory);
 				using (StreamWriter writer = new StreamWriter(configFile.FullName))
@@ -366,7 +367,7 @@ namespace Horde.Build.Services
 			List<string> names = new List<string>();
 			List<string> values = new List<string>();
 
-			foreach(BsonElement element in command)
+			foreach (BsonElement element in command)
 			{
 				if (element.Value != null && !element.Name.Equals("$db", StringComparison.Ordinal) && !element.Name.Equals("lsid", StringComparison.Ordinal))
 				{
@@ -488,7 +489,7 @@ namespace Horde.Build.Services
 		/// <returns>The globals document</returns>
 		public Task<Globals> GetGlobalsAsync()
 		{
-			return GetSingletonAsync<Globals>(Globals.StaticId, () => new Globals() { SchemaVersion = UpgradeService.LatestSchemaVersion });
+			return GetSingletonAsync(Globals.StaticId, () => new Globals() { SchemaVersion = UpgradeService.LatestSchemaVersion });
 		}
 
 		/// <summary>
@@ -514,7 +515,7 @@ namespace Horde.Build.Services
 			FilterDefinition<BsonDocument> filter = new BsonDocument(new BsonElement("_id", id));
 			for (; ; )
 			{
-				BsonDocument? document = await Singletons.Find<BsonDocument>(filter).FirstOrDefaultAsync();
+				BsonDocument? document = await Singletons.Find(filter).FirstOrDefaultAsync();
 				if (document != null)
 				{
 					T item = BsonSerializer.Deserialize<T>(document);
@@ -541,7 +542,7 @@ namespace Horde.Build.Services
 			{
 				T document = await GetSingletonAsync(id, () => new T());
 				updater(document);
-				
+
 				if (await TryUpdateSingletonAsync(document))
 				{
 					break;

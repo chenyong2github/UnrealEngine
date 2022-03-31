@@ -16,6 +16,7 @@ using EpicGames.Core;
 using EpicGames.Perforce;
 using Horde.Build.Collections;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -89,10 +90,10 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceService(PerforceLoadBalancer loadBalancer, DatabaseService databaseService, IUserCollection userCollection, IOptions<ServerSettings> settings, ILogger<PerforceService> logger)
+		public PerforceService(PerforceLoadBalancer loadBalancer, MongoService mongoService, IUserCollection userCollection, IOptions<ServerSettings> settings, ILogger<PerforceService> logger)
 		{
 			_loadBalancer = loadBalancer;
-			_cachedGlobals = new LazyCachedValue<Task<Globals>>(() => databaseService.GetGlobalsAsync(), TimeSpan.FromSeconds(30.0));
+			_cachedGlobals = new LazyCachedValue<Task<Globals>>(() => mongoService.GetGlobalsAsync(), TimeSpan.FromSeconds(30.0));
 			_userCollection = userCollection;
 			_settings = settings.Value;
 			_logger = logger;

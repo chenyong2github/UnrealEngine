@@ -13,6 +13,7 @@ using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Jobs;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
@@ -35,7 +36,7 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Instance of the database service
 		/// </summary>
-		private readonly DatabaseService _databaseService;
+		private readonly MongoService _mongoService;
 
 		/// <summary>
 		/// Instance of the artifact collection
@@ -55,9 +56,9 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ArtifactsController(DatabaseService databaseSerivce, IArtifactCollection artifactCollection, AclService aclService, JobService jobService)
+		public ArtifactsController(MongoService mongoService, IArtifactCollection artifactCollection, AclService aclService, JobService jobService)
 		{
-			_databaseService = databaseSerivce;
+			_mongoService = mongoService;
 			_artifactCollection = artifactCollection;
 			_aclService = aclService;
 			_jobService = jobService;
@@ -306,10 +307,10 @@ namespace Horde.Build.Controllers
 			parameters.ValidateAudience = false;
 			parameters.RequireExpirationTime = true;
 			parameters.ValidateLifetime = true;
-			parameters.ValidIssuer = _databaseService.JwtIssuer;
+			parameters.ValidIssuer = _mongoService.JwtIssuer;
 			parameters.ValidateIssuer = true;
 			parameters.ValidateIssuerSigningKey = true;
-			parameters.IssuerSigningKey = _databaseService.JwtSigningKey;
+			parameters.IssuerSigningKey = _mongoService.JwtSigningKey;
 
 			JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
 			ClaimsPrincipal principal = handler.ValidateToken(code, parameters, out _);

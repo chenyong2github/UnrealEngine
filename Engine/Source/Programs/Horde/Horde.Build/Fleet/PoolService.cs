@@ -9,6 +9,7 @@ using EpicGames.Horde.Common;
 using Horde.Build.Collections;
 using Horde.Build.Fleet.Autoscale;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 
@@ -24,7 +25,7 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// The database service instance
 		/// </summary>
-		readonly DatabaseService _databaseService;
+		readonly MongoService _mongoService;
 
 		/// <summary>
 		/// Collection of pool documents
@@ -44,12 +45,12 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService"></param>
+		/// <param name="mongoService"></param>
 		/// <param name="pools">Collection of pool documents</param>
 		/// <param name="clock"></param>
-		public PoolService(DatabaseService databaseService, IPoolCollection pools, IClock clock)
+		public PoolService(MongoService mongoService, IPoolCollection pools, IClock clock)
 		{
-			_databaseService = databaseService;
+			_mongoService = mongoService;
 			_pools = pools;
 			_clock = clock;
 		}
@@ -198,7 +199,7 @@ namespace Horde.Build.Services
 
 			if (bAddAutoSdkWorkspace)
 			{
-				Globals globals = await _databaseService.GetGlobalsAsync();
+				Globals globals = await _mongoService.GetGlobalsAsync();
 				workspaces.UnionWith(agent.GetAutoSdkWorkspaces(globals, workspaces.ToList()));
 			}
 

@@ -10,7 +10,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Server
 {
 	/// <summary>
 	/// Interface for a service which keeps track of whether we're during downtime
@@ -40,7 +40,7 @@ namespace Horde.Build.Services
 			private set;
 		}
 
-		readonly DatabaseService _databaseService;
+		readonly MongoService _mongoService;
 		readonly ITicker _ticker;
 		readonly IOptionsMonitor<ServerSettings> _settings;
 		readonly ILogger _logger;
@@ -48,13 +48,13 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service instance</param>
+		/// <param name="mongoService">The database service instance</param>
 		/// <param name="clock"></param>
 		/// <param name="settings">The server settings</param>
 		/// <param name="logger">Logger instance</param>
-		public DowntimeService(DatabaseService databaseService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<DowntimeService> logger)
+		public DowntimeService(MongoService mongoService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<DowntimeService> logger)
 		{
-			_databaseService = databaseService;
+			_mongoService = mongoService;
 			_settings = settings;
 			_logger = logger;
 
@@ -80,7 +80,7 @@ namespace Horde.Build.Services
 		/// <returns>Async task</returns>
 		async ValueTask TickAsync(CancellationToken stoppingToken)
 		{
-			Globals globals = await _databaseService.GetGlobalsAsync();
+			Globals globals = await _mongoService.GetGlobalsAsync();
 
 			DateTimeOffset now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, _settings.CurrentValue.TimeZoneInfo);
 			bool bIsActive = globals.ScheduledDowntime.Any(x => x.IsActive(now));
@@ -89,7 +89,7 @@ namespace Horde.Build.Services
 			foreach (ScheduledDowntime schedule in globals.ScheduledDowntime)
 			{
 				DateTimeOffset start = schedule.GetNext(now).StartTime;
-				if(next == null || start < next)
+				if (next == null || start < next)
 				{
 					next = start;
 				}

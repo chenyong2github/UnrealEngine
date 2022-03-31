@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using MongoDB.Bson.Serialization.Attributes;
@@ -93,12 +93,12 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service instance</param>
-		public JobStepRefCollection(DatabaseService databaseService)
+		/// <param name="mongoService">The database service instance</param>
+		public JobStepRefCollection(MongoService mongoService)
 		{
-			_jobStepRefs = databaseService.GetCollection<JobStepRef>("JobStepRefs");
+			_jobStepRefs = mongoService.GetCollection<JobStepRef>("JobStepRefs");
 
-			if (!databaseService.ReadOnlyMode)
+			if (!mongoService.ReadOnlyMode)
 			{
 				_jobStepRefs.Indexes.CreateOne(new CreateIndexModel<JobStepRef>(Builders<JobStepRef>.IndexKeys.Ascending(x => x.StreamId).Ascending(x => x.TemplateId).Ascending(x => x.Name).Descending(x => x.Change)));
 			}

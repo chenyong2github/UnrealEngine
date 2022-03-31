@@ -1,10 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,7 +24,7 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// The database service instance
 		/// </summary>
-		private readonly DatabaseService _databaseService;
+		private readonly MongoService _mongoService;
 
 		/// <summary>
 		/// The ACL service instance
@@ -38,9 +39,9 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceController(DatabaseService databaseService, AclService aclService, PerforceLoadBalancer perforceLoadBalancer)
+		public PerforceController(MongoService mongoService, AclService aclService, PerforceLoadBalancer perforceLoadBalancer)
 		{
-			_databaseService = databaseService;
+			_mongoService = mongoService;
 			_aclService = aclService;
 			_perforceLoadBalancer = perforceLoadBalancer;
 		}
@@ -76,7 +77,7 @@ namespace Horde.Build.Controllers
 				return Forbid();
 			}
 
-			Globals globals = await _databaseService.GetGlobalsAsync();
+			Globals globals = await _mongoService.GetGlobalsAsync();
 			return globals.PerforceClusters;
 		}
 	}

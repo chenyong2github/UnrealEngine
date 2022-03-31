@@ -18,6 +18,7 @@ using EpicGames.Core;
 using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using Horde.Build.Utilities.Slack.BlockKit;
@@ -210,22 +211,22 @@ namespace Horde.Build.Notifications.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService"></param>
+		/// <param name="mongoService"></param>
 		/// <param name="issueService"></param>
 		/// <param name="userCollection">The user collection</param>
 		/// <param name="streamService"></param>
 		/// <param name="environment"></param>
 		/// <param name="settings">The current configuration settings</param>
 		/// <param name="logger">Logging device</param>
-		public SlackNotificationSink(DatabaseService databaseService, IIssueService issueService, IUserCollection userCollection, StreamService streamService, IWebHostEnvironment environment, IOptions<ServerSettings> settings, ILogger<SlackNotificationSink> logger)
+		public SlackNotificationSink(MongoService mongoService, IIssueService issueService, IUserCollection userCollection, StreamService streamService, IWebHostEnvironment environment, IOptions<ServerSettings> settings, ILogger<SlackNotificationSink> logger)
 		{
 			_issueService = issueService;
 			_userCollection = userCollection;
 			_streamService = streamService;
 			_environment = environment;
 			_settings = settings.Value;
-			_messageStates = databaseService.Database.GetCollection<MessageStateDocument>("Slack");
-			_slackUsers = databaseService.Database.GetCollection<SlackUser>("Slack.UsersV2");
+			_messageStates = mongoService.Database.GetCollection<MessageStateDocument>("Slack");
+			_slackUsers = mongoService.Database.GetCollection<SlackUser>("Slack.UsersV2");
 			_logger = logger;
 
 			if (!String.IsNullOrEmpty(settings.Value.SlackUsers))

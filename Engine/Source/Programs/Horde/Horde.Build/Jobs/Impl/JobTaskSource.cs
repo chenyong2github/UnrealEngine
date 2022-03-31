@@ -15,6 +15,7 @@ using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -179,7 +180,7 @@ namespace Horde.Build.Tasks.Impl
 			}
 		}
 
-		readonly DatabaseService _databaseService;
+		readonly MongoService _mongoService;
 		readonly StreamService _streamService;
 		readonly ILogFileService _logFileService;
 		readonly IAgentCollection _agentsCollection;
@@ -230,9 +231,9 @@ namespace Horde.Build.Tasks.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobTaskSource(DatabaseService databaseService, IAgentCollection agents, IJobCollection jobs, IJobStepRefCollection jobStepRefs, IGraphCollection graphs, IPoolCollection pools, IUgsMetadataCollection ugsMetadataCollection, StreamService streamService, ILogFileService logFileService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<JobTaskSource> logger)
+		public JobTaskSource(MongoService mongoService, IAgentCollection agents, IJobCollection jobs, IJobStepRefCollection jobStepRefs, IGraphCollection graphs, IPoolCollection pools, IUgsMetadataCollection ugsMetadataCollection, StreamService streamService, ILogFileService logFileService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<JobTaskSource> logger)
 		{
-			_databaseService = databaseService;
+			_mongoService = mongoService;
 			_agentsCollection = agents;
 			_jobs = jobs;
 			_jobStepRefs = jobStepRefs;
@@ -743,7 +744,7 @@ namespace Horde.Build.Tasks.Impl
 				leaseName.Append(CultureInfo.InvariantCulture, $" - {job.Name}");
 
 				// Get the global settings
-				Globals globals = await _databaseService.GetGlobalsAsync();
+				Globals globals = await _mongoService.GetGlobalsAsync();
 
 				// Encode the payload
 				ExecuteJobTask? task = await CreateExecuteJobTaskAsync(item._stream, job, batch, agent, item._workspace, item._useAutoSdk, logId);
@@ -810,7 +811,7 @@ namespace Horde.Build.Tasks.Impl
 			leaseName.Append(CultureInfo.InvariantCulture, $" - {job.Name}");
 
 			// Get the global settings
-			Globals globals = await _databaseService.GetGlobalsAsync();
+			Globals globals = await _mongoService.GetGlobalsAsync();
 
 			// Encode the payload
 			ExecuteJobTask task = new ExecuteJobTask();

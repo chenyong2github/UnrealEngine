@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Jobs;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Storage;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
@@ -66,15 +67,15 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service</param>
+		/// <param name="mongoService">The database service</param>
 		/// <param name="storageBackend">The storage backend</param>
-		public ArtifactCollection(DatabaseService databaseService, IStorageBackend<ArtifactCollection> storageBackend)
+		public ArtifactCollection(MongoService mongoService, IStorageBackend<ArtifactCollection> storageBackend)
 		{
 			_storageBackend = storageBackend;
 
 			// Initialize Artifacts table
-			_artifacts = databaseService.GetCollection<Artifact>("Artifacts");
-			if (!databaseService.ReadOnlyMode)
+			_artifacts = mongoService.GetCollection<Artifact>("Artifacts");
+			if (!mongoService.ReadOnlyMode)
 			{
 				_artifacts.Indexes.CreateOne(new CreateIndexModel<Artifact>(Builders<Artifact>.IndexKeys.Ascending(x => x.JobId)));
 			}

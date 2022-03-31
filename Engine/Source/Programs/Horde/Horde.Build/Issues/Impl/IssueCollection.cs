@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Redis.Utility;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -395,20 +395,20 @@ namespace Horde.Build.Collections.Impl
 		readonly IAuditLog<int> _auditLog;
 		readonly ILogger _logger;
 
-		public IssueCollection(DatabaseService databaseService, RedisService redisService, IAuditLogFactory<int> auditLogFactory, ILogger<IssueCollection> logger)
+		public IssueCollection(MongoService mongoService, RedisService redisService, IAuditLogFactory<int> auditLogFactory, ILogger<IssueCollection> logger)
 		{
 			_redisService = redisService;
 			_logger = logger;
 
-			_ledgerSingleton = new SingletonDocument<IssueLedger>(databaseService);
+			_ledgerSingleton = new SingletonDocument<IssueLedger>(mongoService);
 
-			_issues = databaseService.GetCollection<Issue>("IssuesV2");
-			_issueSpans = databaseService.GetCollection<IssueSpan>("IssuesV2.Spans");
-			_issueSteps = databaseService.GetCollection<IssueStep>("IssuesV2.Steps");
-			_issueSuspects = databaseService.GetCollection<IssueSuspect>("IssuesV2.Suspects");
+			_issues = mongoService.GetCollection<Issue>("IssuesV2");
+			_issueSpans = mongoService.GetCollection<IssueSpan>("IssuesV2.Spans");
+			_issueSteps = mongoService.GetCollection<IssueStep>("IssuesV2.Steps");
+			_issueSuspects = mongoService.GetCollection<IssueSuspect>("IssuesV2.Suspects");
 			_auditLog = auditLogFactory.Create("IssuesV2.History", "IssueId");
 
-			if (!databaseService.ReadOnlyMode)
+			if (!mongoService.ReadOnlyMode)
 			{
 				_issues.Indexes.CreateOne(new CreateIndexModel<Issue>(Builders<Issue>.IndexKeys.Ascending(x => x.ResolvedAt)));
 				_issues.Indexes.CreateOne(new CreateIndexModel<Issue>(Builders<Issue>.IndexKeys.Ascending(x => x.VerifiedAt)));

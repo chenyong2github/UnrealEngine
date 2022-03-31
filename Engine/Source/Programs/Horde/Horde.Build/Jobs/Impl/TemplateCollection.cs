@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Caching.Memory;
@@ -88,8 +88,8 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service singleton</param>
-		public TemplateCollection(DatabaseService databaseService)
+		/// <param name="mongoService">The database service singleton</param>
+		public TemplateCollection(MongoService mongoService)
 		{
 			// Ensure discriminator cannot be registered twice (throws exception). Can otherwise happen during unit tests.
 			if (BsonSerializer.LookupDiscriminatorConvention(typeof(JobsTabColumn)) == null)
@@ -97,7 +97,7 @@ namespace Horde.Build.Collections.Impl
 				BsonSerializer.RegisterDiscriminatorConvention(typeof(JobsTabColumn), new DefaultDiscriminatorConvention(typeof(JobsTabColumn), typeof(JobsTabLabelColumn)));	
 			}
 			
-			_templates = databaseService.GetCollection<TemplateDocument>("Templates");
+			_templates = mongoService.GetCollection<TemplateDocument>("Templates");
 
 			MemoryCacheOptions options = new MemoryCacheOptions();
 			_templateCache = new MemoryCache(options);

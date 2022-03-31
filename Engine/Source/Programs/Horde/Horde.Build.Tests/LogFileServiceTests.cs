@@ -38,7 +38,7 @@ namespace Horde.Build.Tests
 
 		public LogFileServiceTest()
         {
-            LogFileCollection logFileCollection = new LogFileCollection(GetDatabaseServiceSingleton());
+            LogFileCollection logFileCollection = new LogFileCollection(GetMongoServiceSingleton());
 
 			_loggerFactory = new LoggerFactory();
             ILogger<LogFileService> logger = _loggerFactory.CreateLogger<LogFileService>();
@@ -239,7 +239,7 @@ namespace Horde.Build.Tests
         [TestMethod]
         public async Task GetLogFileTest()
         {
-            await GetDatabaseServiceSingleton().Database.DropCollectionAsync("LogFiles");
+            await GetMongoServiceSingleton().Database.DropCollectionAsync("LogFiles");
             Assert.AreEqual(0, (await _logFileService.GetLogFilesAsync()).Count);
 
 			// Will implicitly test GetLogFileAsync(), AddCachedLogFile()

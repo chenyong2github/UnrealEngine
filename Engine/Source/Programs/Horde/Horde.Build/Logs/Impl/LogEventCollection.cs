@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
@@ -106,16 +106,16 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service instance</param>
+		/// <param name="mongoService">The database service instance</param>
 		/// <param name="logger">The logger instance</param>
-		public LogEventCollection(DatabaseService databaseService, ILogger<LogEventCollection> logger)
+		public LogEventCollection(MongoService mongoService, ILogger<LogEventCollection> logger)
 		{
 			_logger = logger;
 
-			_logEvents = databaseService.GetCollection<LogEventDocument>("LogEvents");
-			_legacyEvents = databaseService.GetCollection<LegacyEventDocument>("Events");
+			_logEvents = mongoService.GetCollection<LogEventDocument>("LogEvents");
+			_legacyEvents = mongoService.GetCollection<LegacyEventDocument>("Events");
 
-			if (!databaseService.ReadOnlyMode)
+			if (!mongoService.ReadOnlyMode)
 			{
 				_logEvents.Indexes.CreateOne(new CreateIndexModel<LogEventDocument>(Builders<LogEventDocument>.IndexKeys.Ascending(x => x.Id.LogId)));
 				_logEvents.Indexes.CreateOne(new CreateIndexModel<LogEventDocument>(Builders<LogEventDocument>.IndexKeys.Ascending(x => x.SpanId).Ascending(x => x.Id)));

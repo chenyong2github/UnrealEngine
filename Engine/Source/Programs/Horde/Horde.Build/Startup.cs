@@ -38,6 +38,7 @@ using Horde.Build.Logs.Storage.Impl;
 using Horde.Build.Models;
 using Horde.Build.Notifications;
 using Horde.Build.Notifications.Impl;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Services.Impl;
 using Horde.Build.Storage;
@@ -339,7 +340,7 @@ namespace Horde.Build
 			services.AddSingleton<ConsistencyService>();
 			services.AddSingleton<RequestTrackerService>();
 			services.AddSingleton<CredentialService>();
-			services.AddSingleton<DatabaseService>();
+			services.AddSingleton<MongoService>();
 			services.AddSingleton<ConfigService>();
 			services.AddSingleton<IDogStatsd>(ctx =>
 			{

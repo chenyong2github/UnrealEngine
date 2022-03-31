@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -103,7 +103,7 @@ namespace Horde.Build.Collections.Impl
 		/// Constructor
 		/// </summary>
 		/// <param name="database"></param>
-		public TelemetryCollection(DatabaseService database)
+		public TelemetryCollection(MongoService database)
 		{
 			_utilization = database.GetCollection<UtilizationDocument>("Utilization");
 

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Collections;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
@@ -96,7 +97,7 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AutoscaleService(IAgentCollection agentCollection, IPoolCollection poolCollection, ILeaseCollection leaseCollection, IFleetManager fleetManager, IDogStatsd dogStatsd, DatabaseService databaseService, IClock clock, ILogger<AutoscaleService> logger)
+		public AutoscaleService(IAgentCollection agentCollection, IPoolCollection poolCollection, ILeaseCollection leaseCollection, IFleetManager fleetManager, IDogStatsd dogStatsd, MongoService mongoService, IClock clock, ILogger<AutoscaleService> logger)
 		{
 			_agentCollection = agentCollection;
 			_poolCollection = poolCollection;
@@ -104,7 +105,7 @@ namespace Horde.Build.Services
 			_fleetManager = fleetManager;
 			_dogStatsd = dogStatsd;
 			_clock = clock;
-			if (databaseService.ReadOnlyMode)
+			if (mongoService.ReadOnlyMode)
 			{
 				_ticker = new NullTicker();
 			}

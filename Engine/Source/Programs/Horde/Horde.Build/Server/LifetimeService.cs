@@ -7,7 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Server
 {
 	/// <summary>
 	/// Service containing an async task that allows long polling operations to complete early if the server is shutting down
@@ -33,17 +33,10 @@ namespace Horde.Build.Services
 		/// Registration token for the stopping event
 		/// </summary>
 		readonly CancellationTokenRegistration _registration;
-		
-		/// <summary>
-		/// Singleton instance of the database service
-		/// </summary>
-		readonly DatabaseService _databaseService;
-		
-		/// <summary>
-		/// The Redis database
-		/// </summary>
-		readonly IDatabase _redisDb;
-		
+
+		readonly MongoService _mongoService;
+		readonly RedisService _redisService;
+
 		/*
 		/// <summary>
 		/// Max time to wait for any outstanding requests to finish
@@ -61,13 +54,13 @@ namespace Horde.Build.Services
 		/// Constructor
 		/// </summary>
 		/// <param name="lifetime">Application lifetime interface</param>
-		/// <param name="databaseService">Database singleton service</param>
-		/// <param name="redisDb">Redis singleton service</param>
+		/// <param name="mongoService">Database singleton service</param>
+		/// <param name="redisService">Redis singleton service</param>
 		/// <param name="logger">Logging interface</param>
-		public LifetimeService(IHostApplicationLifetime lifetime, DatabaseService databaseService, IDatabase redisDb, ILogger<LifetimeService> logger)
+		public LifetimeService(IHostApplicationLifetime lifetime, MongoService mongoService, RedisService redisService, ILogger<LifetimeService> logger)
 		{
-			_databaseService = databaseService;
-			_redisDb = redisDb;
+			_mongoService = mongoService;
+			_redisService = redisService;
 			_logger = logger;
 			_stoppingTaskCompletionSource = new TaskCompletionSource<bool>();
 			_preStoppingTaskCompletionSource = new TaskCompletionSource<bool>();
@@ -96,7 +89,7 @@ namespace Horde.Build.Services
 			_logger.LogInformation("Delaying shutdown by sleeping {ShutdownDelayMs} ms...", shutdownDelayMs);
 			Thread.Sleep(shutdownDelayMs);
 			_logger.LogInformation("Server process now shutting down...");
-			
+
 			/*
 			if (PreStoppingTaskCompletionSource.TrySetResult(true))
 			{
@@ -153,17 +146,17 @@ namespace Horde.Build.Services
 			bool isHealthy = false;
 			try
 			{
-				await _databaseService.Database.ListCollectionNamesAsync(null, cancelSource.Token);
+				await _mongoService.Database.ListCollectionNamesAsync(null, cancelSource.Token);
 				isHealthy = true;
 			}
 			catch (Exception e)
 			{
 				_logger.LogError("MongoDB call failed during health check", e);
 			}
-			
+
 			return isHealthy;
 		}
-		
+
 		/// <summary>
 		/// Check if Redis can be reached
 		/// </summary>
@@ -175,15 +168,15 @@ namespace Horde.Build.Services
 			try
 			{
 				string key = "HordeLifetimeService-Health-Check";
-				await _redisDb.StringSetAsync(key, "ok");
-				await _redisDb.StringGetAsync(key);
+				await _redisService.Database.StringSetAsync(key, "ok");
+				await _redisService.Database.StringGetAsync(key);
 				isHealthy = true;
 			}
 			catch (Exception e)
 			{
 				_logger.LogError("Redis call failed during health check", e);
 			}
-			
+
 			return isHealthy;
 		}
 	}

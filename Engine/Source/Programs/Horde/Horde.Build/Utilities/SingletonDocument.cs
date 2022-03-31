@@ -4,7 +4,7 @@ using System;
 using System.Reflection;
 using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using MongoDB.Bson;
 
 namespace Horde.Build.Utilities
@@ -59,7 +59,7 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// The database service instance
 		/// </summary>
-		readonly DatabaseService _databaseService;
+		readonly MongoService _mongoService;
 
 		/// <summary>
 		/// Unique id for the singleton document
@@ -69,10 +69,10 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service instance</param>
-		public SingletonDocument(DatabaseService databaseService)
+		/// <param name="mongoService">The database service instance</param>
+		public SingletonDocument(MongoService mongoService)
 		{
-			_databaseService = databaseService;
+			_mongoService = mongoService;
 
 			SingletonDocumentAttribute? attribute = typeof(T).GetCustomAttribute<SingletonDocumentAttribute>();
 			if (attribute == null)
@@ -86,18 +86,18 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service instance</param>
+		/// <param name="mongoService">The database service instance</param>
 		/// <param name="objectId">The singleton document object id</param>
-		public SingletonDocument(DatabaseService databaseService, ObjectId objectId)
+		public SingletonDocument(MongoService mongoService, ObjectId objectId)
 		{
-			_databaseService = databaseService;
+			_mongoService = mongoService;
 			_objectId = objectId;
 		}
 
 		/// <inheritdoc/>
 		public async Task<T> GetAsync()
 		{
-			T value = await _databaseService.GetSingletonAsync<T>(_objectId);
+			T value = await _mongoService.GetSingletonAsync<T>(_objectId);
 			value.Id = _objectId;
 			return value;
 		}
@@ -105,7 +105,7 @@ namespace Horde.Build.Utilities
 		/// <inheritdoc/>
 		public Task<bool> TryUpdateAsync(T value)
 		{
-			return _databaseService.TryUpdateSingletonAsync<T>(value);
+			return _mongoService.TryUpdateSingletonAsync<T>(value);
 		}
 	}
 

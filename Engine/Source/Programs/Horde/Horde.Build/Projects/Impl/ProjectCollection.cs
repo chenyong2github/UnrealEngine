@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -103,11 +103,11 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service instance</param>
-		public ProjectCollection(DatabaseService databaseService)
+		/// <param name="mongoService">The database service instance</param>
+		public ProjectCollection(MongoService mongoService)
 		{
-			_projects = databaseService.GetCollection<ProjectDocument>("Projects");
-			_projectLogos = databaseService.GetCollection<ProjectLogoDocument>("ProjectLogos");
+			_projects = mongoService.GetCollection<ProjectDocument>("Projects");
+			_projectLogos = mongoService.GetCollection<ProjectLogoDocument>("ProjectLogos");
 		}
 
 		/// <inheritdoc/>

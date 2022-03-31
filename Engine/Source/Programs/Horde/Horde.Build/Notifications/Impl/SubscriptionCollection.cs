@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Api;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using MongoDB.Bson.Serialization.Attributes;
@@ -184,11 +184,11 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service</param>
-		public SubscriptionCollection(DatabaseService databaseService)
+		/// <param name="mongoService">The database service</param>
+		public SubscriptionCollection(MongoService mongoService)
 		{
-			_collection = databaseService.GetCollection<Subscription>("SubscriptionsV2");
-			if (!databaseService.ReadOnlyMode)
+			_collection = mongoService.GetCollection<Subscription>("SubscriptionsV2");
+			if (!mongoService.ReadOnlyMode)
 			{
 				_collection.Indexes.CreateOne(new CreateIndexModel<Subscription>(Builders<Subscription>.IndexKeys.Ascending(x => x.Event)));
 				_collection.Indexes.CreateOne(new CreateIndexModel<Subscription>(Builders<Subscription>.IndexKeys.Ascending(x => x.UserId)));

@@ -16,6 +16,7 @@ using Horde.Build.Acls;
 using Horde.Build.Collections;
 using Horde.Build.Jobs;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Tasks.Impl;
 using Horde.Build.Utilities;
 using HordeCommon;

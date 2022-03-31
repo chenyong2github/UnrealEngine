@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -248,14 +248,14 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DeviceCollection(DatabaseService databaseService)
+		public DeviceCollection(MongoService mongoService)
 		{
-			_devices = databaseService.GetCollection<DeviceDocument>("Devices");
-			_platforms = databaseService.GetCollection<DevicePlatformDocument>("Devices.Platforms");
-			_pools = databaseService.GetCollection<DevicePoolDocument>("Devices.Pools");
-			_reservations = databaseService.GetCollection<DeviceReservationDocument>("Devices.Reservations");
+			_devices = mongoService.GetCollection<DeviceDocument>("Devices");
+			_platforms = mongoService.GetCollection<DevicePlatformDocument>("Devices.Platforms");
+			_pools = mongoService.GetCollection<DevicePoolDocument>("Devices.Pools");
+			_reservations = mongoService.GetCollection<DeviceReservationDocument>("Devices.Reservations");
 
-			if (!databaseService.ReadOnlyMode)
+			if (!mongoService.ReadOnlyMode)
 			{
 				_platforms.Indexes.CreateOne(new CreateIndexModel<DevicePlatformDocument>(Builders<DevicePlatformDocument>.IndexKeys.Ascending(x => x.Name), new CreateIndexOptions { Unique = true }));
 				_pools.Indexes.CreateOne(new CreateIndexModel<DevicePoolDocument>(Builders<DevicePoolDocument>.IndexKeys.Ascending(x => x.Name), new CreateIndexOptions { Unique = true }));

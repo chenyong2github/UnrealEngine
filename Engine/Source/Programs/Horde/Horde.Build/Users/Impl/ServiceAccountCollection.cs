@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -104,12 +104,12 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service</param>
-		public ServiceAccountCollection(DatabaseService databaseService)
+		/// <param name="mongoService">The database service</param>
+		public ServiceAccountCollection(MongoService mongoService)
 		{
-			_serviceAccounts = databaseService.GetCollection<ServiceAccountDocument>("ServiceAccounts");
+			_serviceAccounts = mongoService.GetCollection<ServiceAccountDocument>("ServiceAccounts");
 
-			if (!databaseService.ReadOnlyMode)
+			if (!mongoService.ReadOnlyMode)
 			{
 				_serviceAccounts.Indexes.CreateOne(new CreateIndexModel<ServiceAccountDocument>(Builders<ServiceAccountDocument>.IndexKeys.Ascending(x => x.SecretToken)));
 			}

@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -135,7 +135,7 @@ namespace Horde.Build.Tests
 		private static readonly object s_lockObject = new object();
 
 		private MongoDbInstance? _mongoDbInstance;
-		private DatabaseService? _databaseService;
+		private MongoService? _mongoService;
 		private readonly LoggerFactory _loggerFactory = new LoggerFactory();
 
 		private static RedisRunner? s_redisRunner;
@@ -150,7 +150,7 @@ namespace Horde.Build.Tests
 
 		protected override void ConfigureServices(IServiceCollection services)
 		{
-			services.AddSingleton(GetDatabaseServiceSingleton());
+			services.AddSingleton(GetMongoServiceSingleton());
 			services.AddSingleton(GetRedisDatabase());
 		}
 
@@ -159,17 +159,17 @@ namespace Horde.Build.Tests
 			base.Dispose(disposing);
 
 			_mongoDbInstance?.Dispose();
-			_databaseService?.Dispose();
+			_mongoService?.Dispose();
 			_loggerFactory.Dispose();
 
 			_conMux?.Dispose();
 		}
 
-		public DatabaseService GetDatabaseServiceSingleton()
+		public MongoService GetMongoServiceSingleton()
         {
 			lock(s_lockObject)
 			{
-				if (_databaseService == null)
+				if (_mongoService == null)
 				{
 					_mongoDbInstance = new MongoDbInstance();
 
@@ -177,10 +177,10 @@ namespace Horde.Build.Tests
 					ss.DatabaseName = _mongoDbInstance.DatabaseName;
 					ss.DatabaseConnectionString = _mongoDbInstance.ConnectionString;
 
-					_databaseService = new DatabaseService(Options.Create(ss), _loggerFactory);
+					_mongoService = new MongoService(Options.Create(ss), _loggerFactory);
 				}
 			}
-			return _databaseService;
+			return _mongoService;
         }
 
 		private static RedisRunner GetRedisRunner()

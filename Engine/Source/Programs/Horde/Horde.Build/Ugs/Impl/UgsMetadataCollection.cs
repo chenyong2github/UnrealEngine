@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Api;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -92,12 +92,12 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">Database service instance</param>
-		public UgsMetadataCollection(DatabaseService databaseService)
+		/// <param name="mongoService">Database service instance</param>
+		public UgsMetadataCollection(MongoService mongoService)
 		{
-			_collection = databaseService.GetCollection<UgsMetadataDocument>("UgsMetadata");
+			_collection = mongoService.GetCollection<UgsMetadataDocument>("UgsMetadata");
 			
-			if (!databaseService.ReadOnlyMode)
+			if (!mongoService.ReadOnlyMode)
 			{
 				void CreateIndex()
 				{

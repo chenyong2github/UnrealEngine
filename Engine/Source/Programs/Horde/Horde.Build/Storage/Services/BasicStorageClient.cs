@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
@@ -49,11 +49,11 @@ namespace Horde.Build.Storage.Services
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="databaseService"></param>
+		/// <param name="mongoService"></param>
 		/// <param name="storageBackend"></param>
-		public BasicStorageClient(DatabaseService databaseService, IStorageBackend<BasicStorageClient> storageBackend)
+		public BasicStorageClient(MongoService mongoService, IStorageBackend<BasicStorageClient> storageBackend)
 		{
-			_refs = databaseService.GetCollection<RefImpl>("Storage.RefsV2");
+			_refs = mongoService.GetCollection<RefImpl>("Storage.RefsV2");
 			_storageBackend = storageBackend;
 		}
 

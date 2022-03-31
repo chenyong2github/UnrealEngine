@@ -7,6 +7,7 @@ using EpicGames.Core;
 using Horde.Build.Api;
 using Horde.Build.Fleet.Autoscale;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 

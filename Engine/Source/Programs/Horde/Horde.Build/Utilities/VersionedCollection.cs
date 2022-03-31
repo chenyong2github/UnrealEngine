@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -83,12 +83,12 @@ namespace Horde.Build.Tools.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService">The database service</param>
+		/// <param name="mongoService">The database service</param>
 		/// <param name="collectionName">Name of the collection of documents to manage</param>
 		/// <param name="redis">Instance of the redis service</param>
 		/// <param name="baseKey">Prefix for key types</param>
-		public VersionedCollection(DatabaseService databaseService, string collectionName, IDatabase redis, RedisKey baseKey)
-			: this(databaseService.Database.GetCollection<VersionedDocument<TId, TLatest>>(collectionName), redis, baseKey)
+		public VersionedCollection(MongoService mongoService, string collectionName, IDatabase redis, RedisKey baseKey)
+			: this(mongoService.Database.GetCollection<VersionedDocument<TId, TLatest>>(collectionName), redis, baseKey)
 		{
 		}
 

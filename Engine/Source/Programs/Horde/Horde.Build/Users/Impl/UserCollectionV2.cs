@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -163,17 +163,17 @@ namespace Horde.Build.Collections.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="databaseService"></param>
+		/// <param name="mongoService"></param>
 		/// <param name="logger"></param>
-		public UserCollectionV2(DatabaseService databaseService, ILogger<UserCollectionV2> logger)
+		public UserCollectionV2(MongoService mongoService, ILogger<UserCollectionV2> logger)
 		{
 			_logger = logger;
 
-			_users = databaseService.GetCollection<UserDocument>("UsersV2");
-			_userClaims = databaseService.GetCollection<UserClaimsDocument>("UserClaimsV2");
-			_userSettings = databaseService.GetCollection<UserSettingsDocument>("UserSettingsV2");
+			_users = mongoService.GetCollection<UserDocument>("UsersV2");
+			_userClaims = mongoService.GetCollection<UserClaimsDocument>("UserClaimsV2");
+			_userSettings = mongoService.GetCollection<UserSettingsDocument>("UserSettingsV2");
 
-			if (!databaseService.ReadOnlyMode)
+			if (!mongoService.ReadOnlyMode)
 			{
 				_users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.LoginUpper), new CreateIndexOptions { Unique = true }));
 				_users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.EmailUpper)));

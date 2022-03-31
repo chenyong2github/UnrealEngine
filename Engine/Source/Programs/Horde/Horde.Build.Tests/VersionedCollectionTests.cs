@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Threading.Tasks;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Tools.Impl;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Driver;
@@ -46,7 +46,7 @@ namespace Horde.Build.Tests
 			public override DocumentV2 UpgradeToLatest() => this;
 		}
 
-		readonly DatabaseService _databaseService;
+		readonly MongoService _mongoService;
 		readonly IDatabase _redis;
 		readonly RedisKey _baseKey = new RedisKey("versioned/");
 		readonly IMongoCollection<VersionedDocument<string, DocumentV2>> _baseCollection;
@@ -54,9 +54,9 @@ namespace Horde.Build.Tests
 
 		public VersionedCollectionTests()
 		{
-			_databaseService = GetDatabaseServiceSingleton();
+			_mongoService = GetMongoServiceSingleton();
 			_redis = GetRedisDatabase();
-			_baseCollection = _databaseService.GetCollection<VersionedDocument<string, DocumentV2>>("versioned");
+			_baseCollection = _mongoService.GetCollection<VersionedDocument<string, DocumentV2>>("versioned");
 			_collection = new VersionedCollection<string, DocumentV2>(_baseCollection, _redis, _baseKey);
 		}
 

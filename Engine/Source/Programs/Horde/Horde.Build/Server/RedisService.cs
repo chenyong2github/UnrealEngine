@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Server
 {
 	/// <summary>
 	/// Manages the lifetime of a bundled Redis instance
@@ -66,7 +66,7 @@ namespace Horde.Build.Services
 		/// </summary>
 		/// <param name="settings"></param>
 		public RedisService(ServerSettings settings)
-			: this(Options.Create<ServerSettings>(settings), new Serilog.Extensions.Logging.SerilogLoggerFactory(Serilog.Log.Logger))
+			: this(Options.Create(settings), new Serilog.Extensions.Logging.SerilogLoggerFactory(Serilog.Log.Logger))
 		{
 		}
 
@@ -158,7 +158,7 @@ namespace Horde.Build.Services
 			DirectoryReference.CreateDirectory(redisDir);
 
 			FileReference redisConfigFile = FileReference.Combine(redisDir, "redis.conf");
-			if(!FileReference.Exists(redisConfigFile))
+			if (!FileReference.Exists(redisConfigFile))
 			{
 				using (StreamWriter writer = new StreamWriter(redisConfigFile.FullName))
 				{

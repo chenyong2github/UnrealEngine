@@ -8,7 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using StatsdClient;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Server
 {
 	/// <summary>
 	/// Periodically send metrics for the CLR and other services that cannot be collected on a per-request basis
@@ -56,12 +56,12 @@ namespace Horde.Build.Services
 
 			int busyIoThreads = maxIoThreads - freeIoThreads;
 			int busyWorkerThreads = maxWorkerThreads - freeWorkerThreads;
-			
+
 			_dogStatsd.Gauge("horde.clr.threadpool.io.max", maxIoThreads);
 			_dogStatsd.Gauge("horde.clr.threadpool.io.min", minIoThreads);
 			_dogStatsd.Gauge("horde.clr.threadpool.io.free", freeIoThreads);
 			_dogStatsd.Gauge("horde.clr.threadpool.io.busy", busyIoThreads);
-			
+
 			_dogStatsd.Gauge("horde.clr.threadpool.worker.max", maxWorkerThreads);
 			_dogStatsd.Gauge("horde.clr.threadpool.worker.min", minWorkerThreads);
 			_dogStatsd.Gauge("horde.clr.threadpool.worker.free", freeWorkerThreads);

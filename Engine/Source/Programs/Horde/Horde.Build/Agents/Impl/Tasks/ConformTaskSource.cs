@@ -10,6 +10,7 @@ using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -34,7 +35,7 @@ namespace Horde.Build.Tasks.Impl
 		/// <inheritdoc/>
 		public override TaskSourceFlags Flags => TaskSourceFlags.AllowWhenDisabled;
 
-		readonly DatabaseService _databaseService;
+		readonly MongoService _mongoService;
 		readonly IAgentCollection _agentCollection;
 		readonly PoolService _poolService;
 		readonly SingletonDocument<ConformList> _conformList;
@@ -46,12 +47,12 @@ namespace Horde.Build.Tasks.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConformTaskSource(DatabaseService databaseService, IAgentCollection agentCollection, PoolService poolService, ILogFileService logService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, ILogger<ConformTaskSource> logger)
+		public ConformTaskSource(MongoService mongoService, IAgentCollection agentCollection, PoolService poolService, ILogFileService logService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, ILogger<ConformTaskSource> logger)
 		{
-			_databaseService = databaseService;
+			_mongoService = mongoService;
 			_agentCollection = agentCollection;
 			_poolService = poolService;
-			_conformList = new SingletonDocument<ConformList>(databaseService);
+			_conformList = new SingletonDocument<ConformList>(mongoService);
 			_perforceLoadBalancer = perforceLoadBalancer;
 			_logService = logService;
 			_logger = logger;
@@ -195,7 +196,7 @@ namespace Horde.Build.Tasks.Impl
 		/// <inheritdoc/>
 		public async Task<bool> GetWorkspacesAsync(IAgent agent, IList<HordeCommon.Rpc.Messages.AgentWorkspace> workspaces)
 		{
-			Globals globals = await _databaseService.GetGlobalsAsync();
+			Globals globals = await _mongoService.GetGlobalsAsync();
 
 			HashSet<AgentWorkspace> conformWorkspaces = await _poolService.GetWorkspacesAsync(agent, DateTime.UtcNow);
 			foreach (AgentWorkspace conformWorkspace in conformWorkspaces)
@@ -225,7 +226,7 @@ namespace Horde.Build.Tasks.Impl
 		/// <returns>True if the resource was allocated, false otherwise</returns>
 		private async Task<bool> AllocateConformLeaseAsync(AgentId agentId, IEnumerable<HordeCommon.Rpc.Messages.AgentWorkspace> workspaces, LeaseId leaseId)
 		{
-			Globals globals = await _databaseService.GetGlobalsAsync();
+			Globals globals = await _mongoService.GetGlobalsAsync();
 			for (; ; )
 			{
 				ConformList currentValue = await _conformList.GetAsync();

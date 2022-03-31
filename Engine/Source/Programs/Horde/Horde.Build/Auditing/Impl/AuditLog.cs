@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Services;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
@@ -98,14 +98,14 @@ namespace Horde.Build.Collections.Impl
 
 		public IAuditLogChannel<TSubject> this[TSubject subject] => new AuditLogChannel(this, subject);
 
-		public AuditLog(DatabaseService databaseService, string collectionName, string subjectProperty, ILogger logger)
+		public AuditLog(MongoService mongoService, string collectionName, string subjectProperty, ILogger logger)
 		{
-			_messages = databaseService.GetCollection<AuditLogMessage>(collectionName);
+			_messages = mongoService.GetCollection<AuditLogMessage>(collectionName);
 			_messageChannel = Channel.CreateUnbounded<AuditLogMessage>();
 			_subjectProperty = subjectProperty;
 			_logger = logger;
 
-			if (!databaseService.ReadOnlyMode)
+			if (!mongoService.ReadOnlyMode)
 			{
 				_messages.Indexes.CreateOne(new CreateIndexModel<AuditLogMessage>(Builders<AuditLogMessage>.IndexKeys.Ascending(x => x.Subject).Descending(x => x.TimeUtc)));
 			}
@@ -183,18 +183,18 @@ namespace Horde.Build.Collections.Impl
 
 	class AuditLogFactory<TSubject> : IAuditLogFactory<TSubject>
 	{
-		readonly DatabaseService _databaseService;
+		readonly MongoService _mongoService;
 		readonly ILogger<AuditLog<TSubject>> _logger;
 
-		public AuditLogFactory(DatabaseService databaseService, ILogger<AuditLog<TSubject>> logger)
+		public AuditLogFactory(MongoService mongoService, ILogger<AuditLog<TSubject>> logger)
 		{
-			_databaseService = databaseService;
+			_mongoService = mongoService;
 			_logger = logger;
 		}
 
 		public IAuditLog<TSubject> Create(string collectionName, string subjectProperty)
 		{
-			return new AuditLog<TSubject>(_databaseService, collectionName, subjectProperty, _logger);
+			return new AuditLog<TSubject>(_mongoService, collectionName, subjectProperty, _logger);
 		}
 	}
 }
