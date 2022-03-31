@@ -1285,7 +1285,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::TaskGraph::Performance", "[.][Core][Async][.Perf]")
+	DISABLED_TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::TaskGraph::Performance", "[Core][Async][.Perf]")
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TaskGraphTests_PerfTest);
 

@@ -401,7 +401,7 @@ namespace UE { namespace ConcurrentQueuesTests
 		}
 	}
 
-	TEST_CASE_METHOD(FCoreTestFixture, "Core::Containers::TMpscQueue::ConcurrentQueuesPerfTest", "[.][Core][Containers][.Perf]")
+	DISABLED_TEST_CASE_METHOD(FCoreTestFixture, "Core::Containers::TMpscQueue::ConcurrentQueuesPerfTest", "[Core][Containers][.Perf]")
 	{
 		UE_BENCHMARK(5, TestTCircularQueueSingleThread<5'000'000>);
 		UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Spsc>>>);
@@ -721,7 +721,7 @@ namespace ClosableMpscQueueTests
 		}
 	}
 
-	TEST_CASE_METHOD(FCoreTestFixture, "Core::Containers::TClosableMpscQueue::ClosableMpscQueuePerfTest", "[.][Core][Containers][.Perf]")
+	DISABLED_TEST_CASE_METHOD(FCoreTestFixture, "Core::Containers::TClosableMpscQueue::ClosableMpscQueuePerfTest", "[Core][Containers][.Perf]")
 	{
 		UE_BENCHMARK(5, TestClosingEmptyQueue<10'000'000, TClosableMpscQueue<void*>>);
 		UE_BENCHMARK(5, TestClosingEmptyQueue<10'000'000, TClosableMpscQueueOnTQueue<void*>>);
@@ -1073,7 +1073,7 @@ namespace DepletableMpscQueueTests
 		}
 	}
 
-	TEST_CASE_METHOD(FCoreTestFixture, "Core::Containers::TDepletableMpscQueue::DepletableMpscQueuePerfTest", "[.][Core][Containers][.Perf]")
+	DISABLED_TEST_CASE_METHOD(FCoreTestFixture, "Core::Containers::TDepletableMpscQueue::DepletableMpscQueuePerfTest", "[Core][Containers][.Perf]")
 	{
 		UE_BENCHMARK(5, TestPerf<10'000, TDepletableMpscQueue<void*>>);
 		UE_BENCHMARK(5, TestPerf<10'000, TDepletableMpscQueueOnTQueue<void*>>);

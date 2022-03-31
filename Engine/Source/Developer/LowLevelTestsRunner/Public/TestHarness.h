@@ -79,6 +79,13 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 #endif // defined(THIRD_PARTY_INCLUDES_START) && defined(THIRD_PARTY_INCLUDES_END)
 
+#define LLT_CONCAT_(x, y) x##y
+#define LLT_CONCAT(x, y) LLT_CONCAT_(x,y)
+
+#define DISABLED_TEST_CASE(...) static void LLT_CONCAT(disabled_test_,__LINE__)()
+#define DISABLED_TEST_CASE_METHOD(...) static void LLT_CONCAT(disabled_test_method_,__LINE__)()
+#define DISABLED_SCENARIO(...) static void LLT_CONCAT(disabled_scenario_,__LINE__)()
+
 // Tell Catch how to print TTuple<KeyType, ValueType>
 template <typename... Types> struct TTuple;
 

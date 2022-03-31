@@ -56,7 +56,7 @@ TPair<FTimespan, T> BenchmarkByteswapping(T InitialValue, uint64 LoopCount, Byte
 	return MakeTuple(Duration, Sum);
 }
 
-TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::ByteSwap::Perf Test", "[.][Core][Misc][.Perf]")
+DISABLED_TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::ByteSwap::Perf Test", "[Core][Misc][.Perf]")
 {
 #ifdef UE_BYTESWAP_INTRINSIC_PRIVATE_16
 	{

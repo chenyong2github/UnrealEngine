@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Serialization/BulkData.h"
 #include "TestHarness.h"
+#include "Serialization/BulkData.h"
 
 namespace BulkDataTest
 {
@@ -61,7 +61,7 @@ namespace BulkDataTest
 
 #if USE_NEW_BULKDATA // The warning only exists for BulkData2
 		// Both the ::Lock and ::GetCopy calls should warn that we cannot load the missing data (as it will still have a valid size)
-		AddExpectedError(TEXT("Attempting to load a BulkData object that cannot be loaded from disk"), EAutomationExpectedErrorFlags::Exact, 2);
+		FAIL(TEXT("Attempting to load a BulkData object that cannot be loaded from disk"));
 #endif //USE_NEW_BULKDATA
 
 		DataPtr = BulkData.Lock(LOCK_READ_WRITE);
