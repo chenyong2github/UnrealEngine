@@ -101,7 +101,10 @@ private:
 	TObjectPtr<UMediaSource> MediaPathMediaSource;
 
 	/**
-	 * Apply any options we need to the media source.
+	 * Plays a media source.
+	 * 
+	 * @param	InMediaSource		Media source to play.
+	 * @return	True if we played anything.
 	 */
-	void SetMediaSourceOptions(UMediaSource* InMediaSource);
+	bool PlayMediaSource(UMediaSource* InMediaSource);
 };
