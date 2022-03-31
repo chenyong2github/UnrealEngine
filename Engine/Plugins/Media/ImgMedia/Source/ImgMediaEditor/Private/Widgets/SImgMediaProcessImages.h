@@ -76,6 +76,28 @@ private:
 		int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, 
 		bool bInEnableMips, bool bHasAlphaChannel, const FString& InName);
 
+	/**
+	 * Creates tiles from a source and outputs it to a destination.
+	 *
+	 * @param SourceData		Source image.
+	 * @param DestArray			Destination image.
+	 * @param SourceWidth		Width of source in pixels.
+	 * @param SourceHeight		Height of source in pixels.
+	 * @param DestWidth			Width of destination in pixels.
+	 * @param DestHeight		Height of destination in pixels.
+	 * @param NumTilesX			Number of tiles in X direction.
+	 * @param NumTilesY			Number of tiles in Y direction.
+	 * @param TileWidth			Width of a tile (without borders) in pixels.
+	 * @param TileHeight		Height of a tile (without borders) in pixels.
+	 * @param InTileBorder		Size of border in pixels.
+	 * @param BytesPerPixel		Number of bytes per pixel.
+	 */
+	void TileData(uint8* SourceData, TArray64<uint8>& DestArray,
+		int32 SourceWidth, int32 SourceHeight, int32 DestWidth, int32 DestHeight,
+		int32 NumTilesX, int32 NumTilesY,
+		int32 TileWidth, int32 TileHeight, int32 InTileBorder,
+		int32 BytesPerPixel);
+
 	/** Holds our details view. */
 	TSharedPtr<class IDetailsView> DetailsView;
 	/** Object that holds our options. */
