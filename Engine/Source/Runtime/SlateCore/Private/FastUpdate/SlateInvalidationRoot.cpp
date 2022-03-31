@@ -660,6 +660,8 @@ bool FSlateInvalidationRoot::PaintFastPath_UpdateNextWidget(const FSlateInvalida
 
 		if (UpdateResult.bPainted)
 		{
+			bNeedsPaint = true;
+
 			{
 				// Remove from the update list elements that are processed by this paint
 				FSlateInvalidationWidgetList::FIndexRange PaintedWidgetRange{ *FastWidgetPathList, InvalidationWidget.Index, InvalidationWidget.LeafMostChildIndex };
