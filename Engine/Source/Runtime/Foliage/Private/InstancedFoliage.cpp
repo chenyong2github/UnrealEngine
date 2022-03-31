@@ -4346,17 +4346,18 @@ void AInstancedFoliageActor::PostLoad()
 		}
 			   
 		{
-			bool bContainsNull = FoliageInfos.Remove(nullptr) > 0;
-			if (bContainsNull)
+			if (FoliageInfos.Contains(nullptr))
 			{
 				FMessageLog("MapCheck").Warning()
 					->AddToken(FUObjectToken::Create(this))
 					->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_FoliageMissingStaticMesh", "Foliage instances for a missing static mesh have been removed.")))
 					->AddToken(FMapErrorToken::Create(FMapErrors::FoliageMissingStaticMesh));
-				while (bContainsNull)
+								
+				TUniqueObj<FFoliageInfo> FoliageInfo;
+				while (FoliageInfos.RemoveAndCopyValue(nullptr, FoliageInfo))
 				{
-					bContainsNull = FoliageInfos.Remove(nullptr) > 0;
-				}
+					FoliageInfo->Uninitialize();
+				}				
 			}
 		}
 

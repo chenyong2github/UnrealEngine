@@ -401,6 +401,9 @@ void SFoliagePalette::UpdatePalette(bool bRebuildItems)
 	{
 		bIsRebuildTimerRegistered = true;
 		RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SFoliagePalette::UpdatePaletteItems));
+
+		// widget view needs to be refreshed immediately since it's possibly invalid and can't participate in layouting
+		RefreshActivePaletteViewWidget();
 	}
 }
 
