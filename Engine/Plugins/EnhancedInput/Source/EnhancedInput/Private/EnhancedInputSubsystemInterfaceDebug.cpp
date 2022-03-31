@@ -13,7 +13,7 @@
 #include "InputModifiers.h"
 #include "InputTriggers.h"
 #include "ImageUtils.h"
-
+#include "EnhancedInputPlatformSettings.h"
 
 /* Shared input subsystem debug functionality.
  * See EnhancedInputSubsystemInterface.cpp for main functionality.
@@ -125,18 +125,32 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 
 		TMap<TObjectPtr<const UInputMappingContext>, int32> OrderedInputContexts = PlayerInput->AppliedInputContexts;
 		OrderedInputContexts.ValueSort([](const int32& A, const int32& B) { return A > B; });
-
+		
 		// Work through all input contexts, displaying active mappings, overridden mappings, etc.
 		for (const TPair<TObjectPtr<const UInputMappingContext>, int32>& ContextPair : OrderedInputContexts)
 		{
-			const UInputMappingContext* Context = ContextPair.Key.Get();
+			const UInputMappingContext* AppliedContext = ContextPair.Key.Get();
+
 			DisplayDebugManager.SetDrawColor(FColor::Yellow);
-			DisplayDebugManager.DrawString(FString::Printf(TEXT("  Context: %s"), *Context->GetFName().ToString()));
+			
+			// If this context was redirected via platform settings, then add some debug info about it here
+			if (const TObjectPtr<const UInputMappingContext>* RedirectedContextPtr = AppliedContextRedirects.Find(AppliedContext))
+			{
+				const UInputMappingContext* RedirectedContext = *RedirectedContextPtr;
+				DisplayDebugManager.DrawString(FString::Printf(TEXT("  Redirected Context: %s -> %s"), *AppliedContext->GetFName().ToString(), *RedirectedContext->GetFName().ToString()));
+
+				// Change the current context that is being used to display the correct mappings
+				AppliedContext = RedirectedContext;
+			}
+			else
+			{
+				DisplayDebugManager.DrawString(FString::Printf(TEXT("  Context: %s"), *AppliedContext->GetFName().ToString()));
+			}
 
 			// Build a table of mappings per action
 			TArray<const UInputAction*> OrderedActions;
 			TMap<const UInputAction*, TArray<FEnhancedActionKeyMapping>> ActionMappings;
-			for (const FEnhancedActionKeyMapping& Mapping : Context->GetMappings())
+			for (const FEnhancedActionKeyMapping& Mapping : AppliedContext->GetMappings())
 			{
 				if (Mapping.Action)
 				{
@@ -202,7 +216,7 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 					else if (!bHasChords && Mapping.Action->bConsumeInput)
 					{
 						// This mapping owns this key!
-						AppliedKeys.Emplace(Mapping.Key.GetFName(), Context->GetFName().ToString() + ":" + Action->GetFName().ToString());
+						AppliedKeys.Emplace(Mapping.Key.GetFName(), AppliedContext->GetFName().ToString() + ":" + Action->GetFName().ToString());
 					}
 					else if (bHasChords && KeyOwner)
 					{

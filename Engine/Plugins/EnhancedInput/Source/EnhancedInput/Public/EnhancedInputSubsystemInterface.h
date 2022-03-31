@@ -249,6 +249,12 @@ private:
 	/** A map of any player mapped keys to the key that they should redirect to instead */
 	TMap<FName, FKey> PlayerMappedSettings;
 
+	/**
+	 * A map of the currently applied mapping context redirects. This is populated in RebuildControlMappings
+	 * with any InputMappingContexts that have been redirected on this local player from the platform settings.
+	 */
+	TMap<TObjectPtr<const UInputMappingContext>, TObjectPtr<const UInputMappingContext>> AppliedContextRedirects;
+
 	EInputMappingRebuildType MappingRebuildPending = EInputMappingRebuildType::None;
 
 	/**

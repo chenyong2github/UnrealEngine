@@ -12,6 +12,7 @@
 #include "InputTriggers.h"
 #include "UObject/UObjectIterator.h"
 #include "PlayerMappableInputConfig.h"
+#include "EnhancedInputPlatformSettings.h"
 
 /* Shared input subsystem functionality.
  * See EnhancedInputSubsystemInterfaceDebug.cpp for debug specific functionality.
@@ -546,9 +547,46 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 	// Clear existing mappings, but retain the mapping array for later processing
 	TArray<FEnhancedActionKeyMapping> OldMappings(MoveTemp(PlayerInput->EnhancedActionMappings));
 	PlayerInput->ClearAllMappings();
+	AppliedContextRedirects.Reset();
 
 	// Order contexts by priority
 	TMap<TObjectPtr<const UInputMappingContext>, int32> OrderedInputContexts = PlayerInput->AppliedInputContexts;
+	
+	// Replace any mapping contexts that may have a redirect on this platform
+	if (UEnhancedInputPlatformSettings* PlatformSettings = UEnhancedInputPlatformSettings::Get())
+	{
+		TMap<TObjectPtr<const UInputMappingContext>, TObjectPtr<const UInputMappingContext>> ContextRedirects;
+		PlatformSettings->GetAllMappingContextRedirects(ContextRedirects);
+		for (const TPair<TObjectPtr<const UInputMappingContext>, TObjectPtr<const UInputMappingContext>> Pair : ContextRedirects)
+		{
+			if (Pair.Key.IsNull() || Pair.Value.IsNull())
+			{
+				UE_LOG(LogEnhancedInput, Error, TEXT("An invalid Mappping Context Redirect specified in '%s'"), PlatformSettings->GetConfigOverridePlatform());
+				continue;
+			}
+			
+			// Replace the existing IMC with the one that it should be redirected to on the PlayerInput 
+			if (const int32* ExistingIMCPriority = OrderedInputContexts.Find(Pair.Key))
+			{
+				OrderedInputContexts.Remove(Pair.Key);
+				OrderedInputContexts.Add(Pair.Value, *ExistingIMCPriority);
+				AppliedContextRedirects.Add(Pair);
+
+				// Optional logging that may be helpful for debugging purposes
+				if (PlatformSettings->ShouldLogMappingContextRedirects())
+				{
+					UE_LOG(
+						LogEnhancedInput,
+						Log,
+						TEXT("'%s' Redirecting Mapping Context '%s' -> '%s'"),
+						PlatformSettings->GetConfigOverridePlatform(), *Pair.Key->GetName(), *Pair.Value->GetName()
+					);
+				}
+			}
+		}
+	}
+	
+	// Order contexts by priority
 	OrderedInputContexts.ValueSort([](const int32& A, const int32& B) { return A > B; });
 
 	TSet<FKey> AppliedKeys;
