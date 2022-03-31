@@ -16,7 +16,7 @@ namespace Horde.Storage.Implementation
 {
     public interface IRefCleanup
     {
-        Task<List<OldRecord>> Cleanup(NamespaceId ns, CancellationToken cancellationToken);
+        Task<int> Cleanup(NamespaceId ns, CancellationToken cancellationToken);
     }
 
     public class RefCleanup : IRefCleanup
@@ -39,7 +39,7 @@ namespace Horde.Storage.Implementation
             _namespacePolicyResolver = namespacePolicyResolver;
         }
 
-        public Task<List<OldRecord>> Cleanup(NamespaceId ns, CancellationToken cancellationToken)
+        public Task<int> Cleanup(NamespaceId ns, CancellationToken cancellationToken)
         {
             NamespaceSettings.PerNamespaceSettings policies;
             try
@@ -49,7 +49,7 @@ namespace Horde.Storage.Implementation
             catch (UnknownNamespaceException)
             {
                 _logger.Warning("Namespace {Namespace} does not configure any policy, not running ref cleanup on it.", ns);
-                return Task.FromResult(new List<OldRecord>());
+                return Task.FromResult(0);
             }
 
             using IScope scope = Tracer.Instance.StartActive("gc.refs.namespace");
@@ -57,7 +57,7 @@ namespace Horde.Storage.Implementation
             if (ns == INamespacePolicyResolver.JupiterInternalNamespace)
             {
                 // do not apply our cleanup policies to the internal namespace
-                return Task.FromResult(new List<OldRecord>());
+                return Task.FromResult(0);
             }
             else if (!policies.IsLegacyNamespace.HasValue)
             {
@@ -78,9 +78,9 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        private async Task<List<OldRecord>> CleanNamespace(NamespaceId ns, CancellationToken cancellationToken)
+        private async Task<int> CleanNamespace(NamespaceId ns, CancellationToken cancellationToken)
         {
-            List<OldRecord> deletedRecords = new List<OldRecord>();
+            int countOfDeletedRecords = 0;
             DateTime cutoffTime = DateTime.Now.AddSeconds(-1 * _settings.CurrentValue.LastAccessCutoff.TotalSeconds);
             int consideredCount = 0;
             await foreach ((BucketId bucket, IoHashKey name, DateTime lastAccessTime) in _referencesStore.GetRecords(ns).WithCancellation(cancellationToken))
@@ -110,8 +110,7 @@ namespace Horde.Storage.Implementation
 
                 if (await storeDelete)
                 {
-                    // we convert the ObjectRecords key (which is a iohash) to a keyid (which is a generic string) not the prettiest but this result is only used for debugging purposes anyway
-                    deletedRecords.Add(new OldRecord(ns, bucket, new KeyId(name.ToString())));
+                    Interlocked.Increment(ref countOfDeletedRecords);
                 }
                 else
                 {
@@ -119,14 +118,14 @@ namespace Horde.Storage.Implementation
                 }
             }
 
-            _logger.Information("Finished cleaning {Namespace}. Refs considered: {ConsideredCount} Refs Deleted: {DeletedCount}", ns, consideredCount, deletedRecords.Count);
+            _logger.Information("Finished cleaning {Namespace}. Refs considered: {ConsideredCount} Refs Deleted: {DeletedCount}", ns, consideredCount, countOfDeletedRecords);
 
-            return deletedRecords;
+            return countOfDeletedRecords;
         }
 
-        private async Task<List<OldRecord>> CleanNamespaceLegacy(NamespaceId ns, CancellationToken cancellationToken)
+        private async Task<int> CleanNamespaceLegacy(NamespaceId ns, CancellationToken cancellationToken)
         {
-            List<OldRecord> deletedRecords = new List<OldRecord>();
+            int countOfDeletedRecords = 0;
             await foreach (OldRecord record in _refs.GetOldRecords(ns, _settings.CurrentValue.LastAccessCutoff).WithCancellation(cancellationToken))
             {
                 // delete the old record from the ref refs
@@ -142,10 +141,11 @@ namespace Horde.Storage.Implementation
                 {
                     _logger.Warning(e, "Exception when attempting to delete record {Record} in {Namespace}", record, ns);
                 }
-                deletedRecords.Add(record);
+
+                Interlocked.Increment(ref countOfDeletedRecords);
             }
 
-            return deletedRecords;
+            return countOfDeletedRecords;
         }
     }
 }

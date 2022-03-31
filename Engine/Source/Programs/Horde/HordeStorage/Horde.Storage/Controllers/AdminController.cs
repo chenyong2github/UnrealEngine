@@ -70,10 +70,8 @@ namespace Horde.Storage.Controllers
         [HttpPost("refCleanup/{ns}")]
         public async Task<IActionResult> RefCleanup([FromRoute] [Required] NamespaceId ns)
         {
-            List<OldRecord> records = await _refCleanup.Cleanup(ns, CancellationToken.None);
-            return Ok(new RemovedRefRecordsResponse(
-                records.Select(r => new RemovedRefRecordsResponse.RemovedRecord(r.RefName, r.Bucket))
-            ));
+            int countOfDeletedRecords = await _refCleanup.Cleanup(ns, CancellationToken.None);
+            return Ok(new RemovedRefRecordsResponse(countOfDeletedRecords));
         }
         
         /// <summary>
@@ -135,24 +133,12 @@ namespace Horde.Storage.Controllers
 
     public class RemovedRefRecordsResponse
     {
-        public class RemovedRecord
+        public RemovedRefRecordsResponse(int countOfRemovedRecords)
         {
-            public RemovedRecord(KeyId name, BucketId bucket)
-            {
-                Name = name;
-                Bucket = bucket;
-            }
-
-            public KeyId Name { get; }
-            public BucketId Bucket { get; }
+            CountOfRemovedRecords = countOfRemovedRecords;
         }
 
-        public RemovedRefRecordsResponse(IEnumerable<RemovedRecord> removedRecords)
-        {
-            RemovedRecords = removedRecords.ToArray();
-        }
-
-        public RemovedRecord[] RemovedRecords { get; }
+        public int CountOfRemovedRecords { get; }
     }
 
     public class UpdatedRecordsResponse

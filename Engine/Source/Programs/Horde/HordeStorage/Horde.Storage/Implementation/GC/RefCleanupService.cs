@@ -8,7 +8,6 @@ using Dasync.Collections;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Jupiter;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using Serilog;
 
@@ -69,8 +68,8 @@ namespace Horde.Storage.Implementation
                     _logger.Information("Attempting to run Refs Cleanup of {Namespace}. ", ns);
                     try
                     {
-                        List<OldRecord> oldRecords = await state.RefCleanup.Cleanup(ns, cancellationToken);
-                        _logger.Information("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns, oldRecords.Count);
+                        int countOfRemovedRecords = await state.RefCleanup.Cleanup(ns, cancellationToken);
+                        _logger.Information("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns, countOfRemovedRecords);
                     }
                     catch (Exception e)
                     {
@@ -87,8 +86,8 @@ namespace Horde.Storage.Implementation
                     _logger.Information("Attempting to run Refs Cleanup of {Namespace}. ", ns);
                     try
                     {
-                        List<OldRecord> oldRecords = await state.RefCleanup.Cleanup(ns, cancellationToken);
-                        _logger.Information("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns, oldRecords.Count);
+                        int countOfRemovedRecords = await state.RefCleanup.Cleanup(ns, cancellationToken);
+                        _logger.Information("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns, countOfRemovedRecords);
                     }
                     catch (Exception e)
                     {

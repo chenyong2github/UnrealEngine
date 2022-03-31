@@ -102,12 +102,7 @@ namespace Horde.Storage.FunctionalTests.GC
                 new KeyId("object5"),
                 new KeyId("object6")
             };
-            Assert.AreEqual(3, removedRefRecords.RemovedRecords.Length);
-            foreach (RemovedRefRecordsResponse.RemovedRecord removedRecord in removedRefRecords.RemovedRecords)
-            {
-                Assert.AreEqual("default", removedRecord.Bucket.ToString());
-                Assert.IsTrue(expectedRemovedRefRecords.Contains(removedRecord.Name));
-            }
+            Assert.AreEqual(3, removedRefRecords.CountOfRemovedRecords);
 
             _refMock!.Verify();
             _refMock.VerifyNoOtherCalls();
@@ -253,12 +248,7 @@ namespace Horde.Storage.FunctionalTests.GC
                 object3Name.ToString(),
                 object6Name.ToString()
             };
-            Assert.AreEqual(4, removedRefRecords.RemovedRecords.Length);
-            foreach (RemovedRefRecordsResponse.RemovedRecord removedRecord in removedRefRecords.RemovedRecords)
-            {
-                Assert.AreEqual(DefaultBucket, removedRecord.Bucket);
-                Assert.IsTrue(expectedRemovedRefRecords.Contains(removedRecord.Name.ToString()));
-            }
+            Assert.AreEqual(4, removedRefRecords.CountOfRemovedRecords);
         }
 
         private (BlobIdentifier, CbObject) GetCBWithAttachment(BlobIdentifier blobIdentifier)
