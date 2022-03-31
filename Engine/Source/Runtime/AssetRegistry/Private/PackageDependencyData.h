@@ -5,68 +5,79 @@
 #include "CoreMinimal.h"
 
 #include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "Containers/BitArray.h"
-#include "Misc/AssetRegistryInterface.h"
 #include "UObject/Linker.h"
 
-class FPackageDependencyData : public FLinkerTables
+class FPackageDependencyData
 {
 public:
+	struct FPackageDependency
+	{
+		FName PackageName;
+		UE::AssetRegistry::EDependencyProperty Property;
+		friend FArchive& operator<<(FArchive& Ar, FPackageDependency& Dependency)
+		{
+			Ar << Dependency.PackageName;
+			uint8 PropertyAsInteger = static_cast<uint8>(Dependency.Property);
+			Ar << PropertyAsInteger;
+			Dependency.Property = static_cast<UE::AssetRegistry::EDependencyProperty>(PropertyAsInteger);
+			return Ar;
+		}
+	};
+	struct FSearchableNamesDependency
+	{
+		FName PackageName;
+		FName ObjectName;
+		TArray<FName> ValueNames;
+		friend FArchive& operator<<(FArchive& Ar, FSearchableNamesDependency& Dependency)
+		{
+			Ar << Dependency.PackageName << Dependency.ObjectName << Dependency.ValueNames;
+			return Ar;
+		}
+	};
+
 	/** The name of the package that dependency data is gathered from */
 	FName PackageName;
 
 	/** Asset Package data, gathered at the same time as dependency data */
 	FAssetPackageData PackageData;
 
-	TBitArray<> ImportUsedInGame;
-	TBitArray<> SoftPackageUsedInGame;
+	// Dependency Data
+	TArray<FPackageDependency> PackageDependencies;
+	TArray<FSearchableNamesDependency> SearchableNameDependencies;
 
-	bool bHasPackageData = false; // Transient
-	bool bHasDependencyData = false; // Transient
-
-	/**
-	 * Return the package name of the UObject represented by the specified import. 
-	 * 
-	 * @param	PackageIndex	package index for the resource to get the name for
-	 *
-	 * @return	the path name of the UObject represented by the resource at PackageIndex, or the empty string if this isn't an import
-	 */
-	FName GetImportPackageName(int32 ImportIndex);
+	// Transient Flags indicating which types of data have been gathered
+	bool bHasPackageData = false;
+	bool bHasDependencyData = false;
 
 	/**
-	 * Serialize as part of the registry cache. This is not meant to be serialized as part of a package so  it does not handle versions normally
-	 * To version this data change FAssetRegistryVersion or CacheSerializationVersion
+	 * Serialize as part of the registry cache. This is not meant to be serialized as part of a package so it does not handle versions normally
+	 * To version this data change FAssetRegistryVersion or AssetDataGathererConstants::CacheSerializationMagic
 	 */
 	void SerializeForCache(FArchive& Ar)
 	{
 		Ar << PackageName;
-		Ar << ImportMap;
-		Ar << SoftPackageReferenceList;
-		Ar << SearchableNamesMap;
 		PackageData.SerializeForCache(Ar);
-		Ar << ImportUsedInGame;
-		Ar << SoftPackageUsedInGame;
-		if (Ar.IsLoading())
-		{
-			if (!IsValid())
-			{
-				Ar.SetError();
-			}
-		}
+		Ar << PackageDependencies;
+		Ar << SearchableNameDependencies;
 	}
 
-	bool IsValid() const
-	{
-		return ImportUsedInGame.Num() == ImportMap.Num() &&
-			SoftPackageUsedInGame.Num() == SoftPackageReferenceList.Num();
-	}
+	void LoadDependenciesFromPackageHeader(FName PackageName, TArray<FObjectImport>& ImportMap,
+		TArray<FName>& SoftPackageReferenceList, TMap<FPackageIndex, TArray<FName>>& SearchableNames,
+		TBitArray<>& ImportUsedInGame, TBitArray<>& SoftPackageUsedInGame);
 
 	/** Returns the amount of memory allocated by this container, not including sizeof(*this). */
 	SIZE_T GetAllocatedSize() const
 	{
-		SIZE_T Result = FLinkerTables::GetAllocatedSize();
-		Result += ImportUsedInGame.GetAllocatedSize();
-		Result += SoftPackageUsedInGame.GetAllocatedSize();
+		SIZE_T Result = PackageDependencies.GetAllocatedSize();
+		Result += SearchableNameDependencies.GetAllocatedSize();
+		Result += PackageData.GetAllocatedSize();
 		return Result;
 	}
+
+private:
+	FName GetImportPackageName(const TArray<FObjectImport>& ImportMap, int32 ImportIndex);
+
+
 };

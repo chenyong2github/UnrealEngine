@@ -32,7 +32,7 @@ namespace AssetDataGathererConstants
 	constexpr int32 SingleThreadFilesPerBatch = 3;
 	constexpr int32 ExpectedMaxBatchSize = 100;
 	constexpr int32 MinSecondsToElapseBeforeCacheWrite = 60;
-	static constexpr uint32 CacheSerializationMagic = 0xC8F81894; // Versioning and integrity checking
+	static constexpr uint32 CacheSerializationMagic = 0x9D39D87B; // Versioning and integrity checking
 }
 
 namespace UE
@@ -3054,10 +3054,9 @@ bool FAssetDataGatherer::ReadAssetFile(FPackageReader& PackageReader, TArray<FAs
 			FName RedirectorClassName = UObjectRedirector::StaticClass()->GetFName();
 			if (Algo::AnyOf(AssetDataList, [RedirectorClassName](FAssetData* AssetData) { return AssetData->AssetClass == RedirectorClassName; }))
 			{
-				TBitArray<>& ImportUsedInGame = DependencyData.ImportUsedInGame;
-				for (int32 ImportNum = ImportUsedInGame.Num(), Index = 0; Index < ImportNum; ++Index)
+				for (FPackageDependencyData::FPackageDependency& Dependency : DependencyData.PackageDependencies)
 				{
-					ImportUsedInGame[Index] = true;
+					Dependency.Property |= UE::AssetRegistry::EDependencyProperty::Game;
 				}
 			}
 		}

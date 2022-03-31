@@ -1426,7 +1426,11 @@ SIZE_T FAssetRegistryState::GetAllocatedSize(bool bLogDetailed) const
 		UE_LOG(LogAssetRegistry, Log, TEXT("Dependency Arrays Size: %" SIZE_T_FMT "k"), DependenciesSize / 1024);
 	}
 
-	SIZE_T PackageDataSize = CachedPackageData.Num() * sizeof(FAssetPackageData);
+	SIZE_T PackageDataSize = CachedPackageData.Num() * (sizeof(FAssetPackageData) + sizeof(FAssetPackageData*));
+	for (const TPair<FName, FAssetPackageData*>& PackageDataPair : CachedPackageData)
+	{
+		PackageDataSize += PackageDataPair.Value->GetAllocatedSize();
+	}
 
 	SIZE_T TotalBytes = MapMemory + AssetDataSize + TagMemoryUsage.GetFixedSize()  + TagMemoryUsage.GetLooseSize() + DependNodesSize + DependenciesSize + PackageDataSize + MapArrayMemory;
 

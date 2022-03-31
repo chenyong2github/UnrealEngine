@@ -49,6 +49,9 @@ namespace UE::AssetRegistry
 	// 
 	enum class EDependencyCategory : uint8
 	{
+		// This enum is serialized by value into the runtime AssetRegistry and the AssetDataGatherer.
+		// If any values change or are removed, bump FAssetRegistryVersion and add backwards compatibility in FAssetRegistryState::Serialize.
+
 		Package = 0x01,			// The target asset of any package dependency is expected to be loadable whenever the source asset is available; see EDependencyProperty for different requirements of the loadability.
 		Manage = 0x02,			// The target asset of any manage dependency is managed (e.g. given a disk layout location) either directly or indirectly by the source asset. Used by UAssetManager.
 		SearchableName = 0x04,  // Targets of SearchableName dependencies are FNames Keys inside of an Asset. The Source Asset of the dependency has a value for that Key. Used to search for Assets with a given Key,Value for the custom Key.
@@ -64,6 +67,8 @@ namespace UE::AssetRegistry
 	enum class EDependencyProperty : uint8
 	{
 		None = 0,
+		// This enum is serialized by value into the runtime AssetRegistry and the AssetDataGatherer.
+		// If any values change or are removed, bump FAssetRegistryVersion and add backwards compatibility in FAssetRegistryState::Serialize.
 
 		// Package Dependencies
 		PackageMask = 0x7,

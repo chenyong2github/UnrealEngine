@@ -11,6 +11,7 @@
 #include "Misc/Guid.h"
 #include "Misc/PackageName.h"
 #include "UObject/Class.h"
+#include "UObject/Linker.h"
 #include "UObject/PackageTrailer.h"
 
 FPackageReader::FPackageReader()
@@ -253,13 +254,14 @@ bool FPackageReader::ReadAssetRegistryData(TArray<FAssetData*>& AssetDataList, b
 	return true;
 }
 
-bool FPackageReader::SerializeAssetRegistryDependencyData(FPackageDependencyData& DependencyData)
+bool FPackageReader::SerializeAssetRegistryDependencyData(TBitArray<>& OutImportUsedInGame, TBitArray<>& OutSoftPackageUsedInGame,
+	const TArray<FObjectImport>& ImportMap, const TArray<FName>& SoftPackageReferenceList)
 {
 	if (AssetRegistryDependencyDataOffset == INDEX_NONE)
 	{
 		// For old package versions that did not write out the dependency flags, set default values of the flags
-		DependencyData.ImportUsedInGame.Init(true, DependencyData.ImportMap.Num());
-		DependencyData.SoftPackageUsedInGame.Init(true, DependencyData.SoftPackageReferenceList.Num());
+		OutImportUsedInGame.Init(true, ImportMap.Num());
+		OutSoftPackageUsedInGame.Init(true, SoftPackageReferenceList.Num());
 		return true;
 	}
 
@@ -268,8 +270,9 @@ bool FPackageReader::SerializeAssetRegistryDependencyData(FPackageDependencyData
 		return false;
 	}
 
-	if (!UE::AssetRegistry::ReadPackageDataDependencies(*this, DependencyData.ImportUsedInGame, DependencyData.SoftPackageUsedInGame)
-		|| !DependencyData.IsValid())
+	if (!UE::AssetRegistry::ReadPackageDataDependencies(*this, OutImportUsedInGame, OutSoftPackageUsedInGame) ||
+		OutImportUsedInGame.Num() != ImportMap.Num() ||
+		OutSoftPackageUsedInGame.Num() != SoftPackageReferenceList.Num())
 	{
 		UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeAssetRegistryDependencyData", PackageFilename);
 		return false;
@@ -439,7 +442,9 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 	{
 		return false;
 	}
-	if (!SerializeImportMap(OutDependencyData.ImportMap))
+
+	TArray<FObjectImport> ImportMap;
+	if (!SerializeImportMap(ImportMap))
 	{
 		return false;
 	}
@@ -457,7 +462,7 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 		PackageData.FileVersionLicenseeUE = PackageFileSummary.GetFileVersionLicenseeUE();
 		PackageData.SetIsLicenseeVersion(PackageFileSummary.SavedByEngineVersion.IsLicenseeVersion());
 
-		if (!SerializeImportedClasses(OutDependencyData.ImportMap, PackageData.ImportedClasses))
+		if (!SerializeImportedClasses(ImportMap, PackageData.ImportedClasses))
 		{
 			return false;
 		}
@@ -470,27 +475,29 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 	if (EnumHasAnyFlags(Options, EReadOptions::Dependencies))
 	{
 		OutDependencyData.bHasDependencyData = true;
-		if (!SerializeSoftPackageReferenceList(OutDependencyData.SoftPackageReferenceList))
+		TArray<FName> SoftPackageReferenceList;
+		if (!SerializeSoftPackageReferenceList(SoftPackageReferenceList))
 		{
 			return false;
 		}
-		if (!SerializeSearchableNamesMap(OutDependencyData))
+		FLinkerTables SearchableNames;
+		if (!SerializeSearchableNamesMap(SearchableNames))
 		{
 			return false;
 		}
-		if (!SerializeAssetRegistryDependencyData(OutDependencyData))
+
+		TBitArray<> ImportUsedInGame;
+		TBitArray<> SoftPackageUsedInGame;
+		if (!SerializeAssetRegistryDependencyData(ImportUsedInGame, SoftPackageUsedInGame, ImportMap,
+			SoftPackageReferenceList))
 		{
 			return false;
 		}
-	}
-	else
-	{
-		// We used OutDependencyData.ImportMap to store data for SerializeImportedClasses to use, but 
-		// our contract says we should leave it empty if !EReadOptions::Dependencies
-		OutDependencyData.ImportMap.Reset();
+
+		OutDependencyData.LoadDependenciesFromPackageHeader(OutDependencyData.PackageName, ImportMap, SoftPackageReferenceList,
+			SearchableNames.SearchableNamesMap, ImportUsedInGame, SoftPackageUsedInGame);
 	}
 
-	checkf(OutDependencyData.IsValid(), TEXT("We should have early exited above rather than creating invalid dependency data"));
 	return true;
 }
 
@@ -767,7 +774,7 @@ bool FPackageReader::SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPac
 	return true;
 }
 
-bool FPackageReader::SerializeSearchableNamesMap(FPackageDependencyData& OutDependencyData)
+bool FPackageReader::SerializeSearchableNamesMap(FLinkerTables& OutSearchableNames)
 {
 	if (UEVer() >= VER_UE4_ADDED_SEARCHABLE_NAMES && PackageFileSummary.SearchableNamesOffset > 0)
 	{
@@ -777,7 +784,7 @@ bool FPackageReader::SerializeSearchableNamesMap(FPackageDependencyData& OutDepe
 			return false;
 		}
 
-		OutDependencyData.SerializeSearchableNamesMap(*this);
+		OutSearchableNames.SerializeSearchableNamesMap(*this);
 		if (IsError())
 		{
 			UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeSearchableNamesMapInvalidSearchableNamesMap", PackageFilename);

@@ -2,12 +2,15 @@
 
 #include "PackageDependencyData.h"
 
-FName FPackageDependencyData::GetImportPackageName(int32 ImportIndex)
+FName FPackageDependencyData::GetImportPackageName(const TArray<FObjectImport>& ImportMap, int32 ImportIndex)
 {
-	FPackageIndex LinkerIndex = FPackageIndex::FromImport(ImportIndex);
-	while (LinkerIndex.IsImport())
+	for (int32 NumCycles = 0; NumCycles < ImportMap.Num(); ++NumCycles)
 	{
-		FObjectImport& Resource = Imp(LinkerIndex);
+		if (!ImportMap.IsValidIndex(ImportIndex))
+		{
+			return NAME_None;
+		}
+		const FObjectImport& Resource = ImportMap[ImportIndex];
 		// If the import has a package name set, then that's the import package name,
 		if (Resource.HasPackageName())
 		{
@@ -18,7 +21,82 @@ FName FPackageDependencyData::GetImportPackageName(int32 ImportIndex)
 		{
 			return Resource.ObjectName;
 		}
-		LinkerIndex = Resource.OuterIndex;
+		if (!Resource.OuterIndex.IsImport())
+		{
+				return NAME_None;
+		}
+		ImportIndex = Resource.OuterIndex.ToImport();
 	}
 	return NAME_None;
+}
+
+void FPackageDependencyData::LoadDependenciesFromPackageHeader(FName SourcePackageName, TArray<FObjectImport>& ImportMap,
+	TArray<FName>& SoftPackageReferenceList, TMap<FPackageIndex, TArray<FName>>& SearchableNames,
+	TBitArray<>& ImportUsedInGame, TBitArray<>& SoftPackageUsedInGame)
+{
+	using namespace UE::AssetRegistry;
+
+	PackageDependencies.Reset(ImportMap.Num() + SoftPackageReferenceList.Num());
+	check(ImportMap.Num() == ImportUsedInGame.Num());
+	for (int32 ImportIdx = 0; ImportIdx < ImportMap.Num(); ++ImportIdx)
+	{
+		FName DependencyPackageName = GetImportPackageName(ImportMap, ImportIdx);
+		EDependencyProperty DependencyProperty = EDependencyProperty::Build | EDependencyProperty::Hard;
+		DependencyProperty |= ImportUsedInGame[ImportIdx] ? EDependencyProperty::Game : EDependencyProperty::None;
+		PackageDependencies.Add({ DependencyPackageName, DependencyProperty });
+	}
+
+	check(SoftPackageReferenceList.Num() == SoftPackageUsedInGame.Num());
+	for (int32 SoftPackageIdx = 0; SoftPackageIdx < SoftPackageReferenceList.Num(); ++SoftPackageIdx)
+	{
+		FName DependencyPackageName = SoftPackageReferenceList[SoftPackageIdx];
+		FAssetIdentifier AssetId(DependencyPackageName);
+		EDependencyProperty DependencyProperty = UE::AssetRegistry::EDependencyProperty::Build; // !EDependencyProperty::Hard
+		DependencyProperty |= (SoftPackageUsedInGame[SoftPackageIdx] ? EDependencyProperty::Game : EDependencyProperty::None);
+		PackageDependencies.Add({ DependencyPackageName, DependencyProperty });
+	}
+
+	SearchableNameDependencies.Reset(SearchableNames.Num());
+	for (const TPair<FPackageIndex, TArray<FName>>& SearchableNameList : SearchableNames)
+	{
+		FName ObjectName;
+		FName DependencyPackageName;
+
+		// Find object and package name from linker
+		FPackageIndex LinkerIndex = SearchableNameList.Key;
+		if (LinkerIndex.IsExport())
+		{
+			// Package name has to be this package, take a guess at object name
+			DependencyPackageName = SourcePackageName;
+			ObjectName = FName(*FPackageName::GetLongPackageAssetName(DependencyPackageName.ToString()));
+		}
+		else if (LinkerIndex.IsImport())
+		{
+			int32 ImportIndex = LinkerIndex.ToImport();
+			if (!ImportMap.IsValidIndex(ImportIndex))
+			{
+				continue;
+			}
+			FObjectImport& Resource = ImportMap[ImportIndex];
+			FPackageIndex OuterLinkerIndex = Resource.OuterIndex;
+			if (!OuterLinkerIndex.IsNull())
+			{
+				ObjectName = Resource.ObjectName;
+			}
+			DependencyPackageName = GetImportPackageName(ImportMap, ImportIndex);
+			if (DependencyPackageName.IsNone())
+			{
+				continue;
+			}
+		}
+		else
+		{
+			continue;
+		}
+
+		FSearchableNamesDependency& Dependency = SearchableNameDependencies.Emplace_GetRef();
+		Dependency.PackageName = DependencyPackageName;
+		Dependency.ObjectName = ObjectName;
+		Dependency.ValueNames = SearchableNameList.Value;
+	}
 }

@@ -10,6 +10,7 @@
 
 struct FAssetData;
 class FAssetPackageData;
+class FLinkerTables;
 class FPackageDependencyData;
 
 class FPackageReader : public FArchiveUObject
@@ -88,8 +89,9 @@ private:
 	bool SerializeExportMap(TArray<FObjectExport>& OutExportMap);
 	bool SerializeImportedClasses(const TArray<FObjectImport>& ImportMap, TArray<FName>& OutClassNames);
 	bool SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPackageReferenceList);
-	bool SerializeSearchableNamesMap(FPackageDependencyData& OutDependencyData);
-	bool SerializeAssetRegistryDependencyData(FPackageDependencyData& DependencyData);
+	bool SerializeSearchableNamesMap(FLinkerTables& OutSearchableNames);
+	bool SerializeAssetRegistryDependencyData(TBitArray<>& OutImportUsedInGame, TBitArray<>& OutSoftPackageUsedInGame,
+		const TArray<FObjectImport>& ImportMap, const TArray<FName>& SoftPackageReferenceList);
 	bool SerializePackageTrailer(FAssetPackageData& PackageData);
 
 	/** Returns flags the asset package was saved with */

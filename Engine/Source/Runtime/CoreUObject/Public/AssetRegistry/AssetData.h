@@ -748,6 +748,12 @@ public:
 	COREUOBJECT_API void SerializeForCache(FArchive& Ar);
 	COREUOBJECT_API void SerializeForCacheOldVersion(FArchive& Ar, FAssetRegistryVersion::Type Version);
 
+	/** Returns the amount of memory allocated by this container, not including sizeof(*this). */
+	SIZE_T GetAllocatedSize() const
+	{
+		return ImportedClasses.GetAllocatedSize();
+	}
+
 private:
 	FORCEINLINE void SerializeForCacheInternal(FArchive& Ar, FAssetPackageData& PackageData, FAssetRegistryVersion::Type Version);
 

@@ -3760,10 +3760,10 @@ bool ReadAssetFile(FPackageReader& PackageReader, IAssetRegistry::FLoadPackageRe
 
 		if (InOutData.bGetDependencies)
 		{
-			InOutData.DataDependencies.Reset(DependencyData.ImportMap.Num());
-			for (int32 ImportIdx = 0; ImportIdx < DependencyData.ImportMap.Num(); ++ImportIdx)
+			InOutData.DataDependencies.Reset(DependencyData.PackageDependencies.Num());
+			for (FPackageDependencyData::FPackageDependency& Dependency : DependencyData.PackageDependencies)
 			{
-				InOutData.DataDependencies.Emplace(DependencyData.GetImportPackageName(ImportIdx));
+				InOutData.DataDependencies.Emplace(Dependency.PackageName);
 			}
 		}
 	}
@@ -4171,65 +4171,50 @@ void FAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TRin
 			// Don't bother registering dependencies on these packages, every package in the game will depend on them
 			static TArray<FName> ScriptPackagesToSkip = TArray<FName>{ TEXT("/Script/CoreUObject"), TEXT("/Script/Engine"), TEXT("/Script/BlueprintGraph"), TEXT("/Script/UnrealEd") };
 
-			// Determine the new package dependencies
+			// Conditionally add package dependencies
 			TMap<FName, FDependsNode::FPackageFlagSet> PackageDependencies;
-			check(Result.ImportUsedInGame.Num() == Result.ImportMap.Num());
-			for (int32 ImportIdx = 0; ImportIdx < Result.ImportMap.Num(); ++ImportIdx)
+			for (FPackageDependencyData::FPackageDependency& DependencyData : Result.PackageDependencies)
 			{
-				FName AssetReference = Result.GetImportPackageName(ImportIdx);
-
-				// Should we skip this because it's too common?
-				if (ScriptPackagesToSkip.Contains(AssetReference))
+				// Skip hard dependencies to the common script packages
+				FName DependencyPackageName = DependencyData.PackageName;
+				if (EnumHasAnyFlags(DependencyData.Property, EDependencyProperty::Hard) && ScriptPackagesToSkip.Contains(DependencyPackageName))
 				{
 					continue;
 				}
 				FName Redirected = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Package,
-					FCoreRedirectObjectName(NAME_None, NAME_None, AssetReference)).PackageName;
-				AssetReference = Redirected;
+					FCoreRedirectObjectName(NAME_None, NAME_None, DependencyPackageName)).PackageName;
+				DependencyPackageName = Redirected;
 
-				EDependencyProperty DependencyProperty = EDependencyProperty::Build | EDependencyProperty::Hard;
-				DependencyProperty |= Result.ImportUsedInGame[ImportIdx] ? EDependencyProperty::Game : EDependencyProperty::None;
-				PackageDependencies.FindOrAdd(AssetReference).Add(FDependsNode::PackagePropertiesToByte(DependencyProperty));
-			}
-
-			check(Result.SoftPackageUsedInGame.Num() == Result.SoftPackageReferenceList.Num());
-			for (int32 SoftPackageIdx = 0; SoftPackageIdx < Result.SoftPackageReferenceList.Num(); ++SoftPackageIdx)
-			{
-				FName AssetReference = Result.SoftPackageReferenceList[SoftPackageIdx];
-				FName Redirected = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Package,
-					FCoreRedirectObjectName(NAME_None, NAME_None, AssetReference)).PackageName;
-				AssetReference = Redirected;
-
-				EDependencyProperty DependencyProperty = UE::AssetRegistry::EDependencyProperty::Build;
-				DependencyProperty |= (Result.SoftPackageUsedInGame[SoftPackageIdx] ? EDependencyProperty::Game : EDependencyProperty::None);
-				PackageDependencies.FindOrAdd(AssetReference).Add(FDependsNode::PackagePropertiesToByte(DependencyProperty));
+				FDependsNode::FPackageFlagSet& PackageFlagSet = PackageDependencies.FindOrAdd(DependencyPackageName);
+				PackageFlagSet.Add(FDependsNode::PackagePropertiesToByte(DependencyData.Property));
 			}
 
 			// Doubly-link all of the PackageDependencies
 			for (TPair<FName, FDependsNode::FPackageFlagSet>& NewDependsIt : PackageDependencies)
 			{
-				FDependsNode* DependsNode = State.CreateOrFindDependsNode(NewDependsIt.Key);
+				FName DependencyPackageName = NewDependsIt.Key;
+				FAssetIdentifier Identifier(DependencyPackageName);
+				FDependsNode* DependsNode = State.CreateOrFindDependsNode(Identifier);
 
 				// Handle failure of CreateOrFindDependsNode
 				// And Skip dependencies to self 
 				if (DependsNode != nullptr && DependsNode != Node)
 				{
-					const FAssetIdentifier& Identifier = DependsNode->GetIdentifier();
-					if (DependsNode->GetConnectionCount() == 0 && Identifier.IsPackage())
+					if (DependsNode->GetConnectionCount() == 0)
 					{
 						// This was newly created, see if we need to read the script package Guid
-						const FNameBuilder PackageName(Identifier.PackageName);
+						const FNameBuilder DependencyPackageNameStr(DependencyPackageName);
 
-						if (FPackageName::IsScriptPackage(PackageName))
+						if (FPackageName::IsScriptPackage(DependencyPackageNameStr))
 						{
 							// Get the guid off the script package, it is updated when script is changed so we need to refresh it every run
-							UPackage* Package = FindPackage(nullptr, *PackageName);
+							UPackage* Package = FindPackage(nullptr, *DependencyPackageNameStr);
 
 							if (Package)
 							{
-								FAssetPackageData* ScriptPackageData = State.CreateOrGetAssetPackageData(Identifier.PackageName);
+								FAssetPackageData* ScriptPackageData = State.CreateOrGetAssetPackageData(DependencyPackageName);
 								PRAGMA_DISABLE_DEPRECATION_WARNINGS
-									ScriptPackageData->PackageGuid = Package->GetGuid();
+								ScriptPackageData->PackageGuid = Package->GetGuid();
 								PRAGMA_ENABLE_DEPRECATION_WARNINGS
 							}
 						}
@@ -4240,44 +4225,13 @@ void FAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TRin
 				}
 			}
 
-			for (const TPair<FPackageIndex, TArray<FName>>& SearchableNameList : Result.SearchableNamesMap)
+			// Add node for all name references
+			for (FPackageDependencyData::FSearchableNamesDependency& NamesDependency : Result.SearchableNameDependencies)
 			{
-				FName ObjectName;
-				FName PackageName;
-
-				// Find object and package name from linker
-				FPackageIndex LinkerIndex = SearchableNameList.Key;
-				if (LinkerIndex.IsExport())
+				for (FName& ValueName : NamesDependency.ValueNames)
 				{
-					// Package name has to be this package, take a guess at object name
-					PackageName = Result.PackageName;
-					ObjectName = FName(*FPackageName::GetLongPackageAssetName(Result.PackageName.ToString()));
-				}
-				else if (LinkerIndex.IsImport())
-				{
-					FObjectResource* Resource = &Result.ImpExp(LinkerIndex);
-					FPackageIndex OuterLinkerIndex = Resource->OuterIndex;
-					check(OuterLinkerIndex.IsNull() || OuterLinkerIndex.IsImport());
-					if (!OuterLinkerIndex.IsNull())
-					{
-						ObjectName = Resource->ObjectName;
-						while (!OuterLinkerIndex.IsNull())
-						{
-							Resource = &Result.ImpExp(OuterLinkerIndex);
-							OuterLinkerIndex = Resource->OuterIndex;
-							check(OuterLinkerIndex.IsNull() || OuterLinkerIndex.IsImport());
-						}
-					}
-					PackageName = Resource->ObjectName;
-				}
-
-				for (FName NameReference : SearchableNameList.Value)
-				{
-					FAssetIdentifier AssetId = FAssetIdentifier(PackageName, ObjectName, NameReference);
-
-					// Add node for all name references
+					FAssetIdentifier AssetId(NamesDependency.PackageName, NamesDependency.ObjectName, ValueName);
 					FDependsNode* DependsNode = State.CreateOrFindDependsNode(AssetId);
-
 					if (DependsNode != nullptr)
 					{
 						Node->AddDependency(DependsNode, EDependencyCategory::SearchableName, EDependencyProperty::None);
