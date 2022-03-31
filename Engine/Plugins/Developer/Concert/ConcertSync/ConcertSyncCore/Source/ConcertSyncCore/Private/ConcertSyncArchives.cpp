@@ -308,7 +308,7 @@ FArchive& FConcertSyncObjectReader::operator<<(FLazyObjectPtr& LazyObjectPtr)
 
 FArchive& FConcertSyncObjectReader::operator<<(FObjectPtr& Obj)
 {
-	UObject* RawObj = nullptr;
+	UObject* RawObj = Obj.Get();
 	*this << RawObj;
 	Obj = RawObj;
 	return *this;
