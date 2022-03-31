@@ -100,6 +100,7 @@ namespace Horde.Storage.Implementation
                         BlobContents contents = await blobStore.GetObject(ns, blob);
                         await using Stream s = contents.Stream;
 
+                        bool inconsistencyFound = false;
                         BlobIdentifier newHash = await BlobIdentifier.FromStream(s);
                         if (!blob.Equals(newHash))
                         {
@@ -114,6 +115,8 @@ namespace Horde.Storage.Implementation
                                 await _blobIndex.RemoveBlobFromRegion(ns, blob);
                             }
                         }
+
+                        scope.Span.SetTag("deleted", inconsistencyFound.ToString());
                     }
 
                     _logger.Information("Blob Store {BlobStore}: Consistency check finished for {Namespace}, found {CountOfIncorrectBlobs} incorrect blobs. Processed {CountOfBlobs} blobs.", blobStoreName, ns, countOfIncorrectBlobsFound, countOfBlobsChecked);
