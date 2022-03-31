@@ -387,7 +387,9 @@ struct FActivityTagsMergingPolicy : FSmartObjectTestBase
 {
 	virtual bool SetupDefinition() override
 	{
-		if (!ensureMsgf(Definition->GetMutableSlots().Num() >= 2, TEXT("Expecting at least three slots")))
+		const TArrayView<FSmartObjectSlotDefinition> Slots = Definition->GetMutableSlots();
+		constexpr int32 NumRequiredSlots = 2;
+		if (!ensureMsgf(Slots.Num() >= NumRequiredSlots, TEXT("Expecting at least %d slots"), NumRequiredSlots))
 		{
 			return false;
 		}
@@ -398,8 +400,8 @@ struct FActivityTagsMergingPolicy : FSmartObjectTestBase
 		// Slot2:	ActivityTags:	TestTag1, TestTag2
 		// Slot3:	ActivityTags:	---
 
-		FSmartObjectSlotDefinition& FirstSlot = Definition->GetMutableSlots()[0];
-		FSmartObjectSlotDefinition& SecondSlot = Definition->GetMutableSlots()[1];
+		FSmartObjectSlotDefinition& FirstSlot = Slots[0];
+		FSmartObjectSlotDefinition& SecondSlot = Slots[1];
 		FirstSlot.ActivityTags.AddTag(FNativeGameplayTags::Get().TestTag2);
 		SecondSlot.ActivityTags.AddTag(FNativeGameplayTags::Get().TestTag1);
 		SecondSlot.ActivityTags.AddTag(FNativeGameplayTags::Get().TestTag2);
@@ -537,7 +539,9 @@ struct FUserTagsFilterPolicy : FSmartObjectTestBase
 {
 	virtual bool SetupDefinition() override
 	{
-		if (!ensureMsgf(Definition->GetMutableSlots().Num() >= 2, TEXT("Expecting at least three slots")))
+		const TArrayView<FSmartObjectSlotDefinition> Slots = Definition->GetMutableSlots();
+		constexpr int32 NumRequiredSlots = 2;
+		if (!ensureMsgf(Slots.Num() >= NumRequiredSlots, TEXT("Expecting at least %d slots"), NumRequiredSlots))
 		{
 			return false;
 		}
@@ -546,10 +550,9 @@ struct FUserTagsFilterPolicy : FSmartObjectTestBase
 		// Object:	UserTagFilter:	Match(TestTag1)
 		// Slot1:	UserTagFilter:	NoMatch(TestTag2)
 		// Slot2:	UserTagFilter:	AnyMatch(TestTag1, TestTag2, TestTag3)
-		// Slot3:	UserTagFilter:	---
 
-		FSmartObjectSlotDefinition& FirstSlot = Definition->GetMutableSlots()[0];
-		FSmartObjectSlotDefinition& SecondSlot = Definition->GetMutableSlots()[1];
+		FSmartObjectSlotDefinition& FirstSlot = Slots[0];
+		FSmartObjectSlotDefinition& SecondSlot = Slots[1];
 
 		// Set first slot user tag filter
 		FirstSlot.UserTagFilter = FGameplayTagQuery::BuildQuery(
