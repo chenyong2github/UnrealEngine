@@ -8,7 +8,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 
 
-FEditableTextBlock::FEditableTextBlock( const FText& InLabel, const FText& InToolTip, const FSlateIcon& InIcon, const TAttribute< FText >& InTextAttribute, bool bInReadOnly, const FOnTextCommitted& InOnTextCommitted, const FOnTextChanged& InOnTextChanged )
+FEditableTextBlock::FEditableTextBlock( const FText& InLabel, const FText& InToolTip, const FSlateIcon& InIcon, const TAttribute< FText >& InTextAttribute, bool bInReadOnly, const FOnTextCommitted& InOnTextCommitted, const FOnTextChanged& InOnTextChanged, const FOnVerifyTextChanged& InOnVerifyTextChanged )
 	: FMultiBlock( FUIAction(), NAME_None, EMultiBlockType::EditableText ),
 	  LabelOverride( InLabel ),
 	  ToolTipOverride( InToolTip ),
@@ -16,9 +16,9 @@ FEditableTextBlock::FEditableTextBlock( const FText& InLabel, const FText& InToo
 	  TextAttribute( InTextAttribute ),
 	  OnTextCommitted( InOnTextCommitted ),
 	  OnTextChanged( InOnTextChanged ),
+	  OnVerifyTextChanged( InOnVerifyTextChanged ),
 	  bReadOnly( bInReadOnly )
 { }
-
 
 bool FEditableTextBlock::HasIcon() const
 {
@@ -137,6 +137,7 @@ void SEditableTextBlock::BuildMultiBlockWidget( const ISlateStyle* StyleSet, con
 			.RevertTextOnEscape( true )
 			.MinDesiredWidth( MultiBoxConstants::EditableTextMinWidth )
 			.OnTextChanged( EditableTextBlock->OnTextChanged )
+			.OnVerifyTextChanged( EditableTextBlock->OnVerifyTextChanged )
 			.OnTextCommitted( EditableTextBlock->OnTextCommitted )
 			.ToolTipText( TextBlockToolTip )
 		]

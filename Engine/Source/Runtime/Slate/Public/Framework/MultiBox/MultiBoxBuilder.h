@@ -59,6 +59,19 @@ public:
 	 */
 	void AddEditableText( const FText& InLabel, const FText& InToolTip, const FSlateIcon& InIcon, const TAttribute< FText >& InTextAttribute, const FOnTextCommitted& InOnTextCommitted = FOnTextCommitted(), const FOnTextChanged& InOnTextChanged = FOnTextChanged(), bool bInReadOnly = false );
 
+	/**
+	 * Adds an editable text entry with a VerifyTextChanged delegate
+	 *
+	 * @param	InLabel					The label to display in the menu
+	 * @param	InToolTip				The tool tip to display when the menu entry is hovered over
+	 * @param	InIcon					The icon to display to the left of the label
+	 * @param	InTextAttribute			The text string we're editing (often, a delegate will be bound to the attribute)
+	 * @param	InOnVerifyTextChanged	Called to verify when the text is changed interactively
+	 * @param	InOnTextCommitted		Called when the user commits their change to the editable text control
+	 * @param	InOnTextChanged			Called when the text is changed interactively
+	 * @param	bInReadOnly				Whether or not the text block is read only
+	 */
+	void AddVerifiedEditableText(const FText& InLabel, const FText& InToolTip, const FSlateIcon& InIcon, const TAttribute< FText >& InTextAttribute, const FOnVerifyTextChanged& InOnVerifyTextChanged, const FOnTextCommitted& InOnTextCommitted = FOnTextCommitted(), const FOnTextChanged& InOnTextChanged = FOnTextChanged(), bool bInReadOnly = false);
 
 	/**
 	 * Creates a widget for this MultiBox

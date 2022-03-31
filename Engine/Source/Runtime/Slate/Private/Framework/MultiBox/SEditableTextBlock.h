@@ -19,16 +19,17 @@ public:
 	/**
 	 * Constructor
 	 *
-	 * @param	InLabel				The label to display in the menu
-	 * @param	InToolTip			The tool tip to display when the menu entry is hovered over
-	 * @param	InIcon				The icon to display to the left of the label
-	 * @param	InTextAttribute		The text string we're editing (often, a delegate will be bound to the attribute)
-	 * @param	bInReadOnly			Whether or not the text block should be read only
-	 * @param	InOnTextCommitted	Called when the user commits their change to the editable text control
-	 * @param	InOnTextChanged		Called when the text is changed interactively
+	 * @param	InLabel					The label to display in the menu
+	 * @param	InToolTip				The tool tip to display when the menu entry is hovered over
+	 * @param	InIcon					The icon to display to the left of the label
+	 * @param	InTextAttribute			The text string we're editing (often, a delegate will be bound to the attribute)
+	 * @param	bInReadOnly				Whether or not the text block should be read only
+	 * @param	InOnTextCommitted		Called when the user commits their change to the editable text control
+	 * @param	InOnTextChanged			Called when the text is changed interactively
+	 * @param	InOnVerifyTextChanged	Called to verify when the text is changed interactively
 	 */
-	FEditableTextBlock( const FText& InLabel, const FText& InToolTip, const FSlateIcon& InIcon, const TAttribute< FText >& InTextAttribute, bool bInReadOnly, const FOnTextCommitted& InOnTextCommitted, const FOnTextChanged& InOnTextChanged );
-
+	FEditableTextBlock( const FText& InLabel, const FText& InToolTip, const FSlateIcon& InIcon, const TAttribute< FText >& InTextAttribute, bool bInReadOnly, const FOnTextCommitted& InOnTextCommitted, const FOnTextChanged& InOnTextChanged, const FOnVerifyTextChanged& InOnVerifyTextChanged = FOnVerifyTextChanged() );
+	
 	/** FMultiBlock interface */
 	virtual bool HasIcon() const override;
 
@@ -63,6 +64,9 @@ private:
 
 	/** Called when the text is changed interactively */
 	FOnTextChanged OnTextChanged;
+
+	/** Called to verify when the text is changed interactively */
+	FOnVerifyTextChanged OnVerifyTextChanged;
 
 	/** If true the text box is read only */
 	bool bReadOnly;

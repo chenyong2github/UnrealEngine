@@ -38,6 +38,11 @@ void FMultiBoxBuilder::AddEditableText( const FText& InLabel, const FText& InToo
 	MultiBox->AddMultiBlock( MakeShareable( new FEditableTextBlock( InLabel, InToolTip, InIcon, InTextAttribute, bInReadOnly, InOnTextCommitted, InOnTextChanged ) ) );
 }
 
+void FMultiBoxBuilder::AddVerifiedEditableText(const FText& InLabel, const FText& InToolTip, const FSlateIcon& InIcon, const TAttribute< FText >& InTextAttribute, const FOnVerifyTextChanged& InOnVerifyTextChanged, const FOnTextCommitted& InOnTextCommitted /*= FOnTextCommitted()*/, const FOnTextChanged& InOnTextChanged /*= FOnTextChanged()*/, bool bInReadOnly /*= false*/)
+{
+	MultiBox->AddMultiBlock(MakeShareable(new FEditableTextBlock(InLabel, InToolTip, InIcon, InTextAttribute, bInReadOnly, InOnTextCommitted, InOnTextChanged, InOnVerifyTextChanged)));
+}
+
 void FMultiBoxBuilder::PushCommandList( const TSharedRef< const FUICommandList > CommandList )
 {
 	CommandListStack.Push( CommandList );
