@@ -4,11 +4,46 @@
 
 #include "CoreMinimal.h"
 #include "Factories/Factory.h"
+#include "AssetTypeCategories.h"
+#include "IAssetTools.h"
+#include "IAssetTypeActions.h"
+#include "TickableEditorObject.h"
+#include "IDetailsView.h"
 
 #include "InputEditorModule.generated.h"
 
-// Module is not publicly exposed
+////////////////////////////////////////////////////////////////////
+// FInputEditorModule
 
+class FInputEditorModule : public IModuleInterface, public FTickableEditorObject
+{
+public:
+
+	// IModuleInterface interface
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
+	// End IModuleInterface interface
+
+	// FTickableEditorObject interface
+	virtual void Tick(float DeltaTime) override;
+	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FInputEditorModule, STATGROUP_Tickables); }
+	// End FTickableEditorObject interface
+
+	static EAssetTypeCategories::Type GetInputAssetsCategory() { return InputAssetsCategory; }
+	
+private:
+	void RegisterAssetTypeActions(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
+	{
+		AssetTools.RegisterAssetTypeActions(Action);
+		CreatedAssetTypeActions.Add(Action);
+	}
+
+	static EAssetTypeCategories::Type InputAssetsCategory;
+	
+	TArray<TSharedPtr<IAssetTypeActions>> CreatedAssetTypeActions;
+};
+
+////////////////////////////////////////////////////////////////////
 // Asset factories
 
 UCLASS()

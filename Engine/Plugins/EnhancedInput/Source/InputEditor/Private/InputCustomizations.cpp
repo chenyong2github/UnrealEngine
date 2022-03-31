@@ -10,8 +10,16 @@
 #include "InputMappingContext.h"
 #include "KeyStructCustomization.h"
 #include "PropertyCustomizationHelpers.h"
+#include "EnhancedInputDeveloperSettings.h"
+#include "InputEditorModule.h"
+#include "AssetRegistryModule.h"
+#include "Blueprint/BlueprintSupport.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "InputCustomization"
+
+//////////////////////////////////////////////////////////
+// FInputContextDetails
 
 TSharedRef<IDetailCustomization> FInputContextDetails::MakeInstance()
 {
@@ -29,6 +37,8 @@ void FInputContextDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBu
 	MappingsDetailCategoryBuilder.AddCustomBuilder(ActionMappingsBuilder);
 }
 
+//////////////////////////////////////////////////////////
+// FEnhancedActionMappingCustomization
 
 void FEnhancedActionMappingCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
@@ -71,6 +81,185 @@ void FEnhancedActionMappingCustomization::RemoveMappingButton_OnClick() const
 		const TSharedPtr<IPropertyHandleArray> ParentArrayHandle = ParentHandle->AsArray();
 
 		ParentArrayHandle->DeleteItem(MappingPropertyHandle->GetIndexInArray());
+	}
+}
+
+//////////////////////////////////////////////////////////
+// FEnhancedInputDeveloperSettingsCustomization
+
+FEnhancedInputDeveloperSettingsCustomization::~FEnhancedInputDeveloperSettingsCustomization()
+{
+	// Unregister settings panel listeners
+	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry"))
+	{
+		AssetRegistryModule->Get().OnAssetAdded().RemoveAll(this);
+		AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
+		AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(this);
+	}
+	
+	CachedDetailBuilder = nullptr;
+}
+
+void FEnhancedInputDeveloperSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	// Note: The details view for the UEnhancedInputDeveloperSettings object will be on by default
+	// This 'EditCategory' call will ensure that the developer settings are displayed on top of the trigger/modifier default values
+	DetailBuilder.EditCategory(UEnhancedInputDeveloperSettings::StaticClass()->GetFName(), FText::GetEmpty(), ECategoryPriority::Important);
+
+	static const FName TriggerCategoryName = TEXT("Trigger Default Values");
+	static const FName ModifierCategoryName = TEXT("Modifier Default Values");
+
+	TArray<UObject*> ModifierCDOs = GatherClassDetailsCDOs(UInputModifier::StaticClass());
+	TArray<UObject*> TriggerCDOs = GatherClassDetailsCDOs(UInputTrigger::StaticClass());
+	
+	// Add The modifier/trigger defaults that are generated via CDO to the details builder
+	CustomizeCDOValues(DetailBuilder, ModifierCategoryName, ModifierCDOs);
+	CustomizeCDOValues(DetailBuilder, TriggerCategoryName, TriggerCDOs);
+	
+	// Support for updating blueprint based triggers and modifiers in the settings panel
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(FName("AssetRegistry"));
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	if (!AssetRegistry.OnAssetAdded().IsBoundToObject(this))
+	{
+		AssetRegistry.OnAssetAdded().AddRaw(this, &FEnhancedInputDeveloperSettingsCustomization::OnAssetAdded);
+		AssetRegistry.OnAssetRemoved().AddRaw(this, &FEnhancedInputDeveloperSettingsCustomization::OnAssetRemoved);
+		AssetRegistry.OnAssetRenamed().AddRaw(this, &FEnhancedInputDeveloperSettingsCustomization::OnAssetRenamed);
+	}
+}
+
+void FEnhancedInputDeveloperSettingsCustomization::CustomizeCDOValues(IDetailLayoutBuilder& DetailBuilder, const FName CategoryName, const TArray<UObject*>& ObjectsToCustomize)
+{
+	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(CategoryName);
+
+	// All of the Objects in this array are the CDO, i.e. the class name starts with "Default__"
+	for (UObject* CDO : ObjectsToCustomize)
+	{
+		if (!ensure(CDO && CDO->IsTemplate()))
+		{
+			continue;
+		}
+
+		// Add the CDO as an external object reference to this customization
+		IDetailPropertyRow* Row = CategoryBuilder.AddExternalObjects({ CDO }, EPropertyLocation::Default, FAddPropertyParams().UniqueId(CDO->GetClass()->GetFName()));
+
+		if (Row)
+		{
+			// We need to add a custom "Name" widget here, otherwise all the categories will just say "Object"
+			Row->CustomWidget()
+			.NameContent()
+			[
+				SNew(STextBlock)
+					.Text(CDO->GetClass()->GetDisplayNameText())
+			];	
+		}
+	}
+}
+
+void FEnhancedInputDeveloperSettingsCustomization::CustomizeDetails(const TSharedPtr<IDetailLayoutBuilder>& DetailBuilder)
+{
+	CachedDetailBuilder = DetailBuilder;
+	CustomizeDetails(*DetailBuilder);
+}
+
+TArray<UObject*> FEnhancedInputDeveloperSettingsCustomization::GatherClassDetailsCDOs(UClass* Class)
+{
+	TArray<UObject*> CDOs;
+
+	// Search native classes
+	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+	{
+		if (!ClassIt->IsNative() || !ClassIt->IsChildOf(Class))
+		{
+			continue;
+		}
+
+		// Ignore abstract, hidedropdown, and deprecated.
+		if (ClassIt->HasAnyClassFlags(CLASS_Abstract | CLASS_HideDropDown | CLASS_Deprecated | CLASS_NewerVersionExists))
+		{
+			continue;
+		}
+
+		CDOs.AddUnique(ClassIt->GetDefaultObject());
+	}
+
+	// Search BPs via asset registry
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(FName("AssetRegistry"));
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	FARFilter Filter;
+	Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
+	Filter.bRecursiveClasses = true;
+	TArray<FAssetData> BlueprintAssetData;
+	AssetRegistry.GetAssets(Filter, BlueprintAssetData);
+
+	for (FAssetData& Asset : BlueprintAssetData)
+	{
+		FAssetDataTagMapSharedView::FFindTagResult Result = Asset.TagsAndValues.FindTag(TEXT("NativeParentClass"));
+		if (Result.IsSet())
+		{
+			const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(Result.GetValue());
+			const FString ClassName = FPackageName::ObjectPathToObjectName(ClassObjectPath);
+			if (UClass* ParentClass = FindObjectSafe<UClass>(ANY_PACKAGE, *ClassName, true))
+			{
+				if (ParentClass->IsChildOf(Class))
+				{
+					// TODO: Forcibly loading these assets could cause problems on projects with a large number of them.
+					UBlueprint* BP = CastChecked<UBlueprint>(Asset.GetAsset());
+					CDOs.AddUnique(BP->GeneratedClass->GetDefaultObject());
+				}
+			}
+		}
+	}
+
+	// Strip objects with no config stored properties
+	CDOs.RemoveAll([Class](UObject* Object) {
+		UClass* ObjectClass = Object->GetClass();
+		if (ObjectClass->GetMetaData(TEXT("NotInputConfigurable")).ToBool())
+		{
+			return true;
+		}
+		while (ObjectClass)
+		{
+			for (FProperty* Property : TFieldRange<FProperty>(ObjectClass, EFieldIteratorFlags::ExcludeSuper, EFieldIteratorFlags::ExcludeDeprecated))
+			{
+				if (Property->HasAnyPropertyFlags(CPF_Config))
+				{
+					return false;
+				}
+			}
+
+			// Stop searching at the base type. We don't care about configurable properties lower than that.
+			ObjectClass = ObjectClass != Class ? ObjectClass->GetSuperClass() : nullptr;
+		}
+		return true;
+	});
+
+	return CDOs;
+}
+
+void FEnhancedInputDeveloperSettingsCustomization::RebuildDetailsViewForAsset(const FAssetData& AssetData)
+{
+	// If the asset was a blueprint...
+	if (AssetData.AssetClass == UBlueprint::StaticClass()->GetFName())
+	{
+		// With a native parent class...
+		FAssetDataTagMapSharedView::FFindTagResult Result = AssetData.TagsAndValues.FindTag(FBlueprintTags::NativeParentClassPath);
+		if (Result.IsSet())
+		{
+			// And the base class is UInputModifier or UInputTrigger, then we should rebuild the details
+			const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(Result.GetValue());
+			const FString ClassName = FPackageName::ObjectPathToObjectName(ClassObjectPath);
+			if (UClass* ParentClass = FindObjectSafe<UClass>(ANY_PACKAGE, *ClassName, true))
+			{
+				if (ParentClass == UInputModifier::StaticClass() || ParentClass == UInputTrigger::StaticClass())
+				{
+					if (IDetailLayoutBuilder* DetailBuilder = CachedDetailBuilder.Pin().Get())
+					{
+						DetailBuilder->ForceRefreshDetails();
+					}
+				}
+			}
+		}
 	}
 }
 
