@@ -828,7 +828,9 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		// Find a suitable workspace from one of the owner's workspaces
 		else {
 			// use p4.find_workspaces to find a workspace (owned by the user) for this change if this is a stream branch
-			const workspaces: ClientSpec[] = await this.p4.find_workspaces(owner)
+			// not supporting edge servers yet - really need to send a separate shelf request instead
+			// so specify to only look for workspaces on the commit server
+			const workspaces: ClientSpec[] = await this.p4.find_workspaces(owner, 'commit')
 
 			if (workspaces.length > 0) {
 				// default to the first workspace

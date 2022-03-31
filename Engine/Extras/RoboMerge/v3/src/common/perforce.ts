@@ -567,8 +567,12 @@ export class PerforceContext {
 			args.push('-a')
 		}
 
+		let opts: ExecZtagOpts = { multiline: true }
+		if (edgeServerAddress && edgeServerAddress !== 'commit') {
+			opts.edgeServerAddress = edgeServerAddress
+		}
 
-		let parsedClients = await this._execP4Ztag(null, args, { multiline: true, edgeServerAddress });
+		let parsedClients = await this._execP4Ztag(null, args, opts);
 		let workspaces = [];
 		for (let clientDef of parsedClients) {
 			if (clientDef.client) {
