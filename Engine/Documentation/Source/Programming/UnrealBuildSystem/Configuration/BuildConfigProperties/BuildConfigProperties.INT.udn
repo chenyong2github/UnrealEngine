@@ -128,6 +128,8 @@ $ bAllowRuntimeSymbolFiles : True if runtime symbols files should be generated a
 
 $ PackagePath : Package full path (directory + filename) where to store input files used at link time Normally used to debug a linker crash for platforms that support it
 
+$ CrashDiagnosticDirectory : Directory where to put crash report files for platforms that support it
+
 $ bCheckSystemHeadersForModification : Whether headers in system paths should be checked for modification when determining outdated actions.
 
 $ bFlushBuildDirOnRemoteMac : Whether to clean Builds directory on a remote Mac before building.
