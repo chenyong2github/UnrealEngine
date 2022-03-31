@@ -7,6 +7,7 @@
 #include "Engine/PackageMapClient.h"
 #include "NetworkReplayStreaming.h"
 #include "ReplayTypes.h"
+#include "Containers/ArrayView.h"
 
 class APlayerController;
 class UNetConnection;
@@ -105,6 +106,8 @@ private:
 
 	void RequestCheckpoint();
 
+	void NotifyActorDestroyed(UNetConnection* Connection, AActor* Actor);
+
 private:
 	// Hooks used to determine when levels are streamed in, streamed out, or if there's a map change.
 	void OnLevelAddedToWorld(ULevel* Level, UWorld* World);
@@ -143,7 +146,6 @@ private:
 	static const EReadPacketState ReadPacket(FArchive& Archive, TArray<uint8>& OutBuffer, const EReadPacketMode Mode);
 
 	void CacheNetGuids(UNetConnection* Connection);
-	void CacheDeletedActors(UNetConnection* Connection);
 
 	bool SerializeGuidCache(UNetConnection* Connection, const FRepActorsCheckpointParams& Params, FArchive* CheckpointArchive);
 	bool SerializeDeletedStartupActors(UNetConnection* Connection, const FRepActorsCheckpointParams& Params, FArchive* CheckpointArchive);
@@ -238,7 +240,6 @@ private:
 	{
 		Idle,
 		ProcessCheckpointActors,
-		CacheDeletedActors,
 		SerializeDeletedStartupActors,
 		SerializeDeltaDynamicDestroyed,
 		SerializeDeltaClosedChannels,
@@ -272,6 +273,9 @@ private:
 
 			switch (CheckpointState)
 			{
+			case ECheckpointSaveState::ProcessCheckpointActors:
+				StateStr = TEXT("ProcessCheckpointActors");
+				break;
 			case ECheckpointSaveState::SerializeDeletedStartupActors:
 				StateStr = TEXT("SerializeDeletedStartupActors");
 				break;
@@ -333,6 +337,7 @@ private:
 		ECheckpointSaveState CheckpointSaveState;						// Current state of checkpoint SaveState
 		FPackageMapAckState CheckpointAckState;							// Current ack state of packagemap for the current checkpoint being saved
 		TArray<FPendingCheckPointActor> PendingCheckpointActors;		// Actors to be serialized by pending checkpoint
+		TMap<TWeakObjectPtr<AActor>, int32, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<AActor>, int32>> PendingActorToIndex;
 		double				TotalCheckpointSaveTimeSeconds;				// Total time it took to save checkpoint including the finaling part across all frames
 		double				TotalCheckpointReplicationTimeSeconds;		// Total time it took to write all replicated objects across all frames
 		bool				bWriteCheckpointOffset;
@@ -529,6 +534,8 @@ private:
 	void ReadDeletedStartupActors(UNetConnection* Connection, FArchive& Ar, TSet<FString>& DeletedStartupActors);
 
 	ECheckpointSaveState GetCheckpointSaveState() const { return CheckpointSaveContext.CheckpointSaveState; }
+
+	void ProcessCheckpointActors(UNetConnection* Connection, TArrayView<FPendingCheckPointActor> PendingActors, int32& NextIndex, FRepActorsCheckpointParams& Params);
 
 	static constexpr int32 MAX_DEMO_READ_WRITE_BUFFER = 1024 * 2;
 	static constexpr int32 MAX_DEMO_STRING_SERIALIZATION_SIZE = 16 * 1024 * 1024;

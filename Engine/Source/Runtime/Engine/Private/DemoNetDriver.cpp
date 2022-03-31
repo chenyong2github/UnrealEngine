@@ -4981,7 +4981,6 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 	const bool bIsRecording = IsRecording();
 	const bool bNetStartup = Actor->IsNetStartupActor();
 	const bool bActorRewindable = Actor->bReplayRewindable;
-	const bool bDeltaCheckpoint = HasDeltaCheckpoints();
 
 	if (bActorRewindable && !IsSeamlessTravel && !bIsRecording)
 	{
@@ -4994,15 +4993,15 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 		}
 	}
 
-	if (bIsRecording && bNetStartup)
+	if (bIsRecording)
 	{
 		// We don't want to send any destruction info in this case, because the actor should stick around.
 		// The Replay will manage deleting this when it performs streaming or travel behavior.
-		if (IsSeamlessTravel)
+		if (bNetStartup && IsSeamlessTravel)
 		{
 			// This is a stripped down version of UNetDriver::NotifyActorDestroy and UActorChannel::Close
 			// combined, and should be kept up to date with those methods.
-		
+
 			// Remove the actor from the property tracker map
 			RepChangedPropertyTrackerMap.Remove(Actor);
 
@@ -5021,38 +5020,18 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 					Channel->Actor = nullptr;
 					Channel->CleanupReplicators(false);
 				}
-	
+
 				Connection->DormantReplicatorMap.Remove(Actor);
 			}
-	
+
 			GetNetworkObjectList().Remove(Actor);
 			RenamedStartupActors.Remove(Actor->GetFName());
 			return;
 		}
-		else
+
+		if (!IsSeamlessTravel)
 		{
-			const FString FullName = Actor->GetFullName();
-
-			// This was deleted due to a game interaction, which isn't supported for Rewindable actors (while recording).
-			// However, since the actor is going to be deleted imminently, we need to track it.
-			UE_CLOG(bActorRewindable, LogDemo, Warning, TEXT("Replay Rewindable Actor destroyed during recording. Replay may show artifacts (%s)"), *FullName);
-
-			UE_LOG(LogDemo, VeryVerbose, TEXT("NotifyActyorDestroyed: adding actor to deleted startup list: %s"), *FullName);
-			ReplayHelper.RecordingDeletedNetStartupActors.Add(FullName);
-
-			if (bDeltaCheckpoint)
-			{
-				ReplayHelper.RecordingDeltaCheckpointData.RecordingDeletedNetStartupActors.Add(FullName);
-			}
-		}
-	}
-
-	if (bIsRecording && !bNetStartup && bDeltaCheckpoint)
-	{
-		FNetworkGUID NetGUID = GuidCache->NetGUIDLookup.FindRef(Actor);
-		if (NetGUID.IsValid())
-		{
-			ReplayHelper.RecordingDeltaCheckpointData.DestroyedDynamicActors.Add(NetGUID);
+			ReplayHelper.NotifyActorDestroyed(ClientConnections[0], Actor);
 		}
 	}
 

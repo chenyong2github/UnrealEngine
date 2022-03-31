@@ -255,42 +255,12 @@ void UReplayNetConnection::OnSeamlessTravelStart(UWorld* CurrentWorld, const FSt
 
 void UReplayNetConnection::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel /* = false */)
 {
+	if (!IsSeamlessTravel)
+	{
+		ReplayHelper.NotifyActorDestroyed(this, Actor);
+	}
+
 	Super::NotifyActorDestroyed(Actor, IsSeamlessTravel);
-
-	check(Actor != nullptr);
-
-	const bool bNetStartup = Actor->IsNetStartupActor();
-	const bool bActorRewindable = Actor->bReplayRewindable;
-	const bool bDeltaCheckpoint = ReplayHelper.HasDeltaCheckpoints();
-
-	if (bNetStartup)
-	{
-		if (!IsSeamlessTravel)
-		{
-			const FString FullName = Actor->GetFullName();
-
-			// This was deleted due to a game interaction, which isn't supported for Rewindable actors (while recording).
-			// However, since the actor is going to be deleted imminently, we need to track it.
-			UE_CLOG(bActorRewindable, LogDemo, Warning, TEXT("Replay Rewindable Actor destroyed during recording. Replay may show artifacts (%s)"), *FullName);
-
-			UE_LOG(LogDemo, VeryVerbose, TEXT("NotifyActorDestroyed: adding actor to deleted startup list: %s"), *FullName);
-			ReplayHelper.RecordingDeletedNetStartupActors.Add(FullName);
-
-			if (bDeltaCheckpoint)
-			{
-				ReplayHelper.RecordingDeltaCheckpointData.RecordingDeletedNetStartupActors.Add(FullName);
-			}
-		}
-	}
-
-	if (!bNetStartup && bDeltaCheckpoint)
-	{
-		FNetworkGUID NetGUID = Driver->GuidCache->NetGUIDLookup.FindRef(Actor);
-		if (NetGUID.IsValid())
-		{
-			ReplayHelper.RecordingDeltaCheckpointData.DestroyedDynamicActors.Add(NetGUID);
-		}
-	}
 }
 
 void UReplayNetConnection::SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider)
