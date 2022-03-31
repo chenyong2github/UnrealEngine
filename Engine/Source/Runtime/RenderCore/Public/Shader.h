@@ -212,7 +212,7 @@ public:
 
 	void AddRef();
 	void Release();
-	inline int32 GetNumRefs() const { return NumRefs; }
+	inline int32 GetNumRefs() const { return NumRefs.load(std::memory_order_relaxed); }
 
 	// FRenderResource interface.
 	virtual void ReleaseRHI();
@@ -310,7 +310,7 @@ private:
 	EShaderPlatform Platform;
 
 	/** The number of references to this shader. */
-	int32 NumRefs;
+	std::atomic<int32> NumRefs;
 };
 
 class FShaderMapResourceCode : public FThreadSafeRefCountedObject
