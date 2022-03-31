@@ -235,6 +235,16 @@ namespace UsdSkelRootTranslatorImpl
 			HashState.Update( ( uint8* ) JointTransforms.data(), JointTransforms.size() * sizeof( pxr::GfMatrix4d ) );
 		}
 
+		// restTransforms
+		pxr::VtArray<pxr::GfMatrix4d> Transforms;
+		const bool bAtRest = true;
+		InUsdSkeletonQuery.ComputeJointLocalTransforms( &Transforms, pxr::UsdTimeCode::EarliestTime(), bAtRest );
+		HashState.Update( ( uint8* ) Transforms.data(), Transforms.size() * sizeof( pxr::GfMatrix4d ) );
+
+		// bindTransforms
+		InUsdSkeletonQuery.GetJointWorldBindTransforms( &Transforms );
+		HashState.Update( ( uint8* ) Transforms.data(), Transforms.size() * sizeof( pxr::GfMatrix4d ) );
+
 		// Time samples for blend shape curves
 		AnimQuery.GetBlendShapeWeightTimeSamples( &TimeData );
 		HashState.Update( ( uint8* ) TimeData.data(), TimeData.size() * sizeof( double ) );
@@ -395,9 +405,6 @@ namespace UsdSkelRootTranslatorImpl
 				return true;
 			}
 
-			pxr::GfMatrix4d GeomBindTransformUSD = SkinningQuery.GetGeomBindTransform( pxr::UsdTimeCode( InTime ) );
-			FTransform AdditionalTransform = FTransform( UsdToUnreal::ConvertMatrix( StageInfo, GeomBindTransformUSD ) );
-
 			FSkeletalMeshImportData& LODImportData = LODIndexToSkeletalMeshImportDataMap.FindOrAdd( LODIndex );
 			TArray<UsdUtils::FUsdPrimMaterialSlot>& LODSlots = LODIndexToMaterialInfoMap.FindOrAdd( LODIndex ).Slots;
 
@@ -405,7 +412,7 @@ namespace UsdSkelRootTranslatorImpl
 			// into one FSkeletalMeshImportData per LOD, so we need to remap the indices using this
 			uint32 NumPointsBeforeThisMesh = static_cast< uint32 >( LODImportData.Points.Num() );
 
-			bool bSuccess = UsdToUnreal::ConvertSkinnedMesh( SkinningQuery, AdditionalTransform, LODImportData, LODSlots, InMaterialToPrimvarsUVSetNames, RenderContext );
+			bool bSuccess = UsdToUnreal::ConvertSkinnedMesh( SkinningQuery, SkelQuery, LODImportData, LODSlots, InMaterialToPrimvarsUVSetNames, RenderContext );
 			if ( !bSuccess )
 			{
 				return true;
@@ -423,7 +430,6 @@ namespace UsdSkelRootTranslatorImpl
 							BlendShapeQuery.GetBlendShape( BlendShapeIndex ),
 							StageInfo,
 							LODIndex,
-							AdditionalTransform,
 							NumPointsBeforeThisMesh,
 							InOutUsedMorphTargetNames,
 							*OutBlendShapes
