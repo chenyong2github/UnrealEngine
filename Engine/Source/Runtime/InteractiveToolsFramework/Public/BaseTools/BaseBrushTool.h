@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "BaseTools/MeshSurfacePointTool.h"
 #include "InteractiveTool.h"
-#include "Engine/EngineTypes.h"
+#include "Engine/HitResult.h"
 #include "BaseBrushTool.generated.h"
 
 class UBrushStampIndicator;

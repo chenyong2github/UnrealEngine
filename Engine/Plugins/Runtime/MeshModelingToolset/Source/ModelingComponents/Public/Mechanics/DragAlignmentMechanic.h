@@ -7,7 +7,7 @@
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "ToolContextInterfaces.h" // FViewCameraState
-#include "Engine/EngineTypes.h" //FHitResult
+#include "Engine/HitResult.h"
 #include "InteractionMechanic.h"
 #include "TransformTypes.h"
 #include "VectorTypes.h"

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "Engine/HitResult.h"
 #include "ToolTargets/ToolTarget.h"
 
 #include "PrimitiveComponentToolTarget.generated.h"

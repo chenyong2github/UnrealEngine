@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"    // FHitResult
+#include "Engine/HitResult.h"
 #include "UObject/Interface.h"
 
 #include "PrimitiveComponentBackedTarget.generated.h"

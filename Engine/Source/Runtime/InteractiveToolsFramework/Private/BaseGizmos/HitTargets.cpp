@@ -2,7 +2,7 @@
 
 #include "BaseGizmos/HitTargets.h"
 #include "Components/PrimitiveComponent.h"
-#include "Engine/EngineTypes.h"    // FHitResult
+#include "Engine/HitResult.h"
 
 FInputRayHit UGizmoLambdaHitTarget::IsHit(const FInputDeviceRay& ClickPos) const
 {
