@@ -79,14 +79,15 @@ void UMediaPlateComponent::Play()
 			MediaPathMediaSource = UMediaSource::SpawnMediaSourceForString(MediaPath.FilePath);
 			if (MediaPathMediaSource != nullptr)
 			{
+				SetMediaSourceOptions(MediaPathMediaSource);
 				bIsPlaying = MediaPlayer->OpenSource(MediaPathMediaSource);
-				return;
 			}
 		}
 
 		// If we did not get anything, try the media source.
 		if (bIsPlaying == false)
 		{
+			SetMediaSourceOptions(MediaSource);
 			bIsPlaying = MediaPlayer->OpenSource(MediaSource);
 		}
 	}
@@ -131,6 +132,15 @@ void UMediaPlateComponent::UnregisterWithMediaTextureTracker()
 		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
 		TObjectPtr<UMediaTexture> MediaTexture = GetMediaTexture();
 		MediaTextureTracker.UnregisterTexture(MediaTextureTrackerObject, MediaTexture);
+	}
+}
+
+void UMediaPlateComponent::SetMediaSourceOptions(UMediaSource* InMediaSource)
+{
+	if (InMediaSource != nullptr)
+	{
+		InMediaSource->SetMediaOptionBool(TEXT("ImgMediaSmartCacheEnabled"), bSmartCacheEnabled);
+		InMediaSource->SetMediaOptionFloat(TEXT("ImgMediaSmartCacheTimeToLookAhead"), SmartCacheTimeToLookAhead);
 	}
 }
 

@@ -68,6 +68,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = MediaPlate)
 	TObjectPtr<UMediaSource> MediaSource;
 
+	/** Enable smart caching for image sequences. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
+	bool bSmartCacheEnabled = true;
+
+	/**
+	 * The cache will fill up with frames that are up to this time from the current time.
+	 * E.g. if this is 0.2, and we are at time index 5 seconds,
+	 * then we will fill the cache with frames between 5 seconds and 5.2 seconds.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
+	float SmartCacheTimeToLookAhead = 0.2f;
+
 	/**
 	 * Adds our media texture to the media texture tracker.
 	 */
@@ -87,4 +99,9 @@ private:
 	/** If we are using MediaPath, then this is the media source for it. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMediaSource> MediaPathMediaSource;
+
+	/**
+	 * Apply any options we need to the media source.
+	 */
+	void SetMediaSourceOptions(UMediaSource* InMediaSource);
 };
