@@ -1,21 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Templates/ValueOrError.h"
-#include "TestHarness.h"
 
+#include "TestHarness.h"
 
 #include <type_traits>
 
-static_assert(!std::is_constructible<TValueOrError<int, int>>::value, "Expected no default constructor.");
-
-static_assert(std::is_copy_constructible<TValueOrError<int, int>>::value, "Missing copy constructor.");
-static_assert(std::is_move_constructible<TValueOrError<int, int>>::value, "Missing move constructor.");
-
-static_assert(std::is_copy_assignable<TValueOrError<int, int>>::value, "Missing copy assignment.");
-static_assert(std::is_move_assignable<TValueOrError<int, int>>::value, "Missing move assignment.");
-
-TEST_CASE_METHOD(FAutomationTestFixture, "Core::Templates::TValueOrError::Smoke Test", "[Core][Templates][Smoke]")
+TEST_CASE("Core::Templates::ValueOrError", "[Core][Templates][Smoke]")
 {
+	SECTION("Static")
+	{
+		STATIC_REQUIRE(!std::is_constructible<TValueOrError<int, int>>::value);
+
+		STATIC_REQUIRE(std::is_copy_constructible<TValueOrError<int, int>>::value);
+		STATIC_REQUIRE(std::is_move_constructible<TValueOrError<int, int>>::value);
+
+		STATIC_REQUIRE(std::is_copy_assignable<TValueOrError<int, int>>::value);
+		STATIC_REQUIRE(std::is_move_assignable<TValueOrError<int, int>>::value);
+	}
+
 	static int ValueCount = 0;
 	static int ErrorCount = 0;
 
@@ -53,139 +56,176 @@ TEST_CASE_METHOD(FAutomationTestFixture, "Core::Templates::TValueOrError::Smoke 
 
 	using FTestType = TValueOrError<FTestValue, FTestError>;
 
-	// Test MakeValue Move
+	SECTION("MakeValue Move")
 	{
-		INFO("Test MakeValue Move");
 		FTestType ValueOrError = MakeValue(FTestValue());
-		CHECK_EQUAL(ValueCount, 1);
-		CHECK_EQUAL(ValueOrError.TryGetValue(), &ValueOrError.GetValue());
-		CHECK_EQUAL(ValueOrError.GetValue().Value, 1);
-		CHECK_FALSE(ValueOrError.HasError());
+		CHECK(ValueCount == 1);
+		CHECK(ValueOrError.TryGetValue() == &ValueOrError.GetValue());
+		CHECK(ValueOrError.GetValue().Value == 1);
 		CHECK(ValueOrError.HasValue());
 		CHECK(ValueOrError.TryGetError() == nullptr);
+		CHECK_FALSE(ValueOrError.HasError());
 	}
 
-	CHECK_EQUAL(ValueCount, 0);
-
-	// Test MakeValue Proxy
+	SECTION("MakeValue Proxy")
 	{
-		INFO("Test MakeValue Proxy");
 		FTestType ValueOrError = MakeValue(2, 6, 8);
-		CHECK_EQUAL(ValueCount, 1);
-		CHECK_EQUAL(ValueOrError.TryGetValue(), &ValueOrError.GetValue());
-		CHECK_EQUAL(ValueOrError.GetValue().Value, 16);
-		CHECK_FALSE(ValueOrError.HasError());
+		CHECK(ValueCount == 1);
+		CHECK(ValueOrError.TryGetValue() == &ValueOrError.GetValue());
+		CHECK(ValueOrError.GetValue().Value == 16);
 		CHECK(ValueOrError.HasValue());
 		CHECK(ValueOrError.TryGetError() == nullptr);
+		CHECK_FALSE(ValueOrError.HasError());
 	}
-	
-	CHECK_EQUAL(ValueCount, 0);
 
-	// Test StealValue
+	SECTION("StealValue")
 	{
-		INFO("Test StealValue");
 		FTestType ValueOrError = MakeValue(FTestValue());
 		FTestValue Value = ValueOrError.StealValue();
-		CHECK_EQUAL(ValueCount, 1);
-		CHECK_EQUAL(Value.Value, 1);
+		CHECK(ValueCount == 1);
+		CHECK(Value.Value == 1);
 		CHECK_FALSE(ValueOrError.HasError());
 		CHECK_FALSE(ValueOrError.HasValue());
 	}
-	
-	CHECK_EQUAL(ValueCount, 0);
 
-	// Test MakeError Move
+	SECTION("MakeError Move")
 	{
-		INFO("Test MakeError Move");
 		FTestType ValueOrError = MakeError(FTestError());
-		CHECK_EQUAL(ErrorCount, 1);
-		CHECK_EQUAL(ValueOrError.TryGetError(), &ValueOrError.GetError());
-		CHECK_EQUAL(ValueOrError.GetError().Error, 1);
-		CHECK_FALSE(ValueOrError.HasValue());
+		CHECK(ErrorCount == 1);
+		CHECK(ValueOrError.TryGetError() == &ValueOrError.GetError());
+		CHECK(ValueOrError.GetError().Error == 1);
 		CHECK(ValueOrError.HasError());
 		CHECK(ValueOrError.TryGetValue() == nullptr);
+		CHECK_FALSE(ValueOrError.HasValue());
 	}
-	
-	CHECK_EQUAL(ErrorCount, 0);
 
-	// Test MakeError Proxy
+	SECTION("MakeError Proxy")
 	{
-		INFO("Test MakeError Proxy");
 		FTestType ValueOrError = MakeError(4, 12);
-		CHECK_EQUAL(ErrorCount, 1);
-		CHECK_EQUAL(ValueOrError.TryGetError(), &ValueOrError.GetError());
-		CHECK_EQUAL(ValueOrError.GetError().Error, 16);
-		CHECK_FALSE(ValueOrError.HasValue());
+		CHECK(ErrorCount == 1);
+		CHECK(ValueOrError.TryGetError() == &ValueOrError.GetError());
+		CHECK(ValueOrError.GetError().Error == 16);
 		CHECK(ValueOrError.HasError());
 		CHECK(ValueOrError.TryGetValue() == nullptr);
+		CHECK_FALSE(ValueOrError.HasValue());
 	}
-	
-	CHECK_EQUAL(ErrorCount, 0);
 
-	// Test StealError
+	SECTION("StealError")
 	{
-		INFO("Test StealError");
 		FTestType ValueOrError = MakeError();
 		FTestError Error = ValueOrError.StealError();
-		CHECK_EQUAL(ErrorCount, 1);
-		CHECK_EQUAL(Error.Error, 1);
+		CHECK(ErrorCount == 1);
+		CHECK(Error.Error == 1);
 		CHECK_FALSE(ValueOrError.HasValue());
 		CHECK_FALSE(ValueOrError.HasError());
 	}
 
-	CHECK_EQUAL(ErrorCount, 0);
-
-	// Test Assignment
+	SECTION("Assignment")
 	{
-		INFO("Test Assignment");
 		FTestType ValueOrError = MakeValue();
 		ValueOrError = MakeValue();
-		CHECK_EQUAL(ValueCount, 1);
-		CHECK_EQUAL(ValueOrError.GetValue().Value, 2);
-		CHECK_EQUAL(ErrorCount, 0);
+		CHECK(ValueCount == 1);
+		CHECK(ValueOrError.GetValue().Value == 2);
+		CHECK(ErrorCount == 0);
 		ValueOrError = MakeError();
-		CHECK_EQUAL(ValueCount, 0);
-		CHECK_EQUAL(ErrorCount, 1);
+		CHECK(ValueCount == 0);
+		CHECK(ErrorCount == 1);
 		ValueOrError = MakeError();
-		CHECK_EQUAL(ValueCount, 0);
-		CHECK_EQUAL(ValueOrError.GetError().Error, 2);
-		CHECK_EQUAL(ErrorCount, 1);
+		CHECK(ValueCount == 0);
+		CHECK(ValueOrError.GetError().Error == 2);
+		CHECK(ErrorCount == 1);
 		ValueOrError = MakeValue();
-		CHECK_EQUAL(ValueCount, 1);
-		CHECK_EQUAL(ErrorCount, 0);
+		CHECK(ValueCount == 1);
+		CHECK(ErrorCount == 0);
 		FTestType UnsetValueOrError = MakeValue();
 		UnsetValueOrError.StealValue();
 		ValueOrError = MoveTemp(UnsetValueOrError);
-		CHECK_EQUAL(ValueCount, 0);
-		CHECK_EQUAL(ErrorCount, 0);
+		CHECK(ValueCount == 0);
+		CHECK(ErrorCount == 0);
 		CHECK_FALSE(ValueOrError.HasValue());
 		CHECK_FALSE(ValueOrError.HasError());
 	}
 
-	CHECK_EQUAL(ValueCount, 0);
-	CHECK_EQUAL(ErrorCount, 0);
-
-	// Test Move-Only Value/Error
+	SECTION("Move-Only Value/Error")
 	{
-		INFO("Move-Only Value/Error");
-		TValueOrError<FTestMoveOnly, FTestMoveOnly> Value = MakeValue(FTestMoveOnly());
-		TValueOrError<FTestMoveOnly, FTestMoveOnly> Error = MakeError(FTestMoveOnly());
+		TValueOrError<FTestMoveOnly, FTestMoveOnly> Value = MakeValue(FTestMoveOnly{1});
+		TValueOrError<FTestMoveOnly, FTestMoveOnly> Error = MakeError(FTestMoveOnly{1});
 		FTestMoveOnly MovedValue = MoveTemp(Value).GetValue();
 		FTestMoveOnly MovedError = MoveTemp(Error).GetError();
+		CHECK(MovedValue.Value == 1);
+		CHECK(MovedError.Value == 1);
 	}
 
-	// Test Integer Value/Error
+	SECTION("Integer Value/Error")
 	{
-		INFO("Test Integer Value/Error");
 		TValueOrError<int32, int32> ValueOrError = MakeValue();
-		CHECK_EQUAL(ValueOrError.GetValue(), 0);
+		CHECK(ValueOrError.GetValue() == 0);
 		ValueOrError = MakeValue(1);
-		CHECK_EQUAL(ValueOrError.GetValue(), 1);
+		CHECK(ValueOrError.GetValue() == 1);
 		ValueOrError = MakeError();
-		CHECK_EQUAL(ValueOrError.GetError(), 0);
+		CHECK(ValueOrError.GetError() == 0);
 		ValueOrError = MakeError(1);
-		CHECK_EQUAL(ValueOrError.GetError(), 1);
+		CHECK(ValueOrError.GetError() == 1);
 	}
 
-}
+	SECTION("Value/Void Value")
+	{
+		TValueOrError<FTestValue, void> ValueOrError = MakeValue(1, 2, 3);
+		CHECK(ValueCount == 1);
+		CHECK(ValueOrError.HasValue());
+		CHECK_FALSE(ValueOrError.HasError());
+		CHECK(ValueOrError.GetValue().Value == 6);
+		CHECK(ValueOrError.TryGetValue() == &ValueOrError.GetValue());
+		FTestValue Value = ValueOrError.StealValue();
+		CHECK_FALSE(ValueOrError.HasValue());
+		CHECK(Value.Value == 6);
+	}
 
+	SECTION("Value/Void Error")
+	{
+		TValueOrError<FTestValue, void> ValueOrError = MakeError();
+		CHECK(ValueCount == 0);
+		CHECK(ValueOrError.HasError());
+		CHECK_FALSE(ValueOrError.HasValue());
+		CHECK(ValueOrError.TryGetValue() == nullptr);
+	}
+
+	SECTION("Void/Error Value")
+	{
+		TValueOrError<void, FTestError> ValueOrError = MakeValue();
+		CHECK(ErrorCount == 0);
+		CHECK(ValueOrError.HasValue());
+		CHECK_FALSE(ValueOrError.HasError());
+		CHECK(ValueOrError.TryGetError() == nullptr);
+	}
+
+	SECTION("Void/Error Error")
+	{
+		TValueOrError<void, FTestError> ValueOrError = MakeError(1, 2);
+		CHECK(ErrorCount == 1);
+		CHECK(ValueOrError.HasError());
+		CHECK_FALSE(ValueOrError.HasValue());
+		CHECK(ValueOrError.GetError().Error == 3);
+		CHECK(ValueOrError.TryGetError() == &ValueOrError.GetError());
+		FTestError Error = ValueOrError.StealError();
+		CHECK_FALSE(ValueOrError.HasError());
+		CHECK(Error.Error == 3);
+	}
+
+	SECTION("Void/Void Value")
+	{
+		TValueOrError<void, void> ValueOrError = MakeValue();
+		CHECK(ValueOrError.HasValue());
+		CHECK_FALSE(ValueOrError.HasError());
+	}
+
+	SECTION("Void/Void Error")
+	{
+		TValueOrError<void, void> ValueOrError = MakeError();
+		CHECK(ValueOrError.HasError());
+		CHECK_FALSE(ValueOrError.HasValue());
+	}
+
+	CHECK(ValueCount == 0);
+	CHECK(ErrorCount == 0);
+}

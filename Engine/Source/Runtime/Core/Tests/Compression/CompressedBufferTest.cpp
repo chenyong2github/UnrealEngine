@@ -1,110 +1,75 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Compression/CompressedBuffer.h"
+
+#include "Algo/Compare.h"
 #include "Compression/OodleDataCompression.h"
 #include "IO/IoHash.h"
-#include "Hash/Blake3.h"
 #include "Serialization/BufferReader.h"
-#include "TestFixtures/CoreTestFixture.h"
+#include "TestHarness.h"
 
-TEST_CASE_METHOD(FCoreTestFixture, "Core::Compression::FCompressedBuffer::Compress", "[Core][Math][Smoke]")
+TEST_CASE("Core::Compression::CompressedBuffer::Compress", "[Core][Compression][Smoke]")
 {
 	const uint8 ZeroBuffer[1024]{};
-	const FBlake3Hash ZeroBufferHash = FBlake3::HashBuffer(MakeMemoryView(ZeroBuffer));
+	const FIoHash ZeroBufferHash = FIoHash::HashBuffer(MakeMemoryView(ZeroBuffer));
 
-	// Test Null
+	SECTION("Null")
 	{
-		INFO("Null");
-
 		const FCompressedBuffer Buffer;
-		CHECK_FALSE((bool)Buffer);
+		CHECK_FALSE(Buffer);
 		CHECK(Buffer.IsNull());
 		CHECK(Buffer.IsOwned());
-		CHECK(Buffer.GetCompressedSize()==uint64(0));
-		CHECK(Buffer.GetRawSize()==uint64(0));
-		CHECK(Buffer.GetRawHash()==FBlake3Hash::Zero);
+		CHECK(Buffer.GetCompressedSize() == 0);
+		CHECK(Buffer.GetRawSize() == 0);
+		CHECK(Buffer.GetRawHash() == FIoHash::Zero);
 		CHECK(Buffer.Decompress().IsNull());
 		CHECK(Buffer.DecompressToComposite().IsNull());
 	}
 
-	// Test Method None
+	SECTION("Method None")
 	{
-		INFO("Method None");
+		const FCompressedBuffer BufferNew = FCompressedBuffer::Compress(FSharedBuffer::MakeView(MakeMemoryView(ZeroBuffer)),
+			ECompressedBufferCompressor::NotSet, ECompressedBufferCompressionLevel::None);
+		const FCompressedBuffer BufferCopy = FCompressedBuffer::FromCompressed(BufferNew.GetCompressed());
+		const FCompressedBuffer Buffer = GENERATE_REF(BufferNew, BufferCopy);
+
+		CHECK(Buffer);
+		CHECK(!Buffer.IsNull());
+		CHECK(Buffer.IsOwned());
+		CHECK(Buffer.GetCompressedSize() == sizeof(ZeroBuffer) + 64);
+		CHECK(Buffer.GetRawSize() == sizeof(ZeroBuffer));
+		CHECK(Buffer.GetRawHash() == ZeroBufferHash);
+		CHECK(FIoHash::HashBuffer(Buffer.Decompress()) == ZeroBufferHash);
+		CHECK(FIoHash::HashBuffer(Buffer.DecompressToComposite()) == Buffer.GetRawHash());
 
 		ECompressedBufferCompressor Compressor = ECompressedBufferCompressor::Kraken;
 		ECompressedBufferCompressionLevel CompressionLevel = ECompressedBufferCompressionLevel::Normal;
 		uint64 BlockSize = MAX_uint64;
-
-		const FCompressedBuffer Buffer = FCompressedBuffer::Compress(FSharedBuffer::MakeView(MakeMemoryView(ZeroBuffer)),
-			ECompressedBufferCompressor::NotSet, ECompressedBufferCompressionLevel::None);
-		CHECK((bool)Buffer);
-		CHECK_FALSE(Buffer.IsNull());
-		CHECK(Buffer.IsOwned());
-		CHECK(Buffer.GetCompressedSize()==sizeof(ZeroBuffer) + 64);
-		CHECK(Buffer.GetRawSize()==sizeof(ZeroBuffer));
-		CHECK(Buffer.GetRawHash()==ZeroBufferHash);
-		CHECK(FBlake3::HashBuffer(Buffer.Decompress())==ZeroBufferHash);
-		CHECK(FBlake3::HashBuffer(Buffer.DecompressToComposite())==Buffer.GetRawHash());
-		CHECK(Buffer.TryGetCompressParameters(Compressor, CompressionLevel, BlockSize));	
+		CHECK(Buffer.TryGetCompressParameters(Compressor, CompressionLevel, BlockSize));
 		CHECK(Compressor == ECompressedBufferCompressor::NotSet);
 		CHECK(CompressionLevel == ECompressedBufferCompressionLevel::None);
 		CHECK(BlockSize == 0);
-
-		Compressor = ECompressedBufferCompressor::Kraken;
-		CompressionLevel = ECompressedBufferCompressionLevel::Normal;
-		BlockSize = MAX_uint64;
-
-		const FCompressedBuffer BufferCopy = FCompressedBuffer::FromCompressed(Buffer.GetCompressed());
-		CHECK((bool)Buffer);
-		CHECK_FALSE(Buffer.IsNull());
-		CHECK(Buffer.IsOwned());
-		CHECK(Buffer.GetCompressedSize()==sizeof(ZeroBuffer) + 64);
-		CHECK(Buffer.GetRawSize()==sizeof(ZeroBuffer));
-		CHECK(Buffer.GetRawHash()==ZeroBufferHash);
-		CHECK(FBlake3::HashBuffer(Buffer.Decompress())==ZeroBufferHash);
-		CHECK(FBlake3::HashBuffer(Buffer.DecompressToComposite())==Buffer.GetRawHash());
-		CHECK(Buffer.TryGetCompressParameters(Compressor, CompressionLevel, BlockSize));
-		CHECK(Compressor == ECompressedBufferCompressor::NotSet);
-		CHECK(CompressionLevel ==ECompressedBufferCompressionLevel::None);
-		CHECK(BlockSize == 0);
 	}
 
-	// Test Method Oodle
+	SECTION("Method Oodle")
 	{
-		INFO("Method Oodle");
+		const FCompressedBuffer BufferNew = FCompressedBuffer::Compress(FSharedBuffer::MakeView(MakeMemoryView(ZeroBuffer)),
+			ECompressedBufferCompressor::Mermaid, ECompressedBufferCompressionLevel::VeryFast);
+		const FCompressedBuffer BufferCopy = FCompressedBuffer::FromCompressed(BufferNew.GetCompressed());
+		const FCompressedBuffer Buffer = GENERATE_REF(BufferNew, BufferCopy);
+
+		CHECK(Buffer);
+		CHECK(!Buffer.IsNull());
+		CHECK(Buffer.IsOwned());
+		CHECK(Buffer.GetCompressedSize() < sizeof(ZeroBuffer));
+		CHECK(Buffer.GetRawSize() == sizeof(ZeroBuffer));
+		CHECK(Buffer.GetRawHash() == ZeroBufferHash);
+		CHECK(FIoHash::HashBuffer(Buffer.Decompress()) == ZeroBufferHash);
+		CHECK(FIoHash::HashBuffer(Buffer.DecompressToComposite()) == Buffer.GetRawHash());
 
 		ECompressedBufferCompressor Compressor = ECompressedBufferCompressor::Kraken;
 		ECompressedBufferCompressionLevel CompressionLevel = ECompressedBufferCompressionLevel::Normal;
 		uint64 BlockSize = MAX_uint64;
-
-		const FCompressedBuffer Buffer = FCompressedBuffer::Compress(FSharedBuffer::MakeView(MakeMemoryView(ZeroBuffer)),
-			ECompressedBufferCompressor::Mermaid, ECompressedBufferCompressionLevel::VeryFast);
-		CHECK((bool)Buffer);
-		CHECK_FALSE(Buffer.IsNull());
-		CHECK(Buffer.IsOwned());
-		CHECK(Buffer.GetCompressedSize() < sizeof(ZeroBuffer));
-		CHECK(Buffer.GetRawSize()==sizeof(ZeroBuffer));
-		CHECK(Buffer.GetRawHash()==ZeroBufferHash);
-		CHECK(FBlake3::HashBuffer(Buffer.Decompress())==ZeroBufferHash);
-		CHECK(FBlake3::HashBuffer(Buffer.DecompressToComposite())==Buffer.GetRawHash());
-		CHECK(Buffer.TryGetCompressParameters(Compressor, CompressionLevel, BlockSize));
-		CHECK(Compressor == ECompressedBufferCompressor::Mermaid);
-		CHECK(CompressionLevel == ECompressedBufferCompressionLevel::VeryFast);
-		CHECK(FMath::IsPowerOfTwo(BlockSize));
-
-		Compressor = ECompressedBufferCompressor::Kraken;
-		CompressionLevel = ECompressedBufferCompressionLevel::Normal;
-		BlockSize = MAX_uint64;
-
-		const FCompressedBuffer BufferCopy = FCompressedBuffer::FromCompressed(Buffer.GetCompressed());
-		CHECK((bool)Buffer);
-		CHECK_FALSE(Buffer.IsNull());
-		CHECK(Buffer.IsOwned());
-		CHECK(Buffer.GetCompressedSize() < sizeof(ZeroBuffer));
-		CHECK(Buffer.GetRawSize()==sizeof(ZeroBuffer));
-		CHECK(Buffer.GetRawHash()==ZeroBufferHash);
-		CHECK(FBlake3::HashBuffer(Buffer.Decompress())==ZeroBufferHash);
-		CHECK(FBlake3::HashBuffer(Buffer.DecompressToComposite())==Buffer.GetRawHash());
 		CHECK(Buffer.TryGetCompressParameters(Compressor, CompressionLevel, BlockSize));
 		CHECK(Compressor == ECompressedBufferCompressor::Mermaid);
 		CHECK(CompressionLevel == ECompressedBufferCompressionLevel::VeryFast);
@@ -112,7 +77,7 @@ TEST_CASE_METHOD(FCoreTestFixture, "Core::Compression::FCompressedBuffer::Compre
 	}
 }
 
-TEST_CASE_METHOD(FCoreTestFixture, "Core::Compression::FCompressedBuffer::Decompress", "[Core][Math][Smoke]")
+TEST_CASE("Core::Compression::CompressedBuffer::Decompress", "[Core][Compression][Smoke]")
 {
 	const auto GenerateData = [](int32 N) -> TArray<uint64>
 	{
@@ -125,17 +90,6 @@ TEST_CASE_METHOD(FCoreTestFixture, "Core::Compression::FCompressedBuffer::Decomp
 		return Data;
 	};
 
-	const auto ValidateData = [this](TConstArrayView<uint64> Values, TConstArrayView<uint64> ExpectedValues, int32 Offset)
-	{
-		int32 ExpectedIndex = Offset;
-		for (uint64 Value : Values)
-		{
-			const uint64 ExpectedValue = ExpectedValues[ExpectedIndex];
-			CHECK(Value==ExpectedValue);
-			ExpectedIndex++;
-		}
-	};
-
 	const auto CastToArrayView = [](FMemoryView View) -> TConstArrayView<uint64>
 	{
 		return MakeArrayView(static_cast<const uint64*>(View.GetData()), static_cast<int32>(View.GetSize() / sizeof(uint64)));
@@ -143,11 +97,9 @@ TEST_CASE_METHOD(FCoreTestFixture, "Core::Compression::FCompressedBuffer::Decomp
 
 	FCompressedBufferReader Reader;
 
-	// Test decompress with offset and size
+	SECTION("Decompress with offset and size.")
 	{
-		INFO("Decompress with offset and size");
-
-		const auto UncompressAndValidate = [this, &Reader, &ValidateData, &CastToArrayView](
+		const auto UncompressAndValidate = [&Reader, &CastToArrayView](
 			const FCompressedBuffer& Compressed,
 			const int32 OffsetCount,
 			const int32 Count,
@@ -156,16 +108,14 @@ TEST_CASE_METHOD(FCoreTestFixture, "Core::Compression::FCompressedBuffer::Decomp
 			Reader.SetSource(Compressed);
 			{
 				const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-				CHECK(Values.Num()==Count);
-				ValidateData(Values, ExpectedValues, OffsetCount);
+				CHECK(Algo::Compare(CastToArrayView(Uncompressed), ExpectedValues.Mid(OffsetCount, Count)));
 			}
 			{
 				FUniqueBuffer Uncompressed = FUniqueBuffer::Alloc(Count * sizeof(uint64));
-				const bool bOk = Reader.TryDecompressTo(Uncompressed, OffsetCount * sizeof(uint64));
-				CHECK(bOk);
-				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-				ValidateData(Values, ExpectedValues, OffsetCount);
+				CHECKED_IF(Reader.TryDecompressTo(Uncompressed, OffsetCount * sizeof(uint64)))
+				{
+					CHECK(Algo::Compare(CastToArrayView(Uncompressed), ExpectedValues.Mid(OffsetCount, Count)));
+				}
 			}
 		};
 
@@ -192,10 +142,8 @@ TEST_CASE_METHOD(FCoreTestFixture, "Core::Compression::FCompressedBuffer::Decomp
 		UncompressAndValidate(Compressed, 4993, 4, ExpectedValues);
 	}
 
-	// Decompress with offset only
+	SECTION("Decompress with offset only.")
 	{
-		INFO("Decompress with offset only");
-
 		constexpr uint64 BlockSize = 64 * sizeof(uint64);
 		constexpr int32 N = 1000;
 		const TArray<uint64> ExpectedValues = GenerateData(N);
@@ -205,21 +153,19 @@ TEST_CASE_METHOD(FCoreTestFixture, "Core::Compression::FCompressedBuffer::Decomp
 			FOodleDataCompression::ECompressor::Mermaid,
 			FOodleDataCompression::ECompressionLevel::Fast,
 			BlockSize);
-		
+
 		constexpr uint64 OffsetCount = 150;
 		{
 			FSharedBuffer Buffer = Compressed.GetCompressed().ToShared();
 			FBufferReader Ar(const_cast<void*>(Buffer.GetData()), int64(Buffer.GetSize()), /*bFreeOnClose*/ false, /*bIsPersistent*/ true);
 			FCompressedBufferReaderSourceScope Source(Reader, Ar);
 			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64));
-			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-			ValidateData(Values, ExpectedValues, OffsetCount);
+			CHECK(Algo::Compare(CastToArrayView(Uncompressed), MakeArrayView(ExpectedValues).RightChop(OffsetCount)));
 		}
 		{
 			FCompressedBufferReaderSourceScope Source(Reader, Compressed);
 			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64));
-			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-			ValidateData(Values, ExpectedValues, OffsetCount);
+			CHECK(Algo::Compare(CastToArrayView(Uncompressed), MakeArrayView(ExpectedValues).RightChop(OffsetCount)));
 		}
 
 		// Short Buffer
@@ -232,10 +178,8 @@ TEST_CASE_METHOD(FCoreTestFixture, "Core::Compression::FCompressedBuffer::Decomp
 		}
 	}
 
-	// Only one block
+	SECTION("Decompress only block.")
 	{
-		INFO("Decompress Only one block");
-
 		constexpr uint64 BlockSize = 256 * sizeof(uint64);
 		constexpr int32 N = 100;
 		const TArray<uint64> ExpectedValues = GenerateData(N);
@@ -253,21 +197,17 @@ TEST_CASE_METHOD(FCoreTestFixture, "Core::Compression::FCompressedBuffer::Decomp
 			FBufferReader Ar(const_cast<void*>(Buffer.GetData()), int64(Buffer.GetSize()), /*bFreeOnClose*/ false, /*bIsPersistent*/ true);
 			FCompressedBufferReaderSourceScope Source(Reader, Ar);
 			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-			ValidateData(Values, ExpectedValues, OffsetCount);
+			CHECK(Algo::Compare(CastToArrayView(Uncompressed), MakeArrayView(ExpectedValues).Mid(OffsetCount, Count)));
 		}
 		{
 			FCompressedBufferReaderSourceScope Source(Reader, Compressed);
 			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-			ValidateData(Values, ExpectedValues, OffsetCount);
+			CHECK(Algo::Compare(CastToArrayView(Uncompressed), MakeArrayView(ExpectedValues).Mid(OffsetCount, Count)));
 		}
 	}
 
-	// Uncompressed
+	SECTION("Decompress from an uncompressed buffer.")
 	{
-		INFO("Uncompressed");
-
 		constexpr int32 N = 4242;
 		const TArray<uint64> ExpectedValues = GenerateData(N);
 
@@ -281,22 +221,18 @@ TEST_CASE_METHOD(FCoreTestFixture, "Core::Compression::FCompressedBuffer::Decomp
 			constexpr uint64 OffsetCount = 0;
 			constexpr uint64 Count = N;
 			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-			ValidateData(Values, ExpectedValues, OffsetCount);
+			CHECK(Algo::Compare(CastToArrayView(Uncompressed), MakeArrayView(ExpectedValues).Mid(OffsetCount, Count)));
 		}
 
 		{
 			constexpr uint64 OffsetCount = 21;
 			constexpr uint64 Count = 999;
 			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-			ValidateData(Values, ExpectedValues, OffsetCount);
+			CHECK(Algo::Compare(CastToArrayView(Uncompressed), MakeArrayView(ExpectedValues).Mid(OffsetCount, Count)));
 		}
 
 		// Short Buffer
 		{
-			INFO("Short Buffer");
-
 			const FCompressedBuffer CompressedShort =
 				FCompressedBuffer::FromCompressed(Compressed.GetCompressed().Mid(0, Compressed.GetCompressedSize() - 128));
 			Reader.SetSource(CompressedShort);

@@ -1,134 +1,186 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#if 0
+
 #include "Misc/StringBuilder.h"
+
 #include "Containers/UnrealString.h"
 #include "String/Find.h"
 #include "TestHarness.h"
 
-static_assert(TIsSame<typename FStringBuilderBase::ElementType, TCHAR>::Value, "FStringBuilderBase must use TCHAR.");
-static_assert(TIsSame<typename FAnsiStringBuilderBase::ElementType, ANSICHAR>::Value, "FAnsiStringBuilderBase must use ANSICHAR.");
-static_assert(TIsSame<typename FWideStringBuilderBase::ElementType, WIDECHAR>::Value, "FWideStringBuilderBase must use WIDECHAR.");
-
-static_assert(TIsSame<FStringBuilderBase, TStringBuilderBase<TCHAR>>::Value, "FStringBuilderBase must be the same as TStringBuilderBase<TCHAR>.");
-static_assert(TIsSame<FAnsiStringBuilderBase, TStringBuilderBase<ANSICHAR>>::Value, "FAnsiStringBuilderBase must be the same as TStringBuilderBase<ANSICHAR>.");
-static_assert(TIsSame<FWideStringBuilderBase, TStringBuilderBase<WIDECHAR>>::Value, "FWideStringBuilderBase must be the same as TStringBuilderBase<WIDECHAR>.");
-
-static_assert(TIsContiguousContainer<FStringBuilderBase>::Value, "FStringBuilderBase must be a contiguous container.");
-static_assert(TIsContiguousContainer<FAnsiStringBuilderBase>::Value, "FAnsiStringBuilderBase must be a contiguous container.");
-static_assert(TIsContiguousContainer<FWideStringBuilderBase>::Value, "FWideStringBuilderBase must be a contiguous container.");
-
-static_assert(TIsContiguousContainer<TStringBuilder<128>>::Value, "TStringBuilder<N> must be a contiguous container.");
-static_assert(TIsContiguousContainer<TAnsiStringBuilder<128>>::Value, "TAnsiStringBuilder<N> must be a contiguous container.");
-static_assert(TIsContiguousContainer<TWideStringBuilder<128>>::Value, "TWideStringBuilder<N> must be a contiguous container.");
-
-TEST_CASE("Core::Misc::FStringBuilderBase::Append String", "[Core][Misc][Smoke]")
+TEST_CASE("Core::String::StringBuilder", "[Core][String][Smoke]")
 {
-	// Empty Base
+	SECTION("Static")
+	{
+		STATIC_REQUIRE(TIsSame<typename FStringBuilderBase::ElementType, TCHAR>::Value);
+		STATIC_REQUIRE(TIsSame<typename FAnsiStringBuilderBase::ElementType, ANSICHAR>::Value);
+		STATIC_REQUIRE(TIsSame<typename FWideStringBuilderBase::ElementType, WIDECHAR>::Value);
+
+		STATIC_REQUIRE(TIsSame<FStringBuilderBase, TStringBuilderBase<TCHAR>>::Value);
+		STATIC_REQUIRE(TIsSame<FAnsiStringBuilderBase, TStringBuilderBase<ANSICHAR>>::Value);
+		STATIC_REQUIRE(TIsSame<FWideStringBuilderBase, TStringBuilderBase<WIDECHAR>>::Value);
+
+		STATIC_REQUIRE(TIsContiguousContainer<FStringBuilderBase>::Value);
+		STATIC_REQUIRE(TIsContiguousContainer<FAnsiStringBuilderBase>::Value);
+		STATIC_REQUIRE(TIsContiguousContainer<FWideStringBuilderBase>::Value);
+
+		STATIC_REQUIRE(TIsContiguousContainer<TStringBuilder<128>>::Value);
+		STATIC_REQUIRE(TIsContiguousContainer<TAnsiStringBuilder<128>>::Value);
+		STATIC_REQUIRE(TIsContiguousContainer<TWideStringBuilder<128>>::Value);
+	}
+
+	SECTION("Empty Base")
 	{
 		FStringBuilderBase Builder;
-		TestEqual(TEXT("Empty StringBuilderBase Len"), Builder.Len(), 0);
-		TestEqual(TEXT("Empty StringBuilderBase ToString"), Builder.ToString(), TEXT(""));
-		Builder << TEXT('A');
-		TestEqual(TEXT("Append Char to StringBuilderBase"), Builder.ToString(), TEXT("A"));
+		CHECK(Builder.Len() == 0);
+		CHECK(Builder == TEXTVIEW(""));
 	}
 
-	// Empty With Buffer
+	SECTION("Empty with Buffer")
 	{
-		TStringBuilder<1024> Builder;
-		TestEqual(TEXT("Empty StringBuilderWithBuffer Len"), Builder.Len(), 0);
-		TestEqual(TEXT("Empty StringBuilderWithBuffer ToString"), Builder.ToString(), TEXT(""));
+		TStringBuilder<16> Builder;
+		CHECK(Builder.Len() == 0);
+		CHECK(Builder == TEXTVIEW(""));
 	}
 
-	// Append Char
+	SECTION("Append Char to Base")
+	{
+		FStringBuilderBase Builder;
+		Builder.AppendChar(TEXT('A'));
+		CHECK(Builder.Len() == 1);
+		CHECK(Builder == TEXTVIEW("A"));
+	}
+
+	SECTION("Append Char")
 	{
 		TStringBuilder<7> Builder;
 		Builder << TEXT('A') << TEXT('B') << TEXT('C');
 		Builder << 'D' << 'E' << 'F';
-		TestEqual(TEXT("Append Char"), FStringView(Builder), TEXTVIEW("ABCDEF"));
-
-		TAnsiStringBuilder<4> AnsiBuilder;
-		AnsiBuilder << 'A' << 'B' << 'C';
-		TestEqual(TEXT("Append AnsiChar"), FAnsiStringView(AnsiBuilder), ANSITEXTVIEW("ABC"));
+		Builder.AppendChar('G').AppendChar('H').AppendChar('I');
+		CHECK(Builder == TEXTVIEW("ABCDEFGHI"));
 	}
 
-	// Append C String
+	SECTION("Append Char to ANSI")
+	{
+		TAnsiStringBuilder<4> Builder;
+		Builder << 'A' << 'B' << 'C';
+		CHECK(Builder == ANSITEXTVIEW("ABC"));
+	}
+
+	SECTION("Append C String")
 	{
 		TStringBuilder<7> Builder;
 		Builder << TEXT("ABC");
 		Builder << "DEF";
-		TestEqual(TEXT("Append C String"), FStringView(Builder), TEXTVIEW("ABCDEF"));
-
-		TAnsiStringBuilder<4> AnsiBuilder;
-		AnsiBuilder << "ABC";
-		TestEqual(TEXT("Append Ansi C String"), FAnsiStringView(AnsiBuilder), ANSITEXTVIEW("ABC"));
+		CHECK(Builder == TEXTVIEW("ABCDEF"));
 	}
 
-	// Append FStringView
+	SECTION("Append C String ANSI")
+	{
+		TAnsiStringBuilder<4> Builder;
+		Builder << "ABC";
+		CHECK(Builder == ANSITEXTVIEW("ABC"));
+	}
+
+	SECTION("Append FStringView")
 	{
 		TStringBuilder<7> Builder;
 		Builder << TEXTVIEW("ABC");
-		Builder << "DEF"_ASV;
-		TestEqual(TEXT("Append FStringView"), FStringView(Builder), TEXTVIEW("ABCDEF"));
-
-		TAnsiStringBuilder<4> AnsiBuilder;
-		AnsiBuilder << "ABC"_ASV;
-		TestEqual(TEXT("Append FAnsiStringView"), FAnsiStringView(AnsiBuilder), "ABC"_ASV);
+		Builder << ANSITEXTVIEW("DEF");
+		CHECK(Builder == TEXTVIEW("ABCDEF"));
 	}
 
-	// Append FStringBuilderBase
+	SECTION("Append FAnsiStringView ANSI")
+	{
+		TAnsiStringBuilder<4> Builder;
+		Builder << ANSITEXTVIEW("ABC");
+		CHECK(Builder == ANSITEXTVIEW("ABC"));
+	}
+
+	SECTION("Append FStringBuilderBase")
 	{
 		TStringBuilder<4> Builder;
 		Builder << TEXT("ABC");
 		TStringBuilder<4> BuilderCopy;
 		BuilderCopy << Builder;
-		TestEqual(TEXT("Append FStringBuilderBase"), FStringView(BuilderCopy), TEXTVIEW("ABC"));
-
-		TAnsiStringBuilder<4> AnsiBuilder;
-		AnsiBuilder << "ABC";
-		TAnsiStringBuilder<4> AnsiBuilderCopy;
-		AnsiBuilderCopy << AnsiBuilder;
-		TestEqual(TEXT("Append FAnsiStringBuilderBase"), FAnsiStringView(AnsiBuilderCopy), "ABC"_ASV);
+		CHECK(BuilderCopy == TEXTVIEW("ABC"));
 	}
 
-	// Append FString
+	SECTION("Append FStringBuilderBase ANSI")
+	{
+		TAnsiStringBuilder<4> Builder;
+		Builder << "ABC";
+		TAnsiStringBuilder<4> BuilderCopy;
+		BuilderCopy << Builder;
+		CHECK(BuilderCopy == ANSITEXTVIEW("ABC"));
+	}
+
+	SECTION("Append FString")
 	{
 		TStringBuilder<4> Builder;
 		Builder << FString(TEXT("ABC"));
-		TestEqual(TEXT("Append FString"), FStringView(Builder), TEXTVIEW("ABC"));
+		CHECK(Builder == TEXTVIEW("ABC"));
 	}
 
-	// Append Char Array
+	SECTION("Append Char Array")
 	{
 		const auto& String = TEXT("ABC");
 		TStringBuilder<4> Builder;
 		Builder << String;
-		TestEqual(TEXT("Append Char Array"), FStringView(Builder), TEXTVIEW("ABC"));
-
-		const ANSICHAR AnsiString[16] = "ABC";
-		TAnsiStringBuilder<4> AnsiBuilder;
-		AnsiBuilder << AnsiString;
-		TestEqual(TEXT("Append Char Array"), FAnsiStringView(AnsiBuilder), "ABC"_ASV);
+		CHECK(Builder == TEXTVIEW("ABC"));
 	}
 
+	SECTION("Append Char Array ANSI")
+	{
+		const ANSICHAR String[16] = "ABC";
+		TAnsiStringBuilder<4> Builder;
+		Builder << String;
+		CHECK(Builder == ANSITEXTVIEW("ABC"));
+	}
 
-	// Simple ReplaceAt
+	SECTION("Simple ReplaceAt")
 	{
 		TAnsiStringBuilder<4> Builder;
-		Builder.ReplaceAt(0, 0, FAnsiStringView());
-		TestEqual(TEXT("Replace nothing empty"), Builder.ToString(), "");
+		Builder.ReplaceAt(0, 0, ANSITEXTVIEW(""));
+		CHECK(Builder == ANSITEXTVIEW(""));
 
-		Builder << 'a';
+		Builder.AppendChar('a');
+		
+		Builder.ReplaceAt(0, 0, ANSITEXTVIEW(""));
+		CHECK(Builder == ANSITEXTVIEW("a"));
 
-		Builder.ReplaceAt(0, 0, FAnsiStringView());
-		TestEqual(TEXT("Replace nothing non-empty"), Builder.ToString(), "a");
-
-		Builder.ReplaceAt(0, 1, FAnsiStringView("b"));
-		TestEqual(TEXT("Replace single char"), Builder.ToString(), "b");
+		Builder.ReplaceAt(0, 1, ANSITEXTVIEW("b"));
+		CHECK(Builder == ANSITEXTVIEW("b"));
 	}
 
-	// Advanced ReplaceAt
-	auto TestReplace = [&](FAnsiStringView Original, FAnsiStringView SearchFor, FAnsiStringView ReplaceWith, FAnsiStringView Expected)
+	SECTION("Advanced ReplaceAt")
 	{
+		const auto [Original, SearchFor, ReplaceWith, Expected] = GENERATE(table<FAnsiStringView, FAnsiStringView, FAnsiStringView, FAnsiStringView>(
+		{
+			// Test single character erase
+			{".foo", ".", "", "foo"},
+			{"f.oo", ".", "", "foo"},
+			{"foo.", ".", "", "foo"},
+		
+			// Test multi character erase
+			{"FooBar", "Bar", "", "Foo"},
+			{"FooBar", "Foo", "", "Bar"},
+			{"FooBar", "Foo", "fOOO", "fOOOBar"},
+
+			// Test replace everything
+			{"Foo", "Foo", "", ""},
+			{"Foo", "Foo", "Bar", "Bar"},
+			{"Foo", "Foo", "0123456789", "0123456789"},
+
+			// Test expanding replace
+			{".foo", ".", "<dot>", "<dot>foo"},
+			{"foo.", ".", "<dot>", "foo<dot>"},
+			{"f.oo", ".", "<dot>", "f<dot>oo"},
+
+			// Test shrinking replace
+			{"aabbcc", "aa", "A", "Abbcc"},
+			{"aabbcc", "bb", "B", "aaBcc"},
+			{"aabbcc", "cc", "C", "aabbC"},
+		}));
+
 		int32 ReplacePos = UE::String::FindFirst(Original, SearchFor);
 		check(ReplacePos != INDEX_NONE);
 
@@ -136,101 +188,94 @@ TEST_CASE("Core::Misc::FStringBuilderBase::Append String", "[Core][Misc][Smoke]"
 		Builder << Original;
 		Builder.ReplaceAt(ReplacePos, SearchFor.Len(), ReplaceWith);
 
-		TestEqual(TEXT("Replace"), FAnsiStringView(Builder), Expected);
-	};
-
-	// Test single character erase
-	TestReplace(".foo", ".", "", "foo");
-	TestReplace("f.oo", ".", "", "foo");
-	TestReplace("foo.", ".", "", "foo");
-
-	// Test multi character erase
-	TestReplace("FooBar", "Bar", "", "Foo");
-	TestReplace("FooBar", "Foo", "", "Bar");
-	TestReplace("FooBar", "Foo", "fOOO", "fOOOBar");
-
-	// Test replace everything
-	TestReplace("Foo", "Foo", "", "");
-	TestReplace("Foo", "Foo", "Bar", "Bar");
-	TestReplace("Foo", "Foo", "0123456789", "0123456789");
-
-	// Test expanding replace
-	TestReplace(".foo", ".", "<dot>", "<dot>foo");
-	TestReplace("foo.", ".", "<dot>", "foo<dot>");
-	TestReplace("f.oo", ".", "<dot>", "f<dot>oo");
-
-	// Test shrinking replace
-	TestReplace("aabbcc", "aa", "A", "Abbcc");
-	TestReplace("aabbcc", "bb", "B", "aaBcc");
-	TestReplace("aabbcc", "cc", "C", "aabbC");
-
-	// Prepend
-	{
-		TAnsiStringBuilder<4> Builder;
-		Builder.Prepend("");
-		TestEqual(TEXT("Prepend nothing to empty"), Builder.Len(), 0);
-
-		Builder.Prepend("e");
-		TestEqual(TEXT("Prepend single characer"), Builder.ToString(), "e");
-
-		Builder.Prepend("abcd");
-		TestEqual(TEXT("Prepend substring"), Builder.ToString(), "abcde");
-
-		Builder.Prepend("");
-		TestEqual(TEXT("Prepend nothing to non-empty"), Builder.ToString(), "abcde");
+		CHECK(Builder == Expected);
 	}
 
-	// InsertAt
+	SECTION("Prepend")
+	{
+		TAnsiStringBuilder<4> Builder;
+
+		// Prepend nothing to empty
+		Builder.Prepend("");
+		CHECK(Builder.Len() == 0);
+		
+		// Prepend single characer
+		Builder.Prepend("e");
+		CHECK(Builder == ANSITEXTVIEW("e"));
+		
+		// Prepend substring
+		Builder.Prepend("abcd");
+		CHECK(Builder == ANSITEXTVIEW("abcde"));
+
+		// Prepend nothing to non-empty
+		Builder.Prepend("");
+		CHECK(Builder == ANSITEXTVIEW("abcde"));
+	}
+	
+	SECTION("InsertAt")
 	{
 		TAnsiStringBuilder<4> Builder;
 		Builder.InsertAt(0, "");
-		TestEqual(TEXT("Insert nothing to empty"), Builder.Len(), 0);
+
+		// Insert nothing to empty
+		CHECK(Builder.Len() == 0);
+
+		// Insert first char
 
 		Builder.InsertAt(0, "d");
-		TestEqual(TEXT("Insert first char"), Builder.ToString(), "d");
-
+		CHECK(Builder == ANSITEXTVIEW("d"));
+		
+		// Insert single char
 		Builder.InsertAt(0, "c");
 		Builder.InsertAt(0, "a");
 		Builder.InsertAt(1, "b");
 		Builder.InsertAt(4, "e");
-		TestEqual(TEXT("Insert single char"), Builder.ToString(), "abcde");
-
+		CHECK(Builder == ANSITEXTVIEW("abcde"));
+		
+		// Insert substrings
 		Builder.InsertAt(3, "__");
 		Builder.InsertAt(0, "__");
 		Builder.InsertAt(Builder.Len(), "__");
-		TestEqual(TEXT("Insert substrings"), Builder.ToString(), "__abc__de__");
+		CHECK(Builder == ANSITEXTVIEW("__abc__de__"));
 
+		// Insert nothing
 		Builder.InsertAt(Builder.Len(), "");
-		TestEqual(TEXT("Insert nothing"), Builder.ToString(), "__abc__de__");
+		CHECK(Builder == ANSITEXTVIEW("__abc__de__"));
 	}
 
-	// RemoveAt
+	SECTION("RemoveAt")
 	{
 		TAnsiStringBuilder<4> Builder;
 		Builder << "0123456789";
+
+		// Remove nothing
 		Builder.RemoveAt(0, 0);
 		Builder.RemoveAt(Builder.Len(), 0);
 		Builder.RemoveAt(Builder.Len() / 2, 0);
-		TestEqual(TEXT("Remove nothing"), Builder.ToString(), "0123456789");
-
+		CHECK(Builder == ANSITEXTVIEW("0123456789"));
+		
+		// Remove last char
 		Builder.RemoveAt(Builder.Len() - 1, 1);
-		TestEqual(TEXT("Remove last char"), Builder.ToString(), "012345678");
-
+		CHECK(Builder == ANSITEXTVIEW("012345678"));
+		
+		// Remove first char
 		Builder.RemoveAt(0, 1);
-		TestEqual(TEXT("Remove first char"), Builder.ToString(), "12345678");
-
+		CHECK(Builder == ANSITEXTVIEW("12345678"));
+		
+		// Remove middle
 		Builder.RemoveAt(4, 2);
-		TestEqual(TEXT("Remove middle"), Builder.ToString(), "123478");
+		CHECK(Builder == ANSITEXTVIEW("123478"));
 
+		// Remove end
 		Builder.RemoveAt(4, 2);
-		TestEqual(TEXT("Remove end"), Builder.ToString(), "1234");
-
+		CHECK(Builder == ANSITEXTVIEW("1234"));
+		
+		// Remove start
 		Builder.RemoveAt(0, 2);
-		TestEqual(TEXT("Remove start"), Builder.ToString(), "34");
+		CHECK(Builder == ANSITEXTVIEW("34"));
 
+		// Remove start
 		Builder.RemoveAt(0, 2);
-		TestEqual(TEXT("Remove start"), Builder.ToString(), "");
+		CHECK(Builder == ANSITEXTVIEW(""));
 	}
 }
-
-#endif
