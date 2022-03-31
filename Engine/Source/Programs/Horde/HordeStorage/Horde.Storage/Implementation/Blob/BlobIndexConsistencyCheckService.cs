@@ -60,8 +60,6 @@ namespace Horde.Storage.Implementation
                 return false;
             }
 
-            using IScope scope = Tracer.Instance.StartActive("blob_index.consistency.poll");
-
             await RunConsistencyCheck();
 
             return true;
@@ -100,6 +98,9 @@ namespace Horde.Storage.Implementation
                 if (NamespaceShouldBeCheckedForConsistency(blobInfo.Namespace))
                     continue;
                 
+                using IScope scope = Tracer.Instance.StartActive("consistency_check.blob_index");
+                scope.Span.ResourceName = $"{blobInfo.Namespace}.{blobInfo.BlobIdentifier}";
+
                 try
                 {
                     if (!blobInfo.Regions.Any())

@@ -62,9 +62,6 @@ namespace Horde.Storage.Implementation
                 }
                 await foreach (NamespaceId ns in state.Refs.GetNamespaces().WithCancellation(cancellationToken))
                 {
-                    using IScope scope = Tracer.Instance.StartActive("gc.refs");
-                    scope.Span.ResourceName = ns.ToString();
-
                     _logger.Information("Attempting to run Refs Cleanup of {Namespace}. ", ns);
                     try
                     {
@@ -80,9 +77,6 @@ namespace Horde.Storage.Implementation
                 List<NamespaceId>? namespaces = await _referencesStore.GetNamespaces().ToListAsync(cancellationToken);
                 await foreach (NamespaceId ns in namespaces)
                 {
-                    using IScope scope = Tracer.Instance.StartActive("gc.refs");
-                    scope.Span.ResourceName = ns.ToString();
-
                     _logger.Information("Attempting to run Refs Cleanup of {Namespace}. ", ns);
                     try
                     {

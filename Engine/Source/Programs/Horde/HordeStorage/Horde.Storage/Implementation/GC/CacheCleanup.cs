@@ -52,8 +52,6 @@ namespace Horde.Storage.Implementation
                 return Task.FromResult(0);
             }
 
-            using IScope scope = Tracer.Instance.StartActive("gc.refs.namespace");
-            scope.Span.ResourceName = ns.ToString();
             if (ns == INamespacePolicyResolver.JupiterInternalNamespace)
             {
                 // do not apply our cleanup policies to the internal namespace
@@ -92,7 +90,7 @@ namespace Horde.Storage.Implementation
                     continue;
 
                 _logger.Information("Attempting to delete object {Namespace} {Bucket} {Name} as it was last updated {LastAccessTime} which is older then {CutoffTime}", ns, bucket, name, lastAccessTime, cutoffTime);
-                using IScope scope = Tracer.Instance.StartActive("refCleanup.delete_record");
+                using IScope scope = Tracer.Instance.StartActive("gc.ref");
                 scope.Span.ResourceName = $"{ns}:{bucket}.{name}";
                 // delete the old record from the ref refs
                 Task<bool> storeDelete = _referencesStore.Delete(ns, bucket, name);
@@ -128,6 +126,9 @@ namespace Horde.Storage.Implementation
             int countOfDeletedRecords = 0;
             await foreach (OldRecord record in _refs.GetOldRecords(ns, _settings.CurrentValue.LastAccessCutoff).WithCancellation(cancellationToken))
             {
+                using IScope scope = Tracer.Instance.StartActive("gc.ref.legacy");
+                scope.Span.ResourceName = $"{ns}:{record.Bucket}.{record.RefName}";
+
                 // delete the old record from the ref refs
                 Task storeDelete = _refs.Delete(record.Namespace, record.Bucket, record.RefName);
                 // insert a delete event into the transaction log

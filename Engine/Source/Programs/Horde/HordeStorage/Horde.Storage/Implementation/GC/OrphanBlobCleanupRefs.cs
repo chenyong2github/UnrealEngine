@@ -59,17 +59,13 @@ namespace Horde.Storage.Implementation
             }
 
             List<NamespaceId> namespaces = await ListNamespaces().Where(NamespaceShouldBeCleaned).ToListAsync();
-          
-
+            
             // enumerate all namespaces, and check if the old blob is valid in any of them to allow for a blob store to just store them in a single pile if it wants to
             ulong countOfBlobsRemoved = 0;
             foreach (NamespaceId @namespace in namespaces)
             {
                 if (cancellationToken.IsCancellationRequested)
                     break;
-
-                using IScope scope = Tracer.Instance.StartActive("gc.blob.namespace");
-                scope.Span.ResourceName = @namespace.ToString();
 
                 // only consider blobs that have been around for 60 minutes
                 // this due to cases were blobs are uploaded first
@@ -81,6 +77,9 @@ namespace Horde.Storage.Implementation
                     
                     if (cancellationToken.IsCancellationRequested)
                         break;
+
+                    using IScope removeBlobScope = Tracer.Instance.StartActive("gc.blob");
+                    removeBlobScope.Span.ResourceName = $"{@namespace}.{blob}";
 
                     bool found = false;
                     NamespaceSettings.PerNamespaceSettings policy = _namespacePolicyResolver.GetPoliciesForNs(@namespace);
@@ -120,10 +119,13 @@ namespace Horde.Storage.Implementation
                         }
                     }
 
+                    if (cancellationToken.IsCancellationRequested)
+                        break;
+
+                    removeBlobScope.Span.SetTag("removed", (!found).ToString());
+
                     if (!found)
                     {
-                        using IScope removeBlobScope = Tracer.Instance.StartActive("gc.blob.remove-blob");
-                        removeBlobScope.Span.ResourceName = blob.ToString();
                         await RemoveBlob(@namespace, blob);
                         ++countOfBlobsRemoved;
                     }

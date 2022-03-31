@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using async_enumerable_dotnet;
 using Dasync.Collections;
+using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Jupiter;
 using Jupiter.Common;
@@ -90,6 +91,7 @@ namespace Horde.Storage.Implementation
                 return 0;
             }
 
+
             List<NamespaceId> namespaces = await ListNamespaces().Where(NamespaceShouldBeCleaned).ToListAsync();
             ConcurrentDictionary<NamespaceId, GCRootState> perNamespaceRoots = new();
             await namespaces.ParallelForEachAsync(async ns =>
@@ -147,9 +149,13 @@ namespace Horde.Storage.Implementation
                 if (cancellationToken.IsCancellationRequested)
                     break;
                 _logger.Information("Attempting to GC Orphan blob {Blob}", blob);
+
                 bool deleted = true;
                 foreach (NamespaceId ns in namespaces)
                 {
+                    using IScope removeBlobScope = Tracer.Instance.StartActive("gc.blob.legacy");
+                    removeBlobScope.Span.ResourceName = $"{ns}.{blob}";
+
                     try
                     {
                         await _blobService.DeleteObject(ns, blob);

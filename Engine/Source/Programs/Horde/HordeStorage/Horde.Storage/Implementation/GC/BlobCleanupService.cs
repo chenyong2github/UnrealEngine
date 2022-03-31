@@ -86,8 +86,6 @@ namespace Horde.Storage.Implementation
 
                 string type = blobCleanup.GetType().ToString();
                 _logger.Information("Blob cleanup running for {BlobCleanup}", type);
-                using IScope scope = Tracer.Instance.StartActive("gc.blob");
-                scope.Span.SetTag("type", type);
 
                 _logger.Information("Attempting to run Blob Cleanup {BlobCleanup}. ", type);
                 try

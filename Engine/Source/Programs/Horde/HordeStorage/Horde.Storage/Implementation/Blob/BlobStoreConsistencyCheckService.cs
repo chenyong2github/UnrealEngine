@@ -76,9 +76,6 @@ namespace Horde.Storage.Implementation
             {
                 string blobStoreName = blobStore.GetType().Name;
 
-                using IScope blobStoreScope = Tracer.Instance.StartActive("blob_store.consistency_check.poll");
-                blobStoreScope.Span.ResourceName = blobStoreName;
-
                 bool isRootStore = blobStore is AmazonS3Store or AzureBlobStore;
 
                 List<NamespaceId> namespaces = await _refsStore.GetNamespaces().ToListAsync();
@@ -90,11 +87,12 @@ namespace Horde.Storage.Implementation
                     ulong countOfBlobsChecked = 0;
                     ulong countOfIncorrectBlobsFound = 0;
 
-                    using IScope scope = Tracer.Instance.StartActive("consistency_check.run");
-                    scope.Span.ResourceName = ns.ToString();
-
                     await foreach ((BlobIdentifier blob, DateTime lastModified) in blobStore.ListObjects(ns))
                     {
+                        using IScope scope = Tracer.Instance.StartActive("consistency_check.blob");
+                        scope.Span.ResourceName = $"{ns}.{blob}";
+                        scope.Span.SetTag("BlobStore", blobStoreName);
+
                         if (countOfBlobsChecked % 100 == 0)
                             _logger.Information("Consistency check running on Blob Store {BlobStore}, count of blobs processed so far: {CountOfBlobs}", blobStoreName, countOfBlobsChecked);
                         Interlocked.Increment(ref countOfBlobsChecked);

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
+using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
@@ -250,6 +251,8 @@ namespace Horde.Storage.Implementation
         /// <returns></returns>
         public async Task<ulong> CleanupInternal(CancellationToken cancellationToken, int batchSize = 100000)
         {
+            using IScope scope = Tracer.Instance.StartActive("gc.filesystem");
+
             long size = await CalculateDiskSpaceUsed();
             ulong maxSizeBytes = _settings.CurrentValue.MaxSizeBytes;
             long triggerSize = (long) (maxSizeBytes * _settings.CurrentValue.TriggerThresholdPercentage);
