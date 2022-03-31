@@ -15,8 +15,6 @@ namespace Geometry {
 
 using namespace UE::Math;
 
-template <typename RealType> struct TConvexHull3Internal;
-
 /**
  * Helper class to find the dimensions spanned by a point cloud
  * and (if it spans 3 dimensions) the indices of four 'extreme' points
@@ -121,6 +119,12 @@ public:
 	TArray<FIndex3i> const& GetTriangles() const
 	{
 		return Hull;
+	}
+
+	/** @return convex hull triangles by a move */
+	TArray<FIndex3i>&& MoveTriangles()
+	{
+		return MoveTemp(Hull);
 	}
 
 	/** 
