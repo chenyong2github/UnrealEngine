@@ -475,6 +475,7 @@ void FTaskGraphProfilerManager::OnWindowClosedEvent()
 		if (Tab.IsValid())
 		{
 			Tab->RequestCloseTab();
+			Tab->RemoveTabFromParent();
 		}
 	}
 }

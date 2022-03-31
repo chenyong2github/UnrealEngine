@@ -75,6 +75,7 @@ STimingProfilerWindow::~STimingProfilerWindow()
 	for (TSharedPtr<SDockTab>& Tab : LocalOpenTabs)
 	{
 		Tab->RequestCloseTab();
+		Tab->RemoveTabFromParent();
 	}
 	LocalOpenTabs.Reset();
 	check(OpenTabs.IsEmpty());
@@ -639,6 +640,7 @@ void STimingProfilerWindow::HideTab(const FName& TabID)
 	if (Tab.IsValid())
 	{
 		Tab->RequestCloseTab();
+		Tab->RemoveTabFromParent();
 	}
 }
 

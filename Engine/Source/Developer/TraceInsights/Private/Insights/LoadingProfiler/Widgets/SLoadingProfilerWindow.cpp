@@ -69,6 +69,7 @@ SLoadingProfilerWindow::~SLoadingProfilerWindow()
 	for (TSharedPtr<SDockTab>& Tab : LocalOpenTabs)
 	{
 		Tab->RequestCloseTab();
+		Tab->RemoveTabFromParent();
 	}
 	LocalOpenTabs.Reset();
 	check(OpenTabs.IsEmpty());
@@ -678,6 +679,7 @@ void SLoadingProfilerWindow::HideTab(const FName& TabID)
 	if (Tab.IsValid())
 	{
 		Tab->RequestCloseTab();
+		Tab->RemoveTabFromParent();
 	}
 }
 
