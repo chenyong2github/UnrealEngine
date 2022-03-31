@@ -730,7 +730,7 @@ void USocialUser::GetRichPresenceText(FText& OutRichPresence) const
 	{
 		OutRichPresence = LOCTEXT("UserStatus_Blocked", "Blocked");
 	}
-	else if (IsFriend())
+	else if (IsFriend() || IsLocalUser())
 	{
 		const FOnlineUserPresence* PrimaryPresence = GetFriendPresenceInfo(ESocialSubsystem::Primary);
 		if (PrimaryPresence && !PrimaryPresence->Status.StatusStr.IsEmpty())
