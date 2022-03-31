@@ -47,6 +47,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, RENDERER_AP
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, OpaqueRoughRefractionTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, BSDFOffsetTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, BSDFTileTexture)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, BSDFTileCountBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 // This must map to the STRATA_TILE_TYPE defines.
@@ -98,6 +99,7 @@ struct FStrataSceneData
 
 	FRDGTextureRef BSDFOffsetTexture;
 	FRDGTextureRef BSDFTileTexture;
+	FRDGBufferRef  BSDFTileCountBuffer;
 	FRDGBufferRef  BSDFTileDispatchIndirectBuffer;
 
 	// Used when the subsurface luminance is separated from the scene color
