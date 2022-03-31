@@ -7,6 +7,8 @@
 #include "Blueprints/IDisplayClusterBlueprintAPI.h"
 #include "DisplayClusterBlueprintLib.generated.h"
 
+class ADisplayClusterLightCardActor;
+class ADisplayClusterRootActor;
 
 /**
  * Blueprint API function library
@@ -22,5 +24,7 @@ public:
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "DisplayCluster Module API"), Category = "NDisplay")
 	static void GetAPI(TScriptInterface<IDisplayClusterBlueprintAPI>& OutAPI);
 
-
+	/** Create a new light card parented to the given nDisplay root actor. */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "DisplayCluster Module API"), Category = "NDisplay")
+	static ADisplayClusterLightCardActor* CreateLightCard(ADisplayClusterRootActor* RootActor);
 };
