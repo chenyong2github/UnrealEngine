@@ -625,8 +625,7 @@ FOptimusNodeGraphAction_PackageKernelFunction::FOptimusNodeGraphAction_PackageKe
 		NodePosition = InKernelNode->GetGraphPosition();
 		Category = InKernelNode->Category;
 		KernelName = InKernelNode->KernelName;
-		ThreadCount = InKernelNode->ThreadCount;
-		ExecutionDomain = InKernelNode->ExecutionDomain;
+		GroupSize = InKernelNode->GroupSize;
 		for (const FOptimus_ShaderBinding& Parameter: InKernelNode->Parameters)
 		{
 			FOptimus_ShaderValuedBinding ValueParameter;
@@ -663,7 +662,7 @@ bool FOptimusNodeGraphAction_PackageKernelFunction::Do(
 	}
 	
 	UClass *PackagedNodeClass = UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
-		Graph->GetPackage(), Category, KernelName, ThreadCount, ExecutionDomain,
+		Graph->GetPackage(), Category, KernelName, GroupSize,
 		Parameters, InputBindings, OutputBindings, ShaderSource);
 	if (!PackagedNodeClass)
 	{
@@ -777,8 +776,7 @@ bool FOptimusNodeGraphAction_UnpackageKernelFunction::Do(
 			UOptimusNode_CustomComputeKernel* KernelNode = Cast<UOptimusNode_CustomComputeKernel>(InNode);
 			KernelNode->Category = Class->Category;
 			KernelNode->KernelName = Class->KernelName;
-			KernelNode->ThreadCount = Class->ThreadCount;
-			KernelNode->ExecutionDomain = Class->ExecutionDomain;
+			KernelNode->GroupSize = Class->GroupSize;
 			for (const FOptimus_ShaderValuedBinding& ParamBinding: Class->Parameters)
 			{
 				FOptimus_ShaderBinding Parameter;

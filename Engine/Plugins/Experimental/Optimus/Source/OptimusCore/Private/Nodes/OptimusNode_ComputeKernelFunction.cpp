@@ -12,8 +12,7 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 	UObject* InPackage,
 	FName InCategory,
 	const FString& InKernelName,
-	int32 InThreadCount,
-	FOptimusDataDomain InExecutionDomain,
+	FIntVector InGroupSize,
 	const TArray<FOptimus_ShaderValuedBinding>& InParameters,
 	const TArray<FOptimusParameterBinding>& InInputBindings,
 	const TArray<FOptimusParameterBinding>& InOutputBindings,
@@ -21,7 +20,7 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 	)
 {
 	if (!ensure(InPackage) || !ensure(!InCategory.IsNone()) || !ensure(!InKernelName.IsEmpty()) ||
-		!ensure(InThreadCount != 0) || !ensure(!InExecutionDomain.Name.IsNone()) || !ensure(!InShaderSource.IsEmpty()))
+		!ensure(InGroupSize.GetMin() > 0) || !ensure(!InShaderSource.IsEmpty()))
 	{
 		return nullptr;
 	}
@@ -68,8 +67,7 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 	// Copy in the static state
 	KernelClass->Category = InCategory;
 	KernelClass->KernelName = InKernelName;
-	KernelClass->ThreadCount = InThreadCount;
-	KernelClass->ExecutionDomain = InExecutionDomain;
+	KernelClass->GroupSize = InGroupSize;
 	KernelClass->Parameters = InParameters;
 	KernelClass->InputBindings = InInputBindings;
 	KernelClass->OutputBindings = InOutputBindings;
@@ -109,10 +107,6 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 
 	// Grab the CDO and update the default values based on the raw values in the value bindings.
 	UOptimusNode_ComputeKernelFunction *KernelCDO = Cast<UOptimusNode_ComputeKernelFunction>(KernelClass->GetDefaultObject());
-
-	// Set the viewing values in the base.
-	KernelCDO->ThreadCount = KernelClass->ThreadCount;
-	KernelCDO->ExecutionDomain = KernelClass->ExecutionDomain;
 
 	// Copy the default values from the incoming properties.
 	for (const TPair<const FProperty*, const TArray<uint8>*>& Item: PropertyValues)
@@ -183,9 +177,15 @@ FString UOptimusNode_ComputeKernelFunction::GetKernelName() const
 }
 
 
+FIntVector UOptimusNode_ComputeKernelFunction::GetGroupSize() const
+{
+	return GetGeneratorClass()->GroupSize;
+}
+
+
 FString UOptimusNode_ComputeKernelFunction::GetKernelSourceText() const
 {
-	return GetCookedKernelSource(GetGeneratorClass()->ShaderSource, GetKernelName(), ThreadCount);
+	return GetCookedKernelSource(GetPathName(), GetGeneratorClass()->ShaderSource, GetKernelName(), GetGroupSize());
 }
 
 

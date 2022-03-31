@@ -34,11 +34,11 @@ private:
 	struct FShaderInvocation
 	{
 		FName KernelName;
+		FIntVector KernelGroupSize = FIntVector(1, 1, 1);
 		FComputeKernelResource const* KernelResource = nullptr;
 		FShaderParametersMetadata const* ShaderParamMetadata = nullptr;
 		FComputeKernelPermutationVector const* ShaderPermutationVector = nullptr;
-		TMap<int32, TArray<uint8>> ShaderParamBindings;
-		TArray<FIntVector> DispatchDimensions;
+		int32 ExecutionProviderIndex = -1;
 	};
 
 	/**

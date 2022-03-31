@@ -13,19 +13,25 @@ class OPTIMUSCORE_API UOptimusKernelSource :
 	GENERATED_BODY()
 public:
 	void SetSourceAndEntryPoint(
+		const FIntVector& InGroupSize,
 		const FString& InSource,
 		const FString& InEntryPoint
 		)
 	{
+		GroupSize = InGroupSize;
 		Source = InSource;
 		EntryPoint = InEntryPoint;
 		Hash = GetTypeHash(InSource);
 	}
 	
-	
 	FString GetEntryPoint() const override
 	{
 		return EntryPoint;
+	}
+
+	FIntVector GetGroupSize() const override
+	{
+		return GroupSize;
 	}
 	
 	FString GetSource() const override
@@ -33,7 +39,6 @@ public:
 		return Source;
 	}
 	
-	/** Get a hash of the kernel source code. */
 	uint64 GetSourceCodeHash() const override
 	{
 		return Hash;
@@ -42,6 +47,9 @@ public:
 private:
 	UPROPERTY()
 	FString EntryPoint;
+
+	UPROPERTY()
+	FIntVector GroupSize = FIntVector(64, 1, 1);
 	
 	UPROPERTY()
 	FString Source;

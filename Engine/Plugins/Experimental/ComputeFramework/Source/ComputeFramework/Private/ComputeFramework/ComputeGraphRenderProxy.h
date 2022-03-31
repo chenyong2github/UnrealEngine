@@ -19,11 +19,12 @@ public:
 	struct FKernelInvocation
 	{
 		FName KernelName;
-		FIntVector GroupDim;
+		FIntVector KernelGroupSize = FIntVector(1, 1, 1);
 		FComputeKernelResource const* KernelResource = nullptr;
 		FShaderParametersMetadata const* ShaderMetadata = nullptr;
 		FComputeKernelPermutationVector const* ShaderPermutationVector = nullptr;
 		TArray<int32> BoundProviderIndices;
+		int32 ExecutionProviderIndex = -1;
 	};
 
 	TArray<FKernelInvocation> KernelInvocations;

@@ -53,8 +53,6 @@ public:
 	FSkeletalMeshReadDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	int32 GetInvocationCount() const override;
-	FIntVector GetDispatchDim(int32 InvocationIndex, FIntVector GroupDim) const override;
 	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 

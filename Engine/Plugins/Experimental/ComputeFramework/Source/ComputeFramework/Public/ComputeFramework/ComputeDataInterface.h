@@ -23,6 +23,8 @@ class COMPUTEFRAMEWORK_API UComputeDataInterface : public UObject
 	GENERATED_BODY()
 
 public:
+	/** Does the associated UComputeDataProvider provide invocations and thread counts. One and only one data interface per kernel should return true. */
+	virtual bool IsExecutionInterface() const { return false; }
 	/** Gather compile definitions from the data interface. Any connected kernel will compile with these. */
 	virtual void GetDefines(FComputeKernelDefinitionSet& OutDefinitionSet) const {}
 	/** Gather permutations from the data interface. Any connected kernel will include these in its total compiled permutations. */

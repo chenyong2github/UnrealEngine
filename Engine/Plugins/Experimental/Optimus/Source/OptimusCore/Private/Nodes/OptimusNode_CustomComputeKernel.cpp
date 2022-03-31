@@ -24,9 +24,14 @@ FString UOptimusNode_CustomComputeKernel::GetKernelName() const
 	return KernelName;
 }
 
+FIntVector UOptimusNode_CustomComputeKernel::GetGroupSize() const
+{
+	return GroupSize;
+}
+
 FString UOptimusNode_CustomComputeKernel::GetKernelSourceText() const
 {
-	return GetCookedKernelSource(ShaderSource.ShaderText, KernelName, ThreadCount);
+	return GetCookedKernelSource(GetPathName(), ShaderSource.ShaderText, KernelName, GroupSize);
 }
 
 
@@ -104,10 +109,6 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, KernelName))
 		{
 			SetDisplayName(FText::FromString(KernelName));
-			UpdatePreamble();
-		}
-		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, ThreadCount))
-		{
 			UpdatePreamble();
 		}
 		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimus_ShaderBinding, Name))

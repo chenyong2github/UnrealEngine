@@ -34,6 +34,8 @@ public:
 
 	/** Get kernel entry point name. */
 	virtual FString GetEntryPoint() const PURE_VIRTUAL(UComputeKernelSource::GetEntryPoint, return {};);
+	/** Get kernel group size. Note that this must be known and fixed for all permutations of the kernel. */
+	virtual FIntVector GetGroupSize() const PURE_VIRTUAL(UComputeKernelSource::GetGroupSize, return {};);
 	/** Get kernel source code. */
 	virtual FString GetSource() const PURE_VIRTUAL(UComputeKernelSource::GetSource, return {};);
 	/** Get a hash of the kernel source code. */

@@ -78,6 +78,35 @@ bool UComputeGraph::ValidateGraph(FString* OutErrors)
 	// Check same number of kernel in/outs as edges.
 	// Check each edge connects matching function types.
 	// Check graph is DAG
+
+	// Validate that we have one execution provider per kernel.
+	TArray<bool, TInlineAllocator<64>> KernelHasExecution;
+	KernelHasExecution.SetNumUninitialized(KernelInvocations.Num());
+	for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); ++KernelIndex)
+	{
+		KernelHasExecution[KernelIndex] = false;
+	}
+	for (int32 GraphEdgeIndex = 0; GraphEdgeIndex < GraphEdges.Num(); ++GraphEdgeIndex)
+	{
+		const int32 DataInterfaceIndex = GraphEdges[GraphEdgeIndex].DataInterfaceIndex;
+		if (DataInterfaces[DataInterfaceIndex]->IsExecutionInterface())
+		{
+			const int32 KernelIndex = GraphEdges[GraphEdgeIndex].KernelIndex;
+			if (KernelHasExecution[KernelIndex])
+			{
+				return false;
+			}
+			KernelHasExecution[KernelIndex] = true;
+		}
+	}
+	for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); ++KernelIndex)
+	{
+		if (KernelInvocations[KernelIndex] != nullptr && KernelHasExecution[KernelIndex] == false)
+		{
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -215,17 +244,21 @@ FComputeGraphRenderProxy* UComputeGraph::CreateProxy() const
 			FComputeGraphRenderProxy::FKernelInvocation& Invocation = Proxy->KernelInvocations.AddDefaulted_GetRef();
 
 			Invocation.KernelName = Kernel->GetFName();
-			Invocation.GroupDim = FIntVector(64, 1, 1); // todo[CF]: read group size from kernel (or possibly apply it through defines).
+			Invocation.KernelGroupSize = Kernel->KernelSource->GetGroupSize();
 			Invocation.KernelResource = KernelResource;
 			Invocation.ShaderMetadata = ShaderMetadata;
 			Invocation.ShaderPermutationVector = &ShaderPermutationVectors[KernelIndex];
-
 
 			for (FComputeGraphEdge const& GraphEdge : GraphEdges)
 			{
 				if (GraphEdge.KernelIndex == KernelIndex)
 				{
 					Invocation.BoundProviderIndices.AddUnique(GraphEdge.DataInterfaceIndex);
+					
+					if (DataInterfaces[GraphEdge.DataInterfaceIndex]->IsExecutionInterface())
+					{
+						Invocation.ExecutionProviderIndex = GraphEdge.DataInterfaceIndex;
+					}
 				}
 			}
 		}

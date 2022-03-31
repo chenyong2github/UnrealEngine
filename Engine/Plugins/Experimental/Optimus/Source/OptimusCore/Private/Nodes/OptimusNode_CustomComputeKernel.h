@@ -31,8 +31,7 @@ public:
 
 	// UOptimusNode_ComputeKernelBase overrides
 	FString GetKernelName() const override;
-
-	/** Implement this to return the complete HLSL code for this kernel */
+	FIntVector GetGroupSize() const override;
 	FString GetKernelSourceText() const override;
 
 	// IOptiusComputeKernelProvider overrides
@@ -55,24 +54,34 @@ public:
 	UPROPERTY(EditAnywhere, Category=Settings)
 	FName Category = CategoryName::Deformers;
 	
-	UPROPERTY(EditAnywhere, Category=KernelConfiguration)
+	/** Name of kernel. This is also used as the entry point function name in generated code. */
+	UPROPERTY(EditAnywhere, Category=Settings)
 	FString KernelName = "MyKernel";
 
-	UPROPERTY(EditAnywhere, Category = KernelConfiguration, meta=(Min=1))
-	int32 ThreadCount = 64;
+	/** 
+	 * Number of threads in a thread group. 
+	 * Thread groups have 3 dimensions. 
+	 * It's better to have the total threads (X*Y*Z) be a value divisible by 32. 
+	 */
+	UPROPERTY(EditAnywhere, Category=Settings, meta=(Min=1))
+	FIntVector GroupSize = FIntVector(64, 1, 1);
 
-	UPROPERTY(EditAnywhere, Category = KernelConfiguration)
-	FOptimusDataDomain ExecutionDomain;
-
+	/** Parameter bindings. Parameters are uniform values. */
 	UPROPERTY(EditAnywhere, Category=Bindings)
 	TArray<FOptimus_ShaderBinding> Parameters;
 	
-	UPROPERTY(EditAnywhere, Category=Bindings)
+	/** Input bindings. Each one is a function that should be connected to an implementation in a data interface. */
+	UPROPERTY(EditAnywhere, Category = Bindings)
 	TArray<FOptimusParameterBinding> InputBindings;
 
-	UPROPERTY(EditAnywhere, Category=Bindings)
+	/** Output bindings. Each one is a function that should be connected to an implementation in a data interface. */
+	UPROPERTY(EditAnywhere, Category = Bindings)
 	TArray<FOptimusParameterBinding> OutputBindings;
 
+	/** 
+	 * The kernel source code. 
+	 * If the code contains more than just the kernel entry function, then place the kernel entry function inside a KERNEL {} block.
+	 */
 	UPROPERTY(EditAnywhere, Category = ShaderSource)
 	FOptimusShaderText ShaderSource;
 

@@ -94,7 +94,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernelBase::CreateComputeKernel(
 	CookedSource += "\n\n";
 	CookedSource += GetKernelSourceText();
 	
-	KernelSource->SetSourceAndEntryPoint(CookedSource, GetKernelName());
+	KernelSource->SetSourceAndEntryPoint(GetGroupSize(), CookedSource, GetKernelName());
 
 #if 0
 	UE_LOG(LogOptimusCore, Log, TEXT("Kernel: %s [%s]"), *GetNodePath(), *GetNodeName().ToString());
@@ -130,10 +130,11 @@ UOptimusKernelSource* UOptimusNode_ComputeKernelBase::CreateComputeKernel(
 
 
 FString UOptimusNode_ComputeKernelBase::GetCookedKernelSource(
+	const FString& InObjectPathName,
 	const FString& InShaderSource,
 	const FString& InKernelName,
-	int32 InThreadCount
-	) const
+	FIntVector InGroupSize
+	)
 {
 	// FIXME: Create source range mappings so that we can go from error location to
 	// our source.
@@ -146,7 +147,9 @@ FString UOptimusNode_ComputeKernelBase::GetCookedKernelSource(
 
 	const bool bHasKernelKeyword = Source.Contains(TEXT("KERNEL"));
 	
-	const FString KernelFunc = FString::Printf(TEXT("[numthreads(%d,1,1)]\nvoid %s(uint3 DTid : SV_DispatchThreadID)"), InThreadCount, *InKernelName);
+	const FString KernelFunc = FString::Printf(
+		TEXT("[numthreads(%d,%d,%d)]\nvoid %s(uint3 DTid : SV_DispatchThreadID)"), 
+		InGroupSize.X, InGroupSize.Y, InGroupSize.Z, *InKernelName);
 	
 	if (bHasKernelKeyword)
 	{
@@ -157,7 +160,7 @@ FString UOptimusNode_ComputeKernelBase::GetCookedKernelSource(
 				"#line 1 \"%s\"\n"
 				"%s\n\n"
 				"%s { __kernel_func(DTid.x); }\n"
-				), *GetPathName(), *Source, *KernelFunc);
+				), *InObjectPathName, *Source, *KernelFunc);
 	}
 	else
 	{
@@ -169,7 +172,7 @@ FString UOptimusNode_ComputeKernelBase::GetCookedKernelSource(
 			"#line 1 \"%s\"\n"
 			"%s\n"
 			"}\n"
-			), *KernelFunc, *GetPathName(), *Source);
+			), *KernelFunc, *InObjectPathName, *Source);
 	}
 }
 

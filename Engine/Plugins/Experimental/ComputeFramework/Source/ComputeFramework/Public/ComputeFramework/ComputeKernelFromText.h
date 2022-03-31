@@ -25,6 +25,10 @@ public:
 	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = "Kernel")
 	FString EntryPointName;
 
+	/** Kernel group size. */
+	UPROPERTY(VisibleAnywhere, Category = "Kernel")
+	FIntVector GroupSize;
+
 	/** A unique id for the asset. */
 	UPROPERTY()
 	FGuid UniqueId;
@@ -43,6 +47,11 @@ protected:
 	FString GetEntryPoint() const override
 	{
 		return EntryPointName;
+	}
+
+	FIntVector GetGroupSize() const override
+	{
+		return GroupSize;
 	}
 
 	FString GetSource() const override

@@ -57,8 +57,6 @@ public:
 	FSkinnedMeshWriteDataProviderProxy(USkinnedMeshComponent* InSkinnedMeshComponent, uint64 InOutputMask);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	int32 GetInvocationCount() const override;
-	FIntVector GetDispatchDim(int32 InvocationIndex, FIntVector GroupDim) const override;
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
 	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface

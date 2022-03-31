@@ -1,0 +1,32 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+
+int3 DI_LOCAL(NumThreads);
+uint DI_LOCAL(NumVertices);
+uint DI_LOCAL(NumTriangles);
+
+DI_IMPL_READ(ReadNumThreads, int3, void)
+{
+	return DI_LOCAL(NumThreads);
+}
+
+DI_IMPL_READ(ReadNumVertices, uint, void)
+{
+	return DI_LOCAL(NumVertices);
+}
+
+DI_IMPL_READ(ReadNumTriangles, uint, void)
+{
+	return DI_LOCAL(NumTriangles);
+}
+
+DI_IMPL_READ(GetVertexIndex, uint, uint3 ThreadId)
+{
+	return ThreadId.x;
+}
+
+DI_IMPL_READ(GetTriangleIndex, uint, uint3 ThreadId)
+{
+	return ThreadId.x;
+}

@@ -4,14 +4,26 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "DataInterfaceCloth.generated.h"
+#include "DataInterfaceSkinnedMeshExec.generated.h"
 
+class USkinnedMeshComponent;
 class FSkeletalMeshObject;
-class USkeletalMeshComponent;
+class FRDGBuffer;
+class FRDGBufferUAV;
 
-/** Compute Framework Data Interface for reading skeletal mesh. */
+UENUM()
+enum class ESkinnedMeshExecDomain : uint8
+{
+	None = 0 UMETA(Hidden),
+	/** Run kernel with one thread per vertex. */
+	Vertex = 1,
+	/** Run kernel with one thread per triangle. */
+	Triangle,
+};
+
+/** Compute Framework Data Interface for executing kernels over a skinned mesh domain. */
 UCLASS(Category = ComputeFramework)
-class OPTIMUSCORE_API UClothDataInterface : public UOptimusComputeDataInterface
+class OPTIMUSCORE_API USkinnedMeshExecDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -22,24 +34,30 @@ public:
 	//~ End UOptimusComputeDataInterface Interface
 	
 	//~ Begin UComputeDataInterface Interface
+	bool IsExecutionInterface() const override { return true; }
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
-	void GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const override;
 	void GetHLSL(FString& OutHLSL) const override;
 	void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
 	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
+
+	UPROPERTY(EditAnywhere, Category = Execution)
+	ESkinnedMeshExecDomain Domain = ESkinnedMeshExecDomain::Vertex;
 };
 
-/** Compute Framework Data Provider for reading skeletal mesh. */
+/** Compute Framework Data Provider for executing kernels over a skinned mesh domain. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class UClothDataProvider : public UComputeDataProvider
+class USkinnedMeshExecDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USkeletalMeshComponent> SkeletalMesh = nullptr;
+	UPROPERTY()
+	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
+
+	UPROPERTY()
+	ESkinnedMeshExecDomain Domain = ESkinnedMeshExecDomain::Vertex;
 
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;
@@ -47,17 +65,17 @@ public:
 	//~ End UComputeDataProvider Interface
 };
 
-class FClothDataProviderProxy : public FComputeDataProviderRenderProxy
+class FSkinnedMeshExecDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FClothDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
+	FSkinnedMeshExecDataProviderProxy(USkinnedMeshComponent* InSkinnedMeshComponent, ESkinnedMeshExecDomain InDomain);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData);
+	int32 GetDispatchThreadCount(TArray<FIntVector>& ThreadCounts) const override;
+	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
 	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
-	float ClothBlendWeight = 0.0f;
-	uint32 FrameNumber = 0;
+	ESkinnedMeshExecDomain Domain = ESkinnedMeshExecDomain::Vertex;
 };

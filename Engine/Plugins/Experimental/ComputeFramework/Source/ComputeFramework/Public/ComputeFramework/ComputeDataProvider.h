@@ -40,11 +40,11 @@ class COMPUTEFRAMEWORK_API FComputeDataProviderRenderProxy
 public:
 	virtual ~FComputeDataProviderRenderProxy() {}
 
-	/** Called on render thread to determine how many dispatches are required to do all work on the associated data provider. */
-	virtual int32 GetInvocationCount() const { return 0; }
-
-	/** Called on render thread to determine dispatch dimension required to do all work on the associated data provider. */
-	virtual FIntVector GetDispatchDim(int32 InvocationIndex, FIntVector GroupDim) const { return FIntVector(1, 1, 1); }
+	/** 
+	 * Called on render thread to determine invocation count and dispatch thread counts per invocation. 
+	 * This will only be called if the associated UComputeDataInterface returned true for IsExecutionInterface().
+	*/
+	virtual int32 GetDispatchThreadCount(TArray<FIntVector>& ThreadCounts) const { return 0; };
 
 	/* Called once before any calls to GatherDispatchData() to allow any RDG resource allocation. */
 	virtual void AllocateResources(FRDGBuilder& GraphBuilder) {}

@@ -50,6 +50,7 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 	if (SourceFile.FilePath.IsEmpty())
 	{
 		EntryPointName = FString();
+		GroupSize = FIntVector(1, 1, 1);
 		KernelSourceText = FString();
 		PermutationSet = FComputeKernelPermutationSet();
 		DefinitionsSet = FComputeKernelDefinitionSet();
@@ -74,6 +75,17 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 
 		SourceFile = PrevSourceFile;
 		return;
+	}
+
+	{
+		static const FRegexPattern KernelGroupSizePattern(TEXT(R"(KERNEL_GROUP_SIZE\(\s*([\d]+)\s*,\s*([\d]+)\s*,\s*([\d]+)\s*\))"));
+		FRegexMatcher Matcher(KernelGroupSizePattern, KernelSourceText);
+		if (Matcher.FindNext())
+		{
+			GroupSize.X = FCString::Atoi(*Matcher.GetCaptureGroup(1));
+			GroupSize.Y = FCString::Atoi(*Matcher.GetCaptureGroup(2));
+			GroupSize.Z = FCString::Atoi(*Matcher.GetCaptureGroup(3));
+		}
 	}
 
 	{

@@ -374,8 +374,7 @@ private:
 	FVector2D NodePosition;
 	FName Category;
 	FString KernelName;
-	int32 ThreadCount;
-	FOptimusDataDomain ExecutionDomain;
+	FIntVector GroupSize;
 	TArray<FOptimus_ShaderValuedBinding> Parameters;
 	TArray<FOptimusParameterBinding> InputBindings;
 	TArray<FOptimusParameterBinding> OutputBindings;

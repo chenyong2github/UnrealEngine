@@ -16,36 +16,17 @@ DECLARE_GPU_STAT_NAMED(ComputeFramework_ExecuteBatches, TEXT("ComputeFramework::
 void FComputeGraphTaskWorker::Enqueue(const FComputeGraphRenderProxy* ComputeGraph, TArray<FComputeDataProviderRenderProxy*> ComputeDataProviders)
 {
 	FGraphInvocation& GraphInvocation = GraphInvocations.AddDefaulted_GetRef();
+	GraphInvocation.ComputeShaders.Reserve(ComputeGraph->KernelInvocations.Num());
 
-	// todo[CF]: Allocate a specific data provider per kernel to drive the number of invocations?
-	int32 FirstProvider = -1;
-	for (int32 ProviderIndex = 0; ProviderIndex < ComputeDataProviders.Num(); ++ProviderIndex)
-	{
-		if (ComputeDataProviders[ProviderIndex] != nullptr && ComputeDataProviders[ProviderIndex]->GetInvocationCount() > 0)
-		{
-			FirstProvider = ProviderIndex;
-			break;
-		}
-	}
-
-	const int32 NumSubInvocations = FirstProvider != -1 ? ComputeDataProviders[FirstProvider]->GetInvocationCount() : 1;
-
-	GraphInvocation.ComputeShaders.Reserve(NumSubInvocations);
 	for (FComputeGraphRenderProxy::FKernelInvocation const& Invocation : ComputeGraph->KernelInvocations)
 	{
 		FShaderInvocation& ShaderInvocation = GraphInvocation.ComputeShaders.AddDefaulted_GetRef();
 		ShaderInvocation.KernelName = Invocation.KernelName;
+		ShaderInvocation.KernelGroupSize = Invocation.KernelGroupSize;
 		ShaderInvocation.KernelResource = Invocation.KernelResource;
-		ShaderInvocation.ShaderParamMetadata = Invocation.ShaderMetadata;
-		ShaderInvocation.ShaderPermutationVector = Invocation.ShaderPermutationVector;
-
-		// todo[CF]: dispatch dimension logic needs to be way more involved
-		TArray<FIntVector> DispatchDimensions;
-		ShaderInvocation.DispatchDimensions.SetNum(NumSubInvocations);
-		for (int32 SubInvocationIndex = 0; SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
-		{
-			ShaderInvocation.DispatchDimensions[SubInvocationIndex] = FirstProvider != -1 ? ComputeDataProviders[FirstProvider]->GetDispatchDim(SubInvocationIndex, Invocation.GroupDim) : FIntVector(1, 1, 1);
-		}
+		ShaderInvocation.ShaderParamMetadata = Invocation.ShaderMetadata;				//todo[CF]: Maybe these should take a full copy from game thread to render thread?
+		ShaderInvocation.ShaderPermutationVector = Invocation.ShaderPermutationVector;	//
+		ShaderInvocation.ExecutionProviderIndex = Invocation.ExecutionProviderIndex;
 	}
 
 	GraphInvocation.DataProviderProxies = MoveTemp(ComputeDataProviders);
@@ -85,7 +66,9 @@ void FComputeGraphTaskWorker::SubmitWork(
 			{
 				FShaderInvocation const& KernelInvocation = GraphInvocation.ComputeShaders[KernelIndex];
 
-				const int32 NumSubInvocations = KernelInvocation.DispatchDimensions.Num();
+				TArray<FIntVector> ThreadCounts;
+				const int32 NumSubInvocations = GraphInvocation.DataProviderProxies[KernelInvocation.ExecutionProviderIndex]->GetDispatchThreadCount(ThreadCounts);
+
 				const int32 ParameterBufferSize = Align(KernelInvocation.ShaderParamMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
 
 				void* RawBuffer = GraphBuilder.Alloc(NumSubInvocations * ParameterBufferSize, SHADER_PARAMETER_STRUCT_ALIGNMENT);
@@ -134,6 +117,8 @@ void FComputeGraphTaskWorker::SubmitWork(
 				{
 					TShaderRef<FComputeKernelShader> Shader = KernelInvocation.KernelResource->GetShader(DispatchData.PermutationId[SubInvocationIndex]);
 
+					FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ThreadCounts[SubInvocationIndex], KernelInvocation.KernelGroupSize);
+
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("Compute[%s (%d)]", KernelName, SubInvocationIndex),
@@ -141,7 +126,7 @@ void FComputeGraphTaskWorker::SubmitWork(
 						Shader,
 						KernelInvocation.ShaderParamMetadata,
 						reinterpret_cast<FComputeKernelShader::FParameters*>(ParameterBuffer + ParameterBufferSize * SubInvocationIndex),
-						KernelInvocation.DispatchDimensions[SubInvocationIndex]
+						GroupCount
 					);
 				}
 			}

@@ -26,7 +26,7 @@ void FComputeGraphInstance::DestroyDataProviders()
 
 bool FComputeGraphInstance::ValidateDataProviders(UComputeGraph* InComputeGraph) const
 {
-	return InComputeGraph != nullptr && InComputeGraph->IsCompiled() && InComputeGraph->ValidateProviders(DataProviders);
+	return InComputeGraph != nullptr && InComputeGraph->IsCompiled() && InComputeGraph->ValidateGraph() && InComputeGraph->ValidateProviders(DataProviders);
 }
 
 bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInterface const* InScene)
@@ -58,6 +58,12 @@ bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInt
 		return false;
 	}
 
+	FComputeGraphRenderProxy* ComputeGraphProxy = InComputeGraph->CreateProxy();
+	if (!ensure(ComputeGraphProxy))
+	{
+		return false;
+	}
+
 	TArray<FComputeDataProviderRenderProxy*> ComputeDataProviderProxies;
 	for (UComputeDataProvider* DataProvider : DataProviders)
 	{
@@ -66,8 +72,6 @@ bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInt
 		FComputeDataProviderRenderProxy* ProviderProxy = DataProvider != nullptr ? DataProvider->GetRenderProxy() : nullptr;
 		ComputeDataProviderProxies.Add(ProviderProxy);
 	}
-
-	FComputeGraphRenderProxy* ComputeGraphProxy = InComputeGraph->CreateProxy();
 
 	ENQUEUE_RENDER_COMMAND(ComputeFrameworkEnqueueExecutionCommand)(
 		[ComputeGraphWorker, ComputeGraphProxy, DataProviderProxies = MoveTemp(ComputeDataProviderProxies)](FRHICommandListImmediate& RHICmdList)

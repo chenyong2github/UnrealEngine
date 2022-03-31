@@ -64,6 +64,9 @@ public:
 	/** Implement this to return the HLSL kernel's function name */
 	virtual FString GetKernelName() const PURE_VIRTUAL(UOptimusNode_ComputeKernelBase::GetKernelName, return FString();)
 
+	/** Implement this to return the HLSL kernel's function name */
+	virtual FIntVector GetGroupSize() const PURE_VIRTUAL(UOptimusNode_ComputeKernelBase::GetGroupSize, return FIntVector();)
+
 	/** Implement this to return the complete HLSL code for this kernel */
 	virtual FString GetKernelSourceText() const PURE_VIRTUAL(UOptimusNode_ComputeKernelBase::GetKernelSourceText, return FString();)
 	
@@ -96,11 +99,12 @@ protected:
 		return IndexNames;
 	}
 
-	FString GetCookedKernelSource(
+	static FString GetCookedKernelSource(
+		const FString& InObjectPathName,
 		const FString& InShaderSource,
 		const FString& InKernelName,
-		int32 InThreadCount
-		) const;
+		FIntVector InGroupSize
+		);
 	
 	
 private:

@@ -16,8 +16,7 @@ public:
 		UObject* InPackage,
 		FName InCategory,
 		const FString& InKernelName,
-		int32 InThreadCount,
-		FOptimusDataDomain InExecutionDomain,
+		FIntVector InGroupSize,
 		const TArray<FOptimus_ShaderValuedBinding>& InParameters,
 		const TArray<FOptimusParameterBinding>& InInputBindings,
 		const TArray<FOptimusParameterBinding>& InOutputBindings,
@@ -35,10 +34,7 @@ public:
 	FString KernelName;
 
 	UPROPERTY()
-	int32 ThreadCount;
-
-	UPROPERTY()
-	FOptimusDataDomain ExecutionDomain;
+	FIntVector GroupSize;
 
 	UPROPERTY()
 	TArray<FOptimus_ShaderValuedBinding> Parameters;
@@ -73,24 +69,16 @@ public:
 
 	// UOptimusNode_ComputeKernelBase overrides
 	FString GetKernelName() const override;
-
-	/** Implement this to return the complete HLSL code for this kernel */
+	FIntVector GetGroupSize() const override;
 	FString GetKernelSourceText() const override;
 
 	void ConstructNode() override;
 
-	
 	// IOptiusComputeKernelProvider overrides
 	void SetCompilationDiagnostics(
 		const TArray<FOptimusCompilerDiagnostic>& InDiagnostics
 		) override;
 	
-	UPROPERTY(VisibleAnywhere, Category=KernelConfiguration)
-	int32 ThreadCount;
-
-	UPROPERTY(VisibleAnywhere, Category=KernelConfiguration)
-	FOptimusDataDomain ExecutionDomain;
-
 private:
 	UOptimusNode_ComputeKernelFunctionGeneratorClass *GetGeneratorClass() const;
 };
