@@ -64,7 +64,7 @@ static void ComputeDatabaseBlendSpaceFilter(
 
 void FMotionMatchingPoseStepper::Update(const FAnimationUpdateContext& UpdateContext, const FMotionMatchingState& State)
 {
-	if (State.DbPoseIdx == INDEX_NONE)
+	if (State.DbPoseIdx == INDEX_NONE || !State.CurrentDatabase.IsValid() || !(State.CurrentDatabase->GetSearchIndex()))
 	{
 		return;
 	}
@@ -108,7 +108,7 @@ void FMotionMatchingPoseStepper::Update(const FAnimationUpdateContext& UpdateCon
 					return Entry.Sequence == DbSequence.FollowUpSequence;
 				});
 
-			int32 FollowUpSearchIndexAssetIdx = State.CurrentDatabase->SearchIndex.Assets.IndexOfByPredicate(
+			int32 FollowUpSearchIndexAssetIdx = State.CurrentDatabase->GetSearchIndex()->Assets.IndexOfByPredicate(
 				[&](const FPoseSearchIndexAsset& Entry)
 				{
 					const bool bIsMatch =
@@ -121,7 +121,7 @@ void FMotionMatchingPoseStepper::Update(const FAnimationUpdateContext& UpdateCon
 			if (FollowUpSearchIndexAssetIdx != INDEX_NONE)
 			{
 				const FPoseSearchIndexAsset* FollowUpSearchIndexAsset =
-					&State.CurrentDatabase->SearchIndex.Assets[FollowUpSearchIndexAssetIdx];
+				&State.CurrentDatabase->GetSearchIndex()->Assets[FollowUpSearchIndexAssetIdx];
 				const float FollowUpAssetTime = State.AssetPlayerTime + DeltaTime - AssetLength;
 				const int32 FollowUpPoseIdx = State.CurrentDatabase->GetPoseIndexFromTime(
 					FollowUpAssetTime,
@@ -232,7 +232,7 @@ void FMotionMatchingState::ComposeQuery(const UPoseSearchDatabase* Database, con
 		ComposedQuery.MergeReplace(Goal);
 	}
 
-	ComposedQuery.Normalize(Database->SearchIndex);
+	ComposedQuery.Normalize(*Database->GetSearchIndex());
 }
 
 static void RequestInertialBlend(const FAnimationUpdateContext& Context, float BlendTime)
@@ -253,7 +253,7 @@ void FMotionMatchingState::JumpToPose(const FAnimationUpdateContext& Context, co
 {
 	// Remember which pose and sequence we're playing from the database
 	DbPoseIdx = Result.PoseIdx;
-	SearchIndexAssetIdx = CurrentDatabase->SearchIndex.FindAssetIndex(Result.SearchIndexAsset);
+	SearchIndexAssetIdx = CurrentDatabase->GetSearchIndex()->FindAssetIndex(Result.SearchIndexAsset);
 
 	ElapsedPoseJumpTime = 0.0f;
 	AssetPlayerTime = Result.AssetTime;
@@ -300,14 +300,16 @@ void UpdateMotionMatchingState(
 	{
 		InOutMotionMatchingState.DbPoseIdx = PoseStepper.Result.PoseIdx;
 		InOutMotionMatchingState.SearchIndexAssetIdx = 
-			InOutMotionMatchingState.CurrentDatabase->SearchIndex.FindAssetIndex(PoseStepper.Result.SearchIndexAsset);
+			InOutMotionMatchingState.CurrentDatabase->GetSearchIndex()->FindAssetIndex(PoseStepper.Result.SearchIndexAsset);
 	}
 
 	// Build the search query
 	if (InOutMotionMatchingState.DbPoseIdx != INDEX_NONE)
 	{
 		// Copy search query directly from the database if we have an active pose
-		InOutMotionMatchingState.ComposedQuery.CopyFromSearchIndex(Database->SearchIndex, InOutMotionMatchingState.DbPoseIdx);
+		InOutMotionMatchingState.ComposedQuery.CopyFromSearchIndex(
+			*Database->GetSearchIndex(), 
+			InOutMotionMatchingState.DbPoseIdx);
 	}
 	else
 	{
@@ -355,7 +357,7 @@ void UpdateMotionMatchingState(
 		FPoseCost CurrentPoseCost;
 		if (InOutMotionMatchingState.DbPoseIdx != INDEX_NONE)
 		{
-			const FPoseSearchIndexAsset* SearchIndexAsset = &Database->SearchIndex.Assets[InOutMotionMatchingState.SearchIndexAssetIdx];
+			const FPoseSearchIndexAsset* SearchIndexAsset = &Database->GetSearchIndex()->Assets[InOutMotionMatchingState.SearchIndexAssetIdx];
 			CurrentPoseCost = ComparePoses(InOutMotionMatchingState.DbPoseIdx, SearchContext, SearchIndexAsset->SourceGroupIdx);
 		}
 
@@ -492,13 +494,14 @@ void UpdateMotionMatchingState(
 
 const FPoseSearchIndexAsset* FMotionMatchingState::GetCurrentSearchIndexAsset() const
 {
-	if (!CurrentDatabase.IsValid() ||
-		!CurrentDatabase->SearchIndex.Assets.IsValidIndex(SearchIndexAssetIdx))
+	if (!CurrentDatabase.Get() || 
+		!CurrentDatabase->GetSearchIndex() ||
+		!CurrentDatabase->GetSearchIndex()->Assets.IsValidIndex(SearchIndexAssetIdx))
 	{
 		return nullptr;
 	}
 
-	return &CurrentDatabase->SearchIndex.Assets[SearchIndexAssetIdx];
+	return &CurrentDatabase->GetSearchIndex()->Assets[SearchIndexAssetIdx];
 }
 
 float FMotionMatchingState::ComputeJumpBlendTime(

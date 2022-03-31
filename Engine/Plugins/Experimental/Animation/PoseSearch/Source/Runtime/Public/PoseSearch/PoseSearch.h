@@ -28,11 +28,12 @@ struct FReferenceSkeleton;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPoseSearch, Log, All);
 
-namespace UE { namespace PoseSearch {
+struct FPoseSearchDatabaseDerivedData;
 
+namespace UE::PoseSearch {
 class FPoseHistory;
-
-}}
+struct FPoseSearchDatabaseAsyncCacheTask;
+}
 
 UENUM()
 enum class EPoseSearchFeatureType : int32
@@ -786,8 +787,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Database")
 	TArray<FPoseSearchDatabaseBlendSpace> BlendSpaces;
 
-	UPROPERTY()
-	FPoseSearchIndex SearchIndex;
+	FPoseSearchIndex* GetSearchIndex();
+	const FPoseSearchIndex* GetSearchIndex() const;
 
 	bool IsValidForIndexing() const;
 	bool IsValidForSearch() const;
@@ -802,10 +803,14 @@ public:
 	const FString GetSourceAssetName(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 
 public: // UObject
-	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
+	virtual void PostLoad() override;
+	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
+	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 #endif
 
 private:
@@ -814,7 +819,17 @@ private:
 
 public:
 	// Populates the FPoseSearchIndex::Assets array by evaluating the data in the Sequences array
-	bool TryInitSearchIndexAssets();
+	bool TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIndex);
+
+private:
+	FPoseSearchDatabaseDerivedData* PrivateDerivedData;
+
+public:
+#if WITH_EDITOR
+	void BeginCacheDerivedData();
+#endif // WITH_EDITOR
+
+	bool IsDerivedDataValid();
 };
 
 /** 
@@ -1075,7 +1090,7 @@ POSESEARCH_API bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenc
 * 
 * @return Whether the index was built successfully
 */
-POSESEARCH_API bool BuildIndex(UPoseSearchDatabase* Database);
+POSESEARCH_API bool BuildIndex(UPoseSearchDatabase* Database, FPoseSearchIndex& OutSearchIndex);
 
 
 /**

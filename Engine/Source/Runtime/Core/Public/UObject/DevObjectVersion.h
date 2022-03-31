@@ -26,6 +26,7 @@ struct CORE_API FDevSystemGuids
 	const FGuid Niagara_LatestScriptCompileVersion;
 	const FGuid SkeletalMeshDerivedDataVersion;
 	const FGuid STATICMESH_DERIVEDDATA_VER;
+	const FGuid POSESEARCHDB_DERIVEDDATA_VER;
 };
 
 class CORE_API FDevVersionRegistration :  public FCustomVersionRegistration

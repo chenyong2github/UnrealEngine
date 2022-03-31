@@ -48,5 +48,14 @@ public class PoseSearch : ModuleRules
 				"Engine"
 			}
 		);
+
+		if (Target.bCompileAgainstEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"DerivedDataCache"
+				}
+			);
+		}
 	}
 }
