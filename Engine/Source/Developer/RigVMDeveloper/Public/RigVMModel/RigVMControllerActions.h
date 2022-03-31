@@ -221,11 +221,13 @@ public:
 	// Cancels an action, closes a bracket / scope and discards all 
 	// actions to this point.
 	template<class ActionType>
-	void CancelAction(ActionType& InAction)
+	void CancelAction(ActionType& InAction, URigVMController* InController)
 	{
 		ensure(CurrentActions.Num() > 0);
 		ensure((FRigVMBaseAction*)&InAction == CurrentActions.Last());
 		CurrentActions.Pop();
+
+		InAction.Undo(InController);
 
 #if RIGVM_ACTIONSTACK_VERBOSE_LOG		
 		TGuardValue<int32> TabDepthGuard(LogActionDepth, CurrentActions.Num());
@@ -301,12 +303,12 @@ public:
 	// Closes an undo bracket / scope.
 	// This is primary useful for Python.
 	UFUNCTION()
-	bool CloseUndoBracket();
+	bool CloseUndoBracket(URigVMController* InController);
 
 	// Cancels an undo bracket / scope.
 	// This is primary useful for Python.
 	UFUNCTION()
-	bool CancelUndoBracket();
+	bool CancelUndoBracket(URigVMController* InController);
 
 	// Pops the last action from the undo stack and perform undo on it.
 	// Note: This should really only be used for unit tests,

@@ -2109,8 +2109,14 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							URigVMCollapseNode* CollapseNode = Controller->CollapseNodes(Nodes, TEXT("New Function"), true, true);
 							if(CollapseNode)
 							{
-								Controller->PromoteCollapseNodeToFunctionReferenceNode(CollapseNode->GetFName(), true, true);
-								Controller->CloseUndoBracket();
+								if (Controller->PromoteCollapseNodeToFunctionReferenceNode(CollapseNode->GetFName(), true, true).IsNone())
+								{
+									Controller->CancelUndoBracket();
+								}
+								else
+								{
+									Controller->CloseUndoBracket();
+								}
 							}
 							else
 							{

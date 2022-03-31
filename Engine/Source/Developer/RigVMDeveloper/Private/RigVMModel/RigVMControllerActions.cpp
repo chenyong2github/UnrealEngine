@@ -59,12 +59,12 @@ bool URigVMActionStack::OpenUndoBracket(const FString& InTitle)
 	return true;
 }
 
-bool URigVMActionStack::CloseUndoBracket()
+bool URigVMActionStack::CloseUndoBracket(URigVMController* InController)
 {
 	ensure(BracketActions.Num() > 0);
 	if(BracketActions.Last()->IsEmpty())
 	{
-		return CancelUndoBracket();
+		return CancelUndoBracket(InController);
 	}
 	FRigVMBaseAction* Action = BracketActions.Pop();
 	EndAction(*Action);
@@ -72,11 +72,11 @@ bool URigVMActionStack::CloseUndoBracket()
 	return true;
 }
 
-bool URigVMActionStack::CancelUndoBracket()
+bool URigVMActionStack::CancelUndoBracket(URigVMController* InController)
 {
 	ensure(BracketActions.Num() > 0);
 	FRigVMBaseAction* Action = BracketActions.Pop();
-	CancelAction(*Action);
+	CancelAction(*Action, InController);
 	delete(Action);
 	return true;
 }
