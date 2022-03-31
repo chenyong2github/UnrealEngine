@@ -107,7 +107,7 @@ namespace Horde.Build.Collections.Impl
 
 			if (!databaseService.ReadOnlyMode)
 			{
-				_messages.Indexes.CreateOne(new CreateIndexModel<AuditLogMessage>(Builders<AuditLogMessage>.IndexKeys.Ascending(x => x.Id).Descending(x => x.TimeUtc)));
+				_messages.Indexes.CreateOne(new CreateIndexModel<AuditLogMessage>(Builders<AuditLogMessage>.IndexKeys.Ascending(x => x.Subject).Descending(x => x.TimeUtc)));
 			}
 
 			_backgroundTask = Task.Run(() => WriteMessagesAsync());
