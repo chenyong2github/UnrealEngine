@@ -1,4 +1,0 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
-// Temporary redirect during move to ComputeFramework plugin. Safe to remove once deformers are resaved.
-#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
