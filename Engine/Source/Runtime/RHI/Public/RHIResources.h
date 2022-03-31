@@ -2394,7 +2394,6 @@ public:
 protected:
 	void SetParentResource(FRHIViewableResource* InParentResource)
 	{
-		check(InParentResource);
 		ParentResource = InParentResource;
 	}
 
