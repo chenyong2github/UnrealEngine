@@ -698,7 +698,7 @@ void UAnimBlueprintExtension_Base::CreateEvaluationHandler(IAnimBlueprintCompila
 					{
 						UEdGraphPin* DestPin = SourceInfo->CopyRecords[0].DestPin;
 
-						PropertiesBeingSet.Add(TargetPin->PinName);
+						PropertiesBeingSet.Add(PropertyName);
 						TargetPin->CopyPersistentDataFromOldPin(*DestPin);
 						InCompilationContext.GetMessageLog().NotifyIntermediatePinCreation(TargetPin, DestPin);
 					}

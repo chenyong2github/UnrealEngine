@@ -1915,21 +1915,23 @@ void FAnimBlueprintCompilerContext::ProcessFoldedPropertyRecords()
 					if(AnimationGraphSchema->ConvertPropertyToPinType(Record->Property, VariableType))
 					{
 						// Patch into sparse class data
-						FString PropertyNameString;
+						TStringBuilder<64> PropertyNameStringBuilder;
+
+						// Add prefix for internal use
+						PropertyNameStringBuilder.Append(TEXT("__"));
 
 						// If we are an object property, we should be named according to the underlying class type to avoid
 						// warnings if we tagged-property-serialize a colliding name with an updated struct layout
 						if(const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Record->Property))
 						{
-							PropertyNameString = ObjectProperty->PropertyClass->GetName();
+							PropertyNameStringBuilder.Append(ObjectProperty->PropertyClass->GetName());
 						}
 						else
 						{
-							PropertyNameString = Record->Property->GetClass()->GetName();
+							PropertyNameStringBuilder.Append(Record->Property->GetClass()->GetName());
 						}
 
-						const FName PropertyNameBase(*PropertyNameString);
-						const FName PropertyName = FName(PropertyNameBase, InRecords.Num() - 1 - PropertyIndex);
+						const FName PropertyName = FName(PropertyNameStringBuilder.ToString(), InRecords.Num() - 1 - PropertyIndex);
 						Record->GeneratedProperty = CreateStructVariable(InStruct, PropertyName, VariableType);
 						if (Record->GeneratedProperty == nullptr)
 						{
