@@ -244,7 +244,10 @@ private:
 
 	// Callback to handle any pre GC processing needed.
 	static void OnPreGarbageCollectBeginDestroy();
-		
+	
+	// Calculates ViewInfo data for player
+	static bool PrepareCachedViewInfo(const APlayerController* PlayerController, FNiagaraCachedViewInfo& OutViewInfo);
+
 	// Gamethread callback to cleanup references to the given ComputeDispatchInterface before it gets deleted on the renderthread.
 	void OnComputeDispatchInterfaceDestroyed_Internal(class FNiagaraGpuComputeDispatchInterface* InComputeDispatchInterface);
 
