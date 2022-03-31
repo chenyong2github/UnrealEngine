@@ -10,6 +10,7 @@
 #include "ScopedTransaction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EdGraphSchema_Niagara.h"
+#include "NiagaraNodeCustomHlsl.h"
 #include "Layout/Margin.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -43,7 +44,8 @@ void FNiagaraFunctionCallNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 	FPinCollectorArray InputPins;
 	Node->GetInputPins(InputPins);
 	bool IsDIFunction = Node->FunctionScript == nullptr && InputPins.Num() > 0 && UNiagaraDataInterface::IsDataInterfaceType(NiagaraSchema->PinToTypeDefinition(InputPins[0]));
-	if (IsDIFunction)
+	bool bIsCustomHlslNode = Node->IsA(UNiagaraNodeCustomHlsl::StaticClass());
+	if (IsDIFunction || bIsCustomHlslNode)
 	{
 		DetailBuilder.EditCategory(FunctionCategoryName).SetCategoryVisibility(false);
 		DetailBuilder.EditCategory(VersionCategoryName).SetCategoryVisibility(false);

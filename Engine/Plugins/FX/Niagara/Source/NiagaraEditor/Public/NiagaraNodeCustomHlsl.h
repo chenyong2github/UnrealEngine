@@ -36,9 +36,8 @@ public:
 
 	// Replace items in the tokens array if they start with the src string or optionally src string and a namespace delimiter
 	static uint32 ReplaceExactMatchTokens(TArray<FString>& Tokens, const FString& SrcString, const FString& ReplaceString, bool bAllowNamespaceSeparation);
-	static FNiagaraVariable StripVariableToBaseType(const FNiagaraVariable& InVar);
-	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const;
-	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType, EEdGraphPinDirection InDirection) const;
+	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const override;
+	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType, EEdGraphPinDirection InDirection) const override;
 
 	virtual bool ReferencesVariable(const FNiagaraVariableBase& InVar) const;
 
@@ -82,6 +81,6 @@ protected:
 	UEdGraphPin* PinPendingRename;
 
 private:
-	UPROPERTY(EditAnywhere, Category = "Function", meta = (MultiLine = true))
+	UPROPERTY(EditAnywhere, Category = "HLSL", meta = (MultiLine = true))
 	FString CustomHlsl;
 };
