@@ -507,6 +507,15 @@ const UGameFeatureData* UGameFeaturesSubsystem::GetGameFeatureDataForRegisteredP
 	return nullptr;
 }
 
+bool UGameFeaturesSubsystem::IsGameFeaturePluginRegistered(const FString& PluginURL) const
+{
+	if (const UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
+	{
+		return StateMachine->GetCurrentState() >= EGameFeaturePluginState::Registered;
+	}
+	return false;
+}
+
 bool UGameFeaturesSubsystem::IsGameFeaturePluginLoaded(const FString& PluginURL) const
 {
 	if (const UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))

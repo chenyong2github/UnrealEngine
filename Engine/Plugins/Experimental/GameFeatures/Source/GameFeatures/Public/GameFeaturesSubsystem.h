@@ -227,7 +227,10 @@ public:
 	/** Returns the game feature data for a registered plugin specified by PluginURL */
 	const UGameFeatureData* GetGameFeatureDataForRegisteredPluginByURL(const FString& PluginURL);
 
-	/** Determines if a plugin is in the Loaded state.*/
+	/** Determines if a plugin is in the Registered state (or beyond) */
+	bool IsGameFeaturePluginRegistered(const FString& PluginURL) const;
+
+	/** Determines if a plugin is in the Loaded state (or beyond) */
 	bool IsGameFeaturePluginLoaded(const FString& PluginURL) const;
 
 	/** Loads a single game feature plugin. */
@@ -263,9 +266,6 @@ public:
 
 	/** If the specified plugin is a built-in plugin, return the URL used to identify it. Returns true if the plugin exists, false if it was not found */
 	bool GetPluginURLForBuiltInPluginByName(const FString& PluginName, FString& OutPluginURL) const;
-	
-	/** Get the plugin path from the plugin name */
-	FString GetPluginFilenameFromPluginName(const FString& PluginName);
 
 	/** Get the plugin path from the plugin URL */
 	FString GetPluginFilenameFromPluginURL(const FString& PluginURL) const;
