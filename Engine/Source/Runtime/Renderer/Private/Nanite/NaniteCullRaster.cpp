@@ -195,6 +195,14 @@ static FAutoConsoleVariableRef CVarNaniteDisocclusionHack(
 	ECVF_RenderThreadSafe
 );
 
+int32 GNanitePersistentThreadsCulling = 1;
+static FAutoConsoleVariableRef CVarNanitePersistentThreadsCulling(
+	TEXT("r.Nanite.PersistentThreadsCulling"),
+	GNanitePersistentThreadsCulling,
+	TEXT("Perform node and cluster culling in one combined kernel using persistent threads."),
+	ECVF_RenderThreadSafe
+);
+
 extern int32 GNaniteShowStats;
 
 static bool UseMeshShader(EShaderPlatform ShaderPlatform, Nanite::EPipeline Pipeline)
@@ -525,17 +533,18 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 IMPLEMENT_GLOBAL_SHADER( FInstanceCullVSM_CS, "/Engine/Private/Nanite/NaniteInstanceCulling.usf", "InstanceCullVSM", SF_Compute );
 
 
-class FPersistentClusterCull_CS : public FNaniteGlobalShader
+class FNodeAndClusterCull_CS : public FNaniteGlobalShader
 {
-	DECLARE_GLOBAL_SHADER( FPersistentClusterCull_CS );
-	SHADER_USE_PARAMETER_STRUCT( FPersistentClusterCull_CS, FNaniteGlobalShader);
+	DECLARE_GLOBAL_SHADER( FNodeAndClusterCull_CS );
+	SHADER_USE_PARAMETER_STRUCT( FNodeAndClusterCull_CS, FNaniteGlobalShader );
 
 	class FCullingPassDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_PASS", CULLING_PASS_NO_OCCLUSION, CULLING_PASS_OCCLUSION_MAIN, CULLING_PASS_OCCLUSION_POST);
+	class FCullingTypeDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_TYPE", NANITE_CULLING_TYPE_NODES, NANITE_CULLING_TYPE_CLUSTERS, NANITE_CULLING_TYPE_PERSISTENT_NODES_AND_CLUSTERS);
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL("DEBUG_FLAGS");
-
-	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FVirtualTextureTargetDim, FDebugFlagsDim>;
+	
+	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FCullingTypeDim, FMultiViewDim, FVirtualTextureTargetDim, FDebugFlagsDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
@@ -552,14 +561,15 @@ class FPersistentClusterCull_CS : public FNaniteGlobalShader
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,					OutVisibleClustersSWHW )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer<FStreamingRequest>,	OutStreamingRequests )
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >, VisibleClustersArgsSWHW )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >,						VisibleClustersArgsSWHW )
 
-		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualTargetParameters, VirtualShadowMap )
+		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualTargetParameters,				VirtualShadowMap )
 
 		SHADER_PARAMETER(uint32,												MaxNodes)
 		SHADER_PARAMETER(uint32,												LargePageRectThreshold)
 		SHADER_PARAMETER(uint32,												StreamingRequestsBufferVersion)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNaniteStats>, OutStatsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNaniteStats>,		OutStatsBuffer)
+		RDG_BUFFER_ACCESS(IndirectArgs,											ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -591,7 +601,7 @@ class FPersistentClusterCull_CS : public FNaniteGlobalShader
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FPersistentClusterCull_CS, "/Engine/Private/Nanite/NaniteClusterCulling.usf", "PersistentClusterCull", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FNodeAndClusterCull_CS, "/Engine/Private/Nanite/NaniteClusterCulling.usf", "NodeAndClusterCull", SF_Compute);
 
 class FInitClusterBatches_CS : public FNaniteGlobalShader
 {
@@ -655,6 +665,29 @@ class FInitArgs_CS : public FNaniteGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FInitArgs_CS, "/Engine/Private/Nanite/NaniteClusterCulling.usf", "InitArgs", SF_Compute);
+
+class FInitCullArgs_CS : public FNaniteGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FInitCullArgs_CS);
+	SHADER_USE_PARAMETER_STRUCT(FInitCullArgs_CS, FNaniteGlobalShader);
+
+	class FCullingTypeDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_TYPE", NANITE_CULLING_TYPE_NODES, NANITE_CULLING_TYPE_CLUSTERS);
+	using FPermutationDomain = TShaderPermutationDomain<FCullingTypeDim>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FQueueState >,	QueueState)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer< uint >,					OutCullArgs)
+		SHADER_PARAMETER(uint32,											MaxCandidateClusters)
+		SHADER_PARAMETER(uint32,											MaxNodes)
+		SHADER_PARAMETER(uint32,											InitIsPostPass)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FInitCullArgs_CS, "/Engine/Private/Nanite/NaniteClusterCulling.usf", "InitCullArgs", SF_Compute);
 
 class FCalculateSafeRasterizerArgs_CS : public FNaniteGlobalShader
 {
@@ -1363,7 +1396,7 @@ FCullingContext InitCullingContext(
 	
 	check(NumSceneInstancesPo2 <= NANITE_MAX_INSTANCES); // There are too many instances in the scene.
 
-	CullingContext.QueueState						= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 44, 1 ), TEXT("Nanite.QueueState") );
+	CullingContext.QueueState						= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( (6*2 + 1) * sizeof(uint32), 1), TEXT("Nanite.QueueState"));
 
 	FRDGBufferDesc VisibleClustersDesc				= FRDGBufferDesc::CreateStructuredDesc(4, 3 * Nanite::FGlobalResources::GetMaxVisibleClusters());	// Max visible clusters * sizeof(uint3)
 	VisibleClustersDesc.Usage						= EBufferUsageFlags(VisibleClustersDesc.Usage | BUF_ByteAddressBuffer);
@@ -1522,7 +1555,223 @@ void AddPass_PrimitiveFilter(
 	}
 }
 
-void AddPass_InstanceHierarchyAndClusterCull(
+static void AddPass_InitCullArgs(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& PassName,
+	const FSharedContext& SharedContext,
+	const FCullingContext& CullingContext,
+	FRDGBufferRef CullArgs,
+	uint32 CullingPass,
+	uint32 CullingType
+)
+{
+	check(CullingType == NANITE_CULLING_TYPE_NODES || CullingType == NANITE_CULLING_TYPE_CLUSTERS);
+	FInitCullArgs_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInitCullArgs_CS::FParameters >();
+
+	PassParameters->QueueState				= GraphBuilder.CreateUAV(CullingContext.QueueState);
+	PassParameters->OutCullArgs				= GraphBuilder.CreateUAV(CullArgs);
+	PassParameters->MaxCandidateClusters	= Nanite::FGlobalResources::GetMaxCandidateClusters();
+	PassParameters->MaxNodes				= Nanite::FGlobalResources::GetMaxNodes();
+	PassParameters->InitIsPostPass			= (CullingPass == CULLING_PASS_OCCLUSION_POST) ? 1 : 0;
+
+	FInitCullArgs_CS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FInitCullArgs_CS::FCullingTypeDim>(CullingType);
+	auto ComputeShader = SharedContext.ShaderMap->GetShader<FInitCullArgs_CS>(PermutationVector);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		Forward<FRDGEventName>(PassName),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, 1)
+	);
+}
+
+static void AddPass_NodeAndClusterCull(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& PassName,
+	const FCullingParameters& CullingParameters,
+	const FSharedContext& SharedContext,
+	const FCullingContext& CullingContext,
+	const FGPUSceneParameters& GPUSceneParameters,
+	FRDGBufferRef MainAndPostNodesAndClusterBatchesBuffer,
+	FRDGBufferRef MainAndPostCandididateClustersBuffer,
+	FVirtualShadowMapArray* VirtualShadowMapArray,
+	FVirtualTargetParameters& VirtualTargetParameters,
+	FRDGBufferRef IndirectArgs,
+	uint32 CullingPass,
+	uint32 CullingType,
+	bool bMultiView
+	)
+{
+	FNodeAndClusterCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FNodeAndClusterCull_CS::FParameters >();
+
+	PassParameters->GPUSceneParameters		= GPUSceneParameters;
+	PassParameters->CullingParameters		= CullingParameters;
+	PassParameters->MaxNodes				= Nanite::FGlobalResources::GetMaxNodes();
+		
+	PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
+	PassParameters->HierarchyBuffer			= Nanite::GStreamingManager.GetHierarchySRV();
+		
+	check(CullingContext.DrawPassIndex == 0 || CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA); // sanity check
+	if (CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA)
+	{
+		PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(CullingContext.TotalPrevDrawClustersBuffer);
+	}
+	else
+	{
+		FRDGBufferRef Dummy = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, 8);
+		PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(Dummy);
+	}
+
+	PassParameters->QueueState							= GraphBuilder.CreateUAV(CullingContext.QueueState);
+	PassParameters->MainAndPostNodesAndClusterBatches	= GraphBuilder.CreateUAV(MainAndPostNodesAndClusterBatchesBuffer);
+	PassParameters->MainAndPostCandididateClusters		= GraphBuilder.CreateUAV(MainAndPostCandididateClustersBuffer);
+
+	if( CullingPass == CULLING_PASS_NO_OCCLUSION || CullingPass == CULLING_PASS_OCCLUSION_MAIN )
+	{
+		PassParameters->VisibleClustersArgsSWHW	= GraphBuilder.CreateUAV( CullingContext.MainRasterizeArgsSWHW );
+	}
+	else
+	{
+		PassParameters->OffsetClustersArgsSWHW	= GraphBuilder.CreateSRV( CullingContext.MainRasterizeArgsSWHW );
+		PassParameters->VisibleClustersArgsSWHW	= GraphBuilder.CreateUAV( CullingContext.PostRasterizeArgsSWHW );
+	}
+
+	PassParameters->OutVisibleClustersSWHW			= GraphBuilder.CreateUAV( CullingContext.VisibleClustersSWHW );
+	PassParameters->OutStreamingRequests			= GraphBuilder.CreateUAV( CullingContext.StreamingRequests );
+
+	if (VirtualShadowMapArray)
+	{
+		PassParameters->VirtualShadowMap = VirtualTargetParameters;
+		if (CullingPass == CULLING_PASS_OCCLUSION_POST)
+		{
+			PassParameters->VirtualShadowMap = VirtualTargetParameters;
+			// Set the HZB page table and flags to match the now rebuilt HZB for the current frame
+			PassParameters->VirtualShadowMap.HZBPageTable = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageTableRDG);
+			PassParameters->VirtualShadowMap.HZBPageRectBounds = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageRectBoundsRDG);
+			PassParameters->VirtualShadowMap.HZBPageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageFlagsRDG);
+		}
+	}
+
+	if (CullingContext.StatsBuffer)
+	{
+		PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(CullingContext.StatsBuffer);
+	}
+
+	PassParameters->LargePageRectThreshold = CVarLargePageRectThreshold.GetValueOnRenderThread();
+	PassParameters->StreamingRequestsBufferVersion = GStreamingManager.GetStreamingRequestsBufferVersion();
+
+	check(CullingContext.ViewsBuffer);
+
+	FNodeAndClusterCull_CS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FNodeAndClusterCull_CS::FCullingPassDim>(CullingPass);
+	PermutationVector.Set<FNodeAndClusterCull_CS::FMultiViewDim>(bMultiView);
+	PermutationVector.Set<FNodeAndClusterCull_CS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
+	PermutationVector.Set<FNodeAndClusterCull_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
+	PermutationVector.Set<FNodeAndClusterCull_CS::FCullingTypeDim>(CullingType);
+	auto ComputeShader = SharedContext.ShaderMap->GetShader<FNodeAndClusterCull_CS>(PermutationVector);
+
+	if (CullingType == NANITE_CULLING_TYPE_NODES || CullingType == NANITE_CULLING_TYPE_CLUSTERS)
+	{
+		PassParameters->IndirectArgs = IndirectArgs;
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			Forward<FRDGEventName>(PassName),
+			ComputeShader,
+			PassParameters,
+			IndirectArgs,
+			0
+		);
+	}
+	else if(CullingType == NANITE_CULLING_TYPE_PERSISTENT_NODES_AND_CLUSTERS)
+	{
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			Forward<FRDGEventName>(PassName),
+			ComputeShader,
+			PassParameters,
+			FIntVector(GRHIPersistentThreadGroupCount, 1, 1)
+		);
+	}
+	else
+	{
+		checkf(false, TEXT("Unknown culling type: %d"), CullingType);
+	}
+}
+
+static void AddPass_NodeAndClusterCull(
+	FRDGBuilder& GraphBuilder,
+	const FCullingParameters& CullingParameters,
+	const FSharedContext& SharedContext,
+	const FCullingContext& CullingContext,
+	const FGPUSceneParameters& GPUSceneParameters,
+	FRDGBufferRef MainAndPostNodesAndClusterBatchesBuffer,
+	FRDGBufferRef MainAndPostCandididateClustersBuffer,
+	uint32 CullingPass,
+	FVirtualShadowMapArray* VirtualShadowMapArray,
+	FVirtualTargetParameters& VirtualTargetParameters,
+	bool bMultiView
+	)
+{
+	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteClusterCull);
+	if (GNanitePersistentThreadsCulling)
+	{
+		AddPass_NodeAndClusterCull( GraphBuilder,
+									CullingPass == CULLING_PASS_NO_OCCLUSION ? RDG_EVENT_NAME("Main Pass: PersistentCull - No occlusion") :
+									CullingPass == CULLING_PASS_OCCLUSION_MAIN ? RDG_EVENT_NAME("Main Pass: PersistentCull") :
+									RDG_EVENT_NAME("Post Pass: PersistentCull"),
+									CullingParameters, SharedContext, CullingContext, GPUSceneParameters,
+									MainAndPostNodesAndClusterBatchesBuffer, MainAndPostCandididateClustersBuffer,
+									VirtualShadowMapArray, VirtualTargetParameters,
+									nullptr,
+									CullingPass,
+									NANITE_CULLING_TYPE_PERSISTENT_NODES_AND_CLUSTERS,
+									bMultiView);
+	}
+	else
+	{
+		FRDGBufferRef NodeCullArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(3), TEXT("Nanite.NodeCullArgs"));
+
+		const uint32 MaxNodeLevels = 12;	// TODO: Calculate max based on installed pages?
+		for (uint32 NodeLevel = 0; NodeLevel < MaxNodeLevels; NodeLevel++)
+		{
+			AddPass_InitCullArgs(GraphBuilder, RDG_EVENT_NAME("InitNodeCullArgs"), SharedContext, CullingContext, NodeCullArgs, CullingPass, NANITE_CULLING_TYPE_NODES);
+			
+			AddPass_NodeAndClusterCull(
+				GraphBuilder,
+				CullingPass == CULLING_PASS_NO_OCCLUSION ? RDG_EVENT_NAME("Main Pass: NodeCull_%d - No occlusion", NodeLevel) :
+				CullingPass == CULLING_PASS_OCCLUSION_MAIN ? RDG_EVENT_NAME("Main Pass: NodeCull_%d", NodeLevel) :
+				RDG_EVENT_NAME("Post Pass: NodeCull_%d", NodeLevel),
+				CullingParameters, SharedContext, CullingContext, GPUSceneParameters,
+				MainAndPostNodesAndClusterBatchesBuffer, MainAndPostCandididateClustersBuffer,
+				VirtualShadowMapArray, VirtualTargetParameters,
+				NodeCullArgs,
+				CullingPass,
+				NANITE_CULLING_TYPE_NODES,
+				bMultiView);
+		}
+
+		FRDGBufferRef ClusterCullArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(3), TEXT("Nanite.ClusterCullArgs"));
+
+		AddPass_InitCullArgs(GraphBuilder, RDG_EVENT_NAME("InitClusterCullArgs"), SharedContext, CullingContext, ClusterCullArgs, CullingPass, NANITE_CULLING_TYPE_CLUSTERS);
+
+		AddPass_NodeAndClusterCull(
+			GraphBuilder,
+			CullingPass == CULLING_PASS_NO_OCCLUSION ? RDG_EVENT_NAME("Main Pass: ClusterCull - No occlusion") :
+			CullingPass == CULLING_PASS_OCCLUSION_MAIN ? RDG_EVENT_NAME("Main Pass: ClusterCull") :
+			RDG_EVENT_NAME("Post Pass: ClusterCull"),
+			CullingParameters, SharedContext, CullingContext, GPUSceneParameters,
+			MainAndPostNodesAndClusterBatchesBuffer, MainAndPostCandididateClustersBuffer,
+			VirtualShadowMapArray, VirtualTargetParameters,
+			ClusterCullArgs,
+			CullingPass,
+			NANITE_CULLING_TYPE_CLUSTERS,
+			bMultiView);
+	}
+}
+
+static void AddPass_InstanceHierarchyAndClusterCull(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FCullingParameters& CullingParameters,
@@ -1699,85 +1948,20 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		}
 	}
 
-	{
-		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteClusterCull);
-		FPersistentClusterCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FPersistentClusterCull_CS::FParameters >();
 
-		PassParameters->GPUSceneParameters = GPUSceneParameters;
-		PassParameters->CullingParameters		= CullingParameters;
-		PassParameters->MaxNodes				= Nanite::FGlobalResources::GetMaxNodes();
-		
-		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
-		PassParameters->HierarchyBuffer			= Nanite::GStreamingManager.GetHierarchySRV();
-		
-		check(CullingContext.DrawPassIndex == 0 || CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA); // sanity check
-		if (CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA)
-		{
-			PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(CullingContext.TotalPrevDrawClustersBuffer);
-		}
-		else
-		{
-			PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(Dummy);
-		}
-
-		PassParameters->QueueState							= GraphBuilder.CreateUAV(CullingContext.QueueState);
-		PassParameters->MainAndPostNodesAndClusterBatches	= GraphBuilder.CreateUAV(MainAndPostNodesAndClusterBatchesBuffer);
-		PassParameters->MainAndPostCandididateClusters		= GraphBuilder.CreateUAV(MainAndPostCandididateClustersBuffer);
-
-		if( CullingPass == CULLING_PASS_NO_OCCLUSION || CullingPass == CULLING_PASS_OCCLUSION_MAIN )
-		{
-			PassParameters->VisibleClustersArgsSWHW	= GraphBuilder.CreateUAV( CullingContext.MainRasterizeArgsSWHW );
-		}
-		else
-		{
-			PassParameters->OffsetClustersArgsSWHW	= GraphBuilder.CreateSRV( CullingContext.MainRasterizeArgsSWHW );
-			PassParameters->VisibleClustersArgsSWHW	= GraphBuilder.CreateUAV( CullingContext.PostRasterizeArgsSWHW );
-		}
-
-		PassParameters->OutVisibleClustersSWHW			= GraphBuilder.CreateUAV( CullingContext.VisibleClustersSWHW );
-		PassParameters->OutStreamingRequests			= GraphBuilder.CreateUAV( CullingContext.StreamingRequests );
-
-		if (VirtualShadowMapArray)
-		{
-			PassParameters->VirtualShadowMap = VirtualTargetParameters;
-			if (CullingPass == CULLING_PASS_OCCLUSION_POST)
-			{
-				PassParameters->VirtualShadowMap = VirtualTargetParameters;
-				// Set the HZB page table and flags to match the now rebuilt HZB for the current frame
-				PassParameters->VirtualShadowMap.HZBPageTable = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageTableRDG);
-				PassParameters->VirtualShadowMap.HZBPageRectBounds = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageRectBoundsRDG);
-				PassParameters->VirtualShadowMap.HZBPageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageFlagsRDG);
-			}
-		}
-
-		if (CullingContext.StatsBuffer)
-		{
-			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(CullingContext.StatsBuffer);
-		}
-
-		PassParameters->LargePageRectThreshold = CVarLargePageRectThreshold.GetValueOnRenderThread();
-		PassParameters->StreamingRequestsBufferVersion = GStreamingManager.GetStreamingRequestsBufferVersion();
-
-		check(CullingContext.ViewsBuffer);
-
-		FPersistentClusterCull_CS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FPersistentClusterCull_CS::FCullingPassDim>(CullingPass);
-		PermutationVector.Set<FPersistentClusterCull_CS::FMultiViewDim>(bMultiView);
-		PermutationVector.Set<FPersistentClusterCull_CS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-		PermutationVector.Set<FPersistentClusterCull_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
-
-		auto ComputeShader = SharedContext.ShaderMap->GetShader<FPersistentClusterCull_CS>(PermutationVector);
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			CullingPass == CULLING_PASS_NO_OCCLUSION	? RDG_EVENT_NAME( "Main Pass: PersistentCull - No occlusion" ) :
-			CullingPass == CULLING_PASS_OCCLUSION_MAIN	? RDG_EVENT_NAME( "Main Pass: PersistentCull" ) :
-			RDG_EVENT_NAME( "Post Pass: PersistentCull" ),
-			ComputeShader,
-			PassParameters,
-			FIntVector(GRHIPersistentThreadGroupCount, 1, 1)
-		);
-	}
+	AddPass_NodeAndClusterCull(
+		GraphBuilder,
+		CullingParameters,
+		SharedContext,
+		CullingContext,
+		GPUSceneParameters,
+		MainAndPostNodesAndClusterBatchesBuffer,
+		MainAndPostCandididateClustersBuffer,
+		CullingPass,
+		VirtualShadowMapArray,
+		VirtualTargetParameters,
+		bMultiView);
+	
 
 	{
 		FCalculateSafeRasterizerArgs_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCalculateSafeRasterizerArgs_CS::FParameters >();

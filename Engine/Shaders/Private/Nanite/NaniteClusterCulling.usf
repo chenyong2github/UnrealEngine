@@ -505,7 +505,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	}
 }
 
-void NodeCull(uint BatchSize, uint GroupIndex)
+void ProcessNodeBatch(uint BatchSize, uint GroupIndex)
 {
 	const uint LocalNodeIndex = (GroupIndex >> NANITE_MAX_BVH_NODE_FANOUT_BITS);
 	const uint ChildIndex = GroupIndex & NANITE_MAX_BVH_NODE_FANOUT_MASK;
@@ -782,8 +782,7 @@ void ProcessClusterBatch(uint BatchStartIndex, uint BatchSize, uint GroupIndex)
 // Workers always favor node processing to make progress on the critical path, but when no nodes are available
 // they process clusters while waiting, instead of going idle.
 
-[numthreads(NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE, 1, 1)]
-void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)  
+void PersistentNodeAndClusterCull(uint GroupIndex : SV_GroupIndex)
 {
 	bool bProcessNodes			= true;						// Should we still try to consume nodes?
 	uint NodeBatchReadyOffset	= NANITE_MAX_BVH_NODES_PER_GROUP;
@@ -854,7 +853,7 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 			if (NodeReadyMask & 1u)
 			{
 				uint BatchSize = firstbitlow(~NodeReadyMask);
-				NodeCull(BatchSize, GroupIndex);
+				ProcessNodeBatch(BatchSize, GroupIndex);
 				if (GroupIndex < BatchSize)
 				{
 					ClearCandidateNodeCoherent(MainAndPostNodesAndClusterBatches, NodeIndex, bIsPostPass);			// Clear processed element so we leave the buffer cleared for next pass.
@@ -903,6 +902,62 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 			bProcessNodes = false;
 		}
 	}
+}
+
+void NodeCull(uint GroupID, uint GroupIndex)
+{
+	const uint ClampedReadOffset		= min(QueueState[0].PassState[QueueStateIndex].NodeReadOffset, MaxNodes);
+	const uint ClampedPrevWriteOffset	= min(QueueState[0].PassState[QueueStateIndex].NodePrevWriteOffset, MaxNodes);
+	const uint BatchNumNodes			= ClampedPrevWriteOffset - ClampedReadOffset;
+
+	const uint BatchNodeBaseIndex		= GroupID * NANITE_MAX_BVH_NODES_PER_GROUP;
+	const uint BatchSize				= min(BatchNodeBaseIndex + NANITE_MAX_BVH_NODES_PER_GROUP, BatchNumNodes) - BatchNodeBaseIndex;
+	
+	const uint NodeIndex				= ClampedReadOffset + BatchNodeBaseIndex + GroupIndex;
+	
+	if (GroupIndex == 0)
+	{
+		GroupNumCandidateNodes = 0;
+	}
+	
+	bool bClear = false;
+	if(GroupIndex < BatchSize)
+	{
+		GroupOccludedBitmask[GroupIndex] = 0u;
+
+		uint4 NodeData = LoadCandidateNodeDataCoherent(MainAndPostNodesAndClusterBatches, NodeIndex, bIsPostPass);
+		SetGroupNodeData(GroupIndex, NodeData);
+		bClear = true;
+	}
+	AllMemoryBarrierWithGroupSync();
+
+	ProcessNodeBatch(BatchSize, GroupIndex);
+	if (bClear)
+	{
+		ClearCandidateNodeCoherent(MainAndPostNodesAndClusterBatches, NodeIndex, bIsPostPass);			// Clear processed element so we leave the buffer cleared for next pass.
+	}
+}
+
+void ClusterCull(uint GroupID, uint GroupIndex)
+{
+	const uint ClampedNumCandidateClusters = min(QueueState[0].PassState[QueueStateIndex].ClusterWriteOffset, MaxCandidateClusters);
+	const uint ClampedStartIndex = min(GroupID * NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE, ClampedNumCandidateClusters);
+	const uint ClampedEndIndex = min((GroupID + 1) * NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE, ClampedNumCandidateClusters);
+
+	const uint BatchSize = ClampedEndIndex - ClampedStartIndex;
+	ProcessClusterBatch(GroupID, BatchSize, GroupIndex);
+}
+
+[numthreads(NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE, 1, 1)]
+void NodeAndClusterCull(uint GroupID : SV_GroupID, uint GroupIndex : SV_GroupIndex)
+{
+#if CULLING_TYPE == NANITE_CULLING_TYPE_NODES
+	NodeCull(GroupID, GroupIndex);
+#elif CULLING_TYPE == NANITE_CULLING_TYPE_CLUSTERS
+	ClusterCull(GroupID, GroupIndex);
+#elif CULLING_TYPE == NANITE_CULLING_TYPE_PERSISTENT_NODES_AND_CLUSTERS
+	PersistentNodeAndClusterCull(GroupIndex);
+#endif
 }
 
 // Make sure the indirect args we give to the rasterizer are not out of bounds and that the SW/HW ranges are not overlapping.
@@ -1011,6 +1066,7 @@ void InitArgs()
 		OutQueueState[0].PassState[i].ClusterWriteOffset		= 0;
 		OutQueueState[0].PassState[i].NodeReadOffset			= 0;
 		OutQueueState[0].PassState[i].NodeWriteOffset			= 0;
+		OutQueueState[0].PassState[i].NodePrevWriteOffset		= 0;
 		OutQueueState[0].PassState[i].NodeCount					= 0;
 	}
 
@@ -1034,6 +1090,38 @@ void InitArgs()
 	InOutTotalPrevDrawClusters[ 0 ] = DrawnClusterCounts;
 #elif DRAW_PASS_INDEX == 2
 	InOutTotalPrevDrawClusters[ 0 ] += DrawnClusterCounts;
+#endif
+}
+
+
+RWBuffer< uint > OutCullArgs;
+
+uint InitIsPostPass;
+
+[numthreads(1, 1, 1)]
+void InitCullArgs()
+{
+#if CULLING_TYPE == NANITE_CULLING_TYPE_NODES
+	// Update read offset by setting it to previous write offset
+	const uint NodeReadOffset	= QueueState[0].PassState[InitIsPostPass].NodePrevWriteOffset;
+	
+	const uint NodeWriteOffset	= QueueState[0].PassState[InitIsPostPass].NodeWriteOffset;
+	const uint NumNodesInPass	= min(NodeWriteOffset, MaxNodes) - min(NodeReadOffset, MaxNodes);
+
+	OutCullArgs[0] = (NumNodesInPass + NANITE_MAX_BVH_NODES_PER_GROUP - 1) / NANITE_MAX_BVH_NODES_PER_GROUP;
+	OutCullArgs[1] = 1;
+	OutCullArgs[2] = 1;
+
+	QueueState[0].PassState[InitIsPostPass].NodeReadOffset = NodeReadOffset;
+
+	DeviceMemoryBarrierWithGroupSync();
+
+	QueueState[0].PassState[InitIsPostPass].NodePrevWriteOffset = NodeWriteOffset;
+#elif CULLING_TYPE == NANITE_CULLING_TYPE_CLUSTERS
+	const uint NumCandidateClusters = min(QueueState[0].PassState[InitIsPostPass].ClusterWriteOffset, MaxCandidateClusters);
+	OutCullArgs[0] = (NumCandidateClusters + NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE - 1) / NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+	OutCullArgs[1] = 1;
+	OutCullArgs[2] = 1;
 #endif
 }
 
