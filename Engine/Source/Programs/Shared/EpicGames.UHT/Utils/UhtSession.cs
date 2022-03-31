@@ -48,121 +48,14 @@ namespace EpicGames.UHT.Utils
 	}
 
 	/// <summary>
-	/// Implementation of the export output interface
-	/// </summary>
-	class UhtExportOutput : IUhtExportOutput
-	{
-		/// <summary>
-		/// Export task that created the export output
-		/// </summary>
-		private readonly IUhtExportTask ExportTask;
-
-		/// <summary>
-		/// Export options for the output
-		/// </summary>
-		private UhtExportOptions OptionsInternal;
-
-		/// <summary>
-		/// Output buffer associated with the exported output
-		/// </summary>
-		private UhtBuffer? ExportedBuffer = null;
-
-		/// <summary>
-		/// Destination file path of the output
-		/// </summary>
-		public readonly string FilePath;
-
-		/// <summary>
-		/// Destination file path of the temporary copy of the output
-		/// </summary>
-		public readonly string TempFilePath;
-
-		/// <summary>
-		/// Exported data
-		/// </summary>
-		public StringView Exported;
-
-		/// <summary>
-		/// True if the exported data was committed
-		/// </summary>
-		public bool bCommitted = false;
-
-		/// <summary>
-		/// True if the exported data saves (i.e. it doesn't match the existing file)
-		/// </summary>
-		public bool bSaved = false;
-
-		/// <summary>
-		/// UHT session
-		/// </summary>
-		public UhtSession Session => ExportTask.Session;
-
-		/// <summary>
-		/// Options associated with the output
-		/// </summary>
-		public UhtExportOptions Options
-		{
-			get => this.OptionsInternal;
-			set => this.OptionsInternal = value;
-		}
-
-		/// <summary>
-		/// Construct a new instance of an export output
-		/// </summary>
-		/// <param name="ExportTask">Task associated with the output</param>
-		/// <param name="FilePath">Destination file path</param>
-		public UhtExportOutput(IUhtExportTask ExportTask, string FilePath)
-		{
-			this.ExportTask = ExportTask;
-			this.Options = ExportTask.Options;
-			this.FilePath = FilePath;
-			this.TempFilePath = FilePath + ".tmp";
-		}
-
-		/// <summary>
-		/// Commit the output using the given string builder
-		/// </summary>
-		/// <param name="Builder">Builder containing the output.</param>
-		/// <returns>String view containing the committed data in the output buffer. 
-		/// While supported, this view should not be saved for any significant length of time.</returns>
-
-		public StringView CommitOutput(StringBuilder Builder)
-		{
-			this.bCommitted = true;
-			this.ExportedBuffer = UhtBuffer.Borrow(Builder);
-			this.Exported = new StringView(this.ExportedBuffer.Memory);
-			return this.Exported;
-		}
-
-		/// <summary>
-		/// Save the given committed output
-		/// </summary>
-		/// <param name="Output">The output to save</param>
-		public void CommitOutput(string Output)
-		{
-			this.bCommitted = true;
-			this.Exported = Output;
-		}
-
-		/// <summary>
-		/// Reset the contents of the output task so the memory can be freed and output buffers returned to the cache.
-		/// </summary>
-		public void Reset()
-		{
-			if (this.ExportedBuffer != null)
-			{
-				UhtBuffer.Return(this.ExportedBuffer);
-				this.ExportedBuffer = null;
-			}
-			this.Exported = new StringView();
-		}
-	}
-
-	/// <summary>
 	/// Base implementation of an export task
 	/// </summary>
-	abstract class UhtExportBaseTask : IUhtExportTask
+	class UhtExportTask : IUhtExportTask
 	{
+		/// <summary>
+		/// Action to invoke to generate the output
+		/// </summary>
+		private readonly UhtExportTaskDelegate Action;
 
 		/// <summary>
 		/// Factory requesting the export
@@ -175,19 +68,14 @@ namespace EpicGames.UHT.Utils
 		private Task? ActionTaskInternal = null;
 
 		/// <summary>
-		/// Export options associated with the task
+		/// Factory associated with the task
 		/// </summary>
-		private readonly UhtExportOptions OptionsInternal;
+		public IUhtExportFactory Factory => this.ExportFactory;
 
 		/// <summary>
 		/// UHT session
 		/// </summary>
 		public UhtSession Session => this.ExportFactory.Session;
-
-		/// <summary>
-		/// Export options associated with the task
-		/// </summary>
-		public UhtExportOptions Options => this.OptionsInternal;
 
 		/// <summary>
 		/// Export options associated with the task
@@ -198,30 +86,61 @@ namespace EpicGames.UHT.Utils
 		/// Construct a new instance of an export task
 		/// </summary>
 		/// <param name="ExportFactory">Factory requesting the task</param>
-		/// <param name="AdditionalOptions">Addition options to added to the existing factory options</param>
-		public UhtExportBaseTask(UhtExportFactory ExportFactory, UhtExportOptions AdditionalOptions)
+		/// <param name="Action">Action to be invoked as part of the export</param>
+		public UhtExportTask(UhtExportFactory ExportFactory, UhtExportTaskDelegate Action)
 		{
 			this.ExportFactory = ExportFactory;
-			this.OptionsInternal = this.ExportFactory.Options | AdditionalOptions;
+			this.Action = Action;
+		}
+
+		/// <summary>
+		/// Commit the contents of the string builder as the output.
+		/// If you have a string builder, use this method so that a 
+		/// temporary buffer can be used.
+		/// </summary>
+		/// <param name="FilePath">Destination file path</param>
+		/// <param name="Builder">Source for the content</param>
+		public void CommitOutput(string FilePath, StringBuilder Builder)
+		{
+			using (UhtBorrowBuffer BorrowBuffer = new UhtBorrowBuffer(Builder))
+			{
+				string TempFilePath = FilePath + ".tmp";
+				this.ExportFactory.SaveIfChanged(FilePath, TempFilePath, new StringView(BorrowBuffer.Buffer.Memory));
+			}
+		}
+
+		/// <summary>
+		/// Commit the value of the string as the output
+		/// </summary>
+		/// <param name="FilePath">Destination file path</param>
+		/// <param name="Output">Output to commit</param>
+		public void CommitOutput(string FilePath, StringView Output)
+		{
+			string TempFilePath = FilePath + ".tmp";
+			this.ExportFactory.SaveIfChanged(FilePath, TempFilePath, Output);
 		}
 
 		/// <summary>
 		/// Queue the task
 		/// </summary>
 		/// <param name="Prereqs">List of prerequisite tasks that must complete prior to this task being invoked.</param>
-		public void Queue(List<IUhtExportTask> Prereqs)
+		public void Queue(List<IUhtExportTask>? Prereqs)
 		{
 			if (this.Session.bGoWide)
 			{
-				List<Task> PrereqTasks = new List<Task>();
-				foreach (IUhtExportTask Prereq in Prereqs)
+				List<Task>? PrereqTasks = null;
+				if (Prereqs != null)
 				{
-					if (Prereq.ActionTask != null)
+					PrereqTasks = new List<Task>();
+					foreach (IUhtExportTask Prereq in Prereqs)
 					{
-						PrereqTasks.Add(Prereq.ActionTask);
+						if (Prereq.ActionTask != null)
+						{
+							PrereqTasks.Add(Prereq.ActionTask);
+						}
 					}
 				}
-				if (PrereqTasks.Count > 0)
+				if (PrereqTasks != null && PrereqTasks.Count > 0)
 				{
 					this.ActionTaskInternal = Task.Factory.ContinueWhenAll(PrereqTasks.ToArray(), (Task[] Tasks) => { Export(); });
 				}
@@ -239,91 +158,9 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Invoked to perform the actual export
 		/// </summary>
-		public abstract void Export();
-	}
-
-	/// <summary>
-	/// Export task that generates a single output
-	/// </summary>
-	class UhtExportSingleTask : UhtExportBaseTask
-	{
-		/// <summary>
-		/// Single output
-		/// </summary>
-		public readonly UhtExportOutput File;
-
-		/// <summary>
-		/// Action to invoke to generate the output
-		/// </summary>
-		private readonly UhtExportSingleDelegate Action;
-
-		/// <summary>
-		/// Create a new instance of a single output task
-		/// </summary>
-		/// <param name="ExportFactory">Requesting factory</param>
-		/// <param name="Path">Destination path of the output</param>
-		/// <param name="AdditionalOptions">Additional options for the output</param>
-		/// <param name="Action">Action to be invoked to generate the output</param>
-		public UhtExportSingleTask(UhtExportFactory ExportFactory, string Path, UhtExportOptions AdditionalOptions, UhtExportSingleDelegate Action) : base(ExportFactory, AdditionalOptions)
+		public void Export()
 		{
-			this.File = new UhtExportOutput(this, Path);
-			this.Action = Action;
-		}
-
-		/// <summary>
-		/// Invoke the actions and save the output
-		/// </summary>
-		public override void Export()
-		{
-			this.Action(this.File);
-			this.ExportFactory.SaveIfChanged(this.File);
-		}
-	}
-
-	/// <summary>
-	/// Export task that generates a pair of outputs
-	/// </summary>
-	class UhtExportPairTask : UhtExportBaseTask
-	{
-
-		/// <summary>
-		/// First/Header file being generated
-		/// </summary>
-		private readonly UhtExportOutput HeaderFile;
-
-		/// <summary>
-		/// Second/Cpp file being generated
-		/// </summary>
-		private readonly UhtExportOutput CppFile;
-
-		/// <summary>
-		/// Action to be invoked to generate the output
-		/// </summary>
-		private readonly UhtExportPairDelegate Action;
-
-		/// <summary>
-		/// Construct a new instance of the pair output task
-		/// </summary>
-		/// <param name="ExportFactory">Requesting factory</param>
-		/// <param name="HeaderPath">Path of the header file</param>
-		/// <param name="CppPath">Path of the cpp file</param>
-		/// <param name="AdditionalOptions">Additional options to be applied to the outputs</param>
-		/// <param name="Action">Action to invoke to generate the output</param>
-		public UhtExportPairTask(UhtExportFactory ExportFactory, string HeaderPath, string CppPath, UhtExportOptions AdditionalOptions, UhtExportPairDelegate Action) : base(ExportFactory, AdditionalOptions)
-		{
-			this.HeaderFile = new UhtExportOutput(this, HeaderPath);
-			this.CppFile = new UhtExportOutput(this, CppPath);
-			this.Action = Action;
-		}
-
-		/// <summary>
-		/// Invoked to export and save the outputs
-		/// </summary>
-		public override void Export()
-		{
-			this.Action(this.HeaderFile, this.CppFile);
-			this.ExportFactory.SaveIfChanged(this.HeaderFile);
-			this.ExportFactory.SaveIfChanged(this.CppFile);
+			this.Action(this);
 		}
 	}
 
@@ -332,16 +169,17 @@ namespace EpicGames.UHT.Utils
 	/// </summary>
 	class UhtExportFactory : IUhtExportFactory
 	{
+		public struct Output
+		{
+			public string FilePath;
+			public string TempFilePath;
+			public bool bSaved;
+		}
 
 		/// <summary>
 		/// UHT session
 		/// </summary>
 		private readonly UhtSession SessionInternal;
-
-		/// <summary>
-		/// Export options 
-		/// </summary>
-		private readonly UhtExportOptions OptionsInternal;
 
 		/// <summary>
 		/// Limiter for the number of files being saved to the reference directory.
@@ -360,11 +198,6 @@ namespace EpicGames.UHT.Utils
 		public UhtSession Session => this.SessionInternal;
 
 		/// <summary>
-		/// Export options 
-		/// </summary>
-		public UhtExportOptions Options => this.OptionsInternal;
-		
-		/// <summary>
 		/// Collection of error from mismatches with the reference files
 		/// </summary>
 		public Dictionary<string, bool> ReferenceErrorMessages = new Dictionary<string, bool>();
@@ -372,7 +205,7 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// List of export outputs
 		/// </summary>
-		public List<UhtExportOutput> Outputs = new List<UhtExportOutput>();
+		public List<Output> Outputs = new List<Output>();
 
 		/// <summary>
 		/// Directory for the reference output
@@ -389,12 +222,10 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		/// <param name="Session">UHT session</param>
 		/// <param name="Exporter">Exporter being run</param>
-		/// <param name="Options">Export options</param>
-		public UhtExportFactory(UhtSession Session, UhtExporter Exporter, UhtExportOptions Options)
+		public UhtExportFactory(UhtSession Session, UhtExporter Exporter)
 		{
 			this.Exporter = Exporter;
 			this.SessionInternal = Session;
-			this.OptionsInternal = Options;
 			if (this.Session.ReferenceMode != UhtReferenceMode.None)
 			{
 				this.ReferenceDirectory = Path.Combine(this.Session.ReferenceDirectory, this.Exporter.Name);
@@ -404,34 +235,26 @@ namespace EpicGames.UHT.Utils
 		}
 
 		/// <summary>
-		/// Create an export task that write one output
+		/// Create a task to export two files
 		/// </summary>
-		/// <param name="Path">Destination file path</param>
-		/// <param name="Prereqs">List of required export tasks that must be completed prior to this export</param>
-		/// <param name="AdditionalOptions">Additional export options for the output</param>
-		/// <param name="Action">Action to be invoked to generated the output</param>
-		/// <returns>Created task</returns>
-		public IUhtExportTask CreateTask(string Path, List<IUhtExportTask> Prereqs, UhtExportOptions AdditionalOptions, UhtExportSingleDelegate Action)
+		/// <param name="Prereqs">Tasks that must be completed prior to this task running</param>
+		/// <param name="Action">Action to be invoked to generate the output</param>
+		/// <returns>Task interface.</returns>
+		public IUhtExportTask CreateTask(List<IUhtExportTask>? Prereqs, UhtExportTaskDelegate Action)
 		{
-			UhtExportBaseTask Task = new UhtExportSingleTask(this, Path, AdditionalOptions, Action);
+			UhtExportTask Task = new UhtExportTask(this, Action);
 			Task.Queue(Prereqs);
 			return Task;
 		}
 
 		/// <summary>
-		/// Create an export task that write one output
+		/// Create a task to export two files
 		/// </summary>
-		/// <param name="HeaderPath">Destination header file path</param>
-		/// <param name="CppPath">Destination cpp file path</param>
-		/// <param name="Prereqs">List of required export tasks that must be completed prior to this export</param>
-		/// <param name="AdditionalOptions">Additional export options for the output</param>
-		/// <param name="Action">Action to be invoked to generated the output</param>
-		/// <returns>Created task</returns>
-		public IUhtExportTask CreateTask(string HeaderPath, string CppPath, List<IUhtExportTask> Prereqs, UhtExportOptions AdditionalOptions, UhtExportPairDelegate Action)
+		/// <param name="Action">Action to be invoked to generate the output</param>
+		/// <returns>Task interface.</returns>
+		public IUhtExportTask CreateTask(UhtExportTaskDelegate Action)
 		{
-			UhtExportBaseTask Task = new UhtExportPairTask(this, HeaderPath, CppPath, AdditionalOptions, Action);
-			Task.Queue(Prereqs);
-			return Task;
+			return CreateTask(null, Action);
 		}
 
 		/// <summary>
@@ -458,30 +281,34 @@ namespace EpicGames.UHT.Utils
 			return Path.Combine(Module.OutputDirectory, Package.ShortName.ToString()) + Suffix;
 		}
 
+
+		/// <summary>
+		/// Make a path for an output based on the package output directory.
+		/// </summary>
+		/// <param name="Package">Destination package</param>
+		/// <param name="FileName">Name of the file</param>
+		/// <param name="Extension">Extension to add to the file</param>
+		/// <returns>Output file path</returns>
+		public string MakePath(UhtPackage Package, string FileName, string Extension)
+		{
+			UHTManifest.Module Module = Package.Module;
+			return Path.Combine(Module.OutputDirectory, FileName) + Extension;
+		}
+
 		/// <summary>
 		/// Helper method to test to see if the output has changed.
 		/// </summary>
-		/// <param name="Output">The output file</param>
-		internal void SaveIfChanged(UhtExportOutput Output)
+		/// <param name="FilePath">Name of the output file</param>
+		/// <param name="TempFilePath">Name of the temporary file</param>
+		/// <param name="Exported">Exported contents of the file</param>
+		internal void SaveIfChanged(string FilePath, string TempFilePath, StringView Exported)
 		{
 
-			if (!Output.Options.HasAnyFlags(UhtExportOptions.WriteOutput) || !Output.bCommitted)
-			{
-				return;
-			}
-
-			// Add this to the list of outputs
-			lock (this.Outputs)
-			{
-				this.Outputs.Add(Output);
-			}
-
-			StringView Exported = Output.Exported;
 			ReadOnlySpan<char> ExportedSpan = Exported.Span;
 
 			if (this.Session.ReferenceMode != UhtReferenceMode.None)
 			{
-				string FileName = Path.GetFileName(Output.FilePath);
+				string FileName = Path.GetFileName(FilePath);
 
 				// Writing billions of files to the same directory causes issues.  Use ourselves to throttle reference writes
 				try
@@ -532,7 +359,7 @@ namespace EpicGames.UHT.Utils
 			}
 
 			// Check to see if the contents have changed
-			UhtBuffer? Original = this.Session.ReadSourceToBuffer(Output.FilePath);
+			UhtBuffer? Original = this.Session.ReadSourceToBuffer(FilePath);
 			bool bSave = Original == null;
 			if (Original != null)
 			{
@@ -541,10 +368,10 @@ namespace EpicGames.UHT.Utils
 				{
 					if (this.Session.bFailIfGeneratedCodeChanges)
 					{
-						string ConflictPath = Output.FilePath + ".conflict";
+						string ConflictPath = FilePath + ".conflict";
 						if (!this.Session.WriteSource(ConflictPath, Exported.Span))
 						{
-							new UhtSimpleFileMessageSite(this.Session, Output.FilePath).LogError($"Changes to generated code are not allowed - conflicts written to '{ConflictPath}'");
+							new UhtSimpleFileMessageSite(this.Session, FilePath).LogError($"Changes to generated code are not allowed - conflicts written to '{ConflictPath}'");
 						}
 					}
 					bSave = true;
@@ -555,17 +382,23 @@ namespace EpicGames.UHT.Utils
 			// If changed of the original didn't exist, then save the new version
 			if (bSave && !this.Session.bNoOutput)
 			{
-				Output.bSaved = true;
-				if (!this.Session.WriteSource(Output.TempFilePath, Exported.Span))
+				if (!this.Session.WriteSource(TempFilePath, Exported.Span))
 				{
-					new UhtSimpleFileMessageSite(this.Session, Output.FilePath).LogWarning($"Failed to save export file: '{Output.TempFilePath}'");
+					new UhtSimpleFileMessageSite(this.Session, FilePath).LogWarning($"Failed to save export file: '{TempFilePath}'");
 				}
 			}
+			else
+			{
+				bSave = false;
+			}
 
-			// Reset the output to try and free up some of the temporary buffers
-			Output.Reset();
-		}
-
+			// Add this to the list of outputs
+			lock (this.Outputs)
+			{
+				this.Outputs.Add(new Output { FilePath = FilePath, TempFilePath = TempFilePath, bSaved = bSave });
+			}
+		}       
+		
 		/// <summary>
 		/// Run the output exporter
 		/// </summary>
@@ -581,10 +414,10 @@ namespace EpicGames.UHT.Utils
 
 				// These outputs are used to cull old outputs from the directories
 				Dictionary<string, HashSet<string>> OutputsByDirectory = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-				List<UhtExportOutput> Saves = new List<UhtExportOutput>();
+				List<UhtExportFactory.Output> Saves = new List<UhtExportFactory.Output>();
 
 				// Collect information about the outputs
-				foreach (UhtExportOutput Output in this.Outputs)
+				foreach (UhtExportFactory.Output Output in this.Outputs)
 				{
 
 					// Add this output to the list of expected outputs by directory
@@ -610,14 +443,14 @@ namespace EpicGames.UHT.Utils
 				// Perform the renames
 				if (this.Session.bGoWide)
 				{
-					Parallel.ForEach(Saves, (UhtExportOutput Output) =>
+					Parallel.ForEach(Saves, (UhtExportFactory.Output Output) =>
 					{
 						RenameSource(Output);
 					});
 				}
 				else
 				{ 
-					foreach (UhtExportOutput Output in Saves)
+					foreach (UhtExportFactory.Output Output in Saves)
 					{
 						RenameSource(Output);
 					}
@@ -650,7 +483,7 @@ namespace EpicGames.UHT.Utils
 		/// If there exists a current final file, it will be replaced.
 		/// </summary>
 		/// <param name="Output">The output file to rename</param>
-		private void RenameSource(UhtExportOutput Output)
+		private void RenameSource(UhtExportFactory.Output Output)
 		{
 			this.Session.RenameSource(Output.TempFilePath, Output.FilePath);
 		}
@@ -786,6 +619,11 @@ namespace EpicGames.UHT.Utils
 		/// Location of the engine code
 		/// </summary>
 		public string? EngineDirectory;
+
+		/// <summary>
+		/// If set, the name of the project file.
+		/// </summary>
+		public string? ProjectFile;
 
 		/// <summary>
 		/// Optional location of the project
@@ -997,6 +835,7 @@ namespace EpicGames.UHT.Utils
 		private Dictionary<string, bool> ExporterStates = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 		private Dictionary<string, EnumAndValue> FullEnumValueLookup = new Dictionary<string, EnumAndValue>();
 		private Dictionary<string, UhtEnum> ShortEnumValueLookup = new Dictionary<string, UhtEnum>();
+		private JsonDocument? ProjectJson = null;
 
 		/// <summary>
 		/// The number of errors
@@ -1093,16 +932,6 @@ namespace EpicGames.UHT.Utils
 		/// Return the collection of exporters
 		/// </summary>
 		public UhtExporterTable ExporterTable => this.Tables!.ExporterTable;
-
-		/// <summary>
-		/// Enable/Disable an exporter.  This overrides the default state of the exporter.
-		/// </summary>
-		/// <param name="Name">Name of the exporter</param>
-		/// <param name="Enabled">If true, the exporter is to be enabled</param>
-		public void SetExporterStatus(string Name, bool Enabled)
-		{
-			this.ExporterStates[Name] = Enabled;
-		}
 
 		/// <summary>
 		/// Return the keyword table for the given table name
@@ -1366,7 +1195,7 @@ namespace EpicGames.UHT.Utils
 		{
 			if (!this.FileManager!.RenameOutput(OldFilePath, NewFilePath))
 			{
-				new UhtSimpleFileMessageSite(this, NewFilePath).LogError($"Failed to rename export file: '{OldFilePath}'");
+				new UhtSimpleFileMessageSite(this, NewFilePath).LogError($"Failed to rename exported file: '{OldFilePath}'");
 			}
 		}
 
@@ -1968,6 +1797,11 @@ namespace EpicGames.UHT.Utils
 				Log.Logger.LogTrace("Step - Read Manifest File");
 
 				this.ManifestFile.Read();
+
+				if (this.Manifest != null && this.Tables != null)
+				{
+					this.Tables.AddPlugins(this.Manifest.UhtPlugins);
+				}
 			});
 		}
 
@@ -2478,13 +2312,82 @@ namespace EpicGames.UHT.Utils
 		#endregion
 
 		#region Exporting
+
+		/// <summary>
+		/// Enable/Disable an exporter.  This overrides the default state of the exporter.
+		/// </summary>
+		/// <param name="Name">Name of the exporter</param>
+		/// <param name="Enabled">If true, the exporter is to be enabled</param>
+		public void SetExporterStatus(string Name, bool Enabled)
+		{
+			this.ExporterStates[Name] = Enabled;
+		}
+
+		/// <summary>
+		/// Test to see if the given exporter plugin is enabled.
+		/// </summary>
+		/// <param name="PluginName">Name of the plugin</param>
+		/// <param name="IncludeTargetCheck">If true, include a target check</param>
+		/// <returns>True if enabled</returns>
+		public bool IsPluginEnabled(string PluginName, bool IncludeTargetCheck)
+		{
+			if (this.ProjectJson == null && this.ProjectDirectory != null && this.ProjectFile != null)
+			{
+				UhtBuffer? Contents = this.ReadSourceToBuffer(this.ProjectFile);
+				if (Contents != null)
+				{
+					this.ProjectJson = JsonDocument.Parse(Contents.Block);
+					UhtBuffer.Return(Contents);
+				}
+			}
+
+			if (this.ProjectJson == null)
+			{
+				return false;
+			}
+
+			JsonObject RootObject = new JsonObject(this.ProjectJson.RootElement);
+			if (RootObject.TryGetObjectArrayField("Plugins", out JsonObject[]? Plugins))
+			{
+				foreach (JsonObject Plugin in Plugins)
+				{
+					if (!Plugin.TryGetStringField("Name", out string? TestPluginName) || string.Compare(PluginName, TestPluginName, StringComparison.OrdinalIgnoreCase) != 0)
+					{
+						continue;
+					}
+					if (!Plugin.TryGetBoolField("Enabled", out bool Enabled) || !Enabled)
+					{
+						return false;
+					}
+					if (IncludeTargetCheck && this.Manifest != null)
+					{
+						if (Plugin.TryGetStringArrayField("TargetAllowList", out string[]? AllowList))
+						{
+							if (AllowList.Contains(this.Manifest.TargetName, StringComparer.OrdinalIgnoreCase))
+							{
+								return true;
+							}
+						}
+						if (Plugin.TryGetStringArrayField("TargetDenyList", out string[]? DenyList))
+						{
+							if (DenyList.Contains(this.Manifest.TargetName, StringComparer.OrdinalIgnoreCase))
+							{
+								return false;
+							}
+						}
+					}
+					return true;
+				}
+			}
+			return false;
+		}
+
 		private void StepExport()
 		{
 			long TotalWrittenFiles = 0;
 			Try(null, () =>
 			{
 				Log.Logger.LogTrace("Step - Exports");
-				UhtExportOptions Options = UhtExportOptions.None;
 
 				foreach (UhtExporter Exporter in this.ExporterTable)
 				{
@@ -2498,7 +2401,7 @@ namespace EpicGames.UHT.Utils
 					if (Run)
 					{
 						Log.Logger.LogTrace($"       Running exporter {Exporter.Name}");
-						UhtExportFactory Factory = new UhtExportFactory(this, Exporter, Options);
+						UhtExportFactory Factory = new UhtExportFactory(this, Exporter);
 						Factory.Run();
 						foreach (var Output in Factory.Outputs)
 						{

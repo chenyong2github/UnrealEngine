@@ -1037,7 +1037,7 @@ namespace UnrealBuildTool.Modes
 					return UhtTestHarness.RunTests(Tables, Config, Options) ? (int)CompilationResult.Succeeded : (int)CompilationResult.OtherCompilationError;
 				}
 
-				string? ProjectPath = null;
+				string? ProjectFile = null;
 				string? ManifestPath = null;
 
 				if (TargetArgumentIndex >= 0)
@@ -1073,15 +1073,17 @@ namespace UnrealBuildTool.Modes
 
 						if (Target.ProjectFile != null)
 						{
-							ProjectPath = Path.GetDirectoryName(Target.ProjectFile.FullName);
+							ProjectFile = Target.ProjectFile.FullName;
 						}
 					}
 				}
 				else
 				{
-					ProjectPath = Path.GetDirectoryName(Arguments.GetPositionalArguments()[0]);
+					ProjectFile = Arguments.GetPositionalArguments()[0];
 					ManifestPath = Arguments.GetPositionalArguments()[1];
 				}
+
+				string? ProjectPath = ProjectFile != null ? Path.GetDirectoryName(ProjectFile) : null;
 
 				UhtSession Session = new UhtSession
 				{
@@ -1089,6 +1091,7 @@ namespace UnrealBuildTool.Modes
 					Config = Config,
 					FileManager = new UhtStdFileManager(),
 					EngineDirectory = Unreal.EngineDirectory.FullName,
+					ProjectFile = ProjectFile,
 					ProjectDirectory = string.IsNullOrEmpty(ProjectPath) ? null : ProjectPath,
 					ReferenceDirectory = FileReference.Combine(EngineProgramSavedDirectory, "UnrealBuildTool", "ReferenceGeneratedCode").FullName,
 					VerifyDirectory = FileReference.Combine(EngineProgramSavedDirectory, "UnrealBuildTool", "VerifyGeneratedCode").FullName,

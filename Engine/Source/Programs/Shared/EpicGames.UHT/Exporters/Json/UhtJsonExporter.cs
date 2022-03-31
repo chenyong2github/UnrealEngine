@@ -22,7 +22,6 @@ namespace EpicGames.UHT.Exporters.Json
 
 		public readonly IUhtExportFactory Factory;
 		public UhtSession Session => Factory.Session;
-		public UhtExportOptions Options => Factory.Options;
 
 		private UhtJsonExporter(IUhtExportFactory Factory)
 		{
@@ -36,15 +35,12 @@ namespace EpicGames.UHT.Exporters.Json
 			foreach (UhtPackage Package in this.Session.Packages)
 			{
 				UHTManifest.Module Module = Package.Module;
-				UhtExportOptions AdditionalOptions = UhtExportOptions.WriteOutput;
-
-				string JsonPath = this.Factory.MakePath(Package, ".json");
-
-				GeneratedPackages.Add(Factory.CreateTask(JsonPath, new List<IUhtExportTask>(), AdditionalOptions,
-					(IUhtExportOutput JsonOutput) =>
+				GeneratedPackages.Add(Factory.CreateTask(
+					(IUhtExportTask Task) =>
 					{
+						string JsonPath = Task.Factory.MakePath(Package, ".json");
 						JsonSerializerOptions Options = new JsonSerializerOptions { WriteIndented = true, IgnoreNullValues = true };
-						JsonOutput.CommitOutput(JsonSerializer.Serialize(Package, Options));
+						Task.CommitOutput(JsonPath, JsonSerializer.Serialize(Package, Options));
 					}));
 			}
 

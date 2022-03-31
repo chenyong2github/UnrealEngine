@@ -507,15 +507,55 @@ namespace EpicGames.UHT.Utils
 		{
 			foreach (string AssemblyFilePath in PluginAssembliesFilePaths)
 			{
-				Assembly? Plugin = FindAssemblyByName(Path.GetFileNameWithoutExtension(AssemblyFilePath));
-				if (Plugin == null)
-				{
-					byte[] AssemblyBytes = File.ReadAllBytes(AssemblyFilePath);
-					Plugin = Assembly.Load(AssemblyBytes);
-				}
-				CheckForAttributes(Plugin);
+				CheckForAttributes(LoadAssembly(AssemblyFilePath));
 			}
 			PerformPostInitialization();
+		}
+
+		/// <summary>
+		/// Check to see if the assembly is a UHT plugin
+		/// </summary>
+		/// <param name="AssemblyFilePath">Path to the assembly file</param>
+		/// <returns></returns>
+		public static bool IsUhtPlugin(string AssemblyFilePath)
+		{
+			Assembly? Assembly = LoadAssembly(AssemblyFilePath);       
+			if (Assembly != null)
+			{
+				foreach (Type Type in Assembly.SafeGetLoadedTypes())
+				{
+					if (Type.IsClass)
+					{
+						foreach (Attribute ClassAttribute in Type.GetCustomAttributes(false))
+						{
+							if (ClassAttribute is UnrealHeaderToolAttribute || ClassAttribute is UhtEngineClassAttribute)
+							{
+								return true;
+							}
+						}
+					}
+				}
+			}
+			return false;
+		}
+
+		/// <summary>
+		/// Load the given assembly from the file path
+		/// </summary>
+		/// <param name="AssemblyFilePath">Path to the file</param>
+		/// <returns>Assembly if it is already loaded or could be loaded</returns>
+		public static Assembly? LoadAssembly(string AssemblyFilePath)
+		{
+			Assembly? Assembly = FindAssemblyByName(Path.GetFileNameWithoutExtension(AssemblyFilePath));
+			if (Assembly == null)
+			{
+				if (Assembly == null)
+				{
+					byte[] AssemblyBytes = File.ReadAllBytes(AssemblyFilePath);
+					Assembly = Assembly.Load(AssemblyBytes);
+				}
+			}
+			return Assembly;
 		}
 
 		/// <summary>
@@ -523,7 +563,7 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		/// <param name="Name">Name of the assembly</param>
 		/// <returns>Assembly or null</returns>
-		private Assembly? FindAssemblyByName(string? Name)
+		private static Assembly? FindAssemblyByName(string? Name)
 		{
 			if (Name != null)
 			{

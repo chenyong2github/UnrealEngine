@@ -27,8 +27,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <summary>
 		/// For a given UE header file, generated the generated H file
 		/// </summary>
-		/// <param name="CppOutput">Output object</param>
-		public void Generate(IUhtExportOutput CppOutput)
+		/// <param name="Task">Requesting task</param>
+		public void Generate(IUhtExportTask Task)
 		{
 			ref UhtCodeGenerator.HeaderInfo HeaderInfo = ref this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex];
 			using (BorrowStringBuilder Borrower = new BorrowStringBuilder(StringBuilderCache.Big))
@@ -287,10 +287,19 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				int GeneratedBodyEnd = Builder.Length;
 
 				Builder.Append(EnableDeprecationWarnings).Append("\r\n");
-				StringView GeneratedBody = CppOutput.CommitOutput(Builder);
 
-				// Save the hash of the generated body 
-				this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex].BodyHash = UhtHash.GenenerateTextHash(GeneratedBody.Span.Slice(GeneratedBodyStart, GeneratedBodyEnd - GeneratedBodyStart));
+				using (UhtBorrowBuffer BorrowBuffer = new UhtBorrowBuffer(Builder))
+				{
+					string CppFilePath = Task.Factory.MakePath(HeaderFile, ".gen.cpp");
+					StringView GeneratedBody = new StringView(BorrowBuffer.Buffer.Memory);
+					if (this.SaveExportedHeaders)
+					{
+						Task.CommitOutput(CppFilePath, GeneratedBody);
+					}
+
+					// Save the hash of the generated body 
+					this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex].BodyHash = UhtHash.GenenerateTextHash(GeneratedBody.Span.Slice(GeneratedBodyStart, GeneratedBodyEnd - GeneratedBodyStart));
+				}
 			}
 		}
 

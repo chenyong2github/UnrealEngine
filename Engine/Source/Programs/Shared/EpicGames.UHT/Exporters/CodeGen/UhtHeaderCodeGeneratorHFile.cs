@@ -31,8 +31,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <summary>
 		/// For a given UE header file, generated the generated H file
 		/// </summary>
-		/// <param name="HeaderOutput">Output object</param>
-		public void Generate(IUhtExportOutput HeaderOutput)
+		/// <param name="Task">Requesting task</param>
+		public void Generate(IUhtExportTask Task)
 		{
 			ref UhtCodeGenerator.HeaderInfo HeaderInfo = ref this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex];
 			using (BorrowStringBuilder Borrower = new BorrowStringBuilder(StringBuilderCache.Big))
@@ -110,7 +110,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				}
 
 				Builder.Append(EnableDeprecationWarnings).Append("\r\n");
-				HeaderOutput.CommitOutput(Builder);
+
+				if (this.SaveExportedHeaders)
+				{
+					string HeaderFilePath = Task.Factory.MakePath(this.HeaderFile, ".generated.h");
+					Task.CommitOutput(HeaderFilePath, Builder);
+				}
 			}
 		}
 

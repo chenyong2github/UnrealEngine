@@ -121,5 +121,11 @@ namespace EpicGames.Core
 		/// List of modules
 		/// </summary>
 		public List<Module> Modules { get; set; } = new List<Module>();
+
+		/// <summary>
+		/// List of active UHT plugins.  Only used by the C# version of UHT.  This
+		/// list contains plugins from only modules listed above.
+		/// </summary>
+		public List<string> UhtPlugins { get; set; } = new List<string>();
 	}
 }

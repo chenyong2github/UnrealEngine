@@ -25,6 +25,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		public readonly UhtCodeGenerator CodeGenerator;
 		public readonly UhtPackage Package;
+		public bool SaveExportedHeaders => this.Package.Module.SaveExportedHeaders;
 
 		public Utils.UhtSession Session => this.CodeGenerator.Session;
 		public UhtCodeGenerator.PackageInfo[] PackageInfos => this.CodeGenerator.PackageInfos;

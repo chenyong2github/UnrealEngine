@@ -46,7 +46,14 @@ namespace EpicGames.UHT.Types
 			switch (TextType)
 			{
 				case UhtPropertyTextType.GetterSetterArg:
-					Builder.Append(this.Class.SourceName).Append("*");
+					if (bIsTemplateArgument)
+					{
+						Builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append(">");
+					}
+					else
+					{
+						Builder.Append(this.Class.SourceName).Append("*");
+					}
 					break;
 
 				case UhtPropertyTextType.FunctionThunkReturn:

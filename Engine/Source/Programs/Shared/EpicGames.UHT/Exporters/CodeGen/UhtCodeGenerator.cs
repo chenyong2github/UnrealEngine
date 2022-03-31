@@ -55,7 +55,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		public readonly IUhtExportFactory Factory;
 		public UhtSession Session => Factory.Session;
-		public UhtExportOptions Options => Factory.Options;
 
 		private UhtCodeGenerator(IUhtExportFactory Factory)
 		{
@@ -63,16 +62,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			this.HeaderInfos = new HeaderInfo[this.Factory.Session.HeaderFileTypeCount];
 			this.ObjectInfos = new ObjectInfo[this.Factory.Session.ObjectTypeCount];
 			this.PackageInfos = new PackageInfo[this.Factory.Session.PackageTypeCount];
-		}
-
-		private static UhtExportOptions GetAdditionalOptions(UHTManifest.Module Module)
-		{
-			UhtExportOptions Options = UhtExportOptions.None;
-			if (Module.SaveExportedHeaders)
-			{
-				Options |= UhtExportOptions.WriteOutput;
-			}
-			return Options;
 		}
 
 		private void Generate()
@@ -102,10 +91,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					UhtPackage Package = HeaderFile.Package;
 					UHTManifest.Module Module = Package.Module;
-					UhtExportOptions AdditionalOptions = GetAdditionalOptions(Module);
-
-					string HeaderPath = this.Factory.MakePath(HeaderFile, ".generated.h");
-					string CppPath = this.Factory.MakePath(HeaderFile, ".gen.cpp");
 
 					Prereqs.Clear();
 					foreach (UhtHeaderFile Referenced in HeaderFile.ReferencedHeadersNoLock)
@@ -120,11 +105,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						}
 					}
 
-					this.HeaderInfos[HeaderFile.HeaderFileTypeIndex].Task = Factory.CreateTask(HeaderPath, CppPath, Prereqs, AdditionalOptions, 
-						(IUhtExportOutput HeaderOutput, IUhtExportOutput CppOutput) =>
+					this.HeaderInfos[HeaderFile.HeaderFileTypeIndex].Task = Factory.CreateTask(Prereqs,  
+						(IUhtExportTask Task) =>
 						{
-							new UhtHeaderCodeGeneratorHFile(this, Package, HeaderFile).Generate(HeaderOutput);
-							new UhtHeaderCodeGeneratorCppFile(this, Package, HeaderFile).Generate(CppOutput);
+							new UhtHeaderCodeGeneratorHFile(this, Package, HeaderFile).Generate(Task);
+							new UhtHeaderCodeGeneratorCppFile(this, Package, HeaderFile).Generate(Task);
 						});
 				}
 			}
@@ -134,10 +119,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			foreach (UhtPackage Package in this.Session.Packages)
 			{
 				UHTManifest.Module Module = Package.Module;
-				UhtExportOptions AdditionalOptions = GetAdditionalOptions(Module);
-
-				string HeaderPath = this.Factory.MakePath(Package, "Classes.h");
-				string CppPath = this.Factory.MakePath(Package, ".init.gen.cpp");
 
 				bool bWriteHeader = false;
 				Prereqs.Clear();
@@ -166,25 +147,16 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					}
 				}
 
-				if (bWriteHeader)
-				{
-					GeneratedPackages.Add(Factory.CreateTask(HeaderPath, CppPath, Prereqs, AdditionalOptions,
-						(IUhtExportOutput HeaderOutput, IUhtExportOutput CppOutput) =>
+				GeneratedPackages.Add(Factory.CreateTask(Prereqs, 
+					(IUhtExportTask Task) =>
+					{
+						List<UhtHeaderFile> PackageSortedHeaders = GetSortedHeaderFiles(Package);
+						if (bWriteHeader)
 						{
-							List<UhtHeaderFile> PackageSortedHeaders = GetSortedHeaderFiles(Package);
-							new UhtPackageCodeGeneratorHFile(this, Package).Generate(HeaderOutput, PackageSortedHeaders);
-							new UhtPackageCodeGeneratorCppFile(this, Package).Generate(CppOutput, PackageSortedHeaders);
-						}));
-				}
-				else
-				{
-					GeneratedPackages.Add(Factory.CreateTask(CppPath, Prereqs, AdditionalOptions, 
-						(IUhtExportOutput Output) =>
-						{
-							List<UhtHeaderFile> PackageSortedHeaders = GetSortedHeaderFiles(Package);
-							new UhtPackageCodeGeneratorCppFile(this, Package).Generate(Output, PackageSortedHeaders);
-						}));
-				}
+							new UhtPackageCodeGeneratorHFile(this, Package).Generate(Task, PackageSortedHeaders);
+						}
+						new UhtPackageCodeGeneratorCppFile(this, Package).Generate(Task, PackageSortedHeaders);
+					}));
 			}
 
 			// Wait for all the packages to complete

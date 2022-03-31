@@ -24,9 +24,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <summary>
 		/// For a given UE header file, generated the generated cpp file
 		/// </summary>
-		/// <param name="CppOutput">Output object</param>
+		/// <param name="Task">Requesting task</param>
 		/// <param name="PackageSortedHeaders">Sorted list of headers by name, in the package.</param>
-		public void Generate(IUhtExportOutput CppOutput, List<UhtHeaderFile> PackageSortedHeaders)
+		public void Generate(IUhtExportTask Task, List<UhtHeaderFile> PackageSortedHeaders)
 		{
 			using (BorrowStringBuilder Borrower = new BorrowStringBuilder(StringBuilderCache.Big))
 			{
@@ -140,7 +140,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					.Append($"0x{BodiesHash:X8}, 0x{DeclarationsHash:X8}").Append("));\r\n");
 
 				Builder.Append(EnableDeprecationWarnings).Append("\r\n");
-				CppOutput.CommitOutput(Builder);
+
+				if (this.SaveExportedHeaders)
+				{
+					string CppFilePath = Task.Factory.MakePath(this.Package, ".init.gen.cpp");
+					Task.CommitOutput(CppFilePath, Builder);
+				}
 			}
 		}
 	}
