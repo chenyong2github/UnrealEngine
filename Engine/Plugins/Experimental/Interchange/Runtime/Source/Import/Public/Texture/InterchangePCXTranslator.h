@@ -18,7 +18,8 @@ class INTERCHANGEIMPORT_API UInterchangePCXTranslator : public UInterchangeTrans
 	GENERATED_BODY()
 public:
 	
-	TArray<FString> GetSupportedFormats() const override;
+	virtual TArray<FString> GetSupportedFormats() const override;
+	virtual bool DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const override { return AssetType == EInterchangeTranslatorAssetType::Textures; }
 
 	/**
 	 * Translates the associated source data into a node hold by the specified nodes container.

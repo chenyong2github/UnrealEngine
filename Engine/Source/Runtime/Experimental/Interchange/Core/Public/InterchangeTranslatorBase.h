@@ -20,6 +20,16 @@ enum class EInterchangeTranslatorType : uint8
 	Scenes = Assets | Actors
 };
 
+UENUM(BlueprintType)
+enum class EInterchangeTranslatorAssetType : uint8
+{
+	None = 0,
+	Textures = 1,
+	Materials = 2,
+	Meshes = 3,
+	Animations = 4,
+};
+
 UCLASS(BlueprintType, Blueprintable, Abstract, Experimental)
 class INTERCHANGECORE_API UInterchangeTranslatorBase : public UObject
 {
@@ -31,6 +41,7 @@ public:
 
 	/** Specifies the capabilities of a translator. */
 	virtual EInterchangeTranslatorType GetTranslatorType() const { return EInterchangeTranslatorType::Assets; }
+	virtual bool DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const { return false; }
 
 	/** List of formats supported by the translator. Each entry is of the form "ext;Description" where ext is the file extension. */
 	virtual TArray<FString> GetSupportedFormats() const PURE_VIRTUAL(UInterchangeTranslatorBase::GetSupportedExtensions, return TArray<FString>(););

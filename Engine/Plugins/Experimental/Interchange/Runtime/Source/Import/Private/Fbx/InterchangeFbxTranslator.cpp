@@ -34,6 +34,17 @@ EInterchangeTranslatorType UInterchangeFbxTranslator::GetTranslatorType() const
 	return EInterchangeTranslatorType::Scenes;
 }
 
+bool UInterchangeFbxTranslator::DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const
+{
+	//fbx translator support Meshes, Materials and animation
+	if (AssetType == EInterchangeTranslatorAssetType::Materials || AssetType == EInterchangeTranslatorAssetType::Meshes || AssetType == EInterchangeTranslatorAssetType::Animations)
+	{
+		return true;
+	}
+
+	return false;
+}
+
 TArray<FString> UInterchangeFbxTranslator::GetSupportedFormats() const
 {
 	TArray<FString> Formats {TEXT("fbx;Filmbox")};

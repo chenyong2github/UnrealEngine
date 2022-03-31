@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 #include "Engine/EngineTypes.h"
+#include "InterchangeFilePickerBase.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangePipelineConfigurationBase.h"
 
@@ -42,6 +43,10 @@ public:
 	/** If enabled, the pipeline stacks configuration dialog will show every time interchange must choose a pipeline to import or re-import. If disabled interchange will use the DefaultPipelineStack.*/
 	UPROPERTY(EditAnywhere, config, Category = Interchange)
 	bool bShowPipelineStacksConfigurationDialog;
+
+	/** This tells interchange which file picker class to construct when we need to choose a file for a source.*/
+	UPROPERTY(EditAnywhere, config, Category = Interchange)
+	TSoftClassPtr <UInterchangeFilePickerBase> FilePickerClass;
 #endif
 
 	/** If checked, will use Interchange when importing into level.*/

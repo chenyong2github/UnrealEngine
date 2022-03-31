@@ -822,6 +822,18 @@ TArray<FString> UInterchangeOBJTranslator::GetSupportedFormats() const
 	return Formats;
 }
 
+bool UInterchangeOBJTranslator::DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const
+{
+	//Obj translator support Meshes and Materials
+	if (AssetType == EInterchangeTranslatorAssetType::Materials || AssetType == EInterchangeTranslatorAssetType::Meshes)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+
 bool UInterchangeOBJTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
 	// Get filename from SourceData

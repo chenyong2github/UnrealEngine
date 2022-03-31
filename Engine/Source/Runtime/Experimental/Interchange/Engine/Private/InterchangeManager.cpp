@@ -474,6 +474,23 @@ TArray<FString> UInterchangeManager::GetSupportedFormats(const EInterchangeTrans
 	return FileExtensions;
 }
 
+TArray<FString> UInterchangeManager::GetSupportedAssetTypeFormats(const EInterchangeTranslatorAssetType ForTranslatorAssetType) const
+{
+	TArray<FString> FileExtensions;
+
+	for (const UClass* TranslatorClass : RegisteredTranslatorsClass)
+	{
+		const UInterchangeTranslatorBase* TranslatorBaseCDO = TranslatorClass->GetDefaultObject<UInterchangeTranslatorBase>();
+
+		if (TranslatorBaseCDO->DoesSupportAssetType(ForTranslatorAssetType))
+		{
+			FileExtensions.Append(TranslatorBaseCDO->GetSupportedFormats());
+		}
+	}
+
+	return FileExtensions;
+}
+
 bool UInterchangeManager::CanTranslateSourceData(const UInterchangeSourceData* SourceData) const
 {
 	return GetTranslatorForSourceData(SourceData) != nullptr;

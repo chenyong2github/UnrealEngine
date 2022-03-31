@@ -30,7 +30,8 @@ public:
 	UInterchangeFbxTranslator();
 
 	/** Begin UInterchangeTranslatorBase API*/
-	EInterchangeTranslatorType GetTranslatorType() const override;
+	virtual EInterchangeTranslatorType GetTranslatorType() const override;
+	virtual bool DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const override;
 	virtual TArray<FString> GetSupportedFormats() const override;
 	virtual bool Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const override;
 	virtual void ReleaseSource() override;

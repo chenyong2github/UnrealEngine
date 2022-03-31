@@ -692,6 +692,17 @@ EInterchangeTranslatorType UInterchangeGltfTranslator::GetTranslatorType() const
 	return EInterchangeTranslatorType::Scenes;
 }
 
+bool UInterchangeGltfTranslator::DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const
+{
+	//gltf translator support Meshes and Materials
+	if (AssetType == EInterchangeTranslatorAssetType::Materials || AssetType == EInterchangeTranslatorAssetType::Meshes)
+	{
+		return true;
+	}
+
+	return false;
+}
+
 TArray<FString> UInterchangeGltfTranslator::GetSupportedFormats() const
 {
 	TArray<FString> GltfExtensions;
