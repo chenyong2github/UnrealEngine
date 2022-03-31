@@ -31,7 +31,13 @@ public:
 private:
 	static const int32	STRING_SIZE = 256;
 	static const int32	MAX_LENGTH = STRING_SIZE - 1;
+
+public:
+	/*At the beginning of each row of B G R channel planes there is 2x4 byte data that has information*/
 	static const int32	PLANAR_RGB_SCANLINE_PADDING = 8;
+	/*At the beginning of each tile there is 20 byte data that has information*/
+	static const int32	TILE_PADDING = 20;
+
 public:
 	FExrReader() :FileHandle(nullptr) {};
 private:
@@ -64,12 +70,17 @@ public:
 	* Read a chunk of an Exr file previously open via OpenExrAndPrepareForPixelReading.
 	* The read starts from the last point of file reading.
 	*/
-	bool ReadExrImageChunk(void* Buffer, int32 ChunkSize);
+	bool ReadExrImageChunk(void* Buffer, int64 ChunkSize);
 
 	/** 
 	* Moves to the specified tile position in the file in preparation for reading.
 	*/
-	bool SeekTileWithinFile(const int StartTileIndex, const FIntPoint& TexDimInTiles, int32& OutBufferOffset);
+	bool SeekTileWithinFile(const int32 StartTileIndex, const FIntPoint& TexDimInTiles, int64& OutBufferOffset);
+
+	/** 
+	* Moves to the specified tile position in the file in preparation for reading.
+	*/
+	bool SeekTileWithinFileCustom(const int32 StartTileIndex, const int64 TileStride, int64& OutBufferOffset);
 
 	/**
 	* After we have finished reading the file that was open via OpenExrAndPrepareForPixelReading
@@ -78,6 +89,7 @@ public:
 	bool CloseExrFile();
 
 private:
+
 	/**
 	* One approach to reading is to first open a file, read in chunks and then close the file.
 	* It is all done in 3 sepate functions and requires to keep track of Filehandle

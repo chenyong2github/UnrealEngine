@@ -285,7 +285,7 @@ bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOff
 	return true;
 }
 
-bool FExrReader::ReadExrImageChunk(void* Buffer, int32 ChunkSize)
+bool FExrReader::ReadExrImageChunk(void* Buffer, int64 ChunkSize)
 {
 	if (FileHandle == nullptr)
 	{
@@ -306,7 +306,7 @@ bool FExrReader::ReadExrImageChunk(void* Buffer, int32 ChunkSize)
 	return NumElementsRead == NumElements;
 }
 
-bool FExrReader::SeekTileWithinFile(const int StartTileIndex, const FIntPoint& TexDimInTiles, int32& OutBufferOffset)
+bool FExrReader::SeekTileWithinFile(const int32 StartTileIndex, const FIntPoint& TexDimInTiles, int64& OutBufferOffset)
 {
 	if (StartTileIndex >= LineOrTileOffsets.Num())
 	{
@@ -315,6 +315,16 @@ bool FExrReader::SeekTileWithinFile(const int StartTileIndex, const FIntPoint& T
 	}
 	int64 LineOffset = LineOrTileOffsets[StartTileIndex];
 	OutBufferOffset = LineOffset - LineOrTileOffsets[0];
+	return fseek(FileHandle, LineOffset, SEEK_SET) == 0;
+}
+
+bool FExrReader::SeekTileWithinFileCustom(const int32 StartTileIndex, const int64 TileStride, int64& OutBufferOffset)
+{
+	// Our custom exr is written as one single tile. In Exr every tile starts with 20 byte padding.
+	// Therefore we want to ignore it, when we read custom tiles.
+	const int32 TilePadding = 20;
+	int64 LineOffset = TilePadding + LineOrTileOffsets[0] + StartTileIndex * TileStride;
+	OutBufferOffset = StartTileIndex * TileStride;
 	return fseek(FileHandle, LineOffset, SEEK_SET) == 0;
 }
 

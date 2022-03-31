@@ -67,16 +67,23 @@ public:
 	/**
 	* For performance reasons we want to pre-allocate structured buffers to at least the number of concurrent frames.
 	*/
-	virtual void PreAllocateMemoryPool(int32 NumFrames, const FImgMediaFrameInfo& FrameInfo) override;
+	virtual void PreAllocateMemoryPool(int32 NumFrames, const FImgMediaFrameInfo& FrameInfo, const bool bCustomExr) override;
 	virtual void OnTick() override;
 
 protected:
 
-	enum EReadResult
+	/* 
+	* These are all the required parameters to produce Buffer to Texture converter. 
+	*/
+	struct FSampleConverterParameters
 	{
-		Fail,
-		Success,
-		Cancelled
+		FImgMediaFrameInfo FrameInfo;
+		FIntPoint FullResolution;
+		FIntPoint TileDimWithBorders;
+		TMap<int32, FIntRect> Viewports;
+		int32 NumMipLevels;
+		int32 PixelSize;
+		bool bCustomExr;
 	};
 
 	/** 
@@ -85,29 +92,19 @@ protected:
 	*/
 	EReadResult ReadInChunks(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntPoint& Dim, int32 BufferSize);
 
-	/** 
-	 * Reads tiles from exr files in tile rows based on Tile region. If frame is pending for cancelation 
-	 * stops reading tiles at the current tile row.
-	*/
-	EReadResult ReadTiles(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntRect& TileRegion, const FIntPoint& FullTexDimInTiles, const FIntPoint& TileDim, const int32 PixelSize);
-
 	/**
 	 * Get the size of the buffer needed to load in an image.
 	 * 
 	 * @param Dim Dimensions of the image.
 	 * @param NumChannels Number of channels in the image.
 	 */
-	static SIZE_T GetBufferSize(const FIntPoint& Dim, int32 NumChannels, bool bHasTiles, const FIntPoint& TileNum);
+	static SIZE_T GetBufferSize(const FIntPoint& Dim, int32 NumChannels, bool bHasTiles, const FIntPoint& TileNum, const bool bCustomExr);
 
-
-	TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> CreateSampleConverter
-		( TArray<FStructuredBufferPoolItemSharedPtr>&& BufferDataArray
-		, const FIntPoint& FullResolution
-		, const FIntPoint& TileDim
-		, const TMap<int32, FIntRect>& Viewports
-		, const int32 NumChannels
-		, const int32 NumMipLevels
-		, const bool bHasTiles);
+	/**
+	* Creates Sample converter to be used by Media Texture Resource.
+	*/
+	static TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> CreateSampleConverter
+		(TArray<FStructuredBufferPoolItemSharedPtr>&& BufferDataArray, TSharedPtr<FSampleConverterParameters> ConverterParams);
 
 public:
 

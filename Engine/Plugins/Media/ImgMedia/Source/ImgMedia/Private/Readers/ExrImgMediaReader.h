@@ -42,15 +42,27 @@ public:
 	FIntPoint GetCustomFormatTileSize() { return CustomFormatTileSize; }
 
 protected:
+	enum EReadResult
+	{
+		Fail,
+		Success,
+		Cancelled
+	};
 
 	/**
 	 * Get the frame information from the given input file.
 	 *
-	 * @param InputFile The input file containing the frame.
+	 * @param FilePath The location of the exr file.
 	 * @param OutInfo Will contain the frame information.
 	 * @return true on success, false otherwise.
 	 */
 	static bool GetInfo(const FString& FilePath, FImgMediaFrameInfo& OutInfo);
+
+	/**
+	 * Reads tiles from exr files in tile rows based on Tile region. If frame is pending for cancelation
+	 * stops reading tiles at the current tile row.
+	*/
+	EReadResult ReadTilesCustom(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntRect& TileRegion, const FIntPoint& FullTexDimInTiles, const FIntPoint& TileDim, const int32 PixelSize, const bool bCustomExr);
 
 	/**
 	 * Sets parameters of our custom format images.

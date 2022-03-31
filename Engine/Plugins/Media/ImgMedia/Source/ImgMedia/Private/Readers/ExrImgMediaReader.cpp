@@ -7,6 +7,7 @@
 
 #include "Async/Async.h"
 #include "Misc/Paths.h"
+#include "ExrReaderGpu.h"
 #include "OpenExrWrapper.h"
 #include "UObject/Class.h"
 #include "UObject/UObjectGlobals.h"
@@ -70,6 +71,68 @@ bool FExrImgMediaReader::GetFrameInfo(const FString& ImagePath, FImgMediaFrameIn
 	return false;
 }
 
+FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
+(uint16* Buffer
+	, const FString& ImagePath
+	, int32 FrameId
+	, const FIntRect& TileRegion
+	, const FIntPoint& FullTexDimInTiles
+	, const FIntPoint& TileDim
+	, const int32 PixelSize
+	, const bool bCustomExr)
+{
+	EReadResult bResult = Success;
+
+	int64 CurrentBufferPos = 0;
+	FExrReader ChunkReader;
+	int32 NumTiles = bCustomExr ? 1 : FullTexDimInTiles.X * FullTexDimInTiles.Y;
+	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, NumTiles))
+	{
+		return Fail;
+	}
+
+	for (int32 TileRow = TileRegion.Min.Y; TileRow < TileRegion.Max.Y; TileRow++)
+	{
+		// Check to see if the frame was canceled.
+		{
+			FScopeLock RegionScopeLock(&CanceledFramesCriticalSection);
+			if (CanceledFrames.Remove(FrameId) > 0)
+			{
+				UE_LOG(LogImgMedia, Warning, TEXT("Reader %p: Canceling Frame %i At tile row # %i"), this, FrameId, TileRow);
+				bResult = Cancelled;
+				break;
+			}
+		}
+		const uint16 Padding = bCustomExr ? 0 : FExrReader::TILE_PADDING;
+		const int64 TileByteStride = PixelSize * TileDim.X * TileDim.Y + Padding;
+		const int StartTileIndex = TileRow * FullTexDimInTiles.X + TileRegion.Min.X;
+		const int EndTileIndex = TileRow * FullTexDimInTiles.X + TileRegion.Max.X;
+		const int BytesToRead = (EndTileIndex - StartTileIndex) * TileByteStride;
+
+		if (bCustomExr)
+		{
+			int64 TileStride = TileDim.X * TileDim.Y * PixelSize;
+			ChunkReader.SeekTileWithinFileCustom(StartTileIndex, TileStride, CurrentBufferPos);
+		}
+		else
+		{
+			ChunkReader.SeekTileWithinFile(StartTileIndex, FullTexDimInTiles, CurrentBufferPos);
+		}
+
+		if (!ChunkReader.ReadExrImageChunk(reinterpret_cast<char*>(Buffer) + CurrentBufferPos, BytesToRead))
+		{
+			bResult = Fail;
+			break;
+		}
+	}
+
+	if (!ChunkReader.CloseExrFile())
+	{
+		return Fail;
+	}
+
+	return bResult;
+}
 
 bool FExrImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTileSelection>& InMipTiles, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
 {
@@ -183,40 +246,63 @@ bool FExrImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTil
 				int32 FrameBufferOffsetPerTileY = Dim.X * TileHeight * BytesPerPixel;
 				int32 FrameBufferOffsetY = FrameBufferOffsetPerTileY * StartTileY;
 
-				for (int32 TileY = StartTileY; TileY < EndTileY; TileY++)
+				if (OutFrame->Info.FormatName == TEXT("EXR CUSTOM"))
 				{
-					// The offset into the frame buffer for each column of tiles.
-					// Tile width * bytes per pixel.
-					int32 FrameBufferOffsetPerTileX = TileWidth * BytesPerPixel;
-					int32 FrameBufferOffsetX = FrameBufferOffsetPerTileX * StartTileX;
-					for (int32 TileX = StartTileX; TileX < EndTileX; TileX++)
+					FIntRect TileRegion = FIntRect(
+						(int32)CurrentTileSelection.TopLeftX,
+						(int32)CurrentTileSelection.TopLeftY,
+						FMath::Min((int32)CurrentTileSelection.BottomRightX, FMath::CeilToInt(float(OutFrame->Info.NumTiles.X) / MipLevelDiv)),
+						FMath::Min((int32)CurrentTileSelection.BottomRightY, FMath::CeilToInt(float(OutFrame->Info.NumTiles.Y) / MipLevelDiv)));
+					FIntPoint NumTiles = OutFrame->Info.NumTiles / MipLevelDiv;
+					int32 PixelSize = sizeof(uint16) * OutFrame->Info.NumChannels;
+
+					EReadResult ReadResult = ReadTilesCustom((uint16*)MipDataPtr, Image, FrameId, TileRegion, NumTiles, OutFrame->Info.TileDimensions, PixelSize, true /*bCustomExr*/);
+					if (ReadResult != Fail)
 					{
-						// Get for our frame/mip level.
-						if (bHasTiles)
+						OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentTileSelection);
+					}
+					else
+					{
+						UE_LOG(LogImgMedia, Error, TEXT("Could not load %s"), *Image);
+					}
+				}
+				else
+				{
+					for (int32 TileY = StartTileY; TileY < EndTileY; TileY++)
+					{
+						// The offset into the frame buffer for each column of tiles.
+						// Tile width * bytes per pixel.
+						int32 FrameBufferOffsetPerTileX = TileWidth * BytesPerPixel;
+						int32 FrameBufferOffsetX = FrameBufferOffsetPerTileX * StartTileX;
+						for (int32 TileX = StartTileX; TileX < EndTileX; TileX++)
 						{
-							Image = FString::Printf(TEXT("%s_x%d_y%d.exr"), *BaseImage, TileX, TileY);
-						}
-						FRgbaInputFile InputFile(Image, 2);
-						if (InputFile.HasInputFile())
-						{
-							// read frame data
-							InputFile.SetFrameBuffer(MipDataPtr + FrameBufferOffsetX + FrameBufferOffsetY, Dim);
-							InputFile.ReadPixels(0, TileHeight - 1);
-
-							FrameBufferOffsetX += FrameBufferOffsetPerTileX;
-
-							if (!OutFrame->MipTilesPresent.Contains(CurrentMipLevel))
+							// Get for our frame/mip level.
+							if (bHasTiles)
 							{
-								OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentTileSelection);
+								Image = FString::Printf(TEXT("%s_x%d_y%d.exr"), *BaseImage, TileX, TileY);
+							}
+							FRgbaInputFile InputFile(Image, 2);
+							if (InputFile.HasInputFile())
+							{
+								// read frame data
+								InputFile.SetFrameBuffer(MipDataPtr + FrameBufferOffsetX + FrameBufferOffsetY, Dim);
+								InputFile.ReadPixels(0, TileHeight - 1);
+
+								FrameBufferOffsetX += FrameBufferOffsetPerTileX;
+
+								if (!OutFrame->MipTilesPresent.Contains(CurrentMipLevel))
+								{
+									OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentTileSelection);
+								}
+							}
+							else
+							{
+								UE_LOG(LogImgMedia, Error, TEXT("Could not load %s"), *Image);
 							}
 						}
-						else
-						{
-							UE_LOG(LogImgMedia, Error, TEXT("Could not load %s"), *Image);
-						}
-					}
 
-					FrameBufferOffsetY += FrameBufferOffsetPerTileY;
+						FrameBufferOffsetY += FrameBufferOffsetPerTileY;
+					}
 				}
 			}
 		}
@@ -297,7 +383,6 @@ bool FExrImgMediaReader::GetInfo(const FString& FilePath, FImgMediaFrameInfo& Ou
 
 	OutInfo.CompressionName = HeaderReader.GetCompressionName();
 	OutInfo.Dim = HeaderReader.GetDataWindow();
-	OutInfo.FormatName = TEXT("EXR");
 	OutInfo.FrameRate = HeaderReader.GetFrameRate(ImgMedia::DefaultFrameRate);
 	OutInfo.Srgb = false;
 	OutInfo.UncompressedSize = HeaderReader.GetUncompressedSize();
@@ -306,8 +391,11 @@ bool FExrImgMediaReader::GetInfo(const FString& FilePath, FImgMediaFrameInfo& Ou
 	int32 CustomFormat = 0;
 	HeaderReader.GetIntAttribute(IImgMediaModule::CustomFormatAttributeName.Resolve().ToString(), CustomFormat);
 	bool bIsCustomFormat = CustomFormat > 0;
+
 	if (bIsCustomFormat)
 	{
+		OutInfo.FormatName = TEXT("EXR CUSTOM");
+
 		// Get tile size.
 		HeaderReader.GetIntAttribute(IImgMediaModule::CustomFormatTileBorderAttributeName.Resolve().ToString(), OutInfo.TileBorder);
 		OutInfo.bHasTiles = HeaderReader.GetIntAttribute(IImgMediaModule::CustomFormatTileWidthAttributeName.Resolve().ToString(), OutInfo.TileDimensions.X);
@@ -315,6 +403,7 @@ bool FExrImgMediaReader::GetInfo(const FString& FilePath, FImgMediaFrameInfo& Ou
 	}
 	else
 	{
+		OutInfo.FormatName = TEXT("EXR");
 		OutInfo.bHasTiles = HeaderReader.GetTileSize(OutInfo.TileDimensions);
 		OutInfo.TileBorder = 0;
 	}
