@@ -1989,6 +1989,11 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 					{
 						return FString::Printf(TEXT("%sLocalVariableDefault::%s|%s%s"), *Prefix, *Node->GetGraph()->GetGraphName(), *VariableName.ToString(), *Suffix);
 					}
+					else if (InVarExpr)
+					{
+						const FString GraphPath = InVarExpr->GetProxy().GetCallstack().GetCallPath(false);
+						return FString::Printf(TEXT("%sLocalVariable::%s|%s%s"), *Prefix, *GraphPath, *VariableName.ToString(), *Suffix);					
+					}
 					else
 					{
 						return FString::Printf(TEXT("%sLocalVariable::%s|%s%s"), *Prefix, *Node->GetGraph()->GetGraphName(), *VariableName.ToString(), *Suffix);					
@@ -2086,8 +2091,15 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 
 	if (InVarExpr)
 	{
-		FString FullPath = InVarExpr->GetProxy().GetCallstack().GetCallPath(true);
-		return FString::Printf(TEXT("%s%s%s"), *Prefix, *FullPath, *Suffix);
+		if (bUseFullNodePath)
+		{
+			FString FullPath = InVarExpr->GetProxy().GetCallstack().GetCallPath(true);
+			return FString::Printf(TEXT("%s%s%s"), *Prefix, *FullPath, *Suffix);
+		}
+		else
+		{
+			return FString::Printf(TEXT("%s%s%s"), *Prefix, *InPin->GetPinPath(), *Suffix);
+		}
 	}
 
 	FString PinPath = InPin->GetPinPath(bUseFullNodePath);
