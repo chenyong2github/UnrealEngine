@@ -192,6 +192,12 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewMesh()
 					WarpMeshSavedProjectionPolicy = ViewportConfig->ProjectionPolicy;
 				}
 
+				// disable shadow rendering for preview meshes
+				if (PreviewMesh != nullptr)
+				{
+					PreviewMesh->SetCastShadow(false);
+				}
+
 				if (OriginalMaterial == nullptr)
 				{
 					// Assign preview material to mesh
