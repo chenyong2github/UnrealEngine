@@ -768,24 +768,29 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 		{
 			TextureFactoryUid = TextureTargetNodes[0];
 		}
-	}
 
-	TextureSampleFactoryNode->SetCustomExpressionClassName(ExpressionClassName);
-	TextureSampleFactoryNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Inputs::Texture.ToString()), TextureFactoryUid);
+		TextureSampleFactoryNode->SetCustomExpressionClassName(ExpressionClassName);
+		TextureSampleFactoryNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Inputs::Texture.ToString()), TextureFactoryUid);
 
-	if (bParsingForNormalInput)
-	{
-		if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetNode(TextureFactoryUid)))
+		if (bParsingForNormalInput)
 		{
-			TextureFactoryNode->SetCustomCompressionSettings(TextureCompressionSettings::TC_Normalmap);
+			if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetNode(TextureFactoryUid)))
+			{
+				TextureFactoryNode->SetCustomCompressionSettings(TextureCompressionSettings::TC_Normalmap);
+			}
+		}
+		else if (bParsingForLinearInput)
+		{
+			if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetNode(TextureFactoryUid)))
+			{
+				TextureFactoryNode->SetCustomSRGB(false);
+			}
 		}
 	}
-	else if (bParsingForLinearInput)
+	else
 	{
-		if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetNode(TextureFactoryUid)))
-		{
-			TextureFactoryNode->SetCustomSRGB(false);
-		}
+		TextureSampleFactoryNode->SetCustomExpressionClassName(UMaterialExpressionTextureSampleParameter2D::StaticClass()->GetName());
+		TextureSampleFactoryNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Inputs::Texture.ToString()), TextureFactoryUid);
 	}
 
 	// Coordinates

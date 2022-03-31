@@ -109,8 +109,23 @@ namespace UE
 					return 0; // Consider 0 as the default output to connect to since most expressions have a single output
 				}
 
-				void SetupFunctionCallExpression(UMaterial* Material, const UInterchangeFactoryBase::FCreateAssetParams& Arguments, UMaterialExpressionMaterialFunctionCall* FunctionCallExpression)
+				void SetupFunctionCallExpression(const UInterchangeFactoryBase::FCreateAssetParams& Arguments, const UInterchangeMaterialExpressionFactoryNode& ExpressionNode, UMaterialExpressionMaterialFunctionCall* FunctionCallExpression)
 				{
+					if (const UInterchangeMaterialFunctionCallExpressionFactoryNode* FunctionCallFactoryNode = Cast<UInterchangeMaterialFunctionCallExpressionFactoryNode>(&ExpressionNode))
+					{
+						FString MaterialFactoryNodeUid;
+						FunctionCallFactoryNode->GetCustomMaterialFunctionDependency(MaterialFactoryNodeUid);
+
+						if (const UInterchangeMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeMaterialFactoryNode>(Arguments.NodeContainer->GetNode(MaterialFactoryNodeUid)))
+						{
+							if (UMaterialFunctionInterface* MaterialFunction = Cast<UMaterialFunctionInterface>(MaterialFactoryNode->ReferenceObject.TryLoad()))
+							{
+								MaterialFunction->UpdateFromFunctionResource();
+								FunctionCallExpression->SetMaterialFunction(MaterialFunction);
+							}
+						}
+					}
+
 					FunctionCallExpression->UpdateFromFunctionResource();
 				}
 
@@ -730,7 +745,7 @@ UMaterialExpression* UInterchangeMaterialFactory::CreateExpression(UMaterial* Ma
 	}
 	else if (UMaterialExpressionMaterialFunctionCall* FunctionCallExpression = Cast<UMaterialExpressionMaterialFunctionCall>(MaterialExpression))
 	{
-		SetupFunctionCallExpression(Material, Arguments, FunctionCallExpression);
+		SetupFunctionCallExpression(Arguments, ExpressionNode, FunctionCallExpression);
 	}
 
 	return MaterialExpression;

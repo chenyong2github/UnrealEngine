@@ -367,3 +367,20 @@ bool UInterchangeMaterialInstanceFactoryNode::SetCustomParent(const FString& Att
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(Parent, FString);
 }
+
+FString UInterchangeMaterialFunctionCallExpressionFactoryNode::GetTypeName() const
+{
+	const FString TypeName = TEXT("MaterialFunctionCallExpressionFactoryNode");
+	return TypeName;
+}
+
+bool UInterchangeMaterialFunctionCallExpressionFactoryNode::GetCustomMaterialFunctionDependency(FString& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(MaterialFunctionDependency, FString);
+}
+
+bool UInterchangeMaterialFunctionCallExpressionFactoryNode::SetCustomMaterialFunctionDependency(const FString& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(MaterialFunctionDependency, FString);
+	AddFactoryDependencyUid(AttributeValue);
+}

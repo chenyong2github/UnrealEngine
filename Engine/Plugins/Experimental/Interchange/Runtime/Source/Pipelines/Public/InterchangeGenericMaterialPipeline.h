@@ -43,7 +43,6 @@ public:
 protected:
 	virtual void ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;
 
-private:
 	UPROPERTY()
 	TObjectPtr<UInterchangeBaseNodeContainer> BaseNodeContainer;
 
