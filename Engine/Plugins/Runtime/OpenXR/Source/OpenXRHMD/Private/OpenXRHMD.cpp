@@ -548,6 +548,26 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 			FApp::SetUseVRFocus(true);
 			FApp::SetHasVRFocus(true);
 
+#if WITH_EDITOR
+			if (GIsEditor)
+			{
+				if (FSceneViewport* SceneVP = FindSceneViewport())
+				{
+					TSharedPtr<SWindow> Window = SceneVP->FindWindow();
+					if (Window.IsValid())
+					{
+						uint32 SizeX = 0;
+						uint32 SizeY = 0;
+						CalculateRenderTargetSize(*SceneVP, SizeX, SizeY);
+
+						// Window continues to be processed when PIE spectator window is minimized
+						Window->SetIndependentViewportSize(FVector2D(SizeX, SizeY));
+					}
+				}
+			}
+
+#endif // WITH_EDITOR
+
 			return true;
 		}
 		return false;
@@ -1670,23 +1690,6 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 		{
 			return false;
 		}
-
-		// image will be acquired next time we begin the rendering
-
-#if WITH_EDITOR
-		if (GIsEditor)
-		{
-			if (FSceneViewport* SceneVP = FindSceneViewport())
-			{
-				TSharedPtr<SWindow> Window = SceneVP->FindWindow();
-				if (Window.IsValid())
-				{
-					// Window continues to be processed when PIE spectator window is minimized
-					Window->SetIndependentViewportSize(FVector2D(SizeX, SizeY));
-				}
-			}
-		}
-#endif
 	}
 
 	// Grab the presentation texture out of the swapchain.

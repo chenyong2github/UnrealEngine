@@ -3661,7 +3661,9 @@ bool UEngine::InitializeHMDDevice()
 			if (XRSystem.IsValid() && !FParse::Param(FCommandLine::Get(), TEXT("noxrstereo")))
 			{
 				StereoRenderingDevice = XRSystem->GetStereoRenderingDevice();
-				const bool bShouldStartInVR = StereoRenderingDevice.IsValid() && (FParse::Param(FCommandLine::Get(), TEXT("vr")) || GetDefault<UGeneralProjectSettings>()->bStartInVR);
+				const bool bShouldStartInVR = StereoRenderingDevice.IsValid() && 
+											  !GIsEditor &&
+											  (FParse::Param(FCommandLine::Get(), TEXT("vr")) || GetDefault<UGeneralProjectSettings>()->bStartInVR);
 				if (bShouldStartInVR)
 				{
 					StereoRenderingDevice->EnableStereo(true);

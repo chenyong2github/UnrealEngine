@@ -367,7 +367,12 @@ void FSceneViewport::OnDrawViewport( const FGeometry& AllottedGeometry, const FS
 			{
 				//@HACK VREDITOR
 				//check(Window.IsValid());
-				if ( Window->IsViewportSizeDrivenByWindow() )
+
+				// In the stereo case, the HMD display size drives the base RT size, separate from the PIE mirror window
+				const bool bResizeTargetValid = Window->IsViewportSizeDrivenByWindow() || 
+					(IsPlayInEditorViewport() && IsStereoRenderingAllowed());
+
+				if (bResizeTargetValid)
 				{
 					if (ViewportWidget.Pin()->ShouldRenderDirectly())
 					{
