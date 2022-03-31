@@ -37,10 +37,21 @@ This structure allows a single RHI to control several different hardware setups.
 
 class FD3D12DynamicRHI;
 
+struct FD3D12DeviceBasicInfo
+{
+	D3D_FEATURE_LEVEL           MaxFeatureLevel;
+	D3D_SHADER_MODEL            MaxShaderModel;
+	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
+	D3D12_RESOURCE_HEAP_TIER    ResourceHeapTier;
+	uint32                      NumDeviceNodes;
+
+	ERHIFeatureLevel::Type      MaxRHIFeatureLevel;
+};
+
 struct FD3D12AdapterDesc
 {
 	FD3D12AdapterDesc();
-	FD3D12AdapterDesc(const DXGI_ADAPTER_DESC& InDesc, int32 InAdapterIndex, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel, D3D_SHADER_MODEL InMaxSupportedShaderModel, ERHIFeatureLevel::Type InMaxRHIFeatureLevel);
+	FD3D12AdapterDesc(const DXGI_ADAPTER_DESC& InDesc, int32 InAdapterIndex, const FD3D12DeviceBasicInfo& DeviceInfo);
 
 	bool IsValid() const;
 
@@ -59,6 +70,10 @@ struct FD3D12AdapterDesc
 
 	/** The maximum Shader Model supported. 0 if not supported or FindAdpater() wasn't called */
 	D3D_SHADER_MODEL MaxSupportedShaderModel = (D3D_SHADER_MODEL)0;
+
+	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier = D3D12_RESOURCE_BINDING_TIER_1;
+
+	D3D12_RESOURCE_HEAP_TIER ResourceHeapTier = D3D12_RESOURCE_HEAP_TIER_1;
 
 	ERHIFeatureLevel::Type MaxRHIFeatureLevel = ERHIFeatureLevel::Num;
 
@@ -136,8 +151,8 @@ public:
 	FORCEINLINE const bool IsDebugDevice() const { return bDebugDevice; }
 	FORCEINLINE const ED3D12GPUCrashDebuggingModes GetGPUCrashDebuggingModes() const { return GPUCrashDebuggingModes; }
 	FORCEINLINE FD3D12DynamicRHI* GetOwningRHI() { return OwningRHI; }
-	FORCEINLINE const D3D12_RESOURCE_HEAP_TIER GetResourceHeapTier() const { return ResourceHeapTier; }
-	FORCEINLINE const D3D12_RESOURCE_BINDING_TIER GetResourceBindingTier() const { return ResourceBindingTier; }
+	FORCEINLINE const D3D12_RESOURCE_HEAP_TIER GetResourceHeapTier() const { return Desc.ResourceHeapTier; }
+	FORCEINLINE const D3D12_RESOURCE_BINDING_TIER GetResourceBindingTier() const { return Desc.ResourceBindingTier; }
 	FORCEINLINE const D3D_ROOT_SIGNATURE_VERSION GetRootSignatureVersion() const { return RootSignatureVersion; }
 	FORCEINLINE const bool IsDepthBoundsTestSupported() const { return bDepthBoundsTestSupported; }
 	FORCEINLINE const bool IsHeapNotZeroedSupported() const { return bHeapNotZeroedSupported; }
@@ -449,8 +464,6 @@ protected:
 	HANDLE ExceptionHandlerHandle = INVALID_HANDLE_VALUE;
 #endif
 
-	D3D12_RESOURCE_HEAP_TIER ResourceHeapTier;
-	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
 	D3D_ROOT_SIGNATURE_VERSION RootSignatureVersion;
 	bool bDepthBoundsTestSupported;
 	bool bHeapNotZeroedSupported;

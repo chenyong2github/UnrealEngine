@@ -141,14 +141,6 @@ static FAutoConsoleVariableRef CVarAllowAsyncCompute(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
-int32 GAllowShaderModel6 = 0;
-static FAutoConsoleVariableRef CVarAllowShaderModel6(
-	TEXT("r.D3D12.AllowShaderModel6"),
-	GAllowShaderModel6,
-	TEXT("Allows the usage of SM6 feature level."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe
-);
-
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarExperimentalShaderModels(
 	TEXT("r.D3D12.ExperimentalShaderModels"),
@@ -326,14 +318,14 @@ inline ERHIFeatureLevel::Type FindMaxRHIFeatureLevel(ID3D12Device* Device, D3D_F
 	return MaxRHIFeatureLevel;
 }
 
-struct FD3D12DeviceBasicInfo
+inline void GetResourceTiers(ID3D12Device* Device, D3D12_RESOURCE_BINDING_TIER& OutResourceBindingTier, D3D12_RESOURCE_HEAP_TIER& OutResourceHeapTier)
 {
-	D3D_FEATURE_LEVEL MaxFeatureLevel;
-	D3D_SHADER_MODEL  MaxShaderModel;
-	uint32            NumDeviceNodes;
+	D3D12_FEATURE_DATA_D3D12_OPTIONS D3D12Caps{};
+	Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &D3D12Caps, sizeof(D3D12Caps));
 
-	ERHIFeatureLevel::Type MaxRHIFeatureLevel;
-};
+	OutResourceBindingTier = D3D12Caps.ResourceBindingTier;
+	OutResourceHeapTier = D3D12Caps.ResourceHeapTier;
+}
 
 /**
  * Attempts to create a D3D12 device for the adapter using at minimum MinFeatureLevel.
@@ -348,6 +340,7 @@ static bool SafeTestD3D12CreateDevice(IDXGIAdapter* Adapter, D3D_FEATURE_LEVEL M
 		{
 			OutInfo.MaxFeatureLevel = FindHighestFeatureLevel(Device, MinFeatureLevel);
 			OutInfo.MaxShaderModel = FindHighestShaderModel(Device);
+			GetResourceTiers(Device, OutInfo.ResourceBindingTier, OutInfo.ResourceHeapTier);
 			OutInfo.NumDeviceNodes = Device->GetNodeCount();
 			OutInfo.MaxRHIFeatureLevel = FindMaxRHIFeatureLevel(Device, OutInfo.MaxFeatureLevel, OutInfo.MaxShaderModel);
 
@@ -470,7 +463,6 @@ bool FD3D12DynamicRHIModule::IsSupported(ERHIFeatureLevel::Type RequestedFeature
 		FindAdapter();
 	}
 
-	// The hardware must support at least 11.0.
 	return ChosenAdapters.Num() > 0
 		&& !IsAdapterBlocked(ChosenAdapters[0].Get())
 		&& IsAdapterSupported(ChosenAdapters[0].Get(), RequestedFeatureLevel);
@@ -637,7 +629,7 @@ void FD3D12DynamicRHIModule::FindAdapter()
 				// PerfHUD is for performance profiling
 				const bool bIsPerfHUD = !FCString::Stricmp(AdapterDesc.Description, TEXT("NVIDIA PerfHUD"));
 
-				FD3D12AdapterDesc CurrentAdapter(AdapterDesc, AdapterIndex, DeviceInfo.MaxFeatureLevel, DeviceInfo.MaxShaderModel, DeviceInfo.MaxRHIFeatureLevel);
+				FD3D12AdapterDesc CurrentAdapter(AdapterDesc, AdapterIndex, DeviceInfo);
 
 				CurrentAdapter.NumDeviceNodes = DeviceInfo.NumDeviceNodes;
 				CurrentAdapter.GpuPreference = GpuPreference;
@@ -739,23 +731,20 @@ static bool DoesAnyAdapterSupportSM6(const TArray<TSharedPtr<FD3D12Adapter>>& Ad
 FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 {
 #if PLATFORM_HOLOLENS
+	check(RequestedFeatureLevel == ERHIFeatureLevel::ES3_1);
+
 	GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
 	GMaxRHIShaderPlatform = SP_D3D_ES3_1_HOLOLENS;
-#endif
 
-	const bool bAllowSM6 = GAllowShaderModel6
-		|| (RequestedFeatureLevel != ERHIFeatureLevel::Num && RequestedFeatureLevel >= ERHIFeatureLevel::SM6);
-
-#if PLATFORM_HOLOLENS
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_D3D_ES3_1_HOLOLENS;
 #else
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
-#endif
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
-	if (bAllowSM6)
+	if (DoesAnyAdapterSupportSM6(ChosenAdapters))
 	{
 		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM6] = SP_PCD3D_SM6;
 	}
+#endif
 
 	ERHIFeatureLevel::Type PreviewFeatureLevel;
 	if (!GIsEditor && RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
@@ -767,21 +756,14 @@ FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 	}
 	else
 	{
-		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
-		if (RequestedFeatureLevel < ERHIFeatureLevel::SM6)	
-		{
-			GMaxRHIFeatureLevel = RequestedFeatureLevel;
-		}
-		else if (bAllowSM6 && DoesAnyAdapterSupportSM6(ChosenAdapters))
-		{
-			GMaxRHIFeatureLevel = ERHIFeatureLevel::SM6;
-		}
+		GMaxRHIFeatureLevel = RequestedFeatureLevel;
 	}
 
 	if (!ensure(GMaxRHIFeatureLevel < ERHIFeatureLevel::Num))
 	{
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
 	}
+
 	GMaxRHIShaderPlatform = GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel];
 	check(GMaxRHIShaderPlatform != SP_NumPlatforms);
 

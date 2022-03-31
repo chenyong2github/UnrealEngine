@@ -204,12 +204,14 @@ static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
 
 FD3D12AdapterDesc::FD3D12AdapterDesc() = default;
 
-FD3D12AdapterDesc::FD3D12AdapterDesc(const DXGI_ADAPTER_DESC& InDesc, int32 InAdapterIndex, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel, D3D_SHADER_MODEL InMaxSupportedShaderModel, ERHIFeatureLevel::Type InMaxRHIFeatureLevel)
+FD3D12AdapterDesc::FD3D12AdapterDesc(const DXGI_ADAPTER_DESC& InDesc, int32 InAdapterIndex, const FD3D12DeviceBasicInfo& DeviceInfo)
 	: Desc(InDesc)
 	, AdapterIndex(InAdapterIndex)
-	, MaxSupportedFeatureLevel(InMaxSupportedFeatureLevel)
-	, MaxSupportedShaderModel(InMaxSupportedShaderModel)
-	, MaxRHIFeatureLevel(InMaxRHIFeatureLevel)
+	, MaxSupportedFeatureLevel(DeviceInfo.MaxFeatureLevel)
+	, MaxSupportedShaderModel(DeviceInfo.MaxShaderModel)
+	, ResourceBindingTier(DeviceInfo.ResourceBindingTier)
+	, ResourceHeapTier(DeviceInfo.ResourceHeapTier)
+	, MaxRHIFeatureLevel(DeviceInfo.MaxRHIFeatureLevel)
 {
 }
 
@@ -898,21 +900,15 @@ void FD3D12Adapter::InitializeDevices()
 
 			const bool bRenderDocPresent = D3D12RHI_IsRenderDocPresent(RootDevice);
 
-			D3D12_FEATURE_DATA_D3D12_OPTIONS D3D12Caps;
-			FMemory::Memzero(&D3D12Caps, sizeof(D3D12Caps));
-			VERIFYD3D12RESULT(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &D3D12Caps, sizeof(D3D12Caps)));
-			ResourceHeapTier = D3D12Caps.ResourceHeapTier;
-			ResourceBindingTier = D3D12Caps.ResourceBindingTier;
-
-			if (ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_1)
+			if (GetResourceBindingTier() == D3D12_RESOURCE_BINDING_TIER_1)
 			{
 				MaxNonSamplerDescriptors = D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1;
 			}
-			else if (ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_2)
+			else if (GetResourceBindingTier() == D3D12_RESOURCE_BINDING_TIER_2)
 			{
 				MaxNonSamplerDescriptors = D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2;
 			}
-			else if (ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_3)
+			else if (GetResourceBindingTier() == D3D12_RESOURCE_BINDING_TIER_3)
 			{
 				// From: https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html#levels-of-hardware-support
 				//   For Tier 3, the max # descriptors is listed as 1000000+. The + indicates that the runtime allows applications
@@ -980,12 +976,20 @@ void FD3D12Adapter::InitializeDevices()
 
 			MaxSamplerDescriptors = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
 
+			// From: https://microsoft.github.io/DirectX-Specs/d3d/HLSL_SM_6_6_DynamicResources.html
+			//     ResourceDescriptorHeap/SamplerDescriptorHeap must be supported on devices that support both D3D12_RESOURCE_BINDING_TIER_3 and D3D_SHADER_MODEL_6_6
+			if (GetHighestShaderModel() >= D3D_SHADER_MODEL_6_6 && GetResourceBindingTier() >= D3D12_RESOURCE_BINDING_TIER_3)
+			{
+				GRHISupportsBindless = true;
+				UE_LOG(LogD3D12RHI, Log, TEXT("Bindless resources are supported"));
+			}
+
 #if D3D12_RHI_RAYTRACING
 			D3D12_FEATURE_DATA_D3D12_OPTIONS5 D3D12Caps5 = {};
 			if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &D3D12Caps5, sizeof(D3D12Caps5))))
 			{
 				if (D3D12Caps5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0
-					&& D3D12Caps.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_2
+					&& GetResourceBindingTier() >= D3D12_RESOURCE_BINDING_TIER_2
 					&& RootDevice5
 					&& FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(GMaxRHIShaderPlatform)
 					&& !FParse::Param(FCommandLine::Get(), TEXT("noraytracing")))
@@ -1019,7 +1023,7 @@ void FD3D12Adapter::InitializeDevices()
 
 #endif // D3D12_RHI_RAYTRACING
 
-#if PLATFORM_WINDOWS && D3D12_CORE_ENABLED
+#if PLATFORM_WINDOWS
 			{
 				D3D12_FEATURE_DATA_D3D12_OPTIONS7 D3D12Caps7 = {};
 				RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &D3D12Caps7, sizeof(D3D12Caps7));
@@ -1061,7 +1065,7 @@ void FD3D12Adapter::InitializeDevices()
 					UE_LOG(LogD3D12RHI, Log, TEXT("Shader Model 6.6 atomic64 is not supported"));
 				}
 			}
-#endif // PLATFORM_WINDOWS && D3D12_CORE_ENABLED
+#endif // PLATFORM_WINDOWS
 		}
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
@@ -1091,7 +1095,7 @@ void FD3D12Adapter::InitializeDevices()
 #if TRACK_RESOURCE_ALLOCATIONS
 		// Set flag if we want to track all allocations - comes with some overhead and only possible when Tier 2 is available
 		// (because we will create placed buffers for texture allocation to retrieve the GPU virtual addresses)
-		bTrackAllAllocation = (GD3D12TrackAllAlocations || GPUCrashDebuggingModes == ED3D12GPUCrashDebuggingModes::All) && (ResourceHeapTier == D3D12_RESOURCE_HEAP_TIER_2);
+		bTrackAllAllocation = (GD3D12TrackAllAlocations || GPUCrashDebuggingModes == ED3D12GPUCrashDebuggingModes::All) && (GetResourceHeapTier() == D3D12_RESOURCE_HEAP_TIER_2);
 #endif 
 
 		CreateCommandSignatures();

@@ -1477,6 +1477,8 @@ bool GRHISupportsAsyncPipelinePrecompile = true;
 
 bool GRHISupportsMapWriteNoOverwrite = false;
 
+bool GRHISupportsBindless = false;
+
 FVertexElementTypeSupportInfo GVertexElementTypeSupport;
 
 RHI_API int32 volatile GCurrentTextureMemorySize = 0;

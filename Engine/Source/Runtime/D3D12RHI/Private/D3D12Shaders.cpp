@@ -61,6 +61,11 @@ static bool ValidateShaderIsUsable(FD3D12ShaderData* InShader)
 	{
 		return false;
 	}
+
+	if (EnumHasAnyFlags(InShader->Features, EShaderCodeFeatures::BindlessResources | EShaderCodeFeatures::BindlessSamplers) && !GRHISupportsBindless)
+	{
+		return false;
+	}
 #endif
 
 	return true;

@@ -109,7 +109,7 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 	}
 	else
 	{
-		DynamicRHI = DynamicRHIModule->CreateRHI();
+		DynamicRHI = DynamicRHIModule->CreateRHI(ERHIFeatureLevel::ES3_1);
 	}
 
 	GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
