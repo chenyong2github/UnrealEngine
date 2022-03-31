@@ -359,25 +359,17 @@ void FOutputDeviceRedirectorState::ThreadLoop()
 		MasterThreadId.store(ThreadId, std::memory_order_relaxed);
 	}
 
-	if (FEvent* WakeEvent = ThreadWakeEvent.load(std::memory_order_acquire))
+	while (FEvent* WakeEvent = ThreadWakeEvent.load(std::memory_order_acquire))
 	{
-		while (IsMasterThread(ThreadId))
+		WakeEvent->Wait();
+		while (!BufferedLines.IsEmpty() && IsMasterThread(ThreadId))
 		{
-			WakeEvent->Wait();
-			do
+			if (FOutputDevicesMasterScope Lock(*this); Lock.IsLocked())
 			{
-				if (FOutputDevicesMasterScope Lock(*this); Lock.IsLocked())
-				{
-					FlushBufferedLines();
-				}
-				else
-				{
-					break;
-				}
+				FlushBufferedLines();
 			}
-			while (!BufferedLines.IsEmpty());
-			ThreadIdleEvents.Deplete([](FEvent* Event) { Event->Trigger(); });
 		}
+		ThreadIdleEvents.Deplete([](FEvent* Event) { Event->Trigger(); });
 	}
 }
 
