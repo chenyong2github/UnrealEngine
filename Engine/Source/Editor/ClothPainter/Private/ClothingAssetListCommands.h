@@ -26,5 +26,5 @@ public:
 #endif
 
 	TSharedPtr<FUICommandInfo> RebuildAssetParams;
-
+	TMap<FName, TSharedPtr<FUICommandInfo>> ExportAssets;
 };

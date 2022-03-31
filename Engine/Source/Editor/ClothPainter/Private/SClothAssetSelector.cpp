@@ -35,6 +35,7 @@
 #include "Editor/ContentBrowser/Private/SAssetPicker.h"
 #include "ContentBrowserModule.h"
 #include "Animation/DebugSkelMeshComponent.h"
+#include "ClothingAssetExporter.h"
 
 #define LOCTEXT_NAMESPACE "ClothAssetSelector"
 
@@ -160,6 +161,17 @@ public:
 			FExecuteAction::CreateSP(this, &SAssetListRow::RebuildLODParameters),
 			FCanExecuteAction::CreateSP(this, &SAssetListRow::CanRebuildLODParameters)
 		);
+
+		// Add clothing asset exporters
+		ForEachClothingAssetExporter([this, &Commands](UClass* ExportedType)
+			{
+				if (const TSharedPtr<FUICommandInfo>* const CommandId = Commands.ExportAssets.Find(ExportedType->GetFName()))
+				{
+					UICommandList->MapAction(
+						*CommandId,
+						FExecuteAction::CreateSP(this, &SAssetListRow::ExportAsset, ExportedType));
+				}
+			});
 	}
 
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
@@ -176,6 +188,11 @@ public:
 				Builder.AddMenuEntry(Commands.ReimportAsset);
 #endif
 				Builder.AddMenuEntry(Commands.RebuildAssetParams);
+
+				for (const TPair<FName, TSharedPtr<FUICommandInfo>>& CommandId : Commands.ExportAssets)
+				{
+					Builder.AddMenuEntry(CommandId.Value);
+				}
 			}
 			Builder.EndSection();
 
@@ -339,6 +356,19 @@ private:
 					ParameterMapper.Map(SourceMask.Values, DestMask.Values);
 				}
 			}
+		}
+	}
+
+	void ExportAsset(UClass* ExportedType)
+	{
+		if (!Item.IsValid() || !ExportedType)
+		{
+			return;
+		}
+
+		if (const UClothingAssetCommon* const ClothingAsset = Item->ClothingAsset.Get())
+		{
+			ExportClothingAsset(ClothingAsset, ExportedType);
 		}
 	}
 
