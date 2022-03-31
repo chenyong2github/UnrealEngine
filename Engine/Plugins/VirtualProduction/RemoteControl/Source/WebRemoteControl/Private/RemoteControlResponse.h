@@ -399,6 +399,27 @@ struct FRCPresetEntitiesModifiedEvent
 };
 
 /**
+ * Data about actors that have changed in the scene.
+ */
+USTRUCT()
+struct FRCActorsChangedData
+{
+	GENERATED_BODY()
+
+	/** Actors that were added. */
+	UPROPERTY()
+	TArray<FRCActorDescription> AddedActors;
+
+	/** Actors that were renamed. */
+	UPROPERTY()
+	TArray<FRCActorDescription> RenamedActors;
+
+	/** Actors that were deleted. */
+	UPROPERTY()
+	TArray<FRCActorDescription> DeletedActors;
+};
+
+/**
  * Event triggered when the list of actors in the current scene (or their names) changes.
  */
 USTRUCT()
@@ -417,15 +438,9 @@ struct FRCActorsChangedEvent
 	UPROPERTY()
 	FString Type;
 
-	/** Actors that were added. */
+	/**
+	 * Map from class name to changes in actors of that type.
+	 */
 	UPROPERTY()
-	TArray<FRCActorDescription> AddedActors;
-
-	/** Actors that were renamed. */
-	UPROPERTY()
-	TArray<FRCActorDescription> RenamedActors;
-
-	/** Actors that were deleted. */
-	UPROPERTY()
-	TArray<FRCActorDescription> DeletedActors;
+	TMap<FString, FRCActorsChangedData> Changes;
 };

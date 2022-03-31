@@ -8,6 +8,7 @@
 #include "RemoteControlField.h"
 #include "RemoteControlModels.h"
 #include "RemoteControlPreset.h"
+#include "RemoteControlResponse.h"
 
 
 struct FGuid;
@@ -48,9 +49,34 @@ private:
 		/** Description of the actor. */
 		FRCActorDescription Description;
 
-		/** Which clients are listening for events about this actor. */
-		TArray<FGuid> Clients;
+		/** Which classes this actor is a member of that are causing it to be watched. */
+		TArray<TWeakObjectPtr<UClass>> WatchedClasses;
 	};
+
+	/**
+	 * Data about a class being watched by one or more clients.
+	 */
+	struct FWatchedClassData
+	{
+		/** The clients watching this class. */
+		TArray<FGuid> Clients;
+
+		/** The cached path name of the class so we can still send events about it even if it gets deleted. */
+		FString CachedPath;
+	};
+
+	/**
+	 * Data about actors of a shared class that have been deleted recently.
+	 */
+	struct FDeletedActorsData
+	{
+		/** The cached path name of the shared class so we can still send events about it even if it gets deleted. */
+		FString ClassPath;
+
+		/** Deleted actors, stored as descriptions in case the actor is garbage collected before its name and path can be collected. */
+		TArray<FRCActorDescription> Actors;
+	};
+
 
 	/** Register handlers for actors being added/deleted (must happen after engine init). */
 	void RegisterActorHandlers();
@@ -107,6 +133,24 @@ private:
 	/** If actors were added/removed/renamed, notify listeners. */
 	void ProcessActorChanges();
 
+	/**
+	 * Gather all the changes in the last frame for an actor class.
+	 * 
+	 * @param ActorClass The class of actor for which to gather changes.
+	 * @param OutChangesByClassPath A map from class path to data about changes to actors of that class.
+	 * @param OutClientsToNotify A map from client ID to class paths with actor changes the client cares about.
+	 */
+	void GatherActorChangesForClass(UClass* ActorClass, TMap<FString, FRCActorsChangedData>& OutChangesByClassPath, TMap<FGuid, TArray<FString>>& OutClientsToNotify);
+
+	/**
+	 * Gather all the changes in the last frame about an actor class that has already been deleted.
+	 *
+	 * @param DeletedActorsData Data about the class and actors that have been deleted.
+	 * @param OutChangesByClassPath A map from class path to data about changes to actors of that class.
+	 * @param OutClientsToNotify A map from client ID to class paths with actor changes the client cares about.
+	 */
+	void GatherActorChangesForDeletedClass(const FDeletedActorsData* DeletedActorsData, TMap<FString, FRCActorsChangedData>& OutChangesByClassPath, TMap<FGuid, TArray<FString>>& OutClientsToNotify);
+
 	/** 
 	 * Send a payload to all clients bound to a certain preset.
 	 * @note: TargetPresetName must be in the PresetNotificationMap.
@@ -154,21 +198,36 @@ private:
 	void OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& TransactionEvent);
 
 	/**
-	 * Start watching an actor for the given client.
+	 * Start watching an actor because it's a member of the given class.
 	 */
-	void StartWatchingActor(AActor* Actor, FGuid ClientId);
+	void StartWatchingActor(AActor* Actor, UClass* WatchedClass);
 
 	/**
-	 * Stop watching an actor for the given client.
+	 * Stop watching an actor because it's a member of the given class.
+	 * This should only be called if nobody is watching for this class anymore.
 	 */
-	void StopWatchingActor(AActor* Actor, FGuid ClientId);
+	void StopWatchingActor(AActor* Actor, UClass* WatchedClass);
 
 	/**
 	 * Update our cache of watched actor's name and notify any subscribers.
 	 */
 	void UpdateWatchedActorName(AActor* Actor, FWatchedActorData& ActorData);
 
+	/**
+	 * Unregister a client from messages about the given actor class.
+	 */
+	void UnregisterClientForActorClass(const FGuid& ClientId, TSubclassOf<AActor> ActorClass);
+
 private:
+
+	/** Map type from class to Guids of clients listening for changes to actors of that class. */
+	typedef TMap<TWeakObjectPtr<UClass>, FWatchedClassData, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<UClass>, FWatchedClassData>> FActorNotificationMap;
+
+	/** Map type from class to array of actors of that class that have changed recently. */
+	typedef TMap<TWeakObjectPtr<UClass>, TArray<TWeakObjectPtr<AActor>>, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<UClass>, TArray<TWeakObjectPtr<AActor>>>> FChangedActorMap;
+
+	/** Map type from class to data about actors of that class that have been deleted recently. */
+	typedef TMap<TWeakObjectPtr<UClass>, FDeletedActorsData, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<UClass>, FDeletedActorsData>> FDeletedActorMap;
 
 	/** Web Socket server. */
 	FRCWebSocketServer* Server = nullptr;
@@ -179,7 +238,6 @@ private:
 	TMap<FGuid, TArray<FGuid>> PresetNotificationMap;
 
 	/** All websocket client IDs associated with an actor class. */
-	typedef TMap<TWeakObjectPtr<UClass>, TArray<FGuid>, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<UClass>, TArray<FGuid>>> FActorNotificationMap;
 	FActorNotificationMap ActorNotificationMap;
 
 	/** Configuration for a given client related to how events should be handled. */
@@ -213,17 +271,14 @@ private:
 	/** Fields that were renamed for a frame, per preset */
 	TMap<FGuid, TArray<TTuple<FName, FName>>> PerFrameRenamedFields;
 
-	/** Actors that were added for a frame, per subscribed client. */
-	TMap<FGuid, TArray<TWeakObjectPtr<AActor>>> PerFrameActorsAdded;
+	/** Actors that were added for a frame, per watched class. */
+	FChangedActorMap PerFrameActorsAdded;
 
-	/** Actors that were renamed for a frame, per subscribed client. */
-	TMap<FGuid, TArray<TWeakObjectPtr<AActor>>> PerFrameActorsRenamed;
+	/** Actors that were renamed for a frame, per watched class. */
+	FChangedActorMap PerFrameActorsRenamed;
 
-	/**
-	 * Actors that were removed for a frame, per subscribed client.
-	 * Stored by description in case the actor is garbage collected before its name and path can be collected.
-	 */
-	TMap<FGuid, TArray<FRCActorDescription>> PerFrameActorsDeleted;
+	/** Actors that were removed for a frame, per watched class. */
+	FDeletedActorMap PerFrameActorsDeleted;
 
 	/** Presets that had their metadata modified for a frame */
 	TSet<FGuid> PerFrameModifiedMetadata;
