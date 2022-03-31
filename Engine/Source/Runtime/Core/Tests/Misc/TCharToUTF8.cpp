@@ -12,15 +12,15 @@ TEST_CASE("Core::String::TCharToUtf8::TCharToUtf8", "[Core][Misc][Smoke]")
 		{
 			const FTCHARToUTF8 ConvertedValue(*TestString);
 			const FUTF8ToTCHAR ReverseConvertedValue(ConvertedValue.Get());
-			TestTrue(FString(TEXT("Expected test string 1 to have different encoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ConvertedValue.Get()) == 0);
-			TestTrue(FString(TEXT("Expected test string 1 to have different decoded value")), FCString::Strcmp(*TestString, ReverseConvertedValue.Get()) == 0);
+			CHECK(FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ConvertedValue.Get()) == 0);
+			CHECK(FCString::Strcmp(*TestString, ReverseConvertedValue.Get()) == 0);
 		}
 
 		{
 			const FUTF8ToTCHAR ConvertedValue(ExpectedResult);
 			const FTCHARToUTF8 ReverseConvertedValue(ConvertedValue.Get());
-			TestTrue(FString(TEXT("Expected test string 2 to have different encoded value")), FCString::Strcmp(*TestString, ConvertedValue.Get()) == 0);
-			TestTrue(FString(TEXT("Expected test string 2 to have different decoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ReverseConvertedValue.Get()) == 0);
+			CHECK(FCString::Strcmp(*TestString, ConvertedValue.Get()) == 0);
+			CHECK(FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ReverseConvertedValue.Get()) == 0);
 		}
 	}
 
@@ -31,15 +31,15 @@ TEST_CASE("Core::String::TCharToUtf8::TCharToUtf8", "[Core][Misc][Smoke]")
 		{
 			const FTCHARToUTF8 ConvertedValue(*TestString);
 			const FUTF8ToTCHAR ReverseConvertedValue(ConvertedValue.Get());
-			TestTrue(FString(TEXT("Expected test string 3 to have different encoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ConvertedValue.Get()) == 0);
-			TestTrue(FString(TEXT("Expected test string 3 to have different decoded value")), FCString::Strcmp(*TestString, ReverseConvertedValue.Get()) == 0);
+			CHECK(FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ConvertedValue.Get()) == 0);
+			CHECK(FCString::Strcmp(*TestString, ReverseConvertedValue.Get()) == 0);
 		}
 
 		{
 			const FUTF8ToTCHAR ConvertedValue(ExpectedResult);
 			const FTCHARToUTF8 ReverseConvertedValue(ConvertedValue.Get());
-			TestTrue(FString(TEXT("Expected test string 4 to have different encoded value")), FCString::Strcmp(*TestString, ConvertedValue.Get()) == 0);
-			TestTrue(FString(TEXT("Expected test string 4 to have different decoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ReverseConvertedValue.Get()) == 0);
+			CHECK(FCString::Strcmp(*TestString, ConvertedValue.Get()) == 0);
+			CHECK(FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ReverseConvertedValue.Get()) == 0);
 		}
 	}
 
@@ -50,15 +50,15 @@ TEST_CASE("Core::String::TCharToUtf8::TCharToUtf8", "[Core][Misc][Smoke]")
 		{
 			const FTCHARToUTF8 ConvertedValue(*TestString);
 			const FUTF8ToTCHAR ReverseConvertedValue(ConvertedValue.Get());
-			TestTrue(FString(TEXT("Expected test string 5 to have different encoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ConvertedValue.Get()) == 0);
-			TestTrue(FString(TEXT("Expected test string 5 to have different decoded value")), FCString::Strcmp(*TestString, ReverseConvertedValue.Get()) == 0);
+			CHECK(FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ConvertedValue.Get()) == 0);
+			CHECK(FCString::Strcmp(*TestString, ReverseConvertedValue.Get()) == 0);
 		}
 
 		{
 			const FUTF8ToTCHAR ConvertedValue(ExpectedResult);
 			const FTCHARToUTF8 ReverseConvertedValue(ConvertedValue.Get());
-			TestTrue(FString(TEXT("Expected test string 6 to have different encoded value")), FCString::Strcmp(*TestString, ConvertedValue.Get()) == 0);
-			TestTrue(FString(TEXT("Expected test string 6 to have different decoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ReverseConvertedValue.Get()) == 0);
+			CHECK(FCString::Strcmp(*TestString, ConvertedValue.Get()) == 0);
+			CHECK(FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ReverseConvertedValue.Get()) == 0);
 		}
 	}
 
@@ -69,15 +69,15 @@ TEST_CASE("Core::String::TCharToUtf8::TCharToUtf8", "[Core][Misc][Smoke]")
 		{
 			const FTCHARToUTF8 ConvertedValue(*TestString);
 			const FUTF8ToTCHAR ReverseConvertedValue(ConvertedValue.Get());
-			TestTrue(FString(TEXT("Expected test string 7 to have different encoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ConvertedValue.Get()) == 0);
-			TestTrue(FString(TEXT("Expected test string 7 to have different decoded value")), FCString::Strcmp(*TestString, ReverseConvertedValue.Get()) == 0);
+			CHECK(FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ConvertedValue.Get()) == 0);
+			CHECK(FCString::Strcmp(*TestString, ReverseConvertedValue.Get()) == 0);
 		}
 
 		{
 			const FUTF8ToTCHAR ConvertedValue(ExpectedResult);
 			const FTCHARToUTF8 ReverseConvertedValue(ConvertedValue.Get());
-			TestTrue(FString(TEXT("Expected test string 8 to have different encoded value")), FCString::Strcmp(*TestString, ConvertedValue.Get()) == 0);
-			TestTrue(FString(TEXT("Expected test string 8 to have different decoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ReverseConvertedValue.Get()) == 0);
+			CHECK(FCString::Strcmp(*TestString, ConvertedValue.Get()) == 0);
+			CHECK(FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ReverseConvertedValue.Get()) == 0);
 		}
 	}
 
@@ -87,18 +87,18 @@ TEST_CASE("Core::String::TCharToUtf8::TCharToUtf8", "[Core][Misc][Smoke]")
 		{
 			const FTCHARToUTF8 ConvertedValue(*TestString);
 			const bool bIsNullTerminated = *(ConvertedValue.Get() + ConvertedValue.Length()) == 0;
-			TestTrue(TEXT("Expected converted value to be null-terminated"), bIsNullTerminated);
+			CHECK(bIsNullTerminated);
 		}
 		{
 			const FTCHARToUTF8 ConvertedValue(*TestString, TestString.Len() + 1); // include the null terminator
 			const bool bIsNullTerminated = *(ConvertedValue.Get() + ConvertedValue.Length()) == 0;
-			TestTrue(TEXT("Expected converted value to be null-terminated"), bIsNullTerminated);
+			CHECK(bIsNullTerminated);
 		}
 	}
 
 	{
 		// Verify that we handle invalid UTF-16 strings that ends in half a surrogate pair w/o crashing
 		TCHAR EndWithIllegalSurrogatePair[] = TEXT("ab\xD800");
-		TestEqualString("IllegalSurrogatePair", TCHAR_TO_UTF8(EndWithIllegalSurrogatePair), "ab?");
+		CHECK(!FCString::Strcmp(*FString(TCHAR_TO_UTF8(EndWithIllegalSurrogatePair)), TEXT("ab?") ) );
 	}
 }

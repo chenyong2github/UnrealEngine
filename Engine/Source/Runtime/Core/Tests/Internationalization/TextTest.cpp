@@ -16,17 +16,12 @@
 #include "Serialization/MemoryReader.h"
 #include "Misc/AutomationTest.h"
 #include "Internationalization/ICUUtilities.h"
-
-#if WITH_DEV_AUTOMATION_TESTS
+#include "TestHarness.h"
 
 // Disable optimization for TextTest as it compiles very slowly in development builds
 PRAGMA_DISABLE_OPTIMIZATION
 
 #define LOCTEXT_NAMESPACE "Core.Tests.TextFormatTest"
-
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTextTest, "System.Core.Misc.Text", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
-
 namespace
 {
 	FText FormatWithoutArguments(const FText& Pattern)
@@ -48,32 +43,28 @@ namespace
 		}
 	}
 
-	void TestPatternParameterEnumeration(FTextTest& Test, const FText& Pattern, TArray<FString>& ActualParameters, const TArray<FString>& ExpectedParameters)
+	void TestPatternParameterEnumeration(FAutomationTestFixture& Test, const FText& Pattern, TArray<FString>& ActualParameters, const TArray<FString>& ExpectedParameters)
 	{
 		ActualParameters.Empty(ExpectedParameters.Num());
 		FText::GetFormatPatternParameters(Pattern, ActualParameters);
-		if(ActualParameters != ExpectedParameters)
-		{
-			FString ActualParametersString;
-			ArrayToString(ActualParameters, ActualParametersString);
-			FString ExpectedParametersString;
-			ArrayToString(ExpectedParameters, ExpectedParametersString);
-			Test.AddError( FString::Printf( TEXT("\"%s\" contains parameters (%s) but expected parameters (%s)."), *(Pattern.ToString()), *(ActualParametersString), *(ExpectedParametersString) ) );
-		}
+
+		FString ActualParametersString;
+		ArrayToString(ActualParameters, ActualParametersString);
+		FString ExpectedParametersString;
+		ArrayToString(ExpectedParameters, ExpectedParametersString);
+
+		TEST_EQUAL( FString::Printf( TEXT("\"%s\" contains parameters (%s) but expected parameters (%s)."), *(Pattern.ToString()), *(ActualParametersString), *(ExpectedParametersString) ), ActualParameters, ExpectedParameters);
 	}
 
-	void TestIdentical(FTextTest& Test, const FText& One, const FText& Two, const ETextIdenticalModeFlags CompareFlags, const bool bExpectedResult, const int32 TestLine)
+	void TestIdentical(FAutomationTestFixture& Test, const FText& One, const FText& Two, const ETextIdenticalModeFlags CompareFlags, const bool bExpectedResult, const int32 TestLine)
 	{
 		const bool bActualResult = One.IdenticalTo(Two, CompareFlags);
-		if (bActualResult != bExpectedResult)
-		{
-			Test.AddError(FString::Printf(TEXT("FText(\"%s\").IdenticalTo(FText(\"%s\")) on line %d produced %s when it was expected to produce %s."), *One.ToString(), *Two.ToString(), TestLine, *LexToString(bActualResult), *LexToString(bExpectedResult)));
-		}
+		TEST_EQUAL(FString::Printf(TEXT("FText(\"%s\").IdenticalTo(FText(\"%s\")) on line %d produced %s when it was expected to produce %s."), *One.ToString(), *Two.ToString(), TestLine, *LexToString(bActualResult), *LexToString(bExpectedResult)), bActualResult , bExpectedResult);
 	}
 }
 
 
-bool FTextTest::RunTest (const FString& Parameters)
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::Text::Misc", "[Core][Internationalization][Smoke]")
 {
 	FInternationalization& I18N = FInternationalization::Get();
 	
@@ -132,7 +123,7 @@ bool FTextTest::RunTest (const FString& Parameters)
 	}
 
 #undef TEST
-#define TEST( Desc, A, B ) if( !A.EqualTo(B) ) AddError(FString::Printf(TEXT("%s - A=%s B=%s"),*Desc,*A.ToString(),*B.ToString()))
+#define TEST( Desc, A, B ) TEST_TRUE(FString::Printf(TEXT("%s - A=%s B=%s"),*Desc,*A.ToString(),*B.ToString()), A.EqualTo(B))
 	
 	FText TestText;
 
@@ -338,11 +329,8 @@ bool FTextTest::RunTest (const FString& Parameters)
 	if (I18N.SetCurrentCulture("en-US"))
 	{
 #define TEST(NumBytes, UnitStandard, ExpectedString) \
-	if (!FText::FromString(TEXT(ExpectedString)).EqualTo(FText::AsMemory(NumBytes, &NumberFormattingOptions, nullptr, UnitStandard))) \
-	{ \
-		AddError(FString::Printf(TEXT("FText::AsMemory expected %s bytes in %s to be %s - got %s"), TEXT(#NumBytes), TEXT(#UnitStandard), TEXT(ExpectedString), *FText::AsMemory(NumBytes, &NumberFormattingOptions, nullptr, UnitStandard).ToString())); \
-	} \
-
+	TEST_TRUE( FString::Printf(TEXT("FText::AsMemory expected %s bytes in %s to be %s - got %s"), TEXT(#NumBytes), TEXT(#UnitStandard), TEXT(ExpectedString), *FText::AsMemory(NumBytes, &NumberFormattingOptions, nullptr, UnitStandard).ToString(), FText::FromString(TEXT(ExpectedString)).EqualTo(FText::AsMemory(NumBytes, &NumberFormattingOptions, nullptr, UnitStandard)) )
+	
 	{
 		FNumberFormattingOptions NumberFormattingOptions = FNumberFormattingOptions()
 			.SetRoundingMode(ERoundingMode::HalfFromZero)
@@ -383,7 +371,7 @@ bool FTextTest::RunTest (const FString& Parameters)
 	}
 #undef TEST
 
-#define TEST( A, B, ComparisonLevel ) if( !(FText::FromString(A)).EqualTo(FText::FromString(B), (ComparisonLevel)) ) AddError(FString::Printf(TEXT("Testing comparison of equivalent characters with comparison level (%s). - A=%s B=%s"),TEXT(#ComparisonLevel),(A),(B)))
+#define TEST( A, B, ComparisonLevel ) if( !(FText::FromString(A)).EqualTo(FText::FromString(B), (ComparisonLevel)) ) FAIL_CHECK(FString::Printf(TEXT("Testing comparison of equivalent characters with comparison level (%s). - A=%s B=%s"),TEXT(#ComparisonLevel),(A),(B)))
 
 		// Basic sanity checks
 		TEST( TEXT("a"), TEXT("A"), ETextComparisonLevel::Primary ); // Basic sanity check
@@ -404,10 +392,8 @@ bool FTextTest::RunTest (const FString& Parameters)
 	}
 	else
 	{
-		AddWarning(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("en-US")));
+		WARN(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("en-US")));
 	}
-#else
-	AddWarning("ICU is disabled thus locale-aware string comparison is disabled.");
 #endif
 
 #if UE_ENABLE_ICU
@@ -446,13 +432,13 @@ bool FTextTest::RunTest (const FString& Parameters)
 			}
 			if( !Identical )
 			{
-				//currently failing AddError(FString::Printf(TEXT("Sort order is wrong for culture (%s)."), *FInternationalization::Get().GetCurrentCulture()->GetEnglishName()));
+				//currently failing FAIL_CHECK(FString::Printf(TEXT("Sort order is wrong for culture (%s)."), *FInternationalization::Get().GetCurrentCulture()->GetEnglishName()));
 			}
 		}
 	}
 	else
 	{
-		AddWarning(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("fr")));
+		WARN(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("fr")));
 	}
 
 	// French Canadian
@@ -486,16 +472,14 @@ bool FTextTest::RunTest (const FString& Parameters)
 			}
 			if( !Identical )
 			{
-				//currently failing AddError(FString::Printf(TEXT("Sort order is wrong for culture (%s)."), *FInternationalization::Get().GetCurrentCulture()->GetEnglishName()));
+				//currently failing FAIL_CHECK(FString::Printf(TEXT("Sort order is wrong for culture (%s)."), *FInternationalization::Get().GetCurrentCulture()->GetEnglishName()));
 			}
 		}
 	}
 	else
 	{
-		AddWarning(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("fr-CA")));
+		WARN(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("fr-CA")));
 	}
-#else
-	AddWarning("ICU is disabled thus locale-aware string collation is disabled.");
 #endif
 
 #if UE_ENABLE_ICU
@@ -565,9 +549,9 @@ bool FTextTest::RunTest (const FString& Parameters)
 				// Convert the baked string into an FText, which will be leetified, then compare it to the rebuilt FText
 				if(LEETTranslatedString != DesiredOutput)
 				{
-					AddError( TEXT("FormattedTestLayer2 did not rebuild to correctly in LEET!") );
-					AddError( TEXT("Formatted Output=") + LEETTranslatedString );
-					AddError( TEXT("Desired Output=") + DesiredOutput );
+					FAIL_CHECK( TEXT("FormattedTestLayer2 did not rebuild to correctly in LEET!") );
+					FAIL_CHECK( TEXT("Formatted Output=") + LEETTranslatedString );
+					FAIL_CHECK( TEXT("Desired Output=") + DesiredOutput );
 				}
 			}
 #endif
@@ -581,26 +565,26 @@ bool FTextTest::RunTest (const FString& Parameters)
 
 				if(AsNumberTest1.CompareTo(FText::AsNumber(5.5421)) != 0)
 				{
-					AddError( TEXT("AsNumberTest1 did not rebuild correctly in French-Canadian") );
-					AddError( TEXT("Number Output=") + AsNumberTest1.ToString() );
+					FAIL_CHECK( TEXT("AsNumberTest1 did not rebuild correctly in French-Canadian") );
+					FAIL_CHECK( TEXT("Number Output=") + AsNumberTest1.ToString() );
 				}
 
 				if(AsPercentTest1.CompareTo(FText::AsPercent(0.925)) != 0)
 				{
-					AddError( TEXT("AsPercentTest1 did not rebuild correctly in French-Canadian") );
-					AddError( TEXT("Percent Output=") + AsPercentTest1.ToString() );
+					FAIL_CHECK( TEXT("AsPercentTest1 did not rebuild correctly in French-Canadian") );
+					FAIL_CHECK( TEXT("Percent Output=") + AsPercentTest1.ToString() );
 				}
 
 				if(AsCurrencyTest1.CompareTo(FText::AsCurrencyBase(10025, TEXT("USD"))) != 0)
 				{
-					AddError( TEXT("AsCurrencyTest1 did not rebuild correctly in French-Canadian") );
-					AddError( TEXT("Currency Output=") + AsCurrencyTest1.ToString() );
+					FAIL_CHECK( TEXT("AsCurrencyTest1 did not rebuild correctly in French-Canadian") );
+					FAIL_CHECK( TEXT("Currency Output=") + AsCurrencyTest1.ToString() );
 				}
 
 				if(AsDateTimeTest1.CompareTo(FText::AsDateTime(DateTimeInfo, EDateTimeStyle::Default, EDateTimeStyle::Default, TEXT("UTC"))) != 0)
 				{
-					AddError( TEXT("AsDateTimeTest1 did not rebuild correctly in French-Canadian") );
-					AddError( TEXT("DateTime Output=") + AsDateTimeTest1.ToString() );
+					FAIL_CHECK( TEXT("AsDateTimeTest1 did not rebuild correctly in French-Canadian") );
+					FAIL_CHECK( TEXT("DateTime Output=") + AsDateTimeTest1.ToString() );
 				}
 
 				{
@@ -643,17 +627,17 @@ bool FTextTest::RunTest (const FString& Parameters)
 			// Confirm the two FText's serialize in and get translated into the current (LEET) translation. One originated in English, the other in French-Canadian locales.
 			if(FormattedEnglishTextHistoryAsLeet.CompareTo(FormattedFrenchCanadianTextHistoryAsLeet) != 0)
 			{
-				AddError( TEXT("Serialization of text histories from source English and source French-Canadian to LEET did not produce the same results!") );
-				AddError( TEXT("English Output=") + FormattedEnglishTextHistoryAsLeet.ToString() );
-				AddError( TEXT("French-Canadian Output=") + FormattedFrenchCanadianTextHistoryAsLeet.ToString() );
+				FAIL_CHECK( TEXT("Serialization of text histories from source English and source French-Canadian to LEET did not produce the same results!") );
+				FAIL_CHECK( TEXT("English Output=") + FormattedEnglishTextHistoryAsLeet.ToString() );
+				FAIL_CHECK( TEXT("French-Canadian Output=") + FormattedFrenchCanadianTextHistoryAsLeet.ToString() );
 			}
 
 			// Confirm the two FText's source strings for the serialized FTexts are the same.
 			if(FormattedEnglishTextHistoryAsLeet.BuildSourceString() != FormattedFrenchCanadianTextHistoryAsLeet.BuildSourceString())
 			{
-				AddError( TEXT("Serialization of text histories from source English and source French-Canadian to LEET did not produce the same source results!") );
-				AddError( TEXT("English Output=") + FormattedEnglishTextHistoryAsLeet.BuildSourceString() );
-				AddError( TEXT("French-Canadian Output=") + FormattedFrenchCanadianTextHistoryAsLeet.BuildSourceString() );
+				FAIL_CHECK( TEXT("Serialization of text histories from source English and source French-Canadian to LEET did not produce the same source results!") );
+				FAIL_CHECK( TEXT("English Output=") + FormattedEnglishTextHistoryAsLeet.BuildSourceString() );
+				FAIL_CHECK( TEXT("French-Canadian Output=") + FormattedFrenchCanadianTextHistoryAsLeet.BuildSourceString() );
 			}
 
 			// Rebuild in LEET so that when we build the source string the DisplayString is still in LEET. 
@@ -670,8 +654,8 @@ bool FTextTest::RunTest (const FString& Parameters)
 
 				if(InvariantFText.ToString() != InvariantString)
 				{
-					AddError( TEXT("Invariant FText did not match the original FString after serialization!") );
-					AddError( TEXT("Invariant Output=") + InvariantFText.ToString() );
+					FAIL_CHECK( TEXT("Invariant FText did not match the original FString after serialization!") );
+					FAIL_CHECK( TEXT("Invariant Output=") + InvariantFText.ToString() );
 				}
 
 
@@ -680,16 +664,14 @@ bool FTextTest::RunTest (const FString& Parameters)
 				// Compare the source string of the LEETified version of FormattedTestLayer2 to ensure it is correct.
 				if(FormattedTestLayer2_OriginalLanguageSourceString != FormattedTestLayer2_SourceString)
 				{
-					AddError( TEXT("FormattedTestLayer2's source string was incorrect!") );
-					AddError( TEXT("Output=") + FormattedTestLayer2_SourceString );
-					AddError( TEXT("Desired Output=") + FormattedTestLayer2_OriginalLanguageSourceString );
+					FAIL_CHECK( TEXT("FormattedTestLayer2's source string was incorrect!") );
+					FAIL_CHECK( TEXT("Output=") + FormattedTestLayer2_SourceString );
+					FAIL_CHECK( TEXT("Desired Output=") + FormattedTestLayer2_OriginalLanguageSourceString );
 				}
 			}
 		}
 #endif
 	}
-#else
-	AddWarning("ICU is disabled thus locale-aware formatting needed in rebuilding source text from history is disabled.");
 #endif
 
 	//**********************************
@@ -699,27 +681,24 @@ bool FTextTest::RunTest (const FString& Parameters)
 
 	if ( GIsEditor && TestText.IsCultureInvariant() )
 	{
-		AddError( TEXT("FromString should not produce a Culture Invariant Text when called inside the editor") );
+		FAIL_CHECK( TEXT("FromString should not produce a Culture Invariant Text when called inside the editor") );
 	}
 	
 	if ( !GIsEditor && !TestText.IsCultureInvariant() )
 	{
-		AddError( TEXT("FromString should produce a Culture Invariant Text when called outside the editor") );
+		FAIL_CHECK( TEXT("FromString should produce a Culture Invariant Text when called outside the editor") );
 	}
 
 	if ( TestText.IsTransient() )
 	{
-		AddError( TEXT("FromString should never produce a Transient Text") );
+		FAIL_CHECK( TEXT("FromString should never produce a Transient Text") );
 	}
 
 	I18N.RestoreCultureState(OriginalCultureState);
-
-	return true;
 }
 
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTextRoundingTest, "System.Core.Misc.TextRounding", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
-bool FTextRoundingTest::RunTest (const FString& Parameters)
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::Text::Rounding", "[Core][Internationalization][Smoke]")
 {
 	static const TCHAR* RoundingModeNames[] = {
 		TEXT("HalfToEven"),
@@ -815,7 +794,7 @@ bool FTextRoundingTest::RunTest (const FString& Parameters)
 		const FText ResultText = FText::AsNumber(InNumber, &FormattingOptions);
 		if(ResultText.ToString() != InExpectedString)
 		{
-			AddError(FString::Printf(TEXT("Text rounding failure: source '%f' - expected '%s' - result '%s'. %s."), InNumber, *InExpectedString, *ResultText.ToString(), *InDescription));
+			FAIL_CHECK(FString::Printf(TEXT("Text rounding failure: source '%f' - expected '%s' - result '%s'. %s."), InNumber, *InExpectedString, *ResultText.ToString(), *InDescription));
 		}
 	};
 
@@ -854,14 +833,10 @@ bool FTextRoundingTest::RunTest (const FString& Parameters)
 
 	// Restore original culture
 	I18N.RestoreCultureState(OriginalCultureState);
-
-	return true;
 }
 
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTextPaddingTest, "System.Core.Misc.TextPadding", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
-
-bool FTextPaddingTest::RunTest (const FString& Parameters)
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::Text::Padding", "[Core][Internationalization][Smoke]")
 {
 	FInternationalization& I18N = FInternationalization::Get();
 
@@ -879,7 +854,7 @@ bool FTextPaddingTest::RunTest (const FString& Parameters)
 		const FText ResultText = FText::AsNumber(InNumber, &FormattingOptions);
 		if(ResultText.ToString() != InExpectedString)
 		{
-			AddError(FString::Printf(TEXT("Text padding failure: source '%d' - expected '%s' - result '%s'. %s."), InNumber, *InExpectedString, *ResultText.ToString(), *InDescription));
+			FAIL_CHECK(FString::Printf(TEXT("Text padding failure: source '%d' - expected '%s' - result '%s'. %s."), InNumber, *InExpectedString, *ResultText.ToString(), *InDescription));
 		}
 	};
 
@@ -888,7 +863,7 @@ bool FTextPaddingTest::RunTest (const FString& Parameters)
 		const FText ResultText = FText::AsNumber(InNumber, &FormattingOptions);
 		if(ResultText.ToString() != InExpectedString)
 		{
-			AddError(FString::Printf(TEXT("Text padding failure: source '%f' - expected '%s' - result '%s'. %s."), InNumber, *InExpectedString, *ResultText.ToString(), *InDescription));
+			FAIL_CHECK(FString::Printf(TEXT("Text padding failure: source '%f' - expected '%s' - result '%s'. %s."), InNumber, *InExpectedString, *ResultText.ToString(), *InDescription));
 		}
 	};
 
@@ -955,60 +930,55 @@ bool FTextPaddingTest::RunTest (const FString& Parameters)
 
 	// Restore original culture
 	I18N.RestoreCultureState(OriginalCultureState);
-
-	return true;
 }
-
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTextNumericParsingTest, "System.Core.Misc.TextNumericParsing", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 
 struct FTextNumericParsingTestUtil
 {
 	template <typename T>
-	static void DoTest(FTextNumericParsingTest* InTest, const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions,  const T InExpectedValue, const bool bExpectedToParse, const TCHAR* InDescription)
+	static void DoTest(FAutomationTestFixture* InTest, const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions,  const T InExpectedValue, const bool bExpectedToParse, const TCHAR* InDescription)
 	{
 		T Value;
 		const bool bDidParse = FastDecimalFormat::StringToNumber(InStr, InStrLen, InFormattingRules, InParsingOptions, Value);
 
 		if (bDidParse != bExpectedToParse)
 		{
-			InTest->AddError(FString::Printf(TEXT("Text parsing failure: source '%s' - expected to parse '%s' - result '%s'. %s."), InStr, bExpectedToParse ? TEXT("true") : TEXT("false"), bDidParse ? TEXT("true") : TEXT("false"), InDescription));
+			FAIL_CHECK(FString::Printf(TEXT("Text parsing failure: source '%s' - expected to parse '%s' - result '%s'. %s."), InStr, bExpectedToParse ? TEXT("true") : TEXT("false"), bDidParse ? TEXT("true") : TEXT("false"), InDescription));
 			return;
 		}
 
 		if (bDidParse && Value != InExpectedValue)
 		{
-			InTest->AddError(FString::Printf(TEXT("Text parsing failure: source '%s' - expected value '%f' - result '%f'. %s."), InStr, (double)InExpectedValue, (double)Value, InDescription));
+			FAIL_CHECK(FString::Printf(TEXT("Text parsing failure: source '%s' - expected value '%f' - result '%f'. %s."), InStr, (double)InExpectedValue, (double)Value, InDescription));
 			return;
 		}
 	}
 
 	template <typename T>
-	static void DoGroupingTest(FTextNumericParsingTest* InTest, const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const T InExpectedValue, const bool bExpectedToParse, const TCHAR* InDescription)
+	static void DoGroupingTest(FAutomationTestFixture* InTest, const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const T InExpectedValue, const bool bExpectedToParse, const TCHAR* InDescription)
 	{
 		DoTest(InTest, InStr, InStrLen, InFormattingRules, FNumberParsingOptions::DefaultWithGrouping(), InExpectedValue, bExpectedToParse, InDescription);
 	}
 
 	template <typename T>
-	static void DoGroupingTest(FTextNumericParsingTest* InTest, const TCHAR* InStr, const FDecimalNumberFormattingRules& InFormattingRules, const T InExpectedValue, const bool bExpectedToParse, const TCHAR* InDescription)
+	static void DoGroupingTest(FAutomationTestFixture* InTest, const TCHAR* InStr, const FDecimalNumberFormattingRules& InFormattingRules, const T InExpectedValue, const bool bExpectedToParse, const TCHAR* InDescription)
 	{
 		DoGroupingTest(InTest, InStr, FCString::Strlen(InStr), InFormattingRules, InExpectedValue, bExpectedToParse, InDescription);
 	}
 
 	template <typename T>
-	static void DoLimitsTest(FTextNumericParsingTest* InTest, const TCHAR* InStr, const FDecimalNumberFormattingRules& InFormattingRules, const T InExpectedValue, const bool bExpectedToParse, const TCHAR* InDescription)
+	static void DoLimitsTest(FAutomationTestFixture* InTest, const TCHAR* InStr, const FDecimalNumberFormattingRules& InFormattingRules, const T InExpectedValue, const bool bExpectedToParse, const TCHAR* InDescription)
 	{
 		DoTest(InTest, InStr, FCString::Strlen(InStr), InFormattingRules, FNumberParsingOptions().SetUseGrouping(true).SetInsideLimits(true), InExpectedValue, bExpectedToParse, InDescription);
 	}
 
 	template <typename T>
-	static void DoClampTest(FTextNumericParsingTest* InTest, const TCHAR* InStr, const FDecimalNumberFormattingRules& InFormattingRules, const T InExpectedValue, const bool bExpectedToParse, const TCHAR* InDescription)
+	static void DoClampTest(FAutomationTestFixture* InTest, const TCHAR* InStr, const FDecimalNumberFormattingRules& InFormattingRules, const T InExpectedValue, const bool bExpectedToParse, const TCHAR* InDescription)
 	{
 		DoTest(InTest, InStr, FCString::Strlen(InStr), InFormattingRules, FNumberParsingOptions().SetUseGrouping(true).SetUseClamping(true), InExpectedValue, bExpectedToParse, InDescription);
 	}
 
 	template <typename T>
-	static void DoAllTests(FTextNumericParsingTest* InTest, const TCHAR* InStr, const FDecimalNumberFormattingRules& InFormattingRules, const T InExpectedValue, const T InExpectedClampedValue, const bool bExpectedToParse, const bool bExpectedToParseStrict, const TCHAR* InDescription)
+	static void DoAllTests(FAutomationTestFixture* InTest, const TCHAR* InStr, const FDecimalNumberFormattingRules& InFormattingRules, const T InExpectedValue, const T InExpectedClampedValue, const bool bExpectedToParse, const bool bExpectedToParseStrict, const TCHAR* InDescription)
 	{
 		DoGroupingTest(InTest, InStr, InFormattingRules, InExpectedValue, bExpectedToParse, InDescription);
 		DoClampTest(InTest, InStr, InFormattingRules, InExpectedClampedValue, bExpectedToParse, InDescription);
@@ -1016,7 +986,7 @@ struct FTextNumericParsingTestUtil
 	}
 };
 
-bool FTextNumericParsingTest::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::Text::NumericParsing", "[Core][Internationalization][Smoke]")
 {
 	FInternationalization& I18N = FInternationalization::Get();
 
@@ -1161,14 +1131,9 @@ bool FTextNumericParsingTest::RunTest(const FString& Parameters)
 		FTextNumericParsingTestUtil::DoLimitsTest<int64>(this, TEXT("-18446744073709551616"), AgnosticFormattingRules, 0, false, TEXT("Parsing negative overflow int64 max"));
 		FTextNumericParsingTestUtil::DoClampTest<int64>(this, TEXT("-18446744073709551616"), AgnosticFormattingRules, TNumericLimits<int64>::Lowest(), true, TEXT("Parsing negative overflow int64 max"));
 	}
-
-	return true;
 }
 
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTextStringificationTest, "System.Core.Misc.TextStringification", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
-
-bool FTextStringificationTest::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::Text::Stringification", "[.][Core][Internationalization][Smoke]")
 {
 	FInternationalization& I18N = FInternationalization::Get();
 
@@ -1185,18 +1150,18 @@ bool FTextStringificationTest::RunTest(const FString& Parameters)
 		FTextStringHelper::WriteToBuffer(ActualString, InExpectedText);
 		if (!ActualString.Equals(InExpectedString, ESearchCase::CaseSensitive))
 		{
-			AddError(FString::Printf(TEXT("Text export failure (from text): Text '%s' was expected to export as '%s', but produced '%s'."), *InExpectedText.ToString(), *InExpectedString, *ActualString));
+			FAIL_CHECK(FString::Printf(TEXT("Text export failure (from text): Text '%s' was expected to export as '%s', but produced '%s'."), *InExpectedText.ToString(), *InExpectedString, *ActualString));
 		}
 
 		// Validate that the string produces the text we expect
 		FText ActualText;
 		if (!FTextStringHelper::ReadFromBuffer(*InExpectedString, ActualText))
 		{
-			AddError(FString::Printf(TEXT("Text import failure (from string): String '%s' failed to import."), *InExpectedString));
+			FAIL_CHECK(FString::Printf(TEXT("Text import failure (from string): String '%s' failed to import."), *InExpectedString));
 		}
 		if (!InExpectedText.ToString().Equals(ActualText.ToString(), ESearchCase::CaseSensitive))
 		{
-			AddError(FString::Printf(TEXT("Text import failure (from string): String '%s' was expected to import as '%s', but produced '%s'."), *InExpectedString, *InExpectedText.ToString(), *ActualText.ToString()));
+			FAIL_CHECK(FString::Printf(TEXT("Text import failure (from string): String '%s' was expected to import as '%s', but produced '%s'."), *InExpectedString, *InExpectedText.ToString(), *ActualText.ToString()));
 		}
 
 		// Validate that the C++ string produces the text we expect
@@ -1205,11 +1170,11 @@ bool FTextStringificationTest::RunTest(const FString& Parameters)
 			FText ActualCppText;
 			if (!FTextStringHelper::ReadFromBuffer(*InCppString, ActualCppText))
 			{
-				AddError(FString::Printf(TEXT("Text import failure (from C++): String '%s' failed to import."), *InCppString));
+				FAIL_CHECK(FString::Printf(TEXT("Text import failure (from C++): String '%s' failed to import."), *InCppString));
 			}
 			if (!InExpectedText.ToString().Equals(ActualCppText.ToString(), ESearchCase::CaseSensitive))
 			{
-				AddError(FString::Printf(TEXT("Text import failure (from C++): String '%s' was expected to import as '%s', but produced '%s'."), *InCppString, *InExpectedText.ToString(), *ActualCppText.ToString()));
+				FAIL_CHECK(FString::Printf(TEXT("Text import failure (from C++): String '%s' was expected to import as '%s', but produced '%s'."), *InCppString, *InExpectedText.ToString(), *ActualCppText.ToString()));
 			}
 		}
 	};
@@ -1275,20 +1240,16 @@ bool FTextStringificationTest::RunTest(const FString& Parameters)
 
 	// Restore original culture
 	I18N.RestoreCultureState(OriginalCultureState);
-
-	return true;
 }
 
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTextFormatArgModifierTest, "System.Core.Misc.TextFormatArgModifiers", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
-
-bool FTextFormatArgModifierTest::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::Misc::TextFormatArgModifiers", "[Core][Internationalization][Smoke]")
 {
 	auto EnsureValidResult = [&](const FString& InResult, const FString& InExpected, const FString& InName, const FString& InDescription)
 	{
 		if (!InResult.Equals(InExpected, ESearchCase::CaseSensitive))
 		{
-			AddError(FString::Printf(TEXT("%s failure: result '%s' (expected '%s'). %s."), *InName, *InResult, *InExpected, *InDescription));
+			FAIL_CHECK(FString::Printf(TEXT("%s failure: result '%s' (expected '%s'). %s."), *InName, *InResult, *InExpected, *InDescription));
 		}
 	};
 
@@ -1401,15 +1362,11 @@ bool FTextFormatArgModifierTest::RunTest(const FString& Parameters)
 
 	// Restore original culture
 	I18N.RestoreCultureState(OriginalCultureState);
-
-	return true;
 }
 
 #if UE_ENABLE_ICU
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FICUSanitizationTest, "System.Core.Misc.ICUSanitization", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
-
-bool FICUSanitizationTest::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::Misc::ICUSanitization", "[Core][Internationalization][Smoke]")
 {
 	// Validate culture code sanitization
 	{
@@ -1418,7 +1375,7 @@ bool FICUSanitizationTest::RunTest(const FString& Parameters)
 			const FString SanitizedCode = ICUUtilities::SanitizeCultureCode(InCode);
 			if (!SanitizedCode.Equals(InExpectedCode, ESearchCase::CaseSensitive))
 			{
-				AddError(FString::Printf(TEXT("SanitizeCultureCode did not produce the expected result (got '%s', expected '%s')"), *SanitizedCode, *InExpectedCode));
+				FAIL_CHECK(FString::Printf(TEXT("SanitizeCultureCode did not produce the expected result (got '%s', expected '%s')"), *SanitizedCode, *InExpectedCode));
 			}
 		};
 
@@ -1435,7 +1392,7 @@ bool FICUSanitizationTest::RunTest(const FString& Parameters)
 			const FString SanitizedCode = ICUUtilities::SanitizeTimezoneCode(InCode);
 			if (!SanitizedCode.Equals(InExpectedCode, ESearchCase::CaseSensitive))
 			{
-				AddError(FString::Printf(TEXT("SanitizeTimezoneCode did not produce the expected result (got '%s', expected '%s')"), *SanitizedCode, *InExpectedCode));
+				FAIL_CHECK(FString::Printf(TEXT("SanitizeTimezoneCode did not produce the expected result (got '%s', expected '%s')"), *SanitizedCode, *InExpectedCode));
 			}
 		};
 
@@ -1460,7 +1417,7 @@ bool FICUSanitizationTest::RunTest(const FString& Parameters)
 			const FString SanitizedCode = ICUUtilities::SanitizeCurrencyCode(InCode);
 			if (!SanitizedCode.Equals(InExpectedCode, ESearchCase::CaseSensitive))
 			{
-				AddError(FString::Printf(TEXT("SanitizeCurrencyCode did not produce the expected result (got '%s', expected '%s')"), *SanitizedCode, *InExpectedCode));
+				FAIL_CHECK(FString::Printf(TEXT("SanitizeCurrencyCode did not produce the expected result (got '%s', expected '%s')"), *SanitizedCode, *InExpectedCode));
 			}
 		};
 
@@ -1477,7 +1434,7 @@ bool FICUSanitizationTest::RunTest(const FString& Parameters)
 			const FString CanonizedCode = FCulture::GetCanonicalName(InCode);
 			if (!CanonizedCode.Equals(InExpectedCode, ESearchCase::CaseSensitive))
 			{
-				AddError(FString::Printf(TEXT("GetCanonicalName did not produce the expected result (got '%s', expected '%s')"), *CanonizedCode, *InExpectedCode));
+				FAIL_CHECK(FString::Printf(TEXT("GetCanonicalName did not produce the expected result (got '%s', expected '%s')"), *CanonizedCode, *InExpectedCode));
 			}
 		};
 
@@ -1502,13 +1459,9 @@ bool FICUSanitizationTest::RunTest(const FString& Parameters)
 		TestCultureCodeCanonization(TEXT("en_US@wooble=USD"), TEXT("en-US"));
 		TestCultureCodeCanonization(TEXT("fred_wooble_bob_wibble"), TEXT("en-US-POSIX"));
 	}
-
-	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FICUTextTest, "System.Core.Misc.ICUText", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
-
-bool FICUTextTest::RunTest (const FString& Parameters)
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::Misc::ICUText", "[Core][Internationalization][Smoke]")
 {
 	// Test to make sure that ICUUtilities converts strings correctly
 
@@ -1522,17 +1475,17 @@ bool FICUTextTest::RunTest (const FString& Parameters)
 	ICUUtilities::ConvertString(SourceString, ICUString);
 	if (SourceString.Len() != ICUString.countChar32())
 	{
-		AddError(FString::Printf(TEXT("icu::UnicodeString is the incorrect length (%d; expected %d)."), ICUString.countChar32(), SourceString.Len()));
+		FAIL_CHECK(FString::Printf(TEXT("icu::UnicodeString is the incorrect length (%d; expected %d)."), ICUString.countChar32(), SourceString.Len()));
 	}
 
 	ICUUtilities::ConvertString(ICUString, ConversionBackStr);
 	if (ICUString.length() != ConversionBackStr.Len())
 	{
-		AddError(FString::Printf(TEXT("FString is the incorrect length (%d; expected %d)."), ConversionBackStr.Len(), ICUString.countChar32()));
+		FAIL_CHECK(FString::Printf(TEXT("FString is the incorrect length (%d; expected %d)."), ConversionBackStr.Len(), ICUString.countChar32()));
 	}
 	if (SourceString != ConversionBackStr)
 	{
-		AddError(FString::Printf(TEXT("FString is has the incorrect converted value ('%s'; expected '%s')."), *ConversionBackStr, *SourceString));
+		FAIL_CHECK(FString::Printf(TEXT("FString is has the incorrect converted value ('%s'; expected '%s')."), *ConversionBackStr, *SourceString));
 	}
 
 	// ---------------------------------------------------------------------
@@ -1540,17 +1493,17 @@ bool FICUTextTest::RunTest (const FString& Parameters)
 	ICUUtilities::ConvertString(SourceString2, ICUString);
 	if (SourceString2.Len() != ICUString.countChar32())
 	{
-		AddError(FString::Printf(TEXT("icu::UnicodeString is the incorrect length (%d; expected %d)."), ICUString.countChar32(), SourceString2.Len()));
+		FAIL_CHECK(FString::Printf(TEXT("icu::UnicodeString is the incorrect length (%d; expected %d)."), ICUString.countChar32(), SourceString2.Len()));
 	}
 
 	ICUUtilities::ConvertString(ICUString, ConversionBackStr);
 	if (ICUString.length() != ConversionBackStr.Len())
 	{
-		AddError(FString::Printf(TEXT("FString is the incorrect length (%d; expected %d)."), ConversionBackStr.Len(), ICUString.countChar32()));
+		FAIL_CHECK(FString::Printf(TEXT("FString is the incorrect length (%d; expected %d)."), ConversionBackStr.Len(), ICUString.countChar32()));
 	}
 	if (SourceString2 != ConversionBackStr)
 	{
-		AddError(FString::Printf(TEXT("FString is has the incorrect converted value ('%s'; expected '%s')."), *ConversionBackStr, *SourceString2));
+		FAIL_CHECK(FString::Printf(TEXT("FString is has the incorrect converted value ('%s'; expected '%s')."), *ConversionBackStr, *SourceString2));
 	}
 
 	// ---------------------------------------------------------------------
@@ -1558,27 +1511,23 @@ bool FICUTextTest::RunTest (const FString& Parameters)
 	ICUUtilities::ConvertString(SourceString, ICUString);
 	if (SourceString.Len() != ICUString.countChar32())
 	{
-		AddError(FString::Printf(TEXT("icu::UnicodeString is the incorrect length (%d; expected %d)."), ICUString.countChar32(), SourceString.Len()));
+		FAIL_CHECK(FString::Printf(TEXT("icu::UnicodeString is the incorrect length (%d; expected %d)."), ICUString.countChar32(), SourceString.Len()));
 	}
 
 	ICUUtilities::ConvertString(ICUString, ConversionBackStr);
 	if (ICUString.length() != ConversionBackStr.Len())
 	{
-		AddError(FString::Printf(TEXT("FString is the incorrect length (%d; expected %d)."), ConversionBackStr.Len(), ICUString.countChar32()));
+		FAIL_CHECK(FString::Printf(TEXT("FString is the incorrect length (%d; expected %d)."), ConversionBackStr.Len(), ICUString.countChar32()));
 	}
 	if (SourceString != ConversionBackStr)
 	{
-		AddError(FString::Printf(TEXT("FString is has the incorrect converted value ('%s'; expected '%s')."), *ConversionBackStr, *SourceString));
+		FAIL_CHECK(FString::Printf(TEXT("FString is has the incorrect converted value ('%s'; expected '%s')."), *ConversionBackStr, *SourceString));
 	}
-
-	return true;
 }
 
 #endif // #if UE_ENABLE_ICU
 
 #undef LOCTEXT_NAMESPACE 
 
-
 PRAGMA_ENABLE_OPTIMIZATION
 
-#endif //WITH_DEV_AUTOMATION_TESTS

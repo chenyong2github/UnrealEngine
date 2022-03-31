@@ -2,7 +2,6 @@
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
-
 #include "HAL/Thread.h"
 #include "HAL/ThreadSafeBool.h"
 #include "HAL/ThreadSafeCounter.h"
@@ -10,39 +9,38 @@
 #include "HAL/Event.h"
 #include "Containers/Queue.h"
 #include "Containers/StringConv.h"
-
-#include "TestHarness.h"
+#include "TestFixtures/CoreTestFixture.h"
 
 namespace
 {
-	void TestIsJoinableAfterCreation()
+	void TestIsJoinableAfterCreation(FAutomationTestFixture& Test)
 	{
 		FThread Thread(TEXT("Test.Thread.TestIsJoinableAfterCreation"), []() { /*NOOP*/ });
-		TestTrue(TEXT("FThread must be joinable after construction"), Thread.IsJoinable());
+		TEST_TRUE(TEXT("FThread must be joinable after construction"), Thread.IsJoinable());
 		Thread.Join();
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 
-	void TestIsJoinableAfterCompletion()
+	void TestIsJoinableAfterCompletion(FAutomationTestFixture& Test)
 	{
 		FThreadSafeBool bDone = false;
 		FThread Thread(TEXT("Test.Thread.TestIsJoinableAfterCompletion"), [&bDone]() { bDone = true; });
-		while (!bDone); // wait for completion //-V529
-		TestTrue(TEXT("FThread must still be joinable after completion"), Thread.IsJoinable());
+		while (!bDone) {}; // wait for completion //-V529
+		TEST_TRUE(TEXT("FThread must still be joinable after completion"), Thread.IsJoinable());
 		Thread.Join();
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 
-	void TestIsNotJoinableAfterJoining()
+	void TestIsNotJoinableAfterJoining(FAutomationTestFixture& Test)
 	{
 		FThread Thread(TEXT("Test.Thread.TestIsNotJoinableAfterJoining"), []() { /*NOOP*/ });
 		Thread.Join();
-		TestFalse(TEXT("FThread must not be joinable after joining"), Thread.IsJoinable());
+		TEST_FALSE(TEXT("FThread must not be joinable after joining"), Thread.IsJoinable());
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 
 #if 0 // detaching is not implemented
-	void TestIsNotJoinableAfterDetaching()
+	void TestIsNotJoinableAfterDetaching(FAutomationTestFixture& Test)
 	{
 		// two cases: it's either the calling thread detaches from the thread before the thread is completed
 		{
@@ -53,7 +51,7 @@ namespace
 				});
 			Thread.Detach();
 			bReady = true; // make sure `Detach` is called before thread function exit
-			TestFalse(TEXT("FThread must not be joinable after detaching"), Thread.IsJoinable());
+			Test.TEST_FALSE(TEXT("FThread must not be joinable after detaching"), Thread.IsJoinable());
 		}
 		// or thread function is completed fast and `FThreadImpl` releases the reference to itself before
 		// `Detach` call
@@ -63,35 +61,35 @@ namespace
 			FPlatformProcess::Sleep(0.1); // let the thread exit before detaching
 			Thread.Detach();
 			bReady = true; // make sure `Detach` is called before thread function exit
-			TestFalse(TEXT("FThread must not be joinable after detaching"), Thread.IsJoinable());
+			Test.TEST_FALSE(TEXT("FThread must not be joinable after detaching"), Thread.IsJoinable());
 		}
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 #endif
 
-	void TestAssertIfNotJoinedOrDetached()
+	void TestAssertIfNotJoinedOrDetached(FAutomationTestFixture& Test)
 	{
 		// this does fails the `check`, but it seems there's no way to test this by UE4 Automation Testing, so commented out
 		FThread Thread(TEXT("Test.Thread.TestAssertIfNotJoinedOrDetached"), []() { /*NOOP*/ });
 		// should assert in the destructor
 	}
 
-	void TestDefaultConstruction()
+	void TestDefaultConstruction(FAutomationTestFixture& Test)
 	{
 		{
 			FThread Thread;
-			TestFalse(TEXT("Default-constructed FThread must be not joinable"), Thread.IsJoinable());
+			TEST_FALSE(TEXT("Default-constructed FThread must be not joinable"), Thread.IsJoinable());
 		}
 		{	// check that default constructed thread can be "upgraded" to joinable thread
 			FThread Thread;
 			Thread = FThread(TEXT("Test.Thread.TestDefaultConstruction"), []() { /* NOOP */ });
-			TestTrue(TEXT("Move-constructed FThread from joinable thread must be joinable"), Thread.IsJoinable());
+			TEST_TRUE(TEXT("Move-constructed FThread from joinable thread must be joinable"), Thread.IsJoinable());
 			Thread.Join();
 		}
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 
-	void TestThreadSingleton()
+	void TestThreadSingleton(FAutomationTestFixture& Test)
 	{
 		{	// check that ThreadSingleton instances in different threads are isolated from each other
 			class FThreadSingletonTest : public TThreadSingleton<FThreadSingletonTest>
@@ -113,8 +111,8 @@ namespace
 					FThreadSingletonTest::Get().SetTestField(2);
 				});
 			Thread.Join();
-			TestTrue(TEXT("Thread singleton should be uninitialized by default"), bDefaultValuePass);
-			TestTrue(TEXT("Thread singletons in different threads should be isolated"), FThreadSingletonTest::Get().GetTestField() == 1);
+			TEST_TRUE(TEXT("Thread singleton should be uninitialized by default"), bDefaultValuePass);
+			TEST_TRUE(TEXT("Thread singletons in different threads should be isolated"), FThreadSingletonTest::Get().GetTestField() == 1);
 		}
 		{	// check that ThreadSingleton entries don't point to invalid memory after cleanup
 			class FThreadSingletonFirst : public TThreadSingleton<FThreadSingletonFirst>
@@ -137,33 +135,33 @@ namespace
 					FThreadSingletonSecond::Get();
 				});
 			Thread.Join();
-			TestTrue(TEXT("Thread singletons should be uninitialized by default"), FThreadSingletonFirst::TryGet() == nullptr);
-			TestTrue(TEXT("Thread singletons should be uninitialized by default"), FThreadSingletonSecond::TryGet() == nullptr);
+			TEST_TRUE(TEXT("Thread singletons should be uninitialized by default"), FThreadSingletonFirst::TryGet() == nullptr);
+			TEST_TRUE(TEXT("Thread singletons should be uninitialized by default"), FThreadSingletonSecond::TryGet() == nullptr);
 		}
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 
-	void TestMovability()
+	void TestMovability(FAutomationTestFixture& Test)
 	{
 		{	// move constructor with default-constructed thread
 			FThread Src;
 			FThread Dst(MoveTemp(Src));
-			TestFalse(TEXT("Default-constructed thread must stay not joinable after moving out"), Src.IsJoinable());
-			TestFalse(TEXT("Move-constructed thread from not joinable thread must be not joinable"), Dst.IsJoinable());
+			TEST_FALSE(TEXT("Default-constructed thread must stay not joinable after moving out"), Src.IsJoinable());
+			TEST_FALSE(TEXT("Move-constructed thread from not joinable thread must be not joinable"), Dst.IsJoinable());
 		}
 		{	// move constructor with joinable thread
 			FThread Src(TEXT("Test.Thread.TestMovability.1"), []() { /* NOOP */ });
 			FThread Dst(MoveTemp(Src));
-			TestFalse(TEXT("Moved out thread must be not joinable"), Src.IsJoinable());
-			TestTrue(TEXT("Move-constructed thread from joinable thread must be joinable"), Dst.IsJoinable());
+			TEST_FALSE(TEXT("Moved out thread must be not joinable"), Src.IsJoinable());
+			TEST_TRUE(TEXT("Move-constructed thread from joinable thread must be joinable"), Dst.IsJoinable());
 			Dst.Join();
 		}
 		{	// move assignment operator
 			FThread Src(TEXT("Test.Thread.TestMovability.2"), []() { /* NOOP */ });
 			FThread Dst;
 			Dst = MoveTemp(Src);
-			TestFalse(TEXT("Moved out thread must be not joinable"), Src.IsJoinable());
-			TestTrue(TEXT("Move-assigned thread from joinable thread must be joinable"), Dst.IsJoinable());
+			TEST_FALSE(TEXT("Moved out thread must be not joinable"), Src.IsJoinable());
+			TEST_TRUE(TEXT("Move-assigned thread from joinable thread must be joinable"), Dst.IsJoinable());
 			Dst.Join();
 		}
 		{	// Failure test for move assignment operator of joinable thread
@@ -183,7 +181,7 @@ namespace
 	}
 
 	// An example of possible implementation of Consumer/Producer idiom
-	void TestTypicalUseCase()
+	void TestTypicalUseCase(FAutomationTestFixture& Test)
 	{
 		FThreadSafeBool bQuitRequested = false;
 		using FWork = uint32;
@@ -242,23 +240,22 @@ namespace
 	}
 }
 
-TEST_CASE("Core::HAL::Thread", "[Core][HAL][Thread]")
+TEST_CASE_METHOD(FCoreTestFixture, "Core::HAL::Thread::Smoke Test", "[Core][HAL][Smoke]")
 {
 	UE_LOG(LogTemp, Log, TEXT("%s"), StringCast<TCHAR>(__FUNCTION__).Get());
 
-	TestIsJoinableAfterCreation();
-	TestIsJoinableAfterCompletion();
-	TestIsNotJoinableAfterJoining();
+	TestIsJoinableAfterCreation(*this);
+	TestIsJoinableAfterCompletion(*this);
+	TestIsNotJoinableAfterJoining(*this);
 	
 #if 0 // detaching is not implemented
-	TestIsNotJoinableAfterDetaching();
+	TestIsNotJoinableAfterDetaching(*this);
 #endif
 
 	//TestAssertIfNotJoinedOrDetached();
 
-	TestDefaultConstruction();
-	TestMovability();
-
-	TestTypicalUseCase();
-	TestThreadSingleton();
+	TestDefaultConstruction(*this);
+	TestMovability(*this);
+	TestTypicalUseCase(*this);
+	TestThreadSingleton(*this);
 }

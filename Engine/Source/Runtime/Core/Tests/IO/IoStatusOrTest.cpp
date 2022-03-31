@@ -28,59 +28,59 @@ struct FIoStatusTestType
 	FString Text;
 };
 
-void TestConstruct()
+void TestConstruct(FAutomationTestFixture& Test)
 {
 	{
 		TIoStatusOr<FIoStatusTestType> Result;
-		TestEqual("Default IoStatus is Unknown", Result.Status(), FIoStatus::Unknown);
+		TEST_EQUAL("Default IoStatus is Unknown", Result.Status(), FIoStatus::Unknown);
 	}
 
 	{
 		const TIoStatusOr<FIoStatusTestType> Other;
 		TIoStatusOr<FIoStatusTestType> Result(Other);
-		TestEqual("Copy construct", Result.Status(), FIoStatus::Unknown);
+		TEST_EQUAL("Copy construct", Result.Status(), FIoStatus::Unknown);
 	}
 
 	{
 		const FIoStatus IoStatus(EIoErrorCode::InvalidCode);
 		TIoStatusOr<FIoStatusTestType> Result(IoStatus);
-		TestEqual("Construct with status", Result.Status().GetErrorCode(), EIoErrorCode::InvalidCode);
+		TEST_EQUAL("Construct with status", Result.Status().GetErrorCode(), EIoErrorCode::InvalidCode);
 	}
 
 	{
 		const FString ExpectedText("Unreal");
 		const FIoStatusTestType Type(ExpectedText);
 		TIoStatusOr<FIoStatusTestType> Result(Type);
-		TestEqual("Construct with value", Result.ValueOrDie().Text, ExpectedText);
+		TEST_EQUAL("Construct with value", Result.ValueOrDie().Text, ExpectedText);
 	}
 
 	{
 		const FString ExpectedText("Unreal");
 		TIoStatusOr<FIoStatusTestType> Result(FIoStatusTestType("Unreal"));
-		TestEqual("Construct with temporary value", Result.ValueOrDie().Text, ExpectedText);
+		TEST_EQUAL("Construct with temporary value", Result.ValueOrDie().Text, ExpectedText);
 	}
 
 	{
 		TIoStatusOr<FIoStatusTestType> Result(FString("Unreal"));
-		TestEqual("Construct with value arguments", Result.ValueOrDie().Text, FString("Unreal"));
+		TEST_EQUAL("Construct with value arguments", Result.ValueOrDie().Text, FString("Unreal"));
 	}
 }
 
-void TestAssignment()
+void TestAssignment(FAutomationTestFixture& Test)
 {
 	{
 		const EIoErrorCode ExpectedErrorCode = EIoErrorCode::InvalidCode;
 		TIoStatusOr<FIoStatusTestType> Other = FIoStatus(ExpectedErrorCode);
 		TIoStatusOr<FIoStatusTestType> Result;
 		Result = Other;
-		TestEqual("Assign IoStatusOr with status", Result.Status().GetErrorCode(), ExpectedErrorCode);
+		TEST_EQUAL("Assign IoStatusOr with status", Result.Status().GetErrorCode(), ExpectedErrorCode);
 	}
 
 	{
 		const EIoErrorCode ExpectedErrorCode = EIoErrorCode::InvalidCode;
 		TIoStatusOr<FIoStatusTestType> Result;
 		Result = TIoStatusOr<FIoStatusTestType>(FIoStatus(ExpectedErrorCode));
-		TestEqual("Assign temporary IoStatusOr with status", Result.Status().GetErrorCode(), ExpectedErrorCode);
+		TEST_EQUAL("Assign temporary IoStatusOr with status", Result.Status().GetErrorCode(), ExpectedErrorCode);
 	}
 
 	{
@@ -88,14 +88,14 @@ void TestAssignment()
 		TIoStatusOr<FIoStatusTestType> Other = FIoStatusTestType(ExpectedText);
 		TIoStatusOr<FIoStatusTestType> Result;
 		Result = Other;
-		TestEqual("Assign IoStatusOr with value", Result.ValueOrDie().Text, ExpectedText);
+		TEST_EQUAL("Assign IoStatusOr with value", Result.ValueOrDie().Text, ExpectedText);
 	}
 
 	{
 		const FString ExpectedText("Unreal");
 		TIoStatusOr<FIoStatusTestType> Result;
 		Result = TIoStatusOr<FIoStatusTestType>(ExpectedText);
-		TestEqual("Assign temporary IoStatusOr with value", Result.ValueOrDie().Text, ExpectedText);
+		TEST_EQUAL("Assign temporary IoStatusOr with value", Result.ValueOrDie().Text, ExpectedText);
 	}
 
 	{
@@ -103,14 +103,14 @@ void TestAssignment()
 		const FIoStatus IoStatus(ExpectedErrorCode);
 		TIoStatusOr<FIoStatusTestType> Result;
 		Result = IoStatus; 
-		TestEqual("Assign status", Result.Status().GetErrorCode(), ExpectedErrorCode);
+		TEST_EQUAL("Assign status", Result.Status().GetErrorCode(), ExpectedErrorCode);
 	}
 
 	{
 		const EIoErrorCode ExpectedErrorCode = EIoErrorCode::InvalidCode;
 		TIoStatusOr<FIoStatusTestType> Result;
 		Result = FIoStatus(ExpectedErrorCode);
-		TestEqual("Assign temporary status", Result.Status().GetErrorCode(), ExpectedErrorCode);
+		TEST_EQUAL("Assign temporary status", Result.Status().GetErrorCode(), ExpectedErrorCode);
 	}
 
 	{
@@ -118,29 +118,29 @@ void TestAssignment()
 		const FIoStatusTestType Value(ExpectedText);
 		TIoStatusOr<FIoStatusTestType> Result;
 		Result = Value;
-		TestEqual("Assign value", Result.ValueOrDie().Text, ExpectedText);
+		TEST_EQUAL("Assign value", Result.ValueOrDie().Text, ExpectedText);
 	}
 
 	{
 		const FString ExpectedText("Unreal");
 		TIoStatusOr<FIoStatusTestType> Result;
 		Result = FIoStatusTestType(ExpectedText);
-		TestEqual("Assign temporary value", Result.ValueOrDie().Text, ExpectedText);
+		TEST_EQUAL("Assign temporary value", Result.ValueOrDie().Text, ExpectedText);
 	}
 }
 
-void TestConsumeValue()
+void TestConsumeValue(FAutomationTestFixture& Test)
 {
 	const FString ExpectedText("Unreal");
 	TIoStatusOr<FIoStatusTestType> Result = FIoStatusTestType(ExpectedText);
 	FIoStatusTestType Value = Result.ConsumeValueOrDie();
-	TestEqual("Consume value or die with valid value", Value.Text, ExpectedText);
+	TEST_EQUAL("Consume value or die with valid value", Value.Text, ExpectedText);
 }
 
-TEST_CASE("Core::IO::IoStatusOr::Smoke Test", "[Core][IO][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::IO::IoStatusOr::Smoke Test", "[Core][IO][Smoke]")
 {
-	TestConstruct();
-	TestAssignment();
-	TestConsumeValue();
+	TestConstruct(*this);
+	TestAssignment(*this);
+	TestConsumeValue(*this);
 }
 

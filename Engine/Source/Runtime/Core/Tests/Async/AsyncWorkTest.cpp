@@ -4,9 +4,7 @@
 #include "Misc/AutomationTest.h"
 #include "Async/AsyncWork.h"
 #include "Misc/QueuedThreadPool.h"
-#include "TestHarness.h"
-
-#include "TestCommon/CoreUtilities.h"
+#include "TestFixtures/CoreTestFixture.h"
 
 namespace AsyncWorkTestImpl
 {
@@ -63,7 +61,8 @@ namespace AsyncWorkTestImpl
 		OtherTaskType* OtherTask;
 		void DoWork() 
 		{ 
-			checkf(!bIsOuterTaskRunning, TEXT("We got picked by the busywait of the outer task we are going to wait on, we are now deadlocked"));
+			INFO("We got picked by the busywait of the outer task we are going to wait on, we are now deadlocked");
+			CHECK(!bIsOuterTaskRunning);
 
 			TRACE_CPUPROFILER_EVENT_SCOPE(FCompletionTask::DoWork);
 
@@ -82,10 +81,8 @@ namespace AsyncWorkTestImpl
 	};
 }
 
-TEST_CASE("Core::Async::AsyncWork::Ensure Completion BusyWait Deadlock Test", "[Core][Async][Smoke]")
+TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::AsyncWork::Ensure Completion BusyWait Deadlock Test", "[Core][Async][Smoke]")
 {
-	InitTaskGraphAndDependencies();
-
 	using namespace AsyncWorkTestImpl;
 	TRACE_CPUPROFILER_EVENT_SCOPE(FAsyncWorkEnsureCompletionBusyWaitDeadLockTest::RunTest);
 	
@@ -131,6 +128,5 @@ TEST_CASE("Core::Async::AsyncWork::Ensure Completion BusyWait Deadlock Test", "[
 		CompletionTasks[Index].EnsureCompletion(false);
 	}
 	OuterTask.EnsureCompletion(false);
-
-	CleanupTaskGraphAndDependencies();
+	SUCCEED();
 }

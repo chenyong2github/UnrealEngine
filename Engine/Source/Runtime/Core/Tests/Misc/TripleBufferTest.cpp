@@ -6,34 +6,34 @@
 #include "Math/RandomStream.h"
 #include "TestHarness.h"
 
-TEST_CASE("Core::Misc::TTripleBuffer::Smoke Test", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::TTripleBuffer::Smoke Test", "[Core][Misc][Smoke]")
 {
 	// uninitialized buffer
 	{
 		TTripleBuffer<int32> Buffer(NoInit);
 
-		TestFalse(TEXT("Uninitialized triple buffer must not be dirty"), Buffer.IsDirty());
+		TEST_FALSE(TEXT("Uninitialized triple buffer must not be dirty"), Buffer.IsDirty());
 	}
 
 	// initialized buffer
 	{
 		TTripleBuffer<int32> Buffer(1);
 
-		TestFalse(TEXT("Initialized triple buffer must not be dirty"), Buffer.IsDirty());
-		TestEqual(TEXT("Initialized triple buffer must have correct read buffer value"), Buffer.Read(), 1);
+		TEST_FALSE(TEXT("Initialized triple buffer must not be dirty"), Buffer.IsDirty());
+		TEST_EQUAL(TEXT("Initialized triple buffer must have correct read buffer value"), Buffer.Read(), 1);
 
 		Buffer.SwapReadBuffers();
 
-		TestEqual(TEXT("Initialized triple buffer must have correct temp buffer value"), Buffer.Read(), 1);
+		TEST_EQUAL(TEXT("Initialized triple buffer must have correct temp buffer value"), Buffer.Read(), 1);
 
 		Buffer.SwapWriteBuffers();
 
-		TestTrue(TEXT("Write buffer swap must set dirty flag"), Buffer.IsDirty());
+		TEST_TRUE(TEXT("Write buffer swap must set dirty flag"), Buffer.IsDirty());
 
 		Buffer.SwapReadBuffers();
 
-		TestFalse(TEXT("Read buffer swap must clear dirty flag"), Buffer.IsDirty());
-		TestEqual(TEXT("Initialized triple buffer must have correct temp buffer value"), Buffer.Read(), 1);
+		TEST_FALSE(TEXT("Read buffer swap must clear dirty flag"), Buffer.IsDirty());
+		TEST_EQUAL(TEXT("Initialized triple buffer must have correct temp buffer value"), Buffer.Read(), 1);
 	}
 
 	// pre-set buffer
@@ -42,18 +42,18 @@ TEST_CASE("Core::Misc::TTripleBuffer::Smoke Test", "[Core][Misc][Smoke]")
 		TTripleBuffer<int32> Buffer(Array);
 
 		int32 Read = Buffer.Read();
-		TestEqual(TEXT("Pre-set triple buffer must have correct Read buffer value"), Read, 3);
+		TEST_EQUAL(TEXT("Pre-set triple buffer must have correct Read buffer value"), Read, 3);
 
 		Buffer.SwapReadBuffers();
 
 		int32 Temp = Buffer.Read();
-		TestEqual(TEXT("Pre-set triple buffer must have correct Temp buffer value"), Temp, 1);
+		TEST_EQUAL(TEXT("Pre-set triple buffer must have correct Temp buffer value"), Temp, 1);
 
 		Buffer.SwapWriteBuffers();
 		Buffer.SwapReadBuffers();
 
 		int32 Write = Buffer.Read();
-		TestEqual(TEXT("Pre-set triple buffer must have correct Write buffer value"), Write, 2);
+		TEST_EQUAL(TEXT("Pre-set triple buffer must have correct Write buffer value"), Write, 2);
 	}
 
 	// operations
@@ -64,7 +64,7 @@ TEST_CASE("Core::Misc::TTripleBuffer::Smoke Test", "[Core][Misc][Smoke]")
 		{
 			int32& Write = Buffer.GetWriteBuffer(); Write = Index; Buffer.SwapWriteBuffers();
 			Buffer.SwapReadBuffers();
-			TestEqual(*FString::Printf(TEXT("Triple buffer must read correct value (%i)"), Index), Buffer.Read(), Index);
+			TEST_EQUAL(*FString::Printf(TEXT("Triple buffer must read correct value (%i)"), Index), Buffer.Read(), Index);
 		}
 
 		FRandomStream Rand;
@@ -91,7 +91,7 @@ TEST_CASE("Core::Misc::TTripleBuffer::Smoke Test", "[Core][Misc][Smoke]")
 
 				Buffer.SwapReadBuffers();
 				int32 Read = Buffer.Read();
-				TestTrue(TEXT("Triple buffer must read in increasing order"), Read > LastRead);
+				TEST_TRUE(TEXT("Triple buffer must read in increasing order"), Read > LastRead);
 				LastRead = Read;
 				--Reads;
 			}

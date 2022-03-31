@@ -10,21 +10,24 @@
 #endif
 #include "HAL/PlatformAtomics.h"
 
-template<typename T>
-static bool TestInterlocked(volatile T* Dest, T ExpectedReturnValue, T ExpectedFinalValue, TFunctionRef<T(volatile T*)> InterlockedFunc, const TCHAR* FunctionName, const TCHAR* TypeName)
+class FAtomicsTest : public FAutomationTestFixture
 {
+
+public:
+
+template<typename T>
+bool TestInterlocked(volatile T* Dest, T ExpectedReturnValue, T ExpectedFinalValue, TFunctionRef<T(volatile T*)> InterlockedFunc, const TCHAR* FunctionName, const TCHAR* TypeName)
+{
+	bool bSuccess = true;
 	const T ReturnValue = InterlockedFunc(Dest);
+	
+	TEST_TRUE(FString::Printf(TEXT("FPlatformAtomics::Interlocked%s on %s failed"), FunctionName, TypeName), ReturnValue == ExpectedReturnValue);
+	TEST_TRUE(FString::Printf(TEXT("FPlatformAtomics::Interlocked%s on %s failed"), FunctionName, TypeName), FPlatformAtomics::AtomicRead(Dest) == ExpectedFinalValue );
 
-	bool bReturnValueSuccess = (ReturnValue == ExpectedReturnValue);
-	bool bAtomicReadSuccess = (FPlatformAtomics::AtomicRead(Dest) == ExpectedFinalValue);
-
-	TestTrue(FString::Printf(TEXT("FPlatformAtomics::Interlocked%s on %s failed"), FunctionName, TypeName), bReturnValueSuccess);
-	TestTrue(FString::Printf(TEXT("FPlatformAtomics::Interlocked%s on %s failed"), FunctionName, TypeName), bAtomicReadSuccess);
-
-	return bReturnValueSuccess & bAtomicReadSuccess;
+	return bSuccess;
 }
 
-static bool TestInterlockedAnd()
+bool TestInterlockedAnd()
 {
 	bool bSuccess = true;
 
@@ -88,7 +91,7 @@ static bool TestInterlockedAnd()
 	return bSuccess;
 }
 
-static bool TestInterlockedOr()
+bool TestInterlockedOr()
 {
 	bool bSuccess = true;
 
@@ -152,7 +155,7 @@ static bool TestInterlockedOr()
 	return bSuccess;
 }
 
-static bool TestInterlockedXor()
+bool TestInterlockedXor()
 {
 	bool bSuccess = true;
 
@@ -216,7 +219,7 @@ static bool TestInterlockedXor()
 	return bSuccess;
 }
 
-static bool TestInterlockedAdd()
+bool TestInterlockedAdd()
 {
 	bool bSuccess = true;
 
@@ -296,7 +299,7 @@ static bool TestInterlockedAdd()
 	return bSuccess;
 }
 
-static bool TestInterlockedIncrement()
+bool TestInterlockedIncrement()
 {
 	bool bSuccess = true;
 
@@ -340,7 +343,7 @@ static bool TestInterlockedIncrement()
 	return bSuccess;
 }
 
-static bool TestInterlockedDecrement()
+bool TestInterlockedDecrement()
 {
 	bool bSuccess = true;
 
@@ -384,7 +387,7 @@ static bool TestInterlockedDecrement()
 	return bSuccess;
 }
 
-static bool TestInterlockedExchange()
+bool TestInterlockedExchange()
 {
 	bool bSuccess = true;
 
@@ -412,7 +415,7 @@ static bool TestInterlockedExchange()
 	return bSuccess;
 }
 
-static bool TestInterlockedExchangePtr()
+bool TestInterlockedExchangePtr()
 {
 	int Test;
 
@@ -420,20 +423,20 @@ static bool TestInterlockedExchangePtr()
 	const void* ReturnValue = FPlatformAtomics::InterlockedExchangePtr(&Value, nullptr);
 	if (ReturnValue != &Test)
 	{
-		TestAddError(TEXT("FPlatformAtomics::InterlockedExchangePtr failed"));
+		FAIL_CHECK(TEXT("FPlatformAtomics::InterlockedExchangePtr failed"));
 		return false;
 	}
 
 	if (Value != nullptr)
 	{
-		TestAddError(TEXT("FPlatformAtomics::InterlockedExchangePtr failed"));
+		FAIL_CHECK(TEXT("FPlatformAtomics::InterlockedExchangePtr failed"));
 		return false;
 	}
 
 	return true;
 }
 
-static bool TestInterlockedCompareExchange()
+bool TestInterlockedCompareExchange()
 {
 	bool bSuccess = true;
 
@@ -480,8 +483,9 @@ static bool TestInterlockedCompareExchange()
 
 	return bSuccess;
 }
+};
 
-TEST_CASE("Core::HAL::PlatformAtomics::Smoke Test", "[Core][HAL][Smoke]")
+TEST_CASE_METHOD(FAtomicsTest, "Core::HAL::PlatformAtomics::Smoke Test", "[Core][HAL][Smoke]")
 {
 	TestInterlockedAnd();
 	TestInterlockedOr();

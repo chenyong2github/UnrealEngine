@@ -16,30 +16,30 @@ namespace crt
 }
 
 template<typename CharType>
-void RunCharTests(uint32 MaxChar)
+void RunCharTests(FAutomationTestFixture& Test, uint32 MaxChar)
 {
 	for (uint32 I = 0; I < MaxChar; ++I)
 	{
 		CharType C = (CharType)I;
-		TestEqual("TChar::ToLower()", TChar<CharType>::ToLower(C), crt::tolower(C));
-		TestEqual("TChar::ToUpper()", TChar<CharType>::ToUpper(C), crt::toupper(C));
+		TEST_EQUAL("TChar::ToLower()", TChar<CharType>::ToLower(C), crt::tolower(C));
+		TEST_EQUAL("TChar::ToUpper()", TChar<CharType>::ToUpper(C), crt::toupper(C));
 	}
 }
 
-TEST_CASE("Core::Misc::Char::Smoke Test", "[Core][Misc][Perf]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::Char::Smoke Test", "[Core][Misc][.Perf]")
 {
 	const char* CurrentLocale = setlocale(LC_CTYPE, nullptr);
 	if (CurrentLocale == nullptr)
 	{
-		TestFalse(FString::Printf(TEXT("Locale is null but should be \"C\". Did something call setlocale()?")), CurrentLocale == nullptr);
+		TEST_FALSE(FString::Printf(TEXT("Locale is null but should be \"C\". Did something call setlocale()?")), CurrentLocale == nullptr);
 	}
 	else if (strcmp("C", CurrentLocale))
 	{
-		TestFalse(FString::Printf(TEXT("Locale is null but should be \"C\". Did something call setlocale()?")), strcmp("C", CurrentLocale)!=0);
+		TEST_FALSE(FString::Printf(TEXT("Locale is null but should be \"C\". Did something call setlocale()?")), strcmp("C", CurrentLocale)!=0);
 	}
 	else
 	{
-		RunCharTests<ANSICHAR>(128);
-		RunCharTests<WIDECHAR>(65536);
+		RunCharTests<ANSICHAR>(*this,128);
+		RunCharTests<WIDECHAR>(*this,65536);
 	}
 }

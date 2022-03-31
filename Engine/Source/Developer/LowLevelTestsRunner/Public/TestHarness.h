@@ -91,68 +91,146 @@ struct Catch::StringMaker<TTuple<KeyType, ValueType>>
 	}
 };
 
-// Tests if true and prints message otherwise
-#define TestTrue(a, b) \
-	INFO((a)); \
-	CHECK((b) == true); \
+/** Use with TEST_CASE_METHOD to quickly migrate automation tests to Catch. */
+class FAutomationTestFixture
+{
+public:
 
-// Quiet version of TestTrue
-#define TestTrue_Q(a) \
-	CHECK((a) == true); \
+	template <typename WhatType>
+	inline bool TestTrue(const WhatType What, const bool bValue)
+	{
+		CAPTURE(What);
+		CHECK(bValue);
+		return bValue;
+	}
 
-// Tests if false and prints message otherwise
-#define TestFalse(a, b) \
-	INFO((a)); \
-	CHECK((b) != true); \
+	template <typename WhatType>
+	inline bool TestFalse(const WhatType What, const bool bValue)
+	{
+		CAPTURE(What);
+		CHECK(!bValue);
+		return !bValue;
+	}
 
-// Quiet version of TestFalse
-#define TestFalse_Q(a) \
-	CHECK((a) != true); \
+	template <typename WhatType, typename ActualType, typename ExpectedType>
+	inline bool TestEqual(const WhatType What, const ActualType& Actual, const ExpectedType& Expected)
+	{
+		CAPTURE(What);
+		CHECK(Actual == Expected);
+		return Actual == Expected;
+	}
 
-// Tests if b == c and prints message otherwise
-#define TestEqual(a, b, c) \
-	INFO((a)); \
-	CHECK((b) == (c)); \
+	template <typename WhatType, typename ActualType, typename ExpectedType>
+	inline bool TestNotEqual(const WhatType& What, const ActualType& Actual, const ExpectedType& Expected)
+	{
+		CAPTURE(What);
+		CHECK(Actual != Expected);
+		return Actual != Expected;
+	}
+	template <typename WhatType, typename ActualType>
+	inline bool TestNull(const WhatType& What, const ActualType& Actual)
+	{
+		CAPTURE(What);
+		CHECK(Actual == nullptr);
+		return Actual == nullptr;
+	}
+	template <typename WhatType, typename ActualType>
+	inline bool TestNotNull(const WhatType& What, const ActualType& Actual)
+	{
+		CAPTURE(What);
+		CHECK(Actual != nullptr);
+		return Actual != nullptr;
+	}
+	template <typename WhatType, typename ActualType>
+	inline bool TestValid(const WhatType& What, const ActualType& Actual)
+	{
+		CAPTURE(What);
+		CHECK(Actual.IsValid() == true);
+		return Actual.IsValid() == true;
+	}
+	template <typename WhatType, typename ActualType>
+	inline bool TestInvalid(const WhatType& What, const ActualType& Actual)
+	{
+		CAPTURE(What);
+		CHECK(Actual.IsValid() == false);
+		return Actual.IsValid() == false;
+	}
+	template <typename WhatType, typename ActualType>
+	inline bool Verify(const WhatType What, const ActualType& Actual)
+	{
+		CAPTURE(What);
+		CHECK(Actual == true);
+		return Actual == true;
+	}
+	template <typename WhatType>
+	inline void AddWarning(const WhatType& What)
+	{
+		CAPTURE(What);
+		return;
+	}
+	template <typename WhatType>
+	inline void AddError(const WhatType& What)
+	{
+		CAPTURE(What);
+		return;
+	}
+	
+};
 
-#define TestEqual_Conditional(a, b, c) \
-	INFO((a)); \
-	CHECKED_IF((b) == (c)) \
+#define CHECK_EQUAL(Actual, Expected)\
+	CHECK(Actual == Expected);
 
-// Quiet version of TestEqual
-#define TestEqual_Q(a, b) \
-	CHECK((a) == (b)); \
+#define CHECK_NOT_EQUAL(Actual, Expected)\
+	CHECK(Actual != Expected);
 
-#define TestNotEqual(a, b, c) \
-	INFO((a)); \
-	CHECK((b) != (c)); \
+#define REQUIRE_EQUAL(Actual, Expected)\
+	REQUIRE(Actual == Expected);
 
-#define TestNull(a, b) \
-	INFO((a)); \
-	CHECK((b) == nullptr); \
+#define REQUIRE_NOT_EQUAL(Actual, Expected)\
+	REQUIRE(Actual != Expected);
 
-#define TestNotNull(a, b) \
-	INFO((a)); \
-	CHECK((b) != nullptr); \
 
-#define TestValid(a, b) \
-	INFO((a)); \
-	CHECK((b).IsValid() == true); \
 
-#define TestInvalid(a, b) \
-	INFO((a)); \
-	CHECK((b).IsValid() != true); \
+#define TEST_TRUE(What, Value)\
+{\
+	INFO(What);\
+	CHECK((Value)==true);\
+}
+#define TEST_FALSE(What, Value)\
+{\
+	INFO(What);\
+	CHECK((Value)==false);\
+}
+#define TEST_EQUAL(What, Actual, Expected)\
+{\
+	INFO(What);\
+	CHECK((Actual) == (Expected));\
+}
 
-#define TestEqualString(a, b, c) \
-	INFO((a)); \
-	CHECK(FCString::Strcmp(ToCStr((b)), ToCStr((c))) == 0); \
-
-#define TestAddInfo(a) \
-	INFO((a)); \
-
-#define TestAddWarning(a) \
-	WARN((a)); \
-
-#define TestAddError(a) \
-	FAIL_CHECK((a)); \
+#define TEST_NOT_EQUAL(What, Actual, Expected)\
+{\
+	INFO(What);\
+	CHECK((Actual) != (Expected));\
+}
+#define TEST_NULL(What, Value)\
+{\
+	INFO(What);\
+	CHECK((Value)==nullptr);\
+}
+#define TEST_NOT_NULL(What, Value)\
+{\
+	INFO(What);\
+	CHECK((Value)!=nullptr);\
+}
+#define TEST_VALID(What, Value)\
+{\
+	INFO(What);\
+	CHECK(Value.IsValid()==true);\
+}
+#define TEST_INVALID(What, Value)\
+{\
+	INFO(What);\
+	CHECK(Value.IsValid()==false);\
+}
 
 #endif // UE_ENABLE_TESTHARNESS_ENGINE_SUPPORT

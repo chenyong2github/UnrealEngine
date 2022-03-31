@@ -7,10 +7,10 @@
 #include "TestHarness.h"
 
 
-void TestViewTransform(FStringView(*InFunction)(const FStringView& InPath), const FStringView& InPath, const TCHAR* InExpected)
+void TestViewTransform(FAutomationTestFixture& Test, FStringView(*InFunction)(const FStringView& InPath), const FStringView& InPath, const TCHAR* InExpected)
 {
 	const FStringView Actual = InFunction(InPath);
-	TestEqual(FString::Printf(TEXT("Failed on path '%.*s' (got '%.*s', expected '%s')."),
+	TEST_EQUAL(FString::Printf(TEXT("Failed on path '%.*s' (got '%.*s', expected '%s')."),
 		InPath.Len(), InPath.GetData(), Actual.Len(), Actual.GetData(), InExpected), Actual,InExpected);
 }
 
@@ -20,21 +20,21 @@ static const TCHAR* BoolToString(bool bValue)
 }
 
 
-TEST_CASE("Core::Misc::FPathViews::Collapse Directories", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Collapse Directories", "[Core][Misc][Smoke]")
 {
-	TestCollapseRelativeDirectories<FPathViews, TStringBuilder<64>>();
+	TestCollapseRelativeDirectories<FPathViews, TStringBuilder<64>>(*this);
 }
 
-TEST_CASE("Core::Misc::FPathViews::Remove Duplicate Slashes", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Remove Duplicate Slashes", "[Core][Misc][Smoke]")
 {
-	TestRemoveDuplicateSlashes<FPathViews, TStringBuilder<64>>();
+	TestRemoveDuplicateSlashes<FPathViews, TStringBuilder<64>>(*this);
 }
 
-TEST_CASE("Core::Misc::FPathViews::Get Clean Filename", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Get Clean Filename", "[Core][Misc][Smoke]")
 {
-	auto RunGetCleanFilenameTest = [](const TCHAR* InPath, const TCHAR* InExpected)
+	auto RunGetCleanFilenameTest = [this](const TCHAR* InPath, const TCHAR* InExpected)
 	{
-		TestViewTransform(FPathViews::GetCleanFilename, InPath, InExpected);
+		TestViewTransform(*this, FPathViews::GetCleanFilename, InPath, InExpected);
 	};
 
 	RunGetCleanFilenameTest(TEXT(""), TEXT(""));
@@ -58,13 +58,13 @@ TEST_CASE("Core::Misc::FPathViews::Get Clean Filename", "[Core][Misc][Smoke]")
 	RunGetCleanFilenameTest(TEXT("C:\\Folder\\First.Last\\File.tar.gz"), TEXT("File.tar.gz"));
 }
 
-TEST_CASE("Core::Misc::FPathViews::Get Base Filename", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Get Base Filename", "[Core][Misc][Smoke]")
 {
-	auto RunGetBaseFilenameTest = [](const TCHAR* InPath, const TCHAR* InExpected, const TCHAR* InExpectedWithPath)
+	auto RunGetBaseFilenameTest = [this](const TCHAR* InPath, const TCHAR* InExpected, const TCHAR* InExpectedWithPath)
 	{
 		const FStringView Path = InPath;
-		TestViewTransform(FPathViews::GetBaseFilename, Path, InExpected);
-		TestViewTransform(FPathViews::GetBaseFilenameWithPath, Path, InExpectedWithPath);
+		TestViewTransform(*this, FPathViews::GetBaseFilename, Path, InExpected);
+		TestViewTransform(*this, FPathViews::GetBaseFilenameWithPath, Path, InExpectedWithPath);
 	};
 
 	RunGetBaseFilenameTest(TEXT(""), TEXT(""), TEXT(""));
@@ -91,11 +91,11 @@ TEST_CASE("Core::Misc::FPathViews::Get Base Filename", "[Core][Misc][Smoke]")
 	RunGetBaseFilenameTest(TEXT("C:\\Folder\\First.Last\\File.tar.gz"), TEXT("File.tar"), TEXT("C:\\Folder\\First.Last\\File.tar"));
 }
 
-TEST_CASE("Core::Misc::FPathViews::Get Path", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Get Path", "[Core][Misc][Smoke]")
 {
-	auto RunGetPathTest = [](const TCHAR* InPath, const TCHAR* InExpected)
+	auto RunGetPathTest = [this](const TCHAR* InPath, const TCHAR* InExpected)
 	{
-		TestViewTransform(FPathViews::GetPath, InPath, InExpected);
+		TestViewTransform(*this, FPathViews::GetPath, InPath, InExpected);
 	};
 
 	RunGetPathTest(TEXT(""), TEXT(""));
@@ -121,13 +121,13 @@ TEST_CASE("Core::Misc::FPathViews::Get Path", "[Core][Misc][Smoke]")
 }
 
 
-TEST_CASE("Core::Misc::FPathViews::Get Extension", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Get Extension", "[Core][Misc][Smoke]")
 {
-	auto RunGetExtensionTest = [](const TCHAR* InPath, const TCHAR* InExpectedExt, const TCHAR* InExpectedExtDot)
+	auto RunGetExtensionTest = [this](const TCHAR* InPath, const TCHAR* InExpectedExt, const TCHAR* InExpectedExtDot)
 	{
 		const FStringView Path = InPath;
-		TestViewTransform([](const FStringView& InPath2) { return FPathViews::GetExtension(InPath2, /*bIncludeDot*/ false); }, Path, InExpectedExt);
-		TestViewTransform([](const FStringView& InPath2) { return FPathViews::GetExtension(InPath2, /*bIncludeDot*/ true); }, Path, InExpectedExtDot);
+		TestViewTransform(*this, [](const FStringView& InPath2) { return FPathViews::GetExtension(InPath2, /*bIncludeDot*/ false); }, Path, InExpectedExt);
+		TestViewTransform(*this, [](const FStringView& InPath2) { return FPathViews::GetExtension(InPath2, /*bIncludeDot*/ true); }, Path, InExpectedExtDot);
 	};
 
 	RunGetExtensionTest(TEXT(""), TEXT(""), TEXT(""));
@@ -154,11 +154,11 @@ TEST_CASE("Core::Misc::FPathViews::Get Extension", "[Core][Misc][Smoke]")
 	RunGetExtensionTest(TEXT("C:\\Folder\\First.Last\\File.tar.gz"), TEXT("gz"), TEXT(".gz"));
 }
 
-TEST_CASE("Core::Misc::FPathViews::Get Path Leaf", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Get Path Leaf", "[Core][Misc][Smoke]")
 {
-	auto RunGetPathLeafTest = [](const TCHAR* InPath, const TCHAR* InExpected)
+	auto RunGetPathLeafTest = [this](const TCHAR* InPath, const TCHAR* InExpected)
 	{
-		TestViewTransform(FPathViews::GetPathLeaf, InPath, InExpected);
+		TestViewTransform(*this,FPathViews::GetPathLeaf, InPath, InExpected);
 	};
 
 	RunGetPathLeafTest(TEXT(""), TEXT(""));
@@ -183,12 +183,12 @@ TEST_CASE("Core::Misc::FPathViews::Get Path Leaf", "[Core][Misc][Smoke]")
 	RunGetPathLeafTest(TEXT("C:\\Folder\\First.Last\\File.tar.gz"), TEXT("File.tar.gz"));
 }
 
-TEST_CASE("Core::Misc::FPathViews::Is Path Leaf", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Is Path Leaf", "[Core][Misc][Smoke]")
 {
-	auto RunIsPathLeafTest = [](const TCHAR* InPath, bool bExpected)
+	auto RunIsPathLeafTest = [this](const TCHAR* InPath, bool bExpected)
 	{
 		bool bResult = FPathViews::IsPathLeaf(InPath);
-		TestFalse(FString::Printf(TEXT("GetPathLeaf(\"%s\") == %s, expected %s."), InPath, BoolToString(bResult), BoolToString(bExpected)), (bResult != bExpected));
+		TEST_FALSE(FString::Printf(TEXT("GetPathLeaf(\"%s\") == %s, expected %s."), InPath, BoolToString(bResult), BoolToString(bExpected)), (bResult != bExpected));
 	};
 
 	RunIsPathLeafTest(TEXT(""), true);
@@ -218,14 +218,14 @@ TEST_CASE("Core::Misc::FPathViews::Is Path Leaf", "[Core][Misc][Smoke]")
 }
 
 
-TEST_CASE("Core::Misc::FPathViews::Split", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Split", "[Core][Misc][Smoke]")
 {
-	auto RunSplitTest = [](const TCHAR* InPath, const TCHAR* InExpectedPath, const TCHAR* InExpectedName, const TCHAR* InExpectedExt)
+	auto RunSplitTest = [this](const TCHAR* InPath, const TCHAR* InExpectedPath, const TCHAR* InExpectedName, const TCHAR* InExpectedExt)
 	{
 		FStringView SplitPath, SplitName, SplitExt;
 		FPathViews::Split(InPath, SplitPath, SplitName, SplitExt);
 
-		TestFalse(FString::Printf(TEXT("Failed to split path '%s' (got ('%.*s', '%.*s', '%.*s'), expected ('%s', '%s', '%s'))."), InPath,
+		TEST_FALSE(FString::Printf(TEXT("Failed to split path '%s' (got ('%.*s', '%.*s', '%.*s'), expected ('%s', '%s', '%s'))."), InPath,
 			SplitPath.Len(), SplitPath.GetData(), SplitName.Len(), SplitName.GetData(), SplitExt.Len(), SplitExt.GetData(),
 			InExpectedPath, InExpectedName, InExpectedExt),
 			(SplitPath != InExpectedPath || SplitName != InExpectedName || SplitExt != InExpectedExt) );
@@ -257,54 +257,54 @@ TEST_CASE("Core::Misc::FPathViews::Split", "[Core][Misc][Smoke]")
 }
 
 
-TEST_CASE("Core::Misc::FPathViews::Append", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Append", "[Core][Misc][Smoke]")
 {
 	TStringBuilder<256> Path;
 
 	FPathViews::Append(Path, TEXT("A"), TEXT(""));
-	TestEqual(TEXT("FPathViews::Append('A', '')"), FStringView(Path), TEXTVIEW("A/"));
+	TEST_EQUAL(TEXT("FPathViews::Append('A', '')"), FStringView(Path), TEXTVIEW("A/"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT(""), TEXT("B"));
-	TestEqual(TEXT("FPathViews::Append('', 'B')"), FStringView(Path), TEXTVIEW("B"));
+	TEST_EQUAL(TEXT("FPathViews::Append('', 'B')"), FStringView(Path), TEXTVIEW("B"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("/"), TEXT("B"));
-	TestEqual(TEXT("FPathViews::Append('/', 'B')"), FStringView(Path), TEXTVIEW("/B"));
+	TEST_EQUAL(TEXT("FPathViews::Append('/', 'B')"), FStringView(Path), TEXTVIEW("/B"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("A"), TEXT("B"));
-	TestEqual(TEXT("FPathViews::Append('A', 'B')"), FStringView(Path), TEXTVIEW("A/B"));
+	TEST_EQUAL(TEXT("FPathViews::Append('A', 'B')"), FStringView(Path), TEXTVIEW("A/B"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("A/"), TEXT("B"));
-	TestEqual(TEXT("FPathViews::Append('A/', 'B')"), FStringView(Path), TEXTVIEW("A/B"));
+	TEST_EQUAL(TEXT("FPathViews::Append('A/', 'B')"), FStringView(Path), TEXTVIEW("A/B"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("A\\"), TEXT("B"));
-	TestEqual(TEXT("FPathViews::Append('A\\', 'B')"), FStringView(Path), TEXTVIEW("A\\B"));
+	TEST_EQUAL(TEXT("FPathViews::Append('A\\', 'B')"), FStringView(Path), TEXTVIEW("A\\B"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("A/B"), TEXT("C/D"));
-	TestEqual(TEXT("FPathViews::Append('A/B', 'C/D')"), FStringView(Path), TEXTVIEW("A/B/C/D"));
+	TEST_EQUAL(TEXT("FPathViews::Append('A/B', 'C/D')"), FStringView(Path), TEXTVIEW("A/B/C/D"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("A/"), TEXT("B"), TEXT("C/"), TEXT("D"));
-	TestEqual(TEXT("FPathViews::Append('A/', 'B', 'C/', 'D')"), FStringView(Path), TEXTVIEW("A/B/C/D"));
+	TEST_EQUAL(TEXT("FPathViews::Append('A/', 'B', 'C/', 'D')"), FStringView(Path), TEXTVIEW("A/B/C/D"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("A/"), 16, TEXT("B"));
-	TestEqual(TEXT("FPathViews::Append('A/', 16, 'B')"), FStringView(Path), TEXTVIEW("A/16/B"));
+	TEST_EQUAL(TEXT("FPathViews::Append('A/', 16, 'B')"), FStringView(Path), TEXTVIEW("A/16/B"));
 	Path.Reset();
 }
 
-TEST_CASE("Core::Misc::FPathViews::Change Extension", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Change Extension", "[Core][Misc][Smoke]")
 {
-	auto RunChangeExtensionTest = [](const TCHAR* InPath, const TCHAR* InNewExt, const TCHAR* InExpectedPath)
+	auto RunChangeExtensionTest = [this](const TCHAR* InPath, const TCHAR* InNewExt, const TCHAR* InExpectedPath)
 	{
 		// Run test
 		const FString NewPath = FPathViews::ChangeExtension(InPath, InNewExt);
-		TestFalse(FString::Printf(TEXT("Path '%s' failed to change the extension (got '%s', expected '%s')."), InPath, *NewPath, InExpectedPath), (NewPath != InExpectedPath));
+		TEST_FALSE(FString::Printf(TEXT("Path '%s' failed to change the extension (got '%s', expected '%s')."), InPath, *NewPath, InExpectedPath), (NewPath != InExpectedPath));
 	};
 
 	RunChangeExtensionTest(nullptr, nullptr, TEXT(""));
@@ -322,17 +322,17 @@ TEST_CASE("Core::Misc::FPathViews::Change Extension", "[Core][Misc][Smoke]")
 	RunChangeExtensionTest(TEXT("C:/Folder/First.Last/file.tar.gz"), TEXT("gz2"), TEXT("C:/Folder/First.Last/file.tar.gz2"));
 }
 
-TEST_CASE("Core::Misc::FPathViews::Equals And Less", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Equals And Less", "[Core][Misc][Smoke]")
 {
-	auto RunEqualsLessTest = [](const TCHAR* A, const TCHAR* B, int Expected)
+	auto RunEqualsLessTest = [this](const TCHAR* A, const TCHAR* B, int Expected)
 	{
 		bool bEqual = FPathViews::Equals(A, B);
 		bool bALessThanB = FPathViews::Less(A, B);
 		bool bBLessThanA = FPathViews::Less(B, A);
 		
-		TestFalse(FString::Printf(TEXT("Equals(%s,%s) == %s, expected %s"), A, B, BoolToString(bEqual), BoolToString(Expected == 0)), (bEqual != (Expected == 0)));
-		TestFalse(FString::Printf(TEXT("Less(%s,%s) == %s, expected %s"), A, B, BoolToString(bALessThanB), BoolToString(Expected < 0)), (bALessThanB != Expected < 0));
-		TestFalse(FString::Printf(TEXT("Less(%s,%s) == %s, expected %s"), B, A, BoolToString(bBLessThanA), BoolToString(Expected > 0)), (bBLessThanA != Expected > 0));
+		TEST_FALSE(FString::Printf(TEXT("Equals(%s,%s) == %s, expected %s"), A, B, BoolToString(bEqual), BoolToString(Expected == 0)), (bEqual != (Expected == 0)));
+		TEST_FALSE(FString::Printf(TEXT("Less(%s,%s) == %s, expected %s"), A, B, BoolToString(bALessThanB), BoolToString(Expected < 0)), (bALessThanB != Expected < 0));
+		TEST_FALSE(FString::Printf(TEXT("Less(%s,%s) == %s, expected %s"), B, A, BoolToString(bBLessThanA), BoolToString(Expected > 0)), (bBLessThanA != Expected > 0));
 	};
 
 	RunEqualsLessTest(TEXT("A"), TEXT("B"), -1);
@@ -358,19 +358,19 @@ TEST_CASE("Core::Misc::FPathViews::Equals And Less", "[Core][Misc][Smoke]")
 }
 
 
-TEST_CASE("Core::Misc::FPathViews::Try Make Child Path Relative To", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Try Make Child Path Relative To", "[Core][Misc][Smoke]")
 {
-	auto RunRelChildTest = [](const TCHAR* Child, const TCHAR* Parent, bool bExpectedIsChild, const TCHAR* ExpectedRelPath)
+	auto RunRelChildTest = [this](const TCHAR* Child, const TCHAR* Parent, bool bExpectedIsChild, const TCHAR* ExpectedRelPath)
 	{
 		FStringView ActualRelPath;
 		bool bActualIsChild = FPathViews::TryMakeChildPathRelativeTo(Child, Parent, ActualRelPath);
 		bool bActualIsParent = FPathViews::IsParentPathOf(Parent, Child);
 		
-		TestFalse(FString::Printf(TEXT("TryMakeChildPathRelativeTo(\"%s\", \"%s\") returned (%s, \"%.*s\"), expected (%s, \"%s\")."), Child, Parent,
+		TEST_FALSE(FString::Printf(TEXT("TryMakeChildPathRelativeTo(\"%s\", \"%s\") returned (%s, \"%.*s\"), expected (%s, \"%s\")."), Child, Parent,
 			BoolToString(bActualIsChild), ActualRelPath.Len(), ActualRelPath.GetData(), BoolToString(bExpectedIsChild), ExpectedRelPath),
 			(bExpectedIsChild != bActualIsChild || !ActualRelPath.Equals(ExpectedRelPath, ESearchCase::IgnoreCase)));
 			
-		TestFalse(FString::Printf(TEXT("IsParentPathOf(\"%s\", \"%s\") returned %s, expected %s."), Child, Parent,
+		TEST_FALSE(FString::Printf(TEXT("IsParentPathOf(\"%s\", \"%s\") returned %s, expected %s."), Child, Parent,
 			BoolToString(bActualIsParent), BoolToString(bExpectedIsChild)), (bActualIsParent != bExpectedIsChild));
 	};
 
@@ -451,12 +451,12 @@ TEST_CASE("Core::Misc::FPathViews::Try Make Child Path Relative To", "[Core][Mis
 }
 
 
-TEST_CASE("Core::Misc::FPathViews::Is Relative Path", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Is Relative Path", "[Core][Misc][Smoke]")
 {
-	auto RunRelTest = [](const TCHAR* A, bool bExpected)
+	auto RunRelTest = [this](const TCHAR* A, bool bExpected)
 	{
 		bool bActual = FPathViews::IsRelativePath(A);
-		TestFalse(FString::Printf(TEXT("IsRelativePath(\"%s\") == %s, expected %s."), A, BoolToString(bActual), BoolToString(bExpected)), (bActual != bExpected));
+		TEST_FALSE(FString::Printf(TEXT("IsRelativePath(\"%s\") == %s, expected %s."), A, BoolToString(bActual), BoolToString(bExpected)), (bActual != bExpected));
 	};
 
 	RunRelTest(TEXT("A"), true);
@@ -475,15 +475,15 @@ TEST_CASE("Core::Misc::FPathViews::Is Relative Path", "[Core][Misc][Smoke]")
 }
 
 
-TEST_CASE("Core::Misc::FPathViews::Split First Component", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Split First Component", "[Core][Misc][Smoke]")
 {
-	auto RunSplitFirstTest = [](const TCHAR* FullPath, const TCHAR* ExpectedFirst, const TCHAR* ExpectedRemaining)
+	auto RunSplitFirstTest = [this](const TCHAR* FullPath, const TCHAR* ExpectedFirst, const TCHAR* ExpectedRemaining)
 	{
 		FStringView ActualFirst;
 		FStringView ActualRemaining;
 		FPathViews::SplitFirstComponent(FullPath, ActualFirst, ActualRemaining);
 		
-		TestFalse(FString::Printf(TEXT("SplitFirstComponent(\"%s\") == (\"%.*s\", \"%.*s\"), expected (\"%s\", \"%s\")."),
+		TEST_FALSE(FString::Printf(TEXT("SplitFirstComponent(\"%s\") == (\"%.*s\", \"%.*s\"), expected (\"%s\", \"%s\")."),
 				FullPath, ActualFirst.Len(), ActualFirst.GetData(), ActualRemaining.Len(), ActualRemaining.GetData(),
 				ExpectedFirst, ExpectedRemaining),
 				(!ActualFirst.Equals(ExpectedFirst, ESearchCase::IgnoreCase) || !ActualRemaining.Equals(ExpectedRemaining, ESearchCase::IgnoreCase)) );
@@ -533,14 +533,14 @@ TEST_CASE("Core::Misc::FPathViews::Split First Component", "[Core][Misc][Smoke]"
 }
 
 
-TEST_CASE("Core::Misc::FPathViews::Append Path", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::Append Path", "[Core][Misc][Smoke]")
 {
-	auto RunAppendTest = [](const TCHAR* Base, const TCHAR* Append, const TCHAR* ExpectedNewBase)
+	auto RunAppendTest = [this](const TCHAR* Base, const TCHAR* Append, const TCHAR* ExpectedNewBase)
 	{
 		TStringBuilder<128> BaseBuilder;
 		BaseBuilder << Base;
 		FPathViews::AppendPath(BaseBuilder, Append);
-		TestFalse(FString::Printf(TEXT("AppendPath(\"%s\", \"%s\") == \"%.*s\", expected \"%s\"."),
+		TEST_FALSE(FString::Printf(TEXT("AppendPath(\"%s\", \"%s\") == \"%.*s\", expected \"%s\"."),
 				Base, Append, BaseBuilder.Len(), BaseBuilder.GetData(), ExpectedNewBase),
 				(!FStringView(BaseBuilder).Equals(ExpectedNewBase, ESearchCase::IgnoreCase)));
 	};
@@ -636,7 +636,7 @@ TEST_CASE("Core::Misc::FPathViews::Append Path", "[Core][Misc][Smoke]")
 	}
 }
 
-TEST_CASE("Core::Misc::FPathViews::To Absolute", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPathViews::To Absolute", "[Core][Misc][Smoke]")
 {
 	using namespace PathTest;
 
@@ -644,18 +644,18 @@ TEST_CASE("Core::Misc::FPathViews::To Absolute", "[Core][Misc][Smoke]")
 	{
 		TStringBuilder<64> ActualAppend;
 		FPathViews::ToAbsolutePath(BaseDir, Pair.Input, ActualAppend);
-		TestEqual(TEXT("ToAbsolutePath"), ActualAppend.ToView(), Pair.Expected);
+		TEST_EQUAL(TEXT("ToAbsolutePath"), ActualAppend.ToView(), Pair.Expected);
 
 		TStringBuilder<64> ActualInline;
 		ActualInline << Pair.Input;
 		FPathViews::ToAbsolutePathInline(BaseDir, ActualInline);	
-		TestEqual(TEXT("ToAbsolutePathInline"), ActualInline.ToView(), Pair.Expected);
+		TEST_EQUAL(TEXT("ToAbsolutePathInline"), ActualInline.ToView(), Pair.Expected);
 		
 		const FStringView Original = TEXTVIEW("\\\\la/./.././la////");
 		TStringBuilder<64> ActualNondestructive;
 		ActualNondestructive << Original;
 		FPathViews::ToAbsolutePath(BaseDir, Pair.Input, ActualNondestructive);
-		TestEqual(TEXT("ToAbsolutePath non-destructive append"), ActualNondestructive.ToView().Left(Original.Len()), Original);
-		TestEqual(TEXT("ToAbsolutePath non-destructive append"), ActualNondestructive.ToView().RightChop(Original.Len()), Pair.Expected);
+		TEST_EQUAL(TEXT("ToAbsolutePath non-destructive append"), ActualNondestructive.ToView().Left(Original.Len()), Original);
+		TEST_EQUAL(TEXT("ToAbsolutePath non-destructive append"), ActualNondestructive.ToView().RightChop(Original.Len()), Pair.Expected);
 	}
 }

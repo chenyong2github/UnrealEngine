@@ -8,16 +8,10 @@
 
 static_assert(sizeof(FObjectHandle) == sizeof(void*), "FObjectHandle type must always compile to something equivalent to a pointer size.");
 
-#if WITH_DEV_AUTOMATION_TESTS
-
 class FObjectHandleTestBase : public FObjectRefTrackingTestBase
 {
 public:
-	FObjectHandleTestBase(const FString& InName, const bool bInComplexTask)
-	: FObjectRefTrackingTestBase(InName, bInComplexTask)
-	{
-	}
-
+	
 protected:
 	
 	UObject* ResolveHandle(FObjectHandle& TargetHandle)
@@ -34,7 +28,7 @@ protected:
 		}
 	#else
 		// Immediately resolved handles may be null (if the target is invalid) and must be resolved at this point
-		if (!TestTrue(TEXT("Handle to target is not resolved"), IsObjectHandleResolved(TargetHandle)))
+		if (!TestFalse(TEXT("Handle to target is not resolved"), IsObjectHandleResolved(TargetHandle)))
 		{
 			return nullptr;
 		}
@@ -75,7 +69,7 @@ protected:
 
 		if (!ResolvedObject)
 		{
-			AddError(FString::Printf(TEXT("Expected '%s.%s' to resolve to non null."), ANSI_TO_TCHAR(PackageName), ANSI_TO_TCHAR(ObjectName)), 1);
+			FAIL_CHECK(FString::Printf(TEXT("Expected '%s.%s' to resolve to non null."), ANSI_TO_TCHAR(PackageName), ANSI_TO_TCHAR(ObjectName)));
 			return false;
 		}
 		ObjectRefMetrics.TestNumFailedResolves(TEXT("NumFailedResolves should not change after a successful resolve attempt"), 0);
@@ -92,7 +86,7 @@ protected:
 
 		if (ResolvedObject)
 		{
-			AddError(FString::Printf(TEXT("Expected '%s.%s' to resolve to null."), ANSI_TO_TCHAR(PackageName), ANSI_TO_TCHAR(ObjectName)), 1);
+			FAIL_CHECK(FString::Printf(TEXT("Expected '%s.%s' to resolve to null."), ANSI_TO_TCHAR(PackageName), ANSI_TO_TCHAR(ObjectName)));
 			return false;
 		}
 		ObjectRefMetrics.TestNumFailedResolves(TEXT("NumFailedResolves should be incremented by one after a failed resolve attempt"), 1);
@@ -108,7 +102,7 @@ protected:
 
 		if (ResolvedObject)
 		{
-			AddError(FString::Printf(TEXT("Expected PACKEDREF(%" UPTRINT_X_FMT ") to resolve to null."), PackedRef.EncodedRef), 1);
+			FAIL_CHECK(FString::Printf(TEXT("Expected PACKEDREF(%" UPTRINT_X_FMT ") to resolve to null."), PackedRef.EncodedRef));
 			return false;
 		}
 		ObjectRefMetrics.TestNumFailedResolves(TEXT("NumFailedResolves should be incremented by one after a failed resolve attempt"), 1);
@@ -116,51 +110,41 @@ protected:
 	}
 };
 
-#define TEST_NAME_ROOT TEXT("System.CoreUObject.ObjectHandle")
-constexpr const uint32 ObjectHandleTestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
-
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectHandleTestNullBehavior, FObjectHandleTestBase, TEST_NAME_ROOT TEXT(".NullBehavior"), ObjectHandleTestFlags)
-bool FObjectHandleTestNullBehavior::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Null Behavior", "[CoreUObject][ObjectHandle][Smoke]")
 {
 	FObjectHandle TargetHandle = MakeObjectHandle(nullptr);
 
-	TestTrue(TEXT("Handle to target is null"), IsObjectHandleNull(TargetHandle));
-	TestTrue(TEXT("Handle to target is resolved"), IsObjectHandleResolved(TargetHandle));
+	TEST_TRUE(TEXT("Handle to target is null"), IsObjectHandleNull(TargetHandle));
+	TEST_TRUE(TEXT("Handle to target is resolved"), IsObjectHandleResolved(TargetHandle));
 
 	FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
 	UObject* ResolvedObject = ResolveObjectHandle(TargetHandle);
 
-	TestEqual(TEXT("Resolved object is equal to original object"), (UObject*)nullptr, ResolvedObject);
+	TEST_EQUAL(TEXT("Resolved object is equal to original object"), (UObject*)nullptr, ResolvedObject);
 
 	ObjectRefMetrics.TestNumFailedResolves(TEXT("NumFailedResolves should not change after a resolve attempt on a null handle"), 0);
 	ObjectRefMetrics.TestNumResolves(TEXT("NumResolves should not change after a resolve attempt on a null handle"), 0);
 	ObjectRefMetrics.TestNumReads(TEXT("NumReads should be incremented by one after a resolve attempt on a null handle"), 1);
-
-	return true;
 }
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectHandleTestPointerBehavior, FObjectHandleTestBase, TEST_NAME_ROOT TEXT(".PointerBehavior"), ObjectHandleTestFlags)
-bool FObjectHandleTestPointerBehavior::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Pointer Behavior", "[CoreUObject][ObjectHandle][Smoke]")
 {
 	FObjectHandle TargetHandle = MakeObjectHandle((UObject*)0x0042);
 
-	TestFalse(TEXT("Handle to target is null"), IsObjectHandleNull(TargetHandle));
-	TestTrue(TEXT("Handle to target is resolved"), IsObjectHandleResolved(TargetHandle));
+	TEST_FALSE(TEXT("Handle to target is null"), IsObjectHandleNull(TargetHandle));
+	TEST_TRUE(TEXT("Handle to target is resolved"), IsObjectHandleResolved(TargetHandle));
 
 	FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
 	UObject* ResolvedObject = ResolveObjectHandle(TargetHandle);
 
-	TestEqual(TEXT("Resolved object is equal to original object"), (UObject*)0x0042, ResolvedObject);
+	TEST_EQUAL(TEXT("Resolved object is equal to original object"), (UObject*)0x0042, ResolvedObject);
 
 	ObjectRefMetrics.TestNumResolves(TEXT("NumResolves should not change after a resolve attempt on a pointer handle"), 0);
 	ObjectRefMetrics.TestNumFailedResolves(TEXT("NumFailedResolves should not change after a resolve attempt on a pointer handle"), 0);
 	ObjectRefMetrics.TestNumReads(TEXT("NumReads should be incremented by one after a resolve attempt on a pointer handle"),1);
-
-	return true;
 }
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectHandleTestResolveEngineContentTarget, FObjectHandleTestBase, TEST_NAME_ROOT TEXT(".ResolveEngineContentTarget"), ObjectHandleTestFlags)
-bool FObjectHandleTestResolveEngineContentTarget::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Engine Content Target", "[CoreUObject][ObjectHandle][.Engine]")
 {
 	// Confirm we successfully resolve a correct reference to engine content
 	TestResolvableNonNull("/Engine/EngineResources/DefaultTexture", "DefaultTexture");
@@ -174,42 +158,28 @@ bool FObjectHandleTestResolveEngineContentTarget::RunTest(const FString& Paramet
 		// Attempt to load something that uses a User Defined Enum
 		TestResolvableNonNull("/Engine/ArtTools/RenderToTexture/Macros/RenderToTextureMacros", "RenderToTextureMacros:Array to HLSL Float Array.K2Node_Select_1", nullptr, nullptr, true);
 	}
-
-	return true;
 }
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectHandleTestResolveNonExistentTarget, FObjectHandleTestBase, TEST_NAME_ROOT TEXT(".ResolveNonExistentTarget"), ObjectHandleTestFlags)
-bool FObjectHandleTestResolveNonExistentTarget::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Non Existent Target", "[CoreUObject][ObjectHandle][Smoke]")
 {
 	// Confirm we don't successfully resolve an incorrect reference to engine content
 	TestResolveFailure("/Engine/EngineResources/NonExistentPackageName_0", "DefaultTexture");
 	TestResolveFailure("/Engine/EngineResources/DefaultTexture", "NonExistentObject_0");
-
-	return true;
 }
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectHandleTestResolveScriptTarget, FObjectHandleTestBase, TEST_NAME_ROOT TEXT(".ResolveScriptTarget"), ObjectHandleTestFlags)
-bool FObjectHandleTestResolveScriptTarget::RunTest(const FString& Parameters)
+
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Script Target", "[CoreUObject][ObjectHandle][.Engine]")
 {
 	// Confirm we successfully resolve a correct reference to engine content
 	TestResolvableNonNull("/Script/Engine", "Default__Actor");
-
 	TestResolvableNonNull("/Script/Engine", "DefaultPawn");
-
-	return true;
 }
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectHandleTestResolveMalformedHandle, FObjectHandleTestBase, TEST_NAME_ROOT TEXT(".ResolveMalformedHandle"), ObjectHandleTestFlags)
-bool FObjectHandleTestResolveMalformedHandle::RunTest(const FString& Parameters)
+
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Malformed Handle", "[CoreUObject][ObjectHandle][Smoke]")
 {
 	TestResolveFailure(FPackedObjectRef { 0xFFFF'FFFF'FFFF'FFFFull });
 	TestResolveFailure(FPackedObjectRef { 0xEFEF'EFEF'EFEF'EFEFull });
-
-	return true;
 }
 #endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-
-#undef TEST_NAME_ROOT
-
-#endif // WITH_DEV_AUTOMATION_TESTS

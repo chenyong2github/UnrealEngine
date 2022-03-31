@@ -3,39 +3,53 @@
 #include "Algo/TopologicalSort.h"
 #include "TestHarness.h"
 
-TEST_CASE("Core::Algorithm::TopologicalSort::Smoke Test", "[Core][Algorithm][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Algorithm::TopologicalSort::Smoke Test", "[Core][Algorithm][Smoke]")
 {
 	using namespace Algo;
-
-	const TArray<int32> ExpectedArray{ 1, 2, 3 };
 
 	{
 		TArray<int32> Array{ 1, 2, 3 };
 
 		// Test the sort when each node depends on the previous one
 		bool bHasSucceeded = TopologicalSort(Array, [](int32 Element) { return Element > 1 ? TArray<int32>{ Element - 1 } : TArray<int32>{}; });
-		TestEqual(TEXT("TopologicalSort did not sort correctly"), bHasSucceeded, true);
-		TestEqual(TEXT("TopologicalSort did not sort correctly"), Array, ExpectedArray);
+
+		INFO("TopologicalSort did not sort correctly");
+		CHECK(bHasSucceeded);
+		CHECK(Array==(TArray<int32>{1, 2, 3}));
 	}
 	{
 		TArray<int32> Array{ 1, 2, 3 };
 		
 		// Test the sort when each node depends on the next one
 		bool bHasSucceeded = TopologicalSort(Array, [](int32 Element) { return Element < 3 ? TArray<int32>{ Element + 1 } : TArray<int32>{}; });
-		TestEqual(TEXT("TopologicalSort did not sort correctly"), bHasSucceeded, true);
-		TestEqual(TEXT("TopologicalSort did not sort correctly"), Array, (TArray<int32>{3, 2, 1}));
+
+		INFO("TopologicalSort did not sort correctly");
+		CHECK(bHasSucceeded);
+		CHECK( Array==(TArray<int32>{3, 2, 1}));
 	}
+
 	{
 		TArray<int32> Array{ 1, 2 };
-		const TArray<int32> ExpectedArrayCycle{1, 2};
 		
 		// Test the sort with a cycle between 1 and 2
 		bool bHasSucceeded = TopologicalSort(Array, [](int32 Element) { return TArray<int32>{ 1 + Element % 2 }; }, ETopologicalSort::None);
-		TestEqual(TEXT("TopologicalSort should not have succeeded when a cycle is detected"), bHasSucceeded, false);
-		TestEqual(TEXT("TopologicalSort should not have modified the array when failing"), Array, ExpectedArrayCycle);
+		
+		{
+			INFO("TopologicalSort should not have succeeded when a cycle is detected");
+			CHECK_FALSE(bHasSucceeded);
+		}
 
-		bHasSucceeded = TopologicalSort(Array, [](int32 Element) { return TArray<int32>{ 1 + Element % 2 }; }, ETopologicalSort::AllowCycles);
-		TestEqual(TEXT("TopologicalSort should succeed when a cycle is detected but AllowCycles is specified"), bHasSucceeded, true);
+		{
+			INFO("TopologicalSort should not have modified the array when failing");
+			CHECK(Array == (TArray<int32>{1, 2}));
+		}
+
+		{
+			bHasSucceeded = TopologicalSort(Array, [](int32 Element) { return TArray<int32>{ 1 + Element % 2 }; }, ETopologicalSort::AllowCycles);
+
+			INFO("TopologicalSort should succeed when a cycle is detected but AllowCycles is specified");
+			CHECK(bHasSucceeded);
+		}
 	}
 	{
 		TArray<int32> Array;
@@ -46,8 +60,13 @@ TEST_CASE("Core::Algorithm::TopologicalSort::Smoke Test", "[Core][Algorithm][Smo
 
 		// Make sure node 500 makes it on top if every other node depends on it
 		bool bHasSucceeded = TopologicalSort(Array, [](int32 Element) { return Element == 500 ? TArray<int32>{} : TArray<int32>{ 500 }; });
-		TestEqual(TEXT("TopologicalSort did not sort correctly"), bHasSucceeded, true);
-		TestEqual(TEXT("TopologicalSort did not sort correctly"), Array[0], 500);
+		
+		{
+			INFO("TopologicalSort did not sort correctly")
+			CHECK(bHasSucceeded);
+			CHECK(Array[0]==500);
+		}
+		
 	}
 	{
 		TArray<int32> Array{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
@@ -76,15 +95,18 @@ TEST_CASE("Core::Algorithm::TopologicalSort::Smoke Test", "[Core][Algorithm][Smo
 		Links.Add(5, 2);
 
 		bool bHasSucceeded = TopologicalSort(Array, [&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; });
-		TestEqual(TEXT("TopologicalSort did not sort correctly"), bHasSucceeded, true);
+
+		INFO("TopologicalSort did not sort correctly");
+		CHECK(bHasSucceeded);
 
 		// There might be multiple valid answers, so test each condition separately to make sure they are all met.
 		for (const auto& Pair : Links)
 		{
 			int32 ChildIndex = Array.IndexOfByKey(Pair.Key);
 			int32 ParentIndex = Array.IndexOfByKey(Pair.Value);
-			TestEqual(TEXT("TopologicalSort did not sort correctly"), ParentIndex < ChildIndex, true);
+			CHECK(ParentIndex < ChildIndex);
 		}
+
 	}
 
 	{
@@ -99,9 +121,11 @@ TEST_CASE("Core::Algorithm::TopologicalSort::Smoke Test", "[Core][Algorithm][Smo
 		bool bHasSucceeded = TopologicalSort(Array,
 			[&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; },
 			ETopologicalSort::AllowCycles);
-		TestEqual(TEXT("TopologicalSort did not sort correctly"), bHasSucceeded, true);
-		TestTrue(TEXT("TopologicalSort did not sort correctly"),
-			(Array == TArray<int32>{4, 3, 2, 1} || Array == TArray<int32>{4, 3, 1, 2}));
+
+		INFO("TopologicalSort did not sort correctly");
+
+		CHECK(bHasSucceeded);
+		CHECK((Array == TArray<int32>{4, 3, 2, 1} || Array == TArray<int32>{4, 3, 1, 2}));
 	}
 	{
 		// Test the sort with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in revese
@@ -116,9 +140,9 @@ TEST_CASE("Core::Algorithm::TopologicalSort::Smoke Test", "[Core][Algorithm][Smo
 			[&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; },
 			ETopologicalSort::AllowCycles);
 
-		TestEqual(TEXT("TopologicalSort did not sort correctly"), bHasSucceeded, true);
-		TestTrue(TEXT("TopologicalSort did not sort correctly"),
-			(Array == TArray<int32>{1, 2, 3, 4} || Array == TArray<int32>{1, 2, 4, 3}));
+		INFO("TopologicalSort did not sort correctly");
+		CHECK(bHasSucceeded);
+		CHECK((Array == TArray<int32>{1, 2, 3, 4} || Array == TArray<int32>{1, 2, 4, 3}));
 	}
 	{
 		// Test the sort with a cycle at a leaf and a chain from the root depending on that cycle
@@ -133,10 +157,11 @@ TEST_CASE("Core::Algorithm::TopologicalSort::Smoke Test", "[Core][Algorithm][Smo
 			[&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; },
 			ETopologicalSort::AllowCycles);
 
-		TestEqual(TEXT("TopologicalSort did not sort correctly"), bHasSucceeded, true);
+		INFO("TopologicalSort did not sort correctly");
+		CHECK(bHasSucceeded);
 		// There might be multiple valid answers, so test each condition separately to make sure they are all met.
-		TestTrue(TEXT("TopologicalSort did not sort correctly"), Array.IndexOfByKey(2) < Array.IndexOfByKey(1));
-		TestTrue(TEXT("TopologicalSort did not sort correctly"), Array[0] == 3 || Array[0] == 4);
+		CHECK(Array.IndexOfByKey(2) < Array.IndexOfByKey(1));
+		CHECK((Array[0] == 3 || Array[0] == 4));
 	}
 	{
 		// Test the sort with a cycle in the root and with the root cycle depending on a chain of non-cycle verts, submitted in revese
@@ -151,10 +176,11 @@ TEST_CASE("Core::Algorithm::TopologicalSort::Smoke Test", "[Core][Algorithm][Smo
 			[&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; },
 			ETopologicalSort::AllowCycles);
 
-		TestEqual(TEXT("TopologicalSort did not sort correctly"), bHasSucceeded, true);
+		INFO("TopologicalSort did not sort correctly");
+		CHECK(bHasSucceeded);
 		// There might be multiple valid answers, so test each condition separately to make sure they are all met.
-		TestTrue(TEXT("TopologicalSort did not sort correctly"), Array.IndexOfByKey(3) < Array.IndexOfByKey(4));
-		TestTrue(TEXT("TopologicalSort did not sort correctly"), Array[0] == 1 || Array[0] == 2);
+		CHECK(Array.IndexOfByKey(3) < Array.IndexOfByKey(4));
+		CHECK((Array[0] == 1 || Array[0] == 2));
 	}
 	{
 		// Verify that when breaking a cycle a member of the cycle is selected rather than an element that depends on but is not in the cycle
@@ -173,8 +199,9 @@ TEST_CASE("Core::Algorithm::TopologicalSort::Smoke Test", "[Core][Algorithm][Smo
 			[&Links](int32 Element) { TArray<int32> Dependencies; Links.MultiFind(Element, Dependencies); return Dependencies; },
 			ETopologicalSort::AllowCycles);
 
-		TestEqual(TEXT("TopologicalSort did not sort correctly"), bHasSucceeded, true);
+		INFO("TopologicalSort did not sort correctly");
+		CHECK(bHasSucceeded);
 		// There might be multiple valid answers, so test each condition separately to make sure they are all met.
-		TestTrue(TEXT("TopologicalSort did not sort correctly"), Array.IndexOfByKey(2) < Array.IndexOfByKey(1));
+		CHECK(Array.IndexOfByKey(2) < Array.IndexOfByKey(1));
 	}
 }

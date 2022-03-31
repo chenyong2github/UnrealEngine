@@ -13,14 +13,11 @@
 #include "Math/RandomStream.h"
 #include "Containers/CircularQueue.h"
 #include "Containers/Queue.h"
-#include "Tests/Benchmark.h"
+#include "Core/Tests/Benchmark.h"
 #include "HAL/Thread.h"
 #include "Async/Fundamental/Scheduler.h"
 #include <atomic>
-#include "TestHarness.h"
-#include "TestRunner.h"
-
-#include "TestCommon/CoreUtilities.h"
+#include "TestFixtures/CoreTestFixture.h"
 
 namespace OldTaskGraphTests
 {
@@ -484,7 +481,7 @@ namespace OldTaskGraphTests
 				Rig.Test2.PopAll(Items);
 				Rig.Test3.PopAll(Items);
 
-				checkf(Items.Num() == 1000, TEXT("Items %d"), Items.Num());
+				CHECK(Items.Num() == 1000);
 
 				for (int32 LookFor = 0; LookFor < 1000; LookFor++)
 				{
@@ -692,19 +689,21 @@ namespace OldTaskGraphTests
 	);
 
 
-	TEST_CASE("Core::Async::TaskGraph::OldBenchmark", "[Core][Async][Perf]")
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphOldBenchmark, "System.Core.Async.TaskGraph.OldBenchmark", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext | EAutomationTestFlags::EngineFilter);
+
+	bool FTaskGraphOldBenchmark::RunTest(const FString& Parameters)
 	{
-		InitTaskGraphAndDependencies();
 		TArray<FString> Args;
 		TaskGraphBenchmark(Args);
-		CleanupTaskGraphAndDependencies();
+		return true;
 	}
 
-	TEST_CASE("Core::Async::TaskGraph::LockFree", "[Core][Async][Perf]")
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLockFreeTest, "System.Core.Async.TaskGraph.LockFree", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	bool FLockFreeTest::RunTest(const FString& Parameters)
 	{
-		InitTaskGraphAndDependencies();
 		TestLockFree(3);
-		CleanupTaskGraphAndDependencies();
+		return true;
 	}
 }
 
@@ -712,10 +711,8 @@ extern int32 GNumForegroundWorkers;
 
 namespace TaskGraphTests
 {
-	TEST_CASE("Core::Async::TaskGraph::Graph Event", "[Core][Async][Smoke]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::TaskGraph::Graph Event", "[Core][Async][Smoke]")
 	{
-		InitTaskGraphAndDependencies();
-
 		{	// task completes before it's waited for
 			FGraphEventRef Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
 				[]
@@ -818,14 +815,12 @@ namespace TaskGraphTests
 			{}
 			Event->Wait(ENamedThreads::GameThread);
 		}
-
-		CleanupTaskGraphAndDependencies();
 	}
 
-	/* Blocks forever - Disabled */
-	TEST_CASE("Core::Async::TaskGraph::Recursion", "[.][Core][Async][Smoke]")
+
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::TaskGraph::Recursion", "[Core][Async][Smoke]")
 	{
-		InitTaskGraphAndDependencies();
+		return;
 
 		{	// recursive call on game thread
 			FGraphEventRef Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
@@ -849,15 +844,11 @@ namespace TaskGraphTests
 		//	FGraphEventRef Event = FFunctionGraphTask::CreateAndDispatchWhenReady([] {}, TStatId{}, nullptr, ENamedThreads::GameThread_Local);
 		//	Event->Wait(ENamedThreads::GameThread);
 		//}
-
-		CleanupTaskGraphAndDependencies();
 	}
 
 	
-	TEST_CASE("Core::Async::TaskGraph::Basic", "[Core][Async][Smoke]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::TaskGraph::Basic", "[Core][Async][Smoke]")
 	{
-		InitTaskGraphAndDependencies();
-
 		// thread and task priorities
 
 		{	// AnyNormalThreadNormalTask
@@ -1033,8 +1024,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			LocalQueueTask->Wait(ENamedThreads::GameThread_Local);
 			CHECK(LocalQueueTask.GetRefCount() == 1);
 		}
-
-		CleanupTaskGraphAndDependencies();
 	}
 
 	// it's fast because tasks are too lightweight and so are executed almost as fast
@@ -1296,10 +1285,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-	TEST_CASE("Core::Async::TaskGraph::Performance", "[Core][Async][Perf]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::TaskGraph::Performance", "[.][Core][Async][.Perf]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		TRACE_CPUPROFILER_EVENT_SCOPE(TaskGraphTests_PerfTest);
 
 		//UE_BENCHMARK(1, TestSpawning<100000>);
@@ -1316,25 +1303,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		UE_BENCHMARK(5, TestWorkStealing<100, 1000>);
 		UE_BENCHMARK(5, TestSpawning<100000>);
 		UE_BENCHMARK(5, TestBatchSpawning<100000>);
-
-		CleanupTaskGraphAndDependencies();
 	}
 
-	TEST_CASE("Core::Async::TaskGraph::Stats Thread Redirection", "[Core][Async][Smoke]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::TaskGraph::Stats Thread Redirection", "[Core][Async][Smoke]")
 	{
-		InitTaskGraphAndDependencies();
-
 #if STATS
-
 		bool bExecuted = false;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FFunctionGraphTask::CreateAndDispatchWhenReady([&bExecuted] { bExecuted = true; }, TStatId{}, nullptr, ENamedThreads::StatsThread)->Wait();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		CHECK(bExecuted);
-
 #endif
-
-		CleanupTaskGraphAndDependencies();
 	}
 
 	template<uint32 Num>
@@ -1362,18 +1341,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					Event->Trigger();
 				}
 			);
-			REQUIRE(Event->Wait(FTimespan::FromSeconds(5.f)));
+			CHECK(Event->Wait(FTimespan::FromSeconds(5.f)));
 		}
 	}
 
-	/* Disabled */
-	TEST_CASE("Core::Async::TaskGraph::Oversubscription", "[.][Core][Async][Smoke]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::TaskGraph::Oversubscription", "[Core][Async][.Stress]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		UE_BENCHMARK(5, OversubscriptionStressTest<10>);
-
-		CleanupTaskGraphAndDependencies();
 	}
 
 	template<uint32 Nujm>
@@ -1400,32 +1374,22 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				Event->Trigger();
 			}
 		);
-		REQUIRE(Event->Wait(FTimespan::FromSeconds(30.f)));
+		CHECK(Event->Wait(FTimespan::FromSeconds(30.f)));
 	}
 
-	/* Disabled CL 16742068 */
-	TEST_CASE("Core::Async::TaskGraph::Squared Oversubscription", "[.][Core][Async][Smoke]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::TaskGraph::Squared Oversubscription", "[Core][Async][.Stress]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		UE_BENCHMARK(5, SquaredOversubscriptionStressTest<10>);
-
-		CleanupTaskGraphAndDependencies();
 	}
 
 	template<uint32 Num, bool bBackgroundWorkersToo>
 	void BlockingWorkersByFEvent();
 
-	/* Disabled UE-131742 CL 17829717 */
-	TEST_CASE("Core::Async::TaskGraph::Blocking Workers", "[Core][Async][Smoke]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::TaskGraph::Blocking Workers", "[Core][Async][.Stress]")
 	{
-		InitTaskGraphAndDependencies();
-
 		FPlatformProcess::Sleep(1.0f);
 		UE_BENCHMARK(10, BlockingWorkersByFEvent<100, false>);
 		UE_BENCHMARK(10, BlockingWorkersByFEvent<100, true>);
-
-		CleanupTaskGraphAndDependencies();
 	}
 
 	template<uint32 Num, bool bBackgroundWorkersToo>
@@ -1448,7 +1412,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				WorkerBlockers[i].Init(TEXT("BlockingWorkers"), LowLevelTasks::ETaskPriority::High,
 					[i, &BlockersBlocker, &AllWorkersBlockedSignal, &NumWorkersNotBlocked]
 					{
-						REQUIRE(LowLevelTasks::FSchedulerTls::GetAffinityIndex() == i);
+						CHECK(LowLevelTasks::FSchedulerTls::GetAffinityIndex() == i);
 						if (--NumWorkersNotBlocked == 0)
 						{
 							AllWorkersBlockedSignal->Trigger();
@@ -1459,10 +1423,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 						}
 					});
 
-				REQUIRE(LowLevelTasks::TryLaunchAffinity(WorkerBlockers[i], i));
+				CHECK(LowLevelTasks::TryLaunchAffinity(WorkerBlockers[i], i));
 			}
 
-			REQUIRE(AllWorkersBlockedSignal->Wait(FTimespan::FromSeconds(3)));
+			CHECK(AllWorkersBlockedSignal->Wait(FTimespan::FromSeconds(3)));
 
 			BlockersBlocker->Trigger();
 			for (int i = 0; i != NumWorkers; ++i)

@@ -484,12 +484,12 @@ namespace
 	}
 }
 
-TEST_CASE("Core::Containers::TMap::Smoke", "[Core][Containers][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Containers::TMap::Smoke", "[Core][Containers][Smoke]")
 {
 	RunContainerTests<TMap<int32, FContainerTestValueType>, int32>();
 }
 
-TEST_CASE("Core::Containers::TMap::Full", "[Core][Containers][Full]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Containers::TMap::Full", "[Core][Containers][Full]")
 {
 	RunContainerTests<TMap<int32, FContainerTestValueType>, int32>();
 	RunContainerTests<TMap<FName, FContainerTestValueType>, FName>();
@@ -498,7 +498,7 @@ TEST_CASE("Core::Containers::TMap::Full", "[Core][Containers][Full]")
 	RunContainerTests<TMap<FString, FContainerTestValueType, FDefaultSetAllocator, FCaseSensitiveLookupKeyFuncs<FContainerTestValueType>>, FString>();
 }
 
-TEST_CASE("Core::Containers::TSortedMap::Full", "[Core][Containers][Full]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Containers::TSortedMap::Full", "[Core][Containers][Full]")
 {
 	RunContainerTests<TSortedMap<int32, FContainerTestValueType>, int32>();
 	RunContainerTests<TSortedMap<FName, FContainerTestValueType, FDefaultAllocator, FNameLexicalLess>, FName>();
@@ -524,7 +524,7 @@ TEST_CASE("Core::Containers::TSortedMap::Full", "[Core][Containers][Full]")
 	RunGetRefTests();
 }
 
-TEST_CASE("Core::Containers::TMap::Performance", "[Core][Containers][Perf]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Containers::TMap::Performance", "[Core][Containers][.Perf]")
 {
 	RunPerformanceTest<TMap<int32, FString>, int32>(TEXT("TMap int32"), 1, 1000000);
 	RunPerformanceTest<TMap<int32, FString>, int32>(TEXT("TMap int32"), 10, 1000000);
@@ -545,7 +545,7 @@ TEST_CASE("Core::Containers::TMap::Performance", "[Core][Containers][Perf]")
 	RunPerformanceTest<TMap<FString, FString>, FString>(TEXT("TMap FString"), 10000, 1000000);
 }
 
-TEST_CASE("Core::Containers::TSortedMap::Performance", "[Core][Containers][Perf]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Containers::TSortedMap::Performance", "[Core][Containers][.Perf]")
 {
 	RunPerformanceTest<TSortedMap<int32, FString>, int32>(TEXT("TSortedMap int32"), 1, 1000000);
 	RunPerformanceTest<TSortedMap<int32, FString>, int32>(TEXT("TSortedMap int32"), 10, 1000000);
@@ -623,7 +623,7 @@ namespace
 
 }
 
-TEST_CASE("Core::Containers::TSet::Smoke", "[Core][Containers][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Containers::TSet::Smoke", "[Core][Containers][Smoke]")
 {
 	enum class EArgType
 	{
@@ -665,17 +665,13 @@ TEST_CASE("Core::Containers::TSet::Smoke", "[Core][Containers][Smoke]")
 						Set.AddByHash(GetTypeHash(First), First, &bAlreadyInSet);
 					else
 						Set.AddByHash(GetTypeHash(First), MoveTemp(First), &bAlreadyInSet);
-				TestFalse(FullText(TEXT("returns bAlreadyInSet==false for first add")), bAlreadyInSet);
+				TEST_FALSE(FullText(TEXT("returns bAlreadyInSet==false for first add")), bAlreadyInSet);
 
 				FRecorder* Found = Set.Find(First);
 				if (ArgType == EArgType::Copy)
-				{
 					TestTrue(FullText(TEXT("constructs a copy")), Found && Found->Id > First.Id && Found->NumCopies > 0 && Found->Payload == First.Payload);
-				}
 				else
-				{
 					TestTrue(FullText(TEXT("constructs a move")), Found && Found->Id > First.Id && Found->NumCopies == 0 && Found->NumMoves >= 1 && Found->Payload == First.Payload);
-				}
 
 				uint32 FoundId = Found ? Found->Id : 0;
 				Found = Set.Find(First);
@@ -715,15 +711,11 @@ TEST_CASE("Core::Containers::TSet::Smoke", "[Core][Containers][Smoke]")
 						FindOrAddResult = &Set.FindOrAddByHash(GetTypeHash(First), First, &bAlreadyInSet);
 					else
 						FindOrAddResult = &Set.FindOrAddByHash(GetTypeHash(First), MoveTemp(First), &bAlreadyInSet);
-				TestFalse(FullText(TEXT("returns bAlreadyInSet==false for first add")), bAlreadyInSet);
+				TEST_FALSE(FullText(TEXT("returns bAlreadyInSet==false for first add")), bAlreadyInSet);
 				if (ArgType == EArgType::Copy)
-				{
 					TestTrue(FullText(TEXT("on the first constructs a copy")), FindOrAddResult->Id > First.Id && FindOrAddResult->NumCopies > 0 && FindOrAddResult->Payload == First.Payload);
-				}
 				else
-				{
 					TestTrue(FullText(TEXT("on the first constructs a move")), FindOrAddResult->Id > First.Id && FindOrAddResult->NumCopies == 0 && FindOrAddResult->NumMoves >= 1 && FindOrAddResult->Payload == First.Payload);
-				}
 				uint32 FoundId = FindOrAddResult->Id;
 
 				FRecorder* Found = Set.Find(First);
@@ -776,7 +768,7 @@ namespace ArrayViewTests
 	{
 	}
 
-	TEST_CASE("Core::Containers::TArrayView::Smoke", "[Core][Containers][Smoke]")
+	TEST_CASE_METHOD(FAutomationTestFixture, "Core::Containers::TArrayView::Smoke", "[Core][Containers][Smoke]")
 	{
 		// C array + derived-to-base conversions
 		Derived test1[13];

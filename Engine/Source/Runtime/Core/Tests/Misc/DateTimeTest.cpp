@@ -5,17 +5,17 @@
 #include "Misc/DateTime.h"
 #include "TestHarness.h"
 
-#define TestUnixEquivalent(Desc, A, B) TestTrue(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A).ToUnixTimestamp(), (B)), (A).ToUnixTimestamp() == (B) );
-#define TestYear(Desc, A, B)  TestTrue(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetYear()), (B)), ((A.GetYear()) == (B)));
-#define TestMonth(Desc, A, B) TestTrue(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetMonth()), B), (A.GetMonth()) == (B));
-#define TestMonthOfYear(Desc, A, B) TestTrue(FString::Printf(TEXT("%s - A=%d B=%d"), Desc ,(static_cast<int32>(A.GetMonthOfYear())), static_cast<int32>(B)), (A.GetMonthOfYear()) == (B));
-#define TestDay(Desc, A, B) TestTrue(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetDay()), (B)), (A.GetDay()==(B)));
-#define TestHour(Desc, A, B) TestTrue(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetHour()), (B)), (A.GetHour()==(B)));
-#define TestMinute(Desc, A, B) TestTrue(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetMinute()), (B)), (A.GetMinute()) == (B));
-#define TestSecond(Desc, A, B) TestTrue(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetSecond()), (B)), (A.GetSecond()) == (B));
-#define TestMillisecond(Desc, A, B) TestTrue(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetMillisecond()) ,(B)), (A.GetMillisecond()) == (B));
+#define TestUnixEquivalent(Desc, A, B) TEST_TRUE(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A).ToUnixTimestamp(), (B)), (A).ToUnixTimestamp() == (B) );
+#define TestYear(Desc, A, B)  TEST_TRUE(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetYear()), (B)), ((A.GetYear()) == (B)));
+#define TestMonth(Desc, A, B) TEST_TRUE(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetMonth()), B), (A.GetMonth()) == (B));
+#define TestMonthOfYear(Desc, A, B) TEST_TRUE(FString::Printf(TEXT("%s - A=%d B=%d"), Desc ,(static_cast<int32>(A.GetMonthOfYear())), static_cast<int32>(B)), (A.GetMonthOfYear()) == (B));
+#define TestDay(Desc, A, B) TEST_TRUE(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetDay()), (B)), (A.GetDay()==(B)));
+#define TestHour(Desc, A, B) TEST_TRUE(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetHour()), (B)), (A.GetHour()==(B)));
+#define TestMinute(Desc, A, B) TEST_TRUE(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetMinute()), (B)), (A.GetMinute()) == (B));
+#define TestSecond(Desc, A, B) TEST_TRUE(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetSecond()), (B)), (A.GetSecond()) == (B));
+#define TestMillisecond(Desc, A, B) TEST_TRUE(FString::Printf(TEXT("%s - A=%d B=%d"), Desc, (A.GetMillisecond()) ,(B)), (A.GetMillisecond()) == (B));
 
-TEST_CASE("Core::Misc::DateTime::Smoke", "[Core][Misc][Smoke][PlatformFlaky]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::DateTime::Smoke Test", "[Core][Misc][Smoke]")
 {
 	const int64 UnixEpochTimestamp = 0;
 	const int64 UnixBillenniumTimestamp = 1000000000;
@@ -81,47 +81,47 @@ TEST_CASE("Core::Misc::DateTime::Smoke", "[Core][Misc][Smoke][PlatformFlaky]")
 
 	FDateTime ParsedDateTime;
 
-	TestFalse(TEXT("Parsing an empty ISO string must fail"), FDateTime::ParseIso8601(TEXT(""), ParsedDateTime));
+	TEST_FALSE(TEXT("Parsing an empty ISO string must fail"), FDateTime::ParseIso8601(TEXT(""), ParsedDateTime));
 
 	FDateTime::ParseIso8601(TEXT("2019-05-22"), ParsedDateTime);
-	TestEqual(TEXT("Testing ISO 8601 date"), ParsedDateTime, FDateTime(2019, 5, 22));
+	TEST_EQUAL(TEXT("Testing ISO 8601 date"), ParsedDateTime, FDateTime(2019, 5, 22));
 
 	FDateTime::ParseIso8601(TEXT("2019-05-20T19:41:38+01:30"), ParsedDateTime);
-	TestEqual(TEXT("Testing ISO 8601 with +hh:mm timezone info"), ParsedDateTime, FDateTime( 2019, 5, 20, 18, 11, 38 ));
+	TEST_EQUAL(TEXT("Testing ISO 8601 with +hh:mm timezone info"), ParsedDateTime, FDateTime( 2019, 5, 20, 18, 11, 38 ));
 	FDateTime::ParseIso8601(TEXT("2019-05-20T19:41:38-01:30"), ParsedDateTime);
-	TestEqual(TEXT("Testing ISO 8601 with -hh:mm timezone info"), ParsedDateTime, FDateTime( 2019, 5, 20, 21, 11, 38 ));
+	TEST_EQUAL(TEXT("Testing ISO 8601 with -hh:mm timezone info"), ParsedDateTime, FDateTime( 2019, 5, 20, 21, 11, 38 ));
 	FDateTime::ParseIso8601(TEXT("2019-05-20T19:41:38+0030"), ParsedDateTime);
-	TestEqual(TEXT("Testing ISO 8601 with +hhmm timezone info"), ParsedDateTime, FDateTime( 2019, 5, 20, 19, 11, 38 ));
+	TEST_EQUAL(TEXT("Testing ISO 8601 with +hhmm timezone info"), ParsedDateTime, FDateTime( 2019, 5, 20, 19, 11, 38 ));
 	FDateTime::ParseIso8601(TEXT("2019-05-20T19:41:38-01"), ParsedDateTime);
-	TestEqual(TEXT("Testing ISO 8601 with -hh timezone info"), ParsedDateTime, FDateTime( 2019, 5, 20, 20, 41, 38 ));
+	TEST_EQUAL(TEXT("Testing ISO 8601 with -hh timezone info"), ParsedDateTime, FDateTime( 2019, 5, 20, 20, 41, 38 ));
 
 	for (double JulianDay : {0., 1000., 1721425.5, 1721425.0, FDateTime::MinValue().GetJulianDay(), FDateTime::MaxValue().GetJulianDay()})
 	{
-		TestEqual(TEXT("convertion from/to JulianDay is stable"), FDateTime::FromJulianDay(JulianDay).GetJulianDay(), JulianDay);
+		TEST_EQUAL(TEXT("convertion from/to JulianDay is stable"), FDateTime::FromJulianDay(JulianDay).GetJulianDay(), JulianDay);
 	}
 
 	FDateTime Date{ 2019, 5, 20, 18, 11, 38 };
 	FDateTime DateMidnight = Date.GetDate();
-	TestEqual(TEXT("GetDate returns a FDateTime at midnight"), DateMidnight.GetHour(), 0);
+	TEST_EQUAL(TEXT("GetDate returns a FDateTime at midnight"), DateMidnight.GetHour(), 0);
 
 	FDateTime DateNoon = DateMidnight + FTimespan::FromHours(12);
-	TestEqual(TEXT("GetDate returns a FDateTime at midnight"), DateNoon.GetHour(), 12);
+	TEST_EQUAL(TEXT("GetDate returns a FDateTime at midnight"), DateNoon.GetHour(), 12);
 
 	double JulianDayMidnight = DateMidnight.GetJulianDay();
 	double JulianDayNoon = DateNoon.GetJulianDay();
-	TestEqual(TEXT("At midnight, fractionnal part of the JulianDay value should be 0.5"), JulianDayMidnight - (int)JulianDayMidnight, 0.5);
-	TestEqual(TEXT("A 12h timespan adds half a julianday"), JulianDayNoon - JulianDayMidnight, 0.5);
+	TEST_EQUAL(TEXT("At midnight, fractionnal part of the JulianDay value should be 0.5"), JulianDayMidnight - (int)JulianDayMidnight, 0.5);
+	TEST_EQUAL(TEXT("A 12h timespan adds half a julianday"), JulianDayNoon - JulianDayMidnight, 0.5);
 
 	double OffsetDayCount = 12345.;
 	FDateTime OffsetDate = Date + FTimespan::FromDays(OffsetDayCount);
-	TestEqual(TEXT("An offset by a given numer of days leads to a similar JulianDay offset"), OffsetDate.GetJulianDay() - Date.GetJulianDay(), OffsetDayCount);
+	TEST_EQUAL(TEXT("An offset by a given numer of days leads to a similar JulianDay offset"), OffsetDate.GetJulianDay() - Date.GetJulianDay(), OffsetDayCount);
 
 	int32 Year, Month, Day;
 	DateMidnight.GetDate(Year, Month, Day);
 	FDateTime PreviousDay(DateMidnight.GetTicks() - 1);
 	int32 YearPrev, MonthPrev, DayPrev;
 	PreviousDay.GetDate(YearPrev, MonthPrev, DayPrev);
-	TestNotEqual(TEXT("One tick before a date at midnight leads to the previous date"), Day, DayPrev);
+	TEST_NOT_EQUAL(TEXT("One tick before a date at midnight leads to the previous date"), Day, DayPrev);
 }
 
 

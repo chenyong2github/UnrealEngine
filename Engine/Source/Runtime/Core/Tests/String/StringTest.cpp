@@ -10,12 +10,12 @@
 #include "Serialization/MemoryWriter.h"
 #include "TestHarness.h"
 
-TEST_CASE("Core::String::FString::SanitizeFloat", "[Core][String][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::String::FString::SanitizeFloat", "[Core][String][Smoke]")
 {
-	auto DoTest = [](const double InVal, const int32 InMinFractionalDigits, const FString& InExpected)
+	auto DoTest = [this](const double InVal, const int32 InMinFractionalDigits, const FString& InExpected)
 	{
 		const FString Result = FString::SanitizeFloat(InVal, InMinFractionalDigits);
-		TestEqual(FString::Printf(TEXT("%f (%d digits) failure: result '%s' (expected '%s')"), InVal, InMinFractionalDigits, *Result, *InExpected), Result, InExpected);
+		CHECK_EQUAL(Result, InExpected);
 	};
 
 	DoTest(+0.0, 0, TEXT("0"));
@@ -43,11 +43,12 @@ TEST_CASE("Core::String::FString::SanitizeFloat", "[Core][String][Smoke]")
 	DoTest(-100.1010, 4, TEXT("-100.1010"));
 }
 
-TEST_CASE("Core::String::FString::AppendInt", "[Core][String][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::String::FString::AppendInt", "[Core][String][Smoke]")
 {
-	auto DoTest = [](const TCHAR* Call, const FString& Result, const TCHAR* InExpected)
+	auto DoTest = [this](const TCHAR* Call, const FString& Result, const TCHAR* InExpected)
 	{
-		TestEqual(FString::Printf(TEXT("'%s' failure: result '%s' (expected '%s')"), Call, *Result, InExpected), Result, InExpected);
+		INFO(Call);
+		CHECK_EQUAL(Result, InExpected);
 	};
 
 	{
@@ -77,11 +78,12 @@ TEST_CASE("Core::String::FString::AppendInt", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::FString::Unicode", "[Core][String][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::String::FString::Unicode", "[Core][String][Smoke]")
 {
-	auto DoTest = [](const TCHAR* Call, const FString& Result, const TCHAR* InExpected)
+	auto DoTest = [this](const TCHAR* Call, const FString& Result, const TCHAR* InExpected)
 	{
-		TestEqual(FString::Printf(TEXT("'%s' failure: result '%s' (expected '%s')"), Call, *Result, InExpected), Result, InExpected);
+		INFO(Call);
+		CHECK_EQUAL(Result, InExpected);
 	};
 	
 	// Test data used to verify basic processing of a Unicode character outside the BMP
@@ -117,110 +119,178 @@ TEST_CASE("Core::String::FString::Unicode", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::FString::LexTryParseString", "[Core][String][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::String::FString::LexTryParseString", "[Core][String][Smoke]")
 {
 	// Test that LexFromString can intepret all the numerical formats we expect it to
-	{
-		// Test float values
 
+	SECTION("Test float values")
+	{
 		float Value;
 
-		// Basic numbers
-		TestTrue(TEXT("(float conversion from string) basic numbers"), LexTryParseString(Value, (TEXT("1"))) && Value == 1);
-		TestTrue(TEXT("(float conversion from string) basic numbers"), LexTryParseString(Value, (TEXT("1.0"))) && Value == 1);
-		TestTrue(TEXT("(float conversion from string) basic numbers"), LexTryParseString(Value, (TEXT(".5"))) && Value == 0.5);
-		TestTrue(TEXT("(float conversion from string) basic numbers"), LexTryParseString(Value, (TEXT("1."))) && Value == 1);
+		SECTION("Basic numbers")
+		{
+			CHECK(LexTryParseString(Value, TEXT("1")));
+			CHECK(Value == 1);
+			CHECK(LexTryParseString(Value, TEXT("1.0")));
+			CHECK(Value == 1);
+			CHECK(LexTryParseString(Value, TEXT(".5")));
+			CHECK(Value == 0.5);
+			CHECK(LexTryParseString(Value, TEXT("1.")));
+			CHECK(Value == 1);
+		}
 
-		// Variations of 0
-		TestTrue(TEXT("(float conversion from string) variations of 0"), LexTryParseString(Value, (TEXT("0"))) && Value == 0);
-		TestTrue(TEXT("(float conversion from string) variations of 0"), LexTryParseString(Value, (TEXT("-0"))) && Value == 0);
-		TestTrue(TEXT("(float conversion from string) variations of 0"), LexTryParseString(Value, (TEXT("0.0"))) && Value == 0);
-		TestTrue(TEXT("(float conversion from string) variations of 0"), LexTryParseString(Value, (TEXT(".0"))) && Value == 0);
-		TestTrue(TEXT("(float conversion from string) variations of 0"), LexTryParseString(Value, (TEXT("0."))) && Value == 0);
-		TestTrue(TEXT("(float conversion from string) variations of 0"), LexTryParseString(Value, (TEXT("0. 111"))) && Value == 0);
+		SECTION("Variations of 0")
+		{
+			CHECK(LexTryParseString(Value, TEXT("0")));
+			CHECK(Value == 0);
+			CHECK(LexTryParseString(Value, TEXT("-0")));
+			CHECK(Value == 0);
+			CHECK(LexTryParseString(Value, TEXT("0.0")));
+			CHECK(Value == 0);
+			CHECK(LexTryParseString(Value, TEXT(".0")));
+			CHECK(Value == 0);
+			CHECK(LexTryParseString(Value, TEXT("0.")));
+			CHECK(Value == 0);
+			CHECK(LexTryParseString(Value, TEXT("0. 111")));
+			CHECK(Value == 0);
+		}
 
-		// Scientific notation
-		TestTrue(TEXT("(float conversion from string) scientific notation"), LexTryParseString(Value, (TEXT("1.0e+10"))) && Value == 1.0e+10f);
-		TestTrue(TEXT("(float conversion from string) scientific notation"), LexTryParseString(Value, (TEXT("1.99999999e-11"))) && Value == 1.99999999e-11f);
-		TestTrue(TEXT("(float conversion from string) scientific notation"), LexTryParseString(Value, (TEXT("1e+10"))) && Value == 1e+10f);
+		SECTION("Scientific notation")
+		{
+			CHECK(LexTryParseString(Value, TEXT("1.0e+10")));
+			CHECK(Value == 1.0e+10f);
+			CHECK(LexTryParseString(Value, TEXT("1.99999999e-11")));
+			CHECK(Value == 1.99999999e-11f);
+			CHECK(LexTryParseString(Value, TEXT("1e+10")));
+			CHECK(Value == 1e+10f);
+		}
 
-		// Non-finite special numbers
-		TestTrue(TEXT("(float conversion from string) inf"), LexTryParseString(Value, (TEXT("inf"))));
-		TestTrue(TEXT("(float conversion from string) nan"), LexTryParseString(Value, (TEXT("nan"))));
-		TestTrue(TEXT("(float conversion from string) nan(ind)"), LexTryParseString(Value, (TEXT("nan(ind)"))));
+		SECTION("Non-finite special numbers")
+		{
+			CHECK(LexTryParseString(Value, TEXT("inf")));
+			CHECK(LexTryParseString(Value, TEXT("nan")));
+			CHECK(LexTryParseString(Value, TEXT("nan(ind)")));
+		}
 
-		// nan/inf etc. are detected from the start of the string, regardless of any other characters that come afterwards
-		TestTrue(TEXT("(float conversion from string) nananananananana"), LexTryParseString(Value, (TEXT("nananananananana"))));
-		TestTrue(TEXT("(float conversion from string) nan(ind)!"), LexTryParseString(Value, (TEXT("nan(ind)!"))));
-		TestTrue(TEXT("(float conversion from string) infinity"), LexTryParseString(Value, (TEXT("infinity"))));
+		SECTION("nan/inf etc. are detected from the start of the string, regardless of any other characters that come afterwards")
+		{
+			CHECK(LexTryParseString(Value, TEXT("nananananananana")));
+			CHECK(LexTryParseString(Value, TEXT("nan(ind)!")));
+			CHECK(LexTryParseString(Value, TEXT("infinity")));
+		}
 
-		// Some numbers with whitespace
-		TestTrue(TEXT("(float conversion from string) whitespace"), LexTryParseString(Value, (TEXT("   2.5   "))) && Value == 2.5);
-		TestTrue(TEXT("(float conversion from string) whitespace"), LexTryParseString(Value, (TEXT("\t3.0\t"))) && Value == 3.0);
-		TestTrue(TEXT("(float conversion from string) whitespace"), LexTryParseString(Value, (TEXT("4.0   \t"))) && Value == 4.0);
-		TestTrue(TEXT("(float conversion from string) whitespace"), LexTryParseString(Value, (TEXT("\r\n5.25"))) && Value == 5.25);
-		TestTrue(TEXT("(float conversion from string) whitespace"), LexTryParseString(Value, (TEXT(" 6 . 2 "))) && Value == 6.0);
-		TestTrue(TEXT("(float conversion from string) whitespace"), LexTryParseString(Value, (TEXT(" 56 . 2 "))) && Value == 56.0);
-		TestTrue(TEXT("(float conversion from string) whitespace"), LexTryParseString(Value, (TEXT(" 5 6 . 2 "))) && Value == 5.0);
-
-		// Failure cases
-		TestFalse(TEXT("(float no conversion from string) not a number"), LexTryParseString(Value, (TEXT("not a number"))));
-		TestFalse(TEXT("(float no conversion from string) <empty string>"), LexTryParseString(Value, (TEXT(""))));
-		TestFalse(TEXT("(float conversion from string) ."), LexTryParseString(Value, (TEXT("."))));
+		SECTION("Some numbers with whitespace")
+		{	
+			CHECK(LexTryParseString(Value, TEXT("   2.5   ")));
+			CHECK(Value == 2.5);
+			CHECK(LexTryParseString(Value, TEXT("\t3.0\t")));
+			CHECK(Value == 3.0);
+			CHECK(LexTryParseString(Value, TEXT("4.0   \t")));
+			CHECK(Value == 4.0);
+			CHECK(LexTryParseString(Value, TEXT("\r\n5.25")));
+			CHECK(Value == 5.25);
+			CHECK(LexTryParseString(Value, TEXT(" 6 . 2 ")));
+			CHECK(Value == 6.0);
+			CHECK(LexTryParseString(Value, TEXT(" 56 . 2 ")));
+			CHECK(Value == 56.0);
+			CHECK(LexTryParseString(Value, TEXT(" 5 6 . 2 ")));
+			CHECK(Value == 5.0);
+		}
+		
+		SECTION("Failure cases")
+		{
+			CHECK_FALSE(LexTryParseString(Value, TEXT("not a number")));
+			CHECK_FALSE(LexTryParseString(Value, TEXT("")));
+			CHECK_FALSE(LexTryParseString(Value, TEXT(".")));
+		}
+		
 	}
 
+	SECTION("Test integer values")
 	{
-		// Test integer values
-
 		int32 Value;
 
-		// Basic numbers
-		TestTrue(TEXT("(int32 conversion from string) basic numbers"), LexTryParseString(Value, (TEXT("1"))) && Value == 1);
-		TestTrue(TEXT("(int32 conversion from string) basic numbers"), LexTryParseString(Value, (TEXT("1.0"))) && Value == 1);
-		TestTrue(TEXT("(int32 conversion from string) basic numbers"), LexTryParseString(Value, (TEXT("3.1"))) && Value == 3);
-		TestTrue(TEXT("(int32 conversion from string) basic numbers"), LexTryParseString(Value, (TEXT("0.5"))) && Value == 0);
-		TestTrue(TEXT("(int32 conversion from string) basic numbers"), LexTryParseString(Value, (TEXT("1."))) && Value == 1);
+		SECTION("Basic numbers")
+		{
+			CHECK(LexTryParseString(Value, TEXT("1")));
+			CHECK(Value == 1);
+			CHECK(LexTryParseString(Value, TEXT("1.0")));
+			CHECK(Value == 1);
+			CHECK(LexTryParseString(Value, TEXT("3.1")));
+			CHECK(Value == 3);
+			CHECK(LexTryParseString(Value, TEXT("0.5")));
+			CHECK(Value == 0);
+			CHECK(LexTryParseString(Value, TEXT("1.")));
+			CHECK(Value == 1);
+		}
 
-		// Variations of 0
-		TestTrue(TEXT("(int32 conversion from string) variations of 0"), LexTryParseString(Value, (TEXT("0"))) && Value == 0);
-		TestTrue(TEXT("(int32 conversion from string) variations of 0"), LexTryParseString(Value, (TEXT("0.0"))) && Value == 0);
-		TestFalse(TEXT("(int32 conversion from string) variations of 0"), LexTryParseString(Value, (TEXT(".0"))) && Value == 0);
-		TestTrue(TEXT("(int32 conversion from string) variations of 0"), LexTryParseString(Value, (TEXT("0."))) && Value == 0);
+		SECTION("Variations of 0")
+		{	
+			CHECK(LexTryParseString(Value, TEXT("0")));
+			CHECK(Value == 0);
+			CHECK(LexTryParseString(Value, TEXT("0.0")));
+			CHECK(Value == 0);
+			CHECK_FALSE(LexTryParseString(Value, TEXT(".0")));
+			CHECK(Value == 0);
+			CHECK(LexTryParseString(Value, TEXT("0.")));
+			CHECK(Value == 0);
+		}
 
-		// Scientific notation
-		TestTrue(TEXT("(int32 conversion from string) scientific notation"), LexTryParseString(Value, (TEXT("1.0e+10"))) && Value == 1);
-		TestTrue(TEXT("(int32 conversion from string) scientific notation"), LexTryParseString(Value, (TEXT("6.0e-10"))) && Value == 6);
-		TestTrue(TEXT("(int32 conversion from string) scientific notation"), LexTryParseString(Value, (TEXT("0.0e+10"))) && Value == 0);
-		TestTrue(TEXT("(int32 conversion from string) scientific notation"), LexTryParseString(Value, (TEXT("0.0e-10"))) && Value == 0);
-		TestTrue(TEXT("(int32 conversion from string) scientific notation"), LexTryParseString(Value, (TEXT("3e+10"))) && Value == 3);
-		TestTrue(TEXT("(int32 conversion from string) scientific notation"), LexTryParseString(Value, (TEXT("4e-10"))) && Value == 4);
+		SECTION("Scientific notation")
+		{
+			CHECK(LexTryParseString(Value, TEXT("1.0e+10")));
+			CHECK(Value == 1);
+			CHECK(LexTryParseString(Value, TEXT("6.0e-10")));
+			CHECK(Value == 6);
+			CHECK(LexTryParseString(Value, TEXT("0.0e+10")));
+			CHECK(Value == 0);
+			CHECK(LexTryParseString(Value, TEXT("0.0e-10")));
+			CHECK(Value == 0);
+			CHECK(LexTryParseString(Value, TEXT("3e+10")));
+			CHECK(Value == 3);
+			CHECK(LexTryParseString(Value, TEXT("4e-10")));
+			CHECK(Value == 4);
+		}
 
-		// Some numbers with whitespace
-		TestTrue(TEXT("(int32 conversion from string) whitespace"), LexTryParseString(Value, (TEXT("   2.5   "))) && Value == 2);
-		TestTrue(TEXT("(int32 conversion from string) whitespace"), LexTryParseString(Value, (TEXT("\t3.0\t"))) && Value == 3);
-		TestTrue(TEXT("(int32 conversion from string) whitespace"), LexTryParseString(Value, (TEXT("4.0   \t"))) && Value == 4);
-		TestTrue(TEXT("(int32 conversion from string) whitespace"), LexTryParseString(Value, (TEXT("\r\n5.25"))) && Value == 5);
-		TestTrue(TEXT("(int32 conversion from string) whitespace"), LexTryParseString(Value, (TEXT(" 6 . 2 "))) && Value == 6);
-		TestTrue(TEXT("(int32 conversion from string) whitespace"), LexTryParseString(Value, (TEXT(" 56 . 2 "))) && Value == 56);
-		TestTrue(TEXT("(int32 conversion from string) whitespace"), LexTryParseString(Value, (TEXT(" 5 6 . 2 "))) && Value == 5);
-
-		// Non-finite special numbers. All shouldn't parse into an int
-		TestFalse(TEXT("(int32 no conversion from string) inf"), LexTryParseString(Value, (TEXT("inf"))));
-		TestFalse(TEXT("(int32 no conversion from string) nan"), LexTryParseString(Value, (TEXT("nan"))));
-		TestFalse(TEXT("(int32 no conversion from string) nan(ind)"), LexTryParseString(Value, (TEXT("nan(ind)"))));
-		TestFalse(TEXT("(int32 no conversion from string) nananananananana"), LexTryParseString(Value, (TEXT("nananananananana"))));
-		TestFalse(TEXT("(int32 no conversion from string) nan(ind)!"), LexTryParseString(Value, (TEXT("nan(ind)!"))));
-		TestFalse(TEXT("(int32 no conversion from string) infinity"), LexTryParseString(Value, (TEXT("infinity"))));
-		TestFalse(TEXT("(float no conversion from string) ."), LexTryParseString(Value, (TEXT("."))));
-		TestFalse(TEXT("(float no conversion from string) <empyty string>"), LexTryParseString(Value, (TEXT(""))));
+		SECTION("Some numbers with whitespace")
+		{
+			CHECK(LexTryParseString(Value, TEXT("   2.5   ")));
+			CHECK(Value == 2);
+			CHECK(LexTryParseString(Value, TEXT("\t3.0\t")));
+			CHECK(Value == 3);
+			CHECK(LexTryParseString(Value, TEXT("4.0   \t")));
+			CHECK(Value == 4);
+			CHECK(LexTryParseString(Value, TEXT("\r\n5.25")));
+			CHECK(Value == 5);
+			CHECK(LexTryParseString(Value, TEXT(" 6 . 2 ")));
+			CHECK(Value == 6);
+			CHECK(LexTryParseString(Value, TEXT(" 56 . 2 ")));
+			CHECK(Value == 56);
+			CHECK(LexTryParseString(Value, TEXT(" 5 6 . 2 ")));
+			CHECK(Value == 5);
+		}
+		
+		SECTION("Non-finite special numbers. All shouldn't parse into an int")
+		{
+			CHECK_FALSE(LexTryParseString(Value, (TEXT("inf"))));
+			CHECK_FALSE(LexTryParseString(Value, (TEXT("nan"))));
+			CHECK_FALSE(LexTryParseString(Value, (TEXT("nan(ind)"))));
+			CHECK_FALSE(LexTryParseString(Value, (TEXT("nananananananana"))));
+			CHECK_FALSE(LexTryParseString(Value, (TEXT("nan(ind)!"))));
+			CHECK_FALSE(LexTryParseString(Value, (TEXT("infinity"))));
+			CHECK_FALSE(LexTryParseString(Value, (TEXT("."))));
+			CHECK_FALSE(LexTryParseString(Value, (TEXT(""))));
+		}
+		
 	}
 }
 
-TEST_CASE("Core::String::FString::Substring", "[Core][String][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::String::FString::Substring", "[Core][String][Smoke]")
 {
-	auto DoTest = [](const TCHAR* Call, const FString& Result, const TCHAR* InExpected)
+	auto DoTest = [this](const TCHAR* Call, const FString& Result, const TCHAR* InExpected)
 	{
-		TestEqual(FString::Printf(TEXT("'%s' failure: result '%s' (expected '%s')"), Call, *Result, InExpected), Result, InExpected);
+		INFO(Call);
+		CHECK_EQUAL(Result, InExpected);
 	};
 
 	const FString TestString(TEXT("0123456789"));
@@ -233,127 +303,142 @@ TEST_CASE("Core::String::FString::Substring", "[Core][String][Smoke]")
 	Inline##TestName.Operation##Inline(__VA_ARGS__); \
 	DoTest(TEXT("Inline" #TestName), Inline##TestName, ExpectedResult); 
 
-	// Left
-	SUBSTRINGTEST(Left, TEXT("0123"), Left, 4);
-	SUBSTRINGTEST(ExactLengthLeft, *TestString, Left, 10);
-	SUBSTRINGTEST(LongerThanLeft, *TestString, Left, 20);
-	SUBSTRINGTEST(ZeroLeft, TEXT(""), Left, 0);
-	SUBSTRINGTEST(NegativeLeft, TEXT(""), Left, -1);
+	SECTION("Left")
+	{
+		SUBSTRINGTEST(Left, TEXT("0123"), Left, 4);
+		SUBSTRINGTEST(ExactLengthLeft, *TestString, Left, 10);
+		SUBSTRINGTEST(LongerThanLeft, *TestString, Left, 20);
+		SUBSTRINGTEST(ZeroLeft, TEXT(""), Left, 0);
+		SUBSTRINGTEST(NegativeLeft, TEXT(""), Left, -1);
+	}
 
-	// LeftChop
-	SUBSTRINGTEST(LeftChop, TEXT("012345"), LeftChop, 4);
-	SUBSTRINGTEST(ExactLengthLeftChop, TEXT(""), LeftChop, 10);
-	SUBSTRINGTEST(LongerThanLeftChop, TEXT(""), LeftChop, 20);
-	SUBSTRINGTEST(ZeroLeftChop, *TestString, LeftChop, 0);
-	SUBSTRINGTEST(NegativeLeftChop, *TestString, LeftChop, -1);
+	SECTION("LeftChop")
+	{
+		SUBSTRINGTEST(LeftChop, TEXT("012345"), LeftChop, 4);
+		SUBSTRINGTEST(ExactLengthLeftChop, TEXT(""), LeftChop, 10);
+		SUBSTRINGTEST(LongerThanLeftChop, TEXT(""), LeftChop, 20);
+		SUBSTRINGTEST(ZeroLeftChop, *TestString, LeftChop, 0);
+		SUBSTRINGTEST(NegativeLeftChop, *TestString, LeftChop, -1);
+	}
 
-	// Right
-	SUBSTRINGTEST(Right, TEXT("6789"), Right, 4);
-	SUBSTRINGTEST(ExactLengthRight, *TestString, Right, 10);
-	SUBSTRINGTEST(LongerThanRight, *TestString, Right, 20);
-	SUBSTRINGTEST(ZeroRight, TEXT(""), Right, 0);
-	SUBSTRINGTEST(NegativeRight, TEXT(""), Right, -1);
+	SECTION("Right")
+	{
+		SUBSTRINGTEST(Right, TEXT("6789"), Right, 4);
+		SUBSTRINGTEST(ExactLengthRight, *TestString, Right, 10);
+		SUBSTRINGTEST(LongerThanRight, *TestString, Right, 20);
+		SUBSTRINGTEST(ZeroRight, TEXT(""), Right, 0);
+		SUBSTRINGTEST(NegativeRight, TEXT(""), Right, -1);
+	}
+	
+	SECTION("RightChop")
+	{
+		SUBSTRINGTEST(RightChop, TEXT("456789"), RightChop, 4);
+		SUBSTRINGTEST(ExactLengthRightChop, TEXT(""), RightChop, 10);
+		SUBSTRINGTEST(LongerThanRightChop, TEXT(""), RightChop, 20);
+		SUBSTRINGTEST(ZeroRightChop, *TestString, RightChop, 0);
+		SUBSTRINGTEST(NegativeRightChop, *TestString, RightChop, -1);
+	}
 
-	// RightChop
-	SUBSTRINGTEST(RightChop, TEXT("456789"), RightChop, 4);
-	SUBSTRINGTEST(ExactLengthRightChop, TEXT(""), RightChop, 10);
-	SUBSTRINGTEST(LongerThanRightChop, TEXT(""), RightChop, 20);
-	SUBSTRINGTEST(ZeroRightChop, *TestString, RightChop, 0);
-	SUBSTRINGTEST(NegativeRightChop, *TestString, RightChop, -1);
-
-	// Mid
-	SUBSTRINGTEST(Mid, TEXT("456789"), Mid, 4);
-	SUBSTRINGTEST(MidCount, TEXT("4567"), Mid, 4, 4);
-	SUBSTRINGTEST(MidCountFullLength, *TestString, Mid, 0, 10);
-	SUBSTRINGTEST(MidCountOffEnd, TEXT("89"), Mid, 8, 4);
-	SUBSTRINGTEST(MidStartAfterEnd, TEXT(""), Mid, 20);
-	SUBSTRINGTEST(MidZeroCount, TEXT(""), Mid, 5, 0);
-	SUBSTRINGTEST(MidNegativeCount, TEXT(""), Mid, 5, -1);
-	SUBSTRINGTEST(MidNegativeStartNegativeEnd, TEXT(""), Mid, -5, 1);
-	SUBSTRINGTEST(MidNegativeStartPositiveEnd, TEXT("012"), Mid, -1, 4);
-	SUBSTRINGTEST(MidNegativeStartBeyondEnd, *TestString, Mid, -1, 15);
+	SECTION("Mid")
+	{
+		SUBSTRINGTEST(Mid, TEXT("456789"), Mid, 4);
+		SUBSTRINGTEST(MidCount, TEXT("4567"), Mid, 4, 4);
+		SUBSTRINGTEST(MidCountFullLength, *TestString, Mid, 0, 10);
+		SUBSTRINGTEST(MidCountOffEnd, TEXT("89"), Mid, 8, 4);
+		SUBSTRINGTEST(MidStartAfterEnd, TEXT(""), Mid, 20);
+		SUBSTRINGTEST(MidZeroCount, TEXT(""), Mid, 5, 0);
+		SUBSTRINGTEST(MidNegativeCount, TEXT(""), Mid, 5, -1);
+		SUBSTRINGTEST(MidNegativeStartNegativeEnd, TEXT(""), Mid, -5, 1);
+		SUBSTRINGTEST(MidNegativeStartPositiveEnd, TEXT("012"), Mid, -1, 4);
+		SUBSTRINGTEST(MidNegativeStartBeyondEnd, *TestString, Mid, -1, 15);
+	}
 
 #undef SUBSTRINGTEST
 }
 
-TEST_CASE("Core::String::FString::FromStringView", "[Core][String][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::String::FString::FromStringView", "[Core][String][Smoke]")
 {
-	// Verify basic construction and assignment from a string view.
+	SECTION("Verify basic construction and assignment from a string view.")
 	{
 		const TCHAR* Literal = TEXT("Literal");
 		const ANSICHAR* AnsiLiteral = "Literal";
-		TestEqual(TEXT("String(StringView)"), FString(FStringView(Literal)), Literal);
-		TestEqual(TEXT("String(AnsiStringView)"), FString(FAnsiStringView(AnsiLiteral)), Literal);
-		TestEqual(TEXT("String = StringView"), FString(TEXT("Temp")) = FStringView(Literal), Literal);
+		CAPTURE(Literal,AnsiLiteral);
+		CHECK_EQUAL(FString(FStringView(Literal)), Literal);
+		CHECK_EQUAL(FString(FAnsiStringView(AnsiLiteral)), Literal);
+		CHECK_EQUAL((FString(TEXT("Temp")) = FStringView(Literal)), Literal);
 
 		FStringView EmptyStringView;
 		FString EmptyString(EmptyStringView);
-		TestTrue(TEXT("String(EmptyStringView)"), EmptyString.IsEmpty());
-		TestTrue(TEXT("String(EmptyStringView) (No Allocation)"), EmptyString.GetAllocatedSize() == 0);
+		CHECK(EmptyString.IsEmpty());
+		CHECK(EmptyString.GetAllocatedSize() == 0);
 
 		EmptyString = TEXT("Temp");
 		EmptyString = EmptyStringView;
-		TestTrue(TEXT("String = EmptyStringView"), EmptyString.IsEmpty());
-		TestTrue(TEXT("String = EmptyStringView (No Allocation)"), EmptyString.GetAllocatedSize() == 0);
+		CHECK(EmptyString.IsEmpty());
+		CHECK(EmptyString.GetAllocatedSize() == 0);
 	}
 
-	// Verify assignment from a view of itself.
+	SECTION("Verify assignment from a view of itself.")
 	{
 		FString AssignEntireString(TEXT("AssignEntireString"));
 		AssignEntireString = FStringView(AssignEntireString);
-		TestEqual(TEXT("String = StringView(String)"), AssignEntireString, TEXT("AssignEntireString"));
+		CAPTURE(AssignEntireString);
+		CHECK_EQUAL(AssignEntireString, TEXT("AssignEntireString"));
 
 		FString AssignStartOfString(TEXT("AssignStartOfString"));
 		AssignStartOfString = FStringView(AssignStartOfString).Left(11);
-		TestEqual(TEXT("String = StringView(String).Left"), AssignStartOfString, TEXT("AssignStart"));
+		CAPTURE(AssignStartOfString);
+		CHECK_EQUAL(AssignStartOfString, TEXT("AssignStart"));
 
 		FString AssignEndOfString(TEXT("AssignEndOfString"));
 		AssignEndOfString = FStringView(AssignEndOfString).Right(11);
-		TestEqual(TEXT("String = StringView(String).Right"), AssignEndOfString, TEXT("EndOfString"));
+		CAPTURE(AssignEndOfString);
+		CHECK_EQUAL(AssignEndOfString, TEXT("EndOfString"));
 
 		FString AssignMiddleOfString(TEXT("AssignMiddleOfString"));
 		AssignMiddleOfString = FStringView(AssignMiddleOfString).Mid(6, 6);
-		TestEqual(TEXT("String = StringView(String).Mid"), AssignMiddleOfString, TEXT("Middle"));
+		CAPTURE(AssignMiddleOfString);
+		CHECK_EQUAL(AssignMiddleOfString, TEXT("Middle"));
 	}
 
-	// Verify operators taking string views and character arrays
+	SECTION("Verify operators taking string views and character arrays")
 	{
 		FStringView RhsStringView = FStringView(TEXT("RhsNotSZ"), 3);
 		FString MovePlusSVResult = FString(TEXT("Lhs")) + RhsStringView;
-		TestEqual(TEXT("Move String + StringView"), MovePlusSVResult, TEXT("LhsRhs"));
+		CHECK_EQUAL(MovePlusSVResult, TEXT("LhsRhs"));
 
 		FString CopyLhs(TEXT("Lhs"));
 		FString CopyPlusSVResult = CopyLhs + RhsStringView;
-		TestEqual(TEXT("Copy String + StringView"), CopyPlusSVResult, TEXT("LhsRhs"));
+		CHECK_EQUAL(CopyPlusSVResult, TEXT("LhsRhs"));
 
 		FString MovePlusTCHARsResult = FString(TEXT("Lhs")) + TEXT("Rhs");
-		TestEqual(TEXT("Move String + TCHAR*"), MovePlusTCHARsResult, TEXT("LhsRhs"));
+		CHECK_EQUAL(MovePlusTCHARsResult, TEXT("LhsRhs"));
 
 		FString CopyPlusTCHARsResult = CopyLhs + TEXT("Rhs");
-		TestEqual(TEXT("Copy String + TCHAR*"), CopyPlusTCHARsResult, TEXT("LhsRhs"));
+		CHECK_EQUAL(CopyPlusTCHARsResult, TEXT("LhsRhs"));
 
 		FStringView LhsStringView = FStringView(TEXT("LhsNotSZ"), 3);
 		FString SVPlusMoveResult = LhsStringView + FString(TEXT("Rhs"));
-		TestEqual(TEXT("StringView + Move String"), SVPlusMoveResult, TEXT("LhsRhs"));
+		CHECK_EQUAL(SVPlusMoveResult, TEXT("LhsRhs"));
 
 		FString CopyRhs(TEXT("Rhs"));
 		FString SVPlusCopyResult = LhsStringView + CopyRhs;
-		TestEqual(TEXT("StringView + Copy String"), SVPlusCopyResult, TEXT("LhsRhs"));
+		CHECK_EQUAL(SVPlusCopyResult, TEXT("LhsRhs"));
 
 		FString TCHARsPlusMoveResult = TEXT("Lhs") + FString(TEXT("Rhs"));
-		TestEqual(TEXT("TCHAR* + Move String"), TCHARsPlusMoveResult, TEXT("LhsRhs"));
+		CHECK_EQUAL(TCHARsPlusMoveResult, TEXT("LhsRhs"));
 
 		FString TCHARsPlusCopyResult = TEXT("Lhs") + CopyRhs;
-		TestEqual(TEXT("TCHAR* + Copy String"), TCHARsPlusCopyResult, TEXT("LhsRhs"));
+		CHECK_EQUAL(TCHARsPlusCopyResult, TEXT("LhsRhs"));
 	}
 }
 
-TEST_CASE("Core::String::FString::ConstructWithSlack", "[Core][String][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::String::FString::ConstructWithSlack", "[Core][String][Smoke]")
 {
 	// Note that the total capacity of a string might be greater than the string length + slack + a null terminator due to
 	// underlying malloc implementations which is why we poll FMemory to see what size of allocation we should be expecting.
 
-	// Test creating from a valid string with various valid slack value
+	SECTION("Test creating from a valid string with various valid slack value")
 	{
 		const TCHAR* TestString = TEXT("FooBar");
 		const char* TestAsciiString = "FooBar";
@@ -364,19 +449,19 @@ TEST_CASE("Core::String::FString::ConstructWithSlack", "[Core][String][Smoke]")
 		const SIZE_T ExpectedCapacity = FMemory::QuantizeSize(NumElements * sizeof(TCHAR));
 
 		FString StringFromTChar(TestString, ExtraSlack);
-		TestEqual(TEXT("(TCHAR: Valid string with valid slack) resulting capacity"), StringFromTChar.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromTChar.GetAllocatedSize(), ExpectedCapacity);
 
 		FString StringFromAscii(TestAsciiString, ExtraSlack);
-		TestEqual(TEXT("(ASCII: Valid string with valid slack) resulting capacity"), StringFromAscii.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromAscii.GetAllocatedSize(), ExpectedCapacity);
 
 		FString StringFromFStringView(FStringView(TestString), ExtraSlack);
-		TestEqual(TEXT("(FStringView: Valid string with valid slack) resulting capacity"), StringFromFStringView.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromFStringView.GetAllocatedSize(), ExpectedCapacity);
 
 		FString StringFromFString(FString(TestString), ExtraSlack);
-		TestEqual(TEXT("(FString: Valid string with valid slack"), StringFromFString.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromFString.GetAllocatedSize(), ExpectedCapacity);
 	}
 
-	// Test creating from a valid string with a zero slack value
+	SECTION("Test creating from a valid string with a zero slack value")
 	{
 		const TCHAR* TestString = TEXT("FooBar");
 		const char* TestAsciiString = "FooBar";
@@ -387,19 +472,19 @@ TEST_CASE("Core::String::FString::ConstructWithSlack", "[Core][String][Smoke]")
 		const SIZE_T ExpectedCapacity = FMemory::QuantizeSize(NumElements * sizeof(TCHAR));
 
 		FString StringFromTChar(TestString, ExtraSlack);
-		TestEqual(TEXT("(TCHAR: Valid string with zero slack) resulting capacity"), StringFromTChar.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromTChar.GetAllocatedSize(), ExpectedCapacity);
 
 		FString StringFromAscii(TestAsciiString, ExtraSlack);
-		TestEqual(TEXT("(ASCII: Valid string with zero slack) resulting capacity"), StringFromAscii.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromAscii.GetAllocatedSize(), ExpectedCapacity);
 
 		FString StringFromFStringView(FStringView(TestString), ExtraSlack);
-		TestEqual(TEXT("(FStringView: Valid string with zero slack) resulting capacity"), StringFromFStringView.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromFStringView.GetAllocatedSize(), ExpectedCapacity);
 
 		FString StringFromFString(FString(TestString), ExtraSlack);
-		TestEqual(TEXT("(FString: Valid string with zero slack"), StringFromFString.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromFString.GetAllocatedSize(), ExpectedCapacity);
 	}
 
-	// Test creating from an empty string with a valid slack value
+	SECTION("Test creating from an empty string with a valid slack value")
 	{
 		const TCHAR* TestString = TEXT("");
 		const char* TestAsciiString = "";
@@ -410,19 +495,19 @@ TEST_CASE("Core::String::FString::ConstructWithSlack", "[Core][String][Smoke]")
 		const SIZE_T ExpectedCapacity = FMemory::QuantizeSize(NumElements * sizeof(TCHAR));
 
 		FString StringFromTChar(TestString, ExtraSlack);
-		TestEqual(TEXT("(TCHAR: Empty string with slack) resulting capacity"), StringFromTChar.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromTChar.GetAllocatedSize(), ExpectedCapacity);
 
 		FString StringFromAscii(TestAsciiString, ExtraSlack);
-		TestEqual(TEXT("(ASCII: Empty string with slack) resulting capacity"), StringFromAscii.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromAscii.GetAllocatedSize(), ExpectedCapacity);
 
 		FString StringFromFStringView(FStringView(TestString), ExtraSlack);
-		TestEqual(TEXT("(FStringView: Empty string with slack) resulting capacity"), StringFromFStringView.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromFStringView.GetAllocatedSize(), ExpectedCapacity);
 
 		FString StringFromFString(FString(TestString), ExtraSlack);
-		TestEqual(TEXT("(FString: Empty string with slack) resulting capacity"), StringFromFString.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromFString.GetAllocatedSize(), ExpectedCapacity);
 	}
 
-	// Test creating from an empty string with a zero slack value
+	SECTION("Test creating from an empty string with a zero slack value")
 	{
 		const TCHAR* TestString = TEXT("");
 		const char* TestAsciiString = "";
@@ -431,39 +516,39 @@ TEST_CASE("Core::String::FString::ConstructWithSlack", "[Core][String][Smoke]")
 		const SIZE_T ExpectedCapacity = 0u;
 
 		FString StringFromTChar(TestString, ExtraSlack);
-		TestEqual(TEXT("(TCHAR: Empty string with zero slack) resulting capacity"), StringFromTChar.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromTChar.GetAllocatedSize(), ExpectedCapacity);
 
 		FString StringFromAscii(TestAsciiString, ExtraSlack);
-		TestEqual(TEXT("(ASCII: Empty string with zero slack) resulting capacity"), StringFromAscii.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromAscii.GetAllocatedSize(), ExpectedCapacity);
 
 		FString StringFromFStringView(FStringView(TestString), ExtraSlack);
-		TestEqual(TEXT("(FStringView: Empty string with zero slack) resulting capacity"), StringFromFStringView.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromFStringView.GetAllocatedSize(), ExpectedCapacity);
 
 		FString StringFromFString(FString(TestString), ExtraSlack);
-		TestEqual(TEXT("(FString: Empty string with zero slack) resulting capacity"), StringFromFString.GetAllocatedSize(), ExpectedCapacity);
+		CHECK_EQUAL(StringFromFString.GetAllocatedSize(), ExpectedCapacity);
 	}
 }
 
-TEST_CASE("Core::String::FString::Equality", "[Core][String][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::String::FString::Equality", "[Core][String][Smoke]")
 {
-	auto TestSelfEquality = [](const TCHAR* A)
+	auto TestSelfEquality = [this](const TCHAR* A)
 	{
-		TestTrue(TEXT("Self Equality C string"), FString(A) == A);
-		TestTrue(TEXT("Self Equality C string"), A == FString(A));
-		TestTrue(TEXT("Self Equality CaseSensitive"), FString(A).Equals(FString(A), ESearchCase::CaseSensitive));
-		TestTrue(TEXT("Self Equality IgnoreCase"), FString(A).Equals(FString(A), ESearchCase::IgnoreCase));
+		CHECK(FString(A) == A);
+		CHECK(A == FString(A));
+		CHECK(FString(A).Equals(FString(A), ESearchCase::CaseSensitive));
+		CHECK(FString(A).Equals(FString(A), ESearchCase::IgnoreCase));
 
 		FString Slacker(A);
 		Slacker.Reserve(100);
-		TestTrue(TEXT("Self Equality slack"), Slacker == FString(A));
+		CHECK(Slacker == FString(A));
 	};
 
-	auto TestPairEquality = [](const TCHAR* A, const TCHAR* B)
+	auto TestPairEquality = [this](const TCHAR* A, const TCHAR* B)
 	{
-		TestEqual(TEXT("Equals CaseSensitive"), FCString::Strcmp(A, B)  == 0, FString(A).Equals(FString(B), ESearchCase::CaseSensitive));
-		TestEqual(TEXT("Equals CaseSensitive"), FCString::Strcmp(B, A)  == 0, FString(B).Equals(FString(A), ESearchCase::CaseSensitive));
-		TestEqual(TEXT("Equals IgnoreCase"),	FCString::Stricmp(A, B) == 0, FString(A).Equals(FString(B), ESearchCase::IgnoreCase));
-		TestEqual(TEXT("Equals IgnoreCase"),	FCString::Stricmp(B, A) == 0, FString(B).Equals(FString(A), ESearchCase::IgnoreCase));
+		CHECK_EQUAL((FCString::Strcmp(A, B)  == 0), FString(A).Equals(FString(B), ESearchCase::CaseSensitive));
+		CHECK_EQUAL((FCString::Strcmp(B, A)  == 0), FString(B).Equals(FString(A), ESearchCase::CaseSensitive));
+		CHECK_EQUAL((FCString::Stricmp(A, B) == 0), FString(A).Equals(FString(B), ESearchCase::IgnoreCase));
+		CHECK_EQUAL((FCString::Stricmp(B, A) == 0), FString(B).Equals(FString(A), ESearchCase::IgnoreCase));
 	};
 
 	const TCHAR* Pairs[][2] =	{ {TEXT(""),	TEXT(" ")}
@@ -480,7 +565,7 @@ TEST_CASE("Core::String::FString::Equality", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::FString::Path Concat Compound Operator", "[Core][String][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::String::FString::Path Concat Compound Operator", "[Core][String][Smoke]")
 {
 	// No need to test a nullptr TCHAR* as an input parameter as this is expected to cause a crash
 	// No need to test self assignment, clang will catch that was a compiler error (-Wself-assign-overloaded)
@@ -501,57 +586,69 @@ TEST_CASE("Core::String::FString::Path Concat Compound Operator", "[Core][String
 	TStringBuilder<128> FilenameStringBuilder; FilenameStringBuilder << Filename;
 	TStringBuilder<128> FilenameWithLeadingSlashStringBuilder; FilenameWithLeadingSlashStringBuilder << FilenameWithLeadingSlash;
 	
-#define TEST_EMPTYPATH_EMPTYFILE(Type, Input)						{ FString EmptyPathString; EmptyPathString /= Input; TestTrue(TEXT(Type ": EmptyPath/EmptyFilename to be empty"), EmptyPathString.IsEmpty()); }
-#define TEST_VALIDPATH_EMPTYFILE(Type, Input)						{ FString Result(Path); Result /= Input; TestEqual(TEXT(Type ": ValidPath/EmptyFilename result to be"), Result, PathWithTrailingSlash); } \
-																	{ FString Result(PathWithTrailingSlash); Result /= Input; TestEqual(TEXT(Type " (with extra /): ValidPath/EmptyFilename result to be"), Result, PathWithTrailingSlash); }	
-#define TEST_EMPTYPATH_VALIDFILE(Type, Input)						{ FString Result; Result /= Input; TestEqual(TEXT(Type ": EmptyPath/ValidFilename"), Result, Filename); }
-#define TEST_VALIDPATH_VALIDFILE(Type, Path, File)					{ FString Result(Path); Result /= File; TestEqual(TEXT(Type ": ValidPath/ValidFilename"), Result, CombinedPath); }
-#define TEST_VALIDPATH_VALIDFILE_DOUBLE_SEPARATOR(Type, Path, File)	{ FString Result(Path); Result /= File; TestEqual(TEXT(Type ": ValidPath//ValidFilename"), Result, CombinedPathWithDoubleSeparator); }
+#define TEST_EMPTYPATH_EMPTYFILE(Type, Input)						{ FString EmptyPathString; EmptyPathString /= Input; TEST_TRUE(TEXT(Type ": EmptyPath/EmptyFilename to be empty"), EmptyPathString.IsEmpty()); }
+#define TEST_VALIDPATH_EMPTYFILE(Type, Input)						{ FString Result(Path); Result /= Input; TEST_EQUAL(TEXT(Type ": ValidPath/EmptyFilename result to be"), Result, PathWithTrailingSlash); } \
+																	{ FString Result(PathWithTrailingSlash); Result /= Input; TEST_EQUAL(TEXT(Type " (with extra /): ValidPath/EmptyFilename result to be"), Result, PathWithTrailingSlash); }	
+#define TEST_EMPTYPATH_VALIDFILE(Type, Input)						{ FString Result; Result /= Input; TEST_EQUAL(TEXT(Type ": EmptyPath/ValidFilename"), Result, Filename); }
+#define TEST_VALIDPATH_VALIDFILE(Type, Path, File)					{ FString Result(Path); Result /= File; TEST_EQUAL(TEXT(Type ": ValidPath/ValidFilename"), Result, CombinedPath); }
+#define TEST_VALIDPATH_VALIDFILE_DOUBLE_SEPARATOR(Type, Path, File)	{ FString Result(Path); Result /= File; TEST_EQUAL(TEXT(Type ": ValidPath//ValidFilename"), Result, CombinedPathWithDoubleSeparator); }
 
-	// Test empty path /= empty file
-	TEST_EMPTYPATH_EMPTYFILE("NullString", FString());
-	TEST_EMPTYPATH_EMPTYFILE("EmptyString", FString(TEXT("")));
-	TEST_EMPTYPATH_EMPTYFILE("EmptyAnsiLiteralString", "");
-	TEST_EMPTYPATH_EMPTYFILE("EmptyLiteralString", TEXT(""));
-	TEST_EMPTYPATH_EMPTYFILE("NullStringView", FStringView());
-	TEST_EMPTYPATH_EMPTYFILE("EmptyStringView", FStringView(TEXT("")));
-	TEST_EMPTYPATH_EMPTYFILE("EmptyStringBuilder", EmptyStringBuilder);
-
-	// Test valid path /= empty file
-	TEST_VALIDPATH_EMPTYFILE("NullString", FString());
-	TEST_VALIDPATH_EMPTYFILE("EmptyString", FString(TEXT("")));
-	TEST_VALIDPATH_EMPTYFILE("EmptyAnsiLiteralString", "");
-	TEST_VALIDPATH_EMPTYFILE("EmptyLiteralString", TEXT(""));
-	TEST_VALIDPATH_EMPTYFILE("NullStringView", FStringView());
-	TEST_VALIDPATH_EMPTYFILE("EmptyStringView", FStringView(TEXT("")));
-	TEST_VALIDPATH_EMPTYFILE("EmptyStringBuilder", EmptyStringBuilder);
+	SECTION("Test empty path /= empty file")
+	{
+		TEST_EMPTYPATH_EMPTYFILE("NullString", FString());
+		TEST_EMPTYPATH_EMPTYFILE("EmptyString", FString(TEXT("")));
+		TEST_EMPTYPATH_EMPTYFILE("EmptyAnsiLiteralString", "");
+		TEST_EMPTYPATH_EMPTYFILE("EmptyLiteralString", TEXT(""));
+		TEST_EMPTYPATH_EMPTYFILE("NullStringView", FStringView());
+		TEST_EMPTYPATH_EMPTYFILE("EmptyStringView", FStringView(TEXT("")));
+		TEST_EMPTYPATH_EMPTYFILE("EmptyStringBuilder", EmptyStringBuilder);
+	}
 	
-	// Test empty path /= valid file
-	TEST_EMPTYPATH_VALIDFILE("String", FString(Filename));
-	TEST_EMPTYPATH_VALIDFILE("LiteralString", Filename);
-	TEST_EMPTYPATH_VALIDFILE("LiteralAnsiString", AnsiFilename);
-	TEST_EMPTYPATH_VALIDFILE("StringView", FStringView(Filename));
+	SECTION("Test valid path /= empty file")
+	{
+		TEST_VALIDPATH_EMPTYFILE("NullString", FString());
+		TEST_VALIDPATH_EMPTYFILE("EmptyString", FString(TEXT("")));
+		TEST_VALIDPATH_EMPTYFILE("EmptyAnsiLiteralString", "");
+		TEST_VALIDPATH_EMPTYFILE("EmptyLiteralString", TEXT(""));
+		TEST_VALIDPATH_EMPTYFILE("NullStringView", FStringView());
+		TEST_VALIDPATH_EMPTYFILE("EmptyStringView", FStringView(TEXT("")));
+		TEST_VALIDPATH_EMPTYFILE("EmptyStringBuilder", EmptyStringBuilder);
+	}
 	
-	// Test valid path /= valid file
-	TEST_VALIDPATH_VALIDFILE("String", Path, FString(Filename));
-	TEST_VALIDPATH_VALIDFILE("LiteralString", Path, Filename);
-	TEST_VALIDPATH_VALIDFILE("LiteralAnsiString", Path, AnsiFilename);
-	TEST_VALIDPATH_VALIDFILE("StringView", Path, FStringView(Filename));
-	TEST_VALIDPATH_VALIDFILE("StringBuilder", Path, FilenameStringBuilder);
-
-	// Test valid path (ending in /) /= valid file
-	TEST_VALIDPATH_VALIDFILE("String (path with extra /)", PathWithTrailingSlash, FString(Filename));
-	TEST_VALIDPATH_VALIDFILE("LiteralString (path with extra /)", PathWithTrailingSlash, Filename);
-	TEST_VALIDPATH_VALIDFILE("LiteralAnsiString (path with extra /)", PathWithTrailingSlash, AnsiFilename);
-	TEST_VALIDPATH_VALIDFILE("StringView (path with extra /)", PathWithTrailingSlash, FStringView(Filename));
-	TEST_VALIDPATH_VALIDFILE("StringBuilder (path with extra /)", PathWithTrailingSlash, FilenameStringBuilder);
+	SECTION("Test empty path /= valid file")
+	{
+		TEST_EMPTYPATH_VALIDFILE("String", FString(Filename));
+		TEST_EMPTYPATH_VALIDFILE("LiteralString", Filename);
+		TEST_EMPTYPATH_VALIDFILE("LiteralAnsiString", AnsiFilename);
+		TEST_EMPTYPATH_VALIDFILE("StringView", FStringView(Filename));
+	}
 	
-	// Test valid path / valid path + file (starting with /)
-	TEST_VALIDPATH_VALIDFILE("String (filename with extra /)", Path, FString(FilenameWithLeadingSlash));
-	TEST_VALIDPATH_VALIDFILE("LiteralString (filename with extra /)", Path, FilenameWithLeadingSlash);
-	TEST_VALIDPATH_VALIDFILE("LiteralAnsiString (filename with extra /)", Path, AnsiFilenameWithLeadingSlash);
-	TEST_VALIDPATH_VALIDFILE("StringView (filename with extra /)", Path, FStringView(FilenameWithLeadingSlash));
-	TEST_VALIDPATH_VALIDFILE("StringBuilder (filename with extra /)", Path, FilenameWithLeadingSlashStringBuilder);
+	SECTION("// Test valid path /= valid file")
+	{
+		TEST_VALIDPATH_VALIDFILE("String", Path, FString(Filename));
+		TEST_VALIDPATH_VALIDFILE("LiteralString", Path, Filename);
+		TEST_VALIDPATH_VALIDFILE("LiteralAnsiString", Path, AnsiFilename);
+		TEST_VALIDPATH_VALIDFILE("StringView", Path, FStringView(Filename));
+		TEST_VALIDPATH_VALIDFILE("StringBuilder", Path, FilenameStringBuilder);
+	}
+	
+	SECTION("Test valid path(ending in / ) /= valid file")
+	{
+		TEST_VALIDPATH_VALIDFILE("String (path with extra /)", PathWithTrailingSlash, FString(Filename));
+		TEST_VALIDPATH_VALIDFILE("LiteralString (path with extra /)", PathWithTrailingSlash, Filename);
+		TEST_VALIDPATH_VALIDFILE("LiteralAnsiString (path with extra /)", PathWithTrailingSlash, AnsiFilename);
+		TEST_VALIDPATH_VALIDFILE("StringView (path with extra /)", PathWithTrailingSlash, FStringView(Filename));
+		TEST_VALIDPATH_VALIDFILE("StringBuilder (path with extra /)", PathWithTrailingSlash, FilenameStringBuilder);
+	}
+	
+	SECTION("Test valid path / valid path + file(starting with / )")
+	{
+		TEST_VALIDPATH_VALIDFILE("String (filename with extra /)", Path, FString(FilenameWithLeadingSlash));
+		TEST_VALIDPATH_VALIDFILE("LiteralString (filename with extra /)", Path, FilenameWithLeadingSlash);
+		TEST_VALIDPATH_VALIDFILE("LiteralAnsiString (filename with extra /)", Path, AnsiFilenameWithLeadingSlash);
+		TEST_VALIDPATH_VALIDFILE("StringView (filename with extra /)", Path, FStringView(FilenameWithLeadingSlash));
+		TEST_VALIDPATH_VALIDFILE("StringBuilder (filename with extra /)", Path, FilenameWithLeadingSlashStringBuilder);
+	}
 	
 	// Appending a file name that starts with a / to a directory that ends with a / will not remove the erroneous / and so 
 	// will end up with // in the path, these tests are to show this behavior

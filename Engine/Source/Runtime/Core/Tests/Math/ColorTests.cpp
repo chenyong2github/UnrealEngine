@@ -11,26 +11,26 @@ TEST_CASE("Core::Math::FLinearColor::Smoke Test", "[Core][Math][Smoke]")
 		FLinearColor white(FLinearColor::White);
 		FLinearColor red(FLinearColor::Red);
 
-		REQUIRE(red.R == 1.0);
-		REQUIRE(red.G == 0.0); 
-		REQUIRE(red.B == 0.0);
-		REQUIRE(red.A == 1.0);
-		REQUIRE(red == FLinearColor::Red);
-		REQUIRE(red != FLinearColor::Green);
+		CHECK(red.R == 1.0);
+		CHECK(red.G == 0.0); 
+		CHECK(red.B == 0.0);
+		CHECK(red.A == 1.0);
+		CHECK(red == FLinearColor::Red);
+		CHECK(red != FLinearColor::Green);
 
-		REQUIRE(white.IsAlmostBlack() == false);
-		REQUIRE(black.IsAlmostBlack() == true);
+		CHECK(white.IsAlmostBlack() == false);
+		CHECK(black.IsAlmostBlack() == true);
 
 		FLinearColor yellow(FColor::FromHex(FString("FFFF00FF")));
 		FLinearColor green(FColor::FromHex(FString("00FF00FF")));
 		FLinearColor blue(FColor::FromHex(FString("0000FFFF")));
 
-		REQUIRE(yellow == FLinearColor::Yellow);
-		REQUIRE(green == FLinearColor::Green);
-		REQUIRE(blue == FLinearColor::Blue);
-		REQUIRE(blue != yellow);
-		REQUIRE(green != yellow);
-		REQUIRE(yellow == yellow);
+		CHECK(yellow == FLinearColor::Yellow);
+		CHECK(green == FLinearColor::Green);
+		CHECK(blue == FLinearColor::Blue);
+		CHECK(blue != yellow);
+		CHECK(green != yellow);
+		CHECK(yellow == yellow);
 	}
 }
 
@@ -42,24 +42,24 @@ TEST_CASE("Core::Math::FColor::Smoke Test", "[Core][Math][Smoke]")
 		FColor white(FColor::White);
 		FColor red(FColor::Red);
 
-		REQUIRE(red.R == 0xFF);
-		REQUIRE(red.G == 0x00);
-		REQUIRE(red.B == 0x00);
-		REQUIRE(red.A == 0xFF);
-		REQUIRE(red == FColor::Red);
-		REQUIRE(red != FColor::Green);
+		CHECK(red.R == 0xFF);
+		CHECK(red.G == 0x00);
+		CHECK(red.B == 0x00);
+		CHECK(red.A == 0xFF);
+		CHECK(red == FColor::Red);
+		CHECK(red != FColor::Green);
 
 		FColor yellow(FColor::FromHex(FString("FFFF00FF")));
 		FColor green(FColor::FromHex(FString("00FF00FF")));
 		FColor blue(FColor::FromHex(FString("0000FFFF")));
 
-		REQUIRE(yellow == FColor::Yellow);
-		REQUIRE(green == FColor::Green);
-		REQUIRE(blue == FColor::Blue);
-		REQUIRE(blue != yellow);
-		REQUIRE(green != yellow);
-		REQUIRE(yellow == yellow);
+		CHECK(yellow == FColor::Yellow);
+		CHECK(green == FColor::Green);
+		CHECK(blue == FColor::Blue);
+		CHECK(blue != yellow);
+		CHECK(green != yellow);
+		CHECK(yellow == yellow);
 
-		REQUIRE(1 == 1);
+		CHECK(1 == 1);
 	}
 }

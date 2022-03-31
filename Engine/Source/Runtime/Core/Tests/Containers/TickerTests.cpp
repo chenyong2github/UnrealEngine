@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreTypes.h"
-#include "Tests/Benchmark.h"
 #include "Containers/Ticker.h"
 #include "Tasks/Task.h"
-#include "Tests/Benchmark.h"
-#include "TestHarness.h"
-
-#include "TestCommon/CoreUtilities.h"
+#include "Core/Tests/Benchmark.h"
+#include "TestFixtures/CoreTestFixture.h"
 
 template<uint32 NumDelegates, uint32 NumTicks>
 void TickerPerfTest()
@@ -59,9 +56,8 @@ void TSTickerPerfTest()
 	}
 }
 
-TEST_CASE("Core::Containers::FTSTicker::Smoke Test", "[Core][Containers][Smoke]")
+TEST_CASE_METHOD(FCoreTestFixture, "Core::Containers::FTSTicker::Smoke Test", "[Core][Containers][Smoke]")
 {
-	InitTaskGraphAndDependencies();
 	{	// a delegate returning false is executed once
 		FTSTicker Ticker;
 		bool bExecuted = false;
@@ -192,13 +188,10 @@ TEST_CASE("Core::Containers::FTSTicker::Smoke Test", "[Core][Containers][Smoke]"
 		Ticker.Tick(0.0f);
 		CHECK(bTicked);
 	}
+}	
 
-	CleanupTaskGraphAndDependencies();
-}
-
-TEST_CASE("Core::Containers::FTSTicker::Stress Test", "[Core][Containers][Perf]")
+TEST_CASE("Core::Containers::FTSTicker::Stress Test", "[Core][Containers][.Perf]")
 {
-	InitTaskGraphAndDependencies(true);
 	// multithreaded stress test
 	{
 		using namespace UE::Tasks;
@@ -252,6 +245,4 @@ TEST_CASE("Core::Containers::FTSTicker::Stress Test", "[Core][Containers][Perf]"
 
 	UE_BENCHMARK(5, TickerPerfTest<100, 100>);
 	UE_BENCHMARK(5, TSTickerPerfTest<100, 100>);
-
-	CleanupTaskGraphAndDependencies();
 }

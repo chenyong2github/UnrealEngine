@@ -7,7 +7,7 @@
 #include "Internationalization/InternationalizationMetadata.h"
 #include "TestHarness.h"
 
-TEST_CASE("Core::Internationalization::FInternationalizationArchive::Smoke Test", "[Core][Internationalization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::FInternationalizationArchive::Smoke Test", "[Core][Internationalization][Smoke]")
 {
 	// Key metadata
 	TSharedPtr< FLocMetadataObject > KeyMetadataA = MakeShareable( new FLocMetadataObject );
@@ -55,22 +55,22 @@ TEST_CASE("Core::Internationalization::FInternationalizationArchive::Smoke Test"
 		// Add duplicate entry that differs in bIsOptional flag.  This add should report success because we already have an entry with matching 
 		//  namespace/source/keymetadata.  Differences in bIsOptional are not taken into consideration. 
 		bool bResult = TestArchive.AddEntry( TestNamespace, SourceAKey, SourceA, Translation, NULL, TestOptionalFalse );
-		TestTrue( TEXT("AddEntry result = true"), bResult);
+		TEST_TRUE( TEXT("AddEntry result = true"), bResult);
 
 		// We should only have one entry in the archive
 		int32 EntryCount = 0;
-		for(auto Iter = TestArchive.GetEntriesBySourceTextIterator(); Iter; ++Iter, ++EntryCount);
-		TestEqual( TEXT("EntryCount == 1"), EntryCount, 1 );
+		for (auto Iter = TestArchive.GetEntriesBySourceTextIterator(); Iter; ++Iter, ++EntryCount) {};
+		TEST_EQUAL( TEXT("EntryCount == 1"), EntryCount, 1 );
 
 		// Make sure the original bIsOptional value is not overwritten by our second add.
 		TSharedPtr< FArchiveEntry > FoundEntry = TestArchive.FindEntryByKey( TestNamespace, SourceAKey, NULL );
 		if( !FoundEntry.IsValid() )
 		{
-			TestTrue(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), FoundEntry.IsValid());
+			TEST_TRUE(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), FoundEntry.IsValid());
 		}
 		else
 		{
-			TestTrue( TEXT("FoundEntry->Namespace == Namespace"), FoundEntry->bIsOptional == TestOptionalTrue );
+			TEST_TRUE( TEXT("FoundEntry->Namespace == Namespace"), FoundEntry->bIsOptional == TestOptionalTrue );
 		}
 	}
 
@@ -83,29 +83,29 @@ TEST_CASE("Core::Internationalization::FInternationalizationArchive::Smoke Test"
 			TSharedPtr< FArchiveEntry > FoundEntry = TestArchive.FindEntryByKey( TestNamespace, SourceAKey, KeyMetadataA );
 			if( !FoundEntry.IsValid() )
 			{
-				TestTrue(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), FoundEntry.IsValid());
+				TEST_TRUE(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), FoundEntry.IsValid());
 			}
 			else
 			{
-				TestTrue( TEXT("FoundEntry->Namespace == Namespace"), FoundEntry->Namespace == TestNamespace );
-				TestTrue( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == SourceA );
-				TestTrue( TEXT("FoundEntry->Translation == Translation"), FoundEntry->Translation == Translation );
+				TEST_TRUE( TEXT("FoundEntry->Namespace == Namespace"), FoundEntry->Namespace == TestNamespace );
+				TEST_TRUE( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == SourceA );
+				TEST_TRUE( TEXT("FoundEntry->Translation == Translation"), FoundEntry->Translation == Translation );
 				if( FoundEntry->KeyMetadataObj == KeyMetadataA )
 				{
-					TestFalse(TEXT("FArchiveEntry KeyMetadataObj is not a unique object."), FoundEntry->KeyMetadataObj == KeyMetadataA );
+					TEST_FALSE(TEXT("FArchiveEntry KeyMetadataObj is not a unique object."), FoundEntry->KeyMetadataObj == KeyMetadataA );
 				}
-				TestTrue( TEXT("FoundEntry->KeyMetadataObj == KeyMetadataA"), *(FoundEntry->KeyMetadataObj) == *(KeyMetadataA) );
+				TEST_TRUE( TEXT("FoundEntry->KeyMetadataObj == KeyMetadataA"), *(FoundEntry->KeyMetadataObj) == *(KeyMetadataA) );
 			}
 
 			// Passing in a mismatched key metadata will fail to find the entry.  Any fallback logic is intended to happen at runtime
 			FoundEntry = TestArchive.FindEntryByKey( TestNamespace, SourceAKey, NULL );
-			TestInvalid( TEXT("!FoundEntry.IsValid()"), FoundEntry);
+			TEST_INVALID( TEXT("!FoundEntry.IsValid()"), FoundEntry);
 
 			FoundEntry = TestArchive.FindEntryByKey( TestNamespace, SourceAKey, MakeShareable( new FLocMetadataObject() ) );
-			TestInvalid( TEXT("!FoundEntry.IsValid()"), FoundEntry);
+			TEST_INVALID( TEXT("!FoundEntry.IsValid()"), FoundEntry);
 
 			FoundEntry = TestArchive.FindEntryByKey( TestNamespace, SourceAKey, KeyMetadataB );
-			TestInvalid( TEXT("!FoundEntry.IsValid()"), FoundEntry);
+			TEST_INVALID( TEXT("!FoundEntry.IsValid()"), FoundEntry);
 		}
 
 		// Ensure we can properly lookup entries with non-null but empty key metadata
@@ -115,12 +115,10 @@ TEST_CASE("Core::Internationalization::FInternationalizationArchive::Smoke Test"
 
 			TSharedPtr< FArchiveEntry > FoundEntry = TestArchive.FindEntryByKey( TestNamespace, SourceAKey, NULL );
 			
-			bool bFoundEntryValid = FoundEntry.IsValid();
-			TestTrue(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), bFoundEntryValid);
-			if (bFoundEntryValid)
+			if (TestTrue(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), FoundEntry.IsValid()))
 			{
-				TestTrue( TEXT("FoundEntry->Namespace == Namespace"), FoundEntry->Namespace == TestNamespace );
-				TestTrue( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == SourceA );
+				TEST_TRUE( TEXT("FoundEntry->Namespace == Namespace"), FoundEntry->Namespace == TestNamespace );
+				TEST_TRUE( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == SourceA );
 			}
 		}
 
@@ -130,22 +128,18 @@ TEST_CASE("Core::Internationalization::FInternationalizationArchive::Smoke Test"
 			TestArchive.AddEntry( TestNamespace, SourceAKey, SourceA, Translation, NULL, false );
 
 			TSharedPtr< FArchiveEntry > FoundEntry = TestArchive.FindEntryByKey( TestNamespace, SourceAKey, NULL );
-			bool bFoundEntryValid = FoundEntry.IsValid();
-			TestTrue(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), bFoundEntryValid);
-			if (bFoundEntryValid)
+			if(TestTrue(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), FoundEntry.IsValid() ) )
 			{
-				TestTrue( TEXT("FoundEntry->Namespace == Namespace"), FoundEntry->Namespace == TestNamespace );
-				TestTrue( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == SourceA );
+				TEST_TRUE( TEXT("FoundEntry->Namespace == Namespace"), FoundEntry->Namespace == TestNamespace );
+				TEST_TRUE( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == SourceA );
 			}
 
 			// Test lookup with non-null but empty key metadata
 			FoundEntry = TestArchive.FindEntryByKey( TestNamespace, SourceAKey, MakeShareable( new FLocMetadataObject() ) );
-			bFoundEntryValid = FoundEntry.IsValid();
-			TestTrue(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), bFoundEntryValid);
-			if (bFoundEntryValid)
+			if (TestTrue(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), FoundEntry.IsValid()))
 			{
-				TestTrue(TEXT("FoundEntry->Namespace == Namespace"), FoundEntry->Namespace == TestNamespace);
-				TestTrue( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == SourceA );
+				TEST_TRUE(TEXT("FoundEntry->Namespace == Namespace"), FoundEntry->Namespace == TestNamespace);
+				TEST_TRUE( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == SourceA );
 			}
 		}
 
@@ -162,38 +156,35 @@ TEST_CASE("Core::Internationalization::FInternationalizationArchive::Smoke Test"
 
 			// Finding entry using a source that has Boolean *IsMature
 			TSharedPtr< FArchiveEntry > FoundEntry = TestArchive.FindEntryByKey( TestNamespace, SourceAKey, KeyMetadataA );
-			bool bFoundEntryValid = FoundEntry.IsValid();
-			TestTrue(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), bFoundEntryValid);
-			if (bFoundEntryValid)
+			if(TestTrue(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), FoundEntry.IsValid() ) )
 			{
-				TestTrue( TEXT("FoundEntry->Namespace == Namespace"), FoundEntry->Namespace == TestNamespace );
-				TestTrue( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == SourceA );
+				TEST_TRUE( TEXT("FoundEntry->Namespace == Namespace"), FoundEntry->Namespace == TestNamespace );
+				TEST_TRUE( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == SourceA );
 			}
 
 			// Attempting to add an entry that only differs by a * prefexed source metadata entry value or type will result in success since
 			//  a 'matching' entry already exists in the archive.  We should, however, only have one entry in the archive
 			bool bResult = TestArchive.AddEntry( TestNamespace, SourceAKey, SourceA, Translation, KeyMetadataA, false );
 
-			TestTrue( TEXT("AddEntry result = true"), bResult);
+			TEST_TRUE( TEXT("AddEntry result = true"), bResult);
 
 			// We should only have one entry in the archive
 			int32 EntryCount = 0;
-			for(auto Iter = TestArchive.GetEntriesBySourceTextIterator(); Iter; ++Iter, ++EntryCount);
-			TestEqual( TEXT("EntryCount == 1"), EntryCount, 1 );
+			for (auto Iter = TestArchive.GetEntriesBySourceTextIterator(); Iter; ++Iter, ++EntryCount) {};
+			TEST_EQUAL( TEXT("EntryCount == 1"), EntryCount, 1 );
 
 			// Check to see that the original type/value of the * prefixed entry did not get modified
 			FoundEntry = TestArchive.FindEntryByKey( TestNamespace, SourceAKey, KeyMetadataA );
-			bFoundEntryValid = FoundEntry.IsValid();
-			TestTrue(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), bFoundEntryValid);
-			if (bFoundEntryValid)
+
+			if (TestTrue(TEXT("FArchiveEntry could not find entry using FindEntryByKey."), FoundEntry.IsValid()) )
 			{
 				if( FoundEntry->Source.MetadataObj->HasTypedField< ELocMetadataType::String >( TEXT("*IsMature") ) )
 				{
-					TestTrue( TEXT("Metadata Type == String and Value == Empty string"), FoundEntry->Source.MetadataObj->GetStringField( TEXT("*IsMature") ) == TEXT("") );
+					TEST_TRUE( TEXT("Metadata Type == String and Value == Empty string"), FoundEntry->Source.MetadataObj->GetStringField( TEXT("*IsMature") ) == TEXT("") );
 				}
 				else
 				{
-					TestTrue(TEXT("FArchiveEntry * prefixed metadata entry on source object was modified unexpectedly."), false);
+					TEST_TRUE(TEXT("FArchiveEntry * prefixed metadata entry on source object was modified unexpectedly."), false);
 				}
 			}
 		}

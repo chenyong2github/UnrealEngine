@@ -12,7 +12,7 @@
 #include "Serialization/CompactBinaryValidation.h"
 #include "TestHarness.h"
 
-TEST_CASE("Core::Serialization::FCbWriter::Object", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Object", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -22,10 +22,10 @@ TEST_CASE("Core::Serialization::FCbWriter::Object", "[Core][Serialization][Smoke
 		Writer.BeginObject();
 		Writer.EndObject();
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Object, Empty) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Object, Empty) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Object, Empty).IsObject()"), Field.IsObject());
-			TestFalse(TEXT("FCbWriter(Object, Empty).AsObjectView()"), Field.AsObjectView().CreateViewIterator().HasValue());
+			TEST_TRUE(TEXT("FCbWriter(Object, Empty).IsObject()"), Field.IsObject());
+			TEST_FALSE(TEXT("FCbWriter(Object, Empty).AsObjectView()"), Field.AsObjectView().CreateViewIterator().HasValue());
 		}
 	}
 
@@ -36,10 +36,10 @@ TEST_CASE("Core::Serialization::FCbWriter::Object", "[Core][Serialization][Smoke
 		Writer.BeginObject();
 		Writer.EndObject();
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Object, Empty, Name) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Object, Empty, Name) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Object, Empty, Name).IsObject()"), Field.IsObject());
-			TestFalse(TEXT("FCbWriter(Object, Empty, Name).AsObjectView()"), Field.AsObjectView().CreateViewIterator().HasValue());
+			TEST_TRUE(TEXT("FCbWriter(Object, Empty, Name).IsObject()"), Field.IsObject());
+			TEST_FALSE(TEXT("FCbWriter(Object, Empty, Name).AsObjectView()"), Field.AsObjectView().CreateViewIterator().HasValue());
 		}
 	}
 
@@ -51,12 +51,12 @@ TEST_CASE("Core::Serialization::FCbWriter::Object", "[Core][Serialization][Smoke
 		Writer.SetName("Float"_ASV).AddFloat(0.0f);
 		Writer.EndObject();
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Object, Basic) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Object, Basic) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Object, Basic).IsObject()"), Field.IsObject());
+			TEST_TRUE(TEXT("FCbWriter(Object, Basic).IsObject()"), Field.IsObject());
 			FCbObjectView Object = Field.AsObjectView();
-			TestTrue(TEXT("FCbWriter(Object, Basic).AsObjectView()[Integer]"), Object["Integer"_ASV].IsInteger());
-			TestTrue(TEXT("FCbWriter(Object, Basic).AsObjectView()[Float]"), Object["Float"_ASV].IsFloat());
+			TEST_TRUE(TEXT("FCbWriter(Object, Basic).AsObjectView()[Integer]"), Object["Integer"_ASV].IsInteger());
+			TEST_TRUE(TEXT("FCbWriter(Object, Basic).AsObjectView()[Float]"), Object["Float"_ASV].IsFloat());
 		}
 	}
 
@@ -68,17 +68,17 @@ TEST_CASE("Core::Serialization::FCbWriter::Object", "[Core][Serialization][Smoke
 		Writer.SetName("Field2"_ASV).AddInteger(1);
 		Writer.EndObject();
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Object, Uniform) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Object, Uniform) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Object, Uniform).IsObject()"), Field.IsObject());
+			TEST_TRUE(TEXT("FCbWriter(Object, Uniform).IsObject()"), Field.IsObject());
 			FCbObjectView Object = Field.AsObjectView();
-			TestTrue(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field1]"), Object["Field1"_ASV].IsInteger());
-			TestTrue(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field2]"), Object["Field2"_ASV].IsInteger());
+			TEST_TRUE(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field1]"), Object["Field1"_ASV].IsInteger());
+			TEST_TRUE(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field2]"), Object["Field2"_ASV].IsInteger());
 		}
 	}
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::Array", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Array", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -88,10 +88,10 @@ TEST_CASE("Core::Serialization::FCbWriter::Array", "[Core][Serialization][Smoke]
 		Writer.BeginArray();
 		Writer.EndArray();
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Array, Empty) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Array, Empty) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Array, Empty).IsArray()"), Field.IsArray());
-			TestEqual(TEXT("FCbWriter(Array, Empty).AsArrayView()"), Field.AsArrayView().Num(), uint64(0));
+			TEST_TRUE(TEXT("FCbWriter(Array, Empty).IsArray()"), Field.IsArray());
+			TEST_EQUAL(TEXT("FCbWriter(Array, Empty).AsArrayView()"), Field.AsArrayView().Num(), uint64(0));
 		}
 	}
 
@@ -102,10 +102,10 @@ TEST_CASE("Core::Serialization::FCbWriter::Array", "[Core][Serialization][Smoke]
 		Writer.BeginArray();
 		Writer.EndArray();
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Array, Empty, Name) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Array, Empty, Name) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Array, Empty, Name).IsArray()"), Field.IsArray());
-			TestEqual(TEXT("FCbWriter(Array, Empty, Name).AsArrayView()"), Field.AsArrayView().Num(), uint64(0));
+			TEST_TRUE(TEXT("FCbWriter(Array, Empty, Name).IsArray()"), Field.IsArray());
+			TEST_EQUAL(TEXT("FCbWriter(Array, Empty, Name).AsArrayView()"), Field.AsArrayView().Num(), uint64(0));
 		}
 	}
 
@@ -117,15 +117,15 @@ TEST_CASE("Core::Serialization::FCbWriter::Array", "[Core][Serialization][Smoke]
 		Writer.AddFloat(0.0f);
 		Writer.EndArray();
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Array, Basic) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Array, Basic) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Array, Basic).IsArray()"), Field.IsArray());
+			TEST_TRUE(TEXT("FCbWriter(Array, Basic).IsArray()"), Field.IsArray());
 			FCbFieldViewIterator Iterator = Field.AsArrayView().CreateViewIterator();
-			TestTrue(TEXT("FCbWriter(Array, Basic).AsArrayView()[Integer]"), Iterator.IsInteger());
+			TEST_TRUE(TEXT("FCbWriter(Array, Basic).AsArrayView()[Integer]"), Iterator.IsInteger());
 			++Iterator;
-			TestTrue(TEXT("FCbWriter(Array, Basic).AsArrayView()[Float]"), Iterator.IsFloat());
+			TEST_TRUE(TEXT("FCbWriter(Array, Basic).AsArrayView()[Float]"), Iterator.IsFloat());
 			++Iterator;
-			TestFalse(TEXT("FCbWriter(Array, Basic).AsArrayView()[End]"), Iterator.HasValue());
+			TEST_FALSE(TEXT("FCbWriter(Array, Basic).AsArrayView()[End]"), Iterator.HasValue());
 		}
 	}
 
@@ -137,20 +137,20 @@ TEST_CASE("Core::Serialization::FCbWriter::Array", "[Core][Serialization][Smoke]
 		Writer.AddInteger(1);
 		Writer.EndArray();
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Array, Uniform) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Array, Uniform) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Array, Uniform).IsArray()"), Field.IsArray());
+			TEST_TRUE(TEXT("FCbWriter(Array, Uniform).IsArray()"), Field.IsArray());
 			FCbFieldViewIterator Iterator = Field.AsArrayView().CreateViewIterator();
-			TestTrue(TEXT("FCbWriter(Array, Basic).AsArrayView()[Field1]"), Iterator.IsInteger());
+			TEST_TRUE(TEXT("FCbWriter(Array, Basic).AsArrayView()[Field1]"), Iterator.IsInteger());
 			++Iterator;
-			TestTrue(TEXT("FCbWriter(Array, Basic).AsArrayView()[Field2]"), Iterator.IsInteger());
+			TEST_TRUE(TEXT("FCbWriter(Array, Basic).AsArrayView()[Field2]"), Iterator.IsInteger());
 			++Iterator;
-			TestFalse(TEXT("FCbWriter(Array, Basic).AsArrayView()[End]"), Iterator.HasValue());
+			TEST_FALSE(TEXT("FCbWriter(Array, Basic).AsArrayView()[End]"), Iterator.HasValue());
 		}
 	}
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::Null", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Null", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -159,10 +159,10 @@ TEST_CASE("Core::Serialization::FCbWriter::Null", "[Core][Serialization][Smoke]"
 		Writer.Reset();
 		Writer.AddNull();
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Null) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Null) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestFalse(TEXT("FCbWriter(Null).HasName()"), Field.HasName());
-			TestTrue(TEXT("FCbWriter(Null).IsNull()"), Field.IsNull());
+			TEST_FALSE(TEXT("FCbWriter(Null).HasName()"), Field.HasName());
+			TEST_TRUE(TEXT("FCbWriter(Null).IsNull()"), Field.IsNull());
 		}
 	}
 
@@ -172,11 +172,11 @@ TEST_CASE("Core::Serialization::FCbWriter::Null", "[Core][Serialization][Smoke]"
 		Writer.SetName("Null"_ASV);
 		Writer.AddNull();
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Null, Name) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Null, Name) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Null, Name).GetName()"), Field.GetName(), "Null"_U8SV);
-			TestTrue(TEXT("FCbWriter(Null, Name).HasName()"), Field.HasName());
-			TestTrue(TEXT("FCbWriter(Null, Name).IsNull()"), Field.IsNull());
+			TEST_EQUAL(TEXT("FCbWriter(Null, Name).GetName()"), Field.GetName(), "Null"_U8SV);
+			TEST_TRUE(TEXT("FCbWriter(Null, Name).HasName()"), Field.HasName());
+			TEST_TRUE(TEXT("FCbWriter(Null, Name).IsNull()"), Field.IsNull());
 		}
 	}
 
@@ -197,7 +197,7 @@ TEST_CASE("Core::Serialization::FCbWriter::Null", "[Core][Serialization][Smoke]"
 		Writer.EndObject();
 
 		FCbFieldIterator Fields = Writer.Save();
-		TestEqual(TEXT("FCbWriter(Null, Uniform) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
+		TEST_EQUAL(TEXT("FCbWriter(Null, Uniform) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
 	}
 
 	// Test Null with Save(Buffer)
@@ -210,21 +210,34 @@ TEST_CASE("Core::Serialization::FCbWriter::Null", "[Core][Serialization][Smoke]"
 		}
 		uint8 Buffer[NullCount]{};
 		FCbFieldViewIterator Fields = Writer.Save(MakeMemoryView(Buffer));
-		TestEqual_Conditional(TEXT("FCbWriter(Null, Memory) Validate"), ValidateCompactBinaryRange(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Null, Memory) Validate"), ValidateCompactBinaryRange(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::None))
 		{
 			for (int Index = 0; Index < NullCount; ++Index)
 			{
-				TestTrue(TEXT("FCbWriter(Null, Memory) IsNull"), Fields.IsNull());
+				TEST_TRUE(TEXT("FCbWriter(Null, Memory) IsNull"), Fields.IsNull());
 				++Fields;
 			}
-			TestFalse(TEXT("FCbWriter(Null, Memory) HasValue"), Fields.HasValue());
+			TEST_FALSE(TEXT("FCbWriter(Null, Memory) HasValue"), Fields.HasValue());
 		}
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEST_CASE("Core::Serialization::FCbWriter::Binary", "[Core][Serialization][Smoke]")
+class FCbWriterBinaryTestBase : public FAutomationTestBase
+{
+protected:
+	using FAutomationTestBase::FAutomationTestBase;
+	using FAutomationTestBase::TestEqual;
+
+	template <typename T, typename Size>
+	void TestEqual(const TCHAR* What, TArrayView<T, Size> Actual, TArrayView<T, Size> Expected)
+	{
+		TestTrue(What, Actual.Num() == Expected.Num() && CompareItems(Actual.GetData(), Expected.GetData(), Actual.Num()));
+	}
+};
+
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Binary", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -233,11 +246,11 @@ TEST_CASE("Core::Serialization::FCbWriter::Binary", "[Core][Serialization][Smoke
 		Writer.Reset();
 		Writer.AddBinary(nullptr, 0);
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Binary, Empty) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Binary, Empty) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestFalse(TEXT("FCbWriter(Binary, Empty).HasName()"), Field.HasName());
-			TestTrue(TEXT("FCbWriter(Binary, Empty).IsBinary()"), Field.IsBinary());
-			TestTrue(TEXT("FCbWriter(Binary, Empty).AsBinaryView()"), Field.AsBinaryView().IsEmpty());
+			TEST_FALSE(TEXT("FCbWriter(Binary, Empty).HasName()"), Field.HasName());
+			TEST_TRUE(TEXT("FCbWriter(Binary, Empty).IsBinary()"), Field.IsBinary());
+			TEST_TRUE(TEXT("FCbWriter(Binary, Empty).AsBinaryView()"), Field.AsBinaryView().IsEmpty());
 		}
 	}
 
@@ -248,17 +261,17 @@ TEST_CASE("Core::Serialization::FCbWriter::Binary", "[Core][Serialization][Smoke
 		Writer.SetName("Binary"_ASV);
 		Writer.AddBinary(BinaryValue, sizeof(BinaryValue));
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Binary, Array) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Binary, Array) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Binary, Array).GetName()"), Field.GetName(), "Binary"_U8SV);
-			TestTrue(TEXT("FCbWriter(Binary, Array).HasName()"), Field.HasName());
-			TestTrue(TEXT("FCbWriter(Binary, Array).IsBinary()"), Field.IsBinary());
-			TestTrue(TEXT("FCbWriter(Binary, Array).AsBinaryView()"), Field.AsBinaryView().EqualBytes(MakeMemoryView(BinaryValue)));
+			TEST_EQUAL(TEXT("FCbWriter(Binary, Array).GetName()"), Field.GetName(), "Binary"_U8SV);
+			TEST_TRUE(TEXT("FCbWriter(Binary, Array).HasName()"), Field.HasName());
+			TEST_TRUE(TEXT("FCbWriter(Binary, Array).IsBinary()"), Field.IsBinary());
+			TEST_TRUE(TEXT("FCbWriter(Binary, Array).AsBinaryView()"), Field.AsBinaryView().EqualBytes(MakeMemoryView(BinaryValue)));
 		}
 	}
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::String", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::String", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -268,13 +281,13 @@ TEST_CASE("Core::Serialization::FCbWriter::String", "[Core][Serialization][Smoke
 		Writer.AddString(FAnsiStringView());
 		Writer.AddString(FWideStringView());
 		FCbFieldIterator Fields = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(String, Empty) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(String, Empty) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestFalse(TEXT("FCbWriter(String, Empty).HasName()"), Field.HasName());
-				TestTrue(TEXT("FCbWriter(String, Empty).IsString()"), Field.IsString());
-				TestTrue(TEXT("FCbWriter(String, Empty).AsString()"), Field.AsString().IsEmpty());
+				TEST_FALSE(TEXT("FCbWriter(String, Empty).HasName()"), Field.HasName());
+				TEST_TRUE(TEXT("FCbWriter(String, Empty).IsString()"), Field.IsString());
+				TEST_TRUE(TEXT("FCbWriter(String, Empty).AsString()"), Field.AsString().IsEmpty());
 			}
 		}
 	}
@@ -283,16 +296,16 @@ TEST_CASE("Core::Serialization::FCbWriter::String", "[Core][Serialization][Smoke
 	{
 		Writer.Reset();
 		Writer.SetName("String"_ASV).AddString("Value"_ASV);
-		Writer.SetName("String"_ASV).AddString(TEXT("Value"_SV));
+		Writer.SetName("String"_ASV).AddString(TEXTVIEW("Value"));
 		FCbFieldIterator Fields = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(String, Basic) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(String, Basic) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(String, Basic).GetName()"), Field.GetName(), "String"_U8SV);
-				TestTrue(TEXT("FCbWriter(String, Basic).HasName()"), Field.HasName());
-				TestTrue(TEXT("FCbWriter(String, Basic).IsString()"), Field.IsString());
-				TestEqual(TEXT("FCbWriter(String, Basic).AsString()"), Field.AsString(), "Value"_U8SV);
+				TEST_EQUAL(TEXT("FCbWriter(String, Basic).GetName()"), Field.GetName(), "String"_U8SV);
+				TEST_TRUE(TEXT("FCbWriter(String, Basic).HasName()"), Field.HasName());
+				TEST_TRUE(TEXT("FCbWriter(String, Basic).IsString()"), Field.IsString());
+				TEST_EQUAL(TEXT("FCbWriter(String, Basic).AsString()"), Field.AsString(), "Value"_U8SV);
 			}
 		}
 	}
@@ -309,11 +322,11 @@ TEST_CASE("Core::Serialization::FCbWriter::String", "[Core][Serialization][Smoke
 		Writer.AddString(Dots);
 		Writer.AddString(FString::ChrN(DotCount, TEXT('.')));
 		FCbFieldIterator Fields = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(String, Long) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(String, Long) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(String, Long).AsString()"), Field.AsString(), Dots.ToView());
+				TEST_EQUAL(TEXT("FCbWriter(String, Long).AsString()"), Field.AsString(), Dots.ToView());
 			}
 		}
 	}
@@ -325,66 +338,66 @@ TEST_CASE("Core::Serialization::FCbWriter::String", "[Core][Serialization][Smoke
 		Writer.AddString("\xf0\x9f\x98\x80"_ASV);
 		Writer.AddString(FWideStringView(Value, UE_ARRAY_COUNT(Value)));
 		FCbFieldIterator Fields = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(String, Unicode) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(String, Unicode) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(String, Unicode).AsString()"), Field.AsString(), "\xf0\x9f\x98\x80"_U8SV);
+				TEST_EQUAL(TEXT("FCbWriter(String, Unicode).AsString()"), Field.AsString(), "\xf0\x9f\x98\x80"_U8SV);
 			}
 		}
 	}
 }
 
 
-TEST_CASE("Core::Serialization::FCbWriter::Integer", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Integer", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
-	auto TestInt32 = [&Writer](int32 Value)
+	auto TestInt32 = [this,&Writer](int32 Value)
 	{
 		Writer.Reset();
 		Writer.AddInteger(Value);
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Integer, Int32) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Integer, Int32) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Integer, Int32) Value"), Field.AsInt32(), Value);
-			TestFalse(TEXT("FCbWriter(Integer, Int32) Error"), Field.HasError());
+			TEST_EQUAL(TEXT("FCbWriter(Integer, Int32) Value"), Field.AsInt32(), Value);
+			TEST_FALSE(TEXT("FCbWriter(Integer, Int32) Error"), Field.HasError());
 		}
 	};
 
-	auto TestUInt32 = [&Writer](uint32 Value)
+	auto TestUInt32 = [this, &Writer](uint32 Value)
 	{
 		Writer.Reset();
 		Writer.AddInteger(Value);
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Integer, UInt32) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Integer, UInt32) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Integer, UInt32) Value"), Field.AsUInt32(), Value);
-			TestFalse(TEXT("FCbWriter(Integer, UInt32) Error"), Field.HasError());
+			TEST_EQUAL(TEXT("FCbWriter(Integer, UInt32) Value"), Field.AsUInt32(), Value);
+			TEST_FALSE(TEXT("FCbWriter(Integer, UInt32) Error"), Field.HasError());
 		}
 	};
 
-	auto TestInt64 = [&Writer](int64 Value)
+	auto TestInt64 = [this, &Writer](int64 Value)
 	{
 		Writer.Reset();
 		Writer.AddInteger(Value);
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Integer, Int64) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Integer, Int64) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Integer, Int64) Value"), Field.AsInt64(), Value);
-			TestFalse(TEXT("FCbWriter(Integer, Int64) Error"), Field.HasError());
+			TEST_EQUAL(TEXT("FCbWriter(Integer, Int64) Value"), Field.AsInt64(), Value);
+			TEST_FALSE(TEXT("FCbWriter(Integer, Int64) Error"), Field.HasError());
 		}
 	};
 
-	auto TestUInt64 = [&Writer](uint64 Value)
+	auto TestUInt64 = [this, &Writer](uint64 Value)
 	{
 		Writer.Reset();
 		Writer.AddInteger(Value);
 		FCbField Field = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Integer, UInt64) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Integer, UInt64) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Integer, UInt64) Value"), Field.AsUInt64(), Value);
-			TestFalse(TEXT("FCbWriter(Integer, UInt64) Error"), Field.HasError());
+			TEST_EQUAL(TEXT("FCbWriter(Integer, UInt64) Value"), Field.AsUInt64(), Value);
+			TEST_FALSE(TEXT("FCbWriter(Integer, UInt64) Error"), Field.HasError());
 		}
 	};
 
@@ -422,7 +435,7 @@ TEST_CASE("Core::Serialization::FCbWriter::Integer", "[Core][Serialization][Smok
 	TestInt64(int64(0xffff'ffff'ffff'ffff));
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::Float", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Float", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -435,13 +448,13 @@ TEST_CASE("Core::Serialization::FCbWriter::Float", "[Core][Serialization][Smoke]
 			Writer.AddFloat(Value);
 		}
 		FCbFieldIterator Fields = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Float, Single) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Float, Single) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			const float* CheckValue = Values;
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(Float, Single).AsFloat()"), Field.AsFloat(), *CheckValue++);
-				TestFalse(TEXT("FCbWriter(Float, Single) Error"), Field.HasError());
+				TEST_EQUAL(TEXT("FCbWriter(Float, Single).AsFloat()"), Field.AsFloat(), *CheckValue++);
+				TEST_FALSE(TEXT("FCbWriter(Float, Single) Error"), Field.HasError());
 			}
 		}
 	}
@@ -455,19 +468,19 @@ TEST_CASE("Core::Serialization::FCbWriter::Float", "[Core][Serialization][Smoke]
 			Writer.AddFloat(Value);
 		}
 		FCbFieldIterator Fields = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Float, Double) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Float, Double) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			const double* CheckValue = Values;
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(Float, Double).AsDouble()"), Field.AsDouble(), *CheckValue++);
-				TestFalse(TEXT("FCbWriter(Float, Double) Error"), Field.HasError());
+				TEST_EQUAL(TEXT("FCbWriter(Float, Double).AsDouble()"), Field.AsDouble(), *CheckValue++);
+				TEST_FALSE(TEXT("FCbWriter(Float, Double) Error"), Field.HasError());
 			}
 		}
 	}
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::Bool", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Bool", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -477,13 +490,13 @@ TEST_CASE("Core::Serialization::FCbWriter::Bool", "[Core][Serialization][Smoke]"
 		Writer.AddBool(false);
 
 		FCbFieldIterator Fields = Writer.Save();
-		TestEqual_Conditional(TEXT("FCbWriter(Bool) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+		if (TestEqual(TEXT("FCbWriter(Bool) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Bool).AsBool()"), Fields.AsBool());
-			TestFalse(TEXT("FCbWriter(Bool) Error"), Fields.HasError());
+			TEST_TRUE(TEXT("FCbWriter(Bool).AsBool()"), Fields.AsBool());
+			TEST_FALSE(TEXT("FCbWriter(Bool) Error"), Fields.HasError());
 			++Fields;
-			TestFalse(TEXT("FCbWriter(Bool).AsBool()"), Fields.AsBool());
-			TestFalse(TEXT("FCbWriter(Bool) Error"), Fields.HasError());
+			TEST_FALSE(TEXT("FCbWriter(Bool).AsBool()"), Fields.AsBool());
+			TEST_FALSE(TEXT("FCbWriter(Bool) Error"), Fields.HasError());
 		}
 	}
 
@@ -504,11 +517,11 @@ TEST_CASE("Core::Serialization::FCbWriter::Bool", "[Core][Serialization][Smoke]"
 		Writer.EndObject();
 
 		FCbFieldIterator Fields = Writer.Save();
-		TestEqual(TEXT("FCbWriter(Bool, Uniform) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
+		TEST_EQUAL(TEXT("FCbWriter(Bool, Uniform) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
 	}
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::Object Attachment", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Object Attachment", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -522,23 +535,23 @@ TEST_CASE("Core::Serialization::FCbWriter::Object Attachment", "[Core][Serializa
 	}
 
 	FCbFieldIterator Fields = Writer.Save();
-	TestEqual_Conditional(TEXT("FCbWriter(ObjectAttachment) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+	if (TestEqual(TEXT("FCbWriter(ObjectAttachment) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FIoHash* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(ObjectAttachment).AsObjectAttachment()"), Field.AsObjectAttachment(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(ObjectAttachment) Error"), Field.HasError());
+			TEST_EQUAL(TEXT("FCbWriter(ObjectAttachment).AsObjectAttachment()"), Field.AsObjectAttachment(), *CheckValue++);
+			TEST_FALSE(TEXT("FCbWriter(ObjectAttachment) Error"), Field.HasError());
 		}
 	}
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::Binary Attachment", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Binary Attachment", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
 	const FIoHash::ByteArray ZeroBytes{};
-	const FIoHash::ByteArray SequentialBytes{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
+	const FIoHash::ByteArray SequentialBytes{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
 	const FIoHash Values[] = { FIoHash(ZeroBytes), FIoHash(SequentialBytes) };
 	for (const FIoHash& Value : Values)
@@ -547,24 +560,24 @@ TEST_CASE("Core::Serialization::FCbWriter::Binary Attachment", "[Core][Serializa
 	}
 
 	FCbFieldIterator Fields = Writer.Save();
-	TestEqual_Conditional(TEXT("FCbWriter(BinaryAttachment) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+	if (TestEqual(TEXT("FCbWriter(BinaryAttachment) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FIoHash* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(BinaryAttachment).AsBinaryAttachment()"), Field.AsBinaryAttachment(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(BinaryAttachment) Error"), Field.HasError());
+			TEST_EQUAL(TEXT("FCbWriter(BinaryAttachment).AsBinaryAttachment()"), Field.AsBinaryAttachment(), *CheckValue++);
+			TEST_FALSE(TEXT("FCbWriter(BinaryAttachment) Error"), Field.HasError());
 		}
 	}
 }
 
 
-TEST_CASE("Core::Serialization::FCbWriter::Hash", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Hash", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
 	const FIoHash::ByteArray ZeroBytes{};
-	const FIoHash::ByteArray SequentialBytes{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
+	const FIoHash::ByteArray SequentialBytes{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
 	const FIoHash Values[] = { FIoHash(ZeroBytes), FIoHash(SequentialBytes) };
 	for (const FIoHash& Value : Values)
@@ -573,18 +586,18 @@ TEST_CASE("Core::Serialization::FCbWriter::Hash", "[Core][Serialization][Smoke]"
 	}
 
 	FCbFieldIterator Fields = Writer.Save();
-	TestEqual_Conditional(TEXT("FCbWriter(Hash) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+	if (TestEqual(TEXT("FCbWriter(Hash) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FIoHash* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(Hash).AsHash()"), Field.AsHash(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(Hash) Error"), Field.HasError());
+			TEST_EQUAL(TEXT("FCbWriter(Hash).AsHash()"), Field.AsHash(), *CheckValue++);
+			TEST_FALSE(TEXT("FCbWriter(Hash) Error"), Field.HasError());
 		}
 	}
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::Uuid", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Uuid", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -595,19 +608,19 @@ TEST_CASE("Core::Serialization::FCbWriter::Uuid", "[Core][Serialization][Smoke]"
 	}
 
 	FCbFieldIterator Fields = Writer.Save();
-	TestEqual_Conditional(TEXT("FCbWriter(Uuid) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+	if (TestEqual(TEXT("FCbWriter(Uuid) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FGuid* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(Uuid).AsUuid()"), Field.AsUuid(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(Uuid) Error"), Field.HasError());
+			TEST_EQUAL(TEXT("FCbWriter(Uuid).AsUuid()"), Field.AsUuid(), *CheckValue++);
+			TEST_FALSE(TEXT("FCbWriter(Uuid) Error"), Field.HasError());
 		}
 	}
 }
 
 
-TEST_CASE("Core::Serialization::FCbWriter::Date Time", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Date Time", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -618,18 +631,18 @@ TEST_CASE("Core::Serialization::FCbWriter::Date Time", "[Core][Serialization][Sm
 	}
 
 	FCbFieldIterator Fields = Writer.Save();
-	TestEqual_Conditional(TEXT("FCbWriter(DateTime) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+	if (TestEqual(TEXT("FCbWriter(DateTime) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FDateTime* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(DateTime).AsDateTime()"), Field.AsDateTime(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(DateTime) Error"), Field.HasError());
+			TEST_EQUAL(TEXT("FCbWriter(DateTime).AsDateTime()"), Field.AsDateTime(), *CheckValue++);
+			TEST_FALSE(TEXT("FCbWriter(DateTime) Error"), Field.HasError());
 		}
 	};
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::Time Span", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Time Span", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -640,18 +653,18 @@ TEST_CASE("Core::Serialization::FCbWriter::Time Span", "[Core][Serialization][Sm
 	}
 
 	FCbFieldIterator Fields = Writer.Save();
-	TestEqual_Conditional(TEXT("FCbWriter(TimeSpan) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+	if (TestEqual(TEXT("FCbWriter(TimeSpan) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FTimespan* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(TimeSpan).AsTimeSpan()"), Field.AsTimeSpan(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(TimeSpan) Error"), Field.HasError());
+			TEST_EQUAL(TEXT("FCbWriter(TimeSpan).AsTimeSpan()"), Field.AsTimeSpan(), *CheckValue++);
+			TEST_FALSE(TEXT("FCbWriter(TimeSpan) Error"), Field.HasError());
 		}
 	}
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::ObjectId", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::ObjectId", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -662,18 +675,18 @@ TEST_CASE("Core::Serialization::FCbWriter::ObjectId", "[Core][Serialization][Smo
 	}
 
 	FCbFieldIterator Fields = Writer.Save();
-	TestEqual_Conditional(TEXT("FCbWriter(ObjectId) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+	if (TestEqual(TEXT("FCbWriter(ObjectId) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FCbObjectId* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(ObjectId).AsObjectId()"), Field.AsObjectId(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(ObjectId) Error"), Field.HasError());
+			TEST_EQUAL(TEXT("FCbWriter(ObjectId).AsObjectId()"), Field.AsObjectId(), *CheckValue++);
+			TEST_FALSE(TEXT("FCbWriter(ObjectId) Error"), Field.HasError());
 		}
 	}
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::Custom By Id", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Custom By Id", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -694,19 +707,19 @@ TEST_CASE("Core::Serialization::FCbWriter::Custom By Id", "[Core][Serialization]
 	}
 
 	FCbFieldIterator Fields = Writer.Save();
-	TestEqual_Conditional(TEXT("FCbWriter(CustomById) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+	if (TestEqual(TEXT("FCbWriter(CustomById) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FCustomValue* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestTrue(TEXT("FCbWriter(CustomById).AsCustom()"), Field.AsCustom(CheckValue->Type).EqualBytes(MakeMemoryView(CheckValue->Bytes)));
-			TestFalse(TEXT("FCbWriter(CustomById) Error"), Field.HasError());
+			TEST_TRUE(TEXT("FCbWriter(CustomById).AsCustom()"), Field.AsCustom(CheckValue->Type).EqualBytes(MakeMemoryView(CheckValue->Bytes)));
+			TEST_FALSE(TEXT("FCbWriter(CustomById) Error"), Field.HasError());
 			++CheckValue;
 		}
 	}
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::Custom By Name", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Custom By Name", "[Core][Serialization][Smoke]")
 {
 	TCbWriter<256> Writer;
 
@@ -727,19 +740,19 @@ TEST_CASE("Core::Serialization::FCbWriter::Custom By Name", "[Core][Serializatio
 	}
 
 	FCbFieldIterator Fields = Writer.Save();
-	TestEqual_Conditional(TEXT("FCbWriter(CustomByName) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None)
+	if (TestEqual(TEXT("FCbWriter(CustomByName) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FCustomValue* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestTrue(TEXT("FCbWriter(CustomByName).AsCustom()"), Field.AsCustom(CheckValue->Type).EqualBytes(MakeMemoryView(CheckValue->Bytes)));
-			TestFalse(TEXT("FCbWriter(CustomByName) Error"), Field.HasError());
+			TEST_TRUE(TEXT("FCbWriter(CustomByName).AsCustom()"), Field.AsCustom(CheckValue->Type).EqualBytes(MakeMemoryView(CheckValue->Bytes)));
+			TEST_FALSE(TEXT("FCbWriter(CustomByName) Error"), Field.HasError());
 			++CheckValue;
 		}
 	}
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::Complex", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Complex", "[Core][Serialization][Smoke]")
 {
 	FCbObject Object;
 	FBufferArchive Archive;
@@ -831,7 +844,7 @@ TEST_CASE("Core::Serialization::FCbWriter::Complex", "[Core][Serialization][Smok
 		Writer.AddTimeSpan("TimeSpan"_ASV, FTimespan(1, 2, 4, 8));
 
 		Writer.AddObjectId("ObjectIdZero"_ASV, FCbObjectId());
-		Writer.AddObjectId("ObjectId"_ASV, FCbObjectId(MakeMemoryView<uint8>({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 })));
+		Writer.AddObjectId("ObjectId"_ASV, FCbObjectId(MakeMemoryView<uint8>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})));
 
 		Writer.BeginObject("NestedObjects"_ASV);
 		{
@@ -910,27 +923,27 @@ TEST_CASE("Core::Serialization::FCbWriter::Complex", "[Core][Serialization][Smok
 		Object = Writer.Save().AsObject();
 
 		Writer.Save(Archive);
-		TestEqual(TEXT("FCbWriter(Complex).Save(Ar)->Num()"), uint64(Archive.Num()), Writer.GetSaveSize());
+		TEST_EQUAL(TEXT("FCbWriter(Complex).Save(Ar)->Num()"), uint64(Archive.Num()), Writer.GetSaveSize());
 	}
 
-	TestEqual(TEXT("FCbWriter(Complex).Save()->Validate"),
+	TEST_EQUAL(TEXT("FCbWriter(Complex).Save()->Validate"),
 		ValidateCompactBinary(Object.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
 
-	TestEqual(TEXT("FCbWriter(Complex).Save(Ar)->Validate"),
+	TEST_EQUAL(TEXT("FCbWriter(Complex).Save(Ar)->Validate"),
 		ValidateCompactBinary(MakeMemoryView(Archive), ECbValidateMode::All), ECbValidateError::None);
 }
 
 
-TEST_CASE("Core::Serialization::FCbWriter::Owned Read Only", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Owned Read Only", "[Core][Serialization][Smoke]")
 {
 	FCbWriter Writer;
 	Writer.BeginObject();
 	Writer.EndObject();
 	FCbObject Object = Writer.Save().AsObject();
-	TestTrue(TEXT("FCbWriter().Save().IsOwned()"), Object.IsOwned());
+	TEST_TRUE(TEXT("FCbWriter().Save().IsOwned()"), Object.IsOwned());
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::Stream", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::Stream", "[Core][Serialization][Smoke]")
 {
 	FCbObject Object;
 	{
@@ -956,7 +969,7 @@ TEST_CASE("Core::Serialization::FCbWriter::Stream", "[Core][Serialization][Smoke
 		Writer
 			<< "AnsiString"_ASV << "AnsiValue"_ASV
 			<< "AnsiStringLiteral"_ASV << "AnsiValue"
-			<< "WideString"_ASV << TEXT("WideValue"_SV)
+			<< "WideString"_ASV << TEXTVIEW("WideValue")
 			<< "WideStringLiteral"_ASV << TEXT("WideValue");
 		Writer.EndObject();
 
@@ -979,7 +992,7 @@ TEST_CASE("Core::Serialization::FCbWriter::Stream", "[Core][Serialization][Smoke
 		Writer << "TimeSpan"_ASV << FTimespan(1, 2, 4, 8);
 
 		Writer << "ObjectIdZero"_ASV << FCbObjectId();
-		Writer << "ObjectId"_ASV << FCbObjectId(MakeMemoryView<uint8>({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }));
+		Writer << "ObjectId"_ASV << FCbObjectId(MakeMemoryView<uint8>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}));
 
 		Writer << "LiteralName" << nullptr;
 
@@ -987,10 +1000,10 @@ TEST_CASE("Core::Serialization::FCbWriter::Stream", "[Core][Serialization][Smoke
 		Object = Writer.Save().AsObject();
 	}
 
-	TestEqual(TEXT("FCbWriter(Stream) Validate"), ValidateCompactBinary(Object.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
+	TEST_EQUAL(TEXT("FCbWriter(Stream) Validate"), ValidateCompactBinary(Object.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
 }
 
-TEST_CASE("Core::Serialization::FCbWriter::State", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbWriter::State", "[Core][Serialization][Smoke]")
 {
 	FCbWriter Writer;
 

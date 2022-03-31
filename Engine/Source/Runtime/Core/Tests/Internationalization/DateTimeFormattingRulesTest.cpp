@@ -6,31 +6,22 @@
 #include "Internationalization/Text.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
-#include "Misc/AutomationTest.h"
+#include "TestHarness.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
-
-// disable optimization for DateTimeFormattingRulesTest as it compiles very slowly in development builds
-PRAGMA_DISABLE_OPTIMIZATION
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDateTimeFormattingRulesTest, "System.Core.Misc.DateTime Formatting Rules", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
-
-bool FDateTimeFormattingRulesTest::RunTest (const FString& Parameters)
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::FDateTime::DateTime Formatting Rules", "[Core][Internationalization][Smoke]")
 {
 	auto TestText = [this](const TCHAR* const Desc, const FText& A, const FText& B)
 	{
-		if (!A.EqualTo(B))
-		{
-			AddError(FString::Printf(TEXT("%s - A=%s B=%s"), Desc, *A.ToString(), *B.ToString()));
-		}
+		INFO(Desc);
+		CAPTURE(A, B);
+		CHECK(A.EqualTo(B));
 	};
 
 	auto TestStr = [this](const TCHAR* const Desc, const FString& A, const FString& B)
 	{
-		if (!A.Equals(B))
-		{
-			AddError(FString::Printf(TEXT("%s - A=%s B=%s"), Desc, *A, *B));
-		}
+		INFO(Desc);
+		CAPTURE(A, B);
+		CHECK(A.Equals(B));
 	};
 
 	FInternationalization& I18N = FInternationalization::Get();
@@ -89,7 +80,7 @@ bool FDateTimeFormattingRulesTest::RunTest (const FString& Parameters)
 		}
 		else
 		{
-			AddWarning(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("en-US")));
+			WARN(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("en-US")));
 		}
 
 		if (I18N.SetCurrentCulture("ja-JP"))
@@ -131,13 +122,11 @@ bool FDateTimeFormattingRulesTest::RunTest (const FString& Parameters)
 		}
 		else
 		{
-			AddWarning(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("ja-JP")));
+			WARN(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("ja-JP")));
 		}
 
 		I18N.RestoreCultureState(OriginalCultureState);
 	}
-#else
-	AddWarning("ICU is disabled thus locale-aware date/time formatting is disabled.");
 #endif
 
 	{
@@ -156,11 +145,7 @@ bool FDateTimeFormattingRulesTest::RunTest (const FString& Parameters)
 		TestStr(TEXT("Testing Custom Date-Time Pattern (FText) - %H:%M"), FText::AsDateTime(TestDateTime, TEXT("%H:%M"), FText::GetInvariantTimeZone(), InvariantCulture).ToString(), TEXT("09:30"));
 		TestStr(TEXT("Testing Custom Date-Time Pattern (FText) - %l:%M %p"), FText::AsDateTime(TestDateTime, TEXT("%l:%M %p"), FText::GetInvariantTimeZone(), InvariantCulture).ToString(), TEXT("9:30 AM"));
 	}
-
-	return true;
 }
-
 
 PRAGMA_ENABLE_OPTIMIZATION
 
-#endif //WITH_DEV_AUTOMATION_TESTS

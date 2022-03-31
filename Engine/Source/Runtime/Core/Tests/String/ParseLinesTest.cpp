@@ -1,82 +1,75 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "String/ParseLines.h"
-
 #include "Algo/Compare.h"
 #include "Containers/StringView.h"
 #include "Misc/StringBuilder.h"
-#include "String/Escape.h"
-#include "String/Join.h"
+#include "Templates/EqualTo.h"
 #include "TestHarness.h"
 
-namespace UE::String
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::String::Misc::ParseLines", "[Core][String][Smoke]")
 {
+	using EOptions = UE::String::EParseLinesOptions;
 
-TEST_CASE("Core::String::ParseLines", "[Core][String][Smoke]")
-{
-	using FStringViewArray = TArray<FStringView, TInlineAllocator<8>>;
-
-	constexpr EParseLinesOptions KeepEmpty = EParseLinesOptions::None;
-	constexpr EParseLinesOptions SkipEmpty = EParseLinesOptions::SkipEmpty;
-	constexpr EParseLinesOptions Trim = EParseLinesOptions::Trim;
-
-	const auto [View, ExpectedLines, Options] = GENERATE_COPY(table<FStringView, FStringViewArray, EParseLinesOptions>(
+	auto RunParseLinesTest = [this](FStringView View, std::initializer_list<FStringView> ExpectedLines, EOptions Options = EOptions::None)
 	{
-		{TEXTVIEW(""), {}, SkipEmpty},
-		{TEXTVIEW(""), {TEXTVIEW("")}, KeepEmpty},
-		{TEXTVIEW("\n"), {}, SkipEmpty},
-		{TEXTVIEW("\n"), {TEXTVIEW("")}, KeepEmpty},
-		{TEXTVIEW("\r"), {}, SkipEmpty},
-		{TEXTVIEW("\r"), {TEXTVIEW("")}, KeepEmpty},
-		{TEXTVIEW("\r\n"), {}, SkipEmpty},
-		{TEXTVIEW("\r\n"), {TEXTVIEW("")}, KeepEmpty},
-		{TEXTVIEW("\n\n"), {}, SkipEmpty},
-		{TEXTVIEW("\n\n"), {TEXTVIEW(""), TEXTVIEW("")}, KeepEmpty},
-		{TEXTVIEW("\r\r"), {}, SkipEmpty},
-		{TEXTVIEW("\r\r"), {TEXTVIEW(""), TEXTVIEW("")}, KeepEmpty},
-		{TEXTVIEW("\r\n\r\n"), {}, SkipEmpty},
-		{TEXTVIEW("\r\n\r\n"), {TEXTVIEW(""), TEXTVIEW("")}, KeepEmpty},
-		{TEXTVIEW("\r\nABC").Left(2), {}, SkipEmpty},
-		{TEXTVIEW("\r\nABC").Left(2), {TEXTVIEW("")}, KeepEmpty},
-		{TEXTVIEW("\r\nABC\r\nDEF").Left(5), {TEXTVIEW("ABC")}, SkipEmpty},
-		{TEXTVIEW("\r\nABC\r\nDEF").Left(5), {TEXTVIEW(""), TEXTVIEW("ABC")}, KeepEmpty},
-		{TEXTVIEW("ABC DEF"), {TEXTVIEW("ABC DEF")}, SkipEmpty},
-		{TEXTVIEW("\nABC DEF\n"), {TEXTVIEW("ABC DEF")}, SkipEmpty},
-		{TEXTVIEW("\nABC DEF\n"), {TEXTVIEW(""), TEXTVIEW("ABC DEF")}, KeepEmpty},
-		{TEXTVIEW("\rABC DEF\r"), {TEXTVIEW("ABC DEF")}, SkipEmpty},
-		{TEXTVIEW("\rABC DEF\r"), {TEXTVIEW(""), TEXTVIEW("ABC DEF")}, KeepEmpty},
-		{TEXTVIEW("\r\nABC DEF\r\n"), {TEXTVIEW("ABC DEF")}, SkipEmpty},
-		{TEXTVIEW("\r\nABC DEF\r\n"), {TEXTVIEW(""), TEXTVIEW("ABC DEF")}, KeepEmpty},
-		{TEXTVIEW("\r\n\r\nABC DEF\r\n\r\n"), {TEXTVIEW("ABC DEF")}, SkipEmpty},
-		{TEXTVIEW("\r\n\r\nABC DEF\r\n\r\n"), {TEXTVIEW(""), TEXTVIEW(""), TEXTVIEW("ABC DEF"), TEXTVIEW("")}, KeepEmpty},
-		{TEXTVIEW("ABC\nDEF"), {TEXTVIEW("ABC"), TEXTVIEW("DEF")}, SkipEmpty},
-		{TEXTVIEW("ABC\rDEF"), {TEXTVIEW("ABC"), TEXTVIEW("DEF")}, SkipEmpty},
-		{TEXTVIEW("\r\nABC\r\nDEF\r\n"), {TEXTVIEW("ABC"), TEXTVIEW("DEF")}, SkipEmpty},
-		{TEXTVIEW("\r\nABC\r\nDEF\r\n"), {TEXTVIEW(""), TEXTVIEW("ABC"), TEXTVIEW("DEF")}, KeepEmpty},
-		{TEXTVIEW("\r\nABC\r\n\r\nDEF\r\n"), {TEXTVIEW("ABC"), TEXTVIEW("DEF")}, SkipEmpty},
-		{TEXTVIEW("\r\nABC\r\n\r\nDEF\r\n"), {TEXTVIEW(""), TEXTVIEW("ABC"), TEXTVIEW(""), TEXTVIEW("DEF")}, KeepEmpty},
-		{TEXTVIEW(" \t\r\n\t ABC \t\r\n\t \t\r\n\t DEF \t\r\n"), {TEXTVIEW(" \t"), TEXTVIEW("\t ABC \t"), TEXTVIEW("\t \t"), TEXTVIEW("\t DEF \t")}, SkipEmpty},
-		{TEXTVIEW(" \t\r\n\t ABC \t\r\n\t \t\r\n\t DEF \t\r\n"), {TEXTVIEW("ABC"), TEXTVIEW("DEF")}, SkipEmpty | Trim},
-		{TEXTVIEW(" \t\r\n\t ABC \t\r\n\t \t\r\n\t DEF \t\r\n"), {TEXTVIEW(" \t"), TEXTVIEW("\t ABC \t"), TEXTVIEW("\t \t"), TEXTVIEW("\t DEF \t")}, KeepEmpty},
-		{TEXTVIEW(" \t\r\n\t ABC \t\r\n\t \t\r\n\t DEF \t\r\n"), {TEXTVIEW(""), TEXTVIEW("ABC"), TEXTVIEW(""), TEXTVIEW("DEF")}, KeepEmpty | Trim},
-	}));
+		TArray<FStringView, TInlineAllocator<8>> ResultLines;
+		UE::String::ParseLines(View, ResultLines, Options);
 
-	FStringViewArray ActualLines;
-	ParseLines(View, ActualLines, Options);
-	const bool bEqual = Algo::Compare(ActualLines, ExpectedLines);
-	if (!bEqual)
-	{
-		TStringBuilder<256> Input, Expected, Actual;
-		Input << QuoteEscape(View);
-		Expected << TEXTVIEW("[") << JoinBy(ExpectedLines, QuoteEscape, TEXTVIEW(", ")) << TEXTVIEW("]");
-		Actual << TEXTVIEW("[") << JoinBy(ActualLines, QuoteEscape, TEXTVIEW(", ")) << TEXTVIEW("]");
-		CAPTURE(Input, Expected, Actual);
-		CHECK(bEqual);
-	}
-	else
-	{
-		CHECK(bEqual);
-	}
+		TEST_TRUE(TEXT("UE::String::ParseLines failed to parse"), Algo::Compare(ResultLines, ExpectedLines));
+
+		/*if (!Algo::Compare(ResultLines, ExpectedLines))
+		{
+			TStringBuilder<512> Error;
+			Error << TEXTVIEW("UE::String::ParseLines failed to parse \"") << FString(View).ReplaceCharWithEscapedChar() << TEXTVIEW("\" result {");
+			Error.JoinQuoted(ResultLines, TEXTVIEW(", "), TEXTVIEW("\""));
+			Error << TEXTVIEW("} expected {");
+			Error.JoinQuoted(ExpectedLines, TEXTVIEW(", "), TEXTVIEW("\""));
+			Error << TEXTVIEW("}");
+			FAIL_CHECK(Error.ToString());
+		}*/
+	};
+
+	constexpr EOptions KeepEmpty = EOptions::None;
+	constexpr EOptions SkipEmpty = EOptions::SkipEmpty;
+	constexpr EOptions Trim = EOptions::Trim;
+
+	RunParseLinesTest(TEXTVIEW(""), {}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW(""), {TEXTVIEW("")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("\n"), {}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\n"), {TEXTVIEW("")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("\r"), {}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\r"), {TEXTVIEW("")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\n"), {}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\n"), {TEXTVIEW("")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("\n\n"), {}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\n\n"), {TEXTVIEW(""), TEXTVIEW("")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\r"), {}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\r"), {TEXTVIEW(""), TEXTVIEW("")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\n\r\n"), {}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\n\r\n"), {TEXTVIEW(""), TEXTVIEW("")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\nABC").Left(2), {}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\nABC").Left(2), {TEXTVIEW("")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\nABC\r\nDEF").Left(5), {TEXTVIEW("ABC")}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\nABC\r\nDEF").Left(5), {TEXTVIEW(""), TEXTVIEW("ABC")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("ABC DEF"), {TEXTVIEW("ABC DEF")}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\nABC DEF\n"), {TEXTVIEW("ABC DEF")}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\nABC DEF\n"), {TEXTVIEW(""), TEXTVIEW("ABC DEF")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("\rABC DEF\r"), {TEXTVIEW("ABC DEF")}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\rABC DEF\r"), {TEXTVIEW(""), TEXTVIEW("ABC DEF")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\nABC DEF\r\n"), {TEXTVIEW("ABC DEF")}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\nABC DEF\r\n"), {TEXTVIEW(""), TEXTVIEW("ABC DEF")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\n\r\nABC DEF\r\n\r\n"), {TEXTVIEW("ABC DEF")}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\n\r\nABC DEF\r\n\r\n"), {TEXTVIEW(""), TEXTVIEW(""), TEXTVIEW("ABC DEF"), TEXTVIEW("")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("ABC\nDEF"), {TEXTVIEW("ABC"), TEXTVIEW("DEF")}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("ABC\rDEF"), {TEXTVIEW("ABC"), TEXTVIEW("DEF")}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\nABC\r\nDEF\r\n"), {TEXTVIEW("ABC"), TEXTVIEW("DEF")}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\nABC\r\nDEF\r\n"), {TEXTVIEW(""), TEXTVIEW("ABC"), TEXTVIEW("DEF")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\nABC\r\n\r\nDEF\r\n"), {TEXTVIEW("ABC"), TEXTVIEW("DEF")}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW("\r\nABC\r\n\r\nDEF\r\n"), {TEXTVIEW(""), TEXTVIEW("ABC"), TEXTVIEW(""), TEXTVIEW("DEF")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW(" \t\r\n\t ABC \t\r\n\t \t\r\n\t DEF \t\r\n"), {TEXTVIEW(" \t"), TEXTVIEW("\t ABC \t"), TEXTVIEW("\t \t"), TEXTVIEW("\t DEF \t")}, SkipEmpty);
+	RunParseLinesTest(TEXTVIEW(" \t\r\n\t ABC \t\r\n\t \t\r\n\t DEF \t\r\n"), {TEXTVIEW("ABC"), TEXTVIEW("DEF")}, SkipEmpty | Trim);
+	RunParseLinesTest(TEXTVIEW(" \t\r\n\t ABC \t\r\n\t \t\r\n\t DEF \t\r\n"), {TEXTVIEW(" \t"), TEXTVIEW("\t ABC \t"), TEXTVIEW("\t \t"), TEXTVIEW("\t DEF \t")}, KeepEmpty);
+	RunParseLinesTest(TEXTVIEW(" \t\r\n\t ABC \t\r\n\t \t\r\n\t DEF \t\r\n"), {TEXTVIEW(""), TEXTVIEW("ABC"), TEXTVIEW(""), TEXTVIEW("DEF")}, KeepEmpty | Trim);
 }
 
-} // UE::String

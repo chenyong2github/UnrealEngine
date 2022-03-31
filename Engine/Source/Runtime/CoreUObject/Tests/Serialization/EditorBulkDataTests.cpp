@@ -10,13 +10,16 @@
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Templates/UniquePtr.h"
-#include "TestHarness.h"
 
-#if WITH_EDITORONLY_DATA
+#include "Misc/AutomationTest.h"
+
+#if WITH_DEV_AUTOMATION_TESTS && WITH_EDITORONLY_DATA
 
 namespace UE::Serialization
 {
 	
+constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
+
 /** Creates a buffer full of random data to make it easy to have something to test against. */
 TUniquePtr<uint8[]> CreateRandomData(int64 BufferSize)
 {
@@ -35,12 +38,13 @@ TUniquePtr<uint8[]> CreateRandomData(int64 BufferSize)
  * payload via both TFuture and callback methods. It then creates copies of the object and makes sure that we can get the payload from
  * the copies, even when the original source object has been reset.
  */
-TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Basic", "[Core][UObject][Smoke]")
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestBasic, TEXT("System.CoreUObject.Serialization.EditorBulkData.Basic"), TestFlags)
+bool FEditorBulkDataTestBasic::RunTest(const FString& Parameters)
 {
 	const int64 BufferSize = 1024;
 	TUniquePtr<uint8[]> SourceBuffer = CreateRandomData(BufferSize);
 
-	auto ValidateBulkData = [&SourceBuffer, BufferSize](const FEditorBulkData& BulkDataToValidate, const TCHAR* Label)
+	auto ValidateBulkData = [this, &SourceBuffer, BufferSize](const FEditorBulkData& BulkDataToValidate, const TCHAR* Label)
 		{
 			FSharedBuffer RetrievedBuffer = BulkDataToValidate.GetPayload().Get();
 			TestEqual(FString::Printf(TEXT("%s buffer length"),Label), (int64)RetrievedBuffer.GetSize(), BufferSize);
@@ -72,46 +76,51 @@ TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Basic", "[Core][UObject]
 	// Test both bulkdata objects again now that we reset the data
 	ValidateBulkData(BulkDataCopy, TEXT("Copy Constructor (after data reset)"));
 	ValidateBulkData(BulkDataAssignment, TEXT("Copy Assignment (after data reset)"));
+
+	return true;
 }
 
 /**
  * This test will validate how FEditorBulkData behaves when it has no associated payload and make sure 
  * that our assumptions are correct.
  */
-TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Empty", "[Core][UObject][Smoke]")
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestEmpty, TEXT("System.CoreUObject.Serialization.EditorBulkData.Empty"), TestFlags)
+bool FEditorBulkDataTestEmpty::RunTest(const FString& Parameters)
 {
-	auto Validate = [](const TCHAR* Id,  const FEditorBulkData& BulkData)
+	auto Validate = [](const TCHAR* Id, FAutomationTestBase& Test, const FEditorBulkData& BulkData)
 	{
 		// Validate the general accessors
-		TestEqual(FString::Printf(TEXT("(%s) Return value of ::GetBulkDataSize()"), Id), BulkData.GetPayloadSize(), (int64)0);
-		TestTrue(FString::Printf(TEXT("(%s) Payload key is invalid"), Id), BulkData.GetPayloadId().IsZero());
-		TestFalse(FString::Printf(TEXT("(%s) Return value of ::DoesPayloadNeedLoading()"), Id), BulkData.DoesPayloadNeedLoading());
+		Test.TestEqual(FString::Printf(TEXT("(%s) Return value of ::GetBulkDataSize()"), Id), BulkData.GetPayloadSize(), (int64)0);
+		Test.TestTrue(FString::Printf(TEXT("(%s) Payload key is invalid"), Id), BulkData.GetPayloadId().IsZero());
+		Test.TestFalse(FString::Printf(TEXT("(%s) Return value of ::DoesPayloadNeedLoading()"), Id), BulkData.DoesPayloadNeedLoading());
 
 		// Validate the payload accessors
 		FSharedBuffer Payload = BulkData.GetPayload().Get();
-		TestTrue(FString::Printf(TEXT("(%s) The payload from the GetPayload TFuture is null"), Id), Payload.IsNull());
+		Test.TestTrue(FString::Printf(TEXT("(%s) The payload from the GetPayload TFuture is null"), Id), Payload.IsNull());
 
 		FCompressedBuffer CompressedPayload = BulkData.GetCompressedPayload().Get();
-		TestTrue(FString::Printf(TEXT("(%s) The payload from the GetCompressedPayload TFuture is null"), Id), Payload.IsNull());
+		Test.TestTrue(FString::Printf(TEXT("(%s) The payload from the GetCompressedPayload TFuture is null"), Id), Payload.IsNull());
 	};
 
 	FEditorBulkData DefaultBulkData;
-	Validate(TEXT("DefaultBulkData"), DefaultBulkData);
+	Validate(TEXT("DefaultBulkData"), *this, DefaultBulkData);
 		
 	FEditorBulkData NullPayloadBulkData;
 	NullPayloadBulkData.UpdatePayload(FSharedBuffer());
-	Validate(TEXT("NullPayloadBulkData"), NullPayloadBulkData);
+	Validate(TEXT("NullPayloadBulkData"), *this, NullPayloadBulkData);
 
 	FEditorBulkData ZeroLengthPayloadBulkData;
 	ZeroLengthPayloadBulkData.UpdatePayload(FUniqueBuffer::Alloc(0).MoveToShared());
-	Validate(TEXT("ZeroLengthPayloadBulkData"), ZeroLengthPayloadBulkData);
+	Validate(TEXT("ZeroLengthPayloadBulkData"), *this, ZeroLengthPayloadBulkData);
+
+	return true;
 }
 
 /**
  * Test the various methods for updating the payload that a FEditorBulkData owns
  */
-
-TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Update Payload", "[Core][UObject][Smoke]")
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestUpdatePayload, TEXT("System.CoreUObject.Serialization.EditorBulkData.UpdatePayload"), TestFlags)
+bool FEditorBulkDataTestUpdatePayload::RunTest(const FString& Parameters)
 {
 	// Create a memory buffer of all zeros
 	const int64 BufferSize = 1024;
@@ -177,6 +186,8 @@ TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Update Payload", "[Core]
 
 		TestTrue(TEXT("All payload elements correctly updated"), bAllElementsCorrect);
 	}
+
+	return true;
 }
 
 /**
@@ -184,8 +195,8 @@ TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Update Payload", "[Core]
  * Then we will serialize the FEditorBulkData object back to a second buffer and compare the results.
  * If the reader and writers are working then the ReplicatedBuffer should be the same as the original SourceBuffer.
  */
-
-TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Reader/Writer", "[Core][UObject][Smoke]")
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestReaderWriter, TEXT("System.CoreUObject.Serialization.EditorBulkData.Reader/Writer"), TestFlags)
+bool FEditorBulkDataTestReaderWriter::RunTest(const FString& Parameters)
 {
 	const int64 BufferSize = 1024;
 
@@ -217,6 +228,7 @@ TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Reader/Writer", "[Core][
 		FEditorBulkDataWriter WriterAr(EmptyBulkData);
 		FEditorBulkDataReader ReaderAr(EmptyBulkData);
 	}
+	return true;
 }
 
 /** 
@@ -224,8 +236,8 @@ TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Reader/Writer", "[Core][
  * as bulkdata objects again. This should help find problems where the data saved and loaded are mismatched.
  * Note that this does not check the package saving code paths, only direct serialization to buffers.
  */
-
-TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Serialization To Memory", "[Core][UObject][Smoke]")
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestSerializationToMemory, TEXT("System.CoreUObject.Serialization.EditorBulkData.SerializationToMemory"), TestFlags)
+bool FEditorBulkDataTestSerializationToMemory::RunTest(const FString& Parameters)
 {
 	const int64 BufferSize = 1024;
 
@@ -270,14 +282,15 @@ TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Serialization To Memory"
 		TestEqual(TEXT("Bulkdata identifier should remain the same"), SerializedBulkData.GetIdentifier(), EmptyBulkData.GetIdentifier());
 		TestTrue(TEXT("Bulkdata should not have a payload"), SerializedBulkData.GetPayload().Get().IsNull());
 	}
+	return true;
 }
 
 /**
  * This set of tests validate that the BulkData's identifier works how we expect it too. It should remain unique in all cases except
  * move semantics.
  */
-
-TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Identifiers", "[Core][UObject][Smoke]")
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestIdentifiers, TEXT("System.CoreUObject.Serialization.EditorBulkData.Identifiers"), TestFlags)
+bool FEditorBulkDataTestIdentifiers::RunTest(const FString& Parameters)
 {
 	// Some basic tests with an invalid id
 	{
@@ -459,9 +472,12 @@ TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Identifiers", "[Core][UO
 		DstData.UpdatePayload(FUniqueBuffer::Alloc(32).MoveToShared());
 		TestEqual(TEXT("After adding a new payload the object should have the original identifier"), DstData.GetIdentifier(), OriginalIdentifier);
 	}
+
+	return true;
 }
 
-TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Zero Sized Allocs", "[Core][UObject][Smoke]")
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestZeroSizedAllocs, TEXT("System.CoreUObject.Serialization.EditorBulkData.ZeroSizedAllocs"), TestFlags)
+bool FEditorBulkDataTestZeroSizedAllocs::RunTest(const FString& Parameters)
 {
 	{
 		FEditorBulkData Empty;
@@ -500,12 +516,13 @@ TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Zero Sized Allocs", "[Co
 		TestFalse(TEXT("ZeroAlloc payload has payload data"), ZeroAlloc.HasPayloadData());
 		TestFalse(TEXT("ZeroAlloc payload needs loading"), ZeroAlloc.DoesPayloadNeedLoading());
 	}
+
+	return true;
 }
 
 /** This tests the function UE::Serialization::IoHashToGuid which is closely used with the FEditorBulkData system */
-
-
-TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Io Hash To Guid", "[Core][UObject][Smoke]")
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataIoHashToGuid, TEXT("System.CoreUObject.Serialization.EditorBulkData.IoHashToGuid"), TestFlags)
+bool FEditorBulkDataIoHashToGuid::RunTest(const FString& Parameters)
 {
 	// Test that an empty hash will give an invalid FGuid
 	FIoHash DefaultHash;
@@ -523,10 +540,13 @@ TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Io Hash To Guid", "[Core
 	FGuid KnownResult(TEXT("04030201-0807-0605-0C0B-0A09100F0E0D"));
 
 	TestEqual(TEXT("That the result of hashing known data will be unchanged"), KnownGuid, KnownResult);
+
+	return true;
 }
 
 /** This tests that updating a payload via a FSharedBufferWithID will have the same results as if the payload was applied to the bulkdata object directly */
-TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Shared Buffer With ID", "[Core][UObject][Smoke]")
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataSharedBufferWithID, TEXT("System.CoreUObject.Serialization.EditorBulkData.SharedBufferWithID"), TestFlags)
+bool FEditorBulkDataSharedBufferWithID::RunTest(const FString& Parameters)
 {
 	// Test FSharedBufferWithID/FEditorBulkData in their default states
 	{
@@ -586,9 +606,11 @@ TEST_CASE("CoreUObject::Serialization::FEditorBulkData::Shared Buffer With ID", 
 		TestEqual(TEXT("3: PayloadId"), BulkDataFromSharedId.GetPayloadId(), BulkData.GetPayloadId());
 		TestEqual(TEXT("3: PayloadSize"), BulkDataFromSharedId.GetPayloadSize(), BulkData.GetPayloadSize());
 	}
+
+	return true;
 }
 
 
 } // namespace UE::Serialization
 
-#endif //WITH_EDITORONLY_DATA
+#endif //WITH_DEV_AUTOMATION_TESTS && WITH_EDITORONLY_DATA

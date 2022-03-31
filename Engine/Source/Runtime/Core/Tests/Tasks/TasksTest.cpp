@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreTypes.h"
-#include "Tests/Benchmark.h"
+#include "Core/Tests/Benchmark.h"
 #include "Tasks/Pipe.h"
 #include "HAL/Thread.h"
 #include "Async/ParallelFor.h"
-#include "TestHarness.h"
-
-#include "TestCommon/CoreUtilities.h"
+#include "TestFixtures/CoreTestFixture.h"
 
 #include <atomic>
 
@@ -70,10 +68,8 @@ namespace UE { namespace TasksTests
 		CHECK(TasksExecutedNum == TasksNum);
 	}
 
-	TEST_CASE("Core::Async::Task::Basic", "[Core][Async][Smoke]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Task::Basic", "[Core][Async][Smoke]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		{	// basic example, fire and forget a high-pri task
 			Launch(
 				UE_SOURCE_LOCATION, // debug name
@@ -195,8 +191,8 @@ namespace UE { namespace TasksTests
 #if 0	// unreliable test, destruction can happen on a worker thread, after the task is flagged as completed and so the check can be hit before the destruction
 			uint32 LocalConstructionsNum = ConstructionsNum.load(std::memory_order_relaxed);
 			uint32 LocalDestructionsNum = DestructionsNum.load(std::memory_order_relaxed);
-			checkf(LocalConstructionsNum == 1, TEXT("%d result instances were created but one was expected: the value stored in the task"), LocalConstructionsNum);
-			checkf(LocalConstructionsNum == LocalDestructionsNum, TEXT("Mismatched number of constructions (%d) and destructions (%d)"), LocalConstructionsNum, LocalDestructionsNum);
+			CHECK(LocalConstructionsNum == 1);
+			CHECK(LocalConstructionsNum == LocalDestructionsNum);
 
 			ConstructionsNum = 0;
 			DestructionsNum = 0;
@@ -209,8 +205,8 @@ namespace UE { namespace TasksTests
 #if 0	// unreliable test, destruction can happen on a worker thread, after the task is flagged as completed and so the check can be hit before the destruction
 			LocalConstructionsNum = ConstructionsNum.load(std::memory_order_relaxed);
 			LocalDestructionsNum = DestructionsNum.load(std::memory_order_relaxed);
-			checkf(LocalConstructionsNum == 2, TEXT("%d result instances were created but 2 was expected: the value stored in the task"), LocalConstructionsNum);
-			checkf(LocalConstructionsNum == LocalDestructionsNum, TEXT("Mismatched number of constructions (%d) and destructions (%d)"), LocalConstructionsNum, LocalDestructionsNum);
+			CHECK(LocalConstructionsNum == 2);
+			CHECK(LocalConstructionsNum == LocalDestructionsNum);
 
 			ConstructionsNum = 0;
 			DestructionsNum = 0;
@@ -378,17 +374,13 @@ namespace UE { namespace TasksTests
 		//}
 
 		UE_BENCHMARK(5, BasicStressTest<100, 100>);
-
-		CleanupTaskGraphAndDependencies();
 	}
 
 	template<uint32 SpawnerGroupsNum, uint32 SpawnersPerGroupNum>
 	void PipeStressTest();
 
-	TEST_CASE("Core::Async::Task::Pipe", "[Core][Async][Smoke]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Task::Pipe", "[Core][Async][Smoke]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		{	// a basic usage example
 			Tasks::FPipe Pipe{ UE_SOURCE_LOCATION }; // a debug name, user-provided or 
 				// `UE_SOURCE_LOCATION` - source file name and line number
@@ -493,9 +485,8 @@ namespace UE { namespace TasksTests
 			Task.Wait();
 		}
 
+		SUCCEED();
 		UE_BENCHMARK(5, PipeStressTest<200, 100>);
-		
-		CleanupTaskGraphAndDependencies();
 	}
 
 	// stress test for named thread tasks, CHECKs spawning a large number of tasks from multiple threads and executing them
@@ -603,14 +594,10 @@ namespace UE { namespace TasksTests
 		TlsValue = Dummy;
 	}
 
-	TEST_CASE("Core::Async::Tls::Tls", "[Core][Async][Smoke]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Tasks::Tls::Tls", "[Core][Async][Smoke]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		UE_BENCHMARK(5, UeTlsStressTest<10000000>);
 		UE_BENCHMARK(5, ThreadLocalStressTest<10000000>);
-
-		CleanupTaskGraphAndDependencies();
 	}
 
 	template<uint64 NumBranches, uint64 NumLoops, uint64 NumTasks>
@@ -652,11 +639,11 @@ namespace UE { namespace TasksTests
 			BranchTasks.Add(Task.GetResult());
 		}
 		Wait(Branches);
+		SUCCEED();
 	}
 
-	TEST_CASE("Core::Async::Task::Dependencies", "[Core][Async][Smoke]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Task::Dependencies", "[Core][Async][Smoke]")
 	{
-		InitTaskGraphAndDependencies(true);
 
 		{	// a task is not executed until its prerequisite (FTaskEvent) is completed
 			FTaskEvent Prereq{ UE_SOURCE_LOCATION };
@@ -792,9 +779,9 @@ namespace UE { namespace TasksTests
 			Task.Wait();
 		}
 
-		UE_BENCHMARK(5, DependenciesPerfTest<50, 5, 50>);
+		SUCCEED();
 
-		CleanupTaskGraphAndDependencies();
+		UE_BENCHMARK(5, DependenciesPerfTest<50, 5, 50>);
 	}
 
 	// blocks all workers (except reserve workers) until given event is triggered. Returns blocking tasks.
@@ -858,10 +845,8 @@ namespace UE { namespace TasksTests
 			N11.IsCompleted() && N12.IsCompleted() && N21.IsCompleted() && N22.IsCompleted()));
 	}
 
-	TEST_CASE("Core::Async::Task::Deep Retraction", "[Core][Async][Smoke]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Task::Deep Retraction", "[Core][Async][Smoke]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		FTaskEvent ResumeEvent{ UE_SOURCE_LOCATION };
 		TArray<FTask> WorkerBlockers = BlockWorkers(ResumeEvent);
 
@@ -927,8 +912,6 @@ namespace UE { namespace TasksTests
 
 		ResumeEvent.Trigger();
 		CHECK(Wait(WorkerBlockers, FTimespan::FromSeconds(1)));
-
-		CleanupTaskGraphAndDependencies();
 	}
 
 	template<uint32 Num>
@@ -940,13 +923,9 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	TEST_CASE("Core::Async::Task::Deep Retraction Strees", "[Core][Async][Stress]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Tasks::Deep Retraction Stress", "[Core][Tasks][.Stress]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		UE_BENCHMARK(5, DeepRetractionStressTest<1000>);
-
-		CleanupTaskGraphAndDependencies();
 	}
 
 	template<uint64 Num>
@@ -966,13 +945,9 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	TEST_CASE("Core:::Async::Task::Nested Tasks Strees", "[Core][Async][Stress]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core:::Async::Task::Nested Tasks Strees", "[Core][Async][.Stress]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		UE_BENCHMARK(5, NestedTasksStressTest<10000>);
-
-		CleanupTaskGraphAndDependencies();
 	}
 
 	template<int NumTasks>
@@ -1157,10 +1132,8 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	TEST_CASE("Core::Async::Task::PerfTest", "[Core][Async][Perf]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Tasks::PerfTest", "[Core][Async][.Perf]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		TRACE_CPUPROFILER_EVENT_SCOPE(TaskGraphTests_PerfTest);
 
 		UE_BENCHMARK(5, TestPerfBasic<10000>);
@@ -1170,8 +1143,6 @@ namespace UE { namespace TasksTests
 		UE_BENCHMARK(5, TestWorkStealing<100, 100>);
 		UE_BENCHMARK(5, TestSpawning<10000>);
 		UE_BENCHMARK(5, TestBatchSpawning<10000>);
-
-		CleanupTaskGraphAndDependencies();
 	}
 }}
 

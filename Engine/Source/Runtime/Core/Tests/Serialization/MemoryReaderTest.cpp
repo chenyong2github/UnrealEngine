@@ -5,7 +5,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "TestHarness.h"
 
-TEST_CASE("Core::Serialization::MemoryReader::Memory Reader", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::MemoryReader::Memory Reader", "[Core][Serialization][Smoke]")
 {
 	// Test reading uint64 byte swapped, ensuring that bytes really get swapped.
 	{
@@ -20,7 +20,7 @@ TEST_CASE("Core::Serialization::MemoryReader::Memory Reader", "[Core][Serializat
 		Reader.SetByteSwapping(true);
 		uint64 ReadValue;
 		Reader << ReadValue;
-		TestTrue("Test reading uint64 in swapped byte order.", ReadValue == ExpectedValue);
+		TEST_TRUE("Test reading uint64 in swapped byte order.", ReadValue == ExpectedValue);
 	}
 
 	// Write all supported types and read them back. (Assuming that MemoryWriterTest tests don't fail).
@@ -144,33 +144,33 @@ TEST_CASE("Core::Serialization::MemoryReader::Memory Reader", "[Core][Serializat
 		Reader << ReadSwapUtf16Str;
 
 		// Validate that the value read are the expected ones.
-		TestTrue("Test reading 'u8' from byte stream",             ReadValueU8      == TestValueU8);
-		TestTrue("Test reading 'u16' from byte stream",            ReadValueU16     == TestValueU16);
-		TestTrue("Test reading 'u32' from byte stream",            ReadValueU32     == TestValueU32);
-		TestTrue("Test reading 'u64' from byte stream",            ReadValueU64     == TestValueU64);
-		TestTrue("Test reading 's8' from byte stream",             ReadValueS8      == TestValueS8);
-		TestTrue("Test reading 's16' from byte stream",            ReadValueS16     == TestValueS16);
-		TestTrue("Test reading 's32' from byte stream",            ReadValueS32     == TestValueS32);
-		TestTrue("Test reading 's64' from byte stream",            ReadValueS64     == TestValueS64);
-		TestTrue("Test reading 'foat' from byte stream",           ReadValueF       == TestValueF);
-		TestTrue("Test reading 'double' from byte stream",         ReadValueD       == TestValueD);
-		TestTrue("Test reading 'bool' from byte stream",           ReadValueB       == TestValueB);
-		TestTrue("Test reading 'wchar' from byte stream",          ReadValueCh      == TestValueCh);
-		TestTrue("Test reading 'ansi str' from byte stream",       ReadAnsiStr      == TestAnsiStr);
-		TestTrue("Test reading 'utf16 str' from byte stream",      ReadUtf16Str     == TestUtf16Str);
-		TestTrue("Test reading 'u8-swapped' from byte stream",     ReadValueSwapU8  == TestValueU8);
-		TestTrue("Test reading 'u16-swapped' from byte stream",    ReadValueSwapU16 == TestValueU16);
-		TestTrue("Test reading 'u32-swapped' from byte stream",    ReadValueSwapU32 == TestValueU32);
-		TestTrue("Test reading 'u64-swapped' from byte stream",    ReadValueSwapU64 == TestValueU64);
-		TestTrue("Test reading 's8-swapped' from byte stream",     ReadValueSwapS8  == TestValueS8);
-		TestTrue("Test reading 's16'-swapped' from byte stream",   ReadValueSwapS16 == TestValueS16);
-		TestTrue("Test reading 's32-swapped' from byte stream",    ReadValueSwapS32 == TestValueS32);
-		TestTrue("Test reading 's64-swapped' from byte stream",    ReadValueSwapS64 == TestValueS64);
-		TestTrue("Test reading 'float-swapped' from byte stream",  ReadValueSwapF   == TestValueF);
-		TestTrue("Test reading 'double-swapped' from byte stream", ReadValueSwapD   == TestValueD);
-		TestTrue("Test reading 'bool-swapped' from byte stream",   ReadValueSwapB   == TestValueB);
-		TestTrue("Test reading 'wchar-swapped' from byte stream",  ReadValueSwapCh  == TestValueCh);
-		TestTrue("Test reading 'ansi-swapped' from byte stream",   ReadSwapAnsiStr  == TestAnsiStr);
-		TestTrue("Test reading 'utf16-swapped' from byte stream",  ReadSwapUtf16Str == TestUtf16Str);
+		TEST_TRUE("Test reading 'u8' from byte stream",             ReadValueU8      == TestValueU8);
+		TEST_TRUE("Test reading 'u16' from byte stream",            ReadValueU16     == TestValueU16);
+		TEST_TRUE("Test reading 'u32' from byte stream",            ReadValueU32     == TestValueU32);
+		TEST_TRUE("Test reading 'u64' from byte stream",            ReadValueU64     == TestValueU64);
+		TEST_TRUE("Test reading 's8' from byte stream",             ReadValueS8      == TestValueS8);
+		TEST_TRUE("Test reading 's16' from byte stream",            ReadValueS16     == TestValueS16);
+		TEST_TRUE("Test reading 's32' from byte stream",            ReadValueS32     == TestValueS32);
+		TEST_TRUE("Test reading 's64' from byte stream",            ReadValueS64     == TestValueS64);
+		TEST_TRUE("Test reading 'foat' from byte stream",           ReadValueF       == TestValueF);
+		TEST_TRUE("Test reading 'double' from byte stream",         ReadValueD       == TestValueD);
+		TEST_TRUE("Test reading 'bool' from byte stream",           ReadValueB       == TestValueB);
+		TEST_TRUE("Test reading 'wchar' from byte stream",          ReadValueCh      == TestValueCh);
+		TEST_TRUE("Test reading 'ansi str' from byte stream",       ReadAnsiStr      == TestAnsiStr);
+		TEST_TRUE("Test reading 'utf16 str' from byte stream",      ReadUtf16Str     == TestUtf16Str);
+		TEST_TRUE("Test reading 'u8-swapped' from byte stream",     ReadValueSwapU8  == TestValueU8);
+		TEST_TRUE("Test reading 'u16-swapped' from byte stream",    ReadValueSwapU16 == TestValueU16);
+		TEST_TRUE("Test reading 'u32-swapped' from byte stream",    ReadValueSwapU32 == TestValueU32);
+		TEST_TRUE("Test reading 'u64-swapped' from byte stream",    ReadValueSwapU64 == TestValueU64);
+		TEST_TRUE("Test reading 's8-swapped' from byte stream",     ReadValueSwapS8  == TestValueS8);
+		TEST_TRUE("Test reading 's16'-swapped' from byte stream",   ReadValueSwapS16 == TestValueS16);
+		TEST_TRUE("Test reading 's32-swapped' from byte stream",    ReadValueSwapS32 == TestValueS32);
+		TEST_TRUE("Test reading 's64-swapped' from byte stream",    ReadValueSwapS64 == TestValueS64);
+		TEST_TRUE("Test reading 'float-swapped' from byte stream",  ReadValueSwapF   == TestValueF);
+		TEST_TRUE("Test reading 'double-swapped' from byte stream", ReadValueSwapD   == TestValueD);
+		TEST_TRUE("Test reading 'bool-swapped' from byte stream",   ReadValueSwapB   == TestValueB);
+		TEST_TRUE("Test reading 'wchar-swapped' from byte stream",  ReadValueSwapCh  == TestValueCh);
+		TEST_TRUE("Test reading 'ansi-swapped' from byte stream",   ReadSwapAnsiStr  == TestAnsiStr);
+		TEST_TRUE("Test reading 'utf16-swapped' from byte stream",  ReadSwapUtf16Str == TestUtf16Str);
 	}
 }

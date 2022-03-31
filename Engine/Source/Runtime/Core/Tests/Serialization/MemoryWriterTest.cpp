@@ -11,7 +11,7 @@ namespace MemoryWriterTestUtil
 template <typename T> struct TIsBoolean { enum { Value = false }; };
 template <> struct TIsBoolean<bool> { enum { Value = true }; };
 
-class MemoryWriterTester
+class MemoryWriterTester : public FAutomationTestFixture
 {
 public:
 	MemoryWriterTester()
@@ -25,8 +25,8 @@ public:
 		const T Original = Value;
 		Writer << Value;
 		CheckWrittenByteCount<T>(Bytes.Num());
-		checkf(Value == Original, TEXT("The writer unexpectedly modified the input value")); // Ensure the written value wasn't changed during the write. (Regression check when writing byte swapped)
-		checkf(FMemory::Memcmp(Bytes.GetData(), &Original, sizeof(Original)) == 0, TEXT("The written value doesn't match the expected one."));
+		CHECK(Value == Original); // Ensure the written value wasn't changed during the write. (Regression check when writing byte swapped)
+		CHECK(FMemory::Memcmp(Bytes.GetData(), &Original, sizeof(Original)) == 0);
 	}
 
 	template<typename T>
@@ -36,8 +36,8 @@ public:
 		Writer.SetByteSwapping(true);
 		Writer << Value;
 		CheckWrittenByteCount<T>(Bytes.Num());
-		TestTrue(TEXT("The writer unexpectedly modified the input value"), Value == Original); // Ensure the written value wasn't changed during the write. (Regression check when writing byte swapped)
-		TestTrue(TEXT("The written value doesn't match the swapped value."), FMemory::Memcmp(Bytes.GetData(), &Swapped, sizeof(Swapped)) == 0);
+		CHECK(Value == Original); // Ensure the written value wasn't changed during the write. (Regression check when writing byte swapped)
+		CHECK(FMemory::Memcmp(Bytes.GetData(), &Swapped, sizeof(Swapped)) == 0);
 	}
 
 	template<typename T>
@@ -46,11 +46,11 @@ public:
 		if (TIsBoolean<T>::Value)
 		{
 			// Boolean are written as 4 bytes integer.
-			TestTrue(TEXT("Unexpected number of bytes written by the writer"), WrittenCount == sizeof(int32));
+			CHECK(WrittenCount == sizeof(int32));
 		}
 		else
 		{
-			TestTrue(TEXT("Unexpected number of bytes written by the writer"), WrittenCount == sizeof(T));
+			CHECK(WrittenCount == sizeof(T));
 		}
 	}
 
@@ -61,7 +61,7 @@ public:
 
 }
 
-TEST_CASE("Core::Serialization::MemoryWriter::Memory Writer", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::MemoryWriter::Memory Writer", "[Core][Serialization][Smoke]")
 {
 	// Keeps the 'official' test value as const, to prevent overwriting them.
 	const uint8  TestValueU8   = 0x12;
@@ -77,119 +77,121 @@ TEST_CASE("Core::Serialization::MemoryWriter::Memory Writer", "[Core][Serializat
 	const bool   TestValueB    = true;
 	const WIDECHAR TestValueCh = 0xF2;
 
-	// Platform endianness tests.
+	SECTION("Platform endianness tests")
 	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWritePlatformByteOrder(TestValueU8);
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWritePlatformByteOrder(TestValueU8);
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWritePlatformByteOrder(TestValueS8);
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWritePlatformByteOrder(TestValueU16);
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWritePlatformByteOrder(TestValueS16);
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWritePlatformByteOrder(TestValueU32);
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWritePlatformByteOrder(TestValueS32);
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWritePlatformByteOrder(TestValueU64);
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWritePlatformByteOrder(TestValueS64);
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWritePlatformByteOrder(TestValueF);
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWritePlatformByteOrder(TestValueD);
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWritePlatformByteOrder(TestValueB);
+		}
+
+		// Non Platform endianness tests. (Byte swapping)
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWriteSwappedByteOrder(TestValueU8, TestValueU8);
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWriteSwappedByteOrder(TestValueS8, TestValueS8);
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWriteSwappedByteOrder(TestValueU16, ByteSwap(TestValueU16));
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWriteSwappedByteOrder(TestValueS16, ByteSwap(TestValueS16));
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWriteSwappedByteOrder(TestValueU32, ByteSwap(TestValueU32));
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWriteSwappedByteOrder(TestValueS32, ByteSwap(TestValueS32));
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWriteSwappedByteOrder(TestValueU64, ByteSwap(TestValueU64));
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWriteSwappedByteOrder(TestValueS64, ByteSwap(TestValueS64));
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWriteSwappedByteOrder(TestValueF, ByteSwap(TestValueF));
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWriteSwappedByteOrder(TestValueD, ByteSwap(TestValueD));
+		}
+
+		{
+			MemoryWriterTestUtil::MemoryWriterTester Tester;
+			Tester.TestWriteSwappedByteOrder(TestValueB, TestValueB);
+		}
 	}
 
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWritePlatformByteOrder(TestValueS8);
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWritePlatformByteOrder(TestValueU16);
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWritePlatformByteOrder(TestValueS16);
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWritePlatformByteOrder(TestValueU32);
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWritePlatformByteOrder(TestValueS32);
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWritePlatformByteOrder(TestValueU64);
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWritePlatformByteOrder(TestValueS64);
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWritePlatformByteOrder(TestValueF);
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWritePlatformByteOrder(TestValueD);
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWritePlatformByteOrder(TestValueB);
-	}
-
-	// Non Platform endianness tests. (Byte swapping)
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWriteSwappedByteOrder(TestValueU8, TestValueU8);
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWriteSwappedByteOrder(TestValueS8, TestValueS8);
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWriteSwappedByteOrder(TestValueU16, ByteSwap(TestValueU16));
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWriteSwappedByteOrder(TestValueS16, ByteSwap(TestValueS16));
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWriteSwappedByteOrder(TestValueU32, ByteSwap(TestValueU32));
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWriteSwappedByteOrder(TestValueS32, ByteSwap(TestValueS32));
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWriteSwappedByteOrder(TestValueU64, ByteSwap(TestValueU64));
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWriteSwappedByteOrder(TestValueS64, ByteSwap(TestValueS64));
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWriteSwappedByteOrder(TestValueF, ByteSwap(TestValueF));
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWriteSwappedByteOrder(TestValueD, ByteSwap(TestValueD));
-	}
-
-	{
-		MemoryWriterTestUtil::MemoryWriterTester Tester;
-		Tester.TestWriteSwappedByteOrder(TestValueB, TestValueB);
-	}
-
-	// ANSI String
+	SECTION("ANSI String")
 	{
 		const TCHAR* RawStr = TEXT("Joe"); // Only contains ANSI chars -> should be serialized as an ANSI string (1 byte per char)
 		const char* RawStrBytes = "Joe";
@@ -200,7 +202,7 @@ TEST_CASE("Core::Serialization::MemoryWriter::Memory Writer", "[Core][Serializat
 		int32 CharCountInBuffer = CharCount; // A positive count let the deserializer know this an ANSI string rather than a UTF16 string.
 		int32 CharCountInBufferSwapped = ByteSwap(CharCountInBuffer);
 
-		// Platform endianness
+		SECTION("Platform endianness")
 		{
 			TArray<uint8> Bytes;
 			FMemoryWriter Writer(Bytes);
@@ -212,7 +214,7 @@ TEST_CASE("Core::Serialization::MemoryWriter::Memory Writer", "[Core][Serializat
 			CHECK(FMemory::Memcmp(Bytes.GetData() + sizeof(int32), RawStrBytes, StrByteCount) == 0); // Check the string content.
 		}
 	
-		// Swapped endianness
+		SECTION("Swapped endianness")
 		{
 			TArray<uint8> Bytes;
 			FMemoryWriter Writer(Bytes);
@@ -226,7 +228,7 @@ TEST_CASE("Core::Serialization::MemoryWriter::Memory Writer", "[Core][Serializat
 		}
 	}
 
-	// UTF16 Strings
+	SECTION("UTF16 Strings")
 	{
 		// Must not contain at least one non-ANSI char otherwise, the serialization finds out and serialize and ANSI string (1-byte per char).
 		const TCHAR RawStr[] = {TEXT('\u0404'), TEXT('\u0400'), TEXT('\uC0AC'), TEXT('\u0000')};
@@ -241,7 +243,7 @@ TEST_CASE("Core::Serialization::MemoryWriter::Memory Writer", "[Core][Serializat
 		int32 CharCountInBuffer = -CharCount; // A negative count let the deserializer know this an UTF16 string rather than a ANSI string.
 		int32 CharCountInBufferSwapped = ByteSwap(CharCountInBuffer);
 
-		// Platform endianness
+		SECTION("Platform endianness")
 		{
 			TArray<uint8> Bytes;
 			FMemoryWriter Writer(Bytes);
@@ -253,7 +255,7 @@ TEST_CASE("Core::Serialization::MemoryWriter::Memory Writer", "[Core][Serializat
 			CHECK(FMemory::Memcmp(Bytes.GetData() + sizeof(int32), RawStrBytes, StrByteCount) == 0); // Check the string content.
 		}
 	
-		// Swapped endianness
+		SECTION("Swapped endianness")
 		{
 			TArray<uint8> Bytes;
 			FMemoryWriter Writer(Bytes);

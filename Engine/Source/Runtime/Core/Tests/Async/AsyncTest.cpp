@@ -3,9 +3,7 @@
 #include "CoreTypes.h"
 #include "Templates/Function.h"
 #include "Async/Async.h"
-#include "TestHarness.h"
-
-#include "TestCommon/CoreUtilities.h"
+#include "TestFixtures/CoreTestFixture.h"
 
 /** Helper methods used in the test cases. */
 namespace AsyncTestUtils
@@ -23,69 +21,51 @@ namespace AsyncTestUtils
 
 
 /** Test that task graph tasks return correctly. */
-TEST_CASE("Core::Async::TaskGraph::Task Graph", "[Core][Async][Smoke]")
+TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Task::Task Graph", "[Core][Async][Smoke]")
 {
-	InitTaskGraphAndDependencies();
-
 	auto Future = Async(EAsyncExecution::TaskGraph, AsyncTestUtils::Task);
 	int Result = Future.Get();
 
-	TestEqual(TEXT("Task graph task must return expected value"), Result, 123);
-
-	CleanupTaskGraphAndDependencies();
+	CHECK(Result==123);
 }
 
 
 /** Test that threaded tasks return correctly. */
-TEST_CASE("Core::Async::Thread::Thread", "[Core][Async][Smoke]")
+TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Task::Thread", "[Core][Async][Smoke]")
 {
-	InitTaskGraphAndDependencies();
-
 	auto Future = Async(EAsyncExecution::Thread, AsyncTestUtils::Task);
 	int Result = Future.Get();
 
-	REQUIRE(Result == 123);
-
-	CleanupTaskGraphAndDependencies();
+	CHECK(Result==123);
 }
 
 
 /** Test that threaded pool tasks return correctly. */
-TEST_CASE("Core::Async::ThreadedPool::Threaded Pool", "[Core][Async][Smoke]")
+TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Task::Threaded Pool", "[Core][Async][Smoke]")
 {
-	InitTaskGraphAndDependencies();
-
 	auto Future = Async(EAsyncExecution::ThreadPool, AsyncTestUtils::Task);
 	int Result = Future.Get();
 
-	TestEqual(TEXT("Thread pool task must return expected value"), Result, 123);
-
-	CleanupTaskGraphAndDependencies();
+	CHECK(Result==123);
 }
 
 
 /** Test that void tasks run without errors or warnings. */
-TEST_CASE("Core::Async::Task::Void Task", "[Core][Async][Smoke]")
+TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Task::Void Task", "[Core][Async][Smoke]")
 {
-	InitTaskGraphAndDependencies();
-
 	// Reset test variable before running
 	AsyncTestUtils::bHasVoidTaskFinished = false;
 	auto Future = Async(EAsyncExecution::TaskGraph, AsyncTestUtils::VoidTask);
 	Future.Get();
 
 	// Check that the variable state was updated by task
-	TestTrue(TEXT("Void tasks should run"), AsyncTestUtils::bHasVoidTaskFinished);
-
-	CleanupTaskGraphAndDependencies();
+	CHECK(AsyncTestUtils::bHasVoidTaskFinished);
 }
 
 
-/** Test that asynchronous tasks have their completion callback called. */
-TEST_CASE("Core::Async::CompletionCallback::Completion Callback", "[Core][Async][Smoke]")
+/** Test that FCoreTestFixture tasks have their completion callback called. */
+TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Task::Completion Callback", "[Core][Async][Smoke]")
 {
-	InitTaskGraphAndDependencies();
-
 	bool Completed = false;
 	FEvent* CompletedEvent = FPlatformProcess::GetSynchEventFromPool(true);
 
@@ -102,8 +82,8 @@ TEST_CASE("Core::Async::CompletionCallback::Completion Callback", "[Core][Async]
 	bool CompletedEventTriggered = CompletedEvent->Wait(FTimespan(0 /* hours */, 0 /* minutes */, 5 /* seconds */));
 	FPlatformProcess::ReturnSynchEventToPool(CompletedEvent);
 
-	TestEqual(TEXT("Async Result"), Result, 123);
-	TestTrue(TEXT("Completion callback to be called"), CompletedEventTriggered && Completed);
+	CHECK(Result==123);
+	CHECK(CompletedEventTriggered);
+	CHECK(Completed);
 
-	CleanupTaskGraphAndDependencies();
 }

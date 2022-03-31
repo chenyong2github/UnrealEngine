@@ -9,6 +9,7 @@
 
 #include "LowLevelTestModule.h"
 #include "TestCommon/CoreUtilities.h"
+#include "TestCommon/CoreUObjectUtilities.h"
 
 #include <set>
 
@@ -208,6 +209,9 @@ int RunTests(int argc, const char* argv[])
 		SessionResult = Catch::Session().run(CatchArgc, CatchArgv.Get());
 		CatchArgv.Reset();
 	}
+
+	CleanupCoreUObject();
+	CleanupTaskGraphAndDependencies();
 
 	GlobalModuleTeardown();
 	UnloadBaseTestModule(LoadModuleName);

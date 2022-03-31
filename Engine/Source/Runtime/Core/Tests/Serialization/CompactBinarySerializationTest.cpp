@@ -7,9 +7,9 @@
 #include "Serialization/MemoryReader.h"
 #include "TestHarness.h"
 
-TEST_CASE("Core::Serialization::FCbMeasure::Measure Compact Binary", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FCbMeasure::Measure Compact Binary", "[Core][Serialization][Smoke]")
 {
-	const auto TestMeasure = [](
+	const auto TestMeasure = [this](
 		const TCHAR* Test,
 		std::initializer_list<uint8> Data,
 		bool bExpectedValue,
@@ -20,13 +20,15 @@ TEST_CASE("Core::Serialization::FCbMeasure::Measure Compact Binary", "[Core][Ser
 		ECbFieldType ActualType = ECbFieldType(255);
 		uint64 ActualSize = ~uint64(0);
 		const bool bActualValue = TryMeasureCompactBinary(MakeMemoryView(Data), ActualType, ActualSize, ExternalType);
-		TestEqual(FString::Printf(TEXT("TryMeasureCompactBinary(%s)"), Test), bActualValue, bExpectedValue);
-		TestEqual(FString::Printf(TEXT("TryMeasureCompactBinary(%s)->Type"), Test), ActualType, ExpectedType);
-		TestEqual(FString::Printf(TEXT("TryMeasureCompactBinary(%s)->Size"), Test), ActualSize, ExpectedSize);
+		
+		INFO(Test)
+		CHECK_EQUAL(bActualValue, bExpectedValue);
+		CHECK_EQUAL(ActualType, ExpectedType);
+		CHECK_EQUAL(ActualSize, ExpectedSize);
 		if (ActualSize == ExpectedSize)
 		{
 			const uint64 MeasureSize = MeasureCompactBinary(MakeMemoryView(Data), ExternalType);
-			TestEqual(FString::Printf(TEXT("MeasureCompactBinary(%s)"), Test), MeasureSize, bExpectedValue ? ExpectedSize : 0);
+			CHECK_EQUAL(MeasureSize, (bExpectedValue ? ExpectedSize : 0));
 		}
 	};
 
@@ -130,34 +132,34 @@ TEST_CASE("Core::Serialization::FCbMeasure::Measure Compact Binary", "[Core][Ser
 	TestMeasure(TEXT("CustomByName, Size9BShort"), {uint8(EType::CustomByName), 0xff}, false, 10, EType::CustomByName);
 }
 
-TEST_CASE("Core::Serialization::FMemoryView::Save Compact Binary", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Serialization::FMemoryView::Save Compact Binary", "[Core][Serialization][Smoke]")
 {
-	const auto TestSave = [](const TCHAR* Test, auto Value, FMemoryView ExpectedData)
+	const auto TestSave = [this](const TCHAR* Test, auto Value, FMemoryView ExpectedData)
 	{
 		{
 			FBufferArchive WriteAr;
 			SaveCompactBinary(WriteAr, Value);
 
-			TestEqual(FString::Printf(TEXT("SaveCompactBinary(%s)->Size"), Test), uint64(WriteAr.Num()), ExpectedData.GetSize());
-			TestTrue(FString::Printf(TEXT("SaveCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(MakeMemoryView(WriteAr)));
+			TEST_EQUAL(FString::Printf(TEXT("SaveCompactBinary(%s)->Size"), Test), uint64(WriteAr.Num()), ExpectedData.GetSize());
+			TEST_TRUE(FString::Printf(TEXT("SaveCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(MakeMemoryView(WriteAr)));
 
 			{
 				FMemoryReader ReadAr(WriteAr);
 				FCbField Field = LoadCompactBinary(ReadAr);
-				TestTrue(FString::Printf(TEXT("LoadCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Field.GetOuterBuffer().GetView()));
+				TEST_TRUE(FString::Printf(TEXT("LoadCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Field.GetOuterBuffer().GetView()));
 			}
 		}
 		{
 			FBufferArchive WriteAr;
 			WriteAr << Value;
 			
-			TestEqual(FString::Printf(TEXT("Ar << CompactBinary Save(%s)->Size"), Test), uint64(WriteAr.Num()), ExpectedData.GetSize());
-			TestTrue(FString::Printf(TEXT("Ar << CompactBinary Save(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(MakeMemoryView(WriteAr)));
+			TEST_EQUAL(FString::Printf(TEXT("Ar << CompactBinary Save(%s)->Size"), Test), uint64(WriteAr.Num()), ExpectedData.GetSize());
+			TEST_TRUE(FString::Printf(TEXT("Ar << CompactBinary Save(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(MakeMemoryView(WriteAr)));
 
 			{
 				FMemoryReader ReadAr(WriteAr);
 				ReadAr << Value;
-				TestTrue(FString::Printf(TEXT("Ar << CompactBinary Load(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Value.GetOuterBuffer().GetView()));
+				TEST_TRUE(FString::Printf(TEXT("Ar << CompactBinary Load(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Value.GetOuterBuffer().GetView()));
 			}
 		}
 	};

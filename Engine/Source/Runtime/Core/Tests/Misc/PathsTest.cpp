@@ -23,17 +23,17 @@ const PathTest::FTestPair PathTest::ExpectedRelativeToAbsolutePaths[10] =
 	{ TEXTVIEW("/a/b/../c"),		TEXTVIEW("/a/c") },
 };
 
-TEST_CASE("Core::Misc::FPaths::Smoke Test", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::FPaths::Smoke Test", "[Core][Misc][Smoke]")
 {
-	TestCollapseRelativeDirectories<FPaths, FString>();
+	TestCollapseRelativeDirectories<FPaths, FString>(*this);
 
 	// Extension texts
 	{
-		auto RunGetExtensionTest = [](const TCHAR* InPath, const TCHAR* InExpectedExt)
+		auto RunGetExtensionTest = [this](const TCHAR* InPath, const TCHAR* InExpectedExt)
 		{
 			// Run test
 			const FString Ext = FPaths::GetExtension(FString(InPath));
-			TestTrue(FString::Printf(TEXT("Path '%s' failed to get the extension (got '%s', expected '%s')."), InPath, *Ext, InExpectedExt), Ext == InExpectedExt);
+			TEST_TRUE(FString::Printf(TEXT("Path '%s' failed to get the extension (got '%s', expected '%s')."), InPath, *Ext, InExpectedExt), Ext == InExpectedExt);
 		};
 
 		RunGetExtensionTest(TEXT("file"),									TEXT(""));
@@ -46,11 +46,11 @@ TEST_CASE("Core::Misc::FPaths::Smoke Test", "[Core][Misc][Smoke]")
 		RunGetExtensionTest(TEXT("C:/Folder/First.Last/file.txt"),			TEXT("txt"));
 		RunGetExtensionTest(TEXT("C:/Folder/First.Last/file.tar.gz"),		TEXT("gz"));
 
-		auto RunSetExtensionTest = [](const TCHAR* InPath, const TCHAR* InNewExt, const FString& InExpectedPath)
+		auto RunSetExtensionTest = [this](const TCHAR* InPath, const TCHAR* InNewExt, const FString& InExpectedPath)
 		{
 			// Run test
 			const FString NewPath = FPaths::SetExtension(FString(InPath), FString(InNewExt));	
-			TestTrue(FString::Printf(TEXT("Path '%s' failed to set the extension (got '%s', expected '%s')."), InPath, *NewPath, *InExpectedPath), NewPath == InExpectedPath);
+			TEST_TRUE(FString::Printf(TEXT("Path '%s' failed to set the extension (got '%s', expected '%s')."), InPath, *NewPath, *InExpectedPath), NewPath == InExpectedPath);
 		};
 
 		RunSetExtensionTest(TEXT("file"),									TEXT("log"),	TEXT("file.log"));
@@ -63,11 +63,11 @@ TEST_CASE("Core::Misc::FPaths::Smoke Test", "[Core][Misc][Smoke]")
 		RunSetExtensionTest(TEXT("C:/Folder/First.Last/file.txt"),			TEXT("log"),	TEXT("C:/Folder/First.Last/file.log"));
 		RunSetExtensionTest(TEXT("C:/Folder/First.Last/file.tar.gz"),		TEXT("gz2"),	TEXT("C:/Folder/First.Last/file.tar.gz2"));
 
-		auto RunChangeExtensionTest = [](const TCHAR* InPath, const TCHAR* InNewExt, const FString& InExpectedPath)
+		auto RunChangeExtensionTest = [this](const TCHAR* InPath, const TCHAR* InNewExt, const FString& InExpectedPath)
 		{
 			// Run test
 			const FString NewPath = FPaths::ChangeExtension(FString(InPath), FString(InNewExt));
-			TestTrue(FString::Printf(TEXT("Path '%s' failed to change the extension (got '%s', expected '%s')."), InPath, *NewPath, *InExpectedPath), NewPath == InExpectedPath);
+			TEST_TRUE(FString::Printf(TEXT("Path '%s' failed to change the extension (got '%s', expected '%s')."), InPath, *NewPath, *InExpectedPath), NewPath == InExpectedPath);
 
 		};
 
@@ -84,11 +84,11 @@ TEST_CASE("Core::Misc::FPaths::Smoke Test", "[Core][Misc][Smoke]")
 
 	// IsUnderDirectory
 	{
-		auto RunIsUnderDirectoryTest = [](const TCHAR* InPath1, const TCHAR* InPath2, bool ExpectedResult)
+		auto RunIsUnderDirectoryTest = [this](const TCHAR* InPath1, const TCHAR* InPath2, bool ExpectedResult)
 		{
 			// Run test
 			bool Result = FPaths::IsUnderDirectory(FString(InPath1), FString(InPath2));
-			TestTrue(FString::Printf(TEXT("FPaths::IsUnderDirectory('%s', '%s') != %s."), InPath1, InPath2, ExpectedResult ? TEXT("true") : TEXT("false")), Result == ExpectedResult);
+			TEST_TRUE(FString::Printf(TEXT("FPaths::IsUnderDirectory('%s', '%s') != %s."), InPath1, InPath2, ExpectedResult ? TEXT("true") : TEXT("false")), Result == ExpectedResult);
 		};
 
 		RunIsUnderDirectoryTest(TEXT("C:/Folder"),			TEXT("C:/FolderN"), false);
@@ -104,7 +104,7 @@ TEST_CASE("Core::Misc::FPaths::Smoke Test", "[Core][Misc][Smoke]")
 		RunIsUnderDirectoryTest(TEXT("C:/Folder/Subdir/"),	TEXT("C:/Folder/"), true);
 	}
 
-	TestRemoveDuplicateSlashes<FPaths, FString>();
+	TestRemoveDuplicateSlashes<FPaths, FString>(*this);
 
 	// ConvertRelativePathToFull
 	{
@@ -113,7 +113,7 @@ TEST_CASE("Core::Misc::FPaths::Smoke Test", "[Core][Misc][Smoke]")
 		for (FTestPair Pair : ExpectedRelativeToAbsolutePaths)
 		{
 			FString Actual = FPaths::ConvertRelativePathToFull(FString(BaseDir), FString(Pair.Input));
-			TestEqual(TEXT("ConvertRelativePathToFull"), FStringView(Actual), Pair.Expected);
+			TEST_EQUAL(TEXT("ConvertRelativePathToFull"), FStringView(Actual), Pair.Expected);
 		}
 	}
 }

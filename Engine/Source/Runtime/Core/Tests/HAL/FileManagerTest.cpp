@@ -2,9 +2,15 @@
 
 #include "HAL/FileManager.h"
 
-#include "TestHarness.h"
+#include "Misc/AutomationTest.h"
 
-TEST_CASE("Core::HAL::FileManager::Reader", "[Core][HAL][FileManager]")
+#if WITH_DEV_AUTOMATION_TESTS
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFileManagerReaderTest, "System.Core.HAL.FileManager.Reader", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+bool FFileManagerReaderTest::RunTest(const FString& Parameters)
 {
-	// TODO: Add tests
+	return true;
 }
+
+#endif

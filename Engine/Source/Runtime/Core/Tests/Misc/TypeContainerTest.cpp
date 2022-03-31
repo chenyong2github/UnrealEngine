@@ -8,7 +8,7 @@
 #include "Delegates/Delegate.h"
 #include "Async/Async.h"
 #include "Misc/TypeContainer.h"
-#include "TestHarness.h"
+#include "TestFixtures/CoreTestFixture.h"
 
 /* Helpers
  *****************************************************************************/
@@ -71,7 +71,7 @@ Expose_TNameOf(IBerry)
 Expose_TNameOf(IFruit)
 Expose_TNameOf(ISmoothie<>)
 
-TEST_CASE("Core::Misc::TTypeContainer::Smoke Test", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FCoreTestFixture, "Core::Misc::TTypeContainer::Smoke Test", "[Core][Misc][Smoke]")
 {
 	// existing instance test
 	{
@@ -86,8 +86,8 @@ TEST_CASE("Core::Misc::TTypeContainer::Smoke Test", "[Core][Misc][Smoke]")
 
 		auto Instance = Container.GetInstance<IFruit>();
 
-		TestEqual(TEXT("Correct instance must be returned"), Instance, Fruit);
-		TestNotEqual(TEXT("Incorrect instance must not be returned"), Instance, StaticCastSharedRef<IFruit>(Berry));
+		TEST_EQUAL(TEXT("Correct instance must be returned"), Instance, Fruit);
+		TEST_NOT_EQUAL(TEXT("Incorrect instance must not be returned"), Instance, StaticCastSharedRef<IFruit>(Berry));
 	}
 
 	// per instance test
@@ -102,9 +102,9 @@ TEST_CASE("Core::Misc::TTypeContainer::Smoke Test", "[Core][Misc][Smoke]")
 		auto Smoothie1 = Container.GetInstance<ISmoothie<>>();
 		auto Smoothie2 = Container.GetInstance<ISmoothie<>>();
 
-		TestNotEqual(TEXT("For per-instances classes, a unique instance must be returned each time"), Smoothie1, Smoothie2);
-		TestNotEqual(TEXT("For per-instances dependencies, a unique instance must be returned each time [1]"), Smoothie1->GetBerry(), Smoothie2->GetBerry());
-		TestNotEqual(TEXT("For per-instances dependencies, a unique instance must be returned each time [2]"), Smoothie1->GetFruit(), Smoothie2->GetFruit());
+		TEST_NOT_EQUAL(TEXT("For per-instances classes, a unique instance must be returned each time"), Smoothie1, Smoothie2);
+		TEST_NOT_EQUAL(TEXT("For per-instances dependencies, a unique instance must be returned each time [1]"), Smoothie1->GetBerry(), Smoothie2->GetBerry());
+		TEST_NOT_EQUAL(TEXT("For per-instances dependencies, a unique instance must be returned each time [2]"), Smoothie1->GetFruit(), Smoothie2->GetFruit());
 	}
 
 	// per thread test
@@ -133,10 +133,10 @@ TEST_CASE("Core::Misc::TTypeContainer::Smoke Test", "[Core][Misc][Smoke]")
 		auto One2 = Smoothies2.Get().One;
 		auto Two2 = Smoothies2.Get().Two;
 
-		TestEqual(TEXT("For per-thread classes, the same instance must be returned from the same thread [1]"), One1, Two1);
-		TestEqual(TEXT("For per-thread classes, the same instance must be returned from the same thread [2]"), One2, Two2);
-		TestNotEqual(TEXT("For per-thread classes, different instances must be returned from different threads [1]"), One1, One2);
-		TestNotEqual(TEXT("For per-thread classes, different instances must be returned from different threads [2]"), Two1, Two2);
+		TEST_EQUAL(TEXT("For per-thread classes, the same instance must be returned from the same thread [1]"), One1, Two1);
+		TEST_EQUAL(TEXT("For per-thread classes, the same instance must be returned from the same thread [2]"), One2, Two2);
+		TEST_NOT_EQUAL(TEXT("For per-thread classes, different instances must be returned from different threads [1]"), One1, One2);
+		TEST_NOT_EQUAL(TEXT("For per-thread classes, different instances must be returned from different threads [2]"), Two1, Two2);
 	}
 
 	// per process test
@@ -165,10 +165,10 @@ TEST_CASE("Core::Misc::TTypeContainer::Smoke Test", "[Core][Misc][Smoke]")
 		auto One2 = Smoothies2.Get().One;
 		auto Two2 = Smoothies2.Get().Two;
 
-		TestEqual(TEXT("For per-process classes, the same instance must be returned from the same thread [1]"), One1, Two1);
-		TestEqual(TEXT("For per-process classes, the same instance must be returned from the same thread [2]"), One2, Two2);
-		TestEqual(TEXT("For per-process classes, the same instance must be returned from different threads [1]"), One1, One2);
-		TestEqual(TEXT("For per-process classes, the same instance must be returned from different threads [1]"), Two1, Two2);
+		TEST_EQUAL(TEXT("For per-process classes, the same instance must be returned from the same thread [1]"), One1, Two1);
+		TEST_EQUAL(TEXT("For per-process classes, the same instance must be returned from the same thread [2]"), One2, Two2);
+		TEST_EQUAL(TEXT("For per-process classes, the same instance must be returned from different threads [1]"), One1, One2);
+		TEST_EQUAL(TEXT("For per-process classes, the same instance must be returned from different threads [1]"), Two1, Two2);
 	}
 
 	// factory test

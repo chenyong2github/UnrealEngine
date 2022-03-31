@@ -102,16 +102,28 @@ void CleanupTaskGraph()
 	FTaskGraphInterface::Shutdown();
 }
 
+bool TaskGraphInitialised = false;
+
 void InitTaskGraphAndDependencies(bool MultiThreaded)
 {
+	if (TaskGraphInitialised == true)
+		return;
+
 	InitTaskGraph(MultiThreaded);
 	InitAllThreadPools(MultiThreaded);
+
+	TaskGraphInitialised = true;
 }
 
 void CleanupTaskGraphAndDependencies()
 {
+	if (TaskGraphInitialised == false)
+		return;
+
 	CleanupAllThreadPools();
 	CleanupTaskGraph();
+
+	TaskGraphInitialised = false;
 }
 
 void CleanupPlatform()

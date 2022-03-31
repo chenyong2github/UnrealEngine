@@ -13,7 +13,7 @@ bool IsRoughlyEqual(double One, double Two, float Epsilon)
 	return FMath::Abs(One-Two) <= Epsilon;
 }
 
-TEST_CASE("Core::Math::FUnitConversion::Unit Conversion", "[Core][Math][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Math::FUnitConversion::Unit Conversion", "[Core][Math][Smoke]")
 {
 	struct FTestStruct
 	{
@@ -35,7 +35,7 @@ TEST_CASE("Core::Math::FUnitConversion::Unit Conversion", "[Core][Math][Smoke]")
 		{ 1000,		1.0936,		1e-4,	EUnit::Millimeters, 		EUnit::Yards		 		},
 		{ 2000,		0.0787,		1e-4,	EUnit::Micrometers, 		EUnit::Inches		 		},
 
-		{ 90,		UE_PI/2,	1e-3,	EUnit::Degrees, 			EUnit::Radians		 		},
+		{ 90,		UE_PI /2,	1e-3,	EUnit::Degrees, 			EUnit::Radians		 		},
 		{ UE_PI,	180,		1e-3,	EUnit::Radians, 			EUnit::Degrees		 		},
 
 		{ 12,		43.2,		0.1,	EUnit::MetersPerSecond,		EUnit::KilometersPerHour	},
@@ -95,17 +95,11 @@ TEST_CASE("Core::Math::FUnitConversion::Unit Conversion", "[Core][Math][Smoke]")
 		const TCHAR* FromUnitString = FUnitConversion::GetUnitDisplayString(Test.FromUnit);
 		const TCHAR* ToUnitString = FUnitConversion::GetUnitDisplayString(Test.ToUnit);
 
-		TestTrue(FString::Printf(TEXT("Conversion from %s to %s was incorrect. Converting %.10f%s to %s resulted in %.15f%s, expected %.15f%s (threshold = %.15f)"),
-			FromUnitString, ToUnitString,
-			Test.Source, FromUnitString, ToUnitString,
-			ActualResult, ToUnitString,
-			Test.ExpectedResult, ToUnitString,
-			Test.AccuracyEpsilon),
-			IsRoughlyEqual(ActualResult, Test.ExpectedResult, Test.AccuracyEpsilon));
+		CHECK(IsRoughlyEqual(ActualResult, Test.ExpectedResult, Test.AccuracyEpsilon));
 	}
 }
 
-TEST_CASE("Core::Math::FUnitConversion::Parsing Test", "[Core][Math][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Math::FUnitConversion::Parsing Test", "[Core][Math][Smoke]")
 {
 	struct FTestCases
 	{
@@ -133,11 +127,7 @@ TEST_CASE("Core::Math::FUnitConversion::Parsing Test", "[Core][Math][Smoke]")
 		TValueOrError<FNumericUnit<double>, FText> Result = UnitConversion::TryParseExpression(Test.Expression, Test.UnderlyingUnit, ExistingValue);
 		if (Result.IsValid())
 		{
-			TestTrue(FString::Printf(TEXT("Parsing of expression \"%s\" failed. Expected %f but got %f."),
-				Test.Expression,
-				Test.ExpectedValue,
-				Result.GetValue().Value), 
-				IsRoughlyEqual(Result.GetValue().ConvertTo(Test.UnderlyingUnit).GetValue().Value, Test.ExpectedValue, 1e-6) );
+			CHECK(IsRoughlyEqual(Result.GetValue().ConvertTo(Test.UnderlyingUnit).GetValue().Value, Test.ExpectedValue, 1e-6) );
 		}
 	}
 }

@@ -12,7 +12,7 @@ int32 CountManifestEntries( const FInternationalizationManifest& Manifest )
 	return Manifest.GetNumEntriesByKey();
 }
 
-TEST_CASE("Core::Internationalization::FManifestContext::Context", "[Core][Internationalization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::FManifestContext::Context", "[Core][Internationalization][Smoke]")
 {
 	// Key metadata
 	TSharedPtr< FLocMetadataObject > KeyMetadataA = MakeShareable( new FLocMetadataObject );
@@ -65,17 +65,17 @@ TEST_CASE("Core::Internationalization::FManifestContext::Context", "[Core][Inter
 		{ //-V760
 			FManifestContext ContextAClone = ContextA;
 
-			TestFalse(TEXT("FManifestContext InfoMetadataObj and its Clone are not unique objects."), ContextAClone.InfoMetadataObj == ContextA.InfoMetadataObj);
-			TestFalse(TEXT("FManifestContext KeyMetadataObj and its Clone are not unique objects."), ContextAClone.KeyMetadataObj == ContextA.KeyMetadataObj);
+			TEST_FALSE(TEXT("FManifestContext InfoMetadataObj and its Clone are not unique objects."), ContextAClone.InfoMetadataObj == ContextA.InfoMetadataObj);
+			TEST_FALSE(TEXT("FManifestContext KeyMetadataObj and its Clone are not unique objects."), ContextAClone.KeyMetadataObj == ContextA.KeyMetadataObj);
 			
-			TestEqual( TEXT("ContextAClone.Key == ContextA.Key"), ContextAClone.Key, ContextA.Key );
-			TestEqual( TEXT("ContextAClone.SourceLocation == ContextA.SourceLocation"), ContextAClone.SourceLocation, ContextA.SourceLocation );
-			TestEqual( TEXT("ContextAClone.bIsOptional == ContextA.bIsOptional"), ContextAClone.bIsOptional, ContextA.bIsOptional );
-			TestTrue( TEXT("ContextAClone.InfoMetadataObj == ContextA.InfoMetadataObj"), *(ContextAClone.InfoMetadataObj) == *(ContextA.InfoMetadataObj) );
-			TestTrue( TEXT("ContextAClone.KeyMetadataObj == ContextA.KeyMetadataObj"), *(ContextAClone.KeyMetadataObj) == *(ContextA.KeyMetadataObj) );
+			TEST_EQUAL( TEXT("ContextAClone.Key == ContextA.Key"), ContextAClone.Key, ContextA.Key );
+			TEST_EQUAL( TEXT("ContextAClone.SourceLocation == ContextA.SourceLocation"), ContextAClone.SourceLocation, ContextA.SourceLocation );
+			TEST_EQUAL( TEXT("ContextAClone.bIsOptional == ContextA.bIsOptional"), ContextAClone.bIsOptional, ContextA.bIsOptional );
+			TEST_TRUE( TEXT("ContextAClone.InfoMetadataObj == ContextA.InfoMetadataObj"), *(ContextAClone.InfoMetadataObj) == *(ContextA.InfoMetadataObj) );
+			TEST_TRUE( TEXT("ContextAClone.KeyMetadataObj == ContextA.KeyMetadataObj"), *(ContextAClone.KeyMetadataObj) == *(ContextA.KeyMetadataObj) );
 
-			TestEqual( TEXT("ContextAClone == ContextA"), ContextAClone, ContextA );
-			TestFalse( TEXT("ContextAClone < ContextA"), ContextAClone < ContextA );
+			TEST_EQUAL( TEXT("ContextAClone == ContextA"), ContextAClone, ContextA );
+			TEST_FALSE( TEXT("ContextAClone < ContextA"), ContextAClone < ContextA );
 
 		}
 
@@ -83,103 +83,103 @@ TEST_CASE("Core::Internationalization::FManifestContext::Context", "[Core][Inter
 		{
 			FManifestContext ContextAClone = ContextA;
 	
-			TestFalse(TEXT("FManifestContext InfoMetadataObj and its Clone are not unique objects."), ContextAClone.InfoMetadataObj == ContextA.InfoMetadataObj);
-			TestFalse(TEXT("FManifestContext KeyMetadataObj and its Clone are not unique objects."), ContextAClone.KeyMetadataObj == ContextA.KeyMetadataObj);
+			TEST_FALSE(TEXT("FManifestContext InfoMetadataObj and its Clone are not unique objects."), ContextAClone.InfoMetadataObj == ContextA.InfoMetadataObj);
+			TEST_FALSE(TEXT("FManifestContext KeyMetadataObj and its Clone are not unique objects."), ContextAClone.KeyMetadataObj == ContextA.KeyMetadataObj);
 
-			TestEqual( TEXT("ContextAClone.Key == ContextA.Key"), ContextAClone.Key, ContextA.Key );
-			TestEqual( TEXT("ContextAClone.SourceLocation == ContextA.SourceLocation"), ContextAClone.SourceLocation, ContextA.SourceLocation );
-			TestEqual( TEXT("ContextAClone.bIsOptional == ContextA.bIsOptional"), ContextAClone.bIsOptional, ContextA.bIsOptional );
-			TestTrue( TEXT("ContextAClone.InfoMetadataObj == ContextA.InfoMetadataObj"), *(ContextAClone.InfoMetadataObj) == *(ContextA.InfoMetadataObj) );
-			TestTrue( TEXT("ContextAClone.KeyMetadataObj == ContextA.KeyMetadataObj"), *(ContextAClone.KeyMetadataObj) == *(ContextA.KeyMetadataObj) );
+			TEST_EQUAL( TEXT("ContextAClone.Key == ContextA.Key"), ContextAClone.Key, ContextA.Key );
+			TEST_EQUAL( TEXT("ContextAClone.SourceLocation == ContextA.SourceLocation"), ContextAClone.SourceLocation, ContextA.SourceLocation );
+			TEST_EQUAL( TEXT("ContextAClone.bIsOptional == ContextA.bIsOptional"), ContextAClone.bIsOptional, ContextA.bIsOptional );
+			TEST_TRUE( TEXT("ContextAClone.InfoMetadataObj == ContextA.InfoMetadataObj"), *(ContextAClone.InfoMetadataObj) == *(ContextA.InfoMetadataObj) );
+			TEST_TRUE( TEXT("ContextAClone.KeyMetadataObj == ContextA.KeyMetadataObj"), *(ContextAClone.KeyMetadataObj) == *(ContextA.KeyMetadataObj) );
 
-			TestEqual( TEXT("ContextAClone == ContextA"), ContextAClone, ContextA );
-			TestFalse( TEXT("ContextAClone < ContextA"), ContextAClone < ContextA );
+			TEST_EQUAL( TEXT("ContextAClone == ContextA"), ContextAClone, ContextA );
+			TEST_FALSE( TEXT("ContextAClone < ContextA"), ContextAClone < ContextA );
 		}
 
 		// Test comparison operator
 		{
 			// Key and KeyMetadataObj members should be the only items that are taken into account when comparing
 			FManifestContext ContextAClone = ContextA;
-			TestEqual( TEXT("ContextAClone == ContextA"), ContextAClone, ContextA );
+			TEST_EQUAL( TEXT("ContextAClone == ContextA"), ContextAClone, ContextA );
 
 			// Arbitrarily change all the non-important members
 			ContextAClone.SourceLocation = ContextA.SourceLocation + TEXT("New");
 			ContextAClone.bIsOptional = !ContextA.bIsOptional;
 			ContextAClone.InfoMetadataObj.Reset();
 			ContextAClone.InfoMetadataObj = MakeShareable( new FLocMetadataObject( *InfoMetadataB ) );
-			TestEqual( TEXT("ContextAClone == ContextA"), ContextAClone, ContextA );
+			TEST_EQUAL( TEXT("ContextAClone == ContextA"), ContextAClone, ContextA );
 
 			// Changing the key in any way will cause comparison to fail
 			ContextAClone.Key = ContextAClone.Key.GetString() + TEXT("New");
-			TestNotEqual( TEXT("ContextAClone != ContextA"), ContextAClone, ContextA );
+			TEST_NOT_EQUAL( TEXT("ContextAClone != ContextA"), ContextAClone, ContextA );
 
 			// Reset and test KeyMetadataObj change to one of the value entries
 			ContextAClone = ContextA;
 			ContextAClone.KeyMetadataObj->SetStringField( TEXT("TargetPlurality"), TEXT("Plural") );
-			TestNotEqual( TEXT("ContextAClone != ContextA"), ContextAClone, ContextA );
+			TEST_NOT_EQUAL( TEXT("ContextAClone != ContextA"), ContextAClone, ContextA );
 
 			// Reset and test addition of entry to KeyMetadataObj
 			ContextAClone = ContextA;
 			ContextAClone.KeyMetadataObj->SetStringField( TEXT("NewField"), TEXT("NewFieldValue") );
-			TestNotEqual( TEXT("ContextAClone != ContextA"), ContextAClone, ContextA );
+			TEST_NOT_EQUAL( TEXT("ContextAClone != ContextA"), ContextAClone, ContextA );
 
 			// Reset and test removal of entry from KeyMetadataObj
 			ContextAClone = ContextA;
 			ContextAClone.KeyMetadataObj->RemoveField( TEXT("TargetPlurality") );
-			TestNotEqual( TEXT("ContextAClone != ContextA"), ContextAClone, ContextA );
+			TEST_NOT_EQUAL( TEXT("ContextAClone != ContextA"), ContextAClone, ContextA );
 
 			// Context with valid but empty KeyMetadataObject should be equivalent to Context with null KeyMetadataObject
 			FManifestContext ContextEmptyA;
 			FManifestContext ContextEmptyB;
 			ContextEmptyB.KeyMetadataObj = MakeShareable( new FLocMetadataObject );
-			TestEqual( TEXT("ContextEmptyA == ContextEmptyB"), ContextEmptyA, ContextEmptyB );
+			TEST_EQUAL( TEXT("ContextEmptyA == ContextEmptyB"), ContextEmptyA, ContextEmptyB );
 		}
 
 		// Testing less than operator
 		{
-			TestTrue( TEXT("ContextA < ContextB"), ContextA < ContextB );
+			TEST_TRUE( TEXT("ContextA < ContextB"), ContextA < ContextB );
 
 			FManifestContext ContextAClone = ContextA;
 
 			// Differences in Key
-			TestFalse( TEXT("ContextA < ContextAClone"), ContextA < ContextAClone );
+			TEST_FALSE( TEXT("ContextA < ContextAClone"), ContextA < ContextAClone );
 			ContextAClone.Key = ContextAClone.Key.GetString() + TEXT("A");
-			//currently failing TestTrue( TEXT("ContextA < ContextAClone"), ContextA < ContextAClone );
+			//currently failing TEST_TRUE( TEXT("ContextA < ContextAClone"), ContextA < ContextAClone );
 
 			// Adding new key metadata entry that will appear before other entries
 			ContextAClone = ContextA;
 			ContextAClone.KeyMetadataObj->SetStringField( TEXT("ANewKey"), TEXT("ANewValue") );
-			TestTrue( TEXT("ContextAClone < ContextA"), ContextAClone < ContextA );
+			TEST_TRUE( TEXT("ContextAClone < ContextA"), ContextAClone < ContextA );
 
 			// Adding new key metadata entry that will appear after other entries
 			ContextAClone = ContextA;
 			ContextAClone.KeyMetadataObj->SetStringField( TEXT("ZNewKey"), TEXT("ZNewValue") );
-			//currently failing TestTrue( TEXT("ContextA < ContextAClone"), ContextA < ContextAClone );
+			//currently failing TEST_TRUE( TEXT("ContextA < ContextAClone"), ContextA < ContextAClone );
 
 			// Removing a key metadata entry
 			ContextAClone = ContextA;
 			ContextAClone.KeyMetadataObj->RemoveField( TEXT("TargetPlurality") ) ;
-			TestTrue( TEXT("ContextAClone < ContextA"), ContextAClone < ContextA );
+			TEST_TRUE( TEXT("ContextAClone < ContextA"), ContextAClone < ContextA );
 
 			// Changing a key metadata entry value
 			ContextAClone = ContextA;
 			ContextAClone.KeyMetadataObj->SetStringField( TEXT("TargetPlurality"), TEXT("A") ) ;
-			TestTrue( TEXT("ContextAClone < ContextA"), ContextAClone < ContextA );
+			TEST_TRUE( TEXT("ContextAClone < ContextA"), ContextAClone < ContextA );
 
 			FManifestContext ContextEmptyA;
 			FManifestContext ContextEmptyB;
-			TestFalse( TEXT("ContextEmptyA < ContextEmptyB"), ContextEmptyA < ContextEmptyB );
+			TEST_FALSE( TEXT("ContextEmptyA < ContextEmptyB"), ContextEmptyA < ContextEmptyB );
 			ContextEmptyB.KeyMetadataObj = MakeShareable( new FLocMetadataObject );
-			TestFalse( TEXT("ContextEmptyA < ContextEmptyB"), ContextEmptyA < ContextEmptyB );
-			TestFalse( TEXT("ContextEmptyB < ContextEmptyA"), ContextEmptyB < ContextEmptyA );
+			TEST_FALSE( TEXT("ContextEmptyA < ContextEmptyB"), ContextEmptyA < ContextEmptyB );
+			TEST_FALSE( TEXT("ContextEmptyB < ContextEmptyA"), ContextEmptyB < ContextEmptyA );
 			ContextEmptyB.KeyMetadataObj->SetStringField(TEXT("AMetadataKey"), TEXT("AMetadataValue"));
-			TestTrue( TEXT("ContextEmptyA < ContextEmptyB"), ContextEmptyA < ContextEmptyB );
+			TEST_TRUE( TEXT("ContextEmptyA < ContextEmptyB"), ContextEmptyA < ContextEmptyB );
 		}
 	}
 }
 
 
-TEST_CASE("Core::Internationalization::FLocItem::LocItem", "[Core][Internationalization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::FLocItem::LocItem", "[Core][Internationalization][Smoke]")
 {
 	// Key metadata
 	TSharedPtr< FLocMetadataObject > KeyMetadataA = MakeShareable( new FLocMetadataObject );
@@ -226,13 +226,13 @@ TEST_CASE("Core::Internationalization::FLocItem::LocItem", "[Core][International
 		{
 			FLocItem LocItemAClone = LocItemA;
 
-			TestFalse(TEXT("FLocItem MetadataObj and its Clone are not unique objects."), LocItemAClone.MetadataObj == LocItemA.MetadataObj);
+			TEST_FALSE(TEXT("FLocItem MetadataObj and its Clone are not unique objects."), LocItemAClone.MetadataObj == LocItemA.MetadataObj);
 
-			TestEqual( TEXT("LocItemAClone.Text == LocItemA.Text"), LocItemAClone.Text, LocItemA.Text );
-			TestTrue( TEXT("LocItemAClone.MetadataObj == LocItemA.MetadataObj"), *(LocItemAClone.MetadataObj) == *(LocItemA.MetadataObj) );
+			TEST_EQUAL( TEXT("LocItemAClone.Text == LocItemA.Text"), LocItemAClone.Text, LocItemA.Text );
+			TEST_TRUE( TEXT("LocItemAClone.MetadataObj == LocItemA.MetadataObj"), *(LocItemAClone.MetadataObj) == *(LocItemA.MetadataObj) );
 
-			TestEqual( TEXT("LocItemAClone == LocItemA"), LocItemAClone, LocItemA );
-			TestFalse( TEXT("LocItemAClone < LocItemA"), LocItemAClone < LocItemA );
+			TEST_EQUAL( TEXT("LocItemAClone == LocItemA"), LocItemAClone, LocItemA );
+			TEST_FALSE( TEXT("LocItemAClone < LocItemA"), LocItemAClone < LocItemA );
 
 		}
 
@@ -242,14 +242,14 @@ TEST_CASE("Core::Internationalization::FLocItem::LocItem", "[Core][International
 
 			LocItemAClone = LocItemA;
 
-			TestFalse(TEXT("FLocItem MetadataObj and its Clone are not unique objects."), LocItemAClone.MetadataObj == LocItemA.MetadataObj);
+			TEST_FALSE(TEXT("FLocItem MetadataObj and its Clone are not unique objects."), LocItemAClone.MetadataObj == LocItemA.MetadataObj);
 			
-			TestEqual( TEXT("LocItemAClone.Text == LocItemA.Text"), LocItemAClone.Text, LocItemA.Text );
-			TestTrue( TEXT("LocItemAClone.MetadataObj == LocItemA.MetadataObj"), *(LocItemAClone.MetadataObj) == *(LocItemA.MetadataObj) );
+			TEST_EQUAL( TEXT("LocItemAClone.Text == LocItemA.Text"), LocItemAClone.Text, LocItemA.Text );
+			TEST_TRUE( TEXT("LocItemAClone.MetadataObj == LocItemA.MetadataObj"), *(LocItemAClone.MetadataObj) == *(LocItemA.MetadataObj) );
 
-			TestEqual( TEXT("LocItemAClone == LocItemA"), LocItemAClone, LocItemA );
-			TestFalse( TEXT("LocItemAClone < LocItemA"), LocItemAClone < LocItemA );
-			TestFalse( TEXT("LocItemA < LocItemAClone"), LocItemA < LocItemAClone );
+			TEST_EQUAL( TEXT("LocItemAClone == LocItemA"), LocItemAClone, LocItemA );
+			TEST_FALSE( TEXT("LocItemAClone < LocItemA"), LocItemAClone < LocItemA );
+			TEST_FALSE( TEXT("LocItemA < LocItemAClone"), LocItemA < LocItemAClone );
 		}
 
 		// Test comparison operator
@@ -257,74 +257,74 @@ TEST_CASE("Core::Internationalization::FLocItem::LocItem", "[Core][International
 			// Text and MetadataObj members should both be taken into account when comparing.  Note, Metadata supports a special * name prefix that causes the type 
 			//   and value of the metadata to be ignored when performing comparisons
 			FLocItem LocItemAClone = LocItemA;
-			TestEqual( TEXT("LocItemAClone == LocItemA"), LocItemAClone, LocItemA );
+			TEST_EQUAL( TEXT("LocItemAClone == LocItemA"), LocItemAClone, LocItemA );
 
 			// Metadata with * prefix does not impact comparison but both FLocItems need a metadata where the name matches( type and value can be different )
 			FLocItem LocItemAClone2 = LocItemA;
 			LocItemAClone.MetadataObj->SetStringField( TEXT("*NewNonCompare"), TEXT("NewNonCompareValue") );
-			TestNotEqual( TEXT("LocItemAClone != LocItemAClone2"), LocItemAClone, LocItemAClone2 );
+			TEST_NOT_EQUAL( TEXT("LocItemAClone != LocItemAClone2"), LocItemAClone, LocItemAClone2 );
 
 			LocItemAClone2.MetadataObj->SetStringField( TEXT("*NewNonCompare"), TEXT("NewNonCompareValue2") );
-			TestEqual( TEXT("LocItemAClone == LocItemAClone2"), LocItemAClone, LocItemAClone2 );
+			TEST_EQUAL( TEXT("LocItemAClone == LocItemAClone2"), LocItemAClone, LocItemAClone2 );
 
 			// Changing the text in any way will cause comparison to fail
 			LocItemAClone = LocItemA;
 			LocItemAClone.Text = LocItemAClone.Text + TEXT("New");
-			TestNotEqual( TEXT("LocItemAClone != LocItemA"), LocItemAClone, LocItemA );
+			TEST_NOT_EQUAL( TEXT("LocItemAClone != LocItemA"), LocItemAClone, LocItemA );
 
 			// LocItem with valid but empty KeyMetadataObject should be equivalent to LocItem with null KeyMetadataObject
 			FLocItem LocItemEmptyA(TEXT("TestText"));
 			FLocItem LocItemEmptyB(TEXT("TestText"));
 			LocItemEmptyB.MetadataObj = MakeShareable( new FLocMetadataObject );
-			TestEqual( TEXT("LocItemEmptyA == LocItemEmptyB"), LocItemEmptyA, LocItemEmptyB );
+			TEST_EQUAL( TEXT("LocItemEmptyA == LocItemEmptyB"), LocItemEmptyA, LocItemEmptyB );
 		}
 
 		// Testing less than operator
 		{
-			TestTrue( TEXT("LocItemA < LocItemB"), LocItemA < LocItemB );
-			TestFalse( TEXT("LocItemB < LocItemA"), LocItemB < LocItemA );
+			TEST_TRUE( TEXT("LocItemA < LocItemB"), LocItemA < LocItemB );
+			TEST_FALSE( TEXT("LocItemB < LocItemA"), LocItemB < LocItemA );
 
 			FLocItem LocItemAClone = LocItemA;
 
 			// Differences in Text
-			TestFalse( TEXT("LocItemA < LocItemAClone"), LocItemA < LocItemAClone );
+			TEST_FALSE( TEXT("LocItemA < LocItemAClone"), LocItemA < LocItemAClone );
 			LocItemAClone.Text = LocItemAClone.Text + TEXT("A");
-			TestFalse( TEXT("LocItemAClone < LocItemA"), LocItemAClone < LocItemA );
-			//currently failing TestTrue( TEXT("LocItemA < LocItemAClone"), LocItemA < LocItemAClone );
+			TEST_FALSE( TEXT("LocItemAClone < LocItemA"), LocItemAClone < LocItemA );
+			//currently failing TEST_TRUE( TEXT("LocItemA < LocItemAClone"), LocItemA < LocItemAClone );
 
 			// Adding new key metadata entry
 			LocItemAClone = LocItemA;
 			LocItemAClone.MetadataObj->SetStringField( TEXT("ANewKey"), TEXT("ANewValue") );
-			//currently failing TestTrue( TEXT("LocItemA < LocItemAClone"), LocItemA < LocItemAClone );
-			TestFalse( TEXT("LocItemAClone < LocItemA"), LocItemAClone < LocItemA );
+			//currently failing TEST_TRUE( TEXT("LocItemA < LocItemAClone"), LocItemA < LocItemAClone );
+			TEST_FALSE( TEXT("LocItemAClone < LocItemA"), LocItemAClone < LocItemA );
 
 			// Removing a key metadata entry
 			LocItemAClone = LocItemA;
 			LocItemAClone.MetadataObj->RemoveField( TEXT("*IsMature") );
-			TestTrue( TEXT("LocItemAClone < LocItemA"), LocItemAClone < LocItemA );
-			TestFalse( TEXT("LocItemA < LocItemAClone"), LocItemA < LocItemAClone );
+			TEST_TRUE( TEXT("LocItemAClone < LocItemA"), LocItemAClone < LocItemA );
+			TEST_FALSE( TEXT("LocItemA < LocItemAClone"), LocItemA < LocItemAClone );
 
 			// Changing a key metadata entry value
 			LocItemAClone = LocItemA;
 			LocItemAClone.MetadataObj->SetBoolField( TEXT("*IsMature"),true );
-			//currently failing TestTrue( TEXT("LocItemA < LocItemAClone"), LocItemA < LocItemAClone );
-			TestFalse( TEXT("LocItemAClone < LocItemA"), LocItemAClone < LocItemA );
+			//currently failing TEST_TRUE( TEXT("LocItemA < LocItemAClone"), LocItemA < LocItemAClone );
+			TEST_FALSE( TEXT("LocItemAClone < LocItemA"), LocItemAClone < LocItemA );
 
 			// Test null and non-null but empty Metadata
 			FLocItem LocItemEmptyA( TEXT("SameText") );
 			FLocItem LocItemEmptyB( TEXT("SameText") );
-			TestFalse( TEXT("LocItemEmptyA < LocItemEmptyB"), LocItemEmptyA < LocItemEmptyB );
+			TEST_FALSE( TEXT("LocItemEmptyA < LocItemEmptyB"), LocItemEmptyA < LocItemEmptyB );
 			LocItemEmptyB.MetadataObj = MakeShareable( new FLocMetadataObject );
-			TestFalse( TEXT("LocItemEmptyA < LocItemEmptyB"), LocItemEmptyA < LocItemEmptyB );
-			TestFalse( TEXT("LocItemEmptyB < LocItemEmptyA"), LocItemEmptyB < LocItemEmptyA );
+			TEST_FALSE( TEXT("LocItemEmptyA < LocItemEmptyB"), LocItemEmptyA < LocItemEmptyB );
+			TEST_FALSE( TEXT("LocItemEmptyB < LocItemEmptyA"), LocItemEmptyB < LocItemEmptyA );
 			LocItemEmptyB.MetadataObj->SetStringField(TEXT("AMetadataKey"), TEXT("AMetadataValue"));
-			TestTrue( TEXT("LocItemEmptyA < LocItemEmptyB"), LocItemEmptyA < LocItemEmptyB );
+			TEST_TRUE( TEXT("LocItemEmptyA < LocItemEmptyB"), LocItemEmptyA < LocItemEmptyB );
 		}
 	}
 }
 
 
-TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Serialization][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Internationalization::FManifestContext::Manifest", "[Core][Serialization][Smoke]")
 {
 	// Key metadata
 	TSharedPtr< FLocMetadataObject > KeyMetadataA = MakeShareable( new FLocMetadataObject );
@@ -386,8 +386,8 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 			bool bResult = TestManifest.AddSource( TestNamespace, Source, ContextA );
 
 			// Adding a duplicate entry reports success but our entry count is not increased after the first entry is added
-			TestTrue( TEXT("AddSource result == true"), bResult);
-			TestEqual( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
+			TEST_TRUE( TEXT("AddSource result == true"), bResult);
+			TEST_EQUAL( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
 		}
 
 		// Adding entries with exactly matching Source but different Contexts
@@ -397,44 +397,44 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 			TestManifest.AddSource( TestNamespace, Source, ContextA );
 			TestManifest.AddSource( TestNamespace, Source, ContextB );
 
-			TestEqual( TEXT("ManifestCount == 2"), CountManifestEntries(TestManifest), 2 );
+			TEST_EQUAL( TEXT("ManifestCount == 2"), CountManifestEntries(TestManifest), 2 );
 
 			// Test find by context
 			TSharedPtr< FManifestEntry > FoundEntry1 = TestManifest.FindEntryByContext( TestNamespace, ContextA );
 			if( !FoundEntry1.IsValid() )
 			{
-				TestTrue(TEXT("FManifestEntry could not find entry using FindEntryByContext."), FoundEntry1.IsValid());
+				TEST_TRUE(TEXT("FManifestEntry could not find entry using FindEntryByContext."), FoundEntry1.IsValid());
 			}
 			else
 			{
-				TestTrue( TEXT("FoundEntry->Source == Source"), FoundEntry1->Source == Source );
-				TestEqual( TEXT("FoundEntry->Context.Num() == 2"), FoundEntry1->Contexts.Num(), 2);
+				TEST_TRUE( TEXT("FoundEntry->Source == Source"), FoundEntry1->Source == Source );
+				TEST_EQUAL( TEXT("FoundEntry->Context.Num() == 2"), FoundEntry1->Contexts.Num(), 2);
 			}
 
 			TSharedPtr< FManifestEntry > FoundEntry2 = TestManifest.FindEntryByContext( TestNamespace, ContextB );
 			if( !FoundEntry2.IsValid() )
 			{
-				TestTrue(TEXT("FManifestEntry could not find entry using FindEntryByContext."), FoundEntry2.IsValid());
+				TEST_TRUE(TEXT("FManifestEntry could not find entry using FindEntryByContext."), FoundEntry2.IsValid());
 			}
 			else
 			{
-				TestTrue( TEXT("FoundEntry->Source == Source"), FoundEntry2->Source == Source );
-				TestEqual( TEXT("FoundEntry->Context.Num() == 2"), FoundEntry2->Contexts.Num(), 2);
+				TEST_TRUE( TEXT("FoundEntry->Source == Source"), FoundEntry2->Source == Source );
+				TEST_EQUAL( TEXT("FoundEntry->Context.Num() == 2"), FoundEntry2->Contexts.Num(), 2);
 			}
 
 			// Test find by source
 			TSharedPtr< FManifestEntry > FoundEntry3 = TestManifest.FindEntryBySource( TestNamespace, Source );
 			if( !FoundEntry3.IsValid() )
 			{
-				TestTrue(TEXT("FManifestEntry could not find entry using FindEntryBySource."), FoundEntry3.IsValid());
+				TEST_TRUE(TEXT("FManifestEntry could not find entry using FindEntryBySource."), FoundEntry3.IsValid());
 			}
 			else
 			{
-				TestTrue( TEXT("FoundEntry->Source == Source"), FoundEntry3->Source == Source );
-				TestEqual( TEXT("FoundEntry->Context.Num() == 2"), FoundEntry3->Contexts.Num(), 2);
+				TEST_TRUE( TEXT("FoundEntry->Source == Source"), FoundEntry3->Source == Source );
+				TEST_EQUAL( TEXT("FoundEntry->Context.Num() == 2"), FoundEntry3->Contexts.Num(), 2);
 			}
 
-			TestTrue( TEXT("FoundEntry1 == FoundEntry2 == FoundEntry3"), (FoundEntry1 == FoundEntry2) && (FoundEntry1 == FoundEntry3) );
+			TEST_TRUE( TEXT("FoundEntry1 == FoundEntry2 == FoundEntry3"), (FoundEntry1 == FoundEntry2) && (FoundEntry1 == FoundEntry3) );
 
 		}
 
@@ -453,8 +453,8 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				bool bResult = TestManifest.AddSource( TestNamespace, ConflictingSourceB, ContextA );
 
 				// Adding the second entry reports failure and entry count is not increased
-				TestFalse( TEXT("AddSource result == false"), bResult);
-				TestEqual( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );	
+				TEST_FALSE( TEXT("AddSource result == false"), bResult);
+				TEST_EQUAL( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );	
 			}
 
 			// Source mismatched by standard metadata type (not * prefixed) 
@@ -471,8 +471,8 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				ManifestTypeConflict.AddSource( TestNamespace, ConflictingSourceMetadataTypeA, ContextA );
 				bool bResult = ManifestTypeConflict.AddSource( TestNamespace, ConflictingSourceMetadataTypeB, ContextA );
 
-				TestFalse( TEXT("AddSource result == false"), bResult);
-				TestEqual( TEXT("ManifestCount == 1"), CountManifestEntries(ManifestTypeConflict), 1 );
+				TEST_FALSE( TEXT("AddSource result == false"), bResult);
+				TEST_EQUAL( TEXT("ManifestCount == 1"), CountManifestEntries(ManifestTypeConflict), 1 );
 
 				// Should not find a match when searching with the second Source we tried to add
 				TSharedPtr< FManifestEntry > FoundEntry = ManifestTypeConflict.FindEntryBySource( TestNamespace, ConflictingSourceMetadataTypeB );
@@ -494,8 +494,8 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				TestManifest.AddSource( TestNamespace, ConflictingSourceMetadataValueA, ContextA );
 				bool bResult = TestManifest.AddSource( TestNamespace, ConflictingSourceMetadataValueB, ContextA );
 
-				TestFalse( TEXT("AddSource result == false"), bResult);
-				TestEqual( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
+				TEST_FALSE( TEXT("AddSource result == false"), bResult);
+				TEST_EQUAL( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
 
 				// Should not find a match when searching with the second Source we tried to add
 				TSharedPtr< FManifestEntry > FoundEntry = TestManifest.FindEntryBySource( TestNamespace, ConflictingSourceMetadataValueB );
@@ -520,8 +520,8 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				//  and should not add an entry.  The reason is that AddSource does an 'exact' match check on the metadata object
 				bool bResult = TestManifest.AddSource( TestNamespace, ConflictingSourceMetadataTypeB, ContextA );
 
-				TestFalse( TEXT("AddSource result == false"), bResult);
-				TestEqual( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
+				TEST_FALSE( TEXT("AddSource result == false"), bResult);
+				TEST_EQUAL( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
 
 				// We should be able to find the entry using either Source FLocItem
 				TSharedPtr< FManifestEntry > FoundEntry1 = TestManifest.FindEntryBySource( TestNamespace, ConflictingSourceMetadataTypeA );
@@ -550,8 +550,8 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				//  and should not add an entry.  The reason is that AddSource does an 'exact' match check on the metadata object
 				bool bResult = TestManifest.AddSource( TestNamespace, ConflictingSourceMetadataValueB, ContextA );
 
-				TestFalse( TEXT("AddSource result == false"), bResult);
-				TestEqual( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
+				TEST_FALSE( TEXT("AddSource result == false"), bResult);
+				TEST_EQUAL( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
 
 				// We should be able to find the entry using either Source FLocItem
 				TSharedPtr< FManifestEntry > FoundEntry1 = TestManifest.FindEntryBySource( TestNamespace, ConflictingSourceMetadataValueA );
@@ -576,8 +576,8 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				TestManifest.AddSource( TestNamespace, ConflictingSourceA, ContextA );
 				bool bResult = TestManifest.AddSource( TestNamespace, ConflictingSourceB, ContextB );
 
-				TestTrue( TEXT("AddSource result == true"), bResult);
-				TestEqual( TEXT("ManifestCount == 2"), CountManifestEntries(TestManifest), 2 );
+				TEST_TRUE( TEXT("AddSource result == true"), bResult);
+				TEST_EQUAL( TEXT("ManifestCount == 2"), CountManifestEntries(TestManifest), 2 );
 
 				// We should be able to find two unique entries by source
 				TSharedPtr< FManifestEntry > FoundEntry1 = TestManifest.FindEntryBySource( TestNamespace, ConflictingSourceA );
@@ -586,7 +586,7 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				TSharedPtr< FManifestEntry > FoundEntry2 = TestManifest.FindEntryBySource( TestNamespace, ConflictingSourceB );
 				TestValid( TEXT("FoundEntry2 is valid"), FoundEntry2);
 
-				TestTrue( TEXT("FoundEntry1 != FoundEntry2"), FoundEntry1 != FoundEntry2 );
+				TEST_TRUE( TEXT("FoundEntry1 != FoundEntry2"), FoundEntry1 != FoundEntry2 );
 
 				// We should be able to find two unique entries by context
 				TSharedPtr< FManifestEntry > FoundEntry3 = TestManifest.FindEntryByContext( TestNamespace, ContextA );
@@ -595,13 +595,13 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				TSharedPtr< FManifestEntry > FoundEntry4 = TestManifest.FindEntryByContext( TestNamespace, ContextB );
 				TestValid( TEXT("FoundEntry3 is valid"), FoundEntry4);
 
-				TestTrue( TEXT("FoundEntry3 != FoundEntry4"), FoundEntry3 != FoundEntry4 );
+				TEST_TRUE( TEXT("FoundEntry3 != FoundEntry4"), FoundEntry3 != FoundEntry4 );
 
 				// Found entry looked up by source A should match entry looked up by context A
-				TestTrue( TEXT("FoundEntry1 == FoundEntry3"), FoundEntry1 == FoundEntry3 );
+				TEST_TRUE( TEXT("FoundEntry1 == FoundEntry3"), FoundEntry1 == FoundEntry3 );
 
 				// Found entry looked up by source B should match entry looked up by context B
-				TestTrue( TEXT("FoundEntry2 == FoundEntry4"), FoundEntry2 == FoundEntry4 );
+				TEST_TRUE( TEXT("FoundEntry2 == FoundEntry4"), FoundEntry2 == FoundEntry4 );
 
 			}
 
@@ -619,8 +619,8 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				TestManifest.AddSource( TestNamespace, ConflictingSourceMetadataTypeA, ContextA );
 				bool bResult = TestManifest.AddSource( TestNamespace, ConflictingSourceMetadataTypeB, ContextB );
 
-				TestTrue( TEXT("AddSource result == true"), bResult);
-				TestEqual( TEXT("ManifestCount == 2"), CountManifestEntries(TestManifest), 2 );
+				TEST_TRUE( TEXT("AddSource result == true"), bResult);
+				TEST_EQUAL( TEXT("ManifestCount == 2"), CountManifestEntries(TestManifest), 2 );
 
 				// We should be able to find two unique entries by source
 				TSharedPtr< FManifestEntry > FoundEntry1 = TestManifest.FindEntryBySource( TestNamespace, ConflictingSourceMetadataTypeA );
@@ -629,7 +629,7 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				TSharedPtr< FManifestEntry > FoundEntry2 = TestManifest.FindEntryBySource( TestNamespace, ConflictingSourceMetadataTypeB );
 				TestValid( TEXT("FoundEntry2 is valid"), FoundEntry2);
 
-				TestTrue( TEXT("FoundEntry1 != FoundEntry2"), FoundEntry1 != FoundEntry2 );
+				TEST_TRUE( TEXT("FoundEntry1 != FoundEntry2"), FoundEntry1 != FoundEntry2 );
 
 				// We should be able to find two unique entries by context
 				TSharedPtr< FManifestEntry > FoundEntry3 = TestManifest.FindEntryByContext( TestNamespace, ContextA );
@@ -638,13 +638,13 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				TSharedPtr< FManifestEntry > FoundEntry4 = TestManifest.FindEntryByContext( TestNamespace, ContextB );
 				TestValid( TEXT("FoundEntry3 is valid"), FoundEntry4);
 
-				TestTrue( TEXT("FoundEntry3 != FoundEntry4"), FoundEntry3 != FoundEntry4 );
+				TEST_TRUE( TEXT("FoundEntry3 != FoundEntry4"), FoundEntry3 != FoundEntry4 );
 
 				// Found entry looked up by source A should match entry looked up by context A
-				TestTrue( TEXT("FoundEntry1 == FoundEntry3"), FoundEntry1 == FoundEntry3 );
+				TEST_TRUE( TEXT("FoundEntry1 == FoundEntry3"), FoundEntry1 == FoundEntry3 );
 
 				// Found entry looked up by source B should match entry looked up by context B
-				TestTrue( TEXT("FoundEntry2 == FoundEntry4"), FoundEntry2 == FoundEntry4 );
+				TEST_TRUE( TEXT("FoundEntry2 == FoundEntry4"), FoundEntry2 == FoundEntry4 );
 
 			}
 
@@ -662,8 +662,8 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				TestManifest.AddSource( TestNamespace, ConflictingSourceMetadataValueA, ContextA );
 				bool bResult = TestManifest.AddSource( TestNamespace, ConflictingSourceMetadataValueB, ContextB );
 
-				TestTrue( TEXT("AddSource result == true"), bResult);
-				TestEqual( TEXT("ManifestCount == 2"), CountManifestEntries(TestManifest), 2 );
+				TEST_TRUE( TEXT("AddSource result == true"), bResult);
+				TEST_EQUAL( TEXT("ManifestCount == 2"), CountManifestEntries(TestManifest), 2 );
 
 				// We should be able to find two unique entries by source
 				TSharedPtr< FManifestEntry > FoundEntry1 = TestManifest.FindEntryBySource( TestNamespace, ConflictingSourceMetadataValueA );
@@ -672,7 +672,7 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				TSharedPtr< FManifestEntry > FoundEntry2 = TestManifest.FindEntryBySource( TestNamespace, ConflictingSourceMetadataValueB );
 				TestValid( TEXT("FoundEntry2 is valid"), FoundEntry2);
 
-				TestTrue( TEXT("FoundEntry1 != FoundEntry2"), FoundEntry1 != FoundEntry2 );
+				TEST_TRUE( TEXT("FoundEntry1 != FoundEntry2"), FoundEntry1 != FoundEntry2 );
 
 				// We should be able to find two unique entries by context
 				TSharedPtr< FManifestEntry > FoundEntry3 = TestManifest.FindEntryByContext( TestNamespace, ContextA );
@@ -681,13 +681,13 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				TSharedPtr< FManifestEntry > FoundEntry4 = TestManifest.FindEntryByContext( TestNamespace, ContextB );
 				TestValid( TEXT("FoundEntry3 is valid"), FoundEntry4);
 
-				TestTrue( TEXT("FoundEntry3 != FoundEntry4"), FoundEntry3 != FoundEntry4 );
+				TEST_TRUE( TEXT("FoundEntry3 != FoundEntry4"), FoundEntry3 != FoundEntry4 );
 
 				// Found entry looked up by source A should match entry looked up by context A
-				TestTrue( TEXT("FoundEntry1 == FoundEntry3"), FoundEntry1 == FoundEntry3 );
+				TEST_TRUE( TEXT("FoundEntry1 == FoundEntry3"), FoundEntry1 == FoundEntry3 );
 
 				// Found entry looked up by source B should match entry looked up by context B
-				TestTrue( TEXT("FoundEntry2 == FoundEntry4"), FoundEntry2 == FoundEntry4 );
+				TEST_TRUE( TEXT("FoundEntry2 == FoundEntry4"), FoundEntry2 == FoundEntry4 );
 
 			}
 
@@ -708,8 +708,8 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				//  and should not add an entry.  The reason is that AddSource does an 'exact' match check on the metadata object
 				bool bResult = TestManifest.AddSource( TestNamespace, ConflictingSourceMetadataTypeB, ContextB );
 
-				TestFalse( TEXT("AddSource result == false"), bResult);
-				TestEqual( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
+				TEST_FALSE( TEXT("AddSource result == false"), bResult);
+				TEST_EQUAL( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
 
 				// We should be able to find the entry using either Source FLocItem
 				TSharedPtr< FManifestEntry > FoundEntry1 = TestManifest.FindEntryBySource( TestNamespace, ConflictingSourceMetadataTypeA );
@@ -736,8 +736,8 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 				//  and should not add an entry.  The reason is that AddSource does an 'exact' match check on the metadata object
 				bool bResult = TestManifest.AddSource( TestNamespace, ConflictingSourceMetadataValueB, ContextB );
 
-				TestFalse( TEXT("AddSource result == false"), bResult);
-				TestEqual( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
+				TEST_FALSE( TEXT("AddSource result == false"), bResult);
+				TEST_EQUAL( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
 
 				// We should be able to find the entry using either Source FLocItem
 				TSharedPtr< FManifestEntry > FoundEntry1 = TestManifest.FindEntryBySource( TestNamespace, ConflictingSourceMetadataValueA );
@@ -763,18 +763,18 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 			TestManifest.AddSource( TestNamespace, Source, ContextA );
 			bool bResult = TestManifest.AddSource( TestNamespace, Source, ContextConflictingOptionalFlag);
 
-			TestTrue( TEXT("AddSource result == true"), bResult);
-			TestEqual( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
+			TEST_TRUE( TEXT("AddSource result == true"), bResult);
+			TEST_EQUAL( TEXT("ManifestCount == 1"), CountManifestEntries(TestManifest), 1 );
 
 			// We should be able to look up the existing entry using the ContextConflictingOptionalFlag context but the entries bIsOptional flag will match ContextA
 			TSharedPtr< FManifestEntry > FoundEntry = TestManifest.FindEntryByContext( TestNamespace, ContextConflictingOptionalFlag );
 			if( !FoundEntry.IsValid() )
 			{
-				TestTrue(TEXT("FManifestEntry could not find entry using FindEntryByContext."), FoundEntry.IsValid());
+				TEST_TRUE(TEXT("FManifestEntry could not find entry using FindEntryByContext."), FoundEntry.IsValid());
 			}
 			else
 			{
-				TestTrue( TEXT("FoundEntry->bIsOptional == ContextA->bIsOptional"), FoundEntry->Contexts[0].bIsOptional == ContextA.bIsOptional );
+				TEST_TRUE( TEXT("FoundEntry->bIsOptional == ContextA->bIsOptional"), FoundEntry->Contexts[0].bIsOptional == ContextA.bIsOptional );
 			}
 		}
 
@@ -800,22 +800,22 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 			FoundEntry = TestManifest.FindEntryBySource( TestNamespace, Source );
 			if( !FoundEntry.IsValid() )
 			{
-				TestTrue(TEXT("FManifestEntry could not find entry using FindEntryBySource."), FoundEntry.IsValid());
+				TEST_TRUE(TEXT("FManifestEntry could not find entry using FindEntryBySource."), FoundEntry.IsValid());
 			}
 			else
 			{
-				TestTrue( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == Source );
+				TEST_TRUE( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == Source );
 			}
 
 			// Ensure we find the entry we added by context
 			FoundEntry = TestManifest.FindEntryByContext( TestNamespace, ContextC );
 			if( !FoundEntry.IsValid() )
 			{
-				TestTrue(TEXT("FManifestEntry could not find entry using FindEntryByContext."), FoundEntry.IsValid());
+				TEST_TRUE(TEXT("FManifestEntry could not find entry using FindEntryByContext."), FoundEntry.IsValid());
 			}
 			else
 			{
-				TestTrue( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == Source );
+				TEST_TRUE( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == Source );
 			}
 		}
 
@@ -841,22 +841,22 @@ TEST_CASE("Core::Internationalization::FManifestContext::Manifest", "[Core][Seri
 			FoundEntry = TestManifest.FindEntryBySource( TestNamespace, Source );
 			if( !FoundEntry.IsValid() )
 			{
-				TestTrue(TEXT("FManifestEntry could not find entry using FindEntryBySource."), FoundEntry.IsValid());
+				TEST_TRUE(TEXT("FManifestEntry could not find entry using FindEntryBySource."), FoundEntry.IsValid());
 			}
 			else
 			{
-				TestTrue( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == Source );
+				TEST_TRUE( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == Source );
 			}
 
 			// Ensure we find the entry we added by context
 			FoundEntry = TestManifest.FindEntryByContext( TestNamespace, ContextC );
 			if( !FoundEntry.IsValid() )
 			{
-				TestTrue(TEXT("FManifestEntry could not find entry using FindEntryByContext."), FoundEntry.IsValid());
+				TEST_TRUE(TEXT("FManifestEntry could not find entry using FindEntryByContext."), FoundEntry.IsValid());
 			}
 			else
 			{
-				TestTrue( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == Source );
+				TEST_TRUE( TEXT("FoundEntry->Source == Source"), FoundEntry->Source == Source );
 			}
 		}
 	}

@@ -9,10 +9,8 @@
 #include "Containers/MpscQueue.h"
 #include "Containers/ClosableMpscQueue.h"
 #include "Containers/DepletableMpscQueue.h"
-#include "Tests/Benchmark.h"
-#include "TestHarness.h"
-
-#include "TestCommon/CoreUtilities.h"
+#include "Core/Tests/Benchmark.h"
+#include "TestFixtures/CoreTestFixture.h"
 
 #include <atomic>
 
@@ -245,7 +243,7 @@ namespace UE { namespace ConcurrentQueuesTests
 		CHECK(Produced == NumConcumed);
 	}
 
-	TEST_CASE("Core::Containers::TMpscQueue::ConcurrentQueuesTest", "[Core][Containers][Smoke]")
+	TEST_CASE_METHOD(FAutomationTestFixture, "Core::Containers::TMpscQueue::ConcurrentQueuesTest", "[Core][Containers][Smoke]")
 	{
 		{	// test for support of not default constructible types
 			struct FNonDefaultConstructable
@@ -403,10 +401,8 @@ namespace UE { namespace ConcurrentQueuesTests
 		}
 	}
 
-	TEST_CASE("Core::Containers::TMpscQueue::ConcurrentQueuesPerfTest", "[Core][Containers][Perf]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Containers::TMpscQueue::ConcurrentQueuesPerfTest", "[.][Core][Containers][.Perf]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		UE_BENCHMARK(5, TestTCircularQueueSingleThread<5'000'000>);
 		UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Spsc>>>);
 		UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Mpsc>>>);
@@ -427,8 +423,6 @@ namespace UE { namespace ConcurrentQueuesTests
 
 		UE_BENCHMARK(5, TestMpscQueue<1'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Mpsc>>>);
 		UE_BENCHMARK(5, TestMpscQueue<1'000'000, TMpscQueue<uint32>>);
-
-		CleanupTaskGraphAndDependencies();
 	}
 }
 
@@ -673,7 +667,7 @@ namespace ClosableMpscQueueTests
 		UE_LOG(LogTemp, Display, TEXT("items queued %d"), NumProduced);
 	}
 
-	TEST_CASE("Core::Containers::TClosableMpscQueue::ClosableMpscQueueTest", "[Core][Containers][Smoke]")
+	TEST_CASE_METHOD(FAutomationTestFixture, "Core::Containers::TClosableMpscQueue::ClosableMpscQueueTest", "[Core][Containers][Smoke]")
 	{
 		{
 			TClosableMpscQueue<int> Q;
@@ -727,10 +721,8 @@ namespace ClosableMpscQueueTests
 		}
 	}
 
-	TEST_CASE("Core::Containers::TClosableMpscQueue::ClosableMpscQueuePerfTest", "[Core][Containers][Perf]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Containers::TClosableMpscQueue::ClosableMpscQueuePerfTest", "[.][Core][Containers][.Perf]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		UE_BENCHMARK(5, TestClosingEmptyQueue<10'000'000, TClosableMpscQueue<void*>>);
 		UE_BENCHMARK(5, TestClosingEmptyQueue<10'000'000, TClosableMpscQueueOnTQueue<void*>>);
 		UE_BENCHMARK(5, TestClosingEmptyQueue<10'000'000, TClosableMpscQueueOnTMpscQueue<void*>>);
@@ -745,8 +737,6 @@ namespace ClosableMpscQueueTests
 		UE_BENCHMARK(5, TestPerf<5'000'000, TClosableMpscQueueOnTQueue<void*>>);
 		UE_BENCHMARK(5, TestPerf<5'000'000, TClosableMpscQueueOnTMpscQueue<void*>>);
 		UE_BENCHMARK(5, TestPerf<5'000'000, TClosableLockFreePointerListUnorderedSingleConsumer_Adapter<void>>);
-
-		CleanupTaskGraphAndDependencies();
 	}
 }
 
@@ -1003,7 +993,7 @@ namespace DepletableMpscQueueTests
 		Queue.Deplete([](void*) { checkNoEntry(); }); // empty
 	}
 
-	TEST_CASE("Core::Containers::TDepletableMpscQueue::DepletableMpscQueueTest", "[Core][Containers][Smoke][PlatformFlaky]")
+	TEST_CASE_METHOD(FAutomationTestFixture, "Core::Containers::TDepletableMpscQueue::DepletableMpscQueueTest", "[Core][Containers][Smoke]")
 	{
 		{
 			TDepletableMpscQueue<int> Q;
@@ -1083,10 +1073,8 @@ namespace DepletableMpscQueueTests
 		}
 	}
 
-	TEST_CASE("Core::Containers::TDepletableMpscQueue::DepletableMpscQueuePerfTest", "[Core][Containers][Perf][PlatformFlaky]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Containers::TDepletableMpscQueue::DepletableMpscQueuePerfTest", "[.][Core][Containers][.Perf]")
 	{
-		InitTaskGraphAndDependencies(true);
-
 		UE_BENCHMARK(5, TestPerf<10'000, TDepletableMpscQueue<void*>>);
 		UE_BENCHMARK(5, TestPerf<10'000, TDepletableMpscQueueOnTQueue<void*>>);
 		UE_BENCHMARK(5, TestPerf<10'000, TDepletableMpscQueueOnTMpscQueue<void*>>);
@@ -1098,7 +1086,5 @@ namespace DepletableMpscQueueTests
 		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TDepletableMpscQueueOnTMpscQueue<void*>>);
 		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TDepletableMpscQueueOnTClosableLockFreePointerListUnorderedSingleConsumer<void>>);
 		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TDepletableMpscQueueOnTClosableMpscQueue<void*>>);
-
-		CleanupTaskGraphAndDependencies();
 	}
 }}

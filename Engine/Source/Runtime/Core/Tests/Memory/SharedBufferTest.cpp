@@ -119,25 +119,25 @@ static_assert(std::is_same<uint32, decltype(GetTypeHash(DeclVal<const FWeakShare
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEST_CASE("Core::Memory::FUniqueBuffer::UniqueBuffer", "[Core][Memory][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Memory::FUniqueBuffer::UniqueBuffer", "[Core][Memory][Smoke]")
 {
 	// Test Null
 	{
 		FUniqueBuffer Buffer;
-		TestTrue(TEXT("FUniqueBuffer().IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FUniqueBuffer().GetSize()"), Buffer.GetSize(), uint64(0));
-		TestEqual(TEXT("FUniqueBuffer().GetView().GetSize()"), Buffer.GetView().GetSize(), uint64(0));
-		TestEqual(TEXT("FUniqueBuffer().GetView().GetData()"), Buffer.GetView().GetData(), Buffer.GetData());
+		TEST_TRUE(TEXT("FUniqueBuffer().IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FUniqueBuffer().GetSize()"), Buffer.GetSize(), uint64(0));
+		TEST_EQUAL(TEXT("FUniqueBuffer().GetView().GetSize()"), Buffer.GetView().GetSize(), uint64(0));
+		TEST_EQUAL(TEXT("FUniqueBuffer().GetView().GetData()"), Buffer.GetView().GetData(), Buffer.GetData());
 	}
 
 	// Test Alloc
 	{
 		constexpr uint64 Size = 64;
 		FUniqueBuffer Buffer = FUniqueBuffer::Alloc(Size);
-		TestTrue(TEXT("FUniqueBuffer::Alloc().IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FUniqueBuffer::Alloc().GetSize()"), Buffer.GetSize(), Size);
-		TestEqual(TEXT("FUniqueBuffer::Alloc().GetView().GetSize()"), Buffer.GetView().GetSize(), Size);
-		TestEqual(TEXT("FUniqueBuffer::Alloc().GetView().GetData()"), Buffer.GetView().GetData(), Buffer.GetData());
+		TEST_TRUE(TEXT("FUniqueBuffer::Alloc().IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FUniqueBuffer::Alloc().GetSize()"), Buffer.GetSize(), Size);
+		TEST_EQUAL(TEXT("FUniqueBuffer::Alloc().GetView().GetSize()"), Buffer.GetView().GetSize(), Size);
+		TEST_EQUAL(TEXT("FUniqueBuffer::Alloc().GetView().GetData()"), Buffer.GetView().GetData(), Buffer.GetData());
 	}
 
 	// Test Clone
@@ -145,9 +145,9 @@ TEST_CASE("Core::Memory::FUniqueBuffer::UniqueBuffer", "[Core][Memory][Smoke]")
 		constexpr uint64 Size = 64;
 		const uint8 Data[Size]{};
 		FUniqueBuffer Buffer = FUniqueBuffer::Clone(Data, Size);
-		TestTrue(TEXT("FUniqueBuffer::Clone().IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FUniqueBuffer::Clone().GetSize()"), Buffer.GetSize(), Size);
-		TestNotEqual(TEXT("FUniqueBuffer::Clone().GetData()"), static_cast<const void*>(Buffer.GetData()), static_cast<const void*>(Data));
+		TEST_TRUE(TEXT("FUniqueBuffer::Clone().IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FUniqueBuffer::Clone().GetSize()"), Buffer.GetSize(), Size);
+		TEST_NOT_EQUAL(TEXT("FUniqueBuffer::Clone().GetData()"), static_cast<const void*>(Buffer.GetData()), static_cast<const void*>(Data));
 	}
 
 	// Test MakeView
@@ -155,9 +155,9 @@ TEST_CASE("Core::Memory::FUniqueBuffer::UniqueBuffer", "[Core][Memory][Smoke]")
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
 		FUniqueBuffer Buffer = FUniqueBuffer::MakeView(Data, Size);
-		TestFalse(TEXT("FUniqueBuffer::MakeView().IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FUniqueBuffer::MakeView().GetSize()"), Buffer.GetSize(), Size);
-		TestEqual(TEXT("FUniqueBuffer::MakeView().GetData()"), Buffer.GetData(), static_cast<void*>(Data));
+		TEST_FALSE(TEXT("FUniqueBuffer::MakeView().IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FUniqueBuffer::MakeView().GetSize()"), Buffer.GetSize(), Size);
+		TEST_EQUAL(TEXT("FUniqueBuffer::MakeView().GetData()"), Buffer.GetData(), static_cast<void*>(Data));
 	}
 
 	// Test TakeOwnership
@@ -166,11 +166,11 @@ TEST_CASE("Core::Memory::FUniqueBuffer::UniqueBuffer", "[Core][Memory][Smoke]")
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
 		FUniqueBuffer Buffer = FUniqueBuffer::TakeOwnership(Data, Size, [&bDeleted](void*, uint64) { bDeleted = true; });
-		TestTrue(TEXT("FUniqueBuffer::TakeOwnership().IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FUniqueBuffer::TakeOwnership().GetSize()"), Buffer.GetSize(), Size);
-		TestEqual(TEXT("FUniqueBuffer::TakeOwnership().GetData()"), Buffer.GetData(), static_cast<void*>(Data));
+		TEST_TRUE(TEXT("FUniqueBuffer::TakeOwnership().IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FUniqueBuffer::TakeOwnership().GetSize()"), Buffer.GetSize(), Size);
+		TEST_EQUAL(TEXT("FUniqueBuffer::TakeOwnership().GetData()"), Buffer.GetData(), static_cast<void*>(Data));
 		Buffer.Reset();
-		TestTrue(TEXT("FUniqueBuffer::TakeOwnership() Deleted"), bDeleted);
+		TEST_TRUE(TEXT("FUniqueBuffer::TakeOwnership() Deleted"), bDeleted);
 	}
 
 	// Test MakeOwned
@@ -178,27 +178,27 @@ TEST_CASE("Core::Memory::FUniqueBuffer::UniqueBuffer", "[Core][Memory][Smoke]")
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
 		FUniqueBuffer Buffer = FUniqueBuffer::MakeView(Data, Size).MakeOwned();
-		TestTrue(TEXT("FUniqueBuffer::MakeOwned(View).IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FUniqueBuffer::MakeOwned(View).GetSize()"), Buffer.GetSize(), Size);
-		TestFalse(TEXT("FUniqueBuffer::MakeOwned(View).GetData()"), Buffer.GetData() == Data);
+		TEST_TRUE(TEXT("FUniqueBuffer::MakeOwned(View).IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FUniqueBuffer::MakeOwned(View).GetSize()"), Buffer.GetSize(), Size);
+		TEST_FALSE(TEXT("FUniqueBuffer::MakeOwned(View).GetData()"), Buffer.GetData() == Data);
 		void* const OwnedData = Buffer.GetData();
 		Buffer = MoveTemp(Buffer).MakeOwned();
-		TestTrue(TEXT("FUniqueBuffer::MakeOwned(Owned).IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FUniqueBuffer::MakeOwned(Owned).GetSize()"), Buffer.GetSize(), Size);
-		TestEqual(TEXT("FUniqueBuffer::MakeOwned(Owned).GetData()"), Buffer.GetData(), OwnedData);
+		TEST_TRUE(TEXT("FUniqueBuffer::MakeOwned(Owned).IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FUniqueBuffer::MakeOwned(Owned).GetSize()"), Buffer.GetSize(), Size);
+		TEST_EQUAL(TEXT("FUniqueBuffer::MakeOwned(Owned).GetData()"), Buffer.GetData(), OwnedData);
 	}
 }
 
 
-TEST_CASE("Core::Memory::FSharedBuffer::SharedBuffer", "[Core][Memory][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Memory::FSharedBuffer::SharedBuffer", "[Core][Memory][Smoke]")
 {
 	// Test Null
 	{
 		FSharedBuffer Buffer;
-		TestTrue(TEXT("FSharedBuffer().IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FSharedBuffer().GetSize()"), Buffer.GetSize(), uint64(0));
-		TestEqual(TEXT("FSharedBuffer().GetView().GetSize()"), Buffer.GetView().GetSize(), uint64(0));
-		TestEqual(TEXT("FSharedBuffer().GetView().GetData()"), Buffer.GetView().GetData(), Buffer.GetData());
+		TEST_TRUE(TEXT("FSharedBuffer().IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer().GetSize()"), Buffer.GetSize(), uint64(0));
+		TEST_EQUAL(TEXT("FSharedBuffer().GetView().GetSize()"), Buffer.GetView().GetSize(), uint64(0));
+		TEST_EQUAL(TEXT("FSharedBuffer().GetView().GetData()"), Buffer.GetView().GetData(), Buffer.GetData());
 	}
 
 	// Test Clone
@@ -206,9 +206,9 @@ TEST_CASE("Core::Memory::FSharedBuffer::SharedBuffer", "[Core][Memory][Smoke]")
 		constexpr uint64 Size = 64;
 		const uint8 Data[Size]{};
 		FSharedBuffer Buffer = FSharedBuffer::Clone(Data, Size);
-		TestTrue(TEXT("FSharedBuffer::Clone().IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FSharedBuffer::Clone().GetSize()"), Buffer.GetSize(), Size);
-		TestNotEqual(TEXT("FSharedBuffer::Clone().GetData()"), Buffer.GetData(), static_cast<const void*>(Data));
+		TEST_TRUE(TEXT("FSharedBuffer::Clone().IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer::Clone().GetSize()"), Buffer.GetSize(), Size);
+		TEST_NOT_EQUAL(TEXT("FSharedBuffer::Clone().GetData()"), Buffer.GetData(), static_cast<const void*>(Data));
 	}
 
 	// Test MakeView
@@ -216,9 +216,9 @@ TEST_CASE("Core::Memory::FSharedBuffer::SharedBuffer", "[Core][Memory][Smoke]")
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
 		FSharedBuffer Buffer = FSharedBuffer::MakeView(Data, Size);
-		TestFalse(TEXT("FSharedBuffer::MakeView().IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FSharedBuffer::MakeView().GetSize()"), Buffer.GetSize(), Size);
-		TestEqual(TEXT("FSharedBuffer::MakeView().GetData()"), Buffer.GetData(), static_cast<const void*>(Data));
+		TEST_FALSE(TEXT("FSharedBuffer::MakeView().IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer::MakeView().GetSize()"), Buffer.GetSize(), Size);
+		TEST_EQUAL(TEXT("FSharedBuffer::MakeView().GetData()"), Buffer.GetData(), static_cast<const void*>(Data));
 	}
 
 	// Test MakeView Outer View
@@ -233,12 +233,12 @@ TEST_CASE("Core::Memory::FSharedBuffer::SharedBuffer", "[Core][Memory][Smoke]")
 				Buffer = FSharedBuffer::MakeView(OuterBuffer.GetData(), OuterBuffer.GetSize() / 2, OuterBuffer);
 				WeakBuffer = OuterBuffer;
 			}
-			TestFalse(TEXT("FSharedBuffer::MakeView(OuterView).IsOwned()"), Buffer.IsOwned());
-			TestEqual(TEXT("FSharedBuffer::MakeView(OuterView).GetSize()"), Buffer.GetSize(), Size / 2);
-			TestEqual(TEXT("FSharedBuffer::MakeView(OuterView).GetData()"), Buffer.GetData(), static_cast<const void*>(Data));
-			TestFalse(TEXT("FSharedBuffer::MakeView(OuterView) Outer Not Null"), WeakBuffer.Pin().IsNull());
+			TEST_FALSE(TEXT("FSharedBuffer::MakeView(OuterView).IsOwned()"), Buffer.IsOwned());
+			TEST_EQUAL(TEXT("FSharedBuffer::MakeView(OuterView).GetSize()"), Buffer.GetSize(), Size / 2);
+			TEST_EQUAL(TEXT("FSharedBuffer::MakeView(OuterView).GetData()"), Buffer.GetData(), static_cast<const void*>(Data));
+			TEST_FALSE(TEXT("FSharedBuffer::MakeView(OuterView) Outer Not Null"), WeakBuffer.Pin().IsNull());
 		}
-		TestTrue(TEXT("FSharedBuffer::MakeView(OuterView) Outer Null"), WeakBuffer.Pin().IsNull());
+		TEST_TRUE(TEXT("FSharedBuffer::MakeView(OuterView) Outer Null"), WeakBuffer.Pin().IsNull());
 	}
 
 	// Test MakeView Outer Owned
@@ -250,16 +250,16 @@ TEST_CASE("Core::Memory::FSharedBuffer::SharedBuffer", "[Core][Memory][Smoke]")
 			{
 				FSharedBuffer OuterBuffer = FUniqueBuffer::Alloc(Size).MoveToShared();
 				Buffer = FSharedBuffer::MakeView(OuterBuffer.GetData(), OuterBuffer.GetSize(), OuterBuffer);
-				TestEqual(TEXT("FSharedBuffer::MakeView(OuterOwned, SameView)"), Buffer, OuterBuffer);
+				TEST_EQUAL(TEXT("FSharedBuffer::MakeView(OuterOwned, SameView)"), Buffer, OuterBuffer);
 				Buffer = FSharedBuffer::MakeView(OuterBuffer.GetData(), OuterBuffer.GetSize() / 2, OuterBuffer);
 				WeakBuffer = OuterBuffer;
 			}
-			TestTrue(TEXT("FSharedBuffer::MakeView(OuterOwned).IsOwned()"), Buffer.IsOwned());
-			TestEqual(TEXT("FSharedBuffer::MakeView(OuterOwned).GetSize()"), Buffer.GetSize(), Size / 2);
-			TestEqual(TEXT("FSharedBuffer::MakeView(OuterOwned).GetData()"), Buffer.GetData(), WeakBuffer.Pin().GetData());
-			TestFalse(TEXT("FSharedBuffer::MakeView(OuterOwned) Outer Not Null"), WeakBuffer.Pin().IsNull());
+			TEST_TRUE(TEXT("FSharedBuffer::MakeView(OuterOwned).IsOwned()"), Buffer.IsOwned());
+			TEST_EQUAL(TEXT("FSharedBuffer::MakeView(OuterOwned).GetSize()"), Buffer.GetSize(), Size / 2);
+			TEST_EQUAL(TEXT("FSharedBuffer::MakeView(OuterOwned).GetData()"), Buffer.GetData(), WeakBuffer.Pin().GetData());
+			TEST_FALSE(TEXT("FSharedBuffer::MakeView(OuterOwned) Outer Not Null"), WeakBuffer.Pin().IsNull());
 		}
-		TestTrue(TEXT("FSharedBuffer::MakeView(OuterOwned) Outer  Null"), WeakBuffer.Pin().IsNull());
+		TEST_TRUE(TEXT("FSharedBuffer::MakeView(OuterOwned) Outer  Null"), WeakBuffer.Pin().IsNull());
 	}
 
 	// Test TakeOwnership
@@ -268,11 +268,11 @@ TEST_CASE("Core::Memory::FSharedBuffer::SharedBuffer", "[Core][Memory][Smoke]")
 		constexpr uint64 Size = 64;
 		const void* Data = new uint8[Size];
 		FSharedBuffer Buffer = FSharedBuffer::TakeOwnership(Data, Size, [&bDeleted](void*, uint64) { bDeleted = true; });
-		TestTrue(TEXT("FSharedBuffer::TakeOwnership().IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FSharedBuffer::TakeOwnership().GetSize()"), Buffer.GetSize(), Size);
-		TestEqual(TEXT("FSharedBuffer::TakeOwnership().GetData()"), Buffer.GetData(), Data);
+		TEST_TRUE(TEXT("FSharedBuffer::TakeOwnership().IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer::TakeOwnership().GetSize()"), Buffer.GetSize(), Size);
+		TEST_EQUAL(TEXT("FSharedBuffer::TakeOwnership().GetData()"), Buffer.GetData(), Data);
 		Buffer.Reset();
-		TestTrue(TEXT("FSharedBuffer::TakeOwnership() Deleted"), bDeleted);
+		TEST_TRUE(TEXT("FSharedBuffer::TakeOwnership() Deleted"), bDeleted);
 	}
 
 	// Test MakeOwned
@@ -280,28 +280,28 @@ TEST_CASE("Core::Memory::FSharedBuffer::SharedBuffer", "[Core][Memory][Smoke]")
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
 		FSharedBuffer Buffer = FSharedBuffer::MakeView(Data, Size).MakeOwned();
-		TestTrue(TEXT("FSharedBuffer::MakeOwned(View).IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FSharedBuffer::MakeOwned(View).GetSize()"), Buffer.GetSize(), Size);
-		TestFalse(TEXT("FSharedBuffer::MakeOwned(View).GetData()"), Buffer.GetData() == Data);
+		TEST_TRUE(TEXT("FSharedBuffer::MakeOwned(View).IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer::MakeOwned(View).GetSize()"), Buffer.GetSize(), Size);
+		TEST_FALSE(TEXT("FSharedBuffer::MakeOwned(View).GetData()"), Buffer.GetData() == Data);
 		FSharedBuffer BufferCopy = Buffer.MakeOwned();
-		TestTrue(TEXT("FSharedBuffer::MakeOwned(Owned).IsOwned()"), BufferCopy.IsOwned());
-		TestEqual(TEXT("FSharedBuffer::MakeOwned(Owned).GetSize()"), BufferCopy.GetSize(), Size);
-		TestEqual(TEXT("FSharedBuffer::MakeOwned(Owned).GetData()"), BufferCopy.GetData(), Buffer.GetData());
+		TEST_TRUE(TEXT("FSharedBuffer::MakeOwned(Owned).IsOwned()"), BufferCopy.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer::MakeOwned(Owned).GetSize()"), BufferCopy.GetSize(), Size);
+		TEST_EQUAL(TEXT("FSharedBuffer::MakeOwned(Owned).GetData()"), BufferCopy.GetData(), Buffer.GetData());
 	}
 
 	// Test MoveToUnique
 	{
 		FUniqueBuffer Buffer = FSharedBuffer().MoveToUnique();
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(Null).IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FSharedBuffer::MoveToUnique(Null).GetSize()"), Buffer.GetSize(), uint64(0));
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(Null).IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer::MoveToUnique(Null).GetSize()"), Buffer.GetSize(), uint64(0));
 	}
 	{
 		FSharedBuffer Shared = FSharedBuffer::Clone(MakeMemoryView<uint8>({1, 2, 3, 4}));
 		FUniqueBuffer Buffer = FSharedBuffer(Shared).MoveToUnique();
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(Shared).IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FSharedBuffer::MoveToUnique(Shared).GetSize()"), Buffer.GetSize(), Shared.GetSize());
-		TestNotEqual(TEXT("FSharedBuffer::MoveToUnique(Shared).GetData()"), const_cast<const void*>(Buffer.GetData()), Shared.GetData());
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(Shared)->Equal"), Buffer.GetView().EqualBytes(Shared.GetView()));
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(Shared).IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer::MoveToUnique(Shared).GetSize()"), Buffer.GetSize(), Shared.GetSize());
+		TEST_NOT_EQUAL(TEXT("FSharedBuffer::MoveToUnique(Shared).GetData()"), const_cast<const void*>(Buffer.GetData()), Shared.GetData());
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(Shared)->Equal"), Buffer.GetView().EqualBytes(Shared.GetView()));
 	}
 	{
 		bool bDeleted = false;
@@ -309,57 +309,57 @@ TEST_CASE("Core::Memory::FSharedBuffer::SharedBuffer", "[Core][Memory][Smoke]")
 		uint8 Data[Size]{};
 		FSharedBuffer Shared = FUniqueBuffer::TakeOwnership(Data, Size, [&bDeleted](void*) { bDeleted = true; }).MoveToShared();
 		FUniqueBuffer Buffer = Shared.MoveToUnique();
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(Owned).IsNull()"), Shared.IsNull());
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(Owned).IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FSharedBuffer::MoveToUnique(Owned).GetSize()"), Buffer.GetSize(), Size);
-		TestEqual(TEXT("FSharedBuffer::MoveToUnique(Owned).GetData()"), Buffer.GetData(), static_cast<void*>(Data));
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(Owned).IsNull()"), Shared.IsNull());
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(Owned).IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer::MoveToUnique(Owned).GetSize()"), Buffer.GetSize(), Size);
+		TEST_EQUAL(TEXT("FSharedBuffer::MoveToUnique(Owned).GetData()"), Buffer.GetData(), static_cast<void*>(Data));
 		Buffer.Reset();
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(Owned) Deleted"), bDeleted);
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(Owned) Deleted"), bDeleted);
 	}
 	{
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
 		FSharedBuffer Shared = FSharedBuffer::TakeOwnership(Data, Size, [](void*){});
 		FUniqueBuffer Buffer = Shared.MoveToUnique();
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(ImmutableOwned).IsNull()"), Shared.IsNull());
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(ImmutableOwned).IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FSharedBuffer::MoveToUnique(ImmutableOwned).GetSize()"), Buffer.GetSize(), Size);
-		TestNotEqual(TEXT("FSharedBuffer::MoveToUnique(ImmutableOwned).GetData()"), Buffer.GetData(), static_cast<void*>(Data));
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(ImmutableOwned).IsNull()"), Shared.IsNull());
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(ImmutableOwned).IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer::MoveToUnique(ImmutableOwned).GetSize()"), Buffer.GetSize(), Size);
+		TEST_NOT_EQUAL(TEXT("FSharedBuffer::MoveToUnique(ImmutableOwned).GetData()"), Buffer.GetData(), static_cast<void*>(Data));
 	}
 	{
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
 		FSharedBuffer Shared = FUniqueBuffer::MakeView(MakeMemoryView(Data)).MoveToShared();
 		FUniqueBuffer Buffer = Shared.MoveToUnique();
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(View).IsNull()"), Shared.IsNull());
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(View).IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FSharedBuffer::MoveToUnique(View).GetSize()"), Buffer.GetSize(), Size);
-		TestNotEqual(TEXT("FSharedBuffer::MoveToUnique(View).GetData()"), Buffer.GetData(), static_cast<void*>(Data));
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(View).IsNull()"), Shared.IsNull());
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(View).IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer::MoveToUnique(View).GetSize()"), Buffer.GetSize(), Size);
+		TEST_NOT_EQUAL(TEXT("FSharedBuffer::MoveToUnique(View).GetData()"), Buffer.GetData(), static_cast<void*>(Data));
 	}
 	{
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
 		FSharedBuffer Shared = FSharedBuffer::MakeView(MakeMemoryView(Data));
 		FUniqueBuffer Buffer = Shared.MoveToUnique();
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(ImmutableView).IsNull()"), Shared.IsNull());
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(ImmutableView).IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FSharedBuffer::MoveToUnique(ImmutableView).GetSize()"), Buffer.GetSize(), Size);
-		TestNotEqual(TEXT("FSharedBuffer::MoveToUnique(ImmutableView).GetData()"), Buffer.GetData(), static_cast<void*>(Data));
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(ImmutableView).IsNull()"), Shared.IsNull());
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(ImmutableView).IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer::MoveToUnique(ImmutableView).GetSize()"), Buffer.GetSize(), Size);
+		TEST_NOT_EQUAL(TEXT("FSharedBuffer::MoveToUnique(ImmutableView).GetData()"), Buffer.GetData(), static_cast<void*>(Data));
 	}
 	{
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
 		FSharedBuffer Shared = FUniqueBuffer::TakeOwnership(Data, Size, [](void*){}).MoveToShared();
 		FUniqueBuffer Buffer = FSharedBuffer::MakeView(Shared.GetView().Left(Size / 2), Shared).MoveToUnique();
-		TestFalse(TEXT("FSharedBuffer::MoveToUnique(OwnedView).IsNull()"), Shared.IsNull());
-		TestTrue(TEXT("FSharedBuffer::MoveToUnique(OwnedView).IsOwned()"), Buffer.IsOwned());
-		TestEqual(TEXT("FSharedBuffer::MoveToUnique(OwnedView).GetSize()"), Buffer.GetSize(), Size / 2);
-		TestNotEqual(TEXT("FSharedBuffer::MoveToUnique(OwnedView).GetData()"), Buffer.GetData(), static_cast<void*>(Data));
+		TEST_FALSE(TEXT("FSharedBuffer::MoveToUnique(OwnedView).IsNull()"), Shared.IsNull());
+		TEST_TRUE(TEXT("FSharedBuffer::MoveToUnique(OwnedView).IsOwned()"), Buffer.IsOwned());
+		TEST_EQUAL(TEXT("FSharedBuffer::MoveToUnique(OwnedView).GetSize()"), Buffer.GetSize(), Size / 2);
+		TEST_NOT_EQUAL(TEXT("FSharedBuffer::MoveToUnique(OwnedView).GetData()"), Buffer.GetData(), static_cast<void*>(Data));
 	}
 }
 
 
-TEST_CASE("Core::Memory::FTestBufferOwner::BufferOwner", "[Core][Memory][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Memory::FTestBufferOwner::BufferOwner", "[Core][Memory][Smoke]")
 {
 	class FTestBufferOwner final : public FBufferOwner
 	{
@@ -399,50 +399,50 @@ TEST_CASE("Core::Memory::FTestBufferOwner::BufferOwner", "[Core][Memory][Smoke]"
 	bool bDeleted = false;
 
 	FSharedBuffer Buffer(new FTestBufferOwner(bMaterialized, bFreed, bDeleted));
-	TestFalse(TEXT("FSharedBuffer(BufferOwner)->!Materialized"), bMaterialized);
-	TestFalse(TEXT("FSharedBuffer(BufferOwner)->!Freed"), bFreed);
-	TestFalse(TEXT("FSharedBuffer(BufferOwner)->!Deleted"), bDeleted);
+	TEST_FALSE(TEXT("FSharedBuffer(BufferOwner)->!Materialized"), bMaterialized);
+	TEST_FALSE(TEXT("FSharedBuffer(BufferOwner)->!Freed"), bFreed);
+	TEST_FALSE(TEXT("FSharedBuffer(BufferOwner)->!Deleted"), bDeleted);
 
 	(void)Buffer.GetData();
-	TestTrue(TEXT("FSharedBuffer(BufferOwner)->GetData()->Materialized"), bMaterialized);
+	TEST_TRUE(TEXT("FSharedBuffer(BufferOwner)->GetData()->Materialized"), bMaterialized);
 	bMaterialized = false;
 	(void)Buffer.GetData();
-	TestFalse(TEXT("FSharedBuffer(BufferOwner)->GetData()->!Materialized"), bMaterialized);
+	TEST_FALSE(TEXT("FSharedBuffer(BufferOwner)->GetData()->!Materialized"), bMaterialized);
 	bMaterialized = false;
 
 	Buffer = FSharedBuffer(new FTestBufferOwner(bMaterialized, bFreed, bDeleted));
-	TestFalse(TEXT("FSharedBuffer(BufferOwner)->Assign(FSharedBuffer)->!Materialized"), bMaterialized);
-	TestTrue(TEXT("FSharedBuffer(BufferOwner)->Assign(FSharedBuffer)->Freed"), bFreed);
-	TestTrue(TEXT("FSharedBuffer(BufferOwner)->Assign(FSharedBuffer)->Deleted"), bDeleted);
+	TEST_FALSE(TEXT("FSharedBuffer(BufferOwner)->Assign(FSharedBuffer)->!Materialized"), bMaterialized);
+	TEST_TRUE(TEXT("FSharedBuffer(BufferOwner)->Assign(FSharedBuffer)->Freed"), bFreed);
+	TEST_TRUE(TEXT("FSharedBuffer(BufferOwner)->Assign(FSharedBuffer)->Deleted"), bDeleted);
 	bFreed = false;
 	bDeleted = false;
 
 	(void)Buffer.GetSize();
-	TestTrue(TEXT("FSharedBuffer(BufferOwner)->GetSize()->Materialized"), bMaterialized);
+	TEST_TRUE(TEXT("FSharedBuffer(BufferOwner)->GetSize()->Materialized"), bMaterialized);
 	bMaterialized = false;
 	(void)Buffer.GetSize();
-	TestFalse(TEXT("FSharedBuffer(BufferOwner)->GetSize()->!Materialized"), bMaterialized);
+	TEST_FALSE(TEXT("FSharedBuffer(BufferOwner)->GetSize()->!Materialized"), bMaterialized);
 	bMaterialized = false;
 
 	FWeakSharedBuffer WeakBuffer = Buffer;
 	Buffer.Reset();
-	TestTrue(TEXT("FSharedBuffer(BufferOwner)->Reset(Shared)->Freed"), bFreed);
-	TestFalse(TEXT("FSharedBuffer(BufferOwner)->Reset(Shared)->!Deleted"), bDeleted);
+	TEST_TRUE(TEXT("FSharedBuffer(BufferOwner)->Reset(Shared)->Freed"), bFreed);
+	TEST_FALSE(TEXT("FSharedBuffer(BufferOwner)->Reset(Shared)->!Deleted"), bDeleted);
 	WeakBuffer.Reset();
-	TestTrue(TEXT("FSharedBuffer(BufferOwner)->Reset(Weak)->Deleted"), bDeleted);
+	TEST_TRUE(TEXT("FSharedBuffer(BufferOwner)->Reset(Weak)->Deleted"), bDeleted);
 
 	bMaterialized = false;
 	bFreed = false;
 	bDeleted = false;
 	Buffer = FSharedBuffer(new FTestBufferOwner(bMaterialized, bFreed, bDeleted));
 
-	TestFalse(TEXT("FSharedBuffer(BufferOwner)->IsMaterialized()"), Buffer.IsMaterialized());
+	TEST_FALSE(TEXT("FSharedBuffer(BufferOwner)->IsMaterialized()"), Buffer.IsMaterialized());
 	Buffer.Materialize();
-	TestTrue(TEXT("FSharedBuffer(BufferOwner)->Materialize()->IsMaterialized()"), Buffer.IsMaterialized());
-	TestTrue(TEXT("FSharedBuffer(BufferOwner)->Materialize()->Materialized"), bMaterialized);
+	TEST_TRUE(TEXT("FSharedBuffer(BufferOwner)->Materialize()->IsMaterialized()"), Buffer.IsMaterialized());
+	TEST_TRUE(TEXT("FSharedBuffer(BufferOwner)->Materialize()->Materialized"), bMaterialized);
 	bMaterialized = false;
 	Buffer.Materialize();
-	TestFalse(TEXT("FSharedBuffer(BufferOwner)->Materialize()->!Materialized"), bMaterialized);
+	TEST_FALSE(TEXT("FSharedBuffer(BufferOwner)->Materialize()->!Materialized"), bMaterialized);
 	bMaterialized = false;
 	Buffer.Reset();
 
@@ -450,19 +450,19 @@ TEST_CASE("Core::Memory::FTestBufferOwner::BufferOwner", "[Core][Memory][Smoke]"
 	bDeleted = false;
 	Buffer = FSharedBuffer(new FTestBufferOwner(bMaterialized, bFreed, bDeleted));
 	Buffer.Reset();
-	TestFalse(TEXT("FSharedBuffer(BufferOwner)->Reset(!Materialized)->!Materialized"), bMaterialized);
-	TestTrue(TEXT("FSharedBuffer(BufferOwner)->Reset(!Materialized)->Freed"), bFreed);
-	TestTrue(TEXT("FSharedBuffer(BufferOwner)->Reset(!Materialized)->Deleted"), bDeleted);
+	TEST_FALSE(TEXT("FSharedBuffer(BufferOwner)->Reset(!Materialized)->!Materialized"), bMaterialized);
+	TEST_TRUE(TEXT("FSharedBuffer(BufferOwner)->Reset(!Materialized)->Freed"), bFreed);
+	TEST_TRUE(TEXT("FSharedBuffer(BufferOwner)->Reset(!Materialized)->Deleted"), bDeleted);
 }
 
 
-TEST_CASE("Core::Memory::FSharedBuffer::SharedBufferFromArray", "[Core][Memory][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Memory::FSharedBuffer::SharedBufferFromArray", "[Core][Memory][Smoke]")
 {
 	TArray<uint16> Array{1, 2, 3, 4, 5, 6, 7, 8};
 	const void* const ExpectedData = Array.GetData();
 	const uint64 ExpectedSize = Array.Num() * sizeof(uint16);
 	const FSharedBuffer Buffer = MakeSharedBufferFromArray(MoveTemp(Array));
-	TestTrue(TEXT("MakeSharedBufferFromArray -> Array.IsEmpty"), Array.IsEmpty());
-	TestEqual(TEXT("MakeSharedBufferFromArray -> Buffer.GetData()"), Buffer.GetData(), ExpectedData);
-	TestEqual(TEXT("MakeSharedBufferFromArray -> Buffer.GetSize()"), Buffer.GetSize(), ExpectedSize);
+	TEST_TRUE(TEXT("MakeSharedBufferFromArray -> Array.IsEmpty"), Array.IsEmpty());
+	TEST_EQUAL(TEXT("MakeSharedBufferFromArray -> Buffer.GetData()"), Buffer.GetData(), ExpectedData);
+	TEST_EQUAL(TEXT("MakeSharedBufferFromArray -> Buffer.GetSize()"), Buffer.GetSize(), ExpectedSize);
 }

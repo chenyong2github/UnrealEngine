@@ -8,7 +8,7 @@
  * Test byte swapping algorithms.
  */
 
-TEST_CASE("Core::Misc::ByteSwap::Smoke Test", "[Core][Misc][Smoke]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::ByteSwap::Smoke Test", "[Core][Misc][Smoke]")
 {
 	int16  ValS16 = static_cast<int16>(0x1122);
 	uint16 ValU16 = static_cast<uint16>(0x1122);
@@ -22,15 +22,15 @@ TEST_CASE("Core::Misc::ByteSwap::Smoke Test", "[Core][Misc][Smoke]")
 	uint64 ExpectedD = ByteSwap(ValU64);
 	char16_t ValCh16 = static_cast<char16_t>(0x2233);
 
-	TestTrue("Swapping singned int16 value",  ByteSwap(ValS16) == 0x2211);
-	TestTrue("Swapping unsigned int16 value", ByteSwap(ValU16) == 0x2211);
-	TestTrue("Swapping singned int32 value",  ByteSwap(ValS32) == 0x2211EEFF);
-	TestTrue("Swapping unsigned int32 value", ByteSwap(ValU32) == 0x2211EEFF);
-	TestTrue("Swapping singned int64 value",  ByteSwap(ValS64) == 0x44332211CCDDEEFFll);
-	TestTrue("Swapping unsigned int64 value", ByteSwap(ValU64) == 0x44332211CCDDEEFFull);
-	TestTrue("Swapping float value",          ByteSwap(ValF)   == *reinterpret_cast<const float*>(&ExpectedF));
-	TestTrue("Swapping double value",         ByteSwap(ValD)   == *reinterpret_cast<const double*>(&ExpectedD));
-	TestTrue("Swapping char16_t value",       ByteSwap(ValCh16)== 0x3322);
+	TEST_TRUE("Swapping singned int16 value",  ByteSwap(ValS16) == 0x2211);
+	TEST_TRUE("Swapping unsigned int16 value", ByteSwap(ValU16) == 0x2211);
+	TEST_TRUE("Swapping singned int32 value",  ByteSwap(ValS32) == 0x2211EEFF);
+	TEST_TRUE("Swapping unsigned int32 value", ByteSwap(ValU32) == 0x2211EEFF);
+	TEST_TRUE("Swapping singned int64 value",  ByteSwap(ValS64) == 0x44332211CCDDEEFFll);
+	TEST_TRUE("Swapping unsigned int64 value", ByteSwap(ValU64) == 0x44332211CCDDEEFFull);
+	TEST_TRUE("Swapping float value",          ByteSwap(ValF)   == *reinterpret_cast<const float*>(&ExpectedF));
+	TEST_TRUE("Swapping double value",         ByteSwap(ValD)   == *reinterpret_cast<const double*>(&ExpectedD));
+	TEST_TRUE("Swapping char16_t value",       ByteSwap(ValCh16)== 0x3322);
 } 
 
 // The byte swap benchmarking test are useful to compare the intrinsic implementation vs the generic implementation. Normally, the intrinsic is expected to be faster, but in some
@@ -56,15 +56,15 @@ TPair<FTimespan, T> BenchmarkByteswapping(T InitialValue, uint64 LoopCount, Byte
 	return MakeTuple(Duration, Sum);
 }
 
-TEST_CASE("Core::Misc::ByteSwap::Perf Test", "[.][Core][Misc][Perf]")
+TEST_CASE_METHOD(FAutomationTestFixture, "Core::Misc::ByteSwap::Perf Test", "[.][Core][Misc][.Perf]")
 {
 #ifdef UE_BYTESWAP_INTRINSIC_PRIVATE_16
 	{
 		uint16 InitialValue = 0xF0F0;
 		TPair<FTimespan, uint16> Intrinsic = BenchmarkByteswapping(InitialValue, 1000000000, [](uint16 Val){ return ByteSwap(Val); });
 		TPair<FTimespan, uint16> Generic   = BenchmarkByteswapping(InitialValue, 1000000000, [](uint16 Val){ return Internal::ByteSwapGeneric16(Val); });
-		TestTrue("Swapping uint16 bytes is faster uing the compiler intrinsic than the generic implementation", Intrinsic.Get<0>() <= Generic.Get<0>());
-		TestTrue("Swapping uint16 bytes using intrinsic and generic algorithm produce the same values", Intrinsic.Get<1>() == Generic.Get<1>());
+		TEST_TRUE("Swapping uint16 bytes is faster uing the compiler intrinsic than the generic implementation", Intrinsic.Get<0>() <= Generic.Get<0>());
+		TEST_TRUE("Swapping uint16 bytes using intrinsic and generic algorithm produce the same values", Intrinsic.Get<1>() == Generic.Get<1>());
 		GLog->Logf(TEXT("Swapping 2 bytes using intrinsic is %s faster than generic version"), *LexToString(Generic.Get<0>().GetTotalMicroseconds() / Intrinsic.Get<0>().GetTotalMicroseconds()));
 	}
 #endif
@@ -74,8 +74,8 @@ TEST_CASE("Core::Misc::ByteSwap::Perf Test", "[.][Core][Misc][Perf]")
 		uint32 InitialValue = 0xFF00FF00ul;
 		TPair<FTimespan, uint32> Intrinsic = BenchmarkByteswapping(InitialValue, 1000000000, [](uint32 Val){ return ByteSwap(Val); });
 		TPair<FTimespan, uint32> Generic   = BenchmarkByteswapping(InitialValue, 1000000000, [](uint32 Val){ return Internal::ByteSwapGeneric32(Val); });
-		TestTrue("Swapping uint32 bytes is faster uing the compiler intrinsic than the generic implementation", Intrinsic.Get<0>() <= Generic.Get<0>());
-		TestTrue("Swapping uint32 bytes using intrinsic and generic algorithm produce the same values", Intrinsic.Get<1>() == Generic.Get<1>());
+		TEST_TRUE("Swapping uint32 bytes is faster uing the compiler intrinsic than the generic implementation", Intrinsic.Get<0>() <= Generic.Get<0>());
+		TEST_TRUE("Swapping uint32 bytes using intrinsic and generic algorithm produce the same values", Intrinsic.Get<1>() == Generic.Get<1>());
 		GLog->Logf(TEXT("Swapping 4 bytes using intrinsic is %s faster than generic version"), *LexToString(Generic.Get<0>().GetTotalMicroseconds() / Intrinsic.Get<0>().GetTotalMicroseconds()));
 	}
 #endif
@@ -85,8 +85,8 @@ TEST_CASE("Core::Misc::ByteSwap::Perf Test", "[.][Core][Misc][Perf]")
 		uint64 InitialValue = 0xFF00FF00FF00FF00ull;
 		TPair<FTimespan, uint64> Intrinsic = BenchmarkByteswapping(InitialValue, 1000000000, [](uint64 Val){ return ByteSwap(Val); });
 		TPair<FTimespan, uint64> Generic   = BenchmarkByteswapping(InitialValue, 1000000000, [](uint64 Val){ return Internal::ByteSwapGeneric64(Val); });
-		TestTrue("Swapping uint64 bytes is faster uing the compiler intrinsic than the generic implementation", Intrinsic.Get<0>() <= Generic.Get<0>());
-		TestTrue("Swapping uint64 bytes using intrinsic and generic algorithm produce the same values", Intrinsic.Get<1>() == Generic.Get<1>());
+		TEST_TRUE("Swapping uint64 bytes is faster uing the compiler intrinsic than the generic implementation", Intrinsic.Get<0>() <= Generic.Get<0>());
+		TEST_TRUE("Swapping uint64 bytes using intrinsic and generic algorithm produce the same values", Intrinsic.Get<1>() == Generic.Get<1>());
 		GLog->Logf(TEXT("Swapping 8 bytes using intrinsic is %s faster than generic version"), *LexToString(Generic.Get<0>().GetTotalMicroseconds() / Intrinsic.Get<0>().GetTotalMicroseconds()));
 	}
 #endif

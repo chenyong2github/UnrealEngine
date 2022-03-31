@@ -3,18 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/AutomationTest.h"
+#include "TestFixtures/CoreTestFixture.h"
 #include "UObject/ObjectHandle.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
-
-class FObjectRefTrackingTestBase : public FAutomationTestBase
+class FObjectRefTrackingTestBase : public FCoreTestFixture
 {
 public:
-	FObjectRefTrackingTestBase(const FString& InName, const bool bInComplexTask)
-	: FAutomationTestBase(InName, bInComplexTask)
-	{
-	}
 
 	uint32 GetNumResolves() const { return NumResolves; }
 	uint32 GetNumFailedResolves() const { return NumFailedResolves; }
@@ -35,19 +29,18 @@ public:
 		bool TestNumResolves(const TCHAR* What, uint32 ExpectedDelta)
 		{
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-			return Test.TestEqual(What, OriginalNumResolves + ExpectedDelta, Test.GetNumResolves());
-#else
-			return true;
+			TEST_EQUAL(What, OriginalNumResolves + ExpectedDelta, Test.GetNumResolves());
 #endif
+			return true;
 		}
 
 		bool TestNumFailedResolves(const TCHAR* What, uint32 ExpectedDelta)
 		{
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-			return Test.TestEqual(What, OriginalNumFailedResolves + ExpectedDelta, Test.GetNumFailedResolves());
-#else
-			return true;
+			TEST_EQUAL(What, OriginalNumFailedResolves + ExpectedDelta, Test.GetNumFailedResolves());
 #endif
+			return true;
+
 		}
 
 		bool TestNumReads(const TCHAR* What, uint32 ExpectedDelta, bool bAllowAdditionalReads = false)
@@ -55,15 +48,15 @@ public:
 #if UE_WITH_OBJECT_HANDLE_TRACKING
 			if (bAllowAdditionalReads)
 			{
-				return Test.TestTrue(What, Test.GetNumReads() >= OriginalNumReads + ExpectedDelta);
+				TEST_TRUE(What, Test.GetNumReads() >= OriginalNumReads + ExpectedDelta);
 			}
 			else
 			{
-				return Test.TestEqual(What, OriginalNumReads + ExpectedDelta, Test.GetNumReads());
+				TEST_EQUAL(What, OriginalNumReads + ExpectedDelta, Test.GetNumReads());
 			}
-#else
-			return true;
 #endif
+			return true;
+
 		}
 	private:
 		FObjectRefTrackingTestBase& Test;
@@ -126,4 +119,4 @@ private:
 	static thread_local uint32 NumFailedResolves;
 	static thread_local uint32 NumReads;
 };
-#endif // WITH_DEV_AUTOMATION_TESTS
+

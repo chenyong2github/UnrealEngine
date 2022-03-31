@@ -8,9 +8,9 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 template<class PathType, class StringType>
-void TestCollapseRelativeDirectories()
+void TestCollapseRelativeDirectories(FAutomationTestFixture& Test)
 {
-	auto Run = [&](const TCHAR* Path, const TCHAR* Expected)
+	auto Run = [&Test](const TCHAR* Path, const TCHAR* Expected)
 	{
 		// Run test
 		StringType Actual;
@@ -20,18 +20,12 @@ void TestCollapseRelativeDirectories()
 		if (Expected)
 		{
 			// If we're looking for a result, make sure it was returned correctly
-			if (!bValid || FCString::Strcmp(*Actual, Expected) != 0)
-			{
-				TestFalse(FString::Printf(TEXT("Path '%s' failed to collapse correctly (got '%s', expected '%s')."), Path, *Actual, Expected), !bValid || FCString::Strcmp(*Actual, Expected) != 0);
-			}
+			TEST_FALSE(FString::Printf(TEXT("Path '%s' failed to collapse correctly (got '%s', expected '%s')."), Path, *Actual, Expected), !bValid || FCString::Strcmp(*Actual, Expected) != 0);
 		}
 		else
 		{
 			// Otherwise, make sure it failed
-			if (bValid)
-			{
-				TestFalse(FString::Printf(TEXT("Path '%s' collapsed unexpectedly."), Path), bValid);
-			}
+			TEST_FALSE(FString::Printf(TEXT("Path '%s' collapsed unexpectedly."), Path), bValid);
 		}
 	};
 
@@ -94,14 +88,14 @@ void TestCollapseRelativeDirectories()
 }
 
 template<class PathType, class StringType>
-void TestRemoveDuplicateSlashes()
+void TestRemoveDuplicateSlashes(FAutomationTestFixture& Test)
 {
-	auto Run = [&](const TCHAR* Path, const TCHAR* Expected)
+	auto Run = [&Test](const TCHAR* Path, const TCHAR* Expected)
 	{
 		StringType Actual;
 		Actual += Path;	
 		PathType::RemoveDuplicateSlashes(Actual);
-		TestTrue(TEXT("RemoveDuplicateSlashes"), FCString::Stricmp(*Actual, Expected)==0);
+		TEST_TRUE(TEXT("RemoveDuplicateSlashes"), FCString::Stricmp(*Actual, Expected)==0);
 	};
 
 	Run(TEXT(""), TEXT(""));

@@ -46,7 +46,6 @@ public class LowLevelTests : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 				"Core",
-				"Cbor",
 				"CoreUObject",
 				"Projects",
 				"LowLevelTestsRunner"
@@ -76,6 +75,12 @@ public class LowLevelTests : ModuleRules
 			}
 
 			UpdateBuildGraphPropertiesFile();
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+				"Core",
+				"CoreUObject",
+				});
 		}
 	}
 

@@ -141,36 +141,24 @@ static_assert(!TModels<CEqualityComparableWith, FMutableObjectPtr, long>::Value,
 //static_assert(!std::is_assignable<TObjectPtr<UForwardDeclaredObjDerived>, UForwardDeclaredObjDerived*>::value, "Should not be able to assign raw pointer of incomplete type that descends from UObject to exactly this type of TObjectPtr");
 //static_assert(!std::is_assignable<TObjectPtr<FForwardDeclaredNotObjDerived>, FForwardDeclaredNotObjDerived*>::value, "Should not be able to assign raw pointer of incomplete type that does not descend from UObject to exactly this type of TObjectPtr");
 
-#if WITH_DEV_AUTOMATION_TESTS
-
 class FObjectPtrTestBase : public FObjectRefTrackingTestBase
 {
 public:
-	FObjectPtrTestBase(const FString& InName, const bool bInComplexTask)
-	: FObjectRefTrackingTestBase(InName, bInComplexTask)
-	{
-	}
 
 protected:
 };
 
-#define TEST_NAME_ROOT TEXT("System.CoreUObject.ObjectPtr")
-constexpr const uint32 ObjectPtrTestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestNullBehavior, FObjectPtrTestBase, TEST_NAME_ROOT TEXT(".NullBehavior"), ObjectPtrTestFlags)
-bool FObjectPtrTestNullBehavior::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Null Behavior", "[CoreUObject][ObjectPtr][Smoke]")
 {
 	TObjectPtr<UObject> NullObjectPtr(nullptr);
-	TestTrue(TEXT("Nullptr should equal a null object pointer"), nullptr == NullObjectPtr);
-	TestTrue(TEXT("A null object pointer should equal nullptr"), NullObjectPtr == nullptr);
-	TestFalse(TEXT("A null object pointer should evaluate to false"), !!NullObjectPtr);
-	TestTrue(TEXT("Negation of a null object pointer should evaluate to true"), !NullObjectPtr);
-
-	return true;
+	TEST_TRUE(TEXT("Nullptr should equal a null object pointer"), nullptr == NullObjectPtr);
+	TEST_TRUE(TEXT("A null object pointer should equal nullptr"), NullObjectPtr == nullptr);
+	TEST_FALSE(TEXT("A null object pointer should evaluate to false"), !!NullObjectPtr);
+	TEST_TRUE(TEXT("Negation of a null object pointer should evaluate to true"), !NullObjectPtr);
 }
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestDefaultSerialize, FObjectPtrTestBase, TEST_NAME_ROOT TEXT(".DefaultSerialize"), ObjectPtrTestFlags)
-bool FObjectPtrTestDefaultSerialize::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Default Serialize", "[CoreUObject][ObjectPtr][.Engine]")
 {
 	FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
 	FObjectPtr DefaultTexturePtr(FObjectRef {FName("/Engine/EngineResources/DefaultTexture"), NAME_None, NAME_None, FObjectPathId("DefaultTexture")});
@@ -191,12 +179,9 @@ bool FObjectPtrTestDefaultSerialize::RunTest(const FString& Parameters)
 	ObjectRefMetrics.TestNumResolves(TEXT("Serializing an FObjectPtr twice should only require it to resolve once"), 1);
 	ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after serializing an FObjectPtr"), 0);
 	ObjectRefMetrics.TestNumReads(TEXT("NumReads should increase after serializing an FObjectPtr"), 2);
-
-	return true;
 }
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestSoftObjectPath, FObjectPtrTestBase, TEST_NAME_ROOT TEXT(".SoftObjectPath"), ObjectPtrTestFlags)
-bool FObjectPtrTestSoftObjectPath::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Soft Object Path", "[CoreUObject][ObjectPtr][Smoke]")
 {
 	FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
 	FObjectPtr DefaultTexturePtr(FObjectRef {FName("/Engine/EngineResources/DefaultTexture"), NAME_None, NAME_None, FObjectPathId("DefaultTexture")});
@@ -209,22 +194,17 @@ bool FObjectPtrTestSoftObjectPath::RunTest(const FString& Parameters)
 
 	ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FSoftObjectPath from an FObjectPtr"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 0 : 1);
 
-	TestEqual(TEXT("Soft object path constructed from an FObjectPtr does not have the expected path value"), *DefaultTexturePath.ToString(), TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"));
-
-	return true;
+	TEST_TRUE(TEXT("Soft object path constructed from an FObjectPtr does not have the expected path value"), !FCString::Strcmp(*DefaultTexturePath.ToString(), TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture")));
 }
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestForwardDeclared, FObjectPtrTestBase, TEST_NAME_ROOT TEXT(".ForwardDeclared"), ObjectPtrTestFlags)
-bool FObjectPtrTestForwardDeclared::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Forward Declared", "[CoreUObject][ObjectPtr][Smoke]")
 {
 	UForwardDeclaredObjDerived* PtrFwd = nullptr;
 	TObjectPtr<UForwardDeclaredObjDerived> ObjPtrFwd(MakeObjectPtrUnsafe<UForwardDeclaredObjDerived>(reinterpret_cast<UObject*>(PtrFwd)));
-	TestTrue(TEXT("Null forward declared pointer used to construct a TObjectPtr should result in a null TObjectPtr"), ObjPtrFwd.IsNull());
-	return true;
+	TEST_TRUE(TEXT("Null forward declared pointer used to construct a TObjectPtr should result in a null TObjectPtr"), ObjPtrFwd.IsNull());
 }
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestHashConsistency, FObjectPtrTestBase, TEST_NAME_ROOT TEXT(".HashConsistency"), ObjectPtrTestFlags)
-bool FObjectPtrTestHashConsistency::RunTest(const FString& Parameters)
+TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Hash Consistency", "[CoreUObject][ObjectPtr][Smoke]")
 {
 	const FName TestPackage1Name(TEXT("/Engine/Test/ObjectPtrHashConsistency1/Transient"));
 	UPackage* TestPackage1 = NewObject<UPackage>(nullptr, TestPackage1Name, RF_Transient);
@@ -259,7 +239,7 @@ bool FObjectPtrTestHashConsistency::RunTest(const FString& Parameters)
 		ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after resolving an FObjectPtr"), 0);
 
 		uint32 HashRaw = GetTypeHash(TestPublicObject);
-		TestEqual(TEXT("Hash of raw public FObjectPtr should equal hash of wrapped public FObjectPtr"), HashRaw, HashWrapped);
+		TEST_EQUAL(TEXT("Hash of raw public FObjectPtr should equal hash of wrapped public FObjectPtr"), HashRaw, HashWrapped);
 
 		FObjectPtr TestPublicWrappedRedir1(FObjectRef{TestPackage1Name, NAME_None, NAME_None, FObjectPathId("TestOuter3.TestPublicRedirector1")});
 		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 1 : 2);
@@ -269,7 +249,7 @@ bool FObjectPtrTestHashConsistency::RunTest(const FString& Parameters)
 		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after hashing an FObjectPtr"), 2);
 		ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after hashing an FObjectPtr"), 0);
 
-		TestEqual(TEXT("Hash of first wrapped public redirector should equal hash of wrapped public FObjectPtr it references"), HashWrapped, HashWrappedRedir1);
+		TEST_EQUAL(TEXT("Hash of first wrapped public redirector should equal hash of wrapped public FObjectPtr it references"), HashWrapped, HashWrappedRedir1);
 
 		FObjectPtr TestPublicWrappedRedir2(FObjectRef{TestPackage1Name, NAME_None, NAME_None, FObjectPathId("TestOuter4.TestPublicRedirector2")});
 		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 2 : 3);
@@ -279,25 +259,24 @@ bool FObjectPtrTestHashConsistency::RunTest(const FString& Parameters)
 		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after hashing an FObjectPtr"), 3);
 		ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after hashing an FObjectPtr"), 0);
 
-		TestEqual(TEXT("Hash of first wrapped public redirector should equal hash of wrapped public FObjectPtr it references"), HashWrapped, HashWrappedRedir1);
+		TEST_EQUAL(TEXT("Hash of first wrapped public redirector should equal hash of wrapped public FObjectPtr it references"), HashWrapped, HashWrappedRedir1);
 
 		//Check that renaming an object doesn't change its hash
 		TestPublicObject->Rename(TEXT("TestPublicObjectRenamed"));
 		uint32 HashWrappedAfterRename = GetTypeHash(TestPublicWrappedObjectPtr);
-		TestEqual(TEXT("Hash of resolved public FObjectPtr before rename should equal hash of resolved public FObjectPtr after rename"), HashWrappedAfterRename, HashWrapped);
+		TEST_EQUAL(TEXT("Hash of resolved public FObjectPtr before rename should equal hash of resolved public FObjectPtr after rename"), HashWrappedAfterRename, HashWrapped);
 
 		//Check that reparenting an object doesn't change its hash
 		TestPublicObject->Rename(nullptr, TestOuter2);
 		uint32 HashWrappedAfterReparent = GetTypeHash(TestPublicWrappedObjectPtr);
-		TestEqual(TEXT("Hash of resolved public FObjectPtr before reparenting should equal hash of resolved public FObjectPtr after reparenting"), HashWrappedAfterReparent, HashWrapped);
+		TEST_EQUAL(TEXT("Hash of resolved public FObjectPtr before reparenting should equal hash of resolved public FObjectPtr after reparenting"), HashWrappedAfterReparent, HashWrapped);
 	}
 
 	TestPackage1->RemoveFromRoot();
-	return true;
 }
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestLongPath, FObjectPtrTestBase, TEST_NAME_ROOT TEXT(".LongPath"), ObjectPtrTestFlags)
-bool FObjectPtrTestLongPath::RunTest(const FString& Parameters)
+
+TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Long Path", "[CoreUObject][ObjectPtr][Smoke]")
 {
 	const FName TestPackage1Name(TEXT("/Engine/Test/FObjectPtrTestLongPath/Transient"));
 	UPackage* TestPackage1 = NewObject<UPackage>(nullptr, TestPackage1Name, RF_Transient);
@@ -316,13 +295,11 @@ bool FObjectPtrTestLongPath::RunTest(const FString& Parameters)
 	FObjectPathId::ResolvedNameContainerType ResolvedNames;
 	LongPath.Resolve(ResolvedNames);
 
-	TestEqual(TEXT("Resolved path from FObjectPathId should have 4 elements"), ResolvedNames.Num(), 4);
-	TestEqual(TEXT("Resolved path from FObjectPathId should have TestObject1 at element 0"), ResolvedNames[0], TestObject1->GetFName());
-	TestEqual(TEXT("Resolved path from FObjectPathId should have TestObject2 at element 1"), ResolvedNames[1], TestObject2->GetFName());
-	TestEqual(TEXT("Resolved path from FObjectPathId should have TestObject3 at element 2"), ResolvedNames[2], TestObject3->GetFName());
-	TestEqual(TEXT("Resolved path from FObjectPathId should have TestObject4 at element 3"), ResolvedNames[3], TestObject4->GetFName());
-
-	return true;
+	TEST_EQUAL(TEXT("Resolved path from FObjectPathId should have 4 elements"), ResolvedNames.Num(), 4);
+	TEST_EQUAL(TEXT("Resolved path from FObjectPathId should have TestObject1 at element 0"), ResolvedNames[0], TestObject1->GetFName());
+	TEST_EQUAL(TEXT("Resolved path from FObjectPathId should have TestObject2 at element 1"), ResolvedNames[1], TestObject2->GetFName());
+	TEST_EQUAL(TEXT("Resolved path from FObjectPathId should have TestObject3 at element 2"), ResolvedNames[2], TestObject3->GetFName());
+	TEST_EQUAL(TEXT("Resolved path from FObjectPathId should have TestObject4 at element 3"), ResolvedNames[3], TestObject4->GetFName());
 }
 
 // @TODO: OBJPTR: We should have a test that ensures that lazy loading of an object with an external package is handled correctly.
@@ -363,10 +340,6 @@ bool FObjectPtrTestLongPath::RunTest(const FString& Parameters)
 // 	TUniquePtr<FLinkerSave> Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(nullptr /*InOuter*/, false /*bForceByteSwapping*/, true /*bSaveUnversioned*/));
 // 	return true;
 // }
-
-#undef TEST_NAME_ROOT
-
-#endif // WITH_DEV_AUTOMATION_TESTS
 
 class UForwardDeclaredObjDerived: public UObject {};
 class FForwardDeclaredNotObjDerived {};
