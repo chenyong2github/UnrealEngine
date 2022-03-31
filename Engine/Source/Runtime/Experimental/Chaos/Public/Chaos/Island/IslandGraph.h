@@ -3,6 +3,7 @@
 
 #include "Containers/Map.h"
 #include "Containers/Queue.h"
+#include "Containers/Deque.h"
 #include "Containers/SparseArray.h"
 
 namespace Chaos
@@ -345,7 +346,7 @@ public:
 	int32 GraphCounter = 0;
 
 	/** List of nodes to be processed in the graph functions */
-	TArray<int32> NodeQueue;
+	TDeque<int32> NodeQueue;
 };
 
 }
