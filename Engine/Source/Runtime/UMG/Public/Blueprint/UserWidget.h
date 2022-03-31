@@ -1486,6 +1486,7 @@ WidgetT* CreateWidget(OwnerT* OwningObject, TSubclassOf<UUserWidget> UserWidgetC
 		|| TIsDerivedFrom<OwnerT, UWorld>::IsDerived, "The given OwningObject is not of a supported type for use with CreateWidget.");
 
 	SCOPE_CYCLE_COUNTER(STAT_CreateWidget);
+	FScopeCycleCounterUObject WidgetObjectCycleCounter(UserWidgetClass, GET_STATID(STAT_CreateWidget));
 
 	if (OwningObject)
 	{
