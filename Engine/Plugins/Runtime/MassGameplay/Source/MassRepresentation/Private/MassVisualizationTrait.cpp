@@ -40,7 +40,7 @@ UMassVisualizationTrait::UMassVisualizationTrait()
 	LODParams.DistanceToFrustumHysteresis = 0.0f;
 }
 
-void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	// This should not be ran on NM_Server network mode
 	if (World.IsNetMode(NM_DedicatedServer))

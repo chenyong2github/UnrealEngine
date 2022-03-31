@@ -13,7 +13,7 @@ class MASSLOD_API UMassLODCollectorTrait : public UMassEntityTraitBase
 	GENERATED_BODY()
 
 public:
-	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
 };
 
 UCLASS(meta = (DisplayName = "SimulationLOD"))
@@ -31,5 +31,5 @@ class MASSLOD_API UMassSimulationLODTrait : public UMassEntityTraitBase
 	FMassSimulationVariableTickParameters VariableTickParams;
 
 protected:
-	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
 };

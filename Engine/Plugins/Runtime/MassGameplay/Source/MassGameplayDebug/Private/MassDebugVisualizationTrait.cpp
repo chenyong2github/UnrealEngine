@@ -7,7 +7,7 @@
 #include "MassCommonFragments.h"
 #include "Engine/World.h"
 
-void UMassDebugVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassDebugVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 #if WITH_EDITORONLY_DATA
 	const UStaticMesh* const DebugMesh = DebugShape.Mesh;

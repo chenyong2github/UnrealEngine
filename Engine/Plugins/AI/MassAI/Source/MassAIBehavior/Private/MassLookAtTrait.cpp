@@ -4,7 +4,7 @@
 #include "MassLookAtFragments.h"
 #include "MassEntityTemplateRegistry.h"
 
-void UMassLookAtTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassLookAtTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	BuildContext.AddFragment<FMassLookAtFragment>();
 	BuildContext.AddFragment<FMassLookAtTrajectoryFragment>();

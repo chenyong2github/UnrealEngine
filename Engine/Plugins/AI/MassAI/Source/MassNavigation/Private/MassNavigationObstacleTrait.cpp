@@ -4,7 +4,7 @@
 #include "MassNavigationFragments.h"
 #include "MassCommonFragments.h"
 
-void UMassNavigationObstacleTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassNavigationObstacleTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	BuildContext.RequireFragment<FAgentRadiusFragment>();
 

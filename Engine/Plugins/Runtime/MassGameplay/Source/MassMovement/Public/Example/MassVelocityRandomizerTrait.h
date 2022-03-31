@@ -15,7 +15,7 @@ class MASSMOVEMENT_API UMassVelocityRandomizerTrait : public UMassEntityTraitBas
 	GENERATED_BODY()
 
 protected:
-	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
 
 	/** The speed is expressed in UnrealUnits per second, which usually translates to 0.01m/s */
 	UPROPERTY(Category = "Velocity", EditAnywhere, meta = (UIMin = 0.0, ClampMin = 0.0))

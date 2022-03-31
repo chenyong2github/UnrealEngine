@@ -9,7 +9,7 @@
 #include "MassReplicationSubsystem.h"
 
 
-void UMassReplicationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassReplicationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	if (World.IsNetMode(NM_Standalone))
 	{

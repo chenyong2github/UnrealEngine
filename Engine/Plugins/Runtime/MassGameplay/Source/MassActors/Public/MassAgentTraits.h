@@ -31,7 +31,7 @@ class MASSACTORS_API UMassAgentCapsuleCollisionSyncTrait : public UMassAgentSync
 	GENERATED_BODY()
 
 protected:
-	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
 
 	UPROPERTY(EditAnywhere, Category = Mass)
 	bool bSyncTransform = true;
@@ -43,7 +43,7 @@ class MASSACTORS_API UMassAgentMovementSyncTrait : public UMassAgentSyncTrait
 	GENERATED_BODY()
 
 protected:
-	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
 };
 
 UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "Agent Orientation Sync"))
@@ -52,7 +52,7 @@ class MASSACTORS_API UMassAgentOrientationSyncTrait : public UMassAgentSyncTrait
 	GENERATED_BODY()
 
 	protected:
-	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
 };
 
 UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "Agent Feet Location Sync"))
@@ -61,6 +61,6 @@ class MASSACTORS_API UMassAgentFeetLocationSyncTrait : public UMassAgentSyncTrai
 	GENERATED_BODY()
 
 protected:
-	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
 };
 

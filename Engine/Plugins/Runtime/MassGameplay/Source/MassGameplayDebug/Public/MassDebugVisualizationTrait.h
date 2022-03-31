@@ -14,7 +14,7 @@ class MASSGAMEPLAYDEBUG_API UMassDebugVisualizationTrait : public UMassEntityTra
 
 protected:
 
-	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = "Mass|Spawn")

@@ -24,7 +24,7 @@ UMassCrowdServerRepresentationTrait::UMassCrowdServerRepresentationTrait()
 	Params.NotVisibleUpdateRate = 0.5f;
 }
 
-void UMassCrowdServerRepresentationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassCrowdServerRepresentationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	// This should only be ran on NM_DedicatedServer network mode
 	if (!World.IsNetMode(NM_DedicatedServer))

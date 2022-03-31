@@ -5,7 +5,7 @@
 #include "MassCommonFragments.h"
 #include "MassEntityTemplateRegistry.h"
 
-void UMassLookAtTargetTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassLookAtTargetTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	BuildContext.AddTag<FMassLookAtTargetTag>();
 	BuildContext.AddFragment<FTransformFragment>();

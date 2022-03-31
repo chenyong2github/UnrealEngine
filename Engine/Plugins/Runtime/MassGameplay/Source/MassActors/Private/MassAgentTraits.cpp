@@ -39,7 +39,7 @@ namespace FMassAgentTraitsHelper
 //----------------------------------------------------------------------//
 //  UMassAgentCapsuleCollisionSyncTrait
 //----------------------------------------------------------------------//
-void UMassAgentCapsuleCollisionSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassAgentCapsuleCollisionSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	BuildContext.AddFragment<FCapsuleComponentWrapperFragment>();
 	BuildContext.AddFragment<FAgentRadiusFragment>();
@@ -83,7 +83,7 @@ void UMassAgentCapsuleCollisionSyncTrait::BuildTemplate(FMassEntityTemplateBuild
 //----------------------------------------------------------------------//
 //  UMassAgentMovementSyncTrait
 //----------------------------------------------------------------------//
-void UMassAgentMovementSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassAgentMovementSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	BuildContext.AddFragment<FCharacterMovementComponentWrapperFragment>();
 	BuildContext.AddFragment<FMassVelocityFragment>();
@@ -126,7 +126,7 @@ void UMassAgentMovementSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 //----------------------------------------------------------------------//
 //  UMassAgentOrientationSyncTrait
 //----------------------------------------------------------------------//
-void UMassAgentOrientationSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassAgentOrientationSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	BuildContext.RequireFragment<FCharacterMovementComponentWrapperFragment>();
 
@@ -144,7 +144,7 @@ void UMassAgentOrientationSyncTrait::BuildTemplate(FMassEntityTemplateBuildConte
 //----------------------------------------------------------------------//
 //  UMassAgentFeetLocationSyncTrait
 //----------------------------------------------------------------------//
-void UMassAgentFeetLocationSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassAgentFeetLocationSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	BuildContext.AddFragment<FMassSceneComponentWrapperFragment>();
 	BuildContext.AddFragment<FTransformFragment>();

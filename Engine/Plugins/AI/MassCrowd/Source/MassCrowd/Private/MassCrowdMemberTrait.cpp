@@ -4,7 +4,7 @@
 #include "MassCrowdFragments.h"
 #include "MassEntityTemplateRegistry.h"
 
-void UMassCrowdMemberTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassCrowdMemberTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	BuildContext.AddTag<FMassCrowdTag>();
 	BuildContext.AddFragment<FMassCrowdLaneTrackingFragment>();	

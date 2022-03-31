@@ -19,7 +19,7 @@ class MASSCROWD_API UMassCrowdServerRepresentationTrait : public UMassEntityTrai
 
 protected:
 
-	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
 
 	/** Actor class of this agent when spawned on server */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")

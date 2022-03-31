@@ -4,7 +4,7 @@
 #include "MassEntityTemplateRegistry.h"
 
 
-void UMassAssortedFragmentsTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassAssortedFragmentsTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	for (const FInstancedStruct& Fragment : Fragments)
 	{

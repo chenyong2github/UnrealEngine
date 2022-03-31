@@ -22,10 +22,10 @@ class MASSSPAWNER_API UMassEntityTraitBase : public UObject
 public:
 
 	/** Appends items into the entity template required for the trait. */
-	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const PURE_VIRTUAL(UMassEntityTraitBase::BuildTemplate, return; );
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const PURE_VIRTUAL(UMassEntityTraitBase::BuildTemplate, return; );
 
 	virtual void DestroyTemplate() const {}
 
 	/** Called when all Traits have had BuildTemplate() called. */
-	virtual void ValidateTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const {};
+	virtual void ValidateTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const {};
 };

@@ -20,7 +20,7 @@ class MASSREPRESENTATION_API UMassVisualizationTrait : public UMassEntityTraitBa
 public:
 	UMassVisualizationTrait();
 
-	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
 
 	/** Instanced static mesh information for this agent */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")

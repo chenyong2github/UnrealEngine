@@ -9,7 +9,7 @@
 //----------------------------------------------------------------------//
 //  UMassVelocityRandomizerTrait
 //----------------------------------------------------------------------//
-void UMassVelocityRandomizerTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassVelocityRandomizerTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	FMassVelocityFragment& VelocityTemplate = BuildContext.AddFragment_GetRef<FMassVelocityFragment>();
 	// This is a small @hack to support sending parameters to initializer.

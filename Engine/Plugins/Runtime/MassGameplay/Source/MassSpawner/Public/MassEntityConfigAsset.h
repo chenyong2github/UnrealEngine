@@ -30,14 +30,14 @@ struct MASSSPAWNER_API FMassEntityConfig
 	 *  @param World in which we are creating the template.
 	 *  @param ConfigOwner Owner of the FMassEntityConfig used for error reporting.
 	 */
-	const FMassEntityTemplate& GetOrCreateEntityTemplate(UWorld& World, const UObject& ConfigOwner) const;
+	const FMassEntityTemplate& GetOrCreateEntityTemplate(const UWorld& World, const UObject& ConfigOwner) const;
 
-	void DestroyEntityTemplate(UWorld& World, const UObject& ConfigOwner) const;
+	void DestroyEntityTemplate(const UWorld& World, const UObject& ConfigOwner) const;
 
 	/** 
 	 * Fetches the EntityTemplate for given World, fails a check if one cannot be found.
 	 */
-	const FMassEntityTemplate& GetEntityTemplateChecked(UWorld& World, const UObject& ConfigOwner) const;
+	const FMassEntityTemplate& GetEntityTemplateChecked(const UWorld& World, const UObject& ConfigOwner) const;
 
 	/** @return Parent config */
 	const UMassEntityConfigAsset* GetParent() const { return Parent; }
@@ -49,7 +49,7 @@ struct MASSSPAWNER_API FMassEntityConfig
 	void AddTrait(UMassEntityTraitBase& Trait);
 
 	/** Validates if the entity template is well built */
-	bool ValidateEntityTemplate(UWorld& World, const UObject& ConfigOwner);
+	bool ValidateEntityTemplate(const UWorld& World, const UObject& ConfigOwner);
 
 protected:
 	/** Combines traits based on the config hierarchy and returns list of unique traits */
@@ -64,7 +64,7 @@ protected:
 	TArray<UMassEntityTraitBase*> Traits;
 
 private:
-	const FMassEntityTemplate* GetEntityTemplateInternal(UWorld& World, const UObject& ConfigOwner, uint32& HashOut, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const;
+	const FMassEntityTemplate* GetEntityTemplateInternal(const UWorld& World, const UObject& ConfigOwner, uint32& HashOut, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const;
 };
 
 /**
@@ -83,12 +83,12 @@ public:
 	/** @return Mutable agent config stored in this asset */
 	FMassEntityConfig& GetMutableConfig() { return Config; }
 
-	const FMassEntityTemplate& GetOrCreateEntityTemplate(UWorld& World) const
+	const FMassEntityTemplate& GetOrCreateEntityTemplate(const UWorld& World) const
 	{
 		return Config.GetOrCreateEntityTemplate(World, *this);
 	}
 
-	void DestroyEntityTemplate(UWorld& World) const
+	void DestroyEntityTemplate(const UWorld& World) const
 	{
 		Config.DestroyEntityTemplate(World, *this);
 	}

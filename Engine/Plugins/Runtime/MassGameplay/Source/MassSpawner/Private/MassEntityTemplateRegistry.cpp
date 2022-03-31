@@ -197,7 +197,7 @@ void UMassEntityTemplateRegistry::DestroyTemplate(const uint32 HashLookup, FMass
 //----------------------------------------------------------------------//
 // FMassEntityTemplateBuildContext 
 //----------------------------------------------------------------------//
-bool FMassEntityTemplateBuildContext::BuildFromTraits(TConstArrayView<UMassEntityTraitBase*> Traits, UWorld& World)
+bool FMassEntityTemplateBuildContext::BuildFromTraits(TConstArrayView<UMassEntityTraitBase*> Traits, const UWorld& World)
 {
 	TraitAddedTypes.Reset();
 	TraitsDependencies.Reset();
@@ -214,7 +214,7 @@ bool FMassEntityTemplateBuildContext::BuildFromTraits(TConstArrayView<UMassEntit
 	return ValidateBuildContext(World);
 }
 
-bool FMassEntityTemplateBuildContext::ValidateBuildContext(UWorld& World)
+bool FMassEntityTemplateBuildContext::ValidateBuildContext(const UWorld& World)
 {
 	// Group same types(key) together
 	TraitAddedTypes.KeySort( [](const UStruct& LHS, const UStruct& RHS) { return LHS.GetName() < RHS.GetName(); } );

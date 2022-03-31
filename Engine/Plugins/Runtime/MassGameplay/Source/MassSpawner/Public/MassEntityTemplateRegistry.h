@@ -163,7 +163,7 @@ struct FMassEntityTemplateBuildContext
 	 * @param World owning the MassEntitySubsystem for which the entity template is built
 	 * @return true if there were no validation errors
 	 */
-	bool BuildFromTraits(TConstArrayView<UMassEntityTraitBase*> Traits, UWorld& World);
+	bool BuildFromTraits(TConstArrayView<UMassEntityTraitBase*> Traits, const UWorld& World);
 
 protected:
 
@@ -172,7 +172,7 @@ protected:
 	 * @param World owning the MassEntitySubsystem for which the entity template is validated against
 	 * @return true if there were no validation errors
 	 */
-	bool ValidateBuildContext(UWorld& World);
+	bool ValidateBuildContext(const UWorld& World);
 
 	void TypeAdded(const UStruct& Type)
 	{

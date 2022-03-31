@@ -58,7 +58,7 @@ void UMassEntityConfigAsset::ValidateEntityConfig()
 }
 #endif // WITH_EDITOR
 
-const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(UWorld& World, const UObject& ConfigOwner) const
+const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(const UWorld& World, const UObject& ConfigOwner) const
 {
 	uint32 Hash;
 	FMassEntityTemplateID TemplateID;
@@ -89,7 +89,7 @@ const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(UWorld& 
 	return Template;
 }
 
-void FMassEntityConfig::DestroyEntityTemplate(UWorld& World, const UObject& ConfigOwner) const
+void FMassEntityConfig::DestroyEntityTemplate(const UWorld& World, const UObject& ConfigOwner) const
 {
 	uint32 Hash;
 	FMassEntityTemplateID TemplateID;
@@ -116,7 +116,7 @@ void FMassEntityConfig::DestroyEntityTemplate(UWorld& World, const UObject& Conf
 	TemplateRegistry.DestroyTemplate(Hash, TemplateID);
 }
 
-const FMassEntityTemplate& FMassEntityConfig::GetEntityTemplateChecked(UWorld& World, const UObject& ConfigOwner) const
+const FMassEntityTemplate& FMassEntityConfig::GetEntityTemplateChecked(const UWorld& World, const UObject& ConfigOwner) const
 {
 	uint32 Hash;
 	FMassEntityTemplateID TemplateID;
@@ -126,7 +126,7 @@ const FMassEntityTemplate& FMassEntityConfig::GetEntityTemplateChecked(UWorld& W
 	return *ExistingTemplate;
 }
 
-const FMassEntityTemplate* FMassEntityConfig::GetEntityTemplateInternal(UWorld& World, const UObject& ConfigOwner, uint32& HashOut, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const
+const FMassEntityTemplate* FMassEntityConfig::GetEntityTemplateInternal(const UWorld& World, const UObject& ConfigOwner, uint32& HashOut, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const
 {
 	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(&World);
 	check(SpawnerSystem);
@@ -192,7 +192,7 @@ void FMassEntityConfig::AddTrait(UMassEntityTraitBase& Trait)
 	Traits.Add(&Trait);
 }
 
-bool FMassEntityConfig::ValidateEntityTemplate(UWorld& World, const UObject& ConfigOwner)
+bool FMassEntityConfig::ValidateEntityTemplate(const UWorld& World, const UObject& ConfigOwner)
 {
 	TArray<const UObject*> Visited;
 	TArray<UMassEntityTraitBase*> CombinedTraits;
