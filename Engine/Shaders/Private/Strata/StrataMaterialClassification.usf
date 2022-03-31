@@ -315,14 +315,14 @@ void BSDFTileMainCS(uint2 GroupThreadId : SV_GroupThreadID, uint2 GroupId : SV_G
 	{
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(MaterialTextureArray, StrataAddressing, TopLayerTexture);
-		BSDFCount = min(StrataPixelHeader.BSDFCount, STRATA_TILE_MAX_BSDF_COUNT);
+		BSDFCount = min(StrataPixelHeader.BSDFCount, STRATA_MAX_BSDF_COUNT_FOR_BDSFOFFSET);
 
 		if (BSDFCount > 0)
 		{
 			FStrataBSDFOffset Offsets = (FStrataBSDFOffset)0;
 			Offsets.BSDFCount = BSDFCount;
 
-			UNROLL_N(STRATA_TILE_MAX_BSDF_COUNT) 
+			UNROLL_N(STRATA_MAX_BSDF_COUNT_FOR_BDSFOFFSET)
 			for (uint BSDFIndex = 0; BSDFIndex < BSDFCount; ++BSDFIndex)
 			{
 				Offsets.BSDFOffsets[BSDFIndex] = StrataAddressing.CurrentIndex;
