@@ -135,7 +135,7 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 			}
 			UpdatePreamble();
 		}
-		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimusMultiLevelDataDomain, LevelNames))
+		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimusParameterBinding, DataDomain))
 		{
 			if (BasePropertyName == ParametersName || BasePropertyName == InputBindingsName)
 			{
