@@ -61,7 +61,7 @@ public:
 		if (Filter)
 		{
 			UE_LOG(LogDerivedDataCache, Display,
-				TEXT("Verify: Using salt -DDC-VerifySalt=%d to filter cache keys to verify."), Filter.GetSalt());
+				TEXT("Verify: Using salt -DDC-VerifySalt=%u to filter cache keys to verify."), Filter.GetSalt());
 		}
 	}
 

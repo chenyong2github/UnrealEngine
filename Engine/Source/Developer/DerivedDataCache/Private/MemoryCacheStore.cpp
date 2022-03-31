@@ -13,7 +13,6 @@
 #include "DerivedDataValue.h"
 #include "HAL/FileManager.h"
 #include "Misc/ScopeExit.h"
-#include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Serialization/CompactBinary.h"
@@ -131,16 +130,7 @@ private:
 	bool bShuttingDown  = false;
 
 protected:
-
-	bool ShouldSimulateMiss(const FCacheKey& InKey);
-
-	/** Debug Options */
 	FBackendDebugOptions DebugOptions;
-
-	/** Keys we ignored due to miss rate settings */
-	FCriticalSection MissedKeysCS;
-	TSet<FName> DebugMissedKeys;
-	TSet<FCacheKey> DebugMissedCacheKeys;
 };
 
 FMemoryCacheStore::FMemoryCacheStore(const TCHAR* InName, int64 InMaxCacheSize, bool bInCanBeDisabled)
@@ -182,30 +172,6 @@ bool FMemoryCacheStore::LegacyDebugOptions(FBackendDebugOptions& InOptions)
 	return true;
 }
 
-bool FMemoryCacheStore::ShouldSimulateMiss(const FCacheKey& Key)
-{
-	if (!bCanBeDisabled || (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty()))
-	{
-		return false;
-	}
-
-	const uint32 Hash = GetTypeHash(Key);
-
-	if (FScopeLock Lock(&MissedKeysCS); DebugMissedCacheKeys.ContainsByHash(Hash, Key))
-	{
-		return true;
-	}
-
-	if (DebugOptions.ShouldSimulateMiss(Key))
-	{
-		FScopeLock Lock(&MissedKeysCS);
-		DebugMissedCacheKeys.AddByHash(Hash, Key);
-		return true;
-	}
-
-	return false;
-}
-
 void FMemoryCacheStore::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
 	IRequestOwner& Owner,
@@ -233,7 +199,7 @@ void FMemoryCacheStore::Put(
 			continue;
 		}
 
-		if (ShouldSimulateMiss(Key))
+		if (bCanBeDisabled && DebugOptions.ShouldSimulatePutMiss(Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%s'"),
 				*Name, *WriteToString<96>(Key), *Request.Name);
@@ -387,7 +353,7 @@ void FMemoryCacheStore::Get(
 		FCacheRecordComponents Components;
 		EStatus Status = EStatus::Error;
 
-		if (ShouldSimulateMiss(Key))
+		if (bCanBeDisabled && DebugOptions.ShouldSimulateGetMiss(Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%s'"),
 				*Name, *WriteToString<96>(Key), *Request.Name);
@@ -480,7 +446,7 @@ void FMemoryCacheStore::PutValue(
 			continue;
 		}
 
-		if (ShouldSimulateMiss(Key))
+		if (bCanBeDisabled && DebugOptions.ShouldSimulatePutMiss(Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%s'"),
 				*Name, *WriteToString<96>(Key), *Request.Name);
@@ -546,7 +512,7 @@ void FMemoryCacheStore::GetValue(
 
 		FValue Value;
 		EStatus Status = EStatus::Error;
-		if (ShouldSimulateMiss(Key))
+		if (bCanBeDisabled && DebugOptions.ShouldSimulateGetMiss(Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%s'"),
 				*Name, *WriteToString<96>(Key), *Request.Name);
@@ -596,7 +562,7 @@ void FMemoryCacheStore::GetChunks(
 		bool bProcessHit = false;
 		const bool bExistsOnly = EnumHasAnyFlags(Request.Policy, ECachePolicy::SkipData);
 		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
-		if (ShouldSimulateMiss(Request.Key))
+		if (bCanBeDisabled && DebugOptions.ShouldSimulateGetMiss(Request.Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%s'"),
 				*Name, *WriteToString<96>(Request.Key, '/', Request.Id), *Request.Name);
@@ -689,7 +655,7 @@ void FMemoryCacheStore::LegacyPut(
 			continue;
 		}
 
-		if (ShouldSimulateMiss(Key))
+		if (bCanBeDisabled && DebugOptions.ShouldSimulatePutMiss(Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%s'"),
 				*Name, *WriteToString<96>(Key), *Request.Name);
@@ -755,7 +721,7 @@ void FMemoryCacheStore::LegacyGet(
 
 		FLegacyCacheValue Value;
 		EStatus Status = EStatus::Error;
-		if (ShouldSimulateMiss(Key))
+		if (bCanBeDisabled && DebugOptions.ShouldSimulateGetMiss(Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%s'"),
 				*Name, *WriteToString<96>(Key), *Request.Name);

@@ -2175,9 +2175,6 @@ private:
 	FCriticalSection AccessCs;
 	FDerivedDataCacheUsageStats UsageStats;
 	FBackendDebugOptions DebugOptions;
-	FCriticalSection MissedKeysCS;
-	TSet<FName> DebugMissedKeys;
-	TSet<FCacheKey> DebugMissedCacheKeys;
 	TUniquePtr<struct FRequestPool> GetRequestPools[2];
 	TUniquePtr<struct FRequestPool> PutRequestPools[2];
 	TUniquePtr<struct FHttpAccessToken> Access;
@@ -2198,8 +2195,6 @@ private:
 	bool IsServiceReady();
 	bool AcquireAccessToken();
 	bool ShouldRetryOnError(int64 ResponseCode);
-	bool ShouldSimulateMiss(const TCHAR* InKey);
-	bool ShouldSimulateMiss(const FCacheKey& Key);
 
 	bool PutCacheRecord(FStringView Name, const FCacheRecord& Record, const FCacheRecordPolicy& Policy, uint64& OutWriteSize);
 	uint64 PutRef(const FCbPackage& Package, const FCacheKey& Key, FStringView Bucket, bool bFinalize, TArray<FIoHash>& OutNeededBlobHashes, bool& bOutPutCompletedSuccessfully);
@@ -2536,55 +2531,6 @@ bool FHttpCacheStore::ShouldRetryOnError(int64 ResponseCode)
 	return false;
 }
 
-bool FHttpCacheStore::ShouldSimulateMiss(const TCHAR* InKey)
-{
-	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
-	{
-		return false;
-	}
-
-	const FName Key(InKey);
-	const uint32 Hash = GetTypeHash(Key);
-
-	if (FScopeLock Lock(&MissedKeysCS); DebugMissedKeys.ContainsByHash(Hash, Key))
-	{
-		return true;
-	}
-
-	if (DebugOptions.ShouldSimulateMiss(InKey))
-	{
-		FScopeLock Lock(&MissedKeysCS);
-		DebugMissedKeys.AddByHash(Hash, Key);
-		return true;
-	}
-
-	return false;
-}
-
-bool FHttpCacheStore::ShouldSimulateMiss(const FCacheKey& Key)
-{
-	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
-	{
-		return false;
-	}
-
-	const uint32 Hash = GetTypeHash(Key);
-
-	if (FScopeLock Lock(&MissedKeysCS); DebugMissedCacheKeys.ContainsByHash(Hash, Key))
-	{
-		return true;
-	}
-
-	if (DebugOptions.ShouldSimulateMiss(Key))
-	{
-		FScopeLock Lock(&MissedKeysCS);
-		DebugMissedCacheKeys.AddByHash(Hash, Key);
-		return true;
-	}
-
-	return false;
-}
-
 uint64 FHttpCacheStore::PutRef(const FCbPackage& Package, const FCacheKey& Key, FStringView Bucket, bool bFinalize, TArray<FIoHash>& OutNeededBlobHashes, bool& bOutPutCompletedSuccessfully)
 {
 	bOutPutCompletedSuccessfully = false;
@@ -2693,7 +2639,7 @@ bool FHttpCacheStore::PutCacheRecord(
 		return false;
 	}
 
-	if (ShouldSimulateMiss(Key))
+	if (DebugOptions.ShouldSimulatePutMiss(Key))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
 			*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());
@@ -2821,7 +2767,7 @@ FOptionalCacheRecord FHttpCacheStore::GetCacheRecordOnly(
 		return FOptionalCacheRecord();
 	}
 
-	if (ShouldSimulateMiss(Key))
+	if (DebugOptions.ShouldSimulateGetMiss(Key))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
 			*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());
@@ -2911,7 +2857,7 @@ bool FHttpCacheStore::PutCacheValue(
 		return false;
 	}
 
-	if (ShouldSimulateMiss(Key))
+	if (DebugOptions.ShouldSimulatePutMiss(Key))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
 			*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());
@@ -3031,7 +2977,7 @@ bool FHttpCacheStore::GetCacheValue(
 		return false;
 	}
 
-	if (ShouldSimulateMiss(Key))
+	if (DebugOptions.ShouldSimulateGetMiss(Key))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
 			*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());
@@ -3546,7 +3492,7 @@ bool FHttpCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
 	TRACE_COUNTER_ADD(HttpDDC_Exist, int64(1));
 	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
 
-	if (ShouldSimulateMiss(CacheKey))
+	if (DebugOptions.ShouldSimulateGetMiss(CacheKey))
 	{
 		return false;
 	}
@@ -3618,7 +3564,7 @@ TBitArray<> FHttpCacheStore::CachedDataProbablyExistsBatch(TConstArrayView<FStri
 			int32 ResultIndex = 0;
 			for (const FString& CacheKey : CacheKeys)
 			{
-				if (ShouldSimulateMiss(*CacheKey))
+				if (DebugOptions.ShouldSimulateGetMiss(*CacheKey))
 				{
 					Results[ResultIndex] = false;
 				}
@@ -3634,7 +3580,7 @@ TBitArray<> FHttpCacheStore::CachedDataProbablyExistsBatch(TConstArrayView<FStri
 			int32 ResultIndex = 0;
 			for (const FString& CacheKey : CacheKeys)
 			{
-				if (ShouldSimulateMiss(*CacheKey))
+				if (DebugOptions.ShouldSimulateGetMiss(*CacheKey))
 				{
 					Results[ResultIndex] = false;
 				}
@@ -3676,7 +3622,7 @@ TBitArray<> FHttpCacheStore::CachedDataProbablyExistsBatch(TConstArrayView<FStri
 			Exists.Reserve(CacheKeys.Num());
 			for (const FString& CacheKey : CacheKeys)
 			{
-				if (ShouldSimulateMiss(*CacheKey))
+				if (DebugOptions.ShouldSimulateGetMiss(*CacheKey))
 				{
 					Exists.Add(false);
 				}
@@ -3716,7 +3662,7 @@ bool FHttpCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutDat
 	TRACE_COUNTER_ADD(HttpDDC_Get, int64(1));
 	COOK_STAT(auto Timer = UsageStats.TimeGet());
 
-	if (ShouldSimulateMiss(CacheKey))
+	if (DebugOptions.ShouldSimulateGetMiss(CacheKey))
 	{
 		return false;
 	}
@@ -3783,7 +3729,7 @@ FDerivedDataBackendInterface::EPutStatus FHttpCacheStore::PutCachedData(const TC
 	}
 
 	// don't put anything we pretended didn't exist
-	if (ShouldSimulateMiss(CacheKey))
+	if (DebugOptions.ShouldSimulatePutMiss(CacheKey))
 	{
 		return EPutStatus::Skipped;
 	}

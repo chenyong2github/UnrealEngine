@@ -28,6 +28,7 @@
 #include "PakFileCacheStore.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Serialization/CompactBinaryPackage.h"
+#include "String/Find.h"
 #include <atomic>
 
 DEFINE_LOG_CATEGORY(LogDerivedDataCache);
@@ -352,7 +353,7 @@ public:
 			{
 				if (!ParsedNode.Key->LegacyDebugOptions(DebugOptions))
 				{
-					UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s is ignoring one or more -DDC-<NodeName>-Option debug options"), *NodeName);
+					UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Node is ignoring one or more -DDC-<NodeName>-Option debug options."), *NodeName);
 				}
 			}
 		}
@@ -377,7 +378,7 @@ public:
 
 		if( !PakFilename.Len() )
 		{
-			UE_LOG( LogDerivedDataCache, Log, TEXT("FDerivedDataBackendGraph:  %s pak cache Filename not found in *engine.ini, will not use a pak cache."), NodeName );
+			UE_LOG( LogDerivedDataCache, Log, TEXT("FDerivedDataBackendGraph: %s pak cache Filename not found in *engine.ini, will not use a pak cache."), NodeName );
 		}
 		else
 		{
@@ -402,7 +403,7 @@ public:
 				}
 				else
 				{
-					UE_LOG( LogDerivedDataCache, Log, TEXT("FDerivedDataBackendGraph:  %s pak cache file %s not found, will not use a pak cache."), NodeName, *PakFilename );
+					UE_LOG( LogDerivedDataCache, Log, TEXT("FDerivedDataBackendGraph: %s pak cache file %s not found, will not use a pak cache."), NodeName, *PakFilename );
 				}
 			}
 		}
@@ -1555,8 +1556,7 @@ struct Private::FBackendDebugMissState
 };
 
 FBackendDebugOptions::FBackendDebugOptions()
-	: RandomMissRate(0)
-	, SpeedClass(EBackendSpeedClass::Unknown)
+	: SpeedClass(EBackendSpeedClass::Unknown)
 {
 	SimulateMissState.Get() = MakePimpl<Private::FBackendDebugMissState>();
 }
@@ -1566,59 +1566,69 @@ FBackendDebugOptions::FBackendDebugOptions()
  */
 bool FBackendDebugOptions::ParseFromTokens(FDerivedDataBackendInterface::FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InInputTokens)
 {
-	// check if the input stream has any ddc options for this node
-	FString PrefixKey = FString(TEXT("-ddc-")) + InNodeName;
-
-	if (FCString::Stristr(InInputTokens, *PrefixKey) == nullptr)
+	// Check if the input stream has any DDC options for this node.
+	TStringBuilder<64> Prefix;
+	Prefix.Append(TEXTVIEW("-DDC-")).Append(InNodeName).Append(TEXTVIEW("-"));
+	if (UE::String::FindFirst(InInputTokens, Prefix, ESearchCase::IgnoreCase) == INDEX_NONE)
 	{
-		// check if it has any -ddc-all- args
-		PrefixKey = FString(TEXT("-ddc-all"));
-
-		if (FCString::Stristr(InInputTokens, *PrefixKey) == nullptr)
+		// Check if the input stream has any -DDC-All- options.
+		Prefix.Reset();
+		Prefix.Append(TEXTVIEW("-DDC-All-"));
+		if (UE::String::FindFirst(InInputTokens, Prefix, ESearchCase::IgnoreCase) == INDEX_NONE)
 		{
 			return false;
 		}
 	}
 
-	// turn -arg= into arg= for parsing
-	PrefixKey.RightChopInline(1);
+	const int32 PrefixLen = Prefix.Len();
 
-	/** types that can be set to ignored (-ddc-<name>-misstypes="foo+bar" etc) */
-	// look for -ddc-local-misstype=AnimSeq+Audio -ddc-shared-misstype=AnimSeq+Audio 
-	FString ArgName = FString::Printf(TEXT("%s-misstypes="), *PrefixKey);
-
-	FString TempArg;
-	FParse::Value(InInputTokens, *ArgName, TempArg);
-	TempArg.ParseIntoArray(OutOptions.SimulateMissTypes, TEXT("+"), true);
-
-	// look for -ddc-local-missrate=, -ddc-shared-missrate= etc
-	ArgName = FString::Printf(TEXT("%s-missrate="), *PrefixKey);
-	int MissRate = 0;
-	FParse::Value(InInputTokens, *ArgName, OutOptions.RandomMissRate);
-
-	// look for -ddc-local-speed=, -ddc-shared-speed= etc
-	ArgName = FString::Printf(TEXT("%s-speed="), *PrefixKey);
-	if (FParse::Value(InInputTokens, *ArgName, TempArg))
+	// Look for -DDC-Local-Speed=, -DDC-Shared-Speed=, etc.
+	Prefix.Append(TEXTVIEW("Speed="));
+	FString SpeedClass;
+	if (FParse::Value(InInputTokens, *Prefix, SpeedClass))
 	{
-		if (!TempArg.IsEmpty())
-		{
-			LexFromString(OutOptions.SpeedClass, *TempArg);
-		}
+		LexFromString(OutOptions.SpeedClass, *SpeedClass);
 	}
+	Prefix.RemoveAt(PrefixLen, Prefix.Len() - PrefixLen);
+
+	// Look for -DDC-Local-MissRate=, -DDC-Shared-MissRate=, etc.
+	float MissRate = 0.0f;
+	Prefix.Append(TEXTVIEW("MissRate="));
+	FParse::Value(InInputTokens, *Prefix, MissRate);
+	Prefix.RemoveAt(PrefixLen, Prefix.Len() - PrefixLen);
+
+	// Look for -DDC-Local-MissTypes=AnimSeq+Audio, -DDC-Shared-MissType=AnimSeq+Audio, etc.
+	Prefix.Append(TEXTVIEW("MissTypes="));
+	OutOptions.SimulateMissFilter = FCacheKeyFilter::Parse(InInputTokens, *Prefix, MissRate);
+	Prefix.RemoveAt(PrefixLen, Prefix.Len() - PrefixLen);
+
+	// Look for -DDC-Local-MissSalt=, -DDC-Shared-MissSalt=, etc.
+	uint32 Salt = 0;
+	Prefix.Append(TEXTVIEW("MissSalt="));
+	if (FParse::Value(InInputTokens, *Prefix, Salt))
+	{
+		OutOptions.SimulateMissFilter.SetSalt(Salt);
+	}
+	if (OutOptions.SimulateMissFilter)
+	{
+		UE_LOG(LogDerivedDataCache, Display,
+			TEXT("%s: Using salt %s%u to filter cache keys to simulate misses on."),
+			InNodeName, *Prefix, OutOptions.SimulateMissFilter.GetSalt());
+	}
+	Prefix.RemoveAt(PrefixLen, Prefix.Len() - PrefixLen);
 
 	return true;
 }
 
 bool FBackendDebugOptions::ShouldSimulatePutMiss(const TCHAR* LegacyKey)
 {
-	if (RandomMissRate == 0 && SimulateMissTypes.IsEmpty())
+	if (!SimulateMissFilter.IsLegacyMatch(LegacyKey))
 	{
 		return false;
 	}
 
-	const FName Key(LegacyKey);
-
 	Private::FBackendDebugMissState& State = *SimulateMissState.Get();
+	const FName Key(LegacyKey);
 	const uint32 KeyHash = GetTypeHash(Key);
 
 	FScopeLock Lock(&State.Lock);
@@ -1628,36 +1638,22 @@ bool FBackendDebugOptions::ShouldSimulatePutMiss(const TCHAR* LegacyKey)
 
 bool FBackendDebugOptions::ShouldSimulateGetMiss(const TCHAR* LegacyKey)
 {
-	if (RandomMissRate == 0 && SimulateMissTypes.IsEmpty())
+	if (!SimulateMissFilter.IsLegacyMatch(LegacyKey))
 	{
 		return false;
 	}
 
-	const FStringView KeyView(LegacyKey);
-	const FName Key(KeyView);
-
-	bool bMiss = (RandomMissRate >= 100);
-	if (!bMiss && !SimulateMissTypes.IsEmpty())
-	{
-		const FStringView Bucket = KeyView.Left(KeyView.Find(TEXT("_")));
-		bMiss = SimulateMissTypes.Contains(Bucket);
-	}
-	if (!bMiss && RandomMissRate > 0)
-	{
-		bMiss = FMath::RandHelper(100) < RandomMissRate;
-	}
-
 	Private::FBackendDebugMissState& State = *SimulateMissState.Get();
+	const FName Key(LegacyKey);
 	const uint32 KeyHash = GetTypeHash(Key);
 
 	FScopeLock Lock(&State.Lock);
-	const EBackendDebugKeyState KeyState = bMiss ? EBackendDebugKeyState::MissGet : EBackendDebugKeyState::HitGet;
-	return State.LegacyKeys.FindOrAddByHash(KeyHash, Key, KeyState) == EBackendDebugKeyState::MissGet;
+	return State.LegacyKeys.FindOrAddByHash(KeyHash, Key, EBackendDebugKeyState::MissGet) == EBackendDebugKeyState::MissGet;
 }
 
 bool FBackendDebugOptions::ShouldSimulatePutMiss(const FCacheKey& Key)
 {
-	if (RandomMissRate == 0 && SimulateMissTypes.IsEmpty())
+	if (!SimulateMissFilter.IsMatch(Key))
 	{
 		return false;
 	}
@@ -1672,33 +1668,16 @@ bool FBackendDebugOptions::ShouldSimulatePutMiss(const FCacheKey& Key)
 
 bool FBackendDebugOptions::ShouldSimulateGetMiss(const FCacheKey& Key)
 {
-	if (RandomMissRate == 0 && SimulateMissTypes.IsEmpty())
+	if (!SimulateMissFilter.IsMatch(Key))
 	{
 		return false;
-	}
-
-	bool bMiss = (RandomMissRate >= 100);
-	if (!bMiss && !SimulateMissTypes.IsEmpty())
-	{
-		TStringBuilder<256> Bucket;
-		Bucket << Key.Bucket;
-		if (Bucket.ToView().StartsWith(TEXTVIEW("Legacy")))
-		{
-			Bucket.RemoveAt(0, TEXTVIEW("Legacy").Len());
-		}
-		bMiss = SimulateMissTypes.Contains(Bucket.ToView());
-	}
-	if (!bMiss && RandomMissRate > 0)
-	{
-		bMiss = FMath::RandHelper(100) < RandomMissRate;
 	}
 
 	Private::FBackendDebugMissState& State = *SimulateMissState.Get();
 	const uint32 KeyHash = GetTypeHash(Key);
 
 	FScopeLock Lock(&State.Lock);
-	const EBackendDebugKeyState KeyState = bMiss ? EBackendDebugKeyState::MissGet : EBackendDebugKeyState::HitGet;
-	return State.Keys.FindOrAddByHash(KeyHash, Key, KeyState) == EBackendDebugKeyState::MissGet;
+	return State.Keys.FindOrAddByHash(KeyHash, Key, EBackendDebugKeyState::MissGet) == EBackendDebugKeyState::MissGet;
 }
 
 } // UE::DerivedData

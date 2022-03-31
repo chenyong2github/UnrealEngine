@@ -326,16 +326,7 @@ private:
 	void ReadBundle(FBundle& Bundle);
 	bool FindBundleEntry(const TCHAR* CacheKey, const FBundle*& OutBundle, const FBundleEntry*& OutBundleEntry) const;
 
-	/* Debug helpers */
-	bool DidSimulateMiss(const TCHAR* InKey);
-	bool ShouldSimulateMiss(const TCHAR* InKey);
-
-	/** Debug Options */
 	FBackendDebugOptions DebugOptions;
-
-	/** Keys we ignored due to miss rate settings */
-	FCriticalSection MissedKeysCS;
-	TSet<FName> DebugMissedKeys;
 };
 
 /**
@@ -1071,7 +1062,7 @@ bool FS3CacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
 	const FBundle* Bundle;
 	const FBundleEntry* BundleEntry;
 
-	if (ShouldSimulateMiss(CacheKey))
+	if (DebugOptions.ShouldSimulateGetMiss(CacheKey))
 	{
 		return false;
 	}
@@ -1093,7 +1084,7 @@ bool FS3CacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
 	TRACE_COUNTER_ADD(S3DDC_Get, int64(1));
 	COOK_STAT(auto Timer = UsageStats.TimeGet());
 
-	if (ShouldSimulateMiss(CacheKey))
+	if (DebugOptions.ShouldSimulateGetMiss(CacheKey))
 	{
 		return false;
 	}
@@ -1340,35 +1331,6 @@ bool FS3CacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
 	return true;
 }
 
-bool FS3CacheStore::DidSimulateMiss(const TCHAR* InKey)
-{
-	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
-	{
-		return false;
-	}
-	FScopeLock Lock(&MissedKeysCS);
-	return DebugMissedKeys.Contains(FName(InKey));
-}
-
-bool FS3CacheStore::ShouldSimulateMiss(const TCHAR* InKey)
-{
-	// once missed, always missed
-	if (DidSimulateMiss(InKey))
-	{
-		return true;
-	}
-
-	if (DebugOptions.ShouldSimulateMiss(InKey))
-	{
-		FScopeLock Lock(&MissedKeysCS);
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), InKey);
-		DebugMissedKeys.Add(FName(InKey));
-		return true;
-	}
-
-	return false;
-}
-
 FOptionalCacheRecord FS3CacheStore::GetCacheRecordOnly(
 	const FStringView Name,
 	const FCacheKey& Key,
@@ -1390,16 +1352,15 @@ FOptionalCacheRecord FS3CacheStore::GetCacheRecordOnly(
 		return FOptionalCacheRecord();
 	}
 
-	//if (ShouldSimulateMiss(Key))
-	//{
-	//	UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
-	//		*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());
-	//	return FOptionalCacheRecord();
-	//}
+	if (DebugOptions.ShouldSimulateGetMiss(Key))
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
+			*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());
+		return FOptionalCacheRecord();
+	}
 
 	TStringBuilder<256> Path;
 	BuildCachePackagePath(Key, Path);
-
 
 	FOptionalCacheRecord Record;
 	{
@@ -1499,12 +1460,12 @@ bool FS3CacheStore::GetCacheValueOnly(
 		return false;
 	}
 
-	//if (ShouldSimulateMiss(Key))
-	//{
-	//	UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
-	//		*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
-	//	return false;
-	//}
+	if (DebugOptions.ShouldSimulateGetMiss(Key))
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
+			*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());
+		return false;
+	}
 
 	TStringBuilder<256> Path;
 	BuildCachePackagePath(Key, Path);

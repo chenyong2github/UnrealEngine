@@ -7,6 +7,7 @@
 #include "Containers/BitArray.h"
 #include "Containers/StringView.h"
 #include "DerivedDataCache.h"
+#include "DerivedDataCacheKeyFilter.h"
 #include "DerivedDataLegacyCacheStore.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Stats/Stats.h"
@@ -63,30 +64,19 @@ enum class EBackendSpeedClass
 /** Debug options that can be applied to backends to simulate different behavior */
 struct FBackendDebugOptions
 {
-	/** Percentage of requests that should result in random misses */
-	int					RandomMissRate;
-
 	/** Apply behavior of this speed class */
 	EBackendSpeedClass	SpeedClass;
 
-	/** Types of DDC entries that should always be a miss */
-	TArray<FString>		SimulateMissTypes;
+	/** Filter to control the keys for which to simulate a miss. */
+	FCacheKeyFilter SimulateMissFilter;
 
 	/** State for simulated misses. */
 	TDontCopy<TPimplPtr<Private::FBackendDebugMissState>> SimulateMissState;
 
 	FBackendDebugOptions();
 
-	/** Fill in the provided structure based on the name of the node (e.g. 'shared') and the provided token stream */
+	/** Fill in the provided structure based on the name of the node (e.g. 'Shared') and the provided token stream. */
 	static bool ParseFromTokens(FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InTokens);
-
-	/**
-	 * Returns true if, according to the properties of this struct, the provided key should be treated as a miss.
-	 * Implementing that miss and accounting for any behavior impact (e.g. skipping a subsequent put) is left to
-	 * each backend.
-	 */
-	bool ShouldSimulateMiss(const TCHAR* CacheKey) { return ShouldSimulateGetMiss(CacheKey); }
-	bool ShouldSimulateMiss(const FCacheKey& CacheKey) { return ShouldSimulateGetMiss(CacheKey); }
 
 	bool ShouldSimulatePutMiss(const FCacheKey& Key);
 	bool ShouldSimulateGetMiss(const FCacheKey& Key);

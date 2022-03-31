@@ -92,7 +92,7 @@ FCacheKeyFilter FCacheKeyFilter::Parse(const TCHAR* const Config, const TCHAR* c
 	}
 
 	FCacheKeyFilter Filter;
-	Filter.State = MakePimpl<FCacheKeyFilterState>();
+	Filter.State = MakePimpl<FCacheKeyFilterState, EPimplPtrMode::DeepCopy>();
 	Filter.State->Types = MoveTemp(Types);
 	Filter.State->DefaultRate = FCacheKeyFilterState::ConvertMatchRate(FMath::Clamp(DefaultRate, 0.0f, 100.0f));
 	Filter.SetSalt(0);

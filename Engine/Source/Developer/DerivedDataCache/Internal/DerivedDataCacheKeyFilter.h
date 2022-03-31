@@ -52,7 +52,7 @@ public:
 	inline explicit operator bool() const { return State.IsValid(); }
 
 private:
-	TPimplPtr<Private::FCacheKeyFilterState> State;
+	TPimplPtr<Private::FCacheKeyFilterState, EPimplPtrMode::DeepCopy> State;
 };
 
 } // UE::DerivedData

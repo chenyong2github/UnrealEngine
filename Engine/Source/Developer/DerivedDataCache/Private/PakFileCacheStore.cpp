@@ -117,7 +117,7 @@ public:
 
 	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) final { return true; }
 
-	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) final { return false; }
+	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) final;
 
 	EBackendLegacyMode GetLegacyMode() const final { return EBackendLegacyMode::ValueOnly; }
 
@@ -190,6 +190,7 @@ private:
 
 private:
 	FDerivedDataCacheUsageStats UsageStats;
+	FBackendDebugOptions DebugOptions;
 
 	struct FCacheValue
 	{
@@ -316,6 +317,10 @@ bool FPakFileCacheStore::BackfillLowerCacheLevels() const
 bool FPakFileCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
+	if (bClosed || DebugOptions.ShouldSimulateGetMiss(CacheKey))
+	{
+		return false;
+	}
 	FReadScopeLock ScopeLock(SynchronizationObject);
 	bool Result = CacheItems.Contains(FString(CacheKey));
 	if (Result)
@@ -328,7 +333,7 @@ bool FPakFileCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
 bool FPakFileCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
 {
 	COOK_STAT(auto Timer = UsageStats.TimeGet());
-	if (bClosed)
+	if (bClosed || DebugOptions.ShouldSimulateGetMiss(CacheKey))
 	{
 		return false;
 	}
@@ -384,7 +389,7 @@ bool FPakFileCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& Out
 FDerivedDataBackendInterface::EPutStatus FPakFileCacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	COOK_STAT(auto Timer = UsageStats.TimePut());
-	if (!IsWritable())
+	if (!IsWritable() || DebugOptions.ShouldSimulateGetMiss(CacheKey))
 	{
 		return EPutStatus::NotCached;
 	}
@@ -684,6 +689,12 @@ TSharedRef<FDerivedDataCacheStatsNode> FPakFileCacheStore::GatherUsageStats() co
 	return Usage;
 }
 
+bool FPakFileCacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+{
+	DebugOptions = InOptions;
+	return true;
+}
+
 void FPakFileCacheStore::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
 	IRequestOwner& Owner,
@@ -894,12 +905,12 @@ bool FPakFileCacheStore::PutCacheRecord(
 		return false;
 	}
 
-	//if (ShouldSimulateMiss(Key))
-	//{
-	//	UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
-	//		*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
-	//	return false;
-	//}
+	if (DebugOptions.ShouldSimulatePutMiss(Key))
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
+			*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
+		return false;
+	}
 
 	TStringBuilder<256> Path;
 	FPathViews::Append(Path, TEXT("Buckets"), Key);
@@ -960,12 +971,12 @@ FOptionalCacheRecord FPakFileCacheStore::GetCacheRecordOnly(
 		return FOptionalCacheRecord();
 	}
 
-	//if (ShouldSimulateMiss(Key))
-	//{
-	//	UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
-	//		*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
-	//	return FOptionalCacheRecord();
-	//}
+	if (DebugOptions.ShouldSimulateGetMiss(Key))
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
+			*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
+		return FOptionalCacheRecord();
+	}
 
 	TStringBuilder<256> Path;
 	FPathViews::Append(Path, TEXT("Buckets"), Key);
@@ -1076,12 +1087,12 @@ bool FPakFileCacheStore::PutCacheValue(
 		return false;
 	}
 
-	//if (ShouldSimulateMiss(Key))
-	//{
-	//	UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
-	//		*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
-	//	return false;
-	//}
+	if (DebugOptions.ShouldSimulatePutMiss(Key))
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
+			*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
+		return false;
+	}
 
 	// Check if there is an existing value package.
 	bool bValueExists = false;
@@ -1157,12 +1168,12 @@ bool FPakFileCacheStore::GetCacheValueOnly(
 		return false;
 	}
 
-	//if (ShouldSimulateMiss(Key))
-	//{
-	//	UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
-	//		*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
-	//	return false;
-	//}
+	if (DebugOptions.ShouldSimulateGetMiss(Key))
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
+			*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
+		return false;
+	}
 
 	TStringBuilder<256> Path;
 	FPathViews::Append(Path, TEXT("Buckets"), Key);
