@@ -10,7 +10,7 @@
 
 void FXRRenderTargetManager::CalculateRenderTargetSize(const class FViewport& Viewport, uint32& InOutSizeX, uint32& InOutSizeY)
 {
-	check(IsInGameThread());
+	check(IsInGameThread() || IsInRenderingThread());
 
 	if (GEngine && GEngine->XRSystem.IsValid())
 	{

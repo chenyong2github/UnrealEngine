@@ -1238,8 +1238,14 @@ namespace OculusHMD
 
 	float FOculusHMD::GetPixelDenity() const
 	{
-		CheckInGameThread();
-		return Settings->PixelDensity;
+		if (IsInGameThread())
+		{
+			return Settings.IsValid() ? Settings->PixelDensity : 1.0f;
+		}
+		else
+		{
+			return Settings_RenderThread.IsValid() ? Settings_RenderThread->PixelDensity : 1.0f;
+		}
 	}
 
 	void FOculusHMD::SetPixelDensity(const float NewPixelDensity)
@@ -1250,8 +1256,14 @@ namespace OculusHMD
 
 	FIntPoint FOculusHMD::GetIdealRenderTargetSize() const
 	{
-		CheckInGameThread();
-		return Settings->RenderTargetSize;
+		if (IsInGameThread())
+		{
+			return Settings.IsValid() ? Settings->RenderTargetSize : 1.0f;
+		}
+		else
+		{
+			return Settings_RenderThread.IsValid() ? Settings_RenderThread->RenderTargetSize : 1.0f;
+		}
 	}
 
 	bool FOculusHMD::IsStereoEnabled() const

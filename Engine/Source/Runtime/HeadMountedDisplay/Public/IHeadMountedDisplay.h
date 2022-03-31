@@ -158,7 +158,7 @@ public:
 	/**
 	 * Gets the current pixel density setting.
 	 */
-	virtual float GetPixelDenity() const { return 1.0f; }
+	virtual float GetPixelDenity() const { check(IsInGameThread() || IsInRenderingThread()); return 1.0f; }
 
 	/**
 	 * Sets the pixel density. This may cause render target resizing.
@@ -168,7 +168,7 @@ public:
 	/**
 	* Gets the ideal render target size for the device. See vr.pixeldensity description.
 	*/
-	virtual FIntPoint GetIdealRenderTargetSize() const { return FIntPoint(); }
+	virtual FIntPoint GetIdealRenderTargetSize() const { check(IsInGameThread() || IsInRenderingThread()); return FIntPoint(); }
 
 	/**
 	* Gets the ideal render target size for the debug canvas on the device.
