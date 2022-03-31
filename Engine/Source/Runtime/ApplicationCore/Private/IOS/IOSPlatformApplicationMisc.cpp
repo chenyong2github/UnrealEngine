@@ -299,3 +299,7 @@ EScreenPhysicalAccuracy FIOSPlatformApplicationMisc::ComputePhysicalScreenDensit
 	return EScreenPhysicalAccuracy::Approximation;
 }
 
+bool FIOSPlatformApplicationMisc::RequiresVirtualKeyboard()
+{
+    return PLATFORM_HAS_TOUCH_MAIN_SCREEN || PLATFORM_TVOS;
+}

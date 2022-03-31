@@ -56,20 +56,16 @@ FIOSPlatformTextField::~FIOSPlatformTextField()
         TextField = nullptr;
 		dispatch_async(dispatch_get_main_queue(), ^{
             NSLog(@"Finally releasing text field %@", LocalTextField);
-#if !PLATFORM_TVOS
 			if (LocalTextField != nullptr && [LocalTextField respondsToSelector:@selector(hide:)])
 			{
             	[LocalTextField hide];
 			}
-#endif
 		});
 	}
 }
 
 void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSharedPtr<IVirtualKeyboardEntry> TextEntryWidget)
 {
-#if !PLATFORM_TVOS
-	
 	FIOSView* View = [IOSAppDelegate GetDelegate].IOSView;
 	if (View->bIsUsingIntegratedKeyboard)
 	{
@@ -120,10 +116,7 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
 			}
         }
 	}
-#endif
 }
-
-#if !PLATFORM_TVOS
 
 @implementation SlateTextField
 
@@ -326,6 +319,3 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
 }
 
 @end
-
-#endif
-

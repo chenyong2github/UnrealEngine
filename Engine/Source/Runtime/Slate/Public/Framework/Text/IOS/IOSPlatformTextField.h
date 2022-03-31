@@ -28,8 +28,6 @@ private:
 
 typedef FIOSPlatformTextField FPlatformTextField;
 
-#if !PLATFORM_TVOS
-
 @interface SlateTextField : UIAlertController
 {
 	TWeakPtr<IVirtualKeyboardEntry> TextWidget;
@@ -50,4 +48,3 @@ typedef FIOSPlatformTextField FPlatformTextField;
 -(bool)hasTextWidget;
 
 @end
-#endif

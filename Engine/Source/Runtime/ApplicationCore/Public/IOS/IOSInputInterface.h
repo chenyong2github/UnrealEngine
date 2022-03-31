@@ -140,12 +140,6 @@ private:
 	// can the game handle multiple gamepads at the same time (siri remote is a gamepad) ?
 	bool bGameSupportsMultipleActiveControllers;
 
-	// should the remote be used as virtual joystick vs touch events
-	bool bUseRemoteAsVirtualJoystick_DEPRECATED;
-
-	// should the tracking use the pad center as the virtual joystick center?
-	bool bUseRemoteAbsoluteDpadValues;
-
 	// bluetooth connected controllers will block force feedback.
 	bool bControllersBlockDeviceFeedback;
 	

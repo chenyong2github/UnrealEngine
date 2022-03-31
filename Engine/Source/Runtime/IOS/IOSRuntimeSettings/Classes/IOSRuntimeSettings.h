@@ -294,15 +294,7 @@ public:
 	// If checked, the Siri Remote can be rotated to landscape view
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Allow AppleTV Remote landscape mode"))
 	bool bAllowRemoteRotation;
-	
-	// If checked, the trackpad is a virtual joystick (acts like the left stick of a controller). If unchecked, the trackpad will send touch events
-	UPROPERTY(config, meta = (Deprecated, DeprecationMessage = "Use AppleTV trackpad as virtual joystick. Deprecated. Siri Remote shouls always behave as a joystick"))
-	bool bUseRemoteAsVirtualJoystick_DEPRECATED;
-	
-	// If checked, the center of the trackpad is 0,0 (center) for the virtual joystick. If unchecked, the location the user taps becomes 0,0
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Use AppleTV Remote absolute trackpad values"))
-	bool bUseRemoteAbsoluteDpadValues;
-	
+		
 	// If checked, Bluetooth connected controllers will send input
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Allow MFi (Bluetooth) controllers"))
 	bool bAllowControllers;

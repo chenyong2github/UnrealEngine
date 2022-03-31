@@ -32,6 +32,8 @@ struct APPLICATIONCORE_API FIOSPlatformApplicationMisc : public FGenericPlatform
 
 	static EScreenPhysicalAccuracy ComputePhysicalScreenDensity(int32& ScreenDensity);
 
+    static bool RequiresVirtualKeyboard();
+    
 private:
 	static class FIOSApplication* CachedApplication;
 

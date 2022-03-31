@@ -44,8 +44,6 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	AdditionalShippingLinkerFlags = TEXT("");
     bGameSupportsMultipleActiveControllers = false;
 	bAllowRemoteRotation = true;
-    bUseRemoteAsVirtualJoystick_DEPRECATED = true;
-	bUseRemoteAbsoluteDpadValues = false;
 	bDisableMotionData = false;
     bEnableRemoteNotificationsSupport = false;
     bEnableBackgroundFetch = false;

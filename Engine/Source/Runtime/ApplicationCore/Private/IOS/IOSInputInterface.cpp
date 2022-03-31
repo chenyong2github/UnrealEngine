@@ -101,8 +101,6 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
 	: FAppleControllerInterface( InMessageHandler )
 	, bAllowRemoteRotation(false)
 	, bGameSupportsMultipleActiveControllers(false)
-	, bUseRemoteAsVirtualJoystick_DEPRECATED(true)
-	, bUseRemoteAbsoluteDpadValues(false)
     , LastHapticValue(0.0f)
     , MouseDeltaX(0)
     , MouseDeltaY(0)
@@ -120,8 +118,6 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
     
     GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bGameSupportsMultipleActiveControllers"), bGameSupportsMultipleActiveControllers, GEngineIni);
     GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bAllowRemoteRotation"), bAllowRemoteRotation, GEngineIni);
-    GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bUseRemoteAsVirtualJoystick"), bUseRemoteAsVirtualJoystick_DEPRECATED, GEngineIni);
-    GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bUseRemoteAbsoluteDpadValues"), bUseRemoteAbsoluteDpadValues, GEngineIni);
     GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bAllowControllers"), bAllowControllers, GEngineIni);
     GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bControllersBlockDeviceFeedback"), bControllersBlockDeviceFeedback, GEngineIni);
     
@@ -540,23 +536,13 @@ void FIOSInputInterface::SendControllerEvents()
                 HandleButtonGamepad(FGamepadKeyNames::FaceButtonLeft, i);
                 HandleButtonGamepad(FGamepadKeyNames::SpecialRight, i);
                 
-                // if we want virtual joysticks, then use the dpad values (and drain the touch queue to not leak memory)
-                if (bUseRemoteAsVirtualJoystick_DEPRECATED)
-                {
-                    HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogX, i);
-                    HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogY, i);
+                HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogX, i);
+                HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogY, i);
 
-                    HandleButtonGamepad(FGamepadKeyNames::LeftStickUp, i);
-                    HandleButtonGamepad(FGamepadKeyNames::LeftStickDown, i);
-                    HandleButtonGamepad(FGamepadKeyNames::LeftStickRight, i);
-                    HandleButtonGamepad(FGamepadKeyNames::LeftStickLeft, i);
-                }
-                // otherwise, process touches like ios for the remote's index
-                else
-                {
-                    ProcessTouchesAndKeys(Cont.playerIndex, LocalTouchInputStack, LocalKeyInputStack);
-                }
-
+                HandleButtonGamepad(FGamepadKeyNames::LeftStickUp, i);
+                HandleButtonGamepad(FGamepadKeyNames::LeftStickDown, i);
+                HandleButtonGamepad(FGamepadKeyNames::LeftStickRight, i);
+                HandleButtonGamepad(FGamepadKeyNames::LeftStickLeft, i);
                 
                 [Controller.PreviousMicroGamepad release];
                 Controller.PreviousMicroGamepad = MicroGamepad;
