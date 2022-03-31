@@ -493,7 +493,18 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCrea
 			{
 				if (UMaterialExpression* OpacityExpression = CreateExpressionsForNode(Material, Arguments, OpacityNode, Expressions))
 				{
-					if (FExpressionInput* OpacityInput = Material->GetExpressionInputForProperty(MP_Opacity))
+					FExpressionInput* OpacityInput = Material->GetExpressionInputForProperty(MP_Opacity);
+
+					TEnumAsByte<EBlendMode> BlendMode;
+					if (MaterialFactoryNode->GetCustomBlendMode(BlendMode))
+					{
+						if (BlendMode == EBlendMode::BLEND_Masked)
+						{
+							OpacityInput = Material->GetExpressionInputForProperty(MP_OpacityMask);
+						}
+					}
+					
+					if (OpacityInput)
 					{
 						OpacityExpression->ConnectExpression(OpacityInput, GetOutputIndex(*OpacityExpression, OutputName));
 					}

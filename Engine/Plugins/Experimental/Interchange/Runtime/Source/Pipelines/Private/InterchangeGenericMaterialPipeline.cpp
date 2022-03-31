@@ -615,18 +615,29 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 				if (OpacityExpressionFactoryNode.Get<0>())
 				{
 					MaterialFactoryNode->ConnectOutputToOpacity(OpacityExpressionFactoryNode.Get<0>()->GetUniqueID(), OpacityExpressionFactoryNode.Get<1>());
+				}
 
-					// Don't change the blend mode or the lighting mode if they were already set
-					TEnumAsByte<EBlendMode> BlendMode = EBlendMode::BLEND_Translucent;
-					if (!MaterialFactoryNode->GetCustomBlendMode(BlendMode))
+				// Opacity Clip Value
+				bool bIsMasked = false;
+				{
+					float OpacityClipValue;
+					if (ShaderGraphNode->GetCustomOpacityMaskClipValue(OpacityClipValue))
 					{
-						MaterialFactoryNode->SetCustomBlendMode(BlendMode);
+						MaterialFactoryNode->SetCustomOpacityMaskClipValue(OpacityClipValue);
+						bIsMasked = true;
+					}
+				}
 
-						TEnumAsByte<ETranslucencyLightingMode> LightingMode = ETranslucencyLightingMode::TLM_Surface;
-						if (!MaterialFactoryNode->GetCustomTranslucencyLightingMode(LightingMode))
-						{
-							MaterialFactoryNode->SetCustomTranslucencyLightingMode(LightingMode);
-						}
+				// Don't change the blend mode or the lighting mode if they were already set
+				TEnumAsByte<EBlendMode> BlendMode = bIsMasked ? EBlendMode::BLEND_Masked : EBlendMode::BLEND_Translucent;
+				if (!MaterialFactoryNode->GetCustomBlendMode(BlendMode))
+				{
+					MaterialFactoryNode->SetCustomBlendMode(BlendMode);
+
+					TEnumAsByte<ETranslucencyLightingMode> LightingMode = ETranslucencyLightingMode::TLM_Surface;
+					if (!MaterialFactoryNode->GetCustomTranslucencyLightingMode(LightingMode))
+					{
+						MaterialFactoryNode->SetCustomTranslucencyLightingMode(LightingMode);
 					}
 				}
 			}

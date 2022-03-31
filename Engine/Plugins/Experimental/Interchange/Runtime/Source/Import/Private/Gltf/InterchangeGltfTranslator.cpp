@@ -358,6 +358,12 @@ void UInterchangeGltfTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 				OpacityFactor, Standard::Nodes::TextureSample::Outputs::A.ToString() );
 		}
 
+		// Alpha cutoff
+		if ( GltfMaterial.AlphaMode == GLTF::FMaterial::EAlphaMode::Mask )
+		{
+			ShaderGraphNode.SetCustomOpacityMaskClipValue( GltfMaterial.AlphaCutoff );
+		}
+
 		// IOR
 		if ( GltfMaterial.bHasIOR )
 		{
