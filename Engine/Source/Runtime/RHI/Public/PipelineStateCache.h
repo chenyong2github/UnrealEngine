@@ -75,6 +75,12 @@ namespace PipelineStateCache
 
 	/* Clears all pipeline cached state. Called on shutdown, calling GetAndOrCreate after this will recreate state */
 	extern RHI_API void Shutdown();
+
+	/* Called when PSO precompile has completed */
+	extern RHI_API void PreCompileComplete();
+
+	/* Returns the number of PSO precompiles currently in progress */
+	extern RHI_API int32 GetNumActivePipelinePrecompileTasks();
 }
 
 // Returns the hit group index within the ray tracing pipeline or INDEX_NONE if given shader does not exist.

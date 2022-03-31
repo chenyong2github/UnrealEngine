@@ -621,86 +621,94 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 			TRACE_CPUPROFILER_EVENT_SCOPE(FShaderPipelineCache::PrecompileGraphics);
 
 			FGraphicsPipelineStateInitializer GraphicsInitializer;
-
-			if (PSO.GraphicsDesc.MeshShader != FSHAHash())
 			{
-				FMeshShaderRHIRef MeshShader = FShaderCodeLibrary::CreateMeshShader(Platform, PSO.GraphicsDesc.MeshShader);
-				GraphicsInitializer.BoundShaderState.SetMeshShader(MeshShader);
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FShaderPipelineCache_PrepareInitializer);
 
-				if (PSO.GraphicsDesc.AmplificationShader != FSHAHash())
+				if (PSO.GraphicsDesc.MeshShader != FSHAHash())
 				{
-					FAmplificationShaderRHIRef AmplificationShader = FShaderCodeLibrary::CreateAmplificationShader(Platform, PSO.GraphicsDesc.AmplificationShader);
-					GraphicsInitializer.BoundShaderState.SetAmplificationShader(AmplificationShader);
+					FMeshShaderRHIRef MeshShader = FShaderCodeLibrary::CreateMeshShader(Platform, PSO.GraphicsDesc.MeshShader);
+					GraphicsInitializer.BoundShaderState.SetMeshShader(MeshShader);
+
+					if (PSO.GraphicsDesc.AmplificationShader != FSHAHash())
+					{
+						FAmplificationShaderRHIRef AmplificationShader = FShaderCodeLibrary::CreateAmplificationShader(Platform, PSO.GraphicsDesc.AmplificationShader);
+						GraphicsInitializer.BoundShaderState.SetAmplificationShader(AmplificationShader);
+					}
 				}
-			}
-			else
-			{
-				FRHIVertexDeclaration* VertexDesc = PipelineStateCache::GetOrCreateVertexDeclaration(PSO.GraphicsDesc.VertexDescriptor);
-				GraphicsInitializer.BoundShaderState.VertexDeclarationRHI = VertexDesc;
-			
-				FVertexShaderRHIRef VertexShader;
-				if (PSO.GraphicsDesc.VertexShader != FSHAHash())
+				else
 				{
-					VertexShader = FShaderCodeLibrary::CreateVertexShader(Platform, PSO.GraphicsDesc.VertexShader);
-					GraphicsInitializer.BoundShaderState.VertexShaderRHI = VertexShader;
-				}
+					FRHIVertexDeclaration* VertexDesc = PipelineStateCache::GetOrCreateVertexDeclaration(PSO.GraphicsDesc.VertexDescriptor);
+					GraphicsInitializer.BoundShaderState.VertexDeclarationRHI = VertexDesc;
+
+					FVertexShaderRHIRef VertexShader;
+					if (PSO.GraphicsDesc.VertexShader != FSHAHash())
+					{
+						VertexShader = FShaderCodeLibrary::CreateVertexShader(Platform, PSO.GraphicsDesc.VertexShader);
+						GraphicsInitializer.BoundShaderState.VertexShaderRHI = VertexShader;
+					}
 
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-				FGeometryShaderRHIRef GeometryShader;
-				if (PSO.GraphicsDesc.GeometryShader != FSHAHash())
-				{
-					GeometryShader = FShaderCodeLibrary::CreateGeometryShader(Platform, PSO.GraphicsDesc.GeometryShader);
-					GraphicsInitializer.BoundShaderState.SetGeometryShader(GeometryShader);
-				}
+					FGeometryShaderRHIRef GeometryShader;
+					if (PSO.GraphicsDesc.GeometryShader != FSHAHash())
+					{
+						GeometryShader = FShaderCodeLibrary::CreateGeometryShader(Platform, PSO.GraphicsDesc.GeometryShader);
+						GraphicsInitializer.BoundShaderState.SetGeometryShader(GeometryShader);
+					}
 #endif
+				}
+
+				FPixelShaderRHIRef FragmentShader;
+				if (PSO.GraphicsDesc.FragmentShader != FSHAHash())
+				{
+					FragmentShader = FShaderCodeLibrary::CreatePixelShader(Platform, PSO.GraphicsDesc.FragmentShader);
+					GraphicsInitializer.BoundShaderState.PixelShaderRHI = FragmentShader;
+				}
+
+				auto BlendState = GetOrCreateBlendState(PSO.GraphicsDesc.BlendState);
+				GraphicsInitializer.BlendState = BlendState;
+
+				auto RasterState = GetOrCreateRasterizerState(PSO.GraphicsDesc.RasterizerState);
+				GraphicsInitializer.RasterizerState = RasterState;
+
+				auto DepthState = GetOrCreateDepthStencilState(PSO.GraphicsDesc.DepthStencilState);
+				GraphicsInitializer.DepthStencilState = DepthState;
+
+				for (uint32 i = 0; i < MaxSimultaneousRenderTargets; ++i)
+				{
+					GraphicsInitializer.RenderTargetFormats[i] = PSO.GraphicsDesc.RenderTargetFormats[i];
+					GraphicsInitializer.RenderTargetFlags[i] = PSO.GraphicsDesc.RenderTargetFlags[i];
+				}
+
+				GraphicsInitializer.RenderTargetsEnabled = PSO.GraphicsDesc.RenderTargetsActive;
+				GraphicsInitializer.NumSamples = PSO.GraphicsDesc.MSAASamples;
+
+				GraphicsInitializer.SubpassHint = (ESubpassHint)PSO.GraphicsDesc.SubpassHint;
+				GraphicsInitializer.SubpassIndex = PSO.GraphicsDesc.SubpassIndex;
+
+				GraphicsInitializer.MultiViewCount = PSO.GraphicsDesc.MultiViewCount;
+				GraphicsInitializer.bHasFragmentDensityAttachment = PSO.GraphicsDesc.bHasFragmentDensityAttachment;
+
+				GraphicsInitializer.DepthStencilTargetFormat = PSO.GraphicsDesc.DepthStencilFormat;
+				GraphicsInitializer.DepthStencilTargetFlag = PSO.GraphicsDesc.DepthStencilFlags;
+				GraphicsInitializer.DepthTargetLoadAction = PSO.GraphicsDesc.DepthLoad;
+				GraphicsInitializer.StencilTargetLoadAction = PSO.GraphicsDesc.StencilLoad;
+				GraphicsInitializer.DepthTargetStoreAction = PSO.GraphicsDesc.DepthStore;
+				GraphicsInitializer.StencilTargetStoreAction = PSO.GraphicsDesc.StencilStore;
+			
+				GraphicsInitializer.PrimitiveType = PSO.GraphicsDesc.PrimitiveType;
+			
+				// This indicates we do not want a fatal error if this compilation fails
+				// (ie, if this entry in the file cache is bad)
+				GraphicsInitializer.bFromPSOFileCache = true;
 			}
-
-			FPixelShaderRHIRef FragmentShader;
-			if (PSO.GraphicsDesc.FragmentShader != FSHAHash())
-			{
-				FragmentShader = FShaderCodeLibrary::CreatePixelShader(Platform, PSO.GraphicsDesc.FragmentShader);
-				GraphicsInitializer.BoundShaderState.PixelShaderRHI = FragmentShader;
-			}
-
-			auto BlendState = GetOrCreateBlendState(PSO.GraphicsDesc.BlendState);
-			GraphicsInitializer.BlendState = BlendState;
-			
-			auto RasterState = GetOrCreateRasterizerState(PSO.GraphicsDesc.RasterizerState);
-			GraphicsInitializer.RasterizerState = RasterState;
-			
-			auto DepthState = GetOrCreateDepthStencilState(PSO.GraphicsDesc.DepthStencilState);
-			GraphicsInitializer.DepthStencilState = DepthState;
-
-			for (uint32 i = 0; i < MaxSimultaneousRenderTargets; ++i)
-			{
-				GraphicsInitializer.RenderTargetFormats[i] = PSO.GraphicsDesc.RenderTargetFormats[i];
-				GraphicsInitializer.RenderTargetFlags[i] = PSO.GraphicsDesc.RenderTargetFlags[i];
-			}
-			
-			GraphicsInitializer.RenderTargetsEnabled = PSO.GraphicsDesc.RenderTargetsActive;
-			GraphicsInitializer.NumSamples = PSO.GraphicsDesc.MSAASamples;
-
-			GraphicsInitializer.SubpassHint = (ESubpassHint)PSO.GraphicsDesc.SubpassHint;
-			GraphicsInitializer.SubpassIndex = PSO.GraphicsDesc.SubpassIndex;
-
-			GraphicsInitializer.MultiViewCount = PSO.GraphicsDesc.MultiViewCount;
-			GraphicsInitializer.bHasFragmentDensityAttachment = PSO.GraphicsDesc.bHasFragmentDensityAttachment;
-
-			GraphicsInitializer.DepthStencilTargetFormat = PSO.GraphicsDesc.DepthStencilFormat;
-			GraphicsInitializer.DepthStencilTargetFlag = PSO.GraphicsDesc.DepthStencilFlags;
-			GraphicsInitializer.DepthTargetLoadAction = PSO.GraphicsDesc.DepthLoad;
-			GraphicsInitializer.StencilTargetLoadAction = PSO.GraphicsDesc.StencilLoad;
-			GraphicsInitializer.DepthTargetStoreAction = PSO.GraphicsDesc.DepthStore;
-			GraphicsInitializer.StencilTargetStoreAction = PSO.GraphicsDesc.StencilStore;
-			
-			GraphicsInitializer.PrimitiveType = PSO.GraphicsDesc.PrimitiveType;
-			
-			// This indicates we do not want a fatal error if this compilation fails
-			// (ie, if this entry in the file cache is bad)
-			GraphicsInitializer.bFromPSOFileCache = true;
-			
 			// Use SetGraphicsPipelineState to call down into PipelineStateCache and also handle the fallback case used by OpenGL.
-			SetGraphicsPipelineState(RHICmdList, GraphicsInitializer, 0, EApplyRendertargetOption::DoNothing, false);
+			// we lose track of our PSO precompile jobs through here. they may not be RHI dependencies and could persist beyond the next tick.
+			// GetNumActivePipelinePrecompileTasks() is tracking non-rhi dependent precompiles.
+			// It's being used for rate limiting and ensuring tasks are done before calling OnPrecompilationComplete delegate.
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FShaderPipelineCache_SetGraphicsPipelineState);
+				SetGraphicsPipelineState(RHICmdList, GraphicsInitializer, 0, EApplyRendertargetOption::DoNothing, false);
+			}
 			bOk = true;
 		}
 		else if(FPipelineCacheFileFormatPSO::DescriptorType::Compute == PSO.Type)
@@ -985,6 +993,20 @@ void FShaderPipelineCache::PreparePipelineBatch(TDoubleLinkedList<FPipelineCache
 	}
 }
 
+
+static int32 GMinPipelinePrecompileTasksInFlightThreshold = 10;
+
+static FAutoConsoleVariableRef GPipelinePrecompileTasksInFlightVar(
+	TEXT("shaderpipeline.MinPrecompileTasksInFlight"),
+	GMinPipelinePrecompileTasksInFlightThreshold,
+	TEXT("Note: Only used when threadpool PSO precompiling is active.\n")
+	TEXT("The number of active PSO precompile jobs in flight before we will submit another batch of jobs. \n")
+	TEXT("i.e. when the number of inflight precompile tasks drops below this threshold we can add the next batch of precompile tasks. \n")
+	TEXT("This is to prevent bubbles between precompile batches but also to avoid saturating dispatch.")
+	,
+	ECVF_RenderThreadSafe
+);
+
 bool FShaderPipelineCache::ReadyForPrecompile()
 {
 	for(uint32 i = 0; i < (uint32)ReadTasks.Num();/*NOP*/)
@@ -1005,7 +1027,9 @@ bool FShaderPipelineCache::ReadyForPrecompile()
 		LastPrecompileRHIFence = nullptr;
 	}
 
-	return (CompileTasks.Num() != 0) && !LastPrecompileRHIFence.GetReference();
+	return (CompileTasks.Num() != 0) 
+		&& PipelineStateCache::GetNumActivePipelinePrecompileTasks() < GMinPipelinePrecompileTasksInFlightThreshold
+		&& !LastPrecompileRHIFence.GetReference();
 }
 
 void FShaderPipelineCache::PrecompilePipelineBatch()
@@ -1271,6 +1295,7 @@ bool FShaderPipelineCache::IsTickable() const
 		(FPlatformAtomics::AtomicRead(&TotalActiveTasks) != 0 ||
 			FPlatformAtomics::AtomicRead(&TotalWaitingTasks) != 0 ||
 			FPlatformAtomics::AtomicRead(&TotalCompleteTasks) != 0 ||
+			PipelineStateCache::GetNumActivePipelinePrecompileTasks()||
 			ReadyForAutoSave()||
 			GetShaderPipelineCacheSaveBoundPSOLog());
 }
@@ -1290,7 +1315,7 @@ void FShaderPipelineCache::Tick( float DeltaTime )
 	}
 
 	// HACK: note for the time being until the code further upstream properly uses the OnPrecompilationComplete delegate, we need to provide some delays to make sure it gets the messaging properly (the -10.0f and the -20.0f below).
-	if (((FMath::Max(0ll, FPlatformAtomics::AtomicRead(&TotalWaitingTasks)) == 0 && FMath::Max(0ll, FPlatformAtomics::AtomicRead(&TotalActiveTasks)) == 0 && FPlatformAtomics::AtomicRead(&TotalCompleteTasks) != 0) || (CVarPSOFileCacheMaxPrecompileTime.GetValueOnAnyThread() > 0.0 && TotalPrecompileWallTime - 10.0f > CVarPSOFileCacheMaxPrecompileTime.GetValueOnAnyThread() && TotalPrecompileTasks > 0)) && !LastPrecompileRHIFence.GetReference())
+	if (((PipelineStateCache::GetNumActivePipelinePrecompileTasks() == 0 && FMath::Max(0ll, FPlatformAtomics::AtomicRead(&TotalWaitingTasks)) == 0 && FMath::Max(0ll, FPlatformAtomics::AtomicRead(&TotalActiveTasks)) == 0 && FPlatformAtomics::AtomicRead(&TotalCompleteTasks) != 0) || (CVarPSOFileCacheMaxPrecompileTime.GetValueOnAnyThread() > 0.0 && TotalPrecompileWallTime - 10.0f > CVarPSOFileCacheMaxPrecompileTime.GetValueOnAnyThread() && TotalPrecompileTasks > 0)) && !LastPrecompileRHIFence.GetReference())
     {
 		UE_LOG(LogRHI, Warning, TEXT("FShaderPipelineCache completed %u tasks in %.2fs (%.2fs wall time since intial open)."), (uint32)TotalCompleteTasks, FPlatformTime::ToSeconds64(TotalPrecompileTime), TotalPrecompileWallTime);
         if (OnPrecompilationComplete.IsBound())
@@ -1306,7 +1331,8 @@ void FShaderPipelineCache::Tick( float DeltaTime )
 		else
 		{
 			FPipelineFileCache::PreCompileComplete();
-		
+			PipelineStateCache::PreCompileComplete();
+
         	FPlatformAtomics::InterlockedExchange(&TotalCompleteTasks, 0);
         	FPlatformAtomics::InterlockedExchange(&TotalPrecompileTime, 0);
 			bPreOptimizing = false;
