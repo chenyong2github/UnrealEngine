@@ -156,9 +156,23 @@ struct FMassEntityTemplateBuildContext
 	//----------------------------------------------------------------------//
 	// Build methods
 	//----------------------------------------------------------------------//
-	void BuildFromTraits(TConstArrayView<UMassEntityTraitBase*> Traits, UWorld& World);
+
+	/**
+	 * Builds context from a list of traits
+	 * @param Traits is the list of all the traits to build an entity
+	 * @param World owning the MassEntitySubsystem for which the entity template is built
+	 * @return true if there were no validation errors
+	 */
+	bool BuildFromTraits(TConstArrayView<UMassEntityTraitBase*> Traits, UWorld& World);
 
 protected:
+
+	/**
+	 * Validate the build context for fragment trait ownership and trait fragment missing dependency
+	 * @param World owning the MassEntitySubsystem for which the entity template is validated against
+	 * @return true if there were no validation errors
+	 */
+	bool ValidateBuildContext(UWorld& World);
 
 	void TypeAdded(const UStruct& Type)
 	{
@@ -167,7 +181,6 @@ protected:
 			TraitAddedTypes.Add(&Type, BuildingTrait);
 		}
 	}
-	void ValidateBuildContext(UWorld& World);
 
 	const UMassEntityTraitBase* BuildingTrait = nullptr;
 	TMultiMap<const UStruct*, const UMassEntityTraitBase*> TraitAddedTypes;

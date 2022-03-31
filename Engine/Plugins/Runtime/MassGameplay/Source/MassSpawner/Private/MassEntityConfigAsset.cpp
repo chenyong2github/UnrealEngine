@@ -8,6 +8,11 @@
 #include "Serialization/ArchiveObjectCrc32.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Engine/World.h"
+#if WITH_EDITOR
+#include "Editor.h"
+#endif // WITH_EDITOR
+
+#define LOCTEXT_NAMESPACE "Mass"
 
 namespace UE::MassSpawner
 {
@@ -39,18 +44,31 @@ FMassEntityConfig::FMassEntityConfig(UMassEntityConfigAsset& InParent)
 
 }
 
-const FMassEntityTemplate* FMassEntityConfig::GetOrCreateEntityTemplate(AActor& OwnerActor, const UObject& ConfigOwner) const
+#if WITH_EDITOR
+void UMassEntityConfigAsset::ValidateEntityConfig()
+{
+	if (UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
+	{
+		if (Config.ValidateEntityTemplate(*EditorWorld, *this))
+		{
+			FMessageLog EditorInfo("LogMass");
+			EditorInfo.Info(LOCTEXT("MassEntityConfigAssetNoErrorsDetected", "There were no error detected during validation of the EntityConfigAsset"));
+		}
+	}
+}
+#endif // WITH_EDITOR
+
+const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(UWorld& World, const UObject& ConfigOwner) const
 {
 	uint32 Hash;
 	FMassEntityTemplateID TemplateID;
 	TArray<UMassEntityTraitBase*> CombinedTraits;
-	if (const FMassEntityTemplate* ExistingTemplate = GetEntityTemplateInternal(OwnerActor, ConfigOwner, Hash, TemplateID, CombinedTraits))
+	if (const FMassEntityTemplate* ExistingTemplate = GetEntityTemplateInternal(World, ConfigOwner, Hash, TemplateID, CombinedTraits))
 	{
-		return ExistingTemplate;
+		return *ExistingTemplate;
 	}
 
-	UWorld* World = OwnerActor.GetWorld();
-	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(World);
+	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(&World);
 	check(SpawnerSystem);
 	UMassEntityTemplateRegistry& TemplateRegistry = SpawnerSystem->GetTemplateRegistryInstance();
 
@@ -61,29 +79,28 @@ const FMassEntityTemplate* FMassEntityConfig::GetOrCreateEntityTemplate(AActor& 
 	FMassEntityTemplate& Template = TemplateRegistry.CreateTemplate(Hash, TemplateID);
 	FMassEntityTemplateBuildContext BuildContext(Template);
 
-	BuildContext.BuildFromTraits(CombinedTraits, *World);
+	BuildContext.BuildFromTraits(CombinedTraits, World);
 
 	if (ensureMsgf(!Template.IsEmpty(), TEXT("Need at least one fragment to create an Archetype")))
 	{
 		TemplateRegistry.InitializeEntityTemplate(Template);
 	}
 
-	return &Template;
+	return Template;
 }
 
-void FMassEntityConfig::DestroyEntityTemplate(const AActor& OwnerActor, const UObject& ConfigOwner) const
+void FMassEntityConfig::DestroyEntityTemplate(UWorld& World, const UObject& ConfigOwner) const
 {
 	uint32 Hash;
 	FMassEntityTemplateID TemplateID;
 	TArray<UMassEntityTraitBase*> CombinedTraits;
-	const FMassEntityTemplate* Template = GetEntityTemplateInternal(OwnerActor, ConfigOwner, Hash, TemplateID, CombinedTraits);
+	const FMassEntityTemplate* Template = GetEntityTemplateInternal(World, ConfigOwner, Hash, TemplateID, CombinedTraits);
 	if (Template == nullptr)
 	{
 		return;
 	}
 
-	const UWorld* World = OwnerActor.GetWorld();
-	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(World);
+	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(&World);
 	check(SpawnerSystem);
 	UMassEntityTemplateRegistry& TemplateRegistry = SpawnerSystem->GetTemplateRegistryInstance();
 
@@ -99,20 +116,19 @@ void FMassEntityConfig::DestroyEntityTemplate(const AActor& OwnerActor, const UO
 	TemplateRegistry.DestroyTemplate(Hash, TemplateID);
 }
 
-const FMassEntityTemplate& FMassEntityConfig::GetEntityTemplateChecked(const AActor& OwnerActor, const UObject& ConfigOwner) const
+const FMassEntityTemplate& FMassEntityConfig::GetEntityTemplateChecked(UWorld& World, const UObject& ConfigOwner) const
 {
 	uint32 Hash;
 	FMassEntityTemplateID TemplateID;
 	TArray<UMassEntityTraitBase*> CombinedTraits;
-	const FMassEntityTemplate* ExistingTemplate = GetEntityTemplateInternal(OwnerActor, ConfigOwner, Hash, TemplateID, CombinedTraits);
+	const FMassEntityTemplate* ExistingTemplate = GetEntityTemplateInternal(World, ConfigOwner, Hash, TemplateID, CombinedTraits);
 	check(ExistingTemplate);
 	return *ExistingTemplate;
 }
 
-const FMassEntityTemplate* FMassEntityConfig::GetEntityTemplateInternal(const AActor& OwnerActor, const UObject& ConfigOwner, uint32& HashOut, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const
+const FMassEntityTemplate* FMassEntityConfig::GetEntityTemplateInternal(UWorld& World, const UObject& ConfigOwner, uint32& HashOut, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const
 {
-	const UWorld* World = OwnerActor.GetWorld();
-	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(World);
+	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(&World);
 	check(SpawnerSystem);
 	const UMassEntityTemplateRegistry& TemplateRegistry = SpawnerSystem->GetTemplateRegistryInstance();
 
@@ -175,3 +191,18 @@ void FMassEntityConfig::AddTrait(UMassEntityTraitBase& Trait)
 {
 	Traits.Add(&Trait);
 }
+
+bool FMassEntityConfig::ValidateEntityTemplate(UWorld& World, const UObject& ConfigOwner)
+{
+	TArray<const UObject*> Visited;
+	TArray<UMassEntityTraitBase*> CombinedTraits;
+	Visited.Add(&ConfigOwner);
+	GetCombinedTraits(CombinedTraits, Visited, ConfigOwner);
+
+	FMassEntityTemplate Template;
+	FMassEntityTemplateBuildContext BuildContext(Template);
+
+	return BuildContext.BuildFromTraits(CombinedTraits, World);
+}
+
+#undef LOCTEXT_NAMESPACE 

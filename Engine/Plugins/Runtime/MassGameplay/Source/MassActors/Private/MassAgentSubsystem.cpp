@@ -82,15 +82,11 @@ FMassEntityTemplateID UMassAgentSubsystem::RegisterAgentComponent(UMassAgentComp
 
 	AActor* AgentActor = AgentComp.GetOwner();
 	check(AgentActor);
+	UWorld* World = AgentActor->GetWorld();
+	check(World);
 
 	const FMassEntityConfig& EntityConfig = AgentComp.GetEntityConfig();
-	const FMassEntityTemplate* EntityTemplate = EntityConfig.GetOrCreateEntityTemplate(*AgentActor, AgentComp);
-
-	if (!ensureMsgf(EntityTemplate, TEXT("Failed to fetch entity template for %s."), *AgentActor->GetName()))
-	{
-		UE_VLOG(this, LogMassActor, Warning, TEXT("Failed to fetch entity template for %s."), *AgentActor->GetName());
-		return FMassEntityTemplateID();
-	}
+	const FMassEntityTemplate& EntityTemplate = EntityConfig.GetOrCreateEntityTemplate(*World, AgentComp);
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 	if (AgentComp.IsNetSimulating())
@@ -100,7 +96,7 @@ FMassEntityTemplateID UMassAgentSubsystem::RegisterAgentComponent(UMassAgentComp
 	else
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 	{
-		FMassAgentInitializationQueue& AgentQueue = PendingAgentEntities.FindOrAdd(EntityTemplate->GetTemplateID());
+		FMassAgentInitializationQueue& AgentQueue = PendingAgentEntities.FindOrAdd(EntityTemplate.GetTemplateID());
 		// Agent already in the queue! Earlier conditions should have failed or data is inconsistent.
 		check(AgentQueue.AgentComponents.Find(&AgentComp) == INDEX_NONE);
 		AgentQueue.AgentComponents.Add(&AgentComp);
@@ -109,7 +105,7 @@ FMassEntityTemplateID UMassAgentSubsystem::RegisterAgentComponent(UMassAgentComp
    		AgentComp.EntityCreationPending();
 	}
 
-	return EntityTemplate->GetTemplateID();
+	return EntityTemplate.GetTemplateID();
 }
 
 void UMassAgentSubsystem::UpdateAgentComponent(const UMassAgentComponent& AgentComp)
@@ -126,19 +122,15 @@ void UMassAgentSubsystem::UpdateAgentComponent(const UMassAgentComponent& AgentC
 
 	AActor* AgentActor = AgentComp.GetOwner();
 	check(AgentActor);
+	UWorld* World = AgentActor->GetWorld();
+	check(World);
 
 	const FMassEntityConfig& EntityConfig = AgentComp.GetEntityConfig();
-	const FMassEntityTemplate* EntityTemplate = EntityConfig.GetOrCreateEntityTemplate(*AgentActor, AgentComp);
-
-	if (!ensureMsgf(EntityTemplate, TEXT("Failed to fetch entity template for %s."), *AgentActor->GetName()))
-	{
-		UE_VLOG(this, LogMassActor, Warning, TEXT("Failed to fetch entity template for %s."), *AgentActor->GetName());
-		return;
-	}
+	const FMassEntityTemplate& EntityTemplate = EntityConfig.GetOrCreateEntityTemplate(*World, AgentComp);
 
 	const FMassEntityHandle Entity = AgentComp.GetEntityHandle();
 	const FMassArchetypeHandle CurrentArchetypeHandle = EntitySystem->GetArchetypeForEntity(Entity);
-	if (CurrentArchetypeHandle == EntityTemplate->GetArchetype())
+	if (CurrentArchetypeHandle == EntityTemplate.GetArchetype())
 	{
 		UE_VLOG(this, LogMassActor, Log, TEXT("%s called for %s but no archetype changes have been found")
 			, ANSI_TO_TCHAR(__FUNCTION__), *AgentActor->GetName());
@@ -210,10 +202,11 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 			// the entity has already been created. Destroy!
 			const FMassEntityTemplate* EntityTemplate = nullptr;
 			AActor* AgentActor = AgentComp.GetOwner();
-			if (ensure(AgentActor))
+			UWorld* World = AgentActor ? AgentActor->GetWorld() : nullptr;
+			if (ensure(World))
 			{
 				const FMassEntityConfig& EntityConfig = AgentComp.GetEntityConfig();
-				EntityTemplate = &EntityConfig.GetEntityTemplateChecked(*AgentActor, AgentComp);
+				EntityTemplate = &EntityConfig.GetEntityTemplateChecked(*World, AgentComp);
 			}
 
 			FMassEntityHandle Entity = AgentComp.GetEntityHandle();

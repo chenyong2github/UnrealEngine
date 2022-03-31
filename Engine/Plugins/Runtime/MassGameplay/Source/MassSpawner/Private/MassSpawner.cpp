@@ -264,11 +264,13 @@ void AMassSpawner::DEBUG_Clear()
 
 void AMassSpawner::RegisterEntityTemplates()
 {
+	UWorld* World = GetWorld();
+	check(World);
 	for (FMassSpawnedEntityType& EntityType : EntityTypes)
 	{
 		if (const UMassEntityConfigAsset* EntityConfig = EntityType.GetEntityConfig())
 		{
-			EntityConfig->GetConfig().GetOrCreateEntityTemplate(*this, *EntityConfig);
+			EntityConfig->GetOrCreateEntityTemplate(*World);
 		}
 	}
 }
@@ -420,6 +422,9 @@ void AMassSpawner::SpawnGeneratedEntities(TConstArrayView<FMassEntitySpawnDataGe
 		return;
 	}
 
+	UWorld* World = GetWorld();
+	check(World);
+
 	for (const FMassEntitySpawnDataGeneratorResult& Result : Results)
 	{
 		if (Result.NumEntities <= 0)
@@ -434,12 +439,12 @@ void AMassSpawner::SpawnGeneratedEntities(TConstArrayView<FMassEntitySpawnDataGe
 
 		if (const UMassEntityConfigAsset* EntityConfig = EntityType.GetEntityConfig())
 		{
-			const FMassEntityTemplate* EntityTemplate = EntityConfig->GetConfig().GetOrCreateEntityTemplate(*this, *EntityConfig);
-			if (EntityTemplate && EntityTemplate->IsValid())
+			const FMassEntityTemplate& EntityTemplate = EntityConfig->GetOrCreateEntityTemplate(*World);
+			if (EntityTemplate.IsValid())
 			{
 				FSpawnedEntities& SpawnedEntities = AllSpawnedEntities.AddDefaulted_GetRef();
-				SpawnedEntities.TemplateID = EntityTemplate->GetTemplateID();
-				SpawnerSystem->SpawnEntities(EntityTemplate->GetTemplateID(), Result.NumEntities, Result.SpawnData, Result.SpawnDataProcessor, SpawnedEntities.Entities);
+				SpawnedEntities.TemplateID = EntityTemplate.GetTemplateID();
+				SpawnerSystem->SpawnEntities(EntityTemplate.GetTemplateID(), Result.NumEntities, Result.SpawnData, Result.SpawnDataProcessor, SpawnedEntities.Entities);
 			}
 		}
 	}
@@ -564,11 +569,14 @@ float AMassSpawner::GetSpawningCountScale() const
 
 void AMassSpawner::ClearTemplates()
 {
+	UWorld* World = GetWorld();
+	check(World);
+
 	for (FMassSpawnedEntityType& EntityType : EntityTypes)
 	{
 		if (const UMassEntityConfigAsset* EntityConfig = EntityType.GetEntityConfig())
 		{
-			EntityConfig->GetConfig().DestroyEntityTemplate(*this, *EntityConfig);
+			EntityConfig->DestroyEntityTemplate(*World);
 		}
 	}
 }

@@ -9,6 +9,9 @@
 #include "MassSpawnerSubsystem.h"
 #include "MassEntityTypes.h"
 #include "MassEntityTraitBase.h"
+#include "Logging/MessageLog.h"
+
+#define LOCTEXT_NAMESPACE "Mass"
 
 namespace FTemplateRegistryHelpers
 {
@@ -194,7 +197,7 @@ void UMassEntityTemplateRegistry::DestroyTemplate(const uint32 HashLookup, FMass
 //----------------------------------------------------------------------//
 // FMassEntityTemplateBuildContext 
 //----------------------------------------------------------------------//
-void FMassEntityTemplateBuildContext::BuildFromTraits(TConstArrayView<UMassEntityTraitBase*> Traits, UWorld& World)
+bool FMassEntityTemplateBuildContext::BuildFromTraits(TConstArrayView<UMassEntityTraitBase*> Traits, UWorld& World)
 {
 	TraitAddedTypes.Reset();
 	TraitsDependencies.Reset();
@@ -208,10 +211,10 @@ void FMassEntityTemplateBuildContext::BuildFromTraits(TConstArrayView<UMassEntit
 
 	BuildingTrait = nullptr;
 
-	ValidateBuildContext(World);
+	return ValidateBuildContext(World);
 }
 
-void FMassEntityTemplateBuildContext::ValidateBuildContext(UWorld& World)
+bool FMassEntityTemplateBuildContext::ValidateBuildContext(UWorld& World)
 {
 	// Group same types(key) together
 	TraitAddedTypes.KeySort( [](const UStruct& LHS, const UStruct& RHS) { return LHS.GetName() < RHS.GetName(); } );
@@ -220,6 +223,7 @@ void FMassEntityTemplateBuildContext::ValidateBuildContext(UWorld& World)
 	const UStruct* CurrentStruct = nullptr;
 	const UMassEntityTraitBase* CurrentTrait = nullptr;
 	bool bHeaderOutputed = false;
+	bool bFragmentHasMultipleOwners = false;
 	for (const auto& Pair : TraitAddedTypes)
 	{
 		if (CurrentStruct != Pair.Key)
@@ -238,12 +242,14 @@ void FMassEntityTemplateBuildContext::ValidateBuildContext(UWorld& World)
 				bHeaderOutputed = true;
 			}
 			UE_LOG(LogMass, Error, TEXT("\t\t%s"), *Pair.Value->GetClass()->GetName());
+			bFragmentHasMultipleOwners = true;
 		}
  	}
 
 	// Loop through all the traits dependencies and check if they have been added
 	CurrentTrait = nullptr;
 	bHeaderOutputed = false;
+	bool bMissingFragmentDependencies = false;
 	for (const auto& Dependency : TraitsDependencies)
 	{
 		if (CurrentTrait != Dependency.Get<1>())
@@ -259,6 +265,29 @@ void FMassEntityTemplateBuildContext::ValidateBuildContext(UWorld& World)
 				bHeaderOutputed = true;
 			}
 			UE_LOG(LogMass, Error, TEXT("\t\t%s"), *Dependency.Get<0>()->GetName());
+			bMissingFragmentDependencies = true;
 		}
 	}
+
+#if WITH_UNREAL_DEVELOPER_TOOLS
+	if (bFragmentHasMultipleOwners || bMissingFragmentDependencies)
+	{
+		FMessageLog EditorErrors("LogMass");
+		if (bFragmentHasMultipleOwners)
+		{
+			EditorErrors.Error(LOCTEXT("MassEntityTraitsFragmentOwnershipError", "Some fragments are added by multiple traits and can only be added by one!"));
+			EditorErrors.Notify(LOCTEXT("MassEntityTraitsFragmentOwnershipError", "Some fragments are added by multiple traits and can only be added by one!"));
+		}
+		if (bMissingFragmentDependencies)
+		{
+			EditorErrors.Error(LOCTEXT("MassEntityTraitsMissingFragment", "Some traits are requiring the presence of fragments which are missing!"));
+			EditorErrors.Notify(LOCTEXT("MassEntityTraitsMissingFragment", "Some traits are requiring the presence of fragments which are missing!"));
+		}
+		EditorErrors.Info(FText::FromString(TEXT("See the log for details")));
+	}
+#endif // WITH_UNREAL_DEVELOPER_TOOLS
+
+	return !bFragmentHasMultipleOwners && !bMissingFragmentDependencies;
 }
+
+#undef LOCTEXT_NAMESPACE 
