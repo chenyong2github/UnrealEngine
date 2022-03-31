@@ -31,6 +31,14 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogDataLayerEditorSubsystem, All, All);
 
+FDataLayerCreationParameters::FDataLayerCreationParameters()
+	:DataLayerAsset(nullptr),
+	ParentDataLayer(nullptr),
+	WorlDataLayers(nullptr)
+{
+
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FDataLayersBroadcast
 

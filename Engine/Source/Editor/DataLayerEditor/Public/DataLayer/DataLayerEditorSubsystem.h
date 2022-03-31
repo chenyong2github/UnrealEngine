@@ -23,6 +23,8 @@ struct FDataLayerCreationParameters
 {
 	GENERATED_USTRUCT_BODY()
 
+	FDataLayerCreationParameters();
+
 	// Required. Will assign the asset to the created instance.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data Layer")
 	TObjectPtr<UDataLayerAsset> DataLayerAsset;
