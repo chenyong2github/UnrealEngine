@@ -3,14 +3,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using AutomationTool;
 using UnrealBuildTool;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
 using System.Net;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Gauntlet
 {
@@ -451,29 +451,33 @@ namespace Gauntlet
 	/// <summary>
 	///  Converts between json and UnrealTargetPlatform
 	/// </summary>
-	public class UnrealTargetPlatformConvertor : JsonConverter
+	public class UnrealTargetPlatformConvertor : JsonConverter<UnrealTargetPlatform>
 	{
 		public override bool CanConvert(Type ObjectType)
 		{
-			return ObjectType == typeof(string) || ObjectType == typeof(UnrealTargetPlatform);
+			return ObjectType == typeof(UnrealTargetPlatform);
 		}
 
-		public override object ReadJson(JsonReader Reader, Type ObjectType, object ExistingValue, JsonSerializer Serializer)
+		public override UnrealTargetPlatform Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
 		{
-			UnrealTargetPlatform Platform;
-			if (!UnrealTargetPlatform.TryParse((string)Reader.Value, out Platform))
+			if(Reader.TokenType == JsonTokenType.Null)
 			{
-				return null;
+				return BuildHostPlatform.Current.Platform;
 			}
-			return Platform;
+
+			UnrealTargetPlatform StructValue;
+			if (UnrealTargetPlatform.TryParse(Reader.GetString(), out StructValue))
+			{
+				return StructValue;
+			}
+			throw new JsonException();
 		}
 
-		public override void WriteJson(JsonWriter Writer, object Value, JsonSerializer Serializer)
+		public override void Write(Utf8JsonWriter Writer, UnrealTargetPlatform StructValue, JsonSerializerOptions Options)
 		{
-			UnrealTargetPlatform? Platform = (UnrealTargetPlatform)Value;
-			Writer.WriteValue(Platform);
+			var Value = StructValue.ToString();
+			Writer.WriteStringValue(Options.PropertyNamingPolicy?.ConvertName(Value) ?? Value);
 		}
-
 	}
 
 
