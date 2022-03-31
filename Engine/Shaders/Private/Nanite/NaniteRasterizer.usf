@@ -138,6 +138,14 @@ struct FRaster
 	WritePixelPageTranslation	PageTranslation;
 };
 
+struct FRasterInterpData
+{
+	float3 InvW;
+#if IS_NANITE_PROGRAMMABLE
+	FNaniteTransformedTri TransformedTri;
+#endif
+};
+
 struct FRasterTri
 {
 	int2	MinPixel;
@@ -153,11 +161,7 @@ struct FRasterTri
 
 	float3	DepthPlane;
 
-	float3	InvW;
-
-#if IS_NANITE_PROGRAMMABLE
-	FNaniteTransformedTri TransformedTri;
-#endif
+	FRasterInterpData InterpData;
 
 	bool	bIsValid;
 };
@@ -185,9 +189,9 @@ FBarycentrics CalculateBarycentrics(FRasterTri Tri, float3 C)
 #if IS_NANITE_PROGRAMMABLE
 	const float3 OffsetX	= { -Tri.Edge12.y, -Tri.Edge20.y, -Tri.Edge01.y };
 	const float3 OffsetY	= {  Tri.Edge12.x,  Tri.Edge20.x,  Tri.Edge01.x };
-	const float3 UVW		= GetPerspectiveCorrectBarycentrics(C, Tri.InvW);
-	const float3 UVW_X		= GetPerspectiveCorrectBarycentrics(C + OffsetX, Tri.InvW);
-	const float3 UVW_Y		= GetPerspectiveCorrectBarycentrics(C + OffsetY, Tri.InvW);
+	const float3 UVW		= GetPerspectiveCorrectBarycentrics(C, Tri.InterpData.InvW);
+	const float3 UVW_X		= GetPerspectiveCorrectBarycentrics(C + OffsetX, Tri.InterpData.InvW);
+	const float3 UVW_Y		= GetPerspectiveCorrectBarycentrics(C + OffsetY, Tri.InterpData.InvW);
 
 	Barycentrics.UVW 	= UVW;
 	Barycentrics.UVW_dx	= UVW_X - UVW;
@@ -230,7 +234,7 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, boo
 	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
 	FBarycentrics Barycentrics = CalculateBarycentrics(Tri, C);
 	
-	FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(Raster.InstanceData, Raster.InstanceDynamicData, Raster.NaniteView, Tri.TransformedTri, Raster.Cluster, Barycentrics, Interpolants, SvPosition);
+	FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(Raster.InstanceData, Raster.InstanceDynamicData, Raster.NaniteView, Tri.InterpData.TransformedTri, Raster.Cluster, Barycentrics, Interpolants, SvPosition);
 
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
@@ -254,31 +258,11 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, boo
 	}
 }
 
-FRasterTri SetupTriangle( FRaster Raster, uint3 VertIndexes )
+FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3], FRasterInterpData InterpData )
 {
 	FRasterTri Tri;
 	Tri.bIsValid = true;
-
-	float3 Verts[3];
-#if IS_NANITE_PROGRAMMABLE
-	// Transform the triangle from local space points
-	const float3 PointLocal[3] =
-	{
-		GroupVerts[VertIndexes.x],
-		GroupVerts[VertIndexes.y],
-		GroupVerts[VertIndexes.z]	
-	};
-	const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Raster.Cluster, VertIndexes, NUM_TEX_COORD_INTERPOLATORS);
-	Tri.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, PointLocal, VertIndexes, RawAttributeData);
-
-	Verts[0] = CalculateSubpixelCoordinates(Raster, Tri.TransformedTri.PointClip[0]);
-	Verts[1] = CalculateSubpixelCoordinates(Raster, Tri.TransformedTri.PointClip[1]);
-	Verts[2] = CalculateSubpixelCoordinates(Raster, Tri.TransformedTri.PointClip[2]);
-#else
-	Verts[0] = GroupVerts[VertIndexes.x];
-	Verts[1] = GroupVerts[VertIndexes.y];
-	Verts[2] = GroupVerts[VertIndexes.z];
-#endif
+	Tri.InterpData = InterpData;
 
 	float3 v01 = Verts[1] - Verts[0];
 	float3 v02 = Verts[2] - Verts[0];
@@ -385,13 +369,6 @@ FRasterTri SetupTriangle( FRaster Raster, uint3 VertIndexes )
 	Tri.C0 *= (1.0f / SUBPIXEL_SAMPLES);
 	Tri.C1 *= (1.0f / SUBPIXEL_SAMPLES);
 	Tri.C2 *= (1.0f / SUBPIXEL_SAMPLES);
-#endif
-
-	// Cache 1/w for each point to calculate perspective-correct barycentrics (only needed if programmable)
-#if IS_NANITE_PROGRAMMABLE
-	Tri.InvW = rcp(float3(Tri.TransformedTri.PointClip[0].w, Tri.TransformedTri.PointClip[1].w, Tri.TransformedTri.PointClip[2].w));
-#else
-	Tri.InvW = 1.0f;
 #endif
 
 	return Tri;
@@ -924,7 +901,40 @@ void MicropolyRasterize(
 			}
 		}
 
-		FRasterTri Tri = SetupTriangle( Raster, VertIndexes );
+		float3 Verts[3];
+		FRasterInterpData InterpData;
+	#if IS_NANITE_PROGRAMMABLE
+		// Transform the triangle from local space points
+		const float3 PointLocal[3] =
+		{
+			GroupVerts[VertIndexes.x],
+			GroupVerts[VertIndexes.y],
+			GroupVerts[VertIndexes.z]
+		};			
+		const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Raster.Cluster, VertIndexes, NUM_TEX_COORD_INTERPOLATORS);
+		
+		InterpData.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, PointLocal, VertIndexes, RawAttributeData);
+
+		const float4 PointClip[3] =
+		{
+			InterpData.TransformedTri.PointClip[0],
+			InterpData.TransformedTri.PointClip[1],
+			InterpData.TransformedTri.PointClip[2]
+		};
+		InterpData.InvW = rcp(float3(PointClip[0].w, PointClip[1].w, PointClip[2].w));
+
+		Verts[0] = CalculateSubpixelCoordinates(Raster, PointClip[0]);
+		Verts[1] = CalculateSubpixelCoordinates(Raster, PointClip[1]);
+		Verts[2] = CalculateSubpixelCoordinates(Raster, PointClip[2]);
+	#else
+		InterpData.InvW = (float3)1.0f; // no need to interpolate anything for non-programmable
+
+		Verts[0] = GroupVerts[VertIndexes.x];
+		Verts[1] = GroupVerts[VertIndexes.y];
+		Verts[2] = GroupVerts[VertIndexes.z];
+	#endif
+
+		FRasterTri Tri = SetupTriangle( Raster, Verts, InterpData );
 
 		uint PixelValue = (VisibleIndex + 1) << 7;
 
