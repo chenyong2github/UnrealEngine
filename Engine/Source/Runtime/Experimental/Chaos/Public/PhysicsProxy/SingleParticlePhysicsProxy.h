@@ -724,7 +724,7 @@ public:
 
 	const FReal InvM() const
 	{
-		return Read([](auto* Particle)
+		return Read([](auto* Particle) -> FReal
 		{
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
