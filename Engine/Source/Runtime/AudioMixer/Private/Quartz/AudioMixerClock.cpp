@@ -57,7 +57,7 @@ namespace Audio
 		FQuartzClockTickRate CurrentTickRate = Metronome.GetTickRate();
 
 		// ratio between new and old rates
-		const float Ratio = static_cast<float>(InNewTickRate.GetFramesPerTick()) / static_cast<float>(CurrentTickRate.GetFramesPerTick());
+		const double Ratio = InNewTickRate.GetFramesPerTick() / CurrentTickRate.GetFramesPerTick();
 
 		// adjust time-till-fire for existing commands
 		for (auto& Command : PendingCommands)
@@ -321,7 +321,8 @@ namespace Audio
 		}
 
 		// get number of frames until event (assuming we are at frame 0)
-		FramesUntilExec = FMath::Max(0, InNewEvent->OverrideFramesUntilExec(Metronome.GetFramesUntilBoundary(InQuantizationBondary)));
+		FramesUntilExec = FMath::RoundToInt(Metronome.GetFramesUntilBoundary(InQuantizationBondary)); // query metronome (round result to int)
+		FramesUntilExec = FMath::Max(0, InNewEvent->OverrideFramesUntilExec(FramesUntilExec)); // allow command to override the deadline (clamp result)
 
 		// if this is going to execute on the next tick, warn Game Thread Subscribers as soon as possible
 		if (FramesUntilExec == 0)
@@ -377,12 +378,12 @@ namespace Audio
 		FQuartzClockTickRate TickRate = Metronome.GetTickRate();
 
 		// get number of frames until the relevant quantization event
-		int64 FramesUntilExec = TickRate.GetFramesPerDuration(QuantizationType);
+		double FramesUntilExec = TickRate.GetFramesPerDuration(QuantizationType);
 
 		//Translate frames to seconds
-		float SampleRate = TickRate.GetSampleRate();
+		double SampleRate = TickRate.GetSampleRate();
 
-		if (SampleRate != 0)
+		if (!FMath::IsNearlyZero(SampleRate))
 		{
 			return (FramesUntilExec * Multiplier) / SampleRate;
 		}

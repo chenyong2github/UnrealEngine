@@ -497,8 +497,8 @@ void UAudioComponent::PlayQuantized(
 	Audio::FQuartzClockTickRate OutTickRate;
 	InClockHandle->GetCurrentTickRate(WorldContextObject, OutTickRate);
 
-	int32 NumFramesBeforeMinTime = OutTickRate.GetFramesPerDuration(MinimumQuantization);
-	int32 NumFramesForDesiredTime = OutTickRate.GetFramesPerDuration(InQuantizationBoundary.Quantization) * InQuantizationBoundary.Multiplier;
+	double NumFramesBeforeMinTime = OutTickRate.GetFramesPerDuration(MinimumQuantization);
+	double NumFramesForDesiredTime = OutTickRate.GetFramesPerDuration(InQuantizationBoundary.Quantization) * InQuantizationBoundary.Multiplier;
 
 	// If the desired quantization time is less than our min time, just execute immediately
 	const bool bStealVoiceSlot = NumFramesForDesiredTime <= NumFramesBeforeMinTime;

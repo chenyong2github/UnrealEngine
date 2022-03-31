@@ -346,7 +346,7 @@ namespace Audio
 		void SetSampleRate(float InNewSampleRate);
 
 		// Getters
-		int32 GetFramesPerTick() const { return FramesPerTick; }
+		double GetFramesPerTick() const { return FramesPerTick; }
 
 		float GetMillisecondsPerTick() const { return MillisecondsPerTick; }
 
@@ -358,9 +358,9 @@ namespace Audio
 
 		float GetSampleRate() const { return SampleRate; }
 
-		int64 GetFramesPerDuration(EQuartzCommandQuantization InDuration) const;
+		double GetFramesPerDuration(EQuartzCommandQuantization InDuration) const;
 
-		int64 GetFramesPerDuration(EQuartzTimeSignatureQuantization InDuration) const;
+		double GetFramesPerDuration(EQuartzTimeSignatureQuantization InDuration) const;
 
 		bool IsValid(int32 InEventResolutionThreshold = 1) const;
 
@@ -371,12 +371,12 @@ namespace Audio
 	private:
 		// FramesPerTick is our ground truth 
 		// update FramesPerTick and call RecalculateDurationsBasedOnFramesPerTick() to update other members
-		int32 FramesPerTick{ 1 };
-		float MillisecondsPerTick{ 1.f };
-		float SecondsPerTick{ 1.f };
-		float ThirtySecondNotesPerMinute{ 1.f };
-		float BeatsPerMinute{ 1 };
-		float SampleRate{ 44100.f };
+		double FramesPerTick{ 1.0 };
+		double MillisecondsPerTick{ 1.0 };
+		double SecondsPerTick{ 1.0 };
+		double ThirtySecondNotesPerMinute{ 1.0 };
+		double BeatsPerMinute{ 0.0 };
+		double SampleRate{ 44100.0 };
 
 		void RecalculateDurationsBasedOnFramesPerTick();
 

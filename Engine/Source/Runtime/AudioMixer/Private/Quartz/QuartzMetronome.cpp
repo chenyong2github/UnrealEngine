@@ -99,7 +99,7 @@ namespace Audio
 	void FQuartzMetronome::SetTickRate(FQuartzClockTickRate InNewTickRate, int32 NumFramesLeft)
 	{
 		// early exit?
-		const bool bSameAsOldTickRate = (InNewTickRate.GetFramesPerTick() == CurrentTickRate.GetFramesPerTick());
+		const bool bSameAsOldTickRate = FMath::IsNearlyEqual(InNewTickRate.GetFramesPerTick(), CurrentTickRate.GetFramesPerTick());
 		const bool bIsInitialized = (MusicalDurationsInFrames[0] > 0);
 
 		if (bSameAsOldTickRate && bIsInitialized)
@@ -108,11 +108,11 @@ namespace Audio
 		}
 
 		// ratio between new and old rates
-		const float Ratio = static_cast<float>(InNewTickRate.GetFramesPerTick()) / static_cast<float>(CurrentTickRate.GetFramesPerTick());
+		const double Ratio = InNewTickRate.GetFramesPerTick() / CurrentTickRate.GetFramesPerTick();
 
 		if (NumFramesLeft)
 		{
-			for (int32& Value : FramesLeftInMusicalDuration.FramesInTimeValueInternal)
+			for (double& Value : FramesLeftInMusicalDuration.FramesInTimeValueInternal)
 			{
 				Value = NumFramesLeft + Ratio * (Value - NumFramesLeft);
 			}
@@ -134,7 +134,7 @@ namespace Audio
 		RecalculateDurations();
 	}
 
-	int32 FQuartzMetronome::GetFramesUntilBoundary(FQuartzQuantizationBoundary InQuantizationBoundary) const
+	double FQuartzMetronome::GetFramesUntilBoundary(FQuartzQuantizationBoundary InQuantizationBoundary) const
 	{
 		if (!ensure(InQuantizationBoundary.Quantization != EQuartzCommandQuantization::None))
 		{
@@ -148,7 +148,7 @@ namespace Audio
 		}
 
 		// number of frames until the next occurrence of this boundary
-		int32 FramesUntilBoundary = FramesLeftInMusicalDuration[InQuantizationBoundary.Quantization];
+		double FramesUntilBoundary = FramesLeftInMusicalDuration[InQuantizationBoundary.Quantization];
 
 		// how many multiples actually exist until the boundary we care about?
 		int32 NumDurationsLeft = static_cast<int32>(InQuantizationBoundary.Multiplier) - 1;
@@ -207,7 +207,7 @@ namespace Audio
 			}
 		}
 
-		const float FrationalPortion = FMath::Fractional(InQuantizationBoundary.Multiplier);
+		const double FrationalPortion = FMath::Fractional(InQuantizationBoundary.Multiplier);
 
 		// for Beats, the lengths are not uniform for complex meters
 		if ((InQuantizationBoundary.Quantization == EQuartzCommandQuantization::Beat) && PulseDurations.Num())
@@ -238,7 +238,7 @@ namespace Audio
 		{
 			const float Multiplier = NumDurationsLeft + FrationalPortion;
 			const float Duration = static_cast<float>(MusicalDurationsInFrames[InQuantizationBoundary.Quantization]);
-			FramesUntilBoundary += FMath::RoundToInt(Multiplier * Duration);
+			FramesUntilBoundary += Multiplier * Duration;
 		}
 
 		return FramesUntilBoundary;
@@ -334,12 +334,12 @@ namespace Audio
 	{
 		CurrentTimeStamp.Reset();
 
-		for (int32& FrameCount : FramesLeftInMusicalDuration.FramesInTimeValueInternal)
+		for (double& FrameCount : FramesLeftInMusicalDuration.FramesInTimeValueInternal)
 		{
-			FrameCount = 0;
+			FrameCount = 0.0;
 		}
 
-		TimeSinceStart = 0;
+		TimeSinceStart = 0.0;
 		PulseDurationIndex = -1;
 	}
 
@@ -354,7 +354,7 @@ namespace Audio
 		}
 
 		// determine actual length of a bar
-		const int32 BarLength = CurrentTimeSignature.NumBeats * CurrentTickRate.GetFramesPerDuration(CurrentTimeSignature.BeatType);
+		const double BarLength = CurrentTimeSignature.NumBeats * CurrentTickRate.GetFramesPerDuration(CurrentTimeSignature.BeatType);
 		MusicalDurationsInFrames[EQuartzCommandQuantization::Bar] = BarLength;
 
 		// default beat value to the denominator of our time signature
@@ -364,8 +364,8 @@ namespace Audio
 		if (CurrentTimeSignature.OptionalPulseOverride.Num() != 0)
 		{
 			// determine the length of each beat
-			int32 LengthCounter = 0;
-			int32 StepLength = 0;
+			double LengthCounter = 0.0;
+			double StepLength = 0.0;
 
 			for (const FQuartzPulseOverrideStep& PulseStep : CurrentTimeSignature.OptionalPulseOverride)
 			{
@@ -394,12 +394,12 @@ namespace Audio
 			}
 
 			// check to see if all our pulses are the same length
-			const int32 FirstValue = PulseDurations[0];
+			const double FirstValue = PulseDurations[0];
 			bool bBeatDurationsAreConstant = true;
 
-			for (const int32& Values : PulseDurations)
+			for (const double& Values : PulseDurations)
 			{
-				if (Values != FirstValue)
+				if (!FMath::IsNearlyEqual(Values, FirstValue))
 				{
 					bBeatDurationsAreConstant = false;
 					break;

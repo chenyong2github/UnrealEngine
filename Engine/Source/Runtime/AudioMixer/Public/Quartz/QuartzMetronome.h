@@ -32,7 +32,7 @@ namespace Audio
 		// affects bars/beats values we send back to the game thread
 		void SetTimeSignature(const FQuartzTimeSignature& InNewTimeSignature);
 
-		int32 GetFramesUntilBoundary(FQuartzQuantizationBoundary InQuantizationBoundary) const;
+		double GetFramesUntilBoundary(FQuartzQuantizationBoundary InQuantizationBoundary) const;
 
 		const FQuartzTimeSignature & GetTimeSignature() const { return CurrentTimeSignature; }
 
@@ -77,28 +77,28 @@ namespace Audio
 		{
 		public:
 			// index operators for EQuartzCommandQuantization
-			int32& operator[](EQuartzCommandQuantization InTimeValue)
+			double& operator[](EQuartzCommandQuantization InTimeValue)
 			{
 				return FramesInTimeValueInternal[static_cast<int32>(InTimeValue)];
 			}
 
-			const int32& operator[](EQuartzCommandQuantization InTimeValue) const
+			const double& operator[](EQuartzCommandQuantization InTimeValue) const
 			{
 				return FramesInTimeValueInternal[static_cast<int32>(InTimeValue)];
 			}
 
 			// index operators for int32
-			int32& operator[](int32 Index)
+			double& operator[](int32 Index)
 			{
 				return FramesInTimeValueInternal[Index];
 			}
 
-			const int32& operator[](int32 Index) const
+			const double& operator[](int32 Index) const
 			{
 				return FramesInTimeValueInternal[Index];
 			}
 
-			int32 FramesInTimeValueInternal[static_cast<int32>(EQuartzCommandQuantization::Count)]{ 0 };
+			double FramesInTimeValueInternal[static_cast<int32>(EQuartzCommandQuantization::Count)]{ 0.0 };
 		};
 
 		// array of lengths of musical durations (in audio frames)
@@ -108,7 +108,7 @@ namespace Audio
 		FramesInTimeValue FramesLeftInMusicalDuration;
 
 		// optional array of pulse duration overrides (for odd meters)
-		TArray<int32> PulseDurations;
+		TArray<double> PulseDurations;
 
 		// the index of the active pulse duration override
 		int32 PulseDurationIndex{ -1 };

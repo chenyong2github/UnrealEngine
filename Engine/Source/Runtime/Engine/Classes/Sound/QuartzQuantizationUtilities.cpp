@@ -144,8 +144,8 @@ void FQuartLatencyTracker::PushSingleResult(const double& InResult)
 		LifetimeAverage = (LifetimeAverage * (NumEntries - 1) + InResult) / NumEntries;
 	}
 
-	Min = FMath::Min(Min, static_cast<float>(InResult));
-	Max = FMath::Max(Max, static_cast<float>(InResult));
+	Min = FMath::Min(Min, (float)InResult);
+	Max = FMath::Max(Max, (float)InResult);
 }
 
 void FQuartLatencyTracker::DigestQueue()
@@ -165,24 +165,24 @@ namespace Audio
 {
 	FQuartzClockTickRate::FQuartzClockTickRate()
 	{
-		SetBeatsPerMinute(60.f);
+		SetBeatsPerMinute(60.0);
 	}
 
 	void FQuartzClockTickRate::SetFramesPerTick(int32 InNewFramesPerTick)
 	{
-		if (InNewFramesPerTick < 1)
+		if (InNewFramesPerTick < 1.0)
 		{
 			UE_LOG(LogAudioQuartz, Warning, TEXT("Quartz Metronme requires at least 1 frame per tick, clamping request"));
-			InNewFramesPerTick = 1;
+			InNewFramesPerTick = 1.0;
 		}
 
-		FramesPerTick = InNewFramesPerTick;
+		FramesPerTick = (double)InNewFramesPerTick;
 		RecalculateDurationsBasedOnFramesPerTick();
 	}
 
 	void FQuartzClockTickRate::SetMillisecondsPerTick(float InNewMillisecondsPerTick)
 	{
-		FramesPerTick = FMath::Max(1.0f, (InNewMillisecondsPerTick * SampleRate) / 1000.f);
+		FramesPerTick = FMath::Max(1.0, ((double)InNewMillisecondsPerTick * SampleRate) / 1000.0);
 		RecalculateDurationsBasedOnFramesPerTick();
 	}
 
@@ -190,7 +190,7 @@ namespace Audio
 	{
 		check(InNewThirtySecondNotesPerMinute > 0);
 
-		FramesPerTick = FMath::Max(1.0f, (60.f * SampleRate ) / InNewThirtySecondNotesPerMinute);
+		FramesPerTick = FMath::Max(1.0, (60. * SampleRate ) / (double)InNewThirtySecondNotesPerMinute);
 		RecalculateDurationsBasedOnFramesPerTick();
 	}
 
@@ -203,7 +203,7 @@ namespace Audio
 		// FramesPerTick = 1/8 * (60.f / (InNewBeatsPerMinute)) * SampleRate;
 		// (60.0 / 8.0) = 7.5f
 
-		FramesPerTick = FMath::Max(1.0f, (7.5f * SampleRate) / InNewBeatsPerMinute);
+		FramesPerTick = FMath::Max(1.0, (7.5 * SampleRate) / (double)InNewBeatsPerMinute);
 		RecalculateDurationsBasedOnFramesPerTick();
 	}
 
@@ -211,16 +211,16 @@ namespace Audio
 	{
 		check(InNewSampleRate >= 0);
 
-		FramesPerTick = FMath::Max(1.0f, (InNewSampleRate / SampleRate) * static_cast<float>(FramesPerTick));
+		FramesPerTick = FMath::Max(1.0, ((double)InNewSampleRate / SampleRate) * FramesPerTick);
 		SampleRate = InNewSampleRate;
 
 		RecalculateDurationsBasedOnFramesPerTick();
 	}
 
-	int64 FQuartzClockTickRate::GetFramesPerDuration(EQuartzCommandQuantization InDuration) const
+	double FQuartzClockTickRate::GetFramesPerDuration(EQuartzCommandQuantization InDuration) const
 	{
-		const int64 FramesPerDotted16th = FramesPerTick * 3;
-		const int64 FramesPer16thTriplet = 4.f * FramesPerTick / 3.f;
+		const double FramesPerDotted16th = FramesPerTick * 3.0;
+		const double FramesPer16thTriplet = 4.0 * FramesPerTick / 3.0;
 
 		switch (InDuration)
 		{
@@ -233,37 +233,37 @@ namespace Audio
 			return FramesPerTick; // same as 1/32nd note
 
 		case EQuartzCommandQuantization::SixteenthNote:
-			return (int64)FramesPerTick << 1;
+			return FramesPerTick * 2.0;
 
 		case EQuartzCommandQuantization::EighthNote:
-			return (int64)FramesPerTick << 2;
+			return FramesPerTick * 4.0;
 
 		case EQuartzCommandQuantization::Beat: // default to quarter note (should be overridden for non-basic meters)
 		case EQuartzCommandQuantization::QuarterNote:
-			return (int64)FramesPerTick << 3;
+			return FramesPerTick * 8.0;
 
 		case EQuartzCommandQuantization::HalfNote:
-			return (int64)FramesPerTick << 4;
+			return FramesPerTick * 16.0;
 
 		case EQuartzCommandQuantization::Bar: // default to whole note (should be overridden for non-4/4 meters)
 		case EQuartzCommandQuantization::WholeNote:
-			return (int64)FramesPerTick << 5;
+			return FramesPerTick * 32.0;
 
 			// DOTTED
 		case EQuartzCommandQuantization::DottedSixteenthNote:
 			return FramesPerDotted16th;
 
 		case EQuartzCommandQuantization::DottedEighthNote:
-			return FramesPerDotted16th << 1;
+			return FramesPerDotted16th * 2.0;
 
 		case EQuartzCommandQuantization::DottedQuarterNote:
-			return FramesPerDotted16th << 2;
+			return FramesPerDotted16th * 4.0;
 
 		case EQuartzCommandQuantization::DottedHalfNote:
-			return FramesPerDotted16th << 3;
+			return FramesPerDotted16th * 8.0;
 
 		case EQuartzCommandQuantization::DottedWholeNote:
-			return FramesPerDotted16th << 4;
+			return FramesPerDotted16th * 16.0;
 
 
 			// TRIPLETS
@@ -271,14 +271,13 @@ namespace Audio
 			return FramesPer16thTriplet;
 
 		case EQuartzCommandQuantization::EighthNoteTriplet:
-			return FramesPer16thTriplet << 1;
+			return FramesPer16thTriplet * 2.0;
 
 		case EQuartzCommandQuantization::QuarterNoteTriplet:
-			return FramesPer16thTriplet << 2;
+			return FramesPer16thTriplet * 4.0;
 
 		case EQuartzCommandQuantization::HalfNoteTriplet:
-			return FramesPer16thTriplet << 3;
-
+			return FramesPer16thTriplet * 8.0;
 
 
 		default:
@@ -289,7 +288,7 @@ namespace Audio
 		return INVALID_DURATION;
 	}
 
-	int64 FQuartzClockTickRate::GetFramesPerDuration(EQuartzTimeSignatureQuantization InDuration) const
+	double FQuartzClockTickRate::GetFramesPerDuration(EQuartzTimeSignatureQuantization InDuration) const
 	{
 		switch (InDuration)
 		{
@@ -366,20 +365,19 @@ namespace Audio
 
 	void FQuartzClockTickRate::RecalculateDurationsBasedOnFramesPerTick()
 	{
-		check(FramesPerTick > 0);
-		check(SampleRate > 0);
-		const float FloatFramesPerTick = static_cast<float>(FramesPerTick);
+		check(FramesPerTick > 0.0);
+		check(SampleRate > 0.0);
 
-		SecondsPerTick = (FloatFramesPerTick / SampleRate);
-		MillisecondsPerTick = SecondsPerTick * 1000.f;
-		ThirtySecondNotesPerMinute = (60.f * SampleRate) / FloatFramesPerTick;
-		BeatsPerMinute = ThirtySecondNotesPerMinute / 8.0f;
+		SecondsPerTick = FramesPerTick / SampleRate;
+		MillisecondsPerTick = SecondsPerTick * 1000.0;
+		ThirtySecondNotesPerMinute = (60.0 * SampleRate) / FramesPerTick;
+		BeatsPerMinute = ThirtySecondNotesPerMinute / 8.0;
 	}
 
 
 	void FQuartzClockTickRate::SetSecondsPerTick(float InNewSecondsPerTick)
 	{
-		SetMillisecondsPerTick(InNewSecondsPerTick * 1000.f);
+		SetMillisecondsPerTick(InNewSecondsPerTick * 1000.0);
 	}
 
 
