@@ -160,7 +160,7 @@ namespace UnrealBuildTool
 			bool bCompilingMultipleArchitectures = Target.Architecture.Contains("+");
 			Target.bCompileISPC = !bCompilingForArm;
 
-			Target.bUsePCHFiles = !bCompilingMultipleArchitectures;
+			Target.bUsePCHFiles = Target.bUsePCHFiles && !bCompilingMultipleArchitectures;
 		}
 
 		/// <summary>
