@@ -1702,6 +1702,14 @@ public:
 	 */
 	static int GetMobilePropagateAlphaSetting();
 
+	/**
+	*	Return if the game is running on cloud server
+	*/
+	static bool IsRunningInCloud()
+	{
+		return false;
+	}
+
 #if !UE_BUILD_SHIPPING
 	/**
 	 * Returns any platform specific warning messages we want printed on screen
