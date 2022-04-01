@@ -203,6 +203,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Switching FK control naming scheme to incorporate _CURVE for curve controls
 		FKControlNamingScheme,
 
+		// Fix-up for FRichCurveKey::TangentWeightMode, which were found to contain invalid value w.r.t the enum-type
+		RichCurveKeyInvalidTangentMode,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
