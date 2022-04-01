@@ -777,7 +777,7 @@ private:
 
 	float CustomTimeDilation = 1.0f;
 
-	UPROPERTY()
+	UPROPERTY(transient)
 	TObjectPtr<class UNiagaraCullProxyComponent> CullProxy;
 
 	void CreateCullProxy(bool bForce = false);
