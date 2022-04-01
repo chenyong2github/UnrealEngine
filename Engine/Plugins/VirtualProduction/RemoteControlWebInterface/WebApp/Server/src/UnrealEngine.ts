@@ -87,7 +87,7 @@ export namespace UnrealEngine {
   let registered: { [id: string]: boolean };
   let payloads: IPayloads = {};
   let views: { [preset: string]: IView } = {};
-  let workingPassphrase: string = undefined;
+  let workingPassphrases: string[] = [];
 
   export async function initialize() {
     connect();
@@ -137,13 +137,17 @@ export namespace UnrealEngine {
       return false;
     }
 
-    if (workingPassphrase == undefined) {
-      workingPassphrase = passphrase;
-      await pullPresets(true);
-      pullTimer();   
+    if (!workingPassphrases.includes(passphrase)) {
+      workingPassphrases.push(passphrase);
+      
+      if (workingPassphrases.length === 1 || isOpen) {
+        await pullPresets(true);
+        pullTimer();   
+      }
     }
     else {
-      workingPassphrase = passphrase;
+      const index = workingPassphrases.findIndex((value:string):boolean => value === passphrase);
+      workingPassphrases[index] = passphrase;
     }
 
     return true;
@@ -165,7 +169,8 @@ export namespace UnrealEngine {
     Notify.emit('connected', true);
     
     isOpen = await checkPassphrase("");
-    if (isOpen || workingPassphrase !== undefined) {
+    Notify.emit('opened', isOpen);
+    if (isOpen || workingPassphrases.length > 0) {
       await pullPresets(true);
       pullTimer();
     }
@@ -173,7 +178,7 @@ export namespace UnrealEngine {
 
   async function refresh() { 
     try {
-      await pullPresets(true);
+      await pullPresets();
     } catch (error) {
     }
   }
@@ -213,17 +218,34 @@ export namespace UnrealEngine {
 
     try {
       const message = JSON.parse(json);
+      
       if (message.RequestId) {
         const promise = pendings[message.RequestId];
         if (!promise)
-          return;
-
+        return;
+        
         if (Program.logger)
-          LogServer.logLoopback({ RequestId: message.RequestId, Stage: 'WebApp Done' }, true);
+        LogServer.logLoopback({ RequestId: message.RequestId, Stage: 'WebApp Done' }, true);
+        
+        if (message.Verb === "401" && workingPassphrases.includes(message.Passphrase)) {
+          Notify.emitPassphraseChanged(message.Passphrase);
+          workingPassphrases = workingPassphrases.filter(value => value !== message.Passphrase);
+
+          delete pendings[message.RequestId];
+          promise?.(message.ResponseCode);
+          return;
+        }
 
         delete pendings[message.RequestId];
         promise?.(message.ResponseBody);
         return;
+      }
+
+      if (isOpen !== message.keyCorrect) {
+        isOpen = !isOpen;
+        Notify.emit('opened', isOpen);
+        await pullPresets(true);
+        pullTimer();
       }
 
       switch (message.Type) {
@@ -337,7 +359,7 @@ export namespace UnrealEngine {
   function send(message: string, parameters: any, passphrase?: string) {
     verifyConnection();
     const Id = parameters?.RequestId ?? request++;
-    passphrase = passphrase ?? workingPassphrase;
+    passphrase = passphrase ?? workingPassphrases[0];
     connection.send(JSON.stringify({ MessageName: message, Id, Passphrase: passphrase, Parameters: parameters}));
   }
 

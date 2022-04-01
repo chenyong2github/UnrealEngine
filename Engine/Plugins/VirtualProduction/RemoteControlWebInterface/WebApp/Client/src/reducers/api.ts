@@ -71,11 +71,15 @@ function _initialize(dispatch: Dispatch, getState: () => { api: ApiState }) {
     })
     .on('opened', (isOpen: boolean) => {
       dispatch(API.STATUS({ isOpen, loading: false }));
+
+      _api.presets.get();
+      _api.payload.all();
     })
-    .on('passphrase', (keyCorrect: boolean) => {
-      dispatch(API.STATUS({ keyCorrect }));
-
-
+    .on('passphrase', (wrongPassphrase: string) => {
+      const isLoginStillCorrect = _passphrase !== wrongPassphrase && _passphrase !== undefined;
+      dispatch(API.STATUS({ keyCorrect: isLoginStillCorrect }));
+      if (!isLoginStillCorrect)
+        _passphrase = undefined;
     })
     .on('loading', (loading: boolean) => {
       dispatch(API.STATUS({ loading }));
@@ -100,6 +104,9 @@ async function _request(method: string, url: string, body: string | object | und
   if (answer.length > 0)
     answer = JSON.parse(answer);
   
+  if (res.status === 401)
+    _dispatch(API.STATUS(answer));
+
   if (!res.ok)
     throw answer;
 

@@ -273,14 +273,17 @@ void FWebRemoteControlModule::StartupModule()
 	WebSocketRouter->AddPreDispatch([this](const struct FRemoteControlWebSocketMessage& Message)
 	{
 		const TArray<FString>* InPassphrase = Message.Header.Find(WebRemoteControlInternalUtils::PassphraseHeader);
+		const FString Passphrase = InPassphrase ? InPassphrase->Last() : FString("");
 		
-		const bool bCanBeDispatched = InPassphrase ? CheckPassphrase(InPassphrase->Last()) : CheckPassphrase("");
+		const bool bCanBeDispatched = CheckPassphrase(Passphrase);
 
 		if (!bCanBeDispatched)
 		{
 			TArray<uint8> Response;
 			FRCRequestWrapper Wrapper;
 			Wrapper.RequestId = Message.MessageId;
+			Wrapper.Passphrase = Passphrase;
+			Wrapper.Verb = "401";
 			
 			WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Given Passphrase is not correct!")), Wrapper.TCHARBody);
 			WebRemoteControlUtils::SerializeMessage(Wrapper, Response);
@@ -1900,6 +1903,19 @@ void FWebRemoteControlModule::OnSettingsModified(UObject* Settings, FPropertyCha
 		WebSocketServerPort = RCSettings->RemoteControlWebSocketServerPort;
 		StopWebSocketServer();
 		StartWebSocketServer();
+	}
+
+	/** Letting the Server know what the current state of the Passphrase Usage is. */
+	if (bIsWebSocketServerStarted && bIsWebServerStarted)
+	{
+		const bool bIsOpen = RCSettings->bUseRemoteControlPassphrase;
+		
+		TArray<uint8> Response;
+		const FCheckPassphraseResponse BoolResponse = FCheckPassphraseResponse(!bIsOpen);
+		
+		WebRemoteControlUtils::SerializeMessage(BoolResponse, Response);
+
+		WebSocketServer.Broadcast(Response);
 	}
 }
 
