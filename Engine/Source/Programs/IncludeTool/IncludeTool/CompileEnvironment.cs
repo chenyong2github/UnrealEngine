@@ -281,7 +281,7 @@ namespace IncludeTool
 
 						// Parse a list of tokens
 						List<string> Tokens = new List<string>();
-						ParseArgumentTokens(CompilerType, Params, Tokens);
+						ParseArgumentTokens(CompilerType, Params, Tokens, BaseDir);
 
 						// Parse it into a list of options, removing any that don't apply
 						List<FileReference> SourceFiles = new List<FileReference>();
@@ -290,11 +290,21 @@ namespace IncludeTool
 						{
 							if(Tokens[Idx] == "/Fo" || Tokens[Idx] == "/Fp" || Tokens[Idx] == "-o")
 							{
-								OutputFiles.Add(new FileReference(Tokens[++Idx]));
+								string OutputPath = Tokens[++Idx];
+								if (!Path.IsPathRooted(OutputPath))
+								{
+									OutputPath = Path.Combine(BaseDir.FullName, OutputPath);
+								}
+								OutputFiles.Add(new FileReference(OutputPath));
 							}
 							else if(Tokens[Idx].StartsWith("/Fo") || Tokens[Idx].StartsWith("/Fp"))
 							{
-								OutputFiles.Add(new FileReference(Tokens[Idx].Substring(3)));
+								string OutputPath = Tokens[Idx].Substring(3);
+								if (!Path.IsPathRooted(OutputPath))
+								{
+									OutputPath = Path.Combine(BaseDir.FullName, OutputPath);
+								}
+								OutputFiles.Add(new FileReference(OutputPath));
 							}
 							else if (Tokens[Idx] == "/D" || Tokens[Idx] == "-D")
 							{
@@ -306,19 +316,39 @@ namespace IncludeTool
 							}
 							else if (Tokens[Idx] == "/I" || Tokens[Idx] == "-I")
 							{
-								Environment.IncludePaths.Add(new DirectoryReference(DirectoryReference.Combine(BaseDir, Tokens[++Idx].Replace("//", "/")).FullName.ToLowerInvariant()));
+								string IncludePath = Tokens[++Idx].Replace("//", "/");
+								if (!Path.IsPathRooted(IncludePath))
+								{
+									IncludePath = Path.Combine(BaseDir.FullName, IncludePath);
+								}
+								Environment.IncludePaths.Add(new DirectoryReference(IncludePath.ToLowerInvariant()));
 							}
 							else if (Tokens[Idx].StartsWith("-I"))
 							{
-								Environment.IncludePaths.Add(new DirectoryReference(DirectoryReference.Combine(BaseDir, Tokens[Idx].Substring(2).Replace("//", "/")).FullName.ToLowerInvariant()));
+								string IncludePath = Tokens[Idx].Substring(2).Replace("//", "/");
+								if (!Path.IsPathRooted(IncludePath))
+								{
+									IncludePath = Path.Combine(BaseDir.FullName, IncludePath);
+								}
+								Environment.IncludePaths.Add(new DirectoryReference(IncludePath.ToLowerInvariant()));
 							}
 							else if(Tokens[Idx].StartsWith("/FI"))
 							{
-								Environment.ForceIncludeFiles.Add(new FileReference(Tokens[Idx].Substring(3)));
+								string ForceIncludePath = Tokens[Idx].Substring(3);
+								if (!Path.IsPathRooted(ForceIncludePath))
+								{
+									ForceIncludePath = Path.Combine(BaseDir.FullName, ForceIncludePath);
+								}
+								Environment.ForceIncludeFiles.Add(new FileReference(ForceIncludePath));
 							}
 							else if(Tokens[Idx] == "-include")
 							{
-								Environment.ForceIncludeFiles.Add(new FileReference(Tokens[++Idx]));
+								string ForceIncludePath = Tokens[++Idx];
+								if (!Path.IsPathRooted(ForceIncludePath))
+								{
+									ForceIncludePath = Path.Combine(BaseDir.FullName, ForceIncludePath);
+								}
+								Environment.ForceIncludeFiles.Add(new FileReference(ForceIncludePath));
 							}
 							else if (Tokens[Idx] == "-Xclang" || Tokens[Idx] == "-target" || Tokens[Idx] == "--target" || Tokens[Idx] == "-x" || Tokens[Idx] == "-o")
 							{
@@ -387,13 +417,14 @@ namespace IncludeTool
 				return false;
 			}
 		}
-		
+
 		/// <summary>
 		/// Parse a parameter list into a series of tokens, reading response files as appropriate
 		/// </summary>
 		/// <param name="Text">The line of text to parse</param>
 		/// <param name="Tokens">List to be filled with the parsed tokens</param>
-		static void ParseArgumentTokens(CompilerType CompilerType, string Text, List<string> Tokens)
+		/// <param name="BaseDir">Base directory to root relative pathed response files from</param>
+		static void ParseArgumentTokens(CompilerType CompilerType, string Text, List<string> Tokens, DirectoryReference BaseDir)
 		{
 			for (int Idx = 0; Idx < Text.Length; Idx++)
 			{
@@ -425,7 +456,12 @@ namespace IncludeTool
 					// Add the token to the list. If it's a response file, recursively parse the tokens out of that.
 					if(Token[0] == '@')
 					{
-						ParseArgumentTokens(CompilerType, File.ReadAllText(Token.ToString().Substring(1)), Tokens);
+						string ResponsePath = Token.ToString().Substring(1);
+						if (!Path.IsPathRooted(ResponsePath))
+						{
+							ResponsePath = Path.Combine(BaseDir.FullName, ResponsePath);
+						}
+						ParseArgumentTokens(CompilerType, File.ReadAllText(ResponsePath), Tokens, BaseDir);
 					}
 					else
 					{

@@ -432,6 +432,22 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
+		public static string NormalizeCommandLinePath(FileSystemReference Reference)
+		{
+			// Try to use a relative path to shorten command line length.
+			if (Reference.IsUnderDirectory(Unreal.RootDirectory))
+			{
+				return Reference.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
+			}
+
+			return Reference.FullName;
+		}
+
+		public static string NormalizeCommandLinePath(FileItem Item)
+		{
+			return NormalizeCommandLinePath(Item.Location);
+		}
+
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			StringBuilder Arguments = new StringBuilder();
@@ -444,7 +460,7 @@ namespace UnrealBuildTool
 				// Add the precompiled header file's path to the include path so GCC can find it.
 				// This needs to be before the other include paths to ensure GCC uses it instead of the source header file.
 				PCHArguments.Append(" -include \"");
-				PCHArguments.Append(CompileEnvironment.PrecompiledHeaderIncludeFilename);
+				PCHArguments.Append(NormalizeCommandLinePath(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
 				PCHArguments.Append("\"");
 			}
 
@@ -454,7 +470,7 @@ namespace UnrealBuildTool
 			foreach (DirectoryReference IncludePath in AllIncludes)
 			{
 				Arguments.Append(" -I\"");
-				Arguments.Append(IncludePath);
+				Arguments.Append(NormalizeCommandLinePath(IncludePath));
 				Arguments.Append("\"");
 			}
 
@@ -469,13 +485,13 @@ namespace UnrealBuildTool
 			List<string> FrameworksSearchPaths = new List<string>();
 			foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
 			{
-				string FrameworkPath = Path.GetDirectoryName(Path.GetFullPath(Framework.Name))!;
-				if (!FrameworksSearchPaths.Contains(FrameworkPath))
+				FileReference FrameworkPath = new FileReference(Path.GetFullPath(Framework.Name));
+				if (!FrameworksSearchPaths.Contains(FrameworkPath.Directory.FullName))
 				{
 					Arguments.Append(" -F \"");
-					Arguments.Append(FrameworkPath);
+					Arguments.Append(NormalizeCommandLinePath(FrameworkPath.Directory));
 					Arguments.Append("\"");
-					FrameworksSearchPaths.Add(FrameworkPath);
+					FrameworksSearchPaths.Add(FrameworkPath.Directory.FullName);
 				}
 			}
 
@@ -524,7 +540,7 @@ namespace UnrealBuildTool
 
 				foreach (FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
 				{
-					FileArguments += String.Format(" -include \"{0}\"", ForceIncludeFile.Location);
+					FileArguments += String.Format(" -include \"{0}\"", NormalizeCommandLinePath(ForceIncludeFile));
 				}
 
 				// Add the C++ source file and its included files to the prerequisite item list.
@@ -539,25 +555,26 @@ namespace UnrealBuildTool
 					Result.PrecompiledHeaderFile = PrecompiledHeaderFile;
 
 					// Add the parameters needed to compile the precompiled header file to the command-line.
-					FileArguments += string.Format(" -o \"{0}\"", PrecompiledHeaderFile.AbsolutePath);
+					FileArguments += string.Format(" -o \"{0}\"", NormalizeCommandLinePath(PrecompiledHeaderFile));
 				}
 				else
 				{
 					if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 					{
 						CompileAction.PrerequisiteItems.Add(CompileEnvironment.PrecompiledHeaderFile!);
+						CompileAction.PrerequisiteItems.Add(FileItem.GetItemByPath(CompileEnvironment.PrecompiledHeaderFile!.FullName.Replace(".h.gch", ".h")));
 					}
 					// Add the object file to the produced item list.
 					FileItem ObjectFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".o"));
 
 					CompileAction.ProducedItems.Add(ObjectFile);
 					Result.ObjectFiles.Add(ObjectFile);
-					FileArguments += string.Format(" -o \"{0}\"", ObjectFile.AbsolutePath);
+					FileArguments += string.Format(" -o \"{0}\"", NormalizeCommandLinePath(ObjectFile));
 					OutputFilePath = ObjectFile.AbsolutePath;
 				}
 
 				// Add the source file path to the command-line.
-				FileArguments += string.Format(" \"{0}\"", SourceFile.AbsolutePath);
+				FileArguments += string.Format(" \"{0}\"", NormalizeCommandLinePath(SourceFile));
 
 				// Generate the timing info
 				if (CompileEnvironment.bPrintTimingInfo)
@@ -571,7 +588,7 @@ namespace UnrealBuildTool
 				if(!bPreprocessDepends && CompileEnvironment.bGenerateDependenciesFile)
 				{
 					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
-					FileArguments += string.Format(" -MD -MF\"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/'));
+					FileArguments += string.Format(" -MD -MF\"{0}\"", NormalizeCommandLinePath(DependencyListFile));
 					CompileAction.DependencyListFile = DependencyListFile;
 					CompileAction.ProducedItems.Add(DependencyListFile);
 				}
@@ -608,7 +625,7 @@ namespace UnrealBuildTool
 
 				CompileAction.WorkingDirectory = GetMacDevSrcRoot();
 
-				if (MacExports.IsRunningUnderRosetta)
+				if (!MacExports.IsRunningUnderRosetta)
 				{
 					string ArchPath = "/usr/bin/arch";
 					CompileAction.CommandPath = new FileReference(ArchPath);
@@ -626,7 +643,7 @@ namespace UnrealBuildTool
 				CompileAction.StatusDescription = Path.GetFileName(SourceFile.AbsolutePath);
 				CompileAction.bIsGCCCompiler = true;
 				// We're already distributing the command by execution on Mac.
-				CompileAction.bCanExecuteRemotely = Extension != ".C";
+				CompileAction.bCanExecuteRemotely = CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create;
 				CompileAction.bShouldOutputStatusDescription = true;
 				CompileAction.CommandVersion = GetFullClangVersion();
 
@@ -647,18 +664,16 @@ namespace UnrealBuildTool
 					PreprocessArguments = PreprocessArguments.Replace(" -c ", " ");
 
 					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
-					PreprocessFileArguments += string.Format(" -M -MF\"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/'));
+					PreprocessFileArguments += string.Format(" -M -MF\"{0}\"", NormalizeCommandLinePath(DependencyListFile));
 					PrepassAction.DependencyListFile = DependencyListFile;
 					PrepassAction.ProducedItems.Add(DependencyListFile);
 
 					PreprocessFileArguments = PreprocessFileArguments.Replace(" -ftime-trace", string.Empty);
-					PreprocessFileArguments = PreprocessFileArguments.Replace(string.Format(" -o \"{0}\"", CompileAction.ProducedItems.First().AbsolutePath), String.Empty);
+					PreprocessFileArguments = PreprocessFileArguments.Replace(string.Format(" -o \"{0}\"", NormalizeCommandLinePath(CompileAction.ProducedItems.First())), String.Empty);
 
 					PrepassAction.DeleteItems.AddRange(PrepassAction.ProducedItems);
 
 					string AllPreprocessArgs = PreprocessArguments + PreprocessFileArguments + EscapedAdditionalArgs;
-
-					PrepassAction.WorkingDirectory = GetMacDevSrcRoot();
 
 					if (MacExports.IsRunningUnderRosetta)
 					{
