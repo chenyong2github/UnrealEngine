@@ -1208,7 +1208,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 
 	// normalize the order
 	Id.AdditionalDefines.Sort();
-	Id.ReferencedCompileHashes.Sort([](const FNiagaraCompileHash& Lhs, const FNiagaraCompileHash& Rhs) { return Lhs.ToString() < Rhs.ToString(); });
+	Id.ReferencedCompileHashes.Sort();
 	Id.AdditionalVariables.Sort([](const FNiagaraVariableBase& Lhs, const FNiagaraVariableBase& Rhs) { return Lhs.GetName().LexicalLess(Rhs.GetName()); });
 
 	LastGeneratedVMId = Id;

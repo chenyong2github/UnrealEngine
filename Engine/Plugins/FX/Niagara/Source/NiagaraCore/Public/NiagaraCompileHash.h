@@ -23,15 +23,10 @@ struct NIAGARACORE_API FNiagaraCompileHash
 	explicit FNiagaraCompileHash(const uint8* InDataHash, uint32 InCount) : DataHash(InDataHash, InCount)
 	{
 		checkf(InCount == HashSize, TEXT("Invalid hash data."));
-		/*.AddUninitialized(InCount);
-		for (uint32 i = 0; i < InCount; i++)
-		{
-			DataHash[i] = InDataHash[i];
-		}*/
 	}
 
-	bool operator==(const FNiagaraCompileHash& Other) const;
-	bool operator!=(const FNiagaraCompileHash& Other) const;
+	bool operator==(const FNiagaraCompileHash& Other) const { return DataHash == Other.DataHash; }
+	bool operator!=(const FNiagaraCompileHash& Other) const { return DataHash != Other.DataHash; }
 	bool operator==(const FSHAHash& Other) const;
 	inline bool operator!=(const FSHAHash& Other) const { return !operator==(Other); }
 
@@ -43,11 +38,28 @@ struct NIAGARACORE_API FNiagaraCompileHash
 
 	const uint8* GetData() const;
 
-	FString ToString() const;
+	void AppendString(FString& Out) const;
+	
+	FString ToString() const
+	{
+		FString Out;
+		AppendString(Out);
+		return Out;
+	}
 
 	NIAGARACORE_API friend FArchive& operator<<(FArchive& Ar, FNiagaraCompileHash& Id);
 
-	static const uint32 HashSize;
+	static constexpr uint32 HashSize = 20;
+
+	friend bool operator<(const FNiagaraCompileHash& Lhs, const FNiagaraCompileHash& Rhs)
+	{
+		if (int32 NumDiff = Lhs.DataHash.Num() - Rhs.DataHash.Num())
+		{
+			return NumDiff < 0;
+		}
+
+		return FMemory::Memcmp(Lhs.DataHash.GetData(), Rhs.DataHash.GetData(), Lhs.DataHash.Num()) < 0;
+	}
 
 private:
 	UPROPERTY()
