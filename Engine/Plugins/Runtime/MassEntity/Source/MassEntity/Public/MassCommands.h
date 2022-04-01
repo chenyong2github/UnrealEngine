@@ -337,7 +337,12 @@ struct FMassCommandBuildEntityWithSharedFragments : public FMassBatchedCommand
 	void Add(FMassEntityHandle Entity, FMassArchetypeSharedFragmentValues&& InSharedFragments, TOthers... InFragments)
 	{
 		InSharedFragments.Sort();
-		FPerSharedFragmentsHashData& Instance = Data.FindOrAdd(GetTypeHash(InSharedFragments), MoveTemp(InSharedFragments));
+
+		// Compute hash before adding to the map since evaluation order is not guaranteed
+		// and MoveTemp will invalidate InSharedFragments
+		const uint32 Hash = GetTypeHash(InSharedFragments);
+
+		FPerSharedFragmentsHashData& Instance = Data.FindOrAdd(Hash, MoveTemp(InSharedFragments));
 		Instance.Fragments.Add(InFragments...);
 		Instance.TargetEntities.Add(Entity);
 
