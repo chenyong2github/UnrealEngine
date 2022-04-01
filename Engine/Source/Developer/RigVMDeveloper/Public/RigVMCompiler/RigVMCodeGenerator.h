@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "RigVMCore/RigVM.h"
-#include "RigVMCore/RigVMStruct.h"
 #include "RigVMModel/RigVMGraph.h"
-#include "RigVMCompiler/RigVMCompiler.h"
+
+#include "UObject/StrongObjectPtr.h"
+
+class URigVMGraph;
+
 
 struct RIGVMDEVELOPER_API FRigVMCodeGenerator
 {

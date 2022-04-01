@@ -2,8 +2,8 @@
 
 #include "RigVMCompiler/RigVMCodeGenerator.h"
 #include "RigVMCore/RigVMExecuteContext.h"
+#include "RigVMCore/RigVMStruct.h"
 #include "RigVMDeveloperModule.h"
-#include "RigVMDeveloperTypeUtils.h"
 #include "Algo/Count.h"
 #include "Animation/Rig.h"
 
