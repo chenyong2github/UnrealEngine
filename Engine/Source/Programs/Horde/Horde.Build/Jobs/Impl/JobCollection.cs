@@ -519,24 +519,7 @@ namespace Horde.Build.Collections.Impl
 			using (IScope scope = GlobalTracer.Instance.BuildSpan("Jobs.Find").StartActive())
 			{
 				IMongoCollection<JobDocument> collection = consistentRead ? _jobs : _jobs.WithReadPreference(ReadPreference.SecondaryPreferred);
-
-				FindOptions? findOptions = null;
-				if (indexHint != null)
-				{
-					findOptions = new FindOptions { Hint = new BsonString(indexHint) };
-				}
-				
-				IFindFluent<JobDocument, JobDocument> query = collection.Find<JobDocument>(filter, findOptions).SortByDescending(x => x.CreateTimeUtc!);
-				
-				if (index != null)
-				{
-					query = query.Skip(index.Value);
-				}
-				if (count != null)
-				{
-					query = query.Limit(count.Value);
-				}
-				results = await query.ToListAsync();
+				results = await collection.FindWithHint(filter, indexHint, x => x.SortByDescending(x => x.CreateTimeUtc!).Range(index, count).ToListAsync());
 			}
 			foreach (JobDocument result in results)
 			{

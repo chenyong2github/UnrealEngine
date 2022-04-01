@@ -17,6 +17,33 @@ namespace Horde.Build.Utilities
 	public static class MongoExtensions
 	{
 		/// <summary>
+		/// Executes a query with a particular index hint
+		/// </summary>
+		/// <typeparam name="TDoc"></typeparam>
+		/// <typeparam name="TResult"></typeparam>
+		/// <param name="collection"></param>
+		/// <param name="filter"></param>
+		/// <param name="indexHint"></param>
+		/// <param name="processAsync"></param>
+		/// <returns></returns>
+		public static async Task<TResult> FindWithHint<TDoc, TResult>(this IMongoCollection<TDoc> collection, FilterDefinition<TDoc> filter, string? indexHint, Func<IFindFluent<TDoc, TDoc>, Task<TResult>> processAsync)
+		{
+			FindOptions? findOptions = null;
+			if (indexHint != null)
+			{
+				findOptions = new FindOptions { Hint = new BsonString(indexHint) };
+			}
+			try
+			{
+				return await processAsync(collection.Find(filter, findOptions));
+			}
+			catch (MongoCommandException ex) when (indexHint != null && ex.Code == 2)
+			{
+				return await processAsync(collection.Find(filter));
+			}
+		}
+
+		/// <summary>
 		/// Filters the documents returned from a search
 		/// </summary>
 		/// <param name="query">The query to filter</param>

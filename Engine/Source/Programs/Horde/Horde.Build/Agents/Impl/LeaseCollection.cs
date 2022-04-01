@@ -131,13 +131,8 @@ namespace Horde.Build.Collections.Impl
 			{
 				filter &= filterBuilder.Lt(x => x.StartTime, maxTime.Value);
 			}
-			FindOptions? findOptions = null;
-			if (indexHint != null)
-			{
-				findOptions = new FindOptions { Hint = new BsonString(indexHint) };
-			}
 
-			List<LeaseDocument> results = await collection.Find(filter, findOptions).SortByDescending(x => x.StartTime).Range(index, count).ToListAsync();
+			List<LeaseDocument> results = await collection.FindWithHint(filter, indexHint, x => x.SortByDescending(x => x.StartTime).Range(index, count).ToListAsync());
 			return results.ConvertAll<ILease>(x => x);
 		}
 		
@@ -162,9 +157,7 @@ namespace Horde.Build.Collections.Impl
 				filter &= filterBuilder.Lt(x => x.FinishTime, maxFinishTime.Value);
 			}
 
-			FindOptions? findOptions = indexHint == null ? null : new FindOptions { Hint = new BsonString(indexHint) };
-			List<LeaseDocument> results = await collection.Find(filter, findOptions).SortByDescending(x => x.FinishTime).Range(index, count).ToListAsync();
-
+			List<LeaseDocument> results = await collection.FindWithHint(filter, indexHint, x => x.SortByDescending(x => x.FinishTime).Range(index, count).ToListAsync());
 			return results.ConvertAll<ILease>(x => x);
 		}
 
