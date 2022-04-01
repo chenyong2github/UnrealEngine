@@ -293,12 +293,12 @@ namespace UE::VertexDeltaModel
 
 	FString FVertexDeltaEditorModel::GetDefaultDeformerGraphAssetPath() const
 	{
-		return FString(TEXT("/VertexDeltaModel/Deformers/VertexDeltaModelGraph.VertexDeltaModelGraph"));
+		return FString(TEXT("/VertexDeltaModel/Deformers/DG_VertexDeltaModel.DG_VertexDeltaModel"));
 	}
 
 	FString FVertexDeltaEditorModel::GetHeatMapDeformerGraphPath() const
 	{
-		return FString(TEXT("/VertexDeltaModel/Deformers/VertexDeltaHeatMapGraph.VertexDeltaHeatMapGraph"));
+		return FString(TEXT("/VertexDeltaModel/Deformers/DG_VertexDeltaModel_HeatMap.DG_VertexDeltaModel_HeatMap"));
 	}
 }	// namespace UE::VertexDeltaModel
 

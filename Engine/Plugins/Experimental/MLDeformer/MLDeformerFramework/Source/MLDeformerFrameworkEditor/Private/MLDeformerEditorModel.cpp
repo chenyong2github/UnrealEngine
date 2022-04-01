@@ -1406,12 +1406,12 @@ namespace UE::MLDeformer
 
 	FString FMLDeformerEditorModel::GetHeatMapDeformerGraphPath() const
 	{
-		return FString(TEXT("/MLDeformerFramework/Deformers/MLDeformerHeatMapGraph.MLDeformerHeatMapGraph"));
+		return FString(TEXT("/MLDeformerFramework/Deformers/DG_MLDeformerModel_HeatMap.DG_MLDeformerModel_HeatMap"));
 	}
 
 	FString FMLDeformerEditorModel::GetDefaultDeformerGraphAssetPath() const
 	{
-		return FString(TEXT("/MLDeformerFramework/Deformers/MLDeformerDefaultGraph.MLDeformerDefaultGraph"));
+		return FString(TEXT("/MLDeformerFramework/Deformers/DG_MLDeformerModel.DG_MLDeformerModel"));
 	}
 
 	FString FMLDeformerEditorModel::GetTrainedNetworkOnnxFile() const
