@@ -306,20 +306,22 @@ public:
 	/**
 	 * Converts this GUID to its string representation.
 	 *
+	 * @param Format The string format to use.
 	 * @return The string representation.
 	 */
-	FString ToString() const
+	FString ToString(EGuidFormats Format = EGuidFormats::Digits) const
 	{
-		return ToString(EGuidFormats::Digits);
+		FString Out;
+		AppendString(Out, Format);
+		return Out;
 	}
 
 	/**
 	 * Converts this GUID to its string representation using the specified format.
 	 *
 	 * @param Format The string format to use.
-	 * @return The string representation.
 	 */
-	CORE_API FString ToString(EGuidFormats Format) const;
+	CORE_API void AppendString(FString& Out, EGuidFormats Format = EGuidFormats::Digits) const;
 
 	/**
 	 * Appends this GUID to the string builder using the specified format.

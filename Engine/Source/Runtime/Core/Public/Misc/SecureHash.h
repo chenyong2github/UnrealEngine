@@ -207,6 +207,11 @@ public:
 
 	static constexpr int32 GetStringLen() { return UE_ARRAY_COUNT(Hash) * 2; }
 
+	inline void AppendString(FString& Out) const
+	{
+		BytesToHex((const uint8*)Hash, sizeof(Hash), Out);
+	}
+
 	inline FString ToString() const
 	{
 		return BytesToHex((const uint8*)Hash, sizeof(Hash));

@@ -1933,23 +1933,25 @@ inline void ByteToHex(uint8 In, FString& Result)
 	Result += NibbleToTChar(In & 15);
 }
 
-/** 
- * Convert an array of bytes to hex
- * @param In byte array values to convert
- * @param Count number of bytes to convert
- * @return Hex value in string.
- */
-UE_NODISCARD inline FString BytesToHex(const uint8* In, int32 Count)
-{
-	FString Result;
-	Result.Empty(Count * 2);
+/** Append bytes as uppercase hex string */
+CORE_API void BytesToHex(const uint8* Bytes, int32 NumBytes, FString& Out);
+/** Append bytes as lowercase hex string */
+CORE_API void BytesToHexLower(const uint8* Bytes, int32 NumBytes, FString& Out);
 
-	while (Count)
-	{
-		ByteToHex(*In++, Result);
-		Count--;
-	}
-	return Result;
+/** Convert bytes to uppercase hex string */
+UE_NODISCARD inline FString BytesToHex(const uint8* Bytes, int32 NumBytes)
+{
+	FString Out;
+	BytesToHex(Bytes, NumBytes, Out);
+	return Out;
+}
+
+/** Convert bytes to lowercase hex string */
+UE_NODISCARD inline FString BytesToHexLower(const uint8* Bytes, int32 NumBytes)
+{
+	FString Out;
+	BytesToHexLower(Bytes, NumBytes, Out);
+	return Out;
 }
 
 /**

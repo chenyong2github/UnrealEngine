@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "String/BytesToHex.h"
-
+#include "Containers/UnrealString.h"
 #include "Misc/StringBuilder.h"
 
 namespace UE::String
@@ -87,3 +87,27 @@ void BytesToHexLower(TConstArrayView<uint8> Bytes, FUtf8StringBuilderBase& Build
 }
 
 } // UE::String
+
+//////////////////// Functions declared in UnrealString.h ////////////////////
+
+void BytesToHex(const uint8* In, int32 Count, FString& Out)
+{
+	if (Count)
+	{
+		TArray<TCHAR>& OutArray = Out.GetCharArray();
+		OutArray.AddUninitialized(2 * Count + /* add null terminator */ (OutArray.Num() == 0));
+		UE::String::BytesToHex(MakeArrayView(In, Count), &OutArray.Last(2 * Count));
+		OutArray.Last() = '\0';
+	}
+}
+
+void BytesToHexLower(const uint8* In, int32 Count, FString& Out)
+{
+	if (Count)
+	{
+		TArray<TCHAR>& OutArray = Out.GetCharArray();
+		OutArray.AddUninitialized(2 * Count + /* add null terminator */ (OutArray.Num() == 0));
+		UE::String::BytesToHexLower(MakeArrayView(In, Count), &OutArray.Last(2 * Count));
+		OutArray.Last() = '\0';
+	}
+}
