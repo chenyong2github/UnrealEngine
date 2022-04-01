@@ -6,6 +6,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public DataprepGeometryOperations(ReadOnlyTargetRules Target) : base(Target)
 		{
+			ShortName = "DataprepGO";
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
