@@ -429,6 +429,11 @@ public:
 		return (RadiusOfInterest <= 0.0f) || ((Pos - CenterOfInterest).SizeSquared() < (RadiusOfInterest + Radius) * (RadiusOfInterest + Radius));
 	}
 
+	bool IsInRegionOfInterest(FAABB3 Bounds) const
+	{
+		return Bounds.ThickenSymmetrically(FVec3(RadiusOfInterest)).Contains(CenterOfInterest);
+	}
+
 	void SetConsumerActive(void* Consumer, bool bConsumerActive);
 
 	static FDebugDrawQueue& GetInstance();

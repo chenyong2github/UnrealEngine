@@ -77,9 +77,10 @@ namespace Chaos
 
 			struct
 			{
-				uint8 bWasRestored : 1;
-				uint8 bWasReplaced : 1;
-				uint8 bWasFrictionRestored : 1;
+				uint8 bDisabled : 1;						// Whether the point was disabled by edge pruning etc
+				uint8 bWasRestored : 1;						// Whether the point was retored from the previous frame due to lack of movement
+				uint8 bWasReplaced : 1;						// @todo(chaos): remove this
+				uint8 bWasFrictionRestored : 1;				// Whether we used data from the previous frame to set up the contacts to maintain static friction
 				uint8 bInsideStaticFrictionCone : 1;		// Whether we are inside the static friction cone
 			};
 			uint8 Bits;
@@ -475,10 +476,10 @@ namespace Chaos
 			SolverBodies[1] = InSolverBody1;
 		}
 
-		int32 GetSolverBodyContainerIndex() const { return ConstraintIndex; }
-		void SetSolverBodyContainerIndex(int32 InConstraintIndex)
+		int32 GetSolverIndex() const { return SolverIndex; }
+		void SetSolverIndex(int32 InSolverIndex)
 		{
-			ConstraintIndex = InConstraintIndex;
+			SolverIndex = InSolverIndex;
 		}
 
 		/**
@@ -676,7 +677,7 @@ namespace Chaos
 		FSolverBody* SolverBodies[2];
 
 		// Stores the index into the solver container for this constraint
-		int32 ConstraintIndex;
+		int32 SolverIndex;
 
 		// Simplex data from the last call to GJK, used to warm-start GJK
 		FGJKSimplexData GJKWarmStartData;

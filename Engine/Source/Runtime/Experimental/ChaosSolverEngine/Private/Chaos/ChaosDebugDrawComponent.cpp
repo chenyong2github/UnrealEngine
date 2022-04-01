@@ -44,13 +44,13 @@ int bChaosDebugDraw_DrawMode = 0;
 FAutoConsoleVariableRef CVarArrowSize(TEXT("p.Chaos.DebugDraw.Mode"), bChaosDebugDraw_DrawMode, TEXT("Where to send debug draw commands. 0 = UE Debug Draw; 1 = VisLog; 2 = Both"));
 
 
-float CommandLifeTime(const Chaos::FLatentDrawCommand& Command)
+float CommandLifeTime(const Chaos::FLatentDrawCommand& Command, const bool bIsPaused)
 {
 	// @todo(chaos): remove lifetime from the system
-	return 0.0f;
+	return ((Command.LifeTime > 0.0f) && !bIsPaused) ? Command.LifeTime : 0.0f;
 }
 
-void DebugDrawChaos(AActor* DebugDrawActor, const TArray<Chaos::FLatentDrawCommand>& DrawCommands)
+void DebugDrawChaos(AActor* DebugDrawActor, const TArray<Chaos::FLatentDrawCommand>& DrawCommands, bool bIsPaused)
 {
 	using namespace Chaos;
 
@@ -89,32 +89,32 @@ void DebugDrawChaos(AActor* DebugDrawActor, const TArray<Chaos::FLatentDrawComma
 			switch (Command.Type)
 			{
 			case FLatentDrawCommand::EDrawType::Point:
-				DrawDebugPoint(World, Command.LineStart, Command.Thickness, Command.Color, Command.bPersistentLines, CommandLifeTime(Command), Command.DepthPriority);
+				DrawDebugPoint(World, Command.LineStart, Command.Thickness, Command.Color, Command.bPersistentLines, CommandLifeTime(Command, bIsPaused), Command.DepthPriority);
 				break;
 			case FLatentDrawCommand::EDrawType::Line:
-				DrawDebugLine(World, Command.LineStart, Command.LineEnd, Command.Color, Command.bPersistentLines, CommandLifeTime(Command), Command.DepthPriority, Command.Thickness);
+				DrawDebugLine(World, Command.LineStart, Command.LineEnd, Command.Color, Command.bPersistentLines, CommandLifeTime(Command, bIsPaused), Command.DepthPriority, Command.Thickness);
 				break;
 			case FLatentDrawCommand::EDrawType::DirectionalArrow:
-				DrawDebugDirectionalArrow(World, Command.LineStart, Command.LineEnd, Command.ArrowSize, Command.Color, Command.bPersistentLines, CommandLifeTime(Command), Command.DepthPriority, Command.Thickness);
+				DrawDebugDirectionalArrow(World, Command.LineStart, Command.LineEnd, Command.ArrowSize, Command.Color, Command.bPersistentLines, CommandLifeTime(Command, bIsPaused), Command.DepthPriority, Command.Thickness);
 				break;
 			case FLatentDrawCommand::EDrawType::Sphere:
-				DrawDebugSphere(World, Command.LineStart, Command.Radius, Command.Segments, Command.Color, Command.bPersistentLines, CommandLifeTime(Command), Command.DepthPriority, Command.Thickness);
+				DrawDebugSphere(World, Command.LineStart, Command.Radius, Command.Segments, Command.Color, Command.bPersistentLines, CommandLifeTime(Command, bIsPaused), Command.DepthPriority, Command.Thickness);
 				break;
 			case FLatentDrawCommand::EDrawType::Box:
-				DrawDebugBox(World, Command.Center, Command.Extent, Command.Rotation, Command.Color, Command.bPersistentLines, CommandLifeTime(Command), Command.DepthPriority, Command.Thickness);
+				DrawDebugBox(World, Command.Center, Command.Extent, Command.Rotation, Command.Color, Command.bPersistentLines, CommandLifeTime(Command, bIsPaused), Command.DepthPriority, Command.Thickness);
 				break;
 			case FLatentDrawCommand::EDrawType::String:
-				DrawDebugString(World, Command.TextLocation, Command.Text, Command.TestBaseActor, Command.Color, CommandLifeTime(Command), Command.bDrawShadow, Command.FontScale);
+				DrawDebugString(World, Command.TextLocation, Command.Text, Command.TestBaseActor, Command.Color, CommandLifeTime(Command, bIsPaused), Command.bDrawShadow, Command.FontScale);
 				break;
 			case FLatentDrawCommand::EDrawType::Circle:
 			{
 				FMatrix M = FRotationMatrix::MakeFromYZ(Command.YAxis, Command.ZAxis);
 				M.SetOrigin(Command.Center);
-				DrawDebugCircle(World, M, Command.Radius, Command.Segments, Command.Color, Command.bPersistentLines, CommandLifeTime(Command), Command.DepthPriority, Command.Thickness, Command.bDrawAxis);
+				DrawDebugCircle(World, M, Command.Radius, Command.Segments, Command.Color, Command.bPersistentLines, CommandLifeTime(Command, bIsPaused), Command.DepthPriority, Command.Thickness, Command.bDrawAxis);
 				break;
 			}
 			case FLatentDrawCommand::EDrawType::Capsule:
-				DrawDebugCapsule(World, Command.Center, Command.HalfHeight, Command.Radius, Command.Rotation, Command.Color, Command.bPersistentLines, CommandLifeTime(Command), Command.DepthPriority, Command.Thickness);
+				DrawDebugCapsule(World, Command.Center, Command.HalfHeight, Command.Radius, Command.Rotation, Command.Color, Command.bPersistentLines, CommandLifeTime(Command, bIsPaused), Command.DepthPriority, Command.Thickness);
 			default:
 				break;
 			}
@@ -281,7 +281,7 @@ void UChaosDebugDrawComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 			FDebugDrawQueue::GetInstance().ExtractAllElements(DrawCommands);
 		}
 
-		DebugDrawChaos(GetOwner(), DrawCommands);
+		DebugDrawChaos(GetOwner(), DrawCommands, World->IsPaused());
 	}
 #endif
 }

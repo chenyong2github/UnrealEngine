@@ -319,9 +319,6 @@ protected:
 	// Call PruneParticleEdgeCollisions on all particles with ECollisionConstraintFlags::CCF_SmoothEdgeCollisions set in CollisionFlags
 	void PruneEdgeCollisions();
 
-	// Remove all edge collision on a particle that cannot be hit because a plane contact would prevent it
-	void PruneParticleEdgeCollisions(FGeometryParticleHandle* Particle);
-
 	// The "Legacy" functions handle the older solver types (GbfPbd and StandardPbd)
 	// @todo(chaos): remove legacy methods when the new solver is fully operational and used everywhere (RBAN)
 	void LegacyGatherInput(const FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);

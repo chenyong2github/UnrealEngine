@@ -194,6 +194,7 @@ namespace Chaos
 		, LastShapeWorldPositionDelta()
 		, LastShapeWorldRotationDelta()
 		, SolverBodies{ nullptr, nullptr }
+		, SolverIndex(INDEX_NONE)
 		, GJKWarmStartData()
 		, SavedManifoldPoints()
 		, ManifoldPoints()
@@ -232,6 +233,7 @@ namespace Chaos
 		, LastShapeWorldPositionDelta()
 		, LastShapeWorldRotationDelta()
 		, SolverBodies{ nullptr, nullptr }
+		, SolverIndex(INDEX_NONE)
 		, GJKWarmStartData()
 		, SavedManifoldPoints()
 		, ManifoldPoints()

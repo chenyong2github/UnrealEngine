@@ -484,15 +484,13 @@ namespace Chaos
 
 		void DrawShapesImpl(const FGeometryParticleHandle* Particle, const FRigidTransform3& ShapeTransform, const FImplicitObject* Implicit, const FShapeOrShapesArray& Shapes, const FReal Margin, const FColor& Color, const FChaosDebugDrawSettings& Settings)
 		{
-
 			if (!Particle || !Implicit) return;
 
 			const EImplicitObjectType PackedType = Implicit->GetType(); // Type includes scaling and instancing data
 			const EImplicitObjectType InnerType = GetInnerType(Implicit->GetType());
 
 			// Are we within the region of interest?
-			const FReal ParticleSize = Particle->HasBounds() ? 0.5f * Particle->LocalBounds().Extents().Size() : TNumericLimits<FReal>::Max();
-			if (!FDebugDrawQueue::GetInstance().IsInRegionOfInterest(ShapeTransform.GetLocation(), ParticleSize))
+			if (Particle->HasBounds() && !FDebugDrawQueue::GetInstance().IsInRegionOfInterest(Particle->WorldSpaceInflatedBounds()))
 			{
 				return;
 			}
@@ -834,13 +832,11 @@ namespace Chaos
 				const FRigidTransform3 WorldActorTransform1 = FParticleUtilities::GetActorWorldTransform(Particle1);
 
 				// Are we within the region of interest?
-				const FReal Particle0Size = Contact.GetParticle0()->HasBounds() ? 0.5f * Contact.GetParticle0()->LocalBounds().Extents().Size() : TNumericLimits<FReal>::Max();
-				const FReal Particle1Size = Contact.GetParticle1()->HasBounds() ? 0.5f * Contact.GetParticle1()->LocalBounds().Extents().Size() : TNumericLimits<FReal>::Max();
-				if (!FDebugDrawQueue::GetInstance().IsInRegionOfInterest(SpaceTransform.TransformPositionNoScale(WorldActorTransform0.GetLocation()), Particle0Size))
+				if (Contact.GetParticle0()->HasBounds() && !FDebugDrawQueue::GetInstance().IsInRegionOfInterest(Contact.GetParticle0()->WorldSpaceInflatedBounds().TransformedAABB(SpaceTransform)))
 				{
 					return;
 				}
-				if (!FDebugDrawQueue::GetInstance().IsInRegionOfInterest(SpaceTransform.TransformPositionNoScale(WorldActorTransform1.GetLocation()), Particle1Size))
+				if (Contact.GetParticle1()->HasBounds() && !FDebugDrawQueue::GetInstance().IsInRegionOfInterest(Contact.GetParticle1()->WorldSpaceInflatedBounds().TransformedAABB(SpaceTransform)))
 				{
 					return;
 				}
@@ -852,6 +848,8 @@ namespace Chaos
 					{
 						continue;
 					}
+
+					const bool bPruned = ManifoldPoint.Flags.bDisabled;
 
 					const int32 ContactPlaneOwner = 1;
 					const int32 ContactPointOwner = 1 - ContactPlaneOwner;
@@ -870,8 +868,7 @@ namespace Chaos
 					FColor PlaneNormalColor = FColor(200, 0, 0);
 					FColor EdgeNormalColor = FColor(200, 150, 0);
 					FColor ImpulseColor = FColor(0, 0, 200);
-					FColor PushOutColor = FColor(200, 200, 0);
-					FColor PushOutImpusleColor = FColor(0, 200, 200);
+					FColor PushOutColor = FColor(0, 200, 200);
 					if (ManifoldPoint.Flags.bInsideStaticFrictionCone)
 					{
 						DiscColor = FColor(150, 200, 0);
@@ -881,6 +878,11 @@ namespace Chaos
 						DiscColor = FColor(100, 100, 100);
 						PlaneNormalColor = FColor(100, 0, 0);
 						EdgeNormalColor = FColor(100, 80, 0);
+					}
+					if (bPruned)
+					{
+						PlaneNormalColor = FColor(200, 0, 200);
+						EdgeNormalColor = FColor(200, 0, 200);
 					}
 
 					const FVec3 WorldPointLocation = SpaceTransform.TransformPosition(PointLocation);
@@ -892,7 +894,7 @@ namespace Chaos
 					// Pushout
 					if ((Settings.PushOutScale > 0) && !ManifoldPoint.NetPushOut.IsNearlyZero())
 					{
-						FColor Color = (ColorScale * PushOutImpusleColor).ToFColor(false);
+						FColor Color = (ColorScale * PushOutColor).ToFColor(false);
 						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldPointPlaneLocation + Settings.DrawScale * Settings.PushOutScale * SpaceTransform.TransformVectorNoScale(ManifoldPoint.NetPushOut), Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 					}
 					if ((Settings.ImpulseScale > 0) && !ManifoldPoint.NetImpulse.IsNearlyZero())
@@ -974,6 +976,7 @@ namespace Chaos
 		void DrawCollidingShapesImpl(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraints& Collisions, FRealSingle ColorScale, const FChaosDebugDrawSettings& Settings)
 		{
 			TArray<const FImplicitObject*> Implicits;
+			TArray<const FPerShapeData*> Shapes;
 			TArray<FConstGenericParticleHandle> ShapeParticles;
 			TArray<FRigidTransform3> ShapeTransforms;
 
@@ -992,10 +995,13 @@ namespace Chaos
 						const FRigidTransform3 WorldActorTransform1 = FParticleUtilities::GetActorWorldTransform(Particle1);
 						const FRigidTransform3 ShapeWorldTransform0 = PointConstraint->GetShapeRelativeTransform0() * WorldActorTransform0;
 						const FRigidTransform3 ShapeWorldTransform1 = PointConstraint->GetShapeRelativeTransform1() * WorldActorTransform1;
+						const FPerShapeData* Shape0 = PointConstraint->GetShape0();
+						const FPerShapeData* Shape1 = PointConstraint->GetShape1();
 
 						if (!Implicits.Contains(Implicit0))
 						{
 							Implicits.Add(Implicit0);
+							Shapes.Add(Shape0);
 							ShapeParticles.Add(Particle0);
 							ShapeTransforms.Add(ShapeWorldTransform0);
 						}
@@ -1003,6 +1009,7 @@ namespace Chaos
 						if (!Implicits.Contains(Implicit1))
 						{
 							Implicits.Add(Implicit1);
+							Shapes.Add(Shape1);
 							ShapeParticles.Add(Particle1);
 							ShapeTransforms.Add(ShapeWorldTransform1);
 						}
@@ -1016,7 +1023,7 @@ namespace Chaos
 					ShapeParticles[ShapeIndex]->Handle(), 
 					ShapeTransforms[ShapeIndex], 
 					Implicits[ShapeIndex],
-					FShapeOrShapesArray(ShapeParticles[ShapeIndex]->Handle()),
+					Shapes[ShapeIndex],
 					0.0f, 
 					ShapeParticles[ShapeIndex]->IsDynamic() ? FColor::Yellow : FColor::Red, 
 					Settings);

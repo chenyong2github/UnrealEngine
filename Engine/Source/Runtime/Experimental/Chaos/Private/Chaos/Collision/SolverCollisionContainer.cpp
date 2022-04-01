@@ -162,6 +162,10 @@ namespace Chaos
 			{
 				TArrayView<FManifoldPoint> ManifoldPoints = Constraint->GetManifoldPoints();
 				FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+				if (ManifoldPoint.Flags.bDisabled)
+				{
+					continue;
+				}
 
 				const FVec3 WorldContactPoint0 = ShapeWorldTransform0.TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[0]);
 				const FVec3 WorldContactPoint1 = ShapeWorldTransform1.TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[1]);
@@ -257,6 +261,11 @@ namespace Chaos
 			for (int32 ManifoldPointIndex = BeginPointIndex; ManifoldPointIndex < EndPointIndex; ++ManifoldPointIndex)
 			{
 				FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+				if (ManifoldPoint.Flags.bDisabled)
+				{
+					continue;
+				}
+
 				const FSavedManifoldPoint* SavedManifoldPoint = Constraint->FindSavedManifoldPoint(ManifoldPoint);
 
 				const VectorRegister ShapeContactPos0 = VectorLoadFloat3(&ManifoldPoint.ContactPoint.ShapeContactPoints[0]);
@@ -291,14 +300,14 @@ namespace Chaos
 				}
 				else
 				{
-					//const VectorRegister BodyV0 = VectorLoadFloat3(&Body0->V());
-					//const VectorRegister BodyW0 = VectorLoadFloat3(&Body0->W());
-					//const VectorRegister BodyV1 = VectorLoadFloat3(&Body1->V());
-					//const VectorRegister BodyW1 = VectorLoadFloat3(&Body1->W());
-					//const VectorRegister ContactVel0 = VectorAdd(BodyV0, VectorCross(BodyW0, RelativeContactPosition0));
-					//const VectorRegister ContactVel1 = VectorAdd(BodyV1, VectorCross(BodyW1, RelativeContactPosition1));
-					//const SolverVectorRegister ContactVel = MakeVectorRegisterFloatFromDouble(VectorSubtract(ContactVel0, ContactVel1));
-					//WorldFrictionDelta = VectorMultiply(ContactVel, VectorSetFloat1(Dt));
+					const VectorRegister BodyV0 = VectorLoadFloat3(&Body0->V());
+					const VectorRegister BodyW0 = VectorLoadFloat3(&Body0->W());
+					const VectorRegister BodyV1 = VectorLoadFloat3(&Body1->V());
+					const VectorRegister BodyW1 = VectorLoadFloat3(&Body1->W());
+					const VectorRegister ContactVel0 = VectorAdd(BodyV0, VectorCross(BodyW0, RelativeContactPosition0));
+					const VectorRegister ContactVel1 = VectorAdd(BodyV1, VectorCross(BodyW1, RelativeContactPosition1));
+					const SolverVectorRegister ContactVel = MakeVectorRegisterFloatFromDouble(VectorSubtract(ContactVel0, ContactVel1));
+					WorldFrictionDelta = VectorMultiply(ContactVel, VectorSetFloat1(Dt));
 
 					ManifoldPoint.ShapeAnchorPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
 					ManifoldPoint.ShapeAnchorPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
@@ -353,28 +362,44 @@ namespace Chaos
 
 			Constraint->ResetSolverResults();
 
-			for (int32 PointIndex = 0; PointIndex < Solver.NumManifoldPoints(); ++PointIndex)
+			// NOTE: We only put the non-pruned manifold points into the solver so the ManifoldPointIndex and
+			// SolverManifoldPointIndex do not necessarily match. See GatherManifoldPoints
+			int32 SolverManifoldPointIndex = 0;
+			for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < Constraint->NumManifoldPoints(); ++ManifoldPointIndex)
 			{
-				const FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = Solver.GetManifoldPoint(PointIndex);
+				FSolverVec3 NetPushOut = FVec3(0);
+				FSolverVec3 NetImpulse = FVec3(0);
+				FReal StaticFrictionRatio = FReal(0);
 
-				const FSolverVec3 NetPushOut = 
-					SolverManifoldPoint.NetPushOutNormal * SolverManifoldPoint.WorldContactNormal +
-					SolverManifoldPoint.NetPushOutTangentU * SolverManifoldPoint.WorldContactTangentU +
-					SolverManifoldPoint.NetPushOutTangentV * SolverManifoldPoint.WorldContactTangentV;
+				if (!Constraint->GetManifoldPoint(ManifoldPointIndex).Flags.bDisabled)
+				{
+					const FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = Solver.GetManifoldPoint(SolverManifoldPointIndex);
 
-				const FSolverVec3 NetImpulse =
-					SolverManifoldPoint.NetImpulseNormal * SolverManifoldPoint.WorldContactNormal +
-					SolverManifoldPoint.NetImpulseTangentU * SolverManifoldPoint.WorldContactTangentU +
-					SolverManifoldPoint.NetImpulseTangentV * SolverManifoldPoint.WorldContactTangentV;
+					NetPushOut = 
+						SolverManifoldPoint.NetPushOutNormal * SolverManifoldPoint.WorldContactNormal +
+						SolverManifoldPoint.NetPushOutTangentU * SolverManifoldPoint.WorldContactTangentU +
+						SolverManifoldPoint.NetPushOutTangentV * SolverManifoldPoint.WorldContactTangentV;
 
-				Constraint->SetSolverResults(PointIndex, 
+					NetImpulse =
+						SolverManifoldPoint.NetImpulseNormal * SolverManifoldPoint.WorldContactNormal +
+						SolverManifoldPoint.NetImpulseTangentU * SolverManifoldPoint.WorldContactTangentU +
+						SolverManifoldPoint.NetImpulseTangentV * SolverManifoldPoint.WorldContactTangentV;
+
+					StaticFrictionRatio = SolverManifoldPoint.StaticFrictionRatio;
+
+					++SolverManifoldPointIndex;
+				}
+
+				// NOTE: We call this even for points we did not run the solver for (but with zero results)
+				Constraint->SetSolverResults(ManifoldPointIndex,
 					NetPushOut, 
 					NetImpulse, 
-					SolverManifoldPoint.StaticFrictionRatio,
+					StaticFrictionRatio,
 					Dt);
 			}
 
 			Constraint->SetSolverBodies(nullptr, nullptr);
+			Constraint->SetSolverIndex(INDEX_NONE);
 			Constraint = nullptr;
 			Solver.ResetSolverBodies();
 		}
@@ -413,29 +438,29 @@ namespace Chaos
 		CollisionSolvers.SetNum(MaxCollisions, false);
 	}
 
-	void FPBDCollisionSolverContainer::PreAddConstraintSolver(FPBDCollisionConstraint& Constraint, FSolverBodyContainer& SolverBodyContainer, int32& ConstraintIndex)
+	void FPBDCollisionSolverContainer::PreAddConstraintSolver(FPBDCollisionConstraint& Constraint, FSolverBodyContainer& SolverBodyContainer, int32& SolverIndex)
 	{
 		// This container is required to allocate pointers that are valid for the whole tick,
 		// so we cannot allow the container to resize during the tick. See Reset()
-		check(ConstraintIndex < CollisionSolvers.Num());
-		Constraint.SetSolverBodyContainerIndex(ConstraintIndex);
+		check(SolverIndex < CollisionSolvers.Num());
+		Constraint.SetSolverIndex(SolverIndex);
 
-		FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[ConstraintIndex];
+		FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[SolverIndex];
 		CollisionSolver.GetSolver().Reset();
 
 		CollisionSolver.PreGatherInput(Constraint, SolverBodyContainer);
 
-		++ConstraintIndex;
+		++SolverIndex;
 	}
 
 	void FPBDCollisionSolverContainer::AddConstraintSolver(FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FSolverBodyContainer& SolverBodyContainer, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		// This container is required to allocate pointers that are valid for the whole tick,
 		// so we cannot allow the container to resize during the tick. See Reset()
-		int32 ConstraintIndex = Constraint.GetSolverBodyContainerIndex();
-		check(ConstraintIndex < CollisionSolvers.Num());
+		const int32 SolverIndex = Constraint.GetSolverIndex();
+		check(SolverIndex < CollisionSolvers.Num());
 
-		FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[ConstraintIndex];
+		FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[SolverIndex];
 
 		CollisionSolver.GatherInput(Dt, Constraint, Particle0Level, Particle1Level, SolverBodyContainer, SolverSettings);
 
