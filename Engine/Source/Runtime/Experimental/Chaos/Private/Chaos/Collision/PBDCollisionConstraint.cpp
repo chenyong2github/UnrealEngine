@@ -176,7 +176,7 @@ namespace Chaos
 		, Implicit{ nullptr, nullptr }
 		, Shape{ nullptr, nullptr }
 		, Simplicial{ nullptr, nullptr }
-		, Manifold()
+		, Material()
 		, Stiffness(1)
 		, AccumulatedImpulse(0)
 		, TimeOfImpact(0)
@@ -215,7 +215,7 @@ namespace Chaos
 		, Implicit{ Implicit0, Implicit1 }
 		, Shape{ Shape0, Shape1 }
 		, Simplicial{ Simplicial0, Simplicial1 }
-		, Manifold()
+		, Material()
 		, Stiffness(1)
 		, AccumulatedImpulse(0)
 		, TimeOfImpact(0)
@@ -506,7 +506,7 @@ namespace Chaos
 
 		Flags.bDisabled = false;
 		ClosestManifoldPointIndex = INDEX_NONE;
-		Manifold.Reset();
+		Material.Reset();
 
 		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < ManifoldPoints.Num(); ManifoldPointIndex++)
 		{
@@ -573,7 +573,7 @@ namespace Chaos
 	void FPBDCollisionConstraint::ResetActiveManifoldContacts()
 	{
 		ClosestManifoldPointIndex = INDEX_NONE;
-		Manifold.Reset();
+		Material.Reset();
 		ManifoldPoints.Reset();
 		ExpectedNumManifoldPoints = 0;
 		Flags.bDisabled = false;
@@ -591,7 +591,7 @@ namespace Chaos
 		// Reset current closest point
 		ClosestManifoldPointIndex = INDEX_NONE;
 		Flags.bDisabled = false;
-		Manifold.Reset();
+		Material.Reset();
 
 		// How many manifold points we expect. E.g., for Box-box this will be 4 or 1 depending on whether
 		// we have a face or edge contact. We don't reuse the manifold if we lose points after culling

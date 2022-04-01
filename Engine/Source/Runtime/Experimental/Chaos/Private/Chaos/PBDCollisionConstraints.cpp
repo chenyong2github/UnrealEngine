@@ -186,59 +186,58 @@ namespace Chaos
 		const FChaosPhysicsMaterial* PhysicsMaterial0 = GetPhysicsMaterial(Constraint.Particle[0], Constraint.Implicit[0], MPhysicsMaterials, MPerParticlePhysicsMaterials, SimMaterials);
 		const FChaosPhysicsMaterial* PhysicsMaterial1 = GetPhysicsMaterial(Constraint.Particle[1], Constraint.Implicit[1], MPhysicsMaterials, MPerParticlePhysicsMaterials, SimMaterials);
 
-		FCollisionContact& Contact = Constraint.Manifold;
+		FPBDCollisionConstraintMaterial& CollisionMaterial = Constraint.Material;
 		if (PhysicsMaterial0 && PhysicsMaterial1)
 		{
-			const FChaosPhysicsMaterial::ECombineMode RestitutionCombineMode = FChaosPhysicsMaterial::ChooseCombineMode(PhysicsMaterial0->RestitutionCombineMode,PhysicsMaterial1->RestitutionCombineMode);
-			Contact.Restitution = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->Restitution, PhysicsMaterial1->Restitution, RestitutionCombineMode);
+			const FChaosPhysicsMaterial::ECombineMode RestitutionCombineMode = FChaosPhysicsMaterial::ChooseCombineMode(PhysicsMaterial0->RestitutionCombineMode, PhysicsMaterial1->RestitutionCombineMode);
+			CollisionMaterial.Restitution = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->Restitution, PhysicsMaterial1->Restitution, RestitutionCombineMode);
 
-			const FChaosPhysicsMaterial::ECombineMode FrictionCombineMode = FChaosPhysicsMaterial::ChooseCombineMode(PhysicsMaterial0->FrictionCombineMode,PhysicsMaterial1->FrictionCombineMode);
-			Contact.Friction = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->Friction,PhysicsMaterial1->Friction, FrictionCombineMode);
+			const FChaosPhysicsMaterial::ECombineMode FrictionCombineMode = FChaosPhysicsMaterial::ChooseCombineMode(PhysicsMaterial0->FrictionCombineMode, PhysicsMaterial1->FrictionCombineMode);
+			CollisionMaterial.Friction = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->Friction, PhysicsMaterial1->Friction, FrictionCombineMode);
 			const FReal StaticFriction0 = FMath::Max(PhysicsMaterial0->Friction, PhysicsMaterial0->StaticFriction);
 			const FReal StaticFriction1 = FMath::Max(PhysicsMaterial1->Friction, PhysicsMaterial1->StaticFriction);
-			Contact.AngularFriction = FChaosPhysicsMaterial::CombineHelper(StaticFriction0, StaticFriction1, FrictionCombineMode);
+			CollisionMaterial.AngularFriction = FChaosPhysicsMaterial::CombineHelper(StaticFriction0, StaticFriction1, FrictionCombineMode);
 		}
 		else if (PhysicsMaterial0)
 		{
 			const FReal StaticFriction0 = FMath::Max(PhysicsMaterial0->Friction, PhysicsMaterial0->StaticFriction);
-			Contact.Restitution = PhysicsMaterial0->Restitution;
-			Contact.Friction = PhysicsMaterial0->Friction;
-			Contact.AngularFriction = StaticFriction0;
+			CollisionMaterial.Restitution = PhysicsMaterial0->Restitution;
+			CollisionMaterial.Friction = PhysicsMaterial0->Friction;
+			CollisionMaterial.AngularFriction = StaticFriction0;
 		}
 		else if (PhysicsMaterial1)
 		{
 			const FReal StaticFriction1 = FMath::Max(PhysicsMaterial1->Friction, PhysicsMaterial1->StaticFriction);
-			Contact.Restitution = PhysicsMaterial1->Restitution;
-			Contact.Friction = PhysicsMaterial1->Friction;
-			Contact.AngularFriction = StaticFriction1;
+			CollisionMaterial.Restitution = PhysicsMaterial1->Restitution;
+			CollisionMaterial.Friction = PhysicsMaterial1->Friction;
+			CollisionMaterial.AngularFriction = StaticFriction1;
 		}
 		else
 		{
-			Contact.Friction = DefaultCollisionFriction;
-			Contact.AngularFriction = DefaultCollisionFriction;
-			Contact.Restitution = DefaultCollisionRestitution;
+			CollisionMaterial.Friction = DefaultCollisionFriction;
+			CollisionMaterial.AngularFriction = DefaultCollisionFriction;
+			CollisionMaterial.Restitution = DefaultCollisionRestitution;
 		}
 
-		Contact.RestitutionThreshold = (CollisionRestitutionThresholdOverride >= 0.0f) ? CollisionRestitutionThresholdOverride : RestitutionThreshold;
-
-		if (!bEnableRestitution)
-		{
-			Contact.Restitution = 0.0f;
-		}
+		CollisionMaterial.RestitutionThreshold = (CollisionRestitutionThresholdOverride >= 0.0f) ? CollisionRestitutionThresholdOverride : RestitutionThreshold;
 
 		// Overrides for testing
 		if (CollisionFrictionOverride >= 0)
 		{
-			Contact.Friction = CollisionFrictionOverride;
-			Contact.AngularFriction = CollisionFrictionOverride;
+			CollisionMaterial.Friction = CollisionFrictionOverride;
+			CollisionMaterial.AngularFriction = CollisionFrictionOverride;
 		}
 		if (CollisionRestitutionOverride >= 0)
 		{
-			Contact.Restitution = CollisionRestitutionOverride;
+			CollisionMaterial.Restitution = CollisionRestitutionOverride;
 		}
 		if (CollisionAngularFrictionOverride >= 0)
 		{
-			Contact.AngularFriction = CollisionAngularFrictionOverride;
+			CollisionMaterial.AngularFriction = CollisionAngularFrictionOverride;
+		}
+		if (!bEnableRestitution)
+		{
+			CollisionMaterial.Restitution = 0.0f;
 		}
 	}
 
@@ -524,10 +523,8 @@ namespace Chaos
 			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
 			return SolverContainer.SolveVelocitySerial(Dt, It, NumIts, 0, SolverContainer.NumSolvers(), SolverSettings);
 		}
-		else
-		{
-			return LegacyApplyPhase2Serial(Dt, It, NumIts, 0, SolverData.GetConstraintHandles(ContainerId).Num(), SolverData);
-		}
+
+		return false;
 	}
 
 	// Island Rule version
@@ -540,10 +537,8 @@ namespace Chaos
 			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
 			return SolverContainer.SolveVelocitySerial(Dt, It, NumIts, 0, SolverContainer.NumSolvers(), SolverSettings);
 		}
-		else
-		{
-			return LegacyApplyPhase2Serial(Dt, It, NumIts, 0, SolverData.GetConstraintHandles(ContainerId).Num(), SolverData);
-		}
+
+		return false;
 	}
 
 	// Color Rule version
@@ -556,10 +551,8 @@ namespace Chaos
 			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
 			return SolverContainer.SolveVelocitySerial(Dt, It, NumIts, BeginIndex, EndIndex, SolverSettings);
 		}
-		else
-		{
-			return LegacyApplyPhase2Serial(Dt, It, NumIts, BeginIndex, EndIndex, SolverData);
-		}
+
+		return false;
 	}
 
 	// Color Rule version
@@ -572,10 +565,8 @@ namespace Chaos
 			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
 			return SolverContainer.SolveVelocityParallel(Dt, It, NumIts, BeginIndex, EndIndex, SolverSettings);
 		}
-		else
-		{
-			return LegacyApplyPhase2Parallel(Dt, It, NumIts, BeginIndex, EndIndex, SolverData);
-		}
+
+		return false;
 	}
 
 	void FPBDCollisionConstraints::LegacyGatherInput(const FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
@@ -627,31 +618,6 @@ namespace Chaos
 	bool FPBDCollisionConstraints::LegacyApplyPhase1Parallel(const FReal Dt, const int32 Iterations, const int32 NumIterations, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
 	{
 		return LegacyApplyPhase1Serial(Dt, Iterations, NumIterations, BeginIndex, EndIndex, SolverData);
-	}
-
-	bool FPBDCollisionConstraints::LegacyApplyPhase2Serial(const FReal Dt, const int32 Iterations, const int32 NumIterations, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
-	{
-		bool bNeedsAnotherIteration = false;
-		if (MApplyPushOutPairIterations > 0)
-		{
-			const Collisions::FContactParticleParameters ParticleParameters = GetContactParticleParameters(Dt);
-			const Collisions::FContactIterationParameters IterationParameters = GetContactIterationParameters(Dt, Iterations, NumIterations, MApplyPushOutPairIterations, bNeedsAnotherIteration);
-
-			for (int32 Index = BeginIndex; Index < EndIndex; ++Index)
-			{
-				FPBDCollisionConstraint* Constraint = SolverData.GetConstraintHandle<FPBDCollisionConstraint>(ContainerId,Index);
-				if (!Constraint->GetDisabled())
-				{
-					Collisions::ApplyPushOut(*Constraint, IterationParameters, ParticleParameters);
-				}
-			}
-		}
-		return bNeedsAnotherIteration;
-	}
-
-	bool FPBDCollisionConstraints::LegacyApplyPhase2Parallel(const FReal Dt, const int32 Iterations, const int32 NumIterations, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
-	{
-		return LegacyApplyPhase2Serial(Dt,  Iterations, NumIterations, BeginIndex, EndIndex, SolverData);
 	}
 
 	const FPBDCollisionConstraint& FPBDCollisionConstraints::GetConstraint(int32 Index) const

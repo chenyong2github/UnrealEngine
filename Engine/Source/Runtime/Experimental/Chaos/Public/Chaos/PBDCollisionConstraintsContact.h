@@ -6,6 +6,11 @@
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/Collision/CollisionApplyType.h"
 
+/**
+ * @brief This file contains collision solver code for the StandardPbd solver (which will be removed at some point)
+ * @see PBDCollisionSolver.h for the new solver
+*/
+
 namespace Chaos
 {
 	class FCollisionContext;
@@ -66,17 +71,12 @@ namespace Chaos
 			const int32 Iteration;
 			const int32 NumIterations;
 			const int32 NumPairIterations;
-			const EConstraintSolverType SolverType;	// @todo(chaos): a better way to customize the collision solver
+			const EConstraintSolverType SolverType;
 			bool* NeedsAnotherIteration;
 		};
 
-		// Update the constraint (re-runs collision detection for this contact)
 		extern void Update(FPBDCollisionConstraint& Constraint, const FReal Dt);
-		extern void UpdateSwept(FPBDCollisionConstraint& Constraint, const FReal Dt);
-
 		extern void Apply(FPBDCollisionConstraint& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
-
-		extern void ApplyPushOut(FPBDCollisionConstraint& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
 	}
 
 }

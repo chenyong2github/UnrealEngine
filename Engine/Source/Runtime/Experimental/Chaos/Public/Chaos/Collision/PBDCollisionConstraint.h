@@ -98,12 +98,12 @@ namespace Chaos
 	};
 
 	/*
-	*
+	 * @brief Material properties for a collision constraint
 	*/
-	class CHAOS_API FCollisionContact
+	class CHAOS_API FPBDCollisionConstraintMaterial
 	{
 	public:
-		FCollisionContact()
+		FPBDCollisionConstraintMaterial()
 			: Friction(0)
 			, AngularFriction(0)
 			, Restitution(0)
@@ -119,7 +119,7 @@ namespace Chaos
 		FReal Friction;			// @todo(chaos): rename DynamicFriction
 		FReal AngularFriction;	// @todo(chaos): rename StaticFriction
 		FReal Restitution;
-		FReal RestitutionPadding; // For PBD implementation of resitution, we pad constraints on initial contact to enforce outward velocity
+		FReal RestitutionPadding; // For StandardPBD implementation of resitution, we pad constraints on initial contact to enforce outward velocity
 		FReal RestitutionThreshold;
 		FReal InvMassScale0;
 		FReal InvMassScale1;
@@ -131,6 +131,9 @@ namespace Chaos
 			RestitutionPadding = 0;
 		}
 	};
+
+	// Renamed to FPBDCollisionConstraintMaterial
+	using FCollisionContact UE_DEPRECATED(5.1, "FCollisionContact was renamed to FPBDCollisionConstraintMaterial") = FPBDCollisionConstraintMaterial;
 
 
 	/**
@@ -280,19 +283,6 @@ namespace Chaos
 		*/
 		void SetCCDEnabled(const bool bCCDEnabled) { CCDType = bCCDEnabled ? ECollisionCCDType::Enabled : ECollisionCCDType::Disabled; }
 
-		bool ContainsManifold(const FImplicitObject* A, const FBVHParticles* AS, const FImplicitObject* B, const FBVHParticles* BS) const
-		{
-			return A == Implicit[0] && B == Implicit[1] && AS == Simplicial[0] && BS == Simplicial[1];
-		}
-
-		void SetManifold(const FImplicitObject* A, const FBVHParticles* AS, const FImplicitObject* B, const FBVHParticles* BS)
-		{
-			Implicit[0] = A; 
-			Implicit[1] = B;
-			Simplicial[0] = AS; 
-			Simplicial[1] = BS;
-		}
-
 		//
 		// API
 		//
@@ -349,35 +339,35 @@ namespace Chaos
 		// @todo(chaos): remove (used by legacy RBAN collision solver)
 		FVec3 CalculateWorldContactLocation() const;
 
-		void SetInvMassScale0(const FReal InInvMassScale) { Manifold.InvMassScale0 = InInvMassScale; }
-		FReal GetInvMassScale0() const { return Manifold.InvMassScale0; }
+		void SetInvMassScale0(const FReal InInvMassScale) { Material.InvMassScale0 = InInvMassScale; }
+		FReal GetInvMassScale0() const { return Material.InvMassScale0; }
 
-		void SetInvMassScale1(const FReal InInvMassScale) { Manifold.InvMassScale1 = InInvMassScale; }
-		FReal GetInvMassScale1() const { return Manifold.InvMassScale1; }
+		void SetInvMassScale1(const FReal InInvMassScale) { Material.InvMassScale1 = InInvMassScale; }
+		FReal GetInvMassScale1() const { return Material.InvMassScale1; }
 
-		void SetInvInertiaScale0(const FReal InInvInertiaScale) { Manifold.InvInertiaScale0 = InInvInertiaScale; }
-		FReal GetInvInertiaScale0() const { return Manifold.InvInertiaScale0; }
+		void SetInvInertiaScale0(const FReal InInvInertiaScale) { Material.InvInertiaScale0 = InInvInertiaScale; }
+		FReal GetInvInertiaScale0() const { return Material.InvInertiaScale0; }
 
-		void SetInvInertiaScale1(const FReal InInvInertiaScale) { Manifold.InvInertiaScale1 = InInvInertiaScale; }
-		FReal GetInvInertiaScale1() const { return Manifold.InvInertiaScale1; }
+		void SetInvInertiaScale1(const FReal InInvInertiaScale) { Material.InvInertiaScale1 = InInvInertiaScale; }
+		FReal GetInvInertiaScale1() const { return Material.InvInertiaScale1; }
 
 		void SetStiffness(FReal InStiffness) { Stiffness = InStiffness; }
 		FReal GetStiffness() const { return Stiffness; }
 
-		void SetRestitution(const FReal InRestitution) { Manifold.Restitution = InRestitution; }
-		FReal GetRestitution() const { return Manifold.Restitution; }
+		void SetRestitution(const FReal InRestitution) { Material.Restitution = InRestitution; }
+		FReal GetRestitution() const { return Material.Restitution; }
 
-		void SetRestitutionThreshold(const FReal InRestitutionThreshold) { Manifold.RestitutionThreshold = InRestitutionThreshold; }
-		FReal GetRestitutionThreshold() const { return Manifold.RestitutionThreshold; }
+		void SetRestitutionThreshold(const FReal InRestitutionThreshold) { Material.RestitutionThreshold = InRestitutionThreshold; }
+		FReal GetRestitutionThreshold() const { return Material.RestitutionThreshold; }
 
-		void SetRestitutionPadding(const FReal InRestitutionPadding) { Manifold.RestitutionPadding = InRestitutionPadding; }
-		FReal GetRestitutionPadding() const { return Manifold.RestitutionPadding; }
+		void SetRestitutionPadding(const FReal InRestitutionPadding) { Material.RestitutionPadding = InRestitutionPadding; }
+		FReal GetRestitutionPadding() const { return Material.RestitutionPadding; }
 
-		void SetStaticFriction(const FReal InStaticFriction) { Manifold.AngularFriction = InStaticFriction; }
-		FReal GetStaticFriction() const { return FMath::Max(Manifold.AngularFriction, Manifold.Friction); }
+		void SetStaticFriction(const FReal InStaticFriction) { Material.AngularFriction = InStaticFriction; }
+		FReal GetStaticFriction() const { return FMath::Max(Material.AngularFriction, Material.Friction); }
 
-		void SetDynamicFriction(const FReal InDynamicFriction) { Manifold.Friction = InDynamicFriction; }
-		FReal GetDynamicFriction() const { return Manifold.Friction; }
+		void SetDynamicFriction(const FReal InDynamicFriction) { Material.Friction = InDynamicFriction; }
+		FReal GetDynamicFriction() const { return Material.Friction; }
 
 		EContactShapesType GetShapesType() const { return ShapesType; }
 
@@ -631,7 +621,8 @@ namespace Chaos
 		const FImplicitObject* Implicit[2];
 		const FPerShapeData* Shape[2];
 		const FBVHParticles* Simplicial[2];
-		FCollisionContact Manifold;// @todo(chaos): rename to FCollisionMaterial or something
+
+		FPBDCollisionConstraintMaterial Material;
 		FReal Stiffness;
 
 	public:
