@@ -6,7 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "InputCoreTypes.h"
-#include "Engine/EngineTypes.h"
+#include "Engine/HitResult.h"
 #include "Components/SceneComponent.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "Layout/WidgetPath.h"
