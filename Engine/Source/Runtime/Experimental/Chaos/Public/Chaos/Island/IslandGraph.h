@@ -8,6 +8,110 @@
 
 namespace Chaos
 {
+	/** Graph node structure */
+	template<typename NodeType>
+	struct CHAOS_API TIslandGraphNode
+	{
+		/** List of edges connected to the node */
+		// @todo(chaos): should we really have a sparse array here? The implementation probably wastes a lot of memory
+		TSparseArray<int32> NodeEdges;
+
+		/** Node Island Index (for static/kinematic particles could belong to several islands) */
+		int32 IslandIndex = INDEX_NONE;
+
+		/** List of islands in which the node is referenced */
+		// @todo(chaos): should we really have a set here? The implementation probably wastes a lot of memory
+		TSet<int32> NodeIslands;
+
+		/** Check if a node is valid (checked for graph partitioning) */
+		bool bValidNode = true;
+
+		/** Check if a node is steady */
+		bool bStationaryNode = true;
+
+		/** Node counter to filter nodes already processed */
+		int32 NodeCounter = 0;
+
+		/** Node item that is stored per node */
+		NodeType NodeItem;
+
+		/** Node level index */
+		int32 LevelIndex = INDEX_NONE;
+
+		/** Set of used colors */
+		TSet<int32> ColorIndices;
+	};
+
+	/** Graph edge structure */
+	template<typename EdgeType>
+	struct CHAOS_API TIslandGraphEdge
+	{
+		/** First node of the edge */
+		int32 FirstNode = INDEX_NONE;
+
+		/** Second node of the edge*/
+		int32 SecondNode = INDEX_NONE;
+
+		/** Current edge index in the list of edges of the first node */
+		int32 FirstEdge = INDEX_NONE;
+
+		/** Current edge index in the list of edges of the second node  */
+		int32 SecondEdge = INDEX_NONE;
+
+		/** Unique edge island index */
+		int32 IslandIndex = INDEX_NONE;
+
+		/** Edge counter to filter edges already processed */
+		int32 EdgeCounter = 0;
+
+		/** Edge item that is stored per node */
+		EdgeType EdgeItem;
+
+		/** Item Container Id  */
+		int32 ItemContainer = 0;
+
+		/** Edge level index */
+		int32 LevelIndex = INDEX_NONE;
+
+		/** Edge Color index */
+		int32 ColorIndex = INDEX_NONE;
+	};
+
+	/** Graph island structure */
+	template<typename IslandType>
+	struct CHAOS_API TIslandGraphIsland
+	{
+		/** Number of edges per islands*/
+		int32 NumEdges = 0;
+
+		/** Number of valid nodes per islands (should be less than the ones in solver islands since it is only including the valid ones)*/
+		int32 NumNodes = 0;
+
+		/** Island counter to filter islands already processed */
+		int32 IslandCounter = 0;
+
+		/** Boolean to check if an island is persistent or not */
+		bool bIsPersistent = true;
+
+		/** Boolean to check if an island is sleeping or not */
+		bool bIsSleeping = true;
+
+		/** List of children islands  to be merged */
+		// @todo(chaos): should we really have a set here? The implementation probably wastes a lot of memory
+		TSet<int32> ChildrenIslands;
+
+		/** Parent Island */
+		int32 ParentIsland = INDEX_NONE;
+
+		/** Island Item that is stored per island*/
+		IslandType IslandItem;
+
+		/** Max levels per island */
+		int32 MaxLevels = INDEX_NONE;
+
+		/** Max color per island */
+		int32 MaxColors = INDEX_NONE;
+	};
 
 /**
  * Island Graph.
@@ -22,6 +126,11 @@ template<typename NodeType, typename EdgeType, typename IslandType>
 class CHAOS_API FIslandGraph
 {
 public:
+	// NOTE: IslandGraph internal structs are non-member structs for better natvis behaviour/debugging. Natvis 
+	// has trouble with member classes of templated classes
+	using FGraphNode = TIslandGraphNode<NodeType>;
+	using FGraphEdge = TIslandGraphEdge<EdgeType>;
+	using FGraphIsland = TIslandGraphIsland<IslandType>;
 
 	static constexpr const int32 MaxCount = 100000;
 
@@ -123,105 +232,6 @@ public:
 	 */
 	FORCEINLINE int32 NumIslands() const { return GraphIslands.GetMaxIndex(); }
 
-	/** Graph node structure */
-	struct FGraphNode 
-	{
-		/** List of edges connected to the node */
-		TSparseArray<int32> NodeEdges;
-
-		/** Node Island Index (for static/kinematic particles could belong to several islands) */
-		int32 IslandIndex = INDEX_NONE;
-		
-		/** List of islands in which the node is referenced */
-		TSet<int32> NodeIslands;
-
-		/** Check if a node is valid (checked for graph partitioning) */
-		bool bValidNode = true;
-
-		/** Check if a node is steady */
-		bool bStationaryNode = true;
-
-		/** Node counter to filter nodes already processed */
-		int32 NodeCounter = 0;
-
-		/** Node item that is stored per node */
-		NodeType NodeItem;
-		
-		/** Node level index */
-		int32 LevelIndex = INDEX_NONE;
-
-		/** Set of used colors */
-		TSet<int32> ColorIndices;
-	};
-
-	/** Graph edge structure */
-	struct FGraphEdge 
-	{
-		/** First node of the edge */
-		int32 FirstNode = INDEX_NONE;
-
-		/** Second node of the edge*/
-		int32 SecondNode = INDEX_NONE;
-
-		/** Current edge index in the list of edges of the first node */
-		int32 FirstEdge = INDEX_NONE;
-
-		/** Current edge index in the list of edges of the second node  */
-		int32 SecondEdge = INDEX_NONE;
-
-		/** Unique edge island index */
-		int32 IslandIndex = INDEX_NONE;
-
-		/** Edge counter to filter edges already processed */
-		int32 EdgeCounter = 0;
-
-		/** Edge item that is stored per node */
-		EdgeType EdgeItem;
-
-		/** Item Container Id  */
-		int32 ItemContainer = 0;
-
-		/** Edge level index */
-		int32 LevelIndex = INDEX_NONE;
-
-		/** Edge Color index */
-		int32 ColorIndex = INDEX_NONE;
-	};
-
-	/** Graph island structure */
-	struct FGraphIsland
-	{
-		/** Number of edges per islands*/
-		int32 NumEdges = 0;
-
-		/** Number of valid nodes per islands (should be less than the ones in solver islands since it is only including the valid ones)*/
-		int32 NumNodes = 0;
-
-		/** Island counter to filter islands already processed */
-		int32 IslandCounter = 0;
-		
-		/** Boolean to check if an island is persistent or not */
-		bool bIsPersistent = true;
-
-		/** Boolean to check if an island is sleeping or not */
-		bool bIsSleeping = true;
-
-		/** List of children islands  to be merged */
-		TSet<int32> ChildrenIslands;
-
-		/** Parent Island */
-		int32 ParentIsland = INDEX_NONE;
-		
-		/** Island Item that is stored per island*/
-		IslandType IslandItem;
-
-		/** Max levels per island */
-		int32 MaxLevels = INDEX_NONE;
-
-		/** Max color per island */
-		int32 MaxColors = INDEX_NONE;
-	};
-
 	/**
 	 * Link two islands to each other for future island traversal
 	 * @param FirstIsland First island index to be linked
@@ -319,10 +329,9 @@ public:
 		if(GraphEdges.IsValidIndex(EdgeIndex))
 		{
 			const FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
-			if(GraphNodes.IsValidIndex(GraphEdge.FirstNode) && GraphNodes.IsValidIndex(GraphEdge.SecondNode))
-			{
-				return !GraphNodes[GraphEdge.FirstNode].bStationaryNode || !GraphNodes[GraphEdge.SecondNode].bStationaryNode;
-			}
+			const bool bFirstNodeMoving = GraphNodes.IsValidIndex(GraphEdge.FirstNode) && !GraphNodes[GraphEdge.FirstNode].bStationaryNode;
+			const bool bSecondNodeMoving = GraphNodes.IsValidIndex(GraphEdge.SecondNode) && !GraphNodes[GraphEdge.SecondNode].bStationaryNode;
+			return bFirstNodeMoving || bSecondNodeMoving;
 		}
 		return false;
 	}

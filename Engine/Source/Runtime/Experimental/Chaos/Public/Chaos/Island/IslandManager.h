@@ -316,6 +316,8 @@ protected:
 	*/
 	void SyncIslands(FPBDRigidsSOAs& Particles, const int32 NumContainers);
 
+	void ValidateIslands() const;
+
 	/** List of solver islands in the manager */
 	TSparseArray<TUniquePtr<FPBDIslandSolver>> IslandSolvers;
 

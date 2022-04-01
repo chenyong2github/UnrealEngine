@@ -13,8 +13,8 @@
 #include "Misc/App.h"
 
 /** Cvar to enable/disable the island sleeping */
-bool ChaosSolverSleepEnabled = true;
-FAutoConsoleVariableRef CVarChaosSolverSleepEnabled(TEXT("p.Chaos.Solver.SleepEnabled"), ChaosSolverSleepEnabled, TEXT(""));
+bool bChaosSolverSleepEnabled = true;
+FAutoConsoleVariableRef CVarChaosSolverSleepEnabled(TEXT("p.Chaos.Solver.SleepEnabled"), bChaosSolverSleepEnabled, TEXT(""));
 
 /** Cvar to control the number of island groups used in the solver. The total number will be NumThreads * IslandGroupsMultiplier */
 Chaos::FRealSingle GChaosSolverIslandGroupsMultiplier = 1;
@@ -31,6 +31,9 @@ FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultLinearSleepThreshold(TEXT
 /** Cvar to override the sleep angular threshold if necessary */
 Chaos::FRealSingle ChaosSolverCollisionDefaultAngularSleepThresholdCVar = 0.0087f;  //~1/2 unit mass degree
 FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultAngularSleepThreshold(TEXT("p.ChaosSolverCollisionDefaultAngularSleepThreshold"), ChaosSolverCollisionDefaultAngularSleepThresholdCVar, TEXT("Default angular threshold for sleeping.[def:0.0087]"));
+
+bool bChaosSolverValidateGraph = false;
+FAutoConsoleVariableRef CVarChaosSolverValidateGraph(TEXT("p.Chaos.Solver.ValidateGraph"), bChaosSolverValidateGraph, TEXT(""));
 
 namespace Chaos
 {
@@ -460,11 +463,11 @@ int32 FPBDIslandManager::AddConstraint(const uint32 ContainerId, FConstraintHand
 {
 	if (ConstraintHandle)
 	{
+		// Are the particles dynamic (including asleep)?
 		const bool bValidParticle0 = ConstrainedParticles[0] && IsDynamicParticle(ConstrainedParticles[0]);
 		const bool bValidParticle1 = ConstrainedParticles[1] && IsDynamicParticle(ConstrainedParticles[1]);
 		
 		// We are checking if one of the 2 particle is dynamic to add the constraint to the graph
-		// Will discard constraints in between 2 sleeping particles. Huge gain but potential side effect?
 		if(bValidParticle0 || bValidParticle1)
 		{
 			const int32 NodeIndex0 = AddParticle(ConstrainedParticles[0], INDEX_NONE, false);
@@ -749,6 +752,26 @@ void FPBDIslandManager::UpdateIslands(const TParticleView<FPBDRigidParticles>& P
 	
 	// Sync the graph islands with the solver islands objects
 	SyncIslands(Particles, NumContainers);
+
+	ValidateIslands();
+}
+
+void FPBDIslandManager::ValidateIslands() const
+{
+	if (!bChaosSolverValidateGraph)
+	{
+		return;
+	}
+
+	// Check that nodes joined by an edge are in the same island as the edge
+	for (const FGraphEdge& Edge : IslandGraph->GraphEdges)
+	{
+		const FGraphNode* Node0 = (Edge.FirstNode != INDEX_NONE) ? &IslandGraph->GraphNodes[Edge.FirstNode] : nullptr;
+		const FGraphNode* Node1 = (Edge.SecondNode != INDEX_NONE) ? &IslandGraph->GraphNodes[Edge.SecondNode] : nullptr;
+
+		ensure((Node0 == nullptr) || !Node0->bValidNode || (Node0->IslandIndex == Edge.IslandIndex));
+		ensure((Node1 == nullptr) || !Node1->bValidNode || (Node1->IslandIndex == Edge.IslandIndex));
+	}
 }
 
 bool FPBDIslandManager::SleepInactive(const int32 IslandIndex,
@@ -757,7 +780,7 @@ bool FPBDIslandManager::SleepInactive(const int32 IslandIndex,
 {
 	// Only the persistent islands could start sleeping
 	const int32 GraphIndex = GetGraphIndex(IslandIndex);
-	if (!ChaosSolverSleepEnabled || !IslandSolvers.IsValidIndex(GraphIndex) ||
+	if (!bChaosSolverSleepEnabled || !IslandSolvers.IsValidIndex(GraphIndex) ||
 		(IslandSolvers.IsValidIndex(GraphIndex) && !IslandSolvers[GraphIndex]->IsPersistent()) )
 	{
 		return false;

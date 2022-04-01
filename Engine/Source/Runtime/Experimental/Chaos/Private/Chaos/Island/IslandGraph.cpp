@@ -367,22 +367,17 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::MergeIslands()
 	}
 
 	// We loop over all the islands and if they have children
-	// we merge them onto the parent one
+	// we recusrively merge them onto the parent one
 	for (int32 IslandIndex = 0, NumIslands = GraphIslands.GetMaxIndex(); IslandIndex < NumIslands; ++IslandIndex)
 	{
 		if (GraphIslands.IsValidIndex(IslandIndex))
 		{
 			FGraphIsland& GraphIsland = GraphIslands[IslandIndex];
-			// If the graph island is persistent we don't need to merge its children
-			// and update the parent index
-			if (!GraphIsland.bIsPersistent)
+			for (const int32& MergedIsland : GraphIsland.ChildrenIslands)
 			{
-				for (const int32& MergedIsland : GraphIsland.ChildrenIslands)
-				{
-					MergeIslands(IslandIndex, MergedIsland);
-				}
-				GraphIsland.ChildrenIslands.Reset();
+				MergeIslands(IslandIndex, MergedIsland);
 			}
+			GraphIsland.ChildrenIslands.Reset();
 		}
 	}
 
