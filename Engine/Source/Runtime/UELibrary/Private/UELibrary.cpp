@@ -156,6 +156,7 @@ int UELibrary_Shutdown()
 	EngineExit();
 	LaunchWindowsShutdown();
 	UE::UELibrary::Private::LibraryIsInitialized = false;
+	UE::Trace::Shutdown();
 	return 0;
 }
 
