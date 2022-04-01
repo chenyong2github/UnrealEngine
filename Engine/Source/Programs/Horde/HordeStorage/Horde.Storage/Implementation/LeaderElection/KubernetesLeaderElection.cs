@@ -42,7 +42,7 @@ namespace Horde.Storage.Implementation.LeaderElection
         private ConfigMapLock _configMapLock;
         private string _identity;
 
-        public KubernetesLeaderElection(IOptionsMonitor<KubernetesLeaderElectionSettings> leaderSettings) : base("Kubernetes Leader Election", TimeSpan.FromSeconds(1), new KubernetesLeaderElectionState())
+        public KubernetesLeaderElection(IOptionsMonitor<KubernetesLeaderElectionSettings> leaderSettings) : base("Kubernetes Leader Election", TimeSpan.FromSeconds(1), new KubernetesLeaderElectionState(), startAtRandomTime: true)
         {
             KubernetesLeaderElectionSettings settings = leaderSettings.CurrentValue;
             // As we are determining if we are the leader we just assume we are running in a kubernetes cluster

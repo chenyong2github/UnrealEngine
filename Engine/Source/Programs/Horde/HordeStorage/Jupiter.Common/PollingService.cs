@@ -25,17 +25,19 @@ namespace Jupiter
         private readonly string _serviceName;
         private readonly TimeSpan _pollFrequency;
         private readonly T _state;
+        private readonly bool _startAtRandomTime;
         private readonly CancellationTokenSource _stopPolling = new CancellationTokenSource();
         private readonly ManualResetEvent _hasFinishedRunning = new ManualResetEvent(true);
         private volatile bool _alreadyRunning = false;
         private Timer? _timer;
         private bool _disposed = false;
 
-        protected PollingService(string serviceName, TimeSpan pollFrequency, T state)
+        protected PollingService(string serviceName, TimeSpan pollFrequency, T state, bool startAtRandomTime = false)
         {
             _serviceName = serviceName;
             _pollFrequency = pollFrequency;
             _state = state;
+            _startAtRandomTime = startAtRandomTime;
 
             _timer = new Timer(OnUpdate, new ThreadState
             {
@@ -69,9 +71,13 @@ namespace Jupiter
 
             if (shouldPoll)
             {
-                // start at a random time between now and the poll frequency
-                int randomStartOffset = Random.Shared.Next(0, (int)_pollFrequency.TotalSeconds);
-                _timer?.Change(TimeSpan.FromSeconds(randomStartOffset), _pollFrequency);
+                int startOffset = 0;
+                if (_startAtRandomTime)
+                {
+                    // start at a random time between now and the poll frequency
+                    startOffset = Random.Shared.Next(0, (int)_pollFrequency.TotalSeconds);
+                }
+                _timer?.Change(TimeSpan.FromSeconds(startOffset), _pollFrequency);
             }
 
             return Task.CompletedTask;
