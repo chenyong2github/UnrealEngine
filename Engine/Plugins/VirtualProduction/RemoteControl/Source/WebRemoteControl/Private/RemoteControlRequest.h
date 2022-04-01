@@ -271,6 +271,13 @@ struct FRCPresetSetPropertyRequest : public FRCRequest
 	static FString PropertyValueLabel() { return TEXT("PropertyValue"); }
 
 	/**
+	 * Which type of operation should be performed on the value of the property.
+	 * This will be ignored if ResetToDefault is true.
+	 */
+	UPROPERTY()
+	ERCModifyOperation Operation = ERCModifyOperation::EQUAL;
+
+	/**
 	 * Whether a transaction should be created for the call.
 	 */
 	UPROPERTY()
@@ -303,6 +310,39 @@ struct FRCPresetCallRequest : public FRCRequest
 	 */
 	UPROPERTY()
 	bool GenerateTransaction = false;
+};
+
+/**
+ * Holds a request to expose a property on a preset
+ */
+USTRUCT()
+struct FRCPresetExposePropertyRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	/**
+	 * The path of the target object.
+	 */
+	UPROPERTY()
+	FString ObjectPath;
+
+	/**
+	 * The property to expose.
+	 */
+	UPROPERTY()
+	FString PropertyName;
+
+	/**
+	 * The label to give the new exposed property (optional).
+	 */
+	UPROPERTY()
+	FString Label;
+
+	/**
+	 * The name of the group in which to place the new exposed property (optional).
+	 */
+	UPROPERTY()
+	FString GroupName;
 };
 
 /**

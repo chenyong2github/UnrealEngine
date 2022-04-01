@@ -325,14 +325,29 @@ public:
 	virtual URemoteControlPreset* ResolvePreset(const FGuid& PresetId) const = 0;
 
 	/**
+	 * Create a transient preset.
+	 * Make sure to call DestroyTransientPreset when done with the preset or it will stay in memory.
+	 * @return the new preset, or nullptr if it couldn't be created.
+	 */
+	virtual URemoteControlPreset* CreateTransientPreset() = 0;
+
+	/**
+	 * Destroy a transient preset.
+	 * @arg PresetName name of the preset to destroy.
+	 * @return true if a transient preset with that name existed and was destroyed.
+	 */
+	virtual bool DestroyTransientPreset(FName PresetName) = 0;
+
+	/**
 	 * Get all the presets currently registered with the module.
 	 */
 	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) const = 0;
 
 	/**
 	 * Get all the preset asset currently registered with the module.
+	 * @arg bIncludeTransient Whether to include transient presets.
 	 */
-	virtual void GetPresetAssets(TArray<FAssetData>& OutPresetAssets) const = 0;
+	virtual void GetPresetAssets(TArray<FAssetData>& OutPresetAssets, bool bIncludeTransient = true) const = 0;
 	
 	/**
 	 * Get the map of registered default entity metadata initializers. 

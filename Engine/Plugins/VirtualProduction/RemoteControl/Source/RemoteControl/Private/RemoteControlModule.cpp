@@ -1204,6 +1204,59 @@ URemoteControlPreset* FRemoteControlModule::ResolvePreset(const FGuid& PresetId)
 	return nullptr;
 }
 
+URemoteControlPreset* FRemoteControlModule::CreateTransientPreset()
+{
+	const FName AssetName(*FString::Printf(TEXT("TransientRCPreset%d"), NextTransientPresetIndex));
+	++NextTransientPresetIndex;
+		
+	const FString AssetPath = FString::Printf(TEXT("/Temp/%s"), *AssetName.ToString());
+	if (UPackage* Package = CreatePackage(*AssetPath))
+	{
+		if (URemoteControlPreset* Preset = NewObject<URemoteControlPreset>(Package, AssetName, RF_Transient | RF_Public | RF_Standalone))
+		{
+			FAssetRegistryModule::AssetCreated(Preset);
+			const FAssetData AssetData(Preset);
+			const FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
+
+			TransientPresets.Add(AssetData);
+			OnAssetAdded(AssetData);
+
+			return Preset;
+		}
+	}
+
+	return nullptr;
+}
+
+bool FRemoteControlModule::DestroyTransientPreset(FName PresetName)
+{
+	if (URemoteControlPreset* Preset = ResolvePreset(PresetName))
+	{
+		for (const FAssetData& TransientAssetData : TransientPresets)
+		{
+			if (TransientAssetData.GetAsset() == Preset)
+			{
+				// This call will also remove the asset from TransientPresets
+				OnAssetRemoved(TransientAssetData);
+				
+				FAssetRegistryModule::AssetDeleted(Preset);
+
+				if (UPackage* Package = Preset->GetPackage())
+				{
+					Package->MarkAsGarbage();
+				}
+
+				Preset->ClearFlags(RF_Public | RF_Standalone);
+				Preset->MarkAsGarbage();
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 void FRemoteControlModule::GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) const
 {
 	OutPresets.Reserve(CachedPresetsByName.Num());
@@ -1213,7 +1266,7 @@ void FRemoteControlModule::GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset
 	}
 }
 
-void FRemoteControlModule::GetPresetAssets(TArray<FAssetData>& OutPresetAssets) const
+void FRemoteControlModule::GetPresetAssets(TArray<FAssetData>& OutPresetAssets, bool bIncludeTransient) const
 {
 	if (CachedPresetsByName.Num() == 0)
 	{
@@ -1221,9 +1274,26 @@ void FRemoteControlModule::GetPresetAssets(TArray<FAssetData>& OutPresetAssets) 
 	}
 
 	OutPresetAssets.Reserve(CachedPresetsByName.Num());
-	for (const TPair<FName, TArray<FAssetData>>& Entry : CachedPresetsByName)
+	
+	if (bIncludeTransient)
 	{
-		OutPresetAssets.Append(Entry.Value);
+		for (const TPair<FName, TArray<FAssetData>>& Entry : CachedPresetsByName)
+		{
+			OutPresetAssets.Append(Entry.Value);
+		}
+	}
+	else
+	{
+		for (const TPair<FName, TArray<FAssetData>>& Entry : CachedPresetsByName)
+		{
+			for (const FAssetData& AssetData : Entry.Value)
+			{
+				if (!TransientPresets.Contains(AssetData))
+				{
+					OutPresetAssets.Add(AssetData);
+				}
+			}
+		}
 	}
 }
 
@@ -1320,6 +1390,8 @@ void FRemoteControlModule::OnAssetRemoved(const FAssetData& AssetData)
 	{
 		return;
 	}
+
+	TransientPresets.Remove(AssetData);
 
 	const FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
 	if (FName* PresetName = CachedPresetNamesById.Find(PresetId))

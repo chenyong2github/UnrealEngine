@@ -623,6 +623,20 @@ void FWebRemoteControlModule::RegisterRoutes()
 		});
 
 	RegisterRoute({
+		TEXT("Expose a property on a preset."),
+		FHttpPath(TEXT("/remote/preset/:preset/expose/property")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandlePresetExposePropertyRoute)
+		});
+
+	RegisterRoute({
+		TEXT("Unexpose a property on a preset."),
+		FHttpPath(TEXT("/remote/preset/:preset/unexpose/property/:property")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandlePresetUnexposePropertyRoute)
+		});
+
+	RegisterRoute({
 		TEXT("Get an exposed actor's properties."),
 		FHttpPath(TEXT("/remote/preset/:preset/actor/:actor")),
 		EHttpServerRequestVerbs::VERB_GET,
@@ -713,6 +727,20 @@ void FWebRemoteControlModule::RegisterRoutes()
 		FHttpPath(TEXT("/remote/preset/:preset/actor/:label/label")),
 		EHttpServerRequestVerbs::VERB_PUT,
 		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleEntitySetLabelRoute)
+	});
+
+	RegisterRoute({
+		TEXT("Create a temporary preset which won't be visible in the editor or saved as an asset"),
+		FHttpPath(TEXT("/remote/preset/transient")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleCreateTransientPresetRoute)
+	});
+
+	RegisterRoute({
+		TEXT("Delete a transient preset"),
+		FHttpPath(TEXT("/remote/preset/transient/:preset")),
+		EHttpServerRequestVerbs::VERB_DELETE,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleDeleteTransientPresetRoute)
 	});
 
 	//**************************************
@@ -1170,7 +1198,7 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 		{
 			NewPayloadReader.Seek(0);
 			// Set a ERCPayloadType and TCHARBody in order to follow the replication path
-			bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend, ERCPayloadType::Json, NewPayload);
+			bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend, ERCPayloadType::Json, NewPayload, SetPropertyRequest.Operation);
 		}
 	}
 
@@ -1243,6 +1271,115 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to read property %s."), *Args.FieldLabel), Response->Body);
 	}
 
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FWebRemoteControlModule::HandlePresetExposePropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
+
+	const FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
+
+	URemoteControlPreset* Preset = WebRemoteControl::GetPreset(*PresetName);
+	if (Preset == nullptr)
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(*FString::Printf(TEXT("Unable to resolve the preset '%s'."), *PresetName), Response->Body);
+		OnComplete(MoveTemp(Response));
+		return true;
+	}
+
+	FRCPresetExposePropertyRequest ExposePropertyRequest;
+	if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, ExposePropertyRequest))
+	{
+		return true;
+	}
+
+	FRCObjectReference ObjectRef;
+	const bool bFoundProperty = IRemoteControlModule::Get().ResolveObject(ERCAccess::WRITE_ACCESS, ExposePropertyRequest.ObjectPath, ExposePropertyRequest.PropertyName, ObjectRef);
+
+	if (!bFoundProperty)
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(*FString::Printf(TEXT("Unable to resolve the property '%s' on object '%s'."),
+			*ExposePropertyRequest.PropertyName, *ExposePropertyRequest.ObjectPath), Response->Body);
+		OnComplete(MoveTemp(Response));
+		return true;
+	}
+
+	FRemoteControlPresetExposeArgs ExposeArgs;
+	ExposeArgs.Label = ExposePropertyRequest.Label;
+
+	if (ExposePropertyRequest.GroupName.Len() > 0)
+	{
+		const FRemoteControlPresetGroup* Group = Preset->Layout.GetGroupByName(FName(ExposePropertyRequest.GroupName));
+		if (Group == nullptr)
+		{
+			Response->Code = EHttpServerResponseCodes::NotFound;
+			WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(*FString::Printf(TEXT("Unable to resolve the property group '%s' on preset '%s'."),
+				*ExposePropertyRequest.GroupName, *PresetName), Response->Body);
+			OnComplete(MoveTemp(Response));
+			return true;
+		}
+
+		ExposeArgs.GroupId = Group->Id;
+	}
+
+	TSharedPtr<FRemoteControlProperty> ExposedProperty = Preset->ExposeProperty(ObjectRef.Object.Get(), ObjectRef.PropertyPathInfo, ExposeArgs).Pin();
+
+	if (ExposedProperty.IsValid())
+	{
+		TArray<uint8> WorkingBuffer;
+		FMemoryWriter Writer(WorkingBuffer);
+
+		FStructOnScope PropertyValueOnScope = WebRemoteControlStructUtils::CreatePropertyValueOnScope(ExposedProperty, ObjectRef);
+		FStructOnScope FinalStruct = WebRemoteControlStructUtils::CreateGetPropertyOnScope(ExposedProperty, ObjectRef, MoveTemp(PropertyValueOnScope));
+		WebRemoteControlInternalUtils::SerializeStructOnScope(FinalStruct, Writer);
+
+		Response->Code = EHttpServerResponseCodes::Ok;
+		WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Response->Body);
+	}
+	else
+	{
+		Response->Code = EHttpServerResponseCodes::ServerError;
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Failed to expose the property."), Response->Body);
+	}
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+
+bool FWebRemoteControlModule::HandlePresetUnexposePropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
+
+	const FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
+
+	URemoteControlPreset* Preset = WebRemoteControl::GetPreset(*PresetName);
+	if (Preset == nullptr)
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(*FString::Printf(TEXT("Unable to resolve the preset '%s'."), *PresetName), Response->Body);
+		OnComplete(MoveTemp(Response));
+		return true;
+	}
+
+	const FString PropertyLabelString = Request.PathParams.FindChecked(TEXT("property"));
+	const FName PropertyLabel = FName(PropertyLabelString);
+	if (!Preset->GetExposedEntityId(PropertyLabel).IsValid())
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(*FString::Printf(TEXT("Exposeed property '%s' not found on preset '%s'."),
+			*PropertyLabelString, *PresetName), Response->Body);
+		OnComplete(MoveTemp(Response));
+		return true;
+	}
+
+	Preset->Unexpose(PropertyLabel);
+
+	Response->Code = EHttpServerResponseCodes::Ok;
 	OnComplete(MoveTemp(Response));
 	return true;
 }
@@ -1404,7 +1541,7 @@ bool FWebRemoteControlModule::HandlePresetSetExposedActorPropertyRoute(const FHt
 				{
 					NewPayloadReader.Seek(0);
 					// Set a ERCPayloadType and NewPayload in order to follow the replication path
-					bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend, ERCPayloadType::Json, NewPayload);
+					bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend, ERCPayloadType::Json, NewPayload, SetPropertyRequest.Operation);
 				}
 			}
 		}
@@ -1459,7 +1596,7 @@ bool FWebRemoteControlModule::HandleGetPresetsRoute(const FHttpServerRequest& Re
 	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse(EHttpServerResponseCodes::Ok);
 
 	TArray<FAssetData> PresetAssets;
-	IRemoteControlModule::Get().GetPresetAssets(PresetAssets);
+	IRemoteControlModule::Get().GetPresetAssets(PresetAssets, false);
 
 	WebRemoteControlUtils::SerializeMessage(FListPresetsResponse{ PresetAssets }, Response->Body);
 
@@ -1809,6 +1946,47 @@ bool FWebRemoteControlModule::HandleEntitySetLabelRoute(const FHttpServerRequest
 	FName AssignedLabel = Entity->Rename(*SetEntityLabelRequest.NewLabel);
 	
 	WebRemoteControlUtils::SerializeMessage(FSetEntityLabelResponse{ AssignedLabel.ToString() }, Response->Body);
+	Response->Code = EHttpServerResponseCodes::Ok;
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FWebRemoteControlModule::HandleCreateTransientPresetRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
+
+	const URemoteControlPreset* Preset = IRemoteControlModule::Get().CreateTransientPreset();
+	if (!Preset)
+	{
+		Response->Code = EHttpServerResponseCodes::ServerError;
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to create a transient preset."), Response->Body);
+		OnComplete(MoveTemp(Response));
+		return true;
+	}
+
+	WebRemoteControlUtils::SerializeMessage(FGetPresetResponse{ Preset }, Response->Body);
+	Response->Code = EHttpServerResponseCodes::Ok;
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FWebRemoteControlModule::HandleDeleteTransientPresetRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
+
+	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
+
+	const bool bSuccess = IRemoteControlModule::Get().DestroyTransientPreset(FName(*PresetName));
+	if (!bSuccess)
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("No transient preset with that name exists."), Response->Body);
+		OnComplete(MoveTemp(Response));
+		return true;
+	}
+
 	Response->Code = EHttpServerResponseCodes::Ok;
 
 	OnComplete(MoveTemp(Response));

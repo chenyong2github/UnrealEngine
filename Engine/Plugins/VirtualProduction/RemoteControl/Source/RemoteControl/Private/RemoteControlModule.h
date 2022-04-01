@@ -2,11 +2,11 @@
 #pragma once
 
 #include "IRemoteControlModule.h"
+#include "AssetRegistry/AssetData.h"
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 
 class IRemoteControlInterceptionFeatureProcessor;
-struct FAssetData;
 
 /**
  * Implementation of the RemoteControl interface
@@ -37,8 +37,10 @@ public:
 	virtual TOptional<FExposedProperty> ResolvePresetProperty(const FResolvePresetFieldArgs& Args) const override;
 	virtual URemoteControlPreset* ResolvePreset(FName PresetName) const override;
 	virtual URemoteControlPreset* ResolvePreset(const FGuid& PresetId) const override;
+	virtual URemoteControlPreset* CreateTransientPreset() override;
+	virtual bool DestroyTransientPreset(FName PresetName) override;
 	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) const override;
-	virtual void GetPresetAssets(TArray<FAssetData>& OutPresetAssets) const override;
+	virtual void GetPresetAssets(TArray<FAssetData>& OutPresetAssets, bool bIncludeTransient = true) const override;
 	virtual const TMap<FName, FEntityMetadataInitializer>& GetDefaultMetadataInitializers() const override;
 	virtual bool RegisterDefaultEntityMetadata(FName MetadataKey, FEntityMetadataInitializer MetadataInitializer) override;
 	virtual void UnregisterDefaultEntityMetadata(FName MetadataKey) override;
@@ -93,6 +95,12 @@ private:
 
 	/** Cache of ids to preset names. */
 	mutable TMap<FGuid, FName> CachedPresetNamesById;
+
+	/** Temporary presets that aren't saved as assets or directly visible to the editor's user. */
+	TSet<FAssetData> TransientPresets;
+
+	/** Index of the next created transient preset, to avoid naming collisions. */
+	uint32 NextTransientPresetIndex = 0;
 
 	/** Map of registered default metadata initializers. */
 	TMap<FName, FEntityMetadataInitializer> DefaultMetadataInitializers;
