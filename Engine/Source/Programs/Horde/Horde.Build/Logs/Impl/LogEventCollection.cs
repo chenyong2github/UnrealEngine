@@ -112,15 +112,12 @@ namespace Horde.Build.Collections.Impl
 		{
 			_logger = logger;
 
-			_logEvents = mongoService.GetCollection<LogEventDocument>("LogEvents");
-			_legacyEvents = mongoService.GetCollection<LegacyEventDocument>("Events");
+			List<MongoIndex<LogEventDocument>> logEventIndexes = new List<MongoIndex<LogEventDocument>>();
+			logEventIndexes.Add(keys => keys.Ascending(x => x.Id.LogId));
+			logEventIndexes.Add(keys => keys.Ascending(x => x.SpanId).Ascending(x => x.Id));
+			_logEvents = mongoService.GetCollection<LogEventDocument>("LogEvents", logEventIndexes);
 
-			if (!mongoService.ReadOnlyMode)
-			{
-				_logEvents.Indexes.CreateOne(new CreateIndexModel<LogEventDocument>(Builders<LogEventDocument>.IndexKeys.Ascending(x => x.Id.LogId)));
-				_logEvents.Indexes.CreateOne(new CreateIndexModel<LogEventDocument>(Builders<LogEventDocument>.IndexKeys.Ascending(x => x.SpanId).Ascending(x => x.Id)));
-				_legacyEvents.Indexes.CreateOne(new CreateIndexModel<LegacyEventDocument>(Builders<LegacyEventDocument>.IndexKeys.Ascending(x => x.LogId)));
-			}
+			_legacyEvents = mongoService.GetCollection<LegacyEventDocument>("Events", keys => keys.Ascending(x => x.LogId));
 		}
 
 		/// <inheritdoc/>

@@ -13,21 +13,188 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Redis.Utility;
 using Horde.Build.Models;
 using Horde.Build.Services;
+using Horde.Build.Utilities;
 using Horde.Build.Utiltiies;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Events;
+using StackExchange.Redis;
 
 namespace Horde.Build.Server
 {
+	/// <summary>
+	/// Constrained set of parameters for building a mongo index
+	/// </summary>
+	[DebuggerDisplay("{Name}")]
+	public class MongoIndex : IEquatable<MongoIndex>
+	{
+		/// <summary>
+		/// Name of the index
+		/// </summary>
+		[BsonElement("name"), BsonRequired]
+		public string Name { get; private set; }
+
+		/// <summary>
+		/// Keys for the index
+		/// </summary>
+		[BsonElement("key"), BsonRequired]
+		public BsonDocument KeysDocument { get; private set; }
+
+		/// <summary>
+		/// The index should be unique
+		/// </summary>
+		[BsonElement("unique")]
+		public bool Unique { get; private set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		[BsonConstructor]
+		private MongoIndex()
+		{
+			Name = String.Empty;
+			KeysDocument = new BsonDocument();
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="keysDocument">Keys for the index</param>
+		/// <param name="unique">Whether the index should be unique</param>
+		public MongoIndex(BsonDocument keysDocument, bool unique)
+			: this(GetDefaultName(keysDocument), keysDocument, unique)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="name">Name of the index</param>
+		/// <param name="keysDocument">Keys for the index</param>
+		/// <param name="unique">Whether the index should be unique</param>
+		public MongoIndex(string name, BsonDocument keysDocument, bool unique)
+		{
+			Name = name;
+			KeysDocument = keysDocument;
+			Unique = unique;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="keysFunc">Callback to configure keys for this document</param>
+		/// <param name="unique">Whether the index should be unique</param>
+		public static MongoIndex<T> Create<T>(Func<IndexKeysDefinitionBuilder<T>, IndexKeysDefinition<T>> keysFunc, bool unique = false)
+		{
+			return new MongoIndex<T>(keysFunc(Builders<T>.IndexKeys), unique);
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="name">Name of the index</param>
+		/// <param name="keysFunc">Callback to configure keys for this document</param>
+		/// <param name="unique">Whether the index should be unique</param>
+		public static MongoIndex<T> Create<T>(string name, Func<IndexKeysDefinitionBuilder<T>, IndexKeysDefinition<T>> keysFunc, bool unique = false)
+		{
+			return new MongoIndex<T>(name, keysFunc(Builders<T>.IndexKeys), unique);
+		}
+
+		/// <inheritdoc/>
+		public override bool Equals(object? obj) => obj is MongoIndex other && Equals(other);
+
+		/// <inheritdoc/>
+		public override int GetHashCode() => Name.GetHashCode(StringComparison.Ordinal);
+
+		/// <inheritdoc/>
+		public bool Equals(MongoIndex? other) => other != null && Name.Equals(other.Name, StringComparison.Ordinal) && KeysDocument.Equals(other.KeysDocument) && Unique == other.Unique;
+
+		/// <summary>
+		/// Gets the default name for an index based on its keys
+		/// </summary>
+		/// <param name="keys">Keys for the index</param>
+		/// <returns>Name of the index</returns>
+		protected static string GetDefaultName(BsonDocument keys)
+		{
+			StringBuilder name = new StringBuilder();
+			foreach (BsonElement element in keys.Elements)
+			{
+				if (name.Length > 0)
+				{
+					name.Append('_');
+				}
+				name.Append(element.Name);
+				name.Append('_');
+				name.Append(element.Value.ToString());
+			}
+			return name.ToString();
+		}
+	}
+
+	/// <summary>
+	/// Strongly typed index document
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	public class MongoIndex<T> : MongoIndex
+	{
+		/// <summary>
+		/// Keys for the index
+		/// </summary>
+		public IndexKeysDefinition<T> Keys { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="keys">Keys for the index</param>
+		/// <param name="unique">Whether the index should be unique</param>
+		public MongoIndex(IndexKeysDefinition<T> keys, bool unique)
+			: base(keys.Render(BsonSerializer.LookupSerializer<T>(), BsonSerializer.SerializerRegistry), unique)
+		{
+			Keys = keys;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="name">Name of the index</param>
+		/// <param name="keys">Keys for the index</param>
+		/// <param name="unique">Whether the index should be unique</param>
+		public MongoIndex(string name, IndexKeysDefinition<T> keys, bool unique)
+			: base(name, keys.Render(BsonSerializer.LookupSerializer<T>(), BsonSerializer.SerializerRegistry), unique)
+		{
+			Keys = keys;
+		}
+	}
+
+	/// <summary>
+	/// Extension methods for <see cref="MongoIndex{T}"/>
+	/// </summary>
+	static class MongoIndexExtensions
+	{
+		public static void Add<T>(this List<MongoIndex<T>> list, Func<IndexKeysDefinitionBuilder<T>, IndexKeysDefinition<T>> keyFunc, bool unique = false)
+		{
+			list.Add(MongoIndex.Create(keyFunc, unique));
+		}
+
+		public static void Add<T>(this List<MongoIndex<T>> list, string name, Func<IndexKeysDefinitionBuilder<T>, IndexKeysDefinition<T>> keyFunc, bool unique = false)
+		{
+			list.Add(MongoIndex.Create(name, keyFunc, unique));
+		}
+	}
+
 	/// <summary>
 	/// Singleton for accessing the database
 	/// </summary>
@@ -97,6 +264,9 @@ namespace Horde.Build.Server
 		/// Default port for MongoDB connections
 		/// </summary>
 		const int DefaultMongoPort = 27017;
+
+		readonly HashSet<string> _collectionNames = new HashSet<string>(StringComparer.Ordinal);
+		readonly Channel<Func<CancellationToken, Task>> _updateIndexesChannel = Channel.CreateUnbounded<Func<CancellationToken, Task>>();
 
 		/// <summary>
 		/// Constructor
@@ -484,6 +654,125 @@ namespace Horde.Build.Server
 		}
 
 		/// <summary>
+		/// Get a MongoDB collection from database with a single index
+		/// </summary>
+		/// <param name="name">Name of collection</param>
+		/// <param name="keysFunc">Method to configure keys for the collection</param>
+		/// <param name="unique">Whether a unique index is required</param>
+		/// <typeparam name="T">A MongoDB document</typeparam>
+		/// <returns></returns>
+		public IMongoCollection<T> GetCollection<T>(string name, Func<IndexKeysDefinitionBuilder<T>, IndexKeysDefinition<T>> keysFunc, bool unique = false)
+		{
+			List<MongoIndex<T>> indexes = new List<MongoIndex<T>>();
+			indexes.Add(MongoIndex.Create<T>(keysFunc, unique));
+			return GetCollection(name, indexes);
+		}
+
+		/// <summary>
+		/// Get a MongoDB collection from database
+		/// </summary>
+		/// <param name="name">Name of collection</param>
+		/// <param name="indexes">Indexes for the collection</param>
+		/// <typeparam name="T">A MongoDB document</typeparam>
+		/// <returns></returns>
+		public IMongoCollection<T> GetCollection<T>(string name, IEnumerable<MongoIndex<T>> indexes)
+		{
+			IMongoCollection<T> collection = GetCollection<T>(name);
+			lock (_collectionNames)
+			{
+				if (!_collectionNames.Add(name))
+				{
+					throw new NotImplementedException();
+				}
+
+				MongoIndex<T>[] indexesCopy = indexes.ToArray();
+				_updateIndexesChannel.Writer.TryWrite(ctx => UpdateIndexesAsync(name, collection, indexesCopy, ctx));
+			}
+			return collection;
+		}
+
+		/// <summary>
+		/// Pops an upgrade task from the queue. This method should only be called by <see cref="MongoUpgradeService"/>
+		/// </summary>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public ValueTask<Func<CancellationToken, Task>> ReadNextUpgradeTask(CancellationToken cancellationToken)
+		{
+			return _updateIndexesChannel.Reader.ReadAsync(cancellationToken);
+		}
+
+		private async Task UpdateIndexesAsync<T>(string collectionName, IMongoCollection<T> collection, MongoIndex<T>[] newIndexes, CancellationToken cancellationToken)
+		{
+			// Find all the current indexes, excluding the default
+			Dictionary<string, MongoIndex> nameToExistingIndex = new Dictionary<string, MongoIndex>(StringComparer.Ordinal);
+			using (IAsyncCursor<BsonDocument> cursor = await collection.Indexes.ListAsync(cancellationToken))
+			{
+				while (await cursor.MoveNextAsync(cancellationToken))
+				{
+					foreach (BsonDocument document in cursor.Current)
+					{
+						MongoIndex indexDocument = BsonSerializer.Deserialize<MongoIndex>(document);
+						if (!indexDocument.Name.Equals("_id_", StringComparison.Ordinal))
+						{
+							nameToExistingIndex.Add(indexDocument.Name, indexDocument);
+						}
+					}
+				}
+			}
+
+			// Figure out which indexes to drop
+			List<MongoIndex<T>> createIndexes = new List<MongoIndex<T>>();
+			HashSet<string> removeIndexNames = new HashSet<string>(nameToExistingIndex.Keys, StringComparer.Ordinal);
+			foreach (MongoIndex<T> newIndex in newIndexes)
+			{
+				MongoIndex? existingIndex;
+				if (nameToExistingIndex.TryGetValue(newIndex.Name, out existingIndex))
+				{
+					if (existingIndex.Equals(newIndex))
+					{
+						removeIndexNames.Remove(newIndex.Name);
+						continue;
+					}
+				}
+				createIndexes.Add(newIndex);
+			}
+
+			// Drop any indexes that are no longer needed
+			foreach (string removeIndexName in removeIndexNames)
+			{
+				if (ReadOnlyMode)
+				{
+					_logger.LogWarning("Would drop unused index {CollectionName}.{IndexName} - skipping due to read-only setting.", collectionName, removeIndexName);
+				}
+				else
+				{
+					_logger.LogInformation("Dropping unused index {IndexName}", removeIndexName);
+					await collection.Indexes.DropOneAsync(removeIndexName, cancellationToken);
+				}
+			}
+
+			// Create all the new indexes
+			foreach (MongoIndex<T> createIndex in createIndexes)
+			{
+				if (ReadOnlyMode)
+				{
+					_logger.LogWarning("Would create index {CollectionName}.{IndexName} - skipping due to read-only setting.", collectionName, createIndex.Name);
+				}
+				else
+				{
+					_logger.LogInformation("Creating index {CollectionName}: {IndexName}", collectionName, createIndex.Name);
+
+					CreateIndexOptions<T> options = new CreateIndexOptions<T>();
+					options.Name = createIndex.Name;
+					options.Unique = createIndex.Unique;
+
+					CreateIndexModel<T> model = new CreateIndexModel<T>(createIndex.Keys, options);
+					await collection.Indexes.CreateOneAsync(model, cancellationToken: cancellationToken);
+				}
+			}
+		}
+
+		/// <summary>
 		/// Gets a singleton document by id
 		/// </summary>
 		/// <returns>The globals document</returns>
@@ -576,6 +865,130 @@ namespace Horde.Build.Server
 				{
 					throw;
 				}
+			}
+		}
+	}
+
+	/// <summary>
+	/// Stores the version number of the latest server instance to have upgraded the database schema
+	/// </summary>
+	[SingletonDocument("62470d8508d48eddfac7b55d")]
+	public class MongoSchemaDocument : SingletonBase
+	{
+		/// <summary>
+		/// Current version number
+		/// </summary>
+		public string? Version { get; set; }
+	}
+
+	/// <summary>
+	/// Service which updates the database state
+	/// </summary>
+	public sealed class MongoUpgradeService : IDisposable, IHostedService
+	{
+		static readonly RedisKey s_schemaLockKey = new RedisKey("server/schema-upgrade/lock");
+
+		readonly MongoService _mongoService;
+		readonly RedisService _redisService;
+		readonly ISingletonDocument<MongoSchemaDocument> _schemaDocument;
+		readonly ILogger _logger;
+		readonly BackgroundTask _updateIndexesTask;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public MongoUpgradeService(MongoService mongoService, RedisService redisService, ISingletonDocument<MongoSchemaDocument> schemaDocument, ILogger<MongoUpgradeService> logger)
+		{
+			_mongoService = mongoService;
+			_redisService = redisService;
+			_schemaDocument = schemaDocument;
+			_logger = logger;
+			_updateIndexesTask = new BackgroundTask(UpdateAsync);
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			_updateIndexesTask.Dispose();
+		}
+
+		/// <inheritdoc/>
+		public Task StartAsync(CancellationToken cancellationToken)
+		{
+			_updateIndexesTask.Start();
+			return Task.CompletedTask;
+		}
+
+		/// <inheritdoc/>
+		public async Task StopAsync(CancellationToken cancellationToken)
+		{
+			await _updateIndexesTask.StopAsync();
+		}
+
+		async Task UpdateAsync(CancellationToken cancellationToken)
+		{
+			for (; ; )
+			{
+				Func<CancellationToken, Task> updateIndexTask = await _mongoService.ReadNextUpgradeTask(cancellationToken);
+				for (; ; )
+				{
+					using (RedisLock schemaLock = new RedisLock(_redisService.Database, s_schemaLockKey))
+					{
+						if (await schemaLock.AcquireAsync(TimeSpan.FromMinutes(5.0)) && await UpdateOneAsync(updateIndexTask, cancellationToken))
+						{
+							break;
+						}
+					}
+					await Task.Delay(TimeSpan.FromMinutes(1.0), cancellationToken);
+				}
+			}
+		}
+
+		async ValueTask<bool> UpdateOneAsync(Func<CancellationToken, Task> taskAsync, CancellationToken cancellationToken)
+		{
+			try
+			{
+				// Check we're not downgrading the data
+				for (; ; )
+				{
+					MongoSchemaDocument currentSchema = await _schemaDocument.GetAsync();
+					if (!String.IsNullOrEmpty(currentSchema.Version))
+					{
+						SemVer currentVersion = SemVer.Parse(currentSchema.Version);
+						if (Program.Version < currentVersion)
+						{
+							return false;
+						}
+						if (Program.Version == currentVersion)
+						{
+							break;
+						}
+					}
+					currentSchema.Version = Program.Version.ToString();
+
+					if (_mongoService.ReadOnlyMode) // Pretend like we've upgraded the document so that the task can run and log its changes; it will guard writing while this flag is set itself.
+					{
+						break;
+					}
+					if (await _schemaDocument.TryUpdateAsync(currentSchema))
+					{
+						break;
+					}
+				}
+
+				// Perform the upgrade
+				await taskAsync(cancellationToken);
+				return true;
+			}
+			catch (MongoCommandException ex)
+			{
+				_logger.LogWarning(ex, "Command exception while attempting to update indexes ({Code})", ex.Code);
+				return false;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Exception while attempting to update indexes");
+				return false;
 			}
 		}
 	}

@@ -69,33 +69,8 @@ namespace Horde.Build.Collections.Impl
 			}
 		}
 		
-		class DatabaseIndexes : BaseDatabaseIndexes
-		{
-			public readonly string AgentId;
-			public readonly string SessionId;
-			public readonly string StartTime;
-			public readonly string FinishTime;
-			public readonly string FinishTimeStartTimeCompound;
-
-			public DatabaseIndexes(IMongoCollection<LeaseDocument> leases, bool databaseReadOnlyMode) : base(databaseReadOnlyMode)
-			{
-				AgentId = CreateOrGetIndex(leases, "AgentId_1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.AgentId));
-				SessionId = CreateOrGetIndex(leases, "SessionId_1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.SessionId));
-				StartTime = CreateOrGetIndex(leases, "StartTime_1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.StartTime));
-				FinishTime = CreateOrGetIndex(leases, "FinishTime_1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.FinishTime));
-				FinishTimeStartTimeCompound = CreateOrGetIndex(leases, "FinishTime_1_StartTime_-1", Builders<LeaseDocument>.IndexKeys.Ascending(x => x.FinishTime).Descending(x => x.StartTime));
-			}
-		}
-
-		/// <summary>
-		/// Collection of lease documents
-		/// </summary>
 		readonly IMongoCollection<LeaseDocument> _leases;
-
-		/// <summary>
-		/// Creation and lookup of indexes
-		/// </summary>
-		readonly DatabaseIndexes _indexes;
+		readonly MongoIndex<LeaseDocument> _finishTimeStartTimeCompoundIndex;
 
 		/// <summary>
 		/// Constructor
@@ -103,8 +78,14 @@ namespace Horde.Build.Collections.Impl
 		/// <param name="mongoService">The database service instance</param>
 		public LeaseCollection(MongoService mongoService)
 		{
-			_leases = mongoService.GetCollection<LeaseDocument>("Leases");
-			_indexes = new DatabaseIndexes(_leases, mongoService.ReadOnlyMode);
+			List<MongoIndex<LeaseDocument>> indexes = new List<MongoIndex<LeaseDocument>>();
+			indexes.Add(keys => keys.Ascending(x => x.AgentId));
+			indexes.Add(keys => keys.Ascending(x => x.SessionId));
+			indexes.Add(keys => keys.Ascending(x => x.StartTime));
+			indexes.Add(keys => keys.Ascending(x => x.FinishTime));
+			indexes.Add(_finishTimeStartTimeCompoundIndex = MongoIndex.Create<LeaseDocument>(keys => keys.Ascending(x => x.FinishTime).Descending(x => x.StartTime)));
+
+			_leases = mongoService.GetCollection<LeaseDocument>("Leases", indexes);
 		}
 
 		/// <inheritdoc/>
@@ -190,7 +171,7 @@ namespace Horde.Build.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<List<ILease>> FindLeasesAsync(DateTime? minTime, DateTime? maxTime)
 		{
-			return await FindLeasesAsync(null, null, minTime, maxTime, null, null, _indexes.FinishTimeStartTimeCompound, false);
+			return await FindLeasesAsync(null, null, minTime, maxTime, null, null, _finishTimeStartTimeCompoundIndex.Name, false);
 		}
 
 		/// <inheritdoc/>

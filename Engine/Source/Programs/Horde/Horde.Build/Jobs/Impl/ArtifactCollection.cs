@@ -74,11 +74,7 @@ namespace Horde.Build.Services
 			_storageBackend = storageBackend;
 
 			// Initialize Artifacts table
-			_artifacts = mongoService.GetCollection<Artifact>("Artifacts");
-			if (!mongoService.ReadOnlyMode)
-			{
-				_artifacts.Indexes.CreateOne(new CreateIndexModel<Artifact>(Builders<Artifact>.IndexKeys.Ascending(x => x.JobId)));
-			}
+			_artifacts = mongoService.GetCollection<Artifact>("Artifacts", keys => keys.Ascending(x => x.JobId));
 		}
 
 		/// <summary>

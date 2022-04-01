@@ -105,12 +105,7 @@ namespace Horde.Build.Collections.Impl
 		/// <param name="database"></param>
 		public TelemetryCollection(MongoService database)
 		{
-			_utilization = database.GetCollection<UtilizationDocument>("Utilization");
-
-			if (!database.ReadOnlyMode)
-			{
-				_utilization.Indexes.CreateOne(new CreateIndexModel<UtilizationDocument>(Builders<UtilizationDocument>.IndexKeys.Ascending(x => x.FinishTime).Ascending(x => x.StartTime)));
-			}
+			_utilization = database.GetCollection<UtilizationDocument>("Utilization", keys => keys.Ascending(x => x.FinishTime).Ascending(x => x.StartTime));
 		}
 
 		/// <inheritdoc/>

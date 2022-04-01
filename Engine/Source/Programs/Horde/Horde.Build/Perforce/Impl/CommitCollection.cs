@@ -84,12 +84,7 @@ namespace Horde.Build.Commits.Impl
 		/// </summary>
 		public CommitCollection(MongoService mongoService)
 		{
-			_commits = mongoService.Database.GetCollection<Commit>("Commits");
-
-			if (!mongoService.ReadOnlyMode)
-			{
-				_commits.Indexes.CreateOne(new CreateIndexModel<Commit>(Builders<Commit>.IndexKeys.Ascending(x => x.StreamId).Descending(x => x.Change), new CreateIndexOptions { Unique = true }));
-			}
+			_commits = mongoService.GetCollection<Commit>("Commits", keys => keys.Ascending(x => x.StreamId).Descending(x => x.Change), unique: true);
 		}
 
 		/// <inheritdoc/>

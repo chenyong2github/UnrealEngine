@@ -318,32 +318,6 @@ namespace Horde.Build.Collections.Impl
 			}
 		}
 
-		class DatabaseIndexes : BaseDatabaseIndexes
-		{
-			public readonly string StreamId;
-			public readonly string Change;
-			public readonly string PreflightChange;
-			public readonly string CreateTimeUtc;
-			public readonly string UpdateTimeUtc;
-			public readonly string Name;
-			public readonly string StartedByUserId;
-			public readonly string TemplateId;
-			public readonly string SchedulePriority;
-
-			public DatabaseIndexes(IMongoCollection<JobDocument> jobs, bool databaseReadOnlyMode) : base(databaseReadOnlyMode)
-			{
-				StreamId = CreateOrGetIndex(jobs, "StreamId_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.StreamId));
-				Change = CreateOrGetIndex(jobs, "Change_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.Change));
-				PreflightChange = CreateOrGetIndex(jobs, "PreflightChange_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.PreflightChange));
-				CreateTimeUtc = CreateOrGetIndex(jobs, "CreateTimeUtc_-1", Builders<JobDocument>.IndexKeys.Descending(x => x.CreateTimeUtc));
-				UpdateTimeUtc = CreateOrGetIndex(jobs, "UpdateTimeUtc_-1", Builders<JobDocument>.IndexKeys.Descending(x => x.UpdateTimeUtc));
-				Name = CreateOrGetIndex(jobs, "Name_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.Name));
-				StartedByUserId = CreateOrGetIndex(jobs, "StartedByUserId_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.StartedByUserId));
-				TemplateId = CreateOrGetIndex(jobs, "TemplateId_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.TemplateId));
-				SchedulePriority = CreateOrGetIndex(jobs, "SchedulePriority_-1", Builders<JobDocument>.IndexKeys.Descending(x => x.SchedulePriority));
-			}
-		}
-
 		/// <summary>
 		/// Projection of a job definition to just include permissions info
 		/// </summary>
@@ -361,25 +335,11 @@ namespace Horde.Build.Collections.Impl
 		/// </summary>
 		const int MaxRetries = 2;
 
-		/// <summary>
-		/// The jobs collection
-		/// </summary>
 		readonly IMongoCollection<JobDocument> _jobs;
-
-		/// <summary>
-		/// Clock representing wall-clock time
-		/// </summary>
+		readonly MongoIndex<JobDocument> _createTimeIndex;
+		readonly MongoIndex<JobDocument> _updateTimeIndex;
 		readonly IClock _clock;
-
-		/// <summary>
-		/// Logger for output
-		/// </summary>
 		readonly ILogger<JobCollection> _logger;
-
-		/// <summary>
-		/// Creation and lookup of indexes
-		/// </summary>
-		readonly DatabaseIndexes _indexes;
 
 		/// <summary>
 		/// Constructor
@@ -392,8 +352,17 @@ namespace Horde.Build.Collections.Impl
 			_clock = clock;
 			_logger = logger;
 
-			_jobs = mongoService.GetCollection<JobDocument>("Jobs");
-			_indexes = new DatabaseIndexes(_jobs, mongoService.ReadOnlyMode);
+			List<MongoIndex<JobDocument>> indexes = new List<MongoIndex<JobDocument>>();
+			indexes.Add(keys => keys.Ascending(x => x.StreamId));
+			indexes.Add(keys => keys.Ascending(x => x.Change));
+			indexes.Add(keys => keys.Ascending(x => x.PreflightChange));
+			indexes.Add(_createTimeIndex = MongoIndex.Create<JobDocument>(keys => keys.Descending(x => x.CreateTimeUtc)));
+			indexes.Add(_updateTimeIndex = MongoIndex.Create<JobDocument>(keys => keys.Descending(x => x.UpdateTimeUtc)));
+			indexes.Add(keys => keys.Ascending(x => x.Name));
+			indexes.Add(keys => keys.Ascending(x => x.StartedByUserId));
+			indexes.Add(keys => keys.Ascending(x => x.TemplateId));
+			indexes.Add(keys => keys.Descending(x => x.SchedulePriority));
+			_jobs = mongoService.GetCollection<JobDocument>("Jobs", indexes);
 		}
 
 		static Task PostLoadAsync(JobDocument job)
@@ -579,10 +548,10 @@ namespace Horde.Build.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<List<IJob>> FindLatestByStreamWithTemplatesAsync(StreamId streamId, TemplateRefId[] templates, UserId? preflightStartedByUser, DateTimeOffset? maxCreateTime, DateTimeOffset? modifiedAfter, int? index, int? count, bool consistentRead)
 		{
-			string indexHint = _indexes.CreateTimeUtc;
+			string indexHint = _createTimeIndex.Name;
 			if (modifiedAfter != null)
 			{
-				indexHint = _indexes.UpdateTimeUtc;
+				indexHint = _updateTimeIndex.Name;
 			}
 			
 			// This find call uses an index hint. Modifying the parameter passed to FindAsync can affect execution time a lot as the query planner is forced to use the specified index.

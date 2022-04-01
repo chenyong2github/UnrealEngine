@@ -547,6 +547,8 @@ namespace Horde.Build
 
 			if (settings.IsRunModeActive(RunMode.Worker))
 			{
+				services.AddHostedService<MongoUpgradeService>();
+
 				services.AddHostedService(provider => provider.GetRequiredService<AutoscaleServiceV2>());
 				
 				services.AddHostedService(provider => provider.GetRequiredService<AgentService>());

@@ -169,15 +169,13 @@ namespace Horde.Build.Collections.Impl
 		{
 			_logger = logger;
 
-			_users = mongoService.GetCollection<UserDocument>("UsersV2");
+			List<MongoIndex<UserDocument>> userIndexes = new List<MongoIndex<UserDocument>>();
+			userIndexes.Add(keys => keys.Ascending(x => x.LoginUpper), unique: true);
+			userIndexes.Add(keys => keys.Ascending(x => x.EmailUpper));
+			_users = mongoService.GetCollection<UserDocument>("UsersV2", userIndexes);
+
 			_userClaims = mongoService.GetCollection<UserClaimsDocument>("UserClaimsV2");
 			_userSettings = mongoService.GetCollection<UserSettingsDocument>("UserSettingsV2");
-
-			if (!mongoService.ReadOnlyMode)
-			{
-				_users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.LoginUpper), new CreateIndexOptions { Unique = true }));
-				_users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.EmailUpper)));
-			}
 
 			MemoryCacheOptions options = new MemoryCacheOptions();
 			_userCache = new MemoryCache(options);

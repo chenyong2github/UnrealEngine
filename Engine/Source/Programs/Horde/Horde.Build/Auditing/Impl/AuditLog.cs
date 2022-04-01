@@ -100,15 +100,14 @@ namespace Horde.Build.Collections.Impl
 
 		public AuditLog(MongoService mongoService, string collectionName, string subjectProperty, ILogger logger)
 		{
-			_messages = mongoService.GetCollection<AuditLogMessage>(collectionName);
+			List<MongoIndex<AuditLogMessage>> indexes = new List<MongoIndex<AuditLogMessage>>();
+			indexes.Add(builder => builder.Ascending(x => x.Subject).Descending(x => x.TimeUtc));
+
+			_messages = mongoService.GetCollection<AuditLogMessage>(collectionName, indexes);
+
 			_messageChannel = Channel.CreateUnbounded<AuditLogMessage>();
 			_subjectProperty = subjectProperty;
 			_logger = logger;
-
-			if (!mongoService.ReadOnlyMode)
-			{
-				_messages.Indexes.CreateOne(new CreateIndexModel<AuditLogMessage>(Builders<AuditLogMessage>.IndexKeys.Ascending(x => x.Subject).Descending(x => x.TimeUtc)));
-			}
 
 			_backgroundTask = Task.Run(() => WriteMessagesAsync());
 		}

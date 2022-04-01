@@ -187,12 +187,10 @@ namespace Horde.Build.Collections.Impl
 		/// <param name="mongoService">The database service</param>
 		public SubscriptionCollection(MongoService mongoService)
 		{
-			_collection = mongoService.GetCollection<Subscription>("SubscriptionsV2");
-			if (!mongoService.ReadOnlyMode)
-			{
-				_collection.Indexes.CreateOne(new CreateIndexModel<Subscription>(Builders<Subscription>.IndexKeys.Ascending(x => x.Event)));
-				_collection.Indexes.CreateOne(new CreateIndexModel<Subscription>(Builders<Subscription>.IndexKeys.Ascending(x => x.UserId)));
-			}
+			List<MongoIndex<Subscription>> indexes = new List<MongoIndex<Subscription>>();
+			indexes.Add(keys => keys.Ascending(x => x.Event));
+			indexes.Add(keys => keys.Ascending(x => x.UserId));
+			_collection = mongoService.GetCollection<Subscription>("SubscriptionsV2", indexes);
 		}
 
 		/// <inheritdoc/>

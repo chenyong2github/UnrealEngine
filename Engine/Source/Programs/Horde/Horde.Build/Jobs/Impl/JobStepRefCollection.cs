@@ -96,12 +96,7 @@ namespace Horde.Build.Collections.Impl
 		/// <param name="mongoService">The database service instance</param>
 		public JobStepRefCollection(MongoService mongoService)
 		{
-			_jobStepRefs = mongoService.GetCollection<JobStepRef>("JobStepRefs");
-
-			if (!mongoService.ReadOnlyMode)
-			{
-				_jobStepRefs.Indexes.CreateOne(new CreateIndexModel<JobStepRef>(Builders<JobStepRef>.IndexKeys.Ascending(x => x.StreamId).Ascending(x => x.TemplateId).Ascending(x => x.Name).Descending(x => x.Change)));
-			}
+			_jobStepRefs = mongoService.GetCollection<JobStepRef>("JobStepRefs", keys => keys.Ascending(x => x.StreamId).Ascending(x => x.TemplateId).Ascending(x => x.Name).Descending(x => x.Change));
 		}
 
 		/// <inheritdoc/>

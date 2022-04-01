@@ -250,17 +250,10 @@ namespace Horde.Build.Collections.Impl
 		/// </summary>
 		public DeviceCollection(MongoService mongoService)
 		{
-			_devices = mongoService.GetCollection<DeviceDocument>("Devices");
-			_platforms = mongoService.GetCollection<DevicePlatformDocument>("Devices.Platforms");
-			_pools = mongoService.GetCollection<DevicePoolDocument>("Devices.Pools");
+			_devices = mongoService.GetCollection<DeviceDocument>("Devices", keys => keys.Ascending(x => x.Name), unique: true);
+			_platforms = mongoService.GetCollection<DevicePlatformDocument>("Devices.Platforms", keys => keys.Ascending(x => x.Name), unique: true);
+			_pools = mongoService.GetCollection<DevicePoolDocument>("Devices.Pools", keys => keys.Ascending(x => x.Name), unique: true);
 			_reservations = mongoService.GetCollection<DeviceReservationDocument>("Devices.Reservations");
-
-			if (!mongoService.ReadOnlyMode)
-			{
-				_platforms.Indexes.CreateOne(new CreateIndexModel<DevicePlatformDocument>(Builders<DevicePlatformDocument>.IndexKeys.Ascending(x => x.Name), new CreateIndexOptions { Unique = true }));
-				_pools.Indexes.CreateOne(new CreateIndexModel<DevicePoolDocument>(Builders<DevicePoolDocument>.IndexKeys.Ascending(x => x.Name), new CreateIndexOptions { Unique = true }));
-				_devices.Indexes.CreateOne(new CreateIndexModel<DeviceDocument>(Builders<DeviceDocument>.IndexKeys.Ascending(x => x.Name), new CreateIndexOptions { Unique = true }));
-			}
 		}
 
 		/// <inheritdoc/>

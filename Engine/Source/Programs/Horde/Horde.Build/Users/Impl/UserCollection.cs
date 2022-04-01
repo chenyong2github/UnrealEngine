@@ -88,12 +88,7 @@ namespace Horde.Build.Collections.Impl
 		/// <param name="mongoService"></param>
 		public UserCollectionV1(MongoService mongoService)
 		{
-			_users = mongoService.GetCollection<UserDocument>("Users");
-
-			if (!mongoService.ReadOnlyMode)
-			{
-				_users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.PrimaryClaim), new CreateIndexOptions { Unique = true }));
-			}
+			_users = mongoService.GetCollection<UserDocument>("Users", keys => keys.Ascending(x => x.PrimaryClaim), unique: true);
 		}
 
 		/// <inheritdoc/>

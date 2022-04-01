@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -101,6 +102,8 @@ namespace Horde.Build
 
 	class Program
 	{
+		public static SemVer Version => _version;
+
 		public static DirectoryReference AppDir { get; } = GetAppDir();
 
 		public static DirectoryReference DataDir { get; } = GetDefaultDataDir();
@@ -108,6 +111,8 @@ namespace Horde.Build
 		public static FileReference UserConfigFile { get; } = FileReference.Combine(GetDefaultDataDir(), "Horde.json");
 
 		public static Type[] ConfigSchemas = FindSchemaTypes();
+
+		static SemVer _version;
 
 		static Type[] FindSchemaTypes()
 		{
@@ -124,6 +129,16 @@ namespace Horde.Build
 
 		public static async Task<int> Main(string[] args)
 		{
+			FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);
+			if (String.IsNullOrEmpty(versionInfo.ProductVersion))
+			{
+				_version = SemVer.Parse("0.0.0");
+			}
+			else
+			{
+				_version = SemVer.Parse(versionInfo.ProductVersion);
+			}
+
 			CommandLineArguments arguments = new CommandLineArguments(args);
 
 			IConfiguration config = new ConfigurationBuilder()
@@ -155,6 +170,8 @@ namespace Horde.Build
 				.WriteTo.File(new JsonFormatter(renderMessage: true), Path.Combine(logDir.FullName, "Log.json"), rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
 				.ReadFrom.Configuration(config)
 				.CreateLogger();
+
+			Serilog.Log.Logger.Information("Server version: {Version}", Version);
 
 			if (hordeSettings.WithDatadog)
 			{

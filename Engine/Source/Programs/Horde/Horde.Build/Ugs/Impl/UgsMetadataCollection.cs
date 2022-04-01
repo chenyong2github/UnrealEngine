@@ -95,27 +95,10 @@ namespace Horde.Build.Collections.Impl
 		/// <param name="mongoService">Database service instance</param>
 		public UgsMetadataCollection(MongoService mongoService)
 		{
-			_collection = mongoService.GetCollection<UgsMetadataDocument>("UgsMetadata");
-			
-			if (!mongoService.ReadOnlyMode)
-			{
-				void CreateIndex()
-				{
-					_collection.Indexes.CreateOne(new CreateIndexModel<UgsMetadataDocument>(Builders<UgsMetadataDocument>.IndexKeys.Ascending(x => x.Stream).Descending(x => x.Change).Ascending(x => x.Project), new CreateIndexOptions { Unique = true }));
-					_collection.Indexes.CreateOne(new CreateIndexModel<UgsMetadataDocument>(Builders<UgsMetadataDocument>.IndexKeys.Ascending(x => x.Stream).Descending(x => x.Change).Descending(x => x.UpdateTicks)));
-				}
-				
-				try
-				{
-					CreateIndex();	
-				}
-				catch (MongoCommandException)
-				{
-					// If index creation fails, drop all indexes and retry.
-					_collection.Indexes.DropAll();
-					CreateIndex();
-				}
-			}
+			List<MongoIndex<UgsMetadataDocument>> indexes = new List<MongoIndex<UgsMetadataDocument>>();
+			indexes.Add(keys => keys.Ascending(x => x.Stream).Descending(x => x.Change).Ascending(x => x.Project), unique: true);
+			indexes.Add(keys => keys.Ascending(x => x.Stream).Descending(x => x.Change).Descending(x => x.UpdateTicks));
+			_collection = mongoService.GetCollection<UgsMetadataDocument>("UgsMetadata", indexes);
 		}
 
 		/// <summary>

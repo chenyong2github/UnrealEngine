@@ -65,13 +65,10 @@ namespace Horde.Build.Collections.Impl
 		/// <param name="mongoService">The database service instance</param>
 		public TestDataCollection(MongoService mongoService)
 		{
-			_testDataDocuments = mongoService.GetCollection<TestDataDocument>("TestData");
-
-			if (!mongoService.ReadOnlyMode)
-			{
-				_testDataDocuments.Indexes.CreateOne(new CreateIndexModel<TestDataDocument>(Builders<TestDataDocument>.IndexKeys.Ascending(x => x.StreamId).Ascending(x => x.Change).Ascending(x => x.Key)));
-				_testDataDocuments.Indexes.CreateOne(new CreateIndexModel<TestDataDocument>(Builders<TestDataDocument>.IndexKeys.Ascending(x => x.JobId).Ascending(x => x.StepId).Ascending(x => x.Key), new CreateIndexOptions { Unique = true }));
-			}
+			List<MongoIndex<TestDataDocument>> indexes = new List<MongoIndex<TestDataDocument>>();
+			indexes.Add(keys => keys.Ascending(x => x.StreamId).Ascending(x => x.Change).Ascending(x => x.Key));
+			indexes.Add(keys => keys.Ascending(x => x.JobId).Ascending(x => x.StepId).Ascending(x => x.Key), unique: true);
+			_testDataDocuments = mongoService.GetCollection<TestDataDocument>("TestData", indexes);
 		}
 
 		/// <inheritdoc/>

@@ -71,14 +71,12 @@ namespace Horde.Build.Collections.Impl
 		/// <param name="mongoService">The database service</param>
 		public SessionCollection(MongoService mongoService)
 		{
-			_sessions = mongoService.GetCollection<SessionDocument>("Sessions");
+			List<MongoIndex<SessionDocument>> indexes = new List<MongoIndex<SessionDocument>>();
+			indexes.Add(keys => keys.Ascending(x => x.AgentId));
+			indexes.Add(keys => keys.Ascending(x => x.StartTime));
+			indexes.Add(keys => keys.Ascending(x => x.FinishTime));
 
-			if (!mongoService.ReadOnlyMode)
-			{
-				_sessions.Indexes.CreateOne(new CreateIndexModel<SessionDocument>(Builders<SessionDocument>.IndexKeys.Ascending(x => x.AgentId)));
-				_sessions.Indexes.CreateOne(new CreateIndexModel<SessionDocument>(Builders<SessionDocument>.IndexKeys.Ascending(x => x.StartTime)));
-				_sessions.Indexes.CreateOne(new CreateIndexModel<SessionDocument>(Builders<SessionDocument>.IndexKeys.Ascending(x => x.FinishTime)));
-			}
+			_sessions = mongoService.GetCollection<SessionDocument>("Sessions", indexes);
 		}
 
 		/// <inheritdoc/>

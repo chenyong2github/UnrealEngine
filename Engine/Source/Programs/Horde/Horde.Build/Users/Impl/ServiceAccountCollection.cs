@@ -107,12 +107,7 @@ namespace Horde.Build.Collections.Impl
 		/// <param name="mongoService">The database service</param>
 		public ServiceAccountCollection(MongoService mongoService)
 		{
-			_serviceAccounts = mongoService.GetCollection<ServiceAccountDocument>("ServiceAccounts");
-
-			if (!mongoService.ReadOnlyMode)
-			{
-				_serviceAccounts.Indexes.CreateOne(new CreateIndexModel<ServiceAccountDocument>(Builders<ServiceAccountDocument>.IndexKeys.Ascending(x => x.SecretToken)));
-			}
+			_serviceAccounts = mongoService.GetCollection<ServiceAccountDocument>("ServiceAccounts", keys => keys.Ascending(x => x.SecretToken));
 		}
 
 		/// <inheritdoc/>

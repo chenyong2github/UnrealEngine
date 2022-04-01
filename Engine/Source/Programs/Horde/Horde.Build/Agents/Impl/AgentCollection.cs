@@ -153,15 +153,13 @@ namespace Horde.Build.Collections.Impl
 		/// </summary>
 		public AgentCollection(MongoService mongoService, RedisService redisService, IAuditLog<AgentId> auditLog)
 		{
-			_agents = mongoService.GetCollection<AgentDocument>("Agents");
+			List<MongoIndex<AgentDocument>> indexes = new List<MongoIndex<AgentDocument>>();
+			indexes.Add(keys => keys.Ascending(x => x.Deleted).Ascending(x => x.Id).Ascending(x => x.Pools));
+
+			_agents = mongoService.GetCollection<AgentDocument>("Agents", indexes);
 			_redisService = redisService;
 			_updateEventChannel = new RedisChannel<AgentId>("agents/notify");
 			_auditLog = auditLog;
-
-			if (!mongoService.ReadOnlyMode)
-			{
-				_agents.Indexes.CreateOne(new CreateIndexModel<AgentDocument>(Builders<AgentDocument>.IndexKeys.Ascending(x => x.Deleted).Ascending(x => x.Id).Ascending(x => x.Pools)));
-			}
 		}
 
 		/// <inheritdoc/>
