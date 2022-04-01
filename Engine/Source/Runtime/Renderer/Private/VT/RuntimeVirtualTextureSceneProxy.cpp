@@ -93,11 +93,8 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		ENQUEUE_RENDER_COMMAND(GetProducerHandle)(
 			[this](FRHICommandList& RHICmdList)
 			{
-				if (VirtualTexture != nullptr)
-				{
-					ProducerHandle = VirtualTexture->GetProducerHandle();
-					SpaceID = VirtualTexture->GetAllocatedVirtualTexture()->GetSpaceID();
-				}
+				ProducerHandle = VirtualTexture->GetProducerHandle();
+				SpaceID = VirtualTexture->GetAllocatedVirtualTexture()->GetSpaceID();
 			});
 	}
 }
