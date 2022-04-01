@@ -1112,23 +1112,11 @@ void UWorldPartition::OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc)
 	}
 }
 
-void UWorldPartition::ApplyActorTransform(AActor* Actor, const FTransform& InTransform)
-{
-	if (!InTransform.Equals(FTransform::Identity))
-	{
-		FLevelUtils::FApplyLevelTransformParams TransformParams(Actor->GetLevel(), InTransform);
-		TransformParams.Actor = Actor;
-		TransformParams.bDoPostEditMove = true;
-		FLevelUtils::ApplyLevelTransform(TransformParams);
-	}
-}
-
 void UWorldPartition::OnActorDescRegistered(const FWorldPartitionActorDesc& ActorDesc) 
 {
 	AActor* Actor = ActorDesc.GetActor();
 	check(Actor);
-	ApplyActorTransform(Actor, InstanceTransform);
-	Actor->GetLevel()->AddLoadedActor(Actor);
+	Actor->GetLevel()->AddLoadedActor(Actor, !InstanceTransform.Equals(FTransform::Identity) ? &InstanceTransform : nullptr);
 }
 
 void UWorldPartition::OnActorDescUnregistered(const FWorldPartitionActorDesc& ActorDesc) 
@@ -1136,8 +1124,7 @@ void UWorldPartition::OnActorDescUnregistered(const FWorldPartitionActorDesc& Ac
 	AActor* Actor = ActorDesc.GetActor();
 	if (IsValidChecked(Actor))
 	{
-		Actor->GetLevel()->RemoveLoadedActor(Actor);
-		ApplyActorTransform(Actor, InstanceTransform.Inverse());
+		Actor->GetLevel()->RemoveLoadedActor(Actor, !InstanceTransform.Equals(FTransform::Identity) ? &InstanceTransform : nullptr);
 	}
 }
 

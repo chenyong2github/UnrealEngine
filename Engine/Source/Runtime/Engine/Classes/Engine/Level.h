@@ -984,13 +984,19 @@ public:
 #if WITH_EDITOR
 	/**
 	 * Add a dynamically loaded actor to this level, as if it was part of the original map load process.
+	 *
+	 * @param Actor				The actor to add to the level
+	 * @param TransformToApply	The transform to apply to this actor if it's not already in the level
 	 */
-	ENGINE_API void AddLoadedActor(AActor* Actor);
+	ENGINE_API void AddLoadedActor(AActor* Actor, const FTransform* TransformToApply = nullptr);
 
 	/**
 	 * Remove a dynamically loaded actor from this level.
+	 *
+	 * @param Actor				The actor to remove from the level
+	 * @param TransformToRemove	The transform that was applied to this actor when it was added to the level
 	 */
-	ENGINE_API void RemoveLoadedActor(AActor* Actor);
+	ENGINE_API void RemoveLoadedActor(AActor* Actor, const FTransform* TransformToRemove = nullptr);
 
 	/** Called when dynamically loaded actor is added to this level */
 	DECLARE_EVENT_OneParam(ULevel, FLoadedActorAddedToLevelEvent, AActor&);

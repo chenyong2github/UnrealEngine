@@ -752,7 +752,7 @@ bool ULevel::IsNetActor(const AActor* Actor)
 }
 
 #if WITH_EDITOR
-void ULevel::AddLoadedActor(AActor* Actor)
+void ULevel::AddLoadedActor(AActor* Actor, const FTransform* TransformToApply)
 {
 	check(Actor->GetLevel() == this);
 	check(IsValidChecked(Actor));
@@ -762,6 +762,14 @@ void ULevel::AddLoadedActor(AActor* Actor)
 	{
 		Actors.Add(Actor);
 		ActorsForGC.Add(Actor);
+
+		if (TransformToApply)
+		{
+			FLevelUtils::FApplyLevelTransformParams TransformParams(this, *TransformToApply);
+			TransformParams.Actor = Actor;
+			TransformParams.bDoPostEditMove = true;
+			FLevelUtils::ApplyLevelTransform(TransformParams);
+		}
 
 		// If components from actors belonging to this level were already registered, do the same for the newly loaded actor.
 		// Otherwise, the new actor components will be registered later once the world initialization is completed, through UpdateWorldComponents()
@@ -782,7 +790,7 @@ void ULevel::AddLoadedActor(AActor* Actor)
 	}
 }
 
-void ULevel::RemoveLoadedActor(AActor* Actor)
+void ULevel::RemoveLoadedActor(AActor* Actor, const FTransform* TransformToRemove)
 {
 	check(Actor);
 	check(Actor->GetLevel() == this);
@@ -796,6 +804,14 @@ void ULevel::RemoveLoadedActor(AActor* Actor)
 
 	Actors[ActorIndex] = nullptr;
 	ActorsForGC.Remove(Actor);
+
+	if (TransformToRemove)
+	{
+		FLevelUtils::FApplyLevelTransformParams TransformParams(this, TransformToRemove->Inverse());
+		TransformParams.Actor = Actor;
+		TransformParams.bDoPostEditMove = true;
+		FLevelUtils::ApplyLevelTransform(TransformParams);
+	}
 
 	OnLoadedActorRemovedFromLevelEvent.Broadcast(*Actor);
 }

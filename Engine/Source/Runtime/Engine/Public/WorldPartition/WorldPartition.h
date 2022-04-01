@@ -279,8 +279,6 @@ private:
 	bool ShouldActorBeLoadedByEditorCells(const FWorldPartitionActorDesc* ActorDesc) const;
 	bool UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded, bool bIsFromUserChange);
 
-	void ApplyActorTransform(AActor* Actor, const FTransform& InTransform);
-
 	TMap<FGuid, FWorldPartitionReference> PinnedActors;
 	TMap<FGuid, TMap<FGuid, FWorldPartitionReference>> PinnedActorRefs;
 #endif
