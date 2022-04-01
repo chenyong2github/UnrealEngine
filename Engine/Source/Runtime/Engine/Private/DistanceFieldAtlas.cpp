@@ -1025,6 +1025,9 @@ uint32 FLandscapeTextureAtlas::CalculateDownSampleLevel(uint32 SizeX, uint32 Siz
 
 void FLandscapeTextureAtlas::UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type InFeatureLevel)
 {
+	// Mask should be set in FSceneRenderer::PrepareDistanceFieldScene before calling this
+	check(GraphBuilder.RHICmdList.GetGPUMask() == FRHIGPUMask::All());
+
 	InitializeIfNeeded();
 
 	TArray<FPendingUpload, TInlineAllocator<8>> PendingUploads;

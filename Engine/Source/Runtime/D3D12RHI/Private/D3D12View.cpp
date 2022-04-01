@@ -491,17 +491,19 @@ FRHICOMMAND_MACRO(FD3D12InitializeBufferSRVRHICommand)
 {
 	const FShaderResourceViewInitializer Initializer;
 	FD3D12ShaderResourceView* const View;
+	uint32 GPUIndex;
 
-	FD3D12InitializeBufferSRVRHICommand(const FShaderResourceViewInitializer& InInitializer, FD3D12ShaderResourceView* InView)
+	FD3D12InitializeBufferSRVRHICommand(const FShaderResourceViewInitializer& InInitializer, FD3D12ShaderResourceView* InView, uint32 InGPUIndex)
 		: Initializer(InInitializer)
 		, View(InView)
+		, GPUIndex(InGPUIndex)
 	{
 	}
 
 	void Execute(FRHICommandListBase& RHICmdList)
 	{
 		const FShaderResourceViewInitializer::FBufferShaderResourceViewInitializer& Desc = Initializer.AsBufferSRV();
-		FD3D12Buffer* const Buffer = FD3D12DynamicRHI::ResourceCast(Desc.Buffer);
+		FD3D12Buffer* const Buffer = FD3D12DynamicRHI::ResourceCast(Desc.Buffer, GPUIndex);
 
 		if (Initializer.GetType() == FShaderResourceViewInitializer::EType::VertexBufferSRV)
 		{
@@ -554,13 +556,13 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 					{
 						// We have to defer the SRV initialization to the RHI thread if the buffer is dynamic (and RHI threading is enabled), as dynamic buffers can be renamed.
 						// Also insert an RHI thread fence to prevent parallel translate tasks running until this command has completed.
-						ALLOC_COMMAND_CL(RHICmdList, FD3D12InitializeBufferSRVRHICommand)(Initializer, ShaderResourceView);
+						ALLOC_COMMAND_CL(RHICmdList, FD3D12InitializeBufferSRVRHICommand)(Initializer, ShaderResourceView, Buffer->GetParentGPUIndex());
 						RHICmdList.RHIThreadFence(true);
 					}
 					else
 					{
 						// Run the command directly if we're bypassing RHI command list recording, or the buffer is not dynamic.
-						FD3D12InitializeBufferSRVRHICommand Command(Initializer, ShaderResourceView);
+						FD3D12InitializeBufferSRVRHICommand Command(Initializer, ShaderResourceView, Buffer->GetParentGPUIndex());
 						Command.Execute(RHICmdList);
 					}
 

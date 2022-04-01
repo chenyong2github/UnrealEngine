@@ -848,6 +848,9 @@ void FDistanceFieldSceneData::ProcessReadRequests(
 
 void FDistanceFieldSceneData::ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap)
 {
+	// Mask should be set in FSceneRenderer::PrepareDistanceFieldScene before calling this
+	check(GraphBuilder.RHICmdList.GetGPUMask() == FRHIGPUMask::All());
+
 	const int32 BrickAtlasSizeXYInBricks = CVarBrickAtlasSizeXYInBricks.GetValueOnRenderThread();
 	int32 DesiredZSizeInBricks = FMath::DivideAndRoundUp(DistanceFieldAtlasBlockAllocator.GetMaxSize() * GDistanceFieldBlockAllocatorSizeInBricks, BrickAtlasSizeXYInBricks * BrickAtlasSizeXYInBricks);
 
@@ -925,6 +928,9 @@ static FIntVector CalculateDesiredSize(FIntVector CurrentSize, FIntVector Requir
 
 bool FDistanceFieldSceneData::ResizeIndirectionAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap)
 {
+	// Mask should be set in FSceneRenderer::PrepareDistanceFieldScene before calling this
+	check(GraphBuilder.RHICmdList.GetGPUMask() == FRHIGPUMask::All());
+
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ResizeIndirectionAtlasIfNeeded);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldSceneData::ResizeIndirectionAtlasIfNeeded);
 	
@@ -1071,6 +1077,8 @@ void FDistanceFieldSceneData::GenerateStreamingRequests(
 	// It is not safe to EnqueueCopy on a buffer that already has a pending copy.
 	if (ReadbackBuffersNumPending < MaxStreamingReadbackBuffers && NumObjectsInBuffer > 0)
 	{
+		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+
 		if (!StreamingRequestReadbackBuffers[ReadbackBuffersWriteIndex])
 		{
 			FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("DistanceFields.StreamingRequestReadBack"));
@@ -1203,6 +1211,9 @@ void FDistanceFieldSceneData::UploadAssetData(FRDGBuilder& GraphBuilder, const T
 		return;
 	}
 
+	// Mask should be set in FSceneRenderer::PrepareDistanceFieldScene before calling this
+	check(GraphBuilder.RHICmdList.GetGPUMask() == FRHIGPUMask::All());
+
 	AssetDataUploadBuffer.Init(AssetDataUploads.Num(), AssetDataMipStrideFloat4s * sizeof(FVector4f), true, TEXT("DistanceFields.DFAssetDataUploadBuffer"));
 
 	for (FDistanceFieldAssetMipId AssetMipUpload : AssetDataUploads)
@@ -1245,6 +1256,9 @@ void FDistanceFieldSceneData::UploadAllAssetData(FRDGBuilder& GraphBuilder)
 	{
 		return;
 	}
+
+	// Mask should be set in FSceneRenderer::PrepareDistanceFieldScene before calling this
+	check(GraphBuilder.RHICmdList.GetGPUMask() == FRHIGPUMask::All());
 
 	AssetDataUploadBuffer.Init(NumUploads, AssetDataMipStrideFloat4s * sizeof(FVector4f), true, TEXT("DistanceFields.DFAssetDataUploadBuffer"));
 
@@ -1298,6 +1312,9 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateDistanceFieldAtlas);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldSceneData::UpdateDistanceFieldAtlas);
 	RDG_EVENT_SCOPE(GraphBuilder, "UpdateDistanceFieldAtlas");
+
+	// Mask should be set in FSceneRenderer::PrepareDistanceFieldScene before calling this
+	check(GraphBuilder.RHICmdList.GetGPUMask() == FRHIGPUMask::All());
 
 	TArray<FDistanceFieldAssetMipId> AssetDataUploads;
 

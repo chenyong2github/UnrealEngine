@@ -202,10 +202,11 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 		return;
 	}
 
-	FRHICommandList_RecursiveHazardous RHICmdList(this, FRHIGPUMask::FromIndex(GetGPUIndex()));
+	uint32 GPUIndex = GetGPUIndex();
+	FRHICommandList_RecursiveHazardous RHICmdList(this, FRHIGPUMask::FromIndex(GPUIndex));
 
-	FD3D12Texture* SourceTexture = GetD3D12TextureFromRHITexture(SourceTextureRHI);
-	FD3D12Texture* DestTexture = GetD3D12TextureFromRHITexture(DestTextureRHI);
+	FD3D12Texture* SourceTexture = GetD3D12TextureFromRHITexture(SourceTextureRHI, GPUIndex);
+	FD3D12Texture* DestTexture = GetD3D12TextureFromRHITexture(DestTextureRHI, GPUIndex);
 
 	const FRHITextureDesc& SourceDesc = SourceTexture->GetDesc();
 	const FRHITextureDesc& DestDesc = DestTexture->GetDesc();

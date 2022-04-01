@@ -170,6 +170,8 @@ void FDeferredShadingSceneRenderer::RenderMeshDistanceFieldVisualization(
 
 	for (const FViewInfo& View : Views)
 	{
+		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+
 		auto* PassParameters = GraphBuilder.AllocParameters<FVisualizeDistanceFieldUpsamplePS::FParameters>();
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTextures = SceneTextures.UniformBuffer;
