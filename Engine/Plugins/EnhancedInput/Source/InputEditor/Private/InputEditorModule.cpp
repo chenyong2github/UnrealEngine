@@ -174,7 +174,7 @@ void FInputEditorModule::ShutdownModule()
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.UnregisterCustomClassLayout("InputContext");
 	PropertyModule.UnregisterCustomPropertyTypeLayout("EnhancedActionKeyMapping");
-	PropertyModule.UnregisterCustomClassLayout(UEnhancedInputDeveloperSettings::StaticClass()->GetFName());
+	PropertyModule.UnregisterCustomClassLayout("EnhancedInputDeveloperSettings");
 	PropertyModule.NotifyCustomizationModuleChanged();
 }
 
