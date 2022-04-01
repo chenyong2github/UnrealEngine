@@ -1219,6 +1219,7 @@ public:
 
 	// Begin UObject Interface
 	virtual void Serialize(FArchive& Archive) override;
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	// End UObject Interface
 
 	//Begin UActorComponent Interface
@@ -2875,6 +2876,9 @@ public:
 	/** Packs control rotation for network transport */
 	virtual void GetPackedAngles(uint32& YawAndPitchPack, uint8& RollPack) const;
 
+	/** Allows references to be considered during GC */
+	virtual void AddStructReferencedObjects(FReferenceCollector& Collector) const;
+
 	// Bit masks used by GetCompressedFlags() to encode movement information.
 	enum CompressedFlags
 	{
@@ -2918,10 +2922,15 @@ public:
 
 class ENGINE_API FNetworkPredictionData_Client_Character : public FNetworkPredictionData_Client, protected FNoncopyable
 {
+	using Super = FNetworkPredictionData_Client;
+
 public:
 
 	FNetworkPredictionData_Client_Character(const UCharacterMovementComponent& ClientMovement);
 	virtual ~FNetworkPredictionData_Client_Character();
+
+	/** Allows references to be considered during GC */
+	void AddStructReferencedObjects(FReferenceCollector& Collector) const override;
 
 	/** Client timestamp of last time it sent a servermove() to the server. This is an increasing timestamp from the owning UWorld. Used for holding off on sending movement updates to save bandwidth. */
 	float ClientUpdateTime;

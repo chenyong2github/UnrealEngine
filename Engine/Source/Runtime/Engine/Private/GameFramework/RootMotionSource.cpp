@@ -2270,9 +2270,9 @@ bool FRootMotionSourceGroup::operator!=(const FRootMotionSourceGroup& Other) con
 	return !(FRootMotionSourceGroup::operator==(Other));
 }
 
-void FRootMotionSourceGroup::AddStructReferencedObjects(class FReferenceCollector& Collector)
+void FRootMotionSourceGroup::AddStructReferencedObjects(FReferenceCollector& Collector) const
 {
-	for (TSharedPtr<FRootMotionSource>& RootMotionSource : RootMotionSources)
+	for (const TSharedPtr<FRootMotionSource>& RootMotionSource : RootMotionSources)
 	{
 		if (RootMotionSource.IsValid())
 		{
@@ -2280,7 +2280,7 @@ void FRootMotionSourceGroup::AddStructReferencedObjects(class FReferenceCollecto
 		}
 	}
 
-	for (TSharedPtr<FRootMotionSource>& RootMotionSource : PendingAddRootMotionSources)
+	for (const TSharedPtr<FRootMotionSource>& RootMotionSource : PendingAddRootMotionSources)
 	{
 		if (RootMotionSource.IsValid())
 		{

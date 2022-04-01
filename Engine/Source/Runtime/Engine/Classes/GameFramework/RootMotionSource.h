@@ -878,7 +878,7 @@ struct ENGINE_API FRootMotionSourceGroup
 	bool operator!=(const FRootMotionSourceGroup& Other) const;
 
 	/** Exposes references to GC system */
-	void AddStructReferencedObjects(class FReferenceCollector& Collector);
+	void AddStructReferencedObjects(FReferenceCollector& Collector) const;
 
 protected:
 

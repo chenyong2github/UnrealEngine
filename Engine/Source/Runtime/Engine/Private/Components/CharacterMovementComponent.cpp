@@ -1394,6 +1394,28 @@ void UCharacterMovementComponent::Serialize(FArchive& Archive)
 	}
 }
 
+void UCharacterMovementComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	Super::AddReferencedObjects(InThis, Collector);
+
+	UCharacterMovementComponent* This = CastChecked<UCharacterMovementComponent>(InThis);
+
+	if (This->HasPredictionData_Client())
+	{
+		if (const FNetworkPredictionData_Client* ClientData = This->GetPredictionData_Client())
+		{
+			ClientData->AddStructReferencedObjects(Collector);
+		}
+	}
+	else if (This->HasPredictionData_Server())
+	{
+		if (const FNetworkPredictionData_Server* ServerData = This->GetPredictionData_Server())
+		{
+			ServerData->AddStructReferencedObjects(Collector);
+		}
+	}
+}
+
 void UCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	SCOPED_NAMED_EVENT(UCharacterMovementComponent_TickComponent, FColor::Yellow);
@@ -11466,6 +11488,29 @@ FNetworkPredictionData_Client_Character::~FNetworkPredictionData_Client_Characte
 	LastAckedMove = NULL;
 }
 
+void FNetworkPredictionData_Client_Character::AddStructReferencedObjects(FReferenceCollector& Collector) const
+{
+	Super::AddStructReferencedObjects(Collector);
+
+	for (FSavedMovePtr SavedMove : SavedMoves)
+	{
+		if (const FSavedMove_Character* SavedMovePtr = SavedMove.Get())
+		{
+			SavedMovePtr->AddStructReferencedObjects(Collector);
+		}
+	}
+
+	if (const FSavedMove_Character* PendingMovePtr = PendingMove.Get())
+	{
+		PendingMovePtr->AddStructReferencedObjects(Collector);
+	}
+
+	if (const FSavedMove_Character* LastAckedMovePtr = LastAckedMove.Get())
+	{
+		LastAckedMovePtr->AddStructReferencedObjects(Collector);
+	}
+}
+
 
 FSavedMovePtr FNetworkPredictionData_Client_Character::CreateSavedMove()
 {
@@ -12333,6 +12378,18 @@ uint8 FSavedMove_Character::GetCompressedFlags() const
 
 	return Result;
 }
+
+
+void FSavedMove_Character::AddStructReferencedObjects(FReferenceCollector& Collector) const
+{
+	if (const UAnimMontage* RootMotionMontageRawPtr = RootMotionMontage.Get())
+	{
+		Collector.AddReferencedObject(RootMotionMontageRawPtr);
+	}
+
+	SavedRootMotion.AddStructReferencedObjects(Collector);
+}
+
 
 void UCharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 {

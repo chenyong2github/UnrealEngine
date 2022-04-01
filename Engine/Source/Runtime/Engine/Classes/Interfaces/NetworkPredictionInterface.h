@@ -73,6 +73,9 @@ public:
 	}
 
 	virtual ~FNetworkPredictionData_Client() {}
+
+	/** Can be overridden to allow references to be accounted for during GC */
+	virtual void AddStructReferencedObjects(FReferenceCollector& Collector) const {};
 };
 
 
@@ -100,6 +103,9 @@ public:
 		bTriggeringForcedUpdates = false;
 		bForcedUpdateDurationExceeded = false;
 	}
+
+	/** Can be overridden to allow references to be accounted for during GC */
+	virtual void AddStructReferencedObjects(FReferenceCollector& Collector) const {};
 
 	/** Server clock time when last server move was received or movement was forced to be processed */
 	float ServerTimeStamp;
