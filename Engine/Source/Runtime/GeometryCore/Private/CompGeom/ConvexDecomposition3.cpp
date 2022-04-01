@@ -824,18 +824,25 @@ void FConvexDecomposition3::FConvexPart::ComputeStats()
 	HullError = HullVolume - GeoVolume;
 }
 
-int32 FConvexDecomposition3::SplitWorst(bool bCanSkipUnreliableGeoVolumes)
+int32 FConvexDecomposition3::SplitWorst(bool bCanSkipUnreliableGeoVolumes, double ErrorTolerance)
 {
 	if (Decomposition.Num() == 0)
 	{
 		return 0;
 	}
 
+	double VolumeTolerance = ConvertDistanceToleranceToLocalVolumeTolerance(ErrorTolerance);
+
 	double WorstError = Decomposition[0].HullError;
+	bool bErrorAboveTolerance = VolumeTolerance <= 0 || Decomposition[0].HullError > VolumeTolerance;
 	int32 WorstIdx = 0;
 	bool bCanSkipCurrent = bCanSkipUnreliableGeoVolumes && Decomposition[0].bGeometryVolumeUnreliable;
 	for (int32 PartIdx = 1; PartIdx < Decomposition.Num(); PartIdx++)
 	{
+		if (Decomposition[PartIdx].HullError > VolumeTolerance)
+		{
+			bErrorAboveTolerance = true;
+		}
 		if (Decomposition[PartIdx].HullError > WorstError)
 		{
 			if (bCanSkipUnreliableGeoVolumes && !bCanSkipCurrent && Decomposition[PartIdx].bGeometryVolumeUnreliable)
@@ -846,6 +853,15 @@ int32 FConvexDecomposition3::SplitWorst(bool bCanSkipUnreliableGeoVolumes)
 			WorstError = Decomposition[PartIdx].HullError;
 			bCanSkipCurrent = bCanSkipCurrent && Decomposition[PartIdx].bGeometryVolumeUnreliable;
 		}
+	}
+
+	// Stop splitting if we see no errors above tolerance
+	// Note if bCanSkipUnreliableGeoVolumes==true, we may still split a below-tolerance part
+	//  -- TODO: consider what to do in this case!
+	//		It will just add one extra split currently as we alternate toggling bCanSkipUnreliableGeoVolumes off, but the behavior may be confusing.
+	if (!bErrorAboveTolerance)
+	{
+		return 0;
 	}
 
 	FConvexPart& Part = Decomposition[WorstIdx];
@@ -1167,9 +1183,10 @@ void FConvexDecomposition3::UpdateProximitiesAfterSplit(int32 SplitIdx, int32 Ne
 	}
 }
 
-int32 FConvexDecomposition3::MergeBest(int32 NumMerges/*, double MaxErrorTolerance*/)
+int32 FConvexDecomposition3::MergeBest(int32 NumMerges, double MaxErrorTolerance)
 {
 	// Support having a max error tolerance
+	double VolumeTolerance = ConvertDistanceToleranceToLocalVolumeTolerance(MaxErrorTolerance);
 
 	int32 MergeNum = 0;
 
@@ -1213,7 +1230,7 @@ int32 FConvexDecomposition3::MergeBest(int32 NumMerges/*, double MaxErrorToleran
 		return NewPart;
 	};
 
-	for (; MergeNum < NumMerges; MergeNum++)
+	for (; VolumeTolerance > 0 || MergeNum < NumMerges; MergeNum++)
 	{
 		double BestKnownCost = FMathd::MaxReal;
 		int32 BestKnownIdx = -1;
@@ -1237,6 +1254,11 @@ int32 FConvexDecomposition3::MergeBest(int32 NumMerges/*, double MaxErrorToleran
 				BestKnownCost = MergeCost;
 				BestKnownIdx = ProxIdx;
 			}
+		}
+
+		if (VolumeTolerance > 0 && BestKnownCost > VolumeTolerance)
+		{
+			break;
 		}
 
 		// Perform the best merge and update proximity data

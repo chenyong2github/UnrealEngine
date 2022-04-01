@@ -71,27 +71,42 @@ public:
 	 * 
 	 * @param NumOutputHulls		Number of convex hulls to use in the final convex decomposition
 	 * @param NumAdditionalSplits	How far to go beyond the target number of hulls when initially the mesh into pieces -- larger values will require more computation but can find better convex decompositions
+	 * @param ErrorTolerance		Stop splitting when hulls have error less than this (expressed in cm; will be cubed for volumetric error)
 	 */
-	void Compute(int32 NumOutputHulls, int32 NumAdditionalSplits = 10)
+	void Compute(int32 NumOutputHulls, int32 NumAdditionalSplits = 10, double ErrorTolerance = 0.0)
 	{
-		for (int32 SplitIdx = 0; SplitIdx < NumOutputHulls + NumAdditionalSplits; SplitIdx++)
+		int32 TargetNumSplits = NumOutputHulls + NumAdditionalSplits;
+		for (int32 SplitIdx = 0; SplitIdx < TargetNumSplits; SplitIdx++)
 		{
-			SplitWorst(bool(SplitIdx % 2));
+			int32 NumNewParts = SplitWorst(bool(SplitIdx % 2), ErrorTolerance);
+			if (NumNewParts == 0)
+			{
+				break;
+			}
 		}
 		Compact();
-		MergeBest(NumHulls() - NumOutputHulls);
+		MergeBest(NumHulls() - NumOutputHulls, ErrorTolerance);
 	}
 
 	// Split the worst convex part, and return the increase in the total number of convex parts after splitting (can be more than 1 if result has multiple separate connected components)
 	// Note: could return 0 if no splits were possible
 	// @param bCanSkipUnreliableGeoVolumes		if true, don't split hulls where we have questionable geometry volume results, unless there is no hull with good geometry volume results
-	int32 SplitWorst(bool bCanSkipUnreliableGeoVolumes = false);
+	int32 SplitWorst(bool bCanSkipUnreliableGeoVolumes = false, double ErrorTolerance = 0.0);
 
-	// Merge the pair of convexes in the decomposition that least-increases the error
-	// @param NumMerges			The target number of merges to perform.  Intermediate results can be used across merges, so it is best to do all merges in one call.
-	// @param ErrorTolerance	TODO: Refuse to merge if the resulting error would be greater than this value
-	// @return					The number of merges performed
-	int32 MergeBest(int32 NumMerges/*, double MaxErrorTolerance = FMathd::MaxReal*/);
+	// Merge the pairs of convex hulls in the decomposition that will least increase the error
+	// @param NumMerges				The target number of merges to perform.  Intermediate results can be used across merges, so it is best to do all merges in one call.
+	// @param ErrorTolerance		If > 0, continue to merge (if there are possible merges) until the resulting error would be greater than this value. Overrides NumMerges as the stopping condition.
+	// Note ErrorTolerance is expressed in cm, and will be cubed for volumetric error.
+	// @return						The number of merges performed
+	int32 MergeBest(int32 NumMerges, double ErrorTolerance = 0);
+
+	// simple helper to convert an error tolerance expressed in world space to a local-space volume tolerance
+	inline double ConvertDistanceToleranceToLocalVolumeTolerance(double DistTolerance) const
+	{
+		double LocalDist = DistTolerance / ResultTransform.GetScale().GetMax();
+		double LocalVolume = LocalDist * LocalDist * LocalDist;
+		return LocalVolume;
+	}
 
 	// TODO: Implement a MergeSmall method to provide a way to ensure removal of low-quality parts
 	// Use merges remove convex hulls that are too small or too flat
@@ -138,6 +153,27 @@ public:
 			}
 		}
 		return Vertices;
+	}
+
+	FDynamicMesh3 GetHullMesh(int32 HullIdx) const
+	{
+		FDynamicMesh3 HullMesh;
+		for (int32 VID = 0; VID < Decomposition[HullIdx].InternalGeo.MaxVertexID(); VID++)
+		{
+			if (Decomposition[HullIdx].InternalGeo.IsVertex(VID))
+			{
+				HullMesh.AppendVertex(ResultTransform.TransformPosition(Decomposition[HullIdx].InternalGeo.GetVertex(VID)));
+			}
+			else
+			{
+				HullMesh.AppendVertex(FVector3d::ZeroVector);
+			}
+		}
+		for (const FIndex3i& Tri : Decomposition[HullIdx].HullTriangles)
+		{
+			HullMesh.AppendTriangle(Tri);
+		}
+		return HullMesh;
 	}
 
 	// Get the non-hull geometry underlying a part of the convex decomposition
