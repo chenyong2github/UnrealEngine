@@ -204,7 +204,7 @@ bool UPCGUnionData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& Out
 				// Merge properties into OutPoint
 				if (OutMetadata)
 				{
-					OutMetadata->MergeAttributes(OutPoint, PointInData, OutPoint, EPCGMetadataOp::Max);
+					OutMetadata->MergePointAttributes(OutPoint, PointInData, OutPoint, EPCGMetadataOp::Max);
 				}
 			}
 			
@@ -272,7 +272,7 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 
 				if (PointData->Metadata && DatumPointData->GetPoints().Num() > 0)
 				{
-					PointData->Metadata->SetAttributes(MakeArrayView(DatumPointData->GetPoints()), DatumPointData->Metadata, MakeArrayView(&TargetPoints[TargetPointIndex], DatumPointData->GetPoints().Num()));
+					PointData->Metadata->SetPointAttributes(MakeArrayView(DatumPointData->GetPoints()), DatumPointData->Metadata, MakeArrayView(&TargetPoints[TargetPointIndex], DatumPointData->GetPoints().Num()));
 				}
 			}
 
@@ -343,7 +343,7 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 			{
 				UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, PointData->Metadata);
 				// Since we can't inherit from the parent point, we'll set the values directly here
-				PointData->Metadata->SetAttributes(Point, Data[DataIndex]->Metadata, OutPoint);
+				PointData->Metadata->SetPointAttributes(Point, Data[DataIndex]->Metadata, OutPoint);
 			}
 
 			if (DensityFunction == EPCGUnionDensityFunction::Binary && OutPoint.Density > 0)
@@ -370,7 +370,7 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 
 					if (PointData->Metadata)
 					{
-						PointData->Metadata->MergeAttributes(OutPoint, PointInData, OutPoint, EPCGMetadataOp::Max);
+						PointData->Metadata->MergePointAttributes(OutPoint, PointInData, OutPoint, EPCGMetadataOp::Max);
 					}
 					else if (OutPoint.Density >= 1.0f)
 					{

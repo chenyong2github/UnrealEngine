@@ -104,14 +104,30 @@ public:
 	void SetAttributes(const TArrayView<PCGMetadataEntryKey>& InKeys, const UPCGMetadata* InMetadata, const TArrayView<PCGMetadataEntryKey>& OutKeys);
 
 	/** Attributes operations - shorthand for points */
-	void MergeAttributes(const FPCGPoint& InPointA, const FPCGPoint& InPointB, FPCGPoint& OutPoint, EPCGMetadataOp Op);
-	void MergeAttributes(const FPCGPoint& InPointA, const UPCGMetadata* InMetadataA, const FPCGPoint& InPointB, const UPCGMetadata* InMetadataB, FPCGPoint& OutPoint, EPCGMetadataOp Op);
+	void MergePointAttributes(const FPCGPoint& InPointA, const FPCGPoint& InPointB, FPCGPoint& OutPoint, EPCGMetadataOp Op);
+	void SetPointAttributes(const TArrayView<const FPCGPoint>& InPoints, const UPCGMetadata* InMetadata, const TArrayView<FPCGPoint>& OutPoints);
 
-	void ResetWeightedAttributes(FPCGPoint& OutPoint);
-	void AccumulateWeightedAttributes(const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, float Weight, bool bSetNonInterpolableAttributes, FPCGPoint& OutPoint);
+	/** Blueprint-friend versions */
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void MergeAttributesByKey(int64 KeyA, const UPCGMetadata* MetadataA, int64 KeyB, const UPCGMetadata* MetadataB, int64 TargetKey, EPCGMetadataOp Op, int64& OutKey);
 
-	void SetAttributes(const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, FPCGPoint& OutPoint);
-	void SetAttributes(const TArrayView<const FPCGPoint>& InPoints, const UPCGMetadata* InMetadata, const TArrayView<FPCGPoint>& OutPoints);
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void ResetWeightedAttributesByKey(int64 TargetKey, int64& OutKey);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void AccumulateWeightedAttributesByKey(int64 Key, const UPCGMetadata* Metadata, float Weight, bool bSetNonInterpolableAttributes, int64 TargetKey, int64& OutKey);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void MergePointAttributes(const FPCGPoint& PointA, const UPCGMetadata* MetadataA, const FPCGPoint& PointB, const UPCGMetadata* MetadataB, UPARAM(ref) FPCGPoint& TargetPoint, EPCGMetadataOp Op);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void SetPointAttributes(const FPCGPoint& Point, const UPCGMetadata* Metadata, UPARAM(ref) FPCGPoint& OutPoint);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void ResetPointWeightedAttributes(FPCGPoint& OutPoint);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void AccumulatePointWeightedAttributes(const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, float Weight, bool bSetNonInterpolableAttributes, UPARAM(ref) FPCGPoint& OutPoint);
 
 protected:
 	template<typename T>

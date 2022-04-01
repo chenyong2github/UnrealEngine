@@ -112,7 +112,7 @@ bool UPCGProjectionData::GetPointAtPosition(const FVector& InPosition, FPCGPoint
 	if (OutMetadata)
 	{
 		//METADATA TODO Review op
-		OutMetadata->MergeAttributes(PointFromSource, PointFromTarget, OutPoint, EPCGMetadataOp::Max);
+		OutMetadata->MergePointAttributes(PointFromSource, PointFromTarget, OutPoint, EPCGMetadataOp::Max);
 	}
 
 	return true;
@@ -160,7 +160,7 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 		if (PointData->Metadata)
 		{
 			//METADATA TODO review op
-			PointData->Metadata->MergeAttributes(SourcePoint, SourcePointData->Metadata, PointFromTarget, PointData->Metadata, OutPoint, EPCGMetadataOp::Max);
+			PointData->Metadata->MergePointAttributes(SourcePoint, SourcePointData->Metadata, PointFromTarget, PointData->Metadata, OutPoint, EPCGMetadataOp::Max);
 		}
 
 		return true;

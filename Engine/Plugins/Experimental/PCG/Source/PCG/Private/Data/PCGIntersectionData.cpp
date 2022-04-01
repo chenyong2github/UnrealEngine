@@ -119,7 +119,7 @@ bool UPCGIntersectionData::GetPointAtPosition(const FVector& InPosition, FPCGPoi
 
 	if (OutMetadata)
 	{
-		OutMetadata->MergeAttributes(PointFromX, PointFromY, OutPoint, EPCGMetadataOp::Min);
+		OutMetadata->MergePointAttributes(PointFromX, PointFromY, OutPoint, EPCGMetadataOp::Min);
 	}
 
 	return true;
@@ -190,7 +190,7 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(FPCGContext* Conte
 
 		if (Data->Metadata)
 		{
-			Data->Metadata->MergeAttributes(Point, SourcePointData->Metadata, PointFromY, Data->Metadata, OutPoint, EPCGMetadataOp::Min);
+			Data->Metadata->MergePointAttributes(Point, SourcePointData->Metadata, PointFromY, Data->Metadata, OutPoint, EPCGMetadataOp::Min);
 		}
 
 		return true;

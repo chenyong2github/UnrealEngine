@@ -36,6 +36,7 @@ namespace PCG
 			enum { CompressData = false };
 			enum { CanMinMax = true };
 			enum { CanSubAdd = true };
+			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
 			
 			static T Min(const T& A, const T& B)
@@ -58,6 +59,16 @@ namespace PCG
 				return A - B;
 			}
 
+			static T Mul(const T& A, const T& B)
+			{
+				return A * B;
+			}
+
+			static T Div(const T& A, const T& B)
+			{
+				return A / B;
+			}
+
 			static T WeightedSum(const T& A, const T& B, float Weight)
 			{
 				return A + B * Weight;
@@ -75,6 +86,7 @@ namespace PCG
 			enum { CompressData = false };
 			enum { CanMinMax = true };
 			enum { CanSubAdd = true };
+			enum { CanMulDiv = false };
 			enum { CanInterpolate = false };
 
 			static bool Min(const bool& A, const bool& B)
@@ -105,6 +117,7 @@ namespace PCG
 			enum { CompressData = false };
 			enum { CanMinMax = true };
 			enum { CanSubAdd = true };
+			enum { CanMulDiv = true };
 			enum { CanInterpolate = true};
 
 			static FVector Min(const FVector& A, const FVector& B) 
@@ -127,6 +140,16 @@ namespace PCG
 				return A - B;
 			}
 
+			static FVector Mul(const FVector& A, const FVector& B)
+			{
+				return A * B;
+			}
+
+			static FVector Div(const FVector& A, const FVector& B)
+			{
+				return A / B;
+			}
+
 			static FVector WeightedSum(const FVector& A, const FVector& B, float Weight)
 			{
 				return A + B * Weight;
@@ -144,6 +167,7 @@ namespace PCG
 			enum { CompressData = false };
 			enum { CanMinMax = true };
 			enum { CanSubAdd = true };
+			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
 
 			static FVector4 Min(const FVector4& A, const FVector4& B)
@@ -166,6 +190,16 @@ namespace PCG
 				return A - B;
 			}
 
+			static FVector4 Mul(const FVector& A, const FVector4& B)
+			{
+				return A * B;
+			}
+
+			static FVector4 Div(const FVector& A, const FVector4& B)
+			{
+				return A / B;
+			}
+
 			static FVector4 WeightedSum(const FVector4& A, const FVector4& B, float Weight)
 			{
 				return A + B * Weight;
@@ -184,6 +218,7 @@ namespace PCG
 			enum { CompressData = false };
 			enum { CanMinMax = false };
 			enum { CanSubAdd = true };
+			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
 
 			static FQuat Add(const FQuat& A, const FQuat& B)
@@ -192,6 +227,16 @@ namespace PCG
 			}
 
 			static FQuat Sub(const FQuat& A, const FQuat& B)
+			{
+				return A * B.Inverse();
+			}
+
+			static FQuat Mul(const FQuat& A, const FQuat& B)
+			{
+				return A * B;
+			}
+
+			static FQuat Div(const FQuat& A, const FQuat& B)
 			{
 				return A * B.Inverse();
 			}
@@ -220,6 +265,7 @@ namespace PCG
 			enum { CompressData = false };
 			enum { CanMinMax = false };
 			enum { CanSubAdd = true };
+			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
 
 			static FTransform Add(const FTransform& A, const FTransform& B)
@@ -228,6 +274,16 @@ namespace PCG
 			}
 
 			static FTransform Sub(const FTransform& A, const FTransform& B)
+			{
+				return A * B.Inverse();
+			}
+
+			static FTransform Mul(const FTransform& A, const FTransform& B)
+			{
+				return A * B;
+			}
+
+			static FTransform Div(const FTransform& A, const FTransform& B)
 			{
 				return A * B.Inverse();
 			}
@@ -264,6 +320,7 @@ namespace PCG
 			enum { CompressData = true };
 			enum { CanMinMax = false };
 			enum { CanSubAdd = false };
+			enum { CanMulAdd = false };
 			enum { CanInterpolate = false };
 		};
 	}

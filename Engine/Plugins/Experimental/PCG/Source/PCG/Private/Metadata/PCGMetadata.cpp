@@ -364,14 +364,9 @@ PCGMetadataEntryKey UPCGMetadata::GetParentKey(PCGMetadataEntryKey LocalItemKey)
 	}
 }
 
-void UPCGMetadata::MergeAttributes(const FPCGPoint& InPointA, const FPCGPoint& InPointB, FPCGPoint& OutPoint, EPCGMetadataOp Op)
+void UPCGMetadata::MergePointAttributes(const FPCGPoint& InPointA, const FPCGPoint& InPointB, FPCGPoint& OutPoint, EPCGMetadataOp Op)
 {
 	MergeAttributes(InPointA.MetadataEntry, this, InPointB.MetadataEntry, this, OutPoint.MetadataEntry, Op);
-}
-
-void UPCGMetadata::MergeAttributes(const FPCGPoint& InPointA, const UPCGMetadata* InMetadataA, const FPCGPoint& InPointB, const UPCGMetadata* InMetadataB, FPCGPoint& OutPoint, EPCGMetadataOp Op)
-{
-	MergeAttributes(InPointA.MetadataEntry, InMetadataA, InPointB.MetadataEntry, InMetadataB, OutPoint.MetadataEntry, Op);
 }
 
 void UPCGMetadata::MergeAttributes(PCGMetadataEntryKey InKeyA, const UPCGMetadata* InMetadataA, PCGMetadataEntryKey InKeyB, const UPCGMetadata* InMetadataB, PCGMetadataEntryKey& OutKey, EPCGMetadataOp Op)
@@ -417,11 +412,6 @@ void UPCGMetadata::MergeAttributes(PCGMetadataEntryKey InKeyA, const UPCGMetadat
 	AttributeLock.ReadUnlock();
 }
 
-void UPCGMetadata::ResetWeightedAttributes(FPCGPoint& OutPoint)
-{
-	ResetWeightedAttributes(OutPoint.MetadataEntry);
-}
-
 void UPCGMetadata::ResetWeightedAttributes(PCGMetadataEntryKey& OutKey)
 {
 	InitializeOnSet(OutKey);
@@ -437,11 +427,6 @@ void UPCGMetadata::ResetWeightedAttributes(PCGMetadataEntryKey& OutKey)
 		}
 	}
 	AttributeLock.ReadUnlock();
-}
-
-void UPCGMetadata::AccumulateWeightedAttributes(const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, float Weight, bool bSetNonInterpolableAttributes, FPCGPoint& OutPoint)
-{
-	AccumulateWeightedAttributes(InPoint.MetadataEntry, InMetadata, Weight, bSetNonInterpolableAttributes, OutPoint.MetadataEntry);
 }
 
 void UPCGMetadata::AccumulateWeightedAttributes(PCGMetadataEntryKey InKey, const UPCGMetadata* InMetadata, float Weight, bool bSetNonInterpolableAttributes, PCGMetadataEntryKey& OutKey)
@@ -482,11 +467,6 @@ void UPCGMetadata::AccumulateWeightedAttributes(PCGMetadataEntryKey InKey, const
 	AttributeLock.ReadUnlock();
 }
 
-void UPCGMetadata::SetAttributes(const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, FPCGPoint& OutPoint)
-{
-	SetAttributes(InPoint.MetadataEntry, InMetadata, OutPoint.MetadataEntry);
-}
-
 void UPCGMetadata::SetAttributes(PCGMetadataEntryKey InKey, const UPCGMetadata* InMetadata, PCGMetadataEntryKey& OutKey)
 {
 	if (!InMetadata)
@@ -520,7 +500,7 @@ void UPCGMetadata::SetAttributes(PCGMetadataEntryKey InKey, const UPCGMetadata* 
 	AttributeLock.ReadUnlock();
 }
 
-void UPCGMetadata::SetAttributes(const TArrayView<const FPCGPoint>& InPoints, const UPCGMetadata* InMetadata, const TArrayView<FPCGPoint>& OutPoints)
+void UPCGMetadata::SetPointAttributes(const TArrayView<const FPCGPoint>& InPoints, const UPCGMetadata* InMetadata, const TArrayView<FPCGPoint>& OutPoints)
 {
 	if (!InMetadata)
 	{
@@ -597,4 +577,42 @@ void UPCGMetadata::SetAttributes(const TArrayView<PCGMetadataEntryKey>& InKeys, 
 		}
 	}
 	AttributeLock.ReadUnlock();
+}
+
+void UPCGMetadata::MergeAttributesByKey(int64 KeyA, const UPCGMetadata* MetadataA, int64 KeyB, const UPCGMetadata* MetadataB, int64 TargetKey, EPCGMetadataOp Op, int64& OutKey)
+{
+	OutKey = TargetKey;
+	MergeAttributes(KeyA, MetadataA, KeyB, MetadataB, OutKey, Op);
+}
+
+void UPCGMetadata::ResetWeightedAttributesByKey(int64 TargetKey, int64& OutKey)
+{
+	OutKey = TargetKey;
+	ResetWeightedAttributes(OutKey);
+}
+
+void UPCGMetadata::AccumulateWeightedAttributesByKey(PCGMetadataEntryKey Key, const UPCGMetadata* Metadata, float Weight, bool bSetNonInterpolableAttributes, int64 TargetKey, int64& OutKey)
+{
+	OutKey = TargetKey;
+	AccumulateWeightedAttributes(Key, Metadata, Weight, bSetNonInterpolableAttributes, OutKey);
+}
+
+void UPCGMetadata::MergePointAttributes(const FPCGPoint& PointA, const UPCGMetadata* MetadataA, const FPCGPoint& PointB, const UPCGMetadata* MetadataB, UPARAM(ref) FPCGPoint& TargetPoint, EPCGMetadataOp Op)
+{
+	MergeAttributes(PointA.MetadataEntry, MetadataA, PointB.MetadataEntry, MetadataB, TargetPoint.MetadataEntry, Op);
+}
+
+void UPCGMetadata::SetPointAttributes(const FPCGPoint& Point, const UPCGMetadata* Metadata, FPCGPoint& OutPoint)
+{
+	SetAttributes(Point.MetadataEntry, Metadata, OutPoint.MetadataEntry);
+}
+
+void UPCGMetadata::ResetPointWeightedAttributes(FPCGPoint& OutPoint)
+{
+	ResetWeightedAttributes(OutPoint.MetadataEntry);
+}
+
+void UPCGMetadata::AccumulatePointWeightedAttributes(const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, float Weight, bool bSetNonInterpolableAttributes, FPCGPoint& OutPoint)
+{
+	AccumulateWeightedAttributes(InPoint.MetadataEntry, InMetadata, Weight, bSetNonInterpolableAttributes, OutPoint.MetadataEntry);
 }

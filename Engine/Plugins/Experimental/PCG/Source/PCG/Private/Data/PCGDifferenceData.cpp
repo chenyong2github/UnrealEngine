@@ -172,7 +172,7 @@ bool UPCGDifferenceData::GetPointAtPosition(const FVector& InPosition, FPCGPoint
 		// Color?
 		if (OutMetadata && OutPoint.Density > 0)
 		{
-			OutMetadata->MergeAttributes(PointFromSource, PointFromDiff, OutPoint, EPCGMetadataOp::Sub);
+			OutMetadata->MergePointAttributes(PointFromSource, PointFromDiff, OutPoint, EPCGMetadataOp::Sub);
 		}
 
 		return OutPoint.Density > 0;
@@ -229,7 +229,7 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) c
 
 			if (Data->Metadata && OutPoint.Density > 0)
 			{
-				Data->Metadata->MergeAttributes(Point, SourcePointData->Metadata, PointFromDiff, Data->Metadata, OutPoint, EPCGMetadataOp::Sub);
+				Data->Metadata->MergePointAttributes(Point, SourcePointData->Metadata, PointFromDiff, Data->Metadata, OutPoint, EPCGMetadataOp::Sub);
 			}
 
 #if WITH_EDITORONLY_DATA

@@ -171,6 +171,19 @@ void UPCGPointData::InitializeFromActor(AActor* InActor)
 	Metadata = NewObject<UPCGMetadata>(this);
 }
 
+FPCGPoint UPCGPointData::GetPoint(int32 Index) const
+{
+	if (Points.IsValidIndex(Index))
+	{
+		return Points[Index];
+	}
+	else
+	{
+		UE_LOG(LogPCG, Error, TEXT("Invalid index in GetPoint call"));
+		return FPCGPoint();
+	}
+}
+
 const FPCGPoint* UPCGPointData::GetPointAtPosition(const FVector& InPosition) const
 {
 	if (bOctreeIsDirty)
@@ -318,7 +331,7 @@ bool UPCGPointData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& Out
 	if (OutMetadata)
 	{
 		UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, OutMetadata, *MaxContributor, Metadata);
-		OutMetadata->ResetWeightedAttributes(OutPoint);
+		OutMetadata->ResetPointWeightedAttributes(OutPoint);
 
 		for (const TPair<const FPCGPoint*, float> Contribution : Contributions)
 		{
@@ -326,7 +339,7 @@ bool UPCGPointData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& Out
 			const float Weight = Contribution.Value / SumContributions;
 			const bool bIsMaxContributor = (Contribution.Key == MaxContributor);
 
-			OutMetadata->AccumulateWeightedAttributes(SourcePoint, Metadata, Weight, bIsMaxContributor, OutPoint);
+			OutMetadata->AccumulatePointWeightedAttributes(SourcePoint, Metadata, Weight, bIsMaxContributor, OutPoint);
 		}
 	}
 

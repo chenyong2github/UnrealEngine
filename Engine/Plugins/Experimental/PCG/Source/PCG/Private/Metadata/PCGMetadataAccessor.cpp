@@ -162,7 +162,7 @@ void UPCGMetadataAccessorHelpers::CopyPoint(const FPCGPoint& InPoint, FPCGPoint&
 		// Otherwise, we will assume that the point is parented
 		if (InMetadata)
 		{
-			OutMetadata->SetAttributes(InPoint, InMetadata, OutPoint);
+			OutMetadata->SetPointAttributes(InPoint, InMetadata, OutPoint);
 		}
 	}
 	else

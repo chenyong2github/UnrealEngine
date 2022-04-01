@@ -74,6 +74,9 @@ public:
 	const TArray<FPCGPoint>& GetPoints() const { return Points; }
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
+	FPCGPoint GetPoint(int32 Index) const;
+
+	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	void SetPoints(const TArray<FPCGPoint>& InPoints);
 	
 	UFUNCTION(BlueprintCallable, Category = SpatialData)

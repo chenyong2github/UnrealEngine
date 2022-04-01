@@ -72,6 +72,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const;
 
+	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual bool GetPointAtPosition(const FVector& InPosition, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 	{
 		OutPoint.Transform = FTransform(InPosition);
