@@ -145,6 +145,8 @@ FDataLayerMode::FDataLayerMode(const FDataLayerModeParams& Params)
 
 FDataLayerMode::~FDataLayerMode()
 {
+	UnregisterContextMenu();
+
 	USelection::SelectionChangedEvent.RemoveAll(this);
 	USelection::SelectObjectEvent.RemoveAll(this);
 }
@@ -1198,6 +1200,13 @@ void FDataLayerMode::RegisterContextMenu()
 	{
 		ToolMenus->RegisterMenu(DefaultContextMenuName, DefaultContextBaseMenuName);
 	}
+}
+
+void FDataLayerMode::UnregisterContextMenu()
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	ToolMenus->RemoveMenu(DefaultContextBaseMenuName);
+	ToolMenus->RemoveMenu(DefaultContextMenuName);
 }
 
 TSharedPtr<SWidget> FDataLayerMode::CreateContextMenu()

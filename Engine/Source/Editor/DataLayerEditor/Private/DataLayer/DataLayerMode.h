@@ -96,6 +96,7 @@ protected:
 private:
 	/* Private Helpers */
 	void RegisterContextMenu();
+	void UnregisterContextMenu();
 	void ChooseRepresentingWorld();
 	void OnSelectWorld(TWeakObjectPtr<UWorld> World);
 	bool IsWorldChecked(TWeakObjectPtr<UWorld> World) const;
