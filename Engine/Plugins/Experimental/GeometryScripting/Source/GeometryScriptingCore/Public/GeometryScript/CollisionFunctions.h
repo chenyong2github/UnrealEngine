@@ -67,6 +67,15 @@ public:
 	int ConvexHullTargetFaceCount = 25;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
+	int MaxConvexHullsPerMesh = 1;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float ConvexDecompositionSearchFactor = .5f;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float ConvexDecompositionErrorTolerance = 0;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
 	float SweptHullSimplifyTolerance = 0.1;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)

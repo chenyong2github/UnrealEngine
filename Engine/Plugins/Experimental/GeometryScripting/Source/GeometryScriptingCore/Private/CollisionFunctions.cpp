@@ -92,7 +92,17 @@ void ComputeCollisionFromMesh(
 	case EGeometryScriptCollisionGenerationMethod::ConvexHulls:
 		ShapeGenerator.bSimplifyHulls = Options.bSimplifyHulls;
 		ShapeGenerator.HullTargetFaceCount = Options.ConvexHullTargetFaceCount;
-		ShapeGenerator.Generate_ConvexHulls(NewCollision.Geometry);
+		if (Options.MaxConvexHullsPerMesh > 1)
+		{
+			ShapeGenerator.ConvexDecompositionMaxPieces = Options.MaxConvexHullsPerMesh;
+			ShapeGenerator.ConvexDecompositionSearchFactor = Options.ConvexDecompositionSearchFactor;
+			ShapeGenerator.ConvexDecompositionErrorTolerance = Options.ConvexDecompositionErrorTolerance;
+			ShapeGenerator.Generate_ConvexHullDecompositions(NewCollision.Geometry);
+		}
+		else
+		{
+			ShapeGenerator.Generate_ConvexHulls(NewCollision.Geometry);
+		}
 		break;
 	case EGeometryScriptCollisionGenerationMethod::SweptHulls:
 		ShapeGenerator.bSimplifyHulls = Options.bSimplifyHulls;

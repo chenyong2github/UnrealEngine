@@ -66,7 +66,11 @@ public:
 	 */
 	bool Compute(FProgressCancel* Progress = nullptr);
 
-
+	/**
+	 * Simplify the output convex hull. Assumes ConvexHull is already computed.
+	 * @return true on success
+	 */
+	static bool SimplifyHull(FDynamicMesh3& HullMesh, int32 MaxTargetFaceCount, FProgressCancel* Progress = nullptr);
 
 protected:
 	bool Compute_FullMesh(FProgressCancel* Progress);

@@ -6,6 +6,7 @@
 #include "MinVolumeSphere3.h"
 #include "MinVolumeBox3.h"
 #include "FitCapsule3.h"
+#include "CompGeom/ConvexDecomposition3.h"
 //#include "DynamicMesh/DynamicMeshAABBTree3.h"
 
 #include "ShapeApproximation/ShapeDetection3.h"
@@ -295,10 +296,46 @@ void FMeshSimpleShapeApproximation::Generate_ConvexHulls(FSimpleShapeSet3d& Shap
 
 		if (Hull.Compute(Progress))
 		{
-			FConvexShape3d NewConvex;
-			NewConvex.Mesh = MoveTemp(Hull.ConvexHull);
 			GeometryLock.Lock();
-			ShapeSetOut.Convexes.Add(NewConvex);
+			ShapeSetOut.Convexes.Emplace(MoveTemp(Hull.ConvexHull));
+			GeometryLock.Unlock();
+		}
+	});
+}
+
+
+
+void FMeshSimpleShapeApproximation::Generate_ConvexHullDecompositions(FSimpleShapeSet3d& ShapeSetOut, FProgressCancel* Progress)
+{
+	FCriticalSection GeometryLock;
+	ParallelFor(SourceMeshes.Num(), [&](int32 idx)
+	{
+		if (GetDetectedSimpleShape(SourceMeshCaches[idx], ShapeSetOut, GeometryLock))
+		{
+			return;
+		}
+
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+
+		const FDynamicMesh3& SourceMesh = *SourceMeshes[idx];
+		// TODO: if (bSimplifyHulls), also consider simplifying the input?
+		FConvexDecomposition3 Decomposition(SourceMesh);
+
+		Decomposition.Compute(ConvexDecompositionMaxPieces, ConvexDecompositionMaxPieces * ConvexDecompositionSearchFactor, ConvexDecompositionErrorTolerance);
+
+		for (int32 HullIdx = 0; HullIdx < Decomposition.NumHulls(); HullIdx++)
+		{
+			FDynamicMesh3 HullMesh = Decomposition.GetHullMesh(HullIdx);
+			if (!FMeshConvexHull::SimplifyHull(HullMesh, HullTargetFaceCount, Progress))
+			{
+				return;
+			}
+
+			GeometryLock.Lock();
+			ShapeSetOut.Convexes.Emplace(MoveTemp(HullMesh));
 			GeometryLock.Unlock();
 		}
 	});

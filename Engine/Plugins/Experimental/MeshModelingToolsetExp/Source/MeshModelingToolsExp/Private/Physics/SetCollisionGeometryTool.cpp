@@ -117,6 +117,9 @@ void USetCollisionGeometryTool::Setup()
 	Settings->WatchProperty(Settings->bDetectCapsules, [this](int32) { bResultValid = false; });
 	Settings->WatchProperty(Settings->bSimplifyHulls, [this](bool) { bResultValid = false; });
 	Settings->WatchProperty(Settings->HullTargetFaceCount, [this](int32) { bResultValid = false; });
+	Settings->WatchProperty(Settings->MaxHullsPerMesh, [this](int32) { bResultValid = false; });
+	Settings->WatchProperty(Settings->ConvexDecompositionSearchFactor, [this](int32) { bResultValid = false; });
+	Settings->WatchProperty(Settings->AddHullsErrorTolerance, [this](int32) { bResultValid = false; });
 	Settings->WatchProperty(Settings->bSimplifyPolygons, [this](bool) { bResultValid = false; });
 	Settings->WatchProperty(Settings->HullTolerance, [this](float) { bResultValid = false; });
 	Settings->WatchProperty(Settings->SweepAxis, [this](EProjectedHullAxis) { bResultValid = false; });
@@ -358,7 +361,17 @@ void USetCollisionGeometryTool::UpdateGeneratedCollision()
 	case ECollisionGeometryType::ConvexHulls:
 		UseShapeGenerator->bSimplifyHulls = Settings->bSimplifyHulls;
 		UseShapeGenerator->HullTargetFaceCount = Settings->HullTargetFaceCount;
-		UseShapeGenerator->Generate_ConvexHulls(NewCollision->Geometry);
+		if (Settings->MaxHullsPerMesh > 1)
+		{
+			UseShapeGenerator->ConvexDecompositionMaxPieces = Settings->MaxHullsPerMesh;
+			UseShapeGenerator->ConvexDecompositionSearchFactor = Settings->ConvexDecompositionSearchFactor;
+			UseShapeGenerator->ConvexDecompositionErrorTolerance = Settings->AddHullsErrorTolerance;
+			UseShapeGenerator->Generate_ConvexHullDecompositions(NewCollision->Geometry);
+		}
+		else
+		{
+			UseShapeGenerator->Generate_ConvexHulls(NewCollision->Geometry);
+		}
 		break;
 	case ECollisionGeometryType::SweptHulls:
 		UseShapeGenerator->bSimplifyHulls = Settings->bSimplifyPolygons;

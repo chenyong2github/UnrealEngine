@@ -28,34 +28,48 @@ bool FMeshConvexHull::Compute(FProgressCancel* Progress)
 
 	if (bPostSimplify)
 	{
-		check(MaxTargetFaceCount > 0);
-		bool bSimplified = false;
-		if (ConvexHull.TriangleCount() > MaxTargetFaceCount)
-		{
-			FVolPresMeshSimplification Simplifier(&ConvexHull);
-			Simplifier.CollapseMode = FVolPresMeshSimplification::ESimplificationCollapseModes::MinimalExistingVertexError;
-			Simplifier.SimplifyToTriangleCount(MaxTargetFaceCount);
-			bSimplified = true;
-		}
-
-
-		if (bSimplified)
-		{
-			// recalculate convex hull
-			// TODO: test if simplified mesh is convex first, can just re-use in that case!!
-			FMeshConvexHull SimplifiedHull(&ConvexHull);
-			if (SimplifiedHull.Compute(Progress))
-			{
-				ConvexHull = MoveTemp(SimplifiedHull.ConvexHull);
-			}
-		}
-
+		bOK = SimplifyHull(ConvexHull, MaxTargetFaceCount, Progress);
 	}
 
 	return bOK;
 }
 
 
+bool FMeshConvexHull::SimplifyHull(FDynamicMesh3& HullMesh, int32 MaxTargetFaceCount, FProgressCancel* Progress)
+{
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
+	check(MaxTargetFaceCount > 0);
+	bool bSimplified = false;
+	if (HullMesh.TriangleCount() > MaxTargetFaceCount)
+	{
+		FVolPresMeshSimplification Simplifier(&HullMesh);
+		Simplifier.CollapseMode = FVolPresMeshSimplification::ESimplificationCollapseModes::MinimalExistingVertexError;
+		Simplifier.SimplifyToTriangleCount(MaxTargetFaceCount);
+		bSimplified = true;
+	}
+
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
+	if (bSimplified)
+	{
+		// recalculate convex hull
+		// TODO: test if simplified mesh is convex first, can just re-use in that case!!
+		FMeshConvexHull SimplifiedHull(&HullMesh);
+		if (SimplifiedHull.Compute(Progress))
+		{
+			HullMesh = MoveTemp(SimplifiedHull.ConvexHull);
+		}
+	}
+
+	return true;
+}
 
 
 
