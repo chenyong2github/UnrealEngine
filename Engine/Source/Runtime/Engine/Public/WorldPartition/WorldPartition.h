@@ -5,6 +5,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/Optional.h"
 #include "GameFramework/Actor.h"
 #include "Templates/SubclassOf.h"
 #include "WorldPartition/WorldPartitionLog.h"
@@ -184,7 +185,8 @@ public:
 	virtual void Uninitialize() override;
 
 	bool IsMainWorldPartition() const;
-	const FTransform& GetInstanceTransform() const { return InstanceTransform; }
+	const FTransform& GetInstanceTransform() const;
+	const FTransform* GetInstanceTransformPtr() const;
 
 	void Tick(float DeltaSeconds);
 	void UpdateStreamingState();
@@ -209,11 +211,11 @@ public:
 
 	IWorldPartitionEditor* WorldPartitionEditor;
 
+private:
 	/** Class of WorldPartitionStreamingPolicy to be used to manage world partition streaming. */
 	UPROPERTY()
 	TSubclassOf<UWorldPartitionStreamingPolicy> WorldPartitionStreamingPolicyClass;
 
-private:
 	/** Enables streaming for this world. */
 	UPROPERTY()
 	bool bEnableStreaming;
@@ -252,7 +254,7 @@ public:
 
 private:
 	EWorldPartitionInitState InitState;
-	FTransform InstanceTransform;
+	TOptional<FTransform> InstanceTransform;
 
 	UPROPERTY()
 	mutable TObjectPtr<UWorldPartitionStreamingPolicy> StreamingPolicy;

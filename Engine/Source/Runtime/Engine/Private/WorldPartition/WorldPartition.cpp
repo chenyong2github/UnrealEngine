@@ -266,7 +266,6 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, bIsPIE(false)
 #endif
 	, InitState(EWorldPartitionInitState::Uninitialized)
-	, InstanceTransform(FTransform::Identity)
 	, StreamingPolicy(nullptr)
 #if !UE_BUILD_SHIPPING
 	, Replay(nullptr)
@@ -366,7 +365,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 {
 	UE_SCOPED_TIMER(TEXT("WorldPartition initialize"), LogWorldPartition, Display);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartition::Initialize);
-	
+
 	check(!World || (World == InWorld));
 	if (!ensure(!IsInitialized()))
 	{
@@ -380,7 +379,11 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	check(InWorld);
 	World = InWorld;
-	InstanceTransform = InTransform;
+
+	if (!InTransform.Equals(FTransform::Identity))
+	{
+		InstanceTransform = InTransform;
+	}
 
 	check(InitState == EWorldPartitionInitState::Uninitialized);
 	InitState = EWorldPartitionInitState::Initializing;
@@ -463,7 +466,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 					InstancingContext.AddMapping(*LongActorPackageName, *InstancedName);
 
-					ActorDescIterator->TransformInstance(SourceWorldPath, RemappedWorldPath, InstanceTransform);
+					ActorDescIterator->TransformInstance(SourceWorldPath, RemappedWorldPath, GetInstanceTransform());
 				}
 
 				ActorDescIterator->bIsForcedNonSpatiallyLoaded = !IsStreamingEnabled();
@@ -613,6 +616,20 @@ bool UWorldPartition::IsMainWorldPartition() const
 {
 	check(World);
 	return World == GetTypedOuter<UWorld>();
+}
+
+const FTransform& UWorldPartition::GetInstanceTransform() const
+{
+	if (const FTransform* TransformPtr = GetInstanceTransformPtr())
+	{
+		return *TransformPtr;
+	}
+	return FTransform::Identity;
+}
+
+const FTransform* UWorldPartition::GetInstanceTransformPtr() const
+{
+	return InstanceTransform.IsSet() ? &InstanceTransform.GetValue() : nullptr;
 }
 
 void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Rot)
@@ -1117,7 +1134,7 @@ void UWorldPartition::OnActorDescRegistered(const FWorldPartitionActorDesc& Acto
 {
 	AActor* Actor = ActorDesc.GetActor();
 	check(Actor);
-	Actor->GetLevel()->AddLoadedActor(Actor, !InstanceTransform.Equals(FTransform::Identity) ? &InstanceTransform : nullptr);
+	Actor->GetLevel()->AddLoadedActor(Actor, GetInstanceTransformPtr());
 }
 
 void UWorldPartition::OnActorDescUnregistered(const FWorldPartitionActorDesc& ActorDesc) 
@@ -1125,7 +1142,7 @@ void UWorldPartition::OnActorDescUnregistered(const FWorldPartitionActorDesc& Ac
 	AActor* Actor = ActorDesc.GetActor();
 	if (IsValidChecked(Actor))
 	{
-		Actor->GetLevel()->RemoveLoadedActor(Actor, !InstanceTransform.Equals(FTransform::Identity) ? &InstanceTransform : nullptr);
+		Actor->GetLevel()->RemoveLoadedActor(Actor, GetInstanceTransformPtr());
 	}
 }
 
