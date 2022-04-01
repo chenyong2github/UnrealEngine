@@ -880,7 +880,14 @@ void ExtractFunctionParams(const UFunction* InFunc, TArray<FGeneratedWrappedMeth
 		GeneratedWrappedMethodParam.ParamProp = InParam;
 		if (InFunc->HasMetaData(DefaultValueMetaDataKey))
 		{
+			// This is a default specified in C++ that UHT was able to parse and set as meta-data
 			GeneratedWrappedMethodParam.ParamDefaultValue = InFunc->GetMetaData(DefaultValueMetaDataKey);
+		}
+		else if (InFunc->HasMetaData(InParam->GetFName()))
+		{
+			// This is either a default specified in Blueprint, or specified in C++ directly as meta-data
+			// (ie, because UHT can't parse the C++ default argument, eg, a default TMap argument)
+			GeneratedWrappedMethodParam.ParamDefaultValue = InFunc->GetMetaData(InParam->GetFName());
 		}
 	};
 
