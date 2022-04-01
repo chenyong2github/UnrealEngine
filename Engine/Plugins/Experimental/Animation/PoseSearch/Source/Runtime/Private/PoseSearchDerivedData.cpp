@@ -3,6 +3,9 @@
 #include "PoseSearchDerivedData.h"
 #include "PoseSearch/PoseSearchAnimNotifies.h"
 
+#include "Animation/AnimSequence.h"
+#include "Animation/BlendSpace.h"
+
 #if WITH_EDITOR
 #include "Serialization/BulkDataRegistry.h"
 #endif // WITH_EDITOR
