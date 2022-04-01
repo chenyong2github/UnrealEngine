@@ -200,6 +200,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// FDynamicMeshAttributeSet has Weight Maps. TDynamicAttributeBase serializes its name.
 		DynamicMeshAttributesWeightMapsAndNames,
 
+		// Switching FK control naming scheme to incorporate _CURVE for curve controls
+		FKControlNamingScheme,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

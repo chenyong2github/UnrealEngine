@@ -701,7 +701,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 								FLinearColor Color = FLinearColor::White;
 								if (bHasFKRig)
 								{
-									FName ControlName = UFKControlRig::GetControlName(ParentTransformElement->GetName());
+									FName ControlName = UFKControlRig::GetControlName(ParentTransformElement->GetName(), ParentTransformElement->GetType());
 									if (ActiveControlName.Num() > 0 && ActiveControlName.Contains(ControlName) == false)
 									{
 										continue;
@@ -731,7 +731,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 						FLinearColor Color = FLinearColor::White;
 						if (bHasFKRig)
 						{
-							FName ControlName = UFKControlRig::GetControlName(TransformElement->GetName());
+							FName ControlName = UFKControlRig::GetControlName(TransformElement->GetName(), TransformElement->GetType());
 							if (ActiveControlName.Num() > 0 && ActiveControlName.Contains(ControlName) == false)
 							{
 								return true;

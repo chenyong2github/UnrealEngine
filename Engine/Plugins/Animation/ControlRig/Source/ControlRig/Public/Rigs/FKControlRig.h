@@ -48,8 +48,10 @@ public:
 	virtual void SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMeshComponent* InSkelMeshComp, bool bUseAnimInstance = false) override;
 	// END ControlRig
 
-	// utility function to 
-	static FName GetControlName(const FName& InBoneName);
+	// utility function to generate a valid control element name
+	static FName GetControlName(const FName& InName, const ERigElementType& InType);
+	// utility function to generate a target element name for control
+	static FName GetControlTargetName(const FName& InName, const ERigElementType& InType);
 
 	TArray<FName> GetControlNames();
 	bool GetControlActive(int32 Index) const;

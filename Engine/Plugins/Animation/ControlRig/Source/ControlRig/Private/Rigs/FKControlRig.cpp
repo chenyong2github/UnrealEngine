@@ -6,6 +6,7 @@
 #include "IControlRigObjectBinding.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Execution/RigUnit_PrepareForExecution.h"
+#include "Settings/ControlRigSettings.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
 #include "Units/Execution/RigUnit_InverseExecution.h"
 
@@ -20,14 +21,50 @@ UFKControlRig::UFKControlRig(const FObjectInitializer& ObjectInitializer)
 	bResetInitialTransformsBeforeSetup = false;
 }
 
-FName UFKControlRig::GetControlName(const FName& InBoneName)
+FName UFKControlRig::GetControlName(const FName& InName, const ERigElementType& InType)
 {
-	if (InBoneName != NAME_None)
+	if (InName != NAME_None)
 	{
-		return FName(*(InBoneName.ToString() + TEXT("_CONTROL")));
+		const FString& PostFix = [InType]()
+		{
+			if (InType == ERigElementType::Curve)
+			{
+				return TEXT("_CURVE");
+			}
+
+			return TEXT("");
+		}();
+		
+		return FName(*(InName.ToString() + PostFix + TEXT("_CONTROL")));
 	}
 
-	// if bone name is coming as none, we don't append
+	// if control name is coming as none, we don't append the postfix
+	return NAME_None;
+}
+
+FName UFKControlRig::GetControlTargetName(const FName& InName, const ERigElementType& InType)
+{
+	if (InName != NAME_None)
+	{
+		const FString& PostFix = [InType]()
+		{
+			if (InType == ERigElementType::Curve)
+			{
+				return TEXT("_CURVE_CONTROL");
+			}
+
+			return TEXT("_CONTROL");
+		}();
+
+		FString StringName = InName.ToString();
+		if (StringName.EndsWith(PostFix, ESearchCase::CaseSensitive))
+		{
+			StringName.RemoveFromEnd(PostFix);
+			return FName(*StringName);
+		}		
+	}
+
+	// If incoming name is NONE, or not correctly formatted according to expected post-fix return NAME_None
 	return NAME_None;
 }
 
@@ -52,7 +89,7 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 	{
 		GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
         {
-			const FName ControlName = GetControlName(BoneElement->GetName());
+			const FName ControlName = GetControlName(BoneElement->GetName(), BoneElement->GetType());
 			const FRigElementKey ControlKey(ControlName, ERigElementType::Control);
 			const int32 ControlIndex = GetHierarchy()->GetIndex(ControlKey);
 			if (ControlIndex != INDEX_NONE && IsControlActive[ControlIndex])
@@ -89,7 +126,7 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 
 		GetHierarchy()->ForEach<FRigCurveElement>([&](FRigCurveElement* CurveElement) -> bool
         {
-			const FName ControlName = GetControlName(CurveElement->GetName());
+			const FName ControlName = GetControlName(CurveElement->GetName(), CurveElement->GetType());
 			const FRigElementKey ControlKey(ControlName, ERigElementType::Control);
 			const int32 ControlIndex = GetHierarchy()->GetIndex(ControlKey);
 			
@@ -132,7 +169,7 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 
 			FRigBoneElement* BoneElement = CastChecked<FRigBoneElement>(InElement);
 
-			const FName ControlName = GetControlName(BoneElement->GetName());
+			const FName ControlName = GetControlName(BoneElement->GetName(), BoneElement->GetType());
 			const FRigElementKey ControlKey(ControlName, ERigElementType::Control);
 			const int32 ControlIndex = GetHierarchy()->GetIndex(ControlKey);
 			
@@ -167,7 +204,7 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 
 		GetHierarchy()->ForEach<FRigCurveElement>([&](FRigCurveElement* CurveElement) -> bool
         {
-            const FName ControlName = GetControlName(CurveElement->GetName());
+			const FName ControlName = GetControlName(CurveElement->GetName(), CurveElement->GetType());
 			const FRigElementKey ControlKey(ControlName, ERigElementType::Control);
 			const int32 ControlIndex = GetHierarchy()->GetIndex(ControlKey);
 
@@ -293,7 +330,7 @@ void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkele
 		GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
 		{
 			const FName BoneName = BoneElement->GetName();
-			const FName ControlName = GetControlName(BoneName); // name conflict?
+			const FName ControlName = GetControlName(BoneName, BoneElement->GetType());
 			const FRigElementKey ParentKey = GetHierarchy()->GetFirstParent(BoneElement->GetKey());
 
 			FTransform OffsetTransform = FTransform::Identity;
@@ -313,12 +350,14 @@ void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkele
 		
 		GetHierarchy()->ForEach<FRigCurveElement>([&](FRigCurveElement* CurveElement) -> bool
 		{
-			const FName ControlName = GetControlName(CurveElement->GetName()); // name conflict?
+			const FName ControlName = GetControlName(CurveElement->GetName(), CurveElement->GetType());
 
 			FRigControlSettings Settings;
 			Settings.ControlType = ERigControlType::Float;
 			Settings.DisplayName = CurveElement->GetName();
 
+			const FName DisplayCurveControlName(*(CurveElement->GetName().ToString() + TEXT(" Curve")));
+		    Settings.DisplayName = DisplayCurveControlName;
 			Controller->AddControl(ControlName, FRigElementKey(), Settings, FRigControlValue::Make(CurveElement->Value), FTransform::Identity, FTransform::Identity, false);
 			
 			return true;
@@ -347,7 +386,7 @@ void UFKControlRig::SetControlOffsetsFromBoneInitials()
 
 		FRigBoneElement* BoneElement = CastChecked<FRigBoneElement>(InElement);
 		const FName BoneName = BoneElement->GetName();
-		const FName ControlName = GetControlName(BoneName); // name conflict?
+		const FName ControlName = GetControlName(BoneName, BoneElement->GetType());
 
 		FRigControlElement* ControlElement = GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control));
 		if(ControlElement == nullptr)

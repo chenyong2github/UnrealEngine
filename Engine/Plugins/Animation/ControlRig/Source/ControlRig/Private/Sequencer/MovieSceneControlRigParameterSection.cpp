@@ -15,6 +15,7 @@
 #include "MovieSceneTimeHelpers.h"
 #include "Animation/AnimSequenceHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #if WITH_EDITOR
 #include "AnimPose.h"
@@ -2104,6 +2105,27 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 	TArray<FRigControlElement*> SortedControls;
 	ControlRig->GetControlsInOrder(SortedControls);
 
+	TMap<FName, FName> CurveControlNameRemapping;
+	if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::FKControlNamingScheme)
+	{
+		for (FRigControlElement* ControlElement : SortedControls)
+		{
+			if (ControlElement->Settings.ControlType == ERigControlType::Float)
+			{
+				const FName TargetCurveName = UFKControlRig::GetControlTargetName(ControlElement->GetName(), ERigElementType::Curve);
+				const FRigElementKey CurveKey = FRigElementKey(TargetCurveName, ERigElementType::Curve);
+				// Ensure name is valid, and curve actually exists in the hierarchy,
+				// this means we could not be renaming some controls for which the curves do not exist anymore, which ties back to comment at the top op the function
+				// with regards to non-associated curves
+				if (TargetCurveName != NAME_None && ControlRig->GetHierarchy()->Find(CurveKey))
+				{
+					// Add mapping from old to new control naming scheme (previous was using uniform naming for both bones and curves)
+					CurveControlNameRemapping.Add(ControlElement->GetName(), UFKControlRig::GetControlName(TargetCurveName, ERigElementType::Bone));
+				}
+			}
+		}
+	}
+
 	for (FRigControlElement* ControlElement : SortedControls)
 	{
 		if (!ControlElement->Settings.bAnimatable)
@@ -2117,6 +2139,11 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 			RenameParameterName(PreviousName, ControlElement->GetKey().Name);
 		}
 
+		if (const FName* OldCurveControlName = CurveControlNameRemapping.Find(ControlElement->GetName()))
+		{
+			RenameParameterName(*OldCurveControlName, ControlElement->GetKey().Name);
+		}
+		
 		switch (ControlElement->Settings.ControlType)
 		{
 		case ERigControlType::Float:
