@@ -16,7 +16,9 @@ enum class EPCGMetadataOp : uint8
 	Min,
 	Max,
 	Sub,
-	Add
+	Add,
+	Mul,
+	Div
 };
 
 UCLASS(BlueprintType)
@@ -116,6 +118,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void AccumulateWeightedAttributesByKey(int64 Key, const UPCGMetadata* Metadata, float Weight, bool bSetNonInterpolableAttributes, int64 TargetKey, int64& OutKey);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void SetAttributesByKey(int64 Key, const UPCGMetadata* InMetadata, int64 TargetKey, int64& OutKey);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void MergePointAttributes(const FPCGPoint& PointA, const UPCGMetadata* MetadataA, const FPCGPoint& PointB, const UPCGMetadata* MetadataB, UPARAM(ref) FPCGPoint& TargetPoint, EPCGMetadataOp Op);

@@ -96,6 +96,14 @@ public:
 			{
 				bAppliedValue = SetAdd(ItemKey, InAttributeA, InEntryKeyA, InAttributeB, InEntryKeyB);
 			}
+			else if (Op == EPCGMetadataOp::Mul)
+			{
+				bAppliedValue = SetMul(ItemKey, InAttributeA, InEntryKeyA, InAttributeB, InEntryKeyB);
+			}
+			else if (Op == EPCGMetadataOp::Div)
+			{
+				bAppliedValue = SetDiv(ItemKey, InAttributeA, InEntryKeyA, InAttributeB, InEntryKeyB);
+			}
 		}
 		else if (InAttributeA && InAttributeB && HasNonDefaultValue(ItemKey))
 		{

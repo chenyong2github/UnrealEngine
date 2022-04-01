@@ -585,6 +585,12 @@ void UPCGMetadata::MergeAttributesByKey(int64 KeyA, const UPCGMetadata* Metadata
 	MergeAttributes(KeyA, MetadataA, KeyB, MetadataB, OutKey, Op);
 }
 
+void UPCGMetadata::SetAttributesByKey(int64 Key, const UPCGMetadata* Metadata, int64 TargetKey, int64& OutKey)
+{
+	OutKey = TargetKey;
+	SetAttributes(Key, Metadata, OutKey);
+}
+
 void UPCGMetadata::ResetWeightedAttributesByKey(int64 TargetKey, int64& OutKey)
 {
 	OutKey = TargetKey;

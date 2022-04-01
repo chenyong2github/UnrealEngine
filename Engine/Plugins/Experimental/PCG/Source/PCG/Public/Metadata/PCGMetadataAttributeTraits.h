@@ -320,7 +320,7 @@ namespace PCG
 			enum { CompressData = true };
 			enum { CanMinMax = false };
 			enum { CanSubAdd = false };
-			enum { CanMulAdd = false };
+			enum { CanMulDiv = false };
 			enum { CanInterpolate = false };
 		};
 	}
