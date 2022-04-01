@@ -382,9 +382,10 @@ void UWidgetBlueprintGeneratedClass::PurgeClass(bool bRecompilingOnLoad)
 		Animation->Rename(nullptr, GetTransientPackage(), RenFlags);
 		FLinkerLoad::InvalidateExport(Animation);
 	}
-	Animations.Empty();
 
+	Animations.Empty();
 	Bindings.Empty();
+	FieldNotifyNames.Empty();
 }
 
 bool UWidgetBlueprintGeneratedClass::NeedsLoadForServer() const

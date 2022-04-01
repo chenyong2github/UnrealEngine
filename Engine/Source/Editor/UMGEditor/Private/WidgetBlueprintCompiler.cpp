@@ -54,6 +54,12 @@ UWidgetBlueprintGeneratedClass* FWidgetBlueprintCompilerContext::FCreateVariable
 }
 
 
+EKismetCompileType::Type FWidgetBlueprintCompilerContext::FCreateVariableContext::GetCompileType() const
+{
+	return Context.CompileOptions.CompileType;
+}
+
+
 //////////////////////////////////////////////////////////////////////////
 // FWidgetBlueprintCompiler
 FWidgetBlueprintCompiler::FWidgetBlueprintCompiler()
@@ -147,6 +153,11 @@ UEdGraphSchema_K2* FWidgetBlueprintCompilerContext::CreateSchema()
 
 void FWidgetBlueprintCompilerContext::CreateFunctionList()
 {
+	UWidgetBlueprintExtension::ForEachExtension(WidgetBlueprint(), [this](UWidgetBlueprintExtension* InExtension)
+		{
+			InExtension->CreateFunctionList();
+		});
+
 	Super::CreateFunctionList();
 
 	for ( FDelegateEditorBinding& EditorBinding : WidgetBlueprint()->Bindings )
@@ -212,11 +223,6 @@ void FWidgetBlueprintCompilerContext::CreateFunctionList()
 			}
 		}
 	}
-
-	UWidgetBlueprintExtension::ForEachExtension(WidgetBlueprint(), [this](UWidgetBlueprintExtension* InExtension)
-		{
-			InExtension->CreateFunctionList();
-		});
 }
 
 void FWidgetBlueprintCompilerContext::ValidateWidgetNames()

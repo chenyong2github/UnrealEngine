@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EngineLogs.h"
+#include "Engine/Blueprint.h"
 #include "WidgetBlueprint.h"
 #include "KismetCompiler.h"
 #include "KismetCompilerModule.h"
@@ -87,6 +89,7 @@ public:
 		FProperty* CreateVariable(const FName Name, const FEdGraphPinType& Type) const;
 		UWidgetBlueprint* GetWidgetBlueprint() const;
 		UWidgetBlueprintGeneratedClass* GetSkeletonGeneratedClass() const;
+		EKismetCompileType::Type GetCompileType() const;
 
 	private:
 		friend FWidgetBlueprintCompilerContext;
