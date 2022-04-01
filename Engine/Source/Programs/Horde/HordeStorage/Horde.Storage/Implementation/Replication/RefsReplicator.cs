@@ -378,7 +378,6 @@ namespace Horde.Storage.Implementation
 
             CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
             CancellationTokenSource linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token, replicationToken);
-            ISpanContext parentSpanContext = Tracer.Instance.ActiveScope.Span.Context;
 
             if (replicationToken.IsCancellationRequested)
                 return countOfReplicationsDone;
