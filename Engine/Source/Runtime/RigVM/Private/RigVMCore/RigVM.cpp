@@ -8,6 +8,7 @@
 #include "HAL/PlatformTLS.h"
 #include "Async/ParallelFor.h"
 #include "UObject/UObjectHash.h"
+#include "UObject/UObjectIterator.h"
 
 void FRigVMParameter::Serialize(FArchive& Ar)
 {
