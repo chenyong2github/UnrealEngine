@@ -106,11 +106,14 @@ void Main(
 	}
 
 #if MATERIALBLENDING_ANY_TRANSLUCENT
-	float Opacity = TotalCoverage;
+	const float Opacity = TotalCoverage;
+	const bool bValidPixel = Opacity > 0.5f;
 #elif MATERIALBLENDING_MASKED
-	float Opacity = TotalCoverage - GetMaterialOpacityMaskClipValue() >= 0.0f ? 1.0f : 0.0f;
+	const float Opacity = TotalCoverage - GetMaterialOpacityMaskClipValue() >= 0.0f ? 1.0f : 0.0f;
+	const bool bValidPixel = Opacity >= 0.0f;
 #else
-	float Opacity = 1.0f;
+	const float Opacity = 1.0f;
+	const bool bValidPixel = true;
 #endif
 
 	// Normals are stored in local card space
