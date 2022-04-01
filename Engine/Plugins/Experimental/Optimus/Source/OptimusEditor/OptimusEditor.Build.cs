@@ -42,6 +42,7 @@ namespace UnrealBuildTool.Rules
 					"BlueprintGraph",		// For the graph pin colors
 					"Persona",
 					"MessageLog",
+					"PropertyEditor",
 				}
 			);
 

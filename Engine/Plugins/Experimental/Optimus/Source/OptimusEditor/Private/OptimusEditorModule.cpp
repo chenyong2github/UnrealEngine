@@ -17,6 +17,7 @@
 #include "OptimusDataType.h"
 #include "OptimusResourceDescription.h"
 #include "OptimusShaderText.h"
+#include "OptimusBindingTypes.h"
 
 #include "PropertyEditorModule.h"
 #include "AssetToolsModule.h"
@@ -107,6 +108,8 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 	RegisterPropertyCustomization(FOptimusDataDomain::StaticStruct()->GetFName(), &FOptimusDataDomainCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusMultiLevelDataDomain::StaticStruct()->GetFName(), &FOptimusMultiLevelDataDomainCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusShaderText::StaticStruct()->GetFName(), &FOptimusShaderTextCustomization::MakeInstance);
+	RegisterPropertyCustomization(FOptimusParameterBinding::StaticStruct()->GetFName(), &FOptimusParameterBindingCustomization::MakeInstance);
+	RegisterPropertyCustomization(FOptimusParameterBindingArray::StaticStruct()->GetFName(), &FOptimusParameterBindingArrayCustomization::MakeInstance);
 }
 
 void FOptimusEditorModule::UnregisterPropertyCustomizations()

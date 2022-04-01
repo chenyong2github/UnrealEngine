@@ -8,19 +8,21 @@
 
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusShaderText.h"
+#include "OptimusBindingTypes.h"
+#include "IOptimusParameterBindingProvider.h"
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "DetailWidgetRow.h"
 #include "IPropertyTypeCustomization.h"
 #include "IDetailChildrenBuilder.h"
+#include "PropertyEditor/Private/PropertyNode.h"
+#include "PropertyEditor/Public/IPropertyUtilities.h"
 #include "OptimusComputeDataInterface.h"
 #include "OptimusResourceDescription.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SGridPanel.h"
-#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Widgets/Text/STextBlock.h"
@@ -297,14 +299,18 @@ void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
 					for (const void* RawPtr: RawDataPtrs)
 					{
 						const FOptimusMultiLevelDataDomain* DataDomain = static_cast<const FOptimusMultiLevelDataDomain*>(RawPtr);
-						if (Names.IsEmpty())
+						// During drag & reorder, invalid binding can be created temporarily
+						if (DataDomain)
 						{
-							Names = DataDomain->LevelNames;
-						}
-						else if (Names != DataDomain->LevelNames)
-						{
-							bItemsDiffer = true;
-							break;
+							if (Names.IsEmpty())
+							{
+								Names = DataDomain->LevelNames;
+							}
+							else if (Names != DataDomain->LevelNames)
+							{
+								bItemsDiffer = true;
+								break;
+							}
 						}
 					}
 
@@ -323,10 +329,6 @@ void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
 
 
 // =============================================================================================
-
-// The current tab width for the editor.
-static constexpr int32 GTabWidth = 4;
-
 
 TSharedRef<IPropertyTypeCustomization> FOptimusShaderTextCustomization::MakeInstance()
 {
@@ -442,6 +444,310 @@ void FOptimusShaderTextCustomization::OnPropertyChanged(UObject* InObject, FProp
 	{
 		UpdateDiagnostics();
 	}
+}
+
+class SOptimusParameterBindingValueWidget : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SOptimusParameterBindingValueWidget) {}
+	SLATE_END_ARGS()
+
+	SOptimusParameterBindingValueWidget()
+		: CustomizationUtils (nullptr)
+	{
+		
+	}
+	virtual void Construct(const FArguments& InArgs, TSharedRef<IPropertyHandle> InBindingPropertyHandle,  IPropertyTypeCustomizationUtils& InCustomizationUtils)
+	{
+		BindingPropertyHandle = InBindingPropertyHandle;
+		CustomizationUtils = &InCustomizationUtils;
+		
+		const TSharedPtr<IPropertyHandle> DataTypeProperty = BindingPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBinding, DataType));
+		const TSharedPtr<IPropertyHandle> DataDomainProperty = BindingPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBinding, DataDomain));	
+	
+		FDetailWidgetRow DataTypeHeaderRow;
+		DataTypeRefCustomizationInstance = FOptimusDataTypeRefCustomization::MakeInstance();
+		DataTypeRefCustomizationInstance->CustomizeHeader(DataTypeProperty.ToSharedRef(), DataTypeHeaderRow, InCustomizationUtils);
+
+		FDetailWidgetRow DataDomainHeaderRow;
+		DataDomainCustomizationInstance = FOptimusMultiLevelDataDomainCustomization::MakeInstance();
+		DataDomainCustomizationInstance->CustomizeHeader(DataDomainProperty.ToSharedRef(), DataDomainHeaderRow, InCustomizationUtils);
+		
+		ColumnSizeData = MakeShared<FOptimusParameterBindingCustomization::FColumnSizeData>();
+
+		ChildSlot
+		[
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.FillWidth(1.0f)
+			[
+				SNew(SSplitter)
+				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+				.PhysicalSplitterHandleSize(1.0f)
+				.HitDetectionSplitterHandleSize(5.0f)
+				+SSplitter::Slot()
+				.Value(this, &SOptimusParameterBindingValueWidget::GetDataTypeColumnSize)
+				.OnSlotResized(this, &SOptimusParameterBindingValueWidget::OnDataTypeColumnResized)
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					// padding values grabbed from DetailWidgetConstants
+					.Padding(0,0,10,0)
+					[
+						DataTypeHeaderRow.ValueContent().Widget
+					]
+				]
+				+SSplitter::Slot()
+				.Value(this, &SOptimusParameterBindingValueWidget::GetDataDomainColumnSize)
+				.OnSlotResized(this, &SOptimusParameterBindingValueWidget::OnDataDomainColumnResized)
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					// padding values grabbed from DetailWidgetConstants
+					.Padding(12,0,10,0)
+					[
+						DataDomainHeaderRow.ValueContent().Widget
+					]
+				]
+			]
+			+SHorizontalBox::Slot()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(2.0f,0.f)
+			[
+				PropertyCustomizationHelpers::MakeEmptyButton(
+					FSimpleDelegate::CreateLambda([this]()
+					{
+						// This is copied from FPropertyEditor::DeleteItem()
+						// This action must be deferred until next tick so that we avoid accessing invalid data before we have a chance to tick
+						CustomizationUtils->GetPropertyUtilities()->EnqueueDeferredAction(
+									FSimpleDelegate::CreateSP(this, &SOptimusParameterBindingValueWidget::OnDeleteItem)
+						);
+					}),
+					LOCTEXT("OptimusParameterBindingRemoveButton", "Remove this Binding"))
+			]
+		];
+	}
+
+	void SetColumnSizeData(TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InData)
+	{
+		ColumnSizeData = InData;
+	};
+	
+
+private:
+	void OnDeleteItem() const
+	{
+		TSharedPtr<IPropertyHandleArray> ArrayHandle = BindingPropertyHandle->GetParentHandle()->AsArray();
+		TSharedPtr<FPropertyNode> PropertyNode = BindingPropertyHandle->GetPropertyNode(); 
+
+		check(ArrayHandle.IsValid());
+
+		int32 Index = PropertyNode->GetArrayIndex();
+
+		if (ArrayHandle.IsValid())
+		{
+			ArrayHandle->DeleteItem(Index);
+		}
+
+		//In case the property is show in the favorite category refresh the whole tree
+		if (PropertyNode->IsFavorite() || (PropertyNode->GetParentNode() != nullptr && PropertyNode->GetParentNode()->IsFavorite()))
+		{
+			CustomizationUtils->GetPropertyUtilities()->ForceRefresh();
+		}
+	};
+
+	float GetDataTypeColumnSize() const {return ColumnSizeData->GetDataTypeColumnSize();}
+	void OnDataTypeColumnResized(float InSize) const {ColumnSizeData->OnDataDomainColumnResized(InSize);}
+	float GetDataDomainColumnSize() const {return ColumnSizeData->GetDataDomainColumnSize();}
+	void OnDataDomainColumnResized(float InSize) const {ColumnSizeData ->OnDataDomainColumnResized(InSize);}
+	
+	TSharedPtr<IPropertyHandle> BindingPropertyHandle;
+	IPropertyTypeCustomizationUtils* CustomizationUtils;
+
+	TSharedPtr<IPropertyTypeCustomization> DataTypeRefCustomizationInstance;
+	TSharedPtr<IPropertyTypeCustomization> DataDomainCustomizationInstance;
+	
+	TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> ColumnSizeData;
+};
+
+
+TSharedRef<IPropertyTypeCustomization> FOptimusParameterBindingCustomization::MakeInstance()
+{
+	return MakeShared<FOptimusParameterBindingCustomization>();
+}
+
+FOptimusParameterBindingCustomization::FOptimusParameterBindingCustomization()
+{
+	
+}
+
+void FOptimusParameterBindingCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle,
+	FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& InCustomizationUtils)
+{
+	TSharedRef<IPropertyHandle>& BindingPropertyHandle = InPropertyHandle;
+	const TSharedPtr<IPropertyHandle> NameProperty = BindingPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBinding, Name));
+	
+	InHeaderRow
+	.NameContent()
+	.HAlign(HAlign_Fill)
+	[
+		SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.Padding(0,0,10,0)
+		[
+			NameProperty->CreatePropertyValueWidget()
+		]
+	]
+	.ValueContent()
+	.HAlign(HAlign_Fill)
+	[
+		SNew(SOptimusParameterBindingValueWidget, BindingPropertyHandle, InCustomizationUtils)
+	];	
+}
+
+void FOptimusParameterBindingCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle,
+	IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& InCustomizationUtils)
+{
+	FString Declaration;
+	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = InCustomizationUtils.GetPropertyUtilities()->GetSelectedObjects();
+	for (TWeakObjectPtr<UObject> Object : SelectedObjects)
+	{
+		if (IOptimusParameterBindingProvider* BindingProvider = Cast<IOptimusParameterBindingProvider>(Object))
+		{
+			TArray<const void *> RawData;
+
+			InPropertyHandle->AccessRawData(RawData);
+			if (ensure(RawData.Num() > 0))
+			{
+				const FOptimusParameterBinding* Binding = static_cast<const FOptimusParameterBinding*>(RawData[0]);
+				// During drag & reorder, we can have invalid bindings in the property
+				if (Binding->Name != NAME_None)
+				{
+					Declaration = BindingProvider->GetBindingDeclaration(Binding->Name);
+				}
+			}
+			break;
+		}
+	}
+
+	if (!Declaration.IsEmpty())
+	{
+		FDetailWidgetRow& DeclarationRow = InChildBuilder.AddCustomRow(FText::GetEmpty());
+		DeclarationRow
+		.NameContent()
+		[
+			InPropertyHandle->CreatePropertyNameWidget(LOCTEXT("Declaration", "Declaration"))
+		]
+		.ValueContent()
+		.HAlign(HAlign_Fill)
+		[
+			SNew(SBox)
+			.MinDesiredWidth(180.0f)
+			[
+				SNew(SMultiLineEditableTextBox)
+				.Text(FText::FromString(Declaration))
+				.Font(FCoreStyle::GetDefaultFontStyle("Mono",InCustomizationUtils.GetRegularFont().Size))
+				.IsReadOnly(true)
+			]
+		];		
+	}
+}
+
+TSharedRef<IDetailCustomNodeBuilder> FOptimusParameterBindingArrayBuilder::MakeInstance(
+	TSharedRef<IPropertyHandle> InPropertyHandle,
+	TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InColumnSizeData)
+{
+	TSharedRef<FOptimusParameterBindingArrayBuilder> Builder = MakeShared<FOptimusParameterBindingArrayBuilder>(InPropertyHandle, InColumnSizeData);
+	
+	Builder->OnGenerateArrayElementWidget(
+		FOnGenerateArrayElementWidget::CreateSP(Builder, &FOptimusParameterBindingArrayBuilder::OnGenerateEntry));
+	return Builder;
+}
+
+FOptimusParameterBindingArrayBuilder::FOptimusParameterBindingArrayBuilder(
+	TSharedRef<IPropertyHandle> InPropertyHandle,
+	TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InColumnSizeData)
+	: FDetailArrayBuilder(InPropertyHandle, true, false, true)
+	, ArrayProperty(InPropertyHandle->AsArray())
+	, ColumnSizeData(InColumnSizeData)
+{
+	if (!ColumnSizeData.IsValid())
+	{
+		ColumnSizeData = MakeShared<FOptimusParameterBindingCustomization::FColumnSizeData>();
+	}
+}
+
+void FOptimusParameterBindingArrayBuilder::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
+{
+	FDetailArrayBuilder::GenerateHeaderRowContent(NodeRow);
+	NodeRow.ValueContent()
+	.HAlign( HAlign_Left )
+	.VAlign( VAlign_Center )
+	// Value grabbed from SPropertyEditorArray::GetDesiredWidth
+	.MinDesiredWidth(170.f)
+	.MaxDesiredWidth(170.f);
+}
+
+
+void FOptimusParameterBindingArrayBuilder::OnGenerateEntry(TSharedRef<IPropertyHandle> ElementProperty,
+	int32 ElementIndex, IDetailChildrenBuilder& ChildrenBuilder) const
+{
+	IDetailPropertyRow& PropertyRow = ChildrenBuilder.AddProperty(ElementProperty);
+	PropertyRow.ShowPropertyButtons(false);
+	PropertyRow.ShouldAutoExpand(false);
+
+	// Hide the reset to default button since it provides little value
+	const FResetToDefaultOverride	ResetDefaultOverride = FResetToDefaultOverride::Create(TAttribute<bool>(false));
+	PropertyRow.OverrideResetToDefault(ResetDefaultOverride);
+	
+	TSharedPtr<SWidget> NameWidget;
+	TSharedPtr<SWidget> ValueWidget;
+	PropertyRow.GetDefaultWidgets( NameWidget, ValueWidget);
+	PropertyRow.CustomWidget(true)
+	.NameContent()
+	.HAlign(HAlign_Fill)
+	[
+		NameWidget.ToSharedRef()
+	]
+	.ValueContent()
+	.HAlign(HAlign_Fill)
+	[
+		ValueWidget.ToSharedRef()
+	];
+	
+	const TSharedPtr<SHorizontalBox> HBox = StaticCastSharedPtr<SHorizontalBox>(ValueWidget);
+	const TSharedPtr<SWidget> InnerValueWidget = HBox->GetSlot(0).GetWidget();
+	const TSharedPtr<SOptimusParameterBindingValueWidget> OptimusValueWidget = StaticCastSharedPtr<SOptimusParameterBindingValueWidget>(InnerValueWidget);
+	OptimusValueWidget->SetColumnSizeData(ColumnSizeData);
+}
+
+FOptimusParameterBindingArrayCustomization::FOptimusParameterBindingArrayCustomization()
+	: ColumnSizeData(MakeShared<FOptimusParameterBindingCustomization::FColumnSizeData>())
+{
+}
+
+void FOptimusParameterBindingArrayCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle,
+                                                                 FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& InCustomizationUtils)
+{
+	const TSharedPtr<IPropertyHandle> ArrayHandle = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBindingArray, InnerArray), false);
+	
+	ArrayBuilder = FOptimusParameterBindingArrayBuilder::MakeInstance(ArrayHandle.ToSharedRef(), ColumnSizeData);
+	
+	ArrayBuilder->GenerateHeaderRowContent(InHeaderRow);
+	// use the top level property name
+	InHeaderRow.NameContent()
+	[
+		InPropertyHandle->CreatePropertyNameWidget()
+	];
+}
+
+void FOptimusParameterBindingArrayCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle,
+                                                                   IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& InCustomizationUtils)
+{
+	ArrayBuilder->GenerateChildContent(InChildBuilder);
 }
 
 #undef LOCTEXT_NAMESPACE
