@@ -16,6 +16,8 @@ namespace TraceServices
 namespace Insights
 {
 
+class IAsyncOperationProgress;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FMemAllocGroupingByCallstack : public FTreeNodeGrouping
@@ -37,7 +39,7 @@ public:
 	FMemAllocGroupingByCallstack(bool bInIsInverted, bool bInIsGroupingByFunction);
 	virtual ~FMemAllocGroupingByCallstack();
 
-	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const override;
+	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, IAsyncOperationProgress& InAsyncOperationProgress) const override;
 
 	bool IsInverted() const { return bIsInverted; }
 

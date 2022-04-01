@@ -17,6 +17,8 @@ namespace TraceServices
 namespace Insights
 {
 
+class IAsyncOperationProgress;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FMemAllocGroupingByHeap : public FTreeNodeGrouping
@@ -27,7 +29,7 @@ public:
 	FMemAllocGroupingByHeap(const TraceServices::IAllocationsProvider& AllocProvider);
 	virtual ~FMemAllocGroupingByHeap() override;
 
-	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const override;
+	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, IAsyncOperationProgress& InAsyncOperationProgress) const override;
 private:
 	const TraceServices::IAllocationsProvider& AllocProvider;
 };

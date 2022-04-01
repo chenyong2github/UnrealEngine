@@ -23,7 +23,6 @@
 #include "Widgets/Views/STableViewBase.h"
 
 // Insights
-#include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/Log.h"
 #include "Insights/Table/ViewModels/Table.h"
@@ -1090,7 +1089,7 @@ bool STableTreeView::ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr, b
 		int32 NumVisibleChildren = 0;
 		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
 		{
-			if (bCancelCurrentAsyncOp)
+			if (AsyncOperationProgress.ShouldCancelAsyncOp())
 			{
 				break;
 			}
@@ -1137,7 +1136,7 @@ bool STableTreeView::ApplyAdvancedFiltersForNode(FTableTreeNodePtr NodePtr)
 		int32 NumVisibleChildren = 0;
 		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
 		{
-			if (bCancelCurrentAsyncOp)
+			if (AsyncOperationProgress.ShouldCancelAsyncOp())
 			{
 				break;
 			}
@@ -1187,7 +1186,7 @@ bool STableTreeView::MakeSubtreeVisible(FTableTreeNodePtr NodePtr, bool bFilterI
 		bool bShouldExpand = false;
 		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
 		{
-			if (bCancelCurrentAsyncOp)
+			if (AsyncOperationProgress.ShouldCancelAsyncOp())
 			{
 				break;
 			}
@@ -1435,7 +1434,7 @@ void STableTreeView::CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& G
 
 void STableTreeView::GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, int32 GroupingDepth, const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings)
 {
-	if (bIsUpdateRunning && bCancelCurrentAsyncOp)
+	if (bIsUpdateRunning && AsyncOperationProgress.ShouldCancelAsyncOp())
 	{
 		return;
 	}
@@ -1447,7 +1446,7 @@ void STableTreeView::GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTabl
 
 	FTreeNodeGrouping& Grouping = *Groupings[GroupingDepth];
 
-	Grouping.GroupNodes(Nodes, ParentGroup, Table, bCancelCurrentAsyncOp);
+	Grouping.GroupNodes(Nodes, ParentGroup, Table, AsyncOperationProgress);
 
 	for (FBaseTreeNodePtr GroupPtr : ParentGroup.GetChildren())
 	{
@@ -2190,8 +2189,22 @@ void STableTreeView::SortTreeNodes(ITableCellValueSorter* InSorter, EColumnSortM
 {
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
-
-	SortTreeNodesRec(*Root, *InSorter, InColumnSortMode);
+#if !PLATFORM_EXCEPTIONS_DISABLED
+	try
+#endif
+	{
+		InSorter->SetAsyncOperationProgress(&AsyncOperationProgress);
+		SortTreeNodesRec(*Root, *InSorter, InColumnSortMode);
+	}
+#if !PLATFORM_EXCEPTIONS_DISABLED
+	catch (const char* Exception)
+	{
+		if (FCStringAnsi::Strcmp(Exception, "Cancelling sort"))
+		{
+			throw Exception;
+		}
+	}
+#endif
 
 	Stopwatch.Stop();
 	const double TotalTime = Stopwatch.GetAccumulatedTime();
@@ -2216,7 +2229,7 @@ void STableTreeView::SortTreeNodesRec(FTableTreeNode& GroupNode, const ITableCel
 
 	for (FBaseTreeNodePtr ChildPtr : GroupNode.GetChildren())
 	{
-		if (bCancelCurrentAsyncOp)
+		if (AsyncOperationProgress.ShouldCancelAsyncOp())
 		{
 			break;
 		}
@@ -2612,7 +2625,7 @@ void STableTreeView::OnPostAsyncUpdate()
 
 	bIsUpdateRunning = false;
 
-	if (!bCancelCurrentAsyncOp)
+	if (!AsyncOperationProgress.ShouldCancelAsyncOp())
 	{
 		TreeView->SetTreeItemsSource(&FilteredGroupNodes);
 
@@ -2641,7 +2654,7 @@ void STableTreeView::OnPostAsyncUpdate()
 		TreeView_Refresh();
 	}
 
-	bCancelCurrentAsyncOp = false;
+	AsyncOperationProgress.Reset();
 	AsyncUpdateStopwatch.Stop();
 }
 
@@ -2795,7 +2808,8 @@ void STableTreeView::OnClose()
 
 		FGraphEventArray Prerequisites;
 		Prerequisites.Add(InProgressAsyncOperationEvent);
-		TGraphTask<FTableTreeViewAsyncCompleteTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(SharedThis(this));
+		AsyncCompleteTaskEvent = TGraphTask<FTableTreeViewAsyncCompleteTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(SharedThis(this));
+		FInsightsManager::Get()->AddInProgressAsyncOp(AsyncCompleteTaskEvent, TEXT("FTableTreeViewAsyncCompleteTask"));
 	}
 }
 
@@ -2887,7 +2901,7 @@ void STableTreeView::CancelCurrentAsyncOp()
 {
 	if (bIsUpdateRunning)
 	{
-		bCancelCurrentAsyncOp = true;
+		AsyncOperationProgress.CancelCurrentAsyncOp();
 	}
 }
 

@@ -58,6 +58,21 @@ private:
 	uint64 NextTimestamp = (uint64)-1;
 };
 
+/**
+ * Struct that holds data about in progress async operations
+ */
+struct FAsyncTaskData
+{
+	FString Name;
+	FGraphEventRef GraphEvent;
+
+	FAsyncTaskData(FGraphEventRef InGraphEvent, const FString InName)
+	{
+		Name = InName;
+		GraphEvent = InGraphEvent;
+	}
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * This class manages following areas:
@@ -264,6 +279,10 @@ public:
 
 	void ScheduleCommand(const FString& InCmd);
 
+	void AddInProgressAsyncOp(FGraphEventRef Event, const FString& Name);
+	void RemoveInProgressAsyncOp(FGraphEventRef Event);
+	void WaitOnInProgressAsyncOps();
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// SessionChangedEvent
 
@@ -409,6 +428,8 @@ private:
 
 	static const TCHAR* AutoQuitMsg;
 	static const TCHAR* AutoQuitMsgOnFail;
+
+	TDoubleLinkedList<FAsyncTaskData> InProgressAsyncTasks;
 
 	/** A shared pointer to the global instance of the main manager. */
 	static TSharedPtr<FInsightsManager> Instance;

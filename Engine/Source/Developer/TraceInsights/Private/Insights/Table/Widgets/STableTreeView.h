@@ -17,8 +17,10 @@
 #include "Widgets/Views/STreeView.h"
 
 // Insights
+#include "Insights/Common/AsyncOperationProgress.h"
 #include "Insights/Common/InsightsAsyncWorkUtils.h"
 #include "Insights/Common/Stopwatch.h"
+#include "Insights/InsightsManager.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/ViewModels/TableTreeNode.h"
 #include "Insights/ViewModels/Filters.h"
@@ -69,6 +71,7 @@ class STableTreeView : public SCompoundWidget, public IAsyncOperationStatusProvi
 	friend class FTableTreeViewFilterAsyncTask;
 	friend class FTableTreeViewSortAsyncTask;
 	friend class FTableTreeViewGroupAsyncTask;
+	friend class FTableTreeViewAsyncCompleteTask;
 
 public:
 	/** Default constructor. */
@@ -515,6 +518,7 @@ protected:
 
 	TArray<FTableTreeNodePtr> DummyGroupNodes;
 	FGraphEventRef InProgressAsyncOperationEvent;;
+	FGraphEventRef AsyncCompleteTaskEvent;
 	EAsyncOperationType InProgressAsyncOperations = static_cast<EAsyncOperationType>(0);
 	TSharedPtr<class SAsyncOperationStatus> AsyncOperationStatus;
 	FStopwatch AsyncUpdateStopwatch;
@@ -524,7 +528,7 @@ protected:
 	EColumnSortMode::Type CurrentAsyncOpColumnSortMode;
 	TSharedPtr<FTableTreeNodeTextFilter> CurrentAsyncOpTextFilter;
 	FFilterConfigurator* CurrentAsyncOpFilterConfigurator = nullptr;
-	std::atomic<bool> bCancelCurrentAsyncOp { false };
+	FAsyncOperationProgress AsyncOperationProgress;
 	FGraphEventRef DispatchEvent;
 	TArray<FTableTreeNodePtr> NodesToExpand;
 
@@ -649,10 +653,12 @@ public:
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		// The role of this task is to keep the STableTreeView object alive until the task and it's prerequisits are completed and to destroy it on the game thread.
+		FGraphEventRef Event = TableTreeViewPtr->AsyncCompleteTaskEvent;
 		if (TableTreeViewPtr.IsValid())
 		{
 			TableTreeViewPtr.Reset();
 		}
+		FInsightsManager::Get()->RemoveInProgressAsyncOp(Event);
 	}
 
 private:

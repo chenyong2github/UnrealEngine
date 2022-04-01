@@ -11,6 +11,8 @@
 namespace Insights
 {
 
+class IAsyncOperationProgress;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FMemAllocGroupingBySize : public FTreeNodeGrouping
@@ -34,7 +36,7 @@ public:
 	bool IsPow2() const { return bIsPow2; }
 	void ResetThresholdsPow2();
 
-	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const override;
+	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, IAsyncOperationProgress& InAsyncOperationProgress) const override;
 
 private:
 	TArray<FThreshold> Thresholds;

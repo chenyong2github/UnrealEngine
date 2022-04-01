@@ -76,6 +76,8 @@ void FTraceInsightsModule::StartupModule()
 PRAGMA_DISABLE_OPTIMIZATION
 void FTraceInsightsModule::ShutdownModule()
 {
+	FInsightsManager::Get()->WaitOnInProgressAsyncOps();
+
 #if !WITH_EDITOR
 	if (FModuleManager::Get().IsModuleLoaded("SourceCodeAccess"))
 	{

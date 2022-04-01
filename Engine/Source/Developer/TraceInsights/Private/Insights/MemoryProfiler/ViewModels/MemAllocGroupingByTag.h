@@ -9,8 +9,11 @@
 
 namespace Insights
 {
-	
+
+class InAsyncOperationProgress;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FMemAllocGroupingByTag : public FTreeNodeGrouping
 {
 	INSIGHTS_DECLARE_RTTI(FMemAllocGroupingByTag, FTreeNodeGrouping);
@@ -18,7 +21,7 @@ class FMemAllocGroupingByTag : public FTreeNodeGrouping
 public:
 	FMemAllocGroupingByTag(const TraceServices::IAllocationsProvider& TagProvider);
 
-	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const override;
+	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, IAsyncOperationProgress& InAsyncOperationProgress) const override;
 
 private:
 	const TraceServices::IAllocationsProvider& TagProvider;

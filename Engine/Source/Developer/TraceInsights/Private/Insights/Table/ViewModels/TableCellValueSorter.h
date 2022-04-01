@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "Insights/Common/AsyncOperationProgress.h"
 #include "Insights/Table/ViewModels/TableCellValue.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 
@@ -41,6 +42,8 @@ public:
 	virtual FTreeNodeCompareFunc GetTreeNodeCompareDelegate(ESortMode SortMode) const = 0;
 
 	virtual void Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode SortMode) const = 0;
+
+	virtual void SetAsyncOperationProgress(IAsyncOperationProgress* AsyncOperationProgress) = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,6 +65,13 @@ public:
 
 	virtual void Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode SortMode) const override;
 
+	virtual void SetAsyncOperationProgress(IAsyncOperationProgress* InAsyncOperationProgress) override { AsyncOperationProgress = InAsyncOperationProgress; }
+
+protected:
+	// Attempts to cancel the sort by throwing an exception. If exceptions are not available the return value is meant to be returned from sort predicates to speed up the sort.
+	bool CancelSort() const;
+	bool ShouldCancelSort() const;
+
 protected:
 	FName Name;
 	FText ShortName;
@@ -75,6 +85,8 @@ protected:
 
 	FTreeNodeCompareFunc AscendingCompareDelegate;
 	FTreeNodeCompareFunc DescendingCompareDelegate;
+
+	IAsyncOperationProgress* AsyncOperationProgress = nullptr;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

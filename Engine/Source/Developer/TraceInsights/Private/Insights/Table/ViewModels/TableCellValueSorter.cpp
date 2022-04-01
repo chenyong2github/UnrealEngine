@@ -9,6 +9,10 @@
 // Default pre-sorting (group nodes sorts above leaf nodes)
 #define INSIGHTS_DEFAULT_PRESORTING_NODES(A, B) \
 	{ \
+		if (ShouldCancelSort()) \
+		{ \
+			return CancelSort(); \
+		} \
 		if (A->IsGroup() != B->IsGroup()) \
 		{ \
 			return A->IsGroup(); \
@@ -59,6 +63,24 @@ void FTableCellValueSorter::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMod
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTableCellValueSorter::CancelSort() const
+{
+#if PLATFORM_EXCEPTIONS_DISABLED
+	return true;
+#else
+	throw "Cancelling sort";
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTableCellValueSorter::ShouldCancelSort() const
+{
+	return this->AsyncOperationProgress && this->AsyncOperationProgress->ShouldCancelAsyncOp();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // FBaseTableColumnSorter
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -84,7 +106,7 @@ FSorterByName::FSorterByName(TSharedRef<FTableColumn> InColumnRef)
 		LOCTEXT("Sorter_ByName_Desc", "Sort alphabetically by name."),
 		InColumnRef)
 {
-	AscendingCompareDelegate = [](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	AscendingCompareDelegate = [this](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
 		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
 
@@ -92,7 +114,7 @@ FSorterByName::FSorterByName(TSharedRef<FTableColumn> InColumnRef)
 		return A->GetName().LexicalLess(B->GetName());
 	};
 
-	DescendingCompareDelegate = [](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	DescendingCompareDelegate = [this](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
 		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
 
@@ -113,7 +135,7 @@ FSorterByTypeName::FSorterByTypeName(TSharedRef<FTableColumn> InColumnRef)
 		LOCTEXT("Sorter_ByTypeName_Desc", "Sort by type name."),
 		InColumnRef)
 {
-	AscendingCompareDelegate = [](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	AscendingCompareDelegate = [this](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
 		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
 
@@ -131,7 +153,7 @@ FSorterByTypeName::FSorterByTypeName(TSharedRef<FTableColumn> InColumnRef)
 		}
 	};
 
-	DescendingCompareDelegate = [](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	DescendingCompareDelegate = [this](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
 		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
 
@@ -159,7 +181,7 @@ FSorterByBoolValue::FSorterByBoolValue(TSharedRef<FTableColumn> InColumnRef)
 {
 	ensure(InColumnRef->GetDataType() == ETableCellDataType::Bool);
 
-	AscendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	AscendingCompareDelegate = [&Column = *InColumnRef, this](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
 		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
 
@@ -180,7 +202,7 @@ FSorterByBoolValue::FSorterByBoolValue(TSharedRef<FTableColumn> InColumnRef)
 		}
 	};
 
-	DescendingCompareDelegate = [&Column = * InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	DescendingCompareDelegate = [&Column = * InColumnRef, this](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
 		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
 
@@ -234,6 +256,11 @@ void FSorterByInt64Value::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 	ElementsToSort.Reset(NumElements);
 	for (const FBaseTreeNodePtr& NodePtr : NodesToSort)
 	{
+		if (ShouldCancelSort())
+		{
+			return;
+		}
+
 		const TOptional<FTableCellValue> OptionalValue = Column.GetValue(*NodePtr);
 		const int64 Value = OptionalValue.IsSet() ? OptionalValue.GetValue().Int64 : 0;
 		ElementsToSort.Add({ NodePtr, Value });
@@ -242,7 +269,7 @@ void FSorterByInt64Value::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 
 	if (SortMode == ESortMode::Ascending)
 	{
-		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
+		ElementsToSort.Sort([this](const FSortElement& A, const FSortElement& B) -> bool
 		{
 			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
 
@@ -259,7 +286,7 @@ void FSorterByInt64Value::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 	}
 	else // if (SortMode == ESortMode::Descending)
 	{
-		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
+		ElementsToSort.Sort([this](const FSortElement& A, const FSortElement& B) -> bool
 		{
 			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
 
@@ -313,6 +340,11 @@ void FSorterByFloatValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 	ElementsToSort.Reset(NumElements);
 	for (const FBaseTreeNodePtr& NodePtr : NodesToSort)
 	{
+		if (ShouldCancelSort())
+		{
+			return;
+		}
+
 		const TOptional<FTableCellValue> OptionalValue = Column.GetValue(*NodePtr);
 		const float Value = OptionalValue.IsSet() ? OptionalValue.GetValue().Float : 0.0f;
 		ElementsToSort.Add({ NodePtr, Value });
@@ -321,7 +353,7 @@ void FSorterByFloatValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 
 	if (SortMode == ESortMode::Ascending)
 	{
-		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
+		ElementsToSort.Sort([this](const FSortElement& A, const FSortElement& B) -> bool
 		{
 			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
 
@@ -338,7 +370,7 @@ void FSorterByFloatValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 	}
 	else // if (SortMode == ESortMode::Descending)
 	{
-		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
+		ElementsToSort.Sort([this](const FSortElement& A, const FSortElement& B) -> bool
 		{
 			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
 
@@ -392,6 +424,11 @@ void FSorterByDoubleValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode
 	ElementsToSort.Reset(NumElements);
 	for (const FBaseTreeNodePtr& NodePtr : NodesToSort)
 	{
+		if (ShouldCancelSort())
+		{
+			return;
+		}
+
 		const TOptional<FTableCellValue> OptionalValue = Column.GetValue(*NodePtr);
 		const double Value = OptionalValue.IsSet() ? OptionalValue.GetValue().Double : 0.0;
 		ElementsToSort.Add({ NodePtr, Value });
@@ -400,7 +437,7 @@ void FSorterByDoubleValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode
 
 	if (SortMode == ESortMode::Ascending)
 	{
-		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
+		ElementsToSort.Sort([this](const FSortElement& A, const FSortElement& B) -> bool
 		{
 			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
 
@@ -417,7 +454,7 @@ void FSorterByDoubleValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode
 	}
 	else // if (SortMode == ESortMode::Descending)
 	{
-		ElementsToSort.Sort([](const FSortElement& A, const FSortElement& B) -> bool
+		ElementsToSort.Sort([this](const FSortElement& A, const FSortElement& B) -> bool
 		{
 			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
 
@@ -448,7 +485,7 @@ FSorterByCStringValue::FSorterByCStringValue(TSharedRef<FTableColumn> InColumnRe
 {
 	ensure(InColumnRef->GetDataType() == ETableCellDataType::CString);
 
-	AscendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	AscendingCompareDelegate = [&Column = *InColumnRef, this](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
 		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
 
@@ -470,7 +507,7 @@ FSorterByCStringValue::FSorterByCStringValue(TSharedRef<FTableColumn> InColumnRe
 		}
 	};
 
-	DescendingCompareDelegate = [&Column = *InColumnRef](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	DescendingCompareDelegate = [&Column = *InColumnRef, this](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
 		INSIGHTS_DEFAULT_PRESORTING_NODES(A, B)
 
@@ -527,6 +564,11 @@ void FSorterByTextValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode S
 	ElementsToSort.Reset(NumElements);
 	for (const FBaseTreeNodePtr& NodePtr : NodesToSort)
 	{
+		if (ShouldCancelSort())
+		{
+			return;
+		}
+
 		FSetElementId ValueId;
 		TOptional<FTableCellValue> Value = Column.GetValue(*NodePtr);
 		if (Value.IsSet())
@@ -539,7 +581,7 @@ void FSorterByTextValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode S
 
 	if (SortMode == ESortMode::Ascending)
 	{
-		ElementsToSort.Sort([&UniqueValues](const FSortElement& A, const FSortElement& B) -> bool
+		ElementsToSort.Sort([&UniqueValues, this](const FSortElement& A, const FSortElement& B) -> bool
 		{
 			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
 
@@ -567,7 +609,7 @@ void FSorterByTextValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode S
 	}
 	else // if (SortMode == ESortMode::Descending)
 	{
-		ElementsToSort.Sort([&UniqueValues](const FSortElement& A, const FSortElement& B) -> bool
+		ElementsToSort.Sort([&UniqueValues, this](const FSortElement& A, const FSortElement& B) -> bool
 		{
 			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
 
@@ -635,6 +677,11 @@ void FSorterByTextValueWithId::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESort
 	ElementsToSort.Reset(NumElements);
 	for (const FBaseTreeNodePtr& NodePtr : NodesToSort)
 	{
+		if (ShouldCancelSort())
+		{
+			return;
+		}
+
 		int32 ValueIndex = -1;
 		uint64 ValueId = Column.GetValueId(*NodePtr);
 		const int32* IndexPtr = UniqueValuesMap.Find(ValueId);
@@ -658,7 +705,7 @@ void FSorterByTextValueWithId::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESort
 
 	if (SortMode == ESortMode::Ascending)
 	{
-		ElementsToSort.Sort([&UniqueValues](const FSortElement& A, const FSortElement& B) -> bool
+		ElementsToSort.Sort([&UniqueValues, this](const FSortElement& A, const FSortElement& B) -> bool
 		{
 			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
 
@@ -686,7 +733,7 @@ void FSorterByTextValueWithId::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESort
 	}
 	else // if (SortMode == ESortMode::Descending)
 	{
-		ElementsToSort.Sort([&UniqueValues](const FSortElement& A, const FSortElement& B) -> bool
+		ElementsToSort.Sort([&UniqueValues, this](const FSortElement& A, const FSortElement& B) -> bool
 		{
 			INSIGHTS_DEFAULT_PRESORTING_NODES(A.NodePtr, B.NodePtr)
 

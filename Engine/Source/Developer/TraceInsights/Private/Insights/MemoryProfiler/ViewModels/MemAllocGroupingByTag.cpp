@@ -2,6 +2,8 @@
 #include "MemAllocGroupingByTag.h"
 #include "MemAllocNode.h"
 
+#include "Insights/Common/AsyncOperationProgress.h"
+
 #define LOCTEXT_NAMESPACE "Insights::FMemAllocGroupingByTag"
 
 namespace Insights
@@ -28,7 +30,7 @@ FMemAllocGroupingByTag::FMemAllocGroupingByTag(const TraceServices::IAllocations
 
 void FMemAllocGroupingByTag::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
                                         FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable,
-                                        std::atomic<bool>& bCancelGrouping) const
+                                        IAsyncOperationProgress& InAsyncOperationProgress) const
 {
 	using namespace TraceServices;
 	
@@ -58,7 +60,7 @@ void FMemAllocGroupingByTag::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 	// Add nodes to correct tag group
 	for (FTableTreeNodePtr NodePtr : Nodes)
 	{
-		if (bCancelGrouping)
+		if (InAsyncOperationProgress.ShouldCancelAsyncOp())
 		{
 			return;
 		}
@@ -93,7 +95,7 @@ void FMemAllocGroupingByTag::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 	// Fixup parent relationships and filter out empty nodes
 	for (auto TagParentRel : TagParentFixup)
 	{
-		if (bCancelGrouping)
+		if (InAsyncOperationProgress.ShouldCancelAsyncOp())
 		{
 			return;
 		}
