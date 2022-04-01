@@ -239,6 +239,37 @@ void FD3D12ShaderResourceView::CreateView(FD3D12BaseShaderResource* InBaseShader
 	}
 }
 
+static D3D12_SHADER_RESOURCE_VIEW_DESC GetRawBufferSRVDesc(FD3D12Buffer* Buffer, uint32 StartOffsetBytes, uint32 NumElements)
+{
+	const uint32 Stride = 4;
+	checkf(StartOffsetBytes % Stride == 0, TEXT("Raw buffer offset must be DWORD-aligned"));
+
+	const uint32 Width = Buffer->GetSize();
+	const uint32 MaxElements = Width / Stride;
+	const uint32 StartElement = FMath::Min(StartOffsetBytes, Width) / Stride;
+	const FD3D12ResourceLocation& Location = Buffer->ResourceLocation;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
+	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+	SRVDesc.Buffer.NumElements = FMath::Min(MaxElements - StartElement, NumElements);
+
+	if (Location.GetResource())
+	{
+		// Create a Shader Resource View
+		SRVDesc.Buffer.FirstElement = Location.GetOffsetFromBaseOfResource() / 4 + StartElement;
+	}
+	else
+	{
+		// Null underlying D3D12 resource should only be the case for dynamic resources
+		check(EnumHasAnyFlags(Buffer->GetUsage(), BUF_AnyDynamic));
+	}
+
+	return SRVDesc;
+}
+
 static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetVertexBufferSRVDesc(const FD3D12Buffer* VertexBuffer, uint32& CreationStride, uint8 Format, uint32 StartOffsetBytes, uint32 NumElements)
 {
 	const uint32 BufferSize = VertexBuffer->GetSize();
@@ -546,6 +577,16 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 					const D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetIndexBufferSRVDesc(Buffer, Desc.StartOffsetBytes, Desc.NumElements);
 
 					FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(Buffer, SRVDesc, CreationStride);
+					return ShaderResourceView;
+				});
+
+		case FShaderResourceViewInitializer::EType::RawBufferSRV:
+			return GetAdapter().CreateLinkedViews<FD3D12Buffer, FD3D12ShaderResourceView>(Buffer,
+				[Desc](FD3D12Buffer* Buffer)
+				{
+					check(Buffer);
+					const D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetRawBufferSRVDesc(Buffer, Desc.StartOffsetBytes, Desc.NumElements);
+					FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(Buffer, SRVDesc, 4);
 					return ShaderResourceView;
 				});
 

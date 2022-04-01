@@ -82,6 +82,8 @@ struct FRHIFlipDetails
 
 struct FShaderResourceViewInitializer
 {
+	friend struct FRawBufferShaderResourceViewInitializer;
+
 	struct FBufferShaderResourceViewInitializer
 	{
 		FRHIBuffer* Buffer;
@@ -134,6 +136,7 @@ struct FShaderResourceViewInitializer
 		StructuredBufferSRV,
 		IndexBufferSRV,
 		AccelerationStructureSRV,
+		RawBufferSRV, 
 	};
 
 	const EType GetType() const
@@ -147,6 +150,17 @@ private:
 	void InitType();
 
 	EType Type;
+};
+
+
+/*
+* FRawBufferShaderResourceViewInitializer can be used to explicitly create a raw view for any buffer,
+* even if it was not created with EBufferUsageFlags::ByteAddressBuffer flag.
+* Can only be used if GRHISupportsRawViewsForAnyBuffer is set.
+*/
+struct FRawBufferShaderResourceViewInitializer : FShaderResourceViewInitializer
+{
+	RHI_API FRawBufferShaderResourceViewInitializer(FRHIBuffer* InBuffer);
 };
 
 class FDynamicRHI;

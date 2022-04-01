@@ -497,6 +497,9 @@ extern RHI_API TRHIGlobal<int32> GMaxVolumeTextureDimensions;
 /** Whether RW texture buffers are supported */
 extern RHI_API bool GRHISupportsRWTextureBuffers;
 
+/** Whether a raw (ByteAddress) buffer view can be created for any buffer, regardless of its EBufferUsageFlags::ByteAddressBuffer flag. */
+extern RHI_API bool GRHISupportsRawViewsForAnyBuffer;
+
 FORCEINLINE uint64 GetMaxBufferDimension()
 {
 	return GMaxBufferDimensions;

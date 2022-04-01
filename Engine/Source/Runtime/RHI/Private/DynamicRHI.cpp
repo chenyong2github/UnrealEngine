@@ -634,6 +634,19 @@ FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuf
 	InitType();
 }
 
+FRawBufferShaderResourceViewInitializer::FRawBufferShaderResourceViewInitializer(FRHIBuffer* InBuffer)
+	: FShaderResourceViewInitializer(nullptr)
+{
+	check(GRHISupportsRawViewsForAnyBuffer);
+
+	Type = EType::RawBufferSRV;
+
+	BufferInitializer.Buffer = InBuffer;
+	BufferInitializer.Format = PF_Unknown;
+	BufferInitializer.StartOffsetBytes = 0;
+	BufferInitializer.NumElements = UINT32_MAX; // Whole resource
+}
+
 void FShaderResourceViewInitializer::InitType()
 {
 	if (BufferInitializer.Buffer)

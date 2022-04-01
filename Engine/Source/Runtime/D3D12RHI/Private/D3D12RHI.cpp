@@ -208,6 +208,8 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 
 	GRHISupportsParallelRHIExecute = D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE;
 
+	GRHISupportsRawViewsForAnyBuffer = true;
+
 	GSupportsTimestampRenderQueries = true;
 	GSupportsParallelOcclusionQueries = true;
 
