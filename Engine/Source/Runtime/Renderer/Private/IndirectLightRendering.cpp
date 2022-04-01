@@ -1161,7 +1161,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 				Strata::FStrataTilePassVS::FPermutationDomain VSPermutationVector;
 				VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableDebug >(false);
-				VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableTexCoordScreenVector >(true);
+				VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableTexCoordScreenVector >(false);
 				TShaderMapRef<Strata::FStrataTilePassVS> TileVertexShader(View.ShaderMap, VSPermutationVector);
 
 				ClearUnusedGraphResources(PixelShader, PassParameters);
