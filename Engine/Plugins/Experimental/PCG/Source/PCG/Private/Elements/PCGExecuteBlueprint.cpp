@@ -331,6 +331,30 @@ void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPo
 	});
 }
 
+void UPCGBlueprintElement::LoopNTimes(FPCGContext& InContext, int64 NumIterations, UPCGPointData*& OutData, const UPCGSpatialData* InA, const UPCGSpatialData* InB, UPCGPointData* OptionalOutData, const UObject* OptionalCustomObject) const
+{
+	if (NumIterations < 0)
+	{
+		UE_LOG(LogPCG, Error, TEXT("Invalid number of iterations in PCG blueprint element"));
+		return;
+	}
+
+	const UPCGSpatialData* Owner = (InA ? InA : InB);
+
+	OutData = OptionalOutData ? OptionalOutData : NewObject<UPCGPointData>(const_cast<UPCGSpatialData*>(Owner));
+	if (Owner)
+	{
+		OutData->InitializeFromData(Owner);
+	}
+
+	TArray<FPCGPoint>& OutPoints = OutData->GetMutablePoints();
+
+	FPCGAsync::AsyncPointProcessing(&InContext, NumIterations, OutPoints, [this, &InContext, InA, InB, OptionalCustomObject, OutData](int32 Index, FPCGPoint& OutPoint)
+	{
+		return IterationLoopBody(InContext, Index, InA, InB, OptionalCustomObject, OutPoint, OutData->Metadata);
+	});
+}
+
 bool FPCGExecuteBlueprintElement::IsCacheable(const UPCGSettings* InSettings) const
 {
 	if (const UPCGBlueprintSettings* BPSettings = Cast<const UPCGBlueprintSettings>(InSettings))
