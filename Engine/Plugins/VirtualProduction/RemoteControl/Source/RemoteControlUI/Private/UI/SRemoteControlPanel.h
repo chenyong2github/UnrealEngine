@@ -131,6 +131,9 @@ private:
 	/** Handles creating a new group. */
 	FReply OnCreateGroup();
 
+	/** Handles saving the Preset. */
+	FReply OnSavePreset();
+
 	/** Expose a property using its handle. */
 	void ExposeProperty(UObject* Object, FRCFieldPathInfo FieldPath);
 
