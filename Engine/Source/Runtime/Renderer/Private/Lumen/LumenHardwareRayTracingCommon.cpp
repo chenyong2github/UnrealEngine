@@ -177,7 +177,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 {
 	SharedParameters->SceneTextures = SceneTextures;
 	SharedParameters->SceneTexturesStruct = FSceneTextures::Get(GraphBuilder).UniformBuffer;
-	SharedParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+	SharedParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 	//SharedParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	checkf(View.HasRayTracingScene(), TEXT("TLAS does not exist. Verify that the current pass is represented in Lumen::AnyLumenHardwareRayTracingPassEnabled()."));

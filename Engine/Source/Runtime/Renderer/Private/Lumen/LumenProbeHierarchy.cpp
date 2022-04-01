@@ -1025,7 +1025,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 				GraphBuilder.AllocParameters<FScatterLeafProbesCS::FParameters>();
 			PassParameters->CommonProbeDenoiserParameters = CommonProbeDenoiserParameters;
 			PassParameters->SceneTextures = CommonParameters.SceneTextures;
-			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->TilePixelOffset = ComputeTileClassificationOffset(/* ParentTileSize = */ TileSize, /* ChildTileSize = */ 1);
 
@@ -1355,7 +1355,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 			PassParameters->CommonProbeDenoiserParameters = CommonProbeDenoiserParameters;
 			PassParameters->HierarchyParameters = ProbeHierachyParameters;
 			PassParameters->SceneTextures = CommonParameters.SceneTextures;
-			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->GlobalEmitTileClassificationOffset = ProbeOcclusionParameters.GlobalEmitTileClassificationOffset;
 			PassParameters->ProbePerResolveTiles = GraphBuilder.CreateSRV(ProbeListsPerResolveTile[0]);
@@ -1431,7 +1431,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 				FProbeOcclusionTileClassificationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FProbeOcclusionTileClassificationCS::FParameters>();
 				PassParameters->CommonProbeDenoiserParameters = CommonProbeDenoiserParameters;
 				PassParameters->SceneTextures = CommonParameters.SceneTextures;
-				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 				PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 				PassParameters->AtomicTileExtent = AtomicTileExtent;
 				PassParameters->AdditionalSpecularRayThreshold = CVarAdditionalSpecularRayThreshold.GetValueOnRenderThread();
@@ -1628,7 +1628,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 			PassParameters->CommonProbeDenoiserParameters = CommonProbeDenoiserParameters;
 			PassParameters->HierarchyParameters = ProbeHierachyParameters;
 			PassParameters->SceneTextures = CommonParameters.SceneTextures;
-			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->SamplePerPixel = CommonParameters.RayCountPerPixel;
 			PassParameters->AdditionalSpecularRayThreshold = CVarAdditionalSpecularRayThreshold.GetValueOnRenderThread();
@@ -1809,7 +1809,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 		PassParameters->HierarchyParameters = ProbeHierachyParameters;
 		PassParameters->LevelParameters = LumenProbeHierarchy::GetLevelParameters(ProbeHierachyParameters, /* HierarchyLevelId = */ 0);
 		PassParameters->SceneTextures = CommonParameters.SceneTextures;
-		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->CompressedDepthTexture = IndirectLightingProbeOcclusionParameters.CompressedDepthTexture;
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 

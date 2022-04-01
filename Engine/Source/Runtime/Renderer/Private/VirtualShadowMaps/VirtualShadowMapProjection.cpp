@@ -307,7 +307,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->InputType = uint32(InputType);
 	PassParameters->bCullBackfacingPixels = VirtualShadowMapArray.ShouldCullBackfacingPixels() ? 1 : 0;
 	PassParameters->SMRTTexelDitherScale = CVarSMRTTexelDitherScale.GetValueOnRenderThread();
-	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	if (bHasHairStrandsData)
 	{
 		PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);

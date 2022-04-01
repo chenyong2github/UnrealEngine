@@ -1576,7 +1576,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		CommonParameters.ViewportMax = Viewport.Max;
 
 		CommonParameters.SceneTextures = SceneTextures;
-		CommonParameters.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+		CommonParameters.Strata = Strata::BindStrataGlobalUniformParameters(View);
 		CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 		CommonParameters.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 

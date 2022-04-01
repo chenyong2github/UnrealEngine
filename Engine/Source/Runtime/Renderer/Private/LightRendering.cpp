@@ -1799,7 +1799,7 @@ static FDeferredLightPS::FParameters GetDeferredLightPSParameters(
 	const FVolumetricCloudRenderSceneInfo* CloudInfo = bCloudShadow ? Scene->GetVolumetricCloudSceneInfo() : nullptr;
 	Out.SceneTextures = SceneTexturesUniformBuffer;
 	Out.HairStrands = HairStrandsUniformBuffer;
-	Out.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+	Out.Strata = Strata::BindStrataGlobalUniformParameters(View);
 	Out.LightingChannelsTexture = LightingChannelsTexture ? LightingChannelsTexture : WhiteDummy;
 	Out.LightingChannelsSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Out.CloudShadowAO = GetCloudShadowAOParameters(GraphBuilder, View, CloudInfo);
@@ -2357,7 +2357,7 @@ static FSimpleLightsStandardDeferredParameters GetRenderLightSimpleParameters(
 	// PS - General parameters
 	Out.PS.SceneTextures = SceneTextures.UniformBuffer;
 	Out.PS.HairStrands = View.HairStrandsViewData.UniformBuffer;
-	Out.PS.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+	Out.PS.Strata = Strata::BindStrataGlobalUniformParameters(View);
 	Out.PS.LightingChannelsTexture = WhiteDummy;
 	Out.PS.LightingChannelsSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Out.PS.CloudShadowAO = GetCloudShadowAOParameters(GraphBuilder, View, nullptr);

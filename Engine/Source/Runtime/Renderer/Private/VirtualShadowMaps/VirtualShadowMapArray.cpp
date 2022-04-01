@@ -1250,7 +1250,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					PassParameters->PageDilationBorderSizeLocal = CVarPageDilationBorderSizeLocal.GetValueOnRenderThread();
 					PassParameters->PageDilationBorderSizeDirectional = CVarPageDilationBorderSizeDirectional.GetValueOnRenderThread();
 					PassParameters->bCullBackfacingPixels = ShouldCullBackfacingPixels() ? 1 : 0;
-					PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+					PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 					auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
 

@@ -1068,7 +1068,7 @@ void InterpolateAndIntegrate(
 			PassParameters->RWTileClassificationModes = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(TileClassificationModes));
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
 			extern float GLumenReflectionMaxRoughnessToTrace;
 			extern float GLumenReflectionRoughnessFadeLength;
@@ -1133,7 +1133,7 @@ void InterpolateAndIntegrate(
 			PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
 			PassParameters->ViewportTileDimensions = ViewportIntegrateTileDimensions;
 			PassParameters->IndirectArgs = IntegrateIndirectArgs;
-			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 			FScreenProbeIntegrateCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set< FScreenProbeIntegrateCS::FTileClassificationMode >(ClassificationMode);
@@ -1264,7 +1264,7 @@ void UpdateHistoryScreenProbeGather(
 					PassParameters->View = View.ViewUniformBuffer;
 					PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
 					PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-					PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+					PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 					PassParameters->DiffuseIndirectHistory = OldDiffuseIndirectHistory;
 					PassParameters->RoughSpecularIndirectHistory = OldRoughSpecularIndirectHistory;
@@ -1574,7 +1574,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		PassParameters->RWScreenProbeTranslatedWorldPosition = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeTranslatedWorldPosition));
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->SceneTextures = SceneTextureParameters;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 
@@ -1625,7 +1625,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 			PassParameters->SceneTextures = SceneTextureParameters;
-			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 			PassParameters->PlacementDownsampleFactor = PlacementDownsampleFactor;
 
@@ -1848,7 +1848,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 				PassParameters->RWCompressedShadingModelOutput = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(CompressedShadingModelTexture));
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->SceneTextures = SceneTextureParameters;
-				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 				auto ComputeShader = View.ShaderMap->GetShader<FGenerateCompressedGBuffer>(0);
 

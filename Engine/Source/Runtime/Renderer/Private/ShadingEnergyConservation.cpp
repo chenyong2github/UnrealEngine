@@ -145,7 +145,7 @@ static void AddShadingFurnacePass(
 	Parameters->RenderTargets[0]				= FRenderTargetBinding(OutTexture, ERenderTargetLoadAction::ELoad);
 	if (Strata::IsStrataEnabled())
 	{
-		Parameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+		Parameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	}
 
 	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintUniformBuffer);
