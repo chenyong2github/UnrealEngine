@@ -5,20 +5,20 @@
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(OpaqueShadowCHS,
 	FPackedMaterialClosestHitPayload, PackedPayload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
 	PackedPayload.HitT = RayTCurrent();
 }
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(HiddenMaterialCHS,
 	FPackedMaterialClosestHitPayload, PackedPayload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
 }
 
 RAY_TRACING_ENTRY_ANY_HIT(HiddenMaterialAHS,
 	FPackedMaterialClosestHitPayload, PackedPayload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
 	IgnoreHit();
 }  

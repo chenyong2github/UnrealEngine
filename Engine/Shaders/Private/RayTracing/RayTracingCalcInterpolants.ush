@@ -2,17 +2,19 @@
 
 #pragma once
 
-void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out FVertexFactoryInterpolantsVSToPS Interpolants, out float3 FaceNormal)
+void CalcInterpolants(in FRayCone RayCone, in FRayTracingIntersectionAttributes Attributes, out FVertexFactoryInterpolantsVSToPS Interpolants, out float3 FaceNormal)
 {
 	FVertexFactoryRayTracingInterpolants Interpolated = (FVertexFactoryRayTracingInterpolants)0;
 
 	float3 WorldPositions[3];
 	float2 TexCoords[3];
 
+	const float2 Barycentrics = Attributes.GetBarycentrics();
+
 	float3 Weights = float3(
-		1 - Attributes.Barycentrics.x - Attributes.Barycentrics.y,
-		Attributes.Barycentrics.x,
-		Attributes.Barycentrics.y);
+		1 - Barycentrics.x - Barycentrics.y,
+		Barycentrics.x,
+		Barycentrics.y);
 
 	for (int i = 0; i < 3; i++)
 	{
@@ -53,7 +55,7 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 }
 
 // simplified call when Geometric Normal is not needed
-void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out FVertexFactoryInterpolantsVSToPS Interpolants)
+void CalcInterpolants(in FRayCone RayCone, in FRayTracingIntersectionAttributes Attributes, out FVertexFactoryInterpolantsVSToPS Interpolants)
 {
 	float3 GeoNormal = 0; // unused
 	CalcInterpolants(RayCone, Attributes, Interpolants, GeoNormal);

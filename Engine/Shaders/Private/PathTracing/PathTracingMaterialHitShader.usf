@@ -33,7 +33,7 @@
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	FPackedPathTracingPayload, PackedPayload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
 	PackedPayload.HitT = RayTCurrent();
 
@@ -334,7 +334,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 
 RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 	FPackedPathTracingPayload, PackedPayload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
 #if USE_MATERIAL_ANY_HIT_SHADER
 

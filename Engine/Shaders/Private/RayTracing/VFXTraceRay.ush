@@ -17,12 +17,12 @@
 #include "/Platform/Private/VFXTraceRay.ush"
 #else // OVERRIDE_VFXTRACERAY_USH
 
-void InitVFXTracePayloadFromHitShader(FDefaultAttributes Attributes, out FVFXTracePayload OutPayload)
+void InitVFXTracePayloadFromHitShader(FRayTracingIntersectionAttributes Attributes, out FVFXTracePayload OutPayload)
 {
 	OutPayload.HitT = RayTCurrent();
 	OutPayload.PrimitiveIndex = GetInstanceUserData();
 	OutPayload.InstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
-	OutPayload.Barycentrics = Attributes.Barycentrics;
+	OutPayload.Barycentrics = Attributes.GetBarycentrics();
 
 	//Reconstruct world position.
 	OutPayload.TranslatedWorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
@@ -30,9 +30,9 @@ void InitVFXTracePayloadFromHitShader(FDefaultAttributes Attributes, out FVFXTra
 	//Reconstruct world normal.
 	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(PrimitiveIndex());
 
-	float3 LocalPosition = (1.0f - Attributes.Barycentrics.x - Attributes.Barycentrics.y) * Tri.LocalPositions[0]
-		+ Attributes.Barycentrics.x * Tri.LocalPositions[1]
-		+ Attributes.Barycentrics.y * Tri.LocalPositions[2];
+	float3 LocalPosition = (1.0f - OutPayload.Barycentrics.x - OutPayload.Barycentrics.y) * Tri.LocalPositions[0]
+		+ OutPayload.Barycentrics.x * Tri.LocalPositions[1]
+		+ OutPayload.Barycentrics.y * Tri.LocalPositions[2];
 
 	float3 LocalEdges[2] = { Tri.LocalPositions[1] - Tri.LocalPositions[0], Tri.LocalPositions[2] - Tri.LocalPositions[0] };
 	float3 LocalNormal = cross(LocalEdges[1], LocalEdges[0]);

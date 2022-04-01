@@ -86,19 +86,19 @@ RAY_TRACING_ENTRY_RAYGEN(IntersectionMainRG)
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(IntersectionMainCHS,
 	FDefaultPayload, Payload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
 	Payload.HitT = RayTCurrent();
-	Payload.Barycentrics = Attributes.Barycentrics;
+	Payload.Barycentrics = Attributes.GetBarycentrics();
 	Payload.InstanceIndex = InstanceIndex();
 	Payload.PrimitiveIndex = PrimitiveIndex();
 }
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(DefaultMainCHS,
 	FDefaultPayload, Payload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
-	Payload.Barycentrics = Attributes.Barycentrics;
+	Payload.Barycentrics = Attributes.GetBarycentrics();
 	Payload.InstanceID = InstanceID();
 	Payload.InstanceIndex = InstanceIndex();
 	Payload.PrimitiveIndex = PrimitiveIndex();
@@ -107,7 +107,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(DefaultMainCHS,
 
 RAY_TRACING_ENTRY_ANY_HIT(DefaultOpaqueAHS,
 	FDefaultPayload, Payload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
 }
 

@@ -75,9 +75,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingBarycentricsMainRGS)
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingBarycentricsMainCHS,
 	FDefaultPayload, Payload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
-	Payload.Barycentrics = Attributes.Barycentrics;
+	Payload.Barycentrics = Attributes.GetBarycentrics();
 	Payload.HitT = RayTCurrent();
 }
 

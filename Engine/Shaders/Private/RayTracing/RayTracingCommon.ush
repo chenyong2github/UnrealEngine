@@ -182,9 +182,39 @@ struct FDeferredMaterialPayload : FMinimalPayload
 	uint   PixelCoordinates; // X in low 16 bits, Y in high 16 bits
 };
 
-struct FDefaultAttributes
+#ifndef RAY_TRACING_SUPPORT_CUSTOM_UINT_IN_INTERSECTION_ATTRIBUTES
+#	define RAY_TRACING_SUPPORT_CUSTOM_UINT_IN_INTERSECTION_ATTRIBUTES 0
+#endif
+
+struct FRayTracingIntersectionAttributes
 {
-	float2 Barycentrics;
+	uint2 PackedData;
+
+	float2 GetBarycentrics()
+	{
+#if RAY_TRACING_SUPPORT_CUSTOM_UINT_IN_INTERSECTION_ATTRIBUTES
+		return UnpackUnorm2x16(PackedData.x);
+#else
+		return asfloat(PackedData);
+#endif
+	}
+
+	void SetBarycentrics(float2 Barycentrics)
+	{
+#if RAY_TRACING_SUPPORT_CUSTOM_UINT_IN_INTERSECTION_ATTRIBUTES
+		PackedData.x = PackUnorm2x16(Barycentrics);
+#else
+		PackedData = asuint(Barycentrics);
+#endif
+	}
+
+#if RAY_TRACING_SUPPORT_CUSTOM_UINT_IN_INTERSECTION_ATTRIBUTES
+	void SetCustomData(uint Data)
+	{
+		PackedData.y = Data;
+	}
+#endif
+
 };
 
 struct FRayCone

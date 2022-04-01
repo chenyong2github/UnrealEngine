@@ -443,8 +443,8 @@ RAY_TRACING_ENTRY_INTERSECTION(MaterialIS)
 		if ((dot(t * rd - w1, tb) * dot(tb, u) > 0)) return;
 
 		float h = sign(dot(dp, n)) * sqrt(saturate(d2 / r2));
-		FDefaultAttributes Attributes = (FDefaultAttributes)0;
-		Attributes.Barycentrics = float2(sc, 0.5 * h + 0.5);
+		FRayTracingIntersectionAttributes Attributes = (FRayTracingIntersectionAttributes)0;
+		Attributes.SetBarycentrics(float2(sc, 0.5 * h + 0.5));
 		ReportHit(t, HIT_KIND_TRIANGLE_FRONT_FACE, Attributes);
 	}
 }
@@ -457,7 +457,7 @@ RAY_TRACING_ENTRY_INTERSECTION(MaterialIS)
 // define this to let shaders know this alternative method is available
 #define VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS 1 
 
-FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 RayDirection, float HitT, uint HitPrimitiveIndex, FDefaultAttributes HitAttributes, uint HitKind, out float3 WorldGeoNormal)
+FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 RayDirection, float HitT, uint HitPrimitiveIndex, FRayTracingIntersectionAttributes HitAttributes, uint HitKind, out float3 WorldGeoNormal)
 {
 	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
 
@@ -468,6 +468,8 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 #endif
 
 	FSceneDataIntermediates SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input); // NOTE: Input is not used when VF_USE_PRIMITIVE_SCENE_DATA == 0
+
+	const float2 Barycentrics = HitAttributes.GetBarycentrics();
 
 #if ENABLE_PROCEDURAL_INTERSECTOR
 	uint VertexIndex0 = HitPrimitiveIndex / HairStrandsVF.RaytracingProceduralSplits;
@@ -480,8 +482,8 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 	}
 
 	const float EffectiveRadius = HairStrandsVF.Radius * HairStrandsVF.RaytracingRadiusScale;
-	float UCoord = HitAttributes.Barycentrics.x;
-	float VCoord = HitAttributes.Barycentrics.y;
+	float UCoord = Barycentrics.x;
+	float VCoord = Barycentrics.y;
 	const float3 PositionOffset = HairStrandsVF.PositionOffsetBuffer[0].xyz;
 	FHairControlPoint P0 = UnpackHairControlPoint(
 		HairStrandsVF.PositionBuffer[VertexIndex0],
@@ -498,9 +500,9 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 
 #else
 	const float3 Weights = float3(
-		1 - HitAttributes.Barycentrics.x - HitAttributes.Barycentrics.y,
-		HitAttributes.Barycentrics.x,
-		HitAttributes.Barycentrics.y);
+		1 - Barycentrics.x - Barycentrics.y,
+		Barycentrics.x,
+		Barycentrics.y);
 
 	// fetch triangle
 	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(HitPrimitiveIndex);

@@ -140,16 +140,9 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 	}
 }
 
-float3 GetBarycentricPosition(FDefaultAttributes Attributes, FTriangleBaseAttributes Tri)
-{
-	return (1.0f - Attributes.Barycentrics.x - Attributes.Barycentrics.y) * Tri.LocalPositions[0]
-		+ Attributes.Barycentrics.x * Tri.LocalPositions[1]
-		+ Attributes.Barycentrics.y * Tri.LocalPositions[2];
-}
-
 RAY_TRACING_ENTRY_CLOSEST_HIT(NiagaraCollisionRayTraceCH,
 	FVFXTracePayload, Payload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
 	InitVFXTracePayloadFromHitShader(Attributes, Payload);
 }

@@ -3565,7 +3565,7 @@ class FRayTracingPipelineStateSignature
 {
 public:
 
-	uint32 MaxAttributeSizeInBytes = 8; // sizeof FDefaultAttributes declared in RayTracingCommon.ush
+	uint32 MaxAttributeSizeInBytes = 8; // sizeof FRayTracingIntersectionAttributes declared in RayTracingCommon.ush
 	uint32 MaxPayloadSizeInBytes = 24; // sizeof FDefaultPayload declared in RayTracingCommon.ush
 	bool bAllowHitGroupIndexing = true;
 

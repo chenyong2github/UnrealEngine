@@ -233,7 +233,7 @@ float3 GetLumenGeometryNormal()
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	FPackedMaterialClosestHitPayload, PackedPayload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
 	PackedPayload.HitT = RayTCurrent();
 
@@ -519,7 +519,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 
 RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 	FPackedMaterialClosestHitPayload, PackedPayload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
 #if USE_MATERIAL_ANY_HIT_SHADER
 

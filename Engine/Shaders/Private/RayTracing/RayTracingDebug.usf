@@ -253,7 +253,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDebugMainCHS,
 	FRayTracingDebugPayload, Payload,
-	FDefaultAttributes, Attributes)
+	FRayTracingIntersectionAttributes, Attributes)
 {
 	Payload.HitT = RayTCurrent();
 
