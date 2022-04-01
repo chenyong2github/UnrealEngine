@@ -235,8 +235,11 @@ bool FCanvasTriangleRendererItem::Render_RenderThread(FCanvasRenderContext& Rend
 
 	Data->RenderTriangles(RenderContext, DrawRenderState, View, Canvas->IsHitTesting(), bNeedsToSwitchVerticalAxis);
 
-	RenderContext.DeferredRelease(MoveTemp(Data));
-	Data = nullptr;
+	if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
+	{
+		RenderContext.DeferredRelease(MoveTemp(Data));
+		Data = nullptr;
+	}
 
 	return true;
 }
@@ -276,6 +279,7 @@ bool FCanvasTriangleRendererItem::Render_GameThread(const FCanvas* Canvas, FCanv
 
 	const bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && Canvas->GetAllowSwitchVerticalAxis();
 	const bool bIsHitTesting = Canvas->IsHitTesting();
+	const bool bDeleteOnRender = Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender;
 
 	RenderScope.EnqueueRenderCommand(
 		[LocalData = Data, View, bIsHitTesting, bNeedsToSwitchVerticalAxis](FCanvasRenderContext& RenderContext) mutable
@@ -292,7 +296,10 @@ bool FCanvasTriangleRendererItem::Render_GameThread(const FCanvas* Canvas, FCanv
 		RenderContext.DeferredDelete(View);
 	});
 
-	Data = nullptr;
+	if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
+	{
+		Data = nullptr;
+	}
 
 	return true;
 }

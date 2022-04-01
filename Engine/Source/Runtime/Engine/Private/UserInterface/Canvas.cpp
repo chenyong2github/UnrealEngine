@@ -274,7 +274,7 @@ FCanvas::FCanvas(FRenderTarget* InRenderTarget, FHitProxyConsumer* InHitProxyCon
 ,	RenderTarget(InRenderTarget)
 ,	HitProxyConsumer(InHitProxyConsumer)
 ,	Scene(InWorld ? InWorld->Scene : NULL)
-,	AllowedModes(Allow_Flush)
+,	AllowedModes(0xFFFFFFFF)
 ,	bRenderTargetDirty(false)
 ,	FeatureLevel(InFeatureLevel)
 ,	bUseInternalTexture(false)
@@ -295,7 +295,7 @@ FCanvas::FCanvas(FRenderTarget* InRenderTarget,FHitProxyConsumer* InHitProxyCons
 ,	RenderTarget(InRenderTarget)
 ,	HitProxyConsumer(InHitProxyConsumer)
 ,	Scene(NULL)
-,	AllowedModes(Allow_Flush)
+,	AllowedModes(0xFFFFFFFF)
 ,	bRenderTargetDirty(false)
 ,	Time(InTime)
 ,	bAllowsToSwitchVerticalAxis(false)
@@ -455,9 +455,12 @@ bool FCanvasBatchedElementRenderItem::Render_RenderThread(FCanvasRenderContext& 
 		});
 	}
 
-	// delete data since we're done rendering it
-	RenderContext.DeferredDelete(Data);
-	Data = nullptr;
+	if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
+	{
+		// delete data since we're done rendering it
+		RenderContext.DeferredDelete(Data);
+		Data = nullptr;
+	}
 
 	return bDirty;
 }
@@ -528,12 +531,16 @@ bool FCanvasBatchedElementRenderItem::Render_GameThread(const FCanvas* Canvas, F
 				DrawParameters.bHitTesting,
 				DrawParameters.DisplayGamma);
 
-			delete DrawParameters.RenderData;
+			if(DrawParameters.AllowedCanvasModes & FCanvas::Allow_DeleteOnRender )
+			{
+				delete DrawParameters.RenderData;
+			}
 		});
 	}
-
-	Data = nullptr;
-
+	if( Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender )
+	{
+		Data = NULL;
+	}
 	return bDirty;
 }
 
@@ -566,20 +573,13 @@ FCanvasRenderThreadScope::~FCanvasRenderThreadScope()
 {
 	RenderCommandFunctionArray* RenderCommandArray = RenderCommands;
 
-	FIntRect ViewportRect = Canvas.ViewRect;
-
-	if (ViewportRect.Area() <= 0 || Canvas.bScaledToRenderTarget)
-	{
-		ViewportRect = FIntRect(FIntPoint::ZeroValue, Canvas.RenderTarget->GetSizeXY());
-	}
-
 	ENQUEUE_RENDER_COMMAND(DispatchCanvasRenderCommands)(
-		[RenderCommandArray, ViewportRect, ScissorRect = Canvas.ScissorRect, RenderTarget = Canvas.RenderTarget](FRHICommandListImmediate& RHICmdList)
+		[RenderCommandArray, LocalCanvas = Canvas](FRHICommandListImmediate& RHICmdList)
 	{
 		GetRendererModule().InitializeSystemTextures(RHICmdList);
 		FMemMark MemMark(FMemStack::Get());
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("CanvasRenderThreadScope"));
-		FCanvasRenderContext RenderContext(GraphBuilder, RenderTarget->GetRenderTargetTexture(GraphBuilder), ViewportRect, ScissorRect);
+		FCanvasRenderContext RenderContext(GraphBuilder, LocalCanvas);
 
 		for (uint32 Index = 0, Count = RenderCommandArray->Num(); Index < Count; ++Index)
 		{
@@ -810,18 +810,24 @@ void FCanvas::Flush_RenderThread(FRDGBuilder& GraphBuilder, bool bForce)
 			{
 				// mark current render target as dirty since we are drawing to it
 				bRenderTargetDirty |= RenderItem->Render_RenderThread(RenderContext, DrawRenderState, this);
-
-				RenderContext.DeferredDelete(RenderItem);
+				if (AllowedModes & Allow_DeleteOnRender)
+				{
+					RenderContext.DeferredDelete(RenderItem);
+				}
 			}
 		}
-
-		SortElement.RenderBatchArray.Empty();
+		if (AllowedModes & Allow_DeleteOnRender)
+		{
+			SortElement.RenderBatchArray.Empty();
+		}
 	}
-
-	// empty the array of FCanvasSortElement entries after finished with rendering	
-	SortedElements.Empty();
-	SortedElementLookupMap.Empty();
-	LastElementIndex = INDEX_NONE;
+	if (AllowedModes & Allow_DeleteOnRender)
+	{
+		// empty the array of FCanvasSortElement entries after finished with rendering	
+		SortedElements.Empty();
+		SortedElementLookupMap.Empty();
+		LastElementIndex = INDEX_NONE;
+	}
 }
 
 void FCanvas::Flush_GameThread(bool bForce)
@@ -835,6 +841,11 @@ void FCanvas::Flush_GameThread(bool bForce)
 
 	// current render target set for the canvas
 	check(RenderTarget);
+
+	if (!(AllowedModes & Allow_DeleteOnRender))
+	{
+		ensureMsgf(false, TEXT("Flush_GameThread requires Allow_DeleteOnRender flag to be set."));
+	}
 
 	// no need to set the render target if we aren't going to draw anything to it!
 	if (SortedElements.Num() == 0)

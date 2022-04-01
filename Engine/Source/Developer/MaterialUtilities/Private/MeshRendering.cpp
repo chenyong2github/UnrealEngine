@@ -548,8 +548,12 @@ public:
 		RenderMaterial(RenderContext, DrawRenderState, *View, *Data);
 
 		RenderContext.DeferredDelete(View);
-		RenderContext.DeferredDelete(Data);
-		Data = nullptr;
+
+		if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
+		{
+			RenderContext.DeferredDelete(Data);
+			Data = nullptr;
+		}
 		return true;
 	}
 
@@ -599,10 +603,15 @@ public:
 			RenderMaterial(RenderContext, DrawRenderState, *Parameters.View, *Parameters.RenderData);
 
 			RenderContext.DeferredDelete(Parameters.View);
-			RenderContext.DeferredDelete(Parameters.RenderData);
+			if (Parameters.AllowedCanvasModes & FCanvas::Allow_DeleteOnRender)
+			{
+				RenderContext.DeferredDelete(Parameters.RenderData);
+			}
 		});
-
-		Data = nullptr;
+		if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
+		{
+			Data = nullptr;
+		}
 		return true;
 	}
 };
