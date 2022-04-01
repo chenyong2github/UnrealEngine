@@ -438,8 +438,7 @@ void SActorDetails::RefreshSelection(const bool bForceRefresh)
 	bHasSelectionOverride = false;
 	SelectionOverrideActors.Reset();
 
-	const bool bOverrideLock = DetailsElements.IsEmpty();
-	RefreshTopLevelElements(DetailsElements, bForceRefresh, bOverrideLock);
+	RefreshTopLevelElements(DetailsElements, bForceRefresh, /*bOverrideLock*/false);
 }
 
 void SActorDetails::OverrideSelection(const TArray<AActor*>& InActors, const bool bForceRefresh)
