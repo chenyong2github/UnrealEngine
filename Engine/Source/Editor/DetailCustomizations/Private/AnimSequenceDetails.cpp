@@ -92,7 +92,9 @@ void FAnimSequenceDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	}
 
 	// add widget for editing retarget source
-	AnimationCategory.AddCustomRow(RetargetSourceNameHandler->GetPropertyDisplayName())
+	AnimationCategory
+	.AddCustomRow(RetargetSourceNameHandler->GetPropertyDisplayName())
+	.RowTag(RetargetSourceNameHandler->GetProperty()->GetFName())
 	.NameContent()
 	[
 		RetargetSourceNameHandler->CreatePropertyNameWidget()
@@ -116,7 +118,9 @@ void FAnimSequenceDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		]	
 	];
 
-	AnimationCategory.AddCustomRow(RetargetSourceAssetHandle->GetPropertyDisplayName())
+	AnimationCategory
+	.AddCustomRow(RetargetSourceAssetHandle->GetPropertyDisplayName())
+	.RowTag(RetargetSourceAssetHandle->GetProperty()->GetFName())
 	.NameContent()
 	[
 		RetargetSourceAssetHandle->CreatePropertyNameWidget()

@@ -46,7 +46,9 @@ void FAnimationAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 
 	// add widget for editing source animation 
 	IDetailCategoryBuilder& AnimationCategory = DetailBuilder.EditCategory("Animation");
-	AnimationCategory.AddCustomRow(PreviewPoseAssetHandler->GetPropertyDisplayName())
+	AnimationCategory
+	.AddCustomRow(PreviewPoseAssetHandler->GetPropertyDisplayName())
+	.RowTag(PreviewPoseAssetHandler->GetProperty()->GetFName())
 	.NameContent()
 	[
 		PreviewPoseAssetHandler->CreatePropertyNameWidget()
