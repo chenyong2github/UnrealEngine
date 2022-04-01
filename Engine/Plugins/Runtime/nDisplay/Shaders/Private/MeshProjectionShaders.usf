@@ -68,4 +68,7 @@ void MainPS(FMeshProjectionVSToPS Input OPTIONAL_IsFrontFace, out float4 OutputC
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	
 	OutputColor = float4(Emissive, Opacity);
+
+	float gamma = 2.2;
+	OutputColor.rgb = pow(OutputColor.rgb, gamma);
 }
