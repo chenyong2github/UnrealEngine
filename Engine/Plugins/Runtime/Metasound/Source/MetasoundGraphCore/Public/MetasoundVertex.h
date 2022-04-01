@@ -169,6 +169,7 @@ namespace Metasound
 		/** Construct an FInputDataVertex. */
 		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata)
 			: FDataVertex(InVertexName, InDataTypeName, InMetadata)
+			, LiteralFactory(FLiteral::FNone{})
 		{
 		}
 
