@@ -1,0 +1,92 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+#include "/Engine/Private/GpuSkinCommon.ush"
+
+// todo: These should be set by compute graph permutations when that is working.
+#define MERGE_DUPLICATED_VERTICES 0
+
+uint DI_LOCAL(NumVertices);
+uint DI_LOCAL(NumTriangles);
+uint DI_LOCAL(NumUVChannels);
+uint DI_LOCAL(IndexBufferStart);
+uint DI_LOCAL(InputStreamStart);
+
+Buffer<uint> DI_LOCAL(IndexBuffer);
+Buffer<float> DI_LOCAL(PositionInputBuffer);
+Buffer<SNORM float4> DI_LOCAL(TangentInputBuffer);
+Buffer<float2> DI_LOCAL(UVInputBuffer);
+Buffer<uint> DI_LOCAL(DuplicatedIndicesIndices);
+Buffer<uint> DI_LOCAL(DuplicatedIndices);
+
+DI_IMPL_READ(ReadNumVertices, uint, void)
+{
+	return DI_LOCAL(NumVertices);
+}
+
+DI_IMPL_READ(ReadNumTriangles, uint, void)
+{
+	return DI_LOCAL(NumTriangles);
+}
+
+DI_IMPL_READ(ReadNumUVChannels, uint, void)
+{
+	return DI_LOCAL(NumUVChannels);
+}
+
+DI_IMPL_READ(ReadIndexBuffer, uint, uint Index)
+{
+	uint BufferIndex = DI_LOCAL(IndexBufferStart) + Index;
+	return DI_LOCAL(IndexBuffer)[BufferIndex] - DI_LOCAL(InputStreamStart);
+}
+
+DI_IMPL_READ(ReadPosition, float3, uint VertexIndex)
+{
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 3;
+	return float3(DI_LOCAL(PositionInputBuffer)[BufferIndex], DI_LOCAL(PositionInputBuffer)[BufferIndex + 1], DI_LOCAL(PositionInputBuffer)[BufferIndex + 2]);
+}
+
+DI_IMPL_READ(ReadTangentX, float4, uint VertexIndex)
+{
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 2;
+	return TangentBias_SkinCache(DI_LOCAL(TangentInputBuffer)[BufferIndex]);
+}
+
+DI_IMPL_READ(ReadTangentZ, float4, uint VertexIndex)
+{
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 2;
+	return TangentBias_SkinCache(DI_LOCAL(TangentInputBuffer)[BufferIndex + 1]);
+}
+
+DI_IMPL_READ(ReadUV, float2, uint VertexIndex, uint UVChannelIndex)
+{
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * DI_LOCAL(NumUVChannels) + UVChannelIndex;
+	return DI_LOCAL(UVInputBuffer)[BufferIndex];
+}
+
+DI_IMPL_READ(ReadDuplicatedIndicesStart, uint, uint VertexIndex)
+{
+#if MERGE_DUPLICATED_VERTICES 
+	return DI_LOCAL(DuplicatedIndicesIndices)[VertexIndex * 2 + 1];
+#else
+	return 0;
+#endif
+}
+
+DI_IMPL_READ(ReadDuplicatedIndicesLength, uint, uint VertexIndex)
+{
+#if MERGE_DUPLICATED_VERTICES 
+	return DI_LOCAL(DuplicatedIndicesIndices)[VertexIndex * 2];
+#else
+	return 0;
+#endif
+}
+
+DI_IMPL_READ(ReadDuplicatedIndex, uint, uint Index)
+{
+#if MERGE_DUPLICATED_VERTICES 
+	return DI_LOCAL(DuplicatedIndices)[Index];
+#else
+	return 0;
+#endif
+}

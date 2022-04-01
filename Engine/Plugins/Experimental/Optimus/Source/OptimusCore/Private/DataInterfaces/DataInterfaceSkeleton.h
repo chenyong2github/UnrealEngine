@@ -4,14 +4,14 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "DataInterfaceSkeletalMeshRead.generated.h"
+#include "DataInterfaceSkeleton.generated.h"
 
 class FSkeletalMeshObject;
-class USkeletalMeshComponent;
+class USkinnedMeshComponent;
 
-/** Compute Framework Data Interface for reading skeletal mesh. */
-UCLASS(Hidden, Category = ComputeFramework)
-class OPTIMUSCORE_API USkeletalMeshReadDataInterface : public UOptimusComputeDataInterface
+/** Compute Framework Data Interface for skeletal data. */
+UCLASS(Category = ComputeFramework)
+class OPTIMUSCORE_API USkeletonDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -33,13 +33,13 @@ public:
 
 /** Compute Framework Data Provider for reading skeletal mesh. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class USkeletalMeshReadDataProvider : public UComputeDataProvider
+class USkeletonDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USkeletalMeshComponent> SkeletalMesh = nullptr;
+	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
 
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;
@@ -47,10 +47,10 @@ public:
 	//~ End UComputeDataProvider Interface
 };
 
-class FSkeletalMeshReadDataProviderProxy : public FComputeDataProviderRenderProxy
+class FSkeletonDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FSkeletalMeshReadDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
+	FSkeletonDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
