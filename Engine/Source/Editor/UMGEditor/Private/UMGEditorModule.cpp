@@ -10,8 +10,10 @@
 #include "Settings/WidgetDesignerSettings.h"
 #include "WidgetBlueprint.h"
 #include "Animation/WidgetAnimation.h"
-#include "Graph/GraphVariableDetailsCustomization.h"
+#include "EdGraphUtilities.h"
 #include "Graph/GraphFunctionDetailsCustomization.h"
+#include "Graph/UMGGraphPanelPinFactory.h"
+#include "Graph/GraphVariableDetailsCustomization.h"
 
 #include "AssetToolsModule.h"
 #include "IAssetTypeActions.h"
@@ -123,6 +125,9 @@ public:
 		PropertyModule.RegisterCustomClassLayout(TEXT("ListViewBase"), FOnGetDetailCustomizationInstance::CreateStatic(&FListViewBaseDetails::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout(TEXT("WidgetBlueprint"), FOnGetDetailCustomizationInstance::CreateStatic(&FWidgetThumbnailCustomization::MakeInstance));
 	
+		GraphPanelPinFactory = MakeShared<FUMGGraphPanelPinFactory>();
+		FEdGraphUtilities::RegisterVisualPinFactory(GraphPanelPinFactory);
+
 		CVarThumbnailRenderEnable->AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&FUMGEditorModule::ThumbnailRenderingEnabled));
 	}
 
@@ -182,7 +187,15 @@ public:
 		FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
 		if (PropertyModule != nullptr)
 		{
+			PropertyModule->UnregisterCustomClassLayout(TEXT("DynamicEntryBoxBase"));
+			PropertyModule->UnregisterCustomClassLayout(TEXT("DynamicEntryBox"));
+			PropertyModule->UnregisterCustomClassLayout(TEXT("ListViewBase"));
 			PropertyModule->UnregisterCustomClassLayout(TEXT("WidgetBlueprint"));
+		}
+
+		if (UObjectInitialized() && !IsEngineExitRequested())
+		{
+			FEdGraphUtilities::UnregisterVisualPinFactory(GraphPanelPinFactory);
 		}
 
 		//// Unregister the setting
@@ -327,6 +340,7 @@ private:
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
 	TSharedPtr<FDesignerExtensibilityManager> DesignerExtensibilityManager;
 	TSharedPtr<FPropertyBindingExtensibilityManager> PropertyBindingExtensibilityManager;
+	TSharedPtr<FGraphPanelPinFactory> GraphPanelPinFactory;
 
 	FDelegateHandle SequenceEditorHandle;
 	FDelegateHandle MarginTrackEditorCreateTrackEditorHandle;
