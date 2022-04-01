@@ -9,6 +9,7 @@
 #include "AbilitySystemLog.h"
 #include "UObject/UObjectIterator.h"
 #include "DataRegistrySubsystem.h"
+#include "HAL/IConsoleManager.h"
 
 #if WITH_EDITOR
 #include "EditorReimportHandler.h"

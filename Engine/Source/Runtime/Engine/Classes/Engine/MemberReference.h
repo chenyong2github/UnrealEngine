@@ -11,6 +11,7 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 #include "Engine/Blueprint.h"
+#include "EngineLogs.h"
 #include "MemberReference.generated.h"
 
 /** Helper struct to allow us to redirect properties and functions through renames and additionally between classes if necessary */

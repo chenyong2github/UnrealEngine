@@ -2,6 +2,7 @@
 
 #pragma once
 #include "KismetSystemLibrary.h"
+#include "Engine/HitResult.h"
 #include "GameplayStaticsTypes.generated.h"
 
 // Trace option to SuggestProjectileVelocity functions.
