@@ -4,6 +4,8 @@
 
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
+#include "MediaPlayerOptions.h"
+
 #include "MediaPlateComponent.generated.h"
 
 class UMediaComponent;
@@ -55,6 +57,10 @@ public:
 	/** If set then loop when we reach the end. */
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
 	bool bLoop;
+
+	/** What time to start playing from (in seconds). */
+	UPROPERTY(EditAnywhere, Category = "MediaPlate", meta = (ClampMin = "0.0"))
+	float StartTime = 0.0f;
 
 	/** Holds the media player. */
 	UPROPERTY(Category = MediaPlate, VisibleAnywhere, BlueprintReadOnly)

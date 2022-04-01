@@ -21,6 +21,7 @@ public class MediaPlate : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"MediaAssets",
+				"MediaUtils",
 			}
 			);
 	}

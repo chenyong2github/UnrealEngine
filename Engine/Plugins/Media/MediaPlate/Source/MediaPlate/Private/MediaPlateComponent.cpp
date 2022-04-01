@@ -70,9 +70,6 @@ void UMediaPlateComponent::Play()
 	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
 	if (MediaPlayer != nullptr)
 	{
-		MediaPlayer->PlayOnOpen = true;
-		MediaPlayer->SetLooping(bLoop);
-		
 		// Try and play the media path.
 		if (MediaPath.FilePath.IsEmpty() == false)
 		{
@@ -147,7 +144,12 @@ bool UMediaPlateComponent::PlayMediaSource(UMediaSource* InMediaSource)
 		if (MediaPlayer != nullptr)
 		{
 			// Play the source.
-			bIsPlaying = MediaPlayer->OpenSource(InMediaSource);
+			FMediaPlayerOptions Options;
+			Options.SeekTime = FTimespan::FromSeconds(StartTime);
+			Options.PlayOnOpen = EMediaPlayerOptionBooleanOverride::Enabled;
+			Options.Loop = bLoop ? EMediaPlayerOptionBooleanOverride::Enabled :
+				EMediaPlayerOptionBooleanOverride::Disabled;
+			bIsPlaying = MediaPlayer->OpenSourceWithOptions(InMediaSource, Options);
 		}
 	}
 
