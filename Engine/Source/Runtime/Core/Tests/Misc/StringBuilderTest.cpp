@@ -6,7 +6,7 @@
 #include "String/Find.h"
 #include "TestHarness.h"
 
-TEST_CASE("Core::String::StringBuilder", "[Core][String][Smoke]")
+TEST_CASE("Core::String::Misc::StringBuilder", "[Core][String][Smoke]")
 {
 	SECTION("Static")
 	{

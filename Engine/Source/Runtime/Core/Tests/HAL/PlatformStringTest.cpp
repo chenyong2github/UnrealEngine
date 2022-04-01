@@ -16,27 +16,27 @@ TEST_CASE_METHOD(FAutomationTestFixture, "Core::HAL::PlatformString::GetVarArgs"
 {
 	TCHAR Buffer[128];
 	InvokePlatformStringGetVarArgs(Buffer, TEXT("A%.*sZ"), 4, TEXT(" to B"));
-	TEST_TRUE(TEXT("GetVarArgs(%.*s)"), !FCString::Strcmp(Buffer, TEXT("A to Z") ));
+	CHECK(!FCString::Strcmp(Buffer, TEXT("A to Z")));
 }
 
 TEST_CASE_METHOD(FAutomationTestFixture, "Core::HAL::PlatformString::Strnlen", "[Core][HAL][Smoke]")
 {
-	TEST_EQUAL(TEXT("Strnlen(nullptr, 0)"), FPlatformString::Strnlen((const ANSICHAR*)nullptr, 0), 0);
-	TEST_EQUAL(TEXT("Strnlen(\"\", 0)"), FPlatformString::Strnlen("", 0), 0);
-	TEST_EQUAL(TEXT("Strnlen(\"1\", 0)"), FPlatformString::Strnlen("1", 0), 0);
-	TEST_EQUAL(TEXT("Strnlen(\"1\", 1)"), FPlatformString::Strnlen("1", 1), 1);
-	TEST_EQUAL(TEXT("Strnlen(\"1\", 2)"), FPlatformString::Strnlen("1", 2), 1);
-	TEST_EQUAL(TEXT("Strnlen(\"123\", 2)"), FPlatformString::Strnlen("123", 2), 2);
+	CHECK_EQUAL(FPlatformString::Strnlen((const ANSICHAR*)nullptr, 0), 0);
+	CHECK_EQUAL(FPlatformString::Strnlen("", 0), 0);
+	CHECK_EQUAL(FPlatformString::Strnlen("1", 0), 0);
+	CHECK_EQUAL(FPlatformString::Strnlen("1", 1), 1);
+	CHECK_EQUAL(FPlatformString::Strnlen("1", 2), 1);
+	CHECK_EQUAL(FPlatformString::Strnlen("123", 2), 2);
 	ANSICHAR AnsiBuffer[128] = "123456789";
-	TEST_EQUAL(TEXT("Strnlen(PaddedBuffer)"), FPlatformString::Strnlen(AnsiBuffer, UE_ARRAY_COUNT(AnsiBuffer)), 9);
+	CHECK_EQUAL(FPlatformString::Strnlen(AnsiBuffer, UE_ARRAY_COUNT(AnsiBuffer)), 9);
 
-	TEST_EQUAL(TEXT("Strnlen(nullptr, 0)"), FPlatformString::Strnlen((const TCHAR*)nullptr, 0), 0); //-V575
-	TEST_EQUAL(TEXT("Strnlen(\"\", 0)"), FPlatformString::Strnlen(TEXT(""), 0), 0); //-V575
-	TEST_EQUAL(TEXT("Strnlen(\"1\", 0)"), FPlatformString::Strnlen(TEXT("1"), 0), 0); //-V575
-	TEST_EQUAL(TEXT("Strnlen(\"1\", 1)"), FPlatformString::Strnlen(TEXT("1"), 1), 1);
-	TEST_EQUAL(TEXT("Strnlen(\"1\", 2)"), FPlatformString::Strnlen(TEXT("1"), 2), 1);
-	TEST_EQUAL(TEXT("Strnlen(\"123\", 2)"), FPlatformString::Strnlen(TEXT("123"), 2), 2);
+	CHECK_EQUAL(FPlatformString::Strnlen((const TCHAR*)nullptr, 0), 0); //-V575
+	CHECK_EQUAL(FPlatformString::Strnlen(TEXT(""), 0), 0); //-V575
+	CHECK_EQUAL(FPlatformString::Strnlen(TEXT("1"), 0), 0); //-V575
+	CHECK_EQUAL(FPlatformString::Strnlen(TEXT("1"), 1), 1);
+	CHECK_EQUAL(FPlatformString::Strnlen(TEXT("1"), 2), 1);
+	CHECK_EQUAL(FPlatformString::Strnlen(TEXT("123"), 2), 2);
 	TCHAR Buffer[128] = {};
 	FCString::Strcpy(Buffer, TEXT("123456789"));
-	TEST_EQUAL(TEXT("Strnlen(PaddedBuffer)"), FPlatformString::Strnlen(Buffer, UE_ARRAY_COUNT(Buffer)), 9);
+	CHECK_EQUAL(FPlatformString::Strnlen(Buffer, UE_ARRAY_COUNT(Buffer)), 9);
 }

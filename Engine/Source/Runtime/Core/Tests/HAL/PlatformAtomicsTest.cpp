@@ -21,8 +21,9 @@ bool TestInterlocked(volatile T* Dest, T ExpectedReturnValue, T ExpectedFinalVal
 	bool bSuccess = true;
 	const T ReturnValue = InterlockedFunc(Dest);
 	
-	TEST_TRUE(FString::Printf(TEXT("FPlatformAtomics::Interlocked%s on %s failed"), FunctionName, TypeName), ReturnValue == ExpectedReturnValue);
-	TEST_TRUE(FString::Printf(TEXT("FPlatformAtomics::Interlocked%s on %s failed"), FunctionName, TypeName), FPlatformAtomics::AtomicRead(Dest) == ExpectedFinalValue );
+	INFO(FString::Printf(TEXT("FPlatformAtomics::Interlocked%s on %s failed"), FunctionName, TypeName));
+	CHECK(ReturnValue == ExpectedReturnValue);
+	CHECK(FPlatformAtomics::AtomicRead(Dest) == ExpectedFinalValue );
 
 	return bSuccess;
 }

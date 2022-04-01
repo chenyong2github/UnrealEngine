@@ -8,7 +8,7 @@
 namespace UE::String
 {
 
-TEST_CASE("Core::String::Find", "[Core][String][Smoke]")
+TEST_CASE("Core::String::Misc::Find", "[Core][String][Smoke]")
 {
 	SECTION("FindFirst")
 	{

@@ -93,6 +93,7 @@ void InitAllThreadPools(bool MultiThreaded)
 
 void InitTaskGraph(bool MultiThreaded, ENamedThreads::Type ThreadToAttach)
 {
+	FTaskTagScope Scope(ETaskTag::EGameThread);
 	FTaskGraphInterface::Startup(MultiThreaded ? FPlatformMisc::NumberOfWorkerThreadsToSpawn() : 1);
 	FTaskGraphInterface::Get().AttachToThread(ThreadToAttach);
 }

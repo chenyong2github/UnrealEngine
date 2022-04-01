@@ -81,7 +81,7 @@ namespace AsyncWorkTestImpl
 	};
 }
 
-TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::AsyncWork::Ensure Completion BusyWait Deadlock Test", "[Core][Async][Smoke]")
+TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Task::Ensure Completion BusyWait Deadlock Test", "[Core][Async][Smoke]")
 {
 	using namespace AsyncWorkTestImpl;
 	TRACE_CPUPROFILER_EVENT_SCOPE(FAsyncWorkEnsureCompletionBusyWaitDeadLockTest::RunTest);

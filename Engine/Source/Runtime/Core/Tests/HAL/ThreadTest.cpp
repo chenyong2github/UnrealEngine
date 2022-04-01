@@ -16,7 +16,8 @@ namespace
 	void TestIsJoinableAfterCreation(FAutomationTestFixture& Test)
 	{
 		FThread Thread(TEXT("Test.Thread.TestIsJoinableAfterCreation"), []() { /*NOOP*/ });
-		TEST_TRUE(TEXT("FThread must be joinable after construction"), Thread.IsJoinable());
+		INFO("FThread must be joinable after construction");
+		CHECK(Thread.IsJoinable());
 		Thread.Join();
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
@@ -26,7 +27,8 @@ namespace
 		FThreadSafeBool bDone = false;
 		FThread Thread(TEXT("Test.Thread.TestIsJoinableAfterCompletion"), [&bDone]() { bDone = true; });
 		while (!bDone) {}; // wait for completion //-V529
-		TEST_TRUE(TEXT("FThread must still be joinable after completion"), Thread.IsJoinable());
+		INFO("FThread must still be joinable after completion");
+		CHECK(Thread.IsJoinable());
 		Thread.Join();
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
@@ -35,7 +37,8 @@ namespace
 	{
 		FThread Thread(TEXT("Test.Thread.TestIsNotJoinableAfterJoining"), []() { /*NOOP*/ });
 		Thread.Join();
-		TEST_FALSE(TEXT("FThread must not be joinable after joining"), Thread.IsJoinable());
+		INFO("FThread must not be joinable after joining");
+		CHECK_FALSE(Thread.IsJoinable());
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 
@@ -51,7 +54,8 @@ namespace
 				});
 			Thread.Detach();
 			bReady = true; // make sure `Detach` is called before thread function exit
-			Test.TEST_FALSE(TEXT("FThread must not be joinable after detaching"), Thread.IsJoinable());
+			INFO("FThread must not be joinable after detaching");
+			CHECK_FALSE(Thread.IsJoinable());
 		}
 		// or thread function is completed fast and `FThreadImpl` releases the reference to itself before
 		// `Detach` call
@@ -61,7 +65,8 @@ namespace
 			FPlatformProcess::Sleep(0.1); // let the thread exit before detaching
 			Thread.Detach();
 			bReady = true; // make sure `Detach` is called before thread function exit
-			Test.TEST_FALSE(TEXT("FThread must not be joinable after detaching"), Thread.IsJoinable());
+			INFO("FThread must not be joinable after detaching");
+			CHECK_FALSE(Thread.IsJoinable());
 		}
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
@@ -78,12 +83,14 @@ namespace
 	{
 		{
 			FThread Thread;
-			TEST_FALSE(TEXT("Default-constructed FThread must be not joinable"), Thread.IsJoinable());
+			INFO("Default-constructed FThread must be not joinable");
+			CHECK_FALSE(Thread.IsJoinable());
 		}
 		{	// check that default constructed thread can be "upgraded" to joinable thread
 			FThread Thread;
 			Thread = FThread(TEXT("Test.Thread.TestDefaultConstruction"), []() { /* NOOP */ });
-			TEST_TRUE(TEXT("Move-constructed FThread from joinable thread must be joinable"), Thread.IsJoinable());
+			INFO("Move-constructed FThread from joinable thread must be joinable");
+			CHECK(Thread.IsJoinable());
 			Thread.Join();
 		}
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
@@ -111,8 +118,9 @@ namespace
 					FThreadSingletonTest::Get().SetTestField(2);
 				});
 			Thread.Join();
-			TEST_TRUE(TEXT("Thread singleton should be uninitialized by default"), bDefaultValuePass);
-			TEST_TRUE(TEXT("Thread singletons in different threads should be isolated"), FThreadSingletonTest::Get().GetTestField() == 1);
+
+			CHECK(bDefaultValuePass);
+			CHECK(FThreadSingletonTest::Get().GetTestField() == 1);
 		}
 		{	// check that ThreadSingleton entries don't point to invalid memory after cleanup
 			class FThreadSingletonFirst : public TThreadSingleton<FThreadSingletonFirst>
@@ -135,33 +143,36 @@ namespace
 					FThreadSingletonSecond::Get();
 				});
 			Thread.Join();
-			TEST_TRUE(TEXT("Thread singletons should be uninitialized by default"), FThreadSingletonFirst::TryGet() == nullptr);
-			TEST_TRUE(TEXT("Thread singletons should be uninitialized by default"), FThreadSingletonSecond::TryGet() == nullptr);
+			CHECK(FThreadSingletonFirst::TryGet() == nullptr);
+			CHECK(FThreadSingletonSecond::TryGet() == nullptr);
 		}
 		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 
 	void TestMovability(FAutomationTestFixture& Test)
 	{
-		{	// move constructor with default-constructed thread
+		{	
+			INFO("move constructor with default - constructed thread");
 			FThread Src;
 			FThread Dst(MoveTemp(Src));
-			TEST_FALSE(TEXT("Default-constructed thread must stay not joinable after moving out"), Src.IsJoinable());
-			TEST_FALSE(TEXT("Move-constructed thread from not joinable thread must be not joinable"), Dst.IsJoinable());
+			CHECK_FALSE( Src.IsJoinable());
+			CHECK_FALSE(Dst.IsJoinable());
 		}
-		{	// move constructor with joinable thread
+		{	
+			INFO("move constructor with joinable thread");
 			FThread Src(TEXT("Test.Thread.TestMovability.1"), []() { /* NOOP */ });
 			FThread Dst(MoveTemp(Src));
-			TEST_FALSE(TEXT("Moved out thread must be not joinable"), Src.IsJoinable());
-			TEST_TRUE(TEXT("Move-constructed thread from joinable thread must be joinable"), Dst.IsJoinable());
+			CHECK_FALSE(Src.IsJoinable());
+			CHECK(Dst.IsJoinable());
 			Dst.Join();
 		}
-		{	// move assignment operator
+		{	
+			INFO("move assignment operator");
 			FThread Src(TEXT("Test.Thread.TestMovability.2"), []() { /* NOOP */ });
 			FThread Dst;
 			Dst = MoveTemp(Src);
-			TEST_FALSE(TEXT("Moved out thread must be not joinable"), Src.IsJoinable());
-			TEST_TRUE(TEXT("Move-assigned thread from joinable thread must be joinable"), Dst.IsJoinable());
+			CHECK_FALSE(Src.IsJoinable());
+			CHECK(Dst.IsJoinable());
 			Dst.Join();
 		}
 		{	// Failure test for move assignment operator of joinable thread
@@ -170,7 +181,8 @@ namespace
 			//Dst = MoveTemp(Src); // must assert that joinable thread wasn't joined before move-assignment, no way to test this
 			//Dst.Join();
 		}
-		{	// Move assignment operator of thread that has been joined
+		{	
+			INFO("Move assignment operator of thread that has been joined");
 			FThread Src(TEXT("Test.Thread.TestMovability.3"), []() { /* NOOP */ });
 			FThread Dst(TEXT("Test.Thread.TestMovability.4"), []() { /* NOOP */ });
 			Dst.Join();

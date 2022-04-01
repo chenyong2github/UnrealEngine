@@ -594,7 +594,7 @@ namespace UE { namespace TasksTests
 		TlsValue = Dummy;
 	}
 
-	TEST_CASE_METHOD(FCoreTestFixture, "Core::Tasks::Tls::Tls", "[Core][Async][Smoke]")
+	TEST_CASE_METHOD(FCoreTestFixture, "Core::Async::Task::Tls", "[Core][Async][Smoke]")
 	{
 		UE_BENCHMARK(5, UeTlsStressTest<10000000>);
 		UE_BENCHMARK(5, ThreadLocalStressTest<10000000>);

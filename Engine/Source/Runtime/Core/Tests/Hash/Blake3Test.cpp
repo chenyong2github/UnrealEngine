@@ -5,7 +5,7 @@
 #include "Misc/StringBuilder.h"
 #include "TestHarness.h"
 
-TEST_CASE("Core::Hash::Blake3", "[Core][Hash][Smoke]")
+TEST_CASE("Core::Hash::FBlake3::Smoke Test", "[Core][Hash][Smoke]")
 {
 	struct FBlake3TestCase
 	{
