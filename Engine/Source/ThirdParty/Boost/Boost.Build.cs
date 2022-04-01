@@ -47,5 +47,22 @@ public class Boost : ModuleRules
 				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", BoostLibName + ".dylib"), Path.Combine(BoostLibPath, BoostLibName + ".dylib"));
 			}
 		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+		{
+			string BoostLibPath = Path.Combine(BoostPath, "lib", "Unix", Target.Architecture);
+
+			foreach (string BoostLib in BoostLibraries)
+			{
+				string BoostLibName = "libboost_" + BoostLib + "-mt-x64";
+				PublicAdditionalLibraries.Add(Path.Combine(BoostLibPath, BoostLibName + ".a"));
+
+				// Declare all version variations of the shared libraries as
+				// runtime dependencies.
+				foreach (string BoostSharedLibPath in Directory.EnumerateFiles(BoostLibPath, BoostLibName + ".so*"))
+				{
+					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", Path.GetFileName(BoostSharedLibPath)), BoostSharedLibPath);
+				}
+			}
+		}
 	}
 }

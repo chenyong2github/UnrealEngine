@@ -87,13 +87,9 @@ namespace UnrealBuildTool.Rules
 					PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "include"));
 					var USDBinDir = Path.Combine(ModuleDirectory, "..", "ThirdParty", "Linux", "bin", Target.Architecture);
 					PrivateRuntimeLibraryPaths.Add(USDBinDir);
-					foreach (string LibPath in Directory.EnumerateFiles(USDBinDir, "*.so*", SearchOption.AllDirectories))
+					foreach (string LibPath in Directory.EnumerateFiles(USDBinDir, "*.so", SearchOption.AllDirectories))
 					{
-						if(LibPath.EndsWith(".so")) // Don't add all versions of libboost_python39.so as they're duplicates
-						{
-							PublicAdditionalLibraries.Add(LibPath);
-						}
-
+						PublicAdditionalLibraries.Add(LibPath);
 						RuntimeDependencies.Add(LibPath);
 					}
 					// Redirect plugInfo.json to Plugin/Binaries for the editor, but leave them pointing at the executable folder otherwise
