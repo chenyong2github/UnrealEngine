@@ -6081,6 +6081,7 @@ namespace
 
 void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& MeshMaterialMaps, const TArray<FString>& MaterialsToLoad, const TArray<uint8>& GlobalShaderMap)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCookOnTheFlyShaders);
 	check(IsInGameThread());
 
 	bool bHasFlushed = false;
@@ -6089,7 +6090,7 @@ void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& 
 		if (!bHasFlushed )
 		{
 			// now we need to refresh the RHI resources
-			FlushRenderingCommands();
+	FlushRenderingCommands();
 			bHasFlushed = true;
 		}
 	};
@@ -7192,8 +7193,6 @@ bool RecompileChangedShadersForPlatform(const FString& PlatformName)
 	TArray<FName> DesiredShaderFormats;
 	TargetPlatform->GetAllTargetedShaderFormats(DesiredShaderFormats);
 
-
-
 	// figure out which shaders are out of date
 	TArray<const FShaderType*> OutdatedShaderTypes;
 	TArray<const FVertexFactoryType*> OutdatedFactoryTypes;
@@ -7272,6 +7271,8 @@ void RecompileShadersForRemote(
 	FShaderRecompileData& Args,
 	const FString& OutputDirectory)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(RecompileShadersForRemote);
+
 	// figure out what shader platforms to recompile
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
 	ITargetPlatform* TargetPlatform = TPM->FindTargetPlatform(Args.PlatformName);

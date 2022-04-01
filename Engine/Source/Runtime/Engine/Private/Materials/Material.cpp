@@ -4618,6 +4618,8 @@ void UMaterial::CompileMaterialsForRemoteRecompile(
 	ITargetPlatform* TargetPlatform,
 	TMap<FString, TArray<TRefCountPtr<FMaterialShaderMap> > >& OutShaderMaps)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMaterial::CompileMaterialsForRemoteRecompile);
+
 	// Build a map from UMaterial / UMaterialInstance to the resources which are being compiled
 	TMap<FString, TArray<FMaterialResource*> > CompilingResources;
 
