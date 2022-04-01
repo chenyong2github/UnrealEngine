@@ -341,8 +341,13 @@ void UPCGBlueprintElement::LoopNTimes(FPCGContext& InContext, int64 NumIteration
 	}
 
 	const UPCGSpatialData* Owner = (InA ? InA : InB);
+	OutData = OptionalOutData;
 
-	OutData = OptionalOutData ? OptionalOutData : NewObject<UPCGPointData>(const_cast<UPCGSpatialData*>(Owner));
+	if (!OutData)
+	{
+		OutData = Owner ? NewObject<UPCGPointData>(const_cast<UPCGSpatialData*>(Owner)) : NewObject<UPCGPointData>();
+	}
+
 	if (Owner)
 	{
 		OutData->InitializeFromData(Owner);
