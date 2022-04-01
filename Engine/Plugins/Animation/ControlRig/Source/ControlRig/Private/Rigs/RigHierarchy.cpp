@@ -4388,7 +4388,7 @@ URigHierarchy::TElementDependencyMap URigHierarchy::GetDependenciesForVM(const U
 				// only create dependencies for reads and writes that are on the same slice
 				if(ReadTransform != FilteredTransform && ReadTransform.Get<0>() == FilteredTransform.Get<0>())
 				{
-					Dependencies.FindOrAdd(ReadTransform.Get<1>()).AddUnique(FilteredTransform.Get<1>());
+					Dependencies.FindOrAdd(FilteredTransform.Get<1>()).AddUnique(ReadTransform.Get<1>());
 				}
 			}
 		}
