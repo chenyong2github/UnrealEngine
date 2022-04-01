@@ -488,7 +488,7 @@ void FDebugViewModeImplementation::GetDebugViewModeShaderBindings(
 
 							if (Texture->IsStreamable())
 							{
-								TextureResolution = 1 << (Texture->GetResource()->GetCurrentMipCount() - 1);
+								TextureResolution = 1 << FMath::Max((Texture->GetResource()->GetCurrentMipCount() - 1), 0);
 							}
 							else
 							{
@@ -514,7 +514,7 @@ void FDebugViewModeImplementation::GetDebugViewModeShaderBindings(
 
 						if (Texture->IsStreamable())
 						{
-							TextureResolution = 1 << (Texture->GetResource()->GetCurrentMipCount() - 1);
+							TextureResolution = 1 << FMath::Max((Texture->GetResource()->GetCurrentMipCount() - 1), 0);
 						}
 						else
 						{
