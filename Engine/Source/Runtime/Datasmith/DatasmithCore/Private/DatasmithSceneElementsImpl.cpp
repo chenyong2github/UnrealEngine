@@ -1046,7 +1046,6 @@ FDatasmithSceneImpl::FDatasmithSceneImpl(const TCHAR * InName)
 	RegisterReferenceProxy(LevelVariantSets, "LevelVariantSets" );
 	RegisterReferenceProxy(PostProcess,      "PostProcess"      );
 
-	Store.RegisterParameter(LODScreenSizes,     "LODScreenSizes"     );
 	Store.RegisterParameter(Hostname,           "Hostname"           );
 	Store.RegisterParameter(ExporterVersion,    "ExporterVersion"    );
 	Store.RegisterParameter(ExporterSDKVersion, "ExporterSDKVersion" );
@@ -1070,7 +1069,6 @@ void FDatasmithSceneImpl::Reset()
 	MetaData.Empty();
 	LevelSequences.Empty();
 	LevelVariantSets.Empty();
-	LODScreenSizes.Get().Reset();
 	PostProcess.Inner.Reset();
 	ElementToMetaDataMap.Empty();
 

@@ -1326,12 +1326,6 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 			ParseMetaData(Nodes[i], MetaData, OutScene, Actors );
 			OutScene->AddMetaData(MetaData);
 		}
-		//LOD SCREEN SIZES
-		else if (Nodes[i]->GetTag() == DATASMITH_LODSCREENSIZE)
-		{
-			float LODScreenSize = ValueFromString<float>( Nodes[i]->GetAttribute(TEXT("value")) );
-			OutScene->AddLODScreenSize(LODScreenSize);
-		}
 		// EXPORT STATS
 		else if (Nodes[i]->GetTag() == DATASMITH_EXPORT)
 		{

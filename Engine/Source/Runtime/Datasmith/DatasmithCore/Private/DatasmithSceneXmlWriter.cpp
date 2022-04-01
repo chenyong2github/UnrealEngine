@@ -1982,16 +1982,6 @@ void FDatasmithSceneXmlWriter::Serialize( TSharedRef< IDatasmithScene > Datasmit
 		FDatasmithSceneXmlWriterImpl::WriteMetaDataElement(MetaDataElement, Archive, 1);
 	}
 
-
-	for ( int32 LODScreenSizeIndex = 0; LODScreenSizeIndex < DatasmithScene->GetLODScreenSizesCount(); ++LODScreenSizeIndex )
-	{
-		float LODScreenSize = DatasmithScene->GetLODScreenSize( LODScreenSizeIndex );
-
-		FDatasmithSceneXmlWriterImpl::WriteIndent(Archive, 1);
-		XmlString = TEXT("<") + FString(DATASMITH_LODSCREENSIZE) + TEXT(" value=\"") + FString::SanitizeFloat( LODScreenSize ) + "\"/>" + LINE_TERMINATOR;
-		FDatasmithSceneXmlWriterImpl::SerializeToArchive( Archive, XmlString );
-	}
-
 	FDatasmithSceneXmlWriterImpl::WriteIndent(Archive, 1);
 	XmlString = TEXT("<") + FString(DATASMITH_EXPORT) + TEXT(" ") + FString(DATASMITH_EXPORTDURATION) + FString::Printf(TEXT("=\"%d\"/>"), DatasmithScene->GetExportDuration()) + LINE_TERMINATOR;
 	FDatasmithSceneXmlWriterImpl::SerializeToArchive( Archive, XmlString );

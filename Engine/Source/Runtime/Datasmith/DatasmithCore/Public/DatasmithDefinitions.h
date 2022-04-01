@@ -627,6 +627,3 @@ static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Colo
 #define DATASMITH_ENVILLUMINATIONMAP			TEXT("Illuminate")
 
 #define DATASMITH_DECALMATERIALNAME				TEXT("DecalMaterial")
-
-//LODS
-#define DATASMITH_LODSCREENSIZE					TEXT("LodScreenSize")

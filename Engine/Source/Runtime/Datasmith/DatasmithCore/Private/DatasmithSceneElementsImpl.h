@@ -1619,12 +1619,7 @@ public:
 	virtual void SetUsePhysicalSky(bool bInUsePhysicalSky) override { bUseSky = bInUsePhysicalSky; }
 	virtual bool GetUsePhysicalSky() const override { return bUseSky; }
 
-	virtual void AddLODScreenSize( float ScreenSize ) override { LODScreenSizes.Get().Add( FMath::Clamp( ScreenSize, 0.f, 1.f ) ); }
-	virtual int32 GetLODScreenSizesCount() const override { return LODScreenSizes.Get().Num(); }
-	virtual float GetLODScreenSize(int32 InIndex) const override { return LODScreenSizes.Get().IsValidIndex( InIndex ) ? LODScreenSizes.Get()[InIndex] : 0.f; }
-
 	virtual void AddMetaData(const TSharedPtr< IDatasmithMetaDataElement >& InMetaData) override { MetaData.Add(InMetaData); GetElementToMetaDataCache().Add(InMetaData->GetAssociatedElement(), InMetaData); }
-
 	virtual int32 GetMetaDataCount() const override { return MetaData.Num(); }
 	virtual TSharedPtr< IDatasmithMetaDataElement > GetMetaData(int32 InIndex) override;
 	virtual const TSharedPtr< IDatasmithMetaDataElement >& GetMetaData(int32 InIndex) const override;
@@ -1651,7 +1646,6 @@ public:
 	virtual void AttachActorToSceneRoot(const TSharedPtr< IDatasmithActorElement >& Child, EDatasmithActorAttachmentRule AttachmentRule) override;
 
 private:
-	TMap< TSharedPtr< IDatasmithElement >, TSharedPtr< IDatasmithMetaDataElement> >& GetElementToMetaDataCache() const;
 
 	TDatasmithReferenceArrayProxy<IDatasmithActorElement>            Actors;
 	TDatasmithReferenceArrayProxy<IDatasmithMeshElement>             Meshes;
@@ -1661,8 +1655,6 @@ private:
 	TDatasmithReferenceArrayProxy<IDatasmithLevelSequenceElement>    LevelSequences;
 	TDatasmithReferenceArrayProxy<IDatasmithLevelVariantSetsElement> LevelVariantSets;
 	TDatasmithReferenceProxy<IDatasmithPostProcessElement>           PostProcess;
-
-	TReflected<TArray<float>> LODScreenSizes;
 
 	TReflected<FString> Hostname;
 	TReflected<FString> ExporterVersion;
@@ -1678,6 +1670,7 @@ private:
 
 	TReflected<bool> bUseSky;
 
-	// Internal cache for faster metadata access per-element, should be accessed via GetMetaDataCache(), do not use directly.
+	// Internal cache for faster metadata access per-element, should be accessed via GetElementToMetaDataCache(), do not use directly.
 	mutable TMap< TSharedPtr< IDatasmithElement >, TSharedPtr< IDatasmithMetaDataElement> > ElementToMetaDataMap;
+	TMap< TSharedPtr< IDatasmithElement >, TSharedPtr< IDatasmithMetaDataElement> >& GetElementToMetaDataCache() const;
 };

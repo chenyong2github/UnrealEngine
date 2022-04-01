@@ -1688,15 +1688,6 @@ public:
 	virtual const TSharedPtr< IDatasmithPostProcessElement >& GetPostProcess() const = 0;
 
 	/**
-	 * Adds a new LOD screen size setting. The first one added is used for the base LOD, the second one is for LOD1, etc.
-	 *
-	 * @param ScreenSize Ratio of the screen clamped between 0 and 1
-	 */
-	virtual void AddLODScreenSize(float ScreenSize) = 0;
-	virtual int32 GetLODScreenSizesCount() const = 0;
-	virtual float GetLODScreenSize(int32 InIndex) const = 0;
-
-	/**
 	 * Add a metadata to the scene
 	 * There should be only one metadata per Datasmith element (the element associated with the metadata)
 	 */
