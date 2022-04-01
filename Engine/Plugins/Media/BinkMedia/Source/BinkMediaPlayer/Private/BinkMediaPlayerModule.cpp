@@ -203,10 +203,13 @@ struct FBinkMediaPlayerModule : IModuleInterface, FTickableGameObject
 
 	virtual void ShutdownModule() override 
 	{
-		BinkPluginShutdown();
-		if (overlayHook.IsValid() && GEngine && GEngine->GameViewport)
+		if (bPluginInitialized)
 		{
-			GEngine->GameViewport->OnDrawn().Remove(overlayHook);
+			BinkPluginShutdown();
+			if (overlayHook.IsValid() && GEngine && GEngine->GameViewport)
+			{
+				GEngine->GameViewport->OnDrawn().Remove(overlayHook);
+			}
 		}
 	}
 
