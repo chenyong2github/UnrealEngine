@@ -41,7 +41,17 @@ public:
 	 */
 	virtual TOptional<UE::Interchange::FImportImage> GetTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const override;
 
+	virtual bool SupportCompressedTexturePayloadData() const override;
+
+	virtual TOptional<UE::Interchange::FImportImage> GetCompressedTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const override;
+	
 	/* IInterchangeTexturePayloadInterface End */
+
+private:
+
+	TArray64<uint8> LoadSourceFile(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const;
+
+	TOptional<UE::Interchange::FImportImage> GetTexturePayloadImplementation(TArray64<uint8>&& SourceDataBuffer, const FString& Filename, bool bShouldImportRaw) const;
 };
 
 

@@ -223,6 +223,17 @@ UInterchangeTextureFactoryNode* UInterchangeGenericTexturePipeline::CreateTextur
 		TextureFactoryNode->AddTargetNodeUid(TextureNode->GetUniqueID());
 		TextureNode->AddTargetNodeUid(TextureFactoryNode->GetUniqueID());
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (TextureFactoryNode)
+	{
+		if (bPreferCompressedSourceData)
+		{
+			TextureFactoryNode->SetCustomPreferCompressedSourceData(true);
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+
 	return TextureFactoryNode;
 }
 

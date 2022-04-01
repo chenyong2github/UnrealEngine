@@ -655,6 +655,26 @@ public:
 #endif
 	}
 
+	//////////////////////////////////////////////////////////////////////////
+	//Factory Import settings
+
+	/** Return false if the Attribute was not set previously.*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | Import Settings")
+	bool GetCustomPreferCompressedSourceData(bool& AttributeValue) const
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(PreferCompressedSourceData, bool);
+	}
+
+	/*
+	 * Should the factory tell the translator to provide a compressed source data payload when available.
+	 * This will generally result in smaller assets, but some operations like the texture build might be slower because the source data will need to be uncompressed.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | Import Settings")
+	bool SetCustomPreferCompressedSourceData(const bool& AttributeValue)
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(PreferCompressedSourceData, bool)
+	}
+
 private:
 
 	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FBaseNodeStaticData::ClassTypeAttributeKey();
@@ -709,6 +729,9 @@ private:
 	//Compositing
 	const UE::Interchange::FAttributeKey Macro_CustomCompositeTextureModeKey = UE::Interchange::FAttributeKey(TEXT("CompositeTextureMode"));
 	const UE::Interchange::FAttributeKey Macro_CustomCompositePowerKey = UE::Interchange::FAttributeKey(TEXT("CompositePower"));
+
+	// Texture Factory Settings
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(PreferCompressedSourceData)
 
 	// no IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT here ?
 

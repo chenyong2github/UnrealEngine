@@ -49,19 +49,22 @@ bool UE::Interchange::FImportImageHelper::IsImportResolutionValid(int32 Width, i
 	return bValid;
 }
 
-void UE::Interchange::FImportImage::Init2DWithParams(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, bool InSRGB)
+void UE::Interchange::FImportImage::Init2DWithParams(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, bool bInSRGB, bool bShouldAllocateRawData)
 {
-	Init2DWithParams(InSizeX, InSizeY, 1, InFormat, InSRGB);
+	Init2DWithParams(InSizeX, InSizeY, 1, InFormat, bInSRGB, bShouldAllocateRawData);
 }
 
-void UE::Interchange::FImportImage::Init2DWithParams(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, bool InSRGB)
+void UE::Interchange::FImportImage::Init2DWithParams(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, bool bInSRGB, bool bShouldAllocateRawData)
 {
 	SizeX = InSizeX;
 	SizeY = InSizeY;
 	NumMips = InNumMips;
 	Format = InFormat;
-	bSRGB = InSRGB;
-	RawData = FUniqueBuffer::Alloc(ComputeBufferSize());
+	bSRGB = bInSRGB;
+	if (bShouldAllocateRawData)
+	{
+		RawData = FUniqueBuffer::Alloc(ComputeBufferSize());
+	}
 }
 
 void UE::Interchange::FImportImage::Init2DWithOneMip(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData)
@@ -115,9 +118,20 @@ TArrayView64<uint8> UE::Interchange::FImportImage::GetArrayViewOfRawData()
 
 bool UE::Interchange::FImportImage::IsValid() const
 {
+	bool bIsRawDataBufferValid = false;
+
+	if (RawDataCompressionFormat == TSCF_None)
+	{
+		bIsRawDataBufferValid = ComputeBufferSize() == RawData.GetSize();
+	}
+	else
+	{
+		bIsRawDataBufferValid = !RawData.IsNull();
+	}
+
 	return SizeX > 0
 		&& SizeY > 0
 		&& NumMips > 0
 		&& Format != TSF_Invalid
-		&& ComputeBufferSize() == RawData.GetSize();
+		&& bIsRawDataBufferValid;
 }

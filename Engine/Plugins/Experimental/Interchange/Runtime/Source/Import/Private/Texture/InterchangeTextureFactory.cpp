@@ -222,6 +222,33 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return {};
 	}
 
+	UInterchangeTextureFactoryNode* GetTextureFactoryNodeFromVariant(const FTextureFactoryNodeVariant& FactoryNodeVariant)
+	{
+		static_assert(TVariantSize<FTextureFactoryNodeVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+
+		if (UInterchangeTexture2DFactoryNode* const* TextureFactoryNode = FactoryNodeVariant.TryGet<UInterchangeTexture2DFactoryNode*>())
+		{
+			return *TextureFactoryNode;
+		}
+
+		if (UInterchangeTextureCubeFactoryNode* const* TextureCubeFactoryNode = FactoryNodeVariant.TryGet<UInterchangeTextureCubeFactoryNode*>())
+		{
+			return *TextureCubeFactoryNode;
+		}
+
+		if (UInterchangeTexture2DArrayFactoryNode* const* Texture2DArrayFactoryNode = FactoryNodeVariant.TryGet<UInterchangeTexture2DArrayFactoryNode*>())
+		{
+			return *Texture2DArrayFactoryNode;
+		}
+
+		if (UInterchangeTextureLightProfileFactoryNode* const* TextureLightProfileFactoryNode = FactoryNodeVariant.TryGet<UInterchangeTextureLightProfileFactoryNode*>())
+		{
+			return *TextureLightProfileFactoryNode;
+		}
+
+		return nullptr;
+	}
+
 	using FTextureNodeVariant = TVariant<FEmptyVariantState
 		, const UInterchangeTexture2DNode*
 		, const UInterchangeTextureCubeNode*
@@ -419,9 +446,15 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		if (const UInterchangeTexture2DNode* const* TextureNode =  TextureNodeVariant.TryGet<const UInterchangeTexture2DNode*>())
 		{
 			TMap<int32, FString> BlockAndSourceDataFiles;
+			bool bShoudImportCompressedImage = false;
 			if (const UInterchangeTexture2DFactoryNode* const* Texture2DFactoryNode = FactoryNodeVariant.TryGet<UInterchangeTexture2DFactoryNode*>())
 			{
 				BlockAndSourceDataFiles = (*Texture2DFactoryNode)->GetSourceBlocks();
+			}
+
+			if (const UInterchangeTextureFactoryNode* TextureFactoryNode = GetTextureFactoryNodeFromVariant(FactoryNodeVariant))
+			{
+				TextureFactoryNode->GetCustomPreferCompressedSourceData(bShoudImportCompressedImage);
 			}
 
 			// Is there a case were a translator can be both interface and how should the factory chose which to invoke?
@@ -429,7 +462,14 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			{
 				if (BlockAndSourceDataFiles.IsEmpty())
 				{
-					return FTexturePayloadVariant(TInPlaceType<TOptional<FImportImage>>(), TextureTranslator->GetTexturePayloadData(SourceData, PayloadKey));
+					if (bShoudImportCompressedImage && TextureTranslator->SupportCompressedTexturePayloadData())
+					{
+						return FTexturePayloadVariant(TInPlaceType<TOptional<FImportImage>>(), TextureTranslator->GetCompressedTexturePayloadData(SourceData, PayloadKey));
+					}
+					else
+					{
+						return FTexturePayloadVariant(TInPlaceType<TOptional<FImportImage>>(), TextureTranslator->GetTexturePayloadData(SourceData, PayloadKey));
+					}
 				}
 				else
 				{
@@ -466,13 +506,13 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 #if WITH_EDITORONLY_DATA
 	void SetupTextureSourceData(UTexture* Texture, const FImportImage& Image, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
-		Texture->Source.Init(
+		Texture->Source.InitWithCompressedSourceData(
 			Image.SizeX,
 			Image.SizeY,
-			/*NumSlices=*/ 1,
 			Image.NumMips,
 			Image.Format,
-			MoveTemp(BufferAndId)
+			MoveTemp(BufferAndId),
+			Image.RawDataCompressionFormat
 		);
 
 		Texture->CompressionSettings = Image.CompressionSettings;

@@ -42,6 +42,17 @@ public:
 	/** Specify the files type that should be imported as long/lat cubemap */
 	UPROPERTY(EditAnywhere, Category = "Textures")
 	TSet<FString> FileExtensionsToImportAsLongLatCubemap = {"hdr"};
+
+	/** 
+	 * If true, tell the translator to provide a compressed source data payload when available.
+	 * This will generally result in smaller assets, but some operations like the texture build might be slower because the source data will need to be uncompressed.
+	 * If false, it will let the factory or another step in the pipeline decide what to do.
+	 * 
+	 * Compressed source source data is generally store the data as it is in the source file.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Textures")
+	bool bPreferCompressedSourceData = false;
+
 #endif
 
 public:

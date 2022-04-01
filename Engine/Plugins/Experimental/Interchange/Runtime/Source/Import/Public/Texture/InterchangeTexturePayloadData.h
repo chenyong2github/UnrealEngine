@@ -22,6 +22,10 @@ namespace UE
 			FImportImage& operator=(const FImportImage&) = delete;
 
 			FUniqueBuffer RawData;
+
+			/** Which compression format (if any) that is applied to RawData */
+			ETextureSourceCompressionFormat RawDataCompressionFormat = TSCF_None;
+
 			ETextureSourceFormat Format = TSF_Invalid;
 			TextureCompressionSettings CompressionSettings = TC_Default;
 			int32 NumMips = 0;
@@ -30,8 +34,8 @@ namespace UE
 			bool bSRGB = true;
 			TOptional<TextureMipGenSettings> MipGenSettings;
 
-			void Init2DWithParams(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, bool InSRGB);
-			void Init2DWithParams(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, bool InSRGB);
+			void Init2DWithParams(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, bool bInSRGB, bool bShouldAllocateRawData = true);
+			void Init2DWithParams(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, bool bInSRGB, bool bShouldAllocateRawData = true);
 			void Init2DWithOneMip(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData = nullptr);
 			void Init2DWithMips(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, const void* InData = nullptr);
 

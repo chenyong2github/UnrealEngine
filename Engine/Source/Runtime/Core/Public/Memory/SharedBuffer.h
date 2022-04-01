@@ -880,6 +880,13 @@ private:
 
 } // UE::SharedBuffer::Private
 
+/** Construct a unique buffer by taking ownership of an array. */
+template <typename T, typename Allocator>
+[[nodiscard]] inline FUniqueBuffer MakeUniqueBufferFromArray(TArray<T, Allocator>&& Array)
+{
+	return FUniqueBuffer(new UE::SharedBuffer::Private::TBufferOwnerTArray<T, Allocator>(MoveTemp(Array)));
+}
+
 /** Construct a shared buffer by taking ownership of an array. */
 template <typename T, typename Allocator>
 [[nodiscard]] inline FSharedBuffer MakeSharedBufferFromArray(TArray<T, Allocator>&& Array)

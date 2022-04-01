@@ -9,6 +9,7 @@
 #include "IImageWrapperModule.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeTextureNode.h"
+#include "Memory/SharedBuffer.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -35,35 +36,76 @@ bool UInterchangeJPGTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 
 TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
 {
+	TArray64<uint8> SourceDataBuffer = LoadSourceFile(PayloadSourceData, PayLoadKey);
+
+	if (SourceDataBuffer.IsEmpty())
+	{
+		return {};
+	}
+
+	const bool bImportRaw = false;
+	return GetTexturePayloadImplementation(MoveTemp(SourceDataBuffer), PayLoadKey, bImportRaw);
+
+}
+
+bool UInterchangeJPGTranslator::SupportCompressedTexturePayloadData() const
+{
+	// For now this option is opt in via the config files once there is no technical risk this will become the default path.
+	bool bRetainJpegFormat = false;
+	GConfig->GetBool(TEXT("TextureImporter"), TEXT("RetainJpegFormat"), bRetainJpegFormat, GEditorIni);
+	return bRetainJpegFormat;
+}
+
+TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetCompressedTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
+{
+	TArray64<uint8> SourceDataBuffer = LoadSourceFile(PayloadSourceData, PayLoadKey);
+
+	if (SourceDataBuffer.IsEmpty())
+	{
+		return {};
+	}
+
+	const bool bImportRaw = true;
+	return GetTexturePayloadImplementation(MoveTemp(SourceDataBuffer), PayLoadKey, bImportRaw);
+}
+
+TArray64<uint8> UInterchangeJPGTranslator::LoadSourceFile(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
+{
 	check(PayloadSourceData == GetSourceData());
+
+	TArray64<uint8> SourceDataBuffer;
 
 	if (!GetSourceData())
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import JPEG, bad source data."));
-		return TOptional<UE::Interchange::FImportImage>();
+		return SourceDataBuffer;
 	}
 
-	TArray64<uint8> SourceDataBuffer;
 	FString Filename = GetSourceData()->GetFilename();
-	
+
 	//Make sure the key fit the filename, The key should always be valid
 	if (!Filename.Equals(PayLoadKey))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import JPEG, wrong payload key. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
+		return SourceDataBuffer;
 	}
 
 	if (!FPaths::FileExists(Filename))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import JPEG, cannot open file. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
+		return SourceDataBuffer;
 	}
 
 	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *Filename))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import JPEG, cannot load file content into an array. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
 	}
+
+	return SourceDataBuffer;
+}
+
+TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePayloadImplementation(TArray64<uint8>&& SourceDataBuffer, const FString& Filename, bool bShouldImportRaw) const
+{
 
 	const uint8* Buffer = SourceDataBuffer.GetData();
 	const uint8* BufferEnd = Buffer + SourceDataBuffer.Num();
@@ -123,17 +165,27 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 
 	UE::Interchange::FImportImage PayloadData;
 
+
+	const bool bShouldAllocateRawDataBuffer = !bShouldImportRaw;
+
 	PayloadData.Init2DWithParams(
 		JpegImageWrapper->GetWidth(),
 		JpegImageWrapper->GetHeight(),
 		TextureFormat,
-		BitDepth < 16
+		BitDepth < 16,
+		bShouldAllocateRawDataBuffer
 	);
 
-	if (!JpegImageWrapper->GetRaw(Format, BitDepth, PayloadData.GetArrayViewOfRawData()))
+	if (bShouldImportRaw)
+	{
+		PayloadData.RawData = MakeUniqueBufferFromArray(MoveTemp(SourceDataBuffer));
+		PayloadData.RawDataCompressionFormat = ETextureSourceCompressionFormat::TSCF_JPEG;
+	}
+	else if (!JpegImageWrapper->GetRaw(Format, BitDepth, PayloadData.GetArrayViewOfRawData()))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to decode JPEG. [%s]"), *Filename);
 		return TOptional<UE::Interchange::FImportImage>();
 	}
+
 	return PayloadData;
 }

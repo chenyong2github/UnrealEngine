@@ -193,7 +193,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		CreateAssetParams.AssetNode = Node;
 		CreateAssetParams.Parent = Pkg;
 		CreateAssetParams.SourceData = AsyncHelper->SourceDatas[SourceIndex];
-		CreateAssetParams.Translator = nullptr;
+		CreateAssetParams.Translator = AsyncHelper->Translators[SourceIndex];
 		if (AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
 		{
 			CreateAssetParams.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();

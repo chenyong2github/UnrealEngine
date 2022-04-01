@@ -267,6 +267,24 @@ struct FTextureSource
 		ETextureSourceCompressionFormat NewSourceFormat
 	);
 
+	/**
+	 * Initialize the source data with the given size, number of mips, and format.
+	 * @param NewSizeX - Width of the texture source data.
+	 * @param NewSizeY - Height of the texture source data.
+	 * @param NewNumMips - The number of mips in the texture source data.
+	 * @param NewFormat - The format in which source data is stored.
+	 * @param NewSourceData -The new source data.
+	 * @param NewSourceFormat -The compression format of the new source data.
+	 */
+	ENGINE_API void InitWithCompressedSourceData(
+		int32 NewSizeX,
+		int32 NewSizeY,
+		int32 NewNumMips,
+		ETextureSourceFormat NewFormat,
+		UE::Serialization::FEditorBulkData::FSharedBufferWithID NewSourceData,
+		ETextureSourceCompressionFormat NewSourceFormat
+	);
+
 	/** Make a copy with a torn-off BulkData that has the same Guid used for DDC as this->BulkData */
 	FTextureSource CopyTornOff() const;
 

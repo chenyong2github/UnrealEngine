@@ -1585,29 +1585,54 @@ void FTextureSource::InitWithCompressedSourceData(
 	ETextureSourceCompressionFormat NewSourceFormat
 )
 {
-	RemoveSourceData();
-
-	SizeX = NewSizeX;
-	SizeY = NewSizeY;
-
-	NumLayers = 1;
-	NumSlices = 1;
-	NumMips = NewNumMips;
-
-	check( NewNumMips <= GetFullMipCount(SizeX,SizeY) );
-
-	Format = NewFormat;
-	LayerFormat.SetNum(1, true);
-	LayerFormat[0] = NewFormat;
+	const int32 NewNumSlice = 1;
+	const int32 NewNumLayer = 1;
+	InitLayeredImpl(
+		NewSizeX,
+		NewSizeY,
+		NewNumSlice,
+		NewNumLayer,
+		NewNumMips,
+		&NewFormat
+		);
 
 	CompressionFormat = NewSourceFormat;
 
-	BlockDataOffsets.Add(0);
-
-	checkf(LockState == ELockState::None, TEXT("InitWithCompressedSourceData shouldn't be called in-between LockMip/UnlockMip"));
-
 	BulkData.UpdatePayload(FSharedBuffer::Clone(NewData.GetData(), NewData.Num()), Owner);
+	// Disable the internal bulkdata compression if the source data is already compressed
+	if (CompressionFormat == TSCF_None)
+	{
+		BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Default);
+	}
+	else
+	{
+		BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Disabled);
+	}
+}
 
+void FTextureSource::InitWithCompressedSourceData(
+	int32 NewSizeX,
+	int32 NewSizeY,
+	int32 NewNumMips,
+	ETextureSourceFormat NewFormat,
+	UE::Serialization::FEditorBulkData::FSharedBufferWithID NewSourceData,
+	ETextureSourceCompressionFormat NewSourceFormat
+)
+{
+	const int32 NewNumSlice = 1;
+	const int32 NewNumLayer = 1;
+	InitLayeredImpl(
+		NewSizeX,
+		NewSizeY,
+		NewNumSlice,
+		NewNumLayer,
+		NewNumMips,
+		&NewFormat
+	);
+
+	CompressionFormat = NewSourceFormat;
+
+	BulkData.UpdatePayload(MoveTemp(NewSourceData), Owner);
 	// Disable the internal bulkdata compression if the source data is already compressed
 	if (CompressionFormat == TSCF_None)
 	{
