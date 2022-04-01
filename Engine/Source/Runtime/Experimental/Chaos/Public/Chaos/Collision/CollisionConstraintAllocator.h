@@ -421,6 +421,9 @@ namespace Chaos
 			}
 
 			Cookie.LastUsedEpoch = CurrentEpoch;
+
+			// An opportunity for the constraint to initialize data before CCD or solver
+			CollisionConstraint->Activate();
 		}
 
 		// All of the overlapping particle pairs in the scene

@@ -325,6 +325,12 @@ namespace Chaos
 		const FReal GetCollisionRadius0() const { return (Flags.bIsQuadratic0) ? CollisionMargins[0] : FReal(0); }
 		const FReal GetCollisionRadius1() const { return (Flags.bIsQuadratic1) ? CollisionMargins[1] : FReal(0); }
 
+		/** \brief Called each frame when the constraint is active after primary collision detection (but not per incremental collision detection call if enabled) */
+		void Activate()
+		{
+			AccumulatedImpulse = FVec3(0);
+		}
+
 		// @todo(chaos): half of this API is wrong for the new multi-point manifold constraints. Remove it
 
 		void ResetPhi(FReal InPhi) { ClosestManifoldPointIndex = INDEX_NONE; }
@@ -499,7 +505,14 @@ namespace Chaos
 		void ResetSolverResults()
 		{
 			ResetSavedManifoldPoints();
-			AccumulatedImpulse = FVec3(0);
+		}
+
+		/**
+		 * \brief Store the results of CCD contact resolution, if active
+		 */
+		void SetCCDResults(const FVec3& InNetImpulse)
+		{
+			AccumulatedImpulse += InNetImpulse;
 		}
 
 		/**

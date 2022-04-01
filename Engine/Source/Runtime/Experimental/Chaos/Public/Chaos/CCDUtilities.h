@@ -58,6 +58,7 @@ namespace Chaos
 		int32 Island;
 		int32 ProcessedCount; // The number of times this constraint is processed in the current frame.
 		int32 FastMovingKinematicIndex;
+		FVec3 NetImpulse;
 
 		FCCDConstraint()
 			: SweptConstraint(nullptr)
@@ -66,6 +67,7 @@ namespace Chaos
 			, Island(INDEX_NONE)
 			, ProcessedCount(0)
 			, FastMovingKinematicIndex(INDEX_NONE)
+			, NetImpulse(0)
 		{}
 
 		FCCDConstraint(FPBDCollisionConstraint* const InConstraint, FCCDParticle* InParticle[], const FVec3 Displacements[], const FReal InPhiThreshold)
@@ -75,6 +77,7 @@ namespace Chaos
 			, Island(INDEX_NONE)
 			, ProcessedCount(0)
 			, FastMovingKinematicIndex(GetFastMovingKinematicIndex(InConstraint, Displacements))
+			, NetImpulse(0)
 		{}
 
 		int32 GetFastMovingKinematicIndex(const FPBDCollisionConstraint* Constraint, const FVec3 Displacements[]) const;

@@ -953,6 +953,15 @@ namespace Chaos
 						}
 					}
 				}
+
+				// AccumulatedImpulse
+				if ((Settings.ImpulseScale > 0) && !Contact.GetAccumulatedImpulse().IsNearlyZero())
+				{
+					FColor Color = (ColorScale * FColor::White).ToFColor(false);
+					const FVec3 ImpulsePos = SpaceTransform.TransformPosition(WorldActorTransform0.GetTranslation());
+					FDebugDrawQueue::GetInstance().DrawDebugLine(ImpulsePos, ImpulsePos + Settings.DrawScale * Settings.ImpulseScale * SpaceTransform.TransformVectorNoScale(Contact.GetAccumulatedImpulse()), Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				}
+
 			}
 			if (Settings.ContactOwnerWidth > 0)
 			{
