@@ -266,7 +266,7 @@ void ReflectionGenerateRaysCS(
 	if (all(ReflectionTracingCoord < ReflectionTracingViewSize))
 	{
 		float2 ScreenJitter = GetScreenTileJitter(SCREEN_TEMPORAL_INDEX);
-		int2 SvPosition = min((int2)(ReflectionTracingCoord * ReflectionDownsampleFactor + uint2(ScreenJitter + .5f) + View.ViewRectMinAndSize.xy), View.ViewRectMinAndSize.xy + View.ViewRectMinAndSize.zw - 1);
+		uint2 SvPosition = min(ReflectionTracingCoord * ReflectionDownsampleFactor + uint2(ScreenJitter + .5f) + View.ViewRectMinAndSize.xy, View.ViewRectMinAndSize.xy + View.ViewRectMinAndSize.zw - 1);
 		float2 ScreenUV = (SvPosition + .5f) * View.BufferSizeAndInvSize.zw;
 
 		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(SvPosition), true /*bTopLayerRoughness*/);
@@ -680,16 +680,16 @@ FNeighborStatistics GetNeighborStatistics(
 		// ReflectionResolveCS writes 0 to alpha for neighbors which are outside of any valid resolve tile
 		if (Sample.w > 0)
 		{
-			Result.Min = min(Result.Min, Sample);
-			Result.Max = max(Result.Max, Sample);
+			Result.Min = min(Result.Min, Sample.xyz);
+			Result.Max = max(Result.Max, Sample.xyz);
 
 			// Welford's online algorithm for variance.
 			// More numerically stable than accumulating squares.
 			// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
 			Count += 1;
-			float3 Delta1 = Sample - M1;
+			float3 Delta1 = Sample.xyz - M1;
 			M1 += Delta1 / Count;
-			float3 Delta2 = Sample - M1;
+			float3 Delta2 = Sample.xyz - M1;
 			M2 += Delta1 * Delta2;
 		}
 	}
