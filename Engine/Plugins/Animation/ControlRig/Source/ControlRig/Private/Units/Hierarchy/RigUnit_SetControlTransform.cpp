@@ -498,6 +498,7 @@ FRigVMStructUpgradeInfo FRigUnit_SetControlTransform::GetUpgradeInfo() const
 	NewNode.Item = FRigElementKey(Control, ERigElementType::Control);
 	NewNode.Space = Space;
 	NewNode.Value = Transform;
+	NewNode.Weight = Weight;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
 	Info.AddRemappedPin(TEXT("Control"), TEXT("Item.Name"));

@@ -73,6 +73,7 @@ FRigVMStructUpgradeInfo FRigUnit_SetSpaceTransform::GetUpgradeInfo() const
 	NewNode.Item = FRigElementKey(Space, ERigElementType::Null);
 	NewNode.Space = SpaceType;
 	NewNode.Value = Transform;
+	NewNode.Weight = Weight;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
 	Info.AddRemappedPin(TEXT("Space"), TEXT("Item.Name"));

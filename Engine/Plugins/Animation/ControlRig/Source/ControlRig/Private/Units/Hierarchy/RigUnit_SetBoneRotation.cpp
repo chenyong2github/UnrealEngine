@@ -83,6 +83,7 @@ FRigVMStructUpgradeInfo FRigUnit_SetBoneRotation::GetUpgradeInfo() const
 	NewNode.Item = FRigElementKey(Bone, ERigElementType::Bone);
 	NewNode.Space = Space;
 	NewNode.Value = Rotation;
+	NewNode.Weight = Weight;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
 	Info.AddRemappedPin(TEXT("Bone"), TEXT("Item.Name"));
