@@ -72,14 +72,13 @@ namespace Horde.Storage.Implementation
 
         internal async Task<List<(LastAccessRecord, DateTime)>> ProcessLastAccessRecords()
         {
-            using IScope _ = Tracer.Instance.StartActive("lastAccessRefs.update");
             _logger.Information("Running Last Access Aggregation for refs");
             List<(LastAccessRecord, DateTime)> records = await _lastAccessCacheRecord.GetLastAccessedRecords();
             foreach ((LastAccessRecord record, DateTime lastAccessTime) in records)
             {
                 if (!ShouldTrackLastAccess(record.Namespace))
                     continue;
-                using IScope scope = Tracer.Instance.StartActive("lastAccess.update.record");
+                using IScope scope = Tracer.Instance.StartActive("lastAccess.update");
                 scope.Span.ResourceName = $"{record.Namespace}:{record.Bucket}.{record.Key}";
                 _logger.Debug("Updating last access time to {LastAccessTime} for {Record}", lastAccessTime, record);
                 await _referencesStore.UpdateLastAccessTime(record.Namespace, record.Bucket, record.Key, lastAccessTime);

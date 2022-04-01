@@ -171,8 +171,8 @@ namespace Horde.Storage.Implementation
             long countOfReplicatedEvents = 0L;
             try
             {
-                using IScope scope = Tracer.Instance.StartActive("replicator.run");
-                scope.Span.ResourceName =_name;
+                //using IScope scope = Tracer.Instance.StartActive("replicator.run");
+                //scope.Span.ResourceName =_name;
 
                 _replicationRunning = true;
                 _replicationFinishedEvent.Reset();

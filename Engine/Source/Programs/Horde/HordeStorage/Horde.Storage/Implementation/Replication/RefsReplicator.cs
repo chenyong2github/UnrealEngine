@@ -157,8 +157,8 @@ namespace Horde.Storage.Implementation
 
             try
             {
-                using IScope scope = Tracer.Instance.StartActive("replicator.run");
-                scope.Span.ResourceName =_name;
+                //using IScope scope = Tracer.Instance.StartActive("replicator.run");
+                //scope.Span.ResourceName =_name;
 
                 _replicationTokenSource.TryReset();
                 _replicationRunning = true;
@@ -391,7 +391,7 @@ namespace Horde.Storage.Implementation
                     cancellationTokenSource.Cancel();
                     return;
                 }
-                using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_incremental", new SpanCreationSettings {Parent = parentSpanContext});
+                using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_incremental");
                 scope.Span.ResourceName = $"{ns}.{@event.Bucket}.{@event.EventId}";
 
                 _logger.Information("{Name} New transaction to replicate found. New op: {@Op} . Count of running replications: {CurrentReplications}", _name, @event, replicationTasks.Count);
