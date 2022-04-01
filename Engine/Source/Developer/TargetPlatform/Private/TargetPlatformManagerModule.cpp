@@ -836,6 +836,9 @@ protected:
 		for (auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 		{
 			FName PlatformName = Pair.Key;
+
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*PlatformName.ToString());
+
 			const FDataDrivenPlatformInfo& Info = Pair.Value;
 
 			SlowTask.EnterProgressFrame(1);
