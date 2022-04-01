@@ -911,9 +911,10 @@ void MicropolyRasterize(
 			GroupVerts[VertIndexes.y],
 			GroupVerts[VertIndexes.z]
 		};			
-		const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Raster.Cluster, VertIndexes, NUM_TEX_COORD_INTERPOLATORS);
+		FNaniteRawAttributeData RawAttributeData[3];
+		GetRawAttributeData3(RawAttributeData, Raster.Cluster, VertIndexes, NUM_TEX_COORD_INTERPOLATORS);
 		
-		InterpData.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, PointLocal, VertIndexes, RawAttributeData);
+		InterpData.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, PointLocal, RawAttributeData, VertIndexes);
 
 		const float4 PointClip[3] =
 		{
@@ -1012,14 +1013,34 @@ struct VSOut
 	float4 Position								: SV_Position;
 };
 
-VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData, FVisibleCluster VisibleCluster, FCluster Cluster, uint VertIndex, uint PixelValue, float3 WorldPositionOffset)
+VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData, FVisibleCluster VisibleCluster, FCluster Cluster, uint VertIndex, uint PixelValue)
 {
 	VSOut Out;
 
-	float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
-	float3 PointLocal = DecodePosition( VertIndex, Cluster );
-	float3 PointRotated = LocalToTranslatedWorld[0].xyz * PointLocal.xxx + LocalToTranslatedWorld[1].xyz * PointLocal.yyy + LocalToTranslatedWorld[2].xyz * PointLocal.zzz;
-	float3 PointTranslatedWorld = PointRotated + LocalToTranslatedWorld[3].xyz + WorldPositionOffset;
+	const float3 PointLocal = DecodePosition( VertIndex, Cluster );
+
+	float3 WorldPositionOffset = 0.0f;
+#if IS_NANITE_PROGRAMMABLE && USES_WORLD_POSITION_OFFSET
+	const FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+	const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, VertIndex, NUM_TEX_COORD_INTERPOLATORS);
+
+	// Should be Pow2(InvScale) but that requires renormalization
+	float3x3 LocalToWorld = LWCToFloat3x3(InstanceData.LocalToWorld);
+	float3 InvScale = InstanceData.InvNonUniformScale;
+	LocalToWorld[0] *= InvScale.x;
+	LocalToWorld[1] *= InvScale.y;
+	LocalToWorld[2] *= InvScale.z;
+
+	FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
+	SetVertexParameterInstanceData(VertexParameters, InstanceData);
+	SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData.LocalToTranslatedWorld, LocalToWorld, PointLocal);
+
+	WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
+#endif
+
+	const float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
+	const float3 PointRotated = LocalToTranslatedWorld[0].xyz * PointLocal.xxx + LocalToTranslatedWorld[1].xyz * PointLocal.yyy + LocalToTranslatedWorld[2].xyz * PointLocal.zzz;
+	const float3 PointTranslatedWorld = PointRotated + LocalToTranslatedWorld[3].xyz + WorldPositionOffset;
 	float4 PointClip = mul( float4( PointTranslatedWorld, 1 ), NaniteView.TranslatedWorldToClip );
 #if VIRTUAL_TEXTURE_TARGET
 	/*
@@ -1177,7 +1198,9 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
-	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+#if IS_NANITE_PROGRAMMABLE
+	ResolvedView = ResolveView(NaniteView);
+#endif
 
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
@@ -1280,9 +1303,8 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 
 	if (GroupThreadID < NumExportVertices)
 	{
-		float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f); // TODO: PROG_RASTER
 		const uint PixelValue = ((VisibleIndex + 1) << 7);
-		PrimOutput.Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, SrcVertexIndex, PixelValue, WorldPositionOffset);
+		PrimOutput.Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, SrcVertexIndex, PixelValue);
 	}
 
 #if VERTEX_TO_TRIANGLE_MASKS
@@ -1375,6 +1397,11 @@ void HWRasterizeMS(
 	FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId, false);
 
 	FNaniteView NaniteView = GetNaniteView(VisibleCluster.ViewId);
+
+#if IS_NANITE_PROGRAMMABLE
+	ResolvedView = ResolveView(NaniteView);
+#endif
+
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 	SetMeshOutputCounts(Cluster.NumVerts, Cluster.NumTris);
@@ -1417,7 +1444,7 @@ void HWRasterizeMS(
 	if (Vertex0 < Cluster.NumVerts)
 	{
 		const uint PixelValue = 0;
-		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex0, PixelValue, WorldPositionOffset);
+		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex0, PixelValue);
 		MESH_SHADER_WRITE_VERTEX(Vertex0, VertexOutput);
 	}
 
@@ -1426,7 +1453,7 @@ void HWRasterizeMS(
 	if (Vertex1 < Cluster.NumVerts)
 	{
 		const uint PixelValue = 0;
-		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex1, PixelValue, WorldPositionOffset);
+		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex1, PixelValue);
 		MESH_SHADER_WRITE_VERTEX(Vertex1, VertexOutput);
 	}
 #endif
@@ -1478,6 +1505,11 @@ VSOut HWRasterizeVS(
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
+
+#if IS_NANITE_PROGRAMMABLE
+	ResolvedView = ResolveView(NaniteView);
+#endif
+
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 	if( TriIndex < Cluster.NumTris )
@@ -1486,56 +1518,33 @@ VSOut HWRasterizeVS(
 		uint3 TriangleIndices = uint3(0u, 0u, 0u);
 
 		BRANCH
-		if (bHasRasterBin && (TriIndex >= RasterBin.y && TriIndex < RasterBin.z))
+		if (bHasRasterBin)
 		{
-			TriangleIndices = ReadTriangleIndices(Cluster, TriIndex);
-			if (ReverseWindingOrder(InstanceData))
+			if(TriIndex >= RasterBin.y && TriIndex < RasterBin.z)
 			{
-				TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
+				TriangleIndices = ReadTriangleIndices(Cluster, TriIndex);
+				if (ReverseWindingOrder(InstanceData))
+				{
+					TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
+				}
+			}
+			else
+			{
+				bValidTriangle = false;
 			}
 		}
 
-		uint VertIndex = TriangleIndices[VertexID];
-	
-		float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f);
-
-	#if IS_NANITE_PROGRAMMABLE
-		BRANCH
-		if (bValidTriangle)
+		if(bValidTriangle)
 		{
-			ResolvedView = ResolveView(NaniteView);
-
-			// TODO: PROG_RASTER: Optimize
-		#if USES_WORLD_POSITION_OFFSET
-			FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-
-			const float3 PointLocalNoWPO = DecodePosition(VertIndex, Cluster); // TODO: PROG_RASTER - Optimize (CommonRasterizerVS also decodes positions)
-			const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, TriangleIndices, NUM_TEX_COORD_INTERPOLATORS);
-
-			// Should be Pow2(InvScale) but that requires renormalization
-			float3x3 LocalToWorld = LWCToFloat3x3(InstanceData.LocalToWorld);
-			float3 InvScale = InstanceData.InvNonUniformScale;
-			LocalToWorld[0] *= InvScale.x;
-			LocalToWorld[1] *= InvScale.y;
-			LocalToWorld[2] *= InvScale.z;
-
-			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
-			SetVertexParameterInstanceData(VertexParameters, InstanceData);
-			SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData.LocalToTranslatedWorld, LocalToWorld, VertexID, PointLocalNoWPO);
-
-			WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
-		#endif
-		}
-	#endif
-
-		const uint PixelValue = ((VisibleIndex + 1) << 7) | TriIndex;
-		Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, VertIndex, PixelValue, WorldPositionOffset);
+			const uint PixelValue = ((VisibleIndex + 1) << 7) | TriIndex;
+			Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, TriangleIndices[VertexID], PixelValue);
 	#if IS_NANITE_PROGRAMMABLE && BARYCENTRIC_MODE_EXPORT
-		Out.BarycentricsUV = float2(
-			VertexID == 0 ? 1 : 0,
-			VertexID == 1 ? 1 : 0
-		);
+			Out.BarycentricsUV = float2(
+				VertexID == 0 ? 1 : 0,
+				VertexID == 1 ? 1 : 0
+			);
 	#endif
+		}
 	}
 
 	return Out;
