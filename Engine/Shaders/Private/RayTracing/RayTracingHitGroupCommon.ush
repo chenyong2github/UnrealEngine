@@ -44,22 +44,23 @@ uint3 LoadIndices32Bit(ByteAddressBuffer SourceBuffer, uint OffsetInBytes)
 	return SourceBuffer.Load3(OffsetInBytes);
 }
 
-float3 LoadVertexPositionFloat3(ByteAddressBuffer SourceBuffer, uint Index, uint StrideInBytes)
+float3 LoadVertexPositionFloat3(ByteAddressBuffer SourceBuffer, uint BaseOffsetInBytes, uint Index, uint StrideInBytes)
 {
-	uint OffsetInBytes = Index * StrideInBytes;
+	uint OffsetInBytes = BaseOffsetInBytes + Index * StrideInBytes;
 	return asfloat(SourceBuffer.Load3(OffsetInBytes));
 }
 
 // Explicitly declare "system" resources that will be available to all hit group shaders.
 
-FTriangleBaseAttributes LoadTriangleBaseAttributes(uint PrimitiveId)
+FTriangleBaseAttributes LoadTriangleBaseAttributes(
+	ByteAddressBuffer IndexBuffer, uint IndexBufferOffsetInBytes, uint IndexBufferStride, 
+	ByteAddressBuffer VertexBuffer, uint VertexBufferOffsetInBytes, uint VertexBufferStride, 
+	uint PrimitiveId)
 {
 	FTriangleBaseAttributes Result = (FTriangleBaseAttributes)0;
 
 	// Fetch vertex indices and positions, then compute local space normal and transform it to world space
 
-	const uint IndexBufferOffsetInBytes = HitGroupSystemRootConstants.IndexBufferOffsetInBytes;
-	const uint IndexBufferStride = HitGroupSystemRootConstants.GetIndexStride();
 	const uint BaseIndex = PrimitiveId * 3;
 
 	if (IndexBufferStride == 0)
@@ -69,22 +70,29 @@ FTriangleBaseAttributes LoadTriangleBaseAttributes(uint PrimitiveId)
 	}
 	else if (IndexBufferStride == 2)
 	{
-		Result.Indices = LoadIndices16Bit(HitGroupSystemIndexBuffer, IndexBufferOffsetInBytes + BaseIndex * IndexBufferStride);
+		Result.Indices = LoadIndices16Bit(IndexBuffer, IndexBufferOffsetInBytes + BaseIndex * IndexBufferStride);
 	}
 	else
 	{
-		Result.Indices = LoadIndices32Bit(HitGroupSystemIndexBuffer, IndexBufferOffsetInBytes + BaseIndex * IndexBufferStride);
+		Result.Indices = LoadIndices32Bit(IndexBuffer, IndexBufferOffsetInBytes + BaseIndex * IndexBufferStride);
 	}
 
 	// Fetch vertex positions (in local space)
-	const uint VertexStride = HitGroupSystemRootConstants.GetVertexStride();
-
 	// #dxr_todo: UE-72160 handle various vertex formats, for now only supporting float3
-	Result.LocalPositions[0] = LoadVertexPositionFloat3(HitGroupSystemVertexBuffer, Result.Indices[0], VertexStride);
-	Result.LocalPositions[1] = LoadVertexPositionFloat3(HitGroupSystemVertexBuffer, Result.Indices[1], VertexStride);
-	Result.LocalPositions[2] = LoadVertexPositionFloat3(HitGroupSystemVertexBuffer, Result.Indices[2], VertexStride);
+	Result.LocalPositions[0] = LoadVertexPositionFloat3(VertexBuffer, Result.Indices[0], VertexBufferOffsetInBytes, VertexBufferStride);
+	Result.LocalPositions[1] = LoadVertexPositionFloat3(VertexBuffer, Result.Indices[1], VertexBufferOffsetInBytes, VertexBufferStride);
+	Result.LocalPositions[2] = LoadVertexPositionFloat3(VertexBuffer, Result.Indices[2], VertexBufferOffsetInBytes, VertexBufferStride);
 
 	return Result;
+}
+
+FTriangleBaseAttributes LoadTriangleBaseAttributes(uint PrimitiveId)
+{
+	uint IndexBufferOffsetInBytes = HitGroupSystemRootConstants.IndexBufferOffsetInBytes;
+	uint IndexBufferStride = HitGroupSystemRootConstants.GetIndexStride();
+	uint VertexStride = HitGroupSystemRootConstants.GetVertexStride();
+	uint VertexBufferOffsetInBytes = 0; // Base offset is already applied when the buffer is bound to the hit group
+	return LoadTriangleBaseAttributes(HitGroupSystemIndexBuffer, IndexBufferOffsetInBytes, IndexBufferStride, HitGroupSystemVertexBuffer, VertexBufferOffsetInBytes, VertexStride, PrimitiveId);
 }
 
 uint GetInstanceUserData()

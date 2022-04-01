@@ -9,6 +9,7 @@
 #include "Containers/DynamicRHIResourceArray.h"
 #include "Experimental/Containers/SherwoodHashTable.h"
 #include "BuiltInRayTracingShaders.h"
+#include "RayTracingValidationShaders.h"
 #include "Hash/CityHash.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/IConsoleManager.h"
@@ -85,6 +86,13 @@ static FAutoConsoleVariableRef CVarD3D12RayTracingDeduplicateSamplers(
 	TEXT("r.D3D12.RayTracing.DeduplicateSamplers"),
 	GD3D12RayTracingDeduplicateSamplers,
 	TEXT("Use an exhaustive search to deduplicate sampler descriptors when generating shader binding tables. Reduces sampler heap usage at the cost of some CPU time. (default = 1)")
+);
+
+static int32 GD3D12RayTracingGPUValidation = 0;
+static FAutoConsoleVariableRef CVarD3D12RayTracingGPUValidation(
+	TEXT("r.D3D12.RayTracing.GPUValidation"),
+	GD3D12RayTracingGPUValidation,
+	TEXT("Whether to perform validation of ray tracing geometry and other structures on the GPU. Requires Shader Model 6. (default = 0)")
 );
 
 // Ray tracing stat counters
@@ -4407,6 +4415,16 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 				INC_DWORD_STAT(STAT_D3D12RayTracingBuiltBLAS);
 			}
 		}		
+	}
+
+	if (GD3D12RayTracingGPUValidation)
+	{
+		TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(this, GetGPUMask());
+
+		for (const FRayTracingGeometryBuildParams& P : Params)
+		{
+			FRayTracingValidateGeometryBuildParamsCS::Dispatch(RHICmdList, P);
+		}
 	}
 
 	TArrayView<D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC> LocalBuildDescs = MakeArrayView(BuildDescs.GetData(), BuildDescs.Num());

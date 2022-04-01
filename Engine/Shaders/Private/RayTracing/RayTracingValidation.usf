@@ -1,0 +1,90 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+
+#ifndef NUM_THREADS_X
+#define NUM_THREADS_X 1024
+#endif
+
+#if PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER	
+
+#include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
+
+ByteAddressBuffer IndexBuffer;
+ByteAddressBuffer VertexBuffer;
+uint VertexBufferStride;
+uint VertexBufferOffsetInBytes;
+uint IndexBufferOffsetInBytes;
+uint IndexBufferStride;
+uint NumPrimitives;
+
+bool IsNaN(float F)
+{
+	uint U = asuint(F);
+	uint ExponentMask = 0x7f800000;
+	uint MantissaMask = 0x007fffff;
+	return (U & ExponentMask) == ExponentMask 
+		&& (U & MantissaMask) != 0;
+}
+
+// Returns true if all vertices are finite or if vertex X components are NaN. DXR inactive primitive rule applies:
+// Triangles are considered "inactive" (but legal input to acceleration structure build) if the x component of each vertex is NaN.
+void CheckTriangle(FTriangleBaseAttributes Tri, uint PrimitiveIndex)
+{
+	// All X-s are NaNs: triangle is legal and inactive
+	if (IsNaN(Tri.LocalPositions[0].x) && IsNaN(Tri.LocalPositions[1].x) && IsNaN(Tri.LocalPositions[2].x))
+	{
+		return;
+	}
+
+	// As of 2022-03-28, some UE systems mark triangles as culled by only setting the provoking vertex to NaN
+	// In practice, the drivers handle this, so we allow it for now.
+	// Technically, this is a DXR spec violation.
+	if (IsNaN(Tri.LocalPositions[0].x))
+	{
+		return;
+	}
+	
+	// Active triangles must have non-NaN positions
+	for (uint i=0; i<3; ++i)
+	{
+		if (IsNaN(Tri.LocalPositions[i].x) || IsNaN(Tri.LocalPositions[i].y) || IsNaN(Tri.LocalPositions[i].z))
+		{
+			uint AssertID = 0xF69EAF06; // Unique assert ID (TODO: add support for full human-readable assert strings)
+			UEReportAssertWithPayload(AssertID,
+			uint4(PrimitiveIndex, 
+				asuint(Tri.LocalPositions[i].x), 
+				asuint(Tri.LocalPositions[i].y), 
+				asuint(Tri.LocalPositions[i].z)));
+			return;
+		}
+	}
+}
+
+[numthreads(NUM_THREADS_X, 1, 1)]
+void RayTracingValidateGeometryBuildParamsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint PrimitiveIndex = DispatchThreadId.x;
+
+	if (PrimitiveIndex >= NumPrimitives)
+	{
+		return;
+	}
+
+	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(
+		IndexBuffer, IndexBufferOffsetInBytes, IndexBufferStride,
+		VertexBuffer, VertexBufferOffsetInBytes, VertexBufferStride,
+		PrimitiveIndex);
+	
+	CheckTriangle(Tri, PrimitiveIndex);
+}
+
+#else // PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER
+
+[numthreads(NUM_THREADS_X, 1, 1)]
+void RayTracingValidateGeometryBuildParamsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+}
+
+#endif // PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER
+
