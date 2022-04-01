@@ -4,6 +4,7 @@
 
 #include "SmartObjectAssetEditor.h"
 #include "SmartObjectDefinition.h"
+#include "SmartObjectEditorStyle.h"
 
 const FName DisplaySmartObjectEditorName("SmartObjectEditor");
 
@@ -19,7 +20,7 @@ FText FAssetTypeActions_SmartObject::GetName() const
 
 FColor FAssetTypeActions_SmartObject::GetTypeColor() const
 {
-	return FColor(104,49,178);
+	return FSmartObjectEditorStyle::TypeColor;
 }
 
 UClass* FAssetTypeActions_SmartObject::GetSupportedClass() const

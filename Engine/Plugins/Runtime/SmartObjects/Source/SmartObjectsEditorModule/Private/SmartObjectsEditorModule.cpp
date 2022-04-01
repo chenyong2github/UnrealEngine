@@ -5,6 +5,7 @@
 #include "SmartObjectComponent.h"
 #include "SmartObjectComponentVisualizer.h"
 #include "SmartObjectAssetTypeActions.h"
+#include "SmartObjectEditorStyle.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 
@@ -25,6 +26,8 @@ private:
 
 void FSmartObjectsEditorModule::StartupModule()
 {
+	FSmartObjectEditorStyle::Get();
+	
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
 	// Create or find existing category
@@ -65,6 +68,8 @@ void FSmartObjectsEditorModule::ShutdownModule()
 			GUnrealEd->UnregisterComponentVisualizer(ClassName);
 		}
 	}
+
+	FSmartObjectEditorStyle::Shutdown();
 }
 
 void FSmartObjectsEditorModule::RegisterComponentVisualizer(const FName ComponentClassName, const TSharedPtr<FComponentVisualizer> Visualizer)

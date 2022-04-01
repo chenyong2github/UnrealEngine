@@ -11,7 +11,7 @@ class UBlackboardComponent;
 /**
  * Blackboard key type that holds a SmartObject claim handle 
  */
-UCLASS(EditInlineNew, meta=(DisplayName="SmartObject Claim Handle"))
+UCLASS(EditInlineNew, meta=(DisplayName="SO Claim Handle"))
 class SMARTOBJECTSMODULE_API UBlackboardKeyType_SOClaimHandle : public UBlackboardKeyType
 {
 	GENERATED_BODY()
