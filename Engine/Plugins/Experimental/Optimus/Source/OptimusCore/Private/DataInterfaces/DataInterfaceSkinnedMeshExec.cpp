@@ -18,6 +18,11 @@ FString USkinnedMeshExecDataInterface::GetDisplayName() const
 	return TEXT("Execute Skinned Mesh");
 }
 
+FName USkinnedMeshExecDataInterface::GetCategory() const
+{
+	return CategoryName::ExecutionDataInterfaces;
+}
+
 TArray<FOptimusCDIPinDefinition> USkinnedMeshExecDataInterface::GetPinDefinitions() const
 {
 	using namespace Optimus::DomainName;

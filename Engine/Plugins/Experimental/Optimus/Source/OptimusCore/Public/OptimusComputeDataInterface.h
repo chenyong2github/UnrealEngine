@@ -98,9 +98,19 @@ class OPTIMUSCORE_API UOptimusComputeDataInterface : public UComputeDataInterfac
 	GENERATED_BODY()
 	
 public:
+	struct CategoryName
+	{
+		static const FName DataInterfaces;
+		static const FName ExecutionDataInterfaces;
+		static const FName OutputDataInterfaces;
+	};
+
 	/// Returns the name to show on the node that will proxy this interface in the graph view.
 	virtual FString GetDisplayName() const PURE_VIRTUAL(UOptimusComputeDataInterface::GetDisplayName, return {};)
-	
+
+	/// Returns the category for the node.
+	virtual FName GetCategory() const { return CategoryName::DataInterfaces; }
+
 	/// Returns the list of pins that will map to the shader functions provided by this data interface.
 	virtual TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const PURE_VIRTUAL(UOptimusComputeDataInterface::GetDisplayName, return {};)
 

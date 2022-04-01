@@ -101,8 +101,7 @@ void UOptimusEditorGraphSchema::GetGraphActions(
 
 		const FText NodeName = FText::FromString(DataInterface->GetDisplayName());
 
-		// FIXME: Get from interface
-		const FText NodeCategory = FText::FromName(UOptimusNode::CategoryName::DataProviders);
+		const FText NodeCategory = FText::FromName(DataInterface->GetCategory());
 
 		TSharedPtr< FOptimusGraphSchemaAction_NewDataInterfaceNode> Action(
 			new FOptimusGraphSchemaAction_NewDataInterfaceNode(

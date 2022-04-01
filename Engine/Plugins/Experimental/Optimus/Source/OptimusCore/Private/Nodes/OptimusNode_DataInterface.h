@@ -25,7 +25,7 @@ public:
 
 	FName GetNodeCategory() const override 
 	{
-		return CategoryName::Deformers;
+		return CategoryName::DataInterfaces;
 	}
 
 	// -- IOptimusDataInterfaceProvider implementations

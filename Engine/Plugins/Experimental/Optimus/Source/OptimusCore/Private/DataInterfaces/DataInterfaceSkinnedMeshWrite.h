@@ -20,6 +20,7 @@ class OPTIMUSCORE_API USkinnedMeshWriteDataInterface : public UOptimusComputeDat
 public:
 	//~ Begin UOptimusComputeDataInterface Interface
 	FString GetDisplayName() const override;
+	FName GetCategory() const override;
 	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
 	//~ End UOptimusComputeDataInterface Interface
 	

@@ -20,7 +20,7 @@
 #include "UObject/UObjectGlobals.h"
 
 
-const FName UOptimusNode::CategoryName::DataProviders("Data Providers");
+const FName UOptimusNode::CategoryName::DataInterfaces("Data Interfaces");
 const FName UOptimusNode::CategoryName::Deformers("Deformers");
 const FName UOptimusNode::CategoryName::Resources("Resources");
 const FName UOptimusNode::CategoryName::Variables("Variables");

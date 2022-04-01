@@ -27,7 +27,7 @@ class OPTIMUSCORE_API UOptimusNode : public UObject
 public:
 	struct CategoryName
 	{
-		OPTIMUSCORE_API static const FName DataProviders;
+		OPTIMUSCORE_API static const FName DataInterfaces;
 		OPTIMUSCORE_API static const FName Deformers;
 		OPTIMUSCORE_API static const FName Resources;
 		OPTIMUSCORE_API static const FName Variables;

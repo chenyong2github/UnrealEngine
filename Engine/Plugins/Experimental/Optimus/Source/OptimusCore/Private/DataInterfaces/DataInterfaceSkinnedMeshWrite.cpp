@@ -18,6 +18,11 @@ FString USkinnedMeshWriteDataInterface::GetDisplayName() const
 	return TEXT("Write Skinned Mesh");
 }
 
+FName USkinnedMeshWriteDataInterface::GetCategory() const
+{
+	return CategoryName::OutputDataInterfaces;
+}
+
 TArray<FOptimusCDIPinDefinition> USkinnedMeshWriteDataInterface::GetPinDefinitions() const
 {
 	using namespace Optimus::DomainName;

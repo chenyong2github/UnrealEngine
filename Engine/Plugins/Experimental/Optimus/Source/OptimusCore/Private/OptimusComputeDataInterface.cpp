@@ -9,6 +9,10 @@
 #include "Templates/SubclassOf.h"
 
 
+const FName UOptimusComputeDataInterface::CategoryName::DataInterfaces("Data Interfaces");
+const FName UOptimusComputeDataInterface::CategoryName::ExecutionDataInterfaces("Execution Data Interfaces");
+const FName UOptimusComputeDataInterface::CategoryName::OutputDataInterfaces("Output Data Interfaces");
+
 
 TSet<TArray<FName>> UOptimusComputeDataInterface::GetUniqueNestedContexts() const
 {
