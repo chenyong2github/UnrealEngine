@@ -187,6 +187,24 @@ void UPlayerViewportCompositingOutput::OverrideBlendableSettings(class FSceneVie
 	}
 }
 
+#if WITH_EDITOR
+bool UPlayerViewportCompositingOutput::CanEditChange(const FProperty* InProperty) const
+{
+	if (!Super::CanEditChange(InProperty))
+	{
+		return false;
+	}
+
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPlayerViewportCompositingOutput, ApplyToneCurve))
+	{
+		//Note: When ColorConverter is null, a tonemap pass is automatically created (based on the DefaultConverterClass set above)
+		return ColorConverter == nullptr || ColorConverter->GetClass() == UCompositingTonemapPass::StaticClass();
+	}
+
+	return true;
+}
+#endif
+
 bool UPlayerViewportCompositingOutput::OverridePlayerCamera(int32 InPlayerIndex)
 {
 	ClearViewportOverride();
@@ -274,6 +292,16 @@ bool UPlayerCompOutputCameraModifier::ModifyCamera(float /*DeltaTime*/, FMinimal
 				InOutPOV.PostProcessSettings
 			);
 		}
+
+		if (!Owner->ApplyToneCurve)
+		{
+			InOutPOV.PostProcessSettings.bOverride_ToneCurveAmount = true;
+			InOutPOV.PostProcessSettings.ToneCurveAmount = 0;
+
+			InOutPOV.PostProcessSettings.bOverride_ExpandGamut = true;
+			InOutPOV.PostProcessSettings.ExpandGamut = 0;
+		}
+
 		InOutPOV.PostProcessSettings.AddBlendable(Owner, /*Weight =*/1.0f);
 
 		return true;

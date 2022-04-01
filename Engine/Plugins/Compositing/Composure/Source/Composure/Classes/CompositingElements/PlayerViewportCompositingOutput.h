@@ -29,6 +29,10 @@ public:
 	UPROPERTY(EditAnywhere, Category="Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
 	int32 PlayerIndex = 0;
 
+	/** Enable or disable the tone curve (and expand gamut) when the tonemap pass settings are passed down to the main viewport post-processing. */
+	UPROPERTY(EditAnywhere, Category = "Compositing Pass", meta = (DisplayAfter = "ColorConversion", EditCondition = "bEnabled"))
+	bool ApplyToneCurve = false;
+
 public:
 	//~ Begin UCompositingElementOutput interface
 	virtual void OnFrameBegin_Implementation(bool bCameraCutThisFrame) override;
@@ -40,6 +44,10 @@ public:
 	virtual void OverrideBlendableSettings(FSceneView& View, float Weight) const override;
 	//~ End IBlendableInterface interface
 
+
+#if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
+#endif
 protected:
 	bool OverridePlayerCamera(int32 PlayerIndex);
 	void ClearViewportOverride();
