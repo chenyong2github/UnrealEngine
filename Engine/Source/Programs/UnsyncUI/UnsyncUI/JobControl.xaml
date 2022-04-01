@@ -96,7 +96,7 @@
 					</ItemsControl.ItemsPanel>
 					<ItemsControl.Template>
 						<ControlTemplate TargetType="ItemsControl">
-							<ScrollViewer CanContentScroll="True" Focusable="True">
+							<ScrollViewer CanContentScroll="True" Focusable="True" MaxHeight="{Binding MaxLogScrollViewHeight}">
 								<ItemsPresenter />
 							</ScrollViewer>
 						</ControlTemplate>
