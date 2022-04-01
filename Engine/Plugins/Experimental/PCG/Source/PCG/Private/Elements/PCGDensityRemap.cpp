@@ -4,6 +4,7 @@
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
+#include "Helpers/PCGSettingsHelpers.h"
 #include "Math/RandomStream.h"
 
 FPCGElementPtr UPCGLinearDensityRemapSettings::CreateElement() const
@@ -20,13 +21,18 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
+	UPCGParams* Params = Context->InputData.GetParams();
 
 	// Forward any non-input data
 	Outputs.Append(Context->InputData.GetExclusions());
 	Outputs.Append(Context->InputData.GetAllSettings());
 
-	const float RemapMin = FMath::Min(Settings->RemapMin, Settings->RemapMax);
-	const float RemapMax = FMath::Max(Settings->RemapMin, Settings->RemapMax);
+	const float SettingsRemapMin = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGLinearDensityRemapSettings, RemapMin), Settings->RemapMin, Params);
+	const float SettingsRemapMax = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGLinearDensityRemapSettings, RemapMax), Settings->RemapMax, Params);
+	const bool bMultiplyDensity = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGLinearDensityRemapSettings, bMultiplyDensity), Settings->bMultiplyDensity, Params);
+
+	const float RemapMin = FMath::Min(SettingsRemapMin, SettingsRemapMax);
+	const float RemapMax = FMath::Max(SettingsRemapMin, SettingsRemapMax);
 
 	// TODO: embarassingly parallel loop
 	for (const FPCGTaggedData& Input : Inputs)
@@ -56,7 +62,7 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 		TArray<FPCGPoint>& SampledPoints = SampledData->GetMutablePoints();
 		Output.Data = SampledData;
 
-		if (Settings->bMultiplyDensity)
+		if (bMultiplyDensity)
 		{
 			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Settings, RemapMin, RemapMax](int32 Index, FPCGPoint& OutPoint)
 			{

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGDifferenceElement.h"
+#include "Helpers/PCGSettingsHelpers.h"
 
 FPCGElementPtr UPCGDifferenceSettings::CreateElement() const
 {
@@ -16,19 +17,28 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData> Exclusions = Context->InputData.GetExclusions();
+	UPCGParams* Params = Context->InputData.GetParams();
+
+	const EPCGDifferenceDensityFunction DensityFunction = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDifferenceSettings, DensityFunction), Settings->DensityFunction, Params);
+#if WITH_EDITORONLY_DATA
+	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDifferenceSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
+#else
+	const bool bKeepZeroDensityPoints = false;
+#endif
+
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
 	const UPCGSpatialData* FirstSpatialData = nullptr;
 	UPCGDifferenceData* DifferenceData = nullptr;
 	int32 DifferenceTaggedDataIndex = -1;
 
-	auto AddToDifference = [&FirstSpatialData, &DifferenceData, &DifferenceTaggedDataIndex, Settings, &Outputs](const UPCGSpatialData* SpatialData) {
+	auto AddToDifference = [&FirstSpatialData, &DifferenceData, &DifferenceTaggedDataIndex, DensityFunction, bKeepZeroDensityPoints, &Outputs](const UPCGSpatialData* SpatialData) {
 		if (!DifferenceData)
 		{
 			DifferenceData = FirstSpatialData->Subtract(SpatialData);
-			DifferenceData->SetDensityFunction(Settings->DensityFunction);
+			DifferenceData->SetDensityFunction(DensityFunction);
 #if WITH_EDITORONLY_DATA
-			DifferenceData->bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
+			DifferenceData->bKeepZeroDensityPoints = bKeepZeroDensityPoints;
 #endif
 
 			FPCGTaggedData& DifferenceTaggedData = Outputs[DifferenceTaggedDataIndex];

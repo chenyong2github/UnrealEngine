@@ -4,6 +4,7 @@
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
+#include "Helpers/PCGSettingsHelpers.h"
 #include "Math/RandomStream.h"
 
 FPCGElementPtr UPCGPointSamplerSettings::CreateElement() const
@@ -19,21 +20,26 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
+	UPCGParams* Params = Context->InputData.GetParams();
+
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	// Forward any non-input data
+	// Forward any non-input data, excluding params
 	Outputs.Append(Context->InputData.GetExclusions());
 	Outputs.Append(Context->InputData.GetAllSettings());
 
-	const bool bNoSampling = (Settings->Ratio <= 0.0f);
-	const bool bTrivialSampling = (Settings->Ratio >= 1.0f);
+	const float Ratio = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointSamplerSettings, Ratio), Settings->Ratio, Params);
+#if WITH_EDITORONLY_DATA
+	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointSamplerSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
+#else
+	const bool bKeepZeroDensityPoints = false;
+#endif
+
+	const bool bNoSampling = (Ratio <= 0.0f);
+	const bool bTrivialSampling = (Ratio >= 1.0f);
 
 	// Early exit when nothing will be generated out of this sampler
-#if WITH_EDITORONLY_DATA
-	if (bNoSampling && !Settings->bKeepZeroDensityPoints)
-#else
-	if (bNoSampling)
-#endif
+	if (bNoSampling && !bKeepZeroDensityPoints)
 	{
 		PCGE_LOG(Verbose, "Skipped - all inputs rejected");
 		return true;
@@ -76,9 +82,9 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 		// TODO: randomize on the fractional number of points
 #if WITH_EDITORONLY_DATA
-		int TargetNumPoints = (Settings->bKeepZeroDensityPoints ? OriginalPointCount : OriginalPointCount * Settings->Ratio);
+		int TargetNumPoints = (bKeepZeroDensityPoints ? OriginalPointCount : OriginalPointCount * Ratio);
 #else
-		int TargetNumPoints = OriginalPointCount * Settings->Ratio;
+		int TargetNumPoints = OriginalPointCount * Ratio;
 #endif
 
 		// Early out
@@ -91,7 +97,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGPointSamplerElement::Execute::SelectPoints);
 
-			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Settings](int32 Index, FPCGPoint& OutPoint)
+			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Settings, Ratio, bKeepZeroDensityPoints](int32 Index, FPCGPoint& OutPoint)
 			{
 				const FPCGPoint& Point = Points[Index];
 
@@ -99,13 +105,13 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, Point.Seed));
 				float Chance = RandomSource.FRand();
 
-				if (Chance < Settings->Ratio)
+				if (Chance < Ratio)
 				{
 					OutPoint = Point;
 					return true;
 				}
 #if WITH_EDITORONLY_DATA
-				else if (Settings->bKeepZeroDensityPoints)
+				else if (bKeepZeroDensityPoints)
 				{
 					OutPoint = Point;
 					OutPoint.Density = 0;

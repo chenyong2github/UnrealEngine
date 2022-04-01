@@ -20,13 +20,13 @@ struct PCG_API FPCGLandscapeDataPoint
 	FPCGLandscapeDataPoint(int InX, int InY, float InHeight);
 
 	UPROPERTY()
-	int X;
+	int X = 0;
 
 	UPROPERTY()
-	int Y;
+	int Y = 0;
 
 	UPROPERTY()
-	float Height;
+	float Height = 0;
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))

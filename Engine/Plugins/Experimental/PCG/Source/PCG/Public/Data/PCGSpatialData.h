@@ -33,6 +33,8 @@ class PCG_API UPCGSpatialData : public UPCGData
 	GENERATED_BODY()
 
 public:
+	UPCGSpatialData(const FObjectInitializer& ObjectInitializer);
+
 	/** Returns the dimension of the data type, which has nothing to do with the dimension of its points */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual int GetDimension() const PURE_VIRTUAL(UPCGSpatialData::GetDimension, return 0;);
@@ -102,8 +104,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Metadata)
 	UPCGMetadata* MutableMetadata() { return Metadata; }
 
-	UFUNCTION(BlueprintCallable, Category = Metadata)
+	UFUNCTION(BlueprintCallable, Category = Metadata, meta=(DeprecatedFunction))
 	UPCGMetadata* CreateEmptyMetadata();
+
+	UFUNCTION(BlueprintCallable, Category = SpatialData)
+	void InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride = nullptr);
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	AActor* TargetActor = nullptr;

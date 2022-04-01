@@ -171,21 +171,6 @@ void UPCGPointData::InitializeFromActor(AActor* InActor)
 	Metadata = NewObject<UPCGMetadata>(this);
 }
 
-void UPCGPointData::InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride)
-{
-	check(InSource);
-	if (!TargetActor)
-	{
-		TargetActor = InSource->TargetActor;
-	}	
-
-	if (!Metadata)
-	{
-		Metadata = NewObject<UPCGMetadata>(this);
-		Metadata->Initialize(InMetadataParentOverride ? InMetadataParentOverride : InSource->Metadata);
-	}
-}
-
 const FPCGPoint* UPCGPointData::GetPointAtPosition(const FVector& InPosition) const
 {
 	if (bOctreeIsDirty)

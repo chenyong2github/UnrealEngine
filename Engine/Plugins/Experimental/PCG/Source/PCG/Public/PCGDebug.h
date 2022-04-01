@@ -38,7 +38,7 @@ public:
 
 	/** Warning: enabling this flag will have severe performance impact */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bCheckForDuplicates;
+	bool bCheckForDuplicates = false;
 
 	TSoftObjectPtr<UMaterialInterface> GetMaterial() const;
 };

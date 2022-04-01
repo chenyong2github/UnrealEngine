@@ -4,6 +4,7 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
+#include "Helpers/PCGSettingsHelpers.h"
 #include "PCGHelpers.h"
 #include "Math/RandomStream.h"
 
@@ -11,7 +12,13 @@ struct FPCGSurfaceSamplerLoopData
 {
 	const UPCGSurfaceSamplerSettings* Settings;
 
+	float PointsPerSquaredMeter;
 	FVector PointExtents;
+	float Looseness;
+	bool bApplyDensityToPoints;
+	float PointSteepness;
+	bool bKeepZeroDensityPoints = false;
+
 	FVector InterstitialDistance;
 	FVector InnerCellSize;
 	FVector CellSize;
@@ -29,11 +36,22 @@ struct FPCGSurfaceSamplerLoopData
 
 	bool Initialize(const UPCGSurfaceSamplerSettings* InSettings, FPCGContext* Context, const FBox& InputBounds)
 	{
+		UPCGParams* Params = Context->InputData.GetParams();
 		Settings = InSettings;
 
+		// Compute used values
+		PointsPerSquaredMeter = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, PointsPerSquaredMeter), Settings->PointsPerSquaredMeter, Params);
+		PointExtents = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, PointExtents), Settings->PointExtents, Params);
+		Looseness = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, Looseness), Settings->Looseness, Params);
+		bApplyDensityToPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, bApplyDensityToPoints), Settings->bApplyDensityToPoints, Params);
+		PointSteepness = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, PointSteepness), Settings->PointSteepness, Params);
+#if WITH_EDITORONLY_DATA
+		bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
+#endif
+
 		// Conceptually, we will break down the surface bounds in a N x M grid
-		InterstitialDistance = Settings->PointExtents * 2;
-		InnerCellSize = InterstitialDistance * Settings->Looseness;
+		InterstitialDistance = PointExtents * 2;
+		InnerCellSize = InterstitialDistance * Looseness;
 		CellSize = InterstitialDistance + InnerCellSize;
 		check(CellSize.X > 0 && CellSize.Y > 0);
 
@@ -53,7 +71,7 @@ struct FPCGSurfaceSamplerLoopData
 		check(CellCount > 0);
 
 		const FVector::FReal InvSquaredMeterUnits = 1.0 / (100.0 * 100.0);
-		TargetPointCount = (InputBounds.Max.X - InputBounds.Min.X) * (InputBounds.Max.Y - InputBounds.Min.Y) * Settings->PointsPerSquaredMeter * InvSquaredMeterUnits;
+		TargetPointCount = (InputBounds.Max.X - InputBounds.Min.X) * (InputBounds.Max.Y - InputBounds.Min.Y) * PointsPerSquaredMeter * InvSquaredMeterUnits;
 
 		if (TargetPointCount == 0)
 		{
@@ -103,18 +121,21 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGSurfaceSamplerSettings* Settings = Context->GetInputSettings<UPCGSurfaceSamplerSettings>();
 	check(Settings);
 
+	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
+	UPCGParams* Params = Context->InputData.GetParams();
+
 	// Early out on invalid settings
 	// TODO: we could compute an approximate radius based on the points per squared meters if that's useful
-	if(Settings->PointExtents.X <= 0 || Settings->PointExtents.Y <= 0)
+	const FVector PointExtents = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, PointExtents), Settings->PointExtents, Params);
+	if(PointExtents.X <= 0 || PointExtents.Y <= 0)
 	{
 		PCGE_LOG(Warning, "Skipped - Invalid point extents");
 		return true;
 	}
 
-	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
+	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData; 
 
 	// TODO: embarassingly parallel loop
-	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	for (const FPCGTaggedData& Input : Inputs)
 	{
 		const UPCGSpatialData* SpatialInput = Cast<UPCGSpatialData>(Input.Data);
@@ -171,16 +192,12 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 				 
 				const FVector TentativeLocation = FVector(CurrentX + RandX * InnerCellSize.X, CurrentY + RandY * InnerCellSize.Y, 0.0f);
 
-#if WITH_EDITORONLY_DATA
-				if (SpatialInput->GetPointAtPosition(TentativeLocation, OutPoint, SampledData->Metadata) || LoopData.Settings->bKeepZeroDensityPoints)
-#else
-				if (SpatialInput->GetPointAtPosition(TentativeLocation, OutPoint, SampledData->Metadata))
-#endif
+				if (SpatialInput->GetPointAtPosition(TentativeLocation, OutPoint, SampledData->Metadata) || LoopData.bKeepZeroDensityPoints)
 				{
 					// Apply final parameters on the point
-					OutPoint.Extents = FVector(LoopData.Settings->PointExtents);
-					OutPoint.Density *= (LoopData.Settings->bApplyDensityToPoints ? ((Ratio - Chance) / Ratio) : 1.0f);
-					OutPoint.Steepness = LoopData.Settings->PointSteepness;
+					OutPoint.Extents = LoopData.PointExtents;
+					OutPoint.Density *= (LoopData.bApplyDensityToPoints ? ((Ratio - Chance) / Ratio) : 1.0f);
+					OutPoint.Steepness = LoopData.PointSteepness;
 					OutPoint.Seed = RandomSource.GetCurrentSeed();
 
 					return true;

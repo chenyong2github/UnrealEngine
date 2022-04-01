@@ -6,6 +6,12 @@
 #include "Data/PCGProjectionData.h"
 #include "Data/PCGUnionData.h"
 
+UPCGSpatialData::UPCGSpatialData(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	Metadata = ObjectInitializer.CreateDefaultSubobject<UPCGMetadata>(this, TEXT("Metadata"));
+}
+
 const UPCGPointData* UPCGSpatialDataWithPointCache::ToPointData(FPCGContext* Context) const
 {
 	if (!CachedPointData)
@@ -73,4 +79,20 @@ UPCGMetadata* UPCGSpatialData::CreateEmptyMetadata()
 
 	Metadata = NewObject<UPCGMetadata>(this);
 	return Metadata;
+}
+
+void UPCGSpatialData::InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride)
+{
+	check(InSource);
+	if (!TargetActor)
+	{
+		TargetActor = InSource->TargetActor;
+	}
+
+	if (!Metadata)
+	{
+		Metadata = NewObject<UPCGMetadata>(this);
+	}
+
+	Metadata->Initialize(InMetadataParentOverride ? InMetadataParentOverride : InSource->Metadata);
 }

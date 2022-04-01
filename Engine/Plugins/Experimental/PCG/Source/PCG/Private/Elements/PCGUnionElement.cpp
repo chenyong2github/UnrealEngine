@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGUnionElement.h"
+#include "Helpers/PCGSettingsHelpers.h"
 
 FPCGElementPtr UPCGUnionSettings::CreateElement() const
 {
@@ -15,6 +16,11 @@ bool FPCGUnionElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
+	UPCGParams* Params = Context->InputData.GetParams();
+
+	const EPCGUnionType Type = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGUnionSettings, Type), Settings->Type, Params);
+	const EPCGUnionDensityFunction DensityFunction = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGUnionSettings, DensityFunction), Settings->DensityFunction, Params);
+
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
 	const UPCGSpatialData* FirstSpatialData = nullptr;
@@ -46,8 +52,8 @@ bool FPCGUnionElement::ExecuteInternal(FPCGContext* Context) const
 		if (!UnionData)
 		{
 			UnionData = FirstSpatialData->UnionWith(SpatialData);
-			UnionData->SetType(Settings->Type);
-			UnionData->SetDensityFunction(Settings->DensityFunction);
+			UnionData->SetType(Type);
+			UnionData->SetDensityFunction(DensityFunction);
 
 			UnionTaggedData.Data = UnionData;
 		}

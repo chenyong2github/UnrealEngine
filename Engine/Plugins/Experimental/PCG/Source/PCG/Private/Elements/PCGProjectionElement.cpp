@@ -2,6 +2,7 @@
 
 #include "Elements/PCGProjectionElement.h"
 #include "Data/PCGProjectionData.h"
+#include "Helpers/PCGSettingsHelpers.h"
 
 FPCGElementPtr UPCGProjectionSettings::CreateElement() const
 {
@@ -16,7 +17,15 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
+	UPCGParams* Params = Context->InputData.GetParams();
+
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
+
+#if WITH_EDITORONLY_DATA
+	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGProjectionSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
+#else
+	const bool bKeepZeroDensityPoints = false;
+#endif
 
 	const UPCGSpatialData* FirstSpatialData = nullptr;
 	UPCGProjectionData* ProjectionData = nullptr;
@@ -46,7 +55,7 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 		ProjectionData = (ProjectionData ? ProjectionData : FirstSpatialData)->ProjectOn(SpatialData);
 
 #if WITH_EDITORONLY_DATA
-		ProjectionData->bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
+		ProjectionData->bKeepZeroDensityPoints = bKeepZeroDensityPoints;
 #endif
 		
 		// Update the tagged data

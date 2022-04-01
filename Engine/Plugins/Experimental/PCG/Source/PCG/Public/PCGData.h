@@ -10,6 +10,7 @@
 #include "PCGData.generated.h"
 
 class UPCGSettings;
+class UPCGParams;
 
 /**
 * Base class for any "data" class in the PCG framework.
@@ -38,7 +39,7 @@ struct PCG_API FPCGTaggedData
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
-	TObjectPtr<const UPCGData> Data;
+	TObjectPtr<const UPCGData> Data = nullptr;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	EPCGDataUsage Usage = EPCGDataUsage::Input;
@@ -59,6 +60,7 @@ struct PCG_API FPCGDataCollection
 	TArray<FPCGTaggedData> GetTaggedInputs(const FString& InTag) const;
 	TArray<FPCGTaggedData> GetExclusions() const;
 	TArray<FPCGTaggedData> GetAllSettings() const;
+	UPCGParams* GetParams() const;
 
 	template<typename SettingsType>
 	const SettingsType* GetSettings() const;

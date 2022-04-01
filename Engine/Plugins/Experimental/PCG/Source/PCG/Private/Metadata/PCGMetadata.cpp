@@ -26,7 +26,12 @@ void UPCGMetadata::BeginDestroy()
 
 void UPCGMetadata::Initialize(const UPCGMetadata* InParent)
 {
-	check(!Parent && Attributes.Num() == 0);
+	if (Parent || Attributes.Num() != 0)
+	{
+		UE_LOG(LogPCG, Error, TEXT("Metadata has already been initialized or already contains attributes"));
+		return;
+	}
+
 	Parent = (InParent != this ? InParent : nullptr);
 	ItemKeyOffset = Parent ? Parent->GetItemCountForChild() : 0;
 	AddAttributes(InParent);
@@ -406,10 +411,7 @@ void UPCGMetadata::MergeAttributes(PCGMetadataEntryKey InKeyA, const UPCGMetadat
 
 		if (AttributeA || AttributeB)
 		{
-			if (Attribute)
-			{
-				Attribute->SetValue(OutKey, AttributeA, InKeyA, AttributeB, InKeyB, Op);
-			}
+			Attribute->SetValue(OutKey, AttributeA, InKeyA, AttributeB, InKeyB, Op);
 		}
 	}
 	AttributeLock.ReadUnlock();
@@ -429,14 +431,8 @@ void UPCGMetadata::ResetWeightedAttributes(PCGMetadataEntryKey& OutKey)
 	{
 		FPCGMetadataAttributeBase* Attribute = AttributePair.Value;
 		
-		if (!Attribute->AllowsInterpolation())
+		if (Attribute && Attribute->AllowsInterpolation())
 		{
-			continue;
-		}
-
-		if (Attribute)
-		{
-			check(Attribute->AllowsInterpolation());
 			Attribute->SetZeroValue(OutKey);
 		}
 	}

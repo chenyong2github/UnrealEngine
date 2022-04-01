@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGIntersectionElement.h"
+#include "Helpers/PCGSettingsHelpers.h"
 
 FPCGElementPtr UPCGIntersectionSettings::CreateElement() const
 {
@@ -15,6 +16,15 @@ bool FPCGIntersectionElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
+	UPCGParams* Params = Context->InputData.GetParams();
+
+	const EPCGIntersectionDensityFunction DensityFunction = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGIntersectionSettings, DensityFunction), Settings->DensityFunction, Params);
+#if WITH_EDITORONLY_DATA
+	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGIntersectionSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
+#else
+	const bool bKeepZeroDensityPoints = false;
+#endif
+
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
 	const UPCGSpatialData* FirstSpatialData = nullptr;
@@ -43,11 +53,10 @@ bool FPCGIntersectionElement::ExecuteInternal(FPCGContext* Context) const
 		// Create a new intersection
 		IntersectionData = (IntersectionData ? IntersectionData : FirstSpatialData)->IntersectWith(SpatialData);
 		// Propagate settings
-		IntersectionData->DensityFunction = Settings->DensityFunction;
+		IntersectionData->DensityFunction = DensityFunction;
 #if WITH_EDITORONLY_DATA
-		IntersectionData->bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
+		IntersectionData->bKeepZeroDensityPoints = bKeepZeroDensityPoints;
 #endif
-
 
 		// Update tagged data
 		FPCGTaggedData& IntersectionTaggedData = Outputs[IntersectionTaggedDataIndex];

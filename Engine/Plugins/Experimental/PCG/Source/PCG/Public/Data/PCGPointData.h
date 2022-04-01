@@ -71,9 +71,6 @@ public:
 	void InitializeFromActor(AActor* InActor);
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
-	void InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride = nullptr);
-
-	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	const TArray<FPCGPoint>& GetPoints() const { return Points; }
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)

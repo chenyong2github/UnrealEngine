@@ -25,6 +25,7 @@ namespace PCG
 		PCGMetadataGenerateDataTypes(FQuat, 6);
 		PCGMetadataGenerateDataTypes(FTransform, 7);
 		PCGMetadataGenerateDataTypes(FString, 8);
+		PCGMetadataGenerateDataTypes(bool, 9);
 
 #undef PCGMetadataGenerateDataTypes
 
@@ -65,6 +66,35 @@ namespace PCG
 			static T ZeroValue()
 			{
 				return T{};
+			}
+		};
+
+		template<>
+		struct MetadataTraits<bool>
+		{
+			enum { CompressData = false };
+			enum { CanMinMax = true };
+			enum { CanSubAdd = true };
+			enum { CanInterpolate = false };
+
+			static bool Min(const bool& A, const bool& B)
+			{
+				return A && B;
+			}
+
+			static bool Max(const bool& A, const bool& B)
+			{
+				return A || B;
+			}
+
+			static bool Add(const bool& A, const bool& B)
+			{
+				return A || B;
+			}
+
+			static bool Sub(const bool& A, const bool& B)
+			{
+				return A && !B;
 			}
 		};
 

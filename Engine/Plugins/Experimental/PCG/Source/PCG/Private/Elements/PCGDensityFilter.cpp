@@ -3,6 +3,7 @@
 #include "Elements/PCGDensityFilter.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
+#include "Helpers/PCGSettingsHelpers.h"
 
 FPCGElementPtr UPCGDensityFilterSettings::CreateElement() const
 {
@@ -18,22 +19,28 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
+	UPCGParams* Params = Context->InputData.GetParams();
 
 	// Forward any non-input data
 	Outputs.Append(Context->InputData.GetExclusions());
 	Outputs.Append(Context->InputData.GetAllSettings());
 
-	const float MinBound = FMath::Min(Settings->LowerBound, Settings->UpperBound);
-	const float MaxBound = FMath::Max(Settings->LowerBound, Settings->UpperBound);
-
-	const bool bNoResults = (MaxBound <= 0.0f && !Settings->bInvertFilter) || (MinBound == 0.0f && MaxBound >= 1.0f && Settings->bInvertFilter);
-	const bool bTrivialFilter = (MinBound <= 0.0f && MaxBound >= 1.0f && !Settings->bInvertFilter) || (MinBound == 0.0f && MaxBound == 0.0f && Settings->bInvertFilter);
-
+	const bool bInvertFilter = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, bInvertFilter), Settings->bInvertFilter, Params);
+	const float LowerBound = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, LowerBound), Settings->LowerBound, Params);
+	const float UpperBound = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, LowerBound), Settings->UpperBound, Params);
 #if WITH_EDITORONLY_DATA
-	if(bNoResults && !Settings->bKeepZeroDensityPoints)
+	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
 #else
-	if (bNoResults)
+	const bool bKeepZeroDensityPoints = false;
 #endif
+
+	const float MinBound = FMath::Min(LowerBound, UpperBound);
+	const float MaxBound = FMath::Max(LowerBound, UpperBound);
+
+	const bool bNoResults = (MaxBound <= 0.0f && !bInvertFilter) || (MinBound == 0.0f && MaxBound >= 1.0f && bInvertFilter);
+	const bool bTrivialFilter = (MinBound <= 0.0f && MaxBound >= 1.0f && !bInvertFilter) || (MinBound == 0.0f && MaxBound == 0.0f && bInvertFilter);
+
+	if (bNoResults && !bKeepZeroDensityPoints)
 	{
 		PCGE_LOG(Verbose, "Skipped - all inputs rejected");
 		return true;
@@ -75,18 +82,18 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 		Output.Data = FilteredData;
 
-		FPCGAsync::AsyncPointProcessing(Context, Points.Num(), FilteredPoints, [&Points, Settings, MinBound, MaxBound](int32 Index, FPCGPoint& OutPoint)
+		FPCGAsync::AsyncPointProcessing(Context, Points.Num(), FilteredPoints, [&Points, MinBound, MaxBound, bInvertFilter, bKeepZeroDensityPoints](int32 Index, FPCGPoint& OutPoint)
 		{
 			const FPCGPoint& Point = Points[Index];
 
 			bool bInRange = (Point.Density >= MinBound && Point.Density <= MaxBound);
-			if (bInRange != Settings->bInvertFilter)
+			if (bInRange != bInvertFilter)
 			{
 				OutPoint = Point;
 				return true;
 			}
 #if WITH_EDITORONLY_DATA
-			else if (Settings->bKeepZeroDensityPoints)
+			else if (bKeepZeroDensityPoints)
 			{
 				OutPoint = Point;
 				OutPoint.Density = 0;

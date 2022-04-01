@@ -2,6 +2,7 @@
 
 #include "PCGData.h"
 #include "PCGSettings.h"
+#include "PCGParams.h"
 
 bool FPCGTaggedData::operator==(const FPCGTaggedData& Other) const
 {
@@ -42,6 +43,19 @@ TArray<FPCGTaggedData> FPCGDataCollection::GetAllSettings() const
 	return TaggedData.FilterByPredicate([](const FPCGTaggedData& Data) {
 		return Data.Usage == EPCGDataUsage::Settings;
 		});
+}
+
+UPCGParams* FPCGDataCollection::GetParams() const
+{
+	for (const FPCGTaggedData& TaggedDatum : TaggedData)
+	{
+		if (UPCGParams* Params = Cast<UPCGParams>(TaggedDatum.Data))
+		{
+			return Params; 
+		}
+	}
+
+	return nullptr;
 }
 
 const UPCGSettings* FPCGDataCollection::GetSettings(const UPCGSettings* InDefaultSettings) const
