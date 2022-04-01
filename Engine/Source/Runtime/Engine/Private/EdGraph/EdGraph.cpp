@@ -4,6 +4,7 @@
 #include "Engine/Blueprint.h"
 #include "GraphEditAction.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "EngineLogs.h"
 #if WITH_EDITOR
 #include "UObject/UObjectHash.h"
 #endif
