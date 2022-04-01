@@ -3224,6 +3224,9 @@ void FControlRigEditMode::MoveControlShape(AControlRigShapeActor* ShapeActor, co
 
 			if (bTransformChanged)
 			{
+				ControlRig->InteractionType = InteractionType;
+				ControlRig->ElementsBeingInteracted.AddUnique(ShapeActor->GetElementKey());
+				
 				ControlRig->SetControlLocalTransform(ShapeActor->ControlName, CurrentLocalTransform);
 
 				FTransform CurrentTransform  = ControlRig->GetControlGlobalTransform(ShapeActor->ControlName);			// assumes it's attached to actor
@@ -3231,8 +3234,6 @@ void FControlRigEditMode::MoveControlShape(AControlRigShapeActor* ShapeActor, co
 
 				ShapeActor->SetGlobalTransform(CurrentTransform);
 
-				ControlRig->InteractionType = InteractionType;
-				ControlRig->ElementsBeingInteracted.AddUnique(ShapeActor->GetElementKey());
 				ControlRig->Evaluate_AnyThread();
 			}
 		}
@@ -3269,6 +3270,9 @@ void FControlRigEditMode::MoveControlShape(AControlRigShapeActor* ShapeActor, co
 		{
 			if (UControlRig* ControlRig = ShapeActor->ControlRig.Get())
 			{
+				ControlRig->InteractionType = InteractionType;
+				ControlRig->ElementsBeingInteracted.AddUnique(ShapeActor->GetElementKey());
+
 				FTransform NewTransform = CurrentTransform.GetRelativeTransform(ToWorldTransform);
 				FRigControlModifiedContext Context;
 				Context.EventName = FRigUnit_BeginExecution::EventName;
@@ -3291,8 +3295,6 @@ void FControlRigEditMode::MoveControlShape(AControlRigShapeActor* ShapeActor, co
 
 				}
 
-				ControlRig->InteractionType = InteractionType;
-				ControlRig->ElementsBeingInteracted.AddUnique(ShapeActor->GetElementKey());
 				ControlRig->Evaluate_AnyThread();		
 			}
 		}
