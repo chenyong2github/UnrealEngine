@@ -23,7 +23,6 @@ TArray<FOptimusCDIPinDefinition> UClothDataInterface::GetPinDefinitions() const
 
 	using namespace Optimus::DomainName;
 
-	Defs.Add({ "NumVertices", "ReadNumVertices" });
 	Defs.Add({ "ClothToLocal", "ReadClothToLocal" });
 	Defs.Add({ "ClothWeight", "ReadClothWeight", Vertex, "ReadNumVertices" });
 	Defs.Add({ "ClothPosition", "ReadClothPosition", Vertex, "ReadNumVertices" });

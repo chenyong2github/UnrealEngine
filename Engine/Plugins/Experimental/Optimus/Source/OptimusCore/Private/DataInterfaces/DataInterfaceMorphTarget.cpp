@@ -23,7 +23,6 @@ TArray<FOptimusCDIPinDefinition> UMorphTargetDataInterface::GetPinDefinitions() 
 
 	using namespace Optimus::DomainName;
 
-	Defs.Add({ "NumVertices", "ReadNumVertices" });
 	Defs.Add({ "DeltaPosition", "ReadDeltaPosition", Vertex, "ReadNumVertices" });
 	Defs.Add({ "DeltaNormal", "ReadDeltaNormal", Vertex, "ReadNumVertices" });
 
