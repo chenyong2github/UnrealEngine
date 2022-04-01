@@ -1310,6 +1310,9 @@ public:
 	/** Texture color management settings: source encoding and color space. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Texture, AdvancedDisplay)
 	FTextureSourceColorSettings SourceColorSettings;
+	
+	/* Store the FUE5MainStreamObjectVersion of the Texture uasset loaded for debugging (== LatestVersion if not loaded) */
+	int LoadedMainStreamObjectVersion;
 
 	/** Indicates we're currently importing the object (set in PostEditImport, unset in the subsequent PostEditChange) */
 	uint8 bIsImporting : 1;
