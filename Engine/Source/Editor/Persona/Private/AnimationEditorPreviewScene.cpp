@@ -1163,14 +1163,17 @@ void FAnimationEditorPreviewScene::Tick(float InDeltaTime)
 		GetWorld()->Tick(LEVELTICK_All, InDeltaTime);
 	}
 
-	// Handle updating the preview component to represent the effects of root motion	
-	const FBoxSphereBounds& Bounds = GetFloorBounds();
-	SkeletalMeshComponent->ConsumeRootMotion(Bounds.GetBox().Min, Bounds.GetBox().Max);
-
-	if (LastCachedLODForPreviewComponent != SkeletalMeshComponent->GetPredictedLODLevel())
+	if (SkeletalMeshComponent)
 	{
-		OnLODChanged.Broadcast();
-		LastCachedLODForPreviewComponent = SkeletalMeshComponent->GetPredictedLODLevel();
+		// Handle updating the preview component to represent the effects of root motion	
+		const FBoxSphereBounds& Bounds = GetFloorBounds();
+		SkeletalMeshComponent->ConsumeRootMotion(Bounds.GetBox().Min, Bounds.GetBox().Max);
+
+		if (LastCachedLODForPreviewComponent != SkeletalMeshComponent->GetPredictedLODLevel())
+		{
+			OnLODChanged.Broadcast();
+			LastCachedLODForPreviewComponent = SkeletalMeshComponent->GetPredictedLODLevel();
+		}
 	}
 
 	OnPostTickDelegate.Broadcast();

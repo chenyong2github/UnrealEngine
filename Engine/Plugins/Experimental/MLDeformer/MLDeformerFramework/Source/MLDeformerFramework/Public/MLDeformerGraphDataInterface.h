@@ -1,0 +1,147 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "OptimusComputeDataInterface.h"
+#include "ComputeFramework/ComputeDataProvider.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#include "Rendering/SkeletalMeshLODRenderData.h"
+#include "SkeletalRenderPublic.h"
+#include "MLDeformerGraphDataInterface.generated.h"
+
+class FRDGBuffer;
+class FRDGBufferSRV;
+class FRHIShaderResourceView;
+class FSkeletalMeshObject;
+class UMLDeformerComponent;
+class UNeuralNetwork;
+class USkeletalMeshComponent;
+class UMLDeformerModel;
+
+#define MLDEFORMER_SHADER_PARAMETERS() \
+	SHADER_PARAMETER(uint32, NumVertices) \
+	SHADER_PARAMETER(uint32, InputStreamStart) \
+	SHADER_PARAMETER(float, Weight) \
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, PositionDeltaBuffer) \
+	SHADER_PARAMETER_SRV(Buffer<uint>, VertexMapBuffer)
+
+#define MLDEFORMER_GRAPH_DISPATCH_START(ParameterStructType, InDispatchSetup, InOutDispatchData) \
+	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(ParameterStructType))) \
+	{ \
+		return; \
+	} \
+	const FSkeletalMeshRenderData& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData(); \
+	const FSkeletalMeshLODRenderData* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0); \
+	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex) \
+	{ \
+		const FSkelMeshRenderSection& RenderSection = LodRenderData->RenderSections[InvocationIndex]; \
+		ParameterStructType* Parameters = (ParameterStructType*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
+
+#define MLDEFORMER_GRAPH_DISPATCH_DEFAULT_PARAMETERS() \
+	Parameters->NumVertices = 0; \
+	Parameters->InputStreamStart = RenderSection.BaseVertexIndex; \
+	Parameters->Weight = Weight; \
+	Parameters->PositionDeltaBuffer = BufferSRV; \
+	Parameters->VertexMapBuffer = VertexMapBufferSRV;
+
+#define MLDEFORMER_GRAPH_DISPATCH_END() }
+
+#define MLDEFORMER_GRAPH_IMPLEMENT_BASICS(InterfaceClassName, DataProviderClassName, DataProviderProxyClassName, ParameterStructType, HLSLText, DisplayName) \
+	FString InterfaceClassName::GetDisplayName() const \
+	{ \
+		return DisplayName; \
+	} \
+	void InterfaceClassName::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const \
+	{ \
+		OutBuilder.AddNestedStruct<ParameterStructType>(UID); \
+	} \
+	void InterfaceClassName::GetHLSL(FString& OutHLSL) const \
+	{ \
+		OutHLSL += HLSLText; \
+	} \
+	UComputeDataProvider* InterfaceClassName::CreateDataProvider(TArrayView<TObjectPtr<UObject>> InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const \
+	{ \
+		DataProviderClassName* Provider = NewObject<DataProviderClassName>(); \
+		if (InSourceObjects.Num() == 1) \
+		{ \
+			Provider->SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InSourceObjects[0]); \
+		} \
+		return Provider; \
+	} \
+	FComputeDataProviderRenderProxy* DataProviderClassName::GetRenderProxy() \
+	{ \
+		UMLDeformerComponent* DeformerComponent = SkeletalMeshComponent->GetOwner()->FindComponentByClass<UMLDeformerComponent>(); \
+		return new DataProviderProxyClassName(SkeletalMeshComponent, DeformerComponent); \
+	}
+
+#if WITH_EDITORONLY_DATA
+	#define MLDEFORMER_EDITORDATA_ONLY(Statement, ElseStatement) Statement
+#else
+	#define MLDEFORMER_EDITORDATA_ONLY(X, ElseStatement) ElseStatement
+#endif
+
+/** Compute Framework Data Interface for MLDefomer data. */
+UCLASS(Category = ComputeFramework)
+class MLDEFORMERFRAMEWORK_API UMLDeformerGraphDataInterface
+	: public UOptimusComputeDataInterface
+{
+	GENERATED_BODY()
+
+public:
+	// UOptimusComputeDataInterface overrides.
+	virtual FString GetDisplayName() const override;
+	virtual TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
+	// ~END UOptimusComputeDataInterface overrides.
+
+	// UComputeDataInterface overrides.
+	virtual void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
+	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
+	virtual void GetHLSL(FString& OutHLSL) const override;
+	virtual void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
+	virtual UComputeDataProvider* CreateDataProvider(TArrayView<TObjectPtr<UObject>> InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
+	// ~END UComputeDataInterface overrides.
+};
+
+/** Compute Framework Data Provider for MLDeformer data. */
+UCLASS(BlueprintType, EditInlineNew, Category = ComputeFramework)
+class MLDEFORMERFRAMEWORK_API UMLDeformerGraphDataProvider
+	: public UComputeDataProvider
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
+	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = nullptr;
+
+	// UComputeDataProvider overrides.
+	virtual bool IsValid() const override;
+	virtual FComputeDataProviderRenderProxy* GetRenderProxy() override;
+	// ~END UComputeDataProvider overrides.
+};
+
+namespace UE::MLDeformer
+{
+	/** Compute Framework Data Provider Proxy for MLDeformer data. */
+	class MLDEFORMERFRAMEWORK_API FMLDeformerGraphDataProviderProxy
+		: public FComputeDataProviderRenderProxy
+	{
+	public:
+		FMLDeformerGraphDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerComponent* DeformerComponent);
+
+		// FComputeDataProviderRenderProxy overrides.
+		virtual void AllocateResources(FRDGBuilder& GraphBuilder) override;
+		virtual void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+		// ~END FComputeDataProviderRenderProxy overrides.
+
+	protected:
+		FSkeletalMeshObject* SkeletalMeshObject;
+		TObjectPtr<UNeuralNetwork> NeuralNetwork = nullptr;
+		FRHIShaderResourceView* VertexMapBufferSRV = nullptr;
+		FRDGBuffer* Buffer = nullptr;
+		FRDGBufferSRV* BufferSRV = nullptr;
+		float Weight = 1.0f;
+		int32 NeuralNetworkInferenceHandle = -1;
+		bool bCanRunNeuralNet = false;
+	};
+}	// namespace UE::MLDeformer
