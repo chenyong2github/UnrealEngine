@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Delegates/DelegateCombinations.h"
-#include "Engine/EngineTypes.h"
+#include "Engine/HitResult.h"
 #include "LiveLinkRole.h"
 #include "Misc/CoreMiscDefines.h"
 #include "UObject/Interface.h"
