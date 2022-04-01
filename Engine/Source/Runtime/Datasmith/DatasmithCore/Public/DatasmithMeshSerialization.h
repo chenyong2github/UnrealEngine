@@ -16,11 +16,11 @@ struct FDatasmithMeshModels
 	DATASMITHCORE_API friend void operator << (FArchive& Ar, FDatasmithMeshModels& Models);
 };
 
-struct FDatasmithPackedMeshes
+struct DATASMITHCORE_API FDatasmithPackedMeshes
 {
 	TArray<FDatasmithMeshModels> MeshesToExport;
-	DATASMITHCORE_API friend void operator << (FArchive& Ar, FDatasmithPackedMeshes& Pack);
-	FMD5Hash OutHash;
+
+	FMD5Hash Serialize(FArchive& Ar, bool bSaveCompressed=true);
 };
 
 DATASMITHCORE_API TArray<FDatasmithMeshModels> GetDatasmithMeshFromMeshPath(const FString& MeshPath);

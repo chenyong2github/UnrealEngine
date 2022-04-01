@@ -280,15 +280,13 @@ bool FDatasmithMeshExporterImpl::WriteMeshFile( const FDatasmithMeshExporterOpti
 
 	int32 LegacyMeshCount = 0;
 	*Archive << LegacyMeshCount; // the legacy importer expect a mesh count on the first bytes. Just in case a new file would end up parsed by the legacy code...
-	*Archive << Pack;
+	OutHash = Pack.Serialize(*Archive);
 
-	OutHash = Pack.OutHash;
 	return !Archive->IsError();
 }
 
 
-
-TSharedPtr< IDatasmithMeshElement > FDatasmithMeshExporter::ExportToUObject(const TCHAR* Filepath, const TCHAR* Filename, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV, bool NewFormat/*=false */)
+TSharedPtr< IDatasmithMeshElement > FDatasmithMeshExporter::ExportToUObject(const TCHAR* Filepath, const TCHAR* Filename, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV, bool NewFormat)
 {
 	FString FullPath( GetMeshFilePath( Filepath, Filename ) );
 
@@ -306,12 +304,20 @@ TSharedPtr< IDatasmithMeshElement > FDatasmithMeshExporter::ExportToUObject(cons
 	return ExportedMeshElement;
 }
 
-bool FDatasmithMeshExporter::ExportToUObject( TSharedPtr< IDatasmithMeshElement >& MeshElement, const TCHAR* Filepath, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV )
+
+bool FDatasmithMeshExporter::ExportToUObject( TSharedPtr< IDatasmithMeshElement >& MeshElement, const TCHAR* Filepath, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV, bool NewFormat )
 {
 	FString FullPath( GetMeshFilePath( Filepath, MeshElement->GetName() ) );
 	FDatasmithMeshExporterOptions ExportOptions( FullPath, Mesh, LightmapUV, CollisionMesh );
 
-	return LegacyImpl->DoExport( MeshElement, ExportOptions );
+	if (NewFormat)
+	{
+		return Impl->DoExport( MeshElement, ExportOptions );
+	}
+	else
+	{
+		return LegacyImpl->DoExport( MeshElement, ExportOptions );
+	}
 }
 
 
