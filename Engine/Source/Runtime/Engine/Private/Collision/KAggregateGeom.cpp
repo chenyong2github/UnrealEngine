@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "EngineDefines.h"
+#include "EngineLogs.h"
 #include "PhysicsEngine/ShapeElem.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "PhysicsEngine/BoxElem.h"

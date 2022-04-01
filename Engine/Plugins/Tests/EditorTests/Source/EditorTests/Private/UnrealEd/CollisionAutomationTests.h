@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/HitResult.h"
 #include "CollisionAutomationTests.generated.h"
 
 /**

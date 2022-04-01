@@ -5,6 +5,7 @@
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/CollisionQueryFilterCallback.h"
 
+struct FHitResult;
 
 class FCollisionStructure
 {
