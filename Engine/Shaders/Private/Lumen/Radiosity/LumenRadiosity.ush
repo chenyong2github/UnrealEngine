@@ -46,11 +46,25 @@ uint2 RadiosityAtlasSize;
 // Length of the temporal jitter pattern, and controls the weight of the temporal accumulation history
 uint MaxFramesAccumulated;
 
+// Number of views in the renderer
+uint NumViews;
+
+// Index of the current view for the dispatch
+uint ViewIndex;
+
+// Maximum number of card tiles for one view
+uint MaxCardTiles;
+
 // Returns the jitter offset in the range [0, ProbeSpacingInRadiosityTexels - 1]
 uint2 GetProbeJitter(uint IndirectLightingTemporalIndex)
 {
 	uint TemporalIndex = (FixedJitterIndex < 0 ? IndirectLightingTemporalIndex : FixedJitterIndex);
 	return Hammersley16(TemporalIndex % MaxFramesAccumulated, MaxFramesAccumulated, 0) * ProbeSpacingInRadiosityTexels;
+}
+
+FCardTileData GetCardTile(uint CardTileIndex)
+{
+	return UnpackCardTileData(CardTileData[ViewIndex * MaxCardTiles + CardTileIndex]);
 }
 
 void UnswizzleCardTileIndex(
@@ -63,7 +77,7 @@ void UnswizzleCardTileIndex(
 	uint LinearIndexInCardTile = RadiosityProbeIndex - CardTileIndex * NumProbesPerTile;
 	uint2 ProbeCoord = uint2(LinearIndexInCardTile % RadiosityTileSize, LinearIndexInCardTile / RadiosityTileSize);
 
-	FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
+	FCardTileData CardTile = GetCardTile(CardTileIndex);
 	FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
 	CoordInCardTile = ProbeCoord * ProbeSpacingInRadiosityTexels + GetProbeJitter(CardPage.IndirectLightingTemporalIndex);
 }
@@ -169,9 +183,9 @@ FRadiosityTexel GetRadiosityTexelFromCardTile(uint CardTileIndex, uint2 CoordInC
 	FRadiosityTexel RadiosityTexel = (FRadiosityTexel)0;
 	RadiosityTexel.bInsideAtlas = false;
 
-	if (CardTileIndex < CardTileAllocator[0])
+	if (CardTileIndex < CardTileAllocator[ViewIndex])
 	{
-		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
+		FCardTileData CardTile = GetCardTile(CardTileIndex);
 		uint2 CoordInCardPage = CardTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
 
 		FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);

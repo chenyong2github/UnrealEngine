@@ -159,9 +159,6 @@ void FLumenVisualizeCreateRaysCS(
 		uint2 TraceCoord = TileData.TileCoord * THREADGROUP_SIZE_2D + ThreadIndex;
 		if (all(TraceCoord < OutputViewSize))
 		{
-			float2 ViewportUV = (TraceCoord + 0.5f) / OutputViewSize;
-			uint2 InputScreenCoord = ViewportUV * InputViewSize + InputViewOffset;
-
 			bool bIsRayValid = true;
 
 			if (bIsRayValid)

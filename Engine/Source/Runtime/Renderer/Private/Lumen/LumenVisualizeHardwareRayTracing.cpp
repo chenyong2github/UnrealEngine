@@ -95,7 +95,7 @@ namespace Lumen
 		bool bVisualize = false;
 #if RHI_RAYTRACING
 		bVisualize = IsRayTracingEnabled()
-			&& Lumen::UseHardwareRayTracing()
+			&& Lumen::UseHardwareRayTracing(ViewFamily)
 			&& CVarLumenVisualizeHardwareRayTracing.GetValueOnRenderThread() != 0;
 #endif
 		return bVisualize;

@@ -128,10 +128,10 @@ bool Lumen::UseVoxelLighting(const FSceneViewFamily& ViewFamily)
 
 	// All features use Hardware RayTracing, no need to update voxel lighting
 	if (Lumen::UseHardwareRayTracedSceneLighting(ViewFamily)
-		&& Lumen::UseHardwareRayTracedScreenProbeGather()
-		&& Lumen::UseHardwareRayTracedReflections()
-		&& Lumen::UseHardwareRayTracedRadianceCache()
-		&& Lumen::UseHardwareRayTracedTranslucencyVolume()
+		&& Lumen::UseHardwareRayTracedScreenProbeGather(ViewFamily)
+		&& Lumen::UseHardwareRayTracedReflections(ViewFamily)
+		&& Lumen::UseHardwareRayTracedRadianceCache(ViewFamily)
+		&& Lumen::UseHardwareRayTracedTranslucencyVolume(ViewFamily)
 		&& Lumen::UseHardwareRayTracedVisualize(ViewFamily))
 	{
 		return false;
@@ -674,6 +674,7 @@ void VoxelizeVisBuffer(
 	const FViewInfo& View,
 	FScene* Scene,
 	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenViewCardTracingInputs& ViewTracingInputs,
 	FRDGTextureRef VoxelLighting,
 	FRDGBufferRef VoxelVisBuffer,
 	const TArray<int32, SceneRenderingAllocator>& ClipmapsToUpdate,
@@ -785,7 +786,7 @@ void VoxelizeVisBuffer(
 			PassParameters->CompactedVisBufferIndirectArguments = CompactedVisBufferIndirectArguments;
 			PassParameters->CompactedVisBufferAllocator = GraphBuilder.CreateSRV(CompactedVisBufferAllocator, PF_R32_UINT);
 			PassParameters->CompactedVisBuffer = GraphBuilder.CreateSRV(CompactedVisBuffer, PF_R32_UINT);
-			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
+			GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters, true);
 			PassParameters->MeshSDFTracingParameters = MeshSDFTracingParameters;
 			PassParameters->VoxelVisBuffer = GraphBuilder.CreateSRV(VoxelVisBuffer,PF_R32_UINT);
 			PassParameters->ClipmapIndex = ClipmapIndex;
@@ -899,7 +900,8 @@ void UpdateVoxelVisBuffer(
 	FRDGBuilder& GraphBuilder, 
 	FScene* Scene, 
 	const FViewInfo& View,
-	FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingInputs& TracingInputs,
+	FLumenViewCardTracingInputs& ViewTracingInputs,
 	FRDGBufferRef VoxelVisBuffer,
 	const TArray<int32, SceneRenderingAllocator>& ClipmapsToUpdate, 
 	bool bForceFullUpdate)
@@ -961,12 +963,12 @@ void UpdateVoxelVisBuffer(
 			bForceFullClipmapUpdate = true;
 		}
 
-		TracingInputs.ClipmapWorldToUVScale[ClipmapIndex] = FVector(1.0f) / (2.0f * Clipmap.Extent);
-		TracingInputs.ClipmapWorldToUVBias[ClipmapIndex] = -(Clipmap.Center - Clipmap.Extent) * TracingInputs.ClipmapWorldToUVScale[ClipmapIndex];
-		TracingInputs.ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4f((FVector3f)Clipmap.VoxelSize, Clipmap.VoxelRadius);
-		TracingInputs.ClipmapWorldCenter[ClipmapIndex] = Clipmap.Center;
-		TracingInputs.ClipmapWorldExtent[ClipmapIndex] = Clipmap.Extent;
-		TracingInputs.ClipmapWorldSamplingExtent[ClipmapIndex] = Clipmap.Extent - 0.5f * Clipmap.VoxelSize;
+		ViewTracingInputs.ClipmapWorldToUVScale[ClipmapIndex] = FVector(1.0f) / (2.0f * Clipmap.Extent);
+		ViewTracingInputs.ClipmapWorldToUVBias[ClipmapIndex] = -(Clipmap.Center - Clipmap.Extent) * ViewTracingInputs.ClipmapWorldToUVScale[ClipmapIndex];
+		ViewTracingInputs.ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4f((FVector3f)Clipmap.VoxelSize, Clipmap.VoxelRadius);
+		ViewTracingInputs.ClipmapWorldCenter[ClipmapIndex] = Clipmap.Center;
+		ViewTracingInputs.ClipmapWorldExtent[ClipmapIndex] = Clipmap.Extent;
+		ViewTracingInputs.ClipmapWorldSamplingExtent[ClipmapIndex] = Clipmap.Extent - 0.5f * Clipmap.VoxelSize;
 		
 		TArray<FRenderBounds>& PrimitiveModifiedBounds = Clipmap.PrimitiveModifiedBounds;
 		PrimitiveModifiedBounds.Append(Scene->LumenSceneData->PrimitiveModifiedBounds);
@@ -1187,7 +1189,7 @@ void UpdateVoxelVisBuffer(
 				{
 					FVoxelTraceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVoxelTraceCS::FParameters>();
                     PassParameters->RWVoxelVisBuffer = GraphBuilder.CreateUAV(VoxelVisBuffer, PF_R32_UINT);
-					GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
+					GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters, true);
 					PassParameters->TraceIndirectArgBuffer = TraceIndirectArgBuffer;
 					PassParameters->VoxelTraceData = GraphBuilder.CreateSRV(VoxelTraceData, PF_R32_UINT);
 					PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
@@ -1302,7 +1304,7 @@ void UpdateVoxelVisBuffer(
 
 					FHeightfieldVoxelTraceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHeightfieldVoxelTraceCS::FParameters>();
                     PassParameters->RWVoxelVisBuffer = GraphBuilder.CreateUAV(VoxelVisBuffer, PF_R32_UINT);
-					GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
+					GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters, true);
 					PassParameters->TraceIndirectArgBuffer = TraceIndirectArgBuffer;
 					PassParameters->VoxelTraceData = GraphBuilder.CreateSRV(VoxelTraceData, PF_R32_UINT);
 					PassParameters->ClipmapIndex = ClipmapIndex;
@@ -1331,12 +1333,12 @@ void UpdateVoxelVisBuffer(
 
 void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 	FRDGBuilder& GraphBuilder,
-	FLumenCardTracingInputs& TracingInputs,
-	FGlobalShaderMap* GlobalShaderMap)
+	const FViewInfo& View,
+	const FLumenCardTracingInputs& TracingInputs,
+	FLumenViewCardTracingInputs& ViewTracingInputs)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	const FViewInfo& View = Views[0];
 	if (!Lumen::UseVoxelLighting(ViewFamily))
 	{
 		// No need for voxel lighting, skip update and release resources
@@ -1350,7 +1352,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 	bool bForceFullUpdate = GLumenSceneVoxelLightingForceFullUpdate != 0 || GLumenSceneVoxelLightingReset != 0;
 	GLumenSceneVoxelLightingReset = 0;
 
-	FRDGTextureRef VoxelLighting = TracingInputs.VoxelLighting;
+	FRDGTextureRef VoxelLighting = ViewTracingInputs.VoxelLighting;
 	{
 		FRDGTextureDesc LightingDesc(FRDGTextureDesc::Create3D(
 			FIntVector(
@@ -1380,7 +1382,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 			VoxelVisBufferDimension.Y *
 			VoxelVisBufferDimension.Z);
         
-        if (!VoxelVisBuffer
+		if (!VoxelVisBuffer
 			|| VoxelVisBuffer->Desc.BytesPerElement != VoxelVisBufferDesc.BytesPerElement
 			|| VoxelVisBuffer->Desc.NumElements != VoxelVisBufferDesc.NumElements)
 		{
@@ -1427,16 +1429,16 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 
 	if (ClipmapsToUpdate.Num() > 0)
 	{
-		TracingInputs.VoxelLighting = VoxelLighting;
-		TracingInputs.VoxelGridResolution = GetClipmapResolution();
-		TracingInputs.NumClipmapLevels = ClampedNumClipmapLevels;
+		ViewTracingInputs.VoxelLighting = VoxelLighting;
+		ViewTracingInputs.VoxelGridResolution = GetClipmapResolution();
+		ViewTracingInputs.NumClipmapLevels = ClampedNumClipmapLevels;
 
-		UpdateVoxelVisBuffer(GraphBuilder, Scene, View, TracingInputs, VoxelVisBuffer, ClipmapsToUpdate, bForceFullUpdate);
-		VoxelizeVisBuffer(View, Scene, TracingInputs, VoxelLighting, VoxelVisBuffer, ClipmapsToUpdate, GraphBuilder);
+		UpdateVoxelVisBuffer(GraphBuilder, Scene, View, TracingInputs, ViewTracingInputs, VoxelVisBuffer, ClipmapsToUpdate, bForceFullUpdate);
+		VoxelizeVisBuffer(View, Scene, TracingInputs, ViewTracingInputs, VoxelLighting, VoxelVisBuffer, ClipmapsToUpdate, GraphBuilder);
 
 		View.ViewState->Lumen.VoxelLighting = GraphBuilder.ConvertToExternalTexture(VoxelLighting);
-		View.ViewState->Lumen.VoxelGridResolution = TracingInputs.VoxelGridResolution;
-		View.ViewState->Lumen.NumClipmapLevels = TracingInputs.NumClipmapLevels;
+		View.ViewState->Lumen.VoxelGridResolution = ViewTracingInputs.VoxelGridResolution;
+		View.ViewState->Lumen.NumClipmapLevels = ViewTracingInputs.NumClipmapLevels;
 	}
 
 	View.ViewState->Lumen.VoxelVisBuffer = GraphBuilder.ConvertToExternalBuffer(VoxelVisBuffer);

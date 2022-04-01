@@ -35,6 +35,7 @@ uint PackCardTileData(FCardTileData CardTile)
 struct FLightTile
 {
 	uint LightIndex;
+	uint ViewIndex;
 	uint CardPageIndex;
 	uint2 TileCoord;
 };
@@ -42,7 +43,8 @@ struct FLightTile
 FLightTile UnpackLightTile(uint2 PackedTile)
 {
 	FLightTile Tile;
-	Tile.LightIndex = PackedTile.x;
+	Tile.LightIndex = PackedTile.x & 0x0FFFFFFF;
+	Tile.ViewIndex = (PackedTile.x >> 28) & 0xF;
 	Tile.CardPageIndex = PackedTile.y & 0xFFFFFF;
 	Tile.TileCoord.x = (PackedTile.y >> 24) & 0xF;
 	Tile.TileCoord.y = (PackedTile.y >> 28) & 0xF;
@@ -52,9 +54,53 @@ FLightTile UnpackLightTile(uint2 PackedTile)
 uint2 PackLightTile(FLightTile Tile)
 {
 	uint2 PackedTile;
-	PackedTile.x = Tile.LightIndex;		
+	PackedTile.x = Tile.LightIndex | (Tile.ViewIndex << 28);		
 	PackedTile.y = Tile.CardPageIndex;
 	PackedTile.y |= (Tile.TileCoord.x << 24);
 	PackedTile.y |= (Tile.TileCoord.y << 28);
 	return PackedTile;
+}
+
+float4x4 WorldToClip[2];
+float4 PreViewTranslation[2];
+
+uint GetCardViewIndex(FLumenCardPageData CardPage, FLumenCardData Card, float2 UVMin, float2 UVMax, uint NumViews, bool bPrioritizeWhenInFrustum)
+{
+	float3 CardPageLocalCenter;
+	float3 CardPageLocalExtent;
+	GetCardLocalBBox(CardPage, Card, UVMin, UVMax, CardPageLocalCenter, CardPageLocalExtent);
+
+	float3 CardPageWorldCenter = mul(Card.WorldToLocalRotation, CardPageLocalCenter) + Card.Origin;
+	float3 CardPageWorldExtent = mul(abs(Card.WorldToLocalRotation), CardPageLocalExtent);
+
+	uint ViewIndex = 0;
+	
+	if (NumViews > 1)
+	{
+		float View0Distance = length(CardPageWorldCenter - -PreViewTranslation[0].xyz);
+		float View1Distance = length(CardPageWorldCenter - -PreViewTranslation[1].xyz);
+
+#define IN_FRUSTUM_DISTANCE 1
+#if IN_FRUSTUM_DISTANCE
+		if (bPrioritizeWhenInFrustum)
+		{
+			float4 CardOriginClipSpace0 = mul(float4(CardPageWorldCenter, 1.0f), WorldToClip[0]);
+
+			if (all(CardOriginClipSpace0.xy >= CardOriginClipSpace0.w) && all(CardOriginClipSpace0.xy <= CardOriginClipSpace0.w) && CardOriginClipSpace0.z < 1.0f)
+			{
+				View0Distance = .5f * CardOriginClipSpace0.w;
+			}
+
+			float4 CardOriginClipSpace1 = mul(float4(CardPageWorldCenter, 1.0f), WorldToClip[1]);
+
+			if (all(CardOriginClipSpace1.xy >= CardOriginClipSpace1.w) && all(CardOriginClipSpace1.xy <= CardOriginClipSpace1.w) && CardOriginClipSpace1.z < 1.0f)
+			{
+				View1Distance = .5f * CardOriginClipSpace1.w;
+			}
+		}
+#endif
+		ViewIndex = View0Distance < View1Distance ? 0 : 1;
+	}
+
+	return ViewIndex;
 }

@@ -398,7 +398,7 @@ FRHIGPUBufferReadback* FLumenSurfaceCacheFeedback::GetLatestReadbackBuffer()
 	return LatestReadbackBuffer;
 }
 
-void FLumenSceneData::UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests)
+void FLumenSceneData::UpdateSurfaceCacheFeedback(const TArray<FVector, TInlineAllocator<2>>& LumenSceneCameraOrigins, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateSurfaceCacheFeedback);
 
@@ -461,7 +461,12 @@ void FLumenSceneData::UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin,
 				}
 				else
 				{
-					const float DistanceSquared = Card.WorldOBB.ComputeSquaredDistanceToPoint((FVector3f)LumenSceneCameraOrigin);
+					float DistanceSquared = FLT_MAX;
+
+					for (FVector CameraOrigin : LumenSceneCameraOrigins)
+					{
+						DistanceSquared = FMath::Min(DistanceSquared, Card.WorldOBB.ComputeSquaredDistanceToPoint((FVector3f)CameraOrigin));
+					}
 					float Distance = FMath::Sqrt(DistanceSquared);
 
 					// Change priority based on the normalized number of hits and make those request less important than low res resident pages
@@ -516,7 +521,7 @@ void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDG
 		const bool bVisualizeUsesFeedback = GLumenVisualizeIndirectDiffuse != 0 && GVisualizeLumenSceneSurfaceCacheFeedback != 0;
 
 		extern int32 GLumenReflectionsSurfaceCacheFeedback;
-		const bool bReflectionsUseFeedback = Lumen::UseHardwareRayTracedReflections() && GLumenReflectionsSurfaceCacheFeedback != 0;
+		const bool bReflectionsUseFeedback = Lumen::UseHardwareRayTracedReflections(ViewFamily) && GLumenReflectionsSurfaceCacheFeedback != 0;
 
 		if (!Lumen::IsSurfaceCacheFrozen() && (bReflectionsUseFeedback || bVisualizeUsesFeedback))
 		{

@@ -69,7 +69,7 @@ float2 ViewportUVToHZBBufferUV;
 
 float GetMaxVisibleDepth(uint2 GridCoordinate)
 {
-	float2 HZBScreenUV = ((GridCoordinate.xy + .5f) * (1U << TranslucencyGIGridPixelSizeShift)) * View.ViewSizeAndInvSize.zw * ViewportUVToHZBBufferUV;
+	float2 HZBScreenUV = (GridCoordinate.xy + .5f) * (1U << TranslucencyGIGridPixelSizeShift) * View.ViewSizeAndInvSize.zw * ViewportUVToHZBBufferUV;
 	float TrilinearFootprintMipBias = 1.0f;
 	return ConvertFromDeviceZ(FurthestHZBTexture.SampleLevel(GlobalPointClampedSampler, HZBScreenUV, HZBMipLevel + TrilinearFootprintMipBias).x);
 }

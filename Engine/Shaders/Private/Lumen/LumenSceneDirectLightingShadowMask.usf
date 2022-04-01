@@ -49,6 +49,8 @@ StructuredBuffer<uint2> LightTiles;
 StructuredBuffer<uint> LightTileAllocator;
 StructuredBuffer<uint> LightTileOffsetsPerLight;
 uint LightIndex;
+uint ViewIndex;
+uint NumViews;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void LumenSceneDirectLightingSampleShadowMapCS(
@@ -64,7 +66,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 	GroupMemoryBarrierWithGroupSync();
 
 	uint LocalLightTileIndex = GroupId.x;
-	uint LightTileIndex = LocalLightTileIndex + LightTileOffsetsPerLight[LightIndex];
+	uint LightTileIndex = LocalLightTileIndex + LightTileOffsetsPerLight[LightIndex * NumViews + ViewIndex];
 	uint2 CoordInCardTile = GroupThreadId.xy;
 	FLightTile LightTile = UnpackLightTile(LightTiles[LightTileIndex]);
 	uint2 TexelInCardPageCoord = LightTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
@@ -336,7 +338,7 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
 	uint LocalLightTileIndex = GroupId.x;
-	uint LightTileIndex = LocalLightTileIndex + LightTileOffsetsPerLight[LightIndex];
+	uint LightTileIndex = LocalLightTileIndex + LightTileOffsetsPerLight[LightIndex * NumViews + ViewIndex];
 
 	if (GroupThreadId.x < 4 && GroupThreadId.y == 0)
 	{

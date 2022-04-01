@@ -44,6 +44,7 @@ extern void RenderRadianceCache(
 	FRadianceCacheConfiguration Configuration,
 	const class FScene* Scene,
 	const FViewInfo& View, 
+	bool bPropagateGlobalLightingChange,
 	const FScreenProbeParameters* ScreenProbeParameters,
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
 	FMarkUsedRadianceCacheProbes MarkUsedRadianceCacheProbes,

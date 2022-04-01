@@ -182,6 +182,7 @@ RWStructuredBuffer<uint> RWLightAllocatorPerTile;
 
 uint MaxLightsPerTile;
 uint NumLights;
+uint NumViews;
 
 /**
  * Pick N most important lights per tile in page selected to update to update this frame, and output a list of light tiles
@@ -212,11 +213,13 @@ void BuildLightTilesCS(
 			UVMin.y = 1.0f - UVMax.y;
 			UVMax.y = 1.0f - SwapY;
 
+			uint ViewIndex = GetCardViewIndex(CardPage, Card, UVMin, UVMax, NumViews, true);
+
 			// Loop over lights to select N most important lights
 			uint NumCulledLightsPerTile = 0;
 			for (uint LightIndex = 0; LightIndex < NumLights; ++LightIndex)
 			{
-				FLumenLight LumenLight = LoadLumenLight(LightIndex);
+				FLumenLight LumenLight = LoadLumenLight(LightIndex, PreViewTranslation[ViewIndex]);
 
 				bool bLightAffectsCard = DoesLightAffectCardPageUVRange(LumenLight, CardPage, Card, UVMin, UVMax);
 				if (bLightAffectsCard)
@@ -224,6 +227,7 @@ void BuildLightTilesCS(
 					// Write light tile
 					FLightTile LightTile;
 					LightTile.LightIndex = LightIndex;
+					LightTile.ViewIndex = ViewIndex;
 					LightTile.CardPageIndex = CardTile.CardPageIndex;
 					LightTile.TileCoord = CardTile.TileCoord;
 
@@ -232,7 +236,7 @@ void BuildLightTilesCS(
 					InterlockedAdd(RWLightTileAllocator[0], 1, CardTileIndex);
 					RWLightTiles[CardTileIndex] = PackLightTile(LightTile);
 
-					InterlockedAdd(RWLightTileAllocatorPerLight[LightIndex], 1);
+					InterlockedAdd(RWLightTileAllocatorPerLight[LightIndex * NumViews + ViewIndex], 1);
 
 					// Stop when we reached the limit of cards per current tile
 					++NumCulledLightsPerTile;
@@ -257,11 +261,15 @@ void ComputeLightTileOffsetsPerLightCS(uint3 DispatchThreadId : SV_DispatchThrea
 {
 	if (DispatchThreadId.x == 0)
 	{
-		uint LightOffset = 0;
-		for (uint LightIndex = 0; LightIndex < NumLights; ++LightIndex)
-		{
-			RWLightTileOffsetsPerLight[LightIndex] = LightOffset;
-			LightOffset += LightTileAllocatorPerLight[LightIndex];
+		uint TileOffset = 0;
+
+		for (uint ViewIndex = 0; ViewIndex < NumViews; ViewIndex++)
+		{			
+			for (uint LightIndex = 0; LightIndex < NumLights; ++LightIndex)
+			{
+				RWLightTileOffsetsPerLight[LightIndex * NumViews + ViewIndex] = TileOffset;
+				TileOffset += LightTileAllocatorPerLight[LightIndex * NumViews + ViewIndex];
+			}
 		}
 	}
 }
@@ -285,8 +293,8 @@ void CompactLightTilesCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		const FLightTile LightTile = UnpackLightTile(LightTiles[LightTileIndex]);
 
 		uint CompactedLightTileIndex = 0;
-		InterlockedAdd(RWCompactedLightTileAllocatorPerLight[LightTile.LightIndex], 1, CompactedLightTileIndex);
-		CompactedLightTileIndex += LightTileOffsetsPerLight[LightTile.LightIndex];
+		InterlockedAdd(RWCompactedLightTileAllocatorPerLight[LightTile.LightIndex * NumViews + LightTile.ViewIndex], 1, CompactedLightTileIndex);
+		CompactedLightTileIndex += LightTileOffsetsPerLight[LightTile.LightIndex * NumViews + LightTile.ViewIndex];
 
 		RWCompactedLightTiles[CompactedLightTileIndex] = PackLightTile(LightTile);
 	}
@@ -301,10 +309,10 @@ uint VertexCountPerInstanceIndirect;
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void InitializeLightTileIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint LightIndex = DispatchThreadId.x;
+	uint PerViewLightIndex = DispatchThreadId.x;
 
 	// Global card tile array
-	if (LightIndex == 0)
+	if (PerViewLightIndex == 0)
 	{
 		uint NumLightTiles = LightTileAllocator[0];
 
@@ -320,24 +328,25 @@ void InitializeLightTileIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThrea
 	}
 
 	// Per light card tile array
-	if (LightIndex < NumLights)
+	if (PerViewLightIndex < NumLights * NumViews)
 	{
-		uint NumLightTilesPerLight = LightTileAllocatorPerLight[LightIndex];
+		uint NumLightTilesPerLight = LightTileAllocatorPerLight[PerViewLightIndex];
 
 		// FRHIDispatchIndirectParameters
-		RWDispatchTilesPerLightIndirectArgs[3 * LightIndex + 0] = NumLightTilesPerLight;
-		RWDispatchTilesPerLightIndirectArgs[3 * LightIndex + 1] = 1;
-		RWDispatchTilesPerLightIndirectArgs[3 * LightIndex + 2] = 1;
+		RWDispatchTilesPerLightIndirectArgs[3 * PerViewLightIndex + 0] = NumLightTilesPerLight;
+		RWDispatchTilesPerLightIndirectArgs[3 * PerViewLightIndex + 1] = 1;
+		RWDispatchTilesPerLightIndirectArgs[3 * PerViewLightIndex + 2] = 1;
 
 		// FRHIDrawIndirectParameters
-		RWDrawTilesPerLightIndirectArgs[4 * LightIndex + 0] = VertexCountPerInstanceIndirect;
-		RWDrawTilesPerLightIndirectArgs[4 * LightIndex + 1] = NumLightTilesPerLight;
-		RWDrawTilesPerLightIndirectArgs[4 * LightIndex + 2] = 0;
-		RWDrawTilesPerLightIndirectArgs[4 * LightIndex + 3] = 0;
+		RWDrawTilesPerLightIndirectArgs[4 * PerViewLightIndex + 0] = VertexCountPerInstanceIndirect;
+		RWDrawTilesPerLightIndirectArgs[4 * PerViewLightIndex + 1] = NumLightTilesPerLight;
+		RWDrawTilesPerLightIndirectArgs[4 * PerViewLightIndex + 2] = 0;
+		RWDrawTilesPerLightIndirectArgs[4 * PerViewLightIndex + 3] = 0;
 	}
 }
 
 uint LightIndex;
+uint ViewIndex;
 
 void RasterizeToLightTilesVS(
 	uint VertexId : SV_VertexID,
@@ -350,7 +359,7 @@ void RasterizeToLightTilesVS(
 	TexCoord.x += VertexId == 1 || VertexId == 2 || VertexId == 4 ? 1.0f : 0.0f;
 	TexCoord.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? 1.0f : 0.0f;
 
-	uint LightTileIndex = InstanceId.x + LightTileOffsetsPerLight[LightIndex];
+	uint LightTileIndex = InstanceId.x + LightTileOffsetsPerLight[LightIndex * NumViews + ViewIndex];
 	uint NumLightTiles = LightTileAllocator[0];
 
 	CardInterpolants = (FCardVSToPS)0;

@@ -153,7 +153,7 @@ const TRefCountPtr<IPooledRenderTarget>& CreateCardAtlas(FRDGBuilder& GraphBuild
 	return GraphBuilder.ConvertToExternalTexture(AtlasRDG);
 }
 
-void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder)
 {
 	const FIntPoint PageAtlasSize = GetPhysicalAtlasSize();
 
@@ -517,7 +517,7 @@ void ClearAtlas(FRDGBuilder& GraphBuilder, TRefCountPtr<IPooledRenderTarget>& At
 // Surface cache can be compressed
 void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View)
+	const FGlobalShaderMap* GlobalShaderMap)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "ClearLumenSurfaceCache");
 
@@ -563,7 +563,7 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 
 				FClearCompressedAtlasCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FClearCompressedAtlasCS::FSurfaceCacheLayer>(Pass.Layer);
-				auto ComputeShader = View.ShaderMap->GetShader<FClearCompressedAtlasCS>(PermutationVector);
+				auto ComputeShader = GlobalShaderMap->GetShader<FClearCompressedAtlasCS>(PermutationVector);
 
 				FIntPoint GroupSize(FIntPoint::DivideAndRoundUp(PhysicalAtlasSize, FClearCompressedAtlasCS::GetGroupSize()));
 
@@ -600,7 +600,7 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 
 				FClearCompressedAtlasCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FClearCompressedAtlasCS::FSurfaceCacheLayer>(Pass.Layer);
-				auto ComputeShader = View.ShaderMap->GetShader<FClearCompressedAtlasCS>(PermutationVector);
+				auto ComputeShader = GlobalShaderMap->GetShader<FClearCompressedAtlasCS>(PermutationVector);
 
 				FIntPoint GroupSize(FIntPoint::DivideAndRoundUp(TempAtlasSize, FClearCompressedAtlasCS::GetGroupSize()));
 

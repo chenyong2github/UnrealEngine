@@ -40,6 +40,8 @@ uint CardPageNum;
 uint MaxDirectLightingTilesToUpdate;
 uint MaxIndirectLightingTilesToUpdate;
 float FirstClipmapWorldExtentRcp;
+uint NumCameraOrigins;
+float4 WorldCameraOrigins[2];
 
 float DirectLightingUpdateFactor;
 float IndirectLightingUpdateFactor;
@@ -106,11 +108,16 @@ uint GetPriorityBucketIndex(FLumenCardData Card, FLumenCardPageData CardPage, ui
 	// [0;MAX_UPDATE_FREQUENCY]
 	float Frequency = 0.0f;
 	{
-		float3 CardSpaceViewPosition = mul(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - Card.Origin, Card.WorldToLocalRotation);
-		float3 CardPageLocalCenter;
-		float3 CardPageLocalExtent;
-		GetCardPageLocalBBox(CardPage, Card, CardPageLocalCenter, CardPageLocalExtent);
-		const float DistanceFromViewer = sqrt(ComputeSquaredDistanceFromBoxToPoint(CardPageLocalCenter, CardPageLocalExtent, CardSpaceViewPosition));
+		float DistanceFromViewer = 100000000.0f;
+
+		for (uint ViewIndex = 0; ViewIndex < NumCameraOrigins; ViewIndex++)
+		{
+			float3 CardSpaceViewPosition = mul(WorldCameraOrigins[ViewIndex] - Card.Origin, Card.WorldToLocalRotation);
+			float3 CardPageLocalCenter;
+			float3 CardPageLocalExtent;
+			GetCardPageLocalBBox(CardPage, Card, CardPageLocalCenter, CardPageLocalExtent);
+			DistanceFromViewer = min(DistanceFromViewer, sqrt(ComputeSquaredDistanceFromBoxToPoint(CardPageLocalCenter, CardPageLocalExtent, CardSpaceViewPosition)));
+		}
 		Frequency = MAX_UPDATE_FREQUENCY - clamp(DistanceFromViewer * FirstClipmapWorldExtentRcp, 0.0f, MAX_UPDATE_FREQUENCY);
 	}
 

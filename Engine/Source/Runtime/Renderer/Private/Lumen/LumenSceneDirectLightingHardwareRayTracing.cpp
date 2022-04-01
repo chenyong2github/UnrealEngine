@@ -58,11 +58,11 @@ static TAutoConsoleVariable<float> CVarLumenSceneDirectLightingHardwareRayTracin
 
 namespace Lumen
 {
-	bool UseHardwareRayTracedDirectLighting()
+	bool UseHardwareRayTracedDirectLighting(const FSceneViewFamily& ViewFamily)
 	{
 #if RHI_RAYTRACING
 		return IsRayTracingEnabled()
-			&& Lumen::UseHardwareRayTracing()
+			&& Lumen::UseHardwareRayTracing(ViewFamily)
 			&& (CVarLumenSceneDirectLightingHardwareRayTracing.GetValueOnRenderThread() != 0);
 #else
 		return false;
@@ -93,6 +93,7 @@ class FLumenDirectLightingHardwareRayTracingBatched : public FLumenHardwareRayTr
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 		SHADER_PARAMETER(uint32, MaxTraversalIterations)
 		SHADER_PARAMETER(uint32, GroupCount)
+		SHADER_PARAMETER(uint32, ViewIndex)
 		SHADER_PARAMETER(float, MaxTraceDistance)
 		SHADER_PARAMETER(float, FarFieldMaxTraceDistance)
 		SHADER_PARAMETER(FVector3f, FarFieldReferencePos)
@@ -153,7 +154,7 @@ float GetHeightfieldProjectionBiasSearchRadius()
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingDirectLightingLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (Lumen::UseHardwareRayTracedDirectLighting())
+	if (Lumen::UseHardwareRayTracedDirectLighting(*View.Family))
 	{
 		FLumenDirectLightingHardwareRayTracingBatchedRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableFarFieldTracing>(Lumen::UseFarField(*View.Family));
@@ -167,6 +168,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingDirectLighting
 void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	int32 ViewIndex,
 	const FLumenCardTracingInputs& TracingInputs,
 	FRDGBufferRef LightTileAllocator,
 	FRDGBufferRef LightTiles,
@@ -193,6 +195,7 @@ void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 	Parameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
 	Parameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 	Parameters->GroupCount = FMath::Max(CVarLumenSceneDirectLightingHardwareRayTracingGroupCount.GetValueOnRenderThread(), 1);
+	Parameters->ViewIndex = ViewIndex;
 	Parameters->MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
 	Parameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
 	Parameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
@@ -211,6 +214,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	int32 ViewIndex,
 	const FLumenCardTracingInputs& TracingInputs,
 	FRDGBufferRef DispatchLightTilesIndirectArgs,
 	FRDGBufferRef LightTileAllocator,
@@ -219,7 +223,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	FRDGBufferUAVRef ShadowMaskTilesUAV)
 {
 #if RHI_RAYTRACING
-	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing();
+	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*View.Family);
 	const bool bUseMinimalPayload = true;
 
 	FRDGBufferRef HardwareRayTracingIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Reflection.CompactTracingIndirectArgs"));
@@ -245,6 +249,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 		GraphBuilder,
 		View,
+		ViewIndex,
 		TracingInputs,
 		LightTileAllocator,
 		LightTiles,

@@ -247,7 +247,8 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, FrameTemporaries);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries);
+	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
 
 	FRDGBufferRef DispatchParameters = GraphBuilder.CreateBuffer(
 		FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(LumenProbeHierarchy::kProbeMaxHierarchyDepth),
@@ -293,7 +294,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 		for (int32 HierarchyLevelId = 0; HierarchyLevelId < HierarchyParameters.HierarchyDepth; HierarchyLevelId++)
 		{
 			FLumenCardTraceProbeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardTraceProbeCS::FParameters>();
-			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+			GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
 			PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 			PassParameters->HierarchyParameters = HierarchyParameters;
 			PassParameters->LevelParameters = LumenProbeHierarchy::GetLevelParameters(HierarchyParameters, HierarchyLevelId);
@@ -333,7 +334,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 		for (int32 HierarchyLevelId = 0; HierarchyLevelId < HierarchyParameters.HierarchyDepth; HierarchyLevelId++)
 		{
 			FLumenVoxelTraceProbeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVoxelTraceProbeCS::FParameters>();
-			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+			GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
 			PassParameters->HierarchyParameters = HierarchyParameters;
 			PassParameters->LevelParameters = LumenProbeHierarchy::GetLevelParameters(HierarchyParameters, HierarchyLevelId);
 			SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, LumenProbeHierarchy::ComputeHierarchyLevelConeAngle(PassParameters->LevelParameters));
@@ -405,11 +406,12 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 
 	const bool bTraceMeshSDFs = GLumenProbeHierarchyTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(ViewFamily);
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, FrameTemporaries);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries);
+	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
 
 	FLumenTraceProbeOcclusionCS::FParameters ReferencePassParameters;
 	{
-		GetLumenCardTracingParameters(View, TracingInputs, /* out */ ReferencePassParameters.TracingParameters);
+		GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, /* out */ ReferencePassParameters.TracingParameters);
 		ReferencePassParameters.CommonIndirectParameters = CommonParameters;
 		ReferencePassParameters.ProbeOcclusionParameters = ProbeOcclusionParameters;
 		ReferencePassParameters.ProbeOcclusionOutputParameters = CreateProbeOcclusionOutputParameters(

@@ -230,7 +230,7 @@ bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FSceneView& View, boo
 		&& CVarLumenGlobalIllumination.GetValueOnAnyThread()
 		&& View.Family->EngineShowFlags.GlobalIllumination 
 		&& View.Family->EngineShowFlags.LumenGlobalIllumination
-		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedScreenProbeGather() || Lumen::IsSoftwareRayTracingSupported());
+		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedScreenProbeGather(*View.Family) || Lumen::IsSoftwareRayTracingSupported());
 }
 
 void SetupLumenDiffuseTracingParameters(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters)

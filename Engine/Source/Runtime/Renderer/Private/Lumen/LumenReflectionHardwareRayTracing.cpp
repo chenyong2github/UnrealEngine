@@ -85,11 +85,11 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingRetrace
 
 namespace Lumen
 {
-	bool UseHardwareRayTracedReflections()
+	bool UseHardwareRayTracedReflections(const FSceneViewFamily& ViewFamily)
 	{
 #if RHI_RAYTRACING
 		return IsRayTracingEnabled() 
-			&& Lumen::UseHardwareRayTracing() 
+			&& Lumen::UseHardwareRayTracing(ViewFamily) 
 			&& (CVarLumenReflectionsHardwareRayTracing.GetValueOnAnyThread() != 0);
 #else
 		return false;
@@ -245,7 +245,7 @@ bool LumenReflections::UseHitLightingForReflections(const FViewInfo& View)
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (Lumen::UseHardwareRayTracedReflections())
+	if (Lumen::UseHardwareRayTracedReflections(*View.Family))
 	{
 		for (int RadianceCacheDim = 0; RadianceCacheDim < FLumenReflectionHardwareRayTracingRGS::FRadianceCache::PermutationCount; ++RadianceCacheDim)
 		{
@@ -268,7 +268,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsDef
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (Lumen::UseHardwareRayTracedReflections())
+	if (Lumen::UseHardwareRayTracedReflections(*View.Family))
 	{
 		const bool bUseFarFieldForReflections = LumenReflections::UseFarFieldForReflections(*View.Family);
 		const bool bIsHitLightingForceEnabled = LumenReflections::IsHitLightingForceEnabled(View);
@@ -526,7 +526,7 @@ void RenderLumenHardwareRayTracingReflections(
 	FRDGBufferRef TraceTexelDataPackedBufferCached = CompactedTraceParameters.CompactedTraceTexelData->Desc.Buffer;
 
 	const bool bIsForceHitLighting = LumenReflections::IsHitLightingForceEnabled(View);
-	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing() && !bIsForceHitLighting;
+	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*View.Family) && !bIsForceHitLighting;
 	const bool bUseFarFieldForReflections = LumenReflections::UseFarFieldForReflections(*View.Family);
 
 	// Default tracing of near-field, extract surface cache and material-id

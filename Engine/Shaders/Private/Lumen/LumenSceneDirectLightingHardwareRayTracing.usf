@@ -48,7 +48,7 @@ Buffer<int> VirtualShadowMapIds;
 uint MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 uint GroupCount;
-uint LightOffset;
+uint ViewIndex;
 
 uint LumenLightType;
 float MaxTraceDistance;
@@ -82,9 +82,15 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 #endif
 	{
 		const FLightTile LightTile = UnpackLightTile(LightTiles[LightTileIndex]);
+
+		if (LightTile.ViewIndex != ViewIndex)
+		{
+			return;
+		}
+
 		uint2 TexelInCardPageCoord = LightTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
 
-		const FLumenLight LumenLight = LoadLumenLight(LightTile.LightIndex);
+		const FLumenLight LumenLight = LoadLumenLight(LightTile.LightIndex, LWCHackToFloat(PrimaryView.PreViewTranslation));
 
 		if (all(CoordInCardTile < CARD_TILE_SIZE))
 		{

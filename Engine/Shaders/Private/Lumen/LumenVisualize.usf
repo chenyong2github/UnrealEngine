@@ -96,7 +96,7 @@ void VisualizeQuadsCS(
 #endif
 
 	// The visualization pass is after TAAU, correct for being after the upscaler
-	int2 RenderingViewportPixelPos = PixelPos * (int2)View.ViewSizeAndInvSize / InputViewSize;
+	int2 RenderingViewportPixelPos = (PixelPos - InputViewOffset) * (int2)View.ViewSizeAndInvSize / InputViewSize;
 	int2 CellCoord = clamp((int2)RenderingViewportPixelPos >> CardGridPixelSizeShift, int2(0, 0), (int2)CullGridSize.xy - 1);
 	uint CardGridCellIndex = CellCoord.x + CellCoord.y * CullGridSize.x;
 

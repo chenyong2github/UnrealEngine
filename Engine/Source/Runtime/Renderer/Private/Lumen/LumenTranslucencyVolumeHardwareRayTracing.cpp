@@ -33,11 +33,11 @@ static TAutoConsoleVariable<int32> CVarLumenTranslucencyVolumeHardwareRayTracing
 
 namespace Lumen
 {
-	bool UseHardwareRayTracedTranslucencyVolume()
+	bool UseHardwareRayTracedTranslucencyVolume(const FSceneViewFamily& ViewFamily)
 	{
 #if RHI_RAYTRACING
 		return IsRayTracingEnabled()
-			&& Lumen::UseHardwareRayTracing()
+			&& Lumen::UseHardwareRayTracing(ViewFamily)
 			&& (CVarLumenTranslucencyVolumeHardwareRayTracing.GetValueOnRenderThread() != 0);
 #else
 		return false;

@@ -63,6 +63,9 @@ public:
 
 	FResampledCardCaptureAtlas ResampledCardCaptureAtlas;
 
+	/** Whether Lumen should propagate a global lighting change this frame. */
+	bool bPropagateGlobalLightingChange = false;
+
 	void Reset()
 	{
 		CardPagesToRender.Reset();
@@ -425,7 +428,7 @@ private:
 	void InitViewsAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager);
 	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder);
 	void UpdateLumenScene(FRDGBuilder& GraphBuilder);
-	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries);
+	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
 
 	void RenderDirectLightingForLumenScene(
 		FRDGBuilder& GraphBuilder,
@@ -443,7 +446,7 @@ private:
 
 	void ClearLumenSurfaceCacheAtlas(
 		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View);
+		const FGlobalShaderMap* GlobalShaderMap);
 
 	void UpdateLumenSurfaceCacheAtlas(
 		FRDGBuilder& GraphBuilder,
@@ -453,7 +456,7 @@ private:
 		const struct FCardCaptureAtlas& CardCaptureAtlas,
 		const struct FResampledCardCaptureAtlas& ResampledCardCaptureAtlas);
 
-	void ComputeLumenSceneVoxelLighting(FRDGBuilder& GraphBuilder, FLumenCardTracingInputs& TracingInputs, FGlobalShaderMap* GlobalShaderMap);
+	void ComputeLumenSceneVoxelLighting(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FLumenCardTracingInputs& TracingInputs, class FLumenViewCardTracingInputs& ViewTracingInputs);
 
 	void ComputeLumenTranslucencyGIVolume(FRDGBuilder& GraphBuilder, FLumenCardTracingInputs& TracingInputs, FGlobalShaderMap* GlobalShaderMap);
 

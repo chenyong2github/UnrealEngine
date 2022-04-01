@@ -570,7 +570,7 @@ void SetupVisualizeParameters(
 	const FIntRect& ViewRect, 
 	FRDGTextureRef ColorGradingTexture,
 	FRDGTextureRef EyeAdaptationTexture,
-	const FLumenCardTracingInputs& TracingInputs, 
+	const FLumenViewCardTracingInputs& ViewTracingInputs,
 	int32 VisualizeMode, 
 	int32 VisualizeTileIndex, 
 	FLumenVisualizeSceneSoftwareRayTracingParameters& VisualizeParameters)
@@ -631,19 +631,19 @@ void SetupVisualizeParameters(
 			MaxMeshSDFTraceDistance = 0.0f;
 		}
 
-		VisualizeParameters.VoxelLightingGridResolution = TracingInputs.VoxelGridResolution;
+		VisualizeParameters.VoxelLightingGridResolution = ViewTracingInputs.VoxelGridResolution;
 		VisualizeParameters.VisualizeStepFactor = FMath::Clamp(GVisualizeLumenSceneConeStepFactor, .1f, 10.0f);
 		VisualizeParameters.VoxelStepFactor = FMath::Clamp(GVisualizeLumenSceneVoxelStepFactor, .1f, 10.0f);
 		VisualizeParameters.MinTraceDistance = FMath::Clamp(GVisualizeLumenSceneMinTraceDistance, .01f, 1000.0f);
 		VisualizeParameters.MaxTraceDistance = FMath::Clamp(MaxTraceDistance, .01f, Lumen::MaxTraceDistance);
-		VisualizeParameters.VisualizeClipmapIndex = FMath::Clamp(GVisualizeLumenSceneClipmapIndex, -1, TracingInputs.NumClipmapLevels - 1);
+		VisualizeParameters.VisualizeClipmapIndex = FMath::Clamp(GVisualizeLumenSceneClipmapIndex, -1, ViewTracingInputs.NumClipmapLevels - 1);
 		VisualizeParameters.VisualizeVoxelFaceIndex = FMath::Clamp(GVisualizeLumenSceneVoxelFaceIndex, -1, 5);
 		VisualizeParameters.CardInterpolateInfluenceRadius = GVisualizeLumenSceneCardInterpolateInfluenceRadius;
 
 		if (MaxMeshSDFTraceDistance <= 0)
 		{
 			MaxMeshSDFTraceDistance = FMath::Clamp<float>(
-				TracingInputs.ClipmapVoxelSizeAndRadius[0].W / FMath::Max(VisualizeParameters.CommonParameters.TanPreviewConeAngle, 0.001f),
+				ViewTracingInputs.ClipmapVoxelSizeAndRadius[0].W / FMath::Max(VisualizeParameters.CommonParameters.TanPreviewConeAngle, 0.001f),
 				VisualizeParameters.MinTraceDistance,
 				VisualizeParameters.MaxTraceDistance);
 		}
@@ -668,19 +668,21 @@ void FDeferredShadingSceneRenderer::RenderLumenMiscVisualizations(FRDGBuilder& G
 
 		if (Lumen::ShouldVisualizeHardwareRayTracing(ViewFamily) || Lumen::IsSoftwareRayTracingSupported())
 		{
-			FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, FrameTemporaries, /*bSurfaceCacheFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
+			FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries, /*bSurfaceCacheFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
 
 			if (GLumenVisualizeVoxels != 0)
 			{
+				FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
+
 				FLumenVisualizeSceneSoftwareRayTracingParameters VisualizeParameters;
-				SetupVisualizeParameters(GraphBuilder, View, View.ViewRect, TryRegisterExternalTexture(GraphBuilder, View.GetTonemappingLUT()), GetEyeAdaptationTexture(GraphBuilder, View), TracingInputs, VISUALIZE_MODE_LUMEN_SCENE, -1, VisualizeParameters);
+				SetupVisualizeParameters(GraphBuilder, View, View.ViewRect, TryRegisterExternalTexture(GraphBuilder, View.GetTonemappingLUT()), GetEyeAdaptationTexture(GraphBuilder, View), ViewTracingInputs, VISUALIZE_MODE_LUMEN_SCENE, -1, VisualizeParameters);
 
 				FVisualizeLumenVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenVoxelsCS::FParameters>();
 				PassParameters->ViewDimensions = View.ViewRect;
 				PassParameters->RWSceneColor = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneTextures.Color.Resolve));
 				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 				PassParameters->VisualizeParameters = VisualizeParameters;
-				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+				GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
 
 				auto ComputeShader = View.ShaderMap->GetShader< FVisualizeLumenVoxelsCS >();
 				FIntPoint GroupSize(FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVisualizeLumenVoxelsCS::GetGroupSize()));
@@ -756,9 +758,10 @@ void VisualizeLumenScene(
 	int32 VisualizeTileIndex)
 {
 	FRDGTextureUAVRef SceneColorUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(Output.Texture));
+	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
 
 	FLumenVisualizeSceneSoftwareRayTracingParameters VisualizeParameters;
-	SetupVisualizeParameters(GraphBuilder, View, Output.ViewRect, ColorGradingTexture, EyeAdaptationTexture, TracingInputs, VisualizeMode, VisualizeTileIndex, VisualizeParameters);
+	SetupVisualizeParameters(GraphBuilder, View, Output.ViewRect, ColorGradingTexture, EyeAdaptationTexture, ViewTracingInputs, VisualizeMode, VisualizeTileIndex, VisualizeParameters);
 
 	const FRadianceCacheState& RadianceCacheState = View.ViewState->RadianceCacheState;
 	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputsForVisualize(View);
@@ -819,7 +822,7 @@ void VisualizeLumenScene(
 		PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 		PassParameters->VisualizeParameters = VisualizeParameters;
 		LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, PassParameters->RadianceCacheParameters);
-		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+		GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
 
 		FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceMeshSDF>(bTraceMeshSDF);
@@ -883,7 +886,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 					CopyInfo);
 			}
 
-			FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, FrameTemporaries, /*bSurfaceCacheFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
+			FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries, /*bSurfaceCacheFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
 
 			if (VisualizeMode == VISUALIZE_MODE_OVERVIEW)
 			{

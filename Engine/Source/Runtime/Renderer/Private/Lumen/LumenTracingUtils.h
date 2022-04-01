@@ -78,7 +78,7 @@ class FLumenCardTracingInputs
 {
 public:
 
-	FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries, bool bSurfaceCacheFeedback = true);
+	FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, FLumenSceneFrameTemporaries& FrameTemporaries, bool bSurfaceCacheFeedback = true);
 
 	FRDGTextureRef AlbedoAtlas;
 	FRDGTextureRef NormalAtlas;
@@ -89,7 +89,6 @@ public:
 	FRDGTextureRef IndirectLightingAtlas;
 	FRDGTextureRef RadiosityNumFramesAccumulatedAtlas;
 	FRDGTextureRef FinalLightingAtlas;
-	FRDGTextureRef VoxelLighting;
 
 	// Feedback
 	FRDGBufferUAVRef CardPageLastUsedBufferUAV;
@@ -100,6 +99,17 @@ public:
 	uint32 SurfaceCacheFeedbackBufferTileWrapMask;
 	FIntPoint SurfaceCacheFeedbackBufferTileJitter;
 
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer;
+};
+
+class FLumenViewCardTracingInputs
+{
+public:
+
+	FLumenViewCardTracingInputs(FRDGBuilder& GraphBuilder, const FViewInfo& View);
+
+	FRDGTextureRef VoxelLighting;
+
 	// Voxel clipmaps
 	FIntVector VoxelGridResolution;
 	int32 NumClipmapLevels;
@@ -109,8 +119,6 @@ public:
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldExtent;
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldSamplingExtent;
 	TStaticArray<FVector4f, MaxVoxelClipmapLevels> ClipmapVoxelSizeAndRadius;
-
-	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer;
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FOctahedralSolidAngleParameters, )
@@ -118,7 +126,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FOctahedralSolidAngleParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, OctahedralSolidAngleTexture)
 END_SHADER_PARAMETER_STRUCT()
 
-extern void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracingInputs& TracingInputs, FLumenCardTracingParameters& TracingParameters, bool bShaderWillTraceCardsOnly = false);
+extern void GetLumenCardTracingParameters(
+	const FViewInfo& View, 
+	const FLumenCardTracingInputs& TracingInputs, 
+	const FLumenViewCardTracingInputs& ViewTracingInputs,
+	FLumenCardTracingParameters& TracingParameters, 
+	bool bShaderWillTraceCardsOnly = false);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFTracingParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
@@ -229,7 +242,7 @@ extern FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 extern FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex);
 extern int32 GetNumLumenVoxelClipmaps(float LumenSceneViewDistance);
 extern void UpdateDistantScene(FScene* Scene, FViewInfo& View);
-extern float ComputeMaxCardUpdateDistanceFromCamera(float LumenSceneViewDistance);
+extern float ComputeMaxCardUpdateDistanceFromCamera(float LumenSceneViewDistance, const FSceneViewFamily& ViewFamily);
 
 extern FRDGTextureRef InitializeOctahedralSolidAngleTexture(
 	FRDGBuilder& GraphBuilder,

@@ -1382,9 +1382,6 @@ public:
 	 */
 	uint32 bHasTranslucencySeparateModulation : 1;
 
-	/** Whether Lumen should propagate a global lighting change this frame. */
-	uint32 bLumenPropagateGlobalLightingChange : 1;
-
 	/** Bitmask of all shading models used by primitives in this view */
 	uint16 ShadingModelMaskInView;
 

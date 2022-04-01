@@ -594,6 +594,7 @@ class FCopyDepthCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWDepth)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1196,6 +1197,7 @@ void UpdateHistoryScreenProbeGather(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	const FSceneTextures& SceneTextures,
+	bool bPropagateGlobalLightingChange,
 	FRDGTextureRef& DiffuseIndirect,
 	FRDGTextureRef& RoughSpecularIndirect)
 {
@@ -1210,7 +1212,7 @@ void UpdateHistoryScreenProbeGather(
 		FVector4f* DiffuseIndirectHistoryScreenPositionScaleBias = &ScreenProbeGatherState.DiffuseIndirectHistoryScreenPositionScaleBias;
 		TRefCountPtr<IPooledRenderTarget>* HistoryNumFramesAccumulated = &ScreenProbeGatherState.NumFramesAccumulatedRT;
 		TRefCountPtr<IPooledRenderTarget>* FastUpdateModeHistoryState = &ScreenProbeGatherState.FastUpdateModeHistoryRT;
-		TRefCountPtr<IPooledRenderTarget>* NormalHistoryState = &ScreenProbeGatherState.NormalHistoryRT;
+		TRefCountPtr<IPooledRenderTarget>& NormalHistoryState = ScreenProbeGatherState.NormalHistoryRT;
 		const bool bRejectBasedOnNormal = GLumenScreenProbeTemporalRejectBasedOnNormal != 0 && NormalHistoryState
 			&& !Strata::IsStrataEnabled(); // STRATA_TODO provide Lumen with a valid normal
 
@@ -1226,7 +1228,7 @@ void UpdateHistoryScreenProbeGather(
 			// If the scene render targets reallocate, toss the history so we don't read uninitialized data
 			&& (*DiffuseIndirectHistoryState0)->GetDesc().Extent == SceneTextures.Config.Extent
 			&& ScreenProbeGatherState.LumenGatherCvars == GLumenGatherCvars
-			&& !View.bLumenPropagateGlobalLightingChange)
+			&& !bPropagateGlobalLightingChange)
 		{
 			EPixelFormat HistoryFormat = PF_FloatRGBA;
 			FRDGTextureDesc DiffuseIndirectDesc = FRDGTextureDesc::Create2D(BufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
@@ -1269,7 +1271,7 @@ void UpdateHistoryScreenProbeGather(
 					PassParameters->DiffuseIndirectDepthHistory = OldDepthHistory;
 					PassParameters->HistoryNumFramesAccumulated  = OldHistoryNumFramesAccumulated;
 					PassParameters->FastUpdateModeHistory = OldFastUpdateModeHistory;
-					PassParameters->NormalHistory = bRejectBasedOnNormal ? GraphBuilder.RegisterExternalTexture(*NormalHistoryState) : nullptr;
+					PassParameters->NormalHistory = bRejectBasedOnNormal ? GraphBuilder.RegisterExternalTexture(NormalHistoryState) : nullptr;
 
 					PassParameters->HistoryDistanceThreshold = GLumenScreenProbeHistoryDistanceThreshold;
 					PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
@@ -1343,7 +1345,7 @@ void UpdateHistoryScreenProbeGather(
 
 			if (bRejectBasedOnNormal)
 			{
-				GraphBuilder.QueueTextureExtraction(SceneTextures.GBufferA, NormalHistoryState);
+				GraphBuilder.QueueTextureExtraction(SceneTextures.GBufferA, &NormalHistoryState);
 			}
 		}
 	}
@@ -1367,6 +1369,7 @@ void FDeferredShadingSceneRenderer::StoreLumenDepthHistory(FRDGBuilder& GraphBui
 
 		FCopyDepthCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCopyDepthCS::FParameters>();
 		PassParameters->RWDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewDepthHistory));
+		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneDepthTexture = SceneTextures.Depth.Resolve;
 
 		FComputeShaderUtils::AddPass(
@@ -1523,7 +1526,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	ScreenProbeParameters.ScreenProbeGatherMaxMip = GLumenScreenProbeGatherNumMips - 1;
 	ScreenProbeParameters.RelativeSpeedDifferenceToConsiderLightingMoving = GLumenScreenProbeRelativeSpeedDifferenceToConsiderLightingMoving;
-	ScreenProbeParameters.ScreenTraceNoFallbackThicknessScale = Lumen::UseHardwareRayTracedScreenProbeGather() ? 1.0f : GLumenScreenProbeScreenTracesThicknessScaleWhenNoFallback;
+	ScreenProbeParameters.ScreenTraceNoFallbackThicknessScale = Lumen::UseHardwareRayTracedScreenProbeGather(ViewFamily) ? 1.0f : GLumenScreenProbeScreenTracesThicknessScaleWhenNoFallback;
 	ScreenProbeParameters.NumUniformScreenProbes = ScreenProbeParameters.ScreenProbeViewSize.X * ScreenProbeParameters.ScreenProbeViewSize.Y;
 	ScreenProbeParameters.MaxNumAdaptiveProbes = FMath::TruncToInt(ScreenProbeParameters.NumUniformScreenProbes * GLumenScreenProbeGatherAdaptiveProbeAllocationFraction);
 	
@@ -1662,7 +1665,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	ScreenProbeParameters.ProbeIndirectArgs = ScreenProbeIndirectArgs;
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, FrameTemporaries);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries);
 
 	FRDGTextureRef BRDFProbabilityDensityFunction = nullptr;
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH = nullptr;
@@ -1737,6 +1740,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			FRadianceCacheConfiguration(),
 			Scene,
 			View, 
+			LumenCardRenderer.bPropagateGlobalLightingChange,
 			&ScreenProbeParameters, 
 			BRDFProbabilityDensityFunctionSH, 
 			MarkUsedRadianceCacheProbesCallbacks,
@@ -1877,6 +1881,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 				GraphBuilder,
 				View,
 				SceneTextures,
+				LumenCardRenderer.bPropagateGlobalLightingChange,
 				DiffuseIndirect,
 				RoughSpecularIndirect);
 

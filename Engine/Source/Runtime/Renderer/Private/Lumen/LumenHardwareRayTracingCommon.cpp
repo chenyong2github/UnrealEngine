@@ -66,12 +66,16 @@ static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingMaxTranslucentSkip
 	ECVF_RenderThreadSafe
 );
 
-bool Lumen::UseHardwareRayTracing()
+bool Lumen::UseHardwareRayTracing(const FSceneViewFamily& ViewFamily)
 {
 #if RHI_RAYTRACING
-	// As of 2021-11-24, Lumen can only run in full RT pipeline mode.
-	// It will be able to run using inline ray tracing mode in the future.
-	return (IsRayTracingEnabled() && GRHISupportsRayTracingShaders && CVarLumenUseHardwareRayTracing.GetValueOnAnyThread() != 0);
+	return IsRayTracingEnabled() 
+		// As of 2021-11-24, Lumen can only run in full RT pipeline mode.
+		// It will be able to run using inline ray tracing mode in the future.
+		&& GRHISupportsRayTracingShaders 
+		&& CVarLumenUseHardwareRayTracing.GetValueOnAnyThread() != 0 
+		// Ray Tracing does not support split screen yet
+		&& ViewFamily.Views.Num() == 1;
 #else
 	return false;
 #endif
@@ -122,10 +126,10 @@ const TCHAR* Lumen::GetRayTracedLightingModeName(Lumen::EHardwareRayTracingLight
 	return nullptr;
 }
 
-bool Lumen::UseHardwareInlineRayTracing()
+bool Lumen::UseHardwareInlineRayTracing(const FSceneViewFamily& ViewFamily)
 {
 #if RHI_RAYTRACING
-	return (Lumen::UseHardwareRayTracing() && CVarLumenUseHardwareRayTracingInline.GetValueOnRenderThread() != 0 && GRHISupportsInlineRayTracing);
+	return (Lumen::UseHardwareRayTracing(ViewFamily) && CVarLumenUseHardwareRayTracingInline.GetValueOnRenderThread() != 0 && GRHISupportsInlineRayTracing);
 #else
 	return false;
 #endif
@@ -188,7 +192,8 @@ void SetLumenHardwareRayTracingSharedParameters(
 	SharedParameters->HitGroupData = View.LumenHardwareRayTracingHitDataBufferSRV;
 
 	// Use surface cache, instead
-	GetLumenCardTracingParameters(View, TracingInputs, SharedParameters->TracingParameters);
+	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
+	GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, SharedParameters->TracingParameters);
 }
 
 class FLumenHWRTCompactRaysIndirectArgsCS : public FGlobalShader

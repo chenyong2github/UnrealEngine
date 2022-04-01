@@ -435,7 +435,7 @@ void MeshSDFObjectCullPS(
 	float4 FrustumPlanes[6];
 	{
 		// Setup tile frustum planes
-		float2 TileScale = -float2(View.ViewSizeAndInvSize.zw - View.ViewSizeAndInvSize.xy) * rcp(2 * (1u << CardGridPixelSizeShift));
+		float2 TileScale = View.ViewSizeAndInvSize.xy * rcp(2 * (1u << CardGridPixelSizeShift));
 		float2 TileBias = TileScale - PixelPos - 0.5;
 
 		float4 C1 = float4(View.ViewToClip._11 * TileScale.x, 0.0f, View.ViewToClip._31 * TileScale.x + TileBias.x, 0.0f);

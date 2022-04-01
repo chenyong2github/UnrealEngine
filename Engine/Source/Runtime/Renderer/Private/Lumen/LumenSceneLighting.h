@@ -76,7 +76,7 @@ void DrawQuadsToAtlas(
 	TShaderRefBase<VertexShaderType, FShaderMapPointerTable> VertexShader,
 	TShaderRefBase<PixelShaderType, FShaderMapPointerTable> PixelShader,
 	const PassParametersType* PassParameters,
-	FGlobalShaderMap* GlobalShaderMap,
+	const FGlobalShaderMap* GlobalShaderMap,
 	FRHIBlendState* BlendState,
 	FRHICommandList& RHICmdList,
 	SetParametersLambdaType&& SetParametersLambda,
@@ -174,6 +174,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	int32 ViewIndex,
 	const FLumenCardTracingInputs& TracingInputs,
 	FRDGBufferRef DispatchLightTilesIndirectArgs,
 	FRDGBufferRef LightTileAllocator,
@@ -197,8 +198,9 @@ namespace Lumen
 
 	void BuildCardUpdateContext(
 		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
+		const FGlobalShaderMap* GlobalShaderMap,
 		const FLumenSceneData& LumenSceneData,
+		const TArray<FViewInfo>& Views,
 		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 		FLumenCardUpdateContext& DirectLightingCardUpdateContext,
 		FLumenCardUpdateContext& IndirectLightingCardUpdateContext);

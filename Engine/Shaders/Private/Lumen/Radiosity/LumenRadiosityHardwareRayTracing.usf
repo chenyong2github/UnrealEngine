@@ -41,13 +41,13 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 {	
 #if DIM_INDIRECT_DISPATCH
 	uint GlobalThreadIndex = GetUnWrappedRayTracingDispatchThreadId(DispatchRaysIndex(), THREADGROUP_SIZE);
-	if (GlobalThreadIndex >= CardTileAllocator[0] * NumTracesPerProbe * RadiosityTileSize * RadiosityTileSize)
+	if (GlobalThreadIndex >= CardTileAllocator[ViewIndex] * NumTracesPerProbe * RadiosityTileSize * RadiosityTileSize)
 	{
 		return;
 	}
 #else
 	for (uint GlobalThreadIndex = DispatchRaysIndex().x;
-		GlobalThreadIndex < CardTileAllocator[0] * NumTracesPerProbe * RadiosityTileSize * RadiosityTileSize;
+		GlobalThreadIndex < CardTileAllocator[ViewIndex] * NumTracesPerProbe * RadiosityTileSize * RadiosityTileSize;
 		GlobalThreadIndex += NumThreadsToDispatch)
 #endif
 	{
@@ -144,7 +144,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 				}
 			}
 
-			FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
+			FCardTileData CardTile = GetCardTile(CardTileIndex);
 			FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
 			uint2 RadiosityProbeTracingAtlasCoord = GetRadiosityProbeAtlasCoord(CardPage, CardTile, CoordInCardTile) * HemisphereProbeResolution + TraceTexelCoord;
 			RWTraceRadianceAtlas[RadiosityProbeTracingAtlasCoord] = Radiance;

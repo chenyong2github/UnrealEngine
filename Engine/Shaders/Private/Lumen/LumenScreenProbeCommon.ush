@@ -133,7 +133,7 @@ uint2 DecodeScreenProbeData(uint EncodedProbeData)
 uint2 GetScreenProbeScreenPosition(uint ScreenProbeIndex)
 {
 	uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeViewSize.x, ScreenProbeIndex / ScreenProbeViewSize.x);
-	uint2 ScreenProbeScreenPosition = ScreenProbeAtlasCoord * ScreenProbeDownsampleFactor + GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + (uint2)View.ViewRectMin.xy;
+	uint2 ScreenProbeScreenPosition = ScreenProbeAtlasCoord * ScreenProbeDownsampleFactor + GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + View.ViewRectMinAndSize.xy;
 
 	if (ScreenProbeIndex >= NumUniformScreenProbes)
 	{
@@ -145,13 +145,13 @@ uint2 GetScreenProbeScreenPosition(uint ScreenProbeIndex)
 
 uint2 GetScreenTileCoord(uint2 ScreenProbeScreenPosition)
 {
-	return (ScreenProbeScreenPosition - GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) - (uint2)View.ViewRectMin.xy) / ScreenProbeDownsampleFactor;
+	return (ScreenProbeScreenPosition - GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) - View.ViewRectMinAndSize.xy) / ScreenProbeDownsampleFactor;
 }
 
 uint2 GetUniformScreenProbeScreenPosition(uint2 ScreenTileCoord)
 {
 	uint2 ScreenJitter = GetScreenTileJitter(SCREEN_TEMPORAL_INDEX);
-	uint2 ScreenProbeScreenPosition = min((uint2)(ScreenTileCoord * ScreenProbeDownsampleFactor + ScreenJitter), (uint2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
+	uint2 ScreenProbeScreenPosition = min((uint2)(View.ViewRectMinAndSize.xy + ScreenTileCoord * ScreenProbeDownsampleFactor + ScreenJitter), (uint2)(View.ViewRectMinAndSize.xy + View.ViewRectMinAndSize.zw) - 1);
 	return ScreenProbeScreenPosition;
 }
 
@@ -162,7 +162,7 @@ float2 GetScreenTileCoordFromScreenUV(float2 ScreenUV, uint TemporalIndex)
 
 float2 GetScreenUVFromScreenTileCoord(uint2 ScreenTileCoord)
 {
-	uint2 ScreenProbeScreenPosition = ScreenTileCoord * ScreenProbeDownsampleFactor + GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + (uint2)View.ViewRectMin.xy;
+	uint2 ScreenProbeScreenPosition = ScreenTileCoord * ScreenProbeDownsampleFactor + GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + View.ViewRectMinAndSize.xy;
 	return (ScreenProbeScreenPosition + .5f) * View.BufferSizeAndInvSize.zw;
 }
 

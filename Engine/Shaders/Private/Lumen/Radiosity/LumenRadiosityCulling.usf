@@ -14,6 +14,9 @@ StructuredBuffer<uint> CardPageIndexData;
 RWStructuredBuffer<uint> RWCardTileAllocator;
 RWStructuredBuffer<uint> RWCardTileData;
 
+uint NumViews;
+uint MaxCardTiles;
+
 /**
  * Build a list of radiosity tiles
  */
@@ -43,31 +46,23 @@ void BuildRadiosityTilesCS(
 
 			if (all(TileCoord < SizeInTiles))
 			{
+				float2 UVMin = float2(TileCoord) / SizeInTiles;
+				float2 UVMax = float2(TileCoord + 1) / SizeInTiles;
+
+				float SwapY = UVMin.y;
+				UVMin.y = 1.0f - UVMax.y;
+				UVMax.y = 1.0f - SwapY;
+
+				uint ViewIndex = GetCardViewIndex(CardPage, Card, UVMin, UVMax, NumViews, false);
+
 				FCardTileData CardTile;
 				CardTile.CardPageIndex = CardPageIndex;
 				CardTile.TileCoord = TileCoord;
 
 				uint NextTileIndex = 0;
-				InterlockedAdd(RWCardTileAllocator[0], 1, NextTileIndex);
-				RWCardTileData[NextTileIndex] = PackCardTileData(CardTile);
+				InterlockedAdd(RWCardTileAllocator[ViewIndex], 1, NextTileIndex);
+				RWCardTileData[ViewIndex * MaxCardTiles + NextTileIndex] = PackCardTileData(CardTile);
 			}
 		}
-	}
-}
-
-RWBuffer<uint> RWCardDispatchIndirectArgs;
-
-StructuredBuffer<uint> CardTileAllocator;
-
-[numthreads(THREADGROUP_SIZE, 1, 1)]
-void SetRadiosityTileIndirectArgs(uint3 DispatchThreadId : SV_DispatchThreadID)
-{
-	if (DispatchThreadId.x == 0)
-	{
-		uint NumRadiosityTiles = CardTileAllocator[0];
-
-		RWCardDispatchIndirectArgs[0] = NumRadiosityTiles;
-		RWCardDispatchIndirectArgs[1] = 1;
-		RWCardDispatchIndirectArgs[2] = 1;
 	}
 }

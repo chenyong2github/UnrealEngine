@@ -565,7 +565,7 @@ void TraceScreenProbes(
 	}
 
 	bool bNeedTraceHairVoxel = HairStrands::HasViewHairStrandsVoxelData(View) && GLumenScreenProbeGatherHairStrands_VoxelTrace > 0;
-	const bool bUseHardwareRayTracing = Lumen::UseHardwareRayTracedScreenProbeGather();
+	const bool bUseHardwareRayTracing = Lumen::UseHardwareRayTracedScreenProbeGather(*View.Family);
 
 	if (bUseHardwareRayTracing)
 	{
@@ -609,7 +609,8 @@ void TraceScreenProbes(
 
 			{
 				FScreenProbeTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceMeshSDFsCS::FParameters>();
-				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+				FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
+				GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
 				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 				PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
@@ -652,7 +653,8 @@ void TraceScreenProbes(
 
 		FScreenProbeTraceVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceVoxelsCS::FParameters>();
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
-		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+		FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
+		GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;

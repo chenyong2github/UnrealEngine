@@ -2375,6 +2375,7 @@ void FSceneView::SetupViewRectUniformBufferParameters(FViewUniformShaderParamete
 
 	ViewUniformShaderParameters.ViewRectMin = FVector4f(EffectiveViewRect.Min.X, EffectiveViewRect.Min.Y, 0.0f, 0.0f);
 	ViewUniformShaderParameters.ViewSizeAndInvSize = FVector4f(EffectiveViewRect.Width(), EffectiveViewRect.Height(), 1.0f / float(EffectiveViewRect.Width()), 1.0f / float(EffectiveViewRect.Height()));
+	ViewUniformShaderParameters.ViewRectMinAndSize = FUintVector4(EffectiveViewRect.Min.X, EffectiveViewRect.Min.Y, EffectiveViewRect.Width(), EffectiveViewRect.Height());
 
 	// The light probe ratio is only different during separate forward translucency when r.SeparateTranslucencyScreenPercentage != 100
 	ViewUniformShaderParameters.LightProbeSizeRatioAndInvSizeRatio = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);

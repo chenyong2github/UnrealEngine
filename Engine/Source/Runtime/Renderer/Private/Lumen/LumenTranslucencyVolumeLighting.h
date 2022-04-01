@@ -72,7 +72,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 namespace Lumen
 {
-	extern bool UseHardwareRayTracedTranslucencyVolume();
+	extern bool UseHardwareRayTracedTranslucencyVolume(const FSceneViewFamily& ViewFamily);
 	extern bool UseLumenTranslucencyRadianceCacheReflections(const FViewInfo& View);
 }
 

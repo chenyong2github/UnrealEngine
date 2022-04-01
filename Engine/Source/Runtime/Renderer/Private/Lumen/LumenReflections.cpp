@@ -416,7 +416,8 @@ class FReflectionResolveCS : public FGlobalShader
 	class FSpatialReconstruction : SHADER_PERMUTATION_BOOL("USE_SPATIAL_RECONSTRUCTION");
 	class FBilateralFilter : SHADER_PERMUTATION_BOOL("USE_BILATERAL_FILTER");
 	class FFrontLayerTranslucency : SHADER_PERMUTATION_BOOL("FRONT_LAYER_TRANSLUCENCY");
-	using FPermutationDomain = TShaderPermutationDomain<FSpatialReconstruction, FBilateralFilter, FFrontLayerTranslucency>;
+	class FClearTileNeighborhood : SHADER_PERMUTATION_BOOL("CLEAR_TILE_NEIGHBORHOOD");
+	using FPermutationDomain = TShaderPermutationDomain<FSpatialReconstruction, FBilateralFilter, FFrontLayerTranslucency, FClearTileNeighborhood>;
 };
 
 IMPLEMENT_GLOBAL_SHADER(FReflectionResolveCS, "/Engine/Private/Lumen/LumenReflections.usf", "ReflectionResolveCS", SF_Compute);
@@ -542,7 +543,7 @@ bool ShouldRenderLumenReflections(const FViewInfo& View, bool bSkipTracingDataCh
 			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
 			&& View.Family->EngineShowFlags.LumenReflections 
 			&& CVarLumenAllowReflections.GetValueOnAnyThread()
-			&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedReflections() || Lumen::IsSoftwareRayTracingSupported());
+			&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedReflections(*View.Family) || Lumen::IsSoftwareRayTracingSupported());
 	}
 	
 	return false;
@@ -929,7 +930,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 			0);
 	}
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, FrameTemporaries, /*bSurfaceCacheFeedback*/ GLumenReflectionsSurfaceCacheFeedback != 0);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries, /*bSurfaceCacheFeedback*/ GLumenReflectionsSurfaceCacheFeedback != 0);
 
 	FRDGTextureDesc TraceRadianceDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ReflectionTracingParameters.TraceRadiance = GraphBuilder.CreateTexture(TraceRadianceDesc, TEXT("Lumen.Reflections.ReflectionTraceRadiance"));
@@ -998,7 +999,10 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		PermutationVector.Set< FReflectionResolveCS::FSpatialReconstruction >(bUseSpatialReconstruction);
 		PermutationVector.Set< FReflectionResolveCS::FBilateralFilter >(bUseBilaterialFilter);
 		PermutationVector.Set< FReflectionResolveCS::FFrontLayerTranslucency >(FrontLayerReflectionGBuffer != nullptr);
+		PermutationVector.Set< FReflectionResolveCS::FClearTileNeighborhood >(bDenoise);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionResolveCS>(PermutationVector);
+
+		ensureMsgf(!PermutationVector.Get<FReflectionResolveCS::FClearTileNeighborhood>() || PassParameters->ReflectionTileParameters.ResolveTileUsed, TEXT("FReflectionResolveCS needs to clear but null ResolveTileUsed"));
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,

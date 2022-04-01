@@ -460,7 +460,7 @@ void TraceMeshSDFs(
 			TraceInput.VoxelStepFactor = VoxelStepFactor;
 			TraceInput.VoxelTraceStartDistance = MaxMeshSDFTraceDistance;
 
-			uint CardGridCellIndex = ComputeCardGridCellIndex(ScreenProbeScreenPosition, SceneDepth);
+			uint CardGridCellIndex = ComputeCardGridCellIndex(ScreenProbeScreenPosition - PrimaryView.ViewRectMinAndSize.xy, SceneDepth);
 			TraceInput.NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
 			TraceInput.MeshSDFStartOffset = GridCulledMeshSDFObjectStartOffsetArray[CardGridCellIndex];
 			TraceInput.CardInterpolateInfluenceRadius = CardInterpolateInfluenceRadius;

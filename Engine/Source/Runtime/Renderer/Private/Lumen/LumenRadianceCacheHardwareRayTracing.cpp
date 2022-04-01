@@ -60,11 +60,11 @@ static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracingIndir
 
 namespace Lumen
 {
-	bool UseHardwareRayTracedRadianceCache()
+	bool UseHardwareRayTracedRadianceCache(const FSceneViewFamily& ViewFamily)
 	{
 #if RHI_RAYTRACING
 		return IsRayTracingEnabled()
-			&& Lumen::UseHardwareRayTracing()
+			&& Lumen::UseHardwareRayTracing(ViewFamily)
 			&& (CVarLumenRadianceCacheHardwareRayTracing.GetValueOnRenderThread() != 0);
 #else
 		return false;
@@ -281,7 +281,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingRadianceCacheL
 	Lumen::EHardwareRayTracingLightingMode LightingMode = Lumen::GetRadianceCacheHardwareRayTracingLightingMode();
 	bool bUseMinimalPayload = LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 
-	if (Lumen::UseHardwareRayTracedRadianceCache() && bUseMinimalPayload)
+	if (Lumen::UseHardwareRayTracedRadianceCache(*View.Family) && bUseMinimalPayload)
 	{
 		// Default trace
 		// We have to prepare with and without FPackTraceDataDim because FRadianceCacheConfiguration can change whether FarField gets used
@@ -570,7 +570,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 	FRDGBufferRef RetraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenHWRTPipeline::FTraceDataPacked), TraceTileResultPackedBufferElementCount), TEXT("Lumen.RadianceCache.HardwareRayTracing.RetraceTilePackedBuffer"));
 	uint32 MaxRayCount = TraceTileResultPackedBufferElementCount;
 
-	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing();
+	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*View.Family);
 	const bool bUseFarField = UseFarFieldForRadianceCache(*View.Family) && Configuration.bFarField;
 
 	// Default tracing of near-field, extract surface cache and material-id
@@ -625,7 +625,8 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 	// Reduce to Atlas
 	{
 		FSplatRadianceCacheIntoAtlasCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSplatRadianceCacheIntoAtlasCS::FParameters>();
-		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+		FLumenViewCardTracingInputs ViewCardTracingInputs(GraphBuilder, View);
+		GetLumenCardTracingParameters(View, TracingInputs, ViewCardTracingInputs, PassParameters->TracingParameters);
 		SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, -1.0f);
 		PassParameters->RWRadianceProbeAtlasTexture = RadianceProbeAtlasTextureUAV;
 		PassParameters->RWDepthProbeAtlasTexture = DepthProbeTextureUAV;

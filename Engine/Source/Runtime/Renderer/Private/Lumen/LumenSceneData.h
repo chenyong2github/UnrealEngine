@@ -32,6 +32,7 @@ class FLumenCardRenderer;
 struct FLumenPageTableEntry;
 
 static constexpr uint32 MaxDistantCards = 8;
+static constexpr uint32 MaxLumenViews = 2;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER(uint32, NumCards)
@@ -495,7 +496,7 @@ public:
 	void RemoveAllMeshCards();
 	void UploadPageTable(FRDGBuilder& GraphBuilder);
 
-	void AllocateCardAtlases(FRDGBuilder& GraphBuilder, const FViewInfo& View);
+	void AllocateCardAtlases(FRDGBuilder& GraphBuilder);
 	void ReallocVirtualSurface(FLumenCard& Card, int32 CardIndex, int32 ResLevel, bool bLockPages);
 	void FreeVirtualSurface(FLumenCard& Card, uint8 FromResLevel, uint8 ToResLevel);
 
@@ -524,11 +525,10 @@ public:
 	uint32 GetCardCaptureRefreshNumPages() const;
 	ESurfaceCacheCompression GetPhysicalAtlasCompression() const { return PhysicalAtlasCompression; }
 
-	void UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& MeshCardsUpdate);
+	void UpdateSurfaceCacheFeedback(const TArray<FVector, TInlineAllocator<2>>& LumenSceneCameraOrigins, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& MeshCardsUpdate);
 
 	void ProcessLumenSurfaceCacheRequests(
 		const FViewInfo& MainView,
-		FVector LumenSceneCameraOrigin,
 		float MaxCardUpdateDistanceFromCamera,
 		int32 MaxTileCapturesPerFrame,
 		FLumenCardRenderer& LumenCardRenderer,

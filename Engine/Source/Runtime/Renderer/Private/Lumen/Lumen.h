@@ -75,12 +75,12 @@ namespace Lumen
 	bool UseVoxelLighting(const FSceneViewFamily& ViewFamily);
 
 	// Hardware ray tracing
-	bool UseHardwareRayTracing();
+	bool UseHardwareRayTracing(const FSceneViewFamily& ViewFamily);
 	bool UseHardwareRayTracedSceneLighting(const FSceneViewFamily& ViewFamily);
-	bool UseHardwareRayTracedDirectLighting();
-	bool UseHardwareRayTracedReflections();
-	bool UseHardwareRayTracedScreenProbeGather();
-	bool UseHardwareRayTracedRadianceCache();
+	bool UseHardwareRayTracedDirectLighting(const FSceneViewFamily& ViewFamily);
+	bool UseHardwareRayTracedReflections(const FSceneViewFamily& ViewFamily);
+	bool UseHardwareRayTracedScreenProbeGather(const FSceneViewFamily& ViewFamily);
+	bool UseHardwareRayTracedRadianceCache(const FSceneViewFamily& ViewFamily);
 	bool UseHardwareRayTracedRadiosity(const FSceneViewFamily& ViewFamily);
 	bool UseHardwareRayTracedVisualize(const FSceneViewFamily& ViewFamily);
 
@@ -89,7 +89,7 @@ namespace Lumen
 
 	int32 GetMaxTranslucentSkipCount();
 
-	bool UseHardwareInlineRayTracing();
+	bool UseHardwareInlineRayTracing(const FSceneViewFamily& ViewFamily);
 
 	enum class EHardwareRayTracingLightingMode
 	{

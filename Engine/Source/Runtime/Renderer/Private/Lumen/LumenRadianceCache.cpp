@@ -1089,6 +1089,7 @@ void RenderRadianceCache(
 	FRadianceCacheConfiguration Configuration,
 	const FScene* Scene,
 	const FViewInfo& View, 
+	bool bPropagateGlobalLightingChange,
 	const FScreenProbeParameters* ScreenProbeParameters,
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
 	FMarkUsedRadianceCacheProbes MarkUsedRadianceCacheProbes,
@@ -1250,7 +1251,7 @@ void RenderRadianceCache(
 			&& IsValidRef(RadianceCacheState.RadianceProbeIndirectionTexture)
 			&& RadianceCacheState.RadianceProbeIndirectionTexture->GetDesc().GetSize() == RadianceProbeIndirectionTextureSize
 			&& !bResizedHistoryState
-			&& !View.bLumenPropagateGlobalLightingChange;
+			&& !bPropagateGlobalLightingChange;
 
 		FRDGBufferRef ProbeFreeListAllocator = nullptr;
 		FRDGBufferRef ProbeFreeList = nullptr;
@@ -1687,7 +1688,7 @@ void RenderRadianceCache(
 
 		FRDGTextureUAVRef RadianceProbeAtlasTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadianceProbeAtlasTextureSource));
 
-		if (Lumen::UseHardwareRayTracedRadianceCache())
+		if (Lumen::UseHardwareRayTracedRadianceCache(*View.Family))
 		{
 			float DiffuseConeHalfAngle = -1.0f;
 			RenderLumenHardwareRayTracingRadianceCache(
@@ -1714,7 +1715,8 @@ void RenderRadianceCache(
 		else
 		{
 			FRadianceCacheTraceFromProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRadianceCacheTraceFromProbesCS::FParameters>();
-			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+			FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
+			GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
 			SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, -1.0f);
 			PassParameters->RWRadianceProbeAtlasTexture = RadianceProbeAtlasTextureUAV;
 			PassParameters->RWDepthProbeAtlasTexture = DepthProbeTextureUAV;

@@ -76,11 +76,11 @@ static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingD
 
 namespace Lumen
 {
-	bool UseHardwareRayTracedScreenProbeGather()
+	bool UseHardwareRayTracedScreenProbeGather(const FSceneViewFamily& ViewFamily)
 	{
 #if RHI_RAYTRACING
 		return IsRayTracingEnabled()
-			&& Lumen::UseHardwareRayTracing()
+			&& Lumen::UseHardwareRayTracing(ViewFamily)
 			&& (CVarLumenScreenProbeGatherHardwareRayTracing.GetValueOnAnyThread() != 0);
 #else
 		return false;
@@ -236,7 +236,7 @@ bool IsHardwareRayTracingScreenProbeGatherIndirectDispatch()
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGather(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (Lumen::UseHardwareRayTracedScreenProbeGather())
+	if (Lumen::UseHardwareRayTracedScreenProbeGather(*View.Family))
 	{
 		// Hit-lighting is disabled
 		if (false)
@@ -267,7 +267,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGat
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGatherLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (Lumen::UseHardwareRayTracedScreenProbeGather())
+	if (Lumen::UseHardwareRayTracedScreenProbeGather(*View.Family))
 	{
 		const bool bUseFarFieldForScreenProbeGather = UseFarFieldForScreenProbeGather(*View.Family);
 
@@ -551,7 +551,7 @@ void RenderHardwareRayTracingScreenProbe(
 
 	const bool bUseFarFieldForScreenProbeGather = UseFarFieldForScreenProbeGather(*View.Family);
 	const bool bIsForceHitLighting = IsHitLightingForceEnabledForScreenProbeGather();
-	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing();
+	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*View.Family);
 	const bool bUseRadianceCache = LumenScreenProbeGather::UseRadianceCache(View);
 
 	// Default tracing of near-field, extract surface cache and material-id
