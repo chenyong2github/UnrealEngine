@@ -126,7 +126,7 @@ struct PCG_API FPCGSubgraphContext : public FPCGContext
 class PCG_API FPCGSubgraphElement : public IPCGElement
 {
 public:
-	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) override;
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node) override;
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;

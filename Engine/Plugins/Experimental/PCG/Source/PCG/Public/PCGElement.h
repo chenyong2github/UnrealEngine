@@ -9,6 +9,7 @@
 class IPCGElement;
 class UPCGComponent;
 class UPCGSettings;
+class UPCGNode;
 
 typedef TSharedPtr<IPCGElement, ESPMode::ThreadSafe> FPCGElementPtr;
 
@@ -33,7 +34,7 @@ class PCG_API IPCGElement
 {
 public:
 	virtual ~IPCGElement() = default;
-	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) = 0;
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node) = 0;
 
 	bool Execute(FPCGContext* Context) const;
 
@@ -52,5 +53,5 @@ protected:
 class PCG_API FSimplePCGElement : public IPCGElement
 {
 public:
-	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) override;
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node) override;
 };

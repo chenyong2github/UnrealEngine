@@ -191,8 +191,7 @@ void FPCGGraphExecutor::Execute()
 					continue;
 				}
 				
-				FPCGContext* Context = Element->Initialize(TaskInput, Task.SourceComponent);
-				Context->Node = Task.Node; // still needed?
+				FPCGContext* Context = Element->Initialize(TaskInput, Task.SourceComponent, Task.Node);
 				Context->TaskId = Task.NodeId;
 				Context->Cache = &GraphCache;
 

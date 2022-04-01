@@ -47,7 +47,7 @@ void UPCGBlueprintElement::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UPCGBlueprintElement::ExecuteWithContext_Implementation(FPCGContext& InContext, const FPCGDataCollection& Input, FPCGDataCollection& Output) const
+void UPCGBlueprintElement::ExecuteWithContext_Implementation(FPCGContext& InContext, const FPCGDataCollection& Input, FPCGDataCollection& Output)
 {
 	Execute(Input, Output);
 }
@@ -252,12 +252,13 @@ FPCGElementPtr UPCGBlueprintSettings::CreateElement() const
 	return MakeShared<FPCGExecuteBlueprintElement>();
 }
 
-bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* Context) const
+bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGExecuteBlueprintElement::Execute);
+	FPCGBlueprintExecutionContext* Context = static_cast<FPCGBlueprintExecutionContext*>(InContext);
 	const UPCGBlueprintSettings* Settings = Context->GetInputSettings<UPCGBlueprintSettings>();
 
-	if (Settings && Settings->BlueprintElementInstance)
+	if (Context && Context->BlueprintElementInstance)
 	{
 		// Log info on inputs
 		for(int32 InputIndex = 0; InputIndex < Context->InputData.TaggedData.Num(); ++InputIndex)
@@ -269,7 +270,7 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* Context) const
 			}
 		}
 
-		Settings->BlueprintElementInstance->ExecuteWithContext(*Context, Context->InputData, Context->OutputData);
+		Context->BlueprintElementInstance->ExecuteWithContext(*Context, Context->InputData, Context->OutputData);
 
 		// Log info on outputs
 		for (int32 OutputIndex = 0; OutputIndex < Context->OutputData.TaggedData.Num(); ++OutputIndex)
@@ -353,6 +354,26 @@ void UPCGBlueprintElement::LoopNTimes(FPCGContext& InContext, int64 NumIteration
 	{
 		return IterationLoopBody(InContext, Index, InA, InB, OptionalCustomObject, OutPoint, OutData->Metadata);
 	});
+}
+
+FPCGContext* FPCGExecuteBlueprintElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node)
+{
+	FPCGBlueprintExecutionContext* Context = new FPCGBlueprintExecutionContext();
+	Context->InputData = InputData;
+	Context->SourceComponent = SourceComponent;
+	Context->Node = Node;
+
+	const UPCGBlueprintSettings* Settings = Context->GetInputSettings<UPCGBlueprintSettings>();
+	if (Settings && Settings->BlueprintElementInstance)
+	{
+		Context->BlueprintElementInstance = CastChecked<UPCGBlueprintElement>(StaticDuplicateObject(Settings->BlueprintElementInstance, Settings->BlueprintElementInstance, FName()));
+	}
+	else
+	{
+		Context->BlueprintElementInstance = nullptr;
+	}
+
+	return Context;
 }
 
 bool FPCGExecuteBlueprintElement::IsCacheable(const UPCGSettings* InSettings) const

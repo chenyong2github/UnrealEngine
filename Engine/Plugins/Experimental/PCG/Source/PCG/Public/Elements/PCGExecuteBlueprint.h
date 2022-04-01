@@ -35,10 +35,10 @@ public:
 	// ~End UObject interface
 
 	UFUNCTION(BlueprintNativeEvent, Category = Execution)
-	void ExecuteWithContext(UPARAM(ref)FPCGContext& InContext, const FPCGDataCollection& Input, FPCGDataCollection& Output) const;
+	void ExecuteWithContext(UPARAM(ref)FPCGContext& InContext, const FPCGDataCollection& Input, FPCGDataCollection& Output);
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = Execution)
-	void Execute(const FPCGDataCollection& Input, FPCGDataCollection& Output) const;
+	void Execute(const FPCGDataCollection& Input, FPCGDataCollection& Output);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Execution)
 	bool PointLoopBody(UPARAM(ref) FPCGContext& InContext, const UPCGPointData* InData, const FPCGPoint& InPoint, const UObject* OptionalCustomObject, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
@@ -145,9 +145,15 @@ protected:
 	void TeardownBlueprintElementEvent();
 };
 
-class FPCGExecuteBlueprintElement : public FSimplePCGElement
+struct FPCGBlueprintExecutionContext : public FPCGContext
+{
+	UPCGBlueprintElement* BlueprintElementInstance = nullptr;
+};
+
+class FPCGExecuteBlueprintElement : public IPCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node) override;
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override;
 };

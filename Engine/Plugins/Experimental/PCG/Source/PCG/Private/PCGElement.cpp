@@ -162,11 +162,12 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 	}
 }
 
-FPCGContext* FSimplePCGElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent)
+FPCGContext* FSimplePCGElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node)
 {
 	FPCGContext* Context = new FPCGContext();
 	Context->InputData = InputData;
 	Context->SourceComponent = SourceComponent;
+	Context->Node = Node;
 
 	return Context;
 }
