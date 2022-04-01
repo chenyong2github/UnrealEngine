@@ -1,0 +1,27 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+
+class FKismetCompilerContext;
+class UEdGraph;
+
+namespace UE::MVVM::FunctionGraphHelper
+{
+
+	/** Generate a function graph that can be viewed in the BP editor. */
+	MODELVIEWVIEWMODELBLUEPRINT_API UEdGraph* CreateFunctionGraph(FKismetCompilerContext& Context, const FStringView FunctionName, EFunctionFlags ExtraFunctionFlag, const FStringView Category, bool bIsEditable);
+
+	/** Generate a function graph that cannot be viewed in the BP editor. */
+	MODELVIEWVIEWMODELBLUEPRINT_API UEdGraph* CreateIntermediateFunctionGraph(FKismetCompilerContext& Context, const FStringView FunctionName, EFunctionFlags ExtraFunctionFlag, const FStringView Category, bool bIsEditable);
+
+	/** Add an input argument to an existing function graph. */
+	MODELVIEWVIEWMODELBLUEPRINT_API bool AddFunctionArgument(UEdGraph* FunctionGraph, TSubclassOf<UObject> Argument, FName ArgumentName);
+
+	/** Generate the nodes needed for to call the MVVMView::SetViewModel function. */
+	MODELVIEWVIEWMODELBLUEPRINT_API bool GenerateViewModelSetter(FKismetCompilerContext& InContext, UEdGraph* InFunctionGraph, FName InViewModelName);
+
+} //namespace
