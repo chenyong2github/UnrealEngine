@@ -41,6 +41,12 @@ public:
 		Mapping.Append(NewMapping);
 	}
 
+	/** Return the instanced package name for a given instanced outer package and an object package name */
+	static FString GetInstancedPackageName(const FString& InOuterPackageName, const FString& InPackageName)
+	{
+		return FString::Printf(TEXT("%s_InstanceOf_%s"), *InOuterPackageName, *InPackageName);
+	}
+
 private:
 	friend class FLinkerLoad;
 

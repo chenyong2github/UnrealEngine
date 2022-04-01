@@ -1912,7 +1912,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::PopulateInstancingContext()
 				// if there's isn't already a remapping for that package, create one
 				if (InstancedName.IsNone())
 				{
-					InstancedName = *FString::Printf(TEXT("%s_InstanceOf_%s"), *InstancingName.ToString(), *LinkerPackageName);
+					InstancedName = *FLinkerInstancingContext::GetInstancedPackageName(LinkerPackageName, InstancingName.ToString());
 				}
 			}
 		}
