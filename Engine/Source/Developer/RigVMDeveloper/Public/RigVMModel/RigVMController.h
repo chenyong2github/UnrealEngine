@@ -905,6 +905,7 @@ private:
 	URigVMInjectionInfo* InjectNodeIntoPin(const FString& InPinPath, bool bAsInput, const FName& InInputPinName, const FName& InOutputPinName, bool bSetupUndoRedo = true);
 	URigVMInjectionInfo* InjectNodeIntoPin(URigVMPin* InPin, bool bAsInput, const FName& InInputPinName, const FName& InOutputPinName, bool bSetupUndoRedo = true);
 	URigVMNode* EjectNodeFromPin(URigVMPin* InPin, bool bSetupUndoRedo = true, bool bPrintPythonCommands = false);
+	bool EjectAllInjectedNodes(URigVMNode* InNode, bool bSetupUndoRedo = true, bool bPrintPythonCommands = false);
 
 	// try to reconnect source and target pins after a node deletion
 	void RelinkSourceAndTargetPins(URigVMNode* RigNode, bool bSetupUndoRedo = true);
@@ -941,13 +942,14 @@ private:
 		FString DefaultValue;
 		bool bIsExpanded;
 		TArray<URigVMInjectionInfo*> InjectionInfos;
+		TArray<URigVMInjectionInfo::FWeakInfo> WeakInjectionInfos;
 	};
 
 	TMap<FString, FString> GetRedirectedPinPaths(URigVMNode* InNode) const;
-	FPinState GetPinState(URigVMPin* InPin) const;
-	TMap<FString, FPinState> GetPinStates(URigVMNode* InNode) const;
-	void ApplyPinState(URigVMPin* InPin, const FPinState& InPinState);
-	void ApplyPinStates(URigVMNode* InNode, const TMap<FString, FPinState>& InPinStates, const TMap<FString, FString>& InRedirectedPinPaths = TMap<FString, FString>());
+	FPinState GetPinState(URigVMPin* InPin, bool bStoreWeakInjectionInfos = false) const;
+	TMap<FString, FPinState> GetPinStates(URigVMNode* InNode, bool bStoreWeakInjectionInfos = false) const;
+	void ApplyPinState(URigVMPin* InPin, const FPinState& InPinState, bool bSetupUndoRedo = false);
+	void ApplyPinStates(URigVMNode* InNode, const TMap<FString, FPinState>& InPinStates, const TMap<FString, FString>& InRedirectedPinPaths = TMap<FString, FString>(), bool bSetupUndoRedo = false);
 
 
 	static FLinearColor GetColorFromMetadata(const FString& InMetadata);
@@ -995,8 +997,8 @@ public:
 	static FString GetSanitizedPinName(const FString& InName);
 	static FString GetSanitizedPinPath(const FString& InName);
 	static void SanitizeName(FString& InOutName, bool bAllowPeriod, bool bAllowSpace);
-	static TArray<TPair<FString, FString>> GetLinkedPinPaths(URigVMNode* InNode);
-	static TArray<TPair<FString, FString>> GetLinkedPinPaths(const TArray<URigVMNode*>& InNodes);
+	static TArray<TPair<FString, FString>> GetLinkedPinPaths(URigVMNode* InNode, bool bIncludeInjectionNodes = false);
+	static TArray<TPair<FString, FString>> GetLinkedPinPaths(const TArray<URigVMNode*>& InNodes, bool bIncludeInjectionNodes = false);
 
 private: 
 	UPROPERTY(transient)

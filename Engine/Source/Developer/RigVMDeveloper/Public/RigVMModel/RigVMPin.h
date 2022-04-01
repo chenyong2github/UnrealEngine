@@ -57,6 +57,16 @@ public:
 	// Returns the pin of this injected node.
 	UFUNCTION(BlueprintCallable, Category = RigVMInjectionInfo)
 	URigVMPin* GetPin() const;
+
+	struct FWeakInfo
+	{
+		TWeakObjectPtr<URigVMNode> Node;
+		bool bInjectedAsInput;
+		FName InputPinName;
+		FName OutputPinName;
+	};
+
+	FWeakInfo GetWeakInfo() const;
 };
 
 /**

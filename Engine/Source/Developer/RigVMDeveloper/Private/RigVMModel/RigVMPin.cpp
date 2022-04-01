@@ -35,6 +35,16 @@ URigVMPin* URigVMInjectionInfo::GetPin() const
 	return CastChecked<URigVMPin>(GetOuter());
 }
 
+URigVMInjectionInfo::FWeakInfo URigVMInjectionInfo::GetWeakInfo() const
+{
+	FWeakInfo Info;
+	Info.bInjectedAsInput = bInjectedAsInput;
+	Info.Node = Node;
+	Info.InputPinName = InputPin != nullptr ? InputPin->GetFName() : NAME_None;
+	Info.OutputPinName = OutputPin != nullptr ? OutputPin->GetFName() : NAME_None;
+	return Info;
+}
+
 const URigVMPin::FPinOverrideMap URigVMPin::EmptyPinOverrideMap;
 const URigVMPin::FPinOverride URigVMPin::EmptyPinOverride = URigVMPin::FPinOverride(FRigVMASTProxy(), EmptyPinOverrideMap);
 const FString URigVMPin::OrphanPinPrefix = TEXT("Orphan::");

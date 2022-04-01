@@ -931,6 +931,7 @@ void UControlRigGraph::RemoveAndDeleteNode(UEdGraphNode* InNode)
 		}
 		while (ExistingObject);
 		InNode->Rename(*DeletedName, NewOuter, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+		InNode->MarkAsGarbage();
 	}
 
 	// Remove the node and notify of the removal

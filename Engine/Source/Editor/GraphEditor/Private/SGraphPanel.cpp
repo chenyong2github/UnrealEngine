@@ -1801,8 +1801,11 @@ void SGraphPanel::OnGraphChanged(const FEdGraphEditAction& EditAction)
 				if (NodePtr.IsValid())
 				{
 					UEdGraphNode* Node = NodePtr.Get();
-					Parent->RemoveNode(Node);
-					Parent->AddNode(Node, bForceUserAdded ? WasUserAdded : NotUserAdded);
+					if(IsValid(Node))
+					{
+						Parent->RemoveNode(Node);
+						Parent->AddNode(Node, bForceUserAdded ? WasUserAdded : NotUserAdded);
+					}
 				}
 				return EActiveTimerReturnType::Stop;
 			};
