@@ -120,6 +120,7 @@ void FMaterialsCollectionTracker::UpdateMaterial(FMaterialTracker* MaterialTrack
 
 void FMaterialsCollectionTracker::ConvertMaterial(Mtl* Material, TSharedRef<IDatasmithScene> DatasmithScene, const TCHAR* AssetsPath, TSet<Texmap*>& TexmapsConverted)
 {
+	SCENE_UPDATE_STAT_INC(UpdateMaterials, Total);
 	// todo: reworking material export - composite materials(like VRayBlend) export submaterials too
 	//   check below is needed to make sure that no material is exported twice.
 	//   This is how it was handled before bu needs to be handled without going through the list of all materials.
@@ -129,6 +130,7 @@ void FMaterialsCollectionTracker::ConvertMaterial(Mtl* Material, TSharedRef<IDat
 	{
 		if (FString(DatasmithScene->GetMaterial(i)->GetName()) == MaterialName)
 		{
+			SCENE_UPDATE_STAT_INC(UpdateMaterials, SkippedAsAlreadyConverted);
 			return;
 		}
 	}
@@ -145,6 +147,7 @@ void FMaterialsCollectionTracker::ConvertMaterial(Mtl* Material, TSharedRef<IDat
 
 		if (DatasmithMaterial)
 		{
+			SCENE_UPDATE_STAT_INC(UpdateMaterials, Converted);
 			DatasmithScene->AddMaterial(DatasmithMaterial);
 			UsedMaterialToDatasmithMaterial.Add(Material, DatasmithMaterial);
 		}

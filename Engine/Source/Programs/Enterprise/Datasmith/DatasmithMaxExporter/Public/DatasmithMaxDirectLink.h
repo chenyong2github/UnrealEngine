@@ -210,6 +210,48 @@ private:
 
 };
 
+struct FSceneUpdateStats
+{
+	void Reset()
+	{
+		*this = FSceneUpdateStats();
+	}
+
+	// Explicitly initialize every stat
+	int32 ParseSceneXRefFileEncountered = 0;
+	int32 ParseSceneXRefFileDisabled = 0;
+	int32 ParseSceneXRefFileMissing = 0;
+	int32 ParseSceneXRefFileToParse = 0;
+	int32 ParseNodeNodesEncountered = 0;
+	int32 RemoveDeletedNodesNodes = 0;
+	int32 RefreshCollisionsChangedNodes = 0;
+	int32 UpdateNodeNodesUpdated = 0;
+	int32 UpdateNodeSkippedAsCollisionNode = 0;
+	int32 UpdateNodeSkippedAsHiddenNode = 0;
+	int32 UpdateNodeSkippedAsUnselected = 0;
+	int32 UpdateNodeGeomObjEncontered = 0;
+	int32 UpdateNodeHelpersEncontered = 0;
+	int32 UpdateNodeCamerasEncontered = 0;
+	int32 UpdateNodeLightsEncontered = 0;
+	int32 UpdateNodeLightsSkippedAsUnknown = 0;
+	int32 UpdateNodeGeomObjSkippedAsNonRenderable = 0;
+	int32 UpdateNodeGeomObjConverted = 0;
+	int32 ReparentActorsSkippedWithoutDatasmithActor = 0;
+	int32 ReparentActorsAttached = 0;
+	int32 ReparentActorsAttachedToRoot = 0;
+	int32 ProcessInvalidatedMaterialsInvalidated = 0;
+	int32 ProcessInvalidatedMaterialsActualToUpdate = 0;
+	int32 UpdateMaterialsTotal = 0;
+	int32 UpdateMaterialsSkippedAsAlreadyConverted =0;
+	int32 UpdateMaterialsConverted = 0;
+	int32 UpdateTexturesTotal = 0;
+};
+
+#define SCENE_UPDATE_STAT_INC(Category, Name) {Stats.##Category##Name++;}
+#define SCENE_UPDATE_STAT_SET(Category, Name, Value) Stats.##Category##Name = Value
+#define SCENE_UPDATE_STAT_GET(Category, Name) Stats.##Category##Name
+
+
 // Modifies Datasmith scene in responce to change notification calls
 // Subscription to various Max notification systems is done separately, see  FNotifications
 class ISceneTracker
@@ -236,6 +278,7 @@ public:
 	virtual void RemoveMaterial(const TSharedPtr<IDatasmithBaseMaterialElement>& DatasmithMaterial) = 0;
 	virtual void RemoveTexture(const TSharedPtr<IDatasmithTextureElement>&) = 0;
 	virtual void NodeXRefMerged(INode* Node) = 0;
+	virtual FSceneUpdateStats& GetStats() = 0;
 };
 
 //---- Geometry utility function
@@ -404,7 +447,7 @@ class FMaterialsCollectionTracker
 {
 public:
 
-	FMaterialsCollectionTracker(ISceneTracker& InSceneTracker) : SceneTracker(InSceneTracker) {}
+	FMaterialsCollectionTracker(ISceneTracker& InSceneTracker) : SceneTracker(InSceneTracker), Stats(InSceneTracker.GetStats()) {}
 
 	void Reset();
 
@@ -449,6 +492,7 @@ public:
 	TMap<Texmap*, TArray<TSharedPtr<IDatasmithTextureElement>>> UsedTextureToDatasmithElement; // Keep track of Datasmith Element created for texmap to simplify update/removal(no need to search DatasmithScene)
 	// note: each texmap can create multiple texture elements
 
+	FSceneUpdateStats& Stats;
 };
 
 //----
