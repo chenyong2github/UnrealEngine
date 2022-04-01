@@ -7,6 +7,7 @@ AndroidAffinity.h: Android affinity profile masks definitions.
 #pragma once
 
 #include "GenericPlatform/GenericPlatformAffinity.h"
+#include "AndroidPlatform.h"
 
 class FAndroidAffinity : public FGenericPlatformAffinity
 {
@@ -36,7 +37,11 @@ public:
 
 	static const CORE_API uint64 GetPoolThreadMask()
 	{
+#if ANDROID_USE_NICE_VALUE_THREADPRIORITY
+		return AllCores;
+#else
 		return GetLittleCoreMask();
+#endif
 	}
 
 	static const CORE_API uint64 GetTaskGraphThreadMask()

@@ -8,6 +8,7 @@
 
 #include "Runtime/Core/Private/HAL/PThreadRunnableThread.h"
 #include "Android/AndroidPlatformMisc.h"
+#include "AndroidPlatform.h"
 
 /**
 * Android implementation of the pthread functions
@@ -81,4 +82,8 @@ private:
 
 		return InStackSize;
 	}
+
+#if ANDROID_USE_NICE_VALUE_THREADPRIORITY
+	virtual void SetThreadPriority(pthread_t InThread, EThreadPriority NewPriority) override;
+#endif
 };

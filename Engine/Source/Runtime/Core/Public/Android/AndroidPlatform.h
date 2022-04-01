@@ -101,6 +101,11 @@ typedef FAndroidTypes FPlatformTypes;
 	#define USE_ANDROID_EVENTS						1
 #endif
 
+// Enable to set thread nice values when setting runnable thread priorities
+#ifndef ANDROID_USE_NICE_VALUE_THREADPRIORITY
+	#define ANDROID_USE_NICE_VALUE_THREADPRIORITY 0
+#endif
+
 // Function type macros.
 #define VARARGS													/* Functions with variable arguments */
 #define CDECL													/* Standard C function */
