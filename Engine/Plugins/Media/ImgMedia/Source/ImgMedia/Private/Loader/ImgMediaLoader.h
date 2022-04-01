@@ -280,8 +280,10 @@ public:
 	 * @param CompletedWork The work item that completed.
 	 * @param FrameNumber Number of the frame that was read.
 	 * @param Frame The frame that was read, or nullptr if reading failed.
+	 * @param WorkTime How long to read this frame (in seconds).
 	 */
-	void NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int32 FrameNumber, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame);
+	void NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int32 FrameNumber,
+		const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame, float WorkTime);
 
 	/**
 	 * Asynchronously request the image frame at the specified time.
@@ -555,4 +557,7 @@ private:
 
 	/** Settings for the smart cache. */
 	FImgMediaLoaderSmartCacheSettings SmartCacheSettings;
+
+	/** Number of bytes read per second from the last frame read. */
+	float CurrentBandwidth;
 };

@@ -49,13 +49,14 @@ void FImgMediaLoaderWork::Abandon()
 {
 	SCOPE_CYCLE_COUNTER(STAT_ImgMedia_LoaderAbandonWork);
 
-	Finalize(nullptr);
+	Finalize(nullptr, 0.0f);
 }
 
 
 void FImgMediaLoaderWork::DoThreadedWork()
 {
 	TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> Frame;
+	float WorkTime = 0.0f;
 	UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Starting to read %i"), this, FrameNumber);
 
 	if (FrameNumber == INDEX_NONE)
@@ -76,6 +77,7 @@ void FImgMediaLoaderWork::DoThreadedWork()
 			Frame = ExistingFrame;
 		}
 
+		double StartTime = FPlatformTime::Seconds();
 		if(!Reader->ReadFrame(FrameNumber, MipTiles, Frame))
 		{
 			if (ExistingFrame == nullptr)
@@ -83,18 +85,22 @@ void FImgMediaLoaderWork::DoThreadedWork()
 				Frame.Reset();
 			}
 		}
+		else
+		{
+			WorkTime = FPlatformTime::Seconds() - StartTime;
+		}
 	}
 
 	SCOPE_CYCLE_COUNTER(STAT_ImgMedia_LoaderFinalizeWork);
 
-	Finalize(Frame);
+	Finalize(Frame, WorkTime);
 }
 
 
 /* FImgMediaLoaderWork implementation
  *****************************************************************************/
 
-void FImgMediaLoaderWork::Finalize(TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> Frame)
+void FImgMediaLoaderWork::Finalize(TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> Frame, float WorkTime)
 {
 	ExistingFrame.Reset();
 
@@ -102,7 +108,7 @@ void FImgMediaLoaderWork::Finalize(TSharedPtr<FImgMediaFrame, ESPMode::ThreadSaf
 
 	if (Owner.IsValid())
 	{
-		Owner->NotifyWorkComplete(*this, FrameNumber, Frame);
+		Owner->NotifyWorkComplete(*this, FrameNumber, Frame, WorkTime);
 	}
 	else
 	{

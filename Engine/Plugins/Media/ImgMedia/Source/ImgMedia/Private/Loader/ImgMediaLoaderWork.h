@@ -54,8 +54,9 @@ protected:
 	 * Notify the owner of this work item, or self destruct.
 	 *
 	 * @param Frame The frame that was loaded by this work item.
+	 * @param WorkTime How long to read this frame (in seconds).
 	 */
-	void Finalize(TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> Frame);
+	void Finalize(TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> Frame, float WorkTime);
 
 private:
 

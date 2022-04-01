@@ -1333,7 +1333,8 @@ void FImgMediaLoader::AddEmptyFrame(int32 FrameNumber)
 	AddFrameToCache(FrameNumber, Frame);
 }
 
-void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int32 FrameNumber, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame)
+void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int32 FrameNumber,
+	const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame, float WorkTime)
 {
 	FScopeLock Lock(&CriticalSection);
 
@@ -1344,6 +1345,13 @@ void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int
 	}
 
 	WorkPool.Push(&CompletedWork);
+
+	// Update bandwidth.
+	if ((Frame.IsValid()) && (WorkTime > 0.0f))
+	{
+		SIZE_T BytesLoaded = Frame->Info.UncompressedSize;
+		CurrentBandwidth = BytesLoaded / WorkTime;
+	}
 }
 
 void FImgMediaLoader::AddFrameToCache(int32 FrameNumber, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame)
