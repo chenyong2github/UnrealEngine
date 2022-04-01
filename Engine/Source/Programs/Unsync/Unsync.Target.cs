@@ -7,6 +7,7 @@ public class UnsyncTarget : TargetRules
 {
 	public UnsyncTarget(TargetInfo Target) : base(Target)
 	{
+		Name = "unsync";
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
 		LaunchModuleName = "Unsync";		
