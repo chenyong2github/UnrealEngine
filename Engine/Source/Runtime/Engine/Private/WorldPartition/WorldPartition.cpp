@@ -738,6 +738,7 @@ UWorldPartition* UWorldPartition::CreateOrRepairWorldPartition(AWorldSettings* W
 		if (!WorldDataLayers)
 		{
 			WorldDataLayers = AWorldDataLayers::Create(World);
+			World->SetWorldDataLayers(WorldDataLayers);
 		}
 
 		FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World, true);

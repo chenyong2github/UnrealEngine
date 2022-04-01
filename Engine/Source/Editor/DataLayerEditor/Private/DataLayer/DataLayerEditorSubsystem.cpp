@@ -1007,21 +1007,9 @@ UDataLayerInstance* UDataLayerEditorSubsystem::GetDataLayerInstance(const UDataL
 	return WorldDataLayers ? const_cast<UDataLayerInstance*>(WorldDataLayers->GetDataLayerInstance(DataLayerAsset)) : nullptr;
 }
 
-const AWorldDataLayers* UDataLayerEditorSubsystem::GetWorldDataLayers() const
+AWorldDataLayers* UDataLayerEditorSubsystem::GetWorldDataLayers() const
 {
 	return GetWorld()->GetWorldDataLayers();
-}
-
-AWorldDataLayers* UDataLayerEditorSubsystem::GetWorldDataLayers(bool bCreateIfNotFound)
-{
-	AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
-
-	if (!WorldDataLayers && bCreateIfNotFound)
-	{
-		WorldDataLayers = AWorldDataLayers::Create(GetWorld());
-	}
-
-	return WorldDataLayers;
 }
 
 void UDataLayerEditorSubsystem::AddAllDataLayersTo(TArray<TWeakObjectPtr<UDataLayerInstance>>& OutDataLayers) const
@@ -1040,8 +1028,9 @@ UDataLayerInstance* UDataLayerEditorSubsystem::CreateDataLayerInstance(const FDa
 {
 	UDataLayerInstance* NewDataLayer = nullptr;
 
-	AWorldDataLayers* WorldDataLayers = Parameters.WorlDataLayers != nullptr ? Parameters.WorlDataLayers.Get() : GetWorld()->GetWorldDataLayers();
-	if (!HasDeprecatedDataLayers())
+
+	AWorldDataLayers* WorldDataLayers = GetWorldDataLayers();
+	if (!WorldDataLayers->HasDeprecatedDataLayers())
 	{
 		NewDataLayer = WorldDataLayers->CreateDataLayer<UDataLayerInstanceWithAsset>(Parameters.DataLayerAsset);
 	}

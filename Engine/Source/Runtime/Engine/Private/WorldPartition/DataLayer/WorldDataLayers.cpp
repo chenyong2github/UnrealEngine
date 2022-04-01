@@ -451,14 +451,14 @@ void AWorldDataLayers::GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersL
 	});
 }
 
-AWorldDataLayers* AWorldDataLayers::Create(UWorld* World)
+
+AWorldDataLayers* AWorldDataLayers::Create(UWorld* World, FName InWorldDataLayerName)
 {
 	check(World);
-	check(!World->GetWorldDataLayers());
-
+	
 	AWorldDataLayers* WorldDataLayers = nullptr;
-
-	static FName WorldDataLayersName = AWorldDataLayers::StaticClass()->GetFName();
+	
+	FName WorldDataLayersName = InWorldDataLayerName.IsNone() ? AWorldDataLayers::StaticClass()->GetFName() : InWorldDataLayerName;
 	if (UObject* ExistingObject = StaticFindObject(nullptr, World->PersistentLevel, *WorldDataLayersName.ToString()))
 	{
 		WorldDataLayers = CastChecked<AWorldDataLayers>(ExistingObject);
@@ -469,7 +469,7 @@ AWorldDataLayers* AWorldDataLayers::Create(UWorld* World)
 			WorldDataLayers = nullptr;
 		}
 	}
-
+	
 	if (!WorldDataLayers)
 	{
 		FActorSpawnParameters SpawnParams;
@@ -478,11 +478,12 @@ AWorldDataLayers* AWorldDataLayers::Create(UWorld* World)
 		SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
 		WorldDataLayers = World->SpawnActor<AWorldDataLayers>(AWorldDataLayers::StaticClass(), SpawnParams);
 	}
-
+	else
+	{
+		UE_LOG(LogWorldPartition, Error, TEXT("Failed to create WorldDataLayers Actor. There is already a WorldDataLayer Actor named \"%s\" "), *WorldDataLayersName.ToString())
+	}
+	
 	check(WorldDataLayers);
-
-	World->Modify();
-	World->SetWorldDataLayers(WorldDataLayers);
 
 	return WorldDataLayers;
 }

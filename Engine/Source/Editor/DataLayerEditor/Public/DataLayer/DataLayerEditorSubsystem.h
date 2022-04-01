@@ -632,17 +632,9 @@ private:
 	/**
 	 * Gets the WorldDataLayers for this world
 	 *
-	 * @param	bCreateIfNotFound	If true, created the AWorldDataLayers object if not found.
 	 * @return	The AWorldDataLayers Object
 	 */
-	class AWorldDataLayers* GetWorldDataLayers(bool bCreateIfNotFound = false);
-
-	/**
-	 * Gets the WorldDataLayers for this world
-	 *
-	 * @return	The AWorldDataLayers Object
-	 */
-	const class AWorldDataLayers* GetWorldDataLayers() const;
+	class AWorldDataLayers* GetWorldDataLayers() const;
 
 	/**
 	 * Get the current UWorld object.

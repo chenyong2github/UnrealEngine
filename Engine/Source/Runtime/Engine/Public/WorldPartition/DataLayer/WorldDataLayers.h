@@ -52,7 +52,7 @@ public:
 	virtual bool IsUserManaged() const override { return false; }
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 
-	static AWorldDataLayers* Create(UWorld* World);
+	static AWorldDataLayers* Create(UWorld* World, FName InWorldDataLayerName = NAME_None);
 
 	bool IsEmpty() const { return DataLayerInstances.IsEmpty(); }
 	bool HasDeprecatedDataLayers() const { return bHasDeprecatedDataLayers; }
