@@ -120,10 +120,17 @@ public:
 		check(AttributeType::StaticStruct() == ScriptStruct);
 		return UpdateOrAddKey(InTime, &InValue, KeyTimeTolerance);
 	}
+
+	/** Finds the key at InTime, and updates its typed value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
+	FKeyHandle UpdateOrAddTypedKey(float InTime, const void* InValue, const UScriptStruct* ValueType, float KeyTimeTolerance = KINDA_SMALL_NUMBER)
+	{
+		check(ValueType == ScriptStruct);
+		return UpdateOrAddKey(InTime, InValue, KeyTimeTolerance);
+	}
 			
 	/** Functions for getting keys based on handles */
 	FAttributeKey& GetKey(FKeyHandle KeyHandle);
-	FAttributeKey GetKey(FKeyHandle KeyHandle) const;
+	const FAttributeKey& GetKey(FKeyHandle KeyHandle) const;
 
 	/** Finds the key at KeyTime and returns its handle. If it can't find the key within the KeyTimeTolerance, it will return an invalid handle */
 	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = KINDA_SMALL_NUMBER) const;
@@ -159,7 +166,7 @@ protected:
 	/** Finds the key at InTime, and updates its typed value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
 	FKeyHandle UpdateOrAddKey(float InTime, const void* InValue, float KeyTimeTolerance = KINDA_SMALL_NUMBER);
 
-	/** Add a new raw memory key (should be appropriatedly sized) to the curve with the supplied Time and Value. */
+	/** Add a new raw memory key (should be appropriately sized) to the curve with the supplied Time and Value. */
 	FKeyHandle AddKey(float InTime, const void* InValue, FKeyHandle InKeyHandle = FKeyHandle());
 protected:
 	/** The keys, ordered by time */

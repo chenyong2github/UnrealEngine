@@ -12,7 +12,6 @@ public class AnimationBlueprintLibrary : ModuleRules
 				"BlueprintGraph",
 				"Core",
 				"CoreUObject",
-				"Engine",
 				"Kismet",
 				"AnimGraph",
 				"UnrealEd",
@@ -24,6 +23,10 @@ public class AnimationBlueprintLibrary : ModuleRules
 			new string[]
 			{
 				"AnimGraph",
+				"KismetCompiler",
+				"Engine",
+				"BlueprintGraph",
+				"UnrealEd",
 			}
 		);
 	}

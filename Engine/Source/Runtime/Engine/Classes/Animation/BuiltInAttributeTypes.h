@@ -12,12 +12,12 @@
 #include "BuiltInAttributeTypes.generated.h"
 
 /** Attribute type supporting the legacy TVariant<float> atttributes */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FFloatAnimationAttribute 
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=FloatAnimationAttribute)
 	float Value = 0.f;
 
 	void Accumulate(const FFloatAnimationAttribute& Attribute, float Weight, EAdditiveAnimationType AdditiveType)
@@ -45,12 +45,12 @@ struct FFloatAnimationAttribute
 };
 
 /** Attribute type supporting the legacy TVariant<int32> atttributes */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FIntegerAnimationAttribute
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=IntegerAnimationAttribute)
 	int32 Value = 0;
 
 	void Accumulate(const FIntegerAnimationAttribute& Attribute, float Weight, EAdditiveAnimationType AdditiveType)
@@ -78,22 +78,22 @@ struct FIntegerAnimationAttribute
 };
 
 /** Attribute type supporting the legacy TVariant<FString> atttributes */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FStringAnimationAttribute
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=StringAnimationAttribute)
 	FString Value;
 };
 
 /** Attribute type supporting the legacy TVariant<FString> atttributes */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FTransformAnimationAttribute
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TransformAnimationAttribute)
 	FTransform Value;
 
 	void Accumulate(const FTransformAnimationAttribute& Attribute, float Weight, EAdditiveAnimationType AdditiveType)
