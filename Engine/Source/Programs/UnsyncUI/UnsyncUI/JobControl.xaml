@@ -83,17 +83,25 @@
 						<MenuItem Header="Save As..." Command="{Binding SaveLogClicked}"/>
 					</ContextMenu>
 				</GroupBox.ContextMenu>
-				<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-							  VerticalAlignment="Top" 
-							  MaxHeight="{Binding MaxLogScrollViewHeight}">
-					<ItemsControl ItemsSource="{Binding LogLines}" VirtualizingPanel.IsVirtualizing="True" Margin="4">
-						<ItemsControl.ItemTemplate>
-							<DataTemplate>
-								<TextBlock Text="{Binding Text}" FontFamily="Consolas" Foreground="{Binding Color, Converter={StaticResource ConsoleColorConverter}}"/>
-							</DataTemplate>
-						</ItemsControl.ItemTemplate>
-					</ItemsControl>
-				</ScrollViewer>
+				<ItemsControl ItemsSource="{Binding LogLines}">
+					<ItemsControl.ItemTemplate>
+						<DataTemplate>
+							<TextBlock Text="{Binding Text}" FontFamily="Consolas" Foreground="{Binding Color, Converter={StaticResource ConsoleColorConverter}}"/>
+						</DataTemplate>
+					</ItemsControl.ItemTemplate>
+					<ItemsControl.ItemsPanel>
+						<ItemsPanelTemplate>
+							<VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling" />
+						</ItemsPanelTemplate>
+					</ItemsControl.ItemsPanel>
+					<ItemsControl.Template>
+						<ControlTemplate TargetType="ItemsControl">
+							<ScrollViewer CanContentScroll="True" Focusable="True">
+								<ItemsPresenter />
+							</ScrollViewer>
+						</ControlTemplate>
+					</ItemsControl.Template>
+				</ItemsControl>
 			</GroupBox>
 		</Grid>
 	</Grid>
