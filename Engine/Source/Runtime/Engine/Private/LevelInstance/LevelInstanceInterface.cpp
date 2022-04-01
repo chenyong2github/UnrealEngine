@@ -64,7 +64,7 @@ ULevel* ILevelInstanceInterface::GetLoadedLevel() const
 {
 	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
 	{
-		LevelInstanceSubsystem->GetLevelInstanceLevel(this);
+		return LevelInstanceSubsystem->GetLevelInstanceLevel(this);
 	}
 
 	return nullptr;
