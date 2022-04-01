@@ -1170,6 +1170,17 @@ FVector4 FSceneView::PixelToScreen(float InX,float InY,float Z) const
 	}
 }
 
+// Similar to PixelToScreen, but handles cases where the viewport isn't the whole render target, such as a mouse cursor location in
+// render target space.  If outside the bounds of the viewport, will clamp to the nearest edge, so a valid result is returned.  The
+// caller can check the cursor against UnscaledViewRect if they want to reject out of bounds cursor locations.
+FVector4 FSceneView::CursorToScreen(float InX, float InY, float Z) const
+{
+	float ClampedX = FMath::Clamp(InX - UnscaledViewRect.Min.X, 0.0f, UnscaledViewRect.Width());
+	float ClampedY = FMath::Clamp(InY - UnscaledViewRect.Min.Y, 0.0f, UnscaledViewRect.Height());
+
+	return PixelToScreen(ClampedX, ClampedY, Z);
+}
+
 /** Transforms a point from the view's world-space into pixel coordinates relative to the view's X,Y. */
 bool FSceneView::WorldToPixel(const FVector& WorldPoint,FVector2D& OutPixelLocation) const
 {

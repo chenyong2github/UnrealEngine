@@ -179,7 +179,7 @@ FViewportCursorLocation::FViewportCursorLocation(const FSceneView* View, FEditor
 	: Origin(ForceInit), Direction(ForceInit), CursorPos(X, Y)
 {
 
-	FVector4 ScreenPos = View->PixelToScreen(X, Y, 0);
+	FVector4 ScreenPos = View->CursorToScreen(X, Y, 0);
 
 	const FMatrix InvViewMatrix = View->ViewMatrices.GetInvViewMatrix();
 	const FMatrix InvProjMatrix = View->ViewMatrices.GetInvProjectionMatrix();

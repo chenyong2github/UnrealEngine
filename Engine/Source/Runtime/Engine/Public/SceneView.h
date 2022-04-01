@@ -1298,6 +1298,9 @@ public:
 	/** Transforms a point from pixel coordinates relative to the view's X,Y (left, top) into the view's screen-space. */
 	FVector4 PixelToScreen(float X,float Y,float Z) const;
 
+	/** Transforms a cursor location in render target pixel coordinates into the view's screen-space, taking into account the viewport rectangle. */
+	FVector4 CursorToScreen(float X, float Y, float Z) const;
+
 	/** Transforms a point from the view's world-space into pixel coordinates relative to the view's X,Y (left, top). */
 	bool WorldToPixel(const FVector& WorldPoint,FVector2D& OutPixelLocation) const;
 
