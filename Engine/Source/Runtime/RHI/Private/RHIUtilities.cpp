@@ -613,7 +613,7 @@ void RHICreateTargetableShaderResource(
 
 	FRHITextureCreateDesc Desc =
 		FRHITextureCreateDesc(BaseDesc)
-		.SetFlags(TargetableTextureFlags | ETextureCreateFlags::ShaderResource)
+		.AddFlags(TargetableTextureFlags | ETextureCreateFlags::ShaderResource)
 		.SetInitialState(ERHIAccess::SRVMask);
 
 	OutTargetableTexture = RHICreateTexture(Desc);
