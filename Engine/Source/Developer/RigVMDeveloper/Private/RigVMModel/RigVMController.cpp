@@ -1089,11 +1089,7 @@ void URigVMController::RefreshVariableNode(const FName& InNodeName, const FName&
 
 			if (InVariableName.IsValid() && VariablePin->DefaultValue != InVariableName.ToString())
 			{
-				if (bSetupUndoRedo)
-				{
-					VariablePin->Modify();
-				}
-				VariablePin->DefaultValue = InVariableName.ToString();
+				SetPinDefaultValue(VariablePin, InVariableName.ToString(), false, bSetupUndoRedo, false);
 				Notify(ERigVMGraphNotifType::PinDefaultValueChanged, VariablePin);
 				Notify(ERigVMGraphNotifType::VariableRenamed, VariableNode);
 			}

@@ -199,17 +199,13 @@ public:
 	void RefreshVariableNode(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bSetupOrphanPins = true);
 
 	// Removes all nodes related to a given variable
-	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	void OnExternalVariableRemoved(const FName& InVarName, bool bSetupUndoRedo);
 
 	// Renames the variable name in all relevant nodes
-	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool OnExternalVariableRenamed(const FName& InOldVarName, const FName& InNewVarName, bool bSetupUndoRedo);
 
 	// Changes the data type of all nodes matching a given variable name
-	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	void OnExternalVariableTypeChanged(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo);
-	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	void OnExternalVariableTypeChangedFromObjectPath(const FName& InVarName, const FString& InCPPType, const FString& InCPPTypeObjectPath, bool bSetupUndoRedo);
 
 	// Refreshes the variable node with the new data
