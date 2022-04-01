@@ -856,6 +856,12 @@ FAudioDevice* UAudioComponent::GetAudioDevice() const
 	return AudioDevice;
 }
 
+FName UAudioComponent::GetFNameForStatID() const
+{
+	const USoundBase* SoundObject = Sound.Get();
+	return SoundObject ? SoundObject->GetFNameForStatID() : Super::GetFNameForStatID();
+}
+
 void UAudioComponent::FadeIn(float FadeInDuration, float FadeVolumeLevel, float StartTime, const EAudioFaderCurve FadeCurve)
 {
 	PlayInternalRequestData Data;

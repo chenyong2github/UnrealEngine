@@ -797,6 +797,8 @@ public:
 	uint64 GetInstanceOwnerID() const override { return AudioComponentID; }
 	USoundBase* GetSound() override { return Sound; }
 
+	virtual FName GetFNameForStatID() const override;
+
 public:
 
 	/**
