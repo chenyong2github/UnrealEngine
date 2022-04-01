@@ -8091,6 +8091,10 @@ bool UCharacterMovementComponent::ClientUpdatePositionAfterServerUpdate()
 	{
 		FSavedMove_Character* const CurrentMove = ClientData->SavedMoves[i].Get();
 		checkSlow(CurrentMove != nullptr);
+
+		// Make current SavedMove accessible to any functions that might need it.
+		SetCurrentReplayedSavedMove(CurrentMove);
+
 		CurrentMove->PrepMoveFor(CharacterOwner);
 
 		if (ShouldUsePackedMovementRPCs())
@@ -8107,6 +8111,7 @@ bool UCharacterMovementComponent::ClientUpdatePositionAfterServerUpdate()
 
 		CurrentMove->PostUpdate(CharacterOwner, FSavedMove_Character::PostUpdate_Replay);
 		SetCurrentNetworkMoveData(nullptr);
+		SetCurrentReplayedSavedMove(nullptr);
 	}
 	const bool bPostReplayPressedJump = CharacterOwner->bPressedJump;
 

@@ -2515,7 +2515,24 @@ protected:
 	 */
 	FCharacterMoveResponseDataContainer& GetMoveResponseDataContainer() const { return *MoveResponseDataContainerPtr; }
 
+	/**
+	 * Used internally to save the SavedMove currently being replayed on the client so it is accessible to any functions that might need it.
+	 * @see: ClientUpdatePositionAfterServerUpdate 
+	 */
+	void SetCurrentReplayedSavedMove(FSavedMove_Character* SavedMove) { CurrentReplayedSavedMove = SavedMove; }
+	
+public:
+
+	/**
+	 * Gets the SavedMove being replayed on the client after a correction is received.
+	 * @see: ClientUpdatePositionAfterServerUpdate
+	 */
+	const FSavedMove_Character* GetCurrentReplayedSavedMove() const { return CurrentReplayedSavedMove; }
+
 private:
+
+	/** Current SavedMove being replayed on the client after a correction is received */
+	FSavedMove_Character* CurrentReplayedSavedMove = nullptr;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Server move data
