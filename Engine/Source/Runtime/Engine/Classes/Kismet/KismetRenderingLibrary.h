@@ -67,6 +67,13 @@ class UKismetRenderingLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	static ENGINE_API void ReleaseRenderTarget2D(UTextureRenderTarget2D* TextureRenderTarget);
 
+	/**
+	 * Changes the resolution of a render target. This is useful for when you need to resize the game viewport or change the in-game resolution during runtime
+	 * and thus need to update the sizes of all the render targets in the game accordingly.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Rendering")
+	static ENGINE_API void ResizeRenderTarget2D(UTextureRenderTarget2D* TextureRenderTarget, int32 Width = 256, int32 Height = 256);
+
 	/** 
 	 * Renders a quad with the material applied to the specified render target.   
 	 * This sets the render target even if it is already set, which is an expensive operation. 

@@ -129,6 +129,24 @@ void UKismetRenderingLibrary::ReleaseRenderTarget2D(UTextureRenderTarget2D* Text
 	TextureRenderTarget->ReleaseResource();
 }
 
+void UKismetRenderingLibrary::ResizeRenderTarget2D(UTextureRenderTarget2D* TextureRenderTarget, int32 Width, int32 Height)
+{
+	if (!TextureRenderTarget)
+	{
+		return;
+	}
+
+	// Resize function silently fails if either dimension isn't positive, so check for that here so we can warn the caller
+	if ((Width > 0) && (Height > 0))
+	{
+		TextureRenderTarget->ResizeTarget(Width, Height);
+	}
+	else
+	{
+		FMessageLog("Blueprint").Warning(LOCTEXT("ResizeRenderTarget2D_InvalidDimensions", "ResizeRenderTarget2D: Dimensions must be positive."));
+	}
+}
+
 void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextObject, UTextureRenderTarget2D* TextureRenderTarget, UMaterialInterface* Material)
 {
 	if (!FApp::CanEverRender())
