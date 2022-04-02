@@ -11,6 +11,7 @@
 #include "RetargetEditor/IKRetargetEditor.h"
 #include "RetargetEditor/SIKRetargetChainMapList.h"
 #include "Retargeter/IKRetargeter.h"
+#include "RigEditor/SIKRigOutputLog.h"
 #include "RigEditor/IKRigController.h"
 
 #define LOCTEXT_NAMESPACE "IKRetargetEditorController"
@@ -59,6 +60,7 @@ void FIKRetargetEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* Modi
 	}
 
 	// the target anim instance has the IK RetargetPoseFromMesh node which needs reinitialized with new asset version
+	ClearOutputLog();
 	TargetAnimInstance->SetProcessorNeedsInitialized();
 	RefreshAllViews();
 }
@@ -79,6 +81,8 @@ void FIKRetargetEditorController::OnRetargetChainRemoved(UIKRigDefinition* Modif
 
 void FIKRetargetEditorController::OnRetargeterNeedsInitialized(const UIKRetargeter* Retargeter) const
 {
+	// clear the output log
+	ClearOutputLog();
 	// force edit pose mode to be off
 	Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditPoseMode::ModeName);
 	// force reinit the runtime retarget processor
@@ -116,22 +120,12 @@ void FIKRetargetEditorController::AddOffsetAndUpdatePreviewMeshPosition(
 
 USkeletalMesh* FIKRetargetEditorController::GetSourceSkeletalMesh() const
 {
-	if (!(AssetController && AssetController->GetAsset()->GetSourceIKRig()))
-	{
-		return nullptr;
-	}
-
-	return AssetController->GetAsset()->GetSourceIKRig()->PreviewSkeletalMesh.Get();
+	return AssetController ? AssetController->GetSourcePreviewMesh() : nullptr;
 }
 
 USkeletalMesh* FIKRetargetEditorController::GetTargetSkeletalMesh() const
 {
-	if (!(AssetController && AssetController->GetAsset()->GetTargetIKRig()))
-	{
-		return nullptr;
-	}
-
-	return AssetController->GetTargetPreviewMesh();
+	return AssetController ? AssetController->GetTargetPreviewMesh() : nullptr;
 }
 
 FTransform FIKRetargetEditorController::GetTargetBoneGlobalTransform(
@@ -206,6 +200,14 @@ const UIKRetargetProcessor* FIKRetargetEditorController::GetRetargetProcessor() 
 	return nullptr;	
 }
 
+void FIKRetargetEditorController::ClearOutputLog() const
+{
+	if (OutputLogView.IsValid())
+	{
+		OutputLogView.Get()->ClearLog();
+	}
+}
+
 void FIKRetargetEditorController::RefreshAllViews() const
 {
 	Editor.Pin()->RegenerateMenusAndToolbars();
@@ -215,6 +217,12 @@ void FIKRetargetEditorController::RefreshAllViews() const
 	if (ChainsView.IsValid())
 	{
 		ChainsView.Get()->RefreshView();
+	}
+
+	// refresh the asset browser to ensure it shows compatible sequences
+	if (AssetBrowserView.IsValid())
+	{
+		AssetBrowserView.Get()->RefreshView();
 	}
 }
 

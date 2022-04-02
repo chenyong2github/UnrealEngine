@@ -18,6 +18,7 @@ void SIKRigAssetBrowser::Construct(
 	TSharedRef<FIKRigEditorController> InEditorController)
 {
 	EditorController = InEditorController;
+	EditorController.Pin()->AssetBrowserView = SharedThis(this);
 	
 	ChildSlot
     [
@@ -28,10 +29,10 @@ void SIKRigAssetBrowser::Construct(
 		]
     ];
 
-	AddAssetBrowser();
+	RefreshView();
 }
 
-void SIKRigAssetBrowser::AddAssetBrowser()
+void SIKRigAssetBrowser::RefreshView()
 {
 	FAssetPickerConfig AssetPickerConfig;
 	

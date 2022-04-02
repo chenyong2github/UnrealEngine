@@ -49,7 +49,7 @@ void UAnimGraphNode_RetargetPoseFromMesh::ValidateAnimNodeDuringCompilation(USke
 	{
 		if (!IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RetargetPoseFromMesh, SourceMeshComponent)))
 		{
-			MessageLog.Warning(TEXT("@@ is missing a Source Skeletal Mesh Component reference."), this);
+			MessageLog.Error(TEXT("@@ is missing a Source Skeletal Mesh Component reference."), this);
 			return;
 		}
 	}
@@ -92,7 +92,7 @@ void UAnimGraphNode_RetargetPoseFromMesh::ValidateAnimNodeDuringCompilation(USke
 		return;
 	}
 
-	if (ForSkeleton)
+	if (ForSkeleton && !Node.bSuppressWarnings)
 	{
 		// validate that target bone chains exist on this skeleton
 		const FReferenceSkeleton &RefSkel = ForSkeleton->GetReferenceSkeleton();

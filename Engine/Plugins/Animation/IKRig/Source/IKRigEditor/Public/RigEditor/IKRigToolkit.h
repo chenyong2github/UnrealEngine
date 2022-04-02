@@ -12,21 +12,6 @@
 #include "PersonaAssetEditorToolkit.h"
 #include "SIKRigSkeleton.h"
 
-class IAnimationSequenceBrowser;
-class UIKRigSkeletalMeshComponent;
-class FSolverStackElement;
-class SIKRigSolverStack;
-class SIKRigSkeleton;
-class FIKRigSkeletonTreeBuilder;
-class IDetailsView;
-class ISkeletonTree;
-class FGGAssetEditorToolbar;
-class UIKRigDefinition;
-class UIKRigSettings;
-class FIKRigToolbar;
-class SIKRigViewportTabBody;
-class FIKRigPreviewScene;
-
 namespace IKRigEditorModes
 {
 	extern const FName IKRigEditorMode;
@@ -61,10 +46,7 @@ public:
 	
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("FIKRigEditorToolkit");
-	}
+	virtual FString GetReferencerName() const override { return TEXT("FIKRigEditorToolkit"); }
 	/** END FGCObject interface */
 
 	//** FTickableEditorObject Interface
@@ -84,29 +66,22 @@ public:
 
 	TSharedRef<FIKRigEditorController> GetController() const {return EditorController;};
 
+	/** preview scene setup */
+	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
+	void HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView) const;
+	/** END preview scene setup */
+
 private:
 
 	/** toolbar */
 	void BindCommands();
 	void ExtendToolbar();
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
-	void HandleReset();
 	/** END toolbar */
-	
-	/** preview scene setup */
-	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
-	void HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMesh, USkeletalMesh* InNewSkeletalMesh);
-	void HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView) const;
-	void SetupAnimInstance();
-	/** END preview scene setup */
 	
 	/** centralized management of selection across skeleton view and viewport */
 	TSharedRef<FIKRigEditorController> EditorController;
 
 	/** Preview scene to be supplied by IHasPersonaToolkit::GetPersonaToolkit */
 	TSharedPtr<IPersonaToolkit> PersonaToolkit;
-	
-	friend FIKRigMode;
-	friend SIKRigSkeleton;
-	friend SIKRigSolverStack;
 };

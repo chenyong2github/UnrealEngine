@@ -13,6 +13,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Misc/ScopedSlowTask.h"
+#include "RetargetEditor/IKRetargeterController.h"
 #include "Retargeter/IKRetargeter.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -260,27 +261,6 @@ void SRetargetAnimAssetsWindow::Construct(const FArguments& InArgs)
 						})
 						.ObjectPath(this, &SRetargetAnimAssetsWindow::GetCurrentSourceMeshPath)
 						.OnObjectChanged(this, &SRetargetAnimAssetsWindow::SourceMeshAssigned)
-						.OnShouldFilterAsset_Lambda([this](const FAssetData& AssetData)
-						{
-							if (!BatchContext.IKRetargetAsset)
-							{
-								return true;
-							}
-							
-							USkeletalMesh* Mesh = Cast<USkeletalMesh>(AssetData.GetAsset());
-							if (!Mesh)
-							{
-								return true;
-							}
-							
-							USkeletalMesh* PreviewMesh = BatchContext.IKRetargetAsset->GetSourceIKRig()->GetPreviewMesh();
-							if (!PreviewMesh)
-							{
-								return true;
-							}
-							
-							return Mesh->GetSkeleton() != PreviewMesh->GetSkeleton();
-						})
 					]
 				]
 
@@ -335,30 +315,6 @@ void SRetargetAnimAssetsWindow::Construct(const FArguments& InArgs)
 						})
 						.ObjectPath(this, &SRetargetAnimAssetsWindow::GetCurrentTargetMeshPath)
 						.OnObjectChanged(this, &SRetargetAnimAssetsWindow::TargetMeshAssigned)
-						.OnShouldFilterAsset_Lambda([this](const FAssetData& AssetData)
-						{
-							/*
-							if (!BatchContext.IKRetargetAsset)
-							{
-								return true;
-							}
-							
-							USkeletalMesh* Mesh = Cast<USkeletalMesh>(AssetData.GetAsset());
-							if (!Mesh)
-							{
-								return true;
-							}
-
-							
-							USkeletalMesh* PreviewMesh = BatchContext.IKRetargetAsset->TargetIKRigAsset->GetPreviewMesh();
-							if (!PreviewMesh)
-							{
-								return true;
-							}
-							
-							return Mesh->GetSkeleton() != PreviewMesh->GetSkeleton();*/
-							return false;
-						})
 					]
 				]
 			]
@@ -707,12 +663,9 @@ void SRetargetAnimAssetsWindow::RetargeterAssigned(const FAssetData& InAssetData
 {
 	UIKRetargeter* InRetargeter = Cast<UIKRetargeter>(InAssetData.GetAsset());
 	BatchContext.IKRetargetAsset = InRetargeter;
-	const UIKRigDefinition* SourceIKRig = InRetargeter ? InRetargeter->GetSourceIKRig() : nullptr;
-	const UIKRigDefinition* TargetIKRig = InRetargeter ? InRetargeter->GetTargetIKRig() : nullptr;
-	USkeletalMesh* SourceMesh =  SourceIKRig ? SourceIKRig->GetPreviewMesh() : nullptr;
-	USkeletalMesh* TargetMesh =  TargetIKRig ? TargetIKRig->GetPreviewMesh() : nullptr;
-	SourceMeshAssigned(FAssetData(SourceMesh));
-	TargetMeshAssigned(FAssetData(TargetMesh));
+	const UIKRetargeterController* Controller = UIKRetargeterController::GetController(InRetargeter);
+	SourceMeshAssigned(FAssetData(Controller->GetSourcePreviewMesh()));
+	TargetMeshAssigned(FAssetData(Controller->GetTargetPreviewMesh()));
 }
 
 ECheckBoxState SRetargetAnimAssetsWindow::IsRemappingReferencedAssets() const

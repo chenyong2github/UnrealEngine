@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IKRigDataTypes.h"
+#include "IKRigLogger.h"
 #include "IKRigSkeleton.h"
 
 #include "IKRigProcessor.generated.h"
@@ -42,12 +43,9 @@ public:
 	/** setup a new processor to run the given IKRig asset
 	 *  NOTE!! this function creates new UObjects and consequently MUST be called from the main thread!!
 	 *  @param InRigAsset - the IK Rig defining the collection of solvers to execute and all the rig settings
-	 *  @param InputSkeleton - the skeleton in reference pose that you want to solve the IK on
+	 *  @param SkeletalMesh - the skeletal mesh you want to solve the IK on
 	 */
-	void Initialize(const UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton);
-
-	/** Anim Graph: convenience to initialize directly from an FReferenceSkeleton. */
-	void Initialize(const UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton);
+	void Initialize(const UIKRigDefinition* InRigAsset, const USkeletalMesh* SkeletalMesh);
 
 	//
 	// BEGIN UPDATE SEQUENCE FUNCTIONS

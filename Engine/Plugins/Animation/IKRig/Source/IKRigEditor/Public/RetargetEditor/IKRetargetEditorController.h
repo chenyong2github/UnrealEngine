@@ -3,12 +3,14 @@
 
 #include "IKRetargeterController.h"
 #include "IPersonaToolkit.h"
+#include "SIKRetargetAssetBrowser.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
 #include "Input/Reply.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SWindow.h"
 
+class SIKRigOutputLog;
 class UIKRetargetProcessor;
 class SIKRetargetChainMapList;
 class UIKRetargetAnimInstance;
@@ -56,10 +58,17 @@ public:
 	void AddOffsetAndUpdatePreviewMeshPosition(const FVector& Offset, USceneComponent* Component) const;
 
 	/** asset properties tab */
-	TSharedPtr<class IDetailsView> DetailsView;
-
+	TSharedPtr<IDetailsView> DetailsView;
 	/** chain list view */
 	TSharedPtr<SIKRetargetChainMapList> ChainsView;
+	/** asset browser view */
+	TSharedPtr<SIKRetargetAssetBrowser> AssetBrowserView;
+	/** output log view */
+	TSharedPtr<SIKRigOutputLog> OutputLogView;
+	/** clear the output log */
+	void ClearOutputLog() const;
+	/** force refresh all views in the editor */
+	void RefreshAllViews() const;
 
 	/** get the source skeletal mesh we are copying FROM */
 	USkeletalMesh* GetSourceSkeletalMesh() const;
@@ -115,6 +124,4 @@ public:
 	FText GetCurrentPoseName() const;
 	void OnPoseSelected(TSharedPtr<FName> InPoseName, ESelectInfo::Type SelectInfo) const;
 	/* END edit retarget poses */
-
-	void RefreshAllViews() const;
 };

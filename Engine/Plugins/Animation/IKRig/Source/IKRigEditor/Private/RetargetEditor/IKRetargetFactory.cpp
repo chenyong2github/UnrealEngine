@@ -2,6 +2,7 @@
 
 #include "RetargetEditor/IKRetargetFactory.h"
 #include "IKRig/Public/Retargeter/IKRetargeter.h"
+#include "IKRigEditor.h"
 #include "AssetTypeCategories.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
@@ -10,6 +11,7 @@
 #include "RetargetEditor/IKRetargeterController.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Engine/SkeletalMesh.h"
 
 #define LOCTEXT_NAMESPACE "IKRetargeterFactory"
 
@@ -31,13 +33,13 @@ UObject* UIKRetargetFactory::FactoryCreateNew(
 {
 	if (!SourceIKRig.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Unable to create IK Retargter. No source IK Rig asset supplied."));
+		UE_LOG(LogIKRigEditor, Warning, TEXT("Unable to create IK Retargter. No source IK Rig asset supplied."));
 		return nullptr;
 	}
-
-	if (!SourceIKRig->GetPreviewMesh())
+	
+	if (IsValid(SourceIKRig->GetPreviewMesh()))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Unable to create IK Retargter. Source IK Rig does not have an associated skeletal mesh."));
+		UE_LOG(LogIKRigEditor, Warning, TEXT("Unable to create IK Retargter. Source IK Rig does not have an associated skeletal mesh."));
 		return nullptr;
 	}
 	

@@ -4,6 +4,7 @@
 
 #include "ScopedTransaction.h"
 #include "Algo/LevenshteinDistance.h"
+#include "Engine/AssetManager.h"
 #include "Engine/SkeletalMesh.h"
 #include "RetargetEditor/IKRetargetEditorController.h"
 #include "Retargeter/IKRetargeter.h"
@@ -39,9 +40,14 @@ UIKRetargeter* UIKRetargeterController::GetAsset() const
 	return Asset;
 }
 
-FIKRetargetEditorController* UIKRetargeterController::GetEditorController() const
+FName UIKRetargeterController::GetAssetIDAsName() const 
 {
-	return EditorController;
+	if (!Asset)
+	{
+		return NAME_None;
+	}
+
+	return Asset->GetUniqueIDAsName();
 }
 
 void UIKRetargeterController::SetSourceIKRig(UIKRigDefinition* SourceIKRig)
@@ -55,7 +61,25 @@ void UIKRetargeterController::SetTargetIKRig(UIKRigDefinition* TargetIKRig)
 	AutoMapChains();
 }
 
-USkeletalMesh* UIKRetargeterController::GetTargetPreviewMesh()
+USkeletalMesh* UIKRetargeterController::GetSourcePreviewMesh() const
+{
+	// can't preview anything if target IK Rig is null
+	if (!Asset->GetSourceIKRig())
+	{
+		return nullptr;
+	}
+
+	// optionally prefer override if one is provided
+	if (!Asset->SourcePreviewMesh.IsNull())
+	{
+		return Asset->SourcePreviewMesh.LoadSynchronous();
+	}
+
+	// fallback to preview mesh from IK Rig asset
+	return Asset->GetSourceIKRig()->GetPreviewMesh();
+}
+
+USkeletalMesh* UIKRetargeterController::GetTargetPreviewMesh() const
 {
 	// can't preview anything if target IK Rig is null
 	if (!Asset->GetTargetIKRig())
@@ -64,28 +88,28 @@ USkeletalMesh* UIKRetargeterController::GetTargetPreviewMesh()
 	}
 
 	// optionally prefer override if one is provided
-	if (IsValid(Asset->TargetPreviewMesh))
+	if (!Asset->TargetPreviewMesh.IsNull())
 	{
-		return Asset->TargetPreviewMesh.Get();
+		return Asset->TargetPreviewMesh.LoadSynchronous();
 	}
 
 	// fallback to preview mesh from IK Rig asset
-	return Asset->GetTargetIKRig()->PreviewSkeletalMesh.Get();
+	return Asset->GetTargetIKRig()->GetPreviewMesh();
 }
 
 FName UIKRetargeterController::GetSourceRootBone() const
 {
-	return IsValid(Asset->SourceIKRigAsset) ? Asset->SourceIKRigAsset->GetRetargetRoot() : FName("None");
+	return Asset->SourceIKRigAsset.IsValid() ? Asset->SourceIKRigAsset->GetRetargetRoot() : FName("None");
 }
 
 FName UIKRetargeterController::GetTargetRootBone() const
 {
-	return IsValid(Asset->TargetIKRigAsset) ? Asset->TargetIKRigAsset->GetRetargetRoot() : FName("None");
+	return Asset->TargetIKRigAsset.IsValid() ? Asset->TargetIKRigAsset->GetRetargetRoot() : FName("None");
 }
 
 void UIKRetargeterController::GetTargetChainNames(TArray<FName>& OutNames) const
 {
-	if (IsValid(Asset->TargetIKRigAsset))
+	if (Asset->TargetIKRigAsset.IsValid())
 	{
 		const TArray<FBoneChain>& Chains = Asset->TargetIKRigAsset->GetRetargetChains();
 		for (const FBoneChain& Chain : Chains)
@@ -97,7 +121,7 @@ void UIKRetargeterController::GetTargetChainNames(TArray<FName>& OutNames) const
 
 void UIKRetargeterController::GetSourceChainNames(TArray<FName>& OutNames) const
 {
-	if (IsValid(Asset->SourceIKRigAsset))
+	if (Asset->SourceIKRigAsset.IsValid())
 	{
 		const TArray<FBoneChain>& Chains = Asset->SourceIKRigAsset->GetRetargetChains();
 		for (const FBoneChain& Chain : Chains)
@@ -109,7 +133,7 @@ void UIKRetargeterController::GetSourceChainNames(TArray<FName>& OutNames) const
 
 void UIKRetargeterController::CleanChainMapping(const bool bForceReinitialization)
 {
-	if (!IsValid(Asset->TargetIKRigAsset))
+	if (!Asset->TargetIKRigAsset.IsValid())
 	{
 		// empty the chain mapping
 		Asset->ChainSettings.Empty();
@@ -176,20 +200,20 @@ void UIKRetargeterController::CleanChainMapping(const bool bForceReinitializatio
 void UIKRetargeterController::CleanPoseList(const bool bForceReinitialization)
 {
 	// enforce the existence of a default pose
-	const bool HasDefaultPose = Asset->RetargetPoses.Contains(Asset->DefaultPoseName);
+	const bool HasDefaultPose = Asset->RetargetPoses.Contains(UIKRetargeter::GetDefaultPoseName());
 	if (!HasDefaultPose)
 	{
-		Asset->RetargetPoses.Emplace(Asset->DefaultPoseName);
+		Asset->RetargetPoses.Emplace(UIKRetargeter::GetDefaultPoseName());
 	}
 	
 	// use default pose unless set to something else
 	if (Asset->CurrentRetargetPose == NAME_None)
 	{
-		Asset->CurrentRetargetPose = Asset->DefaultPoseName;
+		Asset->CurrentRetargetPose = UIKRetargeter::GetDefaultPoseName();
 	}
 
 	// remove all bone offsets that are no longer part of the target skeleton
-	if (IsValid(Asset->TargetIKRigAsset))
+	if (Asset->TargetIKRigAsset.IsValid())
 	{
 		const TArray<FName> AllowedBoneNames = Asset->TargetIKRigAsset->Skeleton.BoneNames;
 		for (TTuple<FName, FIKRetargetPose>& Pose : Asset->RetargetPoses)
@@ -329,21 +353,6 @@ const TArray<TObjectPtr<URetargetChainSettings>>& UIKRetargeterController::GetCh
 	return Asset->ChainSettings;
 }
 
-USkeleton* UIKRetargeterController::GetSourceSkeletonAsset() const
-{
-	if (!IsValid(Asset->SourceIKRigAsset))
-	{
-		return nullptr;
-	}
-
-	if (!Asset->SourceIKRigAsset->PreviewSkeletalMesh)
-	{
-		return nullptr;
-	}
-
-	return Asset->SourceIKRigAsset->PreviewSkeletalMesh->GetSkeleton();
-}
-
 void UIKRetargeterController::AddRetargetPose(FName NewPoseName) const
 {
 	FScopedTransaction Transaction(LOCTEXT("AddRetargetPose", "Add Retarget Pose"));
@@ -382,7 +391,7 @@ void UIKRetargeterController::RenameCurrentRetargetPose(FName NewPoseName) const
 
 void UIKRetargeterController::RemoveRetargetPose(FName PoseToRemove) const
 {
-	if (PoseToRemove == Asset->DefaultPoseName)
+	if (PoseToRemove == Asset->GetDefaultPoseName())
 	{
 		return; // cannot remove default pose
 	}
@@ -400,7 +409,7 @@ void UIKRetargeterController::RemoveRetargetPose(FName PoseToRemove) const
 	// did we remove the currently used pose?
 	if (Asset->CurrentRetargetPose == PoseToRemove)
 	{
-		Asset->CurrentRetargetPose = UIKRetargeter::DefaultPoseName;
+		Asset->CurrentRetargetPose = UIKRetargeter::GetDefaultPoseName();
 	}
 
 	BroadcastNeedsReinitialized();

@@ -18,3 +18,5 @@ private:
 
 	TArray<FName> ClassesToUnregisterOnShutdown;
 };
+
+DECLARE_LOG_CATEGORY_EXTERN(LogIKRigEditor, Warning, All);

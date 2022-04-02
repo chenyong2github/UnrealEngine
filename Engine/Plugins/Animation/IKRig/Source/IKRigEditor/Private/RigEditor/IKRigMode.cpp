@@ -8,6 +8,7 @@
 #include "Modules/ModuleManager.h"
 #include "PersonaTabs.h"
 #include "RigEditor/IKRigAssetBrowserTabSummoner.h"
+#include "RigEditor/IKRigOutputLogTabSummoner.h"
 #include "RigEditor/IKRigSkeletonTabSummoner.h"
 #include "RigEditor/IKRigSolverStackTabSummoner.h"
 #include "RigEditor/IKRigRetargetChainTabSummoner.h"
@@ -31,7 +32,6 @@ FIKRigMode::FIKRigMode(
 	// register Persona tabs
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 	TabFactories.RegisterFactory(PersonaModule.CreatePersonaViewportTabFactory(InHostingApp, ViewportArgs));
-	TabFactories.RegisterFactory(PersonaModule.CreateAdvancedPreviewSceneTabFactory(InHostingApp, InPreviewScene));
 	TabFactories.RegisterFactory(PersonaModule.CreateDetailsTabFactory(InHostingApp, FOnDetailsCreated::CreateSP(&IKRigEditor.Get(), &FIKRigEditorToolkit::HandleDetailsCreated)));
 
 	// register custom tabs
@@ -39,9 +39,10 @@ FIKRigMode::FIKRigMode(
 	TabFactories.RegisterFactory(MakeShared<FIKRigSkeletonTabSummoner>(IKRigEditor));
 	TabFactories.RegisterFactory(MakeShared<FIKRigSolverStackTabSummoner>(IKRigEditor));
 	TabFactories.RegisterFactory(MakeShared<FIKRigRetargetChainTabSummoner>(IKRigEditor));
+	TabFactories.RegisterFactory(MakeShared<FIKRigOutputLogTabSummoner>(IKRigEditor));
 
 	// create tab layout
-	TabLayout = FTabManager::NewLayout("Standalone_IKRigEditor_Layout_v1.123")
+	TabLayout = FTabManager::NewLayout("Standalone_IKRigEditor_Layout_v1.125")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -71,10 +72,22 @@ FIKRigMode::FIKRigMode(
 				)
 				->Split
 				(
+					FTabManager::NewSplitter()
+					->SetSizeCoefficient(0.8f)
+					->SetOrientation(Orient_Vertical)
+					->Split
+					(
 					FTabManager::NewStack()
-					->SetSizeCoefficient(0.6f)
-					->SetHideTabWell(true)
-					->AddTab(FPersonaTabs::PreviewViewportID, ETabState::OpenedTab)
+						->SetSizeCoefficient(0.6f)
+						->SetHideTabWell(true)
+						->AddTab(FPersonaTabs::PreviewViewportID, ETabState::OpenedTab)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.2f)
+						->AddTab(FIKRigOutputLogTabSummoner::TabID, ETabState::OpenedTab)
+					)
 				)
 				->Split
 				(
@@ -86,7 +99,6 @@ FIKRigMode::FIKRigMode(
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.6f)
 						->AddTab(FPersonaTabs::DetailsID, ETabState::OpenedTab)
-						->AddTab(FPersonaTabs::AdvancedPreviewSceneSettingsID, ETabState::OpenedTab)
 						->SetForegroundTab(FPersonaTabs::DetailsID)
                     )
                     ->Split

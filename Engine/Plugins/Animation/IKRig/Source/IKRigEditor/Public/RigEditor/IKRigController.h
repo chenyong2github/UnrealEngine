@@ -31,6 +31,8 @@ public:
 	
 	/** Get the asset this controller controls. */
 	UIKRigDefinition* GetAsset() const;
+	/** Get unique asset integer ID as a name */
+	FName GetAssetIDAsName() const;
 
 	/** SKELETON
 	 * 
@@ -38,8 +40,6 @@ public:
 	/** Sets the preview mesh to use, can optionally reinitialize the skeleton with bReImportBone=true.
 	 * Returns true if the mesh was able to be set. False if it was incompatible for any reason. */
 	bool SetSkeletalMesh(USkeletalMesh* SkeletalMesh, bool bTransact=false) const;
-	/** Get the skeletal mesh asset this IK Rig was initialized with */
-	USkeletalMesh* GetSkeletalMesh() const;
 	/** Get read-access to the IKRig skeleton representation */
 	const FIKRigSkeleton& GetIKRigSkeleton() const;
 	/** Get the USkeleton asset this rig was initialized with */

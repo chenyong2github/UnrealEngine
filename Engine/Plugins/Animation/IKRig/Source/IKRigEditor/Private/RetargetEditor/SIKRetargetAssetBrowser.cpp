@@ -9,6 +9,8 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/PoseAsset.h"
+
+#include "IKRigEditor.h"
 #include "RetargetEditor/IKRetargetBatchOperation.h"
 #include "RetargetEditor/IKRetargetEditorController.h"
 #include "RetargetEditor/SRetargetAnimAssetsWindow.h"
@@ -22,6 +24,7 @@ void SIKRetargetAssetBrowser::Construct(
 	TSharedRef<FIKRetargetEditorController> InEditorController)
 {
 	EditorController = InEditorController;
+	EditorController.Pin()->AssetBrowserView = SharedThis(this);
 	
 	ChildSlot
     [
@@ -45,10 +48,10 @@ void SIKRetargetAssetBrowser::Construct(
 		]
     ];
 
-	AddAssetBrowser();
+	RefreshView();
 }
 
-void SIKRetargetAssetBrowser::AddAssetBrowser()
+void SIKRetargetAssetBrowser::RefreshView()
 {
 	FAssetPickerConfig AssetPickerConfig;
 
@@ -115,7 +118,7 @@ FReply SIKRetargetAssetBrowser::OnExportButtonClicked() const
 	TArray<FAssetData> SelectedAssets = GetCurrentSelectionDelegate.Execute();
 	for (const FAssetData& Asset : SelectedAssets)
 	{
-		UE_LOG(LogTemp, Display, TEXT("Duplicating and Retargeting: %s"), *Asset.GetFullName());
+		UE_LOG(LogIKRigEditor, Display, TEXT("Duplicating and Retargeting: %s"), *Asset.GetFullName());
 
 		BatchContext.AssetsToRetarget.Add(Asset.GetAsset());
 	}

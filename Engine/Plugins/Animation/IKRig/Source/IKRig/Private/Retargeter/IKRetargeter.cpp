@@ -2,13 +2,12 @@
 
 #include "Retargeter/IKRetargeter.h"
 
-const FName UIKRetargeter::DefaultPoseName = "Default Pose";
+#if WITH_EDITOR
 const FName UIKRetargeter::GetSourceIKRigPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, SourceIKRigAsset); };
 const FName UIKRetargeter::GetTargetIKRigPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetIKRigAsset); };
-#if WITH_EDITOR
-const FName UIKRetargeter::GetTargetPreviewMeshPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetPreviewMesh); };
+const FName UIKRetargeter::GetSourcePreviewMeshPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, SourcePreviewMesh); };
+const FName UIKRetargeter::GetTargetPreviewMeshPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetPreviewMesh); }
 #endif
-const FName UIKRetargeter::GetDefaultPoseName() { return DefaultPoseName; }
 
 void UIKRetargeter::PostLoad()
 {
@@ -62,6 +61,15 @@ void UIKRetargeter::PostLoad()
 
 	// remove null settings
 	ChainSettings.Remove(nullptr);
+
+	// ensure current pose is valid
+	if (!RetargetPoses.Contains(CurrentRetargetPose))
+	{
+		CurrentRetargetPose = UIKRetargeter::GetDefaultPoseName();
+	}
+
+	// set the log target
+	Log.SetLogTarget(GetUniqueIDAsName(), false);
 }
 
 void FIKRetargetPose::SetBoneRotationOffset(FName BoneName, FQuat RotationDelta, const FIKRigSkeleton& Skeleton)
@@ -92,3 +100,15 @@ void FIKRetargetPose::SortHierarchically(const FIKRigSkeleton& Skeleton)
 		return Skeleton.GetBoneIndexFromName(A) > Skeleton.GetBoneIndexFromName(B);
 	});
 }
+
+FName UIKRetargeter::GetUniqueIDAsName() const
+{
+	static const FString IKRetargetIDPrefix("IKRetargeter_");
+	return FName(IKRetargetIDPrefix + FString::FromInt(GetUniqueID()));
+}
+
+const FName UIKRetargeter::GetDefaultPoseName()
+{
+	static const FName DefaultPoseName = "Default Pose";
+	return DefaultPoseName;
+};

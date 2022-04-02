@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigEditor/IKRigDefinitionFactory.h"
+#include "IKRigEditor.h"
 #include "IKRigDefinition.h"
 #include "AssetTypeCategories.h"
 #include "ContentBrowserModule.h"
@@ -30,7 +31,7 @@ UObject* UIKRigDefinitionFactory::FactoryCreateNew(
 {
 	if (!SkeletalMesh.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Unable to create IK Rig. No Skeletal Mesh asset supplied."));
+		UE_LOG(LogIKRigEditor, Warning, TEXT("Unable to create IK Rig. No Skeletal Mesh asset supplied."));
 		return nullptr;
 	}
 	

@@ -55,10 +55,6 @@ void FIKRigEditorToolkit::InitAssetEditor(
 	
 	const FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 	PersonaToolkit = PersonaModule.CreatePersonaToolkit(IKRigAsset, PersonaToolkitArgs);
-	
-	
-	// when/if preview mesh is changed, we need to reinitialize the anim instance
-    PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FIKRigEditorToolkit::HandlePreviewMeshChanged));
 
 	const TSharedRef<IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(IKRigAsset);
 	AssetFamily->RecordAssetOpened(FAssetData(IKRigAsset));
@@ -107,7 +103,7 @@ void FIKRigEditorToolkit::BindCommands()
 
 	ToolkitCommands->MapAction(
         Commands.Reset,
-        FExecuteAction::CreateSP(this, &FIKRigEditorToolkit::HandleReset),
+        FExecuteAction::CreateSP(EditorController, &FIKRigEditorController::Reset),
 		EUIActionRepeatMode::RepeatDisabled);
 }
 
@@ -198,12 +194,16 @@ void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 	EditorController->SkelMeshComponent = NewObject<UDebugSkelMeshComponent>(Actor);
 
 	// setup an apply an anim instance to the skeletal mesh component
-	EditorController->AnimInstance = NewObject<UIKRigAnimInstance>(EditorController->SkelMeshComponent, TEXT("IKRigAnimScriptInstance"));
-	SetupAnimInstance();
+	UIKRigAnimInstance* AnimInstance = NewObject<UIKRigAnimInstance>(EditorController->SkelMeshComponent, TEXT("IKRigAnimScriptInstance"));
+	EditorController->AnimInstance = AnimInstance;
+	AnimInstance->SetIKRigAsset(EditorController->AssetController->GetAsset());
+	EditorController->SkelMeshComponent->PreviewInstance = AnimInstance;
+	EditorController->OnIKRigNeedsInitialized(EditorController->AssetController->GetAsset());
+	AnimInstance->InitializeAnimation();
 
 	// set the skeletal mesh on the component
 	// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
-	USkeletalMesh* Mesh = EditorController->AssetController->GetSkeletalMesh();
+	USkeletalMesh* Mesh = EditorController->AssetController->GetAsset()->GetPreviewMesh();
 	EditorController->SkelMeshComponent->SetSkeletalMesh(Mesh);
 
 	// apply mesh to the preview scene
@@ -215,60 +215,9 @@ void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 	InPersonaPreviewScene->AddComponent(EditorController->SkelMeshComponent, FTransform::Identity);
 }
 
-void FIKRigEditorToolkit::HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMesh, USkeletalMesh* InNewSkeletalMesh)
-{
-	if (InOldSkeletalMesh == InNewSkeletalMesh)
-	{
-		return; // already set to this skeletal mesh
-	}
-
-	// we do not reset the current skeletal mesh to keep track of the last valid one but we still need to reinit 
-	if (!InNewSkeletalMesh)
-	{
-		EditorController->AssetController->BroadcastNeedsReinitialized();
-		return;
-	}
-	
-	// update asset with new skeletal mesh (will copy new skeleton data)
-	if (!EditorController->AssetController->SetSkeletalMesh(InNewSkeletalMesh))
-	{
-		return; // mesh was not set (incompatible for some reason) todo, show reason in UI someplace
-	}
-
-	// update anim instance to use new skeletal mesh
-	// this is required so that the bone containers passed around during update/eval are correctly sized
-	UDebugSkelMeshComponent* EditorSkelComp = Cast<UDebugSkelMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
-	if (EditorSkelComp)
-	{
-		bool bWasCreated = false;
-		EditorController->AnimInstance = FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UIKRigAnimInstance>(EditorSkelComp , bWasCreated);
-		SetupAnimInstance();
-	}
-
-	EditorController->SkelMeshComponent->SetSkeletalMesh(InNewSkeletalMesh);
-	
-	EditorController->RefreshAllViews();
-}
-
 void FIKRigEditorToolkit::HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView) const
 {
 	EditorController->SetDetailsView(InDetailsView);
-	EditorController->ShowEmptyDetails();
 }
-
-void FIKRigEditorToolkit::HandleReset()
-{
-	EditorController.Get().Reset();
-}
-
-void FIKRigEditorToolkit::SetupAnimInstance()
-{
-	UIKRigAnimInstance* InAnimInstance = EditorController->AnimInstance.Get();
-	InAnimInstance->SetIKRigAsset(EditorController->AssetController->GetAsset());
-	EditorController->SkelMeshComponent->PreviewInstance = InAnimInstance;
-	InAnimInstance->InitializeAnimation();
-	EditorController->OnIKRigNeedsInitialized(EditorController->AssetController->GetAsset());
-}
-
 
 #undef LOCTEXT_NAMESPACE

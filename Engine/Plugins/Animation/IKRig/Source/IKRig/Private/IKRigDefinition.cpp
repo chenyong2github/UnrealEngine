@@ -6,14 +6,13 @@
 #include "Engine/SkeletalMesh.h"
 
 #if WITH_EDITOR
-
 #include "HAL/PlatformApplicationMisc.h"
-
 #endif
 
-#define LOCTEXT_NAMESPACE	"IKRigDefinition"
+#define LOCTEXT_NAMESPACE "IKRigDefinition"
 
 #if WITH_EDITOR
+const FName UIKRigDefinition::GetPreviewMeshPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRigDefinition, PreviewSkeletalMesh); };
 
 TOptional<FTransform::FReal> UIKRigEffectorGoal::GetNumericValue(
 	ESlateTransformComponent::Type Component,
@@ -273,6 +272,13 @@ void UIKRigDefinition::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FIKRigObjectVersion::GUID);
 }
 
+void UIKRigDefinition::PostLoad()
+{
+	Super::PostLoad();
+
+	Log.SetLogTarget(GetUniqueIDAsName(), false);
+}
+
 const FBoneChain* UIKRigDefinition::GetRetargetChainByName(FName ChainName) const
 {
 	for (const FBoneChain& Chain : RetargetDefinition.BoneChains)
@@ -293,7 +299,13 @@ void UIKRigDefinition::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDi
 
 USkeletalMesh* UIKRigDefinition::GetPreviewMesh() const
 {
-	return PreviewSkeletalMesh.Get();
+	return PreviewSkeletalMesh.LoadSynchronous();
+}
+
+FName UIKRigDefinition::GetUniqueIDAsName() const
+{
+	static const FString IKRigIDPrefix("IKRig_");
+	return FName(IKRigIDPrefix + FString::FromInt(GetUniqueID()));
 }
 
 #undef LOCTEXT_NAMESPACE

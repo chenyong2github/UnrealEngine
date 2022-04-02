@@ -4,10 +4,9 @@
 
 #include "CoreMinimal.h"
 
-#include "ReferenceSkeleton.h"
-
 #include "IKRigSkeleton.generated.h"
 
+class USkeletalMesh;
 class UIKRigDefinition;
 class UIKRigSolver;
 
@@ -42,33 +41,15 @@ struct IKRIG_API FIKRigInputSkeleton
 	TArray<FName> BoneNames;
 	TArray<int32> ParentIndices;
 	TArray<FTransform> LocalRefPose;
+	FName SkeletalMeshName;
 
 	FIKRigInputSkeleton() = default;
 	
-	FIKRigInputSkeleton(const FReferenceSkeleton& RefSkeleton)
-	{
-		Initialize(RefSkeleton);
-	}
+	FIKRigInputSkeleton(const USkeletalMesh* SkeletalMesh);
 
-	void Initialize(const FReferenceSkeleton& RefSkeleton)
-	{
-		Reset();
-		
-		const TArray<FMeshBoneInfo>& BoneInfo = RefSkeleton.GetRefBoneInfo();
-		for (int32 BoneIndex=0; BoneIndex<BoneInfo.Num(); ++BoneIndex)
-		{
-			BoneNames.Add(BoneInfo[BoneIndex].Name);
-			ParentIndices.Add(BoneInfo[BoneIndex].ParentIndex);
-			LocalRefPose.Add(RefSkeleton.GetRefBonePose()[BoneIndex]);
-		}
-	}
+	void Initialize(const USkeletalMesh* SkeletalMesh);
 
-	void Reset()
-	{
-		BoneNames.Reset();
-		ParentIndices.Reset();
-		LocalRefPose.Reset();
-	}
+	void Reset();
 };
 
 USTRUCT()
@@ -100,7 +81,7 @@ struct IKRIG_API FIKRigSkeleton
 	UPROPERTY(VisibleAnywhere, Category = Skeleton)
 	TArray<FTransform> RefPoseGlobal;
 
-	void SetInputSkeleton(const FReferenceSkeleton& RefSkeleton, const TArray<FName>& InExcludedBones);
+	void SetInputSkeleton(const USkeletalMesh* SkeletalMesh, const TArray<FName>& InExcludedBones);
 
 	void SetInputSkeleton(const FIKRigInputSkeleton& InputSkeleton, const TArray<FName>& InExcludedBones);
 

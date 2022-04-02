@@ -7,7 +7,6 @@
 
 #define LOCTEXT_NAMESPACE "FIKRigModule"
 
-DEFINE_LOG_CATEGORY(LogIKRig);
 
 // Unique IK Rig Object version id
 const FGuid FIKRigObjectVersion::GUID(0xF6DFBB78, 0xBB50A0E4, 0x4018B84D, 0x60CBAF23);

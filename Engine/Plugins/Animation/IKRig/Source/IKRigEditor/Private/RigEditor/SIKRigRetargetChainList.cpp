@@ -265,7 +265,7 @@ const FReferenceSkeleton& SIKRigRetargetChainRow::GetReferenceSkeleton() const
 		return DummySkeleton; 
 	}
 
-	USkeletalMesh* SkeletalMesh = Controller->AssetController->GetSkeletalMesh();
+	USkeletalMesh* SkeletalMesh = Controller->AssetController->GetAsset()->GetPreviewMesh();
 	if (SkeletalMesh == nullptr)
 	{
 		return DummySkeleton;

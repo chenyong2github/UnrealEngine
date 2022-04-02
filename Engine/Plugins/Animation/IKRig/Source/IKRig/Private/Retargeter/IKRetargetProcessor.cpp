@@ -3,10 +3,12 @@
 #include "Retargeter/IKRetargetProcessor.h"
 
 #include "IKRigDefinition.h"
+#include "IKRigLogger.h"
 #include "IKRigProcessor.h"
 #include "Engine/SkeletalMesh.h"
 #include "Retargeter/IKRetargeter.h"
 
+#define LOCTEXT_NAMESPACE "IKRetargetProcessor"
 
 void FRetargetSkeleton::Initialize(USkeletalMesh* InSkeletalMesh)
 {	
@@ -307,7 +309,8 @@ void FTargetSkeleton::SetBoneIsRetargeted(const int32 BoneIndex, const bool IsRe
 bool FChainFK::Initialize(
 	const FRetargetSkeleton& Skeleton,
 	const TArray<int32>& BoneIndices,
-	const TArray<FTransform>& InitialGlobalPose)
+	const TArray<FTransform>& InitialGlobalPose,
+	FIKRigLogger& Log)
 {
 	check(!BoneIndices.IsEmpty());
 
@@ -338,10 +341,10 @@ bool FChainFK::Initialize(
 	}
 
 	// calculate parameter of each bone, normalized by the length of the bone chain
-	return CalculateBoneParameters();
+	return CalculateBoneParameters(Log);
 }
 
-bool FChainFK::CalculateBoneParameters()
+bool FChainFK::CalculateBoneParameters(FIKRigLogger& Log)
 {
 	Params.Reset();
 	
@@ -365,7 +368,7 @@ bool FChainFK::CalculateBoneParameters()
 	// cannot retarget chain if all the bones are sitting directly on each other
 	if (TotalChainLength <= KINDA_SMALL_NUMBER)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter bone chain length is too small to reliably retarget."));
+		Log.LogWarning(LOCTEXT("TinyBoneChain", "IK Retargeter bone chain length is too small to reliably retarget."));
 		return false;
 	}
 
@@ -736,11 +739,12 @@ FTransform FChainDecoderFK::GetTransformAtParam(
 
 bool FChainRetargeterIK::InitializeSource(
 	const TArray<int32>& BoneIndices,
-	const TArray<FTransform>& SourceInitialGlobalPose)
+	const TArray<FTransform>& SourceInitialGlobalPose,
+	FIKRigLogger& Log)
 {
 	if (BoneIndices.Num() < 3)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter trying to retarget source bone chain with IK but it has less than 3 joints."));
+		Log.LogWarning(LOCTEXT("SourceChainLessThanThree", "IK Retargeter trying to retarget source bone chain with IK but it has less than 3 joints."));
 		return false;
 	}
 	
@@ -758,7 +762,7 @@ bool FChainRetargeterIK::InitializeSource(
 
 	if (Length <= KINDA_SMALL_NUMBER)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter trying to retarget source bone chain with IK, but it is zero length!"));
+		Log.LogWarning(LOCTEXT("SourceZeroLengthIK", "IK Retargeter trying to retarget source bone chain with IK, but it is zero length!"));
     	return false;
 	}
 
@@ -790,11 +794,12 @@ void FChainRetargeterIK::EncodePose(const TArray<FTransform>& InSourceGlobalPose
 
 bool FChainRetargeterIK::InitializeTarget(
 	const TArray<int32>& BoneIndices,
-	const TArray<FTransform> &TargetInitialGlobalPose)
+	const TArray<FTransform> &TargetInitialGlobalPose,
+	FIKRigLogger& Log)
 {
 	if (BoneIndices.Num() < 3)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter trying to retarget target bone chain with IK but it has less than 3 joints."));
+		Log.LogWarning(LOCTEXT("TargetChainLessThanThree", "IK Retargeter trying to retarget target bone chain with IK but it has less than 3 joints."));
 		return false;
 	}
 	
@@ -808,7 +813,7 @@ bool FChainRetargeterIK::InitializeTarget(
 
 	if (Target.InitialLength <= KINDA_SMALL_NUMBER)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter trying to retarget bone chain with IK, but it is zero length!"));
+		Log.LogWarning(LOCTEXT("TargetZeroLengthIK", "IK Retargeter trying to retarget target bone chain with IK, but it is zero length!"));
 		return false;
 	}
 	
@@ -897,30 +902,35 @@ bool FRetargetChainPair::Initialize(
     const FBoneChain& SourceBoneChain,
     const FBoneChain& TargetBoneChain,
     const FRetargetSkeleton& SourceSkeleton,
-    const FTargetSkeleton& TargetSkeleton)
+    const FTargetSkeleton& TargetSkeleton,
+    FIKRigLogger& Log)
 {
 	// validate source bone chain is compatible with source skeletal mesh
-	const bool bIsSourceValid = ValidateBoneChainWithSkeletalMesh(true, SourceBoneChain, SourceSkeleton);
+	const bool bIsSourceValid = ValidateBoneChainWithSkeletalMesh(true, SourceBoneChain, SourceSkeleton, Log);
 	if (!bIsSourceValid)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter source bone chain, '%s', is not compatible with Skeletal Mesh: '%s'"),
-			*SourceBoneChain.ChainName.ToString(), *SourceSkeleton.SkeletalMesh->GetName());
+		Log.LogWarning( FText::Format(
+			LOCTEXT("IncompatibleSourceChain", "IK Retargeter source bone chain, '{0}', is not compatible with Skeletal Mesh: '{1}'"),
+			FText::FromName(SourceBoneChain.ChainName), FText::FromString(SourceSkeleton.SkeletalMesh->GetName())));
 		return false;
 	}
 
 	// validate target bone chain is compatible with target skeletal mesh
-	const bool bIsTargetValid = ValidateBoneChainWithSkeletalMesh(false, TargetBoneChain, TargetSkeleton);
+	const bool bIsTargetValid = ValidateBoneChainWithSkeletalMesh(false, TargetBoneChain, TargetSkeleton, Log);
 	if (!bIsTargetValid)
     {
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter target bone chain, '%s', is not compatible with Skeletal Mesh: '%s'"),
-            *TargetBoneChain.ChainName.ToString(), *TargetSkeleton.SkeletalMesh->GetName());
+		Log.LogWarning( FText::Format(
+			LOCTEXT("IncompatibleTargetChain", "IK Retargeter target bone chain, '{0}', is not compatible with Skeletal Mesh: '{1}'"),
+			FText::FromName(TargetBoneChain.ChainName), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
 		return false;
     }
 
 	// ensure valid settings object
 	if (InSettings == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter target bone chain, '%s', has null settings."), *TargetBoneChain.ChainName.ToString());
+		Log.LogWarning( FText::Format(
+			LOCTEXT("MissingChainSettings", "IK Retargeter target bone chain, '{0}', has null settings."),
+			FText::FromName(TargetBoneChain.ChainName)));
 		return false;
 	}
 
@@ -935,7 +945,8 @@ bool FRetargetChainPair::Initialize(
 bool FRetargetChainPair::ValidateBoneChainWithSkeletalMesh(
     const bool IsSource,
     const FBoneChain& BoneChain,
-    const FRetargetSkeleton& RetargetSkeleton)
+    const FRetargetSkeleton& RetargetSkeleton,
+    FIKRigLogger& Log)
 {
 	// record the chain indices
 	TArray<int32>& BoneIndices = IsSource ? SourceBoneIndices : TargetBoneIndices;
@@ -946,22 +957,27 @@ bool FRetargetChainPair::ValidateBoneChainWithSkeletalMesh(
 	// warn if START bone not found
 	if (!ResolvedChain.bFoundStartBone)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter bone chain, %s, could not find start bone, %s in mesh %s"),
-            *BoneChain.ChainName.ToString(), *BoneChain.StartBone.BoneName.ToString(), *RetargetSkeleton.SkeletalMesh->GetName());
+		Log.LogWarning( FText::Format(
+			LOCTEXT("MissingStartBone", "IK Retargeter bone chain, {0}, could not find start bone, {1} in mesh {2}"),
+			FText::FromName(BoneChain.ChainName),
+			FText::FromName(BoneChain.StartBone.BoneName),
+			FText::FromString(RetargetSkeleton.SkeletalMesh->GetName())));
 	}
 	
 	// warn if END bone not found
 	if (!ResolvedChain.bFoundEndBone)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter bone chain, %s, could not find end bone, %s in mesh %s"),
-            *BoneChain.ChainName.ToString(), *BoneChain.EndBone.BoneName.ToString(), *RetargetSkeleton.SkeletalMesh->GetName());
+		Log.LogWarning( FText::Format(
+			LOCTEXT("MissingEndBone", "IK Retargeter bone chain, {0}, could not find end bone, {1} in mesh {2}"),
+			FText::FromName(BoneChain.ChainName), FText::FromName(BoneChain.EndBone.BoneName), FText::FromString(RetargetSkeleton.SkeletalMesh->GetName())));
 	}
 
 	// warn if END bone was not a child of START bone
-	if (!ResolvedChain.bEndIsStartOrChildOfStart)
+	if (ResolvedChain.bFoundEndBone && !ResolvedChain.bEndIsStartOrChildOfStart)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter bone chain, %s, end bone, '%s' was not a child of the start bone '%s'."),
-			*BoneChain.ChainName.ToString(), *BoneChain.EndBone.BoneName.ToString(), *BoneChain.StartBone.BoneName.ToString());
+		Log.LogWarning( FText::Format(
+			LOCTEXT("EndNotChildtOfStart", "IK Retargeter bone chain, {0}, end bone, '{1}' was not a child of the start bone '{2}'."),
+			FText::FromName(BoneChain.ChainName), FText::FromName(BoneChain.EndBone.BoneName), FText::FromName(BoneChain.StartBone.BoneName)));
 	}
 	
 	return ResolvedChain.IsValid();
@@ -972,29 +988,32 @@ bool FRetargetChainPairFK::Initialize(
 	const FBoneChain& SourceBoneChain,
 	const FBoneChain& TargetBoneChain,
 	const FRetargetSkeleton& SourceSkeleton,
-	const FTargetSkeleton& TargetSkeleton)
+	const FTargetSkeleton& TargetSkeleton,
+	FIKRigLogger& Log)
 {
-	const bool bChainInitialized = FRetargetChainPair::Initialize(InSettings, SourceBoneChain, TargetBoneChain, SourceSkeleton, TargetSkeleton);
+	const bool bChainInitialized = FRetargetChainPair::Initialize(InSettings, SourceBoneChain, TargetBoneChain, SourceSkeleton, TargetSkeleton, Log);
 	if (!bChainInitialized)
 	{
 		return false;
 	}
 
 	// initialize SOURCE FK chain encoder with retarget pose
-	const bool bFKEncoderInitialized = FKEncoder.Initialize(SourceSkeleton, SourceBoneIndices, SourceSkeleton.RetargetGlobalPose);
+	const bool bFKEncoderInitialized = FKEncoder.Initialize(SourceSkeleton, SourceBoneIndices, SourceSkeleton.RetargetGlobalPose, Log);
 	if (!bFKEncoderInitialized)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter failed to initialize FK encoder, '%s', on Skeletal Mesh: '%s'"),
-            *SourceBoneChainName.ToString(), *SourceSkeleton.SkeletalMesh->GetName());
+		Log.LogWarning( FText::Format(
+			LOCTEXT("BadFKEncoder", "IK Retargeter failed to initialize FK encoder, '{0}', on Skeletal Mesh: '{1}'"),
+			FText::FromName(SourceBoneChainName), FText::FromString(SourceSkeleton.SkeletalMesh->GetName())));
 		return false;
 	}
 
 	// initialize TARGET FK chain decoder with retarget pose
-	const bool bFKDecoderInitialized = FKDecoder.Initialize(TargetSkeleton, TargetBoneIndices, TargetSkeleton.RetargetGlobalPose);
+	const bool bFKDecoderInitialized = FKDecoder.Initialize(TargetSkeleton, TargetBoneIndices, TargetSkeleton.RetargetGlobalPose, Log);
 	if (!bFKDecoderInitialized)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter failed to initialize FK decoder, '%s', on Skeletal Mesh: '%s'"),
-            *TargetBoneChainName.ToString(), *TargetSkeleton.SkeletalMesh->GetName());
+		Log.LogWarning( FText::Format(
+			LOCTEXT("BadFKDecoder", "IK Retargeter failed to initialize FK decoder, '{0}', on Skeletal Mesh: '{1}'"),
+			FText::FromName(TargetBoneChainName), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
 		return false;
 	}
 
@@ -1006,7 +1025,8 @@ bool FRetargetChainPairIK::Initialize(
 	const FBoneChain& SourceBoneChain,
 	const FBoneChain& TargetBoneChain,
 	const FRetargetSkeleton& SourceSkeleton,
-	const FTargetSkeleton& TargetSkeleton)
+	const FTargetSkeleton& TargetSkeleton,
+	FIKRigLogger& Log)
 {
 	// validate if this chain even uses an IK Goal
 	const bool bUsingIKGoal = TargetBoneChain.IKGoalName != NAME_None && TargetBoneChain.IKGoalName != "- None -";
@@ -1019,41 +1039,47 @@ bool FRetargetChainPairIK::Initialize(
 	IKGoalName = TargetBoneChain.IKGoalName;
 
 	// initialize bone chains
-	const bool bChainInitialized = FRetargetChainPair::Initialize(InSettings, SourceBoneChain, TargetBoneChain, SourceSkeleton, TargetSkeleton);
+	const bool bChainInitialized = FRetargetChainPair::Initialize(InSettings, SourceBoneChain, TargetBoneChain, SourceSkeleton, TargetSkeleton, Log);
 	if (!bChainInitialized)
 	{
 		return false;
 	}
 
 	// initialize SOURCE IK chain encoder with retarget pose
-	const bool bIKEncoderInitialized = IKChainRetargeter.InitializeSource(SourceBoneIndices, SourceSkeleton.RetargetGlobalPose);
+	const bool bIKEncoderInitialized = IKChainRetargeter.InitializeSource(SourceBoneIndices, SourceSkeleton.RetargetGlobalPose, Log);
 	if (!bIKEncoderInitialized)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter failed to initialize IK encoder, '%s', on Skeletal Mesh: '%s'"),
-        *SourceBoneChainName.ToString(), *SourceSkeleton.SkeletalMesh->GetName());
+		Log.LogWarning( FText::Format(
+			LOCTEXT("BadIKEncoder", "IK Retargeter failed to initialize IK encoder, '{0}', on Skeletal Mesh: '{1}'"),
+			FText::FromName(SourceBoneChainName), FText::FromString(SourceSkeleton.SkeletalMesh->GetName())));
 		return false;
 	}
 
 	// initialize TARGET IK chain decoder with retarget pose
-	const bool bIKDecoderInitialized = IKChainRetargeter.InitializeTarget(TargetBoneIndices, TargetSkeleton.RetargetGlobalPose);
+	const bool bIKDecoderInitialized = IKChainRetargeter.InitializeTarget(TargetBoneIndices, TargetSkeleton.RetargetGlobalPose, Log);
 	if (!bIKDecoderInitialized)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter failed to initialize IK decoder, '%s', on Skeletal Mesh: '%s'"),
-        *TargetBoneChainName.ToString(), *TargetSkeleton.SkeletalMesh->GetName());
+		Log.LogWarning( FText::Format(
+			LOCTEXT("BadIKDecoder", "IK Retargeter failed to initialize IK decoder, '{0}', on Skeletal Mesh: '{1}'"),
+			FText::FromName(TargetBoneChainName), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
 		return false;
 	}
 
 	return true;
 }
 
-bool FRootRetargeter::InitializeSource(const FName SourceRootBoneName, const FRetargetSkeleton& SourceSkeleton)
+bool FRootRetargeter::InitializeSource(
+	const FName SourceRootBoneName,
+	const FRetargetSkeleton& SourceSkeleton,
+	FIKRigLogger& Log)
 {
 	// validate target root bone exists
 	Source.BoneIndex = SourceSkeleton.FindBoneIndexByName(SourceRootBoneName);
 	if (Source.BoneIndex == INDEX_NONE)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter could not find source root bone, %s in mesh %s"),
-			*SourceRootBoneName.ToString(), *SourceSkeleton.SkeletalMesh->GetName());
+		Log.LogWarning( FText::Format(
+			LOCTEXT("MissingSourceRoot", "IK Retargeter could not find source root bone, {0} in mesh {1}"),
+			FText::FromName(SourceRootBoneName), FText::FromString(SourceSkeleton.SkeletalMesh->GetName())));
 		return false;
 	}
 	
@@ -1066,7 +1092,7 @@ bool FRootRetargeter::InitializeSource(const FName SourceRootBoneName, const FRe
 	if (InitialHeight < KINDA_SMALL_NUMBER)
 	{
 		// warn user and push it up slightly to avoid divide by zero
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter root bone is very near the ground plane. This is probably not correct."));
+		Log.LogWarning(LOCTEXT("BadRootHeight", "IK Retargeter root bone is very near the ground plane. This is probably not intentional."));
 		InitialHeight = 1.0f;
 	}
 
@@ -1076,14 +1102,18 @@ bool FRootRetargeter::InitializeSource(const FName SourceRootBoneName, const FRe
 	return true;
 }
 
-bool FRootRetargeter::InitializeTarget(const FName TargetRootBoneName, const FTargetSkeleton& TargetSkeleton)
+bool FRootRetargeter::InitializeTarget(
+	const FName TargetRootBoneName,
+	const FTargetSkeleton& TargetSkeleton,
+	FIKRigLogger& Log)
 {
 	// validate target root bone exists
 	Target.BoneIndex = TargetSkeleton.FindBoneIndexByName(TargetRootBoneName);
 	if (Target.BoneIndex == INDEX_NONE)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter could not find target root bone, %s in mesh %s"),
-            *TargetRootBoneName.ToString(), *TargetSkeleton.SkeletalMesh->GetName());
+		Log.LogWarning( FText::Format(
+			LOCTEXT("CountNotFindRootBone", "IK Retargeter could not find target root bone, {0} in mesh {1}"),
+			FText::FromName(TargetRootBoneName), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
 		return false;
 	}
 
@@ -1130,10 +1160,11 @@ void FRootRetargeter::DecodePose(
 void UIKRetargetProcessor::Initialize(
 		USkeletalMesh* SourceSkeletalMesh,
 		USkeletalMesh* TargetSkeletalMesh,
-		UIKRetargeter* InRetargeterAsset)
+		UIKRetargeter* InRetargeterAsset,
+		const bool bSuppressWarnings)
 {
 	bIsInitialized = false;
-
+	
 	// record source asset
 	RetargeterAsset = InRetargeterAsset;
 
@@ -1148,27 +1179,27 @@ void UIKRetargetProcessor::Initialize(
 	// check prerequisite assets
 	if (!SourceSkeletalMesh)
 	{
-		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize. Missing source Skeletal Mesh asset."));
+		RetargeterAsset->Log.LogError(LOCTEXT("MissingSourceMesh", "IK Retargeter unable to initialize. Missing source Skeletal Mesh asset."));
 		return;
 	}
 	if (!TargetSkeletalMesh)
 	{
-		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize. Missing target Skeletal Mesh asset."));
+		RetargeterAsset->Log.LogError(LOCTEXT("MissingTargetMesh", "IK Retargeter unable to initialize. Missing target Skeletal Mesh asset."));
 		return;
 	}
 	if (!RetargeterAsset->GetSourceIKRig())
 	{
-		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize. Missing source IK Rig asset."));
+		RetargeterAsset->Log.LogError(LOCTEXT("MissingSourceIKRig", "IK Retargeter unable to initialize. Missing source IK Rig asset."));
 		return;
 	}
 	if (!RetargeterAsset->GetTargetIKRig())
 	{
-		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize. Missing target IK Rig asset."));
+		RetargeterAsset->Log.LogError(LOCTEXT("MissingTargetIKRig", "IK Retargeter unable to initialize. Missing target IK Rig asset."));
 		return;
 	}
 	if (!RetargeterAsset->GetCurrentRetargetPose())
 	{
-		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize. Missing retarget pose."));
+		RetargeterAsset->Log.LogError(LOCTEXT("MissingRetargetPose", "IK Retargeter unable to initialize. Missing retarget pose."));
 		return;
 	}
 	
@@ -1182,31 +1213,36 @@ void UIKRetargetProcessor::Initialize(
 
 	// initialize roots
 	bRootsInitialized = InitializeRoots();
-	if (!bRootsInitialized)
-	{
-		// couldn't match up any BoneChain pairs, no retargeting possible
-		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize one or more root bones on source, %s and target, %s"),
-            *SourceSkeleton.SkeletalMesh->GetName(), *TargetSkeleton.SkeletalMesh->GetName());
-	}
 
 	// initialize pairs of bone chains
 	bAtLeastOneValidBoneChainPair = InitializeBoneChainPairs();
 	if (!bAtLeastOneValidBoneChainPair)
 	{
 		// couldn't match up any BoneChain pairs, no limb retargeting possible
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter unable to create any Bone Chain pairs between source, %s and target, %s"),
-            *SourceSkeleton.SkeletalMesh->GetName(), *TargetSkeleton.SkeletalMesh->GetName());
+		RetargeterAsset->Log.LogWarning( FText::Format(
+			LOCTEXT("NoMappedChains", "IK Retargeter unable to map any bone chains between source, {0} and target, {1}"),
+			FText::FromString(SourceSkeleton.SkeletalMesh->GetName()), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
 	}
 
 	// initialize the IKRigProcessor for doing IK decoding
-	bIKRigInitialized = InitializeIKRig(this, TargetSkeletalMesh->GetRefSkeleton());
+	bIKRigInitialized = InitializeIKRig(this, TargetSkeletalMesh);
 	if (!bIKRigInitialized)
 	{
 		// couldn't initialize the IK Rig, we don't disable the retargeter in this case, just warn the user
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter unable to initialize IK Rig for %s. See output for details."),
-			*TargetSkeleton.SkeletalMesh->GetName());
+		RetargeterAsset->Log.LogWarning( FText::Format(
+			LOCTEXT("CouldNotInitializeIKRig", "IK Retargeter was unable to initialize the IK Rig, {0} for the Skeletal Mesh {1}. See previous warnings."),
+			FText::FromString(RetargeterAsset->GetTargetIKRig()->GetName()), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
 	}
 
+	// must have a mapped root bone OR at least a single mapped chain to be able to do any retargeting at all
+	if (bRootsInitialized && bAtLeastOneValidBoneChainPair)
+	{
+		// confirm for the user that the IK Rig was initialized successfully
+		RetargeterAsset->Log.LogEditorMessage(FText::Format(
+				LOCTEXT("SuccessfulInit", "Success! The IK Retargeter is ready to transfer animation from the source, {0} to the target, {1}"),
+				FText::FromString(SourceSkeleton.SkeletalMesh->GetName()), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
+	}
+	
 	bIsInitialized = true;
 }
 
@@ -1214,20 +1250,22 @@ bool UIKRetargetProcessor::InitializeRoots()
 {
 	// initialize root encoder
 	const FName SourceRootBoneName = RetargeterAsset->GetSourceIKRig()->GetRetargetRoot();
-	const bool bRootEncoderInit = RootRetargeter.InitializeSource(SourceRootBoneName, SourceSkeleton);
+	const bool bRootEncoderInit = RootRetargeter.InitializeSource(SourceRootBoneName, SourceSkeleton, RetargeterAsset->Log);
 	if (!bRootEncoderInit)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter unable to initialize source root, '%s' on skeletal mesh: '%s'"),
-            *SourceRootBoneName.ToString(), *SourceSkeleton.SkeletalMesh->GetName());
+		RetargeterAsset->Log.LogWarning( FText::Format(
+			LOCTEXT("NoSourceRoot", "IK Retargeter unable to initialize source root, '{0}' on skeletal mesh: '{1}'"),
+			FText::FromName(SourceRootBoneName), FText::FromString(SourceSkeleton.SkeletalMesh->GetName())));
 	}
 
 	// initialize root decoder
 	const FName TargetRootBoneName = RetargeterAsset->GetTargetIKRig()->GetRetargetRoot();
-	const bool bRootDecoderInit = RootRetargeter.InitializeTarget(TargetRootBoneName, TargetSkeleton);
+	const bool bRootDecoderInit = RootRetargeter.InitializeTarget(TargetRootBoneName, TargetSkeleton, RetargeterAsset->Log);
 	if (!bRootDecoderInit)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter unable to initialize target root, '%s' on skeletal mesh: '%s'"),
-            *TargetRootBoneName.ToString(), *TargetSkeleton.SkeletalMesh->GetName());
+		RetargeterAsset->Log.LogWarning( FText::Format(
+			LOCTEXT("NoTargetRoot", "IK Retargeter unable to initialize target root, '{0}' on skeletal mesh: '{1}'"),
+			FText::FromName(TargetRootBoneName), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
 	}
 
 	return bRootEncoderInit && bRootDecoderInit;
@@ -1248,8 +1286,9 @@ bool UIKRetargetProcessor::InitializeBoneChainPairs()
 		const FBoneChain* TargetBoneChain = RetargeterAsset->GetTargetIKRig()->GetRetargetChainByName(ChainMap->TargetChain);
 		if (!TargetBoneChain)
 		{
-			UE_LOG(LogTemp, Error, TEXT("IK Retargeter missing target bone chain: %s. Please update the mapping."), *ChainMap->TargetChain.ToString());
-			continue;
+			RetargeterAsset->Log.LogWarning( FText::Format(
+			LOCTEXT("MissingTargetChain", "IK Retargeter missing target bone chain: {0}. Please update the mapping."),
+			FText::FromString(ChainMap->TargetChain.ToString())));
 		}
 		
 		// user opted to not map this to anything, we don't need to spam a warning about it
@@ -1262,20 +1301,22 @@ bool UIKRetargetProcessor::InitializeBoneChainPairs()
 		const FBoneChain* SourceBoneChain = RetargeterAsset->GetSourceIKRig()->GetRetargetChainByName(ChainMap->SourceChain);
 		if (!SourceBoneChain)
 		{
-			UE_LOG(LogTemp, Error, TEXT("IK Retargeter missing source bone chain: %s"), *ChainMap->SourceChain.ToString());
+			RetargeterAsset->Log.LogWarning( FText::Format(
+			LOCTEXT("MissingSourceChain", "IK Retargeter missing source bone chain: {0}"),
+			FText::FromString(ChainMap->SourceChain.ToString())));
 			continue;
 		}
 
 		// all chains are loaded as FK (giving IK better starting pose)
 		FRetargetChainPairFK ChainPair;
-		if (ChainPair.Initialize(ChainMap, *SourceBoneChain, *TargetBoneChain, SourceSkeleton, TargetSkeleton))
+		if (ChainPair.Initialize(ChainMap, *SourceBoneChain, *TargetBoneChain, SourceSkeleton, TargetSkeleton, RetargeterAsset->Log))
 		{
 			ChainPairsFK.Add(ChainPair);
 		}
 		
 		// load IK chain
 		FRetargetChainPairIK ChainPairIK;
-		if (ChainPairIK.Initialize(ChainMap, *SourceBoneChain, *TargetBoneChain, SourceSkeleton, TargetSkeleton))
+		if (ChainPairIK.Initialize(ChainMap, *SourceBoneChain, *TargetBoneChain, SourceSkeleton, TargetSkeleton, RetargeterAsset->Log))
 		{
 			ChainPairsIK.Add(ChainPairIK);
 		}
@@ -1325,14 +1366,14 @@ bool UIKRetargetProcessor::InitializeBoneChainPairs()
 	return !(ChainPairsIK.IsEmpty() && ChainPairsFK.IsEmpty());
 }
 
-bool UIKRetargetProcessor::InitializeIKRig(UObject* Outer, const FReferenceSkeleton& InRefSkeleton)
+bool UIKRetargetProcessor::InitializeIKRig(UObject* Outer, const USkeletalMesh* InSkeletalMesh)
 {	
 	// initialize IK Rig runtime processor
 	if (!IKRigProcessor)
 	{
 		IKRigProcessor = NewObject<UIKRigProcessor>(Outer);	
 	}
-	IKRigProcessor->Initialize(RetargeterAsset->GetTargetIKRig(), InRefSkeleton);
+	IKRigProcessor->Initialize(RetargeterAsset->GetTargetIKRig(), InSkeletalMesh);
 	if (!IKRigProcessor->IsInitialized())
 	{
 		return false;
@@ -1344,8 +1385,9 @@ bool UIKRetargetProcessor::InitializeIKRig(UObject* Outer, const FReferenceSkele
 		// does the IK rig have the IK goal this bone chain requires?
 		if (!IKRigProcessor->GetGoalContainer().FindGoalByName(ChainPair.IKGoalName))
 		{
-			UE_LOG(LogTemp, Error, TEXT("IK Retargeter has target bone chain, %s that references an IK Goal, %s that is not present in any of the solvers in the IK Rig asset."),
-            *ChainPair.TargetBoneChainName.ToString(), *ChainPair.IKGoalName.ToString());
+			RetargeterAsset->Log.LogError( FText::Format(
+			LOCTEXT("CountNotFindRootBone", "IK Retargeter has target bone chain, {0} that references an IK Goal, {1} that is not present in any of the solvers in the IK Rig asset."),
+			FText::FromName(ChainPair.TargetBoneChainName), FText::FromName(ChainPair.IKGoalName)));
 			return false;
 		}
 	}
@@ -1541,3 +1583,5 @@ void UIKRetargetProcessor::CopyAllSettingsFromAsset()
 	}
 }
 #endif
+
+#undef LOCTEXT_NAMESPACE

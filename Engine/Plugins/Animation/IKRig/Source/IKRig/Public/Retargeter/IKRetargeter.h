@@ -203,17 +203,21 @@ public:
 	const TArray<TObjectPtr<URetargetChainSettings>> GetAllChainSettings() const { return ChainSettings; };
 	/** Get read-only access to a retarget pose */
 	const FIKRetargetPose* GetCurrentRetargetPose() const { return &RetargetPoses[CurrentRetargetPose]; };
+	/** Get the unique ID of this UObject as a name. */
+	FName GetUniqueIDAsName() const;
+	/* Get name of default pose */
+	static const FName GetDefaultPoseName();
 
+#if WITH_EDITOR
 	/* Get name of Source IK Rig property */
 	static const FName GetSourceIKRigPropertyName();
 	/* Get name of Target IK Rig property */
 	static const FName GetTargetIKRigPropertyName();
-#if WITH_EDITOR
+	/* Get name of Source Preview Mesh property */
+	static const FName GetSourcePreviewMeshPropertyName();
 	/* Get name of Target Preview Mesh property */
 	static const FName GetTargetPreviewMeshPropertyName();
 #endif
-	/* Get name of default pose */
-	static const FName GetDefaultPoseName();
 
 #if WITH_EDITOR
 	bool IsInEditRetargetPoseMode() const { return bEditRetargetPoseMode; }
@@ -224,20 +228,26 @@ public:
 private:
 
 	/** The rig to copy animation FROM.*/
-	UPROPERTY(VisibleAnywhere, Category = Rigs)
-	TObjectPtr<UIKRigDefinition> SourceIKRigAsset = nullptr;
+	UPROPERTY(EditAnywhere, Category = Source)
+	TSoftObjectPtr<UIKRigDefinition> SourceIKRigAsset = nullptr;
+
+#if WITH_EDITORONLY_DATA
+	/** Optional. Override the Skeletal Mesh to copy animation from. Uses the preview mesh from the Source IK Rig asset by default. */
+	UPROPERTY(EditAnywhere, Category = Source)
+	TSoftObjectPtr<USkeletalMesh> SourcePreviewMesh = nullptr;
+#endif
 	
 	/** The rig to copy animation TO.*/
-	UPROPERTY(EditAnywhere, Category = Rigs)
-	TObjectPtr<UIKRigDefinition> TargetIKRigAsset = nullptr;
-
-public:
+	UPROPERTY(EditAnywhere, Category = Target)
+	TSoftObjectPtr<UIKRigDefinition> TargetIKRigAsset = nullptr;
 
 #if WITH_EDITORONLY_DATA
 	/** Optional. Override the Skeletal Mesh to preview the retarget on. Uses the preview mesh from the Target IK Rig asset by default. */
-	UPROPERTY(EditAnywhere, Category = Rigs)
-	TObjectPtr<USkeletalMesh> TargetPreviewMesh = nullptr;
+	UPROPERTY(EditAnywhere, Category = Target)
+	TSoftObjectPtr<USkeletalMesh> TargetPreviewMesh = nullptr;
 #endif
+
+public:
 	
 	/** When false, translational motion of skeleton root is not copied. Useful for debugging.*/
 	UPROPERTY(EditAnywhere, Category = RetargetPhases)
@@ -250,6 +260,9 @@ public:
 	/** When false, IK is not applied as part of retargeter. Useful for debugging limb issues suspected to be caused by IK.*/
 	UPROPERTY(EditAnywhere, Category = RetargetPhases)
 	bool bRetargetIK = true;
+
+	/** log warnings and errors */
+	FIKRigLogger Log;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -301,8 +314,7 @@ private:
 	
 	/** The set of retarget poses available as options for retargeting.*/
 	UPROPERTY()
-	FName CurrentRetargetPose = DefaultPoseName;
-	static const FName DefaultPoseName;
+	FName CurrentRetargetPose;
 
 	friend class UIKRetargeterController;
 };

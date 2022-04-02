@@ -173,7 +173,7 @@ void FAnimNode_IKRig::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
 	ActualAlpha = 0.f;
 
-		GetEvaluateGraphExposedInputs().Execute(Context);
+	GetEvaluateGraphExposedInputs().Execute(Context);
 
 	// alpha handlers
 	switch (AlphaInputType)
@@ -216,8 +216,7 @@ void FAnimNode_IKRig::PreUpdate(const UAnimInstance* InAnimInstance)
 	// initialize the IK Rig (will only try once on the current version of the rig asset)
 	if (!IKRigProcessor->IsInitialized())
 	{
-		const FReferenceSkeleton& RefSkeleton = InAnimInstance->GetSkelMeshComponent()->SkeletalMesh->GetRefSkeleton();
- 		IKRigProcessor->Initialize(RigDefinitionAsset, RefSkeleton);
+ 		IKRigProcessor->Initialize(RigDefinitionAsset, InAnimInstance->GetSkelMeshComponent()->SkeletalMesh);
 	}
 	
 	// cache list of goal creator components on the actor

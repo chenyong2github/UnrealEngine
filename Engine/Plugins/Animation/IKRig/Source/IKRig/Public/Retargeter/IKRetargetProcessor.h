@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IKRetargeter.h"
+#include "IKRigLogger.h"
 #include "IKRetargetProcessor.generated.h"
 
 class URetargetChainSettings;
@@ -140,9 +141,15 @@ struct FRootRetargeter
 
 	void Reset();
 	
-	bool InitializeSource(const FName SourceRootBoneName, const FRetargetSkeleton& SourceSkeleton);
+	bool InitializeSource(
+		const FName SourceRootBoneName,
+		const FRetargetSkeleton& SourceSkeleton,
+		FIKRigLogger& Log);
 	
-	bool InitializeTarget(const FName TargetRootBoneName, const FTargetSkeleton& TargetSkeleton);
+	bool InitializeTarget(
+		const FName TargetRootBoneName,
+		const FTargetSkeleton& TargetSkeleton,
+		FIKRigLogger& Log);
 
 	void EncodePose(const TArray<FTransform> &SourceGlobalPose);
 	
@@ -206,11 +213,12 @@ struct FChainFK
 	bool Initialize(
 		const FRetargetSkeleton& Skeleton,
 		const TArray<int32>& BoneIndices,
-		const TArray<FTransform> &InitialGlobalPose);
+		const TArray<FTransform> &InitialGlobalPose,
+		FIKRigLogger& Log);
 
 private:
 	
-	bool CalculateBoneParameters();
+	bool CalculateBoneParameters(FIKRigLogger& Log);
 
 protected:
 
@@ -326,9 +334,15 @@ struct FChainRetargeterIK
 	
 	FTargetChainIK Target;
 
-	bool InitializeSource(const TArray<int32>& BoneIndices, const TArray<FTransform> &SourceInitialGlobalPose);
+	bool InitializeSource(
+		const TArray<int32>& BoneIndices,
+		const TArray<FTransform> &SourceInitialGlobalPose,
+		FIKRigLogger& Log);
 	
-	bool InitializeTarget(const TArray<int32>& BoneIndices, const TArray<FTransform> &TargetInitialGlobalPose);
+	bool InitializeTarget(
+		const TArray<int32>& BoneIndices,
+		const TArray<FTransform> &TargetInitialGlobalPose,
+		FIKRigLogger& Log);
 
 	void EncodePose(const TArray<FTransform> &SourceInputGlobalPose);
 	
@@ -357,14 +371,16 @@ struct FRetargetChainPair
 		const FBoneChain& SourceBoneChain,
 		const FBoneChain& TargetBoneChain,
 		const FRetargetSkeleton& SourceSkeleton,
-		const FTargetSkeleton& TargetSkeleton);
+		const FTargetSkeleton& TargetSkeleton,
+		FIKRigLogger& Log);
 
 private:
 
 	bool ValidateBoneChainWithSkeletalMesh(
 		const bool IsSource,
 		const FBoneChain& BoneChain,
-		const FRetargetSkeleton& RetargetSkeleton);
+		const FRetargetSkeleton& RetargetSkeleton,
+		FIKRigLogger& Log);
 };
 
 struct FRetargetChainPairFK : FRetargetChainPair
@@ -378,7 +394,8 @@ struct FRetargetChainPairFK : FRetargetChainPair
         const FBoneChain& SourceBoneChain,
         const FBoneChain& TargetBoneChain,
         const FRetargetSkeleton& SourceSkeleton,
-        const FTargetSkeleton& TargetSkeleton) override;
+        const FTargetSkeleton& TargetSkeleton,
+        FIKRigLogger& Log) override;
 };
 
 struct FRetargetChainPairIK : FRetargetChainPair
@@ -394,7 +411,8 @@ struct FRetargetChainPairIK : FRetargetChainPair
         const FBoneChain& SourceBoneChain,
         const FBoneChain& TargetBoneChain,
         const FRetargetSkeleton& SourceSkeleton,
-        const FTargetSkeleton& TargetSkeleton) override;
+        const FTargetSkeleton& TargetSkeleton,
+        FIKRigLogger& Log) override;
 };
 
 /** The runtime processor that converts an input pose from a source skeleton into an output pose on a target skeleton.
@@ -415,12 +433,14 @@ public:
 	* @param SourceSkeleton - the skeletal mesh to poses FROM
 	* @param TargetSkeleton - the skeletal mesh to poses TO
 	* @param InRetargeterAsset - the source asset to use for retargeting settings
+	* @param bSuppressWarnings - if true, will not output warnings during initialization
 	* @warning - Initialization does a lot of validation and can fail for many reasons. Check bIsLoadedAndValid afterwards.
 	*/
 	void Initialize(
 		USkeletalMesh *SourceSkeleton,
 		USkeletalMesh *TargetSkeleton,
-		UIKRetargeter* InRetargeterAsset);
+		UIKRetargeter* InRetargeterAsset,
+		const bool bSuppressWarnings=false);
 
 	/**
 	* Run the retarget to generate a new pose.
@@ -510,7 +530,7 @@ private:
 	bool InitializeBoneChainPairs();
 
 	/** Initializes the IK Rig that evaluates the IK solve for the target IK chains */
-	bool InitializeIKRig(UObject* Outer, const FReferenceSkeleton& InRefSkeleton);
+	bool InitializeIKRig(UObject* Outer, const USkeletalMesh* InSkeletalMesh);
 	
 	/** Internal retarget phase for the root. */
 	void RunRootRetarget(const TArray<FTransform>& InGlobalTransforms, TArray<FTransform>& OutGlobalTransforms);

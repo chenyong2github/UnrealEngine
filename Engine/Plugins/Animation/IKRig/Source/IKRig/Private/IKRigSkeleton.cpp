@@ -2,12 +2,39 @@
 
 #include "IKRigSkeleton.h"
 
+#include "Engine/SkeletalMesh.h"
+
 // This is the default end of branch index value, meaning we haven't cached it yet
 #define FIKRIGSKELETON_INVALID_EO_BRANCH_INDEX -2
 
-void FIKRigSkeleton::SetInputSkeleton(const FReferenceSkeleton& RefSkeleton, const TArray<FName>& InExcludedBones)
+FIKRigInputSkeleton::FIKRigInputSkeleton(const USkeletalMesh* SkeletalMesh)
 {
-	const FIKRigInputSkeleton InputSkeleton = FIKRigInputSkeleton(RefSkeleton);
+	Initialize(SkeletalMesh);
+}
+
+void FIKRigInputSkeleton::Initialize(const USkeletalMesh* SkeletalMesh)
+{
+	Reset();
+
+	SkeletalMeshName = FName(SkeletalMesh->GetName());
+	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
+	const TArray<FMeshBoneInfo>& BoneInfo = RefSkeleton.GetRefBoneInfo();
+	for (int32 BoneIndex=0; BoneIndex<BoneInfo.Num(); ++BoneIndex)
+	{
+		BoneNames.Add(BoneInfo[BoneIndex].Name);
+		ParentIndices.Add(BoneInfo[BoneIndex].ParentIndex);
+		LocalRefPose.Add(RefSkeleton.GetRefBonePose()[BoneIndex]);
+	}
+}
+
+void FIKRigInputSkeleton::Reset()
+{
+	*this = FIKRigInputSkeleton();
+}
+
+void FIKRigSkeleton::SetInputSkeleton(const USkeletalMesh* SkeletalMesh, const TArray<FName>& InExcludedBones)
+{
+	const FIKRigInputSkeleton InputSkeleton = FIKRigInputSkeleton(SkeletalMesh);
 	SetInputSkeleton(InputSkeleton, InExcludedBones);
 }
 
@@ -50,13 +77,7 @@ void FIKRigSkeleton::SetInputSkeleton(const FIKRigInputSkeleton& InputSkeleton, 
 
 void FIKRigSkeleton::Reset()
 {
-	BoneNames.Reset();
-	ParentIndices.Reset();
-	ExcludedBones.Reset();
-	CurrentPoseGlobal.Reset();
-	CurrentPoseLocal.Reset();
-	RefPoseGlobal.Reset();
-	CachedEndOfBranchIndices.Reset();
+	*this = FIKRigSkeleton();
 }
 
 int32 FIKRigSkeleton::GetBoneIndexFromName(const FName InName) const

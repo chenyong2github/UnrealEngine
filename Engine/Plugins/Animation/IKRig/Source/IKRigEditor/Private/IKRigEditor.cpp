@@ -20,9 +20,9 @@
 #include "RigEditor/IKRigDetailCustomizations.h"
 #include "RigEditor/IKRigEditorController.h"
 
-IMPLEMENT_MODULE(FIKRigEditor, IKRigEditor)
+DEFINE_LOG_CATEGORY(LogIKRigEditor);
 
-DEFINE_LOG_CATEGORY_STATIC(LogIKRigEditor, Log, All);
+IMPLEMENT_MODULE(FIKRigEditor, IKRigEditor)
 
 #define LOCTEXT_NAMESPACE "IKRigEditor"
 

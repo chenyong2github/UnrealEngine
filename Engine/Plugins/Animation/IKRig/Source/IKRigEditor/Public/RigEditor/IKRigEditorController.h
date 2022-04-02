@@ -10,6 +10,8 @@
 
 #include "IKRigEditorController.generated.h"
 
+class SIKRigAssetBrowser;
+class SIKRigOutputLog;
 class UIKRigAnimInstance;
 class FIKRigEditorToolkit;
 class SIKRigSolverStack;
@@ -95,6 +97,8 @@ public:
 	void RefreshAllViews() const;
 	/** refresh just the skeleton tree view */
 	void RefreshTreeView() const;
+	/** clear the output log */
+	void ClearOutputLog() const;
 
 	/** return list of those solvers in the stack that are selected by user */
 	void GetSelectedSolvers(TArray<TSharedPtr<FSolverStackElement> >& OutSelectedSolvers);
@@ -136,9 +140,11 @@ public:
 	void ShowEmptyDetails() const;
 	/** show selected items in details view */
 	void ShowDetailsForElements(const TArray<TSharedPtr<FIKRigTreeElement>>& InItems) const;
+	/** callback when detail is edited */
+	void OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent);
 	
 	/** set details tab view */
-	void SetDetailsView(const TSharedPtr<class IDetailsView>& InDetailsView){ DetailsView = InDetailsView; };
+	void SetDetailsView(const TSharedPtr<class IDetailsView>& InDetailsView);
 	/** set skeleton tab view */
 	void SetSkeletonsView(const TSharedPtr<SIKRigSkeleton>& InSkeletonView){ SkeletonView = InSkeletonView; };
 	/** set solver stack tab view */
@@ -160,7 +166,7 @@ public:
 
 	/** viewport anim instance */
 	UPROPERTY(transient, NonTransactional)
-	TWeakObjectPtr<class UIKRigAnimInstance> AnimInstance;
+	TWeakObjectPtr<UIKRigAnimInstance> AnimInstance;
 
 	/** the persona toolkit */
 	TWeakPtr<FIKRigEditorToolkit> EditorToolkit;
@@ -178,16 +184,14 @@ public:
 	{
 		Collector.AddReferencedObject(BoneDetails);
 	};
-	virtual FString GetReferencerName() const override
-	{
-		return "IKRigEditorController";
-	};
+	virtual FString GetReferencerName() const override { return "IKRigEditorController"; };
 	/** END FGCObject interface */
 
 	/** UIKRigBoneDetails factory **/
 	TObjectPtr<UIKRigBoneDetails> CreateBoneDetails(const TSharedPtr<FIKRigTreeElement const>& InItem) const;
 	
 private:
+	
 	/** right after importing a skeleton, we ask user what solver they want to use */
 	bool PromptToAddSolver() const;
 
@@ -195,7 +199,7 @@ private:
 	void InitializeSolvers() const;
 
 	/** asset properties tab */
-	TSharedPtr<class IDetailsView> DetailsView;
+	TSharedPtr<IDetailsView> DetailsView;
 
 	/** the skeleton tree view */
 	TSharedPtr<SIKRigSkeleton> SkeletonView;
@@ -206,10 +210,19 @@ private:
 	/** the solver stack view */
 	TSharedPtr<SIKRigRetargetChainList> RetargetingView;
 
+	/** asset browser view */
+	TSharedPtr<SIKRigAssetBrowser> AssetBrowserView;
+
+	/** output log view */
+	TSharedPtr<SIKRigOutputLog> OutputLogView;
+
 	EIKRigSelectionType LastSelectedType;
 
 	UPROPERTY()
 	TObjectPtr<UIKRigBoneDetails> BoneDetails;
+
+	friend struct FIKRigOutputLogTabSummoner;
+	friend class SIKRigAssetBrowser;
 };
 
 struct FIKRigSolverTypeAndName

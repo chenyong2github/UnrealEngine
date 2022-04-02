@@ -3,6 +3,7 @@
 #pragma once
 
 #include "BoneContainer.h"
+#include "IKRigLogger.h"
 #include "UObject/Object.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "IKRigSkeleton.h"
@@ -181,6 +182,12 @@ class IKRIG_API UIKRigDefinition : public UObject, public IInterface_PreviewMesh
 
 public:
 
+	/** The skeletal mesh to run the IK solve on (loaded into viewport).
+	* NOTE: you can assign ANY Skeletal Mesh to apply the IK Rig to. Compatibility is determined when a new mesh is assigned
+	* by comparing it's hierarchy with the goals, solvers and bone settings required by the rig. See output log for details. */
+	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = PreviewMesh)
+	TSoftObjectPtr<USkeletalMesh> PreviewSkeletalMesh;
+
 #if WITH_EDITORONLY_DATA
 
 	/**Draw bones in the viewport.*/
@@ -211,10 +218,7 @@ public:
 
 	virtual void Serialize(FArchive& Ar) override;
 
-	/** The skeletal mesh that was used as the source of the skeleton data. Also used for preview.
-	* NOTE: the IK rig may be played back on ANY skeleton that is compatible with it's hierarchy. */
-	UPROPERTY(AssetRegistrySearchable, VisibleAnywhere, Category = "Imported Skeleton")
-	TObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
+	virtual void PostLoad() override;
 	
 	/** hierarchy and bone-pose transforms */
 	UPROPERTY()
@@ -239,6 +243,17 @@ public:
 	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
 	virtual USkeletalMesh* GetPreviewMesh() const override;
 	/** END IInterface_PreviewMeshProvider interface */
+
+	/** Get the unique ID of this UObject as a name. */
+	FName GetUniqueIDAsName() const;
+
+	/** logging system */
+	FIKRigLogger Log;
+
+#if WITH_EDITOR
+	/* Get name of Preview Mesh property */
+	static const FName GetPreviewMeshPropertyName();
+#endif
 	
 private:
 

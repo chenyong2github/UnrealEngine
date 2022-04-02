@@ -20,7 +20,7 @@ public:
 
 private:
 
-	void AddAssetBrowser();
+	void RefreshView();
 
 	void OnPathChange(const FString& NewPath);
 	

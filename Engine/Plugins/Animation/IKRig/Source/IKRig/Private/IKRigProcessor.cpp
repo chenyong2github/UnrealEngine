@@ -4,7 +4,11 @@
 #include "IKRigDefinition.h"
 #include "IKRigSolver.h"
 
-void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton)
+#include "Engine/SkeletalMesh.h"
+
+#define LOCTEXT_NAMESPACE "IKRigProcessor"
+
+void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const USkeletalMesh* SkeletalMesh)
 {
 	// we instantiate UObjects here which MUST be done on game thread...
 	check(IsInGameThread());
@@ -22,17 +26,21 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const FIKRi
 	bTriedToInitialize = true;
 
 	// copy skeleton data from the actual skeleton we want to run on
-	Skeleton.SetInputSkeleton(InputSkeleton, InRigAsset->Skeleton.ExcludedBones);
+	Skeleton.SetInputSkeleton(SkeletalMesh, InRigAsset->Skeleton.ExcludedBones);
 	
 	if (InRigAsset->Skeleton.BoneNames.IsEmpty())
 	{
-		UE_LOG(LogTemp, Error, TEXT("Trying to initialize IKRig that has no skeleton: %s"), *InRigAsset->GetName());
+		InRigAsset->Log.LogError(FText::Format(
+			LOCTEXT("NoSkeleton", "Trying to initialize IK Rig, '{0}' that has no skeleton."),
+			FText::FromString(InRigAsset->GetName())));
 		return;
 	}
 
-	if (!UIKRigProcessor::IsIKRigCompatibleWithSkeleton(InRigAsset, InputSkeleton))
+	if (!UIKRigProcessor::IsIKRigCompatibleWithSkeleton(InRigAsset, SkeletalMesh))
 	{
-		UE_LOG(LogTemp, Error, TEXT("Trying to initialize IKRig with a Skeleton that is missing required bones. See output log. %s"), *InRigAsset->GetName());
+		InRigAsset->Log.LogError(FText::Format(
+			LOCTEXT("NoSkeleton", "Trying to initialize IKRig, '{0}' with a Skeleton that is missing required bones. See prior warnings."),
+			FText::FromString(InRigAsset->GetName())));
 		return;
 	}
 	
@@ -56,8 +64,9 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const FIKRi
 		// validate that the skeleton we are trying to solve this goal on contains the bone the goal expects
 		if (NewGoalBone.BoneIndex == INDEX_NONE)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("IK Rig, %s has a Goal, '%s' that references an unknown bone, '%s'. Cannot evaluate."),
-				*InRigAsset->GetName(), *EffectorGoal->GoalName.ToString(), *EffectorGoal->BoneName.ToString());
+			InRigAsset->Log.LogError(FText::Format(
+				LOCTEXT("MissingGoalBone", "IK Rig, '{0}' has a Goal, '{1}' that references an unknown bone, '{2}'. Cannot evaluate."),
+				FText::FromString(InRigAsset->GetName()), FText::FromName(EffectorGoal->GoalName), FText::FromName(EffectorGoal->BoneName) ));
 			return;
 		}
 
@@ -67,8 +76,12 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const FIKRi
 		{
 			if (Bone->BoneName != NewGoalBone.BoneName)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("IK Rig, %s has a Goal, '%s' that references different bones in different solvers, '%s' and '%s'. Cannot evaluate."),
-                *InRigAsset->GetName(), *EffectorGoal->GoalName.ToString(), *Bone->BoneName.ToString(), *NewGoalBone.BoneName.ToString());
+				InRigAsset->Log.LogError(FText::Format(
+				LOCTEXT("DuplicateGoal", "IK Rig, '{0}' has a Goal, '{1}' that references different bones in different solvers, '{2}' and '{3}'. Cannot evaluate."),
+                FText::FromString(InRigAsset->GetName()),
+                FText::FromName(EffectorGoal->GoalName),
+                FText::FromName(Bone->BoneName), 
+                FText::FromName(NewGoalBone.BoneName)));
 				return;
 			}
 		}
@@ -84,9 +97,10 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const FIKRi
 	{
 		if (!IKRigSolver)
 		{
-			// this can happen if asset references deleted IK Solver type
-			// which should only happen during development (if at all)
-			UE_LOG(LogTemp, Warning, TEXT("IK Rig, %s has null/unknown solver in it. Please remove it."), *InRigAsset->GetName());
+			// this can happen if asset references deleted IK Solver type which should only happen during development (if at all)
+			InRigAsset->Log.LogWarning(FText::Format(
+				LOCTEXT("UnknownSolver", "IK Rig, '{0}' has null/unknown solver in it. Please remove it."),
+				FText::FromString(InRigAsset->GetName())));
 			continue;
 		}
 
@@ -98,16 +112,14 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const FIKRi
 		Solvers.Add(Solver);
 	}
 
+	InRigAsset->Log.LogEditorMessage(FText::Format(
+				LOCTEXT("SuccessfulInit", "IK Rig, '{0}' ready to run on {1}."),
+				FText::FromString(InRigAsset->GetName()), FText::FromString(SkeletalMesh->GetName())));
+	
 	bInitialized = true;
 }
 
-void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton)
-{
-	const FIKRigInputSkeleton InputSkeleton = FIKRigInputSkeleton(RefSkeleton);
-	Initialize(InRigAsset, InputSkeleton);
-}
-
-bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton)
+bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRigAsset,	const FIKRigInputSkeleton& InputSkeleton)
 {
 	// first we validate that all the required bones are in the input skeleton...
 	
@@ -135,7 +147,11 @@ bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRi
 	{
 		if (!InputSkeleton.BoneNames.Contains(RequiredBone))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("IK Rig, '%s' is missing a required bone in Skeletal Mesh: '%s'."), *InRigAsset->GetName(), *RequiredBone.ToString());
+			InRigAsset->Log.LogError(FText::Format(
+			LOCTEXT("MissingBone", "IK Rig, '{0}' is missing a required bone, '{1}' in the Skeletal Mesh."),
+			FText::FromString(InRigAsset->GetName()),
+			FText::FromName(RequiredBone)));
+			
 			bAllRequiredBonesFound = false;
 		}
 	}
@@ -165,21 +181,24 @@ bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRi
 			if (!InputSkeleton.BoneNames.IsValidIndex(InputParentIndex))
 			{
 				bAllParentsValid = false;
-				UE_LOG(LogTemp, Error,
-					TEXT("IK Rig is running on a skeleton with a required bone, '%s', that expected to have a valid parent. The expected parent was, '%s'."),
-					*RequiredBone.ToString(),
-					*AssetParentName.ToString());
+
+				InRigAsset->Log.LogError(FText::Format(
+			LOCTEXT("MissingParent", "IK Rig is running on a skeleton with a required bone, '{0}', that expected to have a valid parent. The expected parent was, '{1}'."),
+				FText::FromName(RequiredBone),
+				FText::FromName(AssetParentName)));
+				
 				continue;
 			}
+			
 			const FName& InputParentName = InputSkeleton.BoneNames[InputParentIndex];
 			if (AssetParentName != InputParentName)
 			{
 				// we only warn about this, because it may be nice not to have the exact same hierarchy
-				UE_LOG(LogTemp, Warning,
-					TEXT("IK Rig is running on a skeleton with a required bone, '%s', that has a different parent '%s'. The expected parent was, '%s'."),
-					*InputParentName.ToString(),
-					*InputParentName.ToString(),
-					*AssetParentName.ToString());
+				InRigAsset->Log.LogWarning(FText::Format(
+				LOCTEXT("MissingParent", "IK Rig is running on a skeleton with a required bone, '{0}', that has a different parent '{1}'. The expected parent was, '{2}'."),
+				FText::FromName(RequiredBone),
+				FText::FromName(InputParentName),
+				FText::FromName(AssetParentName)));
 				continue;
 			}
 		}
@@ -391,3 +410,5 @@ void UIKRigProcessor::ResolveFinalGoalTransforms(const FTransform& WorldToCompon
             Goal.RotationAlpha);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

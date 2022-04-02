@@ -18,9 +18,9 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FIKRetargetEditorController> InEditorController);
 
+	void RefreshView();
+	
 private:
-
-	void AddAssetBrowser();
 
 	void OnPathChange(const FString& NewPath);
 

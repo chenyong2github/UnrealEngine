@@ -223,6 +223,8 @@ TStatId FIKRetargetEditor::GetStatId() const
 
 void FIKRetargetEditor::PostUndo(bool bSuccess)
 {
+	EditorController->ClearOutputLog();
+	
 	const bool WasEditing = EditorController->IsEditingPose();
 	
 	EditorController->AssetController->BroadcastNeedsReinitialized();
@@ -238,6 +240,8 @@ void FIKRetargetEditor::PostUndo(bool bSuccess)
 
 void FIKRetargetEditor::PostRedo(bool bSuccess)
 {
+	EditorController->ClearOutputLog();
+	
 	const bool WasEditing = EditorController->IsEditingPose();
 	
 	EditorController->AssetController->BroadcastNeedsReinitialized();
@@ -307,18 +311,24 @@ void FIKRetargetEditor::HandleDetailsCreated(const TSharedRef<class IDetailsView
 
 void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	const bool bTargetChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetTargetIKRigPropertyName();
-	const bool bPreviewChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetTargetPreviewMeshPropertyName();
+	const bool bSourceIKRigChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetSourceIKRigPropertyName();
+	const bool bTargetIKRigChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetTargetIKRigPropertyName();
+	const bool bSourcePreviewChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetSourcePreviewMeshPropertyName();
+	const bool bTargetPreviewChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetTargetPreviewMeshPropertyName();
 
-	if (bTargetChanged)
+	if (bTargetIKRigChanged || bSourceIKRigChanged)
 	{
+		EditorController->ClearOutputLog();
 		EditorController->BindToIKRigAsset(EditorController->AssetController->GetAsset()->GetTargetIKRigWriteable());
+		EditorController->BindToIKRigAsset(EditorController->AssetController->GetAsset()->GetSourceIKRigWriteable());
 		EditorController->AssetController->CleanChainMapping();
 		EditorController->AssetController->AutoMapChains();
 	}
 	
-	if (bTargetChanged || bPreviewChanged)
+	if (bTargetIKRigChanged || bSourceIKRigChanged || bTargetPreviewChanged || bSourcePreviewChanged)
 	{
+		EditorController->ClearOutputLog();
+		
 		// set the source and target skeletal meshes on the component
 		// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
 		USkeletalMesh* SourceMesh = EditorController->GetSourceSkeletalMesh();

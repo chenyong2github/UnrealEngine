@@ -342,12 +342,19 @@ EVisibility SIKRetargetChainMapList::IsAutoMapButtonVisible() const
 
 FReply SIKRetargetChainMapList::OnAutoMapButtonClicked() const
 {
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+	
 	UIKRetargeterController* RetargeterController = GetRetargetController();
 	if (!RetargeterController)
 	{
 		return FReply::Unhandled();
 	}
-	
+
+	Controller->ClearOutputLog();
 	RetargeterController->CleanChainMapping();
 	RetargeterController->AutoMapChains();
 	return FReply::Handled();

@@ -28,8 +28,10 @@ public:
 	/** Get access to the retargeter asset.
 	 *@warning Do not make modifications to the asset directly. Use this API instead. */
 	UIKRetargeter* GetAsset() const;
+	/** Get unique asset integer ID as a name */
+	FName GetAssetIDAsName() const;
 	/** Get access to the editor controller.*/
-	FIKRetargetEditorController* GetEditorController() const;
+	FIKRetargetEditorController* GetEditorController() const { return EditorController; };
 	/** Set the currently used editor controller.*/
 	void SetEditorController(FIKRetargetEditorController* InEditorController) { EditorController = InEditorController; };
 
@@ -40,11 +42,10 @@ public:
 	void SetSourceIKRig(UIKRigDefinition* SourceIKRig);
 	/** Set the IK Rig to use as the target (to copy animation TO) */
 	void SetTargetIKRig(UIKRigDefinition* TargetIKRig);
+	/** Get source skeletal mesh */
+	USkeletalMesh* GetSourcePreviewMesh() const;
 	/** Get target skeletal mesh */
-	USkeletalMesh* GetTargetPreviewMesh();
-	
-	/** Get the USkeleton used on the Source asset */
-	USkeleton* GetSourceSkeletonAsset() const;
+	USkeletalMesh* GetTargetPreviewMesh() const;
 
 	/** Get name of the Root bone used for retargeting the Source skeleton. */
 	FName GetSourceRootBone() const;

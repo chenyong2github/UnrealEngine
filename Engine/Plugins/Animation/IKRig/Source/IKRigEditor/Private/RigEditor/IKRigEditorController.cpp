@@ -4,6 +4,7 @@
 
 #include "IPersonaToolkit.h"
 #include "SKismetInspector.h"
+#include "Animation/DebugSkelMeshComponent.h"
 #include "Dialog/SCustomDialog.h"
 #include "Dialogs/Dialogs.h"
 
@@ -11,6 +12,9 @@
 #include "RigEditor/SIKRigSkeleton.h"
 #include "RigEditor/SIKRigSolverStack.h"
 #include "RigEditor/IKRigAnimInstance.h"
+#include "RigEditor/IKRigToolkit.h"
+#include "RigEditor/SIKRigAssetBrowser.h"
+#include "RigEditor/SIKRigOutputLog.h"
 
 #if WITH_EDITOR
 
@@ -221,6 +225,7 @@ void FIKRigEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedI
 
 void FIKRigEditorController::Reset() const
 {
+	SkelMeshComponent->ShowReferencePose(true);
 	AssetController->ResetGoalTransforms();
 }
 
@@ -245,6 +250,12 @@ void FIKRigEditorController::RefreshAllViews() const
 	{
 		RetargetingView->RefreshView();
 	}
+
+	// refresh the asset browser to ensure it shows compatible sequences
+	if (AssetBrowserView.IsValid())
+	{
+		AssetBrowserView.Get()->RefreshView();
+	}
 }
 
 void FIKRigEditorController::RefreshTreeView() const
@@ -252,6 +263,14 @@ void FIKRigEditorController::RefreshTreeView() const
 	if (SkeletonView.IsValid())
 	{
 		SkeletonView->RefreshTreeView();
+	}
+}
+
+void FIKRigEditorController::ClearOutputLog() const
+{
+	if (OutputLogView.IsValid())
+	{
+		OutputLogView->ClearLog();
 	}
 }
 
@@ -666,6 +685,43 @@ void FIKRigEditorController::ShowDetailsForElements(const TArray<TSharedPtr<FIKR
 		ensure(false);
 		break;
 	}
+}
+
+void FIKRigEditorController::OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	const bool bPreviewChanged = PropertyChangedEvent.GetPropertyName() == UIKRigDefinition::GetPreviewMeshPropertyName();
+	
+	if (bPreviewChanged)
+	{
+		// set the source and target skeletal meshes on the component
+		// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
+		USkeletalMesh* NewMesh = AssetController->GetAsset()->GetPreviewMesh();
+		if (NewMesh)
+		{
+			// apply the mesh to the preview scene
+			TSharedRef<IPersonaPreviewScene> PreviewScene = EditorToolkit.Pin()->GetPersonaToolkit()->GetPreviewScene();
+			if (PreviewScene->GetPreviewMesh() != NewMesh)
+			{
+				PreviewScene->SetPreviewMeshComponent(SkelMeshComponent);
+				PreviewScene->SetPreviewMesh(NewMesh);
+			}
+
+			ClearOutputLog();
+			AssetController->SetSkeletalMesh(NewMesh);
+			AnimInstance->SetProcessorNeedsInitialized();
+			AnimInstance->InitializeAnimation();
+			AssetController->BroadcastNeedsReinitialized();
+			AssetController->ResetGoalTransforms();
+			RefreshAllViews();
+		}
+	}
+}
+
+void FIKRigEditorController::SetDetailsView(const TSharedPtr<IDetailsView>& InDetailsView)
+{
+	DetailsView = InDetailsView;
+	DetailsView->OnFinishedChangingProperties().AddSP(this, &FIKRigEditorController::OnFinishedChangingDetails);
+	ShowEmptyDetails();
 }
 
 void FIKRigEditorController::AddNewRetargetChain(const FName ChainName, const FName StartBone, const FName EndBone)

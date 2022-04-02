@@ -11,7 +11,6 @@
 
 #define LOCTEXT_NAMESPACE "IKRigController"
 
-
 UIKRigController* UIKRigController::GetIKRigController(UIKRigDefinition* InIKRigDefinition)
 {
 	if (!InIKRigDefinition)
@@ -32,6 +31,16 @@ UIKRigController* UIKRigController::GetIKRigController(UIKRigDefinition* InIKRig
 UIKRigDefinition* UIKRigController::GetAsset() const
 {
 	return Asset;
+}
+
+FName UIKRigController::GetAssetIDAsName() const
+{
+	if (!Asset)
+	{
+		return NAME_None;
+	}
+
+	return FName(FString::FromInt(Asset->GetUniqueID()));
 }
 
 void UIKRigController::AddBoneSetting(const FName& BoneName, int32 SolverIndex) const
@@ -410,11 +419,12 @@ bool UIKRigController::SetSkeletalMesh(USkeletalMesh* SkeletalMesh, bool bTransa
 	}
 	
 	// first determine runtime compatibility between the IK Rig asset and the skeleton we're trying to run it on
-	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
-	const FIKRigInputSkeleton InputSkeleton = FIKRigInputSkeleton(RefSkeleton);
-	if (!UIKRigProcessor::IsIKRigCompatibleWithSkeleton(GetAsset(), InputSkeleton))
+	const FIKRigInputSkeleton InputSkeleton = FIKRigInputSkeleton(SkeletalMesh);
+	if (!UIKRigProcessor::IsIKRigCompatibleWithSkeleton(Asset, InputSkeleton))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRig with a Skeleton that is missing required bones. See output log. %s"), *GetAsset()->GetName());
+		Asset->Log.LogError( FText::Format(
+			LOCTEXT("IncompatibleSkeleton", "Trying to initialize IKRig with a Skeleton that is missing required bones. See output log. {0}"),
+			FText::FromString(Asset->GetName())));
 		return false;
 	}
 
@@ -494,11 +504,6 @@ FTransform UIKRigController::GetRefPoseTransformOfBone(const FName& BoneName) co
 	const int32 BoneIndex = Asset->Skeleton.GetBoneIndexFromName(BoneName);
 	check(BoneIndex != INDEX_NONE) // must initialize IK Rig before getting here
 	return Asset->Skeleton.RefPoseGlobal[BoneIndex];
-}
-
-USkeletalMesh* UIKRigController::GetSkeletalMesh() const
-{
-	return Asset->PreviewSkeletalMesh.Get();
 }
 
 // -------------------------------------------------------

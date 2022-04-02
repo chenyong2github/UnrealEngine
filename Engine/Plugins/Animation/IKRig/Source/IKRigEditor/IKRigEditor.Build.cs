@@ -36,6 +36,7 @@ namespace UnrealBuildTool.Rules
                     "SkeletonEditor",
                     "ContentBrowser",
                     "AnimationBlueprintLibrary",
+                    "MessageLog",
                     
 					"PropertyEditor",
 					"BlueprintGraph",
@@ -48,7 +49,7 @@ namespace UnrealBuildTool.Rules
 					"AnimationCore",
                     "AnimationWidgets",
                     "ApplicationCore",
-				}
+                }
             );
 
             PrivateIncludePathModuleNames.AddRange(
