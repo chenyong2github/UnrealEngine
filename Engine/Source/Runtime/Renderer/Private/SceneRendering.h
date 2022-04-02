@@ -36,6 +36,7 @@
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
 #include "HairStrands/HairStrandsData.h"
+#include "Strata/Strata.h"
 #include "GPUScene.h"
 #include "CanvasTypes.h"
 
@@ -56,7 +57,6 @@ struct FSceneWithoutWaterTextures;
 struct FHairStrandsVisibilityViews;
 struct FSortedLightSetSceneInfo;
 enum class EVelocityPass : uint32;
-struct FStrataSceneData;
 class FTransientLightFunctionTextureAtlas;
 struct FSceneTexturesConfig;
 struct FMinimalSceneTextures;
@@ -1294,7 +1294,7 @@ public:
 	// Used by mobile renderer to determine whether static meshes will be rendered with CSM shaders or not.
 	FMobileCSMVisibilityInfo MobileCSMVisibilityInfo;
 
-	FStrataSceneData* StrataSceneData;
+	FStrataViewData StrataViewData;
 
 	FHairStrandsViewData HairStrandsViewData;
 

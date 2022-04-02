@@ -987,7 +987,7 @@ void FViewInfo::Init()
 	NumVisibleDynamicPrimitives = 0;
 	NumVisibleDynamicEditorPrimitives = 0;
 
-	StrataSceneData = nullptr;
+	StrataViewData.Reset();
 	HairStrandsViewData = FHairStrandsViewData();
 
 	GPUSceneViewId = INDEX_NONE;

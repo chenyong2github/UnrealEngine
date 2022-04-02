@@ -71,7 +71,8 @@ void Main(
 	half RefractionRoughness = saturate(StrataLobeVarianceToRoughness(RefractionLobeVariance));
 	half RefractionMipLevel = RefractionRoughness * RefractionRoughnessToMipLevelFactor;
 
-	const float2 NoDistortionUVs = TexCoord.xy * View.BufferSizeAndInvSize.xy * View.ViewSizeAndInvSize.zw;
+	const float2 NoDistortionCoord = (TexCoord.xy * View.BufferSizeAndInvSize.xy - View.ViewRectMin);
+	const float2 NoDistortionUVs = NoDistortionCoord * View.ViewSizeAndInvSize.zw;
 	float2 NewBufferUV = NoDistortionUVs + DistBufferUVOffset;
 
 	FLATTEN if (any(NewBufferUV < 0.0f) || any(NewBufferUV > 1.0f))
@@ -83,7 +84,7 @@ void Main(
 	if (RefractionMipLevel < 0.001f)
 	{
 		// Sample the full res MSAA source texture
-		OutColor = SceneColorMSAATexture.Load(int2(TexCoord.xy * View.BufferSizeAndInvSize.xy), SampleIndex);
+		OutColor = SceneColorMSAATexture.Load(int2(NoDistortionCoord), SampleIndex);
 	}
 	else
 	{

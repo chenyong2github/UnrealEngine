@@ -112,7 +112,7 @@ float GetMaskFromDepthInAlpha(float Alpha)
 #if STRATA_ENABLED
 FStrataSubsurfaceData LoadStataSSSData(float2 UV)
 {
-	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy - View.ViewRectMin.xy;
+	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy;
 	return StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelPos, 0)));
 }
 #endif

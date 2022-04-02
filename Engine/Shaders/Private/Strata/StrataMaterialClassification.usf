@@ -52,9 +52,9 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		TileDrawIndirectDataBuffer[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT) + 0] = IndexCountPerInstance;
 	}
 
-	// TODO: add a SM6 permutation with ballot?
-	const uint2 PixelCoord = DispatchThreadId;
-
+	const uint2 PixelCoord = DispatchThreadId.xy + View.ViewRectMin.xy;
+	const bool bIsValid = all(DispatchThreadId.xy < View.ViewSizeAndInvSize.xy);
+	
 	// Pixels outside of the view area are considered simple to enable screen borders to receive the simple permutation when not aligned to shader group size.
 	bool bContainsComplexMaterial = false;
 	bool bContainsSimpleMaterial  = false;
@@ -63,7 +63,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	bool bContainsOpaqueRoughRefraction = false;
 	bool bContainsScreenSpaceSubsurfaceScattering = false;
 	FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
-	if (all(PixelCoord < uint2(ViewResolution)))
+	if (bIsValid)
 	{
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(MaterialTextureArray, StrataAddressing, TopLayerTexture);
@@ -88,7 +88,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	{
 		// We must fill all the pixel which doe not hav subsurface scattering with default so that the SSS code is not executed where it should not.
 		FStrataSubsurfaceData StrataSubsurfaceData = (FStrataSubsurfaceData)0;
-		SSSTextureUAV[DispatchThreadId.xy] = StrataPackSSSData(StrataSubsurfaceData);
+		SSSTextureUAV[PixelCoord] = StrataPackSSSData(StrataSubsurfaceData);
 	}
 #endif
 

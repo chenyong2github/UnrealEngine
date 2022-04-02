@@ -284,7 +284,12 @@ static void AddCopySceneColorPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorCopyTexture, ERenderTargetLoadAction::ENoAction);
 
-	const FScreenPassTextureViewport InputViewport(SceneColorTexture, View.ViewRect);
+	// The scene color is copied into from multi-view-rect layout into a single-rect layout.
+	FIntRect ViewRect;
+	ViewRect.Min = FIntPoint(0, 0);
+	ViewRect.Max = FIntPoint(View.ViewRect.Width(), View.ViewRect.Height());
+
+	const FScreenPassTextureViewport InputViewport(SceneColorTexture, ViewRect);
 	const FScreenPassTextureViewport OutputViewport(SceneColorCopyTexture);
 
 	AddDrawScreenPass(GraphBuilder, {}, View, InputViewport, OutputViewport, VertexShader, PixelShader, PassParameters);

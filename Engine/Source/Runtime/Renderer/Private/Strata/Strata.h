@@ -68,56 +68,56 @@ struct FStrataSceneData
 	uint32 MaxBytesPerPixel;
 	bool bRoughDiffuse;
 
-	FIntPoint TileCount_Primary;
-	FIntPoint TileCount_Overflow;
-	FIntPoint TileCount_Total;
-
 	// Resources allocated and updated each frame
 
-	FRDGTextureRef MaterialTextureArray;
-	FRDGTextureUAVRef MaterialTextureArrayUAVWithoutRTs;
-	FRDGTextureUAVRef MaterialTextureArrayUAV;
-	FRDGTextureSRVRef MaterialTextureArraySRV;
+	FRDGTextureRef MaterialTextureArray = nullptr;
+	FRDGTextureUAVRef MaterialTextureArrayUAVWithoutRTs = nullptr;
+	FRDGTextureUAVRef MaterialTextureArrayUAV = nullptr;
+	FRDGTextureSRVRef MaterialTextureArraySRV = nullptr;
 
-	FRDGBufferRef ClassificationTileListBuffer[STRATA_TILE_TYPE_COUNT];
+	FRDGTextureRef TopLayerTexture = nullptr;
+	FRDGTextureRef SSSTexture = nullptr;
+	FRDGTextureRef OpaqueRoughRefractionTexture = nullptr;
+
+	FRDGTextureUAVRef TopLayerTextureUAV = nullptr;
+	FRDGTextureUAVRef SSSTextureUAV = nullptr;
+	FRDGTextureUAVRef OpaqueRoughRefractionTextureUAV = nullptr;
+
+	FRDGTextureRef BSDFOffsetTexture = nullptr;
+
+	// Used when the subsurface luminance is separated from the scene color
+	FRDGTextureRef SeparatedSubSurfaceSceneColor = nullptr;
+
+	// Used for Luminance that should go through opaque rough refraction (when under a top layer interface)
+	FRDGTextureRef SeparatedOpaqueRoughRefractionSceneColor = nullptr;
+};
+
+struct FStrataViewData
+{
+	FIntPoint TileCount_Primary = FIntPoint(0, 0);
+	FIntPoint TileCount_Overflow = FIntPoint(0, 0);
+	FIntPoint TileCount_Total = FIntPoint(0, 0);
+
+	FRDGBufferRef    ClassificationTileListBuffer[STRATA_TILE_TYPE_COUNT];
 	FRDGBufferSRVRef ClassificationTileListBufferSRV[STRATA_TILE_TYPE_COUNT];
 	FRDGBufferUAVRef ClassificationTileListBufferUAV[STRATA_TILE_TYPE_COUNT];
 
-	FRDGBufferRef    ClassificationTileDrawIndirectBuffer;
-	FRDGBufferUAVRef ClassificationTileDrawIndirectBufferUAV;
+	FRDGBufferRef    ClassificationTileDrawIndirectBuffer = nullptr;
+	FRDGBufferUAVRef ClassificationTileDrawIndirectBufferUAV = nullptr;
 
-	FRDGBufferRef    ClassificationTileDispatchIndirectBuffer;
-	FRDGBufferUAVRef ClassificationTileDispatchIndirectBufferUAV;
+	FRDGBufferRef    ClassificationTileDispatchIndirectBuffer = nullptr;
+	FRDGBufferUAVRef ClassificationTileDispatchIndirectBufferUAV = nullptr;
 
-	FRDGTextureRef TopLayerTexture;
-	FRDGTextureRef SSSTexture;
-	FRDGTextureRef OpaqueRoughRefractionTexture;
+	FRDGTextureRef BSDFTileTexture = nullptr;
+	FRDGBufferRef  BSDFTileCountBuffer = nullptr;
+	FRDGBufferRef  BSDFTileDispatchIndirectBuffer = nullptr;
 
-	FRDGTextureUAVRef TopLayerTextureUAV;
-	FRDGTextureUAVRef SSSTextureUAV;
-	FRDGTextureUAVRef OpaqueRoughRefractionTextureUAV;
-
-	FRDGTextureRef BSDFOffsetTexture;
-	FRDGTextureRef BSDFTileTexture;
-	FRDGBufferRef  BSDFTileCountBuffer;
-	FRDGBufferRef  BSDFTileDispatchIndirectBuffer;
-
-	// Used when the subsurface luminance is separated from the scene color
-	FRDGTextureRef SeparatedSubSurfaceSceneColor;
-
-	// Used for Luminance that should go through opaque rough refraction (when under a top layer interface)
-	FRDGTextureRef SeparatedOpaqueRoughRefractionSceneColor;
+	FStrataSceneData* SceneData = nullptr;
 
 	TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters{};
 
-	FStrataSceneData()
-	{
-		Reset();
-	}
-
 	void Reset();
 };
-
 
 namespace Strata
 {
@@ -129,7 +129,7 @@ bool IsStrataEnabled();
 
 FIntPoint GetStrataTextureResolution(const FIntPoint& InResolution);
 
-void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& GraphBuilder);
+void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer);
 
 void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FStrataBasePassUniformParameters& OutStrataUniformParameters);
 void BindStrataForwardPasslUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FStrataForwardPassUniformParameters& OutStrataUniformParameters);
@@ -165,6 +165,7 @@ class FStrataTilePassVS : public FGlobalShader
 		// It would be possible to use the ViewUniformBuffer instead of copying the data here, 
 		// but we would have to make sure the view UB is added to all passes using this parameter structure.
 		// We should not add it here to now have duplicated input UB.
+		SHADER_PARAMETER(FVector2f, OutputViewMinRect)
 		SHADER_PARAMETER(FVector4f, OutputViewSizeAndInvSize)
 		SHADER_PARAMETER(FVector4f, OutputBufferSizeAndInvSize)
 		SHADER_PARAMETER(FMatrix44f, ViewScreenToTranslatedWorld)

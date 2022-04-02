@@ -306,13 +306,13 @@ FBurleySampleInfo GenerateSampleInfo(float2 Rand0T1, float DiffuseMeanFreePathFo
 #if STRATA_ENABLED
 FStrataSubsurfaceData LoadStrataSSSData(float2 UV)
 {
-	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy - View.ViewRectMin.xy;
+	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy;
 	return StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelPos, 0)));
 }
 
 FStrataTopLayerData LoadStrataTopLayerData(float2 UV)
 {
-	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy - View.ViewRectMin.xy;
+	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy;
 	return StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
 }
 #endif

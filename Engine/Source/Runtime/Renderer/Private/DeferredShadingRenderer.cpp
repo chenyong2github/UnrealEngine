@@ -2253,7 +2253,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Strata initialisation is always run even when not enabled.
 	const bool bStrataEnabled = Strata::IsStrataEnabled();
-	Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);
+	Strata::InitialiseStrataFrameSceneData(GraphBuilder, *this);
 
 	if (DepthPass.IsComputeStencilDitherEnabled())
 	{

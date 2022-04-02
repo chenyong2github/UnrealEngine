@@ -9,6 +9,7 @@
 
 #if SHADER_TILE_VS
 
+float2 OutputViewMinRect;
 float4 OutputViewSizeAndInvSize;
 float4 OutputBufferSizeAndInvSize;
 float4x4 ViewScreenToTranslatedWorld;
@@ -41,7 +42,7 @@ void StrataTilePassVS(
 	OutPosition = float4(float2(TileVertex) * OutputViewSizeAndInvSize.zw * float2(2.0f, -2.0f) + float2(-1.0, 1.0f), 0.5f, 1.0f);
 
 #if PERMUTATION_ENABLE_TEXCOORD_SCREENVECTOR
-	OutTexCoord = float2(TileVertex) * OutputBufferSizeAndInvSize.zw;
+	OutTexCoord = (TileVertex + OutputViewMinRect.xy) * OutputBufferSizeAndInvSize.zw;
 	OutScreenVector = mul(float4(OutPosition.xy, 1, 0), ViewScreenToTranslatedWorld).xyz;
 #endif
 

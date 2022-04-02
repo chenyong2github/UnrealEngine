@@ -80,8 +80,8 @@ static void CommonStampDeferredDebugProbeDrawCall(
 	int32 RenderPass)
 {
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	PassParameters->MaterialTextureArrayUAV = View.StrataSceneData->MaterialTextureArrayUAVWithoutRTs;
-	PassParameters->MaxBytesPerPixel = View.StrataSceneData->MaxBytesPerPixel;
+	PassParameters->MaterialTextureArrayUAV = View.StrataViewData.SceneData->MaterialTextureArrayUAVWithoutRTs;
+	PassParameters->MaxBytesPerPixel = View.StrataViewData.SceneData->MaxBytesPerPixel;
 	PassParameters->DebugProbesMode = View.Family->EngineShowFlags.VisualizeLightingOnProbes ? 3 : FMath::Clamp(CVarVisualizeLightingOnProbes.GetValueOnRenderThread(), 0, 3);
 		
 	FStampDeferredDebugProbePS::FPermutationDomain PermutationVector;

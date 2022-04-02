@@ -727,7 +727,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
 
 	// Strata initialisation is always run even when not enabled.
-	Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);
+	Strata::InitialiseStrataFrameSceneData(GraphBuilder, *this);
 
 	// Force the subsurface profile texture to be updated.
 	UpdateSubsurfaceProfileTexture(GraphBuilder, ShaderPlatform);
