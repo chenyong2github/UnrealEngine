@@ -11,6 +11,8 @@ using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
 using Horde.Build.Collections;
 using Horde.Build.Collections.Impl;
+using Horde.Build.Commits;
+using Horde.Build.Commits.Impl;
 using Horde.Build.Controllers;
 using Horde.Build.Jobs;
 using Horde.Build.Logs;
@@ -32,6 +34,7 @@ using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -128,6 +131,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<IConfiguration>(config);
 
 			services.AddLogging(builder => builder.AddConsole());
+			services.AddSingleton<IMemoryCache>(sp => new MemoryCache(new MemoryCacheOptions { }));
 
 			services.AddSingleton<RedisService>();
 
@@ -137,6 +141,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<IAgentCollection, AgentCollection>();
 			services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
 			services.AddSingleton<IArtifactCollection, ArtifactCollection>();
+			services.AddSingleton<ICommitCollection, CommitCollection>();
 			services.AddSingleton<IGraphCollection, GraphCollection>();
 			services.AddSingleton<IIssueCollection, IssueCollection>();
 			services.AddSingleton<IJobCollection, JobCollection>();
@@ -191,6 +196,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<UpgradeService>();
 
 			services.AddSingleton<ConformTaskSource>();
+			services.AddSingleton<ICommitService, CommitService>();
 
 			services.AddSingleton(new Startup.StorageBackendSettings<PersistentLogStorage> { Type = StorageProviderType.Transient });
 			services.AddSingleton(new Startup.StorageBackendSettings<ArtifactCollection> { Type = StorageProviderType.Transient });

@@ -13,7 +13,7 @@ namespace Horde.Build.Commits
 	/// <summary>
 	/// Stores a collection of commits
 	/// </summary>
-	interface ICommitCollection
+	public interface ICommitCollection
 	{
 		/// <summary>
 		/// Adds or replaces an existing commit

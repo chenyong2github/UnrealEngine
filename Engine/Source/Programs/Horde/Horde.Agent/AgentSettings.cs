@@ -29,6 +29,11 @@ namespace Horde.Agent
 		/// Manage workspaces and run steps in a synced branch
 		/// </summary>
 		Perforce,
+
+		/// <summary>
+		/// Pull replicated data from Horde Storage
+		/// </summary>
+		Replicated,
 	}
 
 	/// <summary>

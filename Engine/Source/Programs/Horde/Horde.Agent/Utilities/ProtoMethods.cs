@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Horde.Compute;
+using EpicGames.Horde.Storage;
 
 namespace HordeCommon.Rpc.Tasks
 {
@@ -12,7 +13,7 @@ namespace HordeCommon.Rpc.Tasks
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeTaskResultMessage(RefIdWrapper resultRefId)
+		public ComputeTaskResultMessage(RefId resultRefId)
 		{
 			ResultRefId = resultRefId;
 		}

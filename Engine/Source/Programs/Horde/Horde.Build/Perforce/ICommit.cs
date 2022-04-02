@@ -64,7 +64,7 @@ namespace Horde.Build.Commits
 	/// <summary>
 	/// New commit object
 	/// </summary>
-	class NewCommit
+	public class NewCommit
 	{
 		/// <inheritdoc cref="ICommit.StreamId"/>
 		public StreamId StreamId { get; set; }

@@ -14,6 +14,7 @@ using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Api;
 using Horde.Build.Collections;
+using Horde.Build.Commits;
 using Horde.Build.Models;
 using Horde.Build.Server;
 using Horde.Build.Services;
@@ -191,6 +192,7 @@ namespace Horde.Build.Tasks.Impl
 		readonly IUgsMetadataCollection _ugsMetadataCollection;
 		readonly PerforceLoadBalancer _perforceLoadBalancer;
 		readonly IOptionsMonitor<ServerSettings> _settings;
+		readonly ICommitService _commitService;
 		readonly ILogger<JobTaskSource> _logger;
 		readonly ITicker _ticker;
 
@@ -231,7 +233,7 @@ namespace Horde.Build.Tasks.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobTaskSource(MongoService mongoService, IAgentCollection agents, IJobCollection jobs, IJobStepRefCollection jobStepRefs, IGraphCollection graphs, IPoolCollection pools, IUgsMetadataCollection ugsMetadataCollection, StreamService streamService, ILogFileService logFileService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<JobTaskSource> logger)
+		public JobTaskSource(MongoService mongoService, IAgentCollection agents, IJobCollection jobs, IJobStepRefCollection jobStepRefs, IGraphCollection graphs, IPoolCollection pools, IUgsMetadataCollection ugsMetadataCollection, StreamService streamService, ILogFileService logFileService, PerforceLoadBalancer perforceLoadBalancer, ICommitService commitService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<JobTaskSource> logger)
 		{
 			_mongoService = mongoService;
 			_agentsCollection = agents;
@@ -245,6 +247,7 @@ namespace Horde.Build.Tasks.Impl
 			_perforceLoadBalancer = perforceLoadBalancer;
 			_ticker = clock.AddTicker<JobTaskSource>(s_refreshInterval, TickAsync, logger);
 			_settings = settings;
+			_commitService = commitService;
 			_logger = logger;
 
 			OnLeaseStartedProperties.Add(nameof(ExecuteJobTask.JobId), x => new JobId(x.JobId)).Add(nameof(ExecuteJobTask.BatchId), x => SubResourceId.Parse(x.BatchId)).Add(nameof(ExecuteJobTask.LogId), x => new LogId(x.LogId));
@@ -844,6 +847,13 @@ namespace Horde.Build.Tasks.Impl
 			}
 
 			task.Workspace = workspaces.Last();
+
+			IStream? Stream;
+			if (_streams.TryGetValue(job.StreamId, out Stream))
+			{
+				task.ContentRef = _commitService.GetReplicatedContentRef(Stream, job.Change);
+			}
+
 			return task;
 		}
 

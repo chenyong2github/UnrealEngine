@@ -85,6 +85,7 @@ namespace Horde.Build.Commits.Impl
 		/// <summary>
 		/// Filter for paths in the depot included in this tree
 		/// </summary>
+		[CbField]
 		public string? Filter { get; set; }
 
 		/// <summary>
@@ -120,6 +121,11 @@ namespace Horde.Build.Commits.Impl
 			CbObject obj = CbSerializer.Serialize(this);
 			return new RefId(IoHash.Compute(obj.GetView().Span));
 		}
+
+		/// <summary>
+		/// Gets the ref id for a particular commit
+		/// </summary>
+		public static RefId GetRefId(StreamId streamId, int change, string? filter, bool revisionsOnly) => new CommitKey(streamId, change, filter, revisionsOnly).GetRefId();
 	}
 
 	/// <summary>
@@ -975,6 +981,19 @@ namespace Horde.Build.Commits.Impl
 			// Print out stats for the new data
 			BundleStats stats = commitBundle.Stats;
 			_logger.LogInformation("Written ref {RefId} for {StreamId} change {Change}. Download: {NewBytes:n0} bytes ({NewRefCount} refs => {NewRefBytes:n0} bytes, {NewBlobCount} blobs => {NewBlobBytes:n0} bytes, {NewNodeCount:n0} nodes => {NewNodeBytes:n0} bytes).", refId, stream.Id, change, stats.NewRefBytes + stats.NewBlobBytes, stats.NewRefCount, stats.NewRefBytes, stats.NewBlobCount, stats.NewBlobBytes, stats.NewNodeCount, stats.NewNodeBytes);
+		}
+
+		public QualifiedRefId? GetReplicatedContentRef(IStream stream, int change)
+		{
+			if (stream.ReplicationMode == ContentReplicationMode.None)
+			{
+				return null;
+			}
+			else
+			{
+				CommitKey key = new CommitKey(stream.Id, change, stream.ReplicationFilter, stream.ReplicationMode == ContentReplicationMode.RevisionsOnly);
+				return new QualifiedRefId(Options.NamespaceId, GetStreamBucketId(stream.Id), key.GetRefId());
+			}
 		}
 
 		async Task FlushWorkspaceAsync(ReplicationClient clientInfo, IPerforceConnection perforce, int change)
