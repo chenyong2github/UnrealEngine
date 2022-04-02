@@ -5,6 +5,7 @@
 #include "MassEntityTypes.h"
 #include "MassComponentHitTypes.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "Engine/HitResult.h"
 
 #include "MassComponentHitSubsystem.generated.h"
 

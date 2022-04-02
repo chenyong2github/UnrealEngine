@@ -8,7 +8,10 @@
 
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Engine/EngineTypes.h"
+#endif
+#include "Engine/HitResult.h"
 #include "EngineDefines.h"
 
 /**

@@ -2,6 +2,7 @@
 
 #include "MassLODUtils.h"
 #include "MassCommandBuffer.h"
+#include "HAL/IConsoleManager.h"
 
 DEFINE_LOG_CATEGORY(LogMassLOD);
 #if WITH_MASSGAMEPLAY_DEBUG

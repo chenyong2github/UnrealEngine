@@ -2,6 +2,7 @@
 
 #include "SCAQueryTableRow.h"
 #include "CollisionAnalyzerStyle.h"
+#include "Engine/HitResult.h"
 
 #define LOCTEXT_NAMESPACE "CollisionAnalyzer"
 

@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "BaseTools/MeshSurfacePointTool.h"
 #include "InteractiveTool.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "Engine/EngineTypes.h"
+#endif
 #include "Engine/HitResult.h"
 #include "BaseBrushTool.generated.h"
 

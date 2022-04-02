@@ -5,7 +5,8 @@
 #include "CoreMinimal.h"
 #include "Engine/HitResult.h"
 #include "Engine/OverlapInfo.h"
-#include "Engine/EngineTypes.h"
+
+enum class ETeleportType : uint8;
 
 /**
  * Enum that controls the scoping behavior of FScopedMovementUpdate.
@@ -106,7 +107,7 @@ protected:
 	/** Fills in the list of overlaps at the end location (in EndOverlaps). Returns pointer to the list, or null if it can't be computed. */
 	TOptional<TOverlapArrayView> GetOverlapsAtEnd(class UPrimitiveComponent& PrimComponent, TInlineOverlapInfoArray& OutEndOverlaps, bool bTransformChanged) const;
 
-	bool SetWorldLocationAndRotation(FVector NewLocation, const FQuat& NewQuat, bool bNoPhysics = false, ETeleportType Teleport = ETeleportType::None);
+	bool SetWorldLocationAndRotation(FVector NewLocation, const FQuat& NewQuat, bool bNoPhysics, ETeleportType Teleport);
 
 private:
 	/** Notify this scope that the given inner scope completed its update (ie is going out of scope). Only occurs for deferred updates. */

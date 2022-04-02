@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "ToolSceneQueriesUtil.h"
+#include "Engine/HitResult.h"
 
 /**
  * BehaviorTarget to do world raycast selection from a click

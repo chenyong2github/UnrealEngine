@@ -2,6 +2,7 @@
 
 #include "ClothingAssetListCommands.h"
 #include "ClothingAssetExporter.h"
+#include "Features/IModularFeatures.h"
 
 #define LOCTEXT_NAMESPACE "ClothingAssetListCommands"
 

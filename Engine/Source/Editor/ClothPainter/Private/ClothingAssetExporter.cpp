@@ -7,6 +7,8 @@
 #include "AssetRegistryModule.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "Features/IModularFeatures.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "ClothingAssetExporter"
 

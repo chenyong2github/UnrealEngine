@@ -19,6 +19,8 @@ class FEditorViewportClient;
 class FSceneView;
 class AActor;
 
+struct FHitResult;
+
 enum class EMeshPaintAction : uint8;
 
 /** Base class for creating a mesh painter, has basic functionality combined with IMeshPaintMode and requires painting/situation-specific information to do actual painting */

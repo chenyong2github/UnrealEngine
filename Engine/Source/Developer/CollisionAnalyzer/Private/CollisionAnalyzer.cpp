@@ -4,6 +4,7 @@
 #include "HAL/FileManager.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Engine/GameViewportClient.h"
+#include "Engine/HitResult.h"
 #include "DrawDebugHelpers.h"
 #include "SCollisionAnalyzer.h"
 #include "CollisionAnalyzerLog.h"
@@ -14,6 +15,12 @@
 #define COLLISION_ANALYZER_MAGIC					0x2DFF34FC
 /** Version of collision analyzer. Incremented on serialization changes.			*/
 #define COLLISION_ANALYZER_VERSION					0
+
+FCAQuery::FCAQuery() :
+	Params(NAME_None, FCollisionQueryParams::GetUnknownStatId())
+{
+}
+FCAQuery::~FCAQuery() = default;
 
 /** Util for serializing an FHitResult struct */
 void SerializeHitResult(FArchive& Ar, FHitResult& Result)

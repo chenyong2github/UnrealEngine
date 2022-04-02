@@ -10,6 +10,7 @@
 #include "CollisionQueryParams.h"
 #include "CollisionShape.h"
 #include "Engine/OverlapResult.h"
+#include "Engine/HitResult.h"
 
 struct FOverlapDatum;
 struct FTraceDatum;

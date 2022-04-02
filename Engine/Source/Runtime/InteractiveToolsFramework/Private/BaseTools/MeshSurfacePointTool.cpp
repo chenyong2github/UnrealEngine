@@ -9,6 +9,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
 
+#include "Engine/World.h"
+
 #define LOCTEXT_NAMESPACE "UMeshSurfacePointTool"
 
 

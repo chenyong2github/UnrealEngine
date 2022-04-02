@@ -8,6 +8,7 @@
 class SWidget;
 struct FCollisionObjectQueryParams;
 struct FCollisionResponseParams;
+struct FHitResult;
 
 /** Enum to describe type of the query */
 namespace ECAQueryType

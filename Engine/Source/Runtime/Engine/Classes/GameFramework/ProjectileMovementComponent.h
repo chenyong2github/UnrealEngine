@@ -5,8 +5,9 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/MovementComponent.h"
-#include "Engine/HitResult.h"
 #include "ProjectileMovementComponent.generated.h"
+
+struct FHitResult;
 
 /**
  * ProjectileMovementComponent updates the position of another component during its tick.

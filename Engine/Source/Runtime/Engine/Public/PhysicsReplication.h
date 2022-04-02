@@ -8,6 +8,7 @@
 #pragma once
 
 #include "Engine/EngineTypes.h"
+#include "Engine/ReplicatedState.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #if WITH_CHAOS

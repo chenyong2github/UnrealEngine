@@ -11,6 +11,7 @@
 #include "Engine/OverlapInfo.h"
 #include "Engine/ScopedMovementUpdate.h"
 #endif
+#include "Engine/HitResult.h"
 #include "ComponentInstanceDataCache.h"
 #include "Components/ActorComponent.h"
 #include "RHIDefinitions.h"

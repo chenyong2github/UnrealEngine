@@ -3,6 +3,7 @@
 #include "MassCommonTypes.h"
 #include "MassEntitySubsystem.h"
 #include "Math/ColorList.h"
+#include "HAL/IConsoleManager.h"
 
 #if WITH_MASSGAMEPLAY_DEBUG
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NetworkPredictionComponent.h"
+#include "Engine/HitResult.h"
 
 #include "BaseMovementComponent.generated.h"
 

@@ -12,6 +12,7 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PhysicsDataSource.h"
 #include "ToolTargets/PrimitiveComponentToolTarget.h"
+#include "HAL/IConsoleManager.h"
 
 #include "VolumeComponentToolTarget.generated.h"
 
