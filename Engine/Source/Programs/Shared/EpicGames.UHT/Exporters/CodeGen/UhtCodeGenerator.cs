@@ -32,7 +32,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		public struct HeaderInfo
 		{
-			public IUhtExportTask? Task;
+			public Task? Task;
 			public string IncludePath;
 			public string FileId;
 			public uint BodyHash;
@@ -66,7 +66,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		private void Generate()
 		{
-			List<IUhtExportTask> Prereqs = new List<IUhtExportTask>();
+			List<Task?> Prereqs = new List<Task?>();
 
 			// Perform some startup initialization to compute things we need over and over again
 			if (this.Session.bGoWide)
@@ -97,25 +97,21 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					{
 						if (HeaderFile != Referenced)
 						{
-							IUhtExportTask? GeneratedReferenced = this.HeaderInfos[Referenced.HeaderFileTypeIndex].Task;
-							if (GeneratedReferenced != null)
-							{
-								Prereqs.Add(GeneratedReferenced);
-							}
+							Prereqs.Add(this.HeaderInfos[Referenced.HeaderFileTypeIndex].Task);
 						}
 					}
 
 					this.HeaderInfos[HeaderFile.HeaderFileTypeIndex].Task = Factory.CreateTask(Prereqs,  
-						(IUhtExportTask Task) =>
+						(IUhtExportFactory Factory) =>
 						{
-							new UhtHeaderCodeGeneratorHFile(this, Package, HeaderFile).Generate(Task);
-							new UhtHeaderCodeGeneratorCppFile(this, Package, HeaderFile).Generate(Task);
+							new UhtHeaderCodeGeneratorHFile(this, Package, HeaderFile).Generate(Factory);
+							new UhtHeaderCodeGeneratorCppFile(this, Package, HeaderFile).Generate(Factory);
 						});
 				}
 			}
 
 			// Generate the files for the packages
-			List<IUhtExportTask> GeneratedPackages = new List<IUhtExportTask>(this.Session.PackageTypeCount);
+			List<Task?> GeneratedPackages = new List<Task?>(this.Session.PackageTypeCount);
 			foreach (UhtPackage Package in this.Session.Packages)
 			{
 				UHTManifest.Module Module = Package.Module;
@@ -124,11 +120,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				Prereqs.Clear();
 				foreach (UhtHeaderFile HeaderFile in Package.Children)
 				{
-					IUhtExportTask? GeneratedReferenced = this.HeaderInfos[HeaderFile.HeaderFileTypeIndex].Task;
-					if (GeneratedReferenced != null)
-					{
-						Prereqs.Add(GeneratedReferenced);
-					}
+					Prereqs.Add(this.HeaderInfos[HeaderFile.HeaderFileTypeIndex].Task);
 					if (!bWriteHeader)
 					{
 						foreach (UhtType Type in HeaderFile.Children)
@@ -148,24 +140,24 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				}
 
 				GeneratedPackages.Add(Factory.CreateTask(Prereqs, 
-					(IUhtExportTask Task) =>
+					(IUhtExportFactory Factory) =>
 					{
 						List<UhtHeaderFile> PackageSortedHeaders = GetSortedHeaderFiles(Package);
 						if (bWriteHeader)
 						{
-							new UhtPackageCodeGeneratorHFile(this, Package).Generate(Task, PackageSortedHeaders);
+							new UhtPackageCodeGeneratorHFile(this, Package).Generate(Factory, PackageSortedHeaders);
 						}
-						new UhtPackageCodeGeneratorCppFile(this, Package).Generate(Task, PackageSortedHeaders);
+						new UhtPackageCodeGeneratorCppFile(this, Package).Generate(Factory, PackageSortedHeaders);
 					}));
 			}
 
 			// Wait for all the packages to complete
 			List<Task> PackageTasks = new List<Task>(this.Session.PackageTypeCount);
-			foreach (IUhtExportTask Output in GeneratedPackages)
+			foreach (Task? Output in GeneratedPackages)
 			{
-				if (Output.ActionTask != null)
+				if (Output != null)
 				{
-					PackageTasks.Add(Output.ActionTask);
+					PackageTasks.Add(Output);
 				}
 			}
 			Task.WaitAll(PackageTasks.ToArray());

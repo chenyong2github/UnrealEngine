@@ -27,8 +27,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <summary>
 		/// For a given UE header file, generated the generated H file
 		/// </summary>
-		/// <param name="Task">Requesting task</param>
-		public void Generate(IUhtExportTask Task)
+		/// <param name="Factory">Requesting factory</param>
+		public void Generate(IUhtExportFactory Factory)
 		{
 			ref UhtCodeGenerator.HeaderInfo HeaderInfo = ref this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex];
 			using (BorrowStringBuilder Borrower = new BorrowStringBuilder(StringBuilderCache.Big))
@@ -290,11 +290,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				using (UhtBorrowBuffer BorrowBuffer = new UhtBorrowBuffer(Builder))
 				{
-					string CppFilePath = Task.Factory.MakePath(HeaderFile, ".gen.cpp");
+					string CppFilePath = Factory.MakePath(HeaderFile, ".gen.cpp");
 					StringView GeneratedBody = new StringView(BorrowBuffer.Buffer.Memory);
 					if (this.SaveExportedHeaders)
 					{
-						Task.CommitOutput(CppFilePath, GeneratedBody);
+						Factory.CommitOutput(CppFilePath, GeneratedBody);
 					}
 
 					// Save the hash of the generated body 

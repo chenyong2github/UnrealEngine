@@ -24,9 +24,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <summary>
 		/// For a given UE header file, generated the generated H file
 		/// </summary>
-		/// <param name="Task">Requesting task</param>
+		/// <param name="Factory">Requesting factory</param>
 		/// <param name="PackageSortedHeaders">Sorted list of headers by name of all headers in the package</param>
-		public void Generate(IUhtExportTask Task, List<UhtHeaderFile> PackageSortedHeaders)
+		public void Generate(IUhtExportFactory Factory, List<UhtHeaderFile> PackageSortedHeaders)
 		{
 			using (BorrowStringBuilder Borrower = new BorrowStringBuilder(StringBuilderCache.Big))
 			{
@@ -63,8 +63,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				if (this.SaveExportedHeaders)
 				{
-					string HeaderFilePath = Task.Factory.MakePath(this.Package, "Classes.h");
-					Task.CommitOutput(HeaderFilePath, Builder);
+					string HeaderFilePath = Factory.MakePath(this.Package, "Classes.h");
+					Factory.CommitOutput(HeaderFilePath, Builder);
 				}
 			}
 		}

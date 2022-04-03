@@ -31,26 +31,26 @@ namespace EpicGames.UHT.Exporters.Json
 		private void Export()
 		{
 			// Generate the files for the packages
-			List<IUhtExportTask> GeneratedPackages = new List<IUhtExportTask>(this.Session.PackageTypeCount);
+			List<Task?> GeneratedPackages = new List<Task?>(this.Session.PackageTypeCount);
 			foreach (UhtPackage Package in this.Session.Packages)
 			{
 				UHTManifest.Module Module = Package.Module;
 				GeneratedPackages.Add(Factory.CreateTask(
-					(IUhtExportTask Task) =>
+					(IUhtExportFactory Factory) =>
 					{
-						string JsonPath = Task.Factory.MakePath(Package, ".json");
+						string JsonPath = Factory.MakePath(Package, ".json");
 						JsonSerializerOptions Options = new JsonSerializerOptions { WriteIndented = true, IgnoreNullValues = true };
-						Task.CommitOutput(JsonPath, JsonSerializer.Serialize(Package, Options));
+						Factory.CommitOutput(JsonPath, JsonSerializer.Serialize(Package, Options));
 					}));
 			}
 
 			// Wait for all the packages to complete
 			List<Task> PackageTasks = new List<Task>(this.Session.PackageTypeCount);
-			foreach (IUhtExportTask Output in GeneratedPackages)
+			foreach (Task? Output in GeneratedPackages)
 			{
-				if (Output.ActionTask != null)
+				if (Output != null)
 				{
-					PackageTasks.Add(Output.ActionTask);
+					PackageTasks.Add(Output);
 				}
 			}
 			Task.WaitAll(PackageTasks.ToArray());

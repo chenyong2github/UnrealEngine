@@ -11,47 +11,10 @@ namespace EpicGames.UHT.Utils
 {
 
 	/// <summary>
-	/// Represents a task to export outputs
+	/// Delegate invoked by a factory
 	/// </summary>
-	public interface IUhtExportTask
-	{
-		/// <summary>
-		/// Factory associated with the task
-		/// </summary>
-		public IUhtExportFactory Factory { get; }
-
-		/// <summary>
-		/// Session being run
-		/// </summary>
-		public UhtSession Session { get; }
-
-		/// <summary>
-		/// Task handle associated with the task for it can be waited on
-		/// </summary>
-		public Task? ActionTask { get; }
-
-		/// <summary>
-		/// Commit the contents of the string builder as the output.
-		/// If you have a string builder, use this method so that a 
-		/// temporary buffer can be used.
-		/// </summary>
-		/// <param name="FilePath">Destination file path</param>
-		/// <param name="Builder">Source for the content</param>
-		public void CommitOutput(string FilePath, StringBuilder Builder);
-
-		/// <summary>
-		/// Commit the value of the string as the output
-		/// </summary>
-		/// <param name="FilePath">Destination file path</param>
-		/// <param name="Output">Output to commit</param>
-		public void CommitOutput(string FilePath, StringView Output);
-	}
-
-	/// <summary>
-	/// Delegate invoked by a task
-	/// </summary>
-	/// <param name="Task">Invoking task</param>
-	public delegate void UhtExportTaskDelegate(IUhtExportTask Task);
+	/// <param name="Factory">Invoking factory</param>
+	public delegate void UhtExportTaskDelegate(IUhtExportFactory Factory);
 
 	/// <summary>
 	/// Factory object used to generate export tasks
@@ -69,15 +32,31 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		/// <param name="Prereqs">Tasks that must be completed prior to this task running</param>
 		/// <param name="Action">Action to be invoked to generate the output(s)</param>
-		/// <returns>Task interface.</returns>
-		public IUhtExportTask CreateTask(List<IUhtExportTask>? Prereqs, UhtExportTaskDelegate Action);
+		/// <returns>Task object or null if the task was immediately executed.</returns>
+		public Task? CreateTask(List<Task?>? Prereqs, UhtExportTaskDelegate Action);
 
 		/// <summary>
 		/// Create a task
 		/// </summary>
 		/// <param name="Action">Action to be invoked to generate the output(s)</param>
-		/// <returns>Task interface.</returns>
-		public IUhtExportTask CreateTask(UhtExportTaskDelegate Action);
+		/// <returns>Task object or null if the task was immediately executed.</returns>
+		public Task? CreateTask(UhtExportTaskDelegate Action);
+
+		/// <summary>
+		/// Commit the contents of the string builder as the output.
+		/// If you have a string builder, use this method so that a 
+		/// temporary buffer can be used.
+		/// </summary>
+		/// <param name="FilePath">Destination file path</param>
+		/// <param name="Builder">Source for the content</param>
+		public void CommitOutput(string FilePath, StringBuilder Builder);
+
+		/// <summary>
+		/// Commit the value of the string as the output
+		/// </summary>
+		/// <param name="FilePath">Destination file path</param>
+		/// <param name="Output">Output to commit</param>
+		public void CommitOutput(string FilePath, StringView Output);
 
 		/// <summary>
 		/// Make a path for an output based on the header file name.

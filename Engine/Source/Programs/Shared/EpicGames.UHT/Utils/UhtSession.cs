@@ -48,123 +48,6 @@ namespace EpicGames.UHT.Utils
 	}
 
 	/// <summary>
-	/// Base implementation of an export task
-	/// </summary>
-	class UhtExportTask : IUhtExportTask
-	{
-		/// <summary>
-		/// Action to invoke to generate the output
-		/// </summary>
-		private readonly UhtExportTaskDelegate Action;
-
-		/// <summary>
-		/// Factory requesting the export
-		/// </summary>
-		protected readonly UhtExportFactory ExportFactory;
-
-		/// <summary>
-		/// Action task created to invoke the task
-		/// </summary>
-		private Task? ActionTaskInternal = null;
-
-		/// <summary>
-		/// Factory associated with the task
-		/// </summary>
-		public IUhtExportFactory Factory => this.ExportFactory;
-
-		/// <summary>
-		/// UHT session
-		/// </summary>
-		public UhtSession Session => this.ExportFactory.Session;
-
-		/// <summary>
-		/// Export options associated with the task
-		/// </summary>
-		public Task? ActionTask => this.ActionTaskInternal;
-
-		/// <summary>
-		/// Construct a new instance of an export task
-		/// </summary>
-		/// <param name="ExportFactory">Factory requesting the task</param>
-		/// <param name="Action">Action to be invoked as part of the export</param>
-		public UhtExportTask(UhtExportFactory ExportFactory, UhtExportTaskDelegate Action)
-		{
-			this.ExportFactory = ExportFactory;
-			this.Action = Action;
-		}
-
-		/// <summary>
-		/// Commit the contents of the string builder as the output.
-		/// If you have a string builder, use this method so that a 
-		/// temporary buffer can be used.
-		/// </summary>
-		/// <param name="FilePath">Destination file path</param>
-		/// <param name="Builder">Source for the content</param>
-		public void CommitOutput(string FilePath, StringBuilder Builder)
-		{
-			using (UhtBorrowBuffer BorrowBuffer = new UhtBorrowBuffer(Builder))
-			{
-				string TempFilePath = FilePath + ".tmp";
-				this.ExportFactory.SaveIfChanged(FilePath, TempFilePath, new StringView(BorrowBuffer.Buffer.Memory));
-			}
-		}
-
-		/// <summary>
-		/// Commit the value of the string as the output
-		/// </summary>
-		/// <param name="FilePath">Destination file path</param>
-		/// <param name="Output">Output to commit</param>
-		public void CommitOutput(string FilePath, StringView Output)
-		{
-			string TempFilePath = FilePath + ".tmp";
-			this.ExportFactory.SaveIfChanged(FilePath, TempFilePath, Output);
-		}
-
-		/// <summary>
-		/// Queue the task
-		/// </summary>
-		/// <param name="Prereqs">List of prerequisite tasks that must complete prior to this task being invoked.</param>
-		public void Queue(List<IUhtExportTask>? Prereqs)
-		{
-			if (this.Session.bGoWide)
-			{
-				List<Task>? PrereqTasks = null;
-				if (Prereqs != null)
-				{
-					PrereqTasks = new List<Task>();
-					foreach (IUhtExportTask Prereq in Prereqs)
-					{
-						if (Prereq.ActionTask != null)
-						{
-							PrereqTasks.Add(Prereq.ActionTask);
-						}
-					}
-				}
-				if (PrereqTasks != null && PrereqTasks.Count > 0)
-				{
-					this.ActionTaskInternal = Task.Factory.ContinueWhenAll(PrereqTasks.ToArray(), (Task[] Tasks) => { Export(); });
-				}
-				else
-				{
-					this.ActionTaskInternal = Task.Factory.StartNew(() => { Export(); });
-				}
-			}
-			else
-			{
-				Export();
-			}
-		}
-
-		/// <summary>
-		/// Invoked to perform the actual export
-		/// </summary>
-		public void Export()
-		{
-			this.Action(this);
-		}
-	}
-
-	/// <summary>
 	/// Implementation of the export factory
 	/// </summary>
 	class UhtExportFactory : IUhtExportFactory
@@ -235,24 +118,65 @@ namespace EpicGames.UHT.Utils
 		}
 
 		/// <summary>
+		/// Commit the contents of the string builder as the output.
+		/// If you have a string builder, use this method so that a 
+		/// temporary buffer can be used.
+		/// </summary>
+		/// <param name="FilePath">Destination file path</param>
+		/// <param name="Builder">Source for the content</param>
+		public void CommitOutput(string FilePath, StringBuilder Builder)
+		{
+			using (UhtBorrowBuffer BorrowBuffer = new UhtBorrowBuffer(Builder))
+			{
+				string TempFilePath = FilePath + ".tmp";
+				SaveIfChanged(FilePath, TempFilePath, new StringView(BorrowBuffer.Buffer.Memory));
+			}
+		}
+
+		/// <summary>
+		/// Commit the value of the string as the output
+		/// </summary>
+		/// <param name="FilePath">Destination file path</param>
+		/// <param name="Output">Output to commit</param>
+		public void CommitOutput(string FilePath, StringView Output)
+		{
+			string TempFilePath = FilePath + ".tmp";
+			SaveIfChanged(FilePath, TempFilePath, Output);
+		}
+
+		/// <summary>
 		/// Create a task to export two files
 		/// </summary>
 		/// <param name="Prereqs">Tasks that must be completed prior to this task running</param>
 		/// <param name="Action">Action to be invoked to generate the output</param>
-		/// <returns>Task interface.</returns>
-		public IUhtExportTask CreateTask(List<IUhtExportTask>? Prereqs, UhtExportTaskDelegate Action)
+		/// <returns>Task object or null if the task was immediately executed.</returns>
+		public Task? CreateTask(List<Task?>? Prereqs, UhtExportTaskDelegate Action)
 		{
-			UhtExportTask Task = new UhtExportTask(this, Action);
-			Task.Queue(Prereqs);
-			return Task;
+			if (this.Session.bGoWide)
+			{
+				Task[]? PrereqTasks = Prereqs != null ? Prereqs.Where(x => x != null).Cast<Task>().ToArray() : null;
+				if (PrereqTasks != null && PrereqTasks.Length > 0)
+				{
+					return Task.Factory.ContinueWhenAll(PrereqTasks, (Task[] Tasks) => { Action(this); });
+				}
+				else
+				{
+					return Task.Factory.StartNew(() => { Action(this); });
+				}
+			}
+			else
+			{
+				Action(this);
+				return null;
+			}
 		}
 
 		/// <summary>
 		/// Create a task to export two files
 		/// </summary>
 		/// <param name="Action">Action to be invoked to generate the output</param>
-		/// <returns>Task interface.</returns>
-		public IUhtExportTask CreateTask(UhtExportTaskDelegate Action)
+		/// <returns>Task object or null if the task was immediately executed.</returns>
+		public Task? CreateTask(UhtExportTaskDelegate Action)
 		{
 			return CreateTask(null, Action);
 		}
