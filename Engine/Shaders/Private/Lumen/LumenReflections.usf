@@ -285,7 +285,7 @@ void ReflectionGenerateRaysCS(
 		#if STRATA_ENABLED
 			{
 				const float2 E = GenerateRandom(ReflectionTracingCoord);
-				FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(ReflectionTracingCoord, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+				FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(SvPosition, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 				const FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 				const FBxDFSample Sample = StrataSampleDirection(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader, -CameraVector, E);
 
