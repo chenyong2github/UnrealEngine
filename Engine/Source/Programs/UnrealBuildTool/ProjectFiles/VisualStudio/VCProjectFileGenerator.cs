@@ -279,7 +279,7 @@ namespace UnrealBuildTool
 			if (Settings.ProjectFileFormat == VCProjectFileFormat.Default)
 			{
 				// Enumerate all the valid installations. This list is already sorted by preference.
-				List<VisualStudioInstallation> Installations = WindowsPlatform.VisualStudioInstallations.Where(x => WindowsPlatform.HasCompiler(x.Compiler, WindowsArchitecture.x64)).ToList();
+				List<VisualStudioInstallation> Installations = MicrosoftPlatformSDK.VisualStudioInstallations.Where(x => WindowsPlatform.HasCompiler(x.Compiler, WindowsArchitecture.x64)).ToList();
 
 				// Get the corresponding project file format
 				VCProjectFileFormat Format = VCProjectFileFormat.VisualStudio2019;

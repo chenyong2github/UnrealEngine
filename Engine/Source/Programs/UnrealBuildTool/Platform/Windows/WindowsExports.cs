@@ -31,7 +31,7 @@ namespace UnrealBuildTool
 		/// <returns>Path to MSBuild.exe</returns>
 		public static string GetMSBuildToolPath()
 		{
-			return WindowsPlatform.GetMsBuildToolPath().FullName;
+			return MicrosoftPlatformSDK.GetMsBuildToolPath().FullName;
 		}
 
 		/// <summary>
