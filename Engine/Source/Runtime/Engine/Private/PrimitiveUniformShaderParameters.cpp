@@ -130,7 +130,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 	FBoxSphereBounds PreSkinnedLocalBounds;
 	Proxy->GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
 
-	const bool OptimizedWPO = CVarOptimizedWPO.GetValueOnRenderThread();
+	const bool OptimizedWPO = CVarOptimizedWPO.GetValueOnAnyThread();
 
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = Proxy->GetPrimitiveSceneInfo();
 
