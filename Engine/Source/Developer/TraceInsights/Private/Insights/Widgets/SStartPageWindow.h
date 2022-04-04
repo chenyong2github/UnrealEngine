@@ -76,8 +76,11 @@ struct FTraceViewModel
 	EBuildTargetType TargetType = EBuildTargetType::Unknown;
 
 	bool bIsMetadataUpdated = false;
+	bool bIsRenaming = false;
 	bool bIsLive = false;
 	uint32 IpAddress = 0;
+
+	TWeakPtr<SEditableTextBox> RenameTextBox;
 
 	FTraceViewModel() = default;
 
@@ -256,6 +259,12 @@ private:
 
 	/** Generate a new row for the Traces list view. */
 	TSharedRef<ITableRow> TraceList_OnGenerateRow(TSharedPtr<FTraceViewModel> InTrace, const TSharedRef<STableViewBase>& OwnerTable);
+
+	TSharedPtr<SWidget> TraceList_GetMenuContent();
+
+	bool CanEditTraceFile() const;
+	void RenameTraceFile();
+	void DeleteTraceFile();
 
 	//////////////////////////////////////////////////
 	// "Starting Analysis" Splash Screen
