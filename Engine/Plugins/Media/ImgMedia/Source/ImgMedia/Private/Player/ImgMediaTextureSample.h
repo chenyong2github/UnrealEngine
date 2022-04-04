@@ -37,7 +37,7 @@ public:
 	 * @param InTime The sample time (in the player's local clock).
 	 * @param InDuration The duration for which the sample is valid.
 	 */
-	bool Initialize(FImgMediaFrame& InFrame, const FIntPoint& InOutputDim, FMediaTimeStamp InTime, FTimespan InDuration, uint8 InNumMipMaps, TilingDescription InTilingDesc = TilingDescription())
+	bool Initialize(FImgMediaFrame& InFrame, const FIntPoint& InOutputDim, FMediaTimeStamp InTime, FTimespan InDuration, uint8 InNumMipMaps, FMediaTextureTilingDescription InTilingDesc = FMediaTextureTilingDescription())
 	{
 		Duration = InDuration;
 		Frame = InFrame;
@@ -75,7 +75,7 @@ public:
 		return NumMipMaps;
 	}
 
-	virtual TilingDescription GetTilingDescription() const override
+	virtual FMediaTextureTilingDescription GetTilingDescription() const override
 	{
 		return TilingDesc;
 	}
@@ -145,5 +145,5 @@ private:
 	uint8 NumMipMaps;
 
 	/** Description of the number and size of tiles in this sample. */
-	TilingDescription TilingDesc;
+	FMediaTextureTilingDescription TilingDesc;
 };

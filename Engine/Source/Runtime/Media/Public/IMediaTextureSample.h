@@ -91,6 +91,18 @@ namespace MediaTextureSampleFormat
 	 MEDIA_API const TCHAR* EnumToString(const EMediaTextureSampleFormat InSampleFormat);
 };
 
+/** Description of how the media texture sample is tiled (only used by tiled image sequences currently).*/
+struct FMediaTextureTilingDescription
+{
+	FIntPoint TileNum = FIntPoint::ZeroValue;
+	FIntPoint TileSize = FIntPoint::ZeroValue;
+	int32 TileBorderSize = 0;
+
+	FORCEINLINE bool IsValid() const
+	{
+		return TileNum.X > 0 && TileNum.Y > 0 && TileSize.X > 0 && TileSize.Y > 0;
+	}
+};
 
 enum class EMediaOrientation
 {
@@ -116,19 +128,6 @@ enum class EMediaOrientation
 class IMediaTextureSample
 {
 public:
-	/** Description of tiles (only used by tiled image sequences currently).*/
-	struct TilingDescription
-	{
-		FIntPoint TileNum  = FIntPoint::ZeroValue;
-		FIntPoint TileSize = FIntPoint::ZeroValue;
-		int32 TileBorderSize = 0;
-
-		FORCEINLINE bool IsValid() const
-		{
-			return TileNum.X > 0 && TileNum.Y > 0 && TileSize.X > 0 && TileSize.Y > 0;
-		}
-	};
-
 	/**
 	 * Get the sample's frame buffer.
 	 *
@@ -167,9 +166,9 @@ public:
 	 * @return TileInfo struct
 	 * @note Default implementation provided as most samples will not feature tiles
 	 */
-	virtual TilingDescription GetTilingDescription() const
+	virtual FMediaTextureTilingDescription GetTilingDescription() const
 	{
-		return TilingDescription();
+		return FMediaTextureTilingDescription();
 	}
 
 	/**

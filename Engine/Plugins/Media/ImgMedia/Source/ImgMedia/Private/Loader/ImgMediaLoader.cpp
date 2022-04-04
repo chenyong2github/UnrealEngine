@@ -51,9 +51,9 @@ namespace ImgMediaLoader
 	}
 	
 
-	FImgMediaTextureSample::TilingDescription GetTilingDescription(const FImgMediaLoader* Loader)
+	FMediaTextureTilingDescription GetTilingDescription(const FImgMediaLoader* Loader)
 	{
-		FImgMediaTextureSample::TilingDescription TilingDesc;
+		FMediaTextureTilingDescription TilingDesc;
 		
 		if (Loader->IsTiled())
 		{
