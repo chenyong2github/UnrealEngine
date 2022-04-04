@@ -4,8 +4,8 @@
 	SceneCapturePixelShader.usf: 
 =============================================================================*/
 
-// do not use framebuffer fetch
-#define FORCE_DEPTH_TEXTURE_READS 1
+// Sample SceneDepthAux texture on mobile
+#define POST_PROCESS_MATERIAL_MOBILE 1
 
 #include "Common.ush"
 #include "DeferredShadingCommon.ush"

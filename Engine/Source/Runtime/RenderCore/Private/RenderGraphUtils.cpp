@@ -595,8 +595,8 @@ void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture,
 			for (uint32 MipIndex = 0; MipIndex < TextureClearInfo.NumMips; ++MipIndex)
 			{
 				FIntRect CurrentViewport(
-					FMath::Max(1u, (uint32)OriginalViewport.Min.X >> MipIndex),
-					FMath::Max(1u, (uint32)OriginalViewport.Min.Y >> MipIndex),
+					(uint32)OriginalViewport.Min.X >> MipIndex, 
+					(uint32)OriginalViewport.Min.Y >> MipIndex,
 					FMath::Max(1u, (uint32)OriginalViewport.Max.X >> MipIndex),
 					FMath::Max(1u, (uint32)OriginalViewport.Max.Y >> MipIndex));
 
