@@ -35,7 +35,7 @@ namespace
 namespace UE::PixelStreaming
 {
 	FClientRTC::FClientRTC()
-		:State(EState::Disconnected)
+		: State(EState::Disconnected)
 	{
 		FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");
 		rtc::InitializeSSL();
@@ -57,7 +57,8 @@ namespace UE::PixelStreaming
 			nullptr);													   // audio_processing
 		check(PeerConnectionFactory);
 
-		SignallingServerConnection = MakeUnique<FSignallingServerConnection>(*this, TEXT("UE_INSTANCE"));
+		FSignallingServerConnection::FWebSocketFactory WebSocketFactory = [](const FString& Url) { return FWebSocketsModule::Get().CreateWebSocket(Url, TEXT("")); };
+		SignallingServerConnection = MakeUnique<FSignallingServerConnection>(WebSocketFactory, *this);
 	}
 
 	FClientRTC::~FClientRTC()
@@ -68,6 +69,11 @@ namespace UE::PixelStreaming
 	{
 		SignallingServerConnection->Connect(Url);
 		State = EState::Connecting;
+	}
+
+	void FClientRTC::Disconnect()
+	{
+		PeerConnection = nullptr;
 	}
 
 	bool FClientRTC::SendMessage(Protocol::EToStreamerMsg Type, const FString& Descriptor) const
@@ -185,6 +191,8 @@ namespace UE::PixelStreaming
 
 		DataChannel = Channel;
 		DataChannel->RegisterObserver(this);
+
+		OnDataChannelOpen.Broadcast(*this);
 	}
 
 	void FClientRTC::OnRenegotiationNeeded()

@@ -6,36 +6,22 @@
 #include "Stats.h"
 #include "PixelStreamingStatNames.h"
 #include "PlayerSessions.h"
-#include "IPixelStreamingTextureSource.h"
+#include "PixelStreamingModule.h"
+#include "FrameBuffer.h"
+#include "TextureSourceComputeI420.h"
+#include "TextureSourceCPUI420.h"
 
 namespace UE::PixelStreaming
 {
-	FVideoSourceBase::FVideoSourceBase(FPixelStreamingPlayerId InPlayerId)
-		: PlayerId(InPlayerId)
+	FVideoSourceBase::FVideoSourceBase()
 	{
-	}
-
-	void FVideoSourceBase::AddRef() const
-	{
-		RefCount.IncRef();
-	}
-
-	rtc::RefCountReleaseStatus FVideoSourceBase::Release() const
-	{
-		const rtc::RefCountReleaseStatus Status = RefCount.DecRef();
-		if (Status == rtc::RefCountReleaseStatus::kDroppedLastRef)
-		{
-			FFixedFPSPump::Get()->UnregisterVideoSource(PlayerId);
-			delete this;
-		}
-		return Status;
 	}
 
 	void FVideoSourceBase::Initialize()
 	{
 		CurrentState = webrtc::MediaSourceInterface::SourceState::kInitializing;
 
-		FFixedFPSPump::Get()->RegisterVideoSource(PlayerId, this);
+		IPixelStreamingModule::Get().RegisterPumpable(this);
 	}
 
 	FVideoSourceBase::~FVideoSourceBase()
@@ -79,18 +65,13 @@ namespace UE::PixelStreaming
 * ------------------ FPlayerVideSource ------------------
 */
 
-	FVideoSourceP2P::FVideoSourceP2P(FPixelStreamingPlayerId InPlayerId, FPlayerSessions* InSessions)
-		: FVideoSourceBase(InPlayerId)
-		, Sessions(InSessions)
+	FVideoSourceP2P::FVideoSourceP2P(FName SourceType, TFunction<bool()> InIsQualityControllerFunc)
+		: IsQualityControllerFunc(InIsQualityControllerFunc)
 	{
-		if (Settings::IsCodecVPX())
-		{
-			TextureSource = TSharedPtr<IPixelStreamingTextureSource, ESPMode::ThreadSafe>(new FBackBufferToCPUTextureSource(Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread() <= 0 ? 1.0 : Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread()));
-		}
-		else
-		{
-			TextureSource = TSharedPtr<IPixelStreamingTextureSource, ESPMode::ThreadSafe>(new FBackBufferTextureSource(Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread() <= 0 ? 1.0 : Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread()));
-		}
+		TUniquePtr<FPixelStreamingTextureSource> TextureGenerator = IPixelStreamingModule::Get().GetTextureSourceFactory().CreateTextureSource(SourceType);
+
+		float FrameScale = Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread() <= 0 ? 1.0 : Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread();
+		TextureSource = TSharedPtr<FTextureTripleBuffer, ESPMode::ThreadSafe>(new FTextureTripleBuffer(FrameScale, MoveTemp(TextureGenerator)));
 
 		// We store the codec during construction as querying it everytime seem overly wasteful
 		// especially considering we don't actually support switching codec mid-stream.
@@ -104,7 +85,8 @@ namespace UE::PixelStreaming
 
 	webrtc::VideoFrame FVideoSourceP2P::CreateFrameH264(int32 FrameId)
 	{
-		bool bQualityController = Sessions->IsQualityController(PlayerId);
+		bool bQualityController = IsQualityControllerFunc();
+
 		TextureSource->SetEnabled(bQualityController);
 
 		const int64 TimestampUs = rtc::TimeMicros();
@@ -170,8 +152,8 @@ namespace UE::PixelStreaming
 * ------------------ FVideoSourceSFU ------------------
 */
 
-	FVideoSourceSFU::FVideoSourceSFU()
-		: FVideoSourceBase(SFU_PLAYER_ID)
+	FVideoSourceSFU::FVideoSourceSFU(FName SourceType)
+		: FVideoSourceBase()
 	{
 		// Make a copy of simulcast settings and sort them based on scaling.
 		using FLayer = Settings::FSimulcastParameters::FLayer;
@@ -183,13 +165,29 @@ namespace UE::PixelStreaming
 		}
 		SortedLayers.Sort([](const FLayer& LayerA, const FLayer& LayerB) { return LayerA.Scaling > LayerB.Scaling; });
 
-		for (FLayer* SimulcastLayer : SortedLayers)
+		if(Settings::IsCodecVPX())
 		{
-			const float Scale = 1.0f / SimulcastLayer->Scaling;
-			TSharedPtr<FBackBufferTextureSource> TextureSource = MakeShared<FBackBufferTextureSource>(Scale);
-			TextureSource->SetEnabled(true);
-			LayerTextures.Add(TextureSource);
+			// VPX Encoding. We only keep a single texture source (the largest one) and do CPU scaling in the Encode loop
+			const float Scale = SortedLayers[SortedLayers.Num() - 1]->Scaling;
+			AddLayerTexture(SourceType, Scale);
 		}
+		else
+		{
+			// H264 Encoding. We store a texture source for each simulcast layer
+			for (FLayer* SimulcastLayer : SortedLayers)
+			{
+				const float Scale = 1.0f / SimulcastLayer->Scaling;
+				AddLayerTexture(SourceType, Scale);
+			}
+		}
+	}
+
+	void FVideoSourceSFU::AddLayerTexture(FName SourceType, float Scale) 
+	{
+		TUniquePtr<FPixelStreamingTextureSource> TextureGenerator = IPixelStreamingModule::Get().GetTextureSourceFactory().CreateTextureSource(SourceType);
+		TSharedPtr<FTextureTripleBuffer> TextureSource = MakeShared<FTextureTripleBuffer, ESPMode::ThreadSafe>(Scale, MoveTemp(TextureGenerator));
+		TextureSource->SetEnabled(true);
+		LayerTextures.Add(TextureSource);
 	}
 
 	bool FVideoSourceSFU::IsReadyForPump() const
@@ -208,7 +206,16 @@ namespace UE::PixelStreaming
 
 	webrtc::VideoFrame FVideoSourceSFU::CreateFrame(int32 FrameId)
 	{
-		rtc::scoped_refptr<webrtc::VideoFrameBuffer> FrameBuffer = new rtc::RefCountedObject<FSimulcastFrameBuffer>(LayerTextures);
+		rtc::scoped_refptr<webrtc::VideoFrameBuffer> FrameBuffer;
+		if(Settings::IsCodecVPX())
+		{
+			// VPX Encoding. We only ever have a single layer
+			FrameBuffer = new rtc::RefCountedObject<FFrameBufferI420>(LayerTextures[0]);
+		}
+		else
+		{
+			FrameBuffer = new rtc::RefCountedObject<FSimulcastFrameBuffer>(LayerTextures);
+		}
 		const int64 TimestampUs = rtc::TimeMicros();
 
 		webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder()

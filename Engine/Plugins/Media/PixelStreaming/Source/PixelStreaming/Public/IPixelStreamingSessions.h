@@ -4,11 +4,10 @@
 
 #include "IPixelStreamingAudioSink.h"
 #include "PixelStreamingPlayerId.h"
-#include "ProtocolDefs.h"
 
 namespace UE::PixelStreaming
 {
-	class IPixelStreamingSessions
+	class PIXELSTREAMING_API IPixelStreamingSessions
 	{
 	public:
 		virtual int GetNumPlayers() const = 0;

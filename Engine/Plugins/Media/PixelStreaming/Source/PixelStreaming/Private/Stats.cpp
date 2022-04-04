@@ -7,6 +7,8 @@
 #include "PlayerSessions.h"
 #include "Settings.h"
 #include "IPixelStreamingStatsConsumer.h"
+#include "Engine/Console.h"
+#include "ConsoleSettings.h"
 
 namespace UE::PixelStreaming
 {
@@ -23,6 +25,8 @@ namespace UE::PixelStreaming
 		checkf(FStats::Instance == nullptr, TEXT("There should only ever been one PixelStreaming stats object."));
 		checkf(Sessions, TEXT("To make stats object the sessions object must not be nullptr."));
 		FStats::Instance = this;
+
+		UConsole::RegisterConsoleAutoCompleteEntries.AddRaw(this, &FStats::UpdateConsoleAutoComplete_GameThread);
 	}
 
 	void FStats::QueryPeerStat(FPixelStreamingPlayerId PlayerId, FName StatToQuery, TFunction<void(bool, double)> QueryCallback) const
@@ -59,7 +63,7 @@ namespace UE::PixelStreaming
 	{
 		if (IsInGameThread())
 		{
-			//todo: return bool
+			// todo: return bool
 			bool bUpdated = StorePeerStat_GameThread(PlayerId, Stat);
 			if (bUpdated)
 			{
@@ -268,6 +272,21 @@ namespace UE::PixelStreaming
 		Callbacks->Add(Callback);
 	}
 
+	void FStats::UpdateConsoleAutoComplete_GameThread(TArray<FAutoCompleteCommand>& AutoCompleteList)
+	{
+		checkf(IsInGameThread(), TEXT("This method was not called from the game thread."));
+
+		const UConsoleSettings* ConsoleSettings = GetDefault<UConsoleSettings>();
+
+		AutoCompleteList.AddDefaulted();
+
+		FAutoCompleteCommand& AutoCompleteCommand = AutoCompleteList.Last();
+
+		AutoCompleteCommand.Command = TEXT("Stat PixelStreaming");
+		AutoCompleteCommand.Desc = TEXT("Displays stats about Pixel Streaming on screen.");
+		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
+	}
+
 	int32 FStats::OnRenderStats(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
 	{
 		if (GAreScreenMessagesEnabled)
@@ -327,7 +346,8 @@ namespace UE::PixelStreaming
 
 	bool FStats::OnToggleStats(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{
-		return false;
+		// todo: all about the toggle func
+		return true;
 	}
 
 	void FStats::PollPixelStreamingSettings()
@@ -378,25 +398,12 @@ namespace UE::PixelStreaming
 			return;
 		}
 
-		// Check if user has enabled on screen stats
-		if (!bRegisterEngineStats && Settings::CVarPixelStreamingOnScreenStats.GetValueOnGameThread())
+		if (!bRegisterEngineStats)
 		{
 			GAreScreenMessagesEnabled = true;
 			UEngine::FEngineStatRender RenderFunc = UEngine::FEngineStatRender::CreateRaw(this, &FStats::OnRenderStats);
 			UEngine::FEngineStatToggle ToggleFunc = UEngine::FEngineStatToggle::CreateRaw(this, &FStats::OnToggleStats);
 			GEngine->AddEngineStat(PixelStreamingStatName, PixelStreamingStatCategory, PixelStreamingStatDescription, RenderFunc, ToggleFunc, false);
-
-			// Turn on the Engine stat for Pixel Streaming
-			for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
-			{
-				if (WorldContext.WorldType == EWorldType::Game || WorldContext.WorldType == EWorldType::PIE)
-				{
-					UWorld* World = WorldContext.World();
-					UGameViewportClient* ViewportClient = World->GetGameViewport();
-					GEngine->SetEngineStat(World, ViewportClient, TEXT("PixelStreaming"), true);
-				}
-			}
-
 			bRegisterEngineStats = true;
 		}
 	}

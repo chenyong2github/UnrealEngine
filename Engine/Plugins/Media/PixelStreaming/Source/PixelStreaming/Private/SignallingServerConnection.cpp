@@ -10,14 +10,17 @@
 #include "TimerManager.h"
 #include "PixelStreamingDelegates.h"
 #include "PixelStreamingProtocolDefs.h"
+#include "Utils.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingSS, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
 
 namespace UE::PixelStreaming
 {
-	FSignallingServerConnection::FSignallingServerConnection(FSignallingServerConnectionObserver& InObserver, FString InStreamerId)
-		: Observer(InObserver), StreamerId(InStreamerId)
+	FSignallingServerConnection::FSignallingServerConnection(const FWebSocketFactory& InWebSocketFactory, FSignallingServerConnectionObserver& InObserver, FString InStreamerId)
+		: WebSocketFactory(InWebSocketFactory)
+		, Observer(InObserver)
+		, StreamerId(InStreamerId)
 	{
 		RegisterHandler("identify", [this](FJsonObjectPtr JsonMsg) { OnIdRequested(); });
 		RegisterHandler("config", [this](FJsonObjectPtr JsonMsg) { OnConfig(JsonMsg); });
@@ -46,52 +49,53 @@ namespace UE::PixelStreaming
 		Json->SetStringField(TEXT("id"), StreamerId);
 		FString Msg = ToString(Json, false);
 		UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: endpointId\n%s"), *Msg);
-		WS->Send(Msg);
+		SendMessage(Msg);
 	}
 
 	void FSignallingServerConnection::Connect(const FString& Url)
 	{
 		// Already have a websocket connection, no need to make another one
-		if (WS)
+		if (WebSocket)
 		{
 			return;
 		}
 
-		WS = FWebSocketsModule::Get().CreateWebSocket(Url, TEXT(""));
+		WebSocket = WebSocketFactory(Url);
+		checkf(WebSocket, TEXT("Web Socket Factory failed to return a valid Web Socket."));
 
-		OnConnectedHandle = WS->OnConnected().AddLambda([this]() { OnConnected(); });
-		OnConnectionErrorHandle = WS->OnConnectionError().AddLambda([this](const FString& Error) { OnConnectionError(Error); });
-		OnClosedHandle = WS->OnClosed().AddLambda([this](int32 StatusCode, const FString& Reason, bool bWasClean) { OnClosed(StatusCode, Reason, bWasClean); });
-		OnMessageHandle = WS->OnMessage().AddLambda([this](const FString& Msg) { OnMessage(Msg); });
+		OnConnectedHandle = WebSocket->OnConnected().AddLambda([this]() { OnConnected(); });
+		OnConnectionErrorHandle = WebSocket->OnConnectionError().AddLambda([this](const FString& Error) { OnConnectionError(Error); });
+		OnClosedHandle = WebSocket->OnClosed().AddLambda([this](int32 StatusCode, const FString& Reason, bool bWasClean) { OnClosed(StatusCode, Reason, bWasClean); });
+		OnMessageHandle = WebSocket->OnMessage().AddLambda([this](const FString& Msg) { OnMessage(Msg); });
 
 		UE_LOG(LogPixelStreamingSS, Log, TEXT("Connecting to SS %s"), *Url);
-		WS->Connect();
+		WebSocket->Connect();
 	}
 
 	void FSignallingServerConnection::Disconnect()
 	{
-		if (!WS)
+		if (!WebSocket)
 		{
 			return;
 		}
 
 		if (!IsEngineExitRequested())
 		{
-			GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
+			StopKeepAliveTimer();
 		}
 
-		WS->OnConnected().Remove(OnConnectedHandle);
-		WS->OnConnectionError().Remove(OnConnectionErrorHandle);
-		WS->OnClosed().Remove(OnClosedHandle);
-		WS->OnMessage().Remove(OnMessageHandle);
+		WebSocket->OnConnected().Remove(OnConnectedHandle);
+		WebSocket->OnConnectionError().Remove(OnConnectionErrorHandle);
+		WebSocket->OnClosed().Remove(OnClosedHandle);
+		WebSocket->OnMessage().Remove(OnMessageHandle);
 
-		WS->Close();
-		WS = nullptr;
+		WebSocket->Close();
+		WebSocket = nullptr;
 	}
 
 	bool FSignallingServerConnection::IsConnected() const
 	{
-		return WS != nullptr && WS.IsValid() && WS->IsConnected();
+		return WebSocket != nullptr && WebSocket.IsValid() && WebSocket->IsConnected();
 	}
 
 	void FSignallingServerConnection::SendOffer(FPixelStreamingPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP)
@@ -107,7 +111,7 @@ namespace UE::PixelStreaming
 
 		UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: offer\n%s"), *SdpStr);
 
-		WS->Send(ToString(OfferJson, false));
+		SendMessage(ToString(OfferJson, false));
 	}
 
 	void FSignallingServerConnection::SendAnswer(FPixelStreamingPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP)
@@ -123,7 +127,7 @@ namespace UE::PixelStreaming
 
 		UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: answer\n%s"), *SdpStr);
 
-		WS->Send(ToString(AnswerJson, false));
+		SendMessage(ToString(AnswerJson, false));
 	}
 
 	void FSignallingServerConnection::SetPlayerIdJson(FJsonObjectPtr& JsonObject, FPixelStreamingPlayerId PlayerId)
@@ -159,6 +163,25 @@ namespace UE::PixelStreaming
 		return false;
 	}
 
+	void FSignallingServerConnection::StartKeepAliveTimer()
+	{
+		// GWorld dereferencing needs to happen on the game thread
+		// we dont need to wait since its just setting the timer
+		DoOnGameThread([&]() {
+			GWorld->GetTimerManager().SetTimer(TimerHandle_KeepAlive, std::bind(&FSignallingServerConnection::KeepAlive, this), KEEP_ALIVE_INTERVAL, true);
+		});
+	}
+
+	void FSignallingServerConnection::StopKeepAliveTimer()
+	{
+		// GWorld dereferencing needs to happen on the game thread
+		// we need to wait because if we're destructing this object we dont
+		// want to call the callback mid/post destruction
+		DoOnGameThreadAndWait(MAX_uint32, [&]() {
+			GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
+		});
+	}
+
 	void FSignallingServerConnection::SendIceCandidate(const webrtc::IceCandidateInterface& IceCandidate)
 	{
 		FJsonObjectPtr IceCandidateJson = MakeShared<FJsonObject>();
@@ -178,7 +201,7 @@ namespace UE::PixelStreaming
 
 		UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: ice-candidate\n%s"), *ToString(IceCandidateJson));
 
-		WS->Send(ToString(IceCandidateJson, false));
+		SendMessage(ToString(IceCandidateJson, false));
 	}
 
 	void FSignallingServerConnection::SendIceCandidate(FPixelStreamingPlayerId PlayerId, const webrtc::IceCandidateInterface& IceCandidate)
@@ -201,7 +224,7 @@ namespace UE::PixelStreaming
 
 		UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: iceCandidate\n%s"), *ToString(IceCandidateJson));
 
-		WS->Send(ToString(IceCandidateJson, false));
+		SendMessage(ToString(IceCandidateJson, false));
 	}
 
 	void FSignallingServerConnection::KeepAlive()
@@ -210,11 +233,7 @@ namespace UE::PixelStreaming
 		double unixTime = FDateTime::UtcNow().ToUnixTimestamp();
 		Json->SetStringField(TEXT("type"), TEXT("ping"));
 		Json->SetNumberField(TEXT("time"), unixTime);
-		FString Msg = ToString(Json, false);
-		if (WS != nullptr && WS.IsValid() && WS->IsConnected())
-		{
-			WS->Send(Msg);
-		}
+		SendMessage(ToString(Json, false));
 	}
 
 	void FSignallingServerConnection::SendDisconnectPlayer(FPixelStreamingPlayerId PlayerId, const FString& Reason)
@@ -228,7 +247,7 @@ namespace UE::PixelStreaming
 		FString Msg = ToString(Json, false);
 		UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: iceCandidate\n%s"), *Msg);
 
-		WS->Send(Msg);
+		SendMessage(Msg);
 	}
 
 	void FSignallingServerConnection::SendAnswer(const webrtc::SessionDescriptionInterface& SDP)
@@ -241,7 +260,7 @@ namespace UE::PixelStreaming
 
 		UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: answer\n%s"), *SdpStr);
 
-		WS->Send(ToString(AnswerJson, false));
+		SendMessage(ToString(AnswerJson, false));
 	}
 
 	void FSignallingServerConnection::OnConnected()
@@ -250,8 +269,7 @@ namespace UE::PixelStreaming
 
 		Observer.OnSignallingServerConnected();
 
-		//Send message to keep connection alive every 60 seconds
-		GWorld->GetTimerManager().SetTimer(TimerHandle_KeepAlive, std::bind(&FSignallingServerConnection::KeepAlive, this), KEEP_ALIVE_INTERVAL, true);
+		StartKeepAliveTimer();
 
 		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
 		{
@@ -266,7 +284,7 @@ namespace UE::PixelStreaming
 
 		Observer.OnSignallingServerDisconnected();
 
-		GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
+		StopKeepAliveTimer();
 
 		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
 		{
@@ -281,7 +299,7 @@ namespace UE::PixelStreaming
 
 		Observer.OnSignallingServerDisconnected();
 
-		GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
+		StopKeepAliveTimer();
 
 		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
 		{
@@ -332,15 +350,16 @@ namespace UE::PixelStreaming
 		// As `RTCConfiguration` doesn't implement parsing from a string (or `ToString` method),
 		// we just get `stun`/`turn` URLs from it and ignore other options
 
-		const TSharedPtr<FJsonObject>* PeerConnectionOptions;
+		const TSharedPtr<FJsonObject>* PeerConnectionOptions = nullptr;
 		if (!Json->TryGetObjectField(TEXT("peerConnectionOptions"), PeerConnectionOptions))
 		{
 			FatalError(TEXT("Cannot find `peerConnectionOptions` field in SS config\n%s"), *ToString(Json));
+			return;
 		}
 
 		webrtc::PeerConnectionInterface::RTCConfiguration RTCConfig;
 
-		const TArray<TSharedPtr<FJsonValue>>* IceServers;
+		const TArray<TSharedPtr<FJsonValue>>* IceServers = nullptr;
 		if ((*PeerConnectionOptions)->TryGetArrayField(TEXT("iceServers"), IceServers))
 		{
 			for (const TSharedPtr<FJsonValue>& IceServerVal : *IceServers)
@@ -556,9 +575,17 @@ namespace UE::PixelStreaming
 		SendDisconnectPlayer(PlayerId, Msg);
 	}
 
+	void FSignallingServerConnection::SendMessage(const FString& Msg)
+	{
+		if (WebSocket && WebSocket->IsConnected())
+		{
+			WebSocket->Send(Msg);
+		}
+	}
+
 	void FSignallingServerConnection::FatalError(const FString& Msg)
 	{
 		UE_LOG(LogPixelStreamingSS, Error, TEXT("%s"), *Msg);
-		WS->Close(4000, Msg);
+		WebSocket->Close(4000, Msg);
 	}
 } // namespace UE::PixelStreaming

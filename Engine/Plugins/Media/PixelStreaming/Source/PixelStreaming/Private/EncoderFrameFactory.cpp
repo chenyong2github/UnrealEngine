@@ -11,6 +11,7 @@
 
 #if PLATFORM_WINDOWS
 	#include "VideoCommon.h"
+	#include "ShaderCore.h"
 	#include "D3D11State.h"
 	#include "D3D11Resources.h"
 	#include "ID3D12DynamicRHI.h"
@@ -21,22 +22,24 @@ THIRD_PARTY_INCLUDES_END
 	#include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
-UE::PixelStreaming::FEncoderFrameFactory::FEncoderFrameFactory()
+namespace UE::PixelStreaming
 {
-}
+	FEncoderFrameFactory::FEncoderFrameFactory()
+	{
+	}
 
-UE::PixelStreaming::FEncoderFrameFactory::~FEncoderFrameFactory()
-{
+	FEncoderFrameFactory::~FEncoderFrameFactory()
+	{
 	FlushFrames();
-}
+	}
 
-void UE::PixelStreaming::FEncoderFrameFactory::FlushFrames()
-{
+	void FEncoderFrameFactory::FlushFrames()
+	{
 	TextureToFrameMapping.Empty();
-}
+	}
 
-void UE::PixelStreaming::FEncoderFrameFactory::RemoveStaleTextures()
-{
+	void FEncoderFrameFactory::RemoveStaleTextures()
+	{
 	// Remove any textures whose only reference is the one held by this class
 
 	TMap<FTextureRHIRef, TSharedPtr<AVEncoder::FVideoEncoderInputFrame>>::TIterator Iter = TextureToFrameMapping.CreateIterator();
@@ -48,10 +51,10 @@ void UE::PixelStreaming::FEncoderFrameFactory::RemoveStaleTextures()
 			Iter.RemoveCurrent();
 		}
 	}
-}
+	}
 
-TSharedPtr<AVEncoder::FVideoEncoderInputFrame> UE::PixelStreaming::FEncoderFrameFactory::GetOrCreateFrame(const FTextureRHIRef InTexture)
-{
+	TSharedPtr<AVEncoder::FVideoEncoderInputFrame> FEncoderFrameFactory::GetOrCreateFrame(const FTextureRHIRef InTexture)
+	{
 	check(EncoderInput.IsValid());
 
 	RemoveStaleTextures();
@@ -76,33 +79,33 @@ TSharedPtr<AVEncoder::FVideoEncoderInputFrame> UE::PixelStreaming::FEncoderFrame
 		TextureToFrameMapping.Add(InTexture, OutFrame);
 	}
 
-	OutFrame->SetWidth(InTexture->GetSizeX());
-	OutFrame->SetHeight(InTexture->GetSizeY());
+	OutFrame->SetWidth(InTexture->GetDesc().Extent.X);
+	OutFrame->SetHeight(InTexture->GetDesc().Extent.Y);
 	OutFrame->SetFrameID(++FrameId);
 	return OutFrame;
-}
+	}
 
-TSharedPtr<AVEncoder::FVideoEncoderInputFrame> UE::PixelStreaming::FEncoderFrameFactory::GetFrameAndSetTexture(FTextureRHIRef InTexture)
-{
+	TSharedPtr<AVEncoder::FVideoEncoderInputFrame> FEncoderFrameFactory::GetFrameAndSetTexture(FTextureRHIRef InTexture)
+	{
 	check(EncoderInput.IsValid());
 
 	TSharedPtr<AVEncoder::FVideoEncoderInputFrame> Frame = GetOrCreateFrame(InTexture);
 
 	return Frame;
-}
+	}
 
-TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFactory::GetOrCreateVideoEncoderInput()
-{
+	TSharedPtr<AVEncoder::FVideoEncoderInput> FEncoderFrameFactory::GetOrCreateVideoEncoderInput()
+	{
 	if (!EncoderInput.IsValid())
 	{
 		EncoderInput = CreateVideoEncoderInput();
 	}
 
 	return EncoderInput;
-}
+	}
 
-TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFactory::CreateVideoEncoderInput() const
-{
+	TSharedPtr<AVEncoder::FVideoEncoderInput> FEncoderFrameFactory::CreateVideoEncoderInput() const
+	{
 	if (!GDynamicRHI)
 	{
 		UE_LOG(LogPixelStreaming, Error, TEXT("GDynamicRHI not valid for some reason."));
@@ -136,7 +139,7 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFacto
 			}
 		}
 	}
-#if PLATFORM_WINDOWS
+	#if PLATFORM_WINDOWS
 	else if (RHIType == ERHIInterfaceType::D3D11)
 	{
 		if (IsRHIDeviceAMD())
@@ -159,14 +162,14 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFacto
 			return AVEncoder::FVideoEncoderInput::CreateForCUDA(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext(), bIsResizable);
 		}
 	}
-#endif
+	#endif
 
 	UE_LOG(LogPixelStreaming, Error, TEXT("Current RHI %s is not supported in Pixel Streaming"), GDynamicRHI->GetName());
 	return nullptr;
-}
+	}
 
-void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
-{
+	void FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
+	{
 	const ERHIInterfaceType RHIType = RHIGetInterfaceType();
 
 	// VULKAN
@@ -186,7 +189,7 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::
 			UE_LOG(LogPixelStreaming, Error, TEXT("Pixel Streaming only supports AMD and NVIDIA devices, this device is neither of those."));
 		}
 	}
-#if PLATFORM_WINDOWS
+	#if PLATFORM_WINDOWS
 	// TODO: Fix CUDA DX11 (Using CUDA as a bridge between DX11 and NVENC currently produces garbled results)
 	// DX11
 	else if (RHIType == ERHIInterfaceType::D3D11)
@@ -209,16 +212,17 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::
 			UE_LOG(LogPixelStreaming, Error, TEXT("Pixel Streaming only supports AMD and NVIDIA devices, this device is neither of those."));
 		}
 	}
-#endif // PLATFORM_WINDOWS
+	#endif // PLATFORM_WINDOWS
 	else
 	{
 		UE_LOG(LogPixelStreaming, Error, TEXT("Pixel Streaming does not support this RHI - %s"), GDynamicRHI->GetName());
 	}
-}
+	}
 
-void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
-{
+	void FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
+	{
 	IVulkanDynamicRHI* VulkanRHI = GetIVulkanDynamicRHI();
+
 	const FVulkanRHIAllocationInfo TextureAllocationInfo = VulkanRHI->RHIGetAllocationInfo(Texture.GetReference());
 
 	VkDevice Device = VulkanRHI->RHIGetVkDevice();
@@ -264,7 +268,7 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<A
 
 	// Only store handle to be closed on frame destruction if it is an NT handle
 	Handle = bUseNTHandle ? Handle : NULL;
-#else
+	#else
 	void* Handle = nullptr;
 
 	// Get the CUarray to that textures memory making sure the clear it when done
@@ -301,7 +305,7 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<A
 		}
 	}
 
-#endif
+	#endif
 
 	CUmipmappedArray MappedMipArray = nullptr;
 	CUarray MappedArray = nullptr;
@@ -310,8 +314,8 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<A
 		CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC MipmapDesc = {};
 		MipmapDesc.numLevels = 1;
 		MipmapDesc.offset = TextureAllocationInfo.Offset;
-		MipmapDesc.arrayDesc.Width = Texture->GetSizeX();
-		MipmapDesc.arrayDesc.Height = Texture->GetSizeY();
+		MipmapDesc.arrayDesc.Width = Texture->GetDesc().Extent.X;
+		MipmapDesc.arrayDesc.Height = Texture->GetDesc().Extent.Y;
 		MipmapDesc.arrayDesc.Depth = 0;
 		MipmapDesc.arrayDesc.NumChannels = 4;
 		MipmapDesc.arrayDesc.Format = CU_AD_FORMAT_UNSIGNED_INT8;
@@ -367,11 +371,11 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<A
 
 		FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
 	});
-}
+	}
 
-#if PLATFORM_WINDOWS
-void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D11(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
-{
+	#if PLATFORM_WINDOWS
+	void FEncoderFrameFactory::SetTextureCUDAD3D11(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
+	{
 	FD3D11Texture* D3D11Texture = GetD3D11TextureFromRHITexture(Texture);
 	unsigned long long TextureMemorySize = D3D11Texture->GetMemorySize();
 
@@ -417,8 +421,8 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D11(TSharedPtr<AV
 		CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC MipmapDesc = {};
 		MipmapDesc.numLevels = 1;
 		MipmapDesc.offset = 0;
-		MipmapDesc.arrayDesc.Width = Texture->GetSizeX();
-		MipmapDesc.arrayDesc.Height = Texture->GetSizeY();
+		MipmapDesc.arrayDesc.Width = Texture->GetDesc().Extent.X;
+		MipmapDesc.arrayDesc.Height = Texture->GetDesc().Extent.Y;
 		MipmapDesc.arrayDesc.Depth = 1;
 		MipmapDesc.arrayDesc.NumChannels = 4;
 		MipmapDesc.arrayDesc.Format = CU_AD_FORMAT_UNSIGNED_INT8;
@@ -474,10 +478,10 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D11(TSharedPtr<AV
 
 		FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
 	});
-}
+	}
 
-void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D12(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
-{
+	void FEncoderFrameFactory::SetTextureCUDAD3D12(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
+	{
 	ID3D12Resource* NativeD3D12Resource = GetID3D12DynamicRHI()->RHIGetResource(Texture);
 	const int64 TextureMemorySize = GetID3D12DynamicRHI()->RHIGetResourceMemorySize(Texture);
 
@@ -530,8 +534,8 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D12(TSharedPtr<AV
 		CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC MipmapDesc = {};
 		MipmapDesc.numLevels = 1;
 		MipmapDesc.offset = 0;
-		MipmapDesc.arrayDesc.Width = Texture->GetSizeX();
-		MipmapDesc.arrayDesc.Height = Texture->GetSizeY();
+		MipmapDesc.arrayDesc.Width = Texture->GetDesc().Extent.X;
+		MipmapDesc.arrayDesc.Height = Texture->GetDesc().Extent.Y;
 		MipmapDesc.arrayDesc.Depth = 1;
 		MipmapDesc.arrayDesc.NumChannels = 4;
 		MipmapDesc.arrayDesc.Format = CU_AD_FORMAT_UNSIGNED_INT8;
@@ -587,5 +591,6 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D12(TSharedPtr<AV
 
 		FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
 	});
-}
-#endif //PLATFORM_WINDOWS
+	}
+	#endif //PLATFORM_WINDOWS
+} // namespace UE::PixelStreaming

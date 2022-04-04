@@ -6,8 +6,10 @@
 #include "RHI.h"
 #include "Tickable.h"
 #include "InputDevice.h"
-#include "GPUFencePoller.h"
+#include "Poller.h"
 #include "FixedFPSPump.h"
+#include "PixelStreamingPumpable.h"
+#include "TextureSourceFactory.h"
 
 class AController;
 class AGameModeBase;
@@ -30,11 +32,6 @@ namespace UE::PixelStreaming
 
 		virtual bool StartStreaming(const FString& SignallingServerUrl) override;
 		virtual void StopStreaming() override;
-
-		virtual webrtc::VideoEncoderFactory* CreateVideoEncoderFactory() override;
-		virtual void RegisterVideoSource(FPixelStreamingPlayerId PlayerId, IPumpedVideoSource* VideoSource) override;
-		virtual void UnregisterVideoSource(FPixelStreamingPlayerId PlayerId) override;
-		virtual void AddGPUFencePollerTask(FGPUFenceRHIRef Fence, TSharedRef<bool, ESPMode::ThreadSafe> bIsEnabled, TFunction<void()> Task) override;
 
 	private:
 		/** IModuleInterface implementation */
@@ -68,6 +65,14 @@ namespace UE::PixelStreaming
 		void KickPlayer(FPixelStreamingPlayerId PlayerId);
 		IPixelStreamingAudioSink* GetPeerAudioSink(FPixelStreamingPlayerId PlayerId) override;
 		IPixelStreamingAudioSink* GetUnlistenedAudioSink() override;
+		virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CreateExternalVideoSource(FName SourceType) override;
+		virtual webrtc::VideoEncoderFactory* CreateVideoEncoderFactory() override;
+		virtual void RegisterPumpable(rtc::scoped_refptr<FPixelStreamingPumpable> Pumpable) override;
+		virtual void UnregisterPumpable(rtc::scoped_refptr<FPixelStreamingPumpable> Pumpable) override;
+		virtual void AddPollerTask(TFunction<void()> Task, TFunction<bool()> IsTaskFinished, TSharedRef<bool, ESPMode::ThreadSafe> bKeepRunning) override;
+		virtual IPixelStreamingTextureSourceFactory& GetTextureSourceFactory() override;
+		virtual void SetActiveTextureSourceTypes(const TArray<FName>& SourceTypes) override;
+		virtual const TArray<FName>& GetActiveTextureSourceTypes() const override;
 		/** End IPixelStreamingModule implementation */
 
 		// FTickableGameObject
@@ -88,7 +93,7 @@ namespace UE::PixelStreaming
 		FReadyEvent ReadyEvent;
 		FStreamingStartedEvent StreamingStartedEvent;
 		FStreamingStoppedEvent StreamingStoppedEvent;
-		TSharedPtr<FStreamer> Streamer;
+		TUniquePtr<FStreamer> Streamer;
 		TSharedPtr<FInputDevice> InputDevice;
 		TArray<UPixelStreamingInput*> InputComponents;
 		bool bFrozen = false;
@@ -96,7 +101,10 @@ namespace UE::PixelStreaming
 		double LastVideoEncoderQPReportTime = 0;
 		static IPixelStreamingModule* PixelStreamingModule;
 
-		FFixedFPSPump PumpThread;
-		FGPUFencePoller FencePollerThread;
+		TUniquePtr<FFixedFPSPump> FramePump;
+		TUniquePtr<FPoller> Poller;
+		TUniquePtr<IPixelStreamingTextureSourceFactory> TextureSourceFactory;
+
+		bool bDecoupleFrameRate = false;
 	};
 } // namespace UE::PixelStreaming

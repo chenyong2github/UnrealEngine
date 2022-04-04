@@ -26,7 +26,6 @@ namespace UE::PixelStreaming
 	FStreamer::FStreamer(const FString& InStreamerId)
 		: StreamerId(InStreamerId)
 		, WebRtcSignallingThread(MakeUnique<rtc::Thread>(rtc::SocketServer::CreateDefault()))
-		, SignallingServerConnection(MakeUnique<FSignallingServerConnection>(*this, InStreamerId))
 		, Stats(&PlayerSessions)
 	{
 		RedirectWebRtcLogsToUnreal(rtc::LoggingSeverity::LS_VERBOSE);
@@ -36,6 +35,8 @@ namespace UE::PixelStreaming
 		// required for communication with Signalling Server and must be called in the game thread, while it's used in signalling thread
 		FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");
 
+		FSignallingServerConnection::FWebSocketFactory WebSocketFactory = [](const FString& Url) { return FWebSocketsModule::Get().CreateWebSocket(Url, TEXT("")); };
+		SignallingServerConnection = MakeUnique<FSignallingServerConnection>(WebSocketFactory, *this, InStreamerId);
 		StartWebRtcSignallingThread();
 	}
 
@@ -557,25 +558,33 @@ namespace UE::PixelStreaming
 
 		bool bIsSFU = (Flags & Protocol::EPlayerFlags::PSPFlag_IsSFU) != Protocol::EPlayerFlags::PSPFlag_None;
 
+		const TArray<FName>& ActiveTextureSourceTypes = IPixelStreamingModule::Get().GetActiveTextureSourceTypes();
+
+		// Todo (Luke): Add multitrack support here.
+		verifyf(ActiveTextureSourceTypes.Num() == 1, TEXT("Only a single track is supported for streaming currently."));
+
+		FName SourceType = ActiveTextureSourceTypes[0];
+
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PCFactory = bIsSFU ? SFUPeerConnectionFactory : P2PPeerConnectionFactory;
 
 		// Create a video source for this player
 		rtc::scoped_refptr<FVideoSourceBase> VideoSource;
 		if (bIsSFU)
 		{
-			VideoSource = new FVideoSourceSFU();
+			VideoSource = new FVideoSourceSFU(SourceType);
 		}
 		else
 		{
-			VideoSource = new FVideoSourceP2P(Session->GetPlayerId(), &PlayerSessions);
+			FPixelStreamingPlayerId PlayerId = Session->GetPlayerId();
+			VideoSource = new FVideoSourceP2P(SourceType, [PlayerId, this]() { return PlayerSessions.IsQualityController(PlayerId); });
 		}
 
 		Session->SetVideoSource(VideoSource);
-		VideoSource->Initialize();
 
 		// Create video track
 		rtc::scoped_refptr<webrtc::VideoTrackInterface> VideoTrack = PCFactory->CreateVideoTrack(TCHAR_TO_UTF8(*InVideoTrackLabel), VideoSource.get());
 		VideoTrack->set_enabled(true);
+		VideoSource->Initialize();
 
 		// Set some content hints based on degradation prefs, WebRTC uses these internally.
 		webrtc::DegradationPreference DegradationPref = Settings::GetDegradationPreference();
@@ -807,4 +816,5 @@ namespace UE::PixelStreaming
 	{
 		SignallingServerConnection->SendDisconnectPlayer(PlayerId, TEXT("Player was kicked"));
 	}
+
 } // namespace UE::PixelStreaming

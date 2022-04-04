@@ -632,9 +632,8 @@ namespace AVEncoder
 		// This encode is single threaded and blocking, if someone else is encoding right now, we wait.
 		while (bIsProcessingFrame) 
 		{
-			// According to UE docs
-			// Sleep this thread for Seconds. 0.0 means release the current time slice to let other threads get some attention.
-			FPlatformProcess::Sleep(0.0f);
+			// Encoder is already processing a frame, don't try and encode another
+			return;
 		}
 
 		checkf(!bIsProcessingFrame, TEXT("NVENC encoder should only ever be called one thread at a time."));

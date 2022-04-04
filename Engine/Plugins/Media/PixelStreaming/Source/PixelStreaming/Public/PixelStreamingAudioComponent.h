@@ -11,10 +11,10 @@
 #include "PixelStreamingAudioComponent.generated.h"
 
 /*
-* An `ISoundGenerator` implementation to pump some audio from WebRTC into this synth component
-*/
+ * An `ISoundGenerator` implementation to pump some audio from WebRTC into this synth component
+ */
 
-class FWebRTCSoundGenerator : public ISoundGenerator
+class PIXELSTREAMING_API FWebRTCSoundGenerator : public ISoundGenerator
 {
 public:
 	FWebRTCSoundGenerator();
@@ -78,11 +78,11 @@ protected:
 	//~ End UActorComponent interface
 
 public:
-	/** 
-	*   The Pixel Streaming player/peer whose audio we wish to listen to.
-	*   If this is left blank this component will listen to the first non-listened to peer that connects after this component is ready.
-	*   Note: that when the listened to peer disconnects this component is reset to blank and will once again listen to the next non-listened to peer that connects.
-	*/
+	/**
+	 *   The Pixel Streaming player/peer whose audio we wish to listen to.
+	 *   If this is left blank this component will listen to the first non-listened to peer that connects after this component is ready.
+	 *   Note: that when the listened to peer disconnects this component is reset to blank and will once again listen to the next non-listened to peer that connects.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pixel Streaming Audio Component")
 	FString PlayerToHear;
 

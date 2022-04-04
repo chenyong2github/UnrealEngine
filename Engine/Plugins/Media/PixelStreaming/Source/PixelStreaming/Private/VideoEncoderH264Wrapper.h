@@ -7,36 +7,35 @@
 namespace webrtc
 {
 	class VideoFrame;
-}
+} // namespace webrtc
 
-namespace UE {
-	namespace PixelStreaming {
-		class FVideoEncoderFactory;
+namespace UE::PixelStreaming 
+{
+	class FVideoEncoderFactory;
+	
+	class FVideoEncoderH264Wrapper
+	{
+	public:
+		FVideoEncoderH264Wrapper(TUniquePtr<FEncoderFrameFactory> FrameFactory, TUniquePtr<AVEncoder::FVideoEncoder> Encoder);
+		~FVideoEncoderH264Wrapper();
 
-		class FVideoEncoderH264Wrapper
-		{
-		public:
-			FVideoEncoderH264Wrapper(TUniquePtr<FEncoderFrameFactory> FrameFactory, TUniquePtr<AVEncoder::FVideoEncoder> Encoder);
-			~FVideoEncoderH264Wrapper();
+		uint64 GetId() const { return Id; }
 
-			uint64 GetId() const { return Id; }
+		void SetForceNextKeyframe() { bForceNextKeyframe = true; }
 
-			void SetForceNextKeyframe() { bForceNextKeyframe = true; }
+		void Encode(const webrtc::VideoFrame& WebRTCFrame, bool bKeyframe);
 
-			void Encode(const webrtc::VideoFrame& WebRTCFrame, bool bKeyframe);
+		AVEncoder::FVideoEncoder::FLayerConfig GetCurrentConfig();
+		void SetConfig(const AVEncoder::FVideoEncoder::FLayerConfig& NewConfig);
 
-			AVEncoder::FVideoEncoder::FLayerConfig GetCurrentConfig();
-			void SetConfig(const AVEncoder::FVideoEncoder::FLayerConfig& NewConfig);
+		static void OnEncodedPacket(FVideoEncoderFactory* Factory, 
+			uint32 InLayerIndex, const TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InFrame, 
+			const AVEncoder::FCodecPacket& InPacket);
 
-			static void OnEncodedPacket(UE::PixelStreaming::FVideoEncoderFactory* Factory, 
-				uint32 InLayerIndex, const TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InFrame, 
-				const AVEncoder::FCodecPacket& InPacket);
-
-		private:
-			uint64 Id;
-			TUniquePtr<FEncoderFrameFactory> FrameFactory;
-			TUniquePtr<AVEncoder::FVideoEncoder> Encoder;
-			bool bForceNextKeyframe = false;
-		};
-	}
-}
+	private:
+		uint64 Id;
+		TUniquePtr<FEncoderFrameFactory> FrameFactory;
+		TUniquePtr<AVEncoder::FVideoEncoder> Encoder;
+		bool bForceNextKeyframe = false;
+	};
+} // namespace UE::PixelStreaming

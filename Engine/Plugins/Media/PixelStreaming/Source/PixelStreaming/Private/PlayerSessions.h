@@ -59,6 +59,15 @@ namespace UE::PixelStreaming
 		void ForEachSession(const TFunction<void(TSharedPtr<IPlayerSession>)>& Func);
 
 	private:
+		void AddSession(FPixelStreamingPlayerId PlayerId, TSharedPtr<IPlayerSession> Session);
+
+		rtc::scoped_refptr<webrtc::PeerConnectionInterface> CreatePeerConnection(
+			rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory,
+			webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig,
+			TSharedPtr<IPlayerSession> Session) const;
+
+		int NumP2PPeers() const;
+		bool GetFirstP2PPeer(FPixelStreamingPlayerId& OutPlayerId) const;
 		TSharedPtr<IPlayerSession> GetPlayerSession(FPixelStreamingPlayerId PlayerId) const;
 
 		mutable FCriticalSection PlayersCS;

@@ -51,14 +51,14 @@ namespace UE::PixelStreaming
 		RecvDataChannel = nullptr;
 	}
 
-	bool FPlayerSessionDataOnly::SendMessage(Protocol::EToPlayerMsg Type, const FString& Descriptor) const
+	bool FPlayerSessionDataOnly::SendMessage(Protocol::EToPlayerMsg InMessageType, const FString& Descriptor) const
 	{
 		if (!SendDataChannel)
 		{
 			return false;
 		}
 
-		const uint8 MessageType = static_cast<uint8>(Type);
+		const uint8 MessageType = static_cast<uint8>(InMessageType);
 		const size_t DescriptorSize = Descriptor.Len() * sizeof(TCHAR);
 
 		rtc::CopyOnWriteBuffer Buffer(sizeof(MessageType) + DescriptorSize);

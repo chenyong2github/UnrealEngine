@@ -1,169 +1,64 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "api/video/video_frame_buffer.h"
+#include "api/video/i420_buffer.h"
+#include "api/scoped_refptr.h"
 #include "Templates/SharedPointer.h"
-#include "Templates/RefCounting.h"
-#include "Async/Async.h"
-#include "RHI.h"
-#include "HAL/ThreadSafeBool.h"
-#include "Rendering/SlateRenderer.h"
-#include "Framework/Application/SlateApplication.h"
-#include "IPixelStreamingTextureSource.h"
-#include "IPixelStreamingModule.h"
+#include "PixelStreamingTextureWrapper.h"
+#include "Delegates/Delegate.h"
 
-/*
- * Interface to wrap a Texture for use with the TextureSource
- * By extending this class you can add additional operations to a class derived from BackBufferTextureSource
- */
+//---------------------------------IPixelStreamingFrameCapturer--------------------------------------------------------
 
-class IPixelStreamingBackBufferTextureWrapper : public FRefCountBase
+class PIXELSTREAMING_API IPixelStreamingFrameCapturer
 {
 public:
-	explicit IPixelStreamingBackBufferTextureWrapper(FTexture2DRHIRef InTexture)
-	{
-		Texture = InTexture;
-	}
-
-	FTexture2DRHIRef& GetTexture()
-	{
-		return Texture;
-	}
-
-private:
-	FTexture2DRHIRef Texture;
+	virtual ~IPixelStreamingFrameCapturer() = default;
+	virtual void CaptureTexture(FPixelStreamingTextureWrapper& TextureToCopy, TSharedPtr<FPixelStreamingTextureWrapper> DestinationTexture) = 0;
+	virtual void OnCaptureFinished(TSharedPtr<FPixelStreamingTextureWrapper> CapturedTexture) = 0;
+	virtual bool IsCaptureFinished() = 0;
 };
 
-/*
- * Base class for TextureSources that get their textures from the UE backbuffer.
- * Textures are copied from the backbuffer using a triplebuffering mechanism so that texture read access is always thread safe while writes are occurring.
- * If no texture has been written since the last read then the same texture will be read again.
- * This class also has the additional functionality of scaling textures from the backbuffer.
- * Note: This is a template class that uses CRTP - see: https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
- * For derived types of this class they must contain the following static methods:
- *
- * static void CopyTexture(const FTexture2DRHIRef& SourceTexture, TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> DestTexture, FGPUFenceRHIRef& CopyFence)
- * static TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> CreateTexture(int Width, int Height)
- * static FTexture2DRHIRef ToTextureRef(TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> Texture)
- * static FString& GetName()
- */
+//--------------------------------FPixelStreamingTextureSourceBase---------------------------------------------------------
 
-class PIXELSTREAMING_API IBackBufferTextureSource : public IPixelStreamingTextureSource, public TSharedFromThis<IBackBufferTextureSource, ESPMode::ThreadSafe>
+/*
+* Base class for all texture sources in Pixel Streaming.
+* These texture sources are used to populate video sources for video tracks.
+* At minimum a texture source must do the following:
+* 1) Create destination textures to capture to.
+* 2) Create a capturer object that does that capturing.
+*/
+class PIXELSTREAMING_API FPixelStreamingTextureSource
 {
 public:
-	IBackBufferTextureSource(float InFrameScale);
-	IBackBufferTextureSource()
-		: IBackBufferTextureSource(1.0) {}
+	FPixelStreamingTextureSource() = default;
+	virtual ~FPixelStreamingTextureSource() = default;
 
-	virtual ~IBackBufferTextureSource();
+	/**
+	* Create a blank staging texture that is used when the source texture is captured.
+	* @param Width
+	* @param Height
+	* @return The blank "texture" - which does not have to be a UE texture.
+	*/
+	virtual TSharedPtr<FPixelStreamingTextureWrapper> CreateBlankStagingTexture(uint32 Width, uint32 Height) = 0;
 
-	TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> GetCurrent();
+	/**
+	 * Creates the object that does the actual capturing of frames to textures.
+	 * @return The capturer.
+	*/
+	virtual TSharedPtr<IPixelStreamingFrameCapturer> CreateFrameCapturer() = 0;
 
-	// abstract methods for overriding
-	virtual void CopyTexture(const FTexture2DRHIRef& SourceTexture, TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> DestTexture, FGPUFenceRHIRef& CopyFence) = 0;
-	virtual TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> CreateTexture(int Width, int Height) = 0;
-	virtual FString GetName() const = 0;
-
-	/* Begin IPixelStreamingTextureSource interface */
-	virtual void SetEnabled(bool bInEnabled) override;
-	virtual FTexture2DRHIRef GetTexture() override { return GetCurrent()->GetTexture(); }
-
-	virtual bool IsEnabled() const override { return *bEnabled; }
-	virtual bool IsAvailable() const override { return bInitialized; }
-	virtual int GetSourceWidth() const override { return SourceWidth; }
-	virtual int GetSourceHeight() const override { return SourceHeight; }
-	/* End IPixelStreamingTextureSource interface */
-
-	float GetFrameScaling() const { return FrameScale; }
-
-private:
-	void OnBackBufferReady_RenderThread(SWindow& SlateWindow, const FTexture2DRHIRef& FrameBuffer);
-	void Initialize(int Width, int Height);
-
-	struct FCaptureFrame
-	{
-		TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> TextureWrapper;
-		FGPUFenceRHIRef Fence;
-		bool bAvailable = true;
-		uint64 PreWaitingOnCopy;
-	};
-
-private:
-	const float FrameScale;
-	int SourceWidth = 0;
-	int SourceHeight = 0;
-	FThreadSafeBool bInitialized = false;
-	TSharedRef<bool, ESPMode::ThreadSafe> bEnabled = MakeShared<bool, ESPMode::ThreadSafe>(true);
-	FSlateRenderer::FOnBackBufferReadyToPresent* OnBackbuffer = nullptr;
-	FDelegateHandle BackbufferDelegateHandle;
-	FCriticalSection DestructorCriticalSection;
-
-	/*
-	 * Triple buffer setup with queued write buffers (since we have to wait for RHI copy).
-	 * 1 Read buffer (read the captured texture)
-	 * 1 Temp buffer (for swapping what is read and written)
-	 * 2 Write buffers (2 write buffers because UE can render two frames before presenting sometimes)
+	/**
+	 *  Convert a "texture" to a WebRTC YUV I420 buffer.
+	 * @param Texture - The "texture" to convert.
+	 * @return The WebRTC I420 buffer.
 	 */
-	FCriticalSection CriticalSection;
-	bool bWriteParity = true;
-	FCaptureFrame WriteBuffers[2];
-	TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> TempBuffer;
-	TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> ReadBuffer;
-	FThreadSafeBool bIsTempDirty;
-};
+	virtual rtc::scoped_refptr<webrtc::I420Buffer> ToWebRTCI420Buffer(TSharedPtr<FPixelStreamingTextureWrapper> Texture) = 0;
 
-/*
- * Basic IPixelStreamingBackBufferTextureWrapper for use with FBackBufferTextureSource
- */
-
-class PIXELSTREAMING_API FPixelStreamingRHIBackBufferTexture : public IPixelStreamingBackBufferTextureWrapper
-{
-public:
-	FPixelStreamingRHIBackBufferTexture(FTexture2DRHIRef InTexture)
-		: IPixelStreamingBackBufferTextureWrapper(InTexture) {}
-};
-
-class PIXELSTREAMING_API FBackBufferTextureSource : public IBackBufferTextureSource
-{
-public:
-	FBackBufferTextureSource()
-		: IBackBufferTextureSource() {}
-	FBackBufferTextureSource(float InScale)
-		: IBackBufferTextureSource(InScale) {}
-
-	virtual void CopyTexture(const FTexture2DRHIRef& SourceTexture, TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> DestTexture, FGPUFenceRHIRef& CopyFence) override;
-	virtual TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> CreateTexture(int Width, int Height) override;
-
-	virtual FString GetName() const override { return TEXT("FBackBufferTextureSource"); }
-};
-
-/*
- * Extention for IPixelStreamingBackBufferTextureWrapper which also stores a CPU accessible memory address of the texture
- */
-class PIXELSTREAMING_API FPixelStreamingCPUReadableBackbufferTexture : public IPixelStreamingBackBufferTextureWrapper
-{
-public:
-	FPixelStreamingCPUReadableBackbufferTexture(FTexture2DRHIRef InTexture)
-		: IPixelStreamingBackBufferTextureWrapper(InTexture) {}
-
-	TArray<FColor>& GetRawPixels()
-	{
-		return RawPixels;
-	}
-
-private:
-	TArray<FColor> RawPixels;
-};
-
-class PIXELSTREAMING_API FBackBufferToCPUTextureSource : public IBackBufferTextureSource
-{
-public:
-	FBackBufferToCPUTextureSource()
-		: IBackBufferTextureSource() {}
-	FBackBufferToCPUTextureSource(float InScale)
-		: IBackBufferTextureSource(InScale) {}
-
-	virtual void CopyTexture(const FTexture2DRHIRef& SourceTexture, TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> DestTexture, FGPUFenceRHIRef& CopyFence) override;
-	virtual TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> CreateTexture(int Width, int Height) override;
-
-	virtual FString GetName() const override { return TEXT("FBackBufferToCPUTextureSource"); }
+	/* 
+	* Parameters for the delegate are as follows: FOnNewTexture(FPixelStreamingTextureWrapper& NewFrame, uint32 FrameWidth, uint32 FrameHeight) 
+	* The intent is for you to use whatever mechanism you want to broadcast new textures to through this delegate as they become available.
+	*/
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnNewTexture, FPixelStreamingTextureWrapper&, uint32, uint32);
+	FOnNewTexture OnNewTexture;
 };

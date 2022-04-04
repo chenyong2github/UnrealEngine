@@ -36,10 +36,14 @@ namespace UE::PixelStreaming
 		virtual void OnPeerDataChannels(int32 SendStreamId, int32 RecvStreamId) { unimplemented(); }
 	};
 
+	
+
 	class FSignallingServerConnection final
 	{
 	public:
-		explicit FSignallingServerConnection(FSignallingServerConnectionObserver& Observer, FString InStreamerId);
+		using FWebSocketFactory = TFunction<TSharedPtr<IWebSocket>(const FString&)>;
+
+		FSignallingServerConnection(const FWebSocketFactory& InWebSocketFactory, FSignallingServerConnectionObserver& Observer, FString InStreamerId = "");
 		~FSignallingServerConnection();
 
 		void Connect(const FString& Url);
@@ -79,6 +83,11 @@ namespace UE::PixelStreaming
 		void SetPlayerIdJson(FJsonObjectPtr& JsonObject, FPixelStreamingPlayerId PlayerId);
 		bool GetPlayerIdJson(const FJsonObjectPtr& Json, FPixelStreamingPlayerId& OutPlayerId, const FString& FieldId = TEXT("playerId"));
 
+		void StartKeepAliveTimer();
+		void StopKeepAliveTimer();
+
+		void SendMessage(const FString& Msg);
+
 		template <typename FmtType, typename... T>
 		void PlayerError(FPixelStreamingPlayerId PlayerId, const FmtType& Msg, T... args)
 		{
@@ -96,9 +105,11 @@ namespace UE::PixelStreaming
 		void FatalError(const FString& Msg);
 
 	private:
-		TMap<FString, TFunction<void(FJsonObjectPtr)>> MessageHandlers;
-
+		FWebSocketFactory WebSocketFactory;
 		FSignallingServerConnectionObserver& Observer;
+		FString StreamerId;
+
+		TSharedPtr<IWebSocket> WebSocket;
 
 		FDelegateHandle OnConnectedHandle;
 		FDelegateHandle OnConnectionErrorHandle;
@@ -109,8 +120,6 @@ namespace UE::PixelStreaming
 		FTimerHandle TimerHandle_KeepAlive;
 		const float KEEP_ALIVE_INTERVAL = 60.0f;
 
-		TSharedPtr<IWebSocket> WS;
-
-		FString StreamerId;
+		TMap<FString, TFunction<void(FJsonObjectPtr)>> MessageHandlers;
 	};
 } // namespace UE::PixelStreaming

@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
-#include "api/data_channel_interface.h"
-#include "WebRTCIncludes.h"
-
 namespace UE::PixelStreaming::Protocol
 {
 	enum EPlayerFlags
@@ -15,13 +11,13 @@ namespace UE::PixelStreaming::Protocol
 		PSPFlag_IsSFU = 0x02,
 	};
 
-	enum class EToStreamerMsg : uint8
+	enum class EToStreamerMsg : uint8_t
 	{
 		/**********************************************************************/
 
 		/*
-				* Control Messages. Range = 0..49.
-				*/
+		 * Control Messages. Range = 0..49.
+		 */
 
 		IFrameRequest = 0,
 		RequestQualityControl = 1,
@@ -36,8 +32,8 @@ namespace UE::PixelStreaming::Protocol
 		/**********************************************************************/
 
 		/*
-				* Input Messages. Range = 50..89.
-				*/
+		 * Input Messages. Range = 50..89.
+		 */
 
 		// Generic Input Messages. Range = 50..59.
 		UIInteraction = 50,
@@ -69,15 +65,15 @@ namespace UE::PixelStreaming::Protocol
 		/**********************************************************************/
 
 		/*
-				* Ensure Count is the final entry.
-				*/
+		 * Ensure Count is the final entry.
+		 */
 		Count
 
 		/**********************************************************************/
 	};
 
 	//! Messages that can be sent to the webrtc players
-	enum class EToPlayerMsg : uint8
+	enum class EToPlayerMsg : uint8_t
 	{
 		QualityControlOwnership = 0,
 		Response = 1,
@@ -92,28 +88,5 @@ namespace UE::PixelStreaming::Protocol
 		FileContents = 10,
 		TestEcho = 11
 	};
-
-	template <typename T>
-	static const T& ParseBuffer(const uint8*& Data, uint32& Size)
-	{
-		checkf(sizeof(T) <= Size, TEXT("%d - %d"), sizeof(T), Size);
-		const T& Value = *reinterpret_cast<const T*>(Data);
-		Data += sizeof(T);
-		Size -= sizeof(T);
-		return Value;
-	}
-
-	static FString ParseString(const webrtc::DataBuffer& Buffer, const size_t Offset = 0)
-	{
-		FString Res;
-		if (Buffer.data.size() > Offset)
-		{
-			size_t StringLength = (Buffer.data.size() - Offset) / sizeof(TCHAR);
-			Res.GetCharArray().SetNumUninitialized(StringLength + 1);
-			FMemory::Memcpy(Res.GetCharArray().GetData(), Buffer.data.data() + Offset, StringLength * sizeof(TCHAR));
-			Res.GetCharArray()[StringLength] = 0;
-		}
-		return Res;
-	}
 
 }; // namespace UE::PixelStreaming::Protocol

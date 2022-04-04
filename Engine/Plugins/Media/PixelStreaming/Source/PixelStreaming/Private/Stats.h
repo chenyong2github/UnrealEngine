@@ -6,6 +6,7 @@
 #include "PixelStreamingPlayerId.h"
 #include "CanvasItem.h"
 #include "UnrealEngine.h"
+#include "ConsoleSettings.h"
 
 class IPixelStreamingStatsConsumer;
 
@@ -111,6 +112,7 @@ namespace UE::PixelStreaming
 		bool StoreApplicationStat_GameThread(FStatData Stat);
 		void AddOnPeerStatChangedCallback_GameThread(FPixelStreamingPlayerId PlayerId, FName StatToListenOn, TWeakPtr<IPixelStreamingStatsConsumer> Callback);
 		void FireStatChanged_GameThread(FPixelStreamingPlayerId PlayerId, FName StatName, float StatValue);
+		void UpdateConsoleAutoComplete_GameThread(TArray<FAutoCompleteCommand>& AutoCompleteList);
 
 	private:
 		static FStats* Instance;

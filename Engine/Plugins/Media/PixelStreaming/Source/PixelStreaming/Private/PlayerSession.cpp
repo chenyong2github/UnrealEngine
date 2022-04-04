@@ -202,14 +202,14 @@ namespace UE::PixelStreaming
 		return &AudioSink;
 	}
 
-	bool FPlayerSession::SendMessage(Protocol::EToPlayerMsg Type, const FString& Descriptor) const
+	bool FPlayerSession::SendMessage(Protocol::EToPlayerMsg InMessageType, const FString& Descriptor) const
 	{
 		if (!DataChannel)
 		{
 			return false;
 		}
 
-		const uint8 MessageType = static_cast<uint8>(Type);
+		const uint8 MessageType = static_cast<uint8>(InMessageType);
 		const size_t DescriptorSize = Descriptor.Len() * sizeof(TCHAR);
 
 		rtc::CopyOnWriteBuffer Buffer(sizeof(MessageType) + DescriptorSize);

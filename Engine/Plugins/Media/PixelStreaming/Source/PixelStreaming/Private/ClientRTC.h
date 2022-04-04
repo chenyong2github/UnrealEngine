@@ -23,6 +23,7 @@ namespace UE::PixelStreaming
 		};
 
 		void Connect(const FString& Url);
+		void Disconnect();
 		EState GetState() const { return State; }
 
 		bool SendMessage(Protocol::EToStreamerMsg Type, const FString& Descriptor) const;
@@ -32,6 +33,9 @@ namespace UE::PixelStreaming
 
 		DECLARE_EVENT_OneParam(FClientRTC, FDisconnectedEvent, FClientRTC&);
 		FDisconnectedEvent OnDisconnected;
+
+		DECLARE_EVENT_OneParam(FClientRTC, FDataChannelOpenEvent, FClientRTC&);
+		FDataChannelOpenEvent OnDataChannelOpen;
 
 		DECLARE_EVENT_ThreeParams(FClientRTC, FDataMessageEvent, FClientRTC&, uint8, const FString&);
 		FDataMessageEvent OnDataMessage;

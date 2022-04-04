@@ -14,6 +14,10 @@ namespace UE::PixelStreaming
 		virtual ~FPlayerSessionSFU();
 
 		void AddChildSession(TSharedPtr<FPlayerSessionDataOnly> ChildSession);
+		virtual FName GetSessionType() const override { return Type; }
+
+	public:
+		inline static const FName Type = FName(TEXT("SFU"));
 
 	private:
 		TArray<TWeakPtr<FPlayerSessionDataOnly>> ChildSessions;

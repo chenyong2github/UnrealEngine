@@ -3,98 +3,149 @@
 #include "FixedFPSPump.h"
 #include "VideoSource.h"
 #include "Settings.h"
-#include "PixelStreamingTextureSource.h"
 #include "PixelStreamingFrameBuffer.h"
 #include "PlayerSession.h"
 
-/*
-* ---------- FFixedFPSPump ----------------
-*/
-
-UE::PixelStreaming::FFixedFPSPump* UE::PixelStreaming::FFixedFPSPump::Instance = nullptr;
-
-UE::PixelStreaming::FFixedFPSPump* UE::PixelStreaming::FFixedFPSPump::Get()
+namespace UE::PixelStreaming
 {
-	checkf(Instance, TEXT("You should not try to Get() and instance of the pump before it has been constructed somewhere yet."));
-	return UE::PixelStreaming::FFixedFPSPump::Instance;
-}
-
-UE::PixelStreaming::FFixedFPSPump::FFixedFPSPump()
-	: NextPumpEvent(FPlatformProcess::GetSynchEventFromPool(false))
-{
-	PumpThread = MakeUnique<FThread>(TEXT("PumpThread"), [this]() { PumpLoop(); });
-	UE::PixelStreaming::FFixedFPSPump::Instance = this;
-}
-
-UE::PixelStreaming::FFixedFPSPump::~FFixedFPSPump()
-{
-	Shutdown();
-	PumpThread->Join();
-}
-
-void UE::PixelStreaming::FFixedFPSPump::Shutdown()
-{
-	bThreadRunning = false;
-	NextPumpEvent->Trigger();
-}
-
-void UE::PixelStreaming::FFixedFPSPump::UnregisterVideoSource(FPixelStreamingPlayerId PlayerId)
-{
-	FScopeLock Guard(&SourcesGuard);
-	VideoSources.Remove(PlayerId);
-	NextPumpEvent->Trigger();
-}
-
-void UE::PixelStreaming::FFixedFPSPump::RegisterVideoSource(FPixelStreamingPlayerId PlayerId, IPumpedVideoSource* Source)
-{
-	checkf(Source, TEXT("Cannot register a nullptr VideoSource."));
-	FScopeLock Guard(&SourcesGuard);
-	VideoSources.Add(PlayerId, Source);
-	NextPumpEvent->Trigger();
-}
-
-void UE::PixelStreaming::FFixedFPSPump::PumpLoop()
-{
-	uint64 LastCycles = FPlatformTime::Cycles64();
-
-	while (bThreadRunning)
+	/*
+	* ---------- FFixedFPSPump ----------------
+	*/
+	FFixedFPSPump::FFixedFPSPump()
+		: Runnable()
 	{
-		// No sources, so just wait.
-		if (VideoSources.Num() == 0)
+		if (Settings::CVarPixelStreamingDecoupleFrameRate.GetValueOnAnyThread())
 		{
-			NextPumpEvent->Wait();
-		}
-
-		{
-			FScopeLock Guard(&SourcesGuard);
-
-			const int32 FrameId = NextFrameId++;
-
-			// Pump each video source
-			TMap<FPixelStreamingPlayerId, IPumpedVideoSource*>::TIterator Iter = VideoSources.CreateIterator();
-			for (; Iter; ++Iter)
-			{
-
-				IPumpedVideoSource* VideoSource = Iter.Value();
-
-				if (VideoSource->IsReadyForPump())
-				{
-					VideoSource->OnPump(FrameId);
-				}
-			}
-		}
-
-		// Sleep as long as we need for a constant FPS
-		const uint64 EndCycles = FPlatformTime::Cycles64();
-		const double DeltaMs = FPlatformTime::ToMilliseconds64(EndCycles - LastCycles);
-		const int32 FPS = UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread();
-		const double FrameDeltaMs = 1000.0 / FPS;
-		const double SleepMs = FrameDeltaMs - DeltaMs;
-		LastCycles = EndCycles;
-
-		if (SleepMs > 0)
-		{
-			NextPumpEvent->Wait(SleepMs, false);
+			PumpThread = FRunnableThread::Create(&Runnable, TEXT("Pixel Streaming Frame Pump"));
 		}
 	}
-}
+
+	FFixedFPSPump::~FFixedFPSPump()
+	{
+		Shutdown();
+		if (Settings::CVarPixelStreamingDecoupleFrameRate.GetValueOnAnyThread())
+		{
+			PumpThread->Kill(true);
+		}
+	}
+
+	void FFixedFPSPump::Shutdown()
+	{
+		Runnable.Stop();
+	}
+
+	void FFixedFPSPump::RegisterPumpable(rtc::scoped_refptr<FPixelStreamingPumpable> Pumpable)
+	{
+		checkf(Pumpable, TEXT("Cannot register a nullptr."));
+		FScopeLock Guard(&Runnable.SourcesGuard);
+		Runnable.Pumpables.Add(Pumpable.get(), Pumpable);
+		Runnable.NextPumpEvent->Trigger();
+	}
+
+	void FFixedFPSPump::UnregisterPumpable(rtc::scoped_refptr<FPixelStreamingPumpable> Pumpable)
+	{
+		FScopeLock Guard(&Runnable.SourcesGuard);
+		Runnable.Pumpables.Remove(Pumpable.get());
+		Runnable.NextPumpEvent->Trigger();
+	}
+
+	void FFixedFPSPump::PumpAll()
+	{
+		Runnable.PumpAll();
+	}
+
+	/*
+	* ------------- FPumpRunnable ---------------------
+	*/
+	FFixedFPSPump::FPumpRunnable::FPumpRunnable()
+		: bIsRunning(false)
+		, NextPumpEvent(FPlatformProcess::GetSynchEventFromPool(false))
+	{
+	}
+
+	bool FFixedFPSPump::FPumpRunnable::Init()
+	{
+		return true;
+	}
+
+	void FFixedFPSPump::FPumpRunnable::PumpAll()
+	{
+		FScopeLock Guard(&SourcesGuard);
+		const int32 FrameId = NextFrameId++;
+		// Pump each video source
+		TMap<FPixelStreamingPumpable*, rtc::scoped_refptr<FPixelStreamingPumpable>>::TIterator Iter = Pumpables.CreateIterator();
+		for (; Iter; ++Iter)
+		{
+			FPixelStreamingPumpable* Pumpable = Iter.Value();
+			if (Pumpable->HasOneRef())
+			{
+				Iter.RemoveCurrent();
+				continue;
+			}
+
+			verifyf(Pumpable, TEXT("Pumpable was null"))
+			if (Pumpable->IsReadyForPump())
+			{
+				Pumpable->OnPump(FrameId);
+			}
+		}
+	}
+
+	uint32 FFixedFPSPump::FPumpRunnable::Run()
+	{
+		LastPumpCycles = FPlatformTime::Cycles64();
+		bIsRunning = true;
+
+		while (bIsRunning)
+		{
+			// No sources, so just wait.
+			if (Pumpables.Num() == 0)
+			{
+				NextPumpEvent->Wait();
+			}
+
+			PumpAll();
+
+			// Sleep as long as we need for a constant FPS
+			const uint64 EndCycles = FPlatformTime::Cycles64();
+			const double DeltaMs = FPlatformTime::ToMilliseconds64(EndCycles - LastPumpCycles);
+			const int32 FPS = Settings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread();
+			const double FrameDeltaMs = 1000.0 / FPS;
+			const double SleepMs = FrameDeltaMs - DeltaMs;
+			LastPumpCycles = EndCycles;
+			if (SleepMs > 0)
+			{
+				NextPumpEvent->Wait(SleepMs, false);
+			}
+		}
+		return 0;
+	}
+
+	/* Tick() only occurs when engine is running in single threaded mode */
+	void FFixedFPSPump::FPumpRunnable::Tick()
+	{
+		NextPumpEvent->Trigger();
+		/*
+		NOTE: When running single threaded, we will never be able to pump faster than the engine is rendering so the logic to do so is removed.
+		*/
+		if (Pumpables.Num() == 0)
+		{
+			// No sources, so just wait.
+			return;
+		}
+
+		PumpAll();
+	}
+
+	void FFixedFPSPump::FPumpRunnable::Stop()
+	{
+		bIsRunning = false;
+		NextPumpEvent->Trigger();
+	}
+
+	void FFixedFPSPump::FPumpRunnable::Exit()
+	{
+		bIsRunning = false;
+		NextPumpEvent->Trigger();
+	}
+} // namespace UE::PixelStreaming

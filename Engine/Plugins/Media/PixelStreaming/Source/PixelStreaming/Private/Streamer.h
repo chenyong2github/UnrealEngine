@@ -7,7 +7,7 @@
 #include "RHI.h"
 #include "PlayerSessions.h"
 #include "FixedFPSPump.h"
-#include "GPUFencePoller.h"
+#include "Poller.h"
 #include "Stats.h"
 
 namespace UE::PixelStreaming
@@ -16,7 +16,7 @@ namespace UE::PixelStreaming
 	class FVideoEncoderFactory;
 	class FSimulcastEncoderFactory;
 	class FSetSessionDescriptionObserver;
-	class FGPUFencePoller;
+	class FPoller;
 	class IPlayerSession;
 
 	class FStreamer : public FSignallingServerConnectionObserver
@@ -74,8 +74,6 @@ namespace UE::PixelStreaming
 		std::vector<webrtc::RtpEncodingParameters> CreateRTPEncodingParams(int Flags);
 		void SendAnswer(TSharedPtr<IPlayerSession> Session, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp);
 		void OnDataChannelOpen(FPixelStreamingPlayerId PlayerId, webrtc::DataChannelInterface* DataChannel);
-		void OnQualityControllerChanged(FPixelStreamingPlayerId PlayerId);
-		void PostPlayerDeleted(FPixelStreamingPlayerId PlayerId, bool bWasQualityController);
 		void SetLocalDescription(webrtc::PeerConnectionInterface* PeerConnection, FSetSessionDescriptionObserver* Observer, webrtc::SessionDescriptionInterface* SDP);
 		FString GetAudioStreamID() const;
 		FString GetVideoStreamID() const;
@@ -114,9 +112,6 @@ namespace UE::PixelStreaming
 
 		FPlayerSessions PlayerSessions;
 		FStats Stats;
-
-		FFixedFPSPump PumpThread;
-		FGPUFencePoller FencePollerThread;
 
 		TUniquePtr<webrtc::SessionDescriptionInterface> SFULocalDescription;
 		TUniquePtr<webrtc::SessionDescriptionInterface> SFURemoteDescription;

@@ -2,61 +2,64 @@
 
 #include "AudioSink.h"
 
-UE::PixelStreaming::FAudioSink::~FAudioSink()
+namespace UE::PixelStreaming
 {
-	for (auto Iter = AudioConsumers.CreateIterator(); Iter; ++Iter)
+	FAudioSink::~FAudioSink()
 	{
-		IPixelStreamingAudioConsumer* AudioConsumer = Iter.ElementIt->Value;
-		Iter.RemoveCurrent();
-		if (AudioConsumer != nullptr)
+		for (auto Iter = AudioConsumers.CreateIterator(); Iter; ++Iter)
 		{
-			AudioConsumer->OnConsumerRemoved();
+			IPixelStreamingAudioConsumer* AudioConsumer = Iter.ElementIt->Value;
+			Iter.RemoveCurrent();
+			if (AudioConsumer != nullptr)
+			{
+				AudioConsumer->OnConsumerRemoved();
+			}
 		}
 	}
-}
 
-void UE::PixelStreaming::FAudioSink::OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames, absl::optional<int64_t> absolute_capture_timestamp_ms)
-{
-
-	// This data is populated from the internals of WebRTC, basically each audio track sent from the browser has its RTP audio source received and decoded.
-	// The sample rate and number of channels here has absolutely no relationship with PixelStreamingAudioDeviceModule.
-	// The sample rate and number of channels here is determined adaptively by WebRTC's NetEQ class that selects sample rate/number of channels
-	// based on network conditions and other factors.
-
-	if (!HasAudioConsumers())
+	void FAudioSink::OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames, absl::optional<int64_t> absolute_capture_timestamp_ms)
 	{
+
+		// This data is populated from the internals of WebRTC, basically each audio track sent from the browser has its RTP audio source received and decoded.
+		// The sample rate and number of channels here has absolutely no relationship with PixelStreamingAudioDeviceModule.
+		// The sample rate and number of channels here is determined adaptively by WebRTC's NetEQ class that selects sample rate/number of channels
+		// based on network conditions and other factors.
+
+		if (!HasAudioConsumers())
+		{
+			return;
+		}
+
+		// Iterate audio consumers and pass this data to their buffers
+		for (IPixelStreamingAudioConsumer* AudioConsumer : AudioConsumers)
+		{
+			AudioConsumer->ConsumeRawPCM(static_cast<const int16_t*>(audio_data), sample_rate, number_of_channels, number_of_frames);
+		}
+
 		return;
 	}
 
-	// Iterate audio consumers and pass this data to their buffers
-	for (IPixelStreamingAudioConsumer* AudioConsumer : AudioConsumers)
+	void FAudioSink::AddAudioConsumer(IPixelStreamingAudioConsumer* AudioConsumer)
 	{
-		AudioConsumer->ConsumeRawPCM(static_cast<const int16_t*>(audio_data), sample_rate, number_of_channels, number_of_frames);
+		bool bAlreadyInSet = false;
+		AudioConsumers.Add(AudioConsumer, &bAlreadyInSet);
+		if (!bAlreadyInSet)
+		{
+			AudioConsumer->OnConsumerAdded();
+		}
 	}
 
-	return;
-}
-
-void UE::PixelStreaming::FAudioSink::AddAudioConsumer(IPixelStreamingAudioConsumer* AudioConsumer)
-{
-	bool bAlreadyInSet = false;
-	AudioConsumers.Add(AudioConsumer, &bAlreadyInSet);
-	if (!bAlreadyInSet)
+	void FAudioSink::RemoveAudioConsumer(IPixelStreamingAudioConsumer* AudioConsumer)
 	{
-		AudioConsumer->OnConsumerAdded();
+		if (AudioConsumers.Contains(AudioConsumer))
+		{
+			AudioConsumers.Remove(AudioConsumer);
+			AudioConsumer->OnConsumerRemoved();
+		}
 	}
-}
 
-void UE::PixelStreaming::FAudioSink::RemoveAudioConsumer(IPixelStreamingAudioConsumer* AudioConsumer)
-{
-	if (AudioConsumers.Contains(AudioConsumer))
+	bool FAudioSink::HasAudioConsumers()
 	{
-		AudioConsumers.Remove(AudioConsumer);
-		AudioConsumer->OnConsumerRemoved();
+		return AudioConsumers.Num() > 0;
 	}
-}
-
-bool UE::PixelStreaming::FAudioSink::HasAudioConsumers()
-{
-	return AudioConsumers.Num() > 0;
-}
+} // namespace UE::PixelStreaming

@@ -21,7 +21,14 @@
 			"LoadingPhase": "PreDefault",
 			"PlatformAllowList": [ "Win64", "Linux" ],
 			"TargetDenyList": [ "Server" ]
-		}
+		},
+		{
+            "Name": "PixelStreamingShaders",
+            "Type": "Runtime",
+            "LoadingPhase": "PostConfigInit",
+            "PlatformAllowList": [ "Win64", "Linux" ],
+            "TargetDenyList": [ "Server" ]
+		},
 	],
 	"Plugins": [
 		{

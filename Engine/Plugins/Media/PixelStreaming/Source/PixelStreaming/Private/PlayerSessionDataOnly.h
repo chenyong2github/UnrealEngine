@@ -31,6 +31,7 @@ namespace UE::PixelStreaming
 		virtual void OnRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) override {}
 		virtual void DisconnectPlayer(const FString& Reason) override {}
 
+		virtual FName GetSessionType() const override { return Type; };
 		virtual FPixelStreamingPlayerId GetPlayerId() const override { return PlayerId; }
 		virtual IPixelStreamingAudioSink* GetAudioSink() override { return nullptr; }
 		virtual FDataChannelObserver* GetDataChannelObserver() override { return &DataChannelObserver; }
@@ -61,6 +62,9 @@ namespace UE::PixelStreaming
 		virtual void OnIceConnectionReceivingChange(bool Receiving) override {}
 		virtual void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) override {}
 		virtual void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override {}
+
+	public:
+		inline static const FName Type = FName(TEXT("DataOnly"));
 
 	private:
 		FSignallingServerConnection* SignallingServerConnection;

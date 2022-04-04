@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "WebRTCIncludes.h"
 #include "PixelStreamingProtocolDefs.h"
 #include "PixelStreamingPlayerId.h"
 
@@ -26,6 +27,7 @@ namespace UE::PixelStreaming
 		virtual void OnRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) = 0;
 		virtual void DisconnectPlayer(const FString& Reason) = 0;
 
+		virtual FName GetSessionType() const = 0;
 		virtual FPixelStreamingPlayerId GetPlayerId() const = 0;
 		virtual IPixelStreamingAudioSink* GetAudioSink() = 0;
 		virtual FDataChannelObserver* GetDataChannelObserver() = 0;

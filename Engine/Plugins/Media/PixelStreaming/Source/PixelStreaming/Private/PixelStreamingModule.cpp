@@ -47,6 +47,7 @@ THIRD_PARTY_INCLUDES_END
 #include "Async/Async.h"
 #include "Engine/Engine.h"
 #include "EncoderFactory.h"
+#include "VideoSource.h"
 
 #if !UE_BUILD_SHIPPING
 	#include "DrawDebugHelpers.h"
@@ -106,6 +107,10 @@ namespace UE::PixelStreaming
 			return;
 		}
 
+		Poller = MakeUnique<FPoller>();
+		FramePump = MakeUnique<FFixedFPSPump>();
+		bDecoupleFrameRate = UE::PixelStreaming::Settings::CVarPixelStreamingDecoupleFrameRate.GetValueOnAnyThread();
+
 		// subscribe to engine delegates here for init / framebuffer creation / whatever
 		// TODO check if there is a better callback to attach so that we can use with editor
 		if (FSlateApplication::IsInitialized())
@@ -123,7 +128,7 @@ namespace UE::PixelStreaming
 
 		verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
 
-		Streamer = MakeShared<FStreamer>(StreamerId);
+		Streamer = MakeUnique<FStreamer>(StreamerId);
 
 		// Streamer has been created, so module is now "ready" for external use.
 		ReadyEvent.Broadcast(*this);
@@ -185,6 +190,8 @@ namespace UE::PixelStreaming
 		{
 			UE_LOG(LogPixelStreaming, Warning, TEXT("Only D3D11/D3D12/Vulkan Dynamic RHI is supported. Detected %s"), GDynamicRHI != nullptr ? GDynamicRHI->GetName() : TEXT("[null]"));
 		}
+
+		TextureSourceFactory = MakeUnique<FTextureSourceFactory>();
 	}
 
 	void FPixelStreamingModule::ShutdownModule()
@@ -196,6 +203,9 @@ namespace UE::PixelStreaming
 		}
 
 		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
+
+		// We explicitly call release on streamer so WebRTC gets shutdown before our module is deleted
+		Streamer.Reset(nullptr);
 	}
 
 	IPixelStreamingModule* FPixelStreamingModule::GetModule()
@@ -274,6 +284,12 @@ namespace UE::PixelStreaming
 
 		check(IsInRenderingThread());
 
+		// Framerate isn't decoupled, manually pump
+		if (!bDecoupleFrameRate)
+		{
+			FramePump->PumpAll();
+		}
+
 		// Check to see if we have been instructed to capture the back buffer as a
 		// freeze frame.
 		if (bCaptureNextBackBufferAndStream && Streamer->IsStreaming())
@@ -282,7 +298,7 @@ namespace UE::PixelStreaming
 
 			// Read the data out of the back buffer and send as a JPEG.
 			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-			FIntRect Rect(0, 0, BackBuffer->GetSizeX(), BackBuffer->GetSizeY());
+			FIntRect Rect(0, 0, BackBuffer->GetDesc().Extent.X, BackBuffer->GetDesc().Extent.Y);
 			TArray<FColor> Data;
 
 			RHICmdList.ReadSurfaceData(BackBuffer, Rect, Data, FReadSurfaceDataFlags());
@@ -292,7 +308,8 @@ namespace UE::PixelStreaming
 
 	TSharedPtr<class IInputDevice> FPixelStreamingModule::CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 	{
-		InputDevice = MakeShareable(new FInputDevice(InMessageHandler));
+		FInputDevice* InputDevicePtr = new FInputDevice(InMessageHandler);
+		InputDevice = TSharedPtr<FInputDevice>(InputDevicePtr);
 		return InputDevice;
 	}
 
@@ -348,21 +365,21 @@ namespace UE::PixelStreaming
 			ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)
 			([this, Texture](FRHICommandListImmediate& RHICmdList) {
 				// A frame is supplied so immediately read its data and send as a JPEG.
-				FTexture2DRHIRef Texture2DRHI = (Texture->GetResource() && Texture->GetResource()->TextureRHI) ? Texture->GetResource()->TextureRHI->GetTexture2D() : nullptr;
-				if (!Texture2DRHI)
+				FTextureRHIRef TextureRHI = Texture->GetResource() ? Texture->GetResource()->TextureRHI : nullptr;
+				if (!TextureRHI)
 				{
-					UE_LOG(LogPixelStreaming, Error, TEXT("Attempting freeze frame with texture %s with no texture 2D RHI"), *Texture->GetName());
+					UE_LOG(LogPixelStreaming, Error, TEXT("Attempting freeze frame with texture %s with no texture RHI"), *Texture->GetName());
 					return;
 				}
-				uint32 Width = Texture2DRHI->GetSizeX();
-				uint32 Height = Texture2DRHI->GetSizeY();
+				uint32 Width = TextureRHI->GetDesc().Extent.X;
+				uint32 Height = TextureRHI->GetDesc().Extent.Y;
 
-				FTexture2DRHIRef DestTexture = CreateTexture(Width, Height);
+				FTextureRHIRef DestTexture = CreateRHITexture(Width, Height);
 
 				FGPUFenceRHIRef CopyFence = GDynamicRHI->RHICreateGPUFence(*FString::Printf(TEXT("FreezeFrameFence")));
 
 				// Copy freeze frame texture to empty texture
-				CopyTexture(Texture2DRHI, DestTexture, CopyFence);
+				CopyTextureToRHI(TextureRHI, DestTexture, CopyFence);
 
 				TArray<FColor> Data;
 				FIntRect Rect(0, 0, Width, Height);
@@ -516,26 +533,48 @@ namespace UE::PixelStreaming
 
 		return Result;
 	}
+
+	void FPixelStreamingModule::AddPollerTask(TFunction<void()> Task, TFunction<bool()> IsTaskFinished, TSharedRef<bool, ESPMode::ThreadSafe> bKeepRunning)
+	{
+		Poller->AddJob(IsTaskFinished, bKeepRunning, Task);
+	}
+
+	void FPixelStreamingModule::RegisterPumpable(rtc::scoped_refptr<FPixelStreamingPumpable> Pumpable)
+	{
+		FramePump->RegisterPumpable(Pumpable);
+	}
+
+	void FPixelStreamingModule::UnregisterPumpable(rtc::scoped_refptr<FPixelStreamingPumpable> Pumpable)
+	{
+		FramePump->UnregisterPumpable(Pumpable);
+	}
+
+	webrtc::VideoEncoderFactory* FPixelStreamingModule::CreateVideoEncoderFactory()
+	{
+		return new FVideoEncoderFactory();
+	}
+
+	rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> FPixelStreamingModule::CreateExternalVideoSource(FName SourceType)
+	{
+		FVideoSourceP2P* VideoSource = new FVideoSourceP2P(SourceType, []() { return true; });
+		VideoSource->Initialize();
+		return rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(VideoSource);
+	}
+
+	IPixelStreamingTextureSourceFactory& FPixelStreamingModule::GetTextureSourceFactory()
+	{
+		return *TextureSourceFactory;
+	}
+
+	void FPixelStreamingModule::SetActiveTextureSourceTypes(const TArray<FName>& SourceTypes)
+	{
+		UE::PixelStreaming::Settings::SetActiveTextureSourceTypes(SourceTypes);
+	}
+
+	const TArray<FName>& FPixelStreamingModule::GetActiveTextureSourceTypes() const
+	{
+		return UE::PixelStreaming::Settings::GetActiveTextureSourceTypes();
+	}
 } // namespace UE::PixelStreaming
-
-void UE::PixelStreaming::FPixelStreamingModule::AddGPUFencePollerTask(FGPUFenceRHIRef Fence, TSharedRef<bool, ESPMode::ThreadSafe> bIsEnabled, TFunction<void()> Task)
-{
-	FencePollerThread.AddJob(Fence, bIsEnabled, Task);
-}
-
-void UE::PixelStreaming::FPixelStreamingModule::RegisterVideoSource(FPixelStreamingPlayerId PlayerId, IPumpedVideoSource* VideoSource)
-{
-	PumpThread.RegisterVideoSource(PlayerId, VideoSource);
-}
-
-void UE::PixelStreaming::FPixelStreamingModule::UnregisterVideoSource(FPixelStreamingPlayerId PlayerId)
-{
-	PumpThread.UnregisterVideoSource(PlayerId);
-}
-
-webrtc::VideoEncoderFactory* UE::PixelStreaming::FPixelStreamingModule::CreateVideoEncoderFactory()
-{
-	return new UE::PixelStreaming::FVideoEncoderFactory();
-}
 
 IMPLEMENT_MODULE(UE::PixelStreaming::FPixelStreamingModule, PixelStreaming)
