@@ -23,9 +23,21 @@
 #include "WorldPartition/WorldPartition.h"
 #endif
 
-namespace UE::SmartObject::Debug
+namespace UE::SmartObject
 {
+
+// Indicates that runtime shouldn't be initialized.
+// This flag must be set BEFORE launching the game and not toggled after.
+bool bDisableRuntime = false;
+FAutoConsoleVariableRef CVarDisableRuntime(
+	TEXT("ai.smartobject.DisableRuntime"),
+	bDisableRuntime,
+	TEXT("If enabled, runtime instances won't be created for baked collection entries or runtime added ones from component registration."),
+	ECVF_Default);
+
 #if WITH_SMARTOBJECT_DEBUG
+namespace Debug
+{
 	static FAutoConsoleCommandWithWorld RegisterAllSmartObjectsCmd
 	(
 		TEXT("ai.debug.so.RegisterAllSmartObjects"),
@@ -51,8 +63,9 @@ namespace UE::SmartObject::Debug
 			}
 		})
 	);
-#endif // WITH_SMARTOBJECT_DEBUG
 } // UE::SmartObject::Debug
+#endif // WITH_SMARTOBJECT_DEBUG
+} // UE::SmartObject
 
 //----------------------------------------------------------------------//
 // USmartObjectSubsystem
@@ -943,7 +956,9 @@ bool USmartObjectSubsystem::FindSmartObjects(const FSmartObjectRequest& Request,
 
 	if (!bInitialCollectionAddedToSimulation)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Can't find smart objet before runtime gets initialized (i.e. InitializeRuntime gets called)."));
+		// Do not report warning if runtime was explicitly disabled by CVar
+		UE_CVLOG_UELOG(!UE::SmartObject::bDisableRuntime, this, LogSmartObject, Warning,
+			TEXT("Can't find smart objet before runtime gets initialized (i.e. InitializeRuntime gets called)."));
 		return false;
 	}
 
@@ -1065,6 +1080,12 @@ void USmartObjectSubsystem::InitializeRuntime()
 		return;
 	}
 
+	if (UE::SmartObject::bDisableRuntime)
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Runtime explicitly disabled by CVar. Initialization skipped in %s."), ANSI_TO_TCHAR(__FUNCTION__));
+		return;
+	}
+
 	if (!IsValid(MainCollection))
 	{
 		if (MainCollection != nullptr && !MainCollection->bNetLoadOnClient && World.IsNetMode(NM_Client))
@@ -1084,10 +1105,10 @@ void USmartObjectSubsystem::InitializeRuntime()
 	SpacePartition = NewObject<USmartObjectSpacePartition>(this, SpacePartitionClass);
 	SpacePartition->SetBounds(MainCollection->GetBounds());
 
+	// Build all runtime from collection
 	// Perform all validations at once since multiple entries can share the same definition
 	MainCollection->ValidateDefinitions();
 
-	// Build all runtime from collection
 	for (const FSmartObjectCollectionEntry& Entry : MainCollection->GetEntries())
 	{
 		const USmartObjectDefinition* Definition = MainCollection->GetDefinitionForEntry(Entry);
