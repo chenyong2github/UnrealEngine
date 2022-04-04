@@ -1054,7 +1054,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				Builder.Append("\tstatic FName NAME_").Append(Function.Outer?.SourceName).Append("_").Append(Function.SourceName).Append(" = FName(TEXT(\"").Append(Function.EngineName).Append("\"));\r\n");
 				string ExtraParameter = Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Const) ? "const UObject* O" : "UObject* O";
-				AppendNativeFunctionHeader(Builder, Function, UhtPropertyTextType.InterfaceFunction, false, null, ExtraParameter, 0, "\r\n");
+				AppendNativeFunctionHeader(Builder, Function, UhtPropertyTextType.InterfaceFunctionArgOrRetVal, false, null, ExtraParameter, 0, "\r\n");
 				Builder.Append("\t{\r\n");
 				Builder.Append("\t\tcheck(O != NULL);\r\n");
 				Builder.Append("\t\tcheck(O->GetClass()->ImplementsInterface(").Append(Class.SourceName).Append("::StaticClass()));\r\n");
@@ -1536,7 +1536,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							Builder.Append("\tstatic FName NAME_").Append(Class.SourceName).Append('_').Append(Function.EngineName).Append(" = FName(TEXT(\"").Append(Function.EngineName).Append("\"));\r\n");
 						}
 
-						AppendNativeFunctionHeader(Builder, Function, UhtPropertyTextType.EventFunction, false, null, null, UhtFunctionExportFlags.None, "\r\n");
+						AppendNativeFunctionHeader(Builder, Function, UhtPropertyTextType.EventFunctionArgOrRetVal, false, null, null, UhtFunctionExportFlags.None, "\r\n");
 
 						if (bIsInterfaceClass)
 						{

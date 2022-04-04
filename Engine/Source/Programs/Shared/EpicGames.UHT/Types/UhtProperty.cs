@@ -434,9 +434,29 @@ namespace EpicGames.UHT.Types
 	public enum UhtPropertyTextType
 	{
 		/// <summary>
-		/// Used when the declaration is to be displayed to the user in cases such as error messages.
+		/// Generic type
 		/// </summary>
-		UserFacing,
+		Generic,
+
+		/// <summary>
+		/// Generic function argument or return value
+		/// </summary>
+		GenericFunctionArgOrRetVal,
+
+		/// <summary>
+		/// Class function argument or return value
+		/// </summary>
+		ClassFunctionArgOrRetVal,
+
+		/// <summary>
+		/// Event function argument or return value
+		/// </summary>
+		EventFunctionArgOrRetVal,
+
+		/// <summary>
+		/// Interface function argument or return value
+		/// </summary>
+		InterfaceFunctionArgOrRetVal,
 
 		/// <summary>
 		/// Sparse property declaration
@@ -447,21 +467,6 @@ namespace EpicGames.UHT.Types
 		/// Sparse property short name
 		/// </summary>
 		SparseShort,
-
-		/// <summary>
-		/// Class function argument or return value
-		/// </summary>
-		ClassFunction,
-
-		/// <summary>
-		/// Event function argument or return value
-		/// </summary>
-		EventFunction,
-
-		/// <summary>
-		/// Interface function argument or return value
-		/// </summary>
-		InterfaceFunction,
 
 		/// <summary>
 		/// Class or structure member
@@ -496,7 +501,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Used to get the return type for function thunks
 		/// </summary>
-		FunctionThunkReturn,
+		FunctionThunkRetVal,
 
 		/// <summary>
 		/// Used when generating types for RigVM.  Only invoked for template arguments
@@ -523,9 +528,10 @@ namespace EpicGames.UHT.Types
 		public static bool IsParameter(this UhtPropertyTextType TextType)
 		{
 			return
-				TextType == UhtPropertyTextType.ClassFunction ||
-				TextType == UhtPropertyTextType.EventFunction ||
-				TextType == UhtPropertyTextType.InterfaceFunction;
+				TextType == UhtPropertyTextType.GenericFunctionArgOrRetVal ||
+				TextType == UhtPropertyTextType.ClassFunctionArgOrRetVal ||
+				TextType == UhtPropertyTextType.EventFunctionArgOrRetVal ||
+				TextType == UhtPropertyTextType.InterfaceFunctionArgOrRetVal;
 		}
 	}
 
@@ -1348,7 +1354,7 @@ namespace EpicGames.UHT.Types
 		public string GetUserFacingDecl()
 		{
 			StringBuilder Builder = new StringBuilder();
-			AppendText(Builder, UhtPropertyTextType.UserFacing);
+			AppendText(Builder, UhtPropertyTextType.Generic);
 			return Builder.ToString();
 		}
 
@@ -1995,17 +2001,6 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <summary>
-		/// Append the user facing declaration.
-		/// </summary>
-		/// <param name="Builder">Destination builder</param>
-		/// <param name="Property">Property in question</param>
-		/// <returns>Destination builder</returns>
-		public static StringBuilder AppendUserFacingDecl(this StringBuilder Builder, UhtProperty Property)
-		{
-			return Property.AppendText(Builder, UhtPropertyTextType.UserFacing);
-		}
-
-		/// <summary>
 		/// Append the function thunk parameter get
 		/// </summary>
 		/// <param name="Builder">Destination builder</param>
@@ -2046,7 +2041,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Destination builder</returns>
 		public static StringBuilder AppendFunctionThunkReturn(this StringBuilder Builder, UhtProperty Property)
 		{
-			return Property.AppendText(Builder, UhtPropertyTextType.FunctionThunkReturn);
+			return Property.AppendText(Builder, UhtPropertyTextType.FunctionThunkRetVal);
 		}
 
 		/// <summary>

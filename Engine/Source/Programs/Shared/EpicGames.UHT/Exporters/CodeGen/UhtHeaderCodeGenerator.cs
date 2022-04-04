@@ -158,14 +158,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				// If the function was marked as 'RequiredAPI', then add the *_API macro prefix.  Note that if the class itself
 				// was marked 'RequiredAPI', this is not needed as C++ will exports all methods automatically.
-				if (TextType != UhtPropertyTextType.EventFunction &&
+				if (TextType != UhtPropertyTextType.EventFunctionArgOrRetVal &&
 					!(OuterClass != null && OuterClass.ClassFlags.HasAnyFlags(EClassFlags.RequiredAPI)) &&
 					ExportFlags.HasAnyFlags(UhtFunctionExportFlags.RequiredAPI))
 				{
 					Builder.Append(this.PackageApi);
 				}
 
-				if (TextType == UhtPropertyTextType.InterfaceFunction)
+				if (TextType == UhtPropertyTextType.InterfaceFunctionArgOrRetVal)
 				{
 					Builder.Append("static ");
 				}
@@ -179,7 +179,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					Builder.Append("virtual ");
 				}
 				// this is not an event, the function is not a static function and the function is not marked final
-				else if (TextType != UhtPropertyTextType.EventFunction && !Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Static) && !ExportFlags.HasAnyFlags(UhtFunctionExportFlags.Final))
+				else if (TextType != UhtPropertyTextType.EventFunctionArgOrRetVal && !Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Static) && !ExportFlags.HasAnyFlags(UhtFunctionExportFlags.Final))
 				{
 					Builder.Append("virtual ");
 				}
@@ -217,21 +217,23 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				switch (TextType)
 				{
-					case UhtPropertyTextType.InterfaceFunction:
+					case UhtPropertyTextType.InterfaceFunctionArgOrRetVal:
 						Builder.Append("Execute_").Append(Function.SourceName);
 						break;
-					case UhtPropertyTextType.EventFunction:
+					case UhtPropertyTextType.EventFunctionArgOrRetVal:
 						Builder.Append(Function.MarshalAndCallName);
 						break;
-					case UhtPropertyTextType.ClassFunction:
+					case UhtPropertyTextType.ClassFunctionArgOrRetVal:
 						Builder.Append(Function.CppImplName);
 						break;
+					default:
+						throw new UhtIceException("Unexpected type text");
 				}
 			}
 
 			AppendParameters(Builder, Function, TextType, ExtraParam, false);
 
-			if (TextType != UhtPropertyTextType.InterfaceFunction)
+			if (TextType != UhtPropertyTextType.InterfaceFunctionArgOrRetVal)
 			{
 				if (!bIsDelegate && Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Const))
 				{

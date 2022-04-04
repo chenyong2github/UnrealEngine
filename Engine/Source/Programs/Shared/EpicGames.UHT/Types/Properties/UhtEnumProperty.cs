@@ -106,9 +106,10 @@ namespace EpicGames.UHT.Types
 		{
 			switch (TextType)
 			{
-				case UhtPropertyTextType.ClassFunction:
-				case UhtPropertyTextType.InterfaceFunction:
-				case UhtPropertyTextType.EventFunction:
+				case UhtPropertyTextType.GenericFunctionArgOrRetVal:
+				case UhtPropertyTextType.ClassFunctionArgOrRetVal:
+				case UhtPropertyTextType.InterfaceFunctionArgOrRetVal:
+				case UhtPropertyTextType.EventFunctionArgOrRetVal:
 					if (Enum.CppForm == UhtEnumCppForm.EnumClass || (!bIsTemplateArgument && (Property.PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm) || !Property.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))))
 					{
 						Builder.Append(Enum.CppType);

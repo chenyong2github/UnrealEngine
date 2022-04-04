@@ -37,10 +37,10 @@ namespace EpicGames.UHT.Types
 		{
 			switch (TextType)
 			{
-				case UhtPropertyTextType.UserFacing:
+				case UhtPropertyTextType.Generic:
 				case UhtPropertyTextType.Construction:
 				case UhtPropertyTextType.FunctionThunkParameterArrayType:
-				case UhtPropertyTextType.FunctionThunkReturn:
+				case UhtPropertyTextType.FunctionThunkRetVal:
 				case UhtPropertyTextType.RigVMTemplateArg:
 				case UhtPropertyTextType.ExportMember:
 					Builder.Append(this.CppTypeText);
@@ -48,9 +48,10 @@ namespace EpicGames.UHT.Types
 
 				case UhtPropertyTextType.Sparse:
 				case UhtPropertyTextType.SparseShort:
-				case UhtPropertyTextType.ClassFunction:
-				case UhtPropertyTextType.EventFunction:
-				case UhtPropertyTextType.InterfaceFunction:
+				case UhtPropertyTextType.GenericFunctionArgOrRetVal:
+				case UhtPropertyTextType.ClassFunctionArgOrRetVal:
+				case UhtPropertyTextType.EventFunctionArgOrRetVal:
+				case UhtPropertyTextType.InterfaceFunctionArgOrRetVal:
 				case UhtPropertyTextType.EventParameterMember:
 				case UhtPropertyTextType.EventParameterFunctionMember:
 				case UhtPropertyTextType.GetterSetterArg:

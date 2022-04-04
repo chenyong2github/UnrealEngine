@@ -71,12 +71,13 @@ namespace EpicGames.UHT.Types
 		{
 			switch (TextType)
 			{
-				case UhtPropertyTextType.UserFacing:
+				case UhtPropertyTextType.Generic:
 				case UhtPropertyTextType.Sparse:
 				case UhtPropertyTextType.SparseShort:
-				case UhtPropertyTextType.ClassFunction:
-				case UhtPropertyTextType.EventFunction:
-				case UhtPropertyTextType.InterfaceFunction:
+				case UhtPropertyTextType.GenericFunctionArgOrRetVal:
+				case UhtPropertyTextType.ClassFunctionArgOrRetVal:
+				case UhtPropertyTextType.EventFunctionArgOrRetVal:
+				case UhtPropertyTextType.InterfaceFunctionArgOrRetVal:
 				case UhtPropertyTextType.ExportMember:
 				case UhtPropertyTextType.Construction:
 				case UhtPropertyTextType.FunctionThunkParameterArrayType:
@@ -85,7 +86,7 @@ namespace EpicGames.UHT.Types
 					AppendText(Builder);
 					break;
 
-				case UhtPropertyTextType.FunctionThunkReturn:
+				case UhtPropertyTextType.FunctionThunkRetVal:
 					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
 					{
 						Builder.Append("const ");

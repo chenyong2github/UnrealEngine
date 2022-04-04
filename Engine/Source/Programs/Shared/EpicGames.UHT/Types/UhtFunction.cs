@@ -803,7 +803,7 @@ namespace EpicGames.UHT.Types
 			UhtProperty? ReturnType = this.ReturnProperty;
 			if (ReturnType != null)
 			{
-				Builder.AppendPropertyText(ReturnType, UhtPropertyTextType.EventFunction);
+				Builder.AppendPropertyText(ReturnType, UhtPropertyTextType.EventFunctionArgOrRetVal);
 				Builder.Append(' ');
 			}
 			else
@@ -821,7 +821,7 @@ namespace EpicGames.UHT.Types
 					Builder.Append(", ");
 				}
 				bFirst = false;
-				Builder.AppendFullDecl(Arg, UhtPropertyTextType.EventFunction, true);
+				Builder.AppendFullDecl(Arg, UhtPropertyTextType.EventFunctionArgOrRetVal, true);
 			}
 
 			Builder.Append(')');

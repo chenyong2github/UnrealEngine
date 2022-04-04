@@ -56,7 +56,7 @@ namespace EpicGames.UHT.Types
 					}
 					break;
 
-				case UhtPropertyTextType.FunctionThunkReturn:
+				case UhtPropertyTextType.FunctionThunkRetVal:
 					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
 					{
 						Builder.Append("const ");
