@@ -97,6 +97,8 @@ namespace
 
 // FHeaderViewListItem ////////////////////////////////////////////////////////
 
+const FText FHeaderViewListItem::InvalidCPPIdentifierErrorText = LOCTEXT("CPPIdentifierError", "Name is not a valid C++ Identifier");
+
 TSharedRef<SWidget> FHeaderViewListItem::GenerateWidgetForItem()
 {
 	const UBlueprintHeaderViewSettings* HeaderViewSettings = GetDefault<UBlueprintHeaderViewSettings>();
@@ -189,6 +191,24 @@ bool FHeaderViewListItem::IsValidCPPIdentifier(const FString& InIdentifier)
 	// 0Illegal, Illegal&, Illegal-0
 	static const FRegexPattern RegexPattern = FRegexPattern(TEXT("^[A-Za-z_]\\w*$"));
 	return FRegexMatcher(RegexPattern, InIdentifier).FindNext();
+}
+
+const FText& FHeaderViewListItem::GetErrorTextFromValidatorResult(EValidatorResult Result)
+{
+	static const TMap<EValidatorResult, FText> ErrorTextMap =
+	{
+		{EValidatorResult::AlreadyInUse, LOCTEXT("AlreadyInUse", "The name is already in use.")},
+		{EValidatorResult::EmptyName, LOCTEXT("EmptyName", "The name is empty.")},
+		{EValidatorResult::TooLong, LOCTEXT("TooLong", "The name is too long.")},
+		{EValidatorResult::LocallyInUse, LOCTEXT("LocallyInUse", "The name is already in use locally.")}
+	};
+
+	if (const FText* ErrorText = ErrorTextMap.Find(Result))
+	{
+		return *ErrorText;
+	}
+
+	return FText::GetEmpty();
 }
 
 // SBlueprintHeaderView ///////////////////////////////////////////////////////

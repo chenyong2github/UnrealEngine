@@ -8,6 +8,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 #include "Misc/NotifyHook.h"
+#include "Kismet2/Kismet2NameValidators.h"
 
 class SComboButton;
 class UBlueprint;
@@ -72,6 +73,9 @@ protected:
 	/** Checks whether a string is a valid C++ identifier */
 	static bool IsValidCPPIdentifier(const FString& InIdentifier);
 
+	/** Returns the correct Error text for a Validator Result */
+	static const FText& GetErrorTextFromValidatorResult(EValidatorResult Result);
+
 protected:
 	/** A rich text representation of the item, including syntax highlighting and errors */
 	FString RichTextString;
@@ -79,6 +83,8 @@ protected:
 	/** A raw string representation of the item, used for copying the item */
 	FString RawItemString;
 
+	/** Validation Error text for when a new name is not a valid C++ Identifier */
+	static const FText InvalidCPPIdentifierErrorText;
 };
 
 using FHeaderViewListItemPtr = TSharedPtr<FHeaderViewListItem>;

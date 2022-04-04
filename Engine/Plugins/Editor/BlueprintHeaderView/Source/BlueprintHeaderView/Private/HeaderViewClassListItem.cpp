@@ -5,6 +5,8 @@
 #include "String/LineEndings.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "AssetViewUtils.h"
+#include "AssetToolsModule.h"
 
 #define LOCTEXT_NAMESPACE "FHeaderViewClassListItem"
 
@@ -19,10 +21,11 @@ void FHeaderViewClassListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder, TW
 	{
 		if (UBlueprint* Blueprint = InBlueprint.Get())
 		{
-			InMenuBuilder.AddEditableText(LOCTEXT("RenameBlueprint", "Rename Blueprint"),
+			InMenuBuilder.AddVerifiedEditableText(LOCTEXT("RenameBlueprint", "Rename Blueprint"),
 				LOCTEXT("RenameItemTooltip", "Renames this Blueprint\nThis Blueprint name is not a legal C++ identifier."),
 				FSlateIcon(),
 				FText::FromString(Blueprint->GetName()),
+				FOnVerifyTextChanged::CreateSP(this, &FHeaderViewClassListItem::OnVerifyRenameTextChanged, InBlueprint),
 				FOnTextCommitted::CreateSP(this, &FHeaderViewClassListItem::OnRenameTextComitted, InBlueprint)
 			);
 		}
@@ -152,16 +155,56 @@ FHeaderViewClassListItem::FHeaderViewClassListItem(TWeakObjectPtr<UBlueprint> In
 	}
 }
 
+FString FHeaderViewClassListItem::GetRenamedBlueprintPath(const UBlueprint* Blueprint, const FString& NewName) const
+{
+	check(Blueprint);
+	FString NewPath = Blueprint->GetPathName();
+	int32 Index = 0;
+	if (!ensure(NewPath.FindLastChar(TEXT('/'), Index)))
+	{
+		// AssetViewUtils::IsValidObjectPathForCreate will return false for an empty string
+		return TEXT("");
+	}
+	NewPath.LeftInline(Index);
+	NewPath /= FString::Printf(TEXT("%s.%s"), *NewName, *NewName);
+	return NewPath;
+}
+
+bool FHeaderViewClassListItem::OnVerifyRenameTextChanged(const FText& InNewName, FText& OutErrorText, TWeakObjectPtr<UBlueprint> InBlueprint)
+{
+	if (const UBlueprint* Blueprint = InBlueprint.Get())
+	{
+		const FString NewPath = GetRenamedBlueprintPath(Blueprint, InNewName.ToString());
+		if (!AssetViewUtils::IsValidObjectPathForCreate(NewPath, Blueprint->GetClass(), OutErrorText))
+		{
+			return false;
+		}
+
+		if (!IsValidCPPIdentifier(InNewName.ToString()))
+		{
+			OutErrorText = InvalidCPPIdentifierErrorText;
+			return false;
+		}
+
+		return true;
+	}
+
+	return false;
+}
 
 void FHeaderViewClassListItem::OnRenameTextComitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> InBlueprint)
 {
 	if (TextCommitType == ETextCommit::OnEnter)
 	{
-		if (UBlueprint* Blueprint = InBlueprint.Get())
+		FText ErrorText;
+		if (OnVerifyRenameTextChanged(CommittedText, ErrorText, InBlueprint))
 		{
-			if (IsValidCPPIdentifier(CommittedText.ToString()))
+			if (UBlueprint* Blueprint = InBlueprint.Get())
 			{
-				Blueprint->Rename(*CommittedText.ToString());
+				const FString NewPath = GetRenamedBlueprintPath(Blueprint, CommittedText.ToString());
+				FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+				TArray<FAssetRenameData> AssetToRename = { FAssetRenameData(Blueprint, NewPath) };
+				AssetToolsModule.Get().RenameAssets(AssetToRename);
 				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 			}
 		}

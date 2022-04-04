@@ -31,6 +31,7 @@ public class BlueprintHeaderView : ModuleRules
 				"DeveloperSettings",
 				"WorkspaceMenuStructure",
 				"ToolMenus",
+				"AssetTools",
 			}
 			);
 		

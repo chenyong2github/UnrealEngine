@@ -22,6 +22,10 @@ protected:
 
 	FHeaderViewClassListItem(TWeakObjectPtr<UBlueprint> InBlueprint);
 
+	FString GetRenamedBlueprintPath(const UBlueprint* Blueprint, const FString& NewName) const;
+
+	bool OnVerifyRenameTextChanged(const FText& InNewName, FText& OutErrorText, TWeakObjectPtr<UBlueprint> InBlueprint);
+
 	void OnRenameTextComitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> InBlueprint);
 
 protected:

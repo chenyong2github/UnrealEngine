@@ -26,20 +26,22 @@ void FHeaderViewFunctionListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder,
 
 	if (!IllegalName.IsNone())
 	{
-		InMenuBuilder.AddEditableText(LOCTEXT("RenameItem", "Rename Function"),
+		InMenuBuilder.AddVerifiedEditableText(LOCTEXT("RenameItem", "Rename Function"),
 			LOCTEXT("RenameItemTooltip", "Renames this function in the Blueprint\nThis function name is not a legal C++ identifier."),
 			FSlateIcon(),
 			FText::FromName(IllegalName),
+			FOnVerifyTextChanged::CreateSP(this, &FHeaderViewFunctionListItem::OnVerifyRenameFunctionTextChanged, InBlueprint),
 			FOnTextCommitted::CreateSP(this, &FHeaderViewFunctionListItem::OnRenameFunctionTextCommitted, InBlueprint, GraphName)
 		);
 	}
 
 	for (FName IllegalParam : IllegalParameters)
 	{
-		InMenuBuilder.AddEditableText(LOCTEXT("RenameParm", "Rename Parameter"),
+		InMenuBuilder.AddVerifiedEditableText(LOCTEXT("RenameParm", "Rename Parameter"),
 			LOCTEXT("RenameParmTooltip", "Renames this function parameter in the Blueprint\nThis parameter name is not a legal C++ identifier."),
 			FSlateIcon(),
 			FText::FromName(IllegalParam),
+			FOnVerifyTextChanged::CreateSP(this, &FHeaderViewFunctionListItem::OnVerifyRenameParameterTextChanged, InBlueprint, GraphName),
 			FOnTextCommitted::CreateSP(this, &FHeaderViewFunctionListItem::OnRenameParameterTextCommitted, InBlueprint, GraphName, IllegalParam)
 		);
 	}
@@ -317,6 +319,67 @@ void FHeaderViewFunctionListItem::OnRenameFunctionTextCommitted(const FText& Com
 			}
 		}
 	}
+}
+
+bool FHeaderViewFunctionListItem::OnVerifyRenameFunctionTextChanged(const FText& InNewName, FText& OutErrorText, TWeakObjectPtr<UBlueprint> WeakBlueprint)
+{
+	if (const UBlueprint* Blueprint = WeakBlueprint.Get())
+	{
+		if (!IsValidCPPIdentifier(InNewName.ToString()))
+		{
+			OutErrorText = InvalidCPPIdentifierErrorText;
+			return false;
+		}
+
+		FKismetNameValidator NameValidator(Blueprint, NAME_None, nullptr);
+		const EValidatorResult Result = NameValidator.IsValid(InNewName.ToString());
+		if (Result != EValidatorResult::Ok)
+		{
+			OutErrorText = GetErrorTextFromValidatorResult(Result);
+			return false;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FHeaderViewFunctionListItem::OnVerifyRenameParameterTextChanged(const FText& InNewName, FText& OutErrorText, TWeakObjectPtr<UBlueprint> WeakBlueprint, FName OldGraphName)
+{
+	if (const UBlueprint* Blueprint = WeakBlueprint.Get())
+	{
+		if (!IsValidCPPIdentifier(InNewName.ToString()))
+		{
+			OutErrorText = InvalidCPPIdentifierErrorText;
+			return false;
+		}
+
+		const TObjectPtr<UEdGraph>* FunctionGraph = Blueprint->FunctionGraphs.FindByPredicate([OldGraphName](const TObjectPtr<UEdGraph>& Graph)
+			{
+				return Graph->GetFName() == OldGraphName;
+			});
+
+		if (FunctionGraph)
+		{
+			TArray<UK2Node_FunctionEntry*> Entry;
+			FunctionGraph->Get()->GetNodesOfClass<UK2Node_FunctionEntry>(Entry);
+			if (ensureMsgf(Entry.Num() == 1 && Entry[0], TEXT("Function Graph \"%s\" in Blueprint \"%s\" does not have exactly one Entry Node"), *FunctionGraph->Get()->GetName(), *Blueprint->GetName()))
+			{
+				FKismetNameValidator NameValidator(Blueprint, NAME_None, Entry[0]->FindSignatureFunction());
+				const EValidatorResult Result = NameValidator.IsValid(InNewName.ToString());
+				if (Result != EValidatorResult::Ok)
+				{
+					OutErrorText = GetErrorTextFromValidatorResult(Result);
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 void FHeaderViewFunctionListItem::OnRenameParameterTextCommitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> WeakBlueprint, FName OldGraphName, FName OldParamName)

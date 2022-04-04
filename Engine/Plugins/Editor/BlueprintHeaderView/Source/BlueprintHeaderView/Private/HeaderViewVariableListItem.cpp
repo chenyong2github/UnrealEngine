@@ -19,10 +19,11 @@ void FHeaderViewVariableListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder,
 {
 	if (!IllegalName.IsNone())
 	{
-		InMenuBuilder.AddEditableText(LOCTEXT("RenameItem", "Rename Variable"),
+		InMenuBuilder.AddVerifiedEditableText(LOCTEXT("RenameItem", "Rename Variable"),
 			LOCTEXT("RenameItemTooltip", "Renames this variable in the Blueprint\nThis variable name is not a legal C++ identifier."),
 			FSlateIcon(),
 			FText::FromName(IllegalName),
+			FOnVerifyTextChanged::CreateSP(this, &FHeaderViewVariableListItem::OnVerifyRenameTextChanged, InBlueprint),
 			FOnTextCommitted::CreateSP(this, &FHeaderViewVariableListItem::OnRenameTextCommitted, InBlueprint)
 		);
 	}
@@ -326,6 +327,30 @@ FString FHeaderViewVariableListItem::GetOwningClassName(const FProperty& VarProp
 	}
 
 	return TEXT("");
+}
+
+bool FHeaderViewVariableListItem::OnVerifyRenameTextChanged(const FText& InNewName, FText& OutErrorText, TWeakObjectPtr<UBlueprint> WeakBlueprint)
+{
+	if (const UBlueprint* Blueprint = WeakBlueprint.Get())
+	{
+		if (!IsValidCPPIdentifier(InNewName.ToString()))
+		{
+			OutErrorText = InvalidCPPIdentifierErrorText;
+			return false;
+		}
+
+		FKismetNameValidator NameValidator(Blueprint, NAME_None, nullptr);
+		const EValidatorResult Result = NameValidator.IsValid(InNewName.ToString());
+		if (Result != EValidatorResult::Ok)
+		{
+			OutErrorText = GetErrorTextFromValidatorResult(Result);
+			return false;
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 void FHeaderViewVariableListItem::OnRenameTextCommitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> WeakBlueprint)

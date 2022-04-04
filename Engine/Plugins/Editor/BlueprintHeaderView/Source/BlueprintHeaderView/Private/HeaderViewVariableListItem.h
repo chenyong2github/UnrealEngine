@@ -29,6 +29,7 @@ protected:
 	/** Returns the name of the owning class */
 	FString GetOwningClassName(const FProperty& VarProperty) const;
 
+	bool OnVerifyRenameTextChanged(const FText& InNewName, FText& OutErrorText, TWeakObjectPtr<UBlueprint> WeakBlueprint);
 	void OnRenameTextCommitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> WeakBlueprint);
 protected:
 
