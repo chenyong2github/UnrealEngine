@@ -24,6 +24,10 @@ namespace EpicGames.Core.Tests
 		[TestMethod]
 		public void PrereleaseTests()
 		{
+			Assert.IsTrue(SemVer.Compare(SemVer.Parse("5.1.0-19607491"), SemVer.Parse("5.1.0-19607492")) < 0);
+			Assert.IsTrue(SemVer.Compare(SemVer.Parse("5.1.0-19607492"), SemVer.Parse("5.1.0-19607492")) == 0);
+			Assert.IsTrue(SemVer.Compare(SemVer.Parse("5.1.0-19607493"), SemVer.Parse("5.1.0-19607492")) > 0);
+
 			Assert.IsTrue(SemVer.Parse("1.0.0-123") < SemVer.Parse("1.0.0-124"));
 			Assert.IsTrue(SemVer.Parse("1.0.0-124") > SemVer.Parse("1.0.0-123"));
 
