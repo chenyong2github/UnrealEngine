@@ -784,14 +784,14 @@ UWorldPartition* UWorldPartition::CreateOrRepairWorldPartition(AWorldSettings* W
 
 		WorldPartition->DefaultHLODLayer = UHLODLayer::GetEngineDefaultHLODLayersSetup();
 
-		AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers();
-		if (!WorldDataLayers)
-		{
-			WorldDataLayers = AWorldDataLayers::Create(World);
-			World->SetWorldDataLayers(WorldDataLayers);
-		}
-
 		FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World, true);
+	}
+
+	AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers();
+	if (!WorldDataLayers)
+	{
+		WorldDataLayers = AWorldDataLayers::Create(World);
+		World->SetWorldDataLayers(WorldDataLayers);
 	}
 
 	if (!WorldPartition->EditorHash)
