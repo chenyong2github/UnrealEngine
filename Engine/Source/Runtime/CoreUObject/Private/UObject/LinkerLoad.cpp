@@ -913,14 +913,17 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 #endif
 	OwnerThread = FPlatformTLS::GetCurrentThreadId();
 
-#if WITH_EDITOR
 	// Check if the linker is instanced @todo: pass through a load flag?
 	FName PackageNameToLoad = GetPackagePath().GetPackageFName();
 	if (LinkerRoot->GetFName() != PackageNameToLoad)
 	{
+		PackageNameToLoad.ToString(InstancedPackageSourceName);
+		LinkerRoot->GetFName().ToString(InstancedPackageInstanceName);
+
+#if WITH_EDITOR
 		InstancingContext.AddMapping(PackageNameToLoad, LinkerRoot->GetFName());
-	}
 #endif
+	}
 }
 
 FLinkerLoad::~FLinkerLoad()
@@ -6103,6 +6106,24 @@ FName FLinkerLoad::InstancingContextRemap(FName ObjectName) const
 #else
 	return ObjectName;
 #endif
+}
+
+void FLinkerLoad::FixupSoftObjectPathForInstancedPackage(FSoftObjectPath& InOutSoftObjectPath)
+{
+	if (InstancedPackageSourceName.Len() > 0 && InstancedPackageInstanceName.Len() > 0)
+	{
+		FNameBuilder TmpSoftObjectPathBuilder;
+		InOutSoftObjectPath.ToString(TmpSoftObjectPathBuilder);
+
+		FStringView InstancedPackageSourceNameView = InstancedPackageSourceName.ToView();
+		FStringView TmpSoftObjectPathView = TmpSoftObjectPathBuilder.ToView();
+
+		if (TmpSoftObjectPathView.StartsWith(InstancedPackageSourceNameView) && (TmpSoftObjectPathView.Len() == InstancedPackageSourceNameView.Len() || TmpSoftObjectPathView[InstancedPackageSourceNameView.Len()] == TEXT('.')))
+		{
+			TmpSoftObjectPathBuilder.ReplaceAt(0, InstancedPackageSourceNameView.Len(), InstancedPackageInstanceName.ToView());
+			InOutSoftObjectPath.SetPath(TmpSoftObjectPathBuilder.ToView());
+		}
+	}
 }
 
 #if WITH_EDITORONLY_DATA

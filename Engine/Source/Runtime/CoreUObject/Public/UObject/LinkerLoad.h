@@ -200,6 +200,11 @@ private:
 	// return ObjectName directly  if WITH_EDITOR isn't defined.
 	FName InstancingContextRemap(FName ObjectName) const;
 
+	/** Set when the package is being loaded as an instance; empty otherwise. */
+	FNameBuilder InstancedPackageSourceName;
+	FNameBuilder InstancedPackageInstanceName;
+	void FixupSoftObjectPathForInstancedPackage(FSoftObjectPath& InOutSoftObjectPath);
+
 protected:
 
 	void SetLoader(FArchive* InLoader, bool bInLoaderNeedsEngineVersionChecks);
@@ -904,9 +909,18 @@ private:
 		FArchive& Ar = *this;
 		FSoftObjectPath ID;
 		ID.Serialize(Ar);
+		FixupSoftObjectPathForInstancedPackage(ID);
 		Value = ID;
 		return Ar;
 	}
+
+	FORCEINLINE virtual FArchive& operator<<(FSoftObjectPath& Value) override
+	{
+		FArchive& Ar = FArchiveUObject::operator<<(Value);
+		FixupSoftObjectPathForInstancedPackage(Value);
+		return Ar;
+	}
+
 	void BadNameIndexError(int32 NameIndex);
 	FORCEINLINE virtual FArchive& operator<<(FName& Name) override
 	{

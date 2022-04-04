@@ -1140,7 +1140,6 @@ public:
 
 	//~ Begin FArchive::FArchiveUObject Interface
 	virtual FArchive& operator<<(FObjectPtr& Value) override { return FArchiveUObject::SerializeObjectPtr(*this, Value); }
-	virtual FArchive& operator<<(FSoftObjectPath& Value) override { return FArchiveUObject::SerializeSoftObjectPath(*this, Value); }
 	virtual FArchive& operator<<(FWeakObjectPtr& Value) override { return FArchiveUObject::SerializeWeakObjectPtr(*this, Value); }
 	//~ End FArchive::FArchiveUObject Interface
 
@@ -1233,7 +1232,15 @@ public:
 		FArchive& Ar = *this;
 		FSoftObjectPath ID;
 		ID.Serialize(Ar);
+		FixupSoftObjectPathForInstancedPackage(ID);
 		Value = ID;
+		return Ar;
+	}
+
+	inline virtual FArchive& operator<<(FSoftObjectPath& Value) override
+	{
+		FArchive& Ar = FArchiveUObject::SerializeSoftObjectPath(*this, Value);
+		FixupSoftObjectPathForInstancedPackage(Value);
 		return Ar;
 	}
 
@@ -1283,6 +1290,27 @@ private:
 	uint64 CookedSerialOffset = 0;
 	uint64 CookedSerialSize = 0;
 	uint64 BufferSerialOffset = 0;
+
+	/** Set when the package is being loaded as an instance; empty otherwise. */
+	FNameBuilder InstancedPackageSourceName;
+	FNameBuilder InstancedPackageInstanceName;
+	void FixupSoftObjectPathForInstancedPackage(FSoftObjectPath& InOutSoftObjectPath)
+	{
+		if (InstancedPackageSourceName.Len() > 0 && InstancedPackageInstanceName.Len() > 0)
+		{
+			FNameBuilder TmpSoftObjectPathBuilder;
+			InOutSoftObjectPath.ToString(TmpSoftObjectPathBuilder);
+
+			FStringView InstancedPackageSourceNameView = InstancedPackageSourceName.ToView();
+			FStringView TmpSoftObjectPathView = TmpSoftObjectPathBuilder.ToView();
+
+			if (TmpSoftObjectPathView.StartsWith(InstancedPackageSourceNameView) && (TmpSoftObjectPathView.Len() == InstancedPackageSourceNameView.Len() || TmpSoftObjectPathView[InstancedPackageSourceNameView.Len()] == TEXT('.')))
+			{
+				TmpSoftObjectPathBuilder.ReplaceAt(0, InstancedPackageSourceNameView.Len(), InstancedPackageInstanceName.ToView());
+				InOutSoftObjectPath.SetPath(TmpSoftObjectPathBuilder.ToView());
+			}
+		}
+	}
 };
 
 enum class EAsyncPackageLoadingState2 : uint8
@@ -3622,6 +3650,13 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncLoading
 			Ar.Exports = Package->Data.Exports;
 			Ar.ExportMap = Package->ExportMap.GetData();
 			Ar.ExternalReadDependencies = &Package->ExternalReadDependencies;
+
+			// Check if the package is instanced
+			if (Package->Desc.UPackageName != Package->Desc.PackageNameToLoad)
+			{
+				Package->Desc.PackageNameToLoad.ToString(Ar.InstancedPackageSourceName);
+				Package->Desc.UPackageName.ToString(Ar.InstancedPackageInstanceName);
+			}
 		}
 		const FExportBundleEntry* BundleEntries = Package->Data.ExportBundleEntries + ExportBundle->FirstEntryIndex;
 		const FExportBundleEntry* BundleEntry = BundleEntries + Package->ExportBundleEntryIndex;
