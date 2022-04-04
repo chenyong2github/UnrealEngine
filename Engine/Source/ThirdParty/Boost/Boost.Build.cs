@@ -49,6 +49,13 @@ public class Boost : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
+			// TODO: Boost needs to be built specifically for arm64 before we
+			// can support it here.
+			if (Target.Platform == UnrealTargetPlatform.LinuxArm64)
+			{
+				return;
+			}
+
 			string BoostLibPath = Path.Combine(BoostPath, "lib", "Unix", Target.Architecture);
 
 			foreach (string BoostLib in BoostLibraries)
