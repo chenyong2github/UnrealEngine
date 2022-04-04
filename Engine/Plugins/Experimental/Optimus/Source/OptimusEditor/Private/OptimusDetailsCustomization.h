@@ -172,7 +172,7 @@ class FOptimusParameterBindingArrayBuilder
 	, public TSharedFromThis<FOptimusParameterBindingArrayBuilder>
 {
 public:
-	static TSharedRef<IDetailCustomNodeBuilder> MakeInstance(
+	static TSharedRef<FOptimusParameterBindingArrayBuilder> MakeInstance(
 		TSharedRef<IPropertyHandle> InPropertyHandle,
 		TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InColumnSizeData);
 	
@@ -182,6 +182,9 @@ public:
 	
 	// FDetailArrayBuilder Interface
 	virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override;
+
+	// Used by FOptimusParameterBindingArrayCustomization
+	void GenerateWrapperStructHeaderRowContent(FDetailWidgetRow& NodeRow, TSharedRef<SWidget> NameContent);
 
 private:
 	void OnGenerateEntry(TSharedRef<IPropertyHandle> ElementProperty, int32 ElementIndex, IDetailChildrenBuilder& ChildrenBuilder) const;
@@ -214,6 +217,6 @@ public:
 		IPropertyTypeCustomizationUtils& InCustomizationUtils) override;
 	
 private:
-	TSharedPtr<IDetailCustomNodeBuilder> ArrayBuilder;
+	TSharedPtr<FOptimusParameterBindingArrayBuilder> ArrayBuilder;
 	TSharedRef<FOptimusParameterBindingCustomization::FColumnSizeData> ColumnSizeData;	
 };

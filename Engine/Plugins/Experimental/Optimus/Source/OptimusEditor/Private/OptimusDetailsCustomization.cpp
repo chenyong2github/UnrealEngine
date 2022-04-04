@@ -656,7 +656,7 @@ void FOptimusParameterBindingCustomization::CustomizeChildren(TSharedRef<IProper
 	}
 }
 
-TSharedRef<IDetailCustomNodeBuilder> FOptimusParameterBindingArrayBuilder::MakeInstance(
+TSharedRef<FOptimusParameterBindingArrayBuilder> FOptimusParameterBindingArrayBuilder::MakeInstance(
 	TSharedRef<IPropertyHandle> InPropertyHandle,
 	TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InColumnSizeData)
 {
@@ -682,6 +682,11 @@ FOptimusParameterBindingArrayBuilder::FOptimusParameterBindingArrayBuilder(
 
 void FOptimusParameterBindingArrayBuilder::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
 {
+	// Do nothing since we don't want to show the "InnerArray" row, see FOptimusParameterBindingArrayCustomization::CustomizeHeader
+}
+
+void FOptimusParameterBindingArrayBuilder::GenerateWrapperStructHeaderRowContent(FDetailWidgetRow& NodeRow, TSharedRef<SWidget> NameContent)
+{
 	FDetailArrayBuilder::GenerateHeaderRowContent(NodeRow);
 	NodeRow.ValueContent()
 	.HAlign( HAlign_Left )
@@ -689,6 +694,11 @@ void FOptimusParameterBindingArrayBuilder::GenerateHeaderRowContent(FDetailWidge
 	// Value grabbed from SPropertyEditorArray::GetDesiredWidth
 	.MinDesiredWidth(170.f)
 	.MaxDesiredWidth(170.f);
+
+	NodeRow.NameContent()
+	[
+		NameContent
+	];
 }
 
 
@@ -735,19 +745,14 @@ void FOptimusParameterBindingArrayCustomization::CustomizeHeader(TSharedRef<IPro
 	const TSharedPtr<IPropertyHandle> ArrayHandle = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBindingArray, InnerArray), false);
 	
 	ArrayBuilder = FOptimusParameterBindingArrayBuilder::MakeInstance(ArrayHandle.ToSharedRef(), ColumnSizeData);
-	
-	ArrayBuilder->GenerateHeaderRowContent(InHeaderRow);
-	// use the top level property name
-	InHeaderRow.NameContent()
-	[
-		InPropertyHandle->CreatePropertyNameWidget()
-	];
+	// use the top level property instead of "InnerArray"
+	ArrayBuilder->GenerateWrapperStructHeaderRowContent(InHeaderRow,InPropertyHandle->CreatePropertyNameWidget());
 }
 
 void FOptimusParameterBindingArrayCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle,
                                                                    IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& InCustomizationUtils)
 {
-	ArrayBuilder->GenerateChildContent(InChildBuilder);
+	InChildBuilder.AddCustomBuilder(ArrayBuilder.ToSharedRef());
 }
 
 #undef LOCTEXT_NAMESPACE
