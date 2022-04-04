@@ -27,7 +27,6 @@ void FCameraAnimationSequenceActions::InitializeToolkitParams(FTemplateSequenceT
     FTemplateSequenceActions::InitializeToolkitParams(ToolkitParams);
 
     ToolkitParams.bCanChangeBinding = false;
-    ToolkitParams.InitialBindingClass = ACineCameraActor::StaticClass();
 }
 
 #undef LOCTEXT_NAMESPACE

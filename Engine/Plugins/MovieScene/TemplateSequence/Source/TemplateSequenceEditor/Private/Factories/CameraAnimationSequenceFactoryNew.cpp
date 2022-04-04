@@ -2,10 +2,11 @@
 
 #include "Factories/CameraAnimationSequenceFactoryNew.h"
 #include "CameraAnimationSequence.h"
+#include "CineCameraActor.h"
+#include "Factories/TemplateSequenceFactoryUtil.h"
 #include "MovieScene.h"
 #include "MovieSceneToolsProjectSettings.h"
-
-#define LOCTEXT_NAMESPACE "MovieSceneFactory"
+#include "Misc/TemplateSequenceEditorUtil.h"
 
 UCameraAnimationSequenceFactoryNew::UCameraAnimationSequenceFactoryNew(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -17,22 +18,10 @@ UCameraAnimationSequenceFactoryNew::UCameraAnimationSequenceFactoryNew(const FOb
 
 UObject* UCameraAnimationSequenceFactoryNew::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	auto NewCameraAnimationSequence = NewObject<UCameraAnimationSequence>(InParent, Name, Flags | RF_Transactional);
-	NewCameraAnimationSequence->Initialize();
-
-	// Set up some sensible defaults
-	const UMovieSceneToolsProjectSettings* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
-
-	FFrameRate TickResolution = NewCameraAnimationSequence->GetMovieScene()->GetTickResolution();
-	NewCameraAnimationSequence->GetMovieScene()->SetPlaybackRange((ProjectSettings->DefaultStartTime*TickResolution).FloorToFrame(), (ProjectSettings->DefaultDuration*TickResolution).FloorToFrame().Value);
-
-	return NewCameraAnimationSequence;
+	return FTemplateSequenceFactoryUtil::CreateTemplateSequence(InParent, Name, Flags, UCameraAnimationSequence::StaticClass(), ACineCameraActor::StaticClass());
 }
 
 bool UCameraAnimationSequenceFactoryNew::ShouldShowInNewMenu() const
 {
 	return true;
 }
-
-#undef LOCTEXT_NAMESPACE
-

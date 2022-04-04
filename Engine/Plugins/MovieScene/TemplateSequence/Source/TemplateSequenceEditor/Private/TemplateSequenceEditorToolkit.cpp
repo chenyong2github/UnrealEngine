@@ -15,7 +15,6 @@
 #include "LevelEditorSequencerIntegration.h"
 #include "Misc/TemplateSequenceEditorPlaybackContext.h"
 #include "Misc/TemplateSequenceEditorSpawnRegister.h"
-#include "Misc/TemplateSequenceEditorUtil.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
 #include "SequencerSettings.h"
@@ -110,12 +109,6 @@ void FTemplateSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, c
 	Sequencer = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer").CreateSequencer(SequencerInitParams);
 	SpawnRegister->SetSequencer(Sequencer);
 	Sequencer->OnActorAddedToSequencer().AddSP(this, &FTemplateSequenceEditorToolkit::HandleActorAddedToSequencer);
-
-	if (ToolkitParams.InitialBindingClass != nullptr)
-	{
-		FTemplateSequenceEditorUtil Util(TemplateSequence, *Sequencer.Get());
-		Util.ChangeActorBinding(ToolkitParams.InitialBindingClass);
-	}
 
 	FLevelEditorSequencerIntegrationOptions Options;
 	Options.bRequiresLevelEvents = true;

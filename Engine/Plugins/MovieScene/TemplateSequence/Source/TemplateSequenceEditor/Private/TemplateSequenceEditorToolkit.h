@@ -18,7 +18,6 @@ class FActorDragDropGraphEdOp;
 struct FTemplateSequenceToolkitParams
 {
 	bool bCanChangeBinding = true;
-	UClass* InitialBindingClass = nullptr;
 };
 
 /**

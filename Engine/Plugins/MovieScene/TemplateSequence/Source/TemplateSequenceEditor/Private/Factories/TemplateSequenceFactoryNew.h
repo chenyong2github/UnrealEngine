@@ -22,9 +22,6 @@ class UTemplateSequenceFactoryNew : public UFactory
 	virtual bool ConfigureProperties() override;
 	virtual bool ShouldShowInNewMenu() const override;
 
-	// Create a new spawnable for the chosen root object class.
-	static void InitializeSpawnable(UMovieSceneSequence* InTemplateSequence, TSubclassOf<UObject> InObjectTemplateClass);
-
 	// The root object binding class of the created template sequence.
 	UPROPERTY(EditAnywhere, Category=TemplateSequenceFactory)
 	TSubclassOf<UObject> BoundActorClass;
