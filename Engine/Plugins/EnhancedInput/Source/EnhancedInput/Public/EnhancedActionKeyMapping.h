@@ -78,7 +78,7 @@ struct FEnhancedActionKeyMapping
 	uint8 bIsPlayerMappable : 1;
 
 	/** Options for making this a player mappable keymapping */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable", meta = (editCondition = "bIsPlayerBindable"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable", meta = (editCondition = "bIsPlayerMappable"))
 	FPlayerMappableKeyOptions PlayerMappableOptions;
 	
 	/**
