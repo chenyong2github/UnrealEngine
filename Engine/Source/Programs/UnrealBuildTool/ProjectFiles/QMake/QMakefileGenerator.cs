@@ -210,7 +210,7 @@ namespace UnrealBuildTool
 				GameProjectPath = OnlyGameProject!.Directory.FullName;
 				GameProjectFile = OnlyGameProject.FullName;
 				QMakeGameProjectFile = "gameProjectFile=" + GameProjectFile + "\n";
-				BuildCommand = $"build=bash $$unrealRootPath/Engine/{Unreal.RelativeDotnetDirectory}/dotnet $$unrealRootPath/Engine/Binaries/DotNET/UnrealBuildTool.exe\n\n";
+				BuildCommand = $"build=bash $$unrealRootPath/Engine/{Unreal.RelativeDotnetDirectory}/dotnet $$unrealRootPath/Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll\n\n";
 			}
 			else
 			{
