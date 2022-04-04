@@ -605,6 +605,30 @@ public:
 	}
 
 	/** 
+	 * Traverses the outer chain looking for the next object that implements the specified IInterface (InterfaceClass must be an IInterface)
+	 * 
+	 * @return	a pointer to the interface on the first object in this object's Outer chain which implements the specified interface.
+	 */
+	template<typename InterfaceClassType>
+	InterfaceClassType* GetImplementingOuter() const
+	{
+		UClass* InterfaceClass = InterfaceClassType::UClassType::StaticClass();
+		if(UObjectBaseUtility* ImplementingOuter = GetImplementingOuterObject(InterfaceClass))
+		{
+			return static_cast<InterfaceClassType*>(ImplementingOuter->GetInterfaceAddress(InterfaceClass));
+		}
+		return nullptr;
+	}
+
+	/** 
+	 * Traverses the outer chain looking for the next object that implements the specified UInterface (InInterfaceClass must be a subclass of UInterface)
+	 *
+	 * @param	InInterfaceClass	Target interface to search for
+	 * @return	a pointer to the first object in this object's Outer chain which implements the specified interface.
+	 */
+	UObjectBaseUtility* GetImplementingOuterObject(const UClass* InInterfaceClass) const;
+
+	/** 
 	 * Return the dispatch to `IsInOuter` or `IsInPackage` depending on SomeOuter's class. 
 	 * Legacy function, preferably use IsInOuter or IsInPackage depending on use case.
 	 */

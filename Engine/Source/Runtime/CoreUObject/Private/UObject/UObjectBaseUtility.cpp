@@ -287,6 +287,20 @@ UObject* UObjectBaseUtility::GetTypedOuter(UClass* Target) const
 	return Result;
 }
 
+UObjectBaseUtility* UObjectBaseUtility::GetImplementingOuterObject(const UClass* InInterfaceClass) const
+{
+	for (UObject* NextOuter = GetOuter(); NextOuter != nullptr; NextOuter = NextOuter->GetOuter())
+	{
+		UClass* OuterClass = NextOuter->GetClass();
+		if (OuterClass && OuterClass->ImplementsInterface(InInterfaceClass))
+		{
+			return OuterClass;
+		}
+	}
+
+	return nullptr;
+}
+
 /*-----------------------------------------------------------------------------
 	UObject accessors that depend on UClass.
 -----------------------------------------------------------------------------*/
