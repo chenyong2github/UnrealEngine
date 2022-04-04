@@ -59,6 +59,7 @@ void USkeletonDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSkeletonDataInterfaceParameters, )
 	SHADER_PARAMETER(uint32, NumVertices)
+	SHADER_PARAMETER(uint32, InputStreamStart)
 	SHADER_PARAMETER(uint32, NumBoneInfluences)
 	SHADER_PARAMETER(uint32, InputWeightStart)
 	SHADER_PARAMETER(uint32, InputWeightStride)
@@ -76,7 +77,7 @@ void USkeletonDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParame
 void USkeletonDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
 {
 	// Need to be able to support these permutations according to the skeletal mesh settings.
-	// todo[CF]: Filter these based on which functions in the data interface are attached. That will reduce unnecessary permutations.
+	// todo[CF]: I think GPUSKIN_UNLIMITED_BONE_INFLUENCE and GPUSKIN_BONE_INDEX_UINT16 are mutually exclusive. So we could save permutations here.
 	OutPermutationVector.AddPermutation(TEXT("ENABLE_DEFORMER_BONES"), 2);
 	OutPermutationVector.AddPermutation(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE"), 2);
 	OutPermutationVector.AddPermutation(TEXT("GPUSKIN_BONE_INDEX_UINT16"), 2);
@@ -187,6 +188,7 @@ void FSkeletonDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDisp
 
 		FSkeletonDataInterfaceParameters* Parameters = (FSkeletonDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
 		Parameters->NumVertices = RenderSection.NumVertices;
+		Parameters->InputStreamStart = RenderSection.BaseVertexIndex;
 		Parameters->NumBoneInfluences = WeightBuffer->GetMaxBoneInfluences();
 		Parameters->InputWeightStart = (WeightBuffer->GetConstantInfluencesVertexStride() * RenderSection.GetVertexBufferIndex()) / sizeof(float);
 		Parameters->InputWeightStride = WeightBuffer->GetConstantInfluencesVertexStride();
