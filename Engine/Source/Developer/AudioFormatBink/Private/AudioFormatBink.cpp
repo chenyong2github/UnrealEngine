@@ -3,11 +3,14 @@
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IAudioFormat.h"
 #include "Interfaces/IAudioFormatModule.h"
+#include "HAL/Platform.h"
 
 #include "binka_ue_file_header.h"
 #include "binka_ue_encode.h"
 
 static const FName NAME_BINKA(TEXT("BINKA"));
+
+DEFINE_LOG_CATEGORY_STATIC(LogAudioFormatBink, Display, All);
 
 /**
  * IAudioFormat, audio compression abstraction
@@ -50,6 +53,10 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FAudioFormatBink::Cook);
 		check(InFormat == NAME_BINKA);
+
+#if !PLATFORM_CPU_X86_FAMILY
+		UE_LOG(LogAudioFormatBink, Warning, TEXT("Bink Audio encoder has not been tested for consistency on non x86 platforms - cooks on this platform might not match cooks on x86/x64 for the same DDC key!"));
+#endif
 
 		// Bink goes from 0 (best) to 9 (worst), but is basically unusable below like 4,
 		// so we map 0-100 to 4-0
