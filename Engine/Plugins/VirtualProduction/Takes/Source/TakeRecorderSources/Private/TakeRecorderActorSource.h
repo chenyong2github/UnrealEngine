@@ -92,6 +92,9 @@ public:
 	UPROPERTY()
 	TArray<TObjectPtr<class UMovieSceneTrackRecorder>> TrackRecorders;
 
+	/** The parent actor source that generated this actor source (ie. through parenting or as an attached component). Null after PostRecording */
+	UPROPERTY()
+	TObjectPtr<UTakeRecorderActorSource> ParentSource;
 
 public:
 

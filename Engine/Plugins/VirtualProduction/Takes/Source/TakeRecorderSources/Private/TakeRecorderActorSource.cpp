@@ -813,7 +813,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 		// Expand the Movie Scene Playback Range to encompass all of the sections now that they've all been created.
 		SequenceRecorderUtils::ExtendSequencePlaybackRange(InSequence);
 
-		if (Target.IsValid())
+		if (Target.IsValid() && !ParentSource)
 		{
 			// Automatically add or update the camera cut track if there is a camera component
 			AActor* TargetActor = Target.Get();
@@ -853,6 +853,8 @@ void UTakeRecorderActorSource::FinalizeRecording()
 	// Null these out there and NOT in PostRecording because they are used for cross sequence object binding via GetLevelSequenceID in PostRecording
 	TargetLevelSequence = nullptr;
 	MasterLevelSequence = nullptr;
+
+	ParentSource = nullptr;
 }
 
 void UTakeRecorderActorSource::PostProcessTrackRecorders(ULevelSequence* InSequence)
@@ -1593,6 +1595,7 @@ void UTakeRecorderActorSource::CreateNewActorSourceForReferencedActors()
 		// We don't use AddSource on the UTakeRecorderSources because this is called from functions that also adds returned items to the Source List. This prevents a 
 		// double add from occuring.
 		UTakeRecorderActorSource* ActorSource = NewObject<UTakeRecorderActorSource>(SourcesList, UTakeRecorderActorSource::StaticClass(), NAME_None, RF_Transactional);
+		ActorSource->ParentSource = this;
 
 		// We add it both to the local list (in case we need to start recording immediately) and to the class list
 		// so that we can clean up the recording when we finish.
