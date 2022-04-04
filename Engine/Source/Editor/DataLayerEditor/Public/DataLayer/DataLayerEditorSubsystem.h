@@ -91,7 +91,11 @@ public:
 	/** Broadcasts whenever one or more Actors changed UDataLayerInstances*/
 	DECLARE_EVENT_OneParam(UDataLayerEditorSubsystem, FOnActorDataLayersChanged, const TWeakObjectPtr<AActor>& /*ChangedActor*/);
 	FOnActorDataLayersChanged& OnActorDataLayersChanged() { return ActorDataLayersChanged; }
-	
+
+	/** Broadcasts whenever one or more DataLayers editor loading state changed */
+	DECLARE_EVENT_OneParam(UDataLayerEditorSubsystem, FOnActorDataLayersEditorLoadingStateChanged, bool /*bIsFromUserChange*/);
+	FOnActorDataLayersEditorLoadingStateChanged& OnActorDataLayersEditorLoadingStateChanged() { return DataLayerEditorLoadingStateChanged; }
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Operations on an individual actor.
 
@@ -655,11 +659,11 @@ private:
 	void PostUndoRedo();
 
 	bool SetDataLayerIsLoadedInEditorInternal(UDataLayerInstance* DataLayer, const bool bIsLoadedInEditor, const bool bIsFromUserChange);
-	bool RefreshWorldPartitionEditorCells(bool bIsFromUserChange);
 	void UpdateDataLayerEditorPerProjectUserSettings();
 
 	void BroadcastActorDataLayersChanged(const TWeakObjectPtr<AActor>& ChangedActor);
 	void BroadcastDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayerInstance>& ChangedDataLayer, const FName& ChangedProperty);
+	void BroadcastDataLayerEditorLoadingStateChanged(bool bIsFromUserChange);
 	void OnSelectionChanged();
 	void RebuildSelectedDataLayersFromEditorSelection();
 	const TSet<TWeakObjectPtr<const UDataLayerInstance>>& GetSelectedDataLayersFromEditorSelection() const;
@@ -675,6 +679,11 @@ private:
 
 	/**	Fires whenever one or more actor DataLayer changes */
 	FOnActorDataLayersChanged ActorDataLayersChanged;
+
+	/** Fires whenever one or more DataLayer editor loading state changed */
+	FOnActorDataLayersEditorLoadingStateChanged DataLayerEditorLoadingStateChanged;
+
+	FDelegateHandle OnActorDataLayersEditorLoadingStateChangedEngineBridgeHandle;
 
 	/** Auxiliary class that sets the callback functions for multiple delegates */
 	TSharedPtr<class FDataLayersBroadcast> DataLayersBroadcast;

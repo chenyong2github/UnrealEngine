@@ -38,6 +38,19 @@ static FAutoConsoleCommandWithOutputDevice GDumpDataLayersCmd(
 	})
 );
 
+#if WITH_EDITOR
+FDataLayersEditorBroadcast& FDataLayersEditorBroadcast::Get()
+{
+	static FDataLayersEditorBroadcast DataLayersEditorBroadcast;
+	return DataLayersEditorBroadcast;
+}
+
+void FDataLayersEditorBroadcast::StaticOnActorDataLayersEditorLoadingStateChanged(bool bIsFromUserChange)
+{
+	Get().DataLayerEditorLoadingStateChanged.Broadcast(bIsFromUserChange);
+}
+#endif
+
 UDataLayerSubsystem::UDataLayerSubsystem()
 {}
 

@@ -41,6 +41,7 @@
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "WorldPartition/WorldPartitionMiniMapHelper.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
@@ -653,6 +654,25 @@ void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Ro
 #endif
 }
 
+#if WITH_EDITOR
+void UWorldPartition::OnActorDataLayersEditorLoadingStateChanged(bool bFromUserOperation)
+{
+	auto GetCellsToRefresh = [this](TArray<UWorldPartitionEditorCell*>& CellsToRefresh)
+	{
+		EditorHash->ForEachCell([&CellsToRefresh](UWorldPartitionEditorCell* Cell)
+		{
+			if (Cell->IsLoaded())
+			{
+				CellsToRefresh.Add(Cell);
+			}
+		});
+		return !CellsToRefresh.IsEmpty();
+	};
+
+	UpdateEditorCells(GetCellsToRefresh, /*bIsCellShouldBeLoaded*/true, bFromUserOperation);
+}
+#endif
+
 void UWorldPartition::RegisterDelegates()
 {
 	check(World); 
@@ -670,6 +690,8 @@ void UWorldPartition::RegisterDelegates()
 			FCoreUObjectDelegates::PostReachabilityAnalysis.AddUObject(this, &UWorldPartition::OnGCPostReachabilityAnalysis);
 
 			GEditor->OnPostBugItGoCalled().AddUObject(this, &UWorldPartition::OnPostBugItGoCalled);
+
+			FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().AddUObject(this, &UWorldPartition::OnActorDataLayersEditorLoadingStateChanged);
 		}
 #endif
 
@@ -704,6 +726,8 @@ void UWorldPartition::UnregisterDelegates()
 			}
 
 			GEditor->OnPostBugItGoCalled().RemoveAll(this);
+
+			FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().RemoveAll(this);
 		}
 #endif
 
@@ -851,23 +875,6 @@ void UWorldPartition::LoadEditorCells(const TArray<FName>& CellNames, bool bIsFr
 			UpdateLoadingEditorCell(Cell, true, bIsFromUserChange);
 		}
 	}
-}
-
-bool UWorldPartition::RefreshLoadedEditorCells(bool bIsFromUserChange)
-{
-	auto GetCellsToRefresh = [this](TArray<UWorldPartitionEditorCell*>& CellsToRefresh)
-	{
-		EditorHash->ForEachCell([&CellsToRefresh](UWorldPartitionEditorCell* Cell)
-		{
-			if (Cell->IsLoaded())
-			{
-				CellsToRefresh.Add(Cell);
-			}
-		});
-		return !CellsToRefresh.IsEmpty();
-	};
-
-	return UpdateEditorCells(GetCellsToRefresh, /*bIsCellShouldBeLoaded*/true, bIsFromUserChange);
 }
 
 void UWorldPartition::UnloadEditorCells(const FBox& Box, bool bIsFromUserChange)

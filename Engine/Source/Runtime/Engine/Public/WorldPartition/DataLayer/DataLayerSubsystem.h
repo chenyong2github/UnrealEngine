@@ -16,6 +16,25 @@ class UCanvas;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDataLayerRuntimeStateChanged, const UDataLayerInstance*, DataLayer, EDataLayerRuntimeState, State);
 
+#if WITH_EDITOR
+class ENGINE_API FDataLayersEditorBroadcast
+{
+	friend class UDataLayerEditorSubsystem;
+
+public:
+	static FDataLayersEditorBroadcast& Get();
+
+	static void StaticOnActorDataLayersEditorLoadingStateChanged(bool bIsFromUserChange);
+
+	/** Broadcasts whenever one or more DataLayers editor loading state changed */
+	DECLARE_EVENT_OneParam(FDataLayersEditorBroadcast, FOnActorDataLayersEditorLoadingStateChanged, bool /*bIsFromUserChange*/);
+	FOnActorDataLayersEditorLoadingStateChanged& OnActorDataLayersEditorLoadingStateChanged() { return DataLayerEditorLoadingStateChanged; }
+
+private:
+	FOnActorDataLayersEditorLoadingStateChanged DataLayerEditorLoadingStateChanged;
+};
+#endif
+
 UCLASS()
 class ENGINE_API UDataLayerSubsystem : public UWorldSubsystem
 {

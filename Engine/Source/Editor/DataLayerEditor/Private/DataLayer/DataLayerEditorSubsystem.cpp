@@ -164,6 +164,9 @@ void UDataLayerEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 
 	UActorEditorContextSubsystem::Get()->RegisterClient(this);
+
+	// Register the engine broadcast bridge
+	OnActorDataLayersEditorLoadingStateChangedEngineBridgeHandle = DataLayerEditorLoadingStateChanged.AddStatic(&FDataLayersEditorBroadcast::StaticOnActorDataLayersEditorLoadingStateChanged);
 }
 
 void UDataLayerEditorSubsystem::Deinitialize()
@@ -173,6 +176,9 @@ void UDataLayerEditorSubsystem::Deinitialize()
 	Super::Deinitialize();
 
 	DataLayersBroadcast->Deinitialize();
+
+	// Unregister the engine broadcast bridge
+	DataLayerEditorLoadingStateChanged.Remove(OnActorDataLayersEditorLoadingStateChangedEngineBridgeHandle);
 }
 
 void UDataLayerEditorSubsystem::OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer)
@@ -284,19 +290,6 @@ void UDataLayerEditorSubsystem::RemoveFromActorEditorContext(UDataLayerInstance*
 	}
 }
 
-bool UDataLayerEditorSubsystem::RefreshWorldPartitionEditorCells(bool bIsFromUserChange)
-{
-	if (UWorldPartition* WorldPartition = GetWorld() ? GetWorld()->GetWorldPartition() : nullptr)
-	{
-		if (!WorldPartition->RefreshLoadedEditorCells(bIsFromUserChange))
-		{
-			return false;
-		}
-		UpdateDataLayerEditorPerProjectUserSettings();
-	}
-	return true;
-}
-
 void UDataLayerEditorSubsystem::UpdateDataLayerEditorPerProjectUserSettings()
 {
 	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
@@ -371,7 +364,7 @@ bool UDataLayerEditorSubsystem::SetParentDataLayer(UDataLayerInstance* DataLayer
 		UpdateAllActorsVisibility(true, true);
 		if (bIsLoaded != DataLayer->IsEffectiveLoadedInEditor())
 		{
-			RefreshWorldPartitionEditorCells(true);
+			BroadcastDataLayerEditorLoadingStateChanged(true);
 		}
 		return true;
 	}
@@ -945,8 +938,11 @@ bool UDataLayerEditorSubsystem::SetDataLayerIsLoadedInEditorInternal(UDataLayerI
 
 bool UDataLayerEditorSubsystem::SetDataLayerIsLoadedInEditor(UDataLayerInstance* DataLayer, const bool bIsLoadedInEditor, const bool bIsFromUserChange)
 {
-	bool bRefreshNeeded = SetDataLayerIsLoadedInEditorInternal(DataLayer, bIsLoadedInEditor, bIsFromUserChange);
-	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(bIsFromUserChange) : true;
+	if (SetDataLayerIsLoadedInEditorInternal(DataLayer, bIsLoadedInEditor, bIsFromUserChange))
+	{
+		BroadcastDataLayerEditorLoadingStateChanged(bIsFromUserChange);
+	}
+	return true;
 }
 
 bool UDataLayerEditorSubsystem::SetDataLayersIsLoadedInEditor(const TArray<UDataLayerInstance*>& DataLayers, const bool bIsLoadedInEditor, const bool bIsFromUserChange)
@@ -956,7 +952,13 @@ bool UDataLayerEditorSubsystem::SetDataLayersIsLoadedInEditor(const TArray<UData
 	{
 		bRefreshNeeded |= SetDataLayerIsLoadedInEditorInternal(DataLayer, bIsLoadedInEditor, bIsFromUserChange);
 	}
-	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(bIsFromUserChange) : true;
+	
+	if (bRefreshNeeded)
+	{
+		BroadcastDataLayerEditorLoadingStateChanged(bIsFromUserChange);
+	}
+
+	return true;
 }
 
 bool UDataLayerEditorSubsystem::ToggleDataLayerIsLoadedInEditor(UDataLayerInstance* DataLayer, const bool bIsFromUserChange)
@@ -972,7 +974,13 @@ bool UDataLayerEditorSubsystem::ToggleDataLayersIsLoadedInEditor(const TArray<UD
 	{
 		bRefreshNeeded |= SetDataLayerIsLoadedInEditorInternal(DataLayer, !DataLayer->IsLoadedInEditor(), bIsFromUserChange);
 	}
-	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(bIsFromUserChange) : true;
+	
+	if (bRefreshNeeded)
+	{
+		BroadcastDataLayerEditorLoadingStateChanged(bIsFromUserChange);
+	}
+
+	return true;
 }
 
 bool UDataLayerEditorSubsystem::ResetUserSettings()
@@ -986,7 +994,13 @@ bool UDataLayerEditorSubsystem::ResetUserSettings()
 			return true;
 		});
 	}
-	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(true) : true;
+	
+	if (bRefreshNeeded)
+	{
+		BroadcastDataLayerEditorLoadingStateChanged(true);
+	}
+
+	return true;
 }
 
 bool UDataLayerEditorSubsystem::HasDeprecatedDataLayers() const
@@ -1085,6 +1099,12 @@ void UDataLayerEditorSubsystem::BroadcastDataLayerChanged(const EDataLayerAction
 	bRebuildSelectedDataLayersFromEditorSelection = true;
 	DataLayerChanged.Broadcast(Action, ChangedDataLayer, ChangedProperty);
 	ActorEditorContextClientChanged.Broadcast(this);
+}
+
+void UDataLayerEditorSubsystem::BroadcastDataLayerEditorLoadingStateChanged(bool bIsFromUserChange)
+{
+	DataLayerEditorLoadingStateChanged.Broadcast(bIsFromUserChange);
+	UpdateDataLayerEditorPerProjectUserSettings();
 }
 
 void UDataLayerEditorSubsystem::OnSelectionChanged()

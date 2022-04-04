@@ -147,7 +147,6 @@ public:
 	void LoadEditorCells(const TArray<FName>& CellNames, bool bIsFromUserChange);
 	void UnloadEditorCells(const FBox& Box, bool bIsFromUserChange);
 	bool AreEditorCellsLoaded(const FBox& Box);
-	bool RefreshLoadedEditorCells(bool bIsFromUserChange);
 
 	// PIE/Game/Cook Methods
 	bool GenerateStreaming(TArray<FString>* OutPackagesToGenerate = nullptr);
@@ -281,6 +280,8 @@ private:
 	void UnregisterDelegates();	
 
 #if WITH_EDITOR
+	void OnActorDataLayersEditorLoadingStateChanged(bool bFromUserOperation);
+
 	void UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded, bool bFromUserOperation);
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
