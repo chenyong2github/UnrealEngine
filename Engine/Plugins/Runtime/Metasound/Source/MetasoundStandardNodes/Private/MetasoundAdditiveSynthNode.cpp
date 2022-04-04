@@ -242,8 +242,11 @@ namespace Metasound
 				float NewRightGain = RightPanGain * BaseGain;
 
 				// Mix into output buffer
-				Audio::MixInBufferFast(ScratchBuffer.GetData(), LeftAudioOut->GetData(), NumSamples, NewLeftGain);
-				Audio::MixInBufferFast(ScratchBuffer.GetData(), RightAudioOut->GetData(), NumSamples, NewRightGain);
+				TArrayView<const float> ScratchBufferView(ScratchBuffer.GetData(), NumSamples);
+				TArrayView<float> LeftAudioOutView(LeftAudioOut->GetData(), NumSamples);
+				TArrayView<float> RightAudioOutView(RightAudioOut->GetData(), NumSamples);
+				Audio::ArrayMixIn(ScratchBufferView, LeftAudioOutView, NewLeftGain);
+				Audio::ArrayMixIn(ScratchBufferView, RightAudioOutView, NewRightGain);
 			}
 		}
 

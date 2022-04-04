@@ -93,7 +93,7 @@ public:
 			Decoder.DecodeAudioDirectlyToDeviceOutputPositions(*AudioToDecode, OutputPositions, DecoderOutputBuffer);
 		}
 
-		Audio::MixInBufferFast(DecoderOutputBuffer, OutputAudio);
+		Audio::ArrayMixIn(DecoderOutputBuffer, OutputAudio);
 	}
 };
 
@@ -211,7 +211,7 @@ public:
 		const FQuat AmountToRotateBy = InAudio.Rotation.Inverse();
 		const FQuat PreviousAmountRotatedBy = InAudio.PreviousRotation.Inverse();
 		FSoundFieldDecoder::RotateFirstOrderAmbisonicsBed(InAudio, RotatedAudio, AmountToRotateBy, PreviousAmountRotatedBy);
-		Audio::MixInBufferFast(RotatedAudio.AudioBuffer, OutAudio.AudioBuffer, InputData.SendLevel);
+		Audio::ArrayMixIn(RotatedAudio.AudioBuffer, OutAudio.AudioBuffer, InputData.SendLevel);
 	}
 };
 

@@ -107,7 +107,8 @@ namespace Audio
 				const int32 NumSamplesToFadeOutOver = FMath::Min(NumSamples, DefaultNumSamplesToFadeOutOver);
 
 				const int32 Offset = NumSamples - NumSamplesToFadeOutOver;
-				Audio::FadeBufferFast(&OutAudio[Offset], NumSamplesToFadeOutOver, 1.0f, 0.0f);
+				TArrayView<float> OutAudioView(&OutAudio[Offset], NumSamplesToFadeOutOver);
+				Audio::ArrayFade(OutAudioView, 1.0f, 0.0f);
 			}
 
 			return NumSamples;
@@ -167,7 +168,8 @@ namespace Audio
 		float PeakDetectorOutput = 0.0f; // unused
 		const float EstimatedPeak = PeakDetector.ProcessInput(InAmplitude, PeakDetectorOutput);
 		const float TargetGain = GetTargetGain(EstimatedPeak);
-		Audio::FadeBufferFast(InAudio, NumSamples, PreviousGain, TargetGain);
+		TArrayView<float> InAudioView(InAudio, NumSamples);
+		Audio::ArrayFade(InAudioView, PreviousGain, TargetGain);
 		PreviousGain = TargetGain;
 
 		return TargetGain;

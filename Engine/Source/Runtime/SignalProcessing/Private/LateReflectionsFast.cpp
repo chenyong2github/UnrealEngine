@@ -189,7 +189,7 @@ void FLateReflectionsPlate::ProcessAudioFrames(
 	WorkBufferC.AddUninitialized(InNum);
 
 	// Copy Feedback Samples to aligned internal buffer.
-	BufferWeightedSumFast(InFeedbackSamples, 1.0 - Decay, InSamples, WorkBufferA);
+	ArrayWeightedSum(InFeedbackSamples, 1.0 - Decay, InSamples, WorkBufferA);
 
 	// Input -> ModulatedAPF
 	ModulatedAPF->ProcessAudio(WorkBufferA, InDelayModulations, WorkBufferB);
@@ -201,13 +201,13 @@ void FLateReflectionsPlate::ProcessAudioFrames(
 	DelayD->ProcessAudio(OutPlateSamples.Taps[2], WorkBufferA);
 
 	// Apply dampening
-	MultiplyBufferByConstantInPlace(WorkBufferA, 1.0f - Dampening);
+	ArrayMultiplyByConstantInPlace(WorkBufferA, 1.0f - Dampening);
 	
 	// Delay1 -> LPF
 	LPF->ProcessAudio(WorkBufferA, WorkBufferB);
 
 	// Apply decay
-	MultiplyBufferByConstantInPlace(WorkBufferB, 1.0f - Decay);
+	ArrayMultiplyByConstantInPlace(WorkBufferB, 1.0f - Decay);
 
 	// LPF -> APF
 	APF->ProcessAudio(WorkBufferB, WorkBufferA, WorkBufferC);
@@ -447,7 +447,7 @@ void FLateReflectionsFast::ProcessAudioBuffer(const float* InSampleData, const i
 	}
 
 	// Apply bandwidth, gain and channel averaging multipliers
-	MultiplyBufferByConstantInPlace(WorkBufferA, Settings.Bandwidth * Gain / InNumChannels);
+	ArrayMultiplyByConstantInPlace(WorkBufferA, Settings.Bandwidth * Gain / InNumChannels);
 	
 	// Predelay
 	PreDelay->ProcessAudio(WorkBufferA, WorkBufferB);
@@ -472,6 +472,23 @@ void FLateReflectionsFast::ProcessAudioBuffer(const float* InSampleData, const i
 	LeftPlate->ProcessAudioFrames(WorkBufferA, WorkBufferC, LeftDelayModSamples, LeftPlateOutputs);
 	RightPlate->ProcessAudioFrames(WorkBufferA, WorkBufferB, RightDelayModSamples, RightPlateOutputs);
 
+	TArrayView<float> OutLeftSampleDataView(OutLeftSampleData, InNumFrames);
+	TArrayView<float> OutRightSampleDataView(OutRightSampleData, InNumFrames);
+
+	TArrayView<const float> LeftTaps1View(LeftPlateOutputs.Taps[1].GetData(), InNumFrames);
+	TArrayView<const float> LeftTaps2View(LeftPlateOutputs.Taps[2].GetData(), InNumFrames);
+	TArrayView<const float> LeftTaps3View(LeftPlateOutputs.Taps[3].GetData(), InNumFrames);
+	TArrayView<const float> LeftTaps4View(LeftPlateOutputs.Taps[4].GetData(), InNumFrames);
+	TArrayView<const float> LeftTaps5View(LeftPlateOutputs.Taps[5].GetData(), InNumFrames);
+	TArrayView<const float> LeftTaps6View(LeftPlateOutputs.Taps[6].GetData(), InNumFrames);
+
+	TArrayView<const float> RightTaps1View(RightPlateOutputs.Taps[1].GetData(), InNumFrames);
+	TArrayView<const float> RightTaps2View(RightPlateOutputs.Taps[2].GetData(), InNumFrames);
+	TArrayView<const float> RightTaps3View(RightPlateOutputs.Taps[3].GetData(), InNumFrames);
+	TArrayView<const float> RightTaps4View(RightPlateOutputs.Taps[4].GetData(), InNumFrames);
+	TArrayView<const float> RightTaps5View(RightPlateOutputs.Taps[5].GetData(), InNumFrames);
+	TArrayView<const float> RightTaps6View(RightPlateOutputs.Taps[6].GetData(), InNumFrames);
+
 	// Left Output
 	// Channel -> [Plate and Tap#]
 	// L -> +R0
@@ -482,12 +499,12 @@ void FLateReflectionsFast::ProcessAudioBuffer(const float* InSampleData, const i
 	// L -> -L3
 	// L -> -L5
 	FMemory::Memcpy(OutLeftSampleData, RightPlateOutputs.Taps[0].GetData(), InNumFrames * sizeof(float));
-	MixInBufferFast(RightPlateOutputs.Taps[2].GetData(), OutLeftSampleData, InNumFrames);
-	BufferSubtractInPlace2Fast(OutLeftSampleData, RightPlateOutputs.Taps[4].GetData(), InNumFrames);
-	MixInBufferFast(RightPlateOutputs.Taps[6].GetData(), OutLeftSampleData, InNumFrames);
-	BufferSubtractInPlace2Fast(OutLeftSampleData, LeftPlateOutputs.Taps[1].GetData(), InNumFrames);
-	BufferSubtractInPlace2Fast(OutLeftSampleData, LeftPlateOutputs.Taps[3].GetData(), InNumFrames);
-	BufferSubtractInPlace2Fast(OutLeftSampleData, LeftPlateOutputs.Taps[5].GetData(), InNumFrames);
+	ArrayMixIn(RightTaps2View, OutLeftSampleDataView);
+	ArraySubtractInPlace2(OutLeftSampleDataView, RightTaps4View);
+	ArrayMixIn(RightTaps6View, OutLeftSampleDataView);
+	ArraySubtractInPlace2(OutLeftSampleDataView, LeftTaps1View);
+	ArraySubtractInPlace2(OutLeftSampleDataView, LeftTaps3View);
+	ArraySubtractInPlace2(OutLeftSampleDataView, LeftTaps5View);
 	
 	// Right Output
 	// Channel -> [Plate and Tap#]
@@ -499,12 +516,12 @@ void FLateReflectionsFast::ProcessAudioBuffer(const float* InSampleData, const i
 	// R -> -R3
 	// R -> -R5
 	FMemory::Memcpy(OutRightSampleData, LeftPlateOutputs.Taps[0].GetData(), InNumFrames * sizeof(float));
-	MixInBufferFast(LeftPlateOutputs.Taps[2].GetData(), OutRightSampleData, InNumFrames);
-	BufferSubtractInPlace2Fast(OutRightSampleData, LeftPlateOutputs.Taps[4].GetData(), InNumFrames);
-	MixInBufferFast(LeftPlateOutputs.Taps[6].GetData(), OutRightSampleData, InNumFrames);
-	BufferSubtractInPlace2Fast(OutRightSampleData, RightPlateOutputs.Taps[1].GetData(), InNumFrames);
-	BufferSubtractInPlace2Fast(OutRightSampleData, RightPlateOutputs.Taps[3].GetData(), InNumFrames);
-	BufferSubtractInPlace2Fast(OutRightSampleData, RightPlateOutputs.Taps[5].GetData(), InNumFrames);
+	ArrayMixIn(LeftTaps2View, OutRightSampleDataView);
+	ArraySubtractInPlace2(OutRightSampleDataView, LeftTaps4View);
+	ArrayMixIn(LeftTaps6View, OutRightSampleDataView);
+	ArraySubtractInPlace2(OutRightSampleDataView, RightTaps1View);
+	ArraySubtractInPlace2(OutRightSampleDataView, LeftTaps3View);
+	ArraySubtractInPlace2(OutRightSampleDataView, LeftTaps5View);
 }
 
 void FLateReflectionsFast::ApplySettings()

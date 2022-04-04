@@ -201,12 +201,12 @@ namespace Metasound
 				for (uint32 ChanIndex = 0; ChanIndex < NumChannels; ++ChanIndex)
 				{
 					// Outputs[Chan] += Gains[i] * Inputs[i][Chan]
-					const float* InputPtr = Inputs[InputIndex * NumChannels + ChanIndex]->GetData();
+					TArrayView<const float> InputView(Inputs[InputIndex * NumChannels + ChanIndex]->GetData(), Settings.GetNumFramesPerBlock());
+					TArrayView<float> OutputView(Outputs[ChanIndex]->GetData(), Settings.GetNumFramesPerBlock());
 					const float NextGain = *Gains[InputIndex];
 					const float PrevGain = PrevGains[InputIndex];
-					float* OutputPtr = Outputs[ChanIndex]->GetData();
 
-					Audio::MixInBufferFast(InputPtr,  OutputPtr, Settings.GetNumFramesPerBlock() , PrevGain, NextGain);
+					Audio::ArrayMixIn(InputView, OutputView, PrevGain, NextGain);
 
 					PrevGains[InputIndex] = NextGain;
 				}

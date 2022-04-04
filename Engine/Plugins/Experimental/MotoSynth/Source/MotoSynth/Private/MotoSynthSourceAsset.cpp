@@ -382,7 +382,7 @@ void UMotoSynthSource::NormalizeForAnalysis()
 		// If we found one, which we should, use to normalize the signal
 		if (MaxSample > 0.0f)
 		{
-			Audio::MultiplyBufferByConstantInPlace(AnalysisBuffer, 1.0f / MaxSample);
+			Audio::ArrayMultiplyByConstantInPlace(AnalysisBuffer, 1.0f / MaxSample);
 		}
 	}
 }

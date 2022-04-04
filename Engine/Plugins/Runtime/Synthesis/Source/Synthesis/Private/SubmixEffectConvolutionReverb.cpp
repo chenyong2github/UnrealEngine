@@ -97,11 +97,11 @@ void FSubmixEffectConvolutionReverb::OnProcessAudio(const FSoundEffectSubmixInpu
 	// Process Wet/Dry mix
 	if (FMath::IsNearlyEqual(WetVolume, 1.f) == false)
 	{
-		Audio::MultiplyBufferByConstantInPlace(*OutData.AudioBuffer, WetVolume);
+		Audio::ArrayMultiplyByConstantInPlace(*OutData.AudioBuffer, WetVolume);
 	}
 	if (DryVolume > KINDA_SMALL_NUMBER)
 	{
-		Audio::MixInBufferFast(*InData.AudioBuffer, *OutData.AudioBuffer, DryVolume);
+		Audio::ArrayMixIn(*InData.AudioBuffer, *OutData.AudioBuffer, DryVolume);
 	}
 }
 

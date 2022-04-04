@@ -105,27 +105,33 @@ void FDynamicDelayAPF::ProcessAudioBlock(const float* InSamples, const FAlignedF
 	DelayLineInput.Reset(InNum);
 	DelayLineInput.AddUninitialized(InNum);
 
+	TArrayView<float> WorkBufferAView(WorkBufferA.GetData(), InNum);
+	TArrayView<float> WorkBufferBView(WorkBufferB.GetData(), InNum);
+	TArrayView<float> DelayLineInputView(DelayLineInput.GetData(), InNum);
+	TArrayView<const float> InSamplesView(InSamples, InNum);
+	TArrayView<float> OutSamplesView(OutSamples, InNum);
+
 	// Get G values to interpolate over
 	const float LastG = G.GetNextValue();
 	const float CurrG = G.GetNextValue(InNum - 1);
 
 	// WorkBufferA = G * WorkBufferB
 	FMemory::Memcpy(WorkBufferA.GetData(), WorkBufferB.GetData(), InNum * sizeof(float));
-	FadeBufferFast(WorkBufferA.GetData(), InNum, LastG, CurrG);
+	ArrayFade(WorkBufferAView, LastG, CurrG);
 
 	// DelayLineInput = InSamples + WorkBufferA
 	// w[n] = x[n] + G * w[n - d]
-	SumBuffers(InSamples, WorkBufferA.GetData(), DelayLineInput.GetData(), InNum);
+	ArraySum(InSamplesView, WorkBufferAView, DelayLineInputView);
 
-	BufferUnderflowClampFast(DelayLineInput);
+	ArrayUnderflowClamp(DelayLineInput);
 
 	// Update delay line
 	IntegerDelayLine->RemoveSamples(InNum);
 	IntegerDelayLine->AddSamples(DelayLineInput.GetData(), InNum);
 
 	// y[n] = -G w[n] + w[n - d]
-	FadeBufferFast(DelayLineInput.GetData(), InNum, -LastG, -CurrG);
-	SumBuffers(DelayLineInput.GetData(), WorkBufferB.GetData(), OutSamples, InNum);
+	ArrayFade(DelayLineInputView, -LastG, -CurrG);
+	ArraySum(DelayLineInputView, WorkBufferBView, OutSamplesView);
 }
 
 void FDynamicDelayAPF::Reset() 

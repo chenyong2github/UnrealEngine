@@ -198,6 +198,8 @@ namespace Metasound
 		int32 InputSampleCount = AudioInput->Num();
 		float* OutputLeftBufferPtr = AudioLeftOutput->GetData();
 		float* OutputRightBufferPtr = AudioRightOutput->GetData();
+		TArrayView<float> OutputLeftBufferView(AudioLeftOutput->GetData(), InputSampleCount);
+		TArrayView<float> OutputRightBufferView(AudioRightOutput->GetData(), InputSampleCount);
 
 		// Feed the input audio into the left and right delays
 		for (int32 i = 0; i < InputSampleCount; ++i)
@@ -209,13 +211,13 @@ namespace Metasound
 		// Now apply the panning
 		if (FMath::IsNearlyEqual(PrevLeftGain, CurrLeftDelay))
 		{
-			Audio::MultiplyBufferByConstantInPlace(OutputLeftBufferPtr, InputSampleCount, PrevLeftGain);
-			Audio::MultiplyBufferByConstantInPlace(OutputRightBufferPtr, InputSampleCount, PrevRightGain);
+			Audio::ArrayMultiplyByConstantInPlace(OutputLeftBufferView, PrevLeftGain);
+			Audio::ArrayMultiplyByConstantInPlace(OutputRightBufferView, PrevRightGain);
 		}
 		else
 		{
-			Audio::FadeBufferFast(OutputLeftBufferPtr, InputSampleCount, PrevLeftGain, CurrLeftGain);
-			Audio::FadeBufferFast(OutputRightBufferPtr, InputSampleCount, PrevRightGain, CurrRightGain);
+			Audio::ArrayFade(OutputLeftBufferView, PrevLeftGain, CurrLeftGain);
+			Audio::ArrayFade(OutputRightBufferView, PrevRightGain, CurrRightGain);
 
 			PrevLeftGain = CurrLeftGain;
 			PrevRightGain = CurrRightGain;

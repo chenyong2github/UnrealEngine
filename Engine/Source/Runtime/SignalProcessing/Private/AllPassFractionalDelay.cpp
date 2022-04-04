@@ -153,7 +153,8 @@ void FAllPassFractionalDelay::ProcessAudioBlock(const float* InSamples, const fl
 			OutSamples[i] = DelayData[DelayPos - 1] + CoefficientsData[i] * DelayData[DelayPos] - CoefficientsData[i] * OutSamples[i - 1];
 		}
 
-		BufferUnderflowClampFast(OutSamples, InNum);
+		TArrayView<float> OutSamplesView(OutSamples, InNum);
+		ArrayUnderflowClamp(OutSamplesView);
 
 		Z1 = OutSamples[InNum - 1];
 	}

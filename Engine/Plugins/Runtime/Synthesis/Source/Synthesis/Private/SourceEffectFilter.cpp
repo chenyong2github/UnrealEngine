@@ -163,7 +163,7 @@ void FSourceEffectFilter::ProcessAudio(const FSoundEffectSourceInputData& InData
 			ScratchEnvFollowerBuffer.AddUninitialized(InData.NumSamples);
 
 			Audio::BufferSum2ChannelToMonoFast(ScratchModBuffer, ScratchEnvFollowerBuffer);
-			Audio::MultiplyBufferByConstantInPlace(ScratchEnvFollowerBuffer, 0.5f);
+			Audio::ArrayMultiplyByConstantInPlace(ScratchEnvFollowerBuffer, 0.5f);
 
 			Mod.AudioBusEnvelopeFollower.ProcessAudio(ScratchEnvFollowerBuffer.GetData(), InData.NumSamples);
 		}

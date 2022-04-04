@@ -204,8 +204,8 @@ namespace Audio
 		{
 			checkSlow(InFreqBuffer.Real.Num() % 4 == 0);
 			
-			MultiplyBufferByConstantInPlace(InFreqBuffer.Real, InReal);
-			MultiplyBufferByConstantInPlace(InFreqBuffer.Imag, InReal);
+			ArrayMultiplyByConstantInPlace(InFreqBuffer.Real, InReal);
+			ArrayMultiplyByConstantInPlace(InFreqBuffer.Imag, InReal);
 		}
 
 		// Given:
@@ -405,11 +405,14 @@ namespace Audio
 
 		void PerformIterativeIFFT(FFTFreqDomainData& InputParams, FFTTimeDomainData& OutputParams)
 		{
+			TArrayView<float> OutImagView(InputParams.OutImag, OutputParams.NumSamples);
+			TArrayView<float> OutputBufferView(OutputParams.Buffer, OutputParams.NumSamples);
+
 			SeperateInPlace(InputParams.OutReal, OutputParams.NumSamples);
 			SeperateInPlace(InputParams.OutImag, OutputParams.NumSamples);
 
 			// IFFT can be done by performing a forward FFT on the complex conjugate of a frequency domain signal:
-			MultiplyBufferByConstantInPlace(InputParams.OutImag, OutputParams.NumSamples, -1.0f);
+			ArrayMultiplyByConstantInPlace(OutImagView, -1.0f);
 
 			// Iterate over and compute butterflies.
 			ComputeButterfliesInPlace(InputParams.OutReal, InputParams.OutImag, OutputParams.NumSamples);
@@ -425,7 +428,7 @@ namespace Audio
 			FMemory::Memcpy(OutputParams.Buffer, InputParams.OutReal, OutputParams.NumSamples * sizeof(float));
 			
 			// Personal note: This is a very important step in an inverse FFT.
-			Audio::MultiplyBufferByConstantInPlace(OutputParams.Buffer, OutputParams.NumSamples, 1.0f / OutputParams.NumSamples);
+			Audio::ArrayMultiplyByConstantInPlace(OutputBufferView, 1.0f / OutputParams.NumSamples);
 #endif
 		}
 
@@ -670,29 +673,11 @@ namespace Audio
 		OutBuffer.Reset(NumSpectrumValues);
 		OutBuffer.AddUninitialized(NumSpectrumValues);
 
-		float* OutBufferData = OutBuffer.GetData();
+		TArrayView<float> OutBufferDataView(OutBuffer.GetData(), NumSpectrumValues);
+		TArrayView<const float> RealDataView(InFrequencyData.OutReal, NumSpectrumValues);
+		TArrayView<const float> ImagDataView(InFrequencyData.OutImag, NumSpectrumValues);
 
-		const float* RealData = InFrequencyData.OutReal;
-		const float* ImagData = InFrequencyData.OutImag;
-
-		if (IsAligned<const float*>(RealData, AUDIO_BUFFER_ALIGNMENT) && IsAligned<const float*>(ImagData, AUDIO_BUFFER_ALIGNMENT) && (NumSpectrumValues > 5))
-		{
-			BufferComplexToPowerFast(RealData, ImagData, OutBufferData, NumSpectrumValues - 1);
-
-			// Buffer operations are on 16 byte boundaries, which excludes the location of the nyquist
-			// frequency in the fft output buffers. Here we explicitly handle data at nyquist freq.
-			const int32 NyquistIndex = NumSpectrumValues - 1;
-			const float NyquistReal = RealData[NyquistIndex];
-			const float NyquistImag = ImagData[NyquistIndex];
-			OutBufferData[NyquistIndex] = NyquistReal * NyquistReal + NyquistImag * NyquistImag;
-		}
-		else
-		{
-			for (int32 i = 0; i < NumSpectrumValues; i++)
-			{
-				OutBufferData[i] = RealData[i] * RealData[i] + ImagData[i] * ImagData[i];
-			}
-		}
+		ArrayComplexToPower(RealDataView, ImagDataView, OutBufferDataView);
 	}
 
 	void ComputePowerSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
@@ -717,7 +702,8 @@ namespace Audio
 
 		if (NumSpectrumValues > 1)
 		{
-			MultiplyBufferByConstantInPlace(OutBufferData, NumSpectrumValues - 1, FFTScale);
+			TArrayView<float> OutBufferDataView(OutBufferData, NumSpectrumValues - 1);
+			ArrayMultiplyByConstantInPlace(OutBufferDataView, FFTScale);
 		}
 		
 		OutBufferData[NumSpectrumValues - 1] *= FFTScale;
@@ -751,7 +737,8 @@ namespace Audio
 
 		if (NumSpectrumValues > 1)
 		{
-			MultiplyBufferByConstantInPlace(OutBufferData, NumSpectrumValues - 1, FFTScale);
+			TArrayView<float> OutBufferView(OutBufferData, NumSpectrumValues - 1);
+			ArrayMultiplyByConstantInPlace(OutBufferView, FFTScale);
 		}
 		OutBufferData[NumSpectrumValues - 1] *= FFTScale;
 	}
@@ -941,15 +928,10 @@ namespace Audio
 
 	void FFFTConvolver::SumInCOLABuffer(float* InputAudio, int32 NumSamples)
 	{
-		const float* COLABufferPtr = COLABuffer.GetData();
-		const int32 Remainder = NumSamples % 4;
-		const int32 NumVectorizedSamples = NumSamples - Remainder;
-		MixInBufferFast(COLABufferPtr, InputAudio, NumVectorizedSamples);
-		
-		for (int32 Index = NumVectorizedSamples; Index < NumSamples; Index++)
-		{
-			InputAudio[Index] += COLABufferPtr[Index];
-		}
+		TArrayView<const float> COLABufferView(COLABuffer.GetData(), NumSamples);
+		TArrayView<float> InputAudioView(InputAudio, NumSamples);
+
+		ArrayMixIn(COLABufferView, InputAudioView);
 	}
 
 	void FFFTConvolver::SetCOLABuffer(float* InAudio, int32 NumSamples)

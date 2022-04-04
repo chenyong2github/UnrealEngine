@@ -433,10 +433,13 @@ void FSubmixEffectMultibandCompressor::OnProcessAudio(const FSoundEffectSubmixIn
 			}
 		}
 
+		TArrayView<const float> ScratchBufferView(ScratchBuffer.GetData(), BlockSize);
+		TArrayView<float> OutPtrView(OutPtr, BlockSize);
+
 		for (int32 Band = 0; Band < DynamicsProcessors.Num(); ++Band)
 		{
 			DynamicsProcessors[Band].ProcessAudio(MultiBandBuffer[Band], BlockSize, ScratchBuffer.GetData(), bUseKey ? KeyMultiBandBuffer[Band] : nullptr);
-			Audio::MixInBufferFast(ScratchBuffer.GetData(), OutPtr, BlockSize);
+			Audio::ArrayMixIn(ScratchBufferView, OutPtrView);
 		}
 	}
 }

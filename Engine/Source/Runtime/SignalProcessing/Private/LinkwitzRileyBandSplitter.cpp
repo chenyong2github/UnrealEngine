@@ -178,7 +178,8 @@ namespace Audio
 			constexpr int32 IsOddBitMask = 0x00000001;
 			if ((static_cast<int32>(FilterOrder) & IsOddBitMask) && (BandId & IsOddBitMask))
 			{
-				MultiplyBufferByConstantInPlace(BandBufferPtr, NumSamples, -1.f);
+				TArrayView<float> BandBufferView(BandBufferPtr, NumSamples);
+				ArrayMultiplyByConstantInPlace(BandBufferView, -1.f);
 			}
 
 			CopyToBuffer(OutBuffer[BandId], BandBufferPtr, NumSamples);

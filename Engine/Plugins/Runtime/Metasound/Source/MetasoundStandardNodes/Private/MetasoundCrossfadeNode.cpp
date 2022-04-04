@@ -106,7 +106,7 @@ namespace Metasound
 
 			// Zero the output buffer so we can mix into it
 			OutAudioBuffer.Zero();
-			float* OutAudioBufferPtr = OutAudioBuffer.GetData();
+			TArrayView<float> OutAudioBufferView(OutAudioBuffer.GetData(), OutAudioBuffer.Num());
 
 			// Now write to the scratch buffers w/ fade buffer fast given the new inputs
 			for (int32 i = 0; i < NumInputs; ++i)
@@ -116,10 +116,11 @@ namespace Metasound
 				{
 					// Copy the input to the output
 					const FAudioBufferReadRef& InBuff = InAudioBuffersValues[i];
+					TArrayView<const float> BufferView((*InBuff).GetData(), NumFramesPerBlock);
 					const float* BufferPtr = (*InBuff).GetData();
 
 					// mix in and fade to the target gain values
-					Audio::MixInBufferFast(BufferPtr, OutAudioBufferPtr, NumFramesPerBlock, PrevGains[i], CurrentGains[i]);
+					Audio::ArrayMixIn(BufferView, OutAudioBufferView, PrevGains[i], CurrentGains[i]);
 				}
 			}
 

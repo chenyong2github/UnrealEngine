@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 #include "MetasoundGraphCoreModule.h"
 #include "MetasoundDataReferenceMacro.h"
 #include "MetasoundLog.h"

@@ -13,6 +13,13 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
+			PublicDependencyModuleNames.AddRange(
+				new string[] 
+				{
+					"IntelISPC"
+				}
+			);
+
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 					"UEOgg",
 					"Vorbis",

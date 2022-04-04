@@ -88,11 +88,15 @@ namespace Audio
 			}
 		}
 
+		TArrayView<const float> InBufferView(InBuffer, InNumSamples);
+		TArrayView<float> ModulationBufferView(ModulationBuffer.GetData(), InNumSamples);
+		TArrayView<float> OutBufferView(OutBuffer, InNumSamples);
+
 		// Multiply the input buffer by the modulation buffer in-place
-		Audio::MultiplyBuffersInPlace(InBuffer, ModulationBuffer.GetData(), InNumSamples);
+		Audio::ArrayMultiplyInPlace(InBufferView, ModulationBufferView);
 
 		// Perform a buffer weighted sum of the modulation buffer with the Scale value and the dry level as weights
-		Audio::BufferWeightedSumFast(InBuffer, DryLevel, ModulationBuffer.GetData(), Scale, OutBuffer, InNumSamples);
+		Audio::ArrayWeightedSum(InBufferView, DryLevel, ModulationBufferView, Scale, OutBufferView);
 	}
 
 

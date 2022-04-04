@@ -216,8 +216,8 @@ void FEarlyReflectionsFast::ProcessAudio(const FAlignedFloatBuffer& InSamples, c
 	const float OneMinusGain = 1.0 - Settings.Gain;
 
 	// Apply Gain
-	MultiplyBufferByConstantInPlace(OutLeftSamples, Settings.Gain);
-	MultiplyBufferByConstantInPlace(OutRightSamples, Settings.Gain);
+	ArrayMultiplyByConstantInPlace(OutLeftSamples, Settings.Gain);
+	ArrayMultiplyByConstantInPlace(OutRightSamples, Settings.Gain);
 }
 
 void FEarlyReflectionsFast::FlushAudio()

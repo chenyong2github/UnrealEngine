@@ -77,7 +77,8 @@ namespace Audio
 		// If we're passed in a negative value for InOutAttenuation, that means we don't want to interpolate from that value to target value (i.e. it's the first one).
 		// This prevents a pop when first applying attenuation if a sound is far away.
 		float Gain = InOutAttenuation < 0.0f ? TargetAttenuationLinear : InOutAttenuation;
-		Audio::FadeBufferFast(InOutBuffer.GetData(), NumSamples, Gain, TargetAttenuationLinear);
+		TArrayView<float> InOutBufferView(InOutBuffer.GetData(), NumSamples);
+		Audio::ArrayFade(InOutBufferView, Gain, TargetAttenuationLinear);
 
 		InOutAttenuation = TargetAttenuationLinear;
 	}

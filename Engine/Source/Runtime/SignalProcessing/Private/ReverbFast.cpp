@@ -139,8 +139,8 @@ namespace Audio {
 			EarlyReflections.ProcessAudio(ScaledInputBuffer, InNumChannels, FrontLeftEarlyReflectionsSamples, FrontRightEarlyReflectionsSamples);
 			LateReflections.ProcessAudio(ScaledInputBuffer, InNumChannels, FrontLeftLateReflectionsSamples, FrontRightLateReflectionsSamples);
 			// Add early and late reflections together.
-			SumBuffers(FrontLeftEarlyReflectionsSamples, FrontLeftLateReflectionsSamples, FrontLeftReverbSamples);
-			SumBuffers(FrontRightEarlyReflectionsSamples, FrontRightLateReflectionsSamples, FrontRightReverbSamples);
+			ArraySum(FrontLeftEarlyReflectionsSamples, FrontLeftLateReflectionsSamples, FrontLeftReverbSamples);
+			ArraySum(FrontRightEarlyReflectionsSamples, FrontRightLateReflectionsSamples, FrontRightReverbSamples);
 		}
 
 
@@ -203,8 +203,8 @@ namespace Audio {
 				RightAttenuatedSamples.AddUninitialized(InNumFrames);
 
 				// Reduce volume of output reverbs.
-				BufferMultiplyByConstant(FrontLeftReverbSamples, 0.5f, LeftAttenuatedSamples);
-				BufferMultiplyByConstant(FrontRightReverbSamples, 0.5f, RightAttenuatedSamples);
+				ArrayMultiplyByConstant(FrontLeftReverbSamples, 0.5f, LeftAttenuatedSamples);
+				ArrayMultiplyByConstant(FrontRightReverbSamples, 0.5f, RightAttenuatedSamples);
 
 				const float* FrontLeftSampleData = LeftAttenuatedSamples.GetData();
 				const float* FrontRightSampleData = RightAttenuatedSamples.GetData();

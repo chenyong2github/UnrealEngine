@@ -158,7 +158,7 @@ void FSubmixEffectReverb::OnProcessAudio(const FSoundEffectSubmixInputData& InDa
 	{
 		// Wet level is applied to input audio to preserve reverb tail when changing wet level
 		WetInputBuffer.AddZeroed(InData.AudioBuffer->Num());
-		Audio::MixInBufferFast(*InData.AudioBuffer, WetInputBuffer, LastWet, CurrentWetDry.WetLevel);
+		Audio::ArrayMixIn(*InData.AudioBuffer, WetInputBuffer, LastWet, CurrentWetDry.WetLevel);
 	}
 
 	PlateReverb->ProcessAudio(WetInputBuffer, InData.NumChannels, *OutData.AudioBuffer, OutData.NumChannels);

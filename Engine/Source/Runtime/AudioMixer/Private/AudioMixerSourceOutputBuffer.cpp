@@ -492,11 +492,11 @@ namespace Audio
 	{
 		if (InSubmixSendStage == EMixerSourceSubmixSendStage::PostDistanceAttenuation)
 		{
-			Audio::MixInBufferFast(PostAttenuationOutputBuffer, OutMixedBuffer, InSendLevel);
+			Audio::ArrayMixIn(PostAttenuationOutputBuffer, OutMixedBuffer, InSendLevel);
 		}
 		else
 		{
-			Audio::MixInBufferFast(PreAttenuationOutputBuffer, OutMixedBuffer, InSendLevel);
+			Audio::ArrayMixIn(PreAttenuationOutputBuffer, OutMixedBuffer, InSendLevel);
 		}
 	}
 

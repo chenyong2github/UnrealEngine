@@ -147,10 +147,14 @@ namespace Metasound
 		float* OutputLeftBufferPtr = AudioLeftOutput->GetData();
 		float* OutputRightBufferPtr = AudioRightOutput->GetData();
 
+		TArrayView<const float> InputBufferView(AudioInput->GetData(), InputSampleCount);
+		TArrayView<float> OutputLeftBufferView(AudioLeftOutput->GetData(), InputSampleCount);
+		TArrayView<float> OutputRightBufferView(AudioRightOutput->GetData(), InputSampleCount);
+
 		if (FMath::IsNearlyEqual(PrevPanningAmount, CurrentPanningAmount))
 		{
-			Audio::BufferMultiplyByConstant(InputBufferPtr, PrevLeftPan, OutputLeftBufferPtr, InputSampleCount);
-			Audio::BufferMultiplyByConstant(InputBufferPtr, PrevRightPan, OutputRightBufferPtr, InputSampleCount);
+			Audio::ArrayMultiplyByConstant(InputBufferView, PrevLeftPan, OutputLeftBufferView);
+			Audio::ArrayMultiplyByConstant(InputBufferView, PrevRightPan, OutputRightBufferView);
 		}
 		else 
 		{
@@ -164,8 +168,8 @@ namespace Metasound
 			FMemory::Memcpy(OutputRightBufferPtr, InputBufferPtr, InputSampleCount * sizeof(float));
 
 			// Do a fast fade on the buffers from the prev left/right gains to current left/right gains
-			Audio::FadeBufferFast(OutputLeftBufferPtr, InputSampleCount, PrevLeftPan, CurrentLeftPan);
-			Audio::FadeBufferFast(OutputRightBufferPtr, InputSampleCount, PrevRightPan, CurrentRightPan);
+			Audio::ArrayFade(OutputLeftBufferView, PrevLeftPan, CurrentLeftPan);
+			Audio::ArrayFade(OutputRightBufferView, PrevRightPan, CurrentRightPan);
 
 			// lerp through the buffer to the target panning amount
 			PrevPanningAmount = *PanningAmount;

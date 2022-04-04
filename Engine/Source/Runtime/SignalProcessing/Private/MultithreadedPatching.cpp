@@ -50,16 +50,17 @@ namespace Audio
 		}
 
 		int32 PopResult = InternalBuffer.Pop(OutBuffer, NumSamples);
+		TArrayView<float> OutBufferView(OutBuffer, PopResult);
 
 		// Apply gain stage.
 		float TG = TargetGain, PG = PreviousGain;
 		if (FMath::IsNearlyEqual(TG, PG))
 		{
-			MultiplyBufferByConstantInPlace(OutBuffer, PopResult, PreviousGain);
+			ArrayMultiplyByConstantInPlace(OutBufferView, PreviousGain);
 		}
 		else
 		{
-			FadeBufferFast(OutBuffer, PopResult, PreviousGain, TargetGain);
+			ArrayFade(OutBufferView, PreviousGain, TargetGain);
 			PreviousGain = TargetGain;
 		}
 		
@@ -91,14 +92,17 @@ namespace Audio
 			PopResult = InternalBuffer.Pop(MixingBuffer.GetData(), NumSamples);
 		}
 
+		TArrayView<const float> MixingBufferView(MixingBuffer.GetData(), PopResult);
+		TArrayView<float> OutBufferView(OutBuffer, PopResult);
+
 		float TG = TargetGain, PG = PreviousGain;
 		if (FMath::IsNearlyEqual(TG, PG))
 		{
-			MixInBufferFast(MixingBuffer.GetData(), OutBuffer, PopResult, PreviousGain);
+			ArrayMixIn(MixingBufferView, OutBufferView, PreviousGain);
 		}
 		else
 		{
-			MixInBufferFast(MixingBuffer.GetData(), OutBuffer, PopResult, PreviousGain, TargetGain);
+			ArrayMixIn(MixingBufferView, OutBufferView, PreviousGain, TargetGain);
 			PreviousGain = TargetGain;
 		}
 

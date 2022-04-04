@@ -882,21 +882,18 @@ namespace Metasound
 					return;
 				}
 
-				const float* OperandData = InAdditionalOperands[i]->GetData();
-				float* OutData = OutResult->GetData();
+				TArrayView<const float> OperandDataView(InAdditionalOperands[i]->GetData(), NumSamples);
+				TArrayView<float> OutDataView(OutResult->GetData(), NumSamples);
 
 				if (NumSamples % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
 				{
-					for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
-					{
-						OutData[SampleIndex] += OperandData[SampleIndex];
-					}
+					Audio::ArrayMixIn(OperandDataView, OutDataView);
 				}
 				else
 				{
 					const float StartGain = 1.0f;
 					const float EndGain = 1.0f;
-					Audio::MixInBufferFast(OperandData, OutData, NumSamples, StartGain, EndGain);
+					Audio::ArrayMixIn(OperandDataView, OutDataView, StartGain, EndGain);
 				}
 			}
 		}
@@ -1013,17 +1010,11 @@ namespace Metasound
 		{
 			FMemory::Memcpy(OutResult->GetData(), InPrimaryOperand->GetData(), sizeof(float) * OutResult->Num());
 
-			const int32 SIMDRemainder = OutResult->Num() % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER;
-			const int32 SIMDCount = OutResult->Num() - SIMDRemainder;
+			TArrayView<float> OutResultView(OutResult->GetData(), OutResult->Num());
 
 			for (int32 i = 0; i < InAdditionalOperands.Num(); ++i)
 			{
-				Audio::AddConstantToBufferInplace(OutResult->GetData(), SIMDCount, *InAdditionalOperands[i]);
-
-				for (int32 j = SIMDCount; j < OutResult->Num(); ++j)
-				{
-					OutResult->GetData()[j] += *InAdditionalOperands[i];
-				}
+				Audio::ArrayAddConstantInplace(OutResultView, *InAdditionalOperands[i]);
 			}
 		}
 	};
@@ -1099,20 +1090,10 @@ namespace Metasound
 					return;
 				}
 
-				const float* OperandData = InAdditionalOperands[i]->GetData();
-				float* OutData = OutResult->GetData();
+				TArrayView<const float> OperandDataView(InAdditionalOperands[i]->GetData(), NumSamples);
+				TArrayView<float> OutDataView(OutResult->GetData(), NumSamples);
 
-				if (NumSamples % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
-				{
-					for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
-					{
-						OutData[i] -= OperandData[i];
-					}
-				}
-				else
-				{
-					Audio::BufferSubtractInPlace2Fast(OutData, OperandData, NumSamples);
-				}
+				Audio::ArraySubtractInPlace2(OutDataView, OperandDataView);
 			}
 		}
 	};
@@ -1252,20 +1233,10 @@ namespace Metasound
 					return;
 				}
 
-				const float* OperandData = InAdditionalOperands[i]->GetData();
-				float* OutData = OutResult->GetData();
+				TArrayView<const float> OperandDataView(InAdditionalOperands[i]->GetData(), NumSamples);
+				TArrayView<float> OutDataView(OutResult->GetData(), NumSamples);
 
-				if (NumSamples % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
-				{
-					for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
-					{
-						OutData[SampleIndex] += OperandData[SampleIndex];
-					}
-				}
-				else
-				{
-					Audio::MultiplyBuffersInPlace(OperandData, OutData, NumSamples);
-				}
+				Audio::ArrayMultiplyInPlace(OperandDataView, OutDataView);
 			}
 		}
 	};
@@ -1337,7 +1308,9 @@ namespace Metasound
 				const int32 SIMDRemainder = OutResult->Num() % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER;
 				const int32 SIMDCount = OutResult->Num() - SIMDRemainder;
 
-				Audio::FadeBufferFast(OutResult->GetData(), SIMDCount, InInstanceData.LastGain, *InAdditionalOperands[i]);
+				TArrayView<float> OutResultView(OutResult->GetData(), SIMDCount);
+
+				Audio::ArrayFade(OutResultView, InInstanceData.LastGain, *InAdditionalOperands[i]);
 
 				for (int32 j = SIMDCount; j < OutResult->Num(); ++j)
 				{

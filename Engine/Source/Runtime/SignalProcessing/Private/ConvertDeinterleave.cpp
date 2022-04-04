@@ -124,16 +124,16 @@ namespace Audio
 				checkf(NumOutputChannels == OutSamples.Num(), TEXT("Output audio buffer not initialized to expected channel count."));
 
 				const int32 NumFrames = GetMultichannelBufferNumFrames(OutSamples);
-				const float* InSampleData = InSamples.GetData();
 
-				const int32 DataSize = NumFrames * sizeof(float);
 				for (int32 OutChannelIndex = 0; OutChannelIndex < NumOutputChannels; OutChannelIndex++)
 				{
 					const float Gain = ChannelGains[OutChannelIndex];
 					if (Gain != 0.f)
 					{
+						TArrayView<float> OutSampleView(OutSamples[OutChannelIndex].GetData(), NumFrames);
+
 						// Only need to multiply if gain is non-zero
-						Audio::BufferMultiplyByConstant(InSampleData, ChannelGains[OutChannelIndex], OutSamples[OutChannelIndex].GetData(), NumFrames);
+						Audio::ArrayMultiplyByConstant(InSamples, ChannelGains[OutChannelIndex], OutSampleView);
 					}
 					else
 					{

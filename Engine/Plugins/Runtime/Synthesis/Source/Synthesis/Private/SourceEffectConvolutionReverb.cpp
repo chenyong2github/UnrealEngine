@@ -81,14 +81,17 @@ void FSourceEffectConvolutionReverb::ProcessAudio(const FSoundEffectSourceInputD
 
 	Reverb->ProcessAudio(NumChannels, InData.InputSourceEffectBufferPtr, NumChannels, OutAudioBufferData, NumFrames);
 
+	TArrayView<float> OutAudioBufferView(OutAudioBufferData, InData.NumSamples);
+	TArrayView<const float> InputSourceEffectBufferView(InData.InputSourceEffectBufferPtr, InData.NumSamples);
+
 	// Process Wet/Dry mix
 	if (FMath::IsNearlyEqual(WetVolume, 1.f) == false)
 	{
-		Audio::MultiplyBufferByConstantInPlace(OutAudioBufferData, InData.NumSamples, WetVolume);
+		Audio::ArrayMultiplyByConstantInPlace(OutAudioBufferView, WetVolume);
 	}
 	if (DryVolume > KINDA_SMALL_NUMBER)
 	{
-		Audio::MixInBufferFast(InData.InputSourceEffectBufferPtr, OutAudioBufferData, InData.NumSamples, DryVolume);
+		Audio::ArrayMixIn(InputSourceEffectBufferView, OutAudioBufferView, DryVolume);
 	}
 }
 

@@ -1342,7 +1342,7 @@ namespace Audio
 					float EndFadeVolume = FadeInfo.FadeVolume.GetValue();
 
 					// Mix this effect chain with other effect chains.
-					MixInBufferFast(EffectChainOutputBuffer, SubmixChainMixBuffer, StartFadeVolume, EndFadeVolume);
+					ArrayMixIn(EffectChainOutputBuffer, SubmixChainMixBuffer, StartFadeVolume, EndFadeVolume);
 				}
 
 				// If we processed any effects, write over the old input buffer vs mixing into it. This is basically the "wet channel" audio in a submix.
@@ -1369,11 +1369,11 @@ namespace Audio
 				{
 					if (FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel))
 					{
-						MultiplyBufferByConstantInPlace(InputBuffer, TargetWetLevel);
+						ArrayMultiplyByConstantInPlace(InputBuffer, TargetWetLevel);
 					}
 					else
 					{
-						FadeBufferFast(InputBuffer, CurrentWetLevel, TargetWetLevel);
+						ArrayFade(InputBuffer, CurrentWetLevel, TargetWetLevel);
 						CurrentWetLevel = TargetWetLevel;
 					}
 				}
@@ -1386,15 +1386,15 @@ namespace Audio
 			// If we've already set the volume, only need to multiply by constant
 			if (FMath::IsNearlyEqual(TargetDryLevel, CurrentDryLevel))
 			{
-				MultiplyBufferByConstantInPlace(DryChannelBuffer, TargetDryLevel);
+				ArrayMultiplyByConstantInPlace(DryChannelBuffer, TargetDryLevel);
 			}
 			else
 			{
 				// To avoid popping, we do a fade on the buffer to the target volume
-				FadeBufferFast(DryChannelBuffer, CurrentDryLevel, TargetDryLevel);
+				ArrayFade(DryChannelBuffer, CurrentDryLevel, TargetDryLevel);
 				CurrentDryLevel = TargetDryLevel;
 			}
-			MixInBufferFast(DryChannelBuffer, InputBuffer);
+			ArrayMixIn(DryChannelBuffer, InputBuffer);
 		}
 
 		// If we're muted, memzero the buffer. Note we are still doing all the work to maintain buffer state between mutings.
@@ -1475,12 +1475,12 @@ namespace Audio
 			// If we've already set the output volume, only need to multiply by constant
 			if (FMath::IsNearlyEqual(TargetOutputVolume, CurrentOutputVolume))
 			{
-				Audio::MultiplyBufferByConstantInPlace(InputBuffer, TargetOutputVolume);
+				Audio::ArrayMultiplyByConstantInPlace(InputBuffer, TargetOutputVolume);
 			}
 			else
 			{
 				// To avoid popping, we do a fade on the buffer to the target volume
-				Audio::FadeBufferFast(InputBuffer, CurrentOutputVolume, TargetOutputVolume);
+				Audio::ArrayFade(InputBuffer, CurrentOutputVolume, TargetOutputVolume);
 				CurrentOutputVolume = TargetOutputVolume;
 			}
 		}
@@ -1488,7 +1488,7 @@ namespace Audio
 		SendAudioToSubmixBufferListeners(InputBuffer);
 
 		// Mix the audio buffer of this submix with the audio buffer of the output buffer (i.e. with other submixes)
-		Audio::MixInBufferFast(InputBuffer, OutAudioBuffer);
+		Audio::ArrayMixIn(InputBuffer, OutAudioBuffer);
 
 		// Once we've finished rendering submix audio, check if the output buffer is silent if we are auto-disabling
 		if (bAutoDisable)
@@ -1591,7 +1591,7 @@ namespace Audio
 				const float DryLevel = SubmixEffect->GetDryLevel();
 				if (DryLevel > 0.0f)
 				{
-					MixInBufferFast(ScratchBuffer, *OutputData.AudioBuffer, DryLevel);
+					ArrayMixIn(ScratchBuffer, *OutputData.AudioBuffer, DryLevel);
 				}
 				// Copy the output to the input
 				FMemory::Memcpy((void*)ScratchBuffer.GetData(), (void*)OutputData.AudioBuffer->GetData(), sizeof(float) * NumSamples);

@@ -239,9 +239,9 @@ namespace Audio
 		{
 			if (!FMath::IsNearlyEqual(LinearGainScalarForFinalOututCVar, 1.0f))
 			{
-				MultiplyBufferByConstantInPlace(RenderBuffer, LinearGainScalarForFinalOututCVar);
+				ArrayMultiplyByConstantInPlace(RenderBuffer, LinearGainScalarForFinalOututCVar);
 			}
-			BufferRangeClampFast(RenderBuffer, -1.0f, 1.0f);
+			ArrayRangeClamp(RenderBuffer, -1.0f, 1.0f);
 
 			// No conversion is needed, so we push the RenderBuffer directly to the circular queue.
 			CircularBuffer.Push(reinterpret_cast<const uint8*>(RenderBuffer.GetData()), RenderBuffer.Num() * sizeof(float));
@@ -255,8 +255,8 @@ namespace Audio
 			check(FormattedBuffer.Num() / GetSizeForDataFormat(DataFormat) == RenderBuffer.Num());			
 
 			const float ConversionScalar = LinearGainScalarForFinalOututCVar * 32767.0f;
-			MultiplyBufferByConstantInPlace(RenderBuffer, ConversionScalar);
-			BufferRangeClampFast(RenderBuffer, -32767.0f, 32767.0f);
+			ArrayMultiplyByConstantInPlace(RenderBuffer, ConversionScalar);
+			ArrayRangeClamp(RenderBuffer, -32767.0f, 32767.0f);
 
 			for (int32 i = 0; i < NumSamples; ++i)
 			{

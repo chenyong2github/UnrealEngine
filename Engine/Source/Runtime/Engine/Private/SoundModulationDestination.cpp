@@ -170,12 +170,12 @@ namespace Audio
 			{
 				if (FMath::IsNearlyEqual(LastTarget, ValueTarget))
 				{
-					BufferSetToConstantInplace(OutputBuffer, ValueTarget);
+					ArraySetToConstantInplace(OutputBuffer, ValueTarget);
 				}
 				else
 				{
-					BufferSetToConstantInplace(OutputBuffer, 1.0f);
-					FadeBufferFast(OutputBuffer, LastTarget, ValueTarget);
+					ArraySetToConstantInplace(OutputBuffer, 1.0f);
+					ArrayFade(OutputBuffer, LastTarget, ValueTarget);
 				}
 			}
 			else

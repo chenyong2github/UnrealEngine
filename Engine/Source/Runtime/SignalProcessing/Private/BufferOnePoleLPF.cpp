@@ -63,7 +63,7 @@ void FBufferOnePoleLPF::ProcessAudio(const Audio::FAlignedFloatBuffer& InSamples
 		//OutSampleData[Index] = UnderflowClamp(InSampleData[Index] * A0 + B1 * OutSampleData[DelayIndex]);
 		OutSampleData[Index] = InSampleData[Index] * A0 + B1 * OutSampleData[DelayIndex];
 	}
-	BufferUnderflowClampFast(OutSampleData, InNum);
+	ArrayUnderflowClamp(OutSamples);
 	// Store delay value
 	Z1 = OutSampleData[InNum - 1];
 }

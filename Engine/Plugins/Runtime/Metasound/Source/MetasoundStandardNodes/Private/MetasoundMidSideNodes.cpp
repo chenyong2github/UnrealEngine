@@ -187,8 +187,8 @@ namespace Metasound
 			}
 			else
 			{
-				Audio::FadeBufferFast(*AudioOutputMid, PrevMidScale, MidScale);
-				Audio::FadeBufferFast(*AudioOutputSide, PrevSideScale, SideScale);
+				Audio::ArrayFade(*AudioOutputMid, PrevMidScale, MidScale);
+				Audio::ArrayFade(*AudioOutputSide, PrevSideScale, SideScale);
 				
 				PrevMidScale = MidScale;
 				PrevSideScale = SideScale;
@@ -417,8 +417,8 @@ namespace Metasound
 			}
 			else
 			{
-				Audio::FadeBufferFast(MidInBuffer, PrevMidScale, MidScale);
-				Audio::FadeBufferFast(SideInBuffer, PrevSideScale, SideScale);
+				Audio::ArrayFade(MidInBuffer, PrevMidScale, MidScale);
+				Audio::ArrayFade(SideInBuffer, PrevSideScale, SideScale);
 
 				PrevMidScale = MidScale;
 				PrevSideScale = SideScale;

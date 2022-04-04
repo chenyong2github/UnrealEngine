@@ -606,7 +606,7 @@ namespace Audio
 		InterleaveBuffer(OutputAudio, OutputDeinterleaveBuffers, InNumOutputChannels);
 
 		// Apply final gain
-		MultiplyBufferByConstantInPlace(OutputAudio, OutputGain);
+		ArrayMultiplyByConstantInPlace(OutputAudio, OutputGain);
 	}
 
 	int32 FConvolutionReverb::GetNumInputChannels() const

@@ -77,7 +77,9 @@ namespace Audio
 			}
 
 			check(IsAligned<float*>(InBuffer, 4));
-			MultiplyBuffersInPlace(WindowBuffer.GetData(), InBuffer, NumSamples);
+			TArrayView<const float> WindowBufferView(WindowBuffer.GetData(), NumSamples);
+			TArrayView<float> InBufferView(InBuffer, NumSamples);
+			ArrayMultiplyInPlace(WindowBufferView, InBufferView);
 		}
 
 		EWindowType GetWindowType() const

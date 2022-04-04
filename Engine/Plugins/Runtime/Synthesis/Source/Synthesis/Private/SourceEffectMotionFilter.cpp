@@ -230,6 +230,10 @@ void FSourceEffectMotionFilter::ProcessAudio(const FSoundEffectSourceInputData& 
 	FilterAMixScale = FMath::Clamp(FilterAMixScale, 0.0f, 2.0f);
 	FilterBMixScale = FMath::Clamp(FilterBMixScale, 0.0f, 2.0f);
 
+	TArrayView<float> ScratchBufferAView(ScratchBufferA.GetData(), InData.NumSamples);
+	TArrayView<float> ScratchBufferBView(ScratchBufferB.GetData(), InData.NumSamples);
+	TArrayView<float> OutAudioBufferDataView(OutAudioBufferData, InData.NumSamples);
+	TArrayView<float> InputSourceEffectBufferView(InData.InputSourceEffectBufferPtr, InData.NumSamples);
 
 	// Mix and Processing chain depends on Topology
 	if (Topology == ESourceEffectMotionFilterTopology::ParallelMode)
@@ -239,9 +243,9 @@ void FSourceEffectMotionFilter::ProcessAudio(const FSoundEffectSourceInputData& 
 		MotionFilterB.CurrentFilter->ProcessAudio(InData.InputSourceEffectBufferPtr, InData.NumSamples, ScratchBufferB.GetData());
 
 		// Mix Dry + Filter A + Filter B
-		Audio::MixInBufferFast(InData.InputSourceEffectBufferPtr, OutAudioBufferData, InData.NumSamples, DryVolumeScalar);
-		Audio::MixInBufferFast(ScratchBufferA.GetData(), OutAudioBufferData, InData.NumSamples, FilterAMixScale);
-		Audio::MixInBufferFast(ScratchBufferB.GetData(), OutAudioBufferData, InData.NumSamples, FilterBMixScale);
+		Audio::ArrayMixIn(InputSourceEffectBufferView, OutAudioBufferDataView, DryVolumeScalar);
+		Audio::ArrayMixIn(ScratchBufferAView, OutAudioBufferDataView, FilterAMixScale);
+		Audio::ArrayMixIn(ScratchBufferBView, OutAudioBufferDataView, FilterBMixScale);
 
 	}
 	else if (Topology == ESourceEffectMotionFilterTopology::SerialMode)
@@ -250,15 +254,15 @@ void FSourceEffectMotionFilter::ProcessAudio(const FSoundEffectSourceInputData& 
 		MotionFilterA.CurrentFilter->ProcessAudio(InData.InputSourceEffectBufferPtr, InData.NumSamples, ScratchBufferA.GetData());
 
 		// Mix Dry + Filter A
-		Audio::MultiplyBufferByConstantInPlace(ScratchBufferA, FilterAMixScale);
-		Audio::MixInBufferFast(InData.InputSourceEffectBufferPtr, ScratchBufferA.GetData(), InData.NumSamples, DryVolumeScalar);
+		Audio::ArrayMultiplyByConstantInPlace(ScratchBufferAView, FilterAMixScale);
+		Audio::ArrayMixIn(InputSourceEffectBufferView, ScratchBufferAView, DryVolumeScalar);
 
 		// Process Filter A Wet/Dry Mix into Filter B
 		MotionFilterB.CurrentFilter->ProcessAudio(ScratchBufferA.GetData(), InData.NumSamples, ScratchBufferB.GetData());
 
 		// Mix Dry + Filter B Output
-		Audio::MixInBufferFast(InData.InputSourceEffectBufferPtr, OutAudioBufferData, InData.NumSamples, DryVolumeScalar);
-		Audio::MixInBufferFast(ScratchBufferB.GetData(), OutAudioBufferData, InData.NumSamples, FilterBMixScale);
+		Audio::ArrayMixIn(InputSourceEffectBufferView, OutAudioBufferDataView, DryVolumeScalar);
+		Audio::ArrayMixIn(ScratchBufferBView, OutAudioBufferDataView, FilterBMixScale);
 	}
 	else
 	{

@@ -418,10 +418,12 @@ void USynthComponentMonoWaveTable::RefreshWaveTable(int32 Index)
 	MaxValue += DCShift;
 	MinValue += DCShift;
 
+	TArrayView<float> DestinationTableView(DestinationTable.GetData(), TableRes);
+
 	// Remove DC offset
 	if (!FMath::IsNearlyZero(DCShift))
 	{
-		Audio::AddConstantToBufferInplace(DestinationTable.GetData(), TableRes, DCShift);
+		Audio::ArrayAddConstantInplace(DestinationTableView, DCShift);
 	}
 
 	if (CachedPreset->bNormalizeWaveTables)
@@ -429,7 +431,7 @@ void USynthComponentMonoWaveTable::RefreshWaveTable(int32 Index)
 		const float MaxAbsValue = FMath::Max(FMath::Abs(MaxValue), FMath::Abs(MinValue));
 		const float NormalizationScalar = 1.0f / MaxAbsValue;
 
-		Audio::MultiplyBufferByConstantInPlace(DestinationTable.GetData(), TableRes, NormalizationScalar);
+		Audio::ArrayMultiplyByConstantInPlace(DestinationTableView, NormalizationScalar);
 	}
 	else // clip the values since we aren't normalizing
 	{

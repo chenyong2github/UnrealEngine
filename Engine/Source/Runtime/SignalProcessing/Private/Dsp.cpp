@@ -28,7 +28,7 @@ namespace Audio
 		ArraySubtract(InLeftChannel, InRightChannel, OutSideChannel);
 
 		//Output
-		SumBuffers(InLeftChannel, InRightChannel, OutMidChannel);
+		ArraySum(InLeftChannel, InRightChannel, OutMidChannel);
 
 	}
 
@@ -55,10 +55,10 @@ namespace Audio
 
 		// Calculate the average value between the two signals at each sample
 		const float AverageScale = 0.5f;
-		BufferWeightedSumFast(InMidChannel, AverageScale, InSideChannel, AverageScale, OutLeftChannel);
+		ArrayWeightedSum(InMidChannel, AverageScale, InSideChannel, AverageScale, OutLeftChannel);
 
 		ArraySubtract(InMidChannel, InSideChannel, OutRightChannel);
-		MultiplyBufferByConstantInPlace(OutRightChannel, AverageScale);
+		ArrayMultiplyByConstantInPlace(OutRightChannel, AverageScale);
 
 	}
 

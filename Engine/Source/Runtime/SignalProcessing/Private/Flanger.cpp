@@ -81,6 +81,6 @@ namespace Audio
 			ScratchBuffer[SampleIndex] = DelayBuffer.ProcessAudioSample(InBuffer[SampleIndex]);
 		}
 
-		BufferWeightedSumFast(ScratchBuffer, DelayedSignalLevel, InBuffer, NonDelayedSignalLevel, OutBuffer);
+		ArrayWeightedSum(ScratchBuffer, DelayedSignalLevel, InBuffer, NonDelayedSignalLevel, OutBuffer);
 	}
 }

@@ -188,11 +188,11 @@ namespace Audio
 				TAutoDeinterleaveView<float, FAudioBufferAlignedAllocator> DeinterleaveView(Window, ChannelBuffer, NumChannels);
 				for(auto Channel : DeinterleaveView)
 				{
-					MixInBufferFast(Channel.Values, MonoBuffer);		
+					ArrayMixIn(Channel.Values, MonoBuffer);		
 				}
 
 				// Equal power sum. assuming incoherrent signals.
-				MultiplyBufferByConstantInPlace(MonoBuffer, 1.f / FMath::Sqrt(static_cast<float>(NumChannels)));
+				ArrayMultiplyByConstantInPlace(MonoBuffer, 1.f / FMath::Sqrt(static_cast<float>(NumChannels)));
 
 				AnalyzeWindow(MonoBuffer, 0, *OnsetResult);
 			}

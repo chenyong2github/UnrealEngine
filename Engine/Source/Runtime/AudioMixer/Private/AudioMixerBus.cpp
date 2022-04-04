@@ -137,7 +137,9 @@ namespace Audio
 					}
 					else
 					{
-						MixInBufferFast(SourceBufferPtr, BusDataBufferPtr, NumOutputFrames * NumChannels, AudioBusSend.SendLevel);
+						TArrayView<const float> SourceBufferView(SourceBufferPtr, NumOutputFrames * NumChannels);
+						TArrayView<float> BusDataBufferView(BusDataBufferPtr, NumOutputFrames * NumChannels);
+						ArrayMixIn(SourceBufferView, BusDataBufferView, AudioBusSend.SendLevel);
 					}
 				}
 			}
