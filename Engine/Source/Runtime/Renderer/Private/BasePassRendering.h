@@ -452,6 +452,43 @@ public:
 
 		OutEnvironment.SetDefine(TEXT("STRATA_INLINE_SHADING"), 1);
 
+		const bool IsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
+		if (IsSingleLayerWater && IsWaterDistanceFieldShadowEnabled(Parameters.Platform))
+		{
+			// See FShaderCompileUtilities::FetchGBufferParamsRuntime for the details
+			const bool bOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(Parameters.Platform);
+			const bool bHasTangent = false;
+			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+			bool bHasPrecShadowFactor = (CVar ? (CVar->GetValueOnAnyThread() != 0) : 1);
+
+			uint32 TargetSeparatedMainDirLight = 5;
+			if (bOutputVelocity == false && bHasTangent == false)
+			{
+				TargetSeparatedMainDirLight = 5;
+				if (bHasPrecShadowFactor)
+				{
+					TargetSeparatedMainDirLight = 6;
+				}
+			}
+			else if (bOutputVelocity)
+			{
+				TargetSeparatedMainDirLight = 6;
+				if (bHasPrecShadowFactor)
+				{
+					TargetSeparatedMainDirLight = 7;
+				}
+			}
+			else if (bHasTangent)
+			{
+				TargetSeparatedMainDirLight = 6;
+				if (bHasPrecShadowFactor)
+				{
+					TargetSeparatedMainDirLight = 7;
+				}
+			}
+			OutEnvironment.SetRenderTargetOutputFormat(TargetSeparatedMainDirLight, PF_FloatR11G11B10);
+		}
+
 		TBasePassPixelShaderBaseType<LightMapPolicyType>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 	

@@ -36,6 +36,7 @@ enum EGBufferSlot
 	GBS_Cloth, // R8
 	GBS_SubsurfaceProfileX, // R8
 	GBS_IrisNormal, // RG8
+	GBS_SeparatedMainDirLight, // RGB 11.11.10
 	GBS_Num
 };
 
@@ -271,6 +272,7 @@ struct FGBufferParams
 	bool bHasTangent = false;
 	bool bHasPrecShadowFactor = false;
 	bool bUsesVelocityDepth = false;
+	bool bHasSingleLayerWaterSeparatedMainLight = false;
 
 	bool operator == (const FGBufferParams& RHS) const
 	{
@@ -279,7 +281,8 @@ struct FGBufferParams
 			bHasVelocity == RHS.bHasVelocity &&
 			bHasTangent == RHS.bHasTangent &&
 			bHasPrecShadowFactor == RHS.bHasPrecShadowFactor &&
-			bUsesVelocityDepth == RHS.bUsesVelocityDepth;
+			bUsesVelocityDepth == RHS.bUsesVelocityDepth &&
+			bHasSingleLayerWaterSeparatedMainLight == RHS.bHasSingleLayerWaterSeparatedMainLight;
 	}
 
 	bool operator != (const FGBufferParams& RHS) const

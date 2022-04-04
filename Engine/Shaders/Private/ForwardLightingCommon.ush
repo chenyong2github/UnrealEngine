@@ -118,7 +118,10 @@ float GetIndirectOcclusion(float2 ScreenUV, bool bHasDynamicIndirectShadowCaster
 	return IndirectOcclusion;
 }
 
-FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, float InDirectionalLightCloudShadow, inout float OutDirectionalLightShadow)
+FDeferredLightingSplit GetForwardDirectLightingSplit(
+	uint GridIndex, float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, 
+	float InDirectionalLightCloudShadow, inout float OutDirectionalLightShadow,
+	bool bSeparateMainDirLightLuminance, inout float3 SeparatedMainDirLightLuminance)
 {
 	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
@@ -211,8 +214,16 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Tran
 			NewLighting.SpecularLighting *= InDirectionalLightCloudShadow;
 		#endif
 
-			DirectLighting.DiffuseLighting += NewLighting.DiffuseLighting;
-			DirectLighting.SpecularLighting += NewLighting.SpecularLighting;
+			if (bSeparateMainDirLightLuminance)
+			{
+				SeparatedMainDirLightLuminance += NewLighting.DiffuseLighting.rgb;
+				SeparatedMainDirLightLuminance += NewLighting.SpecularLighting.rgb;
+			}
+			else
+			{
+				DirectLighting.DiffuseLighting += NewLighting.DiffuseLighting;
+				DirectLighting.SpecularLighting += NewLighting.SpecularLighting;
+			}
 		}
 	}
 
@@ -297,7 +308,12 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Tran
 
 float3 GetForwardDirectLighting(uint GridIndex, float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, float InDirectionalLightCloudShadow, inout float OutDirectionalLightShadow)
 {
-	FDeferredLightingSplit Ret = GetForwardDirectLightingSplit(GridIndex, TranslatedWorldPosition, CameraVector, GBufferData, ScreenUV, PrimitiveId, EyeIndex, Dither, InDirectionalLightCloudShadow, OutDirectionalLightShadow);
+	bool bSeparateMainDirLightLuminance = false;
+	float3 SeparatedMainDirLightLuminance = 0.0f;
+	FDeferredLightingSplit Ret = GetForwardDirectLightingSplit(
+		GridIndex, TranslatedWorldPosition, CameraVector, GBufferData, ScreenUV, PrimitiveId, EyeIndex, Dither, 
+		InDirectionalLightCloudShadow, OutDirectionalLightShadow,
+		bSeparateMainDirLightLuminance, SeparatedMainDirLightLuminance);
 
 	return Ret.DiffuseLighting.rgb + Ret.SpecularLighting.rgb;
 }

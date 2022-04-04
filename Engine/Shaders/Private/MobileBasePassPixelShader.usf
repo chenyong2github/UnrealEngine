@@ -997,6 +997,9 @@ void Main(
 
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	{
+		const bool bSeparateMainDirLightLuminance = false;
+		float3 SeparatedWaterMainDirLightLuminance = float3(0, 0, 0);
+
 		const bool CameraIsUnderWater = false;	// Fade out the material contribution over to water contribution according to material opacity.
 		const float3 SunIlluminance = ResolvedView.DirectionalLightColor.rgb * PI;			// times PI because it is divided by PI on CPU (=luminance) and we want illuminance here. 
 		const float3 WaterDiffuseIndirectIlluminance = ShadingModelContext.WaterDiffuseIndirectLuminance * PI;	// DiffuseIndirectLighting is luminance. So we need to multiply by PI to get illuminance.
@@ -1008,7 +1011,8 @@ void Main(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
 			Shadow, GBuffer.Specular, NullDistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
-			CameraIsUnderWater, ShadingModelContext.WaterVisibility, EyeIndex);
+			CameraIsUnderWater, ShadingModelContext.WaterVisibility, EyeIndex,
+			bSeparateMainDirLightLuminance, SeparatedWaterMainDirLightLuminance);
 
 		// Accumulate luminance and occlude the background according to transmittance to view and mean transmittance to lights.
 		MobileLightAccumulator_Add(MobileLightAccumulator, WaterLighting.Luminance, 0.0f, 1.0f);

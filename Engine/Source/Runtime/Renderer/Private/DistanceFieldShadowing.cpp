@@ -825,6 +825,8 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 	const bool bHFShadowSupported = SupportsHeightFieldShadows(View.GetFeatureLevel(), View.GetShaderPlatform());
 	const FScene* Scene = (const FScene*)(View.Family->Scene);
 
+	DistanceFieldShadowViewGPUData& SDFShadowViewGPUData = CachedDistanceFieldShadowViewGPUData.FindOrAdd(&View);
+
 	if (bDFShadowSupported && View.Family->EngineShowFlags.RayTracedDistanceFieldShadows)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_BeginRenderRayTracedDistanceFieldShadows);
@@ -834,50 +836,54 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 		{
 			check(!Scene->DistanceFieldSceneData.HasPendingOperations());
 
-			int32 NumPlanes = 0;
-			const FPlane* PlaneData = NULL;
-			FVector4f ShadowBoundingSphere = FVector4f::Zero();
-			FVector PrePlaneTranslation = FVector::ZeroVector;
-
-			if (bDirectionalLight)
-			{
-				NumPlanes = CascadeSettings.ShadowBoundsAccurate.Planes.Num();
-				PlaneData = CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
-			}
-			else if (IsWholeScenePointLightShadow())
-			{
-				ShadowBoundingSphere = FVector4f(FVector3f(ShadowBounds.Center + View.ViewMatrices.GetPreViewTranslation()), ShadowBounds.W);
-			}
-			else
-			{
-				NumPlanes = CasterOuterFrustum.Planes.Num();
-				PlaneData = CasterOuterFrustum.Planes.GetData();
-				PrePlaneTranslation = PreShadowTranslation;
-			}
-
-			const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * FMatrix(TranslatedWorldToClipInnerMatrix);
-
 			FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
 
-			FLightTileIntersectionParameters LightTileIntersectionParameters;
-			FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
+			if (SDFShadowViewGPUData.SDFCulledObjectBufferParameters == nullptr)
+			{
+				int32 NumPlanes = 0;
+				const FPlane* PlaneData = NULL;
+				FVector4f ShadowBoundingSphere = FVector4f::Zero();
+				FVector PrePlaneTranslation = FVector::ZeroVector;
 
-			CullDistanceFieldObjectsForLight(
-				GraphBuilder,
-				View,
-				LightSceneInfo->Proxy,
-				DFPT_SignedDistanceField,
-				WorldToShadowValue,
-				NumPlanes,
-				PlaneData,
-				PrePlaneTranslation,
-				ShadowBoundingSphere,
-				ShadowBounds.W,
-				true,
-				ObjectBufferParameters,
-				CulledObjectBufferParameters,
-				LightTileIntersectionParameters
+				if (bDirectionalLight)
+				{
+					NumPlanes = CascadeSettings.ShadowBoundsAccurate.Planes.Num();
+					PlaneData = CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
+				}
+				else if (IsWholeScenePointLightShadow())
+				{
+					ShadowBoundingSphere = FVector4f(FVector3f(ShadowBounds.Center + View.ViewMatrices.GetPreViewTranslation()), ShadowBounds.W);
+				}
+				else
+				{
+					NumPlanes = CasterOuterFrustum.Planes.Num();
+					PlaneData = CasterOuterFrustum.Planes.GetData();
+					PrePlaneTranslation = PreShadowTranslation;
+				}
+
+				const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * FMatrix(TranslatedWorldToClipInnerMatrix);
+
+
+				SDFShadowViewGPUData.SDFCulledObjectBufferParameters = GraphBuilder.AllocObject<FDistanceFieldCulledObjectBufferParameters>();
+				SDFShadowViewGPUData.SDFLightTileIntersectionParameters = GraphBuilder.AllocObject<FLightTileIntersectionParameters>();
+
+				CullDistanceFieldObjectsForLight(
+					GraphBuilder,
+					View,
+					LightSceneInfo->Proxy,
+					DFPT_SignedDistanceField,
+					WorldToShadowValue,
+					NumPlanes,
+					PlaneData,
+					PrePlaneTranslation,
+					ShadowBoundingSphere,
+					ShadowBounds.W,
+					true,
+					ObjectBufferParameters,
+					*SDFShadowViewGPUData.SDFCulledObjectBufferParameters,
+					*SDFShadowViewGPUData.SDFLightTileIntersectionParameters
 				);
+			}
 
 			{
 				const FIntPoint BufferSize = GetBufferSizeForDFShadows();
@@ -886,7 +892,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 				RayTracedShadowsTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracedShadows"));
 			}
 
-			RayTraceShadows(GraphBuilder, SceneTextures, RayTracedShadowsTexture, View, Scene->DistanceFieldSceneData, this, DFPT_SignedDistanceField, false, nullptr, ObjectBufferParameters, CulledObjectBufferParameters, LightTileIntersectionParameters);
+			RayTraceShadows(GraphBuilder, SceneTextures, RayTracedShadowsTexture, View, Scene->DistanceFieldSceneData, this, DFPT_SignedDistanceField, false, nullptr, ObjectBufferParameters, *SDFShadowViewGPUData.SDFCulledObjectBufferParameters, *SDFShadowViewGPUData.SDFLightTileIntersectionParameters);
 		}
 	}
 
@@ -901,33 +907,37 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 
 		check(!Scene->DistanceFieldSceneData.HasPendingHeightFieldOperations());
 
-		const int32 NumPlanes = CascadeSettings.ShadowBoundsAccurate.Planes.Num();
-		const FPlane* PlaneData = CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
-		FVector PrePlaneTranslation = FVector::ZeroVector;
-		const FVector4f ShadowBoundingSphere = FVector4f::Zero();
-		const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * FMatrix(TranslatedWorldToClipInnerMatrix);
-
 		FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
 
-		FLightTileIntersectionParameters LightTileIntersectionParameters;
-		FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
+		if (SDFShadowViewGPUData.HeightFieldCulledObjectBufferParameters == nullptr)
+		{
+			const int32 NumPlanes = CascadeSettings.ShadowBoundsAccurate.Planes.Num();
+			const FPlane* PlaneData = CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
+			FVector PrePlaneTranslation = FVector::ZeroVector;
+			const FVector4f ShadowBoundingSphere = FVector4f::Zero();
+			const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * FMatrix(TranslatedWorldToClipInnerMatrix);
 
-		CullDistanceFieldObjectsForLight(
-			GraphBuilder,
-			View,
-			LightSceneInfo->Proxy,
-			DFPT_HeightField,
-			WorldToShadowValue,
-			NumPlanes,
-			PlaneData,
-			PrePlaneTranslation,
-			ShadowBoundingSphere,
-			ShadowBounds.W,
-			true,
-			ObjectBufferParameters,
-			CulledObjectBufferParameters,
-			LightTileIntersectionParameters
+			SDFShadowViewGPUData.HeightFieldCulledObjectBufferParameters = GraphBuilder.AllocObject<FDistanceFieldCulledObjectBufferParameters>();
+			SDFShadowViewGPUData.HeightFieldLightTileIntersectionParameters = GraphBuilder.AllocObject<FLightTileIntersectionParameters>();
+
+			CullDistanceFieldObjectsForLight(
+				GraphBuilder,
+				View,
+				LightSceneInfo->Proxy,
+				DFPT_HeightField,
+				WorldToShadowValue,
+				NumPlanes,
+				PlaneData,
+				PrePlaneTranslation,
+				ShadowBoundingSphere,
+				ShadowBounds.W,
+				true,
+				ObjectBufferParameters,
+				*SDFShadowViewGPUData.HeightFieldCulledObjectBufferParameters,
+				*SDFShadowViewGPUData.HeightFieldLightTileIntersectionParameters
 			);
+
+		}
 
 		const bool bHasPrevOutput = !!RayTracedShadowsTexture;
 
@@ -947,7 +957,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 			RayTracedShadowsTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracedShadows"));
 		}
 
-		RayTraceShadows(GraphBuilder, SceneTextures, RayTracedShadowsTexture, View, Scene->DistanceFieldSceneData, this, DFPT_HeightField, bHasPrevOutput, PrevOutputTexture, ObjectBufferParameters, CulledObjectBufferParameters, LightTileIntersectionParameters);
+		RayTraceShadows(GraphBuilder, SceneTextures, RayTracedShadowsTexture, View, Scene->DistanceFieldSceneData, this, DFPT_HeightField, bHasPrevOutput, PrevOutputTexture, ObjectBufferParameters, *SDFShadowViewGPUData.HeightFieldCulledObjectBufferParameters, *SDFShadowViewGPUData.HeightFieldLightTileIntersectionParameters);
 	}
 }
 
@@ -962,7 +972,8 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 	FRDGTextureRef ScreenShadowMaskTexture,
 	const FViewInfo& View,
 	FIntRect ScissorRect,
-	bool bProjectingForForwardShading)
+	bool bProjectingForForwardShading,
+	bool bForceRGBModulation)
 {
 	check(ScissorRect.Area() > 0);
 
@@ -1014,7 +1025,7 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 			RDG_EVENT_NAME("Upsample"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this, &View, PixelShader, ScissorRect, bProjectingForForwardShading, PassParameters](FRHICommandList& RHICmdList)
+			[this, &View, PixelShader, ScissorRect, bProjectingForForwardShading, PassParameters, bForceRGBModulation](FRHICommandList& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -1025,7 +1036,15 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
-			GraphicsPSOInit.BlendState = GetBlendStateForProjection(bProjectingForForwardShading, false);
+			if (bForceRGBModulation)
+			{
+				// This has the shadow contribution modulate all the channels, e.g. used for water rendering to apply distance field shadow on the main light RGB luminance for the updated depth buffer with water in it.
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One>::GetRHI();;
+			}
+			else
+			{
+				GraphicsPSOInit.BlendState = GetBlendStateForProjection(bProjectingForForwardShading, false);
+			}
 
 			TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;

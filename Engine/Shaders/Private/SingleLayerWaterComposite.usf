@@ -29,7 +29,10 @@ SamplerState ScreenSpaceReflectionsSampler;
 Texture2D SceneNoWaterDepthTexture;
 SamplerState SceneNoWaterDepthSampler;
 
+Texture2D<float4> SeparatedMainDirLightTexture;
+
 float4 SceneNoWaterMinMaxUV;
+float UseSeparatedMainDirLightTexture;
 
 struct SingleLayerWaterCompositeOutput
 {
@@ -39,6 +42,8 @@ struct SingleLayerWaterCompositeOutput
 
 SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float2 ScreenPosition, float4 SvPosition)
 {
+	const uint2 PixelPos = uint2(SvPosition.xy);
+
 	// No AO or DFAO
 
 	const float3 OneThird3 = float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f);
@@ -195,6 +200,12 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 			}
 
 			Output.LuminanceTransmittance = float4(Reflection, dot(OneThird3, TransmittanceToScene));
+
+			if (UseSeparatedMainDirLightTexture)
+			{
+				// Also compose the separated main direction light luminance (separated to be able to combine it with DistanceFieldShadow)
+				Output.LuminanceTransmittance.rgb += SeparatedMainDirLightTexture[PixelPos].rgb;
+			}
 		}
 		else
 		{

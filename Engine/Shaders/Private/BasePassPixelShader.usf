@@ -183,6 +183,10 @@ struct FShadingOcclusion
 #include "/Engine/Private/Strata/StrataForwardLighting.ush"
 #endif
 
+// Separate main directional light from scene color buffer if water needs to receive distance field shadows.
+// Sperated dir light should match with FShaderCompileUtilities::FetchGBufferParamsRuntime.
+#define SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT  (SINGLE_LAYER_WATER_DF_SHADOW_ENABLED)
+
 #if !FORWARD_SHADING
 
 void GetVolumeLightingNonDirectional(float4 AmbientLightingVector, float3 DiffuseColor, inout float3 InterpolatedLighting, out float4 VolumeLighting)
@@ -1350,6 +1354,9 @@ void FPixelShaderInOut_MainPS(
 	float3 DiffuseIndirectLighting = 0;
 	float3 SubsurfaceIndirectLighting = 0;
 
+	bool bSeparateWaterMainDirLightLuminance = SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT > 0 && View.SeparateWaterMainDirLightLuminance > 0.0f; 
+	float3 SeparatedWaterMainDirLightLuminance = float3(0, 0, 0); 
+
 #if !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
 
 	#if !MATERIAL_SHADINGMODEL_UNLIT
@@ -1433,7 +1440,10 @@ void FPixelShaderInOut_MainPS(
 				#endif
 
 				#if FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-					FDeferredLightingSplit ForwardDirectLighting = GetForwardDirectLightingSplit(GridIndex, MaterialParameters.WorldPosition_CamRelative, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, DirectionalLightCloudShadow, DirectionalLightShadow);
+					FDeferredLightingSplit ForwardDirectLighting = GetForwardDirectLightingSplit(
+						GridIndex, MaterialParameters.WorldPosition_CamRelative, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, 
+						DirectionalLightCloudShadow, DirectionalLightShadow,
+						bSeparateWaterMainDirLightLuminance, SeparatedWaterMainDirLightLuminance);
 					
 					#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 						DiffuseColor += ForwardDirectLighting.DiffuseLighting.rgb;
@@ -1631,7 +1641,8 @@ void FPixelShaderInOut_MainPS(
 			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler, // Scene depth texture
 			Specular, NullDistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
-			CameraIsUnderWater, WaterVisibility, EyeIndex);
+			CameraIsUnderWater, WaterVisibility, EyeIndex,
+			bSeparateWaterMainDirLightLuminance, SeparatedWaterMainDirLightLuminance);
 
 		// Add water luminance contribution
 		Color += WaterLighting.Luminance;
@@ -1647,7 +1658,8 @@ void FPixelShaderInOut_MainPS(
 			OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.zw,
 			Specular, OpaqueBasePass.DistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
-			CameraIsUnderWater, WaterVisibility, EyeIndex).Luminance;
+			CameraIsUnderWater, WaterVisibility, EyeIndex,
+			bSeparateWaterMainDirLightLuminance, SeparatedWaterMainDirLightLuminance).Luminance;
 #endif
 	}
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
@@ -1954,6 +1966,15 @@ void FPixelShaderInOut_MainPS(
 				Out.MRT[GBUFFER_HAS_VELOCITY ? 5 : 4] = 0;
 				Out.MRT[GBUFFER_HAS_VELOCITY ? 6 : 5] = 0;
 			}
+
+	#if SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT
+			if (GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
+			{
+				// In deferred, we always output the directional light in a separated buffer.
+				// This is used to apply distance field shadows or light function to the main directional light.
+				Out.MRT[GBUFFER_HAS_VELOCITY ? 7 : 6] = float4(SeparatedWaterMainDirLightLuminance * View.PreExposure, 1.0f);
+			}
+	#endif
 		}
 		#else
 		{

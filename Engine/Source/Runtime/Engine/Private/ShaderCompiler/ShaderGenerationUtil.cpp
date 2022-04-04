@@ -158,6 +158,8 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderMaterialPropertyDefin
 	FETCH_COMPILE_BOOL(MATERIAL_SHADINGMODEL_SINGLELAYERWATER);
 	FETCH_COMPILE_BOOL(MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT);
 
+	FETCH_COMPILE_BOOL(SINGLE_LAYER_WATER_DF_SHADOW_ENABLED);
+
 	FETCH_COMPILE_BOOL(MATERIAL_FULLY_ROUGH);
 
 	FETCH_COMPILE_BOOL(USES_EMISSIVE_COLOR);
@@ -464,6 +466,8 @@ static FString GetSlotTextName(EGBufferSlot Slot)
 		return TEXT("SubsurfaceProfileX");
 	case GBS_IrisNormal:
 		return TEXT("IrisNormal");
+	case GBS_SeparatedMainDirLight:
+		return TEXT("SeparatedMainDirLight");
 	default:
 		break;
 	};
@@ -1675,6 +1679,7 @@ static void SetSlotsForShadingModelType(bool Slots[], EMaterialShadingModel Shad
 		break;
 	case MSM_SingleLayerWater:
 		SetSharedGBufferSlots(Slots);
+		Slots[GBS_SeparatedMainDirLight] = true;
 		break;
 	case MSM_ThinTranslucent:
 		// thin translucent doesn't write to the GBuffer
@@ -1786,6 +1791,10 @@ static void DetermineUsedMaterialSlots(
 	{
 		// single layer water uses standard slots
 		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
+		if (Mat.SINGLE_LAYER_WATER_DF_SHADOW_ENABLED)
+		{
+			Slots[GBS_SeparatedMainDirLight] = true;
+		}
 	}
 
 	// doesn't write to GBuffer
@@ -2127,6 +2136,7 @@ FGBufferParams FShaderCompileUtilities::FetchGBufferParamsPipeline(EShaderPlatfo
 
 FGBufferParams FShaderCompileUtilities::FetchGBufferParamsRuntime(EShaderPlatform Platform)
 {
+	// This code should match TBasePassPS
 
 	FGBufferParams Ret = {};
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
@@ -2139,6 +2149,9 @@ FGBufferParams FShaderCompileUtilities::FetchGBufferParamsRuntime(EShaderPlatfor
 
 	static const auto CVarFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
 	Ret.LegacyFormatIndex = CVarFormat->GetValueOnAnyThread();
+
+	// This should match with SINGLE_LAYER_WATER_SEPARATED_DIR_LIGHT
+	Ret.bHasSingleLayerWaterSeparatedMainLight = IsWaterDistanceFieldShadowEnabled(Platform);
 
 	return Ret;
 }

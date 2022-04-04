@@ -64,6 +64,17 @@ static TAutoConsoleVariable<int32> CVarWaterSingleLayerLumenReflections(
 	TEXT("Enable Lumen reflections for the single water rendering system."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+static TAutoConsoleVariable<int32> CVarWaterSingleLayerShadersSupportDistanceFieldShadow(
+	TEXT("r.Water.SingleLayer.ShadersSupportDistanceFieldShadow"),
+	1,
+	TEXT("Whether or not the single layer water material shaders are compiled with support for distance field shadow, i.e. output main directional light luminance in a separate render target. This is preconditioned on using deferred shading and having distance field support enabled in the project."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarWaterSingleLayerDistanceFieldShadow(
+	TEXT("r.Water.SingleLayer.DistanceFieldShadow"), 1,
+	TEXT("When using deferred, distance field shadow tracing is supported on single layer water. This cvar can be used to toggle it on/off at runtime."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
 static TAutoConsoleVariable<int32> CVarWaterSingleLayerRTR(
 	TEXT("r.Water.SingleLayer.RTR"), 1,
 	TEXT("Enable RTR for the single water renderring system."),
@@ -122,6 +133,11 @@ bool UseSingleLayerWaterIndirectDraw(EShaderPlatform ShaderPlatform)
 		&& FDataDrivenShaderPlatformInfo::GetSupportsWaterIndirectDraw(ShaderPlatform);
 }
 
+bool IsWaterDistanceFieldShadowEnabled_Runtime(const FStaticShaderPlatform Platform)
+{
+	return IsWaterDistanceFieldShadowEnabled(Platform) && CVarWaterSingleLayerDistanceFieldShadow.GetValueOnRenderThread() > 0;
+}
+
 BEGIN_SHADER_PARAMETER_STRUCT(FSingleLayerWaterCommonShaderParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenSpaceReflectionsTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ScreenSpaceReflectionsSampler)
@@ -129,7 +145,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSingleLayerWaterCommonShaderParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneNoWaterDepthTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneNoWaterDepthSampler)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparatedMainDirLightTexture)
 	SHADER_PARAMETER(FVector4f, SceneNoWaterMinMaxUV)
+	SHADER_PARAMETER(float, UseSeparatedMainDirLightTexture)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)	// Water scene texture
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
@@ -280,6 +298,9 @@ static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 	const FRDGTextureDesc DepthDesc(FRDGTextureDesc::Create2D(RefractionResolution, ViewFamily.EngineShowFlags.SingleLayerWaterRefractionFullPrecision ? PF_R32_FLOAT : PF_R16F, SceneDepthDesc.ClearValue, TexCreate_ShaderResource | TexCreate_RenderTargetable));
 	FRDGTextureRef SceneDepthWithoutSingleLayerWaterTexture = GraphBuilder.CreateTexture(DepthDesc, TEXT("SLW.SceneDepthWithout"));
 
+	const FRDGTextureDesc SeparatedMainDirLightDesc(FRDGTextureDesc::Create2D(SceneColorDesc.Extent, PF_FloatR11G11B10, SceneDepthDesc.ClearValue, TexCreate_ShaderResource | TexCreate_RenderTargetable));
+	FRDGTextureRef SeparatedMainDirLightTexture = GraphBuilder.CreateTexture(SeparatedMainDirLightDesc, TEXT("SLW.SeparatedMainDirLight"));
+
 	FSceneWithoutWaterTextures Textures;
 	Textures.RefractionDownsampleFactor = float(RefractionDownsampleFactor);
 	Textures.Views.SetNum(Views.Num());
@@ -348,6 +369,7 @@ static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 	check(SceneDepthWithoutSingleLayerWaterTexture);
 	Textures.ColorTexture = SceneColorWithoutSingleLayerWaterTexture;
 	Textures.DepthTexture = SceneDepthWithoutSingleLayerWaterTexture;
+	Textures.SeparatedMainDirLightTexture = SeparatedMainDirLightTexture;
 	return MoveTemp(Textures);
 }
 
@@ -385,18 +407,21 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
 		FRDGTextureRef ReflectionsColor = nullptr;
-		FRDGTextureRef BlackDummy = SystemTextures.Black;
+		FRDGTextureRef BlackDummyTexture = SystemTextures.Black;
+		FRDGTextureRef WhiteDummyTexture = SystemTextures.White;
 		const FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
 		auto SetCommonParameters = [&](FSingleLayerWaterCommonShaderParameters& Parameters)
 		{
-			Parameters.ScreenSpaceReflectionsTexture = ReflectionsColor ? ReflectionsColor : BlackDummy;
+			Parameters.ScreenSpaceReflectionsTexture = ReflectionsColor ? ReflectionsColor : BlackDummyTexture;
 			Parameters.ScreenSpaceReflectionsSampler = TStaticSamplerState<SF_Point>::GetRHI();
 			Parameters.PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 			Parameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			Parameters.SceneNoWaterDepthTexture = SceneWithoutWaterTextures.DepthTexture ? SceneWithoutWaterTextures.DepthTexture : BlackDummy;
+			Parameters.SceneNoWaterDepthTexture = SceneWithoutWaterTextures.DepthTexture ? SceneWithoutWaterTextures.DepthTexture : BlackDummyTexture;
 			Parameters.SceneNoWaterDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
 			Parameters.SceneNoWaterMinMaxUV = SceneWithoutWaterTextures.Views[ViewIndex].MinMaxUV;
+			Parameters.SeparatedMainDirLightTexture = BlackDummyTexture;
+			Parameters.UseSeparatedMainDirLightTexture = 0.0f;
 			Parameters.SceneTextures = SceneTextureParameters;
 			Parameters.ViewUniformBuffer = GetShaderBinding(View.ViewUniformBuffer);
 			Parameters.ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
@@ -445,6 +470,48 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 		}
 
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+
+		// Try to find the ProjectedShadowInfo corresponding to ray trace shadow info for the main directional light.
+		const FLightSceneProxy* SelectedForwardDirectionalLightProxy = View.ForwardLightingResources.SelectedForwardDirectionalLightProxy;
+		FLightSceneInfo* LightSceneInfo = SelectedForwardDirectionalLightProxy->GetLightSceneInfo();
+		FVisibleLightInfo& VisibleLightViewInfo = VisibleLightInfos[LightSceneInfo->Id];
+		FProjectedShadowInfo* DistanceFieldShadowInfo = nullptr;
+		for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightViewInfo.ShadowsToProject.Num(); ShadowIndex++)
+		{
+			FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightViewInfo.ShadowsToProject[ShadowIndex];
+
+			if (ProjectedShadowInfo->bRayTracedDistanceField)
+			{
+				DistanceFieldShadowInfo = ProjectedShadowInfo;
+			}
+		}
+
+		// If DFShadow data has been found, then combine it with the separate main directional light luminance texture.
+		FRDGTextureRef ScreenShadowMaskTexture = SystemTextures.White;
+		if (DistanceFieldShadowInfo)
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "SLW::DistanceFieldShadow");
+
+			FIntRect ScissorRect;
+			if (!SelectedForwardDirectionalLightProxy->GetScissorRect(ScissorRect, View, View.ViewRect))
+			{
+				ScissorRect = View.ViewRect;
+			}
+
+			// Reset the cached texture to create a new one mapping to he water depth buffer
+			DistanceFieldShadowInfo->ResetRayTracedDistanceFieldShadow();
+
+			const bool bProjectingForForwardShading = false;
+			const bool bForceRGBModulation = true;
+			DistanceFieldShadowInfo->RenderRayTracedDistanceFieldProjection(
+				GraphBuilder,
+				SceneTextures,
+				SceneWithoutWaterTextures.SeparatedMainDirLightTexture,
+				View,
+				ScissorRect,
+				bProjectingForForwardShading,
+				bForceRGBModulation);
+		}
 
 		if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen && CVarWaterSingleLayerLumenReflections.GetValueOnRenderThread() != 0)
 		{
@@ -605,6 +672,11 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			PassParameters->VS.TileListData = TiledScreenSpaceReflection.TileListStructureBufferSRV;
 
 			SetCommonParameters(PassParameters->PS.CommonParameters);
+			if (IsWaterDistanceFieldShadowEnabled_Runtime(Scene->GetShaderPlatform()))
+			{
+				PassParameters->PS.CommonParameters.SeparatedMainDirLightTexture = SceneWithoutWaterTextures.SeparatedMainDirLightTexture;
+				PassParameters->PS.CommonParameters.UseSeparatedMainDirLightTexture = 1.0f;
+			}
 
 			PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection.DrawIndirectParametersBuffer;
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
@@ -726,9 +798,14 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
-	FRenderTargetBindingSlots RenderTargets;
-	SceneTextures.GetGBufferRenderTargets(ERenderTargetLoadAction::ELoad, RenderTargets);
-	RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+	TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets> BasePassTextures;
+	uint32 BasePassTextureCount = SceneTextures.GetGBufferRenderTargets(BasePassTextures);
+	if(IsWaterDistanceFieldShadowEnabled_Runtime(Scene->GetShaderPlatform()))
+	{
+		const bool bNeverClear = true;
+		BasePassTextures[BasePassTextureCount++] = FTextureRenderTargetBinding(SceneWithoutWaterTextures.SeparatedMainDirLightTexture, bNeverClear);
+	}
+	TArrayView<FTextureRenderTargetBinding> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
 
 	FRDGTextureRef WhiteForwardScreenSpaceShadowMask = SystemTextures.White;
 
@@ -750,7 +827,8 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 		PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, {}, {}, &SceneWithoutWaterTextures);
 		PassParameters->VirtualShadowMapSamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
-		PassParameters->RenderTargets = RenderTargets;
+		PassParameters->RenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ELoad, BasePassTexturesView);
+		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
 		View.ParallelMeshDrawCommandPasses[EMeshPass::SingleLayerWaterPass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
 

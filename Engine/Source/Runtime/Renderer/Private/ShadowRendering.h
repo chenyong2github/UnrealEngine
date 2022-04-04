@@ -40,6 +40,8 @@ class FSceneRenderer;
 class FViewInfo;
 class FVirtualShadowMapArrayCacheManager;
 class FVirtualShadowMapCacheEntry;
+class FLightTileIntersectionParameters;
+class FDistanceFieldCulledObjectBufferParameters;
 
 /** Renders a cone with a spherical cap, used for rendering spot lights in deferred passes. */
 extern void DrawStencilingCone(const FMatrix& ConeToWorld, float ConeAngle, float SphereRadius, const FVector& PreViewTranslation);
@@ -577,7 +579,8 @@ public:
 		FRDGTextureRef ScreenShadowMaskTexture,
 		const FViewInfo& View,
 		FIntRect ScissorRect,
-		bool bProjectingForForwardShading);
+		bool bProjectingForForwardShading,
+		bool bForceRGBModulation = false);
 
 	/** Render one pass point light shadow projections. */
 	void RenderOnePassPointLightProjection(
@@ -726,6 +729,11 @@ public:
 		return ShadowDepthPass.BuildRenderingCommands(GraphBuilder, GPUScene, InstanceCullingDrawParams);
 	}
 
+	void ResetRayTracedDistanceFieldShadow()
+	{
+		RayTracedShadowsTexture = nullptr;
+	}
+
 private:
 	// 0 if Setup...() wasn't called yet
 	FLightSceneInfo* LightSceneInfo;
@@ -778,6 +786,16 @@ private:
 
 	/** Ray traced DF shadow intermediate output. Populated by BeginRenderRayTracedDistanceFieldProjection and consumed by RenderRayTracedDistanceFieldProjection. */
 	FRDGTextureRef RayTracedShadowsTexture;
+
+	/**  Cached light tile intersection parameters in case we needed to trace a distance field multiple times for a view but for different depth buffer*/
+	struct DistanceFieldShadowViewGPUData 
+	{
+		FLightTileIntersectionParameters*			SDFLightTileIntersectionParameters = nullptr;
+		FDistanceFieldCulledObjectBufferParameters*	SDFCulledObjectBufferParameters = nullptr;
+		FLightTileIntersectionParameters*			HeightFieldLightTileIntersectionParameters = nullptr;
+		FDistanceFieldCulledObjectBufferParameters*	HeightFieldCulledObjectBufferParameters = nullptr;
+	};
+	TMap<const FViewInfo*, DistanceFieldShadowViewGPUData>	CachedDistanceFieldShadowViewGPUData;
 
 	void CopyCachedShadowMap(
 		FRDGBuilder& GraphBuilder,

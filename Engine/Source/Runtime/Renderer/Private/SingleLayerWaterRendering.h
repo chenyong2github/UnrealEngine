@@ -16,6 +16,7 @@ struct FSceneWithoutWaterTextures
 		FVector4f MinMaxUV;
 	};
 
+	FRDGTextureRef SeparatedMainDirLightTexture = nullptr;
 	FRDGTextureRef ColorTexture = nullptr;
 	FRDGTextureRef DepthTexture = nullptr;
 	TArray<FView> Views;
