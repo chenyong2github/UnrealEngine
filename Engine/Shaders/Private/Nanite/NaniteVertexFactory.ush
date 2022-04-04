@@ -157,6 +157,11 @@ void SetVertexParameterInstanceData(inout FMaterialVertexParameters VertexParame
 	// X = per-instance random, Y = per-instance fade out amount, Z = hide/show flag, W = dither fade cutoff
 	VertexParameters.PerInstanceParams		= float4(InstanceData.RandomID, 0.0f, 0.0f, 0.0f);
 #endif
+
+	VertexParameters.SceneData.PrimitiveId 	= InstanceData.PrimitiveId;
+	VertexParameters.SceneData.InstanceId 	= InstanceData.RelativeId;
+	VertexParameters.SceneData.InstanceData	= InstanceData;
+	VertexParameters.SceneData.Primitive	= GetPrimitiveData(InstanceData.PrimitiveId);
 }
 
 void SetVertexParameterAttributeData(inout FMaterialVertexParameters VertexParameters, FNaniteRawAttributeData RawAttributeData, float4x4 LocalToTranslatedWorld, float3x3 LocalToWorld, float3 PointLocalNoWPO)
