@@ -25,82 +25,42 @@ FName USkinnedMeshWriteDataInterface::GetCategory() const
 
 TArray<FOptimusCDIPinDefinition> USkinnedMeshWriteDataInterface::GetPinDefinitions() const
 {
-	using namespace Optimus::DomainName;
-	
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({ "Position", "WritePosition", Vertex, "ReadNumVertices" });
-	Defs.Add({ "TangentX", "WriteTangentX", Vertex, "ReadNumVertices" });
-	Defs.Add({ "TangentZ", "WriteTangentZ", Vertex, "ReadNumVertices" });
-	Defs.Add({ "Color", "WriteColor", Vertex, "ReadNumVertices" });
-
+	Defs.Add({ "Position", "WritePosition", Optimus::DomainName::Vertex, "ReadNumVertices" });
+	Defs.Add({ "TangentX", "WriteTangentX", Optimus::DomainName::Vertex, "ReadNumVertices" });
+	Defs.Add({ "TangentZ", "WriteTangentZ", Optimus::DomainName::Vertex, "ReadNumVertices" });
+	Defs.Add({ "Color", "WriteColor", Optimus::DomainName::Vertex, "ReadNumVertices" });
 	return Defs;
 }
 
 void USkinnedMeshWriteDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadNumVertices");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(ReturnParam);
-		OutFunctions.Add(Fn);
-	}
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadNumVertices"))
+		.AddReturnType(EShaderFundamentalType::Uint);
 }
 
 void USkinnedMeshWriteDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
-	// Functions must match those exposed in data interface shader code.
-	// todo[CF]: Make these easier to write. Maybe even get from shader code reflection?
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("WritePosition");
-		Fn.bHasReturnType = false;
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		FShaderParamTypeDefinition Param1 = {};
-		Param1.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3);
-		Fn.ParamTypes.Add(Param1);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("WriteTangentX");
-		Fn.bHasReturnType = false;
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		FShaderParamTypeDefinition Param1 = {};
-		Param1.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 4);
-		Fn.ParamTypes.Add(Param1);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("WriteTangentZ");
-		Fn.bHasReturnType = false;
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		FShaderParamTypeDefinition Param1 = {};
-		Param1.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 4);
-		Fn.ParamTypes.Add(Param1);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("WriteColor");
-		Fn.bHasReturnType = false;
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		FShaderParamTypeDefinition Param1 = {};
-		Param1.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 4);
-		Fn.ParamTypes.Add(Param1);
-		OutFunctions.Add(Fn);
-	}
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WritePosition"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float, 3);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteTangentX"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float, 4);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteTangentZ"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float, 4);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteColor"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float, 4);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSkinedMeshWriteDataInterfaceParameters, )

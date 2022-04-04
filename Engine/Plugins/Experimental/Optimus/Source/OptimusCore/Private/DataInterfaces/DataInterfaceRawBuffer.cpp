@@ -79,71 +79,38 @@ TArray<FOptimusCDIPinDefinition> URawBufferDataInterface::GetPinDefinitions() co
 
 void URawBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadNumValues");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(ReturnParam);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadValue");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = ValueType;
-		Fn.ParamTypes.Add(ReturnParam);
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		OutFunctions.Add(Fn);
-	}
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadNumValues"))
+		.AddReturnType(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadValue"))
+		.AddReturnType(ValueType)
+		.AddParam(EShaderFundamentalType::Uint);
+
 	if (SupportsAtomics())
 	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadAtomicAdd");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = ValueType;
-		Fn.ParamTypes.Add(ReturnParam);
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		FShaderParamTypeDefinition Param1 = {};
-		Param1.ValueType = ValueType;
-		Fn.ParamTypes.Add(Param1);
-		OutFunctions.Add(Fn);
+		OutFunctions.AddDefaulted_GetRef()
+			.SetName(TEXT("WriteAtomicAdd"))
+			.AddReturnType(ValueType)
+			.AddParam(EShaderFundamentalType::Uint)
+			.AddParam(ValueType);
 	}
 }
 
 void URawBufferDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("WriteValue");
-		Fn.bHasReturnType = false;
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		FShaderParamTypeDefinition Param1 = {};
-		Param1.ValueType = ValueType;
-		Fn.ParamTypes.Add(Param1);
-		OutFunctions.Add(Fn);
-	}
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteValue"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(ValueType);
+
 	if (SupportsAtomics())
 	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("WriteAtomicAdd");
-		Fn.bHasReturnType = false;
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		FShaderParamTypeDefinition Param1 = {};
-		Param1.ValueType = ValueType;
-		Fn.ParamTypes.Add(Param1);
-		OutFunctions.Add(Fn);
+		OutFunctions.AddDefaulted_GetRef()
+			.SetName(TEXT("WriteAtomicAdd"))
+			.AddParam(EShaderFundamentalType::Uint)
+			.AddParam(ValueType);
 	}
 }
 

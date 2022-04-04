@@ -25,25 +25,16 @@ FName USkinnedMeshExecDataInterface::GetCategory() const
 
 TArray<FOptimusCDIPinDefinition> USkinnedMeshExecDataInterface::GetPinDefinitions() const
 {
-	using namespace Optimus::DomainName;
-	
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({ "NumThreads", "ReadNumThreads" });
-
 	return Defs;
 }
 
 void USkinnedMeshExecDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadNumThreads");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Int, 3);
-		Fn.ParamTypes.Add(ReturnParam);
-		OutFunctions.Add(Fn);
-	}
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadNumThreads"))
+		.AddReturnType(EShaderFundamentalType::Int, 3);
 }
 
 

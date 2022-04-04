@@ -542,3 +542,73 @@ void FShaderParamTypeDefinition::ResetTypeDeclaration(
 
 	TypeDeclaration = MoveTemp(TypeDecl);
 }
+
+
+FShaderFunctionDefinition& FShaderFunctionDefinition::SetName(FString InName)
+{
+	Name = InName;
+	return *this;
+}
+
+FShaderFunctionDefinition& FShaderFunctionDefinition::AddParam(FShaderValueTypeHandle InValueType)
+{
+	FShaderParamTypeDefinition Def;
+	Def.ValueType = InValueType;
+	ParamTypes.Add(Def);
+	return *this;
+}
+
+FShaderFunctionDefinition& FShaderFunctionDefinition::AddParam(EShaderFundamentalType InType, int32 InRowCount, int32 InColumnCount)
+{
+	FShaderParamTypeDefinition Def;
+	
+	if (InRowCount > 0 && InColumnCount > 0)
+	{
+		Def.ValueType = FShaderValueType::Get(InType, InRowCount, InColumnCount);
+	}
+	else if (InRowCount > 0)
+	{
+		Def.ValueType = FShaderValueType::Get(InType, InRowCount);
+	}
+	else
+	{
+		Def.ValueType = FShaderValueType::Get(InType);
+	}
+
+	ParamTypes.Add(Def);
+	return *this;
+}
+
+FShaderFunctionDefinition& FShaderFunctionDefinition::AddReturnType(FShaderValueTypeHandle InValueType)
+{
+	// Only one return type allowed.
+	ensure(!bHasReturnType);
+	bHasReturnType = true;
+
+	// Add as a param.
+	AddParam(InValueType);
+
+	// Return type is expected to be the first param.
+	if (ParamTypes.Num() > 1)
+	{
+		ParamTypes.Swap(0, ParamTypes.Num() - 1);
+	}
+	return *this;
+}
+
+FShaderFunctionDefinition& FShaderFunctionDefinition::AddReturnType(EShaderFundamentalType InType, int32 InRowCount, int32 InColumnCount)
+{
+	// Only one return type allowed.
+	ensure(!bHasReturnType);
+	bHasReturnType = true;
+
+	// Add as a param.
+	AddParam(InType, InRowCount, InColumnCount);
+
+	// Return type is expected to be the first param.
+	if (ParamTypes.Num() > 1)
+	{
+		ParamTypes.Swap(0, ParamTypes.Num() - 1);
+	}
+	return *this;
+}

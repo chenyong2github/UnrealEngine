@@ -67,15 +67,12 @@ void UGraphDataInterface::Init(TArray<FGraphVariableDescription> const& InVariab
 
 void UGraphDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
+	OutFunctions.Reserve(OutFunctions.Num() + Variables.Num());
 	for (FGraphVariableDescription const& Variable : Variables)
 	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = FString::Printf(TEXT("Read%s"), *Variable.Name);
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = Variable.ValueType;
-		Fn.ParamTypes.Add(ReturnParam);
-		OutFunctions.Add(Fn);
+		OutFunctions.AddDefaulted_GetRef()
+			.SetName(FString::Printf(TEXT("Read%s"), *Variable.Name))
+			.AddReturnType(Variable.ValueType);
 	}
 }
 

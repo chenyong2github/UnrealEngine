@@ -321,7 +321,7 @@ public:
 
 /* Describes a shader function signature. */
 USTRUCT()
-struct FShaderFunctionDefinition
+struct COMPUTEFRAMEWORK_API FShaderFunctionDefinition
 {
 	GENERATED_BODY()
 
@@ -337,4 +337,11 @@ public:
 	/** If set to true then the first element of ParamTypes is the return type. Otherwise return type is void. */
 	UPROPERTY()
 	bool bHasReturnType = false;
+
+public:
+	FShaderFunctionDefinition& SetName(FString InName);
+	FShaderFunctionDefinition& AddParam(FShaderValueTypeHandle InValueType);
+	FShaderFunctionDefinition& AddParam(EShaderFundamentalType InType, int32 InRowCount = 0, int32 InColumnCount = 0);
+	FShaderFunctionDefinition& AddReturnType(FShaderValueTypeHandle InValueType);
+	FShaderFunctionDefinition& AddReturnType(EShaderFundamentalType InType, int32 InRowCount = 0, int32 InColumnCount = 0);
 };

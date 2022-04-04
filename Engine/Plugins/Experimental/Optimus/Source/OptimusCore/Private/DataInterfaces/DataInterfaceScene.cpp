@@ -26,37 +26,17 @@ TArray<FOptimusCDIPinDefinition> USceneDataInterface::GetPinDefinitions() const
 
 void USceneDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
-	// Functions must match those exposed in data interface shader code.
-	// todo[CF]: Make these easier to write. Maybe even get from shader code reflection?
-	// todo[CF]: Expose other general scene information here.
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadGameTime");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
-		Fn.ParamTypes.Add(ReturnParam);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadGameTimeDelta");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
-		Fn.ParamTypes.Add(ReturnParam);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadFrameNumber");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(ReturnParam);
-		OutFunctions.Add(Fn);
-	}
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadGameTime"))
+		.AddReturnType(EShaderFundamentalType::Float);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadGameTimeDelta"))
+		.AddReturnType(EShaderFundamentalType::Float);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadFrameNumber"))
+		.AddReturnType(EShaderFundamentalType::Uint);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSceneDataInterfaceParameters, )

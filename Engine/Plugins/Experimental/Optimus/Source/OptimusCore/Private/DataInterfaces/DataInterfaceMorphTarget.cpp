@@ -20,52 +20,26 @@ FString UMorphTargetDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> UMorphTargetDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
-
-	using namespace Optimus::DomainName;
-
-	Defs.Add({ "DeltaPosition", "ReadDeltaPosition", Vertex, "ReadNumVertices" });
-	Defs.Add({ "DeltaNormal", "ReadDeltaNormal", Vertex, "ReadNumVertices" });
-
+	Defs.Add({ "DeltaPosition", "ReadDeltaPosition", Optimus::DomainName::Vertex, "ReadNumVertices" });
+	Defs.Add({ "DeltaNormal", "ReadDeltaNormal", Optimus::DomainName::Vertex, "ReadNumVertices" });
 	return Defs;
 }
 
 void UMorphTargetDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
-	// Functions must match those exposed in data interface shader code.
-	// todo[CF]: Make these easier to write. Maybe even get from shader code reflection?
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadNumVertices");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(ReturnParam);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadDeltaPosition");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3);
-		Fn.ParamTypes.Add(ReturnParam);
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadDeltaNormal");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3);
-		Fn.ParamTypes.Add(ReturnParam);
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		OutFunctions.Add(Fn);
-	}
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadNumVertices"))
+		.AddReturnType(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadDeltaPosition"))
+		.AddReturnType(EShaderFundamentalType::Float, 3)
+		.AddParam(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadDeltaNormal"))
+		.AddReturnType(EShaderFundamentalType::Float, 3)
+		.AddParam(EShaderFundamentalType::Uint);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FMorphTargetDataInterfaceParameters, )

@@ -20,88 +20,43 @@ FString UClothDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> UClothDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
-
-	using namespace Optimus::DomainName;
-
 	Defs.Add({ "ClothToLocal", "ReadClothToLocal" });
-	Defs.Add({ "ClothWeight", "ReadClothWeight", Vertex, "ReadNumVertices" });
-	Defs.Add({ "ClothPosition", "ReadClothPosition", Vertex, "ReadNumVertices" });
-	Defs.Add({ "ClothTangentX", "ReadClothTangentX", Vertex, "ReadNumVertices" });
-	Defs.Add({ "ClothTangentZ", "ReadClothTangentZ", Vertex, "ReadNumVertices" });
-
+	Defs.Add({ "ClothWeight", "ReadClothWeight", Optimus::DomainName::Vertex, "ReadNumVertices" });
+	Defs.Add({ "ClothPosition", "ReadClothPosition", Optimus::DomainName::Vertex, "ReadNumVertices" });
+	Defs.Add({ "ClothTangentX", "ReadClothTangentX", Optimus::DomainName::Vertex, "ReadNumVertices" });
+	Defs.Add({ "ClothTangentZ", "ReadClothTangentZ", Optimus::DomainName::Vertex, "ReadNumVertices" });
 	return Defs;
 }
 
 void UClothDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
-	// Functions must match those exposed in data interface shader code.
-	// todo[CF]: Make these easier to write. Maybe even get from shader code reflection?
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadNumVertices");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(ReturnParam);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadClothToLocal");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 4, 4);
-		Fn.ParamTypes.Add(ReturnParam);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadClothWeight");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
-		Fn.ParamTypes.Add(ReturnParam);
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadClothPosition");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3);
-		Fn.ParamTypes.Add(ReturnParam);
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadClothTangentX");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3);
-		Fn.ParamTypes.Add(ReturnParam);
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadClothTangentZ");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3);
-		Fn.ParamTypes.Add(ReturnParam);
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		OutFunctions.Add(Fn);
-	}
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadNumVertices"))
+		.AddReturnType(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadClothToLocal"))
+		.AddReturnType(EShaderFundamentalType::Float, 4, 4);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadClothWeight"))
+		.AddReturnType(EShaderFundamentalType::Float)
+		.AddParam(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadClothPosition"))
+		.AddReturnType(EShaderFundamentalType::Float, 3)
+		.AddParam(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadClothTangentX"))
+		.AddReturnType(EShaderFundamentalType::Float, 3)
+		.AddParam(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadClothTangentZ"))
+		.AddReturnType(EShaderFundamentalType::Float, 3)
+		.AddParam(EShaderFundamentalType::Uint);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FClothDataInterfaceParameters, )
