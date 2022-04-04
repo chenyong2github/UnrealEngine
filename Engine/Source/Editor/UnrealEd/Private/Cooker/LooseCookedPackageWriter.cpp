@@ -26,6 +26,7 @@
 #include "Serialization/ArchiveStackTrace.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/LargeMemoryWriter.h"
+#include "Tasks/Task.h"
 #include "UObject/Package.h"
 #include "PackageStoreOptimizer.h"
 
@@ -53,20 +54,18 @@ void FLooseCookedPackageWriter::BeginPackage(const FBeginPackageInfo& Info)
 	PackageStoreManifest.BeginPackage(Info.PackageName);
 }
 
-TFuture<FMD5Hash> FLooseCookedPackageWriter::CommitPackageInternal(FPackageWriterRecords::FPackage&& BaseRecord,
+void FLooseCookedPackageWriter::CommitPackageInternal(FPackageWriterRecords::FPackage&& BaseRecord,
 	const FCommitPackageInfo& Info)
 {
 	FRecord& Record = static_cast<FRecord&>(BaseRecord);
-	TFuture<FMD5Hash> CookedHash;
 	if (Info.bSucceeded)
 	{
-		CookedHash = AsyncSave(Record, Info);
+		AsyncSave(Record, Info);
 	}
 	UpdateManifest(Record);
-	return CookedHash;
 }
 
-TFuture<FMD5Hash> FLooseCookedPackageWriter::AsyncSave(FRecord& Record, const FCommitPackageInfo& Info)
+void FLooseCookedPackageWriter::AsyncSave(FRecord& Record, const FCommitPackageInfo& Info)
 {
 	FCommitContext Context{ Info };
 
@@ -80,7 +79,7 @@ TFuture<FMD5Hash> FLooseCookedPackageWriter::AsyncSave(FRecord& Record, const FC
 	CollectForSaveExportsFooter(Record, Context);
 	CollectForSaveExportsBuffers(Record, Context);
 
-	return AsyncSaveOutputFiles(Record, Context);
+	AsyncSaveOutputFiles(Record, Context);
 }
 
 void FLooseCookedPackageWriter::CompleteExportsArchiveForDiff(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive)
@@ -142,6 +141,7 @@ void FLooseCookedPackageWriter::CollectForSaveBulkData(FRecord& Record, FCommitC
 			OutputFile.Regions = MoveTemp(BulkRecord.Regions);
 			OutputFile.bIsSidecar = true;
 			OutputFile.bContributeToHash = BulkRecord.Info.MultiOutputIndex == 0; // Only caculate the main package output hash
+			OutputFile.ChunkId = BulkRecord.Info.ChunkId;
 		}
 	}
 }
@@ -168,6 +168,7 @@ void FLooseCookedPackageWriter::CollectForSaveAdditionalFileRecords(FRecord& Rec
 		OutputFile.Buffer = FCompositeBuffer(AdditionalRecord.Buffer);
 		OutputFile.bIsSidecar = true;
 		OutputFile.bContributeToHash = AdditionalRecord.Info.MultiOutputIndex == 0; // Only calculate the main package output hash
+		OutputFile.ChunkId = AdditionalRecord.Info.ChunkId;
 	}
 }
 
@@ -252,28 +253,48 @@ FPackageWriterRecords::FPackage* FLooseCookedPackageWriter::ConstructRecord()
 	return new FRecord();
 }
 
-TFuture<FMD5Hash> FLooseCookedPackageWriter::AsyncSaveOutputFiles(FRecord& Record, FCommitContext& Context)
+void FLooseCookedPackageWriter::AsyncSaveOutputFiles(FRecord& Record, FCommitContext& Context)
 {
 	if (!EnumHasAnyFlags(Context.Info.WriteOptions, EWriteOptions::Write | EWriteOptions::ComputeHash))
 	{
-		return TFuture<FMD5Hash>();
+		return;
 	}
 
 	UE::SavePackageUtilities::IncrementOutstandingAsyncWrites();
-	return Async(EAsyncExecution::TaskGraph,
-		[OutputFiles = MoveTemp(Context.OutputFiles), WriteOptions = Context.Info.WriteOptions]() mutable
-	{
-		FMD5 AccumulatedHash;
-		for (FWriteFileData& OutputFile : OutputFiles)
-		{
-			OutputFile.Write(AccumulatedHash, WriteOptions);
-		}
 
-		FMD5Hash OutputHash;
-		OutputHash.Set(AccumulatedHash);
-		UE::SavePackageUtilities::DecrementOutstandingAsyncWrites();
-		return OutputHash;
-	});
+	TRefCountPtr<FPackageHashes> ThisPackageHashes;
+	
+	if (EnumHasAnyFlags(Context.Info.WriteOptions, EWriteOptions::ComputeHash))
+	{
+		ThisPackageHashes = new FPackageHashes();
+
+		// This looks weird but we're finding the _refcount_, not the hashes. So if it gets
+		// constructed, it's not actually assigned a pointer.
+		TRefCountPtr<FPackageHashes>& ExistingPackageHashes = AllPackageHashes.FindOrAdd(Context.Info.PackageName);
+		if (ExistingPackageHashes.IsValid())
+		{
+			UE_LOG(LogSavePackage, Error, TEXT("FLooseCookedPackageWriter encountered the same package twice in a cook! (%s)"), *Context.Info.PackageName.ToString());
+		}
+		ExistingPackageHashes = ThisPackageHashes;
+	}
+
+	UE::Tasks::Launch(TEXT("HashAndWriteLooseCookedFile"), [OutputFiles = MoveTemp(Context.OutputFiles), WriteOptions = Context.Info.WriteOptions, ThisPackageHashes = MoveTemp(ThisPackageHashes)]()
+		{
+			FMD5 AccumulatedHash;
+			for (const FWriteFileData& OutputFile : OutputFiles)
+			{
+				OutputFile.HashAndWrite(AccumulatedHash, ThisPackageHashes, WriteOptions);
+			}
+
+			if (EnumHasAnyFlags(WriteOptions, EWriteOptions::ComputeHash))
+			{
+				ThisPackageHashes->PackageHash.Set(AccumulatedHash);
+			}
+
+			// This is used to release the game thread to access the hashes
+			UE::SavePackageUtilities::DecrementOutstandingAsyncWrites();
+		}
+	);
 }
 
 static void WriteToFile(const FString& Filename, const FCompositeBuffer& Buffer)
@@ -336,7 +357,7 @@ static void WriteToFile(const FString& Filename, const FCompositeBuffer& Buffer)
 	UE_LOG(LogSavePackage, Fatal, TEXT("SavePackage Async write %s failed: %s"), *Filename, LastErrorText);
 }
 
-void FLooseCookedPackageWriter::FWriteFileData::Write(FMD5& AccumulatedHash, EWriteOptions WriteOptions) const
+void FLooseCookedPackageWriter::FWriteFileData::HashAndWrite(FMD5& AccumulatedHash, const TRefCountPtr<FPackageHashes>& PackageHashes, EWriteOptions WriteOptions) const
 {
 	//@todo: FH: Should we calculate the hash of both output, currently only the main package output hash is calculated
 	if (EnumHasAnyFlags(WriteOptions, EWriteOptions::ComputeHash) && bContributeToHash)
@@ -344,6 +365,17 @@ void FLooseCookedPackageWriter::FWriteFileData::Write(FMD5& AccumulatedHash, EWr
 		for (const FSharedBuffer& Segment : Buffer.GetSegments())
 		{
 			AccumulatedHash.Update(static_cast<const uint8*>(Segment.GetData()), Segment.GetSize());
+		}
+
+		if (ChunkId.IsValid())
+		{
+			FBlake3 ChunkHash;
+			for (const FSharedBuffer& Segment : Buffer.GetSegments())
+			{
+				ChunkHash.Update(static_cast<const uint8*>(Segment.GetData()), Segment.GetSize());
+			}
+			FIoHash FinalHash(ChunkHash.Finalize());
+			PackageHashes->ChunkHashes.Add(ChunkId, FinalHash);
 		}
 	}
 
@@ -421,6 +453,7 @@ void FLooseCookedPackageWriter::Initialize(const FCookInfo& Info)
 void FLooseCookedPackageWriter::BeginCook()
 {
 	PackageStoreManifest.Load(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+	AllPackageHashes.Empty();
 }
 
 void FLooseCookedPackageWriter::EndCook()

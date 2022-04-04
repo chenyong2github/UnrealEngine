@@ -2405,7 +2405,7 @@ const FAssetData* FAssetRegistryGenerator::CreateOrFindAssetData(UObject& Object
 }
 
 void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(const UPackage& Package,
-	FSavePackageResultStruct& SavePackageResult, TFuture<FMD5Hash>& CookedHash,
+	FSavePackageResultStruct& SavePackageResult,
 	FCookTagList&& InArchiveCookTagList
 	)
 {
@@ -2428,22 +2428,8 @@ void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(const UPackage& Pac
 		NewPackageFlags = SavePackageResult.SerializedPackageFlags;
 
 		AssetPackageData->DiskSize = SavePackageResult.TotalFileSize;
-		// If there is no hash (e.g.: when SavePackageResult == ESavePackageResult::ReplaceCompletely), don't attempt to setup a continuation to update
-		// the AssetRegistry entry with it later.  Just leave the asset registry entry with a default constructed FMD5Hash which is marked as invalid.
-		if (CookedHash.IsValid())
-		{
-			CookedHash.Next([AssetPackageData](const FMD5Hash& CookedHash)
-				{
-					// Store the cooked hash in the Asset Registry when it is done computing in another thread.
-					// NOTE: For this to work, we rely on:
-					// 1) UPackage::WaitForAsyncFileWrites needs to be called before any use of the CookedHash.
-					//    It is currently called in CookByTheBookFinished before BuildChunkManifest.
-					// 2) AssetPackageData must continue to be a valid pointer until WaitForAsyncFileWrites is called.
-					//    This is currently true because CreateOrFindAssetDatas allocates FAssetPackageData individually
-					//    and doesn't modify them until pruning, which happens during BuildChunkManifest.
-					AssetPackageData->CookedHash = CookedHash;
-				});
-		}
+
+		// The CookedHash is assigned during CookByTheBookFinished		
 	}
 	else
 	{

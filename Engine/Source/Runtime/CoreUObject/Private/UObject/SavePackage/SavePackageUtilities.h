@@ -17,12 +17,10 @@
 
 // This file contains private utilities shared by UPackage::Save and UPackage::Save2 
 
-class FMD5;
 class FPackagePath;
 class FSaveContext;
 class FSavePackageContext;
 class IPackageWriter;
-template<typename StateType> class TAsyncWorkSequence;
 
 enum class ESavePackageResult;
 
@@ -50,8 +48,7 @@ typedef TUniquePtr<uint8, FLargeMemoryDelete> FLargeMemoryPtr;
 
 enum class EAsyncWriteOptions
 {
-	None = 0,
-	ComputeHash = 0x01,
+	None = 0
 };
 ENUM_CLASS_FLAGS(EAsyncWriteOptions)
 
@@ -362,6 +359,7 @@ namespace SavePackageUtilities
 	/**
 	 * Save all of the BulkDatas that have registered as not being inline.
 	 * They may be saved to the end of the file, or to an archive for a separate file.
+	 * Kicks off async writes, use UPackage::WaitForAsyncFileWrites(); to ensure they are complete.
 	 * 
 	 * @param Linker The linker containing the exports. Provides metadata for BulkData, and BulkData may write to it as their target archive.
 	 * @param InOutStartOffset In value is the offset in the Linker's archive where the BulkDatas will be put. If SavePackageContext settings direct
@@ -374,14 +372,12 @@ namespace SavePackageUtilities
 	 * @param SaveFlags The flags passed into SavePackage; affects how the bulkdata should be saved.
 	 * @param bTextFormat True if package is saving to text. Bulkdata has special handling for text output.
 	 * @param bDiffing True if the package is only diffing, so bulk data should be recorded but not saved to disk.
-	 * @param bComputeHash True if package hash needs to be computed; bulkdatas contribute to the hash.
-	 * @param AsyncWriteAndHashSequence Output: Collects the writes of the bulkdata to disk for async writing.
 	 * @param TotalPackageSizeUncompressed Output: Bulkdata sizes are added to it.
 	 */
 	ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, const UPackage* InOuter,
 		const TCHAR* Filename, const ITargetPlatform* TargetPlatform, FSavePackageContext* SavePackageContext,
-		uint32 SaveFlags, const bool bTextFormat, const bool bComputeHash,
-		TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed, bool bIsOptionalRealm = false);
+		uint32 SaveFlags, const bool bTextFormat,
+		int64& TotalPackageSizeUncompressed, bool bIsOptionalRealm = false);
 	
 	/**
 	 * Used to append additional data to the end of the package file by invoking callbacks stored in the linker.
@@ -406,19 +402,18 @@ namespace SavePackageUtilities
 	void CheckObjectPriorToSave(FArchiveUObject& Ar, UObject* InObj, UPackage* InSavingPackage);
 	void ConditionallyExcludeObjectForTarget(UObject* Obj, EObjectMark ExcludedObjectMarks, const ITargetPlatform* TargetPlatform);
 	void FindMostLikelyCulprit(const TArray<UObject*>& BadObjects, UObject*& MostLikelyCulprit, FString& OutReferencer, FSaveContext* InOptionalSaveContext = nullptr);
-	void AddFileToHash(FString const& Filename, FMD5& Hash);
-
+	
 	/** 
 	  * Search 'OutputFiles' for output files that were saved to the temp directory and move those files
 	  * to their final location. Output files that were not saved to the temp directory will be ignored.
 	  * 
 	  * If errors are encountered then the original state of the package will be restored and should continue to work.
 	  */
-	ESavePackageResult FinalizeTempOutputFiles(const FPackagePath& PackagePath, const FSavePackageOutputFileArray& OutputFiles, const bool bComputeHash, const FDateTime& FinalTimeStamp, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence);
+	ESavePackageResult FinalizeTempOutputFiles(const FPackagePath& PackagePath, const FSavePackageOutputFileArray& OutputFiles, const FDateTime& FinalTimeStamp);
 
 	void WriteToFile(const FString& Filename, const uint8* InDataPtr, int64 InDataSize);
-	void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeMemoryPtr Data, const int64 DataSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions);
-	void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, EAsyncWriteOptions Options, FSavePackageOutputFile& File);
+	void AsyncWriteFile(FLargeMemoryPtr Data, const int64 DataSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions);
+	void AsyncWriteFile(EAsyncWriteOptions Options, FSavePackageOutputFile& File);
 
 	void GetCDOSubobjects(UObject* CDO, TArray<UObject*>& Subobjects);
 }

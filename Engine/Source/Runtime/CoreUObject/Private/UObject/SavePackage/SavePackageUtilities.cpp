@@ -19,7 +19,7 @@
 #include "Serialization/EditorBulkData.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/PackageWriter.h"
-#include "UObject/AsyncWorkSequence.h"
+#include "Tasks/Task.h"
 #include "UObject/Class.h"
 #include "UObject/GCScopeLock.h"
 #include "UObject/Linker.h"
@@ -616,27 +616,7 @@ void FindMostLikelyCulprit(const TArray<UObject*>& BadObjects, UObject*& MostLik
 	}
 }
 
-void AddFileToHash(FString const& Filename, FMD5& Hash)
-{
-	TArray<uint8> LocalScratch;
-	LocalScratch.SetNumUninitialized(1024 * 64);
-
-	FArchive* Ar = IFileManager::Get().CreateFileReader(*Filename);
-
-	const int64 Size = Ar->TotalSize();
-	int64 Position = 0;
-
-	while (Position < Size)
-	{
-		const auto ReadNum = FMath::Min(Size - Position, (int64)LocalScratch.Num());
-		Ar->Serialize(LocalScratch.GetData(), ReadNum);
-		Hash.Update(LocalScratch.GetData(), ReadNum);
-		Position += ReadNum;
-	}
-	delete Ar;
-}
-
-ESavePackageResult FinalizeTempOutputFiles(const FPackagePath& PackagePath, const FSavePackageOutputFileArray& OutputFiles, const bool bComputeHash, const FDateTime& FinalTimeStamp, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence)
+ESavePackageResult FinalizeTempOutputFiles(const FPackagePath& PackagePath, const FSavePackageOutputFileArray& OutputFiles, const FDateTime& FinalTimeStamp)
 {
 	UE_LOG(LogSavePackage, Log,  TEXT("Moving output files for package: %s"), *PackagePath.GetDebugName());
 
@@ -724,16 +704,6 @@ ESavePackageResult FinalizeTempOutputFiles(const FPackagePath& PackagePath, cons
 			{
 				FileSystem.SetTimeStamp(*File.TargetPath, FinalTimeStamp);
 			}
-
-			if (bComputeHash)
-			{
-				UE::SavePackageUtilities::IncrementOutstandingAsyncWrites();
-				AsyncWriteAndHashSequence.AddWork([NewPath = File.TargetPath](FMD5& State)
-				{
-					SavePackageUtilities::AddFileToHash(NewPath, State);
-					UE::SavePackageUtilities::DecrementOutstandingAsyncWrites();
-				});
-			}
 		}
 	}
 
@@ -767,17 +737,13 @@ void WriteToFile(const FString& Filename, const uint8* InDataPtr, int64 InDataSi
 	UE_LOG(LogSavePackage, Fatal, TEXT("Could not write to %s!"), *Filename);
 }
 
-void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeMemoryPtr Data, const int64 DataSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions)
+void AsyncWriteFile(FLargeMemoryPtr Data, const int64 DataSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions)
 {
 	OutstandingAsyncWrites.Increment();
 	FString OutputFilename(Filename);
-	AsyncWriteAndHashSequence.AddWork([Data = MoveTemp(Data), DataSize, OutputFilename = MoveTemp(OutputFilename), Options, FileRegions = TArray<FFileRegion>(InFileRegions)](FMD5& State) mutable
-	{
-		if (EnumHasAnyFlags(Options, EAsyncWriteOptions::ComputeHash))
-		{
-			State.Update(Data.Get(), DataSize);
-		}
 
+	UE::Tasks::Launch(TEXT("PackageAsyncFileWrite"), [Data = MoveTemp(Data), DataSize, OutputFilename = MoveTemp(OutputFilename), Options, FileRegions = TArray<FFileRegion>(InFileRegions)]() mutable
+	{
 		WriteToFile(OutputFilename, Data.Get(), DataSize);
 
 		if (FileRegions.Num() > 0)
@@ -793,10 +759,10 @@ void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeM
 	});
 }
 
-void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, EAsyncWriteOptions Options, FSavePackageOutputFile& File)
+void AsyncWriteFile(EAsyncWriteOptions Options, FSavePackageOutputFile& File)
 {
 	checkf(File.TempFilePath.IsEmpty(), TEXT("AsyncWriteFile does not handle temp files!"));
-	AsyncWriteFile(AsyncWriteAndHashSequence, FLargeMemoryPtr(File.FileMemoryBuffer.Release()), File.DataSize, *File.TargetPath, Options, File.FileRegions);
+	AsyncWriteFile(FLargeMemoryPtr(File.FileMemoryBuffer.Release()), File.DataSize, *File.TargetPath, Options, File.FileRegions);
 }
 
 /** For a CDO get all of the subobjects templates nested inside it or it's class */
@@ -2026,8 +1992,8 @@ ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackageP
 }
 
 ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
-				  FSavePackageContext* SavePackageContext, uint32 SaveFlags, const bool bTextFormat, const bool bComputeHash,
-				  TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed, bool bIsOptionalRealm)
+				  FSavePackageContext* SavePackageContext, uint32 SaveFlags, const bool bTextFormat, 
+				  int64& TotalPackageSizeUncompressed, bool bIsOptionalRealm)
 {
 	// Now we write all the bulkdata that is supposed to be at the end of the package
 	// and fix up the offset
@@ -2359,11 +2325,7 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 					const FString ArchiveFilename = FPaths::ChangeExtension(Filename, BulkFileExtension);
 
 					EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::None);
-					if (bComputeHash)
-					{
-						WriteOptions |= EAsyncWriteOptions::ComputeHash;
-					}
-					SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, MoveTemp(DataPtr), DataSize, *ArchiveFilename, WriteOptions, Archive->FileRegions);
+					SavePackageUtilities::AsyncWriteFile(MoveTemp(DataPtr), DataSize, *ArchiveFilename, WriteOptions, Archive->FileRegions);
 				}
 			};
 

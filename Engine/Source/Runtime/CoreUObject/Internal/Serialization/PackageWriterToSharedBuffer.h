@@ -117,16 +117,15 @@ public:
 	{
 		Records.WriteLinkerAdditionalData(Info, Data, FileRegions);
 	}
-	virtual TFuture<FMD5Hash> CommitPackage(IPackageWriter::FCommitPackageInfo&& Info) override
+	virtual void CommitPackage(IPackageWriter::FCommitPackageInfo&& Info) override
 	{
 		TUniquePtr<FPackageRecord> Record = Records.FindAndRemoveRecordChecked(Info.PackageName);
 		ValidateCommit(*Record, Info);
-		TFuture<FMD5Hash> CookedHash = CommitPackageInternal(MoveTemp(*Record), Info);
-		return CookedHash;
+		CommitPackageInternal(MoveTemp(*Record), Info);
 	}
 
 protected:
-	virtual TFuture<FMD5Hash> CommitPackageInternal(FPackageRecord&& Record,
+	virtual void CommitPackageInternal(FPackageRecord&& Record,
 		const IPackageWriter::FCommitPackageInfo& Info) = 0;
 
 protected:

@@ -261,6 +261,10 @@ void FAssetPackageData::SerializeForCacheInternal(FArchive& Ar, FAssetPackageDat
 	{
 		Ar << PackageData.CookedHash;
 	}
+	if (Version >= FAssetRegistryVersion::AddedChunkHashes)
+	{
+		Ar << PackageData.ChunkHashes;
+	}
 	if (Version >= FAssetRegistryVersion::WorkspaceDomain)
 	{
 		if (Version >= FAssetRegistryVersion::PackageFileSummaryVersionChange)

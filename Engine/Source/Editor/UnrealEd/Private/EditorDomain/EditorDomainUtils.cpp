@@ -1434,7 +1434,7 @@ public:
 	}
 
 protected:
-	virtual TFuture<FMD5Hash> CommitPackageInternal(FPackageWriterRecords::FPackage&& Record,
+	virtual void CommitPackageInternal(FPackageWriterRecords::FPackage&& Record,
 		const FCommitPackageInfo& Info) override
 	{
 		// CommitPackage is called below with these options
@@ -1538,8 +1538,6 @@ protected:
 			FileSize += Buffer.GetSize();
 		}
 		WritePackageRecord = MoveTemp(Package);
-
-		return TFuture<FMD5Hash>();
 	}
 
 private:

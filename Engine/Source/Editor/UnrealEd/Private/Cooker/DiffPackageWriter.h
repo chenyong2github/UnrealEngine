@@ -20,7 +20,7 @@ public:
 		return Result;
 	}
 	virtual void BeginPackage(const FBeginPackageInfo& Info) override;
-	virtual TFuture<FMD5Hash> CommitPackage(FCommitPackageInfo&& Info) override;
+	virtual void CommitPackage(FCommitPackageInfo&& Info) override;
 	virtual void WritePackageData(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive,
 		const TArray<FFileRegion>& FileRegions) override;
 	virtual void WriteBulkData(const FBulkDataInfo& Info, const FIoBuffer& BulkData,
@@ -95,7 +95,10 @@ public:
 		Inner->UpdateSaveArguments(SaveArgs);
 	}
 	virtual bool IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs) override;
-
+	virtual TMap<FName, TRefCountPtr<FPackageHashes>>& GetPackageHashes() override
+	{
+		return Inner->GetPackageHashes();
+	}
 private:
 	void ParseCmds();
 	void ParseDumpObjList(FString InParams);
@@ -133,7 +136,7 @@ public:
 		return Inner->GetCapabilities();
 	}
 	virtual void BeginPackage(const FBeginPackageInfo& Info) override;
-	virtual TFuture<FMD5Hash> CommitPackage(FCommitPackageInfo&& Info) override
+	virtual void CommitPackage(FCommitPackageInfo&& Info) override
 	{
 		return Inner->CommitPackage(MoveTemp(Info));
 	}
@@ -214,7 +217,10 @@ public:
 	}
 	virtual void UpdateSaveArguments(FSavePackageArgs& SaveArgs) override;
 	virtual bool IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs) override;
-
+	virtual TMap<FName, TRefCountPtr<FPackageHashes>>& GetPackageHashes() override
+	{
+		return Inner->GetPackageHashes();
+	}
 private:
 	enum class EDiffMode : uint8
 	{

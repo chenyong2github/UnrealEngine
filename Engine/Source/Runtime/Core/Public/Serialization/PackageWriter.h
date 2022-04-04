@@ -84,7 +84,7 @@ public:
 
 	/** Finalize a package started with BeginPackage()
 	  */
-	virtual TFuture<FMD5Hash> CommitPackage(FCommitPackageInfo&& Info) = 0;
+	virtual void CommitPackage(FCommitPackageInfo&& Info) = 0;
 
 	struct FPackageInfo
 	{
@@ -137,7 +137,7 @@ public:
 		/** Output Package Name (Input Package can produce multiple output) */
 		FName		OutputPackageName;
 		FString		Filename;
-		FIoChunkId	ChunkId;
+		FIoChunkId	ChunkId = FIoChunkId::InvalidChunkId;
 		uint32		MultiOutputIndex = 0;
 	};
 
@@ -179,6 +179,17 @@ public:
 };
 
 ENUM_CLASS_FLAGS(IPackageWriter::EWriteOptions);
+
+/** Struct containing hashes computed during cooked package writing. */
+struct FPackageHashes : FRefCountBase
+{
+	// Hashes for each chunk saved by the package.
+	TMap<FIoChunkId, FIoHash> ChunkHashes;
+
+	// This is a hash representing the entire package. Note this is
+	// not consistently computed across PackageWriters!
+	FMD5Hash PackageHash;
+};
 
 /** Interface for cooking that writes cooked packages to storage usable by the runtime game. */
 class ICookedPackageWriter : public IPackageWriter
@@ -247,7 +258,9 @@ public:
 	};
 
 	/**
-	 * Returns an AssetRegistry describing the previous cook results.
+	 * Returns an AssetRegistry describing the previous cook results. This doesn't mean a cook saved off
+	 * to another directory - it means the AssetRegistry that's living in the directory we are about
+	 * to cook in to.
 	 */
 	virtual TUniquePtr<FAssetRegistryState> LoadPreviousAssetRegistry() = 0;
 
@@ -306,6 +319,13 @@ public:
 	{
 		return nullptr;
 	}
+
+	/** 
+	*	Cooked package writers asynchronously hash the chunks for each package after CommitPackage. Once cooking has completed,
+	*	use this to acquire the results. This is synced using void UPackage::WaitForAsyncFileWrites() - do not access
+	*	the results before that completes. Non-const so that the cooking process can Move the map of hashes.
+	*/
+	virtual TMap<FName, TRefCountPtr<FPackageHashes>>& GetPackageHashes() = 0;
 };
 
 static inline const ANSICHAR* LexToString(IPackageWriter::FBulkDataInfo::EType Value)

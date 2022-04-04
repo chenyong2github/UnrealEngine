@@ -9,6 +9,7 @@
 #include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
 #include "Containers/Set.h"
+#include "IO/IoDispatcher.h"
 #include "Misc/PackageName.h"
 #include "Misc/StringBuilder.h"
 #include "Templates/UniquePtr.h"
@@ -55,6 +56,7 @@ struct COREUOBJECT_API FAssetRegistryVersion
 		PackageImportedClasses,				// Added ImportedClasses to AssetPackageData
 		PackageFileSummaryVersionChange,	// A new version number of UE5 was added to FPackageFileSummary
 		ObjectResourceOptionalVersionChange,// Change to linker export/import resource serializationn
+		AddedChunkHashes,					// Added FIoHash for each FIoChunkId in the package to the AssetPackageData.
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -166,6 +168,8 @@ public:
 	/**
 	 * Returns true if this is the main asset in a package, true for maps and assets but false for secondary objects like class redirectors
 	 * Every UAsset is also a TopLevelAsset.
+	 * Specifically, this is just testing whether the asset name matches the package name, and it is possible for legacy content to not return
+	 * true for any asset in a package.
 	 */
 	bool IsUAsset() const
 	{
@@ -430,6 +434,13 @@ public:
 	/** Try and get the value associated with the given tag as a type converted value */
 	template <typename ValueType>
 	bool GetTagValue(FName Tag, ValueType& OutValue) const;
+
+	/** Call the given function for each tag on the asset. Function signature is: void Fn(TPair<FName, FAssetTagValueRef>); */
+	template<typename Func>
+	void EnumerateTags(Func Fn) const
+	{
+		TagsAndValues.ForEach(Fn);
+	}
 
 	/** Try and get the value associated with the given tag as a type converted value, or an empty value if it doesn't exist */
 	template <typename ValueType>
@@ -698,6 +709,13 @@ public:
 
 	/** MD5 of the cooked package on disk, for tracking nondeterministic changes */
 	FMD5Hash CookedHash;
+
+	/** 
+		The hash of all the chunks written by the package writer for this package. This is only available after cooking.
+		(Note, this only includes the ExportBundleData chunk if using ZenStoreWriter, as that chunk contains both the uasset and uexp
+		data, which is managed separately in LooseCookedPackageWriter.)
+	*/
+	TMap<FIoChunkId, FIoHash> ChunkHashes;
 
 	/** List of classes used by exports in the package. Does not include classes in the same package. */
 	TArray<FName> ImportedClasses;

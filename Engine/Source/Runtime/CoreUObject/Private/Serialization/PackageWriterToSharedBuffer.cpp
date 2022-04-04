@@ -5,6 +5,8 @@
 #include "Misc/ScopeRWLock.h"
 #include "Serialization/LargeMemoryWriter.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogPackageWriter, Display, All);
+
 TUniquePtr<FLargeMemoryWriter> IPackageWriter::CreateLinkerArchive(FName PackageName, UObject* Asset)
 {
 	// The LargeMemoryWriter does not need to be persistent; the LinkerSave wraps it and reports Persistent=true
@@ -57,7 +59,16 @@ void FPackageWriterRecords::WriteAdditionalFile(const IPackageWriter::FAdditiona
 	const FIoBuffer& FileData)
 {
 	FPackage& Record = FindRecordChecked(Info.InputPackageName);
-	Record.AdditionalFiles.Add(FAdditionalFile{ Info, IoBufferToSharedBuffer(FileData) });
+	FAdditionalFile& AdditionalFile = Record.AdditionalFiles.Add_GetRef(FAdditionalFile{ Info, IoBufferToSharedBuffer(FileData) });
+	FIoChunkId ChunkId = CreateExternalFileChunkId(AdditionalFile.Info.Filename);
+	if (AdditionalFile.Info.ChunkId.IsValid() && AdditionalFile.Info.ChunkId != ChunkId)
+	{
+		UE_LOG(LogPackageWriter, Warning, TEXT("PackageWriter->WriteAdditionalFile called with an unexpected chunkid: Should match CreateExternalFileChunkId (Package: %s Filename: %s)"), *Info.InputPackageName.ToString(), *AdditionalFile.Info.Filename);
+	}
+	else
+	{
+		AdditionalFile.Info.ChunkId = ChunkId;
+	}
 }
 
 void FPackageWriterRecords::WriteLinkerAdditionalData(const IPackageWriter::FLinkerAdditionalDataInfo& Info,

@@ -67,7 +67,6 @@
 #include "Serialization/PackageWriter.h"
 #include "Serialization/UnversionedPropertySerialization.h"
 #include "Serialization/EditorBulkData.h"
-#include "UObject/AsyncWorkSequence.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTrackingOps.h"
@@ -1858,7 +1857,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 		TRefCountPtr<FUObjectSerializeContext> SaveContext(FUObjectThreadContext::Get().GetSerializeContext());
 
 		const bool bCompareLinker = (SaveFlags & SAVE_CompareLinker) != 0;
-		const bool bComputeHash = (SaveFlags & SAVE_ComputeHash) != 0;
 
 		if (GIsSavingPackage && !bSavingConcurrent)
 		{
@@ -1917,9 +1915,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 		(*GFlushStreamingFunc)();
 
 		int64 TotalPackageSizeUncompressed = 0;
-
-		TFuture<FMD5Hash> PackageMD5Destination;
-		TAsyncWorkSequence<FMD5> AsyncWriteAndHashSequence;
 
 		// Make sure package is fully loaded before saving. 
 		// IsFullyLoaded has important byproducts for new packages, so make sure we evaluate it rather than short-circuiting it
@@ -3833,7 +3828,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 					int64 DataStartOffset = LinkerSize >= 0 ? LinkerSize : Linker->Tell();
 					ESavePackageResult SaveResult =
 						SavePackageUtilities::SaveBulkData(Linker.Get(), DataStartOffset, InOuter, Filename, TargetPlatform, SavePackageContext, SaveFlags, bTextFormat,
-							bComputeHash, AsyncWriteAndHashSequence, TotalPackageSizeUncompressed);
+							TotalPackageSizeUncompressed);
 					if (SaveResult != ESavePackageResult::Success)
 					{
 						return SaveResult;
@@ -4159,16 +4154,11 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 							// Add the uasset file to the list of output files
 							AdditionalOutputFiles.Emplace(NewPath, FLargeMemoryPtr(Writer->ReleaseOwnership()), Linker->FileRegions, DataSize);
 							
-							EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::None);
-							if (bComputeHash)
-							{
-								WriteOptions |= EAsyncWriteOptions::ComputeHash;
-							}
-
+							EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::None);							
 							for (FSavePackageOutputFile& Entry : AdditionalOutputFiles)
 							{
 								TotalPackageSizeUncompressed += Entry.DataSize;
-								SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, WriteOptions, Entry);
+								SavePackageUtilities::AsyncWriteFile(WriteOptions, Entry);
 							}	
 						}
 						Linker->CloseAndDestroySaver();
@@ -4195,7 +4185,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 						// Add the .uasset file to the list of output files
 						AdditionalOutputFiles.Emplace(NewPath, TempFilename.GetValue(), PackageSize);
 						
-						ESavePackageResult FinalizeResult = SavePackageUtilities::FinalizeTempOutputFiles(TargetPackagePath, AdditionalOutputFiles, bComputeHash, FinalTimeStamp, AsyncWriteAndHashSequence);
+						ESavePackageResult FinalizeResult = SavePackageUtilities::FinalizeTempOutputFiles(TargetPackagePath, AdditionalOutputFiles, FinalTimeStamp);
 						if (FinalizeResult != ESavePackageResult::Success)
 						{
 							bSuccess = false;
@@ -4342,20 +4332,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 			}
 #endif
 
-			auto HashCompletionFunc = [](FMD5& State)
-			{
-				FMD5Hash OutputHash;
-				OutputHash.Set(State);
-				return OutputHash;
-			};
-
 			if (bRequestStub)
 			{
-				return FSavePackageResultStruct(ESavePackageResult::GenerateStub, TotalPackageSizeUncompressed, AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)), SerializedPackageFlags, bCompareLinker ? MoveTemp(Linker) : nullptr);
+				return FSavePackageResultStruct(ESavePackageResult::GenerateStub, TotalPackageSizeUncompressed, SerializedPackageFlags, bCompareLinker ? MoveTemp(Linker) : nullptr);
 			}
 			else
 			{
-				return FSavePackageResultStruct(ESavePackageResult::Success, TotalPackageSizeUncompressed, AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)), SerializedPackageFlags, bCompareLinker ? MoveTemp(Linker) : nullptr);
+				return FSavePackageResultStruct(ESavePackageResult::Success, TotalPackageSizeUncompressed, SerializedPackageFlags, bCompareLinker ? MoveTemp(Linker) : nullptr);
 			}
 		}
 		else

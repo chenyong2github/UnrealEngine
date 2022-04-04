@@ -65,6 +65,7 @@ enum class ESavePackageResult
 /**
 * Struct returned from save package, contains the enum as well as extra data about what was written
 */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // Silence deprecation warnings for deprecated CookedHash member in implicit constructors
 struct FSavePackageResultStruct
 {
 	/** Success/failure of the save operation */
@@ -73,7 +74,7 @@ struct FSavePackageResultStruct
 	/** Total size of all files written out, including bulk data */
 	int64 TotalFileSize;
 
-	/** MD5 hash of the cooked data */
+	UE_DEPRECATED(5.1, "CookedHash is now available through PackageWriter->CommitPackage instead. For waiting on completion in the non-cook case, use UPackage::WaitForAsyncFileWrites.")
 	TFuture<FMD5Hash> CookedHash;
 
 	/** Serialized package flags */
@@ -86,7 +87,7 @@ struct FSavePackageResultStruct
 	FSavePackageResultStruct() : Result(ESavePackageResult::Error), TotalFileSize(0), SerializedPackageFlags(0) {}
 	FSavePackageResultStruct(ESavePackageResult InResult) : Result(InResult), TotalFileSize(0), SerializedPackageFlags(0) {}
 	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize) : Result(InResult), TotalFileSize(InTotalFileSize), SerializedPackageFlags(0) {}
-	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, TFuture<FMD5Hash>&& InHash, uint32 InSerializedPackageFlags, TPimplPtr<FLinkerSave> Linker = nullptr) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(MoveTemp(InHash)), SerializedPackageFlags(InSerializedPackageFlags), LinkerSave(MoveTemp(Linker)) {}
+	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, uint32 InSerializedPackageFlags, TPimplPtr<FLinkerSave> Linker = nullptr) : Result(InResult), TotalFileSize(InTotalFileSize), SerializedPackageFlags(InSerializedPackageFlags), LinkerSave(MoveTemp(Linker)) {}
 
 	bool operator==(const FSavePackageResultStruct& Other) const
 	{
@@ -107,6 +108,7 @@ struct FSavePackageResultStruct
 			Result == ESavePackageResult::ReplaceCompletely;
 	}
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /**
 * A package.

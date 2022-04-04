@@ -124,7 +124,7 @@ void FDiffPackageWriter::BeginPackage(const FBeginPackageInfo& Info)
 	Inner->BeginPackage(Info);
 }
 
-TFuture<FMD5Hash> FDiffPackageWriter::CommitPackage(FCommitPackageInfo&& Info)
+void FDiffPackageWriter::CommitPackage(FCommitPackageInfo&& Info)
 {
 	if (bDiffCallstack && bSaveForDiff)
 	{

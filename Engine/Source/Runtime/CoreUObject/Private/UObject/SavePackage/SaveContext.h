@@ -14,7 +14,6 @@
 #include "Serialization/UnversionedPropertySerialization.h"
 #include "Templates/PimplPtr.h"
 #include "Templates/UniquePtr.h"
-#include "UObject/AsyncWorkSequence.h"
 #include "UObject/LinkerSave.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
@@ -576,11 +575,6 @@ public:
 		return !!(SaveArgs.SaveFlags & SAVE_Optional);
 	}
 
-	bool IsComputeHash() const
-	{
-		return !!(SaveArgs.SaveFlags & SAVE_ComputeHash);
-	}
-
 	bool IsConcurrent() const
 	{
 		return !!(SaveArgs.SaveFlags & SAVE_Concurrent);
@@ -919,13 +913,6 @@ public:
 
 	FSavePackageResultStruct GetFinalResult()
 	{
-		auto HashCompletionFunc = [](FMD5& State)
-		{
-			FMD5Hash OutputHash;
-			OutputHash.Set(State);
-			return OutputHash;
-		};
-
 		if (Result != ESavePackageResult::Success)
 		{
 			return Result;
@@ -933,7 +920,6 @@ public:
 
 		ESavePackageResult FinalResult = IsStubRequested() ? ESavePackageResult::GenerateStub : ESavePackageResult::Success;
 		return FSavePackageResultStruct(FinalResult, TotalPackageSizeUncompressed,
-			AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)),
 			SerializedPackageFlags, IsCompareLinker() ? MoveTemp(GetHarvestedRealm().Linker) : nullptr);
 	}
 
@@ -974,7 +960,6 @@ public:
 	int32 OffsetAfterExportMap = 0;
 	int64 OffsetAfterPayloadToc = 0;
 	int32 SerializedPackageFlags = 0;
-	TAsyncWorkSequence<FMD5> AsyncWriteAndHashSequence;
 	TArray<FLargeMemoryWriter, TInlineAllocator<4>> AdditionalFilesFromExports;
 	FSavePackageOutputFileArray AdditionalPackageFiles;
 private:

@@ -4335,7 +4335,6 @@ void FSaveCookedPackageContext::SetupPackage()
 	bool bKeepEditorOnlyPackages = !(COTFS.IsCookByTheBookMode() && !COTFS.IsCookingInEditor());
 	bKeepEditorOnlyPackages |= COTFS.IsCookFlagSet(ECookInitializationFlags::Iterative);
 	SaveFlags |= bKeepEditorOnlyPackages ? SAVE_KeepEditorOnlyCookedPackages : SAVE_None;
-	SaveFlags |= COTFS.CookByTheBookOptions ? SAVE_ComputeHash : SAVE_None;
 
 	// Use SandboxFile to do path conversion to properly handle sandbox paths (outside of standard paths in particular).
 	Filename = COTFS.ConvertToFullSandboxPath(*Filename, true);
@@ -4440,7 +4439,6 @@ void FSaveCookedPackageContext::FinishPlatform()
 	bool bSuccessful = SavePackageResult.IsSuccessful();
 	bool bLocalReferencedOnlyByEditorOnlyData = SavePackageResult == ESavePackageResult::ReferencedOnlyByEditorOnlyData;
 
-	TFuture<FMD5Hash> CookedHash;
 	FAssetRegistryGenerator& Generator = *(COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator);
 	if (bPlatformSetupSuccessful)
 	{
@@ -4466,18 +4464,18 @@ void FSaveCookedPackageContext::FinishPlatform()
 		// TODO: Reenable BuildDefinitionList once FCbPackage support for empty FCbObjects is in
 		//Info.Attachments.Add({ "BuildDefinitionList", BuildDefinitionList });
 		Info.WriteOptions = IPackageWriter::EWriteOptions::Write;
-		if (!!(SaveFlags & SAVE_ComputeHash))
+		if (COTFS.CookByTheBookOptions != nullptr)
 		{
 			Info.WriteOptions |= IPackageWriter::EWriteOptions::ComputeHash;
 		}
 
-		CookedHash = PackageWriter->CommitPackage(MoveTemp(Info));
+		PackageWriter->CommitPackage(MoveTemp(Info));
 	}
 
 	// Update asset registry
 	if (COTFS.CookByTheBookOptions)
 	{
-		Generator.UpdateAssetRegistryPackageData(*Package, SavePackageResult, CookedHash, MoveTemp(*ArchiveCookContext.GetCookTagList()));
+		Generator.UpdateAssetRegistryPackageData(*Package, SavePackageResult, MoveTemp(*ArchiveCookContext.GetCookTagList()));
 	}
 
 	// In success or failure we want to mark the package as cooked, unless the failure was due to being referenced only
@@ -7073,6 +7071,20 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 						IgnorePackageNames.Add(UncookedEditorOnlyPackage);
 					}
 				}
+				
+				// Add the package hashes to the relevant AssetPackageDatas.
+				// PackageHashes are gated by requiring UPackage::WaitForAsyncFileWrites(), which is called above.
+				FCookSavePackageContext& SaveContext = FindOrCreateSaveContext(TargetPlatform);
+				TMap<FName, TRefCountPtr<FPackageHashes>>& AllPackageHashes = SaveContext.PackageWriter->GetPackageHashes();
+				for (TPair<FName, TRefCountPtr<FPackageHashes>>& HashSet : AllPackageHashes)
+				{
+					FAssetPackageData* AssetPackageData = Generator.GetAssetPackageData(HashSet.Key);
+					TRefCountPtr<FPackageHashes>& PackageHashes = HashSet.Value;
+
+					AssetPackageData->CookedHash = PackageHashes->PackageHash;
+					Move(AssetPackageData->ChunkHashes, PackageHashes->ChunkHashes);
+				}
+
 				{
 					Generator.PreSave(CookedPackageNames);
 				}
@@ -7648,7 +7660,7 @@ UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::CreateSaveContext(const 
 	{
 		PackageWriter = new FLooseCookedPackageWriter(ResolvedRootPath, ResolvedMetadataPath, TargetPlatform,
 			GetAsyncIODelete(), *PackageDatas, PluginsToRemap);
-		WriterDebugName = TEXT("DirectoryWriter");
+		WriterDebugName = TEXT("LooseCookedPackageWriter");
 	}
 
 	DiffModeHelper->InitializePackageWriter(PackageWriter);
@@ -8633,7 +8645,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 	}
 
 	const bool bSaveConcurrent = FParse::Param(FCommandLine::Get(), TEXT("ConcurrentSave"));
-	uint32 SaveFlags = SAVE_KeepGUID | SAVE_Async | SAVE_ComputeHash | (IsCookFlagSet(ECookInitializationFlags::Unversioned) ? SAVE_Unversioned : 0);
+	uint32 SaveFlags = SAVE_KeepGUID | SAVE_Async | (IsCookFlagSet(ECookInitializationFlags::Unversioned) ? SAVE_Unversioned : 0);
 	if (bSaveConcurrent)
 	{
 		SaveFlags |= SAVE_Concurrent;
@@ -9072,7 +9084,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 						}
 
 						// Update asset registry
-						Generator.UpdateAssetRegistryPackageData(*Package, SaveResult, SaveResult.CookedHash, MoveTemp(*CookContext.GetCookTagList()));
+						Generator.UpdateAssetRegistryPackageData(*Package, SaveResult, MoveTemp(*CookContext.GetCookTagList()));
 						FAssetPackageData* AssetPackageData = Generator.GetAssetPackageData(Package->GetFName());
 						check(AssetPackageData);
 
@@ -9082,7 +9094,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 						PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 						CommitInfo.PackageGuid = AssetPackageData->PackageGuid;
 						PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-						CommitInfo.WriteOptions = IPackageWriter::EWriteOptions::Write;
+						CommitInfo.WriteOptions = IPackageWriter::EWriteOptions::Write | IPackageWriter::EWriteOptions::ComputeHash;
 						SavePackageContext.PackageWriter->CommitPackage(MoveTemp(CommitInfo));
 
 						if (SaveResult.IsSuccessful())

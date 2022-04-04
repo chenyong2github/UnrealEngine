@@ -485,6 +485,7 @@ void FZenStoreWriter::Initialize(const FCookInfo& Info)
 void FZenStoreWriter::BeginCook()
 {
 	PackageStoreManifest.Load(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+	AllPackageHashes.Empty();
 
 	if (CookMode == ICookedPackageWriter::FCookInfo::CookOnTheFlyMode)
 	{
@@ -578,17 +579,26 @@ bool FZenStoreWriter::IsReservedOplogKey(FUtf8StringView Key)
 		FUtf8StringView(ReservedOplogKeys[Index]).Equals(Key, ESearchCase::IgnoreCase);
 }
 
-TFuture<FMD5Hash> FZenStoreWriter::CommitPackage(FCommitPackageInfo&& Info)
+void FZenStoreWriter::CommitPackage(FCommitPackageInfo&& Info)
 {
-	TFuture<FMD5Hash> PkgHash;
+	UE::SavePackageUtilities::IncrementOutstandingAsyncWrites();
 
+	// If we are computing hashes, we need to allocate where the hashes will go.
+	// Access to this is protected by the above IncrementOutstandingAsyncWrites.
 	if (EnumHasAnyFlags(Info.WriteOptions, EWriteOptions::ComputeHash))
 	{
 		FPendingPackageState& ExistingState = GetPendingPackage(Info.PackageName);
-		PkgHash = ExistingState.HashPromise.GetFuture();
-	}
+		ExistingState.PackageHashes = new FPackageHashes();
 
-	UE::SavePackageUtilities::IncrementOutstandingAsyncWrites();
+		// This looks weird but we're finding the _refcount_, not the hashes. So if it gets
+		// constructed, it's not actually assigned a pointer.
+		TRefCountPtr<FPackageHashes>& ExistingPackageHashes = AllPackageHashes.FindOrAdd(Info.PackageName);
+		if (ExistingPackageHashes.IsValid())
+		{
+			UE_LOG(LogZenStoreWriter, Error, TEXT("FZenStoreWriter commiting the same package twice during a cook! (%s)"), *Info.PackageName.ToString());
+		}
+		ExistingPackageHashes = ExistingState.PackageHashes;
+	}
 
 	if (FPlatformProcess::SupportsMultithreading())
 	{
@@ -598,8 +608,6 @@ TFuture<FMD5Hash> FZenStoreWriter::CommitPackage(FCommitPackageInfo&& Info)
 	{
 		CommitPackageInternal(Forward<FCommitPackageInfo>(Info));
 	}
-	
-	return PkgHash;
 }
 
 void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
@@ -640,6 +648,11 @@ void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
 		FMD5 PkgHashGen;
 		FCbPackage OplogEntry;
 		
+		if (bComputeHash)
+		{
+			PackageState->PackageHashes->ChunkHashes.Add(PkgData.Info.ChunkId, PkgData.CompressedPayload.Get().GetRawHash());
+		}
+
 		FCbAttachment PkgDataAttachment = FCbAttachment(PkgData.CompressedPayload.Get());
 		PkgHashGen.Update(PkgDataAttachment.GetHash().GetBytes(), sizeof(FIoHash::ByteArray));
 		OplogEntry.AddAttachment(PkgDataAttachment);
@@ -716,6 +729,11 @@ void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
 
 			for (FBulkDataEntry& Bulk : PackageState->BulkData)
 			{
+				if (bComputeHash)
+				{
+					PackageState->PackageHashes->ChunkHashes.Add(Bulk.Info.ChunkId, Bulk.CompressedPayload.Get().GetRawHash());
+				}
+
 				FCbAttachment BulkAttachment(Bulk.CompressedPayload.Get());
 				PkgHashGen.Update(BulkAttachment.GetHash().GetBytes(), sizeof(FIoHash::ByteArray));
 				OplogEntry.AddAttachment(BulkAttachment);
@@ -736,6 +754,11 @@ void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
 
 			for (FFileDataEntry& File : PackageState->FileData)
 			{
+				if (bComputeHash)
+				{
+					PackageState->PackageHashes->ChunkHashes.Add(File.Info.ChunkId, File.CompressedPayload.Get().GetRawHash());
+				}
+
 				FCbAttachment FileDataAttachment(File.CompressedPayload.Get());
 				PkgHashGen.Update(FileDataAttachment.GetHash().GetBytes(), sizeof(FIoHash::ByteArray));
 				OplogEntry.AddAttachment(FileDataAttachment);
@@ -759,9 +782,10 @@ void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
 			OplogEntryDesc.EndArray();
 		}
 
-		FMD5Hash PkgHash;
-		PkgHash.Set(PkgHashGen);
-		PackageState->HashPromise.SetValue(PkgHash);
+		if (bComputeHash)
+		{
+			PackageState->PackageHashes->PackageHash.Set(PkgHashGen);
+		}
 
 		for (int32 Index = 0; Index < NumAttachments; ++Index)
 		{
@@ -786,6 +810,7 @@ void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
 		{
 			FCompressedBuffer Payload = PkgData.CompressedPayload.Get();
 			FIoHash IoHash = Payload.GetRawHash();
+			PackageState->PackageHashes->ChunkHashes.Add(PkgData.Info.ChunkId, IoHash);
 			PkgHashGen.Update(IoHash.GetBytes(), sizeof(FIoHash::ByteArray));
 		}
 		
@@ -793,6 +818,7 @@ void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
 		{
 			FCompressedBuffer Payload = Bulk.CompressedPayload.Get();
 			FIoHash IoHash = Payload.GetRawHash();
+			PackageState->PackageHashes->ChunkHashes.Add(Bulk.Info.ChunkId, IoHash);
 			PkgHashGen.Update(IoHash.GetBytes(), sizeof(FIoHash::ByteArray));
 		}
 		
@@ -800,16 +826,11 @@ void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
 		{
 			FCompressedBuffer Payload = File.CompressedPayload.Get();
 			FIoHash IoHash = Payload.GetRawHash();
+			PackageState->PackageHashes->ChunkHashes.Add(File.Info.ChunkId, IoHash);
 			PkgHashGen.Update(IoHash.GetBytes(), sizeof(FIoHash::ByteArray));
 		}
 		
-		FMD5Hash PkgHash;
-		PkgHash.Set(PkgHashGen);
-		PackageState->HashPromise.SetValue(PkgHash);
-	}
-	else
-	{
-		PackageState->HashPromise.SetValue(FMD5Hash());
+		PackageState->PackageHashes->PackageHash.Set(PkgHashGen);
 	}
 
 	if (bWritePackage)

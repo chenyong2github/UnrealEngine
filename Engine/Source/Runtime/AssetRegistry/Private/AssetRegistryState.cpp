@@ -1037,8 +1037,6 @@ bool FAssetRegistryState::Save(FArchive& OriginalAr, const FAssetRegistrySeriali
 
 	check(!OriginalAr.IsLoading());
 
-	// This is only used for the runtime version of the AssetRegistry
-
 #if !ALLOW_NAME_BATCH_SAVING
 	checkf(false, TEXT("Cannot save cooked AssetRegistryState in this configuration"));
 #else
