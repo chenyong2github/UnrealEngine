@@ -114,7 +114,7 @@ inline const TCHAR* GetGeneratedTypeName()
 	return Result.Array;
 }
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 	#pragma warning(pop)
 #endif
 
