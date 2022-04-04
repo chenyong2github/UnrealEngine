@@ -2339,6 +2339,14 @@ void FNiagaraConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPi
 				}
 			}
 		}
+
+		if(OutputPin && InputPin)
+		{
+			if(OutputPin->bOrphanedPin || InputPin->bOrphanedPin)
+			{
+				Params.WireColor = FLinearColor::Red;
+			}
+		}
 	}
 }
 
