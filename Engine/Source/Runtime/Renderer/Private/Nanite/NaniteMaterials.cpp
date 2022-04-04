@@ -14,6 +14,7 @@
 #include "RendererModule.h"
 #include "PixelShaderUtils.h"
 #include "Lumen/LumenSceneRendering.h"
+#include "Strata/Strata.h"
 
 DEFINE_GPU_STAT(NaniteMaterials);
 DEFINE_GPU_STAT(NaniteDepth);
@@ -383,8 +384,10 @@ void DrawBasePass(
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
-	FRenderTargetBindingSlots GBufferRenderTargets;
-	SceneTextures.GetGBufferRenderTargets(ERenderTargetLoadAction::ELoad, GBufferRenderTargets);
+	TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets> BasePassTextures;
+	uint32 BasePassTextureCount = SceneTextures.GetGBufferRenderTargets(BasePassTextures);
+	Strata::AppendStrataMRTs(SceneRenderer, BasePassTextureCount, BasePassTextures);
+	TArrayView<FTextureRenderTargetBinding> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
 
 	FRDGTextureRef MaterialDepth	= RasterResults.MaterialDepth ? RasterResults.MaterialDepth : SystemTextures.Black;
 	FRDGTextureRef VisBuffer64		= RasterResults.VisBuffer64   ? RasterResults.VisBuffer64   : SystemTextures.Black;
@@ -514,7 +517,7 @@ void DrawBasePass(
 		PassParameters->VisBuffer64 = VisBuffer64;
 		PassParameters->DbgBuffer64 = DbgBuffer64;
 		PassParameters->DbgBuffer32 = DbgBuffer32;
-		PassParameters->RenderTargets = GBufferRenderTargets;
+		PassParameters->RenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ELoad, BasePassTexturesView);
 
 		PassParameters->View = View.ViewUniformBuffer; // To get VTFeedbackBuffer
 		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures, nullptr);
