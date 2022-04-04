@@ -274,7 +274,7 @@ void InstanceCull(
 			// Depth clipping should only be disabled with orthographic projections
 			const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
 
-#if DEBUG_FLAGS && COMPILER_PSSL
+#if DEBUG_FLAGS
 			const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0u;
 			const bool bSkipBoxCullHZB     = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0u;
 #else
@@ -466,7 +466,7 @@ void InstanceCullVSM(
 	// Depth clipping should only be disabled with orthographic projections
 	const bool bNearClip = ( NEAR_CLIP != 0 );
 
-#if DEBUG_FLAGS && COMPILER_PSSL
+#if DEBUG_FLAGS
 	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
 	const bool bSkipBoxCullHZB     = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
 #else
