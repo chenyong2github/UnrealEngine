@@ -35,7 +35,7 @@ uint bComposeDofDepth;
 Texture2D<float>	HairDOFDepthTexture;
 Texture2D<float4>	HairLightingSampleBuffer;
 
-float4 EvaluateVolumetric(float3 WorldPosition)
+float4 EvaluateVolumetric(float3 WorldPosition, float SceneDepth)
 {
 	const float3 CameraRelative_WorldPosition = WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin);
 	float4 HeightFogging = CalculateHeightFog(CameraRelative_WorldPosition);
@@ -45,7 +45,7 @@ float4 EvaluateVolumetric(float3 WorldPosition)
 	{
 		const uint EyeIndex = 0;
 		float3 VolumeUV = ComputeVolumeUV_DEPRECATED(WorldPosition, LWCHackToFloat(PrimaryView.WorldToClip));
-		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, EyeIndex);
+		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, EyeIndex, SceneDepth);
 	}
 
 	Fogging.rgb *= View.PreExposure;
@@ -98,7 +98,7 @@ void ComposeSamplePS(
 
 	const float HairDeviceZ = HairStrands.HairOnlyDepthTexture.Load(PixelCoord);
 	const float3 ClosetPointWorldPosition = LWCHackToFloat(SvPositionToWorld(float4(Input.Position.xy, HairDeviceZ, 1.0)));
-	const float4 Volumetric = EvaluateVolumetric(ClosetPointWorldPosition);
+	const float4 Volumetric = EvaluateVolumetric(ClosetPointWorldPosition, ConvertFromDeviceZ(HairDeviceZ));
 
 	float3 LocalAccColor = 0;
 	LOOP

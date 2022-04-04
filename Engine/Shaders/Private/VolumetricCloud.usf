@@ -1267,7 +1267,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 		{
 			float3 VolumeUV = ComputeVolumeUVFromNDC(ClipPos);
 			const uint EyeIndex = 0;
-			HeightFogInscatteringAndTransmittance = CombineVolumetricFog(HeightFogInscatteringAndTransmittance, VolumeUV, EyeIndex);
+			HeightFogInscatteringAndTransmittance = CombineVolumetricFog(HeightFogInscatteringAndTransmittance, VolumeUV, EyeIndex, ConvertFromDeviceZ(ClipPos.z));
 		}
 
 		// Apply aerial perspective OVER the cloud, assiming coverage is from the full transmittance.

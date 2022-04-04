@@ -177,6 +177,12 @@ class ENGINE_API UExponentialHeightFogComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VolumetricFog, meta=(DisplayName = "View Distance", UIMin = "1000", UIMax = "10000"))
 	float VolumetricFogDistance;
 
+	/** 
+	 * Distance over which volumetric fog will fade in from the start distance.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VolumetricFog, meta=(DisplayName = "Near Fade In Distance", UIMin = "0", UIMax = "1000"))
+	float VolumetricFogNearFadeInDistance;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VolumetricFog, meta=(DisplayName = "Static Lighting Scattering Intensity", UIMin = "0", UIMax = "10"))
 	float VolumetricFogStaticLightingScatteringIntensity;
 

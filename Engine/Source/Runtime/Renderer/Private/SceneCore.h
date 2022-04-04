@@ -287,6 +287,7 @@ public:
 	float VolumetricFogDistance;
 	float VolumetricFogStaticLightingScatteringIntensity;
 	bool bOverrideLightColorsWithFogInscatteringColors;
+	float VolumetricFogNearFadeInDistance;
 
 	FLinearColor SkyAtmosphereAmbientContributionColorScale;
 

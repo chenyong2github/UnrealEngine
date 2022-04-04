@@ -1507,7 +1507,7 @@ void FPixelShaderInOut_MainPS(
 	if (FogStruct.ApplyVolumetricFog > 0) 
 	{
 		float3 VolumeUV = ComputeVolumeUV(MaterialParameters.AbsoluteWorldPosition, ResolvedView.WorldToClip);
-		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, EyeIndex);
+		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, EyeIndex, GBuffer.Depth);
 	}
 #endif
 

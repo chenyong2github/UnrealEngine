@@ -796,6 +796,8 @@ void LightScatteringCS(
 Texture3D<float4> LightScattering;
 RWTexture3D<float4> RWIntegratedLightScattering;
 
+float VolumetricFogNearFadeInDistanceInv;
+
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void FinalIntegrationCS(
 	uint3 GroupId : SV_GroupID,
@@ -806,8 +808,8 @@ void FinalIntegrationCS(
 
 	float3 AccumulatedLighting = 0;
 	float AccumulatedTransmittance = 1.0f;
-	float3 PreviousSliceTranslatedWorldPosition = PrimaryView.TranslatedWorldCameraOrigin;
-
+	float3 PreviousSliceTranslatedWorldPosition = ComputeCellTranslatedWorldPosition(uint3(GridCoordinate.xy, 0), float3(0.5f, 0.5f, 0.0f));
+	float AccumulatedDepth = 0.0;
 	for (int LayerIndex = 0; LayerIndex < VolumetricFog.GridSizeInt.z; LayerIndex++)
 	{
 		uint3 LayerCoordinate = uint3(GridCoordinate.xy, LayerIndex);
@@ -819,16 +821,21 @@ void FinalIntegrationCS(
 
 		float Transmittance = exp(-ScatteringAndExtinction.w * StepLength);
 
+		AccumulatedDepth += StepLength;
+
+		// Fade in as a function of depth
+		float FadeInLerpValue = saturate(AccumulatedDepth * VolumetricFogNearFadeInDistanceInv);
+
 		// See "Physically Based and Unified Volumetric Rendering in Frostbite"
 		#define ENERGY_CONSERVING_INTEGRATION 1
 		#if ENERGY_CONSERVING_INTEGRATION
-			float3 ScatteringIntegratedOverSlice = (ScatteringAndExtinction.rgb - ScatteringAndExtinction.rgb * Transmittance) / max(ScatteringAndExtinction.w, .00001f);
+			float3 ScatteringIntegratedOverSlice = FadeInLerpValue * (ScatteringAndExtinction.rgb - ScatteringAndExtinction.rgb * Transmittance) / max(ScatteringAndExtinction.w, .00001f);
 			AccumulatedLighting += ScatteringIntegratedOverSlice * AccumulatedTransmittance;
 		#else
-			AccumulatedLighting += ScatteringAndExtinction.rgb * AccumulatedTransmittance * StepLength;
+			AccumulatedLighting += FadeInLerpValue * ScatteringAndExtinction.rgb * AccumulatedTransmittance * StepLength;
 		#endif
 		
-		AccumulatedTransmittance *= Transmittance;
+		AccumulatedTransmittance *= lerp(1.0f, Transmittance, FadeInLerpValue);
 
 		RWIntegratedLightScattering[LayerCoordinate] = float4(AccumulatedLighting, AccumulatedTransmittance);
 	}

@@ -731,6 +731,7 @@ class FVolumetricFogFinalIntegrationCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float4>, LightScattering)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, RWIntegratedLightScattering)
+		SHADER_PARAMETER(float, VolumetricFogNearFadeInDistanceInv)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumetricFogIntegrationParameters, VolumetricFogParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -761,7 +762,7 @@ bool ShouldRenderVolumetricFog(const FScene* Scene, const FSceneViewFamily& View
 		&& Scene->ExponentialFogs[0].VolumetricFogDistance > 0;
 }
 
-FVector GetVolumetricFogGridZParams(float NearPlane, float FarPlane, int32 GridSizeZ)
+FVector GetVolumetricFogGridZParams(float HeighFogStartdistance, float NearPlane, float FarPlane, int32 GridSizeZ)
 {
 	// S = distribution scale
 	// B, O are solved for given the z distances of the first+last slice, and the # of slices.
@@ -769,7 +770,10 @@ FVector GetVolumetricFogGridZParams(float NearPlane, float FarPlane, int32 GridS
 	// slice = log2(z*B + O) * S
 
 	// Don't spend lots of resolution right in front of the near plane
-	double NearOffset = .095 * 100;
+
+	NearPlane = FMath::Max(NearPlane, double(HeighFogStartdistance));
+
+	double NearOffset = .095 * 100.0;
 	// Space out the slices so they aren't all clustered at the near plane
 	double S = GVolumetricFogDepthDistributionScale;
 
@@ -834,7 +838,7 @@ void SetupVolumetricFogGlobalData(const FViewInfo& View, FVolumetricFogGlobalDat
 	Parameters.GridSizeInt = VolumetricFogGridSize;
 	Parameters.GridSize = FVector3f(VolumetricFogGridSize);
 
-	FVector ZParams = GetVolumetricFogGridZParams(View.NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
+	FVector ZParams = GetVolumetricFogGridZParams(FogInfo.StartDistance, View.NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
 	Parameters.GridZParams = (FVector3f)ZParams;
 
 	Parameters.SVPosToVolumeUV = FVector2f::UnitVector / (FVector2f(VolumetricFogGridSize.X, VolumetricFogGridSize.Y) * VolumetricFogGridPixelSize);
@@ -863,7 +867,7 @@ void FViewInfo::SetupVolumetricFogUniformBufferParameters(FViewUniformShaderPara
 
 		ViewUniformShaderParameters.VolumetricFogInvGridSize = FVector3f(1.0f / VolumetricFogGridSize.X, 1.0f / VolumetricFogGridSize.Y, 1.0f / VolumetricFogGridSize.Z);
 
-		const FVector ZParams = GetVolumetricFogGridZParams(NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
+		const FVector ZParams = GetVolumetricFogGridZParams(FogInfo.StartDistance, NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
 		ViewUniformShaderParameters.VolumetricFogGridZParams = (FVector3f)ZParams;
 
 		ViewUniformShaderParameters.VolumetricFogSVPosToVolumeUV = FVector2f::UnitVector / (FVector2f(VolumetricFogGridSize.X, VolumetricFogGridSize.Y) * VolumetricFogGridPixelSize);
@@ -937,7 +941,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 
 		int32 VolumetricFogGridPixelSize;
 		const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(View.ViewRect.Size(), VolumetricFogGridPixelSize);
-		const FVector GridZParams = GetVolumetricFogGridZParams(View.NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
+		const FVector GridZParams = GetVolumetricFogGridZParams(FogInfo.StartDistance, View.NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
 
 		FVolumetricFogIntegrationParameterData IntegrationData;
 		IntegrationData.FrameJitterOffsetValues.Empty(16);
@@ -1268,6 +1272,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			FVolumetricFogFinalIntegrationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVolumetricFogFinalIntegrationCS::FParameters>();
 			PassParameters->LightScattering = IntegrationData.LightScattering;
 			PassParameters->RWIntegratedLightScattering = IntegratedLightScatteringUAV;
+			PassParameters->VolumetricFogNearFadeInDistanceInv = View.VolumetricFogNearFadeInDistanceInv;
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			SetupVolumetricFogIntegrationParameters(PassParameters->VolumetricFogParameters, View, IntegrationData);
 
