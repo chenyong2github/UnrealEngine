@@ -44,6 +44,8 @@ class DATALAYEREDITOR_API UDataLayerEditorSubsystem final : public UEditorSubsys
 	GENERATED_BODY()
 
 public:
+	UDataLayerEditorSubsystem();
+
 	static UDataLayerEditorSubsystem* Get();
 
 	typedef IFilter<const TWeakObjectPtr<AActor>&> FActorFilter;
@@ -546,7 +548,7 @@ public:
 	/*
 	 * Returns whether the DataLayer contains one of more actors that are part of the editor selection.
 	 */
-	bool DoesDataLayerContainSelectedActors(const UDataLayerInstance* DataLayer) const { return SelectedDataLayersFromEditorSelection.Contains(DataLayer); }
+	bool DoesDataLayerContainSelectedActors(const UDataLayerInstance* DataLayer) const { return GetSelectedDataLayersFromEditorSelection().Contains(DataLayer); }
 
 	/**
 	* Whether there are any deprecated DataLayerInstance found
@@ -660,9 +662,13 @@ private:
 	void BroadcastDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayerInstance>& ChangedDataLayer, const FName& ChangedProperty);
 	void OnSelectionChanged();
 	void RebuildSelectedDataLayersFromEditorSelection();
+	const TSet<TWeakObjectPtr<const UDataLayerInstance>>& GetSelectedDataLayersFromEditorSelection() const;
 
 	/** Contains Data Layers that contain actors that are part of the editor selection */
-	TSet<TWeakObjectPtr<const UDataLayerInstance>> SelectedDataLayersFromEditorSelection;
+	mutable TSet<TWeakObjectPtr<const UDataLayerInstance>> SelectedDataLayersFromEditorSelection;
+
+	/** Internal flag to know if SelectedDataLayersFromEditorSelection needs to be rebuilt. */
+	mutable bool bRebuildSelectedDataLayersFromEditorSelection;
 
 	/** Fires whenever one or more DataLayer changes */
 	FOnDataLayerChanged DataLayerChanged;

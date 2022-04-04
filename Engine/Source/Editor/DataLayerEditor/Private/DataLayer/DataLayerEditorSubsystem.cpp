@@ -140,6 +140,10 @@ void FDataLayersBroadcast::OnObjectPostEditChange(UObject* Object, FPropertyChan
 //		  Either a proxy that redirects calls to the proper EditorSubsystem will be used or user code will change to trigger delegate broadcast instead of directly accessing the subsystem (see calls to InitializeNewActorDataLayers everywhere as an example).
 //
 
+UDataLayerEditorSubsystem::UDataLayerEditorSubsystem()
+: bRebuildSelectedDataLayersFromEditorSelection(false)
+{}
+
 UDataLayerEditorSubsystem* UDataLayerEditorSubsystem::Get()
 {
 	return GEditor ? GEditor->GetEditorSubsystem<UDataLayerEditorSubsystem>() : nullptr;
@@ -1072,35 +1076,40 @@ void UDataLayerEditorSubsystem::DeleteDataLayer(UDataLayerInstance* DataLayerToD
 
 void UDataLayerEditorSubsystem::BroadcastActorDataLayersChanged(const TWeakObjectPtr<AActor>& ChangedActor)
 {
-	RebuildSelectedDataLayersFromEditorSelection();
+	bRebuildSelectedDataLayersFromEditorSelection = true;
 	ActorDataLayersChanged.Broadcast(ChangedActor);
 }
 
 void UDataLayerEditorSubsystem::BroadcastDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayerInstance>& ChangedDataLayer, const FName& ChangedProperty)
 {
-	RebuildSelectedDataLayersFromEditorSelection();
+	bRebuildSelectedDataLayersFromEditorSelection = true;
 	DataLayerChanged.Broadcast(Action, ChangedDataLayer, ChangedProperty);
 	ActorEditorContextClientChanged.Broadcast(this);
 }
 
 void UDataLayerEditorSubsystem::OnSelectionChanged()
 {
-	RebuildSelectedDataLayersFromEditorSelection();
+	bRebuildSelectedDataLayersFromEditorSelection = true;
 }
 
-void UDataLayerEditorSubsystem::RebuildSelectedDataLayersFromEditorSelection()
+const TSet<TWeakObjectPtr<const UDataLayerInstance>>& UDataLayerEditorSubsystem::GetSelectedDataLayersFromEditorSelection() const
 {
-	SelectedDataLayersFromEditorSelection.Reset();
-
-	TArray<AActor*> Actors;
-	GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(Actors);
-	for (const AActor* Actor : Actors)
+	if (bRebuildSelectedDataLayersFromEditorSelection)
 	{
-		for (const UDataLayerInstance* DataLayerInstance : Actor->GetDataLayerInstances())
+		bRebuildSelectedDataLayersFromEditorSelection = false;
+
+		SelectedDataLayersFromEditorSelection.Reset();
+		TArray<AActor*> Actors;
+		GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(Actors);
+		for (const AActor* Actor : Actors)
 		{
-			SelectedDataLayersFromEditorSelection.Add(DataLayerInstance);
+			for (const UDataLayerInstance* DataLayerInstance : Actor->GetDataLayerInstances())
+			{
+				SelectedDataLayersFromEditorSelection.Add(DataLayerInstance);
+			}
 		}
 	}
+	return SelectedDataLayersFromEditorSelection;
 }
 
 //~ Begin Deprecated
