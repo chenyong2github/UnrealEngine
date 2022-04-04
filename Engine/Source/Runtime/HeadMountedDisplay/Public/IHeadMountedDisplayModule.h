@@ -74,6 +74,8 @@ public:
 	 */
 	static inline IHeadMountedDisplayModule& Get()
 	{
+		// This function is accessible from the render and RHI threads, so lock the list of modular features before calling GetModularFeature
+		IModularFeatures::FScopedLockModularFeatureList ScopedLockModularFeatureList;
 		TArray<IHeadMountedDisplayModule*> HMDModules = IModularFeatures::Get().GetModularFeatureImplementations<IHeadMountedDisplayModule>(GetModularFeatureName());
 		HMDModules.Sort(FCompareModulePriority());
 		return *HMDModules[0];
@@ -86,6 +88,8 @@ public:
 	 */
 	static inline bool IsAvailable()
 	{
+		// This function is accessible from the render and RHI threads, so lock the list of modular features before calling GetModularFeature
+		IModularFeatures::FScopedLockModularFeatureList ScopedLockModularFeatureList;
 		return IModularFeatures::Get().IsModularFeatureAvailable(GetModularFeatureName());
 	}
 
