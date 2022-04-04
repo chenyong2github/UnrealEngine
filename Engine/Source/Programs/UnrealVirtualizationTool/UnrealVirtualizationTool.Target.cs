@@ -9,6 +9,7 @@ public class UnrealVirtualizationToolTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 		LaunchModuleName = "UnrealVirtualizationTool";
 
