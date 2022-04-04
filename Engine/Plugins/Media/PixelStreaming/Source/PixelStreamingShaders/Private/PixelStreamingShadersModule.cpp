@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "CoreMinimal.h"
 #include "Containers/UnrealString.h"
 #include "Misc/Paths.h"
