@@ -51,7 +51,7 @@ public:
 	UTextureRenderTarget2D* WaterInfoTexture;
 private:
 
-	void UpdateWaterInfoTexture();
+	bool UpdateWaterInfoTexture();
 
 	void OnExtentChanged();
 	

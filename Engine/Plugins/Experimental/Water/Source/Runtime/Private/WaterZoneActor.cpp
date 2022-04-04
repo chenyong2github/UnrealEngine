@@ -119,8 +119,10 @@ void AWaterZone::Update()
 	if (bNeedsWaterInfoRebuild || (ForceUpdateWaterInfoNextFrames != 0))
 	{
 		ForceUpdateWaterInfoNextFrames = (ForceUpdateWaterInfoNextFrames < 0) ? ForceUpdateWaterInfoNextFrames : FMath::Max(0, ForceUpdateWaterInfoNextFrames - 1);
-		UpdateWaterInfoTexture();
-		bNeedsWaterInfoRebuild = false;
+		if (UpdateWaterInfoTexture())
+		{
+			bNeedsWaterInfoRebuild = false;
+		}
 	}
 	
 	if (WaterMesh)
@@ -220,18 +222,32 @@ void AWaterZone::OnBoundsComponentModified()
 }
 #endif // WITH_EDITOR
 
-void AWaterZone::UpdateWaterInfoTexture()
+bool AWaterZone::UpdateWaterInfoTexture()
 {
 	if (UWorld* World = GetWorld(); World && FApp::CanEverRender())
 	{
 		float WaterZMin(TNumericLimits<double>::Max());
 		float WaterZMax(TNumericLimits<double>::Lowest());
 	
+		bool bHasIncompleteShaderMaps = false;
 		// #todo_water [roey]: we need to store which actors this zone is responsible for rendering once we implement support for multi zones.
 		// For now whenever we update the water info texture we will just collect all water bodies and pass those to the renderer.
 		TArray<UWaterBodyComponent*> WaterBodies;
-		UWaterSubsystem::ForEachWaterBodyComponent(World, [&WaterBodies, &WaterZMax, &WaterZMin](UWaterBodyComponent* Component)
+		UWaterSubsystem::ForEachWaterBodyComponent(World, [World, &WaterBodies, &WaterZMax, &WaterZMin, &bHasIncompleteShaderMaps](UWaterBodyComponent* Component)
 		{
+			if (UMaterialInterface* WaterInfoMaterial = Component->GetWaterInfoMaterialInstance())
+			{
+				if (FMaterialResource* MaterialResource = WaterInfoMaterial->GetMaterialResource(World->Scene->GetFeatureLevel()))
+				{
+					if (!MaterialResource->IsGameThreadShaderMapComplete())
+					{
+						MaterialResource->SubmitCompileJobs_GameThread(EShaderCompileJobPriority::ForceLocal);
+						bHasIncompleteShaderMaps = true;
+						return true;
+					}
+				}
+			}
+
 			WaterBodies.Add(Component);
 			const FBox WaterBodyBounds = Component->CalcBounds(Component->GetComponentToWorld()).GetBox();
 			WaterZMax = FMath::Max(WaterZMax, WaterBodyBounds.Max.Z);
@@ -239,10 +255,15 @@ void AWaterZone::UpdateWaterInfoTexture()
 			return true;
 		});
 
+		if (bHasIncompleteShaderMaps)
+		{
+			return false;
+		}
+
 		// If we don't have any water bodies we don't need to do anything.
 		if (WaterBodies.Num() == 0)
 		{
-			return;
+			return true;
 		}
 
 		checkf(WaterZMin != WaterZMax, TEXT("Water has a height extent of 0 which can cause divide by zero errors in the shaders! Ensure water bodies have proper bounding boxes."));
@@ -281,4 +302,6 @@ void AWaterZone::UpdateWaterInfoTexture()
 
 		UE_LOG(LogWater, Verbose, TEXT("Queued Water Info texture update"));
 	}
+
+	return true;
 }
