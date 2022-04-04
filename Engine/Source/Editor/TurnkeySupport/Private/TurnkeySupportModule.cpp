@@ -2168,10 +2168,9 @@ void FTurnkeySupportModule::UpdateSdkInfo()
 				for (auto& It : PerPlatformSdkInfo)
 				{
 					It.Value.Status = ETurnkeyPlatformSdkStatus::Error;
-					It.Value.SdkErrorInformation = FText::Format(NSLOCTEXT("Turnkey", "TurnkeyError_ReturnedError", "Turnkey returned an error, code {0}"), { ExitCode });
-
-					// @todo turnkey error description!
+					It.Value.SdkErrorInformation = FText::Format(NSLOCTEXT("Turnkey", "TurnkeyError_ReturnedError", "Turnkey returned an error, code {0} (See log)"), { ExitCode });
 				}
+				UE_LOG(LogTurnkeySupport, Warning, TEXT("Turnkey failed to run properly, full Turnkey output:\n%s"), *TurnkeyProcess->GetFullOutputWithoutDelegate());
 			}
 
 
@@ -2269,17 +2268,28 @@ void FTurnkeySupportModule::UpdateSdkInfoForDevices(TArray<FString> PlatformDevi
 						PerDeviceSdkInfo[DDPIDeviceId] = SdkInfo;
 					}
 				}
+
+			    for (const FString& Id : PlatformDeviceIds)
+			    {
+				    FTurnkeySdkInfo& SdkInfo = PerDeviceSdkInfo[ConvertToDDPIDeviceId(Id)];
+				    if (SdkInfo.Status == ETurnkeyPlatformSdkStatus::Querying)
+				    {
+					    SdkInfo.Status = ETurnkeyPlatformSdkStatus::Error;
+					    SdkInfo.SdkErrorInformation = NSLOCTEXT("Turnkey", "TurnkeyError_DeviceNotReturned", "A device's Sdk status was not returned from Turnkey");
+				    }
+			    }
+			}
+			else
+			{
+			    for (const FString& Id : PlatformDeviceIds)
+			    {
+				    FTurnkeySdkInfo& SdkInfo = PerDeviceSdkInfo[ConvertToDDPIDeviceId(Id)];
+				    SdkInfo.Status = ETurnkeyPlatformSdkStatus::Error;
+					SdkInfo.SdkErrorInformation = FText::Format(NSLOCTEXT("Turnkey", "TurnkeyError_ReturnedError", "Turnkey returned an error, code {0} (See log)"), { ExitCode });
+				}
+				UE_LOG(LogTurnkeySupport, Warning, TEXT("Turnkey failed to run properly, full Turnkey output:\n%s"), *TurnkeyProcess->GetFullOutputWithoutDelegate());
 			}
 
-			for (const FString& Id : PlatformDeviceIds)
-			{
-				FTurnkeySdkInfo& SdkInfo = PerDeviceSdkInfo[ConvertToDDPIDeviceId(Id)];
-				if (SdkInfo.Status == ETurnkeyPlatformSdkStatus::Querying)
-				{
-					SdkInfo.Status = ETurnkeyPlatformSdkStatus::Error;
-					SdkInfo.SdkErrorInformation = NSLOCTEXT("Turnkey", "TurnkeyError_DeviceNotReturned", "A device's Sdk status was not returned from Turnkey");
-				}
-			}
 
 			// cleanup
 			delete TurnkeyProcess;

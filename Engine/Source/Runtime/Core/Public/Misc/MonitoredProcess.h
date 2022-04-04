@@ -150,6 +150,15 @@ public:
 		return ReturnCode;
 	}
 
+	/**
+	 * Returns the full output, wihtout needing to hookup a delegate and buffer it externally. Note that if OutputDelegate is 
+	 * bound, this _will not_ have the entire output
+	 */
+	const FString& GetFullOutputWithoutDelegate() const
+	{
+		return OutputBuffer;
+	}
+
 public:
 
 	// FRunnable interface

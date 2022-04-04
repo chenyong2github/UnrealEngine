@@ -101,25 +101,29 @@ void FMonitoredProcess::ProcessOutput( const FString& Output )
 	// Append this output to the output buffer
 	OutputBuffer += Output;
 
-	// Output all the complete lines
-	int32 LineStartIdx = 0;
-	for(int32 Idx = 0; Idx < OutputBuffer.Len(); Idx++)
+	// if the delegate is not bound, then just keep buffering the output to OutputBuffer for later return from GetFullOutputWithoutDelegate()
+	if (OutputDelegate.IsBound())
 	{
-		if(OutputBuffer[Idx] == '\r' || OutputBuffer[Idx] == '\n')
+		// Output all the complete lines
+		int32 LineStartIdx = 0;
+		for (int32 Idx = 0; Idx < OutputBuffer.Len(); Idx++)
 		{
-			OutputDelegate.ExecuteIfBound(OutputBuffer.Mid(LineStartIdx, Idx - LineStartIdx));
-			
-			if(OutputBuffer[Idx] == '\r' && Idx + 1 < OutputBuffer.Len() && OutputBuffer[Idx + 1] == '\n')
+			if (OutputBuffer[Idx] == '\r' || OutputBuffer[Idx] == '\n')
 			{
-				Idx++;
+				OutputDelegate.ExecuteIfBound(OutputBuffer.Mid(LineStartIdx, Idx - LineStartIdx));
+
+				if (OutputBuffer[Idx] == '\r' && Idx + 1 < OutputBuffer.Len() && OutputBuffer[Idx + 1] == '\n')
+				{
+					Idx++;
+				}
+
+				LineStartIdx = Idx + 1;
 			}
-
-			LineStartIdx = Idx + 1;
 		}
-	}
 
-	// Remove all the complete lines from the buffer
-	OutputBuffer.MidInline(LineStartIdx, MAX_int32, false);
+		// Remove all the complete lines from the buffer
+		OutputBuffer.MidInline(LineStartIdx, MAX_int32, false);
+	}
 }
 
 void FMonitoredProcess::TickInternal()
