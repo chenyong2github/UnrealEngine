@@ -31,10 +31,10 @@ public:
 	void OnAdvanceBackBufferFrame(FRHICommandListImmediate& RHICmdList);
 
 	void ReleaseViewport();
+	void ReleaseAcquiredImage();
 
 private:
 	void AcquireBackBufferImage(FVulkanCommandListContext& Context);
-	void ReleaseAcquiredImage();
 
 private:
 	FVulkanViewport* Viewport;
