@@ -46,8 +46,5 @@ protected:
 private:
 	void RegisterContainerInstance(UWorld* InWorld);
 	void UnregisterContainerInstance();
-
-	static UActorDescContainer* RegisterActorDescContainer(FName PackageName, UWorld* InWorld);
-	static void UnregisterActorDescContainer(UActorDescContainer* Container);
 #endif
 };
