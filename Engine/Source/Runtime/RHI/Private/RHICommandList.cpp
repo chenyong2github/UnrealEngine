@@ -1055,7 +1055,7 @@ void FRHICommandListExecutor::Transition(TArrayView<const FRHITransitionInfo> In
 	}
 #endif
 
-	if (!GSupportsEfficientAsyncCompute)
+	if (!GSupportsEfficientAsyncCompute || RHICmdListAsyncCompute.Bypass())
 	{
 		checkf(SrcPipelines != ERHIPipeline::AsyncCompute, TEXT("Async compute is disabled. Cannot transition from it."));
 		checkf(DstPipelines != ERHIPipeline::AsyncCompute, TEXT("Async compute is disabled. Cannot transition to it."));
