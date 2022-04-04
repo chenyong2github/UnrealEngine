@@ -8,7 +8,6 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/WeakObjectPtr.h"
-#include "Engine/World.h"
 #include "Misc/Guid.h"
 
 class FLinkerInstancingContext;
@@ -42,7 +41,6 @@ private:
 		TSet<FWorldPartitionPackageCache*> Referencers;
 		TWeakObjectPtr<UPackage> Package;
 		TArray<FLoadPackageAsyncDelegate> CompletionDelegates;
-		TUniquePtr<FScopedLoadAllExternalObjects> ScopedLoadAllExternalObjects;
 	};
 	TMap<FName, FPackageCacheInfo> Cache;
 

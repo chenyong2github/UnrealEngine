@@ -2469,8 +2469,7 @@ namespace ObjectTools
 		for ( int i = 0; i < AssetsToDelete.Num(); i++ )
 		{
 			const FAssetData& AssetData = AssetsToDelete[i];
-			FScopedLoadAllExternalObjects Scope(AssetData.PackageName);
-			UObject *ObjectToDelete = AssetData.GetAsset();
+			UObject *ObjectToDelete = AssetData.GetAsset({ ULevel::LoadAllExternalObjectsTag });
 			// Assets can be loaded even when their underlying type/class no longer exists...
 			if ( ObjectToDelete!=nullptr )
 			{

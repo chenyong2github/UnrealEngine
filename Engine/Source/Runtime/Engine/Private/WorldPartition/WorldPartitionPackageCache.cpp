@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 #include "UObject/UObjectHash.h"
 #include "Engine/World.h"
+#include "Engine/Level.h"
 #include "PackageTools.h"
 #include "Misc/PackagePath.h"
 #include "WorldPartition/WorldPartition.h"
@@ -59,8 +60,6 @@ void FWorldPartitionPackageGlobalCache::LoadPackage(FWorldPartitionPackageCache*
 	FLoadPackageAsyncDelegate CompletionCallback = FLoadPackageAsyncDelegate::CreateLambda([this, bInWorldPackage, InClient](const FName& LoadedPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
 	{
 		FPackageCacheInfo& CacheInfo = Cache.FindChecked(LoadedPackageName);
-		check(CacheInfo.ScopedLoadAllExternalObjects.IsValid());
-		CacheInfo.ScopedLoadAllExternalObjects.Reset();
 
 		if (Result == EAsyncLoadingResult::Succeeded)
 		{
@@ -92,15 +91,15 @@ void FWorldPartitionPackageGlobalCache::LoadPackage(FWorldPartitionPackageCache*
 	}
 
 	// Cache doesn't initialize the world, so make sure external objects will be loaded in ULevel::PostLoad
-	CacheInfo.ScopedLoadAllExternalObjects = TUniquePtr<FScopedLoadAllExternalObjects>(new FScopedLoadAllExternalObjects(InPackageName));
+	FLinkerInstancingContext InstancingContext({ ULevel::LoadAllExternalObjectsTag });
 	if (bLoadAsync)
 	{
-		::LoadPackageAsync(FPackagePath::FromPackageNameChecked(InPackageToLoadFrom), InPackageName, CompletionCallback);
+		::LoadPackageAsync(FPackagePath::FromPackageNameChecked(InPackageToLoadFrom), InPackageName, CompletionCallback, PKG_None, INDEX_NONE, 0, &InstancingContext);
 	}
 	else
 	{
 		UPackage* Package = CreatePackage(*InPackageName.ToString());
-		Package = ::LoadPackage(Package, InPackageToLoadFrom, LOAD_None);
+		Package = ::LoadPackage(Package, InPackageToLoadFrom, LOAD_None, nullptr, &InstancingContext);
 		CompletionCallback.Execute(InPackageName, Package, Package ? EAsyncLoadingResult::Succeeded : EAsyncLoadingResult::Failed);
 	}
 }

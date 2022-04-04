@@ -1002,17 +1002,6 @@ struct FWorldCachedViewInfo
 };
 
 /**
- * Scope can be used to force load all external objects when loading a world. 
- */
-struct ENGINE_API FScopedLoadAllExternalObjects
-{
-	FScopedLoadAllExternalObjects(FName InPackageName);
-	~FScopedLoadAllExternalObjects();
-
-	FName PackageName;
-};
-
-/**
  * Helper class allows UWorldPartition to broadcast UWorld events 
  */
 struct FWorldPartitionEvents
@@ -1526,12 +1515,7 @@ public:
 	/** Returns whether or not this world is currently ticking. See SetShouldTick. */
 	bool ShouldTick() const { return bShouldTick; }
 
-	static bool ShouldLoadAllExternalObjects(FName InPackageName) { return LoadAllExternalObjects.Contains(InPackageName); }
-
 private:
-	friend struct FScopedLoadAllExternalObjects;
-	static TSet<FName> LoadAllExternalObjects;
-
 	/** List of all the controllers in the world. */
 	TArray<TWeakObjectPtr<class AController> > ControllerList;
 

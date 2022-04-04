@@ -76,6 +76,7 @@ Level.cpp: Level-related functions
 #include "ScopedTransaction.h"
 #include "EditorActorFolders.h"
 #include "UObject/MetaData.h"
+#include "UObject/LinkerLoad.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
@@ -362,6 +363,10 @@ static bool IsActorFolderObjectsFeatureAvailable()
 }
 
 TMap<FName, TWeakObjectPtr<UWorld> > ULevel::StreamedLevelsOwningWorld;
+
+#if WITH_EDITOR
+const FName ULevel::LoadAllExternalObjectsTag(TEXT("LoadAllExternalObjectsTag"));
+#endif
 
 ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	:	UObject( ObjectInitializer )
@@ -920,10 +925,13 @@ void ULevel::PostLoad()
 		}
 	}
 
+	const FLinkerLoad* Linker = GetLinker();
+	check(Linker || bWasDuplicated);
+
 	// if we use external actors, load dynamic actors here
 	if (IsUsingExternalActors())
 	{
-		if (!bWasDuplicated && (!bIsPartitioned || UWorld::ShouldLoadAllExternalObjects(GetPackage()->GetFName())))
+		if (!bWasDuplicated && (!bIsPartitioned || Linker->GetInstancingContext().HasTag(ULevel::LoadAllExternalObjectsTag)))
 		{
 			UPackage* LevelPackage = GetPackage();
 			bool bPackageForPIE = LevelPackage->HasAnyPackageFlags(PKG_PlayInEditor);

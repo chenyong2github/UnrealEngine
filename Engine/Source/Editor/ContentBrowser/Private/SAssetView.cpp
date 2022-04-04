@@ -25,6 +25,7 @@
 #include "EditorStyleSet.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Engine/Blueprint.h"
+#include "Engine/Level.h"
 #include "Editor.h"
 #include "AssetSelection.h"
 #include "IAssetTools.h"
@@ -1582,8 +1583,8 @@ FReply SAssetView::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKe
 				FString PackageName;
 				if (IsValidObjectPath(AssetPath, ObjectClassName, ObjectPath, PackageName))
 				{
-					FScopedLoadAllExternalObjects Scope(*PackageName);
-					UObject* ObjectToCopy = LoadObject<UObject>(nullptr, *ObjectPath);
+					FLinkerInstancingContext InstancingContext({ ULevel::LoadAllExternalObjectsTag });
+					UObject* ObjectToCopy = LoadObject<UObject>(nullptr, *ObjectPath, nullptr, LOAD_None, nullptr, &InstancingContext);
 					if (ObjectToCopy && !ObjectToCopy->IsA(UClass::StaticClass()))
 					{
 						AssetsToCopy.Add(ObjectToCopy);

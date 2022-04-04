@@ -9,6 +9,7 @@
 #include "AssetThumbnail.h"
 #include "ClassIconFinder.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "Engine/Level.h"
 
 TSharedRef<FAssetDragDropOp> FAssetDragDropOp::New(const FAssetData& InAssetData, UActorFactory* ActorFactory)
 {
@@ -210,8 +211,7 @@ void FAssetDragDropOp::Init(TArray<FAssetData> InAssetData, TArray<FString> InAs
 	// Can cause unsafe frame reentry 
 	for (FAssetData& Data : AssetData)
 	{
-		FScopedLoadAllExternalObjects Scope(Data.PackageName);
-		Data.GetAsset();
+		Data.GetAsset({ ULevel::LoadAllExternalObjectsTag });
 	}
 
 	InitThumbnail();

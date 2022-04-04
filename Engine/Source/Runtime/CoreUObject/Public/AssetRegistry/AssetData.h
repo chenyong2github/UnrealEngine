@@ -8,6 +8,7 @@
 #include "AssetRegistry/AssetDataTagMap.h"
 #include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
+#include "Containers/Set.h"
 #include "Misc/PackageName.h"
 #include "Misc/StringBuilder.h"
 #include "Templates/UniquePtr.h"
@@ -19,6 +20,7 @@
 #include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
 #include "UObject/PrimaryAssetId.h"
+#include "UObject/LinkerInstancingContext.h"
 
 struct FCustomVersion;
 
@@ -317,8 +319,13 @@ public:
 	/** Gets primary asset id of this data */
 	COREUOBJECT_API FPrimaryAssetId GetPrimaryAssetId() const;
 
-	/** Returns the asset UObject if it is loaded or loads the asset if it is unloaded then returns the result */
-	UObject* FastGetAsset(bool bLoad=false) const
+	/** 
+	 * Returns the asset UObject if it is loaded or loads the asset if it is unloaded then returns the result
+	 * 
+	 * @param bLoad (optional) loads the asset if it is unloaded.
+	 * @param LoadTags (optional) allows passing specific tags to the linker when loading the asset (@see ULevel::LoadAllExternalObjectsTag for an example usage)
+	 */
+	UObject* FastGetAsset(bool bLoad = false, TSet<FName> LoadTags = {}) const
 	{
 		if ( !IsValid())
 		{
@@ -331,7 +338,8 @@ public:
 		{
 			if (bLoad)
 			{
-				return LoadObject<UObject>(nullptr, *ObjectPath.ToString());
+				FLinkerInstancingContext InstancingContext(MoveTemp(LoadTags));
+				return LoadObject<UObject>(nullptr, *ObjectPath.ToString(), nullptr, 0, nullptr, &InstancingContext);
 			}
 			else
 			{
@@ -348,8 +356,12 @@ public:
 		return Asset;
 	}
 
-	/** Returns the asset UObject if it is loaded or loads the asset if it is unloaded then returns the result */
-	UObject* GetAsset() const
+	/** 
+	 * Returns the asset UObject if it is loaded or loads the asset if it is unloaded then returns the result 
+	 * 
+	 * @param LoadTags (optional) allows passing specific tags to the linker when loading the asset (@see ULevel::LoadAllExternalObjectsTag for an example usage)
+	 */
+	UObject* GetAsset(TSet<FName> LoadTags = {}) const
 	{
 		if ( !IsValid())
 		{
@@ -360,7 +372,8 @@ public:
 		UObject* Asset = FindObject<UObject>(nullptr, *ObjectPath.ToString());
 		if ( Asset == nullptr)
 		{
-			Asset = LoadObject<UObject>(nullptr, *ObjectPath.ToString());
+			FLinkerInstancingContext InstancingContext(MoveTemp(LoadTags));
+			Asset = LoadObject<UObject>(nullptr, *ObjectPath.ToString(), nullptr, 0, nullptr, &InstancingContext);
 		}
 
 		return Asset;

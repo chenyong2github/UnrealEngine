@@ -15,6 +15,10 @@ public:
 	FLinkerInstancingContext(TMap<FName, FName> InInstanceMapping)
 		: Mapping(MoveTemp(InInstanceMapping))
 	{}
+	FLinkerInstancingContext(TSet<FName> InTags)
+		: Tags(MoveTemp(InTags))
+	{
+	}
 
 	bool IsInstanced() const
 	{
@@ -41,6 +45,21 @@ public:
 		Mapping.Append(NewMapping);
 	}
 
+	void AddTag(FName NewTag)
+	{
+		Tags.Add(NewTag);
+	}
+
+	void AppendTags(const TSet<FName>& NewTags)
+	{
+		Tags.Append(NewTags);
+	}
+
+	bool HasTag(FName Tag) const
+	{
+		return Tags.Contains(Tag);
+	}
+
 	/** Return the instanced package name for a given instanced outer package and an object package name */
 	static FString GetInstancedPackageName(const FString& InOuterPackageName, const FString& InPackageName)
 	{
@@ -52,4 +71,6 @@ private:
 
 	/** Map of original object name to their instance counterpart. */
 	TMap<FName, FName> Mapping;
+	/** Tags can be used to determine some loading behavior. */
+	TSet<FName> Tags;
 };

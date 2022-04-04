@@ -320,23 +320,6 @@ FScopedLevelCollectionContextSwitch::~FScopedLevelCollectionContextSwitch()
 	}
 }
 
-FScopedLoadAllExternalObjects::FScopedLoadAllExternalObjects(FName InPackageName)
-{
-	if (!UWorld::LoadAllExternalObjects.Contains(InPackageName))
-	{
-		PackageName = InPackageName;
-		UWorld::LoadAllExternalObjects.Add(PackageName);
-	}
-}
-
-FScopedLoadAllExternalObjects::~FScopedLoadAllExternalObjects()
-{
-	if (PackageName != NAME_None)
-	{
-		UWorld::LoadAllExternalObjects.Remove(PackageName);
-	}
-}
-
 void FWorldPartitionEvents::BroadcastWorldPartitionInitialized(UWorld* InWorld, UWorldPartition* InWorldPartition)
 {
 	check(InWorld);
@@ -362,7 +345,6 @@ FAudioDeviceWorldDelegates::FOnWorldUnregisteredWithAudioDevice FAudioDeviceWorl
 UWorldProxy GWorld;
 
 TMap<FName, EWorldType::Type> UWorld::WorldTypePreLoadMap;
-TSet<FName> UWorld::LoadAllExternalObjects;
 
 FWorldDelegates::FWorldEvent FWorldDelegates::OnPostWorldCreation;
 FWorldDelegates::FWorldInitializationEvent FWorldDelegates::OnPreWorldInitialization;

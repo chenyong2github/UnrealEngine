@@ -18,7 +18,7 @@
 #include "AssetFileContextMenu.h"
 #include "ContentBrowserDataUtils.h"
 #include "Settings/ContentBrowserSettings.h"
-#include "Engine/World.h"
+#include "Engine/Level.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserAssetDataSource"
 
@@ -355,8 +355,7 @@ bool DuplicateItem(IAssetTools* InAssetTools, const UContentBrowserDataSource* I
 bool DuplicateAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetFileItemDataPayload& InAssetPayload, UObject*& OutSourceAsset, FAssetData& OutNewAsset)
 {
 	// We need to potentially load the asset in order to duplicate it
-	FScopedLoadAllExternalObjects Scope(InAssetPayload.GetAssetData().PackageName);
-	if (UObject* Asset = InAssetPayload.LoadAsset())
+	if (UObject* Asset = InAssetPayload.LoadAsset({ ULevel::LoadAllExternalObjectsTag }))
 	{
 		// Find a unique default name for the duplicated asset
 		FString DefaultAssetName;
@@ -394,8 +393,7 @@ bool DuplicateAssetFileItems(TArrayView<const TSharedRef<const FContentBrowserAs
 	for (const TSharedRef<const FContentBrowserAssetFileItemDataPayload>& AssetPayload : InAssetPayloads)
 	{
 		// We need to potentially load the asset in order to duplicate it
-		FScopedLoadAllExternalObjects Scope(AssetPayload->GetAssetData().PackageName);
-		if (UObject* Asset = AssetPayload->LoadAsset())
+		if (UObject* Asset = AssetPayload->LoadAsset({ ULevel::LoadAllExternalObjectsTag }))
 		{
 			ObjectsToDuplicate.Add(Asset);
 		}
@@ -770,8 +768,7 @@ bool RenameAssetFolderItem(IAssetRegistry* InAssetRegistry, const FContentBrowse
 bool RenameAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetFileItemDataPayload& InAssetPayload, const FString& InNewName)
 {
 	// We need to potentially load the asset in order to rename it
-	FScopedLoadAllExternalObjects Scope(InAssetPayload.GetAssetData().PackageName);
-	if (UObject* Asset = InAssetPayload.LoadAsset())
+	if (UObject* Asset = InAssetPayload.LoadAsset({ ULevel::LoadAllExternalObjectsTag }))
 	{
 		const FString PackagePath = FPackageName::GetLongPackagePath(Asset->GetOutermost()->GetName());
 
@@ -844,8 +841,7 @@ bool CopyAssetFileItems(TArrayView<const TSharedRef<const FContentBrowserAssetFi
 	for (const TSharedRef<const FContentBrowserAssetFileItemDataPayload>& AssetPayload : InAssetPayloads)
 	{
 		// We need to potentially load the asset in order to duplicate it
-		FScopedLoadAllExternalObjects Scope(AssetPayload->GetAssetData().PackageName);
-		if (UObject* Asset = AssetPayload->LoadAsset())
+		if (UObject* Asset = AssetPayload->LoadAsset({ ULevel::LoadAllExternalObjectsTag }))
 		{
 			AssetsToCopy.Add(Asset);
 		}
@@ -930,8 +926,7 @@ bool MoveAssetFileItems(TArrayView<const TSharedRef<const FContentBrowserAssetFi
 	for (const TSharedRef<const FContentBrowserAssetFileItemDataPayload>& AssetPayload : InAssetPayloads)
 	{
 		// We need to potentially load the asset in order to duplicate it
-		FScopedLoadAllExternalObjects Scope(AssetPayload->GetAssetData().PackageName);
-		if (UObject* Asset = AssetPayload->LoadAsset())
+		if (UObject* Asset = AssetPayload->LoadAsset({ ULevel::LoadAllExternalObjectsTag }))
 		{
 			AssetsToMove.Add(Asset);
 		}

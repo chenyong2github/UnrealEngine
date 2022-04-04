@@ -39,6 +39,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
+#include "UObject/LinkerInstancingContext.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -177,8 +178,8 @@ bool AssetViewUtils::LoadAssetsIfNeeded(const TArray<FString>& ObjectPaths, TArr
 			SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("LoadingObjectf", "Loading {0}..."), FText::FromString(ObjectPath)));
 
 			// Load up the object
-			TUniquePtr<FScopedLoadAllExternalObjects> Scope(bLoadAllExternalObjects? new FScopedLoadAllExternalObjects(*FEditorFileUtils::ExtractPackageName(ObjectPath)) : nullptr);
-			UObject* LoadedObject = LoadObject<UObject>(NULL, *ObjectPath, NULL, LoadFlags, NULL);
+			FLinkerInstancingContext InstancingContext(bLoadAllExternalObjects ? TSet<FName>{ ULevel::LoadAllExternalObjectsTag } : TSet<FName>());
+			UObject* LoadedObject = LoadObject<UObject>(NULL, *ObjectPath, NULL, LoadFlags, NULL, &InstancingContext);
 			if ( LoadedObject )
 			{
 				LoadedObjects.Add(LoadedObject);
@@ -991,8 +992,7 @@ void AssetViewUtils::GetObjectsInAssetData(const TArray<FAssetData>& AssetList, 
 	for (int32 AssetIdx = 0; AssetIdx < AssetList.Num(); ++AssetIdx)
 	{
 		const FAssetData& AssetData = AssetList[AssetIdx];
-		TUniquePtr<FScopedLoadAllExternalObjects> LoadAllExternalObjects(bLoadAllExternalObjects ? new FScopedLoadAllExternalObjects(AssetData.PackageName) : nullptr);
-		UObject* Obj = AssetData.GetAsset();
+		UObject* Obj = AssetData.GetAsset(bLoadAllExternalObjects ? TSet<FName> { ULevel::LoadAllExternalObjectsTag } : TSet<FName>());
 		if (Obj)
 		{
 			OutDroppedObjects.Add(Obj);
