@@ -3,11 +3,9 @@
 #pragma once
 
 #include "OptimusNode_ComputeKernelBase.h"
+#include "OptimusBindingTypes.h"
 
 #include "OptimusNode_ComputeKernelFunction.generated.h"
-
-struct FOptimus_ShaderValuedBinding;
-struct FOptimusParameterBinding;
 
 UCLASS()
 class UOptimusNode_ComputeKernelFunctionGeneratorClass :

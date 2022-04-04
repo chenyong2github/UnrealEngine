@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "MLDeformerVizSettings.h"
 #include "VertexDeltaModelVizSettings.generated.h"
 
 class UGeometryCache;

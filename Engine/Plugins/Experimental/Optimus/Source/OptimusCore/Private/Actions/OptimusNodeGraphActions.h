@@ -4,6 +4,7 @@
 
 #include "OptimusAction.h"
 #include "OptimusDataDomain.h"
+#include "OptimusBindingTypes.h"
 #include "Nodes/OptimusNode_ComputeKernelBase.h"
 
 #include "UObject/UnrealNames.h"
@@ -18,8 +19,6 @@ class UOptimusNode;
 class UOptimusNodeGraph;
 class UOptimusNodeLink;
 class UOptimusNodePin;
-struct FOptimus_ShaderValuedBinding;
-struct FOptimusParameterBinding;
 
 
 USTRUCT()
