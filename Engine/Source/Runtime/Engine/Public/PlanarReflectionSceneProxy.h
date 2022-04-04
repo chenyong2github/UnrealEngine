@@ -107,11 +107,11 @@ public:
 
 		const FVector XAxis = NewTransform.TransformVector(FVector(1, 0, 0));
 		const FVector::FReal XAxisLength = XAxis.Size();
-		PlanarReflectionXAxis = FVector4(XAxis / FMath::Max(XAxisLength, DELTA), XAxisLength * MeshExtent);
+		PlanarReflectionXAxis = FVector4(XAxis / FMath::Max(XAxisLength, UE_DELTA), XAxisLength * MeshExtent);
 
 		const FVector YAxis = NewTransform.TransformVector(FVector(0, 1, 0));
 		const FVector::FReal YAxisLength = YAxis.Size();
-		PlanarReflectionYAxis = FVector4(YAxis / FMath::Max(YAxisLength, DELTA), YAxisLength * MeshExtent);
+		PlanarReflectionYAxis = FVector4(YAxis / FMath::Max(YAxisLength, UE_DELTA), YAxisLength * MeshExtent);
 
 		const FMirrorMatrix MirrorMatrix(ReflectionPlane);
 		// Using TransposeAdjoint instead of full inverse because we only care about transforming normals

@@ -23,7 +23,7 @@ public:
 		ConstructionValues()
 			: LightRotation(-40.f,-67.5f,0.f)
 			, SkyBrightness(1.0f)
-			, LightBrightness(PI)
+			, LightBrightness(UE_PI)
 			, bDefaultLighting(true)
 			, bAllowAudioPlayback(false)
 			, bForceMipsResident(true)

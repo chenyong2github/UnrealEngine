@@ -53,7 +53,7 @@ void ASpectatorPawn::TurnAtRate(float Rate)
 	if (WorldSettings)
 	{
  		float TimeDilation = WorldSettings->GetEffectiveTimeDilation();
-		if (TimeDilation <= KINDA_SMALL_NUMBER)
+		if (TimeDilation <= UE_KINDA_SMALL_NUMBER)
 		{
 			const float DeltaTime = FApp::GetDeltaTime();
 			AddControllerYawInput(Rate * BaseTurnRate * DeltaTime * CustomTimeDilation);
@@ -71,7 +71,7 @@ void ASpectatorPawn::LookUpAtRate(float Rate)
 	if (WorldSettings)
 	{
 		float TimeDilation = WorldSettings->GetEffectiveTimeDilation();
-		if (TimeDilation <= KINDA_SMALL_NUMBER)
+		if (TimeDilation <= UE_KINDA_SMALL_NUMBER)
 		{
 			const float DeltaTime = FApp::GetDeltaTime();
 			AddControllerPitchInput(Rate * BaseLookUpRate * DeltaTime * CustomTimeDilation);

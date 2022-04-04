@@ -105,7 +105,7 @@ namespace Chaos
 		{
 			const FVec3& Normal1 = MPlane1.Normal();
 			const FReal Distance1 = MPlane1.SignedDistance(x);
-			if (Distance1 < SMALL_NUMBER)
+			if (Distance1 < UE_SMALL_NUMBER)
 			{
 				ensure(MPlane2.SignedDistance(x) > (FReal)0.);
 				const FVec3 v = x - FVec3(Normal1 * Distance1 + MPlane1.X());
@@ -124,7 +124,7 @@ namespace Chaos
 			}
 			const FVec3& Normal2 = MPlane2.Normal();  // Used to be Distance2 = MPlane2.PhiWithNormal(x, Normal2); but that would trigger 
 			const FReal Distance2 = MHeight - Distance1;          // the ensure on Distance2 being slightly larger than MHeight in some border cases
-			if (Distance2 < SMALL_NUMBER)
+			if (Distance2 < UE_SMALL_NUMBER)
 			{
 				const FVec3 v = x - FVec3(Normal2 * Distance2 + MPlane2.X());
 				if (v.Size() > MRadius2)
@@ -181,7 +181,7 @@ namespace Chaos
 			FReal theta = atan2(BaseRadius, (Top - BaseCenter).Size());
 			FReal costheta = cos(theta);
 			FReal cossqtheta = costheta * costheta;
-			check(theta > 0 && theta < PI / 2);
+			check(theta > 0 && theta < UE_PI / 2);
 			FVec3 Direction = EndPoint - StartPoint;
 			FReal Length = Direction.Size();
 			Direction = Direction.GetSafeNormal();
@@ -268,7 +268,7 @@ namespace Chaos
 		FReal GetArea(const bool IncludeEndCaps = true) const { return GetArea(MHeight, MRadius1, MRadius2, IncludeEndCaps); }
 		static FReal GetArea(const FReal Height, const FReal Radius1, const FReal Radius2, const bool IncludeEndCaps)
 		{
-			static const FReal TwoPI = PI * 2;
+			static const FReal TwoPI = UE_PI * 2;
 			if (Radius1 == Radius2)
 			{
 				const FReal TwoPIR1 = TwoPI * Radius1;
@@ -279,9 +279,9 @@ namespace Chaos
 			else
 			{
 				const FReal R1_R2 = Radius1 - Radius2;
-				const FReal CylArea = PI * (Radius1 + Radius2) * FMath::Sqrt((R1_R2 * R1_R2) + (Height * Height));
+				const FReal CylArea = UE_PI * (Radius1 + Radius2) * FMath::Sqrt((R1_R2 * R1_R2) + (Height * Height));
 				return IncludeEndCaps ?
-				    CylArea + PI * Radius1 * Radius1 + PI * Radius2 * Radius2 :
+				    CylArea + UE_PI * Radius1 * Radius1 + UE_PI * Radius2 * Radius2 :
 				    CylArea;
 			}
 		}
@@ -289,7 +289,7 @@ namespace Chaos
 		FReal GetVolume() const { return GetVolume(MHeight, MRadius1, MRadius2); }
 		static FReal GetVolume(const FReal Height, const FReal Radius1, const FReal Radius2)
 		{
-			static const FReal PI_3 = PI / 3;
+			static const FReal PI_3 = UE_PI / 3;
 			return PI_3 * Height * (Radius1 * Radius1 + Radius1 * Radius2 + Radius2 * Radius2);
 		}
 
@@ -306,7 +306,7 @@ namespace Chaos
 
 			const FReal Num1 = static_cast<FReal>(2. * HH * (R1R1 + 3. * R1R2 + 6. * R2R2)); // 2H^2 * (R1^2 + 3R1R2 + 6R2^2)
 			const FReal Num2 = static_cast<FReal>(3. * (R1R1 * R1R1 + R1R1 * R1R2 + R1R2 * R1R2 + R1R2 * R2R2 + R2R2 * R2R2)); // 3 * (R1^4 + R1^3R2 + R1^2R2^2 + R1R2^3 + R2^4)
-			const FReal Den1 = PI * (R1R1 + R1R2 + R2R2); // PI * (R1^2 + R1R2 + R2^2)
+			const FReal Den1 = UE_PI * (R1R1 + R1R2 + R2R2); // PI * (R1^2 + R1R2 + R2^2)
 
 			const FReal Diag12 = Mass * (Num1 + Num2) / (static_cast<FReal>(20.) * Den1);
 			const FReal Diag3 = Mass * Num2 / (static_cast<FReal>(10.) * Den1);
@@ -370,11 +370,11 @@ namespace Chaos
 		    const int32 NumPoints, const bool IncludeEndCaps = true)
 		{
 			if (NumPoints <= 1 ||
-			    (Cylinder.GetRadius1() <= KINDA_SMALL_NUMBER &&
-			        Cylinder.GetRadius2() <= KINDA_SMALL_NUMBER))
+			    (Cylinder.GetRadius1() <= UE_KINDA_SMALL_NUMBER &&
+			        Cylinder.GetRadius2() <= UE_KINDA_SMALL_NUMBER))
 			{
 				const int32 Offset = Points.Num();
-				if (Cylinder.GetHeight() <= KINDA_SMALL_NUMBER)
+				if (Cylinder.GetHeight() <= UE_KINDA_SMALL_NUMBER)
 				{
 					Points.SetNumUninitialized(Offset + 1);
 					Points[Offset] = Cylinder.GetCenter();
@@ -432,7 +432,7 @@ namespace Chaos
 		    int32 SpiralSeed = 0)
 		{
 			// Axis should be normalized.
-			checkSlow(FMath::Abs(Axis.Size() - 1.0) < KINDA_SMALL_NUMBER);
+			checkSlow(FMath::Abs(Axis.Size() - 1.0) < UE_KINDA_SMALL_NUMBER);
 
 			const int32 Offset = Points.Num();
 			ComputeGoldenSpiralPointsUnoriented(Points, Radius1, Radius2, Height, NumPoints, IncludeEndCaps, SpiralSeed);
@@ -441,7 +441,7 @@ namespace Chaos
 			// along the Z axis.  Transform them to where they should be.
 			const FReal HalfHeight = Height / 2;
 			const FRotation3 Rotation = FRotation3::FromRotatedVector(FVec3(0, 0, 1), Axis);
-			checkSlow(((Origin + Axis * Height) - (Rotation.RotateVector(FVec3(0, 0, Height)) + Origin)).Size() < KINDA_SMALL_NUMBER);
+			checkSlow(((Origin + Axis * Height) - (Rotation.RotateVector(FVec3(0, 0, Height)) + Origin)).Size() < UE_KINDA_SMALL_NUMBER);
 			for (int32 i = Offset; i < Points.Num(); i++)
 			{
 				FVec3& Point = Points[i];
@@ -494,13 +494,13 @@ namespace Chaos
 			int32 NumPointsCylinder;
 			if (IncludeEndCaps)
 			{
-				const FReal Cap1Area = PI * Radius1 * Radius1;
-				const FReal Cap2Area = PI * Radius2 * Radius2;
+				const FReal Cap1Area = UE_PI * Radius1 * Radius1;
+				const FReal Cap2Area = UE_PI * Radius2 * Radius2;
 				const FReal CylArea =
-				    PI * Radius2 * (Radius2 + FMath::Sqrt(Height * Height + Radius2 * Radius2)) -
-				    PI * Radius1 * (Radius1 + FMath::Sqrt(Height * Height + Radius1 * Radius1));
+				    UE_PI * Radius2 * (Radius2 + FMath::Sqrt(Height * Height + Radius2 * Radius2)) -
+				    UE_PI * Radius1 * (Radius1 + FMath::Sqrt(Height * Height + Radius1 * Radius1));
 				const FReal AllArea = CylArea + Cap1Area + Cap2Area;
-				if (AllArea > KINDA_SMALL_NUMBER)
+				if (AllArea > UE_KINDA_SMALL_NUMBER)
 				{
 					NumPointsEndCap1 = static_cast<int32>(round(Cap1Area / AllArea * static_cast<FReal>(NumPoints)));
 					NumPointsEndCap2 = static_cast<int32>(round(Cap2Area / AllArea * static_cast<FReal>(NumPoints)));
@@ -533,7 +533,7 @@ namespace Chaos
 				for (int32 i = 0; i < Points2D.Num(); i++)
 				{
 					const FVec2& Pt = Points2D[i];
-					checkSlow(Pt.Size() < Radius1 + KINDA_SMALL_NUMBER);
+					checkSlow(Pt.Size() < Radius1 + UE_KINDA_SMALL_NUMBER);
 					Points[i + Offset] = FVec3(Pt[0], Pt[1], -HalfHeight);
 				}
 				// Advance the SpiralSeed by the number of points generated.
@@ -547,7 +547,7 @@ namespace Chaos
 			}
 			else
 			{
-				static const FRealSingle Increment = PI * (1.0f + FMath::Sqrt(5.0f));
+				static const FRealSingle Increment = UE_PI * (1.0f + FMath::Sqrt(5.0f));
 				for (int32 i = 0; i < NumPointsCylinder; i++)
 				{
 					// In the 2D sphere (disc) case, we vary R so it increases monotonically,
@@ -580,7 +580,7 @@ namespace Chaos
 				for (int32 i = 0; i < Points2D.Num(); i++)
 				{
 					const FVec2& Pt = Points2D[i];
-					checkSlow(Pt.Size() < Radius2 + KINDA_SMALL_NUMBER);
+					checkSlow(Pt.Size() < Radius2 + UE_KINDA_SMALL_NUMBER);
 					Points[i + Offset] = FVec3(Pt[0], Pt[1], HalfHeight);
 				}
 			}

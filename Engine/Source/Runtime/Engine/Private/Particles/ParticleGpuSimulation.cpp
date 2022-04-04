@@ -4118,7 +4118,7 @@ private:
 	 */
 	void BuildNewParticles(FNewParticle* InNewParticles, FSpawnInfo SpawnInfo, TArray<FNewParticle> &ForceSpawned)
 	{
-		const float OneOverTwoPi = 1.0f / (2.0f * PI);
+		const float OneOverTwoPi = 1.0f / (2.0f * UE_PI);
 		UParticleModuleRequired* RequiredModule = EmitterInfo.RequiredModule;
 
 		// Allocate stack memory for a dummy particle.
@@ -5306,7 +5306,7 @@ static void SetGPUSpriteResourceData( FGPUSpriteResources* Resources, const FGPU
 		}
 
 		// For locked rotation about Z the particle should be rotated by 90 degrees.
-		Resources->UniformParameters.RotationBias = (LockAxisFlag == EPAL_ROTATE_Z) ? (0.5f * PI) : 0.0f;
+		Resources->UniformParameters.RotationBias = (LockAxisFlag == EPAL_ROTATE_Z) ? (0.5f * UE_PI) : 0.0f;
 	}
 
 	// Alignment overrides

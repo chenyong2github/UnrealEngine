@@ -404,8 +404,8 @@ void UParticleModuleVelocityCone::Spawn(FParticleEmitterInstance* Owner, int32 O
 
 void UParticleModuleVelocityCone::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, struct FRandomStream* InRandomStream, FBaseParticle* ParticleBase)
 {
-	static const float TwoPI = 2.0f * PI;
-	static const float ToRads = PI / 180.0f;
+	static const float TwoPI = 2.0f * UE_PI;
+	static const float ToRads = UE_PI / 180.0f;
 	static const int32 UUPerRad = 10430;
 	static const FVector DefaultDirection(0.0f, 0.0f, 1.0f);
 	
@@ -549,7 +549,7 @@ void UParticleModuleVelocityCone::Render3DPreview(FParticleEmitterInstance* Owne
 	Transform.SetIdentity();
 
 	// DrawWireCone() draws a cone down the X axis, but this cone's default direction is down Z
-	const FRotationMatrix XToZRotation(FRotator((int32)(HALF_PI * 10430), 0, 0));
+	const FRotationMatrix XToZRotation(FRotator((int32)(UE_HALF_PI * 10430), 0, 0));
 	Transform *= XToZRotation;
 
 	// Apply scale

@@ -941,7 +941,7 @@ void APlayerCameraManager::UpdateCamera(float DeltaTime)
 	{
 		DoUpdateCamera(DeltaTime);
 
-		const float TimeDilation = FMath::Max(GetActorTimeDilation(), KINDA_SMALL_NUMBER);
+		const float TimeDilation = FMath::Max(GetActorTimeDilation(), UE_KINDA_SMALL_NUMBER);
 
 		TimeSinceLastServerUpdateCamera += (DeltaTime / TimeDilation);
 

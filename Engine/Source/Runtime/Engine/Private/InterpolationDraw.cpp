@@ -1033,8 +1033,8 @@ void UInterpTrackAnimControl::ObjectDragged(FInterpEdInputData& InputData)
 				// If ctrl is down we are scaling play time, otherwise we are clipping.
 				if(InputData.bCtrlDown)
 				{
-					float NewLength = FMath::Max<float>(KINDA_SMALL_NUMBER, (ActualLengthScaled - TimeDelta));
-					AnimSeq.AnimPlayRate = FMath::Max<float>(KINDA_SMALL_NUMBER, ActualLength / NewLength);
+					float NewLength = FMath::Max<float>(UE_KINDA_SMALL_NUMBER, (ActualLengthScaled - TimeDelta));
+					AnimSeq.AnimPlayRate = FMath::Max<float>(UE_KINDA_SMALL_NUMBER, ActualLength / NewLength);
 					AnimSeq.StartTime = OriginalKey->StartTime - (ActualLength / AnimSeq.AnimPlayRate - ActualLengthScaled);
 				}
 				else if(InputData.bAltDown)
@@ -1045,8 +1045,8 @@ void UInterpTrackAnimControl::ObjectDragged(FInterpEdInputData& InputData)
 
 					// Fix the play rate to keep the start and end times the same depending on how much the length of the clip actually changed by.
 					float ActualTimeChange = (AnimSeq.AnimStartOffset - OriginalKey->AnimStartOffset) / AnimSeq.AnimPlayRate;
-					float NewLength = FMath::Max<float>(KINDA_SMALL_NUMBER, (ActualLengthScaled + ActualTimeChange));
-					AnimSeq.AnimPlayRate = FMath::Max<float>(KINDA_SMALL_NUMBER, ActualLength / NewLength);
+					float NewLength = FMath::Max<float>(UE_KINDA_SMALL_NUMBER, (ActualLengthScaled + ActualTimeChange));
+					AnimSeq.AnimPlayRate = FMath::Max<float>(UE_KINDA_SMALL_NUMBER, ActualLength / NewLength);
 				}
 				else
 				{
@@ -1060,8 +1060,8 @@ void UInterpTrackAnimControl::ObjectDragged(FInterpEdInputData& InputData)
 				// If ctrl is down we are scaling play time, otherwise we are clipping.
 				if(InputData.bCtrlDown)
 				{
-					float NewLength = FMath::Max<float>(KINDA_SMALL_NUMBER, (ActualLengthScaled + TimeDelta));
-					AnimSeq.AnimPlayRate = FMath::Max<float>(KINDA_SMALL_NUMBER, ActualLength / NewLength);
+					float NewLength = FMath::Max<float>(UE_KINDA_SMALL_NUMBER, (ActualLengthScaled + TimeDelta));
+					AnimSeq.AnimPlayRate = FMath::Max<float>(UE_KINDA_SMALL_NUMBER, ActualLength / NewLength);
 				}
 				else if(InputData.bAltDown)
 				{
@@ -1071,8 +1071,8 @@ void UInterpTrackAnimControl::ObjectDragged(FInterpEdInputData& InputData)
 
 					// Fix the play rate to keep the start and end times the same depending on how much the length of the clip actually changed by.
 					float ActualTimeChange = (AnimSeq.AnimEndOffset - OriginalKey->AnimEndOffset) / AnimSeq.AnimPlayRate;
-					float NewLength = FMath::Max<float>(KINDA_SMALL_NUMBER, (ActualLengthScaled + ActualTimeChange));
-					AnimSeq.AnimPlayRate = FMath::Max<float>(KINDA_SMALL_NUMBER, ActualLength / NewLength);
+					float NewLength = FMath::Max<float>(UE_KINDA_SMALL_NUMBER, (ActualLengthScaled + ActualTimeChange));
+					AnimSeq.AnimPlayRate = FMath::Max<float>(UE_KINDA_SMALL_NUMBER, ActualLength / NewLength);
 				}
 				else
 				{
@@ -1163,7 +1163,7 @@ void UInterpTrackAnimControl::DrawTrack( FCanvas* Canvas, UInterpGroup* Group, c
 				Canvas->SetHitProxy( NULL );
 			}
 		
-			check(CurKey.AnimPlayRate > KINDA_SMALL_NUMBER);
+			check(CurKey.AnimPlayRate > UE_KINDA_SMALL_NUMBER);
 			float LoopTime = SeqEndTime + SeqLength;
 
 			while(LoopTime < LoopEndTime)
@@ -1226,7 +1226,7 @@ void UInterpTrackAnimControl::DrawTrack( FCanvas* Canvas, UInterpGroup* Group, c
 					( Params.TimeCursorPosition - CurKey.StartTime ) + CurKey.AnimStartOffset;
 
 				// Does the user want us to draw frame numbers instead of time values?
-				if( Params.bPreferFrameNumbers && Params.SnapAmount > KINDA_SMALL_NUMBER )
+				if( Params.bPreferFrameNumbers && Params.SnapAmount > UE_KINDA_SMALL_NUMBER )
 				{
 					// Convert to the animation time values to frame numbers
 					const int32 CursorFrameWithinAnim = FMath::TruncToInt( CursorPosWithinAnim / Params.SnapAmount );
@@ -1268,7 +1268,7 @@ void UInterpTrackAnimControl::DrawTrack( FCanvas* Canvas, UInterpGroup* Group, c
 			if(CurKey.AnimStartOffset > 0.f || CurKey.AnimEndOffset > 0.f)
 			{
 				// Does the user want us to draw frame numbers instead of time values?
-				if( Params.bPreferFrameNumbers && Params.SnapAmount > KINDA_SMALL_NUMBER )
+				if( Params.bPreferFrameNumbers && Params.SnapAmount > UE_KINDA_SMALL_NUMBER )
 				{
 					// Convert to the animation time values to frame numbers
 					const int32 AnimFrameOffsetFromStart = FMath::RoundToInt( CurKey.AnimStartOffset / Params.SnapAmount );
@@ -1740,7 +1740,7 @@ void UInterpTrackParticleReplay::ObjectDragged(FInterpEdInputData& InputData)
 						SelectedKey.Time = OriginalKey.Time + TimeDelta;
 
 						// Snap the new time position
-						if( FixedTimeStep > SMALL_NUMBER )
+						if( FixedTimeStep > UE_SMALL_NUMBER )
 						{
 							const int32 InterpPositionInFrames = FMath::RoundToInt( SelectedKey.Time / FixedTimeStep );
 							SelectedKey.Time = InterpPositionInFrames * FixedTimeStep;
@@ -1769,7 +1769,7 @@ void UInterpTrackParticleReplay::ObjectDragged(FInterpEdInputData& InputData)
 						}
 
 						// Snap the new end position
-						if( FixedTimeStep > SMALL_NUMBER )
+						if( FixedTimeStep > UE_SMALL_NUMBER )
 						{
 							float EndTime = SelectedKey.Time + SelectedKey.Duration;
 

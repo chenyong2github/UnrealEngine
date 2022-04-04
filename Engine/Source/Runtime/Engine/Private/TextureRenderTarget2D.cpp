@@ -228,7 +228,7 @@ void UTextureRenderTarget2D::Serialize(FArchive& Ar)
 		float DisplayGamme = 2.2f;
 		EPixelFormat Format = GetFormat();
 
-		if (TargetGamma > KINDA_SMALL_NUMBER * 10.0f)
+		if (TargetGamma > UE_KINDA_SMALL_NUMBER * 10.0f)
 		{
 			DisplayGamme = TargetGamma;
 		}
@@ -239,7 +239,7 @@ void UTextureRenderTarget2D::Serialize(FArchive& Ar)
 
 		// This is odd behavior to apply the sRGB gamma correction when target gamma is not 1.0f, but this
 		// is to maintain old behavior and users won't have to change content.
-		if (RenderTargetFormat == RTF_RGBA8 && FMath::Abs(DisplayGamme - 1.0f) > KINDA_SMALL_NUMBER)
+		if (RenderTargetFormat == RTF_RGBA8 && FMath::Abs(DisplayGamme - 1.0f) > UE_KINDA_SMALL_NUMBER)
 		{
 			RenderTargetFormat = RTF_RGBA8_SRGB;
 			SRGB = true;
@@ -311,7 +311,7 @@ UTexture2D* UTextureRenderTarget2D::ConstructTexture2D(UObject* Outer, const FSt
 	//	 see also IsSRGB() which is yet another query that has different ideas
 	//	furthermore, float formats do not support anything but Linear gamma
 	float Gamma = RenderTarget->GetDisplayGamma();
-	if (FMath::Abs(Gamma - 1.0f) < KINDA_SMALL_NUMBER)
+	if (FMath::Abs(Gamma - 1.0f) < UE_KINDA_SMALL_NUMBER)
 	{
 		Flags &= ~CTF_SRGB;
 	}
@@ -709,7 +709,7 @@ FIntPoint FTextureRenderTarget2DResource::GetSizeXY() const
 */
 float FTextureRenderTarget2DResource::GetDisplayGamma() const
 {
-	if (Owner->TargetGamma > KINDA_SMALL_NUMBER * 10.0f)
+	if (Owner->TargetGamma > UE_KINDA_SMALL_NUMBER * 10.0f)
 	{
 		return Owner->TargetGamma;
 	}

@@ -227,7 +227,7 @@ namespace ChaosInterface
 			{
 				const FKSphereElem& SphereElem = InParams.Geometry->SphereElems[i];
 				const FKSphereElem ScaledSphereElem = SphereElem.GetFinalScaled(Scale, InParams.LocalTransform);
-				const float UseRadius = FMath::Max(ScaledSphereElem.Radius, KINDA_SMALL_NUMBER);
+				const float UseRadius = FMath::Max(ScaledSphereElem.Radius, UE_KINDA_SMALL_NUMBER);
 				auto ImplicitSphere = MakeUnique<Chaos::TSphere<Chaos::FReal, 3>>(ScaledSphereElem.Center, UseRadius);
 				TUniquePtr<Chaos::FPerShapeData> NewShape = NewShapeHelper(MakeSerializable(ImplicitSphere), Shapes.Num(), (void*)SphereElem.GetUserData(), SphereElem.GetCollisionEnabled());
 				Shapes.Emplace(MoveTemp(NewShape));
@@ -241,9 +241,9 @@ namespace ChaosInterface
 				const FTransform& BoxTransform = ScaledBoxElem.GetTransform();
 				Chaos::FVec3 HalfExtents = Chaos::FVec3(ScaledBoxElem.X * 0.5f, ScaledBoxElem.Y * 0.5f, ScaledBoxElem.Z * 0.5f);
 
-				HalfExtents.X = FMath::Max(HalfExtents.X, KINDA_SMALL_NUMBER);
-				HalfExtents.Y = FMath::Max(HalfExtents.Y, KINDA_SMALL_NUMBER);
-				HalfExtents.Z = FMath::Max(HalfExtents.Z, KINDA_SMALL_NUMBER);
+				HalfExtents.X = FMath::Max(HalfExtents.X, UE_KINDA_SMALL_NUMBER);
+				HalfExtents.Y = FMath::Max(HalfExtents.Y, UE_KINDA_SMALL_NUMBER);
+				HalfExtents.Z = FMath::Max(HalfExtents.Z, UE_KINDA_SMALL_NUMBER);
 
 				const Chaos::FReal CollisionMargin = FMath::Min(2.0f * HalfExtents.GetMin() * CollisionMarginFraction, CollisionMarginMax);
 
@@ -267,10 +267,10 @@ namespace ChaosInterface
 			{
 				const FKSphylElem& UnscaledSphyl = InParams.Geometry->SphylElems[i];
 				const FKSphylElem ScaledSphylElem = UnscaledSphyl.GetFinalScaled(Scale, InParams.LocalTransform);
-				Chaos::FReal HalfHeight = FMath::Max(ScaledSphylElem.Length * 0.5f, KINDA_SMALL_NUMBER);
-				const Chaos::FReal Radius = FMath::Max(ScaledSphylElem.Radius, KINDA_SMALL_NUMBER);
+				Chaos::FReal HalfHeight = FMath::Max(ScaledSphylElem.Length * 0.5f, UE_KINDA_SMALL_NUMBER);
+				const Chaos::FReal Radius = FMath::Max(ScaledSphylElem.Radius, UE_KINDA_SMALL_NUMBER);
 
-				if (HalfHeight < KINDA_SMALL_NUMBER)
+				if (HalfHeight < UE_KINDA_SMALL_NUMBER)
 				{
 					//not a capsule just use a sphere
 					auto ImplicitSphere = MakeUnique<Chaos::TSphere<Chaos::FReal, 3>>(ScaledSphylElem.Center, Radius);
@@ -294,11 +294,11 @@ namespace ChaosInterface
 				const FKTaperedCapsuleElem& UnscaledTaperedCapsule = InParams.Geometry->TaperedCapsuleElems[i];
 
 				const FKTaperedCapsuleElem ScaledTaperedCapsule = UnscaledTaperedCapsule.GetFinalScaled(Scale, InParams.LocalTransform);
-				Chaos::FReal HalfHeight = FMath::Max(ScaledTaperedCapsule.Length * 0.5f, KINDA_SMALL_NUMBER);
-				const Chaos::FReal Radius0 = FMath::Max(ScaledTaperedCapsule.Radius0, KINDA_SMALL_NUMBER);
-				const Chaos::FReal Radius1 = FMath::Max(ScaledTaperedCapsule.Radius1, KINDA_SMALL_NUMBER);
+				Chaos::FReal HalfHeight = FMath::Max(ScaledTaperedCapsule.Length * 0.5f, UE_KINDA_SMALL_NUMBER);
+				const Chaos::FReal Radius0 = FMath::Max(ScaledTaperedCapsule.Radius0, UE_KINDA_SMALL_NUMBER);
+				const Chaos::FReal Radius1 = FMath::Max(ScaledTaperedCapsule.Radius1, UE_KINDA_SMALL_NUMBER);
 
-				if (HalfHeight < KINDA_SMALL_NUMBER)
+				if (HalfHeight < UE_KINDA_SMALL_NUMBER)
 				{
 					//not a capsule just use a sphere
 					const Chaos::FReal MaxRadius = FMath::Max(Radius0, Radius1);

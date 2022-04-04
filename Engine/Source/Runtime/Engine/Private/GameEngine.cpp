@@ -423,7 +423,7 @@ void UGameEngine::DetermineGameWindowResolution( int32& ResolutionX, int32& Reso
 				for (int32 i = WindowedResolutions.Num() - 1; i >= 0; --i)
 				{
 					float Aspect = (float)WindowedResolutions[i].X / (float)WindowedResolutions[i].Y;
-					if (FMath::Abs(Aspect - DisplayAspect) < KINDA_SMALL_NUMBER)
+					if (FMath::Abs(Aspect - DisplayAspect) < UE_KINDA_SMALL_NUMBER)
 					{
 						ResolutionX = WindowedResolutions[i].X;
 						ResolutionY = WindowedResolutions[i].Y;

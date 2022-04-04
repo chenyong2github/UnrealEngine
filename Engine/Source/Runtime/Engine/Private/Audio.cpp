@@ -871,7 +871,7 @@ bool FWaveInstance::IsPlaying() const
 	}
 
 	const float WaveInstanceVolume = Volume * VolumeMultiplier * GetDistanceAndOcclusionAttenuation() * GetDynamicVolume();
-	if (WaveInstanceVolume > KINDA_SMALL_NUMBER)
+	if (WaveInstanceVolume > UE_KINDA_SMALL_NUMBER)
 	{
 		return true;
 	}

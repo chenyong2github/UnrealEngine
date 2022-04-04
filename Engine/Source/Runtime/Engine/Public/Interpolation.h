@@ -161,7 +161,7 @@ namespace MatineeKeyReduction
 
 	// float-float comparison that allows for a certain error in the floating point values
 	// due to floating-point operations never being exact.
-	static bool IsEquivalent(float a, float b, float Tolerance = KINDA_SMALL_NUMBER)
+	static bool IsEquivalent(float a, float b, float Tolerance = UE_KINDA_SMALL_NUMBER)
 	{
 		return (a - b) > -Tolerance && (a - b) < Tolerance;
 	}
@@ -639,8 +639,8 @@ namespace MatineeKeyReduction
 			TYPE MinValue, MaxValue;
 			for (int32 I = 0; I < OldCurveDimensionCount; ++I)
 			{
-				MinValue[I] = BIG_NUMBER;
-				MaxValue[I] = -BIG_NUMBER;
+				MinValue[I] = UE_BIG_NUMBER;
+				MaxValue[I] = -UE_BIG_NUMBER;
 			}
 
 			// Skip all points that are before our interval.
@@ -672,7 +672,7 @@ namespace MatineeKeyReduction
 						{
 							float CurvePointTolerance = OldCurve.Points[OIndex].ArriveTangent[I] * RelativeTolerance; // Keep a pretty large tolerance here.
 							if (CurvePointTolerance < 0.0f) CurvePointTolerance = -CurvePointTolerance;
-							if (CurvePointTolerance < SMALL_NUMBER) CurvePointTolerance = SMALL_NUMBER;
+							if (CurvePointTolerance < UE_SMALL_NUMBER) CurvePointTolerance = UE_SMALL_NUMBER;
 							bool Smooth = IsEquivalent( OldCurve.Points[OIndex].LeaveTangent[I], OldCurve.Points[OIndex].ArriveTangent[I], CurvePointTolerance );
 							ControlPoints[CPIndex].Smoothness[LocalCurveDimensionOffset + I] = Smooth;
 						}
@@ -699,7 +699,7 @@ namespace MatineeKeyReduction
 			// The relative tolerance value now comes from the user.
 			for (int32 I = 0; I < OldCurveDimensionCount; ++I)
 			{
-				Tolerance[LocalCurveDimensionOffset + I] = FMath::Max<float>(RelativeTolerance * (MaxValue[I] - MinValue[I]), (float) KINDA_SMALL_NUMBER);
+				Tolerance[LocalCurveDimensionOffset + I] = FMath::Max<float>(RelativeTolerance * (MaxValue[I] - MinValue[I]), (float) UE_KINDA_SMALL_NUMBER);
 			}
 		}
 

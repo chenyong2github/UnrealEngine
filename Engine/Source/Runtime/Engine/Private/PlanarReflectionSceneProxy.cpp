@@ -16,16 +16,16 @@ FPlanarReflectionSceneProxy::FPlanarReflectionSceneProxy(UPlanarReflectionCompon
 
 	DistanceFromPlaneFadeEnd = ClampedFadeEnd;
 
-	float DistanceFadeScale = 1.0f / FMath::Max(ClampedFadeEnd - ClampedFadeStart, DELTA);
+	float DistanceFadeScale = 1.0f / FMath::Max(ClampedFadeEnd - ClampedFadeStart, UE_DELTA);
 
 	PlanarReflectionParameters = FVector(
 		DistanceFadeScale,
 		-ClampedFadeStart * DistanceFadeScale,
 		Component->NormalDistortionStrength);
 
-	const float CosFadeStart = FMath::Cos(FMath::Clamp(Component->AngleFromPlaneFadeStart, 0.1f, 89.9f) * (float)PI / 180.0f);
-	const float CosFadeEnd = FMath::Cos(FMath::Clamp(Component->AngleFromPlaneFadeEnd, 0.1f, 89.9f) * (float)PI / 180.0f);
-	const float Range = 1.0f / FMath::Max(CosFadeStart - CosFadeEnd, DELTA);
+	const float CosFadeStart = FMath::Cos(FMath::Clamp(Component->AngleFromPlaneFadeStart, 0.1f, 89.9f) * (float)UE_PI / 180.0f);
+	const float CosFadeEnd = FMath::Cos(FMath::Clamp(Component->AngleFromPlaneFadeEnd, 0.1f, 89.9f) * (float)UE_PI / 180.0f);
+	const float Range = 1.0f / FMath::Max(CosFadeStart - CosFadeEnd, UE_DELTA);
 
 	PlanarReflectionParameters2 = FVector2D(
 		Range,

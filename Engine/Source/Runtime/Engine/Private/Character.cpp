@@ -475,7 +475,7 @@ void ACharacter::ApplyDamageMomentum(float DamageTaken, FDamageEvent const& Dama
 		// limit Z momentum added if already going up faster than jump (to avoid blowing character way up into the sky)
 		{
 			FVector MassScaledImpulse = Impulse;
-			if(!bMassIndependentImpulse && CharacterMovement->Mass > SMALL_NUMBER)
+			if(!bMassIndependentImpulse && CharacterMovement->Mass > UE_SMALL_NUMBER)
 			{
 				MassScaledImpulse = MassScaledImpulse / CharacterMovement->Mass;
 			}
@@ -1242,7 +1242,7 @@ void ACharacter::SimulatedRootMotionPositionFixup(float DeltaSeconds)
 				const float ServerPosition = RootMotionRepMove.RootMotion.Position;
 				const float ClientPosition = ClientMontageInstance->GetPosition();
 				const float DeltaPosition = (ClientPosition - ServerPosition);
-				if( FMath::Abs(DeltaPosition) > KINDA_SMALL_NUMBER )
+				if( FMath::Abs(DeltaPosition) > UE_KINDA_SMALL_NUMBER )
 				{
 					// Find Root Motion delta move to get back to where we were on the client.
 					const FTransform LocalRootMotionTransform = ClientMontageInstance->Montage->ExtractRootMotionFromTrackRange(ServerPosition, ClientPosition);

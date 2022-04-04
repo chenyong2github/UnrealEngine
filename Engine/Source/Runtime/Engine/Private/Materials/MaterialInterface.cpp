@@ -1143,7 +1143,7 @@ bool FMaterialTextureInfo::IsValid(bool bCheckTextureIndex) const
 		return false;
 	}
 #endif
-	return TextureName != NAME_None && SamplingScale > SMALL_NUMBER && UVChannelIndex >= 0 && UVChannelIndex < TEXSTREAM_MAX_NUM_UVCHANNELS; 
+	return TextureName != NAME_None && SamplingScale > UE_SMALL_NUMBER && UVChannelIndex >= 0 && UVChannelIndex < TEXSTREAM_MAX_NUM_UVCHANNELS;
 }
 
 void UMaterialInterface::SortTextureStreamingData(bool bForceSort, bool bFinalSort)

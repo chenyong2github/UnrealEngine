@@ -403,7 +403,7 @@ static void InternalDrawDebugCircle(const UWorld* InWorld, const FMatrix& Transf
 
 		// Need at least 4 segments
 		Segments = FMath::Max(Segments, 4);
-		const float AngleStep = 2.f * PI / float(Segments);
+		const float AngleStep = 2.f * UE_PI / float(Segments);
 
 		const FVector Center = TransformMatrix.GetOrigin();
 		const FVector AxisY = TransformMatrix.GetScaledAxis(EAxis::Y);
@@ -564,7 +564,7 @@ void DrawDebugSphere(const UWorld* InWorld, FVector const& Center, float Radius,
 			Segments = FMath::Max(Segments, 4);
 
 			FVector Vertex1, Vertex2, Vertex3, Vertex4;
-			const float AngleInc = 2.f * PI / float(Segments);
+			const float AngleInc = 2.f * UE_PI / float(Segments);
 			int32 NumSegmentsY = Segments;
 			float Latitude = AngleInc;
 			int32 NumSegmentsX;
@@ -745,8 +745,8 @@ void DrawDebugCone(const UWorld* InWorld, FVector const& Origin, FVector const& 
 		// Need at least 4 sides
 		NumSides = FMath::Max(NumSides, 4);
 
-		const float Angle1 = FMath::Clamp<float>(AngleHeight, (float)KINDA_SMALL_NUMBER, (float)(PI - KINDA_SMALL_NUMBER));
-		const float Angle2 = FMath::Clamp<float>(AngleWidth, (float)KINDA_SMALL_NUMBER, (float)(PI - KINDA_SMALL_NUMBER));
+		const float Angle1 = FMath::Clamp<float>(AngleHeight, (float)UE_KINDA_SMALL_NUMBER, (float)(UE_PI - UE_KINDA_SMALL_NUMBER));
+		const float Angle2 = FMath::Clamp<float>(AngleWidth, (float)UE_KINDA_SMALL_NUMBER, (float)(UE_PI - UE_KINDA_SMALL_NUMBER));
 
 		const float SinX_2 = FMath::Sin(0.5f * Angle1);
 		const float SinY_2 = FMath::Sin(0.5f * Angle2);
@@ -763,7 +763,7 @@ void DrawDebugCone(const UWorld* InWorld, FVector const& Origin, FVector const& 
 		for(int32 i = 0; i < NumSides; i++)
 		{
 			const float Fraction	= (float)i/(float)(NumSides);
-			const float Thi			= 2.f * PI * Fraction;
+			const float Thi			= 2.f * UE_PI * Fraction;
 			const float Phi			= FMath::Atan2(FMath::Sin(Thi)*SinY_2, FMath::Cos(Thi)*SinX_2);
 			const float SinPhi		= FMath::Sin(Phi);
 			const float CosPhi		= FMath::Cos(Phi);
@@ -915,7 +915,7 @@ void DrawDebugFrustum(const UWorld* InWorld, const FMatrix& FrustumToWorld, FCol
 
 static void DrawHalfCircle(const UWorld* InWorld, const FVector& Base, const FVector& X, const FVector& Y, const FColor& Color, float Radius, int32 NumSides, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
 {
-	float	AngleDelta = 2.0f * (float)PI / ((float)NumSides);
+	float	AngleDelta = 2.0f * (float)UE_PI / ((float)NumSides);
 	FVector	LastVertex = Base + X * Radius;
 
 	for(int32 SideIndex = 0; SideIndex < (NumSides/2); SideIndex++)
@@ -928,7 +928,7 @@ static void DrawHalfCircle(const UWorld* InWorld, const FVector& Base, const FVe
 
 void DrawCircle(const UWorld* InWorld, const FVector& Base, const FVector& X, const FVector& Y, const FColor& Color, float Radius, int32 NumSides, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
 {
-	const float	AngleDelta = 2.0f * PI / NumSides;
+	const float	AngleDelta = 2.0f * UE_PI / NumSides;
 	FVector	LastVertex = Base + X * Radius;
 
 	for(int32 SideIndex = 0;SideIndex < NumSides;SideIndex++)
@@ -1037,7 +1037,7 @@ void DrawDebugFloatHistory(UWorld const & WorldRef, FDebugFloatHistory const & F
 		FVector const AxisX = DrawTransform.GetUnitAxis(EAxis::Y);
 		FVector const AxisY = DrawTransform.GetUnitAxis(EAxis::Z);
 		FVector const AxisXStep = AxisX *  DrawSize.X / float(NumSamples);
-		FVector const AxisYStep = AxisY *  DrawSize.Y / FMath::Max(FloatHistory.GetMinMaxRange(), KINDA_SMALL_NUMBER);
+		FVector const AxisYStep = AxisY *  DrawSize.Y / FMath::Max(FloatHistory.GetMinMaxRange(), UE_KINDA_SMALL_NUMBER);
 
 		// Frame
 		DrawDebugLine(&WorldRef, DrawLocation, DrawLocation + AxisX * DrawSize.X, DrawColor, bPersistent, LifeTime, DepthPriority);
@@ -1102,7 +1102,7 @@ void DrawDebugCanvasLine(UCanvas* Canvas, const FVector& Start, const FVector& E
 
 void DrawDebugCanvasCircle(UCanvas* Canvas, const FVector& Base, const FVector& X, const FVector& Y, FColor Color, float Radius, int32 NumSides)
 {
-	const float	AngleDelta = 2.0f * PI / NumSides;
+	const float	AngleDelta = 2.0f * UE_PI / NumSides;
 	FVector	LastVertex = Base + X * Radius;
 
 	for(int32 SideIndex = 0;SideIndex < NumSides;SideIndex++)
@@ -1122,8 +1122,8 @@ void DrawDebugCanvasWireSphere(UCanvas* Canvas, const FVector& Base, FColor Colo
 
 void DrawDebugCanvasWireCone(UCanvas* Canvas, const FTransform& Transform, float ConeRadius, float ConeAngle, int32 ConeSides, FColor Color)
 {
-	static const float TwoPI = 2.0f * PI;
-	static const float ToRads = PI / 180.0f;
+	static const float TwoPI = 2.0f * UE_PI;
+	static const float ToRads = UE_PI / 180.0f;
 	static const float MaxAngle = 89.0f * ToRads + 0.001f;
 	const float ClampedConeAngle = FMath::Clamp(ConeAngle * ToRads, 0.001f, MaxAngle);
 	const float SinClampedConeAngle = FMath::Sin( ClampedConeAngle );
@@ -1180,7 +1180,7 @@ void DrawDebugCanvas2DLine(UCanvas* Canvas, const FVector2D& StartPosition, cons
 
 void DrawDebugCanvas2DCircle(UCanvas* Canvas, const FVector2D& Center, float Radius, int32 NumSides, const FLinearColor& LineColor, const float& LineThickness)
 {
-	const float	AngleDelta = 2.0f * PI / NumSides;
+	const float	AngleDelta = 2.0f * UE_PI / NumSides;
 	FVector2D AxisX(1.f, 0.f);
 	FVector2D AxisY(0.f, -1.f);
 	FVector2D LastVertex = Center + AxisX * Radius;

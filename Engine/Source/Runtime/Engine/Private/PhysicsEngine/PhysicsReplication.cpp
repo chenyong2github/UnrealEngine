@@ -241,12 +241,12 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 		UE_LOG(LogPhysics, Warning, TEXT("Physics replicating on non-simulated body. (%s)"), *BI->GetBodyDebugName());
 		return bRestoredState;
 	}
-	else if (NewQuatSizeSqr < KINDA_SMALL_NUMBER)
+	else if (NewQuatSizeSqr < UE_KINDA_SMALL_NUMBER)
 	{
 		UE_LOG(LogPhysics, Warning, TEXT("Invalid zero quaternion set for body. (%s)"), *BI->GetBodyDebugName());
 		return bRestoredState;
 	}
-	else if (FMath::Abs(NewQuatSizeSqr - 1.f) > KINDA_SMALL_NUMBER)
+	else if (FMath::Abs(NewQuatSizeSqr - 1.f) > UE_KINDA_SMALL_NUMBER)
 	{
 		UE_LOG(LogPhysics, Warning, TEXT("Quaternion (%f %f %f %f) with non-unit magnitude detected. (%s)"),
 			NewState.Quaternion.X, NewState.Quaternion.Y, NewState.Quaternion.Z, NewState.Quaternion.W, *BI->GetBodyDebugName());

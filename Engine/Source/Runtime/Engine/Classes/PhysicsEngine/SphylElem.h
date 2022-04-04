@@ -90,7 +90,7 @@ struct FKSphylElem : public FKShapeElem
 		Center = InTransform.GetLocation();
 	}
 
-	FORCEINLINE FVector::FReal GetVolume(const FVector& Scale) const { FVector::FReal ScaledRadius = Radius * Scale.GetMin(); return PI * FMath::Square(ScaledRadius) * ( 1.3333f * ScaledRadius + (Length * Scale.GetMin())); }
+	FORCEINLINE FVector::FReal GetVolume(const FVector& Scale) const { FVector::FReal ScaledRadius = Radius * Scale.GetMin(); return UE_PI * FMath::Square(ScaledRadius) * ( 1.3333f * ScaledRadius + (Length * Scale.GetMin())); }
 
 	ENGINE_API void DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FColor Color) const override;
 	ENGINE_API void DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const override;

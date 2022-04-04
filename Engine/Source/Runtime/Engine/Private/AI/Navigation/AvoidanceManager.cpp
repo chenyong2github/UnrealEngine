@@ -332,7 +332,7 @@ static bool AvoidsNavEdges(const FVector& OrgLocation, const FVector& TestVeloci
 		const FVector2D OrgToNewPos(TestVelocity);
 		const FVector2D OrgToSeg0(NavEdges[Idx].P0 - OrgLocation);
 		const float CrossD = FVector2D::CrossProduct(Seg0ToSeg1, OrgToNewPos);
-		if (FMath::Abs(CrossD) < KINDA_SMALL_NUMBER)
+		if (FMath::Abs(CrossD) < UE_KINDA_SMALL_NUMBER)
 		{
 			continue;
 		}

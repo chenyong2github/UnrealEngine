@@ -111,7 +111,7 @@ public:
 	 * @param KeyTimeTolerance The key time tolerance to use for equality.
 	 * @return A handle to the key, or invalid key handle if not found.
 	 */
-	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = KINDA_SMALL_NUMBER) const;
+	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/**
 	 * Get a key.
@@ -155,7 +155,7 @@ public:
 	 * @param InValue The value of the key.
 	 * @param KeyTimeTolerance The tolerance used for key time equality.
 	 */
-	FKeyHandle UpdateOrAddKey(float InTime, const FName& InValue, float KeyTimeTolerance = KINDA_SMALL_NUMBER);
+	FKeyHandle UpdateOrAddKey(float InTime, const FName& InValue, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER);
 
 public:
 

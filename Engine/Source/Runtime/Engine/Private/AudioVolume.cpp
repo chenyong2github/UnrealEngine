@@ -32,13 +32,13 @@ void FInteriorSettings::PostSerialize(const FArchive& Ar)
 	{
 		if (InteriorLPF > 0.0f && InteriorLPF < 1.0f)
 		{
-			float FilterConstant = 2.0f * FMath::Sin(PI * 6000.0f * InteriorLPF / 48000);
+			float FilterConstant = 2.0f * FMath::Sin(UE_PI * 6000.0f * InteriorLPF / 48000);
 			InteriorLPF = FilterConstant * MAX_FILTER_FREQUENCY;
 		}
 
 		if (ExteriorLPF > 0.0f && ExteriorLPF < 1.0f)
 		{
-			float FilterConstant = 2.0f * FMath::Sin(PI * 6000.0f * ExteriorLPF / 48000);
+			float FilterConstant = 2.0f * FMath::Sin(UE_PI * 6000.0f * ExteriorLPF / 48000);
 			ExteriorLPF = FilterConstant * MAX_FILTER_FREQUENCY;
 		}
 	}

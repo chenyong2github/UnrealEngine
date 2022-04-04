@@ -500,12 +500,12 @@ void FPhysicsFieldResource::UpdateBounds(const TArray<FVector>& TargetsMin, cons
 
 						if (LocalMin.X < LocalMax.X && LocalMin.Y < LocalMax.Y && LocalMin.Z < LocalMax.Z)
 						{
-							FieldInfos.CellsMin[CellIndex] = FIntVector4(FMath::CeilToInt(LocalMin.X / CellSize - KINDA_SMALL_NUMBER),
-								FMath::CeilToInt(LocalMin.Y / CellSize - KINDA_SMALL_NUMBER),
-								FMath::CeilToInt(LocalMin.Z / CellSize - KINDA_SMALL_NUMBER), 0);
-							FieldInfos.CellsMax[CellIndex] = FIntVector4(FMath::CeilToInt(LocalMax.X / CellSize + KINDA_SMALL_NUMBER),
-								FMath::CeilToInt(LocalMax.Y / CellSize + KINDA_SMALL_NUMBER),
-								FMath::CeilToInt(LocalMax.Z / CellSize + KINDA_SMALL_NUMBER), 0);
+							FieldInfos.CellsMin[CellIndex] = FIntVector4(FMath::CeilToInt(LocalMin.X / CellSize - UE_KINDA_SMALL_NUMBER),
+								FMath::CeilToInt(LocalMin.Y / CellSize - UE_KINDA_SMALL_NUMBER),
+								FMath::CeilToInt(LocalMin.Z / CellSize - UE_KINDA_SMALL_NUMBER), 0);
+							FieldInfos.CellsMax[CellIndex] = FIntVector4(FMath::CeilToInt(LocalMax.X / CellSize + UE_KINDA_SMALL_NUMBER),
+								FMath::CeilToInt(LocalMax.Y / CellSize + UE_KINDA_SMALL_NUMBER),
+								FMath::CeilToInt(LocalMax.Z / CellSize + UE_KINDA_SMALL_NUMBER), 0);
 
 							FieldInfos.CellsOffsets[CellIndex + 1] = (FieldInfos.CellsMax[CellIndex].X - FieldInfos.CellsMin[CellIndex].X) * 
 																	 (FieldInfos.CellsMax[CellIndex].Y - FieldInfos.CellsMin[CellIndex].Y) * 

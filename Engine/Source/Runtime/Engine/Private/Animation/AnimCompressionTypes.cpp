@@ -957,7 +957,7 @@ void DecompressPose(FCompactPose& OutPose, const FCompressedAnimSequence& Compre
 
 			// @todo - precache that in FBoneContainer when we have SkeletonIndex->TrackIndex mapping. So we can just apply scale right away.
 			float const SourceTranslationLength = AuthoredOnRefSkeleton[SourceSkeletonBoneIndex].GetTranslation().Size();
-			if (SourceTranslationLength > KINDA_SMALL_NUMBER)
+			if (SourceTranslationLength > UE_KINDA_SMALL_NUMBER)
 			{
 				float const TargetTranslationLength = RequiredBones.GetRefPoseTransform(BoneIndex).GetTranslation().Size();
 				OutPose[BoneIndex].ScaleTranslation(TargetTranslationLength / SourceTranslationLength);

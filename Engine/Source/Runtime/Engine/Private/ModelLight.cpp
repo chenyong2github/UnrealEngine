@@ -1114,7 +1114,7 @@ void UModel::ApplyStaticLighting(ULevel* LightingScenario)
 		{
 			for(int32 ColorIndex = 0;ColorIndex < 4;ColorIndex++)
 			{
-				GroupQuantizedData->Scale[CoefficientIndex][ColorIndex] = FMath::Max(MaxCoefficient[CoefficientIndex][ColorIndex] - MinCoefficient[CoefficientIndex][ColorIndex], DELTA);
+				GroupQuantizedData->Scale[CoefficientIndex][ColorIndex] = FMath::Max(MaxCoefficient[CoefficientIndex][ColorIndex] - MinCoefficient[CoefficientIndex][ColorIndex], UE_DELTA);
 				GroupQuantizedData->Add[CoefficientIndex][ColorIndex] = MinCoefficient[CoefficientIndex][ColorIndex];
 			}
 		}

@@ -20,8 +20,8 @@ void FDelaunayTriangleGenerator::SetGridBox(const FBlendParameter& BlendParamX, 
 	FVector2D Max(BlendParamX.Max, BlendParamY.Max);
 	FVector2D Mid = (Min + Max) * 0.5f;
 	FVector2D Range = Max - Min;
-	Range.X = FMath::Max(Range.X, DELTA);
-	Range.Y = FMath::Max(Range.Y, DELTA);
+	Range.X = FMath::Max(Range.X, UE_DELTA);
+	Range.Y = FMath::Max(Range.Y, UE_DELTA);
 
 	GridMin = Mid - Range * 0.5f;
 	RecipGridSize = FVector2D(1.0, 1.0) / Range;
@@ -261,7 +261,7 @@ FDelaunayTriangleGenerator::ECircumCircleState FDelaunayTriangleGenerator::GetCi
 	else
 	{
 		// On top of the triangle edge
-		if (FMath::IsNearlyZero(Det, DOUBLE_SMALL_NUMBER))
+		if (FMath::IsNearlyZero(Det, UE_DOUBLE_SMALL_NUMBER))
 		{
 			return ECCS_On;
 		}
@@ -609,7 +609,7 @@ bool FBlendSpaceGrid::FindTriangleThisPointBelongsTo(const FVector2D& TestPoint,
 		FVector Coords = GetBaryCentric2D(TestPoint, Triangle->Vertices[0]->Position, Triangle->Vertices[1]->Position, Triangle->Vertices[2]->Position);
 
 		// Z coords often has precision error because it's derived from 1-A-B, so do more precise check
-		if (FMath::Abs(Coords.Z) < KINDA_SMALL_NUMBER)
+		if (FMath::Abs(Coords.Z) < UE_KINDA_SMALL_NUMBER)
 		{
 			Coords.Z = 0.f;
 		}

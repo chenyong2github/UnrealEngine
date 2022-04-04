@@ -118,12 +118,12 @@ namespace FRK4SpringInterpolatorUtils
 		return Value.GetAbsMax() < MaxAbsoluteValue;
 	}
 
-	static FORCEINLINE bool AreEqual(float A, float B, float ErrorTolerance = KINDA_SMALL_NUMBER)
+	static FORCEINLINE bool AreEqual(float A, float B, float ErrorTolerance = UE_KINDA_SMALL_NUMBER)
 	{
 		return FMath::IsNearlyEqual(A, B, ErrorTolerance);
 	}
 
-	static FORCEINLINE bool AreEqual(FVector A, FVector B, float ErrorTolerance = KINDA_SMALL_NUMBER)
+	static FORCEINLINE bool AreEqual(FVector A, FVector B, float ErrorTolerance = UE_KINDA_SMALL_NUMBER)
 	{
 		return A.Equals(B, ErrorTolerance);
 	}

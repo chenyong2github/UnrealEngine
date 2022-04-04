@@ -148,7 +148,7 @@ void ABrush::CheckForErrors()
 
 				for(int32 VertexIndex = 0;VertexIndex < Poly->Vertices.Num();VertexIndex++)
 				{
-					if(FMath::Abs(FPlane((FVector)Poly->Vertices[0], (FVector)Poly->Normal).PlaneDot((FVector)Poly->Vertices[VertexIndex])) > THRESH_POINT_ON_PLANE)
+					if(FMath::Abs(FPlane((FVector)Poly->Vertices[0], (FVector)Poly->Normal).PlaneDot((FVector)Poly->Vertices[VertexIndex])) > UE_THRESH_POINT_ON_PLANE)
 					{
 						FFormatNamedArguments Arguments;
 						Arguments.Add(TEXT("ActorName"), FText::FromString(GetName()));
@@ -168,7 +168,7 @@ void ABrush::CheckForErrors()
 			}
 
 			// check for planar brushes which might mess up collision
-			if(Brush->Bounds.BoxExtent.Z < SMALL_NUMBER || Brush->Bounds.BoxExtent.Y < SMALL_NUMBER || Brush->Bounds.BoxExtent.X < SMALL_NUMBER)
+			if(Brush->Bounds.BoxExtent.Z < UE_SMALL_NUMBER || Brush->Bounds.BoxExtent.Y < UE_SMALL_NUMBER || Brush->Bounds.BoxExtent.X < UE_SMALL_NUMBER)
 			{
 				FFormatNamedArguments Arguments;
 				Arguments.Add(TEXT("ActorName"), FText::FromString(GetName()));
@@ -202,7 +202,7 @@ void AVolume::CheckForErrors()
 		}
 		else
 		{
-			if (GetRootComponent()->Bounds.SphereRadius <= SMALL_NUMBER)
+			if (GetRootComponent()->Bounds.SphereRadius <= UE_SMALL_NUMBER)
 			{
 				FFormatNamedArguments Arguments;
 				Arguments.Add(TEXT("ActorName"), FText::FromString(GetName()));

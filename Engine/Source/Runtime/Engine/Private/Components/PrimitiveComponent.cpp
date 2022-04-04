@@ -815,7 +815,7 @@ void UPrimitiveComponent::OnCreatePhysicsState()
 			const FVector BodyScale = BodyTransform.GetScale3D();
 			if(BodyScale.IsNearlyZero())
 			{
-				BodyTransform.SetScale3D(FVector(KINDA_SMALL_NUMBER));
+				BodyTransform.SetScale3D(FVector(UE_KINDA_SMALL_NUMBER));
 			}
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			if ((BodyInstance.GetCollisionEnabled() != ECollisionEnabled::NoCollision) && (FMath::IsNearlyZero(BodyScale.X) || FMath::IsNearlyZero(BodyScale.Y) || FMath::IsNearlyZero(BodyScale.Z)))
@@ -2265,7 +2265,7 @@ static bool ShouldIgnoreHitResult(const UWorld* InWorld, FHitResult const& TestH
 				{
 					UE_LOG(LogTemp, Log, TEXT("Overlapping %s Dir %s Dot %f Normal %s Depth %f"), *GetNameSafe(TestHit.Component.Get()), *MovementDir.ToString(), MoveDot, *TestHit.ImpactNormal.ToString(), TestHit.PenetrationDepth);
 					DrawDebugDirectionalArrow(InWorld, TestHit.TraceStart, TestHit.TraceStart + 30.f * TestHit.ImpactNormal, 5.f, bMovingOut ? FColor(64,128,255) : FColor(255,64,64), false, 4.f);
-					if (TestHit.PenetrationDepth > KINDA_SMALL_NUMBER)
+					if (TestHit.PenetrationDepth > UE_KINDA_SMALL_NUMBER)
 					{
 						DrawDebugDirectionalArrow(InWorld, TestHit.TraceStart, TestHit.TraceStart + TestHit.PenetrationDepth * TestHit.Normal, 5.f, FColor(64,255,64), false, 4.f);
 					}
@@ -2394,7 +2394,7 @@ bool UPrimitiveComponent::MoveComponentImpl( const FVector& Delta, const FQuat& 
 	const FQuat InitialRotationQuat = GetComponentTransform().GetRotation();
 
 	// ComponentSweepMulti does nothing if moving < KINDA_SMALL_NUMBER in distance, so it's important to not try to sweep distances smaller than that. 
-	const float MinMovementDistSq = (bSweep ? FMath::Square(4.f*KINDA_SMALL_NUMBER) : 0.f);
+	const float MinMovementDistSq = (bSweep ? FMath::Square(4.f* UE_KINDA_SMALL_NUMBER) : 0.f);
 	if (DeltaSizeSq <= MinMovementDistSq)
 	{
 		// Skip if no vector or rotation.
@@ -2481,7 +2481,7 @@ bool UPrimitiveComponent::MoveComponentImpl( const FVector& Delta, const FQuat& 
 			if (bHadBlockingHit || (GetGenerateOverlapEvents() || bForceGatherOverlaps))
 			{
 				int32 BlockingHitIndex = INDEX_NONE;
-				float BlockingHitNormalDotDelta = BIG_NUMBER;
+				float BlockingHitNormalDotDelta = UE_BIG_NUMBER;
 				for( int32 HitIdx = 0; HitIdx < Hits.Num(); HitIdx++ )
 				{
 					const FHitResult& TestHit = Hits[HitIdx];
@@ -4165,7 +4165,7 @@ bool UPrimitiveComponent::WasRecentlyRendered(float Tolerance /*= 0.2*/) const
 	if (const UWorld* const World = GetWorld())
 	{
 		// Adjust tolerance, so visibility is not affected by bad frame rate / hitches.
-		const float RenderTimeThreshold = FMath::Max(Tolerance, World->DeltaTimeSeconds + KINDA_SMALL_NUMBER);
+		const float RenderTimeThreshold = FMath::Max(Tolerance, World->DeltaTimeSeconds + UE_KINDA_SMALL_NUMBER);
 
 		// If the current cached value is less than the tolerance then we don't need to go look at the components
 		return World->TimeSince(GetLastRenderTime()) <= RenderTimeThreshold;

@@ -334,12 +334,12 @@ void BuildPoseFromRawData(
 
 	bool bInterpolate = true;
 
-	if (Alpha < KINDA_SMALL_NUMBER)
+	if (Alpha < UE_KINDA_SMALL_NUMBER)
 	{
 		Alpha = 0.f;
 		bInterpolate = false;
 	}
-	else if (Alpha > 1.f - KINDA_SMALL_NUMBER)
+	else if (Alpha > 1.f - UE_KINDA_SMALL_NUMBER)
 	{
 		bInterpolate = false;
 		KeyIndex1 = KeyIndex2;

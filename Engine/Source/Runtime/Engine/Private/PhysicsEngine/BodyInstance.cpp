@@ -1553,7 +1553,7 @@ FVector GetInitialLinearVelocity(const AActor* OwningActor, bool& bComponentAwak
 	{
 		InitialLinVel = OwningActor->GetVelocity();
 
-		if (InitialLinVel.SizeSquared() > FMath::Square(KINDA_SMALL_NUMBER))
+		if (InitialLinVel.SizeSquared() > FMath::Square(UE_KINDA_SMALL_NUMBER))
 		{
 			bComponentAwake = true;
 		}
@@ -1808,9 +1808,9 @@ void ComputeScalingVectors(EScaleMode::Type ScaleMode, const FVector& InScale3D,
 {
 	// Ensure no zeroes in any dimension
 	FVector NewScale3D;
-	NewScale3D.X = FMath::IsNearlyZero(InScale3D.X) ? KINDA_SMALL_NUMBER : InScale3D.X;
-	NewScale3D.Y = FMath::IsNearlyZero(InScale3D.Y) ? KINDA_SMALL_NUMBER : InScale3D.Y;
-	NewScale3D.Z = FMath::IsNearlyZero(InScale3D.Z) ? KINDA_SMALL_NUMBER : InScale3D.Z;
+	NewScale3D.X = FMath::IsNearlyZero(InScale3D.X) ? UE_KINDA_SMALL_NUMBER : InScale3D.X;
+	NewScale3D.Y = FMath::IsNearlyZero(InScale3D.Y) ? UE_KINDA_SMALL_NUMBER : InScale3D.Y;
+	NewScale3D.Z = FMath::IsNearlyZero(InScale3D.Z) ? UE_KINDA_SMALL_NUMBER : InScale3D.Z;
 
 	const FVector NewScale3DAbs = NewScale3D.GetAbs();
 	switch (ScaleMode)
@@ -3295,7 +3295,7 @@ void FBodyInstance::UpdateMassProperties()
 				// Only set mass properties if inertia tensor is valid. TODO Remove this once we track down cause of empty tensors.
 				// (This can happen if all shapes have bContributeToMass set to false which gives an empty Shapes array. There may be other ways).
 				const float InertiaTensorTrace = (TotalMassProperties.InertiaTensor.M[0][0] + TotalMassProperties.InertiaTensor.M[1][1] + TotalMassProperties.InertiaTensor.M[2][2]) / 3;
-				if (CHAOS_ENSURE(InertiaTensorTrace > SMALL_NUMBER))
+				if (CHAOS_ENSURE(InertiaTensorTrace > UE_SMALL_NUMBER))
 				{
 					const FVector MassSpaceInertiaTensor(TotalMassProperties.InertiaTensor.M[0][0], TotalMassProperties.InertiaTensor.M[1][1], TotalMassProperties.InertiaTensor.M[2][2]);
 					FPhysicsInterface::SetMassSpaceInertiaTensor_AssumesLocked(Actor, MassSpaceInertiaTensor);

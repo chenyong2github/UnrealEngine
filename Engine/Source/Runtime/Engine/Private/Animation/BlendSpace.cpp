@@ -1615,7 +1615,7 @@ const FEditorElement* UBlendSpace::GetGridSampleInternal(int32 Index) const
 // easing in/out, so aim for twice this speed (i.e. smooth over half the time)
 static float SmoothingTimeFromSpeed(float Speed)
 {
-	return 1.0f / (EULERS_NUMBER * Speed);
+	return 1.0f / (UE_EULERS_NUMBER * Speed);
 }
 
 static void SmoothWeight(float& Output, float& OutputRate, float Input, float InputRate, float Target, float DeltaTime, float Speed, bool bUseEaseInOut)
@@ -1830,9 +1830,9 @@ bool UBlendSpace::ContainsMatchingSamples(EAdditiveAnimationType AdditiveType) c
 bool UBlendSpace::IsSameSamplePoint(const FVector& SamplePointA, const FVector& SamplePointB) const
 {
 #if 1
-	return FMath::IsNearlyEqual(SamplePointA.X, SamplePointB.X, (FVector::FReal)KINDA_SMALL_NUMBER)
-		&& FMath::IsNearlyEqual(SamplePointA.Y, SamplePointB.Y, (FVector::FReal)KINDA_SMALL_NUMBER)
-		&& FMath::IsNearlyEqual(SamplePointA.Z, SamplePointB.Z, (FVector::FReal)KINDA_SMALL_NUMBER);
+	return FMath::IsNearlyEqual(SamplePointA.X, SamplePointB.X, (FVector::FReal)UE_KINDA_SMALL_NUMBER)
+		&& FMath::IsNearlyEqual(SamplePointA.Y, SamplePointB.Y, (FVector::FReal)UE_KINDA_SMALL_NUMBER)
+		&& FMath::IsNearlyEqual(SamplePointA.Z, SamplePointB.Z, (FVector::FReal)UE_KINDA_SMALL_NUMBER);
 #else
 	if (DimensionIndices.Num() == 0 || DimensionIndices.Num() > 3)
 	{
@@ -2512,7 +2512,7 @@ void FBlendSpaceData::GetSamples2D(
 #endif
 		const FBlendSpaceTriangle* Triangle = &Triangles[InOutTriangleIndex];
 		// Look for the edge which has the target point most outside it
-		float LargestDistance = KINDA_SMALL_NUMBER;
+		float LargestDistance = UE_KINDA_SMALL_NUMBER;
 		int32 LargestEdgeIndex = -1;
 		for (int32 VertexIndex = 0; VertexIndex != FBlendSpaceTriangle::NUM_VERTICES; ++VertexIndex)
 		{

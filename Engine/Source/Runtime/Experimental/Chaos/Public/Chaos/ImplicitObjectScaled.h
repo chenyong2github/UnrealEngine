@@ -592,7 +592,7 @@ public:
 	virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override
 	{
 		ensure(Length > 0);
-		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
+		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)UE_KINDA_SMALL_NUMBER));
 		ensure(Thickness == 0 || (FMath::IsNearlyEqual(MScale[0], MScale[1]) && FMath::IsNearlyEqual(MScale[0], MScale[2])));	//non uniform turns sphere into an ellipsoid so no longer a raycast and requires a more expensive sweep
 
 		const FVec3 UnscaledStart = MInvScale * StartPoint;
@@ -637,7 +637,7 @@ public:
 	bool LowLevelSweepGeom(const QueryGeomType& B, const TRigidTransform<T, d>& BToATM, const TVector<T, d>& LocalDir, const T Length, T& OutTime, TVector<T, d>& LocalPosition, TVector<T, d>& LocalNormal, int32& OutFaceIndex, TVector<T, d>& OutFaceNormal, T Thickness = 0, bool bComputeMTD = false) const
 	{
 		ensure(Length > 0);
-		ensure(FMath::IsNearlyEqual(LocalDir.SizeSquared(), (T)1, (T)KINDA_SMALL_NUMBER));
+		ensure(FMath::IsNearlyEqual(LocalDir.SizeSquared(), (T)1, (T)UE_KINDA_SMALL_NUMBER));
 		ensure(Thickness == 0 || (FMath::IsNearlyEqual(MScale[0], MScale[1]) && FMath::IsNearlyEqual(MScale[0], MScale[2])));
 
 		const TVector<T, d> UnscaledDirDenorm = MInvScale * LocalDir;
@@ -811,7 +811,7 @@ public:
 
 	virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override
 	{
-		ensure(FMath::IsNearlyEqual(UnitDir.SizeSquared(), FReal(1), FReal(KINDA_SMALL_NUMBER)));
+		ensure(FMath::IsNearlyEqual(UnitDir.SizeSquared(), FReal(1), FReal(UE_KINDA_SMALL_NUMBER)));
 		return MObject->FindMostOpposingFaceScaled(Position, UnitDir, HintFaceIndex, SearchDist, MScale);
 	}
 
@@ -819,14 +819,14 @@ public:
 	{
 		// @todo(chaos): we need a virtual FindGeometryOpposingNormal. Some types (Convex, Box) can just return the
 		// normal from the face index without needing calculating the unscaled normals.
-		ensure(FMath::IsNearlyEqual(OriginalNormal.SizeSquared(), FReal(1), FReal(KINDA_SMALL_NUMBER)));
+		ensure(FMath::IsNearlyEqual(OriginalNormal.SizeSquared(), FReal(1), FReal(UE_KINDA_SMALL_NUMBER)));
 
 		// Get unscaled dir and normal
 		const FVec3 LocalDenormDir = DenormDir * MScale;
 		const FVec3 LocalOriginalNormalDenorm = OriginalNormal * MScale;
 		const FReal NormalLengthScale = LocalOriginalNormalDenorm.Size();
 		const FVec3 LocalOriginalNormal
-			= ensure(NormalLengthScale > SMALL_NUMBER)
+			= ensure(NormalLengthScale > UE_SMALL_NUMBER)
 			? LocalOriginalNormalDenorm / NormalLengthScale
 			: FVec3(0, 0, 1);
 

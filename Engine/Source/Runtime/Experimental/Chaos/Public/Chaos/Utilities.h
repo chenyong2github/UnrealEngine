@@ -434,7 +434,7 @@ namespace Chaos
 			return false;
 		}
 
-		inline bool NormalizeSafe(FVec3& V, FReal EpsilonSq = SMALL_NUMBER)
+		inline bool NormalizeSafe(FVec3& V, FReal EpsilonSq = UE_SMALL_NUMBER)
 		{
 			FReal VLenSq = V.SizeSquared();
 			if (VLenSq > EpsilonSq)

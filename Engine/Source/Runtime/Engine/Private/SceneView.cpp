@@ -519,7 +519,7 @@ void FViewMatrices::Init(const FMinimalInitializer& Initializer)
 {
 	FMatrix ViewRotationMatrix = Initializer.ViewRotationMatrix;
 	const FVector ViewRotationScaling = ViewRotationMatrix.ExtractScaling();
-	ensureMsgf(FVector::Distance(ViewRotationScaling, FVector::OneVector) < KINDA_SMALL_NUMBER, TEXT("ViewRotation matrix accumulated scaling (%f, %f, %f)"), ViewRotationScaling.X, ViewRotationScaling.Y, ViewRotationScaling.Z);
+	ensureMsgf(FVector::Distance(ViewRotationScaling, FVector::OneVector) < UE_KINDA_SMALL_NUMBER, TEXT("ViewRotation matrix accumulated scaling (%f, %f, %f)"), ViewRotationScaling.X, ViewRotationScaling.Y, ViewRotationScaling.Z);
 
 	FVector LocalViewOrigin = Initializer.ViewOrigin;
 	if (!ViewRotationMatrix.GetOrigin().IsNearlyZero(0.0f))
@@ -655,7 +655,7 @@ static void SetupViewFrustum(FSceneView& View)
 	FPlane NearClippingPlane;
 	View.bHasNearClippingPlane = View.ViewMatrices.GetViewProjectionMatrix().GetFrustumNearPlane(NearClippingPlane);
 	View.NearClippingPlane = NearClippingPlane;
-	if (View.ViewMatrices.GetProjectionMatrix().M[2][3] > DELTA)
+	if (View.ViewMatrices.GetProjectionMatrix().M[2][3] > UE_DELTA)
 	{
 		// Infinite projection with reversed Z.
 		View.NearClippingDistance = View.ViewMatrices.GetProjectionMatrix().M[3][2];
@@ -1205,7 +1205,7 @@ FPlane FSceneView::Project(const FVector& WorldPoint) const
 
 	if (Result.W == 0)
 	{
-		Result.W = KINDA_SMALL_NUMBER;
+		Result.W = UE_KINDA_SMALL_NUMBER;
 	}
 
 	const float RHW = 1.0f / Result.W;
@@ -2394,7 +2394,7 @@ void FSceneView::SetupViewRectUniformBufferParameters(FViewUniformShaderParamete
 		InvBufferSizeY * (EffectiveViewRect.Max.Y - 0.5));
 
 	/* Texture Level-of-Detail Strategies for Real-Time Ray Tracing https://developer.nvidia.com/raytracinggems Equation 20 */
-	float RadFOV = (PI / 180.0f) * FOV;
+	float RadFOV = (UE_PI / 180.0f) * FOV;
 	ViewUniformShaderParameters.EyeToPixelSpreadAngle = FPlatformMath::Atan((2.0f * FPlatformMath::Tan(RadFOV * 0.5f)) / BufferSize.Y);
 
 	ViewUniformShaderParameters.MotionBlurNormalizedToPixel = FinalPostProcessSettings.MotionBlurMax * EffectiveViewRect.Width() / 100.0f;

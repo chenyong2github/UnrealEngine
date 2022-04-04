@@ -277,7 +277,7 @@ void ALODActor::PostLoad()
 		}
 		else
 		{
-			const float HalfFOV = PI * 0.25f;
+			const float HalfFOV = UE_PI * 0.25f;
 			const float ScreenWidth = 1920.0f;
 			const float ScreenHeight = 1080.0f;
 			const FPerspectiveMatrix ProjMatrix(HalfFOV, ScreenWidth, ScreenHeight, 1.0f);
@@ -290,7 +290,7 @@ void ALODActor::PostLoad()
 
 			// legacy transition screen size was previously a screen AREA fraction using resolution-scaled values, so we need to convert to distance first to correctly calculate the threshold
 			const float ScreenArea = TransitionScreenSize * (ScreenWidth * ScreenHeight);
-			const float ScreenRadius = FMath::Sqrt(ScreenArea / PI);
+			const float ScreenRadius = FMath::Sqrt(ScreenArea / UE_PI);
 			const float ScreenDistance = FMath::Max(ScreenWidth / 2.0f * ProjMatrix.M[0][0], ScreenHeight / 2.0f * ProjMatrix.M[1][1]) * Bounds.SphereRadius / ScreenRadius;
 
 			// Now convert using the query function
@@ -451,7 +451,7 @@ void ALODActor::Tick(float DeltaSeconds)
 		}
 		else
         {
-			const float CurrentTimeDilation = FMath::Max(GetActorTimeDilation(), SMALL_NUMBER);
+			const float CurrentTimeDilation = FMath::Max(GetActorTimeDilation(), UE_SMALL_NUMBER);
 			ResetDrawDistanceTime += DeltaSeconds / CurrentTimeDilation;
         }
 	}
@@ -1083,7 +1083,7 @@ void ALODActor::CleanSubActorArray()
 void ALODActor::RecalculateDrawingDistance(const float InTransitionScreenSize)
 {
 	// At the moment this assumes a fixed field of view of 90 degrees (horizontal and vertical axes)
-	static const float FOVRad = 90.0f * (float)PI / 360.0f;
+	static const float FOVRad = 90.0f * (float)UE_PI / 360.0f;
 	static const FMatrix ProjectionMatrix = FPerspectiveMatrix(FOVRad, 1920, 1080, 0.01f);
 	FBoxSphereBounds Bounds(ForceInit);
 	ForEachComponent<UStaticMeshComponent>(false, [&Bounds](UStaticMeshComponent* SMComponent)

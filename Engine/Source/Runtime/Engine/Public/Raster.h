@@ -48,17 +48,17 @@ public:
 		float PointDiffY_1_0 = (Points[1].Y - Points[0].Y);
 		if (FMath::IsNearlyZero(PointDiffY_1_0))
 		{
-			PointDiffY_1_0 = PointDiffY_1_0 >= 0.f ? SMALL_NUMBER : -SMALL_NUMBER;
+			PointDiffY_1_0 = PointDiffY_1_0 >= 0.f ? UE_SMALL_NUMBER : -UE_SMALL_NUMBER;
 		}
 		float PointDiffY_2_0 = (Points[2].Y - Points[0].Y);
 		if (FMath::IsNearlyZero(PointDiffY_2_0))
 		{
-			PointDiffY_2_0 = PointDiffY_2_0 >= 0.f ? SMALL_NUMBER : -SMALL_NUMBER;
+			PointDiffY_2_0 = PointDiffY_2_0 >= 0.f ? UE_SMALL_NUMBER : -UE_SMALL_NUMBER;
 		}
 		float PointDiffY_2_1 = (Points[2].Y - Points[1].Y);
 		if (FMath::IsNearlyZero(PointDiffY_2_1))
 		{
-			PointDiffY_2_1 = PointDiffY_2_1 >= 0.f ? SMALL_NUMBER : -SMALL_NUMBER;
+			PointDiffY_2_1 = PointDiffY_2_1 >= 0.f ? UE_SMALL_NUMBER : -UE_SMALL_NUMBER;
 		}
 
 		// Calculate the edge gradients.

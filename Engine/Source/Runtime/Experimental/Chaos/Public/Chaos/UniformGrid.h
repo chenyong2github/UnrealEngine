@@ -74,7 +74,7 @@ class CHAOS_API TUniformGridBase
 			MCells += TVector<T, d>(2 * static_cast<T>(GhostCells));
 		}
 
-		if (MDx >= TVector<T, d>(SMALL_NUMBER))
+		if (MDx >= TVector<T, d>(UE_SMALL_NUMBER))
 		{
 			const TVector<T, d> MinToDXRatio = MMinCorner / MDx;
 			for (int32 Axis = 0; Axis < d; ++Axis)

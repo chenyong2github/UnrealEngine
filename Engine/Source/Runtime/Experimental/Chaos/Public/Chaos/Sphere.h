@@ -100,7 +100,7 @@ namespace Chaos
 
 		virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
 		{
-			ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
+			ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)UE_KINDA_SMALL_NUMBER));
 			ensure(Length > 0);
 			OutFaceIndex = INDEX_NONE;
 
@@ -241,8 +241,8 @@ namespace Chaos
 		
 		static T GetArea(const T InRadius)
 		{
-			static const T FourPI = PI * 4;
-			static const T TwoPI = PI * 2;
+			static const T FourPI = UE_PI * 4;
+			static const T TwoPI = UE_PI * 2;
 			return d == 3 ? FourPI * InRadius * InRadius : TwoPI * InRadius;
 		}
 
@@ -254,7 +254,7 @@ namespace Chaos
 		static T GetVolume(const T InRadius)
 		{
 			check(d == 3);
-			static const T FourThirdsPI = 4. / 3 * PI;
+			static const T FourThirdsPI = 4. / 3 * UE_PI;
 			return FourThirdsPI * InRadius * InRadius * InRadius;
 		}
 
@@ -302,7 +302,7 @@ namespace Chaos
 		{
 			TArray<TVector<T, d>> Points;
 			
-			if(GetRadius() <= KINDA_SMALL_NUMBER)
+			if(GetRadius() <= UE_KINDA_SMALL_NUMBER)
 			{
 				// If we're too small (and will create NaNs) then just take the centre
 				Points.Add(TVector<T, d>(0.0));
@@ -404,7 +404,7 @@ namespace Chaos
 	{
 		static FORCEINLINE void ComputeSamplePoints(TArray<TVec2<T>>& Points, const TSphere<T, 2>& Sphere, const int32 NumPoints)
 		{
-			if (NumPoints <= 1 || Sphere.GetRadius() < KINDA_SMALL_NUMBER)
+			if (NumPoints <= 1 || Sphere.GetRadius() < UE_KINDA_SMALL_NUMBER)
 			{
 				const int32 Offset = Points.AddUninitialized(1);
 				Points[Offset] = Sphere.Center();
@@ -437,7 +437,7 @@ namespace Chaos
 			// Polar sunflower increment: pi * (1 + sqrt(5))
 
 			// Increment = 10.16640738463053...
-			static const T Increment = static_cast<T>(PI * (1.0 + sqrt(5)));
+			static const T Increment = static_cast<T>(UE_PI * (1.0 + sqrt(5)));
 			for (int32 i = 0; i < NumPoints; i++)
 			{
 				const T Z = static_cast<T>(0.5 + i);
@@ -452,7 +452,7 @@ namespace Chaos
 				Points[Index] = Center +TVec2<T>(R * FMath::Cos(Theta), R * FMath::Sin(Theta));
 
 				// Check to make sure the point is inside the sphere
-				checkSlow((Points[Index] - Center).Size() - Radius < KINDA_SMALL_NUMBER);
+				checkSlow((Points[Index] - Center).Size() - Radius < UE_KINDA_SMALL_NUMBER);
 			}
 		}
 	};
@@ -462,7 +462,7 @@ namespace Chaos
 	{
 		static FORCEINLINE void ComputeSamplePoints(TArray<TVec3<T>>& Points, const TSphere<T, 3>& Sphere, const int32 NumPoints)
 		{
-			if (NumPoints <= 1 || Sphere.GetRadius() < KINDA_SMALL_NUMBER)
+			if (NumPoints <= 1 || Sphere.GetRadius() < UE_KINDA_SMALL_NUMBER)
 			{
 				const int32 Offset = Points.AddUninitialized(1);
 				Points[Offset] = Sphere.GetCenter();
@@ -525,7 +525,7 @@ namespace Chaos
 			// Phi is the angle between the positive Z axis and the line from the origin to the point
 
 			// GRIncrement = 10.16640738463053...
-			static const T GRIncrement = static_cast<FReal>(PI * (1.0 + sqrt(5)));
+			static const T GRIncrement = static_cast<FReal>(UE_PI * (1.0 + sqrt(5)));
 
 			// If PhiSteps is 2X NumPoints, then we'll only generate half the sphere.
 			//const int32 PhiSteps = TopHalf + BottomHalf == 1 ? NumPoints * 2 : NumPoints;
@@ -544,7 +544,7 @@ namespace Chaos
 					// So, ((2 * (i + 0.5) / (NumPoints * 2)) - 1) varies: (-1, 0.0)
 					const T V = static_cast<T>((2.0 * (0.5 + i) / (2.0 * NumPoints)) - 1.0);
 					const T Phi = FMath::Acos(V);
-					checkSlow(Phi > PI / 2 - KINDA_SMALL_NUMBER);
+					checkSlow(Phi > UE_PI / 2 - UE_KINDA_SMALL_NUMBER);
 					const T Theta = GRIncrement * (Sample + static_cast<T>(SpiralSeed));
 
 					// Convert spherical coordinates to Cartesian, scaled by the radius of our Sphere, and offset by its location.
@@ -556,8 +556,8 @@ namespace Chaos
 					        Radius * FMath::Sin(Theta) * SinPhi,
 					        Radius * FMath::Cos(Phi));
 
-					checkSlow(FMath::Abs(TSphere<T, 3>(Center, Radius).SignedDistance(Pt)) < KINDA_SMALL_NUMBER);
-					checkSlow(Pt[2] < Center[2] + KINDA_SMALL_NUMBER);
+					checkSlow(FMath::Abs(TSphere<T, 3>(Center, Radius).SignedDistance(Pt)) < UE_KINDA_SMALL_NUMBER);
+					checkSlow(Pt[2] < Center[2] + UE_KINDA_SMALL_NUMBER);
 				}
 			}
 			else if (!BottomHalf && TopHalf)
@@ -567,7 +567,7 @@ namespace Chaos
 					const T Sample = static_cast<T>(0.5 + i);
 					const T V = static_cast<T>((2.0 * (0.5 + i) / (2.0 * NumPoints))); // varies: (0.0, 1.0)
 					const T Phi = FMath::Acos(V);
-					checkSlow(Phi < PI / 2 + KINDA_SMALL_NUMBER);
+					checkSlow(Phi < UE_PI / 2 + UE_KINDA_SMALL_NUMBER);
 					const T Theta = GRIncrement * (Sample + static_cast<T>(SpiralSeed));
 
 					// Convert spherical coordinates to Cartesian, scaled by the radius of our Sphere, and offset by its location.
@@ -579,8 +579,8 @@ namespace Chaos
 					        Radius * FMath::Sin(Theta) * SinPhi,
 					        Radius * FMath::Cos(Phi));
 
-					checkSlow(FMath::Abs(TSphere<T, 3>(Center, Radius).SignedDistance(Pt)) < KINDA_SMALL_NUMBER);
-					checkSlow(Pt[2] > Center[2] - KINDA_SMALL_NUMBER);
+					checkSlow(FMath::Abs(TSphere<T, 3>(Center, Radius).SignedDistance(Pt)) < UE_KINDA_SMALL_NUMBER);
+					checkSlow(Pt[2] > Center[2] - UE_KINDA_SMALL_NUMBER);
 				}
 			}
 			else
@@ -606,7 +606,7 @@ namespace Chaos
 					        Radius * FMath::Sin(Theta) * SinPhi,
 					        Radius * FMath::Cos(Phi));
 
-					checkSlow(FMath::Abs(TSphere<T, 3>(Center, Radius).SignedDistance(Pt)) < KINDA_SMALL_NUMBER);
+					checkSlow(FMath::Abs(TSphere<T, 3>(Center, Radius).SignedDistance(Pt)) < UE_KINDA_SMALL_NUMBER);
 				}
 			}
 		}

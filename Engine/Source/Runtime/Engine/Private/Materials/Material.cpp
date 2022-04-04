@@ -3820,7 +3820,7 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 		bUsesDistortion = false;
 		// check for a distortion value
 		if (Refraction.Expression
-			|| (Refraction.UseConstant && FMath::Abs(Refraction.Constant - 1.0f) >= KINDA_SMALL_NUMBER))
+			|| (Refraction.UseConstant && FMath::Abs(Refraction.Constant - 1.0f) >= UE_KINDA_SMALL_NUMBER))
 		{
 			bUsesDistortion = true;
 		}

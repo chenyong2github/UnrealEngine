@@ -190,7 +190,7 @@ float FFIRFilterTimeBased::UpdateAndGetFilteredData(float Input, float DeltaTime
 		return Input;
 	}
 
-	if (DeltaTime > KINDA_SMALL_NUMBER)
+	if (DeltaTime > UE_KINDA_SMALL_NUMBER)
 	{
 		float Result;
 		CurrentTime += DeltaTime;
@@ -205,7 +205,7 @@ float FFIRFilterTimeBased::UpdateAndGetFilteredData(float Input, float DeltaTime
 					FilterData.Push(FFilterData(Input, 0.0f));
 				}
 				const float OrigValue = FilterData[0].Input;
-				FMath::ExponentialSmoothingApprox(FilterData[0].Input, Input, DeltaTime, WindowDuration / EULERS_NUMBER);
+				FMath::ExponentialSmoothingApprox(FilterData[0].Input, Input, DeltaTime, WindowDuration / UE_EULERS_NUMBER);
 				if (MaxSpeed > 0.0f)
 				{
 					// Clamp the speed
@@ -226,7 +226,7 @@ float FFIRFilterTimeBased::UpdateAndGetFilteredData(float Input, float DeltaTime
 				}
 				const float OrigValue = FilterData[0].Input;
 				FMath::SpringDamperSmoothing(FilterData[0].Input, FilterData[1].Input, Input, 0.0f, DeltaTime,
-				                             WindowDuration / EULERS_NUMBER, DampingRatio);
+				                             WindowDuration / UE_EULERS_NUMBER, DampingRatio);
 				if (MaxSpeed > 0.0f)
 				{
 					// Clamp the speed

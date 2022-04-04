@@ -41,8 +41,8 @@ public:
 	FSpotLightSceneProxy(const USpotLightComponent* Component)
 	:	FPointLightSceneProxy(Component)
 	{
-		const float ClampedInnerConeAngle = FMath::Clamp(Component->InnerConeAngle,0.0f,89.0f) * (float)PI / 180.0f;
-		const float ClampedOuterConeAngle = FMath::Clamp(Component->OuterConeAngle * (float)PI / 180.0f,ClampedInnerConeAngle + 0.001f,89.0f * (float)PI / 180.0f + 0.001f);
+		const float ClampedInnerConeAngle = FMath::Clamp(Component->InnerConeAngle,0.0f,89.0f) * (float)UE_PI / 180.0f;
+		const float ClampedOuterConeAngle = FMath::Clamp(Component->OuterConeAngle * (float)UE_PI / 180.0f,ClampedInnerConeAngle + 0.001f,89.0f * (float)UE_PI / 180.0f + 0.001f);
 		OuterConeAngle = ClampedOuterConeAngle;
 		CosOuterCone = FMath::Cos(ClampedOuterConeAngle);
 		SinOuterCone = FMath::Sin(ClampedOuterConeAngle);
@@ -170,8 +170,8 @@ USpotLightComponent::USpotLightComponent(const FObjectInitializer& ObjectInitial
 
 float USpotLightComponent::GetHalfConeAngle() const
 {
-	const float ClampedInnerConeAngle = FMath::Clamp(InnerConeAngle, 0.0f, 89.0f) * (float)PI / 180.0f;
-	const float ClampedOuterConeAngle = FMath::Clamp(OuterConeAngle * (float)PI / 180.0f, ClampedInnerConeAngle + 0.001f, 89.0f * (float)PI / 180.0f + 0.001f);
+	const float ClampedInnerConeAngle = FMath::Clamp(InnerConeAngle, 0.0f, 89.0f) * (float)UE_PI / 180.0f;
+	const float ClampedOuterConeAngle = FMath::Clamp(OuterConeAngle * (float)UE_PI / 180.0f, ClampedInnerConeAngle + 0.001f, 89.0f * (float)UE_PI / 180.0f + 0.001f);
 	return ClampedOuterConeAngle;
 }
 
@@ -212,7 +212,7 @@ float USpotLightComponent::ComputeLightBrightness() const
 		}
 		else if (IntensityUnits == ELightUnits::Lumens)
 		{
-			LightBrightness *= (100.f * 100.f / 2.f / PI / (1.f - GetCosHalfConeAngle())); // Conversion from cm2 to m2 and cone remapping.
+			LightBrightness *= (100.f * 100.f / 2.f / UE_PI / (1.f - GetCosHalfConeAngle())); // Conversion from cm2 to m2 and cone remapping.
 		}
 		else
 		{
@@ -233,7 +233,7 @@ void USpotLightComponent::SetLightBrightness(float InBrightness)
 		}
 		else if (IntensityUnits == ELightUnits::Lumens)
 		{
-			ULightComponent::SetLightBrightness(InBrightness / (100.f * 100.f / 2.f / PI / (1.f - GetCosHalfConeAngle()))); // Conversion from cm2 to m2 and cone remapping
+			ULightComponent::SetLightBrightness(InBrightness / (100.f * 100.f / 2.f / UE_PI / (1.f - GetCosHalfConeAngle()))); // Conversion from cm2 to m2 and cone remapping
 		}
 		else
 		{
@@ -292,8 +292,8 @@ bool USpotLightComponent::AffectsBounds(const FBoxSphereBounds& InBounds) const
 		return false;
 	}
 
-	float	ClampedInnerConeAngle = FMath::Clamp(InnerConeAngle,0.0f,89.0f) * (float)PI / 180.0f,
-			ClampedOuterConeAngle = FMath::Clamp(OuterConeAngle * (float)PI / 180.0f,ClampedInnerConeAngle + 0.001f,89.0f * (float)PI / 180.0f + 0.001f);
+	float	ClampedInnerConeAngle = FMath::Clamp(InnerConeAngle,0.0f,89.0f) * (float)UE_PI / 180.0f,
+			ClampedOuterConeAngle = FMath::Clamp(OuterConeAngle * (float)UE_PI / 180.0f,ClampedInnerConeAngle + 0.001f,89.0f * (float)UE_PI / 180.0f + 0.001f);
 
 	float	Sin = FMath::Sin(ClampedOuterConeAngle),
 			Cos = FMath::Cos(ClampedOuterConeAngle);

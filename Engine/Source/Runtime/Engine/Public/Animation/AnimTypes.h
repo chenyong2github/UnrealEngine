@@ -469,7 +469,7 @@ FORCEINLINE bool FAnimNotifyEvent::operator<(const FAnimNotifyEvent& Other) cons
 	// using SMALL_NUMBER here incase the underlying default changes as
 	// notifies can have an offset of KINDA_SMALL_NUMBER to be consider
 	// distinct
-	if (FMath::IsNearlyEqual(ATime, BTime, SMALL_NUMBER))
+	if (FMath::IsNearlyEqual(ATime, BTime, UE_SMALL_NUMBER))
 	{
 		return TrackIndex < Other.TrackIndex;
 	}

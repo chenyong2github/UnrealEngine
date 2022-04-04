@@ -120,7 +120,7 @@ public:
 	 * @param KeyTimeTolerance The key time tolerance to use for equality.
 	 * @return A handle to the key, or invalid key handle if not found.
 	 */
-	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = KINDA_SMALL_NUMBER) const;
+	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/** Get the default value for the curve */
 	FString GetDefaultValue() const
@@ -204,7 +204,7 @@ public:
 	 * @param InValue The value of the key.
 	 * @param KeyTimeTolerance The tolerance used for key time equality.
 	 */
-	FKeyHandle UpdateOrAddKey(float InTime, const FString& InValue, float KeyTimeTolerance = KINDA_SMALL_NUMBER);
+	FKeyHandle UpdateOrAddKey(float InTime, const FString& InValue, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER);
 
 	/** Tries to reduce the number of keys required for accurate evaluation (removing duplicates) */
 	void RemoveRedundantKeys();

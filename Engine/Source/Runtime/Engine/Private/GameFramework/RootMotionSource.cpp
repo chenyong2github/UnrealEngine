@@ -66,7 +66,7 @@ void RootMotionSourceDebug::PrintOnScreenServerMsg(const FString& InString)
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 
-const float RootMotionSource_InvalidStartTime = -BIG_NUMBER;
+const float RootMotionSource_InvalidStartTime = -UE_BIG_NUMBER;
 
 
 static float EvaluateFloatCurveAtFraction(const UCurveFloat& Curve, const float Fraction)
@@ -231,7 +231,7 @@ bool FRootMotionSource::Matches(const FRootMotionSource* Other) const
 		Priority == Other->Priority && 
 		bInLocalSpace == Other->bInLocalSpace &&
 		InstanceName == Other->InstanceName &&
-		FMath::IsNearlyEqual(Duration, Other->Duration, SMALL_NUMBER);
+		FMath::IsNearlyEqual(Duration, Other->Duration, UE_SMALL_NUMBER);
 }
 
 bool FRootMotionSource::MatchesAndHasSameState(const FRootMotionSource* Other) const
@@ -422,7 +422,7 @@ void FRootMotionSource_ConstantForce::PrepareRootMotion
 	//     To catch up with server state we need to apply
 	//     3 seconds of this root motion in 1 second of
 	//     movement tick time -> we apply 600 cm for this frame
-	const float Multiplier = (MovementTickTime > SMALL_NUMBER) ? (SimulationTime / MovementTickTime) : 1.f;
+	const float Multiplier = (MovementTickTime > UE_SMALL_NUMBER) ? (SimulationTime / MovementTickTime) : 1.f;
 	NewTransform.ScaleTranslation(Multiplier);
 
 #if ROOT_MOTION_DEBUG
@@ -511,8 +511,8 @@ bool FRootMotionSource_RadialForce::Matches(const FRootMotionSource* Other) cons
 		StrengthOverTime == OtherCast->StrengthOverTime &&
 		(LocationActor == OtherCast->LocationActor ||
 		FVector::PointsAreNear(Location, OtherCast->Location, 1.0f)) &&
-		FMath::IsNearlyEqual(Radius, OtherCast->Radius, SMALL_NUMBER) &&
-		FMath::IsNearlyEqual(Strength, OtherCast->Strength, SMALL_NUMBER) &&
+		FMath::IsNearlyEqual(Radius, OtherCast->Radius, UE_SMALL_NUMBER) &&
+		FMath::IsNearlyEqual(Strength, OtherCast->Strength, UE_SMALL_NUMBER) &&
 		FixedWorldDirection.Equals(OtherCast->FixedWorldDirection, 3.0f);
 }
 
@@ -600,7 +600,7 @@ void FRootMotionSource_RadialForce::PrepareRootMotion
 	//     To catch up with server state we need to apply
 	//     3 seconds of this root motion in 1 second of
 	//     movement tick time -> we apply 600 cm for this frame
-	if (SimulationTime != MovementTickTime && MovementTickTime > SMALL_NUMBER)
+	if (SimulationTime != MovementTickTime && MovementTickTime > UE_SMALL_NUMBER)
 	{
 		const float Multiplier = SimulationTime / MovementTickTime;
 		NewTransform.ScaleTranslation(Multiplier);
@@ -737,7 +737,7 @@ void FRootMotionSource_MoveToForce::PrepareRootMotion
 {
 	RootMotionParams.Clear();
 
-	if (Duration > SMALL_NUMBER && MovementTickTime > SMALL_NUMBER)
+	if (Duration > UE_SMALL_NUMBER && MovementTickTime > UE_SMALL_NUMBER)
 	{
 		const float MoveFraction = (GetTime() + SimulationTime) / Duration;
 
@@ -748,7 +748,7 @@ void FRootMotionSource_MoveToForce::PrepareRootMotion
 
 		FVector Force = (CurrentTargetLocation - CurrentLocation) / MovementTickTime;
 
-		if (bRestrictSpeedToExpected && !Force.IsNearlyZero(KINDA_SMALL_NUMBER))
+		if (bRestrictSpeedToExpected && !Force.IsNearlyZero(UE_KINDA_SMALL_NUMBER))
 		{
 			// Calculate expected current location (if we didn't have collision and moved exactly where our velocity should have taken us)
 			const float PreviousMoveFraction = GetTime() / Duration;
@@ -794,7 +794,7 @@ void FRootMotionSource_MoveToForce::PrepareRootMotion
 	}
 	else
 	{
-		checkf(Duration > SMALL_NUMBER, TEXT("FRootMotionSource_MoveToForce prepared with invalid duration."));
+		checkf(Duration > UE_SMALL_NUMBER, TEXT("FRootMotionSource_MoveToForce prepared with invalid duration."));
 	}
 
 	SetTime(GetTime() + SimulationTime);
@@ -925,7 +925,7 @@ void FRootMotionSource_MoveToDynamicForce::PrepareRootMotion
 {
 	RootMotionParams.Clear();
 
-	if (Duration > SMALL_NUMBER && MovementTickTime > SMALL_NUMBER)
+	if (Duration > UE_SMALL_NUMBER && MovementTickTime > UE_SMALL_NUMBER)
 	{
 		float MoveFraction = (GetTime() + SimulationTime) / Duration;
 		
@@ -941,7 +941,7 @@ void FRootMotionSource_MoveToDynamicForce::PrepareRootMotion
 
 		FVector Force = (CurrentTargetLocation - CurrentLocation) / MovementTickTime;
 
-		if (bRestrictSpeedToExpected && !Force.IsNearlyZero(KINDA_SMALL_NUMBER))
+		if (bRestrictSpeedToExpected && !Force.IsNearlyZero(UE_KINDA_SMALL_NUMBER))
 		{
 			// Calculate expected current location (if we didn't have collision and moved exactly where our velocity should have taken us)
 			float PreviousMoveFraction = GetTime() / Duration;
@@ -992,7 +992,7 @@ void FRootMotionSource_MoveToDynamicForce::PrepareRootMotion
 	}
 	else
 	{
-		checkf(Duration > SMALL_NUMBER, TEXT("FRootMotionSource_MoveToDynamicForce prepared with invalid duration."));
+		checkf(Duration > UE_SMALL_NUMBER, TEXT("FRootMotionSource_MoveToDynamicForce prepared with invalid duration."));
 	}
 
 	SetTime(GetTime() + SimulationTime);
@@ -1083,8 +1083,8 @@ bool FRootMotionSource_JumpForce::Matches(const FRootMotionSource* Other) const
 	return bDisableTimeout == OtherCast->bDisableTimeout &&
 		PathOffsetCurve == OtherCast->PathOffsetCurve &&
 		TimeMappingCurve == OtherCast->TimeMappingCurve &&
-		FMath::IsNearlyEqual(Distance, OtherCast->Distance, SMALL_NUMBER) &&
-		FMath::IsNearlyEqual(Height, OtherCast->Height, SMALL_NUMBER) &&
+		FMath::IsNearlyEqual(Distance, OtherCast->Distance, UE_SMALL_NUMBER) &&
+		FMath::IsNearlyEqual(Height, OtherCast->Height, UE_SMALL_NUMBER) &&
 		Rotation.Equals(OtherCast->Rotation, 1.0f);
 }
 
@@ -1157,7 +1157,7 @@ void FRootMotionSource_JumpForce::PrepareRootMotion
 {
 	RootMotionParams.Clear();
 
-	if (Duration > SMALL_NUMBER && MovementTickTime > SMALL_NUMBER && SimulationTime > SMALL_NUMBER)
+	if (Duration > UE_SMALL_NUMBER && MovementTickTime > UE_SMALL_NUMBER && SimulationTime > UE_SMALL_NUMBER)
 	{
 		float CurrentTimeFraction = GetTime() / Duration;
 		float TargetTimeFraction = (GetTime() + SimulationTime) / Duration;
@@ -1243,7 +1243,7 @@ void FRootMotionSource_JumpForce::PrepareRootMotion
 	}
 	else
 	{
-		checkf(Duration > SMALL_NUMBER, TEXT("FRootMotionSource_JumpForce prepared with invalid duration."));
+		checkf(Duration > UE_SMALL_NUMBER, TEXT("FRootMotionSource_JumpForce prepared with invalid duration."));
 	}
 
 	SetTime(GetTime() + SimulationTime);
@@ -1578,7 +1578,7 @@ void FRootMotionSourceGroup::PrepareRootMotion(float DeltaTime, const ACharacter
 								// Upcoming tick will go beyond the intended duration, if we kept
 								// SimulationTime unchanged we would get more movement than was
 								// intended so we clamp it to duration
-								SimulationTime = Duration - RootMotionSource->GetTime() + KINDA_SMALL_NUMBER; // Plus a little to make sure we push it over Duration
+								SimulationTime = Duration - RootMotionSource->GetTime() + UE_KINDA_SMALL_NUMBER; // Plus a little to make sure we push it over Duration
 								UE_LOG(LogRootMotion, VeryVerbose, TEXT("Adjusting SimulationTime due to Duration reachable partway through tick before Preparing RootMotionSource %s from %f to %f"), 
 									*RootMotionSource->ToSimpleString(), PreviousSimulationTime, SimulationTime);
 							}

@@ -426,7 +426,7 @@ void UAnimSingleNodeInstance::StepForward()
 		const FFrameNumber LastSequenceFrameNumber = FrameRate.AsFrameTime(Sequence->GetPlayLength()).RoundToFrame();
 		
 		// Step forward a small amount and ceil to the next frame number 
-		FFrameNumber StepToFrame = FrameRate.AsFrameTime(Proxy.GetCurrentTime() + KINDA_SMALL_NUMBER).CeilToFrame();		
+		FFrameNumber StepToFrame = FrameRate.AsFrameTime(Proxy.GetCurrentTime() + UE_KINDA_SMALL_NUMBER).CeilToFrame();		
 		if (IsLooping())
 		{
 			// Wrap around to start of the sequence
@@ -464,7 +464,7 @@ void UAnimSingleNodeInstance::StepBackward()
 		const FFrameNumber LastSequenceFrameNumber = FrameRate.AsFrameTime(Sequence->GetPlayLength()).RoundToFrame();
 
 		// Step backwards a small amount and floor to the previous frame number 
-		FFrameNumber StepToFrame = FrameRate.AsFrameTime(Proxy.GetCurrentTime() - KINDA_SMALL_NUMBER).FloorToFrame();
+		FFrameNumber StepToFrame = FrameRate.AsFrameTime(Proxy.GetCurrentTime() - UE_KINDA_SMALL_NUMBER).FloorToFrame();
 		if (IsLooping())
 		{
 			// Wrap around to end of sequence

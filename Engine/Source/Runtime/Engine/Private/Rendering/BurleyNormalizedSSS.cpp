@@ -14,7 +14,7 @@ inline float Burley_ScatteringProfile(float r, float A,float S, float L)
 {   //2PIR(r)r
 	float D = 1 / S;
 	float R = r / L;
-	const float Inv8Pi = 1.0 / (8 * PI);
+	const float Inv8Pi = 1.0 / (8 * UE_PI);
 	float NegRbyD = -R / D;
 	float RrDotR = A*FMath::Max((exp(NegRbyD) + exp(NegRbyD / 3.0)) / (D*L)*Inv8Pi, 0.0);
 	return RrDotR;

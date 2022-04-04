@@ -345,7 +345,7 @@ uint32 PackRelativeBox(const FVector& RefOrigin, const FVector& RefExtent, const
 {
 	const FVector RefMin = RefOrigin - RefExtent;
 	// 15.5 and 31.5 have the / 2 scale included 
-	const FVector PackScale = FVector(15.5f, 15.5f, 31.5f) / RefExtent.ComponentMax(FVector(KINDA_SMALL_NUMBER, KINDA_SMALL_NUMBER, KINDA_SMALL_NUMBER));
+	const FVector PackScale = FVector(15.5f, 15.5f, 31.5f) / RefExtent.ComponentMax(FVector(UE_KINDA_SMALL_NUMBER, UE_KINDA_SMALL_NUMBER, UE_KINDA_SMALL_NUMBER));
 
 	const FVector Min = Origin - Extent;
 	const FVector Max = Origin + Extent;
@@ -367,7 +367,7 @@ uint32 PackRelativeBox(const FVector& RefOrigin, const FVector& RefExtent, const
 uint32 PackRelativeBox(const FBox& RefBox, const FBox& Box)
 {
 	// 15.5 and 31.5 have the / 2 scale included 
-	const FVector PackScale = FVector(15.5f, 15.5f, 31.5f) / RefBox.GetExtent().ComponentMax(FVector(KINDA_SMALL_NUMBER, KINDA_SMALL_NUMBER, KINDA_SMALL_NUMBER));
+	const FVector PackScale = FVector(15.5f, 15.5f, 31.5f) / RefBox.GetExtent().ComponentMax(FVector(UE_KINDA_SMALL_NUMBER, UE_KINDA_SMALL_NUMBER, UE_KINDA_SMALL_NUMBER));
 
 	const FVector RelMin = (Box.Min - RefBox.Min) * PackScale;
 	const FVector RelMax = (Box.Max - RefBox.Min) * PackScale;
@@ -401,7 +401,7 @@ void UnpackRelativeBox(const FBoxSphereBounds& InRefBounds, uint32 InPackedRelBo
 
 		const FVector RefMin = InRefBounds.Origin - InRefBounds.BoxExtent;
 		// 15.5 and 31.5 have the / 2 scale included 
-		const FVector UnpackScale = InRefBounds.BoxExtent.ComponentMax(FVector(KINDA_SMALL_NUMBER, KINDA_SMALL_NUMBER, KINDA_SMALL_NUMBER)) / FVector(15.5f, 15.5f, 31.5f);
+		const FVector UnpackScale = InRefBounds.BoxExtent.ComponentMax(FVector(UE_KINDA_SMALL_NUMBER, UE_KINDA_SMALL_NUMBER, UE_KINDA_SMALL_NUMBER)) / FVector(15.5f, 15.5f, 31.5f);
 
 		const FVector Min = FVector((float)PackedMinX, (float)PackedMinY, (float)PackedMinZ) * UnpackScale + RefMin;
 		const FVector Max = FVector((float)PackedMaxX, (float)PackedMaxY, (float)PackedMaxZ) * UnpackScale + RefMin;

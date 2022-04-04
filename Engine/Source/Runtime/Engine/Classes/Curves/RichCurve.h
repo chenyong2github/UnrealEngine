@@ -245,7 +245,7 @@ public:
 	void DeleteKey(FKeyHandle KeyHandle) final override;
 
 	/** Finds the key at InTime, and updates its value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
-	virtual FKeyHandle UpdateOrAddKey(float InTime, float InValue, const bool bUnwindRotation = false, float KeyTimeTolerance = KINDA_SMALL_NUMBER) final override;
+	virtual FKeyHandle UpdateOrAddKey(float InTime, float InValue, const bool bUnwindRotation = false, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) final override;
 
 	/** Move a key to a new time. */
 	virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) final override;
@@ -263,7 +263,7 @@ public:
 	virtual TPair<float, float> GetKeyTimeValuePair(FKeyHandle KeyHandle) const final override;
 
 	/** Returns whether the curve is constant or not */
-	bool IsConstant(float Tolerance = SMALL_NUMBER) const;
+	bool IsConstant(float Tolerance = UE_SMALL_NUMBER) const;
 
 	/** Returns whether the curve is empty or not */
 	bool IsEmpty() const { return Keys.Num() == 0; }

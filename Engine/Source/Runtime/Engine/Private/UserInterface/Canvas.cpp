@@ -371,7 +371,7 @@ FMatrix FCanvas::CalcBaseTransform3D(uint32 ViewSizeX, uint32 ViewSizeY, float f
 FMatrix FCanvas::CalcViewMatrix(uint32 ViewSizeX, uint32 ViewSizeY, float fFOV)
 {
 	// convert FOV to randians
-	float FOVRad = fFOV * (float)PI / 360.0f;
+	float FOVRad = fFOV * (float)UE_PI / 360.0f;
 	// move camera back enough so that the canvas items being rendered are at the same screen extents as regular canvas 2d rendering	
 	FTranslationMatrix CamOffsetMat(-FVector(0,0,-FMath::Tan(FOVRad)*ViewSizeX/2));
 	// adjust so that canvas items render as if they start at [0,0] upper left corner of screen 
@@ -393,7 +393,7 @@ FMatrix FCanvas::CalcViewMatrix(uint32 ViewSizeX, uint32 ViewSizeY, float fFOV)
 FMatrix FCanvas::CalcProjectionMatrix(uint32 ViewSizeX, uint32 ViewSizeY, float fFOV, float NearPlane)
 {
 	// convert FOV to randians
-	float FOVRad = fFOV * (float)PI / 360.0f;
+	float FOVRad = fFOV * (float)UE_PI / 360.0f;
 	// project based on the FOV and near plane given
 	if ((bool)ERHIZBuffer::IsInverted)
 	{

@@ -713,7 +713,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	{
 		// Additional inside/outside processing for ambient sounds
 		// If we aren't in a world there is no interior volumes to be handled.
-		const bool bNeedsInteriorUpdate = (!bGotInteriorSettings || (ParseParams.Transform.GetTranslation() - LastLocation).SizeSquared() > KINDA_SMALL_NUMBER);
+		const bool bNeedsInteriorUpdate = (!bGotInteriorSettings || (ParseParams.Transform.GetTranslation() - LastLocation).SizeSquared() > UE_KINDA_SMALL_NUMBER);
 		const bool bUseAudioVolumes = GatherInteriorDataFromAudioVolumesCVar != 0;
 		const bool bUseActiveSoundUpdate = GatherInteriorDataFromIActiveSoundUpdateCVar != 0;
 
@@ -841,7 +841,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 			// Remove concurrency volume scalars as this can cause ping-ponging to occur with virtualization and loops
 			// utilizing concurrency with rules that don't support eviction (removal from concurrency system prior to playback).
 			const float VolumeScale = GetTotalConcurrencyVolumeScale();
-			if (VolumeScale > SMALL_NUMBER)
+			if (VolumeScale > UE_SMALL_NUMBER)
 			{
 				VolumeConcurrency /= VolumeScale;
 			}
@@ -1327,7 +1327,7 @@ void FActiveSound::ApplyRadioFilter(const FSoundParseParameters& ParseParams)
 		if (ParseParams.SoundClass)
 		{
 			const float RadioFilterVolumeThreshold = ParseParams.VolumeMultiplier * ParseParams.SoundClass->Properties.RadioFilterVolumeThreshold;
-			if (RadioFilterVolumeThreshold > KINDA_SMALL_NUMBER)
+			if (RadioFilterVolumeThreshold > UE_KINDA_SMALL_NUMBER)
 			{
 				bApplyRadioFilter = (ParseParams.Volume < RadioFilterVolumeThreshold);
 			}
@@ -1634,7 +1634,7 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 		}
 		else
 		{
-			const float Denom = FMath::Max(Settings->PriorityAttenuationDistanceMax - Settings->PriorityAttenuationDistanceMin, SMALL_NUMBER);
+			const float Denom = FMath::Max(Settings->PriorityAttenuationDistanceMax - Settings->PriorityAttenuationDistanceMin, UE_SMALL_NUMBER);
 			const float Alpha = FMath::Clamp((ListenerData.ListenerToSoundDistance - Settings->PriorityAttenuationDistanceMin) / Denom, 0.0f, 1.0f);
 
 			if (Settings->PriorityAttenuationMethod == EPriorityAttenuationMethod::Linear)

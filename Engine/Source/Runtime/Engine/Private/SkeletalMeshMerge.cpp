@@ -463,7 +463,7 @@ void FSkeletalMeshMerge::GenerateLODModel( int32 LODIdx )
 	MergeResource->LODRenderData.Add(&MergeLODData);
 	// add the new LOD info entry
 	FSkeletalMeshLODInfo& MergeLODInfo = MergeMesh->AddLODInfo();
-	MergeLODInfo.ScreenSize = MergeLODInfo.LODHysteresis = MAX_FLT;
+	MergeLODInfo.ScreenSize = MergeLODInfo.LODHysteresis = UE_MAX_FLT;
 
 	// generate an array with info about new sections that need to be created
 	TArray<FNewSectionInfo> NewSectionArray;

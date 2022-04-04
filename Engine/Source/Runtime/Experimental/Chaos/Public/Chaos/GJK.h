@@ -1312,7 +1312,7 @@ namespace Chaos
 	bool GJKRaycast(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& RayDir, const T RayLength,
 		T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, const T ThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T ThicknessB = 0)
 	{
-		ensure(FMath::IsNearlyEqual(RayDir.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
+		ensure(FMath::IsNearlyEqual(RayDir.SizeSquared(), (FReal)1, (FReal)UE_KINDA_SMALL_NUMBER));
 		ensure(RayLength > 0);
 		check(A.IsConvex() && B.IsConvex());
 		const TVector<T, 3> StartPoint = StartTM.GetLocation();
@@ -1436,7 +1436,7 @@ namespace Chaos
 	bool GJKRaycast2Impl(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& RayDir, const T RayLength,
 		T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, const T GivenThicknessA = 0, bool bComputeMTD = false, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T GivenThicknessB = 0)
 	{
-		ensure(FMath::IsNearlyEqual(RayDir.SizeSquared(), (T)1, (T)KINDA_SMALL_NUMBER));
+		ensure(FMath::IsNearlyEqual(RayDir.SizeSquared(), (T)1, (T)UE_KINDA_SMALL_NUMBER));
 		ensure(RayLength > 0);
 
 		T MarginA;

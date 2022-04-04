@@ -107,7 +107,7 @@ void USpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace, bool bDoLocati
 			const FRotator ArmRotStep = (DesiredRot - PreviousDesiredRot).GetNormalized() * (1.f / DeltaTime);
 			FRotator LerpTarget = PreviousDesiredRot;
 			float RemainingTime = DeltaTime;
-			while (RemainingTime > KINDA_SMALL_NUMBER)
+			while (RemainingTime > UE_KINDA_SMALL_NUMBER)
 			{
 				const float LerpAmount = FMath::Min(CameraLagMaxTimeStep, RemainingTime);
 				LerpTarget += ArmRotStep * LerpAmount;
@@ -136,7 +136,7 @@ void USpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace, bool bDoLocati
 			FVector LerpTarget = PreviousDesiredLoc;
 
 			float RemainingTime = DeltaTime;
-			while (RemainingTime > KINDA_SMALL_NUMBER)
+			while (RemainingTime > UE_KINDA_SMALL_NUMBER)
 			{
 				const float LerpAmount = FMath::Min(CameraLagMaxTimeStep, RemainingTime);
 				LerpTarget += ArmMovementStep * LerpAmount;

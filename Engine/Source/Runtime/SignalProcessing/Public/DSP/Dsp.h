@@ -42,7 +42,7 @@ namespace Audio
 	}
 
 	// Function converts linear scale volume to decibels
-	static FORCEINLINE float ConvertToDecibels(const float InLinear, const float InFloor = SMALL_NUMBER)
+	static FORCEINLINE float ConvertToDecibels(const float InLinear, const float InFloor = UE_SMALL_NUMBER)
 	{
 		return 20.0f * FMath::LogX(10.0f, FMath::Max(InLinear, InFloor));
 	}
@@ -67,7 +67,7 @@ namespace Audio
 	// Valid on interval [-PI, PI]
 	static FORCEINLINE float FastSin(const float X)
 	{
-		return (4.0f * X) / PI * (1.0f - FMath::Abs(X) / PI);
+		return (4.0f * X) / UE_PI * (1.0f - FMath::Abs(X) / UE_PI);
 	}
 
 	// Slightly higher precision, high performance approximation of sine using parabolic polynomial approx
@@ -84,8 +84,8 @@ namespace Audio
 	static FORCEINLINE float FastSin3(const float X)
 	{
 		const float AbsX = FMath::Abs(X);
-		const float Numerator = 16.0f * X * (PI - AbsX);
-		const float Denominator = 5.0f * PI * PI - 4.0f * AbsX * (PI - AbsX);
+		const float Numerator = 16.0f * X * (UE_PI - AbsX);
+		const float Denominator = 5.0f * UE_PI * UE_PI - 4.0f * AbsX * (UE_PI - AbsX);
 		return Numerator / Denominator;
 	}
 	
@@ -149,7 +149,7 @@ namespace Audio
 		void GenerateBuffer(float SampleRate, float ClampedFrequency, float* Buffer, int32 BufferSampleCount)
 		{
 			// Regenerate our vector rotation components if our changes.
-			const float PhasePerSample = (ClampedFrequency * (2 * PI)) / (SampleRate);
+			const float PhasePerSample = (ClampedFrequency * (2 * UE_PI)) / (SampleRate);
 			if (LastPhasePerSample != PhasePerSample)
 			{
 				float QuadDx = FMath::Cos(PhasePerSample * 4);
@@ -230,7 +230,7 @@ namespace Audio
 
 				// Advance phase, range reduce, and store.
 				float PhaseInRadians = LastPhase + BlockSampleCount * PhasePerSample;
-				PhaseInRadians -= FMath::FloorToFloat(PhaseInRadians / (2 * PI)) * (2 * PI);
+				PhaseInRadians -= FMath::FloorToFloat(PhaseInRadians / (2 * UE_PI)) * (2 * UE_PI);
 				LastPhase = PhaseInRadians;
 
 				BufferSampleCount -= BlockSampleCount;
@@ -256,8 +256,8 @@ namespace Audio
 	// Based on sin parabolic approximation
 	static FORCEINLINE float FastTan(float X)
 	{
-		const float Num = X * (1.0f - FMath::Abs(X) / PI);
-		const float Den = (X + 0.5f * PI) * (1.0f - FMath::Abs(X + 0.5f * PI) / PI);
+		const float Num = X * (1.0f - FMath::Abs(X) / UE_PI);
+		const float Den = (X + 0.5f * UE_PI) * (1.0f - FMath::Abs(X + 0.5f * UE_PI) / UE_PI);
 		return Num / Den;
 	}
 
@@ -319,7 +319,7 @@ namespace Audio
 			return UE_REAL_TO_FLOAT(Range.X);
 		}
 
-		const FVector2D RangeLog(FMath::Max(FMath::Loge(Range.X), SMALL_NUMBER), FMath::Min(FMath::Loge(Range.Y), BIG_NUMBER));
+		const FVector2D RangeLog(FMath::Max(FMath::Loge(Range.X), UE_SMALL_NUMBER), FMath::Min(FMath::Loge(Range.Y), UE_BIG_NUMBER));
 		const float FreqLinear = (float)FMath::GetMappedRangeValueUnclamped(Domain, RangeLog, (FVector2D::FReal)InValue);
 		return FMath::Exp(FreqLinear);
 	}
@@ -344,7 +344,7 @@ namespace Audio
 			return UE_REAL_TO_FLOAT(Domain.X);
 		}
 
-		const FVector2D RangeLog(FMath::Max(FMath::Loge(Range.X), SMALL_NUMBER), FMath::Min(FMath::Loge(Range.Y), BIG_NUMBER));
+		const FVector2D RangeLog(FMath::Max(FMath::Loge(Range.X), UE_SMALL_NUMBER), FMath::Min(FMath::Loge(Range.Y), UE_BIG_NUMBER));
 		const FVector2D::FReal FrequencyLog = FMath::Loge(InFrequencyValue);
 		return UE_REAL_TO_FLOAT(FMath::GetMappedRangeValueUnclamped(RangeLog, Domain, FrequencyLog));
 	}
@@ -380,7 +380,7 @@ namespace Audio
 	{
 		if (InMultiplier <= 0.0f)
 		{
-			return 12.0f * FMath::Log2(SMALL_NUMBER);
+			return 12.0f * FMath::Log2(UE_SMALL_NUMBER);
 		}
 		return 12.0f * FMath::Log2(InMultiplier);
 	}
@@ -389,8 +389,8 @@ namespace Audio
 	// InLinear pan is [-1.0, 1.0] so it can be modulated by a bipolar LFO
 	static FORCEINLINE void GetStereoPan(const float InLinearPan, float& OutLeft, float& OutRight)
 	{
-		const float LeftPhase = 0.5f * PI * (0.5f * (InLinearPan + 1.0f) + 1.0f);
-		const float RightPhase = 0.25f * PI * (InLinearPan + 1.0f);
+		const float LeftPhase = 0.5f * UE_PI * (0.5f * (InLinearPan + 1.0f) + 1.0f);
+		const float RightPhase = 0.25f * UE_PI * (InLinearPan + 1.0f);
 		OutLeft = FMath::Clamp(FastSin(LeftPhase), 0.0f, 1.0f);
 		OutRight = FMath::Clamp(FastSin(RightPhase), 0.0f, 1.0f);
 	}
@@ -432,7 +432,7 @@ namespace Audio
 	static FORCEINLINE float GetBandwidthFromQ(const float InQ)
 	{
 		// make sure Q is not 0.0f, clamp to slightly positive
-		const float Q = FMath::Max(KINDA_SMALL_NUMBER, InQ);
+		const float Q = FMath::Max(UE_KINDA_SMALL_NUMBER, InQ);
 		const float Arg = 0.5f * ((1.0f / Q) + FMath::Sqrt(1.0f / (Q*Q) + 4.0f));
 		const float OutBandwidth = 2.0f * FMath::LogX(2.0f, Arg);
 		return OutBandwidth;
@@ -441,7 +441,7 @@ namespace Audio
 	// Helper function get Q from bandwidth
 	static FORCEINLINE float GetQFromBandwidth(const float InBandwidth)
 	{
-		const float InBandwidthClamped = FMath::Max(KINDA_SMALL_NUMBER, InBandwidth);
+		const float InBandwidthClamped = FMath::Max(UE_KINDA_SMALL_NUMBER, InBandwidth);
 		const float Temp = FMath::Pow(2.0f, InBandwidthClamped);
 		const float OutQ = FMath::Sqrt(Temp) / (Temp - 1.0f);
 		return OutQ;
@@ -495,9 +495,9 @@ namespace Audio
 				if (i != j)
 				{
 					float Denom = UE_REAL_TO_FLOAT(Points[i].X - Points[j].X);
-					if (FMath::Abs(Denom) < SMALL_NUMBER)
+					if (FMath::Abs(Denom) < UE_SMALL_NUMBER)
 					{
-						Denom = SMALL_NUMBER;
+						Denom = UE_SMALL_NUMBER;
 					}
 					Lagrangian *= (Alpha - UE_REAL_TO_FLOAT(Points[j].X)) / Denom;
 				}
@@ -511,7 +511,7 @@ namespace Audio
 	class FExponentialEase
 	{
 	public:
-		FExponentialEase(float InInitValue = 0.0f, float InEaseFactor = 0.001f, float InThreshold = KINDA_SMALL_NUMBER)
+		FExponentialEase(float InInitValue = 0.0f, float InEaseFactor = 0.001f, float InThreshold = UE_KINDA_SMALL_NUMBER)
 			: CurrentValue(InInitValue)
 			, Threshold(InThreshold)
 			, TargetValue(InInitValue)

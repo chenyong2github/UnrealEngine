@@ -200,7 +200,7 @@ bool AWorldPartitionReplay::GetReplayStreamingSources(TArray<FWorldPartitionStre
 						const FWorldPartitionStreamingSource& Source1 = ReplaySample1.StreamingSources[SourceIndex];
 						const FWorldPartitionStreamingSource& Source2 = ReplaySample2.StreamingSources[SourceIndex2];
 						
-						const float EPSILON = SMALL_NUMBER;
+						const float EPSILON = UE_SMALL_NUMBER;
 						const float Delta = ReplaySample2.TimeSeconds - ReplaySample1.TimeSeconds;
 						const float LerpPercent = Delta > EPSILON ? FMath::Clamp<float>((float)(CurrentTime - ReplaySample1.TimeSeconds) / Delta, 0.0f, 1.0f) : 1.0f;
 

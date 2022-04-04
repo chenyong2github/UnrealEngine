@@ -163,7 +163,7 @@ UTextureCube* UTextureRenderTargetCube::ConstructTextureCube(
 
 			bool bSRGB = true;
 			// if render target gamma used was 1.0 then disable SRGB for the static texture
-			if (FMath::Abs(CubeResource->GetDisplayGamma() - 1.0f) < KINDA_SMALL_NUMBER)
+			if (FMath::Abs(CubeResource->GetDisplayGamma() - 1.0f) < UE_KINDA_SMALL_NUMBER)
 			{
 				bSRGB = false;
 			}
@@ -229,7 +229,7 @@ void FTextureRenderTargetCubeResource::InitDynamicRHI()
 	{
 		bool bIsSRGB = true;
 		// if render target gamma used was 1.0 then disable SRGB for the static texture
-		if(FMath::Abs(GetDisplayGamma() - 1.0f) < KINDA_SMALL_NUMBER)
+		if(FMath::Abs(GetDisplayGamma() - 1.0f) < UE_KINDA_SMALL_NUMBER)
 		{
 			bIsSRGB = false;
 		}
@@ -373,7 +373,7 @@ FIntPoint FTextureRenderTargetCubeResource::GetSizeXY() const
 
 float FTextureRenderTargetCubeResource::GetDisplayGamma() const
 {
-	if(Owner->TargetGamma > KINDA_SMALL_NUMBER * 10.0f)
+	if(Owner->TargetGamma > UE_KINDA_SMALL_NUMBER * 10.0f)
 	{
 		return Owner->TargetGamma;
 	}

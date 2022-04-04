@@ -115,14 +115,14 @@ public:
 
 	/** Finds the key at InTime, and updates its typed value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
 	template<typename AttributeType>
-	FKeyHandle UpdateOrAddTypedKey(float InTime, const AttributeType& InValue, float KeyTimeTolerance = KINDA_SMALL_NUMBER)
+	FKeyHandle UpdateOrAddTypedKey(float InTime, const AttributeType& InValue, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER)
 	{
 		check(AttributeType::StaticStruct() == ScriptStruct);
 		return UpdateOrAddKey(InTime, &InValue, KeyTimeTolerance);
 	}
 
 	/** Finds the key at InTime, and updates its typed value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
-	FKeyHandle UpdateOrAddTypedKey(float InTime, const void* InValue, const UScriptStruct* ValueType, float KeyTimeTolerance = KINDA_SMALL_NUMBER)
+	FKeyHandle UpdateOrAddTypedKey(float InTime, const void* InValue, const UScriptStruct* ValueType, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER)
 	{
 		check(ValueType == ScriptStruct);
 		return UpdateOrAddKey(InTime, InValue, KeyTimeTolerance);
@@ -133,7 +133,7 @@ public:
 	const FAttributeKey& GetKey(FKeyHandle KeyHandle) const;
 
 	/** Finds the key at KeyTime and returns its handle. If it can't find the key within the KeyTimeTolerance, it will return an invalid handle */
-	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = KINDA_SMALL_NUMBER) const;
+	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/** Gets the handle for the last key which is at or before the time requested.  If there are no keys at or before the requested time, an invalid handle is returned. */
 	FKeyHandle FindKeyBeforeOrAt(float KeyTime) const;
@@ -164,7 +164,7 @@ protected:
 	void EvaluateToPtr(const UScriptStruct* InScriptStruct, float Time, uint8* InOutDataPtr) const;
 
 	/** Finds the key at InTime, and updates its typed value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
-	FKeyHandle UpdateOrAddKey(float InTime, const void* InValue, float KeyTimeTolerance = KINDA_SMALL_NUMBER);
+	FKeyHandle UpdateOrAddKey(float InTime, const void* InValue, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER);
 
 	/** Add a new raw memory key (should be appropriately sized) to the curve with the supplied Time and Value. */
 	FKeyHandle AddKey(float InTime, const void* InValue, FKeyHandle InKeyHandle = FKeyHandle());

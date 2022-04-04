@@ -874,7 +874,7 @@ public:
 		 FVector2D LastPoint = InPosition + FVector2D( InRadius.X*FMath::Cos(Angle), InRadius.Y*FMath::Sin(Angle) );
 		 for(int32 i=1; i< NumSides+1; i++)
 		 {
-			 Angle = (2 * (float)PI) * (float)i/(float)NumSides;			 			 
+			 Angle = (2 * (float)UE_PI) * (float)i/(float)NumSides;			 			 
 			 TriangleList[ i - 1 ].V0_Pos = InPosition;
 			 TriangleList[ i - 1 ].V0_Color = Color;
 			 TriangleList[ i - 1 ].V1_Pos = LastPoint;

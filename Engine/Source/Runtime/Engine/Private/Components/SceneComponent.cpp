@@ -655,7 +655,7 @@ void USceneComponent::UpdateComponentToWorldWithParent(USceneComponent* Parent,F
 	bool bHasChanged;
 	{
 		//QUICK_SCOPE_CYCLE_COUNTER(STAT_USceneComponent_UpdateComponentToWorldWithParent_HasChanged);
-		bHasChanged = !GetComponentTransform().Equals(NewTransform, SMALL_NUMBER);
+		bHasChanged = !GetComponentTransform().Equals(NewTransform, UE_SMALL_NUMBER);
 	}
 
 	// We propagate here based on more than just the transform changing, as other components may depend on the teleport flag

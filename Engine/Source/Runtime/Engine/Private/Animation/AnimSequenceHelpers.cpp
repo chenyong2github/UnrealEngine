@@ -207,12 +207,12 @@ void BuildPoseFromModel(const UAnimDataModel* Model, FCompactPose& OutPose, cons
 
 	bool bShouldInterpolate = true;
 
-	if (Alpha < KINDA_SMALL_NUMBER)
+	if (Alpha < UE_KINDA_SMALL_NUMBER)
 	{
 		Alpha = 0.f;
 		bShouldInterpolate = false;
 	}
-	else if (Alpha > 1.f - KINDA_SMALL_NUMBER)
+	else if (Alpha > 1.f - UE_KINDA_SMALL_NUMBER)
 	{
 		bShouldInterpolate = false;
 		KeyIndex1 = KeyIndex2;

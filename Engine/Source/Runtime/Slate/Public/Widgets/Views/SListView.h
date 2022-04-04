@@ -2165,7 +2165,7 @@ protected:
 		if (InAllowOverscroll == EAllowOverscroll::No)
 		{
 			//check if we are on the top of the list and want to scroll up
-			if (DesiredScrollOffset < KINDA_SMALL_NUMBER && ScrollByAmountInSlateUnits < 0)
+			if (DesiredScrollOffset < UE_KINDA_SMALL_NUMBER && ScrollByAmountInSlateUnits < 0)
 			{
 				return 0.0f;
 			}

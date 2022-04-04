@@ -532,13 +532,13 @@ namespace Chaos
 				const int32 SavedIndex = SavedManifoldPoints.Add();
 				FSavedManifoldPoint& SavedManifoldPoint = SavedManifoldPoints[SavedIndex];
 
-				if (StaticFrictionRatio >= FReal(1.0f - KINDA_SMALL_NUMBER))
+				if (StaticFrictionRatio >= FReal(1.0f - UE_KINDA_SMALL_NUMBER))
 				{
 					// StaticFrictionRatio ~= 1: Static friction held - we keep the same contacts points as-is for use next frame
 					SavedManifoldPoint.ShapeContactPoints[0] = ManifoldPoint.ShapeAnchorPoints[0];
 					SavedManifoldPoint.ShapeContactPoints[1] = ManifoldPoint.ShapeAnchorPoints[1];
 				}
-				else if (StaticFrictionRatio < FReal(KINDA_SMALL_NUMBER))
+				else if (StaticFrictionRatio < FReal(UE_KINDA_SMALL_NUMBER))
 				{
 					// StaticFrictionRatio ~= 0: No friction (or no contact) - discard the friction anchors
 					SavedManifoldPoint.ShapeContactPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];

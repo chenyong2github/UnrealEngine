@@ -273,8 +273,8 @@ namespace Chaos
 		FReal AbsDx = FMath::Abs(DeltaX);
 		FReal AbsDy = FMath::Abs(DeltaY);
 
-		bool DxTooSmall = AbsDx <= SMALL_NUMBER;
-		bool DyTooSmall = AbsDy <= SMALL_NUMBER;
+		bool DxTooSmall = AbsDx <= UE_SMALL_NUMBER;
+		bool DyTooSmall = AbsDy <= UE_SMALL_NUMBER;
 
 		int64 DeltaCelIndexX;
 		int64 DeltaCelIndexY;
@@ -430,7 +430,7 @@ namespace Chaos
 		bool XDirectionDominant = AbsDx >= AbsDy;
 
 		// if the ray is mostly vertical then we can default to an simple overlap 
-		if (AbsDx <= SMALL_NUMBER && AbsDy <= SMALL_NUMBER)
+		if (AbsDx <= UE_SMALL_NUMBER && AbsDy <= UE_SMALL_NUMBER)
 		{
 			// no need to account for the ray length as we only collect 2 dimensional cell coordinates and the ray is already proven to be vertical
 			const FAABB3 QueryBounds(StartPoint- QueryHalfExtents, StartPoint + QueryHalfExtents);
@@ -510,8 +510,8 @@ namespace Chaos
 		FReal AbsDx = FMath::Abs(DeltaX);
 		FReal AbsDy = FMath::Abs(DeltaY);
 
-		bool DxTooSmall = AbsDx <= SMALL_NUMBER;
-		bool DyTooSmall = AbsDy <= SMALL_NUMBER;
+		bool DxTooSmall = AbsDx <= UE_SMALL_NUMBER;
+		bool DyTooSmall = AbsDy <= UE_SMALL_NUMBER;
 
 		if (DxTooSmall && DyTooSmall)
 		{

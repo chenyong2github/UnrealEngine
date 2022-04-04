@@ -1782,7 +1782,7 @@ void UParticleModuleRotation::SpawnEx(FParticleEmitterInstance* Owner, int32 Off
 {
 	SPAWN_INIT;
 	{
-		Particle.Rotation += (PI/180.f) * 360.0f * StartRotation.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
+		Particle.Rotation += (UE_PI/180.f) * 360.0f * StartRotation.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
 	}
 }
 
@@ -1861,7 +1861,7 @@ void UParticleModuleRotationRate::SpawnEx(FParticleEmitterInstance* Owner, int32
 {
 	SPAWN_INIT;
 	{
-		float StartRotRate = (PI/180.f) * 360.0f * StartRotationRate.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
+		float StartRotRate = (UE_PI/180.f) * 360.0f * StartRotationRate.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
 		Particle.RotationRate += StartRotRate;
 		Particle.BaseRotationRate += StartRotRate;
 	}
@@ -1943,7 +1943,7 @@ void UParticleModuleRotationOverLifetime::Update(FParticleEmitterInstance* Owner
 		{
 			float Rotation = RotationOverLife.GetValue(Particle.RelativeTime, Owner->Component);
 			// For now, we are just using the X-value
-			Particle.Rotation = (Particle.Rotation * (Rotation * (PI/180.f) * 360.0f));
+			Particle.Rotation = (Particle.Rotation * (Rotation * (UE_PI/180.f) * 360.0f));
 		}
 		END_UPDATE_LOOP;
 	}
@@ -1953,7 +1953,7 @@ void UParticleModuleRotationOverLifetime::Update(FParticleEmitterInstance* Owner
 		{
 			float Rotation = RotationOverLife.GetValue(Particle.RelativeTime, Owner->Component);
 			// For now, we are just using the X-value
-			Particle.Rotation = (Particle.Rotation + (Rotation * (PI/180.f) * 360.0f));
+			Particle.Rotation = (Particle.Rotation + (Rotation * (UE_PI/180.f) * 360.0f));
 		}
 		END_UPDATE_LOOP;
 	}
@@ -3973,7 +3973,7 @@ void UParticleModuleAttractorLine::Update(FParticleEmitterInstance* Owner, int32
 	// if both end points are the same, we end up with NaNs in the results of the update
 	if (Line.SizeSquared() == 0.0f)
 	{
-		Line = FVector(SMALL_NUMBER, SMALL_NUMBER, SMALL_NUMBER);
+		Line = FVector(UE_SMALL_NUMBER, UE_SMALL_NUMBER, UE_SMALL_NUMBER);
 	}
 
 	FVector LineNorm = Line;
@@ -4587,14 +4587,14 @@ void UParticleModuleTypeDataGpu::Build( FParticleEmitterBuildInfo& EmitterBuildI
 	EmitterInfo.SpawnModules = EmitterBuildInfo.SpawnModules;
 
 	// Store the inverse of max size.
-	EmitterInfo.InvMaxSize.X = EmitterBuildInfo.MaxSize.X > KINDA_SMALL_NUMBER ? (1.0f / EmitterBuildInfo.MaxSize.X) : 1.0f;
-	EmitterInfo.InvMaxSize.Y = EmitterBuildInfo.MaxSize.Y > KINDA_SMALL_NUMBER ? (1.0f / EmitterBuildInfo.MaxSize.Y) : 1.0f;
+	EmitterInfo.InvMaxSize.X = EmitterBuildInfo.MaxSize.X > UE_KINDA_SMALL_NUMBER ? (1.0f / EmitterBuildInfo.MaxSize.X) : 1.0f;
+	EmitterInfo.InvMaxSize.Y = EmitterBuildInfo.MaxSize.Y > UE_KINDA_SMALL_NUMBER ? (1.0f / EmitterBuildInfo.MaxSize.Y) : 1.0f;
 
 	// Compute the value by which to scale rotation rate.
 	const float RotationRateScale = EmitterBuildInfo.MaxRotationRate * EmitterBuildInfo.MaxLifetime;
 
 	// Store the maximum rotation rate (make sure it is never zero).
-	EmitterInfo.InvRotationRateScale = (RotationRateScale > KINDA_SMALL_NUMBER || RotationRateScale < -KINDA_SMALL_NUMBER) ?
+	EmitterInfo.InvRotationRateScale = (RotationRateScale > UE_KINDA_SMALL_NUMBER || RotationRateScale < -UE_KINDA_SMALL_NUMBER) ?
 		1.0f / RotationRateScale : 1.0f;
 
 	// A particle's initial size is stored as 1 / MaxSize, so scale by MaxSize.
@@ -4735,8 +4735,8 @@ void UParticleModuleTypeDataGpu::Build( FParticleEmitterBuildInfo& EmitterBuildI
 	VectorDistribution.GetRange(&MinValue, &MaxValue);
 
 	// # rotations to radians. Flip Z to be consistent with CPU orbit.
-	MinValue *= (2.0f * PI);
-	MaxValue *= (2.0f * PI);
+	MinValue *= (2.0f * UE_PI);
+	MaxValue *= (2.0f * UE_PI);
 	MinValue.Z *= -1.0f;
 	MaxValue.Z *= -1.0f;
 
@@ -4749,8 +4749,8 @@ void UParticleModuleTypeDataGpu::Build( FParticleEmitterBuildInfo& EmitterBuildI
 	VectorDistribution.GetRange(&MinValue, &MaxValue);
 
 	// # rotations to radians. Flip Z to be consistent with CPU orbit.
-	MinValue *= (2.0f * PI);
-	MaxValue *= (2.0f * PI);
+	MinValue *= (2.0f * UE_PI);
+	MaxValue *= (2.0f * UE_PI);
 	MinValue.Z *= -1.0f;
 	MaxValue.Z *= -1.0f;
 
@@ -4766,12 +4766,12 @@ void UParticleModuleTypeDataGpu::Build( FParticleEmitterBuildInfo& EmitterBuildI
 	// Make some adjustments to mimic CPU orbit as much as possible.
 	if (OrbitX != 0.0f)
 	{
-		ResourceData.OrbitPhaseBase.X += (0.5f * PI);
+		ResourceData.OrbitPhaseBase.X += (0.5f * UE_PI);
 	}
 
 	if (OrbitZ != 0.0f)
 	{
-		ResourceData.OrbitPhaseBase.Z += (0.5f * PI);
+		ResourceData.OrbitPhaseBase.Z += (0.5f * UE_PI);
 	}
 
 	// Compute an offset to position the particle at the beginning of its orbit.

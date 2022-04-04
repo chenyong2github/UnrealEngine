@@ -640,7 +640,7 @@ void FBatchedElements::PrepareShaders(
 			{
 				SetBlendState(RHICmdList, GraphicsPSOInit, BlendMode);
 
-				if (FMath::Abs(Gamma - 1.0f) < KINDA_SMALL_NUMBER)
+				if (FMath::Abs(Gamma - 1.0f) < UE_KINDA_SMALL_NUMBER)
 				{
 					auto AlphaOnlyPixelShader = GetPixelShader<FSimpleElementAlphaOnlyPS>(BlendMode, FeatureLevel);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = AlphaOnlyPixelShader.GetPixelShader();
@@ -674,7 +674,7 @@ void FBatchedElements::PrepareShaders(
 			{
 				SetBlendState(RHICmdList, GraphicsPSOInit, BlendMode);
 	
-				if (FMath::Abs(Gamma - 1.0f) < KINDA_SMALL_NUMBER)
+				if (FMath::Abs(Gamma - 1.0f) < UE_KINDA_SMALL_NUMBER)
 				{
 					TShaderMapRef<FSimpleElementPS> PixelShader(GetGlobalShaderMap(FeatureLevel));
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();

@@ -355,14 +355,14 @@ void AWorldSettings::Serialize( FArchive& Ar )
 		{
 			const float OldScreenSize = Setup.TransitionScreenSize;
 
-			const float HalfFOV = PI * 0.25f;
+			const float HalfFOV = UE_PI * 0.25f;
 			const float ScreenWidth = 1920.0f;
 			const float ScreenHeight = 1080.0f;
 			const FPerspectiveMatrix ProjMatrix(HalfFOV, ScreenWidth, ScreenHeight, 1.0f);
 
 			const float DummySphereRadius = 16.0f;
 			const float ScreenArea = OldScreenSize * (ScreenWidth * ScreenHeight);
-			const float ScreenRadius = FMath::Sqrt(ScreenArea / PI);
+			const float ScreenRadius = FMath::Sqrt(ScreenArea / UE_PI);
 			const float ScreenDistance = FMath::Max(ScreenWidth / 2.0f * ProjMatrix.M[0][0], ScreenHeight / 2.0f * ProjMatrix.M[1][1]) * DummySphereRadius / ScreenRadius;
 
 			Setup.TransitionScreenSize = ComputeBoundsScreenSize(FVector::ZeroVector, DummySphereRadius, FVector(0.0f, 0.0f, ScreenDistance), ProjMatrix);

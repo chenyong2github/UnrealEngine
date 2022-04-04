@@ -3886,7 +3886,7 @@ float UNetConnection::GetTimeoutValue()
 	{
 		// APlayerController depends on this timeout to destroy itself and free up
 		// its resources, so we have to handle this case here as well
-		return bPendingDestroy ? 2.f : MAX_FLT;
+		return bPendingDestroy ? 2.f : UE_MAX_FLT;
 	}
 #endif
 

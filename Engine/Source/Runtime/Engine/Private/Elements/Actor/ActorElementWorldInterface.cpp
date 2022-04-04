@@ -192,7 +192,7 @@ bool UActorElementWorldInterface::FindSuitableTransformAlongPath_WorldSweep(cons
 	if (InWorld->SweepSingleByChannel(Hit, InPathStart, InPathEnd, FQuat::Identity, ECC_WorldStatic, InTestShape, InOutParams))
 	{
 		FVector NewLocation = Hit.Location;
-		NewLocation.Z += KINDA_SMALL_NUMBER; // Move the new desired location up by an error tolerance
+		NewLocation.Z += UE_KINDA_SMALL_NUMBER; // Move the new desired location up by an error tolerance
 
 		//@todo: This doesn't take into account that rotating the actor changes LocationOffset.
 		FRotator NewRotation = Hit.Normal.Rotation();

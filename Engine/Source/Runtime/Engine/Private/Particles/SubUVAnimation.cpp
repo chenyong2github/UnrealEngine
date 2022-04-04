@@ -220,7 +220,7 @@ bool ComputePointIntersectionBetweenLines2D(const FLine2D& Line0, const FLine2D&
 	float d = CrossProduct2D(Line0.Direction, Line1.Direction);
 
 	// Parallel case
-	if (FMath::Abs(d) < SMALL_NUMBER)
+	if (FMath::Abs(d) < UE_SMALL_NUMBER)
 	{
 		return false;
 	}

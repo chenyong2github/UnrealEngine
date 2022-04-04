@@ -233,7 +233,7 @@ namespace Audio
 
 	const int32 DebuggerTabWidth = 12;
 
-	const float MinDisplayVolume = KINDA_SMALL_NUMBER; // -80 dB
+	const float MinDisplayVolume = UE_KINDA_SMALL_NUMBER; // -80 dB
 
 	FAudioDevice* GetWorldAudio(UWorld* World)
 	{
@@ -2053,7 +2053,7 @@ namespace Audio
 								DrawDebugCone(World, Origin, SoundTransform.GetUnitAxis(EAxis::X), ShapeDetails.Extents.X + ShapeDetails.ConeOffset, Angle, Angle, 10, FColor(155, 155, 255));
 							}
 
-							if (!FMath::IsNearlyZero(ShapeDetails.ConeSphereRadius, KINDA_SMALL_NUMBER))
+							if (!FMath::IsNearlyZero(ShapeDetails.ConeSphereRadius, UE_KINDA_SMALL_NUMBER))
 							{
 								if (ShapeDetails.ConeSphereFalloff > 0.f)
 								{

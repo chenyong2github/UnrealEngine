@@ -427,7 +427,7 @@ void FAnimNode_Inertialization::Evaluate_AnyThread(FPoseContext& Output)
 	TRACE_ANIM_NODE_VALUE(Output, TEXT("Elapsed Time"), InertializationElapsedTime);
 	TRACE_ANIM_NODE_VALUE(Output, TEXT("Duration"), InertializationDuration);
 	TRACE_ANIM_NODE_VALUE(Output, TEXT("Max Duration"), InertializationMaxDuration);
-	TRACE_ANIM_NODE_VALUE(Output, TEXT("Normalized Time"), InertializationDuration > KINDA_SMALL_NUMBER ? (InertializationElapsedTime / InertializationDuration) : 0.0f);
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Normalized Time"), InertializationDuration > UE_KINDA_SMALL_NUMBER ? (InertializationElapsedTime / InertializationDuration) : 0.0f);
 }
 
 
@@ -437,7 +437,7 @@ void FAnimNode_Inertialization::GatherDebugData(FNodeDebugData& DebugData)
 
 	FString DebugLine = DebugData.GetNodeName(this);
 
-	if (InertializationDuration > KINDA_SMALL_NUMBER)
+	if (InertializationDuration > UE_KINDA_SMALL_NUMBER)
 	{
 		DebugLine += FString::Printf(TEXT("('%s' Time: %.3f / %.3f (%.0f%%) [%.3f])"),
 			*UEnum::GetValueAsString(InertializationState),
@@ -639,12 +639,12 @@ void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlended
 
 				const FVector T = Prev1Transform.GetTranslation() - PoseTransform.GetTranslation();
 				TranslationMagnitude = T.Size();
-				if (TranslationMagnitude > KINDA_SMALL_NUMBER)
+				if (TranslationMagnitude > UE_KINDA_SMALL_NUMBER)
 				{
 					TranslationDirection = T / TranslationMagnitude;
 				}
 
-				if (Prev2IsValid && Prev1.DeltaTime > KINDA_SMALL_NUMBER && TranslationMagnitude > KINDA_SMALL_NUMBER)
+				if (Prev2IsValid && Prev1.DeltaTime > UE_KINDA_SMALL_NUMBER && TranslationMagnitude > UE_KINDA_SMALL_NUMBER)
 				{
 					const FVector PrevT = Prev2Transform.GetTranslation() - PoseTransform.GetTranslation();
 					const float PrevMagnitude = FVector::DotProduct(PrevT, TranslationDirection);
@@ -671,7 +671,7 @@ void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlended
 					RotationAngle = -RotationAngle;
 				}
 
-				if (Prev2IsValid && Prev1.DeltaTime > KINDA_SMALL_NUMBER && RotationAngle > KINDA_SMALL_NUMBER)
+				if (Prev2IsValid && Prev1.DeltaTime > UE_KINDA_SMALL_NUMBER && RotationAngle > UE_KINDA_SMALL_NUMBER)
 				{
 					const FQuat PrevQ = Prev2Transform.GetRotation() * PoseTransform.GetRotation().Inverse();
 					const float PrevAngle = PrevQ.GetTwistAngle(RotationAxis);
@@ -691,12 +691,12 @@ void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlended
 
 				const FVector S = Prev1Transform.GetScale3D() - PoseTransform.GetScale3D();
 				ScaleMagnitude = S.Size();
-				if (ScaleMagnitude > KINDA_SMALL_NUMBER)
+				if (ScaleMagnitude > UE_KINDA_SMALL_NUMBER)
 				{
 					ScaleAxis = S / ScaleMagnitude;
 				}
 
-				if (Prev2IsValid && Prev1.DeltaTime > KINDA_SMALL_NUMBER && ScaleMagnitude > KINDA_SMALL_NUMBER)
+				if (Prev2IsValid && Prev1.DeltaTime > UE_KINDA_SMALL_NUMBER && ScaleMagnitude > UE_KINDA_SMALL_NUMBER)
 				{
 					const FVector PrevS = Prev2Transform.GetScale3D() - PoseTransform.GetScale3D();
 					const float PrevMagnitude = FVector::DotProduct(PrevS, ScaleAxis);
@@ -739,7 +739,7 @@ void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlended
 		CurveDiff.Delta = Prev1Weight - CurrWeight;
 
 		const int32 Prev2Idx = Prev2.Curves.BlendedCurve.GetArrayIndexByUID(CurveUID);
-		if (Prev2Idx != INDEX_NONE && Prev1.DeltaTime > KINDA_SMALL_NUMBER)
+		if (Prev2Idx != INDEX_NONE && Prev1.DeltaTime > UE_KINDA_SMALL_NUMBER)
 		{
 			const float Prev2Weight = Prev2.Curves.BlendedCurve.CurveWeights[Prev2Idx];
 			CurveDiff.Derivative = (Prev1Weight - Prev2Weight) / Prev1.DeltaTime;
@@ -875,7 +875,7 @@ float FInertializationPoseDiff::CalcInertialFloat(float x0, float v0, float t, f
 	//		eq2 := (x/.t->t1)==0
 	//		Solve[{eq1 && eq2}, {q,t1}]
 	//
-	if (v0 < -KINDA_SMALL_NUMBER)
+	if (v0 < -UE_KINDA_SMALL_NUMBER)
 	{
 		t1 = FMath::Min(t1, -5.0f * x0 / v0);
 	}

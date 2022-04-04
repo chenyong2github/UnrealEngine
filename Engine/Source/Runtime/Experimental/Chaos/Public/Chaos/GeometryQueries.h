@@ -140,7 +140,7 @@ namespace Chaos
 		FVec3 LocalNormal(0);
 
 		const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);
-		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER)); // Added to help determine cause of this ensure firing in GJKRaycast2.
+		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)UE_KINDA_SMALL_NUMBER)); // Added to help determine cause of this ensure firing in GJKRaycast2.
 		const FVec3 LocalDir = ATM.InverseTransformVectorNoScale(Dir);
 
 		bool bSweepAsRaycast = BType == ImplicitObjectType::Sphere && !bComputeMTD;

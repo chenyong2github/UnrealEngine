@@ -1056,19 +1056,19 @@ void UAnimCompress_PerTrackCompression::CompressUsingUnderlyingCompressor(
 		{
 			const FAnimPerturbationError& TrackError = Cache->PerTrackErrors[TrackIndex];
 
-			float ThresholdT_DueR = (TrackError.MaxErrorInTransDueToRot > SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInTransDueToRot) : 1.0f;
-			float ThresholdT_DueT = (TrackError.MaxErrorInTransDueToTrans > SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInTransDueToTrans) : 1.0f;
-			float ThresholdT_DueS = (TrackError.MaxErrorInTransDueToScale > SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInTransDueToScale) : 1.0f;
+			float ThresholdT_DueR = (TrackError.MaxErrorInTransDueToRot > UE_SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInTransDueToRot) : 1.0f;
+			float ThresholdT_DueT = (TrackError.MaxErrorInTransDueToTrans > UE_SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInTransDueToTrans) : 1.0f;
+			float ThresholdT_DueS = (TrackError.MaxErrorInTransDueToScale > UE_SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInTransDueToScale) : 1.0f;
 
 			//@TODO: Mixing spaces (target angle error is in radians, perturbation is in quaternion component units)
-			float ThresholdR_DueR = (TrackError.MaxErrorInRotDueToRot > SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInRotDueToRot) : 1.0f;
-			float ThresholdR_DueT = (TrackError.MaxErrorInRotDueToTrans > SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInRotDueToTrans) : 1.0f;
-			float ThresholdR_DueS = (TrackError.MaxErrorInRotDueToScale > SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInRotDueToScale) : 1.0f;
+			float ThresholdR_DueR = (TrackError.MaxErrorInRotDueToRot > UE_SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInRotDueToRot) : 1.0f;
+			float ThresholdR_DueT = (TrackError.MaxErrorInRotDueToTrans > UE_SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInRotDueToTrans) : 1.0f;
+			float ThresholdR_DueS = (TrackError.MaxErrorInRotDueToScale > UE_SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInRotDueToScale) : 1.0f;
 
 			// these values are not used, so I don't think we should calculate?
-// 			float ThresholdS_DueR = (TrackError.MaxErrorInScaleDueToRot > SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInScaleDueToRot) : 1.0f;
-// 			float ThresholdS_DueT = (TrackError.MaxErrorInScaleDueToTrans > SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInScaleDueToTrans) : 1.0f;
-// 			float ThresholdS_DueS = (TrackError.MaxErrorInScaleDueToScale > SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInScaleDueToScale) : 1.0f;
+// 			float ThresholdS_DueR = (TrackError.MaxErrorInScaleDueToRot > UE_SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInScaleDueToRot) : 1.0f;
+// 			float ThresholdS_DueT = (TrackError.MaxErrorInScaleDueToTrans > UE_SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInScaleDueToTrans) : 1.0f;
+// 			float ThresholdS_DueS = (TrackError.MaxErrorInScaleDueToScale > UE_SMALL_NUMBER) ? (PerturbationProbeSize / TrackError.MaxErrorInScaleDueToScale) : 1.0f;
 
 			// @Todo fix the error - this doesn't make sense
 			MaxAngleErrorCutoff = FMath::Min(MaxAngleDiffBitwise, MaxErrorPerTrackRatio * MaxAngleDiff * FMath::Lerp(ThresholdR_DueR, ThresholdT_DueR, RotationErrorSourceRatio));

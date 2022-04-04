@@ -1960,7 +1960,7 @@ bool AActor::WasRecentlyRendered(float Tolerance) const
 	if (const UWorld* const World = GetWorld())
 	{
 		// Adjust tolerance, so visibility is not affected by bad frame rate / hitches.
-		const float RenderTimeThreshold = FMath::Max(Tolerance, World->DeltaTimeSeconds + KINDA_SMALL_NUMBER);
+		const float RenderTimeThreshold = FMath::Max(Tolerance, World->DeltaTimeSeconds + UE_KINDA_SMALL_NUMBER);
 
 		// If the current cached value is less than the tolerance then we don't need to go look at the components
 		return World->TimeSince(GetLastRenderTime()) <= RenderTimeThreshold;
@@ -2826,7 +2826,7 @@ float AActor::InternalTakeRadialDamage(float Damage, FRadialDamageEvent const& R
 	// find closest component
 	// @todo, something more accurate here to account for size of components, e.g. closest point on the component bbox?
 	// @todo, sum up damage contribution to each component?
-	float ClosestHitDistSq = MAX_FLT;
+	float ClosestHitDistSq = UE_MAX_FLT;
 	for (int32 HitIdx=0; HitIdx<RadialDamageEvent.ComponentHits.Num(); ++HitIdx)
 	{
 		FHitResult const& Hit = RadialDamageEvent.ComponentHits[HitIdx];
@@ -5381,7 +5381,7 @@ float AActor::ActorGetDistanceToCollision(const FVector& Point, ECollisionChanne
 				}
 
 				// If we're inside collision, we're not going to find anything better, so abort search we've got our best find.
-				if( DistanceSqr <= KINDA_SMALL_NUMBER )
+				if( DistanceSqr <= UE_KINDA_SMALL_NUMBER )
 				{
 					break;
 				}

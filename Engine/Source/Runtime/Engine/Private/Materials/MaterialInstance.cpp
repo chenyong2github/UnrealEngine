@@ -3691,7 +3691,7 @@ void UMaterialInstance::GetBasePropertyOverridesHash(FSHAHash& OutHash)const
 	bool bHasOverrides = false;
 
 	float UsedOpacityMaskClipValue = GetOpacityMaskClipValue();
-	if (FMath::Abs(UsedOpacityMaskClipValue - Mat->GetOpacityMaskClipValue()) > SMALL_NUMBER)
+	if (FMath::Abs(UsedOpacityMaskClipValue - Mat->GetOpacityMaskClipValue()) > UE_SMALL_NUMBER)
 	{
 		const FString HashString = TEXT("bOverride_OpacityMaskClipValue");
 		Hash.UpdateWithString(*HashString, HashString.Len());
@@ -3763,7 +3763,7 @@ bool UMaterialInstance::HasOverridenBaseProperties()const
 {
 	const UMaterial* Material = GetMaterial_Concurrent();
 	if (Parent && Material && Material->bUsedAsSpecialEngineMaterial == false &&
-		((FMath::Abs(GetOpacityMaskClipValue() - Parent->GetOpacityMaskClipValue()) > SMALL_NUMBER) ||
+		((FMath::Abs(GetOpacityMaskClipValue() - Parent->GetOpacityMaskClipValue()) > UE_SMALL_NUMBER) ||
 		(GetBlendMode() != Parent->GetBlendMode()) ||
 		(GetShadingModels() != Parent->GetShadingModels()) ||
 		(IsTwoSided() != Parent->IsTwoSided()) ||

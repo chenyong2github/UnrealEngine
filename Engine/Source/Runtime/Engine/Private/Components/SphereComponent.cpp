@@ -39,7 +39,7 @@ bool InvalidateOrUpdateSphereBodySetup(BodySetupType& ShapeBodySetup, bool bUseA
 
 	// check for mal formed values
 	float Radius = SphereRadius;
-	if (Radius < KINDA_SMALL_NUMBER)
+	if (Radius < UE_KINDA_SMALL_NUMBER)
 	{
 		Radius = 0.1f;
 	}

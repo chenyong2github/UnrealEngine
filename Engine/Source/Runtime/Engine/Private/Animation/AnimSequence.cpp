@@ -360,7 +360,7 @@ bool FCurveTrack::IsValidCurveTrack()
 		for (int32 I=0; I<CurveWeights.Num(); ++I)
 		{
 			// it has valid weight
-			if (CurveWeights[I]>KINDA_SMALL_NUMBER)
+			if (CurveWeights[I]>UE_KINDA_SMALL_NUMBER)
 			{
 				bValid = true;
 				break;
@@ -387,7 +387,7 @@ bool FCurveTrack::CompressCurveWeights()
 		for (int32 I=1; I<CurveWeights.Num(); ++I)
 		{
 			// see if my key is same as previous
-			if (fabs(FirstWeight - CurveWeights[I]) > SMALL_NUMBER)
+			if (fabs(FirstWeight - CurveWeights[I]) > UE_SMALL_NUMBER)
 			{
 				// if not same, just get out, you don't like to compress this to 1 key
 				bCompress = false;
@@ -715,7 +715,7 @@ void UAnimSequence::Serialize(FArchive& Ar)
 			const float SampledTime = SamplingFrameRate.AsSeconds(NumberOfFrames);
 
 			// Validate that provided the number of keys and frame-rate the sequence length is accurate
-			if (!FMath::IsNearlyEqual(SampledTime, SequenceLength, KINDA_SMALL_NUMBER))
+			if (!FMath::IsNearlyEqual(SampledTime, SequenceLength, UE_KINDA_SMALL_NUMBER))
 			{
 				UE_LOG(LogAnimation, Warning, TEXT("Animation %s needs resaving - Inaccurate sequence length %5.5f according to number of frames and frame rate (delta of %f). Setting new length %5.5f."), *GetName(), SequenceLength, SampledTime - SequenceLength, SampledTime);
 				SequenceLength = SampledTime;
@@ -2682,7 +2682,7 @@ void UAnimSequence::BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& Ne
 						if (CurveKeys.Num() > 1)
 						{
 							FRichCurveKey& PrevKey = CurveKeys.Last(1);
-							if (PrevKey.Time < (PreviousFrameTime - SMALL_NUMBER)) // Did we skip a frame, if so need to make previous key const
+							if (PrevKey.Time < (PreviousFrameTime - UE_SMALL_NUMBER)) // Did we skip a frame, if so need to make previous key const
 							{
 								PrevKey.InterpMode = RCIM_Constant;
 							}
@@ -5571,7 +5571,7 @@ void UAnimSequence::PopulateModel()
 	const bool bCurveOnlySequence = RawAnimationData.Num() == 0;
 	const bool bValidNumberOfKeys = NumberOfKeys >= 1 || bCurveOnlySequence;
 	const float ExpectedPlayLength = (float)SamplingFrameRate.AsSeconds(FMath::Max(NumberOfKeys - 1, 1));
-	const bool bValidSequenceLength = FMath::IsNearlyEqual(ExpectedPlayLength, SequenceLength, KINDA_SMALL_NUMBER) || bCurveOnlySequence;
+	const bool bValidSequenceLength = FMath::IsNearlyEqual(ExpectedPlayLength, SequenceLength, UE_KINDA_SMALL_NUMBER) || bCurveOnlySequence;
 	const bool bValidNumberOfTrackArrayEntries = AnimationTrackNames.Num() == RawAnimationData.Num() && RawAnimationData.Num() == TrackToSkeletonMapTable.Num();
 	const bool bValidAnimationData = SourceRawAnimationData_DEPRECATED.Num() == 0 || SourceRawAnimationData_DEPRECATED.Num() == RawAnimationData.Num();
 	const bool bValidFrameRate = SamplingFrameRate.IsValid() && (SamplingFrameRate.AsInterval() >= 0.f);

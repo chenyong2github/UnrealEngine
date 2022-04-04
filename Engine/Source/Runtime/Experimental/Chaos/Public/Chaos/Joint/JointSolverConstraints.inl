@@ -213,7 +213,7 @@ namespace Chaos
 	{
 		const FVec3 CX = X1 - X0;
 		const FReal CXLen = CX.Size();
-		if (CXLen > KINDA_SMALL_NUMBER)
+		if (CXLen > UE_KINDA_SMALL_NUMBER)
 		{
 			RowStates[RowIndexBegin].Axis = CX / CXLen;
 			RowStates[RowIndexBegin].CalculateError(CXLen, RowDatas[RowIndexBegin].Limit);
@@ -366,9 +366,9 @@ namespace Chaos
 		FReal SwingAngle;
 		FVec3 SwingAxisLocal;
 		RSwing.ToAxisAndAngleSafe(SwingAxisLocal, SwingAngle, FJointConstants::Swing1Axis(), 1.e-6f);
-		if (SwingAngle > PI)
+		if (SwingAngle > UE_PI)
 		{
-			SwingAngle = SwingAngle - (FReal)2 * PI;
+			SwingAngle = SwingAngle - (FReal)2 * UE_PI;
 		}
 
 		RowState.Axis = R0 * SwingAxisLocal;
@@ -415,7 +415,7 @@ namespace Chaos
 		FVec3 Swing0 = R0 * FJointConstants::OtherSwingAxis((EJointAngularConstraintIndex)RowData.ConstraintIndex);
 
 		FVec3 Axis = FVec3::CrossProduct(Swing0, Twist1);
-		if (Utilities::NormalizeSafe(Axis, KINDA_SMALL_NUMBER))
+		if (Utilities::NormalizeSafe(Axis, UE_KINDA_SMALL_NUMBER))
 		{
 			FReal SwingTwistDot = FVec3::DotProduct(Swing0, Twist1);
 			FReal Position = FMath::Asin(FMath::Clamp(-SwingTwistDot, FReal(-1), FReal(1)));
@@ -500,9 +500,9 @@ namespace Chaos
 		FReal SLerpAngle;
 		if (DR.ToAxisAndAngleSafe(SLerpAxis, SLerpAngle, FVec3(1, 0, 0)))
 		{
-			if (SLerpAngle > (FReal)PI)
+			if (SLerpAngle > (FReal)UE_PI)
 			{
-				SLerpAngle = SLerpAngle - (FReal)2 * PI;
+				SLerpAngle = SLerpAngle - (FReal)2 * UE_PI;
 			}
 
 			//UE_LOG(LogChaosJoint, VeryVerbose, TEXT("      SLerpDrive Pos: %f Axis: %f %f %f"), -SLerpAngle, SLerpAxis.X, SLerpAxis.Y, SLerpAxis.Z);
@@ -546,7 +546,7 @@ namespace Chaos
 		if (RowData.bIsSoft)
 		{
 			FReal VelDt = 0;
-			if (RowData.Damping > KINDA_SMALL_NUMBER)
+			if (RowData.Damping > UE_KINDA_SMALL_NUMBER)
 			{
 				const FVec3 V0 = FVec3::CalculateVelocity(JointState.PrevXs[0], JointState.Xs[0], 1.0f);
 				const FVec3 V1 = FVec3::CalculateVelocity(JointState.PrevXs[1], JointState.Xs[1], 1.0f);

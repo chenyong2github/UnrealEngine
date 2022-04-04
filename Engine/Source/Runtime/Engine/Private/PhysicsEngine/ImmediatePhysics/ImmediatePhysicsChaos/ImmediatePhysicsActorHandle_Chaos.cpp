@@ -607,7 +607,7 @@ namespace ImmediatePhysics_Chaos
 		FPBDRigidParticleHandle* Dynamic = ParticleHandle->CastToRigidParticle();
 		if(Dynamic && Dynamic->ObjectState() == EObjectStateType::Dynamic)
 		{
-			FReal NewMass = (NewInverseMass > SMALL_NUMBER) ? (FReal)1. / NewInverseMass : (FReal)0.;
+			FReal NewMass = (NewInverseMass > UE_SMALL_NUMBER) ? (FReal)1. / NewInverseMass : (FReal)0.;
 			Dynamic->SetM(NewMass);
 			Dynamic->SetInvM(NewInverseMass);
 		}
@@ -631,7 +631,7 @@ namespace ImmediatePhysics_Chaos
 		if(Dynamic && Dynamic->ObjectState() == EObjectStateType::Dynamic)
 		{
 			Chaos::FVec3 NewInertia = FVector3f::ZeroVector;
-			if ((NewInverseInertia.X > SMALL_NUMBER) && (NewInverseInertia.Y > SMALL_NUMBER) && (NewInverseInertia.Z > SMALL_NUMBER))
+			if ((NewInverseInertia.X > UE_SMALL_NUMBER) && (NewInverseInertia.Y > UE_SMALL_NUMBER) && (NewInverseInertia.Z > UE_SMALL_NUMBER))
 			{
 				NewInertia = FVector3f( 1.0f / NewInverseInertia.X , 1.0f / NewInverseInertia.Y, 1.0f / NewInverseInertia.Z );
 			}

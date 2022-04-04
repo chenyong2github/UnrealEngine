@@ -259,7 +259,7 @@ void FParticleTrailsEmitterInstance_Base::UpdateBoundingBox(float DeltaTime)
 				}
 
 				// Do angular integrator, and wrap result to within +/- 2 PI
-				Particle->Rotation	 = FMath::Fmod(Particle->Rotation, 2.f*(float)PI);
+				Particle->Rotation	 = FMath::Fmod(Particle->Rotation, 2.f*(float)UE_PI);
 			}
 			if (bUpdateBox)
 			{
@@ -1022,7 +1022,7 @@ bool FParticleRibbonEmitterInstance::GetSpawnPerUnitAmount(float DeltaTime, int3
 				{
 					if (ElapsedTime == 0)
 					{
-						ElapsedTime = KINDA_SMALL_NUMBER;
+						ElapsedTime = UE_KINDA_SMALL_NUMBER;
 					}
 					CurrentSourcePosition[InTrailIdx].DiagnosticCheckNaN();
 					LastSourcePosition[InTrailIdx].DiagnosticCheckNaN();
@@ -1033,7 +1033,7 @@ bool FParticleRibbonEmitterInstance::GetSpawnPerUnitAmount(float DeltaTime, int3
 				float CurrTangentDivisor = (ElapsedTime - TrailSpawnTimes[InTrailIdx]);
 				if (CurrTangentDivisor == 0)
 				{
-					CurrTangentDivisor = KINDA_SMALL_NUMBER;
+					CurrTangentDivisor = UE_KINDA_SMALL_NUMBER;
 				}
 				FVector CurrTangent = TravelDirection / CurrTangentDivisor;
 				CurrTangent.Normalize();
@@ -1760,7 +1760,7 @@ bool FParticleRibbonEmitterInstance::Spawn_Source(float DeltaTime)
 						FVector PositionDelta = (CurrentSourcePosition[TrailIdx] - PositionOffsetThisTick - NextNextSpawnedParticle->Location);
 						float TimeDelta = ElapsedTime - NextNextSpawnedTrailData->SpawnTime;
 						
-						if (TimeDelta > SMALL_NUMBER)
+						if (TimeDelta > UE_SMALL_NUMBER)
 						{
 							NewTangent = PositionDelta / TimeDelta;
 						}
@@ -3651,7 +3651,7 @@ void FParticleAnimTrailEmitterInstance::UpdateBoundingBox(float DeltaTime)
 				}
 
 				// Do angular integrator, and wrap result to within +/- 2 PI
-				Particle->Rotation	 = FMath::Fmod(Particle->Rotation, 2.f*(float)PI);
+				Particle->Rotation	 = FMath::Fmod(Particle->Rotation, 2.f*(float)UE_PI);
 			}
 			if (bUpdateBox)
 			{

@@ -379,15 +379,15 @@ void UStereoLayerShapeCylinder::DrawShapeVisualization(const class FSceneView* V
 	check(GetOuter()->IsA<UStereoLayerComponent>());
 
 	auto StereoLayerComp = Cast<UStereoLayerComponent>(GetOuter());
-	float ArcAngle = OverlayArc * 180 / (Radius * PI);
+	float ArcAngle = OverlayArc * 180 / (Radius * UE_PI);
 
 	FVector X = StereoLayerComp->GetComponentTransform().GetUnitAxis(EAxis::Type::X);
 	FVector Y = StereoLayerComp->GetComponentTransform().GetUnitAxis(EAxis::Type::Y);
 	FVector Base = StereoLayerComp->GetComponentTransform().GetLocation();
 	FVector HalfHeight = FVector(0, 0, Height / 2);
 
-	FVector LeftVertex = Base + Radius * (FMath::Cos(ArcAngle / 2 * (PI / 180.0f)) * X + FMath::Sin(ArcAngle / 2 * (PI / 180.0f)) * Y);
-	FVector RightVertex = Base + Radius * (FMath::Cos(-ArcAngle / 2 * (PI / 180.0f)) * X + FMath::Sin(-ArcAngle / 2 * (PI / 180.0f)) * Y);
+	FVector LeftVertex = Base + Radius * (FMath::Cos(ArcAngle / 2 * (UE_PI / 180.0f)) * X + FMath::Sin(ArcAngle / 2 * (UE_PI / 180.0f)) * Y);
+	FVector RightVertex = Base + Radius * (FMath::Cos(-ArcAngle / 2 * (UE_PI / 180.0f)) * X + FMath::Sin(-ArcAngle / 2 * (UE_PI / 180.0f)) * Y);
 
 	DrawArc(PDI, Base + HalfHeight, X, Y, -ArcAngle / 2, ArcAngle / 2, Radius, 10, YellowColor, 0);
 

@@ -1118,7 +1118,7 @@ static void AccumulateUVDensities(float* OutWeightedUVDensities, float* OutWeigh
 			LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(Index1),
 			LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(Index2));
 
-		if (Aera > SMALL_NUMBER)
+		if (Aera > UE_SMALL_NUMBER)
 		{
 			for (int32 CoordinateIndex = 0; CoordinateIndex < NumCoordinateIndex; ++CoordinateIndex)
 			{
@@ -1182,7 +1182,7 @@ void USkeletalMesh::UpdateUVChannelData(bool bRebuildAll)
 			UVChannelData.bOverrideDensities = false;
 			for (int32 CoordinateIndex = 0; CoordinateIndex < TEXSTREAM_MAX_NUM_UVCHANNELS; ++CoordinateIndex)
 			{
-				UVChannelData.LocalUVDensities[CoordinateIndex] = (Weights[CoordinateIndex] > KINDA_SMALL_NUMBER) ? (WeightedUVDensities[CoordinateIndex] / Weights[CoordinateIndex]) : 0;
+				UVChannelData.LocalUVDensities[CoordinateIndex] = (Weights[CoordinateIndex] > UE_KINDA_SMALL_NUMBER) ? (WeightedUVDensities[CoordinateIndex] / Weights[CoordinateIndex]) : 0;
 			}
 		}
 
@@ -2268,9 +2268,9 @@ void USkeletalMesh::CalculateInvRefMatrices()
 			FVector XAxis, YAxis, ZAxis;
 
 			ComposedRefPoseMatrices[b].GetScaledAxes(XAxis, YAxis, ZAxis);
-			if(	XAxis.IsNearlyZero(SMALL_NUMBER) &&
-				YAxis.IsNearlyZero(SMALL_NUMBER) &&
-				ZAxis.IsNearlyZero(SMALL_NUMBER))
+			if(	XAxis.IsNearlyZero(UE_SMALL_NUMBER) &&
+				YAxis.IsNearlyZero(UE_SMALL_NUMBER) &&
+				ZAxis.IsNearlyZero(UE_SMALL_NUMBER))
 			{
 				// this is not allowed, warn them 
 				UE_LOG(LogSkeletalMesh, Warning, TEXT("Reference Pose for asset %s for joint (%s) includes NIL matrix. Zero scale isn't allowed on ref pose. "), *GetPathName(), *GetRefSkeleton().GetBoneName(b).ToString());
@@ -3148,7 +3148,7 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 					//Make sure we have normalized tangents
 					auto NormalizedTangent = [&bNeedToOrthonormalize, &bFoundBadTangents](FVector3f& Tangent)
 					{
-						if (Tangent.ContainsNaN() || Tangent.SizeSquared() < THRESH_VECTOR_NORMALIZED)
+						if (Tangent.ContainsNaN() || Tangent.SizeSquared() < UE_THRESH_VECTOR_NORMALIZED)
 						{
 							//This is a degenerated tangent, we will set it to zero. It will be fix by the
 							//FixTangent lambda function.
@@ -5241,7 +5241,7 @@ void USkeletalMesh::ConvertLegacyLODScreenSize()
 	{
 		// Use 1080p, 90 degree FOV as a default, as this should not cause runtime regressions in the common case.
 		// LODs will appear different in Persona, however.
-		const float HalfFOV = PI * 0.25f;
+		const float HalfFOV = UE_PI * 0.25f;
 		const float ScreenWidth = 1920.0f;
 		const float ScreenHeight = 1080.0f;
 		const FPerspectiveMatrix ProjMatrix(HalfFOV, ScreenWidth, ScreenHeight, 1.0f);
@@ -5966,7 +5966,7 @@ FSkeletalMeshSceneProxy
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
 
-const FQuat SphylBasis(FVector(1.0f / FMath::Sqrt(2.0f), 0.0f, 1.0f / FMath::Sqrt(2.0f)), PI);
+const FQuat SphylBasis(FVector(1.0f / FMath::Sqrt(2.0f), 0.0f, 1.0f / FMath::Sqrt(2.0f)), UE_PI);
 
 /** 
  * Constructor. 
@@ -6920,9 +6920,9 @@ void FSkeletalMeshSceneProxy::GetShadowShapes(FVector PreViewTranslation, TArray
 bool FSkeletalMeshSceneProxy::GetWorldMatrices( FMatrix& OutLocalToWorld, FMatrix& OutWorldToLocal ) const
 {
 	OutLocalToWorld = GetLocalToWorld();
-	if (OutLocalToWorld.GetScaledAxis(EAxis::X).IsNearlyZero(SMALL_NUMBER) &&
-		OutLocalToWorld.GetScaledAxis(EAxis::Y).IsNearlyZero(SMALL_NUMBER) &&
-		OutLocalToWorld.GetScaledAxis(EAxis::Z).IsNearlyZero(SMALL_NUMBER))
+	if (OutLocalToWorld.GetScaledAxis(EAxis::X).IsNearlyZero(UE_SMALL_NUMBER) &&
+		OutLocalToWorld.GetScaledAxis(EAxis::Y).IsNearlyZero(UE_SMALL_NUMBER) &&
+		OutLocalToWorld.GetScaledAxis(EAxis::Z).IsNearlyZero(UE_SMALL_NUMBER))
 	{
 		return false;
 	}
@@ -7159,7 +7159,7 @@ bool FSkeletalMeshSceneProxy::GetPrimitiveDistance(int32 LODIndex, int32 Section
 
 	if (FPrimitiveSceneProxy::GetPrimitiveDistance(LODIndex, SectionIndex, ViewOrigin, PrimitiveDistance))
 	{
-		const float OneOverDistanceMultiplier = 1.f / FMath::Max<float>(SMALL_NUMBER, StreamingDistanceMultiplier);
+		const float OneOverDistanceMultiplier = 1.f / FMath::Max<float>(UE_SMALL_NUMBER, StreamingDistanceMultiplier);
 		PrimitiveDistance *= OneOverDistanceMultiplier;
 		return true;
 	}

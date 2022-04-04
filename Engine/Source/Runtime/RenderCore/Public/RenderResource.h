@@ -400,7 +400,7 @@ struct FMipBiasFade
 	{
 		float DeltaTime = GRenderingRealtimeClock.GetCurrentTime() - StartTime;
 		float TimeFactor = DeltaTime * MipCountFadingRate;
-		return (FMath::Abs<float>(MipCountDelta) > SMALL_NUMBER && TimeFactor < 1.0f);
+		return (FMath::Abs<float>(MipCountDelta) > UE_SMALL_NUMBER && TimeFactor < 1.0f);
 	}
 };
 

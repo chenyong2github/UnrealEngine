@@ -121,7 +121,7 @@ float FConcurrencySoundData::GetLerpTime() const
 
 float FConcurrencySoundData::GetVolume(bool bInDecibels) const
 {
-	const float Alpha = FMath::Clamp(Elapsed / FMath::Max(LerpTime, SMALL_NUMBER), 0.0f, 1.0f);
+	const float Alpha = FMath::Clamp(Elapsed / FMath::Max(LerpTime, UE_SMALL_NUMBER), 0.0f, 1.0f);
 	const float VolumeDb = FMath::Lerp(DbStartVolume, DbTargetVolume, Alpha);
 
 	if (bInDecibels)
@@ -261,7 +261,7 @@ void FConcurrencyGroup::UpdateGeneration(FActiveSound* NewActiveSound)
 					B.AudioDevice->GetDistanceSquaredToNearestListener(B.LastLocation, DistSqB);
 
 					// If sounds share the same distance, newer sounds will be sorted first to avoid volume ping-ponging 
-					if (FMath::IsNearlyEqual(DistSqA, DistSqB, KINDA_SMALL_NUMBER))
+					if (FMath::IsNearlyEqual(DistSqA, DistSqB, UE_KINDA_SMALL_NUMBER))
 					{
 						return A.GetPlayOrder() < B.GetPlayOrder();
 					}
@@ -287,7 +287,7 @@ void FConcurrencyGroup::UpdateGeneration(FActiveSound* NewActiveSound)
 					const float BPriority = GetPriority(B);
 
 					// If sounds share the same priority, newer sounds will be sorted last to avoid volume ping-ponging 
-					if (FMath::IsNearlyEqual(APriority, BPriority, KINDA_SMALL_NUMBER))
+					if (FMath::IsNearlyEqual(APriority, BPriority, UE_KINDA_SMALL_NUMBER))
 					{
 						return A.GetPlayOrder() < B.GetPlayOrder();
 					}
@@ -350,7 +350,7 @@ void FConcurrencyGroup::CullSoundsDueToMaxConcurrency()
 				case EMaxConcurrentResolutionRule::StopQuietest:
 				{
 					// If sounds share the same volume, newer sounds will be sorted first to avoid loop realization ping-ponging 
-					if (FMath::IsNearlyEqual(A.VolumeConcurrency, B.VolumeConcurrency, KINDA_SMALL_NUMBER))
+					if (FMath::IsNearlyEqual(A.VolumeConcurrency, B.VolumeConcurrency, UE_KINDA_SMALL_NUMBER))
 					{
 						return A.GetPlayOrder() > B.GetPlayOrder();
 					}
@@ -376,7 +376,7 @@ void FConcurrencyGroup::CullSoundsDueToMaxConcurrency()
 					const float APriority = GetPriority(A);
 					const float BPriority = GetPriority(B);
 
-					if (!FMath::IsNearlyEqual(APriority, BPriority, KINDA_SMALL_NUMBER))
+					if (!FMath::IsNearlyEqual(APriority, BPriority, UE_KINDA_SMALL_NUMBER))
 					{
 						return APriority < BPriority;
 					}

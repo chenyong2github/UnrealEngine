@@ -109,7 +109,7 @@ float FBaseAttenuationSettings::GetMaxFalloffDistance() const
 
 				case ENaturalSoundFalloffMode::Continues:
 				{
-					MaxFalloffDistance = FalloffDistance * MinAttenuationValueDb / FMath::Min(dBAttenuationAtMax, -KINDA_SMALL_NUMBER);
+					MaxFalloffDistance = FalloffDistance * MinAttenuationValueDb / FMath::Min(dBAttenuationAtMax, -UE_KINDA_SMALL_NUMBER);
 				}
 				break;
 
@@ -185,14 +185,14 @@ float FBaseAttenuationSettings::AttenuationEval(const float Distance, const floa
 
 		case EAttenuationDistanceModel::Logarithmic:
 			{
-				DistanceCopy = FMath::Max(DistanceCopy, KINDA_SMALL_NUMBER);
+				DistanceCopy = FMath::Max(DistanceCopy, UE_KINDA_SMALL_NUMBER);
 				Result = 0.5f * -FMath::Loge(DistanceCopy / FalloffCopy);
 			}
 			break;
 
 		case EAttenuationDistanceModel::Inverse:
 			{
-				DistanceCopy = FMath::Max(DistanceCopy, KINDA_SMALL_NUMBER);
+				DistanceCopy = FMath::Max(DistanceCopy, UE_KINDA_SMALL_NUMBER);
 				Result = 0.02f / (DistanceCopy / FalloffCopy);
 			}
 			break;
@@ -205,7 +205,7 @@ float FBaseAttenuationSettings::AttenuationEval(const float Distance, const floa
 			}
 			else
 			{
-				const float Argument = FMath::Max(1.0f - (DistanceCopy / FalloffCopy), KINDA_SMALL_NUMBER);
+				const float Argument = FMath::Max(1.0f - (DistanceCopy / FalloffCopy), UE_KINDA_SMALL_NUMBER);
 				Result = 1.0f + 0.5f * FMath::Loge(Argument);
 			}
 		}

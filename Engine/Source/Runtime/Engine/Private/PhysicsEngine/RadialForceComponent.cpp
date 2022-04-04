@@ -138,7 +138,7 @@ void URadialForceComponent::FireImpulse()
 
 	for(UPrimitiveComponent* PrimitiveComponent : AffectedComponents)
 	{
-		if(DestructibleDamage > SMALL_NUMBER)
+		if(DestructibleDamage > UE_SMALL_NUMBER)
 		{
 			if(IDestructibleInterface* DestructibleInstance = Cast<IDestructibleInterface>(PrimitiveComponent))
 			{

@@ -464,7 +464,7 @@ float FConvexVolume::DistanceTo(const FVector& Point) const
 {
 	checkSlow(PermutedPlanes.Num() % 4 == 0);
 
-	constexpr VectorRegister4Float VMinimumDistance = MakeVectorRegisterFloatConstant(-BIG_NUMBER, -BIG_NUMBER, -BIG_NUMBER, -BIG_NUMBER);
+	constexpr VectorRegister4Float VMinimumDistance = MakeVectorRegisterFloatConstant(-UE_BIG_NUMBER, -UE_BIG_NUMBER, -UE_BIG_NUMBER, -UE_BIG_NUMBER);
 
 	// Load the origin & radius
 	VectorRegister VPoint = VectorLoadFloat3(&Point);

@@ -646,7 +646,7 @@ namespace Chaos
 			    M[2][0] * Other.M[0][2] + M[2][1] * Other.M[1][2] + M[2][2] * Other.M[2][2]);
 		}
 #endif
-		inline bool Equals(const PMatrix<FRealDouble, 3, 3>& Other, FRealDouble Tolerance = KINDA_SMALL_NUMBER) const
+		inline bool Equals(const PMatrix<FRealDouble, 3, 3>& Other, FRealDouble Tolerance = UE_KINDA_SMALL_NUMBER) const
 		{
 			return true
 				&& (FMath::Abs(Other.M[0][0] - M[0][0]) <= Tolerance)
@@ -1073,7 +1073,7 @@ namespace Chaos
 				M[2][0] * Other.M[0][2] + M[2][1] * Other.M[1][2] + M[2][2] * Other.M[2][2]);
 		}
 #endif
-		inline bool Equals(const PMatrix<FRealSingle, 3, 3>& Other, FRealSingle Tolerance = KINDA_SMALL_NUMBER) const
+		inline bool Equals(const PMatrix<FRealSingle, 3, 3>& Other, FRealSingle Tolerance = UE_KINDA_SMALL_NUMBER) const
 		{
 			return true
 				&& (FMath::Abs(Other.M[0][0] - M[0][0]) <= Tolerance)

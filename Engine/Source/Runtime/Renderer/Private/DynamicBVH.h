@@ -188,7 +188,7 @@ public:
 
 	void	Add( float NodeCost, uint32 NodeIndex )
 	{
-		if( NodeCost < KINDA_SMALL_NUMBER && NumZeros < MaxZeros )
+		if( NodeCost < UE_KINDA_SMALL_NUMBER && NumZeros < MaxZeros )
 		{
 			ZeroCostNodes[ NumZeros++ ] = NodeIndex;
 		}

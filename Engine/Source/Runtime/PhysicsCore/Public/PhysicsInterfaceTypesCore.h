@@ -136,7 +136,7 @@ static bool CalcMeshNegScaleCompensation(const FVector& InScale3D, FTransform& O
 		else
 		{
 			// y pos, z neg
-			OutTransform.SetRotation(FQuat(FVector(0.0f, 1.0f, 0.0f), PI));
+			OutTransform.SetRotation(FQuat(FVector(0.0f, 1.0f, 0.0f), UE_PI));
 			//OutTransform.q = PxQuat(PxPi, PxVec3(0,1,0));
 		}
 	}
@@ -146,13 +146,13 @@ static bool CalcMeshNegScaleCompensation(const FVector& InScale3D, FTransform& O
 		{
 			// y neg, z pos
 			//OutTransform.q = PxQuat(PxPi, PxVec3(0,0,1));
-			OutTransform.SetRotation(FQuat(FVector(0.0f, 0.0f, 1.0f), PI));
+			OutTransform.SetRotation(FQuat(FVector(0.0f, 0.0f, 1.0f), UE_PI));
 		}
 		else
 		{
 			// y neg, z neg
 			//OutTransform.q = PxQuat(PxPi, PxVec3(1,0,0));
-			OutTransform.SetRotation(FQuat(FVector(1.0f, 0.0f, 0.0f), PI));
+			OutTransform.SetRotation(FQuat(FVector(1.0f, 0.0f, 0.0f), UE_PI));
 		}
 	}
 

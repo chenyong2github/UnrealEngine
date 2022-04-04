@@ -42,7 +42,7 @@ void USoundNodeOscillator::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 
 	FSoundParseParameters UpdatedParams = ParseParams;
 
-	const float ModulationFactor = UsedCenter + UsedAmplitude * FMath::Sin( UsedOffset + UsedFrequency * ActiveSound.PlaybackTime * PI );
+	const float ModulationFactor = UsedCenter + UsedAmplitude * FMath::Sin( UsedOffset + UsedFrequency * ActiveSound.PlaybackTime * UE_PI );
 	if( bModulateVolume )
 	{
 		UpdatedParams.Volume *= ModulationFactor;

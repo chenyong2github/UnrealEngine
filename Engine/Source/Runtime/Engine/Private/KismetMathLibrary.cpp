@@ -426,14 +426,14 @@ void GenericSpringInterp(T& Current, const T Target, T& PrevTarget, bool& bPrevT
 	{
 		Current = Target;
 	}
-	if (DeltaTime > SMALL_NUMBER)
+	if (DeltaTime > UE_SMALL_NUMBER)
 	{
 		if (!FMath::IsNearlyZero(Mass))
 		{
 			// Note that old target was stored in PrevTarget
 			T TargetVel = bPrevTargetValid ? (Target - PrevTarget) * (TargetVelocityAmount / DeltaTime) : T(0.f);
 			const float Omega = FMath::Sqrt(Stiffness / Mass); // angular frequency
-			const float Frequency = Omega / (2.0f * PI);
+			const float Frequency = Omega / (2.0f * UE_PI);
 			T NewValue = Current;
 			FMath::SpringDamper(Current, Velocity, Target, TargetVel, DeltaTime, Frequency, CriticalDamping);
 			PrevTarget = Target;

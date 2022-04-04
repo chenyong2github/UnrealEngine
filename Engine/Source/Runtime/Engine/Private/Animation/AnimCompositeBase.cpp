@@ -806,7 +806,7 @@ bool FAnimSegment::IsPlayLengthOutOfDate() const
 		// When the segment length is equal to _cached_ playlength and the current model playlength is different flag as out-of-date
 		// this can happen when the sequence is reimported without updating the montage and thus ending up with 'invalid' playback range.
 		const float PlayableLength = (AnimEndTime - AnimStartTime);
-		return FMath::IsNearlyEqual(PlayableLength, CachedPlayLength, KINDA_SMALL_NUMBER) && !FMath::IsNearlyEqual(AnimReference->GetPlayLength(), CachedPlayLength, KINDA_SMALL_NUMBER);
+		return FMath::IsNearlyEqual(PlayableLength, CachedPlayLength, UE_KINDA_SMALL_NUMBER) && !FMath::IsNearlyEqual(AnimReference->GetPlayLength(), CachedPlayLength, UE_KINDA_SMALL_NUMBER);
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	

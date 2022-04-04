@@ -14,10 +14,10 @@ struct FOverlappingThresholds
 {
 public:
 	FOverlappingThresholds()
-		: ThresholdPosition(THRESH_POINTS_ARE_SAME)
-		, ThresholdTangentNormal(THRESH_NORMALS_ARE_SAME)
-		, ThresholdUV(THRESH_UVS_ARE_SAME)
-		, MorphThresholdPosition(THRESH_POINTS_ARE_NEAR)
+		: ThresholdPosition(UE_THRESH_POINTS_ARE_SAME)
+		, ThresholdTangentNormal(UE_THRESH_NORMALS_ARE_SAME)
+		, ThresholdUV(UE_THRESH_UVS_ARE_SAME)
+		, MorphThresholdPosition(UE_THRESH_POINTS_ARE_NEAR)
 	{}
 
 	/** Threshold use to decide if two vertex position are equal. */
@@ -39,7 +39,7 @@ public:
  */
 inline bool PointsEqual(const FVector& V1,const FVector& V2, bool bUseEpsilonCompare = true )
 {
-	const float Epsilon = bUseEpsilonCompare ? THRESH_POINTS_ARE_SAME : 0.0f;
+	const float Epsilon = bUseEpsilonCompare ? UE_THRESH_POINTS_ARE_SAME : 0.0f;
 	return FMath::Abs(V1.X - V2.X) <= Epsilon && FMath::Abs(V1.Y - V2.Y) <= Epsilon && FMath::Abs(V1.Z - V2.Z) <= Epsilon;
 }
 
@@ -64,7 +64,7 @@ inline bool PointsEqual(const FVector3f& V1, const FVector3f& V2, const FOverlap
  */
 inline bool NormalsEqual(const FVector& V1,const FVector& V2)
 {
-	const float Epsilon = THRESH_NORMALS_ARE_SAME;
+	const float Epsilon = UE_THRESH_NORMALS_ARE_SAME;
 	return FMath::Abs(V1.X - V2.X) <= Epsilon && FMath::Abs(V1.Y - V2.Y) <= Epsilon && FMath::Abs(V1.Z - V2.Z) <= Epsilon;
 }
 

@@ -195,7 +195,7 @@ float UDecalComponent::GetFadeInStartDelay() const
 void UDecalComponent::SetFadeOut(float StartDelay, float Duration, bool DestroyOwnerAfterFade /*= true*/)
 {
 	float FadeDurationScale = CVarDecalFadeDurationScale.GetValueOnGameThread();
-	FadeDurationScale = (FadeDurationScale <= SMALL_NUMBER) ? 0.0f : FadeDurationScale;
+	FadeDurationScale = (FadeDurationScale <= UE_SMALL_NUMBER) ? 0.0f : FadeDurationScale;
 
 	FadeStartDelay = StartDelay * FadeDurationScale;
 	FadeDuration = Duration * FadeDurationScale;

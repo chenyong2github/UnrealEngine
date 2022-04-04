@@ -381,7 +381,7 @@ FIntPoint FSlateTextureRenderTarget2DResource::GetSizeXY() const
 
 float FSlateTextureRenderTarget2DResource::GetDisplayGamma() const
 {
-	if (TargetGamma > KINDA_SMALL_NUMBER * 10.0f)
+	if (TargetGamma > UE_KINDA_SMALL_NUMBER * 10.0f)
 	{
 		return TargetGamma;
 	}

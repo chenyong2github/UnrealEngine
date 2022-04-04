@@ -670,7 +670,7 @@ public:
 		check(StepFraction > (FReal)0);
 		check(StepFraction <= (FReal)1);
 
-		const bool IsLastStep = (FMath::IsNearlyEqual(StepFraction, (FReal)1, (FReal)KINDA_SMALL_NUMBER));
+		const bool IsLastStep = (FMath::IsNearlyEqual(StepFraction, (FReal)1, (FReal)UE_KINDA_SMALL_NUMBER));
 
 		const FReal MinDt = 1e-6f;
 		auto GetKinematicView = [this]()

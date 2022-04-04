@@ -123,7 +123,7 @@ public:
 	virtual void DeleteKey(FKeyHandle KeyHandle) final override;
 
 	/** Finds the key at InTime, and updates its value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
-	virtual FKeyHandle UpdateOrAddKey(float InTime, float InValue, const bool bUnwindRotation = false, float KeyTimeTolerance = KINDA_SMALL_NUMBER) final override;
+	virtual FKeyHandle UpdateOrAddKey(float InTime, float InValue, const bool bUnwindRotation = false, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) final override;
 
 	/** Move a key to a new time. */
 	virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) final override;

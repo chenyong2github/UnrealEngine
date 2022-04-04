@@ -2555,7 +2555,7 @@ FName USkinnedMeshComponent::FindClosestBone(FVector TestLocation, FVector* Bone
 		TestLocation = GetComponentTransform().InverseTransformPosition(TestLocation);
 		
 		float IgnoreScaleSquared = FMath::Square(IgnoreScale);
-		float BestDistSquared = BIG_NUMBER;
+		float BestDistSquared = UE_BIG_NUMBER;
 		int32 BestIndex = -1;
 
 		const USkinnedMeshComponent* BaseComponent = MasterPoseComponent.IsValid() ? MasterPoseComponent.Get() : this;
@@ -2842,9 +2842,9 @@ void USkinnedMeshComponent::SetRefPoseOverride(const TArray<FTransform>& NewRefP
 		// Check for zero matrix
 		FVector3f XAxis, YAxis, ZAxis;
 		CachedComposedRefPoseMatrices[BoneIndex].GetScaledAxes(XAxis, YAxis, ZAxis);
-		if (XAxis.IsNearlyZero(SMALL_NUMBER) &&
-			YAxis.IsNearlyZero(SMALL_NUMBER) &&
-			ZAxis.IsNearlyZero(SMALL_NUMBER))
+		if (XAxis.IsNearlyZero(UE_SMALL_NUMBER) &&
+			YAxis.IsNearlyZero(UE_SMALL_NUMBER) &&
+			ZAxis.IsNearlyZero(UE_SMALL_NUMBER))
 		{
 			// this is not allowed, warn them 
 			UE_LOG(LogSkeletalMesh, Warning, TEXT("Reference Pose for asset %s for joint (%s) includes NIL matrix. Zero scale isn't allowed on ref pose. "), *SkeletalMesh->GetPathName(), *SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex).ToString());

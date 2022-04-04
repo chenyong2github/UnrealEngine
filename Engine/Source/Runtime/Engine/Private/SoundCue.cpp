@@ -356,7 +356,7 @@ float USoundCue::FindMaxDistanceInternal() const
 		OutMaxDistance = FMath::Max(OutMaxDistance, FirstNode->GetMaxDistance());
 	}
 
-	if (OutMaxDistance > KINDA_SMALL_NUMBER)
+	if (OutMaxDistance > UE_KINDA_SMALL_NUMBER)
 	{
 		return OutMaxDistance;
 	}
@@ -564,7 +564,7 @@ float USoundCue::GetMaxDistance() const
 float USoundCue::GetDuration() const
 {
 	// Always recalc the duration when in the editor as it could change
-	if (GIsEditor || (Duration < SMALL_NUMBER) || HasDelayNode())
+	if (GIsEditor || (Duration < UE_SMALL_NUMBER) || HasDelayNode())
 	{
 		// This needs to be cached here vs an earlier point due to the need to parse sound cues and load order issues.
 		// Alternative is to make getters not const, this is preferable. 

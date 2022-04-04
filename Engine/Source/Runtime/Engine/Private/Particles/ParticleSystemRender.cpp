@@ -716,7 +716,7 @@ void GatherParticleLightData(const FDynamicSpriteEmitterReplayDataBase& Source, 
 
 				// Early out if the light will have no visible contribution
 				if (LightPayload->bHighQuality || 
-					(ParticleLight.Radius <= KINDA_SMALL_NUMBER && ParticleLight.Color.GetMax() <= KINDA_SMALL_NUMBER))
+					(ParticleLight.Radius <= UE_KINDA_SMALL_NUMBER && ParticleLight.Color.GetMax() <= UE_KINDA_SMALL_NUMBER))
 				{
 					continue;
 				}
@@ -1086,7 +1086,7 @@ void FDynamicSpriteEmitterData::UpdateRenderThreadResourcesEmitter(const FPartic
 			}
 
 			// For locked rotation about Z the particle should be rotated by 90 degrees.
-			UniformParameters.RotationBias = (LockAxisFlag == EPAL_ROTATE_Z) ? (0.5f * PI) : 0.0f;
+			UniformParameters.RotationBias = (LockAxisFlag == EPAL_ROTATE_Z) ? (0.5f * UE_PI) : 0.0f;
 		}
 
 		// Alignment overrides
@@ -1992,7 +1992,7 @@ void FDynamicMeshEmitterData::CalculateParticleTransform(
 	}
 	else
 	{
-		float fRot = ParticleRotation * 180.0f / PI;
+		float fRot = ParticleRotation * 180.0f / UE_PI;
 		FVector kRotVec = FVector(fRot, fRot, fRot);
 		FRotator kRotator = FRotator::MakeFromEuler(kRotVec);
 
@@ -3184,7 +3184,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 
 			float	fUEnd;
 			float	Tiles		= 1.0f;
-			if (Source.TextureTileDistance > KINDA_SMALL_NUMBER)
+			if (Source.TextureTileDistance > UE_KINDA_SMALL_NUMBER)
 			{
 				FVector	Direction	= FVector(BeamPayloadData->TargetPoint - BeamPayloadData->SourcePoint);
 				float	Distance	= Direction.Size();
@@ -3197,7 +3197,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 
 			fUEnd		= Tiles;
 
-			if (BeamPayloadData->TravelRatio > KINDA_SMALL_NUMBER)
+			if (BeamPayloadData->TravelRatio > UE_KINDA_SMALL_NUMBER)
 			{
 				fUEnd	= Tiles * BeamPayloadData->TravelRatio;
 			}
@@ -3207,7 +3207,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 			{
 				if (SheetIndex)
 				{
-					float	Angle		= ((float)PI / (float)Source.Sheets) * SheetIndex;
+					float	Angle		= ((float)UE_PI / (float)Source.Sheets) * SheetIndex;
 					FQuat	QuatRotator	= FQuat(Right, Angle);
 					WorkingUp			= QuatRotator.RotateVector(Up);
 				}
@@ -3341,7 +3341,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				TaperValues = (float*)((uint8*)Particle + Source.TaperValuesOffset);
 			}
 
-			if (Source.TextureTileDistance > KINDA_SMALL_NUMBER)
+			if (Source.TextureTileDistance > UE_KINDA_SMALL_NUMBER)
 			{
 				FVector	Direction	= FVector(BeamPayloadData->TargetPoint - BeamPayloadData->SourcePoint);
 				float	Distance	= Direction.Size();
@@ -3386,7 +3386,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 
 				if (SheetIndex)
 				{
-					Angle		= ((float)PI / (float)Source.Sheets) * SheetIndex;
+					Angle		= ((float)UE_PI / (float)Source.Sheets) * SheetIndex;
 					QuatRotator	= FQuat(Right, Angle);
 					WorkingUp	= QuatRotator.RotateVector(Up);
 				}
@@ -3501,7 +3501,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 					fU					+= fTextureIncrement;
 				}
 
-				if (BeamPayloadData->TravelRatio > KINDA_SMALL_NUMBER)
+				if (BeamPayloadData->TravelRatio > UE_KINDA_SMALL_NUMBER)
 				{
 					//@todo.SAS. Re-implement partial-segment beams
 				}
@@ -3726,7 +3726,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 				if (SheetIndex)
 				{
-					Angle			= ((float)PI / (float)Source.Sheets) * SheetIndex;
+					Angle			= ((float)UE_PI / (float)Source.Sheets) * SheetIndex;
 					QuatRotator		= FQuat(Right, Angle);
 					WorkingLastUp	= QuatRotator.RotateVector(LastUp);
 				}
@@ -3885,7 +3885,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 						if (SheetIndex)
 						{
-							Angle		= ((float)PI / (float)Source.Sheets) * SheetIndex;
+							Angle		= ((float)UE_PI / (float)Source.Sheets) * SheetIndex;
 							QuatRotator	= FQuat(Right, Angle);
 							WorkingUp	= QuatRotator.RotateVector(Up);
 						}
@@ -4004,7 +4004,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 						if (SheetIndex)
 						{
-							Angle		= ((float)PI / (float)Source.Sheets) * SheetIndex;
+							Angle		= ((float)UE_PI / (float)Source.Sheets) * SheetIndex;
 							QuatRotator	= FQuat(Right, Angle);
 							WorkingUp	= QuatRotator.RotateVector(Up);
 						}
@@ -4138,7 +4138,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 				if (SheetIndex)
 				{
-					Angle			= ((float)PI / (float)Source.Sheets) * SheetIndex;
+					Angle			= ((float)UE_PI / (float)Source.Sheets) * SheetIndex;
 					QuatRotator		= FQuat(Right, Angle);
 					WorkingLastUp	= QuatRotator.RotateVector(LastUp);
 				}
@@ -4299,7 +4299,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 						if (SheetIndex)
 						{
-							Angle		= ((float)PI / (float)Source.Sheets) * SheetIndex;
+							Angle		= ((float)UE_PI / (float)Source.Sheets) * SheetIndex;
 							QuatRotator	= FQuat(Right, Angle);
 							WorkingUp	= QuatRotator.RotateVector(Up);
 						}
@@ -4418,7 +4418,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 						if (SheetIndex)
 						{
-							Angle		= ((float)PI / (float)Source.Sheets) * SheetIndex;
+							Angle		= ((float)UE_PI / (float)Source.Sheets) * SheetIndex;
 							QuatRotator	= FQuat(Right, Angle);
 							WorkingUp	= QuatRotator.RotateVector(Up);
 						}
@@ -4466,7 +4466,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 					}
 				}
 				else
-				if (BeamPayloadData->TravelRatio > KINDA_SMALL_NUMBER)
+				if (BeamPayloadData->TravelRatio > UE_KINDA_SMALL_NUMBER)
 				{
 					//@todo.SAS. Re-implement partial-segment beams
 				}
@@ -4712,7 +4712,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 
 			if (SheetIndex)
 			{
-				Angle			= ((float)PI / (float)Source.Sheets) * SheetIndex;
+				Angle			= ((float)UE_PI / (float)Source.Sheets) * SheetIndex;
 				QuatRotator		= FQuat(Right, Angle);
 				WorkingLastUp	= QuatRotator.RotateVector(LastUp);
 			}
@@ -4921,7 +4921,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 
 					if (SheetIndex)
 					{
-						Angle		= ((float)PI / (float)Source.Sheets) * SheetIndex;
+						Angle		= ((float)UE_PI / (float)Source.Sheets) * SheetIndex;
 						QuatRotator	= FQuat(Right, Angle);
 						WorkingUp	= QuatRotator.RotateVector(Up);
 					}
@@ -5040,7 +5040,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 
 					if (SheetIndex)
 					{
-						Angle		= ((float)PI / (float)Source.Sheets) * SheetIndex;
+						Angle		= ((float)UE_PI / (float)Source.Sheets) * SheetIndex;
 						QuatRotator	= FQuat(Right, Angle);
 						WorkingUp	= QuatRotator.RotateVector(Up);
 					}
@@ -5088,7 +5088,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 				}
 			}
 			else
-			if (BeamPayloadData->TravelRatio > KINDA_SMALL_NUMBER)
+			if (BeamPayloadData->TravelRatio > UE_KINDA_SMALL_NUMBER)
 			{
 				//@todo.SAS. Re-implement partial-segment beams
 			}

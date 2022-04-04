@@ -165,7 +165,7 @@ bool FAudioVirtualLoop::IsInAudibleRange(const FActiveSound& InActiveSound, cons
 		DistanceScale = InActiveSound.FocusData.DistanceScale;
 	}
 
-	DistanceScale = FMath::Max(DistanceScale, KINDA_SMALL_NUMBER);
+	DistanceScale = FMath::Max(DistanceScale, UE_KINDA_SMALL_NUMBER);
 	const FVector Location = InActiveSound.Transform.GetLocation();
 	return AudioDevice->LocationIsAudible(Location, InActiveSound.MaxDistance / DistanceScale);
 }

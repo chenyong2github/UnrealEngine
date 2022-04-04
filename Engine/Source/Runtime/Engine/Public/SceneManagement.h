@@ -1642,7 +1642,7 @@ public:
 	static float GetSunOnEarthHalfApexAngleRadian() 
 	{ 
 		const float SunOnEarthApexAngleDegree = 0.545f;	// Apex angle == angular diameter
-		return 0.5f * SunOnEarthApexAngleDegree * PI / 180.0f;
+		return 0.5f * SunOnEarthApexAngleDegree * UE_PI / 180.0f;
 	}
 	/**
 	 * @return the light half apex angle (half angular diameter) in radian.

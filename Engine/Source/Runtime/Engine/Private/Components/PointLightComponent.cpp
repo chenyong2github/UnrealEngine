@@ -177,7 +177,7 @@ float UPointLightComponent::ComputeLightBrightness() const
 		}
 		else if (IntensityUnits == ELightUnits::Lumens)
 		{
-			LightBrightness *= (100.f * 100.f / 4 / PI); // Conversion from cm2 to m2 and 4PI from the sphere area in the 1/r2 attenuation
+			LightBrightness *= (100.f * 100.f / 4 / UE_PI); // Conversion from cm2 to m2 and 4PI from the sphere area in the 1/r2 attenuation
 		}
 		else
 		{
@@ -198,7 +198,7 @@ void UPointLightComponent::SetLightBrightness(float InBrightness)
 		}
 		else if (IntensityUnits == ELightUnits::Lumens)
 		{
-			Super::SetLightBrightness(InBrightness / (100.f * 100.f / 4 / PI)); // Conversion from cm2 to m2 and 4PI from the sphere area in the 1/r2 attenuation
+			Super::SetLightBrightness(InBrightness / (100.f * 100.f / 4 / UE_PI)); // Conversion from cm2 to m2 and 4PI from the sphere area in the 1/r2 attenuation
 		}
 		else
 		{
@@ -243,7 +243,7 @@ void UPointLightComponent::Serialize(FArchive& Ar)
 		bUseInverseSquaredFalloff = InverseSquaredFalloff_DEPRECATED;
 	}
 	// Reorient old light tubes that didn't use an IES profile
-	else if(Ar.UEVer() < VER_UE4_POINTLIGHT_SOURCE_ORIENTATION && SourceLength > KINDA_SMALL_NUMBER && IESTexture == nullptr)
+	else if(Ar.UEVer() < VER_UE4_POINTLIGHT_SOURCE_ORIENTATION && SourceLength > UE_KINDA_SMALL_NUMBER && IESTexture == nullptr)
 	{
 		AddLocalRotation( FRotator(-90.f, 0.f, 0.f) );
 	}
@@ -282,7 +282,7 @@ bool UPointLightComponent::CanEditChange(const FProperty* InProperty) const
 void UPointLightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	// Make sure exponent is > 0.
-	LightFalloffExponent = FMath::Max( (float) KINDA_SMALL_NUMBER, LightFalloffExponent );
+	LightFalloffExponent = FMath::Max( (float)UE_KINDA_SMALL_NUMBER, LightFalloffExponent );
 	SourceRadius = FMath::Max(0.0f, SourceRadius);
 	SoftSourceRadius = FMath::Max(0.0f, SoftSourceRadius);
 	SourceLength = FMath::Max(0.0f, SourceLength);

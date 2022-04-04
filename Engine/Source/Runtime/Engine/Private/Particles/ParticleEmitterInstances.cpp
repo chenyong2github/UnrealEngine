@@ -946,7 +946,7 @@ float FParticleEmitterInstance::Tick_EmitterTimeSetup(float DeltaTime, UParticle
 	else
 	{
 		EmitterTime = SecondsSinceCreation;
-		if (EmitterDuration > KINDA_SMALL_NUMBER)
+		if (EmitterDuration > UE_KINDA_SMALL_NUMBER)
 		{
 			EmitterTime = FMath::Fmod(SecondsSinceCreation, EmitterDuration);
 			bLooped = ((SecondsSinceCreation - (EmitterDuration * LoopCount)) >= EmitterDuration);
@@ -1376,7 +1376,7 @@ void FParticleEmitterInstance::UpdateBoundingBox(float DeltaTime)
 			Particle.OldLocation+= PositionOffsetThisTick;
 						
 			Particle.Location	 = NewLocation;
-			Particle.Rotation	 = FMath::Fmod(NewRotation, 2.f*(float)PI);
+			Particle.Rotation	 = FMath::Fmod(NewRotation, 2.f*(float)UE_PI);
 
 			if (bUpdateBox)
 			{	
@@ -2842,7 +2842,7 @@ bool FParticleEmitterInstance::FillReplayData( FDynamicEmitterReplayDataBase& Ou
 
 		NewReplayData->RequiredModule = LODLevel->RequiredModule->CreateRendererResource();
 		NewReplayData->MaterialInterface = NULL;	// Must be set by derived implementation
-		NewReplayData->InvDeltaSeconds = (LastDeltaTime > KINDA_SMALL_NUMBER) ? (1.0f / LastDeltaTime) : 0.0f;
+		NewReplayData->InvDeltaSeconds = (LastDeltaTime > UE_KINDA_SMALL_NUMBER) ? (1.0f / LastDeltaTime) : 0.0f;
 
 		NewReplayData->MaxDrawCount =
 			(LODLevel->RequiredModule->bUseMaxDrawCount == true) ? LODLevel->RequiredModule->MaxDrawCount : -1;
@@ -3535,7 +3535,7 @@ void FParticleMeshEmitterInstance::UpdateBoundingBox(float DeltaTime)
 			Particle.OldLocation+= PositionOffsetThisTick;
 
 			// Do angular integrator, and wrap result to within +/- 2 PI
-			Particle.Rotation = FMath::Fmod(NewRotation, 2.f*(float)PI);
+			Particle.Rotation = FMath::Fmod(NewRotation, 2.f*(float)UE_PI);
 			Particle.Location = NewLocation;
 
 			if (bUpdateBox)

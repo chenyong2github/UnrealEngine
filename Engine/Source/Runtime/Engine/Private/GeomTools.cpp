@@ -203,7 +203,7 @@ static float EdgeMatchTolerance = 0.01f;
 /** Util to look for best next edge start from Start. Returns false if no good next edge found. Edge is removed from InEdgeSet when found. */
 static bool FindNextEdge(FUtilEdge2D& OutNextEdge, const FVector2D& Start, TArray<FUtilEdge2D>& InEdgeSet)
 {
-	float ClosestDistSqr = BIG_NUMBER;
+	float ClosestDistSqr = UE_BIG_NUMBER;
 	FUtilEdge2D OutEdge;
 	int32 OutEdgeIndex = INDEX_NONE;
 	// Search set of edges for one that starts closest to Start
@@ -355,22 +355,22 @@ bool FGeomTools::PointInTriangle(const FVector3f& A, const FVector3f& B, const F
 /** Compare all aspects of two verts of two triangles to see if they are the same. */
 static bool VertsAreEqual(const FClipSMVertex& A,const FClipSMVertex& B)
 {
-	if( !A.Pos.Equals(B.Pos, THRESH_POINTS_ARE_SAME) )
+	if( !A.Pos.Equals(B.Pos, UE_THRESH_POINTS_ARE_SAME) )
 	{
 		return false;
 	}
 
-	if( !A.TangentX.Equals(B.TangentX, THRESH_NORMALS_ARE_SAME) )
+	if( !A.TangentX.Equals(B.TangentX, UE_THRESH_NORMALS_ARE_SAME) )
 	{
 		return false;
 	}
 	
-	if( !A.TangentY.Equals(B.TangentY, THRESH_NORMALS_ARE_SAME) )
+	if( !A.TangentY.Equals(B.TangentY, UE_THRESH_NORMALS_ARE_SAME) )
 	{
 		return false;
 	}
 	
-	if( !A.TangentZ.Equals(B.TangentZ, THRESH_NORMALS_ARE_SAME) )
+	if( !A.TangentZ.Equals(B.TangentZ, UE_THRESH_NORMALS_ARE_SAME) )
 	{
 		return false;
 	}
@@ -400,7 +400,7 @@ static bool AreEdgesMergeable(
 {
 	const FVector3f MergedEdgeVector = V2.Pos - V0.Pos;
 	const float MergedEdgeLengthSquared = MergedEdgeVector.SizeSquared();
-	if(MergedEdgeLengthSquared > DELTA)
+	if(MergedEdgeLengthSquared > UE_DELTA)
 	{
 		// Find the vertex closest to A1/B0 that is on the hypothetical merged edge formed by A0-B1.
 		const float IntermediateVertexEdgeFraction =
@@ -543,8 +543,8 @@ FClipSMPolygon FGeomTools::Transform2DPolygonToSMPolygon(const FUtilPoly2D& InPo
 void FGeomTools::GeneratePlanarFitPolyUVs(FUtilPoly2D& Polygon)
 {
 	// First work out 2D bounding box for tris.
-	FVector2D Min(BIG_NUMBER, BIG_NUMBER);
-	FVector2D Max(-BIG_NUMBER, -BIG_NUMBER);
+	FVector2D Min(UE_BIG_NUMBER, UE_BIG_NUMBER);
+	FVector2D Max(-UE_BIG_NUMBER, -UE_BIG_NUMBER);
 	for(int32 VertexIndex = 0;VertexIndex < Polygon.Verts.Num();VertexIndex++)
 	{
 		const FUtilVertex2D& Vertex = Polygon.Verts[VertexIndex];
@@ -659,7 +659,7 @@ static bool MergeTriangleIntoPolygon(
 	}
 
 	// The triangle must have the same normal as the polygon
-	if(!Triangle.FaceNormal.Equals(Polygon.FaceNormal,THRESH_NORMALS_ARE_SAME))
+	if(!Triangle.FaceNormal.Equals(Polygon.FaceNormal,UE_THRESH_NORMALS_ARE_SAME))
 	{
 		return false;
 	}
@@ -1048,7 +1048,7 @@ static void JoinMutuallyVisible(TArray<FVector2D>& AdditivePoly, const TArray<FV
 	int EdgeStartPointIndex = 0;
 	int EdgeEndPointIndex = 0;
 	bool bIntersectedAtVertex = false;
-	float LeftMostIntersectX = MAX_FLT;
+	float LeftMostIntersectX = UE_MAX_FLT;
 	const FVector2D A = PointMaxX;
 	const FVector2D AB = FVector2D(1.0f, 0.0f);
 	for (int AdditiveIndex = 0; AdditiveIndex < NumAdditivePoly; ++AdditiveIndex)
@@ -1106,7 +1106,7 @@ static void JoinMutuallyVisible(TArray<FVector2D>& AdditivePoly, const TArray<FV
 	const FVector2D TriB = (P.Y < Intersect.Y) ? P : Intersect;
 	const FVector2D TriC = (P.Y < Intersect.Y) ? Intersect : P;
 	float CosAngleMax = 0.0f;
-	float DistanceMin = MAX_FLT;
+	float DistanceMin = UE_MAX_FLT;
 	int IndexR = -1;
 	for (int AdditiveIndex = 0; AdditiveIndex < NumAdditivePoly; ++AdditiveIndex)
 	{
@@ -1155,8 +1155,8 @@ static bool MergeTriangleIntoPolygon(
 
 			// If the triangle and polygon share an edge, then the triangle is in the same plane (implied by the above normal check),
 			// and may be merged into the polygon.
-			if (PolygonVertices[PolygonEdgeVertex0].Equals(TriangleVertices[TriangleEdgeVertex1], THRESH_POINTS_ARE_SAME) &&
-				PolygonVertices[PolygonEdgeVertex1].Equals(TriangleVertices[TriangleEdgeVertex0], THRESH_POINTS_ARE_SAME))
+			if (PolygonVertices[PolygonEdgeVertex0].Equals(TriangleVertices[TriangleEdgeVertex1], UE_THRESH_POINTS_ARE_SAME) &&
+				PolygonVertices[PolygonEdgeVertex1].Equals(TriangleVertices[TriangleEdgeVertex0], UE_THRESH_POINTS_ARE_SAME))
 			{
 				bool bMergeTriangle = true;
 				if (bConvex)
@@ -1193,7 +1193,7 @@ TArray<TArray<FVector2D>> FGeomTools2D::ReducePolygons(const TArray<TArray<FVect
 	TArray<float> MaxXValues; // per polygon
 	for (int PolyIndex = 0; PolyIndex < NumPolygons; ++PolyIndex)
 	{
-		float MaxX = -BIG_NUMBER;
+		float MaxX = -UE_BIG_NUMBER;
 		const TArray<FVector2D>& Vertices = Polygons[PolyIndex];
 		for (int VertexIndex = 0; VertexIndex < Vertices.Num(); ++VertexIndex)
 		{
@@ -1400,14 +1400,14 @@ static bool AreEdgesMergeable(const FVector2D& V0, const FVector2D& V1, const FV
 {
 	const FVector2D MergedEdgeVector = V2 - V0;
 	const float MergedEdgeLengthSquared = MergedEdgeVector.SizeSquared();
-	if (MergedEdgeLengthSquared > DELTA)
+	if (MergedEdgeLengthSquared > UE_DELTA)
 	{
 		// Find the vertex closest to A1/B0 that is on the hypothetical merged edge formed by A0-B1.
 		const float IntermediateVertexEdgeFraction = ((V2 - V0) | (V1 - V0)) / MergedEdgeLengthSquared;
 		const FVector2D InterpolatedVertex = V0 + (V2 - V0) * IntermediateVertexEdgeFraction;
 
 		// The edges are merge-able if the interpolated vertex is close enough to the intermediate vertex.
-		return InterpolatedVertex.Equals(V1, THRESH_POINTS_ARE_SAME);
+		return InterpolatedVertex.Equals(V1, UE_THRESH_POINTS_ARE_SAME);
 	}
 	else
 	{

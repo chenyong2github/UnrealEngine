@@ -729,7 +729,7 @@ public:
 	void MakeUpToFullWeight()
 	{
 		float WeightLeft = FMath::Max(1.f - BlendWeight, 0.f);
-		if (WeightLeft > KINDA_SMALL_NUMBER)
+		if (WeightLeft > UE_KINDA_SMALL_NUMBER)
 		{
 			AccumulateWithBlend(FTransform(), WeightLeft);
 		}

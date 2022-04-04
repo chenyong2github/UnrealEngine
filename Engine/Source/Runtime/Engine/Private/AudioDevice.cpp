@@ -5913,7 +5913,7 @@ void FAudioDevice::GetAzimuth(const FAttenuationListenerData& ListenerData, floa
 	FVector AbsAzimuthVector2D = FVector(SoundToListenerForwardDotProduct, SoundToListenerRightDotProduct, 0.0f);
 	AbsAzimuthVector2D.Normalize();
 
-	OutAbsoluteAzimuth = FMath::IsNearlyZero(AbsAzimuthVector2D.X) ? HALF_PI : FMath::Atan(AbsAzimuthVector2D.Y / AbsAzimuthVector2D.X);
+	OutAbsoluteAzimuth = FMath::IsNearlyZero(AbsAzimuthVector2D.X) ? UE_HALF_PI : FMath::Atan(AbsAzimuthVector2D.Y / AbsAzimuthVector2D.X);
 	OutAbsoluteAzimuth = FMath::RadiansToDegrees(OutAbsoluteAzimuth);
 	OutAbsoluteAzimuth = FMath::Abs(OutAbsoluteAzimuth);
 

@@ -65,7 +65,7 @@ bool FScopedMovementUpdate::IsTransformDirty() const
 {
 	if (Owner)
 	{
-		return !InitialTransform.Equals(Owner->GetComponentToWorld(), SMALL_NUMBER);
+		return !InitialTransform.Equals(Owner->GetComponentToWorld(), UE_SMALL_NUMBER);
 	}
 
 	return false;

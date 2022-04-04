@@ -602,13 +602,13 @@ double UKismetMathLibrary::GridSnap_Float(double Location, double GridSize)
 KISMET_MATH_FORCEINLINE
 double UKismetMathLibrary::GetPI()
 {
-	return DOUBLE_PI;
+	return UE_DOUBLE_PI;
 }
 
 KISMET_MATH_FORCEINLINE
 double UKismetMathLibrary::GetTAU()
 {
-	return 2.0 * DOUBLE_PI;
+	return 2.0 * UE_DOUBLE_PI;
 }
 
 KISMET_MATH_FORCEINLINE
@@ -674,43 +674,43 @@ double UKismetMathLibrary::Atan2(double Y, double X)
 KISMET_MATH_FORCEINLINE
 double UKismetMathLibrary::DegSin(double A)
 {
-	return FMath::Sin(DOUBLE_PI/(180.0) * A);
+	return FMath::Sin(UE_DOUBLE_PI/(180.0) * A);
 }
 
 KISMET_MATH_FORCEINLINE
 double UKismetMathLibrary::DegAsin(double A)
 {
-	return (180.0)/DOUBLE_PI * FMath::Asin(A);
+	return (180.0)/UE_DOUBLE_PI * FMath::Asin(A);
 }
 
 KISMET_MATH_FORCEINLINE
 double UKismetMathLibrary::DegCos(double A)
 {
-	return FMath::Cos(DOUBLE_PI/(180.0) * A);
+	return FMath::Cos(UE_DOUBLE_PI/(180.0) * A);
 }
 
 KISMET_MATH_FORCEINLINE
 double UKismetMathLibrary::DegAcos(double A)
 {
-	return (180.0)/DOUBLE_PI * FMath::Acos(A);
+	return (180.0)/UE_DOUBLE_PI * FMath::Acos(A);
 }
 
 KISMET_MATH_FORCEINLINE
 double UKismetMathLibrary::DegTan(double A)
 {
-	return FMath::Tan(DOUBLE_PI/(180.0) * A);
+	return FMath::Tan(UE_DOUBLE_PI/(180.0) * A);
 }
 
 KISMET_MATH_FORCEINLINE
 double UKismetMathLibrary::DegAtan(double A)
 {
-	return (180.0)/DOUBLE_PI * FMath::Atan(A);
+	return (180.0)/UE_DOUBLE_PI * FMath::Atan(A);
 }
 
 KISMET_MATH_FORCEINLINE
 double UKismetMathLibrary::DegAtan2(double Y, double X)
 {
-	return (180.0)/DOUBLE_PI * FMath::Atan2(Y, X);
+	return (180.0)/UE_DOUBLE_PI * FMath::Atan2(Y, X);
 }
 
 KISMET_MATH_FORCEINLINE
@@ -808,7 +808,7 @@ double UKismetMathLibrary::SignOfFloat(double A)
 KISMET_MATH_FORCEINLINE
 double UKismetMathLibrary::MultiplyByPi(double Value)
 {
-	return Value * DOUBLE_PI;
+	return Value * UE_DOUBLE_PI;
 }
 
 KISMET_MATH_FORCEINLINE
@@ -1871,7 +1871,7 @@ FVector UKismetMathLibrary::Vector_ProjectOnToNormal(FVector V, FVector InNormal
 KISMET_MATH_INLINE
 FVector UKismetMathLibrary::ProjectVectorOnToVector(FVector V, FVector Target)
 {
-	if (Target.SizeSquared() > SMALL_NUMBER)
+	if (Target.SizeSquared() > UE_SMALL_NUMBER)
 	{
 		return V.ProjectOnTo(Target);
 	}
@@ -2245,7 +2245,7 @@ bool UKismetMathLibrary::Vector4_IsUnit3(const FVector4& A, float SquaredLenthTo
 KISMET_MATH_FORCEINLINE
 bool UKismetMathLibrary::Vector4_IsNormal3(const FVector4& A)
 {
-	return A.IsUnit3(THRESH_VECTOR_NORMALIZED);
+	return A.IsUnit3(UE_THRESH_VECTOR_NORMALIZED);
 }
 
 KISMET_MATH_FORCEINLINE

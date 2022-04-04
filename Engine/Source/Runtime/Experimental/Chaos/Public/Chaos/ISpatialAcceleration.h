@@ -13,8 +13,8 @@ struct CHAOS_API FQueryFastData
 {
 	FQueryFastData(const FVec3& InDir, const FReal InLength)
 		: Dir(InDir)
-		, InvDir( (FMath::Abs(InDir[0]) < SMALL_NUMBER) ? 0 : 1 / Dir[0], (FMath::Abs(InDir[1]) < SMALL_NUMBER) ? 0 : 1 / Dir[1], (FMath::Abs(InDir[2]) < SMALL_NUMBER) ? 0 : 1 / Dir[2])
-		, bParallel{ FMath::Abs(InDir[0]) < SMALL_NUMBER, FMath::Abs(InDir[1]) < SMALL_NUMBER, FMath::Abs(InDir[2]) < SMALL_NUMBER }
+		, InvDir( (FMath::Abs(InDir[0]) < UE_SMALL_NUMBER) ? 0 : 1 / Dir[0], (FMath::Abs(InDir[1]) < UE_SMALL_NUMBER) ? 0 : 1 / Dir[1], (FMath::Abs(InDir[2]) < UE_SMALL_NUMBER) ? 0 : 1 / Dir[2])
+		, bParallel{ FMath::Abs(InDir[0]) < UE_SMALL_NUMBER, FMath::Abs(InDir[1]) < UE_SMALL_NUMBER, FMath::Abs(InDir[2]) < UE_SMALL_NUMBER }
 	{
 		CHAOS_ENSURE(InLength != 0.0f);
 		SetLength(InLength);

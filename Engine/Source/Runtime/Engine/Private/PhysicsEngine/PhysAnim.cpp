@@ -772,7 +772,7 @@ void USkeletalMeshComponent::UpdateRBJointMotors()
 					const FVector Scale3D = BoneSpaceTransforms[TestBoneIndex].GetScale3D();
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					const float ScaleSum = Scale3D.X + Scale3D.Y + Scale3D.Z;
-					if(ScaleSum < KINDA_SMALL_NUMBER)
+					if(ScaleSum < UE_KINDA_SMALL_NUMBER)
 					{
 						break;
 					}

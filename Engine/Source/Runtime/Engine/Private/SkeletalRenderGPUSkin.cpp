@@ -64,11 +64,11 @@ static bool UseGPUMorphTargets(ERHIFeatureLevel::Type FeatureLevel)
 	return GUseGPUMorphTargets != 0 && FeatureLevel >= ERHIFeatureLevel::SM5;
 }
 
-static float GMorphTargetWeightThreshold = SMALL_NUMBER;
+static float GMorphTargetWeightThreshold = UE_SMALL_NUMBER;
 static FAutoConsoleVariableRef CVarMorphTargetWeightThreshold(
 	TEXT("r.MorphTarget.WeightThreshold"),
 	GMorphTargetWeightThreshold,
-	*FString::Printf(TEXT("Set MorphTarget Weight Threshold (Default : %f).\n"), SMALL_NUMBER), 
+	*FString::Printf(TEXT("Set MorphTarget Weight Threshold (Default : %f).\n"), UE_SMALL_NUMBER), 
 	ECVF_Default
 );
 

@@ -238,7 +238,7 @@ void UBlendProfile::FillSkeletonBoneDurationsArray(TCustomBoneIndexArrayView<flo
 			for (const FBlendProfileBoneEntry& Entry : ProfileEntries)
 			{
 				const FSkeletonPoseBoneIndex SkeletonBoneIndex(Entry.BoneReference.BoneIndex);
-				if (Entry.BlendScale > SMALL_NUMBER)
+				if (Entry.BlendScale > UE_SMALL_NUMBER)
 				{
 					OutDurationPerBone[SkeletonBoneIndex] /= Entry.BlendScale;
 				}

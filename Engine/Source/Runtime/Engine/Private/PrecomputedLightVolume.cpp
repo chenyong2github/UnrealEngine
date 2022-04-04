@@ -504,7 +504,7 @@ void FPrecomputedLightVolume::DebugDrawSamples(FPrimitiveDrawInterface* PDI, boo
 	{
 		const FLinearColor AverageColor = bDrawDirectionalShadowing
 			? FLinearColor(VolumeSample.DirectionalLightShadowing, VolumeSample.DirectionalLightShadowing, VolumeSample.DirectionalLightShadowing)
-			: VolumeSample.Lighting.CalcIntegral() / (FSHVector2::ConstantBasisIntegral * PI);
+			: VolumeSample.Lighting.CalcIntegral() / (FSHVector2::ConstantBasisIntegral * UE_PI);
 		
 		FVector SamplePosition = (FVector)VolumeSample.Position + WorldOriginOffset; //relocate from volume to world space
 		PDI->DrawPoint(SamplePosition, AverageColor, 10, SDPG_World);

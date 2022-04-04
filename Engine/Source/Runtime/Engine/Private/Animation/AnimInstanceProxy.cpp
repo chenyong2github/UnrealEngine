@@ -1766,7 +1766,7 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 	float const SourceWeight = FMath::Clamp<float>(InSourceWeight, 0.f, 1.f);
 
 #if DEBUG_MONTAGEINSTANCE_WEIGHT
-	ensure (FMath::IsNearlyEqual(InTotalNodeWeight, TotalWeight, KINDA_SMALL_NUMBER));
+	ensure (FMath::IsNearlyEqual(InTotalNodeWeight, TotalWeight, UE_KINDA_SMALL_NUMBER));
 #endif // DEBUG_MONTAGEINSTANCE_WEIGHT
 	ensure (InTotalNodeWeight > ZERO_ANIMWEIGHT_THRESH);
 	if (InTotalNodeWeight > (1.f + ZERO_ANIMWEIGHT_THRESH))

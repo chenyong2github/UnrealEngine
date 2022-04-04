@@ -2073,7 +2073,7 @@ float FKSphereElem::GetShortestDistanceToPoint(const FVector& WorldPosition, con
 	const float DistToCenter = Dir.Size();
 	const float DistToEdge = DistToCenter - ScaledSphere.Radius;
 	
-	return DistToEdge > SMALL_NUMBER ? DistToEdge : 0.f;
+	return DistToEdge > UE_SMALL_NUMBER ? DistToEdge : 0.f;
 }
 
 float FKSphereElem::GetClosestPointAndNormal(const FVector& WorldPosition, const FTransform& LocalToWorldTM, FVector& ClosestWorldPosition, FVector& Normal) const
@@ -2084,7 +2084,7 @@ float FKSphereElem::GetClosestPointAndNormal(const FVector& WorldPosition, const
 	const float DistToCenter = Dir.Size();
 	const float DistToEdge = FMath::Max(DistToCenter - ScaledSphere.Radius, 0.f);
 
-	if(DistToCenter > SMALL_NUMBER)
+	if(DistToCenter > UE_SMALL_NUMBER)
 	{
 		Normal = -Dir.GetUnsafeNormal();
 	}
@@ -2183,7 +2183,7 @@ float FKBoxElem::GetShortestDistanceToPoint(const FVector& WorldPosition, const 
 	const FVector Errors = FVector(FMath::Max<FVector::FReal>(Delta.X, 0), FMath::Max<FVector::FReal>(Delta.Y, 0), FMath::Max<FVector::FReal>(Delta.Z, 0));
 	const float Error = Errors.Size();
 
-	return Error > SMALL_NUMBER ? Error : 0.f;
+	return Error > UE_SMALL_NUMBER ? Error : 0.f;
 }
 
 float FKBoxElem::GetClosestPointAndNormal(const FVector& WorldPosition, const FTransform& BoneToWorldTM, FVector& ClosestWorldPosition, FVector& Normal) const
@@ -2202,7 +2202,7 @@ float FKBoxElem::GetClosestPointAndNormal(const FVector& WorldPosition, const FT
 	const FVector LocalDelta = LocalPosition - ClosestLocalPosition;
 	float Error = LocalDelta.Size();
 	
-	bool bIsOutside = Error > SMALL_NUMBER;
+	bool bIsOutside = Error > UE_SMALL_NUMBER;
 	
 	const FVector LocalNormal = bIsOutside ? LocalDelta.GetUnsafeNormal() : FVector::ZeroVector;
 
@@ -2301,7 +2301,7 @@ float FKSphylElem::GetShortestDistanceToPoint(const FVector& WorldPosition, cons
 	const FVector Target(LocalPositionAbs.X, LocalPositionAbs.Y, FMath::Max<FVector::FReal>(LocalPositionAbs.Z - ScaledSphyl.Length * 0.5f, 0.f));	//If we are above half length find closest point to cap, otherwise to cylinder
 	const float Error = FMath::Max(Target.Size() - ScaledSphyl.Radius, 0.f);
 
-	return Error > SMALL_NUMBER ? Error : 0.f;
+	return Error > UE_SMALL_NUMBER ? Error : 0.f;
 }
 
 float FKSphylElem::GetClosestPointAndNormal(const FVector& WorldPosition, const FTransform& BoneToWorldTM, FVector& ClosestWorldPosition, FVector& Normal) const
@@ -2320,7 +2320,7 @@ float FKSphylElem::GetClosestPointAndNormal(const FVector& WorldPosition, const 
 	const float DistToCenter = Dir.Size();
 	const float DistToEdge = FMath::Max(DistToCenter - ScaledSphyl.Radius, 0.f);
 
-	bool bIsOutside = DistToCenter > SMALL_NUMBER;
+	bool bIsOutside = DistToCenter > UE_SMALL_NUMBER;
 	if (bIsOutside)
 	{
 		Normal = -Dir.GetUnsafeNormal();
@@ -2455,7 +2455,7 @@ float UBodySetup::CalculateMass(const UPrimitiveComponent* Component) const
 
 	const float BasicMass = FMath::Max<float>(BasicVolume, 0.0f) * DensityKGPerCubicUU;
 
-	const float UsePow = FMath::Clamp<float>(RaiseMassToPower, KINDA_SMALL_NUMBER, 1.f);
+	const float UsePow = FMath::Clamp<float>(RaiseMassToPower, UE_KINDA_SMALL_NUMBER, 1.f);
 	const float RealMass = FMath::Pow(BasicMass, UsePow);
 
 	return RealMass * MassScale;

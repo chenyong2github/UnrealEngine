@@ -68,7 +68,7 @@ bool FCollisionStructure::RaycastSingle(const FVector& Start, const FVector& End
 
 	const FVector Delta = End - Start;
 	const float DeltaMag = Delta.Size();
-	if (DeltaMag > KINDA_SMALL_NUMBER)
+	if (DeltaMag > UE_KINDA_SMALL_NUMBER)
 	{
 		const FVector OneOverDelta = Delta/ DeltaMag;
 

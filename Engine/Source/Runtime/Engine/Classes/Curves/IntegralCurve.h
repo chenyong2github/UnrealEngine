@@ -82,7 +82,7 @@ public:
 	void DeleteKey(FKeyHandle KeyHandle);
 	
 	/** Finds the key at InTime, and updates its value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
-	FKeyHandle UpdateOrAddKey( float InTime, int32 Value, float KeyTimeTolerance = KINDA_SMALL_NUMBER );
+	FKeyHandle UpdateOrAddKey( float InTime, int32 Value, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER );
 	
 	/** Move a key to a new time. */
 	virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) override final;
@@ -115,7 +115,7 @@ public:
 	FIntegralKey& GetKey(FKeyHandle KeyHandle);
 	FIntegralKey GetKey(FKeyHandle KeyHandle) const;
 
-	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = KINDA_SMALL_NUMBER) const;
+	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/** Gets the handle for the last key which is at or before the time requested.  If there are no keys at or before the requested time, an invalid handle is returned. */
 	FKeyHandle FindKeyBeforeOrAt(float KeyTime) const;

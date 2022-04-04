@@ -1470,10 +1470,10 @@ void FComposableDistribution::QuantizeVector4(
 	// Compute scale and bias.
 	const FVector4 Scale( Maxs - Mins );
 	const FVector4 InvScale(
-		(Scale.X > KINDA_SMALL_NUMBER ? (1.0f / Scale.X) : 0.0f) * 255.0f,
-		(Scale.Y > KINDA_SMALL_NUMBER ? (1.0f / Scale.Y) : 0.0f) * 255.0f,
-		(Scale.Z > KINDA_SMALL_NUMBER ? (1.0f / Scale.Z) : 0.0f) * 255.0f,
-		(Scale.W > KINDA_SMALL_NUMBER ? (1.0f / Scale.W) : 0.0f) * 255.0f
+		(Scale.X > UE_KINDA_SMALL_NUMBER ? (1.0f / Scale.X) : 0.0f) * 255.0f,
+		(Scale.Y > UE_KINDA_SMALL_NUMBER ? (1.0f / Scale.Y) : 0.0f) * 255.0f,
+		(Scale.Z > UE_KINDA_SMALL_NUMBER ? (1.0f / Scale.Z) : 0.0f) * 255.0f,
+		(Scale.W > UE_KINDA_SMALL_NUMBER ? (1.0f / Scale.W) : 0.0f) * 255.0f
 		);
 	const FVector4 Bias( Mins );
 
@@ -1573,7 +1573,7 @@ void FComposableFloatDistribution::Normalize( float* OutScale, float* OutBias )
 	*OutBias = MinValue;
 	InvBias = -MinValue;
 	*OutScale = MaxValue - MinValue;
-	InvScale = (FMath::Abs(MaxValue - MinValue) > SMALL_NUMBER) ? (1.0f / (MaxValue - MinValue)) : 1.0f;
+	InvScale = (FMath::Abs(MaxValue - MinValue) > UE_SMALL_NUMBER) ? (1.0f / (MaxValue - MinValue)) : 1.0f;
 
 	AddConstantToLookupTable( &LookupTable, &InvBias, 1 );
 	ScaleLookupTableByConstant( &LookupTable, InvScale );
@@ -1893,8 +1893,8 @@ void UDistributionFloatConstantCurve::GetInRange(float& MinIn, float& MaxIn) con
 	}
 	else
 	{
-		float Min = BIG_NUMBER;
-		float Max = -BIG_NUMBER;
+		float Min = UE_BIG_NUMBER;
+		float Max = -UE_BIG_NUMBER;
 		for (int32 Index = 0; Index < ConstantCurve.Points.Num(); Index++)
 		{
 			float Value = ConstantCurve.Points[Index].InVal;
@@ -2323,8 +2323,8 @@ void UDistributionFloatUniformCurve::GetInRange(float& MinIn, float& MaxIn) cons
 	}
 	else
 	{
-		float Min = BIG_NUMBER;
-		float Max = -BIG_NUMBER;
+		float Min = UE_BIG_NUMBER;
+		float Max = -UE_BIG_NUMBER;
 		for (int32 Index = 0; Index < ConstantCurve.Points.Num(); Index++)
 		{
 			float Value = ConstantCurve.Points[Index].InVal;
@@ -2870,8 +2870,8 @@ void UDistributionVectorConstantCurve::GetInRange(float& MinIn, float& MaxIn) co
 	}
 	else
 	{
-		float Min = BIG_NUMBER;
-		float Max = -BIG_NUMBER;
+		float Min = UE_BIG_NUMBER;
+		float Max = -UE_BIG_NUMBER;
 		for (int32 Index = 0; Index < ConstantCurve.Points.Num(); Index++)
 		{
 			float Value = ConstantCurve.Points[Index].InVal;
@@ -3942,8 +3942,8 @@ void UDistributionVectorUniformCurve::GetInRange(float& MinIn, float& MaxIn) con
 	}
 	else
 	{
-		float Min = BIG_NUMBER;
-		float Max = -BIG_NUMBER;
+		float Min = UE_BIG_NUMBER;
+		float Max = -UE_BIG_NUMBER;
 		for (int32 Index = 0; Index < ConstantCurve.Points.Num(); Index++)
 		{
 			float Value = ConstantCurve.Points[Index].InVal;

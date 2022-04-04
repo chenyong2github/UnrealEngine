@@ -100,7 +100,7 @@ bool FSimpleSuspensionHelpers::ComputeSprungMasses(const TArray<FVector>& MassSp
 		return false;
 	}
 
-	if (!ensureMsgf(TotalMass > SMALL_NUMBER, TEXT("Total mass must be greater than zero to compute sprung masses.")))
+	if (!ensureMsgf(TotalMass > UE_SMALL_NUMBER, TEXT("Total mass must be greater than zero to compute sprung masses.")))
 	{
 		return false;
 	}
@@ -143,7 +143,7 @@ bool FSimpleSuspensionHelpers::ComputeSprungMasses(const TArray<FVector>& MassSp
 		// If the springs are close together, just divide the mass in 2.
 		const FReal DistSquared = (DiffX * DiffX) + (DiffY * DiffY);
 		const FReal Dist = FMath::Sqrt(DistSquared);
-		if (Dist <= SMALL_NUMBER)
+		if (Dist <= UE_SMALL_NUMBER)
 		{
 			OutSprungMasses[0] = OutSprungMasses[1] = TotalMass * .5f;
 			return true;
@@ -360,10 +360,10 @@ bool FSimpleSuspensionHelpers::ComputeSprungMasses(const TArray<FVector>& LocalS
 
 void FSimpleSuspensionHelpers::ComputeSpringNaturalFrequencyAndDampingRatio(const float SprungMass, const float SpringStiffness, const float SpringDamping, float& OutNaturalFrequency, float& OutDampingRatio)
 {
-	const float NaturalFrequency = SprungMass > SMALL_NUMBER ? SpringStiffness / SprungMass : 0.f;
+	const float NaturalFrequency = SprungMass > UE_SMALL_NUMBER ? SpringStiffness / SprungMass : 0.f;
 	const float CriticalDamping = ComputeSpringCriticalDamping(SprungMass, OutNaturalFrequency);
 	OutNaturalFrequency = NaturalFrequency;
-	OutDampingRatio = CriticalDamping > SMALL_NUMBER ? SpringDamping / CriticalDamping : 1.f;
+	OutDampingRatio = CriticalDamping > UE_SMALL_NUMBER ? SpringDamping / CriticalDamping : 1.f;
 }
 
 float FSimpleSuspensionHelpers::ComputeSpringStiffness(const float SprungMass, const float NaturalFrequency)
@@ -384,7 +384,7 @@ float FSimpleSuspensionHelpers::ComputeSpringCriticalDamping(const float SprungM
 float FSimpleSuspensionHelpers::ComputeSpringRestLength(const float SprungMass, const float NaturalFrequency, const float SuspendedLength, const float Gravity)
 {
 	const float SpringStiffness = ComputeSpringStiffness(SprungMass, NaturalFrequency);
-	if (SpringStiffness > SMALL_NUMBER)
+	if (SpringStiffness > UE_SMALL_NUMBER)
 	{
 		// "Suspended Displacement" is the amount by which a spring this stiff will
 		// be compressed by the force of gravity when it's resting
@@ -487,7 +487,7 @@ void FSimpleSuspensionHelpers::ComputeSuspensionDisplacements(const FSimpleSuspe
 float FSimpleSuspensionHelpers::ComputeSpringForce(const float SpringStiffness, const float SpringDamping, const float SpringDisplacement, const float SpringVelocity)
 {
 	const float StiffnessForce = SpringDisplacement * SpringStiffness;
-	const float DampingForce = SpringDisplacement > SMALL_NUMBER ? SpringVelocity * SpringDamping : 0.f;
+	const float DampingForce = SpringDisplacement > UE_SMALL_NUMBER ? SpringVelocity * SpringDamping : 0.f;
 	return StiffnessForce + DampingForce;
 }
 
@@ -533,7 +533,7 @@ void FSimpleSuspensionHelpers::IntegrateSpring(const float DeltaTime, const floa
 	//       didn't bother to verify yet...
 	//
 	const float Denominator = SprungMass + (DeltaTime * (SpringParams.Damping + (SpringParams.Stiffness * DeltaTime)));
-	if (Denominator > SMALL_NUMBER)
+	if (Denominator > UE_SMALL_NUMBER)
 	{
 		// We do each of these integrations implicitly. We do them separately
 		// before assigning return values to allow for inline integration

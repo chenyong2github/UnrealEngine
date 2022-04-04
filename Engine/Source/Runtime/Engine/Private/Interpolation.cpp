@@ -285,7 +285,7 @@ bool TrackClass::GetClosestSnapPosition(float InPosition, TArray<int32> &IgnoreK
 	} \
 	bool bFoundSnap = false; \
 	float ClosestSnap = 0.f; \
-	float ClosestDist = BIG_NUMBER; \
+	float ClosestDist = UE_BIG_NUMBER; \
 	for(int32 i=0; i<KeyArray.Num(); i++) \
 	{ \
 		if(!IgnoreKeys.Contains(i)) \
@@ -3505,8 +3505,8 @@ void UInterpTrackMove::GetTimeRange(float& StartTime, float& EndTime) const
 		else
 		{
 			// PosTrack and EulerTrack should have the same number of keys at the same times.
-			check( (PosTrack.Points[0].InVal - EulerTrack.Points[0].InVal) < KINDA_SMALL_NUMBER );
-			check( (PosTrack.Points[PosTrack.Points.Num()-1].InVal - EulerTrack.Points[EulerTrack.Points.Num()-1].InVal) < KINDA_SMALL_NUMBER );
+			check( (PosTrack.Points[0].InVal - EulerTrack.Points[0].InVal) < UE_KINDA_SMALL_NUMBER );
+			check( (PosTrack.Points[PosTrack.Points.Num()-1].InVal - EulerTrack.Points[EulerTrack.Points.Num()-1].InVal) < UE_KINDA_SMALL_NUMBER );
 
 			StartTime = PosTrack.Points[0].InVal;
 			EndTime = PosTrack.Points[ PosTrack.Points.Num()-1 ].InVal;
@@ -3546,7 +3546,7 @@ float UInterpTrackMove::GetKeyframeTime(int32 KeyIndex) const
 	if( KeyIndex < 0 || KeyIndex >= PosTrack.Points.Num() )
 		return 0.f;
 
-	check( (PosTrack.Points[KeyIndex].InVal - EulerTrack.Points[KeyIndex].InVal) < KINDA_SMALL_NUMBER );
+	check( (PosTrack.Points[KeyIndex].InVal - EulerTrack.Points[KeyIndex].InVal) < UE_KINDA_SMALL_NUMBER );
 
 	return PosTrack.Points[KeyIndex].InVal;
 }
@@ -3564,7 +3564,7 @@ int32 UInterpTrackMove::GetKeyframeIndex( float KeyTime ) const
 		{
 			if( KeyTime == PosTrack.Points[KeyIndex].InVal )
 			{
-				check( (PosTrack.Points[KeyIndex].InVal - EulerTrack.Points[KeyIndex].InVal) < KINDA_SMALL_NUMBER );
+				check( (PosTrack.Points[KeyIndex].InVal - EulerTrack.Points[KeyIndex].InVal) < UE_KINDA_SMALL_NUMBER );
 				RetIndex = KeyIndex;
 				break;
 			}
@@ -3888,7 +3888,7 @@ bool UInterpTrackMove::GetClosestSnapPosition(float InPosition, TArray<int32> &I
 
 	bool bFoundSnap = false;
 	float ClosestSnap = 0.f;
-	float ClosestDist = BIG_NUMBER;
+	float ClosestDist = UE_BIG_NUMBER;
 	for(int32 i=0; i<PosTrack.Points.Num(); i++)
 	{
 		if(!IgnoreKeys.Contains(i))
@@ -4578,7 +4578,7 @@ float UInterpTrackMove::FindBestMatchingTimefromPosition(UInterpTrackInst* TrIns
 	// If the tracks has no subtracks, get new transform directly from this track
 	check( (PosTrack.Points.Num() == EulerTrack.Points.Num()) && (PosTrack.Points.Num() == LookupTrack.Points.Num()) );
 
-	float OutTime = -1.f, MaxError = BIG_NUMBER, CurrentError, CurrentTime;
+	float OutTime = -1.f, MaxError = UE_BIG_NUMBER, CurrentError, CurrentTime;
 	FVector CurrentPosition;
 
 	// we're looking for key1, and key 2 that has this position between
@@ -5203,7 +5203,7 @@ void UInterpTrackToggle::UpdateTrack(float NewPosition, UInterpTrackInst* TrInst
 			// Slight hack here.. if playing forwards and reaching the end of the sequence, force it over a little to ensure we fire events actually on the end of the sequence.
 			if( MaxTime == IData->InterpLength )
 			{
-				MaxTime += (float)KINDA_SMALL_NUMBER;
+				MaxTime += (float)UE_KINDA_SMALL_NUMBER;
 			}
 
 			if( !bFireEventsWhenForwards )
@@ -5220,7 +5220,7 @@ void UInterpTrackToggle::UpdateTrack(float NewPosition, UInterpTrackInst* TrInst
 			// Same small hack as above for backwards case.
 			if( MinTime == 0.0f )
 			{
-				MinTime -= (float)KINDA_SMALL_NUMBER;
+				MinTime -= (float)UE_KINDA_SMALL_NUMBER;
 			}
 
 			if( !bFireEventsWhenBackwards )
@@ -6445,7 +6445,7 @@ void UInterpTrackEvent::UpdateTrack(float NewPosition, UInterpTrackInst* TrInst,
 		// Slight hack here.. if playing forwards and reaching the end of the sequence, force it over a little to ensure we fire events actually on the end of the sequence.
 		if(MaxTime == IData->InterpLength)
 		{
-			MaxTime += (float)KINDA_SMALL_NUMBER;
+			MaxTime += (float)UE_KINDA_SMALL_NUMBER;
 		}
 
 		if(!bFireEventsWhenForwards)
@@ -6462,7 +6462,7 @@ void UInterpTrackEvent::UpdateTrack(float NewPosition, UInterpTrackInst* TrInst,
 		// Same small hack as above for backwards case.
 		if(MinTime == 0.f)
 		{
-			MinTime -= (float)KINDA_SMALL_NUMBER;
+			MinTime -= (float)UE_KINDA_SMALL_NUMBER;
 		}
 
 		if(!bFireEventsWhenBackwards)
@@ -7006,7 +7006,7 @@ void UInterpTrackSlomo::UpdateTrack(float NewPosition, UInterpTrackInst* TrInst,
 float UInterpTrackSlomo::GetSlomoFactorAtTime(float Time)
 {
 	float Slomo = FloatTrack.Eval(Time, 0.f);
-	Slomo = FMath::Max(Slomo, KINDA_SMALL_NUMBER);
+	Slomo = FMath::Max(Slomo, UE_KINDA_SMALL_NUMBER);
 	return Slomo;
 }
 
@@ -7149,7 +7149,7 @@ bool UInterpTrackAnimControl::GetClosestSnapPosition(float InPosition, TArray<in
 
 	bool bFoundSnap = false;
 	float ClosestSnap = 0.f;
-	float ClosestDist = BIG_NUMBER;
+	float ClosestDist = UE_BIG_NUMBER;
 	for(int32 i=0; i<AnimSeqs.Num(); i++)
 	{
 		if(!IgnoreKeys.Contains(i))
@@ -7278,7 +7278,7 @@ bool UInterpTrackAnimControl::GetAnimForTime(float InTime, UAnimSequence** OutAn
 				}
 				else
 				{
-					OutPosition = FMath::Clamp(OutPosition + AnimSeqs[i].AnimStartOffset, 0.f, (Seq->GetPlayLength() - AnimSeqs[i].AnimEndOffset) + (float)KINDA_SMALL_NUMBER);
+					OutPosition = FMath::Clamp(OutPosition + AnimSeqs[i].AnimStartOffset, 0.f, (Seq->GetPlayLength() - AnimSeqs[i].AnimEndOffset) + (float)UE_KINDA_SMALL_NUMBER);
 				}
 
 				// Reverse position if the key is set to be reversed.
@@ -7472,7 +7472,7 @@ void UInterpTrackAnimControl::UpdateTrack(float NewPosition, UInterpTrackInst* T
 
 							for(int32 i=0; i<NumLoopsToJump; i++)
 							{
-								IMAI->SetAnimPosition(SlotName, ChannelIndex, Seq, SeqEnd + KINDA_SMALL_NUMBER, true, true);
+								IMAI->SetAnimPosition(SlotName, ChannelIndex, Seq, SeqEnd + UE_KINDA_SMALL_NUMBER, true, true);
 								IMAI->SetAnimPosition(SlotName, ChannelIndex, Seq, CurrentStartOffset, false, true);
 							}
 						}
@@ -7500,7 +7500,7 @@ void UInterpTrackAnimControl::UpdateTrack(float NewPosition, UInterpTrackInst* T
 					if( Seq )
 					{
 						float SeqEnd = (Seq->GetPlayLength() - CurrentEndOffset);
-						AnimPos = FMath::Clamp( AnimPos, 0.f, SeqEnd + (float)KINDA_SMALL_NUMBER );
+						AnimPos = FMath::Clamp( AnimPos, 0.f, SeqEnd + (float)UE_KINDA_SMALL_NUMBER );
 					}
 
 					// Conditionally reverse the position.
@@ -7750,7 +7750,7 @@ bool UInterpTrackSound::GetClosestSnapPosition(float InPosition, TArray<int32> &
 
 	bool bFoundSnap = false;
 	float ClosestSnap = 0.f;
-	float ClosestDist = BIG_NUMBER;
+	float ClosestDist = UE_BIG_NUMBER;
 	for(int32 i=0; i<Sounds.Num(); i++)
 	{
 		if(!IgnoreKeys.Contains(i))
@@ -9219,7 +9219,7 @@ void UInterpTrackVisibility::UpdateTrack(float NewPosition, UInterpTrackInst* Tr
 		// Slight hack here.. if playing forwards and reaching the end of the sequence, force it over a little to ensure we fire events actually on the end of the sequence.
 		if( MaxTime == IData->InterpLength )
 		{
-			MaxTime += (float)KINDA_SMALL_NUMBER;
+			MaxTime += (float)UE_KINDA_SMALL_NUMBER;
 		}
 
 		if( !bFireEventsWhenForwards )
@@ -9236,7 +9236,7 @@ void UInterpTrackVisibility::UpdateTrack(float NewPosition, UInterpTrackInst* Tr
 		// Same small hack as above for backwards case.
 		if( MinTime == 0.0f )
 		{
-			MinTime -= (float)KINDA_SMALL_NUMBER;
+			MinTime -= (float)UE_KINDA_SMALL_NUMBER;
 		}
 
 		if( !bFireEventsWhenBackwards )
@@ -9548,7 +9548,7 @@ void UInterpTrackParticleReplay::UpdateTrack( float NewPosition, UInterpTrackIns
 				if( bHaveReplayStartKey )
 				{
 					const float TimeWithinReplay = NewPosition - CurrentReplayStartKey.Time;
-					const int32 ReplayFrameIndex = FMath::TruncToInt( TimeWithinReplay / FMath::Max( ( float )KINDA_SMALL_NUMBER, FixedTimeStep ) );
+					const int32 ReplayFrameIndex = FMath::TruncToInt( TimeWithinReplay / FMath::Max( ( float )UE_KINDA_SMALL_NUMBER, FixedTimeStep ) );
 
 
 					// Check to see if we have a clip

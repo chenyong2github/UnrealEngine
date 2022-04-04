@@ -340,9 +340,9 @@ public:
 			float ScaleZ = FVector3f(WorldZ).Size();
 			Parameters.NonUniformScale = FVector4f(ScaleX, ScaleY, ScaleZ, FMath::Max3(FMath::Abs(ScaleX), FMath::Abs(ScaleY), FMath::Abs(ScaleZ)));
 			Parameters.InvNonUniformScale = FVector3f(
-				ScaleX > KINDA_SMALL_NUMBER ? 1.0f / ScaleX : 0.0f,
-				ScaleY > KINDA_SMALL_NUMBER ? 1.0f / ScaleY : 0.0f,
-				ScaleZ > KINDA_SMALL_NUMBER ? 1.0f / ScaleZ : 0.0f);
+				ScaleX > UE_KINDA_SMALL_NUMBER ? 1.0f / ScaleX : 0.0f,
+				ScaleY > UE_KINDA_SMALL_NUMBER ? 1.0f / ScaleY : 0.0f,
+				ScaleZ > UE_KINDA_SMALL_NUMBER ? 1.0f / ScaleZ : 0.0f);
 		}
 
 		// If SingleCaptureIndex is invalid, set it to 0 since there will be a default cubemap at that slot

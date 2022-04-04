@@ -69,7 +69,7 @@ const FSimpleSuspensionRaycast SimpleSuspensionRaycastGroundPlane = [](const FVe
 	const FVector Diff = RayEnd - RayBegin;
 	const float ProjA = FVector::DotProduct(RayBegin, Norm);
 	const float ProjDiff = FVector::DotProduct(Diff, Norm);
-	if (FMath::Abs(ProjDiff) > SMALL_NUMBER)
+	if (FMath::Abs(ProjDiff) > UE_SMALL_NUMBER)
 	{
 		const float Lambda = -ProjA / ProjDiff;
 		if (Lambda > 0.f && Lambda <= 1.f)

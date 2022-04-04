@@ -1528,9 +1528,9 @@ void FRenderAssetStreamingManager::SetLastUpdateTime()
 void FRenderAssetStreamingManager::UpdateStats()
 {
 	float DeltaStatTime = (float)(GatheredStats.Timestamp - DisplayedStats.Timestamp);
-	if (DeltaStatTime > SMALL_NUMBER)
+	if (DeltaStatTime > UE_SMALL_NUMBER)
 	{
-		GatheredStats.MipIOBandwidth = DeltaStatTime > SMALL_NUMBER ? GatheredStats.MipIOBandwidth / DeltaStatTime : 0;
+		GatheredStats.MipIOBandwidth = DeltaStatTime > UE_SMALL_NUMBER ? GatheredStats.MipIOBandwidth / DeltaStatTime : 0;
 	}
 	DisplayedStats = GatheredStats;
 	GatheredStats.CallbacksCycles = 0;
@@ -1948,7 +1948,7 @@ void FRenderAssetStreamingManager::AddRenderedTextureStats(TMap<FString, FRender
 	{
 		const UStreamableRenderAsset* RenderAsset = StreamingRenderAsset.RenderAsset;
 		if (RenderAsset == nullptr || StreamingRenderAsset.bUseUnkownRefHeuristic
-			|| StreamingRenderAsset.RenderAssetType != EStreamableRenderAssetType::Texture || StreamingRenderAsset.LastRenderTime == MAX_FLT)
+			|| StreamingRenderAsset.RenderAssetType != EStreamableRenderAssetType::Texture || StreamingRenderAsset.LastRenderTime == UE_MAX_FLT)
 		{
 			continue;
 		}
@@ -2090,7 +2090,7 @@ bool FRenderAssetStreamingManager::HandleListStreamingRenderAssetsCommand( const
 				}
 			};
 
-			if (StreamingRenderAsset.LastRenderTime != MAX_FLT)
+			if (StreamingRenderAsset.LastRenderTime != UE_MAX_FLT)
 			{
 				UE_LOG(LogContentStreaming, Log, TEXT("    Current=%s  Wanted=%s MaxAllowed=%s LastRenderTime=%.3f BudgetBias=%d Group=%s"),
 					*OutputMipsString(CurrentMipIndex), *OutputMipsString(WantedMipIndex), *OutputMipsString(MaxAllowedMipIndex),
@@ -2122,7 +2122,7 @@ bool FRenderAssetStreamingManager::HandleListStreamingRenderAssetsCommand( const
 				MaxAllowedMipIndex,
 				ResourceState.MaxNumLODs,
 				StreamingRenderAsset.NumForcedMips,
-				LastRenderTime == MAX_FLT ? TEXT("NotTracked") : *FString::Printf(TEXT("%.3f"), LastRenderTime),
+				LastRenderTime == UE_MAX_FLT ? TEXT("NotTracked") : *FString::Printf(TEXT("%.3f"), LastRenderTime),
 				StreamingRenderAsset.BudgetMipBias,
 				*LODGroupName);
 		}

@@ -18,8 +18,8 @@ UWorldPartitionRuntimeSpatialHashCell::UWorldPartitionRuntimeSpatialHashCell(con
 : Super(ObjectInitializer)
 , Level(0)
 , CachedIsBlockingSource(false)
-, CachedMinSquareDistanceToBlockingSource(MAX_FLT)
-, CachedMinSquareDistanceToSource(MAX_FLT)
+, CachedMinSquareDistanceToBlockingSource(UE_MAX_FLT)
+, CachedMinSquareDistanceToSource(UE_MAX_FLT)
 , CachedSourceSortingDistance(0.f)
 {}
 
@@ -48,8 +48,8 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorl
 	if (bWasCacheDirtied)
 	{
 		CachedIsBlockingSource = false;
-		CachedMinSquareDistanceToBlockingSource = MAX_FLT;
-		CachedMinSquareDistanceToSource = MAX_FLT;
+		CachedMinSquareDistanceToBlockingSource = UE_MAX_FLT;
+		CachedMinSquareDistanceToSource = UE_MAX_FLT;
 		CachedSourceModulatedDistances.Reset();
 	}
 
@@ -83,9 +83,9 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorl
 				const float Dot = FVector2D::DotProduct(SourceForward, SourceToCell.GetSafeNormal());
 				MaxDot = FMath::Max(MaxDot, Dot);
 			}
-			Angle = FMath::Abs(FMath::Acos(MaxDot) / PI);
+			Angle = FMath::Abs(FMath::Acos(MaxDot) / UE_PI);
 		}
-		const float NormalizedAngle = FMath::Clamp(Angle, PI/180.f, 1.f);
+		const float NormalizedAngle = FMath::Clamp(Angle, UE_PI/180.f, 1.f);
 		AngleFactor = FMath::Pow(NormalizedAngle, AngleContribution);
 	}
 	// Modulate distance to cell by angle relative to source forward vector (to prioritize cells in front)

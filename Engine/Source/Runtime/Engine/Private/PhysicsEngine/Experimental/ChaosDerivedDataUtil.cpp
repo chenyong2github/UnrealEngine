@@ -120,7 +120,7 @@ namespace Chaos
 		{
 			const float AreaSq = FVector3f::CrossProduct(A - B, A - C).SizeSquared();
 
-			return AreaSq > SMALL_NUMBER;
+			return AreaSq > UE_SMALL_NUMBER;
 		};
 
 		int32 NumDiscardedTriangles_Welded = 0;

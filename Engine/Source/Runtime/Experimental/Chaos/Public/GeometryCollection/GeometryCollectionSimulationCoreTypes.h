@@ -92,12 +92,12 @@ struct FSharedSimulationParameters
 	FSharedSimulationParameters()
 	: bMassAsDensity(true)
 	, Mass(1.0f)
-	, MinimumMassClamp(0.1f)							// todo : Expose to users with better initial values
-	, MaximumMassClamp(1e5f)							// todo : Expose to users with better initial values
-	, MinimumBoundingExtentClamp(0.1f)					// todo : Expose to users with better initial values
-	, MaximumBoundingExtentClamp(1e6f)					// todo : Expose to users with better initial values
-	, MinimumInertiaTensorDiagonalClamp(SMALL_NUMBER)	// todo : Expose to users with better initial values
-	, MaximumInertiaTensorDiagonalClamp(1e20f)			// todo : Expose to users with better initial values
+	, MinimumMassClamp(0.1f)								// todo : Expose to users with better initial values
+	, MaximumMassClamp(1e5f)								// todo : Expose to users with better initial values
+	, MinimumBoundingExtentClamp(0.1f)						// todo : Expose to users with better initial values
+	, MaximumBoundingExtentClamp(1e6f)						// todo : Expose to users with better initial values
+	, MinimumInertiaTensorDiagonalClamp(UE_SMALL_NUMBER)	// todo : Expose to users with better initial values
+	, MaximumInertiaTensorDiagonalClamp(1e20f)				// todo : Expose to users with better initial values
 	, MaximumCollisionParticleCount(60)
 	{
 		SizeSpecificData.AddDefaulted();

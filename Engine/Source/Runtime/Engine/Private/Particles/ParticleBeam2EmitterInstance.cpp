@@ -512,7 +512,7 @@ void FParticleBeam2EmitterInstance::Tick(float DeltaTime, bool bSuppressSpawning
 					if ((ActiveParticles < BeamCount) && BeamTypeData->bAlwaysOn)
 					{
 						Burst = BeamCount;
-						if (DeltaTime > KINDA_SMALL_NUMBER)
+						if (DeltaTime > UE_KINDA_SMALL_NUMBER)
 						{
 							BurstTime = Burst * InvDeltaTime;
 							SpawnRate += BurstTime;
@@ -708,7 +708,7 @@ void FParticleBeam2EmitterInstance::UpdateBoundingBox(float DeltaTime)
 			}
 
 			// Do angular integrator, and wrap result to within +/- 2 PI
-			Particle->Rotation	 = FMath::Fmod(Particle->Rotation, 2.f*(float)PI);
+			Particle->Rotation	 = FMath::Fmod(Particle->Rotation, 2.f*(float)UE_PI);
 			MaxSizeScale		 = FMath::Max<float>(MaxSizeScale, Size.GetAbsMax()); //@todo particles: this does a whole lot of compares that can be avoided using SSE/ Altivec.
 		}
 		if (bUpdateBox)
@@ -827,7 +827,7 @@ float FParticleBeam2EmitterInstance::SpawnBeamParticles(float OldLeftover, float
 	}
 
 	// Account for burst time simulation
-	if (BurstTime > KINDA_SMALL_NUMBER)
+	if (BurstTime > UE_KINDA_SMALL_NUMBER)
 	{
 		NewLeftover -= BurstTime / Burst;
 		NewLeftover	= FMath::Clamp<float>(NewLeftover, 0, NewLeftover);

@@ -801,7 +801,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 
 		// Compute pulse effect for lines above alert threshold
 		const float AlertPulseFreq = 8.0f;
-		const float AlertPulse = 0.5f + 0.5f * FMath::Sin((0.25f * PI * 2.0) + (FApp::GetCurrentTime() * PI * 2.0) * AlertPulseFreq);
+		const float AlertPulse = 0.5f + 0.5f * FMath::Sin((0.25f * UE_PI * 2.0) + (FApp::GetCurrentTime() * UE_PI * 2.0) * AlertPulseFreq);
 
 		// Draw background.
 		{

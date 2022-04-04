@@ -444,7 +444,7 @@ namespace Chaos
 		void SetMinDeltaTime_External(float InMinDeltaTime)
 		{
 			// a value approaching zero is not valid/desired
-			MMinDeltaTime = FMath::Max(InMinDeltaTime, SMALL_NUMBER);
+			MMinDeltaTime = FMath::Max(InMinDeltaTime, UE_SMALL_NUMBER);
 		}
 
 		float GetMaxDeltaTime_External() const

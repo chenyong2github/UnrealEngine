@@ -1895,11 +1895,11 @@ struct FLightmassPrimitiveSettings
 			(A.bShadowIndirectOnly != B.bShadowIndirectOnly) || 
 			(A.bUseEmissiveForStaticLighting != B.bUseEmissiveForStaticLighting) || 
 			(A.bUseVertexNormalForHemisphereGather != B.bUseVertexNormalForHemisphereGather) || 
-			(fabsf(A.EmissiveLightFalloffExponent - B.EmissiveLightFalloffExponent) > SMALL_NUMBER) ||
-			(fabsf(A.EmissiveLightExplicitInfluenceRadius - B.EmissiveLightExplicitInfluenceRadius) > SMALL_NUMBER) ||
-			(fabsf(A.EmissiveBoost - B.EmissiveBoost) > SMALL_NUMBER) ||
-			(fabsf(A.DiffuseBoost - B.DiffuseBoost) > SMALL_NUMBER) ||
-			(fabsf(A.FullyOccludedSamplesFraction - B.FullyOccludedSamplesFraction) > SMALL_NUMBER))
+			(fabsf(A.EmissiveLightFalloffExponent - B.EmissiveLightFalloffExponent) > UE_SMALL_NUMBER) ||
+			(fabsf(A.EmissiveLightExplicitInfluenceRadius - B.EmissiveLightExplicitInfluenceRadius) > UE_SMALL_NUMBER) ||
+			(fabsf(A.EmissiveBoost - B.EmissiveBoost) > UE_SMALL_NUMBER) ||
+			(fabsf(A.DiffuseBoost - B.DiffuseBoost) > UE_SMALL_NUMBER) ||
+			(fabsf(A.FullyOccludedSamplesFraction - B.FullyOccludedSamplesFraction) > UE_SMALL_NUMBER))
 		{
 			return false;
 		}

@@ -4768,11 +4768,11 @@ int32 UMaterialExpressionTextureCoordinate::Compile(class FMaterialCompiler* Com
 	// Depending on whether we have U and V scale values that differ, we can perform a multiply by either
 	// a scalar or a float2.  These tiling values are baked right into the shader node, so they're always
 	// known at compile time.
-	if( FMath::Abs( UTiling - VTiling ) > SMALL_NUMBER )
+	if( FMath::Abs( UTiling - VTiling ) > UE_SMALL_NUMBER )
 	{
 		return Compiler->Mul(Compiler->TextureCoordinate(CoordinateIndex, UnMirrorU, UnMirrorV),Compiler->Constant2(UTiling, VTiling));
 	}
-	else if(FMath::Abs(1.0f - UTiling) > SMALL_NUMBER)
+	else if(FMath::Abs(1.0f - UTiling) > UE_SMALL_NUMBER)
 	{
 		return Compiler->Mul(Compiler->TextureCoordinate(CoordinateIndex, UnMirrorU, UnMirrorV),Compiler->Constant(UTiling));
 	}
@@ -5387,7 +5387,7 @@ int32 UMaterialExpressionSine::Compile(class FMaterialCompiler* Compiler, int32 
 		return Compiler->Errorf(TEXT("Missing Sine input"));
 	}
 
-	return Compiler->Sine(Period > 0.0f ? Compiler->Mul(Input.Compile(Compiler),Compiler->Constant(2.0f * (float)PI / Period)) : Input.Compile(Compiler));
+	return Compiler->Sine(Period > 0.0f ? Compiler->Mul(Input.Compile(Compiler),Compiler->Constant(2.0f * (float)UE_PI / Period)) : Input.Compile(Compiler));
 }
 
 void UMaterialExpressionSine::GetCaption(TArray<FString>& OutCaptions) const
@@ -5428,7 +5428,7 @@ int32 UMaterialExpressionCosine::Compile(class FMaterialCompiler* Compiler, int3
 		return Compiler->Errorf(TEXT("Missing Cosine input"));
 	}
 
-	return Compiler->Cosine(Compiler->Mul(Input.Compile(Compiler),Period > 0.0f ? Compiler->Constant(2.0f * (float)PI / Period) : 0));
+	return Compiler->Cosine(Compiler->Mul(Input.Compile(Compiler),Period > 0.0f ? Compiler->Constant(2.0f * (float)UE_PI / Period) : 0));
 }
 
 void UMaterialExpressionCosine::GetCaption(TArray<FString>& OutCaptions) const
@@ -5469,7 +5469,7 @@ int32 UMaterialExpressionTangent::Compile(class FMaterialCompiler* Compiler, int
 		return Compiler->Errorf(TEXT("Missing Tangent input"));
 	}
 
-	return Compiler->Tangent(Compiler->Mul(Input.Compile(Compiler),Period > 0.0f ? Compiler->Constant(2.0f * (float)PI / Period) : 0));
+	return Compiler->Tangent(Compiler->Mul(Input.Compile(Compiler),Period > 0.0f ? Compiler->Constant(2.0f * (float)UE_PI / Period) : 0));
 }
 
 void UMaterialExpressionTangent::GetCaption(TArray<FString>& OutCaptions) const
@@ -11401,7 +11401,7 @@ int32 UMaterialExpressionFresnel::Compile(class FMaterialCompiler* Compiler, int
 	int32 ExponentArg = ExponentIn.GetTracedInput().Expression ? ExponentIn.Compile(Compiler) : Compiler->Constant(Exponent);
 	// Compiler->Power got changed to call PositiveClampedPow instead of ClampedPow
 	// Manually implement ClampedPow to maintain backwards compatibility in the case where the input normal is not normalized (length > 1)
-	int32 AbsBaseArg = Compiler->Max(Compiler->Abs(MinusArg), Compiler->Constant(KINDA_SMALL_NUMBER));
+	int32 AbsBaseArg = Compiler->Max(Compiler->Abs(MinusArg), Compiler->Constant(UE_KINDA_SMALL_NUMBER));
 	int32 PowArg = Compiler->Power(AbsBaseArg,ExponentArg);
 	int32 BaseReflectFractionArg = BaseReflectFractionIn.GetTracedInput().Expression ? BaseReflectFractionIn.Compile(Compiler) : Compiler->Constant(BaseReflectFraction);
 	int32 ScaleArg = Compiler->Mul(PowArg, Compiler->Sub(Compiler->Constant(1.f), BaseReflectFractionArg));
@@ -16881,7 +16881,7 @@ int32 UMaterialExpressionRotateAboutAxis::Compile(class FMaterialCompiler* Compi
 	}
 	else
 	{
-		const int32 AngleIndex = Compiler->Mul(RotationAngle.Compile(Compiler), Compiler->Constant(2.0f * (float)PI / Period));
+		const int32 AngleIndex = Compiler->Mul(RotationAngle.Compile(Compiler), Compiler->Constant(2.0f * (float)UE_PI / Period));
 		const int32 RotationIndex = Compiler->AppendVector(
 			Compiler->ForceCast(NormalizedRotationAxis.Compile(Compiler), MCT_Float3), 
 			Compiler->ForceCast(AngleIndex, MCT_Float1));
@@ -18175,7 +18175,7 @@ int32 UMaterialExpressionDepthFade::Compile(class FMaterialCompiler* Compiler, i
 	// Scales Opacity by a Linear fade based on SceneDepth, from 0 at PixelDepth to 1 at FadeDistance
 	// Result = Opacity * saturate((SceneDepth - PixelDepth) / max(FadeDistance, DELTA))
 	const int32 OpacityIndex = InOpacity.GetTracedInput().Expression ? InOpacity.Compile(Compiler) : Compiler->Constant(OpacityDefault);
-	const int32 FadeDistanceIndex = Compiler->Max(FadeDistance.GetTracedInput().Expression ? FadeDistance.Compile(Compiler) : Compiler->Constant(FadeDistanceDefault), Compiler->Constant(DELTA));
+	const int32 FadeDistanceIndex = Compiler->Max(FadeDistance.GetTracedInput().Expression ? FadeDistance.Compile(Compiler) : Compiler->Constant(FadeDistanceDefault), Compiler->Constant(UE_DELTA));
 
 	int32 PixelDepthIndex = -1; 
 	// On mobile scene depth is limited to 65500 

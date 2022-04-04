@@ -40,7 +40,7 @@ FTransform ICameraLensEffectInterface::GetAttachedEmitterTransform(const AActor*
 		// base dist uses BaseFOV which is set on the indiv camera lens effect class
 		FTransform RelativeTransformAdjustedForFOV = InterfaceEmitter->GetRelativeTransform();
 		FVector AdjustedRelativeLoc = RelativeTransformAdjustedForFOV.GetLocation();
-		AdjustedRelativeLoc.X *= FMath::Tan(InterfaceEmitter->GetBaseFOV() * 0.5f * PI / 180.f) / FMath::Tan(CamFOVDeg * 0.5f * PI / 180.f);
+		AdjustedRelativeLoc.X *= FMath::Tan(InterfaceEmitter->GetBaseFOV() * 0.5f * UE_PI / 180.f) / FMath::Tan(CamFOVDeg * 0.5f * UE_PI / 180.f);
 		RelativeTransformAdjustedForFOV.SetLocation(AdjustedRelativeLoc);
 
 		FTransform const CameraToWorld(CamRot, CamLoc);

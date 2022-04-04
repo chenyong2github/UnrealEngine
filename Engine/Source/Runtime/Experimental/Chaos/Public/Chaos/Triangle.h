@@ -237,7 +237,7 @@ namespace Chaos
 		FORCEINLINE bool Overlap(const TVec3<T>& Point, const T Thickness) const
 		{
 			const TVec3<T> ClosestPoint = FindClosestPointOnTriangle(GetPlane(), ABC[0], ABC[1], ABC[2], Point);
-			const T AdjustedThickness = FMath::Max(Thickness, KINDA_SMALL_NUMBER);
+			const T AdjustedThickness = FMath::Max(Thickness, UE_KINDA_SMALL_NUMBER);
 			return (Point - ClosestPoint).SizeSquared() <= (AdjustedThickness * AdjustedThickness);
 		}
 
@@ -249,7 +249,7 @@ namespace Chaos
 
 		struct FLineIntersectionToleranceProvider
 		{
-			static constexpr T ParallelTolerance = (T)SMALL_NUMBER;
+			static constexpr T ParallelTolerance = (T)UE_SMALL_NUMBER;
 			static constexpr T BaryTolerance = (T)0;
 		};
 		FORCEINLINE bool LineIntersection(const TVec3<T>& StartPoint, const TVec3<T>& EndPoint, TVector<T, 2>& OutBary, T& OutTime) const;
@@ -273,8 +273,8 @@ namespace Chaos
 	template<typename T>
 	struct TRayTriangleIntersectionDefaultToleranceProvider
 	{
-		static constexpr T ParallelTolerance = (T)SMALL_NUMBER;
-		static constexpr T BaryTolerance = (T)SMALL_NUMBER;
+		static constexpr T ParallelTolerance = (T)UE_SMALL_NUMBER;
+		static constexpr T BaryTolerance = (T)UE_SMALL_NUMBER;
 	};
 
 	template<typename T, typename ToleranceProvider = TRayTriangleIntersectionDefaultToleranceProvider<T> >
@@ -345,7 +345,7 @@ namespace Chaos
 	{
 		const TVec3<T> StartToEnd = EndPoint - StartPoint;
 		const T SegmentLenSq = StartToEnd.SizeSquared();
-		if (SegmentLenSq < SMALL_NUMBER)
+		if (SegmentLenSq < UE_SMALL_NUMBER)
 		{
 			return false;
 		}

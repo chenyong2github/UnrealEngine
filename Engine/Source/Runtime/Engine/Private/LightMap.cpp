@@ -813,7 +813,7 @@ bool FLightMapPendingTexture::AddElement(FLightMapAllocationGroup& AllocationGro
 			bool bPerformDistanceCheck = true;
 
 			// Don't pack together lightmaps that are too far apart
-			if (bPerformDistanceCheck && NewBounds.SphereRadius > GMaxLightmapRadius && NewBounds.SphereRadius > (Bounds.SphereRadius + SMALL_NUMBER))
+			if (bPerformDistanceCheck && NewBounds.SphereRadius > GMaxLightmapRadius && NewBounds.SphereRadius > (Bounds.SphereRadius + UE_SMALL_NUMBER))
 			{
 				return false;
 			}
@@ -2229,7 +2229,7 @@ TRefCountPtr<FLightMap2D> FLightMap2D::AllocateInstancedLightMap(UObject* LightM
 	{
 		for (int32 ColorIndex = 0; ColorIndex < 4; ColorIndex++)
 		{
-			Scale[CoefficientIndex][ColorIndex] = FMath::Max(MaxCoefficient[CoefficientIndex][ColorIndex] - MinCoefficient[CoefficientIndex][ColorIndex], DELTA);
+			Scale[CoefficientIndex][ColorIndex] = FMath::Max(MaxCoefficient[CoefficientIndex][ColorIndex] - MinCoefficient[CoefficientIndex][ColorIndex], UE_DELTA);
 			Add[CoefficientIndex][ColorIndex] = MinCoefficient[CoefficientIndex][ColorIndex];
 		}
 	}

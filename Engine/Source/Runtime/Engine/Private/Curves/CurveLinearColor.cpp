@@ -83,14 +83,14 @@ FLinearColor UCurveLinearColor::GetLinearColorValue( float InTime ) const
 	PixelValue *= AdjustBrightness;
 
 	// Apply brightness power adjustment
-	if (!FMath::IsNearlyEqual(AdjustBrightnessCurve, 1.0f, (float)KINDA_SMALL_NUMBER) && AdjustBrightnessCurve != 0.0f)
+	if (!FMath::IsNearlyEqual(AdjustBrightnessCurve, 1.0f, (float)UE_KINDA_SMALL_NUMBER) && AdjustBrightnessCurve != 0.0f)
 	{
 		// Raise HSV.V to the specified power
 		PixelValue = FMath::Pow(PixelValue, AdjustBrightnessCurve);
 	}
 
 	// Apply "vibrancy" adjustment
-	if (!FMath::IsNearlyZero(AdjustVibrance, (float)KINDA_SMALL_NUMBER))
+	if (!FMath::IsNearlyZero(AdjustVibrance, (float)UE_KINDA_SMALL_NUMBER))
 	{
 		const float SatRaisePow = 5.0f;
 		const float InvSatRaised = FMath::Pow(1.0f - PixelSaturation, SatRaisePow);
@@ -152,14 +152,14 @@ FLinearColor UCurveLinearColor::GetClampedLinearColorValue(float InTime) const
 	PixelValue *= AdjustBrightness;
 
 	// Apply brightness power adjustment
-	if (!FMath::IsNearlyEqual(AdjustBrightnessCurve, 1.0f, (float)KINDA_SMALL_NUMBER) && AdjustBrightnessCurve != 0.0f)
+	if (!FMath::IsNearlyEqual(AdjustBrightnessCurve, 1.0f, (float)UE_KINDA_SMALL_NUMBER) && AdjustBrightnessCurve != 0.0f)
 	{
 		// Raise HSV.V to the specified power
 		PixelValue = FMath::Pow(PixelValue, AdjustBrightnessCurve);
 	}
 
 	// Apply "vibrancy" adjustment
-	if (!FMath::IsNearlyZero(AdjustVibrance, (float)KINDA_SMALL_NUMBER))
+	if (!FMath::IsNearlyZero(AdjustVibrance, (float)UE_KINDA_SMALL_NUMBER))
 	{
 		const float SatRaisePow = 5.0f;
 		const float InvSatRaised = FMath::Pow(1.0f - PixelSaturation, SatRaisePow);

@@ -617,11 +617,11 @@ bool UMaterialExpressionTextureCoordinate::GenerateHLSLExpression(FMaterialHLSLG
 	// known at compile time.
 	// Avoid emitting the multiply by 1.0f if possible
 	// This should make generated HLSL a bit cleaner, but more importantly will help avoid generating redundant virtual texture stacks
-	if (FMath::Abs(UTiling - VTiling) > SMALL_NUMBER)
+	if (FMath::Abs(UTiling - VTiling) > UE_SMALL_NUMBER)
 	{
 		OutExpression = Generator.GetTree().NewMul(OutExpression, Generator.NewConstant(FVector2f(UTiling, VTiling)));
 	}
-	else if (FMath::Abs(1.0f - UTiling) > SMALL_NUMBER)
+	else if (FMath::Abs(1.0f - UTiling) > UE_SMALL_NUMBER)
 	{
 		OutExpression = Generator.GetTree().NewMul(OutExpression, Generator.NewConstant(UTiling));
 	}
@@ -1060,7 +1060,7 @@ static bool GenerateHLSLExpressionTrig(FMaterialHLSLGenerator& Generator,
 	}
 	if (Period > 0.0f)
 	{
-		InputExpression = Generator.GetTree().NewMul(InputExpression, Generator.NewConstant(2.0f * PI / Period));
+		InputExpression = Generator.GetTree().NewMul(InputExpression, Generator.NewConstant(2.0f * UE_PI / Period));
 	}
 	OutExpression = Generator.GetTree().NewUnaryOp(Op, InputExpression);
 	return true;
@@ -2016,7 +2016,7 @@ bool UMaterialExpressionFresnel::GenerateHLSLExpression(FMaterialHLSLGenerator& 
 
 	// Compiler->Power got changed to call PositiveClampedPow instead of ClampedPow
 	// Manually implement ClampedPow to maintain backwards compatibility in the case where the input normal is not normalized (length > 1)
-	const FExpression* ExpressionAbs = Generator.GetTree().NewMax(Generator.GetTree().NewAbs(ExpressionMinus), Generator.NewConstant(KINDA_SMALL_NUMBER));
+	const FExpression* ExpressionAbs = Generator.GetTree().NewMax(Generator.GetTree().NewAbs(ExpressionMinus), Generator.NewConstant(UE_KINDA_SMALL_NUMBER));
 
 	const FExpression* ExpressionPow = Generator.GetTree().NewBinaryOp(EOperation::PowPositiveClamped, ExpressionAbs, ExpressionExponent);
 
@@ -2085,7 +2085,7 @@ bool UMaterialExpressionRotateAboutAxis::GenerateHLSLExpression(FMaterialHLSLGen
 	}
 
 	FTree& Tree = Generator.GetTree();
-	ExpressionRotationAngle = Tree.NewMul(ExpressionRotationAngle, Generator.NewConstant(2.0f * (float)PI / Period));
+	ExpressionRotationAngle = Tree.NewMul(ExpressionRotationAngle, Generator.NewConstant(2.0f * (float)UE_PI / Period));
 
 	const FExpression* ClosestPointOnAxis = Tree.NewAdd(ExpressionPivotPoint, Tree.NewMul(ExpressionAxis, Tree.NewDot(ExpressionAxis, Tree.NewSub(ExpressionPosition, ExpressionPivotPoint))));
 	const FExpression* UAxis = Tree.NewSub(ExpressionPosition, ClosestPointOnAxis);

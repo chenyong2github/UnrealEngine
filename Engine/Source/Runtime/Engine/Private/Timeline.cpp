@@ -369,7 +369,7 @@ void FTimeline::SetPlaybackPosition(float NewPosition, bool bFireEvents, bool bF
 			// Slight hack here.. if playing forwards and reaching the end of the sequence, force it over a little to ensure we fire events actually on the end of the sequence.
 			if (MaxTime == GetTimelineLength())
 			{
-				MaxTime += (float)KINDA_SMALL_NUMBER;
+				MaxTime += (float)UE_KINDA_SMALL_NUMBER;
 			}
 		}
 		// If playing sequence backwards.
@@ -381,7 +381,7 @@ void FTimeline::SetPlaybackPosition(float NewPosition, bool bFireEvents, bool bF
 			// Same small hack as above for backwards case.
 			if (MinTime == 0.f)
 			{
-				MinTime -= (float)KINDA_SMALL_NUMBER;
+				MinTime -= (float)UE_KINDA_SMALL_NUMBER;
 			}
 		}
 
@@ -583,7 +583,7 @@ void FTimeline::SetTimelineLength(float NewLength)
 	Length = NewLength;
 	if(Position > NewLength)
 	{
-		SetNewTime(NewLength-KINDA_SMALL_NUMBER);
+		SetNewTime(NewLength-UE_KINDA_SMALL_NUMBER);
 	}
 }
 

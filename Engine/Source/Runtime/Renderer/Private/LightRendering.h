@@ -145,7 +145,7 @@ namespace StencilingGeometry
 			const int32 NumRings = NumSphereRings;
 			const int32 NumVerts = (NumSides + 1) * (NumRings + 1);
 
-			const float RadiansPerRingSegment = PI / (float)NumRings;
+			const float RadiansPerRingSegment = UE_PI / (float)NumRings;
 			float Radius = 1;
 
 			TArray<VectorType, TInlineAllocator<NumRings + 1> > ArcVerts;
@@ -197,7 +197,7 @@ namespace StencilingGeometry
 		if (bConservativelyBoundSphere)
 		{
 			const int32 NumRings = NumSphereRings;
-			const float RadiansPerRingSegment = PI / (float)NumRings;
+			const float RadiansPerRingSegment = UE_PI / (float)NumRings;
 
 			// Boost the effective radius so that the edges of the sphere approximation lie on the sphere, instead of the vertices
 			Radius /= FMath::Cos(RadiansPerRingSegment);

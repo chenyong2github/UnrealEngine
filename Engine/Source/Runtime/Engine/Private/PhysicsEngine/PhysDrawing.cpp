@@ -148,7 +148,7 @@ void FKBoxElem::GetElemSolid(const FTransform& ElemTM, const FVector& Scale3D, c
 
 static void DrawHalfCircle(FPrimitiveDrawInterface* PDI, const FVector& Base, const FVector& X, const FVector& Y, const FColor Color, float Radius)
 {
-	float	AngleDelta = 2.0f * (float)PI / ((float)DrawCollisionSides);
+	float	AngleDelta = 2.0f * (float)UE_PI / ((float)DrawCollisionSides);
 	FVector	LastVertex = Base + X * Radius;
 
 	for(int32 SideIndex = 0; SideIndex < (DrawCollisionSides/2); SideIndex++)
@@ -225,12 +225,12 @@ void FKSphylElem::GetElemSolid(const FTransform& ElemTM, const FVector& Scale3D,
 		float ZOffset;
 		if (RingIdx <= DrawCollisionSides / 4)
 		{
-			Angle = ((float)RingIdx / (NumRings - 1)) * PI;
+			Angle = ((float)RingIdx / (NumRings - 1)) * UE_PI;
 			ZOffset = 0.5 * ScaleLength * Length;
 		}
 		else
 		{
-			Angle = ((float)(RingIdx - 1) / (NumRings - 1)) * PI;
+			Angle = ((float)(RingIdx - 1) / (NumRings - 1)) * UE_PI;
 			ZOffset = -0.5 * ScaleLength * Length;
 		}
 
@@ -328,12 +328,12 @@ void FKSphylElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform& 
 		float ZOffset;
 		if (RingIdx <= DrawCollisionSides / 4)
 		{
-			Angle = ((float)RingIdx / (NumRings - 1)) * PI;
+			Angle = ((float)RingIdx / (NumRings - 1)) * UE_PI;
 			ZOffset = 0.5 * ScaleLength * Length;
 		}
 		else
 		{
-			Angle = ((float)(RingIdx - 1) / (NumRings - 1)) * PI;
+			Angle = ((float)(RingIdx - 1) / (NumRings - 1)) * UE_PI;
 			ZOffset = -0.5 * ScaleLength * Length;
 		}
 
@@ -575,14 +575,14 @@ struct FScopedTaperedCapsuleBuilder
 
 			if (RingIdx <= SplitPoint)
 			{
-				float Angle = ((float)RingIdx / (NumRings - 1)) * PI;
+				float Angle = ((float)RingIdx / (NumRings - 1)) * UE_PI;
 				ZOffset = SphereOffset0;
 				SpherePos.Y = ScaledRadius0 * FMath::Sin(Angle);
 				SpherePos.Z = ScaledRadius0 * FMath::Cos(Angle);
 			}
 			else
 			{
-				float Angle = ((float)(RingIdx - 1) / (NumRings - 1)) * PI;
+				float Angle = ((float)(RingIdx - 1) / (NumRings - 1)) * UE_PI;
 				ZOffset = SphereOffset1;
 				SpherePos.Y = ScaledRadius1 * FMath::Sin(Angle);
 				SpherePos.Z = ScaledRadius1 * FMath::Cos(Angle);
@@ -1247,7 +1247,7 @@ float HelpBuildAngle(float LimitAngle, EAngularConstraintMotion LimitType)
 {
 	switch (LimitType)
 	{
-		case ACM_Free: return PI;
+		case ACM_Free: return UE_PI;
 		case ACM_Locked: return 0.f;
 		default: return FMath::DegreesToRadians(LimitAngle);
 	}
@@ -1396,8 +1396,8 @@ void FConstraintInstance::DrawConstraintImp(const FPDIOrCollector& PDIOrCollecto
 		FTransform ConeLimitTM = Con2Frame;
 		ConeLimitTM.SetTranslation(Con1Frame.GetTranslation() + Length*1.05*Con2Frame.GetScaledAxis(EAxis::X));
 
-		const float Swing1Ang = PI / 4;
-		const float Swing2Ang = PI / 4;
+		const float Swing1Ang = UE_PI / 4;
+		const float Swing2Ang = UE_PI / 4;
 		FMatrix ConeToWorld = FScaleMatrix(FVector(Length * -0.1f)) * ConeLimitTM.ToMatrixWithScale();
 
 		if (PDIOrCollector.HasCollector())

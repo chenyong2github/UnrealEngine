@@ -478,7 +478,7 @@ void IStreamingManager::SetupViewInfos( float DeltaTime )
 
 	// Add the slave locations.
 	float ScreenSize = 1280.0f;
-	float FOVScreenSize = ScreenSize / FMath::Tan( 80.0f * float(PI) / 360.0f );
+	float FOVScreenSize = ScreenSize / FMath::Tan( 80.0f * float(UE_PI) / 360.0f );
 	if ( PendingViewInfos.Num() > 0 )
 	{
 		ScreenSize = PendingViewInfos[0].ScreenSize;

@@ -29,7 +29,7 @@ public:
 
 	void PushTriangle(float InAera, float InUVArea)
 	{
-		if (InAera > SMALL_NUMBER && InUVArea > SMALL_NUMBER)
+		if (InAera > UE_SMALL_NUMBER && InUVArea > UE_SMALL_NUMBER)
 		{
 			Elements.Add(FElementInfo(FMath::Sqrt(InAera), FMath::Sqrt(InAera / InUVArea)));
 		}
@@ -61,7 +61,7 @@ public:
 
 		AccumulateDensity(WeightedUVDensity, Weight, DiscardPercentage);
 
-		return (Weight > SMALL_NUMBER) ? (WeightedUVDensity / Weight) : 0;
+		return (Weight > UE_SMALL_NUMBER) ? (WeightedUVDensity / Weight) : 0;
 	}
 
 	FORCEINLINE_DEBUGGABLE 

@@ -176,7 +176,7 @@ namespace Chaos
 					}
 				}
 				FReal Phi = Normal.SafeNormalize();
-				if (Phi < KINDA_SMALL_NUMBER)
+				if (Phi < UE_KINDA_SMALL_NUMBER)
 				{
 					for (int i = 0; i < d; ++i)
 					{
@@ -280,7 +280,7 @@ namespace Chaos
 			for (int32 Axis = 0; Axis < d; Axis++)
 			{
 				// Select axis of face to compare to, based on normal.
-				if (OriginalNormal[Axis] > KINDA_SMALL_NUMBER)
+				if (OriginalNormal[Axis] > UE_KINDA_SMALL_NUMBER)
 				{
 					const T TraceDotFaceNormal = DenormDir[Axis]; // TraceDirDenormLocal.dot(BoxFaceNormal)
 					if (TraceDotFaceNormal < BestOpposingDot)
@@ -290,7 +290,7 @@ namespace Chaos
 						BestNormal[Axis] = 1;
 					}
 				}
-				else if (OriginalNormal[Axis] < -KINDA_SMALL_NUMBER)
+				else if (OriginalNormal[Axis] < -UE_KINDA_SMALL_NUMBER)
 				{
 					const T TraceDotFaceNormal = -DenormDir[Axis]; // TraceDirDenormLocal.dot(BoxFaceNormal)
 					if (TraceDotFaceNormal < BestOpposingDot)

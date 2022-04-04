@@ -501,8 +501,8 @@ void FAreaNavModifier::FillConvexNavAreaData(const FVector* InPoints, const int3
 {
 	OutBounds = FBox(ForceInit);
 	OutConvexData.Points.Reset();
-	OutConvexData.MinZ = MAX_FLT;
-	OutConvexData.MaxZ = -MAX_FLT;
+	OutConvexData.MinZ = UE_MAX_FLT;
+	OutConvexData.MaxZ = -UE_MAX_FLT;
 
 	if (InNumPoints <= 0)
 	{

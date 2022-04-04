@@ -375,7 +375,7 @@ FCachedAudioStreamingManagerParams FPlatformCompressionUtilities::BuildCachedStr
 	}
 
 	// Our number of elements is tweakable based on the minimum cache usage we want to support.
-	const float MinimumCacheUsage = FMath::Clamp(MinimumCacheUsageCvar, 0.0f, (1.0f - KINDA_SMALL_NUMBER));
+	const float MinimumCacheUsage = FMath::Clamp(MinimumCacheUsageCvar, 0.0f, (1.0f - UE_KINDA_SMALL_NUMBER));
 	int32 MinChunkSize = (1.0f - MinimumCacheUsage) * MaxChunkSize;
 	
 	uint64 TempNumElements = ((CacheSettings.CacheSizeKB * 1024) / MinChunkSize) * FMath::Max(ChunkSlotNumScalarCvar, 1.0f);

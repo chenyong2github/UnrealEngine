@@ -277,7 +277,7 @@ namespace Chaos
 		 * @brief Whether the body has a finite mass
 		 * @note This is based on the current inverse mass, so a "dynamic" particle with 0 inverse mass will return true here.
 		*/
-		inline bool IsDynamic() const { return (State.InvM > SMALL_NUMBER); }
+		inline bool IsDynamic() const { return (State.InvM > UE_SMALL_NUMBER); }
 
 		/**
 		 * @brief Apply a world-space position and rotation delta to the body center of mass, and update inverse mass

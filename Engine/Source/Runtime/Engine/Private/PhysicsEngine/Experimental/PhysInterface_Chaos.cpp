@@ -470,7 +470,7 @@ void FPhysInterface_Chaos::UpdateAngularDrive_AssumesLocked(const FPhysicsConstr
 				}
 				else
 				{
-					Constraint->SetAngularDriveVelocityTarget(InDriveParams.AngularVelocityTarget * 2.0f * PI); // Rev/s to Rad/s
+					Constraint->SetAngularDriveVelocityTarget(InDriveParams.AngularVelocityTarget * 2.0f * UE_PI); // Rev/s to Rad/s
 				}
 			}
 
@@ -995,7 +995,7 @@ bool FPhysInterface_Chaos::LineTrace_Geom(FHitResult& OutHit, const FBodyInstanc
 
 	const FVector Delta = WorldEnd - WorldStart;
 	const float DeltaMag = Delta.Size();
-	if (DeltaMag > KINDA_SMALL_NUMBER)
+	if (DeltaMag > UE_KINDA_SMALL_NUMBER)
 	{
 		{
 			// #PHYS2 Really need a concept for "multi" locks here - as we're locking ActorRef but not TargetInstance->ActorRef
@@ -1102,7 +1102,7 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 
 				const FVector Delta = InEnd - InStart;
 				const float DeltaMag = Delta.Size();
-				if (DeltaMag > KINDA_SMALL_NUMBER)
+				if (DeltaMag > UE_KINDA_SMALL_NUMBER)
 				{
 					const FTransform ActorTM(Actor->GetGameThreadAPI().R(), Actor->GetGameThreadAPI().X());
 
@@ -1246,7 +1246,7 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 	}
 
 	float ReturnDistance = -1.f;
-	float MinPhi = BIG_NUMBER;
+	float MinPhi = UE_BIG_NUMBER;
 	bool bFoundValidBody = false;
 	bool bEarlyOut = true;
 

@@ -365,7 +365,7 @@ public:
 					AllottedGeometry.ToPaintGeometry(RotatedLocalSize, RotatedTransform),
 					DropIndicatorBrush,
 					ESlateDrawEffect::None,
-					-HALF_PI,	// 90 deg CCW
+					-UE_HALF_PI,	// 90 deg CCW
 					RotatedLocalSize * 0.5f,	// Relative center to the flipped
 					FSlateDrawElement::RelativeToElement,
 					DropIndicatorBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()

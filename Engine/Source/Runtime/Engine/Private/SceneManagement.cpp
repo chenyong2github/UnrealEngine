@@ -545,7 +545,7 @@ float ComputeBoundsDrawDistance(const float ScreenSize, const float SphereRadius
 	const float ScreenMultiple = FMath::Max(0.5f * ProjMatrix.M[0][0], 0.5f * ProjMatrix.M[1][1]);
 
 	// ScreenSize is the projected diameter, so halve it
-	const float ScreenRadius = FMath::Max(SMALL_NUMBER, ScreenSize * 0.5f);
+	const float ScreenRadius = FMath::Max(UE_SMALL_NUMBER, ScreenSize * 0.5f);
 
 	// Invert the calcs in ComputeBoundsScreenSize
 	return (ScreenMultiple * SphereRadius) / ScreenRadius;

@@ -552,7 +552,7 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 				static constexpr float Epsilon_Quantized = 0.01f;
 				
 				// We use KINDA_SMALL_NUMBER for comparing when not using quantization, because that's the default for FVector::Equals.
-				static constexpr float Epsilon = KINDA_SMALL_NUMBER;
+				static constexpr float Epsilon = UE_KINDA_SMALL_NUMBER;
 
 				bSerializeLocation = !Location.Equals(FVector::ZeroVector, GbQuantizeActorLocationOnSpawn ? Epsilon_Quantized : Epsilon);
 				bSerializeVelocity = !Velocity.Equals(FVector::ZeroVector, GbQuantizeActorVelocityOnSpawn ? Epsilon_Quantized : Epsilon);

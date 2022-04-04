@@ -99,7 +99,7 @@ bool ShouldSkipSoftLimits(float Stiffness, float Damping, float AverageMass)
 
 void FLinearConstraint::UpdateLinearLimit_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass, float Scale) const
 {
-	const float UseLimit = FMath::Max(Limit * Scale, KINDA_SMALL_NUMBER);	//physx doesn't ever want limit of 0
+	const float UseLimit = FMath::Max(Limit * Scale, UE_KINDA_SMALL_NUMBER);	//physx doesn't ever want limit of 0
 	const bool bLockLimitSize = (UseLimit < RB_MinSizeToLockDOF);
 	
 	const bool bSkipSoft = bSoftConstraint && ShouldSkipSoftLimits(Stiffness, Damping, AverageMass);

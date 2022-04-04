@@ -1104,7 +1104,7 @@ void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
 
 			if ((bDrawSimpleCollision || bDrawSimpleWireframeCollision) && BodySetup)
 			{
-				if (FMath::Abs(GetLocalToWorld().Determinant()) < SMALL_NUMBER)
+				if (FMath::Abs(GetLocalToWorld().Determinant()) < UE_SMALL_NUMBER)
 				{
 					// Catch this here or otherwise GeomTransform below will assert
 					// This spams so commented out

@@ -183,8 +183,8 @@ int32 FPoly::SplitWithPlane
 	enum 	  	{V_FRONT,V_BACK,V_EITHER} Status,PrevStatus=V_EITHER;
 	int32     	i,j;
 
-	if (VeryPrecise)	Thresh = THRESH_SPLIT_POLY_PRECISELY;	
-	else				Thresh = THRESH_SPLIT_POLY_WITH_PLANE;
+	if (VeryPrecise)	Thresh = UE_THRESH_SPLIT_POLY_PRECISELY;	
+	else				Thresh = UE_THRESH_SPLIT_POLY_WITH_PLANE;
 
 	// Find number of vertices.
 	check(Vertices.Num()>=3);
@@ -363,13 +363,13 @@ int32 FPoly::SplitWithPlaneFast
 		if( Dist >= 0.f )
 		{
 			*StatusPtr++ = V_FRONT;
-			if( Dist > +THRESH_SPLIT_POLY_WITH_PLANE )
+			if( Dist > +UE_THRESH_SPLIT_POLY_WITH_PLANE )
 				Front=1;
 		}
 		else
 		{
 			*StatusPtr++ = V_BACK;
-			if( Dist < -THRESH_SPLIT_POLY_WITH_PLANE )
+			if( Dist < -UE_THRESH_SPLIT_POLY_WITH_PLANE )
 				Back=1;
 		}
 	}
@@ -448,7 +448,7 @@ int32 FPoly::CalcNormal( bool bSilent )
 	for( int32 i=2; i<Vertices.Num(); i++ )
 		Normal += (Vertices[i-1] - Vertices[0]) ^ (Vertices[i] - Vertices[0]);
 
-	if( Normal.SizeSquared() < (float)THRESH_ZERO_NORM_SQUARED )
+	if( Normal.SizeSquared() < (float)UE_THRESH_ZERO_NORM_SQUARED )
 	{
 // 		if( !bSilent )
 // 			UE_LOG(LogPolygon, Warning, TEXT("FPoly::CalcNormal: Zero-area polygon") );
@@ -564,7 +564,7 @@ int32 FPoly::RemoveColinears()
 		{
 			j=(i+1)%Vertices.Num();
 
-			if( FVector3f::PointsAreNear(SidePlaneNormal[i],SidePlaneNormal[j],FLOAT_NORMAL_THRESH) )
+			if( FVector3f::PointsAreNear(SidePlaneNormal[i],SidePlaneNormal[j], UE_FLOAT_NORMAL_THRESH) )
 			{
 				// Eliminate colinear points.
 				FMemory::Memcpy (&SidePlaneNormal[i],&SidePlaneNormal[i+1],(Vertices.Num()-(i+1)) * sizeof (FVector3f));
@@ -642,7 +642,7 @@ bool FPoly::OnPoly( FVector InVtx )
 		SidePlaneNormal.Normalize();
 
 		// If point is not behind all the planes created by this polys edges, it's outside the poly.
-		if( FVector::PointPlaneDist( InVtx, (FVector)Vertices[x], SidePlaneNormal ) > THRESH_POINT_ON_PLANE )
+		if( FVector::PointPlaneDist( InVtx, (FVector)Vertices[x], SidePlaneNormal ) > UE_THRESH_POINT_ON_PLANE )
 		{
 			return 0;
 		}
@@ -709,7 +709,7 @@ bool FPoly::IsConvex()
 			const FVector3f Vertex3 = Vertices[Index3];
 			const FVector3f EdgeVertex2Vertex3 = (Vertex3 - Vertex2).GetSafeNormal();
 
-			if (KINDA_SMALL_NUMBER < FVector3f::DotProduct(EdgeVertex1Vertex2Normal, EdgeVertex2Vertex3))
+			if (UE_KINDA_SMALL_NUMBER < FVector3f::DotProduct(EdgeVertex1Vertex2Normal, EdgeVertex2Vertex3))
 			{
 				return false;
 			}
@@ -871,7 +871,7 @@ FPoly FPoly::BuildAndCutInfiniteFPoly(const FPlane& InPlane, const TArray<FPlane
 
 bool FPoly::OnPlane( FVector InVtx )
 {
-	return ( FMath::Abs( FVector::PointPlaneDist( InVtx, (FVector)Vertices[0], (FVector)Normal ) ) < THRESH_POINT_ON_PLANE );
+	return ( FMath::Abs( FVector::PointPlaneDist( InVtx, (FVector)Vertices[0], (FVector)Normal ) ) < UE_THRESH_POINT_ON_PLANE );
 }
 
 
@@ -1071,7 +1071,7 @@ void FPoly::OptimizeIntoConvexPolys(ABrush* InOwnerBrush, ArrayType& InPolygons)
 									const FVector3f EdgeVertex2Vertex3 = (Vertex3 - Vertex2).GetSafeNormal();
 
 									// Neighboring edges are collinear if they point into the same direction.
-									const bool bIsCollinear = EdgeVertex1Vertex2.Equals(EdgeVertex2Vertex3, KINDA_SMALL_NUMBER);
+									const bool bIsCollinear = EdgeVertex1Vertex2.Equals(EdgeVertex2Vertex3, UE_KINDA_SMALL_NUMBER);
 
 									if (bIsCollinear)
 									{
@@ -1086,7 +1086,7 @@ void FPoly::OptimizeIntoConvexPolys(ABrush* InOwnerBrush, ArrayType& InPolygons)
 									{
 										// Check convexity for neighboring non-collinear edges.
 										const FVector3f EdgeVertex1Vertex2Normal = FVector3f::CrossProduct(EdgeVertex1Vertex2, PolyMerged.Normal);
-										if (KINDA_SMALL_NUMBER < FVector3f::DotProduct(EdgeVertex1Vertex2Normal, EdgeVertex2Vertex3))
+										if (UE_KINDA_SMALL_NUMBER < FVector3f::DotProduct(EdgeVertex1Vertex2Normal, EdgeVertex2Vertex3))
 										{
 											return false;
 										}

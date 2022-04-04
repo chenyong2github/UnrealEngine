@@ -256,7 +256,7 @@ bool FSeparatingAxisPointCheck::TestSeparatingAxisCommon(const FVector& Axis, fl
 	if (bCalcLeastPenetration)
 	{
 		const float AxisMagnitudeSqr = Axis.SizeSquared();
-		if (AxisMagnitudeSqr > (SMALL_NUMBER * SMALL_NUMBER))
+		if (AxisMagnitudeSqr > (UE_SMALL_NUMBER * UE_SMALL_NUMBER))
 		{
 			const float InvAxisMagnitude = FMath::InvSqrt(AxisMagnitudeSqr);
 			const float MinPenetrationDist = (ProjectedBoxMax - ProjectedPolyMin) * InvAxisMagnitude;
@@ -402,7 +402,7 @@ bool FSeparatingAxisPointCheck::FindSeparatingAxisGeneric()
 		const FVector EdgeDir1 = V2 - V1;
 
 		FVector Normal = FVector::CrossProduct(EdgeDir1, EdgeDir0);
-		if (Normal.SizeSquared() > SMALL_NUMBER)
+		if (Normal.SizeSquared() > UE_SMALL_NUMBER)
 		{
 			if (!TestSeparatingAxisGeneric(Normal))
 			{

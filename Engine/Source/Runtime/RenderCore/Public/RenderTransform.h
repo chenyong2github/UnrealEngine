@@ -71,7 +71,7 @@ public:
 		return *this;
 	}
 
-	FORCEINLINE bool Equals(const FRenderTransform& Other, float Tolerance = KINDA_SMALL_NUMBER) const
+	FORCEINLINE bool Equals(const FRenderTransform& Other, float Tolerance = UE_KINDA_SMALL_NUMBER) const
 	{
 		return
 			TransformRows[0].Equals(Other.TransformRows[0], Tolerance) &&

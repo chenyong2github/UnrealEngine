@@ -163,7 +163,7 @@ public:
 
 #if WITH_EDITOR
 	/** Populates the given morph target LOD model with the provided deltas */
-	ENGINE_API virtual void PopulateDeltas(const TArray<FMorphTargetDelta>& Deltas, const int32 LODIndex, const TArray<struct FSkelMeshSection>& Sections, const bool bCompareNormal = false, const bool bGeneratedByReductionSetting = false, const float PositionThreshold = THRESH_POINTS_ARE_NEAR);
+	ENGINE_API virtual void PopulateDeltas(const TArray<FMorphTargetDelta>& Deltas, const int32 LODIndex, const TArray<struct FSkelMeshSection>& Sections, const bool bCompareNormal = false, const bool bGeneratedByReductionSetting = false, const float PositionThreshold = UE_THRESH_POINTS_ARE_NEAR);
 	/** Remove empty LODModels */
 	ENGINE_API virtual void RemoveEmptyMorphTargets();
 	/** Factory function to define type of FinishBuildData needed*/

@@ -113,7 +113,7 @@ FMatrix FMinimalViewInfo::CalculateProjectionMatrix() const
 		const float ClippingPlane = GetFinalPerspectiveNearClipPlane();
 		// Avoid divide by zero in the projection matrix calculation by clamping FOV
 		ProjectionMatrix = FReversedZPerspectiveMatrix(
-			FMath::Max(0.001f, FOV) * (float)PI / 360.0f,
+			FMath::Max(0.001f, FOV) * (float)UE_PI / 360.0f,
 			AspectRatio,
 			1.0f,
 			ClippingPlane);
@@ -184,7 +184,7 @@ void FMinimalViewInfo::CalculateProjectionMatrixGivenView(const FMinimalViewInfo
 		{
 			// Avoid divide by zero in the projection matrix calculation by clamping FOV.
 			// Note the division by 360 instead of 180 because we want the half-FOV.
-			MatrixHalfFOV = FMath::Max(0.001f, ViewInfo.FOV) * (float)PI / 360.0f;
+			MatrixHalfFOV = FMath::Max(0.001f, ViewInfo.FOV) * (float)UE_PI / 360.0f;
 		}
 	
 		if (ViewInfo.ProjectionMode == ECameraProjectionMode::Orthographic)

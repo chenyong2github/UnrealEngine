@@ -798,7 +798,7 @@ public:
 	void GetCVars()
 	{
 		DirtyElementGridCellSize = (T) FAABBTreeDirtyGridCVars::DirtyElementGridCellSize;
-		if (DirtyElementGridCellSize > SMALL_NUMBER)
+		if (DirtyElementGridCellSize > UE_SMALL_NUMBER)
 		{
 			DirtyElementGridCellSizeInv = 1.0f / DirtyElementGridCellSize;
 		}

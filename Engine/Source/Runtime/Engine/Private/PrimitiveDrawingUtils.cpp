@@ -324,7 +324,7 @@ void GetSphereMesh(const FVector& Center, const FVector& Radii, int32 NumSides, 
 extern ENGINE_API void GetSphereMesh(const FVector& Center, const FVector& Radii, int32 NumSides, int32 NumRings, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriority,
 	bool bDisableBackfaceCulling, int32 ViewIndex, FMeshElementCollector& Collector, bool bUseSelectionOutline, HHitProxy* HitProxy)
 {
-	GetHalfSphereMesh(Center, Radii, NumSides, NumRings, 0, PI, MaterialRenderProxy, DepthPriority, bDisableBackfaceCulling, ViewIndex, Collector, bUseSelectionOutline, HitProxy);
+	GetHalfSphereMesh(Center, Radii, NumSides, NumRings, 0, UE_PI, MaterialRenderProxy, DepthPriority, bDisableBackfaceCulling, ViewIndex, Collector, bUseSelectionOutline, HitProxy);
 }
 
 void DrawSphere(FPrimitiveDrawInterface* PDI,const FVector& Center,const FRotator& Orientation,const FVector& Radii,int32 NumSides,int32 NumRings,const FMaterialRenderProxy* MaterialRenderProxy,uint8 DepthPriority,bool bDisableBackfaceCulling)
@@ -343,7 +343,7 @@ void DrawSphere(FPrimitiveDrawInterface* PDI,const FVector& Center,const FRotato
 		{
 			FDynamicMeshVertex* ArcVert = &ArcVerts[i];
 
-			float angle = ((float)i/NumRings) * PI;
+			float angle = ((float)i/NumRings) * UE_PI;
 
 			// Note- unit sphere, so position always has mag of one. We can just use it for normal!			
 			ArcVert->Position.X = 0.0f;
@@ -412,8 +412,8 @@ void DrawSphere(FPrimitiveDrawInterface* PDI,const FVector& Center,const FRotato
 
 FVector CalcConeVert(float Angle1, float Angle2, float AzimuthAngle)
 {
-	float ang1 = FMath::Clamp<float>(Angle1, 0.01f, (float)PI - 0.01f);
-	float ang2 = FMath::Clamp<float>(Angle2, 0.01f, (float)PI - 0.01f);
+	float ang1 = FMath::Clamp<float>(Angle1, 0.01f, (float)UE_PI - 0.01f);
+	float ang2 = FMath::Clamp<float>(Angle2, 0.01f, (float)UE_PI - 0.01f);
 
 	float sinX_2 = FMath::Sin(0.5f * ang1);
 	float sinY_2 = FMath::Sin(0.5f * ang2);
@@ -456,7 +456,7 @@ void BuildConeVerts(float Angle1, float Angle2, float Scale, float XOffset, uint
 	for (uint32 i = 0; i < NumSides; i++)
 	{
 		float Fraction = (float)i / (float)(NumSides);
-		float Azi = 2.f*PI*Fraction;
+		float Azi = 2.f* UE_PI*Fraction;
 		ConeVerts[i] = (CalcConeVert(Angle1, Angle2, Azi) * Scale) + FVector(XOffset,0,0);
 	}
 
@@ -526,7 +526,7 @@ void DrawCone(FPrimitiveDrawInterface* PDI,const FMatrix& ConeToWorld, float Ang
 		for(int32 i=0; i<4; i++)
 		{
 			float Fraction = (float)i / (float)(4);
-			float Azi = 2.f*PI*Fraction;
+			float Azi = 2.f* UE_PI*Fraction;
 			FVector ConeVert = CalcConeVert(Angle1, Angle2, Azi);
 			PDI->DrawLine( ConeToWorld.GetOrigin(), ConeToWorld.TransformPosition(ConeVert), SideLineColor, DepthPriority );
 		}
@@ -536,7 +536,7 @@ void DrawCone(FPrimitiveDrawInterface* PDI,const FMatrix& ConeToWorld, float Ang
 
 void BuildCylinderVerts(const FVector& Base, const FVector& XAxis, const FVector& YAxis, const FVector& ZAxis, float Radius, float HalfHeight, uint32 Sides, TArray<FDynamicMeshVertex>& OutVerts, TArray<uint32>& OutIndices)
 {
-	const float	AngleDelta = 2.0f * PI / Sides;
+	const float	AngleDelta = 2.0f * UE_PI / Sides;
 	FVector	LastVertex = Base + XAxis * Radius;
 
 	FVector2D TC = FVector2D(0.0f, 0.0f);
@@ -642,7 +642,7 @@ void GetCylinderMesh(const FVector& Start, const FVector& End, float Radius, int
 	FVector Dir = End - Start;
 	float Length = Dir.Size();
 
-	if (Length > SMALL_NUMBER)
+	if (Length > UE_SMALL_NUMBER)
 	{
 		FVector Z = Dir.GetUnsafeNormal();
 		FVector X, Y;
@@ -677,7 +677,7 @@ void GetConeMesh(const FMatrix& LocalToWorld, float AngleWidth, float AngleHeigh
 {
 	TArray<FDynamicMeshVertex> MeshVerts;
 	TArray<uint32> MeshIndices;
-	BuildConeVerts(AngleWidth * PI / 180, AngleHeight * PI / 180, 1.f, 0.f, NumSides, MeshVerts, MeshIndices);
+	BuildConeVerts(AngleWidth * UE_PI / 180, AngleHeight * UE_PI / 180, 1.f, 0.f, NumSides, MeshVerts, MeshIndices);
 	FDynamicMeshBuilder MeshBuilder(Collector.GetFeatureLevel());
 	MeshBuilder.AddVertices(MeshVerts);
 	MeshBuilder.AddTriangles(MeshIndices);
@@ -692,9 +692,9 @@ void GetCapsuleMesh(const FVector& Origin, const FVector& XAxis, const FVector& 
 	const float CylinderHalfHeight = (TopEnd - BottomEnd).Size() * 0.5;
 	const FVector CylinderLocation = BottomEnd + CylinderHalfHeight * ZAxis;
 
-	GetOrientedHalfSphereMesh(TopEnd, FRotationMatrix::MakeFromXY(XAxis, YAxis).Rotator(), FVector(Radius), NumSides, NumSides, 0, PI / 2, MaterialRenderProxy, DepthPriority, bDisableBackfaceCulling, ViewIndex, Collector, false, HitProxy);
+	GetOrientedHalfSphereMesh(TopEnd, FRotationMatrix::MakeFromXY(XAxis, YAxis).Rotator(), FVector(Radius), NumSides, NumSides, 0, UE_PI / 2, MaterialRenderProxy, DepthPriority, bDisableBackfaceCulling, ViewIndex, Collector, false, HitProxy);
 	GetCylinderMesh(CylinderLocation, XAxis, YAxis, ZAxis, Radius, CylinderHalfHeight, NumSides, MaterialRenderProxy, DepthPriority, ViewIndex, Collector, HitProxy);
-	GetOrientedHalfSphereMesh(BottomEnd, FRotationMatrix::MakeFromXY(XAxis, YAxis).Rotator(), FVector(Radius), NumSides, NumSides, PI / 2, PI, MaterialRenderProxy, DepthPriority, bDisableBackfaceCulling, ViewIndex, Collector, false, HitProxy);
+	GetOrientedHalfSphereMesh(BottomEnd, FRotationMatrix::MakeFromXY(XAxis, YAxis).Rotator(), FVector(Radius), NumSides, NumSides, UE_PI / 2, UE_PI, MaterialRenderProxy, DepthPriority, bDisableBackfaceCulling, ViewIndex, Collector, false, HitProxy);
 }
 
 
@@ -723,7 +723,7 @@ void DrawCylinder(class FPrimitiveDrawInterface* PDI, const FVector& Start, cons
 	FVector Dir = End - Start;
 	float Length = Dir.Size();
 
-	if (Length > SMALL_NUMBER)
+	if (Length > UE_SMALL_NUMBER)
 	{
 		FVector Z = Dir.GetUnsafeNormal();
 		FVector X, Y;
@@ -748,11 +748,11 @@ void DrawTorus(FPrimitiveDrawInterface* PDI, const FMatrix& Transform, const FVe
 		InnerSegments = 3;
 	}
 
-	const float	AngleDelta = (bPartial ? Angle : 2.0f * PI) / OuterSegments;
+	const float	AngleDelta = (bPartial ? Angle : 2.0f * UE_PI) / OuterSegments;
 	FVector	LastVertex = XAxis * OuterRadius;
 
 	int32 OuterSlices = bPartial ? (bEndCaps ? OuterSegments + 3 : OuterSegments + 1) : OuterSegments;
-	const float InnerAngleDelta = 2.0f * PI / InnerSegments;
+	const float InnerAngleDelta = 2.0f * UE_PI / InnerSegments;
 
 	FVector ZAxis = XAxis ^ YAxis;
 	ZAxis.Normalize();
@@ -845,7 +845,7 @@ void DrawDisc(class FPrimitiveDrawInterface* PDI,const FVector& Base,const FVect
 {
 	check (NumSides >= 3);
 
-	const float	AngleDelta = 2.0f * PI / NumSides;
+	const float	AngleDelta = 2.0f * UE_PI / NumSides;
 
 	FVector2D TC = FVector2D(0.0f, 0.0f);
 	float TCStep = 1.0f / NumSides;
@@ -1018,7 +1018,7 @@ void DrawWireBox(FPrimitiveDrawInterface* PDI, const FMatrix& Matrix, const FBox
 
 void DrawCircle(FPrimitiveDrawInterface* PDI, const FVector& Base, const FVector& X, const FVector& Y, const FLinearColor& Color, float Radius, int32 NumSides, uint8 DepthPriority, float Thickness, float DepthBias, bool bScreenSpace)
 {
-	const float	AngleDelta = 2.0f * PI / NumSides;
+	const float	AngleDelta = 2.0f * UE_PI / NumSides;
 	FVector	LastVertex = Base + X * Radius;
 
 	for(int32 SideIndex = 0;SideIndex < NumSides;SideIndex++)
@@ -1034,12 +1034,12 @@ void DrawArc(FPrimitiveDrawInterface* PDI, const FVector Base, const FVector X, 
 	float AngleStep = (MaxAngle - MinAngle)/((float)(Sections));
 	float CurrentAngle = MinAngle;
 
-	FVector LastVertex = Base + Radius * ( FMath::Cos(CurrentAngle * (PI/180.0f)) * X + FMath::Sin(CurrentAngle * (PI/180.0f)) * Y );
+	FVector LastVertex = Base + Radius * ( FMath::Cos(CurrentAngle * (UE_PI/180.0f)) * X + FMath::Sin(CurrentAngle * (UE_PI/180.0f)) * Y );
 	CurrentAngle += AngleStep;
 
 	for(int32 i=0; i<Sections; i++)
 	{
-		FVector ThisVertex = Base + Radius * ( FMath::Cos(CurrentAngle * (PI/180.0f)) * X + FMath::Sin(CurrentAngle * (PI/180.0f)) * Y );
+		FVector ThisVertex = Base + Radius * ( FMath::Cos(CurrentAngle * (UE_PI/180.0f)) * X + FMath::Sin(CurrentAngle * (UE_PI/180.0f)) * Y );
 		PDI->DrawTranslucentLine( LastVertex, ThisVertex, Color, DepthPriority );
 		LastVertex = ThisVertex;
 		CurrentAngle += AngleStep;
@@ -1151,7 +1151,7 @@ void DrawWireSphereAutoSides(class FPrimitiveDrawInterface* PDI, const FTransfor
 
 void DrawWireCylinder(FPrimitiveDrawInterface* PDI, const FVector& Base, const FVector& X, const FVector& Y, const FVector& Z, const FLinearColor& Color, float Radius, float HalfHeight, int32 NumSides, uint8 DepthPriority, float Thickness, float DepthBias, bool bScreenSpace)
 {
-	const float	AngleDelta = 2.0f * PI / NumSides;
+	const float	AngleDelta = 2.0f * UE_PI / NumSides;
 	FVector	LastVertex = Base + X * Radius;
 
 	for(int32 SideIndex = 0;SideIndex < NumSides;SideIndex++)
@@ -1169,7 +1169,7 @@ void DrawWireCylinder(FPrimitiveDrawInterface* PDI, const FVector& Base, const F
 
 static void DrawHalfCircle(FPrimitiveDrawInterface* PDI, const FVector& Base, const FVector& X, const FVector& Y, const FLinearColor& Color, float Radius, int32 NumSides, float Thickness, float DepthBias, bool bScreenSpace)
 {
-	const float	AngleDelta = (float)PI / ((float)NumSides);
+	const float	AngleDelta = (float)UE_PI / ((float)NumSides);
 	FVector	LastVertex = Base + X * Radius;
 
 	for(int32 SideIndex = 0; SideIndex < NumSides; SideIndex++)
@@ -1217,7 +1217,7 @@ void DrawWireCapsule(FPrimitiveDrawInterface* PDI, const FVector& Base, const FV
 	const int32 NumCylinderLines = 4;
 
 	// Draw lines for the cylinder portion 
-	const float	AngleDelta = 2.0f * PI / NumCylinderLines;
+	const float	AngleDelta = 2.0f * UE_PI / NumCylinderLines;
 	FVector	LastVertex = Base + XAxis * CapsuleRadius;
 
 	for( int32 SideIndex = 0; SideIndex < NumCylinderLines; SideIndex++ )
@@ -1232,8 +1232,8 @@ void DrawWireCapsule(FPrimitiveDrawInterface* PDI, const FVector& Base, const FV
 
 void DrawWireCone(FPrimitiveDrawInterface* PDI, TArray<FVector>& Verts, const FTransform& Transform, float ConeLength, float ConeAngle, int32 ConeSides, const FLinearColor& Color, uint8 DepthPriority, float Thickness, float DepthBias, bool bScreenSpace)
 {
-	static const float TwoPI = 2.0f * PI;
-	static const float ToRads = PI / 180.0f;
+	static const float TwoPI = 2.0f * UE_PI;
+	static const float ToRads = UE_PI / 180.0f;
 	static const float MaxAngle = 89.0f * ToRads + 0.001f;
 	const float ClampedConeAngle = FMath::Clamp(ConeAngle * ToRads, 0.001f, MaxAngle);
 	const float SinClampedConeAngle = FMath::Sin( ClampedConeAngle );
@@ -1302,7 +1302,7 @@ void DrawWireSphereCappedCone(FPrimitiveDrawInterface* PDI, const FTransform& Tr
 
 void DrawWireChoppedCone(FPrimitiveDrawInterface* PDI,const FVector& Base,const FVector& X,const FVector& Y,const FVector& Z,const FLinearColor& Color,float Radius, float TopRadius,float HalfHeight,int32 NumSides,uint8 DepthPriority)
 {
-	const float	AngleDelta = 2.0f * PI / NumSides;
+	const float	AngleDelta = 2.0f * UE_PI / NumSides;
 	FVector	LastVertex = Base + X * Radius;
 	FVector LastTopVertex = Base + X * TopRadius;
 
@@ -1394,7 +1394,7 @@ void DrawDirectionalArrow(FPrimitiveDrawInterface* PDI,const FMatrix& ArrowToWor
 
 void DrawConnectedArrow(class FPrimitiveDrawInterface* PDI, const FMatrix& ArrowToWorld, const FLinearColor& Color, float ArrowHeight, float ArrowWidth, uint8 DepthPriority, float Thickness, int32 NumSpokes)
 {
-	float RotPerSpoke = (2.0f * PI) / (float)NumSpokes;
+	float RotPerSpoke = (2.0f * UE_PI) / (float)NumSpokes;
 	FQuat Rotator(FVector(1.0f, 0.0f, 0.0f), RotPerSpoke);
 
 	FVector Origin = ArrowToWorld.GetOrigin();

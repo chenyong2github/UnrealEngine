@@ -432,10 +432,10 @@ bool UPhysicsAsset::CanCalculateValidAABB(const USkinnedMeshComponent* MeshComp,
 			if (BoneIndex != INDEX_NONE)
 			{
 				FTransform WorldBoneTransform = MeshComp->GetBoneTransform(BoneIndex, LocalToWorld);
-				if (FMath::Abs(WorldBoneTransform.GetDeterminant()) >(float)KINDA_SMALL_NUMBER)
+				if (FMath::Abs(WorldBoneTransform.GetDeterminant()) >(float)UE_KINDA_SMALL_NUMBER)
 				{
 					FBox Box = bs->AggGeom.CalcAABB(WorldBoneTransform);
-					if (Box.GetSize().SizeSquared() > (float)KINDA_SMALL_NUMBER)
+					if (Box.GetSize().SizeSquared() > (float)UE_KINDA_SMALL_NUMBER)
 					{
 						ValidBox = true;
 						break;

@@ -527,8 +527,8 @@ void USplineMeshComponent::Serialize(FArchive& Ar)
 	if (Ar.UEVer() < VER_UE4_SPLINE_MESH_ORIENTATION)
 	{
 		ForwardAxis = ESplineMeshAxis::Z;
-		SplineParams.StartRoll -= HALF_PI;
-		SplineParams.EndRoll -= HALF_PI;
+		SplineParams.StartRoll -= UE_HALF_PI;
+		SplineParams.EndRoll -= UE_HALF_PI;
 
 		float Temp = SplineParams.StartOffset.X;
 		SplineParams.StartOffset.X = -SplineParams.StartOffset.Y;

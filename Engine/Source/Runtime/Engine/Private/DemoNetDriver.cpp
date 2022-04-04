@@ -1406,7 +1406,7 @@ void UDemoNetDriver::TickDispatch(float DeltaSeconds)
 			continue;
 		}
 
-		if ( World->GetWorldSettings()->DemoPlayTimeDilation > KINDA_SMALL_NUMBER )
+		if ( World->GetWorldSettings()->DemoPlayTimeDilation > UE_KINDA_SMALL_NUMBER )
 		{
 			CurSpectatorController->CustomTimeDilation = 1.0f / World->GetWorldSettings()->DemoPlayTimeDilation;
 		}
@@ -1943,7 +1943,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 					}
 
 					// We check ActorInfo->LastNetUpdateTime < KINDA_SMALL_NUMBER to force at least one update for each actor
-					const bool bWasRecentlyRelevant = (ActorInfo->LastNetUpdateTimestamp < KINDA_SMALL_NUMBER) || ((GetElapsedTime() - ActorInfo->LastNetUpdateTimestamp) < RelevantTimeout);
+					const bool bWasRecentlyRelevant = (ActorInfo->LastNetUpdateTimestamp < UE_KINDA_SMALL_NUMBER) || ((GetElapsedTime() - ActorInfo->LastNetUpdateTimestamp) < RelevantTimeout);
 
 					bool bIsRelevant = !bUseNetRelevancy || Actor->bAlwaysRelevant || Actor == ClientConnection->PlayerController || (ActorInfo->ForceRelevantFrame >= ReplicationFrame);
 

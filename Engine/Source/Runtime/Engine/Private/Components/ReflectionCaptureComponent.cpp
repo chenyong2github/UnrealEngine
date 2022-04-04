@@ -354,7 +354,7 @@ FColor RGBMEncode( FLinearColor Color, float MaxValueRGBM)
 	// Range
 	Color /= MaxValueRGBM;
 	
-	float MaxValue = FMath::Max( FMath::Max(Color.R, Color.G), FMath::Max(Color.B, DELTA) );
+	float MaxValue = FMath::Max( FMath::Max(Color.R, Color.G), FMath::Max(Color.B, UE_DELTA) );
 	
 	if( MaxValue > 0.75f )
 	{
@@ -532,7 +532,7 @@ float GetMaxValueRGBM(const TArray<uint8>& FullHDRData, int32 CubemapSize)
 			{
 				int32 TexelIndex = x + y * MipSize;
 				const FLinearColor LinearColor = FLinearColor(FaceSourceData[TexelIndex]);
-				float MaxValueTexel = FMath::Max(FMath::Max(LinearColor.R, LinearColor.G), FMath::Max(LinearColor.B, DELTA));
+				float MaxValueTexel = FMath::Max(FMath::Max(LinearColor.R, LinearColor.G), FMath::Max(LinearColor.B, UE_DELTA));
 				if (MaxValue < MaxValueTexel)
 				{
 					MaxValue = MaxValueTexel;

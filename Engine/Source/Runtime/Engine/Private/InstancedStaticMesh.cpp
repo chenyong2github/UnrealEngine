@@ -1894,7 +1894,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 			//  This ensures objects essentially cull based on size as seen from viewer rather than distance. Provides much less
 			//  popping for the same number of instances
 			//
-			float Ratio = FMath::Tan(CullAngle / 360.0f * 2.0f * PI);
+			float Ratio = FMath::Tan(CullAngle / 360.0f * 2.0f * UE_PI);
 
 			for (uint32 InstanceIndex = 0; InstanceIndex < InstanceCount; InstanceIndex++)
 			{
@@ -3930,7 +3930,7 @@ float UInstancedStaticMeshComponent::GetTextureStreamingTransformScale() const
 			WeightSum += Weight;
 		}
 
-		if (WeightSum > SMALL_NUMBER)
+		if (WeightSum > UE_SMALL_NUMBER)
 		{
 			TransformScale *= WeightedAxisScaleSum / WeightSum;
 		}

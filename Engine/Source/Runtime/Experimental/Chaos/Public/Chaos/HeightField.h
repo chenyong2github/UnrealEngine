@@ -438,7 +438,7 @@ namespace Chaos
 				Max = { FMath::Max(Max.X, InPoint.X), FMath::Max(Max.Y, InPoint.Y) };
 			}
 
-			FVec2 Clamp(const FVec2& InToClamp, FReal InNudge = SMALL_NUMBER) const
+			FVec2 Clamp(const FVec2& InToClamp, FReal InNudge = UE_SMALL_NUMBER) const
 			{
 				const FVec2 NudgeVec(InNudge, InNudge);
 				const FVec2 TestMin = Min + NudgeVec;

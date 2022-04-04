@@ -1643,7 +1643,7 @@ bool FAnimMontageInstance::JumpToSectionName(FName const & SectionName, bool bEn
 	if (Montage->IsValidSectionIndex(SectionID))
 	{
 		FCompositeSection & CurSection = Montage->GetAnimCompositeSection(SectionID);
-		const float NewPosition = Montage->CalculatePos(CurSection, bEndOfSection ? Montage->GetSectionLength(SectionID) - KINDA_SMALL_NUMBER : 0.0f);
+		const float NewPosition = Montage->CalculatePos(CurSection, bEndOfSection ? Montage->GetSectionLength(SectionID) - UE_KINDA_SMALL_NUMBER : 0.0f);
 		SetPosition(NewPosition);
 		OnMontagePositionChanged(SectionName);
 		return true;
@@ -1832,7 +1832,7 @@ void FAnimMontageInstance::MontageSync_PerformSyncToLeader()
 		// We don't want continually 'teleport' it, which could have side-effects and skip AnimNotifies.
 		const float LeaderPosition = MontageSyncLeader->GetPosition();
 		const float FollowerPosition = GetPosition();
-		if (FMath::Abs(FollowerPosition - LeaderPosition) > KINDA_SMALL_NUMBER)
+		if (FMath::Abs(FollowerPosition - LeaderPosition) > UE_KINDA_SMALL_NUMBER)
 		{
 			SetPosition(LeaderPosition);
 		}
@@ -1921,7 +1921,7 @@ bool FAnimMontageInstance::SimulateAdvance(float DeltaTime, float& InOutPosition
 				Montage->GetSectionStartAndEndTime(RecentNextSectionIndex, LatestNextSectionStartTime, LatestNextSectionEndTime);
 
 				// Jump to next section's appropriate starting point (start or end).
-				InOutPosition = bPlayingForward ? LatestNextSectionStartTime : (LatestNextSectionEndTime - KINDA_SMALL_NUMBER); // remain within section
+				InOutPosition = bPlayingForward ? LatestNextSectionStartTime : (LatestNextSectionEndTime - UE_KINDA_SMALL_NUMBER); // remain within section
 			}
 			else
 			{
@@ -2227,7 +2227,7 @@ float FMontageSubStepper::GetRemainingPlayTimeToSectionEnd(const float In_P_Orig
 	// If our current play rate is zero, we can't predict our remaining play time.
 	if (FMath::IsNearlyZero(PlayRate))
 	{
-		return BIG_NUMBER;
+		return UE_BIG_NUMBER;
 	}
 
 	// Find position in montage where current section ends.
@@ -2378,7 +2378,7 @@ void FAnimMontageInstance::Advance(float DeltaTime, struct FRootMotionMovementPa
 						const float BlendOutTriggerTime = bCustomBlendOutTriggerTime ? Montage->BlendOutTriggerTime : DefaultBlendOutTime;
 
 						// ... trigger blend out if within blend out time window.
-						if (PlayTimeToEnd <= FMath::Max<float>(BlendOutTriggerTime, KINDA_SMALL_NUMBER))
+						if (PlayTimeToEnd <= FMath::Max<float>(BlendOutTriggerTime, UE_KINDA_SMALL_NUMBER))
 						{
 							const float BlendOutTime = bCustomBlendOutTriggerTime ? DefaultBlendOutTime : PlayTimeToEnd;
 							Stop(FAlphaBlend(Montage->BlendOut, BlendOutTime), false);
@@ -2458,7 +2458,7 @@ void FAnimMontageInstance::Advance(float DeltaTime, struct FRootMotionMovementPa
 							Montage->GetSectionStartAndEndTime(RecentNextSectionIndex, LatestNextSectionStartTime, LatestNextSectionEndTime);
 
 							// Jump to next section's appropriate starting point (start or end).
-							const float EndOffset = KINDA_SMALL_NUMBER / 2.f; //KINDA_SMALL_NUMBER/2 because we use KINDA_SMALL_NUMBER to offset notifies for triggering and SMALL_NUMBER is too small
+							const float EndOffset = UE_KINDA_SMALL_NUMBER / 2.f; //KINDA_SMALL_NUMBER/2 because we use KINDA_SMALL_NUMBER to offset notifies for triggering and SMALL_NUMBER is too small
 							Position = bPlayingForward ? LatestNextSectionStartTime : (LatestNextSectionEndTime - EndOffset);
 							SubStepResult = EMontageSubStepResult::Moved;
 						}

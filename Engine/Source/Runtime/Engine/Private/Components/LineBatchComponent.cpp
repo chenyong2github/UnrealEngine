@@ -254,7 +254,7 @@ void ULineBatchComponent::DrawDirectionalArrow(const FMatrix& ArrowToWorld,FColo
 /** Draw a circle */
 void ULineBatchComponent::DrawCircle(const FVector& Base,const FVector& X,const FVector& Y,FColor Color,float Radius,int32 NumSides,uint8 DepthPriority)
 {
-	const float	AngleDelta = 2.0f * PI / NumSides;
+	const float	AngleDelta = 2.0f * UE_PI / NumSides;
 	FVector	LastVertex = Base + X * Radius;
 
 	for(int32 SideIndex = 0;SideIndex < NumSides;SideIndex++)

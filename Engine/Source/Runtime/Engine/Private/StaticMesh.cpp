@@ -1999,7 +1999,7 @@ void FStaticMeshRenderData::ResolveSectionInfo(UStaticMesh* Owner)
 
 				// Generate a projection matrix.
 				// ComputeBoundsScreenSize only uses (0, 0) and (1, 1) of this matrix.
-				const float HalfFOV = PI * 0.25f;
+				const float HalfFOV = UE_PI * 0.25f;
 				const float ScreenWidth = 1920.0f;
 				const float ScreenHeight = 1080.0f;
 				const FPerspectiveMatrix ProjMatrix(HalfFOV, ScreenWidth, ScreenHeight, 1.0f);
@@ -2707,7 +2707,7 @@ void FStaticMeshRenderData::ComputeUVDensities()
 										LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index1), 
 										LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index2));
 
-				if (Aera > SMALL_NUMBER)
+				if (Aera > UE_SMALL_NUMBER)
 				{
 					for (int32 UVIndex = 0; UVIndex < NumTexCoords; ++UVIndex)
 					{
@@ -2727,7 +2727,7 @@ void FStaticMeshRenderData::ComputeUVDensities()
 				float Weight = 0;
 				UVDensityAccs[UVIndex].AccumulateDensity(WeightedUVDensity, Weight);
 
-				if (Weight > SMALL_NUMBER)
+				if (Weight > UE_SMALL_NUMBER)
 				{
 					SectionInfo.UVDensities[UVIndex] = WeightedUVDensity / Weight;
 					SectionInfo.Weights[UVIndex] = Weight;
@@ -3075,7 +3075,7 @@ UStaticMesh
 -----------------------------------------------------------------------------*/
 
 #if WITH_EDITORONLY_DATA
-const float UStaticMesh::MinimumAutoLODPixelError = SMALL_NUMBER;
+const float UStaticMesh::MinimumAutoLODPixelError = UE_SMALL_NUMBER;
 #endif	//#if WITH_EDITORONLY_DATA
 
 UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
@@ -3474,7 +3474,7 @@ static float GetUVDensity(const FStaticMeshLODResourcesArray& LODResources, int3
 		}
 	}
 
-	return (WeightSum > SMALL_NUMBER) ? (WeightedUVDensity / WeightSum) : 0;
+	return (WeightSum > UE_SMALL_NUMBER) ? (WeightedUVDensity / WeightSum) : 0;
 }
 #endif
 
@@ -3525,7 +3525,7 @@ void UStaticMesh::UpdateUVChannelData(bool bRebuildAll)
 			UVChannelData.bOverrideDensities = false;
 			for (int32 UVIndex = 0; UVIndex < TEXSTREAM_MAX_NUM_UVCHANNELS; ++UVIndex)
 			{
-				UVChannelData.LocalUVDensities[UVIndex] = (Weights[UVIndex] > SMALL_NUMBER) ? (WeightedUVDensities[UVIndex] / Weights[UVIndex]) : 0;
+				UVChannelData.LocalUVDensities[UVIndex] = (Weights[UVIndex] > UE_SMALL_NUMBER) ? (WeightedUVDensities[UVIndex] / Weights[UVIndex]) : 0;
 			}
 		}
 
@@ -6324,11 +6324,11 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 			{
 				// Possible model for flexible LODs
 				const float MaxDeviation = 100.0f; // specify
-				const float PixelError = SMALL_NUMBER;
+				const float PixelError = UE_SMALL_NUMBER;
 				const float ViewDistance = (MaxDeviation * 960.0f) / PixelError;
 
 				// Generate a projection matrix.
-				const float HalfFOV = PI * 0.25f;
+				const float HalfFOV = UE_PI * 0.25f;
 				const float ScreenWidth = 1920.0f;
 				const float ScreenHeight = 1080.0f;
 				const FPerspectiveMatrix ProjMatrix(HalfFOV, ScreenWidth, ScreenHeight, 1.0f);
@@ -7496,7 +7496,7 @@ void UStaticMesh::ConvertLegacyLODDistance()
 	{
 		// Multiple models, we should have LOD distance data.
 		// Assuming an FOV of 90 and a screen size of 1920x1080 to estimate an appropriate display factor.
-		const float HalfFOV = PI / 4.0f;
+		const float HalfFOV = UE_PI / 4.0f;
 		const float ScreenWidth = 1920.0f;
 		const float ScreenHeight = 1080.0f;
 
@@ -7519,7 +7519,7 @@ void UStaticMesh::ConvertLegacyLODDistance()
 				const float ScreenMultiple = ScreenWidth / 2.0f * ProjMatrix.M[0][0];
 				const float ScreenRadius = ScreenMultiple * GetBounds().SphereRadius / FMath::Max(float(ScreenPosition.W), 1.0f);
 				const float ScreenArea = ScreenWidth * ScreenHeight;
-				const float BoundsArea = PI * ScreenRadius * ScreenRadius;
+				const float BoundsArea = UE_PI * ScreenRadius * ScreenRadius;
 				SrcModel.ScreenSize.Default = FMath::Clamp(BoundsArea / ScreenArea, 0.0f, 1.0f);
 				GetRenderData()->ScreenSize[ModelIndex] = SrcModel.ScreenSize.Default;
 			}
@@ -7541,7 +7541,7 @@ void UStaticMesh::ConvertLegacyLODScreenArea()
 	else
 	{
 		// Use 1080p, 90 degree FOV as a default, as this should not cause runtime regressions in the common case.
-		const float HalfFOV = PI * 0.25f;
+		const float HalfFOV = UE_PI * 0.25f;
 		const float ScreenWidth = 1920.0f;
 		const float ScreenHeight = 1080.0f;
 		const FPerspectiveMatrix ProjMatrix(HalfFOV, ScreenWidth, ScreenHeight, 1.0f);
@@ -7561,7 +7561,7 @@ void UStaticMesh::ConvertLegacyLODScreenArea()
 			{
 				// legacy transition screen size was previously a screen AREA fraction using resolution-scaled values, so we need to convert to distance first to correctly calculate the threshold
 				const float ScreenArea = SrcModel.ScreenSize.Default * (ScreenWidth * ScreenHeight);
-				const float ScreenRadius = FMath::Sqrt(ScreenArea / PI);
+				const float ScreenRadius = FMath::Sqrt(ScreenArea / UE_PI);
 				const float ScreenDistance = FMath::Max(ScreenWidth / 2.0f * ProjMatrix.M[0][0], ScreenHeight / 2.0f * ProjMatrix.M[1][1]) * Bounds.SphereRadius / ScreenRadius;
 
 				// Now convert using the query function

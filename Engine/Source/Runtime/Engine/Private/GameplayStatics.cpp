@@ -2648,7 +2648,7 @@ bool UGameplayStatics::PredictProjectilePath(const UObject* WorldContextObject, 
 	bool bBlockingHit = false;
 
 	UWorld const* const World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	if (World && PredictParams.SimFrequency > KINDA_SMALL_NUMBER)
+	if (World && PredictParams.SimFrequency > UE_KINDA_SMALL_NUMBER)
 	{
 		const float SubstepDeltaTime = 1.f / PredictParams.SimFrequency;
 		const float GravityZ = FMath::IsNearlyEqual(PredictParams.OverrideGravityZ, 0.0f) ? World->GetGravityZ() : PredictParams.OverrideGravityZ;
@@ -2855,7 +2855,7 @@ bool UGameplayStatics::SuggestProjectileVelocity_CustomArc(const UObject* WorldC
 	float const StartToEndDist = StartToEnd.Size();
 
 	UWorld const* const World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	if (World && StartToEndDist > KINDA_SMALL_NUMBER)
+	if (World && StartToEndDist > UE_KINDA_SMALL_NUMBER)
 	{
 		const float GravityZ = FMath::IsNearlyEqual(OverrideGravityZ, 0.0f) ? World->GetGravityZ() : OverrideGravityZ;
 

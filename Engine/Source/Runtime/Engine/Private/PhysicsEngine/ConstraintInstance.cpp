@@ -61,12 +61,12 @@ FAutoConsoleVariableRef CVarAllowKinematicKinematicConstraints(TEXT("p.AllowKine
 
 float RevolutionsToRads(const float Revolutions)
 {
-	return Revolutions * 2.f * PI;
+	return Revolutions * 2.f * UE_PI;
 }
 
 FVector RevolutionsToRads(const FVector Revolutions)
 {
-	return Revolutions * 2.f * PI;
+	return Revolutions * 2.f * UE_PI;
 }
 
 #if WITH_EDITOR
@@ -183,8 +183,8 @@ void FConstraintInstance::UpdateBreakable()
 
 void FConstraintProfileProperties::UpdateBreakable_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const
 {
-	const float LinearBreakForce = bLinearBreakable ? LinearBreakThreshold : MAX_FLT;
-	const float AngularBreakForce = bAngularBreakable ? AngularBreakThreshold : MAX_FLT;
+	const float LinearBreakForce = bLinearBreakable ? LinearBreakThreshold : UE_MAX_FLT;
+	const float AngularBreakForce = bAngularBreakable ? AngularBreakThreshold : UE_MAX_FLT;
 
 	FPhysicsInterface::SetBreakForces_AssumesLocked(InConstraintRef, LinearBreakForce, AngularBreakForce);
 }
@@ -211,7 +211,7 @@ void FConstraintProfileProperties::UpdatePlasticity_AssumesLocked(const FPhysics
 {
 #if WITH_CHAOS
 	const float LinearPlasticityLimit = bLinearPlasticity ? LinearPlasticityThreshold : FLT_MAX;
-	const float AngularPlasticityLimit = bAngularPlasticity ? FMath::DegreesToRadians(AngularPlasticityThreshold) : MAX_FLT;
+	const float AngularPlasticityLimit = bAngularPlasticity ? FMath::DegreesToRadians(AngularPlasticityThreshold) : UE_MAX_FLT;
 
 	FPhysicsInterface::SetPlasticityLimits_AssumesLocked(InConstraintRef, LinearPlasticityLimit, AngularPlasticityLimit, LinearPlasticityType);
 #endif
@@ -981,8 +981,8 @@ void FConstraintInstance::SetAngularDOFLimitScale(float InSwing1LimitScale, floa
 			}
 		
 			//The limit values need to be clamped so it will be valid in PhysX
-			float ZLimitAngle = FMath::ClampAngle(ProfileInstance.ConeLimit.Swing1LimitDegrees * InSwing1LimitScale, KINDA_SMALL_NUMBER, 179.9999f) * (PI/180.0f);
-			float YLimitAngle = FMath::ClampAngle(ProfileInstance.ConeLimit.Swing2LimitDegrees * InSwing2LimitScale, KINDA_SMALL_NUMBER, 179.9999f) * (PI/180.0f);
+			float ZLimitAngle = FMath::ClampAngle(ProfileInstance.ConeLimit.Swing1LimitDegrees * InSwing1LimitScale, UE_KINDA_SMALL_NUMBER, 179.9999f) * (UE_PI/180.0f);
+			float YLimitAngle = FMath::ClampAngle(ProfileInstance.ConeLimit.Swing2LimitDegrees * InSwing2LimitScale, UE_KINDA_SMALL_NUMBER, 179.9999f) * (UE_PI/180.0f);
 			float LimitContactDistance =  FMath::DegreesToRadians(FMath::Max(1.f, ProfileInstance.ConeLimit.ContactDistance * FMath::Min(InSwing1LimitScale, InSwing2LimitScale)));
 
 			FPhysicsInterface::SetSwingLimit(ConstraintHandle, YLimitAngle, ZLimitAngle, LimitContactDistance);
@@ -1002,7 +1002,7 @@ void FConstraintInstance::SetAngularDOFLimitScale(float InSwing1LimitScale, floa
 		{
 			FPhysicsInterface::SetAngularMotionLimitType_AssumesLocked(InUnbrokenConstraint, ELimitAxis::Twist, ACM_Limited);
 
-			const float TwistLimitRad	= ProfileInstance.TwistLimit.TwistLimitDegrees * InTwistLimitScale * (PI/180.0f);
+			const float TwistLimitRad	= ProfileInstance.TwistLimit.TwistLimitDegrees * InTwistLimitScale * (UE_PI/180.0f);
 			float LimitContactDistance = FMath::DegreesToRadians(FMath::Max(1.f, ProfileInstance.ConeLimit.ContactDistance * InTwistLimitScale));
 
 			FPhysicsInterface::SetTwistLimit(ConstraintHandle, -TwistLimitRad, TwistLimitRad, LimitContactDistance);
@@ -1048,7 +1048,7 @@ void FConstraintInstance::PostSerialize(const FArchive& Ar)
 
 	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_FIXUP_MOTOR_UNITS)
 	{
-		AngularVelocityTarget_DEPRECATED *= 1.f / (2.f * PI);	//we want to use revolutions per second - old system was using radians directly
+		AngularVelocityTarget_DEPRECATED *= 1.f / (2.f * UE_PI);	//we want to use revolutions per second - old system was using radians directly
 	}
 
 	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_CONSTRAINT_INSTANCE_MOTOR_FLAGS)

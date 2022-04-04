@@ -21,10 +21,10 @@ struct FCollisionShape
 {
 	ECollisionShape::Type ShapeType;
 
-	static FORCEINLINE CONSTEXPR float MinBoxExtent() { return KINDA_SMALL_NUMBER; }
-	static FORCEINLINE CONSTEXPR float MinSphereRadius() { return KINDA_SMALL_NUMBER; }
-	static FORCEINLINE CONSTEXPR float MinCapsuleRadius() { return KINDA_SMALL_NUMBER; }
-	static FORCEINLINE CONSTEXPR float MinCapsuleAxisHalfHeight() { return KINDA_SMALL_NUMBER; }
+	static FORCEINLINE CONSTEXPR float MinBoxExtent() { return UE_KINDA_SMALL_NUMBER; }
+	static FORCEINLINE CONSTEXPR float MinSphereRadius() { return UE_KINDA_SMALL_NUMBER; }
+	static FORCEINLINE CONSTEXPR float MinCapsuleRadius() { return UE_KINDA_SMALL_NUMBER; }
+	static FORCEINLINE CONSTEXPR float MinCapsuleAxisHalfHeight() { return UE_KINDA_SMALL_NUMBER; }
 
 	/** Union that supports up to 3 floats **/
 	union

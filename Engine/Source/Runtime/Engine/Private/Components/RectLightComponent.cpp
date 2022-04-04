@@ -117,7 +117,7 @@ float URectLightComponent::ComputeLightBrightness() const
 	}
 	else if (IntensityUnits == ELightUnits::Lumens)
 	{
-		LightBrightness *= (100.f * 100.f / PI); // Conversion from cm2 to m2 and PI from the cosine distribution
+		LightBrightness *= (100.f * 100.f / UE_PI); // Conversion from cm2 to m2 and PI from the cosine distribution
 	}
 	else
 	{
@@ -136,7 +136,7 @@ void URectLightComponent::SetLightBrightness(float InBrightness)
 	}
 	else if (IntensityUnits == ELightUnits::Lumens)
 	{
-		Super::SetLightBrightness(InBrightness / (100.f * 100.f / PI)); // Conversion from cm2 to m2 and PI from the cosine distribution
+		Super::SetLightBrightness(InBrightness / (100.f * 100.f / UE_PI)); // Conversion from cm2 to m2 and PI from the cosine distribution
 	}
 	else
 	{

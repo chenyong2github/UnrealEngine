@@ -178,7 +178,7 @@ FORCEINLINE bool LineCheckWithTriangle(FHitResult& Result,const FVector& V1,cons
 		P = Direction ^ Edge2;
 	float	Determinant = Edge1 | P;
 
-	if(Determinant < DELTA)
+	if(Determinant < UE_DELTA)
 	{
 		return false;
 	}

@@ -1275,7 +1275,7 @@ bool FVirtualTextureDataBuilder::DetectAlphaChannel(const FImage &Image)
 		const FFloat16Color* LastColor = SrcColors + (Image.SizeX * Image.SizeY * Image.NumSlices);
 		while (SrcColors < LastColor)
 		{
-			if (SrcColors->A <  (1.0f - SMALL_NUMBER))
+			if (SrcColors->A <  (1.0f - UE_SMALL_NUMBER))
 			{
 				return true;
 			}

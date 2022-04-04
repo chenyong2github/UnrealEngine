@@ -248,7 +248,7 @@ bool FShadowMapPendingTexture::AddElement(FShadowMapAllocationGroup& AllocationG
 			bool bPerformDistanceCheck = true;
 
 			// Don't pack together shadowmaps that are too far apart
-			if (bPerformDistanceCheck && NewBounds.SphereRadius > GMaxLightmapRadius && NewBounds.SphereRadius > (Bounds.SphereRadius + SMALL_NUMBER))
+			if (bPerformDistanceCheck && NewBounds.SphereRadius > GMaxLightmapRadius && NewBounds.SphereRadius > (Bounds.SphereRadius + UE_SMALL_NUMBER))
 			{
 				return false;
 			}

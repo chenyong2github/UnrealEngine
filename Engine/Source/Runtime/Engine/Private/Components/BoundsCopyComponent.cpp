@@ -65,15 +65,15 @@ void UBoundsCopyComponent::SetTransformToBounds()
 		FVector NewScale = GetOwner()->ActorToWorld().GetScale3D();
 		if (bCopyXBounds)
 		{
-			NewScale.X = Extent.X / FMath::Max<double>(OwnExtent.X, SMALL_NUMBER);
+			NewScale.X = Extent.X / FMath::Max<double>(OwnExtent.X, UE_SMALL_NUMBER);
 		}
 		if (bCopyYBounds)
 		{
-			NewScale.Y = Extent.Y / FMath::Max<double>(OwnExtent.Y, SMALL_NUMBER);
+			NewScale.Y = Extent.Y / FMath::Max<double>(OwnExtent.Y, UE_SMALL_NUMBER);
 		}
 		if (bCopyZBounds)
 		{
-			NewScale.Z = Extent.Z / FMath::Max<double>(OwnExtent.Z, SMALL_NUMBER);
+			NewScale.Z = Extent.Z / FMath::Max<double>(OwnExtent.Z, UE_SMALL_NUMBER);
 		}
 		FTransform Transform;
 		Transform.SetComponents(TargetRotation, Origin, NewScale);

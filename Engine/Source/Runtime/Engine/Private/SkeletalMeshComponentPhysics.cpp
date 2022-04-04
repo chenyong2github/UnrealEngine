@@ -294,7 +294,7 @@ void USkeletalMeshComponent::AddRadialImpulse(FVector Origin, float Radius, floa
 
 	PendingRadialForces.Emplace(Origin, Radius, Strength, Falloff, bVelChange, FPendingRadialForces::EType::AddImpulse);
 	
-	const float StrengthPerMass = Strength / FMath::Max(GetMass(), KINDA_SMALL_NUMBER);
+	const float StrengthPerMass = Strength / FMath::Max(GetMass(), UE_KINDA_SMALL_NUMBER);
 	for(FBodyInstance* Body : Bodies)
 	{
 		const float StrengthPerBody = bVelChange ? Strength : (StrengthPerMass * Body->GetBodyMass());
@@ -313,7 +313,7 @@ void USkeletalMeshComponent::AddRadialForce(FVector Origin, float Radius, float 
 
 	PendingRadialForces.Emplace(Origin, Radius, Strength, Falloff, bAccelChange, FPendingRadialForces::EType::AddForce);
 
-	const float StrengthPerMass = Strength / FMath::Max(GetMass(), KINDA_SMALL_NUMBER);
+	const float StrengthPerMass = Strength / FMath::Max(GetMass(), UE_KINDA_SMALL_NUMBER);
 	for (FBodyInstance* Body : Bodies)
 	{
 		const float StrengthPerBody = bAccelChange ? Strength : (StrengthPerMass * Body->GetBodyMass());
@@ -925,7 +925,7 @@ void USkeletalMeshComponent::InstantiatePhysicsAssetBodies_Internal(const UPhysi
 void USkeletalMeshComponent::InstantiatePhysicsAsset_Internal(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, TFunctionRef<FTransform(int32)> BoneTransformGetter, FPhysScene* PhysScene /*= nullptr*/, USkeletalMeshComponent* OwningComponent /*= nullptr*/, int32 UseRootBodyIndex /*= INDEX_NONE*/, const FPhysicsAggregateHandle& UseAggregate) const
 {
 	const float ActualScale = Scale3D.GetAbsMin();
-	const float Scale = ActualScale == 0.f ? KINDA_SMALL_NUMBER : ActualScale;
+	const float Scale = ActualScale == 0.f ? UE_KINDA_SMALL_NUMBER : ActualScale;
 
 	TMap<FName, FBodyInstance*> NameToBodyMap;
 
@@ -2470,7 +2470,7 @@ bool USkeletalMeshComponent::GetSquaredDistanceToCollision(const FVector& Point,
 				OutClosestPointOnCollision = ClosestPoint;
 
 				// If we're inside collision, we're not going to find anything better, so abort search we've got our best find.
-				if (DistanceSqr <= KINDA_SMALL_NUMBER)
+				if (DistanceSqr <= UE_KINDA_SMALL_NUMBER)
 				{
 					break;
 				}
@@ -2569,7 +2569,7 @@ bool USkeletalMeshComponent::LineTraceComponent(struct FHitResult& OutHit, const
 	}
 	else
 	{
-		float MinTime = MAX_FLT;
+		float MinTime = UE_MAX_FLT;
 		FHitResult Hit;
 		for (int32 BodyIdx = 0; BodyIdx < Bodies.Num(); ++BodyIdx)
 		{
@@ -3444,7 +3444,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 								const TImplicitObjectScaled<FImplicitSphere3>& ImplicitScaled = ImplicitObject->GetObjectChecked<TImplicitObjectScaled<FImplicitSphere3>>();
 								check(ImplicitScaled.Object());
 								const FImplicitSphere3& ImplicitSphere = *ImplicitScaled.GetUnscaledObject();
-								ensure(FVector::DistSquared(ComponentToClothTransform.GetScale3D(), FVector(ImplicitScaled.GetScale())) < KINDA_SMALL_NUMBER);
+								ensure(FVector::DistSquared(ComponentToClothTransform.GetScale3D(), FVector(ImplicitScaled.GetScale())) < UE_KINDA_SMALL_NUMBER);
 								AddSphere(ImplicitSphere, ComponentToClothTransform, ImplicitScaled.GetScale());
 								UE_LOG(LogSkeletalMesh, Verbose, TEXT("Found Scaled Sphere cloth environmental collision in [%s]"), *Component->GetOwner()->GetFName().ToString());
 								bHasSimpleCollision = true;
@@ -3455,7 +3455,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 								const TImplicitObjectScaled<FImplicitBox3>& ImplicitScaled = ImplicitObject->GetObjectChecked<TImplicitObjectScaled<FImplicitBox3>>();
 								check(ImplicitScaled.Object());
 								const FImplicitBox3& ImplicitBox = *ImplicitScaled.GetUnscaledObject();
-								ensure(FVector::DistSquared(ComponentToClothTransform.GetScale3D(), FVector(ImplicitScaled.GetScale())) < KINDA_SMALL_NUMBER);
+								ensure(FVector::DistSquared(ComponentToClothTransform.GetScale3D(), FVector(ImplicitScaled.GetScale())) < UE_KINDA_SMALL_NUMBER);
 								AddBox(ImplicitBox, ComponentToClothTransform, ImplicitScaled.GetScale());
 								UE_LOG(LogSkeletalMesh, Verbose, TEXT("Found Scaled Box cloth environmental collision in [%s]"), *Component->GetOwner()->GetFName().ToString());
 								bHasSimpleCollision = true;
@@ -3466,7 +3466,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 								const TImplicitObjectScaled<FImplicitCapsule3>& ImplicitScaled = ImplicitObject->GetObjectChecked<TImplicitObjectScaled<FImplicitCapsule3>>();
 								check(ImplicitScaled.Object());
 								const FImplicitCapsule3& ImplicitCapsule = *ImplicitScaled.GetUnscaledObject();
-								ensure(FVector::DistSquared(ComponentToClothTransform.GetScale3D(), FVector(ImplicitScaled.GetScale())) < KINDA_SMALL_NUMBER);
+								ensure(FVector::DistSquared(ComponentToClothTransform.GetScale3D(), FVector(ImplicitScaled.GetScale())) < UE_KINDA_SMALL_NUMBER);
 								AddCapsule(ImplicitCapsule, ComponentToClothTransform, ImplicitScaled.GetScale());
 								UE_LOG(LogSkeletalMesh, Verbose, TEXT("Found Scaled Capsule cloth environmental collision in [%s]"), *Component->GetOwner()->GetFName().ToString());
 								bHasSimpleCollision = true;
@@ -3477,7 +3477,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 								const TImplicitObjectScaled<FImplicitConvex3>& ImplicitScaled = ImplicitObject->GetObjectChecked<TImplicitObjectScaled<FImplicitConvex3>>();
 								check(ImplicitScaled.Object());
 								const FImplicitConvex3& ImplicitConvex = *ImplicitScaled.GetUnscaledObject();
-								ensure(FVector::DistSquared(ComponentToClothTransform.GetScale3D(), FVector(ImplicitScaled.GetScale())) < KINDA_SMALL_NUMBER);
+								ensure(FVector::DistSquared(ComponentToClothTransform.GetScale3D(), FVector(ImplicitScaled.GetScale())) < UE_KINDA_SMALL_NUMBER);
 								AddConvex(ImplicitConvex, ComponentToClothTransform.ToMatrixWithScale());
 								UE_LOG(LogSkeletalMesh, Verbose, TEXT("Found Scaled Convex cloth environmental collision in [%s]"), *Component->GetOwner()->GetFName().ToString());
 								bHasSimpleCollision = true;

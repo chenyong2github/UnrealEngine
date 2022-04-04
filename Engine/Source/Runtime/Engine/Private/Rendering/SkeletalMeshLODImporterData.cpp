@@ -220,7 +220,7 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 	Influences.Reset();
 
 	FWedgePosition OldGeoOverlappingPosition;
-	FWedgePosition::FillWedgePosition(OldGeoOverlappingPosition, Other.Points, Other.Wedges, THRESH_POINTS_ARE_SAME);
+	FWedgePosition::FillWedgePosition(OldGeoOverlappingPosition, Other.Points, Other.Wedges, UE_THRESH_POINTS_ARE_SAME);
 	FOctreeQueryHelper OctreeQueryHelper(OldGeoOverlappingPosition.GetOctree());
 
 	//////////////////////////////////////////////////////////////////////////
@@ -253,7 +253,7 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 		bool bFoundMatch = false;
 
 		TArray<int32> OldWedgeIndexes;
-		OldGeoOverlappingPosition.FindMatchingPositionWegdeIndexes(NewPointA, THRESH_POINTS_ARE_SAME, OldWedgeIndexes);
+		OldGeoOverlappingPosition.FindMatchingPositionWegdeIndexes(NewPointA, UE_THRESH_POINTS_ARE_SAME, OldWedgeIndexes);
 		if (OldWedgeIndexes.Num() > 0)
 		{
 			//Getting the other 2 vertices of the new triangle
@@ -269,8 +269,8 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 				int32 OldFaceCorner = (OldWedgeIndex % 3);
 				FVector3f OldNormal = OldFace.TangentZ[OldFaceCorner];
 
-				if (Other.Wedges[OldWedgeIndex].UVs[0].Equals(CurWedgeUV, THRESH_UVS_ARE_SAME)
-					&& OldNormal.Equals(NewNormal, THRESH_NORMALS_ARE_SAME))
+				if (Other.Wedges[OldWedgeIndex].UVs[0].Equals(CurWedgeUV, UE_THRESH_UVS_ARE_SAME)
+					&& OldNormal.Equals(NewNormal, UE_THRESH_NORMALS_ARE_SAME))
 				{
 					//If we have more than one good match, we select the vertex whose triangle is the most similar, 
 					//that way we avoid picking the wrong vertex on a mirror mesh seam.
@@ -1065,7 +1065,7 @@ void FWedgePosition::FindMatchingPositionWegdeIndexes(const FVector3f &Position,
 	
 	//////////////////////////////////////////////////////////////////////////
 	//Closest point data (!bExactMatch)
-	float MinDistance = MAX_FLT;
+	float MinDistance = UE_MAX_FLT;
 	int32 ClosestIndex = LastBottomIndex;
 
 	for (int32 i = LastBottomIndex; i < SortedPositionNumber; i++)
@@ -1098,7 +1098,7 @@ void FOctreeQueryHelper::FindNearestWedgeIndexes(const FVector3f& SearchPosition
 	OutNearestWedges.Empty();
 	const float OctreeExtent = WedgePosOctree->GetRootBounds().Extent.Size3();
 	//Use the max between 1e-4 cm and 1% of the bounding box extend
-	FVector Extend(FMath::Max(KINDA_SMALL_NUMBER, OctreeExtent*0.005f));
+	FVector Extend(FMath::Max(UE_KINDA_SMALL_NUMBER, OctreeExtent*0.005f));
 
 	//Pass Extent size % of the Octree bounding box extent
 	//PassIndex 0 -> 0.5%
@@ -1117,7 +1117,7 @@ void FOctreeQueryHelper::FindNearestWedgeIndexes(const FVector3f& SearchPosition
 		if (OutNearestWedges.Num() == 0)
 		{
 			float ExtentPercent = 0.05f*((float)PassIndex+1.0f);
-			Extend = FVector(FMath::Max(KINDA_SMALL_NUMBER, OctreeExtent * ExtentPercent));
+			Extend = FVector(FMath::Max(UE_KINDA_SMALL_NUMBER, OctreeExtent * ExtentPercent));
 		}
 		else
 		{

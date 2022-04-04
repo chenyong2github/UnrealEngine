@@ -1030,9 +1030,9 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 				if (ClientConnections.Num() > 0)
 				{
 					// Update per connection statistics
-					float MinPing = MAX_FLT;
+					float MinPing = UE_MAX_FLT;
 					float AvgPing = 0;
-					float MaxPing = -MAX_FLT;
+					float MaxPing = -UE_MAX_FLT;
 					float PingCount = 0;
 
 					int32 Buckets[kNumBuckets] = { 0 };

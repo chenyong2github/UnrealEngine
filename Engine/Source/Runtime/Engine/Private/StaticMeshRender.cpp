@@ -886,7 +886,7 @@ bool FStaticMeshSceneProxy::GetCollisionMeshElement(
 bool FStaticMeshSceneProxy::GetPrimitiveDistance(int32 LODIndex, int32 SectionIndex, const FVector& ViewOrigin, float& PrimitiveDistance) const
 {
 	const bool bUseNewMetrics = CVarStreamingUseNewMetrics.GetValueOnRenderThread() != 0;
-	const float OneOverDistanceMultiplier = 1.f / FMath::Max<float>(SMALL_NUMBER, StreamingDistanceMultiplier);
+	const float OneOverDistanceMultiplier = 1.f / FMath::Max<float>(UE_SMALL_NUMBER, StreamingDistanceMultiplier);
 
 	if (bUseNewMetrics && LODs.IsValidIndex(LODIndex) && LODs[LODIndex].Sections.IsValidIndex(SectionIndex))
 	{
@@ -1701,7 +1701,7 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 
 			if((bDrawSimpleCollision || bDrawSimpleWireframeCollision) && BodySetup)
 			{
-				if(FMath::Abs(GetLocalToWorld().Determinant()) < SMALL_NUMBER)
+				if(FMath::Abs(GetLocalToWorld().Determinant()) < UE_SMALL_NUMBER)
 				{
 					// Catch this here or otherwise GeomTransform below will assert
 					// This spams so commented out

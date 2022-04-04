@@ -197,7 +197,7 @@ static int32 FindSurf(const UModel &Model, const FVector3f &SourcePoint, int32 i
 				return Tolerance;
 			}
 		}
-		if (PlaneDist > KINDA_SMALL_NUMBER)
+		if (PlaneDist > UE_KINDA_SMALL_NUMBER)
 		{
 			break;
 		}

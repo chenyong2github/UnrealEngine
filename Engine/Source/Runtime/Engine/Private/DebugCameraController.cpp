@@ -590,8 +590,8 @@ void ADebugCameraController::UpdateRotationForOrbit(float DeltaTime)
 			FQuat::FindBetween(FVector::UpVector, OppositeViewVector).ToAxisAndAngle(Axis, Angle);
 
 			// Clamp rotation to 10 degrees from Up vector
-			const float MinAngle = PI / 18.f;
-			const float MaxAngle = PI - MinAngle;
+			const float MinAngle = UE_PI / 18.f;
+			const float MaxAngle = UE_PI - MinAngle;
 			if (Angle < MinAngle || Angle > MaxAngle)
 			{
 				float AdjustedAngle = FMath::Clamp(Angle, MinAngle, MaxAngle);

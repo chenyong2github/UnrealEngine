@@ -61,15 +61,15 @@ static bool HasBadNTB(UStaticMesh* Mesh, bool &bZeroNormals, bool &bZeroTangents
 				const FVector3f TangentY = LOD.VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(VertIndex);
 				const FVector3f TangentZ = LOD.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertIndex);
 				
-				if (TangentX.IsNearlyZero(KINDA_SMALL_NUMBER))
+				if (TangentX.IsNearlyZero(UE_KINDA_SMALL_NUMBER))
 				{
 					bZeroTangents = true;
 				}
-				if (TangentY.IsNearlyZero(KINDA_SMALL_NUMBER))
+				if (TangentY.IsNearlyZero(UE_KINDA_SMALL_NUMBER))
 				{
 					bZeroBinormals = true;
 				}
-				if (TangentZ.IsNearlyZero(KINDA_SMALL_NUMBER))
+				if (TangentZ.IsNearlyZero(UE_KINDA_SMALL_NUMBER))
 				{
 					bZeroNormals = true;
 				}
@@ -614,8 +614,8 @@ void UStaticMesh::FinishBuildInternal(const TArray<UStaticMeshComponent*> & InAf
 		const FBoxSphereBounds RenderBounds = GetRenderData()->Bounds;
 		const FBoxSphereBounds CachedBounds = CachedMeshDescriptionBounds.GetValue();
 
-		const float SizeDifferencePercent   = 100.f * 2.0f * FMath::Abs(CachedBounds.BoxExtent.Size() - RenderBounds.BoxExtent.Size()) / (FMath::Abs(CachedBounds.BoxExtent.Size() + RenderBounds.BoxExtent.Size()) + KINDA_SMALL_NUMBER);
-		const float OriginDifferencePercent = 100.f * 2.0f * FVector::Dist(CachedBounds.Origin, RenderBounds.Origin) / ((CachedBounds.Origin + RenderBounds.Origin).Size() + KINDA_SMALL_NUMBER);
+		const float SizeDifferencePercent   = 100.f * 2.0f * FMath::Abs(CachedBounds.BoxExtent.Size() - RenderBounds.BoxExtent.Size()) / (FMath::Abs(CachedBounds.BoxExtent.Size() + RenderBounds.BoxExtent.Size()) + UE_KINDA_SMALL_NUMBER);
+		const float OriginDifferencePercent = 100.f * 2.0f * FVector::Dist(CachedBounds.Origin, RenderBounds.Origin) / ((CachedBounds.Origin + RenderBounds.Origin).Size() + UE_KINDA_SMALL_NUMBER);
 		// Anything more than 5% is probably worth investigating
 		if (SizeDifferencePercent > 5.0f || OriginDifferencePercent > 5.0f)
 		{	
@@ -745,7 +745,7 @@ void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 	// the color of the old vertex to the new position if possible.
 	OutOverrideColors.Empty(NewPositions.GetNumVertices());
 	TArray<FPaintedVertex> PointsToConsider;
-	const float DistanceOverNormalThreshold = OptionalVertexBuffer ? KINDA_SMALL_NUMBER : 0.0f;
+	const float DistanceOverNormalThreshold = OptionalVertexBuffer ? UE_KINDA_SMALL_NUMBER : 0.0f;
 	for ( uint32 NewVertIndex = 0; NewVertIndex < NewPositions.GetNumVertices(); ++NewVertIndex )
 	{
 		PointsToConsider.Reset();

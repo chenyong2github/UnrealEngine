@@ -16851,7 +16851,7 @@ int32 UEngine::RenderStatLevelMap(UWorld* World, FViewport* Viewport, FCanvas* C
 
 		// Make verts for little rotated arrow
 		check(ViewRotation);
-		float PlayerYaw = (ViewRotation->Yaw * PI / 180.f) - (0.5f * PI); // We have to add 90 degrees because +X in world space means -Y in map space
+		float PlayerYaw = (ViewRotation->Yaw * UE_PI / 180.f) - (0.5f * UE_PI); // We have to add 90 degrees because +X in world space means -Y in map space
 		const FVector2D M0 = PlayerMapPos + RotateVec2D(FVector2D(7, 0), PlayerYaw);
 		const FVector2D M1 = PlayerMapPos + RotateVec2D(FVector2D(-7, 5), PlayerYaw);
 		const FVector2D M2 = PlayerMapPos + RotateVec2D(FVector2D(-7, -5), PlayerYaw);

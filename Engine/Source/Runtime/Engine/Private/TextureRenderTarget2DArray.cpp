@@ -166,7 +166,7 @@ UTexture2DArray* UTextureRenderTarget2DArray::ConstructTexture2DArray(UObject* O
 
 	bool bSRGB = true;
 	// if render target gamma used was 1.0 then disable SRGB for the static texture
-	if (FMath::Abs(TextureResource->GetDisplayGamma() - 1.0f) < KINDA_SMALL_NUMBER)
+	if (FMath::Abs(TextureResource->GetDisplayGamma() - 1.0f) < UE_KINDA_SMALL_NUMBER)
 	{
 		bSRGB = false;
 	}
@@ -227,7 +227,7 @@ void FTextureRenderTarget2DArrayResource::InitDynamicRHI()
 		bool bIsSRGB = true;
 
 		// if render target gamma used was 1.0 then disable SRGB for the static texture
-		if(FMath::Abs(GetDisplayGamma() - 1.0f) < KINDA_SMALL_NUMBER)
+		if(FMath::Abs(GetDisplayGamma() - 1.0f) < UE_KINDA_SMALL_NUMBER)
 		{
 			bIsSRGB = false;
 		}
@@ -340,7 +340,7 @@ FIntPoint FTextureRenderTarget2DArrayResource::GetSizeXY() const
 
 float FTextureRenderTarget2DArrayResource::GetDisplayGamma() const
 {
-	if(Owner->TargetGamma > KINDA_SMALL_NUMBER * 10.0f)
+	if(Owner->TargetGamma > UE_KINDA_SMALL_NUMBER * 10.0f)
 	{
 		return Owner->TargetGamma;
 	}

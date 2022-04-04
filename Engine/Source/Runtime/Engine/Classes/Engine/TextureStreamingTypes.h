@@ -90,8 +90,8 @@ struct FStreamingRenderAssetPrimitiveInfo
 
 	bool CanBeStreamedByDistance(bool bOwningCompRegistered) const
 	{
-		return (TexelFactor > SMALL_NUMBER || (!bOwningCompRegistered && bAllowInvalidTexelFactorWhenUnregistered))
-			&& (Bounds.SphereRadius > SMALL_NUMBER || !bOwningCompRegistered)
+		return (TexelFactor > UE_SMALL_NUMBER || (!bOwningCompRegistered && bAllowInvalidTexelFactorWhenUnregistered))
+			&& (Bounds.SphereRadius > UE_SMALL_NUMBER || !bOwningCompRegistered)
 			&& ensure(FMath::IsFinite(TexelFactor));
 	}
 };

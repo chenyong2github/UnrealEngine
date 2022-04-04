@@ -975,15 +975,15 @@ namespace Private
 template<typename T>
 FORCENOINLINE T GetSafeDivisor(T Number)
 {
-	if (FMath::Abs(Number) < (T)DELTA)
+	if (FMath::Abs(Number) < (T)UE_DELTA)
 	{
 		if (Number < 0)
 		{
-			return -(T)DELTA;
+			return -(T)UE_DELTA;
 		}
 		else
 		{
-			return (T)DELTA;
+			return (T)UE_DELTA;
 		}
 	}
 	else

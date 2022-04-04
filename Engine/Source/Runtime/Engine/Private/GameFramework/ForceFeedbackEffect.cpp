@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/ForceFeedbackEffect.h"
 #include "GenericPlatform/IInputInterface.h"
@@ -24,7 +24,7 @@ void UForceFeedbackEffect::PostEditChangeChainProperty( struct FPropertyChangedC
 float UForceFeedbackEffect::GetDuration()
 {
 	// Always recalc the duration when in the editor as it could change
-	if( GIsEditor || ( Duration < SMALL_NUMBER ) )
+	if( GIsEditor || ( Duration < UE_SMALL_NUMBER ) )
 	{
 		Duration = 0.f;
 

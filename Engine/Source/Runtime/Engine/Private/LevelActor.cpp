@@ -1106,7 +1106,7 @@ bool UWorld::FindTeleportSpot(const AActor* TestActor, FVector& TestLocation, FR
 	}
 
 	// first do only Z
-	const FVector::FReal ZeroThreshold = KINDA_SMALL_NUMBER;
+	const FVector::FReal ZeroThreshold = UE_KINDA_SMALL_NUMBER;
 	const bool bZeroZ = FMath::IsNearlyZero(Adjust.Z, ZeroThreshold);
 	if (!bZeroZ)
 	{

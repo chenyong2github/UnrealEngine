@@ -271,7 +271,7 @@ namespace Chaos
 
 			const TVector<FReal, 3> Difference = X - ClosestPoint;
 			Phi = Difference.Size();
-			if (Phi > SMALL_NUMBER)
+			if (Phi > UE_SMALL_NUMBER)
 			{
 				Normal = (Difference) / Phi;
 			}
@@ -339,7 +339,7 @@ namespace Chaos
 
 			const FVec3 Difference = X - ClosestPoint;
 			const FReal DifferenceLen = Difference.Size();
-			if (DifferenceLen > SMALL_NUMBER)
+			if (DifferenceLen > UE_SMALL_NUMBER)
 			{
 				Normal = Difference / DifferenceLen;
 				MaxPhi = DifferenceLen;

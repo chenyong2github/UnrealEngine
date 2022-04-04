@@ -816,7 +816,7 @@ void UParticleModuleLocationPrimitiveTriangle::SpawnEx(FParticleEmitterInstance*
 	float TriHeight = Height.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
 	float TriAngle = Angle.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
 	float TriThickness = Thickness.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
-	float BaseLength = TriHeight * FMath::Tan(0.5f * TriAngle * PI / 180.0f);
+	float BaseLength = TriHeight * FMath::Tan(0.5f * TriAngle * UE_PI / 180.0f);
 
 	FVector Corners[3];
 	Corners[0] = TriOffset + FVector(+TriHeight * 0.5f, 0.0f, 0.0f);
@@ -832,7 +832,7 @@ void UParticleModuleLocationPrimitiveTriangle::SpawnEx(FParticleEmitterInstance*
 	ZPos = InRandomStream->GetFraction();
 	
 	FVector LocationOffset = FVector::ZeroVector;
-	float Sum = FMath::Max<float>(KINDA_SMALL_NUMBER, BarycentricCoords[0] + BarycentricCoords[1] + BarycentricCoords[2]);
+	float Sum = FMath::Max<float>(UE_KINDA_SMALL_NUMBER, BarycentricCoords[0] + BarycentricCoords[1] + BarycentricCoords[2]);
 	for (int32 i = 0; i < 3; i++)
 	{
 		LocationOffset += (BarycentricCoords[i] / Sum) * Corners[i];
@@ -859,7 +859,7 @@ void UParticleModuleLocationPrimitiveTriangle::Render3DPreview(FParticleEmitterI
 		float TriHeight = Height.GetValue(0.0f, NULL, NULL);
 		float TriAngle = Angle.GetValue(0.0f, NULL, NULL);
 		float TriThickness = Thickness.GetValue(0.0f, NULL, NULL);
-		float BaseLength = TriHeight * FMath::Tan(0.5f * TriAngle * PI / 180.0f);
+		float BaseLength = TriHeight * FMath::Tan(0.5f * TriAngle * UE_PI / 180.0f);
 
 		FVector Corners[3];
 		Corners[0] = TriOffset + FVector(+TriHeight * 0.5f, 0.0f, 0.0f);
@@ -2427,7 +2427,7 @@ void UParticleModuleLocationSkelVertSurface::Spawn(FParticleEmitterInstance* Own
 				{
 					//We have the mesh oriented to the normal of the triangle it's on but this looks fugly as particles on each triangle are facing the same way.
 					//The only valid orientation reference should be the normal. So add an additional random rotation around it.
-					SourceRotation = SourceRotation * FQuat(FVector::UpVector, RandomStream.FRand()*(PI*2.0f));
+					SourceRotation = SourceRotation * FQuat(FVector::UpVector, RandomStream.FRand()*(UE_PI*2.0f));
 				}
 
 				FVector Rot = SourceRotation.Euler();
@@ -2514,7 +2514,7 @@ void UParticleModuleLocationSkelVertSurface::Update(FParticleEmitterInstance* Ow
 				{
 					//We have the mesh oriented to the normal of the triangle it's on but this looks fugly as particles on each triangle are facing the same way.
 					//The only valid orientation reference should be the normal. So add an additional random rotation around it.
-					SourceRotation = SourceRotation * FQuat(FVector::UpVector, RandomStream.FRand()*(PI*2.0f));
+					SourceRotation = SourceRotation * FQuat(FVector::UpVector, RandomStream.FRand()*(UE_PI*2.0f));
 				}
 
 				FMeshRotationPayloadData* PayloadData = (FMeshRotationPayloadData*)((uint8*)&Particle + MeshRotationOffset);

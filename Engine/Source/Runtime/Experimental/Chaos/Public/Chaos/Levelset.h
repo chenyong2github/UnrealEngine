@@ -108,7 +108,7 @@ class CHAOS_API FLevelSet final : public FImplicitObject
 			{
 				FReal CellRadius = AvgRadius - FMath::Abs(Phi);
 
-				if(CellRadius > KINDA_SMALL_NUMBER)
+				if(CellRadius > UE_KINDA_SMALL_NUMBER)
 				{
 					const FReal Scale = FMath::Min((FReal)1, CellRadius / AvgRadius);
 					Volume += CellVolume * Scale;

@@ -196,12 +196,12 @@ public:
 				{
 					Chaos::FAABB3 BoxIJ = BoxI.GetIntersection(BoxJ);
 					const Chaos::FReal VolIJ = BoxIJ.GetVolume();
-					if (VolIJ > KINDA_SMALL_NUMBER)
+					if (VolIJ > UE_KINDA_SMALL_NUMBER)
 					{
 						const Chaos::FReal VolI = BoxI.GetVolume();
 						const Chaos::FReal VolJ = BoxJ.GetVolume();
-						const Chaos::FReal PctOverlapI = VolI > KINDA_SMALL_NUMBER ? VolIJ / VolI : 0.f;
-						const Chaos::FReal PctOverlapJ = VolJ > KINDA_SMALL_NUMBER ? VolIJ / VolJ : 0.f;
+						const Chaos::FReal PctOverlapI = VolI > UE_KINDA_SMALL_NUMBER ? VolIJ / VolI : 0.f;
+						const Chaos::FReal PctOverlapJ = VolJ > UE_KINDA_SMALL_NUMBER ? VolIJ / VolJ : 0.f;
 						// Split the overlapping volume between i and j
 						MPArray[i].Volume *= static_cast<Chaos::FReal>(1.0 - PctOverlapI / 2.0);
 						MPArray[j].Volume *= static_cast<Chaos::FReal>(1.0 - PctOverlapJ / 2.0);

@@ -1060,7 +1060,7 @@ void UStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCon
 		if (Lightmap && Lightmap->IsValid(LightmapIndex))
 		{
 			const FVector2D& Scale = Lightmap->GetCoordinateScale();
-			if (Scale.X > SMALL_NUMBER && Scale.Y > SMALL_NUMBER)
+			if (Scale.X > UE_SMALL_NUMBER && Scale.Y > UE_SMALL_NUMBER)
 			{
 				const float TexelFactor = GetStaticMesh()->GetLightmapUVDensity() * GetTransformScale() / FMath::Min(Scale.X, Scale.Y);
 				new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Lightmap->GetTexture(LightmapIndex), Bounds, TexelFactor, PackedRelativeBox_Identity);
@@ -1073,7 +1073,7 @@ void UStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCon
 		if (Shadowmap && Shadowmap->IsValid())
 		{
 			const FVector2D& Scale = Shadowmap->GetCoordinateScale();
-			if (Scale.X > SMALL_NUMBER && Scale.Y > SMALL_NUMBER)
+			if (Scale.X > UE_SMALL_NUMBER && Scale.Y > UE_SMALL_NUMBER)
 			{
 				const float TexelFactor = GetStaticMesh()->GetLightmapUVDensity() * GetTransformScale() / FMath::Min(Scale.X, Scale.Y);
 				new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Shadowmap->GetTexture(), Bounds, TexelFactor, PackedRelativeBox_Identity);

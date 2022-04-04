@@ -958,7 +958,7 @@ void FPrimitiveSceneProxy::FDebugMassData::DrawDebugMass(class FPrimitiveDrawInt
 	DrawCircle(PDI, COMWorldPosition, XAxis, YAxis, FColor(255, 255, 100), Size, 25, SDPG_World);
 	DrawCircle(PDI, COMWorldPosition, ZAxis, YAxis, FColor(255, 255, 100), Size, 25, SDPG_World);
 
-	const float InertiaSize = FMath::Max(MassSpaceInertiaTensor.Size(), KINDA_SMALL_NUMBER);
+	const float InertiaSize = FMath::Max(MassSpaceInertiaTensor.Size(), UE_KINDA_SMALL_NUMBER);
 	const float XSize = Size * MassSpaceInertiaTensor.X / InertiaSize;
 	const float YSize = Size * MassSpaceInertiaTensor.Y / InertiaSize;
 	const float ZSize = Size * MassSpaceInertiaTensor.Z / InertiaSize;

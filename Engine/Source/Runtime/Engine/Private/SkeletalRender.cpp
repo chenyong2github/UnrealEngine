@@ -15,7 +15,7 @@ Globals
 -----------------------------------------------------------------------------*/
 
 // smallest blend weight for vertex anims
-const float MinMorphTargetBlendWeight = SMALL_NUMBER;
+const float MinMorphTargetBlendWeight = UE_SMALL_NUMBER;
 // largest blend weight for vertex anims
 const float MaxMorphTargetBlendWeight = 5.0f;
 

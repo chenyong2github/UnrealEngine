@@ -32,5 +32,7 @@ public class CoreUObject : ModuleRules
 		{
 			PrivateDependencyModuleNames.Add("DerivedDataCache");
 		}
+
+		PrivateDefinitions.Add("UE_DEFINE_LEGACY_MATH_CONSTANT_MACRO_NAMES=0");
 	}
 }

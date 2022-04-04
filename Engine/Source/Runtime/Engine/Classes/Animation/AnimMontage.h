@@ -243,7 +243,7 @@ public:
 	void Initialize(const struct FAnimMontageInstance& InAnimInstance);
 
 	void AddEvaluationTime(float InDeltaTime) { TimeRemaining += InDeltaTime; }
-	bool HasTimeRemaining() const { return (TimeRemaining > SMALL_NUMBER); }
+	bool HasTimeRemaining() const { return (TimeRemaining > UE_SMALL_NUMBER); }
 	float GetRemainingTime() const { return TimeRemaining; }
 	EMontageSubStepResult Advance(float& InOut_P_Original, const FBranchingPointMarker** OutBranchingPointMarkerPtr);
 	bool HasReachedEndOfSection() const { return bReachedEndOfSection; }

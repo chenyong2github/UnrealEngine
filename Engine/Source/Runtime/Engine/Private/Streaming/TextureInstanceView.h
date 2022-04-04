@@ -265,9 +265,9 @@ class FRenderAssetInstanceAsyncView
 {
 public:
 
-	FRenderAssetInstanceAsyncView() : MaxLevelRenderAssetScreenSize(MAX_FLT) {}
+	FRenderAssetInstanceAsyncView() : MaxLevelRenderAssetScreenSize(UE_MAX_FLT) {}
 
-	FRenderAssetInstanceAsyncView(const FRenderAssetInstanceView* InView) : View(InView), MaxLevelRenderAssetScreenSize(MAX_FLT) {}
+	FRenderAssetInstanceAsyncView(const FRenderAssetInstanceView* InView) : View(InView), MaxLevelRenderAssetScreenSize(UE_MAX_FLT) {}
 
 	void UpdateBoundSizes_Async(
 		const TArray<FStreamingViewInfo>& ViewInfos,

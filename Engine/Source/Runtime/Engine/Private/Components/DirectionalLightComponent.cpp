@@ -507,7 +507,7 @@ public:
 		// The far distance for the dynamic to static fade is the range of the directional light.
 		// The near distance is placed at a depth of 90% of the light's range.
 		const float NearDistance = FarDistance - FarDistance * ( ShadowDistanceFadeoutFraction * CVarCSMShadowDistanceFadeoutMultiplier.GetValueOnAnyThread() );
-		return FVector2D(NearDistance, 1.0f / FMath::Max<float>(FarDistance - NearDistance, KINDA_SMALL_NUMBER));
+		return FVector2D(NearDistance, 1.0f / FMath::Max<float>(FarDistance - NearDistance, UE_KINDA_SMALL_NUMBER));
 	}
 
 	virtual int32 GetDirectionalLightForwardShadingPriority() const override
@@ -598,7 +598,7 @@ public:
 
 	virtual float GetSunLightHalfApexAngleRadian() const override
 	{
-		return 0.5f * LightSourceAngle * PI / 180.0f; // LightSourceAngle is apex angle (angular diameter) in degree
+		return 0.5f * LightSourceAngle * UE_PI / 180.0f; // LightSourceAngle is apex angle (angular diameter) in degree
 	}
 
 
@@ -796,8 +796,8 @@ private:
 		bool bIsPerspectiveProjection = View.ShadowViewMatrices.IsPerspectiveProjection();
 
 		// Build the camera frustum for this cascade
-		float HalfHorizontalFOV = bIsPerspectiveProjection ? FMath::Atan(1.0f / ProjectionMatrix.M[0][0]) : PI / 4.0f;
-		float HalfVerticalFOV = bIsPerspectiveProjection ? FMath::Atan(1.0f / ProjectionMatrix.M[1][1]) : FMath::Atan((FMath::Tan(PI / 4.0f) / AspectRatio));
+		float HalfHorizontalFOV = bIsPerspectiveProjection ? FMath::Atan(1.0f / ProjectionMatrix.M[0][0]) : UE_PI / 4.0f;
+		float HalfVerticalFOV = bIsPerspectiveProjection ? FMath::Atan(1.0f / ProjectionMatrix.M[1][1]) : FMath::Atan((FMath::Tan(UE_PI / 4.0f) / AspectRatio));
 		float AsymmetricFOVScaleX = ProjectionMatrix.M[2][0];
 		float AsymmetricFOVScaleY = ProjectionMatrix.M[2][1];
 
@@ -1043,7 +1043,7 @@ void UDirectionalLightComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 	DynamicShadowCascades = FMath::Clamp(DynamicShadowCascades, 0, 10);
 	FarShadowCascadeCount = FMath::Clamp(FarShadowCascadeCount, 0, 10);
 	CascadeDistributionExponent = FMath::Clamp(CascadeDistributionExponent, .1f, 10.0f);
-	CascadeTransitionFraction = FMath::Clamp(CascadeTransitionFraction, KINDA_SMALL_NUMBER, 0.3f);
+	CascadeTransitionFraction = FMath::Clamp(CascadeTransitionFraction, UE_KINDA_SMALL_NUMBER, 0.3f);
 	ShadowDistanceFadeoutFraction = FMath::Clamp(ShadowDistanceFadeoutFraction, 0.0f, 1.0f);
 	// max range is larger than UI
 	ShadowBias = FMath::Clamp(ShadowBias, 0.0f, 10.0f);

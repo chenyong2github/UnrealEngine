@@ -51,7 +51,7 @@ public:
 	int32 Num() const { return Indices.Num(); }
 
 	/** Return whether this object contains weight map values. */
-	bool HasWeightMap() const { return Table.Num() > 1 && FMath::Abs(WeightedValue[0] - WeightedValue[1]) > KINDA_SMALL_NUMBER; }
+	bool HasWeightMap() const { return Table.Num() > 1 && FMath::Abs(WeightedValue[0] - WeightedValue[1]) > UE_KINDA_SMALL_NUMBER; }
 
 	/**
 	 * Set the low and high values of the weight map.

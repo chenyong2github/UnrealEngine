@@ -214,7 +214,7 @@ namespace Chaos
 			const TVector<FRealSingle, 3> RotatedNormal = TransformNormalNoScale(Normal);
 			const TVector<FRealSingle, 3> ScaledNormal = RotatedNormal / GetScale3D();
 			const FRealSingle ScaledNormal2 = ScaledNormal.SizeSquared();
-			if (ScaledNormal2 > SMALL_NUMBER)
+			if (ScaledNormal2 > UE_SMALL_NUMBER)
 			{
 				return ScaledNormal * FMath::InvSqrt(ScaledNormal2);
 			}
@@ -324,7 +324,7 @@ namespace Chaos
 			const TVector<FRealDouble, 3> RotatedNormal = TransformNormalNoScale(Normal);
 			const TVector<FRealDouble, 3> ScaledNormal = RotatedNormal / GetScale3D();
 			const FRealDouble ScaledNormal2 = ScaledNormal.SizeSquared();
-			if (ScaledNormal2 > SMALL_NUMBER)
+			if (ScaledNormal2 > UE_SMALL_NUMBER)
 			{
 				return ScaledNormal * FMath::InvSqrt(ScaledNormal2);
 			}

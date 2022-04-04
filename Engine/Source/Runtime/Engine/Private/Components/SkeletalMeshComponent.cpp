@@ -3327,7 +3327,7 @@ float USkeletalMeshComponent::GetMorphTarget( FName MorphTargetName ) const
 
 FVector USkeletalMeshComponent::GetClosestCollidingRigidBodyLocation(const FVector& TestLocation) const
 {
-	float BestDistSq = BIG_NUMBER;
+	float BestDistSq = UE_BIG_NUMBER;
 	FVector Best = TestLocation;
 
 	UPhysicsAsset* PhysicsAsset = GetPhysicsAsset();
@@ -4112,7 +4112,7 @@ bool USkeletalMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryE
 			if (BoneIndex != INDEX_NONE)
 			{
 				FTransform WorldBoneTransform = GetBoneTransform(BoneIndex, GetComponentTransform());
-				if (FMath::Abs(WorldBoneTransform.GetDeterminant()) > (float)KINDA_SMALL_NUMBER)
+				if (FMath::Abs(WorldBoneTransform.GetDeterminant()) > (float)UE_KINDA_SMALL_NUMBER)
 				{
 					GeomExport.ExportRigidBodySetup(*BS, WorldBoneTransform);
 				}

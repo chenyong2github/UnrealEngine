@@ -46,7 +46,7 @@ float UNavMovementComponent::GetPathFollowingBrakingDistance(float MaxSpeed) con
 
 void UNavMovementComponent::SetFixedBrakingDistance(float DistanceToEndOfPath)
 {
-	if (DistanceToEndOfPath > KINDA_SMALL_NUMBER)
+	if (DistanceToEndOfPath > UE_KINDA_SMALL_NUMBER)
 	{
 		bUseFixedBrakingDistanceForPaths = true;
 		FixedPathBrakingDistance = DistanceToEndOfPath;

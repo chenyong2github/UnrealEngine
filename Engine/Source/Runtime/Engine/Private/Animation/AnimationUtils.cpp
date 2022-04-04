@@ -279,7 +279,7 @@ void FAnimationUtils::ComputeCompressionError(const FCompressibleAnimData& Compr
 		const FTransform EndEffectorDummyBoneSocket(FQuat::Identity, FVector(END_EFFECTOR_DUMMY_BONE_LENGTH_SOCKET));
 		const FTransform EndEffectorDummyBone(FQuat::Identity, FVector(END_EFFECTOR_DUMMY_BONE_LENGTH));
 		const FAnimKeyHelper Helper(CompressibleAnimData.SequenceLength, CompressedData.AnimData->CompressedNumberOfKeys);
-		const float KeyLength = Helper.TimePerKey() + SMALL_NUMBER;
+		const float KeyLength = Helper.TimePerKey() + UE_SMALL_NUMBER;
 
 		FAnimSequenceDecompressionContext DecompContext(CompressibleAnimData.SequenceLength, CompressibleAnimData.Interpolation, CompressibleAnimData.AnimFName, *CompressedData.AnimData);
 
@@ -573,7 +573,7 @@ bool FAnimationUtils::HasUniformKeySpacing(int32 NumFrames, const TArray<float>&
 	{
 		float DeltaTime = Times[i] - Times[i-1];
 
-		if (fabs(DeltaTime - FirstDelta) > KINDA_SMALL_NUMBER)
+		if (fabs(DeltaTime - FirstDelta) > UE_KINDA_SMALL_NUMBER)
 		{
 			return false;
 		}

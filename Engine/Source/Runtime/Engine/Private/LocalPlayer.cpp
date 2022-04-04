@@ -1043,7 +1043,7 @@ bool ULocalPlayer::GetPixelPoint(const FSceneViewProjectionData& ProjectionData,
 	// grab the point in screen space
 	FVector4 ScreenPoint = ViewProjectionMatrix.TransformFVector4(FVector4(InPoint, 1.0f));
 
-	ScreenPoint.W = (ScreenPoint.W == 0) ? KINDA_SMALL_NUMBER : ScreenPoint.W;
+	ScreenPoint.W = (ScreenPoint.W == 0) ? UE_KINDA_SMALL_NUMBER : ScreenPoint.W;
 
 	float InvW = 1.0f / ScreenPoint.W;
 	OutPoint = FVector2D(ViewRect.Min.X + (0.5f + ScreenPoint.X * 0.5f * InvW) * ViewRect.Width(),

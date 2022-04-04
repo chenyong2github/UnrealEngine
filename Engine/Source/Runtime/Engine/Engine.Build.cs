@@ -444,5 +444,7 @@ public class Engine : ModuleRules
         {
 			PublicDefinitions.Add("WITH_ODSC=0");
 		}
+
+		PrivateDefinitions.Add("UE_DEPRECATE_LEGACY_MATH_CONSTANT_MACRO_NAMES=1");
 	}
 }

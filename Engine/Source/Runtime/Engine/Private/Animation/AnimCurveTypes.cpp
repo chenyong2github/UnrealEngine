@@ -537,7 +537,7 @@ void FRawCurveTracks::RemoveRedundantKeys()
 	for (auto CurveIter = FloatCurves.CreateIterator(); CurveIter; ++CurveIter)
 	{
 		FFloatCurve& Curve = *CurveIter;
-		Curve.FloatCurve.RemoveRedundantKeys(SMALL_NUMBER);
+		Curve.FloatCurve.RemoveRedundantKeys(UE_SMALL_NUMBER);
 	}
 }
 #endif

@@ -63,7 +63,7 @@ namespace BodyUtils
 				RaiseMassToPower = PhysMat->RaiseMassToPower;
 			}
 
-			float UsePow = FMath::Clamp<float>(RaiseMassToPower, KINDA_SMALL_NUMBER, 1.f);
+			float UsePow = FMath::Clamp<float>(RaiseMassToPower, UE_KINDA_SMALL_NUMBER, 1.f);
 			NewMass = FMath::Pow(OldMass, UsePow);
 
 			// Apply user-defined mass scaling.

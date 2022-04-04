@@ -560,7 +560,7 @@ static void AddEdgeIfNotPresent(TArray<int32>& Edges, int32 Edge0, int32 Edge1)
 	Edges.Add(Edge1);
 }
 
-#define LOCAL_EPS SMALL_NUMBER
+#define LOCAL_EPS UE_SMALL_NUMBER
 
 void FKConvexElem::UpdateElemBox()
 {
@@ -626,7 +626,7 @@ bool FKConvexElem::HullFromPlanes(const TArray<FPlane>& InPlanes, const TArray<F
 			{
 				// We try and snap the vert to on of the ones supplied.
 				int32 NearestVert = INDEX_NONE;
-				float NearestDistSqr = BIG_NUMBER;
+				float NearestDistSqr = UE_BIG_NUMBER;
 
 				for(int32 k = 0; k < SnapVerts.Num(); k++)
 				{

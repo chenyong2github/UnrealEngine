@@ -155,7 +155,7 @@ bool FVisualLogTest::RunTest(const FString& Parameters)
 			CHECK_SUCCESS(CurrentEntry->LogLines[0].Line == TextToLog);
 
 			CHECK_NOT_NULL(NewEntry);
-			CHECK_SUCCESS(NewEntry->TimeStamp - NewTimestamp <= SMALL_NUMBER);
+			CHECK_SUCCESS(NewEntry->TimeStamp - NewTimestamp <= UE_SMALL_NUMBER);
 			CHECK_SUCCESS(NewEntry->LogLines.Num() == 0);
 		}
 	}
@@ -214,7 +214,7 @@ bool FVisualLogSegmentsTest::RunTest(const FString& Parameters)
 			CHECK_SUCCESS(CurrentEntry->ElementsToDraw[0].Points[1] == EndPoint);
 
 			CHECK_NOT_NULL(NewEntry);
-			CHECK_SUCCESS(NewEntry->TimeStamp - NewTimestamp <= SMALL_NUMBER);
+			CHECK_SUCCESS(NewEntry->TimeStamp - NewTimestamp <= UE_SMALL_NUMBER);
 			CHECK_SUCCESS(NewEntry->ElementsToDraw.Num() == 0);
 		}
 	}
@@ -302,7 +302,7 @@ bool FVisualLogEventsTest::RunTest(const FString& Parameters)
 		CHECK_SUCCESS(CurrentEntry->Events[2].UserFriendlyDesc == TEXT("Third simple event for vlog tests"));
 
 		CHECK_NOT_NULL(NewEntry);
-		CHECK_SUCCESS(NewEntry->TimeStamp - NewTimestamp <= SMALL_NUMBER);
+		CHECK_SUCCESS(NewEntry->TimeStamp - NewTimestamp <= UE_SMALL_NUMBER);
 		CHECK_SUCCESS(NewEntry->Events.Num() == 0);
 	}
 

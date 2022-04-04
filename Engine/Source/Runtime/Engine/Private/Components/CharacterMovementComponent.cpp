@@ -959,7 +959,7 @@ FVector UCharacterMovementComponent::GetPawnCapsuleExtent(const EShrinkCapsuleEx
 	}
 
 	// Don't shrink to zero extent.
-	const FVector::FReal MinExtent = KINDA_SMALL_NUMBER * 10;
+	const FVector::FReal MinExtent = UE_KINDA_SMALL_NUMBER * 10;
 	CapsuleExtent.X = FMath::Max<FVector::FReal>(CapsuleExtent.X - RadiusEpsilon, MinExtent);
 	CapsuleExtent.Y = CapsuleExtent.X;
 	CapsuleExtent.Z = FMath::Max<FVector::FReal>(CapsuleExtent.Z - HeightEpsilon, MinExtent);
@@ -1599,7 +1599,7 @@ void UCharacterMovementComponent::AdjustProxyCapsuleSize()
 		CharacterOwner->GetCapsuleComponent()->GetUnscaledCapsuleSize(Radius, HalfHeight);
 		const float ComponentScale = CharacterOwner->GetCapsuleComponent()->GetShapeScale();
 
-		if (ComponentScale <= KINDA_SMALL_NUMBER)
+		if (ComponentScale <= UE_KINDA_SMALL_NUMBER)
 		{
 			return;
 		}
@@ -2936,7 +2936,7 @@ void UCharacterMovementComponent::UnCrouch(bool bClientSimulation)
 	{
 		// Try to stay in place and see if the larger capsule fits. We use a slightly taller capsule to avoid penetration.
 		const UWorld* MyWorld = GetWorld();
-		const float SweepInflation = KINDA_SMALL_NUMBER * 10.f;
+		const float SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f;
 		FCollisionQueryParams CapsuleParams(SCENE_QUERY_STAT(CrouchTrace), false, CharacterOwner);
 		FCollisionResponseParams ResponseParam;
 		InitCollisionParams(CapsuleParams, ResponseParam);
@@ -2996,7 +2996,7 @@ void UCharacterMovementComponent::UnCrouch(bool bClientSimulation)
 				if (IsMovingOnGround())
 				{
 					// Something might be just barely overhead, try moving down closer to the floor to avoid it.
-					const float MinFloorDist = KINDA_SMALL_NUMBER * 10.f;
+					const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f;
 					if (CurrentFloor.bBlockingHit && CurrentFloor.FloorDist > MinFloorDist)
 					{
 						StandingLocation.Z -= CurrentFloor.FloorDist - MinFloorDist;
@@ -3212,13 +3212,13 @@ float UCharacterMovementComponent::SlideAlongSurface(const FVector& Delta, float
 				Normal = Normal.GetSafeNormal2D();
 			}
 		}
-		else if (Normal.Z < -KINDA_SMALL_NUMBER)
+		else if (Normal.Z < -UE_KINDA_SMALL_NUMBER)
 		{
 			// Don't push down into the floor when the impact is on the upper portion of the capsule.
 			if (CurrentFloor.FloorDist < MIN_FLOOR_DIST && CurrentFloor.bBlockingHit)
 			{
 				const FVector FloorNormal = CurrentFloor.HitResult.Normal;
-				const bool bFloorOpposedToMovement = (Delta | FloorNormal) < 0.f && (FloorNormal.Z < 1.f - DELTA);
+				const bool bFloorOpposedToMovement = (Delta | FloorNormal) < 0.f && (FloorNormal.Z < 1.f - UE_DELTA);
 				if (bFloorOpposedToMovement)
 				{
 					Normal = FloorNormal;
@@ -3243,7 +3243,7 @@ void UCharacterMovementComponent::TwoWallAdjust(FVector& Delta, const FHitResult
 		// Allow slides up walkable surfaces, but not unwalkable ones (treat those as vertical barriers).
 		if (Delta.Z > 0.f)
 		{
-			if ((Hit.Normal.Z >= WalkableFloorZ || IsWalkable(Hit)) && Hit.Normal.Z > KINDA_SMALL_NUMBER)
+			if ((Hit.Normal.Z >= WalkableFloorZ || IsWalkable(Hit)) && Hit.Normal.Z > UE_KINDA_SMALL_NUMBER)
 			{
 				// Maintain horizontal velocity
 				const float Time = (1.f - Hit.Time);
@@ -3297,7 +3297,7 @@ FVector UCharacterMovementComponent::HandleSlopeBoosting(const FVector& SlideRes
 	{
 		// Don't move any higher than we originally intended.
 		const float ZLimit = Delta.Z * Time;
-		if (Result.Z - ZLimit > KINDA_SMALL_NUMBER)
+		if (Result.Z - ZLimit > UE_KINDA_SMALL_NUMBER)
 		{
 			if (ZLimit > 0.f)
 			{
@@ -3428,13 +3428,13 @@ void UCharacterMovementComponent::CalcVelocity(float DeltaTime, float Friction, 
 	{
 		// Force acceleration at full speed.
 		// In consideration order for direction: Acceleration, then Velocity, then Pawn's rotation.
-		if (Acceleration.SizeSquared() > SMALL_NUMBER)
+		if (Acceleration.SizeSquared() > UE_SMALL_NUMBER)
 		{
 			Acceleration = Acceleration.GetSafeNormal() * MaxAccel;
 		}
 		else 
 		{
-			Acceleration = MaxAccel * (Velocity.SizeSquared() < SMALL_NUMBER ? UpdatedComponent->GetForwardVector() : Velocity.GetSafeNormal());
+			Acceleration = MaxAccel * (Velocity.SizeSquared() < UE_SMALL_NUMBER ? UpdatedComponent->GetForwardVector() : Velocity.GetSafeNormal());
 		}
 
 		AnalogInputModifier = 1.f;
@@ -3510,7 +3510,7 @@ bool UCharacterMovementComponent::ApplyRequestedMove(float DeltaTime, float MaxA
 	if (bHasRequestedVelocity)
 	{
 		const float RequestedSpeedSquared = RequestedVelocity.SizeSquared();
-		if (RequestedSpeedSquared < KINDA_SMALL_NUMBER)
+		if (RequestedSpeedSquared < UE_KINDA_SMALL_NUMBER)
 		{
 			return false;
 		}
@@ -3554,7 +3554,7 @@ bool UCharacterMovementComponent::ApplyRequestedMove(float DeltaTime, float MaxA
 
 void UCharacterMovementComponent::RequestDirectMove(const FVector& MoveVelocity, bool bForceMaxSpeed)
 {
-	if (MoveVelocity.SizeSquared() < KINDA_SMALL_NUMBER)
+	if (MoveVelocity.SizeSquared() < UE_KINDA_SMALL_NUMBER)
 	{
 		return;
 	}
@@ -3629,7 +3629,7 @@ float UCharacterMovementComponent::GetPathFollowingBrakingDistance(float MaxSpee
 	const float BrakingDeceleration = FMath::Abs(GetMaxBrakingDeceleration());
 
 	// character won't be able to stop with negative or nearly zero deceleration, use MaxSpeed for path length calculations
-	const float BrakingDistance = (BrakingDeceleration < SMALL_NUMBER) ? MaxSpeed : (FMath::Square(MaxSpeed) / (2.f * BrakingDeceleration));
+	const float BrakingDistance = (BrakingDeceleration < UE_SMALL_NUMBER) ? MaxSpeed : (FMath::Square(MaxSpeed) / (2.f * BrakingDeceleration));
 	return BrakingDistance;
 }
 
@@ -3848,7 +3848,7 @@ void UCharacterMovementComponent::NotifyBumpedPawn(APawn* BumpedPawn)
 float UCharacterMovementComponent::GetMaxJumpHeight() const
 {
 	const float Gravity = GetGravityZ();
-	if (FMath::Abs(Gravity) > KINDA_SMALL_NUMBER)
+	if (FMath::Abs(Gravity) > UE_KINDA_SMALL_NUMBER)
 	{
 		return FMath::Square(JumpZVelocity) / (-2.f * Gravity);
 	}
@@ -3952,7 +3952,7 @@ void UCharacterMovementComponent::ApplyVelocityBraking(float DeltaTime, float Fr
 
 	// Clamp to zero if nearly zero, or if below min threshold and braking.
 	const float VSizeSq = Velocity.SizeSquared();
-	if (VSizeSq <= KINDA_SMALL_NUMBER || (!bZeroBraking && VSizeSq <= FMath::Square(BRAKE_TO_STOP_VELOCITY)))
+	if (VSizeSq <= UE_KINDA_SMALL_NUMBER || (!bZeroBraking && VSizeSq <= FMath::Square(BRAKE_TO_STOP_VELOCITY)))
 	{
 		Velocity = FVector::ZeroVector;
 	}
@@ -4103,12 +4103,12 @@ void UCharacterMovementComponent::ApplyRootMotionToVelocity(float deltaTime)
 		if( CurrentRootMotion.LastAccumulatedSettings.HasFlag(ERootMotionSourceSettingsFlags::UseSensitiveLiftoffCheck) )
 		{
 			// Sensitive bounds - "any positive force"
-			LiftoffBound = SMALL_NUMBER;
+			LiftoffBound = UE_SMALL_NUMBER;
 		}
 		else
 		{
 			// Default bounds - the amount of force gravity is applying this tick
-			LiftoffBound = FMath::Max(GetGravityZ() * deltaTime, SMALL_NUMBER);
+			LiftoffBound = FMath::Max(GetGravityZ() * deltaTime, UE_SMALL_NUMBER);
 		}
 
 		if( AppliedVelocityDelta.Z > LiftoffBound )
@@ -4231,7 +4231,7 @@ void UCharacterMovementComponent::PhysSwimming(float deltaTime, int32 Iterations
 		}
 	}
 
-	if( !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && !bJustTeleported && ((deltaTime - remainingTime) > KINDA_SMALL_NUMBER) && CharacterOwner )
+	if( !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && !bJustTeleported && ((deltaTime - remainingTime) > UE_KINDA_SMALL_NUMBER) && CharacterOwner )
 	{
 		bool bWaterJump = !GetPhysicsVolume()->bWaterVolume;
 		float velZ = Velocity.Z;
@@ -4273,7 +4273,7 @@ void UCharacterMovementComponent::StartSwimming(FVector OldLocation, FVector Old
 	if (End != UpdatedComponent->GetComponentLocation())
 	{	
 		const float ActualDist = (UpdatedComponent->GetComponentLocation() - OldLocation).Size();
-		if (ActualDist > KINDA_SMALL_NUMBER)
+		if (ActualDist > UE_KINDA_SMALL_NUMBER)
 		{
 			waterTime = timeTick * (End - UpdatedComponent->GetComponentLocation()).Size() / ActualDist;
 			remainingTime += waterTime;
@@ -4300,7 +4300,7 @@ float UCharacterMovementComponent::Swim(FVector Delta, FHitResult& Hit)
 	{
 		const FVector End = FindWaterLine(Start,UpdatedComponent->GetComponentLocation());
 		const float DesiredDist = Delta.Size();
-		if (End != UpdatedComponent->GetComponentLocation() && DesiredDist > KINDA_SMALL_NUMBER)
+		if (End != UpdatedComponent->GetComponentLocation() && DesiredDist > UE_KINDA_SMALL_NUMBER)
 		{
 			airTime = (End - UpdatedComponent->GetComponentLocation()).Size() / DesiredDist;
 			if ( ((UpdatedComponent->GetComponentLocation() - Start) | (End - UpdatedComponent->GetComponentLocation())) > 0.f )
@@ -4610,13 +4610,13 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 					const FVector NewVelocity = Velocity - Hit.ImpactNormal * FVector::DotProduct(Velocity - ContactVelocity, Hit.ImpactNormal);
 					Velocity = HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? FVector(Velocity.X, Velocity.Y, NewVelocity.Z) : NewVelocity;
 				}
-				else if (subTimeTickRemaining > KINDA_SMALL_NUMBER && !bJustTeleported)
+				else if (subTimeTickRemaining > UE_KINDA_SMALL_NUMBER && !bJustTeleported)
 				{
 					const FVector NewVelocity = (Delta / subTimeTickRemaining);
 					Velocity = HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? FVector(Velocity.X, Velocity.Y, NewVelocity.Z) : NewVelocity;
 				}
 
-				if (subTimeTickRemaining > KINDA_SMALL_NUMBER && (Delta | Adjusted) > 0.f)
+				if (subTimeTickRemaining > UE_KINDA_SMALL_NUMBER && (Delta | Adjusted) > 0.f)
 				{
 					// Move in deflected direction.
 					SafeMoveUpdatedComponent( Delta, PawnRotation, true, Hit);
@@ -4666,14 +4666,14 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 						}
 
 						// Compute velocity after deflection (only gravity component for RootMotion)
-						if (subTimeTickRemaining > KINDA_SMALL_NUMBER && !bJustTeleported)
+						if (subTimeTickRemaining > UE_KINDA_SMALL_NUMBER && !bJustTeleported)
 						{
 							const FVector NewVelocity = (Delta / subTimeTickRemaining);
 							Velocity = HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? FVector(Velocity.X, Velocity.Y, NewVelocity.Z) : NewVelocity;
 						}
 
 						// bDitch=true means that pawn is straddling two slopes, neither of which he can stand on
-						bool bDitch = ( (OldHitImpactNormal.Z > 0.f) && (Hit.ImpactNormal.Z > 0.f) && (FMath::Abs(Delta.Z) <= KINDA_SMALL_NUMBER) && ((Hit.ImpactNormal | OldHitImpactNormal) < 0.f) );
+						bool bDitch = ( (OldHitImpactNormal.Z > 0.f) && (Hit.ImpactNormal.Z > 0.f) && (FMath::Abs(Delta.Z) <= UE_KINDA_SMALL_NUMBER) && ((Hit.ImpactNormal | OldHitImpactNormal) < 0.f) );
 						SafeMoveUpdatedComponent( Delta, PawnRotation, true, Hit);
 						if ( Hit.Time == 0.f )
 						{
@@ -4712,7 +4712,7 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 			}
 		}
 
-		if (Velocity.SizeSquared2D() <= KINDA_SMALL_NUMBER * 10.f)
+		if (Velocity.SizeSquared2D() <= UE_KINDA_SMALL_NUMBER * 10.f)
 		{
 			Velocity.X = 0.f;
 			Velocity.Y = 0.f;
@@ -4833,7 +4833,7 @@ void UCharacterMovementComponent::StartFalling(int32 Iterations, float remaining
 	// start falling 
 	const float DesiredDist = Delta.Size();
 	const float ActualDist = (UpdatedComponent->GetComponentLocation() - subLoc).Size2D();
-	remainingTime = (DesiredDist < KINDA_SMALL_NUMBER) 
+	remainingTime = (DesiredDist < UE_KINDA_SMALL_NUMBER)
 					? 0.f
 					: remainingTime + timeTick * (1.f - FMath::Min(1.f,ActualDist/DesiredDist));
 
@@ -4894,7 +4894,7 @@ FVector UCharacterMovementComponent::ComputeGroundMovementDelta(const FVector& D
 	const FVector FloorNormal = RampHit.ImpactNormal;
 	const FVector ContactNormal = RampHit.Normal;
 
-	if (FloorNormal.Z < (1.f - KINDA_SMALL_NUMBER) && FloorNormal.Z > KINDA_SMALL_NUMBER && ContactNormal.Z > KINDA_SMALL_NUMBER && !bHitFromLineTrace && IsWalkable(RampHit))
+	if (FloorNormal.Z < (1.f - UE_KINDA_SMALL_NUMBER) && FloorNormal.Z > UE_KINDA_SMALL_NUMBER && ContactNormal.Z > UE_KINDA_SMALL_NUMBER && !bHitFromLineTrace && IsWalkable(RampHit))
 	{
 		// Compute a vector that moves parallel to the surface, by projecting the horizontal movement direction onto the ramp.
 		const float FloorDotDelta = (FloorNormal | Delta);
@@ -4981,7 +4981,7 @@ void UCharacterMovementComponent::MoveAlongFloor(const FVector& InVelocity, floa
 	{
 		// We impacted something (most likely another ramp, but possibly a barrier).
 		float PercentTimeApplied = Hit.Time;
-		if ((Hit.Time > 0.f) && (Hit.Normal.Z > KINDA_SMALL_NUMBER) && IsWalkable(Hit))
+		if ((Hit.Time > 0.f) && (Hit.Normal.Z > UE_KINDA_SMALL_NUMBER) && IsWalkable(Hit))
 		{
 			// Another walkable ramp.
 			const float InitialPercentRemaining = 1.f - PercentTimeApplied;
@@ -5014,7 +5014,7 @@ void UCharacterMovementComponent::MoveAlongFloor(const FVector& InVelocity, floa
 						// Don't recalculate velocity based on this height adjustment, if considering vertical adjustments. Only consider horizontal movement.
 						bJustTeleported = true;
 						const float StepUpTimeSlice = (1.f - PercentTimeApplied) * DeltaSeconds;
-						if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && StepUpTimeSlice >= KINDA_SMALL_NUMBER)
+						if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && StepUpTimeSlice >= UE_KINDA_SMALL_NUMBER)
 						{
 							Velocity = (UpdatedComponent->GetComponentLocation() - PreStepUpLocation) / StepUpTimeSlice;
 							Velocity.Z = 0;
@@ -5138,7 +5138,7 @@ void UCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iterations)
 			{
 				// pawn decided to jump up
 				const float DesiredDist = Delta.Size();
-				if (DesiredDist > KINDA_SMALL_NUMBER)
+				if (DesiredDist > UE_KINDA_SMALL_NUMBER)
 				{
 					const float ActualDist = (UpdatedComponent->GetComponentLocation() - OldLocation).Size2D();
 					remainingTime += timeTick * (1.f - FMath::Min(1.f,ActualDist/DesiredDist));
@@ -5340,7 +5340,7 @@ void UCharacterMovementComponent::PhysNavWalking(float deltaTime, int32 Iteratio
 			const float ProjectionScale = (OldLocation.Z > CachedNavLocation.Location.Z) ? NavMeshProjectionHeightScaleUp : NavMeshProjectionHeightScaleDown;
 			const float DistZThr = TotalCapsuleHeight * FMath::Max(0.f, ProjectionScale);
 
-			bSameNavLocation = (DistSq2D <= KINDA_SMALL_NUMBER) && (DistZ < DistZThr);
+			bSameNavLocation = (DistSq2D <= UE_KINDA_SMALL_NUMBER) && (DistZ < DistZThr);
 		}
 		else
 		{
@@ -5445,7 +5445,7 @@ FVector UCharacterMovementComponent::ProjectLocationFromNavMesh(float DeltaSecon
 	FVector NewLocation = TargetNavLocation;
 
 	const float ZOffset = -(DownOffset + UpOffset);
-	if (ZOffset > -SMALL_NUMBER)
+	if (ZOffset > -UE_SMALL_NUMBER)
 	{
 		return NewLocation;
 	}
@@ -5486,7 +5486,7 @@ FVector UCharacterMovementComponent::ProjectLocationFromNavMesh(float DeltaSecon
 		// Wrap around to maintain same relative offset to tick time changes.
 		// Prevents large framerate spikes from aligning multiple characters to the same frame (if they start staggered, they will now remain staggered).
 		float ModTime = 0.f;
-		if (NavMeshProjectionInterval > SMALL_NUMBER)
+		if (NavMeshProjectionInterval > UE_SMALL_NUMBER)
 		{
 			ModTime = FMath::Fmod(-NavMeshProjectionTimer, NavMeshProjectionInterval);
 		}
@@ -5938,10 +5938,10 @@ FRotator UCharacterMovementComponent::GetDeltaRotation(float DeltaTime) const
 
 FRotator UCharacterMovementComponent::ComputeOrientToMovementRotation(const FRotator& CurrentRotation, float DeltaTime, FRotator& DeltaRotation) const
 {
-	if (Acceleration.SizeSquared() < KINDA_SMALL_NUMBER)
+	if (Acceleration.SizeSquared() < UE_KINDA_SMALL_NUMBER)
 	{
 		// AI path following request can orient us in that direction (it's effectively an acceleration)
-		if (bHasRequestedVelocity && RequestedVelocity.SizeSquared() > KINDA_SMALL_NUMBER)
+		if (bHasRequestedVelocity && RequestedVelocity.SizeSquared() > UE_KINDA_SMALL_NUMBER)
 		{
 			return RequestedVelocity.GetSafeNormal().Rotation();
 		}
@@ -6140,7 +6140,7 @@ void UCharacterMovementComponent::AddImpulse( FVector Impulse, bool bVelocityCha
 		FVector FinalImpulse = Impulse;
 		if ( !bVelocityChange )
 		{
-			if (Mass > SMALL_NUMBER)
+			if (Mass > UE_SMALL_NUMBER)
 			{
 				FinalImpulse = FinalImpulse / Mass;
 			}
@@ -6158,7 +6158,7 @@ void UCharacterMovementComponent::AddForce( FVector Force )
 {
 	if (!Force.IsZero() && (MovementMode != MOVE_None) && IsActive() && HasValidData())
 	{
-		if (Mass > SMALL_NUMBER)
+		if (Mass > UE_SMALL_NUMBER)
 		{
 			PendingForceToApply += Force / Mass;
 		}
@@ -6250,7 +6250,7 @@ bool UCharacterMovementComponent::IsWalkable(const FHitResult& Hit) const
 	}
 
 	// Never walk up vertical surfaces.
-	if (Hit.ImpactNormal.Z < KINDA_SMALL_NUMBER)
+	if (Hit.ImpactNormal.Z < UE_KINDA_SMALL_NUMBER)
 	{
 		return false;
 	}
@@ -6301,7 +6301,7 @@ float UCharacterMovementComponent::K2_GetWalkableFloorZ() const
 bool UCharacterMovementComponent::IsWithinEdgeTolerance(const FVector& CapsuleLocation, const FVector& TestImpactPoint, const float CapsuleRadius) const
 {
 	const float DistFromCenterSq = (TestImpactPoint - CapsuleLocation).SizeSquared2D();
-	const float ReducedRadiusSq = FMath::Square(FMath::Max(SWEEP_EDGE_REJECT_DISTANCE + KINDA_SMALL_NUMBER, CapsuleRadius - SWEEP_EDGE_REJECT_DISTANCE));
+	const float ReducedRadiusSq = FMath::Square(FMath::Max(SWEEP_EDGE_REJECT_DISTANCE + UE_KINDA_SMALL_NUMBER, CapsuleRadius - SWEEP_EDGE_REJECT_DISTANCE));
 	return DistFromCenterSq < ReducedRadiusSq;
 }
 
@@ -6319,7 +6319,7 @@ void UCharacterMovementComponent::ComputeFloorDist(const FVector& CapsuleLocatio
 	{
 		// Only if the supplied sweep was vertical and downward.
 		if ((DownwardSweepResult->TraceStart.Z > DownwardSweepResult->TraceEnd.Z) &&
-			(DownwardSweepResult->TraceStart - DownwardSweepResult->TraceEnd).SizeSquared2D() <= KINDA_SMALL_NUMBER)
+			(DownwardSweepResult->TraceStart - DownwardSweepResult->TraceEnd).SizeSquared2D() <= UE_KINDA_SMALL_NUMBER)
 		{
 			// Reject hits that are barely on the cusp of the radius of the capsule
 			if (IsWithinEdgeTolerance(DownwardSweepResult->Location, DownwardSweepResult->ImpactPoint, PawnRadius))
@@ -6375,7 +6375,7 @@ void UCharacterMovementComponent::ComputeFloorDist(const FVector& CapsuleLocatio
 			{
 				// Use a capsule with a slightly smaller radius and shorter height to avoid the adjacent object.
 				// Capsule must not be nearly zero or the trace will fall back to a line trace from the start point and have the wrong length.
-				CapsuleShape.Capsule.Radius = FMath::Max(0.f, CapsuleShape.Capsule.Radius - SWEEP_EDGE_REJECT_DISTANCE - KINDA_SMALL_NUMBER);
+				CapsuleShape.Capsule.Radius = FMath::Max(0.f, CapsuleShape.Capsule.Radius - SWEEP_EDGE_REJECT_DISTANCE - UE_KINDA_SMALL_NUMBER);
 				if (!CapsuleShape.IsNearlyZero())
 				{
 					ShrinkHeight = (PawnHalfHeight - PawnRadius) * (1.f - ShrinkScaleOverlap);
@@ -6464,7 +6464,7 @@ void UCharacterMovementComponent::FindFloor(const FVector& CapsuleLocation, FFin
 	check(CharacterOwner->GetCapsuleComponent());
 
 	// Increase height check slightly if walking, to prevent floor height adjustment from later invalidating the floor result.
-	const float HeightCheckAdjust = (IsMovingOnGround() ? MAX_FLOOR_DIST + KINDA_SMALL_NUMBER : -MAX_FLOOR_DIST);
+	const float HeightCheckAdjust = (IsMovingOnGround() ? MAX_FLOOR_DIST + UE_KINDA_SMALL_NUMBER : -MAX_FLOOR_DIST);
 
 	float FloorSweepTraceDist = FMath::Max(MAX_FLOOR_DIST, MaxStepHeight + HeightCheckAdjust);
 	float FloorLineTraceDist = FloorSweepTraceDist;
@@ -6598,7 +6598,7 @@ bool UCharacterMovementComponent::FloorSweepTest(
 		const FCollisionShape BoxShape = FCollisionShape::MakeBox(FVector(CapsuleRadius * 0.707f, CapsuleRadius * 0.707f, CapsuleHeight));
 
 		// First test with the box rotated so the corners are along the major axes (ie rotated 45 degrees).
-		bBlockingHit = GetWorld()->SweepSingleByChannel(OutHit, Start, End, FQuat(FVector(0.f, 0.f, -1.f), PI * 0.25f), TraceChannel, BoxShape, Params, ResponseParam);
+		bBlockingHit = GetWorld()->SweepSingleByChannel(OutHit, Start, End, FQuat(FVector(0.f, 0.f, -1.f), UE_PI * 0.25f), TraceChannel, BoxShape, Params, ResponseParam);
 
 		if (!bBlockingHit)
 		{
@@ -6647,7 +6647,7 @@ bool UCharacterMovementComponent::IsValidLandingSpot(const FVector& CapsuleLocat
 	else
 	{
 		// Penetrating
-		if (Hit.Normal.Z < KINDA_SMALL_NUMBER)
+		if (Hit.Normal.Z < UE_KINDA_SMALL_NUMBER)
 		{
 			// Normal is nearly horizontal or downward, that's a penetration adjustment next to a vertical or overhanging wall. Don't pop to the floor.
 			return false;
@@ -6670,7 +6670,7 @@ bool UCharacterMovementComponent::ShouldCheckForValidLandingSpot(float DeltaTime
 {
 	// See if we hit an edge of a surface on the lower portion of the capsule.
 	// In this case the normal will not equal the impact normal, and a downward sweep may find a walkable surface on top of the edge.
-	if (Hit.Normal.Z > KINDA_SMALL_NUMBER && !Hit.Normal.Equals(Hit.ImpactNormal))
+	if (Hit.Normal.Z > UE_KINDA_SMALL_NUMBER && !Hit.Normal.Equals(Hit.ImpactNormal))
 	{
 		const FVector PawnLocation = UpdatedComponent->GetComponentLocation();
 		if (IsWithinEdgeTolerance(PawnLocation, Hit.ImpactPoint, CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius()))
@@ -7211,7 +7211,7 @@ float UCharacterMovementComponent::VisualizeMovement() const
 		const float CurrentAccelAsPercentOfMaxAccel = CurrentMaxAccel > 0.f ? Acceleration.Size() / CurrentMaxAccel : 1.f;
 		const FVector DebugLocation = TopOfCapsule + FVector(0.f,0.f,HeightOffset);
 		DrawDebugDirectionalArrow(GetWorld(), DebugLocation - FVector(0.f, 0.f, 5.0f), 
-			DebugLocation - FVector(0.f, 0.f, 5.0f) + Acceleration.GetSafeNormal(SMALL_NUMBER) * CurrentAccelAsPercentOfMaxAccel * MaxAccelerationLineLength,
+			DebugLocation - FVector(0.f, 0.f, 5.0f) + Acceleration.GetSafeNormal(UE_SMALL_NUMBER) * CurrentAccelAsPercentOfMaxAccel * MaxAccelerationLineLength,
 			25.f, DebugColor, false, -1.f, (uint8)'\000', 8.f);
 
 		FString DebugText = FString::Printf(TEXT("Acceleration: %s"), *Acceleration.ToCompactString());
@@ -7321,7 +7321,7 @@ FVector UCharacterMovementComponent::RoundAcceleration(FVector InAccel) const
 float UCharacterMovementComponent::ComputeAnalogInputModifier() const
 {
 	const float MaxAccel = GetMaxAcceleration();
-	if (Acceleration.SizeSquared() > 0.f && MaxAccel > SMALL_NUMBER)
+	if (Acceleration.SizeSquared() > 0.f && MaxAccel > UE_SMALL_NUMBER)
 	{
 		return FMath::Clamp<FVector::FReal>(Acceleration.Size() / MaxAccel, 0.f, 1.f);
 	}
@@ -7604,7 +7604,7 @@ void UCharacterMovementComponent::SmoothClientPosition_Interpolate(float DeltaSe
 			float LerpPercent = 0.f;
 			const float LerpLimit = 1.15f;
 			const float TargetDelta = ClientData->LastCorrectionDelta;
-			if (TargetDelta > SMALL_NUMBER)
+			if (TargetDelta > UE_SMALL_NUMBER)
 			{
 				// Don't let the client get too far ahead (happens on spikes). But we do want a buffer for variable network conditions.
 				const float MaxClientTimeAheadPercent = 0.15f;
@@ -7624,7 +7624,7 @@ void UCharacterMovementComponent::SmoothClientPosition_Interpolate(float DeltaSe
 				LerpPercent = 1.0f;
 			}
 
-			if (LerpPercent >= 1.0f - KINDA_SMALL_NUMBER)
+			if (LerpPercent >= 1.0f - UE_KINDA_SMALL_NUMBER)
 			{
 				if (Velocity.IsNearlyZero())
 				{
@@ -7745,9 +7745,9 @@ void UCharacterMovementComponent::SmoothClientPosition_Interpolate(float DeltaSe
 					// If we don't do this, then characters will look like they are skipping around, which looks really bad
 					for ( int i = 1; i < ClientData->ReplaySamples.Num(); i++ )
 					{
-						if ( ClientData->ReplaySamples[i].Location.Equals( ClientData->ReplaySamples[i - 1].Location, KINDA_SMALL_NUMBER ) )
+						if ( ClientData->ReplaySamples[i].Location.Equals( ClientData->ReplaySamples[i - 1].Location, UE_KINDA_SMALL_NUMBER ) )
 						{
-							if ( ClientData->ReplaySamples[i - 1].Velocity.SizeSquared() > FMath::Square( KINDA_SMALL_NUMBER ) && ClientData->ReplaySamples[i].Velocity.SizeSquared() > FMath::Square( KINDA_SMALL_NUMBER ) )
+							if ( ClientData->ReplaySamples[i - 1].Velocity.SizeSquared() > FMath::Square(UE_KINDA_SMALL_NUMBER ) && ClientData->ReplaySamples[i].Velocity.SizeSquared() > FMath::Square(UE_KINDA_SMALL_NUMBER ) )
 							{
 								ClientData->ReplaySamples.RemoveAt( i );
 								i--;
@@ -7765,7 +7765,7 @@ void UCharacterMovementComponent::SmoothClientPosition_Interpolate(float DeltaSe
 			{
 				if ( CurrentTime >= ClientData->ReplaySamples[i].Time && CurrentTime <= ClientData->ReplaySamples[i + 1].Time )
 				{
-					const float EPSILON		= SMALL_NUMBER;
+					const float EPSILON		= UE_SMALL_NUMBER;
 					const float Delta		= ( ClientData->ReplaySamples[i + 1].Time - ClientData->ReplaySamples[i].Time );
 					const float LerpPercent = Delta > EPSILON ? FMath::Clamp<float>( ( float )( CurrentTime - ClientData->ReplaySamples[i].Time ) / Delta, 0.0f, 1.0f ) : 1.0f;
 
@@ -8020,7 +8020,7 @@ void UCharacterMovementComponent::SmoothClientPosition_UpdateVisuals()
 		}
 		else if ( NetworkSmoothingMode == ENetworkSmoothingMode::Replay )
 		{
-			if ( !UpdatedComponent->GetComponentQuat().Equals( ClientData->MeshRotationOffset, SCENECOMPONENT_QUAT_TOLERANCE ) || !UpdatedComponent->GetComponentLocation().Equals( ClientData->MeshTranslationOffset, KINDA_SMALL_NUMBER ) )
+			if ( !UpdatedComponent->GetComponentQuat().Equals( ClientData->MeshRotationOffset, SCENECOMPONENT_QUAT_TOLERANCE ) || !UpdatedComponent->GetComponentLocation().Equals( ClientData->MeshTranslationOffset, UE_KINDA_SMALL_NUMBER ) )
 			{
 				UpdatedComponent->SetWorldLocationAndRotation( ClientData->MeshTranslationOffset, ClientData->MeshRotationOffset, false, nullptr, GetTeleportType());
 			}
@@ -9580,7 +9580,7 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 			// no longer falling; server should trust client up to a point to finish the landing as the client sees it
 			const FVector LocDiff = ServerLoc - ClientLoc;
 
-			if (!LocDiff.IsNearlyZero(KINDA_SMALL_NUMBER))
+			if (!LocDiff.IsNearlyZero(UE_KINDA_SMALL_NUMBER))
 			{
 				if (LocDiff.SizeSquared() < FMath::Square(MaxLandingCorrection))
 				{
@@ -9605,7 +9605,7 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 		{
 			float ClientForwardFactor = 1.f;
 			UPrimitiveComponent* LastServerMovementBasePtr = LastServerMovementBase.Get();
-			if (IsValid(LastServerMovementBasePtr) && MovementBaseUtility::IsDynamicBase(LastServerMovementBasePtr) && MaxWalkSpeed > KINDA_SMALL_NUMBER)
+			if (IsValid(LastServerMovementBasePtr) && MovementBaseUtility::IsDynamicBase(LastServerMovementBasePtr) && MaxWalkSpeed > UE_KINDA_SMALL_NUMBER)
 			{
 				const FVector LastBaseVelocity = MovementBaseUtility::GetMovementBaseVelocity(LastServerMovementBasePtr, LastServerMovementBaseBoneName);
 				RelativeVelocity = Velocity - LastBaseVelocity;
@@ -9633,7 +9633,7 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 				const FVector LocDiff = ServerLoc - ClientLoc;
 
 				// Potentially trust the client a little when taking off in the opposite direction to the base (to help not get corrected back onto the base)
-				if (!LocDiff.IsNearlyZero(KINDA_SMALL_NUMBER))
+				if (!LocDiff.IsNearlyZero(UE_KINDA_SMALL_NUMBER))
 				{
 					if (LocDiff.SizeSquared() < FMath::Square(AdjustedClientAuthorityThreshold))
 					{
@@ -9807,7 +9807,7 @@ bool UCharacterMovementComponent::ServerCheckClientError(float ClientTimeStamp, 
 		}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (CharacterMovementCVars::NetForceClientAdjustmentPercent > SMALL_NUMBER)
+		if (CharacterMovementCVars::NetForceClientAdjustmentPercent > UE_SMALL_NUMBER)
 		{
 			if (RandomStream.FRand() < CharacterMovementCVars::NetForceClientAdjustmentPercent)
 			{
@@ -10988,7 +10988,7 @@ void UCharacterMovementComponent::ApplyAccumulatedForces(float DeltaSeconds)
 	if (PendingImpulseToApply.Z != 0.f || PendingForceToApply.Z != 0.f)
 	{
 		// check to see if applied momentum is enough to overcome gravity
-		if ( IsMovingOnGround() && (PendingImpulseToApply.Z + (PendingForceToApply.Z * DeltaSeconds) + (GetGravityZ() * DeltaSeconds) > SMALL_NUMBER))
+		if ( IsMovingOnGround() && (PendingImpulseToApply.Z + (PendingForceToApply.Z * DeltaSeconds) + (GetGravityZ() * DeltaSeconds) > UE_SMALL_NUMBER))
 		{
 			SetMovementMode(MOVE_Falling);
 		}
@@ -11782,7 +11782,7 @@ void FSavedMove_Character::SetMoveFor(ACharacter* Character, float InDeltaTime, 
 	SetInitialPosition(Character);
 
 	AccelMag = NewAccel.Size();
-	AccelNormal = (AccelMag > SMALL_NUMBER ? NewAccel / AccelMag : FVector::ZeroVector);
+	AccelNormal = (AccelMag > UE_SMALL_NUMBER ? NewAccel / AccelMag : FVector::ZeroVector);
 	
 	// Round value, so that client and server match exactly (and so we can send with less bandwidth). This rounded value is copied back to the client in ReplicateMoveToServer.
 	// This is done after the AccelMag and AccelNormal are computed above, because those are only used client-side for combining move logic and need to remain accurate.

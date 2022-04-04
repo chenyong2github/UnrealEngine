@@ -102,7 +102,7 @@ namespace Chaos
 			const UE::Math::TPlane<FRealType> TriPlane(A, B, C);
 			const FRealType DPointDistance = FMath::Abs(TriPlane.PlaneDot(D));
 			OutNormal = FVec3Type(TriPlane.X, TriPlane.Y, TriPlane.Z);
-			return FMath::IsNearlyEqual(DPointDistance, FRealType(0), FRealType(KINDA_SMALL_NUMBER));
+			return FMath::IsNearlyEqual(DPointDistance, FRealType(0), FRealType(UE_KINDA_SMALL_NUMBER));
 		}
 		
 		static bool IsPlanarShape(const TArray<FVec3Type>& InVertices, FVec3Type& OutNormal)
@@ -123,7 +123,7 @@ namespace Chaos
 				for (int32 Index = 3; Index < NumVertices; ++Index)
 				{
 					const FRealType PointPlaneDot = FMath::Abs(TriPlane.PlaneDot(InVertices[Index]));
-					if(!FMath::IsNearlyEqual(PointPlaneDot, FRealType(0), FRealType(KINDA_SMALL_NUMBER)))
+					if(!FMath::IsNearlyEqual(PointPlaneDot, FRealType(0), FRealType(UE_KINDA_SMALL_NUMBER)))
 					{
 						return false;
 					}

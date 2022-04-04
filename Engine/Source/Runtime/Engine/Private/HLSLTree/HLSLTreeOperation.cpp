@@ -105,7 +105,7 @@ const FExpression* FTree::NewBinaryOp(EOperation Op, const FExpression* Lhs, con
 
 const FExpression* FTree::NewLog(const FExpression* Input)
 {
-	const float Log2ToLog = 1.0f / FMath::Log2(EULERS_NUMBER);
+	const float Log2ToLog = 1.0f / FMath::Log2(UE_EULERS_NUMBER);
 	return NewMul(NewLog2(Input), NewConstant(Log2ToLog));
 }
 
