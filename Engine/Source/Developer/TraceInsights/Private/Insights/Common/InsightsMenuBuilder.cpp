@@ -9,6 +9,7 @@
 #include "WorkspaceMenuStructureModule.h"
 
 #include "Insights/InsightsStyle.h"
+#include "Insights/InsightsManager.h"
 
 #define LOCTEXT_NAMESPACE "InsightsMenuBuilder"
 
@@ -51,6 +52,24 @@ TSharedRef<FWorkspaceItem> FInsightsMenuBuilder::GetWindowsGroup()
 void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 {
 #if !WITH_EDITOR
+	MenuBuilder.BeginSection("Insights");
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OpenSessionBrowser", "Session Browser"),
+		LOCTEXT("OpenSessionBrowser_ToolTip", "Opens the Unreal Insights Session Browser window."),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "AppIcon.Small"),
+		FUIAction(FExecuteAction::CreateLambda([] { FInsightsManager::Get()->OpenUnrealInsights(); })));
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OpenTraceFile1", "Open Trace File (new instance)..."),
+		LOCTEXT("OpenTraceFile1_ToolTip", "Starts analysis for a specified trace file, in a separate Unreal Insights instance."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateLambda([] { FInsightsManager::Get()->OpenTraceFile(); })));
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OpenTraceFile2", "Open Trace File (same instance)..."),
+		LOCTEXT("OpenTraceFile2_ToolTip", "Starts analysis for a specified trace file, replacing the current analysis session."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateLambda([] { FInsightsManager::Get()->LoadTraceFile(); })));
+	MenuBuilder.EndSection();
+
 	FGlobalTabmanager::Get()->PopulateLocalTabSpawnerMenu(MenuBuilder);
 
 	static FName WidgetReflectorTabId("WidgetReflector");
@@ -60,7 +79,7 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.BeginSection("WidgetTools");
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("OpenWidgetReflector", "Widget Reflector"),
-			LOCTEXT("OpenWidgetReflectorToolTip", "Opens the Widget Reflector, a handy tool for diagnosing problems with live widgets."),
+			LOCTEXT("OpenWidgetReflector_ToolTip", "Opens the Widget Reflector, a handy tool for diagnosing problems with live widgets."),
 			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "WidgetReflector.Icon"),
 			FUIAction(FExecuteAction::CreateLambda([=] { FGlobalTabmanager::Get()->TryInvokeTab(WidgetReflectorTabId); })));
 		MenuBuilder.EndSection();
@@ -77,7 +96,7 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("OpenStarshipSuite", "Starship Test Suite"),
-			LOCTEXT("OpenStarshipSuiteDesc", "Opens the Starship UX test suite."),
+			LOCTEXT("OpenStarshipSuite_ToolTip", "Opens the Starship UX test suite."),
 			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Test"),
 			OpenStarshipSuiteAction,
 			NAME_None,

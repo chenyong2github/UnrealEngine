@@ -1587,7 +1587,7 @@ void STraceStoreWindow::UpdateTrace(FTraceViewModel& InOutTrace, const Insights:
 		{
 			UE_LOG(TraceInsights, Log, TEXT("[TraceStore] Auto starting analysis for trace with id 0x%08X..."), InOutTrace.TraceId);
 			AutoStartedSessions.Add(InOutTrace.TraceId);
-			LoadTrace(InOutTrace.TraceId);
+			OpenTraceSession(InOutTrace.TraceId);
 		}
 	}
 }
@@ -1664,7 +1664,7 @@ void STraceStoreWindow::TraceList_OnSelectionChanged(TSharedPtr<FTraceViewModel>
 
 void STraceStoreWindow::TraceList_OnMouseButtonDoubleClick(TSharedPtr<FTraceViewModel> TraceSession)
 {
-	LoadTraceSession(TraceSession);
+	OpenTraceSession(TraceSession);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1799,7 +1799,7 @@ FReply STraceStoreWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEve
 				const FString DraggedFileExtension = FPaths::GetExtension(Files[0], true);
 				if (DraggedFileExtension == TEXT(".utrace"))
 				{
-					LoadTraceFile(Files[0]);
+					OpenTraceFile(Files[0]);
 					return FReply::Handled();
 				}
 			}
@@ -1820,62 +1820,26 @@ bool STraceStoreWindow::Open_IsEnabled() const
 
 FReply STraceStoreWindow::Open_OnClicked()
 {
-	LoadTraceSession(SelectedTrace);
+	OpenTraceSession(SelectedTrace);
 	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STraceStoreWindow::OpenFileDialog()
+void STraceStoreWindow::OpenTraceFile()
 {
-	const FString ProfilingDirectory(FPaths::ConvertRelativePathToFull(FInsightsManager::Get()->GetStoreDir()));
-
-	TArray<FString> OutFiles;
-	bool bOpened = false;
-
-	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	if (DesktopPlatform != nullptr)
+	FString TraceFile;
+	if (FInsightsManager::Get()->ShowOpenTraceFileDialog(TraceFile))
 	{
-		FSlateApplication::Get().CloseToolTip();
-
-		bOpened = DesktopPlatform->OpenFileDialog
-		(
-			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
-			LOCTEXT("LoadTrace_FileDesc", "Open trace file...").ToString(),
-			ProfilingDirectory,
-			TEXT(""),
-			LOCTEXT("LoadTrace_FileFilter", "Trace files (*.utrace)|*.utrace|All files (*.*)|*.*").ToString(),
-			EFileDialogFlags::None,
-			OutFiles
-		);
-	}
-
-	if (bOpened == true)
-	{
-		if (OutFiles.Num() == 1)
-		{
-			LoadTraceFile(OutFiles[0]);
-		}
+		OpenTraceFile(TraceFile);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STraceStoreWindow::LoadTraceSession(TSharedPtr<FTraceViewModel> InTraceSession)
-{
-	if (InTraceSession.IsValid())
-	{
-		LoadTrace(InTraceSession->TraceId);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STraceStoreWindow::LoadTraceFile(const FString& InTraceFile)
+void STraceStoreWindow::OpenTraceFile(const FString& InTraceFile)
 {
 	UE_LOG(TraceInsights, Log, TEXT("[TraceStore] Start analysis (in separate process) for trace file: \"%s\""), *InTraceFile);
-
-	const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
 
 	FString CmdLine = TEXT("-OpenTraceFile=\"") + InTraceFile + TEXT("\"");
 
@@ -1883,22 +1847,7 @@ void STraceStoreWindow::LoadTraceFile(const FString& InTraceFile)
 	GetExtraCommandLineParams(ExtraCmdParams);
 	CmdLine += ExtraCmdParams;
 
-	constexpr bool bLaunchDetached = true;
-	constexpr bool bLaunchHidden = false;
-	constexpr bool bLaunchReallyHidden = false;
-
-	uint32 ProcessID = 0;
-	const int32 PriorityModifier = 0;
-	const TCHAR* OptionalWorkingDirectory = nullptr;
-
-	void* PipeWriteChild = nullptr;
-	void* PipeReadChild = nullptr;
-
-	FProcHandle Handle = FPlatformProcess::CreateProc(ExecutablePath, *CmdLine, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &ProcessID, PriorityModifier, OptionalWorkingDirectory, PipeWriteChild, PipeReadChild);
-	if (Handle.IsValid())
-	{
-		FPlatformProcess::CloseProc(Handle);
-	}
+	FInsightsManager::Get()->OpenUnrealInsights(*CmdLine);
 
 	SplashScreenOverlayTraceFile = FPaths::GetBaseFilename(InTraceFile);
 	ShowSplashScreenOverlay();
@@ -1906,11 +1855,19 @@ void STraceStoreWindow::LoadTraceFile(const FString& InTraceFile)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STraceStoreWindow::LoadTrace(uint32 InTraceId)
+void STraceStoreWindow::OpenTraceSession(TSharedPtr<FTraceViewModel> InTraceSession)
+{
+	if (InTraceSession.IsValid())
+	{
+		OpenTraceSession(InTraceSession->TraceId);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STraceStoreWindow::OpenTraceSession(uint32 InTraceId)
 {
 	UE_LOG(TraceInsights, Log, TEXT("[TraceStore] Start analysis (in separate process) for trace id: 0x%08X"), InTraceId);
-
-	const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
 
 	const uint32 StorePort = FInsightsManager::Get()->GetStoreClient()->GetStorePort();
 	FString CmdLine = FString::Printf(TEXT("-OpenTraceId=%d -StorePort=%d"), InTraceId, StorePort);
@@ -1919,22 +1876,7 @@ void STraceStoreWindow::LoadTrace(uint32 InTraceId)
 	GetExtraCommandLineParams(ExtraCmdParams);
 	CmdLine += ExtraCmdParams;
 
-	constexpr bool bLaunchDetached = true;
-	constexpr bool bLaunchHidden = false;
-	constexpr bool bLaunchReallyHidden = false;
-
-	uint32 ProcessID = 0;
-	const int32 PriorityModifier = 0;
-	const TCHAR* OptionalWorkingDirectory = nullptr;
-
-	void* PipeWriteChild = nullptr;
-	void* PipeReadChild = nullptr;
-
-	FProcHandle Handle = FPlatformProcess::CreateProc(ExecutablePath, *CmdLine, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &ProcessID, PriorityModifier, OptionalWorkingDirectory, PipeWriteChild, PipeReadChild);
-	if (Handle.IsValid())
-	{
-		FPlatformProcess::CloseProc(Handle);
-	}
+	FInsightsManager::Get()->OpenUnrealInsights(*CmdLine);
 
 	TSharedPtr<FTraceViewModel>* TraceSessionPtrPtr = TraceViewModelMap.Find(InTraceId);
 	if (TraceSessionPtrPtr)
@@ -1961,7 +1903,7 @@ TSharedRef<SWidget> STraceStoreWindow::MakeTraceListMenu()
 			LOCTEXT("OpenFileButtonLabel", "Open File..."),
 			LOCTEXT("OpenFileButtonTooltip", "Start analysis for a specified trace file."),
 			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen"),
-			FUIAction(FExecuteAction::CreateSP(this, &STraceStoreWindow::OpenFileDialog)),
+			FUIAction(FExecuteAction::CreateSP(this, &STraceStoreWindow::OpenTraceFile)),
 			NAME_None,
 			EUserInterfaceActionType::Button
 		);
@@ -1994,7 +1936,7 @@ TSharedRef<SWidget> STraceStoreWindow::MakeTraceListMenu()
 					Label,
 					TAttribute<FText>(), // no tooltip
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateSP(this, &STraceStoreWindow::LoadTrace, Trace.TraceId)),
+					FUIAction(FExecuteAction::CreateSP(this, &STraceStoreWindow::OpenTraceSession, Trace.TraceId)),
 					NAME_None,
 					EUserInterfaceActionType::Button
 				);

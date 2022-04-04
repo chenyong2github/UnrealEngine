@@ -283,11 +283,10 @@ private:
 	bool Open_IsEnabled() const;
 	FReply Open_OnClicked();
 
-	void OpenFileDialog();
-
-	void LoadTraceSession(TSharedPtr<FTraceViewModel> InTrace);
-	void LoadTraceFile(const FString& InTraceFile);
-	void LoadTrace(uint32 InTraceId);
+	void OpenTraceFile();
+	void OpenTraceFile(const FString& InTraceFile);
+	void OpenTraceSession(TSharedPtr<FTraceViewModel> InTrace);
+	void OpenTraceSession(uint32 InTraceId);
 
 	//////////////////////////////////////////////////
 	// Traces

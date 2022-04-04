@@ -240,18 +240,53 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	/** Creates a new analysis session instance and loads the latest available trace that is live. */
+	/**
+	 * Shows the open file dialog for choosing a trace file.
+	 * @param OutTraceFile - The chosen trace file, if successful
+	 * @return True, if successful.
+	 */
+	bool ShowOpenTraceFileDialog(FString& OutTraceFile) const;
+
+	/**
+	 * Starts a new Unreal Insights instance.
+	 * @param CmdLine - The command line passed to the new UnrealInsights.exe process
+	 */
+	void OpenUnrealInsights(const TCHAR* CmdLine = nullptr) const;
+
+	/**
+	 * Shows the open file dialog and starts analysis session for the chosen trace file, in a new Unreal Insights instance.
+	 */
+	void OpenTraceFile() const;
+
+	/**
+	 * Starts analysis session for the specified trace file, in a new Unreal Insights instance.
+	 * @param TraceFilename - The trace file to analyze
+	 */
+	void OpenTraceFile(const FString& TraceFilename) const;
+
+	/**
+	 * Creates a new analysis session instance and loads the latest available trace that is live.
+	 * Replaces the current analysis session.
+	 */
 	void LoadLastLiveSession();
 
 	/**
-	 * Creates a new analysis session instance using specified trace id.
+	 * Creates a new analysis session instance using the specified trace id.
+	 * Replaces the current analysis session.
 	 * @param TraceId - The id of the trace to analyze
 	 * @param InAutoQuit - The Application will close when session analysis is complete or fails to start
 	 */
 	void LoadTrace(uint32 TraceId, bool InAutoQuit = false);
 
 	/**
+	 * Shows the open file dialog and creates a new analysis session instance for the chosen trace file.
+	 * Replaces the current analysis session.
+	 */
+	void LoadTraceFile();
+
+	/**
 	 * Creates a new analysis session instance and loads a trace file from the specified location.
+	 * Replaces the current analysis session.
 	 * @param TraceFilename - The trace file to analyze
 	 * @param InAutoQuit - The Application will close when session analysis is complete or fails to start
 	 */

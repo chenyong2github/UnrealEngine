@@ -2,8 +2,10 @@
 
 #include "InsightsManager.h"
 
+#include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformMemory.h"
+#include "HAL/PlatformProcess.h"
 #include "Logging/MessageLog.h"
 #include "MessageLog/Public/MessageLogModule.h"
 #include "Misc/CString.h"
@@ -710,6 +712,89 @@ void FInsightsManager::ActivateTimingInsightsTab()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool FInsightsManager::ShowOpenTraceFileDialog(FString& OutTraceFile) const
+{
+	const FString ProfilingDirectory(FPaths::ConvertRelativePathToFull(FInsightsManager::Get()->GetStoreDir()));
+
+	TArray<FString> OutFiles;
+	bool bOpened = false;
+
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (DesktopPlatform != nullptr)
+	{
+		FSlateApplication::Get().CloseToolTip();
+
+		bOpened = DesktopPlatform->OpenFileDialog
+		(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+			LOCTEXT("LoadTrace_FileDesc", "Open trace file...").ToString(),
+			ProfilingDirectory,
+			TEXT(""),
+			LOCTEXT("LoadTrace_FileFilter", "Trace files (*.utrace)|*.utrace|All files (*.*)|*.*").ToString(),
+			EFileDialogFlags::None,
+			OutFiles
+		);
+	}
+
+	if (bOpened == true && OutFiles.Num() == 1)
+	{
+		OutTraceFile = OutFiles[0];
+		return true;
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::OpenUnrealInsights(const TCHAR* CmdLine) const
+{
+	if (CmdLine == nullptr)
+	{
+		CmdLine = TEXT("");
+	}
+
+	const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
+
+	constexpr bool bLaunchDetached = true;
+	constexpr bool bLaunchHidden = false;
+	constexpr bool bLaunchReallyHidden = false;
+
+	uint32 ProcessID = 0;
+	const int32 PriorityModifier = 0;
+	const TCHAR* OptionalWorkingDirectory = nullptr;
+
+	void* PipeWriteChild = nullptr;
+	void* PipeReadChild = nullptr;
+
+	FProcHandle Handle = FPlatformProcess::CreateProc(ExecutablePath, CmdLine, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &ProcessID, PriorityModifier, OptionalWorkingDirectory, PipeWriteChild, PipeReadChild);
+	if (Handle.IsValid())
+	{
+		FPlatformProcess::CloseProc(Handle);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::OpenTraceFile() const
+{
+	FString TraceFile;
+	if (FInsightsManager::Get()->ShowOpenTraceFileDialog(TraceFile))
+	{
+		OpenTraceFile(TraceFile);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::OpenTraceFile(const FString& InTraceFile) const
+{
+	FString CmdLine = TEXT("-OpenTraceFile=\"") + InTraceFile + TEXT("\"");
+	OpenUnrealInsights(*CmdLine);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FInsightsManager::LoadLastLiveSession()
 {
 	ResetSession();
@@ -781,6 +866,17 @@ void FInsightsManager::LoadTrace(uint32 InTraceId, bool InAutoQuit)
 	else if (InAutoQuit)
 	{
 		RequestEngineExit(AutoQuitMsgOnFail);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::LoadTraceFile()
+{
+	FString TraceFile;
+	if (FInsightsManager::Get()->ShowOpenTraceFileDialog(TraceFile))
+	{
+		LoadTraceFile(TraceFile);
 	}
 }
 
