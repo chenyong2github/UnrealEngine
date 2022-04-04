@@ -159,8 +159,9 @@ void FSkeletonDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDisp
 		return;
 	}
 
+	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
 	if (!ensure(LodRenderData->RenderSections.Num() == InDispatchSetup.NumInvocations))
 	{
 		return;
@@ -174,7 +175,6 @@ void FSkeletonDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDisp
 	{
 		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 
-		const int32 LodIndex = SkeletalMeshRenderData.GetPendingFirstLODIdx(0);
 		const bool bPreviousFrame = false;
 		FRHIShaderResourceView* BoneBufferSRV = FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(SkeletalMeshObject, LodIndex, InvocationIndex, bPreviousFrame);
 

@@ -143,8 +143,9 @@ void FClothDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatc
 		return;
 	}
 
+	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
 	if (!ensure(LodRenderData->RenderSections.Num() == InDispatchSetup.NumInvocations))
 	{
 		return;
@@ -162,7 +163,6 @@ void FClothDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatc
 		const bool bMultipleWrapDeformerInfluences = RenderSection.NumVertices < NumWrapDeformerWeights;
 		const int32 NumClothInfluencesPerVertex = bMultipleWrapDeformerInfluences ? 5 : 1; // From ClothingMeshUtils.cpp. Could make this a permutation like with skin cache.
 
-		const int32 LodIndex = SkeletalMeshRenderData.GetPendingFirstLODIdx(0);
 		const bool bPreviousFrame = false;
 		FSkeletalMeshDeformerHelpers::FClothBuffers ClothBuffers = FSkeletalMeshDeformerHelpers::GetClothBuffersForReading(SkeletalMeshObject, LodIndex, InvocationIndex, FrameNumber, bPreviousFrame);
 		const bool bValidCloth = (ClothBuffers.ClothInfluenceBuffer != nullptr) && (ClothBuffers.ClothSimulatedPositionAndNormalBuffer != nullptr);

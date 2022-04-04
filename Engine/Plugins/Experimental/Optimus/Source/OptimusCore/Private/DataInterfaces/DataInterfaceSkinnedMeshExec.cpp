@@ -2,15 +2,11 @@
 
 #include "DataInterfaces/DataInterfaceSkinnedMeshExec.h"
 
-#include "OptimusDataDomain.h"
-
 #include "Components/SkinnedMeshComponent.h"
 #include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
-#include "RenderGraphBuilder.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "SkeletalMeshDeformerHelpers.h"
 #include "SkeletalRenderPublic.h"
 
 FString USkinnedMeshExecDataInterface::GetDisplayName() const
@@ -92,8 +88,9 @@ FSkinnedMeshExecDataProviderProxy::FSkinnedMeshExecDataProviderProxy(USkinnedMes
 
 int32 FSkinnedMeshExecDataProviderProxy::GetDispatchThreadCount(TArray<FIntVector>& ThreadCounts) const
 {
+	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
 	const int32 NumInvocations = LodRenderData->RenderSections.Num();
 
 	ThreadCounts.Reset();
@@ -115,8 +112,10 @@ void FSkinnedMeshExecDataProviderProxy::GatherDispatchData(FDispatchSetup const&
 		return;
 	}
 
+	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
+
 	const int32 NumInvocations = LodRenderData->RenderSections.Num();
 	if (!ensure(NumInvocations == InDispatchSetup.NumInvocations))
 	{

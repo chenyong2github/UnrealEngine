@@ -121,8 +121,9 @@ void FMorphTargetDataProviderProxy::GatherDispatchData(FDispatchSetup const& InD
 		return;
 	}
 
+	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
 	if (!ensure(LodRenderData->RenderSections.Num() == InDispatchSetup.NumInvocations))
 	{
 		return;
@@ -136,7 +137,6 @@ void FMorphTargetDataProviderProxy::GatherDispatchData(FDispatchSetup const& InD
 	{
 		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 
-		const int32 LodIndex = SkeletalMeshRenderData.GetPendingFirstLODIdx(0);
 		const bool bPreviousFrame = false;
 		FRHIShaderResourceView* MorphBufferSRV = FSkeletalMeshDeformerHelpers::GetMorphTargetBufferForReading(SkeletalMeshObject, LodIndex, InvocationIndex, FrameNumber, bPreviousFrame);
 		const bool bValidMorph = MorphBufferSRV != nullptr;

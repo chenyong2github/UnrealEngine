@@ -2,11 +2,10 @@
 
 #include "DataInterfaces/DataInterfaceSkinnedMeshWrite.h"
 
-#include "OptimusDataDomain.h"
-
 #include "Components/SkinnedMeshComponent.h"
 #include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "OptimusDataDomain.h"
 #include "RenderGraphBuilder.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
@@ -122,9 +121,9 @@ FSkinnedMeshWriteDataProviderProxy::FSkinnedMeshWriteDataProviderProxy(USkinnedM
 void FSkinnedMeshWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
 	// Allocate required buffers
+	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-	const int32 LodIndex = SkeletalMeshRenderData.GetPendingFirstLODIdx(0);
-	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
 	const int32 NumVertices = LodRenderData->GetNumVertices();
 
 	// We will extract buffers from RDG.
@@ -193,15 +192,15 @@ void FSkinnedMeshWriteDataProviderProxy::GatherDispatchData(FDispatchSetup const
 		return;
 	}
 
+	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
-	const int32 NumInvocations = LodRenderData->RenderSections.Num();
-	if (!ensure(NumInvocations == InDispatchSetup.NumInvocations))
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
+	if (!ensure(LodRenderData->RenderSections.Num() == InDispatchSetup.NumInvocations))
 	{
 		return;
 	}
 
-	for (int32 InvocationIndex = 0; InvocationIndex < NumInvocations; ++InvocationIndex)
+	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex)
 	{
 		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 

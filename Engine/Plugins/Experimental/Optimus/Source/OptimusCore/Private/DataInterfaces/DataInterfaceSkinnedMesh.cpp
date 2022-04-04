@@ -152,8 +152,9 @@ void FSkinnedMeshDataProviderProxy::GatherDispatchData(FDispatchSetup const& InD
 		return;
 	}
 
+	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
 	if (!ensure(LodRenderData->RenderSections.Num() == InDispatchSetup.NumInvocations))
 	{
 		return;
