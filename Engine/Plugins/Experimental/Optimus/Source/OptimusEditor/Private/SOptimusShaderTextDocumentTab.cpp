@@ -59,7 +59,7 @@ void SOptimusShaderTextDocumentTab::Construct(const FArguments& InArgs, UObject*
 		[
 			SAssignNew(DeclarationsExpandableArea,SExpandableArea) = ExpandableAreaArgs
 			.AreaTitle(DeclarationsTitle)
-			.InitiallyCollapsed(false)
+			.InitiallyCollapsed(true)
 			.AllowAnimatedTransition(false)
 			.BodyContent()
 			[
