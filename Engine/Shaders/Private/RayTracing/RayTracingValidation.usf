@@ -17,6 +17,7 @@ uint VertexBufferOffsetInBytes;
 uint IndexBufferOffsetInBytes;
 uint IndexBufferStride;
 uint NumPrimitives;
+uint MaxVertices;
 
 bool IsNaN(float F)
 {
@@ -76,6 +77,20 @@ void RayTracingValidateGeometryBuildParamsCS(uint3 DispatchThreadId : SV_Dispatc
 		VertexBuffer, VertexBufferOffsetInBytes, VertexBufferStride,
 		PrimitiveIndex);
 	
+	{
+		// Check that index buffer value is within the expected range, based on VertexCount field of D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC.
+		// DXR spec for VertexCount: Number of vertices (positions) in VertexBuffer. If an index buffer is present, this must be at least the maximum index value in the index buffer + 1.
+		for (uint i = 0; i < 3; ++i)
+		{
+			uint Index = Tri.Indices[i];
+			if (Index >= MaxVertices)
+			{
+				uint AssertID = 0x5ECFB346; // Unique assert ID (TODO: add support for full human-readable assert strings)
+				UEReportAssertWithPayload(AssertID, uint4(PrimitiveIndex, Index, MaxVertices, 0));
+			}
+		}
+	}
+
 	CheckTriangle(Tri, PrimitiveIndex);
 }
 

@@ -23,6 +23,7 @@ public:
 		IndexBufferOffsetInBytesParam.Bind(Initializer.ParameterMap, TEXT("IndexBufferOffsetInBytes"), SPF_Optional);
 		IndexBufferStrideParam.Bind(Initializer.ParameterMap, TEXT("IndexBufferStride"), SPF_Optional);
 		NumPrimitivesParam.Bind(Initializer.ParameterMap, TEXT("NumPrimitives"), SPF_Optional);
+		MaxVerticesParam.Bind(Initializer.ParameterMap, TEXT("MaxVertices"), SPF_Optional);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -49,6 +50,7 @@ public:
 	LAYOUT_FIELD(FShaderParameter, IndexBufferOffsetInBytesParam);
 	LAYOUT_FIELD(FShaderParameter, IndexBufferStrideParam);
 	LAYOUT_FIELD(FShaderParameter, NumPrimitivesParam);
+	LAYOUT_FIELD(FShaderParameter, MaxVerticesParam);
 
 };
 

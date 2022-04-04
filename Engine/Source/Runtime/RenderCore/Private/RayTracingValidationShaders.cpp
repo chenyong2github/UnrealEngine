@@ -53,6 +53,7 @@ void FRayTracingValidateGeometryBuildParamsCS::Dispatch(FRHICommandList& RHICmdL
 		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->IndexBufferOffsetInBytesParam, IndexBufferOffsetInBytes);
 		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->IndexBufferStrideParam, IndexStride);
 		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NumPrimitivesParam, Segment.NumPrimitives);
+		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->MaxVerticesParam, Segment.MaxVertices);
 
 		const FRawBufferShaderResourceViewInitializer VBViewInitializer(Segment.VertexBuffer);
 		FShaderResourceViewRHIRef VertexBufferSRV = RHICreateShaderResourceView(VBViewInitializer);
