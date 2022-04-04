@@ -188,7 +188,10 @@ void UAITask_UseSmartObject::OnGameplayTaskDeactivated(UGameplayTask& Task)
 				GameplayBehavior = GameplayBehaviorConfig != nullptr ? GameplayBehaviorConfig->GetBehavior(*World) : nullptr;
 				if (GameplayBehavior != nullptr)
 				{
-					bBehaviorActive = UGameplayBehaviorManager::TriggerBehavior(*GameplayBehavior, *OwnerController->GetPawn(), GameplayBehaviorConfig);
+					const USmartObjectComponent* SmartObjectComponent = SmartObjectSubsystem->GetSmartObjectComponent(ClaimedHandle);
+					AActor& InteractorActor = *OwnerController->GetPawn();
+					AActor* InteracteeActor = SmartObjectComponent ? SmartObjectComponent->GetOwner() : nullptr;
+					bBehaviorActive = UGameplayBehaviorManager::TriggerBehavior(*GameplayBehavior, InteractorActor, GameplayBehaviorConfig, InteracteeActor);
 					// Behavior can be successfully triggered AND ended synchronously. We are only interested to register callback when still running
 					if (bBehaviorActive)
 					{
