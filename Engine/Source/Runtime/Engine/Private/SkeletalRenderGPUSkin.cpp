@@ -811,11 +811,13 @@ void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRender
 			MemoryEstimation += LODModel.StaticVertexBuffers.PositionVertexBuffer.VertexBufferRHI->GetSize();
 
 			//#dxr_todo: do we need support for separate sections in FRayTracingGeometryData?
-			uint32 TrianglesCount = 0;
+			uint32 TotalNumTriangles = 0;
+			uint32 TotalNumVertices = 0;
 			for (int32 SectionIndex = 0; SectionIndex < LODModel.RenderSections.Num(); SectionIndex++)
 			{
 				const FSkelMeshRenderSection& Section = LODModel.RenderSections[SectionIndex];
-				TrianglesCount += Section.NumTriangles;
+				TotalNumTriangles += Section.NumTriangles;
+				TotalNumVertices += Section.GetNumVertices();
 			}
 
 			FRayTracingGeometryInitializer Initializer;
@@ -834,7 +836,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRender
 			}
 
 			Initializer.IndexBuffer = IndexBufferRHI;
-			Initializer.TotalPrimitiveCount = TrianglesCount;
+			Initializer.TotalPrimitiveCount = TotalNumTriangles;
 			Initializer.GeometryType = RTGT_Triangles;
 			Initializer.bFastBuild = true;
 			Initializer.bAllowUpdate = true;
@@ -850,7 +852,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRender
 				Segment.VertexBufferElementType = VET_Float3;
 				Segment.VertexBufferStride = VertexBufferStride;
 				Segment.VertexBufferOffset = 0;
-				Segment.MaxVertices = Section.GetNumVertices();
+				Segment.MaxVertices = TotalNumVertices;
 				Segment.FirstPrimitive = Section.BaseIndex / 3;
 				Segment.NumPrimitives = Section.NumTriangles;
 

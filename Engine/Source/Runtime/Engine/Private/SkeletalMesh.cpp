@@ -6800,6 +6800,8 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			MeshObject->MaterialIndexPreview = INDEX_NONE;
 		#endif
 
+			uint32 TotalNumVertices = 0;
+
 			for (FSkeletalMeshSectionIter Iter(LODIndex, *MeshObject, LODData, LODSection); Iter; ++Iter)
 			{
 				const FSkelMeshRenderSection& Section = Iter.GetSection();
@@ -6810,6 +6812,8 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				CreateBaseMeshBatch(Context.ReferenceView, LODData, LODIndex, SectionIndex, SectionElementInfo, MeshBatch, ESkinVertexFactoryMode::RayTracing);
 
 				RayTracingInstance.Materials.Add(MeshBatch);
+
+				TotalNumVertices += Section.GetNumVertices();
 			}
 
 			RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
@@ -6832,7 +6836,7 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 
 					FRayTracingGeometrySegment Segment;
 					Segment.VertexBufferStride = VertexBufferStride;
-					Segment.MaxVertices = Section.GetNumVertices();
+					Segment.MaxVertices = TotalNumVertices;
 					Segment.FirstPrimitive = Section.BaseIndex / 3;
 					Segment.NumPrimitives = Section.NumTriangles;
 					Segment.bEnabled = !MeshObject->IsMaterialHidden(LODIndex, SectionElementInfo.UseMaterialIndex) && !Section.bDisabled && Section.bVisibleInRayTracing;

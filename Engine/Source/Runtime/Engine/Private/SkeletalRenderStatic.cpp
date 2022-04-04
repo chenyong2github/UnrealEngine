@@ -83,6 +83,13 @@ void FSkeletalMeshObjectStatic::InitResources(USkinnedMeshComponent* InMeshCompo
 
 							TArray<FRayTracingGeometrySegment> GeometrySections;
 							GeometrySections.Reserve(RenderSections->Num());
+
+							uint32 TotalNumVertices = 0;
+							for (const FSkelMeshRenderSection& Section : *RenderSections)
+							{
+								TotalNumVertices += Section.GetNumVertices();
+							}
+
 							for (const FSkelMeshRenderSection& Section : *RenderSections)
 							{
 								FRayTracingGeometrySegment Segment;
@@ -90,7 +97,7 @@ void FSkeletalMeshObjectStatic::InitResources(USkinnedMeshComponent* InMeshCompo
 								Segment.VertexBufferElementType = VET_Float3;
 								Segment.VertexBufferOffset = 0;
 								Segment.VertexBufferStride = VertexBufferStride;
-								Segment.MaxVertices = Section.GetNumVertices();
+								Segment.MaxVertices = TotalNumVertices;
 								Segment.FirstPrimitive = Section.BaseIndex / 3;
 								Segment.NumPrimitives = Section.NumTriangles;
 								Segment.bEnabled = !Section.bDisabled && Section.bVisibleInRayTracing;
