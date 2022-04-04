@@ -548,23 +548,6 @@ void UNiagaraMeshRendererProperties::PostLoad()
 }
 
 #if WITH_EDITORONLY_DATA
-bool UNiagaraMeshRendererProperties::IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage)
-{
-	if (Material->bUsedWithNiagaraMeshParticles == false)
-	{
-		InvalidMessage = NSLOCTEXT("NiagaraMeshRendererProperties", "InvalidMaterialMessage", "The material isn't marked as \"Used with Niagara Mesh particles\"");
-		return false;
-	}
-	return true;
-}
-
-void UNiagaraMeshRendererProperties::FixMaterial(UMaterial* Material)
-{
-	Material->Modify();
-	Material->bUsedWithNiagaraMeshParticles = true;
-	Material->ForceRecompileForRendering();
-}
-
 const TArray<FNiagaraVariable>& UNiagaraMeshRendererProperties::GetOptionalAttributes()
 {
 	static TArray<FNiagaraVariable> Attrs;

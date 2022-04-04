@@ -571,23 +571,6 @@ void UNiagaraSpriteRendererProperties::GetRendererTooltipWidgets(const FNiagaraE
 	}
 }
 
-bool UNiagaraSpriteRendererProperties::IsMaterialValidForRenderer(UMaterial* InMaterial, FText& InvalidMessage)
-{
-	if (InMaterial->bUsedWithNiagaraSprites == false)
-	{
-		InvalidMessage = NSLOCTEXT("NiagaraSpriteRendererProperties", "InvalidMaterialMessage", "The material isn't marked as \"Used with particle sprites\"");
-		return false;
-	}
-	return true;
-}
-
-void UNiagaraSpriteRendererProperties::FixMaterial(UMaterial* InMaterial)
-{
-	InMaterial->Modify();
-	InMaterial->bUsedWithNiagaraSprites = true;
-	InMaterial->ForceRecompileForRendering();
-}
-
 void UNiagaraSpriteRendererProperties::UpdateCutoutTexture()
 {
 	if (bUseMaterialCutoutTexture)

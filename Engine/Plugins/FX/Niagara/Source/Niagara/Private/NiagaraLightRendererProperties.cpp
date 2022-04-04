@@ -163,15 +163,6 @@ void UNiagaraLightRendererProperties::GetRendererFeedback(const UNiagaraEmitter*
 	Super::GetRendererFeedback(InEmitter, OutErrors, OutWarnings, OutInfo);
 }
 
-bool UNiagaraLightRendererProperties::IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage)
-{
-	return true;
-}
-
-void UNiagaraLightRendererProperties::FixMaterial(UMaterial* Material)
-{
-}
-
 #endif // WITH_EDITORONLY_DATA
 
 #undef LOCTEXT_NAMESPACE

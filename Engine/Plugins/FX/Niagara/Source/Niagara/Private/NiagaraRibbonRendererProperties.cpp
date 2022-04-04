@@ -473,23 +473,6 @@ void UNiagaraRibbonRendererProperties::GetRendererFeedback(const UNiagaraEmitter
 }
 
 
-bool UNiagaraRibbonRendererProperties::IsMaterialValidForRenderer(UMaterial* InMaterial, FText& InvalidMessage)
-{
-	if (InMaterial->bUsedWithNiagaraRibbons == false)
-	{
-		InvalidMessage = NSLOCTEXT("NiagaraRibbonRendererProperties", "InvalidMaterialMessage", "The material isn't marked as \"Used with Niagara ribbons\"");
-		return false;
-	}
-	return true;
-}
-
-void UNiagaraRibbonRendererProperties::FixMaterial(UMaterial* InMaterial)
-{
-	InMaterial->Modify();
-	InMaterial->bUsedWithNiagaraRibbons = true;
-	InMaterial->ForceRecompileForRendering();
-}
-
 bool UNiagaraRibbonRendererProperties::CanEditChange(const FProperty* InProperty) const
 {
 
