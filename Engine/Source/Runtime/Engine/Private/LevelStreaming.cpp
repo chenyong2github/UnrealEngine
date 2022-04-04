@@ -1224,9 +1224,7 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 				InstancingContextPtr = &InstancingContext;
 				for (const FString& ActorPackageName : ActorPackageNames)
 				{
-					const FString ActorShortPackageName = FPackageName::GetShortName(ActorPackageName);
-					const FString InstancedName = ULevel::GetExternalActorPackageInstanceName(DesiredPackageName.ToString(), ActorShortPackageName);
-				
+					const FString InstancedName = ULevel::GetExternalActorPackageInstanceName(DesiredPackageName.ToString(), ActorPackageName);
 					InstancingContext.AddMapping(FName(*ActorPackageName), FName(*InstancedName));
 				}
 			}

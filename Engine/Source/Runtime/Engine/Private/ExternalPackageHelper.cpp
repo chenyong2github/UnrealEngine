@@ -121,9 +121,9 @@ FString FExternalPackageHelper::GetExternalPackageName(UPackage* InOuterPackage,
 	return ObjectPackageName.ToString();
 }
 
-FString FExternalPackageHelper::GetExternalObjectPackageInstanceName(const FString& OuterPackageName, const FString& ObjectShortPackageName)
+FString FExternalPackageHelper::GetExternalObjectPackageInstanceName(const FString& OuterPackageName, const FString& ObjectPackageName)
 {
-	return FString::Printf(TEXT("%s_InstanceOf_%s"), *OuterPackageName, *ObjectShortPackageName);
+	return FLinkerInstancingContext::GetInstancedPackageName(OuterPackageName, ObjectPackageName);
 }
 
 #endif

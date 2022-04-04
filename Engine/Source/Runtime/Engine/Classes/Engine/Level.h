@@ -777,6 +777,8 @@ public:
 	ENGINE_API static bool GetIsLevelUsingExternalActorsFromPackage(FName LevelPackage);
 	ENGINE_API static bool GetIsUsingActorFoldersFromPackage(FName LevelPackage);
 	ENGINE_API static bool GetIsStreamingDisabledFromPackage(FName LevelPackage);
+	ENGINE_API static bool GetPartitionedLevelCanBeUsedByLevelInstanceFromAsset(const FAssetData& Asset);
+	ENGINE_API static bool GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(FName LevelPackage);
 
 	ENGINE_API bool GetPromptWhenAddingToLevelOutsideBounds() const;
 	ENGINE_API bool GetPromptWhenAddingToLevelBeforeCheckout() const;
@@ -1201,7 +1203,7 @@ public:
 	* Get a properly formated external actor package instance name for this level package to be used in FLinkerInstancingContext
 	* @return external actor package instance name
 	*/
-	static ENGINE_API FString GetExternalActorPackageInstanceName(const FString& LevelPackageName, const FString& ActorShortPackageName);
+	static ENGINE_API FString GetExternalActorPackageInstanceName(const FString& LevelPackageName, const FString& ActorPackageName);
 
 	/**
 	 * Get the list of (on disk) external actor packages associated with this external actors path

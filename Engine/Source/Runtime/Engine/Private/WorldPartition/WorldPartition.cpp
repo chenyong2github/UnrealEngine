@@ -261,6 +261,7 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, bStreamingWasEnabled(true)
 	, bShouldEnableStreamingWarned(false)
 	, bShouldCheckEnableStreamingWarning(false)
+	, bCanBeUsedByLevelInstance(false)
 	, bForceGarbageCollection(false)
 	, bForceGarbageCollectionPurge(false)
 	, bIsPIE(false)
@@ -514,6 +515,14 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		{
 			GEditor->OnEditorClose().AddUObject(this, &UWorldPartition::SavePerUserSettings);
 		}
+	}
+
+	if (bIsEditor)
+	{
+		// Because WorldPartition applies instance transforms to each actor (see ApplyActorTransform)
+		// We need to flag Level's bAlreadyMovedActors to true so that ULevelStreaming::PrepareLoadedLevel won't reapply the same transform again.
+		// We asssume that non-external actors won't be transformed (which is fine since the only 2 cases are the worldsettings and the default brush).
+		OuterWorld->PersistentLevel->bAlreadyMovedActors = true;
 	}
 #endif //WITH_EDITOR
 
@@ -1177,6 +1186,27 @@ void UWorldPartition::SetEnableStreaming(bool bInEnableStreaming)
 	}
 }
 
+bool UWorldPartition::CanBeUsedByLevelInstance() const
+{
+	return bCanBeUsedByLevelInstance && !IsStreamingEnabled();
+}
+
+void UWorldPartition::SetCanBeUsedByLevelInstance(bool bInCanBeUsedByLevelInstance)
+{
+	// Only allowed to be called when WorldPartition is not initialized
+	check(!IsInitialized());
+
+	if (bCanBeUsedByLevelInstance != bInCanBeUsedByLevelInstance)
+	{
+		Modify();
+		bCanBeUsedByLevelInstance = bInCanBeUsedByLevelInstance;
+		if (bCanBeUsedByLevelInstance)
+		{
+			bEnableStreaming = false;
+		}
+	}
+}
+
 void UWorldPartition::OnEnableStreamingChanged()
 {
 	// Pin the actor handles on the actor to prevent unloading it when unhashing
@@ -1484,6 +1514,12 @@ void UWorldPartition::AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags
 	{
 		static const FName NAME_LevelHasStreamingDisabled(TEXT("LevelHasStreamingDisabled"));
 		OutTags.Add(FAssetRegistryTag(NAME_LevelHasStreamingDisabled, TEXT("1"), FAssetRegistryTag::TT_Hidden));
+	}
+
+	if (CanBeUsedByLevelInstance())
+	{
+		static const FName NAME_PartitionedLevelCanBeUsedByLevelInstance(TEXT("PartitionedLevelCanBeUsedByLevelInstance"));
+		OutTags.Add(FAssetRegistryTag(NAME_PartitionedLevelCanBeUsedByLevelInstance, TEXT("1"), FAssetRegistryTag::TT_Hidden));
 	}
 }
 

@@ -68,7 +68,7 @@ private:
 	static FString GetExternalPackageName(UPackage* InOuterPackage, const FString& InObjectPath);
 
 	/** Get the external object package instance name. */
-	static FString GetExternalObjectPackageInstanceName(const FString& OuterPackageName, const FString& ObjectShortPackageName);
+	static FString GetExternalObjectPackageInstanceName(const FString& OuterPackageName, const FString& ObjectPackageName);
 };
 
 template<typename T>
@@ -102,8 +102,7 @@ void FExternalPackageHelper::LoadObjectsFromExternalPackages(UObject* InOuter, T
 		for (const FAssetData& Asset : Assets)
 		{
 			const FString ObjectPackageName = Asset.PackageName.ToString();
-			const FString ShortPackageName = FPackageName::GetShortName(ObjectPackageName);
-			const FString InstancedName = GetExternalObjectPackageInstanceName(OuterPackage->GetName(), ShortPackageName);
+			const FString InstancedName = GetExternalObjectPackageInstanceName(OuterPackage->GetName(), ObjectPackageName);
 			InstancingContext.AddMapping(FName(*ObjectPackageName), FName(*InstancedName));
 
 			// Create instance package

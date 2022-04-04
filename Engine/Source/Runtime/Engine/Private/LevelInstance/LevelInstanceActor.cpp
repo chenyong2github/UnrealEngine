@@ -105,9 +105,9 @@ void ALevelInstance::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	if (ULevel::GetIsLevelPartitionedFromPackage(*WorldAsset.GetLongPackageName()))
+	if (!ULevelInstanceSubsystem::CanUsePackage(*WorldAsset.GetLongPackageName()))
 	{
-		UE_LOG(LogLevelInstance, Warning, TEXT("LevelInstance doesn't support partitioned world %s"), *WorldAsset.GetLongPackageName());
+		UE_LOG(LogLevelInstance, Warning, TEXT("LevelInstance doesn't support partitioned world %s, make sure to flag world partition's 'Can be Used by Level Instance'."), *WorldAsset.GetLongPackageName());
 		WorldAsset.Reset();
 	}
 #endif

@@ -20,6 +20,7 @@ struct FWorldPartitionActorDescInitData
 };
 
 class UActorDescContainer;
+struct FActorContainerID;
 
 enum class EContainerClusterMode : uint8
 {
@@ -72,6 +73,7 @@ public:
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
 	virtual const FGuid& GetSceneOutlinerParent() const { return GetParentActor(); }
 	virtual bool IsResaveNeeded() const { return false; }
+	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const { return true; }
 
 	bool operator==(const FWorldPartitionActorDesc& Other) const
 	{

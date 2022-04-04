@@ -104,6 +104,8 @@ public:
 	bool SupportsStreaming() const;
 	bool IsStreamingEnabled() const;
 	void SetEnableStreaming(bool bInEnableStreaming);
+	bool CanBeUsedByLevelInstance() const;
+	void SetCanBeUsedByLevelInstance(bool bInCanBeUsedByLevelInstance);
 	void OnEnableStreamingChanged();
 
 private:
@@ -230,6 +232,10 @@ private:
 
 	/** Used to know if we need to recheck if the user should enable streaming based on world size. */
 	bool bShouldCheckEnableStreamingWarning;
+
+	/** Whether Level Instance can reference this partition. */
+	UPROPERTY(EditAnywhere, Category = "WorldPartition", AdvancedDisplay, meta = (EditConditionHides, HideEditConditionToggle, EditCondition = "!bEnableStreaming"))
+	bool bCanBeUsedByLevelInstance;
 #endif
 
 public:

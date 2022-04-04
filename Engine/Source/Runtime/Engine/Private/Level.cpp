@@ -943,8 +943,7 @@ void ULevel::PostLoad()
 			{
 				if (bInstanced)
 				{
-					const FString ActorShortPackageName = FPackageName::GetShortName(ActorPackageName);
-					const FString InstancedName = GetExternalActorPackageInstanceName(LevelPackage->GetName(), ActorShortPackageName);
+					const FString InstancedName = GetExternalActorPackageInstanceName(LevelPackage->GetName(), ActorPackageName);
 					InstancePackageNames.Add(InstancedName);
 
 					InstancingContext.AddMapping(FName(*ActorPackageName), FName(*InstancedName));
@@ -2224,6 +2223,26 @@ bool ULevel::GetIsStreamingDisabledFromPackage(FName LevelPackage)
 	});
 }
 
+bool ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromAsset(const FAssetData& Asset)
+{
+	FString PartitionedLevelCanBeUsedByLevelInstanceStr;
+	static const FName NAME_PartitionedLevelCanBeUsedByLevelInstance(TEXT("PartitionedLevelCanBeUsedByLevelInstance"));
+	if (Asset.GetTagValue(NAME_PartitionedLevelCanBeUsedByLevelInstance, PartitionedLevelCanBeUsedByLevelInstanceStr))
+	{
+		check(PartitionedLevelCanBeUsedByLevelInstanceStr == TEXT("1"));
+		return true;
+	}
+	return false;
+}
+
+bool ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(FName LevelPackage)
+{
+	return LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [](const FAssetData& Asset)
+	{
+		return GetPartitionedLevelCanBeUsedByLevelInstanceFromAsset(Asset);
+	});
+}
+
 bool ULevel::GetLevelBoundsFromAsset(const FAssetData& Asset, FBox& OutLevelBounds)
 {
 	FString LevelBoundsLocationStr;
@@ -2449,13 +2468,22 @@ void ULevel::OnLevelLoaded()
 	FixupActorFolders();
 #endif
 
+	auto IsValidLevelInstanceWorldPartition = [](UWorldPartition* InWorldPartition)
+	{
+#if WITH_EDITOR
+		return InWorldPartition->CanBeUsedByLevelInstance();
+#else
+		return false;
+#endif
+	};
+
 	// 1. Cook commandlet does it's own UWorldPartition::Initialize call in FWorldPartitionCookPackageSplitter::GetGenerateList
 	// 2. Do not Initialize if World doesn't have a UWorldPartitionSubsystem (Known case is when WorldType == EWorldType::Inactive)
 	if (!IsRunningCookCommandlet() && GetWorld()->HasSubsystem<UWorldPartitionSubsystem>())
 	{
-		if (IsPersistentLevel() || GetWorld()->IsGameWorld())
+		if (UWorldPartition* WorldPartition = GetWorldPartition())
 		{
-			if (UWorldPartition* WorldPartition = GetWorldPartition())
+			if (IsPersistentLevel() || GetWorld()->IsGameWorld() || IsValidLevelInstanceWorldPartition(WorldPartition))
 			{
 				FTransform Transform = FTransform::Identity;
 				if (ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(this))
@@ -3222,9 +3250,9 @@ void ULevel::ConvertAllActorsToPackaging(bool bExternal)
 	}
 }
 
-FString ULevel::GetExternalActorPackageInstanceName(const FString& LevelPackageName, const FString& ActorShortPackageName)
+FString ULevel::GetExternalActorPackageInstanceName(const FString& LevelPackageName, const FString& ActorPackageName)
 {
-	return FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelPackageName, *ActorShortPackageName);
+	return FLinkerInstancingContext::GetInstancedPackageName(LevelPackageName, ActorPackageName);
 }
 
 TArray<FString> ULevel::GetOnDiskExternalActorPackages(const FString& ExternalActorsPath)

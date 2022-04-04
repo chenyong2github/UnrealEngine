@@ -7,6 +7,7 @@
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
+#include "WorldPartition/WorldPartitionActorCluster.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
 
 FArchive& operator<<(FArchive& Ar, FDataLayerInstanceDesc& Desc)
@@ -174,6 +175,11 @@ void FWorldDataLayersActorDesc::Serialize(FArchive& Ar)
 		Ar << DataLayerInstances;
 		bIsValid = true;
 	}
+}
+
+bool FWorldDataLayersActorDesc::IsRuntimeRelevant(const FActorContainerID& InContainerID) const
+{
+	return InContainerID.IsMainContainer();
 }
 
 const FDataLayerInstanceDesc* FWorldDataLayersActorDesc::GetDataLayerInstanceFromInstanceName(FName InDataLayerInstanceName) const

@@ -751,7 +751,8 @@ static bool SaveWorld(UWorld* World,
 				RenamedWorldPartition = World->GetWorldPartition();
 
 				// Load all unloaded actors before rename. If this is causing issues (oom or other) map will need to be renamed through a provided builder commandlet
-				if (RenamedWorldPartition)
+				// When creating a Partitioned Level for a Level Instance, the WorldPartition is not initialized, so no need to do this.
+				if (RenamedWorldPartition && RenamedWorldPartition->IsInitialized())
 				{
 					LoadedEditorCells = RenamedWorldPartition->GetUserLoadedEditorGridCells();
 					RenamedWorldPartition->LoadAllActors(ActorReferences);

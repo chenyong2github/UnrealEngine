@@ -69,7 +69,7 @@ class FWorldPartitionStreamingGenerator
 		TMap<FGuid, FGuid> ContainerGuidsRemap;
 		for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
 		{
-			if (!IsActorEditorOnly(*ActorDescIt))
+			if (!IsActorEditorOnly(*ActorDescIt) && ActorDescIt->IsRuntimeRelevant(InContainerID))
 			{
 				// Handle unsaved actors
 				if (AActor* Actor = ActorDescIt->GetActor())

@@ -92,7 +92,7 @@ void FLevelInstanceActorDesc::RegisterContainerInstance(UWorld* InWorld)
 	check(!LevelInstanceContainer.IsValid());
 	if (DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned && !GLevelInstanceDebugForceLevelStreaming)
 	{
-		if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && !ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
+		if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && ULevelInstanceSubsystem::CanUsePackage(LevelPackage))
 		{
 			LevelInstanceContainer = FLevelInstanceActorDesc::RegisterActorDescContainer(LevelPackage, InWorld);
 			check(LevelInstanceContainer.IsValid());

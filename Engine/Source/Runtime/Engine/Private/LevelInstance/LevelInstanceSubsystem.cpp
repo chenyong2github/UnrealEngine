@@ -867,8 +867,24 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 
 	ULevelStreamingLevelInstanceEditor* LevelStreaming = nullptr;
 	{
+		const bool bIsPartitioned = GetWorld()->IsPartitionedWorld();
 		LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(
-		*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), CreationParams.UseExternalActors(), LevelFilename, &ActorsToMove, CreationParams.TemplateWorld));
+		*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), CreationParams.UseExternalActors(), LevelFilename, &ActorsToMove, CreationParams.TemplateWorld, /*bUseSaveAs*/true, bIsPartitioned, [bIsPartitioned](ULevel* InLevel)
+		{
+			if (bIsPartitioned)
+			{
+				UWorldPartition* WorldPartition = InLevel->GetWorldPartition();
+				if (ensure(WorldPartition))
+				{
+					// Flag the world partition that it can be used by a Level Instance
+					WorldPartition->SetCanBeUsedByLevelInstance(true);
+
+					// Validation
+					check(InLevel->IsUsingActorFolders());
+					check(!WorldPartition->IsStreamingEnabled());
+				}
+			}
+		}));
 	}
 
 	if (!LevelStreaming)
@@ -888,9 +904,6 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 			Actor->SetFolderPath_Recursively(NAME_None);
 		}
 	}
-
-	// Enable actor folder objects on level
-	LoadedLevel->SetUseActorFolders(true);
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.OverrideLevel = CurrentLevel;
@@ -1499,13 +1512,16 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ILevelInstanceInterface
 
 	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstance))
 	{
-		if (LevelInstanceLevel->GetWorldPartition())
+		if (UWorldPartition* WorldPartition = LevelInstanceLevel->GetWorldPartition())
 		{
-			if (OutReason)
+			if (!WorldPartition->CanBeUsedByLevelInstance())
 			{
-				*OutReason = FText::Format(LOCTEXT("CanEditPartitionedLevelInstance", "Can't edit partitioned Level Instance ({0})."), FText::FromString(LevelInstance->GetWorldAssetPackage()));
+				if (OutReason)
+				{
+					*OutReason = FText::Format(LOCTEXT("CanEditPartitionedLevelInstance", "LevelInstance doesn't support partitioned world {0}, make sure to flag world partition's 'Can be Used by Level Instance'."), FText::FromString(LevelInstance->GetWorldAssetPackage()));
+				}
+				return false;
 			}
-			return false;
 		}
 	}
 	
@@ -1994,6 +2010,11 @@ bool ULevelInstanceSubsystem::CheckForLoop(const ILevelInstanceInterface* LevelI
 	return bValid;
 }
 
+bool ULevelInstanceSubsystem::CanUsePackage(FName InPackageName)
+{
+	return !ULevel::GetIsLevelPartitionedFromPackage(InPackageName) || ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(InPackageName);
+}
+
 bool ULevelInstanceSubsystem::CanUseWorldAsset(const ILevelInstanceInterface* LevelInstance, TSoftObjectPtr<UWorld> WorldAsset, FString* OutReason)
 {
 	if (WorldAsset.IsNull())
@@ -2014,11 +2035,11 @@ bool ULevelInstanceSubsystem::CanUseWorldAsset(const ILevelInstanceInterface* Le
 	TArray<TPair<FText, TSoftObjectPtr<UWorld>>> LoopInfo;
 	const ILevelInstanceInterface* LoopStart = nullptr;
 
-	if (ULevel::GetIsLevelPartitionedFromPackage(*WorldAsset.GetLongPackageName()))
+	if (!ULevelInstanceSubsystem::CanUsePackage(*WorldAsset.GetLongPackageName()))
 	{
 		if (OutReason)
 		{
-			*OutReason = FString::Format(TEXT("LevelInstance doesn't support partitioned world {0}\n"), { WorldAsset.GetLongPackageName() });
+			*OutReason = FString::Format(TEXT("LevelInstance doesn't support partitioned world {0}, make sure to flag world partition's 'Can be Used by Level Instance'.\n"), { WorldAsset.GetLongPackageName() });
 		}
 
 		return false;
