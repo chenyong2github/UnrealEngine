@@ -85,4 +85,7 @@ namespace PCGSettingsHelpers
 	{
 		return FName(GetValue(InName, InValue.ToString(), InParams, InParamName));
 	}
+
+	/** Sets data from the params to a given property, matched on a name basis */
+	void SetValue(UPCGParams* Params, UObject* Object, FProperty* Property);
 }

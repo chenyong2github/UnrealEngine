@@ -5,6 +5,7 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
+#include "Helpers/PCGSettingsHelpers.h"
 
 #if WITH_EDITOR
 #include "Engine/World.h"
@@ -270,6 +271,25 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 			}
 		}
 
+		/** Apply params overrides to variables if any */
+		if (UPCGParams* Params = Context->InputData.GetParams())
+		{
+			UClass* BPClass = Context->BlueprintElementInstance->GetClass();
+
+			for (TFieldIterator<FProperty> PropertyIt(BPClass); PropertyIt; ++PropertyIt)
+			{
+				FProperty* Property = *PropertyIt;
+				if (Property->IsNative())
+				{
+					continue;
+				}
+
+				// Apply params if any
+				PCGSettingsHelpers::SetValue(Params, Context->BlueprintElementInstance, Property);
+			}
+		}
+
+		/** Finally, execute the actual blueprint */
 		Context->BlueprintElementInstance->ExecuteWithContext(*Context, Context->InputData, Context->OutputData);
 
 		// Log info on outputs
@@ -291,7 +311,7 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 	return true;
 }
 
-void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointData* InData, UPCGPointData*& OutData, UPCGPointData* OptionalOutData, const UObject* OptionalCustomObject) const
+void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointData* InData, UPCGPointData*& OutData, UPCGPointData* OptionalOutData) const
 {
 	if (!InData)
 	{
@@ -305,13 +325,13 @@ void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointD
 	const TArray<FPCGPoint>& InPoints = InData->GetPoints();
 	TArray<FPCGPoint>& OutPoints = OutData->GetMutablePoints();
 
-	FPCGAsync::AsyncPointProcessing(&InContext, InPoints.Num(), OutPoints, [this, &InContext, InData, OutData, OptionalCustomObject, &InPoints](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(&InContext, InPoints.Num(), OutPoints, [this, &InContext, InData, OutData, &InPoints](int32 Index, FPCGPoint& OutPoint)
 	{
-		return PointLoopBody(InContext, InData, InPoints[Index], OptionalCustomObject, OutPoint, OutData->Metadata);
+		return PointLoopBody(InContext, InData, InPoints[Index], OutPoint, OutData->Metadata);
 	});
 }
 
-void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPointData* InA, const UPCGPointData* InB, UPCGPointData*& OutData, UPCGPointData* OptionalOutData, const UObject* OptionalCustomObject) const
+void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPointData* InA, const UPCGPointData* InB, UPCGPointData*& OutData, UPCGPointData* OptionalOutData) const
 {
 	if (!InA || !InB)
 	{
@@ -326,13 +346,13 @@ void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPo
 	const TArray<FPCGPoint>& InPointsB = InB->GetPoints();
 	TArray<FPCGPoint>& OutPoints = OutData->GetMutablePoints();
 
-	FPCGAsync::AsyncPointProcessing(&InContext, InPointsA.Num() * InPointsB.Num(), OutPoints, [this, &InContext, InA, InB, OptionalCustomObject, OutData, &InPointsA, &InPointsB](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(&InContext, InPointsA.Num() * InPointsB.Num(), OutPoints, [this, &InContext, InA, InB, OutData, &InPointsA, &InPointsB](int32 Index, FPCGPoint& OutPoint)
 	{
-		return PointPairLoopBody(InContext, InA, InB, InPointsA[Index / InPointsB.Num()], InPointsB[Index % InPointsB.Num()], OptionalCustomObject, OutPoint, OutData->Metadata);
+		return PointPairLoopBody(InContext, InA, InB, InPointsA[Index / InPointsB.Num()], InPointsB[Index % InPointsB.Num()], OutPoint, OutData->Metadata);
 	});
 }
 
-void UPCGBlueprintElement::LoopNTimes(FPCGContext& InContext, int64 NumIterations, UPCGPointData*& OutData, const UPCGSpatialData* InA, const UPCGSpatialData* InB, UPCGPointData* OptionalOutData, const UObject* OptionalCustomObject) const
+void UPCGBlueprintElement::LoopNTimes(FPCGContext& InContext, int64 NumIterations, UPCGPointData*& OutData, const UPCGSpatialData* InA, const UPCGSpatialData* InB, UPCGPointData* OptionalOutData) const
 {
 	if (NumIterations < 0)
 	{
@@ -355,9 +375,9 @@ void UPCGBlueprintElement::LoopNTimes(FPCGContext& InContext, int64 NumIteration
 
 	TArray<FPCGPoint>& OutPoints = OutData->GetMutablePoints();
 
-	FPCGAsync::AsyncPointProcessing(&InContext, NumIterations, OutPoints, [this, &InContext, InA, InB, OptionalCustomObject, OutData](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(&InContext, NumIterations, OutPoints, [this, &InContext, InA, InB, OutData](int32 Index, FPCGPoint& OutPoint)
 	{
-		return IterationLoopBody(InContext, Index, InA, InB, OptionalCustomObject, OutPoint, OutData->Metadata);
+		return IterationLoopBody(InContext, Index, InA, InB, OutPoint, OutData->Metadata);
 	});
 }
 
