@@ -100,7 +100,10 @@ struct FViewportInfo : public FRenderResource
 	
 	/** Whether is in a HDR Color Space */
 	bool bHDREnabled;
-	
+
+	/** Whether the scene output is in HDR. bHDREnabled only affects Slate rendering */
+	bool bSceneHDREnabled;
+
 	/** FRenderResource interface */
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -119,7 +122,8 @@ struct FViewportInfo : public FRenderResource
 			PixelFormat(EPixelFormat::PF_Unknown),
 			SDRPixelFormat(EPixelFormat::PF_Unknown),
 			RTProvider(nullptr),
-			bHDREnabled(false)
+			bHDREnabled(false),
+			bSceneHDREnabled(false)
 	{
 	}
 

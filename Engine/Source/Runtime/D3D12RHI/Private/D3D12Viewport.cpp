@@ -913,6 +913,11 @@ bool FD3D12Viewport::CheckHDRSupport()
 	return GRHISupportsHDROutput && IsHDREnabled();
 }
 
+EPixelFormat GetDefaultBackBufferPixelFormat()
+{
+	static const auto CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
+	return EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnGameThread()));
+}
 
 /*==============================================================================
  *	The following RHI functions must be called from the main thread.
@@ -923,8 +928,7 @@ FViewportRHIRef FD3D12DynamicRHI::RHICreateViewport(void* WindowHandle, uint32 S
 
 	if (PreferredPixelFormat == EPixelFormat::PF_Unknown)
 	{
-		static const auto CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
-		PreferredPixelFormat = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnGameThread()));
+		PreferredPixelFormat = GetDefaultBackBufferPixelFormat();
 	}
 
 	FD3D12Viewport* RenderingViewport = new FD3D12Viewport(&GetAdapter(), (HWND)WindowHandle, SizeX, SizeY, bIsFullscreen, PreferredPixelFormat);
