@@ -39,6 +39,7 @@ UGameplayDebuggerLocalController::UGameplayDebuggerLocalController(const FObject
 	bIsLocallyEnabled = false;
 	bPrevLocallyEnabled = false;
 	bEnableTextShadow = false;
+	bPrevScreenMessagesEnabled = false;
 	ActiveRowIdx = 0;
 #if WITH_EDITOR
 	bActivateOnPIEEnd = false;
@@ -525,7 +526,7 @@ void UGameplayDebuggerLocalController::ToggleActivation()
 {
 	if (CachedReplicator)
 	{
-		UWorld* World = CachedReplicator->GetWorld();
+		const UWorld* World = CachedReplicator->GetWorld();
 		if (!bIsSelectingActor || StartSelectingActorHandle.IsValid())
 		{
 			bIsLocallyEnabled = !CachedReplicator->IsEnabled();
@@ -533,8 +534,18 @@ void UGameplayDebuggerLocalController::ToggleActivation()
 
 			if (bIsLocallyEnabled)
 			{
+				bPrevScreenMessagesEnabled = GAreScreenMessagesEnabled;
+				GAreScreenMessagesEnabled = false;
 				DebugActorCandidate = nullptr;
 				OnSelectActorTick();
+			}
+			else
+			{
+				// if Screen message are still disabled, restore previous state
+				if (!GAreScreenMessagesEnabled)
+				{
+					GAreScreenMessagesEnabled = bPrevScreenMessagesEnabled;
+				}
 			}
 		}
 

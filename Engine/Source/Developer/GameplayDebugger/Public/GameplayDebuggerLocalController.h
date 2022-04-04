@@ -67,6 +67,7 @@ protected:
 	uint32 bIsLocallyEnabled : 1;
 	uint32 bPrevLocallyEnabled : 1;
 	uint32 bEnableTextShadow : 1;
+	uint32 bPrevScreenMessagesEnabled : 1;
 #if WITH_EDITOR
 	uint32 bActivateOnPIEEnd : 1;
 #endif // WITH_EDITOR
