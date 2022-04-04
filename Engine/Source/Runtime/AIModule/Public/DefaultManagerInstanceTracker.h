@@ -16,7 +16,6 @@ struct TDefaultManagerInstanceTracker
 
 	TDefaultManagerInstanceTracker()
 	{
-		FWorldDelegates::OnPostWorldCleanup.AddRaw(this, &TDefaultManagerInstanceTracker::OnPostWorldCleanup);
 	}
 
 	FManager* GetManagerInstance(UWorld& World)
@@ -37,6 +36,10 @@ struct TDefaultManagerInstanceTracker
 			NewInstance = NewObject<FManager>(&World);
 			NewInstance->AddToRoot();
 			WorldToInstanceMap.Add(&World, NewInstance);
+			if (!FWorldDelegates::OnPostWorldCleanup.IsBoundToObject(this))
+			{
+				FWorldDelegates::OnPostWorldCleanup.AddRaw(this, &TDefaultManagerInstanceTracker::OnPostWorldCleanup);
+			}
 		}
 		else
 		{
