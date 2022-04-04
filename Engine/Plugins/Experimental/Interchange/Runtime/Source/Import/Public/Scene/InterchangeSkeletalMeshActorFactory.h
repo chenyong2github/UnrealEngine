@@ -36,7 +36,7 @@ public:
 
 private:
 
-	void SetupSkeletalMeshActor(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeBaseNode* ActorFactoryNode, ASkeletalMeshActor* SkeletalMeshActor);
+	void SetupSkeletalMeshActor(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeFactoryBaseNode* ActorFactoryNode, ASkeletalMeshActor* SkeletalMeshActor);
 };
 
 

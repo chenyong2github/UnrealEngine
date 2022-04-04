@@ -9,6 +9,7 @@
 #include "Nodes/InterchangeBaseNode.h"
 
 class UInterchangeBaseNode;
+class UInterchangeFactoryBaseNode;
 
 namespace UE
 {
@@ -22,11 +23,11 @@ namespace UE
 			FString PackageBasePath;
 			int32 SourceIndex;
 			TWeakPtr<FImportAsyncHelper> WeakAsyncHelper;
-			TArray<UInterchangeBaseNode*> Nodes;
+			TArray<UInterchangeFactoryBaseNode*> FactoryNodes;
 			const UClass* FactoryClass;
 
 		public:
-			explicit FTaskCreateSceneObjects(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper> InAsyncHelper, TArrayView<UInterchangeBaseNode*> InNodes, const UClass* InFactoryClass);
+			explicit FTaskCreateSceneObjects(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper> InAsyncHelper, TArrayView<UInterchangeFactoryBaseNode*> InNodes, const UClass* InFactoryClass);
 
 			ENamedThreads::Type GetDesiredThread()
 			{

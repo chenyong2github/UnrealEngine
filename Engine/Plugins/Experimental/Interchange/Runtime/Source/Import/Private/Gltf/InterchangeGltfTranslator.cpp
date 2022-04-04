@@ -39,7 +39,7 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 
 	const FString NodeUid = ParentNodeUid + TEXT("\\") + GenerateUniqueIdForGltfNode( GltfNode.Name, NodeIndex );
 
-	UInterchangeSceneNode* ParentSceneNode = Cast< UInterchangeSceneNode >( NodeContainer.GetNode( ParentNodeUid ) );
+	const UInterchangeSceneNode* ParentSceneNode = Cast< UInterchangeSceneNode >( NodeContainer.GetNode( ParentNodeUid ) );
 
 	UInterchangeSceneNode* InterchangeSceneNode = NewObject< UInterchangeSceneNode >( &NodeContainer );
 	InterchangeSceneNode->InitializeNode( NodeUid, GltfNode.Name, EInterchangeNodeContainerType::TranslatedScene );
@@ -556,7 +556,7 @@ void UInterchangeGltfTranslator::HandleGltfTransmission( UInterchangeBaseNodeCon
 	{
 		// There's no separation of reflected and transmitted color in this model. So the same color is used for the base color and the transmitted color.
 		// Since this extension is only supported with the metallic-roughness model, we can reuse its base color
-		UInterchangeBaseNode* CurrentNode = &ShaderGraphNode;
+		const UInterchangeBaseNode* CurrentNode = &ShaderGraphNode;
 		FString CurrentOuput = TEXT("");
 		FLinearColor CurrentColor = FLinearColor::White;
 

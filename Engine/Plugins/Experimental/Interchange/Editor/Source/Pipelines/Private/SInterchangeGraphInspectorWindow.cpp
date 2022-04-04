@@ -9,6 +9,7 @@
 #include "Modules/ModuleManager.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 #include "PropertyEditorModule.h"
 #include "Styling/SlateIconFinder.h"
 #include "Styling/StyleColors.h"
@@ -42,9 +43,8 @@ void SInterchangeGraphInspectorTreeView::Construct(const FArguments& InArgs)
 	InterchangeBaseNodeContainer->GetRoots(Roots);
 	for (FString RootID : Roots)
 	{
-		UInterchangeBaseNode* RootNode = InterchangeBaseNodeContainer->GetNode(RootID);
-
-		RootNodeArray.Add(RootNode);
+		const UInterchangeBaseNode* RootNode = InterchangeBaseNodeContainer->GetNode(RootID);
+		RootNodeArray.Add(const_cast<UInterchangeBaseNode*>(RootNode));
 	}
 
 	STreeView::Construct
@@ -83,33 +83,35 @@ public:
 	{
 		InterchangeNode = InArgs._InterchangeNode;
 		InterchangeBaseNodeContainer = InArgs._InterchangeBaseNodeContainer;
-		//This is suppose to always be valid
+
+		// This is supposed to always be valid
 		check(InterchangeNode);
 		check(InterchangeBaseNodeContainer);
 
-		UClass* IconClass = InterchangeNode->GetObjectClass();
+		FString Tooltip = InterchangeNode->GetDisplayLabel();
 		const FSlateBrush* TypeIcon = nullptr;
 		FName IconName = InterchangeNode->GetIconName();
-		if (IconClass)
-		{
-			TypeIcon = FSlateIconFinder::FindIconBrushForClass(IconClass);
-		}
-		else if (IconName != NAME_None)
+		if (IconName != NAME_None)
 		{
 			const FSlateIcon SlateIcon = FSlateIconFinder::FindIcon(IconName);
 			TypeIcon = SlateIcon.GetOptionalIcon();
 		}
-		
+
+		// Factory nodes take their icons directly from the class they represent, regardless of any icon which may be defined
+		// @TODO: allow GetIconName() to override this for factory nodes?
+		if (UInterchangeFactoryBaseNode* FactoryNode = Cast<UInterchangeFactoryBaseNode>(InterchangeNode))
+		{
+			if (UClass* IconClass = FactoryNode->GetObjectClass())
+			{
+				TypeIcon = FSlateIconFinder::FindIconBrushForClass(IconClass);
+			}
+
+			Tooltip += TEXT(" [") + FactoryNode->GetObjectClass()->GetName() + TEXT("]");
+		}
+
 		if (!TypeIcon)
 		{
 			TypeIcon = FSlateIconFinder::FindIconBrushForClass(AActor::StaticClass());
-		}
-
-		//Prepare the tooltip
-		FString Tooltip = InterchangeNode->GetDisplayLabel();
-		if (InterchangeNode->GetObjectClass())
-		{
-			Tooltip += TEXT(" [") + InterchangeNode->GetObjectClass()->GetName() + TEXT("]");
 		}
 
 		FSlateColor TypeIconColor;
@@ -182,7 +184,7 @@ private:
 		TArray<FString> Childrens = InterchangeBaseNodeContainer->GetNodeChildrenUids(Node->GetUniqueID());
 		for (const FString& ChildID : Childrens)
 		{
-			UInterchangeBaseNode* ChildNode = InterchangeBaseNodeContainer->GetNode(ChildID);
+			UInterchangeBaseNode* ChildNode = const_cast<UInterchangeBaseNode*>(InterchangeBaseNodeContainer->GetNode(ChildID));
 			if (!ChildNode)
 				continue;
 			ChildNode->SetEnabled(bState);
@@ -221,10 +223,10 @@ void SInterchangeGraphInspectorTreeView::OnGetChildrenGraphInspectorTreeView(UIn
 	TArray<FString> Childrens = InterchangeBaseNodeContainer->GetNodeChildrenUids(InParent->GetUniqueID());
 	for (const FString& ChildID : Childrens)
 	{
-		UInterchangeBaseNode* ChildNode = InterchangeBaseNodeContainer->GetNode(ChildID);
+		const UInterchangeBaseNode* ChildNode = InterchangeBaseNodeContainer->GetNode(ChildID);
 		if (!ChildNode)
 			continue;
-		OutChildren.Add(ChildNode);
+		OutChildren.Add(const_cast<UInterchangeBaseNode*>(ChildNode));
 	}
 }
 
@@ -233,7 +235,7 @@ void SInterchangeGraphInspectorTreeView::RecursiveSetImport(UInterchangeBaseNode
 	TArray<FString> Childrens = InterchangeBaseNodeContainer->GetNodeChildrenUids(Node->GetUniqueID());
 	for (const FString& ChildID : Childrens)
 	{
-		UInterchangeBaseNode* ChildNode = InterchangeBaseNodeContainer->GetNode(ChildID);
+		UInterchangeBaseNode* ChildNode = const_cast<UInterchangeBaseNode*>(InterchangeBaseNodeContainer->GetNode(ChildID));
 		if (!ChildNode)
 			continue;
 		ChildNode->SetEnabled(bState);
@@ -259,7 +261,7 @@ void SInterchangeGraphInspectorTreeView::RecursiveSetExpand(UInterchangeBaseNode
 	TArray<FString> Childrens = InterchangeBaseNodeContainer->GetNodeChildrenUids(Node->GetUniqueID());
 	for (const FString& ChildID : Childrens)
 	{
-		UInterchangeBaseNode* ChildNode = InterchangeBaseNodeContainer->GetNode(ChildID);
+		UInterchangeBaseNode* ChildNode = const_cast<UInterchangeBaseNode*>(InterchangeBaseNodeContainer->GetNode(ChildID));
 		if (!ChildNode)
 			continue;
 		RecursiveSetExpand(ChildNode, ExpandState);

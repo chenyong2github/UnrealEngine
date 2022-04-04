@@ -30,7 +30,7 @@ namespace UE
 
 			void FFbxScene::CreateMeshNodeReference(UInterchangeSceneNode* UnrealSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer, const FTransform& GeometricTransform)
 			{
-				UInterchangeMeshNode* MeshNode = nullptr;
+				const UInterchangeMeshNode* MeshNode = nullptr;
 				if (NodeAttribute->GetAttributeType() == FbxNodeAttribute::eMesh)
 				{
 					FbxMesh* Mesh = static_cast<FbxMesh*>(NodeAttribute);
@@ -48,8 +48,15 @@ namespace UE
 				if (MeshNode)
 				{
 					UnrealSceneNode->SetCustomAssetInstanceUid(MeshNode->GetUniqueID());
-					MeshNode->SetSceneInstanceUid(UnrealSceneNode->GetUniqueID());
 					UnrealSceneNode->SetCustomGeometricTransform(GeometricTransform);
+
+					// @todo: Nothing is using the SceneInstanceUid in the MeshNode. Do we even need to support it?
+					// For the moment an ugly const_cast so we can mutate it (it was fetched from the NodeContainer and is hence const).
+					// Possible solutions:
+					// - keep track in some other way of MeshNodes which we are in the process of maintaining / modifying
+					// - a derived UInterchangeMutableBaseNodeContainer which overrides node accessors and makes them mutable, to be passed only to translators
+					// - get rid of this attribute, and provide an alternate method for getting the scene instance UIDs which reference the mesh (by iterating scene instance nodes)
+					const_cast<UInterchangeMeshNode*>(MeshNode)->SetSceneInstanceUid(UnrealSceneNode->GetUniqueID());
 				}
 			}
 
@@ -57,7 +64,7 @@ namespace UE
 			{
 				const FString AssetUniqueID = FFbxHelper::GetNodeAttributeUniqueID(NodeAttribute, TypeName);
 
-				if (UInterchangeBaseNode* AssetNode = NodeContainer.GetNode(AssetUniqueID))
+				if (const UInterchangeBaseNode* AssetNode = NodeContainer.GetNode(AssetUniqueID))
 				{
 					UnrealSceneNode->SetCustomAssetInstanceUid(AssetNode->GetUniqueID());
 				}

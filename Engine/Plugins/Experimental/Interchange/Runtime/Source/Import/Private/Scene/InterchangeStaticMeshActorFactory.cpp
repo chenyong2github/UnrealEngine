@@ -23,7 +23,7 @@ UObject* UInterchangeStaticMeshActorFactory::CreateSceneObject(const UInterchang
 		return nullptr;
 	}
 
-	UInterchangeBaseNode* FactoryNode = CreateSceneObjectsParams.FactoryNode;
+	UInterchangeFactoryBaseNode* FactoryNode = CreateSceneObjectsParams.FactoryNode;
 	SetupStaticMeshActor(CreateSceneObjectsParams.NodeContainer, FactoryNode, SpawnedActor);
 
 	if (UStaticMeshComponent* StaticMeshComponent = SpawnedActor->GetStaticMeshComponent())
@@ -34,12 +34,12 @@ UObject* UInterchangeStaticMeshActorFactory::CreateSceneObject(const UInterchang
 	return SpawnedActor;
 };
 
-void UInterchangeStaticMeshActorFactory::SetupStaticMeshActor(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeBaseNode* ActorFactoryNode, AStaticMeshActor* StaticMeshActor)
+void UInterchangeStaticMeshActorFactory::SetupStaticMeshActor(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeFactoryBaseNode* ActorFactoryNode, AStaticMeshActor* StaticMeshActor)
 {
 	UStaticMeshComponent* StaticMeshComponent = StaticMeshActor->GetStaticMeshComponent();
 	StaticMeshComponent->UnregisterComponent();
 
-	if (const UInterchangeBaseNode* MeshNode = UE::Interchange::ActorHelper::FindAssetInstanceFactoryNode(NodeContainer, ActorFactoryNode))
+	if (const UInterchangeFactoryBaseNode* MeshNode = UE::Interchange::ActorHelper::FindAssetInstanceFactoryNode(NodeContainer, ActorFactoryNode))
 	{
 		if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(MeshNode->ReferenceObject.TryLoad()))
 		{

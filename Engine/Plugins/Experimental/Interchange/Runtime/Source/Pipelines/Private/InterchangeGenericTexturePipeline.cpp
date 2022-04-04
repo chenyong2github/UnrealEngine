@@ -126,7 +126,7 @@ void UInterchangeGenericTexturePipeline::ExecutePostImportPipeline(const UInterc
 		return;
 	}
 
-	UInterchangeBaseNode* Node = BaseNodeContainer->GetNode(NodeKey);
+	const UInterchangeFactoryBaseNode* Node = BaseNodeContainer->GetFactoryNode(NodeKey);
 	if (!Node)
 	{
 		return;
@@ -194,7 +194,7 @@ UInterchangeTextureFactoryNode* UInterchangeGenericTexturePipeline::CreateTextur
 	UInterchangeTextureFactoryNode* TextureFactoryNode = nullptr;
 	if (BaseNodeContainer->IsNodeUidValid(NodeUid))
 	{
-		TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetNode(NodeUid));
+		TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetFactoryNode(NodeUid));
 		if (!ensure(TextureFactoryNode))
 		{
 			//Log an error

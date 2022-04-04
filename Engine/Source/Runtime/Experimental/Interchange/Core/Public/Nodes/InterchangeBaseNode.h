@@ -197,7 +197,6 @@ namespace UE
 			static const FAttributeKey& ParentIDKey();
 			static const FAttributeKey& IsEnabledKey();
 			static const FString& TargetAssetIDsKey();
-			static const FString& GetFactoryDependenciesBaseKey();
 			static const FAttributeKey& ClassTypeAttributeKey();
 			static const FAttributeKey& AssetNameKey();
 			static const FAttributeKey& NodeContainerTypeKey();
@@ -486,36 +485,6 @@ public:
 	bool SetParentUid(const FString& ParentUid);
 
 	/**
-	 * This function allow to retrieve the number of factory dependencies for this object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	int32 GetFactoryDependenciesCount() const;
-
-	/**
-	 * This function allow to retrieve the dependency for this object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	void GetFactoryDependencies(TArray<FString>& OutDependencies ) const;
-
-	/**
-	 * This function allow to retrieve one dependency for this object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	void GetFactoryDependency(const int32 Index, FString& OutDependency) const;
-
-	/**
-	 * Add one dependency to this object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddFactoryDependencyUid(const FString& DependencyUid);
-
-	/**
-	 * Remove one dependency from this object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool RemoveFactoryDependencyUid(const FString& DependencyUid);
-
-	/**
 	 * Get number of target assets relating to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
@@ -570,11 +539,6 @@ public:
 	virtual FGuid GetHash() const;
 
 	/**
-	 * Optional, Any node that can import/export an object should return the UClass of the object so we can find factory/writer
-	 */
-	virtual class UClass* GetObjectClass() const;
-
-	/**
 	 * Optional, Any node that can import/export an asset should set the proper name we will give to the asset.
 	 * If the attribute was never set, it will return GetDisplayLabel.
 	 */
@@ -615,8 +579,6 @@ public:
 		return;
 	}
 
-	UPROPERTY()
-	mutable FSoftObjectPath ReferenceObject;
 protected:
 	/** The storage use to store the Key value attribute for this node. */
 	TSharedPtr<UE::Interchange::FAttributeStorage, ESPMode::ThreadSafe> Attributes;
@@ -627,13 +589,6 @@ protected:
 	TMap<UClass*, TArray<UE::Interchange::FFillAttributeToAsset>> FillCustomAttributeDelegates;
 
 	bool bIsInitialized = false;
-
-	/**
-	 * Those dependencies are use by the interchange parsing task to make sure the asset are created in the correct order.
-	 * Example: Mesh factory node will have dependencies on material factory node
-	 *          Material factory node will have dependencies on texture factory node
-	 */
-	UE::Interchange::TArrayAttributeHelper<FString> FactoryDependencies;
 
 	/**
 	 * This tracks the IDs of asset nodes which are the target of factories

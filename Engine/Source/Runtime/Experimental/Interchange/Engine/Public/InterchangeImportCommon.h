@@ -7,6 +7,7 @@
 class UAssetImportData;
 class UInterchangeAssetImportData;
 class UInterchangeBaseNode;
+class UInterchangeFactoryBaseNode;
 class UInterchangeBaseNodeContainer;
 class UInterchangePipelineBase;
 class UInterchangeSourceData;
@@ -82,9 +83,9 @@ namespace UE
 			 * Apply the current strategy to the PipelineAssetNode
 			 */
 			static void ApplyReimportStrategyToAsset(UObject* Asset
-											  , UInterchangeBaseNode* PreviousAssetNode
-											  , UInterchangeBaseNode* CurrentAssetNode
-											  , UInterchangeBaseNode* PipelineAssetNode);
+											  , UInterchangeFactoryBaseNode* PreviousAssetNode
+											  , UInterchangeFactoryBaseNode* CurrentAssetNode
+											  , UInterchangeFactoryBaseNode* PipelineAssetNode);
 		};
 	}
 }

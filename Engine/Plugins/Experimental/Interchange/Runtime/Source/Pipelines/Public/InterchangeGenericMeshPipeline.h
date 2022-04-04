@@ -153,12 +153,12 @@ private:
 	/**
 	 * This function will finish creating the skeletalmesh asset
 	 */
-	void PostImportSkeletalMesh(UObject* CreatedAsset, UInterchangeBaseNode* Node);
+	void PostImportSkeletalMesh(UObject* CreatedAsset, const UInterchangeFactoryBaseNode* FactoryNode);
 
 	/**
 	 * This function will finish creating the physics asset with the skeletalmesh render data
 	 */
-	void PostImportPhysicsAssetImport(UObject* CreatedAsset, UInterchangeBaseNode* Node);
+	void PostImportPhysicsAssetImport(UObject* CreatedAsset, const UInterchangeFactoryBaseNode* FactoryNode);
 public:
 	
 	/** Specialize for skeletalmesh */

@@ -35,7 +35,7 @@ struct FNodeDependencyCache
 {
 	const TSet<FString>& GetAccumulatedDependencies(const UInterchangeBaseNodeContainer* NodeContainer, const FString& NodeID)
 	{
-		if (TSet<FString>* DependenciesPtr = CachedDependencies.Find(NodeID))
+		if (const TSet<FString>* DependenciesPtr = CachedDependencies.Find(NodeID))
 		{
 			return *DependenciesPtr;
 		}
@@ -49,14 +49,14 @@ private:
 
 	void AccumulateDependencies(const UInterchangeBaseNodeContainer* NodeContainer, const FString& NodeID, TSet<FString>& OutDependenciesSet)
 	{
-		const UInterchangeBaseNode* Node = NodeContainer->GetNode(NodeID);
-		if (!Node)
+		const UInterchangeFactoryBaseNode* FactoryNode = NodeContainer->GetFactoryNode(NodeID);
+		if (!FactoryNode)
 		{
 			return;
 		}
 
 		TArray<FString> FactoryDependencies;
-		Node->GetFactoryDependencies(FactoryDependencies);
+		FactoryNode->GetFactoryDependencies(FactoryDependencies);
 		for (const FString& DependencyID : FactoryDependencies)
 		{
 			bool bAlreadyInSet = false;
@@ -93,7 +93,7 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 		FGraphEventArray Prerequisites;
 		const UClass* FactoryClass;
 
-		TArray<UInterchangeBaseNode*, TInlineAllocator<1>> Nodes; // For scenes, we can group multiple nodes into a single task as they are usually very light
+		TArray<UInterchangeFactoryBaseNode*, TInlineAllocator<1>> Nodes; // For scenes, we can group multiple nodes into a single task as they are usually very light
 	};
 
 	TArray<FTaskData> AssetTaskDatas;
@@ -117,19 +117,20 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 				continue;
 			}
 			const bool bCanImportSceneNode = AsyncHelper->TaskData.ImportType == EImportType::ImportType_Scene;
-			BaseNodeContainer->IterateNodes([&](const FString& NodeUID, UInterchangeBaseNode* Node)
+			BaseNodeContainer->IterateNodesOfType<UInterchangeFactoryBaseNode>([&](const FString& NodeUID, UInterchangeFactoryBaseNode* FactoryNode)
 			{
-				if (!Node->IsEnabled())
+				if (!FactoryNode->IsEnabled())
 				{
 					//Do not call factory for a disabled node
 					return;
 				}
 
-				if (Node->GetObjectClass() != nullptr)
+				UClass* ObjectClass = FactoryNode->GetObjectClass();
+				if (ObjectClass != nullptr)
 				{
-					const UClass* RegisteredFactoryClass = InterchangeManager->GetRegisteredFactoryClass(Node->GetObjectClass());
+					const UClass* RegisteredFactoryClass = InterchangeManager->GetRegisteredFactoryClass(ObjectClass);
 
-					const bool bIsAsset = !(Node->GetObjectClass()->IsChildOf<AActor>() || Node->GetObjectClass()->IsChildOf<UActorComponent>());
+					const bool bIsAsset = !(FactoryNode->GetObjectClass()->IsChildOf<AActor>() || FactoryNode->GetObjectClass()->IsChildOf<UActorComponent>());
 
 					if (!RegisteredFactoryClass || (!bIsAsset && !bCanImportSceneNode))
 					{
@@ -138,10 +139,10 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 					}
 
 					FTaskData& NodeTaskData = bIsAsset ? SourceAssetTaskDatas.AddDefaulted_GetRef() : SourceSceneTaskDatas.AddDefaulted_GetRef();
-					NodeTaskData.UniqueID = Node->GetUniqueID();
+					NodeTaskData.UniqueID = FactoryNode->GetUniqueID();
 					NodeTaskData.SourceIndex = SourceIndex;
-					NodeTaskData.Nodes.Add(Node);
-					Node->GetFactoryDependencies(NodeTaskData.Dependencies);
+					NodeTaskData.Nodes.Add(FactoryNode);
+					FactoryNode->GetFactoryDependencies(NodeTaskData.Dependencies);
 					NodeTaskData.FactoryClass = RegisteredFactoryClass;
 				}
 			});
@@ -214,7 +215,7 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 
 			const int32 SourceIndex = TaskData.SourceIndex;
 			const UClass* const FactoryClass = TaskData.FactoryClass;
-			UInterchangeBaseNode* const FactoryNode = TaskData.Nodes[0];
+			UInterchangeFactoryBaseNode* const FactoryNode = TaskData.Nodes[0];
 			const bool bFactoryCanRunOnAnyThread = FactoryClass->GetDefaultObject<UInterchangeFactoryBase>()->CanExecuteOnAnyThread();
 
 			//Add create package task has a prerequisite of FTaskCreateAsset. Create package task is a game thread task

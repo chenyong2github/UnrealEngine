@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/FileHelper.h"
-#include "Nodes/InterchangeBaseNode.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
@@ -43,8 +43,35 @@ public:
 	/** Unordered iteration of the all nodes */
 	void IterateNodes(TFunctionRef<void(const FString&, UInterchangeBaseNode*)> IterationLambda) const;
 
+	template <typename T>
+	void IterateNodesOfType(TFunctionRef<void(const FString&, T*)> IterationLambda) const
+	{
+		for (const TPair<FString, TObjectPtr<UInterchangeBaseNode>>& NodeKeyValue : Nodes)
+		{
+			if (T* Node = Cast<T>(NodeKeyValue.Value))
+			{
+				IterationLambda(NodeKeyValue.Key, Node);
+			}
+		}
+	}
+
 	/** Unordered iteration of the all nodes, but I can be stop early by returning true */
 	void BreakableIterateNodes(TFunctionRef<bool(const FString&, UInterchangeBaseNode*)> IterationLambda) const;
+
+	template <typename T>
+	void BreakableIterateNodesOfType(TFunctionRef<bool(const FString&, T*)> IterationLambda) const
+	{
+		for (const TPair<FString, TObjectPtr<UInterchangeBaseNode>>& NodeKeyValue : Nodes)
+		{
+			if (T* Node = Cast<T>(NodeKeyValue.Value))
+			{
+				if (IterationLambda(NodeKeyValue.Key, Node))
+				{
+					break;
+				}
+			}
+		}
+	}
 
 	/** Return all nodes that do not have any parent */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
@@ -54,9 +81,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
 	void GetNodes(const UClass* ClassNode, TArray<FString>& OutNodes) const;
 
-	/** Get an node pointer */
+	/** Get a node pointer. Once added to the container, nodes are considered const */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	UInterchangeBaseNode* GetNode(const FString& NodeUniqueID) const;
+	const UInterchangeBaseNode* GetNode(const FString& NodeUniqueID) const;
+
+	/** Get a factory node pointer */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
+	UInterchangeFactoryBaseNode* GetFactoryNode(const FString& NodeUniqueID) const;
 
 	/** Set node ParentUid */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")

@@ -11,8 +11,8 @@
 #include "InterchangeFactoryBase.generated.h"
 
 class ULevel;
-class UInterchangeBaseNode;
 class UInterchangeBaseNodeContainer;
+class UInterchangeFactoryBaseNode;
 class UInterchangePipelineBase;
 class UInterchangeSourceData;
 class UInterchangeTranslatorBase;
@@ -44,7 +44,7 @@ public:
 		FString AssetName = FString();
 
 		/** The base node that describe how to create the asset */
-		UInterchangeBaseNode* AssetNode = nullptr;
+		UInterchangeFactoryBaseNode* AssetNode = nullptr;
 
 		/** The translator is use to retrieve the PayLoad data in case the factory need it */
 		const UInterchangeTranslatorBase* Translator = nullptr;
@@ -102,7 +102,7 @@ public:
 		FString ObjectName;
 
 		/** The base node that describe how to create the asset */
-		UInterchangeBaseNode* FactoryNode = nullptr;
+		UInterchangeFactoryBaseNode* FactoryNode = nullptr;
 
 		/** The node container associated with the current source index */
 		const UInterchangeBaseNodeContainer* NodeContainer = nullptr;
@@ -132,7 +132,7 @@ public:
 	{
 		/** The source data, mainly use to set the asset import data file. TODO: we have to refactor UAssetImportData, the source data should be the base class for this now */
 		const UInterchangeSourceData* SourceData = nullptr;
-		UInterchangeBaseNode* FactoryNode = nullptr;
+		UInterchangeFactoryBaseNode* FactoryNode = nullptr;
 
 
 		/** The UObject  we want to execute code on*/

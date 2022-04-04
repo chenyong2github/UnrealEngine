@@ -68,7 +68,7 @@ namespace UE
 						FString NodeName = FFbxHelper::GetNodeAttributeName(NodeAttribute, UInterchangeLightNode::StaticAssetTypeName());
 						FString NodeUid = FFbxHelper::GetNodeAttributeUniqueID(NodeAttribute, UInterchangeLightNode::StaticAssetTypeName());
 
-						UInterchangeLightNode* LightNode = Cast<UInterchangeLightNode>(NodeContainer.GetNode(NodeUid));
+						const UInterchangeLightNode* LightNode = Cast<const UInterchangeLightNode>(NodeContainer.GetNode(NodeUid));
 
 						if (!LightNode)
 						{

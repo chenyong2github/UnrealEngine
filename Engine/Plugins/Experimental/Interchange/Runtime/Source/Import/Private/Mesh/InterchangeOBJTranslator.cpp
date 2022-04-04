@@ -1002,16 +1002,16 @@ void UInterchangeOBJTranslator::AddMaterialNodes(UInterchangeBaseNodeContainer& 
 		BaseNodeContainer.SetNodeParentUid(TextureSampleShaderUid, ShaderGraphNode->GetUniqueID());
 
 		FString TextureNodeUid = MakeTextureNodeUid(TextureName);
-		UInterchangeTexture2DNode* TextureNode = Cast<UInterchangeTexture2DNode>(BaseNodeContainer.GetNode(TextureNodeUid));
+		const UInterchangeTexture2DNode* TextureNode = Cast<const UInterchangeTexture2DNode>(BaseNodeContainer.GetNode(TextureNodeUid));
 		if (!TextureNode)
 		{
-			TextureNode = NewObject<UInterchangeTexture2DNode>(&BaseNodeContainer);
-			TextureNode->InitializeNode(TextureNodeUid, TextureName, EInterchangeNodeContainerType::TranslatedAsset);
-			BaseNodeContainer.AddNode(TextureNode);
+			UInterchangeTexture2DNode* NewTextureNode = NewObject<UInterchangeTexture2DNode>(&BaseNodeContainer);
+			NewTextureNode->InitializeNode(TextureNodeUid, TextureName, EInterchangeNodeContainerType::TranslatedAsset);
+			BaseNodeContainer.AddNode(NewTextureNode);
 
 			FString NormalizedTexturePath(TexturePath);
 			FPaths::NormalizeFilename(NormalizedTexturePath);
-			TextureNode->SetPayLoadKey(NormalizedTexturePath);
+			NewTextureNode->SetPayLoadKey(NormalizedTexturePath);
 		}
 
 		TextureSampleShader->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::Texture.ToString()), TextureNodeUid);

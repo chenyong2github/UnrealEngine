@@ -102,7 +102,7 @@ UInterchangeBaseMaterialFactoryNode* UInterchangeGenericMaterialPipeline::Create
 	if (BaseNodeContainer->IsNodeUidValid(NodeUid))
 	{
 		//The node already exist, just return it
-		MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(BaseNodeContainer->GetNode(NodeUid));
+		MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(BaseNodeContainer->GetFactoryNode(NodeUid));
 		if (!ensure(MaterialFactoryNode))
 		{
 			//Log an error
@@ -742,7 +742,7 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 	FString ExpressionClassName;
 	FString TextureFactoryUid;
 
-	if (UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(BaseNodeContainer->GetNode(TextureUid)))
+	if (const UInterchangeTextureNode* TextureNode = Cast<const UInterchangeTextureNode>(BaseNodeContainer->GetNode(TextureUid)))
 	{
 		if (TextureNode->IsA<UInterchangeTextureCubeNode>())
 		{
@@ -774,14 +774,14 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 
 		if (bParsingForNormalInput)
 		{
-			if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetNode(TextureFactoryUid)))
+			if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetFactoryNode(TextureFactoryUid)))
 			{
 				TextureFactoryNode->SetCustomCompressionSettings(TextureCompressionSettings::TC_Normalmap);
 			}
 		}
 		else if (bParsingForLinearInput)
 		{
-			if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetNode(TextureFactoryUid)))
+			if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetFactoryNode(TextureFactoryUid)))
 			{
 				TextureFactoryNode->SetCustomSRGB(false);
 			}
@@ -1032,7 +1032,7 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 
 	const FString MaterialExpressionUid = TEXT("Factory_") + ShaderNode->GetUniqueID();
 
-	UInterchangeMaterialExpressionFactoryNode* MaterialExpression = Cast<UInterchangeMaterialExpressionFactoryNode>(BaseNodeContainer->GetNode(MaterialExpressionUid));
+	UInterchangeMaterialExpressionFactoryNode* MaterialExpression = Cast<UInterchangeMaterialExpressionFactoryNode>(BaseNodeContainer->GetFactoryNode(MaterialExpressionUid));
 	if (MaterialExpression != nullptr)
 	{
 		return MaterialExpression;
@@ -1098,7 +1098,7 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 		ShaderNode->GetStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Nodes::TextureSample::Inputs::Texture.ToString()), TextureUid);
 
 		// Make the material factory node have a dependency on the texture factory node so that the texture asset gets created first
-		if (UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(BaseNodeContainer->GetNode(TextureUid)))
+		if (const UInterchangeTextureNode* TextureNode = Cast<const UInterchangeTextureNode>(BaseNodeContainer->GetNode(TextureUid)))
 		{
 			TArray<FString> TextureNodeTargets;
 			TextureNode->GetTargetNodeUids(TextureNodeTargets);
@@ -1209,7 +1209,7 @@ TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> UInterchangeGenericM
 	FString OutputName;
 	if (UInterchangeShaderPortsAPI::GetInputConnection(ShaderNode, InputName, ConnectedShaderNodeUid, OutputName))
 	{
-		if (UInterchangeShaderNode* ConnectedShaderNode = Cast<UInterchangeShaderNode>(BaseNodeContainer->GetNode(ConnectedShaderNodeUid)))
+		if (const UInterchangeShaderNode* ConnectedShaderNode = Cast<const UInterchangeShaderNode>(BaseNodeContainer->GetNode(ConnectedShaderNodeUid)))
 		{
 			MaterialExpressionFactoryNode = CreateMaterialExpressionForShaderNode(MaterialFactoryNode, ConnectedShaderNode, ParentUid);
 		}
@@ -1314,7 +1314,7 @@ UInterchangeMaterialInstanceFactoryNode* UInterchangeGenericMaterialPipeline::Cr
 		FString OutputName;
 		if (UInterchangeShaderPortsAPI::GetInputConnection(ShaderGraphNode, InputName, ConnectedShaderNodeUid, OutputName))
 		{
-			if (UInterchangeShaderNode* ConnectedShaderNode = Cast<UInterchangeShaderNode>(BaseNodeContainer->GetNode(ConnectedShaderNodeUid)))
+			if (const UInterchangeShaderNode* ConnectedShaderNode = Cast<const UInterchangeShaderNode>(BaseNodeContainer->GetNode(ConnectedShaderNodeUid)))
 			{
 				InputValue = VisitShaderNode(ConnectedShaderNode);
 			}
@@ -1410,7 +1410,7 @@ TVariant<FString, FLinearColor, float> UInterchangeGenericMaterialPipeline::Visi
 	FString OutputName;
 	if (UInterchangeShaderPortsAPI::GetInputConnection(ShaderNode, InputName, ConnectedShaderNodeUid, OutputName))
 	{
-		if (UInterchangeShaderNode* ConnectedShaderNode = Cast<UInterchangeShaderNode>(BaseNodeContainer->GetNode(ConnectedShaderNodeUid)))
+		if (const UInterchangeShaderNode* ConnectedShaderNode = Cast<const UInterchangeShaderNode>(BaseNodeContainer->GetNode(ConnectedShaderNodeUid)))
 		{
 			Result = VisitShaderNode(ConnectedShaderNode);
 		}
@@ -1578,7 +1578,7 @@ TVariant<FString, FLinearColor, float> UInterchangeGenericMaterialPipeline::Visi
 		if (!TextureUid.IsEmpty())
 		{
 			FString TextureFactoryUid;
-			if (UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(BaseNodeContainer->GetNode(TextureUid)))
+			if (const UInterchangeTextureNode* TextureNode = Cast<const UInterchangeTextureNode>(BaseNodeContainer->GetNode(TextureUid)))
 			{
 				TArray<FString> TextureTargetNodes;
 				TextureNode->GetTargetNodeUids(TextureTargetNodes);

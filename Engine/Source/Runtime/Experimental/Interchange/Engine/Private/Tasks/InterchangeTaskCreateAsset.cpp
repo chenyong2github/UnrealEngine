@@ -18,8 +18,6 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "Nodes/InterchangeBaseNode.h"
-#include "Nodes/InterchangeFactoryBaseNode.h"
 
 namespace UE
 {
@@ -27,32 +25,29 @@ namespace UE
 	{
 		namespace Private
 		{
-			void InternalGetPackageName(const UE::Interchange::FImportAsyncHelper& AsyncHelper, const int32 SourceIndex, const FString& PackageBasePath, const UInterchangeBaseNode* Node, FString& OutPackageName, FString& OutAssetName)
+			void InternalGetPackageName(const UE::Interchange::FImportAsyncHelper& AsyncHelper, const int32 SourceIndex, const FString& PackageBasePath, const UInterchangeFactoryBaseNode* FactoryNode, FString& OutPackageName, FString& OutAssetName)
 			{
 				const UInterchangeSourceData* SourceData = AsyncHelper.SourceDatas[SourceIndex];
 				check(SourceData);
-				FString NodeDisplayName = Node->GetAssetName();
+				FString NodeDisplayName = FactoryNode->GetAssetName();
 
 				// Set the asset name and the package name
 				OutAssetName = NodeDisplayName;
 				SanitizeObjectName(OutAssetName);
 
-				FString SanitazedPackageBasePath = PackageBasePath;
-				SanitizeObjectPath(SanitazedPackageBasePath);
+				FString SanitizedPackageBasePath = PackageBasePath;
+				SanitizeObjectPath(SanitizedPackageBasePath);
 
 				FString SubPath;
-				if (const UInterchangeFactoryBaseNode* FactoryBaseNode = Cast<UInterchangeFactoryBaseNode>(Node))
+				if (FactoryNode->GetCustomSubPath(SubPath))
 				{
-					if(FactoryBaseNode->GetCustomSubPath(SubPath))
-					{
-						SanitizeObjectPath(SubPath);
-					}
+					SanitizeObjectPath(SubPath);
 				}
 
-				OutPackageName = FPaths::Combine(*SanitazedPackageBasePath, *SubPath, *OutAssetName);
+				OutPackageName = FPaths::Combine(*SanitizedPackageBasePath, *SubPath, *OutAssetName);
 			}
 
-			UObject* GetExistingObjectFromAssetImportData(TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper, UInterchangeBaseNode* Node)
+			UObject* GetExistingObjectFromAssetImportData(TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper, UInterchangeFactoryBaseNode* FactoryNode)
 			{
 				UInterchangeAssetImportData* OriginalAssetImportData = nullptr;
 				TArray<UObject*> SubObjects;
@@ -70,7 +65,7 @@ namespace UE
 				{
 					if (UInterchangeBaseNodeContainer* NodeContainer = OriginalAssetImportData->NodeContainer)
 					{
-						UClass* FactoryNodeClass = Node->GetClass();
+						UClass* FactoryNodeClass = FactoryNode->GetClass();
 						UInterchangeBaseNode* SelectedOriginalNode = nullptr;
 						NodeContainer->BreakableIterateNodes([FactoryNodeClass, &SelectedOriginalNode](const FString&, UInterchangeBaseNode* OriginalNode)
 							{
@@ -120,7 +115,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 
 	{
 		FScopeLock Lock(&AsyncHelper->CreatedFactoriesLock);
-		AsyncHelper->CreatedFactories.Add(Node->GetUniqueID(), Factory);
+		AsyncHelper->CreatedFactories.Add(FactoryNode->GetUniqueID(), Factory);
 	}
 
 	UPackage* Pkg = nullptr;
@@ -129,7 +124,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 	//If we do a reimport no need to create a package
 	if (AsyncHelper->TaskData.ReimportObject)
 	{
-		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
+		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, FactoryNode, PackageName, AssetName);
 		UPackage* ResultFindPackage = FindPackage(nullptr, *PackageName);
 		UObject* FindOuter = (ResultFindPackage == nullptr ? ANY_PACKAGE : ResultFindPackage);
 		UObject* ExistingObject = FindObject<UObject>(FindOuter, *AssetName);
@@ -137,7 +132,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		if (ExistingObject != AsyncHelper->TaskData.ReimportObject)
 		{
 			// Try to see if we can do a mapping from the source data (we should revisit this for the MVP)
-			ExistingObject = UE::Interchange::Private::GetExistingObjectFromAssetImportData(AsyncHelper, Node);
+			ExistingObject = UE::Interchange::Private::GetExistingObjectFromAssetImportData(AsyncHelper, FactoryNode);
 		}
 		
 
@@ -151,7 +146,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
 			Message->DestinationAssetName = AssetName;
-			Message->AssetType = Node->GetObjectClass();
+			Message->AssetType = FactoryNode->GetObjectClass();
 			Message->Text = NSLOCTEXT("Interchange", "CannotFindPackageDuringReimport", "Cannot find an existing package.");
 
 			//Skip this asset
@@ -160,14 +155,14 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 	}
 	else
 	{
-		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
+		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, FactoryNode, PackageName, AssetName);
 		// We can not create assets that share the name of a map file in the same location
 		if (UE::Interchange::FPackageUtils::IsMapPackageAsset(PackageName))
 		{
 			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
 			Message->DestinationAssetName = AssetName;
-			Message->AssetType = Node->GetObjectClass();
+			Message->AssetType = FactoryNode->GetObjectClass();
 			Message->Text = NSLOCTEXT("Interchange", "MapExistsWithSameName", "You cannot create an asset with this name, as there is already a map file with the same name in this folder.");
 
 			//Skip this asset
@@ -180,7 +175,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
 			Message->DestinationAssetName = AssetName;
-			Message->AssetType = Node->GetObjectClass();
+			Message->AssetType = FactoryNode->GetObjectClass();
 			Message->Text = FText::Format(NSLOCTEXT("Interchange", "CouldntCreatePackage", "It was not possible to create a package named '{0}'; the asset will not be imported."), FText::FromString(PackageName));
 
 			//Skip this asset
@@ -190,7 +185,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		//Import Asset describe by the node
 		UInterchangeFactoryBase::FCreateAssetParams CreateAssetParams;
 		CreateAssetParams.AssetName = AssetName;
-		CreateAssetParams.AssetNode = Node;
+		CreateAssetParams.AssetNode = FactoryNode;
 		CreateAssetParams.Parent = Pkg;
 		CreateAssetParams.SourceData = AsyncHelper->SourceDatas[SourceIndex];
 		CreateAssetParams.Translator = AsyncHelper->Translators[SourceIndex];
@@ -214,9 +209,9 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();
 			AssetInfo.ImportedObject = NodeAsset;
 			AssetInfo.Factory = Factory;
-			AssetInfo.FactoryNode = Node;
+			AssetInfo.FactoryNode = FactoryNode;
 			AssetInfo.bIsReimport = bool(AsyncHelper->TaskData.ReimportObject);
-			Node->ReferenceObject = FSoftObjectPath(NodeAsset);
+			FactoryNode->ReferenceObject = FSoftObjectPath(NodeAsset);
 		}
 	}
 
@@ -246,13 +241,13 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 	UInterchangeFactoryBase* Factory = nullptr;
 	{
 		FScopeLock Lock(&AsyncHelper->CreatedFactoriesLock);
-		Factory = AsyncHelper->CreatedFactories.FindChecked(Node->GetUniqueID());
+		Factory = AsyncHelper->CreatedFactories.FindChecked(FactoryNode->GetUniqueID());
 	}
 
 	UPackage* Pkg = nullptr;
 	FString PackageName;
 	FString AssetName;
-	Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
+	Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, FactoryNode, PackageName, AssetName);
 	bool bSkipAsset = false;
 	UObject* ExistingObject = nullptr;
 	if (AsyncHelper->TaskData.ReimportObject)
@@ -266,7 +261,7 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 		if(ExistingObject != AsyncHelper->TaskData.ReimportObject)
 		{
 			// Try to see if we can do a mapping from the source data (we should revisit this for the MVP)
-			ExistingObject = UE::Interchange::Private::GetExistingObjectFromAssetImportData(AsyncHelper, Node);
+			ExistingObject = UE::Interchange::Private::GetExistingObjectFromAssetImportData(AsyncHelper, FactoryNode);
 		}
 
 		bSkipAsset = !ExistingObject || ExistingObject != AsyncHelper->TaskData.ReimportObject;
@@ -292,7 +287,7 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
 			Message->DestinationAssetName = AssetName;
-			Message->AssetType = Node->GetObjectClass();
+			Message->AssetType = FactoryNode->GetObjectClass();
 			Message->Text = NSLOCTEXT("Interchange", "BadPackage", "It was not possible to create the asset as its package was not created correctly.");
 
 			return;
@@ -302,7 +297,7 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 		{
 			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 			Message->DestinationAssetName = AssetName;
-			Message->AssetType = Node->GetObjectClass();
+			Message->AssetType = FactoryNode->GetObjectClass();
 			Message->Text = NSLOCTEXT("Interchange", "SourceDataOrTranslatorInvalid", "It was not possible to create the asset as its translator was not created correctly.");
 
 			return;
@@ -322,7 +317,7 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 		//Import Asset describe by the node
 		UInterchangeFactoryBase::FCreateAssetParams CreateAssetParams;
 		CreateAssetParams.AssetName = AssetName;
-		CreateAssetParams.AssetNode = Node;
+		CreateAssetParams.AssetNode = FactoryNode;
 		CreateAssetParams.Parent = Pkg;
 		CreateAssetParams.SourceData = AsyncHelper->SourceDatas[SourceIndex];
 		CreateAssetParams.Translator = Translator;
@@ -350,7 +345,7 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 				UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();
 				AssetInfo.ImportedObject = NodeAsset;
 				AssetInfo.Factory = Factory;
-				AssetInfo.FactoryNode = Node;
+				AssetInfo.FactoryNode = FactoryNode;
 				AssetInfo.bIsReimport = bool(AsyncHelper->TaskData.ReimportObject);
 			}
 
@@ -361,7 +356,7 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 				if (!Result->InterchangeKey.IsEmpty() && (Result->DestinationAssetName.IsEmpty() || Result->AssetType == nullptr))
 				{
 					TArray<FString> TargetAssets;
-					Node->GetTargetNodeUids(TargetAssets);
+					FactoryNode->GetTargetNodeUids(TargetAssets);
 					if (TargetAssets.Contains(Result->InterchangeKey))
 					{
 						Result->DestinationAssetName = NodeAsset->GetPathName();
@@ -371,6 +366,6 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 			}
 		}
 
-		Node->ReferenceObject = FSoftObjectPath(NodeAsset);
+		FactoryNode->ReferenceObject = FSoftObjectPath(NodeAsset);
 	}
 }

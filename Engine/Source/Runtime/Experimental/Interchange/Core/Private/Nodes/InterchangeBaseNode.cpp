@@ -42,12 +42,6 @@ namespace UE
 			return Key;
 		}
 
-		const FString& FBaseNodeStaticData::GetFactoryDependenciesBaseKey()
-		{
-			static FString BaseNodeFactoryDependencies_BaseKey = TEXT("__BaseNodeFactoryDependencies__");
-			return BaseNodeFactoryDependencies_BaseKey;
-		}
-
 		const FAttributeKey& FBaseNodeStaticData::ClassTypeAttributeKey()
 		{
 			static FAttributeKey AttributeKey(TEXT("__ClassTypeAttribute__"));
@@ -78,7 +72,6 @@ namespace UE
 UInterchangeBaseNode::UInterchangeBaseNode()
 {
 	Attributes = MakeShared<UE::Interchange::FAttributeStorage, ESPMode::ThreadSafe>();
-	FactoryDependencies.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey());
 	TargetNodes.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey());
 	RegisterAttribute<bool>(UE::Interchange::FBaseNodeStaticData::IsEnabledKey(), true);
 	RegisterAttribute<uint8>(UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey(), static_cast<uint8>(EInterchangeNodeContainerType::None));
@@ -146,20 +139,6 @@ FString UInterchangeBaseNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 	{
 		KeyDisplayName = TEXT("Imported Asset Name");
 	}
-	else if (NodeAttributeKey.Key.Equals(UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey()))
-	{
-		KeyDisplayName = TEXT("Factory Dependencies Count");
-	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey()))
-	{
-		KeyDisplayName = TEXT("Factory Dependencies Index ");
-		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
-		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
-		}
-	}
 	else if (NodeAttributeKey.Key.Equals(UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey()))
 	{
 		KeyDisplayName = TEXT("Target Asset Count");
@@ -193,10 +172,6 @@ bool UInterchangeBaseNode::ShouldHideAttribute(const UE::Interchange::FAttribute
 FString UInterchangeBaseNode::GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
 	FString CategoryName = TEXT("Attributes");
-	if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey()))
-	{
-		CategoryName = TEXT("FactoryDependencies");
-	}
 	return CategoryName;
 }
 
@@ -346,31 +321,6 @@ bool UInterchangeBaseNode::SetParentUid(const FString& ParentUid)
 	return false;
 }
 
-int32 UInterchangeBaseNode::GetFactoryDependenciesCount() const
-{
-	return FactoryDependencies.GetCount();
-}
-
-void UInterchangeBaseNode::GetFactoryDependency(const int32 Index, FString& OutDependency) const
-{
-	FactoryDependencies.GetItem(Index, OutDependency);
-}
-
-void UInterchangeBaseNode::GetFactoryDependencies(TArray<FString>& OutDependencies ) const
-{
-	FactoryDependencies.GetItems(OutDependencies);
-}
-
-bool UInterchangeBaseNode::AddFactoryDependencyUid(const FString& DependencyUid)
-{
-	return FactoryDependencies.AddItem(DependencyUid);
-}
-
-bool UInterchangeBaseNode::RemoveFactoryDependencyUid(const FString& DependencyUid)
-{
-	return FactoryDependencies.RemoveItem(DependencyUid);
-}
-
 bool UInterchangeBaseNode::IsEnabled() const
 {
 	if (!Attributes->ContainAttribute(UE::Interchange::FBaseNodeStaticData::IsEnabledKey()))
@@ -418,11 +368,6 @@ EInterchangeNodeContainerType UInterchangeBaseNode::GetNodeContainerType() const
 FGuid UInterchangeBaseNode::GetHash() const
 {
 	return Attributes->GetStorageHash();
-}
-
-UClass* UInterchangeBaseNode::GetObjectClass() const
-{
-	return nullptr;
 }
 
 FString UInterchangeBaseNode::GetAssetName() const

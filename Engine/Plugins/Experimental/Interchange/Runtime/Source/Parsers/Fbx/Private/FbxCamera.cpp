@@ -69,12 +69,12 @@ namespace UE
 						FString NodeName = FFbxHelper::GetNodeAttributeName(NodeAttribute, UInterchangeCameraNode::StaticAssetTypeName());
 						FString NodeUid = FFbxHelper::GetNodeAttributeUniqueID(NodeAttribute, UInterchangeCameraNode::StaticAssetTypeName());
 
-						UInterchangeCameraNode* CameraNode = Cast<UInterchangeCameraNode>(NodeContainer.GetNode(NodeUid));
+						const UInterchangeCameraNode* CameraNode = Cast<const UInterchangeCameraNode>(NodeContainer.GetNode(NodeUid));
 
 						if (!CameraNode)
 						{
-							CameraNode = CreateCameraNode(NodeContainer, NodeUid, NodeName);
-							FillCameraNode(CameraNode, static_cast<FbxCamera&>(*NodeAttribute));
+							UInterchangeCameraNode* NewCameraNode = CreateCameraNode(NodeContainer, NodeUid, NodeName);
+							FillCameraNode(NewCameraNode, static_cast<FbxCamera&>(*NodeAttribute));
 						}
 					}
 				}

@@ -19,7 +19,7 @@ UObject* UInterchangeSkeletalMeshActorFactory::CreateSceneObject(const UIntercha
 		return nullptr;
 	}
 
-	UInterchangeBaseNode* FactoryNode = CreateSceneObjectsParams.FactoryNode;
+	UInterchangeFactoryBaseNode* FactoryNode = CreateSceneObjectsParams.FactoryNode;
 	SetupSkeletalMeshActor(CreateSceneObjectsParams.NodeContainer, FactoryNode, SpawnedActor);
 
 	if (USkeletalMeshComponent* SkeletalMeshComponent = SpawnedActor->GetSkeletalMeshComponent())
@@ -35,12 +35,12 @@ UClass* UInterchangeSkeletalMeshActorFactory::GetFactoryClass() const
 	return ASkeletalMeshActor::StaticClass();
 }
 
-void UInterchangeSkeletalMeshActorFactory::SetupSkeletalMeshActor(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeBaseNode* ActorFactoryNode, ASkeletalMeshActor* SkeletalMeshActor)
+void UInterchangeSkeletalMeshActorFactory::SetupSkeletalMeshActor(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeFactoryBaseNode* ActorFactoryNode, ASkeletalMeshActor* SkeletalMeshActor)
 {
 	USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent();
 	SkeletalMeshComponent->UnregisterComponent();
 
-	if (const UInterchangeBaseNode* MeshNode = UE::Interchange::ActorHelper::FindAssetInstanceFactoryNode(NodeContainer, ActorFactoryNode))
+	if (const UInterchangeFactoryBaseNode* MeshNode = UE::Interchange::ActorHelper::FindAssetInstanceFactoryNode(NodeContainer, ActorFactoryNode))
 	{
 		if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(MeshNode->ReferenceObject.TryLoad()))
 		{

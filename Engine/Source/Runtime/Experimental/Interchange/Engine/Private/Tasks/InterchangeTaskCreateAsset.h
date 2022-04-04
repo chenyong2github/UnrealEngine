@@ -8,7 +8,7 @@
 #include "InterchangeManager.h"
 #include "Stats/Stats.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "Nodes/InterchangeBaseNode.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 
 namespace UE
 {
@@ -24,18 +24,18 @@ namespace UE
 			FString PackageBasePath;
 			int32 SourceIndex;
 			TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
-			UInterchangeBaseNode* Node;
+			UInterchangeFactoryBaseNode* FactoryNode;
 			const UClass* FactoryClass;
 
 		public:
-			FTaskCreatePackage(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, UInterchangeBaseNode* InNode, const UClass* InFactoryClass)
+			FTaskCreatePackage(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, UInterchangeFactoryBaseNode* InFactoryNode, const UClass* InFactoryClass)
 				: PackageBasePath(InPackageBasePath)
 				, SourceIndex(InSourceIndex)
 				, WeakAsyncHelper(InAsyncHelper)
-				, Node(InNode)
+				, FactoryNode(InFactoryNode)
 				, FactoryClass(InFactoryClass)
 			{
-				check(Node);
+				check(FactoryNode);
 				check(FactoryClass);
 			}
 
@@ -69,18 +69,18 @@ namespace UE
 			FString PackageBasePath;
 			int32 SourceIndex;
 			TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
-			UInterchangeBaseNode* Node;
+			UInterchangeFactoryBaseNode* FactoryNode;
 			bool bCanRunOnAnyThread;
 
 		public:
-			FTaskCreateAsset(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, UInterchangeBaseNode* InNode, bool bInCanRunOnAnyThread)
+			FTaskCreateAsset(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, UInterchangeFactoryBaseNode* InFactoryNode, bool bInCanRunOnAnyThread)
 				: PackageBasePath(InPackageBasePath)
 				, SourceIndex(InSourceIndex)
 				, WeakAsyncHelper(InAsyncHelper)
-				, Node(InNode)
+				, FactoryNode(InFactoryNode)
 				, bCanRunOnAnyThread(bInCanRunOnAnyThread)
 			{
-				check(Node);
+				check(FactoryNode);
 			}
 
 			ENamedThreads::Type GetDesiredThread() const

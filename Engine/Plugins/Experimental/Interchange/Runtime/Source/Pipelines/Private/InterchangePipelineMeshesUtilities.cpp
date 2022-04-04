@@ -33,7 +33,7 @@ UInterchangePipelineMeshesUtilities* UInterchangePipelineMeshesUtilities::Create
 		{
 			if (Node->GetNodeContainerType() == EInterchangeNodeContainerType::TranslatedAsset)
 			{
-				if (UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(Node))
+				if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(Node))
 				{
 					FInterchangeMeshGeometry& MeshGeometry = PipelineMeshesUtilities->MeshGeometriesPerMeshUid.FindOrAdd(NodeUid);
 					MeshGeometry.MeshUid = NodeUid;
@@ -95,7 +95,7 @@ UInterchangePipelineMeshesUtilities* UInterchangePipelineMeshesUtilities::Create
 										break;
 									}
 									LastChildUid = ParentMeshSceneNode->GetUniqueID();
-									ParentMeshSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentMeshSceneNode->GetParentUid()));
+									ParentMeshSceneNode = Cast<const UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentMeshSceneNode->GetParentUid()));
 								} while (ParentMeshSceneNode);
 
 								FInterchangeMeshGeometry& MeshGeometry = PipelineMeshesUtilities->MeshGeometriesPerMeshUid.FindChecked(MeshUid);

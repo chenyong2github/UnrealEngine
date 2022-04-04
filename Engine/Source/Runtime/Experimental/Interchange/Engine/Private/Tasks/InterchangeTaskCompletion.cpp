@@ -10,6 +10,7 @@
 #include "InterchangeFactoryBase.h"
 #include "InterchangeManager.h"
 #include "InterchangeResultsContainer.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 #include "Stats/Stats.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/GarbageCollection.h"

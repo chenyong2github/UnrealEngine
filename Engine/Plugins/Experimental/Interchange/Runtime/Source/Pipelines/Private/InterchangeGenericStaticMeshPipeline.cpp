@@ -326,21 +326,21 @@ bool UInterchangeGenericMeshPipeline::MakeMeshFactoryNodeUidAndDisplayLabel(cons
 			if (Uids.Num() > 0)
 			{
 				const FString& Uid = Uids[0];
-				UInterchangeBaseNode* Node = BaseNodeContainer->GetNode(Uid);
+				const UInterchangeBaseNode* Node = BaseNodeContainer->GetNode(Uid);
 
-				if (UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(Node))
+				if (const UInterchangeMeshNode* MeshNode = Cast<const UInterchangeMeshNode>(Node))
 				{
 					DisplayLabel = Node->GetDisplayLabel();
 					NewNodeUid = Uid;
 					return true;
 				}
 
-				if (UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(Node))
+				if (const UInterchangeSceneNode* SceneNode = Cast<const UInterchangeSceneNode>(Node))
 				{
 					FString RefMeshUid;
 					if (SceneNode->GetCustomAssetInstanceUid(RefMeshUid))
 					{
-						UInterchangeBaseNode* MeshNode = BaseNodeContainer->GetNode(RefMeshUid);
+						const UInterchangeBaseNode* MeshNode = BaseNodeContainer->GetNode(RefMeshUid);
 						if (MeshNode)
 						{
 							DisplayLabel = MeshNode->GetDisplayLabel();
@@ -459,7 +459,7 @@ void UInterchangeGenericMeshPipeline::AddLodDataToStaticMesh(UInterchangeStaticM
 		const FString StaticMeshLodDataUniqueID = LODDataPrefix + StaticMeshFactoryUid;
 
 		// Create LodData node if it doesn't already exist
-		UInterchangeStaticMeshLodDataNode* LodDataNode = Cast<UInterchangeStaticMeshLodDataNode>(BaseNodeContainer->GetNode(StaticMeshLodDataUniqueID));
+		UInterchangeStaticMeshLodDataNode* LodDataNode = Cast<UInterchangeStaticMeshLodDataNode>(BaseNodeContainer->GetFactoryNode(StaticMeshLodDataUniqueID));
 		if (!LodDataNode)
 		{
 			// Add the data for the LOD (all the mesh node fbx path, so we can find them when we will create the payload data)
@@ -506,7 +506,7 @@ void UInterchangeGenericMeshPipeline::AddLodDataToStaticMesh(UInterchangeStaticM
 				const FString MaterialFactoryNodeUid = UInterchangeMaterialFactoryNode::GetMaterialFactoryNodeUidFromMaterialNodeUid(MaterialDependencies[MaterialIndex]);
 				if (BaseNodeContainer->IsNodeUidValid(MaterialFactoryNodeUid))
 				{
-					BaseNodeContainer->GetNode(MaterialFactoryNodeUid)->SetEnabled(true);
+					BaseNodeContainer->GetFactoryNode(MaterialFactoryNodeUid)->SetEnabled(true);
 					// Create a factory dependency so Material asset are imported before the skeletal mesh asset
 					TArray<FString> FactoryDependencies;
 					StaticMeshFactoryNode->GetFactoryDependencies(FactoryDependencies);

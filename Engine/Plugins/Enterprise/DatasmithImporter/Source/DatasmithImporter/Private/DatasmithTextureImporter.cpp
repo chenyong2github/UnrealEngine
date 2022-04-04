@@ -423,7 +423,7 @@ void UDatasmithTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeCon
 		return;
 	}
 
-	UInterchangeTextureNode* TextureTranslatedNode = Cast<UInterchangeTextureNode >( BaseNodeContainer->GetNode( Nodes[0] ) );
+	const UInterchangeTextureNode* TextureTranslatedNode = Cast<const UInterchangeTextureNode >( BaseNodeContainer->GetNode( Nodes[0] ) );
 	if (!ensure(TextureTranslatedNode))
 	{
 		return;

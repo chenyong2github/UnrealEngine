@@ -4,7 +4,7 @@
 
 #include "InterchangeFactoryBase.h"
 
-class UInterchangeBaseNode;
+class UInterchangeFactoryBaseNode;
 class UInterchangeBaseNodeContainer;
 class UInterchangeActorFactoryNode;
 
@@ -24,5 +24,5 @@ namespace UE::Interchange::ActorHelper
 	/**
 	 * Returns the factory node of the asset instanced by ActorFactoryNode.
 	 */
-	const UInterchangeBaseNode* FindAssetInstanceFactoryNode(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeBaseNode* ActorFactoryNode);
+	const UInterchangeFactoryBaseNode* FindAssetInstanceFactoryNode(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeFactoryBaseNode* ActorFactoryNode);
 }

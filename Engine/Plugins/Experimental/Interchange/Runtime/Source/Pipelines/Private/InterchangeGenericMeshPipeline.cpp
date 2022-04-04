@@ -39,7 +39,7 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipeline(UInterchangeBaseN
 	ExecutePreImportPipelineStaticMesh();
 }
 
-void UInterchangeGenericMeshPipeline::ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
+void UInterchangeGenericMeshPipeline::ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& FactoryNodeKey, UObject* CreatedAsset, bool bIsAReimport)
 {
 	//We do not use the provided base container since ExecutePreImportPipeline cache it
 	//We just make sure the same one is pass in parameter
@@ -48,8 +48,8 @@ void UInterchangeGenericMeshPipeline::ExecutePostImportPipeline(const UInterchan
 		return;
 	}
 
-	UInterchangeBaseNode* Node = BaseNodeContainer->GetNode(NodeKey);
-	if (!Node)
+	const UInterchangeFactoryBaseNode* FactoryNode = BaseNodeContainer->GetFactoryNode(FactoryNodeKey);
+	if (!FactoryNode)
 	{
 		return;
 	}
@@ -57,10 +57,10 @@ void UInterchangeGenericMeshPipeline::ExecutePostImportPipeline(const UInterchan
 	//Set the last content type import
 	LastSkeletalMeshImportContentType = SkeletalMeshImportContentType;
 
-	PostImportSkeletalMesh(CreatedAsset, Node);
+	PostImportSkeletalMesh(CreatedAsset, FactoryNode);
 
 	//Finish the physics asset import, it need the skeletal mesh render data to create the physics collision geometry
-	PostImportPhysicsAssetImport(CreatedAsset, Node);
+	PostImportPhysicsAssetImport(CreatedAsset, FactoryNode);
 }
 
 void UInterchangeGenericMeshPipeline::SetReimportSourceIndex(UClass* ReimportObjectClass, const int32 SourceFileIndex)

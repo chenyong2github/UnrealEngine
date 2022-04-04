@@ -7,6 +7,7 @@
 #include "InterchangePipelineBase.h"
 #include "InterchangeSourceData.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 #include "UObject/Object.h"
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
@@ -184,9 +185,9 @@ namespace UE
 
 
 		void FFactoryCommon::ApplyReimportStrategyToAsset(UObject* Asset
-										  , UInterchangeBaseNode* PreviousAssetNode
-										  , UInterchangeBaseNode* CurrentAssetNode
-										  , UInterchangeBaseNode* PipelineAssetNode)
+										  , UInterchangeFactoryBaseNode* PreviousAssetNode
+										  , UInterchangeFactoryBaseNode* CurrentAssetNode
+										  , UInterchangeFactoryBaseNode* PipelineAssetNode)
 		{
 			if (!ensure(PreviousAssetNode) || !ensure(PipelineAssetNode) || !ensure(CurrentAssetNode))
 			{

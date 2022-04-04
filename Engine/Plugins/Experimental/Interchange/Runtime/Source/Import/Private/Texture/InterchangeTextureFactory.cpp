@@ -122,7 +122,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 	/**
 	 * Return the supported class if the node is one otherwise return nullptr
 	 */
-	UClass* GetSupportedFactoryNodeClass(const UInterchangeBaseNode* AssetNode)
+	UClass* GetSupportedFactoryNodeClass(const UInterchangeFactoryBaseNode* AssetNode)
 	{
 		UClass* TextureCubeFactoryClass = UInterchangeTextureCubeFactoryNode::StaticClass();
 		UClass* Texture2DFactoryClass = UInterchangeTexture2DFactoryNode::StaticClass();
@@ -170,7 +170,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		, UInterchangeTexture2DArrayFactoryNode*
 		,UInterchangeTextureLightProfileFactoryNode* >;
 
-	FTextureFactoryNodeVariant GetAsTextureFactoryNodeVariant(UInterchangeBaseNode* AssetNode, UClass* SupportedFactoryNodeClass)
+	FTextureFactoryNodeVariant GetAsTextureFactoryNodeVariant(UInterchangeFactoryBaseNode* AssetNode, UClass* SupportedFactoryNodeClass)
 	{
 		if (AssetNode)
 		{
@@ -1240,7 +1240,7 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 		}
 
 
-		UInterchangeBaseNode* TextureFactoryNode = Arguments.FactoryNode;
+		UInterchangeFactoryBaseNode* TextureFactoryNode = Arguments.FactoryNode;
 		if (!Arguments.bIsReimport)
 		{
 			/** Apply all TextureNode custom attributes to the texture asset */
@@ -1249,13 +1249,13 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 		else
 		{
 			UInterchangeAssetImportData* InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(Texture->AssetImportData);
-			UInterchangeBaseNode* PreviousNode = nullptr;
+			UInterchangeFactoryBaseNode* PreviousNode = nullptr;
 			if (InterchangeAssetImportData)
 			{
-				PreviousNode = InterchangeAssetImportData->NodeContainer->GetNode(InterchangeAssetImportData->NodeUniqueID);
+				PreviousNode = InterchangeAssetImportData->NodeContainer->GetFactoryNode(InterchangeAssetImportData->NodeUniqueID);
 			}
 
-			UInterchangeBaseNode* CurrentNode = NewObject<UInterchangeBaseNode>(GetTransientPackage(), GetSupportedFactoryNodeClass(TextureFactoryNode));
+			UInterchangeFactoryBaseNode* CurrentNode = NewObject<UInterchangeFactoryBaseNode>(GetTransientPackage(), GetSupportedFactoryNodeClass(TextureFactoryNode));
 			UInterchangeBaseNode::CopyStorage(TextureFactoryNode, CurrentNode);
 			CurrentNode->FillAllCustomAttributeFromObject(Texture);
 			//Apply reimport strategy

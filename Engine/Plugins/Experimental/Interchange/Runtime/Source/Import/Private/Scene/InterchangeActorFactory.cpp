@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "Scene/InterchangeActorFactory.h"
 
-#include "Nodes/InterchangeBaseNode.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 #include "Scene/InterchangeActorHelper.h"
 
 #include "GameFramework/Actor.h"

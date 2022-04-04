@@ -7,6 +7,27 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
+
+namespace UE
+{
+	namespace Interchange
+	{
+		const FString& FFactoryBaseNodeStaticData::FactoryDependenciesBaseKey()
+		{
+			static FString BaseNodeFactoryDependencies_BaseKey = TEXT("__BaseNodeFactoryDependencies__");
+			return BaseNodeFactoryDependencies_BaseKey;
+		}
+
+	} //ns Interchange
+} //ns UE
+
+
+UInterchangeFactoryBaseNode::UInterchangeFactoryBaseNode()
+{
+	FactoryDependencies.Initialize(Attributes, UE::Interchange::FFactoryBaseNodeStaticData::FactoryDependenciesBaseKey());
+}
+
+
 FString UInterchangeFactoryBaseNode::GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
 	FString KeyDisplayName = NodeAttributeKey.ToString();
@@ -14,12 +35,45 @@ FString UInterchangeFactoryBaseNode::GetKeyDisplayName(const UE::Interchange::FA
 	{
 		KeyDisplayName = TEXT("Import Sub-Path");
 	}
+	else if (NodeAttributeKey.Key.Equals(UE::Interchange::FFactoryBaseNodeStaticData::FactoryDependenciesBaseKey()))
+	{
+		KeyDisplayName = TEXT("Factory Dependencies Count");
+	}
+	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FFactoryBaseNodeStaticData::FactoryDependenciesBaseKey()))
+	{
+		KeyDisplayName = TEXT("Factory Dependencies Index ");
+		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
+		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < NodeAttributeKey.Key.Len())
+		{
+			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+		}
+	}
 	else
 	{
 		KeyDisplayName = Super::GetKeyDisplayName(NodeAttributeKey);
 	}
 
 	return KeyDisplayName;
+}
+
+
+FString UInterchangeFactoryBaseNode::GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
+{
+	if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FFactoryBaseNodeStaticData::FactoryDependenciesBaseKey()))
+	{
+		return TEXT("FactoryDependencies");
+	}
+	else
+	{
+		return Super::GetAttributeCategory(NodeAttributeKey);
+	}
+}
+
+
+UClass* UInterchangeFactoryBaseNode::GetObjectClass() const
+{
+	return nullptr;
 }
 
 bool UInterchangeFactoryBaseNode::GetCustomSubPath(FString& AttributeValue) const
@@ -31,3 +85,29 @@ bool UInterchangeFactoryBaseNode::SetCustomSubPath(const FString& AttributeValue
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(SubPath, FString)
 }
+
+int32 UInterchangeFactoryBaseNode::GetFactoryDependenciesCount() const
+{
+	return FactoryDependencies.GetCount();
+}
+
+void UInterchangeFactoryBaseNode::GetFactoryDependency(const int32 Index, FString& OutDependency) const
+{
+	FactoryDependencies.GetItem(Index, OutDependency);
+}
+
+void UInterchangeFactoryBaseNode::GetFactoryDependencies(TArray<FString>& OutDependencies) const
+{
+	FactoryDependencies.GetItems(OutDependencies);
+}
+
+bool UInterchangeFactoryBaseNode::AddFactoryDependencyUid(const FString& DependencyUid)
+{
+	return FactoryDependencies.AddItem(DependencyUid);
+}
+
+bool UInterchangeFactoryBaseNode::RemoveFactoryDependencyUid(const FString& DependencyUid)
+{
+	return FactoryDependencies.RemoveItem(DependencyUid);
+}
+

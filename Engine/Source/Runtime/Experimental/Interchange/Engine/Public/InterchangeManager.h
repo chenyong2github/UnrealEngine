@@ -28,6 +28,7 @@
 
 class FAsyncTaskNotification;
 class UInterchangeFactoryBase;
+class UInterchangeFactoryBaseNode;
 class UInterchangePipelineBase;
 
 /** Some utilities delegates for the automation of interchange */
@@ -206,7 +207,7 @@ namespace UE
 			{
 				UObject* ImportedObject = nullptr; // The object that was imported
 				UInterchangeFactoryBase* Factory = nullptr; //The factory that created the imported object
-				UInterchangeBaseNode* FactoryNode = nullptr; //The node that describes the object
+				UInterchangeFactoryBaseNode* FactoryNode = nullptr; //The node that describes the object
 				bool bIsReimport;
 			};
 

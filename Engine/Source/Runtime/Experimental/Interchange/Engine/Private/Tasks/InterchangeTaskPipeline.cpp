@@ -7,6 +7,7 @@
 #include "InterchangeManager.h"
 #include "InterchangePipelineBase.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 #include "Stats/Stats.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/GarbageCollection.h"

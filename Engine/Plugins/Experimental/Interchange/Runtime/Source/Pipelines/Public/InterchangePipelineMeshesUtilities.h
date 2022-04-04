@@ -21,8 +21,8 @@ struct FInterchangeLodSceneNodeContainer
 	GENERATED_BODY()
 
 	/**
-	* Each scene node here represent a mesh scene node. Only if we represent a lod group we can have more then 1 mesh scene node for a specific lod index.
-	*/
+	 * Each scene node here represent a mesh scene node. Only if we represent a lod group we can have more then 1 mesh scene node for a specific lod index.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesInstance")
 	TArray<TObjectPtr<const UInterchangeSceneNode>> SceneNodes;
 };
@@ -44,14 +44,14 @@ struct FInterchangeMeshInstance
 		bReferenceBlendShape = false;
 	}
 	/**
-	* This ID represent either 1: a lod group scene node uid or 2: a mesh scene node uid.
-	*/
+	 * This ID represent either 1: a lod group scene node uid or 2: a mesh scene node uid.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesInstance")
 	FString MeshInstanceUid;
 
 	/**
-	* If this mesh instance represent a LodGroup this member will not be null, but will be null if the mesh instance do not represent a lod group
-	*/
+	 * If this mesh instance represent a LodGroup this member will not be null, but will be null if the mesh instance do not represent a lod group
+	 */
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesInstance")
 	TObjectPtr<const UInterchangeSceneNode> LodGroupNode;
 
@@ -62,14 +62,14 @@ struct FInterchangeMeshInstance
 	bool bReferenceBlendShape;
 
 	/**
-	* Each scene node here represent a mesh scene node. Only if we represent a lod group we can have more then 1 mesh scene node for a specific lod index.
-	*/
+	 * Each scene node here represent a mesh scene node. Only if we represent a lod group we can have more then 1 mesh scene node for a specific lod index.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesInstance")
 	TMap<int32, FInterchangeLodSceneNodeContainer> SceneNodePerLodIndex;
 
 	/**
-	* All mesh geometry referenced by this MeshInstance.
-	*/
+	 * All mesh geometry referenced by this MeshInstance.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesGeometry")
 	TArray<FString> ReferencingMeshGeometryUids;
 };
@@ -88,20 +88,20 @@ struct FInterchangeMeshGeometry
 	}
 
 	/**
-	* Represent the unique id of the UInterchangeMeshNode represent by this structure.
-	*/
+	 * Represent the unique id of the UInterchangeMeshNode represent by this structure.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesGeometry")
 	FString MeshUid;
 
 	/**
-	* The UInterchangeMeshNode pointer represent by this structure.
-	*/
+	 * The UInterchangeMeshNode pointer represent by this structure.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesGeometry")
 	TObjectPtr<const UInterchangeMeshNode> MeshNode = nullptr;
 
 	/**
-	* All mesh instance referencing this UInterchangeMeshNode pointer.
-	*/
+	 * All mesh instance referencing this UInterchangeMeshNode pointer.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesGeometry")
 	TArray<FString> ReferencingMeshInstanceUids;
 

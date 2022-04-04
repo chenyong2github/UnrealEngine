@@ -18,7 +18,7 @@ AActor* UE::Interchange::ActorHelper::GetSpawnedParentActor(const UInterchangeBa
 {
 	AActor* ParentActor = nullptr;
 
-	if (const UInterchangeFactoryBaseNode* ParentFactoryNode = Cast<UInterchangeFactoryBaseNode>(NodeContainer->GetNode(FactoryNode->GetParentUid())))
+	if (const UInterchangeFactoryBaseNode* ParentFactoryNode = NodeContainer->GetFactoryNode(FactoryNode->GetParentUid()))
 	{
 		ParentActor = Cast<AActor>(ParentFactoryNode->ReferenceObject.TryLoad());
 	}
@@ -123,7 +123,7 @@ AActor* UE::Interchange::ActorHelper::SpawnFactoryActor(const UInterchangeFactor
 	return SpawnedActor;
 }
 
-const UInterchangeBaseNode* UE::Interchange::ActorHelper::FindAssetInstanceFactoryNode(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeBaseNode* ActorFactoryNode)
+const UInterchangeFactoryBaseNode* UE::Interchange::ActorHelper::FindAssetInstanceFactoryNode(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeFactoryBaseNode* ActorFactoryNode)
 {
 	TArray<FString> ActorTargetNodes;
 	ActorFactoryNode->GetTargetNodeUids(ActorTargetNodes);
@@ -143,5 +143,5 @@ const UInterchangeBaseNode* UE::Interchange::ActorHelper::FindAssetInstanceFacto
 
 	TArray<FString> AssetTargetNodeIds;
 	AssetNode->GetTargetNodeUids(AssetTargetNodeIds);
-	return AssetTargetNodeIds.IsEmpty() ? nullptr : NodeContainer->GetNode(AssetTargetNodeIds[0]);
+	return AssetTargetNodeIds.IsEmpty() ? nullptr : NodeContainer->GetFactoryNode(AssetTargetNodeIds[0]);
 }

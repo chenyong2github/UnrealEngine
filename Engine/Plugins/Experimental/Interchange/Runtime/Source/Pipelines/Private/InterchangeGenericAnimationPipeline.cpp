@@ -82,7 +82,7 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 	BaseNodeContainer->GetNodes(UInterchangeSourceNode::StaticClass(), SourceNodeUids);
 	if (SourceNodeUids.Num() > 0)
 	{
-		if (UInterchangeSourceNode* SourceNode = Cast<UInterchangeSourceNode>(BaseNodeContainer->GetNode(SourceNodeUids[0])))
+		if (const UInterchangeSourceNode* SourceNode = Cast<UInterchangeSourceNode>(BaseNodeContainer->GetNode(SourceNodeUids[0])))
 		{
 			if (bImportBoneTracks)
 			{
@@ -141,7 +141,7 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 			BaseNodeContainer->GetNodes(UInterchangeSceneNode::StaticClass(), SceneNodeUids);
 			for (const FString& SceneNodeUid : SceneNodeUids)
 			{
-				if (UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(SceneNodeUid)))
+				if (const UInterchangeSceneNode* SceneNode = Cast<const UInterchangeSceneNode>(BaseNodeContainer->GetNode(SceneNodeUid)))
 				{
 					double SceneNodeAnimStart;
 					double SceneNodeAnimStop;
@@ -223,7 +223,7 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 			BaseNodeContainer->GetNodes(UInterchangeSkeletalMeshFactoryNode::StaticClass(), SkeletalMeshNodeUids);
 			for (const FString& SkelMeshFactoryNodeUid : SkeletalMeshNodeUids)
 			{
-				if (UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<UInterchangeSkeletalMeshFactoryNode>(BaseNodeContainer->GetNode(SkelMeshFactoryNodeUid)))
+				if (const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<const UInterchangeSkeletalMeshFactoryNode>(BaseNodeContainer->GetFactoryNode(SkelMeshFactoryNodeUid)))
 				{
 					TArray<FString> SkeletalMeshDependencies;
 					SkeletalMeshFactoryNode->GetFactoryDependencies(SkeletalMeshDependencies);
@@ -273,7 +273,7 @@ void UInterchangeGenericAnimationPipeline::ExecutePostImportPipeline(const UInte
 		return;
 	}
 
-	UInterchangeBaseNode* Node = BaseNodeContainer->GetNode(NodeKey);
+	const UInterchangeBaseNode* Node = BaseNodeContainer->GetNode(NodeKey);
 	if (!Node)
 	{
 		return;

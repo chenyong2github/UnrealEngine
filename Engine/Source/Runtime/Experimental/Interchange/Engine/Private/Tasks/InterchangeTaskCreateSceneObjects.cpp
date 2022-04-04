@@ -11,7 +11,7 @@
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
 #include "Misc/Paths.h"
-#include "Nodes/InterchangeBaseNode.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 #include "PackageUtils/PackageUtils.h"
 #include "Stats/Stats.h"
 #include "Templates/SharedPointer.h"
@@ -21,11 +21,11 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
-UE::Interchange::FTaskCreateSceneObjects::FTaskCreateSceneObjects(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper> InAsyncHelper, TArrayView<UInterchangeBaseNode*> InNodes, const UClass* InFactoryClass)
+UE::Interchange::FTaskCreateSceneObjects::FTaskCreateSceneObjects(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper> InAsyncHelper, TArrayView<UInterchangeFactoryBaseNode*> InFactoryNodes, const UClass* InFactoryClass)
 	: PackageBasePath(InPackageBasePath)
 	, SourceIndex(InSourceIndex)
 	, WeakAsyncHelper(InAsyncHelper)
-	, Nodes(InNodes)
+	, FactoryNodes(InFactoryNodes)
 	, FactoryClass(InFactoryClass)
 {
 	check(FactoryClass);
@@ -52,21 +52,21 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 		return;
 	}
 
-	for (UInterchangeBaseNode* Node : Nodes)
+	for (UInterchangeFactoryBaseNode* FactoryNode : FactoryNodes)
 	{
 		UInterchangeFactoryBase* Factory = NewObject<UInterchangeFactoryBase>(GetTransientPackage(), FactoryClass);
 		Factory->SetResultsContainer(AsyncHelper->AssetImportResult->GetResults());
 		{
 			FScopeLock Lock(&AsyncHelper->CreatedFactoriesLock);
-			AsyncHelper->CreatedFactories.Add(Node->GetUniqueID(), Factory);
+			AsyncHelper->CreatedFactories.Add(FactoryNode->GetUniqueID(), Factory);
 		}
 
-		FString NodeDisplayName = Node->GetDisplayLabel();
+		FString NodeDisplayName = FactoryNode->GetDisplayLabel();
 		SanitizeObjectName(NodeDisplayName);
 
 		UInterchangeFactoryBase::FCreateSceneObjectsParams CreateSceneObjectsParams;
 		CreateSceneObjectsParams.ObjectName = NodeDisplayName;
-		CreateSceneObjectsParams.FactoryNode = Node;
+		CreateSceneObjectsParams.FactoryNode = FactoryNode;
 		CreateSceneObjectsParams.Level = GWorld->GetCurrentLevel();
 
 		if (AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
@@ -89,10 +89,10 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 				UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& ObjectInfo = ImportedInfos.AddDefaulted_GetRef();
 				ObjectInfo.ImportedObject = SceneObject;
 				ObjectInfo.Factory = Factory;
-				ObjectInfo.FactoryNode = Node;
+				ObjectInfo.FactoryNode = FactoryNode;
 			}
 
-			Node->ReferenceObject = FSoftObjectPath(SceneObject);
+			FactoryNode->ReferenceObject = FSoftObjectPath(SceneObject);
 		}
 	}
 }
