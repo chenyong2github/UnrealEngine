@@ -521,7 +521,8 @@ struct FCameraShakeExecutionToken : TAccumulateCameraAnimExecutionToken<FCameraS
 				return false;
 			}
 
-			CameraShakeInstance = NewObject<UCameraShakeBase>(GetTransientPackage(), SourceData.ShakeClass);
+			UObject* OuterObject = Player.GetPlaybackContext() ? Player.GetPlaybackContext() : GetTransientPackage();
+			CameraShakeInstance = NewObject<UCameraShakeBase>(OuterObject, SourceData.ShakeClass);
 			if (CameraShakeInstance)
 			{
 				// Store the anim instance with the section and always remove it when we've finished evaluating
