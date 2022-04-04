@@ -8,6 +8,7 @@
 #include "Components.h"
 #include "Engine/Polys.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshSocket.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
@@ -357,6 +358,8 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 
 		CurrentLodIndex++;
 	}
+
+	ImportSockets(Arguments, StaticMesh, StaticMeshFactoryNode);
 
 	if (!Arguments.ReimportObject)
 	{
@@ -1275,4 +1278,63 @@ bool UInterchangeStaticMeshFactory::GenerateKDopCollision(const FCreateAssetPara
 	return false;
 
 #endif
+}
+
+
+bool UInterchangeStaticMeshFactory::ImportSockets(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshFactoryNode* FactoryNode)
+{
+	TArray<FString> SocketUids;
+	FactoryNode->GetSocketUids(SocketUids);
+
+	TSet<FName> ImportedSocketNames;
+
+	for (const FString& SocketUid : SocketUids)
+	{
+		if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(Arguments.NodeContainer->GetNode(SocketUid)))
+		{
+			FString NodeDisplayName = SceneNode->GetDisplayLabel();
+			if (NodeDisplayName.StartsWith(TEXT("SOCKET_")))
+			{
+				constexpr bool bAllowShrinking = false;
+				NodeDisplayName.RightChopInline(sizeof("SOCKET_") - 1, bAllowShrinking);
+			}
+			FName SocketName = FName(NodeDisplayName);
+			ImportedSocketNames.Add(SocketName);
+
+			FTransform GlobalTransform;
+			SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalTransform);
+
+			UStaticMeshSocket* Socket = StaticMesh->FindSocket(SocketName);
+			if (!Socket)
+			{
+				// If the socket didn't exist create a new one now
+				Socket = NewObject<UStaticMeshSocket>(StaticMesh);
+#if WITH_EDITORONLY_DATA
+				Socket->bSocketCreatedAtImport = true;
+#endif
+				Socket->SocketName = SocketName;
+				StaticMesh->AddSocket(Socket);
+			}
+
+			Socket->RelativeLocation = GlobalTransform.GetLocation();
+			Socket->RelativeRotation = GlobalTransform.GetRotation().Rotator();
+			Socket->RelativeScale = GlobalTransform.GetScale3D();
+		}
+	}
+
+	// Delete any sockets which were previously imported but which no longer exist in the imported scene
+	for (TArray<TObjectPtr<UStaticMeshSocket>>::TIterator It = StaticMesh->Sockets.CreateIterator(); It; ++It)
+	{
+		UStaticMeshSocket* Socket = *It;
+		if (
+#if WITH_EDITORONLY_DATA
+			Socket->bSocketCreatedAtImport &&
+#endif
+			!ImportedSocketNames.Contains(Socket->SocketName))
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	return true;
 }

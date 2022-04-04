@@ -106,6 +106,18 @@ public:
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckSimpleCollisionPrimitiveCount(UStaticMesh* Mesh, int32 ExpectedSphereElementCount, int32 ExpectedBoxElementCount, int32 ExpectedCapsuleElementCount, int32 ExpectedConvexElementCount, int32 ExpectedTaperedCapsuleElementCount);
 
+	/** Check whether the expected number of sockets were imported */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckSocketCount(UStaticMesh* Mesh, int32 ExpectedSocketCount);
+
+	/** Check whether the given socket index has the expected name */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckSocketName(UStaticMesh* Mesh, int32 SocketIndex, const FString& ExpectedSocketName);
+
+	/** Check whether the given socket index has the expected location */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckSocketLocation(UStaticMesh* Mesh, int32 SocketIndex, const FVector& ExpectedSocketLocation);
+
 	/** Check whether the mesh is equivalent to a ground truth asset */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckAgainstGroundTruth(UStaticMesh* Mesh, TSoftObjectPtr<UStaticMesh> MeshToCompare,

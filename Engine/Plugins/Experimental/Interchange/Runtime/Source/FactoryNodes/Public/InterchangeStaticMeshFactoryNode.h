@@ -19,6 +19,7 @@ namespace UE
 		struct INTERCHANGEFACTORYNODES_API FStaticMeshNodeStaticData : public FBaseNodeStaticData
 		{
 			static const FString& GetLodDependenciesBaseKey();
+			static const FString& GetSocketUidsBaseKey();
 		};
 	} // namespace Interchange
 } // namespace UE
@@ -68,6 +69,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
 	bool RemoveLodDataUniqueId(const FString& LodDataUniqueId);
 
+	/** Return The number of socket UIDs this static mesh has.*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	int32 GetSocketUidCount() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	void GetSocketUids(TArray<FString>& OutSocketUids) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool AddSocketUid(const FString& SocketUid);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool AddSocketUids(const TArray<FString>& InSocketUids);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool RemoveSocketUd(const FString& SocketUid);
+
 	/** Query weather the static mesh factory should replace the vertex color. Return false if the attribute was not set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
 	bool GetCustomVertexColorReplace(bool& AttributeValue) const;
@@ -104,6 +121,7 @@ private:
 	const UE::Interchange::FAttributeKey Macro_CustomVertexColorOverrideKey = UE::Interchange::FAttributeKey(TEXT("VertexColorOverride"));
 
 	UE::Interchange::TArrayAttributeHelper<FString> LodDependencies;
+	UE::Interchange::TArrayAttributeHelper<FString> SocketUids;
 protected:
 #if WITH_ENGINE
 	TSubclassOf<UStaticMesh> AssetClass = nullptr;

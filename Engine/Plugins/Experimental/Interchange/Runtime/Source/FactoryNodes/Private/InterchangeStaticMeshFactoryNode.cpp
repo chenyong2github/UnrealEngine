@@ -15,6 +15,12 @@ namespace UE
 			static FString LodDependencies_BaseKey = TEXT("Lod_Dependencies");
 			return LodDependencies_BaseKey;
 		}
+
+		const FString& FStaticMeshNodeStaticData::GetSocketUidsBaseKey()
+		{
+			static FString SocketUids_BaseKey = TEXT("SocketUids");
+			return SocketUids_BaseKey;
+		}
 	} // namespace Interchange
 } // namespace UE
 
@@ -25,6 +31,7 @@ UInterchangeStaticMeshFactoryNode::UInterchangeStaticMeshFactoryNode()
 	AssetClass = nullptr;
 #endif
 	LodDependencies.Initialize(Attributes, UE::Interchange::FStaticMeshNodeStaticData::GetLodDependenciesBaseKey());
+	SocketUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeStaticData::GetSocketUidsBaseKey());
 }
 
 void UInterchangeStaticMeshFactoryNode::InitializeStaticMeshNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
@@ -105,6 +112,39 @@ bool UInterchangeStaticMeshFactoryNode::AddLodDataUniqueId(const FString& LodDat
 bool UInterchangeStaticMeshFactoryNode::RemoveLodDataUniqueId(const FString& LodDataUniqueId)
 {
 	return LodDependencies.RemoveItem(LodDataUniqueId);
+}
+
+int32 UInterchangeStaticMeshFactoryNode::GetSocketUidCount() const
+{
+	return SocketUids.GetCount();
+}
+
+void UInterchangeStaticMeshFactoryNode::GetSocketUids(TArray<FString>& OutSocketUids) const
+{
+	SocketUids.GetItems(OutSocketUids);
+}
+
+bool UInterchangeStaticMeshFactoryNode::AddSocketUid(const FString& SocketUid)
+{
+	return SocketUids.AddItem(SocketUid);
+}
+
+bool UInterchangeStaticMeshFactoryNode::AddSocketUids(const TArray<FString>& InSocketUids)
+{
+	for (const FString& SocketUid : InSocketUids)
+	{
+		if (!SocketUids.AddItem(SocketUid))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool UInterchangeStaticMeshFactoryNode::RemoveSocketUd(const FString& SocketUid)
+{
+	return SocketUids.RemoveItem(SocketUid);
 }
 
 bool UInterchangeStaticMeshFactoryNode::GetCustomVertexColorReplace(bool& AttributeValue) const

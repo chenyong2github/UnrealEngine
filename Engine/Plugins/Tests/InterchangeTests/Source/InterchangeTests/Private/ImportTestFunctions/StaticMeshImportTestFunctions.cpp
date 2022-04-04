@@ -2,6 +2,7 @@
 
 #include "ImportTestFunctions/StaticMeshImportTestFunctions.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshSocket.h"
 #include "Engine/SkeletalMesh.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
@@ -449,6 +450,60 @@ FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckSimpleCollis
 		}
 	}
 
+
+	return Result;
+}
+
+
+FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckSocketCount(UStaticMesh* Mesh, int32 ExpectedSocketCount)
+{
+	FInterchangeTestFunctionResult Result;
+
+	int32 SocketCount = Mesh->Sockets.Num();
+	if (SocketCount != ExpectedSocketCount)
+	{
+		Result.AddError(FString::Printf(TEXT("Expected %d sockets, imported %d."), ExpectedSocketCount, SocketCount));
+	}
+
+	return Result;
+}
+
+
+FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckSocketName(UStaticMesh* Mesh, int32 SocketIndex, const FString& ExpectedSocketName)
+{
+	FInterchangeTestFunctionResult Result;
+
+	int32 SocketCount = Mesh->Sockets.Num();
+	if (SocketIndex >= SocketCount)
+	{
+		Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain %s sockets."), SocketIndex));
+	}
+
+	FString SocketName = Mesh->Sockets[SocketIndex]->SocketName.ToString();
+	if (SocketName != ExpectedSocketName)
+	{
+		Result.AddError(FString::Printf(TEXT("Expected socket name '%s', imported '%s'"), *ExpectedSocketName, *SocketName));
+	}
+
+	return Result;
+}
+
+
+FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckSocketLocation(UStaticMesh* Mesh, int32 SocketIndex, const FVector& ExpectedSocketLocation)
+{
+	FInterchangeTestFunctionResult Result;
+
+	int32 SocketCount = Mesh->Sockets.Num();
+	if (SocketIndex >= SocketCount)
+	{
+		Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain %s sockets."), SocketIndex));
+	}
+
+	FVector SocketLocation = Mesh->Sockets[SocketIndex]->RelativeLocation;
+	if (SocketLocation != ExpectedSocketLocation)
+	{
+		Result.AddError(FString::Printf(TEXT("Expected socket location %s, imported %s"), *ExpectedSocketLocation.ToString(), *SocketLocation.ToString()));
+	}
 
 	return Result;
 }

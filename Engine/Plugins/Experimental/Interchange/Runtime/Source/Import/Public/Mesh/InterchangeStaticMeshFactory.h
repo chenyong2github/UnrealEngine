@@ -13,6 +13,7 @@
 
 class UBodySetup;
 class UStaticMesh;
+class UInterchangeStaticMeshFactoryNode;
 class UInterchangeStaticMeshLodDataNode;
 struct FMeshDescription;
 struct FKAggregateGeom;
@@ -57,4 +58,5 @@ private:
 	bool ImportSphereCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode);
 	bool ImportConvexCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshLodDataNode* LodDataNode);
 	bool GenerateKDopCollision(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh);
+	bool ImportSockets(const FCreateAssetParams& Arguments, UStaticMesh* StaticMesh, const UInterchangeStaticMeshFactoryNode* FactoryNode);
 };
