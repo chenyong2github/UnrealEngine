@@ -37,18 +37,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "GameplayBehaviors",
-			"Enabled": true
-		},
-		{
-			"Name": "GameplayAbilities",
-			"Enabled": true
-		},
-		{
-			"Name": "SmartObjects",
-			"Enabled": true
-		},
-		{
 			"Name": "PropertyAccessEditor",
 			"Enabled": true
 		}

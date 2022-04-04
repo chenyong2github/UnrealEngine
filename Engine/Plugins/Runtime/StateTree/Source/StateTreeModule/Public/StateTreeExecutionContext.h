@@ -238,7 +238,7 @@ public:
 protected:
 
 	/** @return Prefix that will be used by STATETREE_LOG and STATETREE_CLOG, empty by default. */
-	virtual FString GetInstanceDescription() const { return TEXT(""); }
+	virtual FString GetInstanceDescription() const;
 
 	/** Callback when gated transition is triggered. Contexts that are event based can use this to trigger a future event. */
 	virtual void BeginGatedTransition(const FStateTreeExecutionState& Exec) {};

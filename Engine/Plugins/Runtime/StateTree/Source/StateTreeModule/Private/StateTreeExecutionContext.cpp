@@ -13,8 +13,8 @@
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-#define STATETREE_LOG(Verbosity, Format, ...) UE_VLOG_UELOG(GetOwner(), LogStateTree, Verbosity, TEXT("%s: ") Format, *GetInstanceDescription(), ##__VA_ARGS__)
-#define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG_UELOG((Condition), GetOwner(), LogStateTree, Verbosity, TEXT("%s: ") Format, *GetInstanceDescription(), ##__VA_ARGS__)
+#define STATETREE_LOG(Verbosity, Format, ...) UE_VLOG_UELOG(GetOwner(), LogStateTree, Verbosity, TEXT("%s") Format, *GetInstanceDescription(), ##__VA_ARGS__)
+#define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG_UELOG((Condition), GetOwner(), LogStateTree, Verbosity, TEXT("%s") Format, *GetInstanceDescription(), ##__VA_ARGS__)
 
 namespace UE::StateTree
 {
@@ -933,6 +933,11 @@ EStateTreeRunStatus FStateTreeExecutionContext::GetLastTickStatus(const FStateTr
 {
 	const FStateTreeExecutionState& Exec = GetExecState(SelectInstanceData(ExternalInstanceData));
 	return Exec.LastTickStatus;
+}
+
+FString FStateTreeExecutionContext::GetInstanceDescription() const
+{
+	return Owner != nullptr? FString::Printf(TEXT("%s: "), *Owner->GetName()) : TEXT("");
 }
 
 #if WITH_GAMEPLAY_DEBUGGER

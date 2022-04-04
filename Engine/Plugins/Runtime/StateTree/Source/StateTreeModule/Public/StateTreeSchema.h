@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "StateTreeSchema.generated.h"
 
 /**
@@ -28,10 +27,10 @@ public:
 	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const { return false; }
 
 	/** @return True if specified class is supported */
-	virtual bool IsClassAllowed(const UClass* InScriptStruct) const { return false; };
+	virtual bool IsClassAllowed(const UClass* InScriptStruct) const { return false; }
 
 	/** @return True if specified struct/class is supported as external data */
-	virtual bool IsExternalItemAllowed(const UStruct& InStruct) const { return false; };
+	virtual bool IsExternalItemAllowed(const UStruct& InStruct) const { return false; }
 
 	/**
 	 * Helper function to check if a class is any of the Blueprint extendable item classes (Eval, Task, Condition).

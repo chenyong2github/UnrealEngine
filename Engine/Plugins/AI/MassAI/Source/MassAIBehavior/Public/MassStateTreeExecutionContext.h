@@ -31,7 +31,7 @@ public:
 protected:
 
 	/** Prefix that will be used by STATETREE_LOG and STATETREE_CLOG, using Entity description. */
-	virtual FString GetInstanceDescription() const override { return FString::Printf(TEXT("Entity [%s]"), *Entity.DebugGetDescription()); }
+	virtual FString GetInstanceDescription() const override { return FString::Printf(TEXT("Entity [%s]: "), *Entity.DebugGetDescription()); }
 
 	virtual void BeginGatedTransition(const FStateTreeExecutionState& Exec) override;
 

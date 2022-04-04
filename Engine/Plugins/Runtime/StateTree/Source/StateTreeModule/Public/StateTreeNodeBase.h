@@ -17,7 +17,7 @@ struct STATETREEMODULE_API FStateTreeNodeBase
 
 	virtual ~FStateTreeNodeBase() {}
 
-	/** @return Struct that represents the runtime data of the evaluator. */
+	/** @return Struct that represents the runtime data of the node. */
 	virtual const UStruct* GetInstanceDataType() const { return nullptr; };
 
 	/**
