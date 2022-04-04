@@ -800,6 +800,8 @@ void FSceneViewState::FEyeAdaptationManager::EnqueueExposureTextureReadback(FRDG
 	
 	if (ReadbackBuffersNumPending < MAX_READBACK_BUFFERS)
 	{
+		// limit to single bit here for readback to work
+		RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::FromIndex(GraphBuilder.RHICmdList.GetGPUMask().GetFirstIndex()));
 		FRDGTextureRef CurrentTexture = GraphBuilder.RegisterExternalTexture(PooledRenderTarget[CurrentBuffer], ERDGTextureFlags::MultiFrame);
 
 		FRHIGPUTextureReadback* ExposureReadbackTexture = ExposureReadbackTextures[ReadbackBuffersWriteIndex];

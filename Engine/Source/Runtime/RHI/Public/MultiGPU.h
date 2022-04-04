@@ -70,6 +70,15 @@ public:
 #endif
 	}
 
+	FORCEINLINE uint32 GetNumActive() const
+	{
+#if WITH_MGPU
+		return FPlatformMath::CountBits(GPUMask);
+#else
+		return 1;
+#endif
+	}
+
 	FORCEINLINE uint32 GetLastIndex() const
 	{
 #if WITH_MGPU

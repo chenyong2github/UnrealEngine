@@ -57,7 +57,6 @@ RWTexture2D<float4> RadianceTexture;
 RWTexture2D<float4> AlbedoTexture;
 RWTexture2D<float4> NormalTexture;
 RaytracingAccelerationStructure TLAS;
-int3 TileOffset;
 uint SceneVisibleLightCount;
 
 struct FPathState
@@ -75,17 +74,17 @@ struct FPathState
 	float3 SigmaT; // Extinction    //  6 bytes // half precision 
 									// 88 bytes total (see FPathTracingPackedPathState)
 
-	void WritePixel()
+	void WritePixel(uint2 TextureIndex)
 	{
 		// Avoid reading the old pixel on the first sample on the off-chance there is a NaN/Inf pixel ...
-		float4 OldPixel  = Iteration > 0 ? RadianceTexture[PixelIndex] : 0;
-		float4 OldAlbedo = Iteration > 0 ? AlbedoTexture[PixelIndex]   : 0;
-		float4 OldNormal = Iteration > 0 ? NormalTexture[PixelIndex]   : 0;
+		float4 OldPixel  = Iteration > 0 ? RadianceTexture[TextureIndex] : 0;
+		float4 OldAlbedo = Iteration > 0 ? AlbedoTexture[TextureIndex]   : 0;
+		float4 OldNormal = Iteration > 0 ? NormalTexture[TextureIndex]   : 0;
 
 		const float4 PixelValue = float4(Radiance, saturate(BackgroundVisibility));
-		RadianceTexture[PixelIndex] = lerp(OldPixel, PixelValue, BlendFactor);
-		AlbedoTexture[PixelIndex] = lerp(OldAlbedo, float4(Albedo, 0), BlendFactor);
-		NormalTexture[PixelIndex] = lerp(OldNormal, float4(Normal, 0), BlendFactor);
+		RadianceTexture[TextureIndex] = lerp(OldPixel, PixelValue, BlendFactor);
+		AlbedoTexture[TextureIndex] = lerp(OldAlbedo, float4(Albedo, 0), BlendFactor);
+		NormalTexture[TextureIndex] = lerp(OldNormal, float4(Normal, 0), BlendFactor);
 	}
 };
 
@@ -674,82 +673,23 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 	return false;
 }
 
-uint2 Shuffle(uint2 Value, uint2 Seed)
-{
-	const uint M = PATHTRACER_COHERENT_TILE_SIZE;
-#if 1
-	// Scramble the MxM tile of pixels with an error-diffusion pattern
-	// visualizing the seeds shows the distribution of seeds is slightly better
-	const uint X = Value.x;
-	const uint Y = Value.y;
-	uint TileID = 0, HilbertState = 0;
-	for (int i = PATHTRACER_COHERENT_TILE_SHIFT - 1; i >= 0; i--) {
-		uint xi = (X >> i) & 1;
-		uint yi = (Y >> i) & 1;
-		uint Row = 8 * HilbertState + 4 * xi + 2 * yi;
-		TileID = TileID * 4 + ((0x361E9CB4u >> Row) & 3);
-		HilbertState = (0x8FE65831u >> Row) & 3;
-	}
-	uint SeedTile = StrongIntegerHash(Seed.x + StrongIntegerHash(Seed.y));
-	uint SobolIndex = FastOwenScrambling(reversebits(TileID), SeedTile);
-	uint SobolX = SobolIndex;
-	uint SobolY = 0;
-	for (uint v = 1; SobolIndex; SobolIndex >>= 1, v ^= v << 1)
-	{
-		SobolY ^= (SobolIndex & 1) * v;
-	}
-	return reversebits(uint2(SobolX, SobolY)) >> (32 - PATHTRACER_COHERENT_TILE_SHIFT);
-#elif 1
-	// randomly shuffle coordinate (x,y) within an RxR tile of pixels according to the given seed
-	// this has a slight directional preference when visualizing seeds
-	uint SeedTile = StrongIntegerHash(Seed.x + StrongIntegerHash(Seed.y));
-	uint Index = Value.x + Value.y * M;
-	uint ShuffledIndex = FastOwenScrambling(reversebits(Index), SeedTile) % (M * M);
-	return uint2(ShuffledIndex % M, ShuffledIndex / M);
-#else
-	// no shuffling (just to show repeating artifacts)
-	return Value;
-#endif
-}
-
-uint2 Reorder(uint2 I, uint2 N)
-{
-	const uint M = PATHTRACER_COHERENT_TILE_SIZE;
-	uint2 GroupId = I * M / N;				// [0, M)  - which group we landed in?
-	uint2 GroupCoord = ((I * M) % N) / M;	// [0, N/M) - which pixel within the group?
-
-	// reconstruct pixel coordinate, shuffling the assignment of pixels within a group to hide repeating structure
-	return GroupCoord * M + Shuffle(GroupId, GroupCoord);
-}
-
-FPathState CreatePathState(uint2 DispatchIdx, uint2 DispatchDim)
+FPathState CreatePathState(int2 PixelIndex)
 {
 	FPathState Output = (FPathState)0;
 
-	Output.PixelIndex = DispatchIdx;
-	if (SamplerType == PATHTRACER_SAMPLER_COHERENT)
-	{
-		// shuffle the pixels around so the ones that share a seed land in the same warp
-		Output.PixelIndex = Reorder(Output.PixelIndex, DispatchDim);
-	}
-	Output.PixelIndex = Output.PixelIndex + TileOffset.xy;
+	Output.PixelIndex = PixelIndex;
 	uint2 LaunchIndex = Output.PixelIndex + View.ViewRectMin.xy;
 
 	// Initialize random sequence 
-
-	uint2 RandPixel = SamplerType == PATHTRACER_SAMPLER_COHERENT
-		? (DispatchIdx / PATHTRACER_COHERENT_TILE_SIZE)	// unique seed within small squares of the shuffled sub-images
-		//? (DispatchIdx * PATHTRACER_COHERENT_TILE_SIZE) / DispatchDim // unique seed per sub-image
-		: LaunchIndex; // unique seed per pixel
 	if (SamplerType == PATHTRACER_SAMPLER_ERROR_DIFFUSION)
 	{
 		// z-sampler init
-		RandomSequence_Initialize(Output.RandSequence, RandPixel, Iteration, TemporalSeed - Iteration, MaxSamples);
+		RandomSequence_Initialize(Output.RandSequence, LaunchIndex, Iteration, TemporalSeed - Iteration, MaxSamples);
 	}
 	else
 	{
 		// random sobol init
-		RandomSequence_Initialize(Output.RandSequence, RandPixel.x + RandPixel.y * 65536, TemporalSeed);
+		RandomSequence_Initialize(Output.RandSequence, LaunchIndex.x + LaunchIndex.y * 65536, TemporalSeed);
 	}
 
 
@@ -763,7 +703,7 @@ FPathState CreatePathState(uint2 DispatchIdx, uint2 DispatchDim)
 		float R = min(Disk.z, 0.99999994); // avoid log(0) when R=1
 		AAJitter = 0.5 + Sigma * Disk.xy * sqrt(-2.0 * log(1.0 - R * R));
 
-		float2 ViewportUV = (LaunchIndex.xy + AAJitter.xy) * View.BufferSizeAndInvSize.zw;
+		float2 ViewportUV = (LaunchIndex + AAJitter) * View.BufferSizeAndInvSize.zw;
 		Output.Ray = CreatePrimaryRay(ViewportUV);
 	}
 

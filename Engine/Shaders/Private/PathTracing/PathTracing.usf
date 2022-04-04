@@ -10,6 +10,27 @@ PathTracing.usf: Reference path tracing
 
 #include "PathTracingCore.ush"
 
+// describe how we split up the image between tiles and amongst GPUs
+int2 TilePixelOffset;
+int2 TileTextureOffset;
+int ScanlineStride;
+int ScanlineWidth;
+
+
+// Which pixel on screen are we computing?
+// We want to spread out the scanlines evenly across the screen so that each GPU works on a similarly sized task
+int2 ComputePixelIndex(uint2 DispatchIdx)
+{
+	return DispatchIdx * int2(1, ScanlineStride) + TilePixelOffset;
+}
+
+// Where should we store the accumulated pixels of this dispatch?
+// We want all the scanlines computed by a given GPU to be contiguous in memory so we can copy them easily
+int2 ComputeTextureIndex(uint2 DispatchIdx)
+{
+	return DispatchIdx + TileTextureOffset;
+}
+
 #if PATH_TRACER_USE_COMPACTION == 1
 
 int Bounce;
@@ -84,7 +105,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	FPathState PathState;
 	if (Bounce == 0)
 	{
-		PathState = CreatePathState(DispatchIdx, DispatchDim);
+		PathState = CreatePathState(ComputePixelIndex(DispatchIdx));
 	}
 	else
 	{
@@ -109,7 +130,8 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	{
 		// nothing left to do
 		// Accumulate radiance and update pixel variance
-		PathState.WritePixel();
+		PathState.WritePixel(ComputeTextureIndex(uint2(LinearPixelIndex % DispatchDim.x,
+			                                           LinearPixelIndex / DispatchDim.x)));
 	}
 }
 
@@ -120,7 +142,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	const uint2 DispatchIdx = DispatchRaysIndex().xy;
 	const uint2 DispatchDim = DispatchRaysDimensions().xy;
 
-	FPathState PathState = CreatePathState(DispatchIdx, DispatchDim);
+	FPathState PathState = CreatePathState(ComputePixelIndex(DispatchIdx));
 
 	for (int Bounce = 0; Bounce <= MaxBounces; Bounce++)
 	{
@@ -132,7 +154,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	}
 
 	// Accumulate radiance and update pixel variance
-	PathState.WritePixel();
+	PathState.WritePixel(ComputeTextureIndex(DispatchIdx));
 }
 
 #endif
