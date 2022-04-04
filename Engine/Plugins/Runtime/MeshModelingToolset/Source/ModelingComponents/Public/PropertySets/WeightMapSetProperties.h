@@ -41,5 +41,8 @@ public:
 
 	// return true if any option other than "None" is selected
 	bool HasSelectedWeightMap() const;
+
+	// set selected weightmap from its position in the WeightMapsList
+	void SetSelectedFromWeightMapIndex(int32 Index);
 };
 

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MeshSculptUtil.h"
+#include "Sculpting/MeshSculptUtil.h"
 #include "Async/ParallelFor.h"
 #include "Async/Async.h"
 

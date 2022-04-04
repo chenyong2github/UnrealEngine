@@ -36,3 +36,15 @@ TArray<FString> UWeightMapSetProperties::GetWeightMapsFunc()
 {
 	return WeightMapsList;
 }
+
+void UWeightMapSetProperties::SetSelectedFromWeightMapIndex(int32 Index)
+{
+	if (Index < 0)
+	{
+		WeightMap = FName(WeightMapsList[0]);
+	}
+	else
+	{
+		WeightMap = FName(WeightMapsList[Index+1]);
+	}
+}
