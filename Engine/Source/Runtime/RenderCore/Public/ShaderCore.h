@@ -1052,9 +1052,9 @@ extern void GenerateReferencedUniformBuffers(
 
 struct FUniformBufferNameSortOrder
 {
-	FORCEINLINE bool operator()(const TCHAR* Name1, const TCHAR* Name2)
+	FORCEINLINE bool operator()(const TCHAR* Name1, const TCHAR* Name2) const
 	{
-		return FCString::Strcmp(Name1, Name2) <= 0;
+		return FCString::Strcmp(Name1, Name2) < 0;
 	}
 };
 

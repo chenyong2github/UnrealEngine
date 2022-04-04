@@ -11,6 +11,7 @@
 #include "Misc/PathViews.h"
 #include "Misc/ScopeLock.h"
 #include "Stats/StatsMisc.h"
+#include "Misc/ScopeRWLock.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/StringBuilder.h"
 #include "Shader.h"
@@ -1488,33 +1489,82 @@ void GenerateReferencedUniformBuffers(
 	}
 }
 
+
+/** Efficient lookup to find FShaderParametersMetadata members by name pointer */
+class FShaderParameterMemberLookup 
+{
+public:
+	FShaderParameterMemberLookup(TLinkedList<FShaderParametersMetadata*>& ShaderParameters)
+	{
+		for (FShaderParametersMetadata* Struct : ShaderParameters)
+		{
+			Map.Add(Struct->GetShaderVariableName(), Struct->GetMembers());
+		}
+	}
+
+	const TConstArrayView<FShaderParametersMetadata::FMember>* FindMembersByPointer(const TCHAR* ShaderVariableName) const
+	{
+		return Map.Find(ShaderVariableName);
+	}
+
+private:
+	TMap<const void*, TConstArrayView<FShaderParametersMetadata::FMember>> Map;
+};
+
+/** Cache providing a FShaderParameterMemberLookup for the current FShaderParametersMetadata::GetStructList */
+class FFShaderParameterPointerLookupCache
+{
+public:
+	TSharedPtr<const FShaderParameterMemberLookup> Get()
+	{
+		TLinkedList<FShaderParametersMetadata*>* CurrentHead = FShaderParametersMetadata::GetStructList();
+		check(CurrentHead);
+
+		{
+			FReadScopeLock ReadScope(Lock);
+			if (CurrentHead == CachedHead)
+			{
+				return CachedLookup;
+			}
+		}
+
+		TSharedPtr<FShaderParameterMemberLookup> NewLookup = MakeShared<FShaderParameterMemberLookup>(*CurrentHead);
+
+		FWriteScopeLock WriteScope(Lock);
+		CachedHead = CurrentHead;
+		CachedLookup = NewLookup;
+
+		return NewLookup;
+	}
+
+private:
+	FRWLock Lock;
+	TLinkedList<FShaderParametersMetadata*>* CachedHead = nullptr;
+	TSharedPtr<const FShaderParameterMemberLookup> CachedLookup;
+};
+
+static FFShaderParameterPointerLookupCache GShaderParameterMemberLookupCache;
+
 void SerializeUniformBufferInfo(FShaderSaveArchive& Ar, const TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder>& UniformBufferEntries)
 {
-	for (TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder>::TConstIterator It(UniformBufferEntries); It; ++It)
+	TSharedPtr<const FShaderParameterMemberLookup> ShaderParameterMembers = GShaderParameterMemberLookupCache.Get();
+
+	for (const TPair<const TCHAR*, FCachedUniformBufferDeclaration>& Entry : UniformBufferEntries)
 	{
-		for (TLinkedList<FShaderParametersMetadata*>::TIterator StructIt(FShaderParametersMetadata::GetStructList()); StructIt; StructIt.Next())
+		if (const TConstArrayView<FShaderParametersMetadata::FMember>* Members = ShaderParameterMembers->FindMembersByPointer(Entry.Key))
 		{
-			if (It.Key() == StructIt->GetShaderVariableName())
+			// Serialize information about the struct layout so we can detect when it changes
+			int32 NumMembers = Members->Num();
+			// Serializing with NULL so that FShaderSaveArchive will record the length without causing an actual data serialization
+			Ar.Serialize(nullptr, NumMembers);
+
+			for (const FShaderParametersMetadata::FMember& Member : *Members)
 			{
-				// Serialize information about the struct layout so we can detect when it changes
-				const FShaderParametersMetadata& Struct = **StructIt;
-				const TArray<FShaderParametersMetadata::FMember>& Members = Struct.GetMembers();
-
-				int32 NumMembers = Members.Num();
-				// Serializing with NULL so that FShaderSaveArchive will record the length without causing an actual data serialization
-				Ar.Serialize(NULL, NumMembers);
-
-				for (int32 MemberIndex = 0; MemberIndex < Members.Num(); MemberIndex++)
-				{
-					const FShaderParametersMetadata::FMember& Member = Members[MemberIndex];
-
-					// Note: Only comparing number of floats used by each member and type, so this can be tricked (eg. swapping two equal size and type members)
-					int32 MemberSize = Member.GetNumColumns() * Member.GetNumRows();
-					Ar.Serialize(NULL, MemberSize);
-					int32 MemberType = (int32)Member.GetBaseType();
-					Ar.Serialize(NULL, MemberType);
-				}
-				break;
+				// Note: Only comparing number of floats used by each member and type, so this can be tricked (eg. swapping two equal size and type members)
+				int32 MemberSize = Member.GetNumColumns() * Member.GetNumRows();
+				Ar.Serialize(nullptr, MemberSize);
+				int32 MemberType = (int32)Member.GetBaseType();
+				Ar.Serialize(nullptr, MemberType);
 			}
 		}
 	}

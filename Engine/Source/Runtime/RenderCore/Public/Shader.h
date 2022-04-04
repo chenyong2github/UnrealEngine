@@ -427,7 +427,7 @@ public:
 		NumTokens(0)
 	{}
 
-	void AddValue(uint32 InValue)
+	FORCEINLINE void AddValue(uint32 InValue)
 	{
 		const int32 UIntIndex = NumTokens / 8; 
 
@@ -457,11 +457,11 @@ public:
 		NumTokens++;
 	}
 
-	uint8 GetToken(int32 Index) const
+	FORCEINLINE uint8 GetToken(int32 Index) const
 	{
-		check(Index < NumTokens);
+		checkSlow(Index < NumTokens);
 		const int32 UIntIndex = Index / 8; 
-		check(UIntIndex < TokenBits.Num());
+		checkSlow(UIntIndex < TokenBits.Num());
 		const uint32 Shift = (Index % 8) * 4;
 		const uint8 Token = (TokenBits[UIntIndex] >> Shift) & 0xF;
 		return Token;
@@ -2202,18 +2202,18 @@ public:
 		return Value;
 	}
 
-	void StepForward()
+	FORCEINLINE void StepForward()
 	{
 		const int8 Token = History.GetToken(NextTokenIndex);
 
 		if (Token == 0)
 		{
-			check(NextFullLengthIndex - 1 < History.FullLengths.Num());
+			checkSlow(NextFullLengthIndex - 1 < History.FullLengths.Num());
 			NextFullLengthIndex++;
 		}
 
 		// Not supporting seeking past the front most serialization in the history
-		check(NextTokenIndex - 1 < History.NumTokens);
+		checkSlow(NextTokenIndex - 1 < History.NumTokens);
 		NextTokenIndex++;
 	}
 
@@ -2234,7 +2234,7 @@ public:
 };
 
 /** Archive used when saving shaders, which generates data used to detect serialization mismatches on load. */
-class FShaderSaveArchive : public FArchiveProxy
+class FShaderSaveArchive final : public FArchiveProxy
 {
 public:
 

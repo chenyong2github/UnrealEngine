@@ -55,9 +55,17 @@ struct ENGINE_API FMaterialParameterInfo
 
 	explicit FMaterialParameterInfo(const struct FMemoryImageMaterialParameterInfo& Rhs);
 
+	void AppendString(FString& Out) const
+	{
+		Name.AppendString(Out);
+		Out.AppendInt(Association);
+		Out.AppendInt(Index);
+	}
 	FString ToString() const
 	{
-		return *Name.ToString() + FString::FromInt(Association) + FString::FromInt(Index);
+		FString Out;
+		AppendString(Out);
+		return Out;
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FMaterialParameterInfo& Ref)

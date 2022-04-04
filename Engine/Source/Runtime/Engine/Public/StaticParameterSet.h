@@ -77,7 +77,9 @@ struct FStaticParameterBase
 
 	void AppendKeyString(FString& KeyString) const
 	{
-		KeyString += ParameterInfo.ToString() + FString::FromInt(bOverride) + ExpressionGUID.ToString();
+		ParameterInfo.AppendString(KeyString);
+		KeyString.AppendInt(bOverride);
+		ExpressionGUID.AppendString(KeyString);
 	}
 };
 
@@ -133,7 +135,7 @@ struct FStaticSwitchParameter : public FStaticParameterBase
 	void AppendKeyString(FString& KeyString) const
 	{
 		FStaticParameterBase::AppendKeyString(KeyString);
-		KeyString += FString::FromInt(Value);
+		KeyString.AppendInt(Value);
 	}
 
 	void GetValue(FMaterialParameterMetadata& OutResult) const
