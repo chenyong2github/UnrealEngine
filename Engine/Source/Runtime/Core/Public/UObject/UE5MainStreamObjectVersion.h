@@ -206,6 +206,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Fix-up for FRichCurveKey::TangentWeightMode, which were found to contain invalid value w.r.t the enum-type
 		RichCurveKeyInvalidTangentMode,
 
+		// Enforcing new automatic tangent behaviour, enforcing auto-tangents for Key0 and KeyN to be flat, for Animation Assets.
+		ForceUpdateAnimationAssetCurveTangents,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

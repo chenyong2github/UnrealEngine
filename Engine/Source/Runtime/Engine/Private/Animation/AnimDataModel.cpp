@@ -8,11 +8,26 @@
 #include "Algo/Transform.h"
 #include "Algo/Accumulate.h"
 #include "Animation/SmartName.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 
 void UAnimDataModel::PostLoad()
 {
 	UObject::PostLoad();
+
+	if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::ForceUpdateAnimationAssetCurveTangents)
+	{
+		// Forcefully AutoSetTangents to fix-up any imported sequences pre the fix for flattening first/last key leave/arrive tangents
+		Notify(EAnimDataModelNotifyType::BracketOpened);
+		for (FFloatCurve& FloatCurve : CurveData.FloatCurves)
+		{
+			FloatCurve.FloatCurve.AutoSetTangents();
+			FCurvePayload Payload;
+			Payload.Identifier = FAnimationCurveIdentifier(FloatCurve.Name.UID, ERawCurveTrackTypes::RCT_Float);
+			Notify(EAnimDataModelNotifyType::CurveChanged, Payload);
+		}
+		Notify(EAnimDataModelNotifyType::BracketClosed);
+	}
 }
 
 void UAnimDataModel::PostDuplicate(bool bDuplicateForPIE)
