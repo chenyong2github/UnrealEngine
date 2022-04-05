@@ -36,14 +36,8 @@ public:
 
 	URigVMNode* GetFirstInnerNode() const;
 	URigVMNode* GetLastInnerNode() const;
-
-	UFUNCTION(BlueprintPure, Category = Aggregate)
 	URigVMPin* GetFirstAggregatePin() const;
-
-	UFUNCTION(BlueprintPure, Category = Aggregate)
 	URigVMPin* GetSecondAggregatePin() const;
-
-	UFUNCTION(BlueprintPure, Category = Aggregate)
 	URigVMPin* GetOppositeAggregatePin() const;
 
 private:

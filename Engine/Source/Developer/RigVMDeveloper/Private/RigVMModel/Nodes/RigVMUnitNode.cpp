@@ -4,6 +4,7 @@
 
 #include "Animation/Rig.h"
 #include "RigVMCore/RigVMStruct.h"
+#include "RigVMUserWorkflowRegistry.h"
 
 FString URigVMUnitNode::GetNodeTitle() const
 {
@@ -107,6 +108,25 @@ FString URigVMUnitNode::GetDeprecatedMetadata() const
 		}
 	}
 	return FString();
+}
+
+TArray<FRigVMUserWorkflow> URigVMUnitNode::GetSupportedWorkflows(ERigVMUserWorkflowType InType) const
+{
+	TArray<FRigVMUserWorkflow> Workflows = Super::GetSupportedWorkflows(InType);
+
+	if(UScriptStruct* Struct = GetScriptStruct())
+	{
+		check(Struct->IsChildOf(FRigVMStruct::StaticStruct()));
+
+		const TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance();
+		const FRigVMStruct* StructMemory = (const FRigVMStruct*)StructOnScope->GetStructMemory();
+		TArray<FRigVMUserWorkflow> StructWorkflows = StructMemory->GetWorkflows(InType);
+		StructWorkflows.Append(URigVMUserWorkflowRegistry::Get()->GetWorkflows(InType, Struct, this));
+		Swap(Workflows, StructWorkflows);
+		Workflows.Append(StructWorkflows);
+	}
+
+	return Workflows;
 }
 
 bool URigVMUnitNode::IsAggregate() const

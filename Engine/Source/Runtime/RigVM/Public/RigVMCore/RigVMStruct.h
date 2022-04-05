@@ -7,6 +7,7 @@
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMExternalVariable.h"
 #include "RigVMCore/RigVMTraits.h"
+#include "RigVMCore/RigVMUserWorkflow.h"
 #include "RigVMStruct.generated.h"
 
 // delegates used for variable introspection / creation
@@ -221,6 +222,9 @@ public:
 	// node creation
 	FORCEINLINE virtual void OnUnitNodeCreated(FRigVMUnitNodeCreatedContext& InContext) const {}
 
+	// user workflow
+	TArray<FRigVMUserWorkflow> GetWorkflows(ERigVMUserWorkflowType InType = ERigVMUserWorkflowType::All) const; 
+
 #if WITH_EDITOR
 	static bool ValidateStruct(UScriptStruct* InStruct, FString* OutErrorMessage);
 	static bool CheckPinType(UScriptStruct* InStruct, const FName& PinName, const FString& ExpectedType, FString* OutErrorMessage = nullptr);
@@ -232,7 +236,27 @@ public:
 #endif
 	static FString ExportToFullyQualifiedText(const FProperty* InMemberProperty, const uint8* InMemberMemoryPtr, bool bUseQuotes = true);
 	static FString ExportToFullyQualifiedText(const UScriptStruct* InStruct, const uint8* InStructMemoryPtr);
+
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsBaseStructure<T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE static FString ExportToFullyQualifiedText(const T& InStructValue)
+	{
+		return ExportToFullyQualifiedText(TBaseStructure<T>::Get(), (const uint8*)&InStructValue);
+	}
+	
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE static FString ExportToFullyQualifiedText(const T& InStructValue)
+	{
+		return ExportToFullyQualifiedText(T::StaticStruct(), (const uint8*)&InStructValue);
+	}
+
 	FString ExportToFullyQualifiedText(const UScriptStruct* InScriptStruct, const FName& InPropertyName, const uint8* InStructMemoryPointer = nullptr) const;
+	
 	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const { return FName(); }
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const { return FRigVMStructUpgradeInfo(); }
 
@@ -276,6 +300,7 @@ protected:
 	static float GetRatioFromIndex(int32 InIndex, int32 InCount);
 	TMap<FName, FString> GetDefaultValues(UScriptStruct* InScriptStruct) const;
 	bool ApplyUpgradeInfo(const FRigVMStructUpgradeInfo& InUpgradeInfo);
+	FORCEINLINE virtual TArray<FRigVMUserWorkflow> GetSupportedWorkflows() const { return TArray<FRigVMUserWorkflow>(); } 
 
 	friend struct FRigVMStructUpgradeInfo;
 	friend class FRigVMGraphStructUpgradeInfoTest;

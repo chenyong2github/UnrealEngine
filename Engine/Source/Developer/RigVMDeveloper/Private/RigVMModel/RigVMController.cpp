@@ -7163,6 +7163,16 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 		}
 	}
 
+	if(bSetupUndoRedo)
+	{
+		TArray<FRigVMUserWorkflow> WorkflowsOnPinChange = InPin->GetNode()->GetSupportedWorkflows(ERigVMUserWorkflowType::OnPinDefaultChanged);
+		for(const FRigVMUserWorkflow& Workflow : WorkflowsOnPinChange)
+		{
+			const URigVMUserWorkflowOptions* Options = MakeOptionsForWorkflow(InPin, Workflow);
+			PerformUserWorkflow(Workflow, Options, bSetupUndoRedo);
+		}
+	}
+
 	if (bSetupUndoRedo)
 	{
 		ActionStack->EndAction(Action, bMergeUndoAction);
@@ -10903,6 +10913,124 @@ bool URigVMController::SetLocalVariableDefaultValue(const FName& InVariableName,
 	}
 	
 	return true;
+}
+
+URigVMUserWorkflowOptions* URigVMController::MakeOptionsForWorkflow(UObject* InSubject, const FRigVMUserWorkflow& InWorkflow)
+{
+	URigVMUserWorkflowOptions* Options = nullptr;
+
+	UClass* Class = InWorkflow.GetOptionsClass();
+	if(Class == nullptr)
+	{
+		return Options;
+	}
+
+	if(!Class->IsChildOf(URigVMUserWorkflowOptions::StaticClass()))
+	{
+		return Options;
+	}
+	
+	Options = NewObject<URigVMUserWorkflowOptions>(GetTransientPackage(), Class, NAME_None, RF_Transient);
+	Options->Subject = InSubject;
+	Options->Workflow = InWorkflow;
+
+	TWeakObjectPtr<URigVMController> WeakThis = this;
+	Options->ReportDelegate = FRigVMReportDelegate::CreateLambda([WeakThis](
+		EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage)
+		{
+			if(URigVMController* StrongThis = WeakThis.Get())
+			{
+				if(InSeverity == EMessageSeverity::Error ||
+					InSeverity == EMessageSeverity::CriticalError)
+				{
+					StrongThis->ReportAndNotifyError(InMessage);
+				}
+				else if(InSeverity == EMessageSeverity::Warning ||
+					InSeverity == EMessageSeverity::PerformanceWarning)
+				{
+					StrongThis->ReportAndNotifyWarning(InMessage);
+				}
+				else 
+				{
+					StrongThis->ReportInfo(InMessage);
+				}
+			}
+		}
+	);
+
+	if(ConfigureWorkflowOptionsDelegate.IsBound())
+	{
+		ConfigureWorkflowOptionsDelegate.Execute(Options);
+	}
+	
+	return Options;
+}
+
+bool URigVMController::PerformUserWorkflowAction(const FRigVMUserWorkflow& InWorkflow, const FRigVMUserWorkflowAction& InAction, bool bSetupUndoRedo)
+{
+	if(!InAction.IsValid())
+	{
+		return false;
+	}
+
+	static bool bIsPerformingUserWorkflowAction = false;
+	if(bIsPerformingUserWorkflowAction)
+	{
+		return false;
+	}
+	TGuardValue<bool> ReentryGuard(bIsPerformingUserWorkflowAction, true);
+	
+	switch(InAction.GetType())
+	{
+		case ERigVMUserWorkflowActionType::SetPinDefaultValue:
+		{
+			if(URigVMPin* Pin = InAction.GetSubject<URigVMPin>())
+			{
+				return SetPinDefaultValue(Pin->GetPinPath(), InAction.GetData(), true, bSetupUndoRedo, false, false);
+			}
+			break;
+		}
+		case ERigVMUserWorkflowActionType::Invalid:
+		default:
+		{
+			break;
+		}
+	}
+	return false;
+}
+
+bool URigVMController::PerformUserWorkflowActions(const FRigVMUserWorkflow& InWorkflow, const TArray<FRigVMUserWorkflowAction>& InActions, bool bSetupUndoRedo)
+{
+	if(InActions.IsEmpty())
+	{
+		return false;
+	}
+	
+	for(const FRigVMUserWorkflowAction& Action : InActions)
+	{
+		if(!Action.IsValid())
+		{
+			return false;
+		}
+	}
+
+	FRigVMBaseAction Bracket;
+	Bracket.Title = InWorkflow.GetTitle();
+	ActionStack->BeginAction(Bracket);
+
+	for(const FRigVMUserWorkflowAction& Action : InActions)
+	{
+		PerformUserWorkflowAction(InWorkflow, Action, bSetupUndoRedo);
+	}
+
+	ActionStack->EndAction(Bracket);
+	return true;
+}
+
+bool URigVMController::PerformUserWorkflow(const FRigVMUserWorkflow& InWorkflow,
+	const URigVMUserWorkflowOptions* InOptions, bool bSetupUndoRedo)
+{
+	return PerformUserWorkflowActions(InWorkflow, InWorkflow.GetActions(InOptions), bSetupUndoRedo);
 }
 
 TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> URigVMController::GetAffectedReferences(ERigVMControllerBulkEditType InEditType, bool bForceLoad, bool bNotify)

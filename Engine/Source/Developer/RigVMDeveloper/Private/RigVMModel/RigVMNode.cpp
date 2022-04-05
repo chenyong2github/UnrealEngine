@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMModel/RigVMNode.h"
+#include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "RigVMCore/RigVMStruct.h"
+#include "RigVMUserWorkflowRegistry.h"
 
 const FString URigVMNode::NodeColorName = TEXT("NodeColor");
 
@@ -526,6 +528,11 @@ double URigVMNode::GetInstructionMicroSeconds(URigVM* InVM, const FRigVMASTProxy
 	}
 #endif
 	return -1.0;
+}
+
+TArray<FRigVMUserWorkflow> URigVMNode::GetSupportedWorkflows(ERigVMUserWorkflowType InType) const
+{
+	return URigVMUserWorkflowRegistry::Get()->GetWorkflows(InType, nullptr, this);
 }
 
 #if WITH_EDITOR

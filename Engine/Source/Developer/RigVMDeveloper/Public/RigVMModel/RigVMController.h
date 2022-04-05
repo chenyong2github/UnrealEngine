@@ -18,6 +18,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/Nodes/RigVMArrayNode.h"
 #include "RigVMModel/RigVMBuildData.h"
+#include "RigVMCore/RigVMUserWorkflow.h"
 #include "RigVMController.generated.h"
 
 #ifndef UE_RIGVM_ENABLE_TEMPLATE_NODES
@@ -87,7 +88,7 @@ DECLARE_DELEGATE_RetVal_TwoParams(FRigVMController_BulkEditResult, FRigVMControl
 DECLARE_DELEGATE_FiveParams(FRigVMController_OnBulkEditProgressDelegate, TSoftObjectPtr<URigVMFunctionReferenceNode>, ERigVMControllerBulkEditType, ERigVMControllerBulkEditProgress, int32, int32)
 DECLARE_DELEGATE_RetVal_TwoParams(FString, FRigVMController_PinPathRemapDelegate, const FString& /* InPinPath */, bool /* bIsInput */);
 DECLARE_DELEGATE_OneParam(FRigVMController_RequestJumpToHyperlinkDelegate, const UObject* InSubject);
-
+DECLARE_DELEGATE_OneParam(FRigVMController_ConfigureWorkflowOptionsDelegate, URigVMUserWorkflowOptions* InOutOptions);
 
 /**
  * The Controller is the sole authority to perform changes
@@ -733,6 +734,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool SetLocalVariableDefaultValue(const FName& InVariableName, const FString& InDefaultValue, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false, bool bNotify = true);
 
+	// creates the options struct for a given workflow
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMUserWorkflowOptions* MakeOptionsForWorkflow(UObject* InSubject, const FRigVMUserWorkflow& InWorkflow);
+
+	// performs all actions representing the workflow
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool PerformUserWorkflow(const FRigVMUserWorkflow& InWorkflow, const URigVMUserWorkflowOptions* InOptions, bool bSetupUndoRedo = true);
+
 	// Determine affected function references for a potential bulk edit on a library node
 	TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> GetAffectedReferences(ERigVMControllerBulkEditType InEditType, bool bForceLoad = false, bool bNotify = true);
 
@@ -770,7 +779,10 @@ public:
 	FRigVMController_OnBulkEditProgressDelegate OnBulkEditProgressDelegate;
 
 	// A delegate to request the client to follow a hyper link
-	FRigVMController_RequestJumpToHyperlinkDelegate RequestJumpToHyperlinkDelegate; 
+	FRigVMController_RequestJumpToHyperlinkDelegate RequestJumpToHyperlinkDelegate;
+
+	// A delegate to request to configure an options instance for a node workflow
+	FRigVMController_ConfigureWorkflowOptionsDelegate ConfigureWorkflowOptionsDelegate; 
 
 	// Returns the build data of the host
 	static URigVMBuildData* GetBuildData(bool bCreateIfNeeded = true);
@@ -902,6 +914,8 @@ private:
 	URigVMInjectionInfo* InjectNodeIntoPin(URigVMPin* InPin, bool bAsInput, const FName& InInputPinName, const FName& InOutputPinName, bool bSetupUndoRedo = true);
 	URigVMNode* EjectNodeFromPin(URigVMPin* InPin, bool bSetupUndoRedo = true, bool bPrintPythonCommands = false);
 	bool EjectAllInjectedNodes(URigVMNode* InNode, bool bSetupUndoRedo = true, bool bPrintPythonCommands = false);
+	bool PerformUserWorkflowAction(const FRigVMUserWorkflow& InWorkflow, const FRigVMUserWorkflowAction& InAction, bool bSetupUndoRedo);
+	bool PerformUserWorkflowActions(const FRigVMUserWorkflow& InWorkflow, const TArray<FRigVMUserWorkflowAction>& InActions, bool bSetupUndoRedo);
 
 	// try to reconnect source and target pins after a node deletion
 	void RelinkSourceAndTargetPins(URigVMNode* RigNode, bool bSetupUndoRedo = true);

@@ -4,6 +4,7 @@
 
 #include "RigVMPin.h"
 #include "RigVMCore/RigVM.h"
+#include "RigVMCore/RigVMUserWorkflow.h"
 #include "RigVMNode.generated.h"
 
 class URigVMGraph;
@@ -201,10 +202,16 @@ public:
 	double GetInstructionMicroSeconds(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const;
 
 	// return true if this node is a loop node
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
 	virtual bool IsLoopNode() const { return false; }
 
 	// returns true if the node can be upgraded
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
 	virtual bool CanBeUpgraded() const { return false; }
+
+	// returns all supported workflows of the node
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	virtual TArray<FRigVMUserWorkflow> GetSupportedWorkflows(ERigVMUserWorkflowType InType = ERigVMUserWorkflowType::All) const;
 
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	bool HasBreakpoint() const { return bHasBreakpoint; }
@@ -218,11 +225,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	void SetExecutionIsHaltedAtThisNode(const bool bValue) { bHaltedAtThisNode = bValue; }
 
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
 	virtual bool IsAggregate() const { return false; }
+
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
 	virtual URigVMPin* GetFirstAggregatePin() const { return nullptr; }
+
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
 	virtual URigVMPin* GetSecondAggregatePin() const { return nullptr; }
+
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
 	virtual URigVMPin* GetOppositeAggregatePin() const { return nullptr; }
+
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
 	virtual bool IsInputAggregate() const { return false; }
+	
 private:
 
 	static const FString NodeColorName;
