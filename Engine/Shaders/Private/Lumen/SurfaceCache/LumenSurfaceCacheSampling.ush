@@ -13,6 +13,7 @@ Texture2D FinalLightingAtlas;
 #define INDIRECT_IRRADIANCE_ATLAS_ID 2
 
 Texture2D AlbedoAtlas;
+Texture2D OpacityAtlas;
 Texture2D NormalAtlas;
 Texture2D EmissiveAtlas;
 Texture2D DepthAtlas;
@@ -250,8 +251,7 @@ void SampleLumenCard(
 
 					if (NormalWeight > 0.0f)
 					{
-						FSurfaceCacheDepthData DepthData[4];
-						GatherSurfaceCacheDepthData(DepthAtlas, CardSample.PhysicalAtlasUV, /*inout*/ DepthData);
+						float4 TexelDepths = DepthAtlas.Gather(GlobalPointClampedSampler, CardSample.PhysicalAtlasUV, 0.0f);
 
 						float NormalizedHitDistance = -(CardSpacePosition.z / LumenCardData.LocalExtent.z) * 0.5f + 0.5f;
 						float BiasTreshold = SurfaceCacheBias / LumenCardData.LocalExtent.z;
@@ -261,7 +261,7 @@ void SampleLumenCard(
 						for (uint TexelIndex = 0; TexelIndex < 4; ++TexelIndex)
 						{
 							// Skip invalid texels
-							if (DepthData[TexelIndex].bValid)
+							if (IsSurfaceCacheDepthValid(TexelDepths[TexelIndex]))
 							{
 								// No need to depth test heightfields
 								if (bHeightfield)
@@ -270,7 +270,7 @@ void SampleLumenCard(
 								}
 								else
 								{
-									TexelVisibility[TexelIndex] = 1.0f - saturate((abs(NormalizedHitDistance - DepthData[TexelIndex].Depth) - BiasTreshold) / BiasFalloff);
+									TexelVisibility[TexelIndex] = 1.0f - saturate((abs(NormalizedHitDistance - TexelDepths[TexelIndex]) - BiasTreshold) / BiasFalloff);
 								}
 							}
 						}

@@ -105,15 +105,11 @@ void Main(
 		}
 	}
 
+	float Opacity = 1.0f;
 #if MATERIALBLENDING_ANY_TRANSLUCENT
-	const float Opacity = TotalCoverage;
-	const bool bValidPixel = Opacity > 0.5f;
+	Opacity = TotalCoverage > 0.5f ? 1.0f : 0.0f;
 #elif MATERIALBLENDING_MASKED
-	const float Opacity = TotalCoverage - GetMaterialOpacityMaskClipValue() >= 0.0f ? 1.0f : 0.0f;
-	const bool bValidPixel = Opacity >= 0.0f;
-#else
-	const float Opacity = 1.0f;
-	const bool bValidPixel = true;
+	Opacity = TotalCoverage - GetMaterialOpacityMaskClipValue() >= 0.0f ? 1.0f : 0.0f;
 #endif
 
 	// Normals are stored in local card space
@@ -128,11 +124,11 @@ void Main(
 	float Roughness = GetMaterialRoughness(PixelMaterialInputs);
 	float3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
 
-	bool bValidPixel = true;
+	float Opacity = 1.0f;
 #if MATERIALBLENDING_ANY_TRANSLUCENT
-	bValidPixel = GetMaterialOpacity(PixelMaterialInputs) > 0.5f;
+	Opacity = GetMaterialOpacity(PixelMaterialInputs) > 0.5f ? 1.0f : 0.0f;
 #elif MATERIALBLENDING_MASKED
-	bValidPixel = GetMaterialMask(PixelMaterialInputs) >= 0.0f;
+	Opacity = GetMaterialMask(PixelMaterialInputs) >= 0.0f ? 1.0f : 0.0f;
 #endif
 
 	float3 DiffuseColor = BaseColor - BaseColor * Metallic;
@@ -156,7 +152,7 @@ void Main(
 
 #endif // TEMPLATE_USES_STRATA
 
-	OutTarget0 = float4(sqrt(DiffuseColor), bValidPixel ? 1.0f : 0.0f);
-	OutTarget1 = float4(CardSpaceNormal.xy * 0.5f + 0.5f, 0.0f, 0.0f);
+	OutTarget0 = float4(sqrt(DiffuseColor), Opacity);
+	OutTarget1 = float4(CardSpaceNormal.xy * 0.5f + 0.5f, 0.0f, /*bValid*/ 1.0f);
 	OutTarget2 = float4(Emissive, 0.0f);
 }

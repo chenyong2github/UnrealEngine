@@ -2183,6 +2183,7 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	if (LumenSceneData.AlbedoAtlas.IsValid())
 	{
 		OutParameters.AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas, TEXT("Lumen.SceneAlbedo"));
+		OutParameters.OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas, TEXT("Lumen.SceneOpacity"));
 		OutParameters.NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas, TEXT("Lumen.SceneNormal"));
 		OutParameters.EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas, TEXT("Lumen.SceneEmissive"));
 		OutParameters.DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas, TEXT("Lumen.SceneDepth"));
@@ -2191,6 +2192,7 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	{
 		FRDGTextureRef BlackDummyTextureRef = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy, TEXT("Lumen.BlackDummy"));
 		OutParameters.AlbedoAtlas = BlackDummyTextureRef;
+		OutParameters.OpacityAtlas = BlackDummyTextureRef;
 		OutParameters.NormalAtlas = BlackDummyTextureRef;
 		OutParameters.EmissiveAtlas = BlackDummyTextureRef;
 		OutParameters.DepthAtlas = BlackDummyTextureRef;
@@ -2318,7 +2320,7 @@ void AllocateCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint CardCaptureAt
 	CardCaptureAtlas.Normal = GraphBuilder.CreateTexture(
 		FRDGTextureDesc::Create2D(
 			CardCaptureAtlasSize,
-			PF_R8G8,
+			PF_R8G8B8A8,
 			FClearValueBinding::Black,
 			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear),
 		TEXT("Lumen.CardCaptureNormalAtlas"));
@@ -2327,7 +2329,7 @@ void AllocateCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint CardCaptureAt
 		FRDGTextureDesc::Create2D(
 			CardCaptureAtlasSize,
 			PF_FloatR11G11B10,
-			FClearValueBinding::Green,
+			FClearValueBinding::Black,
 			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear),
 		TEXT("Lumen.CardCaptureEmissiveAtlas"));
 

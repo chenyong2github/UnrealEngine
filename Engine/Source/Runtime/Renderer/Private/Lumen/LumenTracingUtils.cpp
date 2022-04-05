@@ -18,6 +18,7 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 	check(LumenSceneData.FinalLightingAtlas);
 
 	AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
+	OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 	NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
 	EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
 	DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
@@ -154,6 +155,7 @@ void GetLumenCardTracingParameters(
 	TracingParameters.IndirectLightingAtlas = TracingInputs.IndirectLightingAtlas;
 	TracingParameters.FinalLightingAtlas = TracingInputs.FinalLightingAtlas;
 	TracingParameters.AlbedoAtlas = TracingInputs.AlbedoAtlas;
+	TracingParameters.OpacityAtlas = TracingInputs.OpacityAtlas;
 	TracingParameters.NormalAtlas = TracingInputs.NormalAtlas;
 	TracingParameters.EmissiveAtlas = TracingInputs.EmissiveAtlas;
 	TracingParameters.DepthAtlas = TracingInputs.DepthAtlas;

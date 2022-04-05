@@ -22,8 +22,9 @@ float2 OneOverSourceAtlasSize;
 
 #define SURFACE_LAYER_DEPTH 0
 #define SURFACE_LAYER_ALBEDO 1
-#define SURFACE_LAYER_NORMAL 2
-#define SURFACE_LAYER_EMISSIVE 3
+#define SURFACE_LAYER_OPACITY 2
+#define SURFACE_LAYER_NORMAL 3
+#define SURFACE_LAYER_EMISSIVE 4
 
 void LumenCardCopyPS(
 	float4 Position : SV_POSITION,
@@ -49,20 +50,16 @@ void LumenCardCopyPS(
 				BlockTexels[TexelIndex] = 1.0f - BlockTexels[TexelIndex];
 			}
 
-			RWAtlasBlock4[WriteCoord] = CompressBC4Block(BlockTexels);
+			RWAtlasBlock2[WriteCoord] = CompressBC4Block(BlockTexels);
 		}
 		#else
 		{
-			bool bValid = Texture2DSampleLevel(SourceAlbedoAtlas, GlobalPointClampedSampler, AtlasUV, 0).w > 0.5f ? true : false;
+			bool bValidPixel = Texture2DSampleLevel(SourceNormalAtlas, GlobalPointClampedSampler, AtlasUV, 0).w > 0.5f;
 
 			// Reverse inverted Z from the HW depth buffer
-			float SourceDepth = 1.0f - Texture2DSampleLevel(SourceDepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
+			float Depth = 1.0f - Texture2DSampleLevel(SourceDepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
 
-			FSurfaceCacheDepthData DepthData;
-			DepthData.bValid = bValid;
-			DepthData.Depth = SourceDepth;
-
-			OutColor0 = float4(EncodeSurfaceCacheDepth(DepthData), 0.0f, 0.0f, 0.0f);
+			OutColor0 = float4(EncodeSurfaceCacheDepth(Depth, bValidPixel), 0.0f, 0.0f, 0.0f);
 		}
 		#endif
 	}
@@ -78,6 +75,21 @@ void LumenCardCopyPS(
 		{
 			float3 Albedo = Texture2DSampleLevel(SourceAlbedoAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
 			OutColor0 = float4(Albedo, 0.0f);
+		}
+		#endif
+	}
+	#elif SURFACE_LAYER == SURFACE_LAYER_OPACITY
+	{
+		#if COMPRESS
+		{
+			float BlockTexels[16];
+			ReadBlockAlpha(SourceAlbedoAtlas, GlobalPointClampedSampler, AtlasUV - OneOverSourceAtlasSize, OneOverSourceAtlasSize, BlockTexels);
+			RWAtlasBlock2[WriteCoord] = CompressBC4Block(BlockTexels);
+		}
+		#else
+		{
+			float Opacity = Texture2DSampleLevel(SourceAlbedoAtlas, GlobalPointClampedSampler, AtlasUV, 0).w;
+			OutColor0 = float4(Opacity, 0.0f, 0.0f, 0.0f);
 		}
 		#endif
 	}
@@ -129,14 +141,12 @@ void ClearCompressedAtlasCS(
 	{
 		#if SURFACE_LAYER == SURFACE_LAYER_DEPTH
 		{
-			float BlockTexelsX[16];
-			float BlockTexelsY[16];
+			float BlockTexels[16];
 			for (uint TexelIndex = 0; TexelIndex < 16; ++TexelIndex)
 			{
-				BlockTexelsX[TexelIndex] = ClearValue.x;
-				BlockTexelsY[TexelIndex] = ClearValue.y;
+				BlockTexels[TexelIndex] = ClearValue.x;
 			}
-			RWAtlasBlock4[WriteCoord] = CompressBC5Block(BlockTexelsX, BlockTexelsY);
+			RWAtlasBlock2[WriteCoord] = CompressBC4Block(BlockTexels);
 		}
 		#elif SURFACE_LAYER == SURFACE_LAYER_ALBEDO
 		{
@@ -146,6 +156,15 @@ void ClearCompressedAtlasCS(
 				BlockTexels[TexelIndex] = ClearValue;
 			}
 			RWAtlasBlock4[WriteCoord] = CompressBC7Block(BlockTexels);
+		}
+		#elif SURFACE_LAYER == SURFACE_LAYER_OPACITY
+		{
+			float BlockTexels[16];
+			for (uint TexelIndex = 0; TexelIndex < 16; ++TexelIndex)
+			{
+				BlockTexels[TexelIndex] = ClearValue.x;
+			}
+			RWAtlasBlock2[WriteCoord] = CompressBC4Block(BlockTexels);
 		}
 		#elif SURFACE_LAYER == SURFACE_LAYER_NORMAL
 		{

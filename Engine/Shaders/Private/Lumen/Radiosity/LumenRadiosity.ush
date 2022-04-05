@@ -135,9 +135,7 @@ FRadiosityTexel GetRadiosityTexel(FLumenCardPageData CardPage, uint2 CoordInCard
 
 		#if RADIOSITY_ATLAS_DOWNSAMPLE_FACTOR == 2
 		{
-			FSurfaceCacheDepthData DepthData[4];
-			GatherSurfaceCacheDepthData(LumenCardScene.DepthAtlas, AtlasUV, /*inout*/ DepthData);
-
+			float4 TexelDepths = LumenCardScene.DepthAtlas.Gather(GlobalPointClampedSampler, AtlasUV, 0.0f);
 			float4 NormalX4 = LumenCardScene.NormalAtlas.GatherRed(GlobalPointClampedSampler, AtlasUV);
 			float4 NormalY4 = LumenCardScene.NormalAtlas.GatherGreen(GlobalPointClampedSampler, AtlasUV);
 
@@ -146,7 +144,7 @@ FRadiosityTexel GetRadiosityTexel(FLumenCardPageData CardPage, uint2 CoordInCard
 			float2 EncodedNormalSum = float2(0.0f, 0.0f);
 			for (uint TexelIndex = 0; TexelIndex < 4; ++TexelIndex)
 			{
-				if (DepthData[TexelIndex].bValid)
+				if (IsSurfaceCacheDepthValid(TexelDepths[TexelIndex]))
 				{
 					NumValidTexels += 1.0f;
 					DepthSum += DepthData[TexelIndex].Depth;

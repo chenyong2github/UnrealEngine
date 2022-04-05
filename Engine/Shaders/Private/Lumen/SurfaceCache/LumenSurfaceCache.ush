@@ -8,39 +8,17 @@ struct FSurfaceCacheDepthData
 	float Depth;
 };
 
-/**
- * Encode FLumenSurfaceCacheDepthTexel into surface cache depth channel
- * Landscape ray marching requires it to be HW filterable
- */
-float EncodeSurfaceCacheDepth(FSurfaceCacheDepthData DepthData)
+float EncodeSurfaceCacheDepth(float Depth, bool bValid)
 {
-	uint DepthUNorm = saturate(DepthData.Depth) * 0xFFFF;
-
-	// Clear and set bit 0 and set it to bValid flag
-	DepthUNorm = DepthUNorm & 0xFFFE;
-	DepthUNorm |= DepthData.bValid ? 0x1 : 0;
-
-	return DepthUNorm / float(0xFFFF);
+	// Reserve 1.0f for invalid pixels
+	float MaxValidDepth = float(0xFFFF - 1 - 0.5f) / float(0xFFFF);
+	Depth = min(Depth, MaxValidDepth);
+	return bValid ? Depth : 1.0f;
 }
 
-FSurfaceCacheDepthData DecodeSurfaceCacheDepth(float EncodedDepthFloat)
+bool IsSurfaceCacheDepthValid(float Depth)
 {
-	uint EncodedDepthUNorm = saturate(EncodedDepthFloat) * 0xFFFF;
-
-	FSurfaceCacheDepthData DepthData;
-	DepthData.Depth = (EncodedDepthUNorm & 0xFFFE) / float(0xFFFF);
-	DepthData.bValid = EncodedDepthUNorm & 0x1 ? true : false;
-	return DepthData;
-}
-
-void GatherSurfaceCacheDepthData(Texture2D DepthAtlas, float2 AtlasUV, inout FSurfaceCacheDepthData TexelDepths[4])
-{
-	float4 EncodedTexelDepths = DepthAtlas.Gather(GlobalPointClampedSampler, AtlasUV, 0.0f);
-
-	TexelDepths[0] = DecodeSurfaceCacheDepth(EncodedTexelDepths[0]);
-	TexelDepths[1] = DecodeSurfaceCacheDepth(EncodedTexelDepths[1]);
-	TexelDepths[2] = DecodeSurfaceCacheDepth(EncodedTexelDepths[2]);
-	TexelDepths[3] = DecodeSurfaceCacheDepth(EncodedTexelDepths[3]);
+	return Depth < 1.0f;
 }
 
 #ifdef LUMEN_CARD_DATA_STRIDE
@@ -74,11 +52,11 @@ struct FLumenSurfaceCacheData
 #ifdef LUMEN_CARD_DATA_STRIDE
 FLumenSurfaceCacheData GetSurfaceCacheData(FLumenCardData Card, float2 CardUV, float2 AtlasUV)
 {
-	FSurfaceCacheDepthData SurfaceCacheDepthData = DecodeSurfaceCacheDepth(Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x);
+	float Depth = Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
 
 	FLumenSurfaceCacheData SurfaceCacheData;
-	SurfaceCacheData.Depth = SurfaceCacheDepthData.Depth;
-	SurfaceCacheData.bValid = SurfaceCacheDepthData.bValid;
+	SurfaceCacheData.Depth = Depth;
+	SurfaceCacheData.bValid = IsSurfaceCacheDepthValid(Depth);
 	SurfaceCacheData.Albedo = float3(0.0f, 0.0f, 0.0f);
 	SurfaceCacheData.Emissive = float3(0.0f, 0.0f, 0.0f);
 

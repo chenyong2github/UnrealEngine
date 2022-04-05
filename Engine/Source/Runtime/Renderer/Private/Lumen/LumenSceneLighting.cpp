@@ -127,6 +127,7 @@ class FLumenCardCombineLightingPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DirectLightingAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectLightingAtlas)
@@ -170,6 +171,7 @@ void Lumen::CombineLumenSceneLighting(
 	PassParameters->PS.View = View.ViewUniformBuffer;
 	PassParameters->PS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 	PassParameters->PS.AlbedoAtlas = TracingInputs.AlbedoAtlas;
+	PassParameters->PS.OpacityAtlas = TracingInputs.OpacityAtlas;
 	PassParameters->PS.EmissiveAtlas = TracingInputs.EmissiveAtlas;
 	PassParameters->PS.DirectLightingAtlas = TracingInputs.DirectLightingAtlas;
 	PassParameters->PS.IndirectLightingAtlas = TracingInputs.IndirectLightingAtlas;
