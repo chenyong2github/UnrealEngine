@@ -270,26 +270,43 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 
 	// TODO: PROG_RASTER: Optimize
 #if USES_WORLD_POSITION_OFFSET
-	UNROLL_N(3)
-	for (int i = 0; i < 3; ++i)
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+
+	BRANCH
+	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
 	{
-		FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
-		SetVertexParameterInstanceData(VertexParameters, InstanceData);
-		SetVertexParameterAttributeData(VertexParameters, RawAttributeData[i], Transforms.LocalToTranslatedWorld, Transforms.LocalToWorldNoScale, PointLocalNoWPO[i]);
+		UNROLL_N(3)
+		for (int i = 0; i < 3; ++i)
+		{
+			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
+			SetVertexParameterInstanceData(VertexParameters, InstanceData);
+			SetVertexParameterAttributeData(VertexParameters, RawAttributeData[i], Transforms.LocalToTranslatedWorld, Transforms.LocalToWorldNoScale, PointLocalNoWPO[i]);
 
-		FMaterialVertexParameters PrevVertexParameters = (FMaterialVertexParameters)0;
-		SetVertexParameterInstanceData(PrevVertexParameters, InstanceData);
-		SetVertexParameterAttributeData(PrevVertexParameters, RawAttributeData[i], Transforms.PrevLocalToTranslatedWorld, Transforms.PrevLocalToWorldNoScale, PointLocalNoWPO[i]);
+			FMaterialVertexParameters PrevVertexParameters = (FMaterialVertexParameters)0;
+			SetVertexParameterInstanceData(PrevVertexParameters, InstanceData);
+			SetVertexParameterAttributeData(PrevVertexParameters, RawAttributeData[i], Transforms.PrevLocalToTranslatedWorld, Transforms.PrevLocalToWorldNoScale, PointLocalNoWPO[i]);
 
-		const float3 WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
-		const float3 PrevWorldPositionOffset = GetMaterialPreviousWorldPositionOffset(PrevVertexParameters);
-		const float3 LocalOffset = mul(WorldPositionOffset, Transforms.WorldToLocalVector);
-		const float3 PrevLocalOffset = mul(PrevWorldPositionOffset, Transforms.PrevWorldToLocalVector);
+			const float3 WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
+			const float3 PrevWorldPositionOffset = GetMaterialPreviousWorldPositionOffset(PrevVertexParameters);
+			const float3 LocalOffset = mul(WorldPositionOffset, Transforms.WorldToLocalVector);
+			const float3 PrevLocalOffset = mul(PrevWorldPositionOffset, Transforms.PrevWorldToLocalVector);
 
-		Tri.PointLocal[i]		= PointLocalNoWPO[i] + LocalOffset;
-		Tri.PrevPointLocal[i]	= PointLocalNoWPO[i] + PrevLocalOffset;
-		Tri.PointWorld[i]		= VertexParameters.WorldPosition + WorldPositionOffset;
-		Tri.PointClip[i]		= mul(float4(Tri.PointWorld[i], 1), Transforms.TranslatedWorldToClip);
+			Tri.PointLocal[i]		= PointLocalNoWPO[i] + LocalOffset;
+			Tri.PrevPointLocal[i]	= PointLocalNoWPO[i] + PrevLocalOffset;
+			Tri.PointWorld[i]		= VertexParameters.WorldPosition + WorldPositionOffset;
+			Tri.PointClip[i]		= mul(float4(Tri.PointWorld[i], 1), Transforms.TranslatedWorldToClip);
+		}
+	}
+	else
+	{
+		UNROLL_N(3)
+		for (int i = 0; i < 3; ++i)
+		{
+			Tri.PointLocal[i]		= PointLocalNoWPO[i];
+			Tri.PrevPointLocal[i]	= PointLocalNoWPO[i];
+			Tri.PointWorld[i]		= mul(float4(Tri.PointLocal[i], 1), Transforms.LocalToTranslatedWorld).xyz;
+			Tri.PointClip[i]		= mul(float4(Tri.PointLocal[i], 1), Transforms.LocalToClip);
+		}
 	}
 #else
 	UNROLL_N(3)

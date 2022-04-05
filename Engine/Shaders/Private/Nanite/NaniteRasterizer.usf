@@ -1021,21 +1021,25 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 
 	float3 WorldPositionOffset = 0.0f;
 #if IS_NANITE_PROGRAMMABLE && USES_WORLD_POSITION_OFFSET
-	const FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-	const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, VertIndex, NANITE_NUM_TEXCOORDS_TO_DECODE);
+	BRANCH
+	if ((GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
+	{
+		const FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+		const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, VertIndex, NANITE_NUM_TEXCOORDS_TO_DECODE);
 
-	// Should be Pow2(InvScale) but that requires renormalization
-	float3x3 LocalToWorld = LWCToFloat3x3(InstanceData.LocalToWorld);
-	float3 InvScale = InstanceData.InvNonUniformScale;
-	LocalToWorld[0] *= InvScale.x;
-	LocalToWorld[1] *= InvScale.y;
-	LocalToWorld[2] *= InvScale.z;
+		// Should be Pow2(InvScale) but that requires renormalization
+		float3x3 LocalToWorld = LWCToFloat3x3(InstanceData.LocalToWorld);
+		float3 InvScale = InstanceData.InvNonUniformScale;
+		LocalToWorld[0] *= InvScale.x;
+		LocalToWorld[1] *= InvScale.y;
+		LocalToWorld[2] *= InvScale.z;
 
-	FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
-	SetVertexParameterInstanceData(VertexParameters, InstanceData);
-	SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData.LocalToTranslatedWorld, LocalToWorld, PointLocal);
+		FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
+		SetVertexParameterInstanceData(VertexParameters, InstanceData);
+		SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData.LocalToTranslatedWorld, LocalToWorld, PointLocal);
 
-	WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
+		WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
+	}
 #endif
 
 	const float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
