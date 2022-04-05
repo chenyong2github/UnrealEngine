@@ -3,6 +3,7 @@
 #include "Tracks/MovieSceneReplayTrack.h"
 #include "IMovieSceneTracksModule.h"
 #include "Sections/MovieSceneReplaySection.h"
+#include "MovieScene.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneReplayTrack"
 

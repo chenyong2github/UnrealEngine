@@ -11,6 +11,7 @@
 #include "SequencerKeyStructGenerator.h"
 #include "Widgets/SNullWidget.h"
 #include "ISequencer.h"
+#include "MovieSceneSection.h"
 
 /** Utility struct representing a number of selected keys on a single channel */
 template<typename ChannelType>

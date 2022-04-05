@@ -12,6 +12,7 @@
 class IMovieScenePlayer;
 class ISequencer;
 class UMovieScene;
+class UMovieSceneSequence;
 class FObjectPreSaveContext;
 
 /**

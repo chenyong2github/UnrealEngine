@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "Templates/SubclassOf.h"
 #include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
 #include "Curves/KeyHandle.h"
@@ -15,9 +16,11 @@
 #include "Evaluation/MovieSceneSequenceTransform.h"
 #include "MovieSceneSubSection.generated.h"
 
+class UMovieScene;
 class UMovieSceneSequence;
 struct FMovieSceneEvaluationTemplate;
 struct FMovieSceneTrackCompilerArgs;
+struct FMovieSceneSectionParameters;
 
 DECLARE_DELEGATE_OneParam(FOnSequenceChanged, UMovieSceneSequence* /*Sequence*/);
 

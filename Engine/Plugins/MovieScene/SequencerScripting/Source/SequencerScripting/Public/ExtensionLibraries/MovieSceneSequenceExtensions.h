@@ -10,6 +10,8 @@
 #include "SequencerScriptingRange.h"
 #include "Templates/SubclassOf.h"
 #include "MovieSceneTrack.h"
+#include "MovieSceneObjectBindingID.h" // for EMovieSceneObjectBindingSpace
+#include "MovieScene.h" // only for FMovieSceneMarkedFrame in the .gen.cpp
 
 #include "MovieSceneSequenceExtensions.generated.h"
 

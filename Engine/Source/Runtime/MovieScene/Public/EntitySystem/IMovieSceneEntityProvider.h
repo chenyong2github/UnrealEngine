@@ -7,6 +7,7 @@
 #include "Misc/InlineValue.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "Math/Range.h"
 #include "Evaluation/MovieSceneCompletionMode.h"
 

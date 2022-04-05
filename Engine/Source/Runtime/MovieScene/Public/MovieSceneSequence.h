@@ -3,17 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "MovieSceneSignedObject.h"
 #include "MovieSceneTrack.h"
 #include "MovieSceneSequenceID.h"
+#include "Evaluation/MovieSceneCompletionMode.h"
+#include "MovieSceneSection.h" // only for FMovieSceneTimecodeSource in .gen.cpp
+#include "MovieSceneObjectBindingID.h" // only for FMovieSceneObjectBindingID in .gen.cpp
 #include "MovieSceneSequence.generated.h"
 
+class IMovieScenePlayer;
 class ITargetPlatform;
 class UMovieScene;
 class UMovieSceneCompiledData;
 class UMovieSceneEntitySystemLinker;
+class UMovieSceneTrack;
 
 struct FMovieScenePossessable;
 struct FMovieSceneObjectCache;
@@ -331,6 +337,6 @@ public:
 	/*
 	 * Sequences can determine whether they support a particular track type
 	 */
-	virtual ETrackSupport IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const { return ETrackSupport::Default; }
+	virtual ETrackSupport IsTrackSupported(TSubclassOf<UMovieSceneTrack> InTrackClass) const { return ETrackSupport::Default; }
 #endif
 };

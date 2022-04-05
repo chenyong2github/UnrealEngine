@@ -38,6 +38,7 @@
 #include "GeometryCache.h"
 #include "GeometryCacheComponent.h"
 #include "InstancedFoliageActor.h"
+#include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Sections/MovieScene3DTransformSection.h"

@@ -13,9 +13,11 @@
 #include "SequencerScriptingRange.h"
 #include "SequenceTimeUnit.h"
 #include "ExtensionLibraries/MovieSceneSequenceExtensions.h"
+#include "MovieSceneSection.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 #include "MovieSceneScriptingChannel.generated.h"
+
 UCLASS(abstract, BlueprintType)
 class UMovieSceneScriptingKey : public UObject
 {

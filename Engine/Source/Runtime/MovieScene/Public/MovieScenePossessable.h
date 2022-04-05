@@ -5,10 +5,16 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
-#include "IMovieScenePlayer.h"
 #include "MovieSceneObjectBindingID.h"
 #include "MovieSceneSequenceID.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "IMovieScenePlayer.h"
+#endif
+
 #include "MovieScenePossessable.generated.h"
+
+class IMovieScenePlayer;
 
 /**
  * MovieScenePossessable is a "typed slot" used to allow the MovieScene to control an already-existing object

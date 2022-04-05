@@ -4,23 +4,33 @@
 
 #include "CoreMinimal.h"
 #include "Containers/ContainersFwd.h"
+#include "Misc/Timecode.h"
+#include "Evaluation/MovieSceneCompletionMode.h"
+#include "Evaluation/MovieSceneEvaluationCustomVersion.h"
+#include "MovieSceneFrameMigration.h"
+#include "MovieSceneSignedObject.h"
+#include "Evaluation/Blending/MovieSceneBlendType.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Misc/FrameTime.h"
 #include "Misc/QualifiedFrameTime.h"
-#include "Misc/Timecode.h"
 #include "UObject/ObjectMacros.h"
 #include "MovieSceneFwd.h"
 #include "KeyParams.h"
 #include "MovieScene.h"
-#include "MovieSceneSignedObject.h"
-#include "Evaluation/Blending/MovieSceneBlendType.h"
-#include "Evaluation/MovieSceneCompletionMode.h"
 #include "Generators/MovieSceneEasingFunction.h"
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "MovieSceneFrameMigration.h"
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
+#endif
+
 #include "MovieSceneSection.generated.h"
 
+class IMovieSceneEasingFunction;
+struct FMovieSceneBlendTypeField;
+struct FQualifiedFrameTime;
+struct FMovieSceneSequenceHierarchy;
 
 class FStructOnScope;
 
@@ -412,9 +422,6 @@ public:
 	 */
 	MOVIESCENE_API virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys);
 
-	UE_DEPRECATED(4.23, "Please use SplitSection(SplitTime, bDeleteKeys) instead.")
-	virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime) { return SplitSection(SplitTime, false); }
-
 	/**
 	 * Trim a section at the trim time
 	 *
@@ -423,9 +430,6 @@ public:
 	 * @param bDeleteKeys Delete keys outside the split ranges
 	 */
 	MOVIESCENE_API virtual void TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys);
-
-	UE_DEPRECATED(4.23, "Please use TrimSection(SplitTime, bTrimLeft, bDeleteKeys) instead.")
-	virtual void TrimSection(FQualifiedFrameTime SplitTime, bool bTrimLeft) { TrimSection(SplitTime, bTrimLeft, false); }
 
 	/**
 	 * Get the data structure representing the specified keys.

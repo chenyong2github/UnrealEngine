@@ -2,6 +2,7 @@
 
 #include "MovieSceneGroomCacheTrack.h"
 #include "GroomComponent.h"
+#include "MovieScene.h"
 #include "MovieSceneGroomCacheSection.h"
 #include "MovieSceneGroomCacheTemplate.h"
 

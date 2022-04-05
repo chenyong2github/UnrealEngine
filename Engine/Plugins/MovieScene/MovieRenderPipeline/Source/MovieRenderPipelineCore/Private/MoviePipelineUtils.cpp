@@ -14,6 +14,7 @@
 #include "Tracks/MovieSceneCinematicShotTrack.h"
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "Sections/MovieSceneCameraCutSection.h"
+#include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "Misc/Paths.h"

@@ -7,6 +7,7 @@
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 #include "Evaluation/MovieSceneRootOverridePath.h"
+#include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "Tracks/MovieSceneSubTrack.h"

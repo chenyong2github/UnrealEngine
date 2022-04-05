@@ -3,6 +3,7 @@
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "Channels/MovieSceneSectionChannelOverrideRegistry.h"
 #include "Algo/Sort.h"
+#include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "PropertyPathHelpers.h"

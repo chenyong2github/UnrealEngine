@@ -3,7 +3,7 @@
 #include "ExtensionLibraries/MovieSceneFolderExtensions.h"
 #include "MovieSceneFolder.h"
 #include "MovieSceneSequence.h"
-
+#include "MovieScene.h"
 
 FName UMovieSceneFolderExtensions::GetFolderName(UMovieSceneFolder* Folder)
 {

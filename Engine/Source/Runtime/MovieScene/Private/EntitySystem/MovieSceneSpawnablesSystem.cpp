@@ -9,6 +9,7 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "Evaluation/MovieSceneEvaluationOperand.h"
 
+#include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneExecutionToken.h"
 #include "IMovieScenePlayer.h"

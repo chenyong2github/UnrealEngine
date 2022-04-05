@@ -7,6 +7,7 @@
 #include "CommonMovieSceneTools.h"
 #include "MovieSceneTrack.h"
 #include "MovieScene.h"
+#include "Generators/MovieSceneEasingFunction.h"
 
 namespace SequencerSectionAreaConstants
 {

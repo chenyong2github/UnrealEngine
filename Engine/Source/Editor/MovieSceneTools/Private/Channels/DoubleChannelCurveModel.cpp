@@ -3,6 +3,7 @@
 #include "Channels/DoubleChannelCurveModel.h"
 #include "Channels/DoubleChannelKeyProxy.h"
 #include "CurveEditorScreenSpace.h"
+#include "MovieScene.h"
 
 /**
  * Buffered curve implementation for a double channel curve model, stores a copy of the double channel in order to draw itself.

@@ -14,6 +14,7 @@
 #include "MovieSceneMediaTrack.h"
 #include "ImgMediaSource.h"
 #include "UObject/Package.h"
+#include "MovieScene.h"
 
 
 

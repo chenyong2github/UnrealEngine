@@ -2,8 +2,10 @@
 
 #include "MovieSceneGroomCacheSection.h"
 #include "GroomCache.h"
+#include "MovieScene.h"
 #include "MovieSceneGroomCacheTemplate.h"
 #include "MovieSceneTimeHelpers.h"
+#include "Misc/QualifiedFrameTime.h"
 
 FMovieSceneGroomCacheParams::FMovieSceneGroomCacheParams()
 {

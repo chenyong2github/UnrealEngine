@@ -4,17 +4,22 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
+#include "Containers/ArrayView.h"
+#include "Misc/InlineValue.h"
+
+#include "MovieSceneSpawnRegister.h"
+#include "Evaluation/MovieScenePreAnimatedState.h"
+#include "Evaluation/MovieSceneEvaluationState.h"
+#include "Evaluation/MovieSceneEvaluationOperand.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Evaluation/MovieSceneAnimTypeID.h"
 #include "Evaluation/MovieSceneEvaluationKey.h"
-#include "Evaluation/MovieScenePreAnimatedState.h"
 #include "MovieSceneFwd.h"
-#include "MovieSceneSpawnRegister.h"
-#include "Containers/ArrayView.h"
-#include "Evaluation/MovieSceneEvaluationState.h"
-#include "Misc/InlineValue.h"
-#include "Evaluation/MovieSceneEvaluationOperand.h"
 #include "Generators/MovieSceneEasingCurves.h"
+#endif
 
+enum class EMovieSceneBuiltInEasing : uint8;
 
 class UMovieSceneSequence;
 class FViewportClient;

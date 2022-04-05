@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tracks/MovieSceneParticleParameterTrack.h"
+#include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
 #include "Evaluation/MovieSceneParticleParameterTemplate.h"
 

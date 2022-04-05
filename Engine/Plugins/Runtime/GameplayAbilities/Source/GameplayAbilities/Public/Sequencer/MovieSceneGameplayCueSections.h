@@ -11,6 +11,7 @@
 #include "Channels/MovieSceneChannelTraits.h"
 #include "MovieSceneClipboard.h"
 #include "GameplayCueInterface.h"
+#include "MovieSceneObjectBindingID.h"
 #include "MovieSceneGameplayCueSections.generated.h"
 
 

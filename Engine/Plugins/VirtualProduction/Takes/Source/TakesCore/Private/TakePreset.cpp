@@ -2,6 +2,7 @@
 
 #include "TakePreset.h"
 #include "LevelSequence.h"
+#include "MovieScene.h"
 #include "MovieSceneToolsProjectSettings.h"
 #include "UObject/Package.h"
 

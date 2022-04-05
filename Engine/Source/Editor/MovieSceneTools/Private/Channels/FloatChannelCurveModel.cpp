@@ -3,6 +3,7 @@
 #include "Channels/FloatChannelCurveModel.h"
 #include "Channels/FloatChannelKeyProxy.h"
 #include "CurveEditorScreenSpace.h"
+#include "MovieScene.h"
 
 /**
  * Buffered curve implementation for a float channel curve model, stores a copy of the float channel in order to draw itself.

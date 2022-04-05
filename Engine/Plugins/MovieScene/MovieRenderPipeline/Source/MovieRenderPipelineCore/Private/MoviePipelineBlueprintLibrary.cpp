@@ -3,6 +3,7 @@
 #include "MoviePipelineBlueprintLibrary.h"
 #include "MoviePipeline.h"
 #include "MovieRenderPipelineDataTypes.h"
+#include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneSpawnable.h"
 #include "MovieScenePossessable.h"

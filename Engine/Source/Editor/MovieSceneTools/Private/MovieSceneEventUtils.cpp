@@ -7,6 +7,7 @@
 #include "UObject/StrongObjectPtr.h"
 #include "UObject/Package.h"
 
+#include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "Sections/MovieSceneEventSectionBase.h"
 #include "Tracks/MovieSceneEventTrack.h"

@@ -6,14 +6,21 @@
 #include "Misc/Guid.h"
 #include "MovieSceneSequenceID.h"
 #include "MovieSceneFwd.h"
-#include "MovieSceneSpawnable.h"
 #include "Templates/ValueOrError.h"
 #include "UObject/WeakObjectPtr.h"
 #include "IMovieSceneObjectSpawner.h"
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "MovieSceneSpawnable.h"
+#endif
+
+enum class ESpawnOwnership : uint8;
+
+class UActorFactory;
 class IMovieScenePlayer;
 class UMovieScene;
 struct FMovieSceneEvaluationState;
+struct FMovieSceneSpawnable;
 struct FTransformData;
 class ISequencer;
 class USequencerSettings;

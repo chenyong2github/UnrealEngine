@@ -3,6 +3,7 @@
 #include "Sections/MovieSceneSpawnSection.h"
 #include "UObject/SequencerObjectVersion.h"
 
+#include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
 #include "EntitySystem/MovieSceneEntityManager.h"

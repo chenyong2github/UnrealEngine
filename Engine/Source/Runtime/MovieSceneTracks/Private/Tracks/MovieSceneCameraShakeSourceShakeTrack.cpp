@@ -5,6 +5,7 @@
 #include "Compilation/MovieSceneCompilerRules.h"
 #include "Sections/MovieSceneCameraShakeSourceShakeSection.h"
 #include "Evaluation/MovieSceneCameraShakeSourceShakeTemplate.h"
+#include "MovieScene.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneCameraShakeSourceShakeTrack"
 
