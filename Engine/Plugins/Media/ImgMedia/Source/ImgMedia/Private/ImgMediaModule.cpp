@@ -116,7 +116,10 @@ public:
 			InitGlobalCache();
 		}
 
-		return MakeShared<FImgMediaPlayer, ESPMode::ThreadSafe>(EventSink, Scheduler.ToSharedRef(), GlobalCache.ToSharedRef());
+		TSharedPtr<FImgMediaPlayer, ESPMode::ThreadSafe> Player = MakeShared<FImgMediaPlayer, ESPMode::ThreadSafe>(EventSink, Scheduler.ToSharedRef(), GlobalCache.ToSharedRef());
+		OnImgMediaPlayerCreated.Broadcast(Player);
+
+		return Player;
 	}
 
 public:

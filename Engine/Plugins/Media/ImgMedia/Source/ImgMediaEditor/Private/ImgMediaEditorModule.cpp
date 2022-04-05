@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImgMediaEditorModule.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
 #include "AssetToolsModule.h"
 #include "AssetTools/ImgMediaSourceActions.h"
 #include "Customizations/ImgMediaSourceCustomization.h"
 #include "IAssetTools.h"
+#include "ImgMediaEditorModule.h"
+#include "IImgMediaModule.h"
 #include "ImgMediaSource.h"
 #include "PropertyEditorModule.h"
 #include "UObject/NameTypes.h"
@@ -27,9 +28,14 @@ static const FName ImgMediaCacheTabName(TEXT("ImgMediaCache"));
  * Implements the ImgMediaEditor module.
  */
 class FImgMediaEditorModule
-	: public IModuleInterface
+	: public IImgMediaEditorModule
 {
 public:
+	//~ IImgMediaEditorModule interface
+	const TArray<TWeakPtr<FImgMediaPlayer>>& GetMediaPlayers()
+	{
+		return MediaPlayers;
+	}
 
 	//~ IModuleInterface interface
 
@@ -38,6 +44,13 @@ public:
 		RegisterCustomizations();
 		RegisterAssetTools();
 		RegisterTabSpawners();
+
+		IImgMediaModule* ImgMediaModule = FModuleManager::LoadModulePtr<IImgMediaModule>("ImgMedia");
+		if (ImgMediaModule != nullptr)
+		{
+			ImgMediaModule->OnImgMediaPlayerCreated.AddRaw(this, &FImgMediaEditorModule::OnImgMediaPlayerCreated);
+
+		}
 	}
 
 	virtual void ShutdownModule() override
@@ -150,6 +163,30 @@ protected:
 			];
 	}
 
+	void OnImgMediaPlayerCreated(const TSharedPtr<FImgMediaPlayer>& Player)
+	{
+		// Try and replace an expired player.
+		bool bIsAdded = false;
+		for (TWeakPtr<FImgMediaPlayer>& PlayerPointer : MediaPlayers)
+		{
+			if (PlayerPointer.IsValid() == false)
+			{
+				PlayerPointer = Player;
+				bIsAdded = true;
+				break;
+			}
+		}
+
+		// If we were not able to add it, just add it now.
+		if (bIsAdded == false)
+		{
+			MediaPlayers.Add(Player);
+		}
+
+		// Send out the message.
+		OnImgMediaEditorPlayersUpdated.Broadcast();
+	}
+
 private:
 
 	/** Customization name to avoid reusing staticstruct during shutdown. */
@@ -160,6 +197,9 @@ private:
 
 	/** The collection of registered asset type actions. */
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
+
+	/** Array of all our players. */
+	TArray<TWeakPtr<FImgMediaPlayer>> MediaPlayers;
 };
 
 FLazyName FImgMediaEditorModule::ImgMediaProcessImagesTabName(TEXT("ImgMediaProcessImages"));

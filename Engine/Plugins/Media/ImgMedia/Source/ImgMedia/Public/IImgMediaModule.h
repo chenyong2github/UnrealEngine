@@ -3,13 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Templates/SharedPointer.h"
 #include "Modules/ModuleInterface.h"
 
 class FImgMediaGlobalCache;
+class FImgMediaPlayer;
 class IMediaEventSink;
 class IMediaPlayer;
 
+/** Callback when a player gets created. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnImgMediaPlayerCreated, const TSharedPtr<FImgMediaPlayer>&);
 
 /**
  * Interface for the ImgMedia module.
@@ -31,6 +35,9 @@ public:
 
 	/** Virtual destructor. */
 	virtual ~IImgMediaModule() { }
+
+	/** Add to this callback to get called whenever a player is created. */
+	FOnImgMediaPlayerCreated OnImgMediaPlayerCreated;
 
 	/**
 	 * Call this to get the global cache.
