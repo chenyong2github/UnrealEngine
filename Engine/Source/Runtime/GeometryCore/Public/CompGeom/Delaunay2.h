@@ -203,6 +203,12 @@ public:
 	// @return true if triangulation has the given edges, useful for validating results
 	bool HasEdges(TArrayView<const FIndex2i> Edges) const;
 
+	// Remap any references to duplicate vertices to only reference the vertices used in the triangulation
+	void FixDuplicatesOnEdge(FIndex2i& Edge);
+
+	// @return true if the edge is in the triangulation
+	bool HasEdge(const FIndex2i& Edge, bool bRemapDuplicates);
+
 protected:
 	TPimplPtr<FDelaunay2Connectivity> Connectivity;
 

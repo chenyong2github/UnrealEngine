@@ -16,7 +16,12 @@ namespace Geometry {
 
 using namespace UE::Math;
 
-
+/**
+ * This is a version of FDelaunay (which can also do Constrained Delaunay triangulation), but with added support for:
+ *  1. Explicit "Hole" edges that must be cut out of the result (FDelaunay relies only on winding rules to create holes)
+ *  2. Option to duplicate vertices to split any 'bowtie' vertices
+ * If you do not need either of these features, FDelaunay may be the faster option.
+ */
 template<typename RealType>
 struct TConstrainedDelaunay2
 {

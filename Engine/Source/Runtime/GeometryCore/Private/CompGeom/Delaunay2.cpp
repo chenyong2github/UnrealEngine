@@ -1218,5 +1218,24 @@ bool FDelaunay2::HasEdges(TArrayView<const FIndex2i> Edges) const
 	return false; // if no triangulation was performed, function should not be called
 }
 
+void FDelaunay2::FixDuplicatesOnEdge(FIndex2i& Edge)
+{
+	checkSlow(Connectivity.IsValid() && Connectivity->HasDuplicateTracking());
+	Connectivity->FixDuplicatesOnEdge(Edge);
+}
+
+bool FDelaunay2::HasEdge(const FIndex2i& Edge, bool bRemapDuplicates)
+{
+	checkSlow(Connectivity.IsValid());
+	if (bRemapDuplicates)
+	{
+		checkSlow(Connectivity->HasDuplicateTracking());
+		FIndex2i RemapEdge = Edge;
+		Connectivity->FixDuplicatesOnEdge(RemapEdge);
+		return Connectivity->HasEdge(RemapEdge);
+	}
+	return Connectivity->HasEdge(Edge);
+}
+
 } // end namespace UE::Geometry
 } // end namespace UE

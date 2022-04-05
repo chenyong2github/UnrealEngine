@@ -53,16 +53,17 @@ struct FArrangement2d
 	}
 
 	/**
-	 * Attempts to triangulates the arrangement with a constrained delaunay triangulation
-	 * NOTE: Not robust; generates invalid triangulations and fails to insert edges sometimes, even if the arrangement has no self-intersections
-	 * But should always do *something* that at least covers the point set, if the point set is not degenerate
-	 * TODO: Make a robust triangulation algo
+	 * Attempts to triangulates the arrangement with a constrained Delaunay triangulation
+	 * NOTE: May fail if arrangement has self-intersections
 	 * 
 	 * Triangles: Output triangles (as indices into Graph vertices)
 	 * SkippedEdges: Output indices of edges that the algorithm failed to insert
 	 * BoundaryEdgeGroupID: ID of edges corresponding to a boundary; if we have a closed loop of these boundary edges on output triangulation, will discard triangles outside this
-	 * return: false if triangulation algo knows it failed (NOTE: triangulation may still be invalid when function returns true, as function is not robust)
+	 * return: false if triangulation algo knows it failed (note Triangles may still have some triangulation of the input in this case; for example it may just be missing some required edges)
 	 */
+	bool GEOMETRYALGORITHMS_API AttemptTriangulate(TArray<FIndex3i>& Triangles, TArray<int32>& SkippedEdges, int32 BoundaryEdgeGroupID);
+
+	// Variant of AttemptTriangulate using FIntVector instead of FIndex3i; Note this incurs an extra copy of the triangle array
 	bool GEOMETRYALGORITHMS_API AttemptTriangulate(TArray<FIntVector>& Triangles, TArray<int32>& SkippedEdges, int32 BoundaryEdgeGroupID);
 
 	/**

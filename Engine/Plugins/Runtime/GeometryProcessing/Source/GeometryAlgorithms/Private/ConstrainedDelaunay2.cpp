@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConstrainedDelaunay2.h"
-#include "ThirdParty/GTEngine/Mathematics/GteConstrainedDelaunay2.h"
-#include "ThirdParty/GTEngine/Mathematics/GteBSNumber.h"
-#include "ThirdParty/GTEngine/Mathematics/GteUIntegerFP32.h"
+#include "CompGeom/Delaunay2.h"
 #include "Async/ParallelFor.h"
-#include <vector>
+
 
 using namespace UE::Geometry;
 
@@ -119,15 +117,15 @@ bool HasUnorderedEdge(const TMap<TPair<int, int>, bool>& EdgeMap, int VertA, int
 namespace ConstrainedDelaunay2Internal
 {
 	template<class RealType>
-	void SplitBowtiesHelper(TArray<TPair<int, int>>& NeedUpdates, TArray<TVector2<RealType>>& Vertices, TArray<int8>& Keep, const std::vector<int>& Indices, const std::vector<int>& Adj)
+	void SplitBowtiesHelper(TArray<TPair<int, int>>& NeedUpdates, TArray<TVector2<RealType>>& Vertices, TArray<int8>& Keep, const TArray<FIndex3i>& Indices, const TArray<FIndex3i>& Adj)
 	{
-		int TriNum = int(Adj.size() / 3);
+		int TriNum = Adj.Num();
 		int32 OrigNumVertices = Vertices.Num();
 		// track all wedge verts that are seen by walking local tris
 		auto OtherEdgeOnTri = [&Indices](int VertID, int TriID, int EdgeIdx)
 		{
 			int StepNext = 1;
-			if (Indices[TriID * 3 + EdgeIdx] == VertID) {
+			if (Indices[TriID][EdgeIdx] == VertID) {
 				StepNext = 2;
 			}
 			return (EdgeIdx + StepNext) % 3;
@@ -137,7 +135,7 @@ namespace ConstrainedDelaunay2Internal
 		{
 			for (int AdjEdgeIdx = 0; AdjEdgeIdx < 3; AdjEdgeIdx++)
 			{
-				if (Adj[ToTriID * 3 + AdjEdgeIdx] == FromTriID)
+				if (Adj[ToTriID][AdjEdgeIdx] == FromTriID)
 				{
 					return AdjEdgeIdx;
 				}
@@ -149,7 +147,7 @@ namespace ConstrainedDelaunay2Internal
 		{
 			for (int VertSubIdx = 0; VertSubIdx < 3; VertSubIdx++)
 			{
-				if (Indices[TriID * 3 + VertSubIdx] == VertID)
+				if (Indices[TriID][VertSubIdx] == VertID)
 				{
 					return VertSubIdx;
 				}
@@ -160,7 +158,7 @@ namespace ConstrainedDelaunay2Internal
 		auto Walk = [&Adj, &OtherEdgeOnTri](int VertID, int TriID, int EdgeSubIdx)
 		{
 			int OtherEdgeSubIdx = OtherEdgeOnTri(VertID, TriID, EdgeSubIdx);
-			int AdjTri = Adj[TriID * 3 + OtherEdgeSubIdx];
+			int AdjTri = Adj[TriID][OtherEdgeSubIdx];
 			return AdjTri;
 		};
 		TArray<bool> Seen, SeenSource; Seen.SetNumZeroed(TriNum * 3); SeenSource.SetNumZeroed(Vertices.Num());
@@ -173,7 +171,7 @@ namespace ConstrainedDelaunay2Internal
 			for (int SubIdx = 0, OtherSubIdx = 2; SubIdx < 3; OtherSubIdx = SubIdx++)
 			{
 				int WedgeIdx = TriID * 3 + SubIdx;
-				int VertID = Indices[WedgeIdx];
+				int VertID = Indices[TriID][SubIdx];
 
 				if (Seen[WedgeIdx]) // already been walked over & therefore covered by previous pass
 				{
@@ -201,7 +199,7 @@ namespace ConstrainedDelaunay2Internal
 						int VertSubIdx = GetVertSubIdx(WalkVertID, WalkTriID);
 						int WalkWedgeIdx = WalkTriID * 3 + VertSubIdx;
 						ensure(!Seen[WalkWedgeIdx]);
-						checkSlow(Indices[WalkWedgeIdx] == WalkVertID);
+						checkSlow(Indices[WalkTriID][VertSubIdx] == WalkVertID);
 						Seen[WalkWedgeIdx] = true;
 						if (bSeenSource)
 						{
@@ -239,19 +237,19 @@ namespace ConstrainedDelaunay2Internal
 		}
 	}
 
-	void BuildFinalTriangles(TArray<FIndex3i>& Triangles, TArray<TPair<int, int>>& NeedUpdates, int& AddedVerticesStartIndex, TArray<int8>& Keep, const std::vector<int>& Indices, int OrigNumVertices, bool bOutputCCW)
+	void BuildFinalTriangles(TArray<FIndex3i>& Triangles, TArray<TPair<int, int>>& NeedUpdates, int& AddedVerticesStartIndex, TArray<int8>& Keep, const TArray<FIndex3i>& Indices, int OrigNumVertices, bool bOutputCCW)
 	{
-		int TriNum = int(Indices.size() / 3);
+		int TriNum = Indices.Num();
 
 		// function to build output triangles out of an indices array
 		// normally called directly on the const indices from the CDT, but will be called on an updated copy if bowtie splits happen
-		auto BuildTriangles = [&Triangles, &TriNum, &Keep, &bOutputCCW](const std::vector<int>& IndicesIn)
+		auto BuildTriangles = [&Triangles, &TriNum, &Keep, &bOutputCCW](const TArray<FIndex3i>& IndicesIn)
 		{
 			for (int i = 0; i < TriNum; i++)
 			{
 				if (Keep[i] > 0)
 				{
-					FIndex3i& Tri = Triangles.Emplace_GetRef(IndicesIn[i * 3], IndicesIn[i * 3 + 1], IndicesIn[i * 3 + 2]);
+					FIndex3i& Tri = Triangles.Emplace_GetRef(IndicesIn[i].A, IndicesIn[i].B, IndicesIn[i].C);
 					if (!bOutputCCW)
 					{
 						Swap(Tri.B, Tri.C);
@@ -261,10 +259,12 @@ namespace ConstrainedDelaunay2Internal
 		};
 		if (NeedUpdates.Num() > 0)
 		{
-			std::vector<int> UpdatedIndices = Indices;
+			TArray<FIndex3i> UpdatedIndices = Indices;
 			for (const TPair<int, int>& Update : NeedUpdates)
 			{
-				UpdatedIndices[Update.Key] = Update.Value;
+				int TriID = (int)Update.Key / 3;
+				int SubIdx = Update.Key % 3;
+				UpdatedIndices[TriID][SubIdx] = Update.Value;
 			}
 
 			AddedVerticesStartIndex = OrigNumVertices;
@@ -284,51 +284,27 @@ bool TConstrainedDelaunay2<RealType>::Triangulate(TFunctionRef<bool(const TArray
 {
 	Triangles.Empty();
 
-	gte::ConstrainedDelaunay2<double, gte::BSNumber<gte::UIntegerFP32<263>>> Delaunay; // Value of 263 is from comment in GTEngine/Mathematics/GteDelaunay2.h
-
-	std::vector<gte::Vector2<double>> InputVertices;
-	for (int i = 0; i < Vertices.Num(); i++)
-	{
-		InputVertices.push_back(gte::Vector2<double> {{Vertices[i].X, Vertices[i].Y}});
-	}
-
-	if (!Delaunay(Vertices.Num(), &InputVertices[0], 0))
+	FDelaunay2 Delaunay;
+	Delaunay.bAutomaticallyFixEdgesToDuplicateVertices = true;
+	if (!Delaunay.Triangulate(Vertices))
 	{
 		return false;
 	}
+	Delaunay.bKeepFastEdgeAdjacencyData = true;
+	bool bEdgesFailed = !Delaunay.ConstrainEdges(Vertices, Edges);
+	bool bHoleEdgesFailed = !Delaunay.ConstrainEdges(Vertices, HoleEdges);
+	bool bBoundaryTrackingFailure = bEdgesFailed || bHoleEdgesFailed;
 
+	TArray<FIndex3i> Indices, Adj;
+	Delaunay.GetTrianglesAndAdjacency(Indices, Adj);
 
-	const std::vector<int>& Duplicates = Delaunay.GetDuplicates();
-
-	std::vector<int> OutEdges;
-	bool bBoundaryTrackingFailure = false;
-
-	TArray<FIndex2i>* InputEdgesAndHoles[2] = { &Edges, &HoleEdges };
-	for (int EdgeOrHole = 0; EdgeOrHole < 2; EdgeOrHole++)
-	{
-		TArray<FIndex2i>& Input = *InputEdgesAndHoles[EdgeOrHole];
-		for (const FIndex2i& Edge : Input)
-		{
-			int A = Duplicates[Edge.A];
-			int B = Duplicates[Edge.B];
-			if (!Delaunay.Insert({{A, B}}, OutEdges))
-			{
-				// Note the failed edge; we will try to proceed anyway, just without this edge.  This can happen for example if the edge is exactly on top of another edge
-				bBoundaryTrackingFailure = true;
-			}
-		}
-	}
-
-	const std::vector<int>& Indices = Delaunay.GetIndices();
-	const std::vector<int>& Adj = Delaunay.GetAdjacencies();
-	int TriNum = int(Adj.size() / 3);
+	int TriNum = Adj.Num();
 	TArray<int8> Keep;  // values: 0->unprocessed (delete), 1->yes keep, -1->processed, delete
 	Keep.SetNumZeroed(TriNum);
 
 	ParallelFor(TriNum, [this, &KeepTriangle, &Indices, &Keep](int32 Index)
 	{
-		int32 TriIndStart = Index * 3;
-		bool bKeepTri = KeepTriangle(Vertices, FIndex3i(Indices[TriIndStart], Indices[TriIndStart + 1], Indices[TriIndStart + 2]));
+		bool bKeepTri = KeepTriangle(Vertices, Indices[Index]);
 		Keep[Index] = bKeepTri ? 1 : -1;
 	});
 
@@ -351,22 +327,18 @@ bool TConstrainedDelaunay2<RealType>::Triangulate()
 
 	check(FillRule <= EFillRule::Odd || bOrientedEdges);
 
-	gte::ConstrainedDelaunay2<double, gte::BSNumber<gte::UIntegerFP32<263>>> Delaunay; // Value of 263 is from comment in GTEngine/Mathematics/GteDelaunay2.h
-
-	std::vector<gte::Vector2<double>> InputVertices;
-	for (int i = 0; i < Vertices.Num(); i++)
-	{
-		InputVertices.push_back(gte::Vector2<double> {{Vertices[i].X, Vertices[i].Y}});
-	}
-
-	if (!Delaunay(Vertices.Num(), &InputVertices[0], 0))
+	FDelaunay2 Delaunay;
+	Delaunay.bAutomaticallyFixEdgesToDuplicateVertices = true;
+	if (!Delaunay.Triangulate(Vertices))
 	{
 		return false;
 	}
 
-	const std::vector<int>& Duplicates = Delaunay.GetDuplicates();
+	Delaunay.bKeepFastEdgeAdjacencyData = true;
+	Delaunay.bValidateEdges = false; // edge validation will be done manually later
+	Delaunay.ConstrainEdges(Vertices, Edges);
+	Delaunay.ConstrainEdges(Vertices, HoleEdges);
 
-	std::vector<int> OutEdges;
 	TMap<TPair<int, int>, bool> BoundaryMap, HoleMap; // tracks all the boundary edges as they are added, so we can later flood fill across them for inside/outside decisions
 	TMap<TPair<int, int>, bool>* EdgeAndHoleMaps[2] = { &BoundaryMap, &HoleMap };
 	bool bBoundaryTrackingFailure = false;
@@ -376,28 +348,25 @@ bool TConstrainedDelaunay2<RealType>::Triangulate()
 	{
 		TArray<FIndex2i>& Input = *InputEdgesAndHoles[EdgeOrHole];
 		TMap<TPair<int, int>, bool>& InputMap = *EdgeAndHoleMaps[EdgeOrHole];
-		for (const FIndex2i& Edge : Input)
+		for (FIndex2i Edge : Input)
 		{
-			int A = Duplicates[Edge.A];
-			int B = Duplicates[Edge.B];
-			if (!Delaunay.Insert({{A, B}}, OutEdges))
+			Delaunay.FixDuplicatesOnEdge(Edge);
+			if (!Delaunay.HasEdge(Edge, false))
 			{
 				// Note the failed edge; we will try to proceed anyway, just without this edge.  This can happen for example if the edge is exactly on top of another edge
 				bBoundaryTrackingFailure = true;
 			}
 			else
 			{
-				for (size_t i = 0; i + 1 < OutEdges.size(); i++)
-				{
-					AddOrderedEdge(InputMap, OutEdges[i], OutEdges[i + 1]);
-				}
+				AddOrderedEdge(InputMap, Edge.A, Edge.B);
 			}
 		}
 	}
 
-	const std::vector<int>& Indices = Delaunay.GetIndices();
-	const std::vector<int>& Adj = Delaunay.GetAdjacencies();
-	int TriNum = int(Adj.size() / 3);
+	TArray<FIndex3i> Indices, Adj;
+	Delaunay.GetTrianglesAndAdjacency(Indices, Adj);
+
+	int TriNum = Adj.Num();
 	TArray<int8> Keep;  // values: 0->unprocessed (delete), 1->yes keep, -1->processed, delete
 	Keep.SetNumZeroed(TriNum);
 
@@ -406,12 +375,11 @@ bool TConstrainedDelaunay2<RealType>::Triangulate()
 	// note: need *all* not just *one* because of the strategy of refusing to cross hole edges; if using pure winding number classification would just need one boundary triangle to start
 	for (int TriIdx = 0; TriIdx < TriNum; TriIdx++)
 	{
-		int BaseIdx = TriIdx * 3;
 		for (int SubIdx = 0, NextIdx = 2; SubIdx < 3; NextIdx = SubIdx++)
 		{
-			if (Adj[BaseIdx + NextIdx] < 0) // on hull
+			if (Adj[TriIdx][NextIdx] < 0) // on hull
 			{
-				int VertA = Indices[BaseIdx + SubIdx], VertB = Indices[BaseIdx + NextIdx];
+				int VertA = Indices[TriIdx][SubIdx], VertB = Indices[TriIdx][NextIdx];
 				if (HasUnorderedEdge(HoleMap, VertA, VertB))
 				{
 					continue; // cannot cross hole edges
@@ -431,16 +399,16 @@ bool TConstrainedDelaunay2<RealType>::Triangulate()
 		SelIdx = (SelIdx + 1) % ToWalkQ.Num();
 		TPair<int, int> TriWithWinding = ToWalkQ[SelIdx];
 		ToWalkQ.RemoveAtSwap(SelIdx);
-		int BaseIdx = TriWithWinding.Key * 3;
+		int TriIdx = TriWithWinding.Key;
 		int LastWinding = TriWithWinding.Value;
 		for (int SubIdx = 0, NextIdx = 2; SubIdx < 3; NextIdx = SubIdx++)
 		{
-			int VertA = Indices[BaseIdx + SubIdx], VertB = Indices[BaseIdx + NextIdx];
+			int VertA = Indices[TriIdx][SubIdx], VertB = Indices[TriIdx][NextIdx];
 			if (HasUnorderedEdge(HoleMap, VertA, VertB))
 			{
 				continue; // cannot cross hole edges
 			}
-			int AdjTri = Adj[BaseIdx + NextIdx];
+			int AdjTri = Adj[TriIdx][NextIdx];
 			if (AdjTri >= 0 && Keep[AdjTri] == 0)
 			{
 				int WindingChange = WindingAcross(BoundaryMap, VertA, VertB);
