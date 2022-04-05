@@ -49,6 +49,9 @@ FD3D12Device::~FD3D12Device()
 	delete RayTracingCompactionRequestHandler;
 	RayTracingCompactionRequestHandler = nullptr;
 
+	delete RayTracingDispatchRaysDescBuffer;
+	RayTracingDispatchRaysDescBuffer = nullptr;
+
 	DestroyRayTracingDescriptorCache(); // #dxr_todo UE-72158: unify RT descriptor cache with main FD3D12DescriptorCache
 #endif
 
@@ -378,6 +381,13 @@ void FD3D12Device::SetupAfterDeviceCreation()
 #if D3D12_RHI_RAYTRACING
 	check(RayTracingCompactionRequestHandler == nullptr);
 	RayTracingCompactionRequestHandler = new FD3D12RayTracingCompactionRequestHandler(this);
+
+	D3D12_RESOURCE_DESC DispatchRaysDescBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(D3D12_DISPATCH_RAYS_DESC), D3D12_RESOURCE_FLAG_NONE);
+	RayTracingDispatchRaysDescBuffer = GetParentAdapter()->CreateRHIBuffer(
+		DispatchRaysDescBufferDesc, 256,
+		0, DispatchRaysDescBufferDesc.Width, BUF_DrawIndirect,
+		ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, false /*bInitialData*/,
+		GetGPUMask(), nullptr /*ResourceAllocator*/, TEXT("DispatchRaysDescBuffer"));
 #endif // D3D12_RHI_RAYTRACING
 
 	GPUProfilingData.Init();

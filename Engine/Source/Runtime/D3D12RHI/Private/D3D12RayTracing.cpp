@@ -5082,9 +5082,9 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12DispatchRays);
 
-	FD3D12Adapter* Adapter = CommandContext.GetParentDevice()->GetParentAdapter();
+	FD3D12Device* Device = CommandContext.GetParentDevice();
+	FD3D12Adapter* Adapter = Device->GetParentAdapter();
 
-	FBufferRHIRef DispatchRaysDescBufferRHI;
 	FD3D12Buffer* DispatchRaysDescBuffer = nullptr;
 
 	if (ArgumentBuffer)
@@ -5094,27 +5094,37 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 		// Source indirect argument buffer only contains the dispatch dimensions, however D3D12 requires a full D3D12_DISPATCH_RAYS_DESC structure.
 		// We create a new buffer, fill the SBT pointers on CPU and copy the dispatch dimensions into the right place.
 
-		D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
-			sizeof(D3D12_DISPATCH_RAYS_DESC),
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
-
-		FRHIResourceCreateInfo DispatchRaysDescBufferCreateInfo(TEXT("DispatchRaysDescBuffer"));
-		DispatchRaysDescBufferCreateInfo.GPUMask = FRHIGPUMask::FromIndex(CommandContext.GetGPUIndex());
-
-		DispatchRaysDescBufferRHI = ::RHICreateVertexBuffer(sizeof(D3D12_DISPATCH_RAYS_DESC), BUF_UnorderedAccess | BUF_DrawIndirect, DispatchRaysDescBufferCreateInfo);
-		DispatchRaysDescBuffer = FD3D12DynamicRHI::ResourceCast(DispatchRaysDescBufferRHI.GetReference());
-
+		DispatchRaysDescBuffer = Device->GetRayTracingDispatchRaysDescBuffer();
 		FD3D12Resource* DispatchRaysDescBufferResource = DispatchRaysDescBuffer->GetResource();
 
-		{
-			TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(&CommandContext);
-			FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(ArgumentBuffer, 4, PF_R32_UINT);
-			FUnorderedAccessViewRHIRef UAV = RHICreateUnorderedAccessView(DispatchRaysDescBuffer, PF_R32_UINT);
-			FRayTracingDispatchDescCS::Dispatch(RHICmdList, &DispatchDesc, sizeof(DispatchDesc), offsetof(D3D12_DISPATCH_RAYS_DESC, Width), SRV, ArgumentOffset, UAV);
-		}
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DispatchRaysDescBufferResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_DEST, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, ArgumentBuffer->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
+		CommandListHandle.FlushResourceBarriers();
 
-		CommandListHandle.AddTransitionBarrier(DispatchRaysDescBufferResource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, 0);
+		// Compute the allocation & copy sizes
+		uint32 DispatchRayDescSize = sizeof(D3D12_DISPATCH_RAYS_DESC);
+		uint32 SBTPartSize = offsetof(D3D12_DISPATCH_RAYS_DESC, Width);
+		uint32 IndirectDimensionSize = DispatchRayDescSize - SBTPartSize;
+		static_assert((sizeof(D3D12_DISPATCH_RAYS_DESC) - offsetof(D3D12_DISPATCH_RAYS_DESC, Width)) == sizeof(uint32) * 4, "Assume 4 uints at the end of the struct to store the dimension + alignment overhead");
+
+		uint32 BaseRayDescBufferOffset = DispatchRaysDescBuffer->ResourceLocation.GetOffsetFromBaseOfResource();
+
+		// Copy SBT data part of the dispatch desc to upload memory
+		FD3D12ResourceLocation UploadResourceLocation(Device);
+		void* Data = Device->GetDefaultFastAllocator().Allocate(DispatchRayDescSize, 256, &UploadResourceLocation);
+		FMemory::Memcpy(Data, &DispatchDesc, SBTPartSize);
+
+		// Copy SBT data part to resource
+		CommandListHandle->CopyBufferRegion(DispatchRaysDescBufferResource->GetResource(), BaseRayDescBufferOffset,
+			UploadResourceLocation.GetResource()->GetResource(), UploadResourceLocation.GetOffsetFromBaseOfResource(), SBTPartSize);
+
+		// Copy GPU computed indirect args to resource
+		CommandListHandle->CopyBufferRegion(DispatchRaysDescBufferResource->GetResource(), BaseRayDescBufferOffset + SBTPartSize,
+			ArgumentBuffer->GetResource()->GetResource(), ArgumentBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + ArgumentOffset, IndirectDimensionSize);
+
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DispatchRaysDescBufferResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
+
+		CommandListHandle.FlushResourceBarriers();
 	}
 
 	// Setup state for RT dispatch

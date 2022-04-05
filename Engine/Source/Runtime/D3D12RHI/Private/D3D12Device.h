@@ -11,6 +11,7 @@ D3D12Device.h: D3D12 Device Interfaces
 
 class FD3D12DynamicRHI;
 class FD3D12BasicRayTracingPipeline;
+class FD3D12Buffer;
 class FD3D12RayTracingDescriptorHeapCache;
 class FD3D12RayTracingPipelineCache;
 class FD3D12RayTracingCompactionRequestHandler;
@@ -55,6 +56,7 @@ public:
 	const FD3D12BasicRayTracingPipeline*	GetBasicRayTracingPipeline();
 	FD3D12RayTracingDescriptorHeapCache*	GetRayTracingDescriptorHeapCache() { return RayTracingDescriptorHeapCache; }
 	FD3D12RayTracingPipelineCache*			GetRayTracingPipelineCache() { return RayTracingPipelineCache; }
+	FD3D12Buffer*							GetRayTracingDispatchRaysDescBuffer() { return RayTracingDispatchRaysDescBuffer; }
 	FD3D12RayTracingCompactionRequestHandler* GetRayTracingCompactionRequestHandler() { return RayTracingCompactionRequestHandler; }
 	TRefCountPtr<ID3D12StateObject>			DeserializeRayTracingStateObject(D3D12_SHADER_BYTECODE Bytecode, ID3D12RootSignature* RootSignature);
 
@@ -200,7 +202,8 @@ protected:
 	FD3D12BasicRayTracingPipeline* BasicRayTracingPipeline = nullptr;
 	FD3D12RayTracingPipelineCache* RayTracingPipelineCache = nullptr;
 	FD3D12RayTracingCompactionRequestHandler* RayTracingCompactionRequestHandler = nullptr;
-	// #dxr_todo UE-72158: unify RT descriptor cache with main FD3D12DescriptorCache
+	FD3D12Buffer* RayTracingDispatchRaysDescBuffer = nullptr;
+// #dxr_todo UE-72158: unify RT descriptor cache with main FD3D12DescriptorCache
 	FD3D12RayTracingDescriptorHeapCache* RayTracingDescriptorHeapCache = nullptr;
 	void DestroyRayTracingDescriptorCache();
 #endif
