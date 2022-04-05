@@ -2,7 +2,7 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
-	"FriendlyName": "Blueprint Header View",
+	"FriendlyName": "Blueprint C++ Header Preview",
 	"Description": "A tool to help convert Blueprint Classes to Native C++.",
 	"Category": "Blueprints",
 	"CreatedBy": "Epic Games, Inc.",
