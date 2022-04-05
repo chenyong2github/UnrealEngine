@@ -90,6 +90,9 @@ struct FKShapeElem
 	/** Set the user-defined name for this shape */
 	ENGINE_API void SetName(const FName& InName) { Name = InName; }
 
+	/** Get the type of this shape */
+	ENGINE_API EAggCollisionShape::Type GetShapeType() const { return ShapeType; }
+
 	/** Get whether this shape contributes to the mass of the body */
 	ENGINE_API bool GetContributeToMass() const { return bContributeToMass; }
 
