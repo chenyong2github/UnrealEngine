@@ -170,10 +170,10 @@ public:
 	virtual void ResumeLoading() = 0;
 
 	/**
-	* Flush pending loading request(s).
-	*
-	* Note: Called from Game Thread.
-	*/
+	 * Flush pending loading request(s).
+	 *
+	 * Note: Called from Game Thread.
+	 */
 	virtual void FlushLoading(int32 PackageId) = 0;
 
 	/**

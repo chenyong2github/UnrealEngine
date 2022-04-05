@@ -387,23 +387,12 @@ void FAsyncLoadingThread::QueuePackage(FAsyncPackageDesc& Package)
 	QueuedRequestsEvent->Trigger();
 }
 
-void FAsyncPackage::PopulateFlushTree(struct FFlushTree* FlushTree)
-{
-	if (FlushTree->AddPackage(GetPackageName()))
-	{
-		for (TTuple<FName, FAsyncPackage*>& PendingImport : PendingImportedPackages)
-		{
-			PendingImport.Value->PopulateFlushTree(FlushTree);
-		}
-	}
-}
-
 FUObjectSerializeContext* FAsyncPackage::GetSerializeContext()
 {
 	return FUObjectThreadContext::Get().GetSerializeContext();
 }
 
-FAsyncPackage* FAsyncLoadingThread::FindExistingPackageAndAddCompletionCallback(FAsyncPackageDesc* PackageRequest, TMap<FName, FAsyncPackage*>& PackageList, FFlushTree* FlushTree)
+FAsyncPackage* FAsyncLoadingThread::FindExistingPackageAndAddCompletionCallback(FAsyncPackageDesc* PackageRequest, TMap<FName, FAsyncPackage*>& PackageList)
 {
 	checkSlow(IsInAsyncLoadThread());
 	FAsyncPackage* Result = PackageList.FindRef(PackageRequest->Name);
@@ -414,11 +403,8 @@ FAsyncPackage* FAsyncLoadingThread::FindExistingPackageAndAddCompletionCallback(
 			const bool bInternalCallback = false;
 			Result->AddCompletionCallback(MoveTemp(PackageRequest->PackageLoadedDelegate), bInternalCallback);
 		}
-			Result->AddRequestID(PackageRequest->RequestID);
-		if (FlushTree)
-		{
-			Result->PopulateFlushTree(FlushTree);
-		}
+		Result->AddRequestID(PackageRequest->RequestID);
+		
 		const int32 QueuedPackagesCount = QueuedPackagesCounter.Decrement();
 		check(QueuedPackagesCount >= 0);
 		NotifyAsyncLoadingStateHasMaybeChanged();
@@ -448,9 +434,9 @@ void FAsyncLoadingThread::UpdateExistingPackagePriorities(FAsyncPackage* InPacka
 	}
 }
 
-void FAsyncLoadingThread::ProcessAsyncPackageRequest(FAsyncPackageDesc* InRequest, FAsyncPackage* InRootPackage, FFlushTree* FlushTree)
+void FAsyncLoadingThread::ProcessAsyncPackageRequest(FAsyncPackageDesc* InRequest, FAsyncPackage* InRootPackage)
 {
-	FAsyncPackage* Package = FindExistingPackageAndAddCompletionCallback(InRequest, AsyncPackageNameLookup, FlushTree);
+	FAsyncPackage* Package = FindExistingPackageAndAddCompletionCallback(InRequest, AsyncPackageNameLookup);
 
 	if (Package)
 	{
@@ -464,7 +450,7 @@ void FAsyncLoadingThread::ProcessAsyncPackageRequest(FAsyncPackageDesc* InReques
 #if THREADSAFE_UOBJECTS
 		FScopeLock LoadedLock(&LoadedPackagesCritical);
 #endif
-		Package = FindExistingPackageAndAddCompletionCallback(InRequest, LoadedPackagesNameLookup, FlushTree);
+		Package = FindExistingPackageAndAddCompletionCallback(InRequest, LoadedPackagesNameLookup);
 	}
 
 	if (!Package)
@@ -473,7 +459,7 @@ void FAsyncLoadingThread::ProcessAsyncPackageRequest(FAsyncPackageDesc* InReques
 #if THREADSAFE_UOBJECTS
 		FScopeLock LoadedLock(&LoadedPackagesToProcessCritical);
 #endif
-		Package = FindExistingPackageAndAddCompletionCallback(InRequest, LoadedPackagesToProcessNameLookup, FlushTree);
+		Package = FindExistingPackageAndAddCompletionCallback(InRequest, LoadedPackagesToProcessNameLookup);
 	}
 
 	if (!Package)
@@ -490,10 +476,6 @@ void FAsyncLoadingThread::ProcessAsyncPackageRequest(FAsyncPackageDesc* InReques
 			Package->AddCompletionCallback(MoveTemp(InRequest->PackageLoadedDelegate), bInternalCallback);
 		}
 		Package->SetDependencyRootPackage(InRootPackage);
-		if (FlushTree)
-		{
-			Package->PopulateFlushTree(FlushTree);
-		}
 
 		// Add to queue according to priority.
 		InsertPackage(Package, false, EAsyncPackageInsertMode::InsertAfterMatchingPriorities);
@@ -505,7 +487,7 @@ void FAsyncLoadingThread::ProcessAsyncPackageRequest(FAsyncPackageDesc* InReques
 	}
 }
 
-int32 FAsyncLoadingThread::CreateAsyncPackagesFromQueue(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, FFlushTree* FlushTree)
+int32 FAsyncLoadingThread::CreateAsyncPackagesFromQueue(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit)
 {
 	SCOPED_LOADTIMER(CreateAsyncPackagesFromQueueTime);
 
@@ -564,7 +546,7 @@ int32 FAsyncLoadingThread::CreateAsyncPackagesFromQueue(bool bUseTimeLimit, bool
 				SCOPE_SECONDS_COUNTER(Timer);
 				for (FAsyncPackageDesc* PackageRequest : QueueCopy)
 				{
-					ProcessAsyncPackageRequest(PackageRequest, nullptr, FlushTree);
+					ProcessAsyncPackageRequest(PackageRequest, nullptr);
 					delete PackageRequest;
 				}
 			}
@@ -1818,6 +1800,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports_Event()
 		}
 		if (PendingPackage)
 		{
+			AddDependentRequestsTo(PendingPackage);
 			if (int32(PendingPackage->AsyncPackageLoadingState) <= int32(EAsyncPackageLoadingState::WaitingForSummary))
 			{
 				FEventLoadNodePtr PrereqisiteNode;
@@ -3868,7 +3851,7 @@ struct FScopedRecursionNotAllowed
 };
 #endif
 
-EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPackagesProcessed, bool bUseTimeLimit /*= false*/, bool bUseFullTimeLimit /*= false*/, float TimeLimit /*= 0.0f*/, FFlushTree* FlushTree)
+EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPackagesProcessed, bool bUseTimeLimit /*= false*/, bool bUseFullTimeLimit /*= false*/, float TimeLimit /*= 0.0f*/, FFlushRequest& FlushRequest)
 {
 	SCOPED_LOADTIMER(AsyncLoadingTime);
 	check(!IsInGameThread() || !IsMultithreaded());
@@ -3965,7 +3948,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 				if (Package->HasFinishedLoading() == false)
 				{
 					float RemainingTimeLimit = FMath::Max(0.0f, TimeLimit - (float)(FPlatformTime::Seconds() - TickStartTime));
-					LocalLoadingState = Package->TickAsyncPackage(bUseTimeLimit, bUseFullTimeLimit, RemainingTimeLimit, FlushTree);
+					LocalLoadingState = Package->TickAsyncPackage(bUseTimeLimit, bUseFullTimeLimit, RemainingTimeLimit);
 					if (LocalLoadingState == EAsyncPackageState::TimeOut)
 					{
 						if (IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("TickAsyncPackage")))
@@ -4062,7 +4045,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 
 			// Package to be loaded.
 			FAsyncPackage* Package = AsyncPackages[PackageIndex];
-			if (FlushTree && !FlushTree->Contains(Package->GetPackageName()))
+			if (!ShouldProcessPackage(Package, FlushRequest))
 			{
 				LoadingState = EAsyncPackageState::PendingImports;
 			}
@@ -4070,7 +4053,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 			{
 				// Package tick returns EAsyncPackageState::Complete on completion.
 				// We only tick packages that have not yet been loaded.
-				LoadingState = Package->TickAsyncPackage(bUseTimeLimit, bUseFullTimeLimit, TimeLimit, FlushTree);
+				LoadingState = Package->TickAsyncPackage(bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
 			}
 			else
 			{
@@ -4099,6 +4082,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 
 			}
 
+			//@note FH: if we are flushing should we be doing this? are those exclusive external request or could be dependencies being pulled in?
 			{ // maybe we shouldn't do this if we are already out of time?
 				// Check if there's any new packages in the queue.
 				const float RemainingTimeLimit = FMath::Max(0.0f, TimeLimit - (float)(FPlatformTime::Seconds() - TickStartTime));
@@ -4117,6 +4101,8 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 
 bool FAsyncPackage::AreAllDependenciesFullyLoadedInternal(FAsyncPackage* Package, TSet<UPackage*>& VisitedPackages, FString& OutError)
 {
+	// @note FH: this isn't properly thread-safe at all...
+
 	for (UPackage* ImportPackage : Package->ImportedPackages)
 	{
 		if (!ImportPackage || VisitedPackages.Contains(ImportPackage))
@@ -4160,6 +4146,33 @@ bool FAsyncPackage::AreAllDependenciesFullyLoadedInternal(FAsyncPackage* Package
 	return true;
 }
 
+
+bool FAsyncPackage::IsDependencyOf(int32 RequestID)
+{
+	FReadScopeLock Lock(DependentRequestsLock);
+	return DependentRequests.Contains(RequestID);
+}
+
+void FAsyncPackage::AddDependentRequestsTo(FAsyncPackage* InDependency)
+{
+	TArray<int32> Requests;
+	{
+		FReadScopeLock Lock(DependentRequestsLock);
+		Requests = DependentRequests.Array();
+	}
+	InDependency->AddDependentRequests(Requests);
+}
+
+void FAsyncPackage::AddDependentRequests(TArrayView<int32 const> Requests)
+{
+	FWriteScopeLock Lock(DependentRequestsLock);
+	DependentRequests.Reserve(DependentRequests.Num() + Requests.Num());
+	for (const int32 Request : Requests)
+	{
+		DependentRequests.Add(Request);
+	}
+}
+
 bool FAsyncPackage::AreAllDependenciesFullyLoaded(TSet<UPackage*>& VisitedPackages)
 {
 	VisitedPackages.Reset();
@@ -4172,7 +4185,85 @@ bool FAsyncPackage::AreAllDependenciesFullyLoaded(TSet<UPackage*>& VisitedPackag
 	return bLoaded;
 }
 
-EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, bool& bDidSomething, FFlushTree* FlushTree)
+void FAsyncLoadingThread::CompleteFlushRequests(TArray<int32>& RequestIDs)
+{
+	FScopeLock Lock(&FlushRequestCritical);
+	for (int32 RequestID : RequestIDs)
+	{
+		FlushRequests.RemoveAll([RequestID](const FFlushRequest& Request)
+			{
+				return Request.GetId() == RequestID;
+			});
+		DuplicateRequestMap.Remove(RequestID);
+	}
+}
+
+void FAsyncLoadingThread::MapDuplicateRequestID(int32 DuplicateRequestId, int32 MainRequestId)
+{
+	DuplicateRequestMap.Add(DuplicateRequestId, MainRequestId);
+}
+
+FFlushRequest FAsyncLoadingThread::AddFlushRequest(int32 RequestID)
+{
+	FFlushRequest FlushRequest = FFlushRequest(RequestID);
+	{
+		FScopeLock Lock(&FlushRequestCritical);
+		FlushRequests.Push(FlushRequest);
+	}
+	return FlushRequest;
+}
+
+
+FFlushRequest FAsyncLoadingThread::PeekFlushRequest()
+{
+	FFlushRequest FlushRequest;
+	{
+		FScopeLock Lock(&FlushRequestCritical);
+		if (FlushRequests.Num())
+		{
+			FlushRequest = FlushRequests.Top();
+		}
+	}
+
+	if (FlushRequest)
+	{
+		// Validate that the flush request is still valid and pending
+		if (!ContainsRequestInternal(FlushRequest.GetId()))
+		{
+			FScopeLock Lock(&FlushRequestCritical);
+			FFlushRequest Top = FlushRequests.Pop();
+			ensure(Top == FlushRequest);
+			FlushRequest.Reset();
+		}
+	}
+
+	// Adjust request id
+	AdjustFlushRequest(FlushRequest);
+	return FlushRequest;
+}
+
+void FAsyncLoadingThread::AdjustFlushRequest(FFlushRequest& FlushRequest)
+{
+	if (FlushRequest)
+	{
+		if (int32* MainRequest = DuplicateRequestMap.Find(FlushRequest.GetId()))
+		{
+			FlushRequest.SetId(*MainRequest);
+		}
+	}
+}
+
+bool FAsyncLoadingThread::ShouldProcessPackage(FAsyncPackage* InAsyncPackage, const FFlushRequest& FlushRequest)
+{
+	if (!FlushRequest)
+	{
+		return true;
+	}
+
+	return InAsyncPackage->IsDependencyOf(FlushRequest.GetId());
+}
+
+EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, bool& bDidSomething, const FFlushRequest& FlushRequest)
 {
 	EAsyncPackageState::Type Result = EAsyncPackageState::Complete;
 
@@ -4218,13 +4309,20 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 		FPlatformMisc::PumpEssentialAppMessages();
 
 		FAsyncPackage* Package = LoadedPackagesToProcess[PackageIndex];
-		if (Package->GetDependencyRefCount() == 0)
+		// if we are currently flushing a specific load request, only post load related package objects
+		if (ShouldProcessPackage(Package, FlushRequest))
 		{
 			SCOPED_LOADTIMER(ProcessLoadedPackagesTime);
-
 			Result = Package->PostLoadDeferredObjects(TickStartTime, bUseTimeLimit, TimeLimit);
-			if (Result == EAsyncPackageState::Complete)
+			// if we didn't complete the post-load, we ran out of time for this slice so break immediately
+			if (Result != EAsyncPackageState::Complete)
 			{
+				break;
+			}
+			// if we are done with post load and there isn't any package currently depending on this package we can start to clean it up
+			else if (Package->GetDependencyRefCount() == 0)
+			{
+				check(Result == EAsyncPackageState::Complete);
 				// Remove the package from the list before we trigger the callbacks, 
 				// this is to ensure we can re-enter FlushAsyncLoading from any of the callbacks
 				{
@@ -4268,22 +4366,12 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 
 				TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(Package);
 
-				if (IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("ProcessLoadedPackages Misc")) || (FlushTree && !ContainsRequestID(FlushTree->RequestId)))
+				if (IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("ProcessLoadedPackages Misc")) || (FlushRequest && !ContainsRequestInternal(FlushRequest.GetId())))
 				{
 					// The only package we care about has finished loading, so we're good to exit
 					break;
 				}
 			}
-			else
-			{
-				break;
-			}
-		}
-		else
-		{
-			Result = EAsyncPackageState::PendingImports;
-			// Break immediately, we want to keep the order of processing when packages get here
-			break;
 		}
 	}
 
@@ -4406,12 +4494,18 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 
 
 
-EAsyncPackageState::Type FAsyncLoadingThread::TickAsyncLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, FFlushTree* FlushTree)
+EAsyncPackageState::Type FAsyncLoadingThread::TickAsyncLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, FFlushRequest FlushRequest)
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 
 	check(IsInGameThread());
 	check(!IsGarbageCollecting());
+
+#if WITH_EDITOR
+	// In the editor loading cannot be part of a transaction as it cannot be undone, and may result in recording half-loaded objects. So we suppress any active transaction while in this stack, and set the editor loading flag
+	TGuardValue<ITransaction*> SuppressTransaction(GUndo, nullptr);
+	TGuardValue<bool> IsEditorLoadingPackage(GIsEditorLoadingPackage, GIsEditor || GIsEditorLoadingPackage);
+#endif
 
 	const bool bLoadingSuspended = IsAsyncLoadingSuspendedInternal();
 	EAsyncPackageState::Type Result = bLoadingSuspended ? EAsyncPackageState::PendingImports : EAsyncPackageState::Complete;
@@ -4440,7 +4534,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::TickAsyncLoading(bool bUseTimeLimi
 
 		bool bDidSomething = false;
 		{
-			Result = ProcessLoadedPackages(bUseTimeLimit, bUseFullTimeLimit, TimeLimit, bDidSomething, FlushTree);
+			Result = ProcessLoadedPackages(bUseTimeLimit, bUseFullTimeLimit, TimeLimit, bDidSomething, FlushRequest);
 			TimeLimitUsedForProcessLoaded = FPlatformTime::Seconds() - TickStartTime;
 			UE_CLOG(!GIsEditor && bUseTimeLimit && TimeLimitUsedForProcessLoaded > .1f, LogStreaming, Warning, TEXT("Took %6.2fms to ProcessLoadedPackages"), float(TimeLimitUsedForProcessLoaded) * 1000.0f);
 		}
@@ -4448,7 +4542,8 @@ EAsyncPackageState::Type FAsyncLoadingThread::TickAsyncLoading(bool bUseTimeLimi
 		if (!bIsMultithreaded && Result != EAsyncPackageState::TimeOut && !IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("ProcessLoadedPackages")))
 		{
 			double RemainingTimeLimit = FMath::Max(0.0, TimeLimit - TimeLimitUsedForProcessLoaded);
-			Result = TickAsyncThread(bUseTimeLimit, bUseFullTimeLimit, RemainingTimeLimit, bDidSomething, FlushTree);
+			AdjustFlushRequest(FlushRequest);
+			Result = TickAsyncThread(bUseTimeLimit, bUseFullTimeLimit, RemainingTimeLimit, bDidSomething, FlushRequest);
 		}
 
 		if (Result != EAsyncPackageState::TimeOut && !IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("TickAsyncThread")))
@@ -4650,7 +4745,10 @@ uint32 FAsyncLoadingThread::Run()
 			if (!IsGarbageCollectionWaiting())
 			{
 				bool bDidSomething = false;
-				TickAsyncThread(true, false, 0.033f, bDidSomething);
+
+				// Peek if we currently have a flush request going on.
+				FFlushRequest FlushRequest = PeekFlushRequest();
+				TickAsyncThread(true, false, 0.033f, bDidSomething, FlushRequest);
 			}
 		}
 		else if (!bWasSuspendedLastFrame)
@@ -4697,7 +4795,7 @@ void FAsyncLoadingThread::CheckForCycles()
 }
 
 
-EAsyncPackageState::Type FAsyncLoadingThread::TickAsyncThread(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, bool& bDidSomething, FFlushTree* FlushTree)
+EAsyncPackageState::Type FAsyncLoadingThread::TickAsyncThread(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, bool& bDidSomething, FFlushRequest& FlushRequest)
 {
 	check(!IsInGameThread() || !IsMultithreaded());
 	EAsyncPackageState::Type Result = EAsyncPackageState::Complete;
@@ -4712,8 +4810,9 @@ EAsyncPackageState::Type FAsyncLoadingThread::TickAsyncThread(bool bUseTimeLimit
 				EDLBootNotificationManager.FireCompletedCompiledInImports();
 			}
 			{
+				//@note FH: pretty sure the GCScopeGuard isn't needed here, nor is it useful, it is also retaken inside CreateAsyncPackagesFromQueue which isn't necessary
 				FGCScopeGuard GCGuard;
-				CreateAsyncPackagesFromQueue(bUseTimeLimit, bUseFullTimeLimit, TimeLimit, FlushTree);
+				CreateAsyncPackagesFromQueue(bUseTimeLimit, bUseFullTimeLimit, TimeLimit); 
 			}
 			float TimeUsed = (float)(FPlatformTime::Seconds() - TickStartTime);
 			const float RemainingTimeLimit = FMath::Max(0.0f, TimeLimit - TimeUsed);
@@ -4724,7 +4823,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::TickAsyncThread(bool bUseTimeLimit
 			else
 			{
 				FGCScopeGuard GCGuard;
-				Result = ProcessAsyncLoading(ProcessedRequests, bUseTimeLimit, bUseFullTimeLimit, RemainingTimeLimit, FlushTree);
+				Result = ProcessAsyncLoading(ProcessedRequests, bUseTimeLimit, bUseFullTimeLimit, RemainingTimeLimit, FlushRequest);
 				bDidSomething = bDidSomething || ProcessedRequests > 0;
 			}
 		}
@@ -5090,6 +5189,7 @@ FAsyncPackage::FAsyncPackage(FAsyncLoadingThread& InThread, const FAsyncPackageD
 {
 	TRACE_LOADTIME_NEW_ASYNC_PACKAGE(this);
 	AddRequestID(InDesc.RequestID);
+	AddDependentRequests(MakeArrayView<const int32>(&InDesc.RequestID, 1));
 }
 
 FAsyncPackage::~FAsyncPackage()
@@ -5177,6 +5277,12 @@ void FAsyncPackage::AddRequestID(int32 Id)
 			// For debug readability
 			Desc.RequestID = Id;
 		}
+		else if (Desc.RequestID != Id)
+		{
+			// If this is a duplicate id, map it to the original request.
+			// this is to properly handle flush request which may not have propagated request dependencies to a duplicate request made later
+			AsyncLoadingThread.MapDuplicateRequestID(Id, Desc.RequestID);
+		}
 		RequestIDs.Add(Id);
 		AsyncLoadingThread.AddPendingRequest(Id);
 		TRACE_LOADTIME_ASYNC_PACKAGE_REQUEST_ASSOCIATION(this, Id);
@@ -5186,6 +5292,7 @@ void FAsyncPackage::AddRequestID(int32 Id)
 void FAsyncPackage::MarkRequestIDsAsComplete()
 {
 	AsyncLoadingThread.RemovePendingRequests(RequestIDs);
+	AsyncLoadingThread.CompleteFlushRequests(RequestIDs);
 	RequestIDs.Reset();
 }
 
@@ -5321,6 +5428,7 @@ void FAsyncPackage::EndAsyncLoad()
 
 	if (!bLoadHasFailed)
 	{
+		// @note FH: This is actually unsafer if multiple thread plays with the object flags...
 		// Mark the package as loaded, if we succeeded
 		LinkerRoot->SetFlags(RF_WasLoaded);
 	}
@@ -5336,11 +5444,13 @@ void FAsyncPackage::EndAsyncLoad()
  * @return	true if package has finished loading, false otherwise
  */
 
-EAsyncPackageState::Type FAsyncPackage::TickAsyncPackage(bool InbUseTimeLimit, bool InbUseFullTimeLimit, float& InOutTimeLimit, FFlushTree* FlushTree)
+EAsyncPackageState::Type FAsyncPackage::TickAsyncPackage(bool InbUseTimeLimit, bool InbUseFullTimeLimit, float& InOutTimeLimit)
 {
 
 	// We want this check only with EDL enabled
 	check(!GEventDrivenLoaderEnabled || int32(AsyncPackageLoadingState) > int32(EAsyncPackageLoadingState::ProcessNewImportsAndExports));
+	// @note FH: We shouldn't be ticking this package from the async thread once we are have finished loading it
+	checkSlow(!HasFinishedLoading());
 
 	ReentryCount++;
 
@@ -5409,7 +5519,7 @@ EAsyncPackageState::Type FAsyncPackage::TickAsyncPackage(bool InbUseTimeLimit, b
 			if (LoadingState == EAsyncPackageState::Complete)
 			{
 				SCOPED_LOADTIMER(Package_LoadImports);
-				LoadingState = LoadImports(FlushTree);
+				LoadingState = LoadImports();
 			}
 
 			// Create imports from linker import table.
@@ -5493,6 +5603,7 @@ EAsyncPackageState::Type FAsyncPackage::TickAsyncPackage(bool InbUseTimeLimit, b
 
 	check(bUseTimeLimit || LoadingState != EAsyncPackageState::TimeOut || AsyncLoadingThread.IsAsyncLoadingSuspendedInternal() || IsGarbageCollectionWaiting());
 
+	// @note FH: Should the package be marked as fully loaded if there are still pending post-load?
 	if (LinkerRoot && LoadingState == EAsyncPackageState::Complete)
 	{
 		LinkerRoot->MarkAsFullyLoaded();
@@ -5785,20 +5896,9 @@ EAsyncPackageState::Type FAsyncPackage::FinishLinker()
  * Adds a package to the list of pending import packages.
  *
  * @param PendingImport Name of the package imported either directly or by one of the imported packages
- */
-void FAsyncPackage::AddImportDependency(const FName& PendingImport, FFlushTree* FlushTree)
-{
-	AddImportDependency(PendingImport, NAME_None, FlushTree, FLinkerInstancingContext());
-}
-
-/**
- * Adds a package to the list of pending import packages.
- *
- * @param PendingImport Name of the package imported either directly or by one of the imported packages
  * @param PackageToLoad Name of the package to load into PendingImport
- * @param FlushTree Package dependency tree to be flushed
  */
-void FAsyncPackage::AddImportDependency(const FName& PendingImport, const FName& PackageToLoad, FFlushTree* FlushTree, FLinkerInstancingContext InstancingContext)
+void FAsyncPackage::AddImportDependency(const FName& PendingImport, const FName& PackageToLoad, FLinkerInstancingContext InstancingContext)
 {
 	FAsyncPackage* PackageToStream = AsyncLoadingThread.FindAsyncPackage(PendingImport);
 	const bool bReinsert = PackageToStream != nullptr;
@@ -5823,18 +5923,17 @@ void FAsyncPackage::AddImportDependency(const FName& PendingImport, const FName&
 		AsyncLoadingThread.InsertPackage(PackageToStream, bReinsert);
 	}
 
+	// Add dependent requests (any request that depends on this package will also depends on this package dependencies)
+	AddDependentRequestsTo(PackageToStream);
+
 	if (!PackageToStream->HasFinishedLoading() && 
 		!PackageToStream->bLoadHasFailed)
 	{
 		const bool bInternalCallback = true;
-		TUniquePtr<FLoadPackageAsyncDelegate> InternalDelegate = MakeUnique<FLoadPackageAsyncDelegate>(FLoadPackageAsyncDelegate::CreateRaw(this, &FAsyncPackage::ImportFullyLoadedCallback));
+		TUniquePtr<FLoadPackageAsyncDelegate> InternalDelegate = MakeUnique<FLoadPackageAsyncDelegate>(FLoadPackageAsyncDelegate::CreateRaw(this, &FAsyncPackage::ImportPreLoadedAsyncCallback));
 		PackageToStream->AddCompletionCallback(MoveTemp(InternalDelegate), bInternalCallback);
 		PackageToStream->DependencyRefCount.Increment();
 		PendingImportedPackages.Emplace(PackageToStream->GetPackageName(), PackageToStream);
-		if (FlushTree)
-		{
-			PackageToStream->PopulateFlushTree(FlushTree);
-		}
 	}
 	else
 	{
@@ -5849,14 +5948,14 @@ void FAsyncPackage::AddImportDependency(const FName& PendingImport, const FName&
  *
  * @param PendingImport Package imported either directly or by one of the imported packages
  */
-bool FAsyncPackage::AddUniqueLinkerDependencyPackage(FAsyncPackage& PendingImport, FFlushTree* FlushTree)
+bool FAsyncPackage::AddUniqueLinkerDependencyPackage(FAsyncPackage& PendingImport)
 {
 	if (!PendingImportedPackages.Contains(PendingImport.GetPackageName()))
 	{
 		FLinkerLoad* PendingImportLinker = PendingImport.Linker;
 		if (PendingImportLinker == nullptr || !PendingImportLinker->HasFinishedInitialization())
 		{
-			AddImportDependency(PendingImport.GetPackageName(), FlushTree);
+			AddImportDependency(PendingImport.GetPackageName(), NAME_None, FLinkerInstancingContext());
 			UE_LOG(LogStreaming, Verbose, TEXT("  Adding linker dependency %s"), *PendingImport.GetPackageName().ToString());
 		}
 		else if (this != &PendingImport)
@@ -5872,7 +5971,7 @@ bool FAsyncPackage::AddUniqueLinkerDependencyPackage(FAsyncPackage& PendingImpor
  *
  * @param ImportedPackage Package imported either directly or by one of the imported packages
  */
-void FAsyncPackage::AddDependencyTree(FAsyncPackage& ImportedPackage, TSet<FAsyncPackage*>& SearchedPackages, FFlushTree* FlushTree)
+void FAsyncPackage::AddDependencyTree(FAsyncPackage& ImportedPackage, TSet<FAsyncPackage*>& SearchedPackages)
 {
 	if (SearchedPackages.Contains(&ImportedPackage))
 	{
@@ -5882,9 +5981,9 @@ void FAsyncPackage::AddDependencyTree(FAsyncPackage& ImportedPackage, TSet<FAsyn
 	for (TTuple<FName, FAsyncPackage*>& Kvp : ImportedPackage.PendingImportedPackages)
 	{
 		FAsyncPackage& PendingImport = *Kvp.Value;
-		if (!AddUniqueLinkerDependencyPackage(PendingImport, FlushTree))
+		if (!AddUniqueLinkerDependencyPackage(PendingImport))
 		{
-			AddDependencyTree(PendingImport, SearchedPackages, FlushTree);
+			AddDependencyTree(PendingImport, SearchedPackages);
 		}
 	}
 	// Mark this package as searched
@@ -5896,7 +5995,7 @@ void FAsyncPackage::AddDependencyTree(FAsyncPackage& ImportedPackage, TSet<FAsyn
  *
  * @return true if we finished load all imports, false otherwise
  */
-EAsyncPackageState::Type FAsyncPackage::LoadImports(FFlushTree* FlushTree)
+EAsyncPackageState::Type FAsyncPackage::LoadImports()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FAsyncPackage::LoadImports);
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_LoadImports);
@@ -5961,7 +6060,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports(FFlushTree* FlushTree)
 				if (PendingPackageLinker == nullptr || !PendingPackageLinker->HasFinishedInitialization())
 				{
 					// Add this import to the dependency list.
-					AddUniqueLinkerDependencyPackage(*PendingPackage, FlushTree);
+					AddUniqueLinkerDependencyPackage(*PendingPackage);
 				}
 				else
 				{
@@ -5971,7 +6070,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports(FFlushTree* FlushTree)
 					ReferencedImports.Add(PendingPackage);
 					// Check if we need to add its dependencies too.
 					TSet<FAsyncPackage*> SearchedPackages;
-					AddDependencyTree(*PendingPackage, SearchedPackages, FlushTree);
+					AddDependencyTree(*PendingPackage, SearchedPackages);
 				}
 			}
 		}
@@ -5983,7 +6082,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports(FFlushTree* FlushTree)
 			if (!FPackageName::IsShortPackageName(ImportPackageName))
 			{
 				UE_LOG(LogStreaming, Verbose, TEXT("FAsyncPackage::LoadImports for %s: Loading %s"), *Desc.PackagePath.GetDebugName(), *ImportPackageName);
-				AddImportDependency(ImportPackageFName, ImportToLoad, FlushTree, InstancingContext);
+				AddImportDependency(ImportPackageFName, ImportToLoad, InstancingContext);
 			}
 			else
 			{
@@ -6004,10 +6103,12 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports(FFlushTree* FlushTree)
 }
 
 /**
- * Function called when pending import package has been fully loaded.
+ * this callback is triggered once the package exports are created and de-serialized but not post loaded
  */
-void FAsyncPackage::ImportFullyLoadedCallback(const FName& InPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
+void FAsyncPackage::ImportPreLoadedAsyncCallback(const FName& InPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
 {
+	// @note FH: the array here should only be accessed from the async thread
+	check(IsInAsyncLoadingThread());
 	if (Result != EAsyncLoadingResult::Canceled)
 	{
 		UE_LOG(LogStreaming, Verbose, TEXT("FAsyncPackage::LoadImports for %s: Loaded %s"), *Desc.PackagePath.GetDebugName(), *InPackageName.ToString());
@@ -6363,6 +6464,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 	SCOPED_LOADTIMER(PostLoadDeferredObjectsTime);
 
 	FAsyncPackageScope PackageScope(this);
+	++ReentryCount;
 
 	EAsyncPackageState::Type Result = EAsyncPackageState::Complete;
 	FAsyncLoadingTickScope InAsyncLoadingTick(AsyncLoadingThread);
@@ -6467,7 +6569,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 		TArray<UObject*> CDODefaultSubobjects;
 		// Clear async loading flags (we still want RF_Async, but EInternalObjectFlags::AsyncLoading can be cleared)
 		while (DeferredFinalizeIndex < DeferredFinalizeObjects.Num() &&
-			(DeferredPostLoadIndex % 100 != 0 || (!AsyncLoadingThread.IsAsyncLoadingSuspendedInternal() && !::IsTimeLimitExceeded(InTickStartTime, bInUseTimeLimit, InOutTimeLimit, LastTypeOfWorkPerformed, LastObjectWorkWasPerformedOn))))
+			((!AsyncLoadingThread.IsAsyncLoadingSuspendedInternal() && !::IsTimeLimitExceeded(InTickStartTime, bInUseTimeLimit, InOutTimeLimit, LastTypeOfWorkPerformed, LastObjectWorkWasPerformedOn))))
 		{
 			UObject* Object = DeferredFinalizeObjects[DeferredFinalizeIndex++];
 			if (Object)
@@ -6493,6 +6595,8 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 			}
 		}
 		::IsTimeLimitExceeded(InTickStartTime, bInUseTimeLimit, InOutTimeLimit, LastTypeOfWorkPerformed, LastObjectWorkWasPerformedOn);
+
+		//@ note FH: this might currently get called multiple time, would need to had a check for being already finalized 
 		if (DeferredFinalizeIndex == DeferredFinalizeObjects.Num())
 		{
 			DeferredFinalizeIndex = 0;
@@ -6524,6 +6628,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 		FUniqueObjectGuid::InvalidateTag();
 	}
 
+	--ReentryCount;
 	return Result;
 }
 
@@ -6847,7 +6952,7 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 
 		SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_FlushAsyncLoadingGameThread);
 
-		if (PackageID != INDEX_NONE && !ContainsRequestID(PackageID))
+		if (PackageID != INDEX_NONE && !ContainsRequestInternal(PackageID))
 		{
 			return;
 		}
@@ -6858,16 +6963,17 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 
 		// Flush async loaders without using a time limit. Needed for e.g. garbage collection.
 		{
-			TUniquePtr<FFlushTree> FlushTree;
+			FFlushRequest FlushRequest;
 			if (PackageID != INDEX_NONE)
 			{
-				FlushTree = MakeUnique<FFlushTree>(PackageID);
+				// This create and add a flush request to use on the async thread
+				FlushRequest = AddFlushRequest(PackageID);
 			}
 			SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_TickAsyncLoadingGameThread);
 			while (IsAsyncLoadingPackages())
 			{
-				EAsyncPackageState::Type Result = TickAsyncLoading(false, false, 0, FlushTree.Get());
-				if (PackageID != INDEX_NONE && !ContainsRequestID(PackageID))
+				EAsyncPackageState::Type Result = TickAsyncLoading(false, false, 0, FlushRequest);
+				if (PackageID != INDEX_NONE && !ContainsRequestInternal(PackageID))
 				{
 					break;
 				}

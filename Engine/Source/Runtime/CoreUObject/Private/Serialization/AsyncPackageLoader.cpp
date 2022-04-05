@@ -465,30 +465,30 @@ static FEDLBootNotificationManager& GetGEDLBootNotificationManager()
 }
 
 FAsyncLoadingThreadSettings::FAsyncLoadingThreadSettings()
+	: bAsyncLoadingThreadEnabled(false)
+	, bAsyncPostLoadEnabled(false)
 {
 #if THREADSAFE_UOBJECTS
-	if (FPlatformProperties::RequiresCookedData())
-	{
-		check(GConfig);
+	check(GConfig);
+	// if we are on an uncooked platform query the editor streaming settings
+	const TCHAR* SectionName = FPlatformProperties::RequiresCookedData() ? TEXT("/Script/Engine.StreamingSettings") : TEXT("/Script/Engine.EditorStreamingSettings");
 
-		bool bConfigValue = true;
-		GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.AsyncLoadingThreadEnabled"), bConfigValue, GEngineIni);
-		bool bCommandLineDisable = FParse::Param(FCommandLine::Get(), TEXT("NoAsyncLoadingThread"));
-		bool bCommandLineEnable = FParse::Param(FCommandLine::Get(), TEXT("AsyncLoadingThread"));
-		bAsyncLoadingThreadEnabled = bCommandLineEnable || (bConfigValue && FApp::ShouldUseThreadingForPerformance() && !bCommandLineDisable);
+	// if we are on an uncooked platform the default value for async loading is disabled while it is enabled for cooked platform
+	bool bConfigValue = FPlatformProperties::RequiresCookedData() ? true : false;
 
-		bConfigValue = true;
-		GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.AsyncPostLoadEnabled"), bConfigValue, GEngineIni);
-		bCommandLineDisable = FParse::Param(FCommandLine::Get(), TEXT("NoAsyncPostLoad"));
-		bCommandLineEnable = FParse::Param(FCommandLine::Get(), TEXT("AsyncPostLoad"));
-		bAsyncPostLoadEnabled = bCommandLineEnable || (bConfigValue && FApp::ShouldUseThreadingForPerformance() && !bCommandLineDisable);
-	}
-	else
+	GConfig->GetBool(SectionName, TEXT("s.AsyncLoadingThreadEnabled"), bConfigValue, GEngineIni);
+	bool bCommandLineDisable = FParse::Param(FCommandLine::Get(), TEXT("NoAsyncLoadingThread"));
+	bool bCommandLineEnable = FParse::Param(FCommandLine::Get(), TEXT("AsyncLoadingThread"));
+	bAsyncLoadingThreadEnabled = bCommandLineEnable || (bConfigValue && FApp::ShouldUseThreadingForPerformance() && !bCommandLineDisable);
+
+	// if we are on an uncooked platform the default value for async loading is disabled while it is enabled for cooked platform
+	bConfigValue = FPlatformProperties::RequiresCookedData() ? true : false;
+
+	GConfig->GetBool(SectionName, TEXT("s.AsyncPostLoadEnabled"), bConfigValue, GEngineIni);
+	bCommandLineDisable = FParse::Param(FCommandLine::Get(), TEXT("NoAsyncPostLoad"));
+	bCommandLineEnable = FParse::Param(FCommandLine::Get(), TEXT("AsyncPostLoad"));
+	bAsyncPostLoadEnabled = bCommandLineEnable || (bConfigValue && FApp::ShouldUseThreadingForPerformance() && !bCommandLineDisable);
 #endif
-	{
-		bAsyncLoadingThreadEnabled = false;
-		bAsyncPostLoadEnabled = false;
-	}
 }
 
 FAsyncLoadingThreadSettings& FAsyncLoadingThreadSettings::Get()

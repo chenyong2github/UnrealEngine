@@ -22,7 +22,7 @@
 #include "Async/AsyncFileHandle.h"
 
 struct FAsyncPackage;
-struct FFlushTree;
+struct FFlushRequest;
 class FAsyncLoadingThread;
 
 
@@ -336,7 +336,6 @@ public:
 * Structure containing intermediate data required for async loading of all imports and exports of a
 * FLinkerLoad.
 */
-
 struct FAsyncPackage : public FGCObject
 {
 	friend struct FScopedAsyncPackageEvent;
@@ -356,10 +355,7 @@ struct FAsyncPackage : public FGCObject
 	 *
 	 * @return	true if package has finished loading, false otherwise
 	 */
-	EAsyncPackageState::Type TickAsyncPackage(bool bUseTimeLimit, bool bInbUseFullTimeLimit, float& InOutTimeLimit, FFlushTree* FlushTree);
-
-	/** Fills the package dependency tree required to flush a specific package */
-	void PopulateFlushTree(struct FFlushTree* FlushTree);	
+	EAsyncPackageState::Type TickAsyncPackage(bool bUseTimeLimit, bool bInbUseFullTimeLimit, float& InOutTimeLimit);
 	
 	/** Marks a specific request as complete */
 	void MarkRequestIDsAsComplete();
@@ -425,6 +421,12 @@ struct FAsyncPackage : public FGCObject
 	FORCEINLINE bool HasFinishedLoading() const
 	{
 		return bLoadHasFinished;
+	}
+
+	/** Returns package loading priority. */
+	FORCEINLINE int32 GetRequestID() const
+	{
+		return Desc.RequestID;
 	}
 
 	/** Returns package loading priority. */
@@ -512,7 +514,12 @@ struct FAsyncPackage : public FGCObject
 	/** Creates GC clusters from loaded objects */
 	EAsyncPackageState::Type CreateClusters(double InTickStartTime, bool bInUseTimeLimit, float& InOutTimeLimit);
 
-private:	
+	/** Returns true if this package is a dependency to the explicit request id RequestID. */
+	bool IsDependencyOf(int32 RequestID);
+
+private:
+
+	friend class FLinkerLoad;
 
 	/** Checks if all dependencies (imported packages) of this package have been fully loaded */
 	static bool AreAllDependenciesFullyLoadedInternal(FAsyncPackage* Package, TSet<UPackage*>& VisitedPackages, FString& OutError);
@@ -536,6 +543,12 @@ private:
 		}
 	};
 
+	/** Propagate dependent requests with a package dependency. */
+	void AddDependentRequestsTo(FAsyncPackage* InDependency);
+
+	/** Add the list of passed in Requests to the list of requests that are dependent on this package. */
+	void AddDependentRequests(TArrayView<int32 const> Requests);
+
 	/** Basic information associated with this package */
 	FAsyncPackageDesc Desc;
 	/** Linker which is going to have its exports and imports loaded									*/
@@ -544,7 +557,7 @@ private:
 	UPackage*				LinkerRoot;
 	/** Call backs called when we finished loading this package											*/
 	TArray<FCompletionCallback>	CompletionCallbacks;
-	/** Pending Import packages - we wait until all of them have been fully loaded. */
+	/** Pending Import packages - we wait until all of them have been pre loaded. */
 	TMap<FName, FAsyncPackage*> PendingImportedPackages;
 	/** Referenced imports - list of packages we need until we finish loading this package. */
 	TArray<FAsyncPackage*> ReferencedImports;
@@ -584,10 +597,10 @@ private:
 	bool						bTimeLimitExceeded;
 	/** True if our load has failed */
 	bool						bLoadHasFailed;
-	/** True if our load has finished */
+	/** True if our load on the async thread has finished */
 	bool						bLoadHasFinished;
 	/** True if threaded loading has finished for this package */
-	bool						bThreadedLoadingFinished;
+	bool						bThreadedLoadingFinished; /** @note FH: seems to serve a purpose almost identical to bLoadHasFinished. */
 	/** True if this package was created by this async package */
 	bool						bCreatedLinkerRoot;
 	/** The time taken when we started the tick.														*/
@@ -611,14 +624,19 @@ private:
 	/** Objects to create GC clusters from */
 	TArray<UObject*> DeferredClusterObjects;
 
-	/** List of all request handles */
+	/** List of all request handles. Those handles refer to explicitly made request. */
 	TArray<int32> RequestIDs;
+
+	FRWLock DependentRequestsLock;
+	/** Requests that currently depends on this package. */
+	TSet<int32> DependentRequests;
+
 #if WITH_EDITORONLY_DATA
 	/** Index of the meta-data object within the linkers export table (unset if not yet processed, although may still be INDEX_NONE if there is no meta-data) */
 	TOptional<int32> MetaDataIndex;
 #endif // WITH_EDITORONLY_DATA
-	/** Number of times we recursed to load this package. */
-	int32 ReentryCount;
+	/** Number of times we recursed to load or post load this package. could be split into 2 counters not to use atomics. */
+	std::atomic<int32> ReentryCount;
 	/** List of objects referenced by this package */
 	TSet<UObject*> ReferencedObjects;
 	/** Critical section for referenced objects list */
@@ -853,10 +871,9 @@ private:
 	/**
 	 * Loads imported packages..
 	 *
-	 * @param FlushTree Package dependency tree to be flushed
 	 * @return true if we finished loading all imports, false otherwise
 	 */
-	EAsyncPackageState::Type LoadImports(FFlushTree* FlushTree);
+	EAsyncPackageState::Type LoadImports();
 	/**
 	 * Create imports till time limit is exceeded.
 	 *
@@ -905,38 +922,31 @@ private:
 	EAsyncPackageState::Type FinishExternalReadDependencies();
 
 	/**
-	 * Function called when pending import package has been loaded.
+	 * Function called when pending import package has been preloaded. called from the async loading thread
 	 */
-	void ImportFullyLoadedCallback(const FName& PackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result);
+	void ImportPreLoadedAsyncCallback(const FName& PackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result);
+
 	/**
 	 * Adds dependency tree to the list if packages to wait for until their linkers have been created.
 	 *
 	 * @param ImportedPackage Package imported either directly or by one of the imported packages
-	 * @param FlushTree Package dependency tree to be flushed
 	 */
-	void AddDependencyTree(FAsyncPackage& ImportedPackage, TSet<FAsyncPackage*>& SearchedPackages, FFlushTree* FlushTree);
+	void AddDependencyTree(FAsyncPackage& ImportedPackage, TSet<FAsyncPackage*>& SearchedPackages);
+
 	/**
 	 * Adds a unique package to the list of packages to wait for until their linkers have been created.
 	 *
 	 * @param PendingImport Package imported either directly or by one of the imported packages
-	 * @param FlushTree Package dependency tree to be flushed
 	 */
-	bool AddUniqueLinkerDependencyPackage(FAsyncPackage& PendingImport, FFlushTree* FlushTree);
-	/**
-	 * Adds a package to the list of pending import packages.
-	 *
-	 * @param PendingImport Name of the package imported either directly or by one of the imported packages
-	 * @param FlushTree Package dependency tree to be flushed
-	 */
-	void AddImportDependency(const FName& PendingImport, FFlushTree* FlushTree);
+	bool AddUniqueLinkerDependencyPackage(FAsyncPackage& PendingImport);
+
 	/**
 	 * Adds a package to the list of pending import packages.
 	 *
 	 * @param PendingImport Name of the package imported either directly or by one of the imported packages
 	 * @param PackageToLoad Name of the package to load into PendingImport
-	 * @param FlushTree Package dependency tree to be flushed
 	 */
-	void AddImportDependency(const FName& PendingImport, const FName& PackageToLoad, FFlushTree* FlushTree, FLinkerInstancingContext InstancingContext);
+	void AddImportDependency(const FName& PendingImport, const FName& PackageToLoad, FLinkerInstancingContext InstancingContext);
 
 	/**
 	 * Removes references to any imported packages.
