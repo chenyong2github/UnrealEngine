@@ -278,7 +278,17 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 
 	ESource NewAsyncSource = ESource::Uninitialized;
 	int32 InitialRequestIndex = -1;
+	bool bExistsInEditorDomain = false;
+	bool bStorageValid = false;
+
 	if (Response.Status == EStatus::Ok)
+	{
+		const FCbObject& MetaData = Response.Record.GetMeta();
+		bExistsInEditorDomain = true;
+		bStorageValid = MetaData["Valid"].AsBool(false);
+	}
+
+	if (bStorageValid)
 	{
 		const FCacheRecord& Record = Response.Record;
 		const uint64 FileSize = Record.GetMeta()["FileSize"].AsUInt64();
@@ -317,7 +327,7 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 					bEditorDomainAvailable = true;
 					if (PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Editor)
 					{
-						PackageSource->Source = FEditorDomain::EPackageSource::Editor;
+						EditorDomainLocks->Owner->MarkLoadedFromEditorDomain(PackagePath, PackageSource);
 						bRegisterSuccessful = true;
 					}
 				}
@@ -353,13 +363,16 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 		FScopeLock DomainScopeLock(&EditorDomainLocks->Lock);
 		if (EditorDomainLocks->Owner)
 		{
-			checkf(PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Workspace,
-				TEXT("%s was previously loaded from the EditorDomain but now is unavailable."), *PackagePath.GetDebugName());
+			if (PackageSource->Source == FEditorDomain::EPackageSource::Editor)
+			{
+				UE_LOG(LogEditorDomain, Error, TEXT("%s was previously loaded from the EditorDomain but now is unavailable. This may cause failures during serialization due to changed FileSize and Format."),
+					*PackagePath.GetDebugName());
+			}
 			FEditorDomain& EditorDomain(*EditorDomainLocks->Owner);
 			bool bSucceeded = TryCreateFallbackData(EditorDomain);
 			if (bSucceeded)
 			{
-				EditorDomain.MarkNeedsLoadFromWorkspace(PackagePath, PackageSource);
+				EditorDomain.MarkLoadedFromWorkspaceDomain(PackagePath, PackageSource, bExistsInEditorDomain);
 				NewAsyncSource = ESource::Fallback;
 			}
 			else

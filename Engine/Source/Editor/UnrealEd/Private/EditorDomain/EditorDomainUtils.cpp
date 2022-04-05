@@ -90,6 +90,46 @@ static ValueType MapFindRef(const TMap<KeyType, ValueType, SetAllocator, KeyFunc
 namespace UE::EditorDomain
 {
 
+struct FSaveStoreResultToText
+{
+	ESaveStorageResult Code;
+	FUtf8StringView Text;
+};
+
+const FUtf8StringView SaveStoreResultInvalidText = UTF8TEXTVIEW("InvalidCode");
+const FSaveStoreResultToText SaveStoreResultToText[]
+{
+	{ ESaveStorageResult::Valid,					UTF8TEXTVIEW("Valid") },
+	{ ESaveStorageResult::UnexpectedClass,			UTF8TEXTVIEW("UnexpectedClass") },
+	{ ESaveStorageResult::UnexpectedCustomVersion,	UTF8TEXTVIEW("UnexpectedCustomVersion") },
+	{ ESaveStorageResult::BulkDataTooLarge,			UTF8TEXTVIEW("BulkDataTooLarge") },
+	{ ESaveStorageResult::InvalidCode,				SaveStoreResultInvalidText },
+};
+
+FUtf8StringView LexToUtf8(ESaveStorageResult Result)
+{
+	for (const FSaveStoreResultToText& ResultToText : SaveStoreResultToText)
+	{
+		if (Result == ResultToText.Code)
+		{
+			return ResultToText.Text;
+		}
+	}
+	return SaveStoreResultInvalidText;
+}
+
+ESaveStorageResult SaveStorageResultFromString(FUtf8StringView Text)
+{
+	for (const FSaveStoreResultToText& ResultToText : SaveStoreResultToText)
+	{
+		if (Text == ResultToText.Text)
+		{
+			return ResultToText.Code;
+		}
+	}
+	return ESaveStorageResult::InvalidCode;
+}
+
 TArray<FGuid> GetCustomVersions(UClass& Class);
 TMap<FGuid, UObject*> FindCustomVersionCulprits(TConstArrayView<FGuid> UnknownGuids, UPackage* Package);
 void InitializeGlobalConstructClasses();
@@ -111,7 +151,7 @@ bool bGGlobalConstructClassesInitialized = false;
 int64 GMaxBulkDataSize = -1;
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("B0ED553FD35F4185B095EF52ED119C7F");
+const TCHAR* EditorDomainVersion = TEXT("A5D5DB1F5951446EA0E2F3E017314DFC");
 
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
@@ -1699,6 +1739,8 @@ bool TrySavePackage(UPackage* Package)
 		}
 	}
 
+	ESaveStorageResult StorageResult = ESaveStorageResult::Valid;
+
 	TSet<FName> KnownImportedClasses(PackageDigest.ImportedClasses);
 	for (FName ImportedClass : SavedImportedClasses)
 	{
@@ -1712,7 +1754,7 @@ bool TrySavePackage(UPackage* Package)
 				TEXT("Find the class that added %s and add ")
 				TEXT("Editor.ini:[EditorDomain]:+PostLoadCanConstructClasses=<ConstructingClass>,%s"),
 				*Package->GetName(), *ImportedClass.ToString(), *ImportedClass.ToString());
-			return false;
+			StorageResult = ESaveStorageResult::UnexpectedClass;
 		}
 	}
 
@@ -1731,7 +1773,7 @@ bool TrySavePackage(UPackage* Package)
 			UnknownGuids.Add(CustomVersion.Key);
 		}
 	}
-	if (!UnknownGuids.IsEmpty())
+	if (StorageResult == ESaveStorageResult::Valid && !UnknownGuids.IsEmpty())
 	{
 		TMap<FGuid, UObject*> Culprits = FindCustomVersionCulprits(UnknownGuids, Package);
 		TStringBuilder<256> VersionsText;
@@ -1751,10 +1793,11 @@ bool TrySavePackage(UPackage* Package)
 			TEXT("Optimized loading and iterative cooking will be disabled for this package. ")
 			TEXT("Modify the classes/structs to call Ar.UsingCustomVersion(Guid) in Serialize or DeclareCustomVersions.%s"),
 			*Package->GetName(), VersionsText.ToString());
-		return false;
+		StorageResult = ESaveStorageResult::UnexpectedCustomVersion;
 	}
 
-	if (GMaxBulkDataSize >= 0 && PackageWriter->GetBulkDataSize() > static_cast<uint64>(GMaxBulkDataSize))
+	if (StorageResult == ESaveStorageResult::Valid && 
+		GMaxBulkDataSize >= 0 && PackageWriter->GetBulkDataSize() > static_cast<uint64>(GMaxBulkDataSize))
 	{
 		// TODO EditorDomain MeshDescription: We suppress the warning if the package includes a MeshDescription;
 		// MeshDescriptions do not yet detect the need for a bulkdata resave until save serialization.
@@ -1776,38 +1819,53 @@ bool TrySavePackage(UPackage* Package)
 		{
 			UE_LOG(LogEditorDomain, Verbose, TEXT("%s"), *Message);
 		}
-		return false;
+		StorageResult = ESaveStorageResult::BulkDataTooLarge;
 	}
 
 	ICache& Cache = GetCache();
 
+	bool bStorageResultValid = StorageResult == ESaveStorageResult::Valid;
 	TCbWriter<16> MetaData;
 	MetaData.BeginObject();
 	uint64 FileSize = PackageWriter->GetFileSize();
-	MetaData << "FileSize" << FileSize;
+	MetaData << "Valid" << bStorageResultValid;
+	if (bStorageResultValid)
+	{
+		MetaData << "FileSize" << FileSize;
+	}
+	else
+	{
+		MetaData << "StorageResult" << LexToUtf8(StorageResult);
+	}
 	MetaData.EndObject();
 
 	FCacheRecordBuilder RecordBuilder(GetEditorDomainPackageKey(PackageDigest.Hash));
-	for (const FEditorDomainPackageWriter::FAttachment& Attachment : PackageWriter->GetAttachments())
+	if (bStorageResultValid)
 	{
-		RecordBuilder.AddValue(Attachment.ValueId, Attachment.Buffer);
+		for (const FEditorDomainPackageWriter::FAttachment& Attachment : PackageWriter->GetAttachments())
+		{
+			RecordBuilder.AddValue(Attachment.ValueId, Attachment.Buffer);
+		}
 	}
 	RecordBuilder.SetMeta(MetaData.Save().AsObject());
 	FRequestOwner Owner(EPriority::Normal);
-	Cache.Put({{{Package->GetName()}, RecordBuilder.Build()}}, Owner);
+	Cache.Put({ {{Package->GetName()}, RecordBuilder.Build()} }, Owner);
 	Owner.KeepAlive();
 
-	// TODO_BuildDefinitionList: Calculate and store BuildDefinitionList on the PackageData, or collect it here from some other source.
-	TArray<UE::DerivedData::FBuildDefinition> BuildDefinitions;
-	FCbObject BuildDefinitionList = UE::TargetDomain::BuildDefinitionListToObject(BuildDefinitions);
-	FCbObject TargetDomainDependencies = UE::TargetDomain::CollectDependenciesObject(Package, nullptr, nullptr);
-	if (TargetDomainDependencies)
+	if (bStorageResultValid)
 	{
-		TArray<IPackageWriter::FCommitAttachmentInfo, TInlineAllocator<2>> Attachments;
-		Attachments.Add({ "Dependencies", TargetDomainDependencies });
-		// TODO: Reenable BuildDefinitionList once FCbPackage support for empty FCbObjects is in
-		//Attachments.Add({ "BuildDefinitionList", BuildDefinitionList });
-		UE::TargetDomain::CommitEditorDomainCookAttachments(Package->GetFName(), Attachments);
+		// TODO_BuildDefinitionList: Calculate and store BuildDefinitionList on the PackageData, or collect it here from some other source.
+		TArray<UE::DerivedData::FBuildDefinition> BuildDefinitions;
+		FCbObject BuildDefinitionList = UE::TargetDomain::BuildDefinitionListToObject(BuildDefinitions);
+		FCbObject TargetDomainDependencies = UE::TargetDomain::CollectDependenciesObject(Package, nullptr, nullptr);
+		if (TargetDomainDependencies)
+		{
+			TArray<IPackageWriter::FCommitAttachmentInfo, TInlineAllocator<2>> Attachments;
+			Attachments.Add({ "Dependencies", TargetDomainDependencies });
+			// TODO: Reenable BuildDefinitionList once FCbPackage support for empty FCbObjects is in
+			//Attachments.Add({ "BuildDefinitionList", BuildDefinitionList });
+			UE::TargetDomain::CommitEditorDomainCookAttachments(Package->GetFName(), Attachments);
+		}
 	}
 	return true;
 }

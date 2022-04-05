@@ -192,7 +192,8 @@ private:
 	struct FPackageSource : public FThreadSafeRefCountedObject
 	{
 		FPackageSource()
-			:bHasSaved(false), bHasLoaded(false), bHasQueriedCatalog(false), bLoadedAfterCatalogLoaded(false)
+			: bHasSaved(false), bHasLoaded(false), bHasQueriedCatalog(false), bLoadedAfterCatalogLoaded(false)
+			, bHasRecordInEditorDomain(false)
 		{
 		}
 
@@ -207,6 +208,7 @@ private:
 		bool bHasLoaded : 1;
 		bool bHasQueriedCatalog : 1;
 		bool bLoadedAfterCatalogLoaded : 1;
+		bool bHasRecordInEditorDomain : 1;
 	};
 
 	/** Disallow copy constructors */
@@ -218,8 +220,10 @@ private:
 		UE::EditorDomain::FPackageDigest* OutErrorDigest=nullptr);
 	/** Return the PackageSource data in PackageSources, if it exists */
 	TRefCountPtr<FPackageSource> FindPackageSource(const FPackagePath& PackagePath);
-	/** Mark that we had to load the Package from the workspace domain, and schedule its save into the EditorDomain. */
-	void MarkNeedsLoadFromWorkspace(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& PackageSource);
+	/** Mark that we had to load the Package from the workspace domain, and schedule its save into the EditorDomain if allowed. */
+	void MarkLoadedFromWorkspaceDomain(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& PackageSource, bool bHasRecordInEditorDomain);
+	/** Mark that we were able to load from the EditorDomain */
+	void MarkLoadedFromEditorDomain(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& PackageSource);
 	/** Callback for PostEngineInit, to handle saving of packages which we could not save before then. */
 	void OnPostEngineInit();
 	/** EndLoad callback to handle saving the EditorDomain version of the package. */

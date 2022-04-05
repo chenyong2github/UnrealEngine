@@ -263,15 +263,35 @@ TRefCountPtr<FEditorDomain::FPackageSource> FEditorDomain::FindPackageSource(con
 	return TRefCountPtr<FPackageSource>();
 }
 
-void FEditorDomain::MarkNeedsLoadFromWorkspace(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& PackageSource)
+void FEditorDomain::MarkLoadedFromWorkspaceDomain(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& PackageSource,
+	bool bHasRecordInEditorDomain)
 {
+	if (PackageSource->Source == FEditorDomain::EPackageSource::Workspace)
+	{
+		return;
+	}
+
 	PackageSource->Source = FEditorDomain::EPackageSource::Workspace;
+	PackageSource->bHasRecordInEditorDomain |= bHasRecordInEditorDomain;
 	if (bExternalSave)
 	{
-		SaveClient->RequestSave(PackagePath);
+		if (PackageSource->NeedsEditorDomainSave(*this))
+		{
+			SaveClient->RequestSave(PackagePath);
+		}
 	}
-	// Otherwise, we will note the need for save in OnEndLoadPackage
+	// Otherwise, we will check whether it needs to save in OnEndLoadPackage
+}
 
+void FEditorDomain::MarkLoadedFromEditorDomain(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& PackageSource)
+{
+	if (PackageSource->Source == FEditorDomain::EPackageSource::Editor)
+	{
+		return;
+	}
+
+	PackageSource->Source = FEditorDomain::EPackageSource::Editor;
+	PackageSource->bHasRecordInEditorDomain = true;
 }
 
 int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment PackageSegment,
@@ -306,31 +326,48 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 			[&FileSize, &PackageSource, &PackagePath, PackageSegment, Locks=this->Locks, OutUpdatedPath]
 			(UE::DerivedData::FCacheGetResponse&& Response)
 		{
-			FScopeLock ScopeLock(&Locks->Lock);
-			if ((PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Editor) &&
-				Response.Status == UE::DerivedData::EStatus::Ok)
+			bool bLoadFromWorkspace = false;
+			bool bHasRecordInEditorDomain = false;
+			if (Response.Status != UE::DerivedData::EStatus::Ok)
 			{
-				const FCbObject& MetaData = Response.Record.GetMeta();
-				FileSize = MetaData["FileSize"].AsInt64();
-				PackageSource->Source = EPackageSource::Editor;
+				if (PackageSource->Source == FEditorDomain::EPackageSource::Editor)
+				{
+					UE_LOG(LogEditorDomain, Error, TEXT("%s was previously loaded from the EditorDomain but now is unavailable. This may cause failures during serialization due to changed FileSize and Format."),
+						*PackagePath.GetDebugName());
+				}
+				bLoadFromWorkspace = true;
 			}
 			else
 			{
-				checkf(PackageSource->Source == EPackageSource::Undecided || PackageSource->Source == EPackageSource::Workspace,
-					TEXT("%s was previously loaded from the EditorDomain but now is unavailable."),
-					*PackagePath.GetDebugName());
-				if (Locks->Owner)
+				bHasRecordInEditorDomain = true;
+				const FCbObject& MetaData = Response.Record.GetMeta();
+				bool bStorageValid = MetaData["Valid"].AsBool(false);
+				if (!bStorageValid)
 				{
-					FEditorDomain& EditorDomain = *Locks->Owner;
-					EditorDomain.MarkNeedsLoadFromWorkspace(PackagePath, PackageSource);
-					FileSize = EditorDomain.Workspace->FileSize(PackagePath, PackageSegment, OutUpdatedPath);
+					bLoadFromWorkspace = true;
 				}
 				else
 				{
-					UE_LOG(LogEditorDomain, Warning, TEXT("%s size read after EditorDomain shutdown. Returning -1."),
-						*PackagePath.GetDebugName());
-					FileSize = -1;
+					FileSize = MetaData["FileSize"].AsInt64();
 				}
+			}
+
+			FScopeLock ScopeLock(&Locks->Lock);
+			FEditorDomain* EditorDomain = Locks->Owner;
+			if (!EditorDomain)
+			{
+				UE_LOG(LogEditorDomain, Warning, TEXT("%s size read after EditorDomain shutdown. Returning -1."),
+					*PackagePath.GetDebugName());
+				FileSize = -1;
+			}
+			else if (PackageSource->Source == FEditorDomain::EPackageSource::Workspace || bLoadFromWorkspace)
+			{
+				EditorDomain->MarkLoadedFromWorkspaceDomain(PackagePath, PackageSource, bHasRecordInEditorDomain);
+				FileSize = EditorDomain->Workspace->FileSize(PackagePath, PackageSegment, OutUpdatedPath);
+			}
+			else
+			{
+				EditorDomain->MarkLoadedFromEditorDomain(PackagePath, PackageSource);
 			}
 		};
 		// Fetch meta-data only
@@ -603,7 +640,7 @@ void FEditorDomain::FilterKeepPackagesToSave(TArray<UPackage*>& InOutPackagesToS
 
 bool FEditorDomain::FPackageSource::NeedsEditorDomainSave(FEditorDomain& EditorDomain) const
 {
-	return !bHasSaved && Source == EPackageSource::Workspace &&
+	return !bHasSaved && !bHasRecordInEditorDomain &&
 		(!EditorDomain.bSkipSavesUntilCatalogLoaded || bLoadedAfterCatalogLoaded);
 }
 

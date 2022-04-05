@@ -60,6 +60,23 @@ struct FClassDigestMap
 };
 
 /**
+ * A result code indicating whether a EditorDomain package could be saved into the editor domain, and if not why not
+ * EditorDomain records in DDC have a Valid flag in their metadata. If the Valid flag is invalid, the record does not
+ * store a EditorDomain package and it instead has a StorageResult in the metadata explaining why it failed.
+ */
+enum class ESaveStorageResult
+{
+	Valid,
+	UnexpectedClass,
+	UnexpectedCustomVersion,
+	BulkDataTooLarge,
+	InvalidCode,
+	// When adding values, add them to SaveStoreResultToText as well
+};
+FUtf8StringView LexToUtf8(UE::EditorDomain::ESaveStorageResult Result);
+ESaveStorageResult SaveStorageResultFromString(FUtf8StringView Text);
+
+/**
  * Calculate the PackageDigest for the given packagePath.
  * Reads information from the AssetRegistry to compute the digest.
  */
