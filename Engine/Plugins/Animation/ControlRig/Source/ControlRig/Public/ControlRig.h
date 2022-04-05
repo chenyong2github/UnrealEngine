@@ -250,6 +250,11 @@ public:
 	{
 		return DynamicHierarchy;
 	}
+	
+	FORCEINLINE_DEBUGGABLE URigHierarchy* GetHierarchy() const
+	{
+		return DynamicHierarchy;
+	}
 
 #if WITH_EDITOR
 
