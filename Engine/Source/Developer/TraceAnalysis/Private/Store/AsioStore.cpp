@@ -13,6 +13,8 @@
 #	include "Windows/HideWindowsPlatformTypes.h"
 #elif PLATFORM_LINUX
 	#include <sys/inotify.h>
+#elif PLATFORM_MAC
+	#include "Misc/Paths.h"
 #endif
 
 namespace UE {
