@@ -4121,7 +4121,7 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 
 		TArray<UPackage*> AddPackageItemsChecked;
 		TArray<UPackage*> AddPackageItemsUnchecked;
-		for ( TArray<UPackage*>::TConstIterator PkgIter(PackagesToSave); PkgIter; ++PkgIter )
+		for ( TArray<UPackage*>::TIterator PkgIter(PackagesToSave); PkgIter; ++PkgIter )
 		{
 			UPackage* CurPackage = *PkgIter;
 			check( CurPackage );
@@ -4153,6 +4153,10 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 				{
 					UE_LOG(LogFileHelpers, Warning, TEXT("PromptForCheckoutAndSave attempted to open the save dialog with the transient package"));
 				}
+			}
+			else
+			{
+				PkgIter.RemoveCurrent();
 			}
 		}
 
@@ -4279,7 +4283,6 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 			// The user cancelled the checkout dialog, so set the return response accordingly  
 			ReturnResponse = PR_Cancelled;
 		}
-
 	}
 
 	return ReturnResponse;
