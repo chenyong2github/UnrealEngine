@@ -523,7 +523,14 @@ public:
 		FString CmdLineString;
 		if (FParse::Value(FCommandLine::Get(), TEXT("-OodleDebugDumpFilter="), CmdLineString) )
 		{
+			UE_LOG(LogTextureFormatOodle, Display, TEXT("Enabling debug dump from command line: -OodleDebugDumpFilter=%s"), *CmdLineString);
 			LocalDebugConfig.DebugDumpFilter = CmdLineString;
+		}
+
+		if (FParse::Param(FCommandLine::Get(), TEXT("OodleDebugColor")))
+		{
+			UE_LOG(LogTextureFormatOodle, Display, TEXT("Enabling debug color encoding from command line (-OodleDebugColor)"));
+			bDebugColor = true;
 		}
 
 		// sanitize config values :
