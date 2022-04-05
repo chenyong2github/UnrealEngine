@@ -470,7 +470,7 @@ public:
 
 	FORCEINLINE bool IsTypeOf(ERigElementType InElementType) const
 	{
-		return ((uint8)InElementType & (uint8)Key.Type) == (uint8)Key.Type;
+		return Key.IsTypeOf(InElementType);
 	}
 
 	template<typename T>

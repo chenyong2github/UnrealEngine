@@ -663,10 +663,10 @@ int32 URigHierarchy::Num(ERigElementType InElementType) const
 	return ElementsPerType[RigElementTypeToFlatIndex(InElementType)].Num();
 }
 
-TArray<FRigBaseElement*> URigHierarchy::GetSelectedElements(ERigElementType InTypeFilter) const
+TArray<const FRigBaseElement*> URigHierarchy::GetSelectedElements(ERigElementType InTypeFilter) const
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
-	TArray<FRigBaseElement*> Selection;
+	TArray<const FRigBaseElement*> Selection;
 
 	if(URigHierarchy* HierarchyForSelection = HierarchyForSelectionPtr.Get())
 	{
@@ -681,13 +681,13 @@ TArray<FRigBaseElement*> URigHierarchy::GetSelectedElements(ERigElementType InTy
 		return Selection;
 	}
 
-	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
+	for (const FRigElementKey& SelectedKey : OrderedSelection)
 	{
-		FRigBaseElement* Element = Elements[ElementIndex];
-		if(Element->IsTypeOf(InTypeFilter))
+		if(SelectedKey.IsTypeOf(InTypeFilter))
 		{
-			if(IsSelected(Element))
+			if(const FRigBaseElement* Element = FindChecked(SelectedKey))
 			{
+				ensure(Element->IsSelected());
 				Selection.Add(Element);
 			}
 		}
@@ -705,17 +705,14 @@ TArray<FRigElementKey> URigHierarchy::GetSelectedKeys(ERigElementType InTypeFilt
 	}
 
 	TArray<FRigElementKey> Selection;
-	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
+	for (const FRigElementKey& SelectedKey : OrderedSelection)
 	{
-		FRigBaseElement* Element = Elements[ElementIndex];
-		if(Element->IsTypeOf(InTypeFilter))
+		if(SelectedKey.IsTypeOf(InTypeFilter))
 		{
-			if(IsSelected(Element))
-			{
-				Selection.Add(Element->GetKey());
-			}
+			Selection.Add(SelectedKey);
 		}
 	}
+	
 	return Selection;
 }
 
@@ -3529,7 +3526,10 @@ bool URigHierarchy::IsSelected(const FRigBaseElement* InElement) const
 	{
 		return HierarchyForSelection->IsSelected(InElement->GetKey());
 	}
-	return InElement->IsSelected();
+
+	const bool bIsSelected = OrderedSelection.Contains(InElement->GetKey());
+	ensure(bIsSelected == InElement->IsSelected());
+	return OrderedSelection.Contains(InElement->GetKey());
 }
 
 void URigHierarchy::ResetCachedChildren()

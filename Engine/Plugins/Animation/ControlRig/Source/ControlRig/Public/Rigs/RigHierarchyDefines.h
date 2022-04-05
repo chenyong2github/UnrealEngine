@@ -1405,6 +1405,11 @@ public:
 		Name = NAME_None;
 	}
 
+	FORCEINLINE bool IsTypeOf(ERigElementType InElementType) const
+	{
+		return ((uint8)InElementType & (uint8)Type) == (uint8)Type;
+	}
+
 	friend FORCEINLINE uint32 GetTypeHash(const FRigElementKey& Key)
 	{
 		return GetTypeHash(Key.Name) * 10 + (uint32)Key.Type;

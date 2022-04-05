@@ -78,12 +78,22 @@ bool URigHierarchyController::SelectElement(FRigElementKey InKey, bool bSelect, 
 		return false;
 	}
 
+	const bool bSelectionState = Hierarchy->OrderedSelection.Contains(InKey);
+	ensure(bSelectionState == Element->bSelected);
 	if(Element->bSelected == bSelect)
 	{
 		return false;
 	}
 
 	Element->bSelected = bSelect;
+	if(bSelect)
+	{
+		Hierarchy->OrderedSelection.Add(InKey);
+	}
+	else
+	{
+		Hierarchy->OrderedSelection.Remove(InKey);
+	}
 
 	if(Element->bSelected)
 	{

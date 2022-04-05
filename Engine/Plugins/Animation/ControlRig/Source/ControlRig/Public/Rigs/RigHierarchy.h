@@ -753,7 +753,7 @@ public:
 	 * @InTypeFilter The types to retrieve the selection for
 	 * @return An array of the currently selected elements
 	 */
-	TArray<FRigBaseElement*> GetSelectedElements(ERigElementType InTypeFilter = ERigElementType::All) const;
+	TArray<const FRigBaseElement*> GetSelectedElements(ERigElementType InTypeFilter = ERigElementType::All) const;
 
 	/**
 	 * Returns the keys of selected elements
@@ -2786,6 +2786,7 @@ private:
 	FRigHierarchyUndoRedoTransformEvent UndoRedoEvent;
 
 	TWeakObjectPtr<URigHierarchy> HierarchyForSelectionPtr;
+	TArray<FRigElementKey> OrderedSelection;
 
 	UPROPERTY(Transient)
 	TObjectPtr<URigHierarchyController> HierarchyController;

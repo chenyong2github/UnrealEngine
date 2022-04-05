@@ -4825,7 +4825,7 @@ void FControlRigEditor::OnHierarchyChanged()
 
 		FBlueprintEditorUtils::MarkBlueprintAsModified(GetControlRigBlueprint());
 		
-		TArray<FRigBaseElement*> SelectedElements = ControlRigBP->Hierarchy->GetSelectedElements();
+		TArray<const FRigBaseElement*> SelectedElements = ControlRigBP->Hierarchy->GetSelectedElements();
 		for(const FRigBaseElement* SelectedElement : SelectedElements)
 		{
 			ControlRigBP->Hierarchy->OnModified().Broadcast(ERigHierarchyNotification::ElementSelected, ControlRigBP->Hierarchy, SelectedElement);
@@ -5179,7 +5179,7 @@ void FControlRigEditor::SynchronizeViewportBoneSelection()
 	{
 		EditorSkelComp->BonesOfInterest.Reset();
 
-		TArray<FRigBaseElement*> SelectedBones = RigBlueprint->Hierarchy->GetSelectedElements(ERigElementType::Bone);
+		TArray<const FRigBaseElement*> SelectedBones = RigBlueprint->Hierarchy->GetSelectedElements(ERigElementType::Bone);
 		for (const FRigBaseElement* SelectedBone : SelectedBones)
 		{
  			const int32 BoneIndex = EditorSkelComp->GetReferenceSkeleton().FindBoneIndex(SelectedBone->GetName());

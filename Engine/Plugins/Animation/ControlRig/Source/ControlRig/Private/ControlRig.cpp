@@ -1732,8 +1732,8 @@ TArray<FName> UControlRig::CurrentControlSelection() const
 
 	if(DynamicHierarchy)
 	{
-		TArray<FRigBaseElement*> SelectedControls = DynamicHierarchy->GetSelectedElements(ERigElementType::Control);
-		for (FRigBaseElement* SelectedControl : SelectedControls)
+		TArray<const FRigBaseElement*> SelectedControls = DynamicHierarchy->GetSelectedElements(ERigElementType::Control);
+		for (const FRigBaseElement* SelectedControl : SelectedControls)
 		{
 			SelectedControlNames.Add(SelectedControl->GetName());
 		}
