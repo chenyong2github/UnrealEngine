@@ -891,7 +891,7 @@ void FDatasmithSceneXmlWriterImpl::WriteLightActorElement(const TSharedPtr< IDat
 	{
 		auto QuatToHexStringFloat = [](const FQuat& Value) -> FString
 		{
-			float Tmp[4] = {Value.X, Value.Y, Value.Z, Value.W};
+			float Tmp[4] = {(float)Value.X, (float)Value.Y, (float)Value.Z, (float)Value.W};
 			FString Result = TEXT(" qhex=\"") + FString::FromHexBlob((uint8*)Tmp, sizeof(Tmp)) + TEXT("\"");
 			return Result;
 		};
