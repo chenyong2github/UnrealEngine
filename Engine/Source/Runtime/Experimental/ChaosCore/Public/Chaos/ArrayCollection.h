@@ -13,7 +13,14 @@ public:
 	    : MSize(0) {}
 	TArrayCollection(const TArrayCollection& Other) = delete;
 	TArrayCollection(TArrayCollection&& Other) = delete;
-	virtual ~TArrayCollection() {}
+	virtual ~TArrayCollection() 
+	{
+		// Null out to find dangling pointers
+		for (int32 Index = 0; Index < MArrays.Num(); Index++)
+		{
+			MArrays[Index] = nullptr;
+		}
+	}
 
 	int32 AddArray(TArrayCollectionArrayBase* Array)
 	{
