@@ -1884,26 +1884,6 @@ struct FNiagaraVariable : public FNiagaraVariableBase
 		return Value;
 	}
 
-	template<typename T>
-	void SetDoubleValue(const T& Data)
-	{
-		static_assert(TIsUECoreVariant<T, double>::Value, "Float core variant, please use SetValue.");
-		check(sizeof(T) == TypeDefHandle->GetSize());
-		AllocateData();
-		FMemory::Memcpy(VarData.GetData(), &Data, VarData.Num());
-	}
-
-	template<typename T>
-	T GetDoubleValue() const
-	{
-		static_assert(TIsUECoreVariant<T, double>::Value, "Float core variant, please use GetValue.");
-		check(sizeof(T) == TypeDefHandle->GetSize());
-		check(IsDataAllocated());
-		T Value;
-		FMemory::Memcpy(&Value, GetData(), TypeDefHandle->GetSize());
-		return Value;
-	}
-
 	void SetData(const uint8* Data)
 	{
 		check(Data);
