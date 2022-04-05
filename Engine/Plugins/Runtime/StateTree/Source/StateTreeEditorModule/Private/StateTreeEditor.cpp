@@ -106,6 +106,7 @@ void FStateTreeEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedP
 	if (EditorData == NULL)
 	{
 		EditorData = NewObject<UStateTreeEditorData>(StateTree, FName(), RF_Transactional);
+		EditorData->AddRootState();
 		StateTree->EditorData = EditorData;
 	}
 
@@ -493,6 +494,11 @@ namespace UE::StateTree::Editor::Internal
 				{
 					UStateTreeState* CurState = Stack.Pop();
 
+					if (CurState->Type == EStateTreeStateType::Linked)
+					{
+						FixChangedStateLinkName(CurState->LinkedState, IDToName);
+					}
+					
 					for (FStateTreeTransition& Transition : CurState->Transitions)
 					{
 						FixChangedStateLinkName(Transition.State, IDToName);

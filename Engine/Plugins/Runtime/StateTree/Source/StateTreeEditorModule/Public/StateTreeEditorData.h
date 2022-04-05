@@ -44,6 +44,20 @@ public:
 	 */
 	void VisitHierarchy(TFunctionRef<bool(const UStateTreeState& State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
 
+	/**
+	 * Iterates over all nodes in a given state.
+	 * @param InFunc function called at each node, should return true if visiting is continued or false to stop.
+	 */
+	bool VisitState(const UStateTreeState& State, TFunctionRef<bool(const UStateTreeState& State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
+
+	/**
+	 * Returns array of nodes along the execution path, up to the TargetStruct.
+	 * @param Path The states to visit during the check
+	 * @param TargetStructID The ID of the node where to stop.
+	 * @param OutStructDescs Array of nodes accessible on the given path.  
+	 */
+	void GetAccessibleStructs(const TConstArrayView<const UStateTreeState*> Path, const FGuid TargetStructID, TArray<FStateTreeBindableStructDesc>& OutStructDescs) const;
+
 	// StateTree Builder API
 
 	/**

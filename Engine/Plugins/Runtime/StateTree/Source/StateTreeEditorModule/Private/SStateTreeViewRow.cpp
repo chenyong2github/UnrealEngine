@@ -58,6 +58,7 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 
 	static const FLinearColor TasksBackground = FLinearColor(FColor(17, 117, 131));
 	static const FLinearColor EvaluatorsBackground = FLinearColor(FColor(48, 48, 48));
+	static const FLinearColor LinkBackground = FLinearColor(FColor(84, 84, 84));
 	
 	this->ChildSlot
     .HAlign(HAlign_Fill)
@@ -217,7 +218,48 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 				]
 			]
 		]
+		
+		// Linked State box
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(0.0f, 4.0f))
+		.AutoWidth()
+		[
+			SNew(SBox)
+			.HeightOverride(28.0f)
+			.VAlign(VAlign_Fill)
+			.Visibility(this, &SStateTreeViewRow::GetLinkedStateVisibility)
+			[
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(LinkBackground)
+				.Padding(FMargin(12.0f, 0.0f, 16.0f, 0.0f))
+				[
+					// Link icon
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(FEditorFontGlyphs::Link)
+						.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.DetailsIcon")
+					]
 
+					// Linked State
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(this, &SStateTreeViewRow::GetLinkedStateDesc)
+						.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Details")
+					]
+				]
+			]
+		]
+		
 		// Completed transitions
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
@@ -490,6 +532,31 @@ FText SStateTreeViewRow::GetTasksDesc() const
 	return FText::Join((FText::FromString(TEXT(" & "))), Names);
 }
 
+EVisibility SStateTreeViewRow::GetLinkedStateVisibility() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		return State->Type == EStateTreeStateType::Linked ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+	return EVisibility::Collapsed;
+}
+
+FText SStateTreeViewRow::GetLinkedStateDesc() const
+{
+	const UStateTreeState* State = WeakState.Get();
+	if (!State)
+	{
+		return FText::GetEmpty();
+	}
+
+	if (State->Type == EStateTreeStateType::Linked)
+	{
+		return FText::FromName(State->LinkedState.Name);
+	}
+	
+	return FText::GetEmpty();
+}
+
 bool SStateTreeViewRow::HasParentTransitionForEvent(const UStateTreeState& State, const EStateTreeTransitionEvent Event) const
 {
 	EStateTreeTransitionEvent CombinedEvents = EStateTreeTransitionEvent::None;
@@ -535,6 +602,7 @@ FText SStateTreeViewRow::GetTransitionsDesc(const UStateTreeState& State, const 
 	}
 
 	if (State.Children.Num() == 0
+		&& State.Type == EStateTreeStateType::State
 		&& DescItems.Num() == 0
 		&& Event != EStateTreeTransitionEvent::OnCondition)
 	{
@@ -599,6 +667,7 @@ FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const 
 	}
 	
 	if (State.Children.Num() == 0
+		&& State.Type == EStateTreeStateType::State
         && IconType == IconNone
         && Event != EStateTreeTransitionEvent::OnCondition)
 	{

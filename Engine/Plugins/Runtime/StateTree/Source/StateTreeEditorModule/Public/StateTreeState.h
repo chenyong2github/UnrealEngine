@@ -22,6 +22,7 @@ struct STATETREEEDITORMODULE_API FStateTreeStateLink
 	FStateTreeStateLink(EStateTreeTransitionType InType) : Type(InType) {}
 
 	void Set(const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr);
+	void Set(const UStateTreeState* InState) { Set(EStateTreeTransitionType::GotoState, InState); }
 	
 	bool IsValid() const { return ID.IsValid(); }
 
@@ -127,6 +128,14 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition
 	TArray<FStateTreeEditorNode> Conditions;
 };
 
+UENUM()
+enum class EStateTreeStateType : uint8
+{
+	State,	// A State containing tasks and evaluators.
+	Group,	// A State containing just sub states. 
+	Linked,	// A State that is linked to another state in the tree (the execution continues on the linked state).
+};
+
 
 /**
  * Editor representation of a state in StateTree
@@ -148,12 +157,13 @@ public:
 	// StateTree Builder API
 	
 	/** Adds child state with specified name. */
-	UStateTreeState& AddChildState(const FName ChildName)
+	UStateTreeState& AddChildState(const FName ChildName, const EStateTreeStateType StateType = EStateTreeStateType::State)
 	{
 		UStateTreeState* ChildState = NewObject<UStateTreeState>(this);
 		check(ChildState);
 		ChildState->Name = ChildName;
 		ChildState->Parent = this;
+		ChildState->Type = StateType;
 		Children.Add(ChildState);
 		return *ChildState;
 	}
@@ -225,6 +235,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "State")
 	FName Name;
+
+	UPROPERTY(EditDefaultsOnly, Category = "State")
+	EStateTreeStateType Type;
+
+	UPROPERTY(EditDefaultsOnly, Category = "State", Meta=(DirectStatesOnly))
+	FStateTreeStateLink LinkedState;
 
 	UPROPERTY()
 	FGuid ID;

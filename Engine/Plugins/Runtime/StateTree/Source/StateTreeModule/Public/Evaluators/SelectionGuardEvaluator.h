@@ -43,7 +43,7 @@ struct STATETREEMODULE_API FSelectionGuardEvaluator : public FStateTreeEvaluator
 	virtual const UStruct* GetInstanceDataType() const override { return FSelectionGuardEvaluatorInstanceData::StaticStruct(); };
 	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual void EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
-	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const override;
+	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 	
 	TStateTreeInstanceDataPropertyHandle<bool> ActiveHandle;

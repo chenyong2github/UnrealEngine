@@ -31,6 +31,7 @@ namespace UE::StateTree::Tests
 		StateTree->SetSchema(Schema);
 		return *StateTree;
 	}
+
 }
 
 struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
@@ -405,6 +406,64 @@ struct FStateTreeTest_FailEnterState : FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_FailEnterState, "System.StateTree.FailEnterState");
+
+struct FStateTreeTest_SubTree : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		UStateTree& StateTree = UE::StateTree::Tests::NewStateTree(&GetWorld());
+		UStateTreeEditorData& EditorData = *Cast<UStateTreeEditorData>(StateTree.EditorData);
+		
+		UStateTreeState& Root = EditorData.AddSubTree(FName(TEXT("Root")));
+		UStateTreeState& State1 = Root.AddChildState(FName(TEXT("State1")), EStateTreeStateType::Linked);
+		UStateTreeState& State2 = Root.AddChildState(FName(TEXT("State2")));
+		UStateTreeState& State3 = Root.AddChildState(FName(TEXT("State3")));
+		UStateTreeState& State3A = State3.AddChildState(FName(TEXT("State3A")));
+		UStateTreeState& State3B = State3.AddChildState(FName(TEXT("State3B")));
+
+		State1.LinkedState.Set(&State3);
+
+		auto& Task2 = State2.AddTask<FTestTask_Stand>(FName(TEXT("Task2")));
+
+		auto& Task3A = State3A.AddTask<FTestTask_Stand>(FName(TEXT("Task3A")));
+		State3A.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &State3B);
+
+		auto& Task3B = State3B.AddTask<FTestTask_Stand>(FName(TEXT("Task3B")));
+
+
+		FStateTreeCompilerLog Log;
+		FStateTreeBaker Baker(Log);
+		const bool bResult = Baker.Bake(StateTree);
+		AITEST_TRUE("StateTree should get baked", bResult);
+
+		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
+		FTestStateTreeExecutionContext Exec;
+		const bool bInitSucceeded = Exec.Init(StateTree, StateTree, EStateTreeStorage::Internal);
+		AITEST_TRUE("StateTree should init", bInitSucceeded);
+
+		const FString TickStr(TEXT("Tick"));
+		const FString EnterStateStr(TEXT("EnterState"));
+		const FString ExitStateStr(TEXT("ExitState"));
+		const FString StateCompletedStr(TEXT("StateCompleted"));
+
+		// Start and enter state
+		Status = Exec.Start();
+
+		AITEST_TRUE("StateTree Active States should be in Root/State1/State3/State3A", Exec.ExpectInActiveStates(Root.Name, State1.Name, State3.Name, State3A.Name));
+		AITEST_TRUE("StateTree Task2 should enter state", !Exec.Expect(Task2.GetName(), EnterStateStr));
+		AITEST_TRUE("StateTree Task3A should enter state", Exec.Expect(Task3A.GetName(), EnterStateStr));
+		AITEST_TRUE("StateTree should be running", Status == EStateTreeRunStatus::Running);
+		Exec.LogClear();
+
+		Status = Exec.Tick(0.1f);
+		AITEST_TRUE("StateTree Active States should be in Root/State1/State3/State3B", Exec.ExpectInActiveStates(Root.Name, State1.Name, State3.Name, State3B.Name));
+		AITEST_TRUE("StateTree Task3B should enter state", Exec.Expect(Task3B.GetName(), EnterStateStr));
+		AITEST_TRUE("StateTree should be running", Status == EStateTreeRunStatus::Running);
+		
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_SubTree, "System.StateTree.SubTree");
 
 PRAGMA_ENABLE_OPTIMIZATION
 

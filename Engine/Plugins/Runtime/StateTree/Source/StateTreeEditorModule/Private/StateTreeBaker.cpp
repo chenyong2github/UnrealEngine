@@ -34,6 +34,24 @@ bool FStateTreeBaker::Bake(UStateTree& InStateTree)
 		return false;
 	}
 
+	if (!CreateExecutionInfos())
+	{
+		StateTree->ResetBaked();
+		return false;
+	}
+	
+	if (!CreateStateEvaluators())
+	{
+		StateTree->ResetBaked();
+		return false;
+	}
+
+	if (!CreateStateTasks())
+	{
+		StateTree->ResetBaked();
+		return false;
+	}
+
 	if (!CreateStateTransitions())
 	{
 		StateTree->ResetBaked();
@@ -59,6 +77,17 @@ FStateTreeHandle FStateTreeBaker::GetStateHandle(const FGuid& StateID) const
 	return FStateTreeHandle(uint16(*Idx));
 }
 
+UStateTreeState* FStateTreeBaker::GetState(const FGuid& StateID)
+{
+	const int32* Idx = IDToState.Find(StateID);
+	if (Idx == nullptr)
+	{
+		return nullptr;
+	}
+
+	return SourceStates[*Idx];
+}
+
 bool FStateTreeBaker::CreateStates()
 {
 	// Create item for the runtime execution state
@@ -78,7 +107,144 @@ bool FStateTreeBaker::CreateStates()
 	return true;
 }
 
-bool FStateTreeBaker::CreateConditions(TConstArrayView<FStateTreeEditorNode> Conditions)
+bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent)
+{
+	FStateTreeCompilerLogStateScope LogStateScope(&State, Log);
+
+	const int32 StateIdx = StateTree->States.AddDefaulted();
+	FBakedStateTreeState& BakedState = StateTree->States[StateIdx];
+	BakedState.Name = State.Name;
+	BakedState.Parent = Parent;
+
+	SourceStates.Add(&State);
+	IDToState.Add(State.ID, StateIdx);
+
+	check(StateTree->Instances.Num() <= int32(MAX_uint16));
+
+	// Child states
+	check(StateTree->States.Num() <= int32(MAX_uint16));
+	BakedState.ChildrenBegin = uint16(StateTree->States.Num());
+	for (UStateTreeState* Child : State.Children)
+	{
+		if (Child)
+		{
+			if (!CreateStateRecursive(*Child, FStateTreeHandle((uint16)StateIdx)))
+			{
+				return false;
+			}
+		}
+	}
+	check(StateTree->States.Num() <= int32(MAX_uint16));
+	StateTree->States[StateIdx].ChildrenEnd = uint16(StateTree->States.Num()); // Cannot use BakedState here, it may be invalid due to array resize.
+
+	return true;
+}
+
+FString FStateTreeBaker::GetExecutionPathString(const TConstArrayView<const UStateTreeState*> Path)
+{
+	FString PathStr;
+	const UStateTreeState* PrevState = nullptr;
+	for (int32 Index = 0; Index < Path.Num(); Index++)
+	{
+		const UStateTreeState* State = Path[Index];
+		check(State);
+		if (PrevState != nullptr)
+		{
+			if (PrevState != State->Parent)
+			{
+				// Linked
+				PathStr += TEXT(">");
+			}
+			else
+			{
+				PathStr += TEXT("/");
+			}
+		}
+		PathStr += State->Name.ToString();
+		PrevState = State;
+	}
+
+	return PathStr;
+}
+
+bool FStateTreeBaker::IsPathLinked(const TConstArrayView<const UStateTreeState*> Path)
+{
+	bool bIsLinked = false; 
+	const UStateTreeState* PrevState = nullptr;
+	for (int32 Index = 0; Index < Path.Num(); Index++)
+	{
+		const UStateTreeState* State = Path[Index];
+		check(State);
+		// If the previous state is not the parent state in tree, then the connection must have come from a linked state (a state linking to an arbitrary state in the tree).
+		if (PrevState && PrevState != State->Parent)
+		{
+			bIsLinked = true;
+			break;
+		}
+		PrevState = State;
+	}
+	return bIsLinked;
+}
+
+bool FStateTreeBaker::CreateExecutionInfos()
+{
+	for (UStateTreeState* SubTree : TreeData->SubTrees)
+	{
+		if (SubTree != nullptr)
+		{
+			TArray<const UStateTreeState*> Path;
+			if (!CreateExecutionInfosRecursive(*SubTree, Path))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool FStateTreeBaker::CreateExecutionInfosRecursive(UStateTreeState& State, TArray<const UStateTreeState*>& Path)
+{
+	Path.Add(&State);
+	
+	if (Path.Num() > FStateTreeActiveStates::MaxStates)
+	{
+		Log.Reportf(EMessageSeverity::Error,
+		TEXT("Reached maximum execution depth %d at: '%s'."), FStateTreeActiveStates::MaxStates, *GetExecutionPathString(Path));
+		return false;
+	}
+
+	FStateExecutionInfo& ExecInfo = ExecutionInfos.FindOrAdd(&State);
+	ExecInfo.ExecutionPaths.Emplace(Path);
+
+	if (State.Type == EStateTreeStateType::Linked)
+	{
+		if (UStateTreeState* LinkedState = GetState(State.LinkedState.ID))
+		{
+			if (!CreateExecutionInfosRecursive(*LinkedState, Path))
+			{
+				return false;
+			}
+		}
+	}
+	
+	for (UStateTreeState* Child : State.Children)
+	{
+		if (Child)
+		{
+			if (!CreateExecutionInfosRecursive(*Child, Path))
+			{
+				return false;
+			}
+		}
+	}
+
+	Path.Pop();
+
+	return true;
+}
+
+bool FStateTreeBaker::CreateConditions(UStateTreeState& State, TConstArrayView<FStateTreeEditorNode> Conditions)
 {
 	for (int32 Index = 0; Index < Conditions.Num(); Index++)
 	{
@@ -94,10 +260,75 @@ bool FStateTreeBaker::CreateConditions(TConstArrayView<FStateTreeEditorNode> Con
 		
 		check(DeltaIndent >= MIN_int8 && DeltaIndent <= MAX_int8);
 
-		if (!CreateCondition(CondNode, Operand, (int8)DeltaIndent))
+		if (!CreateCondition(State, CondNode, Operand, (int8)DeltaIndent))
 		{
 			return false;
 		}
+	}
+
+	return true;
+}
+
+bool FStateTreeBaker::CreateStateTasks()
+{
+	for (int32 i = 0; i < StateTree->States.Num(); i++)
+	{
+		FBakedStateTreeState& BakedState = StateTree->States[i];
+		UStateTreeState* SourceState = SourceStates[i];
+		check(SourceState != nullptr);
+
+		FStateTreeCompilerLogStateScope LogStateScope(SourceState, Log);
+		
+		// Create tasks
+		check(StateTree->Nodes.Num() <= int32(MAX_uint16));
+		BakedState.TasksBegin = uint16(StateTree->Nodes.Num());
+
+		for (FStateTreeEditorNode& TaskNode : SourceState->Tasks)
+		{
+			if (!CreateTask(*SourceState, TaskNode))
+			{
+				return false;
+			}
+		}
+
+		if (!CreateTask(*SourceState, SourceState->SingleTask))
+		{
+			return false;
+		}
+	
+		const int32 TasksNum = StateTree->Nodes.Num() - int32(BakedState.TasksBegin);
+		check(TasksNum <= int32(MAX_uint8));
+		BakedState.TasksNum = uint8(TasksNum);
+	}
+	
+	return true;
+}
+
+bool FStateTreeBaker::CreateStateEvaluators()
+{
+	for (int32 i = 0; i < StateTree->States.Num(); i++)
+	{
+		FBakedStateTreeState& BakedState = StateTree->States[i];
+		UStateTreeState* SourceState = SourceStates[i];
+		check(SourceState != nullptr);
+
+		FStateTreeCompilerLogStateScope LogStateScope(SourceState, Log);
+		
+		// Collect evaluators
+		check(StateTree->Nodes.Num() <= int32(MAX_uint16));
+		BakedState.EvaluatorsBegin = uint16(StateTree->Nodes.Num());
+
+		for (FStateTreeEditorNode& EvalNode : SourceState->Evaluators)
+		{
+			if (!CreateEvaluator(*SourceState, EvalNode))
+			{
+				return false;
+			}
+		}
+		
+		const int32 EvaluatorsNum = StateTree->Nodes.Num() - int32(BakedState.EvaluatorsBegin);
+		check(EvaluatorsNum <= int32(MAX_uint8));
+		BakedState.EvaluatorsNum = uint8(EvaluatorsNum);
 	}
 
 	return true;
@@ -115,7 +346,7 @@ bool FStateTreeBaker::CreateStateTransitions()
 		
 		// Enter conditions.
 		BakedState.EnterConditionsBegin = uint16(StateTree->Nodes.Num());
-		if (!CreateConditions(SourceState->EnterConditions))
+		if (!CreateConditions(*SourceState, SourceState->EnterConditions))
 		{
 			Log.Reportf(EMessageSeverity::Error,
 				TEXT("Failed to create state enter condition."));
@@ -123,6 +354,39 @@ bool FStateTreeBaker::CreateStateTransitions()
 		}
 		BakedState.EnterConditionsNum = uint8(uint16(StateTree->Nodes.Num()) - BakedState.EnterConditionsBegin);
 
+		// Linked state
+		if (SourceState->Type == EStateTreeStateType::Linked)
+		{
+			// Make sure the linked state is not self or parent to this state.
+			const UStateTreeState* LinkedParentState = nullptr;
+			for (const UStateTreeState* State = SourceState; State != nullptr; State = State->Parent)
+			{
+				if (State->ID == SourceState->LinkedState.ID)
+				{
+					LinkedParentState = State;
+					break;
+				}
+			}
+			
+			if (LinkedParentState != nullptr)
+			{
+				Log.Reportf(EMessageSeverity::Error,
+					TEXT("State is linked to it's parent state '%s', which will create infinite loop."),
+					*LinkedParentState->Name.ToString());
+				return false;
+			}
+			
+			BakedState.LinkedState = GetStateHandle(SourceState->LinkedState.ID);
+			
+			if (!BakedState.LinkedState.IsValid())
+			{
+				Log.Reportf(EMessageSeverity::Error,
+					TEXT("Failed to resolve linked state '%s'."),
+					*SourceState->LinkedState.Name.ToString());
+				return false;
+			}
+		}
+		
 		// Transitions
 		BakedState.TransitionsBegin = uint16(StateTree->Transitions.Num());
 		for (FStateTreeTransition& Transition : SourceState->Transitions)
@@ -139,10 +403,10 @@ bool FStateTreeBaker::CreateStateTransitions()
 			// Note: Unset transition is allowed here. It can be used to mask a transition at parent.
 
 			BakedTransition.ConditionsBegin = uint16(StateTree->Nodes.Num());
-			if (!CreateConditions(Transition.Conditions))
+			if (!CreateConditions(*SourceState, Transition.Conditions))
 			{
 				Log.Reportf(EMessageSeverity::Error,
-					TEXT("Failed to create condition for transition to %s."),
+					TEXT("Failed to create condition for transition to '%s'."),
 					*Transition.State.Name.ToString());
 				return false;
 			}
@@ -164,7 +428,7 @@ bool FStateTreeBaker::ResolveTransitionState(const UStateTreeState& SourceState,
 		if (!OutTransitionHandle.IsValid())
 		{
 			Log.Reportf(EMessageSeverity::Error,
-				TEXT("Failed to resolve transition to state %s."),
+				TEXT("Failed to resolve transition to state '%s'."),
 				*Link.Name.ToString());
 			return false;
 		}
@@ -183,7 +447,7 @@ bool FStateTreeBaker::ResolveTransitionState(const UStateTreeState& SourceState,
 		if (!OutTransitionHandle.IsValid())
 		{
 			Log.Reportf(EMessageSeverity::Error,
-				TEXT("Failed to resolve transition next state, no handle found for %s."),
+				TEXT("Failed to resolve transition next state, no handle found for '%s'."),
 				*NextState->Name.ToString());
 			return false;
 		}
@@ -192,7 +456,7 @@ bool FStateTreeBaker::ResolveTransitionState(const UStateTreeState& SourceState,
 	return true;
 }
 
-bool FStateTreeBaker::CreateCondition(const FStateTreeEditorNode& CondNode, const EStateTreeConditionOperand Operand, const int8 DeltaIndent)
+bool FStateTreeBaker::CreateCondition(UStateTreeState& State, const FStateTreeEditorNode& CondNode, const EStateTreeConditionOperand Operand, const int8 DeltaIndent)
 {
 	if (!CondNode.Node.IsValid())
 	{
@@ -231,7 +495,7 @@ bool FStateTreeBaker::CreateCondition(const FStateTreeEditorNode& CondNode, cons
 	
 		// Create binding source struct descriptor.
 		StructDesc.Struct = Instance.GetScriptStruct();
-		StructDesc.Name = StructDesc.Struct->GetFName();
+		StructDesc.Name = Cond.Name;
 
 		check(InstanceIndex <= int32(MAX_uint16));
 		Cond.InstanceIndex = uint16(InstanceIndex);
@@ -249,7 +513,7 @@ bool FStateTreeBaker::CreateCondition(const FStateTreeEditorNode& CondNode, cons
 		
 		// Create binding source struct descriptor.
 		StructDesc.Struct = Instance->GetClass();
-		StructDesc.Name = StructDesc.Struct->GetFName();
+		StructDesc.Name = Cond.Name;
 
 		check(InstanceIndex <= int32(MAX_uint16));
 		Cond.InstanceIndex = uint16(InstanceIndex);
@@ -261,7 +525,7 @@ bool FStateTreeBaker::CreateCondition(const FStateTreeEditorNode& CondNode, cons
 
 	// Check that the bindings for this struct are still all valid.
 	TArray<FStateTreeEditorPropertyBinding> Bindings;
-	if (!GetAndValidateBindings(StructDesc, Bindings))
+	if (!GetAndValidateBindings(State, StructDesc, Bindings))
 	{
 		return false;
 	}
@@ -281,7 +545,7 @@ bool FStateTreeBaker::CreateCondition(const FStateTreeEditorNode& CondNode, cons
 	return true;
 }
 
-bool FStateTreeBaker::CreateTask(const FStateTreeEditorNode& TaskNode)
+bool FStateTreeBaker::CreateTask(UStateTreeState& State, const FStateTreeEditorNode& TaskNode)
 {
 	// Silently ignore empty items.
 	if (!TaskNode.Node.IsValid())
@@ -298,7 +562,7 @@ bool FStateTreeBaker::CreateTask(const FStateTreeEditorNode& TaskNode)
 	if (!TaskNode.Instance.IsValid() && TaskNode.InstanceObject == nullptr)
 	{
 		Log.Reportf(EMessageSeverity::Error, StructDesc,
-			TEXT("Malformed evaluator, missing instance value."));
+			TEXT("Malformed task, missing instance value."));
 		return false;
 	}
 
@@ -348,7 +612,7 @@ bool FStateTreeBaker::CreateTask(const FStateTreeEditorNode& TaskNode)
 
 	// Check that the bindings for this struct are still all valid.
 	TArray<FStateTreeEditorPropertyBinding> Bindings;
-	if (!GetAndValidateBindings(StructDesc, Bindings))
+	if (!GetAndValidateBindings(State, StructDesc, Bindings))
 	{
 		return false;
 	}
@@ -369,7 +633,7 @@ bool FStateTreeBaker::CreateTask(const FStateTreeEditorNode& TaskNode)
 	return true;
 }
 
-bool FStateTreeBaker::CreateEvaluator(const FStateTreeEditorNode& EvalNode)
+bool FStateTreeBaker::CreateEvaluator(UStateTreeState& State, const FStateTreeEditorNode& EvalNode)
 {
 	// Silently ignore empty items.
 	if (!EvalNode.Node.IsValid())
@@ -436,7 +700,7 @@ bool FStateTreeBaker::CreateEvaluator(const FStateTreeEditorNode& EvalNode)
 
 	// Check that the bindings for this struct are still all valid.
 	TArray<FStateTreeEditorPropertyBinding> Bindings;
-	if (!GetAndValidateBindings(StructDesc, Bindings))
+	if (!GetAndValidateBindings(State, StructDesc, Bindings))
 	{
 		return false;
 	}
@@ -477,7 +741,7 @@ bool FStateTreeBaker::IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Stru
 	return bIsAnyEnum;
 }
 
-bool FStateTreeBaker::GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const
+bool FStateTreeBaker::GetAndValidateBindings(UStateTreeState& State, const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const
 {
 	OutBindings.Reset();
 	
@@ -494,27 +758,44 @@ bool FStateTreeBaker::GetAndValidateBindings(const FStateTreeBindableStructDesc&
 		if (SourceStructIdx == INDEX_NONE)
 		{
 			Log.Reportf(EMessageSeverity::Error, TargetStruct,
-						TEXT("Failed to find binding source %s:%s."),
-						*TargetStruct.Name.ToString(), *Binding.SourcePath.ToString());
+						TEXT("Failed to find binding source '%s:%s'."),
+						*TargetStruct.Name.ToString(), *Binding.TargetPath.ToString());
 			return false;
 		}
 		const FStateTreeBindableStructDesc& SourceStruct = BindingsCompiler.GetSourceStructDesc(SourceStructIdx);
 
-		// Source must be accessible by the target struct.
+		// Source must be accessible by the target struct via all execution paths.
 		TArray<FStateTreeBindableStructDesc> AccessibleStructs;
-		TreeData->GetAccessibleStructs(Binding.TargetPath.StructID, AccessibleStructs);
-		const bool SourceAccessible = AccessibleStructs.ContainsByPredicate([SourceStructID](const FStateTreeBindableStructDesc& Structs)
-			{
-				return (Structs.ID == SourceStructID);
-			});
-		if (!SourceAccessible)
+		const FStateExecutionInfo& ExecInfo = ExecutionInfos.FindChecked(&State);
+		for (const FExecutionPath& ExecPath : ExecInfo.ExecutionPaths)
 		{
-			Log.Reportf(EMessageSeverity::Error, TargetStruct,
-        				TEXT("%s:%s is not accessible to %s:%s."),
-        				*SourceStruct.Name.ToString(), *Binding.SourcePath.ToString(), *TargetStruct.Name.ToString(), *Binding.TargetPath.ToString());
-			return false;
-		}
+			AccessibleStructs.Reset();
+			TreeData->GetAccessibleStructs(ExecPath.Path, Binding.TargetPath.StructID, AccessibleStructs);
 
+			const bool SourceAccessible = AccessibleStructs.ContainsByPredicate([SourceStructID](const FStateTreeBindableStructDesc& Structs)
+				{
+					return (Structs.ID == SourceStructID);
+				});
+
+			if (!SourceAccessible)
+			{
+				Log.Reportf(EMessageSeverity::Error, TargetStruct,
+							TEXT("Property '%s:%s' cannot be bound to '%s:%s', because the binding source '%s' is not updated before '%s' in the tree."),
+							*SourceStruct.Name.ToString(), *Binding.SourcePath.ToString(),
+							*TargetStruct.Name.ToString(), *Binding.TargetPath.ToString(),
+							*SourceStruct.Name.ToString(), *TargetStruct.Name.ToString());
+
+				if (IsPathLinked(ExecPath.Path))
+				{
+					Log.Reportf(EMessageSeverity::Error, TargetStruct,
+								TEXT("The binding source is not updated when executing via linked state: %s."),
+								*GetExecutionPathString(ExecPath.Path));
+				}
+				
+				return false;
+			}
+		}
+		
 		// Special case fo AnyEnum. StateTreeBindingExtension allows AnyEnums to bind to other enum types.
 		// The actual copy will be done via potential type promotion copy, into the value property inside the AnyEnum.
 		// We amend the paths here to point to the 'Value' property.
@@ -538,76 +819,6 @@ bool FStateTreeBaker::GetAndValidateBindings(const FStateTreeBindableStructDesc&
 			OutBindings.Add(Binding);
 		}
 	}
-
-	return true;
-}
-
-bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent)
-{
-	FStateTreeCompilerLogStateScope LogStateScope(&State, Log);
-
-	const int32 StateIdx = StateTree->States.AddDefaulted();
-	FBakedStateTreeState& BakedState = StateTree->States[StateIdx];
-	BakedState.Name = State.Name;
-	BakedState.Parent = Parent;
-
-	SourceStates.Add(&State);
-	IDToState.Add(State.ID, StateIdx);
-
-	check(StateTree->Instances.Num() <= int32(MAX_uint16));
-
-	// Collect evaluators
-	check(StateTree->Nodes.Num() <= int32(MAX_uint16));
-	BakedState.EvaluatorsBegin = uint16(StateTree->Nodes.Num());
-
-	for (FStateTreeEditorNode& EvalNode : State.Evaluators)
-	{
-		if (!CreateEvaluator(EvalNode))
-		{
-			return false;
-		}
-	}
-	
-	const int32 EvaluatorsNum = StateTree->Nodes.Num() - int32(BakedState.EvaluatorsBegin);
-	check(EvaluatorsNum <= int32(MAX_uint8));
-	BakedState.EvaluatorsNum = uint8(EvaluatorsNum);
-
-	// Collect tasks
-	check(StateTree->Nodes.Num() <= int32(MAX_uint16));
-	BakedState.TasksBegin = uint16(StateTree->Nodes.Num());
-
-	for (FStateTreeEditorNode& TaskNode : State.Tasks)
-	{
-		if (!CreateTask(TaskNode))
-		{
-			return false;
-		}
-	}
-
-	if (!CreateTask(State.SingleTask))
-	{
-		return false;
-	}
-	
-	const int32 TasksNum = StateTree->Nodes.Num() - int32(BakedState.TasksBegin);
-	check(TasksNum <= int32(MAX_uint8));
-	BakedState.TasksNum = uint8(TasksNum);
-
-	// Child states
-	check(StateTree->States.Num() <= int32(MAX_uint16));
-	BakedState.ChildrenBegin = uint16(StateTree->States.Num());
-	for (UStateTreeState* Child : State.Children)
-	{
-		if (Child)
-		{
-			if (!CreateStateRecursive(*Child, FStateTreeHandle((uint16)StateIdx)))
-			{
-				return false;
-			}
-		}
-	}
-	check(StateTree->States.Num() <= int32(MAX_uint16));
-	StateTree->States[StateIdx].ChildrenEnd = uint16(StateTree->States.Num()); // Cannot use BakedState here, it may be invalid due to array resize.
 
 	return true;
 }

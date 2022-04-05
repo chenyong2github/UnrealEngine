@@ -34,7 +34,7 @@ void FCooldownGuardEvaluator::EnterState(FStateTreeExecutionContext& Context, co
 	}
 }
  
-void FCooldownGuardEvaluator::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const
+void FCooldownGuardEvaluator::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const
 {
 	if (CompletionStatus == EStateTreeRunStatus::Failed
 		&& (Activation == ECooldownGuardActivation::OnCompleted || Activation == ECooldownGuardActivation::OnFailed))

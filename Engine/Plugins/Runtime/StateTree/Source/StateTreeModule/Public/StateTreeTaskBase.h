@@ -41,9 +41,9 @@ struct STATETREEMODULE_API FStateTreeTaskBase : public FStateTreeNodeBase
 	 * are executed earlier in the tree. Note that StateCompleted is not called if conditional transition changes the state.
 	 * @param Context Reference to current execution context.
 	 * @param CompletionStatus Describes the running status of the completed state (Succeeded/Failed).
-	 * @param CompletedState Handle of the state that was completed.
+	 * @param CompletedActiveStates Active states at the time of completion.
 	 */
-	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const {}
+	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const {}
 
 	/**
 	 * Called during state tree tick when the task is on active state.

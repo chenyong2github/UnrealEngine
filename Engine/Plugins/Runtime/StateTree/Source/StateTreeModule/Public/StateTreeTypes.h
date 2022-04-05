@@ -118,25 +118,157 @@ struct STATETREEMODULE_API FStateTreeHandle
 
 
 /**
- * Describes current status of a running state or desired state.
+ * Describes an array of active states in a State Tree.
  */
 USTRUCT(BlueprintType)
-struct STATETREEMODULE_API FStateTreeStateStatus
+struct STATETREEMODULE_API FStateTreeActiveStates
 {
 	GENERATED_BODY()
 
-	FStateTreeStateStatus() = default;
-	FStateTreeStateStatus(const FStateTreeHandle InState, const EStateTreeRunStatus InStatus) : State(InState), RunStatus(InStatus) {}
-	FStateTreeStateStatus(const FStateTreeHandle InState) : State(InState), RunStatus(EStateTreeRunStatus::Running) {}
-	FStateTreeStateStatus(const EStateTreeRunStatus InStatus) : State(), RunStatus(InStatus) {}
+	static constexpr uint8 MaxStates = 8;	// Max number of active states
 
-	bool IsSet() const { return RunStatus != EStateTreeRunStatus::Unset; }
+	FStateTreeActiveStates() = default;
 	
-	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
-	FStateTreeHandle State = FStateTreeHandle::Invalid;
+	explicit FStateTreeActiveStates(const FStateTreeHandle StateHandle)
+	{
+		Push(StateHandle);
+	}
+	
+	/** Resets the active state array to empty. */
+	void Reset()
+	{
+		NumStates = 0;
+	}
 
-	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
-	EStateTreeRunStatus RunStatus = EStateTreeRunStatus::Unset;
+	/** Pushes new state at the back of the array and returns true if there was enough space. */
+	bool Push(const FStateTreeHandle StateHandle)
+	{
+		if ((NumStates + 1) > MaxStates)
+		{
+			return false;
+		}
+		
+		States[NumStates++] = StateHandle;
+		
+		return true;
+	}
+
+	/** Pushes new state at the front of the array and returns true if there was enough space. */
+	bool PushFront(const FStateTreeHandle StateHandle)
+	{
+		if ((NumStates + 1) > MaxStates)
+		{
+			return false;
+		}
+
+		NumStates++;
+		for (int32 Index = (int32)NumStates - 1; Index > 0; Index--)
+		{
+			States[Index] = States[Index - 1];
+		}
+		States[0] = StateHandle;
+		
+		return true;
+	}
+
+	/** Pops a state from the back of the array and returns the popped value, or invalid handle if the array was empty. */
+	FStateTreeHandle Pop()
+	{
+		if (NumStates == 0)
+		{
+			return FStateTreeHandle::Invalid;			
+		}
+		
+		FStateTreeHandle Ret = States[NumStates - 1];
+		NumStates--;
+		return Ret;
+	}
+
+	/** Sets the number of states, new states are set to invalid state. */
+	void SetNum(const int32 NewNum)
+	{
+		check(NewNum >= 0 && NewNum <= MaxStates);
+		if (NewNum > (int32)NumStates)
+		{
+			for (int32 Index = NumStates; Index < NewNum; Index++)
+			{
+				States[Index] = FStateTreeHandle::Invalid;
+			}
+		}
+		NumStates = NewNum;
+	}
+
+	/** Returns true of the array contains specified state. */
+	bool Contains(const FStateTreeHandle StateHandle) const
+	{
+		for (const FStateTreeHandle& Handle : *this)
+		{
+			if (Handle == StateHandle)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Returns index of a state, searching in reverse order. */
+	int32 IndexOfReverse(const FStateTreeHandle StateHandle) const
+	{
+		for (int32 Index = (int32)NumStates - 1; Index >= 0; Index--)
+		{
+			if (States[Index] == StateHandle)
+				return Index;
+		}
+		return INDEX_NONE;
+	}
+	
+	/** Returns last state in the array, or invalid state if the array is empty. */
+	FStateTreeHandle Last() const { return NumStates > 0 ? States[NumStates - 1] : FStateTreeHandle::Invalid; }
+	
+	/** Returns number of states in the array. */
+	int32 Num() const { return NumStates; }
+
+	/** Returns true if the index is within array bounds. */
+	bool IsValidIndex(const int32 Index) const { return Index >= 0 && Index < (int32)NumStates; }
+	
+	/** Returns true if the array is empty. */
+	bool IsEmpty() const { return NumStates == 0; } 
+
+	/** Returns a specified state in the array. */
+	FORCEINLINE FStateTreeHandle operator[](const int32 Index) const
+	{
+		check(Index >= 0 && Index < (int32)NumStates);
+		return States[Index];
+	}
+
+	/** Returns mutable reference to a specified state in the array. */
+	FORCEINLINE FStateTreeHandle& operator[](const int32 Index)
+	{
+		check(Index >= 0 && Index < (int32)NumStates);
+		return States[Index];
+	}
+
+	/** Returns a specified state in the array, or FStateTreeHandle::Invalid if Index is out of array bounds. */
+	FStateTreeHandle GetStateSafe(const int32 Index) const
+	{
+		return (Index >= 0 && Index < (int32)NumStates) ? States[Index] : FStateTreeHandle::Invalid;
+	}
+
+	/**
+	 * DO NOT USE DIRECTLY
+	 * STL-like iterators to enable range-based for loop support.
+	 */
+	FORCEINLINE FStateTreeHandle* begin() { return &States[0]; }
+	FORCEINLINE FStateTreeHandle* end  () { return &States[0] + Num(); }
+	FORCEINLINE const FStateTreeHandle* begin() const { return &States[0]; }
+	FORCEINLINE const FStateTreeHandle* end  () const { return &States[0] + Num(); }
+
+
+	UPROPERTY(EditDefaultsOnly, Category = Default)
+	FStateTreeHandle States[MaxStates];
+
+	UPROPERTY(EditDefaultsOnly, Category = Default)
+	uint8 NumStates = 0;
 };
 
 /**
@@ -150,24 +282,26 @@ struct STATETREEMODULE_API FStateTreeTransitionResult
 	GENERATED_BODY()
 
 	FStateTreeTransitionResult() = default;
-	FStateTreeTransitionResult(const FStateTreeStateStatus InSource, const FStateTreeHandle InTransitionAndNext) : Source(InSource), Target(InTransitionAndNext), Next(InTransitionAndNext) {}
-	FStateTreeTransitionResult(const FStateTreeStateStatus InSource, const FStateTreeHandle InTransition, const FStateTreeHandle InNext) : Source(InSource), Target(InTransition), Next(InNext) {}
 
-	/** State where the transition started. */
+	/** Current active states, where the transition started. */
 	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
-	FStateTreeStateStatus Source = FStateTreeStateStatus();
+	FStateTreeActiveStates CurrentActiveStates;
+
+	/** Current Run status. */
+	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
+	EStateTreeRunStatus CurrentRunStatus = EStateTreeRunStatus::Unset;
 
 	/** Transition target state */
 	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
-	FStateTreeHandle Target = FStateTreeHandle::Invalid;
+	FStateTreeHandle TargetState = FStateTreeHandle::Invalid;
 
-	/** Selected state, can be different from Transition, if Transition is a selector state. */
+	/** States selected as result of the transition. */
 	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
-	FStateTreeHandle Next = FStateTreeHandle::Invalid;
+	FStateTreeActiveStates NextActiveStates;
 
-	/** Current state, update as we execute the tree. */
+	/** The current state being executed. On enter/exit callbacks this is the state of the task or evaluator. */
 	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
-	FStateTreeHandle Current = FStateTreeHandle::Invalid;
+	FStateTreeHandle CurrentState = FStateTreeHandle::Invalid;
 };
 
 
@@ -211,17 +345,15 @@ struct STATETREEMODULE_API FBakedStateTreeState
 	FName Name;											// Name of the State
 
 	UPROPERTY()
-	FStateTreeHandle Parent = FStateTreeHandle::Invalid;	// Parent state
+	FStateTreeHandle LinkedState = FStateTreeHandle::Invalid;	// Linked state 
+
+	UPROPERTY()
+	FStateTreeHandle Parent = FStateTreeHandle::Invalid;		// Parent state
 	UPROPERTY()
 	uint16 ChildrenBegin = 0;							// Index to first child state
 	UPROPERTY()
 	uint16 ChildrenEnd = 0;								// Index one past the last child state
 
-	UPROPERTY()
-	FStateTreeHandle StateDoneTransitionState = FStateTreeHandle::Invalid;		// State to transition to when the state execution is done. See also StateDoneTransitionType.
-	UPROPERTY()
-	FStateTreeHandle StateFailedTransitionState = FStateTreeHandle::Invalid;	// State to transition to if the state execution fails. See also StateFailedTransitionType.
-	
 	UPROPERTY()
 	uint16 EnterConditionsBegin = 0;					// Index to first state enter condition
 	UPROPERTY()
@@ -239,11 +371,6 @@ struct STATETREEMODULE_API FBakedStateTreeState
 	uint8 TasksNum = 0;									// Number of tasks
 	UPROPERTY()
 	uint8 EvaluatorsNum = 0;							// Number of evaluators
-
-	UPROPERTY()
-	EStateTreeTransitionType StateDoneTransitionType = EStateTreeTransitionType::NotSet;		// Type of the State Done transition. See also StateDoneTransitionState.
-	UPROPERTY()
-	EStateTreeTransitionType StateFailedTransitionType = EStateTreeTransitionType::NotSet;		// Type of the State Failed transition. See also StateFailedTransitionState.
 };
 
 /** An offset into the StateTree runtime storage type to get a struct view to a specific Task, Evaluator, or Condition. */

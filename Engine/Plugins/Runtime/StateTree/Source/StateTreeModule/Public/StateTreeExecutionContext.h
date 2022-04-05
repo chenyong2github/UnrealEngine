@@ -18,11 +18,11 @@ struct STATETREEMODULE_API FStateTreeExecutionState
 {
 	GENERATED_BODY()
 
-	/** Currently active state */
-	FStateTreeHandle CurrentState = FStateTreeHandle::Invalid;
+	/** Currently active states */
+	FStateTreeActiveStates ActiveStates;
 
 	/** The index of the task that failed during enter state. Exit state uses it to call ExitState() symmetrically. */
-	uint16 EnterStateFailedTaskIndex = INDEX_NONE;
+	uint16 EnterStateFailedTaskIndex = MAX_uint16;
 
 	/** Result of last tick */
 	EStateTreeRunStatus LastTickStatus = EStateTreeRunStatus::Failed;
@@ -32,6 +32,9 @@ struct STATETREEMODULE_API FStateTreeExecutionState
 
 	/** Delayed transition handle, if exists */
 	int16 GatedTransitionIndex = INDEX_NONE;
+
+	/** Number of times a new state has been changed. */
+	uint16 StateChangeCount = 0;
 
 	/** Running time of the delayed transition */
 	float GatedTransitionTime = 0.0f;
@@ -224,6 +227,8 @@ public:
 	
 	EStateTreeRunStatus GetLastTickStatus(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
 
+	const FStateTreeActiveStates& GetActiveStates(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
+
 #if WITH_GAMEPLAY_DEBUGGER
 	/** @return Debug string describing the current state of the execution */
 	FString GetDebugInfoString(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
@@ -231,7 +236,10 @@ public:
 
 #if WITH_STATETREE_DEBUG
 	FString GetActiveStateName(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
-	
+	int32 GetStateChangeCount(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
+
+	TArray<FName> GetActiveStateNames(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
+
 	void DebugPrintInternalLayout(const FStateTreeInstanceData* ExternalInstanceData = nullptr);
 #endif
 
@@ -259,21 +267,27 @@ protected:
 	void ExitState(FStateTreeInstanceData& InstanceData, const FStateTreeTransitionResult& Transition);
 
 	/**
-	 * Handles logic for exiting State. ExitState is called on current active Evaluators and Tasks in reverse order (from leaf to root).
+	 * Handles logic for signalling State completed. StateCompleted is called on current active Evaluators and Tasks in reverse order (from leaf to root).
 	 */
-	void StateCompleted(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const EStateTreeRunStatus CompletionStatus);
+	void StateCompleted(FStateTreeInstanceData& InstanceData);
 
 	/**
-	 * Ticks evaluators of all active states starting from current state by delta time.
+	 * Ticks evaluators of CurrentState and all of it's parent states.
+	 * If TickEvaluatorsForSelect() is called multiple times per frame (i.e. during selection when visiting new states), each state and evaluator is ticked only once.
+	 */
+	void TickEvaluatorsForSelect(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const EStateTreeEvaluationType EvalType, const float DeltaTime);
+
+	/**
+	 * Ticks evaluators of all active states by delta time.
 	 * If TickEvaluators() is called multiple times per frame (i.e. during selection when visiting new states), each state and evaluator is ticked only once.
 	 */
-	void TickEvaluators(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const EStateTreeEvaluationType EvalType, const float DeltaTime);
+	void TickEvaluators(FStateTreeInstanceData& InstanceData, const FStateTreeActiveStates& ActiveStates, const EStateTreeEvaluationType EvalType, const float DeltaTime);
 
 	/**
 	 * Ticks tasks of all active states starting from current state by delta time.
 	 * @return Run status returned by the tasks.
 	 */
-	EStateTreeRunStatus TickTasks(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const float DeltaTime);
+	EStateTreeRunStatus TickTasks(FStateTreeInstanceData& InstanceData, const FStateTreeExecutionState& Exec, const float DeltaTime);
 
 	/**
 	 * Checks all conditions at given range
@@ -288,24 +302,24 @@ protected:
 	 * the actual next state returned by the selector.
 	 * @return Transition result describing the source state, state transitioned to, and next selected state.
 	 */
-	FStateTreeTransitionResult TriggerTransitions(FStateTreeInstanceData& InstanceData, const FStateTreeStateStatus CurrentStatus, const int Depth);
+	bool TriggerTransitions(FStateTreeInstanceData& InstanceData, FStateTreeTransitionResult& OutTransition);
 
 	/**
 	 * Runs state selection logic starting at the specified state, walking towards the leaf states.
-	 * If the preconditions of NextState are not met, "Invalid" is returned. 
-	 * If NextState is a selector state, SelectState is called recursively (depth-first) to all child states (where NextState will be one of child states).
-	 * If NextState is a leaf state, the NextState is returned.
-	 * @param Storage View representing all instance data used by tasks and evaluators
-	 * @param InitialStateStatus Describes the current state and running status (will be passed intact to next selector)
-	 * @param InitialTargetState The state the initial transition target state (will be passed intact to next selector) 
+	 * If a state cannot be selected, false is returned. 
+	 * If NextState is a selector state, SelectStateInternal is called recursively (depth-first) to all child states (where NextState will be one of child states).
+	 * If NextState is a leaf state, the active states leading from root to the leaf are returned.
+	 * @param InstanceData Reference to the instance data
 	 * @param NextState The state which we try to select next.
-	 * @param Depth Depth of recursion.
-	 * @return Transition result describing the source state, transition target state, and next selected state.
+	 * @param OutNewActiveStates Active states that got selected.
+	 * @return True if succeeded to select new active states.
 	 */
-	FStateTreeTransitionResult SelectState(FStateTreeInstanceData& InstanceData, const FStateTreeStateStatus InitialStateStatus, const FStateTreeHandle InitialTargetState, const FStateTreeHandle NextState, const int Depth);
+	bool SelectState(FStateTreeInstanceData& InstanceData, const FStateTreeHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
 
-	/** @return State handles from specified state handle back to the root, specified handle included. */
-	int32 GetActiveStates(const FStateTreeHandle StateHandle, TStaticArray<FStateTreeHandle, 32>& OutStateHandles) const;
+	/**
+	 * Used internally to do the recursive part of the SelectState().
+	 */
+	bool SelectStateInternal(FStateTreeInstanceData& InstanceData, const FStateTreeHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
 
 	/** @return Mutable storage based on storage settings. */
 	FStateTreeInstanceData& SelectMutableInstanceData(FStateTreeInstanceData* ExternalInstanceData)
@@ -352,13 +366,13 @@ protected:
 	}
 	
 	/** @return String describing state status for logging and debug. */
-	FString GetStateStatusString(const FStateTreeStateStatus StateStatus) const;
+	FString GetStateStatusString(const FStateTreeExecutionState& ExecState) const;
 
 	/** @return String describing state name for logging and debug. */
 	FString GetSafeStateName(const FStateTreeHandle State) const;
 
 	/** @return String describing full path of an activate state for logging and debug. */
-	FString DebugGetStatePath(TArrayView<FStateTreeHandle> ActiveStateHandles, int32 ActiveStateIndex) const;
+	FString DebugGetStatePath(const FStateTreeActiveStates& ActiveStates, int32 ActiveStateIndex) const;
 
 	/** The StateTree asset the context is initialized for */
 	UPROPERTY(Transient)

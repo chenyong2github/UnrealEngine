@@ -37,6 +37,9 @@ private:
 	EVisibility GetTasksVisibility() const;
 	FText GetTasksDesc() const;
 
+	EVisibility GetLinkedStateVisibility() const;
+	FText GetLinkedStateDesc() const;
+
 	EVisibility GetCompletedTransitionVisibility() const;
 	FText GetCompletedTransitionsDesc() const;
 	FText GetCompletedTransitionsIcon() const;

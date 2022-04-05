@@ -62,6 +62,30 @@ struct FTestStateTreeExecutionContext : public FStateTreeExecutionContext
 	{
 		return FLogOrder(*this, 0).Then(Name, Message);
 	}
+
+	template <class ...Args>
+	bool ExpectInActiveStates(const Args&... States)
+	{
+		FName ExpectedStateNames[] = { States... };
+		const int32 NumExpectedStateNames = sizeof...(States);
+
+		TArray<FName> ActiveStateNames = GetActiveStateNames();
+
+		if (ActiveStateNames.Num() != NumExpectedStateNames)
+		{
+			return false;
+		}
+
+		for (int32 Index = 0; Index != NumExpectedStateNames; Index++)
+		{
+			if (ExpectedStateNames[Index] != ActiveStateNames[Index])
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
 	
 };
 
@@ -499,7 +523,7 @@ struct FTestTask_ReserveSmartObject : public FStateTreeTaskBase
 		}
 	}
 
-	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle StateCompleted) const override
+	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const override
 	{
 		const FTestPotentialSmartObjectsResult& PotentialSmartObjects = Context.GetInstanceData(PotentialSmartObjectsHandle);
 		FTestMoveLocationResult& ReservedSmartObjectLocation = Context.GetInstanceData(ReservedSmartObjectLocationHandle);
@@ -680,7 +704,7 @@ struct FTestTask_Stand : public FStateTreeTaskBase
 		TestContext.Log(Name, TEXT("ExitState"));
 	}
 
-	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const override
+	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const override
 	{
 		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
 		TestContext.Log(Name, TEXT("StateCompleted"));

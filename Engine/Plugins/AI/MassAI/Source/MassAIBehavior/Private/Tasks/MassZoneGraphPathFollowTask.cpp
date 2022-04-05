@@ -89,12 +89,6 @@ bool FMassZoneGraphPathFollowTask::RequestPath(FMassStateTreeExecutionContext& C
 
 EStateTreeRunStatus FMassZoneGraphPathFollowTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
-	// Do not reset of the state if current state is still active after transition, unless transitioned specifically to this state.
-	if (ChangeType == EStateTreeStateChangeType::Sustained && Transition.Current != Transition.Next)
-	{
-		return EStateTreeRunStatus::Running;
-	}
-	
 	FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 
 	bool bDisplayDebug = false;

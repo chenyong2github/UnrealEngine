@@ -40,9 +40,9 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase : public FStateTreeNodeBase
 	 * are executed earlier in the tree. Note that StateCompleted is not called if conditional transition changes the state.
 	 * @param Context Reference to current execution context.
 	 * @param CompletionStatus Describes the running status of the completed state (Succeeded/Failed).
-	 * @param CompletedState Handle of the state that was completed.
+	 * @param CompletedActiveStates Active states at the time of completion.
 	 */
-	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const {}
+	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const {}
 	
 	/**
 	 * Called when evaluator needs to be updated. EvalType describes if the tick happens during state tree tick when the evaluator is on active state (Tick),

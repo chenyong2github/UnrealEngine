@@ -29,6 +29,7 @@
 #include "Modules/ModuleManager.h"
 #include "ISettingsModule.h"
 #include "Editor.h"
+#include "IPropertyUtilities.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeViewModel.h"
 #include "StateTree.h"
@@ -66,12 +67,23 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	TSharedPtr<IPropertyHandle> EnterConditionsProperty = DetailBuilder.GetProperty(TEXT("EnterConditions"));
 	TSharedPtr<IPropertyHandle> EvaluatorsProperty = DetailBuilder.GetProperty(TEXT("Evaluators"));
 	TSharedPtr<IPropertyHandle> TransitionsProperty = DetailBuilder.GetProperty(TEXT("Transitions"));
+	TSharedPtr<IPropertyHandle> TypeProperty = DetailBuilder.GetProperty(TEXT("Type"));
+	TSharedPtr<IPropertyHandle> LinkedStateProperty = DetailBuilder.GetProperty(TEXT("LinkedState"));
 
+	uint8 StateTypeValue = 0;
+	TypeProperty->GetValue(StateTypeValue);
+	const EStateTreeStateType StateType = (EStateTreeStateType)StateTypeValue;
+	
 	IDetailCategoryBuilder& StateCategory = DetailBuilder.EditCategory(TEXT("State"), LOCTEXT("StateDetailsState", "State"));
 	StateCategory.SetSortOrder(0);
 
+	if (StateType != EStateTreeStateType::Linked)
+	{
+		LinkedStateProperty->MarkHiddenByCustomization();
+	}
+	
 	const FName EvalCategoryName(TEXT("Evaluators"));
-	if (Schema && Schema->AllowEvaluators())
+	if (StateType == EStateTreeStateType::State && Schema && Schema->AllowEvaluators())
 	{
 		MakeArrayCategory(DetailBuilder, EvalCategoryName, LOCTEXT("StateDetailsEvaluators", "Evaluators"), 1, EvaluatorsProperty);
 	}
@@ -90,25 +102,43 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 		DetailBuilder.EditCategory(EnterConditionsCategoryName).SetCategoryVisibility(false);
 	}
 
-	if (Schema && Schema->AllowMultipleTasks())
+	if (StateType == EStateTreeStateType::State)
 	{
-		const FName TasksCategoryName(TEXT("Tasks"));
-		MakeArrayCategory(DetailBuilder, TasksCategoryName, LOCTEXT("StateDetailsTasks", "Tasks"), 3, TasksProperty);
-		SingleTaskProperty->MarkHiddenByCustomization();
+		if (Schema && Schema->AllowMultipleTasks())
+		{
+			const FName TasksCategoryName(TEXT("Tasks"));
+			MakeArrayCategory(DetailBuilder, TasksCategoryName, LOCTEXT("StateDetailsTasks", "Tasks"), 3, TasksProperty);
+			SingleTaskProperty->MarkHiddenByCustomization();
+		}
+		else
+		{
+			const FName TaskCategoryName(TEXT("Task"));
+			IDetailCategoryBuilder& Category = DetailBuilder.EditCategory(TaskCategoryName);
+			Category.SetSortOrder(3);
+			
+			IDetailPropertyRow& Row = Category.AddProperty(SingleTaskProperty);
+			Row.ShouldAutoExpand(true);
+			
+			TasksProperty->MarkHiddenByCustomization();
+		}
 	}
 	else
 	{
-		const FName TaskCategoryName(TEXT("Task"));
-		IDetailCategoryBuilder& Category = DetailBuilder.EditCategory(TaskCategoryName);
-		Category.SetSortOrder(3);
-		
-		IDetailPropertyRow& Row = Category.AddProperty(SingleTaskProperty);
-		Row.ShouldAutoExpand(true);
-		
+		SingleTaskProperty->MarkHiddenByCustomization();
 		TasksProperty->MarkHiddenByCustomization();
 	}
 
 	MakeArrayCategory(DetailBuilder, "Transitions", LOCTEXT("StateDetailsTransitions", "Transitions"), 4, TransitionsProperty);
+
+	// Refresh the UI when the type changes.	
+	TSharedPtr<IPropertyUtilities> PropUtils = DetailBuilder.GetPropertyUtilities();
+	TypeProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([PropUtils] ()
+	{
+		if (PropUtils.IsValid())
+		{
+			PropUtils->ForceRefresh();
+		}
+	}));
 }
 
 void FStateTreeStateDetails::MakeArrayCategory(IDetailLayoutBuilder& DetailBuilder, FName CategoryName, const FText& DisplayName, int32 SortOrder, TSharedPtr<IPropertyHandle> PropertyHandle)

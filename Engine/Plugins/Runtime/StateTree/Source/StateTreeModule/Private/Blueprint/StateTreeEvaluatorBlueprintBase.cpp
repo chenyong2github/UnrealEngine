@@ -20,10 +20,10 @@ void UStateTreeEvaluatorBlueprintBase::ExitState(FStateTreeExecutionContext& Con
 	ReceiveExitState(OwnerActor, ChangeType, Transition);
 }
 
-void UStateTreeEvaluatorBlueprintBase::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState)
+void UStateTreeEvaluatorBlueprintBase::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates)
 {
 	AActor* OwnerActor = GetOwnerActor(Context);
-	ReceiveStateCompleted(OwnerActor, CompletionStatus, CompletedState);
+	ReceiveStateCompleted(OwnerActor, CompletionStatus, CompletedActiveStates);
 }
 
 void UStateTreeEvaluatorBlueprintBase::Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime)
@@ -65,13 +65,13 @@ void FStateTreeBlueprintEvaluatorWrapper::ExitState(FStateTreeExecutionContext& 
 	Instance->ExitState(Context, ChangeType, Transition);
 }
 
-void FStateTreeBlueprintEvaluatorWrapper::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const
+void FStateTreeBlueprintEvaluatorWrapper::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const
 {
 	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeEvaluatorBlueprintBase>(DataViewIndex);
 	check(Instance);
 	
 	Instance->CopyExternalData(Context, ExternalDataHandles);
-	Instance->StateCompleted(Context, CompletionStatus, CompletedState);
+	Instance->StateCompleted(Context, CompletionStatus, CompletedActiveStates);
 }
 
 void FStateTreeBlueprintEvaluatorWrapper::Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) const

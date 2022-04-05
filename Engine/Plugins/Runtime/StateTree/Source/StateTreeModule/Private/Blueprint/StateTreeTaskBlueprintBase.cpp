@@ -25,10 +25,10 @@ void UStateTreeTaskBlueprintBase::ExitState(FStateTreeExecutionContext& Context,
 	ReceiveExitState(OwnerActor, ChangeType, Transition);
 }
 
-void UStateTreeTaskBlueprintBase::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState)
+void UStateTreeTaskBlueprintBase::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates)
 {
 	AActor* OwnerActor = GetOwnerActor(Context);
-	ReceiveStateCompleted(OwnerActor, CompletionStatus, CompletedState);
+	ReceiveStateCompleted(OwnerActor, CompletionStatus, CompletedActiveStates);
 }
 
 EStateTreeRunStatus UStateTreeTaskBlueprintBase::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)
@@ -70,13 +70,13 @@ void FStateTreeBlueprintTaskWrapper::ExitState(FStateTreeExecutionContext& Conte
 	Instance->ExitState(Context, ChangeType, Transition);
 }
 
-void FStateTreeBlueprintTaskWrapper::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const
+void FStateTreeBlueprintTaskWrapper::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const
 {
 	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeTaskBlueprintBase>(DataViewIndex);
 	check(Instance);
 	
 	Instance->CopyExternalData(Context, ExternalDataHandles);
-	Instance->StateCompleted(Context, CompletionStatus, CompletedState);
+	Instance->StateCompleted(Context, CompletionStatus, CompletedActiveStates);
 }
 
 EStateTreeRunStatus FStateTreeBlueprintTaskWrapper::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const

@@ -30,7 +30,7 @@ void FSelectionGuardEvaluator::ExitState(FStateTreeExecutionContext& Context, co
 	bActive = false;
 }
 
-void FSelectionGuardEvaluator::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const
+void FSelectionGuardEvaluator::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const
 {
 	bool& bActive = Context.GetInstanceData(ActiveHandle);
 

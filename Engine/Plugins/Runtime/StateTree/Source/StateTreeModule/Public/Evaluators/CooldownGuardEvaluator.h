@@ -49,7 +49,7 @@ struct STATETREEMODULE_API FCooldownGuardEvaluator : public FStateTreeEvaluatorC
 	virtual const UStruct* GetInstanceDataType() const override { return FCooldownGuardEvaluatorInstanceData::StaticStruct(); };
 	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual void EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
-	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const override;
+	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const override;
 	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) const override;
 
 	void SetCoolDown(FStateTreeExecutionContext& Context) const;

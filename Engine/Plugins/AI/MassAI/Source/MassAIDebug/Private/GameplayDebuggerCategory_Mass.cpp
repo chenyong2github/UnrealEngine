@@ -560,7 +560,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 							if (FStateTreeInstanceData* InstanceData = MassStateTreeSubsystem->GetInstanceData(StateTreeInstance.InstanceHandle))
 							{
 								Status += StateTreeContext.GetActiveStateName(InstanceData);
-								Status += TEXT("\n");
+								Status += FString::Printf(TEXT("  {yellow}%d{white}\n"), StateTreeContext.GetStateChangeCount(InstanceData));
 							}
 							else
 							{

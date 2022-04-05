@@ -58,13 +58,28 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 
 	if (Property)
 	{
-		if (Property->GetOwnerClass() == UStateTreeState::StaticClass() &&
-			Property->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Name))
+		if (Property->GetOwnerClass() == UStateTreeState::StaticClass()
+			&& Property->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Name))
 		{
 			UStateTree* StateTree = GetTypedOuter<UStateTree>();
 			if (ensure(StateTree))
 			{
 				UE::StateTree::Delegates::OnIdentifierChanged.Broadcast(*StateTree);
+			}
+		}
+
+		if (Property->GetOwnerClass() == UStateTreeState::StaticClass()
+			&& Property->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Type))
+		{
+			if (Type == EStateTreeStateType::Group || Type == EStateTreeStateType::Linked)
+			{
+				// Remove any tasks and evaluators.
+				Tasks.Reset();
+				Evaluators.Reset();
+			}
+			if (Type != EStateTreeStateType::Linked)
+			{
+				LinkedState = FStateTreeStateLink();
 			}
 		}
 
