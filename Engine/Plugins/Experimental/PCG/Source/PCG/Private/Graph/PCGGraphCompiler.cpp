@@ -7,7 +7,11 @@
 
 TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTaskId& NextId)
 {
-	check(InGraph);
+	if (!InGraph)
+	{
+		return TArray<FPCGGraphTask>();
+	}
+
 	TArray<FPCGGraphTask> CompiledTasks;
 	TMap<const UPCGNode*, FPCGTaskId> IdMapping;
 	TArray<const UPCGNode*> NodeQueue;
@@ -112,7 +116,15 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 
 			for (const UPCGNode* Inbound : Node->InboundNodes)
 			{
-				Task.Inputs.Add(IdMapping[Inbound]);
+				if (FPCGTaskId* InboundId = IdMapping.Find(Inbound))
+				{
+					Task.Inputs.Add(*InboundId);
+				}
+				else
+				{
+					UE_LOG(LogPCG, Error, TEXT("Inconsistent node linkage between node %s and node %s"), *Node->GetFName().ToString(), (Inbound ? *Inbound->GetFName().ToString() : TEXT("null")));
+					return TArray<FPCGGraphTask>();
+				}
 			}
 
 			IdMapping.Add(Node, NodeId);
@@ -155,13 +167,16 @@ void FPCGGraphCompiler::Compile(UPCGGraph* InGraph)
 
 	// TODO: optimize no-ops, etc.
 
-	// Store back the results in the cache
-	GraphToTaskMapLock.WriteLock();
-	if (!GraphToTaskMap.Contains(InGraph))
+	// Store back the results in the cache if it's valid
+	if (!CompiledTasks.IsEmpty())
 	{
-		GraphToTaskMap.Add(InGraph, MoveTemp(CompiledTasks));
+		GraphToTaskMapLock.WriteLock();
+		if (!GraphToTaskMap.Contains(InGraph))
+		{
+			GraphToTaskMap.Add(InGraph, MoveTemp(CompiledTasks));
+		}
+		GraphToTaskMapLock.WriteUnlock();
 	}
-	GraphToTaskMapLock.WriteUnlock();
 }
 
 TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, bool bIsTopGraph)
@@ -176,8 +191,10 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, bo
 
 		// Get compiled tasks in a threadsafe way
 		GraphToTaskMapLock.ReadLock();
-		check(TopGraphToTaskMap.Contains(InGraph));
-		CompiledTasks = TopGraphToTaskMap[InGraph];
+		if (TopGraphToTaskMap.Contains(InGraph))
+		{
+			CompiledTasks = TopGraphToTaskMap[InGraph];
+		}
 		GraphToTaskMapLock.ReadUnlock();
 	}
 	else
@@ -188,8 +205,10 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, bo
 
 		// Get compiled tasks in a threadsafe way
 		GraphToTaskMapLock.ReadLock();
-		check(GraphToTaskMap.Contains(InGraph));
-		CompiledTasks = GraphToTaskMap[InGraph];
+		if (GraphToTaskMap.Contains(InGraph))
+		{
+			CompiledTasks = GraphToTaskMap[InGraph];
+		}
 		GraphToTaskMapLock.ReadUnlock();
 	}
 
@@ -223,6 +242,12 @@ void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 
 	// Build from non-top tasks
 	TArray<FPCGGraphTask> CompiledTasks = GetCompiledTasks(InGraph, /*bIsTopGraph=*/false);
+
+	// Check that the compilation was valid
+	if (CompiledTasks.Num() == 0)
+	{
+		return;
+	}
 
 	const int TaskNum = CompiledTasks.Num();
 	const FPCGTaskId PreExecuteTaskId = FPCGTaskId(TaskNum);

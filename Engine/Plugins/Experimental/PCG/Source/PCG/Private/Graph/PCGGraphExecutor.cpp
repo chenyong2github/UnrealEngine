@@ -144,7 +144,11 @@ void FPCGGraphExecutor::Execute()
 	// TODO: add optimization phase if we've added new graph(s)/tasks to be executed
 
 	// This is a safeguard to check if we're in a stuck state
-	check(Tasks.Num() == 0 || ReadyTasks.Num() > 0 || ActiveTasks.Num() > 0);
+	if (ReadyTasks.Num() == 0 && ActiveTasks.Num() == 0 && Tasks.Num() > 0)
+	{
+		UE_LOG(LogPCG, Error, TEXT("PCG Graph executor error: tasks are in a deadlocked state. Will drop all tasks."));
+		Tasks.Reset();
+	}
 
 	// TODO: change this when we support time-slicing
 	if(ReadyTasks.Num() > 0 || ActiveTasks.Num() > 0)
