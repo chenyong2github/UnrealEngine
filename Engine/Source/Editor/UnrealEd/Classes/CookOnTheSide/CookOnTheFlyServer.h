@@ -234,7 +234,6 @@ private:
 	ECookInitializationFlags CookFlags = ECookInitializationFlags::None;
 	TUniquePtr<class FSandboxPlatformFile> SandboxFile;
 	TUniquePtr<FAsyncIODelete> AsyncIODelete; // Helper for deleting the old cook directory asynchronously
-	FString DefaultAsyncIODeletePlatformName; // Default platform name to be used by GetAsyncIODelete()
 	bool bIsSavingPackage = false; // used to stop recursive mark package dirty functions
 	/** Set to true during CookOnTheFly if a plugin is calling RequestPackage and we should therefore not make assumptions about when platforms are done cooking */
 	bool bCookOnTheFlyExternalRequests = false;
@@ -982,9 +981,6 @@ private:
 	* This should be used instead of calling the Sandbox function
 	*/
 	FString GetSandboxDirectory( const FString& PlatformName ) const;
-
-	/** If not already done, set the default platform name to be used by GetAsyncIODelete(). */
-	void TrySetDefaultAsyncIODeletePlatform(const FString& PlatformName);
 
 	/* Create the delete-old-cooked-directory helper.*/
 	FAsyncIODelete& GetAsyncIODelete();
