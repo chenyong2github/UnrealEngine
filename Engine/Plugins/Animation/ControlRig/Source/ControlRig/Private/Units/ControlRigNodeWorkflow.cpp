@@ -3,6 +3,10 @@
 #include "Units/ControlRigNodeWorkflow.h"
 #include "RigVMCore/RigVMStruct.h"
 
+#if WITH_EDITOR
+#include "RigVMModel/RigVMNode.h"
+#endif
+
 bool UControlRigWorkflowOptions::EnsureAtLeastOneRigElementSelected() const
 {
 	if(Selection.IsEmpty())
@@ -18,7 +22,7 @@ bool UControlRigWorkflowOptions::EnsureAtLeastOneRigElementSelected() const
 TArray<FRigVMUserWorkflow> UControlRigTransformWorkflowOptions::ProvideWorkflows(const UObject* InSubject)
 {
 	TArray<FRigVMUserWorkflow> Workflows;
-
+#if WITH_EDITOR
 	if(const URigVMPin* Pin = Cast<URigVMPin>(InSubject))
 	{
 		if(!Pin->IsArray())
@@ -35,9 +39,11 @@ TArray<FRigVMUserWorkflow> UControlRigTransformWorkflowOptions::ProvideWorkflows
 			}
 		}
 	}
+#endif
 	return Workflows;
 }
 
+#if WITH_EDITOR
 TArray<FRigVMUserWorkflowAction> UControlRigTransformWorkflowOptions::ProvideTransformWorkflow(
 	const URigVMUserWorkflowOptions* InOptions)
 {
@@ -63,3 +69,4 @@ TArray<FRigVMUserWorkflowAction> UControlRigTransformWorkflowOptions::ProvideTra
 	
 	return Actions;
 }
+#endif

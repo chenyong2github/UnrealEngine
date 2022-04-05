@@ -4,7 +4,6 @@
 
 #include "Rigs/RigHierarchy.h"
 #include "RigVMCore/RigVMUserWorkflow.h"
-#include "RigVMModel/RigVMNode.h"
 #include "ControlRigNodeWorkflow.generated.h"
 
 UCLASS(BlueprintType)
@@ -40,5 +39,7 @@ public:
 
 protected:
 
+#if WITH_EDITOR
 	static TArray<FRigVMUserWorkflowAction> ProvideTransformWorkflow(const URigVMUserWorkflowOptions* InOptions);
+#endif
 };
