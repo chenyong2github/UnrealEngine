@@ -444,6 +444,11 @@ namespace EpicGames.UHT.Types
 		GenericFunctionArgOrRetVal,
 
 		/// <summary>
+		/// Generic function argument or return value implementation (specific to booleans and will always return "bool")
+		/// </summary>
+		GenericFunctionArgOrRetValImpl,
+
+		/// <summary>
 		/// Class function argument or return value
 		/// </summary>
 		ClassFunctionArgOrRetVal,
@@ -529,6 +534,7 @@ namespace EpicGames.UHT.Types
 		{
 			return
 				TextType == UhtPropertyTextType.GenericFunctionArgOrRetVal ||
+				TextType == UhtPropertyTextType.GenericFunctionArgOrRetValImpl ||
 				TextType == UhtPropertyTextType.ClassFunctionArgOrRetVal ||
 				TextType == UhtPropertyTextType.EventFunctionArgOrRetVal ||
 				TextType == UhtPropertyTextType.InterfaceFunctionArgOrRetVal;

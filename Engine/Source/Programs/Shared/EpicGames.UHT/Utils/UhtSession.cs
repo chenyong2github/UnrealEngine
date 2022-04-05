@@ -65,6 +65,11 @@ namespace EpicGames.UHT.Utils
 		private readonly UhtSession SessionInternal;
 
 		/// <summary>
+		/// Module associated with the plugin
+		/// </summary>
+		private readonly UHTManifest.Module? PluginModuleInternal;
+
+		/// <summary>
 		/// Limiter for the number of files being saved to the reference directory.
 		/// The OS can get swamped on high core systems
 		/// </summary>
@@ -79,6 +84,11 @@ namespace EpicGames.UHT.Utils
 		/// UHT Session
 		/// </summary>
 		public UhtSession Session => this.SessionInternal;
+
+		/// <summary>
+		/// Plugin module
+		/// </summary>
+		public UHTManifest.Module? PluginModule => this.PluginModuleInternal;
 
 		/// <summary>
 		/// Collection of error from mismatches with the reference files
@@ -104,11 +114,13 @@ namespace EpicGames.UHT.Utils
 		/// Create a new instance of the export factory
 		/// </summary>
 		/// <param name="Session">UHT session</param>
+		/// <param name="PluginModule">Plugin module</param>
 		/// <param name="Exporter">Exporter being run</param>
-		public UhtExportFactory(UhtSession Session, UhtExporter Exporter)
+		public UhtExportFactory(UhtSession Session, UHTManifest.Module? PluginModule, UhtExporter Exporter)
 		{
-			this.Exporter = Exporter;
 			this.SessionInternal = Session;
+			this.PluginModuleInternal = PluginModule;
+			this.Exporter = Exporter;
 			if (this.Session.ReferenceMode != UhtReferenceMode.None)
 			{
 				this.ReferenceDirectory = Path.Combine(this.Session.ReferenceDirectory, this.Exporter.Name);
@@ -189,8 +201,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Resulting file name</returns>
 		public string MakePath(UhtHeaderFile HeaderFile, string Suffix)
 		{
-			UHTManifest.Module Module = HeaderFile.Package.Module;
-			return Path.Combine(Module.OutputDirectory, HeaderFile.FileNameWithoutExtension) + Suffix;
+			return MakePath(HeaderFile.Package.Module, HeaderFile.FileNameWithoutExtension, Suffix);
 		}
 
 		/// <summary>
@@ -201,22 +212,32 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Resulting file name</returns>
 		public string MakePath(UhtPackage Package, string Suffix)
 		{
-			UHTManifest.Module Module = Package.Module;
-			return Path.Combine(Module.OutputDirectory, Package.ShortName.ToString()) + Suffix;
+			return MakePath(Package.Module, Package.ShortName, Suffix);
 		}
 
 
 		/// <summary>
 		/// Make a path for an output based on the package output directory.
 		/// </summary>
-		/// <param name="Package">Destination package</param>
 		/// <param name="FileName">Name of the file</param>
 		/// <param name="Extension">Extension to add to the file</param>
 		/// <returns>Output file path</returns>
-		public string MakePath(UhtPackage Package, string FileName, string Extension)
+		public string MakePath(string FileName, string Extension)
 		{
-			UHTManifest.Module Module = Package.Module;
-			return Path.Combine(Module.OutputDirectory, FileName) + Extension;
+			if (this.PluginModule == null)
+			{
+				throw new UhtIceException("MakePath with just a filename and extension can not be called from non-plugin exporters");
+			}
+			return MakePath(this.PluginModule, FileName, Extension);
+		}
+
+		private string MakePath(UHTManifest.Module Module, string FileName, string Suffix)
+		{
+			if (PluginModule != null)
+			{
+				Module = PluginModule;
+			}
+			return Path.Combine(Module.OutputDirectory, FileName) + Suffix;
 		}
 
 		/// <summary>
@@ -2260,7 +2281,7 @@ namespace EpicGames.UHT.Utils
 				UhtBuffer? Contents = this.ReadSourceToBuffer(this.ProjectFile);
 				if (Contents != null)
 				{
-					this.ProjectJson = JsonDocument.Parse(Contents.Block);
+					this.ProjectJson = JsonDocument.Parse(Contents.Memory);
 					UhtBuffer.Return(Contents);
 				}
 			}
@@ -2322,10 +2343,28 @@ namespace EpicGames.UHT.Utils
 							(Exporter.Options.HasAnyFlags(UhtExporterOptions.Default) && !this.bNoDefaultExporters);
 					}
 
+					UHTManifest.Module? PluginModule = null;
+					if (!string.IsNullOrEmpty(Exporter.ModuleName))
+					{
+						foreach (UHTManifest.Module Module in this.Manifest!.Modules)
+						{
+							if (string.Compare(Module.Name, Exporter.ModuleName, StringComparison.OrdinalIgnoreCase) == 0)
+							{
+								PluginModule = Module;
+								break;
+							}
+						}
+						if (PluginModule == null)
+						{
+							Log.Logger.LogWarning($"Exporter \"{Exporter.Name}\" skipped because module \"{Exporter.ModuleName}\" was not found in manifest");
+							continue;
+						}
+					}
+
 					if (Run)
 					{
 						Log.Logger.LogTrace($"       Running exporter {Exporter.Name}");
-						UhtExportFactory Factory = new UhtExportFactory(this, Exporter);
+						UhtExportFactory Factory = new UhtExportFactory(this, PluginModule, Exporter);
 						Factory.Run();
 						foreach (var Output in Factory.Outputs)
 						{

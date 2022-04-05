@@ -551,8 +551,7 @@ namespace EpicGames.UHT.Utils
 			{
 				if (Assembly == null)
 				{
-					byte[] AssemblyBytes = File.ReadAllBytes(AssemblyFilePath);
-					Assembly = Assembly.Load(AssemblyBytes);
+					Assembly = Assembly.LoadFile(AssemblyFilePath);
 				}
 			}
 			return Assembly;

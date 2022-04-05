@@ -43,12 +43,13 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.FunctionThunkRetVal:
 				case UhtPropertyTextType.RigVMTemplateArg:
 				case UhtPropertyTextType.ExportMember:
+				case UhtPropertyTextType.GenericFunctionArgOrRetVal:
 					Builder.Append(this.CppTypeText);
 					break;
 
 				case UhtPropertyTextType.Sparse:
 				case UhtPropertyTextType.SparseShort:
-				case UhtPropertyTextType.GenericFunctionArgOrRetVal:
+				case UhtPropertyTextType.GenericFunctionArgOrRetValImpl:
 				case UhtPropertyTextType.ClassFunctionArgOrRetVal:
 				case UhtPropertyTextType.EventFunctionArgOrRetVal:
 				case UhtPropertyTextType.InterfaceFunctionArgOrRetVal:

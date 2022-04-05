@@ -75,6 +75,7 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.Sparse:
 				case UhtPropertyTextType.SparseShort:
 				case UhtPropertyTextType.GenericFunctionArgOrRetVal:
+				case UhtPropertyTextType.GenericFunctionArgOrRetValImpl:
 				case UhtPropertyTextType.ClassFunctionArgOrRetVal:
 				case UhtPropertyTextType.EventFunctionArgOrRetVal:
 				case UhtPropertyTextType.InterfaceFunctionArgOrRetVal:

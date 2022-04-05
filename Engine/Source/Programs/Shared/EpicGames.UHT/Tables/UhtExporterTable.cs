@@ -93,6 +93,11 @@ namespace EpicGames.UHT.Tables
 		public string Description = string.Empty;
 
 		/// <summary>
+		/// Exporters in plugins need to specify a module name
+		/// </summary>
+		public string ModuleName = string.Empty;
+
+		/// <summary>
 		/// Exporter options
 		/// </summary>
 		public UhtExporterOptions Options = UhtExporterOptions.None;
@@ -128,6 +133,11 @@ namespace EpicGames.UHT.Tables
 		/// Description of the export.  Used to display help
 		/// </summary>
 		public string Description;
+
+		/// <summary>
+		/// Exporters in plugins need to specify a module name
+		/// </summary>
+		public string ModuleName;
 
 		/// <summary>
 		/// Exporter options
@@ -188,10 +198,19 @@ namespace EpicGames.UHT.Tables
 				throw new UhtIceException("An exporter must have a name");
 			}
 
+			if (Assembly.GetExecutingAssembly() != Type.Assembly)
+			{
+				if (string.IsNullOrEmpty(ExporterAttribute.ModuleName))
+				{
+					throw new UhtIceException("An exporter in a UBT plugin must specify a ModuleName");
+				}
+			}
+
 			UhtExporter ExporterValue = new UhtExporter
 			{
 				Name = ExporterAttribute.Name,
 				Description = ExporterAttribute.Description,
+				ModuleName = ExporterAttribute.ModuleName,
 				Delegate = (UhtExporterDelegate)Delegate.CreateDelegate(typeof(UhtExporterDelegate), MethodInfo),
 				Options = ExporterAttribute.Options,
 				CppFilters = ExporterAttribute.CppFilters,

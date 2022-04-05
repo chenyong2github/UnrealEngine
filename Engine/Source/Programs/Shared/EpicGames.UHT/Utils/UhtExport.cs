@@ -28,6 +28,11 @@ namespace EpicGames.UHT.Utils
 		public UhtSession Session { get; }
 
 		/// <summary>
+		/// If this exporter is from a plugin, this points to the module of the plugin
+		/// </summary>
+		public UHTManifest.Module? PluginModule { get; }
+
+		/// <summary>
 		/// Create a task
 		/// </summary>
 		/// <param name="Prereqs">Tasks that must be completed prior to this task running</param>
@@ -75,12 +80,11 @@ namespace EpicGames.UHT.Utils
 		public string MakePath(UhtPackage Package, string Suffix);
 
 		/// <summary>
-		/// Make a path for an output based on the package output directory.
+		/// Make a path for the given file name and extension.  This is only valid for plugins.
 		/// </summary>
-		/// <param name="Package">Destination package</param>
 		/// <param name="FileName">Name of the file</param>
 		/// <param name="Extension">Extension to add to the file</param>
 		/// <returns>Output file path</returns>
-		public string MakePath(UhtPackage Package, string FileName, string Extension);
+		public string MakePath(string FileName, string Extension);
 	}
 }
