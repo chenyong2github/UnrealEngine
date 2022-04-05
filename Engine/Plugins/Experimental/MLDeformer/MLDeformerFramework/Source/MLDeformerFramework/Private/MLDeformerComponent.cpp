@@ -38,8 +38,10 @@ void UMLDeformerComponent::Init()
 		{
 			ModelInstance = TUniquePtr<FMLDeformerModelInstance>(Model->CreateModelInstance());
 		}
-
-		ModelInstance->Release();
+		else
+		{
+			ModelInstance->Release();
+		}
 		ModelInstance->Init(SkelMeshComponent);
 	}
 	else
@@ -68,25 +70,36 @@ void UMLDeformerComponent::AddNeuralNetworkModifyDelegate()
 		return;
 	}
 
-	UMLDeformerModel* Model = DeformerAsset->GetModel();		
-	NeuralNetworkModifyDelegateHandle = DeformerAsset->NeuralNetworkModifyDelegate.AddLambda
-	(
-		([this]()
-		{
-			ModelInstance->Release();
-			ModelInstance->Init(SkelMeshComponent);
-		})
-	);
+	UMLDeformerModel* Model = DeformerAsset->GetModel();
+	if (Model)
+	{
+		NeuralNetworkModifyDelegateHandle = Model->NeuralNetworkModifyDelegate.AddLambda
+		(
+			([this]()
+			{
+				ModelInstance->Release();
+				ModelInstance->Init(SkelMeshComponent);
+			})
+		);
+	}
 }
 
 void UMLDeformerComponent::RemoveNeuralNetworkModifyDelegate()
 {
-	if (DeformerAsset != nullptr && NeuralNetworkModifyDelegateHandle != FDelegateHandle())
+	if (DeformerAsset != nullptr && 
+		NeuralNetworkModifyDelegateHandle != FDelegateHandle() && 
+		DeformerAsset->GetModel() != nullptr)
 	{
-		DeformerAsset->NeuralNetworkModifyDelegate.Remove(NeuralNetworkModifyDelegateHandle);
+		DeformerAsset->GetModel()->NeuralNetworkModifyDelegate.Remove(NeuralNetworkModifyDelegateHandle);
 	}
 	
 	NeuralNetworkModifyDelegateHandle = FDelegateHandle();
+}
+
+void UMLDeformerComponent::BeginDestroy()
+{
+	RemoveNeuralNetworkModifyDelegate();
+	Super::BeginDestroy();
 }
 
 void UMLDeformerComponent::Activate(bool bReset)

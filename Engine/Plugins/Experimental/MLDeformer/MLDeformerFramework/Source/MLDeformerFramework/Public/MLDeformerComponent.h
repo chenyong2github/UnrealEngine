@@ -27,6 +27,10 @@ class MLDEFORMERFRAMEWORK_API UMLDeformerComponent : public UActorComponent
 	GENERATED_UCLASS_BODY()
 
 public:
+	// UObject overrides.
+	void BeginDestroy() override;
+	// ~END UObject overrides.
+
 	// UActorComponent overrides.
 	void Activate(bool bReset=false) override;
 	void Deactivate() override;
@@ -49,10 +53,10 @@ protected:
 
 	void Init();
 
-	/** Bind to the DeformerAsset NeuralNetworkModifyDelegate. */
+	/** Bind to the MLDeformerModel's NeuralNetworkModifyDelegate. */
 	void AddNeuralNetworkModifyDelegate();
 
-	/** Unbind from the DeformerAsset NeuralNetworkModifyDelegate. */
+	/** Unbind from the MLDeformerModel's NeuralNetworkModifyDelegate. */
 	void RemoveNeuralNetworkModifyDelegate();
 
 protected:

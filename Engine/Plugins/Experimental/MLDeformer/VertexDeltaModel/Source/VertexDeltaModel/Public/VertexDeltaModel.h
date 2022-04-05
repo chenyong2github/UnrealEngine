@@ -43,7 +43,7 @@ public:
 	UGeometryCache* GetGeometryCache() { return GeometryCache; }
 	int32 GetNumHiddenLayers() const { return NumHiddenLayers; }
 	int32 GetNumNeuronsPerLayer() const { return NumNeuronsPerLayer; }
-	int32 GetNumIerations() const { return NumIterations; }
+	int32 GetNumIterations() const { return NumIterations; }
 	int32 GetBatchSize() const { return BatchSize; }
 	float GetLearningRate() const { return LearningRate; }
 	TArray<UE::MLDeformer::FMLDeformerGeomCacheMeshMapping>& GetGeomCacheMeshMappings() { return MeshMappings; }
@@ -78,6 +78,5 @@ public:
 	/** The learning rate used during the model training. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "0.000001", ClampMax = "1.0"))
 	float LearningRate = 0.001f;
-
 #endif // WITH_EDITORONLY_DATA
 };

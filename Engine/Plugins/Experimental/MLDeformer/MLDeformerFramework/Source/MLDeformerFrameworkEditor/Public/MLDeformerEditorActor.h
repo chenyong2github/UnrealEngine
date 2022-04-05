@@ -42,6 +42,7 @@ namespace UE::MLDeformer
 		virtual void SetPlaySpeed(float PlaySpeed);
 		virtual FBox GetBoundingBox() const;
 		virtual void Pause(bool bPaused);
+		virtual bool IsGroundTruthActor() const;
 
 		AActor* GetActor() const { return Actor; }
 		int32 GetTypeID() const { return TypeID; }
@@ -51,10 +52,12 @@ namespace UE::MLDeformer
 		UMLDeformerComponent* GetMLDeformerComponent() const { return MLDeformerComponent.Get(); }
 		void SetSkeletalMeshComponent(UDebugSkelMeshComponent* SkelMeshComponent) { SkeletalMeshComponent = SkelMeshComponent; }
 		void SetMLDeformerComponent(UMLDeformerComponent* Component) { MLDeformerComponent = Component; }
+		void SetMeshOffsetFactor(float OffsetFactor) { MeshOffsetFactor = OffsetFactor; }
 		bool IsTrainingActor() const { return bIsTrainingActor; }
 		bool IsTestActor() const { return !bIsTrainingActor; }
 		void SetCanDestroyActor(bool bCanDestroy) { bCanDestroyActor = bCanDestroy; }
 		bool GetCanDestroyActor() const { return bCanDestroyActor; }
+		float GetMeshOffsetFactor() const { return MeshOffsetFactor; }
 
 	protected:
 		UTextRenderComponent* CreateLabelComponent(AActor* InActor, FLinearColor Color, const FText& Text) const;
@@ -77,6 +80,9 @@ namespace UE::MLDeformer
 
 		/** The ML Deformer component (can be nullptr). */
 		TObjectPtr<UMLDeformerComponent> MLDeformerComponent = nullptr;
+
+		/** The position offset factor of the actor. A value of 1.0 would offset the actor with the Mesh Spacing amount, a value of 2.0 would be two times the mesh spacing offset, etc. */
+		float MeshOffsetFactor = 0.0f;
 
 		/** Can the actor we created be destroyed during cleanup? */
 		bool bCanDestroyActor = true;

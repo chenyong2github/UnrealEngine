@@ -68,6 +68,7 @@ namespace UE::MLDeformer
 		// Optional overrides.
 		virtual void Init(const InitSettings& Settings);
 		virtual void CreateActors(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
+		virtual void OnPostCreateActors() {}
 		virtual void ClearWorld();
 		virtual FMLDeformerEditorActor* CreateEditorActor(const FMLDeformerEditorActor::FConstructSettings& Settings) const;
 		virtual FMLDeformerSampler* CreateSampler() const;
@@ -107,7 +108,6 @@ namespace UE::MLDeformer
 		virtual UMeshDeformer* LoadDefaultDeformerGraph();
 		virtual void SetDefaultDeformerGraphIfNeeded();
 		virtual void UpdateDeformerGraph();
-		virtual void SetComputeGraphDataProviders() const;
 		virtual void SampleDeltas();
 		virtual bool LoadTrainedNetwork() const;
 		virtual bool IsTrained() const;

@@ -26,8 +26,4 @@ public:
 	/** The ML Deformer model, used to deform the mesh. */
 	UPROPERTY()
 	TObjectPtr<UMLDeformerModel> Model;
-
-	/** Delegate that will be called immediately before the NeuralNetwork is changed. */
-	DECLARE_MULTICAST_DELEGATE(FNeuralNetworkModifyDelegate);
-	FNeuralNetworkModifyDelegate NeuralNetworkModifyDelegate;
 };

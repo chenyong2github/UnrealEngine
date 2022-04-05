@@ -120,6 +120,7 @@ namespace UE::MLDeformer
 		FMLDeformerEditorActor* EditorActor = CreateEditorActor(Settings);
 		EditorActor->SetSkeletalMeshComponent(SkelMeshComponent);
 		EditorActor->SetCanDestroyActor(false);	// Crash will occur when destroying the Persona actor, so disable this.
+		EditorActor->SetMeshOffsetFactor(0.0f);
 		EditorActors.Add(EditorActor);
 	}
 
@@ -149,6 +150,7 @@ namespace UE::MLDeformer
 		Settings.bIsTrainingActor = false;
 		FMLDeformerEditorActor* EditorActor = CreateEditorActor(Settings);
 		EditorActor->SetSkeletalMeshComponent(SkelMeshComponent);
+		EditorActor->SetMeshOffsetFactor(0.0f);
 		EditorActors.Add(EditorActor);
 	}
 
@@ -188,6 +190,7 @@ namespace UE::MLDeformer
 		FMLDeformerEditorActor* EditorActor = static_cast<FMLDeformerEditorActor*>(CreateEditorActor(Settings));
 		EditorActor->SetSkeletalMeshComponent(SkelMeshComponent);
 		EditorActor->SetMLDeformerComponent(MLDeformerComponent);
+		EditorActor->SetMeshOffsetFactor(1.0f);
 		EditorActors.Add(EditorActor);
 	}
 
@@ -199,6 +202,23 @@ namespace UE::MLDeformer
 		CreateTestMLDeformedActor(World);
 		CreateTrainingGroundTruthActor(World);
 		CreateTestGroundTruthActor(World);
+
+		// Set the default mesh translation offsets for our ground truth actors.
+		for (FMLDeformerEditorActor* EditorActor : EditorActors)
+		{
+			if (EditorActor->IsGroundTruthActor())
+			{			
+				// The mesh offset factor basically just offsets the actor position by a given factor.
+				// The amount the actor is moved from the origin is: (MeshSpacing * MeshOffsetFactor).
+				// In test mode we have 3 actors (Linear, ML Deformed, Ground Truth), so it's mesh offset factor will be 2.0 for the ground truth.
+				// It is 2.0 because the ground truth actor in testing mode is all the way on the right, next to the ML Deformed model.
+				// In training mode we have only the Linear Skinned actor and the ground truth, so there the spacing factor is 1.0.
+				// TLDR: Basically 1.0 means its the first actor next to the linear skinned actor while 2.0 means its the second character, etc.
+				EditorActor->SetMeshOffsetFactor(EditorActor->IsTestActor() ? 2.0f : 1.0f);
+			}
+		}
+
+		OnPostCreateActors();
 	}
 
 	void FMLDeformerEditorModel::ClearWorld()
@@ -289,7 +309,7 @@ namespace UE::MLDeformer
 			{
 				const AActor* Actor = EditorActor->GetActor();
 				const FVector ActorLocation = Actor->GetActorLocation();
-				const FVector AlignmentOffset = Model->HasTrainingGroundTruth() ? Model->GetAlignmentTransform().GetTranslation() : FVector::ZeroVector;
+				const FVector AlignmentOffset = EditorActor->IsGroundTruthActor() ? Model->GetAlignmentTransform().GetTranslation() : FVector::ZeroVector;
 
 				LabelComponent->SetRelativeLocation(ActorLocation + FVector(0.0f, 0.0f, VizSettings->GetLabelHeight()) - AlignmentOffset);
 				LabelComponent->SetRelativeRotation(FQuat(FVector(0.0f, 0.0f, 1.0f), FMath::DegreesToRadians(90.0f)));
@@ -315,45 +335,10 @@ namespace UE::MLDeformer
 	void FMLDeformerEditorModel::UpdateActorTransforms()
 	{
 		const FVector MeshSpacingVector = Model->GetVizSettings()->GetMeshSpacingOffsetVector();
-
-		// Update the linear skinned training model.
-		FMLDeformerEditorActor* EditorActor = FindEditorActor(ActorID_Train_Base);
-		if (EditorActor)
+		for (FMLDeformerEditorActor* EditorActor : EditorActors)
 		{
-			EditorActor->GetActor()->SetActorTransform(FTransform::Identity);
-		}
-
-		// Update training ground truth actor's transform.
-		EditorActor = FindEditorActor(ActorID_Train_GroundTruth);
-		if (EditorActor)
-		{
-			FTransform Transform = FTransform::Identity;
-			Transform.AddToTranslation(MeshSpacingVector);
-			EditorActor->GetActor()->SetActorTransform(Transform);
-		}
-
-		// Update the linear skinned test model.
-		EditorActor = FindEditorActor(ActorID_Test_Base);
-		if (EditorActor)
-		{
-			EditorActor->GetActor()->SetActorTransform(FTransform::Identity);
-		}
-
-		// Update the ML deformed test actor.
-		EditorActor = FindEditorActor(ActorID_Test_MLDeformed);
-		if (EditorActor)
-		{
-			FTransform Transform = FTransform::Identity;
-			Transform.AddToTranslation(MeshSpacingVector);
-			EditorActor->GetActor()->SetActorTransform(Transform);
-		}
-
-		// Update the ground truth test actor.
-		EditorActor = FindEditorActor(ActorID_Test_GroundTruth);
-		if (EditorActor)
-		{
-			FTransform Transform = FTransform::Identity;
-			Transform.AddToTranslation(MeshSpacingVector * 2.0f);
+			FTransform Transform = EditorActor->IsGroundTruthActor() ? Model->GetAlignmentTransform() : FTransform::Identity;
+			Transform.AddToTranslation(MeshSpacingVector * EditorActor->GetMeshOffsetFactor());
 			EditorActor->GetActor()->SetActorTransform(Transform);
 		}
 	}
@@ -363,35 +348,10 @@ namespace UE::MLDeformer
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
 		const bool bShowTrainingData = (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData);
 		const bool bShowTestData = (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData);
-
-		FMLDeformerEditorActor* EditorActor = FindEditorActor(ActorID_Train_Base);
-		if (EditorActor)
+		for (FMLDeformerEditorActor* EditorActor : EditorActors)
 		{
-			EditorActor->SetVisibility(bShowTrainingData);
-		}
-	
-		EditorActor = FindEditorActor(ActorID_Train_GroundTruth);
-		if (EditorActor)
-		{
-			EditorActor->SetVisibility(bShowTrainingData);
-		}
-
-		EditorActor = FindEditorActor(ActorID_Test_Base);
-		if (EditorActor)
-		{
-			EditorActor->SetVisibility(bShowTestData && VizSettings->GetDrawLinearSkinnedActor());
-		}
-
-		EditorActor = FindEditorActor(ActorID_Test_MLDeformed);
-		if (EditorActor)
-		{
-			EditorActor->SetVisibility(bShowTestData && VizSettings->GetDrawMLDeformedActor());
-		}
-
-		EditorActor = FindEditorActor(ActorID_Test_GroundTruth);
-		if (EditorActor)
-		{
-			EditorActor->SetVisibility(bShowTestData && VizSettings->GetDrawGroundTruthActor());
+			const bool bIsVisible = (EditorActor->IsTestActor() && bShowTestData) || (EditorActor->IsTrainingActor() && bShowTrainingData);
+			EditorActor->SetVisibility(bIsVisible);
 		}
 	}
 
@@ -520,7 +480,7 @@ namespace UE::MLDeformer
 			TriggerInputAssetChanged();
 			Model->InitVertexMap();
 			Model->InitGPUData();
-			SetComputeGraphDataProviders();
+			UpdateDeformerGraph();
 		}
 		else
 		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, AnimSequence) ||
@@ -582,7 +542,7 @@ namespace UE::MLDeformer
 		} 
 		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, DeformerGraph))
 		{
-			SetComputeGraphDataProviders();
+			UpdateDeformerGraph();
 			GetEditor()->GetVizSettingsDetailsView()->ForceRefresh();
 		}
 	}
@@ -1271,22 +1231,6 @@ namespace UE::MLDeformer
 		}
 	}
 
-	void FMLDeformerEditorModel::SetComputeGraphDataProviders() const
-	{
-		const UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
-		UMeshDeformer* MeshDeformer = VizSettings->GetDeformerGraph();
-
-		FMLDeformerEditorActor* EditorActor = FindEditorActor(ActorID_Test_MLDeformed);
-		if (EditorActor)
-		{
-			UDebugSkelMeshComponent* SkelMeshComponent = EditorActor->GetSkeletalMeshComponent();
-			if (SkelMeshComponent)
-			{
-				SkelMeshComponent->SetMeshDeformer(MeshDeformer);
-			}
-		}
-	}
-
 	void FMLDeformerEditorModel::OnPostTraining(ETrainingResult TrainingResult)
 	{
 		for (FMLDeformerEditorActor* EditorActor : EditorActors)
@@ -1332,7 +1276,6 @@ namespace UE::MLDeformer
 			if (Result->Load(OnnxFile))
 			{
 				Result->SetDeviceType(ENeuralDeviceType::GPU, ENeuralDeviceType::CPU, ENeuralDeviceType::GPU);	
-				SetComputeGraphDataProviders();
 				UE_LOG(LogMLDeformer, Display, TEXT("Successfully loaded Onnx file '%s'..."), *OnnxFile);
 				return Result;
 			}

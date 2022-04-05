@@ -102,4 +102,9 @@ namespace UE::MLDeformer
 		Box.Init();
 		return Box;
 	}
+
+	bool FMLDeformerEditorActor::IsGroundTruthActor() const
+	{
+		return (TypeID == ActorID_Test_GroundTruth || TypeID == ActorID_Train_GroundTruth);
+	}
 }	// namespace UE::MLDeformer

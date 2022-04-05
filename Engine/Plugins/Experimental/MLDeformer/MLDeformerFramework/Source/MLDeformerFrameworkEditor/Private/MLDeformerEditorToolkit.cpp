@@ -531,6 +531,7 @@ namespace UE::MLDeformer
 			FMessageDialog::Open(EAppMsgType::Ok, WindowMessage, &WindowTitle);
 		}
 
+		ActiveModel->UpdateDeformerGraph();
 		return bMarkDirty;
 	}
 

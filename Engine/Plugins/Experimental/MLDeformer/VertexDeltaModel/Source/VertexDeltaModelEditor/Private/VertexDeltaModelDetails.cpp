@@ -59,11 +59,11 @@ namespace UE::VertexDeltaModel
 		FMLDeformerModelDetails::CustomizeDetails(DetailBuilder);
 
 		// Training settings.
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, NumHiddenLayers), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, NumNeuronsPerLayer), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, NumIterations), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, BatchSize), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, LearningRate), UMLDeformerModel::StaticClass());
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, NumHiddenLayers));
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, NumNeuronsPerLayer));
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, NumIterations));
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, BatchSize));
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, LearningRate));
 	}
 
 	void FVertexDeltaModelDetails::AddBaseMeshErrors()
@@ -103,7 +103,7 @@ namespace UE::VertexDeltaModel
 
 	void FVertexDeltaModelDetails::AddTargetMesh()
 	{
-		TargetMeshCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, GeometryCache), UMLDeformerModel::StaticClass());
+		TargetMeshCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, GeometryCache));
 
 		const FText TargetMeshErrorText = GetGeomCacheErrorText(VertexModel->GetSkeletalMesh(), VertexModel->GetGeometryCache());
 		TargetMeshCategoryBuilder->AddCustomRow(FText::FromString("TargetMeshError"))

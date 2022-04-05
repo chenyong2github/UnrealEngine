@@ -166,6 +166,10 @@ public:
 	/** Fence used in render thread cleanup on destruction. */
 	FRenderCommandFence RenderResourceDestroyFence;
 
+	/** Delegate that will be called immediately before the NeuralNetwork is changed. */
+	DECLARE_MULTICAST_DELEGATE(FNeuralNetworkModifyDelegate);
+	FNeuralNetworkModifyDelegate NeuralNetworkModifyDelegate;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TObjectPtr<UMLDeformerVizSettings> VizSettings = nullptr;

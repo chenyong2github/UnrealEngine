@@ -59,9 +59,9 @@ namespace UE::LegacyVertexDeltaModel
 		FMLDeformerModelDetails::CustomizeDetails(DetailBuilder);
 
 		// Training settings.
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, NumHiddenLayers), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, NumNeuronsPerLayer), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, Epochs), UMLDeformerModel::StaticClass());
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, NumHiddenLayers));
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, NumNeuronsPerLayer));
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, Epochs));
 
 		// Check whether shrinkage settings should be visible or not.
 		auto IsShrinkageVisible = [this]()
@@ -70,15 +70,15 @@ namespace UE::LegacyVertexDeltaModel
 		};
 	 
 		// Advanced settings.
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, BatchSize), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, LearningRate), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, ActivationFunction), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, LossFunction), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, ShrinkageSpeed), UMLDeformerModel::StaticClass())
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, BatchSize));
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, LearningRate));
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, ActivationFunction));
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, LossFunction));
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, ShrinkageSpeed))
 			.Visibility(TAttribute<EVisibility>::CreateLambda(IsShrinkageVisible));
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, ShrinkageThreshold), UMLDeformerModel::StaticClass())
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, ShrinkageThreshold))
 			.Visibility(TAttribute<EVisibility>::CreateLambda(IsShrinkageVisible));
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, MaxCacheSizeGB), UMLDeformerModel::StaticClass());
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, MaxCacheSizeGB));
 	}
 
 	void FLegacyVertexDeltaModelDetails::AddBaseMeshErrors()
@@ -118,7 +118,7 @@ namespace UE::LegacyVertexDeltaModel
 
 	void FLegacyVertexDeltaModelDetails::AddTargetMesh()
 	{
-		TargetMeshCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, GeometryCache), UMLDeformerModel::StaticClass());
+		TargetMeshCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, GeometryCache));
 
 		const FText TargetMeshErrorText = GetGeomCacheErrorText(VertexModel->GetSkeletalMesh(), VertexModel->GetGeometryCache());
 		TargetMeshCategoryBuilder->AddCustomRow(FText::FromString("TargetMeshError"))

@@ -106,7 +106,7 @@ void UMLDeformerModel::PostLoad()
 
 void UMLDeformerModel::SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork)
 {
-	DeformerAsset->NeuralNetworkModifyDelegate.Broadcast();
+	NeuralNetworkModifyDelegate.Broadcast();
 	NeuralNetwork = InNeuralNetwork;
 }
 
@@ -125,6 +125,8 @@ USkeleton* UMLDeformerModel::GetSkeleton(bool& bInvalidSkeletonIsError, const IP
 
 void UMLDeformerModel::BeginDestroy()
 {
+	NeuralNetworkModifyDelegate.Broadcast();
+
 	BeginReleaseResource(&VertexMapBuffer);
 	RenderResourceDestroyFence.BeginFence();
 	Super::BeginDestroy();
