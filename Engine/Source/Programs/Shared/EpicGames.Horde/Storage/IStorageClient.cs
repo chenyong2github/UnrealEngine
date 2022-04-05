@@ -176,6 +176,14 @@ namespace EpicGames.Horde.Storage
 		Task WriteBlobAsync(NamespaceId namespaceId, IoHash hash, Stream stream, CancellationToken cancellationToken = default);
 
 		/// <summary>
+		/// Writes a blob to storage
+		/// </summary>
+		/// <param name="namespaceId">Namespace to operate on</param>
+		/// <param name="stream">The stream to write</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		Task<IoHash> WriteBlobAsync(NamespaceId namespaceId, Stream stream, CancellationToken cancellationToken = default);
+
+		/// <summary>
 		/// Checks if the given blob exists
 		/// </summary>
 		/// <param name="namespaceId">Namespace to operate on</param>
@@ -366,6 +374,43 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
+		/// Gets the given reference
+		/// </summary>
+		/// <param name="storageClient">The storage interface</param>
+		/// <param name="qualifiedRefId">Name of the reference</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>The reference data if the ref exists</returns>
+		public static Task<IRef> GetRefAsync(this IStorageClient storageClient, QualifiedRefId qualifiedRefId, CancellationToken cancellationToken = default)
+		{
+			return storageClient.GetRefAsync(qualifiedRefId.NamespaceId, qualifiedRefId.BucketId, qualifiedRefId.RefId, cancellationToken);
+		}
+
+		/// <summary>
+		/// Checks if the given reference exists
+		/// </summary>
+		/// <param name="storageClient">The storage interface</param>
+		/// <param name="qualifiedRefId">Name of the reference</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>True if the ref exists, false if it did not exist</returns>
+		public static Task<bool> HasRefAsync(this IStorageClient storageClient, QualifiedRefId qualifiedRefId, CancellationToken cancellationToken = default)
+		{
+			return storageClient.HasRefAsync(qualifiedRefId.NamespaceId, qualifiedRefId.BucketId, qualifiedRefId.RefId, cancellationToken);
+		}
+
+		/// <summary>
+		/// Attempts to sets the given reference, returning a list of missing objects on failure.
+		/// </summary>
+		/// <param name="storageClient">The storage interface</param>
+		/// <param name="qualifiedRefId">Name of the reference</param>
+		/// <param name="value">New value for the reference</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>List of missing references</returns>
+		public static Task<List<IoHash>> TrySetRefAsync(this IStorageClient storageClient, QualifiedRefId qualifiedRefId, CbObject value, CancellationToken cancellationToken = default)
+		{
+			return storageClient.TrySetRefAsync(qualifiedRefId.NamespaceId, qualifiedRefId.BucketId, qualifiedRefId.RefId, value, cancellationToken);
+		}
+
+		/// <summary>
 		/// Reads a reference as a specific type
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
@@ -447,6 +492,18 @@ namespace EpicGames.Horde.Storage
 			{
 				throw new RefMissingBlobException(namespaceId, bucketId, refId, missingHashes);
 			}
+		}
+
+		/// <summary>
+		/// Removes the given reference
+		/// </summary>
+		/// <param name="storageClient">The storage interface</param>
+		/// <param name="qualifiedRefId">Name of the reference</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>True if the ref was deleted, false if it did not exist</returns>
+		public static Task<bool> DeleteRefAsync(this IStorageClient storageClient, QualifiedRefId qualifiedRefId, CancellationToken cancellationToken = default)
+		{
+			return storageClient.DeleteRefAsync(qualifiedRefId.NamespaceId, qualifiedRefId.BucketId, qualifiedRefId.RefId, cancellationToken);
 		}
 	}
 }

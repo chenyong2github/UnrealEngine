@@ -92,6 +92,24 @@ namespace Horde.Build.Storage.Services
 		}
 
 		/// <inheritdoc/>
+		public async Task<IoHash> WriteBlobAsync(NamespaceId namespaceId, Stream stream, CancellationToken cancellationToken)
+		{
+			byte[] data;
+			using (MemoryStream buffer = new MemoryStream())
+			{
+				await stream.CopyToAsync(buffer, cancellationToken);
+				data = buffer.ToArray();
+			}
+
+			IoHash dataHash = IoHash.Compute(data);
+
+			string path = GetFullBlobPath(namespaceId, dataHash);
+			await _storageBackend.WriteBytesAsync(path, data);
+
+			return dataHash;
+		}
+
+		/// <inheritdoc/>
 		public async Task<bool> HasBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken)
 		{
 			return await _storageBackend.ExistsAsync(GetFullBlobPath(namespaceId, hash));

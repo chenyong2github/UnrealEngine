@@ -44,6 +44,14 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
+		public async Task<IoHash> WriteBlobAsync(NamespaceId namespaceId, Stream stream, CancellationToken cancellationToken = default)
+		{
+			IoHash hash = await _inner.WriteBlobAsync(namespaceId, stream, cancellationToken);
+			_logger.LogDebug("Written blob {NamespaceId}/{Hash}", namespaceId, hash);
+			return hash;
+		}
+
+		/// <inheritdoc/>
 		public Task<bool> HasBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
 		{
 			return _inner.HasBlobAsync(namespaceId, hash, cancellationToken);

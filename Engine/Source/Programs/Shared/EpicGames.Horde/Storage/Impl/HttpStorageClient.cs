@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -124,6 +125,31 @@ namespace EpicGames.Horde.Storage.Impl
 
 			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 			response.EnsureSuccessStatusCode();
+		}
+
+		class WriteBlobResponse
+		{
+			[JsonPropertyName("identifier")]
+			public IoHash Identifier { get; set; }
+		}
+
+		/// <inheritdoc/>
+		public async Task<IoHash> WriteBlobAsync(NamespaceId namespaceId, Stream stream, CancellationToken cancellationToken)
+		{
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/blobs/{namespaceId}");
+
+			StreamContent content = new StreamContent(stream);
+			content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+			request.Content = content;
+
+			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+			response.EnsureSuccessStatusCode();
+
+			using (Stream responseStream = await response.Content.ReadAsStreamAsync())
+			{
+				WriteBlobResponse responseMessage = await JsonSerializer.DeserializeAsync<WriteBlobResponse>(responseStream, cancellationToken: cancellationToken);
+				return responseMessage.Identifier;
+			}
 		}
 
 		/// <inheritdoc/>

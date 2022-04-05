@@ -56,6 +56,21 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
+		public async Task<IoHash> WriteBlobAsync(NamespaceId namespaceId, Stream stream, CancellationToken cancellationToken = default)
+		{
+			using (MemoryStream memoryStream = new MemoryStream())
+			{
+				await stream.CopyToAsync(memoryStream);
+
+				byte[] data = memoryStream.ToArray();
+				IoHash hash = IoHash.Compute(data);
+
+				Blobs[(namespaceId, hash)] = data;
+				return hash;
+			}
+		}
+
+		/// <inheritdoc/>
 		public Task<bool> HasBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
 		{
 			return Task.FromResult(Blobs.ContainsKey((namespaceId, hash)));
