@@ -61,23 +61,9 @@ namespace UE::VertexDeltaModel
 		// Training settings.
 		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, NumHiddenLayers), UMLDeformerModel::StaticClass());
 		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, NumNeuronsPerLayer), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, Epochs), UMLDeformerModel::StaticClass());
-
-		// Check whether shrinkage settings should be visible or not.
-		auto IsShrinkageVisible = [this]()
-		{
-			return (VertexModel->GetLossFunction() == EVertexDeltaModelLossFunction::Shrinkage) ? EVisibility::Visible : EVisibility::Collapsed;
-		};
-	 
-		// Advanced settings.
+		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, NumIterations), UMLDeformerModel::StaticClass());
 		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, BatchSize), UMLDeformerModel::StaticClass());
 		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, LearningRate), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, ActivationFunction), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, LossFunction), UMLDeformerModel::StaticClass());
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, ShrinkageSpeed), UMLDeformerModel::StaticClass())
-			.Visibility(TAttribute<EVisibility>::CreateLambda(IsShrinkageVisible));
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UVertexDeltaModel, ShrinkageThreshold), UMLDeformerModel::StaticClass())
-			.Visibility(TAttribute<EVisibility>::CreateLambda(IsShrinkageVisible));
 	}
 
 	void FVertexDeltaModelDetails::AddBaseMeshErrors()

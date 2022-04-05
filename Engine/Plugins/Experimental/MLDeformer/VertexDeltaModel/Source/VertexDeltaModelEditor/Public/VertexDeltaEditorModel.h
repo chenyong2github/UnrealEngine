@@ -42,16 +42,12 @@ namespace UE::VertexDeltaModel
 		virtual FMLDeformerSampler* CreateSampler() const;
 		virtual void CreateTrainingGroundTruthActor(UWorld* World) override;
 		virtual void CreateTestGroundTruthActor(UWorld* World) override;
-		virtual void OnPreTraining() override;
-		virtual void OnTrainingAborted() override;
 		virtual void OnInputAssetsChanged() override;
 		virtual int32 GetNumFrames() const override;
 		virtual double GetTimeAtFrame(int32 FrameNumber) const override;
 		virtual int32 GetFrameAtTime(double TimeInSeconds) const override;
 		virtual void UpdateIsReadyForTrainingState() override;
 		virtual ETrainingResult Train() override;
-		virtual FString GetDefaultDeformerGraphAssetPath() const override;
-		virtual FString GetHeatMapDeformerGraphPath() const override;
 		FString GetTrainedNetworkOnnxFile() const override;
 		// ~END FMLDeformerEditorModel overrides.
 

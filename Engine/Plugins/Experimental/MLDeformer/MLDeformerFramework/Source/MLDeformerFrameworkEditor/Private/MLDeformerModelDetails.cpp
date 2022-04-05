@@ -215,10 +215,6 @@ namespace UE::MLDeformer
 
 		AddCurveInputErrors();
 
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, MaxCacheSizeGB), UMLDeformerModel::StaticClass());
-
-		AddCacheSizeErrors();
-
 		// Show a warning when no neural network has been set.
 		{		
 			UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();

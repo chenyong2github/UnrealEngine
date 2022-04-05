@@ -32,7 +32,6 @@ namespace UE::MLDeformer
 		virtual void AddTrainingInputErrors() {}
 		virtual void AddBoneInputErrors() {}
 		virtual void AddCurveInputErrors() {}
-		virtual void AddCacheSizeErrors() {}
 
 	protected:
 		bool FilterAnimSequences(const FAssetData& AssetData, USkeleton* Skeleton);

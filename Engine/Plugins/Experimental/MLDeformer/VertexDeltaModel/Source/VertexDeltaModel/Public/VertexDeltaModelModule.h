@@ -12,9 +12,5 @@ namespace UE::VertexDeltaModel
 	class VERTEXDELTAMODEL_API FVertexDeltaModelModule
 		: public IModuleInterface
 	{
-	public:
-		// IModuleInterface overrides.
-		virtual void StartupModule() override;
-		// ~END IModuleInterface overrides.
 	};
 }	// namespace VertexDeltaModel

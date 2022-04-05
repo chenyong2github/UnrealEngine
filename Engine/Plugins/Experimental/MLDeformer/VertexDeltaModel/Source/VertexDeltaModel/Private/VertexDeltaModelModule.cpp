@@ -14,12 +14,6 @@ IMPLEMENT_MODULE(UE::VertexDeltaModel::FVertexDeltaModelModule, VertexDeltaModel
 
 namespace UE::VertexDeltaModel
 {
-	void FVertexDeltaModelModule::StartupModule()
-	{
-		// Register an additional shader path for our shaders used inside the deformer graph system.
-		const FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("VertexDeltaModel"))->GetBaseDir(), TEXT("Shaders"));
-		AddShaderSourceDirectoryMapping(TEXT("/Plugin/VertexDeltaModel"), PluginShaderDir);
-	}
 }	// namespace UE::VertexDeltaModel
 
 #undef LOCTEXT_NAMESPACE

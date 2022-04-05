@@ -119,7 +119,6 @@ public:
 	const UAnimSequence* GetAnimSequence() const { return AnimSequence;  }
 	UAnimSequence* GetAnimSequence() { return AnimSequence; }
 	int32 GetTrainingFrameLimit() const { return MaxTrainingFrames; }
-	int32 GetMaxCacheSizeInGigaBytes() const { return MaxCacheSizeGB; }
 	const FTransform& GetAlignmentTransform() const { return AlignmentTransform; }
 	TArray<FBoneReference>& GetBoneIncludeList() { return BoneIncludeList; }
 	const TArray<FBoneReference>& GetBoneIncludeList() const { return BoneIncludeList; }
@@ -202,13 +201,5 @@ public:
 	  * Deltas that are longer than the cutoff value (in units), will be ignored and set to zero length. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inputs and Output", meta = (ClampMin = "0.01", ForceUnits="cm"))
 	float DeltaCutoffLength = 30.0f;
-
-	/** 
-	 * The maximum allowed size of the training cache in memory, in gigabytes.
-	 * So a value of 4 would use a maximum of four gigabyte of system memory. 
-	 * The larger the cache size the faster the training.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", DisplayName = "Max Cache Size", meta = (ClampMin = "0", ForceUnits = "Gigabytes"))
-	int32 MaxCacheSizeGB = 4;	// 4 Gigabyte
 #endif
 };

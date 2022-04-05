@@ -80,9 +80,6 @@ namespace UE::VertexDeltaModelTests
 		const int64 NumNetworkOutputs = NeuralNet->GetOutputTensor().Num();
 		const int64 ExpectedNetworkOutput = NumGeomCacheVerts * 3;	// 3 floats per vertex.
 		UTEST_EQUAL(TEXT("NeuralNet output size check"), NumNetworkOutputs, ExpectedNetworkOutput);
-
-		UTEST_EQUAL(TEXT("Loss function check"), VertexDeltaModel->GetLossFunction(), EVertexDeltaModelLossFunction::MSE);
-		UTEST_EQUAL(TEXT("Activation function check"), VertexDeltaModel->GetActivationFunction(), EVertexDeltaModelActivationFunction::LRelu);
 		UTEST_EQUAL(TEXT("Hidden Layers check"), VertexDeltaModel->GetNumHiddenLayers(), 2);
 
 		UVertexDeltaModelVizSettings* VizSettings = Cast<UVertexDeltaModelVizSettings>(VertexDeltaModel->GetVizSettings());

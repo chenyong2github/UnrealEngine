@@ -269,36 +269,9 @@ namespace UE::VertexDeltaModel
 		return TrainModel<UVertexDeltaTrainingModel>(this);
 	}
 
-	void FVertexDeltaEditorModel::OnPreTraining()
-	{
-		// Make a backup of the normalization values, as they get overwritten when training.
-		// However, when we abort, we want to restore to the original values again.
-		// See OnTrainingAborted for when we restore the backup again.
-		VertexDeltaMeanBackup = GetVertexDeltaModel()->GetVertexDeltaMean();
-		VertexDeltaScaleBackup = GetVertexDeltaModel()->GetVertexDeltaScale();
-	}
-
-	void FVertexDeltaEditorModel::OnTrainingAborted()
-	{
-		// Restore the vertex delta mean and scale, as we aborted, and they could have changed when training
-		// on a smaller subset of frames/samples. If we don't do this, the mesh will deform incorrectly.
-		GetVertexDeltaModel()->VertexDeltaMean = VertexDeltaMeanBackup;
-		GetVertexDeltaModel()->VertexDeltaScale = VertexDeltaScaleBackup;
-	}
-
 	FString FVertexDeltaEditorModel::GetTrainedNetworkOnnxFile() const
 	{
 		return FString(FPaths::ProjectIntermediateDir() + TEXT("VertexDeltaModel/latest_net_G.onnx"));
-	}
-
-	FString FVertexDeltaEditorModel::GetDefaultDeformerGraphAssetPath() const
-	{
-		return FString(TEXT("/VertexDeltaModel/Deformers/DG_VertexDeltaModel.DG_VertexDeltaModel"));
-	}
-
-	FString FVertexDeltaEditorModel::GetHeatMapDeformerGraphPath() const
-	{
-		return FString(TEXT("/VertexDeltaModel/Deformers/DG_VertexDeltaModel_HeatMap.DG_VertexDeltaModel_HeatMap"));
 	}
 }	// namespace UE::VertexDeltaModel
 
