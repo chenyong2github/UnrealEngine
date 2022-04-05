@@ -885,33 +885,39 @@ void FNiagaraPlatformSet::OnCVarChanged(IConsoleVariable* CVar)
 {
 	InvalidateCachedData();
 
+	FScopeLock Lock(&CachedCVarInfoCritSec);
+
 	//Iterate on our cached cvars as there'll be a v small subset of CVars Niagara cares about.
-	for (auto& Pair : CachedCVarInfo)
+	for (auto It = CachedCVarInfo.CreateIterator(); It; ++It)
 	{
-		FName CVarName  = Pair.Key;
-		FCachedCVarInfo& Info = Pair.Value;
+		FName CVarName = It->Key;
+		FCachedCVarInfo& Info = It->Value;
 		if (Info.CVar == CVar)
 		{
-			ChangedCVars.AddUnique(Pair.Key);
+			ChangedCVars.AddUnique(CVarName);
+			It.RemoveCurrent();
 		}
 	}
 }
 
 void FNiagaraPlatformSet::OnCVarUnregistered(IConsoleVariable* CVar)
 {
+	InvalidateCachedData();
+
 	//We also unregister the changed delegate when it's unregistered.
 	FScopeLock Lock(&CachedCVarInfoCritSec);
 
 	//Iterate on our cached cvars as there'll be a v small subset of CVars Niagara cares about.
-	for (auto& Pair : CachedCVarInfo)
+	for (auto It = CachedCVarInfo.CreateIterator(); It; ++It)
 	{
-		FName CVarName = Pair.Key;
-		FCachedCVarInfo& Info = Pair.Value;
+		FName CVarName = It->Key;
+		FCachedCVarInfo& Info = It->Value;
 		if (Info.CVar == CVar)
 		{
 			check(CVar == Info.CVar);
-			Info.CVar->OnChangedDelegate().Remove(Info.ChangedHandle);
-			OnCVarChanged(CVar);
+			CVar->OnChangedDelegate().Remove(Info.ChangedHandle);
+			ChangedCVars.AddUnique(CVarName);
+			It.RemoveCurrent();
 		}
 	}
 }

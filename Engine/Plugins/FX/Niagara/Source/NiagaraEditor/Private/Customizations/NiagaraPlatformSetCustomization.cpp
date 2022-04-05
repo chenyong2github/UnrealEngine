@@ -1790,7 +1790,11 @@ FNiagaraPlatformSetCVarCondition* FNiagaraPlatformSetCVarConditionCustomization:
 	TArray<UObject*> Objects;
 	PropertyHandle->GetOuterObjects(Objects);
 	int32 Index = 0;
-	return (FNiagaraPlatformSetCVarCondition*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[Index]);
+	if (Objects.IsValidIndex(Index))
+	{
+		return (FNiagaraPlatformSetCVarCondition*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[Index]);
+	}
+	return nullptr;
 }
 
 FNiagaraPlatformSet* FNiagaraPlatformSetCVarConditionCustomization::GetTargetPlatformSet()const
@@ -1799,8 +1803,13 @@ FNiagaraPlatformSet* FNiagaraPlatformSetCVarConditionCustomization::GetTargetPla
 	check(PropertyHandle && PropertyHandle->GetParentHandle());
 	TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
 	ParentHandle->GetOuterObjects(Objects);
+
 	int32 Index = 0;
-	return (FNiagaraPlatformSet*)ParentHandle->GetValueBaseAddress((uint8*)Objects[Index]);
+	if (Objects.IsValidIndex(Index))
+	{
+		return (FNiagaraPlatformSet*)ParentHandle->GetValueBaseAddress((uint8*)Objects[Index]);
+	}
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE
