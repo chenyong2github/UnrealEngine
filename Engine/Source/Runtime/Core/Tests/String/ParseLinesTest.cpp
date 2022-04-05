@@ -12,7 +12,7 @@
 namespace UE::String
 {
 
-TEST_CASE("Core::String::Misc::ParseLines", "[Core][String][Smoke]")
+TEST_CASE("Core::String::ParseLines", "[Core][String][Smoke]")
 {
 	using FStringViewArray = TArray<FStringView, TInlineAllocator<8>>;
 

@@ -11,7 +11,7 @@
 namespace UE::String
 {
 
-TEST_CASE("Core::String::Misc::ParseTokens", "[Core][String][Smoke]")
+TEST_CASE("Core::String::ParseTokens", "[Core][String][Smoke]")
 {
 	using FCharArray = TArray<TCHAR, TInlineAllocator<8>>;
 	using FStringViewArray = TArray<FStringView, TInlineAllocator<8>>;

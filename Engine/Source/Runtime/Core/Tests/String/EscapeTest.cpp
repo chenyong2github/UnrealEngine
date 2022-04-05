@@ -9,7 +9,7 @@
 namespace UE::String
 {
 
-TEST_CASE("Core::String::Misc::Escape", "[Core][String][Smoke]")
+TEST_CASE("Core::String::Escape", "[Core][String][Smoke]")
 {
 	SECTION("Escape")
 	{

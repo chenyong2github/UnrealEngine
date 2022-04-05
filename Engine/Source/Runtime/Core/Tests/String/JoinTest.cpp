@@ -10,7 +10,7 @@
 namespace UE::String
 {
 
-TEST_CASE("Core::String::Misc::Join", "[Core][String][Smoke]")
+TEST_CASE("Core::String::Join", "[Core][String][Smoke]")
 {
 	SECTION("Join")
 	{
