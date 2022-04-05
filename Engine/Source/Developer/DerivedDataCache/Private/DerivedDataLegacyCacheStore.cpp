@@ -3,7 +3,6 @@
 #include "DerivedDataLegacyCacheStore.h"
 
 #include "Algo/AllOf.h"
-#include "Containers/StringConv.h"
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheInterface.h"
 #include "Misc/Crc.h"
@@ -12,7 +11,6 @@
 #include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "String/BytesToHex.h"
-#include "String/Find.h"
 
 namespace UE::DerivedData
 {
@@ -138,17 +136,9 @@ const FSharedString& Private::FLegacyCacheKeyShared::GetShortKey()
 }
 
 FLegacyCacheKey::FLegacyCacheKey(const FStringView FullKey, const int32 MaxKeyLength)
-	: Shared(new Private::FLegacyCacheKeyShared(FullKey, MaxKeyLength))
+	: Key(ConvertLegacyCacheKey(FullKey))
+	, Shared(new Private::FLegacyCacheKeyShared(FullKey, MaxKeyLength))
 {
-	FTCHARToUTF8 FullKeyUtf8(FullKey);
-	TUtf8StringBuilder<64> Bucket;
-	Bucket << "Legacy";
-	if (const int32 BucketEnd = String::FindFirstChar(FullKeyUtf8, '_'); BucketEnd != INDEX_NONE)
-	{
-		Bucket << FUtf8StringView(FullKeyUtf8).Left(BucketEnd);
-	}
-	Key.Bucket = FCacheBucket(Bucket);
-	Key.Hash = FIoHash::HashBuffer(MakeMemoryView(FullKeyUtf8));
 }
 
 bool FLegacyCacheKey::ReadValueTrailer(FCompositeBuffer& Value) const

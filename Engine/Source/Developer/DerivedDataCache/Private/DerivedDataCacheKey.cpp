@@ -5,10 +5,12 @@
 #include "Containers/Set.h"
 #include "Containers/StringConv.h"
 #include "DerivedDataCachePrivate.h"
+#include "IO/IoHash.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "String/Find.h"
 
 namespace UE::DerivedData::Private
 {
@@ -125,11 +127,23 @@ FCacheBucket::FCacheBucket(FWideStringView InName)
 FCbWriter& operator<<(FCbWriter& Writer, const FCacheKey& Key)
 {
 	Writer.BeginObject();
-	Writer.AddString("Bucket"_ASV, Key.Bucket.ToString());
-	Writer.AddHash("Hash"_ASV, Key.Hash);
+	Writer.AddString(ANSITEXTVIEW("Bucket"), Key.Bucket.ToString());
+	Writer.AddHash(ANSITEXTVIEW("Hash"), Key.Hash);
 	Writer.EndObject();
 	return Writer;
 }
 
+FCacheKey ConvertLegacyCacheKey(const FStringView Key)
+{
+	FTCHARToUTF8 Utf8Key(Key);
+	TUtf8StringBuilder<64> Utf8Bucket;
+	Utf8Bucket << ANSITEXTVIEW("Legacy");
+	if (const int32 BucketEnd = String::FindFirstChar(Utf8Key, '_'); BucketEnd != INDEX_NONE)
+	{
+		Utf8Bucket << FUtf8StringView(Utf8Key).Left(BucketEnd);
+	}
+	const FCacheBucket Bucket(Utf8Bucket);
+	return {Bucket, FIoHash::HashBuffer(MakeMemoryView(Utf8Key))};
+}
 
 } // UE::DerivedData
