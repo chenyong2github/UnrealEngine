@@ -580,7 +580,7 @@ struct FShaderCompilerEnvironment
 		RenderTargetOutputFormatsMap.Append(Other.RenderTargetOutputFormatsMap);
 		RemoteServerData.Append(Other.RemoteServerData);
 		ShaderFormatCVars.Append(Other.ShaderFormatCVars);
-		FullPrecisionInPS = Other.FullPrecisionInPS;
+		FullPrecisionInPS |= Other.FullPrecisionInPS;
 	}
 
 private:

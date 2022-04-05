@@ -978,7 +978,10 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		break;
 	}
 	
-	AdditionalDefines.SetDefine(TEXT("FORCE_FLOATS"), (uint32)1);
+    if (Input.Environment.FullPrecisionInPS)
+    {
+        AdditionalDefines.SetDefine(TEXT("FORCE_FLOATS"), (uint32)1);
+    }
 
 	FString Standard = FString::Printf(TEXT("-std=%s-metal%s"), StandardPlatform, *StandardVersion);
 	

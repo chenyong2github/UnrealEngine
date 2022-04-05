@@ -482,7 +482,7 @@ void ShaderYield()
 #define COMPILER_SUPPORTS_GATHER_UINT 0
 #endif
 
-#if ES3_1_PROFILE
+#if ES3_1_PROFILE && !METAL_PROFILE
 #define HALF_TYPE half
 #define HALF2_TYPE half2
 #define HALF3_TYPE half3

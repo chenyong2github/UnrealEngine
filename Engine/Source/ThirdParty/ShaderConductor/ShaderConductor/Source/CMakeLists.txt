@@ -53,7 +53,7 @@ if(CMAKE_C_COMPILER_ID MATCHES MSVC)
 else()
 	foreach(flagVar
 		CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
-		set(${flagVar} "${${flagVar}} -W -Wall -Werror")
+		set(${flagVar} "${${flagVar}} -W -Wall -Werror -Wno-deprecated")
 		if(NOT (ANDROID OR IOS))
 			set(${flagVar} "${${flagVar}} -march=core2 -msse2")
 		endif()

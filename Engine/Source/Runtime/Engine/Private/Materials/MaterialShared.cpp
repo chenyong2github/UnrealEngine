@@ -2247,7 +2247,7 @@ void FMaterial::SetupMaterialEnvironment(
 		OutEnvironment.SetDefine(TEXT("FORCE_MATERIAL_FLOAT_FULL_PRECISION"), TEXT("1"));
 	}
 
-	OutEnvironment.FullPrecisionInPS = bFullPrecisionInPS;
+	OutEnvironment.FullPrecisionInPS |= bFullPrecisionInPS;
 
 	switch(GetMaterialDomain())
 	{

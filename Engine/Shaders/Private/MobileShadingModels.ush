@@ -120,8 +120,8 @@ half CalculateCurvature(half3 WorldNormal, float3 WorldPosition)
 	half DeltaPosition = length(abs(DDX(WorldPosition)) + abs(DDY(WorldPosition))) * BURLEY_CM_2_MM;
 	half CurvatureApprox = DeltaNormal / DeltaPosition;
 #else
-	half3 dNdx = ddx(WorldNormal);
-	half3 dNdy = ddy(WorldNormal);
+	half3 dNdx = ddx((HALF3_TYPE)WorldNormal);
+	half3 dNdy = ddy((HALF3_TYPE)WorldNormal);
 	half x = dot(dNdx, dNdx);
 	half y = dot(dNdy, dNdy);
 	half CurvatureApprox = pow(max(x, y), ResolvedView.NormalCurvatureToRoughnessScaleBias.z);

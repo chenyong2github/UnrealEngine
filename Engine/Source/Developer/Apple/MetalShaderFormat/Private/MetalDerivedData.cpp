@@ -15,6 +15,8 @@
 #include "MetalShaderFormat.h"
 #include "SpirvReflectCommon.h"
 
+#include <regex>
+
 extern void BuildMetalShaderOutput(
 	FShaderCompilerOutput& ShaderOutput,
 	const FShaderCompilerInput& ShaderInput,
@@ -63,10 +65,12 @@ static bool PatchSpecialTextureInHlslSource(std::string& SourceData, uint32* Out
 			std::string TypenameSuffix;
 			uint32 Dimension;
 		};
-		const FHlslVectorType FragDeclTypes[2] =
+		const FHlslVectorType FragDeclTypes[4] =
 		{
 			{ "float4", "RGBA", 4 },
-			{ "float",	"R",	1 }
+			{ "float",	"R",	1 },
+            { "half4",  "RGBA", 4 },
+            { "half",   "R",    1 }
 		};
 		
 		// Replace declaration of special texture with corresponding 'SubpassInput' declaration with respective dimension, i.e. float, float4, etc.
@@ -115,8 +119,79 @@ static bool PatchSpecialTextureInHlslSource(std::string& SourceData, uint32* Out
 			}
 		}
 	}
+    
+    return bSourceDataWasModified;
+}
 
-	return bSourceDataWasModified;
+static void Patch16bitInHlslSource(const FShaderCompilerInput& Input, std::string& SourceData)
+{
+    static const std::string TextureTypes [] = {
+        "Texture1D",
+        "Texture1DArray",
+        "Texture2D",
+        "Texture2DArray",
+        "Texture3D",
+        "TextureCube",
+        "TextureCubeArray",
+        "Buffer"
+    };
+    
+    // half precision textures and buffers are not supported in DXC
+    for(uint32_t i = 0; i < UE_ARRAY_COUNT(TextureTypes); ++i)
+    {
+        const std::string & TextureTypeString = TextureTypes[i];
+        
+        std::regex pattern(TextureTypeString + "<\\s?half");
+        SourceData = std::regex_replace(SourceData, pattern, TextureTypeString + "<float");
+    }
+    
+    static const std::string ConstHalf = "const half";
+    static const std::string ConstFloat = "const float";
+    
+    // Replace half in constant buffers to use float
+    for (const TPair<FString, FUniformBufferEntry> & Pair : Input.Environment.UniformBufferMap)
+    {
+        std::string CBufferName = std::string("cbuffer ") + TCHAR_TO_UTF8(*Pair.Key);
+        
+        size_t StructPos = SourceData.find(CBufferName);
+        if(StructPos != std::string::npos)
+        {
+            size_t StructEndPos = SourceData.find("};", StructPos);
+            if(StructEndPos != std::string::npos)
+            {
+                TArray<size_t> HalfPositions;
+                size_t HalfPos = SourceData.find(ConstHalf, StructPos);
+                
+                while(HalfPos != std::string::npos &&
+                      HalfPos < StructEndPos)
+                {
+                    HalfPositions.Add(HalfPos);
+                    HalfPos = SourceData.find(ConstHalf, HalfPos + ConstHalf.size());
+                }
+                
+                for(int32_t i = HalfPositions.Num()-1; i >= 0; i--)
+                {
+                    SourceData.replace(HalfPositions[i], ConstHalf.size(), ConstFloat);
+                }
+            }
+        }
+    }
+    
+    // Replace Globals
+    size_t GlobalPos = SourceData.find(std::string("\n") + ConstHalf);
+    while(GlobalPos != std::string::npos)
+    {
+        // Check this is a global and not an assignment
+        size_t LineEndPos = SourceData.find(";", GlobalPos);
+        size_t AssignmentPos = SourceData.find("=", GlobalPos);
+        
+        if(AssignmentPos == std::string::npos || AssignmentPos > LineEndPos)
+        {
+            SourceData.replace(GlobalPos+1, ConstHalf.size(), ConstFloat);
+        }
+        
+        GlobalPos = SourceData.find(std::string("\n") + ConstHalf, GlobalPos+ConstHalf.size());
+    }
 }
 
 bool DoCompileMetalShader(
@@ -216,7 +291,12 @@ bool DoCompileMetalShader(
 		{
 			Options.bEnableFMAPass = bForceInvariance;
 		}
-
+        
+        if(!Input.Environment.FullPrecisionInPS)
+        {
+            Options.bEnable16bitTypes = true;
+        }
+        
 		// Load shader source into compiler context
 		CompilerContext.LoadSource(PreprocessedShader, Input.VirtualSourceFilePath, Input.EntryPointName, Frequency);
 
@@ -235,8 +315,15 @@ bool DoCompileMetalShader(
 		static const uint32 MaxMetalSubpasses = 8;
 		uint32 SubpassInputsDim[MaxMetalSubpasses];
 
-		const bool bSourceDataWasModified = PatchSpecialTextureInHlslSource(SourceData, SubpassInputsDim, MaxMetalSubpasses);
+		bool bSourceDataWasModified = PatchSpecialTextureInHlslSource(SourceData, SubpassInputsDim, MaxMetalSubpasses);
 		
+        // If using 16 bit types disable half precision in constant buffer due to errors in layout
+        if(Options.bEnable16bitTypes)
+        {
+            Patch16bitInHlslSource(Input, SourceData);
+            bSourceDataWasModified = true;
+        }
+        
 		// If source data was modified, reload it into the compiler context
 		if (bSourceDataWasModified)
 		{

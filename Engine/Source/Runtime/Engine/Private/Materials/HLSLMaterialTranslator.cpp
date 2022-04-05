@@ -8745,7 +8745,20 @@ int32 FHLSLMaterialTranslator::Derivative(int32 A, const TCHAR* Component)
 	const FDerivInfo ADerivInfo = GetDerivInfo(A);
 	const EMaterialValueType ResultType = MakeNonLWCType(ADerivInfo.Type);
 	const TCHAR* FunctionName = IsLWCType(ADerivInfo.Type) ? TEXT("LWCDd") : TEXT("dd");
-	const FString FiniteCode = FString::Printf(TEXT("%s%s(%s)"), FunctionName, Component, *GetParameterCode(A));
+    
+    // Spirv expects DDX/Y to have 32 bit width, so need to ensure we use float and not half
+    const EMaterialValueType ParameterType = GetParameterType(A);
+    const TCHAR* CastType = TEXT("");
+    
+    switch (ParameterType)
+    {
+    	case MCT_Float1: case MCT_Float: CastType = TEXT("(float)"); break;
+	    case MCT_Float2: CastType = TEXT("(float2)"); break;
+	    case MCT_Float3: CastType = TEXT("(float3)"); break;
+    	case MCT_Float4: CastType = TEXT("(float4)"); break;
+    }
+            
+	const FString FiniteCode = FString::Printf(TEXT("%s%s(%s%s)"), FunctionName, Component, CastType, *GetParameterCode(A));
 
 	if (IsAnalyticDerivEnabled() && ADerivInfo.DerivativeStatus == EDerivativeStatus::Valid)
 	{

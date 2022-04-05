@@ -1826,7 +1826,7 @@ void FShaderCompileUtilities::ApplyDerivedDefines(FShaderCompilerEnvironment& Ou
 		ApplyFetchEnvironment(LightmapDefines, *SharedEnvironment);
 		ApplyFetchEnvironment(CompilerDefines, *SharedEnvironment);
 
-		OutEnvironment.FullPrecisionInPS = SharedEnvironment->FullPrecisionInPS;
+		OutEnvironment.FullPrecisionInPS |= SharedEnvironment->FullPrecisionInPS;
 	}
 
 	// for reference, here are the existing defines

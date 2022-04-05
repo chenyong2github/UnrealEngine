@@ -61,11 +61,6 @@ public:
 			TargetSettings->EnableMathOptimisations = true;
 		}
 		
-		if (!GConfig->GetBool(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("ForceFloats"), TargetSettings->ForceFloats, GEngineIni))
-		{
-			TargetSettings->ForceFloats = false;
-		}
-		
 		if (!GConfig->GetInt(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("IndirectArgumentTier"), TargetSettings->IndirectArgumentTier, GEngineIni))
 		{
 			TargetSettings->IndirectArgumentTier = 0;

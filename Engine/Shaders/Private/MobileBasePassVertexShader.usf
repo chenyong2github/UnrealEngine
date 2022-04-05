@@ -6,11 +6,6 @@
 
 #define IS_MOBILE_BASEPASS_VERTEX_SHADER 1
 
-// @todo urban: branch was: #define FORCE_FLOATS 1
-#ifndef FORCE_FLOATS
-#define FORCE_FLOATS (COMPILER_METAL)
-#endif
-
 #include "Common.ush"
 
 // Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer

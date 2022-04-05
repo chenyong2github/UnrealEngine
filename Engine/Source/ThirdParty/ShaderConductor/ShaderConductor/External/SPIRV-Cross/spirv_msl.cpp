@@ -9262,7 +9262,18 @@ void CompilerMSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop, 
 		if (expression_type(args[0]).vecsize == 1)
 			emit_unary_func_op(result_type, id, args[0], "sign");
 		else
-			emit_unary_func_op(result_type, id, args[0], "fast::normalize");
+        {
+			// UE Change Begin: Normalize fast cannot accept half types
+            if (get<SPIRType>(result_type).basetype != SPIRType::Float)
+            {
+                emit_unary_func_op(result_type, id, args[0], "normalize");
+            }
+            else
+            {
+                emit_unary_func_op(result_type, id, args[0], "fast::normalize");
+            }
+			// UE Change End: Normalize fast cannot accept half types
+        }
 		break;
 
 	case GLSLstd450Reflect:
