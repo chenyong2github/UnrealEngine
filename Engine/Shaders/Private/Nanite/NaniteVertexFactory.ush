@@ -15,6 +15,13 @@
 #define NANITE_USE_HW_BARYCENTRICS 0
 #endif
 
+// Make sure we decode enough texture coordinates to satisfy programmable features
+#if NUM_MATERIAL_TEXCOORDS_VERTEX > NUM_TEX_COORD_INTERPOLATORS
+	#define NANITE_NUM_TEXCOORDS_TO_DECODE NUM_MATERIAL_TEXCOORDS_VERTEX
+#else
+	#define NANITE_NUM_TEXCOORDS_TO_DECODE NUM_TEX_COORD_INTERPOLATORS
+#endif
+
 // Nanite material evaluation is deferred to a screenspace pass sampling the visibility buffer,
 // so the 'interpolants' used in the GBuffer pass are almost all generated in the PixelShader, instead of exported from VS.
 // FNaniteFullscreenVSToPS is the struct containing what actually needs to be passed between VS and PS in the Nanite GBuffer pass.
@@ -485,7 +492,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 		};
 
 		FNaniteRawAttributeData RawAttributeData[3];
-		GetRawAttributeData3(RawAttributeData, Cluster, TriIndices, NUM_TEX_COORD_INTERPOLATORS);
+		GetRawAttributeData3(RawAttributeData, Cluster, TriIndices, NANITE_NUM_TEXCOORDS_TO_DECODE);
 		
 		const FNaniteVertTransforms Transforms = CalculateNaniteVertexTransforms(InstanceData, InstanceDynamicData, NaniteView);
 		const FNaniteTransformedTri Tri = TransformNaniteTriangle(InstanceData, Transforms, PointLocalNoWPO, RawAttributeData, TriIndices);

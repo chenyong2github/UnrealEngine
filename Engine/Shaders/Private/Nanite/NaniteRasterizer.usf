@@ -912,7 +912,7 @@ void MicropolyRasterize(
 			GroupVerts[VertIndexes.z]
 		};			
 		FNaniteRawAttributeData RawAttributeData[3];
-		GetRawAttributeData3(RawAttributeData, Raster.Cluster, VertIndexes, NUM_TEX_COORD_INTERPOLATORS);
+		GetRawAttributeData3(RawAttributeData, Raster.Cluster, VertIndexes, NANITE_NUM_TEXCOORDS_TO_DECODE);
 		
 		InterpData.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, PointLocal, RawAttributeData, VertIndexes);
 
@@ -1022,7 +1022,7 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	float3 WorldPositionOffset = 0.0f;
 #if IS_NANITE_PROGRAMMABLE && USES_WORLD_POSITION_OFFSET
 	const FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-	const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, VertIndex, NUM_TEX_COORD_INTERPOLATORS);
+	const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, VertIndex, NANITE_NUM_TEXCOORDS_TO_DECODE);
 
 	// Should be Pow2(InvScale) but that requires renormalization
 	float3x3 LocalToWorld = LWCToFloat3x3(InstanceData.LocalToWorld);
