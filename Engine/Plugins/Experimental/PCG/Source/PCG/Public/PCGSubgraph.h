@@ -60,6 +60,8 @@ public:
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SubgraphNode")); }
 #endif
 
+	virtual FName AdditionalTaskName() const override;
+
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface implementation

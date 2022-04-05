@@ -27,7 +27,24 @@ void UPCGEditorGraphNode::Construct(UPCGNode* InPCGNode, EPCGEditorGraphNodeType
 
 FText UPCGEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return (PCGNode && PCGNode->DefaultSettings) ? FText::FromName(PCGNode->DefaultSettings->GetDefaultNodeName()) : FText::FromName(TEXT("Unnamed node"));
+	if (PCGNode && PCGNode->DefaultSettings)
+	{
+		FName PreciseName = PCGNode->DefaultSettings->AdditionalTaskName();
+		FName NodeName = PCGNode->DefaultSettings->GetDefaultNodeName();
+
+		if (PreciseName != NAME_None)
+		{
+			return FText::Format(FText::FromString(TEXT("{0} - {1}")), { FText::FromName(PreciseName), FText::FromName(NodeName) });
+		}
+		else
+		{
+			return FText::FromName(NodeName);
+		}
+	}
+	else
+	{
+		return FText::FromName(TEXT("Unnamed node"));
+	}
 }
 
 void UPCGEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const

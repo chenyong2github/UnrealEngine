@@ -89,6 +89,18 @@ UPCGNode* UPCGSubgraphSettings::CreateNode() const
 	return NewObject<UPCGSubgraphNode>();
 }
 
+FName UPCGSubgraphSettings::AdditionalTaskName() const
+{
+	if (UPCGGraph* TargetSubgraph = GetSubgraph())
+	{
+		return TargetSubgraph->GetFName();
+	}
+	else
+	{
+		return TEXT("Invalid subgraph");
+	}
+}
+
 #if WITH_EDITOR
 bool UPCGSubgraphSettings::IsStructuralProperty(const FName& InPropertyName) const
 {
