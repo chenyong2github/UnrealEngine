@@ -216,9 +216,11 @@ public:
 
 #endif
 
+	/** UObject */
 	virtual void Serialize(FArchive& Ar) override;
-
 	virtual void PostLoad() override;
+	virtual void PostInitProperties() override;
+	/** END UObject */
 	
 	/** hierarchy and bone-pose transforms */
 	UPROPERTY()

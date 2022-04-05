@@ -6,7 +6,7 @@
 const FName UIKRetargeter::GetSourceIKRigPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, SourceIKRigAsset); };
 const FName UIKRetargeter::GetTargetIKRigPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetIKRigAsset); };
 const FName UIKRetargeter::GetSourcePreviewMeshPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, SourcePreviewMesh); };
-const FName UIKRetargeter::GetTargetPreviewMeshPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetPreviewMesh); }
+const FName UIKRetargeter::GetTargetPreviewMeshPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetPreviewMesh); };
 #endif
 
 void UIKRetargeter::PostLoad()
@@ -67,6 +67,14 @@ void UIKRetargeter::PostLoad()
 	{
 		CurrentRetargetPose = UIKRetargeter::GetDefaultPoseName();
 	}
+
+	// set the log target
+	Log.SetLogTarget(GetUniqueIDAsName(), false);
+}
+
+void UIKRetargeter::PostInitProperties()
+{
+	UObject::PostInitProperties();
 
 	// set the log target
 	Log.SetLogTarget(GetUniqueIDAsName(), false);

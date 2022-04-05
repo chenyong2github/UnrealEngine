@@ -279,6 +279,13 @@ void UIKRigDefinition::PostLoad()
 	Log.SetLogTarget(GetUniqueIDAsName(), false);
 }
 
+void UIKRigDefinition::PostInitProperties()
+{
+	UObject::PostInitProperties();
+
+	Log.SetLogTarget(GetUniqueIDAsName(), false);
+}
+
 const FBoneChain* UIKRigDefinition::GetRetargetChainByName(FName ChainName) const
 {
 	for (const FBoneChain& Chain : RetargetDefinition.BoneChains)

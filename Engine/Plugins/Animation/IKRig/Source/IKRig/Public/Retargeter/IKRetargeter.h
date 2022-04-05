@@ -208,6 +208,11 @@ public:
 	/* Get name of default pose */
 	static const FName GetDefaultPoseName();
 
+	/** UObject */
+	virtual void PostLoad() override;
+	virtual void PostInitProperties() override;
+	/** END UObject */
+
 #if WITH_EDITOR
 	/* Get name of Source IK Rig property */
 	static const FName GetSourceIKRigPropertyName();
@@ -222,8 +227,6 @@ public:
 #if WITH_EDITOR
 	bool IsInEditRetargetPoseMode() const { return bEditRetargetPoseMode; }
 #endif
-	
-	virtual void PostLoad() override;
 
 private:
 

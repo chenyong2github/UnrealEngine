@@ -37,7 +37,7 @@ UObject* UIKRetargetFactory::FactoryCreateNew(
 		return nullptr;
 	}
 	
-	if (IsValid(SourceIKRig->GetPreviewMesh()))
+	if (!IsValid(SourceIKRig->GetPreviewMesh()))
 	{
 		UE_LOG(LogIKRigEditor, Warning, TEXT("Unable to create IK Retargter. Source IK Rig does not have an associated skeletal mesh."));
 		return nullptr;
