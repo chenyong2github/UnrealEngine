@@ -51,6 +51,7 @@
 #include "Misc/FileHelper.h"
 #include "Materials/MaterialInterface.h"
 #include "AssetCompilingManager.h"
+#include "DynamicResolutionState.h"
 
 #if WITH_EDITOR
 #include "SLevelViewport.h"
@@ -247,6 +248,8 @@ FAutomationTestScreenshotEnvSetup::FAutomationTestScreenshotEnvSetup()
 	, TonemapperSharpen(TEXT("r.Tonemapper.Sharpen"))
 	, ScreenPercentage(TEXT("r.ScreenPercentage"))
 	, ScreenPercentageMode(TEXT("r.ScreenPercentage.Mode"))
+	, DynamicResTestScreenPercentage(TEXT("r.DynamicRes.TestScreenPercentage"))
+	, DynamicResOperationMode(TEXT("r.DynamicRes.OperationMode"))
 	, EditorViewportOverrideGameScreenPercentage(TEXT("r.Editor.Viewport.OverridePIEScreenPercentage"))
 	, SecondaryScreenPercentage(TEXT("r.SecondaryScreenPercentage.GameViewport"))
 {
@@ -286,6 +289,16 @@ void FAutomationTestScreenshotEnvSetup::Setup(UWorld* InWorld, FAutomationScreen
 		if (GIsEditor)
 		{
 			EditorViewportOverrideGameScreenPercentage.Set(0);
+		}
+
+		// Completly disable dynamic resolution
+		{
+			DynamicResTestScreenPercentage.Set(0);
+			DynamicResOperationMode.Set(0);
+
+			// Dynamic resolution status change is only taking effect at next dyn res frame.
+			GEngine->EmitDynamicResolutionEvent(EDynamicResolutionStateEvent::EndFrame);
+			GEngine->EmitDynamicResolutionEvent(EDynamicResolutionStateEvent::BeginFrame);
 		}
 		ScreenPercentageMode.Set(0);
 		ScreenPercentage.Set(100.f);
@@ -330,6 +343,8 @@ void FAutomationTestScreenshotEnvSetup::Restore()
 	//TonemapperSharpen.Restore();
 	ScreenPercentage.Restore();
 	ScreenPercentageMode.Restore();
+	DynamicResOperationMode.Restore();
+	DynamicResTestScreenPercentage.Restore();
 	EditorViewportOverrideGameScreenPercentage.Restore();
 	SecondaryScreenPercentage.Restore();
 
