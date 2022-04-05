@@ -113,6 +113,15 @@ static TAutoConsoleVariable<int32> CVarNaniteShadowsUpdateStreaming(
 	TEXT("Produce Nanite geometry streaming requests from shadow map rendering."),
 	ECVF_RenderThreadSafe);
 
+static int32 GNaniteProgrammableRasterShadows = 1;
+static FAutoConsoleVariableRef CNaniteProgrammableRasterShadows(
+	TEXT("r.Nanite.ProgrammableRaster.Shadows"),
+	GNaniteProgrammableRasterShadows,
+	TEXT("A toggle that allows Nanite programmable raster in shadow passes.\n")
+	TEXT(" 0: Programmable raster is disabled\n")
+	TEXT(" 1: Programmable raster is enabled (default)"),
+	ECVF_RenderThreadSafe);
+
 extern int32 GNaniteShowStats;
 extern int32 GEnableNonNaniteVSM;
 
@@ -1417,6 +1426,7 @@ static void RenderShadowDepthAtlasNanite(
 		Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bTwoPassOcclusion			= true;
 		CullingConfig.bUpdateStreaming			= CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
+		CullingConfig.bProgrammableRaster		= GNaniteProgrammableRasterShadows != 0;
 		CullingConfig.SetViewFlags(SceneView);
 
 		Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, SharedContext, Scene, PrevAtlasHZB, FullAtlasViewRect, CullingConfig);
@@ -1723,9 +1733,9 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 					}
 
 					Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
-					CullingConfig.bUpdateStreaming  = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
-					CullingConfig.bTwoPassOcclusion = VirtualShadowMapArray.UseTwoPassHzbOcclusion();
-
+					CullingConfig.bUpdateStreaming		= CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
+					CullingConfig.bTwoPassOcclusion		= VirtualShadowMapArray.UseTwoPassHzbOcclusion();
+					CullingConfig.bProgrammableRaster	= GNaniteProgrammableRasterShadows != 0;
 					CullingConfig.SetViewFlags(SceneView);
 
 					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
@@ -1942,6 +1952,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 					CullingConfig.bTwoPassOcclusion			= true;
 					CullingConfig.bUpdateStreaming			= bUpdateStreaming;
+					CullingConfig.bProgrammableRaster		= GNaniteProgrammableRasterShadows != 0;
 					CullingConfig.SetViewFlags(SceneView);
 
 					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, SharedContext, *Scene, PrevHZB, ShadowViewRect, CullingConfig);

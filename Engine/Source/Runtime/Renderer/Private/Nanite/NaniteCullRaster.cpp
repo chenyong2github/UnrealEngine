@@ -122,19 +122,10 @@ static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRaster(
 	ECVF_ReadOnly
 );
 
-int32 GNaniteAllowProgrammableRasterSW = 1;
-static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRasterSW(
-	TEXT("r.Nanite.AllowProgrammableRasterSW"),
-	GNaniteAllowProgrammableRasterSW,
-	TEXT(""),
-	ECVF_ReadOnly
-);
-
+// Requires r.Nanite.AllowProgrammableRaster=1 for compiled shaders
 // 0: Disabled
-// 1: Main pass only
-// 2: Shadow pass only
-// 3: All passes
-int32 GNaniteProgrammableRaster = 3;
+// 1: Enabled
+int32 GNaniteProgrammableRaster = 1;
 static FAutoConsoleVariableRef CVarNaniteProgrammableRaster(
 	TEXT("r.Nanite.ProgrammableRaster"),
 	GNaniteProgrammableRaster,
@@ -150,7 +141,6 @@ static FAutoConsoleVariableRef CVarNaniteRequireDX12(
 	TEXT(""),
 	ECVF_ReadOnly
 );
-
 
 int32 GNaniteBoxCullingHZB = 1;
 static FAutoConsoleVariableRef CVarNaniteBoxCullingHZB(
@@ -892,8 +882,7 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 			return false;
 		}
 
-		const bool bAllow = GNaniteAllowProgrammableRaster != 0 && GNaniteAllowProgrammableRasterSW != 0;
-		return FNaniteMaterialShader::ShouldCompileComputePermutation(Parameters, bAllow);
+		return FNaniteMaterialShader::ShouldCompileComputePermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1317,21 +1306,9 @@ FCullingContext InitCullingContext(
 		CullingContext.Configuration.bTwoPassOcclusion = false;
 	}
 
-	CullingContext.Configuration.bProgrammableRaster = (GNaniteProgrammableRaster == 3); // Enabled in all passes
-	if (GNaniteProgrammableRaster == 2 && !CullingContext.Configuration.bPrimaryContext)
+	if (GNaniteAllowProgrammableRaster == 0 || GNaniteProgrammableRaster == 0)
 	{
-		// Shadow pass only
-		CullingContext.Configuration.bProgrammableRaster = true;
-	}
-	else if (GNaniteProgrammableRaster == 1 && CullingContext.Configuration.bPrimaryContext)
-	{
-		// Main pass only
-		CullingContext.Configuration.bProgrammableRaster = true;
-	}
-
-	if (GNaniteAllowProgrammableRaster == 0)
-	{
-		// Never use programmable raster if the material shaders are unavailable
+		// Never use programmable raster if the material shaders are unavailable (or if globally disabled).
 		CullingContext.Configuration.bProgrammableRaster = false;
 	}
 
@@ -2387,7 +2364,7 @@ void AddPass_Rasterize(
 				}
 
 				// Programmable micropoly features
-				if (GNaniteAllowProgrammableRasterSW && (bUsesWorldPositionOffset || bUsesPixelDepthOffset || bUsesAlphaTest))
+				if (bUsesWorldPositionOffset || bUsesPixelDepthOffset || bUsesAlphaTest)
 				{
 					ProgrammableShaderTypes.AddShaderType<FMicropolyRasterizeCS>(PermutationVectorCS.ToDimensionValueId());
 				}

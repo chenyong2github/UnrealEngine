@@ -246,6 +246,14 @@ static TAutoConsoleVariable<float> CVarNaniteViewMeshLODBiasMin(
 	TEXT("Minimum LOD offset for rasterizing Nanite meshes for the main viewport (Default = -2)."),
 	ECVF_RenderThreadSafe);
 
+static int32 GNaniteProgrammableRasterPrimary = 1;
+static FAutoConsoleVariableRef CNaniteProgrammableRasterPrimary(
+	TEXT("r.Nanite.ProgrammableRaster.Primary"),
+	GNaniteProgrammableRasterPrimary,
+	TEXT("A toggle that allows Nanite programmable raster in the primary pass.\n")
+	TEXT(" 0: Programmable raster is disabled\n")
+	TEXT(" 1: Programmable raster is enabled (default)"),
+	ECVF_RenderThreadSafe);
 
 namespace Lumen
 {
@@ -2386,6 +2394,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			CullingConfig.bUpdateStreaming					= true;
 			CullingConfig.bPrimaryContext					= true;
 			CullingConfig.bForceHWRaster					= RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
+			CullingConfig.bProgrammableRaster				= GNaniteProgrammableRasterPrimary != 0;
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
