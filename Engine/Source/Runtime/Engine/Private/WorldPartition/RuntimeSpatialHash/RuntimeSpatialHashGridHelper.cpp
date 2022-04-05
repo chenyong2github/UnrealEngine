@@ -314,7 +314,7 @@ FORCEINLINE static bool IsPointInsideSector(const FVector2D& TestPoint, const FV
 
 bool FSquare2DGridHelper::FGrid2D::DoesCircleSectorIntersectsCell(const FIntVector2& Coords, const FVector2D& SectorCenter, float SectorRadiusSquared, const FVector2D& SectorStartVector, const FVector2D& SectorEndVector, float SectorAngle) const
 {
-	const int32 CellIndex = Coords.Y * GridSize + Coords.X;
+	const int64 CellIndex = (int64)Coords.Y * (int64)GridSize + (int64)Coords.X;
 	FBox2D CellBounds;
 	GetCellBounds(CellIndex, CellBounds);
 
