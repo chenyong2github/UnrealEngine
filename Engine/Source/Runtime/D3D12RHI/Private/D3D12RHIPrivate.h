@@ -265,7 +265,7 @@ struct INTCExtensionContext;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /** The interface which is implemented by the dynamically bound RHI. */
-class FD3D12DynamicRHI : public ID3D12DynamicRHI
+class FD3D12DynamicRHI : public ID3D12PlatformDynamicRHI
 {
 	friend class FD3D12CommandContext;
 

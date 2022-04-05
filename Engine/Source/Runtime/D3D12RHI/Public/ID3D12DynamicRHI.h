@@ -65,3 +65,15 @@ inline ID3D12DynamicRHI* GetID3D12DynamicRHI()
 	check(GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12);
 	return GetDynamicRHI<ID3D12DynamicRHI>();
 }
+
+#if D3D12RHI_PLATFORM_HAS_CUSTOM_INTERFACE
+	#include "ID3D12PlatformDynamicRHI.h"
+#else
+	using ID3D12PlatformDynamicRHI = ID3D12DynamicRHI;
+#endif
+
+inline ID3D12PlatformDynamicRHI* GetID3D12PlatformDynamicRHI()
+{
+	check(GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12);
+	return GetDynamicRHI<ID3D12PlatformDynamicRHI>();
+}
