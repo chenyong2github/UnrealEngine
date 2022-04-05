@@ -18,6 +18,7 @@ public class CurveExpressionEditor : ModuleRules
 				"KismetCompiler",
 				"Slate",
 				"SlateCore",
+				"UnrealEd",
 			}
 		);
 	}

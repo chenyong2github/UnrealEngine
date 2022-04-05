@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "CurveExpressionModule.h"
 #include "Modules/ModuleManager.h"
 
 namespace UE::CurveExpression
@@ -13,5 +14,7 @@ public:
 };
 
 }
+
+DEFINE_LOG_CATEGORY(LogCurveExpression);
 
 IMPLEMENT_MODULE(UE::CurveExpression::FModule, CurveExpression)

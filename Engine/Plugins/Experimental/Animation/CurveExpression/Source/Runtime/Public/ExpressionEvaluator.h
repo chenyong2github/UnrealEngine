@@ -66,20 +66,43 @@ private:
  *	rather than:
  *	   foo (1) * 2.0
  */
-class FEngine
+enum class EParseFlags
+{
+	Default				= 0,		/** Default parsing behavior */
+	ValidateConstants	= 1 << 0,	/** Validate that the referred-to constant exists */
+};
+ENUM_CLASS_FLAGS(EParseFlags)
+
+
+class CURVEEXPRESSION_API FEngine
 {
 public:
-	FEngine() = default;
-	
-	/** Initialize the engine with constants */
+	explicit FEngine(EParseFlags InParseFlags = EParseFlags::Default) :
+		ParseFlags(InParseFlags)
+	{ }
+
+	/** Initialize the engine with constants, making a copy of the value constant map. */
 	explicit FEngine(
-		TMap<FName, float>&& InConstants
+		const TMap<FName, float>& InConstants,
+		EParseFlags InParseFlags = EParseFlags::Default
+		);
+	
+	/** Initialize the engine with constants, taking ownership of the value constant map. */
+	explicit FEngine(
+		TMap<FName, float>&& InConstants,
+		EParseFlags InParseFlags = EParseFlags::Default
 		);
 
 	/** Update existing constant values. No new constants are added. */
 	void UpdateConstantValues(
 		const TMap<FName, float>& InConstants
 		);
+
+	/** Return existing constants and their values. */
+	const TMap<FName, float>& GetConstantValues() const
+	{
+		return Constants;
+	}
 
 	/** Parse an expression and either receive an error or a expression execution object that
 	 *  matches this evaluator. */
@@ -164,6 +187,9 @@ private:
 	// FUTURE: Add support for variables by allowing TFunction{Ref} objects along with direct
 	// constants.
 	TMap<FName, float> Constants;
+
+	/** The parse flags for this engine. Only set once */
+	EParseFlags ParseFlags = EParseFlags::Default;
 };
 
 }

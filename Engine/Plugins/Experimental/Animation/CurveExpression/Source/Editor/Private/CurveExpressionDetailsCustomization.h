@@ -2,11 +2,23 @@
 
 #pragma once
 
+#include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
 
 
 class SMultiLineEditableText;
 class SScrollBar;
+
+
+class FAnimGraphNode_RemapCurvesFromMeshCustomization :
+	public IDetailCustomization
+{
+public:
+	static TSharedRef<IDetailCustomization> MakeInstance();
+
+	// IDetailCustomization overrides
+	virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailBuilder) override;
+};
 
 
 class FCurveExpressionListCustomization : 
@@ -34,3 +46,4 @@ private:
 
 	TSharedPtr<SMultiLineEditableText> TextEditor;	
 };
+

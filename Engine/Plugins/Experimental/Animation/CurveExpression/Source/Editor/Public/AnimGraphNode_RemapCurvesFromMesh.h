@@ -15,8 +15,12 @@ class UAnimGraphNode_RemapCurvesFromMesh :
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere, Category=Settings)
 	FAnimNode_RemapCurvesFromMesh Node;
+
+	bool CanVerifyExpressions() const;
+	void VerifyExpressions();
 
 	// UEdGraphNode interface
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
@@ -27,4 +31,8 @@ class UAnimGraphNode_RemapCurvesFromMesh :
 	virtual bool UsingCopyPoseFromMesh() const override { return true; }
 	virtual void GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const override;
 	// End of UAnimGraphNode_Base interface
+	
+private:
+	FAnimNode_RemapCurvesFromMesh* GetDebuggedNode() const;
+	
 };

@@ -2,6 +2,7 @@
 
 #include "AnimNode_RemapCurvesFromMesh.h"
 
+#include "CurveExpressionModule.h"
 #include "ExpressionEvaluator.h"
 
 void FAnimNode_RemapCurvesFromMesh::Initialize_AnyThread(
@@ -23,6 +24,35 @@ void FAnimNode_RemapCurvesFromMesh::CacheBones_AnyThread(
 	SourcePose.CacheBones(Context);
 }
 	
+
+void FAnimNode_RemapCurvesFromMesh::VerifyExpressions()
+{
+	using namespace CurveExpression::Evaluator;
+
+	if (!ExpressionEngine.IsSet() || CurveExpressions.IsEmpty())
+	{
+		return;
+	}
+
+	FEngine VerificationEngine(
+		ExpressionEngine->GetConstantValues(),
+		EParseFlags::ValidateConstants);
+
+	for (const TPair<FName, FString>& ExpressionPair: CurveExpressions)
+	{
+		if (!CurveNameToUIDMap.Contains(ExpressionPair.Key))
+		{
+			UE_LOG(LogCurveExpression, Warning, TEXT("Target curve '%s' does not exist."), *ExpressionPair.Key.ToString());
+		}
+
+		TOptional<FParseError> Error = VerificationEngine.Verify(ExpressionPair.Value);
+		if (Error.IsSet())
+		{
+			UE_LOG(LogCurveExpression, Warning, TEXT("Expression error in '%s': %s"), *ExpressionPair.Value, *Error->Message);
+		}
+	}
+}
+
 
 void FAnimNode_RemapCurvesFromMesh::Update_AnyThread(
 	const FAnimationUpdateContext& Context
@@ -50,7 +80,6 @@ void FAnimNode_RemapCurvesFromMesh::Update_AnyThread(
 				{
 					CachedExpressions.Add(ExpressionPair.Key, *Expression);
 				}
-				// Parse errors we deal with in the animgraph node.
 			}
 		}
 	}			
@@ -181,19 +210,16 @@ void FAnimNode_RemapCurvesFromMesh::ReinitializeMeshComponent(
 			CurrentlyUsedTargetMesh = TargetSkelMesh;
 
 			// Grab the source curves and use their names to seed the expression evaluation engine.
+			TMap<FName, float> SourceCurves;
 			const USkeleton* SourceSkeleton = SourceSkelMesh->GetSkeleton();
 			if (ensureMsgf(SourceSkeleton, TEXT("Invalid null source skeleton : %s"), *GetNameSafe(TargetSkelMesh)))
 			{
 				const FSmartNameMapping* SourceContainer = SourceSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 
-				TMap<FName, float> SourceCurves;
-				
 				SourceContainer->Iterate([&SourceCurves](const FSmartNameMappingIterator& Iterator)
 				{
 					if (FName CurveName; Iterator.GetName(CurveName))
 					{
-						const FCurveMetaData* MetaData = Iterator.GetCurveMetaData();
-						FPlatformMisc::LowLevelOutputDebugStringf(TEXT("CURVE[%s] - Morph: %d - Mat: %d\n"), *CurveName.ToString(), MetaData->Type.bMaterial, MetaData->Type.bMorphtarget);
 						SourceCurves.Add(CurveName, 0.0f);
 					}
 				});

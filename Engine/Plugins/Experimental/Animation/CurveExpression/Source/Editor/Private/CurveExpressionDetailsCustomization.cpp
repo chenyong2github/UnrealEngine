@@ -2,12 +2,80 @@
 
 #include "CurveExpressionDetailsCustomization.h"
 
+#include "AnimGraphNode_RemapCurvesFromMesh.h"
 #include "CurveExpressionEditorStyle.h"
 #include "K2Node_MakeCurveExpressionMap.h"
+
+#include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
+
+
+#define LOCTEXT_NAMESPACE "CurveExpressionDetailsCustomization"
+
+TSharedRef<IDetailCustomization> FAnimGraphNode_RemapCurvesFromMeshCustomization::MakeInstance()
+{
+	return MakeShared<FAnimGraphNode_RemapCurvesFromMeshCustomization>();
+}
+
+
+void FAnimGraphNode_RemapCurvesFromMeshCustomization::CustomizeDetails(
+	IDetailLayoutBuilder& InDetailBuilder
+	)
+{
+	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
+	InDetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
+
+	TArray<TWeakObjectPtr<UAnimGraphNode_RemapCurvesFromMesh>> RemapNodes;
+	for (TWeakObjectPtr<UObject> Object: ObjectsBeingCustomized)
+	{
+		TWeakObjectPtr<UAnimGraphNode_RemapCurvesFromMesh> RemapNode = Cast<UAnimGraphNode_RemapCurvesFromMesh>(Object.Get());
+		if (RemapNode.IsValid())
+		{
+			RemapNodes.Add(RemapNode);
+		}
+	}
+
+	IDetailCategoryBuilder& DebuggingCategory = InDetailBuilder.EditCategory("Debugging");
+	DebuggingCategory.AddCustomRow(LOCTEXT("Debugging", "Debugging"))
+		.ValueContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(5)
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("VerifyExpressions", "Verify Expressions"))
+				.ToolTipText(LOCTEXT("VerifyExpressions_Tooltip", "Verify all the expressions as applied to the currently debugged object. If debugging is not active, no verification is done. Verification output is sent to the output log."))
+				.OnClicked_Lambda([this, RemapNodes]()
+				{
+					for (TWeakObjectPtr<UAnimGraphNode_RemapCurvesFromMesh> RemapNodeWeak: RemapNodes)
+					{
+						if (UAnimGraphNode_RemapCurvesFromMesh* RemapNode = RemapNodeWeak.Get())
+						{
+							RemapNode->VerifyExpressions();
+						}
+					}
+					return FReply::Handled();
+				})
+				.IsEnabled_Lambda([this, RemapNodes]()
+				{
+					for (TWeakObjectPtr<UAnimGraphNode_RemapCurvesFromMesh> RemapNodeWeak: RemapNodes)
+					{
+						if (UAnimGraphNode_RemapCurvesFromMesh* RemapNode = RemapNodeWeak.Get())
+						{
+							return true;
+						}
+					}
+					return false;
+				})
+			]
+		];
+}
 
 
 TSharedRef<IPropertyTypeCustomization> FCurveExpressionListCustomization::MakeInstance()
@@ -96,3 +164,5 @@ void FCurveExpressionListCustomization::CustomizeHeader(
 		]
 	];
 }
+
+#undef LOCTEXT_NAMESPACE

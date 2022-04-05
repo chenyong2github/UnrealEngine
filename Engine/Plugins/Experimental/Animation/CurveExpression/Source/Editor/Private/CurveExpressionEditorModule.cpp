@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "AnimGraphNode_RemapCurvesFromMesh.h"
 #include "CurveExpressionDetailsCustomization.h"
 #include "CurveExpressionEditorStyle.h"
 #include "K2Node_MakeCurveExpressionMap.h"
@@ -23,12 +24,25 @@ public:
 				);
 			CustomizedProperties.Add(InStructName);
 		};
+		auto RegisterClassCustomization = [&](FName InClassName, auto InCustomizationFactory)
+		{
+			PropertyModule.RegisterCustomClassLayout(
+				InClassName, 
+				FOnGetDetailCustomizationInstance::CreateStatic(InCustomizationFactory)
+				);
+			CustomizedClasses.Add(InClassName);
+		};
 		
 		FCurveExpressionEditorStyle::Register();
 		
 		RegisterPropertyCustomization(
 			FCurveExpressionList::StaticStruct()->GetFName(),
 			&FCurveExpressionListCustomization::MakeInstance
+			);
+			
+		RegisterClassCustomization(
+			UAnimGraphNode_RemapCurvesFromMesh::StaticClass()->GetFName(),
+			&FAnimGraphNode_RemapCurvesFromMeshCustomization::MakeInstance
 			);
 	}
 	virtual void ShutdownModule() override
@@ -39,6 +53,10 @@ public:
 			{
 				PropertyModule->UnregisterCustomPropertyTypeLayout(PropertyName);
 			}
+			for (const FName& ClassName: CustomizedClasses)
+			{
+				PropertyModule->UnregisterCustomClassLayout(ClassName);
+			}
 		}
 		
 		FCurveExpressionEditorStyle::Unregister();
@@ -46,6 +64,7 @@ public:
 
 private:
 	TArray<FName> CustomizedProperties;
+	TArray<FName> CustomizedClasses;
 };
 
 }

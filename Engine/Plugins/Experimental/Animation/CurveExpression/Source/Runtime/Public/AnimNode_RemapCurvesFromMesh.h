@@ -30,6 +30,9 @@ struct CURVEEXPRESSION_API FAnimNode_RemapCurvesFromMesh :
 	/** The expressions given are immutable and will not change during runtime. Improves performance. */ 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Expressions, meta=(NeverAsPin))
 	bool bExpressionsImmutable = true;
+
+	// Call to verify the expressions. Report any errors back.
+	void VerifyExpressions();
 	
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;

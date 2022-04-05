@@ -9,9 +9,21 @@ namespace CurveExpression::Evaluator
 {
 
 FEngine::FEngine(
-	TMap<FName, float>&& InConstants
+	const TMap<FName, float>& InConstants, 
+	EParseFlags InParseFlags
 	) :
-	Constants(MoveTemp(InConstants))
+	Constants(InConstants),
+	ParseFlags(InParseFlags)
+{
+}
+
+
+FEngine::FEngine(
+	TMap<FName, float>&& InConstants,
+	EParseFlags InParseFlags
+	) :
+	Constants(MoveTemp(InConstants)),
+	ParseFlags(InParseFlags)
 {
 }
 
@@ -331,10 +343,14 @@ TVariant<FEngine::FToken, FParseError> FEngine::ParseIdentifier(
 		return TVariant<FToken, FParseError>(
 			TInPlaceType<FToken>(), FToken(TInPlaceType<FName>(), Name));
 	}
+	else if (EnumHasAllFlags(ParseFlags, EParseFlags::ValidateConstants))
+	{
+		return ParseTokenError(FString::Printf(TEXT("Unknown identifier '%s'"), *FString(Identifier)),
+			InOutParseRange.GetData(), InExpression); 
+	}
 	else
 	{
 		// If the constant value is not found, it gets a default value of 0.
-		// TBD: We may want to flag this as an error instead when doing verification.
 		return TVariant<FToken, FParseError>(
 			TInPlaceType<FToken>(), FToken(TInPlaceType<float>(), 0.0f));
 	}
