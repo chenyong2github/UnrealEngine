@@ -429,7 +429,9 @@ namespace Chaos
 			TArrayCollection::AddArray(&MGeometry);
 			TArrayCollection::AddArray(&MSharedGeometry);
 			TArrayCollection::AddArray(&MDynamicGeometry);
+#if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
+#endif
 			TArrayCollection::AddArray(&MHasCollision);
 			TArrayCollection::AddArray(&MShapesArray);
 			TArrayCollection::AddArray(&MLocalBounds);
@@ -483,11 +485,13 @@ namespace Chaos
 			, MResimType(MoveTemp(Other.MResimType))
 			, MEnabledDuringResim(MoveTemp(Other.MEnabledDuringResim))
 			, MLightWeightDisabled(MoveTemp(Other.MLightWeightDisabled))
-
-
 #if CHAOS_DETERMINISTIC
 			, MParticleIDs(MoveTemp(Other.MParticleIDs))
 #endif
+#if CHAOS_DEBUG_NAME
+			, MDebugName(MoveTemp(Other.MDebugName))
+#endif
+
 		{
 			MParticleType = EParticleType::Static;
 			TArrayCollection::AddArray(&MUniqueIdx);
@@ -495,6 +499,9 @@ namespace Chaos
 			TArrayCollection::AddArray(&MGeometry);
 			TArrayCollection::AddArray(&MSharedGeometry);
 			TArrayCollection::AddArray(&MDynamicGeometry);
+#if CHAOS_DETERMINISTIC
+			TArrayCollection::AddArray(&MParticleIDs);
+#endif
 			TArrayCollection::AddArray(&MHasCollision);
 			TArrayCollection::AddArray(&MShapesArray);
 			TArrayCollection::AddArray(&MLocalBounds);
@@ -506,10 +513,10 @@ namespace Chaos
 			TArrayCollection::AddArray(&MWeakParticleHandle);
 			TArrayCollection::AddArray(&MParticleConstraints);
 			TArrayCollection::AddArray(&MParticleCollisions);
+			TArrayCollection::AddArray(&MResimType);
+			TArrayCollection::AddArray(&MEnabledDuringResim);
+			TArrayCollection::AddArray(&MLightWeightDisabled);
 
-#if CHAOS_DETERMINISTIC
-			TArrayCollection::AddArray(&MParticleIDs);
-#endif
 #if CHAOS_DEBUG_NAME
 			TArrayCollection::AddArray(&MDebugName);
 #endif
@@ -520,10 +527,6 @@ namespace Chaos
 				TArrayCollection::AddArray(&MGeometryParticle);
 				TArrayCollection::AddArray(&MPhysicsProxy);
 			}
-
-			TArrayCollection::AddArray(&MResimType);
-			TArrayCollection::AddArray(&MEnabledDuringResim);
-			TArrayCollection::AddArray(&MLightWeightDisabled);
 		}
 
 		static constexpr bool IsRigidBodySim() { return SimType == EGeometryParticlesSimType::RigidBodySim; }
@@ -537,6 +540,9 @@ namespace Chaos
 			TArrayCollection::AddArray(&MGeometry);
 			TArrayCollection::AddArray(&MSharedGeometry);
 			TArrayCollection::AddArray(&MDynamicGeometry);
+#if CHAOS_DETERMINISTIC
+			TArrayCollection::AddArray(&MParticleIDs);
+#endif
 			TArrayCollection::AddArray(&MHasCollision);
 			TArrayCollection::AddArray(&MShapesArray);
 			TArrayCollection::AddArray(&MLocalBounds);
@@ -548,10 +554,11 @@ namespace Chaos
 			TArrayCollection::AddArray(&MWeakParticleHandle);
 			TArrayCollection::AddArray(&MParticleConstraints);
 			TArrayCollection::AddArray(&MParticleCollisions);
+			TArrayCollection::AddArray(&MResimType);
+			TArrayCollection::AddArray(&MEnabledDuringResim);
+			TArrayCollection::AddArray(&MLightWeightDisabled);
 
-#if CHAOS_DETERMINISTIC
-			TArrayCollection::AddArray(&MParticleIDs);
-#endif
+
 #if CHAOS_DEBUG_NAME
 			TArrayCollection::AddArray(&MDebugName);
 #endif
@@ -562,10 +569,6 @@ namespace Chaos
 				TArrayCollection::AddArray(&MGeometryParticle);
 				TArrayCollection::AddArray(&MPhysicsProxy);
 			}
-			
-			TArrayCollection::AddArray(&MResimType);
-			TArrayCollection::AddArray(&MEnabledDuringResim);
-			TArrayCollection::AddArray(&MLightWeightDisabled);
 		}
 
 		CHAOS_API virtual ~TGeometryParticlesImp()

@@ -82,6 +82,7 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	, MChildToParent(MoveTemp(Other.MChildToParent))
 	, MClusterGroupIndex(MoveTemp(Other.MClusterGroupIndex))
 	, MInternalCluster(MoveTemp(Other.MInternalCluster))
+	, MChildrenSpatial(MoveTemp(Other.MChildrenSpatial))
 	, MPhysicsProxies(MoveTemp(Other.MPhysicsProxies))
 	, MCollisionImpulses(MoveTemp(Other.MCollisionImpulses))
 	, MStrains(MoveTemp(Other.MStrains))

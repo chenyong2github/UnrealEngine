@@ -24,7 +24,7 @@ public:
 	TArrayCollectionArray()
 	    : TArray<T>() {}
 	TArrayCollectionArray(const TArrayCollectionArray<T>& Other) = delete;
-	TArrayCollectionArray(TArrayCollectionArray<T>&& Other)
+	explicit TArrayCollectionArray(TArrayCollectionArray<T>&& Other)
 	    : TArray<T>(MoveTemp(Other)) {}
 	TArrayCollectionArray& operator=(TArrayCollectionArray<T>&& Other)
 	{
