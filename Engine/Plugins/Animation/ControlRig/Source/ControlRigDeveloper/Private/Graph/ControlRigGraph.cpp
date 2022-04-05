@@ -595,6 +595,16 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					else if (Cast<URigVMUnitNode>(ModelPin->GetNode()))
 					{
 						RigNode->InvalidateNodeTitle();
+
+						// if the node contains a rig element key - invalidate the node
+						if(RigNode->GetAllPins().ContainsByPredicate([](UEdGraphPin* Pin) -> bool
+						{
+							return Pin->PinType.PinSubCategoryObject == FRigElementKey::StaticStruct();
+						}))
+						{
+							// we do this to enforce the refresh of the element name widgets
+							RigNode->ReconstructNode_Internal(true);
+						}
 					}
 				}
 				else if (URigVMInjectionInfo* Injection = ModelPin->GetNode()->GetInjectionInfo())

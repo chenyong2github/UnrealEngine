@@ -94,4 +94,6 @@ private:
 	/** Param to hold Filter Result to pass to Filter*/
 	bool bFilterAssetBySkeleton;
 
+	/** Handles for all registered workflows */
+	TArray<int32> WorkflowHandles;
 };

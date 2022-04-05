@@ -126,6 +126,8 @@
 #include "UserDefinedStructure/UserDefinedStructEditorData.h"
 #include "UObject/FieldIterator.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
+#include "RigVMUserWorkflowRegistry.h"
+#include "Units/ControlRigNodeWorkflow.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -251,11 +253,17 @@ void FControlRigEditorModule::StartupModule()
 	//UThumbnailManager::Get().RegisterCustomRenderer(UControlRigPoseAsset::StaticClass(), UControlRigPoseThumbnailRenderer::StaticClass());
 
 	bFilterAssetBySkeleton = true;
+
+	URigVMUserWorkflowRegistry* WorkflowRegistry = URigVMUserWorkflowRegistry::Get();
+
+	// register the workflow provider for ANY node
+	FRigVMUserWorkflowProvider Provider;
+	Provider.BindUFunction(UControlRigTransformWorkflowOptions::StaticClass()->GetDefaultObject(), TEXT("ProvideWorkflows"));
+	WorkflowHandles.Add(WorkflowRegistry->RegisterProvider(nullptr, Provider));
 }
 
 void FControlRigEditorModule::ShutdownModule()
 {
-
 	if (ICurveEditorModule* CurveEditorModule = FModuleManager::GetModulePtr<ICurveEditorModule>("CurveEditor"))
 	{
 		CurveEditorModule->UnregisterView(FControlRigSpaceChannelCurveModel::ViewID);
@@ -321,6 +329,15 @@ void FControlRigEditorModule::ShutdownModule()
 		typedef IAnimationEditorModule::FAnimationEditorToolbarExtender DelegateType;
 		AnimationEditorModule->GetAllAnimationEditorToolbarExtenders().RemoveAll([=](const DelegateType& In) { return In.GetHandle() == AnimationEditorExtenderHandle; });
 	}
+
+	for(const int32 WorkflowHandle : WorkflowHandles)
+	{
+		if(URigVMUserWorkflowRegistry::StaticClass()->GetDefaultObject(false) != nullptr)
+		{
+			URigVMUserWorkflowRegistry::Get()->UnregisterProvider(WorkflowHandle);
+		}
+	}
+	WorkflowHandles.Reset();
 }
 
 TSharedRef<FExtender> FControlRigEditorModule::GetAnimationEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<IAnimationEditor> InAnimationEditor)
@@ -1218,9 +1235,74 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 	{
 		Schema->UEdGraphSchema::GetContextMenuActions(Menu, Context);
 
+		auto ShowWorkflowOptionsDialog = [](URigVMUserWorkflowOptions* InOptions)
+		{
+			FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+			FDetailsViewArgs DetailsViewArgs;
+			DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+			DetailsViewArgs.bHideSelectionTip = true;
+			DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Hide;
+			DetailsViewArgs.bAllowSearch = false;
+
+			const TSharedRef<class IDetailsView> PropertyView = EditModule.CreateDetailView( DetailsViewArgs );
+			PropertyView->SetObject(InOptions);
+
+			TSharedRef<SCustomDialog> OptionsDialog = SNew(SCustomDialog)
+				.Title(FText(LOCTEXT("ControlRigWorkflowOptions", "Options")))
+				.Content()
+				[
+					PropertyView
+				]
+				.Buttons({
+					SCustomDialog::FButton(LOCTEXT("OK", "OK")),
+					SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))
+			});
+			return OptionsDialog->ShowModal() == 0;
+		};
+
 		if (UEdGraphPin* InGraphPin = (UEdGraphPin* )Context->Pin)
 		{
 			UEdGraph* Graph = InGraphPin->GetOwningNode()->GetGraph();
+
+			// per pin workflows
+			if(UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>((UBlueprint*)Context->Blueprint))
+			{
+				if (URigVMPin* ModelPin = RigBlueprint->GetModel(Graph)->FindPin(InGraphPin->GetName()))
+				{
+					const TArray<FRigVMUserWorkflow> Workflows = ModelPin->GetNode()->GetSupportedWorkflows(ERigVMUserWorkflowType::PinContext, ModelPin);
+					if(!Workflows.IsEmpty())
+					{
+						URigVMController* Controller = RigBlueprint->GetController(ModelPin->GetGraph());
+
+						FToolMenuSection& SettingsSection = Menu->AddSection("EdGraphSchemaWorkflow", LOCTEXT("WorkflowHeader", "Workflow"));
+
+						for(const FRigVMUserWorkflow& Workflow : Workflows)
+						{
+							SettingsSection.AddMenuEntry(
+								*Workflow.GetTitle(),
+								FText::FromString(Workflow.GetTitle()),
+								FText::FromString(Workflow.GetTooltip()),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateLambda([Controller, Workflow, ModelPin, ShowWorkflowOptionsDialog]()
+								{
+									URigVMUserWorkflowOptions* Options = Controller->MakeOptionsForWorkflow(ModelPin, Workflow);
+
+									bool bPerform = true;
+									if(Options->RequiresDialog())
+									{
+										bPerform = ShowWorkflowOptionsDialog(Options);
+									}
+									if(bPerform)
+									{
+										Controller->PerformUserWorkflow(Workflow, Options);
+									}
+								}))
+							);
+						}
+					}
+				}
+			}
 
 			bool bIsExecutePin = false;
 			bool bIsUnknownPin = false;
@@ -1975,6 +2057,43 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							}
 						})
 					));
+				}
+
+				// per node workflows
+				if (const UControlRigGraphNode* RigNode = Cast<const UControlRigGraphNode>(Context->Node))
+				{
+					if (URigVMNode* ModelNode = RigNode->GetModelNode())
+					{
+						const TArray<FRigVMUserWorkflow> Workflows = ModelNode->GetSupportedWorkflows(ERigVMUserWorkflowType::NodeContext, ModelNode);
+						if(!Workflows.IsEmpty())
+						{
+							FToolMenuSection& SettingsSection = Menu->AddSection("EdGraphSchemaWorkflow", LOCTEXT("WorkflowHeader", "Workflow"));
+
+							for(const FRigVMUserWorkflow& Workflow : Workflows)
+							{
+								SettingsSection.AddMenuEntry(
+									*Workflow.GetTitle(),
+									FText::FromString(Workflow.GetTitle()),
+									FText::FromString(Workflow.GetTooltip()),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([Controller, Workflow, ModelNode, ShowWorkflowOptionsDialog]()
+									{
+										URigVMUserWorkflowOptions* Options = Controller->MakeOptionsForWorkflow(ModelNode, Workflow);
+
+										bool bPerform = true;
+										if(Options->RequiresDialog())
+										{
+											bPerform = ShowWorkflowOptionsDialog(Options);
+										}
+										if(bPerform)
+										{
+											Controller->PerformUserWorkflow(Workflow, Options);
+										}
+									}))
+								);
+							}
+						}
+					}
 				}
 
 				if (const UControlRigGraphNode* RigNode = Cast<const UControlRigGraphNode>(Context->Node))

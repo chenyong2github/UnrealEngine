@@ -28,6 +28,8 @@
 #include "RigVMPythonUtils.h"
 #include "RigVMTypeUtils.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
+#include "Units/ControlRigNodeWorkflow.h"
+#include "Rigs/RigControlHierarchy.h"
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
@@ -1597,6 +1599,24 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 			if(StrongThis->OnRequestJumpToHyperlink().IsBound())
 			{
 				StrongThis->OnRequestJumpToHyperlink().Execute(InSubject);
+			}
+		}
+	});
+
+	Controller->ConfigureWorkflowOptionsDelegate.BindLambda([WeakThis](URigVMUserWorkflowOptions* Options)
+	{
+		if(UControlRigWorkflowOptions* ControlRigNodeWorkflowOptions = Cast<UControlRigWorkflowOptions>(Options))
+		{
+			ControlRigNodeWorkflowOptions->Hierarchy = nullptr;
+			ControlRigNodeWorkflowOptions->Selection.Reset();
+			
+			if(const UControlRigBlueprint* StrongThis = WeakThis.Get())
+			{
+				if(UControlRig* ControlRig = Cast<UControlRig>(StrongThis->GetObjectBeingDebugged()))
+				{
+					ControlRigNodeWorkflowOptions->Hierarchy = ControlRig->GetHierarchy();
+				}
+				ControlRigNodeWorkflowOptions->Selection = StrongThis->Hierarchy->GetSelectedKeys();
 			}
 		}
 	});
