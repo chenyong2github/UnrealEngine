@@ -378,12 +378,7 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 	GatherSpecularIBL(MaterialParameters, MobileReflectionCapture.Texture, MobileReflectionCapture.TextureSampler, Roughness, IndirectIrradiance, MobileReflectionCapture.Params.z, ImageBasedReflections);
 #endif
 
-#if WEBGL
-	// need a rgb swizzle instead of the existing rgba swizzle, we should add it if another use case comes up. 
-	return ImageBasedReflections.bgr;
-#else
 	return ImageBasedReflections.rgb;
-#endif
 }
 
 half3 FrameBufferBlendOp(half4 Source)
