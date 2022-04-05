@@ -19,10 +19,9 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
-	UPCGParams* Params = Context->InputData.GetParams();
+	UPCGParamData* Params = Context->InputData.GetParams();
 
 	// Forward any non-input data
-	Outputs.Append(Context->InputData.GetExclusions());
 	Outputs.Append(Context->InputData.GetAllSettings());
 
 	const bool bInvertFilter = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, bInvertFilter), Settings->bInvertFilter, Params);

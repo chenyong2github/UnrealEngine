@@ -62,7 +62,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	UPCGParams* Params = Context->InputData.GetParams();
+	UPCGParamData* Params = Context->InputData.GetParams();
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
@@ -72,7 +72,6 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 	const EPCGMetadataOperationTarget Target = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGMetadataOperationSettings, Target), Settings->Target, Params);
 
 	// Forward any non-input data
-	Outputs.Append(Context->InputData.GetExclusions());
 	Outputs.Append(Context->InputData.GetAllSettings());
 
 	for (const FPCGTaggedData& Input : Inputs)

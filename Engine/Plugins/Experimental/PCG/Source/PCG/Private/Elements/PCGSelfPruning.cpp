@@ -205,8 +205,7 @@ namespace PCGSelfPruningElement
 			}
 		}
 
-		// Finally, forward any exclusions/settings
-		Outputs.Append(Context->InputData.GetExclusions());
+		// Finally, forward any settings
 		Outputs.Append(Context->InputData.GetAllSettings());
 	}
 }
@@ -223,7 +222,7 @@ bool FPCGSelfPruningElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGSelfPruningSettings* Settings = Context->GetInputSettings<UPCGSelfPruningSettings>();
 	check(Settings);
 
-	UPCGParams* Params = Context->InputData.GetParams();
+	UPCGParamData* Params = Context->InputData.GetParams();
 
 	const EPCGSelfPruningType PruningType = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSelfPruningSettings, PruningType), Settings->PruningType, Params);
 	const float RadiusSimilarityFactor = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSelfPruningSettings, RadiusSimilarityFactor), Settings->RadiusSimilarityFactor, Params);

@@ -16,7 +16,7 @@ bool FPCGUnionElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	UPCGParams* Params = Context->InputData.GetParams();
+	UPCGParamData* Params = Context->InputData.GetParams();
 
 	const EPCGUnionType Type = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGUnionSettings, Type), Settings->Type, Params);
 	const EPCGUnionDensityFunction DensityFunction = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGUnionSettings, DensityFunction), Settings->DensityFunction, Params);
@@ -67,7 +67,6 @@ bool FPCGUnionElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	// Finally, pass-through settings
-	Outputs.Append(Context->InputData.GetExclusions());
 	Outputs.Append(Context->InputData.GetAllSettings());
 
 	return true;

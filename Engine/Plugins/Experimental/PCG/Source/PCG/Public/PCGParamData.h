@@ -5,18 +5,18 @@
 #include "PCGData.h"
 #include "Metadata/PCGMetadata.h"
 
-#include "PCGParams.generated.h"
+#include "PCGParamData.generated.h"
 
 /**
 * Class to hold execution parameters that will be consumed in nodes of the graph
 */
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class PCG_API UPCGParams : public UPCGData
+class PCG_API UPCGParamData : public UPCGData
 {
 	GENERATED_BODY()
 
 public:
-	UPCGParams(const FObjectInitializer& ObjectInitializer);
+	UPCGParamData(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = Metadata)
 	const UPCGMetadata* ConstMetadata() const { return Metadata; }
@@ -34,10 +34,10 @@ public:
 
 	/** Creates a new params that keeps only a given key/name */
 	UFUNCTION(BlueprintCallable, Category = Params)
-	UPCGParams* FilterParamsByName(const FName& InName) const;
+	UPCGParamData* FilterParamsByName(const FName& InName) const;
 
 	UFUNCTION(BlueprintCallable, Category = Params)
-	UPCGParams* FilterParamsByKey(int64 InKey) const;
+	UPCGParamData* FilterParamsByKey(int64 InKey) const;
 
 	// Not accessible through blueprint to make sure the constness is preserved
 	UPROPERTY(VisibleAnywhere, Category = Metadata)

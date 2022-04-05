@@ -39,11 +39,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 			TArray<FPCGTaggedData> FilteredTaggedData;
 			for (FPCGTaggedData& TaggedData : Context->InputData.TaggedData)
 			{
-				if (TaggedData.Usage != EPCGDataUsage::Input)
-				{
-					FilteredTaggedData.Add(TaggedData);
-				}
-				else if (TaggedData.Tags.Intersect(Settings->FilterOnTags).IsEmpty())
+				if (TaggedData.Tags.Intersect(Settings->FilterOnTags).IsEmpty())
 				{
 					if (Settings->bPassThroughFilteredOutInputs)
 					{
@@ -108,12 +104,9 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 		{
 			for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
 			{
-				if (TaggedData.Usage == EPCGDataUsage::Input)
+				if (!BypassedTaggedData.Contains(TaggedData))
 				{
-					if (!BypassedTaggedData.Contains(TaggedData))
-					{
-						TaggedData.Tags.Append(Settings->TagsAppliedOnOutput);
-					}
+					TaggedData.Tags.Append(Settings->TagsAppliedOnOutput);
 				}
 			}
 		}

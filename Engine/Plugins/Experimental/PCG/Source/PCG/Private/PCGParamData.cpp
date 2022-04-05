@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PCGParams.h"
+#include "PCGParamData.h"
 
-UPCGParams::UPCGParams(const FObjectInitializer& ObjectInitializer)
+UPCGParamData::UPCGParamData(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	Metadata = ObjectInitializer.CreateDefaultSubobject<UPCGMetadata>(this, TEXT("Metadata"));
 }
 
-int64 UPCGParams::FindMetadataKey(const FName& InName) const
+int64 UPCGParamData::FindMetadataKey(const FName& InName) const
 {
 	if (const PCGMetadataEntryKey* FoundKey = NameMap.Find(InName))
 	{
@@ -20,7 +20,7 @@ int64 UPCGParams::FindMetadataKey(const FName& InName) const
 	}
 }
 
-int64 UPCGParams::FindOrAddMetadataKey(const FName& InName)
+int64 UPCGParamData::FindOrAddMetadataKey(const FName& InName)
 {
 	if (const PCGMetadataEntryKey* FoundKey = NameMap.Find(InName))
 	{
@@ -35,10 +35,10 @@ int64 UPCGParams::FindOrAddMetadataKey(const FName& InName)
 	}
 }
 
-UPCGParams* UPCGParams::FilterParamsByName(const FName& InName) const
+UPCGParamData* UPCGParamData::FilterParamsByName(const FName& InName) const
 {
 	PCGMetadataEntryKey EntryKey = FindMetadataKey(InName);
-	UPCGParams* NewParams = FilterParamsByKey(EntryKey);
+	UPCGParamData* NewParams = FilterParamsByKey(EntryKey);
 
 	if (EntryKey != PCGInvalidEntryKey)
 	{
@@ -49,9 +49,9 @@ UPCGParams* UPCGParams::FilterParamsByName(const FName& InName) const
 	return NewParams;
 }
 
-UPCGParams* UPCGParams::FilterParamsByKey(int64 InKey) const
+UPCGParamData* UPCGParamData::FilterParamsByKey(int64 InKey) const
 {
-	UPCGParams* NewParams = NewObject<UPCGParams>(const_cast<UPCGParams*>(this));
+	UPCGParamData* NewParams = NewObject<UPCGParamData>(const_cast<UPCGParamData*>(this));
 
 	// Here instead of parenting the metadata, we will create a copy
 	// so that the only entry in the metadata (if any) will have the 0 key.

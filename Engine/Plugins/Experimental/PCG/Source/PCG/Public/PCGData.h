@@ -10,7 +10,7 @@
 #include "PCGData.generated.h"
 
 class UPCGSettings;
-class UPCGParams;
+class UPCGParamData;
 
 /**
 * Base class for any "data" class in the PCG framework.
@@ -23,16 +23,6 @@ class PCG_API UPCGData : public UObject
 	GENERATED_BODY()
 };
 
-UENUM(BlueprintType)
-enum class EPCGDataUsage : uint8
-{
-	Input, // must be castable to concrete data
-	Exclusion,
-	Settings,
-	Override,
-	// Manual? Blocker?
-};
-
 USTRUCT(BlueprintType)
 struct PCG_API FPCGTaggedData
 {
@@ -40,9 +30,6 @@ struct PCG_API FPCGTaggedData
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	TObjectPtr<const UPCGData> Data = nullptr;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
-	EPCGDataUsage Usage = EPCGDataUsage::Input;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	TSet<FString> Tags;
@@ -58,9 +45,10 @@ struct PCG_API FPCGDataCollection
 
 	TArray<FPCGTaggedData> GetInputs() const;
 	TArray<FPCGTaggedData> GetTaggedInputs(const FString& InTag) const;
-	TArray<FPCGTaggedData> GetExclusions() const;
 	TArray<FPCGTaggedData> GetAllSettings() const;
-	UPCGParams* GetParams() const;
+	TArray<FPCGTaggedData> GetAllParams() const;
+	TArray<FPCGTaggedData> GetTaggedParams(const FString& InTag) const;
+	UPCGParamData* GetParams() const;
 
 	template<typename SettingsType>
 	const SettingsType* GetSettings() const;
@@ -81,7 +69,7 @@ template<typename SettingsType>
 inline const SettingsType* FPCGDataCollection::GetSettings() const
 {
 	const FPCGTaggedData* MatchingData = TaggedData.FindByPredicate([](const FPCGTaggedData& Data) {
-		return Data.Usage == EPCGDataUsage::Settings && Cast<const SettingsType>(Data.Data) != nullptr;
+		return Cast<const SettingsType>(Data.Data) != nullptr;
 		});
 
 	return MatchingData ? Cast<const SettingsType>(MatchingData->Data) : nullptr;
@@ -101,7 +89,10 @@ public:
 	static TArray<FPCGTaggedData> GetTaggedInputs(const FPCGDataCollection& InCollection, const FString& InTag);
 
 	UFUNCTION(BlueprintCallable, Category = Data)
-	static TArray<FPCGTaggedData> GetExclusions(const FPCGDataCollection& InCollection);
+	static TArray<FPCGTaggedData> GetParams(const FPCGDataCollection& InCollection);
+
+	UFUNCTION(BlueprintCallable, Category = Data)
+	static TArray<FPCGTaggedData> GetTaggedParams(const FPCGDataCollection& InCollection, const FString& InTag);
 
 	UFUNCTION(BlueprintCallable, Category = Data)
 	static TArray<FPCGTaggedData> GetAllSettings(const FPCGDataCollection& InCollection);

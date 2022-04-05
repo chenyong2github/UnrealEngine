@@ -32,7 +32,7 @@ namespace PCGSettingsHelpers
 		}
 	}
 
-	void SetValue(UPCGParams* InParams, UObject* Object, FProperty* Property)
+	void SetValue(UPCGParamData* InParams, UObject* Object, FProperty* Property)
 	{
 		check(InParams && Property);
 		const FPCGMetadataAttributeBase* MatchingAttribute = InParams->Metadata ? InParams->Metadata->GetConstAttribute(Property->GetFName()) : nullptr;

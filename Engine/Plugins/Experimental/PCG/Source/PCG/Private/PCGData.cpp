@@ -2,12 +2,12 @@
 
 #include "PCGData.h"
 #include "PCGSettings.h"
-#include "PCGParams.h"
+#include "PCGParamData.h"
+#include "Data/PCGSpatialData.h"
 
 bool FPCGTaggedData::operator==(const FPCGTaggedData& Other) const
 {
 	return Data == Other.Data &&
-		Usage == Other.Usage &&
 		Tags.Num() == Other.Tags.Num() &&
 		Tags.Includes(Other.Tags);
 }
@@ -20,36 +20,43 @@ bool FPCGTaggedData::operator!=(const FPCGTaggedData& Other) const
 TArray<FPCGTaggedData> FPCGDataCollection::GetInputs() const
 {
 	return TaggedData.FilterByPredicate([](const FPCGTaggedData& Data) {
-		return Data.Usage == EPCGDataUsage::Input;
+		return Cast<UPCGSpatialData>(Data.Data) != nullptr;
 		});
 }
 
 TArray<FPCGTaggedData> FPCGDataCollection::GetTaggedInputs(const FString& InTag) const
 {
 	return TaggedData.FilterByPredicate([&InTag](const FPCGTaggedData& Data) {
-		return Data.Usage == EPCGDataUsage::Input && Data.Tags.Contains(InTag);
-		});
-}
-
-TArray<FPCGTaggedData> FPCGDataCollection::GetExclusions() const
-{
-	return TaggedData.FilterByPredicate([](const FPCGTaggedData& Data) {
-		return Data.Usage == EPCGDataUsage::Exclusion;
+		return Data.Tags.Contains(InTag) && Cast<UPCGSpatialData>(Data.Data);
 		});
 }
 
 TArray<FPCGTaggedData> FPCGDataCollection::GetAllSettings() const
 {
 	return TaggedData.FilterByPredicate([](const FPCGTaggedData& Data) {
-		return Data.Usage == EPCGDataUsage::Settings;
+		return Cast<UPCGSettings>(Data.Data) != nullptr;
 		});
 }
 
-UPCGParams* FPCGDataCollection::GetParams() const
+TArray<FPCGTaggedData> FPCGDataCollection::GetAllParams() const
+{
+	return TaggedData.FilterByPredicate([](const FPCGTaggedData& Data) {
+		return Cast<UPCGParamData>(Data.Data) != nullptr;
+	});
+}
+
+TArray<FPCGTaggedData> FPCGDataCollection::GetTaggedParams(const FString& InTag) const
+{
+	return TaggedData.FilterByPredicate([&InTag](const FPCGTaggedData& Data) {
+		return Data.Tags.Contains(InTag) && Cast<UPCGParamData>(Data.Data) != nullptr;
+		});
+}
+
+UPCGParamData* FPCGDataCollection::GetParams() const
 {
 	for (const FPCGTaggedData& TaggedDatum : TaggedData)
 	{
-		if (UPCGParams* Params = Cast<UPCGParams>(TaggedDatum.Data))
+		if (UPCGParamData* Params = Cast<UPCGParamData>(TaggedDatum.Data))
 		{
 			return Params; 
 		}
@@ -67,7 +74,7 @@ const UPCGSettings* FPCGDataCollection::GetSettings(const UPCGSettings* InDefaul
 	else
 	{
 		const FPCGTaggedData* MatchingData = TaggedData.FindByPredicate([InDefaultSettings](const FPCGTaggedData& Data) {
-			return Data.Usage == EPCGDataUsage::Settings &&
+			return Data.Data && 
 				(Data.Data->GetClass() == InDefaultSettings->GetClass() ||
 					Data.Data->GetClass()->IsChildOf(InDefaultSettings->GetClass()));
 			});
@@ -119,9 +126,14 @@ TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetTaggedInputs(const FPCGDataCo
 	return InCollection.GetTaggedInputs(InTag);
 }
 
-TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetExclusions(const FPCGDataCollection& InCollection)
+TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetParams(const FPCGDataCollection& InCollection)
 {
-	return InCollection.GetExclusions();
+	return InCollection.GetAllParams();
+}
+
+TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetTaggedParams(const FPCGDataCollection& InCollection, const FString& InTag)
+{
+	return InCollection.GetTaggedParams(InTag);
 }
 
 TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetAllSettings(const FPCGDataCollection& InCollection)

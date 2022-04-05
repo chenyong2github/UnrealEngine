@@ -17,7 +17,7 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	UPCGParams* Params = Context->InputData.GetParams();
+	UPCGParamData* Params = Context->InputData.GetParams();
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
@@ -65,7 +65,6 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	// Pass-through exclusions/settings
-	Outputs.Append(Context->InputData.GetExclusions());
 	Outputs.Append(Context->InputData.GetAllSettings());
 
 	return true;

@@ -272,7 +272,7 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 		}
 
 		/** Apply params overrides to variables if any */
-		if (UPCGParams* Params = Context->InputData.GetParams())
+		if (UPCGParamData* Params = Context->InputData.GetParams())
 		{
 			UClass* BPClass = Context->BlueprintElementInstance->GetClass();
 

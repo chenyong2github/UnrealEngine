@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "PCGParams.h"
+#include "PCGParamData.h"
 #include "Metadata/PCGMetadataAttributeTraits.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
 namespace PCGSettingsHelpers
 {
 	template<typename T, typename TEnableIf<!TIsEnumClass<T>::Value>::Type* = nullptr>
-	T GetValue(const FName& InName, const T& InValue, UPCGParams* InParams, PCGMetadataEntryKey InKey)
+	T GetValue(const FName& InName, const T& InValue, UPCGParamData* InParams, PCGMetadataEntryKey InKey)
 	{
 		if (InParams)
 		{
@@ -30,13 +30,13 @@ namespace PCGSettingsHelpers
 	}
 
 	template<typename T, typename TEnableIf<!TIsEnumClass<T>::Value>::Type* = nullptr>
-	T GetValue(const FName& InName, const T& InValue, UPCGParams* InParams)
+	T GetValue(const FName& InName, const T& InValue, UPCGParamData* InParams)
 	{
 		return GetValue(InName, InValue, InParams, 0);
 	}
 
 	template<typename T, typename TEnableIf<!TIsEnumClass<T>::Value>::Type* = nullptr>
-	T GetValue(const FName& InName, const T& InValue, UPCGParams* InParams, const FName& InParamName)
+	T GetValue(const FName& InName, const T& InValue, UPCGParamData* InParams, const FName& InParamName)
 	{
 		if (InParams && InParamName != NAME_None)
 		{
@@ -50,42 +50,42 @@ namespace PCGSettingsHelpers
 
 	/** Specialized versions for enums */
 	template<typename T, typename TEnableIf<TIsEnumClass<T>::Value>::Type* = nullptr>
-	T GetValue(const FName& InName, const T& InValue, UPCGParams* InParams, PCGMetadataEntryKey InKey)
+	T GetValue(const FName& InName, const T& InValue, UPCGParamData* InParams, PCGMetadataEntryKey InKey)
 	{
 		return static_cast<T>(GetValue(InName, static_cast<__underlying_type(T)>(InValue), InParams, InKey));
 	}
 
 	template<typename T, typename TEnableIf<TIsEnumClass<T>::Value>::Type* = nullptr>
-	T GetValue(const FName& InName, const T& InValue, UPCGParams* InParams)
+	T GetValue(const FName& InName, const T& InValue, UPCGParamData* InParams)
 	{
 		return static_cast<T>(GetValue(InName, static_cast<__underlying_type(T)>(InValue), InParams));
 	}
 
 	template<typename T, typename TEnableIf<TIsEnumClass<T>::Value>::Type* = nullptr>
-	T GetValue(const FName& InName, const T& InValue, UPCGParams* InParams, const FName& InParamName)
+	T GetValue(const FName& InName, const T& InValue, UPCGParamData* InParams, const FName& InParamName)
 	{
 		return static_cast<T>(GetValue(InName, static_cast<__underlying_type(T)>(InValue), InParams, InParamName));
 	}
 
 	/** Specialized version for names */
 	template<>
-	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, UPCGParams* InParams, PCGMetadataEntryKey InKey)
+	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, UPCGParamData* InParams, PCGMetadataEntryKey InKey)
 	{
 		return FName(GetValue(InName, InValue.ToString(), InParams, InKey));
 	}
 
 	template<>
-	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, UPCGParams* InParams)
+	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, UPCGParamData* InParams)
 	{
 		return FName(GetValue(InName, InValue.ToString(), InParams));
 	}
 
 	template<>
-	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, UPCGParams* InParams, const FName& InParamName)
+	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, UPCGParamData* InParams, const FName& InParamName)
 	{
 		return FName(GetValue(InName, InValue.ToString(), InParams, InParamName));
 	}
 
 	/** Sets data from the params to a given property, matched on a name basis */
-	void SetValue(UPCGParams* Params, UObject* Object, FProperty* Property);
+	void SetValue(UPCGParamData* Params, UObject* Object, FProperty* Property);
 }

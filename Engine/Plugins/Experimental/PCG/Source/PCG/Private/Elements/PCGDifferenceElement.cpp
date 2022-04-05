@@ -16,8 +16,7 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	TArray<FPCGTaggedData> Exclusions = Context->InputData.GetExclusions();
-	UPCGParams* Params = Context->InputData.GetParams();
+	UPCGParamData* Params = Context->InputData.GetParams();
 
 	const EPCGDifferenceDensityFunction DensityFunction = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDifferenceSettings, DensityFunction), Settings->DensityFunction, Params);
 #if WITH_EDITORONLY_DATA
@@ -73,18 +72,6 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 		}
 
 		AddToDifference(SpatialData);
-	}
-
-	// Can't have a difference if we don't have an input
-	if (FirstSpatialData)
-	{
-		for (FPCGTaggedData& Exclusion : Exclusions)
-		{
-			if (const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Exclusion.Data))
-			{
-				AddToDifference(SpatialData);
-			}
-		}
 	}
 
 	// Finally, pass-through settings

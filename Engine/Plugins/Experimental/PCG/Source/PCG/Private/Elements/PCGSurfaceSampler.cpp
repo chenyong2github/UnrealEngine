@@ -36,7 +36,7 @@ struct FPCGSurfaceSamplerLoopData
 
 	bool Initialize(const UPCGSurfaceSamplerSettings* InSettings, FPCGContext* Context, const FBox& InputBounds)
 	{
-		UPCGParams* Params = Context->InputData.GetParams();
+		UPCGParamData* Params = Context->InputData.GetParams();
 		Settings = InSettings;
 
 		// Compute used values
@@ -122,7 +122,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	UPCGParams* Params = Context->InputData.GetParams();
+	UPCGParamData* Params = Context->InputData.GetParams();
 
 	// Early out on invalid settings
 	// TODO: we could compute an approximate radius based on the points per squared meters if that's useful
@@ -217,7 +217,6 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	// Finally, forward any exclusions/settings
-	Outputs.Append(Context->InputData.GetExclusions());
 	Outputs.Append(Context->InputData.GetAllSettings());
 
 	return true;
