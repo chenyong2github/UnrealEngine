@@ -549,7 +549,7 @@ public:
 		eSubAllocation,
 		eFastAllocation,
 		eMultiFrameFastAllocation,
-		eAliased, // Oculus is the only API that uses this
+		eAliased, // XR HMDs are the only use cases
 		eNodeReference,
 		eHeapAliased, 
 	};
@@ -649,11 +649,16 @@ public:
 		SetGPUVirtualAddress(GPUBase + Offset);
 	}
 
-	// Oculus API Aliases textures so this allows 2+ resource locations to reference the same underlying
+	// XR plugins alias textures so this allows 2+ resource locations to reference the same underlying
 	// resource. We should avoid this as much as possible as it requires expensive reference counting and
 	// it complicates the resource ownership model.
 	static void Alias(FD3D12ResourceLocation& Destination, FD3D12ResourceLocation& Source);
 	static void ReferenceNode(FD3D12Device* NodeDevice, FD3D12ResourceLocation& Destination, FD3D12ResourceLocation& Source);
+	bool IsAliased() const
+	{
+		return (Type == ResourceLocationType::eAliased) 
+			|| (Type == ResourceLocationType::eHeapAliased);
+	}
 
 	void SetTransient(bool bInTransient)
 	{
