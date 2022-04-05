@@ -40,6 +40,8 @@
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::PoseSearch::IPoseHistoryProvider);
 
+#define LOCTEXT_NAMESPACE "PoseSearch"
+
 DEFINE_LOG_CATEGORY(LogPoseSearch);
 
 namespace UE { namespace PoseSearch {
@@ -1815,28 +1817,34 @@ void FPoseSearchFeatureVectorBuilder::ResetFeatures()
 	FeaturesAdded.Init(false, Schema->Layout.Features.Num());
 }
 
-void FPoseSearchFeatureVectorBuilder::SetTransform(FPoseSearchFeatureDesc Element, const FTransform& Transform)
+void FPoseSearchFeatureVectorBuilder::SetTransform(FPoseSearchFeatureDesc Feature, const FTransform& Transform)
 {
-	SetPosition(Element, Transform.GetTranslation());
-	SetRotation(Element, Transform.GetRotation());
+	SetPosition(Feature, Transform.GetTranslation());
+	SetRotation(Feature, Transform.GetRotation());
 }
 
-void FPoseSearchFeatureVectorBuilder::SetTransformVelocity(FPoseSearchFeatureDesc Element, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
+void FPoseSearchFeatureVectorBuilder::SetTransformVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
 {
-	SetLinearVelocity(Element, Transform, PrevTransform, DeltaTime);
-	SetAngularVelocity(Element, Transform, PrevTransform, DeltaTime);
+	SetLinearVelocity(Feature, Transform, PrevTransform, DeltaTime);
+	SetAngularVelocity(Feature, Transform, PrevTransform, DeltaTime);
 }
 
-void FPoseSearchFeatureVectorBuilder::SetPosition(FPoseSearchFeatureDesc Element, const FVector& Position)
+void FPoseSearchFeatureVectorBuilder::SetTransformVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
 {
-	Element.Type = EPoseSearchFeatureType::Position;
-	SetVector(Element, Position);
+	SetLinearVelocity(Feature, NextTransform, Transform, PrevTransform, DeltaTime);
+	SetAngularVelocity(Feature, NextTransform, Transform, PrevTransform, DeltaTime);
 }
 
-void FPoseSearchFeatureVectorBuilder::SetRotation(FPoseSearchFeatureDesc Element, const FQuat& Rotation)
+void FPoseSearchFeatureVectorBuilder::SetPosition(FPoseSearchFeatureDesc Feature, const FVector& Position)
 {
-	Element.Type = EPoseSearchFeatureType::Rotation;
-	int32 ElementIndex = Schema->Layout.Features.Find(Element);
+	Feature.Type = EPoseSearchFeatureType::Position;
+	SetVector(Feature, Position);
+}
+
+void FPoseSearchFeatureVectorBuilder::SetRotation(FPoseSearchFeatureDesc Feature, const FQuat& Rotation)
+{
+	Feature.Type = EPoseSearchFeatureType::Rotation;
+	int32 ElementIndex = Schema->Layout.Features.Find(Feature);
 	if (ElementIndex >= 0)
 	{
 		FVector X = Rotation.GetAxisX();
@@ -1858,56 +1866,64 @@ void FPoseSearchFeatureVectorBuilder::SetRotation(FPoseSearchFeatureDesc Element
 		}
 	}
 
-	Element.Type = EPoseSearchFeatureType::ForwardVector;
-	SetVector(Element, Rotation.GetAxisY());
+	Feature.Type = EPoseSearchFeatureType::ForwardVector;
+	SetVector(Feature, Rotation.GetAxisY());
 }
 
-void FPoseSearchFeatureVectorBuilder::SetLinearVelocity(FPoseSearchFeatureDesc Element, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
+void FPoseSearchFeatureVectorBuilder::SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
 {
-	Element.Type = EPoseSearchFeatureType::LinearVelocity;
+	Feature.Type = EPoseSearchFeatureType::LinearVelocity;
 	FVector LinearVelocity = (Transform.GetTranslation() - PrevTransform.GetTranslation()) / DeltaTime;
-	SetVector(Element, LinearVelocity);
+	SetVector(Feature, LinearVelocity);
 }
 
-void FPoseSearchFeatureVectorBuilder::SetAngularVelocity(FPoseSearchFeatureDesc Element, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
+void FPoseSearchFeatureVectorBuilder::SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
 {
-	Element.Type = EPoseSearchFeatureType::AngularVelocity;
-	int32 ElementIndex = Schema->Layout.Features.Find(Element);
-	if (ElementIndex >= 0)
-	{
-		FQuat Q0 = PrevTransform.GetRotation();
-		FQuat Q1 = Transform.GetRotation();
-		Q1.EnforceShortestArcWith(Q0);
-
-		// Given angular velocity vector w, quaternion differentiation can be represented as
-		//   dq/dt = (w * q)/2
-		// Solve for w
-		//   w = 2 * dq/dt * q^-1
-		// And let dq/dt be expressed as the finite difference
-		//   dq/dt = (q(t+h) - q(t)) / h
-		FQuat DQDt = (Q1 - Q0) / DeltaTime;
-		FQuat QInv = Q0.Inverse();
-		FQuat W = (DQDt * QInv) * 2.0f;
-
-		FVector AngularVelocity(W.X, W.Y, W.Z);
-
-		const FPoseSearchFeatureDesc& FoundElement = Schema->Layout.Features[ElementIndex];
-
-		Values[FoundElement.ValueOffset + 0] = AngularVelocity[0];
-		Values[FoundElement.ValueOffset + 1] = AngularVelocity[1];
-		Values[FoundElement.ValueOffset + 2] = AngularVelocity[2];
-
-		if (!FeaturesAdded[ElementIndex])
-		{
-			FeaturesAdded[ElementIndex] = true;
-			++NumFeaturesAdded;
-		}
-	}
+	Feature.Type = EPoseSearchFeatureType::LinearVelocity;
+	FVector LinearVelocityNext = (NextTransform.GetTranslation() - Transform.GetTranslation()) / DeltaTime;
+	FVector LinearVelocityPrev = (Transform.GetTranslation() - PrevTransform.GetTranslation()) / DeltaTime;
+	SetVector(Feature, (LinearVelocityNext + LinearVelocityPrev) / 2.0f);
 }
 
-void FPoseSearchFeatureVectorBuilder::SetVector(FPoseSearchFeatureDesc Element, const FVector& Vector)
+static inline FVector QuaternionAngularVelocity(const FQuat& Rotation, const FQuat& PrevRotation, float DeltaTime)
 {
-	int32 ElementIndex = Schema->Layout.Features.Find(Element);
+	FQuat Q0 = PrevRotation;
+	FQuat Q1 = Rotation;
+	Q1.EnforceShortestArcWith(Q0);
+
+	// Given angular velocity vector w, quaternion differentiation can be represented as
+	//   dq/dt = (w * q)/2
+	// Solve for w
+	//   w = 2 * dq/dt * q^-1
+	// And let dq/dt be expressed as the finite difference
+	//   dq/dt = (q(t+h) - q(t)) / h
+	FQuat DQDt = (Q1 - Q0) / DeltaTime;
+	FQuat QInv = Q0.Inverse();
+	FQuat W = (DQDt * QInv) * 2.0f;
+
+	FVector AngularVelocity(W.X, W.Y, W.Z);
+
+	return AngularVelocity;
+}
+
+void FPoseSearchFeatureVectorBuilder::SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
+{
+	Feature.Type = EPoseSearchFeatureType::AngularVelocity;
+	FVector AngularVelocity = QuaternionAngularVelocity(Transform.GetRotation(), PrevTransform.GetRotation(), DeltaTime);
+	SetVector(Feature, AngularVelocity);
+}
+
+void FPoseSearchFeatureVectorBuilder::SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
+{
+	Feature.Type = EPoseSearchFeatureType::AngularVelocity;
+	FVector AngularVelocityNext = QuaternionAngularVelocity(NextTransform.GetRotation(), Transform.GetRotation(), DeltaTime);
+	FVector AngularVelocityPrev = QuaternionAngularVelocity(Transform.GetRotation(), PrevTransform.GetRotation(), DeltaTime);
+	SetVector(Feature, (AngularVelocityNext + AngularVelocityPrev) / 2.0f);
+}
+
+void FPoseSearchFeatureVectorBuilder::SetVector(FPoseSearchFeatureDesc Feature, const FVector& Vector)
+{
+	int32 ElementIndex = Schema->Layout.Features.Find(Feature);
 	if (ElementIndex >= 0)
 	{
 		const FPoseSearchFeatureDesc& FoundElement = Schema->Layout.Features[ElementIndex];
@@ -1951,6 +1967,8 @@ bool FPoseSearchFeatureVectorBuilder::TrySetPoseFeatures(UE::PoseSearch::FPoseHi
 
 		TArrayView<const FTransform> ComponentPose = History->GetComponentPoseSample();
 		TArrayView<const FTransform> ComponentPrevPose = History->GetPrevComponentPoseSample();
+		FTransform RootTransform = History->GetRootTransformSample();
+		FTransform RootTransformPrev = History->GetPrevRootTransformSample();
 		for (int32 SchemaBoneIdx = 0; SchemaBoneIdx != Schema->BoneIndices.Num(); ++SchemaBoneIdx)
 		{
 			Feature.SchemaBoneIdx = SchemaBoneIdx;
@@ -1958,7 +1976,7 @@ bool FPoseSearchFeatureVectorBuilder::TrySetPoseFeatures(UE::PoseSearch::FPoseHi
 			int32 SkeletonBoneIndex = Schema->BoneIndices[SchemaBoneIdx];
 
 			const FTransform& Transform = ComponentPose[SkeletonBoneIndex];
-			const FTransform& PrevTransform = ComponentPrevPose[SkeletonBoneIndex];
+			const FTransform& PrevTransform = ComponentPrevPose[SkeletonBoneIndex] * (RootTransformPrev * RootTransform.Inverse());
 			SetTransform(Feature, Transform);
 			SetTransformVelocity(Feature, Transform, PrevTransform, History->GetSampleTimeInterval());
 		}
@@ -2130,7 +2148,7 @@ void FPoseHistory::Init(const FPoseHistory& History)
 	TimeHorizon = History.TimeHorizon;
 }
 
-bool FPoseHistory::TrySampleLocalPose(float SecondsAgo, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose)
+bool FPoseHistory::TrySampleLocalPose(float SecondsAgo, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose, FTransform& RootTransform)
 {
 	int32 NextIdx = LowerBound(Knots.begin(), Knots.end(), SecondsAgo, TGreater<>());
 	if (NextIdx <= 0 || NextIdx >= Knots.Num())
@@ -2168,16 +2186,18 @@ bool FPoseHistory::TrySampleLocalPose(float SecondsAgo, const TArray<FBoneIndexT
 		Alpha,
 		RequiredBones);
 
+	RootTransform.Blend(PrevPose.RootTransform, NextPose.RootTransform, Alpha);
+
 	return true;
 }
 
 bool FPoseHistory::TrySamplePose(float SecondsAgo, const FReferenceSkeleton& RefSkeleton, const TArray<FBoneIndexType>& RequiredBones)
 {
 	// Compute local space pose at requested time
-	bool bSampled = TrySampleLocalPose(SecondsAgo, RequiredBones, SampledLocalPose);
+	bool bSampled = TrySampleLocalPose(SecondsAgo, RequiredBones, SampledLocalPose, SampledRootTransform);
 
 	// Compute local space pose one sample interval in the past
-	bSampled = bSampled && TrySampleLocalPose(SecondsAgo + GetSampleTimeInterval(), RequiredBones, SampledPrevLocalPose);
+	bSampled = bSampled && TrySampleLocalPose(SecondsAgo + GetSampleTimeInterval(), RequiredBones, SampledPrevLocalPose, SampledPrevRootTransform);
 
 	// Convert local to component space
 	if (bSampled)
@@ -2189,7 +2209,7 @@ bool FPoseHistory::TrySamplePose(float SecondsAgo, const FReferenceSkeleton& Ref
 	return bSampled;
 }
 
-void FPoseHistory::Update(float SecondsElapsed, const FPoseContext& PoseContext)
+bool FPoseHistory::Update(float SecondsElapsed, const FPoseContext& PoseContext, FTransform ComponentTransform, FText* OutError, EPoseHistoryRootUpdateMode UpdateMode)
 {
 	// Age our elapsed times
 	for (float& Knot : Knots)
@@ -2230,6 +2250,58 @@ void FPoseHistory::Update(float SecondsElapsed, const FPoseContext& PoseContext)
 	Knots.Last() = 0.0f;
 	FPose& CurrentPose = Poses.Last();
 	CopyCompactToSkeletonPose(PoseContext.Pose, CurrentPose.LocalTransforms);
+
+	// Initialize with Previous Root Transform or Identity
+	CurrentPose.RootTransform = Poses.Num() > 1 ? Poses[Poses.Num() - 2].RootTransform : FTransform::Identity;
+	
+	// Update using either AniumRootMotionProvider or Component Transform
+	if (UpdateMode == EPoseHistoryRootUpdateMode::RootMotionDelta)
+	{
+		const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
+
+		if (RootMotionProvider)
+		{
+			if (RootMotionProvider->HasRootMotion(PoseContext.CustomAttributes))
+			{
+				FTransform RootMotionDelta = FTransform::Identity;
+				RootMotionProvider->ExtractRootMotion(PoseContext.CustomAttributes, RootMotionDelta);
+
+				CurrentPose.RootTransform = RootMotionDelta * CurrentPose.RootTransform;
+			}
+#if WITH_EDITORONLY_DATA	
+			else
+			{
+				if (OutError)
+				{
+					*OutError = LOCTEXT("PoseHistoryRootMotionProviderError",
+						"Input to Pose History has no Root Motion Attribute. Try disabling 'Use Root Motion'.");
+				}
+				return false;
+			}
+#endif
+		}
+#if WITH_EDITORONLY_DATA	
+		else
+		{
+			if (OutError)
+			{
+				*OutError = LOCTEXT("PoseHistoryRootMotionAttributeError",
+					"Could not get Root Motion Provider. Try disabling 'Use Root Motion'.");
+			}
+			return false;
+		}
+#endif
+	}
+	else if (UpdateMode == EPoseHistoryRootUpdateMode::ComponentTransformDelta)
+	{
+		CurrentPose.RootTransform = ComponentTransform;
+	}
+	else
+	{
+		checkNoEntry();
+	}
+
+	return true;
 }
 
 float FPoseHistory::GetSampleTimeInterval() const
@@ -2865,7 +2937,7 @@ void FSequenceSampler::ProcessRootDistance()
 	// Build a distance lookup table by sampling root motion at a fixed rate and accumulating
 	// absolute translation deltas. During indexing we'll bsearch this table and interpolate
 	// between samples in order to convert distance offsets to time offsets.
-	// See also FSequenceIndexer::AddTrajectoryDistanceFeatures().
+	// See also FIndexer::AddTrajectoryDistanceFeatures().
 
 	double TotalAccumulatedRootDistance = 0.0;
 	FTransform LastRootTransform = InitialRootTransform;
@@ -2886,7 +2958,7 @@ void FSequenceSampler::ProcessRootDistance()
 	check(SampleTime == Input.Sequence->GetPlayLength());
 
 	// Also emit root motion summary info to help with sample wrapping in 
-	// FSequenceIndexer::GetSampleTimeFromDistance() and FSequenceIndexer::GetSampleInfo()
+	// FIndexer::GetSampleTimeFromDistance() and FIndexer::GetSampleInfo()
 	TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
 	TotalRootDistance = AccumulatedRootDistance.Last();
 }
@@ -3298,7 +3370,7 @@ void FBlendSpaceSampler::ProcessRootDistance()
 	// Build a distance lookup table by sampling root motion at a fixed rate and accumulating
 	// absolute translation deltas. During indexing we'll bsearch this table and interpolate
 	// between samples in order to convert distance offsets to time offsets.
-	// See also FSequenceIndexer::AddTrajectoryDistanceFeatures().
+	// See also FIndexer::AddTrajectoryDistanceFeatures().
 	double TotalAccumulatedRootDistance = 0.0;
 	FTransform LastRootTransform = InitialRootTransform;
 	float SampleTime = 0.0f;
@@ -3318,7 +3390,7 @@ void FBlendSpaceSampler::ProcessRootDistance()
 	check(SampleTime == PlayLength);
 
 	// Also emit root motion summary info to help with sample wrapping in 
-	// FSequenceIndexer::GetSampleTimeFromDistance() and FSequenceIndexer::GetSampleInfo()
+	// FIndexer::GetSampleTimeFromDistance() and FIndexer::GetSampleInfo()
 	TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
 	TotalRootDistance = AccumulatedRootDistance.Last();
 }
@@ -3330,7 +3402,6 @@ struct FSamplingParam
 {
 	float WrappedParam = 0.0f;
 	int32 NumCycles = 0;
-	bool bClamped = false;
 	
 	// If the animation can't loop, WrappedParam contains the clamped value and whatever is left is stored here
 	float Extrapolation = 0.0f;
@@ -3376,7 +3447,6 @@ static FSamplingParam WrapOrClampSamplingParam(bool bCanWrap, float SamplingPara
 		check(!bCanWrap);
 		Result.Extrapolation = Result.WrappedParam - ParamClamped;
 		Result.WrappedParam = ParamClamped;
-		Result.bClamped = true;
 	}
 	
 	return Result;
@@ -3425,6 +3495,7 @@ private:
 		FTransform RootTransform;
 		float ClipTime = 0.0f;
 		float RootDistance = 0.0f;
+		bool bClamped = false;
 
 		bool IsValid() const { return Clip != nullptr; }
 	};
@@ -3692,6 +3763,7 @@ FIndexer::FSampleInfo FIndexer::GetSampleInfo(float SampleTime) const
 
 	if (FMath::Abs(SamplingParam.Extrapolation) > SMALL_NUMBER)
 	{
+		Sample.bClamped = true;
 		Sample.ClipTime = SamplingParam.WrappedParam + SamplingParam.Extrapolation;
 		const FTransform ClipRootMotion = Sample.Clip->ExtractRootTransform(Sample.ClipTime);
 		const float ClipDistance = Sample.Clip->ExtractRootDistance(Sample.ClipTime);
@@ -3858,8 +3930,23 @@ void FIndexer::AddPoseFeatures(int32 SampleIdx)
 
 			// Add properties to the feature vector for the pose at SampleIdx
 			FeatureVector.SetTransform(Feature, BoneTransforms[1]);
-			FeatureVector.SetTransformVelocity(Feature, BoneTransforms[2], BoneTransforms[0], 2.0f * Input.SamplingContext->FiniteDelta);
-			//FeatureVector.SetTransformAccleration(Feature, BoneTransforms[2], BoneTransforms[1], BoneTransforms[0], FMath::Square(Input.SamplingContext->FiniteDelta));
+
+			// We can get a better finite difference if we ignore samples that have
+			// been clamped at either side of the clip. However, if the central sample 
+			// itself is clamped, or there are no samples that are clamped, we can just 
+			// use the central difference as normal.
+			if (Samples[0].bClamped && !Samples[1].bClamped && !Samples[2].bClamped)
+			{
+				FeatureVector.SetTransformVelocity(Feature, BoneTransforms[2], BoneTransforms[1], Input.SamplingContext->FiniteDelta);
+			}
+			else if (Samples[2].bClamped && !Samples[1].bClamped && !Samples[0].bClamped)
+			{
+				FeatureVector.SetTransformVelocity(Feature, BoneTransforms[1], BoneTransforms[0], Input.SamplingContext->FiniteDelta);
+			}
+			else
+			{
+				FeatureVector.SetTransformVelocity(Feature, BoneTransforms[2], BoneTransforms[1], BoneTransforms[0], Input.SamplingContext->FiniteDelta);
+			}
 		}
 	}
 }
@@ -3901,8 +3988,23 @@ void FIndexer::AddTrajectoryTimeFeatures(int32 SampleIdx)
 
 		// Add properties to the feature vector for the pose at SampleIdx
 		FeatureVector.SetTransform(Feature, MirroredRoots[1]);
-		FeatureVector.SetTransformVelocity(Feature, MirroredRoots[2], MirroredRoots[0], 2.0f * Input.SamplingContext->FiniteDelta);
-		//FeatureVector.SetTransformAcceleration(Feature, MirroredRoots[2], MirroredRoots[1], MirroredRoots[0], FMath::Square(Input.SamplingContext->FiniteDelta));
+
+		// We can get a better finite difference if we ignore samples that have
+		// been clamped at either side of the clip. However, if the central sample 
+		// itself is clamped, or there are no samples that are clamped, we can just 
+		// use the central difference as normal.
+		if (Samples[0].bClamped && !Samples[1].bClamped && !Samples[2].bClamped)
+		{
+			FeatureVector.SetTransformVelocity(Feature, MirroredRoots[2], MirroredRoots[1], Input.SamplingContext->FiniteDelta);
+		}
+		else if (Samples[2].bClamped && !Samples[1].bClamped && !Samples[0].bClamped)
+		{
+			FeatureVector.SetTransformVelocity(Feature, MirroredRoots[1], MirroredRoots[0], Input.SamplingContext->FiniteDelta);
+		}
+		else
+		{
+			FeatureVector.SetTransformVelocity(Feature, MirroredRoots[2], MirroredRoots[1], MirroredRoots[0], Input.SamplingContext->FiniteDelta);
+		}
 	}
 }
 
@@ -3944,8 +4046,23 @@ void FIndexer::AddTrajectoryDistanceFeatures(int32 SampleIdx)
 
 		// Add properties to the feature vector for the pose at SampleIdx
 		FeatureVector.SetTransform(Feature, MirroredRoots[1]);
-		FeatureVector.SetTransformVelocity(Feature, MirroredRoots[2], MirroredRoots[0], 2.0f * Input.SamplingContext->FiniteDelta);
-		//FeatureVector.SetTransformAcceleration(Feature, MirroredRoots[2], MirroredRoots[1], MirroredRoots[0], FMath::Square(Input.SamplingContext->FiniteDelta));
+
+		// We can get a better finite difference if we ignore samples that have
+		// been clamped at either side of the clip. However, if the central sample 
+		// itself is clamped, or there are no samples that are clamped, we can just 
+		// use the central difference as normal.
+		if (Samples[0].bClamped && !Samples[1].bClamped && !Samples[2].bClamped)
+		{
+			FeatureVector.SetTransformVelocity(Feature, MirroredRoots[2], MirroredRoots[1], Input.SamplingContext->FiniteDelta);
+		}
+		else if (Samples[2].bClamped && !Samples[1].bClamped && !Samples[0].bClamped)
+		{
+			FeatureVector.SetTransformVelocity(Feature, MirroredRoots[1], MirroredRoots[0], Input.SamplingContext->FiniteDelta);
+		}
+		else
+		{
+			FeatureVector.SetTransformVelocity(Feature, MirroredRoots[2], MirroredRoots[1], MirroredRoots[0], Input.SamplingContext->FiniteDelta);
+		}
 	}
 }
 
@@ -4179,6 +4296,14 @@ static void DrawPoseFeatures(const FDebugDrawParams& DrawParams, const FFeatureV
 				else
 				{
 					DrawDebugSphere(DrawParams.World, BonePos, DrawDebugSphereSize, DrawDebugSphereSegments, Color, bPersistent, LifeTime, DepthPriority);
+				}
+
+				if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawBoneNames))
+				{
+					DrawDebugString(
+						DrawParams.World, BonePos + FVector(0.0, 0.0, 10.0),
+						Schema->SampledBones[SchemaBoneIdx].Reference.BoneName.ToString(),
+						nullptr, Color, LifeTime, false, 1.0f);
 				}
 			}
 
@@ -5348,5 +5473,7 @@ void FModule::OnObjectSaved(UObject* SavedObject, FObjectPreSaveContext SaveCont
 #endif // WITH_EDITOR
 
 }} // namespace UE::PoseSearch
+
+#undef LOCTEXT_NAMESPACE
 
 IMPLEMENT_MODULE(UE::PoseSearch::FModule, PoseSearch)

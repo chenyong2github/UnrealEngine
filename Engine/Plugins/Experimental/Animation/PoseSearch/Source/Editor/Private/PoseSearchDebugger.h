@@ -150,6 +150,9 @@ struct FPoseSearchDebuggerFeatureDrawOptions
     bool bDrawTrajectoryFeatures = true;
 
 	UPROPERTY(EditAnywhere, Category = "Draw Options", Meta = (EditCondition = "!bDisable"))
+	bool bDrawBoneNames = true;
+
+	UPROPERTY(EditAnywhere, Category = "Draw Options", Meta = (EditCondition = "!bDisable"))
 	bool bDrawSampleLabels = true;
 
 	UPROPERTY(EditAnywhere, Category = "Draw Options", Meta = (EditCondition = "!bDisable"))

@@ -46,6 +46,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinHiddenByDefault))
 	FMotionMatchingSettings Settings;
 
+	// Reset the motion matching state if we have become relevant to the graph
+	// after not being ticked on the previous frame(s)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
+	bool bResetOnBecomingRelevant = true;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category=Debug, meta = (PinShownByDefault))
 	bool bDebugDraw = false;
@@ -82,6 +87,8 @@ private:
 	// Current Asset Player Node
 	FAnimNode_AssetPlayerBase* CurrentAssetPlayerNode = &SequencePlayerNode;
 
+	// Update Counter for detecting being relevant
+	FGraphTraversalCounter UpdateCounter;
 
 	// FAnimNode_AssetPlayerBase
 protected:

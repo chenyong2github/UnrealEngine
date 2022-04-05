@@ -1573,6 +1573,11 @@ void SDebuggerView::DrawFeatures(
 			InDrawParams.Flags |= EDebugDrawFlags::IncludeTrajectory;
 		}
 
+		if (Options.bDrawBoneNames)
+		{
+			InDrawParams.Flags |= EDebugDrawFlags::DrawBoneNames;
+		}
+
 		if (Options.bDrawSampleLabels)
 		{
 			InDrawParams.Flags |= EDebugDrawFlags::DrawSampleLabels;

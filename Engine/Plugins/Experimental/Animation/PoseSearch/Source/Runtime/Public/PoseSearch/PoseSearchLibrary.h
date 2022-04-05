@@ -82,6 +82,9 @@ struct POSESEARCH_API FMotionMatchingState
 	// Initializes the minimum required motion matching state
 	bool InitNewDatabaseSearch(const UPoseSearchDatabase* Database, float SearchThrottleTime, FText* OutError);
 
+	// Reset the state to a default state using the current Database
+	void Reset();
+
 	// Adds trajectory prediction and history information to ComposedQuery
 	void ComposeQuery(const UPoseSearchDatabase* Database, const FTrajectorySampleRange& Trajectory);
 

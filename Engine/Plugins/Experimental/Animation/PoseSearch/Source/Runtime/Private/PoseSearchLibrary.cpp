@@ -193,16 +193,8 @@ bool FMotionMatchingState::InitNewDatabaseSearch(
 
 	if (bValidDatabase)
 	{
-		DbPoseIdx = INDEX_NONE;
-		SearchIndexAssetIdx = INDEX_NONE;
-		ElapsedPoseJumpTime = SearchThrottleTime;
-		AssetPlayerTime = 0.0f;
 		CurrentDatabase = Database;
-
-		if (!ComposedQuery.IsInitializedForSchema(Database->Schema))
-		{
-			ComposedQuery.Init(Database->Schema);
-		}
+		Reset();
 	}
 
 	if (!bValidDatabase && OutError)
@@ -218,6 +210,23 @@ bool FMotionMatchingState::InitNewDatabaseSearch(
 	}
 
 	return bValidDatabase;
+}
+
+void FMotionMatchingState::Reset()
+{
+	check(CurrentDatabase.IsValid() && CurrentDatabase->IsValidForSearch());
+
+	DbPoseIdx = INDEX_NONE;
+	SearchIndexAssetIdx = INDEX_NONE;
+	AssetPlayerTime = 0.0f;
+	// Set the elapsed time to INFINITY to trigger a search right away
+	ElapsedPoseJumpTime = INFINITY;
+
+	if (!ComposedQuery.IsInitializedForSchema(CurrentDatabase->Schema))
+	{
+		ComposedQuery.Init(CurrentDatabase->Schema);
+	}
+
 }
 
 void FMotionMatchingState::ComposeQuery(const UPoseSearchDatabase* Database, const FTrajectorySampleRange& Trajectory)
@@ -313,14 +322,23 @@ void UpdateMotionMatchingState(
 	}
 	else
 	{
-		// When we don't have an active pose, initialize the search query from the pose history provider
+		bool bPoseHistoryFound = false;
+
+		// When we don't have an active pose in the database, initialize the search query from the pose history provider
 		IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<IPoseHistoryProvider>();
 		if (PoseHistoryProvider)
 		{
 			FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
-			InOutMotionMatchingState.ComposedQuery.TrySetPoseFeatures(
-				&History, 
+
+			bPoseHistoryFound = InOutMotionMatchingState.ComposedQuery.TrySetPoseFeatures(
+				&History,
 				Context.AnimInstanceProxy->GetRequiredBones());
+		}
+
+		// If no pose history provider or no pose found in history, then just reset/zero
+		if (!bPoseHistoryFound)
+		{
+			InOutMotionMatchingState.ComposedQuery.ResetFeatures();
 		}
 	}
 

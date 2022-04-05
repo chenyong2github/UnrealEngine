@@ -854,10 +854,13 @@ public:
 
 	void SetTransform(FPoseSearchFeatureDesc Feature, const FTransform& Transform);
 	void SetTransformVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
+	void SetTransformVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
 	void SetPosition(FPoseSearchFeatureDesc Feature, const FVector& Translation);
 	void SetRotation(FPoseSearchFeatureDesc Feature, const FQuat& Rotation);
 	void SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
+	void SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
 	void SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
+	void SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
 	void SetVector(FPoseSearchFeatureDesc Feature, const FVector& Vector);
 	void BuildFromTrajectory(const FTrajectorySampleRange& Trajectory);
 	bool TrySetPoseFeatures(UE::PoseSearch::FPoseHistory* History, const FBoneContainer& BoneContainer);
@@ -890,6 +893,13 @@ private:
 
 namespace UE { namespace PoseSearch {
 
+UENUM()
+enum class EPoseHistoryRootUpdateMode : int32
+{
+	RootMotionDelta,
+	ComponentTransformDelta,
+};
+
 /** Records poses over time in a ring buffer. FFeatureVectorBuilder uses this to sample from the present or past poses according to the search schema. */
 class POSESEARCH_API FPoseHistory
 {
@@ -898,20 +908,29 @@ public:
 	void Init(const FPoseHistory& History);
 	bool TrySamplePose(float SecondsAgo, const FReferenceSkeleton& RefSkeleton, const TArray<FBoneIndexType>& RequiredBones);
 
-	void Update(float SecondsElapsed, const FPoseContext& PoseContext);
+	bool Update(
+		float SecondsElapsed, 
+		const FPoseContext& PoseContext, 
+		FTransform ComponentTransform, 
+		FText* OutError,
+		EPoseHistoryRootUpdateMode UpdateMode = EPoseHistoryRootUpdateMode::RootMotionDelta);
+
 	float GetSampleTimeInterval() const;
 	TArrayView<const FTransform> GetLocalPoseSample() const { return SampledLocalPose; }
 	TArrayView<const FTransform> GetComponentPoseSample() const { return SampledComponentPose; }
 	TArrayView<const FTransform> GetPrevLocalPoseSample() const { return SampledPrevLocalPose; }
 	TArrayView<const FTransform> GetPrevComponentPoseSample() const { return SampledPrevComponentPose; }
+	const FTransform& GetRootTransformSample() const { return SampledRootTransform; }
+	const FTransform& GetPrevRootTransformSample() const { return SampledPrevRootTransform; }
 	float GetTimeHorizon() const { return TimeHorizon; }
 	FPoseSearchFeatureVectorBuilder& GetQueryBuilder() { return QueryBuilder; }
 
 private:
-	bool TrySampleLocalPose(float Time, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose);
+	bool TrySampleLocalPose(float Time, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose, FTransform& RootTransform);
 
 	struct FPose
 	{
+		FTransform RootTransform;
 		TArray<FTransform> LocalTransforms;
 	};
 
@@ -921,6 +940,9 @@ private:
 	TArray<FTransform> SampledComponentPose;
 	TArray<FTransform> SampledPrevLocalPose;
 	TArray<FTransform> SampledPrevComponentPose;
+	FTransform SampledRootTransform;
+	FTransform SampledPrevRootTransform;
+
 	FPoseSearchFeatureVectorBuilder QueryBuilder;
 
 	float TimeHorizon = 0.0f;
@@ -991,6 +1013,9 @@ enum class EDebugDrawFlags : uint32
 
 	// Fade colors
 	DrawSamplesWithColorGradient = 1 << 5,
+
+	// Draw Bone Names
+	DrawBoneNames = 1 << 6,
 };
 ENUM_CLASS_FLAGS(EDebugDrawFlags);
 
@@ -999,7 +1024,7 @@ struct POSESEARCH_API FDebugDrawParams
 	const UWorld* World = nullptr;
 	const UPoseSearchDatabase* Database = nullptr;
 	const UPoseSearchSequenceMetaData* SequenceMetaData = nullptr;
-	EDebugDrawFlags Flags = EDebugDrawFlags::IncludeAllFeatures;
+	EDebugDrawFlags Flags = EDebugDrawFlags::IncludeAllFeatures | EDebugDrawFlags::DrawBoneNames;
 
 	float DefaultLifeTime = 5.0f;
 	float PointSize = 1.0f;

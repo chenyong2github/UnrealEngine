@@ -62,7 +62,19 @@ void FAnimNode_PoseSearchHistoryCollector::Evaluate_AnyThread(FPoseContext& Outp
 
 	Source.Evaluate(Output);
 
-	PoseHistory.Update(Output.AnimInstanceProxy->GetDeltaSeconds(), Output);
+	FText ErrorText;
+
+	if (!PoseHistory.Update(
+		Output.AnimInstanceProxy->GetDeltaSeconds(),
+		Output,
+		Output.AnimInstanceProxy->GetComponentTransform(),
+		&ErrorText,
+		bUseRootMotion ?
+		UE::PoseSearch::EPoseHistoryRootUpdateMode::RootMotionDelta :
+		UE::PoseSearch::EPoseHistoryRootUpdateMode::ComponentTransformDelta))
+	{
+		Output.LogMessage(EMessageSeverity::Error, ErrorText);
+	}
 }
 
 void FAnimNode_PoseSearchHistoryCollector::Update_AnyThread(const FAnimationUpdateContext& Context)

@@ -23,6 +23,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
 	float PoseDuration = 4.f;
 
+	// If this node should compute velocities using the playing animation root motion, or 
+	// the actual movement of the component in the world. While using root motion can 
+	// be more stable, not all input animations support it, and it may produce bad results 
+	// if the current movement in the world does not match closely the animation data.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
+	bool bUseRootMotion = true;
+
 public:
 	FAnimNode_PoseSearchHistoryCollector() { }
 
