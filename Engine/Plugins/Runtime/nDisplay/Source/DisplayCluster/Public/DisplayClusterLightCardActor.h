@@ -34,7 +34,13 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool ShouldTickIfViewportsOnly() const override { return true; }
 #endif
-
+	
+	/**
+	 * Gets the transform in world space of the light card component
+	 * @param bIgnoreSpinYawPitch - If the light card component's spin, yaw, and pitch should be ignored when computing the transform
+	 */
+	FTransform GetLightCardTransform(bool bIgnoreSpinYawPitch = false) const;
+	
 protected:
 	void UpdateLightCardTransform();
 	void UpdateLightCardMaterialInstance();
@@ -43,10 +49,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
 	float DistanceFromCenter;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation", meta = (UIMin = 0, ClampMin = 0, UIMax = 360, ClampMax = 360))
 	float Longitude;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation", meta = (UIMin = -90, ClampMin = -90, UIMax = 90, ClampMax = 90))
 	float Latitude;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")

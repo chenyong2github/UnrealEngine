@@ -2,9 +2,11 @@
 
 #include "DisplayClusterLightCardEditorViewportClient.h"
 
+#include "DisplayClusterLightCardEditorWidget.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterProjectionStrings.h"
 #include "DisplayClusterRootActor.h"
+#include "DisplayClusterLightCardActor.h"
 #include "Components/DisplayClusterPreviewComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
@@ -52,19 +54,19 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	
 	MeshProjectionRenderer = MakeShared<FDisplayClusterMeshProjectionRenderer>();
 	MeshProjectionRenderer->ActorSelectedDelegate = FDisplayClusterMeshProjectionRenderer::FSelection::CreateRaw(this, &FDisplayClusterLightCardEditorViewportClient::IsLightCardSelected);
+	MeshProjectionRenderer->RenderSimpleElementsDelegate = FDisplayClusterMeshProjectionRenderer::FSimpleElementPass::CreateRaw(this, &FDisplayClusterLightCardEditorViewportClient::Draw);
 
 	bDraggingActor = false;
+	DragWidgetOffset = FVector::ZeroVector;
 	ScopedTransaction = nullptr;
 	
+	EditorWidget = MakeShared<FDisplayClusterLightCardEditorWidget>();
+
 	// Setup defaults for the common draw helper.
-	DrawHelper.bDrawPivot = false;
-	DrawHelper.bDrawWorldBox = false;
-	DrawHelper.bDrawKillZ = false;
-	DrawHelper.bDrawGrid = false;
-	DrawHelper.PerspectiveGridSize = HALF_WORLD_MAX1;
+	bUsesDrawHelper = false;
 
 	EngineShowFlags.SetSelectionOutline(true);
-
+	 
 	check(Widget);
 	Widget->SetSnapEnabled(true);
 	
@@ -117,6 +119,8 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 		SetViewRotation(FVector::UpVector.Rotation());
 	}
 
+	CachedEditorWidgetTransform = CalcEditorWidgetTransform();
+
 	// Tick the preview scene world.
 	if (!GIntraFrameDebuggingGameThread)
 	{
@@ -150,6 +154,16 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 				}
 			}
 		}
+	}
+
+	// EditorViewportClient sets the cursor settings based on the state of the built in FWidget, which isn't being used here, so
+	// force a software cursor if we are dragging an actor so that the correct mouse cursor shows up
+	if (bDraggingActor)
+	{
+		SetRequiredCursor(false, true);
+		SetRequiredCursorOverride(true, EMouseCursor::CardinalCross);
+
+		ApplyRequiredCursorVisibility(true);
 	}
 }
 
@@ -311,14 +325,13 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 	Viewport = ViewportBackup;
 }
 
-UE::Widget::EWidgetMode FDisplayClusterLightCardEditorViewportClient::GetWidgetMode() const
+void FDisplayClusterLightCardEditorViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
-	return UE::Widget::WM_None;
-}
-
-FVector FDisplayClusterLightCardEditorViewportClient::GetWidgetLocation() const
-{
-	return FEditorViewportClient::GetWidgetLocation();
+	if (SelectedLightCards.Num())
+	{
+		EditorWidget->SetTransform(CachedEditorWidgetTransform);
+		EditorWidget->Draw(View, PDI);
+	}
 }
 
 FSceneView* FDisplayClusterLightCardEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, const int32 StereoViewIndex)
@@ -367,12 +380,27 @@ bool FDisplayClusterLightCardEditorViewportClient::InputKey(FViewport* InViewpor
 	return FEditorViewportClient::InputKey(InViewport, ControllerId, Key, Event, AmountDepressed, bGamepad);
 }
 
-bool FDisplayClusterLightCardEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisList::Type CurrentAxis, FVector& Drag,
-                                                    FRotator& Rot, FVector& Scale)
+bool FDisplayClusterLightCardEditorViewportClient::InputWidgetDelta(FViewport* InViewport,
+	EAxisList::Type CurrentAxis,
+	FVector& Drag,
+	FRotator& Rot,
+	FVector& Scale)
 {
-	// TODO: Add logic for moving a light card in "2D" space, modifying its long and lat, and making sure it is flush with the nearest screen
+	bool bHandled = false;
+	if (FEditorViewportClient::InputWidgetDelta(InViewport, CurrentAxis, Drag, Rot, Scale))
+	{
+		bHandled = true;
+	}
+	else
+	{
+		if (CurrentAxis != EAxisList::Type::None && SelectedLightCards.Num())
+		{
+			MoveSelectedLightCards(InViewport, CurrentAxis);
+			bHandled = true;
+		}
+	}
 
-	return FEditorViewportClient::InputWidgetDelta(InViewport, CurrentAxis, Drag, Rot, Scale);
+	return bHandled;
 }
 
 void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(const FInputEventState& InInputState, bool bIsDraggingWidget,
@@ -388,15 +416,35 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(const FInputE
 			GUnrealEd->SetPivotMovedIndependently(false);
 		}
 
-		BeginTransaction(NSLOCTEXT("LogicDriverPreview", "ModifyPreviewActor", "Modify a Preview Actor"));
+		BeginTransaction(LOCTEXT("MoveLightCard", "Move Light Card"));
 		bDraggingActor = true;
+
+		// Compute and store the delta between the widget's origin and the place the user clicked on it,
+		// in order to factor it out when transforming the selected actor
+		FIntPoint MousePos;
+		InInputState.GetViewport()->GetMousePos(MousePos);
+
+		FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+			InInputState.GetViewport(),
+			GetScene(),
+			EngineShowFlags)
+			.SetRealtimeUpdate(IsRealtime()));
+		FSceneView* View = CalcSceneView(&ViewFamily);
+
+		FVector Origin;
+		FVector Direction;
+		PixelToWorld(*View, MousePos, Origin, Direction);
+
+		DragWidgetOffset = Direction - (CachedEditorWidgetTransform.GetTranslation() - Origin).GetSafeNormal();
 	}
+
 	FEditorViewportClient::TrackingStarted(InInputState, bIsDraggingWidget, bNudge);
 }
 
 void FDisplayClusterLightCardEditorViewportClient::TrackingStopped()
 {
 	bDraggingActor = false;
+	DragWidgetOffset = FVector::ZeroVector;
 	EndTransaction();
 
 	if (SelectedLightCards.Num())
@@ -425,13 +473,13 @@ void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View
 			{
 				if (ActorHitProxy->PrimComponent && ActorHitProxy->PrimComponent->IsA<UStaticMeshComponent>())
 				{
-					AActor* TracedLightCard = TraceScreenForLightCard(View, HitX, HitY);
+					ADisplayClusterLightCardActor* TracedLightCard = TraceScreenForLightCard(View, HitX, HitY);
 					SelectLightCard(TracedLightCard, bMultiSelect);
 				}
 			}
-			else if (LightCardProxies.Contains(ActorHitProxy->Actor))
+			else if (ActorHitProxy->Actor->IsA<ADisplayClusterLightCardActor>() && LightCardProxies.Contains(ActorHitProxy->Actor))
 			{
-				SelectLightCard(ActorHitProxy->Actor, bMultiSelect);
+				SelectLightCard(Cast<ADisplayClusterLightCardActor>(ActorHitProxy->Actor), bMultiSelect);
 			}
 			else if (!bMultiSelect)
 			{
@@ -462,8 +510,10 @@ EMouseCursor::Type FDisplayClusterLightCardEditorViewportClient::GetCursor(FView
 	{
 		MouseCursor = EMouseCursor::None;
 	}
-	else if( InViewport->IsCursorVisible() && !bWidgetAxisControlledByDrag )
+	else if (InViewport->IsCursorVisible() && !bWidgetAxisControlledByDrag)
 	{
+		EditorWidget->SetHighlightedAxis(EAxisList::Type::None);
+
 		HHitProxy* HitProxy = InViewport->GetHitProxy(X,Y);
 		if (HitProxy)
 		{
@@ -481,9 +531,9 @@ EMouseCursor::Type FDisplayClusterLightCardEditorViewportClient::GetCursor(FView
 							GetScene(),
 							EngineShowFlags)
 							.SetRealtimeUpdate(IsRealtime()));
-						FSceneView* View = CalcSceneView( &ViewFamily );
+						FSceneView* View = CalcSceneView(&ViewFamily);
 
-						AActor* TracedLightCard = TraceScreenForLightCard(*View, X, Y);
+						ADisplayClusterLightCardActor* TracedLightCard = TraceScreenForLightCard(*View, X, Y);
 						if (TracedLightCard)
 						{
 							MouseCursor = EMouseCursor::Crosshairs;
@@ -495,23 +545,20 @@ EMouseCursor::Type FDisplayClusterLightCardEditorViewportClient::GetCursor(FView
 					MouseCursor = EMouseCursor::Crosshairs;
 				}
 			}
+			else if (HitProxy->IsA(HWidgetAxis::StaticGetType()))
+			{
+				HWidgetAxis* AxisHitProxy = static_cast<HWidgetAxis*>(HitProxy);
+				
+				MouseCursor = AxisHitProxy->GetMouseCursor();
+				EditorWidget->SetHighlightedAxis(AxisHitProxy->Axis);
+			}
 		}
 	}
 
 	CachedMouseX = X;
-	CachedLastMouseY = Y;
+	CachedMouseY = Y;
 
 	return MouseCursor;
-}
-
-void FDisplayClusterLightCardEditorViewportClient::SelectActor(AActor* NewActor)
-{
-}
-
-void FDisplayClusterLightCardEditorViewportClient::ResetSelection()
-{
-	SelectActor(nullptr);
-	SetWidgetMode(UE::Widget::WM_None);
 }
 
 void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayClusterRootActor* RootActor, bool bForce,
@@ -576,16 +623,16 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 			if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
 				ProxyType == EDisplayClusterLightCardEditorProxyType::LightCards)
 			{
-				TArray<TWeakObjectPtr<AActor>> LightCards;
+				TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> LightCards;
 				FindLightCardsForRootActor(RootActor, LightCards);
 			
-				for (const TWeakObjectPtr<AActor>& LightCard : LightCards)
+				for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : LightCards)
 				{
 					FObjectDuplicationParameters DupeActorParameters(LightCard.Get(), PreviewWorld->GetCurrentLevel());
 					DupeActorParameters.FlagMask = RF_AllFlags & ~(RF_ArchetypeObject | RF_Transactional);
 					DupeActorParameters.PortFlags = PPF_DuplicateVerbatim;
 				
-					AActor* LightCardProxy = CastChecked<AActor>(StaticDuplicateObjectEx(DupeActorParameters));
+					ADisplayClusterLightCardActor* LightCardProxy = CastChecked<ADisplayClusterLightCardActor>(StaticDuplicateObjectEx(DupeActorParameters));
 					PreviewWorld->GetCurrentLevel()->AddLoadedActor(LightCardProxy);
 				
 					LightCardProxy->SetActorLocation(LightCard->GetActorLocation() - RootActor->GetActorLocation());
@@ -685,10 +732,12 @@ void FDisplayClusterLightCardEditorViewportClient::SetProjectionMode(EDisplayClu
 	{
 		// TODO: Do we want to cache the perspective rotation and restore it when the user switches back?
 		SetViewRotation(FVector::ForwardVector.Rotation());
+		EditorWidget->SetWidgetScale(1.f);
 	}
 	else if (ProjectionMode == EDisplayClusterMeshProjectionType::Azimuthal)
 	{
 		SetViewRotation(FVector::UpVector.Rotation());
+		EditorWidget->SetWidgetScale(0.5f);
 	}
 
 	FindProjectionOriginComponent();
@@ -914,7 +963,7 @@ void FDisplayClusterLightCardEditorViewportClient::FindProjectionOriginComponent
 	}
 }
 
-void FDisplayClusterLightCardEditorViewportClient::FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TArray<TWeakObjectPtr<AActor>>& OutLightCards)
+void FDisplayClusterLightCardEditorViewportClient::FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& OutLightCards)
 {
 	if (RootActor)
 	{
@@ -922,9 +971,9 @@ void FDisplayClusterLightCardEditorViewportClient::FindLightCardsForRootActor(AD
 
 		for (const TSoftObjectPtr<AActor>& LightCardActor : RootActorLightCards.Actors)
 		{
-			if (LightCardActor.IsValid())
+			if (LightCardActor.IsValid() && LightCardActor->IsA<ADisplayClusterLightCardActor>())
 			{
-				OutLightCards.Add(LightCardActor.Get());
+				OutLightCards.Add(Cast<ADisplayClusterLightCardActor>(LightCardActor.Get()));
 			}
 		}
 
@@ -937,13 +986,13 @@ void FDisplayClusterLightCardEditorViewportClient::FindLightCardsForRootActor(AD
 			{
 				for (const TWeakObjectPtr<AActor> WeakActor : FActorRange(World))
 				{
-					if (WeakActor.IsValid())
+					if (WeakActor.IsValid() && WeakActor->IsA<ADisplayClusterLightCardActor>())
 					{
 						for (const FActorLayer& ActorLayer : RootActorLightCards.ActorLayers)
 						{
 							if (WeakActor->Layers.Contains(ActorLayer.Name))
 							{
-								OutLightCards.Add(WeakActor);
+								OutLightCards.Add(Cast<ADisplayClusterLightCardActor>(WeakActor));
 								break;
 							}
 						}
@@ -959,13 +1008,13 @@ bool FDisplayClusterLightCardEditorViewportClient::IsLightCardSelected(const AAc
 	return SelectedLightCards.Contains(Actor);
 }
 
-void FDisplayClusterLightCardEditorViewportClient::SelectLightCard(AActor* Actor, bool bAddToSelection)
+void FDisplayClusterLightCardEditorViewportClient::SelectLightCard(ADisplayClusterLightCardActor* Actor, bool bAddToSelection)
 {
-	TArray<AActor*> UpdatedActors;
+	TArray<ADisplayClusterLightCardActor*> UpdatedActors;
 
 	if (!bAddToSelection)
 	{
-		for (const TWeakObjectPtr<AActor>& LightCard : SelectedLightCards)
+		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
 		{
 			if (LightCard.IsValid())
 			{
@@ -991,7 +1040,7 @@ void FDisplayClusterLightCardEditorViewportClient::SelectLightCard(AActor* Actor
 void FDisplayClusterLightCardEditorViewportClient::PropagateLightCardSelection()
 {
 	TArray<AActor*> SelectedLevelInstances;
-	for (const TWeakObjectPtr<AActor>& SelectedLightCard : SelectedLightCards)
+	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& SelectedLightCard : SelectedLightCards)
 	{
 		if (FLightCardProxy* FoundProxy = LightCardProxies.FindByKey(SelectedLightCard.Get()))
 		{
@@ -1005,30 +1054,184 @@ void FDisplayClusterLightCardEditorViewportClient::PropagateLightCardSelection()
 	LightCardEditorPtr.Pin()->SelectLightCards(SelectedLevelInstances);
 }
 
-AActor* FDisplayClusterLightCardEditorViewportClient::TraceScreenForLightCard(const FSceneView& View, int32 HitX, int32 HitY)
+void FDisplayClusterLightCardEditorViewportClient::PropagateLightCardTransform(ADisplayClusterLightCardActor* LightCardProxy)
+{
+	FLightCardProxy* FoundProxy = LightCardProxies.FindByKey(LightCardProxy);
+	if (FoundProxy && FoundProxy->Proxy == LightCardProxy && FoundProxy->LevelInstance.IsValid())
+	{
+		ADisplayClusterLightCardActor* LevelInstance = FoundProxy->LevelInstance.Get();
+
+		LevelInstance->Modify();
+
+		LevelInstance->Longitude = LightCardProxy->Longitude;
+		LevelInstance->Latitude = LightCardProxy->Latitude;
+		LevelInstance->DistanceFromCenter = LightCardProxy->DistanceFromCenter;
+		LevelInstance->Spin = LightCardProxy->Spin;
+		LevelInstance->Pitch = LightCardProxy->Pitch;
+		LevelInstance->Yaw = LightCardProxy->Yaw;
+
+		FVector RootActorLevelInstanceLocation = RootActorLevelInstance.IsValid() ? RootActorLevelInstance->GetActorLocation() : FVector::ZeroVector;
+		LevelInstance->SetActorLocation(RootActorLevelInstanceLocation + LightCardProxy->GetActorLocation());
+	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis)
 {
 	UWorld* PreviewWorld = PreviewScene->GetWorld();
 	check(PreviewWorld);
 
-	const FVector4 ScreenPos = View.PixelToScreen(HitX, HitY, 0);
-	const FMatrix InvProjMatrix = View.ViewMatrices.GetInvProjectionMatrix();
-	const FMatrix InvViewMatrix = View.ViewMatrices.GetInvViewMatrix();
-	FVector ViewPos = FVector(InvProjMatrix.TransformFVector4(FVector4(ScreenPos.X * GNearClippingPlane, ScreenPos.Y * GNearClippingPlane, 0.0f, GNearClippingPlane)));
-	
-	// If the projection mode is azimuthal, we need to convert to the "true" view position by undoing the non-linear projection applied by the projection shader
-	if (ProjectionMode == EDisplayClusterMeshProjectionType::Azimuthal)
-	{
-		const float Rho = ViewPos.Length();
-		const FVector UnitViewPos = ViewPos.GetSafeNormal();
+	FIntPoint MousePos;
+	InViewport->GetMousePos(MousePos);
 
-		const FVector PlanePos = UnitViewPos / UnitViewPos.Z;
-		const FVector2D PolarCoords = FVector2D(FMath::Sqrt(PlanePos.X * PlanePos.X + PlanePos.Y * PlanePos.Y), FMath::Atan2(PlanePos.Y, PlanePos.X));
-		ViewPos = FVector(FMath::Sin(PolarCoords.X) * FMath::Cos(PolarCoords.Y), FMath::Sin(PolarCoords.X) * FMath::Sin(PolarCoords.Y), FMath::Cos(PolarCoords.X)) * Rho;
+	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+		InViewport,
+		GetScene(),
+		EngineShowFlags)
+		.SetRealtimeUpdate(IsRealtime()));
+	FSceneView* View = CalcSceneView(&ViewFamily);
+
+	FVector Origin;
+	FVector Direction;
+	PixelToWorld(*View, MousePos, Origin, Direction);
+
+	const TWeakObjectPtr<ADisplayClusterLightCardActor>& SelectedLightCard = SelectedLightCards.Last();
+	if (SelectedLightCard.IsValid())
+	{
+		const FVector CurrentLightCardLocation = SelectedLightCard->GetLightCardTransform().GetTranslation();
+
+		// Light cards should be centered on the current view origin, so set the light card position to match the current view origin. Update the light card
+		// spherical coordinates to match its current coordinates
+		if (ProjectionOriginComponent.IsValid() && ProjectionOriginComponent->GetComponentLocation() != SelectedLightCard->GetActorLocation())
+		{
+			const FVector DesiredLightCardOffset = CurrentLightCardLocation - ProjectionOriginComponent->GetComponentLocation();
+
+			SelectedLightCard->SetActorLocation(ProjectionOriginComponent->GetComponentLocation());
+
+			FSphericalCoordinates SphericalCoords(DesiredLightCardOffset);
+
+			SelectedLightCard->DistanceFromCenter = SphericalCoords.Radius;
+			SelectedLightCard->Longitude = FMath::RadiansToDegrees(SphericalCoords.Radius) - 180;
+			SelectedLightCard->Latitude = 90.f - FMath::RadiansToDegrees(SphericalCoords.Radius);
+		}
+
+		const FVector CursorRayStart = Origin;
+		const FVector CursorRayEnd = CursorRayStart + Direction * HALF_WORLD_MAX;
+
+		FCollisionQueryParams Param(SCENE_QUERY_STAT(DragDropTrace), true);
+
+		bool bHitScreen = false;
+		FHitResult ScreenHitResult;
+		if (PreviewWorld->LineTraceSingleByObjectType(ScreenHitResult, CursorRayStart, CursorRayEnd, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), Param))
+		{
+			if (AActor* HitActor = ScreenHitResult.GetActor())
+			{
+				if (RootActorProxy.Get() == HitActor && ScreenHitResult.Component.IsValid())
+				{
+					// TODO: Make the light card flush with the screen, which requires setting the LC's distance from center to just behind the screen, and setting the pitch and yaw of the card
+					// to match the screen's normal at the traced point
+				}
+			}
+		}
+
+		// If we didn't hit a screen, keep the light card's radius fixed, and simply orbit it around the view origin
+		if (!bHitScreen)
+		{
+			const FSphericalCoordinates CurrentCoords = GetLightCardCoordinates(SelectedLightCard.Get());
+			const FSphericalCoordinates DeltaCoords = GetLightCardTranslationDelta(InViewport, SelectedLightCard.Get(), CurrentAxis);
+
+			FSphericalCoordinates NewCoords;
+			NewCoords.Radius = CurrentCoords.Radius + DeltaCoords.Radius;
+			NewCoords.Azimuth = CurrentCoords.Azimuth + DeltaCoords.Azimuth;
+			NewCoords.Inclination = CurrentCoords.Inclination + DeltaCoords.Inclination;
+
+			SelectedLightCard->DistanceFromCenter = NewCoords.Radius;
+			SelectedLightCard->Longitude = FRotator::ClampAxis(FMath::RadiansToDegrees(NewCoords.Azimuth) - 180);
+			SelectedLightCard->Latitude = 90.f - FMath::RadiansToDegrees(NewCoords.Inclination);
+		}
+
+		PropagateLightCardTransform(SelectedLightCard.Get());
+	}
+}
+
+FDisplayClusterLightCardEditorViewportClient::FSphericalCoordinates FDisplayClusterLightCardEditorViewportClient::GetLightCardTranslationDelta(
+	FViewport* InViewport, 
+	ADisplayClusterLightCardActor* LightCard,
+	EAxisList::Type CurrentAxis)
+{
+	FIntPoint MousePos;
+	InViewport->GetMousePos(MousePos);
+
+	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+		InViewport,
+		GetScene(),
+		EngineShowFlags)
+		.SetRealtimeUpdate(IsRealtime()));
+	FSceneView* View = CalcSceneView(&ViewFamily);
+
+	FVector Origin;
+	FVector Direction;
+	PixelToWorld(*View, MousePos, Origin, Direction);
+
+	Direction = (Direction - DragWidgetOffset).GetSafeNormal();
+
+	const FVector LocalDirection = LightCard->GetActorRotation().RotateVector(Direction);
+	const FVector LightCardLocation = LightCard->GetLightCardTransform().GetTranslation() - Origin;
+
+	FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard);
+	FSphericalCoordinates RequestedCoords(LocalDirection * LightCardLocation.Size());
+	
+	FSphericalCoordinates DeltaCoords;
+	DeltaCoords.Radius = RequestedCoords.Radius - LightCardCoords.Radius;
+	DeltaCoords.Azimuth = RequestedCoords.Azimuth - LightCardCoords.Azimuth;
+	DeltaCoords.Inclination = RequestedCoords.Inclination - LightCardCoords.Inclination;
+
+	if (CurrentAxis == EAxisList::Type::X)
+	{
+		DeltaCoords.Inclination = 0;
+	}
+	else if (CurrentAxis == EAxisList::Type::Y)
+	{
+		// Convert the inclination to Cartesian coordinates, project it to the x-z plane, and convert back to spherical coordinates. This ensures that the motion in the inclination
+		// plane always lines up with the mouse's projected location along that plane
+		float FixedInclination = FMath::Abs(FMath::Atan2(FMath::Cos(DeltaCoords.Azimuth) * FMath::Sin(RequestedCoords.Inclination), FMath::Cos(RequestedCoords.Inclination)));
+
+		// When translating along the inclination axis, the azimuth delta can only be intervals of pi
+		float FixedAzimuth = FMath::RoundToInt(DeltaCoords.Azimuth / PI) * PI;
+
+		DeltaCoords.Azimuth = FixedAzimuth;
+		DeltaCoords.Inclination = FixedInclination - LightCardCoords.Inclination;
 	}
 
-	const FVector Direction = InvViewMatrix.TransformVector(ViewPos).GetSafeNormal();
+	return DeltaCoords;
+}
 
-	const FVector CursorRayStart = View.ViewMatrices.GetViewOrigin();
+FDisplayClusterLightCardEditorViewportClient::FSphericalCoordinates FDisplayClusterLightCardEditorViewportClient::GetLightCardCoordinates(ADisplayClusterLightCardActor* LightCard) const
+{
+	const FVector LightCardLocation = LightCard->GetLightCardTransform().GetTranslation() - LightCard->GetActorLocation();
+
+	FSphericalCoordinates LightCardCoords(LightCardLocation);
+
+	// If the light card inclination is 0 or 180, the spherical coordinates will have an
+	// "undefined" azimuth value. For continuity when dragging a light card positioned there, we can manually
+	// set the azimuthal value to match the light card's configured longitude
+	if (LightCardCoords.Inclination == 0.f ||LightCardCoords.Inclination == PI)
+	{
+		LightCardCoords.Azimuth = FMath::DegreesToRadians(LightCard->Longitude + 180);
+	}
+
+	return LightCardCoords;
+}
+
+ADisplayClusterLightCardActor* FDisplayClusterLightCardEditorViewportClient::TraceScreenForLightCard(const FSceneView& View, int32 HitX, int32 HitY)
+{
+	UWorld* PreviewWorld = PreviewScene->GetWorld();
+	check(PreviewWorld);
+
+	FVector Origin;
+	FVector Direction;
+	PixelToWorld(View, FIntPoint(HitX, HitY), Origin, Direction);
+
+	const FVector CursorRayStart = Origin;
 	const FVector CursorRayEnd = CursorRayStart + Direction * HALF_WORLD_MAX;
 
 	FCollisionQueryParams Param(SCENE_QUERY_STAT(DragDropTrace), true);
@@ -1066,23 +1269,78 @@ AActor* FDisplayClusterLightCardEditorViewportClient::TraceScreenForLightCard(co
 						{
 							for (FHitResult& HitResult : HitResults)
 							{
-								if (LightCardProxies.Contains(HitResult.GetActor()))
+								if (ADisplayClusterLightCardActor* LightCardActor = Cast<ADisplayClusterLightCardActor>(HitResult.GetActor()))
 								{
-									return HitResult.GetActor();
+									if (LightCardProxies.Contains(LightCardActor))
+									{
+										return LightCardActor;
+									}
 								}
 							}
 						}
 					}
 				}
 			}
-			else if (LightCardProxies.Contains(HitActor))
+			else if (HitActor->IsA<ADisplayClusterLightCardActor>() && LightCardProxies.Contains(HitActor))
 			{
-				return HitActor;
+				return Cast<ADisplayClusterLightCardActor>(HitActor);
 			}
 		}
 	}
 
 	return nullptr;
+}
+
+void FDisplayClusterLightCardEditorViewportClient::PixelToWorld(const FSceneView& View, const FIntPoint& PixelPos, FVector& OutOrigin, FVector& OutDirection)
+{
+	const FMatrix& InvProjMatrix = View.ViewMatrices.GetInvProjectionMatrix();
+	const FMatrix& InvViewMatrix = View.ViewMatrices.GetInvViewMatrix();
+
+	const FVector4 ScreenPos = View.PixelToScreen(PixelPos.X, PixelPos.Y, 0);
+	const FVector ViewPos = FVector(InvProjMatrix.TransformFVector4(FVector4(ScreenPos.X * GNearClippingPlane, ScreenPos.Y * GNearClippingPlane, 0.0f, GNearClippingPlane)));
+	const FVector UnprojectedViewPos = FDisplayClusterMeshProjectionRenderer::UnprojectViewPosition(ViewPos, ProjectionMode);
+
+	OutOrigin = View.ViewMatrices.GetViewOrigin();
+	OutDirection = InvViewMatrix.TransformVector(UnprojectedViewPos).GetSafeNormal();
+}
+
+FTransform FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform()
+{
+	if (SelectedLightCards.Num())
+	{
+		TWeakObjectPtr<ADisplayClusterLightCardActor> LastSelected = SelectedLightCards.Last();
+		if (LastSelected.IsValid())
+		{
+			FVector LightCardPosition = LastSelected->GetLightCardTransform().GetTranslation();
+
+			FTransform WidgetTransform(FRotator::ZeroRotator, LightCardPosition, FVector::OneVector);
+
+			if (ProjectionMode != EDisplayClusterMeshProjectionType::Perspective)
+			{
+				FSceneViewInitOptions SceneVewInitOptions;
+				GetSceneViewInitOptions(SceneVewInitOptions);
+				FViewMatrices ViewMatrices(SceneVewInitOptions);
+
+				const FVector ViewPos = ViewMatrices.GetViewMatrix().TransformPosition(LightCardPosition);
+				const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, ProjectionMode);
+				const FVector ProjectedPosition = ViewMatrices.GetInvViewMatrix().TransformPosition(ProjectedViewPos);
+
+				WidgetTransform.SetTranslation(ProjectedPosition);
+			}
+
+			const FVector ProjectionOrigin = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
+			const FVector RadialVector = (LightCardPosition - ProjectionOrigin).GetSafeNormal();
+			const FVector AzimuthalVector = FVector::ZAxisVector ^ RadialVector;
+			const FVector InclinationVector = RadialVector ^ AzimuthalVector;
+
+			FRotator Orientation = FMatrix(AzimuthalVector, InclinationVector, RadialVector, FVector::ZeroVector).Rotator();
+			WidgetTransform.SetRotation(Orientation.Quaternion());
+
+			return WidgetTransform;
+		}
+	}
+
+	return FTransform();
 }
 
 #undef LOCTEXT_NAMESPACE

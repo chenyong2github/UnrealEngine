@@ -66,6 +66,30 @@ void ADisplayClusterLightCardActor::OnConstruction(const FTransform& Transform)
 void ADisplayClusterLightCardActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	if (Longitude < 0 || Longitude > 360)
+	{
+		Longitude = FRotator::ClampAxis(Longitude);
+	}
+
+	if (Latitude < -90 || Latitude > 90)
+	{
+		// If latitude exceeds [-90, 90], mod it back into the appropriate range, and apply a shift of 180 degrees if
+		// needed to the longitude, to allow the latitude to be continuous (increasing latitude indefinitely should result in the LC 
+		// orbiting around a polar great circle)
+		float Parity = FMath::Fmod(FMath::Abs(Latitude) + 90, 360) - 180;
+		float DeltaLongitude = Parity > 1 ? 180.f : 0.f;
+
+		float LatMod = FMath::Fmod(Latitude + 90.f, 180.f);
+		if (LatMod < 0.f)
+		{
+			LatMod += 180.f;
+		}
+
+		Latitude = LatMod - 90;
+		Longitude = FRotator::ClampAxis(Longitude + DeltaLongitude);
+	}
+
 	UpdateLightCardTransform();
 	UpdateLightCardMaterialInstance();
 }
@@ -100,10 +124,28 @@ void ADisplayClusterLightCardActor::PostEditChangeProperty(FPropertyChangedEvent
 
 #endif
 
+FTransform ADisplayClusterLightCardActor::GetLightCardTransform(bool bIgnoreSpinYawPitch) const
+{
+	FTransform Transform;
+
+	Transform.SetLocation(LightCardComponent->GetComponentLocation());
+
+	FRotator LightCardRotation = LightCardTransformerComponent->GetComponentRotation();
+
+	if (bIgnoreSpinYawPitch)
+	{
+		LightCardRotation -= FRotator(Spin, -Yaw, -Pitch);
+	}
+
+	Transform.SetRotation(LightCardRotation.Quaternion());
+
+	return Transform;
+}
+
 void ADisplayClusterLightCardActor::UpdateLightCardTransform()
 {
 	MainSpringArmComponent->TargetArmLength = DistanceFromCenter;
-	MainSpringArmComponent->SetRelativeRotation(FRotator(-Latitude, Longitude * 180.f, 0.0));
+	MainSpringArmComponent->SetRelativeRotation(FRotator(-Latitude, Longitude, 0.0));
 
 	LightCardComponent->SetRelativeRotation(FRotator(-Spin, -90.f + Yaw, 90.f + Pitch));
 	LightCardComponent->SetRelativeScale3D(FVector(Scale, 1.f));

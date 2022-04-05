@@ -9,6 +9,9 @@ class AActor;
 class UPrimitiveComponent;
 class FSceneView;
 class FViewInfo;
+class FPrimitiveDrawInterface;
+class FSimpleElementCollector;
+struct FSceneViewInitOptions;
 struct FEngineShowFlags;
 
 /** Indicates which kind of projection is used by the renderer */
@@ -25,6 +28,12 @@ enum DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API EDisplayClusterMeshProjectionType
 class DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API FDisplayClusterMeshProjectionRenderer
 {
 public:
+	/** Projects a position in view coordinates into the projected view space of the specified projection type */
+	static FVector ProjectViewPosition(const FVector& ViewPosition, EDisplayClusterMeshProjectionType  ProjectionType);
+
+	/** Projects a position in the projected view space of the specified projection type to ordinary view coordinates */
+	static FVector UnprojectViewPosition(const FVector& ProjectedViewPosition, EDisplayClusterMeshProjectionType  ProjectionType);
+
 	/** Adds an actor's primitive components to the list of primitives to render */
 	void AddActor(AActor* Actor);
 
@@ -78,6 +87,12 @@ private:
 		FRDGTexture* SelectionDepth);
 #endif
 
+	/** Adds a pass that renders any elements added to the PDI through the renderer's RenderSimpleElements callback */
+	void AddSimpleElementPass(FRDGBuilder& GraphBuilder,
+		const FViewInfo* View,
+		FRenderTargetBinding& OutputRenderTargetBinding,
+		FSimpleElementCollector& ElementCollector);
+
 	/** Renders the list of primitive components using the appropriate mesh pass processor given by the template parameter */
 	template<EDisplayClusterMeshProjectionType ProjectionType>
 	void RenderPrimitives_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList, bool bTranslucencyPass);
@@ -99,6 +114,10 @@ public:
 	/** Delegate to determine if an actor should be rendered as selected */
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FSelection, const AActor*);
 	FSelection ActorSelectedDelegate;
+
+	/** Delegate raised during a render pass allowing simple elements ro be rendered to the viewport after meshes are projected to it */
+	DECLARE_DELEGATE_TwoParams(FSimpleElementPass, const FSceneView*, FPrimitiveDrawInterface*);
+	FSimpleElementPass RenderSimpleElementsDelegate;
 
 private:
 	/** The list of primitive components to render */

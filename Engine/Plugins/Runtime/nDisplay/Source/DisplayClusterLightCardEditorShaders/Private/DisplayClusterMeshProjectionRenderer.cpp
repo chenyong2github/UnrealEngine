@@ -10,6 +10,7 @@
 #include "Shader.h"
 #include "CanvasTypes.h"
 #include "EngineModule.h"
+#include "SceneManagement.h"
 #include "SceneViewExtension.h"
 #include "ScreenPass.h"
 #include "Components/PrimitiveComponent.h"
@@ -85,14 +86,15 @@ public:
 		, DrawRenderState(*InView)
 		, bTranslucencyPass(bIsTranslucencyPass)
 	{
-		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
 
 		if (bTranslucencyPass)
 		{
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
 			DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI());
 		}
 		else
 		{
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
 			DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA, CW_RGBA, CW_RGBA, CW_RGBA>::GetRHI());
 		}
 	}
@@ -510,6 +512,63 @@ namespace
 //////////////////////////////////////////////////////////////////////////
 // FDisplayClusterMeshProjectionRenderer
 
+/** A version of FSimpleElementCollector that has a hit proxy consumer, allowing support for adding hit proxies to the rendered elements */
+class FMeshProjectionElementCollector : public FSimpleElementCollector
+{
+public:
+	FMeshProjectionElementCollector(FHitProxyConsumer* InHitProxyConsumer)
+		: FSimpleElementCollector()
+		, HitProxyConsumer(InHitProxyConsumer)
+	{ }
+
+	virtual void SetHitProxy(HHitProxy* HitProxy) override
+	{
+		FSimpleElementCollector::SetHitProxy(HitProxy);
+
+		if (HitProxyConsumer && HitProxy)
+		{
+			HitProxyConsumer->AddHitProxy(HitProxy);
+		}
+	}
+
+private:
+	FHitProxyConsumer* HitProxyConsumer;
+};
+
+FVector FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(const FVector& ViewPosition, EDisplayClusterMeshProjectionType  ProjectionType)
+{
+	FVector ProjectedViewPosition(ViewPosition);
+
+	if (ProjectionType == EDisplayClusterMeshProjectionType::Azimuthal)
+	{
+		const float Rho = ViewPosition.Length();
+		const FVector UnitViewPos = ViewPosition.GetSafeNormal();
+		const FVector2D PolarCoords = FVector2D(FMath::Acos(UnitViewPos.Z), FMath::Atan2(UnitViewPos.Y, UnitViewPos.X));
+		const FVector PlanePos = FVector(PolarCoords.X * FMath::Cos(PolarCoords.Y), PolarCoords.X * FMath::Sin(PolarCoords.Y), 1);
+
+		ProjectedViewPosition = PlanePos.GetSafeNormal() * Rho;
+	}
+
+	return ProjectedViewPosition;
+}
+
+FVector FDisplayClusterMeshProjectionRenderer::UnprojectViewPosition(const FVector& ProjectedViewPosition, EDisplayClusterMeshProjectionType  ProjectionType)
+{
+	FVector ViewPosition(ProjectedViewPosition);
+
+	if (ProjectionType == EDisplayClusterMeshProjectionType::Azimuthal)
+	{
+		const float Rho = ProjectedViewPosition.Length();
+		const FVector UnitViewPos = ProjectedViewPosition.GetSafeNormal();
+
+		const FVector PlanePos = UnitViewPos / UnitViewPos.Z;
+		const FVector2D PolarCoords = FVector2D(FMath::Sqrt(PlanePos.X * PlanePos.X + PlanePos.Y * PlanePos.Y), FMath::Atan2(PlanePos.Y, PlanePos.X));
+		ViewPosition = FVector(FMath::Sin(PolarCoords.X) * FMath::Cos(PolarCoords.Y), FMath::Sin(PolarCoords.X) * FMath::Sin(PolarCoords.Y), FMath::Cos(PolarCoords.X)) * Rho;
+	}
+
+	return ViewPosition;
+}
+
 void FDisplayClusterMeshProjectionRenderer::AddActor(AActor* Actor)
 {
 	AddActor(Actor, [](const UPrimitiveComponent* PrimitiveComponent)
@@ -570,9 +629,10 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 	Canvas->Flush_GameThread();
 	FRenderTarget* RenderTarget = Canvas->GetRenderTarget();
 	const bool bIsHitTesting = Canvas->IsHitTesting();
+	FHitProxyConsumer* HitProxyConsumer = Canvas->GetHitProxyConsumer();
 
 	ENQUEUE_RENDER_COMMAND(FDrawProjectedMeshes)(
-		[RenderTarget, Scene, ViewInitOptions, EngineShowFlags, bIsHitTesting, ProjectionType, this](FRHICommandListImmediate& RHICmdList)
+		[RenderTarget, Scene, ViewInitOptions, EngineShowFlags, bIsHitTesting, HitProxyConsumer, ProjectionType, this](FRHICommandListImmediate& RHICmdList)
 		{
 			FMemMark Mark(FMemStack::Get());
 			FRDGBuilder GraphBuilder(RHICmdList);
@@ -602,7 +662,7 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 			NewInitOptions.ViewFamily = &ViewFamily;
 
 			GetRendererModule().CreateAndInitSingleView(RHICmdList, &ViewFamily, &NewInitOptions);
-			const FViewInfo* View = (FViewInfo*)ViewFamily.Views[0];
+			FViewInfo* View = (FViewInfo*)ViewFamily.Views[0];
 
 			FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->GetRenderTargetTexture(), TEXT("ViewRenderTarget")));
 			FRenderTargetBinding OutputRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
@@ -638,7 +698,7 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 						RDG_EVENT_NAME("MeshProjectionRenderer::CopyHitProxyTexture"),
 						ScreenPassParameters,
 						ERDGPassFlags::Raster,
-						[View, ScreenPassVS, CopyPixelShader, &RegionViewport, ScreenPassParameters, DefaultBlendState](FRHICommandList& RHICmdList)
+						[View, ScreenPassVS, CopyPixelShader, RegionViewport, ScreenPassParameters, DefaultBlendState](FRHICommandList& RHICmdList)
 					{
 						DrawScreenPass(
 							RHICmdList,
@@ -696,7 +756,7 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 						RDG_EVENT_NAME("MeshProjectionRenderer::CopyColorTexture"),
 						ScreenPassParameters,
 						ERDGPassFlags::Raster,
-						[View, ScreenPassVS, CopyPixelShader, &RegionViewport, ScreenPassParameters, DefaultBlendState](FRHICommandList& RHICmdList)
+						[View, ScreenPassVS, CopyPixelShader, RegionViewport, ScreenPassParameters, DefaultBlendState](FRHICommandList& RHICmdList)
 					{
 						DrawScreenPass(
 							RHICmdList,
@@ -711,6 +771,13 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 					});
 				}
 #endif
+			}
+			
+			FMeshProjectionElementCollector ElementCollector(HitProxyConsumer);
+			if (RenderSimpleElementsDelegate.IsBound())
+			{
+				RenderSimpleElementsDelegate.Execute(View, &ElementCollector);
+				AddSimpleElementPass(GraphBuilder, View, OutputRenderTargetBinding, ElementCollector);
 			}
 
 			GraphBuilder.Execute();
@@ -845,7 +912,7 @@ void FDisplayClusterMeshProjectionRenderer::AddSelectionOutlineScreenPass(FRDGBu
 		RDG_EVENT_NAME("MeshProjectionRenderer::SelectionScreen"),
 		ScreenPassParameters,
 		ERDGPassFlags::Raster,
-		[View, ScreenPassVS, SelectionOutlinePS, &OutputViewport, ScreenPassParameters, DefaultBlendState](FRHICommandList& RHICmdList)
+		[View, ScreenPassVS, SelectionOutlinePS, OutputViewport, ScreenPassParameters, DefaultBlendState](FRHICommandList& RHICmdList)
 	{
 		DrawScreenPass(
 			RHICmdList,
@@ -860,6 +927,36 @@ void FDisplayClusterMeshProjectionRenderer::AddSelectionOutlineScreenPass(FRDGBu
 	});
 }
 #endif
+
+void FDisplayClusterMeshProjectionRenderer::AddSimpleElementPass(FRDGBuilder& GraphBuilder,
+	const FViewInfo* View,
+	FRenderTargetBinding& OutputRenderTargetBinding,
+	FSimpleElementCollector& ElementCollector)
+{
+	FMeshProjectionPassParameters* PassParameters = GraphBuilder.AllocParameters<FMeshProjectionPassParameters>();
+	PassParameters->View = View->ViewUniformBuffer;
+	PassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
+	PassParameters->RenderTargets[0] = OutputRenderTargetBinding;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("MeshProjectionRenderer::SimpleElements"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[this, View,  &ElementCollector](FRHICommandListImmediate& RHICmdList)
+		{
+			FIntRect ViewRect = View->UnscaledViewRect;
+			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+
+			FMeshPassProcessorRenderState DrawRenderState(*View);
+			DrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilWrite);
+			DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA, CW_RGBA, CW_RGBA, CW_RGBA>::GetRHI());
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
+
+			ElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, *View, EBlendModeFilter::OpaqueAndMasked, ESceneDepthPriorityGroup::SDPG_World);
+			ElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, *View, EBlendModeFilter::OpaqueAndMasked, ESceneDepthPriorityGroup::SDPG_Foreground);
+		}
+	);
+}
 
 template<EDisplayClusterMeshProjectionType ProjectionType>
 void FDisplayClusterMeshProjectionRenderer::RenderPrimitives_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList, bool bTranslucencyPass)
@@ -881,6 +978,8 @@ void FDisplayClusterMeshProjectionRenderer::RenderPrimitives_RenderThread(const 
 		{
 			if (const FMeshBatch* MeshBatch = PrimitiveProxy->GetPrimitiveSceneInfo()->GetMeshBatch(PrimitiveProxy->GetPrimitiveSceneInfo()->StaticMeshes.Num() - 1))
 			{
+				MeshBatch->MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
+
 				const uint64 BatchElementMask = ~0ull;
 				MeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
 			}
@@ -908,6 +1007,8 @@ void FDisplayClusterMeshProjectionRenderer::RenderHitProxies_RenderThread(const 
 		{
 			if (const FMeshBatch* MeshBatch = PrimitiveProxy->GetPrimitiveSceneInfo()->GetMeshBatch(PrimitiveProxy->GetPrimitiveSceneInfo()->StaticMeshes.Num() - 1))
 			{
+				MeshBatch->MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
+
 				const uint64 BatchElementMask = ~0ull;
 				MeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
 			}
@@ -936,6 +1037,8 @@ void FDisplayClusterMeshProjectionRenderer::RenderSelection_RenderThread(const F
 		{
 			if (const FMeshBatch* MeshBatch = PrimitiveProxy->GetPrimitiveSceneInfo()->GetMeshBatch(PrimitiveProxy->GetPrimitiveSceneInfo()->StaticMeshes.Num() - 1))
 			{
+				MeshBatch->MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
+
 				const uint64 BatchElementMask = ~0ull;
 				MeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
 			}
