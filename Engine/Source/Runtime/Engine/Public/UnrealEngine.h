@@ -283,14 +283,15 @@ struct FScopedDetailTickStats
 
 
 private:
-	/** Object to track. 
-		Not GC safe, but we won't have anything in-flight during GC so that should be moot
-	*/
+	/** Detailed tick stats to update. */
+	FDetailedTickStats& DetailedTickStats;
+	/**
+	 * Object to track.
+	 * Not GC safe, but we won't have anything in-flight during GC so that should be moot.
+	 */
 	UObject* Object;
 	/** Tick start time. */
 	uint32 StartCycles;
-	/** Detailed tick stats to update. */
-	FDetailedTickStats& DetailedTickStats;
 	/** Whether object should be tracked. false e.g. when recursion is involved. */
 	bool bShouldTrackObject;
 	/** Whether object class should be tracked. false e.g. when recursion is involved. */

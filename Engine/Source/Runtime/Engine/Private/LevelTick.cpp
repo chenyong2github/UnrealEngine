@@ -376,9 +376,9 @@ void FDetailedTickStats::DumpStats()
  * Constructor, keeping track of object's class and start time.
  */
 FScopedDetailTickStats::FScopedDetailTickStats( FDetailedTickStats& InDetailedTickStats, UObject* InObject )
-:	Object( InObject )
+:	DetailedTickStats( InDetailedTickStats )
+,	Object( InObject )
 ,	StartCycles( FPlatformTime::Cycles() )
-,	DetailedTickStats( InDetailedTickStats )
 {
 	bShouldTrackObjectClass = DetailedTickStats.BeginObject( Object->GetClass() );
 	bShouldTrackObject = DetailedTickStats.BeginObject( Object );

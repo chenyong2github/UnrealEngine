@@ -42,8 +42,8 @@ struct FCountersTrace
 	public:
 		TCounter(const TCHAR* InCounterName, ETraceCounterDisplayHint InCounterDisplayHint)
 			: Value(0)
-			, CounterId(0)
 			, CounterName(InCounterName)
+			, CounterId(0)
 			, CounterDisplayHint(InCounterDisplayHint)
 		{
 			CounterId = OutputInitCounter(InCounterName, CounterType, CounterDisplayHint);
@@ -92,18 +92,12 @@ struct FCountersTrace
 			--Value;
 			OutputSetValue(CounterId, Value);
 		}
-		
+
 	private:
 		ValueType Value;
-		uint16 CounterId;
 		const TCHAR* CounterName;
+		uint16 CounterId;
 		ETraceCounterDisplayHint CounterDisplayHint;
-
-		bool CheckCounterId()
-		{
-			CounterId = OutputInitCounter(CounterName, CounterType, CounterDisplayHint);
-			return !!CounterId;
-		}
 	};
 
 	using FCounterInt = TCounter<int64, TraceCounterType_Int>;
