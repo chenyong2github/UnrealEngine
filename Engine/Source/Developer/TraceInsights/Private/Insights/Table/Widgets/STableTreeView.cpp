@@ -2801,7 +2801,7 @@ FGraphEventRef STableTreeView::StartApplyFiltersTask(FGraphEventRef Prerequisite
 
 void STableTreeView::OnClose()
 {
-	if (bIsUpdateRunning && InProgressAsyncOperationEvent.IsValid() && !InProgressAsyncOperationEvent->IsComplete())
+	if (bIsUpdateRunning && !bIsCloseScheduled && InProgressAsyncOperationEvent.IsValid() && !InProgressAsyncOperationEvent->IsComplete())
 	{
 		bIsCloseScheduled = true;
 		CancelCurrentAsyncOp();

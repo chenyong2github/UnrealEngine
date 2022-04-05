@@ -1137,7 +1137,7 @@ bool FInsightsManager::HandleResponseFileCmd(const TCHAR* ResponseFile, FOutputD
 void FInsightsManager::AddInProgressAsyncOp(FGraphEventRef Event, const FString& Name)
 {
 	check(IsInGameThread());
-	if (Event.IsValid())
+	if (Event.IsValid() && !Event->IsComplete())
 	{
 		InProgressAsyncTasks.AddTail(FAsyncTaskData(Event, Name));
 	}
