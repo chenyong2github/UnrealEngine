@@ -60,6 +60,7 @@ private:
 	double LastSceneTime = 0.0;
 
 	static constexpr double FrameIntervalThreshold = 0.005;
+	static constexpr double VeryLargeFrameIntervalThreshold = 0.5;
 	static constexpr int32 FrameIntervalSnapCount = 5;
 	static constexpr int32 FrameTimeBufferSize = 200;
 

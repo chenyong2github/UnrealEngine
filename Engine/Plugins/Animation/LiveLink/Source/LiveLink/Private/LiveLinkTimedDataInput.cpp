@@ -275,6 +275,15 @@ void FLiveLinkTimedDataInput::UpdateSmoothEngineTimeOffset(const FLiveLinkBaseFr
 			//Compute the time interval between the two most recent frames (N+1 - N)
 			const double LatestFrameInterval = FrameTimes[NumFramesInBuffer - 1] - FrameTimes[NumFramesInBuffer - 2];
 
+			// Early-out if a very large amount of time has passed since the last frame was received (indicating that the device was previously idle)
+			if (LatestFrameInterval > VeryLargeFrameIntervalThreshold)
+			{
+				FrameTimes.RemoveAt(0, NumFramesInBuffer - 1, false);
+				Settings->BufferSettings.SmoothEngineTimeOffset = 0.0;
+				NumFramesToConsiderForAverage = 1;
+				return;
+			}
+
 			//Recover the average frame interval computed last frame
 			const double PreviousAverageFrameInterval = Settings->BufferSettings.SmoothEngineTimeOffset / NumFramesForSmoothOffset;
 
