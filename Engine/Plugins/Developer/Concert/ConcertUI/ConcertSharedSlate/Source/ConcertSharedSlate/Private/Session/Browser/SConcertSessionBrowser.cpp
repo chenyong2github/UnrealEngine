@@ -601,11 +601,13 @@ void SConcertSessionBrowser::InsertNewSessionEditableRowInternal()
 	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(MoveTemp(Item)), nullptr);
 }
 
+PRAGMA_DISABLE_OPTIMIZATION
 void SConcertSessionBrowser::InsertRestoreSessionAsEditableRowInternal(const TSharedPtr<FConcertSessionItem>& ArchivedItem)
 {
 	// Insert the 'restore session as ' editable row just below the 'archived' item to restore.
 	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(ArchivedItem->MakeCopyAsType(FConcertSessionItem::EType::RestoreSession)), ArchivedItem);
 }
+	PRAGMA_ENABLE_OPTIMIZATION
 
 void SConcertSessionBrowser::InsertArchiveSessionAsEditableRow(const TSharedPtr<FConcertSessionItem>& LiveItem)
 {

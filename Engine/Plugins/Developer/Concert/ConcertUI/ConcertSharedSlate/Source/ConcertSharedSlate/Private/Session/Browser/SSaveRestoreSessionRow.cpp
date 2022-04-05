@@ -100,10 +100,8 @@ TSharedRef<SWidget> SSaveRestoreSessionRow::GenerateWidgetForColumn(const FName&
 				.SelectAllTextWhenFocused(true)
 			];
 	}
-	else
+	else if (ColumnName == ConcertBrowserUtils::ServerColName)
 	{
-		check(ColumnName == ConcertBrowserUtils::ServerColName);
-
 		// 'Server' text block.
 		return SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
@@ -147,6 +145,11 @@ TSharedRef<SWidget> SSaveRestoreSessionRow::GenerateWidgetForColumn(const FName&
 					FOnClicked::CreateRaw(this, &SSaveRestoreSessionRow::OnDecline))
 			]
 		];
+	}
+	else
+	{
+		check(ColumnName == ConcertBrowserUtils::ProjectColName || ColumnName == ConcertBrowserUtils::VersionColName);
+		return SNullWidget::NullWidget;
 	}
 }
 

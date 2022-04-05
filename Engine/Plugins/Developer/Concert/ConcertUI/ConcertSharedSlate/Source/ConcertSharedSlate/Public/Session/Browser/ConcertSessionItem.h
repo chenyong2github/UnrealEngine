@@ -29,10 +29,10 @@ public:
 		return Type == Other.Type && ServerAdminEndpointId == Other.ServerAdminEndpointId && SessionId == Other.SessionId;
 	}
 
-	FConcertSessionItem MakeCopyAsType(EType NewType)
+	FConcertSessionItem MakeCopyAsType(EType NewType) const
 	{
 		FConcertSessionItem NewItem = *this;
-		Type = NewType;
+		NewItem.Type = NewType;
 		return NewItem;
 	}
 
