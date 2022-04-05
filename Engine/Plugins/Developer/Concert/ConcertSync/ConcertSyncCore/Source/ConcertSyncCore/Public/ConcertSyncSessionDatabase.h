@@ -38,8 +38,8 @@ public:
 	FConcertSyncSessionDatabase(const FConcertSyncSessionDatabase&) = delete;
 	FConcertSyncSessionDatabase& operator=(const FConcertSyncSessionDatabase&) = delete;
 
-	FConcertSyncSessionDatabase(FConcertSyncSessionDatabase&&) = default;
-	FConcertSyncSessionDatabase& operator=(FConcertSyncSessionDatabase&&) = default;
+	FConcertSyncSessionDatabase(FConcertSyncSessionDatabase&&);
+	FConcertSyncSessionDatabase& operator=(FConcertSyncSessionDatabase&&);
 
 	/**
 	 * Is this a valid database? (ie, has been successfully opened).
@@ -952,7 +952,7 @@ private:
 	/** Internal SQLite database */
 	TUniquePtr<FSQLiteDatabase> Database;
 
-	TUniquePtr<struct FDeferredLargePackageIOImpl> DeferredLargePackageIOPtr;
+	TPimplPtr<struct FDeferredLargePackageIOImpl> DeferredLargePackageIOPtr;
 };
 
 namespace ConcertSyncSessionDatabaseFilterUtil

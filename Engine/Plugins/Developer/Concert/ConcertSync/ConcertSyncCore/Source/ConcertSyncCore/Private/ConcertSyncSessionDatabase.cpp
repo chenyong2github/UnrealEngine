@@ -1533,11 +1533,14 @@ private:
 /** Defined here where TUniquePtr can see the definition of FConcertFileCache and FConcertSyncSessionDatabaseStatements as the TUniquePtr constructor/destructor cannot work with a forward declared type */
 FConcertSyncSessionDatabase::FConcertSyncSessionDatabase()
 	: Database(MakeUnique<FSQLiteDatabase>()),
-	  DeferredLargePackageIOPtr(MakeUnique<FDeferredLargePackageIOImpl>())
+	  DeferredLargePackageIOPtr(MakePimpl<FDeferredLargePackageIOImpl>())
 {
 }
 
 FConcertSyncSessionDatabase::~FConcertSyncSessionDatabase() = default;
+
+FConcertSyncSessionDatabase::FConcertSyncSessionDatabase(FConcertSyncSessionDatabase&&) = default;
+FConcertSyncSessionDatabase& FConcertSyncSessionDatabase::operator=(FConcertSyncSessionDatabase&&) = default;
 
 bool FConcertSyncSessionDatabase::IsValid() const
 {
