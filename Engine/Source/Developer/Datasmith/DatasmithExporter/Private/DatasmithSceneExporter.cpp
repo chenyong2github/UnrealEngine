@@ -314,7 +314,10 @@ void FDatasmithSceneExporter::Export( TSharedRef< IDatasmithScene > DatasmithSce
 
 void FDatasmithSceneExporter::Reset()
 {
-	Impl = MakeUnique<FDatasmithSceneExporterImpl>();
+	Impl->ProgressManager = nullptr;
+	Impl->Logger = nullptr;
+
+	Impl->ExportStartCycles = 0;
 }
 
 void FDatasmithSceneExporter::SetProgressManager( const TSharedPtr< IDatasmithProgressManager >& InProgressManager )

@@ -452,9 +452,6 @@ void FDatasmithFacadeScene::PreExport()
 	// Initialize the Datasmith exporter module.
 	FDatasmithExporterManager::Initialize();
 
-	// Create a Datasmith scene exporter.
-	SceneExporterRef->Reset();
-
 	// Start measuring the time taken to export the scene.
 	SceneExporterRef->PreExport();
 }

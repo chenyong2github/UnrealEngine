@@ -37,6 +37,7 @@ public:
 	void Export( TSharedRef< IDatasmithScene > DatasmithScene, bool bCleanupUnusedElements = true );
 
 	/** Resets all the settings on the scene */
+	UE_DEPRECATED(5.1, "This function was selectively reseting the export state and was preserving the export paths. We should now directly set the fields we want to change instead.")
 	void Reset();
 
 	/** Sets the progress manager for visual feedback on exporting */

@@ -81,7 +81,7 @@ Vec_t FDatasmithFacadeElement::Convert(const Vec_t& V)
 	// World scaling for positions conversions
 	if constexpr (!kIsDirection)
 	{
-		Tmp *= kIsForward ? 1 / WorldUnitScale : WorldUnitScale;
+		Tmp *= kIsForward ? WorldUnitScale : 1 / WorldUnitScale;
 	}
 
 	return Tmp;

@@ -148,9 +148,6 @@ public:
 
 	void PreExport()
 	{
-		// Create a Datasmith scene exporter.
-		SceneExporterRef->Reset();
-
 		// Start measuring the time taken to export the scene.
 		SceneExporterRef->PreExport();
 	}
