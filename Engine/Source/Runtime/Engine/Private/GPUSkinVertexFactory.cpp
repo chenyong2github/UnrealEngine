@@ -913,7 +913,7 @@ void FGPUSkinPassthroughVertexFactory::ReleaseRHI()
 	ColorVBAlias.ReleaseRHI();
 }
 
-void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseSkinVertexFactory* SourceVertexFactory)
+void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseSkinVertexFactory const* SourceVertexFactory)
 {
 	if (PositionVBAlias.VertexBufferRHI != nullptr)
 	{
@@ -992,7 +992,7 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseS
 }
 
 void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(
-	FGPUBaseSkinVertexFactory* SourceVertexFactory, 
+	FGPUBaseSkinVertexFactory const* SourceVertexFactory, 
 	struct FRWBuffer* PositionRWBuffer, 
 	struct FRWBuffer* TangentRWBuffer)
 {
@@ -1015,7 +1015,7 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(
 
 void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(
 	EOverrideFlags OverrideFlags,
-	FGPUBaseSkinVertexFactory* SourceVertexFactory, 
+	FGPUBaseSkinVertexFactory const* SourceVertexFactory, 
 	TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer, 
 	TRefCountPtr<FRDGPooledBuffer> const& TangentBuffer,
 	TRefCountPtr<FRDGPooledBuffer> const& ColorBuffer)

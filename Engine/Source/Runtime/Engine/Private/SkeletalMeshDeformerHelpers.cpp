@@ -106,7 +106,7 @@ void FSkeletalMeshDeformerHelpers::SetVertexFactoryBufferOverrides(
 	const int32 NumSections = MeshObject->GetRenderSections(LODIndex).Num();
 	for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 	{
-		FGPUBaseSkinVertexFactory* BaseVertexFactory = LOD.GPUSkinVertexFactories.VertexFactories[SectionIndex].Get();
+		FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(LODIndex, SectionIndex);
 		FGPUSkinPassthroughVertexFactory* TargetVertexFactory = LOD.GPUSkinVertexFactories.PassthroughVertexFactories[SectionIndex].Get();
 		TargetVertexFactory->InvalidateStreams();
 		TargetVertexFactory->UpdateVertexDeclaration(OverrideFlags, BaseVertexFactory, PositionBuffer, TangentBuffer, ColorBuffer);

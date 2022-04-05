@@ -381,13 +381,13 @@ public:
 	virtual uint32 GetNumTexCoords() const										{ return Data.IsValid() ? Data->NumTexCoords : 0; }
 	virtual const uint32 GetColorIndexMask() const								{ return Data.IsValid() ? Data->ColorIndexMask : 0; }
 
-	inline const FVertexStreamComponent& GetPositionStreamComponent()
+	inline const FVertexStreamComponent& GetPositionStreamComponent() const
 	{
 		check(Data.IsValid() && Data->PositionComponent.VertexBuffer != nullptr);
 		return Data->PositionComponent;
 	}
 	
-	inline const FVertexStreamComponent& GetTangentStreamComponent(int Index)
+	inline const FVertexStreamComponent& GetTangentStreamComponent(int Index) const
 	{
 		check(Data.IsValid() && Data->TangentBasisComponents[Index].VertexBuffer != nullptr);
 		return Data->TangentBasisComponents[Index];
@@ -500,7 +500,7 @@ public:
 
 	/** Poke values into the vertex factory. */
 	inline void UpdateVertexDeclaration(
-		FGPUBaseSkinVertexFactory* SourceVertexFactory, 
+		FGPUBaseSkinVertexFactory const* SourceVertexFactory, 
 		struct FRWBuffer* PositionRWBuffer, 
 		struct FRWBuffer* TangentRWBuffer)
 	{
@@ -524,7 +524,7 @@ public:
 	/** Poke values into the vertex factory. */
 	inline void UpdateVertexDeclaration(
 		EOverrideFlags OverrideFlags,
-		FGPUBaseSkinVertexFactory* SourceVertexFactory,
+		FGPUBaseSkinVertexFactory const* SourceVertexFactory,
 		TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer,
 		TRefCountPtr<FRDGPooledBuffer> const& TangentBuffer,
 		TRefCountPtr<FRDGPooledBuffer> const& ColorBuffer)
@@ -560,14 +560,14 @@ protected:
 	uint32 UpdatedFrameNumber = 0;
 
 	void InternalUpdateVertexDeclaration(
-		FGPUBaseSkinVertexFactory* SourceVertexFactory);
+		FGPUBaseSkinVertexFactory const* SourceVertexFactory);
 	void InternalUpdateVertexDeclaration(
-		FGPUBaseSkinVertexFactory* SourceVertexFactory, 
+		FGPUBaseSkinVertexFactory const* SourceVertexFactory, 
 		struct FRWBuffer* PositionRWBuffer, 
 		struct FRWBuffer* TangentRWBuffer);
 	void InternalUpdateVertexDeclaration(
 		EOverrideFlags OverrideFlags,
-		FGPUBaseSkinVertexFactory* SourceVertexFactory,
+		FGPUBaseSkinVertexFactory const* SourceVertexFactory,
 		TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer,
 		TRefCountPtr<FRDGPooledBuffer> const& TangentBuffer,
 		TRefCountPtr<FRDGPooledBuffer> const& ColorBuffer);
