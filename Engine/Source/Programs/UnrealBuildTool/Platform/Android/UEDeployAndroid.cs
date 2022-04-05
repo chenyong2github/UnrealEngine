@@ -4007,6 +4007,20 @@ namespace UnrealBuildTool
 
 			}
 
+			string CommandLineSourceFileName = Path.Combine(Path.GetDirectoryName(ObbFileLocation)!, Path.GetFileNameWithoutExtension(ObbFileLocation), "UECommandLine.txt");
+			string CommandLineCacheFileName = Path.Combine(IntermediateAndroidPath, "UECommandLine.txt");
+			if (bBuildSettingsMatch)
+			{
+				bool bCommandLineMatch =
+					(!File.Exists(CommandLineSourceFileName) && !File.Exists(CommandLineCacheFileName)) ||
+					BinaryFileEquals(CommandLineSourceFileName, CommandLineCacheFileName);
+				if (!bCommandLineMatch)
+				{
+					bBuildSettingsMatch = false;
+					Log.TraceInformation("Previous .apk file(s) were made with different stage/apk command line, forcing repackage.");
+				}
+			}
+
 			// Initialize UPL contexts for each architecture enabled
 			UPL.Init(NDKArches, bForDistribution, EngineDirectory, IntermediateAndroidPath, ProjectDirectory, Configuration.ToString(), bSkipGradleBuild, bPerArchBuildDir:true, ArchRemapping:ArchRemapping);
 
@@ -4039,6 +4053,14 @@ namespace UnrealBuildTool
 
 			// at this point, we can write out the cached build settings to compare for a next build
 			File.WriteAllText(BuildSettingsCacheFile, CurrentBuildSettings);
+			if (File.Exists(CommandLineSourceFileName))
+			{
+				CopyIfDifferent(CommandLineSourceFileName, CommandLineCacheFileName, true, true);
+			}
+			else
+			{
+				SafeDeleteFile(CommandLineCacheFileName);
+			}
 
 			// make up a dictionary of strings to replace in xml files (strings.xml)
 			Dictionary<string, string> Replacements = new Dictionary<string, string>();
@@ -4081,7 +4103,6 @@ namespace UnrealBuildTool
 				}
 
 				// See if we need to stage a UECommandLine.txt file in assets
-				string CommandLineSourceFileName = Path.Combine(Path.GetDirectoryName(ObbFileLocation)!, Path.GetFileNameWithoutExtension(ObbFileLocation), "UECommandLine.txt");
 				string CommandLineDestFileName = Path.Combine(UnrealBuildPath, "assets", "UECommandLine.txt");
 				if (File.Exists(CommandLineSourceFileName))
 				{
