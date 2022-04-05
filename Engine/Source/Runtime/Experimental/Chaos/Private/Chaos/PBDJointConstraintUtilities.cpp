@@ -105,7 +105,7 @@ namespace Chaos
 
 		const FVec3 DX = X1 - X0;
 		const FReal DXLen = DX.Size();
-		if (DXLen > KINDA_SMALL_NUMBER)
+		if (DXLen > UE_KINDA_SMALL_NUMBER)
 		{
 			Axis = DX / DXLen;
 			Delta = DXLen;
@@ -136,7 +136,7 @@ namespace Chaos
 
 		DX = DX - CylinderDelta * CylinderAxis;
 		const FReal DXLen = DX.Size();
-		if (DXLen > KINDA_SMALL_NUMBER)
+		if (DXLen > UE_KINDA_SMALL_NUMBER)
 		{
 			RadialAxis = DX / DXLen;
 			RadialDelta = DXLen;
@@ -178,9 +178,9 @@ namespace Chaos
 		FRotation3 Twist = InTwist.GetNormalized();
 		ensure(FMath::Abs(Twist.W) <= 1.0f);
 		FReal Angle = Twist.GetAngle();
-		if (Angle > PI)
+		if (Angle > UE_PI)
 		{
-			Angle = Angle - (FReal)2 * PI;
+			Angle = Angle - (FReal)2 * UE_PI;
 		}
 		if (Twist.X < 0.0f)
 		{
@@ -216,9 +216,9 @@ namespace Chaos
 		FPBDJointUtilities::DecomposeSwingTwistLocal(R0, R1, R01Swing, R01Twist);
 
 		R01Swing.ToAxisAndAngleSafe(AxisLocal, Angle, FJointConstants::Swing1Axis(), AngleTolerance);
-		if (Angle > PI)
+		if (Angle > UE_PI)
 		{
-			Angle = Angle - (FReal)2 * PI;
+			Angle = Angle - (FReal)2 * UE_PI;
 		}
 	}
 
@@ -314,7 +314,7 @@ namespace Chaos
 		FVec3 Swing0 = R0 * FJointConstants::OtherSwingAxis(SwingConstraintIndex);
 		Axis = FVec3::CrossProduct(Swing0, Twist1);
 		Angle = 0.0f;
-		if (Utilities::NormalizeSafe(Axis, KINDA_SMALL_NUMBER))
+		if (Utilities::NormalizeSafe(Axis, UE_KINDA_SMALL_NUMBER))
 		{
 			FReal SwingTwistDot = FVec3::DotProduct(Swing0, Twist1);
 			Angle = FMath::Asin(FMath::Clamp(-SwingTwistDot, FReal(-1), FReal(1)));
@@ -357,9 +357,9 @@ namespace Chaos
 		Axis2 = 0.5f * (V0 * V1.Z + V1 * V0.Z + FVec3(C.Y, -C.X, D));
 
 		// Handle degenerate case of 180 deg swing
-		if (FMath::Abs(D0 + D1) < SMALL_NUMBER)
+		if (FMath::Abs(D0 + D1) < UE_SMALL_NUMBER)
 		{
-			const FReal Epsilon = SMALL_NUMBER;
+			const FReal Epsilon = UE_SMALL_NUMBER;
 			Axis0.X += Epsilon;
 			Axis1.Y += Epsilon;
 			Axis2.Z += Epsilon;
@@ -381,7 +381,7 @@ namespace Chaos
 
 		// Elliptical swing limit
 		// @todo(ccaulfield): do elliptical constraints properly (axis is still for circular limit)
-		if (!FMath::IsNearlyEqual(Swing1Limit, Swing2Limit, (FReal)KINDA_SMALL_NUMBER))
+		if (!FMath::IsNearlyEqual(Swing1Limit, Swing2Limit, (FReal)UE_KINDA_SMALL_NUMBER))
 		{
 			// Map swing axis to ellipse and calculate limit for this swing axis
 			const FReal DotSwing1 = FMath::Abs(FVec3::DotProduct(SwingAxisLocal, FJointConstants::Swing1Axis()));
@@ -744,7 +744,7 @@ namespace Chaos
 		{
 			return FVec3(0, 0, 0);
 		}
-		else if (CXLen > SMALL_NUMBER)
+		else if (CXLen > UE_SMALL_NUMBER)
 		{
 			FVec3 Dir = CX / CXLen;
 			return CX - Radius * Dir;
@@ -766,7 +766,7 @@ namespace Chaos
 		{
 			CXPlane = FVec3(0, 0, 0);
 		}
-		else if (CXPlaneLen > KINDA_SMALL_NUMBER)
+		else if (CXPlaneLen > UE_KINDA_SMALL_NUMBER)
 		{
 			FVec3 Dir = CXPlane / CXPlaneLen;
 			CXPlane = CXPlane - Limit * Dir;

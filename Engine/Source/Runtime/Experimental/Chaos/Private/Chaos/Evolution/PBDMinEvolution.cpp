@@ -164,7 +164,7 @@ namespace Chaos
 
 		PrepareTick();
 
-		if (RewindDt > SMALL_NUMBER)
+		if (RewindDt > UE_SMALL_NUMBER)
 		{
 			Rewind(StepDt, RewindDt);
 		}
@@ -423,7 +423,7 @@ namespace Chaos
 				// Target positions only need to be processed once, and we reset the velocity next frame (if no new target is set)
 				FVec3 NewX;
 				FRotation3 NewR;
-				if (FMath::IsNearlyEqual(StepFraction, (FReal)1, (FReal)KINDA_SMALL_NUMBER))
+				if (FMath::IsNearlyEqual(StepFraction, (FReal)1, (FReal)UE_KINDA_SMALL_NUMBER))
 				{
 					NewX = KinematicTarget.GetTarget().GetLocation();
 					NewR = KinematicTarget.GetTarget().GetRotation();

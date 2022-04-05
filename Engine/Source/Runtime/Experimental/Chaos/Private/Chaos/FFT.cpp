@@ -36,7 +36,7 @@ void EnforceSymmetry(const FFFT3::FUniformGrid& Grid, FFFT3::FArrayNDOfComplex& 
 }
 void FFFT3::MakeDivergenceFree(const FUniformGrid& Grid, FArrayNDOfComplex& u, FArrayNDOfComplex& v, FArrayNDOfComplex& w)
 {
-	FVec3 Coefficients = ((FReal)2 * (FReal)PI) / Grid.DomainSize();
+	FVec3 Coefficients = ((FReal)2 * (FReal)UE_PI) / Grid.DomainSize();
 	for (int i = 1; i <= Grid.Counts()[0] / 2; ++i)
 		u(i, 0, 0) = FComplex(0, 0);
 	for (int i = 0; i < Grid.Counts()[0]; ++i)

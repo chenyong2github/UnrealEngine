@@ -1897,7 +1897,7 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 					TManagedArray<FVector3f>* AngularVelocity = DynamicCollection.FindAttributeTyped<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
 					check(AngularVelocity);
 					FVector DiffX = ParticleToWorld.GetTranslation() - GTParticle->X();
-					FVector DiffR = (ParticleToWorld.GetRotation().Euler() - GTParticle->R().Euler()) * (PI / 180.0f);
+					FVector DiffR = (ParticleToWorld.GetRotation().Euler() - GTParticle->R().Euler()) * (UE_PI / 180.0f);
 
 					(*LinearVelocity)[TransformGroupIndex] = FVector3f(DiffX / TargetResults.SolverDt);
 					(*AngularVelocity)[TransformGroupIndex] = FVector3f(DiffR / TargetResults.SolverDt);
@@ -1950,7 +1950,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	const float MaxBoundsExtents = SharedParams.MaximumBoundingExtentClamp;
 	const float MinVolume = SharedParams.MinimumVolumeClamp();
 	const float MaxVolume = SharedParams.MaximumVolumeClamp();
-	const float MinMass = FMath::Max(SMALL_NUMBER, SharedParams.MaximumMassClamp);
+	const float MinMass = FMath::Max(UE_SMALL_NUMBER, SharedParams.MaximumMassClamp);
 	const float MaxMass = SharedParams.MinimumMassClamp;
 
 

@@ -628,10 +628,10 @@ void FLevelSet::ComputeConvexity(const TArray<TVec3<int32>>& InterfaceIndices)
 		FReal PhiYZ = (MPhi[MAX_CLAMP(i + ZOffset + 1, NumCells, i)] + MPhi[MIN_CLAMP(i - ZOffset - 1, 0, i)] - MPhi[RANGE_CLAMP(i - ZOffset + 1, NumCells, i)] - MPhi[RANGE_CLAMP(i + ZOffset - 1, NumCells, i)]) / (4 * MGrid.Dx()[1] * MGrid.Dx()[2]);
 
 		FReal Denom = sqrt(PhiX * PhiX + PhiY * PhiY + PhiZ * PhiZ);
-		if (Denom > SMALL_NUMBER)
+		if (Denom > UE_SMALL_NUMBER)
 		{
 			FReal curvature = -(PhiX * PhiX * PhiYY - 2 * PhiX * PhiY * PhiXY + PhiY * PhiY * PhiXX + PhiX * PhiX * PhiZZ - 2 * PhiX * PhiZ * PhiXZ + PhiZ * PhiZ * PhiXX + PhiY * PhiY * PhiZZ - 2 * PhiY * PhiZ * PhiYZ + PhiZ * PhiZ * PhiYY) / (Denom * Denom * Denom);
-			LocalSign = curvature > KINDA_SMALL_NUMBER ? 1 : (curvature < -KINDA_SMALL_NUMBER ? -1 : 0);
+			LocalSign = curvature > UE_KINDA_SMALL_NUMBER ? 1 : (curvature < -UE_KINDA_SMALL_NUMBER ? -1 : 0);
 			if (bFirst)
 			{
 				bFirst = false;
@@ -676,8 +676,8 @@ bool FLevelSet::ComputeDistancesNearZeroIsocontour(FErrorReporter& ErrorReporter
 		TriangleBounds.GrowToInclude(InParticles.X(Element[2]));
 		MOriginalLocalBoundingBox.GrowToInclude(TriangleBounds); //also save the original bounding box
 
-		TVec3<int32> StartIndex = MGrid.Cell(TriangleBounds.Min() - FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx()));
-		TVec3<int32> EndIndex = MGrid.Cell(TriangleBounds.Max() + FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx()));
+		TVec3<int32> StartIndex = MGrid.Cell(TriangleBounds.Min() - FVec3((0.5f + UE_KINDA_SMALL_NUMBER) * MGrid.Dx()));
+		TVec3<int32> EndIndex = MGrid.Cell(TriangleBounds.Max() + FVec3((0.5f + UE_KINDA_SMALL_NUMBER) * MGrid.Dx()));
 		for (int32 i = StartIndex[0]; i <= EndIndex[0]; ++i)
 		{
 			for (int32 j = StartIndex[1]; j <= EndIndex[1]; ++j)
@@ -1251,7 +1251,7 @@ void FLevelSet::ComputeNormals()
 				    (SignedDistance(X + FVec3::AxisVector(1) * Dx[1]) - SignedDistance(X - FVec3::AxisVector(1) * Dx[1])) / (2 * Dx[1]),
 				    (SignedDistance(X + FVec3::AxisVector(2) * Dx[2]) - SignedDistance(X - FVec3::AxisVector(2) * Dx[2])) / (2 * Dx[2]));
 				FReal Size = MNormals(CellIndex).Size();
-				if (Size > SMALL_NUMBER)
+				if (Size > UE_SMALL_NUMBER)
 				{
 					MNormals(CellIndex) /= Size;
 				}
@@ -1304,8 +1304,8 @@ void FLevelSet::ComputeNormals(const FParticles& InParticles, const FTriangleMes
 		TriangleBounds.GrowToInclude(InParticles.X(Element[2]));
 		MOriginalLocalBoundingBox.GrowToInclude(TriangleBounds); //also save the original bounding box
 
-		TVec3<int32> StartIndex = MGrid.Cell(TriangleBounds.Min() - FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx()));
-		TVec3<int32> EndIndex = MGrid.Cell(TriangleBounds.Max() + FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx()));
+		TVec3<int32> StartIndex = MGrid.Cell(TriangleBounds.Min() - FVec3((0.5f + UE_KINDA_SMALL_NUMBER) * MGrid.Dx()));
+		TVec3<int32> EndIndex = MGrid.Cell(TriangleBounds.Max() + FVec3((0.5f + UE_KINDA_SMALL_NUMBER) * MGrid.Dx()));
 		for (int32 i = StartIndex[0]; i <= EndIndex[0]; ++i)
 		{
 			for (int32 j = StartIndex[1]; j <= EndIndex[1]; ++j)
@@ -1413,7 +1413,7 @@ FReal FLevelSet::PhiWithNormal(const FVec3& x, FVec3& Normal) const
 	{
 		Normal = MGrid.LinearlyInterpolate(MNormals, Location);
 		FReal NormalMag = Normal.Size();
-		if (NormalMag > SMALL_NUMBER)
+		if (NormalMag > UE_SMALL_NUMBER)
 		{
 			Normal /= NormalMag;
 		}

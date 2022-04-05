@@ -204,7 +204,7 @@ namespace Chaos
 				// World-space contact tangents. We are treating the normal as the constraint-space Z axis
 				// and the Tangent U and V as the constraint-space X and Y axes respectively
 				FSolverVec3 WorldContactTangentU = FSolverVec3::CrossProduct(FSolverVec3(0, 1, 0), WorldContactNormal);
-				if (!WorldContactTangentU.Normalize(FSolverReal(KINDA_SMALL_NUMBER)))
+				if (!WorldContactTangentU.Normalize(FSolverReal(UE_KINDA_SMALL_NUMBER)))
 				{
 					WorldContactTangentU = FSolverVec3::CrossProduct(FSolverVec3(1, 0, 0), WorldContactNormal);
 					WorldContactTangentU = WorldContactTangentU.GetUnsafeNormal();
@@ -317,7 +317,7 @@ namespace Chaos
 				// and the Tangent U and V as the constraint-space X and Y axes respectively
 				SolverVectorRegister WorldContactTangentU = VectorCross(MakeVectorRegisterFloatConstant(0, 1, 0, 0), WorldContactNormal);
 				SolverVectorRegister WorldContactTangentULenSq = VectorDot3(WorldContactTangentU, WorldContactTangentU);
-				SolverVectorRegister WorldContactTangentUCompareMask = VectorCompareGT(WorldContactTangentULenSq, VectorSetFloat1(KINDA_SMALL_NUMBER));
+				SolverVectorRegister WorldContactTangentUCompareMask = VectorCompareGT(WorldContactTangentULenSq, VectorSetFloat1(UE_KINDA_SMALL_NUMBER));
 				if (VectorMaskBits(WorldContactTangentUCompareMask))
 				{
 					WorldContactTangentU = VectorMultiply(WorldContactTangentU, VectorReciprocalSqrt(WorldContactTangentULenSq));

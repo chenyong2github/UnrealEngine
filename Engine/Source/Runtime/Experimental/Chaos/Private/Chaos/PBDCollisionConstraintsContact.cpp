@@ -60,7 +60,7 @@ namespace Chaos
 
 				bool bApplyResitution = (ContactRestitution > 0.0f);
 				bool bHaveRestitutionPadding = (ContactRestitutionPadding > 0.0f);
-				bool bApplyFriction = (ContactFriction > 0) && (IterationParameters.Dt > SMALL_NUMBER);
+				bool bApplyFriction = (ContactFriction > 0) && (IterationParameters.Dt > UE_SMALL_NUMBER);
 
 				// If we have restitution, pad the constraint by an amount that enforces the outgoing velocity constraint
 				// Really this should be per contact point, not per constraint.
@@ -115,7 +115,7 @@ namespace Chaos
 					{
 						FVec3 CVLateral = CV - CVNormal * ContactNormal;
 						FReal CVLateralMag = CVLateral.Size();
-						if (CVLateralMag > KINDA_SMALL_NUMBER)
+						if (CVLateralMag > UE_KINDA_SMALL_NUMBER)
 						{
 							FVec3 DirLateral = CVLateral / CVLateralMag;
 							FVec3 LateralImpulseNumerator = -CVLateral * IterationParameters.Dt;

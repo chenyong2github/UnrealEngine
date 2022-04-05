@@ -130,7 +130,7 @@ namespace Chaos
 			const FVec3 NearPos = FMath::Lerp(Capsule.GetX1(), Capsule.GetX2(), NearPosT);
 			const FVec3 NearPosDelta = SpherePos - NearPos;
 			const FReal NearPosDistanceSq = NearPosDelta.SizeSquared();
-			if (NearPosDistanceSq > SMALL_NUMBER)
+			if (NearPosDistanceSq > UE_SMALL_NUMBER)
 			{
 				if (NearPosDistanceSq < NetCullDistanceSq)
 				{
@@ -469,7 +469,7 @@ namespace Chaos
 
 			// Calculate the normal from the two closest points. Handle exact axis overlaps.
 			FVec3 ClosestNormal;
-			if (ClosestDeltaLen > KINDA_SMALL_NUMBER)
+			if (ClosestDeltaLen > UE_KINDA_SMALL_NUMBER)
 			{
 				ClosestNormal = -ClosestDelta / ClosestDeltaLen;
 			}

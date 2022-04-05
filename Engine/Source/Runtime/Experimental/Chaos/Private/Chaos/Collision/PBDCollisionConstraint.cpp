@@ -985,7 +985,7 @@ namespace Chaos
 		FVec3 GravityDirection = ConcreteContainer()->GetGravityDirection();
 		FReal GravitySize = ConcreteContainer()->GetGravitySize();
 		// When gravity is zero, we still want to sort the constraints instead of having a random order. In this case, set gravity to default gravity.
-		if (GravitySize < SMALL_NUMBER)
+		if (GravitySize < UE_SMALL_NUMBER)
 		{
 			GravityDirection = FVec3(0, 0, -1);
 			GravitySize = 980.f;

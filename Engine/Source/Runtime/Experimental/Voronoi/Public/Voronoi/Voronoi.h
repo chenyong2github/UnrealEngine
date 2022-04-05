@@ -2,8 +2,8 @@
 #pragma once
 #include "CoreMinimal.h"
 
-bool VORONOI_API VoronoiNeighbors(const TArrayView<const FVector> &Sites, TArray<TArray<int>> &Neighbors, bool bExcludeBounds = true, float SquaredDistSkipPtThreshold = KINDA_SMALL_NUMBER);
-bool VORONOI_API GetVoronoiEdges(const TArrayView<const FVector> &Sites, const FBox& Bounds, TArray<TTuple<FVector, FVector>> &Edges, TArray<int32> &CellMember, float SquaredDistSkipPtThreshold = KINDA_SMALL_NUMBER);
+bool VORONOI_API VoronoiNeighbors(const TArrayView<const FVector> &Sites, TArray<TArray<int>> &Neighbors, bool bExcludeBounds = true, float SquaredDistSkipPtThreshold = UE_KINDA_SMALL_NUMBER);
+bool VORONOI_API GetVoronoiEdges(const TArrayView<const FVector> &Sites, const FBox& Bounds, TArray<TTuple<FVector, FVector>> &Edges, TArray<int32> &CellMember, float SquaredDistSkipPtThreshold = UE_KINDA_SMALL_NUMBER);
 
 // All the info you would typically want about a single cell in the Voronoi diagram, in the format that is easiest to compute
 struct FVoronoiCellInfo
@@ -36,7 +36,7 @@ public:
 	 * @param SquaredDistSkipPtThreshold	A safety threshold to avoid creating invalid cells: sites that are within this distance of an already-added site will not be added
 	 *										(If you know there will be no duplicate sites, can set to zero for faster perf.)
 	 */
-	FVoronoiDiagram(const TArrayView<const FVector>& Sites, float ExtraBoundingSpace, float SquaredDistSkipPtThreshold = KINDA_SMALL_NUMBER);
+	FVoronoiDiagram(const TArrayView<const FVector>& Sites, float ExtraBoundingSpace, float SquaredDistSkipPtThreshold = UE_KINDA_SMALL_NUMBER);
 	/**
 	* @param Sites							Voronoi sites for the diagram
 	* @param Bounds							Bounding box within which to compute the Voronoi diagram
@@ -44,7 +44,7 @@ public:
 	* @param SquaredDistSkipPtThreshold		A safety threshold to avoid creating invalid cells: sites that are within this distance of an already-added site will not be added.
 	*										(If you know there will be no duplicate sites, can set to zero for faster perf.)
 	*/
-	FVoronoiDiagram(const TArrayView<const FVector>& Sites, const FBox &Bounds, float ExtraBoundingSpace, float SquaredDistSkipPtThreshold = KINDA_SMALL_NUMBER);
+	FVoronoiDiagram(const TArrayView<const FVector>& Sites, const FBox &Bounds, float ExtraBoundingSpace, float SquaredDistSkipPtThreshold = UE_KINDA_SMALL_NUMBER);
 	~FVoronoiDiagram();
 
 	int32 Num() const

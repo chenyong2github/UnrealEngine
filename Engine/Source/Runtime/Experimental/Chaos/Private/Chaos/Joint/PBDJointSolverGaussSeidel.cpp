@@ -57,14 +57,14 @@ namespace Chaos
 	void FPBDJointSolver::UpdateDerivedState()
 	{
 		// Kinematic bodies will not be moved, so we don't update derived state during iterations
-		if (InvM(0) > SMALL_NUMBER)
+		if (InvM(0) > UE_SMALL_NUMBER)
 		{
 			const FVec3 BodyP0 = P(0);
 			const FRotation3 BodyQ0 = Q(0);
 			ConnectorXs[0] = BodyP0 + BodyQ0 * LocalConnectorXs[0].GetTranslation();
 			ConnectorRs[0] = BodyQ0 * LocalConnectorXs[0].GetRotation();
 		}
-		if (InvM(1) > SMALL_NUMBER)
+		if (InvM(1) > UE_SMALL_NUMBER)
 		{
 			const FVec3 BodyP1 = P(1);
 			const FRotation3 BodyQ1 = Q(1);
@@ -964,7 +964,7 @@ namespace Chaos
 		const FPBDJointSettings& JointSettings,
 		const bool bUseSoftLimit)
 	{
-		if(!NetAngularImpulse.IsNearlyZero() && !bUseSoftLimit && AngularHardLambda[(int32)EJointAngularConstraintIndex::Twist] > SMALL_NUMBER)
+		if(!NetAngularImpulse.IsNearlyZero() && !bUseSoftLimit && AngularHardLambda[(int32)EJointAngularConstraintIndex::Twist] > UE_SMALL_NUMBER)
 		{
 			FVec3 TwistAxis;
 			FReal TwistAngle;
@@ -993,7 +993,7 @@ namespace Chaos
 		const FPBDJointSettings& JointSettings,
 		const bool bUseSoftLimit)
 	{
-		if(!NetAngularImpulse.IsNearlyZero() && !bUseSoftLimit && AngularHardLambda[(int32)EJointAngularConstraintIndex::Swing2] > SMALL_NUMBER)
+		if(!NetAngularImpulse.IsNearlyZero() && !bUseSoftLimit && AngularHardLambda[(int32)EJointAngularConstraintIndex::Swing2] > UE_SMALL_NUMBER)
 		{
 			FVec3 SwingAxisLocal;
 			FReal DSwingAngle = 0.0f;
@@ -1022,7 +1022,7 @@ namespace Chaos
 		const EJointAngularConstraintIndex SwingConstraintIndex,
 		const bool bUseSoftLimit)
 	{
-		if(!NetAngularImpulse.IsNearlyZero() && !bUseSoftLimit && AngularHardLambda[(int32)SwingConstraintIndex] > SMALL_NUMBER)
+		if(!NetAngularImpulse.IsNearlyZero() && !bUseSoftLimit && AngularHardLambda[(int32)SwingConstraintIndex] > UE_SMALL_NUMBER)
 		{
 			FVec3 SwingAxis;
 			FReal SwingAngle;
@@ -1042,7 +1042,7 @@ namespace Chaos
 		const EJointAngularConstraintIndex SwingConstraintIndex,
 		const bool bUseSoftLimit)
 	{
-		if(!NetAngularImpulse.IsNearlyZero() && !bUseSoftLimit && AngularHardLambda[(int32)SwingConstraintIndex] > SMALL_NUMBER)
+		if(!NetAngularImpulse.IsNearlyZero() && !bUseSoftLimit && AngularHardLambda[(int32)SwingConstraintIndex] > UE_SMALL_NUMBER)
 		{
 			FVec3 SwingAxis;
 			FReal SwingAngle;
@@ -1066,7 +1066,7 @@ namespace Chaos
 		const EJointAngularConstraintIndex SwingConstraintIndex,
 		const bool bUseSoftLimit)
 	{
-		if(!NetAngularImpulse.IsNearlyZero() && !bUseSoftLimit && AngularHardLambda[(int32)SwingConstraintIndex] > SMALL_NUMBER)
+		if(!NetAngularImpulse.IsNearlyZero() && !bUseSoftLimit && AngularHardLambda[(int32)SwingConstraintIndex] > UE_SMALL_NUMBER)
 		{
 			FVec3 SwingAxis;
 			FReal SwingAngle;
@@ -1114,14 +1114,14 @@ namespace Chaos
 			FPBDJointUtilities::GetLockedRotationAxes(ConnectorRs[0], ConnectorRs[1], Axis0, Axis1, Axis2);
 			const FRotation3 R01 = ConnectorRs[0].Inverse() * ConnectorRs[1];
 
-			if (bApplyTwist && AngularHardLambda[(int32)EJointAngularConstraintIndex::Twist] > SMALL_NUMBER)
+			if (bApplyTwist && AngularHardLambda[(int32)EJointAngularConstraintIndex::Twist] > UE_SMALL_NUMBER)
 			{
 				FReal TwistStiffness = SolverStiffness * FPBDJointUtilities::GetTwistStiffness(SolverSettings, JointSettings);
 				Axis0.SafeNormalize();
 				ApplyAngularVelocityConstraint(TwistStiffness, Axis0);
 			}
 
-			if (bApplySwing && AngularHardLambda[(int32)EJointAngularConstraintIndex::Swing2] + AngularHardLambda[(int32)EJointAngularConstraintIndex::Swing1] > SMALL_NUMBER)
+			if (bApplySwing && AngularHardLambda[(int32)EJointAngularConstraintIndex::Swing2] + AngularHardLambda[(int32)EJointAngularConstraintIndex::Swing1] > UE_SMALL_NUMBER)
 			{
 				FReal SwingStiffness = SolverStiffness * FPBDJointUtilities::GetSwingStiffness(SolverSettings, JointSettings);
 				Axis1.SafeNormalize();
@@ -1321,7 +1321,7 @@ namespace Chaos
 			const FReal II = (InvM(0) + II0 + InvM(1) + II1);
 	
 			FReal VelDt = 0;
-			if (JointDamping > KINDA_SMALL_NUMBER)
+			if (JointDamping > UE_KINDA_SMALL_NUMBER)
 			{
 				const FVec3 V0Dt = FVec3::CalculateVelocity(InitConnectorXs[0], ConnectorXs[0], 1.0f);
 				const FVec3 V1Dt = FVec3::CalculateVelocity(InitConnectorXs[1], ConnectorXs[1], 1.0f);
@@ -1460,7 +1460,7 @@ namespace Chaos
 
 			// Damping angular velocity
 			FReal AngVelDt = 0;
-			if (JointDamping > KINDA_SMALL_NUMBER)
+			if (JointDamping > UE_KINDA_SMALL_NUMBER)
 			{
 				const FVec3 W0Dt = FRotation3::CalculateAngularVelocity(InitConnectorRs[KIndex], ConnectorRs[KIndex], 1.0f);
 				const FVec3 W1Dt = FRotation3::CalculateAngularVelocity(InitConnectorRs[DIndex], ConnectorRs[DIndex], 1.0f);
@@ -1518,7 +1518,7 @@ namespace Chaos
 
 			// Damping angular velocity
 			FReal AngVelDt = 0;
-			if (JointDamping > KINDA_SMALL_NUMBER)
+			if (JointDamping > UE_KINDA_SMALL_NUMBER)
 			{
 				const FVec3 W0Dt = FRotation3::CalculateAngularVelocity(InitConnectorRs[0], ConnectorRs[0], 1.0f);
 				const FVec3 W1Dt = FRotation3::CalculateAngularVelocity(InitConnectorRs[1], ConnectorRs[1], 1.0f);
@@ -1969,9 +1969,9 @@ namespace Chaos
 			if (AngularDriveStiffness > 0.0f)
 			{
 				FPBDJointUtilities::GetLockedRotationAxes(ConnectorRs[0], ConnectorRs[1], Axes[0], Axes[1], Axes[2]);
-				Utilities::NormalizeSafe(Axes[0], KINDA_SMALL_NUMBER);
-				Utilities::NormalizeSafe(Axes[1], KINDA_SMALL_NUMBER);
-				Utilities::NormalizeSafe(Axes[2], KINDA_SMALL_NUMBER);
+				Utilities::NormalizeSafe(Axes[0], UE_KINDA_SMALL_NUMBER);
+				Utilities::NormalizeSafe(Axes[1], UE_KINDA_SMALL_NUMBER);
+				Utilities::NormalizeSafe(Axes[2], UE_KINDA_SMALL_NUMBER);
 			}
 
 			const FRotation3 R01 = ConnectorRs[0].Inverse() * ConnectorRs[1];
@@ -2004,9 +2004,9 @@ namespace Chaos
 			FReal SLerpAngle;
 			if (DR.ToAxisAndAngleSafe(SLerpAxis, SLerpAngle, FVec3(1, 0, 0)))
 			{
-				if (SLerpAngle > (FReal)PI)
+				if (SLerpAngle > (FReal)UE_PI)
 				{
-					SLerpAngle = SLerpAngle - (FReal)2 * PI;
+					SLerpAngle = SLerpAngle - (FReal)2 * UE_PI;
 				}
 
 				UE_LOG(LogChaosJoint, VeryVerbose, TEXT("      SLerpDrive Pos: %f Axis: %f %f %f"), -SLerpAngle, SLerpAxis.X, SLerpAxis.Y, SLerpAxis.Z);
@@ -2640,11 +2640,11 @@ namespace Chaos
 			// Calculate constraint correction
 			FMatrix33 M0 = FMatrix33::Zero;
 			FMatrix33 M1 = FMatrix33::Zero;
-			if (InvM(0) > SMALL_NUMBER)
+			if (InvM(0) > UE_SMALL_NUMBER)
 			{
 				M0 = Utilities::ComputeJointFactorMatrix(ConnectorXs[0] - P(0), InvI(0), InvM(0));
 			}
-			if (InvM(1) > SMALL_NUMBER)
+			if (InvM(1) > UE_SMALL_NUMBER)
 			{
 				M1 = Utilities::ComputeJointFactorMatrix(ConnectorXs[1] - P(1), InvI(1), InvM(1));
 			}
@@ -2702,7 +2702,7 @@ namespace Chaos
 			FPBDJointUtilities::GetCylindricalAxesDeltas(ConnectorRs[0], ConnectorXs[0], ConnectorXs[1], AxisIndex, Axis, AxialDelta, RadialAxis, RadialDelta);
 			const FVec3 DConnectorX = ConnectorXs[1] - ConnectorXs[0];
 
-			if (LinearHardLambda[(int32)EJointCylindricalPositionConstraintType::Axial] > SMALL_NUMBER)
+			if (LinearHardLambda[(int32)EJointCylindricalPositionConstraintType::Axial] > UE_SMALL_NUMBER)
 			{
 				const FReal Stiffness = SolverStiffness * FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 
@@ -2728,7 +2728,7 @@ namespace Chaos
 				ApplyLinearVelocityConstraint(Stiffness, Axis, Connector0Correction, TargetVel);
 			}
 
-			if (LinearHardLambda[(int32)EJointCylindricalPositionConstraintType::Radial] > SMALL_NUMBER)
+			if (LinearHardLambda[(int32)EJointCylindricalPositionConstraintType::Radial] > UE_SMALL_NUMBER)
 			{
 				const FReal Stiffness = SolverStiffness * FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 

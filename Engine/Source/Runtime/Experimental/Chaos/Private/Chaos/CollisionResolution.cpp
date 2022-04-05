@@ -209,14 +209,14 @@ namespace Chaos
 			{
 				Dir = DeltaX0 - DeltaX1;
 				Length = Dir.SafeNormalize();
-				if (Length < SMALL_NUMBER) // This is the case where both particles' velocities are high but the relative velocity is low. 
+				if (Length < UE_SMALL_NUMBER) // This is the case where both particles' velocities are high but the relative velocity is low. 
 				{
 					bUseCCD = false;
 				}
 
 				// Do not perform CCD if the vector is not close to unit length to prevent getting caught in a large or infinite loop when raycasting.
 				// @todo(chaos): What's this? Dir is normalized above so this seems unnecessary unless it is checking for 0 length, not unit length - remove it or fix
-				if (!FMath::IsNearlyEqual((float)Dir.SizeSquared(), 1.f, KINDA_SMALL_NUMBER))
+				if (!FMath::IsNearlyEqual((float)Dir.SizeSquared(), 1.f, UE_KINDA_SMALL_NUMBER))
 				{
 					bUseCCD = false;
 				}
@@ -595,7 +595,7 @@ namespace Chaos
 			const FRigidTransform3 BoxToPlaneTransform(BoxTransform.GetRelativeTransform(PlaneTransform));
 			const FVec3 Extents = Box.Extents();
 			constexpr int32 NumCorners = 2 + 2 * 3;
-			constexpr FReal Epsilon = KINDA_SMALL_NUMBER;
+			constexpr FReal Epsilon = UE_KINDA_SMALL_NUMBER;
 
 			FVec3 Corners[NumCorners];
 			int32 CornerIdx = 0;

@@ -226,7 +226,7 @@ void FWaveScalar::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Resul
 {
 	const float Velocity = (Period != 0.0f ) ? Wavelength / Period : 0.0f;
 
-	const float Wavenumber = (Wavelength != 0.0f ) ? 2.0f * PI / Wavelength : 0.0f;
+	const float Wavenumber = (Wavelength != 0.0f ) ? 2.0f * UE_PI / Wavelength : 0.0f;
 	const Chaos::FReal DeltaTime = FMath::Max(Context.TimeSeconds, 0.0f);
 	const Chaos::FReal Radius = Wavelength * DeltaTime / Period;
 	const Chaos::FReal Decay = DeltaTime / Period;
@@ -456,7 +456,7 @@ void FPlaneFalloff::Evaluator(const FFieldContext& Context, const FPlane& Plane,
 				Results[Index.Result] = Default;
 				const FPlane::FReal Delta = Plane.PlaneDot(Context.SamplePositions[Index.Sample]);
 
-				if (Delta < -SMALL_NUMBER && Delta > -Distance)
+				if (Delta < -UE_SMALL_NUMBER && Delta > -Distance)
 				{
 					const float Function = float(1.0f + Delta / Distance);		// LWC_TODO: Precision loss
 					Results[Index.Result] = EvalFalloffFunction<FalloffType>(MinRange, DeltaRange, Magnitude, Function);

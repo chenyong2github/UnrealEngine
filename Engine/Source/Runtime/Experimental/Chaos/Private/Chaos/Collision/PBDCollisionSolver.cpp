@@ -183,7 +183,7 @@ namespace Chaos
 				WorldContactNormalAngular1 = Body1.InvI() * R1xN;
 				ContactMassInvNormal += FSolverVec3::DotProduct(R1xN, WorldContactNormalAngular1) + Body1.InvM();
 			}
-			AverageManifoldPoint.ContactMassNormal = (ContactMassInvNormal > FSolverReal(SMALL_NUMBER)) ? FSolverReal(1) / ContactMassInvNormal : FSolverReal(0);
+			AverageManifoldPoint.ContactMassNormal = (ContactMassInvNormal > FSolverReal(UE_SMALL_NUMBER)) ? FSolverReal(1) / ContactMassInvNormal : FSolverReal(0);
 			AverageManifoldPoint.WorldContactNormalAngular0 = WorldContactNormalAngular0;
 			AverageManifoldPoint.WorldContactNormalAngular1 = WorldContactNormalAngular1;
 

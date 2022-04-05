@@ -142,7 +142,7 @@ void FGeometryCollectionProximityUtility::FindContactPairs(int32 Zenith, int32 N
 
 bool FGeometryCollectionProximityUtility::AreNormalsOpposite(const FVector3f& Normal0, const FVector3f& Normal1) const
 {
-	return FVector3f::DotProduct(Normal0, Normal1) < (-1.0f + KINDA_SMALL_NUMBER);
+	return FVector3f::DotProduct(Normal0, Normal1) < (-1.0f + UE_KINDA_SMALL_NUMBER);
 }
 
 bool FGeometryCollectionProximityUtility::AreFacesCoPlanar(int32 Idx0, int32 Idx1) const
@@ -155,7 +155,7 @@ bool FGeometryCollectionProximityUtility::AreFacesCoPlanar(int32 Idx0, int32 Idx
 	FVector3f PlaneOrigin = TransformedVertices[Indices[Idx1].X];
 	FVector3f PlaneNormal = SurfaceNormals[Idx1];
 
-	return FMath::Abs(FVector3f::DotProduct((SamplePoint - PlaneOrigin), PlaneNormal)) < KINDA_SMALL_NUMBER;
+	return FMath::Abs(FVector3f::DotProduct((SamplePoint - PlaneOrigin), PlaneNormal)) < UE_KINDA_SMALL_NUMBER;
 }
 
 bool FGeometryCollectionProximityUtility::DoFacesOverlap(int32 Idx0, int32 Idx1) const

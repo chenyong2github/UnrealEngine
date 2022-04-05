@@ -43,11 +43,11 @@ void FPBDJointCachedSolver::ComputeBodyState(const int32 BodyIndex)
 void FPBDJointCachedSolver::UpdateDerivedState()
 {
 	// Kinematic bodies will not be moved, so we don't update derived state during iterations
-	if (InvM(0) > SMALL_NUMBER)
+	if (InvM(0) > UE_SMALL_NUMBER)
 	{
 		ComputeBodyState(0);
 	}
-	if (InvM(1) > SMALL_NUMBER)
+	if (InvM(1) > UE_SMALL_NUMBER)
 	{
 		ComputeBodyState(1);
 	}
@@ -536,8 +536,8 @@ void FPBDJointCachedSolver::InitSphericalPositionConstraint(
 	FReal SphereDelta0;
 	FPBDJointUtilities::GetSphericalAxisDelta(ConnectorXs[0], ConnectorXs[1], SphereAxis0, SphereDelta0);
 	
-	const FVec3 SphereAxis1 = (FMath::Abs(FMath::Abs(SphereAxis0.Dot(FVec3(1,0,0))-1.0)) > SMALL_NUMBER) ? SphereAxis0.Cross(FVec3(1,0,0)) :
-	                          (FMath::Abs(FMath::Abs(SphereAxis0.Dot(FVec3(0,1,0))-1.0)) > SMALL_NUMBER) ? SphereAxis0.Cross(FVec3(0,1,0)) : SphereAxis0.Cross(FVec3(0,0,1)) ;
+	const FVec3 SphereAxis1 = (FMath::Abs(FMath::Abs(SphereAxis0.Dot(FVec3(1,0,0))-1.0)) > UE_SMALL_NUMBER) ? SphereAxis0.Cross(FVec3(1,0,0)) :
+	                          (FMath::Abs(FMath::Abs(SphereAxis0.Dot(FVec3(0,1,0))-1.0)) > UE_SMALL_NUMBER) ? SphereAxis0.Cross(FVec3(0,1,0)) : SphereAxis0.Cross(FVec3(0,0,1)) ;
 	const FVec3 SphereAxis2 = SphereAxis0.Cross(SphereAxis1);
 
 	// Using Connector1 for both conserves angular momentum and avoid having 
@@ -656,7 +656,7 @@ void FPBDJointCachedSolver::SolvePositionConstraintSoft(
 	const FReal TargetVel)
 {
 	FReal VelDt = 0;
-	if (PositionConstraints.ConstraintSoftDamping[ConstraintIndex] > KINDA_SMALL_NUMBER)
+	if (PositionConstraints.ConstraintSoftDamping[ConstraintIndex] > UE_KINDA_SMALL_NUMBER)
 	{
 		const FVec3 V0Dt = FVec3::CalculateVelocity(InitConnectorXs[0], ConnectorXs[0]+Body(0).DP() + FVec3::CrossProduct(Body(0).DQ(), PositionConstraints.ConstraintArms[ConstraintIndex][0]), 1.0f);
 		const FVec3 V1Dt = FVec3::CalculateVelocity(InitConnectorXs[1], ConnectorXs[1]+Body(1).DP() + FVec3::CrossProduct(Body(1).DQ(), PositionConstraints.ConstraintArms[ConstraintIndex][1]), 1.0f);
@@ -754,7 +754,7 @@ void FPBDJointCachedSolver::SolveLinearVelocityConstraint(
 
 void FPBDJointCachedSolver::ApplyAxisVelocityConstraint(const int32 ConstraintIndex)
 {
-	if(!NetLinearImpulse.IsNearlyZero() && (FMath::Abs(PositionConstraints.ConstraintLambda[ConstraintIndex]) > SMALL_NUMBER) )
+	if(!NetLinearImpulse.IsNearlyZero() && (FMath::Abs(PositionConstraints.ConstraintLambda[ConstraintIndex]) > UE_SMALL_NUMBER) )
 	{
 		FReal TargetVel = 0.0f;
 		if (PositionConstraints.MotionType[ConstraintIndex] == EJointMotionType::Limited && PositionConstraints.ConstraintRestitution[ConstraintIndex] != 0.0f)
@@ -1149,7 +1149,7 @@ void FPBDJointCachedSolver::SolveRotationConstraintSoft(
 {
 	// Damping angular velocity
 	FReal AngVelDt = 0;
-	if (RotationConstraints.ConstraintSoftDamping[ConstraintIndex] > KINDA_SMALL_NUMBER)
+	if (RotationConstraints.ConstraintSoftDamping[ConstraintIndex] > UE_KINDA_SMALL_NUMBER)
 	{
 		const FVec3 W0Dt = FVec3(Body(0).DQ()) + ConnectorWDts[0];
 		const FVec3 W1Dt = FVec3(Body(1).DQ()) + ConnectorWDts[1];
@@ -1242,7 +1242,7 @@ void FPBDJointCachedSolver::SolveAngularVelocityConstraint(
 
 void FPBDJointCachedSolver::ApplyAngularVelocityConstraint(const int32 ConstraintIndex)
 {
-	if(!NetAngularImpulse.IsNearlyZero() && (FMath::Abs(RotationConstraints.ConstraintLambda[ConstraintIndex]) > SMALL_NUMBER))
+	if(!NetAngularImpulse.IsNearlyZero() && (FMath::Abs(RotationConstraints.ConstraintLambda[ConstraintIndex]) > UE_SMALL_NUMBER))
 	{
 		FReal TargetVel = 0.0f;
 		if (RotationConstraints.ConstraintRestitution[ConstraintIndex] != 0.0f)
@@ -1505,7 +1505,7 @@ void FPBDJointCachedSolver::ApplyAxisPositionDrive(
 	const FReal DeltaPos = PositionDrives.ConstraintCX[ConstraintIndex] + FVec3::DotProduct(Delta1 - Delta0, PositionDrives.ConstraintAxis[ConstraintIndex]);
 
 	FReal VelDt = 0;
-	if (PositionDrives.ConstraintSoftDamping[ConstraintIndex] > KINDA_SMALL_NUMBER)
+	if (PositionDrives.ConstraintSoftDamping[ConstraintIndex] > UE_KINDA_SMALL_NUMBER)
 	{
 		const FVec3 V0Dt = FVec3::CalculateVelocity(InitConnectorXs[0], ConnectorXs[0]+ Delta0, 1.0f);
 		const FVec3 V1Dt = FVec3::CalculateVelocity(InitConnectorXs[1], ConnectorXs[1]+ Delta1, 1.0f);
@@ -1657,9 +1657,9 @@ void FPBDJointCachedSolver::InitSLerpDrive(
 		if (RotationDrives.ConstraintSoftStiffness[0] > 0.0f)
 		{
 			FPBDJointUtilities::GetLockedRotationAxes(ConnectorRs[0], ConnectorRs[1], Axes[0], Axes[1], Axes[2]);
-			Utilities::NormalizeSafe(Axes[0], KINDA_SMALL_NUMBER);
-			Utilities::NormalizeSafe(Axes[1], KINDA_SMALL_NUMBER);
-			Utilities::NormalizeSafe(Axes[2], KINDA_SMALL_NUMBER);
+			Utilities::NormalizeSafe(Axes[0], UE_KINDA_SMALL_NUMBER);
+			Utilities::NormalizeSafe(Axes[1], UE_KINDA_SMALL_NUMBER);
+			Utilities::NormalizeSafe(Axes[2], UE_KINDA_SMALL_NUMBER);
 		}
 		const FRotation3 R01 = ConnectorRs[0].Inverse() * ConnectorRs[1];
 		FRotation3 TargetAngPos = JointSettings.AngularDrivePositionTarget;
@@ -1689,9 +1689,9 @@ void FPBDJointCachedSolver::InitSLerpDrive(
 		FReal SLerpAngle;
 		if (DR.ToAxisAndAngleSafe(SLerpAxis, SLerpAngle, FVec3(1, 0, 0)))
 		{
-			if (SLerpAngle > (FReal)PI)
+			if (SLerpAngle > (FReal)UE_PI)
 			{
-				SLerpAngle = SLerpAngle - (FReal)2 * PI;
+				SLerpAngle = SLerpAngle - (FReal)2 * UE_PI;
 			}
 
 			if (FMath::Abs(SLerpAngle) > AngleTolerance)
@@ -1727,7 +1727,7 @@ void FPBDJointCachedSolver::ApplyAxisRotationDrive(
 
 	// Damping angular velocity
 	FReal AngVelDt = 0;
-	if (RotationDrives.ConstraintSoftDamping[ConstraintIndex] > KINDA_SMALL_NUMBER)
+	if (RotationDrives.ConstraintSoftDamping[ConstraintIndex] > UE_KINDA_SMALL_NUMBER)
 	{
 		const FVec3 W0Dt = FVec3(Body(0).DQ()) + ConnectorWDts[0];
 		const FVec3 W1Dt = FVec3(Body(1).DQ()) + ConnectorWDts[1];

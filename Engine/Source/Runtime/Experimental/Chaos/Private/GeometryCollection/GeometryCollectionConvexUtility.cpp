@@ -188,11 +188,11 @@ Chaos::FConvex MakeHull(const TArray<Chaos::FConvex::FVec3Type>& Pts, double Sim
 		TArray<Chaos::FConvex::FVec3Type> FilteredPts;
 		FilterHullPoints(Pts, FilteredPts, SimplificationDistanceThreshold);
 		
-		return Chaos::FConvex(FilteredPts, KINDA_SMALL_NUMBER);
+		return Chaos::FConvex(FilteredPts, UE_KINDA_SMALL_NUMBER);
 	}
 	else
 	{
-		return Chaos::FConvex(Pts, KINDA_SMALL_NUMBER);
+		return Chaos::FConvex(Pts, UE_KINDA_SMALL_NUMBER);
 	}
 }
 
@@ -672,7 +672,7 @@ void CreateNonoverlappingConvexHulls(
 					if (JoinedHullPts.Num() > 0)
 					{
 						FilterHullPoints(JoinedHullPts, SimplificationDistanceThreshold);
-						TUniquePtr<Chaos::FConvex> Hull = MakeUnique<Chaos::FConvex>(JoinedHullPts, KINDA_SMALL_NUMBER);
+						TUniquePtr<Chaos::FConvex> Hull = MakeUnique<Chaos::FConvex>(JoinedHullPts, UE_KINDA_SMALL_NUMBER);
 						bool bIsTooBig = false;
 						if (Volume)
 						{
@@ -961,7 +961,7 @@ void HullsFromGeometry(
 					HullPts.Add(FVector(Transform.TransformPosition((FVector)P)));
 				}
 				// Do not simplify hulls when we're just trying to transform them
-				int32 NewConvexIdx = Convexes.Add(MakeUnique<Chaos::FConvex>(HullPts, KINDA_SMALL_NUMBER));
+				int32 NewConvexIdx = Convexes.Add(MakeUnique<Chaos::FConvex>(HullPts, UE_KINDA_SMALL_NUMBER));
 				TransformToConvexIndices[Idx].Add(NewConvexIdx);
 			}
 		}
@@ -978,7 +978,7 @@ void HullsFromGeometry(
 			}
 			ensure(HullPts.Num() > 0);
 			FilterHullPoints(HullPts, SimplificationDistanceThreshold);
-			int32 ConvexIdx = Convexes.Add(MakeUnique<Chaos::FConvex>(HullPts, KINDA_SMALL_NUMBER));
+			int32 ConvexIdx = Convexes.Add(MakeUnique<Chaos::FConvex>(HullPts, UE_KINDA_SMALL_NUMBER));
 			if (Convexes[ConvexIdx]->NumVertices() == 0 && HullPts.Num() > 0)
 			{
 				// if we've failed to make a convex hull, add a tiny bounding box to try to give it a hull anyway
@@ -1008,7 +1008,7 @@ void HullsFromGeometry(
 					HullPts.Add({ Max.X, Min.Y, Min.Z });
 					HullPts.Add({ Min.X, Max.Y, Min.Z });
 					// note: Do not use SimplificationDistanceThreshold for this fixed tiny hull
-					*Convexes[ConvexIdx] = Chaos::FConvex(HullPts, KINDA_SMALL_NUMBER);
+					*Convexes[ConvexIdx] = Chaos::FConvex(HullPts, UE_KINDA_SMALL_NUMBER);
 				}
 			}
 			TransformToConvexIndices[Idx].Add(ConvexIdx);
@@ -1034,7 +1034,7 @@ void TransformHullsToLocal(
 				HullPts.Add(FVector(Transform.InverseTransformPosition((FVector)P)));
 			}
 			// Do not simplify hulls when we're just trying to transform them
-			*Convexes[ConvexIdx] = Chaos::FConvex(HullPts, KINDA_SMALL_NUMBER);
+			*Convexes[ConvexIdx] = Chaos::FConvex(HullPts, UE_KINDA_SMALL_NUMBER);
 		}
 	}
 }
@@ -1063,7 +1063,7 @@ bool CopyHulls(
 			HullPts.Add(OutTransform.InverseTransformPosition(InTransform.TransformPosition(FVector(P))));
 		}
 		// Do not simplify hulls when we're just trying to transform them
-		int32 OutIdx = OutConvexes.Add(MakeUnique<Chaos::FConvex>(HullPts, KINDA_SMALL_NUMBER));
+		int32 OutIdx = OutConvexes.Add(MakeUnique<Chaos::FConvex>(HullPts, UE_KINDA_SMALL_NUMBER));
 		OutTransformToConvexIndices[OutBone].Add(OutIdx);
 	}
 

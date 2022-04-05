@@ -109,14 +109,14 @@ namespace Chaos
 		for (int32 i = 0; i < 3; i++)
 		{
 			const FVec3& InertiaTensor = Parent->I();
-			if (InertiaTensor[i] < SMALL_NUMBER)
+			if (InertiaTensor[i] < UE_SMALL_NUMBER)
 			{
 				Parent->SetI(TVec3<FRealSingle>(1.f, 1.f, 1.f));
 				break;
 			}
 		}
 
-		if (!ensure(bHasChild) || !ensure(Parent->M() > SMALL_NUMBER))
+		if (!ensure(bHasChild) || !ensure(Parent->M() > UE_SMALL_NUMBER))
 		{
 			Parent->M() = 1.0;
 			Parent->X() = FVec3(0);
@@ -134,7 +134,7 @@ namespace Chaos
 			return;
 		}
 
-		check(Parent->M() > SMALL_NUMBER);
+		check(Parent->M() > UE_SMALL_NUMBER);
 
 		Parent->X() /= Parent->M();
 		Parent->V() /= Parent->M();
@@ -179,7 +179,7 @@ namespace Chaos
 		{
 			for (int32 i = 0; i < 3; i++)
 			{
-				if (ParentInertia.GetColumn(i)[i] < SMALL_NUMBER)
+				if (ParentInertia.GetColumn(i)[i] < UE_SMALL_NUMBER)
 				{
 					ParentInertia = FMatrix33(1,1,1);
 					break;

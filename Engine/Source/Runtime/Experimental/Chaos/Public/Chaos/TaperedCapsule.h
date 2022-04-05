@@ -109,7 +109,7 @@ namespace Chaos
 			const FVec3 OriginToX = x - Origin;
 			const FReal DistanceAlongAxis = FMath::Clamp(FVec3::DotProduct(OriginToX, Axis), (FReal)0.0, Height);
 			const FVec3 ClosestPoint = Origin + Axis * DistanceAlongAxis;
-			const FReal Radius = (Height > SMALL_NUMBER) ? FMath::Lerp(Radius1, Radius2, DistanceAlongAxis / Height) : FMath::Max(Radius1, Radius2);
+			const FReal Radius = (Height > UE_SMALL_NUMBER) ? FMath::Lerp(Radius1, Radius2, DistanceAlongAxis / Height) : FMath::Max(Radius1, Radius2);
 			OutNormal = (x - ClosestPoint);
 			const FReal NormalSize = OutNormal.SafeNormalize();
 			return NormalSize - Radius;
@@ -151,7 +151,7 @@ namespace Chaos
 		FReal GetArea(const bool IncludeEndCaps = true) const { return GetArea(Height, Radius1, Radius2, IncludeEndCaps); }
 		static FReal GetArea(const FReal Height, const FReal Radius1, const FReal Radius2, const bool IncludeEndCaps)
 		{
-			static const FReal TwoPI = PI * 2;
+			static const FReal TwoPI = UE_PI * 2;
 			FReal AreaNoCaps = (FReal)0.0;
 			if (Radius1 == Radius2)
 			{
@@ -160,7 +160,7 @@ namespace Chaos
 			else
 			{
 				const FReal R1_R2 = Radius1 - Radius2;
-				AreaNoCaps = PI * (Radius1 + Radius2) * FMath::Sqrt((R1_R2 * R1_R2) + (Height * Height));
+				AreaNoCaps = UE_PI * (Radius1 + Radius2) * FMath::Sqrt((R1_R2 * R1_R2) + (Height * Height));
 			}
 			if (IncludeEndCaps)
 			{
@@ -194,7 +194,7 @@ namespace Chaos
 
 			const FReal Num1 = (FReal)2.0 * HH * (R1R1 + (FReal)3.0 * R1R2 + (FReal)6.0 * R2R2); // 2H^2 * (R1^2 + 3R1R2 + 6R2^2)
 			const FReal Num2 = (FReal)3.0 * (R1R1 * R1R1 + R1R1 * R1R2 + R1R2 * R1R2 + R1R2 * R2R2 + R2R2 * R2R2); // 3 * (R1^4 + R1^3R2 + R1^2R2^2 + R1R2^3 + R2^4)
-			const FReal Den1 = PI * (R1R1 + R1R2 + R2R2); // PI * (R1^2 + R1R2 + R2^2)
+			const FReal Den1 = UE_PI * (R1R1 + R1R2 + R2R2); // PI * (R1^2 + R1R2 + R2^2)
 
 			const FReal Diag12 = Mass * (Num1 + Num2) / ((FReal)20.0 * Den1);
 			const FReal Diag3 = Mass * Num2 / ((FReal)10.0 * Den1);
@@ -248,12 +248,12 @@ namespace Chaos
 
 		static FReal GetHemisphereVolume(const FReal Radius)
 		{
-			return (FReal)2.0 * PI * (Radius * Radius * Radius) / (FReal)3.0;
+			return (FReal)2.0 * UE_PI * (Radius * Radius * Radius) / (FReal)3.0;
 		}
 
 		static FReal GetTaperedSectionVolume(const FReal Height, const FReal Radius1, const FReal Radius2)
 		{
-			static const FReal PI_OVER_3 = PI / (FReal)3.0;
+			static const FReal PI_OVER_3 = UE_PI / (FReal)3.0;
 			return PI_OVER_3 * Height * (Radius1 * Radius1 + Radius1 * Radius2 + Radius2 * Radius2);
 		}
 
@@ -269,11 +269,11 @@ namespace Chaos
 		    const int32 NumPoints)
 		{
 			if (NumPoints <= 1 ||
-			    (Capsule.GetRadius1() <= KINDA_SMALL_NUMBER &&
-				 Capsule.GetRadius2() <= KINDA_SMALL_NUMBER))
+			    (Capsule.GetRadius1() <= UE_KINDA_SMALL_NUMBER &&
+				 Capsule.GetRadius2() <= UE_KINDA_SMALL_NUMBER))
 			{
 				const int32 Offset = Points.Num();
-				if (Capsule.GetHeight() <= KINDA_SMALL_NUMBER)
+				if (Capsule.GetHeight() <= UE_KINDA_SMALL_NUMBER)
 				{
 					Points.SetNumUninitialized(Offset + 1);
 					Points[Offset] = Capsule.GetCenter();
@@ -328,7 +328,7 @@ namespace Chaos
 			const int32 SpiralSeed = 0)
 		{
 			// Axis should be normalized.
-			checkSlow(FMath::Abs(Axis.Size() - 1.0) < KINDA_SMALL_NUMBER);
+			checkSlow(FMath::Abs(Axis.Size() - 1.0) < UE_KINDA_SMALL_NUMBER);
 
 			const int32 Offset = Points.Num();
 			ComputeGoldenSpiralPointsUnoriented(Points, Radius1, Radius2, Height, NumPoints, SpiralSeed);
@@ -337,7 +337,7 @@ namespace Chaos
 			// along the Z axis.  Transform them to where they should be.
 			const FReal HalfHeight = Height / 2;
 			const FRotation3 Rotation = FRotation3::FromRotatedVector(FVec3(0, 0, 1), Axis);
-			checkSlow(((Origin + Axis * Height) - (Rotation.RotateVector(FVec3(0, 0, Height)) + Origin)).Size() < KINDA_SMALL_NUMBER);
+			checkSlow(((Origin + Axis * Height) - (Rotation.RotateVector(FVec3(0, 0, Height)) + Origin)).Size() < UE_KINDA_SMALL_NUMBER);
 			for (int32 i = Offset; i < Points.Num(); i++)
 			{
 				FVec3& Point = Points[i];
@@ -391,7 +391,7 @@ namespace Chaos
 			const FReal Cap2Area = TSphere<FReal, 3>::GetArea(Radius2) / (FReal)2.;
 			const FReal TaperedSectionArea = FTaperedCapsule::GetArea(Height, Radius1, Radius2, /*IncludeEndCaps*/ false);
 			const FReal AllArea = TaperedSectionArea + Cap1Area + Cap2Area;
-			if (AllArea > KINDA_SMALL_NUMBER)
+			if (AllArea > UE_KINDA_SMALL_NUMBER)
 			{
 				NumPointsEndCap1 = static_cast<int32>(round(Cap1Area / AllArea * static_cast<FReal>(NumPoints)));
 				NumPointsEndCap2 = static_cast<int32>(round(Cap2Area / AllArea * static_cast<FReal>(NumPoints)));

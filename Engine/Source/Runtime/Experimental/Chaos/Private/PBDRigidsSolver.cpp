@@ -740,7 +740,7 @@ namespace Chaos
 		MLastDt = 0.0f;
 		CurrentFrame = 0;
 		SetMaxDeltaTime_External(1.0f);
-		SetMinDeltaTime_External(SMALL_NUMBER);
+		SetMinDeltaTime_External(UE_SMALL_NUMBER);
 		SetMaxSubSteps_External(1);
 		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(Particles, SimMaterials, &ContactModifiers, BufferMode == EMultiBufferMode::Single)); 
 

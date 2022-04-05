@@ -58,7 +58,7 @@ namespace Chaos
 
 			const int32 FullIndex = Payload + SubY;
 
-			const FReal Radius = Thickness + SMALL_NUMBER;
+			const FReal Radius = Thickness + UE_SMALL_NUMBER;
 			const FReal Radius2 = Radius * Radius;
 			bool bIntersection = false;
 
@@ -121,7 +121,7 @@ namespace Chaos
 
 			const int32 FullIndex = Payload + SubY;
 
-			const FReal Radius = Thickness + SMALL_NUMBER;
+			const FReal Radius = Thickness + UE_SMALL_NUMBER;
 			const FReal Radius2 = Radius * Radius;
 			bool bIntersection = false;
 
@@ -134,7 +134,7 @@ namespace Chaos
 				FVec3 Normal = FVec3::CrossProduct(AB, AC);
 				const FReal Len2 = Normal.SafeNormalize();
 
-				if(!ensure(Len2 > SMALL_NUMBER))
+				if(!ensure(Len2 > UE_SMALL_NUMBER))
 				{
 					// Bad triangle, co-linear points or very thin
 					return false;
@@ -167,7 +167,7 @@ namespace Chaos
 					{
 						const FVec3 ClosestPtOnTri = FindClosestPointOnTriangle(ResultPosition, A, B, C, ResultPosition);
 						const FReal DistToTriangle2 = (ResultPosition - ClosestPtOnTri).SizeSquared();
-						bIntersection = DistToTriangle2 <= SMALL_NUMBER;
+						bIntersection = DistToTriangle2 <= UE_SMALL_NUMBER;
 					}
 				}
 
@@ -472,7 +472,7 @@ namespace Chaos
 				OutBounds.GrowToInclude(Position * InScale);
 			}
 		}
-		OutBounds.Thicken(KINDA_SMALL_NUMBER);
+		OutBounds.Thicken(UE_KINDA_SMALL_NUMBER);
 
 		if(bHaveMaterials)
 		{
@@ -552,7 +552,7 @@ namespace Chaos
 				}
 			}
 
-			OutBounds.Thicken(KINDA_SMALL_NUMBER);
+			OutBounds.Thicken(UE_KINDA_SMALL_NUMBER);
 
 			OutData.MinValue = NewMin;
 			OutData.MaxValue = NewMax;
@@ -883,7 +883,7 @@ namespace Chaos
 		FReal RayExitTime;
 		if(CachedBounds.RaycastFast(StartPoint, Dir, InvDir, bParallel, Length, InvCurrentLength, RayEntryTime, RayExitTime))
 		{
-			CurrentLength = RayExitTime + SMALL_NUMBER; // to account for precision errors 
+			CurrentLength = RayExitTime + UE_SMALL_NUMBER; // to account for precision errors 
 			FVec3 NextStart = StartPoint + (Dir * RayEntryTime);
 
 			const FVec2 Scale2D(GeomData.Scale[0],GeomData.Scale[1]);
@@ -1281,7 +1281,7 @@ namespace Chaos
 			FVec3 Normal = FVec3::CrossProduct(AB, AC);
 			const FReal NormalLength = Normal.SafeNormalize();
 
-			if(!ensure(NormalLength > KINDA_SMALL_NUMBER))
+			if(!ensure(NormalLength > UE_KINDA_SMALL_NUMBER))
 			{
 				return false;
 			}
@@ -2068,7 +2068,7 @@ namespace Chaos
 			const FVec3 AC = C - A;
 			FVec3 Normal = FVec3::CrossProduct(AB, AC);
 			const FReal NormalLength = Normal.SafeNormalize();
-			if(!ensure(NormalLength > KINDA_SMALL_NUMBER))
+			if(!ensure(NormalLength > UE_KINDA_SMALL_NUMBER))
 			{
 				//hitting degenerate triangle - should be fixed before we get to this stage
 				return;
@@ -2134,7 +2134,7 @@ namespace Chaos
 				FVec3 Normal = FVec3::CrossProduct(AB, AC);
 
 				const FReal NormalLength = Normal.SafeNormalize();
-				if(!ensure(NormalLength > KINDA_SMALL_NUMBER))
+				if(!ensure(NormalLength > UE_KINDA_SMALL_NUMBER))
 				{
 					//hitting degenerate triangle - should be fixed before we get to this stage
 					return;

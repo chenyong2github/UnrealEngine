@@ -172,7 +172,7 @@ namespace Chaos
 		, AsyncDt(InAsyncDt)
 		, AccumulatedTime(0)
 		, MMaxDeltaTime(0.0)
-		, MMinDeltaTime(SMALL_NUMBER)
+		, MMinDeltaTime(UE_SMALL_NUMBER)
 		, MMaxSubSteps(1)
 		, ExternalSteps(0)
 #if !UE_BUILD_SHIPPING

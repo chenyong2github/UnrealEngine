@@ -267,7 +267,7 @@ void FTriangleMesh::GetFaceNormals(TArray<TVec3<T>>& Normals, const TConstArrayV
 			const TVec3<T> p20 = Points[Tri[2]] - Points[Tri[0]];
 			const TVec3<T> Cross = TVec3<T>::CrossProduct(p20, p10);
 			const T Size2 = Cross.SizeSquared();
-			if (Size2 < SMALL_NUMBER)
+			if (Size2 < UE_SMALL_NUMBER)
 			{
 				//particles should not be coincident by the time they get here. Return empty to signal problem to caller
 				ensure(false);
@@ -825,7 +825,7 @@ TMap<int32, int32> FTriangleMesh::FindCoincidentVertexRemappings(
 	}
 
 	// Return early if all points are coincident
-	if (LocalBBox.Extents().Max() < KINDA_SMALL_NUMBER)
+	if (LocalBBox.Extents().Max() < UE_KINDA_SMALL_NUMBER)
 	{
 		int32 First = INDEX_NONE;
 		for (const int32 Pt : TestIndices)
@@ -1170,7 +1170,7 @@ TArray<int32> FTriangleMesh::GetVertexImportanceOrdering(
 		int32 FarthestIdx = -1; // Index of point farthest from center
 		FReal FarthestDistSq = 0; // Squared distance of farthest point from center
 		int32 MaxCurveIdx = -1; // Index of point with largest curvature
-		FReal MaxCurve = (FReal)-MAX_FLT; // Largest curvature value
+		FReal MaxCurve = (FReal)-UE_MAX_FLT; // Largest curvature value
 	};
 	// Update FBestPointData with a new point; return true if it's the first point in the cell, false otherwise
 	auto UpdateBestPtData = [&Dist, &PointCurvatures, &Offset, &PointOrder](FBestPtData& BestData, int32 OrderIdx) -> bool

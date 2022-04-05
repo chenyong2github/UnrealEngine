@@ -306,7 +306,7 @@ FCollisionStructureManager::NewImplicitCapsule(
 	const float CollisionObjectReduction,
 	const ECollisionTypeEnum CollisionType)
 {
-	if (Length < SMALL_NUMBER)
+	if (Length < UE_SMALL_NUMBER)
 	{
 		// make a more optimized shape : sphere
 		return FCollisionStructureManager::NewImplicitSphere(Radius, CollisionObjectReduction, CollisionType);
@@ -348,7 +348,7 @@ FCollisionStructureManager::NewImplicitCapsule(
 		HalfLengthVector = Chaos::FVec3(0, 0, (ZExtent - Radius));
 	}
 
-	if (HalfLengthVector.Size() < SMALL_NUMBER)
+	if (HalfLengthVector.Size() < UE_SMALL_NUMBER)
 	{
 		// make a more optimized shape : sphere
 		return FCollisionStructureManager::NewImplicitSphere(Radius, CollisionObjectReduction, CollisionType);
@@ -374,7 +374,7 @@ FCollisionStructureManager::NewImplicitLevelset(
 	const ECollisionTypeEnum CollisionType)
 {
 	FVector HalfExtents = CollisionBounds.GetExtent();
-	if (HalfExtents.GetAbsMin() < KINDA_SMALL_NUMBER)
+	if (HalfExtents.GetAbsMin() < UE_KINDA_SMALL_NUMBER)
 	{
 		return nullptr;
 	}

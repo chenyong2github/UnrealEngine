@@ -422,7 +422,7 @@ namespace Chaos
 
 	void FConvex::ComputeUnitMassInertiaTensorAndRotationOfMass(const FReal InVolume)
 	{
-		if (InVolume < SMALL_NUMBER || !StructureData.IsValid())
+		if (InVolume < UE_SMALL_NUMBER || !StructureData.IsValid())
 		{
 			UnitMassInertiaTensor = FVec3{1., 1., 1.};
 			RotationOfMass = FRotation3::Identity;

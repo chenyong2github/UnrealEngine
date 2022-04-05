@@ -157,7 +157,7 @@ void FPerParticlePBDCollisionConstraint::ApplyHelperISPC(FSolverParticles& InPar
 
 	if (Chaos_PerParticleCollision_ISPC_FastFriction)
 	{
-		if (PerGroupFriction > KINDA_SMALL_NUMBER)  // Fast friction
+		if (PerGroupFriction > UE_KINDA_SMALL_NUMBER)  // Fast friction
 		{
 			PhysicsParallelFor(NumBatches, [this, &InParticles, Dt, Offset, Range, DynamicGroupId, PerGroupFriction, PerGroupThickness](int32 BatchNumber)
 			{

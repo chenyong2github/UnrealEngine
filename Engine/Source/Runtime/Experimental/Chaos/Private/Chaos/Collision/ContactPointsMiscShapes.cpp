@@ -194,7 +194,7 @@ namespace Chaos
 		if (SizeSq < CullDistanceSq)
 		{
 			const FReal Size = FMath::Sqrt(SizeSq);
-			const FVec3 Normal = Size > SMALL_NUMBER ? Direction / Size : FVec3(0, 0, 1);
+			const FVec3 Normal = Size > UE_SMALL_NUMBER ? Direction / Size : FVec3(0, 0, 1);
 			const FReal NewPhi = Size - (R1 + R2);
 
 			Result.ShapeContactPoints[0] = Sphere1.GetCenter() - Sphere1Transform.InverseTransformVector(R1 * Normal);
@@ -259,7 +259,7 @@ namespace Chaos
 
 		FVec3 Delta = P2 - A1;
 		FReal DeltaLen = Delta.Size();
-		if (DeltaLen > KINDA_SMALL_NUMBER)
+		if (DeltaLen > UE_KINDA_SMALL_NUMBER)
 		{
 			FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius()) - ShapePadding;
 			FVec3 Dir = Delta / DeltaLen;
@@ -393,7 +393,7 @@ namespace Chaos
 
 		FVec3 Delta = P2 - P1;
 		FReal DeltaLen = Delta.Size();
-		if (DeltaLen > KINDA_SMALL_NUMBER)
+		if (DeltaLen > UE_KINDA_SMALL_NUMBER)
 		{
 			FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius()) - ShapePadding;
 			FVec3 Dir = Delta / DeltaLen;

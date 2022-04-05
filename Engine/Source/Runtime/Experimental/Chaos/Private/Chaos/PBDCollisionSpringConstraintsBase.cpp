@@ -215,7 +215,7 @@ FSolverVec3 FPBDCollisionSpringConstraintsBase::GetDelta(const FSolverParticles&
 		const FSolverVec3 RelativeDisplacementTangent = RelativeDisplacement - RelativeDisplacement.Dot(Normal) * Normal;
 		const FSolverReal RelativeDisplacementTangentLength = RelativeDisplacementTangent.Length();
 		const FSolverReal PositionCorrection = FMath::Min(NormalDelta * FrictionCoefficient, RelativeDisplacementTangentLength);
-		const FSolverReal CorrectionRatio = RelativeDisplacementTangentLength < SMALL_NUMBER ? 0.f : PositionCorrection / RelativeDisplacementTangentLength;
+		const FSolverReal CorrectionRatio = RelativeDisplacementTangentLength < UE_SMALL_NUMBER ? 0.f : PositionCorrection / RelativeDisplacementTangentLength;
 		const FSolverVec3 FrictionDelta = -CorrectionRatio * RelativeDisplacementTangent / CombinedMass;
 		return RepulsionDelta + FrictionDelta;
 	}

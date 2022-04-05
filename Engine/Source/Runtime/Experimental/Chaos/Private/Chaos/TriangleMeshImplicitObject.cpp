@@ -89,7 +89,7 @@ const auto MakeTriangleHelper(const QueryGeomType& Geom)
 template <typename QueryGeomType>
 const auto MakeTriangleHelper(const TImplicitObjectScaled<QueryGeomType>& ScaledGeom)
 {
-	if (FVec3::IsNearlyEqual(ScaledGeom.GetScale(), FVec3(1), SMALL_NUMBER))
+	if (FVec3::IsNearlyEqual(ScaledGeom.GetScale(), FVec3(1), UE_SMALL_NUMBER))
 	{
 		return FPBDCollisionConstraint::MakeTriangle(ScaledGeom.GetUnscaledObject());
 	}
@@ -1362,7 +1362,7 @@ FVec3 FTriangleMeshImplicitObject::GetFaceNormal(const int32 FaceIdx) const
 			const ParticleVecType AC = C - A;
 			ParticleVecType Normal = ParticleVecType::CrossProduct(AB, AC);
 			
-			if(Normal.SafeNormalize() < SMALL_NUMBER)
+			if(Normal.SafeNormalize() < UE_SMALL_NUMBER)
 			{
 				UE_LOG(LogChaos, Warning, TEXT("Degenerate triangle %d: (%f %f %f) (%f %f %f) (%f %f %f)"), FaceIdx, A.X, A.Y, A.Z, B.X, B.Y, B.Z, C.X, C.Y, C.Z);
 				ensure(false);

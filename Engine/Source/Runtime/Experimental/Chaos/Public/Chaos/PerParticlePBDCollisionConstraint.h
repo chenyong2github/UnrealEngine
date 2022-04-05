@@ -74,7 +74,7 @@ private:
 		const FSolverReal PerGroupFriction = MPerGroupFriction[DynamicGroupId];
 		const FSolverReal PerGroupThickness = MPerGroupThickness[DynamicGroupId];
 
-		if (PerGroupFriction > (FSolverReal)KINDA_SMALL_NUMBER)
+		if (PerGroupFriction > (FSolverReal)UE_KINDA_SMALL_NUMBER)
 		{
 			PhysicsParallelFor(Range - Offset, [this, &Particles, Dt, Offset, DynamicGroupId, PerGroupFriction, PerGroupThickness](int32 i)
 			{
@@ -111,7 +111,7 @@ private:
 							const FSolverVec3 RelativeDisplacement = (Particles.P(Index) - Particles.X(Index)) - (CollisionParticles.V(i) + FSolverVec3::CrossProduct(CollisionParticles.W(i), VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
 							const FSolverVec3 RelativeDisplacementTangent = RelativeDisplacement - FSolverVec3::DotProduct(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
 							const FSolverReal RelativeDisplacementTangentLength = RelativeDisplacementTangent.Size();
-							if (RelativeDisplacementTangentLength >= SMALL_NUMBER)
+							if (RelativeDisplacementTangentLength >= UE_SMALL_NUMBER)
 							{
 								const FSolverReal PositionCorrection = FMath::Min<FSolverReal>(Penetration * PerGroupFriction, RelativeDisplacementTangentLength);
 								const FSolverReal CorrectionRatio = PositionCorrection / RelativeDisplacementTangentLength;

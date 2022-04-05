@@ -968,7 +968,7 @@ namespace Chaos
 				{
 					FPBDJointCachedSolver& Solver = CachedConstraintSolvers[ConstraintIndex];
 					// NOTE: LinearImpulse/AngularImpulse in the solver are not really impulses - they are mass-weighted position/rotation delta, or (impulse x dt).
-					if (Dt > SMALL_NUMBER)
+					if (Dt > UE_SMALL_NUMBER)
 					{
 						if (Index0 == 0)
 						{
@@ -997,7 +997,7 @@ namespace Chaos
 				{
 					FPBDJointSolver& Solver = ConstraintSolvers[ConstraintIndex];
 					// NOTE: LinearImpulse/AngularImpulse in the solver are not really impulses - they are mass-weighted position/rotation delta, or (impulse x dt).
-					if (Dt > SMALL_NUMBER)
+					if (Dt > UE_SMALL_NUMBER)
 					{
 						if (Index0 == 0)
 						{

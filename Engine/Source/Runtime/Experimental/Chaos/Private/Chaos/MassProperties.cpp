@@ -20,13 +20,13 @@ namespace Chaos
 		FReal OffDiagSize = FMath::Square(Inertia.M[1][0]) + FMath::Square(Inertia.M[2][0]) + FMath::Square(Inertia.M[2][1]);
 		FRealDouble Trace = (Inertia.M[0][0] + Inertia.M[1][1] + Inertia.M[2][2]) / 3;
 
-		if (Trace <= SMALL_NUMBER)
+		if (Trace <= UE_SMALL_NUMBER)
 		{
 			// Tiny inertia - numerical instability would follow. We should not get this unless we have bad input.
 			return FRotation3::FromElements(FVec3(0), 1);
 		}
 
-		if ((OffDiagSize / Trace) < SMALL_NUMBER)
+		if ((OffDiagSize / Trace) < UE_SMALL_NUMBER)
 		{
 			// Almost diagonal matrix - we are already in local space.
 			return FRotation3::FromElements(FVec3(0), 1);
@@ -35,10 +35,10 @@ namespace Chaos
 		FReal Size = static_cast<FReal>(FMath::Sqrt((FMath::Square(Inertia.M[0][0] - Trace) + FMath::Square(Inertia.M[1][1] - Trace) + FMath::Square(Inertia.M[2][2] - Trace) + 2. * OffDiagSize) / 6.));
 		FMatrix33 NewMat = (Inertia - FMatrix::Identity * static_cast<FReal>(Trace)) * static_cast<FReal>((1 / Size));
 		FReal HalfDeterminant = NewMat.Determinant() / 2;
-		FReal Angle = HalfDeterminant <= -1 ? PI / 3 : (HalfDeterminant >= 1 ? 0 : FMath::Acos(HalfDeterminant) / 3);
+		FReal Angle = HalfDeterminant <= -1 ? UE_PI / 3 : (HalfDeterminant >= 1 ? 0 : FMath::Acos(HalfDeterminant) / 3);
 		
 		FReal m00 = static_cast<FReal>(Trace + 2 * Size * FMath::Cos(Angle));
-		FReal m11 = static_cast<FReal>(Trace + 2 * Size * FMath::Cos(Angle + (2 * PI / 3)));
+		FReal m11 = static_cast<FReal>(Trace + 2 * Size * FMath::Cos(Angle + (2 * UE_PI / 3)));
 		FReal m22 = static_cast<FReal>(3 * Trace - m00 - m11);
 
 		// Extract Eigenvectors
@@ -62,7 +62,7 @@ namespace Chaos
 		FReal SqrtIM1Scale1 = FMath::Sqrt(IM1Scale1);
 
 		FVec3 Eigenvector2, Eigenvector1;
-		if ((SqrtIM1Scale0 < KINDA_SMALL_NUMBER) && (SqrtIM1Scale1 < KINDA_SMALL_NUMBER))
+		if ((SqrtIM1Scale0 < UE_KINDA_SMALL_NUMBER) && (SqrtIM1Scale1 < UE_KINDA_SMALL_NUMBER))
 		{
 			Eigenvector1 = Orthogonal;
 			Eigenvector2 = FVec3::CrossProduct(Eigenvector0, Orthogonal).GetSafeNormal();
@@ -82,7 +82,7 @@ namespace Chaos
 
 		// NOTE: UE Matrix are column-major, so the PMatrix constructor is not setting eigenvectors - we need to transpose it to get a UE rotation matrix.
 		FinalRotation = FRotation3(RotationMatrix.GetTransposed());
-		if (!ensure(FMath::IsNearlyEqual((float)FinalRotation.Size(), 1.0f, KINDA_SMALL_NUMBER)))
+		if (!ensure(FMath::IsNearlyEqual((float)FinalRotation.Size(), 1.0f, UE_KINDA_SMALL_NUMBER)))
 		{
 			return FRotation3::FromElements(FVec3(0), 1);
 		}
@@ -132,7 +132,7 @@ namespace Chaos
 			VolumeTimesSum += Det * PerElementSize;
 		}
 		// @todo(mlentine): Should add suppoert for thin shell mass properties
-		if (Volume < KINDA_SMALL_NUMBER)	//handle negative volume using fallback for now. Need to investigate cases where this happens
+		if (Volume < UE_KINDA_SMALL_NUMBER)	//handle negative volume using fallback for now. Need to investigate cases where this happens
 		{
 			OutVolume = 0;
 			return;
@@ -181,7 +181,7 @@ namespace Chaos
 		CalculateVolumeAndCenterOfMass(Vertices, Surfaces, MassProperties.Volume, MassProperties.CenterOfMass);
 
 		check(Mass > 0);
-		check(MassProperties.Volume > SMALL_NUMBER);
+		check(MassProperties.Volume > UE_SMALL_NUMBER);
 		CalculateInertiaAndRotationOfMass(Vertices, Surfaces, Mass / MassProperties.Volume, MassProperties.CenterOfMass, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
 		
 		return MassProperties;
@@ -209,7 +209,7 @@ namespace Chaos
 			NewMP.CenterOfMass += Child.CenterOfMass * Child.Mass;
 			NewMP.Mass += Child.Mass;
 		}
-		check(NewMP.Mass > SMALL_NUMBER);
+		check(NewMP.Mass > UE_SMALL_NUMBER);
 		NewMP.CenterOfMass /= NewMP.Mass;
 		for (const FMassProperties& Child : MPArray)
 		{

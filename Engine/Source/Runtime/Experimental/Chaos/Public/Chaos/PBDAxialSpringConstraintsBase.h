@@ -54,7 +54,7 @@ protected:
 		const FSolverVec3 P = (P2 - P3) * Barys[ConstraintIndex] + P3;
 		const FSolverVec3 Difference = P1 - P;
 		const FSolverReal Distance = Difference.Size();
-		if (UNLIKELY(Distance <= (FSolverReal)SMALL_NUMBER))
+		if (UNLIKELY(Distance <= (FSolverReal)UE_SMALL_NUMBER))
 		{
 			return FSolverVec3((FSolverReal)0.);
 		}

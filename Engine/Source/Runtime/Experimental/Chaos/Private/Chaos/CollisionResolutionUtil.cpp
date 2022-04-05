@@ -42,7 +42,7 @@ namespace Chaos
 			FVec3 Jr0, Jr1, IInvJr0, IInvJr1;
 			FReal ImpulseRatioNumerator0 = 0, ImpulseRatioNumerator1 = 0, ImpulseRatioDenom0 = 0, ImpulseRatioDenom1 = 0;
 			FReal ImpulseSizeSQ = Impulse.SizeSquared();
-			if (ImpulseSizeSQ < SMALL_NUMBER)
+			if (ImpulseSizeSQ < UE_SMALL_NUMBER)
 			{
 				return Impulse;
 			}
@@ -91,7 +91,7 @@ namespace Chaos
 			FVec3 Jr0, Jr1, IInvJr0, IInvJr1;
 			FReal ImpulseRatioNumerator0 = 0, ImpulseRatioNumerator1 = 0, ImpulseRatioDenom0 = 0, ImpulseRatioDenom1 = 0;
 			FReal ImpulseSizeSQ = Impulse.SizeSquared();
-			if (ImpulseSizeSQ < SMALL_NUMBER)
+			if (ImpulseSizeSQ < UE_SMALL_NUMBER)
 			{
 				return Impulse;
 			}
@@ -141,7 +141,7 @@ namespace Chaos
 			FReal LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 			FReal LocalThickness = LocalPhi - Thickness;
 
-			if (LocalThickness < -KINDA_SMALL_NUMBER)
+			if (LocalThickness < -UE_KINDA_SMALL_NUMBER)
 			{
 				Contact.ShapeContactPoints[0] += LocalPoint * LocalThickness;
 				TotalThickness += LocalThickness;
@@ -598,7 +598,7 @@ namespace Chaos
 
 			if (NormalAveraging)
 			{
-				if (WeightSum < -KINDA_SMALL_NUMBER)
+				if (WeightSum < -UE_KINDA_SMALL_NUMBER)
 				{
 					FVec3 LocalPoint = AvgContact.ShapeContactPoints[0] / WeightSum;
 					FVec3 LocalNormal;

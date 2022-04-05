@@ -243,11 +243,11 @@ void FPBDEvolution::PreIterationUpdate(
 		const FSolverReal Damping = FMath::Clamp(MGroupDampings[ParticleGroupId], (FSolverReal)0., (FSolverReal)1.);
 		FSolverReal DampingPowDt;
 		FSolverReal DampingIntegrated;
-		if (Damping > (FSolverReal)1. - (FSolverReal)KINDA_SMALL_NUMBER)
+		if (Damping > (FSolverReal)1. - (FSolverReal)UE_KINDA_SMALL_NUMBER)
 		{
 			DampingIntegrated = DampingPowDt = (FSolverReal)0.;
 		}
-		else if (Damping > (FSolverReal)SMALL_NUMBER)
+		else if (Damping > (FSolverReal)UE_SMALL_NUMBER)
 		{
 			const FSolverReal LogValueByFrequency = FMath::Loge((FSolverReal)1. - Damping) * DampingFrequency;
 

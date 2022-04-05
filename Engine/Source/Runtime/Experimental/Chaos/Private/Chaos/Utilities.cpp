@@ -63,8 +63,8 @@ namespace Chaos
 		const ::Chaos::TVector<FReal, 3>& FinalVector)
 	{
 		typedef Chaos::TVector<FReal, 3> TV;
-		checkSlow(FMath::Abs(InitialVector.Size() - 1.0) < KINDA_SMALL_NUMBER);
-		checkSlow(FMath::Abs(FinalVector.Size() - 1.0) < KINDA_SMALL_NUMBER);
+		checkSlow(FMath::Abs(InitialVector.Size() - 1.0) < UE_KINDA_SMALL_NUMBER);
+		checkSlow(FMath::Abs(FinalVector.Size() - 1.0) < UE_KINDA_SMALL_NUMBER);
 
 		const double CosTheta = FMath::Clamp<FReal>(TV::DotProduct(InitialVector, FinalVector), -1., 1.);
 
@@ -91,7 +91,7 @@ namespace Chaos
 	 */
 	TVector<FReal, 3> TRotation<FReal, 3>::CalculateAngularVelocity1(const TRotation<FReal, 3>& InR0, const TRotation<FReal, 3>& InR1, const FReal InDt)
 	{
-		if (!ensure(InDt > SMALL_NUMBER))
+		if (!ensure(InDt > UE_SMALL_NUMBER))
 		{
 			return TVector<FReal, 3>(0);
 		}
@@ -120,7 +120,7 @@ namespace Chaos
 	{
 		// @todo(ccaulfield): ToAxisAndAngle starts to return increasingly random, non-normalized axes for very small angles. This 
 		// underestimates the angular velocity magnitude and randomizes direction.
-		if (!ensure(InDt > SMALL_NUMBER))
+		if (!ensure(InDt > UE_SMALL_NUMBER))
 		{
 			return TVector<FReal, 3>(0);
 		}

@@ -184,7 +184,7 @@ void GeometryCollection::AttributeTransfer(const FGeometryCollection * FromColle
 	ParallelFor(ToCollection->NumElements(FGeometryCollection::VerticesGroup), [&](int32 ToIndex)
 	{
 		int32 ClosestFromIndex = -1;
-		Chaos::FReal ClosestDist = MAX_FLT;
+		Chaos::FReal ClosestDist = UE_MAX_FLT;
 		for (int32 FromIndex = 0, ni = FromVertex.Num(); FromIndex < ni ; ++FromIndex)
 		{
 			Chaos::FReal CurrDist = FVector3f::DistSquared(FromVertex[FromIndex], ToVertex[ToIndex]);

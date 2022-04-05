@@ -759,7 +759,7 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 	{
 		ParticlesInput.ParallelFor([&](auto& Particle, int32 Index)
 		{
-			if (Dt > SMALL_NUMBER)
+			if (Dt > UE_SMALL_NUMBER)
 			{
 				const FReal SmoothRate = FMath::Clamp(SmoothedPositionLerpRate, 0.0f, 1.0f);
 				const FVec3 VImp = FVec3::CalculateVelocity(Particle.X(), Particle.P(), Dt);

@@ -80,7 +80,7 @@ private:
 			const FSolverVec3 CenterToParticle = Particles.P(ParticleIndex) - Center;
 			const FSolverReal DistanceSquared = CenterToParticle.SizeSquared();
 
-			static const FSolverReal DeadZoneSquareRadius = SMALL_NUMBER; // We will not push the particle away in the dead zone
+			static const FSolverReal DeadZoneSquareRadius = UE_SMALL_NUMBER; // We will not push the particle away in the dead zone
 			if (DistanceSquared > FMath::Square(Radius) + DeadZoneSquareRadius)
 			{
 				const FSolverReal Distance = sqrt(DistanceSquared);
@@ -202,7 +202,7 @@ private:
 			const FSolverVec3 CenterToParticle = Particles.P(ParticleIndex) - Center;
 			const FSolverReal DistanceSquared = CenterToParticle.SizeSquared();
 
-			static const FSolverReal DeadZoneSquareRadius = SMALL_NUMBER;
+			static const FSolverReal DeadZoneSquareRadius = UE_SMALL_NUMBER;
 			if (DistanceSquared < DeadZoneSquareRadius)
 			{
 				Particles.P(ParticleIndex) = AnimationPosition - SphereOffsetDistance * AnimationNormal;  // Non legacy version adds radius to the distance
@@ -239,7 +239,7 @@ private:
 			const FSolverVec3 CenterToParticle = Particles.P(ParticleIndex) - Center;
 			const FSolverReal DistanceSquared = CenterToParticle.SizeSquared();
 
-			static const FSolverReal DeadZoneSquareRadius = SMALL_NUMBER;
+			static const FSolverReal DeadZoneSquareRadius = UE_SMALL_NUMBER;
 			if (DistanceSquared < DeadZoneSquareRadius)
 			{
 				Particles.P(ParticleIndex) = AnimationPosition - (SphereOffsetDistance - Radius) * AnimationNormal;  // Legacy version already includes the radius to the distance

@@ -97,7 +97,7 @@ template <typename T, int d>
 bool TAABB<T, d>::Raycast(const TVector<FReal, d>& StartPoint, const TVector<FReal, d>& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, TVector<FReal, d>& OutPosition, TVector<FReal, d>& OutNormal, int32& OutFaceIndex) const
 {
 	ensure(Length > 0);
-	ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
+	ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)UE_KINDA_SMALL_NUMBER));
 
 	OutFaceIndex = INDEX_NONE;
 	const TVector<FReal, d> MinInflated = TVector<FReal, d>(MMin) - Thickness;

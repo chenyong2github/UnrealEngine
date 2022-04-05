@@ -105,7 +105,7 @@ namespace Chaos
 				FVec3 Result;
 
 				FReal Denominator = Point2[ClippingAxis] - Point1[ClippingAxis];  // Can be negative
-				if (FMath::Abs(Denominator) < SMALL_NUMBER)
+				if (FMath::Abs(Denominator) < UE_SMALL_NUMBER)
 				{
 					Result = Point1;
 				}
@@ -443,12 +443,12 @@ namespace Chaos
 			FReal PrevClipPointDotNormal;
 			FVec3 CurrentClipPoint = InputVertexBuffer[ClipPointCount - 1];;
 			FReal CurrentClipPointDotNormal = FVec3::DotProduct(CurrentClipPoint, ClippingPlaneNormal);
-			const FReal PlaneClipDistance = PlaneDistance + PlaneDistance * SMALL_NUMBER;
+			const FReal PlaneClipDistance = PlaneDistance + PlaneDistance * UE_SMALL_NUMBER;
 
 			auto CalculateIntersect = [&PrevClipPoint, &CurrentClipPoint, &PlaneDistance](const FReal Dot1, const FReal Dot2)
 			{
 				const FReal Denominator = Dot2 - Dot1; // Can be negative
-				if (FMath::Abs(Denominator) < SMALL_NUMBER)
+				if (FMath::Abs(Denominator) < UE_SMALL_NUMBER)
 				{
 					return PrevClipPoint;
 				}
@@ -549,7 +549,7 @@ namespace Chaos
 		{
 			check(MaxContactPointCount >= 2);
 
-			const FReal DistanceEpsilon = FReal(KINDA_SMALL_NUMBER);
+			const FReal DistanceEpsilon = FReal(UE_KINDA_SMALL_NUMBER);
 
 			// Populate the clipped vertices by the line segment vertices
 			ContactPointCount = 2;
@@ -700,7 +700,7 @@ namespace Chaos
 			{
 				// Ignore planes that do not oppose N
 				const FReal PlaneNormalDotN = FVec3::DotProduct(N, Plane.Normal());
-				if (PlaneNormalDotN <= -SMALL_NUMBER)
+				if (PlaneNormalDotN <= -UE_SMALL_NUMBER)
 				{
 					// Keep the most opposing plane
 					if (PlaneNormalDotN < BestPlaneDot)
@@ -743,7 +743,7 @@ namespace Chaos
 				{
 					// Ignore planes that do not oppose N
 					const FConvexReal PlaneNormalDotN = FConvexVec3::DotProduct(N, ScaledPlaneN);
-					if (PlaneNormalDotN <= -SMALL_NUMBER)
+					if (PlaneNormalDotN <= -UE_SMALL_NUMBER)
 					{
 						// Keep the most opposing plane
 						if (PlaneNormalDotN < InOutBestPlaneDot)
@@ -1201,7 +1201,7 @@ namespace Chaos
 					// Divisor used below to project the capsule contact onto the convex plane
 					// See FMath::RayPlaneIntersection for math, but it is separated here to avoid excessive dot products
 					const FReal ConvexDistanceDivisor = FVec3::DotProduct(CapsulePlaneNormal, ConvexPlaneNormal);
-					if (FMath::Abs(ConvexDistanceDivisor) > KINDA_SMALL_NUMBER)
+					if (FMath::Abs(ConvexDistanceDivisor) > UE_KINDA_SMALL_NUMBER)
 					{
 						const FReal ConvexDistanceMultiplier = FReal(1) / ConvexDistanceDivisor;
 

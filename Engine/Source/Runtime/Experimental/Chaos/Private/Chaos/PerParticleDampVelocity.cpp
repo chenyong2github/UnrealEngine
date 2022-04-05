@@ -78,7 +78,7 @@ void FPerParticleDampVelocity::UpdatePositionBasedState(const FSolverParticles& 
 		}
 
 		const FSolverReal Det = I.Determinant();
-		Omega = Det < (FSolverReal)SMALL_NUMBER || !FMath::IsFinite(Det) ?
+		Omega = Det < (FSolverReal)UE_SMALL_NUMBER || !FMath::IsFinite(Det) ?
 			FSolverVec3(0.) :
 #if COMPILE_WITHOUT_UNREAL_SUPPORT
 			FSolverRigidTransform3(I).InverseTransformVector(L);

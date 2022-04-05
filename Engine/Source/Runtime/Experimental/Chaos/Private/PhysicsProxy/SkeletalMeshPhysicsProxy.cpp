@@ -234,7 +234,7 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 			Particles.Q(RigidBodyId) = Particles.R(RigidBodyId);
 
 			Particles.M(RigidBodyId) = FMath::Clamp(TotalMass, (Chaos::FReal)Parameters.MinMass, (Chaos::FReal)Parameters.MaxMass);
-			Particles.InvM(RigidBodyId) = Particles.M(RigidBodyId) < KINDA_SMALL_NUMBER ?  BIG_NUMBER/2 : 1.f / Particles.M(RigidBodyId);
+			Particles.InvM(RigidBodyId) = Particles.M(RigidBodyId) < UE_KINDA_SMALL_NUMBER ? UE_BIG_NUMBER/2 : 1.f / Particles.M(RigidBodyId);
 			Particles.I(RigidBodyId) = Chaos::TVec3<Chaos::FRealSingle>((Chaos::FRealSingle)MassProperties.InertiaTensor.M[0][0], (Chaos::FRealSingle)MassProperties.InertiaTensor.M[1][1], (Chaos::FRealSingle)MassProperties.InertiaTensor.M[2][2]);
 			Particles.InvI(RigidBodyId) = Chaos::TVec3<Chaos::FRealSingle>(1.f / (Chaos::FRealSingle)MassProperties.InertiaTensor.M[0][0], 1.f / (Chaos::FRealSingle)MassProperties.InertiaTensor.M[1][1], 1.f / (Chaos::FRealSingle)MassProperties.InertiaTensor.M[2][2]);
 
@@ -496,7 +496,7 @@ void FSkeletalMeshPhysicsProxy::CaptureInputs(const float Dt, const FInputFunc& 
 			{
 				const FTransform& BoneWorldTransform = *BoneHierarchy.GetAnimWorldSpaceTransformsForBone(BoneIndex);
 				const FTransform* PrevBoneWorldTransform = BoneHierarchy.GetPrevAnimWorldSpaceTransformForBone(BoneIndex);
-				if ((Dt > SMALL_NUMBER) && PrevBoneWorldTransform)
+				if ((Dt > UE_SMALL_NUMBER) && PrevBoneWorldTransform)
 				{
 					PhysicsInputs.Transforms[TransformIndex] = *PrevBoneWorldTransform;
 					PhysicsInputs.LinearVelocities[TransformIndex] = (BoneWorldTransform.GetTranslation() - PrevBoneWorldTransform->GetTranslation()) / Dt;

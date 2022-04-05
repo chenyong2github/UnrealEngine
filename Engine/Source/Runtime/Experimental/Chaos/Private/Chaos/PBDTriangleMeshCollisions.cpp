@@ -1028,7 +1028,7 @@ namespace ContourMinimization
 		const FSolverVec3& EdgePosition1 = Particles.X(ContourIntersection.EdgeVertices[1]);
 		const FSolverVec3 EdgeDir = EdgePosition1 - EdgePosition0; // Unnormalized
 		const FSolverReal EdgeDirDotNormal = FSolverVec3::DotProduct(EdgeDir, EdgeFaceIntersection.FaceNormal);
-		if (FMath::Abs(EdgeDirDotNormal) >= SMALL_NUMBER)
+		if (FMath::Abs(EdgeDirDotNormal) >= UE_SMALL_NUMBER)
 		{
 			const FSolverVec3 NOverEDotN = EdgeFaceIntersection.FaceNormal * ((FSolverReal)1.f / EdgeDirDotNormal);
 

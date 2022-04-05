@@ -244,8 +244,8 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 		}
 		else
 		{
-			Bounds.Min = Chaos::FVec3(-KINDA_SMALL_NUMBER);
-			Bounds.Max = Chaos::FVec3(KINDA_SMALL_NUMBER);
+			Bounds.Min = Chaos::FVec3(-UE_KINDA_SMALL_NUMBER);
+			Bounds.Max = Chaos::FVec3(UE_KINDA_SMALL_NUMBER);
 			Particles.SetSharedGeometry(RigidBodyId, TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>());
 		}
 
@@ -256,7 +256,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 		Bounds = Bounds.InverseTransformBy(FTransform(CenterOfMass));
 		Bounds.Min *= Scale;
 		Bounds.Max *= Scale;
-		checkSlow((Bounds.Max + Bounds.Min).Size() < KINDA_SMALL_NUMBER);
+		checkSlow((Bounds.Max + Bounds.Min).Size() < UE_KINDA_SMALL_NUMBER);
 
 		Particles.InvM(RigidBodyId) = 0.f;
 		ensure(Parameters.Mass >= 0.f);
