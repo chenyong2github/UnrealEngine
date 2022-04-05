@@ -303,7 +303,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeInstanceDat
 	{
 		const FStateTreeHandle CurrentHandle = Transition.NextActiveStates[Index];
 		const FStateTreeHandle PreviousHandle = Transition.CurrentActiveStates.GetStateSafe(Index);
-		const FBakedStateTreeState& State = StateTree->States[CurrentHandle.Index];
+		const FCompactStateTreeState& State = StateTree->States[CurrentHandle.Index];
 
 		if (!Exec.ActiveStates.Push(CurrentHandle))
 		{
@@ -417,7 +417,7 @@ void FStateTreeExecutionContext::ExitState(FStateTreeInstanceData& InstanceData,
 	{
 		const FStateTreeHandle CurrentHandle = Transition.CurrentActiveStates[Index];
 		const FStateTreeHandle NextHandle = Transition.NextActiveStates.GetStateSafe(Index);
-		const FBakedStateTreeState& State = StateTree->States[CurrentHandle.Index];
+		const FCompactStateTreeState& State = StateTree->States[CurrentHandle.Index];
 
 		const bool bRemainsActive = NextHandle == CurrentHandle;
 		bOnTargetBranch = bOnTargetBranch || NextHandle == Transition.TargetState;
@@ -507,7 +507,7 @@ void FStateTreeExecutionContext::StateCompleted(FStateTreeInstanceData& Instance
 	for (int32 Index = Exec.ActiveStates.Num() - 1; Index >= 0; Index--)
 	{
 		const FStateTreeHandle CurrentHandle = Exec.ActiveStates[Index];
-		const FBakedStateTreeState& State = StateTree->States[CurrentHandle.Index];
+		const FCompactStateTreeState& State = StateTree->States[CurrentHandle.Index];
 
 		STATETREE_LOG(Verbose, TEXT("%*sState Completed '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Exec.ActiveStates, Index), *UEnum::GetValueAsString(Exec.LastTickStatus));
 
@@ -571,7 +571,7 @@ void FStateTreeExecutionContext::TickEvaluators(FStateTreeInstanceData& Instance
 			continue;
 		}
 
-		const FBakedStateTreeState& State = StateTree->States[StateHandle.Index];
+		const FCompactStateTreeState& State = StateTree->States[StateHandle.Index];
 
 		STATETREE_CLOG(State.EvaluatorsNum > 0, Verbose, TEXT("%*sTicking Evaluators of state '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(ActiveStates, Index), *UEnum::GetValueAsString(EvalType));
 
@@ -613,7 +613,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(FStateTreeInstanceData
 	for (int32 Index = 0; Index < Exec.ActiveStates.Num() && Result != EStateTreeRunStatus::Failed; Index++)
 	{
 		const FStateTreeHandle CurrentHandle = Exec.ActiveStates[Index];
-		const FBakedStateTreeState& State = StateTree->States[CurrentHandle.Index];
+		const FCompactStateTreeState& State = StateTree->States[CurrentHandle.Index];
 
 		STATETREE_CLOG(State.TasksNum > 0, Verbose, TEXT("%*sTicking Tasks of state '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Exec.ActiveStates, Index));
 
@@ -745,13 +745,13 @@ bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& Inst
 	// Walk towards root and check all transitions along the way.
 	for (int32 StateIndex = Exec.ActiveStates.Num() - 1; StateIndex >= 0; StateIndex--)
 	{
-		const FBakedStateTreeState& State = StateTree->States[Exec.ActiveStates[StateIndex].Index];
+		const FCompactStateTreeState& State = StateTree->States[Exec.ActiveStates[StateIndex].Index];
 		
 		for (uint8 i = 0; i < State.TransitionsNum; i++)
 		{
 			// All transition conditions must pass
 			const int16 TransitionIndex = State.TransitionsBegin + i;
-			const FBakedStateTransition& Transition = StateTree->Transitions[TransitionIndex];
+			const FCompactStateTransition& Transition = StateTree->Transitions[TransitionIndex];
 			if (EnumHasAllFlags(Transition.Event, Event) && TestAllConditions(InstanceData, Transition.ConditionsBegin, Transition.ConditionsNum))
 			{
 				// If a transition has delay, we stop testing other transitions, but the transition will not pass the condition until the delay time passes.
@@ -902,7 +902,7 @@ bool FStateTreeExecutionContext::SelectStateInternal(FStateTreeInstanceData& Ins
 		return false;
 	}
 
-	const FBakedStateTreeState& State = StateTree->States[NextState.Index];
+	const FCompactStateTreeState& State = StateTree->States[NextState.Index];
 
 	// Make sure all the evaluators for the target state are up to date.
 	TickEvaluatorsForSelect(InstanceData, NextState, EStateTreeEvaluationType::PreSelect, 0.0f);
@@ -983,7 +983,7 @@ FString FStateTreeExecutionContext::DebugGetStatePath(const FStateTreeActiveStat
 
 	for (int32 i = 0; i <= ActiveStateIndex; i++)
 	{
-		const FBakedStateTreeState& State = StateTree->States[ActiveStates[i].Index];
+		const FCompactStateTreeState& State = StateTree->States[ActiveStates[i].Index];
 		StatePath.Appendf(TEXT("%s%s"), i == 0 ? TEXT("") : TEXT("."), *State.Name.ToString());
 	}
 	return StatePath;
@@ -1049,7 +1049,7 @@ FString FStateTreeExecutionContext::GetDebugInfoString(const FStateTreeInstanceD
 		FStateTreeHandle Handle = Exec.ActiveStates[Index];
 		if (Handle.IsValid())
 		{
-			const FBakedStateTreeState& State = StateTree->States[Handle.Index];
+			const FCompactStateTreeState& State = StateTree->States[Handle.Index];
 			DebugString += FString::Printf(TEXT("[%s]\n"), *State.Name.ToString());
 
 			if (State.TasksNum > 0)
@@ -1130,7 +1130,7 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(const FStateTreeInstan
 	// Transitions
 	DebugString += FString::Printf(TEXT("\nTransitions(%d)\n  [ %-3s | %15s | %-40s | %-40s | %-8s ]\n"), StateTree->Transitions.Num()
 		, TEXT("Idx"), TEXT("State"), TEXT("Transition Type"), TEXT("Transition Event"), TEXT("Num Cond"));
-	for (const FBakedStateTransition& Transition : StateTree->Transitions)
+	for (const FCompactStateTransition& Transition : StateTree->Transitions)
 	{
 		DebugString += FString::Printf(TEXT("  | %3d | %15s | %-40s | %-40s | %8d |\n"),
 									Transition.ConditionsBegin, *Transition.State.Describe(),
@@ -1154,7 +1154,7 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(const FStateTreeInstan
 		TEXT("Cond"), TEXT("Tr"), TEXT("Tsk"), TEXT("Evt"), TEXT("Cond"), TEXT("Tr"), TEXT("Tsk"), TEXT("Evt"),
 		TEXT("Done State"), TEXT("Done Type"), TEXT("Failed State"), TEXT("Failed Type")
 		);
-	for (const FBakedStateTreeState& State : StateTree->States)
+	for (const FCompactStateTreeState& State : StateTree->States)
 	{
 		DebugString += FString::Printf(TEXT("  | %-30s | %15s | %5s [%3d:%-3d[ | %9s   %4d %4d %4d %4d | %3s   %4d %4d %4d %4d\n"),
 									*State.Name.ToString(), *State.Parent.Describe(),
@@ -1165,7 +1165,7 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(const FStateTreeInstan
 
 	DebugString += FString::Printf(TEXT("\nStates\n  [ %-30s | %-12s | %-30s | %15s | %10s ]\n"),
 		TEXT("State"), TEXT("Type"), TEXT("Name"), TEXT("Bindings"), TEXT("Struct Idx"));
-	for (const FBakedStateTreeState& State : StateTree->States)
+	for (const FCompactStateTreeState& State : StateTree->States)
 	{
 		// Evaluators
 		if (State.EvaluatorsNum)
@@ -1212,7 +1212,7 @@ FString FStateTreeExecutionContext::GetActiveStateName(const FStateTreeInstanceD
 		const FStateTreeHandle Handle = Exec.ActiveStates[Index];
 		if (Handle.IsValid())
 		{
-			const FBakedStateTreeState& State = StateTree->States[Handle.Index];
+			const FCompactStateTreeState& State = StateTree->States[Handle.Index];
 			bool bIsLinked = false;
 			if (Index > 0)
 			{
@@ -1273,7 +1273,7 @@ TArray<FName> FStateTreeExecutionContext::GetActiveStateNames(const FStateTreeIn
 		const FStateTreeHandle Handle = Exec.ActiveStates[Index];
 		if (Handle.IsValid())
 		{
-			const FBakedStateTreeState& State = StateTree->States[Handle.Index];
+			const FCompactStateTreeState& State = StateTree->States[Handle.Index];
 			Result.Add(State.Name);
 		}
 	}

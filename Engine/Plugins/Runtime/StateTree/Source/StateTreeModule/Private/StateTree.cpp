@@ -14,7 +14,7 @@ bool UStateTree::IsReadyToRun() const
 }
 
 #if WITH_EDITOR
-void UStateTree::ResetBaked()
+void UStateTree::ResetCompiled()
 {
 	States.Reset();
 	Transitions.Reset();

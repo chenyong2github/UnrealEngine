@@ -5,7 +5,7 @@
 #include "AITestsCommon.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeState.h"
-#include "StateTreeBaker.h"
+#include "StateTreeCompiler.h"
 #include "Conditions/StateTreeCondition_Common.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
@@ -71,10 +71,10 @@ struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
 		StateB.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::Succeeded);
 
 		FStateTreeCompilerLog Log;
-		FStateTreeBaker Baker(Log);
-		const bool bResult = Baker.Bake(StateTree);
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
 
-		AITEST_TRUE("StateTree should get baked", bResult);
+		AITEST_TRUE("StateTree should get compiled", bResult);
 
 		return true;
 	}
@@ -141,10 +141,10 @@ struct FStateTreeTest_WanderLoop : FAITestBase
 		StandOnLane.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &Wander);
 
 		FStateTreeCompilerLog Log;
-		FStateTreeBaker Baker(Log);
-		bool bResult = Baker.Bake(StateTree);
+		FStateTreeCompiler Compiler(Log);
+		bool bResult = Compiler.Compile(StateTree);
 
-		AITEST_TRUE("StateTree should get baked", bResult);
+		AITEST_TRUE("StateTree should get compiled", bResult);
 
 		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
 		FTestStateTreeExecutionContext Exec;
@@ -234,9 +234,9 @@ struct FStateTreeTest_Sequence : FAITestBase
 		State2.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::Succeeded);
 
 		FStateTreeCompilerLog Log;
-		FStateTreeBaker Baker(Log);
-		const bool bResult = Baker.Bake(StateTree);
-		AITEST_TRUE("StateTree should get baked", bResult);
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+		AITEST_TRUE("StateTree should get compiled", bResult);
 
 		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
 		FTestStateTreeExecutionContext Exec;
@@ -297,9 +297,9 @@ struct FStateTreeTest_Select : FAITestBase
 		State1A.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &State1);
 
 		FStateTreeCompilerLog Log;
-		FStateTreeBaker Baker(Log);
-		const bool bResult = Baker.Bake(StateTree);
-		AITEST_TRUE("StateTree should get baked", bResult);
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+		AITEST_TRUE("StateTree should get compiled", bResult);
 
 		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
 		FTestStateTreeExecutionContext Exec;
@@ -369,9 +369,9 @@ struct FStateTreeTest_FailEnterState : FAITestBase
 		State1A.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &State1);
 
 		FStateTreeCompilerLog Log;
-		FStateTreeBaker Baker(Log);
-		const bool bResult = Baker.Bake(StateTree);
-		AITEST_TRUE("StateTree should get baked", bResult);
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+		AITEST_TRUE("StateTree should get compiled", bResult);
 
 		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
 		FTestStateTreeExecutionContext Exec;
@@ -432,9 +432,9 @@ struct FStateTreeTest_SubTree : FAITestBase
 
 
 		FStateTreeCompilerLog Log;
-		FStateTreeBaker Baker(Log);
-		const bool bResult = Baker.Bake(StateTree);
-		AITEST_TRUE("StateTree should get baked", bResult);
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+		AITEST_TRUE("StateTree should get compiled", bResult);
 
 		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
 		FTestStateTreeExecutionContext Exec;

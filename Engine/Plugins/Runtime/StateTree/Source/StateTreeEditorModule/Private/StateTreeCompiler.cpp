@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "StateTreeBaker.h"
+#include "StateTreeCompiler.h"
 #include "StateTree.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeTypes.h"
@@ -14,7 +14,7 @@
 #include "StateTreePropertyBindingCompiler.h"
 
 
-bool FStateTreeBaker::Bake(UStateTree& InStateTree)
+bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 {
 	StateTree = &InStateTree;
 	TreeData = Cast<UStateTreeEditorData>(StateTree->EditorData);
@@ -24,37 +24,37 @@ bool FStateTreeBaker::Bake(UStateTree& InStateTree)
 	}
 
 	// Cleanup existing state
-	StateTree->ResetBaked();
+	StateTree->ResetCompiled();
 
 	BindingsCompiler.Init(StateTree->PropertyBindings, Log);
 
 	if (!CreateStates())
 	{
-		StateTree->ResetBaked();
+		StateTree->ResetCompiled();
 		return false;
 	}
 
 	if (!CreateExecutionInfos())
 	{
-		StateTree->ResetBaked();
+		StateTree->ResetCompiled();
 		return false;
 	}
 	
 	if (!CreateStateEvaluators())
 	{
-		StateTree->ResetBaked();
+		StateTree->ResetCompiled();
 		return false;
 	}
 
 	if (!CreateStateTasks())
 	{
-		StateTree->ResetBaked();
+		StateTree->ResetCompiled();
 		return false;
 	}
 
 	if (!CreateStateTransitions())
 	{
-		StateTree->ResetBaked();
+		StateTree->ResetCompiled();
 		return false;
 	}
 
@@ -66,7 +66,7 @@ bool FStateTreeBaker::Bake(UStateTree& InStateTree)
 	return true;
 }
 
-FStateTreeHandle FStateTreeBaker::GetStateHandle(const FGuid& StateID) const
+FStateTreeHandle FStateTreeCompiler::GetStateHandle(const FGuid& StateID) const
 {
 	const int32* Idx = IDToState.Find(StateID);
 	if (Idx == nullptr)
@@ -77,7 +77,7 @@ FStateTreeHandle FStateTreeBaker::GetStateHandle(const FGuid& StateID) const
 	return FStateTreeHandle(uint16(*Idx));
 }
 
-UStateTreeState* FStateTreeBaker::GetState(const FGuid& StateID)
+UStateTreeState* FStateTreeCompiler::GetState(const FGuid& StateID)
 {
 	const int32* Idx = IDToState.Find(StateID);
 	if (Idx == nullptr)
@@ -88,7 +88,7 @@ UStateTreeState* FStateTreeBaker::GetState(const FGuid& StateID)
 	return SourceStates[*Idx];
 }
 
-bool FStateTreeBaker::CreateStates()
+bool FStateTreeCompiler::CreateStates()
 {
 	// Create item for the runtime execution state
 	StateTree->Instances.Add(FInstancedStruct::Make<FStateTreeExecutionState>());
@@ -107,12 +107,12 @@ bool FStateTreeBaker::CreateStates()
 	return true;
 }
 
-bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent)
+bool FStateTreeCompiler::CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent)
 {
 	FStateTreeCompilerLogStateScope LogStateScope(&State, Log);
 
 	const int32 StateIdx = StateTree->States.AddDefaulted();
-	FBakedStateTreeState& BakedState = StateTree->States[StateIdx];
+	FCompactStateTreeState& BakedState = StateTree->States[StateIdx];
 	BakedState.Name = State.Name;
 	BakedState.Parent = Parent;
 
@@ -140,7 +140,7 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 	return true;
 }
 
-FString FStateTreeBaker::GetExecutionPathString(const TConstArrayView<const UStateTreeState*> Path)
+FString FStateTreeCompiler::GetExecutionPathString(const TConstArrayView<const UStateTreeState*> Path)
 {
 	FString PathStr;
 	const UStateTreeState* PrevState = nullptr;
@@ -167,7 +167,7 @@ FString FStateTreeBaker::GetExecutionPathString(const TConstArrayView<const USta
 	return PathStr;
 }
 
-bool FStateTreeBaker::IsPathLinked(const TConstArrayView<const UStateTreeState*> Path)
+bool FStateTreeCompiler::IsPathLinked(const TConstArrayView<const UStateTreeState*> Path)
 {
 	bool bIsLinked = false; 
 	const UStateTreeState* PrevState = nullptr;
@@ -186,7 +186,7 @@ bool FStateTreeBaker::IsPathLinked(const TConstArrayView<const UStateTreeState*>
 	return bIsLinked;
 }
 
-bool FStateTreeBaker::CreateExecutionInfos()
+bool FStateTreeCompiler::CreateExecutionInfos()
 {
 	for (UStateTreeState* SubTree : TreeData->SubTrees)
 	{
@@ -203,7 +203,7 @@ bool FStateTreeBaker::CreateExecutionInfos()
 	return true;
 }
 
-bool FStateTreeBaker::CreateExecutionInfosRecursive(UStateTreeState& State, TArray<const UStateTreeState*>& Path)
+bool FStateTreeCompiler::CreateExecutionInfosRecursive(UStateTreeState& State, TArray<const UStateTreeState*>& Path)
 {
 	Path.Add(&State);
 	
@@ -244,7 +244,7 @@ bool FStateTreeBaker::CreateExecutionInfosRecursive(UStateTreeState& State, TArr
 	return true;
 }
 
-bool FStateTreeBaker::CreateConditions(UStateTreeState& State, TConstArrayView<FStateTreeEditorNode> Conditions)
+bool FStateTreeCompiler::CreateConditions(UStateTreeState& State, TConstArrayView<FStateTreeEditorNode> Conditions)
 {
 	for (int32 Index = 0; Index < Conditions.Num(); Index++)
 	{
@@ -269,11 +269,11 @@ bool FStateTreeBaker::CreateConditions(UStateTreeState& State, TConstArrayView<F
 	return true;
 }
 
-bool FStateTreeBaker::CreateStateTasks()
+bool FStateTreeCompiler::CreateStateTasks()
 {
 	for (int32 i = 0; i < StateTree->States.Num(); i++)
 	{
-		FBakedStateTreeState& BakedState = StateTree->States[i];
+		FCompactStateTreeState& BakedState = StateTree->States[i];
 		UStateTreeState* SourceState = SourceStates[i];
 		check(SourceState != nullptr);
 
@@ -304,11 +304,11 @@ bool FStateTreeBaker::CreateStateTasks()
 	return true;
 }
 
-bool FStateTreeBaker::CreateStateEvaluators()
+bool FStateTreeCompiler::CreateStateEvaluators()
 {
 	for (int32 i = 0; i < StateTree->States.Num(); i++)
 	{
-		FBakedStateTreeState& BakedState = StateTree->States[i];
+		FCompactStateTreeState& BakedState = StateTree->States[i];
 		UStateTreeState* SourceState = SourceStates[i];
 		check(SourceState != nullptr);
 
@@ -334,11 +334,11 @@ bool FStateTreeBaker::CreateStateEvaluators()
 	return true;
 }
 
-bool FStateTreeBaker::CreateStateTransitions()
+bool FStateTreeCompiler::CreateStateTransitions()
 {
 	for (int32 i = 0; i < StateTree->States.Num(); i++)
 	{
-		FBakedStateTreeState& BakedState = StateTree->States[i];
+		FCompactStateTreeState& BakedState = StateTree->States[i];
 		UStateTreeState* SourceState = SourceStates[i];
 		check(SourceState != nullptr);
 
@@ -391,7 +391,7 @@ bool FStateTreeBaker::CreateStateTransitions()
 		BakedState.TransitionsBegin = uint16(StateTree->Transitions.Num());
 		for (FStateTreeTransition& Transition : SourceState->Transitions)
 		{
-			FBakedStateTransition& BakedTransition = StateTree->Transitions.AddDefaulted_GetRef();
+			FCompactStateTransition& BakedTransition = StateTree->Transitions.AddDefaulted_GetRef();
 			BakedTransition.Event = Transition.Event;
 			BakedTransition.Type = Transition.State.Type;
 			BakedTransition.GateDelay = (uint8)FMath::Clamp(FMath::CeilToInt(Transition.GateDelay * 10.0f), 0, 255);
@@ -420,7 +420,7 @@ bool FStateTreeBaker::CreateStateTransitions()
 	return true;
 }
 
-bool FStateTreeBaker::ResolveTransitionState(const UStateTreeState& SourceState, const FStateTreeStateLink& Link, FStateTreeHandle& OutTransitionHandle) const 
+bool FStateTreeCompiler::ResolveTransitionState(const UStateTreeState& SourceState, const FStateTreeStateLink& Link, FStateTreeHandle& OutTransitionHandle) const 
 {
 	if (Link.Type == EStateTreeTransitionType::GotoState)
 	{
@@ -456,7 +456,7 @@ bool FStateTreeBaker::ResolveTransitionState(const UStateTreeState& SourceState,
 	return true;
 }
 
-bool FStateTreeBaker::CreateCondition(UStateTreeState& State, const FStateTreeEditorNode& CondNode, const EStateTreeConditionOperand Operand, const int8 DeltaIndent)
+bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTreeEditorNode& CondNode, const EStateTreeConditionOperand Operand, const int8 DeltaIndent)
 {
 	if (!CondNode.Node.IsValid())
 	{
@@ -545,7 +545,7 @@ bool FStateTreeBaker::CreateCondition(UStateTreeState& State, const FStateTreeEd
 	return true;
 }
 
-bool FStateTreeBaker::CreateTask(UStateTreeState& State, const FStateTreeEditorNode& TaskNode)
+bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEditorNode& TaskNode)
 {
 	// Silently ignore empty items.
 	if (!TaskNode.Node.IsValid())
@@ -633,7 +633,7 @@ bool FStateTreeBaker::CreateTask(UStateTreeState& State, const FStateTreeEditorN
 	return true;
 }
 
-bool FStateTreeBaker::CreateEvaluator(UStateTreeState& State, const FStateTreeEditorNode& EvalNode)
+bool FStateTreeCompiler::CreateEvaluator(UStateTreeState& State, const FStateTreeEditorNode& EvalNode)
 {
 	// Silently ignore empty items.
 	if (!EvalNode.Node.IsValid())
@@ -721,7 +721,7 @@ bool FStateTreeBaker::CreateEvaluator(UStateTreeState& State, const FStateTreeEd
 	return true;
 }
 
-bool FStateTreeBaker::IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Struct, FStateTreeEditorPropertyPath Path) const
+bool FStateTreeCompiler::IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Struct, FStateTreeEditorPropertyPath Path) const
 {
 	bool bIsAnyEnum = false;
 	TArray<FStateTreePropertySegment> Segments;
@@ -741,7 +741,7 @@ bool FStateTreeBaker::IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Stru
 	return bIsAnyEnum;
 }
 
-bool FStateTreeBaker::GetAndValidateBindings(UStateTreeState& State, const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const
+bool FStateTreeCompiler::GetAndValidateBindings(UStateTreeState& State, const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const
 {
 	OutBindings.Reset();
 	

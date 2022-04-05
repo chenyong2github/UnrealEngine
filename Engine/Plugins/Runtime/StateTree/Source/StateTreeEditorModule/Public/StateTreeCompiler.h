@@ -14,19 +14,19 @@ struct FStateTreeEditorNode;
 struct FStateTreeStateLink;
 
 /**
- * Helper class to convert StateTree editor representation into a compact baked data.
- * Holds data needed during baking.
+ * Helper class to convert StateTree editor representation into a compact data.
+ * Holds data needed during compiling.
  */
-struct STATETREEEDITORMODULE_API FStateTreeBaker
+struct STATETREEEDITORMODULE_API FStateTreeCompiler
 {
 public:
 
-	FStateTreeBaker(FStateTreeCompilerLog& InLog)
+	FStateTreeCompiler(FStateTreeCompilerLog& InLog)
 		: Log(InLog)
 	{
 	}
 	
-	bool Bake(UStateTree& InStateTree);
+	bool Compile(UStateTree& InStateTree);
 
 private:
 

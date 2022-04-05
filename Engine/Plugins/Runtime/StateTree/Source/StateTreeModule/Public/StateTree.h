@@ -41,8 +41,8 @@ public:
 	bool IsReadyToRun() const;
 
 #if WITH_EDITOR
-	/** Resets the baked data to empty. */
-	void ResetBaked();
+	/** Resets the compiled data to empty. */
+	void ResetCompiled();
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -104,15 +104,15 @@ private:
 	FStateTreePropertyBindings PropertyBindings;
 
 	UPROPERTY()
-	TArray<FBakedStateTreeState> States;
+	TArray<FCompactStateTreeState> States;
 
 	UPROPERTY()
-	TArray<FBakedStateTransition> Transitions;
+	TArray<FCompactStateTransition> Transitions;
 
 	friend struct FStateTreeInstance;
 	friend struct FStateTreeExecutionContext;
 #if WITH_EDITORONLY_DATA
-	friend struct FStateTreeBaker;
+	friend struct FStateTreeCompiler;
 #endif
 };
 

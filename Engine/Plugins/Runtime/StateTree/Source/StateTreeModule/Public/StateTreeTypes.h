@@ -78,7 +78,7 @@ enum class EStateTreeTransitionEvent : uint8
 ENUM_CLASS_FLAGS(EStateTreeTransitionEvent)
 
 /**
- * Handle that is used to refer baked state tree data.
+ * Handle that is used to refer compact state tree data.
  */
 USTRUCT(BlueprintType)
 struct STATETREEMODULE_API FStateTreeHandle
@@ -309,7 +309,7 @@ struct STATETREEMODULE_API FStateTreeTransitionResult
  *  Runtime representation of a StateTree transition.
  */
 USTRUCT()
-struct STATETREEMODULE_API FBakedStateTransition
+struct STATETREEMODULE_API FCompactStateTransition
 {
 	GENERATED_BODY()
 
@@ -331,7 +331,7 @@ struct STATETREEMODULE_API FBakedStateTransition
  *  Runtime representation of a StateTree state.
  */
 USTRUCT()
-struct STATETREEMODULE_API FBakedStateTreeState
+struct STATETREEMODULE_API FCompactStateTreeState
 {
 	GENERATED_BODY()
 

@@ -11,7 +11,7 @@
 #include "StateTreeDelegates.h"
 #include "StateTreeState.h"
 #include "StateTreeTaskBase.h"
-#include "StateTreeBaker.h"
+#include "StateTreeCompiler.h"
 #include "StateTreeTypes.h"
 #include "IDetailsView.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -693,9 +693,9 @@ void FStateTreeEditor::Compile()
 	}
 
 	FStateTreeCompilerLog Log;
-	FStateTreeBaker Baker(Log);
+	FStateTreeCompiler Compiler(Log);
 
-	const bool bSuccess = Baker.Bake(*StateTree);
+	const bool bSuccess = Compiler.Compile(*StateTree);
 
 	if (CompilerResultsListing.IsValid())
 	{
@@ -709,8 +709,8 @@ void FStateTreeEditor::Compile()
 	}
 	else
 	{
-		// Make sure not to leave stale data on failed bake.
-		StateTree->ResetBaked();
+		// Make sure not to leave stale data on failed compile.
+		StateTree->ResetCompiled();
 		StateTree->LastCompiledEditorDataHash = 0;
 
 		// Show log

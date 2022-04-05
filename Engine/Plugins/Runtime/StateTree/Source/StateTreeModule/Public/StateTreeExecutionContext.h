@@ -88,7 +88,7 @@ public:
 	EStateTreeRunStatus Tick(const float DeltaTime, FStateTreeInstanceData* ExternalInstanceData = nullptr);
 
 	/** @return Pointer to a State or null if state not found */ 
-	const FBakedStateTreeState* GetStateFromHandle(const FStateTreeHandle StateHandle) const
+	const FCompactStateTreeState* GetStateFromHandle(const FStateTreeHandle StateHandle) const
 	{
 		return (StateTree && StateTree->States.IsValidIndex(StateHandle.Index)) ? &StateTree->States[StateHandle.Index] : nullptr;
 	}
