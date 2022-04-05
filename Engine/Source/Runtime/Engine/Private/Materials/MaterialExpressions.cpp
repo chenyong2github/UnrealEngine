@@ -314,7 +314,8 @@ bool IsAllowedExpressionType(const UClass* const Class, const bool bMaterialFunc
 	const bool bSharedAllowed = Class != UMaterialExpressionComment::StaticClass() 
 		&& Class != UMaterialExpressionPinBase::StaticClass()
 		&& Class != UMaterialExpressionParameter::StaticClass()
-		&& (Class != UMaterialExpressionTextureSampleParameter2DArray::StaticClass() || AllowTextureArrayAssetCreationVar->GetValueOnGameThread() != 0);
+		&& (Class != UMaterialExpressionTextureSampleParameter2DArray::StaticClass() || AllowTextureArrayAssetCreationVar->GetValueOnGameThread() != 0)
+		&& Class != UMaterialExpressionStrataLegacyConversion::StaticClass();
 
 	if (bMaterialFunction)
 	{
