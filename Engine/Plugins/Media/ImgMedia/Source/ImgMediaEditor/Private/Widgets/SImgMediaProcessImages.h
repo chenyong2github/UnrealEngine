@@ -77,6 +77,15 @@ private:
 		bool bInEnableMips, bool bHasAlphaChannel, const FString& InName);
 
 	/**
+	 * Removes the alpha channel from a buffer.
+	 * This will be done in place.
+	 * Assumes 2 bytes per channel, 4 channels, alpha is the last channel.
+	 * 
+	 * @param Buffer			Buffer to remove alpha from.
+	 */
+	void RemoveAlphaChannel(TArray64<uint8>& Buffer);
+
+	/**
 	 * Creates tiles from a source and outputs it to a destination.
 	 *
 	 * @param SourceData		Source image.
