@@ -2310,6 +2310,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
+	{
+		RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
+		PrepareDistanceFieldScene(GraphBuilder, false);
+	}
+
 	const bool bShouldRenderVelocities = ShouldRenderVelocities();
 	const bool bBasePassCanOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel);
 	const bool bUseSelectiveBasePassOutputs = IsUsingSelectiveBasePassOutputs(ShaderPlatform);
@@ -2353,11 +2358,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
 			InitViewsAfterPrepass(GraphBuilder, ILCTaskData, InstanceCullingManager);
-		}
-
-		{
-			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
-			PrepareDistanceFieldScene(GraphBuilder, false);
 		}
 
 		{
