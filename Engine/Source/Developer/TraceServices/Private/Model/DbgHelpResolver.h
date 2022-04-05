@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
+
+#include "HAL/Platform.h"
+
 #if PLATFORM_WINDOWS
 
 #include "Containers/Array.h"
@@ -20,7 +23,7 @@ class FDbgHelpResolver : public FRunnable
 {
 public:
 	typedef TArray<TTuple<uint64, FResolvedSymbol*>> SymbolArray;
-	
+
 	void Start();
 	FDbgHelpResolver(IAnalysisSession& InSession);
 	~FDbgHelpResolver();
@@ -31,7 +34,7 @@ public:
 	void EnumerateSymbolSearchPaths(TFunctionRef<void(FStringView Path)> Callback) const;
 	void OnAnalysisComplete();
 
-private:	
+private:
 	struct FModuleEntry
 	{
 		uint64 Base;
@@ -58,7 +61,6 @@ private:
 	enum : uint32 {
 		MaxNameLen = 512,
 	};
-
 
 	bool SetupSyms();
 	void FreeSyms() const;

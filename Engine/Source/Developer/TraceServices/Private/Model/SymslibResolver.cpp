@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "SymslibResolver.h"
+
 #if PLATFORM_WINDOWS
 
-#include "SymslibResolver.h"
 #include "Algo/ForEach.h"
 #include "Algo/Sort.h"
 #include "Async/MappedFileHandle.h"
@@ -35,7 +36,6 @@ namespace TraceServices {
 static const TCHAR* GUnknownModuleTextSymsLib = TEXT("Unknown");
 
 /////////////////////////////////////////////////////////////////////
-
 
 namespace
 {

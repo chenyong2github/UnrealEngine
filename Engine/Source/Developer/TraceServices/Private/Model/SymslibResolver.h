@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "HAL/Platform.h"
+
 #if PLATFORM_WINDOWS
 
 #include "Async/MappedFileHandle.h"
@@ -21,7 +23,7 @@ class FSymslibResolver
 {
 public:
 	typedef TArray<TTuple<uint64, FResolvedSymbol*>> SymbolArray;
-	
+
 	FSymslibResolver(IAnalysisSession& InSession);
 	~FSymslibResolver();
 	void QueueModuleLoad(const uint8* ImageId, uint32 ImageIdSize, FModule* Module);
@@ -122,7 +124,6 @@ private:
 	FString Platform;
 	FString Project;
 };
-
 
 /////////////////////////////////////////////////////////////////////
 

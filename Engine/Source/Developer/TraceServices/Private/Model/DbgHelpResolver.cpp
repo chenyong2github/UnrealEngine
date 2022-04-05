@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "DbgHelpResolver.h"
+
 #if PLATFORM_WINDOWS
 
-#include "DbgHelpResolver.h"
 #include "Algo/Sort.h"
 #include "Algo/ForEach.h"
 #include "Containers/Queue.h"
