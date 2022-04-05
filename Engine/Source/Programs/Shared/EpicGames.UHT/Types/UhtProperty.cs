@@ -1017,7 +1017,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override string GetDisplayStringFromEngineName()
 		{
-			return UhtFCString.NameToDisplayString(this.EngineName, this is UhtBooleanProperty);
+			return UhtFCString.NameToDisplayString(this.EngineName, this is UhtBoolProperty);
 		}
 
 		#region Text and code generation support
@@ -1596,7 +1596,7 @@ namespace EpicGames.UHT.Types
 					this.LogError("Static arrays of containers are not allowed");
 				}
 
-				if (this is UhtBooleanProperty)
+				if (this is UhtBoolProperty)
 				{
 					this.LogError("Bool arrays are not allowed");
 				}

@@ -169,7 +169,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (PropertySettings.bIsBitfield)
 			{
-				return new UhtBool8Property(PropertySettings);
+				return new UhtBoolProperty(PropertySettings, UhtBoolType.UInt8);
 			}
 			else
 			{

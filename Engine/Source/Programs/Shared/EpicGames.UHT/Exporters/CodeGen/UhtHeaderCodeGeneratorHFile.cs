@@ -552,7 +552,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 								{
 									string PropertyName = SparseProperty.SourceName;
 									string CleanPropertyName = PropertyName;
-									if (SparseProperty is UhtBooleanProperty && PropertyName.StartsWith("b"))
+									if (SparseProperty is UhtBoolProperty && PropertyName.StartsWith("b"))
 									{
 										CleanPropertyName = PropertyName.Substring(1);
 									}

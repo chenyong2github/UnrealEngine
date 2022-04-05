@@ -298,7 +298,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				else
 				{
 					Builder.AppendTabs(Tabs).Append("Parms.").Append(Property.SourceName).Append("=").Append(Property.SourceName);
-					if (Property is UhtBooleanProperty)
+					if (Property is UhtBoolProperty)
 					{
 						Builder.Append(" ? true : false");
 					}
@@ -346,7 +346,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			if (ReturnProperty != null)
 			{
 				// Make sure uint32 -> bool is supported
-				if (ReturnProperty is UhtBooleanProperty)
+				if (ReturnProperty is UhtBoolProperty)
 				{
 					Builder
 						.AppendTabs(Tabs)

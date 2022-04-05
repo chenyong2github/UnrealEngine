@@ -10,26 +10,116 @@ namespace EpicGames.UHT.Types
 {
 
 	/// <summary>
+	/// Type of boolean
+	/// </summary>
+	public enum UhtBoolType
+	{
+
+		/// <summary>
+		/// Native bool
+		/// </summary>
+		Native,
+
+		/// <summary>
+		/// Used for all bitmask uint booleans
+		/// </summary>
+		UInt8,
+
+		/// <summary>
+		/// Currently unused
+		/// </summary>
+		UInt16,
+
+		/// <summary>
+		/// Currently unused
+		/// </summary>
+		UInt32,
+
+		/// <summary>
+		/// Currently unused
+		/// </summary>
+		UInt64,
+	}
+
+	/// <summary>
 	/// Represents the FBoolProperty engine type
 	/// </summary>
+	[UnrealHeaderTool]
 	[UhtEngineClass(Name = "BoolProperty", IsProperty = true)]
-	public abstract class UhtBooleanProperty : UhtProperty
+	public class UhtBoolProperty : UhtProperty
 	{
 		/// <inheritdoc/>
 		public override string EngineClassName { get => "BoolProperty"; }
 
+		/// <inheritdoc/>
+		protected override string CppTypeText
+		{
+			get
+			{
+				switch (this.BoolType)
+				{
+					case UhtBoolType.Native:
+						return "bool";
+					case UhtBoolType.UInt8:
+						return "uint8";
+					case UhtBoolType.UInt16:
+						return "uint16";
+					case UhtBoolType.UInt32:
+						return "uint32";
+					case UhtBoolType.UInt64:
+						return "uint64";
+					default:
+						throw new UhtIceException("Unexpected boolean type");
+				}
+			}
+		}
+
+		/// <inheritdoc/>
+		protected override string PGetMacroText
+		{
+			get
+			{
+				switch (this.BoolType)
+				{
+					case UhtBoolType.Native:
+						return "UBOOL";
+					case UhtBoolType.UInt8:
+						return "UBOOL8";
+					case UhtBoolType.UInt16:
+						return "UBOOL16";
+					case UhtBoolType.UInt32:
+						return "UBOOL32";
+					case UhtBoolType.UInt64:
+						return "UBOOL64";
+					default:
+						throw new UhtIceException("Unexpected boolean type");
+				}
+			}
+		}
+
 		/// <summary>
 		/// If true, the boolean is a native bool and not a UBOOL
 		/// </summary>
-		protected abstract bool bIsNativeBool { get; }
+		protected bool bIsNativeBool { get => this.BoolType == UhtBoolType.Native; }
+
+		/// <summary>
+		/// Type of the boolean
+		/// </summary>
+		public readonly UhtBoolType BoolType;
 
 		/// <summary>
 		/// Construct a new boolean property
 		/// </summary>
 		/// <param name="PropertySettings">Property settings</param>
-		protected UhtBooleanProperty(UhtPropertySettings PropertySettings) : base(PropertySettings)
+		/// <param name="BoolType">Type of the boolean</param>
+		public UhtBoolProperty(UhtPropertySettings PropertySettings, UhtBoolType BoolType) : base(PropertySettings)
 		{
 			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+			if (BoolType == UhtBoolType.Native || BoolType == UhtBoolType.UInt8)
+			{
+				this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn;
+			}
+			this.BoolType = BoolType;
 		}
 
 		/// <inheritdoc/>
@@ -131,7 +221,7 @@ namespace EpicGames.UHT.Types
 			{
 				Builder.Append('[').Append(this.ArrayDimensions).Append(']');
 			}
-			else if (TextType == UhtPropertyTextType.ExportMember && !(this is UhtBoolProperty))
+			else if (TextType == UhtPropertyTextType.ExportMember && !this.bIsNativeBool)
 			{
 				Builder.Append(":1");
 			}
@@ -160,38 +250,14 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool IsSameType(UhtProperty Other)
 		{
-			return Other is UhtBooleanProperty;
+			// We don't test BoolType.
+			return Other is UhtBoolProperty;
 		}
 
 		/// <inheritdoc/>
 		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
 		{
 			return CppTypeText;
-		}
-	}
-
-	/// <summary>
-	/// Native boolean type specialization
-	/// </summary>
-	[UnrealHeaderTool]
-	public class UhtBoolProperty : UhtBooleanProperty
-	{
-		/// <inheritdoc/>
-		protected override string CppTypeText { get => "bool"; }
-
-		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "UBOOL"; }
-
-		/// <inheritdoc/>
-		protected override bool bIsNativeBool { get => true; }
-
-		/// <summary>
-		/// Construct a new boolean property
-		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		public UhtBoolProperty(UhtPropertySettings PropertySettings) : base(PropertySettings)
-		{
-			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn;
 		}
 
 		#region Keyword
@@ -203,101 +269,8 @@ namespace EpicGames.UHT.Types
 				TokenReader.LogError("bool bitfields are not supported.");
 				return null;
 			}
-			return new UhtBoolProperty(PropertySettings);
+			return new UhtBoolProperty(PropertySettings, UhtBoolType.Native);
 		}
 		#endregion
-	}
-
-	/// <summary>
-	/// uint8 bit type specialization
-	/// </summary>
-	public class UhtBool8Property : UhtBooleanProperty
-	{
-		/// <inheritdoc/>
-		protected override string CppTypeText { get => "uint8"; }
-
-		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "UBOOL8"; }
-
-		/// <inheritdoc/>
-		protected override bool bIsNativeBool { get => false; }
-
-		/// <summary>
-		/// Construct a new boolean property
-		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		public UhtBool8Property(UhtPropertySettings PropertySettings) : base(PropertySettings)
-		{
-			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn;
-		}
-	}
-
-	/// <summary>
-	/// uint16 bit type specialization
-	/// </summary>
-	public class UhtBool16Property : UhtBooleanProperty
-	{
-		/// <inheritdoc/>
-		protected override string CppTypeText { get => "uint16"; }
-
-		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "UBOOL16"; }
-
-		/// <inheritdoc/>
-		protected override bool bIsNativeBool { get => false; }
-
-		/// <summary>
-		/// Construct a new boolean property
-		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		public UhtBool16Property(UhtPropertySettings PropertySettings) : base(PropertySettings)
-		{
-		}
-	}
-
-	/// <summary>
-	/// uint32 bit type specialization
-	/// </summary>
-	public class UhtBool32Property : UhtBooleanProperty
-	{
-		/// <inheritdoc/>
-		protected override string CppTypeText { get => "uint32"; }
-
-		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "UBOOL32"; }
-
-		/// <inheritdoc/>
-		protected override bool bIsNativeBool { get => false; }
-
-		/// <summary>
-		/// Construct a new boolean property
-		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		public UhtBool32Property(UhtPropertySettings PropertySettings) : base(PropertySettings)
-		{
-		}
-	}
-
-	/// <summary>
-	/// uint64 bit type specialization
-	/// </summary>
-	public class UhtBool64Property : UhtBooleanProperty
-	{
-		/// <inheritdoc/>
-		protected override string CppTypeText { get => "uint64"; }
-
-		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "UBOOL64"; }
-
-		/// <inheritdoc/>
-		protected override bool bIsNativeBool { get => false; }
-
-		/// <summary>
-		/// Construct a new boolean property
-		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		public UhtBool64Property(UhtPropertySettings PropertySettings) : base(PropertySettings)
-		{
-		}
 	}
 }
