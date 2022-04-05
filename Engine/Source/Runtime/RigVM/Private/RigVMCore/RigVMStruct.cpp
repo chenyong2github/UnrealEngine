@@ -221,9 +221,9 @@ float FRigVMStruct::GetRatioFromIndex(int32 InIndex, int32 InCount)
 	return ((float)FMath::Clamp<int32>(InIndex, 0, InCount - 1)) / ((float)(InCount - 1));
 }
 
-TArray<FRigVMUserWorkflow> FRigVMStruct::GetWorkflows(ERigVMUserWorkflowType InType) const
+TArray<FRigVMUserWorkflow> FRigVMStruct::GetWorkflows(ERigVMUserWorkflowType InType, const UObject* InSubject) const
 {
-	return GetSupportedWorkflows().FilterByPredicate([InType](const FRigVMUserWorkflow& InWorkflow) -> bool
+	return GetSupportedWorkflows(InSubject).FilterByPredicate([InType](const FRigVMUserWorkflow& InWorkflow) -> bool
 	{
 		return uint32(InWorkflow.GetType()) & uint32(InType) &&
 			InWorkflow.IsValid();

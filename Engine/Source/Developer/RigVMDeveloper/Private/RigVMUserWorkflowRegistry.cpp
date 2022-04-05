@@ -22,7 +22,7 @@ void URigVMUserWorkflowRegistry::UnregisterProvider(int32 InHandle)
 	});
 }
 
-TArray<FRigVMUserWorkflow> URigVMUserWorkflowRegistry::GetWorkflows(ERigVMUserWorkflowType InType, const UScriptStruct* InStruct, const URigVMNode* InNode) const
+TArray<FRigVMUserWorkflow> URigVMUserWorkflowRegistry::GetWorkflows(ERigVMUserWorkflowType InType, const UScriptStruct* InStruct, const UObject* InSubject) const
 {
 	TArray<FRigVMUserWorkflow> Workflows;
 
@@ -35,9 +35,9 @@ TArray<FRigVMUserWorkflow> URigVMUserWorkflowRegistry::GetWorkflows(ERigVMUserWo
 
 	for(const TTuple<int32, const UScriptStruct*, FRigVMUserWorkflowProvider>& Provider : Providers)
 	{
-		if(Provider.Get<1>() == InStruct && Provider.Get<1>() != nullptr)
+		if(Provider.Get<1>() == InStruct || Provider.Get<1>() == nullptr || InStruct == nullptr)
 		{
-			Workflows.Append(Provider.Get<2>().Execute(InNode));
+			Workflows.Append(Provider.Get<2>().Execute(InSubject));
 		}
 	}
 

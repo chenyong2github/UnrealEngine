@@ -7,7 +7,7 @@
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMUserWorkflowRegistry.generated.h"
 
-DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(TArray<FRigVMUserWorkflow>, FRigVMUserWorkflowProvider, const URigVMNode*, InNode);
+DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(TArray<FRigVMUserWorkflow>, FRigVMUserWorkflowProvider, const UObject*, InSubject);
 
 UCLASS(BlueprintType)
 class RIGVMDEVELOPER_API URigVMUserWorkflowRegistry : public UObject
@@ -26,7 +26,7 @@ public:
 	void UnregisterProvider(int32 InHandle);
 
 	UFUNCTION(BlueprintPure, Category = FRigVMUserWorkflowRegistry)
-	TArray<FRigVMUserWorkflow> GetWorkflows(ERigVMUserWorkflowType InType, const UScriptStruct* InStruct, const URigVMNode* InNode) const;
+	TArray<FRigVMUserWorkflow> GetWorkflows(ERigVMUserWorkflowType InType, const UScriptStruct* InStruct, const UObject* InSubject) const;
 
 private:
 

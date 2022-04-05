@@ -110,9 +110,14 @@ FString URigVMUnitNode::GetDeprecatedMetadata() const
 	return FString();
 }
 
-TArray<FRigVMUserWorkflow> URigVMUnitNode::GetSupportedWorkflows(ERigVMUserWorkflowType InType) const
+TArray<FRigVMUserWorkflow> URigVMUnitNode::GetSupportedWorkflows(ERigVMUserWorkflowType InType, const UObject* InSubject) const
 {
-	TArray<FRigVMUserWorkflow> Workflows = Super::GetSupportedWorkflows(InType);
+	TArray<FRigVMUserWorkflow> Workflows = Super::GetSupportedWorkflows(InType, InSubject);
+
+	if(InSubject == nullptr)
+	{
+		InSubject = this;
+	}
 
 	if(UScriptStruct* Struct = GetScriptStruct())
 	{
@@ -120,8 +125,8 @@ TArray<FRigVMUserWorkflow> URigVMUnitNode::GetSupportedWorkflows(ERigVMUserWorkf
 
 		const TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance();
 		const FRigVMStruct* StructMemory = (const FRigVMStruct*)StructOnScope->GetStructMemory();
-		TArray<FRigVMUserWorkflow> StructWorkflows = StructMemory->GetWorkflows(InType);
-		StructWorkflows.Append(URigVMUserWorkflowRegistry::Get()->GetWorkflows(InType, Struct, this));
+		TArray<FRigVMUserWorkflow> StructWorkflows = StructMemory->GetWorkflows(InType, InSubject);
+		StructWorkflows.Append(URigVMUserWorkflowRegistry::Get()->GetWorkflows(InType, Struct, InSubject));
 		Swap(Workflows, StructWorkflows);
 		Workflows.Append(StructWorkflows);
 	}

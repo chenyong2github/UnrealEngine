@@ -211,7 +211,7 @@ public:
 
 	// returns all supported workflows of the node
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
-	virtual TArray<FRigVMUserWorkflow> GetSupportedWorkflows(ERigVMUserWorkflowType InType = ERigVMUserWorkflowType::All) const;
+	virtual TArray<FRigVMUserWorkflow> GetSupportedWorkflows(ERigVMUserWorkflowType InType, const UObject* InSubject) const;
 
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	bool HasBreakpoint() const { return bHasBreakpoint; }

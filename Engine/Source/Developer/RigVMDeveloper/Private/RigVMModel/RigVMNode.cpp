@@ -530,9 +530,13 @@ double URigVMNode::GetInstructionMicroSeconds(URigVM* InVM, const FRigVMASTProxy
 	return -1.0;
 }
 
-TArray<FRigVMUserWorkflow> URigVMNode::GetSupportedWorkflows(ERigVMUserWorkflowType InType) const
+TArray<FRigVMUserWorkflow> URigVMNode::GetSupportedWorkflows(ERigVMUserWorkflowType InType, const UObject* InSubject) const
 {
-	return URigVMUserWorkflowRegistry::Get()->GetWorkflows(InType, nullptr, this);
+	if(InSubject == nullptr)
+	{
+		InSubject = this;
+	}
+	return URigVMUserWorkflowRegistry::Get()->GetWorkflows(InType, nullptr, InSubject);
 }
 
 #if WITH_EDITOR

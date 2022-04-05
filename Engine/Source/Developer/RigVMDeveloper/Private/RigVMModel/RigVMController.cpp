@@ -7165,7 +7165,7 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 
 	if(bSetupUndoRedo)
 	{
-		TArray<FRigVMUserWorkflow> WorkflowsOnPinChange = InPin->GetNode()->GetSupportedWorkflows(ERigVMUserWorkflowType::OnPinDefaultChanged);
+		TArray<FRigVMUserWorkflow> WorkflowsOnPinChange = InPin->GetNode()->GetSupportedWorkflows(ERigVMUserWorkflowType::OnPinDefaultChanged, InPin);
 		for(const FRigVMUserWorkflow& Workflow : WorkflowsOnPinChange)
 		{
 			const URigVMUserWorkflowOptions* Options = MakeOptionsForWorkflow(InPin, Workflow);

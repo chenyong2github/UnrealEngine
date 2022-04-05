@@ -27,7 +27,7 @@ public:
 	virtual FName GetEventName() const override;
 	virtual bool IsLoopNode() const override;
 	virtual bool CanBeUpgraded() const override { return GetUpgradeInfo().IsValid(); }
-	virtual TArray<FRigVMUserWorkflow> GetSupportedWorkflows(ERigVMUserWorkflowType InType = ERigVMUserWorkflowType::All) const override;
+	virtual TArray<FRigVMUserWorkflow> GetSupportedWorkflows(ERigVMUserWorkflowType InType, const UObject* InSubject) const override;
 	virtual bool IsAggregate() const override;
 	virtual URigVMPin* GetFirstAggregatePin() const override;
 	virtual URigVMPin* GetSecondAggregatePin() const override;

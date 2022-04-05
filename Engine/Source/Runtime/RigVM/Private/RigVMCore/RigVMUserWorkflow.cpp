@@ -27,10 +27,11 @@ bool URigVMUserWorkflowOptions::RequiresDialog(const FProperty* InProperty) cons
 	{
 		return false;
 	}
-
-	static const FName SubjectName = TEXT("Subject");
-	static const FName WorkflowName = TEXT("Workflow");
-	return InProperty->GetFName() != SubjectName && InProperty->GetFName() != WorkflowName;
+	if(InProperty->HasAnyPropertyFlags(CPF_DisableEditOnInstance))
+	{
+		return false;
+	}
+	return true;
 }
 
 void URigVMUserWorkflowOptions::Report(EMessageSeverity::Type InSeverity,  const FString& InMessage) const

@@ -223,7 +223,7 @@ public:
 	FORCEINLINE virtual void OnUnitNodeCreated(FRigVMUnitNodeCreatedContext& InContext) const {}
 
 	// user workflow
-	TArray<FRigVMUserWorkflow> GetWorkflows(ERigVMUserWorkflowType InType = ERigVMUserWorkflowType::All) const; 
+	TArray<FRigVMUserWorkflow> GetWorkflows(ERigVMUserWorkflowType InType, const UObject* InSubject) const; 
 
 #if WITH_EDITOR
 	static bool ValidateStruct(UScriptStruct* InStruct, FString* OutErrorMessage);
@@ -300,7 +300,7 @@ protected:
 	static float GetRatioFromIndex(int32 InIndex, int32 InCount);
 	TMap<FName, FString> GetDefaultValues(UScriptStruct* InScriptStruct) const;
 	bool ApplyUpgradeInfo(const FRigVMStructUpgradeInfo& InUpgradeInfo);
-	FORCEINLINE virtual TArray<FRigVMUserWorkflow> GetSupportedWorkflows() const { return TArray<FRigVMUserWorkflow>(); } 
+	FORCEINLINE virtual TArray<FRigVMUserWorkflow> GetSupportedWorkflows(const UObject* InSubject) const { return TArray<FRigVMUserWorkflow>(); } 
 
 	friend struct FRigVMStructUpgradeInfo;
 	friend class FRigVMGraphStructUpgradeInfoTest;
