@@ -761,8 +761,10 @@ public:
 	FVulkanEXTDebugMarkerExtension(FVulkanDevice* InDevice)
 		: FVulkanDeviceExtension(InDevice, VK_EXT_DEBUG_MARKER_EXTENSION_NAME, (VULKAN_ENABLE_DRAW_MARKERS & VULKAN_HAS_DEBUGGING_ENABLED))
 	{
+#if VULKAN_HAS_DEBUGGING_ENABLED
 		const int32 VulkanValidationOption = GValidationCvar.GetValueOnAnyThread();
 		bEnabledInCode = bEnabledInCode && ((GRenderDocFound || VulkanValidationOption == 0) || FVulkanPlatform::ForceEnableDebugMarkers());
+#endif
 	}
 
 	virtual void PostPhysicalDeviceProperties() override final
@@ -1017,7 +1019,9 @@ public:
 
 	virtual void PreCreateInstance(VkInstanceCreateInfo& InstanceCreateInfo, FOptionalVulkanInstanceExtensions& ExtensionFlags) override final 
 	{
+#if VULKAN_HAS_DEBUGGING_ENABLED
 		check(GValidationCvar.GetValueOnAnyThread() > 0);
+#endif 
 
 		auto GetValidationFeaturesEnabled = []()
 		{

@@ -430,6 +430,7 @@ public:
 	static void TrimLRU();
 #endif
 
+public:
 	enum class EActiveDebugLayerExtension
 	{
 		None,

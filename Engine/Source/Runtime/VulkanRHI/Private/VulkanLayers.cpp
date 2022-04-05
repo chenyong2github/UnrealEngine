@@ -489,13 +489,13 @@ void FVulkanIntanceSetupHelper::AddDebugLayers(const TArray<FLayerWithExtensions
 // Return a list of debug layers to activate
 void FVulkanDeviceSetupHelper::AddDebugLayers(const TArray<FLayerWithExtensions>& LayerProperties, FVulkanDeviceExtensionArray& UEExtensions, TArray<const ANSICHAR*>& OutLayers)
 {
+#if VULKAN_HAS_DEBUGGING_ENABLED
 #if VULKAN_ENABLE_DRAW_MARKERS
 	GRenderDocFound = (FindLayerIndexInList(RENDERDOC_LAYER_NAME, LayerProperties) != INDEX_NONE);
 #else
 	GRenderDocFound = false;
 #endif
 
-#if VULKAN_HAS_DEBUGGING_ENABLED
 	// Verify that all requested debugging device-layers are available. Skip validation layers under RenderDoc
 	if (!GRenderDocFound && (GValidationCvar.GetValueOnAnyThread() > 0) && (GStandardValidationCvar.GetValueOnAnyThread() != 0))
 	{
