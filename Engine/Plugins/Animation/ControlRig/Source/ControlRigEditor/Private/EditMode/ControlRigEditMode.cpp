@@ -681,8 +681,8 @@ TSet<FName> FControlRigEditMode::GetActiveControlsFromSequencer(UControlRig* Con
 void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {	
 	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
-	bool bRender = !Settings->bHideControlShapes;
-
+	const bool bIsInGameView = IsInLevelEditor() ? (GCurrentLevelEditingViewportClient && GCurrentLevelEditingViewportClient->IsInGameView()) : false;
+	bool bRender = !Settings->bHideControlShapes && !bIsInGameView;
 	for (TWeakObjectPtr<UControlRig>& ControlRigPtr : RuntimeControlRigs)
 	{
 		UControlRig* ControlRig = ControlRigPtr.Get();
@@ -3526,7 +3526,9 @@ void FControlRigEditMode::TickControlShape(AControlRigShapeActor* ShapeActor, co
 			if (FRigControlElement* ControlElement = ControlRig->FindControl(ShapeActor->ControlName))
 			{
 				ShapeActor->SetShapeColor(ControlElement->Settings.ShapeColor);
-				ShapeActor->SetIsTemporarilyHiddenInEditor(!ControlElement->Settings.bShapeVisible || Settings->bHideControlShapes || !ControlRig->GetControlsVisible());
+				const bool bIsInGameView = IsInLevelEditor() ? (GCurrentLevelEditingViewportClient && GCurrentLevelEditingViewportClient->IsInGameView()) : false;
+
+				ShapeActor->SetIsTemporarilyHiddenInEditor(bIsInGameView || !ControlElement->Settings.bShapeVisible || Settings->bHideControlShapes || !ControlRig->GetControlsVisible());
 				if (!IsInLevelEditor()) //don't change this in level editor otherwise we can never select it
 				{
 					ShapeActor->SetSelectable(ControlElement->Settings.bShapeVisible && !Settings->bHideControlShapes && ControlElement->Settings.bAnimatable && ControlRig->GetControlsVisible());

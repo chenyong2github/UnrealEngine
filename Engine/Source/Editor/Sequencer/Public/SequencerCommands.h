@@ -22,6 +22,12 @@ public:
 	/** Toggle play */
 	TSharedPtr< FUICommandInfo > TogglePlay;
 
+	/** Toggle play viewport*/
+	TSharedPtr< FUICommandInfo > TogglePlayViewport;
+
+	/** Scrub time in the viewport*/
+	TSharedPtr< FUICommandInfo > ScrubTimeViewport;
+
 	/** Play forward */
 	TSharedPtr< FUICommandInfo > PlayForward;
 
@@ -50,10 +56,10 @@ public:
 	TSharedPtr< FUICommandInfo > StepBackward;
 
 	/** Step forward */
-	TSharedPtr< FUICommandInfo > StepForward2;
+	TSharedPtr< FUICommandInfo > StepForwardViewport;
 
 	/** Step backward */
-	TSharedPtr< FUICommandInfo > StepBackward2;
+	TSharedPtr< FUICommandInfo > StepBackwardViewport;
 
 	/** Jump forward */
 	TSharedPtr< FUICommandInfo > JumpForward;

@@ -58,6 +58,13 @@ public:
 	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const override { return false; }
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
+
+	virtual bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
+	virtual bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y) override;
+	virtual bool ProcessCapturedMouseMoves(FEditorViewportClient* InViewportClient, FViewport* InViewport, const TArrayView<FIntPoint>& CapturedMouseMoves) override;
+	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) override;
+
+	bool IsPressingMoveTimeSlider(FViewport* InViewport) const;
 	void AddSequencer(TWeakPtr<FSequencer> InSequencer) { Sequencers.AddUnique(InSequencer); }
 	void RemoveSequencer(TWeakPtr<FSequencer> InSequencer) { Sequencers.Remove(InSequencer); }
 
@@ -90,6 +97,14 @@ private:
 
 	/** The audio texture used for drawing the audio spatialization points */
 	UTexture2D* AudioTexture;
+
+	//params to handle mouse move for changing time
+	/** If we are tracking */
+	bool bIsTracking = false;
+	/** Starting X Value*/
+	TOptional<int32> StartXValue;
+	/** Starting Time Value*/
+	FFrameNumber StartFrameNumber;
 };
 
 /**

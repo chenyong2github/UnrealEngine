@@ -30,6 +30,7 @@
 #include "SequencerSectionPainter.h"
 #include "MovieSceneToolHelpers.h"
 #include "Tools/MotionTrailOptions.h"
+#include "SequencerCommands.h"
 
 const FEditorModeID FSequencerEdMode::EM_SequencerMode(TEXT("EM_SequencerMode"));
 
@@ -158,6 +159,8 @@ FSequencerEdMode::~FSequencerEdMode()
 
 void FSequencerEdMode::Enter()
 {
+	bIsTracking = false;;
+	StartXValue.Reset();
 	FEdMode::Enter();
 }
 
@@ -193,14 +196,163 @@ bool FSequencerEdMode::InputKey( FEditorViewportClient* ViewportClient, FViewpor
 	{
 		FModifierKeysState KeyState = FSlateApplication::Get().GetModifierKeys();
 
-		if (ActiveSequencer->GetCommandBindings(ESequencerCommandBindings::Shared).Get()->ProcessCommandBindings(Key, KeyState, (Event == IE_Repeat) ))
+ 		if (ActiveSequencer->GetCommandBindings(ESequencerCommandBindings::Shared).Get()->ProcessCommandBindings(Key, KeyState, (Event == IE_Repeat) ))
 		{
 			return true;
 		}
 	}
-
 	return FEdMode::InputKey(ViewportClient, Viewport, Key, Event);
 }
+
+bool FSequencerEdMode::IsPressingMoveTimeSlider(FViewport* InViewport) const
+{
+	const FSequencerCommands& Commands = FSequencerCommands::Get();
+	bool bIsMovingTimeSlider = false;
+	// Need to iterate through primary and secondary to make sure they are all pressed.
+	for (uint32 i = 0; i < static_cast<uint8>(EMultipleKeyBindingIndex::NumChords); ++i)
+	{
+		EMultipleKeyBindingIndex ChordIndex = static_cast<EMultipleKeyBindingIndex>(i);
+		const FInputChord& Chord = *Commands.ScrubTimeViewport->GetActiveChord(ChordIndex);
+		bIsMovingTimeSlider |= Chord.IsValidChord() && InViewport->KeyState(Chord.Key);
+	}
+	return bIsMovingTimeSlider;
+}
+
+bool FSequencerEdMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
+{
+	return IsPressingMoveTimeSlider(InViewport);
+}
+
+bool FSequencerEdMode::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
+{
+	return IsPressingMoveTimeSlider(InViewport);
+}
+
+bool FSequencerEdMode::ProcessCapturedMouseMoves(FEditorViewportClient* InViewportClient, FViewport* InViewport, const TArrayView<FIntPoint>& CapturedMouseMoves)
+{
+	if (CapturedMouseMoves.Num() > 0)
+	{
+		const bool bTimeChange = IsPressingMoveTimeSlider(InViewport);
+		if (bTimeChange)
+		{
+			TSharedPtr<ISequencer> ActiveSequencer;
+
+			for (TWeakPtr<ISequencer> WeakSequencer : Sequencers)
+			{
+				ActiveSequencer = WeakSequencer.Pin();
+				if (ActiveSequencer.IsValid())
+				{
+					break;
+				}
+			}
+
+			if (ActiveSequencer.IsValid())
+			{
+				for (int32 Index = 0; Index < CapturedMouseMoves.Num(); ++Index)
+				{
+					int32 X = CapturedMouseMoves[Index].X;
+					if (StartXValue.IsSet() == false)
+					{
+						StartXValue = X;
+						FQualifiedFrameTime CurrentTime = ActiveSequencer->GetLocalTime();
+						StartFrameNumber = CurrentTime.Time.GetFrame();
+					}
+					else
+					{
+						int32 Diff = X - StartXValue.GetValue();
+						if (Diff != 0)
+						{
+							FIntPoint Origin, Size;
+							InViewportClient->GetViewportDimensions(Origin, Size);
+							const float ViewPortSize = (float)Size.X;
+							const float FloatViewDiff = (float)(Diff) / ViewPortSize;
+
+							FFrameRate TickResolution = ActiveSequencer->GetFocusedTickResolution();
+							TPair<FFrameNumber, FFrameNumber> ViewRange(TickResolution.AsFrameNumber(ActiveSequencer->GetViewRange().GetLowerBoundValue()), TickResolution.AsFrameNumber(ActiveSequencer->GetViewRange().GetUpperBoundValue()));
+							FFrameNumber FrameDiff = ViewRange.Value - ViewRange.Key;
+							FrameDiff = FrameDiff * FloatViewDiff;
+							ActiveSequencer->SetLocalTimeDirectly(StartFrameNumber + FrameDiff);
+						}
+					}
+					bIsTracking = true;
+				}
+			}
+			else
+			{
+				bIsTracking = false;
+				StartXValue.Reset();
+			}
+		}
+		else
+		{
+			bIsTracking = false;
+			StartXValue.Reset();
+		}
+		return bIsTracking;
+	}
+	bIsTracking = false;
+	StartXValue.Reset();
+	return false;
+}
+
+bool FSequencerEdMode::MouseMove(FEditorViewportClient* ViewportClient, FViewport* InViewport, int32 X, int32 Y)
+{
+	const bool bTimeChange = IsPressingMoveTimeSlider(InViewport);
+	const bool bMouseButtonDown = InViewport->KeyState(EKeys::LeftMouseButton);
+
+	TSharedPtr<ISequencer> ActiveSequencer;
+	if (bTimeChange && bMouseButtonDown)
+	{
+		for (TWeakPtr<ISequencer> WeakSequencer : Sequencers)
+		{
+			ActiveSequencer = WeakSequencer.Pin();
+			if (ActiveSequencer.IsValid())
+			{
+				break;
+			}
+		}
+
+		if (ActiveSequencer.IsValid())
+		{
+			if (StartXValue.IsSet() == false)
+			{
+				StartXValue = X;
+				FQualifiedFrameTime CurrentTime = ActiveSequencer->GetLocalTime();
+				StartFrameNumber = CurrentTime.Time.GetFrame();
+			}
+			else
+			{
+				int32 Diff = StartXValue.GetValue() - X;
+				if (Diff != 0)
+				{		
+					FIntPoint Origin, Size;
+					ViewportClient->GetViewportDimensions(Origin, Size);
+					const float ViewPortSize = (float)Size.X;
+					const float FloatViewDiff = (float)(Diff) / ViewPortSize;
+					
+					FFrameRate TickResolution = ActiveSequencer->GetFocusedTickResolution();
+					TPair<FFrameNumber, FFrameNumber> ViewRange(TickResolution.AsFrameNumber(ActiveSequencer->GetViewRange().GetLowerBoundValue()), TickResolution.AsFrameNumber(ActiveSequencer->GetViewRange().GetUpperBoundValue()));
+					FFrameNumber FrameDiff = ViewRange.Value - ViewRange.Key;
+					FrameDiff = FrameDiff * FloatViewDiff;
+					ActiveSequencer->SetLocalTimeDirectly(StartFrameNumber + FrameDiff);
+				}
+			}
+			bIsTracking = true;
+		}
+		else
+		{
+			bIsTracking = false;
+			StartXValue.Reset();
+		}
+	}
+	else
+	{
+		bIsTracking = false;
+		StartXValue.Reset();
+	}
+	return bIsTracking;
+}
+
 
 void FSequencerEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
