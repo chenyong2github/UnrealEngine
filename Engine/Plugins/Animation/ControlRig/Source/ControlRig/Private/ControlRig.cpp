@@ -2485,13 +2485,20 @@ void UControlRig::HandleInteractionRigControlModified(UControlRig* Subject, FRig
 						QueuedModifiedControls.Add(AffectedControl->GetKey());
 					}
 				}
-				else if (
-					AffectedKey.Type == ERigElementType::Bone ||
-					AffectedKey.Type == ERigElementType::Curve)
+				else if (AffectedKey.Type == ERigElementType::Bone)
 				{
 					// special case controls with a CONTROL suffix
 					FName BoneControlName = *FString::Printf(TEXT("%s_CONTROL"), *AffectedKey.Name.ToString());
 					if (FRigControlElement* AffectedControl = FindControl(BoneControlName))
+					{
+						QueuedModifiedControls.Add(AffectedControl->GetKey());
+					}
+				}
+				else if(AffectedKey.Type == ERigElementType::Curve)
+				{
+					// special case controls with a CONTROL suffix
+					FName CurveControlName = *FString::Printf(TEXT("%s_CURVE_CONTROL"), *AffectedKey.Name.ToString());
+					if (FRigControlElement* AffectedControl = FindControl(CurveControlName))
 					{
 						QueuedModifiedControls.Add(AffectedControl->GetKey());
 					}
