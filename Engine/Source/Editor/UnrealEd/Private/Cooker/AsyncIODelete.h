@@ -34,9 +34,9 @@ public:
 	/**
 	 * Quick constructor to create flags; does not take any IO action until Setup or a Delete function is used
 	 *
-	 * @param InOwnedTempRoot - The FAsyncIODelete takes ownership of this directory, and deletes it when done.
-	 *							It is a temporary directory used to hold the deleted directories from elsewhere.  Must not be shared with (or a parent or child of) any other FAsyncDelete's InTempRoot.
-	 *						    The FAsyncIODelete will not be able to delete directories until a valid TempRoot has been set, either in the constructor or in SetTempRoot
+	 * @param InOwnedTempRoot - The FAsyncIODelete system takes ownership of this directory, and deletes it when done.
+	 * See SetTempRoot. The FAsyncIODelete will not be able to delete directories until a valid TempRoot has been set,
+	 * either in the constructor or in SetTempRoot
 	 */
 	explicit FAsyncIODelete(const FStringView& InOwnedTempRoot=FStringView());
 
@@ -44,12 +44,21 @@ public:
 	~FAsyncIODelete();
 
 	/**
-	 * Set the TempRoot directory used to hold the deleted directories from elsewhere.  The FAsyncIODelete takes ownership of this directory, and deletes it when destructed or when it is changed.
+	 * Set a TempRoot directory to hold deleted directories from elsewhere, which is potentially shared with other
+	 * processes running other FAsyncIODelete. The AsyncIoDelete processes take ownership of this directory and will
+	 * delete it; do not pass in a directory shared with other systems, create a subdirectory for it.
+	 * Must not be a parent or child of any other FAsyncDelete's TempRoot, but is allowed to be the same.
+	 * Each new FAsyncIODelete process will negotiate with other proccesses using lock files, to delete the directory
+	 * when all processes are done.
 	 * If the FAsyncIODelete has already been used to delete files, this Set will block until all deletes are finished.
-	 * If the given TempRoot is unavailable, falls back to _digit suffixes.
 	 */
-	void SetTempRoot(const FStringView& InOwnedTempRoot);
-	FStringView GetTempRoot() const { return TempRoot.IsEmpty() ? RequestedTempRoot : TempRoot; }
+	void SetTempRoot(FStringView InSharedRoot);
+	FStringView GetTempRoot() const { return SharedTempRoot; }
+	/**
+	 * Returns the path this AsyncIODelete is using for its uniquely owned deletion root (a subdirectory of TempRoot).
+	 * Will return empty before Setup (or on-demand Setup) or after Teardown.
+	 */
+	FStringView GetDeletionRoot() const { return TempRoot; };
 
 	/**
 	 * Set whether new background deletes are paused.  If paused, paths will be moved immediately but will not be deleted from the temporary location until unpaused (or at the FAsyncIODelete's destruction).
@@ -93,10 +102,11 @@ public:
 	/** Synchronously wait for all deletes to complete.  */
 	bool WaitForAllTasks(float TimeLimitSeconds = 0.0f);
 
-	static bool AsyncEnabled()
-	{
-		return FPlatformMisc::SupportsMultithreadedFileHandles();
-	}
+	static bool AsyncEnabled();
+
+	/** Internal accessors for unittests */
+	static FStringView GetLockSuffix();
+	static void SetMaxWaitSecondsForLock(float WaitSeconds = -1.f);
 
 private:
 	/** Update the ActiveTaskCount and events for a task completing */
@@ -107,6 +117,11 @@ private:
 		File,
 		Directory
 	};
+	struct FDeleteRequest
+	{
+		FString Path;
+		EPathType PathType;
+	};
 	/** Asynchronously delete a file or directory.  We handle both in the same function, but we want the interface to be explicit. */
 	bool Delete(const FStringView& PathToDelete, EPathType ExpectedType);
 
@@ -116,10 +131,11 @@ private:
 	/** Delete the given path synchronously; called from a task or in error fallback cases from the public thread */
 	bool SynchronousDelete(const TCHAR* InDeletePath, EPathType PathType);
 
-	bool TryPurgeTempRootFamily(FString* OutNextTempRoot);
+	bool TryPurgeOldAndCreateRoot(bool bCreateRoot, TArray<FDeleteRequest>& OutHangingRootsToDelete);
 
-	FString	RequestedTempRoot; 
+	FString SharedTempRoot;
 	FString TempRoot;
+	TUniquePtr<FArchive> TempRootLockFile;
 	TArray<FString> PausedDeletes;
 	FCriticalSection CriticalSection; // We use a CriticalSection instead of a TAtomic ActiveTaskCount so that we can atomically { trigger TasksComplete if ActiveTaskCount == 0 }
 	FEvent* TasksComplete = nullptr;

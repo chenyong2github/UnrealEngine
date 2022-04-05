@@ -29,23 +29,23 @@ FAsyncIODelete::~FAsyncIODelete()
 	SetTempRoot(FStringView());
 }
 
-void FAsyncIODelete::SetTempRoot(const FStringView& InOwnedTempRoot)
+void FAsyncIODelete::SetTempRoot(FStringView InSharedTempRoot)
 {
 	Teardown();
 
 #if WITH_ASYNCIODELETE_DEBUG
-	if (!RequestedTempRoot.IsEmpty())
+	if (!SharedTempRoot.IsEmpty())
 	{
-		RemoveTempRoot(*RequestedTempRoot);
+		RemoveTempRoot(SharedTempRoot);
 	}
 #endif
 
-	RequestedTempRoot = InOwnedTempRoot;
+	SharedTempRoot = InSharedTempRoot;
 
 #if WITH_ASYNCIODELETE_DEBUG
-	if (!RequestedTempRoot.IsEmpty())
+	if (!SharedTempRoot.IsEmpty())
 	{
-		AddTempRoot(*RequestedTempRoot);
+		AddTempRoot(*SharedTempRoot);
 	}
 #endif
 }
@@ -81,8 +81,7 @@ void FAsyncIODelete::Setup()
 	}
 
 	bInitialized = true;
-	TempRoot = RequestedTempRoot;
-	if (RequestedTempRoot.IsEmpty())
+	if (SharedTempRoot.IsEmpty())
 	{
 		checkf(false, TEXT("DeleteDirectory called without having first set a TempRoot"));
 		return;
@@ -90,22 +89,14 @@ void FAsyncIODelete::Setup()
 
 	if (AsyncEnabled())
 	{
-		// Delete the TempRoot directory to clear the results from any previous process using the same TempRoot that did not shut down cleanly
-		FString FoundRoot;
-		if (!TryPurgeTempRootFamily(&FoundRoot))
+		// Create the new root and at the same time clear the results from any previous process using the same
+		// TempRoot that did not shut down cleanly
+		TArray<FDeleteRequest> OrphanedRootsToDelete;
+		if (!TryPurgeOldAndCreateRoot(true, OrphanedRootsToDelete))
 		{
-			// TryPurgeTempRootFamily logged the warning
+			// TryPurgeOldAndCreateRoot logged the warning
 			return;
 		}
-
-		// Create the empty directory to work in
-		if (!IFileManager::Get().MakeDirectory(*FoundRoot, true))
-		{
-			UE_LOG(LogCook, Error, TEXT("Could not create asyncdelete root directory '%s'. LastError: %i. Falling back to synchronous delete."),
-				*TempRoot, FPlatformMisc::GetLastError());
-			return;
-		}
-		TempRoot = FoundRoot;
 
 		// Allocate the task event
 		check(TasksComplete == nullptr);
@@ -116,8 +107,17 @@ void FAsyncIODelete::Setup()
 		// Assert that all other teardown-transient variables were cleared by the constructor or by the previous teardown
 		// TempRoot and bPaused are preserved across setup/teardown and may have any value
 		check(PausedDeletes.Num() == 0);
-		check(DeleteCounter == 0);
+		check(DeleteCounter == OrphanedRootsToDelete.Num()); // We should have started with DeleteCounter==0, and incremented it for each OrphanedRootToDelete request
 		bAsyncInitialized = true;
+
+		// Queue the async deletion of any discovered orphaned roots
+		for (const FDeleteRequest& DeleteRequest : OrphanedRootsToDelete)
+		{
+			if (!DeleteRequest.Path.IsEmpty())
+			{
+				CreateDeleteTask(DeleteRequest.Path, DeleteRequest.PathType);
+			}
+		}
 	}
 }
 
@@ -137,7 +137,9 @@ void FAsyncIODelete::Teardown()
 		TasksComplete = nullptr;
 
 		// Remove the temp directory from disk
-		TryPurgeTempRootFamily(nullptr);
+		TArray<FDeleteRequest> OrphanedRootsToDelete;
+		TryPurgeOldAndCreateRoot(false, OrphanedRootsToDelete);
+		check(OrphanedRootsToDelete.IsEmpty()); // Should not be populated when bCreateRoot is false
 
 		// Clear delete variables; we don't need to run the tasks for the remaining pauseddeletes because synchronously deleting the temp directory above did the work they were going to do
 		PausedDeletes.Empty();
@@ -172,6 +174,17 @@ bool FAsyncIODelete::WaitForAllTasks(float TimeLimitSeconds)
 	return true;
 }
 
+bool FAsyncIODelete::AsyncEnabled()
+{
+#if PLATFORM_LINUX
+	// Temporarily disable Async on Linux until we have fixed TryPurgeOldAndCreateRoot to request exclusive-write behavior explicitly via calls to flock
+	return false;
+#else
+	return FPlatformMisc::SupportsMultithreadedFileHandles();
+#endif
+}
+
+
 bool FAsyncIODelete::Delete(const FStringView& PathToDelete, EPathType ExpectedType)
 {
 	IFileManager& FileManager = IFileManager::Get();
@@ -203,7 +216,8 @@ bool FAsyncIODelete::Delete(const FStringView& PathToDelete, EPathType ExpectedT
 	}
 	Setup();
 	// Prevent the user from trying to delete our temproot or anything inside it
-	if (FPaths::IsUnderDirectory(PathToDeleteStr, TempRoot) || FPaths::IsUnderDirectory(TempRoot, PathToDeleteStr))
+	if (!SharedTempRoot.IsEmpty() &&
+		(FPaths::IsUnderDirectory(PathToDeleteStr, SharedTempRoot) || FPaths::IsUnderDirectory(SharedTempRoot, PathToDeleteStr)))
 	{
 		return false;
 	}
@@ -286,119 +300,233 @@ bool FAsyncIODelete::SynchronousDelete(const TCHAR* InDeletePath, EPathType Path
 	return Result;
 }
 
-bool FAsyncIODelete::TryPurgeTempRootFamily(FString* OutNewTempRoot)
+FStringView FAsyncIODelete::GetLockSuffix()
 {
+	return TEXTVIEW(".lock");
+}
+
+constexpr float MaxWaitSecondsForLockDefault = 5.0f;
+constexpr float SleepSecondsForLock = 0.01f;
+namespace UE::AsyncIODelete::Private
+{
+	float MaxWaitSecondsForLock = MaxWaitSecondsForLockDefault;
+}
+
+void FAsyncIODelete::SetMaxWaitSecondsForLock(float MaxWaitTimeSeconds)
+{
+	if (MaxWaitTimeSeconds < 0)
+	{
+		MaxWaitTimeSeconds = MaxWaitSecondsForLockDefault;
+	}
+	UE::AsyncIODelete::Private::MaxWaitSecondsForLock = MaxWaitTimeSeconds;
+}
+
+bool FAsyncIODelete::TryPurgeOldAndCreateRoot(bool bCreateRoot, TArray<FDeleteRequest>& OutOrphanedRootsToDelete)
+{
+	check(!SharedTempRoot.IsEmpty());
+	check(bCreateRoot == TempRoot.IsEmpty()); // We should only call TryPurgeOldAndCreateRoot(true) during setup and (false) during Teardown
 	IFileManager& FileManager = IFileManager::Get();
-	FString RequestedLeaf = FPaths::GetPathLeaf(RequestedTempRoot);
-	FString ParentDir = FPaths::GetPath(RequestedTempRoot);
 
-	TArray<uint32, TInlineAllocator<2>> ExistingRoots;
-	FileManager.IterateDirectory(*ParentDir,
-		[&ExistingRoots, &RequestedLeaf](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+	FString ParentDir = FPaths::GetPath(SharedTempRoot);
+	if (!FileManager.DirectoryExists(*ParentDir))
+	{
+		if (bCreateRoot)
 		{
-			// Compare by PathLeaf instead of full path because absolute vs relative paths and junctions
-			// may change the name of the parent directory
-			FStringView ExistingPath(FilenameOrDirectory);
-			FStringView ExistingLeaf = FPathViews::GetPathLeaf(ExistingPath);
-			if (bIsDirectory && ExistingLeaf.StartsWith(FStringView(RequestedLeaf), ESearchCase::IgnoreCase))
+			if (!FileManager.MakeDirectory(*ParentDir, true /* Tree */) && !FileManager.DirectoryExists(*ParentDir))
 			{
-				FStringView Suffix = ExistingLeaf.RightChop(RequestedLeaf.Len());
-				if (Suffix.Len() == 0)
-				{
-					ExistingRoots.Add(0);
-				}
-				else
-				{
-					// Suffix is null-terminated because it came from FilenameOrDirectory
-					const TCHAR* SuffixPtr = Suffix.GetData();
-					uint32 IntSuffix = 0;
-					LexFromString(IntSuffix, SuffixPtr + 1);
-					if (IntSuffix > 0)
-					{
-						ExistingRoots.Add(IntSuffix);
-					}
-				}
+				UE_LOG(LogCook, Error, TEXT("Could not create AsyncIoDelete parent directory %s. LastError: %d. Falling back to synchronous delete."),
+					*ParentDir, FPlatformMisc::GetLastError());
+				return false;
 			}
-			return true;
-		});
-
-
-	auto GetRootPath = [this](uint32 Suffix)
-	{
-		return Suffix == 0 ? RequestedTempRoot : FString::Printf(TEXT("%s_%d"), *RequestedTempRoot, Suffix);
-	};
-
-	uint32 LastError = 0;
-	TArray<uint32> Undeletables;
-	for (uint32 Suffix : ExistingRoots)
-	{
-		FString ExistingRoot = GetRootPath(Suffix);
-
-		// Since we sometimes will be creating the directory again immediately, we need to take precautions against the delayed delete of directories that
-		// occurs on Windows platforms; creating a new file/directory in one that was just deleted can fail.  So we need to move-delete our TempRoot
-		// in addition to move-delete our clients' directories.  Since we don't have a TempRoot to move-delete into, we create a unique sibling directory name.
-		FString UniqueDirectory = FPaths::CreateTempFilename(*ParentDir, TEXT("DeleteTemp"), TEXT(""));
-
-		const bool bReplace = false;
-		const bool bEvenIfReadOnly = true;
-		const bool bMoveAttributes = false;
-		const bool bDoNotRetryOnError = true;
-		const TCHAR* DirectoryToDelete = *UniqueDirectory;
-		const bool bMoveSucceeded = FileManager.Move(DirectoryToDelete, *ExistingRoot, bReplace, bEvenIfReadOnly,
-			bMoveAttributes, bDoNotRetryOnError);
-		if (!bMoveSucceeded)
-		{
-			// Move failed; fallback to inplace delete
-			DirectoryToDelete = *ExistingRoot;
 		}
-
-		const bool bRequireExists = false;
-		const bool bTree = true;
-		const bool bDeleteSucceeded = FileManager.DeleteDirectory(DirectoryToDelete, bRequireExists, bTree);
-		if (!bDeleteSucceeded)
+		else
 		{
-			LastError = FPlatformMisc::GetLastError();
-			if (bMoveSucceeded && !bDeleteSucceeded)
-			{
-				// Try to move the directory back so that we can try again to delete it next time.
-				FileManager.Move(*ExistingRoot, DirectoryToDelete, bReplace, bEvenIfReadOnly,
-					bMoveAttributes, bDoNotRetryOnError);
-			}
-			Undeletables.Add(Suffix);
+			// If parent directory doesn't exist when we are shutting down, do not create it
+			return true;
 		}
 	}
 
-	if (OutNewTempRoot)
+	bool bDirectoryEmpty = true;
+	if (!TempRoot.IsEmpty())
 	{
-		OutNewTempRoot->Reset();
-		uint32 NewSuffix = 0;
-		Undeletables.Sort();
-		if (Undeletables.Num() > 0 && Undeletables[0] == 0)
+		// Our directory is empty because we waited on all of the async delete tasks, so delete it synchronously
+		if (!FileManager.DeleteDirectory(*TempRoot, false /* bRequireExists */, true /* Tree */) &&
+			FileManager.DirectoryExists(*TempRoot))
 		{
-			NewSuffix = 1;
-			for (uint32 Suffix : Undeletables)
-			{
-				if (Suffix == 0)
-				{
-					continue;
-				}
-				if (Suffix != NewSuffix)
-				{
-					break;
-				}
-				++NewSuffix;
-			}
+			UE_LOG(LogCook, Display, TEXT("AsyncIoDelete could not clean up its root %s. LastError: %d."),
+				*TempRoot, FPlatformMisc::GetLastError());
+			bDirectoryEmpty = false;
 		}
+	}
 
-		const uint32 MaxHangingTempRoots = 20;
-		if (NewSuffix > MaxHangingTempRoots)
+	// Temporarily lock the SharedTempRoot while we are querying the directory and need to be inside a machine-wide critical section
+	FStringView LockSuffix = GetLockSuffix();
+	FString SharedTempRootLockFileName = SharedTempRoot + LockSuffix;
+	TUniquePtr<FArchive> SharedTempRootLockFile = nullptr;
+	double StartTimeSeconds = FPlatformTime::Seconds();
+	do
+	{
+		SharedTempRootLockFile.Reset(FileManager.CreateFileWriter(*SharedTempRootLockFileName));
+		if (!SharedTempRootLockFile)
 		{
-			UE_LOG(LogCook, Error, TEXT("Could not clear %d old asyncdelete root directories '%s'_*.  LastError: %i.")
-				TEXT("\n\tFalling back to synchronous delete. Delete the directories manually to silence this message."),
-				Undeletables.Num(), *RequestedTempRoot, LastError);
+			if (FPlatformTime::Seconds() - StartTimeSeconds > UE::AsyncIODelete::Private::MaxWaitSecondsForLock)
+			{
+				if (bCreateRoot)
+				{
+					UE_LOG(LogCook, Error, TEXT("AsyncIoDelete could not create LockFile %s. Falling back to synchronous delete."),
+						*SharedTempRootLockFileName);
+				}
+				else
+				{
+					UE_LOG(LogCook, Display, TEXT("AsyncIoDelete could not clean up its root %s, because another process has LockFile %s locked."),
+						*TempRoot, *SharedTempRootLockFileName, FPlatformMisc::GetLastError());
+					TempRootLockFile.Reset(); // Drop our lock that prevents the lockfile from being deleted, so the next AsyncIODelete can clean up after us.
+				}
+				return false;
+			}
+			FPlatformProcess::Sleep(SleepSecondsForLock);
+		}
+	} while (!SharedTempRootLockFile);
+	ON_SCOPE_EXIT
+	{
+		SharedTempRootLockFile.Reset();
+		FileManager.Delete(*SharedTempRootLockFileName, false /* bRequireExists*/, true /* bEvenIfReadOnly */, true /* Quiet */);
+	};
+
+	// Delete our TempRoot inside the machine-wide critical section.
+	// Doing it before would remove our right to expect that the SharedTempRoot would not be deleted out from under us.
+	FString TempRootLockFileName;
+	if (!TempRoot.IsEmpty())
+	{
+		TempRootLockFile.Reset(); // Drop our lock that prevents the lockfile from being deleted
+		TempRootLockFileName = TempRoot + LockSuffix;
+		if (!FileManager.Delete(*TempRootLockFileName, false /* bRequireExists */, true /* bEvenIfReadOnly */, true /* Quiet */))
+		{
+			UE_LOG(LogCook, Display, TEXT("AsyncIoDelete could not clean up its lock file %s. LastError: %d."),
+				*TempRootLockFileName, FPlatformMisc::GetLastError());
+			bDirectoryEmpty = false;
+		}
+	}
+
+	auto GetCountFromFilename = [](const FString& BaseFileName)
+	{
+		int32 IntValue;
+		LexFromString(IntValue, *BaseFileName);
+		return IntValue; // Will be 0 if invalid
+	};
+
+	int32 FirstUnusedCount = 1;
+	bool bHasUnexpectedFiles = false;
+	TSet<FString> ExistingLockFileLeafs;
+	TSet<FString> ExistingDirLeafs;
+	FileManager.IterateDirectory(*SharedTempRoot,
+		[&ExistingLockFileLeafs, &ExistingDirLeafs, &bHasUnexpectedFiles, LockSuffix,
+		&FirstUnusedCount, &GetCountFromFilename](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+		{
+			// Convert FilenameOrDirectory to a relative path because absolute vs relative paths and junctions
+			// may change the name of the parent directory
+			FStringView ExistingPath(FilenameOrDirectory);
+			FString ExistingLeaf = FString(FPathViews::GetPathLeaf(ExistingPath));
+
+			if (!bIsDirectory)
+			{
+				if (FStringView(ExistingLeaf).EndsWith(LockSuffix))
+				{
+					FirstUnusedCount = FMath::Max(FirstUnusedCount, 1+GetCountFromFilename(ExistingLeaf.LeftChop(LockSuffix.Len())));
+					ExistingLockFileLeafs.Add(ExistingLeaf);
+				}
+				else
+				{
+					UE_LOG(LogCook, Warning, TEXT("AsyncIoDelete found unexpected file '%s' in its SharedTempRoot. This file will block cleanup of the SharedTempRoot, please delete it manually."),
+						FilenameOrDirectory);
+					bHasUnexpectedFiles = true;
+				}
+			}
+			else
+			{
+				ExistingDirLeafs.Add(ExistingLeaf);
+				FirstUnusedCount = FMath::Max(FirstUnusedCount, 1+GetCountFromFilename(ExistingLeaf));
+			}
+			return true;
+		});
+	for (const FString& ExistingDirLeaf : ExistingDirLeafs)
+	{
+		if (!ExistingLockFileLeafs.Contains(ExistingDirLeaf + LockSuffix))
+		{
+			UE_LOG(LogCook, Warning, TEXT("AsyncIoDelete found unexpected directory '%s' in its SharedTempRoot. This directory will block cleanup of the SharedTempRoot, please delete it manually."),
+				*FPaths::Combine(SharedTempRoot, ExistingDirLeaf));
+			bHasUnexpectedFiles = true;
+		}
+	}
+
+	if (bCreateRoot)
+	{
+		FString TempRootDirName = FPaths::Combine(SharedTempRoot, LexToString(FirstUnusedCount));
+		TempRootLockFileName = TempRootDirName + LockSuffix;
+		if (!FileManager.MakeDirectory(*TempRootDirName, true /* Tree */))
+		{
+			UE_LOG(LogCook, Error, TEXT("AsyncIoDelete could not create its root %s. LastError: %d. Falling back to synchronous delete."),
+				*TempRootDirName, FPlatformMisc::GetLastError());
 			return false;
 		}
-		*OutNewTempRoot = GetRootPath(NewSuffix);
+		TempRootLockFile.Reset(FileManager.CreateFileWriter(*TempRootLockFileName));
+		if (!TempRootLockFile)
+		{
+			UE_LOG(LogCook, Error, TEXT("AsyncIoDelete could not create LockFile %s. LastError: %d. Falling back to synchronous delete."),
+				*TempRootLockFileName, FPlatformMisc::GetLastError());
+			FileManager.DeleteDirectory(*TempRootDirName, false /* bRequireExists */, true /* Tree */);
+			return false;
+		}
+		TempRoot = TempRootDirName;
+
+		// We do cleanup of orphaned temp roots only on startup, so that we can move their orphaned directories
+		// into the new directory we are creating, for async delete
+		for (const FString& ExistingDirLeaf : ExistingDirLeafs)
+		{
+			FString SourceDir = FPaths::Combine(SharedTempRoot, ExistingDirLeaf);
+			FString SourceLockFile = SourceDir + LockSuffix;
+			FString DestLockFile = FPaths::Combine(TempRoot, FString::Printf(TEXT("%u"), DeleteCounter));
+
+			// If we can move-delete the lock file, the other process must have dropped its lock, so we can move-delete the directory.
+			if (FileManager.Move(*DestLockFile, *SourceLockFile, true /* bReplace */, true /* EvenIfReadOnly */,
+				false /* Attributes */, true /* bDoNotRetryOnError */))
+			{
+				++DeleteCounter;
+				FString DestDir = FPaths::Combine(TempRoot, FString::Printf(TEXT("%u"), DeleteCounter));
+				if (FileManager.Move(*DestDir, *SourceDir, true /* bReplace */, true /* EvenIfReadOnly */,
+					false /* Attributes */, true /* bDoNotRetryOnError */))
+				{
+					++DeleteCounter;
+					OutOrphanedRootsToDelete.Add({ DestLockFile, EPathType::File });
+					OutOrphanedRootsToDelete.Add({ DestDir, EPathType::Directory });
+				}
+				else
+				{
+					// If we move-deleted the lock file but failed to move-delete the directory, put the lock file back so a future
+					// AsyncIODelete can try to delete it
+					FileManager.Move(*SourceLockFile, *DestLockFile, true /* bReplace */, true /* EvenIfReadOnly */,
+						false /* Attributes */, true /* bDoNotRetryOnError */);
+
+					// Add a dummy entry in OutOrphanedRootsToDelete so that the DeleteCounter == OutOrphanedRootsToDelete.Num().
+					OutOrphanedRootsToDelete.Add({ FString(), EPathType::File});
+				}
+			}
+		}
+	}
+	else
+	{
+		// When deleting our TempRoot, also delete the SharedTempRoot if we're the last thing in the directory
+		// Remove our TempRoot from the ExistingDirs if it showed up in the iteration even though we deleted it due to FileManager delete lag
+		ExistingDirLeafs.Remove(FPaths::GetBaseFilename(TempRoot));
+		ExistingLockFileLeafs.Remove(FPaths::GetBaseFilename(TempRootLockFileName));
+		if (!ExistingDirLeafs.IsEmpty() || !ExistingLockFileLeafs.IsEmpty() || bHasUnexpectedFiles)
+		{
+			bDirectoryEmpty = false;
+		}
+		if (bDirectoryEmpty)
+		{
+			FileManager.DeleteDirectory(*SharedTempRoot, false /* bRequireExists */, true /* Tree */);
+		}
 	}
 	return true;
 }
@@ -409,6 +537,10 @@ void FAsyncIODelete::AddTempRoot(const FStringView& InTempRoot)
 	FString TempRoot(InTempRoot);
 	for (FString& Existing : AllTempRoots)
 	{
+		if (FPaths::IsSamePath(Existing, TempRoot))
+		{
+			continue;
+		}
 		checkf(!FPaths::IsUnderDirectory(Existing, TempRoot), TEXT("New FAsyncIODelete has TempRoot \"%s\" that is a subdirectory of existing TempRoot \"%s\"."), *TempRoot, *Existing);
 		checkf(!FPaths::IsUnderDirectory(TempRoot, Existing), TEXT("New FAsyncIODelete has TempRoot \"%s\" that is a parent directory of existing TempRoot \"%s\"."), *TempRoot, *Existing);
 	}
