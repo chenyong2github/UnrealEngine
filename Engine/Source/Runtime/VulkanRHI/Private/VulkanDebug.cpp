@@ -308,7 +308,7 @@ static VkBool32 DebugUtilsCallback(VkDebugUtilsMessageSeverityFlagBitsEXT MsgSev
 void FVulkanDynamicRHI::SetupDebugLayerCallback()
 {
 #if VULKAN_SUPPORTS_DEBUG_UTILS
-	if (bSupportsDebugUtilsExt)
+	if (ActiveDebugLayerExtension == EActiveDebugLayerExtension::DebugUtilsExtension)
 	{
 		PFN_vkCreateDebugUtilsMessengerEXT CreateDebugUtilsMessengerEXT = (PFN_vkCreateDebugUtilsMessengerEXT)(void*)VulkanRHI::vkGetInstanceProcAddr(Instance, "vkCreateDebugUtilsMessengerEXT");
 		if (CreateDebugUtilsMessengerEXT)
@@ -316,7 +316,7 @@ void FVulkanDynamicRHI::SetupDebugLayerCallback()
 			VkDebugUtilsMessengerCreateInfoEXT CreateInfo;
 			ZeroVulkanStruct(CreateInfo, VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT);
 
-			int32 CVar = GValidationCvar.GetValueOnRenderThread();
+			const int32 CVar = GValidationCvar.GetValueOnRenderThread();
 			CreateInfo.messageSeverity = (CVar >= 1 ? VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT : 0) |
 				(CVar >= 2 ? VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT : 0) | (CVar >= 3 ? VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT : 0);
 			CreateInfo.messageType = (CVar >= 1 ? (VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) : 0) |
@@ -328,7 +328,7 @@ void FVulkanDynamicRHI::SetupDebugLayerCallback()
 	}
 	else
 #endif
-	if (bSupportsDebugCallbackExt)
+	if (ActiveDebugLayerExtension == EActiveDebugLayerExtension::DebugReportExtension)
 	{
 		PFN_vkCreateDebugReportCallbackEXT CreateMsgCallback = (PFN_vkCreateDebugReportCallbackEXT)(void*)VulkanRHI::vkGetInstanceProcAddr(Instance, CREATE_MSG_CALLBACK);
 		if (CreateMsgCallback)
@@ -337,7 +337,7 @@ void FVulkanDynamicRHI::SetupDebugLayerCallback()
 			ZeroVulkanStruct(CreateInfo, VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT);
 			CreateInfo.pfnCallback = DebugReportFunction;
 
-			int32 CVar = GValidationCvar.GetValueOnRenderThread();
+			const int32 CVar = GValidationCvar.GetValueOnRenderThread();
 			switch (CVar)
 			{
 			default:
@@ -4455,6 +4455,16 @@ void FWrapLayer::GetBufferDeviceAddressKHR(VkResult Result, VkDevice Device, con
 	}
 }
 #endif // VULKAN_RHI_RAYTRACING
+
+void FWrapLayer::GetDeviceImageMemoryRequirementsKHR(VkResult Result, VkDevice Device, const VkDeviceImageMemoryRequirements* Info, VkMemoryRequirements2* MemoryRequirements)
+{
+	if (Result == VK_RESULT_MAX_ENUM)
+	{
+#if VULKAN_ENABLE_DUMP_LAYER
+		PrintfBeginResult(FString::Printf(TEXT("vkGetDeviceImageMemoryRequirementsKHR")));
+#endif
+	}
+}
 
 #if VULKAN_ENABLE_IMAGE_TRACKING_LAYER
 namespace VulkanRHI

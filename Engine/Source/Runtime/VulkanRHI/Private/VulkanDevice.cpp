@@ -14,6 +14,7 @@
 #include "VulkanPlatform.h"
 #include "VulkanLLM.h"
 #include "VulkanTransientResourceAllocator.h"
+#include "VulkanExtensions.h"
 
 TAutoConsoleVariable<int32> GRHIAllowAsyncComputeCvar(
 	TEXT("r.Vulkan.AllowAsyncCompute"),
@@ -44,13 +45,6 @@ static TAutoConsoleVariable<int32> CVarVulkanUseD24(
 	ECVF_ReadOnly
 );
 
-TAutoConsoleVariable<int32> GRHIAllow64bitShaderAtomicsCvar(
-	TEXT("r.Vulkan.Allow64bitShaderAtomics"),
-	1,
-	TEXT("Whether to enable 64bit buffer/image atomics required by Nanite/Lumen\n")
-	TEXT("0 to disable 64bit atomics\n")
-	TEXT("1 to enable (default)")
-);
 
 #if NV_AFTERMATH
 #include "GFSDK_Aftermath_GpuCrashDump.h"
@@ -184,24 +178,34 @@ FVulkanDevice::FVulkanDevice(FVulkanDynamicRHI* InRHI, VkPhysicalDevice InGpu)
 {
 	RHI = InRHI;
 	FMemory::Memzero(GpuProps);
-#if VULKAN_SUPPORTS_EXTERNAL_MEMORY
-	FMemory::Memzero(GpuIdProps);
-#endif
 	FMemory::Memzero(PhysicalFeatures);
 	FMemory::Memzero(FormatProperties);
 	FMemory::Memzero(PixelFormatComponentMapping);
 
-	// First get the VendorId. We'll have to get properties again after finding out which extensions we want to use
-	VulkanRHI::vkGetPhysicalDeviceProperties(Gpu, &GpuProps);
-	VendorId = RHIConvertToGpuVendorId(GpuProps.vendorID);
-
-	// Mesa driver on Linux has vendorID 0x10005:
-	//   https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkVendorId.html
-	// Has been added to UE5, but need this workaround on 4.27.1 since we can't modify enum at this point.
-	if (GpuProps.vendorID != 0x10005)
+#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
+	ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
+	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 	{
-		ensure(VendorId != EGpuVendorId::Unknown);
+		VkPhysicalDeviceProperties2KHR PhysicalDeviceProperties2;
+		ZeroVulkanStruct(PhysicalDeviceProperties2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR);
+		PhysicalDeviceProperties2.pNext = &GpuIdProps;
+		VulkanRHI::vkGetPhysicalDeviceProperties2KHR(Gpu, &PhysicalDeviceProperties2);
+		GpuProps = PhysicalDeviceProperties2.properties;
 	}
+	else
+#endif
+	{
+		VulkanRHI::vkGetPhysicalDeviceProperties(Gpu, &GpuProps);
+	}
+
+	// First get the VendorId. We'll have to get properties again after finding out which extensions we want to use
+	VendorId = RHIConvertToGpuVendorId(GpuProps.vendorID);
+	ensure(VendorId != EGpuVendorId::Unknown);
+
+	UE_LOG(LogVulkanRHI, Display, TEXT("- DeviceName: %s"), ANSI_TO_TCHAR(GpuProps.deviceName));
+	UE_LOG(LogVulkanRHI, Display, TEXT("- API=%d.%d.%d (0x%x) Driver=0x%x VendorId=0x%x"), VK_VERSION_MAJOR(GpuProps.apiVersion), VK_VERSION_MINOR(GpuProps.apiVersion), VK_VERSION_PATCH(GpuProps.apiVersion), GpuProps.apiVersion, GpuProps.driverVersion, GpuProps.vendorID);
+	UE_LOG(LogVulkanRHI, Display, TEXT("- DeviceID=0x%x Type=%s"), GpuProps.deviceID, VK_TYPE_TO_STRING(VkPhysicalDeviceType, GpuProps.deviceType));
+	UE_LOG(LogVulkanRHI, Display, TEXT("- Max Descriptor Sets Bound %d, Timestamps %d"), GpuProps.limits.maxBoundDescriptorSets, GpuProps.limits.timestampComputeAndGraphics);
 }
 
 FVulkanDevice::~FVulkanDevice()
@@ -236,7 +240,7 @@ static inline FString GetQueueInfoString(const VkQueueFamilyProperties& Props)
 	return Info;
 };
 
-void FVulkanDevice::CreateDevice()
+void FVulkanDevice::CreateDevice(TArray<const ANSICHAR*>& DeviceLayers, FVulkanDeviceExtensionArray& UEExtensions)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanMisc);
 	check(Device == VK_NULL_HANDLE);
@@ -245,11 +249,21 @@ void FVulkanDevice::CreateDevice()
 	VkDeviceCreateInfo DeviceInfo;
 	ZeroVulkanStruct(DeviceInfo, VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO);
 	
+	TArray<const ANSICHAR*> DeviceExtensions;
+	for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
+	{
+		if (UEExtension->InUse())
+		{
+			DeviceExtensions.Add(UEExtension->GetExtensionName());
+			UEExtension->PreCreateDevice(DeviceInfo);
+		}
+	}
+
 	DeviceInfo.enabledExtensionCount = DeviceExtensions.Num();
 	DeviceInfo.ppEnabledExtensionNames = DeviceExtensions.GetData();
 
-	DeviceInfo.enabledLayerCount = ValidationLayers.Num();
-	DeviceInfo.ppEnabledLayerNames = (DeviceInfo.enabledLayerCount > 0) ? ValidationLayers.GetData() : nullptr;
+	DeviceInfo.enabledLayerCount = DeviceLayers.Num();
+	DeviceInfo.ppEnabledLayerNames = (DeviceInfo.enabledLayerCount > 0) ? DeviceLayers.GetData() : nullptr;
 
 	// Setup Queue info
 	TArray<VkDeviceQueueCreateInfo> QueueFamilyInfos;
@@ -336,23 +350,7 @@ void FVulkanDevice::CreateDevice()
 
 	FVulkanPlatform::EnablePhysicalDeviceFeatureExtensions(DeviceInfo, *this);
 
-#if VULKAN_SUPPORTS_NV_DIAGNOSTICS
-	VkPhysicalDeviceDiagnosticsConfigFeaturesNV DeviceDiagnosticsNV;
-	VkDeviceDiagnosticsConfigCreateInfoNV DeviceDiagnosticsConfigCreateInfoNV;
-	if (OptionalDeviceExtensions.HasNVDeviceDiagnosticConfig)
-	{
-		ZeroVulkanStruct(DeviceDiagnosticsNV, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DIAGNOSTICS_CONFIG_FEATURES_NV);
-		DeviceDiagnosticsNV.pNext = const_cast<void*>(DeviceInfo.pNext);
-		DeviceDiagnosticsNV.diagnosticsConfig = VK_TRUE;
-		DeviceInfo.pNext = &DeviceDiagnosticsNV;
-
-		ZeroVulkanStruct(DeviceDiagnosticsConfigCreateInfoNV, VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV);
-		DeviceDiagnosticsConfigCreateInfoNV.flags = VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV;
-		DeviceDiagnosticsConfigCreateInfoNV.pNext = const_cast<void*>(DeviceInfo.pNext);
-		DeviceInfo.pNext = &DeviceDiagnosticsConfigCreateInfoNV;
-	}
-
-	#if NV_AFTERMATH
+#if NV_AFTERMATH && VULKAN_SUPPORTS_NV_DIAGNOSTICS
 	if (GGPUCrashDebuggingEnabled && GVulkanNVAftermathModuleLoaded)
 	{
 		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_EnableGpuCrashDumps(GFSDK_Aftermath_Version_API, 
@@ -367,70 +365,6 @@ void FVulkanDevice::CreateDevice()
 			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to initialize Aftermath crash dumps (Result %d)"), (int32)Result);
 		}
 	}
-	#endif
-#endif
-
-#if VULKAN_SUPPORTS_SEPARATE_DEPTH_STENCIL_LAYOUTS
-	if (bHasSeparateDepthStencilLayouts)
-	{
-		ZeroVulkanStruct(OptionalFeatures.SeparateDepthStencilLayoutsFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES_KHR);
-		OptionalFeatures.SeparateDepthStencilLayoutsFeatures.separateDepthStencilLayouts = VK_TRUE;
-		OptionalFeatures.SeparateDepthStencilLayoutsFeatures.pNext = const_cast<void*>(DeviceInfo.pNext);
-		DeviceInfo.pNext = &OptionalFeatures.SeparateDepthStencilLayoutsFeatures;
-	}
-#endif
-
-#if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
-	if (OptionalDeviceExtensions.HasEXTScalarBlockLayout)
-	{
-		ZeroVulkanStruct(OptionalFeatures.ScalarBlockLayoutFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT);
-		OptionalFeatures.ScalarBlockLayoutFeatures.scalarBlockLayout = VK_TRUE;
-		OptionalFeatures.ScalarBlockLayoutFeatures.pNext = (void*)DeviceInfo.pNext;
-		DeviceInfo.pNext = &OptionalFeatures.ScalarBlockLayoutFeatures;
-	}
-#endif
-
-#if VULKAN_SUPPORTS_MULTIVIEW
-	VkPhysicalDeviceMultiviewFeatures DeviceMultiviewFeatures;
-	if (OptionalDeviceExtensions.HasKHRMultiview)
-	{
-		ZeroVulkanStruct(DeviceMultiviewFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES);
-		DeviceMultiviewFeatures.multiview = VK_TRUE;
-		DeviceMultiviewFeatures.pNext = (void*)DeviceInfo.pNext;
-		DeviceInfo.pNext = &DeviceMultiviewFeatures;
-	}
-#endif
-
-#if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS && VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS
-	const bool bEnable64bitAtomics = (GRHIAllow64bitShaderAtomicsCvar.GetValueOnAnyThread() != 0);
-
-	// Ensure we have both to enable atomic code paths
-	VkPhysicalDeviceShaderAtomicInt64Features BufferAtomicFeatures;
-	VkPhysicalDeviceShaderImageAtomicInt64FeaturesEXT ImageAtomicFeatures;
-	if (bEnable64bitAtomics && OptionalDeviceExtensions.HasKHRShaderAtomicInt64 && OptionalDeviceExtensions.HasImageAtomicInt64)
-	{
-		ZeroVulkanStruct(BufferAtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR);
-		BufferAtomicFeatures.shaderBufferInt64Atomics = VK_TRUE;
-
-		ZeroVulkanStruct(ImageAtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_IMAGE_ATOMIC_INT64_FEATURES_EXT);
-		ImageAtomicFeatures.shaderImageInt64Atomics = VK_TRUE;
-
-		BufferAtomicFeatures.pNext = &ImageAtomicFeatures;
-		ImageAtomicFeatures.pNext = (void*)DeviceInfo.pNext;
-		DeviceInfo.pNext = &BufferAtomicFeatures;
-
-		GRHISupportsAtomicUInt64 = true;
-	}
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	VkPhysicalDeviceFragmentShadingRateFeaturesKHR RequestedFragmentShadingRateFeatures;
-	if (OptionalDeviceExtensions.HasKHRFragmentShadingRate)
-	{
-		RequestedFragmentShadingRateFeatures = GetFragmentShadingRateFeatures();
-		RequestedFragmentShadingRateFeatures.pNext = (void*)DeviceInfo.pNext;
-		DeviceInfo.pNext = &RequestedFragmentShadingRateFeatures;
-	}
 #endif
 
 	// Create the device
@@ -441,6 +375,8 @@ void FVulkanDevice::CreateDevice()
 		FPlatformMisc::RequestExitWithStatus(true, 1);
 	}
 	VERIFYVULKANRESULT_EXPANDED(Result);
+
+	FVulkanPlatform::NotifyFoundDeviceLayersAndExtensions(Gpu, DeviceLayers, DeviceExtensions);
 
 	// Create Graphics Queue, here we submit command buffers for execution
 	GfxQueue = new FVulkanQueue(this, GfxQueueFamilyIndex);
@@ -480,13 +416,31 @@ void FVulkanDevice::CreateDevice()
 		}
 	}
 
-	UE_LOG(LogVulkanRHI, Display, TEXT("Using device layers"));
-	for (const ANSICHAR* Layer : ValidationLayers)
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	// Enumerate the available shading rates if it's supported
+	if (OptionalDeviceExtensions.HasKHRFragmentShadingRate)
+	{
+		uint32 FragmentShadingRateCount = 0;
+		VulkanRHI::vkGetPhysicalDeviceFragmentShadingRatesKHR(Gpu, &FragmentShadingRateCount, nullptr);
+		if (FragmentShadingRateCount != 0)
+		{
+			FragmentShadingRates.SetNum(FragmentShadingRateCount);
+			for (uint32 i = 0; i < FragmentShadingRateCount; ++i)
+			{
+				ZeroVulkanStruct(FragmentShadingRates[i], VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_KHR);
+			}
+			VulkanRHI::vkGetPhysicalDeviceFragmentShadingRatesKHR(Gpu, &FragmentShadingRateCount, FragmentShadingRates.GetData());
+		}
+	}
+#endif // VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+
+	UE_LOG(LogVulkanRHI, Display, TEXT("Using %d device layers%s"), DeviceLayers.Num(), DeviceLayers.Num() ? TEXT(":") : TEXT("."));
+	for (const ANSICHAR* Layer : DeviceLayers)
 	{
 		UE_LOG(LogVulkanRHI, Display, TEXT("* %s"), ANSI_TO_TCHAR(Layer));
 	}
 
-	UE_LOG(LogVulkanRHI, Display, TEXT("Using device extensions"));
+	UE_LOG(LogVulkanRHI, Display, TEXT("Using %d device extensions:"), DeviceExtensions.Num());
 	for (const ANSICHAR* Extension : DeviceExtensions)
 	{
 		UE_LOG(LogVulkanRHI, Display, TEXT("* %s"), ANSI_TO_TCHAR(Extension));
@@ -907,7 +861,7 @@ void FVulkanDevice::MapImageFormatSupport(FPixelFormatInfo& PixelFormatInfo, con
 		ConvertImageCap(LocalFormatProperties, EPixelFormatCapabilities::DepthStencil, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 		ConvertImageCap(LocalFormatProperties, EPixelFormatCapabilities::RenderTarget, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
 		ConvertImageCap(LocalFormatProperties, EPixelFormatCapabilities::TextureBlendable, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT);
-		ConvertImageCap(LocalFormatProperties, EPixelFormatCapabilities::UAV | EPixelFormatCapabilities::TypedUAVLoad | EPixelFormatCapabilities::TypedUAVStore, VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT);
+		ConvertImageCap(LocalFormatProperties, EPixelFormatCapabilities::AllUAVFlags | EPixelFormatCapabilities::TextureStore, VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT);
 
 		ConvertImageCap(LocalFormatProperties, EPixelFormatCapabilities::TextureAtomics, VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT);
 
@@ -986,176 +940,9 @@ void FVulkanDevice::MapFormatSupport(EPixelFormat UEFormat, std::initializer_lis
 	MapFormatSupport(UEFormat, PrioritizedFormats, ComponentMapping, RequiredCapabilities, kDefaultBlockBytes);
 }
 
-bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
+void FVulkanDevice::InitGPU(int32 DeviceIndex)
 {
-	// Always get the extensions/layers first!
-	TArray<FString> AllDeviceExtensions;
-	TArray<FString> AllValidationLayers;
-	GetDeviceExtensionsAndLayers(Gpu, VendorId, DeviceExtensions, ValidationLayers, AllDeviceExtensions, AllValidationLayers, bDebugMarkersFound);
-	OptionalDeviceExtensions.Setup(DeviceExtensions);
-
-#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
-	VkPhysicalDeviceDriverPropertiesKHR PhysicalDeviceProperties;
-	ZeroVulkanStruct(PhysicalDeviceProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR);
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-	VkPhysicalDeviceFragmentDensityMapPropertiesEXT FragmentDensityMapProperties;
-	ZeroVulkanStruct(FragmentDensityMapProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_PROPERTIES_EXT);
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	ZeroVulkanStruct(FragmentShadingRateProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_PROPERTIES_KHR); 
-#endif
-
-#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
-	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
-	{
-		VkPhysicalDeviceProperties2KHR GpuProps2;
-		ZeroVulkanStruct(GpuProps2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR);
-		GpuProps2.pNext = &GpuIdProps;
-		ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
-
-#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
-		if (GetOptionalExtensions().HasDriverProperties)
-		{
-			PhysicalDeviceProperties.pNext = GpuProps2.pNext;
-			GpuProps2.pNext = &PhysicalDeviceProperties;
-		}
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-		if (GetOptionalExtensions().HasEXTFragmentDensityMap)
-		{
-			FragmentDensityMapProperties.pNext = GpuProps2.pNext;
-			GpuProps2.pNext = &FragmentDensityMapProperties;
-		}
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-		if (GetOptionalExtensions().HasKHRFragmentShadingRate)
-		{
-			FragmentShadingRateProperties.pNext = GpuProps2.pNext;
-			GpuProps2.pNext = &FragmentShadingRateProperties;
-		}
-#endif
-
-#if VULKAN_RHI_RAYTRACING
-		if (OptionalDeviceExtensions.HasRaytracingExtensions())
-		{
-			ZeroVulkanStruct(RayTracingProperties.AccelerationStructure, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR);
-			ZeroVulkanStruct(RayTracingProperties.RayTracingPipeline, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR);
-			RayTracingProperties.RayTracingPipeline.pNext = GpuProps2.pNext;
-			RayTracingProperties.AccelerationStructure.pNext = &RayTracingProperties.RayTracingPipeline;
-			GpuProps2.pNext = &RayTracingProperties.AccelerationStructure;
-		}
-#endif
-
-		VulkanRHI::vkGetPhysicalDeviceProperties2KHR(Gpu, &GpuProps2);
-
-#if VULKAN_SUPPORTS_SEPARATE_DEPTH_STENCIL_LAYOUTS
-		// Disabled but kept for reference. The barriers code doesn't currently use separate transitions for depth and stencil.
-		//VkPhysicalDeviceFeatures2KHR PhysicalFeatures2;
-		//ZeroVulkanStruct(PhysicalFeatures2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR);
-		//VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR SeparateDepthStencilLayoutsFeatures;
-		//ZeroVulkanStruct(SeparateDepthStencilLayoutsFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES_KHR);
-		//PhysicalFeatures2.pNext = &SeparateDepthStencilLayoutsFeatures;
-		//VulkanDynamicAPI::vkGetPhysicalDeviceFeatures2KHR(Gpu, &PhysicalFeatures2);
-		//bHasSeparateDepthStencilLayouts = SeparateDepthStencilLayoutsFeatures.separateDepthStencilLayouts ? true : false;
-#endif
-
-	}
-#endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
-
-	VulkanRHI::vkGetPhysicalDeviceProperties(Gpu, &GpuProps);
-	bool bDiscrete = false;
-	auto GetDeviceTypeString = [&]()
-	{
-		FString Info;
-		switch (GpuProps.deviceType)
-		{
-		case  VK_PHYSICAL_DEVICE_TYPE_OTHER:
-			Info = TEXT("Other");
-			break;
-		case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-			Info = TEXT("Integrated GPU");
-			break;
-		case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-			Info = TEXT("Discrete GPU");
-			bDiscrete = true;
-			break;
-		case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-			Info = TEXT("Virtual GPU");
-			break;
-		case VK_PHYSICAL_DEVICE_TYPE_CPU:
-			Info = TEXT("CPU");
-			break;
-		default:
-			Info = TEXT("Unknown");
-			break;
-		}
-		return Info;
-	};
-
-	UE_LOG(LogVulkanRHI, Display, TEXT("Device %d: %s"), DeviceIndex, ANSI_TO_TCHAR(GpuProps.deviceName));
-	UE_LOG(LogVulkanRHI, Display, TEXT("- API %d.%d.%d(0x%x) Driver 0x%x VendorId 0x%x"), VK_VERSION_MAJOR(GpuProps.apiVersion), VK_VERSION_MINOR(GpuProps.apiVersion), VK_VERSION_PATCH(GpuProps.apiVersion), GpuProps.apiVersion, GpuProps.driverVersion, GpuProps.vendorID);
-	UE_LOG(LogVulkanRHI, Display, TEXT("- DeviceID 0x%x Type %s"), GpuProps.deviceID, *GetDeviceTypeString());
-	UE_LOG(LogVulkanRHI, Display, TEXT("- Max Descriptor Sets Bound %d Timestamps %d"), GpuProps.limits.maxBoundDescriptorSets, GpuProps.limits.timestampComputeAndGraphics);
-
-#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
-	if (OptionalDeviceExtensions.HasDriverProperties)
-	{
-		UE_LOG(LogVulkanRHI, Display, TEXT("- Device Properties driverName: %s"), ANSI_TO_TCHAR(PhysicalDeviceProperties.driverName));
-		UE_LOG(LogVulkanRHI, Display, TEXT("- Device Properties driverInfo: %s"), ANSI_TO_TCHAR(PhysicalDeviceProperties.driverInfo));
-	}
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP 
-	// Use the Fragment Density Map extension if and only if the Fragment Shading Rate extension is not available.
-	if (GetOptionalExtensions().HasEXTFragmentDensityMap && !GetOptionalExtensions().HasKHRFragmentShadingRate)
-	{
-		GRHISupportsAttachmentVariableRateShading = true;
-		GRHISupportsPipelineVariableRateShading = false;
-
-		// Go with the smallest tile size for now, and also force to square, since this seems to be standard.
-		// TODO: Eventually we may want to surface the range of possible tile sizes depending on end use cases, but for now this is being used for foveated rendering and smallest tile size
-		// is preferred.
-		
-		GRHIVariableRateShadingImageTileMinWidth = FragmentDensityMapProperties.minFragmentDensityTexelSize.width;
-		GRHIVariableRateShadingImageTileMinHeight = FragmentDensityMapProperties.minFragmentDensityTexelSize.height;
-		GRHIVariableRateShadingImageTileMaxWidth = FragmentDensityMapProperties.maxFragmentDensityTexelSize.width;
-		GRHIVariableRateShadingImageTileMaxHeight = FragmentDensityMapProperties.maxFragmentDensityTexelSize.height;
-
-		GRHIVariableRateShadingImageDataType = VRSImage_Fractional;
-		GRHIVariableRateShadingImageFormat = PF_R8G8;
-
-		// UE_LOG(LogVulkanRHI, Display, TEXT("Image-based Variable Rate Shading supported via EXTFragmentDensityMap extension. Selected VRS tile size %u by %u pixels per VRS image texel."), GRHIVariableRateShadingImageTileMinWidth, GRHIVariableRateShadingImageTileMinHeight);
-	}
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	if (GetOptionalExtensions().HasKHRFragmentShadingRate)
-	{
-		GRHIVariableRateShadingImageTileMinWidth = FragmentShadingRateProperties.minFragmentShadingRateAttachmentTexelSize.width;
-		GRHIVariableRateShadingImageTileMinHeight = FragmentShadingRateProperties.minFragmentShadingRateAttachmentTexelSize.height;
-		GRHIVariableRateShadingImageTileMaxWidth = FragmentShadingRateProperties.maxFragmentShadingRateAttachmentTexelSize.width;
-		GRHIVariableRateShadingImageTileMaxHeight = FragmentShadingRateProperties.maxFragmentShadingRateAttachmentTexelSize.height;
-
-		// todo: We don't currently care much about the other properties here, but at some point in the future we probably will.
-
-		UE_LOG(LogVulkanRHI, Verbose, TEXT("Image-based Variable Rate Shading supported via KHRFragmentShadingRate extension. Selected VRS tile size %u by %u pixels per VRS image texel."), GRHIVariableRateShadingImageTileMinWidth, GRHIVariableRateShadingImageTileMinHeight);
-	}
-#endif
-
-	for (const FString& Name : AllValidationLayers)
-	{
-		UE_LOG(LogVulkanRHI, Display, TEXT("-    Found device layer %s"), *Name);
-	}
-
-	for (const FString& Name : AllDeviceExtensions)
-	{
-		UE_LOG(LogVulkanRHI, Display, TEXT("-    Found device extension %s"), *Name);
-	}
+	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanMisc);
 
 	uint32 QueueCount = 0;
 	VulkanRHI::vkGetPhysicalDeviceQueueFamilyProperties(Gpu, &QueueCount, nullptr);
@@ -1164,135 +951,71 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 	QueueFamilyProps.AddUninitialized(QueueCount);
 	VulkanRHI::vkGetPhysicalDeviceQueueFamilyProperties(Gpu, &QueueCount, QueueFamilyProps.GetData());
 
-	return bDiscrete;
-}
-
-void FVulkanDevice::InitGPU(int32 DeviceIndex)
-{
-	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanMisc);
-
-	// Query features
+	// Query base features
 	VulkanRHI::vkGetPhysicalDeviceFeatures(Gpu, &PhysicalFeatures);
+
+	// Setup layers and extensions
+	FVulkanDeviceExtensionArray UEExtensions = FVulkanDeviceExtension::GetUESupportedDeviceExtensions(this);
+	TArray<const ANSICHAR*> DeviceLayers = FVulkanDevice::SetupDeviceLayers(Gpu, UEExtensions);
 
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 	{
-		VkPhysicalDeviceFeatures2 Features2;
-		ZeroVulkanStruct(Features2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
-
-		void** NextPropsAddr = nullptr;
-		NextPropsAddr = &Features2.pNext;
-
-#if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
-		VkPhysicalDeviceShaderAtomicInt64FeaturesKHR BufferAtomicFeatures;
-		ZeroVulkanStruct(BufferAtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR);
-		if (OptionalDeviceExtensions.HasKHRShaderAtomicInt64)  // Set by QueryGPU if extension is supported
+		// Query advanced features
 		{
-			*NextPropsAddr = &BufferAtomicFeatures;
-			NextPropsAddr = &BufferAtomicFeatures.pNext;
-		}
-#endif
+			VkPhysicalDeviceFeatures2 PhysicalDeviceFeatures2;
+			ZeroVulkanStruct(PhysicalDeviceFeatures2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
 
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-		if (GetOptionalExtensions().HasEXTFragmentDensityMap)
-		{
-			*NextPropsAddr = &FragmentDensityMapFeatures;
-			NextPropsAddr = &FragmentDensityMapFeatures.pNext;
-			ZeroVulkanStruct(FragmentDensityMapFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_FEATURES_EXT);
-		}
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
-		if (GetOptionalExtensions().HasEXTFragmentDensityMap2)
-		{
-			*NextPropsAddr = &FragmentDensityMap2Features;
-			NextPropsAddr = &FragmentDensityMap2Features.pNext;
-			ZeroVulkanStruct(FragmentDensityMap2Features, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_2_FEATURES_EXT);
-		}
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-		if (GetOptionalExtensions().HasKHRFragmentShadingRate)
-		{
-			*NextPropsAddr = &FragmentShadingRateFeatures;
-			NextPropsAddr = &FragmentShadingRateFeatures.pNext;
-			ZeroVulkanStruct(FragmentShadingRateFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR);
-
-			// While we're here, enumerate the available shading rates.
-			uint32 FragmentShadingRateCount = 0;
-			VulkanRHI::vkGetPhysicalDeviceFragmentShadingRatesKHR(Gpu, &FragmentShadingRateCount, nullptr);
-			if (FragmentShadingRateCount != 0)
+			for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
 			{
-				FragmentShadingRates.SetNum(FragmentShadingRateCount);
-				for (uint32 i = 0; i < FragmentShadingRateCount; ++i)
+				if (UEExtension->InUse())
 				{
-					ZeroVulkanStruct(FragmentShadingRates[i], VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_KHR);
+					UEExtension->PrePhysicalDeviceFeatures(PhysicalDeviceFeatures2);
 				}
-				VulkanRHI::vkGetPhysicalDeviceFragmentShadingRatesKHR(Gpu, &FragmentShadingRateCount, FragmentShadingRates.GetData());
+			}
+
+			VulkanRHI::vkGetPhysicalDeviceFeatures2KHR(Gpu, &PhysicalDeviceFeatures2);
+
+			for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
+			{
+				if (UEExtension->InUse())
+				{
+					UEExtension->PostPhysicalDeviceFeatures(OptionalDeviceExtensions);
+				}
 			}
 		}
-#endif
-		
-#if VULKAN_SUPPORTS_MULTIVIEW
-		if (GetOptionalExtensions().HasKHRMultiview)
+
+		// Query advances properties
 		{
-			*NextPropsAddr = &MultiviewFeatures;
-			NextPropsAddr = &MultiviewFeatures.pNext;
-			ZeroVulkanStruct(MultiviewFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES);
+			VkPhysicalDeviceProperties2KHR PhysicalDeviceProperties2;
+			ZeroVulkanStruct(PhysicalDeviceProperties2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR);
+			PhysicalDeviceProperties2.pNext = &GpuIdProps;
+			ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
+
+			for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
+			{
+				if (UEExtension->InUse())
+				{
+					UEExtension->PrePhysicalDeviceProperties(PhysicalDeviceProperties2);
+				}
+			}
+
+			VulkanRHI::vkGetPhysicalDeviceProperties2KHR(Gpu, &PhysicalDeviceProperties2);
+
+			for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
+			{
+				if (UEExtension->InUse())
+				{
+					UEExtension->PostPhysicalDeviceProperties();
+				}
+			}
 		}
-#endif
-
-#if VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS
-		VkPhysicalDeviceShaderImageAtomicInt64FeaturesEXT ImageAtomicFeatures;
-		ZeroVulkanStruct(ImageAtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_IMAGE_ATOMIC_INT64_FEATURES_EXT);
-		if (OptionalDeviceExtensions.HasImageAtomicInt64)  // Set by QueryGPU if extension is supported
-		{
-			*NextPropsAddr = &ImageAtomicFeatures;
-			NextPropsAddr = &ImageAtomicFeatures.pNext;
-		}
-#endif
-
-#if VULKAN_SUPPORTS_MAINTENANCE4
-		VkPhysicalDeviceMaintenance4FeaturesKHR Maintenance4Features;
-		ZeroVulkanStruct(Maintenance4Features, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR);
-		if (OptionalDeviceExtensions.HasKHRMaintenance4)  // Set by QueryGPU if extension is supported
-		{
-			*NextPropsAddr = &Maintenance4Features;
-			NextPropsAddr = &Maintenance4Features.pNext;
-		}
-#endif
-
-#if VULKAN_SUPPORTS_DESCRIPTOR_INDEXING
-		VkPhysicalDeviceDescriptorIndexingFeaturesEXT DescriptorIndexingFeatures;
-		ZeroVulkanStruct(DescriptorIndexingFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES);
-		if (OptionalDeviceExtensions.HasEXTDescriptorIndexing)  // Set by QueryGPU if extension is supported
-		{
-			*NextPropsAddr = &DescriptorIndexingFeatures;
-			NextPropsAddr = &DescriptorIndexingFeatures.pNext;
-		}
-#endif
-
-		VulkanRHI::vkGetPhysicalDeviceFeatures2KHR(Gpu, &Features2);
-
-		// If we have the extension but the feature is not supported, clear the bits.
-#if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
-		OptionalDeviceExtensions.HasKHRShaderAtomicInt64 = (BufferAtomicFeatures.shaderBufferInt64Atomics == VK_TRUE);
-#endif
-#if VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS
-		OptionalDeviceExtensions.HasImageAtomicInt64 = (ImageAtomicFeatures.shaderImageInt64Atomics == VK_TRUE);
-#endif
-#if VULKAN_SUPPORTS_MAINTENANCE4
-		OptionalDeviceExtensions.HasKHRMaintenance4 = (Maintenance4Features.maintenance4 == VK_TRUE);
-#endif
-#if VULKAN_SUPPORTS_DESCRIPTOR_INDEXING
-		OptionalDeviceExtensions.HasEXTDescriptorIndexing = (DescriptorIndexingFeatures.runtimeDescriptorArray == VK_TRUE); // :todo-jn: add resource specific checks
-#endif
 	}
 #endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
 	UE_LOG(LogVulkanRHI, Display, TEXT("Using Device %d: Geometry %d BufferAtomic64 %d ImageAtomic64 %d"), DeviceIndex, PhysicalFeatures.geometryShader, OptionalDeviceExtensions.HasKHRShaderAtomicInt64, OptionalDeviceExtensions.HasImageAtomicInt64);
 
-	CreateDevice();
+	CreateDevice(DeviceLayers, UEExtensions);
 
 	SetupFormats();
 
@@ -1382,25 +1105,6 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 	if (OptionalDeviceExtensions.HasEXTValidationCache)
 	{
 		LoadValidationCache(Device, ValidationCache);
-	}
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	if (GetOptionalExtensions().HasKHRFragmentShadingRate)
-	{
-		GRHISupportsAttachmentVariableRateShading = FragmentShadingRateFeatures.attachmentFragmentShadingRate ? true : false;
-		GRHISupportsPipelineVariableRateShading = FragmentShadingRateFeatures.pipelineFragmentShadingRate ? true : false;
-
-		if (GRHISupportsAttachmentVariableRateShading)
-		{
-			GRHIVariableRateShadingImageDataType = VRSImage_Palette;
-			GRHIVariableRateShadingImageFormat = PF_R8_UINT;
-		}
-		else
-		{
-			GRHIVariableRateShadingImageDataType = VRSImage_NotSupported;
-			GRHIVariableRateShadingImageFormat = PF_Unknown;
-		}
 	}
 #endif
 

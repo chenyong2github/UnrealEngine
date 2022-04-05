@@ -8,6 +8,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Android/AndroidPlatformMisc.h"
 #include "Misc/ConfigCacheIni.h"
+#include "../VulkanExtensions.h"
 
 // From VulklanSwapChain.cpp
 extern int32 GVulkanCPURenderThreadFramePacer;
@@ -342,12 +343,12 @@ void FVulkanAndroidPlatform::CreateSurface(void* WindowHandle, VkInstance Instan
 }
 
 
-
-void FVulkanAndroidPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutExtensions)
+void FVulkanAndroidPlatform::GetInstanceExtensions(FVulkanInstanceExtensionArray& OutExtensions)
 {
-	OutExtensions.Add(VK_KHR_SURFACE_EXTENSION_NAME);
-	OutExtensions.Add(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
-	OutExtensions.Add(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
+	OutExtensions.Add(MakeUnique<FVulkanInstanceExtension>(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VULKAN_EXTENSION_NOT_PROMOTED));
+
+	// VK_GOOGLE_display_timing (as instance extension?)
+	OutExtensions.Add(MakeUnique<FVulkanInstanceExtension>(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VULKAN_EXTENSION_NOT_PROMOTED));
 }
 
 void FVulkanAndroidPlatform::GetInstanceLayers(TArray<const ANSICHAR*>& OutLayers)
@@ -385,45 +386,25 @@ static FAutoConsoleVariableRef CVarVulkanQcomRenderPassTransform(
 	ECVF_ReadOnly
 );
 
-void FVulkanAndroidPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions)
+void FVulkanAndroidPlatform::GetDeviceExtensions(FVulkanDevice* Device, FVulkanDeviceExtensionArray& OutExtensions)
 {
-	OutExtensions.Add(VK_KHR_SURFACE_EXTENSION_NAME);
-	OutExtensions.Add(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
-	OutExtensions.Add(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
-
-	OutExtensions.Add(VK_EXT_ASTC_DECODE_MODE_EXTENSION_NAME);
+	OutExtensions.Add(MakeUnique<FVulkanDeviceExtension>(Device, VK_KHR_ANDROID_SURFACE_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VULKAN_EXTENSION_NOT_PROMOTED));
+	OutExtensions.Add(MakeUnique<FVulkanDeviceExtension>(Device, VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VULKAN_EXTENSION_NOT_PROMOTED));
+	OutExtensions.Add(MakeUnique<FVulkanDeviceExtension>(Device, VK_EXT_ASTC_DECODE_MODE_EXTENSION_NAME, VULKAN_SUPPORTS_ASTC_DECODE_MODE, VULKAN_EXTENSION_NOT_PROMOTED, DEVICE_EXT_FLAG_SETTER(HasEXTASTCDecodeMode)));
+	//OutExtensions.Add(MakeUnique<FVulkanDeviceExtension>(Device, VK_EXT_TEXTURE_COMPRESSION_ASTC_HDR_EXTENSION_NAME, VULKAN_SUPPORTS_TEXTURE_COMPRESSION_ASTC_HDR, VK_API_VERSION_1_3, DEVICE_EXT_FLAG_SETTER(HasEXTTextureCompressionASTCHDR)));
 
 	if (GVulkanQcomRenderPassTransform)
 	{
-		OutExtensions.Add(VK_QCOM_RENDER_PASS_TRANSFORM_EXTENSION_NAME);
+		OutExtensions.Add(MakeUnique<FVulkanDeviceExtension>(Device, VK_QCOM_RENDER_PASS_TRANSFORM_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VK_API_VERSION_1_3, DEVICE_EXT_FLAG_SETTER(HasQcomRenderPassTransform)));
 	}
 
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-	OutExtensions.Add(VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
-	OutExtensions.Add(VK_EXT_FRAGMENT_DENSITY_MAP_2_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_MULTIVIEW
-	OutExtensions.Add(VK_KHR_MULTIVIEW_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_RENDERPASS2
-	OutExtensions.Add(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	OutExtensions.Add(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
-#endif
-
 #if !UE_BUILD_SHIPPING
-	OutExtensions.Add(VULKAN_MALI_LAYER_NAME);
+	// Layer name as extension
+	OutExtensions.Add(MakeUnique<FVulkanDeviceExtension>(Device, VULKAN_MALI_LAYER_NAME, VULKAN_EXTENSION_ENABLED, VULKAN_EXTENSION_NOT_PROMOTED));
 #endif
 }
 
-void FVulkanAndroidPlatform::GetDeviceLayers(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutLayers)
+void FVulkanAndroidPlatform::GetDeviceLayers(TArray<const ANSICHAR*>& OutLayers)
 {
 #if !UE_BUILD_SHIPPING
 	if (DebugVulkanDeviceLayers.IsEmpty())
@@ -449,10 +430,13 @@ void FVulkanAndroidPlatform::GetDeviceLayers(EGpuVendorId VendorId, TArray<const
 #endif
 }
 
-void FVulkanAndroidPlatform::NotifyFoundDeviceLayersAndExtensions(VkPhysicalDevice PhysicalDevice, const TArray<FString>& Layers, const TArray<FString>& Extensions)
+void FVulkanAndroidPlatform::NotifyFoundDeviceLayersAndExtensions(VkPhysicalDevice PhysicalDevice, const TArray<const ANSICHAR*>& Layers, const TArray<const ANSICHAR*>& Extensions)
 {
 #if VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING
-	FVulkanAndroidPlatform::bHasGoogleDisplayTiming = Extensions.Contains(TEXT(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME));
+	FVulkanAndroidPlatform::bHasGoogleDisplayTiming = Extensions.ContainsByPredicate([](const ANSICHAR* Key)
+		{
+			return Key && !FCStringAnsi::Strcmp(Key, VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
+		});
 	UE_LOG(LogVulkanRHI, Log, TEXT("bHasGoogleDisplayTiming = %d"), FVulkanAndroidPlatform::bHasGoogleDisplayTiming);
 #endif
 }

@@ -13,6 +13,7 @@ class FVulkanDescriptorPool;
 class FVulkanDescriptorPoolsManager;
 class FVulkanCommandListContextImmediate;
 class FVulkanTransientHeapCache;
+class FVulkanDeviceExtension;
 #if VULKAN_USE_NEW_QUERIES
 class FVulkanOcclusionQueryPool;
 #else
@@ -62,11 +63,9 @@ struct FOptionalVulkanDeviceExtensions
 			uint64 HasKHRMaintenance1 : 1;
 			uint64 HasKHRMaintenance2 : 1;
 			uint64 HasKHRDedicatedAllocation : 1;
-			uint64 HasYcbcrSampler : 1;  // Combination of VK_KHR_sampler_ycbcr_conversion + VK_KHR_bind_memory2 + VK_KHR_get_memory_requirements2
 			uint64 HasKHRMultiview : 1;
 
 			// Promoted to 1.2
-			uint64 HasDriverProperties : 1;
 			uint64 HasKHRRenderPass2 : 1;
 			uint64 HasKHRImageFormatList : 1;
 			uint64 HasKHRShaderAtomicInt64 : 1;
@@ -76,6 +75,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint64 HasShaderFloatControls : 1;
 			uint64 HasEXTDescriptorIndexing : 1;
 			uint64 HasEXTShaderViewportIndexLayer : 1;
+			uint64 HasSeparateDepthStencilLayouts : 1;
 
 			// Promoted to 1.3
 			uint64 HasEXTTextureCompressionASTCHDR : 1;
@@ -89,8 +89,6 @@ struct FOptionalVulkanDeviceExtensions
 		static_assert(sizeof(Packed) == sizeof(FOptionalVulkanDeviceExtensions), "More bits needed for Packed!");
 		Packed = 0;
 	}
-
-	void Setup(const TArray<const ANSICHAR*>& InDeviceExtensions);
 
 	inline bool HasGPUCrashDumpExtensions() const
 	{
@@ -109,23 +107,6 @@ struct FOptionalVulkanDeviceExtensions
 			HasSPIRV_14 && 
 			HasShaderFloatControls;
 	}
-#endif
-};
-
-struct FOptionalVulkanDeviceFeatures
-{
-#if VULKAN_SUPPORTS_SEPARATE_DEPTH_STENCIL_LAYOUTS
-	VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR SeparateDepthStencilLayoutsFeatures;
-#endif
-#if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
-	VkPhysicalDeviceScalarBlockLayoutFeaturesEXT ScalarBlockLayoutFeatures;
-#endif
-#if VULKAN_RHI_RAYTRACING
-	VkPhysicalDeviceBufferDeviceAddressFeaturesKHR BufferDeviceAddressFeatures;
-	VkPhysicalDeviceAccelerationStructureFeaturesKHR AccelerationStructureFeatures;
-	VkPhysicalDeviceRayTracingPipelineFeaturesKHR RayTracingPipelineFeatures;
-	VkPhysicalDeviceDescriptorIndexingFeaturesEXT DescriptorIndexingFeatures;
-	VkPhysicalDeviceRayQueryFeaturesKHR RayQueryFeatures;
 #endif
 };
 
@@ -213,12 +194,9 @@ public:
 
 	~FVulkanDevice();
 
-	// Returns true if this is a viable candidate for main GPU
-	bool QueryGPU(int32 DeviceIndex);
-
 	void InitGPU(int32 DeviceIndex);
 
-	void CreateDevice();
+	void CreateDevice(TArray<const ANSICHAR*>& DeviceLayers, FVulkanDeviceExtensionArray& UEExtensions);
 
 	void PrepareForDestroy();
 	void Destroy();
@@ -281,41 +259,10 @@ public:
 		return GpuProps;
 	}
 
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-	inline const VkPhysicalDeviceFragmentDensityMapFeaturesEXT& GetFragmentDensityMapFeatures() const
-	{
-		return FragmentDensityMapFeatures;
-	}
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
-	inline const VkPhysicalDeviceFragmentDensityMap2FeaturesEXT& GetFragmentDensityMap2Features() const
-	{
-		return FragmentDensityMap2Features;
-	}
-#endif
-
 #if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	inline const VkPhysicalDeviceFragmentShadingRateFeaturesKHR& GetFragmentShadingRateFeatures() const
-	{
-		return FragmentShadingRateFeatures;
-	}
-
-	inline const VkPhysicalDeviceFragmentShadingRatePropertiesKHR& GetFragmentShadingRateProperties() const
-	{
-		return FragmentShadingRateProperties;
-	}
-
 	VkExtent2D GetBestMatchedShadingRateExtents(EVRSShadingRate Rate) const;
 #endif
 	
-#if VULKAN_SUPPORTS_MULTIVIEW
-	inline const VkPhysicalDeviceMultiviewFeatures& GetMultiviewFeatures() const
-	{
-		return MultiviewFeatures;
-	}
-#endif
-
 	inline const VkPhysicalDeviceLimits& GetLimits() const
 	{
 		return GpuProps.limits;
@@ -331,7 +278,7 @@ public:
 #if VULKAN_RHI_RAYTRACING
 	inline const FRayTracingProperties& GetRayTracingProperties() const
 	{
-		check(OptionalDeviceExtensions.HasRaytracingExtensions());
+		check(OptionalDeviceExtensions.HasRaytracingExtensions() || (Device == VK_NULL_HANDLE));
 		return RayTracingProperties;
 	}
 
@@ -350,11 +297,6 @@ public:
 	inline const VkPhysicalDeviceFeatures& GetPhysicalFeatures() const
 	{
 		return PhysicalFeatures;
-	}
-
-	inline bool HasSeparateDepthStencilLayouts() const
-	{
-		return bHasSeparateDepthStencilLayouts;
 	}
 
 	inline bool HasUnifiedMemory() const
@@ -506,11 +448,6 @@ public:
 		return OptionalDeviceExtensions;
 	}
 
-	inline FOptionalVulkanDeviceFeatures& GetOptionalFeatures()
-	{
-		return OptionalFeatures;
-	}
-
 #if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
 	VkBuffer GetCrashMarkerBuffer() const
 	{
@@ -532,6 +469,10 @@ public:
 
 	FVulkanTransientHeapCache& GetOrCreateTransientHeapCache();
 
+	inline void SetDebugMarkersFound()
+	{
+		bDebugMarkersFound = true;
+	}
 
 private:
 	const VkFormatProperties& GetFormatProperties(VkFormat InFormat);
@@ -571,22 +512,9 @@ private:
 
 	VkPhysicalDevice Gpu;
 	VkPhysicalDeviceProperties GpuProps;
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-	VkPhysicalDeviceFragmentDensityMapFeaturesEXT FragmentDensityMapFeatures;
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
-	VkPhysicalDeviceFragmentDensityMap2FeaturesEXT FragmentDensityMap2Features;
-#endif
 
 #if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	VkPhysicalDeviceFragmentShadingRatePropertiesKHR FragmentShadingRateProperties;
-	VkPhysicalDeviceFragmentShadingRateFeaturesKHR FragmentShadingRateFeatures;
 	TArray<VkPhysicalDeviceFragmentShadingRateKHR> FragmentShadingRates;
-#endif
-
-#if VULKAN_SUPPORTS_MULTIVIEW
-	VkPhysicalDeviceMultiviewFeatures MultiviewFeatures;
 #endif
 
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
@@ -599,9 +527,6 @@ private:
 #endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
 	VkPhysicalDeviceFeatures PhysicalFeatures;
-	FOptionalVulkanDeviceFeatures OptionalFeatures;
-
-	bool bHasSeparateDepthStencilLayouts = false;
 
 	TArray<VkQueueFamilyProperties> QueueFamilyProps;
 	VkFormatProperties FormatProperties[VK_FORMAT_RANGE_SIZE];
@@ -640,10 +565,8 @@ private:
 
 	FVulkanDynamicRHI* RHI = nullptr;
 	bool bDebugMarkersFound = false;
-	TArray<const ANSICHAR*> DeviceExtensions;
-	TArray<const ANSICHAR*> ValidationLayers;
-
-	static void GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutDeviceExtensions, TArray<const ANSICHAR*>& OutDeviceLayers, TArray<FString>& OutAllDeviceExtensions, TArray<FString>& OutAllDeviceLayers, bool& bOutDebugMarkers);
+	
+	static TArray<const ANSICHAR*> SetupDeviceLayers(VkPhysicalDevice Gpu, FVulkanDeviceExtensionArray& UEExtensions);
 
 	FOptionalVulkanDeviceExtensions OptionalDeviceExtensions;
 

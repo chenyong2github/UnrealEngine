@@ -3,6 +3,7 @@
 #include "VulkanLinuxPlatform.h"
 #include "../VulkanRHIPrivate.h"
 #include "../VulkanRayTracing.h"
+#include "../VulkanExtensions.h"
 #include <dlfcn.h>
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -147,7 +148,7 @@ namespace
 	}
 }
 
-void FVulkanLinuxPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutExtensions)
+void FVulkanLinuxPlatform::GetInstanceExtensions(FVulkanInstanceExtensionArray& OutExtensions)
 {
 	EnsureSDLIsInited();
 
@@ -170,14 +171,13 @@ void FVulkanLinuxPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutExt
 		return;
 	}
 
-	OutExtensions.Add(VK_KHR_SURFACE_EXTENSION_NAME);
 	if (strcmp(SDLDriver, "x11") == 0)
 	{
-		OutExtensions.Add("VK_KHR_xlib_surface");
+		OutExtensions.Add(MakeUnique<FVulkanInstanceExtension>("VK_KHR_xlib_surface", VULKAN_EXTENSION_ENABLED, VULKAN_EXTENSION_NOT_PROMOTED));
 	}
 	else if (strcmp(SDLDriver, "wayland") == 0)
 	{
-		OutExtensions.Add("VK_KHR_wayland_surface");
+		OutExtensions.Add(MakeUnique<FVulkanInstanceExtension>("VK_KHR_wayland_surface", VULKAN_EXTENSION_ENABLED, VULKAN_EXTENSION_NOT_PROMOTED));
 	}
 	// dummy is when we render offscreen, so ignore warning here
 	else if (strcmp(SDLDriver, "dummy") != 0)
@@ -186,45 +186,10 @@ void FVulkanLinuxPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutExt
 	}
 }
 
-void FVulkanLinuxPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions)
+void FVulkanLinuxPlatform::GetDeviceExtensions(FVulkanDevice* Device, FVulkanDeviceExtensionArray& OutExtensions)
 {
-	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
-
-#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
-	OutExtensions.Add(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
-	OutExtensions.Add(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
-	OutExtensions.Add(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_RENDERPASS2
-	OutExtensions.Add(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
-
-	// Fragment shading rate depends on renderpass2.
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	OutExtensions.Add(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
-#endif
-
-#endif
-
-	if (GGPUCrashDebuggingEnabled)
-	{
-#if VULKAN_SUPPORTS_AMD_BUFFER_MARKER
-		if (VendorId == EGpuVendorId::Amd && bAllowVendorDevice)
-		{
-			OutExtensions.Add(VK_AMD_BUFFER_MARKER_EXTENSION_NAME);
-		}
-#endif
-#if VULKAN_SUPPORTS_NV_DIAGNOSTICS
-		if (VendorId == EGpuVendorId::Nvidia && bAllowVendorDevice)
-		{
-			OutExtensions.Add(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
-			OutExtensions.Add(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME);
-		}
-#endif
-	}
+	// Manually activated extensions
+	OutExtensions.Add(MakeUnique<FVulkanDeviceExtension>(Device, VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME, VULKAN_SUPPORTS_EXTERNAL_MEMORY, VULKAN_EXTENSION_NOT_PROMOTED, nullptr, FVulkanExtensionBase::ManuallyActivate));
 }
 
 void FVulkanLinuxPlatform::CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface)

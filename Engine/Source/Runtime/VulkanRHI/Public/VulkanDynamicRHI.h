@@ -34,8 +34,6 @@ struct FOptionalVulkanInstanceExtensions
 		static_assert(sizeof(Packed) == sizeof(FOptionalVulkanInstanceExtensions), "More bits needed!");
 		Packed = 0;
 	}
-
-	void Setup(const TArray<const ANSICHAR*>& InInstanceExtensions);
 };
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -350,7 +348,7 @@ public:
 
 	inline bool SupportsDebugUtilsExt() const
 	{
-		return bSupportsDebugUtilsExt;
+		return (ActiveDebugLayerExtension == EActiveDebugLayerExtension::DebugUtilsExtension);
 	}
 
 	inline const FOptionalVulkanInstanceExtensions& GetOptionalExtensions() const
@@ -405,7 +403,7 @@ protected:
 	static void WriteEndFrameTimestamp(void*);
 	*/
 
-	static void GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& OutInstanceExtensions, TArray<const ANSICHAR*>& OutInstanceLayers, bool& bOutDebugUtils);
+	static TArray<const ANSICHAR*> SetupInstanceLayers(FVulkanInstanceExtensionArray& UEExtensions);
 
 	IConsoleObject* SavePipelineCacheCmd = nullptr;
 	IConsoleObject* RebuildPipelineCacheCmd = nullptr;
@@ -432,16 +430,26 @@ public:
 	static void TrimLRU();
 #endif
 
+	enum class EActiveDebugLayerExtension
+	{
+		None,
+		GfxReconstructLayer,
+		VkTraceLayer,
+		DebugUtilsExtension,
+		DebugReportExtension
+	};
+
 protected:
 	bool bIsStandaloneStereoDevice = false;
-	bool bSupportsDebugUtilsExt = false;
+
+	EActiveDebugLayerExtension ActiveDebugLayerExtension = EActiveDebugLayerExtension::None;
+
 #if VULKAN_HAS_DEBUGGING_ENABLED
 #if VULKAN_SUPPORTS_DEBUG_UTILS
 	VkDebugUtilsMessengerEXT Messenger = VK_NULL_HANDLE;
 #endif
-
-	bool bSupportsDebugCallbackExt = false;
 	VkDebugReportCallbackEXT MsgCallback = VK_NULL_HANDLE;
+
 	void SetupDebugLayerCallback();
 	void RemoveDebugLayerCallback();
 #endif

@@ -4,6 +4,7 @@
 #include "../VulkanRHIPrivate.h"
 #include "../VulkanDevice.h"
 #include "../VulkanRayTracing.h"
+#include "../VulkanExtensions.h"
 
 // Disable warning about forward declared enumeration without a type, since the D3D specific enums are not used in this translation unit
 #pragma warning(push)
@@ -170,74 +171,21 @@ void FVulkanWindowsPlatform::FreeVulkanLibrary()
 
 #include "Windows/HideWindowsPlatformTypes.h"
 
-
-
-void FVulkanWindowsPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutExtensions)
+void FVulkanWindowsPlatform::GetInstanceExtensions(FVulkanInstanceExtensionArray& OutExtensions)
 {
-	// windows surface extension
-	OutExtensions.Add(VK_KHR_SURFACE_EXTENSION_NAME);
-	OutExtensions.Add(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
-
-#if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
-	// Required by Fullscreen
-	OutExtensions.Add(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
-#endif
+	OutExtensions.Add(MakeUnique<FVulkanInstanceExtension>(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VULKAN_EXTENSION_NOT_PROMOTED));
+	OutExtensions.Add(MakeUnique<FVulkanInstanceExtension>(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME, VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE, VULKAN_EXTENSION_NOT_PROMOTED));
 }
 
 
-void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions)
+void FVulkanWindowsPlatform::GetDeviceExtensions(FVulkanDevice* Device, FVulkanDeviceExtensionArray& OutExtensions)
 {
-	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
+	OutExtensions.Add(MakeUnique<FVulkanDeviceExtension>(Device, VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE, 
+														VULKAN_EXTENSION_NOT_PROMOTED, DEVICE_EXT_FLAG_SETTER(HasEXTFullscreenExclusive)));
 
-#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
-	OutExtensions.Add(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
-	OutExtensions.Add(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
-	OutExtensions.Add(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
-#endif
-	if (GGPUCrashDebuggingEnabled)
-	{
-#if VULKAN_SUPPORTS_AMD_BUFFER_MARKER
-		if (VendorId == EGpuVendorId::Amd && bAllowVendorDevice)
-		{
-			OutExtensions.Add(VK_AMD_BUFFER_MARKER_EXTENSION_NAME);
-		}
-#endif
-#if VULKAN_SUPPORTS_NV_DIAGNOSTICS
-		if (VendorId == EGpuVendorId::Nvidia && bAllowVendorDevice)
-		{
-			OutExtensions.Add(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
-			OutExtensions.Add(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME);
-		}
-#endif
-	}
-
-#if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
-	// Fullscreen requires Instance capabilities2
-	OutExtensions.Add(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME);
-#endif
-
-#if VULKAN_RHI_RAYTRACING
-	FVulkanRayTracingPlatform::GetDeviceExtensions(VendorId, OutExtensions);
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-	OutExtensions.Add(VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
-	OutExtensions.Add(VK_EXT_FRAGMENT_DENSITY_MAP_2_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_RENDERPASS2
-	OutExtensions.Add(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	OutExtensions.Add(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
-#endif
+	// Manually activated extensions
+	OutExtensions.Add(MakeUnique<FVulkanDeviceExtension>(Device, VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, VULKAN_SUPPORTS_EXTERNAL_MEMORY, 
+														VULKAN_EXTENSION_NOT_PROMOTED, nullptr, FVulkanExtensionBase::ManuallyActivate));
 }
 
 void FVulkanWindowsPlatform::CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface)
@@ -398,9 +346,3 @@ void FVulkanWindowsPlatform::CheckDeviceDriver(uint32 DeviceIndex, EGpuVendorId 
 	}
 }
 
-void FVulkanWindowsPlatform::EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo, FVulkanDevice& Device)
-{
-#if VULKAN_RHI_RAYTRACING
-	FVulkanRayTracingPlatform::EnablePhysicalDeviceFeatureExtensions(DeviceInfo, Device);
-#endif
-}

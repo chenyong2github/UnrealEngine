@@ -30,8 +30,6 @@ namespace VulkanDynamicAPI
 class FVulkanRayTracingPlatform
 {
 public:
-	static void GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions);
-	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo, FVulkanDevice& Device);
 	static bool LoadVulkanInstanceFunctions(VkInstance inInstance);
 };
 

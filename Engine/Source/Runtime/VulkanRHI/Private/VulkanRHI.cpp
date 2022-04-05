@@ -24,6 +24,7 @@
 #include "IHeadMountedDisplayModule.h"
 #include "VulkanRenderpass.h"
 #include "VulkanTransientResourceAllocator.h"
+#include "VulkanExtensions.h"
 
 static_assert(sizeof(VkStructureType) == sizeof(int32), "ZeroVulkanStruct() assumes VkStructureType is int32!");
 
@@ -95,30 +96,6 @@ extern TAutoConsoleVariable<int32> GRHIAllowAsyncComputeCvar;
 
 // All shader stages supported by VK device - VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, FRAGMENT etc
 uint32 GVulkanDeviceShaderStageBits = 0;
-
-#if VULKAN_HAS_VALIDATION_FEATURES
-static inline TArray<VkValidationFeatureEnableEXT> GetValidationFeaturesEnabled(bool bEnableValidation)
-{
-	TArray<VkValidationFeatureEnableEXT> Features;
-	extern TAutoConsoleVariable<int32> GGPUValidationCvar;
-	int32 GPUValidationValue = GGPUValidationCvar.GetValueOnAnyThread();
-	if (bEnableValidation && GPUValidationValue > 0)
-	{
-		Features.Add(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
-		if (GPUValidationValue > 1)
-		{
-			Features.Add(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
-		}
-	}
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("vulkanbestpractices")))
-	{
-		Features.Add(VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT);
-	}
-
-	return Features;
-}
-#endif
 
 DEFINE_LOG_CATEGORY(LogVulkan)
 
@@ -251,6 +228,8 @@ void FVulkanDynamicRHI::Init()
 {
 	// Setup the validation requests ready before we load dlls
 	SetupValidationRequests();
+
+	UE_LOG(LogVulkanRHI, Display, TEXT("Built with Vulkan header version %u.%u.%u"), VK_API_VERSION_MAJOR(VK_HEADER_VERSION_COMPLETE), VK_API_VERSION_MINOR(VK_HEADER_VERSION_COMPLETE), VK_API_VERSION_PATCH(VK_HEADER_VERSION_COMPLETE));
 
 	if (!FVulkanPlatform::LoadVulkanLibrary())
 	{
@@ -428,39 +407,27 @@ void FVulkanDynamicRHI::CreateInstance()
 	ZeroVulkanStruct(InstInfo, VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
 	InstInfo.pApplicationInfo = &AppInfo;
 
-	GetInstanceLayersAndExtensions(InstanceExtensions, InstanceLayers, bSupportsDebugUtilsExt);
+	FVulkanInstanceExtensionArray UEInstanceExtensions = FVulkanInstanceExtension::GetUESupportedInstanceExtensions();
+	InstanceLayers = SetupInstanceLayers(UEInstanceExtensions);
+	for (TUniquePtr<FVulkanInstanceExtension>& Extension : UEInstanceExtensions)
+	{
+		if (Extension->InUse())
+		{
+			InstanceExtensions.Add(Extension->GetExtensionName());
+			Extension->PreCreateInstance(InstInfo, OptionalInstanceExtensions);
+		}
+	}
 
 	InstInfo.enabledExtensionCount = InstanceExtensions.Num();
 	InstInfo.ppEnabledExtensionNames = InstInfo.enabledExtensionCount > 0 ? (const ANSICHAR* const*)InstanceExtensions.GetData() : nullptr;
 	
 	InstInfo.enabledLayerCount = InstanceLayers.Num();
 	InstInfo.ppEnabledLayerNames = InstInfo.enabledLayerCount > 0 ? InstanceLayers.GetData() : nullptr;
-#if VULKAN_HAS_DEBUGGING_ENABLED
-	bSupportsDebugCallbackExt = !bSupportsDebugUtilsExt && InstanceExtensions.ContainsByPredicate([](const ANSICHAR* Key)
-		{ 
-			return Key && !FCStringAnsi::Strcmp(Key, VK_EXT_DEBUG_REPORT_EXTENSION_NAME); 
-		});
-
-#if VULKAN_HAS_VALIDATION_FEATURES
-	bool bHasGPUValidation = InstanceExtensions.ContainsByPredicate([](const ANSICHAR* Key)
-		{
-			return Key && !FCStringAnsi::Strcmp(Key, VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
-		});
-	VkValidationFeaturesEXT ValidationFeatures;
-	TArray<VkValidationFeatureEnableEXT> ValidationFeaturesEnabled = GetValidationFeaturesEnabled(bHasGPUValidation);
-	if (bHasGPUValidation)
-	{
-		ZeroVulkanStruct(ValidationFeatures, VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT);
-		ValidationFeatures.pNext = InstInfo.pNext;
-		ValidationFeatures.enabledValidationFeatureCount = (uint32)ValidationFeaturesEnabled.Num();
-		ValidationFeatures.pEnabledValidationFeatures = ValidationFeaturesEnabled.GetData();
-		InstInfo.pNext = &ValidationFeatures;
-	}
-#endif
-#endif
 
 	VkResult Result = VulkanRHI::vkCreateInstance(&InstInfo, VULKAN_CPU_ALLOCATOR, &Instance);
 	
+	FVulkanPlatform::NotifyFoundInstanceLayersAndExtensions(InstanceLayers, InstanceExtensions);
+
 	if (Result == VK_ERROR_INCOMPATIBLE_DRIVER)
 	{
 		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, TEXT(
@@ -531,8 +498,6 @@ void FVulkanDynamicRHI::CreateInstance()
 #if VULKAN_HAS_DEBUGGING_ENABLED
 	SetupDebugLayerCallback();
 #endif
-
-	OptionalInstanceExtensions.Setup(InstanceExtensions);
 }
 
 //#todo-rco: Common RHI should handle this...
@@ -587,20 +552,21 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 
 #if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
 	// Allow HMD to override which graphics adapter is chosen, so we pick the adapter where the HMD is connected
-	uint64 HmdGraphicsAdapterLuid  = IHeadMountedDisplayModule::IsAvailable() ? IHeadMountedDisplayModule::Get().GetGraphicsAdapterLuid() : 0;
+	const uint64 HmdGraphicsAdapterLuid  = IHeadMountedDisplayModule::IsAvailable() ? IHeadMountedDisplayModule::Get().GetGraphicsAdapterLuid() : 0;
 #endif
 
 	UE_LOG(LogVulkanRHI, Display, TEXT("Found %d device(s)"), GpuCount);
 	for (uint32 Index = 0; Index < GpuCount; ++Index)
 	{
+		UE_LOG(LogVulkanRHI, Display, TEXT("Device %d:"), Index);
 		FVulkanDevice* NewDevice = new FVulkanDevice(this, PhysicalDevices[Index]);
 		Devices.Add(NewDevice);
 
-		bool bIsDiscrete = NewDevice->QueryGPU(Index);
+		const bool bIsDiscrete = (NewDevice->GetDeviceProperties().deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU);
 
 #if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
 		if (!HmdDevice && HmdGraphicsAdapterLuid != 0 &&
-			NewDevice->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2 &&
+			GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2 &&
 			FMemory::Memcmp(&HmdGraphicsAdapterLuid, &NewDevice->GetDeviceIdProperties().deviceLUID, VK_LUID_SIZE_KHR) == 0)
 		{
 			HmdDevice = NewDevice;
@@ -756,24 +722,24 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 
 		if (GPUDriverInfo.InternalDriverVersion != TEXT("Unknown"))
 		{
-		GRHIAdapterUserDriverVersion = GPUDriverInfo.UserDriverVersion;
-		GRHIAdapterInternalDriverVersion = GPUDriverInfo.InternalDriverVersion;
-		GRHIAdapterDriverDate = GPUDriverInfo.DriverDate;
+			GRHIAdapterUserDriverVersion = GPUDriverInfo.UserDriverVersion;
+			GRHIAdapterInternalDriverVersion = GPUDriverInfo.InternalDriverVersion;
+			GRHIAdapterDriverDate = GPUDriverInfo.DriverDate;
 
-		UE_LOG(LogVulkanRHI, Log, TEXT("    Adapter Name: %s"), *GRHIAdapterName);
-		UE_LOG(LogVulkanRHI, Log, TEXT("     API Version: %d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));
+			UE_LOG(LogVulkanRHI, Log, TEXT("    Adapter Name: %s"), *GRHIAdapterName);
+			UE_LOG(LogVulkanRHI, Log, TEXT("     API Version: %d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));
 			UE_LOG(LogVulkanRHI, Log, TEXT("  Driver Version: %s (0x%X)"), *GRHIAdapterUserDriverVersion, Props.driverVersion);
-		UE_LOG(LogVulkanRHI, Log, TEXT("Internal Version: %s"), *GRHIAdapterInternalDriverVersion);
-		UE_LOG(LogVulkanRHI, Log, TEXT("     Driver Date: %s"), *GRHIAdapterDriverDate);
-	}
+			UE_LOG(LogVulkanRHI, Log, TEXT("Internal Version: %s"), *GRHIAdapterInternalDriverVersion);
+			UE_LOG(LogVulkanRHI, Log, TEXT("     Driver Date: %s"), *GRHIAdapterDriverDate);
+		}
 		else
-	{
+		{
 			// If we failed to read from the registry, then use the values provided by Vulkan props
 			ReadVulkanDriverVersionFromProps(Device);
 		}
-		}
+	}
 	else if(PLATFORM_UNIX)
-		{
+	{
 		ReadVulkanDriverVersionFromProps(Device);
 	}
 
@@ -805,7 +771,6 @@ void FVulkanDynamicRHI::InitInstance()
 			EnableIdealGPUCaptureOptions(true);
 		}
 #endif
-		//bool bDeviceSupportsTessellation = Device->GetPhysicalFeatures().tessellationShader != 0;
 
 		const VkPhysicalDeviceProperties& Props = Device->GetDeviceProperties();
 		const VkPhysicalDeviceLimits& Limits = Device->GetLimits();
@@ -819,7 +784,7 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHISupportsTextureStreaming = true;
 		GSupportsTimestampRenderQueries = FVulkanPlatform::SupportsTimestampRenderQueries();
 #if VULKAN_SUPPORTS_MULTIVIEW
-		GSupportsMobileMultiView = Device->GetMultiviewFeatures().multiview == VK_TRUE ? true : false;
+		GSupportsMobileMultiView = Device->GetOptionalExtensions().HasKHRMultiview ? true : false;
 #endif
 #if VULKAN_RHI_RAYTRACING
 		GRHISupportsRayTracing = RHISupportsRayTracing(GMaxRHIShaderPlatform) && Device->GetOptionalExtensions().HasRaytracingExtensions();
@@ -876,22 +841,6 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHIMaxDispatchThreadGroupsPerDimension.Y = FMath::Min<uint32>(Limits.maxComputeWorkGroupCount[1], 0x7fffffff);
 		GRHIMaxDispatchThreadGroupsPerDimension.Z = FMath::Min<uint32>(Limits.maxComputeWorkGroupCount[2], 0x7fffffff);
 
-#if VULKAN_SUPPORTS_SHADER_VIEWPORT_INDEX_LAYER
-		GRHISupportsArrayIndexFromAnyShader = GetDevice()->GetOptionalExtensions().HasEXTShaderViewportIndexLayer != 0ULL;
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-		GRHISupportsAttachmentVariableRateShading = (GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap && Device->GetFragmentDensityMapFeatures().fragmentDensityMap);
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
-		GRHISupportsLateVariableRateShadingUpdate = GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap2 && Device->GetFragmentDensityMap2Features().fragmentDensityMapDeferred;
-#endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-		GRHISupportsAttachmentVariableRateShading |= GetDevice()->GetOptionalExtensions().HasKHRFragmentShadingRate && Device->GetFragmentShadingRateFeatures().attachmentFragmentShadingRate;
-#endif
-
 		FVulkanPlatform::SetupFeatureLevels();
 
 		GRHIRequiresRenderTargetForPixelShaderUAVs = true;
@@ -908,6 +857,11 @@ void FVulkanDynamicRHI::InitInstance()
 			GVulkanDeviceShaderStageBits|= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
 		}
 		
+		if (GGPUCrashDebuggingEnabled && !Device->GetOptionalExtensions().HasGPUCrashDumpExtensions())
+		{
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Tried to enable GPU crash debugging but no extension found! Will use local tracepoints."));
+		}
+
 		FHardwareInfo::RegisterHardwareInfo(NAME_RHI, TEXT("Vulkan"));
 
 		SavePipelineCacheCmd = IConsoleManager::Get().RegisterConsoleCommand(
@@ -1240,7 +1194,7 @@ uint64 FVulkanDynamicRHI::RHIGetGraphicsAdapterLUID(VkPhysicalDevice InPhysicalD
 {
 	uint64 AdapterLUID = 0;
 #if VULKAN_SUPPORTS_DRIVER_PROPERTIES
-	if (!AdapterLUID && GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
+	if (GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 	{
 		VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
 		VkPhysicalDeviceProperties2KHR GpuProps2;

@@ -339,12 +339,13 @@
 	#define VULKAN_SUPPORTS_MAINTENANCE4	0
 #endif
 
-#ifdef VK_EXT_descriptor_indexing
-	#define VULKAN_SUPPORTS_DESCRIPTOR_INDEXING	(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement
-#else
-	#define VULKAN_SUPPORTS_DESCRIPTOR_INDEXING	0
+#ifndef VULKAN_SUPPORTS_DESCRIPTOR_INDEXING
+	#ifdef VK_EXT_descriptor_indexing
+		#define VULKAN_SUPPORTS_DESCRIPTOR_INDEXING	(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement
+	#else
+		#define VULKAN_SUPPORTS_DESCRIPTOR_INDEXING	0
+	#endif
 #endif
-
 
 #ifndef VULKAN_OBJECT_TRACKING 
 #define VULKAN_OBJECT_TRACKING 0 //Track objects created and memory used. use r.vulkan.dumpmemory to dump to console
