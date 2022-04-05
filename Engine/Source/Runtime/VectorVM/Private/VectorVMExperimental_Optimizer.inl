@@ -1226,9 +1226,8 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 			for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
 			{
 				FVectorVMOptimizeInstruction *Ins = OptContext->Intermediate.Instructions + i;
-				if (Ins->OpCat == EVectorVMOpCategory::Op && !(Ins->OpCode == EVectorVMOp::random || Ins->OpCode == EVectorVMOp::randomi))
+				if (Ins->OpCat == EVectorVMOpCategory::Op)
 				{
-					//can we remove random instructions? I dunno! so lets not for now
 					GetRegistersUsedForInstruction(OptContext, Ins, &RegUsage);
 					for (int OutputIdx = 0; OutputIdx < RegUsage.NumOutputRegisters; ++OutputIdx)
 					{
