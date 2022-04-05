@@ -4034,6 +4034,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 	float								ExistingAdjustMaxAlpha = 1.0f;
 	bool								ExistingbDoScaleMipsForAlphaCoverage = false;
 	FVector4							ExistingAlphaCoverageThresholds = FVector4(0, 0, 0, 0);
+	bool								ExistingbUseNewMipFilter = false;
 	TextureMipGenSettings				ExistingMipGenSettings = TextureMipGenSettings(0);
 	bool								ExistingVirtualTextureStreaming = false;
 
@@ -4123,6 +4124,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 		ExistingFlipGreenChannel = ExistingTexture->bFlipGreenChannel;
 		ExistingbDoScaleMipsForAlphaCoverage = ExistingTexture->bDoScaleMipsForAlphaCoverage;
 		ExistingAlphaCoverageThresholds = ExistingTexture->AlphaCoverageThresholds;
+		ExistingbUseNewMipFilter = ExistingTexture->bUseNewMipFilter;
 		ExistingAdjustBrightness = ExistingTexture->AdjustBrightness;
 		ExistingAdjustBrightnessCurve = ExistingTexture->AdjustBrightnessCurve;
 		ExistingAdjustVibrance = ExistingTexture->AdjustVibrance;
@@ -4240,12 +4242,13 @@ UObject* UTextureFactory::FactoryCreateBinary
 		LODGroup = TEXTUREGROUP_World;
 	}
 
-	Texture->CompressionNone		= NoCompression;
-	Texture->CompressionNoAlpha		= NoAlpha;
-	Texture->DeferCompression		= bDeferCompression;
-	Texture->bDoScaleMipsForAlphaCoverage = bDoScaleMipsForAlphaCoverage;
-	Texture->AlphaCoverageThresholds = AlphaCoverageThresholds;
-	
+	Texture->CompressionNone				= NoCompression;
+	Texture->CompressionNoAlpha				= NoAlpha;
+	Texture->DeferCompression				= bDeferCompression;
+	Texture->bDoScaleMipsForAlphaCoverage	= bDoScaleMipsForAlphaCoverage;
+	Texture->AlphaCoverageThresholds		= AlphaCoverageThresholds;
+	Texture->bUseNewMipFilter				= bUseNewMipFilter;
+
 	if(Texture->MipGenSettings == TMGS_FromTextureGroup)
 	{
 		// unless the loader suggest a different setting
@@ -4307,6 +4310,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 		Texture->DeferCompression = ExistingDeferCompression;
 		Texture->bDoScaleMipsForAlphaCoverage = ExistingbDoScaleMipsForAlphaCoverage;
 		Texture->AlphaCoverageThresholds = ExistingAlphaCoverageThresholds;
+		Texture->bUseNewMipFilter = ExistingbUseNewMipFilter;
 		Texture->bFlipGreenChannel = ExistingFlipGreenChannel;
 		Texture->AdjustBrightness = ExistingAdjustBrightness;
 		Texture->AdjustBrightnessCurve = ExistingAdjustBrightnessCurve;

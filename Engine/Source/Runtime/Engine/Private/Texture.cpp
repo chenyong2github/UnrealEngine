@@ -137,6 +137,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	bCustomPropertiesImported = false;
 	bDoScaleMipsForAlphaCoverage = false;
 	AlphaCoverageThresholds = FVector4(0, 0, 0, 0);
+	bUseNewMipFilter = false;
 	PaddingColor = FColor::Black;
 	ChromaKeyColor = FColorList::Magenta;
 	ChromaKeyThreshold = 1.0f / 255.0f;
@@ -631,6 +632,21 @@ void UTexture::Serialize(FArchive& Ar)
 	{
 		LoadedMainStreamObjectVersion = Ar.CustomVer(FUE5MainStreamObjectVersion::GUID);
 	}
+
+	// When new mip filter is ready to be enabled:
+	// * change "bUseNewMipFilter = false;" to true in UTexture constructor above
+	// * change "bool bUseNewMipFilter = false;" member to true in "UTexture" class, in "Texture.h" file
+	// * change "bool bUseNewMipFilter = false;" member to true in "UTextureFactory" class, in "TextureFactory.h" file
+	// * change "bUseNewMipFilter(false) to true in "FTextureBuildSettings" constructor, in "TextureCompressorModule.h" file
+	// * change "ExistingbUseNewMipFilter = false" to true in UTextureFactory::FactoryCreateBinary method, in "EditorFactories.cpp" file
+	// * add "TextureUseNewMipFilter" value in "FUE5MainStreamObjectVersion" enum, in "UE5MainStreamObjectVersion.h" file
+	// * uncomment if statement below
+
+	//if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::TextureUseNewMipFilter)
+	//{
+	//	// Old textures should not use new mip filter for maintaining exacty the same output as before (to not increase patch size)
+	//	bUseNewMipFilter = false;
+	//}
 
 	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::TextureDoScaleMipsForAlphaCoverage)
 	{

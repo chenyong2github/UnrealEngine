@@ -116,6 +116,10 @@ class UNREALED_API UTextureFactory : public UFactory, public IImportSettingsPars
 	UPROPERTY(EditAnywhere, Category=PreserveAlphaCoverage, meta=(ToolTip="Whether mip RGBA should be scaled to preserve the number of pixels with Value >= AlphaCoverageThresholds"))
 	bool bDoScaleMipsForAlphaCoverage = false;
 
+	/** Whether to use newer & faster mip generation filter, same quality but produces slightly different results from previous implementation */
+	UPROPERTY(EditAnywhere, Category=TextureFactory, meta=(ToolTip="Whether to use newer & faster mip generation filter"))
+	bool bUseNewMipFilter = false;
+
 	/** Channel values to compare to when preserving alpha coverage from a mask. */
 	UPROPERTY(EditAnywhere, Category=PreserveAlphaCoverage, meta=(ToolTip="Channel values to compare to when preserving alpha coverage from a mask for mips"))
 	FVector4 AlphaCoverageThresholds = FVector4(0,0,0,0);
