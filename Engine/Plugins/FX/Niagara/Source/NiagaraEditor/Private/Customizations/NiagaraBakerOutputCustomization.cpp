@@ -11,6 +11,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Editor.h"
 #include "IDetailCustomization.h"
 #include "IDetailPropertyRow.h"
 #include "IDetailsView.h"
