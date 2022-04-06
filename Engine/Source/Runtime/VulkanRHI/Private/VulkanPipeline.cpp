@@ -449,8 +449,6 @@ bool FVulkanPipelineStateCacheManager::Load(const TArray<FString>& CacheFilename
 
 void FVulkanPipelineStateCacheManager::InitAndLoad(const TArray<FString>& CacheFilenames)
 {
-	FScopedPipelineCache PipelineCacheExclusive = PSOCache.Get(EPipelineCacheAccess::Exclusive);
-
 	if (GEnablePipelineCacheLoadCvar.GetValueOnAnyThread() == 0)
 	{
 		UE_LOG(LogVulkanRHI, Display, TEXT("Not loading pipeline cache per r.Vulkan.PipelineCacheLoad=0"));
@@ -489,6 +487,7 @@ void FVulkanPipelineStateCacheManager::InitAndLoad(const TArray<FString>& CacheF
 		}
 	}
 
+	FScopedPipelineCache PipelineCacheExclusive = PSOCache.Get(EPipelineCacheAccess::Exclusive);
 	// Lazily create the cache in case the load failed
 	if (PipelineCacheExclusive.Get() == VK_NULL_HANDLE)
 	{
