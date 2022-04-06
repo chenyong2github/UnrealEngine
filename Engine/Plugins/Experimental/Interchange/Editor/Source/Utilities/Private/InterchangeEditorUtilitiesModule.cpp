@@ -22,3 +22,5 @@ void FInterchangeEditorUtilitiesModule::StartupModule()
 void FInterchangeEditorUtilitiesModule::ShutdownModule()
 {
 }
+
+#undef LOCTEXT_NAMESPACE
