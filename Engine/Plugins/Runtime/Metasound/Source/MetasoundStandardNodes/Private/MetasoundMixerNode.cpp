@@ -197,19 +197,21 @@ namespace Metasound
 			// for each input
 			for (uint32 InputIndex = 0; InputIndex < NumInputs; ++InputIndex)
 			{
+				const float NextGain = *Gains[InputIndex];
+				const float PrevGain = PrevGains[InputIndex];
+
 				// for each channel of audio
 				for (uint32 ChanIndex = 0; ChanIndex < NumChannels; ++ChanIndex)
 				{
 					// Outputs[Chan] += Gains[i] * Inputs[i][Chan]
 					TArrayView<const float> InputView(Inputs[InputIndex * NumChannels + ChanIndex]->GetData(), Settings.GetNumFramesPerBlock());
 					TArrayView<float> OutputView(Outputs[ChanIndex]->GetData(), Settings.GetNumFramesPerBlock());
-					const float NextGain = *Gains[InputIndex];
-					const float PrevGain = PrevGains[InputIndex];
 
 					Audio::ArrayMixIn(InputView, OutputView, PrevGain, NextGain);
 
-					PrevGains[InputIndex] = NextGain;
 				}
+
+				PrevGains[InputIndex] = NextGain;
 			}
 		}
 
