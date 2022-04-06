@@ -9,6 +9,7 @@
 #include "Misc/PackageSegment.h"
 #include "Misc/SecureHash.h"
 #include "Misc/ScopeLock.h"
+#include "ProfilingDebugging/CountersTrace.h"
 #include "Serialization/BulkData.h"
 #include "Serialization/BulkDataRegistry.h"
 #include "UObject/LinkerLoad.h"
@@ -34,6 +35,9 @@
 #else
 	#define UE_CORRUPTED_DATA_SEVERITY Error
 #endif // VBD_CORRUPTED_PAYLOAD_IS_FATAL
+
+TRACE_DECLARE_INT_COUNTER(EditorBulkData_PayloadDataLoaded, TEXT("EditorBulkData/PayloadDataLoaded"));
+TRACE_DECLARE_INT_COUNTER(EditorBulkData_PayloadDataPulled, TEXT("EditorBulkData/PayloadDatPulled"));
 
 namespace UE::Serialization
 {
@@ -1308,6 +1312,7 @@ void FEditorBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePayloadIsLoaded)
 		if (Payload.IsNull() && bEnsurePayloadIsLoaded)
 		{
 			FCompressedBuffer CompressedPayload = GetDataInternal();
+			TRACE_CPUPROFILER_EVENT_SCOPE(DecompressPayload);
 			Payload = CompressedPayload.Decompress();
 		}
 
@@ -1521,6 +1526,7 @@ FCompressedBuffer FEditorBulkData::GetDataInternal() const
 		UE_CLOG(CompressedPayload.IsNull(), LogSerialization, Error, TEXT("Failed to pull payload '%s'"), *LexToString(PayloadContentId));
 		UE_CLOG(!IsDataValid(*this, CompressedPayload), LogSerialization, UE_CORRUPTED_DATA_SEVERITY, TEXT("Virtualized payload '%s' is corrupt! Check the backend storage."), *LexToString(PayloadContentId));
 		
+		TRACE_COUNTER_ADD(EditorBulkData_PayloadDataPulled, (int64)CompressedPayload.GetCompressedSize());
 		return CompressedPayload;
 	}
 	else
@@ -1534,6 +1540,7 @@ FCompressedBuffer FEditorBulkData::GetDataInternal() const
 			*LexToString(PayloadContentId),
 			*PackagePath.GetDebugName());
 
+		TRACE_COUNTER_ADD(EditorBulkData_PayloadDataLoaded, (int64)CompressedPayload.GetCompressedSize());
 		return CompressedPayload;
 	}
 }

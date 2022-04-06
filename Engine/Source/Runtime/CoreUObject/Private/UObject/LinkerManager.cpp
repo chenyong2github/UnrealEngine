@@ -109,6 +109,8 @@ void FLinkerManager::ResetLinkerExports(UPackage* InPackage)
 
 void FLinkerManager::ResetLoaders(UObject* InPkg)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FLinkerManager::ResetLoaders);
+
 	// Top level package to reset loaders for.
 	UObject*		TopLevelPackage = InPkg ? InPkg->GetOutermost() : nullptr;
 

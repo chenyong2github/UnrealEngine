@@ -167,6 +167,8 @@ UObject* UObject::GetDefaultSubobjectByName(FName ToFind)
 
 bool UObject::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UObject::Rename);
+
 #if WITH_EDITOR
 	// This guarantees that if this UObject is actually renamed and changes packages
 	// the metadata will be moved with it.
