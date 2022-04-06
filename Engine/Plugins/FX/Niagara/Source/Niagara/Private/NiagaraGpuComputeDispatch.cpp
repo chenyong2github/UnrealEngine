@@ -28,9 +28,7 @@
 #include "NiagaraWorldManager.h"
 #include "RHI.h"
 #include "Runtime/Renderer/Private/SceneRendering.h"
-#include "Runtime/Renderer/Private/PostProcess/SceneRenderTargets.h"
 #include "PipelineStateCache.h"
-#include "SceneUtils.h"
 #include "ShaderParameterUtils.h"
 #include "Renderer/Private/ScenePrivate.h"
 

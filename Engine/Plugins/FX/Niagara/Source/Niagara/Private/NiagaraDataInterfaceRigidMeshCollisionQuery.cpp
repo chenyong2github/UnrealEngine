@@ -12,8 +12,6 @@
 #include "NiagaraSystemInstance.h"
 #include "ShaderParameterUtils.h"
 #include "EngineUtils.h"
-#include "Renderer/Private/ScenePrivate.h"
-#include "DistanceFieldAtlas.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuComputeDispatch.h"
 #include "DataInterface/NiagaraDistanceFieldParameters.h"

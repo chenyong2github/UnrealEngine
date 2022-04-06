@@ -1,22 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceGeometryCollection.h"
-#include "Animation/SkeletalMeshActor.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "SkeletalRenderPublic.h"
-#include "SkeletalMeshTypes.h"
-#include "AnimationRuntime.h"
-#include "NiagaraShader.h"
-#include "NiagaraComponent.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSimStageData.h"
 #include "NiagaraSystemInstance.h"
 #include "ShaderParameterUtils.h"
-#include "EngineUtils.h"
-#include "Renderer/Private/ScenePrivate.h"
-#include "DistanceFieldAtlas.h"
-#include "Renderer/Private/DistanceFieldLightingShared.h"
-#include "NiagaraGpuComputeDispatchInterface.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGeometryCollection"

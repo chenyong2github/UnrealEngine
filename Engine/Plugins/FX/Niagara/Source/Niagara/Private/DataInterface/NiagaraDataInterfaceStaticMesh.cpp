@@ -23,9 +23,6 @@
 #include "GPUSkinCache.h"
 #include "ShaderCompilerCore.h"
 
-#include "Renderer/Private/ScenePrivate.h"
-#include "DistanceFieldAtlas.h"
-#include "Renderer/Private/DistanceFieldLightingShared.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraDistanceFieldParameters.h"
