@@ -255,43 +255,29 @@ namespace AutomationScripts
 				throw new AutomationException("Missing " + UEEditorExe + " executable. Needs to be built first.");
 			}
 
-			if (Params.CookOnTheFly && !Params.SkipServer)
+			if (Params.CookOnTheFly)
 			{
 				if (Params.HasDLCName)
 				{
 					throw new AutomationException("Cook on the fly doesn't support cooking dlc");
 				}
-				if (Params.ClientTargetPlatforms.Count > 0)
+
+				var LogFolderOutsideOfSandbox = GetLogFolderOutsideOfSandbox();
+				if (!Unreal.IsEngineInstalled())
 				{
-					var LogFolderOutsideOfSandbox = GetLogFolderOutsideOfSandbox();
-					if (!Unreal.IsEngineInstalled())
-					{
-						// In the installed runs, this is the same folder as CmdEnv.LogFolder so delete only in not-installed
-						DeleteDirectory(LogFolderOutsideOfSandbox);
-						CreateDirectory(LogFolderOutsideOfSandbox);
-					}
-
-					string COTFCommandLine = GetGenericCookCommandletParams(Params);
-					if (Params.ZenStore)
-					{
-						COTFCommandLine += " -messaging";
-					}
-
-					var ServerLogFile = CombinePaths(LogFolderOutsideOfSandbox, "Server.log");
-					Platform ClientPlatformInst = Params.ClientTargetPlatformInstances[0];
-					string TargetCook = ClientPlatformInst.GetCookPlatform(false, false); // cook on he fly doesn't support server cook platform... 
-					ServerProcess = RunCookOnTheFlyServer(Params.RawProjectPath, Params.NoClient ? "" : ServerLogFile, TargetCook, COTFCommandLine);
-
-					if (ServerProcess != null)
-					{
-						LogInformation("Waiting a few seconds for the server to start...");
-						Thread.Sleep(5000);
-					}
+					// In the installed runs, this is the same folder as CmdEnv.LogFolder so delete only in not-installed
+					DeleteDirectory(LogFolderOutsideOfSandbox);
+					CreateDirectory(LogFolderOutsideOfSandbox);
 				}
-				else
+
+				string COTFCommandLine = GetGenericCookCommandletParams(Params);
+				if (Params.ZenStore)
 				{
-					throw new AutomationException("Failed to run, client target platform not specified");
+					COTFCommandLine += " -messaging";
 				}
+
+				var CookServerLogFile = CombinePaths(LogFolderOutsideOfSandbox, "CookServer.log");
+				CookServerProcess = RunCookOnTheFlyServer(Params.RawProjectPath, Params.NoClient ? "" : CookServerLogFile, COTFCommandLine);
 			}
 			else
 			{

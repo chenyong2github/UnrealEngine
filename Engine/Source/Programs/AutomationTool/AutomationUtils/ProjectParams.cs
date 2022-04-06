@@ -859,15 +859,13 @@ namespace AutomationTool
 			this.Deploy = GetParamValueIfNotSpecified(Command, Deploy, this.Deploy, "deploy");
 			this.DeployFolder = ParseParamValueIfNotSpecified(Command, DeployFolder, "deploy", null);
 
-			// if the user specified -deploy but no folder, set the default
-			if (this.Deploy && string.IsNullOrEmpty(this.DeployFolder))
+			// always set the default deploy folder, so that it is available in -skipdeploy scenarios too
+			if (string.IsNullOrEmpty(this.DeployFolder))
 			{
 				this.DeployFolder = UnrealBuildTool.DeployExports.GetDefaultDeployFolder(this.ShortProjectName);
 			}
-			else if (string.IsNullOrEmpty(this.DeployFolder) == false)
+			else
 			{
-				// if the user specified a folder set deploy to true.
-				//@todo - remove 'deploy' var and check deployfolder != null?
 				this.Deploy = true;
 			}
 
@@ -2913,11 +2911,6 @@ namespace AutomationTool
             {
                 throw new AutomationException("DedicatedServer cannot be used with RunAutomationTests");
             }
-
-			if ((CookOnTheFly || FileServer) && DedicatedServer)
-			{
-				throw new AutomationException("Don't use either -cookonthefly or -fileserver with -server.");
-			}
 
 			if (NoClient && !DedicatedServer && !CookOnTheFly)
 			{
