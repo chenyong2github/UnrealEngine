@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "Serialization/StructuredArchiveDefines.h"
+#include "Misc/Optional.h"
+#include "Serialization/StructuredArchive.h"
 
 /**
  * FStructuredArchiveChildReader

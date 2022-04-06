@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Misc/Build.h"
+
 /**
  * DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS - if set, checks that nested container types are serialized correctly.
  */
