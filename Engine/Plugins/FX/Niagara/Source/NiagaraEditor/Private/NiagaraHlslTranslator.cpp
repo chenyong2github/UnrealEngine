@@ -1998,6 +1998,16 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 
 		}
 
+		if (CompileData->PinToConstantValues.Num() != 0)
+		{
+			Preamble.Appendf(TEXT("\n// Compile Data> PinToConstantValues Input: \n"));
+
+			for (auto Iter : CompileData->PinToConstantValues)
+			{
+				Preamble.Appendf(TEXT("//\tPin: %s Value: %s\n"), *Iter.Key.ToString(), *Iter.Value);
+			}
+		}
+
 		if (CompilationOutput.ScriptData.StaticVariablesWritten.Num() != 0)
 		{
 			Preamble.Appendf(TEXT("\n// Static Variables Written: \n"));

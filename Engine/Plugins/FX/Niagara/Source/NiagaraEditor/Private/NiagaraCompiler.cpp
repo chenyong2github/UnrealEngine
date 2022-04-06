@@ -568,6 +568,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 
 				ensure(Builder.Histories.Num() <= 1);
 
+				int HistoryIdx = 0;
 				for (FNiagaraParameterMapHistory& History : Builder.Histories)
 				{
 					History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
@@ -588,7 +589,16 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 							}
 						}
 					}
+
+					if (UNiagaraScript::LogCompileStaticVars > 0)
+					{
+						for (auto Iter : History.PinToConstantValues)
+						{
+							UE_LOG(LogNiagaraEditor, Log, TEXT("History [%d] Pin: %s Value: %s"), HistoryIdx , *Iter.Key.ToString(), *Iter.Value);
+						}
+					}
 					PinToConstantValues.Append(History.PinToConstantValues);
+					++HistoryIdx;
 				}
 
 				if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
@@ -608,6 +618,14 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 					if (UNiagaraScript::LogCompileStaticVars > 0)
 					{
 						UE_LOG(LogNiagaraEditor, Log, TEXT("%s"), *Var.ToString());
+					}
+				}
+
+				if (UNiagaraScript::LogCompileStaticVars > 0)
+				{
+					for (auto Iter : PinToConstantValues)
+					{
+						UE_LOG(LogNiagaraEditor, Log, TEXT("Pin: %s Value: %s"), *Iter.Key.ToString(), *Iter.Value);
 					}
 				}
 

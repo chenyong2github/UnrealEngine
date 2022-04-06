@@ -46,13 +46,26 @@ static FAutoConsoleVariableRef CVarNiagaraForcePrecompilerCullDataset(
 
 void FGraphTraversalHandle::Push(const UEdGraphNode* Node)
 {
+	ensure(Node->NodeGuid.IsValid());
 	Path.Push(Node->NodeGuid);
 	FriendlyPath.Push(Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
 }
 
 void FGraphTraversalHandle::Push(const UEdGraphPin* Pin)
 {
-	Path.Push(Pin->PersistentGuid);
+	if (Pin->PersistentGuid.IsValid())
+	{
+		Path.Push(Pin->PersistentGuid);
+	}
+	else if (Pin->GetOwningNode())
+	{
+		FGuid NodeGuid = Pin->GetOwningNode()->NodeGuid;
+		int32 Index = Pin->GetOwningNode()->GetPinIndex((UEdGraphPin*)Pin);
+		ensure(NodeGuid.IsValid());
+		NodeGuid.A += Index; // This is a bit hacky, but the chance of collisions within the same graph is really low and we want a unique value for this graph.
+		Path.Push(NodeGuid);
+	}
+	
 	FriendlyPath.Push(Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::FullTitle).ToString() + TEXT("->") + Pin->PinName.ToString());
 }
 
@@ -173,11 +186,16 @@ void FNiagaraParameterMapHistory::RegisterConstantPin(const FGraphTraversalHandl
 		FGraphTraversalHandle Handle = InTraversalPath;
 		Handle.Push(InPin);
 		
+		FString* FoundValue = PinToConstantValues.Find(Handle);
+		if (FoundValue != nullptr)
+		{
+			ensure(*FoundValue == InValue);
+		}
 		PinToConstantValues.Add(Handle, InValue);
 
 		if (UNiagaraScript::LogCompileStaticVars > 0)
 		{
-			UE_LOG(LogNiagaraEditor, Log, TEXT("RegisterConstantPin \"%s\" Pin: \"%s\""), *InValue, *Handle.ToString());
+			UE_LOG(LogNiagaraEditor, Log, TEXT("RegisterConstantPin \"%s\" Pin: \"%s\""), *InValue, *Handle.ToString(true));
 		}
 	}
 }

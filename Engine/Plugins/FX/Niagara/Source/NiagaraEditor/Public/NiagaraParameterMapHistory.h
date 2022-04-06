@@ -87,11 +87,18 @@ public:
 		return Value;
 	}
 
-	FString ToString() const
+	FString ToString(bool bVerbose = false) const
 	{
 		FString Output;
 		for (const FString& Str : FriendlyPath)
 			Output += TEXT("/") + Str;
+
+		if (bVerbose)
+		{
+			Output += " GUID: ";
+			for (const FGuid& Guid : Path)
+				Output += TEXT("/") + Guid.ToString();
+		}
 		return Output;
 	}
 private:
