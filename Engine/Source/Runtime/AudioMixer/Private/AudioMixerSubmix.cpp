@@ -272,7 +272,7 @@ namespace Audio
 			CurrentDryLevel = TargetDryLevel;
 			CurrentWetLevel = TargetWetLevel;
 
-			if(MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
+			if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
 			{
 				USoundModulatorBase* VolumeModulator = SoundSubmix->OutputVolumeModulation.Modulator;
 				USoundModulatorBase* WetLevelModulator = SoundSubmix->WetLevelModulation.Modulator;
