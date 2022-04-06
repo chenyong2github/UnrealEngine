@@ -12,7 +12,6 @@
 #include "MeshMaterialShader.h"
 #include "SkeletalRenderGPUSkin.h"
 #include "PlatformInfo.h"
-#include "Animation/MeshDeformerProvider.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Logging/LogMacros.h"
@@ -894,7 +893,7 @@ bool FGPUSkinPassthroughVertexFactory::ShouldCompilePermutation(const FVertexFac
 {
 	// Passthrough is only valid on platforms with Compute Shader support AND for (skeletal meshes or default materials)
 	return 
-		(IsGPUSkinCacheAvailable(Parameters.Platform) || IMeshDeformerProvider::IsAvailable()) &&
+		IsGPUSkinCacheAvailable(Parameters.Platform) &&
 		Super::ShouldCompilePermutation(Parameters) &&
 		(Parameters.MaterialParameters.bIsUsedWithSkeletalMesh || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
