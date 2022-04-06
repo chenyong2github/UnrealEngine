@@ -2280,6 +2280,34 @@ static inline uint32 GetSectionUint(const FConfigSection& Section, FName Key, ui
 	}
 }
 
+// Gets an integer from a section.  It returns the original value if the setting does not exist
+static inline uint32 GetSectionFeatureSupport(const FConfigSection& Section, FName Key, uint32 OriginalValue)
+{
+	const FConfigValue* ConfigValue = Section.Find(Key);
+	if (ConfigValue != nullptr)
+	{
+		FString Value = ConfigValue->GetValue();
+		if (Value == TEXT("Unsupported"))
+		{
+			return uint32(ERHIFeatureSupport::Unsupported);
+		}
+		if (Value == TEXT("RuntimeDependent"))
+		{
+			return uint32(ERHIFeatureSupport::RuntimeDependent);
+		}
+		else if (Value == TEXT("RuntimeGuaranteed"))
+		{
+			return uint32(ERHIFeatureSupport::RuntimeGuaranteed);
+		}
+		else
+		{
+			checkf(false, TEXT("Unknown ERHIFeatureSupport value \"%s\" for %s"), *Value, *Key.ToString());
+		}
+	}
+
+	return OriginalValue;
+}
+
 FRHIViewableResource* GetViewableResource(const FRHITransitionInfo& Info)
 {
 	switch (Info.Type)
@@ -2320,6 +2348,8 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.SettingName = GetSectionBool(Section, #SettingName, Info.SettingName)
 #define GET_SECTION_INT_HELPER(SettingName)	\
 	Info.SettingName = GetSectionUint(Section, #SettingName, Info.SettingName)
+#define GET_SECTION_SUPPORT_HELPER(SettingName)	\
+	Info.SettingName = GetSectionFeatureSupport(Section, #SettingName, Info.SettingName)
 
 	GET_SECTION_BOOL_HELPER(bIsMobile);
 	GET_SECTION_BOOL_HELPER(bIsMetalMRT);
@@ -2401,8 +2431,10 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bSupportsVolumeTextureAtomics);
 	GET_SECTION_BOOL_HELPER(bSupportsROV);
 	GET_SECTION_BOOL_HELPER(bSupportsOIT);
+	GET_SECTION_SUPPORT_HELPER(bSupportsRealTypes);
 #undef GET_SECTION_BOOL_HELPER
 #undef GET_SECTION_INT_HELPER
+#undef GET_SECTION_SUPPORT_HELPER
 
 #if WITH_EDITOR
 	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("FriendlyName")), Info.FriendlyName);

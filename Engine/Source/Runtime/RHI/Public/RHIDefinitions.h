@@ -36,6 +36,21 @@ enum class ERHIInterfaceType
 	OpenGL,
 };
 
+enum class ERHIFeatureSupport : uint8
+{
+	// The RHI feature is completely unavailable at runtime
+	Unsupported,
+
+	// The RHI feature can be available at runtime based on hardware or driver
+	RuntimeDependent,
+
+	// The RHI feature is guaranteed to be available at runtime.
+	RuntimeGuaranteed,
+
+	Num,
+	NumBits = 2,
+};
+
 enum EShaderFrequency : uint8
 {
 	SF_Vertex			= 0,
@@ -399,6 +414,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsVolumeTextureAtomics : 1;
 	uint32 bSupportsROV : 1;
 	uint32 bSupportsOIT : 1;
+	uint32 bSupportsRealTypes : int32(ERHIFeatureSupport::NumBits);
 		
 #if WITH_EDITOR
 	FText FriendlyName;
@@ -930,6 +946,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsOIT(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsOIT;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const ERHIFeatureSupport GetSupportsRealTypes(const FStaticShaderPlatform Platform)
+	{
+		return ERHIFeatureSupport(Infos[Platform].bSupportsRealTypes);
 	}
 
 #if WITH_EDITOR
