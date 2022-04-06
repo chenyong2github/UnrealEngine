@@ -1270,6 +1270,9 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 
 	RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShaderSource);
 
+	// Process TEXT macro.
+	TransformStringIntoCharacterArray(PreprocessedShaderSource);
+
 	// @TODO - implement different material path to allow us to remove backwards compat flag on sm5 shaders
 	uint32 CompileFlags = D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY
 		// Unpack uniform matrices as row-major to match the CPU layout.

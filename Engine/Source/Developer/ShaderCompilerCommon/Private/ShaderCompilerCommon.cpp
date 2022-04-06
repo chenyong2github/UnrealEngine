@@ -1309,8 +1309,6 @@ void FShaderParameterParser::ExtractFileAndLine(int32 PragamLineoffset, int32 Li
 	OutLine = FString::FromInt(FinalLine);
 }
 
-void TransformStringIntoCharacterArray(FString& PreprocessedShaderSource);
-
 // The cross compiler doesn't yet support struct initializers needed to construct static structs for uniform buffers
 // Replace all uniform buffer struct member references (View.WorldToClip) with a flattened name that removes the struct dependency (View_WorldToClip)
 void RemoveUniformBuffersFromSource(const FShaderCompilerEnvironment& Environment, FString& PreprocessedShaderSource)
@@ -1400,12 +1398,6 @@ void RemoveUniformBuffersFromSource(const FShaderCompilerEnvironment& Environmen
 			SearchPtr = FindNextUniformBufferReference(SearchPtr + UniformBufferAccessString.Len(), *UniformBufferName, UniformBufferName.Len());
 		}
 	}
-
-	// Process TEXT macro.
-	// Even this processing is not directly related to the Uniform buffer removal, this processing is 
-	// called here as this function is called by all the platform specific compiler, and avoid to update 
-	// all compiler
-	TransformStringIntoCharacterArray(PreprocessedShaderSource);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

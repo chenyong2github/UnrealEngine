@@ -2323,6 +2323,9 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 
 	RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShaderSource);
 
+	// Process TEXT macro.
+	TransformStringIntoCharacterArray(PreprocessedShaderSource);
+
 	FCompilerInfo CompilerInfo(Input, WorkingDirectory, HlslFrequency);
 
 	// Setup hlslcc flags. Needed here as it will be used when dumping debug info
