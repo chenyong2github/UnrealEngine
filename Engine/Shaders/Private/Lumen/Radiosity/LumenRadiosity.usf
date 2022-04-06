@@ -13,6 +13,7 @@
 #include "../../RayTracing/RayGenUtils.ush"
 
 RWBuffer<uint> RWIndirectArgs;
+uint HardwareRayTracingThreadGroupSize;
 
 void SetIndirectArgs(uint ArgIndex, uint NumThreads)
 {
@@ -24,8 +25,10 @@ void SetIndirectArgs(uint ArgIndex, uint NumThreads)
 
 void SetHardwareRayTracingIndirectArgs(uint ArgIndex, uint NumThreads)
 {
+	uint NumGroups = (NumThreads + HardwareRayTracingThreadGroupSize - 1) / HardwareRayTracingThreadGroupSize;
+
 	uint BaseOffset = ArgIndex * 3;
-	int3 DispatchDimension = GetRayTracingThreadCountWrapped(NumThreads, THREADGROUP_SIZE);
+	int3 DispatchDimension = GetRayTracingThreadCountWrapped(NumGroups, THREADGROUP_SIZE);
 	RWIndirectArgs[BaseOffset + 0] = DispatchDimension.x;
 	RWIndirectArgs[BaseOffset + 1] = DispatchDimension.y;
 	RWIndirectArgs[BaseOffset + 2] = DispatchDimension.z;

@@ -73,9 +73,10 @@ class FLumenTranslucencyVolumeHardwareRayTracing : public FLumenHardwareRayTraci
 	}
 };
 
-IMPLEMENT_LUMEN_RAYGEN_RAYTRACING_SHADER(FLumenTranslucencyVolumeHardwareRayTracing)
+IMPLEMENT_LUMEN_RAYGEN_AND_COMPUTE_RAYTRACING_SHADERS(FLumenTranslucencyVolumeHardwareRayTracing)
 
 IMPLEMENT_GLOBAL_SHADER(FLumenTranslucencyVolumeHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenTranslucencyVolumeHardwareRayTracing.usf", "LumenTranslucencyVolumeHardwareRayTracingRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_SHADER(FLumenTranslucencyVolumeHardwareRayTracingCS, "/Engine/Private/Lumen/LumenTranslucencyVolumeHardwareRayTracing.usf", "LumenTranslucencyVolumeHardwareRayTracingCS", SF_Compute);
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingTranslucencyVolume(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
@@ -104,6 +105,7 @@ void HardwareRayTraceTranslucencyVolume(
 {
 #if RHI_RAYTRACING
 	bool bUseMinimalPayload = true;
+	bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*View.Family);
 
 	// Cast rays
 	{
@@ -126,20 +128,33 @@ void HardwareRayTraceTranslucencyVolume(
 
 		FLumenTranslucencyVolumeHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenTranslucencyVolumeHardwareRayTracingRGS::FRadianceCache>(RadianceCacheParameters.RadianceProbeIndirectionTexture != nullptr);
-		TShaderRef<FLumenTranslucencyVolumeHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenTranslucencyVolumeHardwareRayTracingRGS>(PermutationVector);
-
-		ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
 		const FIntPoint DispatchResolution(VolumeTraceRadiance->Desc.Extent * FIntPoint(VolumeTraceRadiance->Desc.Depth, 1));
 
-		AddLumenRayTraceDispatchPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("HardwareRayTracing %ux%u", DispatchResolution.X, DispatchResolution.Y),
-			RayGenerationShader,
-			PassParameters,
-			DispatchResolution,
-			View,
-			bUseMinimalPayload);
+		if (bInlineRayTracing)
+		{
+			const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(DispatchResolution, FLumenTranslucencyVolumeHardwareRayTracingCS::GetThreadGroupSize());
+
+			TShaderRef<FLumenTranslucencyVolumeHardwareRayTracingCS> ComputeShader = View.ShaderMap->GetShader<FLumenTranslucencyVolumeHardwareRayTracingCS>(PermutationVector);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("HardwareRayTracing (inline) %ux%u", DispatchResolution.X, DispatchResolution.Y),
+				ComputeShader,
+				PassParameters,
+				GroupCount);
+		}
+		else
+		{
+			TShaderRef<FLumenTranslucencyVolumeHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenTranslucencyVolumeHardwareRayTracingRGS>(PermutationVector);
+			AddLumenRayTraceDispatchPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("HardwareRayTracing (raygen) %ux%u", DispatchResolution.X, DispatchResolution.Y),
+				RayGenerationShader,
+				PassParameters,
+				DispatchResolution,
+				View,
+				bUseMinimalPayload);
+		}
 	}
 
 #else

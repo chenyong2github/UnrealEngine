@@ -27,15 +27,16 @@
 #endif
 
 RaytracingAccelerationStructure TLAS;
+StructuredBuffer<FHitGroupRootConstants> HitGroupData;
 RWTexture3D<float3> RWVolumeTraceRadiance;
 RWTexture3D<float> RWVolumeTraceHitDistance;
 uint MaxTraversalIterations;
 
-RAY_TRACING_ENTRY_RAYGEN(LumenTranslucencyVolumeHardwareRayTracingRGS) 
+LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenTranslucencyVolumeHardwareRayTracing)
 {
 	uint OctahedralAtlasSizeX = TranslucencyGIGridSize.x * TranslucencyVolumeTracingOctahedronResolution;
 	// DispatchThreadId to match compute version
-	uint3 DispatchThreadId = uint3(DispatchRaysIndex().x % OctahedralAtlasSizeX, DispatchRaysIndex().y, DispatchRaysIndex().x / OctahedralAtlasSizeX);
+	uint3 DispatchThreadId = uint3(DispatchThreadIndex.x % OctahedralAtlasSizeX, DispatchThreadIndex.y, DispatchThreadIndex.x / OctahedralAtlasSizeX);
 
 #define DEINTERLEAVED_VOLUME_TRACING 0
 #if DEINTERLEAVED_VOLUME_TRACING
@@ -92,6 +93,9 @@ RAY_TRACING_ENTRY_RAYGEN(LumenTranslucencyVolumeHardwareRayTracingRGS)
 
 			#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE
 				{
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+					Context.HitGroupData = HitGroupData;
+#endif
 					TraceLightingResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 				}
 			#else
