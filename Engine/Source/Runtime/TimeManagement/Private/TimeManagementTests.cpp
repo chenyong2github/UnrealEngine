@@ -559,4 +559,70 @@ bool FFrameRateMultiplesTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFrameTimeToSecondsConversionTest, "System.Core.Time.FrameConversion", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::HighPriority)
+bool FFrameTimeToSecondsConversionTest::RunTest(const FString& Parameters)
+{
+	FFrameRate TestRates[] = {
+		FCommonFrameRates::FPS_12(),
+		FCommonFrameRates::FPS_15(),
+		FCommonFrameRates::FPS_24(),
+		FCommonFrameRates::FPS_25(),
+		FCommonFrameRates::FPS_30(),
+		FCommonFrameRates::FPS_48(),
+		FCommonFrameRates::FPS_50(),
+		FCommonFrameRates::FPS_60(),
+		FCommonFrameRates::FPS_100(),
+		FCommonFrameRates::FPS_120(),
+		FCommonFrameRates::FPS_240(),
+		FCommonFrameRates::NTSC_24(),
+		FCommonFrameRates::NTSC_30(),
+		FCommonFrameRates::NTSC_60(),
+		FFrameRate(24000,1)
+	};
+	
+	const int32 NumberOfSecondsToTest = 60;
+	for (const FFrameRate& FrameRate : TestRates)
+	{
+		const int32 NumberOfFrames = FrameRate.AsFrameNumber(static_cast<double>(NumberOfSecondsToTest)).Value;
+		const double Interval = FrameRate.AsInterval();
+		
+		for (int32 FrameIndex = 0; FrameIndex < NumberOfFrames; ++FrameIndex)
+		{
+			// Get seconds representation according to frame-rate
+			const double FrameAsSeconds = FrameRate.AsSeconds(FrameIndex);
+			const double IntervalSeconds = static_cast<double>(FrameIndex) * Interval;
+
+			// Verify seconds value against interval * FrameIndex
+			ensureAlwaysMsgf(FMath::IsNearlyEqual(IntervalSeconds, FrameAsSeconds),
+						TEXT("Did not expect value %d ::AsSeconds for input %i (%d)."),
+						FrameAsSeconds, FrameIndex, IntervalSeconds
+					);
+			
+			// Convert seconds values to FrameTime/FrameNumber values
+			const FFrameTime FrameTime = FrameRate.AsFrameTime(FrameAsSeconds);
+			const FFrameNumber FrameNumber = FrameRate.AsFrameNumber(FrameAsSeconds);
+
+			// Verify frame numbers match original FrameIndex value
+			ensureAlwaysMsgf(FrameTime.GetFrame() == FrameIndex,
+						TEXT("Did not expect frame number %i ::AsFrameTime for input %i (%d)."),
+						FrameNumber.Value, FrameIndex, FrameAsSeconds
+					);
+			
+			ensureAlwaysMsgf(FrameNumber.Value == FrameIndex,
+						TEXT("Did not expect frame number %i ::AsFrameNumber for input %i (%d)."),
+						FrameNumber.Value, FrameIndex, FrameAsSeconds
+					);
+			
+			// Convert FrameTime back to seconds and verify against value used to generate it
+			const double ConvertedSeconds = FrameRate.AsSeconds(FrameTime);
+			ensureAlwaysMsgf(FMath::IsNearlyEqual(ConvertedSeconds, FrameAsSeconds),
+				TEXT("Did not expect value %d ::AsSeconds for input %i (%d) - %s."),
+				ConvertedSeconds, FrameIndex, FrameAsSeconds, *LexToString(FrameTime)
+			);
+		}
+	}
+
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

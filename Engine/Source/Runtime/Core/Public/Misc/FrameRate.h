@@ -169,15 +169,16 @@ inline double FFrameRate::AsSeconds(FFrameTime FrameTime) const
 	return (double(IntegerPart) + FloatPart) / Numerator;
 }
 
-
-
 inline FFrameTime FFrameRate::AsFrameTime(double TimeInSeconds) const
 {
 	// @todo: sequencer-timecode: proper large number integer multiplication/division before coercion to float ?
-	const double       TimeAsFrame = (TimeInSeconds * Numerator) / Denominator;
-	const FFrameNumber FrameNumber = static_cast<int32>(FMath::Clamp(FMath::FloorToDouble(TimeAsFrame), (double)TNumericLimits<int32>::Min(), (double)TNumericLimits<int32>::Max()));
+	const double TimeAsFrame = (TimeInSeconds * Numerator) / Denominator;
+	FFrameNumber FrameNumber = static_cast<int32>(FMath::Clamp(FMath::FloorToDouble(TimeAsFrame), static_cast<double>(TNumericLimits<int32>::Min()), static_cast<double>(TNumericLimits<int32>::Max())));
 
 	float SubFrame = static_cast<float>(TimeAsFrame - FMath::FloorToDouble(TimeAsFrame));
+	const int32 TruncatedSubFrame = FMath::TruncToInt(SubFrame);
+	SubFrame -= static_cast<float>(TruncatedSubFrame);
+	FrameNumber.Value += TruncatedSubFrame;
 	if (SubFrame > 0.f)
 	{
 		SubFrame = FMath::Min(SubFrame, FFrameTime::MaxSubframe);
@@ -189,8 +190,8 @@ inline FFrameTime FFrameRate::AsFrameTime(double TimeInSeconds) const
 inline FFrameNumber FFrameRate::AsFrameNumber(double TimeInSeconds) const
 {
 	// @todo: sequencer-timecode: proper large number integer multiplication/division before coercion to float ?
-	const double       TimeAsFrame = (double(TimeInSeconds) * Numerator) / Denominator;
-	return static_cast<int32>(FMath::Clamp(FMath::FloorToDouble(TimeAsFrame), (double)TNumericLimits<int32>::Min(), (double)TNumericLimits<int32>::Max()));
+	const double TimeAsFrame = (static_cast<double>(TimeInSeconds) * Numerator) / Denominator;
+	return static_cast<int32>(FMath::Clamp(FMath::FloorToDouble(TimeAsFrame + static_cast<double>(FMath::TruncToInt(static_cast<float>(TimeAsFrame - FMath::FloorToDouble(TimeAsFrame))))), static_cast<double>(TNumericLimits<int32>::Min()), static_cast<double>(TNumericLimits<int32>::Max())));
 }
 
 inline bool operator==(const FFrameRate& A, const FFrameRate& B)
