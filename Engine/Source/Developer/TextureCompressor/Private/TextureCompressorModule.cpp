@@ -3262,7 +3262,7 @@ private:
 					);
 
 				// make sure BuildSourceImageMips doesn't reallocate :
-				constexpr int BuildSourceImageMipsMaxCount = 16;
+				constexpr int BuildSourceImageMipsMaxCount = 20; // plenty
 				BuildSourceImageMips.Empty(BuildSourceImageMipsMaxCount);
 
 				// Max Texture Size resizing happens here :
