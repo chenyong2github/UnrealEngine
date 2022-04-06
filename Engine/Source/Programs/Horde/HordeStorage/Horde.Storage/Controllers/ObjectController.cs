@@ -291,6 +291,11 @@ namespace Horde.Storage.Controllers
 
     public class ResolvedReferencesResult
     {
+        public ResolvedReferencesResult()
+        {
+            References = null!;
+        }
+
         public ResolvedReferencesResult(BlobIdentifier[] references)
         {
             References = references;
