@@ -37,6 +37,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void Initialize(const UPCGMetadata* InParent);
 
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void InitializeAsCopy(const UPCGMetadata* InMetadataToCopy);
+
 	/** Creates streams for another metadata if they are not currently present */
 	void AddAttributes(const UPCGMetadata* InOther);
 

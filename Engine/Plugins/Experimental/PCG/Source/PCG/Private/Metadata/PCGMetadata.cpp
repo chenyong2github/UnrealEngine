@@ -37,6 +37,27 @@ void UPCGMetadata::Initialize(const UPCGMetadata* InParent)
 	AddAttributes(InParent);
 }
 
+void UPCGMetadata::InitializeAsCopy(const UPCGMetadata* InMetadataToCopy)
+{
+	check(InMetadataToCopy);
+	if (Parent || Attributes.Num() != 0)
+	{
+		UE_LOG(LogPCG, Error, TEXT("Metadata has already been initialized or already contains attributes"));
+		return;
+	}
+
+	Parent = InMetadataToCopy->Parent;
+	OtherParents = InMetadataToCopy->OtherParents;
+	ParentKeys = InMetadataToCopy->ParentKeys;
+	ItemKeyOffset = InMetadataToCopy->ItemKeyOffset;
+
+	// Copy attributes
+	for (const TPair<FName, FPCGMetadataAttributeBase*>& OtherAttribute : InMetadataToCopy->Attributes)
+	{
+		CopyAttribute(OtherAttribute.Value, OtherAttribute.Key, /*bKeepParent=*/false, /*bCopyEntries=*/true, /*bCopyValues=*/true);
+	}
+}
+
 void UPCGMetadata::AddAttributes(const UPCGMetadata* InOther)
 {
 	if (!InOther)

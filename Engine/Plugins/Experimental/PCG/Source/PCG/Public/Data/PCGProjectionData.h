@@ -42,6 +42,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)
 	TObjectPtr<const UPCGSpatialData> Target = nullptr;
 
+	UPROPERTY()
 	FBox CachedBounds = FBox(EForceInit::ForceInit);
+
+	UPROPERTY()
 	FBox CachedStrictBounds = FBox(EForceInit::ForceInit);
 };
