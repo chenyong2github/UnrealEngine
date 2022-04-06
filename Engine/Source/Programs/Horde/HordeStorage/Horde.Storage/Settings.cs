@@ -292,6 +292,7 @@ namespace Horde.Storage
         public bool EnableBlobStoreChecks { get; set; } = false;
         public bool EnableBlobIndexChecks { get; set; } = false;
         public double ConsistencyCheckPollFrequencySeconds { get; set; } = TimeSpan.FromHours(2).TotalSeconds;
+        public int BlobIndexMaxParallelOperations { get; set; } = 4;
         public bool AllowDeletesInBlobIndex { get; set; } = false;
     }
 }
