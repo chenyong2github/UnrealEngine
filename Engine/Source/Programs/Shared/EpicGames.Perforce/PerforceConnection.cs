@@ -916,6 +916,10 @@ namespace EpicGames.Perforce
 			{
 				nameToValue.Add(new KeyValuePair<string, object>("Description", input.Description));
 			}
+			foreach(string file in input.Files)
+			{
+				nameToValue.Add(new KeyValuePair<string, object>("Files", file));
+			}
 			return SerializeRecord(nameToValue);
 		}
 
