@@ -296,6 +296,7 @@ namespace Horde.Storage.Controllers
             References = references;
         }
 
+        [CbField("references")]
         public BlobIdentifier[] References { get; set; }
     }
 }
