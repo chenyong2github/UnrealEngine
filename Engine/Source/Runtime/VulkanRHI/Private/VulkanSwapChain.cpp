@@ -260,7 +260,7 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 					{
 						InOutPixelFormat = (EPixelFormat)PFIndex;
 						CurrFormat = Formats[Index];
-						UE_LOG(LogVulkanRHI, Verbose, TEXT("No swapchain format requested, picking up VulkanFormat %d"), (uint32)CurrFormat.format);
+						UE_LOG(LogVulkanRHI, Verbose, TEXT("No swapchain format requested, picking up VulkanFormat %s"), VK_TYPE_TO_STRING(VkFormat, CurrFormat.format));
 						break;
 					}
 				}
@@ -425,12 +425,12 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 			}
 			else
 			{
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Couldn't find desired PresentMode! Using %d"), static_cast<int32>(FoundPresentModes[0]));
+				UE_LOG(LogVulkanRHI, Warning, TEXT("Couldn't find desired PresentMode! Using %s"), VK_TYPE_TO_STRING(VkPresentModeKHR, FoundPresentModes[0]));
 				PresentMode = FoundPresentModes[0];
 			}
 		}
 
-		UE_CLOG(bFirstTimeLog, LogVulkanRHI, Display, TEXT("Selected VkPresentModeKHR mode %d"), PresentMode);
+		UE_CLOG(bFirstTimeLog, LogVulkanRHI, Display, TEXT("Selected VkPresentModeKHR mode %s"), VK_TYPE_TO_STRING(VkPresentModeKHR, PresentMode));
 		bFirstTimeLog = false;
 	}
 
@@ -517,8 +517,9 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 	static bool bPrintSwapchainCreationInfo = true;
 	if (bPrintSwapchainCreationInfo)
 	{
-		UE_LOG(LogVulkanRHI, Log, TEXT("Creating new VK swapchain with present mode %d, format %d, color space %d, num images %d"), 
-			static_cast<uint32>(SwapChainInfo.presentMode), static_cast<uint32>(SwapChainInfo.imageFormat), static_cast<uint32>(SwapChainInfo.imageColorSpace), static_cast<uint32>(SwapChainInfo.minImageCount));
+		UE_LOG(LogVulkanRHI, Log, TEXT("Creating new VK swapchain with %s, %s, %s, num images %d"), 
+			VK_TYPE_TO_STRING(VkPresentModeKHR, SwapChainInfo.presentMode), VK_TYPE_TO_STRING(VkFormat, SwapChainInfo.imageFormat), 
+			VK_TYPE_TO_STRING(VkColorSpaceKHR, SwapChainInfo.imageColorSpace), static_cast<uint32>(SwapChainInfo.minImageCount));
 #if WITH_EDITOR
 		bPrintSwapchainCreationInfo = false;
 #endif

@@ -171,6 +171,8 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 					Buffers[Index].Size = InSize;
 					check((Buffers[Index].Offset + InSize) <= InTransientHeapAllocation->Size);
 				}
+				
+				VULKAN_SET_DEBUG_NAME((*InDevice), VK_OBJECT_TYPE_BUFFER, Buffers[0].VulkanHandle, TEXT("%s:(FVulkanResourceMultiBuffer*)0x%p:Buffer[1,2,3]"), CreateInfo.DebugName ? CreateInfo.DebugName : TEXT("?"), this);
 			}
 			else
 			{
@@ -186,6 +188,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 					{
 						InDevice->GetMemoryManager().HandleOOM();
 					}
+					VULKAN_SET_DEBUG_NAME((*InDevice), VK_OBJECT_TYPE_BUFFER, Buffers[Index].VulkanHandle, TEXT("%s:(FVulkanResourceMultiBuffer*)0x%p:Buffer[%d]"), CreateInfo.DebugName ? CreateInfo.DebugName : TEXT("?"), this, Index);
 				}
 			}
 

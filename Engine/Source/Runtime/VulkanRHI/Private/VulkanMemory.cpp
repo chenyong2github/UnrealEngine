@@ -683,56 +683,6 @@ namespace VulkanRHI
 		PrintMemInfo();
 	}
 
-	static FString GetMemoryPropertyFlagsString(VkMemoryPropertyFlags Flags)
-	{
-		FString String;
-		if (VKHasAllFlags(Flags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
-		{
-			String += TEXT(" DeviceLocal");
-		}
-		else
-		{
-			String += TEXT("      ");
-		}
-
-		if (VKHasAllFlags(Flags, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT))
-		{
-			String += TEXT(" HostVisible");
-		}
-		else
-		{
-			String += TEXT("            ");
-		}
-
-		if (VKHasAllFlags(Flags, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
-		{
-			String += TEXT(" HostCoherent");
-		}
-		else
-		{
-			String += TEXT("             ");
-		}
-
-		if (VKHasAllFlags(Flags, VK_MEMORY_PROPERTY_HOST_CACHED_BIT))
-		{
-			String += TEXT(" HostCached");
-		}
-		else
-		{
-			String += TEXT("           ");
-		}
-
-		if (VKHasAllFlags(Flags, VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT))
-		{
-			String += TEXT(" Lazy");
-		}
-		else
-		{
-			String += TEXT("     ");
-		}
-		return String;
-	};
-
 	bool MetaTypeCanEvict(EVulkanAllocationMetaType MetaType)
 	{
 		switch(MetaType)
@@ -750,7 +700,7 @@ namespace VulkanRHI
 		auto ToPct = [](uint64 Used, uint64 Total) { return 100.f * (float)Used / (float)Total; };
 
 		const uint32 MaxAllocations = Device->GetLimits().maxMemoryAllocationCount;
-		VULKAN_LOGMEMORY(TEXT("Max memory allocations %d."), MaxAllocations);
+		VULKAN_LOGMEMORY(TEXT("Max memory allocations %u."), MaxAllocations);
 
 		VULKAN_LOGMEMORY(TEXT("%d Device Memory Heaps:"), MemoryProperties.memoryHeapCount);
 		for (uint32 HeapIndex = 0; HeapIndex < MemoryProperties.memoryHeapCount; ++HeapIndex)
@@ -776,11 +726,10 @@ namespace VulkanRHI
 			{
 				if(HeapIndex == MemoryProperties.memoryTypes[TypeIndex].heapIndex)
 				{
+					const VkMemoryPropertyFlags MemoryPropertyFlags = MemoryProperties.memoryTypes[TypeIndex].propertyFlags;
 					VULKAN_LOGMEMORY(TEXT(" %2d: Flags 0x%05x - Heap %2d - %s"),
-						TypeIndex,
-						MemoryProperties.memoryTypes[TypeIndex].propertyFlags,
-						MemoryProperties.memoryTypes[TypeIndex].heapIndex,
-						*GetMemoryPropertyFlagsString(MemoryProperties.memoryTypes[TypeIndex].propertyFlags));
+						TypeIndex, MemoryPropertyFlags, HeapIndex,
+						MemoryPropertyFlags ? VK_FLAGS_TO_STRING(VkMemoryPropertyFlags, MemoryPropertyFlags) : TEXT(""));
 				}
 			}
 		}
@@ -2763,7 +2712,7 @@ namespace VulkanRHI
 		}
 		else
 		{
-			checkf(false, TEXT("Unknown buffer alignment for VkBufferUsageFlags combination: 0x%x"), (uint32)BufferUsageFlags);
+			checkf(false, TEXT("Unknown buffer alignment for VkBufferUsageFlags combination: 0x%x"), VK_FLAGS_TO_STRING(VkBufferUsageFlags, BufferUsageFlags));
 		}
 
 		return Alignment;
@@ -2800,7 +2749,7 @@ namespace VulkanRHI
 		}
 		else
 		{
-			checkf(false, TEXT("Unknown priority for VkBufferUsageFlags combination: 0x%x"), (uint32)BufferUsageFlags);
+			checkf(false, TEXT("Unknown priority for VkBufferUsageFlags combination: 0x%x"), VK_FLAGS_TO_STRING(VkBufferUsageFlags, BufferUsageFlags));
 		}
 
 		return Priority;
@@ -3345,7 +3294,7 @@ namespace VulkanRHI
 		auto WriteLogLine = [](const FString& Name, FResourceHeapStats& Stat)
 		{
 			uint64 FreeMemory = Stat.TotalMemory - Stat.UsedBufferMemory - Stat.UsedImageMemory;
-			FString HostString = GetMemoryPropertyFlagsString(Stat.MemoryFlags);
+			FString HostString = VK_FLAGS_TO_STRING(VkMemoryPropertyFlags, Stat.MemoryFlags);
 			VULKAN_LOGMEMORY(TEXT("\t\t%-33s  |%8.2fmb / %8.2fmb / %11.2fmb / %11.2fmb | %10d %10d | %6d %6d %6d | %05x | %s"),
 				*Name,
 				Stat.UsedBufferMemory / (1024.f * 1024.f),
@@ -3492,7 +3441,7 @@ namespace VulkanRHI
 				{
 					Flags = MemoryProperties.memoryTypes[Allocator->MemoryTypeIndex].propertyFlags;
 				}
-				FString MemoryString = GetMemoryPropertyFlagsString(Flags);
+				FString MemoryString = VK_FLAGS_TO_STRING(VkMemoryPropertyFlags, Flags);
 				FString NameId = FString::Printf(TEXT("%s [%4d]"), *Name, Allocator->AllocatorIndex);
 				WriteLogLineSubAllocator(NameId, MemoryString, *Allocator);
 			}
@@ -3507,7 +3456,7 @@ namespace VulkanRHI
 				{
 					Flags = MemoryProperties.memoryTypes[Allocator->MemoryTypeIndex].propertyFlags;
 				}
-				FString MemoryString = GetMemoryPropertyFlagsString(Flags);
+				FString MemoryString = VK_FLAGS_TO_STRING(VkMemoryPropertyFlags, Flags);
 				VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD2);
 				VULKAN_LOGMEMORY(TEXT("\t\t%-45s  | %4s %8s | %4s / %10s / %10s / %10s / %10s | %10s / %10s / %10s / %10s | %10s / %10s | %10s / %10s / %10s | Mapped/Evictable |"),
 					TEXT(""),

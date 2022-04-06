@@ -1727,8 +1727,8 @@ void FVulkanLayoutManager::ValidateRenderPassColorEntry(const FRHIRenderPassInfo
 	// Check that the image is in the correct layout for rendering.
 	const VkImageLayout ExpectedVkLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	FVulkanImageLayout& LayoutInfo = GetOrAddFullLayout(Surface, VK_IMAGE_LAYOUT_UNDEFINED);
-	VkImageLayout CurrentVkLayout = LayoutInfo.GetSubresLayout(ColorEntry.ArraySlice, ColorEntry.MipIndex);
-	if (ensureMsgf(CurrentVkLayout == ExpectedVkLayout, TEXT("%s target is in layout %u, expected %u. Please add a transition before starting the render pass."), bResolveTarget ? TEXT("Resolve") : TEXT("Color"), CurrentVkLayout, ExpectedVkLayout))
+	const VkImageLayout CurrentVkLayout = LayoutInfo.GetSubresLayout(ColorEntry.ArraySlice, ColorEntry.MipIndex);
+	if (ensureMsgf(CurrentVkLayout == ExpectedVkLayout, TEXT("%s target is in layout %s, expected %s. Please add a transition before starting the render pass."), bResolveTarget ? TEXT("Resolve") : TEXT("Color"), VK_TYPE_TO_STRING(VkImageLayout, CurrentVkLayout), VK_TYPE_TO_STRING(VkImageLayout, ExpectedVkLayout)))
 	{
 		return;
 	}
