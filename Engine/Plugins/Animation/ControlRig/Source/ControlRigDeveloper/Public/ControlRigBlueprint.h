@@ -32,7 +32,7 @@ class USkeletalMesh;
 class UControlRigGraph;
 struct FEndLoadPackageContext;
 
-DECLARE_EVENT_TwoParams(UControlRigBlueprint, FOnVMCompiledEvent, UBlueprint*, URigVM*);
+DECLARE_EVENT_TwoParams(UControlRigBlueprint, FOnVMCompiledEvent, UObject*, URigVM*);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnRefreshEditorEvent, UControlRigBlueprint*);
 DECLARE_EVENT_FourParams(UControlRigBlueprint, FOnVariableDroppedEvent, UObject*, FProperty*, const FVector2D&, const FVector2D&);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnExternalVariablesChanged, const TArray<FRigVMExternalVariable>&);
@@ -195,7 +195,7 @@ struct CONTROLRIGDEVELOPER_API FControlRigPythonSettings
 };
 
 UCLASS(BlueprintType, meta=(IgnoreClassThumbnail))
-class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider
+class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider, public IRigVMGraphHost, public IRigVMControllerHost
 {
 	GENERATED_UCLASS_BODY()
 
@@ -248,6 +248,15 @@ public:
 	// UObject interface
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
+	// IRigVMGraphHost interface
+	virtual URigVMGraph* GetRigVMGraph(const UObject* InEditorObject) const override { return GetModel(CastChecked<UEdGraph>(InEditorObject)); }
+
+	// IRigVMControllerHost interface
+	virtual URigVMController* GetRigVMController(const URigVMGraph* InRigVMGraph) const override { return GetController(InRigVMGraph); }
+	virtual URigVMController* GetRigVMController(const UObject* InEditorObject) const override { return GetController(CastChecked<UEdGraph>(InEditorObject)); }
+	virtual URigVMController* GetOrCreateRigVMController(URigVMGraph* InRigVMGraph) override { return GetOrCreateController(InRigVMGraph); }
+	virtual URigVMController* GetOrCreateRigVMController(const UObject* InEditorObject) override { return GetOrCreateController(CastChecked<UEdGraph>(InEditorObject)); }
+	
 	FOnRequestInspectObject& OnRequestInspectObject() { return OnRequestInspectObjectEvent; }
 	void RequestInspectObject(const TArray<UObject*>& InObjects) { OnRequestInspectObjectEvent.Broadcast(InObjects); }
 
@@ -294,7 +303,7 @@ public:
 	URigVMFunctionLibrary* GetLocalFunctionLibrary() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
-	URigVMController* GetController(URigVMGraph* InGraph = nullptr) const;
+	URigVMController* GetController(const URigVMGraph* InGraph = nullptr) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	URigVMController* GetControllerByName(const FString InGraphName) const;

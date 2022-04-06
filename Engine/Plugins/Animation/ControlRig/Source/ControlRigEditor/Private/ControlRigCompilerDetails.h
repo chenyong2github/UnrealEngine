@@ -30,5 +30,5 @@ protected:
 	FReply OnCopyHierarchyGraphClicked();
 	FReply OnCopyGeneratedCodeClicked();
 	
-	UControlRigBlueprint* BlueprintBeingCustomized;
+	UControlRigBlueprint* BlueprintBeingCustomized = nullptr;
 };

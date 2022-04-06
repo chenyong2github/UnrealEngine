@@ -10,9 +10,26 @@
 #include "Nodes/RigVMFunctionEntryNode.h"
 #include "Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMCompiler/RigVMAST.h"
+#include "UObject/Interface.h"
 #include "RigVMGraph.generated.h"
 
 class URigVMFunctionLibrary;
+
+UINTERFACE()
+class RIGVMDEVELOPER_API URigVMGraphHost : public UInterface
+{
+	GENERATED_BODY()
+};
+
+// Interface that allows an object to host a rig VM graph. Used by graph edting code to interact with the graph.
+class RIGVMDEVELOPER_API IRigVMGraphHost
+{
+	GENERATED_BODY()
+
+public:
+	// Get a Rig VM graph corresponding to the supplied editor object that represents it (usually a UEdGraph)
+	virtual URigVMGraph* GetRigVMGraph(const UObject* InEditorObject) const = 0;
+};
 
 /**
  * The Graph represents a Function definition

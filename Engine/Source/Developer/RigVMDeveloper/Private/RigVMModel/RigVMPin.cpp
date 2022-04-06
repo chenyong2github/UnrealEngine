@@ -521,6 +521,11 @@ bool URigVMPin::IsUObject() const
 	return RigVMTypeUtils::IsUObjectType(CPPType);
 }
 
+bool URigVMPin::IsInterface() const
+{
+	return RigVMTypeUtils::IsInterfaceType(CPPType);
+}
+
 bool URigVMPin::IsArray() const
 {
 	return RigVMTypeUtils::IsArrayType(CPPType);
@@ -778,6 +783,7 @@ bool URigVMPin::IsValidDefaultValue(const FString& InDefaultValue) const
 	FString BaseCPPType = GetCPPType()
 		.Replace(RigVMTypeUtils::TArrayPrefix, TEXT(""))
 		.Replace(RigVMTypeUtils::TObjectPtrPrefix, TEXT(""))
+		.Replace(RigVMTypeUtils::TScriptInterfacePrefix, TEXT(""))
 		.Replace(TEXT(">"), TEXT(""));
 
 	for (const FString& Value : DefaultValues)
@@ -908,6 +914,7 @@ FString URigVMPin::ClampDefaultValueFromMetaData(const FString& InDefaultValue) 
 		FString BaseCPPType = GetCPPType()
 			.Replace(RigVMTypeUtils::TArrayPrefix, TEXT(""))
 			.Replace(RigVMTypeUtils::TObjectPtrPrefix, TEXT(""))
+			.Replace(RigVMTypeUtils::TScriptInterfacePrefix, TEXT(""))
 			.Replace(TEXT(">"), TEXT(""));
 
 		RetVals.SetNumZeroed(DefaultValues.Num());

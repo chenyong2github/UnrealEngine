@@ -12875,6 +12875,19 @@ void URigVMController::ConfigurePinFromProperty(FProperty* InProperty, URigVMPin
 			InOutPin->CPPTypeObject = nullptr;
 		}
 	}
+	else if (FInterfaceProperty* InterfaceProperty = CastField<FInterfaceProperty>(PropertyForType))
+	{
+		if (RigVMCore::SupportsUInterfaces())
+		{
+			InOutPin->CPPTypeObject = InterfaceProperty->InterfaceClass;
+		}
+		else
+		{
+			ReportErrorf(TEXT("Unsupported type '%s' for pin."), *InterfaceProperty->InterfaceClass->GetName(), *InOutPin->GetName());
+			InOutPin->CPPType = FString();
+			InOutPin->CPPTypeObject = nullptr;
+		}
+	}
 	else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(PropertyForType))
 	{
 		InOutPin->CPPTypeObject = EnumProperty->GetEnum();

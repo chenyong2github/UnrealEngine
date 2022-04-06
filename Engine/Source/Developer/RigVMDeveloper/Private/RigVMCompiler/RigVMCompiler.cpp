@@ -292,10 +292,20 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 
 				if(VariableDescription.CPPTypeObject && !RigVMCore::SupportsUObjects())
 				{
-					if(VariableDescription.CPPTypeObject->IsA<UClass>() ||
-						VariableDescription.CPPTypeObject->IsA<UInterface>())
+					if(VariableDescription.CPPTypeObject->IsA<UClass>())
 					{
-						static const FString InvalidObjectTypeMessage = TEXT("Variable Node @@ uses an unsupported UClass / UInterface type.");
+						static const FString InvalidObjectTypeMessage = TEXT("Variable Node @@ uses an unsupported UClass type.");
+						Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, InvalidObjectTypeMessage);
+						bEncounteredGraphError = true;
+					}
+				}
+
+
+				if (VariableDescription.CPPTypeObject && !RigVMCore::SupportsUInterfaces())
+				{
+					if (VariableDescription.CPPTypeObject->IsA<UInterface>())
+					{
+						static const FString InvalidObjectTypeMessage = TEXT("Variable Node @@ uses an unsupported UInterface type.");
 						Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, InvalidObjectTypeMessage);
 						bEncounteredGraphError = true;
 					}

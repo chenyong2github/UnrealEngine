@@ -71,7 +71,10 @@ void UControlRigGraph::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
-		Schema = UControlRigGraphSchema::StaticClass();
+		if(Schema == nullptr || !Schema->IsChildOf(UControlRigGraphSchema::StaticClass()))
+		{
+			Schema = UControlRigGraphSchema::StaticClass();
+		}
 	}
 }
 #endif
@@ -351,7 +354,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				}
 				else if (URigVMRerouteNode* RerouteModelNode = Cast<URigVMRerouteNode>(ModelNode))
 				{
-					UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(this, ModelNode->GetFName());
+					UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(this, GetControlRigGraphSchema()->GetGraphNodeClass(), ModelNode->GetFName());
 					AddNode(NewNode, false, false);
 
 					NewNode->ModelNodePath = ModelNode->GetNodePath();
@@ -372,7 +375,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				}
 				else // struct, library, parameter + variable
 				{
-					UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(this, ModelNode->GetFName());
+					UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(this, GetControlRigGraphSchema()->GetGraphNodeClass(), ModelNode->GetFName());
 					AddNode(NewNode, false, false);
 
 					NewNode->ModelNodePath = ModelNode->GetNodePath();
@@ -908,18 +911,18 @@ UControlRigBlueprint* UControlRigGraph::GetBlueprint() const
 
 URigVMGraph* UControlRigGraph::GetModel() const
 {
-	if (UControlRigBlueprint* Blueprint = GetBlueprint())
+	if (const IRigVMGraphHost* GraphHost = GetImplementingOuter<IRigVMGraphHost>())
 	{
-		return Blueprint->GetModel(this);
+		return GraphHost->GetRigVMGraph(this);
 	}
 	return nullptr;
 }
 
 URigVMController* UControlRigGraph::GetController() const
 {
-	if (UControlRigBlueprint* Blueprint = GetBlueprint())
+	if (IRigVMControllerHost* ControllerHost = GetImplementingOuter<IRigVMControllerHost>())
 	{
-		return Blueprint->GetOrCreateController(this);
+		return ControllerHost->GetOrCreateRigVMController(this);
 	}
 	return nullptr;
 }
@@ -964,7 +967,7 @@ URigVMController* UControlRigGraph::GetTemplateController()
 	return TemplateController;
 }
 
-void UControlRigGraph::HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* InVM)
+void UControlRigGraph::HandleVMCompiledEvent(UObject* InCompiledObject, URigVM* InVM)
 {
 	CachedInstructionIndices.Reset();
 }

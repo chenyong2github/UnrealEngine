@@ -895,16 +895,17 @@ void UControlRigGraphNode::DestroyNode()
 
 	if(UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
 	{
+		BreakAllNodeLinks();
+		
 		UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Graph->GetOuter());
 		if(ControlRigBlueprint)
-	{
-			BreakAllNodeLinks();
-			if(PropertyName_DEPRECATED.IsValid())
 		{
+			if(PropertyName_DEPRECATED.IsValid())
+			{
 				FControlRigBlueprintUtils::RemoveMemberVariableIfNotUsed(ControlRigBlueprint, PropertyName_DEPRECATED, this);
 			}
 		}
-		}
+	}
 
 	UEdGraphNode::DestroyNode();
 }
@@ -936,7 +937,8 @@ void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo, 
 		if(DefaultValue.IsEmpty() && (
 			Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object ||
 			Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject ||
-			Pin->PinType.PinCategory == UEdGraphSchema_K2::AllObjectTypes
+			Pin->PinType.PinCategory == UEdGraphSchema_K2::AllObjectTypes ||
+			Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface
 			))
 		{
 			if(Pin->DefaultObject)

@@ -94,6 +94,21 @@ struct RIGVM_API FRigVMExternalVariable
 				OutTypeObject = nullptr;
 			}
 		}
+		else if (const FInterfaceProperty* InterfaceProperty = CastField<FInterfaceProperty>(InProperty))
+		{
+			if (RigVMCore::SupportsUInterfaces())
+			{
+				OutTypeName = *FString::Printf(TEXT("TScriptInterface<%s%s>"),
+					InterfaceProperty->InterfaceClass->GetPrefixCPP(),
+					*InterfaceProperty->InterfaceClass->GetName());
+				OutTypeObject = InterfaceProperty->InterfaceClass;
+			}
+			else
+			{
+				OutTypeName = NAME_None;
+				OutTypeObject = nullptr;
+			}
+		}
 		else
 		{
 			checkNoEntry();

@@ -19,6 +19,7 @@
 #include "RigVMModel/Nodes/RigVMArrayNode.h"
 #include "RigVMModel/RigVMBuildData.h"
 #include "RigVMCore/RigVMUserWorkflow.h"
+#include "UObject/Interface.h"
 #include "RigVMController.generated.h"
 
 #ifndef UE_RIGVM_ENABLE_TEMPLATE_NODES
@@ -89,6 +90,32 @@ DECLARE_DELEGATE_FiveParams(FRigVMController_OnBulkEditProgressDelegate, TSoftOb
 DECLARE_DELEGATE_RetVal_TwoParams(FString, FRigVMController_PinPathRemapDelegate, const FString& /* InPinPath */, bool /* bIsInput */);
 DECLARE_DELEGATE_OneParam(FRigVMController_RequestJumpToHyperlinkDelegate, const UObject* InSubject);
 DECLARE_DELEGATE_OneParam(FRigVMController_ConfigureWorkflowOptionsDelegate, URigVMUserWorkflowOptions* InOutOptions);
+
+UINTERFACE()
+class RIGVMDEVELOPER_API URigVMControllerHost : public UInterface
+{
+	GENERATED_BODY()
+};
+
+// Interface that allows an object to host a rig VM controller. Used by graph edting code to interact with the controller.
+class RIGVMDEVELOPER_API IRigVMControllerHost
+{
+	GENERATED_BODY()
+
+public:
+	// Get an existing Rig VM controller corresponding to a URigVMGraph  
+	virtual URigVMController* GetRigVMController(const URigVMGraph* InRigVMGraph) const = 0;
+	
+	// Get an existing Rig VM controller corresponding to the supplied editor object that represents it (usually a UEdGraph) 
+	virtual URigVMController* GetRigVMController(const UObject* InEditorObject) const = 0;
+
+	// Get or create Rig VM controller corresponding to a URigVMGraph
+	virtual URigVMController* GetOrCreateRigVMController(URigVMGraph* InRigVMGraph) = 0;
+	
+	// Get or create a Rig VM controller corresponding to the supplied editor object that represents it (usually a UEdGraph) 
+	virtual URigVMController* GetOrCreateRigVMController(const UObject* InEditorObject) = 0;
+};
+
 
 /**
  * The Controller is the sole authority to perform changes

@@ -96,7 +96,7 @@ private:
 	/** Focus on the selected operator in the graph*/
 	void HandleFocusOnSelectedGraphNode();
 
-	void OnVMCompiled(UBlueprint* InCompiledBlueprint, URigVM* InCompiledVM);
+	void OnVMCompiled(UObject* InCompiledObject, URigVM* InCompiledVM);
 
 	//* Focus on the instruction when the execution is halted */
 	void HandleExecutionHalted(const int32 HaltedAtInstruction, UObject* InNode, const FName& InEntryName);

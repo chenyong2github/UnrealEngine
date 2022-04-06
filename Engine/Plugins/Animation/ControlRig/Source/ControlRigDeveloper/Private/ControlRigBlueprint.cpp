@@ -1373,7 +1373,7 @@ URigVMFunctionLibrary* UControlRigBlueprint::GetLocalFunctionLibrary() const
 	return FunctionLibrary;
 }
 
-URigVMController* UControlRigBlueprint::GetController(URigVMGraph* InGraph) const
+URigVMController* UControlRigBlueprint::GetController(const URigVMGraph* InGraph) const
 {
 	if (InGraph == nullptr)
 	{

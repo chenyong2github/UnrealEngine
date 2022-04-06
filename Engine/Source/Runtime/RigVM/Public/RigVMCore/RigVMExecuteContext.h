@@ -242,19 +242,20 @@ struct RIGVM_API FRigVMExecuteContext
 	FORCEINLINE FName GetEventName() const { return EventName; }
 
 
-private:
-
-	FORCEINLINE void Reset()
-	{
-		InstructionIndex = 0;
-	}
-
+protected:
 	FORCEINLINE void CopyFrom(const FRigVMExecuteContext& Other)
 	{
 		EventName = Other.EventName;
 		FunctionName = Other.FunctionName;
 		InstructionIndex = Other.InstructionIndex;
 		RuntimeSettings = Other.RuntimeSettings;
+	}
+
+private:
+
+	FORCEINLINE void Reset()
+	{
+		InstructionIndex = 0;
 	}
 	
 	FName EventName;

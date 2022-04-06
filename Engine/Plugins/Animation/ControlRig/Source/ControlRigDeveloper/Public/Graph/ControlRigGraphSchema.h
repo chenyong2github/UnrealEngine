@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ControlRigGraphNode.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "GraphEditorDragDropAction.h"
 #include "RigVMModel/RigVMGraph.h"
@@ -260,6 +261,9 @@ public:
 	FVector2D GetNodePositionAtStartOfInteraction(UEdGraphNode* InNode) const;
 
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
+
+	// Allow derived classes to spawn derived node classes
+	virtual TSubclassOf<UControlRigGraphNode> GetGraphNodeClass() const { return UControlRigGraphNode::StaticClass(); }
 
 private:
 

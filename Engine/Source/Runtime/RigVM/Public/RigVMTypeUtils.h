@@ -4,13 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "RigVMCore/RigVMUnknownType.h"
+#include "UObject/Interface.h"
 
 namespace RigVMTypeUtils
 {
 	const TCHAR TArrayPrefix[] = TEXT("TArray<");
 	const TCHAR TObjectPtrPrefix[] = TEXT("TObjectPtr<");
+	const TCHAR TScriptInterfacePrefix[] = TEXT("TScriptInterface<");
 	const TCHAR TArrayTemplate[] = TEXT("TArray<%s>");
 	const TCHAR TObjectPtrTemplate[] = TEXT("TObjectPtr<%s%s>");
+	const TCHAR TScriptInterfaceTemplate[] = TEXT("TScriptInterface<%s%s>");
 
 	const FString BoolType = TEXT("bool");
 	const FString FloatType = TEXT("float");
@@ -75,6 +78,11 @@ namespace RigVMTypeUtils
 		return InCPPType.StartsWith(TObjectPtrPrefix);
 	}
 
+	FORCEINLINE bool IsInterfaceType(const FString& InCPPType)
+	{
+		return InCPPType.StartsWith(TScriptInterfacePrefix);
+	}
+
 	static UScriptStruct* GetWildCardCPPTypeObject()
 	{
 		static UScriptStruct* WildCardTypeObject = FRigVMUnknownType::StaticStruct();
@@ -99,7 +107,14 @@ namespace RigVMTypeUtils
 	
 		if (const UClass* Class = Cast<UClass>(InCPPTypeObject))
 		{
-			CPPType = FString::Printf(RigVMTypeUtils::TObjectPtrTemplate, Class->GetPrefixCPP(), *Class->GetName());
+			if (Class->IsChildOf(UInterface::StaticClass()))
+			{
+				CPPType = FString::Printf(RigVMTypeUtils::TScriptInterfaceTemplate, TEXT("I"), *Class->GetName());
+			}
+			else
+			{
+				CPPType = FString::Printf(RigVMTypeUtils::TObjectPtrTemplate, Class->GetPrefixCPP(), *Class->GetName());
+			}
 		}
 		else if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
 		{

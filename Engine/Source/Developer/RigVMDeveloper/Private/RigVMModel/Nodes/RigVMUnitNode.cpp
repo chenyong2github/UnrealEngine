@@ -342,7 +342,7 @@ TSharedPtr<FStructOnScope> URigVMUnitNode::ConstructStructInstance(bool bUseDefa
 		else
 		{
 			FString StructDefaultValue = GetStructDefaultValue();
-			Struct->ImportText(*StructDefaultValue, StructMemory, nullptr, PPF_None, nullptr, Struct->GetName());
+			Struct->ImportText(*StructDefaultValue, StructMemory, nullptr, PPF_IncludeTransient, GLog, Struct->GetName());
 		}
 		return StructOnScope;
 	}

@@ -69,8 +69,8 @@ public:
 	UEdGraphNode* FindNodeForModelNodeName(const FName& InModelNodeName, const bool bCacheIfRequired = true);
 
 	UControlRigBlueprint* GetBlueprint() const;
-	URigVMGraph* GetModel() const;
-	URigVMController* GetController() const;
+	virtual URigVMGraph* GetModel() const;
+	virtual URigVMController* GetController() const;
 
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
@@ -147,8 +147,11 @@ private:
 #if WITH_EDITOR
 
 	URigVMController* GetTemplateController();
-	void HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* InVM);
 
+protected:
+	void HandleVMCompiledEvent(UObject* InCompiledObject, URigVM* InVM);
+
+private:
 	static TArray<TSharedPtr<FString>> EmptyElementNameList;
 	TMap<FName, UEdGraphNode*> ModelNodePathToEdNode;
 	

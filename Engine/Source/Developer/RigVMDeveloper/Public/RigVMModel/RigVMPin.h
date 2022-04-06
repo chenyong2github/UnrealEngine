@@ -193,6 +193,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool IsUObject() const;
 
+	// Returns true if the data type of the Pin is a interface
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	bool IsInterface() const;
+
 	// Returns true if the data type of the Pin is an array
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool IsArray() const;

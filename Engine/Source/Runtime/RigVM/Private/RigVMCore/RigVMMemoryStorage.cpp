@@ -68,6 +68,12 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FProperty* InProperty
 			CPPTypeObject = ObjectProperty->PropertyClass;
 		}
 #endif
+#if UE_RIGVM_UINTERFACE_PROPERTIES_ENABLED
+		else if (const FInterfaceProperty* InterfaceProperty = CastField<FInterfaceProperty>(ValueProperty))
+		{
+			CPPTypeObject = InterfaceProperty->InterfaceClass;
+		}
+#endif
 		else if(const FEnumProperty* EnumProperty = CastField<FEnumProperty>(ValueProperty))
 		{
 			CPPTypeObject = EnumProperty->GetEnum();
@@ -87,10 +93,14 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FProperty* InProperty
 	do
 	{
 		if(ChildProperty->IsA<FObjectProperty>() ||
-			ChildProperty->IsA<FSoftObjectProperty>() ||
-			ChildProperty->IsA<FInterfaceProperty>())
+			ChildProperty->IsA<FSoftObjectProperty>())
 		{
-			checkf(RigVMCore::SupportsUObjects(), TEXT("UClass / UInterface types are not supported."));
+			checkf(RigVMCore::SupportsUObjects(), TEXT("UClass types are not supported."));
+		}
+
+		if (ChildProperty->IsA<FInterfaceProperty>())
+		{
+			checkf(RigVMCore::SupportsUInterfaces(), TEXT("UInterface types are not supported."));
 		}
 
 		if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ChildProperty))
@@ -131,10 +141,12 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FName& InName, const 
 
 	if(CPPTypeObject)
 	{
-		if(CPPTypeObject->IsA<UClass>() ||
-			CPPTypeObject->IsA<UInterface>())
+		if(CPPTypeObject->IsA<UClass>())
 		{
-			checkf(RigVMCore::SupportsUObjects(), TEXT("UClass / UInterface types are not supported."));
+			if (!RigVMCore::SupportsUInterfaces() || !Cast<UClass>(CPPTypeObject)->IsChildOf<UInterface>())
+			{
+				checkf(RigVMCore::SupportsUObjects(), TEXT("UClass types are not supported."));
+			}
 		}
 	}
 
@@ -247,7 +259,8 @@ bool FRigVMPropertyDescription::RequiresCPPTypeObject(const FString& InCPPType)
 		TEXT("U"), 
 		TEXT("TArray<U"),
 		TEXT("TObjectPtr<"), 
-		TEXT("TArray<TObjectPtr<")
+		TEXT("TArray<TObjectPtr<"),
+		TEXT("TScriptInterface<")
 	};
 	static const TArray<FString> CPPTypesNotRequiringCPPTypeObject = {
 		TEXT("FString"), 

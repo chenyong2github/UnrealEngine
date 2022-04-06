@@ -848,7 +848,7 @@ void SControlRigStackView::HandleFocusOnSelectedGraphNode()
 	}
 }
 
-void SControlRigStackView::OnVMCompiled(UBlueprint* InCompiledBlueprint, URigVM* InCompiledVM)
+void SControlRigStackView::OnVMCompiled(UObject* InCompiledObject, URigVM* InCompiledVM)
 {
 	RefreshTreeView(InCompiledVM);
 

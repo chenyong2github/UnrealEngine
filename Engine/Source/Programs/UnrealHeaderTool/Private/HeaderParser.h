@@ -668,6 +668,7 @@ public:
 	static const TCHAR* FTArrayViewText;
 	static const TCHAR* GetArrayText;
 	static const TCHAR* GetArrayViewText;
+	static const TCHAR* FTScriptInterfaceText;
 };
 
 /////////////////////////////////////////////////////

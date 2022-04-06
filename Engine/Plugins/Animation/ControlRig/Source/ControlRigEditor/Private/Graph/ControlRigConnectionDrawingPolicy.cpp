@@ -34,11 +34,9 @@ void FControlRigConnectionDrawingPolicy::ResetIncompatiblePinDrawState(const TSe
 		UEdGraphPin* Pin = PinWidget->GetPinObj();
 		if (Pin != nullptr)
 		{
-			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Pin->GetOwningNode());
-			UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-			if (RigBlueprint != nullptr)
+			if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Pin->GetOwningNode()))
 			{
-				RigBlueprint->GetModel(Pin->GetOwningNode()->GetGraph())->PrepareCycleChecking(nullptr, true);
+				RigNode->GetModel()->PrepareCycleChecking(nullptr, true);
 			}
 		}
 	}
@@ -313,7 +311,7 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 
 			if (OutputInstructionIndex != INDEX_NONE && InputInstructionIndex != INDEX_NONE)
 			{
-				if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForNodeChecked(OutputNode)))
+				if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(OutputNode)))
 				{
 					if (UControlRig* ControlRig = Cast<UControlRig>(RigBlueprint->GetObjectBeingDebugged()))
 					{

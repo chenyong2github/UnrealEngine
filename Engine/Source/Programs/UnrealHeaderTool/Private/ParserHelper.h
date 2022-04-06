@@ -162,6 +162,16 @@ inline bool IsObjectOrInterface(EPropertyType Type)
 	return Type == CPT_ObjectReference || Type == CPT_Interface || Type == CPT_WeakObjectReference || Type == CPT_LazyObjectReference || Type == CPT_ObjectPtrReference || Type == CPT_SoftObjectReference;
 }
 
+inline bool IsObject(EPropertyType Type)
+{
+	return Type == CPT_ObjectReference || Type == CPT_WeakObjectReference || Type == CPT_LazyObjectReference || Type == CPT_ObjectPtrReference || Type == CPT_SoftObjectReference;
+}
+
+inline bool IsInterface(EPropertyType Type)
+{
+	return Type == CPT_Interface;
+}
+
 /**
  * Basic information describing a type.
  */
@@ -253,6 +263,16 @@ public:
 	bool IsObjectOrInterface() const
 	{
 		return ::IsObjectOrInterface(Type);
+	}
+
+	bool IsObject() const
+	{
+		return ::IsObject(Type);
+	}
+
+	bool IsInterface() const
+	{
+		return ::IsInterface(Type);
 	}
 
 	bool IsBool() const

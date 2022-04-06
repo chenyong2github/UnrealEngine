@@ -6501,6 +6501,7 @@ const TCHAR* FHeaderParser::FTArrayText = TEXT("TArray");
 const TCHAR* FHeaderParser::FTArrayViewText = TEXT("TArrayView");
 const TCHAR* FHeaderParser::GetArrayText = TEXT("GetArray");
 const TCHAR* FHeaderParser::GetArrayViewText = TEXT("GetArrayView");
+const TCHAR* FHeaderParser::FTScriptInterfaceText = TEXT("TScriptInterface");
 
 void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& StructDef)
 {
@@ -6546,16 +6547,22 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 		}
 
 #if !UE_RIGVM_UOBJECT_PROPERTIES_ENABLED
-		if(PropertyDef->GetPropertyBase().IsObjectOrInterface())
+		if(PropertyDef->GetPropertyBase().IsObject())
 		{
-			LogError(TEXT("RigVM Struct '%s' - Member '%s' is a UObject or interface - object types are not allowed on structs with RIGVM_METHOD."), *StructDef.GetName(), *Parameter.Name);
+			LogError(TEXT("RigVM Struct '%s' - Member '%s' is a UObject - object types are not allowed on structs with RIGVM_METHOD."), *StructDef.GetName(), *Parameter.Name);
+		}
+#endif
+#if !UE_RIGVM_UINTERFACE_PROPERTIES_ENABLED
+		if (PropertyDef->GetPropertyBase().IsInterface())
+		{
+			LogError(TEXT("RigVM Struct '%s' - Member '%s' is a UInterface - interface types are not allowed on structs with RIGVM_METHOD."), *StructDef.GetName(), *Parameter.Name);
 		}
 #endif
 
 		if (!ExtendedCPPType.IsEmpty())
 		{
-			// we only support arrays - no maps or similar data structures
-			if (MemberCPPType != TArrayText && MemberCPPType != TEnumAsByteText)
+			// we only support arrays & script interfaces - no maps or similar data structures
+			if (MemberCPPType != TArrayText && MemberCPPType != TEnumAsByteText && MemberCPPType != FTScriptInterfaceText)
 			{
 				LogError(TEXT("RigVM Struct '%s' - Member '%s' type '%s' not supported by RigVM."), *StructDef.GetName(), *Parameter.Name, *MemberCPPType);
 				continue;

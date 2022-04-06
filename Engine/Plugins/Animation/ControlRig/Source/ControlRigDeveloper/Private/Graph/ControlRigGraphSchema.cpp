@@ -556,11 +556,10 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 
 	UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
 
-	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(PinA->GetOwningNode());
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-	if (RigBlueprint != nullptr)
+	IRigVMControllerHost* ControllerHost = PinA->GetOwningNode()->GetImplementingOuter<IRigVMControllerHost>();
+	if (ControllerHost != nullptr)
 	{
-		if (URigVMController* Controller = RigBlueprint->GetOrCreateController(PinA->GetOwningNode()->GetGraph()))
+		if (URigVMController* Controller = ControllerHost->GetOrCreateRigVMController(PinA->GetOwningNode()->GetGraph()))
 		{
 			ERigVMPinDirection UserLinkDirection = ERigVMPinDirection::Output;
 			if (PinA->Direction == EGPD_Input)
@@ -675,45 +674,40 @@ static bool HasChildConnection_Recursive(const UEdGraphPin* InPin)
 
 const FPinConnectionResponse UControlRigGraphSchema::CanCreateConnection(const UEdGraphPin* A, const UEdGraphPin* B) const
 {
-	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(A->GetOwningNode());
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-	if (RigBlueprint != nullptr)
+	UControlRigGraphNode* RigNodeA = Cast<UControlRigGraphNode>(A->GetOwningNode());
+	UControlRigGraphNode* RigNodeB = Cast<UControlRigGraphNode>(B->GetOwningNode());
+
+	if (RigNodeA && RigNodeB && RigNodeA != RigNodeB)
 	{
-		UControlRigGraphNode* RigNodeA = Cast<UControlRigGraphNode>(A->GetOwningNode());
-		UControlRigGraphNode* RigNodeB = Cast<UControlRigGraphNode>(B->GetOwningNode());
-
-		if (RigNodeA && RigNodeB && RigNodeA != RigNodeB)
+		URigVMPin* PinA = RigNodeA->GetModelPinFromPinPath(A->GetName());
+		if (PinA)
 		{
-			URigVMPin* PinA = RigNodeA->GetModelPinFromPinPath(A->GetName());
-			if (PinA)
-			{
-				PinA = PinA->GetPinForLink();
-				RigNodeA->GetModel()->PrepareCycleChecking(PinA, A->Direction == EGPD_Input);
-			}
-
-			URigVMPin* PinB = RigNodeB->GetModelPinFromPinPath(B->GetName());
-			if (PinB)
-			{
-				PinB = PinB->GetPinForLink();
-			}
-
-			ERigVMPinDirection UserLinkDirection = ERigVMPinDirection::Output;
-			if (A->Direction == EGPD_Input)
-			{
-				Swap(PinA, PinB);
-				UserLinkDirection = ERigVMPinDirection::Input;
-			}
-
-			const FRigVMByteCode* ByteCode = RigNodeA->GetController()->GetCurrentByteCode();
-
-			FString FailureReason;
-			bool bResult = RigNodeA->GetModel()->CanLink(PinA, PinB, &FailureReason, ByteCode, UserLinkDirection);
-			if (!bResult)
-			{
-				return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, FText::FromString(FailureReason));
-			}
-			return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, LOCTEXT("ConnectResponse_Allowed", "Connect"));
+			PinA = PinA->GetPinForLink();
+			RigNodeA->GetModel()->PrepareCycleChecking(PinA, A->Direction == EGPD_Input);
 		}
+
+		URigVMPin* PinB = RigNodeB->GetModelPinFromPinPath(B->GetName());
+		if (PinB)
+		{
+			PinB = PinB->GetPinForLink();
+		}
+
+		ERigVMPinDirection UserLinkDirection = ERigVMPinDirection::Output;
+		if (A->Direction == EGPD_Input)
+		{
+			Swap(PinA, PinB);
+			UserLinkDirection = ERigVMPinDirection::Input;
+		}
+
+		const FRigVMByteCode* ByteCode = RigNodeA->GetController()->GetCurrentByteCode();
+
+		FString FailureReason;
+		bool bResult = RigNodeA->GetModel()->CanLink(PinA, PinB, &FailureReason, ByteCode, UserLinkDirection);
+		if (!bResult)
+		{
+			return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, FText::FromString(FailureReason));
+		}
+		return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, LOCTEXT("ConnectResponse_Allowed", "Connect"));
 	}
 
 	return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectResponse_Disallowed_Unexpected", "Unexpected error"));
@@ -859,6 +853,10 @@ bool UControlRigGraphSchema::SupportsPinType(UScriptStruct* ScriptStruct) const
 		{
 			continue;
 		}
+		else if (CastField<FInterfaceProperty>(Property) && RigVMCore::SupportsUInterfaces())
+		{
+			continue;
+		}
 	
 		return false;
 	}
@@ -894,6 +892,17 @@ bool UControlRigGraphSchema::SupportsPinType(TWeakPtr<const FEdGraphSchemaAction
 			if (PinType.PinSubCategoryObject.IsValid())
 			{
 				return PinType.PinSubCategoryObject->IsA<UClass>();
+			}
+		}
+	}
+
+	if (RigVMCore::SupportsUInterfaces())
+	{
+		if (PinType.PinCategory == UEdGraphSchema_K2::PC_Interface)
+		{
+			if (PinType.PinSubCategoryObject.IsValid())
+			{
+				return PinType.PinSubCategoryObject->IsA<UInterface>();
 			}
 		}
 	}
