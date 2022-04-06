@@ -18,9 +18,9 @@
 
 #define LOCTEXT_NAMESPACE "MVVMConversionPath"
 
-void SMVVMConversionPath::Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint, bool bInIsGetter)
+void SMVVMConversionPath::Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint, bool bInSourceToDestination)
 {
-	bIsGetter = bInIsGetter;
+	bSourceToDestination = bInSourceToDestination;
 	WidgetBlueprint = InWidgetBlueprint;
 	OnFunctionChanged = InArgs._OnFunctionChanged;
 	Bindings = InArgs._Bindings;
@@ -43,7 +43,7 @@ void SMVVMConversionPath::Construct(const FArguments& InArgs, const UWidgetBluep
 				.OnClicked(this, &SMVVMConversionPath::OnButtonClicked)
 				[
 					SNew(SImage)
-					.Image(FUMGStyle::Get().GetBrush(bIsGetter ? "MVVM.GetterFunction" : "MVVM.SetterFunction"))
+					.Image(FUMGStyle::Get().GetBrush(bSourceToDestination ? "MVVM.GetterFunction" : "MVVM.SetterFunction"))
 					.ColorAndOpacity(this, &SMVVMConversionPath::GetFunctionColor)
 				]
 			]
@@ -80,7 +80,7 @@ FString SMVVMConversionPath::GetFunctionPath() const
 	TArray<FMVVMBlueprintViewBinding*> ViewBindings = Bindings.Get(TArray<FMVVMBlueprintViewBinding*>());
 	for (const FMVVMBlueprintViewBinding* Binding : ViewBindings)
 	{
-		FString FunctionPath = bIsGetter ? Binding->Conversion.GetConversionFunctionPath : Binding->Conversion.SetConversionFunctionPath;
+		FString FunctionPath = bSourceToDestination ? Binding->Conversion.SourceToDestinationFunctionPath : Binding->Conversion.DestinationToSourceFunctionPath;
 		return FunctionPath;
 	}
 	return FString();
@@ -94,9 +94,9 @@ FText SMVVMConversionPath::GetFunctionToolTip() const
 		return FText::FromString(FunctionPath);
 	}
 
-	return bIsGetter ?
-		LOCTEXT("AddGetterConversionFunction", "Add conversion function to be used when getting the value from the viewmodel.") :
-		LOCTEXT("AddSetterConversionFunction", "Add conversion function to be used when setting the value in the viewmodel.");
+	return bSourceToDestination ?
+		LOCTEXT("AddSourceToDestinationFunction", "Add conversion function to be used when converting the source value to the destination value.") :
+		LOCTEXT("AddDestinationToSourceFunction", "Add conversion function to be used when converting the destination value to the source value.");
 }
 
 FSlateColor SMVVMConversionPath::GetFunctionColor() const
@@ -126,13 +126,13 @@ void SMVVMConversionPath::SetConversionFunction(const UFunction* Function)
 
 	for (FMVVMBlueprintViewBinding* Binding : ViewBindings)
 	{
-		if (bIsGetter)
+		if (bSourceToDestination)
 		{
-			Binding->Conversion.GetConversionFunctionPath = Function->GetPathName();
+			Binding->Conversion.SourceToDestinationFunctionPath = Function->GetPathName();
 		}
 		else
 		{
-			Binding->Conversion.SetConversionFunctionPath = Function->GetPathName();
+			Binding->Conversion.DestinationToSourceFunctionPath = Function->GetPathName();
 		}
 	}
 
@@ -161,8 +161,8 @@ TSharedRef<SWidget> SMVVMConversionPath::GetFunctionMenuContent()
 		UE::MVVM::FMVVMConstFieldVariant WidgetField = WidgetHelper.GetSelectedField();
 
 		UMVVMSubsystem::FConstDirectionalBindingArgs Args;
-		Args.SourceBinding = bIsGetter ? ViewModelField : WidgetField;
-		Args.DestinationBinding = bIsGetter ? WidgetField : ViewModelField;
+		Args.SourceBinding = bSourceToDestination ? ViewModelField : WidgetField;
+		Args.DestinationBinding = bSourceToDestination ? WidgetField : ViewModelField;
 
 		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
 		TArray<const UFunction*> FunctionsForThis = EditorSubsystem->GetAvailableConversionFunctions(Args.SourceBinding, Args.DestinationBinding);
@@ -191,7 +191,7 @@ TSharedRef<SWidget> SMVVMConversionPath::GetFunctionMenuContent()
 			],
 			FText::GetEmpty(),
 			true, // no indent
-			false // searchable
+			true // searchable
 		);
 	}
 

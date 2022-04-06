@@ -22,15 +22,15 @@ namespace UE::MVVM
 		virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
 
 	private:
-		FText GetGetterPath() const;
-		FText GetSetterPath() const;
+		FText GetSourceToDestinationPath() const;
+		FText GetDestinationToSourcePath() const;
 
-		void OnTextCommitted(const FText& NewValue, ETextCommit::Type CommitType, bool bIsGetter);
-		void OnFunctionPathChanged(const FString& NewPath, bool bIsGetter);
+		void OnTextCommitted(const FText& NewValue, ETextCommit::Type CommitType, bool bSourceToDestination);
+		void OnFunctionPathChanged(const FString& NewPath, bool bSourceToDestination);
 
 	private:
 		UWidgetBlueprint* WidgetBlueprint = nullptr;
-		TSharedPtr<IPropertyHandle> GetterProperty;
-		TSharedPtr<IPropertyHandle> SetterProperty;
+		TSharedPtr<IPropertyHandle> DestinationToSourceProperty;
+		TSharedPtr<IPropertyHandle> SourceToDestinationProperty;
 	};
 }

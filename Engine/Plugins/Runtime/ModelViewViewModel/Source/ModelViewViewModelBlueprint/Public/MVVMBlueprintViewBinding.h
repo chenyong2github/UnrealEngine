@@ -7,6 +7,8 @@
 
 #include "MVVMBlueprintViewBinding.generated.h"
 
+class UMVVMBlueprintView;
+
 /**
 *
 */
@@ -15,13 +17,13 @@ struct FMVVMBlueprintViewConversionPath
 {
 	GENERATED_BODY()
 
-	/** The Conversion function when setting the binding. */
+	/** The Conversion function when converting the value from the destination to the source. */
 	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay)
-	FString SetConversionFunctionPath;
+	FString DestinationToSourceFunctionPath;
 
-	/** The Conversion function when getting the binding (in 2 way). */
+	/** The Conversion function when converting the value from the source to the destination. */
 	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay)
-	FString GetConversionFunctionPath;
+	FString SourceToDestinationFunctionPath;
 };
 
 /**
@@ -60,4 +62,10 @@ struct FMVVMBlueprintViewBinding
 	/** The binding is visible in the editor, but is not compiled and cannot be used at runtime. */
 	UPROPERTY(EditAnywhere, Category = "MVVM")
 	bool bCompile = true;
+
+	/** 
+	 * Get a string that identifies this binding. 
+	 * This is of the form: ViewModel.Property -> Widget.Property
+	 */
+	FString GetNameString(const UMVVMBlueprintView* View) const;
 };

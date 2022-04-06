@@ -381,11 +381,6 @@ namespace UE::MVVM::BindingHelper
 			return MakeError(MoveTemp(CommonResult));
 		}
 
-		if (!InFunction->HasAllFunctionFlags(FUNC_Static))
-		{
-			return MakeError(FString::Printf(TEXT("The function '%s' is not static."), *InFunction->GetName()));
-		}
-
 		if (InFunction->NumParms != 2)
 		{
 			return MakeError(FString::Printf(TEXT("The function '%s' does not have the correct number of arguments."), *InFunction->GetName()));

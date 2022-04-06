@@ -20,7 +20,7 @@ public:
 		SLATE_EVENT(FOnFunctionChanged, OnFunctionChanged)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint, bool bInIsGetter);
+	void Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint, bool bInSourceToDestination);
 
 private:
 	EVisibility IsFunctionVisible() const;
@@ -36,5 +36,5 @@ private:
 	FOnFunctionChanged OnFunctionChanged;
 	TSharedPtr<SMenuAnchor> Anchor;
 	const UWidgetBlueprint* WidgetBlueprint = nullptr;
-	bool bIsGetter = false;
+	bool bSourceToDestination = false;
 };

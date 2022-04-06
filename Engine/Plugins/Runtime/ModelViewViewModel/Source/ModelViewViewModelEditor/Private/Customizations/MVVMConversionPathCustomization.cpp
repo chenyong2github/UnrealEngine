@@ -19,8 +19,8 @@ UE::MVVM::FConversionPathCustomization::FConversionPathCustomization(UWidgetBlue
 
 void UE::MVVM::FConversionPathCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	SetterProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewConversionPath, SetConversionFunctionPath));
-	GetterProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewConversionPath, GetConversionFunctionPath));
+	SourceToDestinationProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewConversionPath, SourceToDestinationFunctionPath));
+	DestinationToSourceProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewConversionPath, DestinationToSourceFunctionPath));
 
 	HeaderRow.NameContent()
 	[
@@ -32,10 +32,10 @@ void UE::MVVM::FConversionPathCustomization::CustomizeHeader(TSharedRef<IPropert
 	];
 }
 
-FText UE::MVVM::FConversionPathCustomization::GetGetterPath() const
+FText UE::MVVM::FConversionPathCustomization::GetSourceToDestinationPath() const
 {
 	FString Value;
-	FPropertyAccess::Result Result = GetterProperty->GetValue(Value);
+	FPropertyAccess::Result Result = SourceToDestinationProperty->GetValue(Value);
 
 	if (Result == FPropertyAccess::Success)
 	{
@@ -50,10 +50,10 @@ FText UE::MVVM::FConversionPathCustomization::GetGetterPath() const
 	return FText::GetEmpty();
 }
 
-FText UE::MVVM::FConversionPathCustomization::GetSetterPath() const
+FText UE::MVVM::FConversionPathCustomization::GetDestinationToSourcePath() const
 {
 	FString Value;
-	FPropertyAccess::Result Result = SetterProperty->GetValue(Value);
+	FPropertyAccess::Result Result = DestinationToSourceProperty->GetValue(Value);
 
 	if (Result == FPropertyAccess::Success)
 	{
@@ -68,15 +68,15 @@ FText UE::MVVM::FConversionPathCustomization::GetSetterPath() const
 	return FText::GetEmpty();
 }
 
-void UE::MVVM::FConversionPathCustomization::OnTextCommitted(const FText& NewValue, ETextCommit::Type CommitType, bool bIsGetter)
+void UE::MVVM::FConversionPathCustomization::OnTextCommitted(const FText& NewValue, ETextCommit::Type CommitType, bool bSourceToDestination)
 {
 	FString NewString = NewValue.ToString();
-	OnFunctionPathChanged(NewString, bIsGetter);
+	OnFunctionPathChanged(NewString, bSourceToDestination);
 }
 
-void UE::MVVM::FConversionPathCustomization::OnFunctionPathChanged(const FString& NewPath, bool bIsGetter)
+void UE::MVVM::FConversionPathCustomization::OnFunctionPathChanged(const FString& NewPath, bool bSourceToDestination)
 {
-	TSharedPtr<IPropertyHandle> Handle = bIsGetter ? GetterProperty : SetterProperty;
+	TSharedPtr<IPropertyHandle> Handle = bSourceToDestination ? SourceToDestinationProperty : DestinationToSourceProperty;
 	Handle->SetValue(NewPath);
 }
 
@@ -93,7 +93,7 @@ void UE::MVVM::FConversionPathCustomization::CustomizeChildren(TSharedRef<IPrope
 	}
 
 	// setter
-	ChildBuilder.AddProperty(SetterProperty.ToSharedRef())
+	ChildBuilder.AddProperty(DestinationToSourceProperty.ToSharedRef())
 		.CustomWidget()
 		.NameContent()
 		[
@@ -107,7 +107,7 @@ void UE::MVVM::FConversionPathCustomization::CustomizeChildren(TSharedRef<IPrope
 			.VAlign(VAlign_Center)
 			[
 				SNew(SEditableTextBox)
-				.Text(this, &FConversionPathCustomization::GetSetterPath)
+				.Text(this, &FConversionPathCustomization::GetDestinationToSourcePath)
 				.OnTextCommitted(this, &FConversionPathCustomization::OnTextCommitted, false)
 			]
 			+ SHorizontalBox::Slot()
@@ -121,7 +121,7 @@ void UE::MVVM::FConversionPathCustomization::CustomizeChildren(TSharedRef<IPrope
 		];
 
 	// getter
-	ChildBuilder.AddProperty(GetterProperty.ToSharedRef())
+	ChildBuilder.AddProperty(SourceToDestinationProperty.ToSharedRef())
 		.CustomWidget()
 		.NameContent()
 		[
@@ -135,7 +135,7 @@ void UE::MVVM::FConversionPathCustomization::CustomizeChildren(TSharedRef<IPrope
 			.VAlign(VAlign_Center)
 			[
 				SNew(SEditableTextBox)
-				.Text(this, &FConversionPathCustomization::GetGetterPath)
+				.Text(this, &FConversionPathCustomization::GetSourceToDestinationPath)
 				.OnTextCommitted(this, &FConversionPathCustomization::OnTextCommitted, true)
 			]
 			+ SHorizontalBox::Slot()

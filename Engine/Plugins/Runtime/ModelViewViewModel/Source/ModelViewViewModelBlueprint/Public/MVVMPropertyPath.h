@@ -23,7 +23,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "MVVM")
 	FMemberReference BindingReference;
 
-	/** The path of the property (either the getter or the set action). */
+	/** The path of the property (either the getter or the get action). */
 	UPROPERTY(EditAnywhere, Category = "MVVM")
 	FString GetterPropertyPath;
 

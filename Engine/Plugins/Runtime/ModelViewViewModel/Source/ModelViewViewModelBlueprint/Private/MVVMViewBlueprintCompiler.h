@@ -66,7 +66,7 @@ private:
 
 	const FCompilerSourceCreatorContext* FindViewModelSource(FGuid Id) const;
 
-	void AddErrorForBinding(FMVVMBlueprintViewBinding& Binding, const FString& Message) const;
+	void AddErrorForBinding(FMVVMBlueprintViewBinding& Binding, const UMVVMBlueprintView* BlueprintView, const FString& Message) const;
 
 private:
 	struct FCompilerSourceContext

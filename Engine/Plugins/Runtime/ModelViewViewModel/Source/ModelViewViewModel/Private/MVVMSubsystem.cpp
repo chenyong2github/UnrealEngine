@@ -278,22 +278,22 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FConstDirectionalBin
 			return MakeError(ConversionResult.StealError());
 		}
 
-		const FProperty* ConversionReturnProperty = ConversionResult.GetValue().ReturnProperty;
-		const FProperty* ConversionArgProperty = ConversionResult.GetValue().ArgumentProperty;
-
 		// The compiled version should look like Setter(Conversion(Getter())).
+		const FProperty* ConversionReturnProperty = ConversionResult.GetValue().ReturnProperty;
 		if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(ConversionReturnProperty, DestinationProperty))
 		{
-			return MakeError(FString::Printf(TEXT("The Destination '%s' property type does not match the type of the return type from the conversion function '%s'."), *DestinationProperty->GetName(), *ConversionReturnProperty->GetName()));
+			return MakeError(FString::Printf(TEXT("The destination property '%s' (%s) does not match the return type of the conversion function (%s)."), *DestinationProperty->GetName(), *DestinationProperty->GetCPPType(), *ConversionReturnProperty->GetCPPType()));
 		}
+
+		const FProperty* ConversionArgProperty = ConversionResult.GetValue().ArgumentProperty;
 		if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(SourceProperty, ConversionArgProperty))
 		{
-			return MakeError(FString::Printf(TEXT("The Source '%s' property type does not match the type of the argument type of the conversion function '%s'."), *SourceProperty->GetName(), *DestinationProperty->GetName()));
+			return MakeError(FString::Printf(TEXT("The source property '%s' (%s) does not match the argument type of the conversion function (%s)."), *SourceProperty->GetName(), *SourceProperty->GetCPPType(), *DestinationProperty->GetCPPType()));
 		}
 	}
 	else if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(SourceProperty, DestinationProperty))
 	{
-		return MakeError(FString::Printf(TEXT("The Source '%s' property type does not match the type of the Destination property '%s'. A conversion function is required."), *SourceProperty->GetName(), *DestinationProperty->GetName()));
+		return MakeError(FString::Printf(TEXT("The source property '%s' (%s) does not match the type of the destination property '%s' (%s). A conversion function is required."), *SourceProperty->GetName(), *SourceProperty->GetCPPType(), *DestinationProperty->GetName(), *DestinationProperty->GetCPPType()));
 	}
 
 	return MakeValue(true);

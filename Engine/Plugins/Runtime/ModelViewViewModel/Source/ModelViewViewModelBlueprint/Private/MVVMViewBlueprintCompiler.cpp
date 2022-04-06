@@ -16,10 +16,11 @@
 namespace UE::MVVM::Private
 {
 
-void FMVVMViewBlueprintCompiler::AddErrorForBinding(FMVVMBlueprintViewBinding& Binding, const FString& Message) const
+void FMVVMViewBlueprintCompiler::AddErrorForBinding(FMVVMBlueprintViewBinding& Binding, const UMVVMBlueprintView* View, const FString& Message) const
 {
-	WidgetBlueprintCompilerContext.MessageLog.Error(*Message);
-	Binding.Errors.Add(FText::FromString(Message));
+	const FString BindingName = Binding.GetNameString(View);
+	WidgetBlueprintCompilerContext.MessageLog.Error(*(BindingName + TEXT(": ") + Message));
+	Binding.Errors.Add(FText::FromString(BindingName + TEXT(": ") + Message));
 }
 
 
@@ -569,14 +570,15 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 
 	for (int32 Index = 0; Index < BlueprintView->GetNumBindings(); ++Index)
 	{
-		const FMVVMBlueprintViewBinding* BindingPtr = BlueprintView->GetBindingAt(Index);
+		FMVVMBlueprintViewBinding* BindingPtr = BlueprintView->GetBindingAt(Index);
 		if (BindingPtr == nullptr)
 		{
-			WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The binding number %d is invalid."), Index));
+			WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The binding at index '%d' is invalid."), Index));
 			bAreSourceContextsValid = false;
 			continue;
 		}
-		const FMVVMBlueprintViewBinding& Binding = *BindingPtr;
+
+		FMVVMBlueprintViewBinding& Binding = *BindingPtr;
 		if (!Binding.bCompile)
 		{
 			continue;
@@ -656,9 +658,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 			TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FString> AddFieldResult = AddFieldId(SourceContexts[SourceContextIndex].Class, true, Binding.BindingType, Binding.ViewModelPath.GetBindingName().ToName());
 			if (AddFieldResult.HasError())
 			{
-				WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The binding '%d' could not create it's source. %s")
-					, Index
-					, *AddFieldResult.GetError()));
+				AddErrorForBinding(Binding, BlueprintView, *FString::Printf(TEXT("The binding could not create its source. %s"), *AddFieldResult.GetError()));
 				bIsBindingsValid = false;
 				continue;
 			}
@@ -701,12 +701,10 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				}
 			}
 
-			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, Getters, Setter, Binding.Conversion.SetConversionFunctionPath);
+			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, Getters, Setter, Binding.Conversion.SourceToDestinationFunctionPath);
 			if (AddBindingResult.HasError())
 			{
-				WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The binding '%d' could not be created. %s")
-					, Index
-					, *AddBindingResult.GetError()));
+				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding could not be created. %s"), *AddBindingResult.GetError()));
 				bIsBindingsValid = false;
 				continue;
 			}
@@ -733,9 +731,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FString> AddFieldIdResult = AddFieldId(Class->ClassGeneratedBy->GetClass(), true, Binding.BindingType, Binding.WidgetPath.GetBindingName().ToName());
 				if (AddFieldIdResult.HasError())
 				{
-					WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The binding '%d' could not create it's source. %s")
-						, Index
-						, *AddFieldIdResult.GetError()));
+					AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding '%d' could not create it's source. %s"), *AddFieldIdResult.GetError()));
 					bIsBindingsValid = false;
 					continue;
 				}
@@ -748,9 +744,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FString> AddFieldIdResult = AddFieldId(SourceContexts[SourceContextIndex].Class, true, Binding.BindingType, Binding.WidgetPath.GetBindingName().ToName());
 				if (AddFieldIdResult.HasError())
 				{
-					WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The binding '%d' could not create it's source. %s")
-						, Index
-						, *AddFieldIdResult.GetError()));
+					AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding '%d' could not create it's source. %s"), *AddFieldIdResult.GetError()));
 					bIsBindingsValid = false;
 					continue;
 				}
@@ -796,12 +790,10 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				}
 			}
 
-			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, Getters, Setter, Binding.Conversion.GetConversionFunctionPath);
+			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, Getters, Setter, Binding.Conversion.DestinationToSourceFunctionPath);
 			if (AddBindingResult.HasError())
 			{
-				WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The binding '%d' could not be created. %s")
-					, Index
-					, *AddBindingResult.GetError()));
+				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding '%d' could not be created. %s"), *AddBindingResult.GetError()));
 				bIsBindingsValid = false;
 				continue;
 			}
