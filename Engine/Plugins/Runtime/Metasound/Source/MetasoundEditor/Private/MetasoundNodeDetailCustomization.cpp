@@ -830,20 +830,17 @@ namespace Metasound
 			}
 		}
 
-		void FMetasoundMemberDetailCustomization::UpdateRenameDelegate(UMetasoundEditorGraphMemberDefaultLiteral& InMemberDefaultLiteral)
+		void FMetasoundMemberDetailCustomization::UpdateRenameDelegate(UMetasoundEditorGraphMember& InMember)
 		{
-			if (UMetasoundEditorGraphMember* Member = InMemberDefaultLiteral.GetParentMember())
+			if (InMember.CanRename())
 			{
-				if (Member->CanRename())
+				if (!RenameRequestedHandle.IsValid())
 				{
-					if (!RenameRequestedHandle.IsValid())
+					InMember.OnRenameRequested.Clear();
+					RenameRequestedHandle = InMember.OnRenameRequested.AddLambda([this]()
 					{
-						Member->OnRenameRequested.Clear();
-						RenameRequestedHandle = Member->OnRenameRequested.AddLambda([this]()
-						{
-							FSlateApplication::Get().SetKeyboardFocus(NameEditableTextBox.ToSharedRef(), EFocusCause::SetDirectly);
-						});
-					}
+						FSlateApplication::Get().SetKeyboardFocus(NameEditableTextBox.ToSharedRef(), EFocusCause::SetDirectly);
+					});
 				}
 			}
 		}
@@ -875,10 +872,10 @@ namespace Metasound
 				return DefaultPropertyRows;
 			}
 
+			UpdateRenameDelegate(*GraphMember);
+
 			if (UMetasoundEditorGraphMemberDefaultLiteral* MemberDefaultLiteral = GraphMember->GetLiteral())
 			{
-				UpdateRenameDelegate(*MemberDefaultLiteral);
-
 				UClass* MemberClass = MemberDefaultLiteral->GetClass();
 				check(MemberClass);
 
