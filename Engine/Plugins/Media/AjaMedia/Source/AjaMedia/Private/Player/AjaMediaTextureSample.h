@@ -15,16 +15,6 @@ class FAjaMediaTextureSample
 
 public:
 
-	virtual void ShutdownPoolable() override
-	{
-		if (DestructionCallback)
-		{
-			DestructionCallback(Texture);
-		}
-
-		Super::FreeSample();
-	}
-
 	/**
 	 * Initialize the sample.
 	 *
@@ -75,16 +65,6 @@ public:
 			, bInIsSRGB);
 	}
 
-	void SetTexture(TRefCountPtr<FRHITexture> InRHITexture)
-	{
-		Texture = MoveTemp(InRHITexture);
-	}
-
-	void SetDestructionCallback(TFunction<void(TRefCountPtr<FRHITexture2D>)> InDestructionCallback)
-	{
-		DestructionCallback = InDestructionCallback;
-	}
-
 	/**
 	 * Get YUV to RGB conversion matrix
 	 *
@@ -95,39 +75,6 @@ public:
 		return MediaShaders::YuvToRgbRec709Scaled;
 	}
 
-	virtual const void* GetBuffer() override
-	{
-		// Don't return the buffer if we have a texture to force the media player to use the texture if available. 
-		if (Texture)
-		{
-			return nullptr;
-		}
-		return Buffer.GetData();
-
-	}
-
-	void* GetMutableBuffer()
-	{
-		return Buffer.GetData();
-	}
-
-#if WITH_ENGINE
-	virtual FRHITexture* GetTexture() const override
-	{
-		if (Texture)
-		{
-			return Texture.GetReference();
-		}
-		return nullptr;
-	}
-#endif //WITH_ENGINE
-
-private:
-	/** Hold a texture to be used for gpu texture transfers. */
-	TRefCountPtr<FRHITexture2D> Texture;
-
-	/** Called when the sample is destroyed by its pool. */
-	TFunction<void(TRefCountPtr<FRHITexture2D>)> DestructionCallback;
 };
 
 /*

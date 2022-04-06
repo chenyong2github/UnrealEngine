@@ -5,12 +5,15 @@
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/PreWindowsApi.h"
+#endif
 
 #include "DVPAPI.h"
 #include "dvpapi_d3d11.h"
 
+#if PLATFORM_WINDOWS
 #include "Windows/PostWindowsApi.h"
 #include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 namespace UE::GPUTextureTransfer::Private
 {
@@ -51,7 +54,7 @@ DVPStatus FD3D11TextureTransfer::BindBuffer_Impl(DVPBufferHandle InBufferHandle)
 	return dvpBindToD3D11Device(InBufferHandle, D3DDevice);
 }
 
-DVPStatus FD3D11TextureTransfer::CreateGPUResource_Impl(const FRegisterDMATextureArgs& InArgs, FTextureInfo* OutTextureInfo) const
+DVPStatus FD3D11TextureTransfer::CreateGPUResource_Impl(void* InTexture, FTextureInfo* OutTextureInfo) const
 {
 	if (!OutTextureInfo || !D3DDevice)
 	{
@@ -59,7 +62,7 @@ DVPStatus FD3D11TextureTransfer::CreateGPUResource_Impl(const FRegisterDMATextur
 	}
 
 	OutTextureInfo->External.Handle = nullptr;
-	return dvpCreateGPUD3D11Resource((ID3D11Resource*)InArgs.RHITexture->GetNativeResource(), &OutTextureInfo->DVPHandle);
+	return dvpCreateGPUD3D11Resource((ID3D11Resource*)InTexture, &OutTextureInfo->DVPHandle);
 }
 
 DVPStatus FD3D11TextureTransfer::UnbindBuffer_Impl(DVPBufferHandle InBufferHandle) const
@@ -73,5 +76,3 @@ DVPStatus FD3D11TextureTransfer::UnbindBuffer_Impl(DVPBufferHandle InBufferHandl
 }
 
 }
-
-#endif // PLATFORM_WINDOWS

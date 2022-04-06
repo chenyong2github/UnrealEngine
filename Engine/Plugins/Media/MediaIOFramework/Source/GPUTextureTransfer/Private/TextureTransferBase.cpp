@@ -4,16 +4,15 @@
 #include "GPUTextureTransferModule.h"
 #include "Misc/ScopeLock.h"
 
-#if PLATFORM_WINDOWS
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include "Windows/MinWindows.h"
-#include "Windows/HideWindowsPlatformTypes.h"
-
-
 #if PERF_LOGGING
 #include "ProfilingDebugging/ScopedTimers.h"
 #endif
 
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include "Windows/MinWindows.h"
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 #if PERF_LOGGING
 #define LOG_PERF(FuncName)\
@@ -151,62 +150,52 @@ namespace UE::GPUTextureTransfer::Private
 		}
 	}
 
-	bool FTextureTransferBase::TransferTexture(void* InBuffer, FRHITexture* InRHITexture, ETransferDirection TransferDirection)
+	bool FTextureTransferBase::TransferTexture(void* InBuffer, void* InRHITexture, ETransferDirection TransferDirection)
 	{
 		FScopeLock ScopeLock{ &CriticalSection };
 
 		FExternalBufferInfo* BufferInfo = RegisteredBuffers.Find(InBuffer);
 		FTextureInfo* TextureInfo = RegisteredTextures.Find(InRHITexture);
 
-		if (!BufferInfo)
+		if (BufferInfo && TextureInfo)
 		{
-			UE_LOG(LogGPUTextureTransfer, Error, TEXT("Error while performing a GPU transfer texture, CPU Buffer %u was not registered."), reinterpret_cast<std::uintptr_t>(InBuffer));
-			return false;
-		}
+			if (BufferInfo->GPUMemorySync && BufferInfo->SystemMemorySync)
+			{
+				BufferInfo->GPUMemorySync->ReleaseValue++;
 
-		if (!TextureInfo)
-		{
-			UE_LOG(LogGPUTextureTransfer, Error, TEXT("Error while performing a GPU transfer texture, texture %u was not registered."), reinterpret_cast<std::uintptr_t>(InRHITexture));
-			return false;
-		}
-
-		if (BufferInfo->GPUMemorySync && BufferInfo->SystemMemorySync)
-		{
-			BufferInfo->GPUMemorySync->ReleaseValue++;
-
-			DVP_CALL(dvpBegin());
-			DVP_CALL(dvpMapBufferWaitDVP(TextureInfo->DVPHandle));
+				DVP_CALL(dvpBegin());
+				DVP_CALL(dvpMapBufferWaitDVP(TextureInfo->DVPHandle));
 			
-			DVPStatus Status = DVP_STATUS_OK;
-			if (TransferDirection == ETransferDirection::GPU_TO_CPU)
-			{
-				Status = dvpMemcpy2D(TextureInfo->DVPHandle, BufferInfo->SystemMemorySync->DVPSyncObject,
-					BufferInfo->SystemMemorySync->AcquireValue, DVP_TIMEOUT_IGNORED, BufferInfo->DVPHandle,
-					BufferInfo->GPUMemorySync->DVPSyncObject, BufferInfo->GPUMemorySync->ReleaseValue, 0, 0, BufferInfo->Height, BufferInfo->Width);
+				DVPStatus Status = DVP_STATUS_OK;
+				if (TransferDirection == ETransferDirection::GPU_TO_CPU)
+				{
+					Status = dvpMemcpy2D(TextureInfo->DVPHandle, BufferInfo->SystemMemorySync->DVPSyncObject,
+						BufferInfo->SystemMemorySync->AcquireValue, DVP_TIMEOUT_IGNORED, BufferInfo->DVPHandle,
+						BufferInfo->GPUMemorySync->DVPSyncObject, BufferInfo->GPUMemorySync->ReleaseValue, 0, 0, BufferInfo->Height, BufferInfo->Width);
+				}
+				else
+				{
+					Status = dvpMemcpy2D(BufferInfo->DVPHandle, BufferInfo->SystemMemorySync->DVPSyncObject,
+						BufferInfo->SystemMemorySync->AcquireValue, DVP_TIMEOUT_IGNORED, TextureInfo->DVPHandle,
+						BufferInfo->GPUMemorySync->DVPSyncObject, BufferInfo->GPUMemorySync->ReleaseValue, 0, 0, BufferInfo->Height, BufferInfo->Width);
+				}
+
+				BufferInfo->SystemMemorySync->AcquireValue++;
+				if (Status != DVP_STATUS_OK)
+				{
+					UE_LOG(LogGPUTextureTransfer, Error, TEXT("Error while performing a GPU transfer texture. Error: '%d'."), Status);
+					return false;
+				}
+
+				DVP_CALL(dvpMapBufferEndDVP(TextureInfo->DVPHandle));
+				DVP_CALL(dvpEnd())
 			}
-			else
-			{
-				Status = dvpMemcpy2D(BufferInfo->DVPHandle, BufferInfo->SystemMemorySync->DVPSyncObject,
-					BufferInfo->SystemMemorySync->AcquireValue, DVP_TIMEOUT_IGNORED, TextureInfo->DVPHandle,
-					BufferInfo->GPUMemorySync->DVPSyncObject, BufferInfo->GPUMemorySync->ReleaseValue, 0, 0, BufferInfo->Height, BufferInfo->Width);
-			}
 
-			BufferInfo->SystemMemorySync->AcquireValue++;
-
-			DVP_CALL(dvpMapBufferEndDVP(TextureInfo->DVPHandle));
-			DVP_CALL(dvpEnd())
-
-			if (Status != DVP_STATUS_OK)
-			{
-				UE_LOG(LogGPUTextureTransfer, Error, TEXT("Error while performing a GPU transfer texture. Error: '%d'."), Status);
-				return false;
-
-			}
 			return true;
 		}
 		else
 		{
-			UE_LOG(LogGPUTextureTransfer, Warning, TEXT("Error while performing a GPU transfer texture: A sync object was not found."));
+			UE_LOG(LogGPUTextureTransfer, Error, TEXT("Could not find both the bufferinfo and the texture info for a GPU DMA transfer."));
 		}
 
 		return false;
@@ -231,16 +220,14 @@ namespace UE::GPUTextureTransfer::Private
 			BufferInfo.SystemMemorySync = MakeUnique<DVPSync>(SemaphoreAllocSize, SemaphoreAddressAlignment);
 			BufferInfo.GPUMemorySync = MakeUnique<DVPSync>(SemaphoreAllocSize, SemaphoreAddressAlignment);
 
-			// todo jroy: Add conversion method from unreal pixel format to dvp pixel format to support more format/type combinations.
-
 			// Register system memory buffers with DVP
 			DVPSysmemBufferDesc SystemMemoryBuffersDesc;
 			SystemMemoryBuffersDesc.width = Args.Width;
 			SystemMemoryBuffersDesc.height = Args.Height;
 			SystemMemoryBuffersDesc.stride = Args.Stride;
 			SystemMemoryBuffersDesc.size = 0; // Only needed with DVP_BUFFER
-			SystemMemoryBuffersDesc.format = Args.PixelFormat == EPixelFormat::PF_8Bit ? DVP_BGRA : DVP_RGBA_INTEGER;
-			SystemMemoryBuffersDesc.type = Args.PixelFormat == EPixelFormat::PF_8Bit ? DVP_UNSIGNED_BYTE : DVP_INT;
+			SystemMemoryBuffersDesc.format = DVP_BGRA;
+			SystemMemoryBuffersDesc.type = DVP_UNSIGNED_BYTE;
 			SystemMemoryBuffersDesc.bufAddr = Args.Buffer;
 
 			DVP_CALL(dvpCreateBuffer(&SystemMemoryBuffersDesc, &BufferInfo.DVPHandle));
@@ -268,12 +255,12 @@ namespace UE::GPUTextureTransfer::Private
 		if (!RegisteredTextures.Contains(Args.RHITexture))
 		{
 			FTextureInfo Info;
-			DVP_CALL(CreateGPUResource_Impl(Args, &Info));
+			DVP_CALL(CreateGPUResource_Impl(Args.RHITexture, &Info));
 			RegisteredTextures.Add({ Args.RHITexture, std::move(Info) });
 		}
 	}
 
-	void FTextureTransferBase::UnregisterTexture(FRHITexture* InRHITexture)
+	void FTextureTransferBase::UnregisterTexture(void* InRHITexture)
 	{
 		FScopeLock ScopeLock{ &CriticalSection };
 		if (FTextureInfo* TextureInfo = RegisteredTextures.Find(InRHITexture))
@@ -282,7 +269,7 @@ namespace UE::GPUTextureTransfer::Private
 			if (TextureInfo->External.Handle)
 			{
 #if PLATFORM_WINDOWS
-				::CloseHandle(TextureInfo->External.Handle);
+				CloseHandle(TextureInfo->External.Handle);
 #endif
 			}
 			RegisteredTextures.Remove(InRHITexture);
@@ -299,7 +286,7 @@ namespace UE::GPUTextureTransfer::Private
 				if (It.Value().External.Handle)
 				{
 #if PLATFORM_WINDOWS
-					::CloseHandle(It.Value().External.Handle);
+					CloseHandle(It.Value().External.Handle);
 #endif
 				}
 			}
@@ -320,7 +307,7 @@ namespace UE::GPUTextureTransfer::Private
 		RegisteredBuffers.Reset();
 	}
 
-	void FTextureTransferBase::LockTexture(FRHITexture* InRHITexture)
+	void FTextureTransferBase::LockTexture(void* InRHITexture)
 	{
 		FScopeLock ScopeLock{ &CriticalSection };
 		if (FTextureInfo* TextureInfo = RegisteredTextures.Find(InRHITexture))
@@ -329,7 +316,7 @@ namespace UE::GPUTextureTransfer::Private
 		}
 	}
 
-	void FTextureTransferBase::UnlockTexture(FRHITexture* InRHITexture)
+	void FTextureTransferBase::UnlockTexture(void* InRHITexture)
 	{
 		LOG_PERF(UnlockTexture);
 		FScopeLock ScopeLock{ &CriticalSection };
@@ -337,16 +324,6 @@ namespace UE::GPUTextureTransfer::Private
 		{
 			DVP_CALL(MapBufferEndAPI_Impl(TextureInfo->DVPHandle));
 		}
-	}
-
-	uint32 FTextureTransferBase::GetBufferAlignment() const
-	{
-		return BufferAddressAlignment;
-	}
-
-	uint32 FTextureTransferBase::GetTextureStride() const
-	{
-		return BufferGpuStrideAlignment;
 	}
 
 	void FTextureTransferBase::ClearBufferInfo(FExternalBufferInfo& BufferInfo)
@@ -368,4 +345,3 @@ namespace UE::GPUTextureTransfer::Private
 	}
 
 }
-#endif // PLATFORM_WINDOWS

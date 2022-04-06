@@ -11,18 +11,13 @@ namespace UnrealBuildTool.Rules
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "GPUDirect");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Linux)
-			{
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
-			}
-				
+
 			PublicDefinitions.Add("PERF_LOGGING=0");
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
-					"RHI"
 				});
 
 			PublicIncludePaths.AddRange(

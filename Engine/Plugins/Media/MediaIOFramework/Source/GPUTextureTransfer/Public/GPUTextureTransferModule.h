@@ -7,22 +7,18 @@
 #include "Logging/LogMacros.h"
 #include "Modules/ModuleInterface.h"
 
-#include <atomic>
-
 DECLARE_LOG_CATEGORY_EXTERN(LogGPUTextureTransfer, Log, All);
-
-namespace UE::GPUTextureTransfer
-{
-	using TextureTransferPtr = TSharedPtr<ITextureTransfer>;
-}
 
 class GPUTEXTURETRANSFER_API FGPUTextureTransferModule : public IModuleInterface
 {
 public:
+	using TextureTransferPtr = TSharedPtr<UE::GPUTextureTransfer::ITextureTransfer>;
+	
+public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	UE::GPUTextureTransfer::TextureTransferPtr GetTextureTransfer();
+	TextureTransferPtr GetTextureTransfer();
 
 	static bool IsAvailable();
 	static FGPUTextureTransferModule& Get();
@@ -35,7 +31,7 @@ private:
 private:
 	static constexpr uint8 RHI_MAX = static_cast<uint8>(UE::GPUTextureTransfer::ERHI::RHI_MAX);
 	void* TextureTransferHandle = nullptr;
-	std::atomic<bool> bIsGPUTextureTransferAvailable = false;
+	bool bIsGPUTextureTransferAvailable = false;
 	
-	TArray<UE::GPUTextureTransfer::TextureTransferPtr> TransferObjects;
+	TArray<TextureTransferPtr> TransferObjects;
 };
