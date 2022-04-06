@@ -193,7 +193,7 @@ public:
 				.HAlign(HAlign_Right)
 				.VAlign(VAlign_Fill)
 				[
-					SNew(SExpanderArrow, SharedThis(this) )
+					SAssignNew(ExpanderArrowWidget, SExpanderArrow, SharedThis(this) )
 					.StyleSet(ExpanderStyleSet)
 					.ShouldDrawWires(bShowWires)
 				]
@@ -1049,6 +1049,14 @@ public:
 		return FVector2D::ZeroVector;
 	}
 
+	void SetExpanderArrowVisibility(const EVisibility InExpanderArrowVisibility)
+	{
+		if(ExpanderArrowWidget)
+		{
+			ExpanderArrowWidget->SetVisibility(InExpanderArrowVisibility);
+		}
+	}
+
 	/** Protected constructor; SWidgets should only be instantiated via declarative syntax. */
 	STableRow()
 		: IndexInList(0)
@@ -1180,6 +1188,9 @@ protected:
 
 	/** The slate style to use with the expander */
 	const ISlateStyle* ExpanderStyleSet;
+
+	/** A pointer to the expander arrow on the row (if it exists) */
+	TSharedPtr<SExpanderArrow> ExpanderArrowWidget;
 
 	/** @see STableRow's OnCanAcceptDrop event */
 	FOnCanAcceptDrop OnCanAcceptDrop;

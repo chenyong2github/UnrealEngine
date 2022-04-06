@@ -1143,9 +1143,11 @@ private:
 			TSharedPtr<STableRow<ItemType>> PinnedRow = StaticCastSharedPtr<STableRow<ItemType>>(InPinnedItemRow);
 
 			// If the PinnedRow inherits from STableRow (i.e has a custom border already), remove it since we will be adding our own border
+			// Also set the expander arrow to Hidden so it is not available for pinned rows, but still occupies the same space
 			if (PinnedRow.IsValid())
 			{
 				PinnedRow->SetBorderImage(FAppStyle::Get().GetBrush("NoBrush"));
+				PinnedRow->SetExpanderArrowVisibility(EVisibility::Hidden);
 			}
 
 			TSharedRef<SWidget> InPinnedItemRowWidget = InPinnedItemRow->AsWidget();
