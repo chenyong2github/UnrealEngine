@@ -167,6 +167,30 @@ static bool DefaultFeatureLevelES31()
 		}
 	}
 
+	TArray<FString> DeviceDefaultRHIList;
+	GConfig->GetArray(TEXT("Devices"), TEXT("DeviceDefaultRHIList"), DeviceDefaultRHIList, GHardwareIni);
+
+	FString GPUBrand = FPlatformMisc::GetPrimaryGPUBrand();
+	for (const FString& DeviceDefaultRHIString : DeviceDefaultRHIList)
+	{
+		const TCHAR* Line = *DeviceDefaultRHIString;
+
+		ensure(Line[0] == TCHAR('('));
+
+		FString RHIName;
+		FParse::Value(Line+1, TEXT("RHI="), RHIName);
+
+		FString DeviceName;
+		FParse::Value(Line+1, TEXT("DeviceName="), DeviceName);
+
+		if (RHIName.Compare("D3D11_ES31", ESearchCase::IgnoreCase) == 0 && GPUBrand.Compare(DeviceName, ESearchCase::IgnoreCase) == 0)
+		{
+			ForceES31 = true;
+
+			return true;
+		}
+	}
+
 	ForceES31 = false;
 	return false;
 }
