@@ -1116,7 +1116,7 @@ namespace AutomationTool
 			string Args = null;
 			if (XGETool != null) 
 			{
-				//Debug.Assert(OperatingSystem.IsWindows());
+				Debug.Assert(OperatingSystem.IsWindows());
 
 				Args = "\"" + TaskFilePath + "\" /Rebuild /NoLogo /ShowAgent /ShowTime";
 				if (ParseParam("StopOnErrors"))

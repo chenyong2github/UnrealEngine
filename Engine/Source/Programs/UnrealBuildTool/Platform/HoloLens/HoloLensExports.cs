@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -12,6 +13,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Public HoloLensDeploy wrapper exposed to UAT
 	/// </summary>
+	[SupportedOSPlatform("windows")]
 	public class HoloLensExports
 	{
 		private HoloLensDeploy InnerDeploy;

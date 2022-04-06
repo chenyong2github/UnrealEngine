@@ -58,6 +58,8 @@ call "%~dp0GetDotnetPath.bat"
 if errorlevel 1 goto Error_NoDotnetSDK
 
 echo Building AutomationTool...
+rem ## print the timestamp on EpicGames.Core.dll in the hope of identifying if/where it is being modified.
+forfiles /P Programs\Shared\EpicGames.Core\obj\Development\netcoreapp3.1\ /M *.dll /c "cmd /c echo @path @fdate @ftime" 2> nul
 dotnet msbuild /restore /target:build /property:Configuration=Development /nologo Programs\AutomationTool\AutomationTool.csproj /verbosity:%MSBUILD_LOGLEVEL%
 if errorlevel 1 goto Error_UATCompileFailed
 

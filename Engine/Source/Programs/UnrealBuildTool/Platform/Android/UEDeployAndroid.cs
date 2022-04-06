@@ -1339,7 +1339,7 @@ namespace UnrealBuildTool
 			if (!bFileExists || Diff.TotalSeconds < -1 || Diff.TotalSeconds > 1)
 			{
 				SafeDeleteFile(FinalSTLSOName);
-				Directory.CreateDirectory(Path.GetDirectoryName(FinalSTLSOName));
+				Directory.CreateDirectory(Path.GetDirectoryName(FinalSTLSOName)!);
 				File.Copy(SourceSTLSOName, FinalSTLSOName, true);
 
 				// make sure it's writable if the source was readonly (e.g. autosdks)
@@ -4368,7 +4368,7 @@ namespace UnrealBuildTool
 						if (!File.Exists(GradleAppImlFilename))
 						{
 							// make sure destination exists
-							Directory.CreateDirectory(Path.GetDirectoryName(DestApkName));
+							Directory.CreateDirectory(Path.GetDirectoryName(DestApkName)!);
 
 							// Use gradle to build the .apk file
 							string ShellExecutable = RuntimePlatform.IsWindows ? "cmd.exe" : "/bin/sh";
@@ -5195,12 +5195,12 @@ namespace UnrealBuildTool
 		{
 			Dictionary<string, string?> PathsAndRootEls = new Dictionary<string, string?>();
 
-			foreach (XElement Element in FilesToAdd.Root.Elements())
+			foreach (XElement Element in FilesToAdd.Root!.Elements())
 			{
 				string RelPath = Element.Value;
 				if (RelPath != null)
 				{
-					XAttribute TypeAttr = Element.Attribute("rootEl");
+					XAttribute? TypeAttr = Element.Attribute("rootEl");
 					PathsAndRootEls[RelPath] = TypeAttr?.Value;
 				}
 			}
@@ -5349,13 +5349,13 @@ namespace UnrealBuildTool
 					{
 						ManifestXML = XDocument.Load(ManifestFilename);
 
-						XAttribute VersionCodeAttr = ManifestXML.Root.Attribute(XName.Get("versionCode", "http://schemas.android.com/apk/res/android"));
+						XAttribute? VersionCodeAttr = ManifestXML.Root!.Attribute(XName.Get("versionCode", "http://schemas.android.com/apk/res/android"));
 						if (VersionCodeAttr != null)
 						{
 							VersionCode = VersionCodeAttr.Value;
 						}
 
-						XAttribute VersionNameAttr = ManifestXML.Root.Attribute(XName.Get("versionName", "http://schemas.android.com/apk/res/android"));
+						XAttribute? VersionNameAttr = ManifestXML.Root.Attribute(XName.Get("versionName", "http://schemas.android.com/apk/res/android"));
 						if (VersionNameAttr != null)
 						{
 							VersionName = VersionNameAttr.Value;
@@ -5366,13 +5366,13 @@ namespace UnrealBuildTool
 						{
 							UseSDKNode = WorkNode;
 
-							XAttribute MinSdkVersionAttr = WorkNode.Attribute(XName.Get("minSdkVersion", "http://schemas.android.com/apk/res/android"));
+							XAttribute? MinSdkVersionAttr = WorkNode.Attribute(XName.Get("minSdkVersion", "http://schemas.android.com/apk/res/android"));
 							if (MinSdkVersionAttr != null)
 							{
 								MinSdkVersion = MinSdkVersionAttr.Value;
 							}
 
-							XAttribute TargetSdkVersionAttr = WorkNode.Attribute(XName.Get("targetSdkVersion", "http://schemas.android.com/apk/res/android"));
+							XAttribute? TargetSdkVersionAttr = WorkNode.Attribute(XName.Get("targetSdkVersion", "http://schemas.android.com/apk/res/android"));
 							if (TargetSdkVersionAttr != null)
 							{
 								TargetSdkVersion = TargetSdkVersionAttr.Value;

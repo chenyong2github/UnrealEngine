@@ -333,9 +333,9 @@ namespace UnrealBuildTool
 					{
 						Log.TraceVerbose($"\tremoving {Utils.MakePathRelativeTo(StaleResourceFile, OutputPath!)}");
 						FileUtils.ForceDeleteFile(StaleResourceFile);
-						if (!Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(StaleResourceFile)).Any())
+						if (!Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(StaleResourceFile)!).Any())
 						{
-							Directory.Delete(Path.GetDirectoryName(StaleResourceFile), false);
+							Directory.Delete(Path.GetDirectoryName(StaleResourceFile)!, false);
 						}
 					}
 					catch (Exception E)
@@ -488,7 +488,7 @@ namespace UnrealBuildTool
 			List<string> UpdatedFiles = new List<string>();
 
 			// early out if there's nothing to copy
-			if (!ManifestFiles.Any(X => !string.IsNullOrEmpty(X.Value)))
+			if (ManifestFiles == null || !ManifestFiles.Any(X => !string.IsNullOrEmpty(X.Value)))
 			{
 				return UpdatedFiles;
 			}
@@ -525,7 +525,7 @@ namespace UnrealBuildTool
 				{
 					Log.TraceVerbose($"\t{(bFileExists ? "updating" : "adding")} {Utils.MakePathRelativeTo(TargetPath, OutputPath!)}");
 
-					Directory.CreateDirectory(Path.GetDirectoryName(TargetPath));
+					Directory.CreateDirectory(Path.GetDirectoryName(TargetPath)!);
 					File.Copy(SourcePath, TargetPath);
 					File.SetAttributes(TargetPath, FileAttributes.Normal);
 					File.SetCreationTime(TargetPath, File.GetCreationTime(SourcePath));
@@ -655,7 +655,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected XElement GetResources()
 		{
-			var ResourceCulturesList = CulturesToStage.ToList();
+			List<string> ResourceCulturesList = new List<string>(CulturesToStage!);
 			// Move the default culture to the front of the list
 			ResourceCulturesList.Remove(DefaultCulture!);
 			ResourceCulturesList.Insert(0, DefaultCulture!);
@@ -730,16 +730,16 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected XElement GetIdentity(string? TargetName, out string IdentityName)
         {
-            var PackageName = GetIdentityPackageName(TargetName);
-            var PublisherName = GetIdentityPublisherName();
-            var VersionNumber = GetIdentityVersionNumber();
+            string PackageName = GetIdentityPackageName(TargetName);
+            string PublisherName = GetIdentityPublisherName();
+            string? VersionNumber = GetIdentityVersionNumber();
 
             IdentityName = PackageName;
 
             return new XElement(GetName("Identity", Schema2010NS),
                 new XAttribute("Name", PackageName),
                 new XAttribute("Publisher", PublisherName),
-                new XAttribute("Version", VersionNumber));
+                new XAttribute("Version", VersionNumber!));
         }
 
 		/// <summary>
@@ -963,17 +963,17 @@ namespace UnrealBuildTool
 				PriConfig.Load(ResourceConfigFile);
 
 				// remove the packaging node - we do not want to split the pri & only want one .pri file
-				XmlNode PackagingNode = PriConfig.SelectSingleNode("/resources/packaging");
-				PackagingNode.ParentNode.RemoveChild(PackagingNode);
+				XmlNode PackagingNode = PriConfig.SelectSingleNode("/resources/packaging")!;
+				PackagingNode.ParentNode!.RemoveChild(PackagingNode);
 
 				// all required resources are explicitly listed in resources.resfiles, rather than relying on makepri to discover them
 				string ResourcesResFile = Path.Combine(IntermediatePath, "resources.resfiles");
-				XmlNode PriIndexNode = PriConfig.SelectSingleNode("/resources/index");
-				XmlAttribute PriStartIndex = PriIndexNode.Attributes["startIndexAt"];
+				XmlNode PriIndexNode = PriConfig.SelectSingleNode("/resources/index")!;
+				XmlAttribute PriStartIndex = PriIndexNode.Attributes!["startIndexAt"]!;
 				PriStartIndex.Value = ResourcesResFile;
 
 				// swap the folder indexer-config to a RESFILES indexer-config.
-				XmlElement FolderIndexerConfigNode = (XmlElement)PriConfig.SelectSingleNode("/resources/index/indexer-config[@type='folder']");
+				XmlElement FolderIndexerConfigNode = (XmlElement)PriConfig.SelectSingleNode("/resources/index/indexer-config[@type='folder']")!;
 				FolderIndexerConfigNode.SetAttribute("type", "RESFILES");
 				FolderIndexerConfigNode.RemoveAttribute("foldernameAsQualifier");
 				FolderIndexerConfigNode.RemoveAttribute("filenameAsQualifier");

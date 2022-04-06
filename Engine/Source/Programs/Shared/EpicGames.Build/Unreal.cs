@@ -79,16 +79,15 @@ namespace UnrealBuildBase
 			return UnrealBuildToolDllPath;
 		}
 
-		//static private string DotnetVersionDirectory = "6.0.200";
+		static private string DotnetVersionDirectory = "6.0.200";
 			
 		static private string FindRelativeDotnetDirectory()
 		{
 			string HostDotNetDirectoryName;
 			switch (RuntimePlatform.Current)
 			{
-				case RuntimePlatform.Type.Windows: HostDotNetDirectoryName = "Windows"; break;
-				case RuntimePlatform.Type.Mac: HostDotNetDirectoryName = "Mac"; break;
-					/*
+				case RuntimePlatform.Type.Windows: HostDotNetDirectoryName = "windows"; break;
+				case RuntimePlatform.Type.Mac:
 				{
 					HostDotNetDirectoryName = "mac-x64";
 					if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
@@ -97,12 +96,11 @@ namespace UnrealBuildBase
 					}
 					break;
 				}
-					*/
-				case RuntimePlatform.Type.Linux:   HostDotNetDirectoryName = "Linux"; break;
+				case RuntimePlatform.Type.Linux:   HostDotNetDirectoryName = "linux"; break;
 				default: throw new Exception("Unknown host platform");
 			}
 
-			return Path.Combine("Binaries", "ThirdParty", "DotNet", /*DotnetVersionDirectory,*/ HostDotNetDirectoryName);
+			return Path.Combine("Binaries", "ThirdParty", "DotNet", DotnetVersionDirectory, HostDotNetDirectoryName);
 		}
 
 		/// <summary>

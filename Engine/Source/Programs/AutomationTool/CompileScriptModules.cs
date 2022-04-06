@@ -507,20 +507,6 @@ namespace AutomationToolDriver
 
 			void eventSource_WarningRaised(object Sender, BuildWarningEventArgs e)
 			{
-				string Message = $"{e.File}({e.LineNumber},{e.ColumnNumber}): warning {e.Code}: {e.Message} ({e.ProjectFile})";
-
-
-				{
-					// workaround for warnings that appear after revert of net6.0 upgrade. Delete this block when the net6.0 upgrade is done.
-					// ...\Engine\Binaries\ThirdParty\DotNet\Windows\sdk\3.1.403\Microsoft.Common.CurrentVersion.targets(3036,5): warning MSB3088: Could not read state file "obj\Development\[projectname].csproj.GenerateResource.cache". The input stream is not a valid binary format.
-					// The starting contents (in bytes) are: 06-01-01-00-00-00-01-19-50-72-6F-70-65-72-74-69-65 ... (...\[projectname].csproj)
-					if (String.Equals(e.Code, "MSB3088"))
-					{
-						Log.TraceLog("Suppressed warning: " + Message);
-						return;
-					}
-				}
-
 				if (bFirstError)
                 {
 					Trace.WriteLine("");
@@ -528,6 +514,7 @@ namespace AutomationToolDriver
 					bFirstError = false;
                 }
 
+				string Message = $"{e.File}({e.LineNumber},{e.ColumnNumber}): warning {e.Code}: {e.Message} ({e.ProjectFile})";
 				Trace.WriteLine(Message); // double-clickable message in VS output
 				Log.WriteLine(LogEventType.Console, Message);
 			}
@@ -632,7 +619,6 @@ namespace AutomationToolDriver
 							throw IPFEx;
 						}
 
-/*
 						if (!OperatingSystem.IsWindows())
 						{
 							// check the TargetFramework of the project: we can't build Windows-only projects on 
@@ -644,7 +630,6 @@ namespace AutomationToolDriver
 								return;
 							}
 						}
-*/
 						
 						Projects.Add(ProjectPath, Project);
 						ReferencedBy = String.IsNullOrEmpty(ReferencedBy) ? ProjectPath : $"{ProjectPath}{Environment.NewLine}{ReferencedBy}";

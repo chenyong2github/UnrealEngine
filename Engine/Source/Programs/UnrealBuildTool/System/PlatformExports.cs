@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -126,6 +127,12 @@ namespace UnrealBuildTool
 		/// <returns>True if the path was found, false otherwise</returns>
 		public static bool TryGetXgConsoleExecutable(out string? OutXgConsoleExe)
 		{
+			if (!OperatingSystem.IsWindows())
+			{
+				OutXgConsoleExe = null;
+				return false;
+			}
+
 			return XGE.TryGetXgConsoleExecutable(out OutXgConsoleExe);
 		}
 

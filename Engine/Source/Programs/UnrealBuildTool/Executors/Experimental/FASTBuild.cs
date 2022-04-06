@@ -22,6 +22,7 @@ using EpicGames.Core;
 using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
+using System.Runtime.Versioning;
 
 namespace UnrealBuildTool
 {
@@ -424,6 +425,7 @@ namespace UnrealBuildTool
 			}
 		}
 
+		[SupportedOSPlatform("windows")]
 		public override bool ExecuteActions(List<LinkedAction> Actions)
 		{
 			if (Actions.Count <= 0)
@@ -498,7 +500,7 @@ namespace UnrealBuildTool
 
 		private void AddPreBuildDependenciesText(IEnumerable<LinkedAction>? PreBuildDependencies)
 		{
-			if (!PreBuildDependencies.Any())
+			if (PreBuildDependencies == null || !PreBuildDependencies.Any())
 				return;
 
 			AddText($"\t.PreBuildDependencies = {{\n");
@@ -795,6 +797,7 @@ namespace UnrealBuildTool
 			return String.Empty;
 		}
 
+		[SupportedOSPlatform("windows")]
 		public string GetRegistryValue(string keyName, string valueName, object defaultValue)
 		{
 			object? returnValue = Microsoft.Win32.Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\" + keyName, valueName, defaultValue);
@@ -816,6 +819,7 @@ namespace UnrealBuildTool
 			return defaultValue.ToString()!;
 		}
 
+		[SupportedOSPlatform("windows")]
 		private void WriteEnvironmentSetup()
 		{
 			VCEnvironment? VCEnv = null;
@@ -1276,7 +1280,7 @@ namespace UnrealBuildTool
                     else if (IsMSVC())
                         AddText($"\t.LibrarianAdditionalInputs = {{\n{string.Join(",", DependencyNames.ToArray())}\n\t}} \n");
 
-                    PrebuildDependencies = PrebuildDependencies.Concat(DependencyActions);
+                    PrebuildDependencies = PrebuildDependencies!.Concat(DependencyActions);
 				}
 				else
 				{
@@ -1329,7 +1333,7 @@ namespace UnrealBuildTool
 				string InputFile = GetOptionValue(ParsedLinkerOptions, "InputFile", Action, ProblemIfNotFound: true);
 				if (!string.IsNullOrEmpty(InputFile))
 				{
-					LinkedAction InputFileAction = DependencyActions
+					LinkedAction? InputFileAction = DependencyActions
 						.Where(ActionToInspect =>
 							ActionToInspect.ProducedItems.Any(Item => Item.AbsolutePath == InputFile)
 						).FirstOrDefault();
@@ -1387,6 +1391,7 @@ namespace UnrealBuildTool
 
 		private MemoryStream? bffOutputMemoryStream = null;
 
+		[SupportedOSPlatform("windows")]
 		private bool CreateBffFile(IEnumerable<LinkedAction> Actions, string BffFilePath)
 		{
 			try
@@ -1487,7 +1492,7 @@ namespace UnrealBuildTool
 
 			Log.TraceInformation($"FBuild Command Line Arguments: '{FBCommandLine}");
 
-			string? FBExecutable		= GetExecutablePath();
+			string FBExecutable		= GetExecutablePath()!;
 			string WorkingDirectory	= Path.GetFullPath(Path.Combine(Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()), "Source"));
 
 			ProcessStartInfo FBStartInfo		= new ProcessStartInfo(FBExecutable, FBCommandLine);

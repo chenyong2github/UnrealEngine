@@ -198,7 +198,11 @@ namespace IncludeTool.Support
 		/// </summary>
 		protected override void InternalAbort()
 		{
-			Worker.Abort();
+			// Thread.Abort() is obsolete, not supported, and throws PlatformNotSupportedException
+			// Worker.Abort();
+
+			// So, instead, we'll just wait for the worker to finish. If this turns out to take too long,
+			// an explicit mechanism should be added to gracefully interrupt the worker thread sooner.
 			Worker.Join();
 			Worker = null;
 		}

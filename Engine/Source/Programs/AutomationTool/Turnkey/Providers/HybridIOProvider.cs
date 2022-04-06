@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using System.Drawing;
 using EpicGames.Core;
+using System.Diagnostics;
+
+#pragma warning disable SYSLIB0014
 
 namespace Turnkey
 {
@@ -43,10 +46,11 @@ namespace Turnkey
 		{
 			string Result = "";
 
-			if (RuntimePlatform.IsWindows)
+			if (OperatingSystem.IsWindows())
 			{
 				System.Threading.Thread t = new System.Threading.Thread(x =>
 				{
+					Debug.Assert(OperatingSystem.IsWindowsVersionAtLeast(7));
 					Result = UnrealWindowsForms.TurnkeyDialog.ShowDialogAndReturnResult(Prompt, Default);
 				});
 
@@ -54,7 +58,7 @@ namespace Turnkey
 				t.Start();
 				t.Join();
 			}
-			else if (RuntimePlatform.IsMac)
+			else if (OperatingSystem.IsMacOS())
 			{
 				Result = ShowMacDialog(Prompt, Default);
 			}

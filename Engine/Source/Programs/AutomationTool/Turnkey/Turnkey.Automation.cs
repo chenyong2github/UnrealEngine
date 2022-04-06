@@ -104,7 +104,7 @@ namespace Turnkey
 
 		private static void SetupVisuals()
 		{
-			if (RuntimePlatform.IsWindows)
+			if (OperatingSystem.IsWindowsVersionAtLeast(7))
 			{
 				UnrealWindowsForms.Utils.SetupVisuals();
 			}

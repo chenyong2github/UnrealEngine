@@ -54,9 +54,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Overrides XmlDocument.CreateElement() to construct ScriptElements rather than XmlElements
 		/// </summary>
-		public override XmlElement CreateElement(string Prefix, string LocalName, string NamespaceUri)
+		public override XmlElement CreateElement(string? Prefix, string LocalName, string? NamespaceUri)
 		{
-			return new XmlConfigFileElement(File, LineInfo.LineNumber, Prefix, LocalName, NamespaceUri, this);
+			return new XmlConfigFileElement(File, LineInfo.LineNumber, Prefix!, LocalName, NamespaceUri, this);
 		}
 
 		/// <summary>
@@ -100,7 +100,7 @@ namespace UnrealBuildTool
 				}
 
 				// Check that the root element is valid. If not, we didn't actually validate against the schema.
-				if (ConfigFile.DocumentElement.Name != RootElementName)
+				if (ConfigFile.DocumentElement?.Name != RootElementName)
 				{
 					Log.TraceError("Script does not have a root element called '{0}'", RootElementName);
 					OutConfigFile = null;
@@ -123,7 +123,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Sender">Standard argument for ValidationEventHandler</param>
 		/// <param name="Args">Standard argument for ValidationEventHandler</param>
-		void ValidationEvent(object Sender, ValidationEventArgs Args)
+		void ValidationEvent(object? Sender, ValidationEventArgs Args)
 		{
 			Log.TraceWarningTask(File, Args.Exception.LineNumber, "{0}", Args.Message);
 		}
@@ -147,7 +147,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public XmlConfigFileElement(FileReference InFile, int InLineNumber, string Prefix, string LocalName, string NamespaceUri, XmlConfigFile ConfigFile)
+		public XmlConfigFileElement(FileReference InFile, int InLineNumber, string Prefix, string LocalName, string? NamespaceUri, XmlConfigFile ConfigFile)
 			: base(Prefix, LocalName, NamespaceUri, ConfigFile)
 		{
 			File = InFile;

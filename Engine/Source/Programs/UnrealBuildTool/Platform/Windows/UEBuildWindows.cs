@@ -9,6 +9,7 @@ using System.Linq;
 using EpicGames.Core;
 using System.Diagnostics.CodeAnalysis;
 using UnrealBuildBase;
+using System.Runtime.Versioning;
 
 namespace UnrealBuildTool
 {
@@ -412,7 +413,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Directory containing the DIA SDK
 		/// </summary>
-		public string DiaSdkDir
+		public string? DiaSdkDir
 		{
 			get { return MicrosoftPlatformSDK.FindDiaSdkDirs(Environment!.Compiler).Select(x => x.FullName).FirstOrDefault(); }
 		}
@@ -420,7 +421,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Directory containing the IDE package (Professional, Community, etc...)
 		/// </summary>
-		public string IDEDir
+		public string? IDEDir
 		{
 			get
 			{
@@ -682,12 +683,12 @@ namespace UnrealBuildTool
 			get { return Inner.WindowsSdkDir; }
 		}
 
-		public string DiaSdkDir
+		public string? DiaSdkDir
 		{
 			get { return Inner.DiaSdkDir; }
 		}
 		
-		public string IDEDir
+		public string? IDEDir
 		{
 			get { return Inner.IDEDir; }
 		}
@@ -784,6 +785,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Target">Stanard target object</param>
 		/// <returns></returns>
+		[SupportedOSPlatform("windows")]
 		protected virtual VCEnvironment CreateVCEnvironment(TargetRules Target)
 		{
 			return VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion, null);
@@ -792,6 +794,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Validate a target's settings
 		/// </summary>
+		[SupportedOSPlatform("windows")]
 		public override void ValidateTarget(TargetRules Target)
 		{
 			if (Platform == UnrealTargetPlatform.HoloLens && Target.Architecture.ToLower() == "arm64")
@@ -1077,6 +1080,7 @@ namespace UnrealBuildTool
 
 
 
+		[SupportedOSPlatform("windows")]
 		public static bool TryGetWindowsSdkDir(string? DesiredVersion, [NotNullWhen(true)] out VersionNumber? OutSdkVersion, [NotNullWhen(true)] out DirectoryReference? OutSdkDir)
 		{
 			return MicrosoftPlatformSDK.TryGetWindowsSdkDir(DesiredVersion, out OutSdkVersion, out OutSdkDir);

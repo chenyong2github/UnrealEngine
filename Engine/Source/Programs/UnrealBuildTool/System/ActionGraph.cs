@@ -218,7 +218,7 @@ namespace UnrealBuildTool
 			JsonSerializerOptions Options = new JsonSerializerOptions
 			{
 				WriteIndented = true,
-				IgnoreNullValues = true,
+				DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 				Converters =
 				{
 					new LogActionActionTypeConverter(),

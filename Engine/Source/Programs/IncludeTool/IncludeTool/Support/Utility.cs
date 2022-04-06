@@ -72,8 +72,7 @@ namespace IncludeTool.Support
 		public static string ComputeDigest(string Text)
 		{
 			byte[] Data = Encoding.Unicode.GetBytes(Text);
-			SHA1Managed Hasher = new SHA1Managed();
-			return FormatSHA(Hasher.ComputeHash(Data));
+			return FormatSHA(SHA1.Create().ComputeHash(Data));
 		}
 
 		/// <summary>
@@ -84,8 +83,7 @@ namespace IncludeTool.Support
 		public static string ComputeDigest(FileReference FileLocation)
 		{
 			byte[] Data = File.ReadAllBytes(FileLocation.FullName);
-			SHA1Managed Hasher = new SHA1Managed();
-			return FormatSHA(Hasher.ComputeHash(Data));
+			return FormatSHA(SHA1.Create().ComputeHash(Data));
 		}
 
 		/// <summary>

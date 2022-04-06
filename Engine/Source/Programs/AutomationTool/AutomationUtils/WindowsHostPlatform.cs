@@ -15,7 +15,7 @@ namespace AutomationTool
 {
 	class WindowsHostPlatform : HostPlatform
 	{
-		//[SupportedOSPlatform("windows")]
+		[SupportedOSPlatform("windows")]
 		public override string GetFrameworkMsbuildExe()
 		{
 			return WindowsExports.GetMSBuildToolPath();

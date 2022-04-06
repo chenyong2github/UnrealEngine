@@ -9,12 +9,15 @@ rem if UE_USE_SYSTEM_DOTNET we assume a installed dotnet is present
 if "%UE_USE_SYSTEM_DOTNET%" == "1" goto verify_dotnet
 
 rem add the dotnet sdk in the repo as the current dotnet sdk
-set UE_DOTNET_DIR=%~dp0..\..\Binaries\ThirdParty\DotNet\Windows
+set UE_DOTNET_DIR=%~dp0..\..\Binaries\ThirdParty\DotNet\6.0.200\windows
 set PATH=%UE_DOTNET_DIR%;%PATH%
 set DOTNET_ROOT=%UE_DOTNET_DIR%
 
 rem Disables use of any installed version of dotnet
 set DOTNET_MULTILEVEL_LOOKUP=0
+
+rem for dotnet applications that require older dotnet runtimes, this will allow them to use our bundled dotnet runtime
+set DOTNET_ROLL_FORWARD=LatestMajor
 
 rem skip dotnet verification when using our submitted sdk as we know it is up to date
 ECHO Using bundled DotNet SDK
@@ -32,8 +35,8 @@ exit /B 1
 
 :find_sdks
 
-set REQUIRED_MAJOR_VERSION=3
-set REQUIRED_MINOR_VERSION=1
+set REQUIRED_MAJOR_VERSION=6
+set REQUIRED_MINOR_VERSION=0
 
 set FOUND_MAJOR=
 set FOUND_MINOR=

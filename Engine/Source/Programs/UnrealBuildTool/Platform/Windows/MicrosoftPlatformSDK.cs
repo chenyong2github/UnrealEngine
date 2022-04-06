@@ -13,6 +13,7 @@ using Microsoft.VisualStudio.Setup.Configuration;
 using System.Runtime.InteropServices;
 using System.Buffers.Binary;
 using UnrealBuildBase;
+using System.Runtime.Versioning;
 
 namespace UnrealBuildTool
 {
@@ -83,10 +84,11 @@ namespace UnrealBuildTool
 		public override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
 		{
 			// minimum version is the oldest version in the Preferred list -
-			MinVersion = PreferredWindowsSdkVersions.Min().ToString();
+			MinVersion = PreferredWindowsSdkVersions.Min()?.ToString();
 			MaxVersion = null;
 		}
 
+		[SupportedOSPlatform("windows")]
 		public override string? GetInstalledSDKVersion()
 		{
 			if (!RuntimePlatform.IsWindows)
@@ -108,6 +110,11 @@ namespace UnrealBuildTool
 		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue)
 		{
 			OutValue = 0;
+
+			if (StringValue == null)
+			{
+				return false;
+			}
 
 			Match Result = Regex.Match(StringValue, @"^(\d+).(\d+).(\d+)");
 			if (Result.Success)
@@ -169,6 +176,7 @@ namespace UnrealBuildTool
 		/// Finds all the installed Windows SDK versions
 		/// </summary>
 		/// <returns>Map of version number to Windows SDK directories</returns>
+		[SupportedOSPlatform("windows")]
 		public static IReadOnlyDictionary<VersionNumber, DirectoryReference> FindWindowsSdkDirs()
 		{
 			// Update the cache of install directories, if it's not set
@@ -183,6 +191,7 @@ namespace UnrealBuildTool
 		/// Finds all the installed Universal CRT versions
 		/// </summary>
 		/// <returns>Map of version number to universal CRT directories</returns>
+		[SupportedOSPlatform("windows")]
 		public static IReadOnlyDictionary<VersionNumber, DirectoryReference> FindUniversalCrtDirs()
 		{
 			if (CachedUniversalCrtDirs == null)
@@ -201,6 +210,7 @@ namespace UnrealBuildTool
 		/// <param name="MinVersion">Optional minimum required version. Ignored if DesiredVesrion is specified</param>
 		/// <param name="MaxVersion">Optional maximum required version. Ignored if DesiredVesrion is specified</param>
 		/// <returns>True if the toolchain directory was found correctly</returns>
+		[SupportedOSPlatform("windows")]
 		public static bool TryGetWindowsSdkDir(string? DesiredVersion, [NotNullWhen(true)] out VersionNumber? OutSdkVersion, [NotNullWhen(true)] out DirectoryReference? OutSdkDir, VersionNumber? MinVersion = null, VersionNumber? MaxVersion = null)
 		{
 			// Get a map of Windows SDK versions to their root directories
@@ -259,6 +269,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Updates the CachedWindowsSdkDirs and CachedUniversalCrtDirs variables
 		/// </summary>
+		[SupportedOSPlatform("windows")]
 		private static void UpdateCachedWindowsSdks()
 		{
 			Dictionary<VersionNumber, DirectoryReference> WindowsSdkDirs = new Dictionary<VersionNumber, DirectoryReference>();
@@ -314,6 +325,7 @@ namespace UnrealBuildTool
 		/// Enumerates all the Windows 10 SDK root directories
 		/// </summary>
 		/// <param name="RootDirs">Receives all the Windows 10 sdk root directories</param>
+		[SupportedOSPlatform("windows")]
 		private static void EnumerateSdkRootDirs(List<DirectoryReference> RootDirs)
 		{
 			DirectoryReference? RootDir;
@@ -350,6 +362,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="OutInstallDir">Receives the installation directory on success</param>
 		/// <returns>True if the directory was found, false otherwise</returns>
+		[SupportedOSPlatform("windows")]
 		public static bool TryGetNetFxSdkInstallDir([NotNullWhen(true)] out DirectoryReference? OutInstallDir)
 		{
 			DirectoryReference? HostAutoSdkDir;
@@ -408,6 +421,7 @@ namespace UnrealBuildTool
 
 		#region Private implementation
 
+		[SupportedOSPlatform("windows")]
 		static readonly KeyValuePair<RegistryKey, string>[] InstallDirRoots = {
 			new KeyValuePair<RegistryKey, string>(Registry.CurrentUser, "SOFTWARE\\"),
 			new KeyValuePair<RegistryKey, string>(Registry.LocalMachine, "SOFTWARE\\"),
@@ -422,6 +436,7 @@ namespace UnrealBuildTool
 		/// <param name="ValueName">Value to be read.</param>
 		/// <param name="InstallDir">On success, the directory corresponding to the value read.</param>
 		/// <returns>True if the key was read, false otherwise.</returns>
+		[SupportedOSPlatform("windows")]
 		public static bool TryReadInstallDirRegistryKey32(string KeySuffix, string ValueName, [NotNullWhen(true)] out DirectoryReference? InstallDir)
 		{
 			foreach (KeyValuePair<RegistryKey, string> InstallRoot in InstallDirRoots)
@@ -444,6 +459,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="KeyName">The subkey to look for under each root location</param>
 		/// <returns>A list of unique subkeys found under any of the existing subkeys</returns>
+		[SupportedOSPlatform("windows")]
 		static string[] ReadInstallDirSubKeys32(string KeyName)
 		{
 			HashSet<string> AllSubKeys = new HashSet<string>(StringComparer.Ordinal);
@@ -472,6 +488,7 @@ namespace UnrealBuildTool
 		/// <param name="ValueName">Value within the key to read</param>
 		/// <param name="Value">The directory read from the registry key</param>
 		/// <returns>True if the key was read, false if it was missing or empty</returns>
+		[SupportedOSPlatform("windows")]
 		static bool TryReadDirRegistryKey(string KeyName, string ValueName, [NotNullWhen(true)] out DirectoryReference? Value)
 		{
 			string? StringValue = Registry.GetValue(KeyName, ValueName, null) as string;
@@ -499,6 +516,7 @@ namespace UnrealBuildTool
 		/// Gets the MSBuild path, and throws an exception on failure.
 		/// </summary>
 		/// <returns>Path to MSBuild</returns>
+		[SupportedOSPlatform("windows")]
 		public static FileReference GetMsBuildToolPath()
 		{
 			FileReference? Location;
@@ -1131,6 +1149,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="OutLocation">On success, receives the path to the MSBuild executable.</param>
 		/// <returns>True on success.</returns>
+		[SupportedOSPlatform("windows")]
 		public static bool TryGetMsBuildPath([NotNullWhen(true)] out FileReference? OutLocation)
 		{
 			// Get the Visual Studio 2019 install directory
@@ -1191,6 +1210,7 @@ namespace UnrealBuildTool
 		/// This mirrors the logic in GetMSBuildPath.bat.
 		/// </summary>
 		/// <returns></returns>
+		[SupportedOSPlatform("windows")]
 		static bool TryReadMsBuildInstallPath(string KeyRelativePath, string KeyName, string MsBuildRelativePath, [NotNullWhen(true)] out FileReference? OutMsBuildPath)
 		{
 			string[] KeyBasePaths =

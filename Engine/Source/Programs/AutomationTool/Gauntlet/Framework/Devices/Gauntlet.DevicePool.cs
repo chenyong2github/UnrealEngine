@@ -41,7 +41,7 @@ namespace Gauntlet
 		public UnrealTargetPlatform Type { get; set; }
 
 		[JsonConverter(typeof(UnrealTargetPlatformConvertor))]
-		public UnrealTargetPlatform Platform { get; set; }
+		public UnrealTargetPlatform? Platform { get; set; }
 
 		public EPerfSpec PerfSpec { get; set; }
 
@@ -944,7 +944,7 @@ namespace Gauntlet
 
 			try
 			{
-				bool IsDesktop = Def.Platform != null && UnrealBuildTool.Utils.GetPlatformsInClass(UnrealPlatformClass.Desktop).Contains(Def.Platform);
+				bool IsDesktop = Def.Platform != null && UnrealBuildTool.Utils.GetPlatformsInClass(UnrealPlatformClass.Desktop).Contains(Def.Platform!.Value);
 
 				string ClientTempDir = GetCleanCachePath(Def);
 
