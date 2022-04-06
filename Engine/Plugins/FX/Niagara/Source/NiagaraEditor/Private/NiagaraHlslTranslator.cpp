@@ -1817,7 +1817,15 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		TrimAttributes(CompileOptions, BasicAttributes);
 
 		// We sort the variables so that they end up in the same ordering between Spawn & Update...
-		Algo::SortBy(BasicAttributes, &FNiagaraVariable::GetName, FNameLexicalLess());
+		Algo::Sort(BasicAttributes, [](const FNiagaraVariable& Lhs, const FNiagaraVariable& Rhs)
+		{
+			const int32 NameDiff = Lhs.GetName().Compare(Rhs.GetName());
+			if (NameDiff)
+			{
+				return NameDiff < 0;
+			}
+			return Lhs.GetType().GetFName().Compare(Rhs.GetType().GetFName()) < 0;
+		});
 
 		ConvertFloatToHalf(CompileOptions, BasicAttributes);
 
