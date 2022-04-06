@@ -42,6 +42,9 @@ public:
 
 	UPCGNode* GetPCGNode() { return PCGNode; }
 
+	DECLARE_DELEGATE(FOnPCGEditorGraphNodeChanged);
+	FOnPCGEditorGraphNodeChanged OnNodeChangedDelegate;
+
 protected:
 	void OnNodeChanged(UPCGNode* InNode);
 

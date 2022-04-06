@@ -19,6 +19,9 @@ public:
 	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty = true) override;
 	//~ End SGraphNode Interface
 
+protected:
+	void OnNodeChanged();
+
 private:
 	UPCGEditorGraphNode* PCGEditorGraphNode = nullptr;
 };

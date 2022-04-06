@@ -228,21 +228,17 @@ void UPCGEditorGraphNode::ReconstructNode()
 		return UnmatchedNames.Num() > 0 || UnmatchedPins.Num() > 0;
 	};
 
-	bool bNeedsGraphUpdate = false;
 	if (NodeType == EPCGEditorGraphNodeType::Output || NodeType == EPCGEditorGraphNodeType::Settings)
 	{
-		bNeedsGraphUpdate |= UpdatePins(InputPins, InLabels, EEdGraphPinDirection::EGPD_Input);
+		UpdatePins(InputPins, InLabels, EEdGraphPinDirection::EGPD_Input);
 	}
 	
 	if (NodeType == EPCGEditorGraphNodeType::Input || NodeType == EPCGEditorGraphNodeType::Settings)
 	{
-		bNeedsGraphUpdate |= UpdatePins(OutputPins, OutLabels, EEdGraphPinDirection::EGPD_Output);
+		UpdatePins(OutputPins, OutLabels, EEdGraphPinDirection::EGPD_Output);
 	}
 
-	if (bNeedsGraphUpdate)
-	{
-		GetGraph()->NotifyGraphChanged();
-	}
+	OnNodeChangedDelegate.ExecuteIfBound();
 }
 
 #undef LOCTEXT_NAMESPACE

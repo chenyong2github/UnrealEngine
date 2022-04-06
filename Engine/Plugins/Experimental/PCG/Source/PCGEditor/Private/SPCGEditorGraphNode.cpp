@@ -10,6 +10,11 @@ void SPCGEditorGraphNode::Construct(const FArguments& InArgs, UPCGEditorGraphNod
 	GraphNode = InNode;
 	PCGEditorGraphNode = InNode;
 
+	if (InNode)
+	{
+		InNode->OnNodeChangedDelegate.BindSP(this, &SPCGEditorGraphNode::OnNodeChanged);
+	}
+
 	UpdateGraphNode();
 }
 
@@ -23,4 +28,9 @@ void SPCGEditorGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFil
 		PCGNode->PositionY = PCGEditorGraphNode->NodePosY;
 		PCGNode->MarkPackageDirty();
 	}
+}
+
+void SPCGEditorGraphNode::OnNodeChanged()
+{
+	UpdateGraphNode();
 }
