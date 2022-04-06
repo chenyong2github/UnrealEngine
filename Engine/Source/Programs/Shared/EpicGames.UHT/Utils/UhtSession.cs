@@ -111,6 +111,11 @@ namespace EpicGames.UHT.Utils
 		public string VerifyDirectory = string.Empty;
 
 		/// <summary>
+		/// Collection of external dependencies
+		/// </summary>
+		public HashSet<string> ExternalDependencies = new HashSet<string>();
+
+		/// <summary>
 		/// Create a new instance of the export factory
 		/// </summary>
 		/// <param name="Session">UHT session</param>
@@ -229,6 +234,16 @@ namespace EpicGames.UHT.Utils
 				throw new UhtIceException("MakePath with just a filename and extension can not be called from non-plugin exporters");
 			}
 			return MakePath(this.PluginModule, FileName, Extension);
+		}
+
+
+		/// <summary>
+		/// Add an external dependency to the given file path
+		/// </summary>
+		/// <param name="FilePath">External dependency to add</param>
+		public void AddExternalDependency(string FilePath)
+		{
+			this.ExternalDependencies.Add(FilePath);
 		}
 
 		private string MakePath(UHTManifest.Module Module, string FileName, string Suffix)
@@ -2329,6 +2344,7 @@ namespace EpicGames.UHT.Utils
 
 		private void StepExport()
 		{
+			HashSet<string> ExternalDependencies = new HashSet<string>();
 			long TotalWrittenFiles = 0;
 			Try(null, () =>
 			{
@@ -2373,10 +2389,26 @@ namespace EpicGames.UHT.Utils
 								TotalWrittenFiles++;
 							}
 						}
+						foreach (string Dep in Factory.ExternalDependencies)
+						{
+							ExternalDependencies.Add(Dep);
+						}
 					}
 					else
 					{
 						Log.Logger.LogTrace($"       Exporter {Exporter.Name} skipped");
+					}
+				}
+
+				// Save the collected external dependencies
+				if (!string.IsNullOrEmpty(this.Manifest!.ExternalDependenciesFile))
+				{
+					using (StreamWriter Out = new StreamWriter(this.Manifest!.ExternalDependenciesFile))
+					{
+						foreach (string Dep in ExternalDependencies)
+						{
+							Out.WriteLine(Dep);
+						}
 					}
 				}
 			});

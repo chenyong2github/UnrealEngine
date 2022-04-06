@@ -45,7 +45,7 @@ namespace EpicGames.UHT.Types
 			switch (TextType)
 			{
 				default:
-					Builder.Append("TObjectPtr<").Append(this.MetaClass?.SourceName).Append(">");
+					Builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append(">");
 					break;
 			}
 			return Builder;

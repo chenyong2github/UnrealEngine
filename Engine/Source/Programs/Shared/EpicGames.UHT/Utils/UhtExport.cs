@@ -86,5 +86,11 @@ namespace EpicGames.UHT.Utils
 		/// <param name="Extension">Extension to add to the file</param>
 		/// <returns>Output file path</returns>
 		public string MakePath(string FileName, string Extension);
+
+		/// <summary>
+		/// Add an external dependency to the given file path
+		/// </summary>
+		/// <param name="FilePath">External dependency to add</param>
+		public void AddExternalDependency(string FilePath);
 	}
 }

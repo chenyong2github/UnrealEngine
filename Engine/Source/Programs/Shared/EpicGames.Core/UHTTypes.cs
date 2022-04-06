@@ -85,6 +85,7 @@ namespace EpicGames.Core
 			public List<string> PublicHeaders { get; set; } = new List<string>();
 			public List<string> InternalHeaders { get; set; } = new List<string>();
 			public List<string> PrivateHeaders { get; set; } = new List<string>();
+			public List<string> PublicDefines { get; set; } = new List<string>();
 			public string? GeneratedCPPFilenameBase { get; set; } = null;
 			public bool SaveExportedHeaders { get; set; } = false;
 			[JsonConverter(typeof(JsonStringEnumConverter))]
@@ -94,6 +95,40 @@ namespace EpicGames.Core
 			public override string ToString()
 			{
 				return Name;
+			}
+
+			public bool TryGetDefine(string Name, out string? Value)
+			{
+				Value = null;
+				int Length = Name.Length;
+				foreach (string Define in PublicDefines)
+				{
+					if (!Define.StartsWith(Name))
+					{
+						continue;
+					}
+					if (Define.Length > Length)
+					{
+						if (Define[Length] != '=')
+						{
+							continue;
+						}
+						Value = Define.Substring(Length + 1, Define.Length - Length - 1);
+					}
+					return true;
+				}
+				return false;
+			}
+
+			public bool TryGetDefine(string Name, out int Value)
+			{
+				string? String;
+				if (TryGetDefine(Name, out String))
+				{
+					return int.TryParse(String, out Value);
+				}
+				Value = 0;
+				return false;
 			}
 		}
 
