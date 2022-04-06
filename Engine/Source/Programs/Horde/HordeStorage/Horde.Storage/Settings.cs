@@ -294,5 +294,6 @@ namespace Horde.Storage
         public double ConsistencyCheckPollFrequencySeconds { get; set; } = TimeSpan.FromHours(2).TotalSeconds;
         public int BlobIndexMaxParallelOperations { get; set; } = 4;
         public bool AllowDeletesInBlobIndex { get; set; } = false;
+        public bool RunBlobStoreConsistencyCheckOnRootStore { get; set; } = false;
     }
 }

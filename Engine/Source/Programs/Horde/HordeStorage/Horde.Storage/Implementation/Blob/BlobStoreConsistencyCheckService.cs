@@ -78,6 +78,9 @@ namespace Horde.Storage.Implementation
 
                 bool isRootStore = blobStore is AmazonS3Store or AzureBlobStore;
 
+                if (!_settings.CurrentValue.RunBlobStoreConsistencyCheckOnRootStore && isRootStore)
+                    return;
+
                 List<NamespaceId> namespaces = await _refsStore.GetNamespaces().ToListAsync();
                 namespaces.AddRange(await _referencesStore.GetNamespaces().ToListAsync());
 
