@@ -28,7 +28,6 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Serialization/ArchiveHasReferences.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
-#include "Settings/BlueprintEditorProjectSettings.h"
 #include "TickableEditorObject.h"
 #include "UObject/MetaData.h"
 #include "UObject/ReferenceChainSearch.h"
@@ -494,14 +493,24 @@ FReinstancingJob::FReinstancingJob(TPair<UClass*, UClass*> InOldToNew)
 {
 }
 
-namespace SkelReinstUtils
+namespace UE::Kismet::BlueprintCompilationManager::Private
 {
-	/** Flag to use the new FBlueprintCompileReinstancer::MoveDependentSkelToReinst and avoid problematic recursion during reinstancing */
-	static bool bEnableSkelReinstUpdate = true;
-	static FAutoConsoleVariableRef CVarEnableSkelReinstUpdate(
-		TEXT("BP.bEnableSkelReinstUpdate"), bEnableSkelReinstUpdate,
-		TEXT("If true the Reinstancing of SKEL classes will use the new FBlueprintCompileReinstancer::MoveDependentSkelToReinst(o(n)) instead of the old MoveSkelCDOAside (o(n^2))"),
-		ECVF_Default);
+	namespace ConsoleVariables
+	{
+		/** Flag to use the new FBlueprintCompileReinstancer::MoveDependentSkelToReinst and avoid problematic recursion during reinstancing */
+		static bool bEnableSkelReinstUpdate = true;
+		static FAutoConsoleVariableRef CVarEnableSkelReinstUpdate(
+			TEXT("BP.bEnableSkelReinstUpdate"), bEnableSkelReinstUpdate,
+			TEXT("If true the Reinstancing of SKEL classes will use the new FBlueprintCompileReinstancer::MoveDependentSkelToReinst(o(n)) instead of the old MoveSkelCDOAside (o(n^2))"),
+			ECVF_Default);
+
+		/** Flag to disable faster compiles for individual blueprints if they have no function signature changes */
+		static bool bForceAllDependenciesToRecompile = false;
+		static FAutoConsoleVariableRef CVarForceAllDependenciesToRecompile(
+			TEXT("BP.bForceAllDependenciesToRecompile"), bForceAllDependenciesToRecompile,
+			TEXT("If true all dependencies will be bytecode-compiled even when all referenced functions have no signature changes. Intended for compiler development/debugging purposes."),
+			ECVF_Default);
+	}
 }
 
 void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressBroadcastCompiled, TArray<UBlueprint*>* BlueprintsCompiled, TArray<UBlueprint*>* BlueprintsCompiledOrSkeletonCompiled, FUObjectSerializeContext* InLoadContext)
@@ -902,6 +911,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 
 		// STAGE VII: safely throw away old skeleton CDOs:
 		{
+			using namespace UE::Kismet::BlueprintCompilationManager;
+
 			TMap<UClass*, UClass*> NewSkeletonToOldSkeleton;
 			for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
 			{
@@ -909,7 +920,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				UClass* OldSkeletonClass = BP->SkeletonGeneratedClass;
 				if(OldSkeletonClass)
 				{
-					if (SkelReinstUtils::bEnableSkelReinstUpdate)
+					if (Private::ConsoleVariables::bEnableSkelReinstUpdate)
 					{
 						TRACE_CPUPROFILER_EVENT_SCOPE(MoveDependentSkelToReinst);
 
@@ -929,8 +940,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 
 			// if any function signatures have changed in this skeleton class we will need to recompile all dependencies, but if not
 			// then we can avoid dependency recompilation:
-			const UBlueprintEditorProjectSettings* EditorProjectSettings = GetDefault<UBlueprintEditorProjectSettings>();
-			bool bSkipUnneededDependencyCompilation = !EditorProjectSettings->bForceAllDependenciesToRecompile;
+			bool bSkipUnneededDependencyCompilation = !Private::ConsoleVariables::bForceAllDependenciesToRecompile;
 			TSet<UObject*> OldFunctionsWithSignatureChanges;
 
 			for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
