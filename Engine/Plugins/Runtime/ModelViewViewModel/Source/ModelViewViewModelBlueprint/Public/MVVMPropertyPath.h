@@ -64,7 +64,7 @@ public:
 
 	void SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField)
 	{
-		BindingReference = InField;
+		BindingReference = InField.CreateMemberReference();
 
 		if (InField.IsProperty())
 		{
@@ -82,7 +82,7 @@ public:
 
 	void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField)
 	{
-		BindingReference = InField;
+		BindingReference = InField.CreateMemberReference();
 
 		if (InField.IsProperty())
 		{
