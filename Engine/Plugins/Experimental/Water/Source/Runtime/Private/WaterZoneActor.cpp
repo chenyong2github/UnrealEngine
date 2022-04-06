@@ -266,7 +266,6 @@ bool AWaterZone::UpdateWaterInfoTexture()
 			return true;
 		}
 
-		checkf(WaterZMin != WaterZMax, TEXT("Water has a height extent of 0 which can cause divide by zero errors in the shaders! Ensure water bodies have proper bounding boxes."));
 		WaterHeightExtents = FVector2f(WaterZMin, WaterZMax);
 
 		// Only compute the ground min since we can use the water max z as the ground max z for more precision.
