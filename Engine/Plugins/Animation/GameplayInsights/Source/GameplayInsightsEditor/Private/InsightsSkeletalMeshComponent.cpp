@@ -42,5 +42,7 @@ void UInsightsSkeletalMeshComponent::InitAnim(bool bForceReInit)
 				BoneVisibilityStates[BaseIndex][BoneIndex] = BVS_Visible;
 			}
 		}
+
+		MorphTargetWeights.SetNumZeroed(SkeletalMesh->GetMorphTargets().Num());
 	}
 }
