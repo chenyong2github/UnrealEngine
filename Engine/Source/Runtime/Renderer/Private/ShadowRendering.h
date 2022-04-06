@@ -170,6 +170,13 @@ inline bool IsShadowCacheModeOcclusionQueryable(EShadowDepthCacheMode CacheMode)
 	return CacheMode != SDCM_StaticPrimitivesOnly;
 }
 
+struct FTiledShadowRendering
+{
+	FRDGBufferRef		DrawIndirectParametersBuffer;
+	FRDGBufferSRVRef	TileListStructureBufferSRV;
+	uint32				TileSize;
+};
+
 class FShadowMapRenderTargets
 {
 public:
@@ -580,7 +587,8 @@ public:
 		const FViewInfo& View,
 		FIntRect ScissorRect,
 		bool bProjectingForForwardShading,
-		bool bForceRGBModulation = false);
+		bool bForceRGBModulation = false,
+		FTiledShadowRendering* TiledShadowRendering = nullptr);
 
 	/** Render one pass point light shadow projections. */
 	void RenderOnePassPointLightProjection(

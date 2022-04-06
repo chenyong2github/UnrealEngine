@@ -502,19 +502,28 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				ScissorRect = View.ViewRect;
 			}
 
-			// Reset the cached texture to create a new one mapping to he water depth buffer
+			// Reset the cached texture to create a new one mapping to the water depth buffer
 			DistanceFieldShadowInfo->ResetRayTracedDistanceFieldShadow();
+
+			FTiledShadowRendering TiledShadowRendering;
+			if (bRunTiled)
+			{
+				TiledShadowRendering.DrawIndirectParametersBuffer	= TiledScreenSpaceReflection.DrawIndirectParametersBuffer;
+				TiledShadowRendering.TileListStructureBufferSRV		= TiledScreenSpaceReflection.TileListStructureBufferSRV;
+				TiledShadowRendering.TileSize						= TiledScreenSpaceReflection.TileSize;
+			}
 
 			const bool bProjectingForForwardShading = false;
 			const bool bForceRGBModulation = true;
-			DistanceFieldShadowInfo->RenderRayTracedDistanceFieldProjection(
+			DistanceFieldShadowInfo->RenderRayTracedDistanceFieldProjection( 
 				GraphBuilder,
 				SceneTextures,
 				SceneWithoutWaterTextures.SeparatedMainDirLightTexture,
 				View,
 				ScissorRect,
 				bProjectingForForwardShading,
-				bForceRGBModulation);
+				bForceRGBModulation,
+				bRunTiled ? &TiledShadowRendering : nullptr);
 		}
 
 		if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen && CVarWaterSingleLayerLumenReflections.GetValueOnRenderThread() != 0)

@@ -28,6 +28,7 @@
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "Strata/Strata.h"
+#include "PixelShaderUtils.h"
 
 int32 GDistanceFieldShadowing = 1;
 FAutoConsoleVariableRef CVarDistanceFieldShadowing(
@@ -359,6 +360,51 @@ class FDistanceFieldShadowingUpsamplePS : public FGlobalShader
 };
 
 IMPLEMENT_GLOBAL_SHADER(FDistanceFieldShadowingUpsamplePS, "/Engine/Private/DistanceFieldShadowing.usf", "DistanceFieldShadowingUpsamplePS", SF_Pixel);
+
+
+bool UseShadowIndirectDraw(EShaderPlatform ShaderPlatform)
+{
+	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5)
+		&& !IsVulkanMobilePlatform(ShaderPlatform)
+		&& FDataDrivenShaderPlatformInfo::GetSupportsManualVertexFetch(ShaderPlatform);
+}
+
+class FShadowTileVS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FShadowTileVS);
+	SHADER_USE_PARAMETER_STRUCT(FShadowTileVS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListData)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static int32 GetTileSize()
+	{
+		return 8;
+	}
+
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return UseShadowIndirectDraw(Parameters.Platform) && DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("SHADOW_TILE_VS"), 1);
+		OutEnvironment.SetDefine(TEXT("WORK_TILE_SIZE"), GetTileSize());
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FShadowTileVS, "/Engine/Private/DistanceFieldShadowing.usf", "ShadowTileVS", SF_Vertex);
 
 const uint32 ComputeCulledObjectStartOffsetGroupSize = 8;
 
@@ -963,6 +1009,8 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldShadowingUpsample, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldShadowingUpsamplePS::FParameters, PS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FShadowTileVS::FParameters, VS)
+	RDG_BUFFER_ACCESS(IndirectDrawParameter, ERHIAccess::IndirectArgs)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -973,9 +1021,11 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 	const FViewInfo& View,
 	FIntRect ScissorRect,
 	bool bProjectingForForwardShading,
-	bool bForceRGBModulation)
+	bool bForceRGBModulation,
+	FTiledShadowRendering* TiledShadowRendering)
 {
 	check(ScissorRect.Area() > 0);
+	const bool bRunTiled = UseShadowIndirectDraw(View.GetShaderPlatform()) && TiledShadowRendering != nullptr;
 
 	BeginRenderRayTracedDistanceFieldProjection(GraphBuilder, SceneTextures, View); 
 
@@ -985,7 +1035,7 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(ScreenShadowMaskTexture, ERenderTargetLoadAction::ELoad);
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilRead);
 		
-		PassParameters->PS.View = View.ViewUniformBuffer;
+		PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
 		PassParameters->PS.SceneTextures = SceneTextures.GetSceneTextureShaderParameters(View.GetFeatureLevel());
 		PassParameters->PS.ShadowFactorsTexture = RayTracedShadowsTexture;
 		PassParameters->PS.ShadowFactorsSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
@@ -1013,6 +1063,13 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 			PassParameters->PS.InvNearFadePlaneLength = 1.0f;
 		}
 
+		if (bRunTiled)
+		{
+			PassParameters->IndirectDrawParameter = TiledShadowRendering->DrawIndirectParametersBuffer;
+			PassParameters->VS.ViewUniformBuffer = GetShaderBinding(View.ViewUniformBuffer);
+			PassParameters->VS.TileListData = TiledShadowRendering->TileListStructureBufferSRV;
+		}
+
 		FDistanceFieldShadowingUpsamplePS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FDistanceFieldShadowingUpsamplePS::FUpsample >(GFullResolutionDFShadowing == 0);
 		auto PixelShader = View.ShaderMap->GetShader< FDistanceFieldShadowingUpsamplePS >(PermutationVector);
@@ -1021,58 +1078,98 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 
 		ClearUnusedGraphResources(PixelShader, &PassParameters->PS);
 
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Upsample"),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[this, &View, PixelShader, ScissorRect, bProjectingForForwardShading, PassParameters, bForceRGBModulation](FRHICommandList& RHICmdList)
+		if (bRunTiled)
 		{
-			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+			check(TiledShadowRendering->TileSize == FShadowTileVS::GetTileSize());
 
-			RHICmdList.SetViewport(ScissorRect.Min.X, ScissorRect.Min.Y, 0.0f, ScissorRect.Max.X, ScissorRect.Max.Y, 1.0f);
-			RHICmdList.SetScissorRect(true, ScissorRect.Min.X, ScissorRect.Min.Y, ScissorRect.Max.X, ScissorRect.Max.Y);
+			auto VertexShader = View.ShaderMap->GetShader<FShadowTileVS>();
+			ClearUnusedGraphResources(VertexShader, &PassParameters->VS);
 
-			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-			if (bForceRGBModulation)
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("TiledUpsample"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[this, &View, VertexShader, PixelShader, ScissorRect, bProjectingForForwardShading, PassParameters, bForceRGBModulation](FRHICommandList& RHICmdList)
 			{
-				// This has the shadow contribution modulate all the channels, e.g. used for water rendering to apply distance field shadow on the main light RGB luminance for the updated depth buffer with water in it.
-				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One>::GetRHI();;
-			}
-			else
+				RHICmdList.SetViewport(ScissorRect.Min.X, ScissorRect.Min.Y, 0.0f, ScissorRect.Max.X, ScissorRect.Max.Y, 1.0f);
+				RHICmdList.SetScissorRect(true, ScissorRect.Min.X, ScissorRect.Min.Y, ScissorRect.Max.X, ScissorRect.Max.Y);
+
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+				if (bForceRGBModulation)
+				{
+					// This has the shadow contribution modulate all the channels, e.g. used for water rendering to apply distance field shadow on the main light RGB luminance for the updated depth buffer with water in it.
+					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One>::GetRHI();;
+				}
+				else
+				{
+					GraphicsPSOInit.BlendState = GetBlendStateForProjection(bProjectingForForwardShading, false);
+				}
+				GraphicsPSOInit.bDepthBounds = bDirectionalLight;
+
+				GraphicsPSOInit.PrimitiveType = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetPixelShader(), PassParameters->VS);
+
+				//@todo - depth bounds test for local lights
+				if (bDirectionalLight)
+				{
+					SetDepthBoundsTest(RHICmdList, CascadeSettings.SplitNear - CascadeSettings.SplitNearFadeRegion, CascadeSettings.SplitFar, View.ViewMatrices.GetProjectionMatrix());
+				}
+
+				PassParameters->IndirectDrawParameter->MarkResourceAsUsed();
+				RHICmdList.DrawPrimitiveIndirect(PassParameters->IndirectDrawParameter->GetIndirectRHICallBuffer(), 0);
+
+				RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+			});
+		}
+		else
+		{
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("Upsample"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[this, &View, PixelShader, ScissorRect, bProjectingForForwardShading, PassParameters, bForceRGBModulation](FRHICommandList& RHICmdList)
 			{
-				GraphicsPSOInit.BlendState = GetBlendStateForProjection(bProjectingForForwardShading, false);
-			}
+				RHICmdList.SetViewport(ScissorRect.Min.X, ScissorRect.Min.Y, 0.0f, ScissorRect.Max.X, ScissorRect.Max.Y, 1.0f);
+				RHICmdList.SetScissorRect(true, ScissorRect.Min.X, ScissorRect.Min.Y, ScissorRect.Max.X, ScissorRect.Max.Y);
 
-			TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-			GraphicsPSOInit.bDepthBounds = bDirectionalLight;
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, PixelShader, GraphicsPSOInit);
 
-			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
+				if (bForceRGBModulation)
+				{
+					// This has the shadow contribution modulate all the channels, e.g. used for water rendering to apply distance field shadow on the main light RGB luminance for the updated depth buffer with water in it.
+					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One>::GetRHI();;
+				}
+				else
+				{
+					GraphicsPSOInit.BlendState = GetBlendStateForProjection(bProjectingForForwardShading, false);
+				}
+				GraphicsPSOInit.bDepthBounds = bDirectionalLight;
 
-			//@todo - depth bounds test for local lights
-			if (bDirectionalLight)
-			{
-				SetDepthBoundsTest(RHICmdList, CascadeSettings.SplitNear - CascadeSettings.SplitNearFadeRegion, CascadeSettings.SplitFar, View.ViewMatrices.GetProjectionMatrix());
-			}
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-			DrawRectangle(
-				RHICmdList,
-				0, 0,
-				ScissorRect.Width(), ScissorRect.Height(),
-				ScissorRect.Min.X / GetDFShadowDownsampleFactor(), ScissorRect.Min.Y / GetDFShadowDownsampleFactor(),
-				ScissorRect.Width() / GetDFShadowDownsampleFactor(), ScissorRect.Height() / GetDFShadowDownsampleFactor(),
-				FIntPoint(ScissorRect.Width(), ScissorRect.Height()),
-				GetBufferSizeForDFShadows(),
-				VertexShader);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 
-			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
-		});
+				//@todo - depth bounds test for local lights
+				if (bDirectionalLight)
+				{
+					SetDepthBoundsTest(RHICmdList, CascadeSettings.SplitNear - CascadeSettings.SplitNearFadeRegion, CascadeSettings.SplitFar, View.ViewMatrices.GetProjectionMatrix());
+				}
+
+				FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList);
+				RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+			});
+		}
 	}
 }
