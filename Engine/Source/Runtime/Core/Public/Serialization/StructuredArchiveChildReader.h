@@ -1,0 +1,54 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Serialization/StructuredArchiveDefines.h"
+
+/**
+ * FStructuredArchiveChildReader
+ *
+ * Utility class for easily creating a structured archive that covers the data hierarchy underneath
+ * the given slot
+ *
+ * Allows serialization code to get an archive instance for the current location, so that it can return to it
+ * later on after the master archive has potentially moved on into a different location in the file.
+ */
+class CORE_API FStructuredArchiveChildReader
+{
+public:
+	explicit FStructuredArchiveChildReader(FStructuredArchiveSlot InSlot);
+	~FStructuredArchiveChildReader();
+
+	// Non-copyable
+	FStructuredArchiveChildReader(FStructuredArchiveChildReader&&) = delete;
+	FStructuredArchiveChildReader(const FStructuredArchiveChildReader&) = delete;
+	FStructuredArchiveChildReader& operator=(FStructuredArchiveChildReader&&) = delete;
+	FStructuredArchiveChildReader& operator=(const FStructuredArchiveChildReader&) = delete;
+
+	FORCEINLINE FStructuredArchiveSlot GetRoot() const
+	{
+		return Root.GetValue();
+	}
+
+private:
+	FStructuredArchiveFormatter* OwnedFormatter;
+	FStructuredArchive* Archive;
+	TOptional<FStructuredArchiveSlot> Root;
+};
+
+#if !WITH_TEXT_ARCHIVE_SUPPORT
+
+FORCEINLINE FStructuredArchiveChildReader::FStructuredArchiveChildReader(FStructuredArchiveSlot InSlot)
+	: OwnedFormatter(nullptr)
+	, Archive(nullptr)
+{
+	Archive = new FStructuredArchive(InSlot.Ar.Formatter);
+	Root.Emplace(Archive->Open());
+}
+
+FORCEINLINE FStructuredArchiveChildReader::~FStructuredArchiveChildReader()
+{
+	delete Archive;
+}
+
+#endif

@@ -4,23 +4,7 @@
 
 #include "CoreTypes.h"
 #include "CoreFwd.h"
-
-// Define a structure to encapsulate a field name, which compiles to an empty object if WITH_TEXT_ARCHIVE_SUPPORT = 0
-struct FArchiveFieldName
-{
-#if WITH_TEXT_ARCHIVE_SUPPORT
-	const TCHAR* Name;
-#endif
-
-	explicit FArchiveFieldName(const TCHAR* InName) 
-#if WITH_TEXT_ARCHIVE_SUPPORT
-		: Name(InName)
-#endif
-	{
-	}
-};
-
-#define SA_FIELD_NAME(x) FArchiveFieldName(x)
+#include "Serialization/StructuredArchiveNameHelpers.h"
 
 /**
  * Specifies the type of a value in a slot. Used by FContextFreeArchiveFormatter for introspection.
