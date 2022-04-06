@@ -26,7 +26,10 @@ namespace UE::MVVM
 		virtual void SetSelectedSource(const TOptional<FBindingSource>& Source) const = 0;
 
 		virtual FMVVMBindingName GetBindingName() const = 0;
-		virtual void SetBindingName(FName BindingName) const = 0;
+		virtual FMemberReference GetBindingReference() const = 0;
+		virtual void SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const = 0;
+		virtual void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const = 0;
+		virtual void ResetBinding() const = 0;
 	};
 
 	class FWidgetFieldPathHelper : public IFieldPathHelper
@@ -48,7 +51,10 @@ namespace UE::MVVM
 		virtual void SetSelectedSource(const TOptional<FBindingSource>& Source) const override;
 
 		virtual FMVVMBindingName GetBindingName() const override;
-		virtual void SetBindingName(FName BindingName) const override;
+		virtual FMemberReference GetBindingReference() const override;
+		virtual void SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const override;
+		virtual void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const override;
+		virtual void ResetBinding() const override;
 
 	private:
 		TAttribute<FMVVMWidgetPropertyPath*> PathAttr;
@@ -74,7 +80,10 @@ namespace UE::MVVM
 		virtual void SetSelectedSource(const TOptional<FBindingSource>& Source) const override;
 
 		virtual FMVVMBindingName GetBindingName() const override;
-		virtual void SetBindingName(FName BindingName) const override;
+		virtual FMemberReference GetBindingReference() const override;
+		virtual void SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const override;
+		virtual void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const override;
+		virtual void ResetBinding() const override;
 
 	private:
 		TAttribute<FMVVMViewModelPropertyPath*> PathAttr;

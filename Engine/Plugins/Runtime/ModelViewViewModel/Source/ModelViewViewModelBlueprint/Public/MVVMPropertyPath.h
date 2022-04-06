@@ -2,12 +2,16 @@
 
 #pragma once
 
+#include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Types/MVVMBindingName.h"
+#include "Types/MVVMFieldVariant.h"
 
 #include "MVVMPropertyPath.generated.h"
 
 /**
- *
+ * Base path to properties for MVVM view models and widgets.
+ * 
+ * Used to associate properties within MVVM bindings in editor & during MVVM compilation
  */
 USTRUCT()
 struct FMVVMPropertyPathBase
@@ -15,9 +19,9 @@ struct FMVVMPropertyPathBase
 	GENERATED_BODY()
 
 private:
-	/** Name we are looking for. */
+	/** Reference to property for this binding. */
 	UPROPERTY(EditAnywhere, Category = "MVVM")
-	FMVVMBindingName BindingName;
+	FMemberReference BindingReference;
 
 	/** The path of the property (either the getter or the set action). */
 	UPROPERTY(EditAnywhere, Category = "MVVM")
@@ -27,30 +31,91 @@ private:
 	UPROPERTY(EditAnywhere, Category = "MVVM")
 	FString SetterPropertyPath;
 
+	/** If we are referencing a UFunction or FProperty */
+	UPROPERTY()
+	EBindingKind BindingKind;
+
 public:
+	/** Get the binding name, resolves reference deprecation / redirectors / etc before returning */
 	FMVVMBindingName GetBindingName() const
 	{
-		return BindingName;
+		// Resolve any redirectors 
+		FName Path = FName();
+		if (!BindingReference.GetMemberName().IsNone())
+		{
+			if (BindingKind == EBindingKind::Property && BindingReference.ResolveMember<FProperty>())
+			{
+				Path = BindingReference.GetMemberName();
+			}
+			else if (BindingKind == EBindingKind::Function && BindingReference.ResolveMember<UFunction>())
+			{
+				Path = BindingReference.GetMemberName();
+			}
+		}
+
+		return FMVVMBindingName(Path);
 	}
 
-	void SetBindingName(FName InBindingName)
+	FMemberReference GetBindingReference() const
 	{
-		BindingName = FMVVMBindingName(InBindingName);
+		// Note: Prefer copy since FName & FGuid, FString should be empty based on our usage
+		return BindingReference;
+	}
+
+	void SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField)
+	{
+		BindingReference = InField;
+
+		if (InField.IsProperty())
+		{
+			BindingKind = EBindingKind::Property;
+		}
+		else if (InField.IsFunction())
+		{
+			BindingKind = EBindingKind::Function;
+		}
+		else
+		{
+			ensureAlwaysMsgf(false, TEXT("Binding to field of unknown type!"));
+		}
+	}
+
+	void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField)
+	{
+		BindingReference = InField;
+
+		if (InField.IsProperty())
+		{
+			BindingKind = EBindingKind::Property;
+		}
+		else if (InField.IsFunction())
+		{
+			BindingKind = EBindingKind::Function;
+		}
+		else
+		{
+			ensureAlwaysMsgf(false, TEXT("Binding to field of unknown type!"));
+		}
+	}
+
+	void Reset()
+	{
+		BindingReference = FMemberReference();
 	}
 
 	FString GetGetterPropertyPath() const
 	{
-		return !GetterPropertyPath.IsEmpty() ? GetterPropertyPath : BindingName.ToString();
+		return !GetterPropertyPath.IsEmpty() ? GetterPropertyPath : GetBindingName().ToString();
 	}
 
 	FString GetSetterPropertyPath() const
 	{
-		return !SetterPropertyPath.IsEmpty() ? SetterPropertyPath : BindingName.ToString();
+		return !SetterPropertyPath.IsEmpty() ? SetterPropertyPath : GetBindingName().ToString();
 	}
 
 	bool operator==(const FMVVMPropertyPathBase& Other) const
 	{
-		return BindingName == Other.BindingName &&
+		return BindingReference.GetMemberName() == Other.BindingReference.GetMemberName() &&
 			GetterPropertyPath == Other.GetterPropertyPath &&
 			SetterPropertyPath == Other.SetterPropertyPath;
 	}

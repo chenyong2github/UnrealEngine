@@ -76,15 +76,15 @@ static void ExtendBindingsMenu(FMenuBuilder& MenuBuilder, const UWidgetBlueprint
 		return HorizontalBox;
 	};
 
-	auto CreateBinding = [MVVMBlueprintView](const UWidget* Widget, const FProperty* Property, FGuid ViewModelId, const FProperty* ViewModelProperty)
+	auto CreateBinding = [MVVMBlueprintView](const UWidget* Widget, const FProperty* WidgetProperty, FGuid ViewModelId, const FProperty* ViewModelProperty)
 	{
 		FMVVMBlueprintViewBinding& NewBinding = MVVMBlueprintView->AddDefaultBinding();
 
 		NewBinding.ViewModelPath.ContextId = ViewModelId;
-		NewBinding.ViewModelPath.SetBindingName(ViewModelProperty->GetFName());
+		NewBinding.ViewModelPath.SetBindingReference(UE::MVVM::FMVVMConstFieldVariant(ViewModelProperty));
 
 		NewBinding.WidgetPath.WidgetName = Widget->GetFName();
-		NewBinding.WidgetPath.SetBindingName(Property->GetFName());
+		NewBinding.WidgetPath.SetBindingReference(UE::MVVM::FMVVMConstFieldVariant(WidgetProperty));
 
 		NewBinding.BindingType = EMVVMBindingMode::OneWayToDestination;
 	};
@@ -172,7 +172,7 @@ void FMVVMPropertyBindingExtension::ClearCurrentValue(const UWidgetBlueprint* Wi
 		{
 			if (FMVVMBlueprintViewBinding* Binding = MVVMBlueprintView->FindBinding(Widget, Property))
 			{
-				Binding->ViewModelPath.SetBindingName(FName());
+				Binding->ViewModelPath.Reset();
 			}
 		}
 	}

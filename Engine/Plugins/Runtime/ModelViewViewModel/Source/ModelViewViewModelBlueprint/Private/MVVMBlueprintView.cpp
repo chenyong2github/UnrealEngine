@@ -122,7 +122,7 @@ FMVVMBlueprintViewBinding& UMVVMBlueprintView::AddBinding(const UWidget* Widget,
 {
 	FMVVMBlueprintViewBinding& NewBinding = Bindings.AddDefaulted_GetRef();
 	NewBinding.WidgetPath.WidgetName = Widget->GetFName();
-	NewBinding.WidgetPath.SetBindingName(Property->GetFName());
+	NewBinding.WidgetPath.SetBindingReference(UE::MVVM::FMVVMConstFieldVariant(Property));
 
 	OnBindingsUpdated.Broadcast();
 	return NewBinding;

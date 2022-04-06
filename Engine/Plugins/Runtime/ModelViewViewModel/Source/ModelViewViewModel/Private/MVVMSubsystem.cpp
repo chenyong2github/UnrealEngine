@@ -145,6 +145,7 @@ namespace UE::MVVM::Private
 		FName NAME_BlueprintSetter = "BlueprintSetter";
 #endif
 
+		// Remove BP getters / setters and replace them with their property for bindings
 		for (TFieldIterator<const FProperty> PropertyIt(Class, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
 			const FProperty* Property = *PropertyIt;
@@ -153,7 +154,6 @@ namespace UE::MVVM::Private
 			if (bIsReadable || bIsWritable)
 			{
 #if WITH_EDITOR
-				// Remove the accessor and replace it by the property
 				if (bIsReadable)
 				{
 					const FString& PropertyGetter = Property->GetMetaData(NAME_BlueprintGetter);

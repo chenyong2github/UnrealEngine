@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/MemberReference.h"
 #include "Misc/TVariant.h"
 #include <type_traits>
 
@@ -12,7 +13,9 @@ class UFunction;
 namespace UE::MVVM
 {
 
-	/** */
+	/**
+	 * Represents a possibly-const binding to either a UFunction or FProperty
+	 */
 	template<bool bConst>
 	struct TMVVMFieldVariant
 	{
@@ -127,6 +130,26 @@ namespace UE::MVVM
 		bool operator!=(const TMVVMFieldVariant<bOtherConst>& B) const
 		{
 			return !(*this == B);
+		}
+
+		operator FMemberReference() const
+		{
+			FMemberReference BindingReference = FMemberReference();
+			if (IsProperty())
+			{
+				// @TODO: DarenC - Should self context ever be true? Seems no, but if issues occur:
+				// analyze UBlueprintVariableNodeSpawner::CreateFromMemberOrParam -> MemberVarSetupLambda
+				PropertyType* Property = GetProperty();
+				bool bSelfContext = false;
+				BindingReference.SetFromField<FProperty>(Property, bSelfContext);
+			}
+			else if (IsFunction())
+			{
+				FunctionType* Function = GetFunction();
+				bool bSelfContext = false;
+				BindingReference.SetFromField<UFunction>(Function, bSelfContext);
+			}
+			return BindingReference;
 		}
 
 		friend int32 GetTypeHash(const TMVVMFieldVariant<bConst>& Variant)

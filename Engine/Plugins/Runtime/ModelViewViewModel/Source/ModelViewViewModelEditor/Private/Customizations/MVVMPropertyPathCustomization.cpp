@@ -185,7 +185,7 @@ namespace UE::MVVM
 		for (const TSharedPtr<IFieldPathHelper>& Path : PathHelpers)
 		{
 			Path->SetSelectedSource(Selected);
-			Path->SetBindingName(FName()); // Might make sense to keep this around in case we retarget to a compatible widget or switch back.
+			Path->ResetBinding(); // Might make sense to keep this around in case we retarget to a compatible widget or switch back.
 		}
 
 		PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
@@ -209,7 +209,7 @@ namespace UE::MVVM
 		TArray<IFieldPathHelper*> Helpers = GetRawPathHelpers();
 		for (const IFieldPathHelper* Helper : Helpers)
 		{
-			Helper->SetBindingName(Selected.GetName());
+			Helper->SetBindingReference(Selected);
 		}
 
 		PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);

@@ -379,7 +379,7 @@ private:
 			BlueprintViewPtr->PreEditChange(UMVVMBlueprintView::StaticClass()->FindPropertyByName("Bindings"));
 
 			PathHelper->SetSelectedSource(SelectedSource);
-			PathHelper->SetBindingName(FName()); // Might make sense to keep this around in case we retarget to a compatible widget or switch back.
+			PathHelper->ResetBinding(); // Might make sense to keep this around in case we retarget to a compatible widget or switch back.
 
 			BlueprintViewPtr->PostEditChange();
 		}
@@ -419,7 +419,7 @@ private:
 		{
 			BlueprintViewPtr->PreEditChange(UMVVMBlueprintView::StaticClass()->FindPropertyByName("Bindings"));
 
-			PathHelper->SetBindingName(SelectedField.GetName());
+			PathHelper->SetBindingReference(SelectedField);
 
 			BlueprintViewPtr->PostEditChange();
 		}

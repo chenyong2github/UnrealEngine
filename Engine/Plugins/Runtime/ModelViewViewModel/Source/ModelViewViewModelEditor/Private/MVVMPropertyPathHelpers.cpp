@@ -164,11 +164,37 @@ namespace UE::MVVM
 		return FMVVMBindingName();
 	}
 
-	void FWidgetFieldPathHelper::SetBindingName(FName BindingName) const
+	FMemberReference FWidgetFieldPathHelper::GetBindingReference() const
 	{
 		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
 		{
-			Path->SetBindingName(BindingName);
+			return Path->GetBindingReference();
+		}
+
+		return FMemberReference();
+	}
+
+	void FWidgetFieldPathHelper::SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const
+	{
+		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
+		{
+			Path->SetBindingReference(InField);
+		}
+	}
+
+	void FWidgetFieldPathHelper::SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const
+	{
+		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
+		{
+			Path->SetBindingReference(InField);
+		}
+	}
+
+	void FWidgetFieldPathHelper::ResetBinding() const
+	{
+		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
+		{
+			Path->Reset();
 		}
 	}
 
@@ -284,11 +310,37 @@ namespace UE::MVVM
 		return FMVVMBindingName();
 	}
 
-	void FViewModelFieldPathHelper::SetBindingName(FName BindingName) const
+	FMemberReference FViewModelFieldPathHelper::GetBindingReference() const
 	{
 		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
 		{
-			Path->SetBindingName(BindingName);
+			return Path->GetBindingReference();
+		}
+
+		return FMemberReference();
+	}
+
+	void FViewModelFieldPathHelper::SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const
+	{
+		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
+		{
+			Path->SetBindingReference(InField);
+		}
+	}
+
+	void FViewModelFieldPathHelper::SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const
+	{
+		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
+		{
+			Path->SetBindingReference(InField);
+		}
+	}
+
+	void FViewModelFieldPathHelper::ResetBinding() const
+	{
+		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
+		{
+			Path->Reset();
 		}
 	}
 }
