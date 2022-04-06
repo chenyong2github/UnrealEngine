@@ -4,79 +4,57 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "DataInterfaceSkinnedMeshExec.generated.h"
+#include "OptimusDataInterfaceScene.generated.h"
 
-class USkinnedMeshComponent;
-class FSkeletalMeshObject;
-class FRDGBuffer;
-class FRDGBufferUAV;
+class USceneComponent;
 
-UENUM()
-enum class ESkinnedMeshExecDomain : uint8
-{
-	None = 0 UMETA(Hidden),
-	/** Run kernel with one thread per vertex. */
-	Vertex = 1,
-	/** Run kernel with one thread per triangle. */
-	Triangle,
-};
-
-/** Compute Framework Data Interface for executing kernels over a skinned mesh domain. */
+/** Compute Framework Data Interface for reading general scene data. */
 UCLASS(Category = ComputeFramework)
-class OPTIMUSCORE_API USkinnedMeshExecDataInterface : public UOptimusComputeDataInterface
+class UOptimusSceneDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
 public:
 	//~ Begin UOptimusComputeDataInterface Interface
 	FString GetDisplayName() const override;
-	FName GetCategory() const override;
 	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
 	//~ End UOptimusComputeDataInterface Interface
-	
+
 	//~ Begin UComputeDataInterface Interface
-	bool IsExecutionInterface() const override { return true; }
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
 	void GetHLSL(FString& OutHLSL) const override;
 	void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
 	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
-
-	UPROPERTY(EditAnywhere, Category = Execution)
-	ESkinnedMeshExecDomain Domain = ESkinnedMeshExecDomain::Vertex;
 };
 
-/** Compute Framework Data Provider for executing kernels over a skinned mesh domain. */
+/** Compute Framework Data Provider for reading general scene data. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class USkinnedMeshExecDataProvider : public UComputeDataProvider
+class UOptimusSceneDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY()
-	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
-
-	UPROPERTY()
-	ESkinnedMeshExecDomain Domain = ESkinnedMeshExecDomain::Vertex;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
+	TObjectPtr<USceneComponent> SceneComponent = nullptr;
 
 	//~ Begin UComputeDataProvider Interface
-	bool IsValid() const override;
 	FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	//~ End UComputeDataProvider Interface
 };
 
-class FSkinnedMeshExecDataProviderProxy : public FComputeDataProviderRenderProxy
+class FOptimusSceneDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FSkinnedMeshExecDataProviderProxy(USkinnedMeshComponent* InSkinnedMeshComponent, ESkinnedMeshExecDomain InDomain);
+	FOptimusSceneDataProviderProxy(USceneComponent* SceneComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	int32 GetDispatchThreadCount(TArray<FIntVector>& ThreadCounts) const override;
 	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
-	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
-	ESkinnedMeshExecDomain Domain = ESkinnedMeshExecDomain::Vertex;
+	float GameTime;
+	float GameTimeDelta;
+	uint32 FrameNumber;
 };

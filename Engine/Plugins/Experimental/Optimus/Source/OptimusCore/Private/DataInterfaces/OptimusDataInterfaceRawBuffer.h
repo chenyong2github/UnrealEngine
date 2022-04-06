@@ -7,17 +7,17 @@
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 
-#include "DataInterfaceRawBuffer.generated.h"
+#include "OptimusDataInterfaceRawBuffer.generated.h"
 
 class FRDGBuffer;
 class FRDGBufferSRV;
 class FRDGBufferUAV;
-class URawBufferDataProvider;
+class UOptimusRawBufferDataProvider;
 class USkinnedMeshComponent;
 struct FOptimusPersistentBufferPool;
 
 UCLASS(Abstract)
-class OPTIMUSCORE_API URawBufferDataInterface : public UOptimusComputeDataInterface
+class OPTIMUSCORE_API UOptimusRawBufferDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -56,7 +56,7 @@ public:
 
 protected:
 	static USkinnedMeshComponent* GetComponentFromSourceObjects(TArrayView<TObjectPtr<UObject>> InSourceObjects);
-	void FillProviderFromComponent(const USkinnedMeshComponent* InComponent, URawBufferDataProvider* InProvider) const;
+	void FillProviderFromComponent(const USkinnedMeshComponent* InComponent, UOptimusRawBufferDataProvider* InProvider) const;
 	
 	virtual bool UseSplitBuffers() const { return true; } 
 private:
@@ -66,7 +66,7 @@ private:
 
 /** Compute Framework Data Interface for a transient buffer. */
 UCLASS(Category = ComputeFramework)
-class OPTIMUSCORE_API UTransientBufferDataInterface : public URawBufferDataInterface
+class OPTIMUSCORE_API UOptimusTransientBufferDataInterface : public UOptimusRawBufferDataInterface
 {
 	GENERATED_BODY()
 
@@ -89,7 +89,7 @@ public:
 
 /** Compute Framework Data Interface for a transient buffer. */
 UCLASS(Category = ComputeFramework)
-class OPTIMUSCORE_API UPersistentBufferDataInterface : public URawBufferDataInterface
+class OPTIMUSCORE_API UOptimusPersistentBufferDataInterface : public UOptimusRawBufferDataInterface
 {
 	GENERATED_BODY()
 
@@ -115,7 +115,7 @@ protected:
 
 /** Compute Framework Data Provider for a transient buffer. */
 UCLASS(Abstract)
-class OPTIMUSCORE_API URawBufferDataProvider : public UComputeDataProvider
+class OPTIMUSCORE_API UOptimusRawBufferDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
@@ -135,7 +135,7 @@ public:
 
 /** Compute Framework Data Provider for a transient buffer. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class OPTIMUSCORE_API UTransientBufferDataProvider : public URawBufferDataProvider
+class OPTIMUSCORE_API UOptimusTransientBufferDataProvider : public UOptimusRawBufferDataProvider
 {
 	GENERATED_BODY()
 
@@ -151,7 +151,7 @@ public:
 
 /** Compute Framework Data Provider for a transient buffer. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class OPTIMUSCORE_API UPersistentBufferDataProvider : public URawBufferDataProvider
+class OPTIMUSCORE_API UOptimusPersistentBufferDataProvider : public UOptimusRawBufferDataProvider
 {
 	GENERATED_BODY()
 
@@ -169,10 +169,11 @@ public:
 };
 
 
-class FTransientBufferDataProviderProxy : public FComputeDataProviderRenderProxy
+class FOptimusTransientBufferDataProviderProxy :
+	public FComputeDataProviderRenderProxy
 {
 public:
-	FTransientBufferDataProviderProxy(
+	FOptimusTransientBufferDataProviderProxy(
 			int32 InElementStride,
 			TArray<int32> InInvocationElementCount,
 			bool bInClearBeforeUse
@@ -194,11 +195,11 @@ private:
 };
 
 
-class FPersistentBufferDataProviderProxy :
+class FOptimusPersistentBufferDataProviderProxy :
 	public FComputeDataProviderRenderProxy
 {
 public:
-	FPersistentBufferDataProviderProxy(
+	FOptimusPersistentBufferDataProviderProxy(
 		TSharedPtr<FOptimusPersistentBufferPool> InBufferPool,
 		FName InResourceName,
 		int32 InElementStride,

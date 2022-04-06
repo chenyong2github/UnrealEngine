@@ -2,10 +2,10 @@
 
 #include "OptimusComputeDataInterface.h"
 
+#include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 #include "OptimusTemplates.h"
 
 #include "UObject/UObjectIterator.h"
-#include "DataInterfaces/DataInterfaceRawBuffer.h"
 #include "Templates/SubclassOf.h"
 
 

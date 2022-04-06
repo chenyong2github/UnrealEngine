@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaces/DataInterfaceMorphTarget.h"
+#include "OptimusDataInterfaceMorphTarget.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationVector.h"
@@ -12,12 +12,12 @@
 #include "SkeletalMeshDeformerHelpers.h"
 #include "SkeletalRenderPublic.h"
 
-FString UMorphTargetDataInterface::GetDisplayName() const
+FString UOptimusMorphTargetDataInterface::GetDisplayName() const
 {
 	return TEXT("Morph Target");
 }
 
-TArray<FOptimusCDIPinDefinition> UMorphTargetDataInterface::GetPinDefinitions() const
+TArray<FOptimusCDIPinDefinition> UOptimusMorphTargetDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({ "DeltaPosition", "ReadDeltaPosition", Optimus::DomainName::Vertex, "ReadNumVertices" });
@@ -25,7 +25,7 @@ TArray<FOptimusCDIPinDefinition> UMorphTargetDataInterface::GetPinDefinitions() 
 	return Defs;
 }
 
-void UMorphTargetDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UOptimusMorphTargetDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("ReadNumVertices"))
@@ -48,29 +48,29 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMorphTargetDataInterfaceParameters, )
 	SHADER_PARAMETER_SRV(Buffer<float>, MorphBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
-void UMorphTargetDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusMorphTargetDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
 {
 	OutBuilder.AddNestedStruct<FMorphTargetDataInterfaceParameters>(UID);
 }
 
-void UMorphTargetDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
+void UOptimusMorphTargetDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
 {
 	OutPermutationVector.AddPermutation(TEXT("ENABLE_DEFORMER_MORPHTARGET"), 2);
 }
 
-void UMorphTargetDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusMorphTargetDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceMorphTarget.ush\"\n");
 }
 
-void UMorphTargetDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+void UOptimusMorphTargetDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
 }
 
-UComputeDataProvider* UMorphTargetDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusMorphTargetDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	UMorphTargetDataProvider* Provider = NewObject<UMorphTargetDataProvider>();
+	UOptimusMorphTargetDataProvider* Provider = NewObject<UOptimusMorphTargetDataProvider>();
 
 	if (InSourceObjects.Num() == 1)
 	{
@@ -81,20 +81,20 @@ UComputeDataProvider* UMorphTargetDataInterface::CreateDataProvider(TArrayView< 
 }
 
 
-bool UMorphTargetDataProvider::IsValid() const
+bool UOptimusMorphTargetDataProvider::IsValid() const
 {
 	return
 		SkeletalMesh != nullptr &&
 		SkeletalMesh->MeshObject != nullptr;
 }
 
-FComputeDataProviderRenderProxy* UMorphTargetDataProvider::GetRenderProxy()
+FComputeDataProviderRenderProxy* UOptimusMorphTargetDataProvider::GetRenderProxy()
 {
-	return new FMorphTargetDataProviderProxy(SkeletalMesh);
+	return new FOptimusMorphTargetDataProviderProxy(SkeletalMesh);
 }
 
 
-FMorphTargetDataProviderProxy::FMorphTargetDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
+FOptimusMorphTargetDataProviderProxy::FOptimusMorphTargetDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
 {
 	SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
 	FrameNumber = SkeletalMeshComponent->GetScene()->GetFrameNumber() + 1; // +1 matches the logic for FrameNumberToPrepare in FSkeletalMeshObjectGPUSkin::Update()
@@ -114,7 +114,7 @@ struct FMorphTargetDataInterfacePermutationIds
 	}
 };
 
-void FMorphTargetDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusMorphTargetDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
 	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FMorphTargetDataInterfaceParameters)))
 	{

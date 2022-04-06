@@ -4,13 +4,14 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "DataInterfaceScene.generated.h"
+#include "OptimusDataInterfaceCloth.generated.h"
 
-class USceneComponent;
+class FSkeletalMeshObject;
+class USkeletalMeshComponent;
 
-/** Compute Framework Data Interface for reading general scene data. */
+/** Compute Framework Data Interface for reading skeletal mesh. */
 UCLASS(Category = ComputeFramework)
-class USceneDataInterface : public UOptimusComputeDataInterface
+class OPTIMUSCORE_API UOptimusClothDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -19,42 +20,44 @@ public:
 	FString GetDisplayName() const override;
 	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
 	//~ End UOptimusComputeDataInterface Interface
-
+	
 	//~ Begin UComputeDataInterface Interface
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
+	void GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const override;
 	void GetHLSL(FString& OutHLSL) const override;
 	void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
 	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
 };
 
-/** Compute Framework Data Provider for reading general scene data. */
+/** Compute Framework Data Provider for reading skeletal mesh. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class USceneDataProvider : public UComputeDataProvider
+class UOptimusClothDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USceneComponent> SceneComponent = nullptr;
+	TObjectPtr<USkeletalMeshComponent> SkeletalMesh = nullptr;
 
 	//~ Begin UComputeDataProvider Interface
+	bool IsValid() const override;
 	FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	//~ End UComputeDataProvider Interface
 };
 
-class FSceneDataProviderProxy : public FComputeDataProviderRenderProxy
+class FOptimusClothDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FSceneDataProviderProxy(USceneComponent* SceneComponent);
+	FOptimusClothDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData);
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
-	float GameTime;
-	float GameTimeDelta;
-	uint32 FrameNumber;
+	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
+	float ClothBlendWeight = 0.0f;
+	uint32 FrameNumber = 0;
 };

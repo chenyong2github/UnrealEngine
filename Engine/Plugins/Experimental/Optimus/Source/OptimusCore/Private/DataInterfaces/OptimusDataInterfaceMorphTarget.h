@@ -4,14 +4,15 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "DataInterfaceSkeleton.generated.h"
+
+#include "OptimusDataInterfaceMorphTarget.generated.h"
 
 class FSkeletalMeshObject;
-class USkinnedMeshComponent;
+class USkeletalMeshComponent;
 
-/** Compute Framework Data Interface for skeletal data. */
+/** Compute Framework Data Interface for reading skeletal mesh. */
 UCLASS(Category = ComputeFramework)
-class OPTIMUSCORE_API USkeletonDataInterface : public UOptimusComputeDataInterface
+class OPTIMUSCORE_API UOptimusMorphTargetDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -33,13 +34,13 @@ public:
 
 /** Compute Framework Data Provider for reading skeletal mesh. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class USkeletonDataProvider : public UComputeDataProvider
+class UOptimusMorphTargetDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
+	TObjectPtr<USkeletalMeshComponent> SkeletalMesh = nullptr;
 
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;
@@ -47,16 +48,16 @@ public:
 	//~ End UComputeDataProvider Interface
 };
 
-class FSkeletonDataProviderProxy : public FComputeDataProviderRenderProxy
+class FOptimusMorphTargetDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FSkeletonDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent);
+	FOptimusMorphTargetDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData);
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
 	FSkeletalMeshObject* SkeletalMeshObject;
-	uint32 BoneRevisionNumber = 0;
+	uint32 FrameNumber = 0;
 };

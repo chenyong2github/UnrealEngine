@@ -12,7 +12,7 @@
 
 
 class UOptimusDeformer;
-class UPersistentBufferDataInterface;
+class UOptimusPersistentBufferDataInterface;
 
 
 UCLASS(BlueprintType)
@@ -41,7 +41,7 @@ public:
 	FOptimusDataDomain DataDomain;
 
 	UPROPERTY()
-	TObjectPtr<UPersistentBufferDataInterface> DataInterface;
+	TObjectPtr<UOptimusPersistentBufferDataInterface> DataInterface;
 	
 #if WITH_EDITOR
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

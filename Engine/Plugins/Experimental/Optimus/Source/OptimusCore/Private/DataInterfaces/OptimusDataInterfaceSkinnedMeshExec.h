@@ -3,17 +3,29 @@
 #pragma once
 
 #include "OptimusComputeDataInterface.h"
+
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "DataInterfaceSkinnedMeshWrite.generated.h"
+
+#include "OptimusDataInterfaceSkinnedMeshExec.generated.h"
 
 class USkinnedMeshComponent;
 class FSkeletalMeshObject;
 class FRDGBuffer;
 class FRDGBufferUAV;
 
-/** Compute Framework Data Interface for writing skinned mesh. */
+UENUM()
+enum class EOptimusSkinnedMeshExecDomain : uint8
+{
+	None = 0 UMETA(Hidden),
+	/** Run kernel with one thread per vertex. */
+	Vertex = 1,
+	/** Run kernel with one thread per triangle. */
+	Triangle,
+};
+
+/** Compute Framework Data Interface for executing kernels over a skinned mesh domain. */
 UCLASS(Category = ComputeFramework)
-class OPTIMUSCORE_API USkinnedMeshWriteDataInterface : public UOptimusComputeDataInterface
+class OPTIMUSCORE_API UOptimusSkinnedMeshExecDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -25,26 +37,30 @@ public:
 	//~ End UOptimusComputeDataInterface Interface
 	
 	//~ Begin UComputeDataInterface Interface
+	bool IsExecutionInterface() const override { return true; }
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
-	void GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
 	void GetHLSL(FString& OutHLSL) const override;
 	void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
 	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
+
+	UPROPERTY(EditAnywhere, Category = Execution)
+	EOptimusSkinnedMeshExecDomain Domain = EOptimusSkinnedMeshExecDomain::Vertex;
 };
 
-/** Compute Framework Data Provider for writing skinned mesh. */
+/** Compute Framework Data Provider for executing kernels over a skinned mesh domain. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class USkinnedMeshWriteDataProvider : public UComputeDataProvider
+class UOptimusSkinnedMeshExecDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
+	UPROPERTY()
 	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
 
-	uint64 OutputMask;
+	UPROPERTY()
+	EOptimusSkinnedMeshExecDomain Domain = EOptimusSkinnedMeshExecDomain::Vertex;
 
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;
@@ -52,24 +68,17 @@ public:
 	//~ End UComputeDataProvider Interface
 };
 
-class FSkinnedMeshWriteDataProviderProxy : public FComputeDataProviderRenderProxy
+class FOptimusSkinnedMeshExecDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FSkinnedMeshWriteDataProviderProxy(USkinnedMeshComponent* InSkinnedMeshComponent, uint64 InOutputMask);
+	FOptimusSkinnedMeshExecDataProviderProxy(USkinnedMeshComponent* InSkinnedMeshComponent, EOptimusSkinnedMeshExecDomain InDomain);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	void AllocateResources(FRDGBuilder& GraphBuilder) override;
+	int32 GetDispatchThreadCount(TArray<FIntVector>& ThreadCounts) const override;
 	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
-	FSkeletalMeshObject* SkeletalMeshObject;
-	uint64 OutputMask;
-
-	FRDGBuffer* PositionBuffer = nullptr;
-	FRDGBufferUAV* PositionBufferUAV = nullptr;
-	FRDGBuffer* TangentBuffer = nullptr;
-	FRDGBufferUAV* TangentBufferUAV = nullptr;
-	FRDGBuffer* ColorBuffer = nullptr;
-	FRDGBufferUAV* ColorBufferUAV = nullptr;
+	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
+	EOptimusSkinnedMeshExecDomain Domain = EOptimusSkinnedMeshExecDomain::Vertex;
 };

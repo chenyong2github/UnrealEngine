@@ -6,8 +6,8 @@
 #include "Actions/OptimusNodeGraphActions.h"
 #include "Actions/OptimusResourceActions.h"
 #include "Actions/OptimusVariableActions.h"
-#include "DataInterfaces/DataInterfaceGraph.h"
-#include "DataInterfaces/DataInterfaceRawBuffer.h"
+#include "DataInterfaces/OptimusDataInterfaceGraph.h"
+#include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 #include "IOptimusComputeKernelProvider.h"
 #include "IOptimusDataInterfaceProvider.h"
 #include "IOptimusValueProvider.h"
@@ -1098,8 +1098,8 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 						if (Cast<const IOptimusComputeKernelProvider>(ConnectedPin.NodePin->GetOwningNode()) != nullptr &&
 							ensure(Pin->GetDataType().IsValid()))
 						{
-							UTransientBufferDataInterface* TransientBufferDI =
-								NewObject<UTransientBufferDataInterface>(this);
+							UOptimusTransientBufferDataInterface* TransientBufferDI =
+								NewObject<UOptimusTransientBufferDataInterface>(this);
 
 							const TArray<FName> LevelNames = Pin->GetDataDomainLevelNames(); 
 
@@ -1119,15 +1119,15 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 	}
 
 	// Create the graph data interface and fill it with the value nodes.
-	UGraphDataInterface* GraphDataInterface = NewObject<UGraphDataInterface>(this);
+	UOptimusGraphDataInterface* GraphDataInterface = NewObject<UOptimusGraphDataInterface>(this);
 
-	TArray<FGraphVariableDescription> ValueNodeDescriptions;
+	TArray<FOptimusGraphVariableDescription> ValueNodeDescriptions;
 	ValueNodeDescriptions.Reserve(ValueNodes.Num());
 	for (UOptimusNode const* ValueNode : ValueNodes)
 	{
 		if (IOptimusValueProvider const* ValueProvider = Cast<const IOptimusValueProvider>(ValueNode))
 		{
-			FGraphVariableDescription& ValueNodeDescription = ValueNodeDescriptions.AddDefaulted_GetRef();
+			FOptimusGraphVariableDescription& ValueNodeDescription = ValueNodeDescriptions.AddDefaulted_GetRef();
 			ValueNodeDescription.Name = ValueProvider->GetValueName();
 			ValueNodeDescription.ValueType = ValueProvider->GetValueType()->ShaderValueType;
 

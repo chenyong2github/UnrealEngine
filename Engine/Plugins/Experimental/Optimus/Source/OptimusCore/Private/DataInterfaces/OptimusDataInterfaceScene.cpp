@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaces/DataInterfaceScene.h"
+#include "OptimusDataInterfaceScene.h"
 
 #include "Components/SceneComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
@@ -10,12 +10,12 @@
 #include "Engine/World.h"
 #include "SceneInterface.h"
 
-FString USceneDataInterface::GetDisplayName() const
+FString UOptimusSceneDataInterface::GetDisplayName() const
 {
 	return TEXT("Scene Data");
 }
 
-TArray<FOptimusCDIPinDefinition> USceneDataInterface::GetPinDefinitions() const
+TArray<FOptimusCDIPinDefinition> UOptimusSceneDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({"GameTime", "ReadGameTime"});
@@ -24,7 +24,7 @@ TArray<FOptimusCDIPinDefinition> USceneDataInterface::GetPinDefinitions() const
 	return Defs;
 }
 
-void USceneDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UOptimusSceneDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("ReadGameTime"))
@@ -45,24 +45,24 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSceneDataInterfaceParameters, )
 	SHADER_PARAMETER(uint32, FrameNumber)
 END_SHADER_PARAMETER_STRUCT()
 
-void USceneDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusSceneDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
 {
 	OutBuilder.AddNestedStruct<FSceneDataInterfaceParameters>(UID);
 }
 
-void USceneDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusSceneDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceScene.ush\"\n");
 }
 
-void USceneDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+void UOptimusSceneDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	OutSourceTypes.Add(USceneComponent::StaticClass());
 }
 
-UComputeDataProvider* USceneDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusSceneDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	USceneDataProvider* Provider = NewObject<USceneDataProvider>();
+	UOptimusSceneDataProvider* Provider = NewObject<UOptimusSceneDataProvider>();
 
 	if (InSourceObjects.Num() == 1)
 	{
@@ -73,13 +73,13 @@ UComputeDataProvider* USceneDataInterface::CreateDataProvider(TArrayView< TObjec
 }
 
 
-FComputeDataProviderRenderProxy* USceneDataProvider::GetRenderProxy()
+FComputeDataProviderRenderProxy* UOptimusSceneDataProvider::GetRenderProxy()
 {
-	return new FSceneDataProviderProxy(SceneComponent);
+	return new FOptimusSceneDataProviderProxy(SceneComponent);
 }
 
 
-FSceneDataProviderProxy::FSceneDataProviderProxy(USceneComponent* SceneComponent)
+FOptimusSceneDataProviderProxy::FOptimusSceneDataProviderProxy(USceneComponent* SceneComponent)
 {
 	bool bUseSceneTime = SceneComponent != nullptr;
 #if WITH_EDITOR
@@ -94,7 +94,7 @@ FSceneDataProviderProxy::FSceneDataProviderProxy(USceneComponent* SceneComponent
 	FrameNumber = bUseSceneTime ? SceneComponent->GetScene()->GetFrameNumber() : 0;
 }
 
-void FSceneDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusSceneDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
 	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FSceneDataInterfaceParameters)))
 	{

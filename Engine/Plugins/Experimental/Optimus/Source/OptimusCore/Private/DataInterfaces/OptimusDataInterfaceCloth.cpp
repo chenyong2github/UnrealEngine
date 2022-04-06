@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaces/DataInterfaceCloth.h"
+#include "OptimusDataInterfaceCloth.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationVector.h"
@@ -12,12 +12,12 @@
 #include "SkeletalMeshDeformerHelpers.h"
 #include "SkeletalRenderPublic.h"
 
-FString UClothDataInterface::GetDisplayName() const
+FString UOptimusClothDataInterface::GetDisplayName() const
 {
 	return TEXT("Cloth");
 }
 
-TArray<FOptimusCDIPinDefinition> UClothDataInterface::GetPinDefinitions() const
+TArray<FOptimusCDIPinDefinition> UOptimusClothDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({ "ClothToLocal", "ReadClothToLocal" });
@@ -28,7 +28,7 @@ TArray<FOptimusCDIPinDefinition> UClothDataInterface::GetPinDefinitions() const
 	return Defs;
 }
 
-void UClothDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UOptimusClothDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("ReadNumVertices"))
@@ -69,29 +69,29 @@ BEGIN_SHADER_PARAMETER_STRUCT(FClothDataInterfaceParameters, )
 	SHADER_PARAMETER_SRV(Buffer<float2>, ClothPositionsAndNormalsBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
-void UClothDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusClothDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
 {
 	OutBuilder.AddNestedStruct<FClothDataInterfaceParameters>(UID);
 }
 
-void UClothDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
+void UOptimusClothDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
 {
 	OutPermutationVector.AddPermutation(TEXT("ENABLE_DEFORMER_CLOTH"), 2);
 }
 
-void UClothDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusClothDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceCloth.ush\"\n");
 }
 
-void UClothDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+void UOptimusClothDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
 }
 
-UComputeDataProvider* UClothDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusClothDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	UClothDataProvider* Provider = NewObject<UClothDataProvider>();
+	UOptimusClothDataProvider* Provider = NewObject<UOptimusClothDataProvider>();
 
 	if (InSourceObjects.Num() == 1)
 	{
@@ -102,20 +102,20 @@ UComputeDataProvider* UClothDataInterface::CreateDataProvider(TArrayView< TObjec
 }
 
 
-bool UClothDataProvider::IsValid() const
+bool UOptimusClothDataProvider::IsValid() const
 {
 	return
 		SkeletalMesh != nullptr &&
 		SkeletalMesh->MeshObject != nullptr;
 }
 
-FComputeDataProviderRenderProxy* UClothDataProvider::GetRenderProxy()
+FComputeDataProviderRenderProxy* UOptimusClothDataProvider::GetRenderProxy()
 {
-	return new FClothDataProviderProxy(SkeletalMesh);
+	return new FOptimusClothDataProviderProxy(SkeletalMesh);
 }
 
 
-FClothDataProviderProxy::FClothDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
+FOptimusClothDataProviderProxy::FOptimusClothDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
 {
 	SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
 	ClothBlendWeight = SkeletalMeshComponent->ClothBlendWeight;
@@ -136,7 +136,7 @@ struct FClothDataInterfacePermutationIds
 	}
 };
 
-void FClothDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusClothDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
 	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FClothDataInterfaceParameters)))
 	{

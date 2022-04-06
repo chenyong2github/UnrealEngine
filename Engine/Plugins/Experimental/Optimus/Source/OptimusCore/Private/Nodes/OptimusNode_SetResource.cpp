@@ -4,7 +4,7 @@
 
 #include "OptimusNodePin.h"
 #include "OptimusResourceDescription.h"
-#include "DataInterfaces/DataInterfaceRawBuffer.h"
+#include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 
 
 int32 UOptimusNode_SetResource::GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const
@@ -18,7 +18,7 @@ int32 UOptimusNode_SetResource::GetDataFunctionIndexFromPin(const UOptimusNodePi
 		return INDEX_NONE;
 	}
 
-	return URawBufferDataInterface::WriteValueOutputIndex;
+	return UOptimusRawBufferDataInterface::WriteValueOutputIndex;
 }
 
 

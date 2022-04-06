@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaces/DataInterfaceRawBuffer.h"
+#include "OptimusDataInterfaceRawBuffer.h"
 
 #include "OptimusDeformerInstance.h"
-#include "Components/SkeletalMeshComponent.h"
+
 #include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "RenderGraphBuilder.h"
@@ -11,14 +11,13 @@
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalRenderPublic.h"
-#include "Algo/Accumulate.h"
 
 
-const int32 URawBufferDataInterface::ReadValueInputIndex = 1;
-const int32 URawBufferDataInterface::WriteValueOutputIndex = 0;
+const int32 UOptimusRawBufferDataInterface::ReadValueInputIndex = 1;
+const int32 UOptimusRawBufferDataInterface::WriteValueOutputIndex = 0;
 
 
-USkinnedMeshComponent* URawBufferDataInterface::GetComponentFromSourceObjects(
+USkinnedMeshComponent* UOptimusRawBufferDataInterface::GetComponentFromSourceObjects(
 	TArrayView<TObjectPtr<UObject>> InSourceObjects)
 {
 	if (InSourceObjects.Num() != 1)
@@ -30,9 +29,9 @@ USkinnedMeshComponent* URawBufferDataInterface::GetComponentFromSourceObjects(
 }
 
 
-void URawBufferDataInterface::FillProviderFromComponent(
+void UOptimusRawBufferDataInterface::FillProviderFromComponent(
 	const USkinnedMeshComponent* InComponent,
-	URawBufferDataProvider* InProvider
+	UOptimusRawBufferDataProvider* InProvider
 	) const
 {
 	InProvider->ElementStride = ValueType->GetResourceElementSize();
@@ -64,12 +63,12 @@ void URawBufferDataInterface::FillProviderFromComponent(
 }
 
 
-bool URawBufferDataInterface::SupportsAtomics() const
+bool UOptimusRawBufferDataInterface::SupportsAtomics() const
 {
 	return ValueType->Type == EShaderFundamentalType::Int;
 }
 
-TArray<FOptimusCDIPinDefinition> URawBufferDataInterface::GetPinDefinitions() const
+TArray<FOptimusCDIPinDefinition> UOptimusRawBufferDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({"ValueIn", "ReadValue", DataDomain.Name, "ReadNumValues"});
@@ -77,7 +76,7 @@ TArray<FOptimusCDIPinDefinition> URawBufferDataInterface::GetPinDefinitions() co
 	return Defs;
 }
 
-void URawBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UOptimusRawBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("ReadNumValues"))
@@ -98,7 +97,7 @@ void URawBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinitio
 	}
 }
 
-void URawBufferDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UOptimusRawBufferDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("WriteValue"))
@@ -121,7 +120,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTransientBufferDataInterfaceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<int>, BufferUAV)
 END_SHADER_PARAMETER_STRUCT()
 
-void UTransientBufferDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusTransientBufferDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
 {
 	OutBuilder.AddNestedStruct<FTransientBufferDataInterfaceParameters>(UID);
 }
@@ -133,12 +132,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPersistentBufferDataInterfaceParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 
-void UPersistentBufferDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusPersistentBufferDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
 {
 	OutBuilder.AddNestedStruct<FPersistentBufferDataInterfaceParameters>(UID);
 }
 
-void URawBufferDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusRawBufferDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#define BUFFER_TYPE ");
 	OutHLSL += ValueType->ToString();
@@ -152,7 +151,7 @@ void URawBufferDataInterface::GetHLSL(FString& OutHLSL) const
 }
 
 
-void URawBufferDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+void UOptimusRawBufferDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	// Default setup with an assumption that we want to size to match a USkinnedMeshComponent.
 	// That's a massive generalization of course...
@@ -160,33 +159,37 @@ void URawBufferDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) co
 }
 
 
-FString UTransientBufferDataInterface::GetDisplayName() const
+FString UOptimusTransientBufferDataInterface::GetDisplayName() const
 {
 	return TEXT("Transient");
 }
 
-UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusTransientBufferDataInterface::CreateDataProvider(
+	TArrayView< TObjectPtr<UObject> > InSourceObjects,
+	uint64 InInputMask,
+	uint64 InOutputMask
+	) const
 {
-	UTransientBufferDataProvider *Provider = NewObject<UTransientBufferDataProvider>();
+	UOptimusTransientBufferDataProvider *Provider = NewObject<UOptimusTransientBufferDataProvider>();
 	FillProviderFromComponent(GetComponentFromSourceObjects(InSourceObjects), Provider);
 	Provider->bClearBeforeUse = bClearBeforeUse;
 	return Provider;
 }
 
 
-FString UPersistentBufferDataInterface::GetDisplayName() const
+FString UOptimusPersistentBufferDataInterface::GetDisplayName() const
 {
 	return TEXT("Persistent");
 }
 
 
-UComputeDataProvider* UPersistentBufferDataInterface::CreateDataProvider(
+UComputeDataProvider* UOptimusPersistentBufferDataInterface::CreateDataProvider(
 	TArrayView<TObjectPtr<UObject>> InSourceObjects,
 	uint64 InInputMask,
 	uint64 InOutputMask
 	) const
 {
-	UPersistentBufferDataProvider *Provider = NewObject<UPersistentBufferDataProvider>();
+	UOptimusPersistentBufferDataProvider *Provider = NewObject<UOptimusPersistentBufferDataProvider>();
 
 	if (USkinnedMeshComponent* Component = GetComponentFromSourceObjects(InSourceObjects))
 	{
@@ -200,25 +203,25 @@ UComputeDataProvider* UPersistentBufferDataInterface::CreateDataProvider(
 }
 
 
-bool URawBufferDataProvider::IsValid() const
+bool UOptimusRawBufferDataProvider::IsValid() const
 {
 	return !NumElementsPerInvocation.IsEmpty();
 }
 
 
-FComputeDataProviderRenderProxy* UTransientBufferDataProvider::GetRenderProxy()
+FComputeDataProviderRenderProxy* UOptimusTransientBufferDataProvider::GetRenderProxy()
 {
-	return new FTransientBufferDataProviderProxy(ElementStride, NumElementsPerInvocation, bClearBeforeUse);
+	return new FOptimusTransientBufferDataProviderProxy(ElementStride, NumElementsPerInvocation, bClearBeforeUse);
 }
 
 
-bool UPersistentBufferDataProvider::IsValid() const
+bool UOptimusPersistentBufferDataProvider::IsValid() const
 {
-	return URawBufferDataProvider::IsValid();
+	return UOptimusRawBufferDataProvider::IsValid();
 }
 
 
-FComputeDataProviderRenderProxy* UPersistentBufferDataProvider::GetRenderProxy()
+FComputeDataProviderRenderProxy* UOptimusPersistentBufferDataProvider::GetRenderProxy()
 {
 	FOptimusPersistentBufferPoolPtr BufferPoolPtr;
 	
@@ -227,11 +230,11 @@ FComputeDataProviderRenderProxy* UPersistentBufferDataProvider::GetRenderProxy()
 	{
 		BufferPoolPtr = DeformerInstance->GetBufferPool();
 	}	
-	return new FPersistentBufferDataProviderProxy(BufferPoolPtr, ResourceName, ElementStride, NumElementsPerInvocation);
+	return new FOptimusPersistentBufferDataProviderProxy(BufferPoolPtr, ResourceName, ElementStride, NumElementsPerInvocation);
 }
 
 
-FTransientBufferDataProviderProxy::FTransientBufferDataProviderProxy(
+FOptimusTransientBufferDataProviderProxy::FOptimusTransientBufferDataProviderProxy(
 	int32 InElementStride,
 	TArray<int32> InInvocationElementCount,
 	bool bInClearBeforeUse
@@ -243,7 +246,7 @@ FTransientBufferDataProviderProxy::FTransientBufferDataProviderProxy(
 	
 }
 
-void FTransientBufferDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
+void FOptimusTransientBufferDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
 	for (const int32 NumElements: InvocationElementCount)
 	{
@@ -259,7 +262,7 @@ void FTransientBufferDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuil
 	}
 }
 
-void FTransientBufferDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusTransientBufferDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
 	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FTransientBufferDataInterfaceParameters)))
 	{
@@ -279,7 +282,7 @@ void FTransientBufferDataProviderProxy::GatherDispatchData(FDispatchSetup const&
 
 
 
-FPersistentBufferDataProviderProxy::FPersistentBufferDataProviderProxy(
+FOptimusPersistentBufferDataProviderProxy::FOptimusPersistentBufferDataProviderProxy(
 	TSharedPtr<FOptimusPersistentBufferPool> InBufferPool,
 	FName InResourceName,
 	int32 InElementStride,
@@ -294,14 +297,14 @@ FPersistentBufferDataProviderProxy::FPersistentBufferDataProviderProxy(
 }
 
 
-void FPersistentBufferDataProviderProxy::AllocateResources(
+void FOptimusPersistentBufferDataProviderProxy::AllocateResources(
 	FRDGBuilder& GraphBuilder
 	)
 {
 }
 
 
-void FPersistentBufferDataProviderProxy::GatherDispatchData(
+void FOptimusPersistentBufferDataProviderProxy::GatherDispatchData(
 	FDispatchSetup const& InDispatchSetup,
 	FCollectedDispatchData& InOutDispatchData
 	)

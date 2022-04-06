@@ -5,14 +5,14 @@
 #include "ComputeFramework/ComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
-#include "DataInterfaceGraph.generated.h"
+#include "OptimusDataInterfaceGraph.generated.h"
 
 class UOptimusDeformerInstance;
 class USkinnedMeshComponent;
 
 /** */
 USTRUCT()
-struct FGraphVariableDescription
+struct FOptimusGraphVariableDescription
 {
 	GENERATED_BODY()
 
@@ -31,12 +31,12 @@ struct FGraphVariableDescription
 
 /** Compute Framework Data Interface used for marshaling compute graph parameters and variables. */
 UCLASS(Category = ComputeFramework)
-class UGraphDataInterface : public UComputeDataInterface
+class UOptimusGraphDataInterface : public UComputeDataInterface
 {
 	GENERATED_BODY()
 
 public:
-	void Init(TArray<FGraphVariableDescription> const& InVariables);
+	void Init(TArray<FOptimusGraphVariableDescription> const& InVariables);
 
 	//~ Begin UComputeDataInterface Interface
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
@@ -48,7 +48,7 @@ public:
 
 private:
 	UPROPERTY()
-	TArray<FGraphVariableDescription> Variables;
+	TArray<FOptimusGraphVariableDescription> Variables;
 
 	UPROPERTY()
 	int32 ParameterBufferSize = 0;
@@ -56,7 +56,7 @@ private:
 
 /** Compute Framework Data Provider for marshaling compute graph parameters and variables. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class UGraphDataProvider : public UComputeDataProvider
+class UOptimusGraphDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
@@ -65,7 +65,7 @@ public:
 	TObjectPtr<USkinnedMeshComponent> SkinnedMeshComponent = nullptr;
 
 	UPROPERTY()
-	TArray<FGraphVariableDescription> Variables;
+	TArray<FOptimusGraphVariableDescription> Variables;
 
 	int32 ParameterBufferSize = 0;
 
@@ -76,10 +76,10 @@ public:
 	//~ End UComputeDataProvider Interface
 };
 
-class FGraphDataProviderProxy : public FComputeDataProviderRenderProxy
+class FOptimusGraphDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FGraphDataProviderProxy(UOptimusDeformerInstance const* DeformerInstance, TArray<FGraphVariableDescription> const& Variables, int32 ParameterBufferSize);
+	FOptimusGraphDataProviderProxy(UOptimusDeformerInstance const* DeformerInstance, TArray<FOptimusGraphVariableDescription> const& Variables, int32 ParameterBufferSize);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;

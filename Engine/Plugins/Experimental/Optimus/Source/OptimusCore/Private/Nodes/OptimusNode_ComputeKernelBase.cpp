@@ -7,8 +7,8 @@
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
 
-#include "DataInterfaces/DataInterfaceGraph.h"
-#include "DataInterfaces/DataInterfaceRawBuffer.h"
+#include "DataInterfaces/OptimusDataInterfaceGraph.h"
+#include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 #include "IOptimusValueProvider.h"
 #include "OptimusKernelSource.h"
 
@@ -209,7 +209,7 @@ void UOptimusNode_ComputeKernelBase::ProcessInputPinForComputeKernel(
 			// For transient buffers we need the function index as given by the
 			// ReadValue function. 
 			DataInterface = InLinkDataInterfaceMap[InOutputPin];
-			DataInterfaceFuncIndex = UTransientBufferDataInterface::ReadValueInputIndex;
+			DataInterfaceFuncIndex = UOptimusTransientBufferDataInterface::ReadValueInputIndex;
 
 			TArray<FShaderFunctionDefinition> ReadFunctions;
 			DataInterface->GetSupportedInputs(ReadFunctions);
@@ -345,7 +345,7 @@ void UOptimusNode_ComputeKernelBase::ProcessOutputPinForComputeKernel(
 
 			// This is a horrible hack for detecting interlocked writes
 			// TODO: Either express this via the kernel metadata or add full support for buffer data interface in graph editor.
-			int32 WriteValueOutputIndex = UTransientBufferDataInterface::WriteValueOutputIndex;
+			int32 WriteValueOutputIndex = UOptimusTransientBufferDataInterface::WriteValueOutputIndex;
 			if (InOutputPin->GetName().Contains(TEXT("Interlocked")) && WriteFunctions.Num() > WriteValueOutputIndex + 1)
 			{
 				++WriteValueOutputIndex;

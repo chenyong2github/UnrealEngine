@@ -1,24 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaces/DataInterfaceSkeletalMeshRead.h"
+#include "OptimusDataInterfaceSkeletalMeshRead.h"
+
+#include "OptimusDataDomain.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
 #include "ComputeFramework/ComputeKernelPermutationVector.h"
 #include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
-#include "OptimusDataDomain.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalMeshDeformerHelpers.h"
 #include "SkeletalRenderPublic.h"
 
-FString USkeletalMeshReadDataInterface::GetDisplayName() const
+FString UOptimusSkeletalMeshReadDataInterface::GetDisplayName() const
 {
 	return TEXT("Read Skeletal Mesh");
 }
 
-TArray<FOptimusCDIPinDefinition> USkeletalMeshReadDataInterface::GetPinDefinitions() const
+TArray<FOptimusCDIPinDefinition> UOptimusSkeletalMeshReadDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 
@@ -41,7 +42,7 @@ TArray<FOptimusCDIPinDefinition> USkeletalMeshReadDataInterface::GetPinDefinitio
 	return Defs;
 }
 
-void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UOptimusSkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	// Functions must match those exposed in data interface shader code.
 	// todo[CF]: Make these easier to write. Maybe even get from shader code reflection?
@@ -263,12 +264,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSkeletalMeshReadDataInterfaceParameters, )
 	SHADER_PARAMETER_SRV(Buffer<uint>, DuplicatedIndices)
 END_SHADER_PARAMETER_STRUCT()
 
-void USkeletalMeshReadDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusSkeletalMeshReadDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
 {
 	OutBuilder.AddNestedStruct<FSkeletalMeshReadDataInterfaceParameters>(UID);
 }
 
-void USkeletalMeshReadDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
+void UOptimusSkeletalMeshReadDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
 {
 	// Need to be able to support these permutations according to the skeletal mesh settings.
 	// todo[CF]: Filter these based on which functions in the data interface are attached. That will reduce unnecessary permutations.
@@ -278,19 +279,19 @@ void USkeletalMeshReadDataInterface::GetPermutations(FComputeKernelPermutationVe
 	//OutPermutationVector.AddPermutation(TEXT("MERGE_DUPLICATED_VERTICES"), 2);
 }
 
-void USkeletalMeshReadDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusSkeletalMeshReadDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkeletalMeshRead.ush\"\n");
 }
 
-void USkeletalMeshReadDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+void UOptimusSkeletalMeshReadDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
 }
 
-UComputeDataProvider* USkeletalMeshReadDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusSkeletalMeshReadDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	USkeletalMeshReadDataProvider* Provider = NewObject<USkeletalMeshReadDataProvider>();
+	UOptimusSkeletalMeshReadDataProvider* Provider = NewObject<UOptimusSkeletalMeshReadDataProvider>();
 
 	if (InSourceObjects.Num() == 1)
 	{
@@ -301,20 +302,20 @@ UComputeDataProvider* USkeletalMeshReadDataInterface::CreateDataProvider(TArrayV
 }
 
 
-bool USkeletalMeshReadDataProvider::IsValid() const
+bool UOptimusSkeletalMeshReadDataProvider::IsValid() const
 {
 	return
 		SkeletalMesh != nullptr &&
 		SkeletalMesh->MeshObject != nullptr;
 }
 
-FComputeDataProviderRenderProxy* USkeletalMeshReadDataProvider::GetRenderProxy()
+FComputeDataProviderRenderProxy* UOptimusSkeletalMeshReadDataProvider::GetRenderProxy()
 {
-	return new FSkeletalMeshReadDataProviderProxy(SkeletalMesh);
+	return new FOptimusSkeletalMeshReadDataProviderProxy(SkeletalMesh);
 }
 
 
-FSkeletalMeshReadDataProviderProxy::FSkeletalMeshReadDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
+FOptimusSkeletalMeshReadDataProviderProxy::FOptimusSkeletalMeshReadDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
 {
 	SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
 	BoneRevisionNumber = SkeletalMeshComponent->GetBoneTransformRevisionNumber();
@@ -346,7 +347,7 @@ struct FSkeletalMeshReadDataInterfacePermutationIds
 	}
 };
 
-void FSkeletalMeshReadDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusSkeletalMeshReadDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
 	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FSkeletalMeshReadDataInterfaceParameters)))
 	{

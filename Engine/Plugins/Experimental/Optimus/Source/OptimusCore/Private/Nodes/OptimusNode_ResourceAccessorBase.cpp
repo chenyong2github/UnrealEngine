@@ -4,7 +4,7 @@
 
 #include "OptimusCoreModule.h"
 #include "OptimusResourceDescription.h"
-#include "DataInterfaces/DataInterfaceRawBuffer.h"
+#include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 
 
 void UOptimusNode_ResourceAccessorBase::SetResourceDescription(UOptimusResourceDescription* InResourceDesc)
@@ -38,7 +38,7 @@ UOptimusComputeDataInterface* UOptimusNode_ResourceAccessorBase::GetDataInterfac
 	if (!Description)
 	{
 		// FIXME: This should be handled as a nullptr and dealt with on the calling side.
-		UPersistentBufferDataInterface* DummyInterface = NewObject<UPersistentBufferDataInterface>(InOuter);
+		UOptimusPersistentBufferDataInterface* DummyInterface = NewObject<UOptimusPersistentBufferDataInterface>(InOuter);
 		DummyInterface->ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
 		DummyInterface->DataDomain = Optimus::DomainName::Vertex;
 		return DummyInterface;
@@ -46,7 +46,7 @@ UOptimusComputeDataInterface* UOptimusNode_ResourceAccessorBase::GetDataInterfac
 	
 	if (!Description->DataInterface)
 	{
-		Description->DataInterface = NewObject<UPersistentBufferDataInterface>(InOuter);
+		Description->DataInterface = NewObject<UOptimusPersistentBufferDataInterface>(InOuter);
 		Description->DataInterface->ResourceName = Description->ResourceName;
 		Description->DataInterface->ValueType = Description->DataType->ShaderValueType;
 		Description->DataInterface->DataDomain = Description->DataDomain;

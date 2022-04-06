@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaces/DataInterfaceGraph.h"
+#include "OptimusDataInterfaceGraph.h"
 
-#include "Components/SkeletalMeshComponent.h"
-#include "ComputeFramework/ShaderParamTypeDefinition.h"
-#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "OptimusDeformerInstance.h"
 #include "OptimusVariableDescription.h"
+
+#include "Components/SkinnedMeshComponent.h"
+#include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 
 namespace
 {
@@ -44,12 +45,12 @@ namespace
 	}
 }
 
-void UGraphDataInterface::Init(TArray<FGraphVariableDescription> const& InVariables)
+void UOptimusGraphDataInterface::Init(TArray<FOptimusGraphVariableDescription> const& InVariables)
 {
 	Variables = InVariables;
 
 	FShaderParametersMetadataBuilder Builder;
-	for (FGraphVariableDescription const& Variable : Variables)
+	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
 		AddParamForType(Builder, *Variable.Name, Variable.ValueType);
 	}
@@ -65,10 +66,10 @@ void UGraphDataInterface::Init(TArray<FGraphVariableDescription> const& InVariab
 	ParameterBufferSize = ShaderParameterMetadata->GetSize();
 }
 
-void UGraphDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UOptimusGraphDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.Reserve(OutFunctions.Num() + Variables.Num());
-	for (FGraphVariableDescription const& Variable : Variables)
+	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
 		OutFunctions.AddDefaulted_GetRef()
 			.SetName(FString::Printf(TEXT("Read%s"), *Variable.Name))
@@ -76,10 +77,10 @@ void UGraphDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& 
 	}
 }
 
-void UGraphDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusGraphDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
 {
 	FShaderParametersMetadataBuilder Builder;
-	for (FGraphVariableDescription const& Variable : Variables)
+	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
 		AddParamForType(Builder, *Variable.Name, Variable.ValueType);
 	}
@@ -90,30 +91,30 @@ void UGraphDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParameter
 	OutBuilder.AddNestedStruct(UID, ShaderParameterMetadata);
 }
 
-void UGraphDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusGraphDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	// Need include for DI_LOCAL macro expansion.
 	OutHLSL += TEXT("#include \"/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush\"\n");
 	// Add uniforms.
-	for (FGraphVariableDescription const& Variable : Variables)
+	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
 		OutHLSL += FString::Printf(TEXT("float DI_LOCAL(%s);\n"), *Variable.Name);
 	}
 	// Add function getters.
-	for (FGraphVariableDescription const& Variable : Variables)
+	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
 		OutHLSL += FString::Printf(TEXT("DI_IMPL_READ(Read%s, float, )\n{\n\treturn DI_LOCAL(%s);\n}\n"), *Variable.Name, *Variable.Name);
 	}
 }
 
-void UGraphDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+void UOptimusGraphDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	OutSourceTypes.Add(USkinnedMeshComponent::StaticClass());
 }
 
-UComputeDataProvider* UGraphDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusGraphDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	UGraphDataProvider* Provider = NewObject<UGraphDataProvider>();
+	UOptimusGraphDataProvider* Provider = NewObject<UOptimusGraphDataProvider>();
 
 	if (InSourceObjects.Num() == 1)
 	{
@@ -126,7 +127,7 @@ UComputeDataProvider* UGraphDataInterface::CreateDataProvider(TArrayView< TObjec
 }
 
 
-void UGraphDataProvider::SetConstant(FString const& InVariableName, TArray<uint8> const& InValue)
+void UOptimusGraphDataProvider::SetConstant(FString const& InVariableName, TArray<uint8> const& InValue)
 {
 	for (int32 VariableIndex = 0; VariableIndex < Variables.Num(); ++VariableIndex)
 	{
@@ -141,15 +142,15 @@ void UGraphDataProvider::SetConstant(FString const& InVariableName, TArray<uint8
 	}
 }
 
-FComputeDataProviderRenderProxy* UGraphDataProvider::GetRenderProxy()
+FComputeDataProviderRenderProxy* UOptimusGraphDataProvider::GetRenderProxy()
 {
 	UOptimusDeformerInstance* DeformerInstance = Cast<UOptimusDeformerInstance>(SkinnedMeshComponent->MeshDeformerInstance);
 
-	return new FGraphDataProviderProxy(DeformerInstance, Variables, ParameterBufferSize);
+	return new FOptimusGraphDataProviderProxy(DeformerInstance, Variables, ParameterBufferSize);
 }
 
 
-FGraphDataProviderProxy::FGraphDataProviderProxy(UOptimusDeformerInstance const* DeformerInstance, TArray<FGraphVariableDescription> const& Variables, int32 ParameterBufferSize)
+FOptimusGraphDataProviderProxy::FOptimusGraphDataProviderProxy(UOptimusDeformerInstance const* DeformerInstance, TArray<FOptimusGraphVariableDescription> const& Variables, int32 ParameterBufferSize)
 {
 	// Get all variables from deformer instance and fill buffer.
 	ParameterData.AddZeroed(ParameterBufferSize);
@@ -160,7 +161,7 @@ FGraphDataProviderProxy::FGraphDataProviderProxy(UOptimusDeformerInstance const*
 	}
 
 	TArray<UOptimusVariableDescription*> const& VariableValues = DeformerInstance->GetVariables();
-	for (FGraphVariableDescription const& Variable : Variables)
+	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
 		if (Variable.Value.Num())
 		{
@@ -186,7 +187,7 @@ FGraphDataProviderProxy::FGraphDataProviderProxy(UOptimusDeformerInstance const*
 	}
 }
 
-void FGraphDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusGraphDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
 	if (ParameterData.Num() == 0)
 	{

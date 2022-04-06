@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaces/DataInterfaceSkinnedMeshExec.h"
+#include "OptimusDataInterfaceSkinnedMeshExec.h"
 
 #include "Components/SkinnedMeshComponent.h"
 #include "ComputeFramework/ShaderParameterMetadataBuilder.h"
@@ -9,24 +9,24 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalRenderPublic.h"
 
-FString USkinnedMeshExecDataInterface::GetDisplayName() const
+FString UOptimusSkinnedMeshExecDataInterface::GetDisplayName() const
 {
 	return TEXT("Execute Skinned Mesh");
 }
 
-FName USkinnedMeshExecDataInterface::GetCategory() const
+FName UOptimusSkinnedMeshExecDataInterface::GetCategory() const
 {
 	return CategoryName::ExecutionDataInterfaces;
 }
 
-TArray<FOptimusCDIPinDefinition> USkinnedMeshExecDataInterface::GetPinDefinitions() const
+TArray<FOptimusCDIPinDefinition> UOptimusSkinnedMeshExecDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({ "NumThreads", "ReadNumThreads" });
 	return Defs;
 }
 
-void USkinnedMeshExecDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UOptimusSkinnedMeshExecDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("ReadNumThreads"))
@@ -38,24 +38,24 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSkinedMeshExecDataInterfaceParameters, )
 	SHADER_PARAMETER(FIntVector, NumThreads)
 END_SHADER_PARAMETER_STRUCT()
 
-void USkinnedMeshExecDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusSkinnedMeshExecDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
 {
 	OutBuilder.AddNestedStruct<FSkinedMeshExecDataInterfaceParameters>(UID);
 }
 
-void USkinnedMeshExecDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusSkinnedMeshExecDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkinnedMeshExec.ush\"\n");
 }
 
-void USkinnedMeshExecDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+void UOptimusSkinnedMeshExecDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	OutSourceTypes.Add(USkinnedMeshComponent::StaticClass());
 }
 
-UComputeDataProvider* USkinnedMeshExecDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusSkinnedMeshExecDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	USkinnedMeshExecDataProvider* Provider = NewObject<USkinnedMeshExecDataProvider>();
+	UOptimusSkinnedMeshExecDataProvider* Provider = NewObject<UOptimusSkinnedMeshExecDataProvider>();
 
 	if (InSourceObjects.Num() == 1)
 	{
@@ -67,26 +67,26 @@ UComputeDataProvider* USkinnedMeshExecDataInterface::CreateDataProvider(TArrayVi
 }
 
 
-bool USkinnedMeshExecDataProvider::IsValid() const
+bool UOptimusSkinnedMeshExecDataProvider::IsValid() const
 {
 	return
 		SkinnedMesh != nullptr &&
 		SkinnedMesh->MeshObject != nullptr;
 }
 
-FComputeDataProviderRenderProxy* USkinnedMeshExecDataProvider::GetRenderProxy()
+FComputeDataProviderRenderProxy* UOptimusSkinnedMeshExecDataProvider::GetRenderProxy()
 {
-	return new FSkinnedMeshExecDataProviderProxy(SkinnedMesh, Domain);
+	return new FOptimusSkinnedMeshExecDataProviderProxy(SkinnedMesh, Domain);
 }
 
 
-FSkinnedMeshExecDataProviderProxy::FSkinnedMeshExecDataProviderProxy(USkinnedMeshComponent* InSkinnedMeshComponent, ESkinnedMeshExecDomain InDomain)
+FOptimusSkinnedMeshExecDataProviderProxy::FOptimusSkinnedMeshExecDataProviderProxy(USkinnedMeshComponent* InSkinnedMeshComponent, EOptimusSkinnedMeshExecDomain InDomain)
 {
 	SkeletalMeshObject = InSkinnedMeshComponent->MeshObject;
 	Domain = InDomain;
 }
 
-int32 FSkinnedMeshExecDataProviderProxy::GetDispatchThreadCount(TArray<FIntVector>& ThreadCounts) const
+int32 FOptimusSkinnedMeshExecDataProviderProxy::GetDispatchThreadCount(TArray<FIntVector>& ThreadCounts) const
 {
 	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
@@ -98,14 +98,14 @@ int32 FSkinnedMeshExecDataProviderProxy::GetDispatchThreadCount(TArray<FIntVecto
 	for (int32 InvocationIndex = 0; InvocationIndex < NumInvocations; ++InvocationIndex)
 	{
 		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
-		const int32 NumThreads = Domain == ESkinnedMeshExecDomain::Vertex ? RenderSection.NumVertices : RenderSection.NumTriangles;
+		const int32 NumThreads = Domain == EOptimusSkinnedMeshExecDomain::Vertex ? RenderSection.NumVertices : RenderSection.NumTriangles;
 		ThreadCounts.Add(FIntVector(NumThreads, 1, 1));
 	}
 	
 	return NumInvocations;
 }
 
-void FSkinnedMeshExecDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusSkinnedMeshExecDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
 	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FSkinedMeshExecDataInterfaceParameters)))
 	{
@@ -125,7 +125,7 @@ void FSkinnedMeshExecDataProviderProxy::GatherDispatchData(FDispatchSetup const&
 	for (int32 InvocationIndex = 0; InvocationIndex < NumInvocations; ++InvocationIndex)
 	{
 		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
-		const int32 NumThreads = Domain == ESkinnedMeshExecDomain::Vertex ? RenderSection.NumVertices : RenderSection.NumTriangles;
+		const int32 NumThreads = Domain == EOptimusSkinnedMeshExecDomain::Vertex ? RenderSection.NumVertices : RenderSection.NumTriangles;
 
 		FSkinedMeshExecDataInterfaceParameters* Parameters = (FSkinedMeshExecDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
 		Parameters->NumThreads = FIntVector(NumThreads, 1, 1);

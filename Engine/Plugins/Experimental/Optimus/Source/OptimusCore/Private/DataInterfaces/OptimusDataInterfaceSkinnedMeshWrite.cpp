@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaces/DataInterfaceSkinnedMeshWrite.h"
+#include "OptimusDataInterfaceSkinnedMeshWrite.h"
 
 #include "Components/SkinnedMeshComponent.h"
 #include "ComputeFramework/ShaderParameterMetadataBuilder.h"
@@ -12,17 +12,18 @@
 #include "SkeletalMeshDeformerHelpers.h"
 #include "SkeletalRenderPublic.h"
 
-FString USkinnedMeshWriteDataInterface::GetDisplayName() const
+
+FString UOptimusSkinnedMeshWriteDataInterface::GetDisplayName() const
 {
 	return TEXT("Write Skinned Mesh");
 }
 
-FName USkinnedMeshWriteDataInterface::GetCategory() const
+FName UOptimusSkinnedMeshWriteDataInterface::GetCategory() const
 {
 	return CategoryName::OutputDataInterfaces;
 }
 
-TArray<FOptimusCDIPinDefinition> USkinnedMeshWriteDataInterface::GetPinDefinitions() const
+TArray<FOptimusCDIPinDefinition> UOptimusSkinnedMeshWriteDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({ "Position", "WritePosition", Optimus::DomainName::Vertex, "ReadNumVertices" });
@@ -32,14 +33,14 @@ TArray<FOptimusCDIPinDefinition> USkinnedMeshWriteDataInterface::GetPinDefinitio
 	return Defs;
 }
 
-void USkinnedMeshWriteDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UOptimusSkinnedMeshWriteDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("ReadNumVertices"))
 		.AddReturnType(EShaderFundamentalType::Uint);
 }
 
-void USkinnedMeshWriteDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UOptimusSkinnedMeshWriteDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("WritePosition"))
@@ -70,24 +71,24 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSkinedMeshWriteDataInterfaceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<UNORM float4>, ColorBufferUAV)
 END_SHADER_PARAMETER_STRUCT()
 
-void USkinnedMeshWriteDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusSkinnedMeshWriteDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
 {
 	OutBuilder.AddNestedStruct<FSkinedMeshWriteDataInterfaceParameters>(UID);
 }
 
-void USkinnedMeshWriteDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusSkinnedMeshWriteDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkinnedMeshWrite.ush\"\n");
 }
 
-void USkinnedMeshWriteDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+void UOptimusSkinnedMeshWriteDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	OutSourceTypes.Add(USkinnedMeshComponent::StaticClass());
 }
 
-UComputeDataProvider* USkinnedMeshWriteDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusSkinnedMeshWriteDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	USkinnedMeshWriteDataProvider* Provider = NewObject<USkinnedMeshWriteDataProvider>();
+	UOptimusSkinnedMeshWriteDataProvider* Provider = NewObject<UOptimusSkinnedMeshWriteDataProvider>();
 	Provider->OutputMask = InOutputMask;
 
 	if (InSourceObjects.Num() == 1)
@@ -99,26 +100,26 @@ UComputeDataProvider* USkinnedMeshWriteDataInterface::CreateDataProvider(TArrayV
 }
 
 
-bool USkinnedMeshWriteDataProvider::IsValid() const
+bool UOptimusSkinnedMeshWriteDataProvider::IsValid() const
 {
 	return
 		SkinnedMesh != nullptr &&
 		SkinnedMesh->MeshObject != nullptr;
 }
 
-FComputeDataProviderRenderProxy* USkinnedMeshWriteDataProvider::GetRenderProxy()
+FComputeDataProviderRenderProxy* UOptimusSkinnedMeshWriteDataProvider::GetRenderProxy()
 {
-	return new FSkinnedMeshWriteDataProviderProxy(SkinnedMesh, OutputMask);
+	return new FOptimusSkinnedMeshWriteDataProviderProxy(SkinnedMesh, OutputMask);
 }
 
 
-FSkinnedMeshWriteDataProviderProxy::FSkinnedMeshWriteDataProviderProxy(USkinnedMeshComponent* InSkinnedMeshComponent, uint64 InOutputMask)
+FOptimusSkinnedMeshWriteDataProviderProxy::FOptimusSkinnedMeshWriteDataProviderProxy(USkinnedMeshComponent* InSkinnedMeshComponent, uint64 InOutputMask)
 {
 	SkeletalMeshObject = InSkinnedMeshComponent->MeshObject;
 	OutputMask = InOutputMask;
 }
 
-void FSkinnedMeshWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
+void FOptimusSkinnedMeshWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
 	// Allocate required buffers
 	const int32 LodIndex = SkeletalMeshObject->GetLOD();
@@ -185,7 +186,7 @@ void FSkinnedMeshWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBui
 #endif
 }
 
-void FSkinnedMeshWriteDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusSkinnedMeshWriteDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
 	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FSkinedMeshWriteDataInterfaceParameters)))
 	{

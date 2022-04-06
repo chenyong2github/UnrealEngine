@@ -4,14 +4,15 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "DataInterfaceMorphTarget.generated.h"
+
+#include "OptimusDataInterfaceSkinnedMesh.generated.h"
 
 class FSkeletalMeshObject;
-class USkeletalMeshComponent;
+class USkinnedMeshComponent;
 
 /** Compute Framework Data Interface for reading skeletal mesh. */
 UCLASS(Category = ComputeFramework)
-class OPTIMUSCORE_API UMorphTargetDataInterface : public UOptimusComputeDataInterface
+class OPTIMUSCORE_API UOptimusSkinnedMeshDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -24,7 +25,6 @@ public:
 	//~ Begin UComputeDataInterface Interface
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
-	void GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const override;
 	void GetHLSL(FString& OutHLSL) const override;
 	void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
 	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
@@ -33,13 +33,13 @@ public:
 
 /** Compute Framework Data Provider for reading skeletal mesh. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class UMorphTargetDataProvider : public UComputeDataProvider
+class UOptimusSkinnedMeshDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USkeletalMeshComponent> SkeletalMesh = nullptr;
+	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
 
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;
@@ -47,16 +47,15 @@ public:
 	//~ End UComputeDataProvider Interface
 };
 
-class FMorphTargetDataProviderProxy : public FComputeDataProviderRenderProxy
+class FOptimusSkinnedMeshDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FMorphTargetDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
+	FOptimusSkinnedMeshDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData);
+	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
 	FSkeletalMeshObject* SkeletalMeshObject;
-	uint32 FrameNumber = 0;
 };

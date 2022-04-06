@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaces/DataInterfaceSkeleton.h"
+#include "OptimusDataInterfaceSkeleton.h"
 
-#include "Components/SkeletalMeshComponent.h"
-#include "ComputeFramework/ComputeKernelPermutationSet.h"
 #include "ComputeFramework/ComputeKernelPermutationVector.h"
 #include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
@@ -13,12 +11,12 @@
 #include "SkeletalMeshDeformerHelpers.h"
 #include "SkeletalRenderPublic.h"
 
-FString USkeletonDataInterface::GetDisplayName() const
+FString UOptimusSkeletonDataInterface::GetDisplayName() const
 {
 	return TEXT("Skeleton");
 }
 
-TArray<FOptimusCDIPinDefinition> USkeletonDataInterface::GetPinDefinitions() const
+TArray<FOptimusCDIPinDefinition> UOptimusSkeletonDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({"NumBones", "ReadNumBones", Optimus::DomainName::Vertex, "ReadNumVertices"});
@@ -28,7 +26,7 @@ TArray<FOptimusCDIPinDefinition> USkeletonDataInterface::GetPinDefinitions() con
 	return Defs;
 }
 
-void USkeletonDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UOptimusSkeletonDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("ReadNumVertices"))
@@ -69,12 +67,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSkeletonDataInterfaceParameters, )
 	SHADER_PARAMETER_SRV(Buffer<uint>, InputWeightLookupStream)
 END_SHADER_PARAMETER_STRUCT()
 
-void USkeletonDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusSkeletonDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
 {
 	OutBuilder.AddNestedStruct<FSkeletonDataInterfaceParameters>(UID);
 }
 
-void USkeletonDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
+void UOptimusSkeletonDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
 {
 	// Need to be able to support these permutations according to the skeletal mesh settings.
 	// todo[CF]: I think GPUSKIN_UNLIMITED_BONE_INFLUENCE and GPUSKIN_BONE_INDEX_UINT16 are mutually exclusive. So we could save permutations here.
@@ -84,19 +82,19 @@ void USkeletonDataInterface::GetPermutations(FComputeKernelPermutationVector& Ou
 	//OutPermutationVector.AddPermutation(TEXT("MERGE_DUPLICATED_VERTICES"), 2);
 }
 
-void USkeletonDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusSkeletonDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkeleton.ush\"\n");
 }
 
-void USkeletonDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+void UOptimusSkeletonDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	OutSourceTypes.Add(USkinnedMeshComponent::StaticClass());
 }
 
-UComputeDataProvider* USkeletonDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusSkeletonDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	USkeletonDataProvider* Provider = NewObject<USkeletonDataProvider>();
+	UOptimusSkeletonDataProvider* Provider = NewObject<UOptimusSkeletonDataProvider>();
 
 	if (InSourceObjects.Num() == 1)
 	{
@@ -107,20 +105,20 @@ UComputeDataProvider* USkeletonDataInterface::CreateDataProvider(TArrayView< TOb
 }
 
 
-bool USkeletonDataProvider::IsValid() const
+bool UOptimusSkeletonDataProvider::IsValid() const
 {
 	return
 		SkinnedMesh != nullptr &&
 		SkinnedMesh->MeshObject != nullptr;
 }
 
-FComputeDataProviderRenderProxy* USkeletonDataProvider::GetRenderProxy()
+FComputeDataProviderRenderProxy* UOptimusSkeletonDataProvider::GetRenderProxy()
 {
-	return new FSkeletonDataProviderProxy(SkinnedMesh);
+	return new FOptimusSkeletonDataProviderProxy(SkinnedMesh);
 }
 
 
-FSkeletonDataProviderProxy::FSkeletonDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent)
+FOptimusSkeletonDataProviderProxy::FOptimusSkeletonDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent)
 {
 	SkeletalMeshObject = SkinnedMeshComponent->MeshObject;
 	BoneRevisionNumber = SkinnedMeshComponent->GetBoneTransformRevisionNumber();
@@ -152,7 +150,7 @@ struct FSkeletonDataInterfacePermutationIds
 	}
 };
 
-void FSkeletonDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusSkeletonDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
 	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FSkeletonDataInterfaceParameters)))
 	{

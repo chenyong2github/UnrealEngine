@@ -16,7 +16,7 @@
 
 #include "OptimusDeformer.generated.h"
 
-class UPersistentBufferDataInterface;
+class UOptimusPersistentBufferDataInterface;
 class UComputeGraph;
 class USkeletalMesh;
 class UOptimusActionStack;

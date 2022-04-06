@@ -1,21 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaces/DataInterfaceSkinnedMesh.h"
+#include "OptimusDataInterfaceSkinnedMesh.h"
 
-#include "Components/SkeletalMeshComponent.h"
-#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
-#include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusDataDomain.h"
+
+#include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalRenderPublic.h"
 
-FString USkinnedMeshDataInterface::GetDisplayName() const
+
+FString UOptimusSkinnedMeshDataInterface::GetDisplayName() const
 {
 	return TEXT("Skinned Mesh");
 }
 
-TArray<FOptimusCDIPinDefinition> USkinnedMeshDataInterface::GetPinDefinitions() const
+TArray<FOptimusCDIPinDefinition> UOptimusSkinnedMeshDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({"NumVertices", "ReadNumVertices"});
@@ -29,7 +30,7 @@ TArray<FOptimusCDIPinDefinition> USkinnedMeshDataInterface::GetPinDefinitions() 
 	return Defs;
 }
 
-void USkinnedMeshDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void UOptimusSkinnedMeshDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("ReadNumVertices"))
@@ -99,24 +100,24 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSkinnedMeshDataInterfaceParameters, )
 	SHADER_PARAMETER_SRV(Buffer<uint>, DuplicatedIndices)
 END_SHADER_PARAMETER_STRUCT()
 
-void USkinnedMeshDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusSkinnedMeshDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
 {
 	OutBuilder.AddNestedStruct<FSkinnedMeshDataInterfaceParameters>(UID);
 }
 
-void USkinnedMeshDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusSkinnedMeshDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkinnedMesh.ush\"\n");
 }
 
-void USkinnedMeshDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+void UOptimusSkinnedMeshDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	OutSourceTypes.Add(USkinnedMeshComponent::StaticClass());
 }
 
-UComputeDataProvider* USkinnedMeshDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
+UComputeDataProvider* UOptimusSkinnedMeshDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	USkinnedMeshDataProvider* Provider = NewObject<USkinnedMeshDataProvider>();
+	UOptimusSkinnedMeshDataProvider* Provider = NewObject<UOptimusSkinnedMeshDataProvider>();
 
 	if (InSourceObjects.Num() == 1)
 	{
@@ -127,25 +128,25 @@ UComputeDataProvider* USkinnedMeshDataInterface::CreateDataProvider(TArrayView< 
 }
 
 
-bool USkinnedMeshDataProvider::IsValid() const
+bool UOptimusSkinnedMeshDataProvider::IsValid() const
 {
 	return
 		SkinnedMesh != nullptr &&
 		SkinnedMesh->MeshObject != nullptr;
 }
 
-FComputeDataProviderRenderProxy* USkinnedMeshDataProvider::GetRenderProxy()
+FComputeDataProviderRenderProxy* UOptimusSkinnedMeshDataProvider::GetRenderProxy()
 {
-	return new FSkinnedMeshDataProviderProxy(SkinnedMesh);
+	return new FOptimusSkinnedMeshDataProviderProxy(SkinnedMesh);
 }
 
 
-FSkinnedMeshDataProviderProxy::FSkinnedMeshDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent)
+FOptimusSkinnedMeshDataProviderProxy::FOptimusSkinnedMeshDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent)
 {
 	SkeletalMeshObject = SkinnedMeshComponent->MeshObject;
 }
 
-void FSkinnedMeshDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusSkinnedMeshDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
 	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FSkinnedMeshDataInterfaceParameters)))
 	{

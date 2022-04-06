@@ -2,16 +2,14 @@
 
 #include "OptimusNode_CustomComputeKernel.h"
 
-#include "OptimusObjectVersion.h"
-
+#include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 #include "OptimusComputeDataInterface.h"
-#include "OptimusNodePin.h"
-#include "OptimusHelpers.h"
-
-#include "OptimusDataTypeRegistry.h"
 #include "OptimusCoreModule.h"
+#include "OptimusDataTypeRegistry.h"
+#include "OptimusHelpers.h"
 #include "OptimusNodeGraph.h"
-#include "DataInterfaces/DataInterfaceRawBuffer.h"
+#include "OptimusNodePin.h"
+#include "OptimusObjectVersion.h"
 
 static const FName ParametersName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, Parameters);;
 static const FName InputBindingsName= GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, InputBindingArray);;

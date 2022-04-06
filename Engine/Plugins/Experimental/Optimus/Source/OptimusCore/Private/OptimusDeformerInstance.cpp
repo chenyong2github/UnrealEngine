@@ -2,11 +2,9 @@
 
 #include "OptimusDeformerInstance.h"
 
-#include "Components/MeshComponent.h"
-#include "DataInterfaces/DataInterfaceGraph.h"
+#include "DataInterfaces/OptimusDataInterfaceGraph.h"
 #include "OptimusComputeGraph.h"
 #include "OptimusDataTypeRegistry.h"
-#include "OptimusComputeDataInterface.h"
 #include "OptimusDeformer.h"
 #include "OptimusVariableDescription.h"
 
@@ -256,7 +254,7 @@ void UOptimusDeformerInstance::SetConstantValueDirect(FString const& InVariableN
 		TArray< TObjectPtr<UComputeDataProvider> >& DataProviders = ExecInfo.ComputeGraphInstance.GetDataProviders();
 		for (UComputeDataProvider* DataProvider : DataProviders)
 		{
-			if (UGraphDataProvider* GraphDataProvider = Cast<UGraphDataProvider>(DataProvider))
+			if (UOptimusGraphDataProvider* GraphDataProvider = Cast<UOptimusGraphDataProvider>(DataProvider))
 			{
 				GraphDataProvider->SetConstant(InVariableName, InValue);
 				break;
