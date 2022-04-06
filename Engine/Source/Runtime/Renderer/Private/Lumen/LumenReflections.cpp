@@ -881,8 +881,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		&& ReflectionTracingParameters.ReflectionDownsampleFactor == 1
 		&& ExternalTiledReflection->TileSize == GReflectionResolveTileSize)
 	{
-		ReflectionTileParameters.ReflectionResolveTileData = ExternalTiledReflection->TileListStructureBufferSRV;
-		ReflectionTileParameters.ReflectionTracingTileData = ExternalTiledReflection->TileListStructureBufferSRV;
+		ReflectionTileParameters.ReflectionResolveTileData = ExternalTiledReflection->TileListDataBufferSRV;
+		ReflectionTileParameters.ReflectionTracingTileData = ExternalTiledReflection->TileListDataBufferSRV;
 		ReflectionTileParameters.ResolveIndirectArgs = ExternalTiledReflection->DispatchIndirectParametersBuffer;
 		ReflectionTileParameters.TracingIndirectArgs = ExternalTiledReflection->DispatchIndirectParametersBuffer;
 		ReflectionTileParameters.ResolveTileUsed = nullptr;

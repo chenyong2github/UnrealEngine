@@ -435,7 +435,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 		};
 
 		const bool bRunTiled = UseSingleLayerWaterIndirectDraw(View.GetShaderPlatform()) && CVarWaterSingleLayerTiledComposite.GetValueOnRenderThread();
-		FTiledReflection TiledScreenSpaceReflection = {nullptr, nullptr, nullptr, nullptr, 8};
+		FTiledReflection TiledScreenSpaceReflection = {nullptr, nullptr, nullptr, 8};
 		FIntVector ViewRes(View.ViewRect.Width(), View.ViewRect.Height(), 1);
 		FIntVector TiledViewRes = FIntVector::DivideAndRoundUp(ViewRes, TiledScreenSpaceReflection.TileSize);
 
@@ -443,12 +443,13 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 		{
 			TiledScreenSpaceReflection.DrawIndirectParametersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), TEXT("SLW.WaterIndirectDrawParameters"));
 			TiledScreenSpaceReflection.DispatchIndirectParametersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("SLW.WaterIndirectDispatchParameters"));
-			TiledScreenSpaceReflection.TileListDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TiledViewRes.X * TiledViewRes.Y), TEXT("SLW.TileListDataBuffer"));
-			TiledScreenSpaceReflection.TileListStructureBufferSRV = GraphBuilder.CreateSRV(TiledScreenSpaceReflection.TileListDataBuffer, PF_R32_UINT);
+
+			FRDGBufferRef TileListDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TiledViewRes.X * TiledViewRes.Y), TEXT("SLW.TileListDataBuffer"));
+			TiledScreenSpaceReflection.TileListDataBufferSRV = GraphBuilder.CreateSRV(TileListDataBuffer, PF_R32_UINT);
 
 			FRDGBufferUAVRef DrawIndirectParametersBufferUAV = GraphBuilder.CreateUAV(TiledScreenSpaceReflection.DrawIndirectParametersBuffer);
 			FRDGBufferUAVRef DispatchIndirectParametersBufferUAV = GraphBuilder.CreateUAV(TiledScreenSpaceReflection.DispatchIndirectParametersBuffer);
-			FRDGBufferUAVRef TileListStructureBufferUAV = GraphBuilder.CreateUAV(TiledScreenSpaceReflection.TileListDataBuffer, PF_R32_UINT);
+			FRDGBufferUAVRef TileListDataBufferUAV = GraphBuilder.CreateUAV(TileListDataBuffer, PF_R32_UINT);
 
 			// Clear DrawIndirectParametersBuffer
 			AddClearUAVPass(GraphBuilder, DrawIndirectParametersBufferUAV, 0);
@@ -463,7 +464,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				PassParameters->VertexCountPerInstanceIndirect = GRHISupportsRectTopology ? 3 : 6;
 				PassParameters->DrawIndirectDataUAV = DrawIndirectParametersBufferUAV;
 				PassParameters->DispatchIndirectDataUAV = DispatchIndirectParametersBufferUAV;
-				PassParameters->WaterTileListDataUAV = TileListStructureBufferUAV;
+				PassParameters->WaterTileListDataUAV = TileListDataBufferUAV;
 
 				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("SLW::TileCategorisation"), ComputeShader, PassParameters, TiledViewRes);
 			}
@@ -509,7 +510,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			if (bRunTiled)
 			{
 				TiledShadowRendering.DrawIndirectParametersBuffer	= TiledScreenSpaceReflection.DrawIndirectParametersBuffer;
-				TiledShadowRendering.TileListStructureBufferSRV		= TiledScreenSpaceReflection.TileListStructureBufferSRV;
+				TiledShadowRendering.TileListDataBufferSRV			= TiledScreenSpaceReflection.TileListDataBufferSRV;
 				TiledShadowRendering.TileSize						= TiledScreenSpaceReflection.TileSize;
 			}
 
@@ -682,7 +683,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			FWaterCompositeParameters* PassParameters = GraphBuilder.AllocParameters<FWaterCompositeParameters>();
 
 			PassParameters->VS.ViewUniformBuffer = GetShaderBinding(View.ViewUniformBuffer);
-			PassParameters->VS.TileListData = TiledScreenSpaceReflection.TileListStructureBufferSRV;
+			PassParameters->VS.TileListData = TiledScreenSpaceReflection.TileListDataBufferSRV;
 
 			SetCommonParameters(PassParameters->PS.CommonParameters);
 			if (IsWaterDistanceFieldShadowEnabled_Runtime(Scene->GetShaderPlatform()))

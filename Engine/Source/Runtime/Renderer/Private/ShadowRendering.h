@@ -173,7 +173,7 @@ inline bool IsShadowCacheModeOcclusionQueryable(EShadowDepthCacheMode CacheMode)
 struct FTiledShadowRendering
 {
 	FRDGBufferRef		DrawIndirectParametersBuffer;
-	FRDGBufferSRVRef	TileListStructureBufferSRV;
+	FRDGBufferSRVRef	TileListDataBufferSRV;
 	uint32				TileSize;
 };
 

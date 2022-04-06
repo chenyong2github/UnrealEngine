@@ -25,10 +25,9 @@ enum class ESSRQuality
 
 struct FTiledReflection
 {
-	FRDGBufferRef TileListDataBuffer;
 	FRDGBufferRef DrawIndirectParametersBuffer;
 	FRDGBufferRef DispatchIndirectParametersBuffer;
-	FRDGBufferSRVRef TileListStructureBufferSRV;
+	FRDGBufferSRVRef TileListDataBufferSRV;
 	uint32 TileSize;
 };
 

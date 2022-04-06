@@ -1260,7 +1260,7 @@ void RenderScreenSpaceReflections(
 		FScreenSpaceReflectionsTileVS::FPermutationDomain VsPermutationVector;
 		TShaderMapRef<FScreenSpaceReflectionsTileVS> VertexShader(View.ShaderMap, VsPermutationVector);
 
-		PassParameters->TileListData = TiledScreenSpaceReflection->TileListStructureBufferSRV;
+		PassParameters->TileListData = TiledScreenSpaceReflection->TileListDataBufferSRV;
 		PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection->DrawIndirectParametersBuffer;
 
 		ClearUnusedGraphResources(VertexShader, PixelShader, PassParameters);

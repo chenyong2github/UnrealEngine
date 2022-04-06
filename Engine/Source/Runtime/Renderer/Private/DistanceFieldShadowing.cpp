@@ -1067,7 +1067,7 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 		{
 			PassParameters->IndirectDrawParameter = TiledShadowRendering->DrawIndirectParametersBuffer;
 			PassParameters->VS.ViewUniformBuffer = GetShaderBinding(View.ViewUniformBuffer);
-			PassParameters->VS.TileListData = TiledShadowRendering->TileListStructureBufferSRV;
+			PassParameters->VS.TileListData = TiledShadowRendering->TileListDataBufferSRV;
 		}
 
 		FDistanceFieldShadowingUpsamplePS::FPermutationDomain PermutationVector;

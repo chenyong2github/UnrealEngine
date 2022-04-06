@@ -66,7 +66,7 @@ void SingleLayerWaterAddTiledFullscreenPass(
 	PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection ? TiledScreenSpaceReflection->DrawIndirectParametersBuffer : nullptr;
 
 	PassParameters->VS.ViewUniformBuffer = ViewUniformBuffer;
-	PassParameters->VS.TileListData = TiledScreenSpaceReflection ? TiledScreenSpaceReflection->TileListStructureBufferSRV : nullptr;
+	PassParameters->VS.TileListData = TiledScreenSpaceReflection ? TiledScreenSpaceReflection->TileListDataBufferSRV : nullptr;
 
 	ValidateShaderParameters(PixelShader, PassParameters->PS);
 	ClearUnusedGraphResources(PixelShader, &PassParameters->PS);
