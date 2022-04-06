@@ -200,6 +200,7 @@ UStaticMeshComponent::UStaticMeshComponent(const FObjectInitializer& ObjectIniti
 	bOverrideNavigationExport = false;
 	bForceNavigationObstacle = true;
 	bDisallowMeshPaintPerInstance = false;
+	bDisallowNanite = false;
 	bEvaluateWorldPositionOffset = false;
 	DistanceFieldIndirectShadowMinVisibility = .1f;
 	GetBodyInstance()->bAutoWeld = true;	//static mesh by default has auto welding
@@ -1622,6 +1623,12 @@ void UStaticMeshComponent::UpdatePreCulledData(int32 LODIndex, const TArray<uint
 
 bool UStaticMeshComponent::ShouldCreateNaniteProxy() const
 {
+	if (bDisallowNanite)
+	{
+		// Regardless of the static mesh asset supporting Nanite, this component does not want Nanite to be used
+		return false;
+	}
+
 	// Whether or not to allow Nanite for this component
 #if WITH_EDITORONLY_DATA
 	const bool bAllowNanite = !bDisplayNaniteFallbackMesh;
