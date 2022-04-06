@@ -2,18 +2,26 @@
 
 #include "PoseSearchEditor.h"
 #include "PoseSearchCustomization.h"
+#include "PoseSearchDebugger.h"
+#include "PoseSearchTypeActions.h"
+#include "PoseSearchDatabaseEdMode.h"
+#include "PoseSearchDatabaseEditorCommands.h"
+
 #include "Animation/AnimSequence.h"
 #include "Modules/ModuleManager.h"
+#include "AssetToolsModule.h"
 #include "Editor.h"
 #include "PropertyEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "IAnimationEditor.h"
 #include "IPersonaToolkit.h"
 #include "IPersonaPreviewScene.h"
-#include "PoseSearchDebugger.h"
 #include "Trace/PoseSearchTraceAnalyzer.h"
 #include "Trace/PoseSearchTraceModule.h"
 
+DEFINE_LOG_CATEGORY(LogPoseSearchEditor);
+
+#define LOCTEXT_NAMESPACE "PoseSearchEditorModule"
 
 //////////////////////////////////////////////////////////////////////////
 // FEditorCommands
@@ -84,10 +92,15 @@ private:
 	/** List of registered class that we must unregister when the module shuts down */
 	TSet<FName> RegisteredClassNames;
 	TSet<FName> RegisteredPropertyTypes;
+
+	TSharedPtr<IAssetTypeActions> PoseSearchDatabaseActions;
 };
 
 void FEditorModule::StartupModule()
 {
+	// Register Asset Editor Commands
+	FPoseSearchDatabaseEditorCommands::Register();
+
 	if (GIsEditor && !IsRunningCommandlet())
 	{
 		FDebugger::Initialize();
@@ -103,13 +116,25 @@ void FEditorModule::StartupModule()
 			FConsoleCommandDelegate::CreateStatic(&FEditorCommands::DrawSearchIndex),
 			ECVF_Default
 		));
-	}
 
-	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		// Register Ed Mode used by pose search database
+		FEditorModeRegistry::Get().RegisterMode<FPoseSearchDatabaseEdMode>(
+			FPoseSearchDatabaseEdMode::EdModeId,
+			LOCTEXT("PoseSearchDatabaseEdModeName", "PoseSearchDatabase"),
+			FSlateIcon(),
+			false,
+			9000);
+
+		// Register UPoseSearchDatabase Type Actions 
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		PoseSearchDatabaseActions = MakeShared<FPoseSearchDatabaseTypeActions>();
+		AssetTools.RegisterAssetTypeActions(PoseSearchDatabaseActions.ToSharedRef());
+	}
 
 	RegisterPropertyTypeCustomizations();
 	RegisterObjectCustomizations();
 
+	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.NotifyCustomizationModuleChanged();
 
 }
@@ -121,8 +146,20 @@ void FEditorModule::ShutdownModule()
 		IConsoleManager::Get().UnregisterConsoleObject(ConsoleCmd);
 	}
 	ConsoleCommands.Empty();
+
+	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
+	{
+		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		AssetTools.UnregisterAssetTypeActions(PoseSearchDatabaseActions.ToSharedRef());
+	}
+
+	// Unregister Ed Mode
+	FEditorModeRegistry::Get().UnregisterMode(FPoseSearchDatabaseEdMode::EdModeId);
 	
 	UnregisterCustomizations();
+
+	// Unregister Asset Editor Commands
+	FPoseSearchDatabaseEditorCommands::Unregister();
 	
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, TraceModule.Get());
 	FDebugger::Shutdown();
@@ -195,3 +232,5 @@ void FEditorModule::UnregisterCustomizations()
 }} // namespace UE::PoseSearch
 
 IMPLEMENT_MODULE(UE::PoseSearch::FEditorModule, PoseSearchEditor);
+
+#undef LOCTEXT_NAMESPACE

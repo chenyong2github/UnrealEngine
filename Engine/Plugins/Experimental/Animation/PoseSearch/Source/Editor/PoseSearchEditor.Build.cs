@@ -46,7 +46,9 @@ public class PoseSearchEditor : ModuleRules
 				"SlateCore",
 				"Slate",
 				"EditorStyle",
-				"DetailCustomizations"
+				"DetailCustomizations",
+				"AdvancedPreviewScene",
+				"EditorFramework"
 			}
 		);
 	}
