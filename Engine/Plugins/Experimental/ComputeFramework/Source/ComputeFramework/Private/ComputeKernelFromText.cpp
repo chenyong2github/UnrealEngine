@@ -199,15 +199,14 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 	}
 
 	uint64 NewHash = 0;
-
-	NewHash = FCrc::TypeCrc32(UniqueId, NewHash);
-	NewHash = FCrc::TypeCrc32(*SourceFile.FilePath, NewHash);
-	NewHash = FCrc::TypeCrc32(*KernelSourceText, NewHash);
+	NewHash = HashCombine(GetTypeHash(UniqueId), NewHash);
+	NewHash = HashCombine(GetTypeHash(SourceFile.FilePath), NewHash);
+	NewHash = HashCombine(GetTypeHash(KernelSourceText), NewHash);
 
 	if (SourceHash != NewHash)
 	{
 		SourceHash = NewHash;
-		// todo[CF]: Nofify graphs for recompilation
+		// todo[CF]: Notify graphs for recompilation
 	}
 }
 

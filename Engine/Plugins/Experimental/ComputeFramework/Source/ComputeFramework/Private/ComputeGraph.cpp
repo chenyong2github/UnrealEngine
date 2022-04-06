@@ -504,7 +504,7 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 
 			FString ShaderEntryPoint = Kernel->KernelSource->GetEntryPoint();
 			FString ShaderSource = BuildKernelSource(KernelIndex, ShaderDefinitionSet, ShaderPermutationVector);
-			uint64 ShaderSourceHash = FCrc::TypeCrc32(*ShaderSource, Kernel->KernelSource->GetSourceCodeHash());
+			const uint64 ShaderSourceHash = HashCombine(GetTypeHash(*ShaderSource), Kernel->KernelSource->GetSourceCodeHash());
 			FShaderParametersMetadata* ShaderMetadata = BuildKernelShaderMetadata(KernelIndex);
 
 			const ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;

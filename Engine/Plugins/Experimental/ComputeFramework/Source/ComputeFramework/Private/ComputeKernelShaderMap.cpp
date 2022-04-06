@@ -254,22 +254,12 @@ FComputeKernelShaderMap* FComputeKernelShaderMap::FindId(const FComputeKernelSha
 	return Result;
 }
 
-void ComputeKernelShaderMapAppendKeyString(EShaderPlatform InPlatform, FString& OutKeyString)
-{
-#if WITH_EDITOR
-	//Keep library version in the DDC key to invalidate it once we move to a new library
-	OutKeyString += TEXT("ComputeKernelVersion");
-	OutKeyString += TEXT("_");
-#endif //WITH_EDITOR
-}
-
 /** Creates a string key for the derived data cache given a shader map id. */
 static FString GetComputeKernelShaderMapKeyString(const FComputeKernelShaderMapId& InShaderMapId, EShaderPlatform InPlatform)
 {
 #if WITH_EDITOR
 	const FName Format = LegacyShaderPlatformToShaderFormat(InPlatform);
 	FString ShaderMapKeyString = Format.ToString() + TEXT("_") + FString(FString::FromInt(GetTargetPlatformManagerRef().ShaderFormatVersion(Format))) + TEXT("_");
-	ComputeKernelShaderMapAppendKeyString(InPlatform, ShaderMapKeyString);
 	ShaderMapAppendKeyString(InPlatform, ShaderMapKeyString);
 	InShaderMapId.AppendKeyString(ShaderMapKeyString);
 	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("CKERSM"), COMPUTEKERNEL_DERIVEDDATA_VER, *ShaderMapKeyString);
@@ -329,12 +319,16 @@ void FComputeKernelShaderMap::SaveToDerivedDataCache()
 {
 #if WITH_EDITOR
 	COOK_STAT(auto Timer = ComputeKernelShaderCookStats::UsageStats.TimeSyncWork());
-	TArray<uint8> SaveData;
+	
+TArray<uint8> SaveData;
 	FMemoryWriter Ar(SaveData, true);
 	Serialize(Ar);
 
-	GetDerivedDataCacheRef().Put(*GetComputeKernelShaderMapKeyString(GetContent()->ShaderMapId, GetShaderPlatform()), SaveData, FStringView(*GetFriendlyName()));
-	COOK_STAT(Timer.AddMiss(SaveData.Num()));
+	const FString DataKey = GetComputeKernelShaderMapKeyString(GetContent()->ShaderMapId, GetShaderPlatform());
+
+	GetDerivedDataCacheRef().Put(*DataKey, SaveData, GetFriendlyName());
+	
+COOK_STAT(Timer.AddMiss(SaveData.Num()));
 #endif
 }
 
