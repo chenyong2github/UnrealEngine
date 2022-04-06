@@ -5,6 +5,8 @@
 #include "StateTreeTypes.h"
 #include "StateTreeNodeBase.generated.h"
 
+struct FStateTreeLinker;
+
 /**
  * Base struct of StateTree Conditions, Evaluators, and Tasks.
  */
@@ -27,7 +29,7 @@ struct STATETREEMODULE_API FStateTreeNodeBase
 	 * @param Linker Reference to the linker
 	 * @return true if linking succeeded. 
 	 */
-	virtual bool Link(FStateTreeLinker& Linker) { return true; }
+	[[nodiscard]] virtual bool Link(FStateTreeLinker& Linker) { return true; }
 
 	/** Name of the node. */
 	UPROPERTY(EditDefaultsOnly, Category = "", meta=(EditCondition = "false", EditConditionHides))

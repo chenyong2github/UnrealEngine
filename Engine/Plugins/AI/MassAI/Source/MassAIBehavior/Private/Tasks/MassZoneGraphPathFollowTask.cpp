@@ -10,6 +10,7 @@
 #include "MassZoneGraphNavigationFragments.h"
 #include "MassZoneGraphNavigationUtils.h"
 #include "ZoneGraphSubsystem.h"
+#include "StateTreeLinker.h"
 
 bool FMassZoneGraphPathFollowTask::Link(FStateTreeLinker& Linker)
 {

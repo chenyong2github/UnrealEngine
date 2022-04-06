@@ -10,6 +10,7 @@
 #include "MassAIBehaviorTypes.h"
 #include "MassStateTreeExecutionContext.h"
 #include "ZoneGraphSettings.h"
+#include "StateTreeLinker.h"
 
 FMassZoneGraphFindEscapeTarget::FMassZoneGraphFindEscapeTarget()
 {

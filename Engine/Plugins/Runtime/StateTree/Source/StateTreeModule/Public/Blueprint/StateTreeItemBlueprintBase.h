@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "StateTreeTypes.h"
 #include "StateTreeItemBlueprintBase.generated.h"
 
+struct FStateTreeLinker;
 struct FStateTreeExecutionContext;
 
 UENUM()

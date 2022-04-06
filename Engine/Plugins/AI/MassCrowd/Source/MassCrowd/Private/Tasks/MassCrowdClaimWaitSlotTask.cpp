@@ -6,6 +6,7 @@
 #include "MassZoneGraphNavigationFragments.h"
 #include "MassNavigationFragments.h"
 #include "MassStateTreeExecutionContext.h"
+#include "StateTreeLinker.h"
 
 bool FMassCrowdClaimWaitSlotTask::Link(FStateTreeLinker& Linker)
 {

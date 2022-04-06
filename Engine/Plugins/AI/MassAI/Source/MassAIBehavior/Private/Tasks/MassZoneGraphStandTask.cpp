@@ -11,6 +11,7 @@
 #include "MassStateTreeExecutionContext.h"
 #include "MassSignalSubsystem.h"
 #include "MassSimulationLOD.h"
+#include "StateTreeLinker.h"
 
 bool FMassZoneGraphStandTask::Link(FStateTreeLinker& Linker)
 {

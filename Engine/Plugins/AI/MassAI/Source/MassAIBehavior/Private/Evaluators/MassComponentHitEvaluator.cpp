@@ -5,6 +5,7 @@
 #include "MassComponentHitSubsystem.h"
 #include "MassStateTreeExecutionContext.h"
 #include "Engine/World.h"
+#include "StateTreeLinker.h"
 
 
 bool FMassComponentHitEvaluator::Link(FStateTreeLinker& Linker)

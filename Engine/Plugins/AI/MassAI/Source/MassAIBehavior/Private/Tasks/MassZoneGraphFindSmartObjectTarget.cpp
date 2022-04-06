@@ -8,6 +8,7 @@
 #include "MassStateTreeExecutionContext.h"
 #include "MassZoneGraphNavigationFragments.h"
 #include "SmartObjectZoneAnnotations.h"
+#include "StateTreeLinker.h"
 
 bool FMassZoneGraphFindSmartObjectTarget::Link(FStateTreeLinker& Linker)
 {

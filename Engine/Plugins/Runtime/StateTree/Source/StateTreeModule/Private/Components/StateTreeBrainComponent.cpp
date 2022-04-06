@@ -3,7 +3,6 @@
 #include "Components/StateTreeBrainComponent.h"
 #include "GameFramework/Actor.h"
 #include "GameplayTasksComponent.h"
-#include "VisualLogger/VisualLoggerTypes.h"
 #include "VisualLogger/VisualLogger.h"
 #include "StateTree.h"
 #include "StateTreeEvaluatorBase.h"
@@ -33,8 +32,6 @@ bool UBrainComponentStateTreeSchema::IsExternalItemAllowed(const UStruct& InStru
 {
 	// Actors and components.
 	return InStruct.IsChildOf(AActor::StaticClass())
-			|| InStruct.IsChildOf(APawn::StaticClass())
-			|| InStruct.IsChildOf(AAIController::StaticClass())
 			|| InStruct.IsChildOf(UActorComponent::StaticClass())
 			|| InStruct.IsChildOf(UWorldSubsystem::StaticClass());
 }
@@ -74,8 +71,8 @@ bool UStateTreeBrainComponent::SetContextRequirements()
 	{
 		return false;
 	}
-	
-	UWorld* World = GetWorld();
+
+	const UWorld* World = GetWorld();
 	if (World == nullptr)
 	{
 		return false;
@@ -95,38 +92,20 @@ bool UStateTreeBrainComponent::SetContextRequirements()
 				UActorComponent* Component = GetOwner()->FindComponentByClass(Cast<UClass>(const_cast<UStruct*>(ItemDesc.Struct)));
 				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(Component));
 			}
-			else if (ItemDesc.Struct->IsChildOf(AActor::StaticClass()))
-			{
-				if (AIOwner != nullptr)
-				{
-					AActor* OwnerActor = Cast<AActor>(AIOwner->GetPawn());
-					StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerActor));
-				}
-				else
-				{
-					AActor* OwnerActor = Cast<AActor>(GetOwner());
-					StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerActor));
-				}
-			}
 			else if (ItemDesc.Struct->IsChildOf(APawn::StaticClass()))
 			{
-				if (AIOwner != nullptr)
-				{
-					APawn* OwnerActor = Cast<APawn>(AIOwner->GetPawn());
-					StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerActor));
-				}
-				else
-				{
-					APawn* OwnerActor = Cast<APawn>(GetOwner());
-					StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerActor));
-				}
+				APawn* OwnerPawn = (AIOwner != nullptr) ? AIOwner->GetPawn() : Cast<APawn>(GetOwner());
+				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerPawn));
 			}
 			else if (ItemDesc.Struct->IsChildOf(AAIController::StaticClass()))
 			{
-				if (AIOwner != nullptr)
-				{
-					StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(AIOwner));
-				}
+				AAIController* OwnerController = (AIOwner != nullptr) ? AIOwner.Get() : Cast<AAIController>(GetOwner());
+				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerController));
+			}
+			else if (ItemDesc.Struct->IsChildOf(AActor::StaticClass()))
+			{
+				AActor* OwnerActor = (AIOwner != nullptr) ? AIOwner->GetPawn() : GetOwner();
+				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerActor));
 			}
 		}
 	}

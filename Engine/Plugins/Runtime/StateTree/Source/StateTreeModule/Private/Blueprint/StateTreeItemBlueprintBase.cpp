@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Blueprint/StateTreeItemBlueprintBase.h"
-#include "CoreMinimal.h"
 #include "AIController.h"
 #include "StateTreeExecutionContext.h"
+#include "StateTreeLinker.h"
 
 UWorld* UStateTreeItemBlueprintBase::GetWorld() const
 {

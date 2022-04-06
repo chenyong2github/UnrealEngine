@@ -3,6 +3,7 @@
 #include "Evaluators/MassZoneGraphAnnotationEvaluator.h"
 #include "MassStateTreeExecutionContext.h"
 #include "MassZoneGraphAnnotationFragments.h"
+#include "StateTreeLinker.h"
 
 
 FMassZoneGraphAnnotationEvaluator::FMassZoneGraphAnnotationEvaluator()

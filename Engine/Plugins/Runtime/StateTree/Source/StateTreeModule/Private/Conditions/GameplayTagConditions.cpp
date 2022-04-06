@@ -3,9 +3,7 @@
 #include "Conditions/GameplayTagConditions.h"
 #include "GameplayTagContainer.h"
 #include "StateTreeExecutionContext.h"
-#if WITH_EDITOR
-#include "StateTreePropertyBindings.h"
-#endif// WITH_EDITOR
+#include "StateTreeLinker.h"
 
 #if WITH_EDITOR
 #define LOCTEXT_NAMESPACE "StateTreeEditor"

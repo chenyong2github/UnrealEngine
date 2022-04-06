@@ -8,10 +8,10 @@
 #include "MassSmartObjectFragments.h"
 #include "MassStateTreeExecutionContext.h"
 #include "MassNavigationFragments.h"
-#include "SmartObjectSubsystem.h"
 #include "MassZoneGraphNavigationFragments.h"
 #include "MassZoneGraphNavigationUtils.h"
 #include "Engine/World.h"
+#include "StateTreeLinker.h"
 
 //----------------------------------------------------------------------//
 // FMassClaimSmartObjectTask

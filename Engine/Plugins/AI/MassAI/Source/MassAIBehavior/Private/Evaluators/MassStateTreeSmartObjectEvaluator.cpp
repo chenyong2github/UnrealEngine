@@ -9,7 +9,7 @@
 #include "MassSmartObjectHandler.h"
 #include "MassStateTreeExecutionContext.h"
 #include "MassZoneGraphNavigationFragments.h"
-#include "SmartObjectSubsystem.h"
+#include "StateTreeLinker.h"
 #include "Engine/World.h"
 
 //----------------------------------------------------------------------//

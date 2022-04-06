@@ -4,6 +4,7 @@
 
 #include "StateTreeExecutionContext.h"
 #include "StateTreePropertyBindings.h"
+#include "StateTreeLinker.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 

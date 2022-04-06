@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTree.h"
-#include "StateTreeEvaluatorBase.h"
-#include "StateTreeTaskBase.h"
-#include "CoreMinimal.h"
-#include "StateTreeConditionBase.h"
 #include "StateTreeDelegates.h"
+#include "StateTreeLinker.h"
+#include "StateTreeNodeBase.h"
 
 bool UStateTree::IsReadyToRun() const
 {
@@ -57,7 +55,10 @@ void UStateTree::PostLoad()
 {
 	Super::PostLoad();
 
-	Link();
+	if (!Link())
+	{
+		UE_LOG(LogStateTree, Error, TEXT("%s failed to link. Asset will not be usable at runtime."), *GetName());	
+	}
 }
 
 void UStateTree::Serialize(FStructuredArchiveRecord Record)
@@ -68,38 +69,56 @@ void UStateTree::Serialize(FStructuredArchiveRecord Record)
 	// because property bindings may get invalid, and instance data potentially needs refreshed.
 	if (Record.GetUnderlyingArchive().IsModifyingWeakAndStrongReferences())
 	{
-		Link();
+		if (!Link())
+		{
+			UE_LOG(LogStateTree, Error, TEXT("%s failed to link. Asset will not be usable at runtime."), *GetName());	
+		}
 	}
 }
 
-
-void UStateTree::Link()
+bool UStateTree::Link()
 {
-	FStateTreeLinker Linker;
+	// Initialize the instance data default value.
+	// This data will be used to allocate runtime instance on all StateTree users.
+	InstanceDataDefaultValue.Reset();
+	
+	ExternalDataDescs.Reset();
+	NumDataViews = 0;
+	ExternalDataBaseIndex = 0;
 
-	ExternalDataBaseIndex = PropertyBindings.GetSourceStructNum();
-	Linker.SetExternalDataBaseIndex(ExternalDataBaseIndex);
+	// Resolves property paths used by bindings a store property pointers
+	if (!PropertyBindings.ResolvePaths())
+	{
+		return false;
+	}
+
+	// Resolves nodes references to other StateTree data
+	FStateTreeLinker Linker(Schema);
+	Linker.SetExternalDataBaseIndex(PropertyBindings.GetSourceStructNum());
 	
 	for (FInstancedStruct& Node : Nodes)
 	{
 		if (FStateTreeNodeBase* NodePtr = Node.GetMutablePtr<FStateTreeNodeBase>())
 		{
 			Linker.SetCurrentInstanceDataType(NodePtr->GetInstanceDataType(), NodePtr->DataViewIndex);
-			NodePtr->Link(Linker);
+			const bool bLinkSucceeded = NodePtr->Link(Linker);
+			if (!bLinkSucceeded || Linker.GetStatus() == EStateTreeLinkerStatus::Failed)
+			{
+				UE_LOG(LogStateTree, Error, TEXT("%s: node '%s' failed to resolve its references."), *GetName(), *NodePtr->StaticStruct()->GetName());
+				return false;
+			}
 		}
 	}
 
+	// Link succeeded, setup tree to be ready to run
+	ExternalDataBaseIndex = PropertyBindings.GetSourceStructNum();
 	ExternalDataDescs = Linker.GetExternalDataDescs();
-	
 	NumDataViews = ExternalDataBaseIndex + ExternalDataDescs.Num();
 
-	// Initialize the instance data default value.
-	// This data will be used to allocate runtime instance on all StateTree users.
-	InstanceDataDefaultValue.Reset();
 	if (Instances.Num() > 0)
 	{
 		InstanceDataDefaultValue.Initialize(*this, Instances, InstanceObjects);
 	}
 
-	PropertyBindings.ResolvePaths();
+	return true;
 }

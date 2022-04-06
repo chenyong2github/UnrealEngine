@@ -2,9 +2,9 @@
 
 #include "Conditions/ZoneGraphTagConditions.h"
 #include "StateTreeExecutionContext.h"
+#include "StateTreeLinker.h"
 #if WITH_EDITOR
 #include "ZoneGraphSettings.h"
-#include "StateTreePropertyBindings.h"
 #endif// WITH_EDITOR
 
 #if WITH_EDITOR

@@ -5,6 +5,7 @@
 #include "MassLookAtFragments.h"
 #include "MassSignalSubsystem.h"
 #include "MassStateTreeExecutionContext.h"
+#include "StateTreeLinker.h"
 
 bool FMassLookAtTask::Link(FStateTreeLinker& Linker)
 {

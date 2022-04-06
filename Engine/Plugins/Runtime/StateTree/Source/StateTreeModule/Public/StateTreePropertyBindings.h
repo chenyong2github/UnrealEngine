@@ -416,7 +416,7 @@ struct STATETREEMODULE_API FStateTreePropertyBindings
 	 * Resolves paths to indirections.
 	 * @return True if resolve succeeded.
 	 */
-	bool ResolvePaths();
+	[[nodiscard]] bool ResolvePaths();
 
 	/**
 	 * @return True if bindings have been resolved.
@@ -439,8 +439,8 @@ struct STATETREEMODULE_API FStateTreePropertyBindings
 	void DebugPrintInternalLayout(FString& OutString) const;
 
 protected:
-	bool ResolvePath(const UStruct* Struct, const FStateTreePropertyPath& Path, FStateTreePropertyAccess& OutAccess);
-	bool ValidateCopy(FStateTreePropCopy& Copy) const;
+	[[nodiscard]] bool ResolvePath(const UStruct* Struct, const FStateTreePropertyPath& Path, FStateTreePropertyAccess& OutAccess);
+	[[nodiscard]] bool ValidateCopy(FStateTreePropCopy& Copy) const;
 	void PerformCopy(const FStateTreePropCopy& Copy, const FProperty* SourceProperty, const uint8* SourceAddress, const FProperty* TargetProperty, uint8* TargetAddress) const;
 	uint8* GetAddress(FStateTreeDataView InStructView, const FStateTreePropertyAccess& InAccess) const;
 	FString GetPathAsString(const FStateTreePropertyPath& Path, const int32 HighlightedSegment = INDEX_NONE, const TCHAR* HighlightPrefix = nullptr, const TCHAR* HighlightPostfix = nullptr);

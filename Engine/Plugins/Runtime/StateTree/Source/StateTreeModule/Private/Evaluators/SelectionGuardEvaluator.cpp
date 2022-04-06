@@ -2,6 +2,7 @@
 
 #include "Evaluators/SelectionGuardEvaluator.h"
 #include "StateTreeExecutionContext.h"
+#include "StateTreeLinker.h"
 
 
 bool FSelectionGuardEvaluator::Link(FStateTreeLinker& Linker)

@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "AITestsCommon.h"
 #include "StateTreeTaskBase.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeExecutionContext.h"
+#include "StateTreeLinker.h"
 #include "StateTreeTestTypes.generated.h"
 
 

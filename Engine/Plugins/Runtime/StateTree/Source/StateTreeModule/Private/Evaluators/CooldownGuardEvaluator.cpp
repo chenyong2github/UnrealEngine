@@ -2,6 +2,7 @@
 
 #include "Evaluators/CooldownGuardEvaluator.h"
 #include "StateTreeExecutionContext.h"
+#include "StateTreeLinker.h"
 #include "Engine/World.h"
 
 

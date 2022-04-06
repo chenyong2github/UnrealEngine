@@ -26,7 +26,11 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 	// Cleanup existing state
 	StateTree->ResetCompiled();
 
-	BindingsCompiler.Init(StateTree->PropertyBindings, Log);
+	if (!BindingsCompiler.Init(StateTree->PropertyBindings, Log))
+	{
+		StateTree->ResetCompiled();
+		return false;
+	}
 
 	if (!CreateStates())
 	{
@@ -60,9 +64,12 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 
 	BindingsCompiler.Finalize();
 
-	StateTree->PropertyBindings.ResolvePaths();
-	StateTree->Link();
-
+	if (!StateTree->Link())
+	{
+		StateTree->ResetCompiled();
+		return false;
+	}
+	
 	return true;
 }
 

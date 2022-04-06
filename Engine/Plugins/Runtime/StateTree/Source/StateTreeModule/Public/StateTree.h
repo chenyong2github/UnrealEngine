@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "StateTreeTypes.h"
 #include "StateTreeSchema.h"
@@ -22,7 +21,7 @@ class STATETREEMODULE_API UStateTree : public UDataAsset
 public:
 
 	/** @return Default value for the instance data. */
-	const FStateTreeInstanceData& GetInstanceDataDefaultValue() const { return InstanceDataDefaultValue; };
+	const FStateTreeInstanceData& GetInstanceDataDefaultValue() const { return InstanceDataDefaultValue; }
 	
 	/** @return Number of runtime data (Evaluators, Tasks, Conditions) in the runtime storage. */
 	int32 GetNumInstances() const { return Instances.Num(); }
@@ -37,7 +36,7 @@ public:
 	const UStateTreeSchema* GetSchema() const { return Schema; }
 	void SetSchema(UStateTreeSchema* InSchema) { Schema = InSchema; }
 
-	/** @return true is the tree asset is to be used at runtime. */
+	/** @return true if the tree asset can be used at runtime. */
 	bool IsReadyToRun() const;
 
 #if WITH_EDITOR
@@ -46,19 +45,22 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	// Edit time data for the StateTree, instance of UStateTreeEditorData
+	/** Edit time data for the StateTree, instance of UStateTreeEditorData */
 	UPROPERTY()
 	TObjectPtr<UObject> EditorData;
 
-	// Hash of the editor data from last compile.
+	/** Hash of the editor data from last compile. */
 	UPROPERTY()
 	uint32 LastCompiledEditorDataHash = 0;
 #endif
 
 protected:
 	
-	/** Resolved references between data in the StateTree. */
-	void Link();
+	/**
+	 * Resolves references between data in the StateTree.
+	 * @return true if all references to internal and external data are resolved properly, false otherwise.
+	 */
+	[[nodiscard]] bool Link();
 
 	virtual void PostLoad() override;
 	virtual void Serialize(FStructuredArchiveRecord Record) override;
