@@ -91,7 +91,7 @@ void FNiagaraBakerRendererOutputTexture2D::RenderGenerated(UNiagaraBakerOutput* 
 	}
 
 	const float WorldTime = BakerRenderer.GetWorldTime();
-	FCanvas Canvas(RenderTarget->GameThread_GetRenderTargetResource(), nullptr, WorldTime, FApp::GetDeltaTime(), WorldTime, BakerRenderer.GetFeatureLevel());
+	FCanvas Canvas(RenderTarget->GameThread_GetRenderTargetResource(), nullptr, FGameTime::CreateUndilated(WorldTime, FApp::GetDeltaTime()), BakerRenderer.GetFeatureLevel());
 
 	const FNiagaraBakerOutputFrameIndices FrameIndices = BakerGeneratedSettings->GetOutputFrameIndices(BakerOutput, WorldTime);
 

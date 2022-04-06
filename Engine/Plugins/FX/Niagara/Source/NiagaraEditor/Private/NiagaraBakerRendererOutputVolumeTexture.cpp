@@ -156,7 +156,7 @@ void FNiagaraBakerRendererOutputVolumeTexture::RenderPreview(UNiagaraBakerOutput
 	UNiagaraBakerOutputVolumeTexture* OutputVolumeTexture = CastChecked<UNiagaraBakerOutputVolumeTexture>(InBakerOutput);
 
 	const float WorldTime = BakerRenderer.GetWorldTime();
-	FCanvas Canvas(RenderTarget->GameThread_GetRenderTargetResource(), nullptr, WorldTime, FApp::GetDeltaTime(), WorldTime, BakerRenderer.GetFeatureLevel());
+	FCanvas Canvas(RenderTarget->GameThread_GetRenderTargetResource(), nullptr, FGameTime::CreateUndilated(WorldTime, FApp::GetDeltaTime()), BakerRenderer.GetFeatureLevel());
 	Canvas.Clear(FLinearColor::Black);
 	ON_SCOPE_EXIT{ Canvas.Flush_GameThread(); };
 
@@ -324,7 +324,7 @@ void FNiagaraBakerRendererOutputVolumeTexture::RenderGenerated(UNiagaraBakerOutp
 	}
 
 	const float WorldTime = BakerRenderer.GetWorldTime();
-	FCanvas Canvas(RenderTarget->GameThread_GetRenderTargetResource(), nullptr, WorldTime, FApp::GetDeltaTime(), WorldTime, BakerRenderer.GetFeatureLevel());
+	FCanvas Canvas(RenderTarget->GameThread_GetRenderTargetResource(), nullptr, FGameTime::CreateUndilated(WorldTime, FApp::GetDeltaTime()), BakerRenderer.GetFeatureLevel());
 	Canvas.Clear(FLinearColor::Black);
 
 	const FIntVector AtlasTextureSize(AtlasVolumeTexture->GetSizeX(), AtlasVolumeTexture->GetSizeY(), AtlasVolumeTexture->GetSizeZ());
