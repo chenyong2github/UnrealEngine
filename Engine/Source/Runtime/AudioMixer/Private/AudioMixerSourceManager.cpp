@@ -2114,6 +2114,7 @@ namespace Audio
 			if (SourceInfo.bShouldSourceBufferListenerZeroBuffer)
 			{
 				FMemory::Memzero(SourceInfo.PreDistanceAttenuationBuffer.GetData(), SourceInfo.PreDistanceAttenuationBuffer.Num() * sizeof(float));
+				FMemory::Memzero(SourceInfo.SourceBuffer.GetData(), SourceInfo.SourceBuffer.Num() * sizeof(float));
 			}
 		}
 
