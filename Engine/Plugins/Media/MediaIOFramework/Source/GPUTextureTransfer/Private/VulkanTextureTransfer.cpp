@@ -5,15 +5,12 @@
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/PreWindowsApi.h"
-#endif
 
 #include "DVPAPI.h"
 #include "dvpapi_vulkan.h"
 
-#if PLATFORM_WINDOWS
 #include "Windows/PostWindowsApi.h"
 #include "Windows/HideWindowsPlatformTypes.h"
-#endif
 
 
 namespace UE::GPUTextureTransfer::Private
@@ -56,22 +53,37 @@ namespace UE::GPUTextureTransfer::Private
 		return dvpBindToVkDevice(InBufferHandle, VulkanDevice);
 	}
 
-	DVPStatus FVulkanTextureTransfer::CreateGPUResource_Impl(void* InTexture, FTextureTransferBase::FTextureInfo* OutTextureInfo) const
+	DVPStatus FVulkanTextureTransfer::CreateGPUResource_Impl(const FRegisterDMATextureArgs& InArgs, FTextureTransferBase::FTextureInfo* OutTextureInfo) const
 	{
 		if (!OutTextureInfo || !VulkanDevice)
 		{
 			return DVP_STATUS_ERROR;
 		}
 
-		// todo for Vulkan
-		checkNoEntry();
+		IVulkanDynamicRHI* VulkanRHI = GetIVulkanDynamicRHI();
+		const FVulkanRHIAllocationInfo TextureAllocationInfo = VulkanRHI->RHIGetAllocationInfo(InArgs.RHITexture);
+
+		VkMemoryGetWin32HandleInfoKHR MemoryGetHandleInfoKHR = {};
+		MemoryGetHandleInfoKHR.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
+		MemoryGetHandleInfoKHR.pNext = NULL;
+		MemoryGetHandleInfoKHR.memory = TextureAllocationInfo.Handle;
+		MemoryGetHandleInfoKHR.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+
+		PFN_vkGetMemoryWin32HandleKHR GetMemoryWin32HandleKHR = (PFN_vkGetMemoryWin32HandleKHR)VulkanRHI->RHIGetVkDeviceProcAddr("vkGetMemoryWin32HandleKHR");
+		if (!GetMemoryWin32HandleKHR)
+		{
+			return DVP_STATUS_ERROR;
+		}
+
+		HANDLE Handle;
+		VERIFYVULKANRESULT_EXTERNAL(GetMemoryWin32HandleKHR(VulkanDevice, &MemoryGetHandleInfoKHR, &Handle));//&OutTextureInfo->External.Handle));
 
 		DVPGpuExternalResourceDesc Desc;
-		//Desc.width = (uint32) ResourceDesc.Width;
-		//Desc.height = (uint32)ResourceDesc.Height;
-		//Desc.size = Desc.width * Desc.height * 4;
-		Desc.format = DVP_BGRA;
-		Desc.type = DVP_UNSIGNED_BYTE;
+		Desc.width = InArgs.Width;
+		Desc.height = InArgs.Height;
+		Desc.size = InArgs.Stride * Desc.height;
+		Desc.format = InArgs.PixelFormat == EPixelFormat::PF_8Bit ? DVP_BGRA : DVP_RGBA_INTEGER;
+		Desc.type = InArgs.PixelFormat == EPixelFormat::PF_8Bit ? DVP_UNSIGNED_BYTE : DVP_INT;
 		Desc.handleType = DVP_OPAQUE_WIN32;
 		Desc.external.handle = OutTextureInfo->External.Handle;
 
@@ -108,3 +120,5 @@ namespace UE::GPUTextureTransfer::Private
 		return (dvpMapBufferEndVk(InHandle, VulkanQueue));
 	}
 }
+
+#endif // PLATFORM_WINDOWS

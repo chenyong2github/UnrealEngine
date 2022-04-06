@@ -6,6 +6,10 @@
 
 #include "AjaMediaPrivate.h"
 #include "AjaMediaSource.h"
+#include "GPUTextureTransferModule.h"
+#include "GPUTextureTransfer.h"
+#include "HAL/CriticalSection.h"
+#include "Templates/PimplPtr.h"
 
 #include <atomic>
 
@@ -104,11 +108,17 @@ protected:
 	virtual void SetupSampleChannels() override;
 
 private:
+	void OnSampleDestroyed(TRefCountPtr<FRHITexture> InTexture);
+	void RegisterSampleBuffer(const TSharedPtr<FAjaMediaTextureSample>& InSample);
+	void UnregisterSampleBuffers();
+	void CreateAndRegisterTextures(const IMediaOptions* Options);
+	void UnregisterTextures();
+private:
 
 	/** Audio, MetaData, Texture  sample object pool. */
-	FAjaMediaAudioSamplePool* AudioSamplePool;
-	FAjaMediaBinarySamplePool* MetadataSamplePool;
-	FAjaMediaTextureSamplePool* TextureSamplePool;
+	TUniquePtr<FAjaMediaAudioSamplePool> AudioSamplePool;
+	TUniquePtr<FAjaMediaBinarySamplePool> MetadataSamplePool;
+	TUniquePtr<FAjaMediaTextureSamplePool> TextureSamplePool;
 
 	TSharedPtr<FMediaIOCoreBinarySampleBase, ESPMode::ThreadSafe> AjaThreadCurrentAncSample;
 	TSharedPtr<FMediaIOCoreBinarySampleBase, ESPMode::ThreadSafe> AjaThreadCurrentAncF2Sample;
@@ -171,4 +181,18 @@ private:
 
 	/** Flag to indicate that pause is being requested */
 	std::atomic<bool> bPauseRequested;
+
+	FCriticalSection TexturesCriticalSection;
+	
+	/** GPU Texture transfer object */
+	UE::GPUTextureTransfer::TextureTransferPtr GPUTextureTransfer;
+
+	/** Pool of textures registerd with GPU Texture transfer. */
+	TArray<TRefCountPtr<FRHITexture>> Textures;
+	/** Buffers Registered with GPU Texture Transfer */
+	TSet<void*> RegisteredBuffers;
+	/** Pool of textures registerd with GPU Texture transfer. */
+	TSet<TRefCountPtr<FRHITexture>> RegisteredTextures;
+
+	EAjaMediaSourceColorFormat PixelFormat = EAjaMediaSourceColorFormat::YUV2_8bit;
 };

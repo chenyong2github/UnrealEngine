@@ -5,15 +5,12 @@
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/PreWindowsApi.h"
-#endif
 
 #include "DVPAPI.h"
 #include "dvpapi_d3d12.h"
 
-#if PLATFORM_WINDOWS
 #include "Windows/PostWindowsApi.h"
 #include "Windows/HideWindowsPlatformTypes.h"
-#endif
 
 
 namespace UE::GPUTextureTransfer::Private
@@ -56,14 +53,14 @@ namespace UE::GPUTextureTransfer::Private
 		return dvpBindToD3D12Device(InBufferHandle, D3DDevice);
 	}
 
-	DVPStatus FD3D12TextureTransfer::CreateGPUResource_Impl(void* InTexture, FTextureTransferBase::FTextureInfo* OutTextureInfo) const
+	DVPStatus FD3D12TextureTransfer::CreateGPUResource_Impl(const FRegisterDMATextureArgs& InArgs, FTextureTransferBase::FTextureInfo* OutTextureInfo) const
 	{
-		if (!OutTextureInfo || !D3DDevice)
+		if (!OutTextureInfo || !D3DDevice || !InArgs.Stride)
 		{
 			return DVP_STATUS_ERROR;
 		}
 
-		ID3D12Resource* D3D12Texture = (ID3D12Resource*) InTexture;
+		ID3D12Resource* D3D12Texture = (ID3D12Resource*) InArgs.RHITexture->GetNativeResource();
 		D3D12_RESOURCE_DESC ResourceDesc = D3D12Texture->GetDesc();
 
 		HRESULT Res = D3DDevice->CreateSharedHandle(D3D12Texture, NULL, GENERIC_ALL, NULL, &OutTextureInfo->External.Handle);
@@ -73,11 +70,11 @@ namespace UE::GPUTextureTransfer::Private
 		}
 
 		DVPGpuExternalResourceDesc Desc;
-		Desc.width = (uint32) ResourceDesc.Width;
-		Desc.height = (uint32)ResourceDesc.Height;
-		Desc.size = Desc.width * Desc.height * 4;
-		Desc.format = DVP_BGRA;
-		Desc.type = DVP_UNSIGNED_BYTE;
+		Desc.width = (uint32) InArgs.Width;
+		Desc.height = (uint32) InArgs.Height;
+		Desc.size = InArgs.Stride * Desc.height;
+		Desc.format = InArgs.PixelFormat == EPixelFormat::PF_8Bit ? DVP_BGRA : DVP_RGBA_INTEGER;
+		Desc.type = InArgs.PixelFormat == EPixelFormat::PF_8Bit ? DVP_UNSIGNED_BYTE : DVP_INT;
 		Desc.handleType = DVP_OPAQUE_WIN32;
 		Desc.external.handle = OutTextureInfo->External.Handle;
 
@@ -114,3 +111,5 @@ namespace UE::GPUTextureTransfer::Private
 		return (dvpMapBufferEndD3D12(InHandle, D3DCommandQueue));
 	}
 }
+
+#endif // PLATFORM_WINDOWS

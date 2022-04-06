@@ -2,18 +2,20 @@
 
 #include "GPUTextureTransferModule.h"
 
+#if PLATFORM_WINDOWS
 #include "D3D11TextureTransfer.h"
 #include "D3D12TextureTransfer.h"
 #include "VulkanTextureTransfer.h"
-#include "RHI.h"
-#include "DynamicRHI.h"
+#include "TextureTransferBase.h"
+#endif
+
+#include "CoreMinimal.h"
 #include "IVulkanDynamicRHI.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "HAL/PlatformMisc.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "RenderingThread.h"
-#include "TextureTransferBase.h"
 
 DEFINE_LOG_CATEGORY(LogGPUTextureTransfer);
 
@@ -35,22 +37,32 @@ void FGPUTextureTransferModule::StartupModule()
 {
 	if (LoadGPUDirectBinary())
 	{
-		bIsGPUTextureTransferAvailable = true;
+#if PLATFORM_WINDOWS		
+		const TCHAR* DynamicRHIModuleName = GetSelectedDynamicRHIModuleName(false);
+#elif PLATFORM_LINUX
+		const TCHAR* DynamicRHIModuleName = TEXT("VulkanRHI");
+#else
+		const TCHAR* DynamicRHIModuleName = TEXT("");
+		ensure(false);
+#endif
 
-		const FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
-		bIsGPUTextureTransferAvailable = GPUDriverInfo.IsNVIDIA() && !FModuleManager::Get().IsModuleLoaded("RenderDocPlugin");
-		bIsGPUTextureTransferAvailable &= !GPUDriverInfo.DeviceDescription.Contains(TEXT("Tesla"));
+		// We cannot use GDynmicRHI here because it hasn't been assigned yet.
+		if (TEXT("VulkanRHI") == FString(DynamicRHIModuleName))
+		{
+#if PLATFORM_WINDOWS
+			const TArray<const ANSICHAR*> ExtentionsToAdd{ VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME, VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+#elif PLATFORM_LINUX
+			const TArray<const ANSICHAR*> ExtentionsToAdd{ VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME, VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME, VK_KHR_SURFACE_EXTENSION_NAME };
+#endif
+			IVulkanDynamicRHI::AddEnabledDeviceExtensionsAndLayers(ExtentionsToAdd, TArray<const ANSICHAR*>());
+		}
 
 		TransferObjects.AddDefaulted(RHI_MAX);
 
-		if (bIsGPUTextureTransferAvailable)
-		{
-			// todo: Remove this after testing packaged, probably not needed.
-			FCoreDelegates::OnAllModuleLoadingPhasesComplete.AddRaw(this, &FGPUTextureTransferModule::InitializeTextureTransfer);
-			//Same for shutdown, uninitialize ourselves before library is unloaded
-			FCoreDelegates::OnEnginePreExit.AddRaw(this, &FGPUTextureTransferModule::UninitializeTextureTransfer);
-		}
-
+		// Since this module is started before the RHI is initialized, we have to delay initialization to later. 
+		FCoreDelegates::OnAllModuleLoadingPhasesComplete.AddRaw(this, &FGPUTextureTransferModule::InitializeTextureTransfer);
+		// Same for shutdown, uninitialize ourselves before library is unloaded
+		FCoreDelegates::OnEnginePreExit.AddRaw(this, &FGPUTextureTransferModule::UninitializeTextureTransfer);
 	}
 }
 
@@ -58,8 +70,9 @@ void FGPUTextureTransferModule::ShutdownModule()
 {
 }
 
-FGPUTextureTransferModule::TextureTransferPtr FGPUTextureTransferModule::GetTextureTransfer()
+UE::GPUTextureTransfer::TextureTransferPtr FGPUTextureTransferModule::GetTextureTransfer()
 {
+#if PLATFORM_WINDOWS
 	UE::GPUTextureTransfer::ERHI SupportedRHI = ConvertRHI(RHIGetInterfaceType());
 	if (SupportedRHI == UE::GPUTextureTransfer::ERHI::Invalid) 
 	{
@@ -72,13 +85,17 @@ FGPUTextureTransferModule::TextureTransferPtr FGPUTextureTransferModule::GetText
 	{
 		return TransferObjects[RHIIndex];
 	}
-
+#endif
 	return nullptr;
 }
 
 bool FGPUTextureTransferModule::IsAvailable()
 {
+#if PLATFORM_WINDOWS
 	return FModuleManager::Get().IsModuleLoaded("GPUTextureTransfer");
+#else
+	return false;
+#endif
 }
 
 FGPUTextureTransferModule& FGPUTextureTransferModule::Get()
@@ -88,14 +105,13 @@ FGPUTextureTransferModule& FGPUTextureTransferModule::Get()
 
 bool FGPUTextureTransferModule::LoadGPUDirectBinary()
 {
+#if PLATFORM_WINDOWS
 	FString GPUDirectPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/ThirdParty/NVIDIA/GPUDirect"), FPlatformProcess::GetBinariesSubdirectory());
 	FPlatformProcess::PushDllDirectory(*GPUDirectPath);
 
 	FString DVPDll;
 
-#if PLATFORM_WINDOWS
 	DVPDll = TEXT("dvp.dll");
-#endif
 
 	DVPDll = FPaths::Combine(GPUDirectPath, DVPDll);
 
@@ -107,12 +123,25 @@ bool FGPUTextureTransferModule::LoadGPUDirectBinary()
 
 	FPlatformProcess::PopDllDirectory(*GPUDirectPath);
 
+#endif
 	return !!TextureTransferHandle;
 }
 
 
 void FGPUTextureTransferModule::InitializeTextureTransfer()
 {
+#if PLATFORM_WINDOWS
+	bIsGPUTextureTransferAvailable = true;
+	// This must be called on game thread 
+	const FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
+	bIsGPUTextureTransferAvailable = GPUDriverInfo.IsNVIDIA() && !FModuleManager::Get().IsModuleLoaded("RenderDocPlugin");
+	bIsGPUTextureTransferAvailable = bIsGPUTextureTransferAvailable && !GPUDriverInfo.DeviceDescription.Contains(TEXT("Tesla"));
+
+	if (!bIsGPUTextureTransferAvailable)
+	{
+		return;
+	}
+
 	ENQUEUE_RENDER_COMMAND(InitializeGPUTextureTransfer)(
 	[this](FRHICommandListImmediate& RHICmdList) mutable
 	{
@@ -121,7 +150,7 @@ void FGPUTextureTransferModule::InitializeTextureTransfer()
 			return;
 		}
 
-		TextureTransferPtr TextureTransfer;
+		UE::GPUTextureTransfer::TextureTransferPtr TextureTransfer;
 
 		UE::GPUTextureTransfer::ERHI RHI = ConvertRHI(RHIGetInterfaceType());
 
@@ -158,21 +187,24 @@ void FGPUTextureTransferModule::InitializeTextureTransfer()
 			TransferObjects[RHIIndex] = TextureTransfer;
 		}
 	});
+#endif // PLATFORM_WINDOWS
 }
 
 void FGPUTextureTransferModule::UninitializeTextureTransfer()
 {
+#if PLATFORM_WINDOWS
 	ENQUEUE_RENDER_COMMAND(UninitializeGPUTextureTransfer)(
 		[this](FRHICommandListImmediate& RHICmdList) mutable
 		{
 			for (uint8 RhiIt = 1; RhiIt < RHI_MAX; RhiIt++)
 			{
-				if (const TextureTransferPtr& TextureTransfer = TransferObjects[RhiIt])
+				if (const UE::GPUTextureTransfer::TextureTransferPtr& TextureTransfer = TransferObjects[RhiIt])
 				{
 					TextureTransfer->Uninitialize();
 				}
 			}
 		});
+#endif
 }
 
 IMPLEMENT_MODULE(FGPUTextureTransferModule, GPUTextureTransfer);

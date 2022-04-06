@@ -21,7 +21,7 @@
 #include "EngineAnalytics.h"
 #endif
 
-TAutoConsoleVariable<int32> CVarAjaEnableGPUDirect(
+static TAutoConsoleVariable<int32> CVarAjaEnableGPUDirect(
 	TEXT("Aja.EnableGPUDirect"), 0,
 	TEXT("Whether to enable GPU direct for faster video frame copies. (Experimental)"),
 	ECVF_RenderThreadSafe);
