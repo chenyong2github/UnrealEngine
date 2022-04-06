@@ -4,11 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "RHIDefinitions.h"
+#include "NiagaraBakerRenderer.h"
 #include "SceneView.h"
 #include "Templates/SharedPointer.h"
-#include "UObject/GCObject.h"
 
 #include "NiagaraBakerSettings.h"
+
+class UNiagaraBakerSettings;
 
 enum class ENiagaraBakerColorChannel : uint8
 {
@@ -19,20 +21,10 @@ enum class ENiagaraBakerColorChannel : uint8
 	Num
 };
 
-class FNiagaraBakerViewModel : public TSharedFromThis<FNiagaraBakerViewModel>, public FGCObject
+class FNiagaraBakerViewModel : public TSharedFromThis<FNiagaraBakerViewModel>
 {
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnCurrentOutputChanged);
-
-	struct FDisplayData
-	{
-		int32		NumFrames = 0;
-		float		StartSeconds = 0.0f;
-		float		DurationSeconds = 0.0f;
-		float		NormalizedTime = 0.0f;
-		float		FrameTime = 0.0f;
-		int32		FrameIndex = 0;
-	};
 
 	FNiagaraBakerViewModel();
 	~FNiagaraBakerViewModel();
@@ -47,9 +39,9 @@ public:
 
 	void SetDisplayTimeFromNormalized(float NormalizeTime);
 
-	class UNiagaraComponent* GetPreviewComponent() const;
-	class UNiagaraBakerSettings* GetBakerSettings() const;
-	const class UNiagaraBakerSettings* GetBakerGeneratedSettings() const;
+	FNiagaraBakerRenderer& GetBakerRenderer() const { check(BakerRenderer.IsValid()); return *BakerRenderer.Get(); }
+	UNiagaraBakerSettings* GetBakerSettings() const { return BakerRenderer->GetBakerSettings(); }
+	const UNiagaraBakerSettings* GetBakerGeneratedSettings() { return BakerRenderer->GetBakerGeneratedSettings(); }
 
 	bool RenderView(const FRenderTarget* RenderTarget, FCanvas* Canvas, float WorldTime, int32 iOutputTextureIndex, bool bFillCanvas = false) const;
 
@@ -102,30 +94,37 @@ public:
 	float GetCameraAspectRatio() const;
 	void SetCameraAspectRatio(float InAspectRatio);
 
-	void AddOutput();
+	void AddOutput(UClass* Class);
 	void RemoveCurrentOutput();
 	bool CanRemoveCurrentOutput() const;
 	bool IsCurrentOutputIndex(int32 OutputIndex) const { return OutputIndex == CurrentOutputIndex; }
+	UNiagaraBakerOutput* GetCurrentOutput() const;
 	int32 GetCurrentOutputIndex() const { return CurrentOutputIndex; }
 	void SetCurrentOutputIndex(int32 OutputIndex);
 	FText GetOutputText(int32 OutputIndex) const;
 	FText GetCurrentOutputText() const;
+	int GetCurrentOutputNumFrames() const;
+	FNiagaraBakerOutputFrameIndices GetCurrentOutputFrameIndices(float RelativeTime) const;
 
-	/** FGCObject interface */
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("FNiagaraBakerViewModel");
-	}
+	float GetTimelineStart() const;
+	void SetTimelineStart(float Value);
+
+	float GetDurationSeconds() const;
+	
+	float GetTimelineEnd() const;
+	void SetTimelineEnd(float Value);
+
+	int32 GetFramesOnX() const;
+	void SetFramesOnX(int32 Value);
+	int32 GetFramesOnY() const;
+	void SetFramesOnY(int32 Value);
 
 	FOnCurrentOutputChanged OnCurrentOutputChanged;
 
 private:
-	class UNiagaraComponent* PreviewComponent = nullptr;
-	TSharedPtr<class FAdvancedPreviewScene> AdvancedPreviewScene;
-
 	TWeakPtr<FNiagaraSystemViewModel> WeakSystemViewModel;
 	TSharedPtr<class SNiagaraBakerWidget> Widget;
+	TUniquePtr<FNiagaraBakerRenderer> BakerRenderer;
 
 	int32 CurrentOutputIndex = 0;
 

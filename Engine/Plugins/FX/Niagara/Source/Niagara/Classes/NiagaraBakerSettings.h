@@ -4,10 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Camera/CameraTypes.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Misc/PathViews.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "Engine/TextureRenderTarget2D.h"
+#include "UObject/SoftObjectPtr.h"
 
+#include "NiagaraBakerOutput.h"
 #include "NiagaraBakerSettings.generated.h"
 
 UENUM()
@@ -24,23 +27,19 @@ enum class ENiagaraBakerViewMode
 };
 
 USTRUCT()
-struct FNiagaraBakerTextureSource
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = "Source")
-	FName SourceName;
-};
-
-USTRUCT()
 struct FNiagaraBakerTextureSettings
 {
 	GENERATED_BODY()
-	
+
+	FNiagaraBakerTextureSettings()
+		: bUseFrameSize(false)
+	{
+	}
+
 	/** Optional output name, if left empty a name will be auto generated using the index of the texture/ */
 	UPROPERTY(EditAnywhere, Category = "Texture")
 	FName OutputName;
-
+	
 	/** Source visualization we should capture, i.e. Scene Color, World Normal, etc */
 	UPROPERTY(EditAnywhere, Category = "Texture")
 	FNiagaraBakerTextureSource SourceBinding;
@@ -63,14 +62,15 @@ struct FNiagaraBakerTextureSettings
 	/** Final texture generated, an existing entry will be updated with new capture data. */
 	UPROPERTY(EditAnywhere, Category = "Texture")
 	TObjectPtr<UTexture2D> GeneratedTexture = nullptr;
+};
 
-	bool IsValidForBake() const { return FrameSize.X > 0 && FrameSize.Y > 0; }
-
-	bool Equals(const FNiagaraBakerTextureSettings& Other) const;
-
-	FNiagaraBakerTextureSettings()
-		: bUseFrameSize(false)
-	{}
+struct FNiagaraBakerOutputFrameIndices
+{
+	int		NumFrames = 1;
+	float	NormalizedTime = 0.0f;
+	int		FrameIndexA = 0;
+	int		FrameIndexB = 0;
+	float	Interp = 0.0f;
 };
 
 UCLASS()
@@ -79,14 +79,6 @@ class NIAGARA_API UNiagaraBakerSettings : public UObject
 	GENERATED_BODY()
 
 public:
-	struct FDisplayInfo
-	{
-		float NormalizedTime;
-		int FrameIndexA;
-		int FrameIndexB;
-		float Interp;
-	};
-
 	UNiagaraBakerSettings(const FObjectInitializer& Init);
 
 	/**
@@ -114,11 +106,11 @@ public:
 
 	/** Number of frames in each dimension. */
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	FIntPoint FramesPerDimension = FIntPoint(8, 8);
+	FIntPoint FramesPerDimension = FIntPoint(8, 8);	//-TODO: Remove me...
 
-	/** List of output textures we will generated. */
+	/** Array of outputs for the baker to generate. */
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	TArray<FNiagaraBakerTextureSettings> OutputTextures;
+	TArray<TObjectPtr<UNiagaraBakerOutput>> Outputs;
 
 	/** Current active viewport we will render from. */
 	UPROPERTY(EditAnywhere, Category = "Settings")
@@ -165,27 +157,29 @@ public:
 
 	bool Equals(const UNiagaraBakerSettings& Other) const;
 
-	int GetNumFrames() const { return FramesPerDimension.X * FramesPerDimension.Y; }
-
 	float GetSeekDelta() const { return 1.0f / float(FramesPerSecond); }
 
-	float GetAspectRatio(int32 iOutputTextureIndex) const;
-	FVector2D GetOrthoSize(int32 iOutputTextureIndex) const;
 	FVector GetCameraLocation() const;
 	FRotator GetCameraRotation() const;
 	FMatrix GetViewportMatrix() const;
 	FMatrix GetViewMatrix() const;
-	FMatrix GetProjectionMatrixForTexture(int32 iOutputTextureIndex) const;
+	FMatrix GetProjectionMatrix() const;
 
 	bool IsOrthographic() const { return CameraViewportMode != ENiagaraBakerViewMode::Perspective; }
 	bool IsPerspective() const { return CameraViewportMode == ENiagaraBakerViewMode::Perspective; }
 
-	// Get display info, the input time is expected to tbe relative, i.e. StartDuration is not taking into account
-	FDisplayInfo GetDisplayInfo(float Time, bool bLooping) const;
+	int GetOutputNumFrames(UNiagaraBakerOutput* BakerOutput) const;
+	FNiagaraBakerOutputFrameIndices GetOutputFrameIndices(UNiagaraBakerOutput* BakerOutput, float RelativeTime) const;
+
+	int GetOutputNumFrames(int OutputIndex) const;
+	FNiagaraBakerOutputFrameIndices GetOutputFrameIndices(int OutputIndex, float RelativeTime) const;
 
 	virtual void PostLoad() override;
-
 #if WITH_EDITORONLY_DATA
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+
+	// Deprecated properties
+	UPROPERTY()
+	TArray<FNiagaraBakerTextureSettings> OutputTextures_DEPRECATED;
 };

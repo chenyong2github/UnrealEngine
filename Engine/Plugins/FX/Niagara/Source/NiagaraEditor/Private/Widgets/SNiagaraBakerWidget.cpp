@@ -7,6 +7,7 @@
 #include "NiagaraEditorStyle.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
+#include "Customizations/NiagaraBakerOutputCustomization.h"
 #include "ViewModels/NiagaraBakerViewModel.h"
 
 #include "Modules/ModuleManager.h"
@@ -15,27 +16,18 @@
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/SViewport.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "EditorWidgetsModule.h"
-#include "ITransportControl.h"
 #include "IDetailCustomization.h"
+#include "IDocumentation.h"
+#include "ITransportControl.h"
 #include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraBakerWidget"
-
-//-TODO: Remove details panel and replace with customization to make more compact
-//-TODO: Improve feedback & warning display
-//-TODO: Throttle sim frames on warmup
-//-TODO: Turn off playback when out of focus
-//-TODO: Fluid systems stop simulation with to previous?
-//-TODO: First frame black even though I have non zero start seconds
-//-TODO: None should display HDR or something sensible
-//-TODO: Support particle attribute generation on GPU
-//-TODO: Hook up loading a preview environment / sequence
-//-TODO: Add custom post processes for capturing data?
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -51,7 +43,7 @@ namespace NiagaraBakerWidgetLocal
 			.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
 			.WidthOverride(100.0f)
 			[
-				SNew(SSpinBox<float>)
+				SNew(SSpinBox<TType>)
 				.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
 				.MinValue(MinValue)
 				.MaxValue(MaxValue)
@@ -274,7 +266,7 @@ public:
 
 		// Settings
 		{
-			IDetailCategoryBuilder& DetailCategory = DetailBuilder.EditCategory(FName(TEXT("Settings")));
+			IDetailCategoryBuilder& DetailCategory = DetailBuilder.EditCategory(FName("Settings"));
 
 			DetailCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, StartSeconds));
 			DetailCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, DurationSeconds));
@@ -292,23 +284,29 @@ public:
 			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, bPreviewLooping));
 			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, bRenderComponentOnly));
 
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, OutputTextures));
+			//DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, Outputs));
 		}
 
 		// Output Settings
-		if ( BakerSettings->OutputTextures.IsValidIndex(ViewModel->GetCurrentOutputIndex()) )
+		if ( UNiagaraBakerOutput* CurrentOutput = ViewModel->GetCurrentOutput() )
 		{
-			const FNiagaraBakerTextureSettings& OutputTexture = BakerSettings->OutputTextures[ViewModel->GetCurrentOutputIndex()];
-
 			IDetailCategoryBuilder& OutputTextureCategory = DetailBuilder.EditCategory(FName("OutputSettings"));
 
-			TSharedPtr<IPropertyHandleArray> OutputArrayPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, OutputTextures))->AsArray();
-			TSharedPtr<IPropertyHandle> OutputPropertyHandle = OutputArrayPropertyHandle->GetElement(ViewModel->GetCurrentOutputIndex());
-			OutputTextureCategory.AddProperty(OutputPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraBakerTextureSettings, OutputName)));
-			OutputTextureCategory.AddProperty(OutputPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraBakerTextureSettings, SourceBinding)));
-			OutputTextureCategory.AddProperty(OutputPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraBakerTextureSettings, TextureSize)));
-			OutputTextureCategory.AddProperty(OutputPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraBakerTextureSettings, FrameSize)));
-			OutputTextureCategory.AddProperty(OutputPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraBakerTextureSettings, GeneratedTexture)));
+			TSharedPtr<IPropertyHandleArray> OutputsArrayPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, Outputs))->AsArray();
+			TSharedPtr<IPropertyHandle> OutputPropertyHandle = OutputsArrayPropertyHandle->GetElement(ViewModel->GetCurrentOutputIndex());
+
+			for (TFieldIterator<FProperty> PropertyIt(CurrentOutput->GetClass()); PropertyIt; ++PropertyIt)
+			{
+				if (PropertyIt->HasAnyPropertyFlags(CPF_Transient | CPF_Deprecated))
+				{
+					continue;
+				}
+				TSharedPtr<IPropertyHandle> PropertyHandle = OutputPropertyHandle->GetChildHandle(PropertyIt->GetFName());
+				if ( PropertyHandle )
+				{
+					OutputTextureCategory.AddProperty(PropertyHandle);
+				}
+			}
 		}
 	}
 
@@ -359,16 +357,16 @@ void SNiagaraBakerWidget::Construct(const FArguments& InArgs)
 	{
 		BakerToolbarBuilder.AddComboButton(
 			FUIAction(),
-			FOnGetContent::CreateSP(this, &SNiagaraBakerWidget::MakeOutputMenu),
+			FOnGetContent::CreateSP(this, &SNiagaraBakerWidget::MakeOutputSelectMenu),
 			TAttribute<FText>::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCurrentOutputText),
 			LOCTEXT("CurrentOutputTooltip", "Select which output is currently visible in the preview area"),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Edit")
 		);
-		BakerToolbarBuilder.AddToolBarButton(
-			FUIAction(FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::AddOutput)),
-			NAME_None,
+		BakerToolbarBuilder.AddComboButton(
+			FUIAction(),
+			FOnGetContent::CreateSP(this, &SNiagaraBakerWidget::MakeAddOutputMenu),
 			FText::GetEmpty(),
-			LOCTEXT("AddOutputTooltip", "Add a new output"),
+			LOCTEXT("AddOutputTooltip", "Add a new output to bake"),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Plus")
 		);
 		BakerToolbarBuilder.AddToolBarButton(
@@ -415,9 +413,8 @@ void SNiagaraBakerWidget::Construct(const FArguments& InArgs)
 	DetailsArgs.bHideSelectionTip = true;
 	DetailsArgs.bAllowSearch = false;
 
-	FOnGetDetailCustomizationInstance BakerSettingsCustomizeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FBakerSettingsDetails::MakeInstance, WeakViewModel);
 	BakerSettingsDetails = PropertyModule.CreateDetailView(DetailsArgs);
-	BakerSettingsDetails->RegisterInstancedCustomPropertyLayout(UNiagaraBakerSettings::StaticClass(), BakerSettingsCustomizeDetails);
+	NiagaraBakerOutputCustomization::RegisterCustomization(BakerSettingsDetails.Get());
 
 	// Transport control args
 	{
@@ -480,6 +477,11 @@ void SNiagaraBakerWidget::Construct(const FArguments& InArgs)
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
+			MakeSettingsWidget()
+		]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -503,6 +505,106 @@ SNiagaraBakerWidget::~SNiagaraBakerWidget()
 	{
 		ViewModel->OnCurrentOutputChanged.Remove(OnCurrentOutputIndexChangedHandle);
 	}
+}
+
+TSharedRef<SWidget> SNiagaraBakerWidget::MakeSettingsWidget()
+{
+	FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get();
+	check(ViewModel != nullptr);
+
+	const FString DocLink = TEXT("Shared/Editors/NiagaraBaker");
+
+	return
+		SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("TimeRange", "Time Range"))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SSpinBox<float>)
+			.MinDesiredWidth(50.0f)
+			.MinValue(0.0f)
+			.MinSliderValue(0.0f)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Value(ViewModel, &FNiagaraBakerViewModel::GetTimelineStart)
+			.OnValueChanged(ViewModel, &FNiagaraBakerViewModel::SetTimelineStart)
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SSpinBox<float>)
+			.MinDesiredWidth(50.0f)
+			.MinValue(0.0f)
+			.MinSliderValue(0.0f)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Value(ViewModel, &FNiagaraBakerViewModel::GetTimelineEnd)
+			.OnValueChanged(ViewModel, &FNiagaraBakerViewModel::SetTimelineEnd)
+		]
+
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(10.0f)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("FramesPerDimension", "Frames Per Dimension"))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SSpinBox<int32>)
+			.MinDesiredWidth(50.0f)
+			.MinValue(1)
+			.MinSliderValue(1)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Value(ViewModel, &FNiagaraBakerViewModel::GetFramesOnX)
+			.OnValueChanged(ViewModel, &FNiagaraBakerViewModel::SetFramesOnX)
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SSpinBox<int32>)
+			.MinDesiredWidth(50.0f)
+			.MinValue(1)
+			.MinSliderValue(1)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Value(ViewModel, &FNiagaraBakerViewModel::GetFramesOnY)
+			.OnValueChanged(ViewModel, &FNiagaraBakerViewModel::SetFramesOnY)
+		]
+
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(10.0f)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		[
+			SNew(STextBlock)
+			.Text(this, &SNiagaraBakerWidget::GetCurrentTimeText)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("CurrentTimeSecondsTooltip", "Current time in seconds"), nullptr, DocLink, "CurrentTimeText"))
+		]
+
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(10.0f)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		[
+			SNew(STextBlock)
+			.Text(this, &SNiagaraBakerWidget::GetCurrentFrameText)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("CurrentFrameTooltip", "Current frame we are rendering, this is the baked frame index not the preview frame"), nullptr, DocLink, "CurrentFrameText"))
+		]
+	;
 }
 
 TSharedRef<SWidget> SNiagaraBakerWidget::MakeCameraModeMenu()
@@ -663,7 +765,7 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeViewOptionsMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-TSharedRef<SWidget> SNiagaraBakerWidget::MakeOutputMenu()
+TSharedRef<SWidget> SNiagaraBakerWidget::MakeOutputSelectMenu()
 {
 	FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get();
 	check(ViewModel != nullptr);
@@ -672,7 +774,7 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeOutputMenu()
 
 	if ( UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings() )
 	{
-		for (int i = 0; i < BakerSettings->OutputTextures.Num(); ++i)
+		for (int i = 0; i < BakerSettings->Outputs.Num(); ++i)
 		{
 			MenuBuilder.AddMenuEntry(
 				ViewModel->GetOutputText(i),
@@ -692,67 +794,69 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeOutputMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-bool SNiagaraBakerWidget::FindWarnings(TArray<FText>* OutWarnings) const
+TSharedRef<SWidget> SNiagaraBakerWidget::MakeAddOutputMenu()
 {
-	if ( FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get() )
+	FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get();
+	check(ViewModel != nullptr);
+
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	for (TObjectIterator<UClass> It; It; ++It)
 	{
-		// Check determinism
-		if ( UNiagaraComponent* PreviewComponent = ViewModel->GetPreviewComponent() )
+		if ( It->IsChildOf(UNiagaraBakerOutput::StaticClass()) && !It->HasAnyClassFlags(CLASS_Abstract) )
 		{
-			if ( UNiagaraSystem* NiagaraSystem = PreviewComponent->GetAsset() )
-			{
-				if ( NiagaraSystem->NeedsDeterminism() == false )
-				{
-					if ( OutWarnings == nullptr )
-					{
-						return true;
-					}
-					OutWarnings->Emplace(LOCTEXT("SystemDeterminism", "System is not set to deterministic, results will vary each bake"));
-				}
-				for (const FNiagaraEmitterHandle& EmitterHandle : NiagaraSystem->GetEmitterHandles() )
-				{
-					UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance();
-					if (NiagaraEmitter == nullptr || NiagaraEmitter->bDeterminism)
-					{
-						continue;
-					}
-
-					if (OutWarnings == nullptr)
-					{
-						return true;
-					}
-					OutWarnings->Emplace(FText::Format(LOCTEXT("EmitterDeterminismFormat", "Emitter '{0}' is not set to deterministic, results will vary each bake"), FText::FromString(NiagaraEmitter->GetUniqueEmitterName())));
-				}
-			}
+			MenuBuilder.AddMenuEntry(
+				It->GetDisplayNameText(),
+				FText::GetEmpty(),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::AddOutput, *It))
+			);
 		}
+	}
 
-		// Check outputs divide correctly by atlas frame count
-		if ( UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings() )
+	return MenuBuilder.MakeWidget();
+}
+
+void SNiagaraBakerWidget::FindWarnings()
+{
+	FoundWarnings.Reset();
+
+	FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get();
+	if ( ViewModel == nullptr )
+	{
+		return;
+	}
+
+	// Check determinism
+	if ( UNiagaraComponent* PreviewComponent = ViewModel->GetBakerRenderer().GetPreviewComponent() )
+	{
+		if ( UNiagaraSystem* NiagaraSystem = PreviewComponent->GetAsset() )
 		{
-			for ( int32 i=0; i < BakerSettings->OutputTextures.Num(); ++i )
+			if ( NiagaraSystem->NeedsDeterminism() == false )
 			{
-				const FNiagaraBakerTextureSettings& TextureSettings = BakerSettings->OutputTextures[i];
-				const bool bXSizeIssue = (TextureSettings.TextureSize.X % BakerSettings->FramesPerDimension.X) == 0;
-				const bool bYSizeIssue = (TextureSettings.TextureSize.Y % BakerSettings->FramesPerDimension.Y) == 0;
-				if (bXSizeIssue && bYSizeIssue)
+				FoundWarnings.Emplace(LOCTEXT("SystemDeterminism", "System is not set to deterministic, results will vary each bake"));
+			}
+			for (const FNiagaraEmitterHandle& EmitterHandle : NiagaraSystem->GetEmitterHandles() )
+			{
+				UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance();
+				if (NiagaraEmitter == nullptr || NiagaraEmitter->bDeterminism)
 				{
 					continue;
 				}
 
-				if (OutWarnings == nullptr)
-				{
-					return true;
-				}
-				OutWarnings->Emplace(FText::Format(LOCTEXT("TextureSizeWarningText", "Output '{0}' frames per dimension {1}x{2} does not divide into texture size {3}x{4}, this can result in jitter on the flipbook if not taken into account"),
-					ViewModel->GetOutputText(i),
-					BakerSettings->FramesPerDimension.X, BakerSettings->FramesPerDimension.Y,
-					TextureSettings.TextureSize.X, TextureSettings.TextureSize.Y
-				));
+				FoundWarnings.Emplace(FText::Format(LOCTEXT("EmitterDeterminismFormat", "Emitter '{0}' is not set to deterministic, results will vary each bake"), FText::FromString(NiagaraEmitter->GetUniqueEmitterName())));
 			}
 		}
 	}
 
-	return OutWarnings ? OutWarnings->Num() > 0 : false;
+	// Check outputs for any warnings
+	if ( UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings() )
+	{
+		for ( UNiagaraBakerOutput* BakerOutput : BakerSettings->Outputs )
+		{
+			BakerOutput->FindWarnings(FoundWarnings);
+		}
+	}
 }
 
 TSharedRef<SWidget> SNiagaraBakerWidget::MakeWarningsMenu()
@@ -762,18 +866,14 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeWarningsMenu()
 
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	TArray<FText> FoundWarnings;
-	if ( FindWarnings(&FoundWarnings) )
+	for (const FText& Warning : FoundWarnings)
 	{
-		for (const FText& Warning : FoundWarnings)
-		{
-			MenuBuilder.AddMenuEntry(
-				Warning,
-				FText::GetEmpty(),
-				FSlateIcon(),
-				FUIAction()
-			);
-		}
+		MenuBuilder.AddMenuEntry(
+			Warning,
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction()
+		);
 	}
 
 	return MenuBuilder.MakeWidget();
@@ -781,7 +881,12 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeWarningsMenu()
 
 void SNiagaraBakerWidget::RefreshWidget()
 {
-	BakerSettingsDetails->SetObject(GetBakerSettings(), true);
+	UObject* OutputObject = nullptr;
+	if ( FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get() )
+	{
+		OutputObject = ViewModel->GetCurrentOutput();
+	}
+	BakerSettingsDetails->SetObject(OutputObject, true);
 }
 
 void SNiagaraBakerWidget::Tick(const FGeometry& AllottedGeometry, const double CurrentTime, const float DeltaTime)
@@ -816,6 +921,8 @@ void SNiagaraBakerWidget::Tick(const FGeometry& AllottedGeometry, const double C
 		ViewportWidget->RefreshView(PreviewRelativeTime, DeltaTime);
 		TimelineWidget->SetRelativeTime(PreviewRelativeTime);
 	}
+
+	FindWarnings();
 }
 
 void SNiagaraBakerWidget::SetPreviewRelativeTime(float RelativeTime)
@@ -862,15 +969,11 @@ FReply SNiagaraBakerWidget::OnTransportBackwardEnd()
 FReply SNiagaraBakerWidget::OnTransportBackwardStep()
 {
 	bIsPlaying = false;
-	if (auto ViewModel = WeakViewModel.Pin())
+	if (FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get())
 	{
-		if(UNiagaraBakerSettings* Settings = ViewModel->GetBakerSettings())
-		{
-			const auto DisplayData = Settings->GetDisplayInfo(PreviewRelativeTime, Settings->bPreviewLooping);
-			const int NumFrames = Settings->GetNumFrames();
-			const int NewFrame = DisplayData.Interp > 0.25f ? DisplayData.FrameIndexA : FMath::Max(DisplayData.FrameIndexA - 1, 0);
-			PreviewRelativeTime = (Settings->DurationSeconds / float(NumFrames)) * float(NewFrame);
-		}
+		const FNiagaraBakerOutputFrameIndices OutputFrameIndices = ViewModel->GetCurrentOutputFrameIndices(PreviewRelativeTime);
+		const int NewFrame = OutputFrameIndices.Interp > 0.25f ? OutputFrameIndices.FrameIndexA : FMath::Max(OutputFrameIndices.FrameIndexA - 1, 0);
+		PreviewRelativeTime = (ViewModel->GetDurationSeconds() / float(OutputFrameIndices.NumFrames)) * float(NewFrame);
 	}
 
 	return FReply::Handled();
@@ -885,15 +988,11 @@ FReply SNiagaraBakerWidget::OnTransportForwardPlay()
 FReply SNiagaraBakerWidget::OnTransportForwardStep()
 {
 	bIsPlaying = false;
-	if (auto ViewModel = WeakViewModel.Pin())
+	if (FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get())
 	{
-		if (UNiagaraBakerSettings* Settings = ViewModel->GetBakerSettings())
-		{
-			const auto DisplayData = Settings->GetDisplayInfo(PreviewRelativeTime, Settings->bPreviewLooping);
-			const int NumFrames = Settings->GetNumFrames();
-			const int NewFrame = DisplayData.Interp < 0.75f ? DisplayData.FrameIndexB : FMath::Min(DisplayData.FrameIndexB + 1, NumFrames - 1);
-			PreviewRelativeTime = (Settings->DurationSeconds / float(NumFrames)) * float(NewFrame);
-		}
+		const FNiagaraBakerOutputFrameIndices OutputFrameIndices = ViewModel->GetCurrentOutputFrameIndices(PreviewRelativeTime);
+		const int NewFrame = OutputFrameIndices.Interp < 0.75f ? OutputFrameIndices.FrameIndexB : FMath::Min(OutputFrameIndices.FrameIndexB + 1, OutputFrameIndices.NumFrames - 1);
+		PreviewRelativeTime = (ViewModel->GetDurationSeconds() / float(OutputFrameIndices.NumFrames)) * float(NewFrame);
 	}
 
 	return FReply::Handled();
@@ -904,7 +1003,7 @@ FReply SNiagaraBakerWidget::OnTransportForwardEnd()
 	bIsPlaying = false;
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 	{
-		PreviewRelativeTime = BakerSettings->DurationSeconds;
+		PreviewRelativeTime = BakerSettings->DurationSeconds - KINDA_SMALL_NUMBER;
 	}
 
 	return FReply::Handled();
@@ -917,6 +1016,30 @@ FReply SNiagaraBakerWidget::OnTransportToggleLooping() const
 		ViewModel->TogglePlaybackLooping();
 	}
 	return FReply::Handled();
+}
+
+FText SNiagaraBakerWidget::GetCurrentTimeText() const
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		const float TimeSeconds = BakerSettings->StartSeconds + PreviewRelativeTime;
+		const FNumberFormattingOptions FormatOptions = FNumberFormattingOptions()
+			.SetMaximumFractionalDigits(2)
+			.SetMinimumFractionalDigits(2);
+		return FText::Format(LOCTEXT("CurrentTimeTextFormat", "{0} s"), FText::AsNumber(TimeSeconds, &FormatOptions));
+	}
+	return FText::GetEmpty();
+}
+
+FText SNiagaraBakerWidget::GetCurrentFrameText() const
+{
+	if ( FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get() )
+	{
+		FNiagaraBakerOutputFrameIndices FrameIndices = ViewModel->GetCurrentOutputFrameIndices(PreviewRelativeTime);
+		return FText::Format(LOCTEXT("CurrentFrameTextFormat", "{0} / {1} f"), FText::AsNumber(FrameIndices.FrameIndexA), FText::AsNumber(FrameIndices.NumFrames));
+	}
+
+	return FText::GetEmpty();
 }
 
 #undef LOCTEXT_NAMESPACE

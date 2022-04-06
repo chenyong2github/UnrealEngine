@@ -24,12 +24,15 @@ public:
 
 	FReply OnCapture();
 
+	TSharedRef<SWidget> MakeSettingsWidget();
+
 	TSharedRef<SWidget> MakeCameraModeMenu();
 	TSharedRef<SWidget> MakeViewOptionsMenu();
-	TSharedRef<SWidget> MakeOutputMenu();
+	TSharedRef<SWidget> MakeOutputSelectMenu();
+	TSharedRef<SWidget> MakeAddOutputMenu();
 
-	bool FindWarnings(TArray<FText>* OutWarnings) const;
-	bool HasWarnings() const { return FindWarnings(nullptr); }
+	void FindWarnings();
+	bool HasWarnings() const { return FoundWarnings.Num() > 0; }
 	TSharedRef<SWidget> MakeWarningsMenu();
 
 	void RefreshWidget();
@@ -46,6 +49,9 @@ public:
 	FReply OnTransportForwardEnd();
 	FReply OnTransportToggleLooping() const;
 
+	FText GetCurrentTimeText() const;
+	FText GetCurrentFrameText() const;
+
 private:
 	TWeakPtr<FNiagaraBakerViewModel>			WeakViewModel;
 	TSharedPtr<SNiagaraBakerViewport>			ViewportWidget;
@@ -57,4 +63,6 @@ private:
 	float										PreviewRelativeTime = 0.0f;
 
 	FDelegateHandle								OnCurrentOutputIndexChangedHandle;
+
+	TArray<FText>								FoundWarnings;
 };

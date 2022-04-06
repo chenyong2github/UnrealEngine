@@ -11,7 +11,6 @@
 
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
-#include "AdvancedPreviewScene.h"
 #include "AssetToolsModule.h"
 #include "EngineModule.h"
 #include "LegacyScreenPercentageDriver.h"
@@ -28,39 +27,14 @@ FNiagaraBakerViewModel::FNiagaraBakerViewModel()
 
 FNiagaraBakerViewModel::~FNiagaraBakerViewModel()
 {
-	if ( AdvancedPreviewScene && PreviewComponent )
-	{
-		AdvancedPreviewScene->RemoveComponent(PreviewComponent);
-	}
-
-	if ( PreviewComponent )
-	{
-		PreviewComponent->DestroyComponent();
-	}
 }
 
 void FNiagaraBakerViewModel::Initialize(TWeakPtr<FNiagaraSystemViewModel> InWeakSystemViewModel)
 {
 	WeakSystemViewModel = InWeakSystemViewModel;
 
-	{
-		UNiagaraSystem* System = WeakSystemViewModel.Pin()->GetPreviewComponent()->GetAsset();
-
-		PreviewComponent = NewObject<UNiagaraComponent>(GetTransientPackage(), NAME_None, RF_Transient);
-		PreviewComponent->CastShadow = 1;
-		PreviewComponent->bCastDynamicShadow = 1;
-		PreviewComponent->SetAllowScalability(false);
-		PreviewComponent->SetAsset(System);
-		PreviewComponent->SetForceSolo(true);
-		PreviewComponent->SetAgeUpdateMode(ENiagaraAgeUpdateMode::DesiredAge);
-		PreviewComponent->SetCanRenderWhileSeeking(true);
-		PreviewComponent->SetMaxSimTime(0.0f);
-		PreviewComponent->Activate(true);
-
-		AdvancedPreviewScene = MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues()));
-		AdvancedPreviewScene->SetFloorVisibility(false);
-		AdvancedPreviewScene->AddComponent(PreviewComponent, PreviewComponent->GetRelativeTransform());
-	}
+	UNiagaraSystem* NiagaraSystem = WeakSystemViewModel.Pin()->GetPreviewComponent()->GetAsset();
+	BakerRenderer.Reset(new FNiagaraBakerRenderer(NiagaraSystem));
 
 	Widget = SNew(SNiagaraBakerWidget)
 		.WeakViewModel(this->AsShared());
@@ -88,33 +62,6 @@ void FNiagaraBakerViewModel::SetDisplayTimeFromNormalized(float NormalizeTime)
 	}
 }
 
-UNiagaraComponent* FNiagaraBakerViewModel::GetPreviewComponent() const
-{
-	return PreviewComponent;
-}
-
-UNiagaraBakerSettings* FNiagaraBakerViewModel::GetBakerSettings() const
-{
-	if (PreviewComponent)
-	{
-		UNiagaraSystem* Asset = PreviewComponent->GetAsset();
-		return Asset ? Asset->GetBakerSettings() : nullptr;
-	}
-
-	return nullptr;
-}
-
-const UNiagaraBakerSettings* FNiagaraBakerViewModel::GetBakerGeneratedSettings() const
-{
-	if (PreviewComponent)
-	{
-		UNiagaraSystem* Asset = PreviewComponent->GetAsset();
-		return Asset ? Asset->GetBakerGeneratedSettings() : nullptr;
-	}
-
-	return nullptr;
-}
-
 TSharedPtr<class SWidget> FNiagaraBakerViewModel::GetWidget()
 {
 	return Widget;
@@ -125,8 +72,8 @@ void FNiagaraBakerViewModel::TogglePlaybackLooping()
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 	{
 		const FScopedTransaction Transaction(LOCTEXT("ToggleLooping", "Toggle Looping"));
-		BakerSettings->bPreviewLooping = !BakerSettings->bPreviewLooping;
 		BakerSettings->Modify();
+		BakerSettings->bPreviewLooping = !BakerSettings->bPreviewLooping;
 	}
 }
 
@@ -141,8 +88,8 @@ void FNiagaraBakerViewModel::SetCameraViewMode(ENiagaraBakerViewMode ViewMode)
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 	{
 		const FScopedTransaction Transaction(LOCTEXT("SetCameraViewMode", "Set Camera View Mode"));
-		BakerSettings->CameraViewportMode = ViewMode;
 		BakerSettings->Modify();
+		BakerSettings->CameraViewportMode = ViewMode;
 	}
 }
 
@@ -252,8 +199,8 @@ void FNiagaraBakerViewModel::SetCameraFOV(float InFOV)
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 	{
 		const FScopedTransaction Transaction(LOCTEXT("SetCameraFOV", "Set Camera FOV"));
-		BakerSettings->CameraFOV = InFOV;
 		BakerSettings->Modify();
+		BakerSettings->CameraFOV = InFOV;
 	}
 }
 
@@ -268,8 +215,8 @@ void FNiagaraBakerViewModel::SetCameraOrbitDistance(float InOrbitDistance)
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 	{
 		const FScopedTransaction Transaction(LOCTEXT("SetCameraOrbitDistance", "Set Camera Orbit Distance"));
-		BakerSettings->CameraOrbitDistance = InOrbitDistance;
 		BakerSettings->Modify();
+		BakerSettings->CameraOrbitDistance = InOrbitDistance;
 	}
 }
 
@@ -284,8 +231,8 @@ void FNiagaraBakerViewModel::SetCameraOrthoWidth(float InOrthoWidth)
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 	{
 		const FScopedTransaction Transaction(LOCTEXT("SetCameraOrthoWidth", "Set Camera Ortho Width"));
-		BakerSettings->CameraOrthoWidth = InOrthoWidth;
 		BakerSettings->Modify();
+		BakerSettings->CameraOrthoWidth = InOrthoWidth;
 	}
 }
 
@@ -294,8 +241,8 @@ void FNiagaraBakerViewModel::ToggleCameraAspectRatioEnabled()
 	if ( UNiagaraBakerSettings* BakerSettings = GetBakerSettings() )
 	{
 		const FScopedTransaction Transaction(LOCTEXT("ToggleUseCameraAspectRatio", "Toggle Use Camera Aspect Ratio"));
-		BakerSettings->bUseCameraAspectRatio = !BakerSettings->bUseCameraAspectRatio;
 		BakerSettings->Modify();
+		BakerSettings->bUseCameraAspectRatio = !BakerSettings->bUseCameraAspectRatio;
 	}
 }
 
@@ -316,20 +263,22 @@ void FNiagaraBakerViewModel::SetCameraAspectRatio(float InAspectRatio)
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 	{
 		const FScopedTransaction Transaction(LOCTEXT("SetCameraAspectRatio", "Set Camera Aspect Ratio"));
-		BakerSettings->CameraAspectRatio = InAspectRatio;
 		BakerSettings->Modify();
+		BakerSettings->CameraAspectRatio = InAspectRatio;
 	}
 }
 
-void FNiagaraBakerViewModel::AddOutput()
+void FNiagaraBakerViewModel::AddOutput(UClass* Class)
 {
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("AddOutput", "Add Output"));
-		BakerSettings->OutputTextures.AddDefaulted();
-		BakerSettings->Modify();
+		UNiagaraBakerOutput* NewOutput = NewObject<UNiagaraBakerOutput>(BakerSettings, Class);
 
-		CurrentOutputIndex = BakerSettings->OutputTextures.Num() - 1;
+		const FScopedTransaction Transaction(LOCTEXT("AddOutput", "Add Output"));
+		BakerSettings->Modify();
+		BakerSettings->Outputs.Add(NewOutput);
+
+		CurrentOutputIndex = BakerSettings->Outputs.Num() - 1;
 		OnCurrentOutputChanged.Broadcast();
 	}
 }
@@ -338,11 +287,12 @@ void FNiagaraBakerViewModel::RemoveCurrentOutput()
 {
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 	{
-		if (BakerSettings->OutputTextures.IsValidIndex(CurrentOutputIndex))
+		if (BakerSettings->Outputs.IsValidIndex(CurrentOutputIndex))
 		{
 			const FScopedTransaction Transaction(LOCTEXT("RemoveOutput", "Remove Output"));
-			BakerSettings->OutputTextures.RemoveAt(CurrentOutputIndex);
 			BakerSettings->Modify();
+			BakerSettings->Outputs[CurrentOutputIndex]->MarkAsGarbage();
+			BakerSettings->Outputs.RemoveAt(CurrentOutputIndex);
 			CurrentOutputIndex = FMath::Max(0, CurrentOutputIndex - 1);
 			OnCurrentOutputChanged.Broadcast();
 		}
@@ -352,16 +302,28 @@ void FNiagaraBakerViewModel::RemoveCurrentOutput()
 bool FNiagaraBakerViewModel::CanRemoveCurrentOutput() const
 {
 	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
-	return BakerSettings && BakerSettings->OutputTextures.IsValidIndex(CurrentOutputIndex);
+	return BakerSettings && BakerSettings->Outputs.IsValidIndex(CurrentOutputIndex);
+}
+
+UNiagaraBakerOutput* FNiagaraBakerViewModel::GetCurrentOutput() const
+{
+	if ( UNiagaraBakerSettings* BakerSettings = GetBakerSettings() )
+	{
+		if ( BakerSettings->Outputs.IsValidIndex(CurrentOutputIndex) )
+		{
+			return BakerSettings->Outputs[CurrentOutputIndex];
+		}
+	}
+	return nullptr;
 }
 
 void FNiagaraBakerViewModel::SetCurrentOutputIndex(int32 OutputIndex)
 {
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 	{
-		if (BakerSettings->OutputTextures.Num() > 0)
+		if (BakerSettings->Outputs.Num() > 0)
 		{
-			CurrentOutputIndex = FMath::Clamp(OutputIndex, 0, BakerSettings->OutputTextures.Num() - 1);
+			CurrentOutputIndex = FMath::Clamp(OutputIndex, 0, BakerSettings->Outputs.Num() - 1);
 		}
 		else
 		{
@@ -374,16 +336,9 @@ void FNiagaraBakerViewModel::SetCurrentOutputIndex(int32 OutputIndex)
 FText FNiagaraBakerViewModel::GetOutputText(int32 OutputIndex) const
 {
 	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
-	if ( BakerSettings && BakerSettings->OutputTextures.IsValidIndex(OutputIndex) )
+	if ( BakerSettings && BakerSettings->Outputs.IsValidIndex(OutputIndex) )
 	{
-		if ( BakerSettings->OutputTextures[OutputIndex].OutputName.IsNone() )
-		{
-			return FText::Format(LOCTEXT("OutputFormat", "Output {0}"), FText::AsNumber(OutputIndex));
-		}
-		else
-		{
-			return FText::FromName(BakerSettings->OutputTextures[OutputIndex].OutputName);
-		}
+		return FText::FromString(BakerSettings->Outputs[OutputIndex]->OutputName);
 	}
 	return FText::GetEmpty();
 }
@@ -393,155 +348,194 @@ FText FNiagaraBakerViewModel::GetCurrentOutputText() const
 	return GetOutputText(CurrentOutputIndex);
 }
 
-void FNiagaraBakerViewModel::AddReferencedObjects(FReferenceCollector& Collector)
+int FNiagaraBakerViewModel::GetCurrentOutputNumFrames() const
 {
+	if ( UNiagaraBakerSettings* BakerSettings = GetBakerSettings() )
+	{
+		return BakerSettings->GetOutputNumFrames(CurrentOutputIndex);
+	}
+	return 1;
+}
+
+FNiagaraBakerOutputFrameIndices FNiagaraBakerViewModel::GetCurrentOutputFrameIndices(float RelativeTime) const
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		return BakerSettings->GetOutputFrameIndices(CurrentOutputIndex, RelativeTime);
+	}
+	return FNiagaraBakerOutputFrameIndices();
+}
+
+float FNiagaraBakerViewModel::GetTimelineStart() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->StartSeconds : 0.0f;
+}
+
+void FNiagaraBakerViewModel::SetTimelineStart(float Value)
+{
+	if ( UNiagaraBakerSettings* BakerSettings = GetBakerSettings() )
+	{
+		Value = FMath::Max(Value, 0.0f);
+		if ( BakerSettings->StartSeconds != Value )
+		{
+			const float EndSeconds = BakerSettings->StartSeconds + BakerSettings->DurationSeconds;
+			const FScopedTransaction Transaction(LOCTEXT("StartSeconds", "StartSeconds"));
+			BakerSettings->Modify();
+			BakerSettings->StartSeconds = Value;
+			BakerSettings->DurationSeconds = FMath::Max(EndSeconds - Value, 0.0f);
+		}
+	}
+}
+
+float FNiagaraBakerViewModel::GetDurationSeconds() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->DurationSeconds : 0.0f;
+}
+
+float FNiagaraBakerViewModel::GetTimelineEnd() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->StartSeconds + BakerSettings->DurationSeconds : 0.0f;
+}
+
+void FNiagaraBakerViewModel::SetTimelineEnd(float Value)
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		Value = FMath::Max(Value - BakerSettings->StartSeconds, 0.0f);
+		if (BakerSettings->DurationSeconds != Value)
+		{
+			const FScopedTransaction Transaction(LOCTEXT("EndSeconds", "EndSeconds"));
+			BakerSettings->Modify();
+			BakerSettings->DurationSeconds = Value;
+		}
+	}
+}
+
+int32 FNiagaraBakerViewModel::GetFramesOnX() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->FramesPerDimension.X : 1;
+}
+
+void FNiagaraBakerViewModel::SetFramesOnX(int32 Value)
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		if (BakerSettings->FramesPerDimension.X != Value)
+		{
+			const FScopedTransaction Transaction(LOCTEXT("FramesPerDimension", "FramesPerDimension"));
+			BakerSettings->Modify();
+			BakerSettings->FramesPerDimension.X = Value;
+
+			FPropertyChangedEvent PropertyEvent(UNiagaraBakerSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, FramesPerDimension)));
+			BakerSettings->PostEditChangeProperty(PropertyEvent);
+		}
+	}
+}
+
+int32 FNiagaraBakerViewModel::GetFramesOnY() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->FramesPerDimension.Y : 1;
+}
+
+void FNiagaraBakerViewModel::SetFramesOnY(int32 Value)
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		if (BakerSettings->FramesPerDimension.Y != Value)
+		{
+			const FScopedTransaction Transaction(LOCTEXT("FramesPerDimension", "FramesPerDimension"));
+			BakerSettings->Modify();
+			BakerSettings->FramesPerDimension.Y = Value;
+
+			FPropertyChangedEvent PropertyEvent(UNiagaraBakerSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, FramesPerDimension)));
+			BakerSettings->PostEditChangeProperty(PropertyEvent);
+		}
+	}
 }
 
 void FNiagaraBakerViewModel::RenderBaker()
 {
 	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
-	if ( (PreviewComponent == nullptr) || (BakerSettings == nullptr) )
+	UNiagaraSystem* NiagaraSystem = BakerRenderer->GetNiagaraSystem();
+	if ( BakerSettings == nullptr || NiagaraSystem == nullptr )
 	{
 		return;
 	}
 
-	if ( BakerSettings->OutputTextures.Num() == 0 )
+	if ( BakerSettings->Outputs.Num() == 0 )
 	{
+		//-TODO: Message no outputs
+		NiagaraSystem->SetBakerGeneratedSettings(nullptr);
 		return;
 	}
 
-	UWorld* World = PreviewComponent->GetWorld();
+	// Create output renderers
+	TArray<TUniquePtr<FNiagaraBakerOutputRenderer>> OutputRenderers;
+	OutputRenderers.Reserve(BakerSettings->Outputs.Num());
 
-	// Create output render targets & output Baker data
-	TArray<UTextureRenderTarget2D*, TInlineAllocator<4>> RenderTargets;
-	TArray<TArray<FFloat16Color>> OutputBakers;
-
-	for ( const auto& OutputTexture : BakerSettings->OutputTextures )
+	bool bHasValidRenderer = false;
+	for ( int iOutput=0; iOutput < BakerSettings->Outputs.Num(); ++iOutput)
 	{
-		if (OutputTexture.IsValidForBake())
+		UNiagaraBakerOutput* Output = BakerSettings->Outputs[iOutput];
+		OutputRenderers.Emplace(FNiagaraBakerRenderer::GetOutputRenderer(Output->GetClass()));
+		if ( FNiagaraBakerOutputRenderer* OutputRenderer = OutputRenderers.Last().Get() )
 		{
-			UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
-			RenderTarget->AddToRoot();
-			RenderTarget->ClearColor = FLinearColor::Transparent;
-			RenderTarget->TargetGamma = 1.0f;
-			RenderTarget->InitCustomFormat(OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y, PF_FloatRGBA, false);
+			bHasValidRenderer |= OutputRenderer->BeginBake(Output);
+		}
+	}
 
-			RenderTargets.Add(RenderTarget);
-		}
-		else
-		{
-			RenderTargets.Add(nullptr);
-		}
-		OutputBakers.AddDefaulted_GetRef().SetNumZeroed(OutputTexture.TextureSize.X * OutputTexture.TextureSize.Y);
+	// Early out if we have no valid renderers
+	if ( !bHasValidRenderer )
+	{
+		//-TODO: No valid renderers
+		NiagaraSystem->SetBakerGeneratedSettings(nullptr);
+		return;
 	}
 
 	// Render frames
-	PreviewComponent->ReinitializeSystem();
-
 	const int32 TotalFrames = BakerSettings->FramesPerDimension.X * BakerSettings->FramesPerDimension.Y;
 	const float FrameDeltaSeconds = BakerSettings->DurationSeconds / float(TotalFrames);
 
-	FScopedSlowTask SlowTask(TotalFrames, LOCTEXT("RenderingBaker", "Rendering Baker..."));
+	FScopedSlowTask SlowTask(TotalFrames);
 	SlowTask.MakeDialog();
 
-	FNiagaraBakerRenderer BakerRenderer;
-
-	for ( int32 iFrame=0; iFrame < TotalFrames; ++iFrame)
+	for ( int32 iFrame=0; iFrame < TotalFrames; ++iFrame )
 	{
-		SlowTask.EnterProgressFrame(1);
+		SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("BakingFormat", "Baking Frame ({0} / {1})"), iFrame + 1, TotalFrames));
 
-		// Step component to time
+		// Tick to right location
 		const float FrameTime = BakerSettings->StartSeconds + (float(iFrame) * FrameDeltaSeconds);
-		PreviewComponent->SetSeekDelta(BakerSettings->GetSeekDelta());
-		PreviewComponent->SeekToDesiredAge(FrameTime);
-		PreviewComponent->TickComponent(BakerSettings->GetSeekDelta(), ELevelTick::LEVELTICK_All, nullptr);
+		BakerRenderer->SetAbsoluteTime(FrameTime);
 
-
-		// Render frame
-		for (int32 iOutputTexture=0; iOutputTexture < BakerSettings->OutputTextures.Num(); ++iOutputTexture)
+		// Capture frames
+		for ( int32 i=0; i < OutputRenderers.Num(); ++i )
 		{
-			const FNiagaraBakerTextureSettings& OutputTexture = BakerSettings->OutputTextures[iOutputTexture];
-			UTextureRenderTarget2D* RenderTarget = RenderTargets[iOutputTexture];
-			if (RenderTarget == nullptr)
+			if (OutputRenderers[i].IsValid())
 			{
-				continue;
-			}
-			FTextureRenderTargetResource* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
-
-			BakerRenderer.RenderView(PreviewComponent, BakerSettings, FrameTime, RenderTarget, iOutputTexture);
-
-			TArray<FFloat16Color> OutSamples;
-			RenderTargetResource->ReadFloat16Pixels(OutSamples);
-
-			const FIntPoint ViewportOffset = FIntPoint(
-				OutputTexture.FrameSize.X * (iFrame % BakerSettings->FramesPerDimension.X),
-				OutputTexture.FrameSize.Y * (iFrame / BakerSettings->FramesPerDimension.X)
-			);
-			TArray<FFloat16Color>& OutputBaker = OutputBakers[iOutputTexture];
-			for ( int y=0; y < OutputTexture.FrameSize.Y; ++y )
-			{
-				FFloat16Color* SrcPixel = OutSamples.GetData() + (y * OutputTexture.FrameSize.X);
-				FFloat16Color* DstPixel = OutputBaker.GetData() + ViewportOffset.X + ((y + ViewportOffset.Y) * OutputTexture.TextureSize.X);
-				FMemory::Memcpy(DstPixel, SrcPixel, sizeof(FFloat16Color) * OutputTexture.FrameSize.X);
+				OutputRenderers[i]->BakeFrame(BakerSettings->Outputs[i], iFrame, *BakerRenderer.Get());
 			}
 		}
 	}
 
-	// Remove existing generated settings to avoid holding references to textures
-	if (UNiagaraSystem* Asset = PreviewComponent->GetAsset())
+	// Complete bake
+	for (int32 i = 0; i < OutputRenderers.Num(); ++i)
 	{
-		Asset->SetBakerGeneratedSettings(nullptr);
-	}
-
-	// Send data to generated textures
-	for (int32 iOutputTexture = 0; iOutputTexture < BakerSettings->OutputTextures.Num(); ++iOutputTexture)
-	{
-		FNiagaraBakerTextureSettings& OutputTexture = BakerSettings->OutputTextures[iOutputTexture];
-
-		// If we don't already have a generated texture ask the user to create one
-		if (OutputTexture.GeneratedTexture == nullptr)
+		if (OutputRenderers[i].IsValid())
 		{
-			IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-			UTexture2DFactoryNew* Texture2DFactory = NewObject<UTexture2DFactoryNew>();
-
-			FString PackagePath = FPaths::GetPath(PreviewComponent->GetAsset()->GetPackage()->GetPathName());
-			FString AssetName = PreviewComponent->GetAsset()->GetName() + TEXT("_Baker") + FString::FromInt(iOutputTexture) + TEXT("Texture");
-			OutputTexture.GeneratedTexture = Cast<UTexture2D>(AssetTools.CreateAssetWithDialog(AssetName, PackagePath, UTexture2D::StaticClass(), Texture2DFactory));
-			if (OutputTexture.GeneratedTexture == nullptr)
-			{
-				// User skipped for some reason
-				continue;
-			}
+			OutputRenderers[i]->EndBake(BakerSettings->Outputs[i]);
 		}
-
-		const bool bIsPoT = FMath::IsPowerOfTwo(OutputTexture.TextureSize.X) && FMath::IsPowerOfTwo(OutputTexture.TextureSize.Y);
-
-		OutputTexture.GeneratedTexture->Source.Init(OutputTexture.TextureSize.X, OutputTexture.TextureSize.Y, 1, 1, TSF_RGBA16F, (const uint8*)(OutputBakers[iOutputTexture].GetData()));
-		OutputTexture.GeneratedTexture->PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
-		OutputTexture.GeneratedTexture->MipGenSettings = bIsPoT ? TMGS_FromTextureGroup : TMGS_NoMipmaps;
-		OutputTexture.GeneratedTexture->AddressX = TextureAddress::TA_Clamp;
-		OutputTexture.GeneratedTexture->AddressY = TextureAddress::TA_Clamp;
-		OutputTexture.GeneratedTexture->UpdateResource();
-		OutputTexture.GeneratedTexture->PostEditChange();
-		OutputTexture.GeneratedTexture->MarkPackageDirty();
-		OutputTexture.GeneratedTexture->TemporarilyDisableStreaming();
 	}
 
 	// Duplicate and set as generated data
-	if (UNiagaraSystem* Asset = PreviewComponent->GetAsset())
-	{
-		Asset->SetBakerGeneratedSettings(DuplicateObject<UNiagaraBakerSettings>(BakerSettings, Asset));
-	}
+	NiagaraSystem->SetBakerGeneratedSettings(DuplicateObject<UNiagaraBakerSettings>(BakerSettings, NiagaraSystem));
 
-	// Clean up render targets
-	for ( UTextureRenderTarget2D* RenderTarget : RenderTargets )
-	{
-		if (RenderTarget)
-		{
-			RenderTarget->RemoveFromRoot();
-			RenderTarget = nullptr;
-		}
-	}
+	// GC to cleanup any transient objects we created or ones we have ditched
+	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 }
 
 #undef LOCTEXT_NAMESPACE

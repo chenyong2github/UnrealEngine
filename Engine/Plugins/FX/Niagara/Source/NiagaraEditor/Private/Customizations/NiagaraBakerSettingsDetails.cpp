@@ -46,7 +46,14 @@ FText FNiagaraBakerTextureSourceDetails::GetText() const
 	if ( Objects.Num() == 1 )
 	{
 		FNiagaraBakerTextureSource* TargetVariable = (FNiagaraBakerTextureSource*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]);
-		return FText::FromString(*TargetVariable->SourceName.ToString());
+		if ( TargetVariable->DisplayString.Len() > 0 )
+		{
+			return FText::FromString(TargetVariable->DisplayString);
+		}
+		else
+		{
+			return FText::FromName(TargetVariable->SourceName);
+		}
 	}
 
 	return LOCTEXT("Error", "Error");
@@ -78,35 +85,18 @@ void FNiagaraBakerTextureSourceDetails::CollectAllActions(FGraphActionListBuilde
 	PropertyHandle->GetOuterObjects(Objects);
 	if (Objects.Num() == 1)
 	{
-		if (UNiagaraSystem* NiagaraSystem = Objects[0]->GetTypedOuter<UNiagaraSystem>())
+		if ( UNiagaraBakerOutput* BakerOutput = Cast<UNiagaraBakerOutput>(Objects[0]) )
 		{
-			TArray<FName> RendererOptions = FNiagaraBakerRenderer::GatherAllRenderOptions(NiagaraSystem);
-			for ( FName OptionName : RendererOptions )
+			TUniquePtr<FNiagaraBakerOutputRenderer> OutputRenderer(FNiagaraBakerRenderer::GetOutputRenderer(BakerOutput->GetClass()));
+			if (OutputRenderer.IsValid())
 			{
-				FName SourceName;
-				auto RendererType = FNiagaraBakerRenderer::GetRenderType(OptionName, SourceName);
-				FText CategoryText;
-
-				switch ( RendererType )
+				for (const FNiagaraBakerOutputBinding& RenderBinding : OutputRenderer->GetRendererBindings(BakerOutput))
 				{
-					case FNiagaraBakerRenderer::ERenderType::SceneCapture:
-						CategoryText = LOCTEXT("SceneCapture", "Scene Capture");
-						break;
-					case FNiagaraBakerRenderer::ERenderType::BufferVisualization:
-						CategoryText = LOCTEXT("BufferVis", "Buffer Visualization");
-						break;
-					case FNiagaraBakerRenderer::ERenderType::DataInterface:
-						CategoryText = LOCTEXT("EmitterDataInterface", "Emitter DataInterface");
-						break;
-					case FNiagaraBakerRenderer::ERenderType::Particle:
-						CategoryText = LOCTEXT("ParticleAttribute", "Particle Attribute");
-						break;
+					TSharedPtr<FNiagaraBakerTextureSourceAction> NewNodeAction(
+						new FNiagaraBakerTextureSourceAction(RenderBinding.BindingName, RenderBinding.MenuCategory, RenderBinding.MenuEntry, FText(), 0, FText())
+					);
+					OutAllActions.AddAction(NewNodeAction);
 				}
-				FText MenuText = FText::FromString(*OptionName.ToString());
-				TSharedPtr<FNiagaraBakerTextureSourceAction> NewNodeAction(
-					new FNiagaraBakerTextureSourceAction(OptionName, CategoryText, MenuText, FText(), 0, FText())
-				);
-				OutAllActions.AddAction(NewNodeAction);
 			}
 		}
 	}
@@ -148,6 +138,7 @@ void FNiagaraBakerTextureSourceDetails::OnActionSelected(const TArray<TSharedPtr
 
 			PropertyHandle->NotifyPreChange();
 			FNiagaraBakerTextureSource* TargetVariable = (FNiagaraBakerTextureSource*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]);
+			TargetVariable->DisplayString = EventSourceAction->GetCategory().ToString() + " - " + EventSourceAction->GetMenuDescription().ToString();
 			TargetVariable->SourceName = EventSourceAction->BindingName;
 			PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 			PropertyHandle->NotifyFinishedChangingProperties();

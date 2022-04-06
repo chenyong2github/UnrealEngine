@@ -23,7 +23,7 @@ public:
 	// SEditorViewport interface
 	void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
-	TSharedPtr<SWidget> MakeViewportToolbar() override;
+	//TSharedPtr<SWidget> MakeViewportToolbar() override;
 	// SEditorViewport interface
 
 	// ICommonEditorViewportToolbarInfoProvider interface

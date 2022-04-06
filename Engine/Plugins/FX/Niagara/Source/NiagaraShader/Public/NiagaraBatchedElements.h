@@ -27,6 +27,33 @@ private:
 };
 
 /**
+ * Batched element parameters for gathering attributes from a volume texture into a single color
+ */
+class NIAGARASHADER_API FBatchedElementNiagaraVolumeAttribute : public FBatchedElementParameters
+{
+public:
+	typedef TFunction<void(FRHITexture*&, FRHISamplerState*&)> FGetTextureAndSamplerDelegate;
+
+	FBatchedElementNiagaraVolumeAttribute(const FVector2f& InTileUVs, TConstArrayView<FVector3f> InAttributeUVs, TConstArrayView<int32> InAttributeChannels, FGetTextureAndSamplerDelegate InGetTextureAndSampler = nullptr)
+		: TileUVs(InTileUVs)
+		, AttributeUVs(InAttributeUVs)
+		, AttributeChannels(InAttributeChannels)
+		, GetTextureAndSampler(InGetTextureAndSampler)
+	{
+	}
+
+	/** Binds vertex and pixel shaders for this element */
+	virtual void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture) override;
+
+private:
+	FVector2f								TileUVs;
+	TArray<FVector3f, TInlineAllocator<4>>	AttributeUVs;
+	TArray<int32, TInlineAllocator<4>>		AttributeChannels;
+
+	FGetTextureAndSamplerDelegate			GetTextureAndSampler;
+};
+
+/**
  * Batched element parameters for inverting a color channel
  */
 class NIAGARASHADER_API FBatchedElementNiagaraInvertColorChannel : public FBatchedElementParameters

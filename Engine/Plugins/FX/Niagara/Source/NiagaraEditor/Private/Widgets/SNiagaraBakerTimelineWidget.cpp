@@ -23,14 +23,8 @@ void SNiagaraBakerTimelineWidget::Construct(const FArguments& InArgs)
 
 int32 SNiagaraBakerTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
-	auto ViewModel = WeakViewModel.Pin();
+	FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get();
 	if ( !ViewModel )
-	{
-		return LayerId;
-	}
-
-	const UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings();
-	if ( !BakerSettings )
 	{
 		return LayerId;
 	}
@@ -46,8 +40,8 @@ int32 SNiagaraBakerTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeomet
 	static const FLinearColor SelectedBarColor(FLinearColor::White);
 
 	// Gather information to display
-	const int NumFrames = BakerSettings->GetNumFrames();
-	const auto BakerDisplayData = BakerSettings->GetDisplayInfo(RelativeTime, BakerSettings->bPreviewLooping);
+	const int NumFrames = ViewModel->GetCurrentOutputNumFrames();
+	const FNiagaraBakerOutputFrameIndices OutputFrameIndices = ViewModel->GetCurrentOutputFrameIndices(RelativeTime);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Draw boxes to show frames
@@ -63,7 +57,7 @@ int32 SNiagaraBakerTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeomet
 			{
 				const FVector2D BoxLocation(UStep * float(i), 0.0f);
 				const FVector2D BoxSize(UStep, AllottedGeometry.Size.Y);
-				const FLinearColor& Tint = (i == BakerDisplayData.FrameIndexA) ? CurrentTint : BoxTints[i & 1];
+				const FLinearColor& Tint = (i == OutputFrameIndices.FrameIndexA) ? CurrentTint : BoxTints[i & 1];
 				FSlateDrawElement::MakeBox(OutDrawElements, RetLayerId++, AllottedGeometry.ToPaintGeometry(BoxLocation, BoxSize), BoxBrush, ESlateDrawEffect::None, Tint);
 			}
 		}
@@ -79,7 +73,7 @@ int32 SNiagaraBakerTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeomet
 		TArray<FVector2D> LinePoints;
 		LinePoints.AddUninitialized(2);
 
-		const float LineXPos = AllottedGeometry.Size.X * BakerDisplayData.NormalizedTime;
+		const float LineXPos = AllottedGeometry.Size.X * OutputFrameIndices.NormalizedTime;
 		LinePoints[0] = FVector2D(LineXPos, 0.0f);
 		LinePoints[1] = FVector2D(LineXPos, AllottedGeometry.Size.Y);
 
@@ -97,7 +91,7 @@ int32 SNiagaraBakerTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeomet
 
 FReply SNiagaraBakerTimelineWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if ( auto ViewModel = WeakViewModel.Pin() )
+	if ( FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get() )
 	{
 		const FVector2D LocalLocation = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 		const float NormalizeTime = LocalLocation.X / MyGeometry.Size.X;

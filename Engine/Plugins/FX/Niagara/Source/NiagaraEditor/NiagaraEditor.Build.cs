@@ -54,9 +54,10 @@ public class NiagaraEditor : ModuleRules
 				"EditorWidgets",
 				"Renderer",
 				"DeveloperSettings",
-				"PythonScriptPlugin"
+				"PythonScriptPlugin",
+				"ImageWrapper",
 			}
-        );
+		);
 
 		if (Target.bBuildTargetDeveloperTools)
 		{
