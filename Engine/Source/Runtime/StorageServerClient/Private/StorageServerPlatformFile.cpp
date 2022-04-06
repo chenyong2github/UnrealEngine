@@ -777,6 +777,10 @@ int64 FStorageServerPlatformFile::SendReadMessage(uint8* Destination, const FIoC
 bool FStorageServerPlatformFile::SendMessageToServer(const TCHAR* Message, IPlatformFile::IFileServerMessageHandler* Handler)
 {
 #if WITH_COTF
+	if (!CookOnTheFlyServerConnection->IsConnected())
+	{
+		return false;
+	}
 	if (FCString::Stricmp(Message, TEXT("RecompileShaders")) == 0)
 	{
 		UE::Cook::FCookOnTheFlyRequest Request(UE::Cook::ECookOnTheFlyMessage::RecompileShaders);

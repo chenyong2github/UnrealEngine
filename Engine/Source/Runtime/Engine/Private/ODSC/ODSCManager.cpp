@@ -18,6 +18,7 @@ FODSCManager::FODSCManager()
 {
 	if (IsRunningCookOnTheFly())
 	{
+		FCoreDelegates::OnEnginePreExit.AddRaw(this, &FODSCManager::OnEnginePreExit);
 		Thread = new FODSCThread();
 		Thread->StartThread();
 	}
@@ -25,10 +26,22 @@ FODSCManager::FODSCManager()
 
 FODSCManager::~FODSCManager()
 {
+	FCoreDelegates::OnEnginePreExit.RemoveAll(this);
+	StopThread();
+}
+
+void FODSCManager::OnEnginePreExit()
+{
+	StopThread();
+}
+
+void FODSCManager::StopThread()
+{
 	if (Thread)
 	{
 		Thread->StopThread();
 		delete Thread;
+		Thread = nullptr;
 	}
 }
 
@@ -50,26 +63,25 @@ bool FODSCManager::Tick(float DeltaSeconds)
 			ProcessCookOnTheFlyShaders(false, CompletedRequest->GetMeshMaterialMaps(), CompletedRequest->GetMaterialsToLoad(), CompletedRequest->GetGlobalShaderMap());
 			delete CompletedRequest;
 		}
+		// keep ticking
+		return true;
 	}
-
-	// keep ticking
-	return true;
+	// stop ticking
+	return false;
 }
 
 void FODSCManager::AddThreadedRequest(const TArray<FString>& MaterialsToCompile, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType)
 {
-	if (IsRunningCookOnTheFly())
+	if (Thread)
 	{
-		check(Thread);
 		Thread->AddRequest(MaterialsToCompile, ShaderPlatform, RecompileCommandType);
 	}
 }
 
 void FODSCManager::AddThreadedShaderPipelineRequest(EShaderPlatform ShaderPlatform, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames)
 {
-	if (IsRunningCookOnTheFly())
+	if (Thread)
 	{
-		check(Thread);
 		Thread->AddShaderPipelineRequest(ShaderPlatform, MaterialName, VertexFactoryName, PipelineName, ShaderTypeNames);
 	}
 }

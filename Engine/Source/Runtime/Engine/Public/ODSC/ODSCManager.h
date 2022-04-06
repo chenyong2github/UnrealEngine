@@ -67,6 +67,9 @@ public:
 	void AddThreadedShaderPipelineRequest(EShaderPlatform ShaderPlatform, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames);
 private:
 
+	void OnEnginePreExit();
+	void StopThread();
+
 	/** Handles communicating directly with the cook on the fly server. */
 	FODSCThread* Thread = nullptr;
 };

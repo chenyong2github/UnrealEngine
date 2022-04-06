@@ -191,16 +191,13 @@ public:
 
 	virtual void Disconnect() override
 	{
-		if (IsConnected())
+		if (!bStopRequested.Exchange(true))
 		{
-			if (!bStopRequested.Exchange(true))
-			{
-				Socket->Close();
-				Thread->Join();
-				Thread.Reset();
-				Socket.Reset();
-				ClientId  = 0;
-			}
+			Socket->Close();
+			Thread->Join();
+			Thread.Reset();
+			Socket.Reset();
+			ClientId  = 0;
 		}
 	}
 
