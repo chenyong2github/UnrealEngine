@@ -72,6 +72,8 @@
 #include "Toolkits/AssetEditorModeUILayer.h"
 #include "SPrimaryButton.h"
 
+#include "Algo/RemoveIf.h"
+
 #define LOCTEXT_NAMESPACE "FFractureEditorModeToolkit"
 
 TArray<UClass*> FindFractureToolClasses()
@@ -1377,7 +1379,7 @@ void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCol
 		FGeometryCollectionEdit RestCollection = Component->EditRestCollection(GeometryCollection::EEditUpdate::None);
 		UGeometryCollection* FracturedGeometryCollection = RestCollection.GetRestCollection();
 
-		if (FracturedGeometryCollection && IsValidChecked(FracturedGeometryCollection)) // Prevents crash when GC is deleted from content browser and actor is selected.
+		if (IsValid(FracturedGeometryCollection)) // Prevents crash when GC is deleted from content browser and actor is selected.
 		{
 			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FracturedGeometryCollection->GetGeometryCollection();
 
@@ -1732,6 +1734,14 @@ void FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged(UGeometryCollect
 	const UGeometryCollection* RestCollection = RootComponent->GetRestCollection();
 	if (RestCollection && IsValidChecked(RestCollection))
 	{
+		int32 NumValidBones = Algo::RemoveIf(SelectedBones, [&RestCollection](const int32& Bone)
+			{
+				return Bone < 0 || Bone >= RestCollection->GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup);
+			});
+		if (!ensure(NumValidBones == SelectedBones.Num())) // Protect against invalid bones in selection, but ensure() as this indicates the UI is out of sync with the data
+		{
+			SelectedBones.SetNum(NumValidBones);
+		}
 		if (SelectedBones.Num())
 		{
 			// don't need to snap the bones to the current level because they are directly selected from the outliner

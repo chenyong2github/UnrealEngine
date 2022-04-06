@@ -595,20 +595,22 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 	{
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = RestCollection->GetGeometryCollection();
 		const TManagedArray<int32>& SimulationType = GeometryCollectionPtr->SimulationType;
-		switch (SimulationType[GetBoneIndex()])
+		if (ensure(GetBoneIndex() >= 0 && GetBoneIndex() < SimulationType.Num()))
 		{
+			switch (SimulationType[GetBoneIndex()])
+			{
 			case FGeometryCollection::ESimulationTypes::FST_None:
 				TextColor = FLinearColor::Green;
 				break;
 
 			case FGeometryCollection::ESimulationTypes::FST_Rigid:
 				if (GeometryCollectionPtr->IsVisible(GetBoneIndex()))
-				{ 
+				{
 					TextColor = FSlateColor::UseForeground();
 				}
 				else
 				{
-					TextColor = FLinearColor{0.1f, 0.1f, 0.1f, 1.f};
+					TextColor = FLinearColor{ 0.1f, 0.1f, 0.1f, 1.f };
 				}
 				break;
 
@@ -619,9 +621,16 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 			default:
 				ensureMsgf(false, TEXT("Invalid Geometry Collection simulation type encountered."));
 				break;
-		}
+			}
 
-		InitialDynamicState = GeometryCollectionPtr->InitialDynamicState[GetBoneIndex()];
+			InitialDynamicState = GeometryCollectionPtr->InitialDynamicState[GetBoneIndex()];
+		}
+		else
+		{
+			// UI contains invalid bone indices; likely not correctly updated after an undo or redo?
+			TextColor = FLinearColor(0.1f, 0.1f, 0.1f);
+			InitialDynamicState = INDEX_NONE;
+		}
 	}
 	else
 	{

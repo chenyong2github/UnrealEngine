@@ -120,8 +120,10 @@ bool UFractureEditorMode::MatchesContext(const FTransactionContext& InContext, c
 	{
 		return true;
 	}
-
-	return false;
+	
+	// TODO: Rigorously use transaction contexts for fracture-related transactions, so we can filter them here
+	// Once that's done, we can detect the fracture contexts above and change this last line back to a "return false;"
+	return true;
 }
 
 void UFractureEditorMode::PostUndo(bool bSuccess)
@@ -438,6 +440,7 @@ bool UFractureEditorMode::GetPivotForOrbit(FVector& OutPivot) const
 
 void UFractureEditorMode::OnUndoRedo()
 {
+	RefreshOutlinerWithCurrentSelection(); // always refresh the outliner in case the geometry collection bones have changed
 	for (UGeometryCollectionComponent* SelectedComp : SelectedGeometryComponents)
 	{
 		// We need to update the bone colors to account for undoing/redoing selection
