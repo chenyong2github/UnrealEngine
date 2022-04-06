@@ -87,6 +87,16 @@ struct FCpuProfilerTrace
 	 * Output end event marker for static or dynamic event for the currently open scope.
 	 */
 	CORE_API static void OutputEndEvent();
+	/*
+	* Output resume marker for a given spec. Must always be matched with an suspend event.
+	* @param SpecId unique Resume Event definition id.
+	* @param TimerScopeDepth updates the depth of the current OutputBeginEvent depth.
+	*/
+	CORE_API static void OutputResumeEvent(uint64 SpecId, uint32& TimerScopeDepth);
+	/*
+	* Output suspend event marker for the currently open resume event.
+	*/
+	CORE_API static void OutputSuspendEvent();
 
 	class FEventScope
 	{

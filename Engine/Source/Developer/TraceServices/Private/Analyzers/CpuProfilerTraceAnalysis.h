@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Trace/Analyzer.h"
+#include "Containers/Map.h"
 #include "Containers/UnrealString.h"
 #include "Model/TimingProfilerPrivate.h"
 
@@ -44,16 +45,21 @@ private:
 
 	void OnCpuScopeEnter(const FOnEventContext& Context);
 	void OnCpuScopeLeave(const FOnEventContext& Context);
-	uint32 DefineTimer(uint32 SpecId, const TCHAR* ScopeName, const TCHAR* File, uint32 Line, bool bMergeByName); // returns the TimerId
+	uint32 DefineTimer(uint32 SpecId, const TCHAR* TimerName, const TCHAR* File, uint32 Line, bool bMergeByName); // returns the TimerId
+	uint32 DefineNewTimerChecked(uint32 SpecId, const TCHAR* TimerName, const TCHAR* File = nullptr, uint32 Line = 0); // returns the TimerId
+	uint32 GetTimerId(uint32 SpecId);
 	FThreadState& GetThreadState(uint32 ThreadId);
 	uint64 ProcessBuffer(const FEventTime& EventTime, FThreadState& ThreadState, const uint8* BufferPtr, uint32 BufferSize);
+	uint64 ProcessBufferV2(const FEventTime& EventTime, FThreadState& ThreadState, const uint8* BufferPtr, uint32 BufferSize);
 
 	enum : uint16
 	{
 		RouteId_EventSpec,
 		RouteId_EventBatch,
+		RouteId_EventBatchV2,
 		RouteId_EndThread,
 		RouteId_EndCapture,
+		RouteId_EndCaptureV2,
 		RouteId_CpuScope,
 		RouteId_ChannelAnnounce,
 		RouteId_ChannelToggle,
@@ -65,6 +71,8 @@ private:
 	TMap<uint32, FThreadState*> ThreadStatesMap;
 	TMap<uint32, uint32> SpecIdToTimerIdMap;
 	TMap<const TCHAR*, uint32> ScopeNameToTimerIdMap;
+	uint32 CoroutineTimerId = ~0;
+	uint32 CoroutineUnknownTimerId = ~0;
 	uint64 TotalEventSize = 0;
 	uint64 TotalScopeCount = 0;
 	double BytesPerScope = 0.0;

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CpuProfilerTraceAnalysis.h"
 #include "AnalysisServicePrivate.h"
+#include "CborWriter.h"
+#include "Serialization/MemoryWriter.h"
 #include "Common/Utils.h"
 #include "Model/ThreadsPrivate.h"
 
@@ -33,6 +35,8 @@ void FCpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_EventBatch, "CpuProfiler", "EventBatch");
 	Builder.RouteEvent(RouteId_EndThread, "CpuProfiler", "EndThread");
 	Builder.RouteEvent(RouteId_EndCapture, "CpuProfiler", "EndCapture");
+	Builder.RouteEvent(RouteId_EventBatchV2, "CpuProfiler", "EventBatchV2");
+	Builder.RouteEvent(RouteId_EndCaptureV2, "CpuProfiler", "EndCaptureV2");
 }
 
 bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
@@ -113,6 +117,8 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 
 	case RouteId_EventBatch:
 	case RouteId_EndCapture:
+	case RouteId_EventBatchV2:
+	case RouteId_EndCaptureV2:
 	{
 		const uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
 		FThreadState& ThreadState = GetThreadState(ThreadId);
@@ -128,12 +134,21 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 		const uint32 BufferSize = DataView.Num();
 		const uint8* BufferPtr = DataView.GetData();
 
-		uint64 LastCycle = ProcessBuffer(Context.EventTime, ThreadState, BufferPtr, BufferSize);
-		if (LastCycle != 0)
+		uint64 LastCycle;
+		if (RouteId == RouteId_EventBatch || RouteId == RouteId_EndCapture)
+		{
+			LastCycle = ProcessBuffer(Context.EventTime, ThreadState, BufferPtr, BufferSize);
+		}
+		else
+		{
+			LastCycle = ProcessBufferV2(Context.EventTime, ThreadState, BufferPtr, BufferSize);
+		}
+
+		if (LastCycle)
 		{
 			double LastTimestamp = Context.EventTime.AsSeconds(LastCycle);
 			Session.UpdateDurationSeconds(LastTimestamp);
-			if (RouteId == RouteId_EndCapture)
+			if (RouteId == RouteId_EndCapture || RouteId == RouteId_EndCaptureV2)
 			{
 				for (int32 i = ThreadState.ScopeStack.Num(); i--;)
 				{
@@ -227,21 +242,7 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, FThreadS
 		if (DecodedCycle & 1ull)
 		{
 			uint32 SpecId = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
-			uint32* FindIt = SpecIdToTimerIdMap.Find(SpecId);
-			uint32 TimerId;
-			if (!FindIt)
-			{
-				// Adds a timer with an "unknown" name.
-				const TCHAR* TimerName = Session.StoreString(*FString::Printf(TEXT("<unknown %u>"), SpecId));
-				// The name might be updated when an EventSpec event is received (for this SpecId),
-				// so we do not want to merge by name all the unknown timers.
-				constexpr bool bMergeByName = false;
-				TimerId = DefineTimer(SpecId, TimerName, nullptr, 0, bMergeByName);
-			}
-			else
-			{
-				TimerId = *FindIt;
-			}
+			uint32 TimerId = GetTimerId(SpecId);
 
 			FEventScopeState& ScopeState = ThreadState.ScopeStack.AddDefaulted_GetRef();
 			ScopeState.StartCycle = ActualCycle;
@@ -262,6 +263,225 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, FThreadS
 				ThreadState.ScopeStack.Pop();
 				double ActualTime = EventTime.AsSeconds(ActualCycle);
 				ThreadState.Timeline->AppendEndEvent(ActualTime);
+			}
+		}
+
+		LastCycle = ActualCycle;
+	}
+	check(BufferPtr == BufferEnd);
+
+	// Dispatch remaining pending events.
+	for (; RemainingPending > 0; RemainingPending--, PendingCursor++)
+	{
+		uint64 PendingCycle = PendingCursor->Cycle;
+		if (int64(PendingCycle) < 0)
+		{
+			PendingCycle = ~PendingCycle;
+			double PendingTime = EventTime.AsSeconds(PendingCycle);
+			ThreadState.Timeline->AppendEndEvent(PendingTime);
+		}
+		else
+		{
+			FTimingProfilerEvent Event;
+			Event.TimerIndex = PendingCursor->TimerId;
+			double PendingTime = EventTime.AsSeconds(PendingCycle);
+			ThreadState.Timeline->AppendBeginEvent(PendingTime, Event);
+		}
+	}
+
+	ThreadState.PendingEvents.Reset();
+	ThreadState.LastCycle = LastCycle;
+	return LastCycle;
+}
+
+uint64 FCpuProfilerAnalyzer::ProcessBufferV2(const FEventTime& EventTime, FThreadState& ThreadState, const uint8* BufferPtr, uint32 BufferSize)
+{
+	uint64 LastCycle = ThreadState.LastCycle;
+
+	int32 RemainingPending = ThreadState.PendingEvents.Num();
+	const FPendingEvent* PendingCursor = ThreadState.PendingEvents.GetData();
+
+	const uint8* BufferEnd = BufferPtr + BufferSize;
+	while (BufferPtr < BufferEnd)
+	{
+		uint64 DecodedCycle = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+		uint64 ActualCycle = (DecodedCycle >> 2);
+
+		// ActualCycle larger or equal to LastCycle means we have a new
+		// base value.
+		if (ActualCycle < LastCycle)
+		{
+			ActualCycle += LastCycle;
+		}
+
+		// If we late connect we will be joining the cycle stream mid-flow and
+		// will have missed out on it's base timestamp. Reconstruct it here.
+		check(EventTime.GetTimestamp() == 0);
+		uint64 BaseCycle = EventTime.AsCycle64();
+		if (ActualCycle < BaseCycle)
+		{
+			ActualCycle += BaseCycle;
+		}
+
+		// Dispatch pending events that are younger than the one we've just decoded
+		for (; RemainingPending > 0; RemainingPending--, PendingCursor++)
+		{
+			bool bEnter = true;
+			uint64 PendingCycle = PendingCursor->Cycle;
+			if (int64(PendingCycle) < 0)
+			{
+				PendingCycle = ~PendingCycle;
+				bEnter = false;
+			}
+
+			if (PendingCycle > ActualCycle)
+			{
+				break;
+			}
+
+			if (PendingCycle < LastCycle)
+			{
+				PendingCycle = LastCycle;
+			}
+
+			double PendingTime = EventTime.AsSeconds(PendingCycle);
+			if (bEnter)
+			{
+				FTimingProfilerEvent Event;
+				Event.TimerIndex = PendingCursor->TimerId;
+				ThreadState.Timeline->AppendBeginEvent(PendingTime, Event);
+			}
+			else
+			{
+				ThreadState.Timeline->AppendEndEvent(PendingTime);
+			}
+		}
+
+		const double ActualTime = EventTime.AsSeconds(ActualCycle);
+
+		if (DecodedCycle & 2ull)
+		{
+			constexpr uint32 CoroutineSpecId        = (1u << 31u) - 1u;
+			constexpr uint32 CoroutineUnknownSpecId = (1u << 31u) - 2u;
+
+			if (DecodedCycle & 1ull)
+			{
+				uint64 CoroutineId = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+				uint32 TimerScopeDepth = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+
+				// Begins a "CoroTask" scoped timer.
+				{
+					if (CoroutineTimerId == ~0)
+					{
+						CoroutineTimerId = DefineNewTimerChecked(CoroutineSpecId, TEXT("Coroutine"));
+					}
+
+					TArray<uint8> CborData;
+					{
+						CborData.Reserve(256);
+						FMemoryWriter MemoryWriter(CborData, false, true);
+						FCborWriter CborWriter(&MemoryWriter, ECborEndianness::StandardCompliant);
+						CborWriter.WriteContainerStart(ECborCode::Map, 2); // 2 is the FieldCount
+						CborWriter.WriteValue("Id", 2);
+						CborWriter.WriteValue(CoroutineId);
+						CborWriter.WriteValue("C", 1); // continuation?
+						CborWriter.WriteValue(false);
+					}
+					uint32 MetadataTimerId = TimingProfilerProvider.AddMetadata(CoroutineTimerId, MoveTemp(CborData));
+
+					FEventScopeState& ScopeState = ThreadState.ScopeStack.AddDefaulted_GetRef();
+					ScopeState.StartCycle = ActualCycle;
+					ScopeState.EventTypeId = MetadataTimerId;
+
+					FTimingProfilerEvent Event;
+					Event.TimerIndex = MetadataTimerId;
+					ThreadState.Timeline->AppendBeginEvent(ActualTime, Event);
+				}
+
+				// Begins the cpu scoped timers (suspended in previous coroutine execution).
+				{
+					if (CoroutineUnknownTimerId == ~0)
+					{
+						CoroutineUnknownTimerId = DefineNewTimerChecked(CoroutineUnknownSpecId, TEXT("<unknown>"));
+					}
+
+					for (uint32 i = 0; i < TimerScopeDepth; ++i)
+					{
+						FEventScopeState& ScopeState = ThreadState.ScopeStack.AddDefaulted_GetRef();
+						ScopeState.StartCycle = ActualCycle;
+						ScopeState.EventTypeId = CoroutineUnknownTimerId;
+
+						FTimingProfilerEvent Event;
+						Event.TimerIndex = CoroutineUnknownTimerId;
+						ThreadState.Timeline->AppendBeginEvent(ActualTime, Event);
+					}
+				}
+			}
+			else
+			{
+				uint32 TimerScopeDepth = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+
+				if (TimerScopeDepth != 0)
+				{
+					// Ends (suspends) the cpu scoped timers.
+					for (uint32 i = 0; i < TimerScopeDepth; ++i)
+					{
+						// If we receive mismatched end events ignore them for now.
+						// This can happen for example because tracing connects to the store after events were traced. Those events can be lost.
+						if (ThreadState.ScopeStack.Num() > 0)
+						{
+							ThreadState.ScopeStack.Pop();
+							ThreadState.Timeline->AppendEndEvent(ActualTime);
+						}
+					}
+
+					// Update the "continuation" (suspended or destroyed) metadata flag.
+					if (ThreadState.ScopeStack.Num() > 0)
+					{
+						uint32 MetadataTimerId = ThreadState.ScopeStack.Top().EventTypeId;
+						TArrayView<const uint8> Metadata = TimingProfilerProvider.GetMetadata(MetadataTimerId);
+						// Change the last byte in metadata to "true".
+						const_cast<uint8*>(Metadata.GetData())[Metadata.Num() - 1] = (uint8)(ECborCode::Prim | ECborCode::True);
+					}
+				}
+
+				// Ends the "CoroTask" scoped timer.
+				{
+					// If we receive mismatched end events ignore them for now.
+					// This can happen for example because tracing connects to the store after events were traced. Those events can be lost.
+					if (ThreadState.ScopeStack.Num() > 0)
+					{
+						ThreadState.ScopeStack.Pop();
+						ThreadState.Timeline->AppendEndEvent(ActualTime);
+					}
+				}
+			}
+		}
+		else
+		{
+			if (DecodedCycle & 1ull)
+			{
+				uint32 SpecId = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+				uint32 TimerId = GetTimerId(SpecId);
+
+				FEventScopeState& ScopeState = ThreadState.ScopeStack.AddDefaulted_GetRef();
+				ScopeState.StartCycle = ActualCycle;
+				ScopeState.EventTypeId = TimerId;
+
+				FTimingProfilerEvent Event;
+				Event.TimerIndex = TimerId;
+				ThreadState.Timeline->AppendBeginEvent(ActualTime, Event);
+				++TotalScopeCount;
+			}
+			else
+			{
+				// If we receive mismatched end events ignore them for now.
+				// This can happen for example because tracing connects to the store after events were traced. Those events can be lost.
+				if (ThreadState.ScopeStack.Num() > 0)
+				{
+					ThreadState.ScopeStack.Pop();
+					ThreadState.Timeline->AppendEndEvent(ActualTime);
+				}
 			}
 		}
 
@@ -402,6 +622,29 @@ uint32 FCpuProfilerAnalyzer::DefineTimer(uint32 SpecId, const TCHAR* Name, const
 			}
 			return NewTimerId;
 		}
+	}
+}
+
+uint32 FCpuProfilerAnalyzer::DefineNewTimerChecked(uint32 SpecId, const TCHAR* TimerName, const TCHAR* File, uint32 Line)
+{
+	TimerName = Session.StoreString(TimerName);
+	uint32 NewTimerId = TimingProfilerProvider.AddCpuTimer(TimerName, File, Line);
+	SpecIdToTimerIdMap.Add(SpecId, NewTimerId);
+	return NewTimerId;
+}
+
+uint32 FCpuProfilerAnalyzer::GetTimerId(uint32 SpecId)
+{
+	if (uint32* FindIt = SpecIdToTimerIdMap.Find(SpecId))
+	{
+		return *FindIt;
+	}
+	else
+	{
+		// Adds a timer with an "unknown" name.
+		// The "unknown" timers are not merged by name, becasue the actual name
+		// might be updated when an EventSpec event is received (for this SpecId).
+		return DefineNewTimerChecked(SpecId, *FString::Printf(TEXT("<unknown %u>"), SpecId));
 	}
 }
 

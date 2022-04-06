@@ -8,6 +8,7 @@ public class TraceServices : ModuleRules
 	{
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
+				"Cbor",
 				"Core",
 				"TraceAnalysis",
 				"SymsLib"

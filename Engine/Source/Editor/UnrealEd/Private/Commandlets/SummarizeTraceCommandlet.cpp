@@ -91,6 +91,9 @@ public:
 
 	/** Invoked when the trace stream has been fully consumed/processed. */
 	virtual void OnCpuScopeAnalysisEnd() {};
+
+	static constexpr uint32 CoroutineSpecId        = (1u << 31u) - 1u;
+	static constexpr uint32 CoroutineUnknownSpecId = (1u << 31u) - 2u;
 };
 
 /**
@@ -154,6 +157,7 @@ private:
 	// Internal implementation.
 	void OnEventSpec(const FOnEventContext& Context);
 	void OnBatch(const FOnEventContext& Context);
+	void OnBatchV2(const FOnEventContext& Context);
 	void OnCpuScopeSpec(uint32 ScopeId, const FString* ScopeName);
 	void OnCpuScopeEnter(uint32 ScopeId, uint32 ThreadId, double Timestamp);
 	void OnCpuScopeExit(uint32 ThreadId, double Timestamp);
@@ -172,6 +176,8 @@ private:
 
 	// Scope name lookup function, cached for efficiency.
 	TFunction<const FString*(uint32 ScopeId)> LookupScopeNameFn;
+
+
 };
 
 enum
@@ -180,6 +186,8 @@ enum
 	RouteId_CpuProfiler_EventSpec,
 	RouteId_CpuProfiler_EventBatch,
 	RouteId_CpuProfiler_EndCapture,
+	RouteId_CpuProfiler_EventBatchV2,
+	RouteId_CpuProfiler_EndCaptureV2
 };
 
 FCpuScopeStreamProcessor::FCpuScopeStreamProcessor()
@@ -197,6 +205,8 @@ void FCpuScopeStreamProcessor::OnAnalysisBegin(const FOnAnalysisContext& Context
 	Context.InterfaceBuilder.RouteEvent(RouteId_CpuProfiler_EventSpec, "CpuProfiler", "EventSpec");
 	Context.InterfaceBuilder.RouteEvent(RouteId_CpuProfiler_EventBatch, "CpuProfiler", "EventBatch");
 	Context.InterfaceBuilder.RouteEvent(RouteId_CpuProfiler_EndCapture, "CpuProfiler", "EndCapture");
+	Context.InterfaceBuilder.RouteEvent(RouteId_CpuProfiler_EventBatchV2, "CpuProfiler", "EventBatchV2");
+	Context.InterfaceBuilder.RouteEvent(RouteId_CpuProfiler_EndCaptureV2, "CpuProfiler", "EndCaptureV2");
 }
 
 void FCpuScopeStreamProcessor::OnAnalysisEnd()
@@ -232,6 +242,10 @@ bool FCpuScopeStreamProcessor::OnEvent(uint16 RouteId, EStyle Style, const FOnEv
 	case RouteId_CpuProfiler_EventBatch:
 	case RouteId_CpuProfiler_EndCapture:
 		OnBatch(Context);
+		break;
+	case RouteId_CpuProfiler_EventBatchV2:
+	case RouteId_CpuProfiler_EndCaptureV2:
+		OnBatchV2(Context);
 		break;
 	};
 
@@ -273,6 +287,61 @@ void FCpuScopeStreamProcessor::OnBatch(const FOnEventContext& Context)
 		else
 		{
 			OnCpuScopeExit(ThreadId, TimeStamp);
+		}
+	}
+}
+
+void FCpuScopeStreamProcessor::OnBatchV2(const FOnEventContext& Context)
+{
+	const FEventData& EventData = Context.EventData;
+	const FEventTime& EventTime = Context.EventTime;
+
+	uint32 ThreadId = Context.ThreadInfo.GetId();
+
+	TArrayView<const uint8> DataView = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentArray("Data", Context);
+	const uint8* Cursor = DataView.GetData();
+	const uint8* End = Cursor + DataView.Num();
+	uint64 LastCycle = 0;
+	while (Cursor < End)
+	{
+		uint64 Value = Decode7bit(Cursor);
+		uint64 Cycle = LastCycle + (Value >> 2);
+		LastCycle = Cycle;
+		double TimeStamp = EventTime.AsSeconds(Cycle);
+
+		if (Value & 2ull)
+		{		
+			if (Value & 1ull)			
+			{
+				uint64 CoroutineId = Decode7bit(Cursor);
+				uint32 TimerScopeDepth = Decode7bit(Cursor);
+				OnCpuScopeEnter(FCpuScopeAnalyzer::CoroutineSpecId, ThreadId, TimeStamp);
+				for (uint32 i = 0; i < TimerScopeDepth; ++i)
+				{
+					OnCpuScopeEnter(FCpuScopeAnalyzer::CoroutineUnknownSpecId, ThreadId, TimeStamp);
+				}
+			}
+			else
+			{			
+				uint32 TimerScopeDepth = Decode7bit(Cursor);
+				for (uint32 i = 0; i < TimerScopeDepth; ++i)
+				{
+					OnCpuScopeExit(ThreadId, TimeStamp);
+				}
+				OnCpuScopeExit(ThreadId, TimeStamp);
+			}
+		}
+		else
+		{
+			if (Value & 1)
+			{
+				uint64 ScopeId = Decode7bit(Cursor);
+				OnCpuScopeEnter(static_cast<uint32>(ScopeId - 1), ThreadId, TimeStamp);
+			}
+			else
+			{
+				OnCpuScopeExit(ThreadId, TimeStamp);
+			}
 		}
 	}
 }
@@ -828,10 +897,7 @@ protected:
 	virtual void OnCpuScopeAnalysisEnd() override;
 
 private:
-	// Scopes is an array only because indexes are doled out on the process-side
-	// As such, there could be different scopes with the same name
-	// We merge these together later to ensure name is a pkey in the csv
-	TArray<FSummarizeScope> Scopes;
+	TMap<uint32, FSummarizeScope> Scopes;
 
 	// Function invoked to publish the list of scopes.
 	TFunction<void(const TArray<FSummarizeScope>&)> PublishFn;
@@ -840,14 +906,17 @@ private:
 FSummarizeCpuAnalyzer::FSummarizeCpuAnalyzer(TFunction<void(const TArray<FSummarizeScope>&)> InPublishFn)
 	: PublishFn(MoveTemp(InPublishFn))
 {
+	OnCpuScopeDiscovered(FCpuScopeAnalyzer::CoroutineSpecId);
+	OnCpuScopeDiscovered(FCpuScopeAnalyzer::CoroutineUnknownSpecId);
+	OnCpuScopeName(FCpuScopeAnalyzer::CoroutineSpecId, TEXT("Coroutine"));
+	OnCpuScopeName(FCpuScopeAnalyzer::CoroutineUnknownSpecId, TEXT("<unknown>"));
 }
 
 void FSummarizeCpuAnalyzer::OnCpuScopeDiscovered(uint32 ScopeId)
 {
-	if (ScopeId >= uint32(Scopes.Num()))
+	if (!Scopes.Find(ScopeId))
 	{
-		uint32 Num = (ScopeId + 128) & ~127;
-		Scopes.SetNum(Num);
+		Scopes.Add(ScopeId, FSummarizeScope());		
 	}
 }
 
@@ -863,11 +932,18 @@ void FSummarizeCpuAnalyzer::OnCpuScopeExit(const FScope& Scope, const FString* S
 
 void FSummarizeCpuAnalyzer::OnCpuScopeAnalysisEnd()
 {
+	TArray<FSummarizeScope> LocalScopes;
 	// Eliminates scopes that don't have a name. (On scope discovery, the array is expended to creates blank scopes that may never be filled).
-	Scopes.RemoveAll([](const FSummarizeScope& Scope) { return Scope.Name.IsEmpty(); });
-
+	for (TMap<uint32, FSummarizeScope>::TIterator Iter = Scopes.CreateIterator(); Iter; ++Iter)
+	{
+		if(!Iter.Value().Name.IsEmpty())
+		{
+			LocalScopes.Add(Iter.Value());
+		}
+	}
+	
 	// Publish the scopes.
-	PublishFn(Scopes);
+	PublishFn(LocalScopes);
 }
 
 
