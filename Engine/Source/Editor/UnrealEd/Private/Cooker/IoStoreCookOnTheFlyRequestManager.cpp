@@ -27,7 +27,6 @@
 class FIoStoreCookOnTheFlyNetworkServer
 {
 	static constexpr uint32 ServerSenderId = ~uint32(0);
-	static constexpr double HeartbeatTimeoutInSeconds = 60 * 5;
 
 public:
 	/**
@@ -750,8 +749,6 @@ private:
 private:
 	bool HandleClientConnection(const FName& PlatformName, bool bIsSingleThreaded, FIoStoreCookOnTheFlyNetworkServer::EConnectionStatus ConnectionStatus)
 	{
-		FScopeLock _(&ContextsCriticalSection);
-
 		if (PlatformName.IsNone())
 		{
 			return true;
@@ -760,36 +757,39 @@ private:
 		if (ConnectionStatus == FIoStoreCookOnTheFlyNetworkServer::EConnectionStatus::Connected)
 		{
 			const ITargetPlatform* TargetPlatform = CookOnTheFlyServer.AddPlatform(PlatformName);
-			if (TargetPlatform)
+			if (!TargetPlatform)
 			{
-				if (!PlatformContexts.Contains(PlatformName))
-				{
-					IPackageStoreWriter* PackageWriter = CookOnTheFlyServer.GetPackageWriter(TargetPlatform).AsPackageStoreWriter();
-					check(PackageWriter); // This class should not be used except when COTFS is using an IPackageStoreWriter
-					TUniquePtr<FPlatformContext>& Context = PlatformContexts.Add(PlatformName, MakeUnique<FPlatformContext>(PlatformName, PackageWriter));
-					
-					PackageWriter->GetEntries([&Context](TArrayView<const FPackageStoreEntryResource> Entries,
-						TArrayView<const IPackageStoreWriter::FOplogCookInfo> CookInfos)
-					{
-						Context->AddExistingPackages(Entries, CookInfos);
-					});
-
-					PackageWriter->OnEntryCreated().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageStoreEntryCreated);
-					PackageWriter->OnCommit().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageCooked);
-					PackageWriter->OnMarkUpToDate().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackagesMarkedUpToDate);
-				}
-
-				if (bIsSingleThreaded)
-				{
-					FPlatformContext& Context = GetContext(PlatformName);
-					FScopeLock __(&Context.GetLock());
-					Context.AddSingleThreadedClient();
-				}
-
-				return true;
+				return false;
 			}
 
-			return false;
+			IPackageStoreWriter* PackageWriter = CookOnTheFlyServer.GetPackageWriter(TargetPlatform).AsPackageStoreWriter();
+			check(PackageWriter); // This class should not be used except when COTFS is using an IPackageStoreWriter
+
+			FScopeLock _(&ContextsCriticalSection);
+
+			if (!PlatformContexts.Contains(PlatformName))
+			{
+				TUniquePtr<FPlatformContext>& Context = PlatformContexts.Add(PlatformName, MakeUnique<FPlatformContext>(PlatformName, PackageWriter));
+					
+				PackageWriter->GetEntries([&Context](TArrayView<const FPackageStoreEntryResource> Entries,
+					TArrayView<const IPackageStoreWriter::FOplogCookInfo> CookInfos)
+				{
+					Context->AddExistingPackages(Entries, CookInfos);
+				});
+
+				PackageWriter->OnEntryCreated().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageStoreEntryCreated);
+				PackageWriter->OnCommit().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageCooked);
+				PackageWriter->OnMarkUpToDate().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackagesMarkedUpToDate);
+			}
+
+			if (bIsSingleThreaded)
+			{
+				FPlatformContext& Context = GetContext(PlatformName);
+				FScopeLock __(&Context.GetLock());
+				Context.AddSingleThreadedClient();
+			}
+
+			return true;
 		}
 		else
 		{
