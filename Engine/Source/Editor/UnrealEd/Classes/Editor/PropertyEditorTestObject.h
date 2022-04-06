@@ -301,6 +301,9 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category=BasicProperties)
 	FTransform TransformProperty;
 
+	UPROPERTY(EditAnywhere, Category=Units, meta=(ForceUnits="GB"))
+	double GigabyteProperty;
+
 	UPROPERTY(EditAnywhere, Category=Classes)
 	TObjectPtr<UClass> ClassProperty;
 
