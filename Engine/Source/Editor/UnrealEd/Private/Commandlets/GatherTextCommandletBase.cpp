@@ -32,6 +32,7 @@ const TCHAR* UGatherTextCommandletBase::GatherTypeParam = TEXT("GatherType");
 UGatherTextCommandletBase::UGatherTextCommandletBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	ShowErrorCount = false;
 }
 
 void UGatherTextCommandletBase::Initialize( const TSharedRef< FLocTextHelper >& InGatherManifestHelper, const TSharedPtr< FLocalizationSCC >& InSourceControlInfo )
