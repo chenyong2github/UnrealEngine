@@ -143,7 +143,7 @@ public:
 	 *	This is called from the rendering thread (PreRender) so be very careful what you read/write to.
 	 * @param FrameNumber from ViewFamily.FrameNumber
 	 */
-	void UpdateMinDesiredLODLevel(const FSceneView* View, const FBoxSphereBounds& Bounds, int32 FrameNumber, uint8 CurFirstLODIdx);
+	int32 UpdateMinDesiredLODLevel(const FSceneView* View, const FBoxSphereBounds& Bounds, int32 FrameNumber, uint8 CurFirstLODIdx);
 
 	/**
 	 *	Return true if this does have valid dynamic data to render
@@ -237,6 +237,8 @@ public:
 
 	/** This frames max distance factor. This is copied (flipped) to MaxDistanceFactor at the beginning of the next frame. */
 	float WorkingMaxDistanceFactor;
+
+	TArray<int32> SkeletalRenderLODLevelsInOneFrame;
 
 	/** This is set to true when we have sent our Mesh data to the rendering thread at least once as it needs to have have a datastructure created there for each MeshObject **/
 	bool bHasBeenUpdatedAtLeastOnce;

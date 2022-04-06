@@ -65,13 +65,15 @@ FSkeletalMeshObject::FSkeletalMeshObject(USkinnedMeshComponent* InMeshComponent,
 	WorkingMaxDistanceFactor = MaxDistanceFactor;
 
 	InitLODInfos(InMeshComponent);
+
+	SkeletalRenderLODLevelsInOneFrame.Empty();
 }
 
 FSkeletalMeshObject::~FSkeletalMeshObject()
 {
 }
 
-void FSkeletalMeshObject::UpdateMinDesiredLODLevel(const FSceneView* View, const FBoxSphereBounds& Bounds, int32 FrameNumber, uint8 CurFirstLODIdx)
+int32 FSkeletalMeshObject::UpdateMinDesiredLODLevel(const FSceneView* View, const FBoxSphereBounds& Bounds, int32 FrameNumber, uint8 CurFirstLODIdx)
 {
 	static const auto* SkeletalMeshLODRadiusScale = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.SkeletalMeshLODRadiusScale"));
 	float LODScale = FMath::Clamp(SkeletalMeshLODRadiusScale->GetValueOnRenderThread(), 0.25f, 1.0f);
@@ -93,7 +95,7 @@ void FSkeletalMeshObject::UpdateMinDesiredLODLevel(const FSceneView* View, const
 		for(int32 LODLevel = SkeletalMeshRenderData->LODRenderData.Num()-1; LODLevel > 0; LODLevel--)
 		{
 			// Get ScreenSize for this LOD
-			float ScreenSize = SkeletalMeshLODInfo[LODLevel].ScreenSize.Default;
+			float ScreenSize = SkeletalMeshLODInfo[LODLevel].ScreenSize.Default * View->LODDistanceFactor;
 
 			// If we are considering shifting to a better (lower) LOD, bias with hysteresis.
 			if(LODLevel  <= CurrentLODLevel)
@@ -128,12 +130,18 @@ void FSkeletalMeshObject::UpdateMinDesiredLODLevel(const FSceneView* View, const
 
 		WorkingMaxDistanceFactor = ScreenRadiusSquared;
 		WorkingMinDesiredLODLevel = NewLODLevel;
+
+		SkeletalRenderLODLevelsInOneFrame.Empty();
 	}
 	else
 	{
 		WorkingMaxDistanceFactor = FMath::Max(WorkingMaxDistanceFactor, ScreenRadiusSquared);
 		WorkingMinDesiredLODLevel = FMath::Min(WorkingMinDesiredLODLevel, NewLODLevel);
 	}
+
+	SkeletalRenderLODLevelsInOneFrame.Add(NewLODLevel);
+
+	return NewLODLevel;
 }
 
 /**
