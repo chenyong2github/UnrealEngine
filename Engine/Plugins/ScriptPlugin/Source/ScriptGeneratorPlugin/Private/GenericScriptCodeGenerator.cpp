@@ -54,13 +54,10 @@ FString FGenericScriptCodeGenerator::ExportFunction(const FString& ClassNameCPP,
 	FProperty* ReturnValue = NULL;
 	UClass* FuncSuper = NULL;
 	
-	if (Function->GetOwnerClass() != Class)
+	// Find the base class where this function was defined
+	if (Function->GetOwnerClass() != Class && CanExportClass(Function->GetOwnerClass()))
 	{
-		// Find the base definition of the function
-		if (ExportedClasses.Contains(Function->GetOwnerClass()->GetFName()))
-		{
-			FuncSuper = Function->GetOwnerClass();
-		}
+		FuncSuper = Function->GetOwnerClass();
 	}
 
 	FString FunctionBody;
@@ -98,13 +95,10 @@ FString FGenericScriptCodeGenerator::ExportProperty(const FString& ClassNameCPP,
 	FProperty* ReturnValue = NULL;
 	UClass* PropertySuper = NULL;
 
-	if (Property->GetOwnerClass() != Class)
+	// Find the base class where this property was defined
+	if (Property->GetOwnerClass() != Class && CanExportClass(Property->GetOwnerClass()))
 	{
-		// Find the base class where this property was defined
-		if (ExportedClasses.Contains(Property->GetOwnerClass()->GetFName()))
-		{
-			PropertySuper = Property->GetOwnerClass();
-		}
+		PropertySuper = Property->GetOwnerClass();
 	}
 
 	// Getter	
@@ -216,7 +210,7 @@ bool FGenericScriptCodeGenerator::CanExportClass(UClass* Class)
 
 void FGenericScriptCodeGenerator::ExportClass(UClass* Class, const FString& SourceHeaderFilename, const FString& GeneratedHeaderFilename, bool bHasChanged)
 {
-	if (!CanExportClass(Class))
+	if (!CanExportClass(Class) || ExportedClasses.Contains(Class->GetFName()))
 	{
 		return;
 	}
@@ -271,7 +265,15 @@ void FGenericScriptCodeGenerator::GlueAllGeneratedFiles()
 	FString LibGlue;
 
 	// Include all source header files
+	TArray<FString> Headers;
+	Headers.Reserve(AllSourceClassHeaders.Num());
 	for (auto& HeaderFilename : AllSourceClassHeaders)
+	{
+		Headers.Add(HeaderFilename);
+	}
+
+	Headers.Sort();
+	for (auto& HeaderFilename : Headers)
 	{
 		// Re-base to make sure we're including the right files on a remote machine
 		FString NewFilename(RebaseToBuildPath(HeaderFilename));
@@ -279,6 +281,7 @@ void FGenericScriptCodeGenerator::GlueAllGeneratedFiles()
 	}
 
 	// Include all script glue headers
+	AllScriptHeaders.Sort();
 	for (auto& HeaderFilename : AllScriptHeaders)
 	{
 		// Re-base to make sure we're including the right files on a remote machine

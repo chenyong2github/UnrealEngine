@@ -78,7 +78,9 @@ FString FScriptCodeGeneratorBase::GetPropertyTypeCPP(FProperty* Property, uint32
 	static const FString TEnumAsByteDecl(TEXT("TEnumAsByte<enum "));
 	static const FString TSubclassOfDecl(TEXT("TSubclassOf<class "));
 
-	FString PropertyType = Property->GetCPPType(NULL, PortFlags);
+	FString ExtendedType;
+	FString PropertyType = Property->GetCPPType(&ExtendedType, PortFlags);
+	PropertyType += ExtendedType;
 	// Strip any forward declaration keywords
 	if (PropertyType.StartsWith(EnumDecl, ESearchCase::CaseSensitive) || PropertyType.StartsWith(StructDecl, ESearchCase::CaseSensitive) || PropertyType.StartsWith(ClassDecl, ESearchCase::CaseSensitive))
 	{
@@ -102,7 +104,7 @@ FString FScriptCodeGeneratorBase::GenerateFunctionDispatch(UFunction* Function)
 {
 	FString Params;
 	
-	const bool bHasParamsOrReturnValue = (Function->Children != NULL);
+	const bool bHasParamsOrReturnValue = (Function->ChildProperties != NULL);
 	if (bHasParamsOrReturnValue)
 	{
 		Params += TEXT("\tstruct FDispatchParams\r\n\t{\r\n");
@@ -153,8 +155,7 @@ FString FScriptCodeGeneratorBase::GetScriptHeaderForClass(UClass* Class)
 
 bool FScriptCodeGeneratorBase::CanExportClass(UClass* Class)
 {
-	bool bCanExport = (Class->ClassFlags & (CLASS_RequiredAPI | CLASS_MinimalAPI)) && // Don't export classes that don't export DLL symbols
-		!ExportedClasses.Contains(Class->GetFName()); // Don't export classes that have already been exported
+	bool bCanExport = (Class->ClassFlags & (CLASS_RequiredAPI | CLASS_MinimalAPI)) != 0; // Don't export classes that don't export DLL symbols
 
 	return bCanExport;
 }

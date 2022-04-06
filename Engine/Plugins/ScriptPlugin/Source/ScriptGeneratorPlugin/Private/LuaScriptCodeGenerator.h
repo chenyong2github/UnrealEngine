@@ -20,7 +20,7 @@ protected:
 	/** All generated script header filenames */
 	TArray<FString> AllScriptHeaders;
 	/** Source header filenames for all exported classes */
-	TArray<FString> AllSourceClassHeaders;
+	TSet<FString> AllSourceClassHeaders;
 	/** All exported classes */
 	TArray<UClass*> LuaExportedClasses;
 	/** Functions exported for a class */
