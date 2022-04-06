@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Common.ush"
+#include "Landscape/LandscapeCommon.ush"
 
 Texture2D ReadTexture1;
 Texture2D ReadTexture2;							// This one is optional, it's valid when OutputConfig.z == 1
@@ -14,14 +15,9 @@ float CurrentMipComponentVertexCount;
 float2 CurrentMipTextureSize;
 float2 ParentMipTextureSize;
 
-float ExtractHeight(float2 InPackedHeight)
-{
-	return float(((int)round(InPackedHeight.r * 255.0) << 8) | (int)round(InPackedHeight.g * 255.0));
-}
-
 float ExtractAndScaleHeight(float2 InPackedHeight)
 {
-	float Height = ExtractHeight(InPackedHeight) - 32768.0;
+	float Height = UnpackHeight(InPackedHeight) - 32768.0;
 	return Height * LandscapeGridScale.z * TERRAIN_ZSCALE;
 }
 
@@ -32,18 +28,11 @@ float ExtractAlpha(float2 InPackedAlpha)
 	return float(Alpha) / 65532.0; // 0xFFFC in float
 }
 
-float2 PackHeight(float InExtractedHeight)
-{
-	InExtractedHeight = clamp(InExtractedHeight, 0.0f, 65535.0f);
-	int iHeight = (int)InExtractedHeight;
-	return float2((float)((iHeight - (iHeight & 255)) >> 8) / 255.0, (float)(iHeight & 255) / 255.0);
-}
-
 void PSHeightmapMain(float2 InTextureCoordinates : TEXCOORD0, out float4 OutColor : SV_Target0)
 {
 	float LayerVisibility = LayerInfo.y;
 	float4 SourceColor = ReadTexture1.Sample(ReadTexture1Sampler, InTextureCoordinates);
-	float Height = ExtractHeight(SourceColor.rg);
+	float Height = UnpackHeight(SourceColor.rg);
 	
 	// Perform calculation 0 based
 	Height -= 32768.0f;
@@ -59,7 +48,7 @@ void PSHeightmapMain(float2 InTextureCoordinates : TEXCOORD0, out float4 OutColo
 	if (OutputConfig.z == 1.0)
 	{
 		float2 BaseColor = ReadTexture2.Sample(ReadTexture2Sampler, InTextureCoordinates).rg;
-		float BaseHeight = ExtractHeight(BaseColor.rg);
+		float BaseHeight = UnpackHeight(BaseColor.rg);
 		BaseHeight -= 32768.0;
 
 		float LayerBlendMode = LayerInfo.z;
@@ -219,8 +208,8 @@ void PSHeightmapMainMips(float2 InTextureCoordinates : TEXCOORD0, out float4 Out
 	{
 		float4 SourceSample = ReadTexture1.SampleLevel(ReadTexture1Sampler, SourceUV, 0);
 		float4 DownSample = ReadTexture1.SampleLevel(ReadTexture1Sampler, SourceUV + float2(0.0, ParentMipTexelSize.y), 0);
-		float SourceHeight = ExtractHeight(SourceSample.rg);
-		float DownHeight = ExtractHeight(DownSample.rg);
+		float SourceHeight = UnpackHeight(SourceSample.rg);
+		float DownHeight = UnpackHeight(DownSample.rg);
 
 		if (IsMinBorderTexelY) // on top border
 		{
@@ -243,8 +232,8 @@ void PSHeightmapMainMips(float2 InTextureCoordinates : TEXCOORD0, out float4 Out
 	{
 		float4 RightSample = ReadTexture1.SampleLevel(ReadTexture1Sampler, SourceUV + float2(ParentMipTexelSize.x, 0.0), 0);
 		float4 DownRightSample = ReadTexture1.SampleLevel(ReadTexture1Sampler, SourceUV + ParentMipTexelSize, 0);
-		float RightHeight = ExtractHeight(RightSample.rg);
-		float DownRightHeight = ExtractHeight(DownRightSample.rg);
+		float RightHeight = UnpackHeight(RightSample.rg);
+		float DownRightHeight = UnpackHeight(DownRightSample.rg);
 
 		if (IsMinBorderTexelY) // on top border
 		{
@@ -270,10 +259,10 @@ void PSHeightmapMainMips(float2 InTextureCoordinates : TEXCOORD0, out float4 Out
 		float4 RightSample = ReadTexture1.SampleLevel(ReadTexture1Sampler, SourceUV + float2(ParentMipTexelSize.x, 0.0), 0);
 		float4 DownRightSample = ReadTexture1.SampleLevel(ReadTexture1Sampler, SourceUV + ParentMipTexelSize, 0);
 
-		float SourceHeight = ExtractHeight(SourceSample.rg);
-		float DownHeight = ExtractHeight(DownSample.rg);
-		float RightHeight = ExtractHeight(RightSample.rg);
-		float DownRightHeight = ExtractHeight(DownRightSample.rg);
+		float SourceHeight = UnpackHeight(SourceSample.rg);
+		float DownHeight = UnpackHeight(DownSample.rg);
+		float RightHeight = UnpackHeight(RightSample.rg);
+		float DownRightHeight = UnpackHeight(DownRightSample.rg);
 
 		if (IsMinBorderTexelY) // on top border
 		{

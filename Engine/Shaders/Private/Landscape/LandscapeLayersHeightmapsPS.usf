@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+#include "LandscapeCommon.ush"
 
 // ----------------------------------------------------------------------------------
 
@@ -75,18 +76,6 @@ Texture2D<float4> InSourceHeightmap;
 
 // ----------------------------------------------------------------------------------
 // Util functions : 
-
-float2 PackHeight(float InExtractedHeight)
-{
-	InExtractedHeight = clamp(InExtractedHeight, 0.0f, 65535.0f);
-	int iHeight = (int) InExtractedHeight;
-	return float2((float) ((iHeight - (iHeight & 255)) >> 8) / 255.0, (float) (iHeight & 255) / 255.0);
-}
-
-float UnpackHeight(float2 InPackedHeight)
-{
-	return float(((int) round(InPackedHeight.r * 255.0) << 8) | (int) round(InPackedHeight.g * 255.0));
-}
 
 float ExtractAlpha(float2 InPackedAlpha)
 {
