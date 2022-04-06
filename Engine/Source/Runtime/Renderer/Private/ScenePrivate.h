@@ -2244,9 +2244,9 @@ public:
 	void SetLightingCacheDirty(FScene* Scene, const FPrecomputedLightVolume* Volume);
 
 	// Accessors
-	FSceneRenderTargetItem& GetTexture0() { return Texture0->GetRenderTargetItem(); }
-	FSceneRenderTargetItem& GetTexture1() { return Texture1->GetRenderTargetItem(); }
-	FSceneRenderTargetItem& GetTexture2() { return Texture2->GetRenderTargetItem(); }
+	FRHITexture* GetTexture0() { return Texture0->GetRHI(); }
+	FRHITexture* GetTexture1() { return Texture1->GetRHI(); }
+	FRHITexture* GetTexture2() { return Texture2->GetRHI(); }
 
 private:
 	/** Internal helper to determine if indirect lighting is enabled at all */

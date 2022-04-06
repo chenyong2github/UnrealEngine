@@ -730,8 +730,8 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 	TShaderMapRef<FVisualizeSkyLightMipTreePS> PixelShader(ShaderMap);
 	FRHITexture* RenderTargets[2] =
 	{
-		SceneColor->GetRenderTargetItem().TargetableTexture,
-		SkyLightMipTreeRT->GetRenderTargetItem().TargetableTexture
+		SceneColor->GetRHI(),
+		SkyLightMipTreeRT->GetRHI()
 	};
 	FRHIRenderPassInfo RenderPassInfo(2, RenderTargets, ERenderTargetActions::Load_Store);
 	RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("SkyLight Visualization"));
@@ -773,7 +773,7 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 	RHICmdList.EndRenderPass();
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SkyLightMipTreeRT);
 
-	RHICmdList.CopyToResolveTarget(SceneColor->GetRenderTargetItem().TargetableTexture, SceneColor->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+	RHICmdList.CopyToResolveTarget(SceneColor->GetRHI(), SceneColor->GetRHI(), FResolveParams());
 
 	// Transition to compute
 	RHICmdList.Transition({

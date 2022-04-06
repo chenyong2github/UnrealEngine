@@ -382,7 +382,7 @@ void SetupSkyAtmosphereViewSharedUniformShaderParameters(const FViewInfo& View, 
 	FRHITexture* SkyAtmosphereCameraAerialPerspectiveVolume = nullptr;
 	if (View.SkyAtmosphereCameraAerialPerspectiveVolume)
 	{
-		SkyAtmosphereCameraAerialPerspectiveVolume = View.SkyAtmosphereCameraAerialPerspectiveVolume->GetRenderTargetItem().ShaderResourceTexture;
+		SkyAtmosphereCameraAerialPerspectiveVolume = View.SkyAtmosphereCameraAerialPerspectiveVolume->GetRHI();
 	}
 
 	OutParameters.CameraAerialPerspectiveVolumeSizeAndInvSize = GetSizeAndInvSize(CameraAerialPerspectiveVolumeScreenResolution, CameraAerialPerspectiveVolumeScreenResolution);
@@ -2013,7 +2013,7 @@ void FSceneRenderer::RenderSkyAtmosphereEditorNotifications(FRDGBuilder& GraphBu
 			RenderSkyAtmosphereEditorHudPS::FParameters* PassParameters = GraphBuilder.AllocParameters<RenderSkyAtmosphereEditorHudPS::FParameters>();
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-			PassParameters->MiniFontTexture = GSystemTextures.AsciiTexture->GetRenderTargetItem().ShaderResourceTexture;
+			PassParameters->MiniFontTexture = GSystemTextures.AsciiTexture->GetRHI();
 
 			FPixelShaderUtils::AddFullscreenPass<RenderSkyAtmosphereEditorHudPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("SkyAtmosphereEditor"), PixelShader, PassParameters, View.ViewRect);
 		}

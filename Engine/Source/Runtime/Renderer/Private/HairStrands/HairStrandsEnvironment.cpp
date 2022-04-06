@@ -375,7 +375,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	ParametersPS->MultipleScatterSampleCount = FMath::Max(uint32(GHairStrandsSkyLightingSampleCount), 1u);
 	ParametersPS->HairDualScatteringRoughnessOverride = GetHairDualScatteringRoughnessOverride();
 	ParametersPS->TransmissionDensityScaleFactor = FMath::Max(0.f, GHairStrandsTransmissionDensityScaleFactor);
-	ParametersPS->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
+	ParametersPS->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
 	ParametersPS->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	ParametersPS->SceneTextures = SceneTextures;
 	ParametersPS->VirtualVoxel = VirtualVoxelResources.UniformBuffer;

@@ -139,7 +139,7 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 		}
 
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTarget[Layer], TEXT("VirtualPhysicalTexture"));
-		FRHITexture* TextureRHI = PooledRenderTarget[Layer]->GetRenderTargetItem().ShaderResourceTexture;
+		FRHITexture* TextureRHI = PooledRenderTarget[Layer]->GetRHI();
 
 		// Create sRGB and non-sRGB shader resource views into the physical texture
 		FRHITextureSRVCreateInfo SRVCreateInfo;
@@ -152,7 +152,7 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 
 		if (bCreateAliasedUAV)
 		{
-			TextureUAV[Layer] = PooledRenderTarget[Layer]->GetRenderTargetItem().UAV;
+			TextureUAV[Layer] = PooledRenderTarget[Layer]->GetUAV();
 		}
 	}
 }

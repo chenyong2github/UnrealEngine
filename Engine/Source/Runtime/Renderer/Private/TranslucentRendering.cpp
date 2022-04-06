@@ -995,15 +995,15 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 			{
 				TRefCountPtr<IPooledRenderTarget> VolumetricReconstructRTDepth = View.ViewState->VolumetricCloudRenderTarget.GetDstVolumetricReconstructRTDepth();
 
-				BasePassParameters.VolumetricCloudColor = VolumetricReconstructRT->GetRenderTargetItem().ShaderResourceTexture;
-				BasePassParameters.VolumetricCloudDepth = VolumetricReconstructRTDepth->GetRenderTargetItem().ShaderResourceTexture;
+				BasePassParameters.VolumetricCloudColor = VolumetricReconstructRT->GetRHI();
+				BasePassParameters.VolumetricCloudDepth = VolumetricReconstructRTDepth->GetRHI();
 				BasePassParameters.ApplyVolumetricCloudOnTransparent = 1.0f;
 			}
 		}
 		if (BasePassParameters.VolumetricCloudColor == nullptr)
 		{
-			BasePassParameters.VolumetricCloudColor = GSystemTextures.BlackAlphaOneDummy->GetRenderTargetItem().ShaderResourceTexture;
-			BasePassParameters.VolumetricCloudDepth = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
+			BasePassParameters.VolumetricCloudColor = GSystemTextures.BlackAlphaOneDummy->GetRHI();
+			BasePassParameters.VolumetricCloudDepth = GSystemTextures.BlackDummy->GetRHI();
 		}
 
 		FIntPoint ViewportOffset = View.ViewRect.Min;
@@ -1070,7 +1070,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 	}
 
 	BasePassParameters.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
-	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
+	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRHI();
 	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	OIT::SetOITParameters(GraphBuilder, View, BasePassParameters.OIT, OITData);

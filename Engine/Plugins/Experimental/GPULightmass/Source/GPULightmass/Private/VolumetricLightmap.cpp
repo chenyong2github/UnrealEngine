@@ -174,7 +174,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 	}
 
 	VolumetricLightmapData.Bounds = FinalVolume;
-	VolumetricLightmapData.IndirectionTexture.Texture = IndirectionTexture->GetRenderTargetItem().ShaderResourceTexture->GetTexture3D();
+	VolumetricLightmapData.IndirectionTexture.Texture = IndirectionTexture->GetRHI();
 	VolumetricLightmapData.IndirectionTexture.Format = PF_R8G8B8A8_UINT;
 	VolumetricLightmapData.IndirectionTextureDimensions = FIntVector(IndirectionTextureDimensions);
 	VolumetricLightmapData.BrickSize = 4;
@@ -192,15 +192,15 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 	VLMVoxelizationParams->VolumeCenter = (FVector3f)CubeVolume.GetCenter(); // LWC_TODO: precision loss
 	VLMVoxelizationParams->VolumeExtent = (FVector3f)CubeVolume.GetExtent(); // LWC_TODO: precision loss
 	VLMVoxelizationParams->VolumeMaxDim = CubeMaxDim;
-	VLMVoxelizationParams->VoxelizeVolume = VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV;
-	VLMVoxelizationParams->IndirectionTexture = IndirectionTexture->GetRenderTargetItem().UAV;
+	VLMVoxelizationParams->VoxelizeVolume = VoxelizationVolumeMips[0]->GetUAV();
+	VLMVoxelizationParams->IndirectionTexture = IndirectionTexture->GetUAV();
 	TRDGUniformBufferRef<FVLMVoxelizationParams> PassUniformBuffer = GraphBuilder.CreateUniformBuffer(VLMVoxelizationParams);
 
 	for (int32 MipLevel = 0; MipLevel < VoxelizationVolumeMips.Num(); MipLevel++)
 	{
 		FClearVolumeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FClearVolumeCS::FParameters>();
 		Parameters->VolumeSize = VoxelizationVolumeMips[MipLevel]->GetDesc().GetSize();
-		Parameters->VoxelizeVolume = VoxelizationVolumeMips[MipLevel]->GetRenderTargetItem().UAV;
+		Parameters->VoxelizeVolume = VoxelizationVolumeMips[MipLevel]->GetUAV();
 
 		TShaderMapRef<FClearVolumeCS> ComputeShader(GlobalShaderMap);
 		FComputeShaderUtils::AddPass(
@@ -220,7 +220,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 		Parameters->ImportanceVolumeMin = (FVector3f)ImportanceVolume.Min;
 		Parameters->ImportanceVolumeMax = (FVector3f)ImportanceVolume.Max;
 		Parameters->VLMVoxelizationParams = PassUniformBuffer;
-		Parameters->VoxelizeVolume = VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV;
+		Parameters->VoxelizeVolume = VoxelizationVolumeMips[0]->GetUAV();
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -343,7 +343,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 		FDilateVolumeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDilateVolumeCS::FParameters>();
 		Parameters->VolumeSize = VoxelizationVolumeMips[0]->GetDesc().GetSize();
-		Parameters->VoxelizeVolume = VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV;
+		Parameters->VoxelizeVolume = VoxelizationVolumeMips[0]->GetUAV();
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -359,8 +359,8 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 		FDownsampleVolumeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDownsampleVolumeCS::FParameters>();
 		Parameters->bIsHighestMip = (MipLevel == VoxelizationVolumeMips.Num() - 1) ? 1 : 0;
-		Parameters->VoxelizeVolume = VoxelizationVolumeMips[MipLevel]->GetRenderTargetItem().UAV;
-		Parameters->VoxelizeVolumePrevMip = VoxelizationVolumeMips[MipLevel - 1]->GetRenderTargetItem().UAV;
+		Parameters->VoxelizeVolume = VoxelizationVolumeMips[MipLevel]->GetUAV();
+		Parameters->VoxelizeVolumePrevMip = VoxelizationVolumeMips[MipLevel - 1]->GetUAV();
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -385,7 +385,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 		FCountNumBricksCS::FParameters* Parameters = GraphBuilder.AllocParameters<FCountNumBricksCS::FParameters>();
 		Parameters->VolumeSize = VoxelizationVolumeMips[MipLevel]->GetDesc().GetSize();
-		Parameters->VoxelizeVolume = VoxelizationVolumeMips[MipLevel]->GetRenderTargetItem().UAV;
+		Parameters->VoxelizeVolume = VoxelizationVolumeMips[MipLevel]->GetUAV();
 		Parameters->BrickAllocatorParameters = BrickAllocatorParameters.UAV;
 
 		FComputeShaderUtils::AddPass(
@@ -440,7 +440,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 		FGatherBrickRequestsCS::FParameters Parameters;
 		Parameters.VolumeSize = VoxelizationVolumeMips[MipLevel]->GetDesc().GetSize();
 		Parameters.BrickSize = 1 << (MipLevel * BrickSizeLog2);
-		Parameters.VoxelizeVolume = VoxelizationVolumeMips[MipLevel]->GetRenderTargetItem().UAV;
+		Parameters.VoxelizeVolume = VoxelizationVolumeMips[MipLevel]->GetUAV();
 		Parameters.BrickAllocatorParameters = BrickAllocatorParameters.UAV;
 		Parameters.BrickRequests = BrickRequests.UAV;
 
@@ -457,13 +457,13 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 		Parameters.VolumeSize = IndirectionTextureDimensions;
 		Parameters.BrickSize = 1 << (MipLevel * BrickSizeLog2);
 		Parameters.bIsHighestMip = MipLevel == VoxelizationVolumeMips.Num() - 1;
-		Parameters.VoxelizeVolume = VoxelizationVolumeMips[MipLevel]->GetRenderTargetItem().UAV;
-		Parameters.IndirectionTexture = IndirectionTexture->GetRenderTargetItem().UAV;
+		Parameters.VoxelizeVolume = VoxelizationVolumeMips[MipLevel]->GetUAV();
+		Parameters.IndirectionTexture = IndirectionTexture->GetUAV();
 		Parameters.BrickAllocatorParameters = BrickAllocatorParameters.UAV;
 
 		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FComputeShaderUtils::GetGroupCount(IndirectionTextureDimensions, FIntVector(4)));
 
-		RHICmdList.Transition(FRHITransitionInfo(IndirectionTexture->GetRenderTargetItem().UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+		RHICmdList.Transition(FRHITransitionInfo(IndirectionTexture->GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 	}
 
 	Scene->DestroyRayTracingScene();
@@ -693,7 +693,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					PassParameters->FrameNumber = FrameNumber / NumFramesOneRound;
 					PassParameters->NumTotalBricks = NumTotalBricks;
 					PassParameters->BrickBatchOffset = BrickBatchOffset;
-					PassParameters->IndirectionTexture = IndirectionTexture->GetRenderTargetItem().UAV;
+					PassParameters->IndirectionTexture = IndirectionTexture->GetUAV();
 					PassParameters->BrickRequests = BrickRequests.UAV;
 					PassParameters->AmbientVector = AccumulationBrickData.AmbientVector.Texture;
 					PassParameters->OutAmbientVector = VolumetricLightmapData.BrickData.AmbientVector.UAV;

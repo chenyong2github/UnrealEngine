@@ -142,9 +142,9 @@ FDistanceFieldAtlasParameters DistanceField::SetupAtlasParameters(const FDistanc
 		SceneParameters.DistanceFieldIndirectionTable = GDFShadowOffsetDataStructure == 0 ? DistanceFieldSceneData.IndirectionTable.SRV : nullptr;
 		SceneParameters.DistanceFieldIndirection2Table = GDFShadowOffsetDataStructure == 1 ? DistanceFieldSceneData.Indirection2Table.SRV : nullptr;
 		SceneParameters.DistanceFieldIndirectionAtlas = GDFShadowOffsetDataStructure == 2 && DistanceFieldSceneData.IndirectionAtlas ?
-			DistanceFieldSceneData.IndirectionAtlas->GetRenderTargetItem().ShaderResourceTexture : nullptr;
+			DistanceFieldSceneData.IndirectionAtlas->GetRHI() : nullptr;
 
-		SceneParameters.DistanceFieldBrickTexture = DistanceFieldSceneData.DistanceFieldBrickVolumeTexture->GetRenderTargetItem().ShaderResourceTexture;
+		SceneParameters.DistanceFieldBrickTexture = DistanceFieldSceneData.DistanceFieldBrickVolumeTexture->GetRHI();
 		SceneParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 
 		SceneParameters.DistanceFieldBrickSize = FVector3f(DistanceField::BrickSize);

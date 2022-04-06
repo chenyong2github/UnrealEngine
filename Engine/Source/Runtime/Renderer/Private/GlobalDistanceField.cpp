@@ -435,29 +435,29 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 	{
 		if (PageAtlasTexture)
 		{
-			ParameterData.PageAtlasTexture = PageAtlasTexture->GetRenderTargetItem().ShaderResourceTexture;
+			ParameterData.PageAtlasTexture = PageAtlasTexture->GetRHI();
 		}
 
 		if (CoverageAtlasTexture)
 		{
-			ParameterData.CoverageAtlasTexture = CoverageAtlasTexture->GetRenderTargetItem().ShaderResourceTexture;
+			ParameterData.CoverageAtlasTexture = CoverageAtlasTexture->GetRHI();
 		}
 
 		if (PageTableCombinedTexture)
 		{
 			ensureMsgf(GAOGlobalDistanceFieldCacheMostlyStaticSeparately, TEXT("PageTableCombinedTexture should only be allocated when caching mostly static objects separately."));
-			ParameterData.PageTableTexture = PageTableCombinedTexture->GetRenderTargetItem().ShaderResourceTexture;
+			ParameterData.PageTableTexture = PageTableCombinedTexture->GetRHI();
 		}
 		else if (PageTableLayerTextures[GDF_Full])
 		{
 			ensureMsgf(!GAOGlobalDistanceFieldCacheMostlyStaticSeparately, TEXT("PageTableCombinedTexture should be allocated when caching mostly static objects separately."));
-			ParameterData.PageTableTexture = PageTableLayerTextures[GDF_Full]->GetRenderTargetItem().ShaderResourceTexture;
+			ParameterData.PageTableTexture = PageTableLayerTextures[GDF_Full]->GetRHI();
 		}
 
 		FIntVector MipTextureResolution(1, 1, 1);
 		if (MipTexture)
 		{
-			ParameterData.MipTexture = MipTexture->GetRenderTargetItem().ShaderResourceTexture;
+			ParameterData.MipTexture = MipTexture->GetRHI();
 			MipTextureResolution.X = MipTexture->GetDesc().Extent.X;
 			MipTextureResolution.Y = MipTexture->GetDesc().Extent.Y;
 			MipTextureResolution.Z = MipTexture->GetDesc().Depth;
@@ -1216,7 +1216,7 @@ void ReadbackDistanceFieldClipmap(FRHICommandListImmediate& RHICmdList, FGlobalD
 	GDFReadbackRequest = nullptr;
 
 	//FGlobalDistanceFieldClipmap& ClipMap = GlobalDistanceFieldInfo.Clipmaps[0];
-	//FTextureRHIRef SourceTexture = ClipMap.RenderTarget->GetRenderTargetItem().ShaderResourceTexture;
+	//FTextureRHIRef SourceTexture = ClipMap.RenderTarget->GetRHI();
 	//FIntVector Size = SourceTexture->GetSizeXYZ();
 	
 	//RHICmdList.Read3DSurfaceFloatData(SourceTexture, FIntRect(0, 0, Size.X, Size.Y), FIntPoint(0, Size.Z), Readback->ReadbackData);

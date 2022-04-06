@@ -891,9 +891,9 @@ void FIndirectLightingCache::UpdateBlock(FScene* Scene, FViewInfo* DebugDrawingV
 			BlockInfo.Block.TexelSize);
 
 		// Update the volume texture atlas
-		RHIUpdateTexture3D((const FTexture3DRHIRef&)GetTexture0().ShaderResourceTexture, 0, UpdateRegion, BlockInfo.Block.TexelSize * FormatSize, BlockInfo.Block.TexelSize * BlockInfo.Block.TexelSize * FormatSize, (const uint8*)Texture0Data.GetData());
-		RHIUpdateTexture3D((const FTexture3DRHIRef&)GetTexture1().ShaderResourceTexture, 0, UpdateRegion, BlockInfo.Block.TexelSize * FormatSize, BlockInfo.Block.TexelSize * BlockInfo.Block.TexelSize * FormatSize, (const uint8*)Texture1Data.GetData());
-		RHIUpdateTexture3D((const FTexture3DRHIRef&)GetTexture2().ShaderResourceTexture, 0, UpdateRegion, BlockInfo.Block.TexelSize * FormatSize, BlockInfo.Block.TexelSize * BlockInfo.Block.TexelSize * FormatSize, (const uint8*)Texture2Data.GetData());
+		RHIUpdateTexture3D(GetTexture0(), 0, UpdateRegion, BlockInfo.Block.TexelSize * FormatSize, BlockInfo.Block.TexelSize * BlockInfo.Block.TexelSize * FormatSize, (const uint8*)Texture0Data.GetData());
+		RHIUpdateTexture3D(GetTexture1(), 0, UpdateRegion, BlockInfo.Block.TexelSize * FormatSize, BlockInfo.Block.TexelSize * BlockInfo.Block.TexelSize * FormatSize, (const uint8*)Texture1Data.GetData());
+		RHIUpdateTexture3D(GetTexture2(), 0, UpdateRegion, BlockInfo.Block.TexelSize * FormatSize, BlockInfo.Block.TexelSize * BlockInfo.Block.TexelSize * FormatSize, (const uint8*)Texture2Data.GetData());
 	}
 	else
 	{

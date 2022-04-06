@@ -310,10 +310,10 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 		// Init with dummy textures. The texture will be initialize with real values if needed
 		const uint8 BlackBytes[4] = { 0, 0, 0, 0 };
 		FUpdateTextureRegion3D Region(0, 0, 0, 0, 0, 0, Desc.Extent.X, Desc.Extent.Y, Desc.Depth);
-		RHICmdList.UpdateTexture3D((FTexture3DRHIRef&)HairLUT0->GetRenderTargetItem().ShaderResourceTexture, 0, Region, Desc.Extent.X * sizeof(BlackBytes), Desc.Extent.X * Desc.Extent.Y * sizeof(BlackBytes), BlackBytes);
+		RHICmdList.UpdateTexture3D(HairLUT0->GetRHI(), 0, Region, Desc.Extent.X * sizeof(BlackBytes), Desc.Extent.X * Desc.Extent.Y * sizeof(BlackBytes), BlackBytes);
 
 		// UpdateTexture3D before and after state is currently undefined
-		RHICmdList.Transition(FRHITransitionInfo(HairLUT0->GetRenderTargetItem().ShaderResourceTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		RHICmdList.Transition(FRHITransitionInfo(HairLUT0->GetRHI(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		HairLUT1 = HairLUT0;
 		HairLUT2 = HairLUT0;
 	}
@@ -358,7 +358,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, AsciiTexture, TEXT("AsciiTexture"));
 		uint32 DestStride;
-		uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)AsciiTexture->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
+		uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D(AsciiTexture->GetRHI(), 0, RLM_WriteOnly, DestStride, false);
 
 		for (int32 c = 0; c < CharacterCount; c++)
 		{
@@ -375,7 +375,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				Dest[0] = bFilled ? 0xFF : 0x0;
 			}
 		}
-		RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)AsciiTexture->GetRenderTargetItem().ShaderResourceTexture, 0, false);
+		RHICmdList.UnlockTexture2D(AsciiTexture->GetRHI(), 0, false);
 	}
 
 	// The PreintegratedGF maybe used on forward shading including mobile platform, initialize it anyway.

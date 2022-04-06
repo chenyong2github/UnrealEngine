@@ -13,15 +13,15 @@ RENDERER_API const FScreenTransform FScreenTransform::Identity(FVector2f(1.0f, 1
 RENDERER_API const FScreenTransform FScreenTransform::ScreenPosToViewportUV(FVector2f(0.5f, -0.5f), FVector2f(0.5f, 0.5f));
 RENDERER_API const FScreenTransform FScreenTransform::ViewportUVToScreenPos(FVector2f(2.0f, -2.0f), FVector2f(-1.0f, 1.0f));
 
-const FTextureRHIRef& GetMiniFontTexture()
+FRHITexture* GetMiniFontTexture()
 {
 	if (GSystemTextures.AsciiTexture)
 	{
-		return GSystemTextures.AsciiTexture->GetRenderTargetItem().ShaderResourceTexture;
+		return GSystemTextures.AsciiTexture->GetRHI();
 	}
 	else
 	{
-		return GSystemTextures.WhiteDummy->GetRenderTargetItem().ShaderResourceTexture;
+		return GSystemTextures.WhiteDummy->GetRHI();
 	}
 }
 

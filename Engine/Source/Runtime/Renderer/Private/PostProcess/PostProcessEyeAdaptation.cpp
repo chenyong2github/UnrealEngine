@@ -1012,7 +1012,7 @@ static const FName NAME_EyeAdaptation(TEXT("EyeAdaptation"));
 
 void FSceneViewState::BroadcastEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList)
 {
-	FRHITexture* EyeAdaptation = GetCurrentEyeAdaptationTexture(RHICmdList)->GetRenderTargetItem().ShaderResourceTexture.GetReference();
+	FRHITexture* EyeAdaptation = GetCurrentEyeAdaptationTexture(RHICmdList)->GetRHI();
 	RHICmdList.BroadcastTemporalEffect(FName(NAME_EyeAdaptation, UniqueID), { &EyeAdaptation, 1 });
 }
 

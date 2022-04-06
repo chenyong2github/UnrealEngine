@@ -1781,8 +1781,8 @@ void FSceneViewport::EndRenderFrame(FRHICommandListImmediate& RHICmdList, bool b
 	if (UseSeparateRenderTarget())
 	{
 		if (BufferedSlateHandles[CurrentBufferedTargetIndex])
-		{			
-			RHICmdList.CopyToResolveTarget(RenderTargetTextureRenderThreadRHI, RenderTargetTextureRenderThreadRHI, FResolveParams());
+		{
+			RHICmdList.Transition(FRHITransitionInfo(RenderTargetTextureRenderThreadRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		}
 	}
 	else

@@ -207,7 +207,7 @@ namespace VirtualHeightfieldMesh
 					Desc.bIsThumbnails = false;
 					Desc.DebugType = ERuntimeVirtualTextureDebugType::None;
 					Desc.NumPageDescs = 1;
-					Desc.Targets[0].Texture = RenderTileResources.GetTileRenderTarget()->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D();
+					Desc.Targets[0].Texture = RenderTileResources.GetTileRenderTarget()->GetRHI();
 					Desc.Targets[1].Texture = nullptr;
 					Desc.Targets[2].Texture = nullptr;
 					Desc.PageDescs[0].DestBox[0] = TileBox;
@@ -255,7 +255,7 @@ namespace VirtualHeightfieldMesh
 					CopyInfo.DestMipIndex = 0;
 
 					RHICmdList.Transition(FRHITransitionInfo(RenderTileResources.GetStagingTexture(MipLevel), ERHIAccess::Unknown, ERHIAccess::CopyDest));
-					RHICmdList.CopyTexture(RenderTileResources.GetFinalRenderTarget()->GetRenderTargetItem().ShaderResourceTexture, RenderTileResources.GetStagingTexture(MipLevel), CopyInfo);
+					RHICmdList.CopyTexture(RenderTileResources.GetFinalRenderTarget()->GetRHI(), RenderTileResources.GetStagingTexture(MipLevel), CopyInfo);
 				}
 
 				RHICmdList.WriteGPUFence(RenderTileResources.GetFence());

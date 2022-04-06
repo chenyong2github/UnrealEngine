@@ -548,9 +548,13 @@ struct IPooledRenderTarget
 	 * @return in bytes
 	 **/
 	virtual uint32 ComputeMemorySize() const = 0;
+
 	/** Get the low level internals (texture/surface) */
+	UE_DEPRECATED(5.1, "GetRenderTargetItem is deprecated. Use GetRHI() and GetUAV() instead.")
 	inline FSceneRenderTargetItem& GetRenderTargetItem() { return RenderTargetItem; }
+
 	/** Get the low level internals (texture/surface) */
+	UE_DEPRECATED(5.1, "GetRenderTargetItem is deprecated. Use GetRHI() and GetUAV() instead.")
 	inline const FSceneRenderTargetItem& GetRenderTargetItem() const { return RenderTargetItem; }
 
 	/** Returns if the render target is tracked by a pool. */
@@ -564,8 +568,9 @@ struct IPooledRenderTarget
 	virtual uint32 Release() = 0;
 	virtual uint32 GetRefCount() const = 0;
 
-	FRHITexture* GetRHI() const { return RenderTargetItem.GetRHI(); }
+	FRHITexture* GetRHI() const { return RenderTargetItem.TargetableTexture; }
 
+	FRHIUnorderedAccessView* GetUAV() const { return RenderTargetItem.UAV; }
 
 	UE_DEPRECATED(5.0, "Use GetRHI instead.")
 	FRHITexture* GetTargetableRHI() const { return GetRHI(); }

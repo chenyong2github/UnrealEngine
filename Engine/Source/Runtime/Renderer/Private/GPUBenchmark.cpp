@@ -66,7 +66,7 @@ public:
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
-		SetTextureParameter(RHICmdList, ShaderRHI, InputTexture, InputTextureSampler, TStaticSamplerState<>::GetRHI(), Src->GetRenderTargetItem().ShaderResourceTexture);
+		SetTextureParameter(RHICmdList, ShaderRHI, InputTexture, InputTextureSampler, TStaticSamplerState<>::GetRHI(), Src->GetRHI());
 	}
 
 	static const TCHAR* GetSourceFilename()
@@ -559,14 +559,14 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 				// decide how much work we do in this pass
 				LocalWorkScale[Iteration] = (Iteration / 10.f + 1.f) * WorkScale;
 
-				FRHIRenderPassInfo RPInfo(RTItems[DestRTIndex]->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
+				FRHIRenderPassInfo RPInfo(RTItems[DestRTIndex]->GetRHI(), ERenderTargetActions::Load_Store);
 				TransitionRenderPassTargets(RHICmdList, RPInfo);
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("GPUBenchmark"));
 				{
 					RunBenchmarkShader(RHICmdList, VertexBuffer, View, MethodId, RTItems[SrcRTIndex], LocalWorkScale[Iteration]);
 				}
 				RHICmdList.EndRenderPass();
-				RHICmdList.CopyToResolveTarget(RTItems[DestRTIndex]->GetRenderTargetItem().TargetableTexture, RTItems[DestRTIndex]->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+				RHICmdList.Transition(FRHITransitionInfo(RTItems[DestRTIndex]->GetRHI(), ERHIAccess::RTV, ERHIAccess::SRVMask));
 
 				RHICmdList.EndRenderQuery(TimerQueries[QueryIndex].GetQuery());
 

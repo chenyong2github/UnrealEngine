@@ -30,7 +30,7 @@ public:
 	}
 
 	/** Sets the texture that this target renders to */
-	void SetRenderTargetTexture( FTexture2DRHIRef& InRHIRef )
+	void SetRenderTargetTexture( FRHITexture* InRHIRef )
 	{
 		RenderTargetTextureRHI = InRHIRef;
 	}
@@ -215,7 +215,7 @@ void FDebugCanvasDrawer::InitDebugCanvas(FViewportClient* ViewportClient, UWorld
 		{
 			if (StereoLayers)
 			{
-				IStereoLayers::FLayerDesc StereoLayerDesc = StereoLayers->GetDebugCanvasLayerDesc(LayerTexture->GetRenderTargetItem().ShaderResourceTexture);
+				IStereoLayers::FLayerDesc StereoLayerDesc = StereoLayers->GetDebugCanvasLayerDesc(LayerTexture->GetRHI());
 				StereoLayerDesc.Flags |= !bCanvasRenderedLastFrame ? IStereoLayers::LAYER_FLAG_HIDDEN : 0;
 
 				if (LayerID == INVALID_LAYER_ID && bCanvasRenderedLastFrame)
@@ -243,7 +243,7 @@ void FDebugCanvasDrawer::DrawRenderThread(FRHICommandListImmediate& RHICmdList, 
 	QUICK_SCOPE_CYCLE_COUNTER(Stat_DrawDebugCanvas);
 	if( RenderThreadCanvas.IsValid() )
 	{
-		FTexture2DRHIRef* RT = (FTexture2DRHIRef*)InWindowBackBuffer;
+		FRHITexture* RT = InWindowBackBuffer != nullptr ? ((FTexture2DRHIRef*)InWindowBackBuffer)->GetReference() : nullptr;
 		FTextureRHIRef HMDSwapchain = nullptr;	// Attention: RT could point to HMDSwapchain later.
 		if (RenderThreadCanvas->IsUsingInternalTexture())
 		{
@@ -282,17 +282,17 @@ void FDebugCanvasDrawer::DrawRenderThread(FRHICommandListImmediate& RHICmdList, 
 					}
 				}
 			}
-			RT = reinterpret_cast<FTexture2DRHIRef*>(HMDSwapchain == nullptr ? &LayerTexture->GetRenderTargetItem().ShaderResourceTexture : &HMDSwapchain);
+			RT = reinterpret_cast<FRHITexture*>(HMDSwapchain == nullptr ? LayerTexture->GetRHI() : HMDSwapchain.GetReference());
 		}
-		RHICmdList.Transition(FRHITransitionInfo(*RT, ERHIAccess::Unknown, ERHIAccess::RTV));
-		RenderTarget->SetRenderTargetTexture(*RT);
+		RHICmdList.Transition(FRHITransitionInfo(RT, ERHIAccess::Unknown, ERHIAccess::RTV));
+		RenderTarget->SetRenderTargetTexture(RT);
 
 		bool bNeedToFlipVertical = RenderThreadCanvas->GetAllowSwitchVerticalAxis();
 		// Flip when rendering to the back buffer
 		RenderThreadCanvas->SetAllowSwitchVerticalAxis(true);
-		if (RenderThreadCanvas->IsScaledToRenderTarget() && IsValidRef(*RT)) 
+		if (RenderThreadCanvas->IsScaledToRenderTarget() && RT) 
 		{
-			RenderThreadCanvas->SetRenderTargetRect( FIntRect(0, 0, (*RT)->GetSizeX(), (*RT)->GetSizeY()) );
+			RenderThreadCanvas->SetRenderTargetRect( FIntRect(0, 0, (RT)->GetSizeX(), (RT)->GetSizeY()) );
 		}
 		else
 		{

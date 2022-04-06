@@ -320,7 +320,7 @@ void FAvfMediaVideoSampler::ProcessFrame(CVPixelBufferRef Frame, FTimespan Sampl
 					RHICmdList.DrawPrimitive(0, 2, 1);
 				}
 				RHICmdList.EndRenderPass();
-				RHICmdList.CopyToResolveTarget(ShaderResource, ShaderResource, FResolveParams());
+				RHICmdList.Transition(FRHITransitionInfo(ShaderResource, ERHIAccess::RTV, ERHIAccess::SRVMask));
 			}
 			
 			CFRelease(YTextureRef);

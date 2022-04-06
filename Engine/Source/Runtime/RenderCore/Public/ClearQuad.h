@@ -10,7 +10,6 @@
 class FRHICommandList;
 struct FRWBufferStructured;
 struct FRWBuffer;
-struct FSceneRenderTargetItem;
 class FRHIUnorderedAccessView;
 class FGraphicsPipelineStateInitializer;
 

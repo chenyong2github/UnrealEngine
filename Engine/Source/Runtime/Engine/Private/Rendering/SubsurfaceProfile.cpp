@@ -429,7 +429,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 
 	// Write the contents of the texture.
 	uint32 DestStride;
-	uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)GSSProfiles->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
+	uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D(GSSProfiles->GetRHI(), 0, RLM_WriteOnly, DestStride, false);
 
 	FLinearColor TextureRow[Width];
 	FMemory::Memzero(TextureRow);
@@ -592,7 +592,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 		}
 	}
 
-	RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)GSSProfiles->GetRenderTargetItem().ShaderResourceTexture, 0, false);
+	RHICmdList.UnlockTexture2D(GSSProfiles->GetRHI(), 0, false);
 }
 
 TCHAR MiniFontCharFromIndex(uint32 Index)

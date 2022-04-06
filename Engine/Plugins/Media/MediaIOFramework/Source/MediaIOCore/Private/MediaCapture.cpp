@@ -827,9 +827,9 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 		else
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::BeforeFrameCaptured);
-			UE_LOG(LogMediaIOCore, VeryVerbose, TEXT("Before Locking texture %p"), reinterpret_cast<uintptr_t>(CapturingFrame->RenderTarget->GetRenderTargetItem().TargetableTexture->GetTexture2D()->GetNativeResource()));
-			BeforeFrameCaptured_RenderingThread(CapturingFrame->CaptureBaseData, CapturingFrame->UserData, CapturingFrame->RenderTarget->GetRenderTargetItem().TargetableTexture);
-			UE_LOG(LogMediaIOCore, VeryVerbose, TEXT("After Locking texture %p"), reinterpret_cast<uintptr_t>(CapturingFrame->RenderTarget->GetRenderTargetItem().TargetableTexture->GetTexture2D()->GetNativeResource()));
+			UE_LOG(LogMediaIOCore, VeryVerbose, TEXT("Before Locking texture %p"), reinterpret_cast<uintptr_t>(CapturingFrame->RenderTarget->GetRHI()->GetNativeResource()));
+			BeforeFrameCaptured_RenderingThread(CapturingFrame->CaptureBaseData, CapturingFrame->UserData, CapturingFrame->RenderTarget->GetRHI());
+			UE_LOG(LogMediaIOCore, VeryVerbose, TEXT("After Locking texture %p"), reinterpret_cast<uintptr_t>(CapturingFrame->RenderTarget->GetRHI()->GetNativeResource()));
 		}
 	}
 
@@ -915,7 +915,7 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 		TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::CopyToResolve);
 		SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_CopyToResolve);
 
-		FSceneRenderTargetItem& DestRenderTarget = CapturingFrame->RenderTarget->GetRenderTargetItem();
+		FRHITexture* DestRenderTarget = CapturingFrame->RenderTarget->GetRHI();
 		// Do we need to crop
 		float ULeft = 0.0f;
 		float URight = 1.0f;
@@ -961,19 +961,19 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 			if (InMediaCapture->ConversionOperation == EMediaCaptureConversionOperation::NONE && !bRequiresFormatConversion)
 			{
 				// Asynchronously copy target from GPU to GPU
-				RHICmdList.CopyToResolveTarget(SourceTexture, DestRenderTarget.TargetableTexture, ResolveParams);
+				RHICmdList.CopyToResolveTarget(SourceTexture, DestRenderTarget, ResolveParams);
 			}
 			else if (InMediaCapture->ConversionOperation == EMediaCaptureConversionOperation::CUSTOM)
 			{
 				InMediaCapture->OnCustomCapture_RenderingThread(RHICmdList, CapturingFrame->CaptureBaseData, CapturingFrame->UserData
-					, SourceTexture, DestRenderTarget.TargetableTexture, ResolveParams, {ULeft, URight}, {VTop, VBottom});
+					, SourceTexture, DestRenderTarget, ResolveParams, {ULeft, URight}, {VTop, VBottom});
 			}
 			else
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::FormatConversion);
 				// convert the source with a draw call
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				FRHITexture* RenderTarget = DestRenderTarget.TargetableTexture.GetReference();
+				FRHITexture* RenderTarget = DestRenderTarget;
 				RHICmdList.Transition(FRHITransitionInfo(RenderTarget, ERHIAccess::Unknown, ERHIAccess::RTV));
 				FRHIRenderPassInfo RPInfo(RenderTarget,  ERenderTargetActions::DontLoad_Store);
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("MediaCapture"));
@@ -1041,19 +1041,19 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 				RHICmdList.SetViewport(0, 0, 0.0f, InMediaCapture->DesiredOutputSize.X, InMediaCapture->DesiredOutputSize.Y, 1.0f);
 				RHICmdList.DrawPrimitive(0, 2, 1);
 				RHICmdList.EndRenderPass();
-				RHICmdList.Transition(FRHITransitionInfo(DestRenderTarget.TargetableTexture, ERHIAccess::RTV, ERHIAccess::SRVGraphics));
+				RHICmdList.Transition(FRHITransitionInfo(DestRenderTarget, ERHIAccess::RTV, ERHIAccess::SRVGraphics));
 
 			}
 
 			if (InMediaCapture->bShouldCaptureRHITexture)
 			{
-				InMediaCapture->OnRHITextureCaptured_RenderingThread(CapturingFrame->CaptureBaseData, CapturingFrame->UserData, DestRenderTarget.TargetableTexture);
+				InMediaCapture->OnRHITextureCaptured_RenderingThread(CapturingFrame->CaptureBaseData, CapturingFrame->UserData, DestRenderTarget);
 				CapturingFrame->bResolvedTargetRequested = false;
 			}
 			else
 			{
 				// Asynchronously copy duplicate target from GPU to System Memory
-				RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, CapturingFrame->ReadbackTexture, FResolveParams());
+				RHICmdList.CopyToResolveTarget(DestRenderTarget, CapturingFrame->ReadbackTexture, FResolveParams());
 				CapturingFrame->bResolvedTargetRequested = true;
 				const int32 FrameIndex = CaptureFrames.IndexOfByPredicate([&CapturingFrame](const FCaptureFrame& InCaptureFrame) { return &InCaptureFrame == CapturingFrame; });
 				UE_LOG(LogMediaIOCore, VeryVerbose, TEXT("Requested copy for capture frame %d"), FrameIndex);

@@ -1135,7 +1135,7 @@ void UpdateNoiseTextureParameters(FViewUniformShaderParameters& ViewUniformShade
 {
 	if (GSystemTextures.PerlinNoiseGradient.GetReference())
 	{
-		ViewUniformShaderParameters.PerlinNoiseGradientTexture = (FTexture2DRHIRef&)GSystemTextures.PerlinNoiseGradient->GetRenderTargetItem().ShaderResourceTexture;
+		ViewUniformShaderParameters.PerlinNoiseGradientTexture = GSystemTextures.PerlinNoiseGradient->GetRHI();
 		SetBlack2DIfNull(ViewUniformShaderParameters.PerlinNoiseGradientTexture);
 	}
 	check(ViewUniformShaderParameters.PerlinNoiseGradientTexture);
@@ -1143,7 +1143,7 @@ void UpdateNoiseTextureParameters(FViewUniformShaderParameters& ViewUniformShade
 
 	if (GSystemTextures.PerlinNoise3D.GetReference())
 	{
-		ViewUniformShaderParameters.PerlinNoise3DTexture = (FTexture3DRHIRef&)GSystemTextures.PerlinNoise3D->GetRenderTargetItem().ShaderResourceTexture;
+		ViewUniformShaderParameters.PerlinNoise3DTexture = GSystemTextures.PerlinNoise3D->GetRHI();
 		SetBlack3DIfNull(ViewUniformShaderParameters.PerlinNoise3DTexture);
 	}
 	check(ViewUniformShaderParameters.PerlinNoise3DTexture);
@@ -1151,7 +1151,7 @@ void UpdateNoiseTextureParameters(FViewUniformShaderParameters& ViewUniformShade
 
 	if (GSystemTextures.SobolSampling.GetReference())
 	{
-		ViewUniformShaderParameters.SobolSamplingTexture = (FTexture2DRHIRef&)GSystemTextures.SobolSampling->GetRenderTargetItem().ShaderResourceTexture;
+		ViewUniformShaderParameters.SobolSamplingTexture = GSystemTextures.SobolSampling->GetRHI();
 		SetBlack2DIfNull(ViewUniformShaderParameters.SobolSamplingTexture);
 	}
 	check(ViewUniformShaderParameters.SobolSamplingTexture);
@@ -1374,24 +1374,24 @@ void FViewInfo::SetupUniformBufferParameters(
 		const TRefCountPtr<IPooledRenderTarget>& PooledTransmittanceLutTexture = SkyAtmosphere->GetTransmittanceLutTexture();
 		if (PooledTransmittanceLutTexture.IsValid())
 		{
-			TransmittanceLutTextureFound = PooledTransmittanceLutTexture->GetRenderTargetItem().ShaderResourceTexture;
+			TransmittanceLutTextureFound = PooledTransmittanceLutTexture->GetRHI();
 		}
 		const TRefCountPtr<IPooledRenderTarget>& PooledDistantSkyLightLutTexture = SkyAtmosphere->GetDistantSkyLightLutTexture();
 		if (PooledDistantSkyLightLutTexture.IsValid())
 		{
-			DistantSkyLightLutTextureFound = PooledDistantSkyLightLutTexture->GetRenderTargetItem().ShaderResourceTexture;
+			DistantSkyLightLutTextureFound = PooledDistantSkyLightLutTexture->GetRHI();
 		}
 
 		if (this->SkyAtmosphereCameraAerialPerspectiveVolume.IsValid())
 		{
-			CameraAerialPerspectiveVolumeFound = this->SkyAtmosphereCameraAerialPerspectiveVolume->GetRenderTargetItem().ShaderResourceTexture;
+			CameraAerialPerspectiveVolumeFound = this->SkyAtmosphereCameraAerialPerspectiveVolume->GetRHI();
 		}
 
 		float SkyViewLutWidth = 1.0f;
 		float SkyViewLutHeight = 1.0f;
 		if (this->SkyAtmosphereViewLutTexture.IsValid())
 		{
-			SkyViewLutTextureFound = this->SkyAtmosphereViewLutTexture->GetRenderTargetItem().ShaderResourceTexture;
+			SkyViewLutTextureFound = this->SkyAtmosphereViewLutTexture->GetRHI();
 			SkyViewLutWidth = float(this->SkyAtmosphereViewLutTexture->GetDesc().GetSize().X);
 			SkyViewLutHeight = float(this->SkyAtmosphereViewLutTexture->GetDesc().GetSize().Y);
 		}
@@ -1934,9 +1934,9 @@ void FViewInfo::SetupUniformBufferParameters(
 	// Hair global resources 
 	SetUpViewHairRenderInfo(*this, ViewUniformShaderParameters.HairRenderInfo, ViewUniformShaderParameters.HairRenderInfoBits, ViewUniformShaderParameters.HairComponents);
 	ViewUniformShaderParameters.HairScatteringLUTTexture = nullptr;
-	if (GSystemTextures.HairLUT0.IsValid() && GSystemTextures.HairLUT0->GetRenderTargetItem().ShaderResourceTexture)
+	if (GSystemTextures.HairLUT0.IsValid() && GSystemTextures.HairLUT0->GetRHI())
 	{
-		ViewUniformShaderParameters.HairScatteringLUTTexture = GSystemTextures.HairLUT0->GetRenderTargetItem().ShaderResourceTexture;
+		ViewUniformShaderParameters.HairScatteringLUTTexture = GSystemTextures.HairLUT0->GetRHI();
 	}
 	ViewUniformShaderParameters.HairScatteringLUTTexture = OrBlack3DIfNull(ViewUniformShaderParameters.HairScatteringLUTTexture);
 	ViewUniformShaderParameters.HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

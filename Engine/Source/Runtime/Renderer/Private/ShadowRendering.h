@@ -1054,11 +1054,11 @@ public:
 		// Translucency shadow projection has no depth target
 		if (ShadowInfo->RenderTargets.DepthTarget)
 		{
-			ShadowDepthTextureValue = ShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference();
+			ShadowDepthTextureValue = ShadowInfo->RenderTargets.DepthTarget->GetRHI();
 		}
 		else
 		{
-			ShadowDepthTextureValue = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture.GetReference();
+			ShadowDepthTextureValue = GSystemTextures.BlackDummy->GetRHI();
 		}
 			
 		FRHISamplerState* DepthSamplerState = TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
@@ -1367,12 +1367,14 @@ public:
 	{
 		const FVector PreViewTranslation = View.ViewMatrices.GetPreViewTranslation();
 
-		FRHITexture* ShadowDepthTextureValue = ShadowInfo
-			? ShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture->GetTextureCube()
-			: GBlackTextureDepthCube->TextureRHI.GetReference();
-		if (!ShadowDepthTextureValue)
+		FRHITexture* ShadowDepthTextureValue = GBlackTextureDepthCube->TextureRHI;
+		
+		if (ShadowInfo)
 		{
-			ShadowDepthTextureValue = GBlackTextureDepthCube->TextureRHI.GetReference();
+			if (FRHITexture* Texture = ShadowInfo->RenderTargets.DepthTarget->GetRHI())
+			{
+				ShadowDepthTextureValue = Texture;
+			}
 		}
 
 		SetTextureParameter(

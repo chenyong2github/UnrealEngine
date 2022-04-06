@@ -255,7 +255,7 @@ void FElectraMediaTexConvApple::ConvertTexture(FTexture2DRHIRef & InDstTexture, 
 					RHICmdList.DrawPrimitive(0, 2, 1);
 				}
 				RHICmdList.EndRenderPass();
-				RHICmdList.CopyToResolveTarget(ShaderResource, ShaderResource, FResolveParams());
+				RHICmdList.Transition(FRHITransitionInfo(ShaderResource, ERHIAccess::RTV, ERHIAccess::SRVMask));
 			}
 			CFRelease(YTextureRef);
 			CFRelease(UVTextureRef);

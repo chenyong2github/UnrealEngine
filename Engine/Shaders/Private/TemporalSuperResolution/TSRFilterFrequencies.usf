@@ -176,7 +176,7 @@ void MainCS(
 
 
 	// Process the samples
-	tsr_halfC CenterInput;
+	tsr_halfC CenterInput = 0;
 	tsr_halfC FilteredInput;
 	tsr_halfC FilteredHistory;
 	{

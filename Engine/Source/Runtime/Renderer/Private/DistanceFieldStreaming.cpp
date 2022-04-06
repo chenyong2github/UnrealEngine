@@ -972,7 +972,7 @@ bool FDistanceFieldSceneData::ResizeIndirectionAtlasIfNeeded(FRDGBuilder& GraphB
 
 		if (IndirectionAtlas)
 		{
-			FRHIUnorderedAccessView* NewIndirectionAtlasUAV = NewIndirectionAtlas->GetRenderTargetItem().UAV;
+			FRHIUnorderedAccessView* NewIndirectionAtlasUAV = NewIndirectionAtlas->GetUAV();
 
 			AddPass(
 				GraphBuilder,
@@ -982,7 +982,7 @@ bool FDistanceFieldSceneData::ResizeIndirectionAtlasIfNeeded(FRDGBuilder& GraphB
 				TShaderMapRef<FCopyDistanceFieldIndirectionAtlasCS> ComputeShader(GlobalShaderMap);
 				FCopyDistanceFieldIndirectionAtlasCS::FParameters PassParameters;
 				PassParameters.RWIndirectionAtlas = NewIndirectionAtlasUAV;
-				PassParameters.DistanceFieldIndirectionAtlas = OldIndirectionAtlas->GetRenderTargetItem().ShaderResourceTexture;
+				PassParameters.DistanceFieldIndirectionAtlas = OldIndirectionAtlas->GetRHI();
 
 				RHICmdList.Transition(FRHITransitionInfo(NewIndirectionAtlasUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 				RHICmdList.BeginUAVOverlap(NewIndirectionAtlasUAV);
@@ -1538,7 +1538,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 						IndirectionAtlasUpload.Unlock();
 
 						TShaderMapRef<FScatterUploadDistanceFieldIndirectionAtlasCS> ComputeShader(GlobalShaderMap);
-						FRHIUnorderedAccessView* IndirectionAtlasUAV = IndirectionAtlas->GetRenderTargetItem().UAV;
+						FRHIUnorderedAccessView* IndirectionAtlasUAV = IndirectionAtlas->GetUAV();
 						FScatterUploadDistanceFieldIndirectionAtlasCS::FParameters PassParameters;
 						PassParameters.RWIndirectionAtlas = IndirectionAtlasUAV;
 						PassParameters.IndirectionUploadIndices = IndirectionAtlasUpload.IndirectionUploadIndicesBuffer.SRV;

@@ -35,7 +35,7 @@ public:
 	virtual void	InitDynamicRHI() override;
 	virtual void	ReleaseDynamicRHI() override;
 	
-	FRHITexture*	GetPhysicalTexture() const		{ return PhysicalTexture->GetRenderTargetItem().ShaderResourceTexture; }
+	FRHITexture*	GetPhysicalTexture() const		{ return PhysicalTexture->GetRHI(); }
 	FRHITexture*	GetPageTableTexture() const;
 	
 	FTexturePagePool*		Pool;

@@ -480,7 +480,7 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 		if (Scene->SkyLight->bRealTimeCaptureEnabled && Scene->ConvolvedSkyRenderTargetReadyIndex >= 0)
 		{
 			// Cannot blend with this capture mode as of today.
-			SkyLightTextureResource = Scene->ConvolvedSkyRenderTarget[Scene->ConvolvedSkyRenderTargetReadyIndex]->GetRenderTargetItem().ShaderResourceTexture;
+			SkyLightTextureResource = Scene->ConvolvedSkyRenderTarget[Scene->ConvolvedSkyRenderTargetReadyIndex]->GetRHI();
 		}
 		else if (SkyLight.ProcessedTexture)
 		{
@@ -532,7 +532,7 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 	OutParameters.ReflectionCubemap = CubeArrayTexture;
 	OutParameters.ReflectionCubemapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	OutParameters.PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
+	OutParameters.PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
 	OutParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 }
 
@@ -1057,7 +1057,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			PassParameters->DiffuseIndirect = DenoiserOutputs;
 			PassParameters->DiffuseIndirectSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
-			PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
+			PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
 			PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 			PassParameters->AmbientOcclusionTexture = AmbientOcclusionMask;
@@ -1226,7 +1226,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		{
 			FAmbientCubemapCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FAmbientCubemapCompositePS::FParameters>();
 			
-			PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
+			PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
 			PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			
 			PassParameters->AmbientOcclusionTexture = AmbientOcclusionMask;
@@ -1362,7 +1362,7 @@ static void AddSkyReflectionPass(
 		}
 		PassParameters->PS.CloudSkyAOSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
-		PassParameters->PS.PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
+		PassParameters->PS.PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
 		PassParameters->PS.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 		PassParameters->PS.SceneTextures = SceneTextureParameters;

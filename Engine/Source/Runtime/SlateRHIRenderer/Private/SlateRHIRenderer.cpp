@@ -795,8 +795,8 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			const uint32 ViewportHeight = (ViewportRT) ? ViewportRT->GetSizeY() : ViewportInfo.Height;
 
 			// Check to see that targets are up-to-date
-			if (bCompositeUI && (!ViewportInfo.UITargetRT || ViewportInfo.UITargetRT->GetRenderTargetItem().TargetableTexture->GetTexture2D()->GetSizeX() != ViewportWidth || ViewportInfo.UITargetRT->GetRenderTargetItem().TargetableTexture->GetTexture2D()->GetSizeY() != ViewportHeight
-				|| !ViewportInfo.HDRSourceRT || ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture->GetFormat() != BackBuffer->GetFormat()))
+			if (bCompositeUI && (!ViewportInfo.UITargetRT || ViewportInfo.UITargetRT->GetRHI()->GetSizeX() != ViewportWidth || ViewportInfo.UITargetRT->GetRHI()->GetSizeY() != ViewportHeight
+				|| !ViewportInfo.HDRSourceRT || ViewportInfo.HDRSourceRT->GetRHI()->GetFormat() != BackBuffer->GetFormat()))
 			{
 				// Composition buffers
 				{
@@ -843,16 +843,16 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 				FRHITransitionInfo Transitions[] = {
 					FRHITransitionInfo(FinalBuffer, ERHIAccess::Unknown, ERHIAccess::ResolveSrc),
-					FRHITransitionInfo(ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::ResolveDst)
+					FRHITransitionInfo(ViewportInfo.HDRSourceRT->GetRHI(), ERHIAccess::Unknown, ERHIAccess::ResolveDst)
 				};
 				RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 
 				// Grab HDR backbuffer
 				FResolveParams ResolveParams;
-				RHICmdList.CopyToResolveTarget(FinalBuffer, ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture, ResolveParams);
+				RHICmdList.CopyToResolveTarget(FinalBuffer, ViewportInfo.HDRSourceRT->GetRHI(), ResolveParams);
 
 				// UI backbuffer is temp target
-				BackBuffer = ViewportInfo.UITargetRT->GetRenderTargetItem().TargetableTexture->GetTexture2D();
+				BackBuffer = ViewportInfo.UITargetRT->GetRHI();
 			}
 
 #if WITH_EDITOR
@@ -875,7 +875,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				// FIXME: is this necessary?
 				RHICmdList.Transition(FRHITransitionInfo(FinalBuffer, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 
-				BackBuffer = HDRRenderRT->GetRenderTargetItem().TargetableTexture->GetTexture2D();
+				BackBuffer = HDRRenderRT->GetRHI();
 			}
 #endif
 
@@ -1015,8 +1015,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 				// Composition pass
 				{
-					FResolveParams ResolveParams;
-					RHICmdList.CopyToResolveTarget(ViewportInfo.UITargetRT->GetRenderTargetItem().TargetableTexture, ViewportInfo.UITargetRT->GetRenderTargetItem().TargetableTexture, ResolveParams);
+					RHICmdList.Transition(FRHITransitionInfo(ViewportInfo.UITargetRT->GetRHI(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
 
 					if (RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
 					{
@@ -1024,11 +1023,10 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 						FRenderTargetWriteMask::Decode(RHICmdList, ShaderMap, RenderTargets, ViewportInfo.UITargetRTMask, TexCreate_None, TEXT("UIRTWriteMask"));
 					}
 
-					FRHITransitionInfo Transitions[] = {
+					RHICmdList.Transition({
 						FRHITransitionInfo(FinalBuffer, ERHIAccess::Unknown, ERHIAccess::RTV),
-						FRHITransitionInfo(ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics)
-					};
-					RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
+						FRHITransitionInfo(ViewportInfo.HDRSourceRT->GetRHI(), ERHIAccess::Unknown, ERHIAccess::SRVGraphics)
+					});
 					FRHIRenderPassInfo RPInfo(FinalBuffer, ERenderTargetActions::Load_Store);
 					RHICmdList.BeginRenderPass(RPInfo, TEXT("SlateComposite"));
 					{
@@ -1040,7 +1038,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 						TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 
-						FRHITexture* UITargetRTMaskTexture = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? ViewportInfo.UITargetRTMask->GetRenderTargetItem().TargetableTexture : nullptr;
+						FRHITexture* UITargetRTMaskTexture = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? ViewportInfo.UITargetRTMask->GetRHI() : nullptr;
 						if (HDROutputDevice == 5 || HDROutputDevice == 6)
 						{
 							// ScRGB encoding
@@ -1053,7 +1051,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-							PixelShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRenderTargetItem().TargetableTexture, UITargetRTMaskTexture, ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture, ViewportInfo.ColorSpaceLUTSRV);
+							PixelShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, ViewportInfo.HDRSourceRT->GetRHI(), ViewportInfo.ColorSpaceLUTSRV);
 						}
 						else
 						{
@@ -1067,7 +1065,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-							PixelShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRenderTargetItem().TargetableTexture, UITargetRTMaskTexture, ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture, ViewportInfo.ColorSpaceLUTSRV);
+							PixelShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, ViewportInfo.HDRSourceRT->GetRHI(), ViewportInfo.ColorSpaceLUTSRV);
 						}
 
 						RendererModule.DrawRectangle(
@@ -1116,7 +1114,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-				PixelShader->SetParameters(RHICmdList, HDRRenderRT->GetRenderTargetItem().TargetableTexture );
+				PixelShader->SetParameters(RHICmdList, HDRRenderRT->GetRHI() );
 
 				static const FName RendererModuleName("Renderer");
 				IRendererModule& RendererModule = FModuleManager::GetModuleChecked<IRendererModule>(RendererModuleName);

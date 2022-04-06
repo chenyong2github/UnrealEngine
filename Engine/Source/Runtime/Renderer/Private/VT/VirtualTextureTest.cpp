@@ -185,9 +185,9 @@ void FVirtualTextureTest::ProducePageData( FRHICommandList& RHICmdList, ERHIFeat
 
 	auto ShaderMap = GetGlobalShaderMap( FeatureLevel );
 
-	FSceneRenderTargetItem& RenderTarget = PhysicalTexture->GetRenderTargetItem();
+	FRHITexture* RenderTarget = PhysicalTexture->GetRHI();
 
-	FRHIRenderPassInfo RPInfo(RenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
+	FRHIRenderPassInfo RPInfo(RenderTarget, ERenderTargetActions::Load_Store);
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("ProducePageData"));
 	{
 		RHICmdList.SetViewport(DstRect.Min.X, DstRect.Min.Y, 0.0f, DstRect.Max.X, DstRect.Max.Y, 1.0f);
@@ -220,7 +220,7 @@ void FVirtualTextureTest::ProducePageData( FRHICommandList& RHICmdList, ERHIFeat
 			EDRF_UseTriangleOptimization);
 	}
 	RHICmdList.EndRenderPass();
-	RHICmdList.CopyToResolveTarget(RenderTarget.TargetableTexture, RenderTarget.ShaderResourceTexture, FResolveParams());
+	RHICmdList.Transition(FRHITransitionInfo(RenderTarget, ERHIAccess::RTV, ERHIAccess::SRVMask));
 
 	GVisualizeTexture.SetCheckPoint( RHICmdList, PhysicalTexture );
 }

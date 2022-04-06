@@ -15,7 +15,7 @@
 bool IsHMDHiddenAreaMaskActive();
 
 // Returns the global engine mini font texture.
-const FTextureRHIRef& GetMiniFontTexture();
+FRHITexture* GetMiniFontTexture();
 
 // Creates and returns an RDG texture for the view family output. Returns null if no RHI texture exists.
 FRDGTextureRef RENDERER_API TryCreateViewFamilyTexture(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily);

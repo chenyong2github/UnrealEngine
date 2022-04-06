@@ -159,8 +159,8 @@ public:
 
 		if (GSystemTextures.GTAOPreIntegrated.IsValid())
 		{
-			ShaderParameters.GTAOPreIntegrated2D = GSystemTextures.GTAOPreIntegrated->GetRenderTargetItem().ShaderResourceTexture;
-			ShaderParameters.GTAOPreIntegrated3D = GSystemTextures.GTAOPreIntegrated->GetRenderTargetItem().ShaderResourceTexture;
+			ShaderParameters.GTAOPreIntegrated2D = GSystemTextures.GTAOPreIntegrated->GetRHI();
+			ShaderParameters.GTAOPreIntegrated3D = GSystemTextures.GTAOPreIntegrated->GetRHI();
 			ShaderParameters.GTAOPreIntegratedSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		}
 	}

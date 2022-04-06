@@ -500,7 +500,7 @@ void UpdateHistory(
 		DistanceFieldAOHistoryViewRect->Max.Y = View.ViewRect.Size().Y / GAODownsampleFactor;
 
 #if WITH_MGPU && 0 // TODO(RDG)
-		FRHITexture* TexturesToCopyForTemporalEffect[] = { BentNormalHistoryOutput->GetRenderTargetItem().ShaderResourceTexture.GetReference() };
+		FRHITexture* TexturesToCopyForTemporalEffect[] = { BentNormalHistoryOutput->GetRHI() };
 		RHICmdList.BroadcastTemporalEffect(FName(NameForTemporalEffect, View.ViewState->UniqueID), TexturesToCopyForTemporalEffect);
 #endif
 	}

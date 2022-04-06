@@ -263,7 +263,7 @@ void FReflectionEnvironmentCubemapArray::ResizeCubemapArrayGPU(uint32 InMaxCubem
 
 	InitDynamicRHI();
 
-	FTextureRHIRef TexRef = OldReflectionEnvs->GetRenderTargetItem().TargetableTexture;
+	FTextureRHIRef TexRef = OldReflectionEnvs->GetRHI();
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	const int32 NumMips = FMath::CeilLogTwo(InCubemapSize) + 1;
 
@@ -295,7 +295,7 @@ void FReflectionEnvironmentCubemapArray::ResizeCubemapArrayGPU(uint32 InMaxCubem
 						// For now, we'll just do this on RHIs where we know CopyToResolveTarget does the right thing. In future we should look to 
 						// add a a new RHI method
 						check(GRHISupportsResolveCubemapFaces);
-						RHICmdList.CopyToResolveTarget(OldReflectionEnvs->GetRenderTargetItem().ShaderResourceTexture, ReflectionEnvs->GetRenderTargetItem().ShaderResourceTexture, ResolveParams);
+						RHICmdList.CopyToResolveTarget(OldReflectionEnvs->GetRHI(), ReflectionEnvs->GetRHI(), ResolveParams);
 					}
 				}
 			}

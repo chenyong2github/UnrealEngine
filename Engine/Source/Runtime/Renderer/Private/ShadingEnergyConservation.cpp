@@ -62,7 +62,7 @@ namespace ShadingEnergyConservationData
 	#include "ShadingEnergyConservationData.h"
 
 	template<typename TDataType>
-	void LockCopyTexture2D(FRHICommandListImmediate& RHICmdList, FTexture2DRHIRef& Texture, const TDataType* InSrcBuffer, uint32 NumComponents)
+	void LockCopyTexture2D(FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, const TDataType* InSrcBuffer, uint32 NumComponents)
 	{
 		const uint8* SrcBuffer = (const uint8*)InSrcBuffer;
 		const uint32 SrcBytesPerPixel = sizeof(TDataType) * NumComponents;
@@ -80,7 +80,7 @@ namespace ShadingEnergyConservationData
 	}
 
 	template<typename TDataType>
-	void LockCopyTexture3D(FRHICommandListImmediate& RHICmdList, FTexture3DRHIRef& Texture, const TDataType* InSrcBuffer, uint32 NumComponents)
+	void LockCopyTexture3D(FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, const TDataType* InSrcBuffer, uint32 NumComponents)
 	{
 		const uint8* SrcBuffer = (const uint8*)InSrcBuffer;
 		const uint32 SrcBytesPerPixel = sizeof(TDataType) * NumComponents;
@@ -330,10 +330,10 @@ void Init(FRDGBuilder& GraphBuilder, FViewInfo& View)
 				View.ViewState->ShadingEnergyConservationData.ClothEnergyTexture    = GRenderTargetPool.FindFreeElement(FRDGTextureDesc::Create2D(FIntPoint(Size, Size),        SpecFormat, FClearValueBinding::None, TexCreate_ShaderResource), TEXT("Shading.ClothSpecEnergy"));
 				View.ViewState->ShadingEnergyConservationData.DiffuseEnergyTexture  = GRenderTargetPool.FindFreeElement(FRDGTextureDesc::Create2D(FIntPoint(Size, Size),        DiffFormat,	FClearValueBinding::None, TexCreate_ShaderResource), TEXT("Shading.DiffuseEnergy"));
 
-				ShadingEnergyConservationData::LockCopyTexture2D(GraphBuilder.RHICmdList, (FTexture2DRHIRef&)View.ViewState->ShadingEnergyConservationData.GGXSpecEnergyTexture->GetRenderTargetItem().ShaderResourceTexture,  ShadingEnergyConservationData::GGXSpecValues, 2);
-				ShadingEnergyConservationData::LockCopyTexture3D(GraphBuilder.RHICmdList, (FTexture3DRHIRef&)View.ViewState->ShadingEnergyConservationData.GGXGlassEnergyTexture->GetRenderTargetItem().ShaderResourceTexture, ShadingEnergyConservationData::GGXGlassValues, 2);
-				ShadingEnergyConservationData::LockCopyTexture2D(GraphBuilder.RHICmdList, (FTexture2DRHIRef&)View.ViewState->ShadingEnergyConservationData.ClothEnergyTexture->GetRenderTargetItem().ShaderResourceTexture,    Strata::IsStrataEnabled() ? ShadingEnergyConservationData::StrataClothSpecValues : ShadingEnergyConservationData::ClothSpecValues, 2);
-				ShadingEnergyConservationData::LockCopyTexture2D(GraphBuilder.RHICmdList, (FTexture2DRHIRef&)View.ViewState->ShadingEnergyConservationData.DiffuseEnergyTexture->GetRenderTargetItem().ShaderResourceTexture,  ShadingEnergyConservationData::DiffuseValues, 1);
+				ShadingEnergyConservationData::LockCopyTexture2D(GraphBuilder.RHICmdList, View.ViewState->ShadingEnergyConservationData.GGXSpecEnergyTexture->GetRHI(),  ShadingEnergyConservationData::GGXSpecValues, 2);
+				ShadingEnergyConservationData::LockCopyTexture3D(GraphBuilder.RHICmdList, View.ViewState->ShadingEnergyConservationData.GGXGlassEnergyTexture->GetRHI(), ShadingEnergyConservationData::GGXGlassValues, 2);
+				ShadingEnergyConservationData::LockCopyTexture2D(GraphBuilder.RHICmdList, View.ViewState->ShadingEnergyConservationData.ClothEnergyTexture->GetRHI(),    Strata::IsStrataEnabled() ? ShadingEnergyConservationData::StrataClothSpecValues : ShadingEnergyConservationData::ClothSpecValues, 2);
+				ShadingEnergyConservationData::LockCopyTexture2D(GraphBuilder.RHICmdList, View.ViewState->ShadingEnergyConservationData.DiffuseEnergyTexture->GetRHI(),  ShadingEnergyConservationData::DiffuseValues, 1);
 
 				GGXSpecEnergyTexture  = GraphBuilder.RegisterExternalTexture(View.ViewState->ShadingEnergyConservationData.GGXSpecEnergyTexture);
 				GGXGlassEnergyTexture = GraphBuilder.RegisterExternalTexture(View.ViewState->ShadingEnergyConservationData.GGXGlassEnergyTexture);

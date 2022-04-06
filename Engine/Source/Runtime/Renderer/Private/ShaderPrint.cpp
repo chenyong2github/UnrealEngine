@@ -665,7 +665,7 @@ namespace ShaderPrint
 		// Non graph managed resources
 		FRDGBufferSRVRef ValueBuffer = GraphBuilder.CreateSRV(View.ShaderPrintData.ShaderPrintValueBuffer);
 		FRDGBufferSRVRef StateBuffer = GraphBuilder.CreateSRV(View.ShaderPrintData.ShaderPrintStateBuffer);
-		FTextureRHIRef FontTexture = GSystemTextures.AsciiTexture->GetRenderTargetItem().ShaderResourceTexture;
+		FTextureRHIRef FontTexture = GSystemTextures.AsciiTexture->GetRHI();
 
 		const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
 		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);

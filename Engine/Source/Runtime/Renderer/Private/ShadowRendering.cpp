@@ -2476,8 +2476,8 @@ void SetupTranslucentSelfShadowUniformParameters(const FProjectedShadowInfo* Sha
 		// Incorporate the diffuse scale of 1 / PI into the light color
 		OutParameters.DirectionalLightColor = FVector4f(FVector3f(LightProxy->GetColor() * FadeAlpha / PI), FadeAlpha);
 
-		OutParameters.Transmission0 = ShadowInfo->RenderTargets.ColorTargets[0]->GetRenderTargetItem().ShaderResourceTexture.GetReference();
-		OutParameters.Transmission1 = ShadowInfo->RenderTargets.ColorTargets[1]->GetRenderTargetItem().ShaderResourceTexture.GetReference();
+		OutParameters.Transmission0 = ShadowInfo->RenderTargets.ColorTargets[0]->GetRHI();
+		OutParameters.Transmission1 = ShadowInfo->RenderTargets.ColorTargets[1]->GetRHI();
 		OutParameters.Transmission0Sampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		OutParameters.Transmission1Sampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}

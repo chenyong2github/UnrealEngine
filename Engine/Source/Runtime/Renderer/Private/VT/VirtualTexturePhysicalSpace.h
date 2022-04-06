@@ -89,7 +89,7 @@ public:
 	FRHITexture* GetPhysicalTexture(int32 Layer) const
 	{
 		check(PooledRenderTarget[Layer].IsValid());
-		return PooledRenderTarget[Layer]->GetRenderTargetItem().ShaderResourceTexture;
+		return PooledRenderTarget[Layer]->GetRHI();
 	}
 
 	FRHIShaderResourceView* GetPhysicalTextureSRV(int32 Layer, bool bSRGB) const

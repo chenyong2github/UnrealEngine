@@ -168,7 +168,7 @@ bool FTextureShareRHI::WriteToShareTexture_RenderThread(FRHICommandListImmediate
 		TRefCountPtr<IPooledRenderTarget> ResampledRTT;
 		if (GetPooledTempRTT_RenderThread(RHICmdList, DstRect.Size(), DstFormat, true, ResampledRTT))
 		{
-			FTexture2DRHIRef RHIResampledRTT = (const FTexture2DRHIRef&)ResampledRTT->GetRenderTargetItem().TargetableTexture;
+			FTexture2DRHIRef RHIResampledRTT = (const FTexture2DRHIRef&)ResampledRTT->GetRHI();
 			if (RHIResampledRTT.IsValid())
 			{
 				// Resample source texture to PooledTempRTT (Src texture now always shader resource)
@@ -208,8 +208,8 @@ bool FTextureShareRHI::ReadFromShareTexture_RenderThread(FRHICommandListImmediat
 		TRefCountPtr<IPooledRenderTarget> ReceivedSRV, ResampledRTT;
 		if (GetPooledTempRTT_RenderThread(RHICmdList, SrcRect.Size(), SrcFormat, false, ReceivedSRV) && GetPooledTempRTT_RenderThread(RHICmdList, DstRect.Size(), DstFormat, true, ResampledRTT))
 		{
-			FTexture2DRHIRef RHIReceivedSRV  = (const FTexture2DRHIRef&)ReceivedSRV->GetRenderTargetItem().ShaderResourceTexture;
-			FTexture2DRHIRef RHIResampledRTT = (const FTexture2DRHIRef&)ResampledRTT->GetRenderTargetItem().TargetableTexture;
+			FTexture2DRHIRef RHIReceivedSRV  = (const FTexture2DRHIRef&)ReceivedSRV->GetRHI();
+			FTexture2DRHIRef RHIResampledRTT = (const FTexture2DRHIRef&)ResampledRTT->GetRHI();
 			if (RHIReceivedSRV.IsValid() && RHIResampledRTT.IsValid())
 			{
 				// Copy direct from shared texture to RHIReceivedSRV (received shared texture has only flag TexCreate_ResolveTargetable, not shader resource)
