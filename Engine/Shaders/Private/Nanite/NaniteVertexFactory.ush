@@ -16,10 +16,10 @@
 #endif
 
 // Make sure we decode enough texture coordinates to satisfy programmable features
-#if NUM_MATERIAL_TEXCOORDS_VERTEX > NUM_TEX_COORD_INTERPOLATORS
+#if NUM_MATERIAL_TEXCOORDS_VERTEX > NUM_MATERIAL_TEXCOORDS
 	#define NANITE_NUM_TEXCOORDS_TO_DECODE NUM_MATERIAL_TEXCOORDS_VERTEX
 #else
-	#define NANITE_NUM_TEXCOORDS_TO_DECODE NUM_TEX_COORD_INTERPOLATORS
+	#define NANITE_NUM_TEXCOORDS_TO_DECODE NUM_MATERIAL_TEXCOORDS
 #endif
 
 // Nanite material evaluation is deferred to a screenspace pass sampling the visibility buffer,
@@ -217,6 +217,9 @@ struct FNaniteTransformedTri
 	float3 PointWorld[3];
 	float4 PointClip[3];
 	FNaniteRawAttributeData RawAttributeData[3];
+#if NUM_TEX_COORD_INTERPOLATORS
+	float2 CustomizedUVs[3][NUM_TEX_COORD_INTERPOLATORS];
+#endif
 };
 
 FNaniteVertTransforms CalculateNaniteVertexTransforms(FInstanceSceneData InstanceData, FInstanceDynamicData InstanceDynamicData, FNaniteView NaniteView)
@@ -295,9 +298,15 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 			Tri.PrevPointLocal[i]	= PointLocalNoWPO[i] + PrevLocalOffset;
 			Tri.PointWorld[i]		= VertexParameters.WorldPosition + WorldPositionOffset;
 			Tri.PointClip[i]		= mul(float4(Tri.PointWorld[i], 1), Transforms.TranslatedWorldToClip);
+
+		#if NUM_TEX_COORD_INTERPOLATORS
+			GetMaterialCustomizedUVs(VertexParameters, Tri.CustomizedUVs[i]);
+			GetCustomInterpolators(VertexParameters, Tri.CustomizedUVs[i]);
+		#endif
 		}
 	}
 	else
+#endif // USES WORLD_POSITION_OFFSET
 	{
 		UNROLL_N(3)
 		for (int i = 0; i < 3; ++i)
@@ -306,18 +315,17 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 			Tri.PrevPointLocal[i]	= PointLocalNoWPO[i];
 			Tri.PointWorld[i]		= mul(float4(Tri.PointLocal[i], 1), Transforms.LocalToTranslatedWorld).xyz;
 			Tri.PointClip[i]		= mul(float4(Tri.PointLocal[i], 1), Transforms.LocalToClip);
+
+		#if NUM_TEX_COORD_INTERPOLATORS
+			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
+			SetVertexParameterInstanceData(VertexParameters, InstanceData);
+			SetVertexParameterAttributeData(VertexParameters, RawAttributeData[i], Transforms.LocalToTranslatedWorld, Transforms.LocalToWorldNoScale, PointLocalNoWPO[i]);
+
+			GetMaterialCustomizedUVs(VertexParameters, Tri.CustomizedUVs[i]);
+			GetCustomInterpolators(VertexParameters, Tri.CustomizedUVs[i]);
+		#endif
 		}
 	}
-#else
-	UNROLL_N(3)
-	for (int i = 0; i < 3; ++i)
-	{
-		Tri.PointLocal[i]		= PointLocalNoWPO[i];
-		Tri.PrevPointLocal[i]	= PointLocalNoWPO[i];
-		Tri.PointWorld[i]		= mul(float4(Tri.PointLocal[i], 1), Transforms.LocalToTranslatedWorld).xyz;
-		Tri.PointClip[i]		= mul(float4(Tri.PointLocal[i], 1), Transforms.LocalToClip);
-	}
-#endif // USES WORLD_POSITION_OFFSET
 
 	return Tri;
 }
@@ -329,6 +337,9 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 	const float SignTest = dot(cross(Tri.PointClip[1].xyw - Tri.PointClip[0].xyw, Tri.PointClip[2].xyw - Tri.PointClip[0].xyw), Tri.PointClip[0].xyw);
 	Result.TwoSidedSign = CondMask(SignTest >= 0.0f, -1.0f, 1.0f);
 
+	// Only need the first UV from cluster data (used to solve the tangent frame in GetAttributeData).
+	// But we don't use any for the pixel parameters because we interpolate the UVs manually below, in case they were customized.
+	const uint NumAttributeDataCoords = 1;
 	const FNaniteAttributeData AttributeData = GetAttributeData(
 		Cluster,
 		Tri.PointLocal[0],
@@ -339,7 +350,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 		Tri.RawAttributeData[2],
 		Barycentrics,
 		InstanceData,
-		NUM_TEX_COORD_INTERPOLATORS
+		NumAttributeDataCoords
 	);
 
 #if INTERPOLATE_VERTEX_COLOR
@@ -360,13 +371,10 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 	UNROLL
 	for (uint TexCoordIndex = 0; TexCoordIndex < NUM_TEX_COORD_INTERPOLATORS; TexCoordIndex++)
 	{
-		// Protect against case where Nanite max UV count is lower than what the material may define.
-		if (TexCoordIndex < NANITE_MAX_UVS)
-		{
-			Result.TexCoords[TexCoordIndex] = AttributeData.TexCoords[TexCoordIndex];
-			Result.TexCoords_DDX[TexCoordIndex] = AttributeData.TexCoords_DDX[TexCoordIndex];
-			Result.TexCoords_DDY[TexCoordIndex] = AttributeData.TexCoords_DDY[TexCoordIndex];
-		}
+		FTexCoord TexCoord = InterpolateTexCoord(Tri.CustomizedUVs[0][TexCoordIndex], Tri.CustomizedUVs[1][TexCoordIndex], Tri.CustomizedUVs[2][TexCoordIndex], Barycentrics);
+		Result.TexCoords[TexCoordIndex] = TexCoord.Value;
+		Result.TexCoords_DDX[TexCoordIndex] = TexCoord.DDX;
+		Result.TexCoords_DDY[TexCoordIndex] = TexCoord.DDY;
 	}
 #endif
 
@@ -418,7 +426,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 	float2 LightMapCoordinateInput;
 	float2 LightMapCoordinateInput_DDX;
 	float2 LightMapCoordinateInput_DDY;
-	if (LightMapUVIndex < NUM_TEX_COORD_INTERPOLATORS)
+	if (LightMapUVIndex < NumAttributeDataCoords)
 	{
 		LightMapCoordinateInput = AttributeData.TexCoords[LightMapUVIndex];
 		LightMapCoordinateInput_DDX = AttributeData.TexCoords_DDX[LightMapUVIndex];
@@ -426,6 +434,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 	}
 	else
 	{
+		// We don't already have the UV in the attribute data, so retrieve it
 		FTexCoord TexCoord = GetTexCoord(Cluster, Tri.TriIndices, Barycentrics, LightMapUVIndex);
 		LightMapCoordinateInput = TexCoord.Value;
 		LightMapCoordinateInput_DDX = TexCoord.DDX;
