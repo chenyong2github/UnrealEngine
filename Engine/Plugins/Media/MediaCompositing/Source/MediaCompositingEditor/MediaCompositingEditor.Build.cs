@@ -44,6 +44,15 @@ namespace UnrealBuildTool.Rules
 					"MediaCompositingEditor/Private/Sequencer",
 					"MediaCompositingEditor/Private/Shared",
 				});
+
+			DynamicallyLoadedModuleNames.AddRange(
+				new string[] {
+					"MediaPlate",
+				});
+			PrivateIncludePathModuleNames.AddRange(
+				new string[] {
+					"MediaPlate",
+				});
 		}
 	}
 }

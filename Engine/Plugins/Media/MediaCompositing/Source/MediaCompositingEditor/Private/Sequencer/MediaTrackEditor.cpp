@@ -11,6 +11,8 @@
 #include "ISequencerObjectChangeListener.h"
 #include "MediaSource.h"
 #include "MediaTexture.h"
+#include "MediaPlate.h"
+#include "MediaPlateModule.h"
 #include "MovieSceneBinding.h"
 #include "MovieSceneMediaSection.h"
 #include "MovieSceneMediaTrack.h"
@@ -76,6 +78,27 @@ void FMediaTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 	);
 }
 
+void FMediaTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
+{
+	// Is this a media plate?
+	if (ObjectClass != nullptr)
+	{
+		FMediaPlateModule* MediaPlateModule = FModuleManager::LoadModulePtr<FMediaPlateModule>("MediaPlate");
+		if (MediaPlateModule != nullptr)
+		{
+			if (ObjectClass->IsChildOf(MediaPlateModule->GetAMediaPlateClass()))
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("AddTrack", "Media"),
+					LOCTEXT("AddAttachedTooltip", "Adds a media track attached to the object."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateRaw(this, &FMediaTrackEditor::HandleAddMediaTrackToObjectBindingMenuEntryExecute, ObjectBindings)));
+			}
+		}
+	}
+
+}
 
 TSharedPtr<SWidget> FMediaTrackEditor::BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params)
 {
@@ -311,6 +334,38 @@ void FMediaTrackEditor::HandleAddMediaTrackMenuEntryExecute()
 	}
 }
 
+void FMediaTrackEditor::HandleAddMediaTrackToObjectBindingMenuEntryExecute(TArray<FGuid> InObjectBindingIDs)
+{
+	UMovieScene* FocusedMovieScene = GetFocusedMovieScene();
 
+	if (FocusedMovieScene == nullptr)
+	{
+		return;
+	}
+
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		return;
+	}
+
+	const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "AddMediaTrack_Transaction", "Add Media Track"));
+	FocusedMovieScene->Modify();
+
+	// Loop through all objects.
+	for (FGuid InObjectBindingID : InObjectBindingIDs)
+	{
+		if (InObjectBindingID.IsValid())
+		{
+			// Add media track.
+			UMovieSceneMediaTrack* NewObjectTrack = FocusedMovieScene->AddTrack<UMovieSceneMediaTrack>(InObjectBindingID);
+			NewObjectTrack->SetDisplayName(LOCTEXT("MediaTrackName", "Media"));
+			
+			if (GetSequencer().IsValid())
+			{
+				GetSequencer()->OnAddTrack(NewObjectTrack, InObjectBindingID);
+			}
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE
