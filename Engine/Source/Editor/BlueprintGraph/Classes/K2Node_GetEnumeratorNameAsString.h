@@ -25,6 +25,7 @@ class UK2Node_GetEnumeratorNameAsString : public UK2Node_GetEnumeratorName
 	//~ Begin UK2Node Interface
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
 	virtual FText GetMenuCategory() const override;
+	virtual bool ShouldDrawCompact() const override { return false; }
 	//~ End UK2Node Interface
 
 	virtual FName GetFunctionName() const override;
