@@ -2544,14 +2544,15 @@ namespace EpicGames.MCP.Config
                             }
                             catch (Exception Ex)
                             {
-                                var ErrorBuilder = new System.Text.StringBuilder(Ex.Message);
-                                if (Ex.InnerException != null)
-                                {
-                                    ErrorBuilder.AppendLine(Ex.InnerException.Message);
-                                }
-                                ErrorBuilder.AppendLine(Ex.StackTrace);
-                                BuildCommand.LogWarning("Unable to create McpConfig [{0}] with error: {1}",
-                                    PotentialConfigType.Name, ErrorBuilder.ToString());
+                               	var Inner = Ex.InnerException;
+								while(null != Inner)
+								{
+									BuildCommand.LogWarning("Exception encountered creating McpConfig [{0}] with error: {1}",
+										PotentialConfigType.Name, Inner.Message);
+									Inner = Inner.InnerException;
+								}
+								BuildCommand.LogWarning("Unable to create McpConfig [{0}] with error: {1} \n {2}",
+									PotentialConfigType.Name, Ex.Message, Ex.StackTrace);
                             }
                         }
                     }
