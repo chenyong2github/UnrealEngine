@@ -17,6 +17,16 @@ namespace Horde.Build.Utilities
 	public static class MongoExtensions
 	{
 		/// <summary>
+		/// Rounds a time value to its BSON equivalent (ie. milliseconds since Unix Epoch).
+		/// </summary>
+		/// <param name="time"></param>
+		/// <returns></returns>
+		public static DateTime RoundToBsonDateTime(DateTime time)
+		{
+			return BsonUtils.ToDateTimeFromMillisecondsSinceEpoch(BsonUtils.ToMillisecondsSinceEpoch(time));
+		}
+
+		/// <summary>
 		/// Executes a query with a particular index hint
 		/// </summary>
 		/// <typeparam name="TDoc"></typeparam>

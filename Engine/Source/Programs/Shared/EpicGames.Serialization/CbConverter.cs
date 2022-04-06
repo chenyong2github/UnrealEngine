@@ -261,11 +261,12 @@ namespace EpicGames.Serialization
 		public static List<CbConverterFactory> ConverterFactories = new List<CbConverterFactory>
 		{
 			new CbClassConverterFactory(),
+			new CbStringConverterFactory(),
 			new CbEnumConverterFactory(),
 			new CbListConverterFactory(),
 			new CbArrayConverterFactory(),
 			new CbDictionaryConverterFactory(),
-			new CbNullableConverterFactory()
+			new CbNullableConverterFactory(),
 		};
 
 		/// <summary>

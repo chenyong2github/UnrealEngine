@@ -8,6 +8,7 @@ using Horde.Build.Api;
 using Horde.Build.Logs;
 using Horde.Build.Logs.Builder;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -29,7 +30,8 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task TestRedisLogBuilder()
 		{
-			ILogBuilder builder = new RedisLogBuilder(GetRedisConnectionPool(), NullLogger.Instance);
+			RedisService redisService = GetRedisServiceSingleton();
+			ILogBuilder builder = new RedisLogBuilder(redisService.ConnectionPool, NullLogger.Instance);
 			await TestBuilder(builder);
 		}
 

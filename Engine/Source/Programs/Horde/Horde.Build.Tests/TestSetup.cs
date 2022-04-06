@@ -30,6 +30,7 @@ using Horde.Build.Storage.Services;
 using Horde.Build.Tasks.Impl;
 using Horde.Build.Tests.Stubs.Collections;
 using Horde.Build.Tests.Stubs.Services;
+using Horde.Build.Tools;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.AspNetCore.Http;
@@ -133,8 +134,6 @@ namespace Horde.Build.Tests
 			services.AddLogging(builder => builder.AddConsole());
 			services.AddSingleton<IMemoryCache>(sp => new MemoryCache(new MemoryCacheOptions { }));
 
-			services.AddSingleton<RedisService>();
-
 			services.AddSingleton(typeof(IAuditLogFactory<>), typeof(AuditLogFactory<>));
 			services.AddSingleton<IAuditLog<AgentId>>(sp => sp.GetRequiredService<IAuditLogFactory<AgentId>>().Create("Agents.Log", "AgentId"));
 
@@ -162,6 +161,8 @@ namespace Horde.Build.Tests
 			services.AddSingleton<ITemplateCollection, TemplateCollection>();
 			services.AddSingleton<IUgsMetadataCollection, UgsMetadataCollection>();
 			services.AddSingleton<IUserCollection, UserCollectionV1>();
+
+			services.AddSingleton<ToolCollection>();
 
 			services.AddSingleton<FakeClock>();
 			services.AddSingleton<IClock>(sp => sp.GetRequiredService<FakeClock>());

@@ -73,16 +73,22 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="options"></param>
-		/// <param name="loggerFactory"></param>
 		public RedisService(IOptions<ServerSettings> options, ILoggerFactory loggerFactory)
+			: this(options.Value.RedisConnectionConfig, -1, loggerFactory)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="connectionString">Redis connection string. If null, we will start a temporary redis instance on the local machine.</param>
+		/// <param name="dbNum">Override for the database to use. Set to -1 to use the default from the connection string.</param>
+		/// <param name="loggerFactory"></param>
+		public RedisService(string? connectionString, int dbNum, ILoggerFactory loggerFactory)
 		{
 			_loggerFactory = loggerFactory;
 			_logger = loggerFactory.CreateLogger<RedisService>();
 
-			ServerSettings settings = options.Value;
-
-			string? connectionString = settings.RedisConnectionConfig;
 			if (connectionString == null)
 			{
 				if (IsRunningOnDefaultPort())
@@ -95,18 +101,20 @@ namespace Horde.Build.Server
 				}
 				else
 				{
-					throw new Exception($"Unable to connect to Redis. Please set {nameof(settings.RedisConnectionConfig)} in {Program.UserConfigFile}");
+					throw new Exception($"Unable to connect to Redis. Please set {nameof(ServerSettings.RedisConnectionConfig)} in {Program.UserConfigFile}");
 				}
 			}
 
 			Multiplexer = ConnectionMultiplexer.Connect(connectionString);
-			Database = Multiplexer.GetDatabase();
-			ConnectionPool = new RedisConnectionPool(20, connectionString);
+			Database = Multiplexer.GetDatabase(dbNum);
+			ConnectionPool = new RedisConnectionPool(20, connectionString, dbNum);
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
+			Multiplexer.Dispose();
+
 			if (_redisProcess != null)
 			{
 				_redisProcess.Dispose();

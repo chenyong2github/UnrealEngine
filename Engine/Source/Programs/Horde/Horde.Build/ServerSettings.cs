@@ -513,6 +513,11 @@ namespace Horde.Build
 		public StorageOptions? Storage { get; set; }
 
 		/// <summary>
+		/// Namespace to use for storing tools
+		/// </summary>
+		public NamespaceId ToolNamespaceId { get; set; } = new NamespaceId("horde.tools");
+
+		/// <summary>
 		/// Lazily computed timezone value
 		/// </summary>
 		public TimeZoneInfo TimeZoneInfo

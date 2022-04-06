@@ -139,9 +139,7 @@ namespace Horde.Build.Tests
 		private readonly LoggerFactory _loggerFactory = new LoggerFactory();
 
 		private static RedisRunner? s_redisRunner;
-        private IDatabase? _redisDb;
-        private RedisConnectionPool? _redisConnectionPool;
-        private ConnectionMultiplexer? _conMux;
+		private RedisService? _redisService;
         public const int RedisDbNum = 15;
 
 		public DatabaseIntegrationTest()
@@ -151,7 +149,7 @@ namespace Horde.Build.Tests
 		protected override void ConfigureServices(IServiceCollection services)
 		{
 			services.AddSingleton(GetMongoServiceSingleton());
-			services.AddSingleton(GetRedisDatabase());
+			services.AddSingleton(GetRedisServiceSingleton());
 		}
 
 		protected override void Dispose(bool disposing)
@@ -160,9 +158,8 @@ namespace Horde.Build.Tests
 
 			_mongoDbInstance?.Dispose();
 			_mongoService?.Dispose();
+			_redisService?.Dispose();
 			_loggerFactory.Dispose();
-
-			_conMux?.Dispose();
 		}
 
 		public MongoService GetMongoServiceSingleton()
@@ -197,30 +194,23 @@ namespace Horde.Build.Tests
 			return s_redisRunner;
 		}
 
-		public IDatabase GetRedisDatabase()
+		public RedisService GetRedisServiceSingleton()
         {
-			RedisRunner redisRunner = GetRedisRunner();
-			(string host, int port) = redisRunner.GetListenAddress();
-
-			_conMux = ConnectionMultiplexer.Connect($"{host}:{port},allowAdmin=true");
-			foreach (EndPoint endpoint in _conMux.GetEndPoints())
+			if (_redisService == null)
 			{
-				_conMux.GetServer(endpoint).FlushDatabase(RedisDbNum);
-			}
+				RedisRunner redisRunner = GetRedisRunner();
 
-			_redisDb = _conMux.GetDatabase(RedisDbNum);
-	        return _redisDb;
+				(string host, int port) = redisRunner.GetListenAddress();
+				_redisService = new RedisService($"{host}:{port},allowAdmin=true", RedisDbNum, _loggerFactory);
+
+				foreach (EndPoint endpoint in _redisService.Multiplexer.GetEndPoints())
+				{
+					_redisService.Multiplexer.GetServer(endpoint).FlushDatabase(RedisDbNum);
+				}
+			}
+			return _redisService;
         }
         
-        public RedisConnectionPool GetRedisConnectionPool()
-        {
-			RedisRunner redisRunner = GetRedisRunner();
-			(string host, int port) = redisRunner.GetListenAddress();
-
-	        _redisConnectionPool = new RedisConnectionPool(3, $"{host}:{port},allowAdmin=true", RedisDbNum);
-	        return _redisConnectionPool;
-        }
-
 		public static T Deref<T>(T? item)
 		{
 			Assert.IsNotNull(item);

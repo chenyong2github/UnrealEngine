@@ -2,17 +2,41 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Horde.Build.Server;
-using Horde.Build.Utilities;
 using MongoDB.Bson;
+using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Driver;
 using StackExchange.Redis;
 
-namespace Horde.Build.Tools.Impl
+namespace Horde.Build.Utilities
 {
+	/// <summary>
+	/// Exception indicating that a particular document couldn't be found
+	/// </summary>
+	public sealed class DocumentNotFoundException<TId> : Exception
+	{
+		/// <summary>
+		/// The document identifier
+		/// </summary>
+		public TId Id { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="id"></param>
+		public DocumentNotFoundException(TId id)
+			: base($"Unable to find '{id}'")
+		{
+			Id = id;
+		}
+	}
+
 	/// <summary>
 	/// Base class for a versioned MongoDB document
 	/// </summary>
@@ -25,12 +49,14 @@ namespace Horde.Build.Tools.Impl
 		/// <summary>
 		/// Unique id for this document
 		/// </summary>
+		[JsonPropertyOrder(0)]
 		public TId Id { get; set; }
 
 		/// <summary>
 		/// Last time that the document was updated. This field is checked and updated as part of updates to ensure atomicity.
 		/// </summary>
 		[BsonElement("_u")]
+		[JsonPropertyOrder(1000)]
 		public DateTime LastUpdateTime { get; set; }
 
 		/// <summary>
@@ -50,6 +76,43 @@ namespace Horde.Build.Tools.Impl
 		public abstract TLatest UpgradeToLatest();
 	}
 
+	[BsonDiscriminator()]
+	class VersionedDocumentDiscriminator : IDiscriminatorConvention
+	{
+		public string ElementName => "_v";
+
+		readonly IReadOnlyDictionary<int, Type> _versionToType;
+		readonly IReadOnlyDictionary<Type, int> _typeToVersion;
+
+		public VersionedDocumentDiscriminator(IReadOnlyDictionary<int, Type> types)
+		{
+			_versionToType = types;
+			_typeToVersion = _versionToType.ToDictionary(x => x.Value, x => x.Key);
+		}
+
+		public Type GetActualType(IBsonReader bsonReader, Type nominalType)
+		{
+			BsonReaderBookmark bookmark = bsonReader.GetBookmark();
+			bsonReader.ReadStartDocument();
+			for (; ; )
+			{
+				string name = bsonReader.ReadName();
+				if (name.Equals("_v", StringComparison.Ordinal))
+				{
+					int version = bsonReader.ReadInt32();
+					bsonReader.ReturnToBookmark(bookmark);
+					return _versionToType[version];
+				}
+				bsonReader.SkipValue();
+			}
+		}
+
+		public BsonValue GetDiscriminator(Type nominalType, Type actualType)
+		{
+			return _typeToVersion[actualType];
+		}
+	}
+
 	/// <summary>
 	/// Collection of types derived from <see cref="VersionedDocument{TId, TLatest}"/>
 	/// </summary>
@@ -61,35 +124,46 @@ namespace Horde.Build.Tools.Impl
 
 		private static FilterDefinitionBuilder<VersionedDocument<TId, TLatest>> FilterBuilder { get; } = Builders<VersionedDocument<TId, TLatest>>.Filter;
 
-		private readonly IMongoCollection<VersionedDocument<TId, TLatest>> _baseCollection;
-		private readonly IMongoCollection<TLatest> _latestCollection;
 		private readonly IDatabase _redis;
 		private readonly RedisKey _baseKey;
 
+		private static readonly HashSet<Type> s_registeredTypes = new HashSet<Type>();
+
 		/// <summary>
-		/// Constructor
+		/// Collection of versioned documents
 		/// </summary>
-		/// <param name="baseCollection">The collection of documents to manage</param>
-		/// <param name="redis">Instance of the redis service</param>
-		/// <param name="baseKey">Prefix for key types</param>
-		public VersionedCollection(IMongoCollection<VersionedDocument<TId, TLatest>> baseCollection, IDatabase redis, RedisKey baseKey)
-		{
-			_baseCollection = baseCollection;
-			_latestCollection = baseCollection.OfType<TLatest>();
-			_redis = redis;
-			_baseKey = baseKey;
-		}
+		public IMongoCollection<VersionedDocument<TId, TLatest>> BaseCollection { get; }
+
+		/// <summary>
+		/// Collection of versioned documents, filtered to the latest revision
+		/// </summary>
+		public IMongoCollection<TLatest> LatestCollection { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="mongoService">The database service</param>
 		/// <param name="collectionName">Name of the collection of documents to manage</param>
-		/// <param name="redis">Instance of the redis service</param>
+		/// <param name="redisService">Instance of the redis service</param>
 		/// <param name="baseKey">Prefix for key types</param>
-		public VersionedCollection(MongoService mongoService, string collectionName, IDatabase redis, RedisKey baseKey)
-			: this(mongoService.Database.GetCollection<VersionedDocument<TId, TLatest>>(collectionName), redis, baseKey)
+		/// <param name="types">Types to serialize from the collection</param>
+		public VersionedCollection(MongoService mongoService, string collectionName, RedisService redisService, RedisKey baseKey, IReadOnlyDictionary<int, Type> types)
 		{
+			_redis = redisService.Database;
+			_baseKey = baseKey;
+
+			lock (s_registeredTypes)
+			{
+				Type type = typeof(VersionedDocument<TId, TLatest>);
+				if (s_registeredTypes.Add(type))
+				{
+					VersionedDocumentDiscriminator discriminator = new VersionedDocumentDiscriminator(types);
+					BsonSerializer.RegisterDiscriminatorConvention(type, discriminator);
+				}
+			}
+
+			BaseCollection = mongoService.Database.GetCollection<VersionedDocument<TId, TLatest>>(collectionName);
+			LatestCollection = BaseCollection.OfType<TLatest>();
 		}
 
 		private RedisKey GetDocKey(TId id) => _baseKey.Append(id.ToString());
@@ -118,9 +192,9 @@ namespace Horde.Build.Tools.Impl
 		/// <returns>True if the document was added, false if it already exists</returns>
 		public async Task<bool> AddAsync(TLatest doc)
 		{
-			doc.LastUpdateTime = DateTime.UtcNow;
+			doc.LastUpdateTime = MongoExtensions.RoundToBsonDateTime(DateTime.UtcNow);
 
-			if (!await _latestCollection.InsertOneIgnoreDuplicatesAsync(doc))
+			if (!await BaseCollection.InsertOneIgnoreDuplicatesAsync(doc))
 			{
 				return false;
 			}
@@ -132,10 +206,9 @@ namespace Horde.Build.Tools.Impl
 		private void AddCachedValue(RedisKey docKey, TLatest doc)
 		{
 			KeyValuePair<RedisKey, RedisValue>[] pairs = new KeyValuePair<RedisKey, RedisValue>[2];
-			pairs[0] = new KeyValuePair<RedisKey, RedisValue>(docKey, doc.ToBson());
+			pairs[0] = new KeyValuePair<RedisKey, RedisValue>(docKey, doc.ToBson(typeof(VersionedDocument<TId, TLatest>)));
 			pairs[1] = new KeyValuePair<RedisKey, RedisValue>(docKey.Append(s_timeSuffix), doc.LastUpdateTime.Ticks);
-
-			_ = _redis.StringSetAsync(pairs, When.NotExists, CommandFlags.FireAndForget);
+			_redis.StringSetAsync(pairs, When.NotExists, flags: CommandFlags.FireAndForget);
 		}
 
 		private async ValueTask<VersionedDocument<TId, TLatest>?> GetCachedValueAsync(RedisKey docKey)
@@ -161,7 +234,7 @@ namespace Horde.Build.Tools.Impl
 			transaction.AddCondition(Condition.StringEqual(docKey.Append(s_timeSuffix), prevDoc.LastUpdateTime.Ticks));
 
 			KeyValuePair<RedisKey, RedisValue>[] pairs = new KeyValuePair<RedisKey, RedisValue>[2];
-			pairs[0] = new KeyValuePair<RedisKey, RedisValue>(docKey, doc.ToBson());
+			pairs[0] = new KeyValuePair<RedisKey, RedisValue>(docKey, doc.ToBson(typeof(VersionedDocument<TId, TLatest>)));
 			pairs[1] = new KeyValuePair<RedisKey, RedisValue>(docKey.Append(s_timeSuffix), doc.LastUpdateTime.Ticks);
 
 			_ = transaction.StringSetAsync(pairs);
@@ -195,7 +268,7 @@ namespace Horde.Build.Tools.Impl
 				if (cachedDoc == null)
 				{
 					// Read the value from the database
-					VersionedDocument<TId, TLatest>? doc = await _baseCollection.Find(FilterBuilder.Eq(x => x.Id, id)).FirstOrDefaultAsync();
+					VersionedDocument<TId, TLatest>? doc = await BaseCollection.Find(FilterBuilder.Eq(x => x.Id, id)).FirstOrDefaultAsync();
 					if (doc == null)
 					{
 						return null;
@@ -267,7 +340,7 @@ namespace Horde.Build.Tools.Impl
 		{
 			update = update.Set(x => x.LastUpdateTime, new DateTime(Math.Max(doc.LastUpdateTime.Ticks + 1, DateTime.UtcNow.Ticks)));
 
-			TLatest? newDoc = await _latestCollection.FindOneAndUpdateAsync(GetFilter(doc), update, new FindOneAndUpdateOptions<TLatest> { ReturnDocument = ReturnDocument.After });
+			TLatest? newDoc = await LatestCollection.FindOneAndUpdateAsync(GetFilter(doc), update, new FindOneAndUpdateOptions<TLatest> { ReturnDocument = ReturnDocument.After });
 			if (newDoc != null)
 			{
 				await UpdateCachedValueAsync(GetDocKey(doc.Id), doc, newDoc);
@@ -290,7 +363,7 @@ namespace Horde.Build.Tools.Impl
 
 			newDoc.LastUpdateTime = new DateTime(Math.Max(oldDoc.LastUpdateTime.Ticks + 1, DateTime.UtcNow.Ticks));
 
-			ReplaceOneResult result = await _baseCollection.ReplaceOneAsync(GetFilter(oldDoc), newDoc);
+			ReplaceOneResult result = await BaseCollection.ReplaceOneAsync(GetFilter(oldDoc), newDoc);
 			if (result.ModifiedCount == 0)
 			{
 				return false;
@@ -309,7 +382,7 @@ namespace Horde.Build.Tools.Impl
 		{
 			RedisKey docKey = GetDocKey(doc.Id);
 
-			DeleteResult result = await _baseCollection.DeleteOneAsync(GetFilter((VersionedDocument<TId, TLatest>)doc));
+			DeleteResult result = await BaseCollection.DeleteOneAsync(GetFilter((VersionedDocument<TId, TLatest>)doc));
 			if (result.DeletedCount > 0)
 			{
 				await DeleteCachedValueAsync(docKey);
@@ -328,7 +401,7 @@ namespace Horde.Build.Tools.Impl
 		{
 			RedisKey docKey = GetDocKey(id);
 
-			DeleteResult result = await _baseCollection.DeleteOneAsync(GetFilter(id));
+			DeleteResult result = await BaseCollection.DeleteOneAsync(GetFilter(id));
 			await DeleteCachedValueAsync(docKey);
 
 			return result.DeletedCount > 0;

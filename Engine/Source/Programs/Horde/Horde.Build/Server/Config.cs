@@ -8,6 +8,7 @@ using EpicGames.Horde.Common;
 using EpicGames.Serialization;
 using Horde.Build.Api;
 using Horde.Build.Models;
+using Horde.Build.Tools;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Server
@@ -46,6 +47,11 @@ namespace Horde.Build.Server
 		/// List of compute profiles
 		/// </summary>
 		public List<ComputeClusterConfig> Compute { get; set; } = new List<ComputeClusterConfig>();
+
+		/// <summary>
+		/// List of tools hosted by the server
+		/// </summary>
+		public List<ToolOptions> Tools { get; set; } = new List<ToolOptions>();
 
 		/// <summary>
 		/// Maximum number of conforms to run at once

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -361,16 +361,33 @@ namespace Horde.Build.Acls
 		/// </summary>
 		DeleteSoftware,
 
-        #endregion
+		#endregion
 
-        //// ADMIN ////
+		//// TOOLS ////
 
-        #region Admin
+		#region Tools
 
-        /// <summary>
-        /// Ability to read any data from the server. Always inherited.
-        /// </summary>
-        AdminRead,
+		/// <summary>
+		/// Ability to download a tool
+		/// </summary>
+		DownloadTool,
+
+		/// <summary>
+		/// Ability to upload new tool versions
+		/// </summary>
+		UploadTool,
+
+		#endregion
+
+
+		//// ADMIN ////
+
+		#region Admin
+
+		/// <summary>
+		/// Ability to read any data from the server. Always inherited.
+		/// </summary>
+		AdminRead,
 
 		/// <summary>
 		/// Ability to write any data to the server.
@@ -484,6 +501,8 @@ namespace Horde.Build.Acls
 
         #endregion
     }
+
+    #region V1
 
     /// <summary>
     /// Stores information about a claim
@@ -752,10 +771,270 @@ namespace Horde.Build.Acls
 		}
 	}
 
-	/// <summary>
-	/// Serializer for JobStepRefId objects
-	/// </summary>
-	public sealed class AclActionSetSerializer : IBsonSerializer<HashSet<AclAction>>
+    #endregion
+
+    #region V2
+
+    /// <summary>
+    /// Describes an entry in the ACL for a particular claim
+    /// </summary>
+    public class AclEntryV2 : IEquatable<AclEntryV2>
+    {
+        /// <summary>
+        /// The claim type, typically a URI
+        /// </summary>
+        [BsonElement("t")]
+        public string Type { get; set; }
+
+        /// <summary>
+        /// The claim value
+        /// </summary>
+        [BsonElement("v")]
+        public string Value { get; set; }
+
+        /// <summary>
+        /// List of allowed operations
+        /// </summary>
+        [BsonElement("a")]
+        [BsonSerializer(typeof(AclActionListSerializer))]
+        public List<AclAction> Actions { get; set; }
+
+        /// <summary>
+        /// Private constructor for serialization
+        /// </summary>
+        [BsonConstructor]
+        private AclEntryV2()
+        {
+            Type = String.Empty;
+            Value = String.Empty;
+            Actions = new List<AclAction>();
+        }
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="type">The claim type</param>
+        /// <param name="value">The claim value</param>
+        /// <param name="actions">List of allowed operations</param>
+        public AclEntryV2(string type, string value, IEnumerable<AclAction> actions)
+        {
+            Type = type;
+            Value = value;
+            Actions = new List<AclAction>(actions);
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj) => Equals(obj as AclEntryV2);
+
+        /// <inheritdoc/>
+        public override int GetHashCode() => throw new NotSupportedException();
+
+        /// <inheritdoc/>
+        public bool Equals(AclEntryV2? other) => other != null && String.Equals(Type, other.Type, StringComparison.Ordinal) && String.Equals(Value, other.Value, StringComparison.Ordinal) && Actions.SequenceEqual(other.Actions);
+    }
+
+    /// <summary>
+    /// Represents an access control list for an object in the database
+    /// </summary>
+    public class AclV2 : IEquatable<AclV2>
+    {
+        /// <summary>
+        /// List of entries for this ACL
+        /// </summary>
+        [BsonElement("al")]
+        public List<AclEntryV2> Allow { get; set; } = new List<AclEntryV2>();
+
+        /// <summary>
+        /// Whether to inherit permissions from the parent ACL by default
+        /// </summary>
+        [BsonElement("in")]
+        public bool Inherit { get; set; } = true;
+
+        /// <summary>
+        /// Specifies a list of exceptions to the inheritance setting
+        /// </summary>
+        [BsonElement("ex")]
+        [BsonSerializer(typeof(AclActionListSerializer))]
+        public List<AclAction> Exceptions { get; set; } = new List<AclAction>();
+
+        /// <summary>
+        /// Default constructor
+        /// </summary>
+        public AclV2()
+        {
+            Allow = new List<AclEntryV2>();
+            Inherit = true;
+        }
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="allow">List of entries for this ACL</param>
+        /// <param name="inherit">Whether to inherit permissions from the parent object by default</param>
+        public AclV2(IEnumerable<AclEntryV2> allow, bool inherit)
+        {
+            Allow.AddRange(allow);
+            Inherit = inherit;
+        }
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="allow">List of entries for this ACL</param>
+        public AclV2(params AclEntryV2[] allow)
+            : this(allow.ToList(), true)
+        {
+        }
+
+        /// <summary>
+        /// Checks whether the ACL is set to its default value
+        /// </summary>
+        /// <returns>True if the ACL is its default value</returns>
+        public bool IsDefault() => Allow.Count == 0 && Inherit && Exceptions.Count == 0;
+
+		/// <summary>
+		/// Checks whether an ACL is null or set to its default value
+		/// </summary>
+		/// <returns>True if the ACL is its default value</returns>
+		public static bool IsNullOrDefault(AclV2? acl) => acl is null || acl.IsDefault();
+
+		/// <summary>
+		/// Tests whether a user is authorized to perform the given actions
+		/// </summary>
+		/// <param name="action">Action that is being performed. This should be a single flag.</param>
+		/// <param name="user">The principal to authorize</param>
+		/// <returns>True/false if the action is allowed or denied, null if there is no specific setting for this user</returns>
+		public bool? Authorize(AclAction action, ClaimsPrincipal user)
+        {
+            // Check if there's a specific entry for this action
+            foreach (AclEntryV2 entry in Allow)
+            {
+                if (entry.Actions.Contains(action) && user.HasClaim(entry.Type, entry.Value))
+                {
+                    return true;
+                }
+            }
+
+            // Otherwise check if we're prevented from inheriting permissions
+            if (Inherit)
+            {
+                if (Exceptions != null && Exceptions.Contains(action))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                if (Exceptions == null || !Exceptions.Contains(action))
+                {
+                    return false;
+                }
+            }
+
+            // Otherwise allow to propagate up the hierarchy
+            return null;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj) => Equals(obj as AclV2);
+
+        /// <inheritdoc/>
+        public bool Equals(AclV2? other) => other != null && Allow.SequenceEqual(other.Allow) && Inherit == other.Inherit && Exceptions.SequenceEqual(other.Exceptions);
+
+		/// <summary>
+		/// Checks whether two acls are equal
+		/// </summary>
+		/// <param name="lhs"></param>
+		/// <param name="rhs"></param>
+		/// <returns></returns>
+		public static bool Equals(AclV2? lhs, AclV2? rhs)
+		{
+			if (lhs is null)
+			{
+				return rhs is null || rhs.IsDefault();
+			}
+			else
+			{
+				return lhs.Equals(rhs);
+			}
+		}
+
+        /// <inheritdoc/>
+        public override int GetHashCode() => throw new NotSupportedException();
+
+        /// <summary>
+        /// Register this type's class map
+        /// </summary>
+        internal static void ConfigureClassMap(BsonClassMap<AclV2> cm)
+        {
+            cm.AutoMap();
+            cm.MapMember(x => x.Allow).SetIgnoreIfDefault(true).SetDefaultValue(new List<AclEntryV2>());
+            cm.MapMember(x => x.Exceptions).SetIgnoreIfDefault(true).SetDefaultValue(new List<AclAction>());
+        }
+    }
+
+    #endregion
+
+    /// <summary>
+    /// Serializer for a list of unique values
+    /// </summary>
+    public sealed class AclActionListSerializer : IBsonSerializer<List<AclAction>>
+    {
+        /// <inheritdoc/>
+        public Type ValueType => typeof(List<AclAction>);
+
+        /// <inheritdoc/>
+        void IBsonSerializer.Serialize(BsonSerializationContext context, BsonSerializationArgs args, object value) => Serialize(context, args, (List<AclAction>)value);
+
+        /// <inheritdoc/>
+        object IBsonSerializer.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) => ((IBsonSerializer<List<AclAction>>)this).Deserialize(context, args);
+
+        /// <inheritdoc/>
+        public List<AclAction> Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+        {
+            List<AclAction> values = new();
+
+            context.Reader.ReadStartArray();
+            for (; ; )
+            {
+                BsonType type = context.Reader.ReadBsonType();
+                if (type == BsonType.EndOfDocument)
+                {
+                    break;
+                }
+                else
+                {
+                    values.Add((AclAction)Enum.Parse(typeof(AclAction), context.Reader.ReadString()));
+                }
+            }
+            context.Reader.ReadEndArray();
+
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public void Serialize(BsonSerializationContext context, BsonSerializationArgs args, List<AclAction> values)
+        {
+            context.Writer.WriteStartArray();
+            if (values.Count > 0)
+            {
+                for (int idx = 0; idx < values.Count; idx++)
+                {
+                    AclAction value = values[idx];
+                    if (values.IndexOf(value) == idx)
+                    {
+                        context.Writer.WriteString(value.ToString());
+                    }
+                }
+            }
+            context.Writer.WriteEndArray();
+        }
+    }
+
+    /// <summary>
+    /// Serializer for JobStepRefId objects
+    /// </summary>
+    public sealed class AclActionSetSerializer : IBsonSerializer<HashSet<AclAction>>
 	{
 		/// <inheritdoc/>
 		public Type ValueType => typeof(HashSet<AclAction>);

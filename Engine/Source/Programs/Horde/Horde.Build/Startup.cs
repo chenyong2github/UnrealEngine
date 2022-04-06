@@ -45,6 +45,7 @@ using Horde.Build.Storage;
 using Horde.Build.Storage.Backends;
 using Horde.Build.Tasks;
 using Horde.Build.Tasks.Impl;
+using Horde.Build.Tools;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.AspNetCore.Authentication;
@@ -311,6 +312,8 @@ namespace Horde.Build
 			services.AddSingleton<IUserCollection, UserCollectionV2>();
 			services.AddSingleton<IDeviceCollection, DeviceCollection>();
 			services.AddSingleton<INoticeCollection, NoticeCollection>();
+
+			services.AddSingleton<ToolCollection>();
 
 			// Auditing
 			services.AddSingleton<IAuditLog<AgentId>>(sp => sp.GetRequiredService<IAuditLogFactory<AgentId>>().Create("Agents.Log", "AgentId"));
@@ -822,6 +825,9 @@ namespace Horde.Build
 				BsonSerializer.RegisterSerializationProvider(new BsonSerializationProvider());
 				BsonSerializer.RegisterSerializationProvider(new StringIdSerializationProvider());
 				BsonSerializer.RegisterSerializationProvider(new ObjectIdSerializationProvider());
+
+                // Register all the custom class maps
+                BsonClassMap.RegisterClassMap<AclV2>(AclV2.ConfigureClassMap);
 			}
 		}
 

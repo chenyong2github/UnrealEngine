@@ -3,6 +3,7 @@
 using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Models;
+using Horde.Build.Tools;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -13,6 +14,8 @@ namespace Horde.Build.Utilities
 	using LeaseId = ObjectId<ILease>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
+	using ToolId = StringId<Tool>;
+	using ToolDeploymentId = ObjectId<ToolDeployment>;
 	using TemplateRefId = StringId<TemplateRef>;
 
 	/// <summary>
@@ -86,6 +89,15 @@ namespace Horde.Build.Utilities
 		protected ActionResult Forbid(AclAction action, StreamId streamId)
 		{
 			return Forbid(action, "stream {StreamId}", streamId);
+		}
+
+		/// <summary>
+		/// Returns a 403 (forbidden) response with the given action and object
+		/// </summary>
+		[NonAction]
+		protected ActionResult Forbid(AclAction action, ToolId toolId)
+		{
+			return Forbid(action, "tool {ToolId}", toolId);
 		}
 
 		/// <summary>
@@ -194,6 +206,24 @@ namespace Horde.Build.Utilities
 		protected ActionResult NotFound(StreamId streamId, TemplateRefId templateId)
 		{
 			return NotFound("Template {TemplateId} not found on stream {StreamId}", templateId, streamId);
+		}
+
+		/// <summary>
+		/// Returns a 404 response for the given object
+		/// </summary>
+		[NonAction]
+		protected ActionResult NotFound(ToolId toolId)
+		{
+			return NotFound("Tool {ToolId} not found", toolId);
+		}
+
+		/// <summary>
+		/// Returns a 404 response for the given object
+		/// </summary>
+		[NonAction]
+		protected ActionResult NotFound(ToolId toolId, ToolDeploymentId deploymentId)
+		{
+			return NotFound("Deployment {DeploymentId} not found on tool {ToolId}", deploymentId, toolId);
 		}
 
 		/// <summary>

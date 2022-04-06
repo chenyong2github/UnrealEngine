@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Server;
-using Horde.Build.Tools.Impl;
+using Horde.Build.Utilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Driver;
 using StackExchange.Redis;
@@ -12,15 +14,7 @@ namespace Horde.Build.Tests
 	[TestClass]
 	public class VersionedCollectionTests : DatabaseIntegrationTest
 	{
-		abstract class DocumentBase : VersionedDocument<string, DocumentV2>
-		{
-			protected DocumentBase(string id)
-				: base(id)
-			{
-			}
-		}
-
-		class DocumentV1 : DocumentBase
+		class DocumentV1 : VersionedDocument<string, DocumentV2>
 		{
 			public int ValueV1 { get; set; }
 
@@ -33,7 +27,7 @@ namespace Horde.Build.Tests
 			public override DocumentV2 UpgradeToLatest() => new DocumentV2(Id, ValueV1.ToString());
 		}
 
-		class DocumentV2 : DocumentBase
+		class DocumentV2 : VersionedDocument<string, DocumentV2>
 		{
 			public string ValueV2 { get; set; }
 
@@ -46,8 +40,14 @@ namespace Horde.Build.Tests
 			public override DocumentV2 UpgradeToLatest() => this;
 		}
 
+		static readonly IReadOnlyDictionary<int, Type> s_documentTypes = new Dictionary<int, Type>
+		{
+			[1] = typeof(DocumentV1),
+			[2] = typeof(DocumentV2),
+		};
+
 		readonly MongoService _mongoService;
-		readonly IDatabase _redis;
+		readonly RedisService _redisService;
 		readonly RedisKey _baseKey = new RedisKey("versioned/");
 		readonly IMongoCollection<VersionedDocument<string, DocumentV2>> _baseCollection;
 		readonly VersionedCollection<string, DocumentV2> _collection;
@@ -55,9 +55,9 @@ namespace Horde.Build.Tests
 		public VersionedCollectionTests()
 		{
 			_mongoService = GetMongoServiceSingleton();
-			_redis = GetRedisDatabase();
-			_baseCollection = _mongoService.GetCollection<VersionedDocument<string, DocumentV2>>("versioned");
-			_collection = new VersionedCollection<string, DocumentV2>(_baseCollection, _redis, _baseKey);
+			_redisService = GetRedisServiceSingleton();
+			_collection = new VersionedCollection<string, DocumentV2>(_mongoService, "versioned", _redisService, _baseKey, s_documentTypes);
+			_baseCollection = _collection.BaseCollection;
 		}
 
 		[TestMethod]

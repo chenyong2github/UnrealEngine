@@ -17,6 +17,7 @@ using Horde.Build.Collections;
 using Horde.Build.Models;
 using Horde.Build.Notifications;
 using Horde.Build.Services;
+using Horde.Build.Tools;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.AspNetCore.StaticFiles;
@@ -44,6 +45,7 @@ namespace Horde.Build.Server
 		/// </summary>
 		const int Version = 10;
 		readonly MongoService _mongoService;
+		readonly ToolCollection _toolCollection;
 		readonly ProjectService _projectService;
 		readonly StreamService _streamService;
 		readonly IPerforceService _perforceService;
@@ -57,10 +59,11 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigService(MongoService mongoService, IPerforceService perforceService, ProjectService projectService, StreamService streamService, INotificationService notificationService, PoolService poolService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigService> logger)
+		public ConfigService(MongoService mongoService, IPerforceService perforceService, ToolCollection toolCollection, ProjectService projectService, StreamService streamService, INotificationService notificationService, PoolService poolService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigService> logger)
 		{
 			_mongoService = mongoService;
 			_perforceService = perforceService;
+			_toolCollection = toolCollection;
 			_projectService = projectService;
 			_streamService = streamService;
 			_notificationService = notificationService;
@@ -146,6 +149,9 @@ namespace Horde.Build.Server
 
 			// Update the agent rate table
 			await _agentService.UpdateRateTableAsync(globalConfig.Rates);
+
+			// Update the tools
+			await _toolCollection.ConfigureAsync(globalConfig.Tools);
 
 			// Projects to remove
 			List<IProject> projects = await _projectService.GetProjectsAsync();

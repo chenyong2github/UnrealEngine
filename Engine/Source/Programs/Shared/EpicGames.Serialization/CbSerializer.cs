@@ -134,6 +134,19 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// Serialize an object
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="value"></param>
+		/// <returns></returns>
+		public static byte[] SerializeToByteArray<T>(T value)
+		{
+			CbWriter writer = new CbWriter();
+			CbConverter.GetConverter<T>().Write(writer, value);
+			return writer.ToByteArray();
+		}
+
+		/// <summary>
 		/// Serialize a property to a given writer
 		/// </summary>
 		/// <typeparam name="T"></typeparam>

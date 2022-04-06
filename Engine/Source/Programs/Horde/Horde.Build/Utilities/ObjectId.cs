@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using EpicGames.Core;
+using EpicGames.Serialization;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
@@ -17,6 +18,7 @@ namespace Horde.Build.Utilities
 	/// Normalized string identifier for a resource
 	/// </summary>
 	[JsonSchemaString]
+	[JsonConverter(typeof(JsonObjectIdConverterFactory))]
 	[TypeConverter(typeof(ObjectIdTypeConverter))]
 	public struct ObjectId<T> : IEquatable<ObjectId<T>>, IComparable<ObjectId<T>>
 	{
