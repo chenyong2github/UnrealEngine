@@ -464,7 +464,7 @@ private:
 	/** Set if an Actor tries to be destroyed while it is beginning play so that once BeginPlay ends we can issue the destroy call. */
 	uint8 bActorWantsDestroyDuringBeginPlay : 1;
 	
-	/** Whether to use use the async physics tick with this actor. Requires async physics be enabled (see project settings) */
+	/** Whether to use use the async physics tick with this actor. */
 	UPROPERTY(EditAnywhere, Category=Physics)
 	uint8 bAsyncPhysicsTickEnabled : 1;
 
@@ -1808,7 +1808,7 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "Tick"))
 	void ReceiveTick(float DeltaSeconds);
 
-	/** Event called every async physics tick if bAsyncPhysicsTickEnabled is true and async physics is enabled (see physics project settings)*/
+	/** Event called every physics tick if bAsyncPhysicsTickEnabled is true */
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "Async Physics Tick"))
 	void ReceiveAsyncPhysicsTick(float DeltaSeconds, float SimSeconds);
 
@@ -2541,12 +2541,11 @@ public:
 	virtual void TickActor( float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction );
 
 	/**
-	 * Override this function to implement custom logic to be executed every async physics step.
+	 * Override this function to implement custom logic to be executed every physics step.
 	 * bAsyncPhysicsTick must be set to true.
-	 * Requires async physics to be enabled (see physics project settings)
 	 *	
-	 * @param DeltaTime - The physics step delta time (see physics project settings)
-	 * @param SimTime - This is the total sim time since the sim began, it is an integer multiple of DeltaTime
+	 * @param DeltaTime - The physics step delta time
+	 * @param SimTime - This is the total sim time since the sim began.
 	 */
 	virtual void AsyncPhysicsTickActor(float DeltaTime, float SimTime) { ReceiveAsyncPhysicsTick(DeltaTime, SimTime); }
 

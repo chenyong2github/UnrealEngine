@@ -432,7 +432,7 @@ namespace Chaos
 				PendingTasks = TGraphTask<FPhysicsSolverProcessPushDataTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this, PushData);
 				Prereqs.Add(PendingTasks);
 
-				if(bSolverHasFrozenGameThreadCallbacks && IsUsingFixedDt())
+				if(bSolverHasFrozenGameThreadCallbacks)
 				{
 					PendingTasks = TGraphTask<FPhysicsSolverFrozenGTPreSimCallbacks>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this);
 					Prereqs.Add(PendingTasks);
@@ -461,10 +461,7 @@ namespace Chaos
 	void FAllSolverTasks::AdvanceSolver()
 	{
 		ProcessPushData.ProcessPushData();
-		if (Solver.IsUsingFixedDt())
-		{
-			GTPreSimCallbacks.GTPreSimCallbacks();
-		}
+		GTPreSimCallbacks.GTPreSimCallbacks();
 		AdvanceTask.AdvanceSolver();
 	}
 }
