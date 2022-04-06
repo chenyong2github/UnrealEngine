@@ -1294,13 +1294,14 @@ void FNetworkFileServerClientConnection::ProcessRecompileShaders( FArchive& In, 
 	TArray<FString> RecompileModifiedFiles;
 	TArray<uint8> MeshMaterialMaps;
 	TArray<uint8> GlobalShaderMap;
-	FShaderRecompileData RecompileData(ConnectedPlatformName, SP_NumPlatforms, ODSCRecompileCommand::Changed, &RecompileModifiedFiles, &MeshMaterialMaps, &GlobalShaderMap);
+	FShaderRecompileData RecompileData(ConnectedPlatformName, &RecompileModifiedFiles, &MeshMaterialMaps, &GlobalShaderMap);
 
 	// tell other side all the materials to load, by pathname
 	In << RecompileData.MaterialsToLoad;
 
 	int32 iShaderPlatform = static_cast<int32>(RecompileData.ShaderPlatform);
 	In << iShaderPlatform;
+	RecompileData.ShaderPlatform = static_cast<EShaderPlatform>(iShaderPlatform);
 	In << RecompileData.CommandType;
 	In << RecompileData.ShadersToRecompile;
 

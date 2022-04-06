@@ -1446,7 +1446,9 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 
 			// If NoShaderDDC then don't check for a material the first time we encounter it to simulate
 			// a cold DDC
-			static bool bNoShaderDDC = FParse::Param(FCommandLine::Get(), TEXT("noshaderddc"));
+			static bool bNoShaderDDC =
+				FParse::Param(FCommandLine::Get(), TEXT("noshaderddc")) || 
+				FParse::Param(FCommandLine::Get(), TEXT("nomaterialshaderddc"));
 
 			if (bNoShaderDDC)
 			{
@@ -1627,22 +1629,21 @@ void FMaterialShaderMap::SaveForRemoteRecompile(FArchive& Ar, const TMap<FString
 
 void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPlatform, TArray<UMaterialInterface*>& OutLoadedMaterials)
 {
+	FString MaterialName;
+	TArray<TRefCountPtr<FMaterialShaderMap>> LoadedShaderMaps;
+
 	int32 MapSize;
 	Ar << MapSize;
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MapSize; MaterialIndex++)
 	{
-		FString MaterialName;
+		MaterialName.Reset();
 		Ar << MaterialName;
-
-		UMaterialInterface* MatchingMaterial = FindObjectChecked<UMaterialInterface>(NULL, *MaterialName);
-		OutLoadedMaterials.Add(MatchingMaterial);
 
 		int32 NumShaderMaps = 0;
 		Ar << NumShaderMaps;
 
-		TArray<TRefCountPtr<FMaterialShaderMap> > LoadedShaderMaps;
-
+		LoadedShaderMaps.Reset();
 		for (int32 ShaderMapIndex = 0; ShaderMapIndex < NumShaderMaps; ShaderMapIndex++)
 		{
 			uint8 bIsValid = 0;
@@ -1661,6 +1662,13 @@ void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform Sh
 				LoadedShaderMaps.Add(ShaderMap);
 			}
 		}
+
+		UMaterialInterface* MatchingMaterial = FindObject<UMaterialInterface>(nullptr, *MaterialName);
+		if (!MatchingMaterial)
+		{
+			continue;
+		}
+		OutLoadedMaterials.Add(MatchingMaterial);
 
 		// Assign in two passes: first pass for shader maps with unspecified quality levels,
 		// Second pass for shader maps with a specific quality level

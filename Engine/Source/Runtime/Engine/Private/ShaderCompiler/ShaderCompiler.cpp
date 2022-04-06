@@ -6095,7 +6095,7 @@ void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& 
 		if (!bHasFlushed )
 		{
 			// now we need to refresh the RHI resources
-	FlushRenderingCommands();
+			FlushRenderingCommands();
 			bHasFlushed = true;
 		}
 	};
@@ -7005,7 +7005,9 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 
 			// If NoShaderDDC then don't check for a material the first time we encounter it to simulate
 			// a cold DDC
-			static bool bNoShaderDDC = FParse::Param(FCommandLine::Get(), TEXT("noshaderddc"));
+			static bool bNoShaderDDC =
+				FParse::Param(FCommandLine::Get(), TEXT("noshaderddc")) || 
+				FParse::Param(FCommandLine::Get(), TEXT("noglobalshaderddc"));
 			if (UNLIKELY(bNoShaderDDC))
 			{
 				bShaderMapIsBeingCompiled = true;
