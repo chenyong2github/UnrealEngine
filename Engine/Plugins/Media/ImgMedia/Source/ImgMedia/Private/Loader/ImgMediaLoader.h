@@ -75,6 +75,9 @@ public:
 	 */
 	uint64 GetBitRate() const;
 
+	/** Get the number of bytes read per second from the last frame read. */
+	float GetCurrentBandwidth() const { return CurrentBandwidth; }
+
 	/**
 	 * Get the time ranges of frames that are being loaded right now.
 	 *

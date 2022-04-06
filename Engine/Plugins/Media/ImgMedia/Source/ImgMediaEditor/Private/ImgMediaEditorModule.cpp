@@ -13,6 +13,7 @@
 #include "PropertyEditorModule.h"
 #include "UObject/NameTypes.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/SImgMediaBandwidth.h"
 #include "Widgets/SImgMediaCache.h"
 #include "Widgets/SImgMediaProcessImages.h"
 #include "WorkspaceMenuStructure.h"
@@ -22,6 +23,7 @@
 
 DEFINE_LOG_CATEGORY(LogImgMediaEditor);
 
+static const FName ImgMediaBandwidthTabName(TEXT("ImgMediaBandwidth"));
 static const FName ImgMediaCacheTabName(TEXT("ImgMediaCache"));
 
 /**
@@ -119,6 +121,14 @@ protected:
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "SequenceRecorder.TabIcon"),
 			true);
 
+		// Add bandwidth tab.
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ImgMediaBandwidthTabName,
+			FOnSpawnTab::CreateStatic(&FImgMediaEditorModule::SpawnBandwidthTab))
+			.SetGroup(MediaBrowserGroup)
+			.SetDisplayName(LOCTEXT("ImgMediaBandwidthTabTitle", "Bandwidth"))
+			.SetTooltipText(LOCTEXT("ImgMediaBandwidthTooltipText", "Open the bandwidth tab."))
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "SequenceRecorder.TabIcon"));
+
 		// Add cache tab.
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ImgMediaCacheTabName,
 			FOnSpawnTab::CreateStatic(&FImgMediaEditorModule::SpawnCacheTab))
@@ -142,7 +152,17 @@ protected:
 		{
 			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ImgMediaProcessImagesTabName);
 			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ImgMediaCacheTabName);
+			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ImgMediaBandwidthTabName);
 		}
+	}
+
+	static TSharedRef<SDockTab> SpawnBandwidthTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			[
+				SNew(SImgMediaBandwidth)
+			];
 	}
 
 	static TSharedRef<SDockTab> SpawnCacheTab(const FSpawnTabArgs& SpawnTabArgs)

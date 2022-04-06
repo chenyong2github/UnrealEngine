@@ -43,6 +43,9 @@ public:
 	/** Virtual destructor. */
 	virtual ~FImgMediaPlayer();
 
+	/** Get the loader. */
+	TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> GetLoader() { return Loader; }
+
 public:
 
 	//~ IMediaPlayer interface
