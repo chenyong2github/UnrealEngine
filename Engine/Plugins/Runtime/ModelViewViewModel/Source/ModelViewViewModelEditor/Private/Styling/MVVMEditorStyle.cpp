@@ -57,6 +57,14 @@ FMVVMEditorStyle::FMVVMEditorStyle()
 		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.7f)));
 	}
 
+	Set("BindingMode.OneWay", new IMAGE_BRUSH_SVG("Slate/BindingMode_OneWay", Icon16x16));
+	Set("BindingMode.OneWayToSource", new IMAGE_BRUSH_SVG("Slate/BindingMode_OneWayToSource", Icon16x16));
+	Set("BindingMode.TwoWay", new IMAGE_BRUSH_SVG("Slate/BindingMode_TwoWay", Icon16x16));
+	Set("BindingMode.OneTime", new IMAGE_BRUSH_SVG("Slate/BindingMode_OneTime", Icon16x16));
+
+	Set("ConversionFunction.DestToSource", new IMAGE_BRUSH_SVG("Slate/ConversionFunction_DestToSource", Icon16x16));
+	Set("ConversionFunction.SourceToDest", new IMAGE_BRUSH_SVG("Slate/ConversionFunction_SourceToDest", Icon16x16));
+
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
 }
 

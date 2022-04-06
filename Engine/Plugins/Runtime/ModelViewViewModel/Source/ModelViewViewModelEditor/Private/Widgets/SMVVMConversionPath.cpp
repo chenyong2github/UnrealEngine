@@ -8,9 +8,9 @@
 #include "MVVMEditorSubsystem.h"
 #include "MVVMPropertyPathHelpers.h"
 #include "MVVMSubsystem.h"
+#include "Styling/MVVMEditorStyle.h"
 #include "Styling/StyleColors.h"
 #include "Types/MVVMFieldVariant.h"
-#include "UMGStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SMenuAnchor.h"
@@ -43,7 +43,7 @@ void SMVVMConversionPath::Construct(const FArguments& InArgs, const UWidgetBluep
 				.OnClicked(this, &SMVVMConversionPath::OnButtonClicked)
 				[
 					SNew(SImage)
-					.Image(FUMGStyle::Get().GetBrush(bSourceToDestination ? "MVVM.GetterFunction" : "MVVM.SetterFunction"))
+					.Image(FMVVMEditorStyle::Get().GetBrush(bSourceToDestination ? "ConversionFunction.SourceToDest" : "ConversionFunction.DestToSource"))
 					.ColorAndOpacity(this, &SMVVMConversionPath::GetFunctionColor)
 				]
 			]
@@ -56,19 +56,32 @@ EVisibility SMVVMConversionPath::IsFunctionVisible() const
 	TArray<FMVVMBlueprintViewBinding*> ViewBindings = Bindings.Get(TArray<FMVVMBlueprintViewBinding*>());
 	if (ViewBindings.Num() == 0)
 	{
-		return EVisibility::Collapsed;
+		return EVisibility::Hidden;
 	}
 
 	for (const FMVVMBlueprintViewBinding* Binding : ViewBindings)
 	{
-		bool bShouldBeVisible =
-			Binding->BindingType == EMVVMBindingMode::OneTimeToDestination ||
-			Binding->BindingType == EMVVMBindingMode::OneWayToDestination ||
-			Binding->BindingType == EMVVMBindingMode::TwoWay;
-
-		if (bShouldBeVisible)
+		if (bSourceToDestination)
 		{
-			return EVisibility::Visible;
+			bool bShouldBeVisible = Binding->BindingType == EMVVMBindingMode::OneTimeToDestination ||
+				Binding->BindingType == EMVVMBindingMode::OneWayToDestination ||
+				Binding->BindingType == EMVVMBindingMode::TwoWay;
+
+			if (bShouldBeVisible)
+			{
+				return EVisibility::Visible;
+			}
+		}
+		else
+		{
+			bool bShouldBeVisible = Binding->BindingType == EMVVMBindingMode::OneTimeToSource ||
+				Binding->BindingType == EMVVMBindingMode::OneWayToSource ||
+				Binding->BindingType == EMVVMBindingMode::TwoWay;
+
+			if (bShouldBeVisible)
+			{
+				return EVisibility::Visible;
+			}
 		}
 	}
 	
@@ -78,12 +91,23 @@ EVisibility SMVVMConversionPath::IsFunctionVisible() const
 FString SMVVMConversionPath::GetFunctionPath() const
 {
 	TArray<FMVVMBlueprintViewBinding*> ViewBindings = Bindings.Get(TArray<FMVVMBlueprintViewBinding*>());
+
+	bool bFirst = true;
+	FString FunctionPath;
 	for (const FMVVMBlueprintViewBinding* Binding : ViewBindings)
 	{
-		FString FunctionPath = bSourceToDestination ? Binding->Conversion.SourceToDestinationFunctionPath : Binding->Conversion.DestinationToSourceFunctionPath;
-		return FunctionPath;
+		FString ThisPath = bSourceToDestination ? Binding->Conversion.SourceToDestinationFunctionPath : Binding->Conversion.DestinationToSourceFunctionPath;
+		if (bFirst)
+		{
+			FunctionPath = ThisPath;
+		}
+		else if (FunctionPath != ThisPath)
+		{
+			return TEXT("Multiple Values");
+		}
 	}
-	return FString();
+
+	return FunctionPath;
 }
 
 FText SMVVMConversionPath::GetFunctionToolTip() const
@@ -91,6 +115,10 @@ FText SMVVMConversionPath::GetFunctionToolTip() const
 	FString FunctionPath = GetFunctionPath();
 	if (!FunctionPath.IsEmpty())
 	{
+		if (FunctionPath == TEXT("Multiple Values"))
+		{
+			return LOCTEXT("MultipleValues", "Multiple Values");
+		}
 		return FText::FromString(FunctionPath);
 	}
 
@@ -128,17 +156,17 @@ void SMVVMConversionPath::SetConversionFunction(const UFunction* Function)
 	{
 		if (bSourceToDestination)
 		{
-			Binding->Conversion.SourceToDestinationFunctionPath = Function->GetPathName();
+			Binding->Conversion.SourceToDestinationFunctionPath = Function != nullptr ? Function->GetPathName() : FString();
 		}
 		else
 		{
-			Binding->Conversion.DestinationToSourceFunctionPath = Function->GetPathName();
+			Binding->Conversion.DestinationToSourceFunctionPath = Function != nullptr ? Function->GetPathName() : FString();
 		}
 	}
 
 	if (OnFunctionChanged.IsBound())
 	{
-		OnFunctionChanged.Execute(Function->GetPathName());
+		OnFunctionChanged.Execute(Function != nullptr ? Function->GetPathName() : FString());
 	}
 }
 
@@ -203,6 +231,17 @@ TSharedRef<SWidget> SMVVMConversionPath::GetFunctionMenuContent()
 			Function->GetToolTipText(),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.AllClasses.FunctionIcon"),
 			Action);
+	}
+
+	const FString Path = GetFunctionPath();
+	if (!Path.IsEmpty())
+	{
+		FUIAction ClearAction(FExecuteAction::CreateSP(this, &SMVVMConversionPath::SetConversionFunction, (const UFunction*) nullptr));
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("Clear", "Clear"),
+			LOCTEXT("ClearToolTip", "Clear this conversion function."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.X"),
+			ClearAction);
 	}
 
 	return MenuBuilder.MakeWidget();

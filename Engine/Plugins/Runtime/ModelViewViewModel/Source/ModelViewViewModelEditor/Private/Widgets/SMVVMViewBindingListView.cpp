@@ -18,8 +18,8 @@
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "SEnumCombo.h"
 #include "SSimpleButton.h" 
+#include "Styling/MVVMEditorStyle.h"
 #include "Styling/StyleColors.h"
-#include "UMGStyle.h"
 #include "Widgets/SMVVMConversionPath.h"
 #include "Widgets/SMVVMFieldSelector.h"
 #include "Widgets/SMVVMPropertyPath.h"
@@ -477,15 +477,15 @@ private:
 		switch (BindingMode)
 		{
 		case EMVVMBindingMode::OneTimeToDestination:
-			return FUMGStyle::Get().GetBrush("MVVM.OneTime");
+			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTime");
 		case EMVVMBindingMode::OneWayToDestination:
-			return FUMGStyle::Get().GetBrush("MVVM.OneWay");
+			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWay");
 		case EMVVMBindingMode::OneWayToSource:
-			return FUMGStyle::Get().GetBrush("MVVM.OneWayToSource");
+			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWayToSource");
 		case EMVVMBindingMode::OneTimeToSource:
 			return nullptr;
 		case EMVVMBindingMode::TwoWay:
-			return FUMGStyle::Get().GetBrush("MVVM.TwoWay");
+			return FMVVMEditorStyle::Get().GetBrush("BindingMode.TwoWay");
 		default:
 			return nullptr;
 		}

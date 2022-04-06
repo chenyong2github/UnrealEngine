@@ -15,7 +15,6 @@
 #include "SSimpleButton.h"
 #include "Styling/MVVMEditorStyle.h"
 #include "Styling/SlateIconFinder.h"
-#include "UMGStyle.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -660,15 +659,15 @@ namespace UE::MVVM::Private
 		switch (BindingMode)
 		{
 		case EMVVMBindingMode::OneTimeToDestination:
-			return FUMGStyle::Get().GetBrush("MVVM.OneTime");
+			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTime");
 		case EMVVMBindingMode::OneWayToDestination:
-			return FUMGStyle::Get().GetBrush("MVVM.OneWay");
+			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWay");
 		case EMVVMBindingMode::OneWayToSource:
-			return FUMGStyle::Get().GetBrush("MVVM.OneWayToSource");
+			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWayToSource");
 		case EMVVMBindingMode::OneTimeToSource:
 			return nullptr;
 		case EMVVMBindingMode::TwoWay:
-			return FUMGStyle::Get().GetBrush("MVVM.TwoWay");
+			return FMVVMEditorStyle::Get().GetBrush("BindingMode.TwoWay");
 		default:
 			return nullptr;
 		}
