@@ -201,8 +201,23 @@ void SPinValueInspector::PopulateTreeView()
 		return;
 	}
 	
+	if (GraphPin->Direction == EGPD_Input)
+	{
+		for (const UEdGraphPin* Pin : GraphPin->LinkedTo)
+		{
+			AddPinToTreeView(Pin, Blueprint);
+		}
+	}
+	else
+	{
+		AddPinToTreeView(GraphPin, Blueprint);
+	}
+}
+
+void SPinValueInspector::AddPinToTreeView(const UEdGraphPin* Pin, UBlueprint* Blueprint)
+{
 	TSharedPtr<FPropertyInstanceInfo> DebugInfo;
-	const FKismetDebugUtilities::EWatchTextResult WatchStatus = FKismetDebugUtilities::GetDebugInfo(DebugInfo, Blueprint, Blueprint->GetObjectBeingDebugged(), GraphPin);
+	const FKismetDebugUtilities::EWatchTextResult WatchStatus = FKismetDebugUtilities::GetDebugInfo(DebugInfo, Blueprint, Blueprint->GetObjectBeingDebugged(), Pin);
 	if (WatchStatus != FKismetDebugUtilities::EWTR_Valid)
 	{
 		switch (WatchStatus)
@@ -226,7 +241,7 @@ void SPinValueInspector::PopulateTreeView()
 
 	if (ensureMsgf(DebugInfo.IsValid(), TEXT("GetDebugInfo returned EWTR_Valid, but DebugInfo wasn't valid")))
 	{
-		TreeViewWidget->AddTreeItemUnique(SKismetDebugTreeView::MakeWatchLineItem(GraphPin, Blueprint->GetObjectBeingDebugged()));
+		TreeViewWidget->AddTreeItemUnique(SKismetDebugTreeView::MakeWatchLineItem(Pin, Blueprint->GetObjectBeingDebugged()));
 	}
 }
 

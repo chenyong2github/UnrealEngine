@@ -39,8 +39,11 @@ protected:
 	/** requests the constrained box be resized */
 	void OnExpansionChanged(FDebugTreeItemPtr InItem, bool bItemIsExpanded);
 
-	/** Adds the pin to the tree view */
+	/** Adds relevant pins to the tree view */
 	void PopulateTreeView();
+
+	/** Adds a single pin to the tree view */
+	void AddPinToTreeView(const UEdGraphPin* Pin, UBlueprint* Blueprint);
 
 	/** Sets the current watched pin */
 	void SetPinRef(const FEdGraphPinReference& InPinRef);
