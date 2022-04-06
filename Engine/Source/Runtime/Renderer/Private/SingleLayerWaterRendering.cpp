@@ -809,6 +809,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 		const bool bNeverClear = true;
 		BasePassTextures[BasePassTextureCount++] = FTextureRenderTargetBinding(SceneWithoutWaterTextures.SeparatedMainDirLightTexture, bNeverClear);
 	}
+	Strata::AppendStrataMRTs(*this, BasePassTextureCount, BasePassTextures);
 	TArrayView<FTextureRenderTargetBinding> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
 
 	FRDGTextureRef WhiteForwardScreenSpaceShadowMask = SystemTextures.White;

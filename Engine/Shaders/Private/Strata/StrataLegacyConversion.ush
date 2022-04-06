@@ -135,7 +135,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		const float3 WaterExtinction = WaterScatteringCoefficients + WaterAbsorptionCoefficients;
 		const float3 WaterAlbedo = WaterScatteringCoefficients / WaterExtinction;
 
-		return GetStrataSingleLayerWaterBSDF(
+		FStrataData Top_SLW = GetStrataSingleLayerWaterBSDF(
 			BaseColor, 				// BaseColor
 			Metallic, 				// Metallic 
 			Specular, 				// Specular
@@ -148,7 +148,14 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 			ColorScaleBehindWater,	// ColorScaleBehindWater
 			SharedLocalBasisIndex);
 
-		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1
+		FStrataLegacyParameters Bot = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
+
+		FStrataData Bot_Slab = CreateLegacySlab(Bot, SharedLocalBasisTypes, StrataTree,	/*OperatorIndex*/1, /*BSDFIndex*/1);
+		FStrataData WTop_Slab = StrataWeight(Top_SLW , 1.0, StrataTree,					/*OperatorIndex*/2, /*MaxDistanceFromLeaves*/1);
+		FStrataData WBot_Slab = StrataWeight(Bot_Slab, 0.0, StrataTree,					/*OperatorIndex*/3, /*MaxDistanceFromLeaves*/1);
+		FStrataData Out = StrataVerticalLayering(WTop_Slab, WBot_Slab, StrataTree,		/*OperatorIndex*/4, /*MaxDistanceFromLeaves*/2);
+		// Out maps to LegacyUpdateBSDFsOperators
+		return Out;
 	}
 	#endif
 	#if MATERIAL_SHADINGMODEL_HAIR
@@ -522,6 +529,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	Out.InlinedBSDF = ParamBlendVertical.InlinedBSDF;
 #endif
 
+	// Out maps to LegacyUpdateBSDFsOperators
 	return Out;
 }
 
@@ -600,20 +608,32 @@ FStrataData StrataConvertLegacyMaterialStatic(
 		const float3 WaterExtinction = WaterScatteringCoefficients + WaterAbsorptionCoefficients;
 		const float3 WaterAlbedo = WaterScatteringCoefficients / WaterExtinction;
 
-		Out = GetStrataSingleLayerWaterBSDF(
-			BaseColor, 				// BaseColor
-			Metallic, 				// Metallic 
-			Specular, 				// Specular
-			Roughness, 				// Roughness 
-			Emissive, 				// Emissive 
-			Opacity,				// TopMaterialOpacity
-			WaterAlbedo, 			// WaterAlbedo
-			WaterExtinction, 		// WaterExtinction
-			WaterPhaseG, 			// WaterPhaseG
-			ColorScaleBehindWater,	// ColorScaleBehindWater
-			SharedLocalBasisIndex);
+		FStrataData Top_SLW = PromoteParameterBlendedBSDFToOperator(
+			GetStrataSingleLayerWaterBSDF(
+				BaseColor, 				// BaseColor
+				Metallic, 				// Metallic 
+				Specular, 				// Specular
+				Roughness, 				// Roughness 
+				Emissive, 				// Emissive 
+				Opacity,				// TopMaterialOpacity
+				WaterAlbedo, 			// WaterAlbedo
+				WaterExtinction, 		// WaterExtinction
+				WaterPhaseG, 			// WaterPhaseG
+				ColorScaleBehindWater,	// ColorScaleBehindWater
+				SharedLocalBasisIndex),
+			StrataTree,
+			0		/*OperatorIndex*/,
+			0		/*BSDFIndex*/,
+			true	/*In.bIsBottom*/,
+			true	/*In.bIsTop*/);
 
-		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1
+		FStrataLegacyParameters Bot = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
+		FStrataData Bot_Slab = CreateLegacySlab(Bot, SharedLocalBasisTypes, StrataTree,	/*OperatorIndex*/1, /*BSDFIndex*/1);
+
+		FStrataData WTop_Slab = StrataWeight(Top_SLW, 1.0, StrataTree,					/*OperatorIndex*/2, /*MaxDistanceFromLeaves*/1);
+		FStrataData WBot_Slab = StrataWeight(Bot_Slab, 0.0, StrataTree,					/*OperatorIndex*/3, /*MaxDistanceFromLeaves*/1);
+		Out = StrataVerticalLayering(WTop_Slab, WBot_Slab, StrataTree,					/*OperatorIndex*/4, /*MaxDistanceFromLeaves*/2);
+		// Out maps to LegacyUpdateBSDFsOperators
 	}
 	else
 	{

@@ -1131,8 +1131,8 @@ void FPixelShaderInOut_MainPS(
 
 	// Override GBuffer data with Strata SLW water BSDF to run forward shadfing code.
 	// STRATA_TODO: run the shading through a strata path? (by adding a special BSDF?)
-	SanitizeStrataSingleLayerWater(PixelMaterialInputs.FrontMaterial.InlinedBSDF);
-	FStrataBSDF SLWBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
+	SanitizeStrataSingleLayerWater(StrataPixelHeader.StrataTree.BSDFs[0]);
+	FStrataBSDF SLWBSDF = StrataPixelHeader.StrataTree.BSDFs[0];
 
 	BaseColor = SLW_BASECOLOR(SLWBSDF);
 	Metallic = SLW_METALLIC(SLWBSDF);
@@ -1967,14 +1967,28 @@ void FPixelShaderInOut_MainPS(
 				Out.MRT[GBUFFER_HAS_VELOCITY ? 6 : 5] = 0;
 			}
 
-	#if SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT
+		#if SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT && STRATA_ENABLED
+			if (bSeparateWaterMainDirLightLuminance)
+			{
+				// STRATA_TODO: we should have a define set to the correct output index.
+				#if PIXELSHADEROUTPUT_MRT2
+					Out.MRT[2] = float4(SeparatedWaterMainDirLightLuminance, 0.0f);
+				#elif PIXELSHADEROUTPUT_MRT1
+					Out.MRT[1] = float4(SeparatedWaterMainDirLightLuminance, 0.0f);
+				#else
+					Out.MRT[0] = float4(SeparatedWaterMainDirLightLuminance, 0.0f);
+				#endif
+			}
+		#endif
+
+		#if SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT && !STRATA_ENABLED
 			if (GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
 			{
 				// In deferred, we always output the directional light in a separated buffer.
 				// This is used to apply distance field shadows or light function to the main directional light.
 				Out.MRT[GBUFFER_HAS_VELOCITY ? 7 : 6] = float4(SeparatedWaterMainDirLightLuminance * View.PreExposure, 1.0f);
 			}
-	#endif
+		#endif
 		}
 		#else
 		{
