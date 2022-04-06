@@ -1,0 +1,365 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+ 
+#include "BaseGizmos/GizmoElementBase.h"
+#include "BaseGizmos/GizmoRenderingUtil.h"
+#include "Materials/MaterialInterface.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogGizmoElements, Log, All);
+
+bool UGizmoElementBase::GetViewDependentVisibility(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
+{
+	if (ViewDependentType == EGizmoElementViewDependentType::None || ViewAlignType == EGizmoElementViewAlignType::PointOnly || ViewAlignType == EGizmoElementViewAlignType::PointEye)
+	{
+		return true;
+	}
+
+	FVector ViewDir;
+
+	if (View->IsPerspectiveProjection())
+	{
+
+		FVector WorldCenter = InLocalToWorldTransform.TransformPosition(InLocalCenter);
+		ViewDir = WorldCenter - View->ViewLocation;
+		ViewDir.Normalize();
+	}
+	else
+	{
+		ViewDir = View->GetViewDirection();
+	}
+
+	bool bVisibleViewDependent;
+	if (ViewDependentType == EGizmoElementViewDependentType::Axis)
+	{
+		bVisibleViewDependent = FMath::Abs(FVector::DotProduct(ViewDependentAxis, ViewDir)) < DefaultViewAlignAxialMaxCosAngleTol;
+	}
+	else // (ViewDependentType == EGizmoElementViewDependentType::Plane)
+	{
+		bVisibleViewDependent = FMath::Abs(FVector::DotProduct(ViewDependentAxis, ViewDir)) > DefaultViewAlignPlanarMinCosAngleTol;
+	}
+
+	return bVisibleViewDependent;
+
+}
+
+
+bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const
+{
+	if (ViewAlignType == EGizmoElementViewAlignType::None)
+	{
+		return false;
+	}
+
+	FVector Scale = InLocalToWorldTransform.GetScale3D();
+	if (!FMath::IsNearlyEqual(Scale.X, Scale.Y, KINDA_SMALL_NUMBER) || !FMath::IsNearlyEqual(Scale.X, Scale.Z, KINDA_SMALL_NUMBER))
+	{
+		// Warn that non-uniform scale is not currently supported 
+		bool bNonUniformScaleWarning = true;
+		if (bNonUniformScaleWarning)
+		{
+			UE_LOG(LogGizmoElements, Warning, TEXT("Gizmo element library view-dependent alignment does not currently support non-uniform scale (%f, %f %f)."),
+				Scale.X, Scale.Y, Scale.Z);
+			bNonUniformScaleWarning = false;
+		}
+		return false;
+	}
+
+	FVector LocalViewDir;
+
+	FTransform WorldToLocalTransform = InLocalToWorldTransform.Inverse();
+
+	if (View->IsPerspectiveProjection())
+	{
+		FVector LocalViewLocation = WorldToLocalTransform.TransformPosition(View->ViewLocation);
+		LocalViewDir = InLocalCenter - LocalViewLocation;
+		LocalViewDir.Normalize();
+	}
+	else
+	{
+		FVector WorldViewDir = View->GetViewDirection();
+		LocalViewDir = WorldToLocalTransform.GetRotation().RotateVector(WorldViewDir);
+		LocalViewDir.Normalize();
+	}
+		
+	if (ViewAlignType == EGizmoElementViewAlignType::PointOnly)
+	{
+		OutAlignRot = FQuat::FindBetweenNormals(ViewAlignNormal, -LocalViewDir);
+	}
+	else if (ViewAlignType == EGizmoElementViewAlignType::PointEye)
+	{
+		FVector Right = ViewAlignAxis ^ ViewAlignNormal;
+		Right.Normalize();
+		FVector Up = ViewAlignNormal ^ Right;
+
+		FMatrix LocalToCanonicalBasis(
+			FPlane(ViewAlignNormal.X, Right.X, Up.X, 0.0),
+			FPlane(ViewAlignNormal.Y, Right.Y, Up.Y, 0.0),
+			FPlane(ViewAlignNormal.Z, Right.Z, Up.Z, 0.0),
+			FPlane::ZeroVector);
+
+		FVector LocalViewUp = WorldToLocalTransform.TransformVector(View->GetViewUp());
+		FVector TargetFwd = -LocalViewDir;
+		FVector TargetRight = LocalViewUp ^ TargetFwd;
+		TargetRight.Normalize();
+		FVector TargetUp = TargetFwd ^ TargetRight;
+
+		FMatrix CanonicalToAlignRotBasis(
+			FPlane(TargetFwd.X, TargetFwd.Y, TargetFwd.Z, 0.0),
+			FPlane(TargetRight.X, TargetRight.Y, TargetRight.Z, 0.0),
+			FPlane(TargetUp.X, TargetUp.Y, TargetUp.Z, 0.0),
+			FPlane::ZeroVector);
+
+		FMatrix LocalToAligned = LocalToCanonicalBasis * CanonicalToAlignRotBasis;
+		OutAlignRot = LocalToAligned.ToQuat();
+		OutAlignRot.Normalize();
+	}
+	else if (ViewAlignType == EGizmoElementViewAlignType::Axial)
+	{
+		// if Axis and Dir are almost coincident, do not adjust the rotation
+		if ((FMath::Abs(FVector::DotProduct(ViewAlignAxis, -LocalViewDir))) >= DefaultViewAlignAxialMaxCosAngleTol)
+		{
+			return false;
+		}
+
+		FVector TargetRight = -LocalViewDir ^ ViewAlignAxis;
+		TargetRight.Normalize();
+		FVector TargetNormal = ViewAlignAxis ^ TargetRight;
+		TargetNormal.Normalize();
+		OutAlignRot = FQuat::FindBetweenNormals(ViewAlignNormal, TargetNormal);
+	}
+
+	return true;
+}
+
+const UMaterialInterface* UGizmoElementBase::GetCurrentMaterial(const FRenderTraversalState& RenderState, EGizmoElementInteractionState InState) const
+{
+	if (InState == EGizmoElementInteractionState::Hovering)
+	{
+		if (HoverMaterial)
+		{
+			return HoverMaterial;
+		}
+		else if (RenderState.HoverMaterial.IsValid())
+		{
+			return RenderState.HoverMaterial.Get();
+		}
+	}
+	else if (InState == EGizmoElementInteractionState::Interacting)
+	{
+		if (InteractMaterial)
+		{
+			return InteractMaterial;
+		}
+		else if (RenderState.InteractMaterial.IsValid())
+		{
+			return RenderState.InteractMaterial.Get();
+		}
+	}
+	else
+	{
+		if (Material)
+		{
+			return Material;
+		}
+		else if (RenderState.Material.IsValid())
+		{
+			return RenderState.Material.Get();
+		}
+
+	}
+
+	return nullptr;
+}
+
+void UGizmoElementBase::CacheRenderState(const FTransform& InLocalToWorldState, bool InVisibleViewDependent)
+{
+	CachedLocalToWorldTransform = InLocalToWorldState;
+	bHasCachedLocalToWorldTransform = true;
+	bCachedVisibleViewDependent = InVisibleViewDependent;
+}
+
+void UGizmoElementBase::ResetCachedRenderState()
+{
+	bHasCachedLocalToWorldTransform = false;
+	bCachedVisibleViewDependent = true;
+}
+
+void UGizmoElementBase::UpdateRenderTraversalState(FRenderTraversalState& InRenderTraversalState)
+{
+	if (HoverMaterial)
+	{
+		InRenderTraversalState.HoverMaterial = HoverMaterial;
+	}
+	if (InteractMaterial)
+	{
+		InRenderTraversalState.InteractMaterial = InteractMaterial;
+	}
+	if (Material)
+	{
+		InRenderTraversalState.Material = Material;
+	}
+}
+
+bool UGizmoElementBase::IsVisible() const
+{
+	bool bVisible = static_cast<uint8>(ElementState) & static_cast<uint8>(EGizmoElementState::Visible);
+	return (bEnabled && bVisible);
+}
+
+bool UGizmoElementBase::IsHittable() const
+{
+	bool bHittable = static_cast<uint8>(ElementState) & static_cast<uint8>(EGizmoElementState::Hittable);
+	return (bEnabled && bHittable);
+}
+
+bool UGizmoElementBase::IsHittableInView() const
+{
+	return (IsHittable() && bHasCachedLocalToWorldTransform && (!IsVisible() || bCachedVisibleViewDependent));
+}
+
+void UGizmoElementBase::SetEnabled(bool InEnabled)
+{
+	bEnabled = InEnabled;
+}
+
+bool UGizmoElementBase::GetEnabled() const
+{
+	return bEnabled;
+}
+
+void UGizmoElementBase::SetElementState(EGizmoElementState InElementState)
+{
+	ElementState = InElementState;
+}
+
+EGizmoElementState UGizmoElementBase::GetElementState() const
+{
+	return ElementState;
+}
+
+void UGizmoElementBase::SetElementInteractionState(EGizmoElementInteractionState InElementInteractionState)
+{
+	ElementInteractionState = InElementInteractionState;
+}
+
+EGizmoElementInteractionState UGizmoElementBase::GetElementInteractionState() const
+{
+	return ElementInteractionState;
+}
+
+void UGizmoElementBase::SetViewDependentType(EGizmoElementViewDependentType InViewDependentType)
+{
+	ViewDependentType = InViewDependentType;
+}
+
+EGizmoElementViewDependentType UGizmoElementBase::GetViewDependentType() const
+{
+	return ViewDependentType;
+}
+
+void UGizmoElementBase::SetViewDependentAngleTol(float InAngleTol)
+{
+	ViewDependentAngleTol = InAngleTol;
+	ViewDependentAxialMaxCosAngleTol = FMath::Abs(FMath::Cos(ViewDependentAngleTol));
+	ViewDependentPlanarMinCosAngleTol = FMath::Abs(FMath::Cos(HALF_PI + ViewDependentAngleTol));
+}
+
+float UGizmoElementBase::GetViewDependentAngleTol() const
+{
+	return ViewDependentAngleTol;
+}
+
+void UGizmoElementBase::SetViewDependentAxis(FVector InViewDependentAxis)
+{
+	ViewDependentAxis = InViewDependentAxis;
+	ViewDependentAxis.Normalize();
+}
+
+FVector UGizmoElementBase::GetViewDependentAxis() const
+{
+	return ViewDependentAxis;
+}
+
+void UGizmoElementBase::SetViewAlignType(EGizmoElementViewAlignType InViewAlignType)
+{
+	ViewAlignType = InViewAlignType;
+}
+
+EGizmoElementViewAlignType UGizmoElementBase::GetViewAlignType() const
+{
+	return ViewAlignType;
+}
+
+void UGizmoElementBase::SetViewAlignAxis(FVector InViewAlignAxis)
+{
+	ViewAlignAxis = InViewAlignAxis;
+	ViewAlignAxis.Normalize();
+}
+
+FVector UGizmoElementBase::GetViewAlignAxis() const
+{
+	return ViewAlignAxis;
+}
+
+void UGizmoElementBase::SetViewAlignNormal(FVector InViewAlignNormal)
+{
+	ViewAlignNormal = InViewAlignNormal;
+	ViewAlignNormal.Normalize();
+}
+
+FVector UGizmoElementBase::GetViewAlignNormal() const
+{
+	return ViewAlignNormal;
+}
+
+void UGizmoElementBase::SetViewAlignAxialAngleTol(float InAngleTol)
+{
+	ViewAlignAxialAngleTol = InAngleTol;
+	ViewAlignAxialMaxCosAngleTol = FMath::Abs(FMath::Cos(ViewAlignAxialAngleTol));
+}
+
+float UGizmoElementBase::GetViewAlignAxialAngleTol() const
+{
+	return ViewAlignAxialAngleTol;
+}
+
+void UGizmoElementBase::SetMaterial(UMaterialInterface* InMaterial)
+{
+	Material = InMaterial;
+}
+
+UMaterialInterface* UGizmoElementBase::GetMaterial() const
+{
+	return Material;
+}
+
+void UGizmoElementBase::SetHoverMaterial(UMaterialInterface* InHoverMaterial)
+{
+	HoverMaterial = InHoverMaterial;
+}
+
+UMaterialInterface* UGizmoElementBase::GetHoverMaterial() const
+{
+	return HoverMaterial;
+}
+
+void UGizmoElementBase::SetInteractMaterial(UMaterialInterface* InInteractMaterial)
+{
+	InteractMaterial = InInteractMaterial;
+}
+
+UMaterialInterface* UGizmoElementBase::GetInteractMaterial() const
+{
+	return InteractMaterial;
+}
+
+void UGizmoElementBase::SetVertexColor(const FColor& InVertexColor)
+{
+	VertexColor = InVertexColor;
+}
+
+FColor UGizmoElementBase::GetVertexColor() const
+{
+	return VertexColor;
+}
+
+

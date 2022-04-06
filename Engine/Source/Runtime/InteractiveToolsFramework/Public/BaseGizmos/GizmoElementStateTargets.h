@@ -6,40 +6,40 @@
 #include "InteractiveGizmoManager.h"
 #include "InteractiveToolManager.h"
 #include "BaseGizmos/GizmoInterfaces.h"
+#include "BaseGizmos/GizmoElementBase.h"
 #include "Changes/TransformChange.h"
-#include "EditorGizmos/GizmoBaseObject.h"
-#include "GizmoObjectStateTargets.generated.h"
+#include "GizmoElementStateTargets.generated.h"
 
 /**
- * UGizmoObjectTransformChangeStateTarget is an implementation of IGizmoStateTarget that
- * emits an FComponentWorldTransformChange on a target USceneComponent. This StateTarget
- * also opens/closes an undo transaction via GizmoManager.
+ * UGizmoDependentTransformChangeStateTarget is an implementation of IGizmoStateTarget that
+ * opens/closes an undo transaction via GizmoManager.
  *
  * The DependentChangeSources and ExternalDependentChangeSources lists allow additional
  * FChange objects to be inserted into the transaction, provided by IToolCommandChangeSource implementations.
  */
 UCLASS()
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UGizmoObjectTransformChangeStateTarget : public UObject, public IGizmoStateTarget
+class INTERACTIVETOOLSFRAMEWORK_API UGizmoDependentTransformChangeStateTarget : public UObject, public IGizmoStateTarget
 {
 	GENERATED_BODY()
 public:
 	virtual void BeginUpdate()
 	{
-		if (TargetObject.IsValid())
+		if (TransactionManager)
 		{
-			if (TransactionManager)
-			{
-				TransactionManager->BeginUndoTransaction(ChangeDescription);
-			}
+			TransactionManager->BeginUndoTransaction(ChangeDescription);
+		}
 
-			InitialTransform = TargetObject->GetLocalToWorldTransform();
-
-			for (TUniquePtr<IToolCommandChangeSource>& Source : DependentChangeSources)
+		for (TUniquePtr<IToolCommandChangeSource>& Source : DependentChangeSources)
+		{
+			if (Source.IsValid())
 			{
 				Source->BeginChange();
 			}
+		}
 
-			for (IToolCommandChangeSource* Source : ExternalDependentChangeSources)
+		for (IToolCommandChangeSource* Source : ExternalDependentChangeSources)
+		{
+			if (Source)
 			{
 				Source->BeginChange();
 			}
@@ -48,17 +48,11 @@ public:
 
 	virtual void EndUpdate()
 	{
-		if (TargetObject.IsValid())
+		if (TransactionManager)
 		{
-			FinalTransform = TargetObject->GetLocalToWorldTransform();
-
-			if (TransactionManager)
+			for (TUniquePtr<IToolCommandChangeSource>& Source : DependentChangeSources)
 			{
-				TUniquePtr<FComponentWorldTransformChange> TransformChange
-					= MakeUnique<FComponentWorldTransformChange>(InitialTransform, FinalTransform);
-				TransactionManager->EmitObjectChange(TargetObject.Get(), MoveTemp(TransformChange), ChangeDescription);
-
-				for (TUniquePtr<IToolCommandChangeSource>& Source : DependentChangeSources)
+				if (Source.IsValid())
 				{
 					TUniquePtr<FToolCommandChange> Change = Source->EndChange();
 					if (Change)
@@ -67,27 +61,24 @@ public:
 						TransactionManager->EmitObjectChange(Target, MoveTemp(Change), Source->GetChangeDescription());
 					}
 				}
-
-				for (IToolCommandChangeSource* Source : ExternalDependentChangeSources)
-				{
-					TUniquePtr<FToolCommandChange> Change = Source->EndChange();
-					if (Change)
-					{
-						UObject* Target = Source->GetChangeTarget();
-						TransactionManager->EmitObjectChange(Target, MoveTemp(Change), Source->GetChangeDescription());
-					}
-				}
-
-				TransactionManager->EndUndoTransaction();
 			}
+
+			for (IToolCommandChangeSource* Source : ExternalDependentChangeSources)
+			{
+				if (Source)
+				{
+					TUniquePtr<FToolCommandChange> Change = Source->EndChange();
+					if (Change)
+					{
+						UObject* Target = Source->GetChangeTarget();
+						TransactionManager->EmitObjectChange(Target, MoveTemp(Change), Source->GetChangeDescription());
+					}
+				}
+			}
+
+			TransactionManager->EndUndoTransaction();
 		}
 	}
-
-
-	/**
-	 * The object that will be changed, ie have Modify() called on it on BeginUpdate()
-	 */
-	TWeakObjectPtr<UGizmoBaseObject> TargetObject;
 
 	/**
 	 * Localized text description of the transaction (will be visible in Editor on undo/redo)
@@ -99,12 +90,6 @@ public:
 	 */
 	UPROPERTY()
 	TScriptInterface<IToolContextTransactionProvider> TransactionManager;
-
-	/** Start Transform, saved on BeginUpdate() */
-	FTransform InitialTransform;
-	/** End Transform, saved on EndUpdate() */
-	FTransform FinalTransform;
-
 
 	/**
 	 * Dependent-change generators. This will be told about update start/end, and any generated changes will also be emitted.
@@ -121,18 +106,15 @@ public:
 
 	/**
 	 * Create and initialize an standard instance of UGizmoObjectTransformChangeStateTarget
-	 * @param TargetComponentIn the USceneComponent this StateTarget will track transform changes on
 	 * @param DescriptionIn Localized text description of the transaction
 	 * @param TransactionManagerIn pointer to the GizmoManager or ToolManager used to manage transactions
 	 */
-	static UGizmoObjectTransformChangeStateTarget* Construct(
-		UGizmoBaseObject* TargetObjectIn,
+	static UGizmoDependentTransformChangeStateTarget* Construct(
 		const FText& DescriptionIn,
 		IToolContextTransactionProvider* TransactionManagerIn,
 		UObject* Outer = (UObject*)GetTransientPackage())
 	{
-		UGizmoObjectTransformChangeStateTarget* NewTarget = NewObject<UGizmoObjectTransformChangeStateTarget>(Outer);
-		NewTarget->TargetObject = TargetObjectIn;
+		UGizmoDependentTransformChangeStateTarget* NewTarget = NewObject<UGizmoDependentTransformChangeStateTarget>(Outer);
 		NewTarget->ChangeDescription = DescriptionIn;
 
 		// have to explicitly configure this because we only have IToolContextTransactionProvider pointer

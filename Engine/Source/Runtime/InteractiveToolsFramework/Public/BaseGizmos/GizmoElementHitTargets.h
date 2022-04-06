@@ -5,25 +5,25 @@
 #include "CoreMinimal.h"
 #include "BaseGizmos/GizmoInterfaces.h"
 #include "BaseGizmos/HitTargets.h"
-#include "GizmoObjectHitTargets.generated.h"
+#include "GizmoElementHitTargets.generated.h"
 
-class UGizmoBaseObject;
+class UGizmoElementBase;
 
 /**
- * UGizmoObjectHitTarget is an IGizmoClickTarget implementation that
- * hit-tests any object derived from UGizmoBaseObject
+ * UGizmoElementHitTarget is an IGizmoClickTarget implementation that
+ * hit-tests any object derived from UGizmoElementBase
  */
 UCLASS()
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UGizmoObjectHitTarget : public UObject, public IGizmoClickTarget
+class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementHitTarget : public UObject, public IGizmoClickTarget
 {
 	GENERATED_BODY()
 public:
 
 	/**
-	 * Gizmo object.
+	 * Gizmo element.
 	 */
 	UPROPERTY()
-	TObjectPtr<UGizmoBaseObject> GizmoObject;
+	TObjectPtr<UGizmoElementBase> GizmoElement;
 
 	/**
 	 * If set, this condition is checked before performing the hit test. This gives a way
@@ -41,8 +41,8 @@ public:
 	virtual void UpdateInteractingState(bool bInteracting);
 
 public:
-	static UGizmoObjectHitTarget* Construct(
-		UGizmoBaseObject* InGizmoObject,
+	static UGizmoElementHitTarget* Construct(
+		UGizmoElementBase* InGizmoElement,
 		UObject* Outer = (UObject*)GetTransientPackage());
 };
 

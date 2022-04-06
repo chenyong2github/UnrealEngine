@@ -3,14 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "BaseGizmos/GizmoElementHitTargets.h"
+#include "BaseGizmos/GizmoElementStateTargets.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "EditorGizmos/EditorAxisSources.h"
-#include "EditorGizmos/GizmoArrowObject.h"
-#include "EditorGizmos/GizmoBaseObject.h"
-#include "EditorGizmos/GizmoGroupObject.h"
-#include "EditorGizmos/GizmoObjectHitTargets.h"
-#include "EditorGizmos/GizmoObjectStateTargets.h"
-#include "EditorGizmos/GizmoObjectTransformSources.h"
 #include "EditorGizmos/TransformGizmoInterfaces.h"
 #include "InteractiveGizmo.h"
 #include "InteractiveToolObjects.h"
@@ -23,10 +19,19 @@ class UInteractiveGizmoManager;
 class IGizmoAxisSource;
 class IGizmoTransformSource;
 class IGizmoStateTarget;
+class FEditorTransformGizmoTransformChange;
 class UGizmoConstantFrameAxisSource;
 class UGizmoTransformChangeStateTarget;
-class FEditorTransformGizmoTransformChange;
-
+class UGizmoElementArrow;
+class UGizmoElementBase;
+class UGizmoElementBox;
+class UGizmoElementCircle;
+class UGizmoElementCone;
+class UGizmoElementCylinder;
+class UGizmoElementGroup;
+class UGizmoElementRectangle;
+class UGizmoElementRoot;
+class UGizmoElementTorus;
 
 /**
  * UTransformGizmo provides standard Transformation Gizmo interactions,
@@ -39,31 +44,56 @@ class EDITORINTERACTIVETOOLSFRAMEWORK_API UTransformGizmo : public UInteractiveG
 	GENERATED_BODY()
 
 public:
-	constexpr static float AXIS_LENGTH = 35.0f;
-	constexpr static float AXIS_RADIUS = 1.2f;
-	constexpr static float AXIS_CONE_ANGLE = 15.7f;
-	constexpr static float AXIS_CONE_HEIGHT = 13;
-	constexpr static float AXIS_CONE_HEAD_OFFSET = 12;
-	constexpr static float AXIS_CUBE_SIZE = 4;
-	constexpr static float AXIS_CUBE_HEAD_OFFSET= 3;
-	constexpr static float TRANSLATE_ROTATE_AXIS_CIRCLE_RADIUS = 20.0f;
-	constexpr static float TWOD_AXIS_CIRCLE_RADIUS = 10.0f;
-	constexpr static float INNER_AXIS_CIRCLE_RADIUS = 48.0f;
-	constexpr static float OUTER_AXIS_CIRCLE_RADIUS = 56.0f;
-	constexpr static float ROTATION_TEXT_RADIUS = 75.0f;
-	constexpr static int32 AXIS_CIRCLE_SIDES = 24;
-	constexpr static float ARCALL_RELATIVE_INNER_SIZE = 0.75f;
-	constexpr static float AXIS_LENGTH_SCALE = 25.0f;
-	constexpr static float AXIS_LENGTH_SCALE_OFFSET = 5.0f;
 
-	constexpr static FLinearColor AxisColorX = FLinearColor(0.594f, 0.0197f, 0.0f);
-	constexpr static FLinearColor AxisColorY = FLinearColor(0.1349f, 0.3959f, 0.0f);
-	constexpr static FLinearColor AxisColorZ = FLinearColor(0.0251f, 0.207f, 0.85f);
-	constexpr static FLinearColor ScreenAxisColor = FLinearColor(0.76, 0.72, 0.14f);
-	constexpr static FColor PlaneColorXY = FColor(255, 255, 0); // FColor::Yellow
-	constexpr static FColor ArcBallColor = FColor(128, 128, 128, 6);
-	constexpr static FColor ScreenSpaceColor = FColor(196, 196, 196);
-	constexpr static FColor CurrentColor = FColor(255, 255, 0); // FColor::Yellow
+	static constexpr float AxisRadius = 1.5f;
+	static constexpr float AxisLengthOffset = 20.0f;
+
+	static constexpr float TranslateAxisLength = 70.0f;
+	static constexpr float TranslateAxisConeAngle = 16.0f;
+	static constexpr float TranslateAxisConeHeight = 22.0f;
+	static constexpr float TranslateAxisConeRadius = 7.0f;
+	static constexpr float TranslateScreenSpaceHandleSize = 14.0f;
+
+	// Rotate constants
+	static constexpr float RotateArcballInnerRadius = 8.0f;
+	static constexpr float RotateArcballOuterRadius = 10.0f;
+	static constexpr float RotateArcballSphereRadius = 70.0f;
+	static constexpr float RotateAxisOuterRadius = 73.0f;
+	static constexpr float RotateAxisInnerRadius = 1.25f;
+	static constexpr int32 RotateAxisOuterSegments = 64;
+	static constexpr int32 RotateAxisInnerSlices = 8;
+	static constexpr float RotateOuterCircleRadius = 73.0f;
+	static constexpr float RotateScreenSpaceRadius = 83.0f;
+
+	static constexpr float ScaleAxisLength = 35.0f;
+	static constexpr float ScaleAxisCubeSize = 3.0f;
+	static constexpr float ScaleAxisCubeDim = 12.0f;
+
+	static constexpr float PlanarHandleOffset = 55.0f;
+	static constexpr float PlanarHandleSize = 15.0f;
+
+	static constexpr float AxisTransp = 0.8f;
+	static constexpr FLinearColor AxisColorX = FLinearColor(0.594f, 0.0197f, 0.0f);
+	static constexpr FLinearColor AxisColorY = FLinearColor(0.1349f, 0.3959f, 0.0f);
+	static constexpr FLinearColor AxisColorZ = FLinearColor(0.0251f, 0.207f, 0.85f);
+	static constexpr FLinearColor ScreenAxisColor = FLinearColor(0.76, 0.72, 0.14f);
+	static constexpr FColor PlaneColorXY = FColor(255, 255, 0); // FColor::Yellow
+	static constexpr FColor ArcBallColor = FColor(128, 128, 128, 6);
+	static constexpr FColor ScreenSpaceColor = FColor(196, 196, 196);
+	static constexpr FColor CurrentColor = FColor(255, 255, 0); // FColor::Yellow
+
+	static constexpr FLinearColor GreyColor = FLinearColor(0.50f, 0.50f, 0.50f);
+	static constexpr FLinearColor WhiteColor = FLinearColor(1.0f, 1.0f, 1.0f);
+
+	static constexpr FLinearColor RotateScreenSpaceCircleColor = WhiteColor;
+	static constexpr FLinearColor RotateOuterCircleColor = GreyColor;
+	static constexpr FLinearColor RotateArcballCircleColor = WhiteColor;
+
+	static constexpr uint8 LargeInnerAlpha = 0x3f;
+	static constexpr uint8 SmallInnerAlpha = 0x0f;
+	static constexpr uint8 LargeOuterAlpha = 0x7f;
+	static constexpr uint8 SmallOuterAlpha = 0x0f;
+
 
 public:
 
@@ -164,13 +194,85 @@ public:
 
 protected:
 
-	/** List of current-active gizmo objects */
-	UPROPERTY()
-	TArray<TObjectPtr<UGizmoBaseObject>> ActiveObjects;
+	//
+	// Gizmo Objects, used for rendering and hit testing
+	//
 
-	/** list of currently-active child gizmos */
+	/** Root of renderable gizmo elements */
 	UPROPERTY()
-	TArray<TObjectPtr<UInteractiveGizmo>> ActiveGizmos;
+	TObjectPtr<UGizmoElementGroup> GizmoElementRoot;
+
+	/** Translate X Axis */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementArrow> TranslateXAxisElement;
+
+	/** Translate Y Axis */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementArrow> TranslateYAxisElement;
+
+	/** Translate Z Axis */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementArrow> TranslateZAxisElement;
+
+	/** Translate screen-space */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementRectangle> TranslateScreenSpaceElement;
+
+	/** Planar XY handle */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementRectangle> PlanarXYElement;
+
+	/** Planar YZ handle */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementRectangle> PlanarYZElement;
+
+	/** Planar XZ handle */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementRectangle> PlanarXZElement;
+
+	/** Rotate X Axis */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementTorus> RotateXAxisElement;
+
+	/** Rotate Y Axis */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementTorus> RotateYAxisElement;
+
+	/** Rotate Z Axis */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementTorus> RotateZAxisElement;
+
+	/** Rotate outer circle */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementCircle> RotateOuterCircleElement;
+
+	/** Rotate arcball outer circle */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementCircle> RotateArcballOuterElement;
+
+	/** Rotate arcball inner circle */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementCircle> RotateArcballInnerElement;
+
+	/** Rotate screen space circle */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementCircle> RotateScreenSpaceElement;
+
+	/** Scale X Axis object */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementArrow> ScaleXAxisElement;
+
+	/** Scale Y Axis object */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementArrow> ScaleYAxisElement;
+
+	/** Scale Z Axis object */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementArrow> ScaleZAxisElement;
+
+	/** Uniform scale object */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementBox> ScaleUniformElement;
 
 	//
 	// Axis Sources
@@ -182,70 +284,13 @@ protected:
 	// internal function that updates CameraAxisSource by getting current view state from GizmoManager
 	void UpdateCameraAxisSource();
 
-	/** Gizmo group object contains all gizmos created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoGroupObject> GizmoGroupObject;
-
-	// @todo - these properties can probably be removed since they are contained within the group now.
-	/** X-axis source is shared across Gizmos, and created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoEditorAxisSource> AxisXSource;
-
-	/** Y-axis source is shared across Gizmos, and created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoEditorAxisSource> AxisYSource;
-
-	/** Z-axis source is shared across Gizmos, and created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoEditorAxisSource> AxisZSource;
-
-	/** X-axis arrow object is shared across Gizmos, and created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoArrowObject> AxisXObject;
-
-	/** Y-axis arrow object is shared across Gizmos, and created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoArrowObject> AxisYObject;
-
-	/** Z-axis arrow object is shared across Gizmos, and created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoArrowObject> AxisZObject;
-	//
-	// Scaling support. 
-	// UE Components only support scaling in local coordinates, so we have to create separate sources for that.
-	//
-
-	/** Local X-axis source (ie 1,0,0) is shared across Scale Gizmos, and created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoEditorAxisSource> UnitAxisXSource;
-
-	/** Y-axis source (ie 0,1,0) is shared across Scale Gizmos, and created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoEditorAxisSource> UnitAxisYSource;
-
-	/** Z-axis source (ie 0,0,1) is shared across Scale Gizmos, and created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoEditorAxisSource> UnitAxisZSource;
-
-	/** X-axis arrow object is shared across Gizmos, and created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoArrowObject> ScaleAxisXObject;
-
-	/** Y-axis arrow object is shared across Gizmos, and created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoArrowObject> ScaleAxisYObject;
-
-	/** Z-axis arrow object is shared across Gizmos, and created internally during SetActiveTarget() */
-	UPROPERTY()
-	TObjectPtr<UGizmoArrowObject> ScaleAxisZObject;
-
 	/** 
 	 * State target is shared across gizmos, and created internally during SetActiveTarget(). 
 	 * Several FChange providers are registered with this StateTarget, including the UTransformGizmo
 	 * itself (IToolCommandChangeSource implementation above is called)
 	 */
 	UPROPERTY()
-	TObjectPtr<UGizmoObjectTransformChangeStateTarget> StateTarget;
+	TObjectPtr<UGizmoDependentTransformChangeStateTarget> StateTarget;
 
 	/**
 	 * These are used to let the translation subgizmos use raycasts into the scene to align the gizmo with scene geometry.
@@ -260,14 +305,8 @@ protected:
 	/** Update current gizmo mode based on transform source */
 	void UpdateMode();
 
-	/** Update current coord system based on the active target and transform source */
-	void UpdateCoordSystem();
-
 	/** Enable the given mode with the specified axes, EAxisList::Type::None will hide objects associated with mode */
 	void EnableMode(EGizmoTransformMode InGizmoMode, EAxisList::Type InAxisListToDraw);
-
-	/** Enable object if the specified InGizmoAxis is enabled in InAxisListToDraw*/
-	void EnableObject(UGizmoBaseObject* InGizmoObject, EAxisList::Type InGizmoAxis, EAxisList::Type InAxisListToDraw);
 
 	/** Enable translate using specified axis list */
 	void EnableTranslate(EAxisList::Type InAxisListToDraw);
@@ -278,67 +317,60 @@ protected:
 	/** Enable scale using specified axis list */
 	void EnableScale(EAxisList::Type InAxisListToDraw);
 
+	/** Enable planar handles used by translate and scale */
+	void EnablePlanarObjects(bool bEnableX, bool bEnableY, bool bEnableZ);
+
+
 	UPROPERTY()
 	EGizmoTransformMode CurrentMode = EGizmoTransformMode::None;
 
 	UPROPERTY()
 	TEnumAsByte<EAxisList::Type> CurrentAxisToDraw = EAxisList::None;
 
-	/** @return a new instance of the standard axis-translation Gizmo */
-	virtual UInteractiveGizmo* AddAxisTranslationGizmo(
-		UGizmoArrowObject* InArrowObject,
-		IGizmoAxisSource* InAxisSource,
-		IGizmoTransformSource* InTransformSource,
-		IGizmoStateTarget* InStateTarget,
-		EAxisList::Type InAxisType,
-		const FLinearColor InAxisColor);
+	/** Construct translate axis handle */
+	virtual UGizmoElementArrow* MakeTranslateAxis(const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial);
 
-	/** @return a new instance of the standard plane-translation Gizmo */
-	virtual UInteractiveGizmo* AddPlaneTranslationGizmo(
-		IGizmoAxisSource* InAxisSource,
-		IGizmoTransformSource* InTransformSource,
-		IGizmoStateTarget* InStateTarget);
+	/** Construct scale axis handle */
+	virtual UGizmoElementArrow* MakeScaleAxis(const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial);
 
-	/** @return a new instance of the standard axis-rotation Gizmo */
-	virtual UInteractiveGizmo* AddAxisRotationGizmo(
-		IGizmoAxisSource* InAxisSource,
-		IGizmoTransformSource* InTransformSource,
-		IGizmoStateTarget* InStateTarget,
-		EAxisList::Type InAxisType,
-		const FLinearColor InAxisColor);
+	/** Construct rotate axis handle */
+	virtual UGizmoElementTorus* MakeRotateAxis(const FVector& Normal, const FVector& TorusAxis0, const FVector& TorusAxis1, 
+		UMaterialInterface* InMaterial, UMaterialInterface* InCurrentMaterial);
 
-	/** @return a new instance of the standard axis-scaling Gizmo */
-	virtual UInteractiveGizmo* AddAxisScaleGizmo(
-		UGizmoArrowObject* InArrowObject,
-		IGizmoAxisSource* InGizmoAxisSource, IGizmoAxisSource* InParameterAxisSource,
-		IGizmoTransformSource* InTransformSource,
-		IGizmoStateTarget* InStateTarget,
-		EAxisList::Type InAxisType,
-		const FLinearColor InAxisColor);
+	/** Construct uniform scale handle */
+	virtual UGizmoElementBox* MakeUniformScaleHandle();
 
-	/** @return a new instance of the standard plane-scaling Gizmo */
-	virtual UInteractiveGizmo* AddPlaneScaleGizmo(
-		IGizmoAxisSource* InGizmoAxisSource, IGizmoAxisSource* InParameterAxisSource,
-		IGizmoTransformSource* InTransformSource,
-		IGizmoStateTarget* InStateTarget);
+	/** Construct planar axis handle */
+	virtual UGizmoElementRectangle* MakePlanarHandle(const FVector& InUpDirection, const FVector& InSideDirection, const FVector& InPlaneNormal,
+		UMaterialInterface* InMaterial, const FLinearColor& InVertexColor);
 
-	/** @return a new instance of the standard plane-scaling Gizmo */
-	virtual UInteractiveGizmo* AddUniformScaleGizmo(
-		IGizmoAxisSource* InGizmoAxisSource, IGizmoAxisSource* InParameterAxisSource,
-		IGizmoTransformSource* InTransformSource,
-		IGizmoStateTarget* InStateTarget);
+	/** Construct translate screen space handle */
+	virtual UGizmoElementRectangle* MakeTranslateScreenSpaceHandle();
+
+	/** Construct rotate screen space handle */
+	virtual UGizmoElementCircle* MakeRotateCircleHandle(float InRadius, const FLinearColor& InColor, float bFill);
 
 	// Axis and Plane TransformSources use this function to execute worldgrid snap queries
 	bool PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const;
 	FQuat RotationSnapFunction(const FQuat& DeltaRotation) const;
 
 	/** Materials and colors to be used when drawing the items for each axis */
-	TObjectPtr<UMaterialInterface> TransparentPlaneMaterialXY;
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> TransparentVertexColorMaterial;
+	UPROPERTY()
 	TObjectPtr<UMaterialInterface> GridMaterial;
-
+	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> AxisMaterialX;
+	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> AxisMaterialY;
+	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> AxisMaterialZ;
+	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> CurrentAxisMaterial;
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> GreyMaterial;
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> WhiteMaterial;
+	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> OpaquePlaneMaterialXY;
 };
