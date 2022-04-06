@@ -45,6 +45,7 @@ struct RENDERER_API FSceneTexturesConfig
 		: bRequireMultiView{}
 		, bIsUsingGBuffers{}
 		, bKeepDepthContent{1}
+		, bPreciseDepthAux{}
 	{}
 
 	// Extractions to queue for after execution of the render graph.
@@ -95,6 +96,9 @@ struct RENDERER_API FSceneTexturesConfig
 
 	// (Mobile) True if the platform should write depth content back to memory.
 	uint32 bKeepDepthContent : 1;
+	
+	// (Mobile) True if SceneDepthAux should use a precise pixel format
+	uint32 bPreciseDepthAux : 1;
 
 private:
 	static FSceneTexturesConfig GlobalInstance;

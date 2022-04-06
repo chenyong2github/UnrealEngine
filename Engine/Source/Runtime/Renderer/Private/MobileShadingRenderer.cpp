@@ -495,6 +495,14 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	{
 		SceneTexturesConfig.MobilePixelProjectedReflectionExtent = FIntPoint::ZeroValue;
 	}
+
+	// When we capturing scene depth, use a more precise format for SceneDepthAux as it will be used as a source DepthTexture
+	if (ViewFamily.SceneCaptureSource == SCS_SceneColorSceneDepth ||
+		ViewFamily.SceneCaptureSource == SCS_SceneDepth || 
+		ViewFamily.SceneCaptureSource == SCS_DeviceDepth)
+	{
+		SceneTexturesConfig.bPreciseDepthAux = true;
+	}
 	
 	// Finalize and set the scene textures config.
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
