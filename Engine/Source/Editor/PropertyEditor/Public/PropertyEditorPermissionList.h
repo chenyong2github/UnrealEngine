@@ -59,6 +59,9 @@ public:
 	/** Remove all rules */
 	void ClearPermissionList();
 
+	/** Unregister an owner from all permission lists currently stored */
+	void UnregisterOwner(const FName Owner);
+
 	/** Add a specific property to a UStruct's AllowList */
 	void AddToAllowList(TSoftObjectPtr<UStruct> Struct, const FName PropertyName, const FName Owner = NAME_None);
 	/** Remove a specific property from a UStruct's AllowList */
@@ -101,11 +104,16 @@ public:
 	/** Clear CachedPropertyEditorPermissionList to cause the PermissionListed property list to be regenerated next time it's queried */
 	void ClearCache();
 
+	/** If true, PermissionListUpdatedDelegate will not broadcast when modifying the permission lists */
+	bool bSuppressUpdateDelegate = false;
+
 private:
 	FPropertyEditorPermissionList();
 	~FPropertyEditorPermissionList();
 
 	void RegisterOnBlueprintCompiled();
+
+	void ClearCacheAndBroadcast(TSoftObjectPtr<UStruct> ObjectStruct = nullptr, FName OwnerName = NAME_None);
 	
 	/** Whether DoesPropertyPassFilter should perform its PermissionList check or always return true */
 	bool bEnablePropertyEditorPermissionList = false;
