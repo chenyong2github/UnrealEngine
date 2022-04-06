@@ -82,7 +82,10 @@ bool UPCGEditorGraphSchema::TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) 
 		UPCGGraph* PCGGraph = PCGNodeA->GetGraph();
 		check(PCGGraph);
 
-		PCGGraph->AddEdge(PCGNodeA, PCGNodeB);
+		const FName& NodeAPinName = (A->PinName == TEXT("Out") ? NAME_None : A->PinName);
+		const FName& NodeBPinName = (B->PinName == TEXT("In") ? NAME_None : B->PinName);
+
+		PCGGraph->AddLabeledEdge(PCGNodeA, NodeAPinName, PCGNodeB, NodeBPinName);
 	}
 
 	return bModified;
@@ -126,8 +129,11 @@ void UPCGEditorGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphP
 	UPCGNode* TargetPCGNode = TargetPCGGraphNode->GetPCGNode();
 	check(SourcePCGNode && TargetPCGNode);
 
+	const FName& SourcePinName = (SourcePin->PinName == TEXT("Out") ? NAME_None : SourcePin->PinName);
+	const FName& TargetPinName = (TargetPin->PinName == TEXT("In") ? NAME_None : TargetPin->PinName);
+
 	UPCGGraph* PCGGraph = SourcePCGNode->GetGraph();
-	PCGGraph->RemoveEdge(SourcePCGNode, TargetPCGNode);
+	PCGGraph->RemoveEdge(SourcePCGNode, SourcePinName, TargetPCGNode, TargetPinName);
 }
 
 #undef LOCTEXT_NAMESPACE

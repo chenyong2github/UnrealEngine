@@ -3,12 +3,14 @@
 #include "PCGEditorGraph.h"
 
 #include "PCGGraph.h"
+#include "PCGEdge.h"
 #include "PCGEditorGraphNode.h"
 
 #include "EdGraph/EdGraphPin.h"
 
 void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 {
+	check(InPCGGraph && !PCGGraph);
 	PCGGraph = InPCGGraph;
 
 	TMap<UPCGNode*, UPCGEditorGraphNode*> NodeLookup;
@@ -42,17 +44,22 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 		UPCGNode* PCGNode = NodeLookupIt.Key;
 		UPCGEditorGraphNode* GraphNode = NodeLookupIt.Value;
 
-		UEdGraphPin* OutPin = GraphNode->FindPin(TEXT("Out"));
-		if (!OutPin)
+		for (UPCGEdge* OutboundEdge : PCGNode->GetOutboundEdges())
 		{
-			continue;
-		}
+			const FName OutPinName = OutboundEdge->InboundLabel == NAME_None ? TEXT("Out") : OutboundEdge->InboundLabel;
+			UEdGraphPin* OutPin = GraphNode->FindPin(OutPinName);
 
-		for (UPCGNode* OutboundNode : PCGNode->GetOutboundNodes())
-		{
+			if (!OutPin)
+			{
+				continue;
+			}
+			
+			UPCGNode* OutboundNode = OutboundEdge->OutboundNode;
 			if (UPCGEditorGraphNode** ConnectedGraphNode = NodeLookup.Find(OutboundNode))
 			{
-				if (UEdGraphPin* InPin = (*ConnectedGraphNode)->FindPin(TEXT("In")))
+				const FName InPinName = OutboundEdge->OutboundLabel == NAME_None ? TEXT("In") : OutboundEdge->OutboundLabel;
+
+				if(UEdGraphPin* InPin = (*ConnectedGraphNode)->FindPin(InPinName))
 				{
 					OutPin->MakeLinkTo(InPin);
 				}

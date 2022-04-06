@@ -2,6 +2,7 @@
 
 #include "PCGGraphCompiler.h"
 #include "PCGGraph.h"
+#include "PCGEdge.h"
 #include "PCGSubgraph.h"
 #include "PCGSettings.h" // Needed for trivial element
 
@@ -19,7 +20,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 	// Prime the node queue with all nodes that have no inbound edges
 	for (const UPCGNode* Node : InGraph->GetNodes())
 	{
-		if (Node->InboundNodes.IsEmpty())
+		if (Node->InboundEdges.IsEmpty())
 		{
 			NodeQueue.Add(Node);
 		}
@@ -70,15 +71,16 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			PreTask.Node = Node;
 			PreTask.NodeId = PreId;
 
-			for (const UPCGNode* Inbound : Node->InboundNodes)
+			for (const UPCGEdge* InboundEdge : Node->InboundEdges)
 			{
-				PreTask.Inputs.Add(IdMapping[Inbound]);
+				check(InboundEdge);
+				PreTask.Inputs.Emplace(IdMapping[InboundEdge->InboundNode], InboundEdge->InboundLabel, InboundEdge->OutboundLabel);
 			}
 
 			// Add pre-task as input to subgraph input node task
 			if (InputNodeTask)
 			{
-				InputNodeTask->Inputs.Add(PreId);
+				InputNodeTask->Inputs.Emplace(PreId, NAME_None, NAME_None);
 			}
 
 			// Merge subgraph tasks into current tasks.
@@ -93,7 +95,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			// Add subgraph output node task as input to the post-task
 			if (OutputNodeTask)
 			{
-				PostTask.Inputs.Add(OutputNodeTask->NodeId);
+				PostTask.Inputs.Emplace(OutputNodeTask->NodeId, NAME_None, NAME_None);
 			}
 
 			IdMapping.Add(Node, PostId);
@@ -101,7 +103,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			// Prime any input-less nodes from the subgraph
 			for (const UPCGNode* SubNode : Subgraph->GetNodes())
 			{
-				if (SubNode->InboundNodes.IsEmpty())
+				if (SubNode->InboundEdges.IsEmpty())
 				{
 					NodeQueue.Add(SubNode);
 				}
@@ -114,15 +116,15 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			Task.Node = Node;
 			Task.NodeId = NodeId;
 
-			for (const UPCGNode* Inbound : Node->InboundNodes)
+			for (const UPCGEdge* InboundEdge : Node->InboundEdges)
 			{
-				if (FPCGTaskId* InboundId = IdMapping.Find(Inbound))
+				if (FPCGTaskId* InboundId = IdMapping.Find(InboundEdge->InboundNode))
 				{
-					Task.Inputs.Add(*InboundId);
+					Task.Inputs.Emplace(IdMapping[InboundEdge->InboundNode], InboundEdge->InboundLabel, InboundEdge->OutboundLabel);
 				}
 				else
 				{
-					UE_LOG(LogPCG, Error, TEXT("Inconsistent node linkage between node %s and node %s"), *Node->GetFName().ToString(), (Inbound ? *Inbound->GetFName().ToString() : TEXT("null")));
+					UE_LOG(LogPCG, Error, TEXT("Inconsistent node linkage between node %s and node %s"), *Node->GetFName().ToString(), (InboundEdge->InboundNode ? *InboundEdge->InboundNode->GetFName().ToString() : TEXT("null")));
 					return TArray<FPCGGraphTask>();
 				}
 			}
@@ -131,11 +133,14 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 		}
 
 		// Push next ready nodes on the queue
-		for (const UPCGNode* Outbound : Node->OutboundNodes)
+		for (const UPCGEdge* OutboundEdge : Node->OutboundEdges)
 		{
+			const UPCGNode* Outbound = OutboundEdge->OutboundNode;
+
 			bool bAllPrerequisitesMet = true;
-			for (const UPCGNode* Inbound : Outbound->InboundNodes)
+			for (const UPCGEdge* InboundEdge : Outbound->InboundEdges)
 			{
+				const UPCGNode* Inbound = InboundEdge->InboundNode;
 				bAllPrerequisitesMet &= IdMapping.Contains(Inbound);
 			}
 
@@ -170,13 +175,13 @@ void FPCGGraphCompiler::Compile(UPCGGraph* InGraph)
 	// Store back the results in the cache if it's valid
 	if (!CompiledTasks.IsEmpty())
 	{
-		GraphToTaskMapLock.WriteLock();
-		if (!GraphToTaskMap.Contains(InGraph))
-		{
-			GraphToTaskMap.Add(InGraph, MoveTemp(CompiledTasks));
-		}
-		GraphToTaskMapLock.WriteUnlock();
+	GraphToTaskMapLock.WriteLock();
+	if (!GraphToTaskMap.Contains(InGraph))
+	{
+		GraphToTaskMap.Add(InGraph, MoveTemp(CompiledTasks));
 	}
+	GraphToTaskMapLock.WriteUnlock();
+}
 }
 
 TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, bool bIsTopGraph)
@@ -221,9 +226,9 @@ void FPCGGraphCompiler::OffsetNodeIds(TArray<FPCGGraphTask>& Tasks, FPCGTaskId O
 	{
 		Task.NodeId += Offset;
 
-		for (FPCGTaskId& Input : Task.Inputs)
+		for(FPCGGraphTaskInput& Input : Task.Inputs)
 		{
-			Input += Offset;
+			Input.TaskId += Offset;
 		}
 	}
 }
@@ -262,7 +267,7 @@ void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 		FPCGGraphTask& Task = CompiledTasks[TaskIndex];
 		if (Task.Inputs.IsEmpty())
 		{
-			Task.Inputs.Add(PreExecuteTaskId);
+			Task.Inputs.Emplace(PreExecuteTaskId, NAME_None, NAME_None);
 		}
 	}
 
@@ -282,10 +287,13 @@ void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 		const FPCGGraphTask& Task = CompiledTasks[TaskIndex];
 		if (!TasksWithSuccessors.Contains(Task.NodeId))
 		{
-			PostExecuteTask.Inputs.Add(Task.NodeId);
+			PostExecuteTask.Inputs.Emplace(Task.NodeId, NAME_None, NAME_None);
 		}
 
-		TasksWithSuccessors.Append(Task.Inputs);
+		for (const FPCGGraphTaskInput& Input : Task.Inputs)
+		{
+			TasksWithSuccessors.Add(Input.TaskId);
+		}
 	}
 
 	// Store back the results in the cache

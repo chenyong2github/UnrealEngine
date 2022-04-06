@@ -86,6 +86,16 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 			if (bDone)
 			{
+				// Cleanup any residual labels if the node isn't supposed to produce them
+				// TODO: this is a bit of a crutch, could be refactored out if we review the way we push tagged data
+				if (Settings && Settings->OutLabels().Num() == 0)
+				{
+					for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
+					{
+						TaggedData.Label = NAME_None;
+					}
+				}
+
 				if (IsCacheable(Settings) && Context->Cache)
 				{
 					Context->Cache->StoreInCache(this, Context->InputData, Settings, Context->OutputData);

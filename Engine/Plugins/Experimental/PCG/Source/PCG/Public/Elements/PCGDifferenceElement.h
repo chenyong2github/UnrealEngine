@@ -20,6 +20,8 @@ public:
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("DifferenceNode")); }
 #endif
 
+	virtual TArray<FName> InLabels() const override;
+
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
@@ -38,4 +40,6 @@ class FPCGDifferenceElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const;
+
+	void LabellessProcessing(FPCGContext* Context) const;
 };

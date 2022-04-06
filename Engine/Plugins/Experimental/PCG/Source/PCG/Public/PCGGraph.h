@@ -47,6 +47,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Graph)
 	UPCGNode* AddEdge(UPCGNode* From, UPCGNode* To);
 
+	UFUNCTION(BlueprintCallable, Category = Graph)
+	UPCGNode* AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, UPCGNode* To, const FName& OutboundLabel);
+
 	/** Returns the graph input node */
 	UFUNCTION(BlueprintCallable, Category = Graph)
 	UPCGNode* GetInputNode() const { return InputNode; }
@@ -58,7 +61,7 @@ public:
 	bool Contains(UPCGNode* Node) const;
 	const TArray<UPCGNode*>& GetNodes() const { return Nodes; }
 	void RemoveNode(UPCGNode* InNode);
-	void RemoveEdge(UPCGNode* From, UPCGNode* To);
+	void RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To, const FName& ToLabel);
 	void RemoveInboundEdges(UPCGNode* InNode);
 	void RemoveOutboundEdges(UPCGNode* InNode);
 

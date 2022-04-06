@@ -38,6 +38,11 @@ public:
 	// TODO: check if we need this to be virtual, we don't really need if we're always caching
 	/*virtual*/ FPCGElementPtr GetElement() const;
 	virtual UPCGNode* CreateNode() const;
+
+	virtual bool HasInLabel(const FName& Label) const;
+	virtual bool HasOutLabel(const FName& Label) const;
+	virtual TArray<FName> InLabels() const { return TArray<FName>(); }
+	virtual TArray<FName> OutLabels() const { return TArray<FName>(); }
 	
 	bool operator==(const UPCGSettings& Other) const;
 

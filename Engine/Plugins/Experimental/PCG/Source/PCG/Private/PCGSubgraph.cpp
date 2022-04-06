@@ -84,6 +84,54 @@ void UPCGBaseSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStr
 }
 #endif // WITH_EDITOR
 
+bool UPCGBaseSubgraphSettings::HasInLabel(const FName& Label) const
+{
+	if (UPCGGraph* Subgraph = GetSubgraph())
+	{
+		return Subgraph->GetInputNode()->HasInLabel(Label);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool UPCGBaseSubgraphSettings::HasOutLabel(const FName& Label) const
+{
+	if (UPCGGraph* Subgraph = GetSubgraph())
+	{
+		return Subgraph->GetOutputNode()->HasOutLabel(Label);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+TArray<FName> UPCGBaseSubgraphSettings::InLabels() const
+{
+	if (UPCGGraph* Subgraph = GetSubgraph())
+	{
+		return Subgraph->GetInputNode()->InLabels();
+	}
+	else
+	{
+		return TArray<FName>();
+	}
+}
+
+TArray<FName> UPCGBaseSubgraphSettings::OutLabels() const
+{
+	if (UPCGGraph* Subgraph = GetSubgraph())
+	{
+		return Subgraph->GetOutputNode()->OutLabels();
+	}
+	else
+	{
+		return TArray<FName>();
+	}
+}
+
 UPCGNode* UPCGSubgraphSettings::CreateNode() const
 {
 	return NewObject<UPCGSubgraphNode>();

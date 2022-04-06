@@ -1,7 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGDifferenceElement.h"
+#include "Data/PCGUnionData.h"
 #include "Helpers/PCGSettingsHelpers.h"
+
+namespace PCGDifferenceConstants
+{
+	const FName SourceLabel = TEXT("Source");
+	const FName DifferencesLabel = TEXT("Differences");
+}
+
+TArray<FName> UPCGDifferenceSettings::InLabels() const
+{
+	return { PCGDifferenceConstants::SourceLabel, PCGDifferenceConstants::DifferencesLabel };
+}
 
 FPCGElementPtr UPCGDifferenceSettings::CreateElement() const
 {
@@ -12,6 +24,96 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGDifferenceElement::Execute);
 
+	// Early-out for previous behavior (without labeled edges)
+	if (Context->Node && !Context->Node->IsInputPinConnected(PCGDifferenceConstants::SourceLabel))
+	{
+		LabellessProcessing(Context);
+		return true;
+	}
+
+	const UPCGDifferenceSettings* Settings = Context->GetInputSettings<UPCGDifferenceSettings>();
+	check(Settings);
+
+	TArray<FPCGTaggedData> Sources = Context->InputData.GetInputsByLabel(PCGDifferenceConstants::SourceLabel);
+	TArray<FPCGTaggedData> Differences = Context->InputData.GetInputsByLabel(PCGDifferenceConstants::DifferencesLabel);
+	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
+
+	// Get only spatial data or build an union from the sources
+	const UPCGSpatialData* FirstSpatialData = nullptr;
+	UPCGUnionData* UnionData = nullptr;
+	int32 DifferenceTaggedDataIndex = -1;
+
+	// Start by either selecting a source or building a union
+	for (FPCGTaggedData& Source : Sources)
+	{
+		const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Source.Data);
+
+		// Non-spatial data, we're not going to touch
+		if (!SpatialData)
+		{
+			Outputs.Add(Source);
+		}
+		else if (!FirstSpatialData)
+		{
+			FirstSpatialData = SpatialData;
+			DifferenceTaggedDataIndex = Outputs.Num();
+			Outputs.Add(Source);
+		}
+		else
+		{
+			if (!UnionData)
+			{
+				UnionData = FirstSpatialData->UnionWith(SpatialData);
+				// TODO: expose union settings?
+
+				// Replace source by union
+				Outputs[DifferenceTaggedDataIndex].Data = UnionData;
+			}
+			else
+			{
+				UnionData->AddData(SpatialData);
+			}
+		}
+	}
+	
+	if (FirstSpatialData || UnionData)
+	{
+		check(DifferenceTaggedDataIndex >= 0);
+		// Then, depending on the presence of differences, we'll create a difference as needed
+		UPCGDifferenceData* DifferenceData = nullptr;
+		for (FPCGTaggedData& Difference : Differences)
+		{
+			const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Difference.Data);
+
+			if (SpatialData)
+			{
+				if (!DifferenceData)
+				{
+					DifferenceData = (UnionData ? UnionData : FirstSpatialData)->Subtract(SpatialData);
+					DifferenceData->SetDensityFunction(Settings->DensityFunction);
+#if WITH_EDITORONLY_DATA
+					DifferenceData->bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
+#endif
+
+					Outputs[DifferenceTaggedDataIndex].Data = DifferenceData;
+				}
+				else
+				{
+					DifferenceData->AddDifference(SpatialData);
+				}
+			}
+			else
+			{
+				// We are not propagating data from the differences if they don't contribute
+			}
+		}
+	}
+
+	return true;
+}
+
+void FPCGDifferenceElement::LabellessProcessing(FPCGContext* Context) const
+{
 	const UPCGDifferenceSettings* Settings = Context->GetInputSettings<UPCGDifferenceSettings>();
 	check(Settings);
 
@@ -76,6 +178,4 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 
 	// Finally, pass-through settings
 	Outputs.Append(Context->InputData.GetAllSettings());
-
-	return true;
 }

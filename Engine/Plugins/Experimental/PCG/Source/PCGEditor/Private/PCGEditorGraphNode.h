@@ -27,15 +27,23 @@ class UPCGEditorGraphNode : public UEdGraphNode
 public:
 	void Construct(UPCGNode* InPCGNode, EPCGEditorGraphNodeType InNodeType);
 
+	// ~Begin UObject interface
+	void BeginDestroy() override;
+	// ~End UObject interface
+
 	// ~Begin UEdGraphNode interface
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void GetNodeContextMenuActions(UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual void AllocateDefaultPins() override;
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 	virtual bool CanUserDeleteNode() const override;
+	virtual void ReconstructNode() override;
 	// ~End UEdGraphNode interface
 
 	UPCGNode* GetPCGNode() { return PCGNode; }
+
+protected:
+	void OnNodeChanged(UPCGNode* InNode);
 
 private:
 	UPROPERTY()

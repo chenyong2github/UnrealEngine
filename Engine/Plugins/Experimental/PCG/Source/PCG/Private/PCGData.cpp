@@ -9,7 +9,8 @@ bool FPCGTaggedData::operator==(const FPCGTaggedData& Other) const
 {
 	return Data == Other.Data &&
 		Tags.Num() == Other.Tags.Num() &&
-		Tags.Includes(Other.Tags);
+		Tags.Includes(Other.Tags) &&
+		Label == Other.Label;
 }
 
 bool FPCGTaggedData::operator!=(const FPCGTaggedData& Other) const
@@ -21,6 +22,13 @@ TArray<FPCGTaggedData> FPCGDataCollection::GetInputs() const
 {
 	return TaggedData.FilterByPredicate([](const FPCGTaggedData& Data) {
 		return Cast<UPCGSpatialData>(Data.Data) != nullptr;
+		});
+}
+
+TArray<FPCGTaggedData> FPCGDataCollection::GetInputsByLabel(const FName& InLabel) const
+{
+	return TaggedData.FilterByPredicate([&InLabel](const FPCGTaggedData& Data) {
+		return Data.Label == InLabel;
 		});
 }
 

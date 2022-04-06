@@ -74,7 +74,10 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 		// Push task (not data) dependencies on the pre-execute task
 		// Note must be done after the offset ids, otherwise we'll break the dependencies
 		check(ScheduledTask.Tasks.Num() >= 2 && ScheduledTask.Tasks[ScheduledTask.Tasks.Num() - 2].Node == nullptr);
-		ScheduledTask.Tasks[ScheduledTask.Tasks.Num() - 2].Inputs.Append(ExternalDependencies);
+		for (FPCGTaskId ExternalDependency : ExternalDependencies)
+		{
+			ScheduledTask.Tasks[ScheduledTask.Tasks.Num() - 2].Inputs.Emplace(ExternalDependency, NAME_None, NAME_None);
+		}
 #endif
 
 		ScheduleLock.Unlock();
@@ -87,7 +90,10 @@ FPCGTaskId FPCGGraphExecutor::ScheduleGeneric(TFunction<bool()> InOperation, con
 {
 	// Build task & element to hold the operation to perform
 	FPCGGraphTask Task;
-	Task.Inputs.Append(TaskDependencies);
+	for (FPCGTaskId TaskDependency : TaskDependencies)
+	{
+		Task.Inputs.Emplace(TaskDependency, NAME_None, NAME_None);
+	}
 	Task.Element = MakeShared<FPCGGenericElement>(InOperation);
 
 	ScheduleLock.Lock();
@@ -255,9 +261,9 @@ void FPCGGraphExecutor::QueueReadyTasks(FPCGTaskId FinishedTaskHint)
 	for (int TaskIndex = Tasks.Num() - 1; TaskIndex >= 0; --TaskIndex)
 	{
 		bool bAllPrerequisitesMet = true;
-		for (const FPCGTaskId& Id : Tasks[TaskIndex].Inputs)
+		for(const FPCGGraphTaskInput& Input : Tasks[TaskIndex].Inputs)
 		{
-			bAllPrerequisitesMet &= OutputData.Contains(Id);
+			bAllPrerequisitesMet &= OutputData.Contains(Input.TaskId);
 		}
 
 		if (bAllPrerequisitesMet)
@@ -270,11 +276,30 @@ void FPCGGraphExecutor::QueueReadyTasks(FPCGTaskId FinishedTaskHint)
 
 void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollection& TaskInput)
 {
-	for (const FPCGTaskId& Id : Task.Inputs)
+	for (const FPCGGraphTaskInput& Input : Task.Inputs)
 	{
-		check(OutputData.Contains(Id));
-		TaskInput.TaggedData.Append(OutputData[Id].TaggedData);
-		TaskInput.bCancelExecution |= OutputData[Id].bCancelExecution;
+		check(OutputData.Contains(Input.TaskId));
+		const FPCGDataCollection& InputCollection = OutputData[Input.TaskId];
+
+		TaskInput.bCancelExecution |= InputCollection.bCancelExecution;
+		
+		// Trivial case : take everything
+		if (Input.InboundLabel == NAME_None && Input.OutboundLabel == NAME_None)
+		{
+			TaskInput.TaggedData.Append(InputCollection.TaggedData);
+		}
+		// Non-trivial case: take all matches from OutputData[Id]
+		// And apply the out label on it
+		else
+		{
+			const int32 TaggedDataOffset = TaskInput.TaggedData.Num();
+			TaskInput.TaggedData.Append(InputCollection.GetInputsByLabel(Input.InboundLabel));
+
+			for (int32 TaggedDataIndex = TaggedDataOffset; TaggedDataIndex < TaskInput.TaggedData.Num(); ++TaggedDataIndex)
+			{
+				TaskInput.TaggedData[TaggedDataIndex].Label = Input.OutboundLabel;
+			}
+		}
 	}
 }
 

@@ -34,6 +34,9 @@ struct PCG_API FPCGTaggedData
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	TSet<FString> Tags;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
+	FName Label = NAME_None;
+
 	bool operator==(const FPCGTaggedData& Other) const;
 	bool operator!=(const FPCGTaggedData& Other) const;
 };
@@ -44,6 +47,7 @@ struct PCG_API FPCGDataCollection
 	GENERATED_BODY()
 
 	TArray<FPCGTaggedData> GetInputs() const;
+	TArray<FPCGTaggedData> GetInputsByLabel(const FName& InLabel) const;
 	TArray<FPCGTaggedData> GetTaggedInputs(const FString& InTag) const;
 	TArray<FPCGTaggedData> GetAllSettings() const;
 	TArray<FPCGTaggedData> GetAllParams() const;

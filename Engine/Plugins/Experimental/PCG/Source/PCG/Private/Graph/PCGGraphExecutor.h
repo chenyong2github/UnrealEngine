@@ -18,9 +18,23 @@ class UPCGNode;
 class UPCGComponent;
 class FPCGGraphCompiler;
 
+struct FPCGGraphTaskInput
+{
+	FPCGGraphTaskInput(FPCGTaskId InTaskId, const FName& InInboundLabel, const FName& InOutboundLabel)
+		: TaskId(InTaskId)
+		, InboundLabel(InInboundLabel)
+		, OutboundLabel(InOutboundLabel)		
+	{
+	}
+
+	FPCGTaskId TaskId;
+	FName InboundLabel;
+	FName OutboundLabel;
+};
+
 struct FPCGGraphTask
 {
-	TArray<FPCGTaskId> Inputs;
+	TArray<FPCGGraphTaskInput> Inputs;
 	//TArray<DataId> Outputs;
 	const UPCGNode* Node = nullptr;
 	UPCGComponent* SourceComponent = nullptr;

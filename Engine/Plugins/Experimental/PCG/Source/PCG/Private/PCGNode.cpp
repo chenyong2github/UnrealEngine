@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGNode.h"
+#include "PCGEdge.h"
 #include "PCGGraph.h"
 #include "PCGSettings.h"
 
@@ -20,6 +21,16 @@ void UPCGNode::PostLoad()
 		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
 	}
 #endif
+
+	// Deprecation
+	for (TObjectPtr<UPCGNode> OutboundNode : OutboundNodes_DEPRECATED)
+	{
+		if (!HasEdgeTo(OutboundNode))
+		{
+			AddEdgeTo(NAME_None, OutboundNode, NAME_None);
+		}
+	}
+	OutboundNodes_DEPRECATED.Reset();
 }
 
 void UPCGNode::BeginDestroy()
@@ -39,17 +50,63 @@ UPCGGraph* UPCGNode::GetGraph() const
 	return Cast<UPCGGraph>(GetOuter());
 }
 
-UPCGNode* UPCGNode::AddEdgeTo(UPCGNode* To)
+UPCGNode* UPCGNode::AddEdgeTo(FName InboundName, UPCGNode* To, FName OutboundName)
 {
 	check(GetGraph());
 	if (UPCGGraph* Graph = GetGraph())
 	{
-		return Graph->AddEdge(this, To);
+		return Graph->AddLabeledEdge(this, InboundName, To, OutboundName);
 	}
 	else
 	{
 		return nullptr;
 	}
+}
+
+bool UPCGNode::HasInLabel(const FName& Label) const
+{
+	return DefaultSettings && DefaultSettings->HasInLabel(Label);
+}
+
+bool UPCGNode::HasOutLabel(const FName& Label) const
+{
+	return DefaultSettings && DefaultSettings->HasOutLabel(Label);
+}
+
+TArray<FName> UPCGNode::InLabels() const
+{
+	return DefaultSettings ? DefaultSettings->InLabels() : TArray<FName>();
+}
+
+TArray<FName> UPCGNode::OutLabels() const
+{
+	return DefaultSettings ? DefaultSettings->OutLabels() : TArray<FName>();
+}
+
+bool UPCGNode::IsInputPinConnected(const FName& Label) const
+{
+	for (const UPCGEdge* InboundEdge : InboundEdges)
+	{
+		if (InboundEdge->OutboundLabel == Label)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UPCGNode::IsOutputPinConnected(const FName& Label) const
+{
+	for (const UPCGEdge* OutboundEdge : OutboundEdges)
+	{
+		if (OutboundEdge->InboundLabel == Label)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void UPCGNode::SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings)
@@ -72,20 +129,42 @@ void UPCGNode::SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings)
 #endif
 }
 
-void UPCGNode::ConnectTo(UPCGNode* InSuccessor)
+UPCGEdge* UPCGNode::GetOutboundEdge(const FName& FromLabel, UPCGNode* To, const FName& ToLabel)
 {
-	OutboundNodes.AddUnique(InSuccessor);
+	for (UPCGEdge* OutboundEdge : OutboundEdges)
+	{
+		if (OutboundEdge->OutboundNode == To &&
+			OutboundEdge->InboundLabel == FromLabel &&
+			OutboundEdge->OutboundLabel == ToLabel)
+		{
+			return OutboundEdge;
+		}
+	}
+
+	return nullptr;
 }
 
-void UPCGNode::ConnectFrom(UPCGNode* InPredecessor)
+bool UPCGNode::HasEdgeTo(UPCGNode* InNode) const
 {
-	InboundNodes.AddUnique(InPredecessor);
+	for (const UPCGEdge* OutboundEdge : OutboundEdges)
+	{
+		if (OutboundEdge->OutboundNode == InNode)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
-void UPCGNode::RemoveConnection(UPCGNode* InNode)
+void UPCGNode::RemoveInboundEdge(UPCGEdge* InEdge)
 {
-	InboundNodes.Remove(InNode);
-	OutboundNodes.Remove(InNode);
+	InboundEdges.Remove(InEdge);
+}
+
+void UPCGNode::RemoveOutboundEdge(UPCGEdge* InEdge)
+{
+	OutboundEdges.Remove(InEdge);
 }
 
 #if WITH_EDITOR

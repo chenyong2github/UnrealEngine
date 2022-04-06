@@ -31,11 +31,16 @@ protected:
 	//~End UObject interface implementation
 
 	//~Begin UPCGSettings interface
-#if WITH_EDITOR
 	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const override;
 #endif
+
+	virtual bool HasInLabel(const FName& Label) const override;
+	virtual bool HasOutLabel(const FName& Label) const override;
+	virtual TArray<FName> InLabels() const override;
+	virtual TArray<FName> OutLabels() const override;
 	//~End UPCGSettings interface
 
+#if WITH_EDITOR
 	void OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStructural);
 
 	virtual bool IsStructuralProperty(const FName& InPropertyName) const { return false; }

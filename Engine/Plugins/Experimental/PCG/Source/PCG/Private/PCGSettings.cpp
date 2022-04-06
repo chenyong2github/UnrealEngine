@@ -37,6 +37,16 @@ bool UPCGSettings::operator==(const UPCGSettings& Other) const
 	}
 }
 
+bool UPCGSettings::HasInLabel(const FName& Label) const
+{
+	return Label == NAME_None || InLabels().Contains(Label);
+}
+
+bool UPCGSettings::HasOutLabel(const FName& Label) const
+{
+	return Label == NAME_None || OutLabels().Contains(Label);
+}
+
 FPCGElementPtr UPCGSettings::GetElement() const
 {
 	if (!CachedElement)
