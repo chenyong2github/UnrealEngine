@@ -272,6 +272,7 @@ void URigHierarchy::Load(FArchive& Ar)
 			if(FRigBaseElement* Element = Find<FRigBaseElement>(SelectedKey))
 			{
 				Element->bSelected = true;
+				OrderedSelection.Add(SelectedKey);
 			}
 		}
 	}
@@ -311,6 +312,7 @@ void URigHierarchy::Reset()
 	ResetPoseHash = INDEX_NONE;
 	ResetPoseIsFilteredOut.Reset();
 	DefaultParentPerElement.Reset();
+	OrderedSelection.Reset();
 
 	if(!IsGarbageCollecting())
 	{
