@@ -835,7 +835,6 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 	
 	if (SourceComponent != nullptr)
 	{
-		SourceComponents.Add(SourceComponent);
 		if (GroomPhysicsAsset || SourceComponent->GetPhysicsAsset())
 		{
 			SourceComponents.Add(SourceComponent);
