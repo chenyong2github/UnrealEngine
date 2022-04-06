@@ -2,7 +2,14 @@
 
 #include "MediaPlateModule.h"
 
+#include "MediaPlate.h"
+
 DEFINE_LOG_CATEGORY(LogMediaPlate);
+
+UClass* FMediaPlateModule::GetAMediaPlateClass()
+{
+	return AMediaPlate::StaticClass();
+}
 
 void FMediaPlateModule::StartupModule()
 {

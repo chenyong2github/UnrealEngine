@@ -9,10 +9,14 @@
 /** Log category for this module. */
 DECLARE_LOG_CATEGORY_EXTERN(LogMediaPlate, Log, All);
 
-class FMediaPlateModule : public IModuleInterface
+class MEDIAPLATE_API FMediaPlateModule : public IModuleInterface
 {
 public:
-	
+	/**
+	 * Call this to get the UClass for AMediaPlate.
+	 */
+	virtual UClass* GetAMediaPlateClass();
+
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
