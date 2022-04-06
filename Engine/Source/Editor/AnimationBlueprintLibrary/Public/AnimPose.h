@@ -8,11 +8,6 @@
 
 #include "AnimPose.generated.h"
 
-/*	TODO
- *	- Automated tests
- *	- Verifying retargeted animation between different skeletons
- */
-
 UENUM(BlueprintType)
 enum class EAnimPoseSpaces : uint8
 {
@@ -53,6 +48,14 @@ struct ANIMATIONBLUEPRINTLIBRARY_API FAnimPoseEvaluationOptions
 	// Optional skeletal mesh with proportions to use when evaluating a pose
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category="Animation|Pose")
 	TObjectPtr<USkeletalMesh> OptionalSkeletalMesh = nullptr;
+	
+	// Whether or additive animations should be applied to their base-pose 
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category="Animation|Pose")
+	bool bRetrieveAdditiveAsFullPose = true;
+
+	// Whether or not to evaluate Animation Curves
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category="Animation|Pose")
+	bool bEvaluateCurves = true;
 };
 
 /** Script friendly representation of an evaluated animation bone pose */
@@ -72,7 +75,7 @@ protected:
 	/** Generates the contained bone data using the provided Component and its AnimInstance */
 	void SetPose(USkeletalMeshComponent* Component);
 	/** Generates the contained bone data using the provided CompactPose */
-	void SetPose(const FCompactPose& CompactPose);
+	void SetPose(const FAnimationPoseData& PoseData);
 	/** Copies the reference pose to animated pose data */
 	void SetToRefPose();
 
@@ -108,7 +111,11 @@ protected:
 	UPROPERTY()
 	TArray<FTransform> RefWorldSpacePoses;
 
-	FBoneContainer BoneContainer;
+	UPROPERTY()
+	TArray<FName> CurveNames;
+
+	UPROPERTY()
+	TArray<float> CurveValues;
 
 	friend class UAnimPoseExtensions;
 };
@@ -130,7 +137,6 @@ public:
 	UFUNCTION(BlueprintPure, meta = (ScriptMethod), Category = "Animation|Pose")
 	static bool IsValid(UPARAM(ref) const FAnimPose& Pose);
 
-	/** */
 	/**
 	* Returns an array of bone names contained by the pose
 	*
@@ -226,6 +232,16 @@ public:
 	static void GetAnimPoseAtTime(const UAnimSequenceBase* AnimationSequenceBase, float Time, FAnimPoseEvaluationOptions EvaluationOptions, FAnimPose& Pose);
 
 	/**
+	* Evaluates an Animation Sequence Base at different time intervals to generate a valid Anim Pose instances
+	*
+	* @param	AnimationSequenceBase	Animation sequence base to evaluate the pose from
+	* @param	TimeIntervals			Times at which the pose should be evaluated
+	* @param	EvaluationOptions		Options determining the way the pose should be evaluated
+	* @param	InOutPoses				Anim Poses holding the evaluated data (number matches TimeIntervals)
+	*/
+	static void GetAnimPoseAtTimeIntervals(const UAnimSequenceBase* AnimationSequenceBase, TArray<float> TimeIntervals, FAnimPoseEvaluationOptions EvaluationOptions, TArray<FAnimPose>& InOutPoses);
+
+	/**
 	* Evaluates an Animation Sequence Base to generate a valid Anim Pose instance
 	*
 	* @param	AnimationSequenceBase	Animation sequence base to evaluate the pose from
@@ -255,4 +271,25 @@ public:
 	*/
 	UFUNCTION(BlueprintPure, meta = (ScriptMethod), Category = "Animation|Pose")
 	static void GetReferencePose(USkeleton* Skeleton, FAnimPose& OutPose);
+
+	/**
+	* Returns an array of curve names contained by the pose
+	*
+	* @param	Pose	Anim Pose to retrieve the names from
+	* @param	Curves	Array to be populated with the curve names
+	*
+	*/
+	UFUNCTION(BlueprintPure, meta = (ScriptMethod), Category = "Animation|Pose")
+	static void GetCurveNames(UPARAM(ref) const FAnimPose& Pose, TArray<FName>& Curves);
+	
+	/**
+    * Returns the weight of an evaluated curve - if found
+    *
+    * @param	Pose		Anim Pose to retrieve the value from
+    * @param	CurveName	Curve to retrieve the weight value for
+    * 
+    * @return	Curve weight value, if found - 0.f otherwise
+    */
+    UFUNCTION(BlueprintPure, meta = (ScriptMethod), Category = "Animation|Pose")
+    static float GetCurveWeight(UPARAM(ref) const FAnimPose& Pose, const FName& CurveName);
 };
