@@ -294,7 +294,7 @@ UObjectBaseUtility* UObjectBaseUtility::GetImplementingOuterObject(const UClass*
 		UClass* OuterClass = NextOuter->GetClass();
 		if (OuterClass && OuterClass->ImplementsInterface(InInterfaceClass))
 		{
-			return OuterClass;
+			return NextOuter;
 		}
 	}
 
