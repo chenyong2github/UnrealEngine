@@ -24,7 +24,7 @@ class FEnhancedInputEditorProcessor;
  * input.
  */
 UCLASS()
-class UEnhancedInputEditorSubsystem : public UEditorSubsystem, public IEnhancedInputSubsystemInterface, public FTickableGameObject
+class INPUTEDITOR_API UEnhancedInputEditorSubsystem : public UEditorSubsystem, public IEnhancedInputSubsystemInterface, public FTickableGameObject
 {
 	GENERATED_BODY()
 
