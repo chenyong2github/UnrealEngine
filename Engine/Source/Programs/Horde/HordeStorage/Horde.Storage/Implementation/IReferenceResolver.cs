@@ -44,32 +44,29 @@ namespace Horde.Storage.Implementation
             {
                 if (objectsToVisit.TryDequeue(out CbObject? parent))
                 {
-                    // enumerate all fields in the compact binary and start to resolve their dependencies
-                    foreach (CbField field in parent)
-                    {
-                        if (!field.IsAttachment())
-                            continue;
+                    List<BlobIdentifier> blobIdentifiers = new List<BlobIdentifier>();
 
+                    parent.IterateAttachments(field =>
+                    {
                         IoHash attachmentHash = field.AsAttachment();
-                        if (field.HasError())
-                            continue;
 
                         BlobIdentifier blobIdentifier = BlobIdentifier.FromIoHash(attachmentHash);
                         if (field.IsBinaryAttachment())
                         {
                             pendingContentIdResolves.Add(ResolveContentId(ns, ContentId.FromIoHash(attachmentHash)));
                         }
-                        else
+                        else if (field.IsObjectAttachment())
                         {
-                            // the identifier as is points to a blob
-                            yield return blobIdentifier;
+                            blobIdentifiers.Add(blobIdentifier);
+                            pendingCompactBinaryAttachments.Add(ParseCompactBinaryAttachment(ns, blobIdentifier));
                         }
+                        else
+                            throw new NotImplementedException($"Unknown attachment type for field {field}");
+                    });
 
-                        // if its a reference to another compact binary we need to fetch it and resolve it
-                        if (!field.IsObjectAttachment())
-                            continue;
-
-                        pendingCompactBinaryAttachments.Add(ParseCompactBinaryAttachment(ns, blobIdentifier));
+                    foreach (BlobIdentifier blobIdentifier in blobIdentifiers)
+                    {
+                        yield return blobIdentifier;
                     }
                 }
 

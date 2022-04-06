@@ -156,8 +156,24 @@ namespace Horde.Storage.Controllers
                     {
                         byte[] blobMemory = await blob.Stream.ToByteArray();
                         CbObject cb = new CbObject(blobMemory);
-                        int countOfAttachmentFields = cb.Count(field => field.IsAttachment());
-                        CbField? binaryAttachmentField = cb.FirstOrDefault(field => field.IsBinaryAttachment());
+
+                        (int,CbField?) CountFields(CbObject o)
+                        {
+                            int count = 0;
+                            CbField? foundField = null;
+                            cb.IterateAttachments(field =>
+                            {
+                                ++count;
+                                if (field.IsBinaryAttachment())
+                                    foundField = field;
+                            });
+
+                            return (count, foundField);
+                        }
+
+                        // breaking lambda call into private method to workaround incorrect triggering of CA1508 - https://github.com/dotnet/roslyn-analyzers/issues/5254
+                        (int countOfAttachmentFields,CbField? binaryAttachmentField) = CountFields(cb);
+
                         if (countOfAttachmentFields == 1 && binaryAttachmentField != null)
                         {
                             // there is a single attachment field and that is of the binary attachment type, fetch that attachment and return it instead of the compact binary
@@ -189,12 +205,32 @@ namespace Horde.Storage.Controllers
                     }
                     case CustomMediaTypeNames.JupiterInlinedPayload:
                     {
-
                         byte[] blobMemory = await blob.Stream.ToByteArray();
                         CbObject cb = new CbObject(blobMemory);
-                        List<CbField> compactBinaryFields = cb.ToList();
-                        int countOfBinaryAttachmentFields = compactBinaryFields.Count(field => field.IsBinaryAttachment());
-                        int countOfAttachmentFields = compactBinaryFields.Count(field => field.IsAttachment());
+
+                        static (int, int) CountFields(CbObject o)
+                        {
+                            int countOfBinaryAttachmentFields = 0;
+                            int countOfAttachmentFields = 0;
+
+                            o.IterateAttachments(field =>
+                            {
+                                if (field.IsBinaryAttachment())
+                                {
+                                    ++countOfBinaryAttachmentFields;
+                                }
+
+                                if (field.IsAttachment())
+                                {
+                                    ++countOfAttachmentFields;
+                                }
+                            });
+
+                            return (countOfBinaryAttachmentFields, countOfAttachmentFields);
+                        }
+                        // breaking lambda call into private method to workaround incorrect triggering of CA1508 - https://github.com/dotnet/roslyn-analyzers/issues/5254
+                        (int countOfAttachmentFields, int countOfBinaryAttachmentFields) = CountFields(cb);
+
                         // if the object consists of a single attachment field we return this attachment field instead
                         if (countOfBinaryAttachmentFields == 1 && countOfAttachmentFields == 1)
                         {

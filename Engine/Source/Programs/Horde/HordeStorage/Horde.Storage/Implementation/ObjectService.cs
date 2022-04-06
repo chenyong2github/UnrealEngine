@@ -94,7 +94,7 @@ namespace Horde.Storage.Implementation
 
         public async Task<(ContentId[], BlobIdentifier[])> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CbObject payload)
         {
-            bool hasReferences = payload.Any(field => field.IsAttachment());
+            bool hasReferences = HasAttachments(payload);
 
             // if we have no references we are always finalized, e.g. there are no referenced blobs to upload
             bool isFinalized = !hasReferences;
@@ -106,6 +106,33 @@ namespace Horde.Storage.Implementation
             await Task.WhenAll(objectStorePut, blobStorePut);
 
             return await DoFinalize(ns, bucket, key, blobHash, payload);
+        }
+
+        private bool HasAttachments(CbObject payload)
+        {
+            bool FieldHasAttachments(CbField field)
+            {
+                if (field.IsObject())
+                {
+                    bool hasAttachment = HasAttachments(field.AsObject());
+                    if (hasAttachment)
+                        return true;
+                }
+
+                if (field.IsArray())
+                {
+                    foreach (CbField subField in field.AsArray())
+                    {
+                        bool hasAttachment = FieldHasAttachments(subField);
+                        if (hasAttachment)
+                            return true;
+                    }
+                }
+
+                return field.IsAttachment();
+            }
+
+            return payload.Any(FieldHasAttachments);
         }
 
         public async Task<(ContentId[], BlobIdentifier[])> Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash)
@@ -129,7 +156,7 @@ namespace Horde.Storage.Implementation
 
             ContentId[] missingReferences = Array.Empty<ContentId>();
             BlobIdentifier[] missingBlobs = Array.Empty<BlobIdentifier>();
-            bool hasReferences = payload.Any(field => field.IsAttachment());
+            bool hasReferences = HasAttachments(payload);
             if (hasReferences)
             {
                 using IScope _ = Tracer.Instance.StartActive("ObjectService.ResolveReferences");

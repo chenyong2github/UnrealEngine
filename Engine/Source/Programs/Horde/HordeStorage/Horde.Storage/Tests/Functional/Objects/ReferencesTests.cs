@@ -994,6 +994,54 @@ namespace Horde.Storage.FunctionalTests.References
             }
         }
 
+        
+        [TestMethod]
+        public async Task PutMissingAttachmentComplex()
+        {
+            string blobContents = "This is a string that is referenced as a blob but will not be uploaded";
+            byte[] blobData = Encoding.ASCII.GetBytes(blobContents);
+            BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobData);
+
+            CbWriter writer = new CbWriter();
+            writer.BeginObject();
+            writer.WriteString("name", "randomStringContent");
+            writer.BeginArray("values");
+            writer.BeginObject();
+            writer.WriteInteger("rawSize", 200);
+            writer.WriteBinaryAttachment("rawHash", blobHash.AsIoHash());
+            writer.EndObject();
+            writer.EndArray();
+            writer.EndObject();
+
+            byte[] objectData = writer.ToByteArray();
+            BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
+
+            IoHashKey key = IoHashKey.FromName("putContentIdMissingBlobComplex");
+
+            {
+                HttpContent requestContent = new ByteArrayContent(objectData);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+                requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
+
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", requestContent);
+                result.EnsureSuccessStatusCode();
+
+                {
+                    Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, CustomMediaTypeNames.UnrealCompactBinary);
+                    await using MemoryStream ms = new MemoryStream();
+                    await result.Content.CopyToAsync(ms);
+                    byte[] roundTrippedBuffer = ms.ToArray();
+                    CbObject cb = new CbObject(roundTrippedBuffer);
+                    CbField needsField = cb["needs"];
+                    Assert.AreNotEqual(CbField.Empty, needsField);
+                    List<IoHash> missingBlobs = needsField.AsArray().Select(field => field.AsHash()).ToList();
+                    Assert.AreEqual(1, missingBlobs.Count);
+
+                    Assert.AreEqual(blobHash.AsIoHash(), missingBlobs[0], "Expected to find missing hash even for attachments not directly in the root object");
+                }
+            }
+        }
+
         [TestMethod]
         public async Task PutAndFinalize()
         {
