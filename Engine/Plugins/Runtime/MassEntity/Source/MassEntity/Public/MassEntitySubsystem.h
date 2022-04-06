@@ -9,7 +9,7 @@
 #include "MassEntityQuery.h"
 #include "StructUtilsTypes.h"
 #include "MassObserverManager.h"
-#include "Containers/Queue.h"
+#include "Containers/MpscQueue.h"
 #include "MassEntitySubsystem.generated.h"
 
 
@@ -391,7 +391,7 @@ private:
 
 	std::atomic<bool> bCommandBufferFlushingInProgress = false;
 	TSharedPtr<FMassCommandBuffer> DeferredCommandBuffer;
-	TQueue<TSharedPtr<FMassCommandBuffer>, EQueueMode::Mpsc> FlushedCommandBufferQueue;
+	TMpscQueue<TSharedPtr<FMassCommandBuffer>> FlushedCommandBufferQueue;
 
 	std::atomic<int32> SerialNumberGenerator;
 	std::atomic<int32> ProcessingScopeCount;

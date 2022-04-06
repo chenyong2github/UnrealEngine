@@ -1242,12 +1242,13 @@ void UMassEntitySubsystem::FlushCommands(const TSharedPtr<FMassCommandBuffer>& I
 		bCommandBufferFlushingInProgress = true;
 		
 		int IterationsCounter = 0;
-		TSharedPtr<FMassCommandBuffer> CurrentCommandBuffer;
-		while (IterationsCounter++ < MaxIterations && FlushedCommandBufferQueue.Dequeue(CurrentCommandBuffer))
+		TOptional<TSharedPtr<FMassCommandBuffer>> CurrentCommandBuffer = FlushedCommandBufferQueue.Dequeue();
+		while (IterationsCounter++ < MaxIterations && CurrentCommandBuffer.IsSet())
 		{
-			CurrentCommandBuffer->Flush(*this);
+			(*CurrentCommandBuffer)->Flush(*this);
+			CurrentCommandBuffer = FlushedCommandBufferQueue.Dequeue();
 		}
-		ensure(IterationsCounter >= MaxIterations || FlushedCommandBufferQueue.IsEmpty());
+		ensure(IterationsCounter >= MaxIterations || CurrentCommandBuffer.IsSet() == false);
 		UE_CVLOG_UELOG(IterationsCounter >= MaxIterations, this, LogMass, Error, TEXT("Reached loop count limit while flushing commands"));
 
 		bCommandBufferFlushingInProgress = false;
