@@ -5,6 +5,8 @@
 =============================================================================*/
 
 #include "MaterialGraph/MaterialGraphNode.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
@@ -47,8 +49,6 @@
 #include "GraphEditorSettings.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "ScopedTransaction.h"
-
-
 
 #define LOCTEXT_NAMESPACE "MaterialGraphNode"
 
