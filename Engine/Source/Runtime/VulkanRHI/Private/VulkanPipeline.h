@@ -520,7 +520,33 @@ private:
 	FRWLock ComputePipelineLock;
 	TMap<uint64, FVulkanComputePipeline*> ComputePipelineEntries;
 
-	VkPipelineCache PipelineCache;
+	template<typename TType>
+	class FScopedRWAccessor
+	{
+		bool bWriteAccess;
+		TType& ProtectedObj;
+		FRWLock& RWLock;
+	public:
+		FScopedRWAccessor(bool bWriteAccessIn, TType& ProtectedObjIn, FRWLock& RWLockIn) : bWriteAccess(bWriteAccessIn), ProtectedObj(ProtectedObjIn), RWLock(RWLockIn) { bWriteAccess ? RWLock.WriteLock() : RWLock.ReadLock(); }
+		~FScopedRWAccessor() { bWriteAccess ? RWLock.WriteUnlock() : RWLock.ReadUnlock(); }
+		TType& Get() { return ProtectedObj; }
+	};
+
+	using FScopedPipelineCache = FScopedRWAccessor<VkPipelineCache>;
+
+	enum class EPipelineCacheAccess : uint8
+	{
+		Shared,			// 'read' access, or for use when the API does its own synchronization.
+		Exclusive		// 'write' access, excludes all other usage for the duration. 
+	};
+	class FPipelineCache
+	{
+		VkPipelineCache PipelineCache = VK_NULL_HANDLE;
+		FRWLock PipelineCacheLock;
+	public:
+		FScopedPipelineCache Get(EPipelineCacheAccess PipelineAccessType) { return FScopedPipelineCache(PipelineAccessType == EPipelineCacheAccess::Exclusive, PipelineCache, PipelineCacheLock); }
+	};
+	FPipelineCache PSOCache;
 
 	FCriticalSection LayoutMapCS;
 	TMap<FVulkanDescriptorSetsLayoutInfo, FVulkanLayout*> LayoutMap;
