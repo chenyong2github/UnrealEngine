@@ -26,7 +26,7 @@ bool UnrealVirtualizationToolMain(int32 ArgC, TCHAR* ArgV[])
 	{
 		if (!App.Run())
 		{
-			UE_LOG(LogVirtualizationTool, Error, TEXT("UnrealVirtualizationTool failed to run"));
+			UE_LOG(LogVirtualizationTool, Error, TEXT("UnrealVirtualizationTool ran with errors"));
 			bRanSuccessfully = false;
 		}
 	}	

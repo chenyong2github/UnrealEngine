@@ -35,6 +35,17 @@ struct FProject
 	bool TryLoadConfig(FConfigFile& OutConfig) const;
 };
 
+/** The mode of the application to run */
+enum class EMode :uint32
+{
+	/** Error condition */
+	Unknown = 0,
+	/** Virtualize and submit a given changelist */
+	Changelist,
+	/** Virtualize a list of packages provided by text file */
+	PackageList
+};
+
 // Note that the enum doesn't give us huge value right now, it has been provided
 // in case that we expand with additional functionality in the future.
 
@@ -78,9 +89,17 @@ private:
 
 	bool TryLoadModules();
 	bool TryInitEnginePlugins();
+	bool TryConnectToSourceControl();
+
 	EInitResult TryParseCmdLine();
-	bool TryParseChangelist(TArray<FString>& OutChangelistPackages);
-	bool TrySortFilesByProject(const TArray<FString>& ChangelistPackages);
+	EInitResult TryParseChangelistCmdLine(const TCHAR* CmdLine);
+	EInitResult	TryParsePackageListCmdLine(const TCHAR* CmdLine);
+
+	bool TryParseChangelist(TArray<FString>& OutPackages);
+	bool TryParsePackageList(TArray<FString>& OutPackages);
+
+	bool TrySortFilesByProject(const TArray<FString>& Packages);
+
 	bool TryFindProject(const FString& PackagePath, FString& ProjectFilePath, FString& PluginFilePath) const;
 
 	FProject& FindOrAddProject(const FString& ProjectFilePath);
@@ -102,9 +121,15 @@ private:
 	/** Name of the client spec (workspace) passed in on the command line*/
 	FString ClientSpecName;
 
-	/** The number of the changelist being submitted, passed in on the command line */
-	FString ChangelistNumber;
+	/** The mode for the application to run */
+	EMode Mode = EMode::Unknown;
 
 	/** Bitfield control the various options that should be run */
 	EProcessOptions ProcessOptions = EProcessOptions::Virtualize;
+
+	/** The number of the changelist being submitted, used with EMode::Changelist  */
+	FString ChangelistNumber;
+
+	/** The path to the list of packages to virtualized, used with EMode::PackageList */
+	FString PackageListPath;
 };
