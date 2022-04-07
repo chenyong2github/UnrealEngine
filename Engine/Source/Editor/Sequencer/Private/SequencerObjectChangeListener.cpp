@@ -203,6 +203,8 @@ const FOnAnimatablePropertyChanged* FSequencerObjectChangeListener::FindProperty
 			PropertyVarName.RemoveFromStart("b", ESearchCase::CaseSensitive);
 		}
 
+		const bool bFoundSetter = Property.HasSetter();
+
 		static const FString Set(TEXT("Set"));
 
 		const FString FunctionString = Set + PropertyVarName;
@@ -247,7 +249,7 @@ const FOnAnimatablePropertyChanged* FSequencerObjectChangeListener::FindProperty
 		const bool bIsHiddenFunction = IsHiddenFunction(PropertyStructure, FAnimatedPropertyKey::FromProperty(&Property), Property.GetName());
 
 		// Valid if there's a setter function and the property is editable. Also valid if there's an interp keyword.
-		if (((bFoundValidFunction && bFoundEdit && !bFoundEditDefaultsOnly) || bFoundValidInterp) && !bIsHiddenFunction)
+		if (((bFoundValidFunction && bFoundEdit && !bFoundEditDefaultsOnly) || bFoundValidInterp || bFoundSetter) && !bIsHiddenFunction)
 		{
 			return DelegatePtr;
 		}

@@ -18,6 +18,13 @@ TOptional<uint16> ComputeFastPropertyPtrOffset(UClass* ObjectClass, const FMovie
 	using namespace UE::MovieScene;
 
 	FProperty* Property = ObjectClass->FindPropertyByName(PropertyBinding.PropertyName);
+	
+	const bool bFoundSetter = (!Property || Property->HasSetter());
+	if (bFoundSetter)
+	{
+		return TOptional<uint16>();
+	}
+
 	// @todo: Constructing FNames from strings is _very_ costly and we really shouldn't be doing this at runtime.
 	UFunction* Setter   = ObjectClass->FindFunctionByName(*(FString("Set") + PropertyBinding.PropertyName.ToString()));
 	if (Property && !Setter)

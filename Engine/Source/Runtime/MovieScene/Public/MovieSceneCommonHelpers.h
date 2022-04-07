@@ -185,7 +185,13 @@ public:
 	void CallFunction( UObject& InRuntimeObject, typename TCallTraits<ValueType>::ParamType PropertyValue )
 	{
 		FPropertyAndFunction PropAndFunction = FindOrAdd(InRuntimeObject);
-		if (UFunction* SetterFunction = PropAndFunction.SetterFunction.Get())
+
+		FProperty* Property = GetProperty(InRuntimeObject);
+		if (Property && Property->HasSetter())
+		{
+			Property->CallSetter(&InRuntimeObject, &PropertyValue);
+		}
+		else if (UFunction* SetterFunction = PropAndFunction.SetterFunction.Get())
 		{
 			InvokeSetterFunction(&InRuntimeObject, SetterFunction, PropertyValue);
 		}
