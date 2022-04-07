@@ -262,6 +262,11 @@ void UFKControlRig::Initialize(bool bInitRigUnits /*= true*/)
 	{
 		CreateRigElements(SkeletalMeshComponent->SkeletalMesh);
 	}
+	else if (USkeleton* Skeleton = Cast<USkeleton>(GetObjectBinding()->GetBoundObject()))
+	{
+		const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+		CreateRigElements(RefSkeleton, (Skeleton) ? Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName) : nullptr);
+	}
 
 	// execute init
 	Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
@@ -363,14 +368,7 @@ void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkele
 			return true;
 		});
 
-		if (IsControlActive.Num() != GetHierarchy()->Num())
-		{
-			IsControlActive.SetNum(GetHierarchy()->Num());
-			for (bool& bIsActive : IsControlActive)
-			{
-				 bIsActive = true;
-			}
-		}
+		RefreshActiveControls();
 	}
 }
 
@@ -413,6 +411,19 @@ void UFKControlRig::SetControlOffsetsFromBoneInitials()
 		GetHierarchy()->SetControlOffsetTransform(ControlElement, OffsetTransform, ERigTransformType::InitialLocal, false, false, true);
 
 	}, true);
+}
+
+void UFKControlRig::RefreshActiveControls()
+{
+	if (IsControlActive.Num() != GetHierarchy()->Num())
+	{
+		IsControlActive.Empty(GetHierarchy()->Num());
+		IsControlActive.SetNum(GetHierarchy()->Num());
+		for (bool& bIsActive : IsControlActive)
+		{
+			bIsActive = true;
+		}
+	}
 }
 
 void UFKControlRig::CreateRigElements(const USkeletalMesh* InReferenceMesh)

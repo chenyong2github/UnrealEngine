@@ -63,6 +63,8 @@ public:
 	bool CanToggleApplyMode() const { return true; }
 	bool IsApplyModeAdditive() const { return ApplyMode == EControlRigFKRigExecuteMode::Additive; }
 
+	// Ensures that controls mask is updated according to contained ControlRig (control) elements
+	void RefreshActiveControls();
 private:
 
 	/** Create RigElements - bone hierarchy and curves - from incoming skeleton */

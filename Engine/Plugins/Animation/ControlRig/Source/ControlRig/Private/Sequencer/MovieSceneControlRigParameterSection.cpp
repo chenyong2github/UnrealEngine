@@ -2558,10 +2558,17 @@ void UMovieSceneControlRigParameterSection::RecordControlRigKey(FFrameNumber Fra
 	}
 }
 
-bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAnimSequence* AnimSequence, UMovieScene* MovieScene,USkeletalMeshComponent* SkelMeshComp,
-	bool bKeyReduce, float Tolerance, FFrameNumber InStartFrame)
+bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAnimSequence* AnimSequence, UMovieScene* MovieScene, UObject* BoundObject, bool bKeyReduce, float Tolerance, FFrameNumber InStartFrame)
 {
-	if (SkelMeshComp == nullptr || SkelMeshComp->SkeletalMesh == nullptr || SkelMeshComp->SkeletalMesh->GetSkeleton() == nullptr)
+	USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(BoundObject);
+	
+	if (SkelMeshComp != nullptr && (SkelMeshComp->SkeletalMesh == nullptr || SkelMeshComp->SkeletalMesh->GetSkeleton() == nullptr))
+	{
+		return false;
+	}
+	
+	USkeleton* Skeleton = SkelMeshComp ? SkelMeshComp->SkeletalMesh->GetSkeleton() : Cast<USkeleton>(BoundObject);	
+	if (Skeleton == nullptr)
 	{
 		return false;
 	}
@@ -2625,7 +2632,14 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	const FAnimationCurveData& CurveData = DataModel->GetCurveData();
 	const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
 
-	ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(SkelMeshComp, true);
+	if (SkelMeshComp)
+	{
+		ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(SkelMeshComp, true);
+	}
+	else
+	{
+		ControlRig->SetBoneInitialTransformsFromRefSkeleton(Skeleton->GetReferenceSkeleton());
+	}
 	ControlRig->RequestSetup();
 	ControlRig->Evaluate_AnyThread();
 
@@ -2635,6 +2649,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 		FFrameNumber FrameNumber = StartFrame + (FrameRateInFrameNumber * Index);
 
 		ControlRig->GetHierarchy()->ResetPoseToInitial();
+		ControlRig->GetHierarchy()->ResetCurveValues();
 
 		for (const FFloatCurve& Curve : CurveData.FloatCurves)
 		{
@@ -2645,7 +2660,10 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 		// retrieve the pose using the services that persona and sequencer rely on
 		// rather than accessing the low level raw tracks.
 		FAnimPoseEvaluationOptions EvaluationOptions;
-		EvaluationOptions.OptionalSkeletalMesh = SkelMeshComp->SkeletalMesh;
+		EvaluationOptions.OptionalSkeletalMesh = SkelMeshComp ? SkelMeshComp->SkeletalMesh : nullptr;
+		EvaluationOptions.bShouldRetarget = false;
+		EvaluationOptions.EvaluationType = EAnimDataEvalType::Raw;
+
 		FAnimPose AnimPose;
 		UAnimPoseExtensions::GetAnimPoseAtTime(AnimSequence, SequenceSecond, EvaluationOptions, AnimPose);
 
@@ -2668,7 +2686,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 		ControlRig->Execute(EControlRigState::Update, FRigUnit_InverseExecution::EventName);
 
 		const ERichCurveInterpMode InterpMode = bKeyReduce ? RCIM_Cubic : RCIM_Linear;
-		RecordControlRigKey(FrameNumber, true, InterpMode);
+		RecordControlRigKey(FrameNumber, Index == 0, InterpMode);
 		Progress.EnterProgressFrame(1);
 		if (Progress.ShouldCancel())
 		{
