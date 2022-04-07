@@ -334,6 +334,7 @@ private:
 				const A3DTopoFace* TopoFace = BodyFaces[Index];
 				ScaleUV(TopoFace, Tessellation.TexCoordArray);
 			}
+			BodyMesh.TriangleCount += (Tessellation.VertexIndices.Num() / 3.);
 		}
 	}
 
@@ -908,8 +909,6 @@ private:
 		CADLibrary::TUniqueTSObj<A3DTopoBrepDataData> TopoBrepData(A3DBrepData);
 		if (TopoBrepData.IsValid())
 		{
-
-
 			for (A3DUns32 Index = 0; Index < TopoBrepData->m_uiConnexSize; ++Index)
 			{
 				CADLibrary::TUniqueTSObj<A3DTopoConnexData> TopoConnexData(TopoBrepData->m_ppConnexes[Index]);

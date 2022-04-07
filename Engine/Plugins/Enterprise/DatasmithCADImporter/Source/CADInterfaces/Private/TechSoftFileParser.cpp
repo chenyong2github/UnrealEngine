@@ -389,6 +389,14 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 		TechSoftUtils::FillBodyMesh(Representation, CADFileData.GetImportParameters(), Body.BodyUnit, BodyMesh);
 	}
 
+	if (BodyMesh.TriangleCount == 0)
+	{
+		// the mesh of the body is empty, the body is deleted.
+		// Todo (jira UETOOL-5148): add a boolean in Body to flag that the body should not be build
+		Body.ParentId = 0;
+		Body.MeshActorName = 0;
+	}
+
 	// Convert material
 	FCADUUID DefaultColorName = Body.ColorFaceSet.Num() > 0 ? *Body.ColorFaceSet.begin() : 0;
 	FCADUUID DefaultMaterialName = Body.MaterialFaceSet.Num() > 0 ? *Body.MaterialFaceSet.begin() : 0;
