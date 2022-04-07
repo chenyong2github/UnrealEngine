@@ -41,6 +41,11 @@ void STakeRecorderTabContent::Construct(const FArguments& InArgs)
 	}
 }
 
+STakeRecorderTabContent::~STakeRecorderTabContent()
+{
+	UTakeRecorderBlueprintLibrary::SetTakeRecorderPanel(nullptr);
+}
+
 EActiveTimerReturnType STakeRecorderTabContent::OnActiveTimer(double InCurrentTime, float InDeltaTime)
 {
 	if (!GetMode().IsSet())

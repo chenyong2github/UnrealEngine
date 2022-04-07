@@ -21,6 +21,8 @@ public:
 	SLATE_BEGIN_ARGS(STakeRecorderTabContent){}
 	SLATE_END_ARGS()
 
+	~STakeRecorderTabContent();
+
 	void Construct(const FArguments& InArgs);
 
 	FText GetTitle() const;
