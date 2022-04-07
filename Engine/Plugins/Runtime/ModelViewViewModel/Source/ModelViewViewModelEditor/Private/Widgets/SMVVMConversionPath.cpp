@@ -36,7 +36,7 @@ void SMVVMConversionPath::Construct(const FArguments& InArgs, const UWidgetBluep
 			SNew(SBox)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
-			.Padding(3, 0, 3, 0)
+			.Padding(FMargin(3.f, 0.f, 3.f, 0.f))
 			[
 				SNew(SButton)
 				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
@@ -211,7 +211,7 @@ TSharedRef<SWidget> SMVVMConversionPath::GetFunctionMenuContent()
 	{
 		MenuBuilder.AddWidget(
 			SNew(SBox)
-			.Padding(10,0)
+			.Padding(FMargin(10.f,0.f))
 			[
 				SNew(STextBlock)
 					.TextStyle(FAppStyle::Get(), "HintText")

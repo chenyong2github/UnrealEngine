@@ -3,7 +3,7 @@
 #include "Widgets/SMVVMViewBindingListView.h"
 
 #include "Bindings/MVVMBindingHelper.h"
-#include "Dialog/SCustomDialog.h"
+#include "Dialogs/CustomDialog.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
 #include "Engine/Engine.h"
@@ -18,8 +18,8 @@
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "SEnumCombo.h"
 #include "SSimpleButton.h" 
-#include "Styling/MVVMEditorStyle.h"
 #include "Styling/StyleColors.h"
+#include "UMGStyle.h"
 #include "Widgets/SMVVMConversionPath.h"
 #include "Widgets/SMVVMFieldSelector.h"
 #include "Widgets/SMVVMPropertyPath.h"
@@ -301,13 +301,10 @@ private:
 			ErrorDialog = SNew(SCustomDialog)
 				.Buttons({
 					SCustomDialog::FButton(LOCTEXT("OK", "OK"))
-				})
-				.Content()
-				[
-					SNew(SListView<TSharedPtr<FText>>)
+					})
+				.DialogContent(SNew(SListView<TSharedPtr<FText>>)
 					.ListItemsSource(&ErrorItems)
-					.OnGenerateRow(this, &SMVVMViewBindingListEntryRow::OnGenerateErrorRow)
-				];
+					.OnGenerateRow(this, &SMVVMViewBindingListEntryRow::OnGenerateErrorRow));
 
 			ErrorDialog->Show();
 		}
@@ -379,7 +376,7 @@ private:
 			BlueprintViewPtr->PreEditChange(UMVVMBlueprintView::StaticClass()->FindPropertyByName("Bindings"));
 
 			PathHelper->SetSelectedSource(SelectedSource);
-			PathHelper->ResetBinding(); // Might make sense to keep this around in case we retarget to a compatible widget or switch back.
+			PathHelper->ResetBinding();
 
 			BlueprintViewPtr->PostEditChange();
 		}
@@ -477,15 +474,15 @@ private:
 		switch (BindingMode)
 		{
 		case EMVVMBindingMode::OneTimeToDestination:
-			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTime");
+			return FUMGStyle::Get().GetBrush("MVVM.OneTime");
 		case EMVVMBindingMode::OneWayToDestination:
-			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWay");
+			return FUMGStyle::Get().GetBrush("MVVM.OneWay");
 		case EMVVMBindingMode::OneWayToSource:
-			return FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWayToSource");
+			return FUMGStyle::Get().GetBrush("MVVM.OneWayToSource");
 		case EMVVMBindingMode::OneTimeToSource:
 			return nullptr;
 		case EMVVMBindingMode::TwoWay:
-			return FMVVMEditorStyle::Get().GetBrush("BindingMode.TwoWay");
+			return FUMGStyle::Get().GetBrush("MVVM.TwoWay");
 		default:
 			return nullptr;
 		}
