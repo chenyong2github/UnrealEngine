@@ -25,6 +25,8 @@ public:
 
 
 	virtual void UpdateSdkInfo() override;
+	void UpdateSdkInfoForAllDevices();
+	void UpdateSdkInfoForProxy(const TSharedRef<class ITargetDeviceProxy>& AddedProxy);
 	virtual void UpdateSdkInfoForDevices(TArray<FString> DeviceIds) override;
 
 	virtual FTurnkeySdkInfo GetSdkInfo(FName PlatformName, bool bBlockIfQuerying = true) const override;
