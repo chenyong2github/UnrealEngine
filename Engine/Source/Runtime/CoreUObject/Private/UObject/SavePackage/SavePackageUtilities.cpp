@@ -722,13 +722,16 @@ void WriteToFile(const FString& Filename, const uint8* InDataPtr, int64 InDataSi
 		if (FArchive* Ar = FileManager.CreateFileWriter(*Filename))
 		{
 			Ar->Serialize(/* grrr */ const_cast<uint8*>(InDataPtr), InDataSize);
+			bool bArchiveError = Ar->IsError();
 			delete Ar;
 
-			if (FileManager.FileSize(*Filename) != InDataSize)
+			int64 ActualSize = FileManager.FileSize(*Filename);
+			if (ActualSize != InDataSize)
 			{
 				FileManager.Delete(*Filename);
 
-				UE_LOG(LogSavePackage, Fatal, TEXT("Could not save to %s!"), *Filename);
+				UE_LOG(LogSavePackage, Fatal, TEXT("Could not save to %s! Tried to write %" INT64_FMT " bytes but resultant size was %" INT64_FMT ".%s"),
+					*Filename, InDataSize, ActualSize, bArchiveError ? TEXT(" Ar->Serialize failed.") : TEXT(""));
 			}
 			return;
 		}
