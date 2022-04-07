@@ -35,34 +35,34 @@ UE_TRACE_EVENT_END()
 thread_local int32 GActiveTag;
 
 ////////////////////////////////////////////////////////////////////////////////
-FMemScope::FMemScope(int32 InTag)
+FMemScope::FMemScope(int32 InTag, bool bShouldActivate /*= true*/)
 {
-	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel))
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel) & bShouldActivate)
 	{
 		ActivateScope(InTag);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FMemScope::FMemScope(ELLMTag InTag)
+FMemScope::FMemScope(ELLMTag InTag, bool bShouldActivate /*= true*/)
 {
-	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel))
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel) & bShouldActivate)
 	{
 		ActivateScope(static_cast<int32>(InTag));
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FMemScope::FMemScope(const FName& InName)
+FMemScope::FMemScope(const FName& InName, bool bShouldActivate /*= true*/)
 {
-	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel))
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel) & bShouldActivate)
 	{
 		ActivateScope(MemoryTrace_AnnounceFNameTag(InName));
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FMemScope::FMemScope(const UE::LLMPrivate::FTagData* TagData)
+FMemScope::FMemScope(const UE::LLMPrivate::FTagData* TagData, bool bShouldActivate /*= true*/)
 {
 	// TagData is opaque so we cant really use the input, additionally we 
 	// cannot count on LLM being active. Instead we have inserted an explicit 

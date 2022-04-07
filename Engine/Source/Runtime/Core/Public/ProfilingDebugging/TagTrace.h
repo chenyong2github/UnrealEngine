@@ -41,15 +41,30 @@ CORE_API int32	MemoryTrace_GetActiveTag();
 class FMemScope
 {
 public:
-	CORE_API FMemScope(int32 InTag);
-	CORE_API FMemScope(ELLMTag InTag);
-	CORE_API FMemScope(const class FName& InName);
-	CORE_API FMemScope(const UE::LLMPrivate::FTagData* TagData);
+	CORE_API FMemScope(int32 InTag, bool bShouldActivate = true);
+	CORE_API FMemScope(ELLMTag InTag, bool bShouldActivate = true);
+	CORE_API FMemScope(const class FName& InName, bool bShouldActivate = true);
+	CORE_API FMemScope(const UE::LLMPrivate::FTagData* TagData, bool bShouldActivate = true);
 	CORE_API ~FMemScope();
 private:
 	void ActivateScope(int32 InTag);
 	UE::Trace::Private::FScopedLogScope Inner;
 	int32 PrevTag;
+};
+
+
+/**
+ * A scope that activates in case no existing scope is active.
+ */
+template<typename TagType>
+class FDefaultMemScope : public FMemScope
+{
+public:
+	CORE_API FDefaultMemScope(TagType InTag)
+		: FMemScope(InTag, MemoryTrace_GetActiveTag() == 0)
+	{
+		
+	}
 };
 
 /**
@@ -70,12 +85,14 @@ constexpr int32 TRACE_TAG = 257;
 ////////////////////////////////////////////////////////////////////////////////
 #define UE_MEMSCOPE(InTag)				FMemScope PREPROCESSOR_JOIN(MemScope,__LINE__)(InTag);
 #define UE_MEMSCOPE_PTR(InPtr)			FMemScopePtr PREPROCESSOR_JOIN(MemPtrScope,__LINE__)((uint64)InPtr);
+#define UE_MEMSCOPE_DEFAULT(InTag)		FDefaultMemScope PREPROCESSOR_JOIN(MemScope,__LINE__)(InTag);
 
 #else // UE_MEMORY_TAGS_TRACE_ENABLED
 
 ////////////////////////////////////////////////////////////////////////////////
 #define UE_MEMSCOPE(...)
 #define UE_MEMSCOPE_PTR(...)
+#define UE_MEMSCOPE_DEFAULT(...)
 
 #endif // UE_MEMORY_TAGS_TRACE_ENABLED
 
