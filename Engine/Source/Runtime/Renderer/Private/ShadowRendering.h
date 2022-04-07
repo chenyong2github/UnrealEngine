@@ -576,6 +576,7 @@ public:
 
 	void BeginRenderRayTracedDistanceFieldProjection(
 		FRDGBuilder& GraphBuilder,
+		bool bAsyncCompute,
 		const FMinimalSceneTextures& SceneTextures,
 		const FViewInfo& View);
 

@@ -2251,7 +2251,7 @@ void FSceneRenderer::BeginAsyncDistanceFieldShadowProjections(FRDGBuilder& Graph
 
 				if (ScissorRect.Area() > 0 && (Views.Num() == 1 || ProjectedShadowInfo->DependentView == &View || !ProjectedShadowInfo->DependentView))
 				{
-					ProjectedShadowInfo->BeginRenderRayTracedDistanceFieldProjection(GraphBuilder, SceneTextures, View);
+					ProjectedShadowInfo->BeginRenderRayTracedDistanceFieldProjection(GraphBuilder, true, SceneTextures, View);
 				}
 			}
 		}
