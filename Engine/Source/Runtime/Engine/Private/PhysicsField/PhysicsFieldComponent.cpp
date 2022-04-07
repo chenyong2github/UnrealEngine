@@ -34,13 +34,20 @@ DECLARE_GPU_STAT(PhysicsFields_UpdateBuffers);
 */
 DEFINE_LOG_CATEGORY_STATIC(LogGlobalField, Log, All);
 
+/** Boolean to check if we need to build or not the clipmap */
+int32 GPhysicsFieldBuildClipmap = 1;
+FAutoConsoleVariableRef CVarPhysicsFieldBuildClipmap(
+	TEXT("r.PhysicsField.BuildClipmap"),
+	GPhysicsFieldBuildClipmap,
+	TEXT("Build the Physics field clipmap"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 /** Clipmap enable/disable */
 static TAutoConsoleVariable<int32> CVarPhysicsFieldEnableClipmap(
 	TEXT("r.PhysicsField.EnableField"),
 	1,
 	TEXT("Enable/Disable the Physics field clipmap"),
-	ECVF_RenderThreadSafe);
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 /** Clipmap max disatnce */
 float GPhysicsFieldClipmapDistance = 10000;
@@ -1365,7 +1372,7 @@ void UPhysicsFieldComponent::OnRegister()
 {
 	Super::OnRegister();
 
-	TArray<bool> bBuildClipmaps = { true,false };
+	TArray<bool> bBuildClipmaps = { GPhysicsFieldBuildClipmap == 1, false };
 	for (uint32 FieldIndex = 0; FieldIndex < 2; ++FieldIndex)
 	{
 		FPhysicsFieldInstance*& LocalInstance = (FieldIndex == 0) ? FieldInstance : DebugInstance;

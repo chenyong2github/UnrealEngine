@@ -164,7 +164,15 @@ public:
 				LocalTargets[Index].Z = FieldResource->FieldInfos.IntegerTargets[Index];
 				LocalTargets[Index].W = 0; // Padding
 			}
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapBuffer, FieldResource->ClipmapBuffer.SRV);
+			if (FieldResource->FieldInfos.bBuildClipmap)
+			{
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapBuffer, FieldResource->ClipmapBuffer.SRV);
+			}
+			else
+			{
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			}
+			
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCenter, (FVector3f)FieldResource->FieldInfos.ClipmapCenter);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapDistance, FieldResource->FieldInfos.ClipmapDistance);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapResolution, FieldResource->FieldInfos.ClipmapResolution);
