@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "ConsoleVariablesEditorCommandInfo.h"
-
 #include "CoreMinimal.h"
 #include "Widgets/Input/SCheckBox.h"
 
