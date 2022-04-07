@@ -1113,12 +1113,6 @@ public:
 		return RHI->RHIIsRenderingSuspended();
 	}
 
-	// FlushType: Flush Immediate
-	virtual bool RHIEnqueueDecompress(uint8_t* SrcBuffer, uint8_t* DestBuffer, int CompressedSize, void* ErrorCodeBuffer) override final
-	{
-		return RHI->RHIEnqueueDecompress(SrcBuffer, DestBuffer, CompressedSize, ErrorCodeBuffer);
-	}
-
 	/**
 	*	Retrieve available screen resolutions.
 	*

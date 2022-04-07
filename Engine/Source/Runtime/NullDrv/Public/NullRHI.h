@@ -596,10 +596,6 @@ public:
 	virtual void RHIBlockUntilGPUIdle() final override
 	{
 	}
-	virtual bool RHIEnqueueDecompress(uint8_t*, uint8_t*, int, void*) final override
-	{
-		return false;
-	}
 	virtual bool RHIGetAvailableResolutions(FScreenResolutionArray& Resolutions, bool bIgnoreRefreshRate) final override
 	{ 
 		return false; 
