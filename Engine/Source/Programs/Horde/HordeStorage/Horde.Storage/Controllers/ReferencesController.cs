@@ -114,7 +114,7 @@ namespace Horde.Storage.Controllers
 
             try
             {
-                (ObjectRecord objectRecord, BlobContents? blob) = await _objectService.Get(ns, bucket, key, fields);
+                (ObjectRecord objectRecord, BlobContents? blob) = await _objectService.Get(ns, bucket, key, Array.Empty<string>());
 
                 if (blob == null)
                     throw new InvalidOperationException($"Blob was null when attempting to fetch {ns} {bucket} {key}");
