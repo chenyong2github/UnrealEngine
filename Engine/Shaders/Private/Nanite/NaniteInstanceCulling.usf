@@ -13,6 +13,10 @@
 #include "NaniteWritePixel.ush"
 #include "NaniteImposter.ush"
 
+#ifndef NEAR_CLIP
+#define NEAR_CLIP 1
+#endif
+
 void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint InstanceId, uint ImposterIndex, FScreenRect Rect )
 {
 	// High bit flags it as an imposter
@@ -324,7 +328,8 @@ void InstanceCull(
 			}
 #endif
 
-#if CULLING_PASS != CULLING_PASS_EXPLICIT_LIST
+			// NOTE: Imposters not supported currently with virtual targets
+#if CULLING_PASS != CULLING_PASS_EXPLICIT_LIST && !VIRTUAL_TEXTURE_TARGET
 			// Draw imposters
 			const bool bHasNaniteImposter = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER) != 0u;
 			if (bHasNaniteImposter && bIsVisible && !bWasOccluded)
@@ -568,9 +573,8 @@ void InstanceCullVSM(
 					BRANCH
 					if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane && !bSkipBoxCullHZB)
 					{
-						bool bShouldSampleStaticHzb = true;//ShouldCacheInstanceAsStatic(InstanceData);
 						FScreenRect PrevRect = GetScreenRect(MipView.ViewRect, PrevCull, 4 );	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
-						bool bWasOccluded = !IsVisibleMaskedHZB(MipView.TargetPrevLayerIndex, MipView.TargetMipLevel, PrevRect, false, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, 0U, bShouldSampleStaticHzb);
+						bool bWasOccluded = !IsVisibleMaskedHZB(MipView.TargetPrevLayerIndex, MipView.TargetMipLevel, PrevRect, false, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, 0U);
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
 						if (bWasOccluded)
 						{

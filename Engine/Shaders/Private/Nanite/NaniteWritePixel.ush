@@ -23,12 +23,8 @@
 #define COHERENCY_FLAG 
 #endif
 
-// When near clipping is disabled we need to move the geometry 
-#ifndef NEAR_CLIP
-#define NEAR_CLIP 1
-#endif
-
 RWTexture2D<uint>						OutDepthBuffer;
+RWTexture2DArray<uint>					OutDepthBufferArray;
 COHERENCY_FLAG RWTexture2D<UlongType>	OutVisBuffer64;
 
 #if VISUALIZE
@@ -115,7 +111,7 @@ struct WritePixelPageTranslation
 	// TODO: We could optimize this slightly be precomputing the base layer/level offset
 	int TargetLayerIndex;
 	int TargetMipLevel;
-	uint2 PhysicalOffset;
+	uint ArrayIndex;
 };
 
 WritePixelPageTranslation InitializeWritePixelPageTranslation()
@@ -123,7 +119,7 @@ WritePixelPageTranslation InitializeWritePixelPageTranslation()
 	WritePixelPageTranslation Result;
 	Result.TargetLayerIndex = INDEX_NONE;
 	Result.TargetMipLevel = 0;
-	Result.PhysicalOffset = uint2( 0, 0 );
+	Result.ArrayIndex = 0;
 	return Result;
 }
 
@@ -132,15 +128,17 @@ WritePixelPageTranslation InitializeWritePixelPageTranslation( FNaniteView Nanit
 	WritePixelPageTranslation Result;
 	Result.TargetLayerIndex = NaniteView.TargetLayerIndex;
 	Result.TargetMipLevel = NaniteView.TargetMipLevel;
-	Result.PhysicalOffset = bStaticPage ? GetVirtualShadowMapStaticPixelOffset() : uint2( 0, 0 );
+	Result.ArrayIndex = bStaticPage ? GetVirtualShadowMapStaticArrayIndex() : 0;
 	return Result;
 }
 
-// Write pixel with per-pixel page translation
-void WritePixel(
-	RWTexture2D<UlongType> OutBuffer,
+// Write depth pixel with optional per-pixel page translation
+// Supports array texture targets (third coordinate of PixelPos)
+// Requires RASTER_TECHNIQUE == RASTER_TECHNIQUE_DEPTHONLY
+#if RASTER_TECHNIQUE == RASTER_TECHNIQUE_DEPTHONLY
+void WriteDepthTextureArray(
 	uint PixelValue,
-	uint2 PixelPos,
+	uint3 PixelPos,
 	float DeviceZ,
 	bool bDepthClamp,
 	WritePixelPageTranslation PageTranslation
@@ -149,14 +147,21 @@ void WritePixel(
 #if VIRTUAL_TEXTURE_TARGET
 	if( PageTranslation.TargetLayerIndex != INDEX_NONE )
 	{
-		if( !VirtualToPhysicalTexel(PageTranslation.TargetLayerIndex, PageTranslation.TargetMipLevel, PixelPos, PixelPos) )
+		if( !VirtualToPhysicalTexel(PageTranslation.TargetLayerIndex, PageTranslation.TargetMipLevel, PixelPos.xy, PixelPos.xy) )
 		{
 			// mapped to non-commited space.
 			return;
 		}
-		PixelPos += PageTranslation.PhysicalOffset;
 	}
 #endif
 
-	WritePixel( OutBuffer, PixelValue, PixelPos, DeviceZ, bDepthClamp );
+	if (bDepthClamp)
+	{
+		// When near clipping is disabled we need to move the geometry 
+		DeviceZ = max(0.0f, DeviceZ);
+	}
+
+	const uint DepthInt = asuint(DeviceZ);
+	InterlockedMax( OutDepthBufferArray[ PixelPos ], DepthInt );
 }
+#endif

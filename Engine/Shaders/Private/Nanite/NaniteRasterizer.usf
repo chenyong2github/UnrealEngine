@@ -250,11 +250,16 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, boo
 
 	if (MaterialMask >= 0)
 	{
-		WritePixel( OutVisBuffer64, PixelValue, PixelPos, DeviceZ, bDepthClamp, Raster.PageTranslation );
+	#if VIRTUAL_TEXTURE_TARGET
+		WriteDepthTextureArray( PixelValue, uint3( PixelPos, Raster.PageTranslation.ArrayIndex ), DeviceZ, bDepthClamp, Raster.PageTranslation );
+		// TODO: Support Nanite visualization in this path
+	#else
+		WritePixel( OutVisBuffer64, PixelValue, PixelPos, DeviceZ, bDepthClamp );
 	#if VISUALIZE
-		WritePixel( OutDbgBuffer64, Raster.VisualizeValues.x, PixelPos, DeviceZ, bDepthClamp, Raster.PageTranslation );
+		WritePixel( OutDbgBuffer64, Raster.VisualizeValues.x, PixelPos, DeviceZ, bDepthClamp );
 		InterlockedAdd( OutDbgBuffer32[ PixelPos ], Raster.VisualizeValues.y );
 	#endif
+	#endif	// VIRTUAL_TEXTURE_TARGET
 	}
 }
 
@@ -818,18 +823,15 @@ void MicropolyRasterize(
 	// Virtual shadow maps can scatter instances into different physical pages for caching purposes
 	bool bVirtualTargetStaticPage = false;
 
+	WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation();
+
 #if VIRTUAL_TEXTURE_TARGET
 	bVirtualTargetStaticPage = ShouldCacheInstanceAsStatic( InstanceData );
 
 	// Scalar
 	uint2 vPage = VisibleCluster.vPage;
 	uint2 pPageAddress = ShadowGetPhysicalPage( CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel ) + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) ).PhysicalAddress;	
-	WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation();
-	// We can just move the physical page address we're rasterizing into
-	pPageAddress += bVirtualTargetStaticPage ? GetVirtualShadowMapStaticPixelOffset() >> VSM_LOG2_PAGE_SIZE : uint2( 0, 0 );
-#else
-	// Per-pixel page translation means we need to pass through an offset to WritePixel
-	WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation( NaniteView, bVirtualTargetStaticPage );
+	PageTranslation.ArrayIndex = bVirtualTargetStaticPage ? GetVirtualShadowMapStaticArrayIndex() : 0;
 #endif
 
 	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
@@ -1613,7 +1615,6 @@ void HWRasterizePS(VSOut In
 		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation(NaniteView, PageInfo.bStaticPage);
 	#else
 		const FNaniteView NaniteView = GetNaniteView(0);
-		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation();
 	#endif
 
 		const bool bNearClip = ((NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u);
@@ -1691,12 +1692,18 @@ void HWRasterizePS(VSOut In
 		if (MaterialMask >= 0)
 		{
 			const bool bDepthClamp = !bNearClip;
-			WritePixel(OutVisBuffer64, PixelValue, PixelPos, DeviceZ, bDepthClamp, PageTranslation);
+
+		#if VIRTUAL_TEXTURE_TARGET
+			WriteDepthTextureArray( PixelValue, uint3( PixelPos, PageTranslation.ArrayIndex ), DeviceZ, bDepthClamp, PageTranslation );
+			// TODO: Support Nanite visualization in this path
+		#else
+			WritePixel( OutVisBuffer64, PixelValue, PixelPos, DeviceZ, bDepthClamp );
 		#if VISUALIZE
 			const uint2 VisualizeValues = GetVisualizeValues();
-			WritePixel(OutDbgBuffer64, VisualizeValues.x, PixelPos, DeviceZ, bDepthClamp, PageTranslation);
-			InterlockedAdd(OutDbgBuffer32[PixelPos], VisualizeValues.y);
+			WritePixel( OutDbgBuffer64, VisualizeValues.x, PixelPos, DeviceZ, bDepthClamp );
+			InterlockedAdd( OutDbgBuffer32[PixelPos], VisualizeValues.y );
 		#endif
+		#endif	// VIRTUAL_TEXTURE_TARGET
 		}
 	}
 }

@@ -25,8 +25,7 @@ void TestPrevHZB(FNaniteView NaniteView, float3 BoxBoundsCenter, float3 BoxBound
 		if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
 		{
 			FScreenRect PrevRect = GetScreenRect(NaniteView.ViewRect, PrevCull, 4);	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
-			bool bShouldSampleStaticHzb = true;//ShouldCacheInstanceAsStatic(InstanceData);
-			bWasOccluded = !IsVisibleMaskedHZB(NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect, false, bTreatUnmappedAsOccluded, 0U, bShouldSampleStaticHzb);
+			bWasOccluded = !IsVisibleMaskedHZB(NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect, false, bTreatUnmappedAsOccluded, 0U);
 	}
 #else
 		BRANCH
@@ -48,12 +47,10 @@ void TestCurrentHZB(FFrustumCullData Cull, FScreenRect Rect, FNaniteView NaniteV
 		if (!Cull.bCrossesNearPlane)
 		{
 #if VIRTUAL_TEXTURE_TARGET
-			bool bShouldSampleStaticHzb = true;//ShouldCacheInstanceAsStatic(InstanceData);
-
 			// The logic here is that if the thing has moved it should test against all hzb pages, whereas if it is static we can skip the cached ones (since we'd not render into those anyway).
 			const uint PageTestFlagMask = GetPageFlagMaskForRendering(InstanceData, DynamicData.bHasMoved);
 			//bWasOccluded = !IsVisibleCurrentHZB(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, Rect, PageFlagMask);
-			bWasOccluded = !IsVisibleMaskedHZB(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, Rect, false, true, 0U, bShouldSampleStaticHzb, PageTestFlagMask);
+			bWasOccluded = !IsVisibleMaskedHZB(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, Rect, false, true, 0U, PageTestFlagMask);
 
 #else
 			bWasOccluded = !IsVisibleHZB(Rect, true);

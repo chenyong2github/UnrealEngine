@@ -964,7 +964,9 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 			return false;
 		}
 
-		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FMultiViewDim>())
+		// VSM rendering is depth-only and multiview
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() &&
+			( !PermutationVector.Get<FMultiViewDim>() || PermutationVector.Get<FRasterTechniqueDim>() != (int32)Nanite::ERasterTechnique::DepthOnly ) )
 		{
 			return false;
 		}
@@ -1062,7 +1064,9 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 			return false;
 		}
 
-		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FMultiViewDim>())
+		// VSM rendering is depth-only and multiview
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() &&
+			( !PermutationVector.Get<FMultiViewDim>() || PermutationVector.Get<FRasterTechniqueDim>() != (int32)Nanite::ERasterTechnique::DepthOnly ) )
 		{
 			return false;
 		}
@@ -1192,7 +1196,9 @@ public:
 			return false;
 		}
 
-		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FMultiViewDim>())
+		// VSM rendering is depth-only and multiview
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() &&
+			( !PermutationVector.Get<FMultiViewDim>() || PermutationVector.Get<FRasterTechniqueDim>() != (int32)Nanite::ERasterTechnique::DepthOnly ) )
 		{
 			return false;
 		}
@@ -2222,6 +2228,7 @@ void AddPass_Rasterize(
 	// Create a new set of UAVs with the SkipBarrier flag enabled to avoid barriers between dispatches.
 	FRasterParameters RasterParameters = RasterContext.Parameters;
 	CreateSkipBarrierUAV(RasterParameters.OutDepthBuffer);
+	CreateSkipBarrierUAV(RasterParameters.OutDepthBufferArray);
 	CreateSkipBarrierUAV(RasterParameters.OutVisBuffer64);
 	CreateSkipBarrierUAV(RasterParameters.OutDbgBuffer64);
 	CreateSkipBarrierUAV(RasterParameters.OutDbgBuffer32);
@@ -2732,10 +2739,19 @@ FRasterContext InitRasterContext(
 
 	if (RasterMode == EOutputBufferMode::DepthOnly)
 	{
-		RasterContext.Parameters.OutDepthBuffer = GraphBuilder.CreateUAV( RasterContext.DepthBuffer );
-		if (bClearTarget)
+		// TODO: There may be a better way to do this...
+		if ( RasterContext.DepthBuffer->Desc.Dimension == ETextureDimension::Texture2DArray )
 		{
-			AddClearUAVPass( GraphBuilder, RasterContext.Parameters.OutDepthBuffer, ClearValue, RectMinMaxBufferSRV, NumRects );
+			RasterContext.Parameters.OutDepthBufferArray = GraphBuilder.CreateUAV( RasterContext.DepthBuffer );
+			check(!bClearTarget);		// TODO; not needed at the moment. This path is only used with VSMs right now
+		}
+		else
+		{
+			RasterContext.Parameters.OutDepthBuffer = GraphBuilder.CreateUAV( RasterContext.DepthBuffer );
+			if (bClearTarget)
+			{
+				AddClearUAVPass( GraphBuilder, RasterContext.Parameters.OutDepthBuffer, ClearValue, RectMinMaxBufferSRV, NumRects );
+			}
 		}
 	}
 	else

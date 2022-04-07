@@ -116,9 +116,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER(uint32, NumDirectionalLights)
 	SHADER_PARAMETER(uint32, MaxPhysicalPages)
 	// Set to 0 if separate static caching is disabled
-	SHADER_PARAMETER(uint32, StaticCachedPixelOffsetY)
-	SHADER_PARAMETER(uint32, StaticCachedPageOffsetY)
-	SHADER_PARAMETER(uint32, StaticPageIndexOffset)
+	SHADER_PARAMETER(uint32, StaticCachedArrayIndex)
 	// use to map linear index to x,y page coord
 	SHADER_PARAMETER(uint32, PhysicalPageRowMask)
 	SHADER_PARAMETER(uint32, PhysicalPageRowShift)
@@ -131,7 +129,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageTable)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageFlags)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, PageRectBounds)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, PhysicalPagePool)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray<uint>, PhysicalPagePool)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapSamplingParameters, )
@@ -211,8 +209,6 @@ public:
 
 	// Raw size of the physical pool, including both static and dynamic pages (if enabled)
 	FIntPoint GetPhysicalPoolSize() const;
-	// Size of the physical pool for only the dynamic pages (if static are cached separately)
-	FIntPoint GetDynamicPhysicalPoolSize() const;
 	// Size of HZB (level 0)
 	FIntPoint GetHZBPhysicalPoolSize() const;
 
@@ -246,7 +242,7 @@ public:
 
 	bool ShouldCacheStaticSeparately() const
 	{
-		return UniformParameters.StaticCachedPixelOffsetY > 0;
+		return UniformParameters.StaticCachedArrayIndex > 0;
 	}
 
 	void CreateMipViews( TArray<Nanite::FPackedView, SceneRenderingAllocator>& Views ) const;
@@ -326,11 +322,10 @@ public:
 	FRDGBufferRef DirtyPageFlagsRDG = nullptr;
 	bool bHZBBuiltThisFrame = false;
 
-	EPixelFormat HZBPixelFormat = PF_R32_FLOAT;
 	FRDGTextureRef HZBPhysical = nullptr;
 	TMap<int32, FVirtualShadowMapHZBMetadata> HZBMetadata;
 
-	// See Engine\Shaders\Private\VirtualShadowMaps\Stats.ush for definitions of the different stat indexes
+	// See Engine\Shaders\Private\VirtualShadowMaps\VirtualShadowMapStats.ush for definitions of the different stat indexes
 	static constexpr uint32 NumStats = 16;
 
 	FRDGBufferRef StatsBufferRDG = nullptr;

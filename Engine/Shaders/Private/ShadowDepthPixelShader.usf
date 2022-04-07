@@ -104,12 +104,8 @@ void Main(
 	{
 		uint2 pAddress = Page.PhysicalAddress * VSM_PAGE_SIZE + (vAddress & VSM_PAGE_SIZE_MASK);
 		// If requested, render to the static page
-		if ( PageInfo.bStaticPage )
-		{
-			pAddress += GetVirtualShadowMapStaticPixelOffset();
-		}
-
-		InterlockedMax( PassStruct.OutDepthBuffer[ pAddress ], asuint( DeviceZ ) );
+		const int ArrayIndex = PageInfo.bStaticPage ? GetVirtualShadowMapStaticArrayIndex() : 0;
+		InterlockedMax( PassStruct.OutDepthBufferArray[ uint3( pAddress, ArrayIndex ) ], asuint( DeviceZ ) );
 	}
 #endif
 }

@@ -54,7 +54,7 @@ FVirtualShadowMapSample InitVirtualShadowMapSample()
 
 float SampleVirtualShadowMapPhysicalDepth(uint2 PhysicalTexelAddress)
 {
-	return asfloat(VirtualShadowMap.PhysicalPagePool.Load(int3(PhysicalTexelAddress, 0)));
+	return asfloat(VirtualShadowMap.PhysicalPagePool.Load(uint4(PhysicalTexelAddress, 0, 0)));
 }
 
 FVirtualShadowMapSample SampleVirtualShadowMapLevel(int VirtualShadowMapId, float2 ShadowMapUV, uint MipLevel)

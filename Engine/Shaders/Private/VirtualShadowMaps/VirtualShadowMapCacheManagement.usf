@@ -165,13 +165,7 @@ void VirtualSmInvalidateInstancePagesCS(
 										if ((PageFlag & VSM_ALLOCATED_FLAG) != 0)
 										{
 #if USE_HZB_OCCLUSION
-											// When separate static caching is enabled we check against the static page
-											// rather than the dynamic one. This is not totally ideal for a number of reasons
-											// but it is generally better than checking against the dynamic one in most scenes.
-											// Ideally in fully cached cases we would check the cached/merged (dynamic) page at
-											// the very least.
-											const bool bSampleStaticPage = true;
-											if (!IsPageVisibleHZB(uint2(x, y), PageFlagOffset, HZBTestRect, bSampleStaticPage))
+											if (!IsPageVisibleHZB(uint2(x, y), PageFlagOffset, HZBTestRect))
 											{
 												continue;
 											}

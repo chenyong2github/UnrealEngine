@@ -140,6 +140,17 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		ZeroUIntDummy = CreateRenderTarget(Texture, Desc.DebugName);
 	}
 
+	// Create a texture array that is a single UInt32 value set to 0
+	{
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2DArray(TEXT("ZeroUIntArrayDummy"), 1, 1, 1, PF_R32_UINT)
+			.SetFlags(ETextureCreateFlags::ShaderResource);
+
+		FTextureRHIRef Texture = RHICreateTexture(Desc);
+		SetDummyTextureArrayData<uint32>(Texture, 0u);
+		ZeroUIntArrayDummy = CreateRenderTarget(Texture, Desc.DebugName);
+	}
+
 	// Create a BlackAlphaOneDummy texture
 	{
 		const FRHITextureCreateDesc Desc =
@@ -881,6 +892,7 @@ void FSystemTextures::ReleaseDynamicRHI()
 	VolumetricBlackAlphaOneDummy.SafeRelease();
 	VolumetricBlackUintDummy.SafeRelease();
 	ZeroUIntDummy.SafeRelease();
+	ZeroUIntArrayDummy.SafeRelease();
 	MidGreyDummy.SafeRelease();
 	StencilDummy.SafeRelease();
 	StencilDummySRV.SafeRelease();
@@ -962,6 +974,11 @@ FRDGTextureRef FSystemTextures::GetVolumetricBlackUintDummy(FRDGBuilder& GraphBu
 FRDGTextureRef FSystemTextures::GetZeroUIntDummy(FRDGBuilder& GraphBuilder) const
 {
 	return GraphBuilder.RegisterExternalTexture(ZeroUIntDummy, TEXT("ZeroUIntDummy"));
+}
+
+FRDGTextureRef FSystemTextures::GetZeroUIntArrayDummy(FRDGBuilder& GraphBuilder) const
+{
+	return GraphBuilder.RegisterExternalTexture(ZeroUIntArrayDummy, TEXT("ZeroUIntArrayDummy"));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////

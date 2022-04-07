@@ -214,15 +214,10 @@ FPageInfo UnpackPageInfo(uint PackedData)
 
 bool VirtualShadowMapShouldCacheStaticSeparately()
 {
-	return VirtualShadowMap.StaticCachedPixelOffsetY > 0;
+	return VirtualShadowMap.StaticCachedArrayIndex > 0;
 }
 
-uint2 GetVirtualShadowMapStaticPixelOffset()
+uint GetVirtualShadowMapStaticArrayIndex()
 {
-	return uint2(0, VirtualShadowMap.StaticCachedPixelOffsetY);
-}
-
-uint2 GetVirtualShadowMapStaticPageOffset()
-{
-	return uint2(0, VirtualShadowMap.StaticCachedPageOffsetY);
+	return VirtualShadowMap.StaticCachedArrayIndex;
 }

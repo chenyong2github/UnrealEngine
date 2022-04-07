@@ -6,6 +6,7 @@
 #include "../Nanite/NaniteHZBCull.ush"
 #include "../SceneData.ush"
 #include "VirtualShadowMapPageAccessCommon.ush"
+#include "VirtualShadowMapStaticCaching.ush"
 
 StructuredBuffer<uint> HZBPageTable;
 StructuredBuffer<uint4> HZBPageRectBounds;
@@ -110,17 +111,13 @@ FPageTestScreenRect SetupPageHZBRect(FScreenRect ScreenRect, uint ShadowMapID, u
 }
 
 
-bool IsPageVisibleHZB(uint2 vPage, uint PageFlagOffset, FPageTestScreenRect PageTestScreenRect, bool bSampleStaticPage = false)
+bool IsPageVisibleHZB(uint2 vPage, uint PageFlagOffset, FPageTestScreenRect PageTestScreenRect)
 {
 	FShadowPhysicalPage pPage = ShadowDecodePageTable(HZBPageTable[PageFlagOffset]);
 
 	if (pPage.bThisLODValid)
 	{
 		uint2 PhysicalAddress = pPage.PhysicalAddress;
-		if ( bSampleStaticPage )
-		{
-			PhysicalAddress += GetVirtualShadowMapStaticPageOffset();
-		}
 
 		FScreenRect HZBTestRect = PageTestScreenRect.ScreenRect;
 
@@ -143,7 +140,7 @@ bool IsPageVisibleHZB(uint2 vPage, uint PageFlagOffset, FPageTestScreenRect Page
  * @param TestPageMask - page flags to inlcude in occlusion test, e.g., VSM_ALLOCATED_FLAG will test any allocated page, but ignore unallocated ones.
  * @param VisiblePageMask - page flags to treat as un-occluded, teted after the above mask, e.g., use VSM_UNCACHED_FLAG to treat any uncached page as visible. 
  */
-bool IsVisibleMaskedHZB(uint PrevShadowMapID, uint MipLevel, FScreenRect Rect, bool bClampToPageLevel, bool bTreatUnmappedAsOccluded, uint VisiblePageMask, bool bSampleStaticPage, uint TestPageMask = 0xFFFFFFFFu)
+bool IsVisibleMaskedHZB(uint PrevShadowMapID, uint MipLevel, FScreenRect Rect, bool bClampToPageLevel, bool bTreatUnmappedAsOccluded, uint VisiblePageMask, uint TestPageMask = 0xFFFFFFFFu)
 {
 	// Don't have an HZB to test.
 	if (PrevShadowMapID == ~0u)
@@ -180,7 +177,7 @@ bool IsVisibleMaskedHZB(uint PrevShadowMapID, uint MipLevel, FScreenRect Rect, b
 			if (!bTreatUnmappedAsOccluded || ((PageFlag & TestPageMask) != 0U))
 			{
 				// Treat pages with the VisiblePageMask as visible - can be used to select only cached pages
-				if ((PageFlag & VisiblePageMask) != 0U || IsPageVisibleHZB(uint2(x, y), PageFlagOffset, HZBTestRect, bSampleStaticPage))
+				if ((PageFlag & VisiblePageMask) != 0U || IsPageVisibleHZB(uint2(x, y), PageFlagOffset, HZBTestRect))
 				{
 					return true;
 				}
@@ -189,18 +186,6 @@ bool IsVisibleMaskedHZB(uint PrevShadowMapID, uint MipLevel, FScreenRect Rect, b
 	}
 
 	return false;
-}
-
-bool ShouldCacheInstanceAsStatic(FInstanceSceneData InstanceData)
-{
-	// TODO: Fix this with our own mobility flag, but for testing for now
-	// this flag should be stable and not change, which is a requirement.
-	//return (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) == 0;
-
-	uint Flags = GetPrimitiveData(InstanceData.PrimitiveId).Flags;
-	//return (Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW) != 0;
-	// DrawsVelocity is IsMovable() || IsBeingMovedByEditor() so good enough test for now
-	return (Flags & PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY) == 0;
 }
 
 uint GetPageFlagMaskForRendering(FInstanceSceneData InstanceData, bool bHasMoved)

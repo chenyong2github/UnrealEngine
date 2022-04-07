@@ -760,7 +760,7 @@ void PropagateMappedMips(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : S
 	}
 }
 
-RWTexture2D<uint> OutPhysicalPagePool;
+RWTexture2DArray<uint> OutPhysicalPagePool;
 
 // TODO: This path obviously can and will be optimized (and likely made indirect again),
 // but there is additional complexity to put here first.
@@ -779,8 +779,8 @@ void InitializePhysicalPages(uint2 PixelCoord : SV_DispatchThreadID)
 	{
 		// Page not used, we're done
 #if 0 // DEBUG clear unallocated pages
-		OutPhysicalPagePool[PixelCoord] = 0;
-		OutPhysicalPagePool[PixelCoord + GetVirtualShadowMapStaticPixelOffset()] = 0;
+		OutPhysicalPagePool[uint3(PixelCoord, 0)] = 0;
+		OutPhysicalPagePool[uint3(PixelCoord, GetVirtualShadowMapStaticArrayIndex())] = 0;
 #endif
 	}
 	else if (bFullyCached)
@@ -800,10 +800,10 @@ void InitializePhysicalPages(uint2 PixelCoord : SV_DispatchThreadID)
 		// actually maintain separate dynamic cached pages when "only" the (theoretically)
 		// static moved. Thus if not fully cached, we always regenerate the dynamic page.
 
-		OutPhysicalPagePool[PixelCoord] = 0;
+		OutPhysicalPagePool[uint3(PixelCoord, 0)] = 0;
 		if (bStaticUncached && VirtualShadowMapShouldCacheStaticSeparately())
 		{
-			OutPhysicalPagePool[PixelCoord + GetVirtualShadowMapStaticPixelOffset()] = 0;
+			OutPhysicalPagePool[uint3(PixelCoord, GetVirtualShadowMapStaticArrayIndex())] = 0;
 		}
 	}
 }
@@ -812,9 +812,9 @@ void InitializePhysicalPages(uint2 PixelCoord : SV_DispatchThreadID)
 void MergePhysicalPixel(uint2 PixelCoord)
 {
 	// 1:1 pixels so this is safe RMW
-	OutPhysicalPagePool[PixelCoord] = max(
-		OutPhysicalPagePool[PixelCoord],
-		OutPhysicalPagePool[PixelCoord + GetVirtualShadowMapStaticPixelOffset()]);
+	OutPhysicalPagePool[uint3(PixelCoord, 0)] = max(
+		OutPhysicalPagePool[uint3(PixelCoord, 0)],
+		OutPhysicalPagePool[uint3(PixelCoord, GetVirtualShadowMapStaticArrayIndex())]);
 }
 
 // Same as above - optimization to come
@@ -830,10 +830,10 @@ void MergeStaticPhysicalPages(uint2 PixelCoord : SV_DispatchThreadID)
 	
 	// Merge any page that was not fully cached
 	// NOTE: This shader does not run if VirtualShadowMapShouldCacheStaticSeparately() is false
-	if ((MetaData.Flags & VSM_ALLOCATED_FLAG) == 0)
+	//if ((MetaData.Flags & VSM_ALLOCATED_FLAG) == 0)
 	{
 	}
-	else if (!bFullyCached)
+	//else if (!bFullyCached)
 	{
 		// 1:1 pixels so this is safe RMW
 		MergePhysicalPixel(PixelCoord);
@@ -927,17 +927,26 @@ void SelectPagesToInitializeCS(uint PhysicalPageIndex : SV_DispatchThreadID)
 
 		if (bStaticUncached && VirtualShadowMapShouldCacheStaticSeparately())
 		{
-			EmitPageToProcess(OutInitializePagesIndirectArgsBuffer, OutPhysicalPagesToInitialize, PhysicalPageIndex + VirtualShadowMap.StaticPageIndexOffset);
+			EmitPageToProcess(OutInitializePagesIndirectArgsBuffer, OutPhysicalPagesToInitialize, PhysicalPageIndex + VirtualShadowMap.MaxPhysicalPages);
 			StatsBufferInterlockedInc(VSM_STAT_NUM_PAGES_TO_CLEAR);
 		}
 	}
 }
 
 
-uint2 GetTileOffset(uint GroupIndex, StructuredBuffer<uint> PageIndexBuffer)
+uint3 GetTileOffset(uint GroupIndex, StructuredBuffer<uint> PageIndexBuffer)
 {
 	const uint PageInputIndex = GroupIndex >> LOG2_TILES_PER_PAGE_1D;
-	const uint PageIndex = PageIndexBuffer[PageInputIndex];
+	uint PageIndex = PageIndexBuffer[PageInputIndex];
+	int ArrayIndex = 0;
+
+	if (PageIndex >= VirtualShadowMap.MaxPhysicalPages)
+	{
+		// Request to clear the static page
+		PageIndex -= VirtualShadowMap.MaxPhysicalPages;
+		ArrayIndex = 1;
+	}
+
 	// Each page has 1 << LOG2_TILES_PER_PAGE_XY groups (aka tiles) assigned to work on it.
 	const uint LocalTileIndex = GroupIndex & TILES_PER_PAGE_1D_MASK;
 	// wrap to 2D tile coord
@@ -947,17 +956,17 @@ uint2 GetTileOffset(uint GroupIndex, StructuredBuffer<uint> PageIndexBuffer)
 	// Pixel address of tile region for this thread group.
 	const uint2 TileOffset = (PhysPageAddress << uint2(VSM_LOG2_PAGE_SIZE, VSM_LOG2_PAGE_SIZE)) + (LocalTile << uint2(LOG2_TILE_SIZE_XY, LOG2_TILE_SIZE_XY));
 
-	return TileOffset;
+	return uint3(TileOffset, ArrayIndex);
 }
 
-uint2 GetTileBasePos(uint2 TileThreadID, uint GroupIndex, StructuredBuffer<uint> PageIndexBuffer)
+uint3 GetTileBasePos(uint2 TileThreadID, uint GroupIndex, StructuredBuffer<uint> PageIndexBuffer)
 {
 	// Pixel address of tile region for this thread group.
-	const uint2 TileOffset = GetTileOffset(GroupIndex, PageIndexBuffer);
+	const uint3 TileOffset = GetTileOffset(GroupIndex, PageIndexBuffer);
 	// Pixel address of 2x2 region to sample for this thread.
-	const uint2 BasePos = TileOffset + (TileThreadID.xy << 1u);
+	const uint2 BasePos = TileOffset.xy + (TileThreadID.xy << 1u);
 
-	return BasePos;
+	return uint3(BasePos, TileOffset.z);
 }
 
 StructuredBuffer<uint> PhysicalPagesToInitialize;
@@ -965,12 +974,12 @@ StructuredBuffer<uint> PhysicalPagesToInitialize;
 [numthreads(TILE_THREAD_GROUP_SIZE_XY, TILE_THREAD_GROUP_SIZE_XY, 1)]
 void InitializePhysicalPagesIndirectCS(uint2 TileThreadID : SV_GroupThreadID, uint GroupIndex : SV_GroupID)
 {
-	uint2 BasePos = GetTileBasePos(TileThreadID, GroupIndex, PhysicalPagesToInitialize);
+	uint3 BasePos = GetTileBasePos(TileThreadID, GroupIndex, PhysicalPagesToInitialize);
 
-	OutPhysicalPagePool[BasePos + uint2(0U, 0U)] = 0;
-	OutPhysicalPagePool[BasePos + uint2(1U, 0U)] = 0;
-	OutPhysicalPagePool[BasePos + uint2(0U, 1U)] = 0;
-	OutPhysicalPagePool[BasePos + uint2(1U, 1U)] = 0;
+	OutPhysicalPagePool[BasePos + uint3(0U, 0U, 0)] = 0;
+	OutPhysicalPagePool[BasePos + uint3(1U, 0U, 0)] = 0;
+	OutPhysicalPagePool[BasePos + uint3(0U, 1U, 0)] = 0;
+	OutPhysicalPagePool[BasePos + uint3(1U, 1U, 0)] = 0;
 }
 
 RWBuffer<uint> OutMergePagesIndirectArgsBuffer;
@@ -1006,7 +1015,7 @@ StructuredBuffer<uint> PhysicalPagesToMerge;
 [numthreads(TILE_THREAD_GROUP_SIZE_XY, TILE_THREAD_GROUP_SIZE_XY, 1)]
 void MergeStaticPhysicalPagesIndirectCS(uint2 TileThreadID : SV_GroupThreadID, uint GroupIndex : SV_GroupID)
 {
-	uint2 BasePos = GetTileBasePos(TileThreadID, GroupIndex, PhysicalPagesToMerge);
+	uint2 BasePos = GetTileBasePos(TileThreadID, GroupIndex, PhysicalPagesToMerge).xy;
 
 	// 1:1 pixels so this is safe RMW
 	MergePhysicalPixel(BasePos + uint2(0U, 0U));
@@ -1047,38 +1056,30 @@ void SelectPagesForHZBCS(uint PhysicalPageIndex : SV_DispatchThreadID)
 
 			// Each top-reduction needs only one group launched
 			WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0 + 4], 1U, GroupCount);
-
-			if (VirtualShadowMapShouldCacheStaticSeparately())
-			{
-				StatsBufferInterlockedInc(VSM_STAT_NUM_HZB_PAGES_BUILT);
-				
-				// Also queue build for the static page
-				int GroupCountStatic = 0;
-				WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0], TILES_PER_PAGE_1D, GroupCountStatic);
-				OutPhysicalPagesForHZB[GroupCountStatic >> LOG2_TILES_PER_PAGE_1D] = PhysicalPageIndex + VirtualShadowMap.StaticPageIndexOffset;
-				WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0 + 4], 1U, GroupCountStatic);
-			}
 		}
 	}
 }
 
 
 SamplerState PhysicalPagePoolSampler;
-Texture2D<uint> PhysicalPagePool;
+Texture2DArray<uint> PhysicalPagePool;
 
 float4 Gather4VisZ(uint2 PixelCoord)
 {
+	// Always use static page if present
+	uint ArrayIndex = GetVirtualShadowMapStaticArrayIndex();
+
 #if COMPILER_SUPPORTS_GATHER_UINT
 	// Offset to 2x2 footprint center and scale to UV space
 	float2 UV = float2(PixelCoord + uint2(1U, 1U)) * VirtualShadowMap.RecPhysicalPoolSize;
-	return asfloat(PhysicalPagePool.Gather(PhysicalPagePoolSampler, UV, 0));
+	return asfloat(PhysicalPagePool.Gather(PhysicalPagePoolSampler, float3(UV, ArrayIndex), 0));
 #else
 	uint4 PixelRect = uint4(PixelCoord.xy, PixelCoord.xy + uint2(1U, 1U));
 	uint4 UintDepths = uint4(
-		PhysicalPagePool[PixelRect.xw].r,	// (-, +)
-		PhysicalPagePool[PixelRect.zw].r,	// (+, +)
-		PhysicalPagePool[PixelRect.zy].r,	// (+, -)
-		PhysicalPagePool[PixelRect.xy].r	// (-, -)
+		PhysicalPagePool[uint3(PixelRect.xw, ArrayIndex)].r,	// (-, +)
+		PhysicalPagePool[uint3(PixelRect.zw, ArrayIndex)].r,	// (+, +)
+		PhysicalPagePool[uint3(PixelRect.zy, ArrayIndex)].r,	// (+, -)
+		PhysicalPagePool[uint3(PixelRect.xy, ArrayIndex)].r		// (-, -)
 	);
 	return asfloat(UintDepths);
 #endif
