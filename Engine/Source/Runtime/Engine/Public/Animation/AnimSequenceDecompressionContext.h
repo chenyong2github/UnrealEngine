@@ -11,21 +11,58 @@ struct ICompressedAnimData;
 struct FAnimSequenceDecompressionContext
 {
 	FAnimSequenceDecompressionContext(float SequenceLength_, EAnimInterpolationType Interpolation_, const FName& AnimName_, const ICompressedAnimData& CompressedAnimData_)
-		: SequenceLength(SequenceLength_), Interpolation(Interpolation_), AnimName(AnimName_), CompressedAnimData(CompressedAnimData_), Time(0.f)
-	{}
+			:
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		SequenceLength(SequenceLength_),
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		Interpolation(Interpolation_), AnimName(AnimName_), CompressedAnimData(CompressedAnimData_),
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Time(0.f), RelativePos(0.f)
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+	}
 
 	// Anim info
+	UE_DEPRECATED(5.1, "Direct access to SequenceLength has been deprecated use GetPlayableLength instead")
 	float SequenceLength;
 	EAnimInterpolationType Interpolation;
 	FName AnimName;
 
 	const ICompressedAnimData& CompressedAnimData;
+
+	UE_DEPRECATED(5.1, "Direct access to Time has been deprecated use GetEvaluationTime or GetInterpolatedEvaluationTime instead")
 	float Time;
+	
+	UE_DEPRECATED(5.1, "Direct access to RelativePos has been deprecated use GetRelativePosition instead")
 	float RelativePos;
+
+	float GetPlayableLength() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return SequenceLength;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	float GetEvaluationTime() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return Time;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	float GetRelativePosition() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return RelativePos;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	void Seek(float SampleAtTime)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Time = SampleAtTime;
-		RelativePos = SampleAtTime / SequenceLength;
+		RelativePos = SequenceLength != 0.f ? SampleAtTime / SequenceLength : 0.f;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 };
+

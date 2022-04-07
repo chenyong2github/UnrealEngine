@@ -244,7 +244,7 @@ void AEFVariableKeyLerp<FORMAT>::GetPoseRotations(
 			AnimData.CompressedTrackOffsets.GetData(),
 			AnimData.CompressedByteStream.GetData(),
 			AnimData.CompressedNumberOfKeys,
-			DecompContext.RelativePos,
+			DecompContext.GetRelativePosition(),
 			(uint8)DecompContext.Interpolation,
 			FORMAT,
 			PairCount);
@@ -296,7 +296,7 @@ void AEFVariableKeyLerp<FORMAT>::GetPoseTranslations(
 			AnimData.CompressedTrackOffsets.GetData(),
 			AnimData.CompressedByteStream.GetData(),
 			AnimData.CompressedNumberOfKeys,
-			DecompContext.RelativePos,
+			DecompContext.GetRelativePosition(),
 			(uint8)DecompContext.Interpolation,
 			FORMAT,
 			PairCount);
@@ -352,7 +352,7 @@ void AEFVariableKeyLerp<FORMAT>::GetPoseScales(
 			StripSize,
 			AnimData.CompressedByteStream.GetData(),
 			AnimData.CompressedNumberOfKeys,
-			DecompContext.RelativePos,
+			DecompContext.GetRelativePosition(),
 			(uint8)DecompContext.Interpolation,
 			FORMAT,
 			PairCount);

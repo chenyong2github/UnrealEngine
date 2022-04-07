@@ -206,7 +206,7 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomRotation(FTransform& Out
 	{
 		int32 Index0;
 		int32 Index1;
-		float Alpha = TimeToIndex(DecompContext.SequenceLength, DecompContext.RelativePos, NumRotKeys, DecompContext.Interpolation, Index0, Index1);
+		float Alpha = TimeToIndex(DecompContext.GetPlayableLength(), DecompContext.GetRelativePosition(), NumRotKeys, DecompContext.Interpolation, Index0, Index1);
 
 		const int32 RotationStreamOffset = (FORMAT == ACF_IntervalFixed32NoW) ? (sizeof(float)*6) : 0; // offset past Min and Range data
 
@@ -257,7 +257,7 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomTranslation(FTransform& 
 
 	int32 Index0;
 	int32 Index1;
-	float Alpha = TimeToIndex(DecompContext.SequenceLength, DecompContext.RelativePos, NumTransKeys, DecompContext.Interpolation, Index0, Index1);
+	float Alpha = TimeToIndex(DecompContext.GetPlayableLength(), DecompContext.GetRelativePosition(), NumTransKeys, DecompContext.Interpolation, Index0, Index1);
 
 	const int32 TransStreamOffset = ((FORMAT == ACF_IntervalFixed32NoW) && NumTransKeys > 1) ? (sizeof(float)*6) : 0; // offset past Min and Range data
 
@@ -299,7 +299,7 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomScale(FTransform& OutAto
 
 	int32 Index0;
 	int32 Index1;
-	float Alpha = TimeToIndex(DecompContext.SequenceLength, DecompContext.RelativePos, NumScaleKeys, DecompContext.Interpolation, Index0, Index1);
+	float Alpha = TimeToIndex(DecompContext.GetPlayableLength(), DecompContext.GetRelativePosition(), NumScaleKeys, DecompContext.Interpolation, Index0, Index1);
 
 	const int32 ScaleStreamOffset = ((FORMAT == ACF_IntervalFixed32NoW) && NumScaleKeys > 1) ? (sizeof(float)*6) : 0; // offset past Min and Range data
 

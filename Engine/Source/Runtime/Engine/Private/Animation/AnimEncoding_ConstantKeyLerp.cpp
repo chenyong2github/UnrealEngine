@@ -278,8 +278,8 @@ inline void AEFConstantKeyLerp<FORMAT>::GetPoseRotations(
 			(ispc::BoneTrackPair*)&DesiredPairs[0],
 			AnimData.CompressedTrackOffsets.GetData(),
 			AnimData.CompressedByteStream.GetData(),
-			DecompContext.SequenceLength,
-			DecompContext.RelativePos,
+			DecompContext.GetPlayableLength(),
+			DecompContext.GetRelativePosition(),
 			(uint8)DecompContext.Interpolation,
 			FORMAT,
 			PairCount);
@@ -330,8 +330,8 @@ inline void AEFConstantKeyLerp<FORMAT>::GetPoseTranslations(
 			(ispc::BoneTrackPair*)&DesiredPairs[0],
 			AnimData.CompressedTrackOffsets.GetData(),
 			AnimData.CompressedByteStream.GetData(),
-			DecompContext.SequenceLength,
-			DecompContext.RelativePos,
+			DecompContext.GetPlayableLength(),
+			DecompContext.GetRelativePosition(),
 			(uint8)DecompContext.Interpolation,
 			FORMAT,
 			PairCount);
@@ -402,8 +402,8 @@ inline void AEFConstantKeyLerp<FORMAT>::GetPoseScales(
 			ScaleOffsets.GetData(),
 			StripSize,
 			AnimData.CompressedByteStream.GetData(),
-			DecompContext.SequenceLength,
-			DecompContext.RelativePos,
+			DecompContext.GetPlayableLength(),
+			DecompContext.GetRelativePosition(),
 			(uint8)DecompContext.Interpolation,
 			FORMAT,
 			PairCount);

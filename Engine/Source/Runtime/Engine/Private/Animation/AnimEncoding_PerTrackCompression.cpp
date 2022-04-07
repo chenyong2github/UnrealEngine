@@ -488,12 +488,12 @@ void AEFPerTrackCompressionCodec::GetBoneAtomRotation(
 		{
 			if ((FormatFlags & 0x8) == 0)
 			{
-				Alpha = TimeToIndex(DecompContext.SequenceLength, DecompContext.RelativePos, NumKeys, DecompContext.Interpolation, Index0, Index1);
+				Alpha = TimeToIndex(DecompContext.GetPlayableLength(), DecompContext.GetRelativePosition(), NumKeys, DecompContext.Interpolation, Index0, Index1);
 			}
 			else
 			{
 				const uint8* RESTRICT FrameTable = Align(TrackData + FixedBytes + BytesPerKey * NumKeys, 4);
-				Alpha = TimeToIndex(DecompContext.Interpolation, AnimData.CompressedNumberOfKeys, FrameTable, DecompContext.RelativePos, NumKeys, Index0, Index1);
+				Alpha = TimeToIndex(DecompContext.Interpolation, AnimData.CompressedNumberOfKeys, FrameTable, DecompContext.GetRelativePosition(), NumKeys, Index0, Index1);
 			}
 		}
 
@@ -579,12 +579,12 @@ void AEFPerTrackCompressionCodec::GetBoneAtomTranslation(
 		{
 			if ((FormatFlags & 0x8) == 0)
 			{
-				Alpha = TimeToIndex(DecompContext.SequenceLength, DecompContext.RelativePos, NumKeys, DecompContext.Interpolation, Index0, Index1);
+				Alpha = TimeToIndex(DecompContext.GetPlayableLength(), DecompContext.GetRelativePosition(), NumKeys, DecompContext.Interpolation, Index0, Index1);
 			}
 			else
 			{
 				const uint8* RESTRICT FrameTable = Align(TrackData + FixedBytes + BytesPerKey * NumKeys, 4);
-				Alpha = TimeToIndex(DecompContext.Interpolation, AnimData.CompressedNumberOfKeys, FrameTable, DecompContext.RelativePos, NumKeys, Index0, Index1);
+				Alpha = TimeToIndex(DecompContext.Interpolation, AnimData.CompressedNumberOfKeys, FrameTable, DecompContext.GetRelativePosition(), NumKeys, Index0, Index1);
 			}
 		}
 
@@ -665,12 +665,12 @@ void AEFPerTrackCompressionCodec::GetBoneAtomScale(
 		{
 			if ((FormatFlags & 0x8) == 0)
 			{
-				Alpha = TimeToIndex(DecompContext.SequenceLength, DecompContext.RelativePos, NumKeys, DecompContext.Interpolation, Index0, Index1);
+				Alpha = TimeToIndex(DecompContext.GetPlayableLength(), DecompContext.GetRelativePosition(), NumKeys, DecompContext.Interpolation, Index0, Index1);
 			}
 			else
 			{
 				const uint8* RESTRICT FrameTable = Align(TrackData + FixedBytes + BytesPerKey * NumKeys, 4);
-				Alpha = TimeToIndex(DecompContext.Interpolation, AnimData.CompressedNumberOfKeys, FrameTable, DecompContext.RelativePos, NumKeys, Index0, Index1);
+				Alpha = TimeToIndex(DecompContext.Interpolation, AnimData.CompressedNumberOfKeys, FrameTable, DecompContext.GetRelativePosition(), NumKeys, Index0, Index1);
 			}
 		}
 
@@ -751,8 +751,8 @@ void AEFPerTrackCompressionCodec::GetPoseRotations(
 			AnimData.CompressedTrackOffsets.GetData(),
 			AnimData.CompressedByteStream.GetData(),
 			AnimData.CompressedNumberOfKeys,
-			DecompContext.SequenceLength,
-			DecompContext.RelativePos,
+			DecompContext.GetPlayableLength(),
+			DecompContext.GetRelativePosition(),
 			(uint8)DecompContext.Interpolation,
 			PairCount);
 #endif
@@ -799,8 +799,8 @@ void AEFPerTrackCompressionCodec::GetPoseTranslations(
 			AnimData.CompressedTrackOffsets.GetData(),
 			AnimData.CompressedByteStream.GetData(),
 			AnimData.CompressedNumberOfKeys,
-			DecompContext.SequenceLength,
-			DecompContext.RelativePos,
+			DecompContext.GetPlayableLength(),
+			DecompContext.GetRelativePosition(),
 			(uint8)DecompContext.Interpolation,
 			PairCount);
 #endif
@@ -853,8 +853,8 @@ void AEFPerTrackCompressionCodec::GetPoseScales(
 			StripSize,
 			AnimData.CompressedByteStream.GetData(),
 			AnimData.CompressedNumberOfKeys,
-			DecompContext.SequenceLength,
-			DecompContext.RelativePos,
+			DecompContext.GetPlayableLength(),
+			DecompContext.GetRelativePosition(),
 			(uint8)DecompContext.Interpolation,
 			PairCount);
 #endif
