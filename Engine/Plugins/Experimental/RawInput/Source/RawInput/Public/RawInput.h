@@ -21,7 +21,7 @@ public:
 	virtual void QueryConnectedDevices() {}
 
 	/** Register a device for use. */
-	virtual int32 RegisterInputDevice(int32 DeviceType, int32 Flags, uint16 DeviceID, int16 PageID) = 0;
+	virtual int32 RegisterInputDevice(int32 DeviceType, int32 Flags, uint16 DeviceID, int16 PageID, void* Handle) = 0;
 	
 	/** Remove a registered device */
 	virtual void RemoveRegisteredInputDevice(int32 DeviceHandle) {};

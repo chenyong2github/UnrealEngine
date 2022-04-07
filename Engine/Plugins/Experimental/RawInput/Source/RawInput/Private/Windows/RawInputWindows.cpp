@@ -100,12 +100,13 @@ FRawInputWindows::FRawInputWindows(const TSharedRef<FGenericApplicationMessageHa
 		const uint32 Flags = 0;
 		const int32 PageID = 0x01;
 		int32 DeviceID = 0x04;
-		DefaultDeviceHandle = RegisterInputDevice(RIM_TYPEHID, Flags, DeviceID, PageID);
+		
+		DefaultDeviceHandle = RegisterInputDevice(RIM_TYPEHID, Flags, DeviceID, PageID, nullptr);
 
 		if (DefaultDeviceHandle == INDEX_NONE)
 		{
 			DeviceID = 0x05;
-			DefaultDeviceHandle = RegisterInputDevice(RIM_TYPEHID, Flags, DeviceID, PageID);
+			DefaultDeviceHandle = RegisterInputDevice(RIM_TYPEHID, Flags, DeviceID, PageID, nullptr);
 		}
 	}
 
@@ -141,10 +142,10 @@ HWND GetWindowHandle()
 	return hWnd;
 }
 
-int32 FRawInputWindows::RegisterInputDevice(const int32 DeviceType, const int32 Flags, const uint16 DeviceID, const int16 PageID)
+int32 FRawInputWindows::RegisterInputDevice(const int32 DeviceType, const int32 Flags, const uint16 DeviceID, const int16 PageID, const HANDLE Handle)
 {
 	int32 DeviceHandle = INDEX_NONE;
-	FRawInputRegisteredDevice DeviceData(DeviceType, DeviceID, PageID);
+	FRawInputRegisteredDevice DeviceData(DeviceType, DeviceID, PageID, Handle);
 	
 	RAWINPUTDEVICE RawInputDevice;
 
@@ -170,33 +171,27 @@ int32 FRawInputWindows::RegisterInputDevice(const int32 DeviceType, const int32 
 		DeviceHandle = FindRegisteredDeviceHandle(DeviceData);
 		if (DeviceHandle == INDEX_NONE)
 		{
-			DeviceHandle = GetNextInputHandle();
-			RegisteredDeviceList.Add(DeviceHandle, DeviceData);
-			// Now see if the device is connected
+			// Register all devices of the type specified in the param
+			// NOTE: This it kind of a hack. A true refactor of the RawInputPlugin is required but this will make it usable with multiple complementary devices. 
 			bool bWasConnected = false;
 			for (const FConnectedDeviceInfo& ConnectedDeviceInfo : ConnectedDeviceInfoList)
 			{
 				if (CompareDeviceInfo(ConnectedDeviceInfo.RIDDeviceInfo, DeviceData))
 				{
+					DeviceHandle = GetNextInputHandle();
+					RegisteredDeviceList.Add(DeviceHandle, DeviceData);
+
 					FRawWindowsDeviceEntry& RegisteredDeviceInfo = RegisteredDeviceList[DeviceHandle];
 					CopyConnectedDeviceInfo(RegisteredDeviceInfo, &ConnectedDeviceInfo);
 
 					UE_LOG(LogRawInputWindows, Log, TEXT("VendorID:%04X ProductID:%04X"), RegisteredDeviceInfo.DeviceData.VendorID, RegisteredDeviceInfo.DeviceData.ProductID);
 
 					bWasConnected = true;
-					break;
-				}
-			}
-			if (bWasConnected)
-			{
-				SetupBindings(DeviceHandle, true);
 
-				UE_LOG(LogRawInputWindows, Log, TEXT("Device was registered succesfully and is connected (Usage:%d UsagePage:%d)"), DeviceData.Usage, DeviceData.UsagePage);				
-			}
-			else
-			{
-				DeviceHandle = INDEX_NONE;
-				UE_LOG(LogRawInputWindows, Warning, TEXT("Device was registered succesfully but not connected (Usage:%d UsagePage:%d)"), DeviceData.Usage, DeviceData.UsagePage);
+					SetupBindings(DeviceHandle, true);
+
+					UE_LOG(LogRawInputWindows, Log, TEXT("Device was registered succesfully and is connected (Usage:%d UsagePage:%d)"), DeviceData.Usage, DeviceData.UsagePage);
+				}
 			}
 		}
 		else
@@ -290,6 +285,22 @@ void FRawInputWindows::SetupBindings(const int32 DeviceHandle, const bool bApply
 		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis6, 5);
 		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis7, 6);
 		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis8, 7);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis9, 8);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis10, 9);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis11, 10);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis12, 11);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis13, 12);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis14, 13);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis15, 14);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis16, 15);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis17, 16);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis18, 17);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis19, 18);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis20, 19);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis21, 20);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis22, 21);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis23, 22);
+		BindAnalogForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Axis24, 23);
 
 		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button1, 0);
 		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button2, 1);
@@ -311,6 +322,82 @@ void FRawInputWindows::SetupBindings(const int32 DeviceHandle, const bool bApply
 		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button18, 17);
 		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button19, 18);
 		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button20, 19);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button21, 20);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button22, 21);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button23, 22);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button24, 23);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button25, 24);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button26, 25);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button27, 26);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button28, 27);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button29, 28);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button30, 29);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button31, 30);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button32, 31);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button33, 32);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button34, 33);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button35, 34);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button36, 35);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button37, 36);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button38, 37);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button39, 38);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button40, 39);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button41, 40);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button42, 41);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button43, 42);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button44, 43);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button45, 44);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button46, 45);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button47, 46);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button48, 47);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button49, 48);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button50, 49);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button51, 50);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button52, 51);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button53, 52);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button54, 53);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button55, 54);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button56, 55);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button57, 56);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button58, 57);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button59, 58);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button60, 59);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button61, 60);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button62, 61);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button63, 62);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button64, 63);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button65, 64);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button66, 65);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button67, 66);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button68, 67);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button69, 68);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button70, 69);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button71, 70);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button72, 71);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button73, 72);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button74, 73);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button75, 74);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button76, 75);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button77, 76);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button78, 77);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button79, 78);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button80, 79);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button81, 80);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button82, 81);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button83, 82);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button84, 83);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button85, 84);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button86, 85);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button87, 86);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button88, 87);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button89, 88);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button90, 89);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button91, 90);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button92, 91);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button93, 92);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button94, 93);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button95, 94);
+		BindButtonForDevice(DeviceHandle, FRawInputKeyNames::GenericUSBController_Button96, 95);
 	}
 }
 
@@ -461,7 +548,7 @@ bool FRawInputWindows::ProcessMessage(const HWND hwnd, const uint32 Msg, const W
 						// now that we have the PP data we need to get the caps, check those and see if this is a device we registered and if it is store it so we can send it
 						if (DLLPointers.HidP_GetCaps((PHIDP_PREPARSED_DATA)PreParsedData.GetData(), &Caps) == HIDP_STATUS_SUCCESS)
 						{
-							DeviceData = FRawInputRegisteredDevice(RawInputDataBuffer->header.dwType, Caps.Usage, Caps.UsagePage);									
+							DeviceData = FRawInputRegisteredDevice(RawInputDataBuffer->header.dwType, Caps.Usage, Caps.UsagePage, RawInputDataBuffer->header.hDevice);
 						}
 					}							
 				}
@@ -723,7 +810,8 @@ void FRawInputWindows::QueryConnectedDevices()
 		}
 
 		// Add to the list of registered devices
-		ConnectedDeviceInfoList.Add(FConnectedDeviceInfo(MoveTemp(DeviceName), RawDeviceInfo));
+		int32 index = ConnectedDeviceInfoList.Add(FConnectedDeviceInfo(MoveTemp(DeviceName), RawDeviceInfo, Device.hDevice));
+
 		ShowDeviceInfo(ConnectedDeviceInfoList.Last());
 	}
 
@@ -859,6 +947,8 @@ void FRawInputWindows::CopyConnectedDeviceInfo(FRawWindowsDeviceEntry& Registere
 			RegisteredDevice.DeviceData.VendorID = ConnectedDevice->RIDDeviceInfo.hid.dwVendorId;
 			RegisteredDevice.DeviceData.ProductID = ConnectedDevice->RIDDeviceInfo.hid.dwProductId;
 		}
+
+		RegisteredDevice.DeviceData.hDevice = ConnectedDevice->hDevice;
 	}
 	else
 	{
