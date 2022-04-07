@@ -1,4 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\Shared\UnrealEngine.csproj.props" />
+  
   <PropertyGroup>
     <IsWindows Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">true</IsWindows> 
     <IsOSX Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">true</IsOSX> 
@@ -8,7 +10,7 @@
   <Choose>
     <When Condition="'$(IsWindows)'=='true'">
       <PropertyGroup>
-        <TargetFramework>net6.0-windows</TargetFramework>
+        <TargetFramework>net6.0-windows10.0.19041</TargetFramework>
         <UseWindowsForms>true</UseWindowsForms>
       </PropertyGroup>
     </When>
@@ -71,6 +73,8 @@
     </When>
   </Choose>
 
+  <!-- This set of dependencies should be kept as small as possible
+       This list must match the list of locations searched for changed files in BuildUAT.bat and BuildUAT.sh -->
   <ItemGroup>
     <Compile Include="..\Shared\MetaData.cs">
       <Link>Properties\MetaData.cs</Link>
@@ -106,6 +110,8 @@
     <PackageReference Include="Microsoft.Build.Locator" Version="1.4.1" PrivateAssets="all" />
   </ItemGroup>
   
+  <!-- This set of dependencies should be kept as small as possible
+       This list must match the list of locations searched for changed files in BuildUAT.bat and BuildUAT.sh -->
   <ItemGroup>
     <ProjectReference Include="..\Shared\EpicGames.Core\EpicGames.Core.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\Shared\EpicGames.Build\EpicGames.Build.csproj" PrivateAssets="all" />
