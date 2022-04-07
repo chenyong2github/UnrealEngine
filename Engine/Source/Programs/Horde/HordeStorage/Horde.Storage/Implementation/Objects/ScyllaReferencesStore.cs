@@ -161,7 +161,7 @@ namespace Horde.Storage.Implementation
             using IScope scope = Tracer.Instance.StartActive("scylla.delete_record");
             scope.Span.ResourceName = $"{ns}.{bucket}.{key}";
 
-            AppliedInfo<ScyllaObject> info = await _mapper.DeleteIfAsync<ScyllaObject>("WHERE namespace=? AND bucket=? AND name=?", ns.ToString(), bucket.ToString(), key.ToString());
+            AppliedInfo<ScyllaObject> info = await _mapper.DeleteIfAsync<ScyllaObject>("WHERE namespace=? AND bucket=? AND name=? IF EXISTS", ns.ToString(), bucket.ToString(), key.ToString());
 
             if (info.Applied)
                 return true;

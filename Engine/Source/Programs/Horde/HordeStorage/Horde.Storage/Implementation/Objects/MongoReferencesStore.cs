@@ -151,7 +151,7 @@ namespace Horde.Storage.Implementation
             DeleteResult result = await collection.DeleteOneAsync(model =>
                 model.Ns == ns.ToString() && model.Bucket == bucket.ToString() && model.Key == key.ToString());
 
-            return result.IsAcknowledged;
+            return result.DeletedCount != 0;
         }
 
         public async Task<long> DropNamespace(NamespaceId ns)
