@@ -270,8 +270,19 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 		// Notify before changing anything
 		if (!bIsSnapshot || TransactionAnnotation)
 		{
+			ULevel* Level = Cast<ULevel>(TransactionObject->GetOuter());
+			const bool bLevelIsDirty = Level ? Level->GetPackage()->IsDirty() : false;
+
 			// Transaction annotations require us to invoke the redo flow (even for snapshots!) as that's the only thing that can apply the annotation
 			TransactionObject->PreEditUndo();
+
+			// Levels are immune from dirty changes when using external objects.  See ULevel::PreEditUndo() If we
+			// modified any dirty flags as a result of the PreEditUndo then restore it back here as if it didn't happen.
+			//
+			if (Level && Level->IsUsingExternalObjects() && TransactionObject->IsPackageExternal())
+			{
+				Level->GetPackage()->SetDirtyFlag(bLevelIsDirty);
+			}
 		}
 
 		// We need to manually call OnPreObjectPropertyChanged as PreEditUndo calls the PreEditChange version that skips it, but we have things that rely on it being called
