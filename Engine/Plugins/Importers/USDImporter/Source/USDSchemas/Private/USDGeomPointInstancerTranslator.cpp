@@ -109,16 +109,19 @@ void FUsdGeomPointInstancerCreateAssetsTaskChain::SetupTasks()
 				RenderContextToken = UnrealToUsd::ConvertToken( *Context->RenderContext.ToString() ).Get();
 			}
 
+			UsdToUnreal::FUsdMeshConversionOptions Options;
+			Options.TimeCode = Context->Time;
+			Options.PurposesToLoad = Context->PurposesToLoad;
+			Options.RenderContext = RenderContextToken;
+			Options.MaterialToPrimvarToUVIndex = MaterialToPrimvarToUVIndex;
+			Options.bMergeIdenticalMaterialSlots = Context->bMergeIdenticalMaterialSlots;
+
 			UsdToUnreal::ConvertGeomMeshHierarchy(
 				GetPrim(),
-				pxr::UsdTimeCode( Context->Time ),
-				Context->PurposesToLoad,
-				RenderContextToken,
-				*MaterialToPrimvarToUVIndex,
 				AddedMeshDescription,
 				AssignmentInfo,
-				bIgnoreTopLevelTransformAndVisibility,
-				Context->bMergeIdenticalMaterialSlots
+				Options,
+				bIgnoreTopLevelTransformAndVisibility
 			);
 
 			return !AddedMeshDescription.IsEmpty();

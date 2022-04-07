@@ -453,7 +453,7 @@ namespace UsdGeomMeshTranslatorImpl
 	// Note that these other LODs will be hidden in other variants, and won't show up on traversal unless we actively switch the variants (which we do here).
 	// We use a separate function for this because there is a very specific set of conditions where we successfully can do this, and we
 	// want to fall back to just parsing UsdMesh as a simple single-LOD mesh if we fail.
-	bool TryLoadingMultipleLODs( const pxr::UsdTyped& UsdMesh, TArray<FMeshDescription>& OutLODIndexToMeshDescription, TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo, const TMap< FString, TMap< FString, int32 > >& InMaterialToPrimvarToUVIndex, const FTransform& AdditionalTransform, const pxr::UsdTimeCode InTimeCode, const pxr::TfToken& RenderContext, bool bCombineIdenticalMaterialSlots )
+	bool TryLoadingMultipleLODs( const pxr::UsdTyped& UsdMesh, TArray<FMeshDescription>& OutLODIndexToMeshDescription, TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo, const TMap< FString, TMap< FString, int32 > >& InMaterialToPrimvarToUVIndex, const FTransform& AdditionalTransform, const pxr::UsdTimeCode InTimeCode, const pxr::TfToken& RenderContext, bool bMergeIdenticalMaterialSlots )
 	{
 		FScopedUsdAllocs Allocs;
 
@@ -499,15 +499,18 @@ namespace UsdGeomMeshTranslatorImpl
 
 				if ( bSuccess )
 				{
+					UsdToUnreal::FUsdMeshConversionOptions Options;
+					Options.AdditionalTransform = MeshTransform * AdditionalTransform;
+					Options.TimeCode = InTimeCode;
+					Options.RenderContext = RenderContext;
+					Options.bMergeIdenticalMaterialSlots = bMergeIdenticalMaterialSlots;
+					Options.MaterialToPrimvarToUVIndex = &InMaterialToPrimvarToUVIndex;
+
 					bSuccess &= UsdToUnreal::ConvertGeomMesh(
 						LODMesh,
 						TempMeshDescription,
 						TempMaterialInfo,
-						MeshTransform * AdditionalTransform,
-						InMaterialToPrimvarToUVIndex,
-						InTimeCode,
-						RenderContext,
-						bCombineIdenticalMaterialSlots
+						Options
 					);
 				}
 			}
@@ -537,7 +540,7 @@ namespace UsdGeomMeshTranslatorImpl
 	}
 
 	void LoadMeshDescriptions( const pxr::UsdTyped& UsdMesh, TArray<FMeshDescription>& OutLODIndexToMeshDescription, TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo,
-		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarToUVIndex, const FTransform& AdditionalTransform, const pxr::UsdTimeCode TimeCode, bool bInterpretLODs, const FName& RenderContext, bool bCombineIdenticalMaterialSlots = true )
+		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarToUVIndex, const FTransform& AdditionalTransform, const pxr::UsdTimeCode TimeCode, bool bInterpretLODs, const FName& RenderContext, bool bMergeIdenticalMaterialSlots = true )
 	{
 		if ( !UsdMesh )
 		{
@@ -553,7 +556,7 @@ namespace UsdGeomMeshTranslatorImpl
 		bool bInterpretedLODs = false;
 		if ( bInterpretLODs )
 		{
-			bInterpretedLODs = TryLoadingMultipleLODs( UsdMesh, OutLODIndexToMeshDescription, OutLODIndexToMaterialInfo, MaterialToPrimvarToUVIndex, AdditionalTransform, TimeCode, RenderContextToken, bCombineIdenticalMaterialSlots );
+			bInterpretedLODs = TryLoadingMultipleLODs( UsdMesh, OutLODIndexToMeshDescription, OutLODIndexToMaterialInfo, MaterialToPrimvarToUVIndex, AdditionalTransform, TimeCode, RenderContextToken, bMergeIdenticalMaterialSlots );
 		}
 
 		if ( !bInterpretedLODs )
@@ -577,15 +580,18 @@ namespace UsdGeomMeshTranslatorImpl
 
 			if ( bSuccess )
 			{
+				UsdToUnreal::FUsdMeshConversionOptions Options;
+				Options.AdditionalTransform = MeshTransform * AdditionalTransform;
+				Options.TimeCode = TimeCode;
+				Options.RenderContext = RenderContextToken;
+				Options.bMergeIdenticalMaterialSlots = bMergeIdenticalMaterialSlots;
+				Options.MaterialToPrimvarToUVIndex = &MaterialToPrimvarToUVIndex;
+
 				bSuccess &= UsdToUnreal::ConvertGeomMesh(
-					UsdMesh,
+					pxr::UsdGeomMesh{ UsdMesh },
 					TempMeshDescription,
 					TempMaterialInfo,
-					MeshTransform * AdditionalTransform,
-					MaterialToPrimvarToUVIndex,
-					TimeCode,
-					RenderContextToken,
-					bCombineIdenticalMaterialSlots
+					Options
 				);
 			}
 
