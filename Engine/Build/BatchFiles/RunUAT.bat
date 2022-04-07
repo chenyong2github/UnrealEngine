@@ -9,12 +9,18 @@ rem ## if you copy it to a different location and run it.
 setlocal EnableExtensions
 echo Running AutomationTool...
 
-set SCRIPT_DIR=%~dp0
+rem uppercase the drive letter
+SETLOCAL ENABLEDELAYEDEXPANSION
+set DRIVE_LETTER=%~d0
+FOR %%Z IN (A B C D E F G H I J K L M N O P Q R S T U V W X Y Z) DO SET DRIVE_LETTER=!DRIVE_LETTER:%%Z=%%Z!
+SETLOCAL DISABLEDELAYEDEXPANSION
+
+set SCRIPT_DIR=%DRIVE_LETTER%%~p0
 set UATExecutable=AutomationTool.dll
 set UATDirectory=Binaries\DotNET\AutomationTool
 
 rem ## Change the CWD to /Engine. 
-pushd "%~dp0..\..\"
+pushd "%SCRIPT_DIR%..\..\"
 if not exist Build\BatchFiles\RunUAT.bat goto Error_BatchFileInWrongLocation
 
 
