@@ -254,35 +254,67 @@ void UMotionWarpingComponent::DisableAllRootMotionModifiers()
 
 void UMotionWarpingComponent::Update()
 {
-	check(GetCharacterOwner());
+	const ACharacter* Character = GetCharacterOwner();
+	check(Character);
 
-	const FAnimMontageInstance* RootMotionMontageInstance = GetCharacterOwner()->GetRootMotionAnimMontageInstance();
-	UAnimMontage* Montage = RootMotionMontageInstance ? ToRawPtr(RootMotionMontageInstance->Montage) : nullptr;
-	if (Montage)
+	FMotionWarpingUpdateContext Context;
+
+	// When replaying saved moves we need to look at the contributor to root motion back then.
+	if (Character->bClientUpdating)
 	{
-		const float PreviousPosition = RootMotionMontageInstance->GetPreviousPosition();
-		const float CurrentPosition = RootMotionMontageInstance->GetPosition();
+		const UCharacterMovementComponent* MoveComp = Character->GetCharacterMovement();
+		check(MoveComp);
+
+		const FSavedMove_Character* SavedMove = MoveComp->GetCurrentReplayedSavedMove();
+		check(SavedMove);
+
+		if(SavedMove->RootMotionMontage.IsValid())
+		{
+			Context.Animation = SavedMove->RootMotionMontage.Get();
+			Context.CurrentPosition = SavedMove->RootMotionTrackPosition;
+			Context.PreviousPosition = FMath::Max(Context.CurrentPosition - SavedMove->DeltaTime * SavedMove->RootMotionMontage->RateScale, 0.f);
+		}
+	}
+	else // If we are not replaying a move, just use the current root motion montage
+	{
+		if(const FAnimMontageInstance* RootMotionMontageInstance = Character->GetRootMotionAnimMontageInstance())
+		{
+			const UAnimMontage* Montage = RootMotionMontageInstance->Montage;
+			check(Montage);
+
+			Context.Animation = Montage;
+			Context.CurrentPosition = RootMotionMontageInstance->GetPosition();
+			Context.PreviousPosition = RootMotionMontageInstance->GetPreviousPosition();
+			Context.Weight = RootMotionMontageInstance->GetWeight();
+		}
+	}
+
+	if (Context.Animation.IsValid())
+	{
+		const UAnimSequenceBase* Animation = Context.Animation.Get();
+		const float PreviousPosition = Context.PreviousPosition;
+		const float CurrentPosition = Context.CurrentPosition;
 
 		// Loop over notifies directly in the montage, looking for Motion Warping windows
-		for (const FAnimNotifyEvent& NotifyEvent : Montage->Notifies)
+		for (const FAnimNotifyEvent& NotifyEvent : Animation->Notifies)
 		{
 			const UAnimNotifyState_MotionWarping* MotionWarpingNotify = NotifyEvent.NotifyStateClass ? Cast<UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass) : nullptr;
 			if (MotionWarpingNotify)
 			{
 				if(MotionWarpingNotify->RootMotionModifier == nullptr)
 				{
-					UE_LOG(LogMotionWarping, Warning, TEXT("MotionWarpingComponent::Update. A motion warping window in %s doesn't have a valid root motion modifier!"), *GetNameSafe(Montage));
+					UE_LOG(LogMotionWarping, Warning, TEXT("MotionWarpingComponent::Update. A motion warping window in %s doesn't have a valid root motion modifier!"), *GetNameSafe(Animation));
 					continue;
 				}
 
-				const float StartTime = FMath::Clamp(NotifyEvent.GetTriggerTime(), 0.f, Montage->GetPlayLength());
-				const float EndTime = FMath::Clamp(NotifyEvent.GetEndTriggerTime(), 0.f, Montage->GetPlayLength());
+				const float StartTime = FMath::Clamp(NotifyEvent.GetTriggerTime(), 0.f, Animation->GetPlayLength());
+				const float EndTime = FMath::Clamp(NotifyEvent.GetEndTriggerTime(), 0.f, Animation->GetPlayLength());
 
 				if (PreviousPosition >= StartTime && PreviousPosition < EndTime)
 				{
-					if (!ContainsModifier(Montage, StartTime, EndTime))
+					if (!ContainsModifier(Animation, StartTime, EndTime))
 					{
-						MotionWarpingNotify->OnBecomeRelevant(this, Montage, StartTime, EndTime);
+						MotionWarpingNotify->OnBecomeRelevant(this, Animation, StartTime, EndTime);
 					}
 				}
 			}
@@ -290,38 +322,41 @@ void UMotionWarpingComponent::Update()
 
 		if(bSearchForWindowsInAnimsWithinMontages)
 		{
-			// Same as before but scanning all animation within the montage
-			for (int32 SlotIdx = 0; SlotIdx < Montage->SlotAnimTracks.Num(); SlotIdx++)
+			if(const UAnimMontage* Montage = Cast<const UAnimMontage>(Context.Animation.Get()))
 			{
-				const FAnimTrack& AnimTrack = Montage->SlotAnimTracks[SlotIdx].AnimTrack;
-
-				if (const FAnimSegment* AnimSegment = AnimTrack.GetSegmentAtTime(PreviousPosition))
+				// Same as before but scanning all animation within the montage
+				for (int32 SlotIdx = 0; SlotIdx < Montage->SlotAnimTracks.Num(); SlotIdx++)
 				{
-					if(const UAnimSequenceBase* AnimReference = AnimSegment->GetAnimReference())
+					const FAnimTrack& AnimTrack = Montage->SlotAnimTracks[SlotIdx].AnimTrack;
+
+					if (const FAnimSegment* AnimSegment = AnimTrack.GetSegmentAtTime(PreviousPosition))
 					{
-						for (const FAnimNotifyEvent& NotifyEvent : AnimReference->Notifies)
+						if (const UAnimSequenceBase* AnimReference = AnimSegment->GetAnimReference())
 						{
-							const UAnimNotifyState_MotionWarping* MotionWarpingNotify = NotifyEvent.NotifyStateClass ? Cast<UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass) : nullptr;
-							if (MotionWarpingNotify)
+							for (const FAnimNotifyEvent& NotifyEvent : AnimReference->Notifies)
 							{
-								if (MotionWarpingNotify->RootMotionModifier == nullptr)
+								const UAnimNotifyState_MotionWarping* MotionWarpingNotify = NotifyEvent.NotifyStateClass ? Cast<UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass) : nullptr;
+								if (MotionWarpingNotify)
 								{
-									UE_LOG(LogMotionWarping, Warning, TEXT("MotionWarpingComponent::Update. A motion warping window in %s doesn't have a valid root motion modifier!"), *GetNameSafe(AnimReference));
-									continue;
-								}
-
-								const float NotifyStartTime = FMath::Clamp(NotifyEvent.GetTriggerTime(), 0.f, AnimReference->GetPlayLength());
-								const float NotifyEndTime = FMath::Clamp(NotifyEvent.GetEndTriggerTime(), 0.f, AnimReference->GetPlayLength());
-
-								// Convert notify times from AnimSequence times to montage times
-								const float StartTime = (NotifyStartTime - AnimSegment->AnimStartTime) + AnimSegment->StartPos;
-								const float EndTime = (NotifyEndTime - AnimSegment->AnimStartTime) + AnimSegment->StartPos;
-
-								if (PreviousPosition >= StartTime && PreviousPosition < EndTime)
-								{
-									if (!ContainsModifier(Montage, StartTime, EndTime))
+									if (MotionWarpingNotify->RootMotionModifier == nullptr)
 									{
-										MotionWarpingNotify->OnBecomeRelevant(this, Montage, StartTime, EndTime);
+										UE_LOG(LogMotionWarping, Warning, TEXT("MotionWarpingComponent::Update. A motion warping window in %s doesn't have a valid root motion modifier!"), *GetNameSafe(AnimReference));
+										continue;
+									}
+
+									const float NotifyStartTime = FMath::Clamp(NotifyEvent.GetTriggerTime(), 0.f, AnimReference->GetPlayLength());
+									const float NotifyEndTime = FMath::Clamp(NotifyEvent.GetEndTriggerTime(), 0.f, AnimReference->GetPlayLength());
+
+									// Convert notify times from AnimSequence times to montage times
+									const float StartTime = (NotifyStartTime - AnimSegment->AnimStartTime) + AnimSegment->StartPos;
+									const float EndTime = (NotifyEndTime - AnimSegment->AnimStartTime) + AnimSegment->StartPos;
+
+									if (PreviousPosition >= StartTime && PreviousPosition < EndTime)
+									{
+										if (!ContainsModifier(Montage, StartTime, EndTime))
+										{
+											MotionWarpingNotify->OnBecomeRelevant(this, Montage, StartTime, EndTime);
+										}
 									}
 								}
 							}
@@ -339,7 +374,7 @@ void UMotionWarpingComponent::Update()
 	{
 		for (URootMotionModifier* Modifier : Modifiers)
 		{
-			Modifier->Update();
+			Modifier->Update(Context);
 		}
 
 		// Remove the modifiers that has been marked for removal

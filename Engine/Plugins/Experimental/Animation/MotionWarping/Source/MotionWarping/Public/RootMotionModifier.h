@@ -11,6 +11,28 @@ class UAnimNotifyState_MotionWarping;
 class URootMotionModifier;
 class USceneComponent;
 
+/** 
+ * Context passed to any active root motion modifier during the update phase. 
+ * Contains relevant data from the animation that contributed to root motion this frame (or in the past when replaying saved moves)
+ */
+USTRUCT()
+struct FMotionWarpingUpdateContext
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TWeakObjectPtr<const UAnimSequenceBase> Animation = nullptr;
+
+	UPROPERTY()
+	float PreviousPosition = 0.f;
+
+	UPROPERTY()
+	float CurrentPosition = 0.f;
+
+	UPROPERTY()
+	float Weight = 0.f;
+};
+
 /** The possible states of a Root Motion Modifier */
 UENUM(BlueprintType)
 enum class ERootMotionModifierState : uint8
@@ -105,7 +127,7 @@ public:
 	/** Returns a pointer to the character that owns the component that owns this modifier */
 	class ACharacter* GetCharacterOwner() const;
 
-	virtual void Update();
+	virtual void Update(const FMotionWarpingUpdateContext& Context);
 	virtual FTransform ProcessRootMotion(const FTransform& InRootMotion, float DeltaSeconds) { return FTransform::Identity; }
 
 	FORCEINLINE const UAnimSequenceBase* GetAnimation() const { return Animation.Get(); }
@@ -244,7 +266,7 @@ public:
 	URootMotionModifier_Warp(const FObjectInitializer& ObjectInitializer);
 
 	//~ Begin FRootMotionModifier Interface
-	virtual void Update() override;
+	virtual void Update(const FMotionWarpingUpdateContext& Context) override;
 	//~ End FRootMotionModifier Interface
 
 	/** Event called during update if the target transform changes while the warping is active */

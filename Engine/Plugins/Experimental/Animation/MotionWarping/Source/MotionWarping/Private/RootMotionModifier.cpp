@@ -88,7 +88,7 @@ ACharacter* URootMotionModifier::GetCharacterOwner() const
 	return OwnerComp ? OwnerComp->GetCharacterOwner() : nullptr;
 }
 
-void URootMotionModifier::Update()
+void URootMotionModifier::Update(const FMotionWarpingUpdateContext& Context)
 {
 	const ACharacter* CharacterOwner = GetCharacterOwner();
 	if (CharacterOwner == nullptr)
@@ -96,23 +96,20 @@ void URootMotionModifier::Update()
 		return;
 	}
 
-	const FAnimMontageInstance* RootMotionMontageInstance = CharacterOwner->GetRootMotionAnimMontageInstance();
-	const UAnimMontage* Montage = RootMotionMontageInstance ? ToRawPtr(RootMotionMontageInstance->Montage) : nullptr;
-
 	// Mark for removal if our animation is not relevant anymore
-	if (Montage == nullptr || Montage != Animation)
+	if (!Context.Animation.IsValid() || Context.Animation.Get() != Animation)
 	{
-		UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: Marking RootMotionModifier for removal. Reason: Animation is not valid. Char: %s Current Montage: %s. Window: Animation: %s [%f %f] [%f %f]"),
-			*GetNameSafe(CharacterOwner), *GetNameSafe(Montage), *GetNameSafe(Animation.Get()), StartTime, EndTime, PreviousPosition, CurrentPosition);
+		UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: Marking RootMotionModifier for removal. Reason: Animation is not valid. Char: %s Current Animation: %s. Window: Animation: %s [%f %f] [%f %f]"),
+			*GetNameSafe(CharacterOwner), *GetNameSafe(Context.Animation.Get()), *GetNameSafe(Animation.Get()), StartTime, EndTime, PreviousPosition, CurrentPosition);
 
 		SetState(ERootMotionModifierState::MarkedForRemoval);
 		return;
 	}
 
 	// Update playback times and weight
-	PreviousPosition = RootMotionMontageInstance->GetPreviousPosition();
-	CurrentPosition = RootMotionMontageInstance->GetPosition();
-	Weight = RootMotionMontageInstance->GetWeight();
+	PreviousPosition = Context.PreviousPosition;
+	CurrentPosition = Context.CurrentPosition;
+	Weight = Context.Weight;
 
 	// Mark for removal if the animation already passed the warping window
 	if (PreviousPosition >= EndTime)
@@ -183,10 +180,10 @@ URootMotionModifier_Warp::URootMotionModifier_Warp(const FObjectInitializer& Obj
 {
 }
 
-void URootMotionModifier_Warp::Update()
+void URootMotionModifier_Warp::Update(const FMotionWarpingUpdateContext& Context)
 {
 	// Update playback times and state
-	Super::Update();
+	Super::Update(Context);
 
 	// Cache sync point transform and trigger OnTargetTransformChanged if needed
 	const UMotionWarpingComponent* OwnerComp = GetOwnerComponent();
