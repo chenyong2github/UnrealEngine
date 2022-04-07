@@ -1271,7 +1271,7 @@ public:
 
 	// Constructor for RHICreateAliasedTexture
 	enum EAliasConstructorParam { AliasResource };
-	explicit FOpenGLTexture(FOpenGLTexture& Texture, EAliasConstructorParam);
+	explicit FOpenGLTexture(FOpenGLTexture& Texture, const FString& Name, EAliasConstructorParam);
 	void AliasResources(FOpenGLTexture& Texture);
 
 	virtual ~FOpenGLTexture();

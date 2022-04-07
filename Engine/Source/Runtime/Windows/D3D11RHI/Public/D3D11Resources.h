@@ -157,7 +157,7 @@ public:
 	);
 
 	enum EAliasResourceParam { CreateAlias };
-	explicit FD3D11Texture(FD3D11Texture const& Other, EAliasResourceParam);
+	explicit FD3D11Texture(FD3D11Texture const& Other, const FString& Name, EAliasResourceParam);
 	void AliasResource(FD3D11Texture const& Other);
 
 	virtual ~FD3D11Texture();

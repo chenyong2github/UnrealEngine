@@ -1499,7 +1499,8 @@ void FVulkanDynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestTextureRHI,
 
 FTextureRHIRef FVulkanDynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SourceTextureRHI)
 {
-	FRHITextureCreateDesc Desc(SourceTextureRHI->GetDesc(), ERHIAccess::SRVMask, *SourceTextureRHI->GetName().ToString());
+	const FString Name = SourceTextureRHI->GetName().ToString() + TEXT("Alias");
+	FRHITextureCreateDesc Desc(SourceTextureRHI->GetDesc(), ERHIAccess::SRVMask, *Name);
 	return new FVulkanTexture(*Device, Desc, SourceTextureRHI);
 }
 

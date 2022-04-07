@@ -2008,8 +2008,8 @@ FD3D11Texture::FD3D11Texture(
 	UpdateD3D11TextureStats(*this, true);
 }
 
-FD3D11Texture::FD3D11Texture(FD3D11Texture const& Other, EAliasResourceParam)
-	: FRHITexture(FRHITextureCreateDesc(Other.GetDesc(), ERHIAccess::SRVMask, TEXT("FD3D11Texture::FD3D11Texture Alias")))
+FD3D11Texture::FD3D11Texture(FD3D11Texture const& Other, const FString& Name, EAliasResourceParam)
+	: FRHITexture(FRHITextureCreateDesc(Other.GetDesc(), ERHIAccess::SRVMask, *Name))
 	, bAlias(true)
 {
 	AliasResource(Other);
@@ -2052,8 +2052,9 @@ FTextureRHIRef FD3D11DynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SrcText
 {
 	FD3D11Texture* SrcTexture = GetD3D11TextureFromRHITexture(SrcTextureRHI);
 	check(SrcTexture);
+	const FString Name = SrcTextureRHI->GetName().ToString() + TEXT("Alias");
 
-	return new FD3D11Texture(*SrcTexture, FD3D11Texture::CreateAlias);
+	return new FD3D11Texture(*SrcTexture, *Name, FD3D11Texture::CreateAlias);
 }
 
 void FD3D11DynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)

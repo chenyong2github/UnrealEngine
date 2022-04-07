@@ -294,8 +294,8 @@ FOpenGLTextureDesc::FOpenGLTextureDesc(FRHITextureDesc const& InDesc)
 }
 
 // Constructor for RHICreateAliasedTexture
-FOpenGLTexture::FOpenGLTexture(FOpenGLTexture& Other, EAliasConstructorParam)
-	: FRHITexture(FRHITextureCreateDesc(Other.GetDesc(), ERHIAccess::SRVMask, *Other.GetName().ToString()))
+FOpenGLTexture::FOpenGLTexture(FOpenGLTexture& Other, const FString& Name, EAliasConstructorParam)
+	: FRHITexture(FRHITextureCreateDesc(Other.GetDesc(), ERHIAccess::SRVMask, *Name))
 	, Target             (Other.Target)
 	, Attachment         (Other.Attachment)
 	, MemorySize         (0)
@@ -2334,7 +2334,8 @@ void FOpenGLDynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestRHITexture,
 
 FTextureRHIRef FOpenGLDynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SourceTexture)
 {
-	return new FOpenGLTexture(*GetOpenGLTextureFromRHITexture(SourceTexture), FOpenGLTexture::AliasResource);
+	const FString Name = SourceTexture->GetName().ToString() + TEXT("Alias");
+	return new FOpenGLTexture(*GetOpenGLTextureFromRHITexture(SourceTexture), *Name, FOpenGLTexture::AliasResource);
 }
 
 void* FOpenGLDynamicRHI::LockTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail, bool bNeedsDefaultRHIFlush)
