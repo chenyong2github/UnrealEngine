@@ -26,8 +26,6 @@ public:
 	/** set the analytic provider for the CommonUI Widgets to use */
 	void SetAnalyticProvider(const TSharedPtr<IAnalyticsProviderET>& AnalyticProvider);
 
-public:
-
 	// Gets Action Button Icon for current gamepad
 	UFUNCTION(BlueprintCallable, Category = CommonUISubsystem)
 	FSlateBrush GetInputActionButtonIcon(const FDataTableRowHandle& InputActionRowHandle, ECommonInputType InputType, const FName& GamepadName) const;
@@ -40,8 +38,8 @@ public:
 	//CommonUI.PanelPushed
 	void FireEvent_PanelPushed(const FString& PanelName) const;
 	
-public:
 	virtual void SetInputAllowed(bool bEnabled, const FName& Reason, const ULocalPlayer& LocalPlayer);
+	virtual bool IsInputAllowed(const ULocalPlayer* LocalPlayer) const;
 
 private:
 

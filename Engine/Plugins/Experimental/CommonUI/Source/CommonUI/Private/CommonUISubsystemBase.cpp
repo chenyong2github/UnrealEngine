@@ -128,3 +128,16 @@ void UCommonUISubsystemBase::SetInputAllowed(bool bEnabled, const FName& Reason,
 		InputSubsystem->SetInputTypeFilter(ECommonInputType::Touch, Reason, !bEnabled);
 	}
 }
+
+bool UCommonUISubsystemBase::IsInputAllowed(const ULocalPlayer* LocalPlayer) const
+{
+	if (UCommonInputSubsystem* InputSubSystem = UCommonInputSubsystem::Get(LocalPlayer))
+	{
+		const bool bKeyboardAndMouseFiltered = InputSubSystem->GetInputTypeFilter(ECommonInputType::MouseAndKeyboard);
+		const bool bGamepadFiltered = InputSubSystem->GetInputTypeFilter(ECommonInputType::Gamepad);
+		const bool bTouchFiltered = InputSubSystem->GetInputTypeFilter(ECommonInputType::Touch);
+		return !bKeyboardAndMouseFiltered || !bGamepadFiltered || !bTouchFiltered;
+	}
+
+	return true;
+}
