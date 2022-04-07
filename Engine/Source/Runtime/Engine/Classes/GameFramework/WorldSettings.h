@@ -573,6 +573,13 @@ public:
 	uint32 NavigationDataChunkGridSize;
 
 	/**
+	 * A list of runtime data layers that should be included in the base navmesh.
+	 * Editor data layers and actors outside data layers will be included.
+	 */
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	TArray<TObjectPtr<UDataLayerAsset>> BaseNavmeshDataLayers;
+	
+	/**
 	 * Loading cell size used when building navigation data iteratively.
 	 * The actual cell size used will be rounded using the NavigationDataChunkGridSize.
 	 */
