@@ -2036,6 +2036,8 @@ namespace OculusHMD
 		SplashLayerHandle = -1;
 
 		SplashRotation = FRotator();
+
+		bIsStandaloneStereoOnlyDevice = IHeadMountedDisplayModule::IsAvailable() && IHeadMountedDisplayModule::Get().IsStandaloneStereoOnlyDevice();;
 	}
 
 

@@ -235,7 +235,8 @@ public:
 	virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const override;
 	virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, int32 ViewIndex) const override;
 	virtual uint32 GetLODViewIndex() const override;
-	
+	virtual bool IsStandaloneStereoOnlyDevice() const override { return bIsStandaloneStereoOnlyDevice; }
+
 	virtual FMatrix GetStereoProjectionMatrix(const int32 StereoViewIndex) const override;
 	virtual void GetEyeRenderParams_RenderThread(const struct FHeadMountedDisplayPassContext& Context, FVector2D& EyeToSrcUVScaleValue, FVector2D& EyeToSrcUVOffsetValue) const override;
 	virtual IStereoRenderTargetManager* GetRenderTargetManager() override;
@@ -307,8 +308,6 @@ public:
 	}
 	OPENXRHMD_API XrTime GetDisplayTime() const;
 	OPENXRHMD_API TArray<IOpenXRExtensionPlugin*>& GetExtensionPlugins() { return ExtensionPlugins; }
-
-	OPENXRHMD_API bool IsStandaloneStereoOnlyDevice() const { return bIsStandaloneStereoOnlyDevice; }
 
 private:
 	bool					bStereoEnabled;

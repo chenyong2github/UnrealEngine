@@ -173,6 +173,7 @@ public:
 	virtual IStereoLayers* GetStereoLayers() override { return this; }
 	//virtual void UseImplicitHmdPosition(bool bInImplicitHmdPosition) override;
 	//virtual bool GetUseImplicitHmdPosition() override;
+	virtual bool IsStandaloneStereoOnlyDevice() const override { return bIsStandaloneStereoOnlyDevice; }
 
 	// FHeadMountedDisplayBase interface
 	virtual FVector2D GetEyeCenterPoint_RenderThread(int32 ViewIndex) const override;
@@ -420,6 +421,7 @@ protected:
 	TWeakPtr<SWindow> CachedWindow;
 	FVector2D CachedWindowSize;
 	float CachedWorldToMetersScale;
+	bool bIsStandaloneStereoOnlyDevice;
 
 	// Game thread
 	FSettingsPtr Settings;

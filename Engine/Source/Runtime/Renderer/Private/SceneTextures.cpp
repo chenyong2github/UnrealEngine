@@ -110,8 +110,7 @@ static EPixelFormat GetGBufferFFormat()
 
 static EPixelFormat GetDefaultMobileSceneColorLowPrecisionFormat()
 {
-	return IHeadMountedDisplayModule::IsAvailable() && IHeadMountedDisplayModule::Get().IsStandaloneStereoOnlyDevice()
-		? PF_R8G8B8A8 : PF_B8G8R8A8;
+	return (GEngine && GEngine->XRSystem.IsValid() && GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStandaloneStereoOnlyDevice()) ? PF_R8G8B8A8 : PF_B8G8R8A8;
 }
 
 static EPixelFormat GetMobileSceneColorFormat(const FSceneViewFamily& ViewFamily)

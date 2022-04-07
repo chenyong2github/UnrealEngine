@@ -116,11 +116,19 @@ public:
 	static bool IsASecondaryView(const FSceneView& View);
 
 	/**
-	 * Static helper. Return the index of the view that is used for selecting LODs
+	 * Return the index of the view that is used for selecting LODs
 	 */
 	virtual uint32 GetLODViewIndex() const
 	{
 		return 0;
+	}
+
+	/**
+	 * True when a device has only stereo display (like a self contained mobile vr headset).
+	 */
+	virtual bool IsStandaloneStereoOnlyDevice() const
+	{ 
+		return false; 
 	}
 
 	/**
