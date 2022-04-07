@@ -94,6 +94,7 @@ public:
 		{
 			const FRHITextureCreateDesc Desc =
 				FRHITextureCreateDesc(*TestName, (NumSlices == 1) ? ETextureDimension::Texture2D : ETextureDimension::Texture2DArray)
+				.SetFormat(Format)
 				.SetExtent(Width, Height)
 				.SetArraySize(NumSlices)
 				.SetNumMips(NumMips)
@@ -530,7 +531,7 @@ public:
 
 			const FRHITextureCreateDesc Desc =
 				FRHITextureCreateDesc::Create2D(*TestName, TextureWidth, TextureHeight, Format)
-				.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
+				.SetFlags(ETextureCreateFlags::ShaderResource);
 
 			FTexture2DRHIRef Texture = RHICreateTexture(Desc);
 			if (Texture == nullptr)
