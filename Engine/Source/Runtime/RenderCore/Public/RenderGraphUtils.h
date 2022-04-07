@@ -630,6 +630,32 @@ inline void AddCopyTexturePass(
 	AddCopyTexturePass(GraphBuilder, InputTexture, OutputTexture, CopyInfo);
 }
 
+struct FRDGDrawTextureInfo
+{
+	// Number of texels to copy. By default it will copy the whole resource if no size is specified.
+	FIntPoint Size = FIntPoint::ZeroValue;
+
+	// Position of the copy from the source texture/to destination texture
+	FIntPoint SourcePosition = FIntPoint::ZeroValue;
+	FIntPoint DestPosition = FIntPoint::ZeroValue;
+
+	uint32 SourceSliceIndex = 0;
+	uint32 DestSliceIndex = 0;
+	uint32 NumSlices = 1;
+
+	// Mips to copy and destination mips
+	uint32 SourceMipIndex = 0;
+	uint32 DestMipIndex = 0;
+	uint32 NumMips = 1;
+};
+
+RENDERCORE_API void AddDrawTexturePass(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	FRDGTextureRef InputTexture,
+	FRDGTextureRef OutputTexture,
+	const FRDGDrawTextureInfo& DrawInfo);
+
 /** Adds a render graph pass to resolve from one texture to another. Uses RHICopyToResolveTarget under the hood.
  *  The formats of the two textures don't need to match.
  */
