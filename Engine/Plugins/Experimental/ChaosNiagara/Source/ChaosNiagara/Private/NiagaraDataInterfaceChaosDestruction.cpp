@@ -1902,72 +1902,85 @@ void UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents(const Chaos::FT
 
 	if (GeometryCollectionComponentsFromBreaking.Num() > 0)
 	{
+		TArray<UGeometryCollectionComponent*> ComponentsToRemove;
 		for (auto& GeometryCollectionComponent : GeometryCollectionComponentsFromBreaking)
 		{
-			if (GeometryCollectionComponent && GeometryCollectionComponent->GetNotifyTrailing())
+			if (GeometryCollectionComponent)
 			{
-				PhysicalMaterial = GeometryCollectionComponent->GetPhysicalMaterial();
-				ensure(PhysicalMaterial);
-				if (PhysicalMaterial)
+				if (!GeometryCollectionComponent->IsPhysicsStateCreated())
 				{
-					if (bApplyMaterialsFilter && !IsMaterialInFilter(PhysicalMaterial->GetFName()))
-					{
-						continue;
-					}
+					ComponentsToRemove.Add(GeometryCollectionComponent);
 				}
-
-				const TArray<FMatrix>& GlobalMatrices = GeometryCollectionComponent->GetGlobalMatrices();
-				const FTransform ActorTransform = GeometryCollectionComponent->GetComponentToWorld();
-
-				const FGeometryDynamicCollection* DynamicCollection = GeometryCollectionComponent->GetDynamicCollection();
-
-				if (DynamicCollection)
+				else if (GeometryCollectionComponent->GetNotifyTrailing())
 				{
-					if (const UGeometryCollection* RestCollection = GeometryCollectionComponent->GetRestCollection())
+					PhysicalMaterial = GeometryCollectionComponent->GetPhysicalMaterial();
+					ensure(PhysicalMaterial);
+					if (PhysicalMaterial)
 					{
-						const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollection = RestCollection->GetGeometryCollection();
-
-						// Get the MassToLocal transforms
-						if (GeometryCollection->HasAttribute(TEXT("MassToLocal"), FTransformCollection::TransformGroup))
+						if (bApplyMaterialsFilter && !IsMaterialInFilter(PhysicalMaterial->GetFName()))
 						{
-							const TManagedArray<FTransform>& CollectionMassToLocal = GeometryCollection->GetAttribute<FTransform>(TEXT("MassToLocal"), FTransformCollection::TransformGroup);
+							continue;
+						}
+					}
 
-							const TManagedArray<FVector3f>* LinearVelocity = DynamicCollection->FindAttributeTyped<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup);
-							const TManagedArray<FVector3f>* AngularVelocity = DynamicCollection->FindAttributeTyped<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
+					const TArray<FMatrix>& GlobalMatrices = GeometryCollectionComponent->GetGlobalMatrices();
+					const FTransform ActorTransform = GeometryCollectionComponent->GetComponentToWorld();
 
-							if (!LinearVelocity || !AngularVelocity)
+					const FGeometryDynamicCollection* DynamicCollection = GeometryCollectionComponent->GetDynamicCollection();
+
+					if (DynamicCollection)
+					{
+						if (const UGeometryCollection* RestCollection = GeometryCollectionComponent->GetRestCollection())
+						{
+							const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollection = RestCollection->GetGeometryCollection();
+
+							// Get the MassToLocal transforms
+							if (GeometryCollection->HasAttribute(TEXT("MassToLocal"), FTransformCollection::TransformGroup))
 							{
-								continue;
-							}
+								const TManagedArray<FTransform>& CollectionMassToLocal = GeometryCollection->GetAttribute<FTransform>(TEXT("MassToLocal"), FTransformCollection::TransformGroup);
 
-							ensure(DynamicCollection->Active.Num() == (*LinearVelocity).Num());
-							ensure(DynamicCollection->Active.Num() == (*AngularVelocity).Num());
+								const TManagedArray<FVector3f>* LinearVelocity = DynamicCollection->FindAttributeTyped<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup);
+								const TManagedArray<FVector3f>* AngularVelocity = DynamicCollection->FindAttributeTyped<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
 
-							for (int Idx = 0; Idx < DynamicCollection->Active.Num(); ++Idx)
-							{
-								if (DynamicCollection->Active[Idx] && (*LinearVelocity)[Idx].SquaredLength() >= TrailMinSpeedToSpawnSquared)
+								if (!LinearVelocity || !AngularVelocity)
 								{
-									Chaos::FTrailingDataExt TrailingData;
+									continue;
+								}
 
-									FTransform CurrTransform = FTransform(CollectionMassToLocal[Idx].ToMatrixWithScale() * GlobalMatrices[Idx] * ActorTransform.ToMatrixWithScale());
-									TrailingData.Location = CurrTransform.GetTranslation();
+								ensure(DynamicCollection->Active.Num() == (*LinearVelocity).Num());
+								ensure(DynamicCollection->Active.Num() == (*AngularVelocity).Num());
 
-									TrailingData.Velocity = (*LinearVelocity)[Idx];
-									TrailingData.AngularVelocity = (*AngularVelocity)[Idx];
+								for (int Idx = 0; Idx < DynamicCollection->Active.Num(); ++Idx)
+								{
+									if (DynamicCollection->Active[Idx] && (*LinearVelocity)[Idx].SquaredLength() >= TrailMinSpeedToSpawnSquared)
+									{
+										Chaos::FTrailingDataExt TrailingData;
 
-									TrailingData.Mass = 1.f;
-									TrailingData.BoundingboxVolume = 1000000.f;
-									TrailingData.BoundingboxExtentMin = 100.f;
-									TrailingData.BoundingboxExtentMax = 100.f;
-									TrailingData.SurfaceType = 0;
+										FTransform CurrTransform = FTransform(CollectionMassToLocal[Idx].ToMatrixWithScale() * GlobalMatrices[Idx] * ActorTransform.ToMatrixWithScale());
+										TrailingData.Location = CurrTransform.GetTranslation();
 
-									TrailingEvents.Add(TrailingData);
+										TrailingData.Velocity = (*LinearVelocity)[Idx];
+										TrailingData.AngularVelocity = (*AngularVelocity)[Idx];
+
+										TrailingData.Mass = 1.f;
+										TrailingData.BoundingboxVolume = 1000000.f;
+										TrailingData.BoundingboxExtentMin = 100.f;
+										TrailingData.BoundingboxExtentMax = 100.f;
+										TrailingData.SurfaceType = 0;
+
+										TrailingEvents.Add(TrailingData);
+									}
 								}
 							}
 						}
-					}
-				}				
+					}				
+				}
 			}
+		}
+
+		for (UGeometryCollectionComponent* ComponentToRemove : ComponentsToRemove)
+		{
+			GeometryCollectionComponentsFromBreaking.Remove(ComponentToRemove);
 		}
 	}
 }
