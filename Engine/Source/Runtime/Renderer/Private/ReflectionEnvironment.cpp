@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "ReflectionEnvironment.h"
+#include "Components/ReflectionCaptureComponent.h"
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
 #include "RHI.h"
@@ -188,6 +189,139 @@ void FReflectionEnvironmentCubemapArray::ReleaseDynamicRHI()
 	ReleaseCubeArray();
 }
 
+
+const FCaptureComponentSceneState* FReflectionCaptureCache::Find(const FGuid& MapBuildDataId) const
+{
+	const FReflectionCaptureCacheEntry* Entry = CaptureData.Find(MapBuildDataId);
+	if (Entry == nullptr)
+		return nullptr;
+
+	return &(Entry->SceneState);
+}
+
+FCaptureComponentSceneState* FReflectionCaptureCache::Find(const FGuid& MapBuildDataId)
+{
+	FReflectionCaptureCacheEntry* Entry = CaptureData.Find(MapBuildDataId);
+	if (Entry == nullptr)
+		return nullptr;
+
+	return &(Entry->SceneState);
+}
+
+const FCaptureComponentSceneState* FReflectionCaptureCache::Find(const UReflectionCaptureComponent* Component) const
+{
+	if (!Component)	// Intentionally not IsValid(Component), as this often occurs when Component is explicitly PendingKill.
+		return nullptr;
+
+	return Find(Component->MapBuildDataId);
+}
+
+FCaptureComponentSceneState* FReflectionCaptureCache::Find(const UReflectionCaptureComponent* Component)
+{
+	if (!Component)	// Intentionally not IsValid(Component), as this often occurs when Component is explicitly PendingKill.
+		return nullptr;
+
+	return Find(Component->MapBuildDataId);
+}
+
+
+const FCaptureComponentSceneState& FReflectionCaptureCache::FindChecked(const UReflectionCaptureComponent* Component) const
+{
+	const FCaptureComponentSceneState* Found = Find(Component);
+	check(Found);
+
+	return *Found;
+}
+
+FCaptureComponentSceneState& FReflectionCaptureCache::FindChecked(const UReflectionCaptureComponent* Component)
+{
+	FCaptureComponentSceneState* Found = Find(Component);
+	check(Found);
+
+	return *Found;
+}
+
+FCaptureComponentSceneState& FReflectionCaptureCache::Add(const UReflectionCaptureComponent* Component, const FCaptureComponentSceneState& Value)
+{
+	check(IsValid(Component))
+
+	FCaptureComponentSceneState* Existing = AddReference(Component);
+	if (Existing != nullptr)
+	{
+		return *Existing;
+	}
+	else
+	{
+		FReflectionCaptureCacheEntry& Entry = CaptureData.Add(Component->MapBuildDataId, { 1, Value });
+		return Entry.SceneState;
+	}
+}
+
+FCaptureComponentSceneState* FReflectionCaptureCache::AddReference(const UReflectionCaptureComponent* Component)
+{
+	check(IsValid(Component))
+
+	FReflectionCaptureCacheEntry* Found = CaptureData.Find(Component->MapBuildDataId);
+	if (Found == nullptr)
+		return nullptr;
+
+	Found->RefCount += 1;
+	return &(Found->SceneState);
+}
+
+int32 FReflectionCaptureCache::GetKeys(TArray<FGuid>& OutKeys) const
+{
+	return CaptureData.GetKeys(OutKeys);
+}
+
+int32 FReflectionCaptureCache::GetKeys(TSet<FGuid>& OutKeys) const
+{
+	return CaptureData.GetKeys(OutKeys);
+}
+
+void FReflectionCaptureCache::Empty()
+{
+	CaptureData.Empty();
+}
+
+bool FReflectionCaptureCache::Remove(const UReflectionCaptureComponent* Component)
+{
+	if (!Component)	// Intentionally not IsValid(Component), as this often occurs when Component is explicitly PendingKill.
+		return false;
+
+	FReflectionCaptureCacheEntry* Found = CaptureData.Find(Component->MapBuildDataId);
+	if (Found == nullptr)
+		return false;
+
+	if (Found->RefCount > 1)
+	{
+		Found->RefCount -= 1;
+		return false;
+	}
+	else
+	{
+		CaptureData.Remove(Component->MapBuildDataId);
+		return true;
+	}
+}
+
+void FReflectionEnvironmentSceneData::SetGameThreadTrackingData(int32 MaxAllocatedCubemaps, int32 CaptureSize)
+{
+	MaxAllocatedReflectionCubemapsGameThread = MaxAllocatedCubemaps;
+	ReflectionCaptureSizeGameThread = CaptureSize;
+}
+
+bool FReflectionEnvironmentSceneData::DoesAllocatedDataNeedUpdate(int32 DesiredMaxCubemaps, int32 DesiredCaptureSize) const
+{
+	if (DesiredMaxCubemaps != MaxAllocatedReflectionCubemapsGameThread)
+		return true;
+
+	if (DesiredCaptureSize != ReflectionCaptureSizeGameThread)
+		return true;
+
+	return false;
+}
+
 void FReflectionEnvironmentSceneData::ResizeCubemapArrayGPU(uint32 InMaxCubemaps, int32 InCubemapSize)
 {
 	check(IsInRenderingThread());
@@ -221,7 +355,7 @@ void FReflectionEnvironmentSceneData::ResizeCubemapArrayGPU(uint32 InMaxCubemaps
 	CubemapArraySlotsUsed.Init(false, InMaxCubemaps);
 
 	// Spin through the AllocatedReflectionCaptureState map and remap the indices based on the LUT
-	TArray<const UReflectionCaptureComponent*> Components;
+	TArray<FGuid> Components;
 	AllocatedReflectionCaptureState.GetKeys(Components);
 	int32 UsedCubemapCount = 0;
 	for (int32 i=0; i<Components.Num(); i++ )

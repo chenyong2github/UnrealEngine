@@ -439,7 +439,7 @@ int32 FindOrAllocateCubemapIndex(FScene* Scene, const UReflectionCaptureComponen
 	int32 CubemapIndex = -1;
 
 	// Try to find an existing capture index for this component
-	const FCaptureComponentSceneState* CaptureSceneStatePtr = Scene->ReflectionSceneData.AllocatedReflectionCaptureState.Find(Component);
+	const FCaptureComponentSceneState* CaptureSceneStatePtr = Scene->ReflectionSceneData.AllocatedReflectionCaptureState.AddReference(Component);
 
 	if (CaptureSceneStatePtr)
 	{
@@ -728,6 +728,17 @@ int32 GetReflectionCaptureSizeForArrayCount(int32 InRequestedCaptureSize, int32 
 	return OutCaptureSize;
 }
 
+int32 NumUniqueReflectionCaptures(const TSparseArray<UReflectionCaptureComponent*>& CaptureComponents)
+{
+	TSet<FGuid> Guids;
+	for (TSparseArray<UReflectionCaptureComponent*>::TConstIterator It(CaptureComponents); It; ++It)
+	{
+		Guids.Add((*It)->MapBuildDataId);
+	}
+
+	return Guids.Num();
+}
+
 /** 
  * Allocates reflection captures in the scene's reflection cubemap array and updates them by recapturing the scene.
  * Existing captures will only be uploaded.  Must be called from the game thread.
@@ -763,13 +774,13 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 			}
 
 			// Request the exact amount needed by default
-			int32 DesiredMaxCubemaps = ReflectionSceneData.AllocatedReflectionCapturesGameThread.Num();
+			int32 DesiredMaxCubemaps = NumUniqueReflectionCaptures(ReflectionSceneData.AllocatedReflectionCapturesGameThread);
 			const float MaxCubemapsRoundUpBase = 1.5f;
 
 			// If this is not the first time the scene has allocated the cubemap array, include slack to reduce reallocations
 			if (ReflectionSceneData.MaxAllocatedReflectionCubemapsGameThread > 0)
 			{
-				float Exponent = FMath::LogX(MaxCubemapsRoundUpBase, ReflectionSceneData.AllocatedReflectionCapturesGameThread.Num());
+				float Exponent = FMath::LogX(MaxCubemapsRoundUpBase, DesiredMaxCubemaps);
 
 				// Round up to the next integer exponent to provide stability and reduce reallocations
 				DesiredMaxCubemaps = FMath::Pow(MaxCubemapsRoundUpBase, FMath::TruncToInt(Exponent) + 1);
@@ -778,7 +789,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 			DesiredMaxCubemaps = FMath::Min(DesiredMaxCubemaps, PlatformMaxNumReflectionCaptures);
 
 			const int32 ReflectionCaptureSize = GetReflectionCaptureSizeForArrayCount(UReflectionCaptureComponent::GetReflectionCaptureSize(), DesiredMaxCubemaps);
-			bool bNeedsUpdateAllCaptures = DesiredMaxCubemaps != ReflectionSceneData.MaxAllocatedReflectionCubemapsGameThread || ReflectionCaptureSize != ReflectionSceneData.CubemapArray.GetCubemapSize();
+			bool bNeedsUpdateAllCaptures = ReflectionSceneData.DoesAllocatedDataNeedUpdate(DesiredMaxCubemaps, ReflectionCaptureSize);
 
 			if (DoGPUArrayCopy() && bNeedsUpdateAllCaptures)
 			{
@@ -788,7 +799,8 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 				if (ReflectionCaptureSize == ReflectionSceneData.CubemapArray.GetCubemapSize())
 				{
 					// We can do a fast GPU copy to realloc the array, so we don't need to update all captures
-					ReflectionSceneData.MaxAllocatedReflectionCubemapsGameThread = DesiredMaxCubemaps;
+					ReflectionSceneData.SetGameThreadTrackingData(DesiredMaxCubemaps, ReflectionCaptureSize);
+
 					FScene* Scene = this;
 					uint32 MaxSize = ReflectionSceneData.MaxAllocatedReflectionCubemapsGameThread;
 					ENQUEUE_RENDER_COMMAND(GPUResizeArrayCommand)(
@@ -804,7 +816,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 
 			if (bNeedsUpdateAllCaptures)
 			{
-				ReflectionSceneData.MaxAllocatedReflectionCubemapsGameThread = DesiredMaxCubemaps;
+				ReflectionSceneData.SetGameThreadTrackingData(DesiredMaxCubemaps, ReflectionCaptureSize);
 
 				FScene* Scene = this;
 				uint32 MaxSize = ReflectionSceneData.MaxAllocatedReflectionCubemapsGameThread;

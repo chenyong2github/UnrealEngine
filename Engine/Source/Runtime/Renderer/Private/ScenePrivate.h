@@ -1674,6 +1674,39 @@ struct FReflectionCaptureSortData
 	}
 };
 
+
+struct FReflectionCaptureCacheEntry
+{
+	int32 RefCount;
+	FCaptureComponentSceneState SceneState;
+};
+
+
+struct FReflectionCaptureCache
+{
+public:
+
+	const FCaptureComponentSceneState* Find(const FGuid& MapBuildDataId) const;
+	FCaptureComponentSceneState* Find(const FGuid& MapBuildDataId);
+
+	const FCaptureComponentSceneState* Find(const UReflectionCaptureComponent* Component) const;
+	FCaptureComponentSceneState* Find(const UReflectionCaptureComponent* Component);
+	const FCaptureComponentSceneState& FindChecked(const UReflectionCaptureComponent* Component) const;
+	FCaptureComponentSceneState& FindChecked(const UReflectionCaptureComponent* Component);
+
+	FCaptureComponentSceneState& Add(const UReflectionCaptureComponent* Component, const FCaptureComponentSceneState& Value);
+	FCaptureComponentSceneState* AddReference(const UReflectionCaptureComponent* Component);
+	bool Remove(const UReflectionCaptureComponent* Component);
+
+	int32 GetKeys(TArray<FGuid>& OutKeys) const;
+	int32 GetKeys(TSet<FGuid>& OutKeys) const;
+
+	void Empty();
+
+protected:
+	TMap<FGuid, FReflectionCaptureCacheEntry> CaptureData;
+};
+
 /** Scene state used to manage the reflection environment feature. */
 class FReflectionEnvironmentSceneData
 {
@@ -1699,7 +1732,7 @@ public:
 	FReflectionEnvironmentCubemapArray CubemapArray;
 
 	/** Rendering thread map from component to scene state.  This allows storage of RT state that needs to persist through a component re-register. */
-	TMap<const UReflectionCaptureComponent*, FCaptureComponentSceneState> AllocatedReflectionCaptureState;
+	FReflectionCaptureCache AllocatedReflectionCaptureState;
 
 	/** Rendering bitfield to track cubemap slots used. Needs to kept in sync with AllocatedReflectionCaptureState */
 	TBitArray<> CubemapArraySlotsUsed;
@@ -1718,12 +1751,22 @@ public:
 	/** Game thread tracking of what size this scene has allocated for the cubemap array. */
 	int32 MaxAllocatedReflectionCubemapsGameThread;
 
+	/** Game thread tracking of what size cubemaps are in the cubemap array. */
+	int32 ReflectionCaptureSizeGameThread;
+
 	FReflectionEnvironmentSceneData(ERHIFeatureLevel::Type InFeatureLevel) :
 		bRegisteredReflectionCapturesHasChanged(true),
 		AllocatedReflectionCaptureStateHasChanged(false),
 		CubemapArray(InFeatureLevel),
-		MaxAllocatedReflectionCubemapsGameThread(0)
+		MaxAllocatedReflectionCubemapsGameThread(0),
+		ReflectionCaptureSizeGameThread(0)
 	{}
+
+	/** Set Data necessary to determine if GPU resources will need future updates */
+	void SetGameThreadTrackingData(int32 MaxAllocatedCubemaps, int32 CaptureSize);
+
+	/** Do the resources on the GPU match our desired state?  If not, reallocation will be necessary. */
+	bool DoesAllocatedDataNeedUpdate(int32 DesiredMaxCubemaps, int32 DesiredCaptureSize) const;
 
 	void ResizeCubemapArrayGPU(uint32 InMaxCubemaps, int32 InCubemapSize);
 };

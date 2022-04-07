@@ -2486,14 +2486,21 @@ void FScene::ReleaseReflectionCubemap(UReflectionCaptureComponent* CaptureCompon
 		ENQUEUE_RENDER_COMMAND(RemoveCaptureCommand)(
 			[CaptureComponent, Scene](FRHICommandListImmediate& RHICmdList)
 			{
+				int32 IndexToFree = -1;
+
 				const FCaptureComponentSceneState* ComponentStatePtr = Scene->ReflectionSceneData.AllocatedReflectionCaptureState.Find(CaptureComponent);
 				if (ComponentStatePtr)
 				{
 					// We track removed captures so we can remap them when reallocating the cubemap array
 					check(ComponentStatePtr->CubemapIndex != -1);
-					Scene->ReflectionSceneData.CubemapArraySlotsUsed[ComponentStatePtr->CubemapIndex] = false;
+					IndexToFree = ComponentStatePtr->CubemapIndex;
 				}
-				Scene->ReflectionSceneData.AllocatedReflectionCaptureState.Remove(CaptureComponent);
+
+				const bool bDidRemove = Scene->ReflectionSceneData.AllocatedReflectionCaptureState.Remove(CaptureComponent);
+				if (bDidRemove && (IndexToFree != -1))
+				{
+					Scene->ReflectionSceneData.CubemapArraySlotsUsed[IndexToFree] = false;
+				}
 			});
 	}
 }
