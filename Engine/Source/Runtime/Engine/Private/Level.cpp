@@ -708,6 +708,19 @@ void ULevel::Serialize( FArchive& Ar )
 		}
 	}
 #endif
+
+	if (Ar.IsLoading())
+	{
+		if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
+		{
+			bWasDuplicatedForPIE = true;
+		}
+
+		if (bWasDuplicatedForPIE || (Ar.GetPortFlags() & PPF_Duplicate))
+		{
+			bWasDuplicated = true;
+		}
+	}
 }
 
 void ULevel::CreateReplicatedDestructionInfo(AActor* const Actor)
@@ -1151,14 +1164,6 @@ void ULevel::PreDuplicate(FObjectDuplicationParameters& DupParams)
 		});
 	}
 #endif
-}
-
-void ULevel::PostDuplicate(bool bDuplicateForPIE)
-{
-	Super::PostDuplicate(bDuplicateForPIE);
-
-	bWasDuplicated = true;
-	bWasDuplicatedForPIE = bDuplicateForPIE;
 }
 
 UWorld* ULevel::GetWorld() const

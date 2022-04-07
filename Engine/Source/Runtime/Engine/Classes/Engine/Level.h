@@ -889,7 +889,6 @@ public:
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual void PreDuplicate(FObjectDuplicationParameters& DupParams) override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual bool CanBeClusterRoot() const override;
 	virtual void CreateCluster() override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
