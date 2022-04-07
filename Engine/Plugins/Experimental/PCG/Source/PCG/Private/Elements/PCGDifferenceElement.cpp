@@ -34,8 +34,8 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGDifferenceSettings* Settings = Context->GetInputSettings<UPCGDifferenceSettings>();
 	check(Settings);
 
-	TArray<FPCGTaggedData> Sources = Context->InputData.GetInputsByLabel(PCGDifferenceConstants::SourceLabel);
-	TArray<FPCGTaggedData> Differences = Context->InputData.GetInputsByLabel(PCGDifferenceConstants::DifferencesLabel);
+	TArray<FPCGTaggedData> Sources = Context->InputData.GetInputsByPin(PCGDifferenceConstants::SourceLabel);
+	TArray<FPCGTaggedData> Differences = Context->InputData.GetInputsByPin(PCGDifferenceConstants::DifferencesLabel);
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
 	// Get only spatial data or build an union from the sources

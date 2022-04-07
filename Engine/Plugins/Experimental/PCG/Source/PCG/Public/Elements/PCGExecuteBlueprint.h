@@ -75,6 +75,12 @@ public:
 	FOnPCGBlueprintChanged OnBlueprintChangedDelegate;
 #endif
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input & Output")
+	TSet<FName> InputPinLabels;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input & Output")
+	TSet<FName> OutputPinLabels;
+
 protected:
 #if WITH_EDITOR
 	void OnDependencyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
@@ -97,10 +103,10 @@ public:
 #endif
 
 	virtual FName AdditionalTaskName() const override;
-	virtual bool HasInLabel(const FName& Label) const override { return Label == NAME_None || InputPinLabels.Contains(Label); }
-	virtual bool HasOutLabel(const FName& Label) const override { return Label == NAME_None || OutputPinLabels.Contains(Label); }
-	virtual TArray<FName> InLabels() const override { return InputPinLabels.Array(); }
-	virtual TArray<FName> OutLabels() const override { return OutputPinLabels.Array(); }
+	virtual bool HasInLabel(const FName& Label) const override;
+	virtual bool HasOutLabel(const FName& Label) const override;
+	virtual TArray<FName> InLabels() const override;
+	virtual TArray<FName> OutLabels() const override;
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
@@ -111,6 +117,7 @@ public:
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 #if WITH_EDITOR
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// ~End UObject interface
 #endif
@@ -135,12 +142,6 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bCreatesArtifacts = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input & Output")
-	TSet<FName> InputPinLabels;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input & Output")
-	TSet<FName> OutputPinLabels;
 
 protected:
 #if WITH_EDITOR

@@ -10,7 +10,7 @@ bool FPCGTaggedData::operator==(const FPCGTaggedData& Other) const
 	return Data == Other.Data &&
 		Tags.Num() == Other.Tags.Num() &&
 		Tags.Includes(Other.Tags) &&
-		Label == Other.Label;
+		Pin == Other.Pin;
 }
 
 bool FPCGTaggedData::operator!=(const FPCGTaggedData& Other) const
@@ -25,10 +25,10 @@ TArray<FPCGTaggedData> FPCGDataCollection::GetInputs() const
 		});
 }
 
-TArray<FPCGTaggedData> FPCGDataCollection::GetInputsByLabel(const FName& InLabel) const
+TArray<FPCGTaggedData> FPCGDataCollection::GetInputsByPin(const FName& InPinLabel) const
 {
-	return TaggedData.FilterByPredicate([&InLabel](const FPCGTaggedData& Data) {
-		return Data.Label == InLabel;
+	return TaggedData.FilterByPredicate([&InPinLabel](const FPCGTaggedData& Data) {
+		return Data.Pin == InPinLabel;
 		});
 }
 
@@ -51,6 +51,13 @@ TArray<FPCGTaggedData> FPCGDataCollection::GetAllParams() const
 	return TaggedData.FilterByPredicate([](const FPCGTaggedData& Data) {
 		return Cast<UPCGParamData>(Data.Data) != nullptr;
 	});
+}
+
+TArray<FPCGTaggedData> FPCGDataCollection::GetParamsByPin(const FName& InPinLabel) const
+{
+	return TaggedData.FilterByPredicate([&InPinLabel](const FPCGTaggedData& Data) {
+		return Data.Pin == InPinLabel && Cast<UPCGParamData>(Data.Data);
+		});
 }
 
 TArray<FPCGTaggedData> FPCGDataCollection::GetTaggedParams(const FString& InTag) const
@@ -129,6 +136,11 @@ TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetInputs(const FPCGDataCollecti
 	return InCollection.GetInputs();
 }
 
+TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetInputsByPin(const FPCGDataCollection& InCollection, const FName& InPinLabel)
+{
+	return InCollection.GetInputsByPin(InPinLabel);
+}
+
 TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetTaggedInputs(const FPCGDataCollection& InCollection, const FString& InTag)
 {
 	return InCollection.GetTaggedInputs(InTag);
@@ -137,6 +149,11 @@ TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetTaggedInputs(const FPCGDataCo
 TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetParams(const FPCGDataCollection& InCollection)
 {
 	return InCollection.GetAllParams();
+}
+
+TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetParamsByPin(const FPCGDataCollection& InCollection, const FName& InPinLabel)
+{
+	return InCollection.GetParamsByPin(InPinLabel);
 }
 
 TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetTaggedParams(const FPCGDataCollection& InCollection, const FString& InTag)

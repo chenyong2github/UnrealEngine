@@ -166,8 +166,27 @@ void UPCGBlueprintSettings::BeginDestroy()
 }
 
 #if WITH_EDITOR
+void UPCGBlueprintSettings::PreEditChange(FProperty* PropertyAboutToChange)
+{
+	if (PropertyAboutToChange)
+	{
+		if (PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGBlueprintSettings, BlueprintElementType))
+		{
+			TeardownBlueprintEvent();
+		}
+	}
+}
+
 void UPCGBlueprintSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	if (PropertyChangedEvent.Property)
+	{
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGBlueprintSettings, BlueprintElementType))
+		{
+			SetupBlueprintEvent();
+		}
+	}
+
 	if (!BlueprintElementInstance || BlueprintElementInstance->GetClass() != BlueprintElementType)
 	{
 		RefreshBlueprintElement();
@@ -249,7 +268,27 @@ FName UPCGBlueprintSettings::AdditionalTaskName() const
 	return BlueprintElementType && BlueprintElementType->ClassGeneratedBy ? BlueprintElementType->ClassGeneratedBy->GetFName() : Super::AdditionalTaskName();
 #else
 	return BlueprintElementType ? BlueprintElementType->GetFName() : Super::AdditionalTaskName();
-#endif	
+#endif
+}
+
+bool UPCGBlueprintSettings::HasInLabel(const FName& Label) const
+{
+	return (Label == NAME_None || (BlueprintElementInstance && BlueprintElementInstance->InputPinLabels.Contains(Label)));
+}
+
+bool UPCGBlueprintSettings::HasOutLabel(const FName& Label) const
+{
+	return (Label == NAME_None || (BlueprintElementInstance && BlueprintElementInstance->OutputPinLabels.Contains(Label)));
+}
+
+TArray<FName> UPCGBlueprintSettings::InLabels() const
+{
+	return BlueprintElementInstance ? BlueprintElementInstance->InputPinLabels.Array() : TArray<FName>();
+}
+
+TArray<FName> UPCGBlueprintSettings::OutLabels() const
+{
+	return BlueprintElementInstance ? BlueprintElementInstance->OutputPinLabels.Array() : TArray<FName>();
 }
 
 FPCGElementPtr UPCGBlueprintSettings::CreateElement() const
@@ -261,25 +300,26 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGExecuteBlueprintElement::Execute);
 	FPCGBlueprintExecutionContext* Context = static_cast<FPCGBlueprintExecutionContext*>(InContext);
-	const UPCGBlueprintSettings* Settings = Context->GetInputSettings<UPCGBlueprintSettings>();
 
 	if (Context && Context->BlueprintElementInstance)
 	{
-		// Log info on inputs
-		for(int32 InputIndex = 0; InputIndex < Context->InputData.TaggedData.Num(); ++InputIndex)
+		UClass* BPClass = Context->BlueprintElementInstance->GetClass();
+
+#if WITH_EDITOR
+		/** Check if the blueprint has been successfully compiled */
+		if (UBlueprint* Blueprint = Cast<UBlueprint>(BPClass ? BPClass->ClassGeneratedBy : nullptr))
 		{
-			const FPCGTaggedData& Input = Context->InputData.TaggedData[InputIndex];
-			if (const UPCGPointData* PointData = Cast<UPCGPointData>(Input.Data))
+			if (Blueprint->Status == BS_Error)
 			{
-				PCGE_LOG(Verbose, "Input %d has %d points", InputIndex, PointData->GetPoints().Num());
+				UE_LOG(LogPCG, Error, TEXT("PCG blueprint element cannot be executed since %s is not properly compiled"), *Blueprint->GetFName().ToString());
+				return true;
 			}
 		}
+#endif
 
 		/** Apply params overrides to variables if any */
 		if (UPCGParamData* Params = Context->InputData.GetParams())
 		{
-			UClass* BPClass = Context->BlueprintElementInstance->GetClass();
-
 			for (TFieldIterator<FProperty> PropertyIt(BPClass); PropertyIt; ++PropertyIt)
 			{
 				FProperty* Property = *PropertyIt;
@@ -290,6 +330,16 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 
 				// Apply params if any
 				PCGSettingsHelpers::SetValue(Params, Context->BlueprintElementInstance, Property);
+			}
+		}
+
+		// Log info on inputs
+		for (int32 InputIndex = 0; InputIndex < Context->InputData.TaggedData.Num(); ++InputIndex)
+		{
+			const FPCGTaggedData& Input = Context->InputData.TaggedData[InputIndex];
+			if (const UPCGPointData* PointData = Cast<UPCGPointData>(Input.Data))
+			{
+				PCGE_LOG(Verbose, "Input %d has %d points", InputIndex, PointData->GetPoints().Num());
 			}
 		}
 
@@ -306,7 +356,7 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 			}
 		}
 	}
-	else
+	else if(Context)
 	{
 		// Nothing to do but forward data
 		Context->OutputData = Context->InputData;

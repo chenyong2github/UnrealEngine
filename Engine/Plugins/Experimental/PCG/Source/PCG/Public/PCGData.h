@@ -35,7 +35,7 @@ struct PCG_API FPCGTaggedData
 	TSet<FString> Tags;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
-	FName Label = NAME_None;
+	FName Pin = NAME_None;
 
 	bool operator==(const FPCGTaggedData& Other) const;
 	bool operator!=(const FPCGTaggedData& Other) const;
@@ -47,11 +47,12 @@ struct PCG_API FPCGDataCollection
 	GENERATED_BODY()
 
 	TArray<FPCGTaggedData> GetInputs() const;
-	TArray<FPCGTaggedData> GetInputsByLabel(const FName& InLabel) const;
+	TArray<FPCGTaggedData> GetInputsByPin(const FName& InPinLabel) const;
 	TArray<FPCGTaggedData> GetTaggedInputs(const FString& InTag) const;
 	TArray<FPCGTaggedData> GetAllSettings() const;
 	TArray<FPCGTaggedData> GetAllParams() const;
 	TArray<FPCGTaggedData> GetTaggedParams(const FString& InTag) const;
+	TArray<FPCGTaggedData> GetParamsByPin(const FName& InPinLabel) const;
 	UPCGParamData* GetParams() const;
 
 	template<typename SettingsType>
@@ -90,10 +91,16 @@ public:
 	static TArray<FPCGTaggedData> GetInputs(const FPCGDataCollection& InCollection);
 
 	UFUNCTION(BlueprintCallable, Category = Data)
+	static TArray<FPCGTaggedData> GetInputsByPin(const FPCGDataCollection& InCollection, const FName& InPinLabel);
+
+	UFUNCTION(BlueprintCallable, Category = Data)
 	static TArray<FPCGTaggedData> GetTaggedInputs(const FPCGDataCollection& InCollection, const FString& InTag);
 
 	UFUNCTION(BlueprintCallable, Category = Data)
 	static TArray<FPCGTaggedData> GetParams(const FPCGDataCollection& InCollection);
+
+	UFUNCTION(BlueprintCallable, Category = Data)
+	static TArray<FPCGTaggedData> GetParamsByPin(const FPCGDataCollection& InCollection, const FName& InPinLabel);
 
 	UFUNCTION(BlueprintCallable, Category = Data)
 	static TArray<FPCGTaggedData> GetTaggedParams(const FPCGDataCollection& InCollection, const FString& InTag);

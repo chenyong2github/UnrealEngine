@@ -92,7 +92,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 				{
 					for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
 					{
-						TaggedData.Label = NAME_None;
+						TaggedData.Pin = NAME_None;
 					}
 				}
 

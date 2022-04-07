@@ -293,11 +293,11 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 		else
 		{
 			const int32 TaggedDataOffset = TaskInput.TaggedData.Num();
-			TaskInput.TaggedData.Append(InputCollection.GetInputsByLabel(Input.InboundLabel));
+			TaskInput.TaggedData.Append(InputCollection.GetInputsByPin(Input.InboundLabel));
 
 			for (int32 TaggedDataIndex = TaggedDataOffset; TaggedDataIndex < TaskInput.TaggedData.Num(); ++TaggedDataIndex)
 			{
-				TaskInput.TaggedData[TaggedDataIndex].Label = Input.OutboundLabel;
+				TaskInput.TaggedData[TaggedDataIndex].Pin = Input.OutboundLabel;
 			}
 		}
 	}
