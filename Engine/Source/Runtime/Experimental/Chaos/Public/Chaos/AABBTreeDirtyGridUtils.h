@@ -44,12 +44,22 @@ namespace Chaos
 	template <typename T>
 	FORCEINLINE_DEBUGGABLE bool TooManyOverlapQueryCells(const TAABB<T, 3>& AABB, FReal DirtyElementGridCellSizeInv, int32 MaximumOverlap)
 	{
-		uint64 XsampleCount = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().X, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().X, DirtyElementGridCellSizeInv) + 1;
-		uint64 YsampleCount = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().Y, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().Y, DirtyElementGridCellSizeInv) + 1;
+		const int64 CellStartX = GetDirtyCellIndexFromWorldCoordinate(AABB.Min().X, DirtyElementGridCellSizeInv);
+		const int64 CellStartY = GetDirtyCellIndexFromWorldCoordinate(AABB.Min().Y, DirtyElementGridCellSizeInv);
 
-		if (XsampleCount * YsampleCount <= (uint64)MaximumOverlap)
+		const int64 CellEndX = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().X, DirtyElementGridCellSizeInv);
+		const int64 CellEndY = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().Y, DirtyElementGridCellSizeInv);
+
+		if(ensure(CellEndX >= CellStartX && CellEndY >= CellStartY))
 		{
-			return false;
+			const uint64 XsampleCount = (CellEndX - CellStartX) + 1;
+			const uint64 YsampleCount = (CellEndY - CellStartY) + 1;
+			if((XsampleCount <= (uint64)MaximumOverlap) &&
+			   (YsampleCount <= (uint64)MaximumOverlap) &&
+			   (XsampleCount * YsampleCount <= (uint64)MaximumOverlap))
+			{
+				return false;
+			}
 		}
 		return true;
 	}
@@ -229,6 +239,11 @@ namespace Chaos
 
 	FORCEINLINE_DEBUGGABLE bool TooManySweepQueryCells(const TVec3<FReal>& QueryHalfExtents, const FVec3& StartPoint, const FVec3& Dir, FReal Length, FReal DirtyElementGridCellSizeInv, int32 DirtyElementMaxGridCellQueryCount)
 	{
+		if(Length > (FReal)TNumericLimits<uint64>::Max())
+		{
+			return true;
+		}
+
 		int EstimatedNumberOfCells = ((int32)(QueryHalfExtents.X * 2 * DirtyElementGridCellSizeInv) + 2) * ((int32)(QueryHalfExtents.Y * 2 * DirtyElementGridCellSizeInv) + 2) +
 			((int32)(FMath::Max(QueryHalfExtents.X, QueryHalfExtents.Y) * 2 * DirtyElementGridCellSizeInv) + 2) * ((int32)(Length * DirtyElementGridCellSizeInv) + 2);
 
@@ -465,7 +480,18 @@ namespace Chaos
 
 	FORCEINLINE_DEBUGGABLE bool TooManyRaycastQueryCells(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, FReal DirtyElementGridCellSizeInv, int32 DirtyElementMaxGridCellQueryCount)
 	{
+		if(Length > (FReal)TNumericLimits<uint64>::Max() || DirtyElementGridCellSizeInv == 0)
+		{
+			return true;
+		}
+
 		FVec3 EndPoint = StartPoint + Length * Dir;
+
+		const FReal ElementAbsLimit = (FReal)TNumericLimits<int64>::Max() / DirtyElementGridCellSizeInv;
+		if(StartPoint.GetAbsMax() >= ElementAbsLimit || EndPoint.GetAbsMax() >= ElementAbsLimit)
+		{
+			return true;
+		}
 
 		int64 FirstCellIndexX = GetDirtyCellIndexFromWorldCoordinate(StartPoint.X, DirtyElementGridCellSizeInv);
 		int64 FirstCellIndexY = GetDirtyCellIndexFromWorldCoordinate(StartPoint.Y, DirtyElementGridCellSizeInv);
@@ -482,7 +508,6 @@ namespace Chaos
 		}
 
 		return false;
-
 	}
 
 	template <typename FunctionType>
@@ -588,5 +613,4 @@ namespace Chaos
 			}
 		}
 	}
-
 }

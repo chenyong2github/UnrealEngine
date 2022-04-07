@@ -1571,6 +1571,35 @@ namespace ChaosTest
 		
 	}
 
+	// Tests a case where we have a reasonable query but the target shape is a very large distance away.
+	// This should result in a miss but currently doesn't - and gives an OutTime that is infinite.
+	// Detected when querying global payload object in the SQ system where we test each object without
+	// considering its bounds.
+	void GJKLargeDistanceCapsuleSweep()
+	{
+		// Data from repro case
+		Chaos::TBox<Chaos::FReal, 3> A({ -24.011219501495361, -7.4698066711425781, -0.83472084999084473 }, { 32.555774211883545, 10.860815048217773, 14.719563245773315 }, 0);
+		Chaos::FCapsule B({0.0000000000000000, 0.0000000000000000, -67.499992370605469}, {0.0000000000000000, 0.0000000000000000, -67.499992370605469 + 134.99998474121094 }, 67.274772644042969);
+		Chaos::TRigidTransform<Chaos::FReal, 3> BToA;
+		BToA.SetRotation({0.0000000000000000, 0.0000000000000000, -0.70710678118654757, 0.70710678118654746});
+		BToA.SetTranslation({0.0000000000000000, -3.3237259359872290e+32, 7460.1000976562500});
+		const Chaos::FVec3 LocalDir{0.93683970992769239, 0.040186153777059030, 0.34744278175123056};
+		const Chaos::FVec3 InitialDir{-3.3237259359872290e+32, 27121.400390625000, -7460.1000976562500};
+		const FReal Length = 13.27157020568847;
+		const FReal Thickness = 0;
+		const bool bComputeMtd = true;
+
+		FReal OutTime;
+		FVec3 OutLoc;
+		FVec3 OutNorm;
+
+		// Should fail and give a valid time
+		GJKRaycast2(A, B, BToA, LocalDir, Length, OutTime, OutLoc, OutNorm, Thickness, bComputeMtd, InitialDir, Thickness);
+
+		// Expect to recieve a valid time.
+		EXPECT_TRUE(FMath::IsFinite(OutTime));
+	}
+
 	// Check that GJKPenetrationCore returns the correct result when two objects are within various distances
 	// of each other. When distance is less that GJKEpsilon, GJK will abort and call into EPA.
 	void GJKBoxBoxZeroMarginSeparationTest(FReal GJKEpsilon, FReal SeparationSize, int32 SeparationAxis)

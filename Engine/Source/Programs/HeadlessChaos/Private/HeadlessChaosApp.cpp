@@ -188,6 +188,15 @@ TEST(RaycastTests, Raycast) {
 
 TEST(SweepTests, Sweep) {
 	ChaosTest::CapsuleSweepAgainstTriMeshReal();
+	
+	SUCCEED();
+}
+
+TEST(SweepTests, DISABLED_LargeSweep)
+{
+	ChaosTest::GJKLargeDistanceCapsuleSweep();
+
+	SUCCEED();
 }
 
 TEST(MostOpposingTests, MostOpposing) {

@@ -41,4 +41,6 @@ namespace ChaosTest {
 	void GJKBoxBoxSweep();
 
 	void GJKCapsuleConvexInitialOverlapSweep();
+
+	void GJKLargeDistanceCapsuleSweep();
 }
