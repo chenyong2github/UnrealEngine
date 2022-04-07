@@ -2549,16 +2549,8 @@ bool FConcertSyncSessionDatabase::AddPersistEventForHeadRevision(FName InPackage
 
 bool FConcertSyncSessionDatabase::GetPackageInfoForRevision(const FName InPackageName, FConcertPackageInfo& OutPackageInfo, const int64* InPackageRevision) const
 {
-	int64 PackageRevision = 0;
-	if (InPackageRevision)
-	{
-		PackageRevision = *InPackageRevision;
-	}
-	else if (!GetPackageHeadRevision(InPackageName, PackageRevision))
-	{
-		return false;
-	}
-	if (PackageRevision == 0)
+	const TOptional<int64> PackageRevision = GetSpecifiedOrHeadPackageRevision(InPackageName, InPackageRevision);
+	if (!PackageRevision)
 	{
 		return false;
 	}
@@ -2570,43 +2562,35 @@ bool FConcertSyncSessionDatabase::GetPackageInfoForRevision(const FName InPackag
 	}
 
 	FString DataFilename;
-	return Statements->GetPackageDataForRevision(PackageNameId, PackageRevision, OutPackageInfo, DataFilename);
+	return Statements->GetPackageDataForRevision(PackageNameId, *PackageRevision, OutPackageInfo, DataFilename);
 }
 
 bool FConcertSyncSessionDatabase::GetPackageDataForRevision(const FName InPackageName, const TFunctionRef<void(const FConcertPackageInfo&, FConcertPackageDataStream&)>& InPackageDataCallback, const int64* InPackageRevision) const
 {
-	int64 PackageRevision = 0;
-	if (InPackageRevision)
-	{
-		PackageRevision = *InPackageRevision;
-	}
-	else if (!GetPackageHeadRevision(InPackageName, PackageRevision))
-	{
-		return false;
-	}
-	if (PackageRevision == 0)
-	{
-		return false;
-	}
-
-	int64 PackageNameId = 0;
-	if (!GetPackageNameId(InPackageName, PackageNameId))
-	{
-		return false;
-	}
-
-	FConcertPackageInfo PackageInfo;
-	FString DataFilename;
-	if (Statements->GetPackageDataForRevision(PackageNameId, PackageRevision, PackageInfo, DataFilename))
+	return HandleRequestPackageRequest(InPackageName, InPackageRevision, [this, InPackageDataCallback](FConcertPackageInfo PackageInfo, FString DataFilename)
 	{
 		const FString PackageDataPathname = PackageDataUtil::GetDataPath(SessionPath) / DataFilename;
-		return LoadPackage(PackageDataPathname, [&PackageInfo, &InPackageDataCallback](FConcertPackageDataStream& InPackageDataStream)
+		return LoadPackage(PackageDataPathname, [&PackageInfo, InPackageDataCallback](FConcertPackageDataStream& InPackageDataStream)
 		{
 			InPackageDataCallback(PackageInfo, InPackageDataStream);
 		});
-	}
+	});
+}
 
-	return false;
+TOptional<int64> FConcertSyncSessionDatabase::GetPackageSizeForRevision(const FName InPackageName, const int64* InPackageRevision) const
+{
+	TOptional<int64> Result;
+	HandleRequestPackageRequest(InPackageName, InPackageRevision, [this, &Result](FConcertPackageInfo PackageInfo, FString DataFilename)
+	{
+		const FString PackageDataPathname = PackageDataUtil::GetDataPath(SessionPath) / DataFilename;
+		const int64 FileSize = IFileManager::Get().FileSize(*PackageDataPathname);
+		if (FileSize >= 0)
+		{
+			Result = FileSize;
+		}
+		return true;
+	});
+	return Result;
 }
 
 bool FConcertSyncSessionDatabase::GetPackageHeadRevision(const FName InPackageName, int64& OutRevision) const
@@ -2837,6 +2821,42 @@ void FConcertSyncSessionDatabase::UpdateAsynchronousTasks()
 			It.RemoveCurrent();
 		}
 	}
+}
+
+bool FConcertSyncSessionDatabase::HandleRequestPackageRequest(const FName InPackageName, const int64* InPackageRevision, FProcessPackageRequest HandleFunc) const
+{
+	int64 PackageNameId = 0;
+	FConcertPackageInfo PackageInfo;
+	FString DataFilename;
+	
+	const TOptional<int64> PackageRevision = GetSpecifiedOrHeadPackageRevision(InPackageName, InPackageRevision);
+	if (PackageRevision
+		&& GetPackageNameId(InPackageName, PackageNameId)
+		&& Statements->GetPackageDataForRevision(PackageNameId, *PackageRevision, PackageInfo, DataFilename))
+	{
+		return HandleFunc(PackageInfo, DataFilename);
+	}
+	
+	return false;
+}
+
+TOptional<int64> FConcertSyncSessionDatabase::GetSpecifiedOrHeadPackageRevision(FName InPackageName, const int64* InPackageRevision) const
+{
+	int64 PackageRevision = 0;
+	if (InPackageRevision)
+	{
+		PackageRevision = *InPackageRevision;
+	}
+	else if (!GetPackageHeadRevision(InPackageName, PackageRevision))
+	{
+		return {};
+	}
+	
+	if (PackageRevision == 0)
+	{
+		return {};
+	}
+	return PackageRevision;
 }
 
 void FConcertSyncSessionDatabase::ScheduleAsyncWrite(const FString& InDstPackageBlobPathname, FConcertPackageDataStream& InPackageDataStream)

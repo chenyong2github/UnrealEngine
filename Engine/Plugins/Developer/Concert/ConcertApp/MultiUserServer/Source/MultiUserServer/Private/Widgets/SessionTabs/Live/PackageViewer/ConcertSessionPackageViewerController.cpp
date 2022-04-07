@@ -72,7 +72,8 @@ TSharedRef<SConcertSessionPackageViewer> FConcertSessionPackageViewerController:
 {
 	return SNew(SConcertSessionPackageViewer)
 		.GetClientInfo_Raw(this, &FConcertSessionPackageViewerController::GetClientInfo)
-		.GetPackageEvent_Raw(this, &FConcertSessionPackageViewerController::GetPackageEvent);
+		.GetPackageEvent_Raw(this, &FConcertSessionPackageViewerController::GetPackageEvent)
+		.GetSizeOfPackageActivity_Raw(this, &FConcertSessionPackageViewerController::GetSizeOfPackageEvent);
 }
 
 TOptional<FConcertClientInfo> FConcertSessionPackageViewerController::GetClientInfo(FGuid ClientId) const
@@ -93,6 +94,27 @@ bool FConcertSessionPackageViewerController::GetPackageEvent(const FConcertSessi
 		return Database->GetPackageEventMetaData(Activity.Activity.EventId, OutPackageEvent.PackageRevision, OutPackageEvent.PackageInfo);
 	}
 	return false;
+}
+
+TOptional<int64> FConcertSessionPackageViewerController::GetSizeOfPackageEvent(const FConcertSessionActivity& Activity) const
+{
+	const TOptional<FConcertSyncSessionDatabaseNonNullPtr> Database = SyncServer->GetLiveSessionDatabase(InspectedSession->GetId());
+	if (!Database)
+	{
+		return {};
+	}
+
+	const TSet<EConcertPackageUpdateType> PackageTypesWithSize { EConcertPackageUpdateType::Added, EConcertPackageUpdateType::Renamed, EConcertPackageUpdateType::Saved };
+	FConcertSyncPackageEventMetaData PackageEventMetaData;
+	if (Database->GetPackageEventMetaData(Activity.Activity.EventId, PackageEventMetaData.PackageRevision, PackageEventMetaData.PackageInfo)
+		; PackageTypesWithSize.Contains(PackageEventMetaData.PackageInfo.PackageUpdateType))
+	{
+		const FName PackageName = PackageEventMetaData.PackageInfo.PackageUpdateType == EConcertPackageUpdateType::Renamed
+			?  PackageEventMetaData.PackageInfo.NewPackageName
+			: PackageEventMetaData.PackageInfo.PackageName;
+		return Database->GetPackageSizeForRevision(PackageName);
+	}
+	return {};
 }
 
 void FConcertSessionPackageViewerController::OnSessionProduced(const FConcertSyncActivity& ProducedActivity) const

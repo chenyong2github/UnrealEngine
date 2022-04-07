@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PackageViewerColumns.h"
+
 #include "Session/Activity/SConcertSessionActivities.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -14,16 +16,11 @@ class FConcertSessionActivitiesOptions;
 class SConcertSessionPackageViewer : public SCompoundWidget
 {
 public:
-
-	struct FConcertPackageActivity
-	{
-		FConcertSyncActivity Base;
-		FConcertSyncPackageEventData PackageEvent;
-	};
 	
 	SLATE_BEGIN_ARGS(SConcertSessionPackageViewer) {}
 		SLATE_EVENT(SConcertSessionActivities::FGetPackageEvent, GetPackageEvent)
 		SLATE_EVENT(SConcertSessionActivities::FGetActivityClientInfoFunc, GetClientInfo)
+		SLATE_EVENT(UE::MultiUserServer::PackageViewerColumns::FGetSizeOfPackageActivity, GetSizeOfPackageActivity)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -43,6 +40,8 @@ private:
 
 	/** The searched text to highlight. */
 	FText SearchedText;
+
+	TOptional<int64> GetVersionOfPackageActivity(const FConcertSessionActivity& Activity, SConcertSessionActivities::FGetPackageEvent GetPackageEventFunc) const;
 
 	/** Invoked when the text in the search box widget changes. */
 	void OnSearchTextChanged(const FText& InSearchText);

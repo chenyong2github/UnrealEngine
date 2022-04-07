@@ -2,6 +2,8 @@
 
 #include "SConcertSessionPackageViewer.h"
 
+#include "PackageViewerColumns.h"
+
 #include "Session/Activity/PredefinedActivityColumns.h"
 #include "Session/Activity/SConcertSessionActivities.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -11,6 +13,9 @@
 void SConcertSessionPackageViewer::Construct(const FArguments& InArgs)
 {
 	using namespace UE::ConcertSharedSlate;
+	using namespace UE::MultiUserServer;
+
+	check(InArgs._GetSizeOfPackageActivity.IsBound());
 	
 	ActivityListViewOptions = MakeShared<FConcertSessionActivitiesOptions>();
 	ActivityListViewOptions->bEnableConnectionActivityFiltering = false;
@@ -23,7 +28,8 @@ void SConcertSessionPackageViewer::Construct(const FArguments& InArgs)
 		.OnMapActivityToClient(InArgs._GetClientInfo)
 		.HighlightText(this, &SConcertSessionPackageViewer::HighlightSearchedText)
 		.Columns({
-			// TODO: Create Icon (depending on EConcertPackageUpdateType), Size, and Version
+			PackageViewerColumns::SizeColumn(InArgs._GetSizeOfPackageActivity),
+			PackageViewerColumns::VersionColumn(PackageViewerColumns::FGetVersionOfPackageActivity::CreateSP(this, &SConcertSessionPackageViewer::GetVersionOfPackageActivity, InArgs._GetPackageEvent))
 		})
 		.TimeFormat(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTimeFormat)
 		.ConnectionActivitiesVisibility(EVisibility::Collapsed)
@@ -72,6 +78,19 @@ void SConcertSessionPackageViewer::AppendActivity(FConcertSessionActivity Activi
 {
 	const TSharedRef<FConcertSessionActivity> NewActivity = MakeShared<FConcertSessionActivity>(MoveTemp(Activity));
 	ActivityListView->Append(NewActivity);
+}
+
+TOptional<int64> SConcertSessionPackageViewer::GetVersionOfPackageActivity(const FConcertSessionActivity& Activity, SConcertSessionActivities::FGetPackageEvent GetPackageEventFunc) const
+{
+	FConcertSyncPackageEventMetaData PackageEventMetaData;
+	if (GetPackageEventFunc.Execute(Activity, PackageEventMetaData))
+	{
+		const TSet<EConcertPackageUpdateType> NoRevisionTypes { EConcertPackageUpdateType::Deleted, EConcertPackageUpdateType::Dummy };
+		return NoRevisionTypes.Contains(PackageEventMetaData.PackageInfo.PackageUpdateType)
+			? TOptional<int64>{}
+			: PackageEventMetaData.PackageRevision;
+	}
+	return {};
 }
 
 void SConcertSessionPackageViewer::OnSearchTextChanged(const FText& InSearchText)

@@ -366,8 +366,12 @@ TSharedRef<SHeaderRow> SConcertSessionActivities::CreateHeaderRow(const FArgumen
 	Columns.Add(ActivityColumn::Summary());
 	
 	HeaderRow = SNew(SHeaderRow);
+	TSet<FName> DuplicateColumnDetection;
 	for (FActivityColumn& Column : Columns)
 	{
+		check(!DuplicateColumnDetection.Contains(Column.ColumnId));
+		DuplicateColumnDetection.Add(Column.ColumnId);
+		
 		// SHeaderRow owns the columns and deletes them when destroyed
 		FActivityColumn* ManagedByHeaderRow = new FActivityColumn(MoveTemp(Column));
 		HeaderRow->AddColumn(*ManagedByHeaderRow);

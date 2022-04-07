@@ -619,6 +619,16 @@ public:
 	 * @return True if package data could be found for the given revision, false otherwise.
 	 */
 	bool GetPackageDataForRevision(const FName InPackageName, const TFunctionRef<void(const FConcertPackageInfo&, FConcertPackageDataStream&)>& InCallback, const int64* InPackageRevision = nullptr) const;
+
+	/**
+	 * Gets the package size in bytes of a package
+	 *
+	 * @param InPackageName				The name of the package to get the head revision for.
+	 * @param InPackageRevision			The revision of the package to get the data for, or null to get the head revision.
+	 *
+	 * @return True if package data could be found for the given revision, false otherwise.
+	 */
+	TOptional<int64> GetPackageSizeForRevision(const FName InPackageName, const int64* InPackageRevision = nullptr) const;
 	
 	/**
 	 * Get the head revision in this database for the given package name.
@@ -681,6 +691,14 @@ public:
 	FOnActivityProduced& OnActivityProduced() { return ActivityProducedEvent; }
 	
 private:
+
+	using FProcessPackageRequest = TFunctionRef<bool(const FConcertPackageInfo& PackageInfo, const FString& DataFilename)>;
+	/** Helper function which obtains package information and passes it to HandleFunc. */
+	bool HandleRequestPackageRequest(const FName InPackageName, const int64* InPackageRevision, FProcessPackageRequest HandleFunc) const;
+
+	/** Helper functions that for getting a package revision for an optional package revision argument */
+	TOptional<int64> GetSpecifiedOrHeadPackageRevision(FName InPackageName, const int64* InPackageRevision) const;
+	
 	/**
 	 * Schedule an asynchronous write for the given Package Stream.  The stream must be in-memory. File sharing
 	 * asynchronous write is not supported.

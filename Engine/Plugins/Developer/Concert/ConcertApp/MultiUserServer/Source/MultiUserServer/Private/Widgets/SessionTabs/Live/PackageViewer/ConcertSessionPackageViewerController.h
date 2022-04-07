@@ -35,5 +35,6 @@ private:
 	
 	TOptional<FConcertClientInfo> GetClientInfo(FGuid ClientId) const;
 	bool GetPackageEvent(const FConcertSessionActivity& Activity, FConcertSyncPackageEventMetaData& OutPackageEvent) const;
+	TOptional<int64> GetSizeOfPackageEvent(const FConcertSessionActivity& Activity) const;
 	void OnSessionProduced(const FConcertSyncActivity& ProducedActivity) const;
 };
