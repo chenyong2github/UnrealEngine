@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "cpu.h"
 
+#if defined(__RADX86__)
+
 RADDEFINEDATA S32 cpu_features_to_use;
 RADDEFINEDATA S32 cpu_features_avail = 0;
 
@@ -106,3 +108,5 @@ RADDEFFUNC void CPU_clear( void )
   _mm_empty();
 #endif
 }
+
+#endif // defined(__RADX86__)

@@ -16,9 +16,7 @@
 
 
 // variable bit macros
-#if defined(__RADX86__)
 RADDECLAREDATA const RAD_ALIGN(U32,VarBitsLens[33],32);
-#endif
 
 /*************
 

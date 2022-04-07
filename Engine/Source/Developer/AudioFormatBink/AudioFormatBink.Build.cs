@@ -26,7 +26,7 @@ public class AudioFormatBink : ModuleRules
 		}
 		if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "..", "..", "Runtime", "BinkAudioDecoder", "SDK", "BinkAudio", "Lib", "libbinka_ue_encode_osx64_static.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "..", "..", "Runtime", "BinkAudioDecoder", "SDK", "BinkAudio", "Lib", "libbinka_ue_encode_osx_static.a"));
 		}
 	}
 }
