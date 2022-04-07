@@ -13,9 +13,10 @@ namespace HordeCommon.Rpc.Tasks
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeTaskResultMessage(RefId resultRefId)
+		public ComputeTaskResultMessage(RefId resultRefId, ComputeTaskExecutionStatsMessage? executionStats)
 		{
 			ResultRefId = resultRefId;
+			ExecutionStats = executionStats;
 		}
 
 		/// <summary>
@@ -25,6 +26,21 @@ namespace HordeCommon.Rpc.Tasks
 		{
 			Outcome = (int)outcome;
 			Detail = detail;
+		}
+	}
+
+	/// <summary>
+	/// 
+	/// </summary>
+	partial class ComputeTaskExecutionStatsMessage
+	{
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns></returns>
+		public ComputeTaskExecutionStats ToNative()
+		{
+			return new ComputeTaskExecutionStats(StartTime.ToDateTime(), DownloadRefMs, DownloadInputMs, ExecMs, UploadLogMs, UploadOutputMs, UploadRefMs);
 		}
 	}
 }

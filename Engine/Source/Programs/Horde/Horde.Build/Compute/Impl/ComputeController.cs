@@ -109,31 +109,20 @@ namespace Horde.Build.Compute.Impl
 				return Forbid(AclAction.ViewComputeTasks);
 			}
 
-			List<IComputeTaskStatus> results;
+			List<ComputeTaskStatus> updates;
 			if (wait == 0)
 			{
-				results = await _computeService.GetTaskUpdatesAsync(clusterId, channelId);
+				updates = await _computeService.GetTaskUpdatesAsync(clusterId, channelId);
 			}
 			else
 			{
 				using CancellationTokenSource delaySource = new CancellationTokenSource(wait * 1000);
-				results = await _computeService.WaitForTaskUpdatesAsync(clusterId, channelId, delaySource.Token);
+				updates = await _computeService.WaitForTaskUpdatesAsync(clusterId, channelId, delaySource.Token);
 			}
 
 			GetTaskUpdatesResponse response = new GetTaskUpdatesResponse();
-			foreach (IComputeTaskStatus result in results)
+			foreach (ComputeTaskStatus update in updates)
 			{
-				GetTaskUpdateResponse update = new GetTaskUpdateResponse();
-
-				update.TaskRefId = result.TaskRefId;
-				update.Time = result.Time;
-				update.State = result.State;
-				update.Outcome = result.Outcome;
-				update.ResultRefId = result.ResultRefId;
-				update.AgentId = result.AgentId?.ToString();
-				update.LeaseId = result.LeaseId?.ToString();
-				update.Detail = result.Detail;
-
 				response.Updates.Add(update);
 			}
 

@@ -75,6 +75,13 @@ namespace Horde.Agent.Execution
 			return (stdOutStream.ToArray(), stdErrStream.ToArray());
 		}
 
+		static int GetMarkerTime(Stopwatch timer)
+		{
+			int elapsedMs = (int)timer.ElapsedMilliseconds;
+			timer.Restart();
+			return elapsedMs;
+		}
+
 		/// <summary>
 		/// Execute an action
 		/// </summary>
@@ -85,20 +92,24 @@ namespace Horde.Agent.Execution
 		/// <returns>The action result</returns>
 		public async Task<ComputeTaskResultMessage> ExecuteAsync(string leaseId, ComputeTaskMessage computeTaskMessage, DirectoryReference sandboxDir, CancellationToken cancellationToken)
 		{
+			Stopwatch timer = Stopwatch.StartNew();
+			ComputeTaskExecutionStatsMessage stats = new ComputeTaskExecutionStatsMessage();
+			stats.StartTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.UtcNow);
+
 			NamespaceId namespaceId = new NamespaceId(computeTaskMessage.NamespaceId);
 			BucketId inputBucketId = new BucketId(computeTaskMessage.InputBucketId);
 			BucketId outputBucketId = new BucketId(computeTaskMessage.OutputBucketId);
 
 			ComputeTask task = await _storageClient.GetRefAsync<ComputeTask>(namespaceId, inputBucketId, computeTaskMessage.TaskRefId.AsRefId());
 			_logger.LogInformation("Executing task {Hash} for lease ID {LeaseId}", computeTaskMessage.TaskRefId, leaseId);
+			stats.DownloadRefMs = GetMarkerTime(timer);
 
 			DirectoryReference.CreateDirectory(sandboxDir);
 			FileUtils.ForceDeleteDirectoryContents(sandboxDir);
 
-			DateTimeOffset inputFetchStart = DateTimeOffset.UtcNow;
 			DirectoryTree inputDirectory = await _storageClient.ReadBlobAsync<DirectoryTree>(namespaceId, task.SandboxHash);
 			await SetupSandboxAsync(namespaceId, inputDirectory, sandboxDir);
-			DateTimeOffset inputFetchCompleted = DateTimeOffset.UtcNow;
+			stats.DownloadInputMs = GetMarkerTime(timer);
 
 			using (ManagedProcessGroup processGroup = new ManagedProcessGroup())
 			{
@@ -119,10 +130,10 @@ namespace Horde.Agent.Execution
 				_logger.LogInformation("Executing {FileName} with arguments {Arguments}", fileName, arguments);
 
 				TimeSpan timeout = TimeSpan.FromMinutes(5.0);// Action.Timeout == null ? TimeSpan.FromMinutes(5) : Action.Timeout.ToTimeSpan();
-				DateTimeOffset executionStartTime = DateTimeOffset.UtcNow;
 				using (ManagedProcess process = new ManagedProcess(processGroup, fileName, arguments, workingDirectory, newEnvironment, ProcessPriorityClass.Normal, ManagedProcessFlags.None))
 				{
 					(byte[] stdOutData, byte[] stdErrData) = await ReadProcessStreams(process, timeout, cancellationToken);
+					stats.ExecMs = GetMarkerTime(timer);
 
 					foreach (string line in Encoding.UTF8.GetString(stdOutData).Split('\n'))
 					{
@@ -138,6 +149,7 @@ namespace Horde.Agent.Execution
 					ComputeTaskResult result = new ComputeTaskResult(process.ExitCode);
 					result.StdOutHash = await _storageClient.WriteBlobFromMemoryAsync(namespaceId, stdOutData);
 					result.StdErrHash = await _storageClient.WriteBlobFromMemoryAsync(namespaceId, stdErrData);
+					stats.UploadLogMs = GetMarkerTime(timer);
 
 					FileReference[] outputFiles = ResolveOutputPaths(sandboxDir, task.OutputPaths.Select(x => x.ToString())).OrderBy(x => x.FullName, StringComparer.Ordinal).ToArray();
 					if (outputFiles.Length > 0)
@@ -148,11 +160,13 @@ namespace Horde.Agent.Execution
 						}
 						result.OutputHash = await PutOutput(namespaceId, sandboxDir, outputFiles);
 					}
+					stats.UploadOutputMs = GetMarkerTime(timer);
 
 					CbObject resultObject = CbSerializer.Serialize(result);
-
 					await _storageClient.SetRefAsync(namespaceId, outputBucketId, computeTaskMessage.TaskRefId, resultObject);
-					return new ComputeTaskResultMessage(computeTaskMessage.TaskRefId);
+					stats.UploadRefMs = GetMarkerTime(timer);
+
+					return new ComputeTaskResultMessage(computeTaskMessage.TaskRefId, stats);
 				}
 			}
 		}

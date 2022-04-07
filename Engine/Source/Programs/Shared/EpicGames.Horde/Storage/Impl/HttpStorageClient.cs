@@ -117,10 +117,11 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public async Task WriteBlobAsync(NamespaceId namespaceId, IoHash hash, Stream stream, CancellationToken cancellationToken)
 		{
-			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/blobs/{namespaceId}/{hash}");
-
 			StreamContent content = new StreamContent(stream);
 			content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+			content.Headers.ContentLength = stream.Length;
+
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/blobs/{namespaceId}/{hash}");
 			request.Content = content;
 
 			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
@@ -136,10 +137,11 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public async Task<IoHash> WriteBlobAsync(NamespaceId namespaceId, Stream stream, CancellationToken cancellationToken)
 		{
-			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/blobs/{namespaceId}");
-
 			StreamContent content = new StreamContent(stream);
 			content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+			content.Headers.ContentLength = stream.Length;
+
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/blobs/{namespaceId}");
 			request.Content = content;
 
 			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);

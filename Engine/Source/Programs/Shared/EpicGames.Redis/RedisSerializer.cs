@@ -131,46 +131,74 @@ namespace EpicGames.Redis
 			return new KeyValuePair<Type, object>(typeof(T), new RedisNativeConverter<T>(fromRedisValueFunc, toRedisValueFunc));
 		}
 
+		static readonly Dictionary<Type, Type> s_typeToConverterType = new Dictionary<Type, Type>();
+
+		/// <summary>
+		/// Register a custom converter for a particular type
+		/// </summary>
+		public static void RegisterConverter<T, TConverter>() where TConverter : IRedisConverter<T>
+		{
+			lock (s_typeToConverterType)
+			{
+				if (!s_typeToConverterType.TryGetValue(typeof(T), out Type? converterType) || converterType != typeof(TConverter))
+				{
+					s_typeToConverterType.Add(typeof(T), typeof(TConverter));
+				}
+			}
+		}
+
+		/// <summary>
+		/// Creates a converter for a given type
+		/// </summary>
+		static IRedisConverter<T> CreateConverter<T>()
+		{
+			Type type = typeof(T);
+
+			// Check for a registered converter type
+			lock (s_typeToConverterType)
+			{
+				if (s_typeToConverterType.TryGetValue(type, out Type? converterType))
+				{
+					return (IRedisConverter<T>)Activator.CreateInstance(converterType)!;
+				}
+			}
+
+			// Check for a custom converter
+			RedisConverterAttribute? attribute = type.GetCustomAttribute<RedisConverterAttribute>();
+			if (attribute != null)
+			{
+				Type converterType = attribute.ConverterType;
+				if (converterType.IsGenericTypeDefinition)
+				{
+					converterType = converterType.MakeGenericType(type);
+				}
+				return (IRedisConverter<T>)Activator.CreateInstance(converterType)!;
+			}
+
+			// Check for known basic types
+			object? nativeConverter;
+			if (s_nativeConverters.TryGetValue(typeof(T), out nativeConverter))
+			{
+				return (IRedisConverter<T>)nativeConverter;
+			}
+
+			// Check if there's a regular converter we can use to convert to/from a string
+			TypeConverter? converter = TypeDescriptor.GetConverter(type);
+			if (converter != null && converter.CanConvertFrom(typeof(string)) && converter.CanConvertTo(typeof(string)))
+			{
+				return new RedisStringConverter<T>(converter);
+			}
+
+			throw new Exception($"Unable to find Redis converter for {type.Name}");
+		}
+
 		/// <summary>
 		/// Static class for caching converter lookups
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
 		class CachedConverter<T>
 		{
-			public static IRedisConverter<T> Converter = CreateConverter();
-
-			static IRedisConverter<T> CreateConverter()
-			{
-				Type type = typeof(T);
-
-				// Check for a custom converter
-				RedisConverterAttribute? attribute = type.GetCustomAttribute<RedisConverterAttribute>();
-				if (attribute != null)
-				{
-					Type converterType = attribute.ConverterType;
-					if (converterType.IsGenericTypeDefinition)
-					{
-						converterType = converterType.MakeGenericType(type);
-					}
-					return (IRedisConverter<T>)Activator.CreateInstance(converterType)!;
-				}
-
-				// Check for known basic types
-				object? nativeConverter;
-				if (s_nativeConverters.TryGetValue(typeof(T), out nativeConverter))
-                {
-					return (IRedisConverter<T>)nativeConverter;
-                }
-
-				// Check if there's a regular converter we can use to convert to/from a string
-				TypeConverter? converter = TypeDescriptor.GetConverter(type);
-				if (converter != null && converter.CanConvertFrom(typeof(string)) && converter.CanConvertTo(typeof(string)))
-				{
-					return new RedisStringConverter<T>(converter);
-				}
-
-				throw new Exception($"Unable to find Redis converter for {type.Name}");
-			}
+			public static IRedisConverter<T> Converter = CreateConverter<T>();
 		}
 
 		/// <summary>

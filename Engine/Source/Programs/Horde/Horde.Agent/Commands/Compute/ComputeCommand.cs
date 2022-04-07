@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -88,6 +89,8 @@ namespace Horde.Agent.Commands
 		[CommandLine("-LogLevel")]
 		public string LogLevelStr { get; set; } = "debug";
 
+		readonly Stopwatch _timer = Stopwatch.StartNew();
+
 		static (DirectoryTree, IoHash) CreateSandbox(DirectoryInfo baseDirInfo, Dictionary<IoHash, byte[]> uploadList)
 		{
 			DirectoryTree tree = new DirectoryTree();
@@ -111,9 +114,20 @@ namespace Horde.Agent.Commands
 			return (tree, AddCbObject(uploadList, tree));
 		}
 
+		readonly List<string> _localScopeNames = new List<string>();
+		readonly List<int> _localScopeTimesMs = new List<int>();
+
+		void AddLocalScope(string name)
+		{
+			_localScopeTimesMs.Add((int)_timer.Elapsed.TotalMilliseconds);
+			_localScopeNames.Add(name);
+			_timer.Restart();
+		}
+
 		/// <inheritdoc/>
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
+			DateTime startTime = DateTime.UtcNow - _timer.Elapsed;
 			InputDir ??= Input.Directory;
 
 			if (Enum.TryParse(LogLevelStr, true, out LogEventLevel logEventLevel))
@@ -167,8 +181,12 @@ namespace Horde.Agent.Commands
 					logger.LogInformation("Using salt: {SaltBytes}", StringUtils.FormatHexString(saltBytes.ToByteArray()));
 				}
 
+				AddLocalScope("setup");
+
 				Dictionary<IoHash, byte[]> blobs = new Dictionary<IoHash, byte[]>();
 				(_, IoHash sandboxHash) = CreateSandbox(InputDir.ToDirectoryInfo(), blobs);
+
+				AddLocalScope("scan");
 
 				JsonComputeTask jsonComputeTask = new JsonComputeTask();
 				configuration.Bind(jsonComputeTask);
@@ -187,7 +205,25 @@ namespace Horde.Agent.Commands
 				task.OutputPaths.AddRange(jsonComputeTask.OutputPaths.Select(x => (Utf8String)x));
 				task.RequirementsHash = AddCbObject(blobs, requirements);
 
-				await ExecuteAction(logger, computeClient, storageClient, jsonComputeTask.ClusterId, task, blobs);	
+				AddLocalScope("task-setup");
+
+				ComputeTaskStatus result = await ExecuteAction(logger, computeClient, storageClient, jsonComputeTask.ClusterId, task, blobs);
+				if (result.Outcome != ComputeTaskOutcome.Success)
+				{
+					logger.LogError("{OperationName}: Outcome: {Outcome}, Detail: {Detail}", result.TaskRefId, result.Outcome.ToString(), result.Detail ?? "(none)");
+				}
+
+				AddLocalScope($"complete");
+
+				LogScopes("local-timing", startTime, _localScopeNames.ToArray(), _localScopeTimesMs.ToArray(), logger);
+				if (result.QueueStats != null)
+				{
+					LogScopes("server-timing", result.QueueStats.StartTime, ComputeTaskQueueStats.ScopeNames, result.QueueStats.Scopes, logger);
+				}
+				if (result.ExecutionStats != null)
+				{
+					LogScopes("execution-timing", result.ExecutionStats.StartTime, ComputeTaskExecutionStats.ScopeNames, result.ExecutionStats.Scopes, logger);
+				}
 			}
 			return 0;
 		}
@@ -200,36 +236,53 @@ namespace Horde.Agent.Commands
 			return hash;
 		}
 
-		private async Task ExecuteAction(ILogger logger, IComputeClient computeClient, IStorageClient storageClient, ClusterId clusterId, ComputeTask task, Dictionary<IoHash, byte[]> uploadList)
+		static async Task UploadSandbox(IComputeClusterInfo cluster, IStorageClient storageClient, Dictionary<IoHash, byte[]> uploadList, ILogger logger)
+		{
+			int totalUploaded = 0;
+			int totalSkipped = 0;
+			int uploadedBytes = 0;
+			int skippedBytes = 0;
+
+			List<Task> tasks = new List<Task>();
+			foreach ((IoHash hash, byte[] data) in uploadList)
+			{
+				int index = tasks.Count;
+				async Task UploadItemAsync()
+				{
+					if (await storageClient.HasBlobAsync(cluster.NamespaceId, hash))
+					{
+						logger.LogInformation("Skipped blob {Idx}/{Count}: {Hash} ({Length} bytes)", index, uploadList.Count, hash, data.Length);
+						Interlocked.Increment(ref totalSkipped);
+						Interlocked.Add(ref skippedBytes, data.Length);
+					}
+					else
+					{
+						await storageClient.WriteBlobFromMemoryAsync(cluster.NamespaceId, hash, data);
+						logger.LogInformation("Uploaded blob {Idx}/{Count}: {Hash} ({Bytes} bytes)", index, uploadList.Count, hash, data.Length);
+						Interlocked.Increment(ref totalUploaded);
+						Interlocked.Add(ref uploadedBytes, data.Length);
+					}
+				}
+				tasks.Add(UploadItemAsync());
+			}
+			await Task.WhenAll(tasks);
+
+			logger.LogInformation("Uploaded {UploadedCount} blobs ({UploadedBytes} bytes), Skipped {SkippedCount} blobs ({SkippedBytes} bytes)", totalUploaded, uploadedBytes, totalSkipped, skippedBytes);
+		}
+
+		private async Task<ComputeTaskStatus> ExecuteAction(ILogger logger, IComputeClient computeClient, IStorageClient storageClient, ClusterId clusterId, ComputeTask task, Dictionary<IoHash, byte[]> uploadList)
 		{
 			IComputeClusterInfo cluster = await computeClient.GetClusterInfoAsync(clusterId);
 
-			{
-				int index = 0, totalUploaded = 0, totalSkipped = 0, uploadedBytes = 0, skippedBytes = 0;
-				IEnumerable<Task> tasks = uploadList.Select(async (pair) =>
-				{
-					if (await storageClient.HasBlobAsync(cluster.NamespaceId, pair.Key))
-					{
-						logger.LogInformation("Skipped blob {Idx}/{Count}: {Hash} ({Length} bytes)", Interlocked.Increment(ref index), uploadList.Count, pair.Key, pair.Value.Length);
-						Interlocked.Increment(ref totalSkipped);
-						Interlocked.Add(ref skippedBytes, pair.Value.Length);
-						return;
-					}
-
-					await storageClient.WriteBlobFromMemoryAsync(cluster.NamespaceId, pair.Key, pair.Value);
-					logger.LogInformation("Uploaded blob {Idx}/{Count}: {Hash} ({Bytes} bytes)", Interlocked.Increment(ref index), uploadList.Count, pair.Key, pair.Value.Length);
-					Interlocked.Increment(ref totalUploaded);
-					Interlocked.Add(ref uploadedBytes, pair.Value.Length);
-				});
-				await Task.WhenAll(tasks);
-
-				logger.LogInformation("Uploaded {UploadedCount} blobs ({UploadedBytes} bytes), Skipped {SkippedCount} blobs ({SkippedBytes} bytes)", totalUploaded, uploadedBytes, totalSkipped, skippedBytes);
-			}
+			await UploadSandbox(cluster, storageClient, uploadList, logger);
+			AddLocalScope("uploaded-sandbox");
 
 			CbObject taskObject = CbSerializer.Serialize(task);
 			IoHash taskHash = IoHash.Compute(taskObject.GetView().Span);
 			RefId taskRefId = new RefId(taskHash);
 			await storageClient.SetRefAsync(cluster.NamespaceId, cluster.RequestBucketId, taskRefId, taskObject);
+
+			AddLocalScope("uploaded-task");
 
 			ChannelId channelId = new ChannelId(Guid.NewGuid().ToString());
 			logger.LogInformation("cluster: {ClusterId}", clusterId);
@@ -239,26 +292,39 @@ namespace Horde.Agent.Commands
 
 			// Execute the action
 			await computeClient.AddTaskAsync(clusterId, channelId, taskRefId, task.RequirementsHash, SkipCacheLookup);
+			AddLocalScope("queued-task");
 
-			await foreach(IComputeTaskInfo response in computeClient.GetTaskUpdatesAsync(clusterId, channelId))
+			await foreach (ComputeTaskStatus response in computeClient.GetTaskUpdatesAsync(clusterId, channelId))
 			{
 				logger.LogInformation("{OperationName}: Execution state: {State}", response.TaskRefId, response.State.ToString());
+
 				if (!String.IsNullOrEmpty(response.AgentId) || !String.IsNullOrEmpty(response.LeaseId))
 				{
 					logger.LogInformation("{OperationName}: Running on agent {AgentId} under lease {LeaseId}", response.TaskRefId, response.AgentId, response.LeaseId);
 				}
+
 				if (response.ResultRefId != null)
 				{
 					await HandleCompleteTask(storageClient, cluster.NamespaceId, cluster.ResponseBucketId, response.ResultRefId.Value, logger);
 				}
 				if (response.State == ComputeTaskState.Complete)
 				{
-					if (response.Outcome != ComputeTaskOutcome.Success)
-					{
-						logger.LogError("{OperationName}: Outcome: {Outcome}, Detail: {Detail}", response.TaskRefId, response.Outcome.ToString(), response.Detail ?? "(none)");
-					}
-					break;
+					return response;
 				}
+			}
+
+			throw new InvalidOperationException("Execution finished without completed message");
+		}
+
+		static void LogScopes(string prefix, DateTime startTime, string[] scopeNames, int[] scopes, ILogger logger)
+		{
+			int totalMs = 0;
+
+			logger.LogInformation("{Prefix}: [{At,6:n0}] start (at {Time})", prefix, totalMs, startTime);
+			for (int idx = 0; idx < scopes.Length; idx++)
+			{
+				totalMs += scopes[idx];
+				logger.LogInformation("{Prefix}: [{At,6:n0}] {Name} ({Time:n0})", prefix, totalMs, scopeNames[idx], scopes[idx]);
 			}
 		}
 

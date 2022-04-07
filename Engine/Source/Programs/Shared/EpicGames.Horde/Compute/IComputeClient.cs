@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -100,47 +101,249 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Supplies information about the current execution state of a task
 	/// </summary>
-	public interface IComputeTaskInfo
+	public class ComputeTaskStatus
 	{
 		/// <summary>
 		/// Reference to the task decriptor that was requested
 		/// </summary>
-		public RefId TaskRefId { get; }
+		[CbField("h")]
+		public RefId TaskRefId { get; set; }
 
 		/// <summary>
 		/// Time that the event happened
 		/// </summary>
-		public DateTime Time { get; }
+		[CbField("t")]
+		public DateTime Time { get; set; }
 
 		/// <summary>
 		/// New state of the task
 		/// </summary>
-		public ComputeTaskState State { get; }
+		[CbField("s")]
+		public ComputeTaskState State { get; set; }
 
 		/// <summary>
 		/// Outcome of the task execution.Note that this reflects the outcome of the execution rather than the outcome of the task.        
 		/// </summary>
-		public ComputeTaskOutcome Outcome { get; }
+		[CbField("o")]
+		public ComputeTaskOutcome Outcome { get; set; }
 
 		/// <summary>
 		/// Additional information about the outcome of the task.Dependent on the value of Outcome.        
 		/// </summary>
-		public string? Detail { get; }
+		[CbField("d")]
+		public string? Detail { get; set; }
 
 		/// <summary>
 		/// Ref containing the task result
 		/// </summary>
-		public RefId? ResultRefId { get; }
+		[CbField("r")]
+		public RefId? ResultRefId { get; set; }
 
 		/// <summary>
 		/// When transitioning to the executing state, includes the name of the agent performing the work
 		/// </summary>
-		public string? AgentId { get; }
+		[CbField("a")]
+		public string? AgentId { get; set; }
 
 		/// <summary>
 		/// When transitioning to the executing state, includes the id of the lease assigned to the agent
 		/// </summary>
-		public string? LeaseId { get; }
+		[CbField("l")]
+		public string? LeaseId { get; set; }
+
+		/// <summary>
+		/// Stats about how the task was queued
+		/// </summary>
+		[CbField("qs")]
+		public ComputeTaskQueueStats? QueueStats { get; set; }
+
+		/// <summary>
+		/// Stats for execution of this job
+		/// </summary>
+		[CbField("es")]
+		public ComputeTaskExecutionStats? ExecutionStats { get; set; }
+	}
+
+	/// <summary>
+	/// Stats for queueing a task
+	/// </summary>
+	public class ComputeTaskQueueStats
+	{
+		/// <summary>
+		/// Names of scopes 
+		/// </summary>
+		public static readonly string[] ScopeNames =
+		{
+			"dispatched",
+			"complete"
+		};
+
+		private readonly int[] _scopes = new int[ScopeNames.Length];
+
+		/// <summary>
+		/// Time that the task was queued
+		/// </summary>
+		[CbField("t")]
+		public DateTime StartTime { get; set; }
+
+		/// <summary>
+		/// Timing values measured sequentially starting from StartTime, in milliseconds.
+		/// If the order or meaning of fields in this array are changed, the field name should be changed.
+		/// </summary>
+		[CbField("s")]
+		public int[] Scopes
+		{
+			get => _scopes;
+			set => value.AsSpan(0, Math.Max(_scopes.Length, value.Length)).CopyTo(_scopes);
+		}
+
+		/// <summary>
+		/// Time taken until the task was dequeued
+		/// </summary>
+		public int QueuedMs
+		{
+			get => _scopes[0];
+			set => _scopes[0] = value;
+		}
+
+		/// <summary>
+		/// Time that the task was executing
+		/// </summary>
+		public int ExecutingMs
+		{
+			get => _scopes[1];
+			set => _scopes[1] = value;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public ComputeTaskQueueStats()
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public ComputeTaskQueueStats(DateTime startTime, int queuedMs, int executingMs)
+		{
+			StartTime = startTime;
+			QueuedMs = queuedMs;
+			ExecutingMs = executingMs;
+		}
+	}
+
+	/// <summary>
+	/// Stats for executing a task
+	/// </summary>
+	public class ComputeTaskExecutionStats
+	{
+		/// <summary>
+		/// Names of scopes 
+		/// </summary>
+		public static readonly string[] ScopeNames =
+		{
+			"download-ref",
+			"download-input",
+			"execute",
+			"upload-log",
+			"upload-output",
+			"upload-ref",
+		};
+
+		private readonly int[] _scopes = new int[ScopeNames.Length];
+
+		/// <summary>
+		/// Start time for execution
+		/// </summary>
+		[CbField("t")]
+		public DateTime StartTime { get; set; }
+
+		/// <summary>
+		/// Timing values measured sequentially starting from StartTime, in milliseconds. If the order or meaning of fields in this array are changed, the field name should be changed.
+		/// </summary>
+		[CbField("s")]
+		public int[] Scopes
+		{
+			get => _scopes;
+			set => value.AsSpan(0, Math.Max(_scopes.Length, value.Length)).CopyTo(_scopes);
+		}
+
+		/// <summary>
+		/// Time taken to download the job specification
+		/// </summary>
+		public int DownloadRefMs
+		{
+			get => _scopes[0];
+			set => _scopes[0] = value;
+		}
+
+		/// <summary>
+		/// Time taken to download and unpack the sandbox
+		/// </summary>
+		public int DownloadInputMs
+		{
+			get => _scopes[1];
+			set => _scopes[1] = value;
+		}
+
+		/// <summary>
+		/// Time taken to execute the task
+		/// </summary>
+		public int ExecMs
+		{
+			get => _scopes[2];
+			set => _scopes[2] = value;
+		}
+
+		/// <summary>
+		/// Time taken to upload log data
+		/// </summary>
+		public int UploadLogMs
+		{
+			get => _scopes[3];
+			set => _scopes[3] = value;
+		}
+
+		/// <summary>
+		/// Time taken to upload output data
+		/// </summary>
+		public int UploadOutputMs
+		{
+			get => _scopes[4];
+			set => _scopes[4] = value;
+		}
+
+		/// <summary>
+		/// Time taken to upload the output ref
+		/// </summary>
+		public int UploadRefMs
+		{
+			get => _scopes[5];
+			set => _scopes[5] = value;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public ComputeTaskExecutionStats()
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public ComputeTaskExecutionStats(DateTime startTime, int downloadRefMs, int downloadInputMs, int execMs, int uploadLogMs, int uploadOutputMs, int uploadRefMs)
+		{
+			StartTime = startTime;
+
+			DownloadRefMs = downloadRefMs;
+			DownloadInputMs = downloadInputMs;
+			ExecMs = execMs;
+			UploadLogMs = uploadLogMs;
+			UploadOutputMs = uploadOutputMs;
+			UploadRefMs = uploadRefMs;
+		}
 	}
 
 	/// <summary>
@@ -175,7 +378,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channelId">Channel to receive updates on</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		IAsyncEnumerable<IComputeTaskInfo> GetTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId, CancellationToken cancellationToken = default);
+		IAsyncEnumerable<ComputeTaskStatus> GetTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>

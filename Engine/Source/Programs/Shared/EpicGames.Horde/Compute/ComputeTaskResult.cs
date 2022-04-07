@@ -34,7 +34,7 @@ namespace EpicGames.Horde.Compute
 		public CbObjectAttachment? OutputHash { get; set; }
 
 		/// <summary>
-		/// Constructor
+		/// Constructor for serialization
 		/// </summary>
 		private ComputeTaskResult()
 		{

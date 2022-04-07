@@ -42,77 +42,19 @@ namespace Horde.Build.Compute.Impl
 		[CbField("ch")]
 		public ChannelId ChannelId { get; set; }
 
+		[CbField("q")]
+		public DateTime QueuedAt { get; set; }
+
 		private ComputeTaskInfo()
 		{
 		}
 
-		public ComputeTaskInfo(ClusterId clusterId, RefId taskRefId, ChannelId channelId)
+		public ComputeTaskInfo(ClusterId clusterId, RefId taskRefId, ChannelId channelId, DateTime queuedAt)
 		{
 			ClusterId = clusterId;
 			TaskRefId = taskRefId;
 			ChannelId = channelId;
-		}
-	}
-
-	/// <summary>
-	/// Current status of a task
-	/// </summary>
-	[RedisConverter(typeof(RedisCbConverter<>))]
-	class ComputeTaskStatus : IComputeTaskStatus
-	{
-		/// <inheritdoc/>
-		[CbField("h")]
-		public RefId TaskRefId { get; set; }
-
-		/// <inheritdoc/>
-		[CbField("t")]
-		public DateTime Time { get; set; }
-
-		/// <inheritdoc/>
-		[CbField("s")]
-		public ComputeTaskState State { get; set; }
-
-		/// <inheritdoc/>
-		[CbField("o")]
-		public ComputeTaskOutcome Outcome { get; set; }
-
-		/// <inheritdoc cref="IComputeTaskStatus.AgentId"/>
-		[CbField("a")]
-		public Utf8String AgentId { get; set; }
-
-		/// <inheritdoc cref="IComputeTaskStatus.LeaseId"/>
-		[CbField("l")]
-		byte[]? LeaseIdBytes { get; set; }
-
-		/// <inheritdoc/>
-		[CbField("r")]
-		public RefId? ResultRefId { get; set; }
-
-		/// <inheritdoc/>
-		[CbField("d")]
-		public string? Detail { get; set; }
-
-		/// <inheritdoc/>
-		AgentId? IComputeTaskStatus.AgentId => AgentId.IsEmpty ? (AgentId?)null : new AgentId(AgentId.ToString());
-
-		/// <inheritdoc/>
-		public LeaseId? LeaseId
-		{
-			get => (LeaseIdBytes == null || LeaseIdBytes.Length == 0) ? (LeaseId?)null : new LeaseId(LeaseIdBytes);
-			set => LeaseIdBytes = value?.Value.ToByteArray();
-		}
-
-		private ComputeTaskStatus()
-		{
-		}
-
-		public ComputeTaskStatus(RefId taskRefId, ComputeTaskState state, AgentId? agentId, LeaseId? leaseId)
-		{
-			TaskRefId = taskRefId;
-			Time = DateTime.UtcNow;
-			State = state;
-			AgentId = (agentId == null) ? Utf8String.Empty : agentId.Value.ToString();
-			LeaseIdBytes = leaseId?.Value.ToByteArray();
+			QueuedAt = queuedAt;
 		}
 	}
 
@@ -180,6 +122,11 @@ namespace Horde.Build.Compute.Impl
 		readonly LazyCachedValue<Task<Globals>> _globals;
 		readonly ILogger _logger;
 
+		static ComputeService()
+		{
+			RedisSerializer.RegisterConverter<ComputeTaskStatus, RedisCbConverter<ComputeTaskStatus>>();
+		}
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -194,6 +141,15 @@ namespace Horde.Build.Compute.Impl
 			_logger = logger;
 
 			OnLeaseStartedProperties.Add(x => x.TaskRefId);
+		}
+
+		static ComputeTaskStatus CreateStatus(RefId taskRefId, ComputeTaskState state)
+		{
+			ComputeTaskStatus status = new ComputeTaskStatus();
+			status.TaskRefId = taskRefId;
+			status.Time = DateTime.UtcNow;
+			status.State = state;
+			return status;
 		}
 
 		/// <inheritdoc/>
@@ -221,9 +177,10 @@ namespace Horde.Build.Compute.Impl
 						break;
 					}
 
-					ComputeTaskStatus status = new ComputeTaskStatus(computeTask.TaskRefId, ComputeTaskState.Complete, null, null);
+					ComputeTaskStatus status = CreateStatus(computeTask.TaskRefId, ComputeTaskState.Complete);
 					status.Outcome = ComputeTaskOutcome.Expired;
 					status.Detail = $"No agents monitoring queue {queueKey}";
+
 					_logger.LogInformation("Compute task expired (queue: {RequirementsHash}, task: {TaskHash}, channel: {ChannelId})", queueKey, computeTask.TaskRefId, computeTask.ChannelId);
 					await PostStatusMessageAsync(computeTask, status);
 				}
@@ -258,7 +215,7 @@ namespace Horde.Build.Compute.Impl
 			List<Task> tasks = new List<Task>();
 			foreach (RefId taskRefId in taskRefIds)
 			{
-				ComputeTaskInfo taskInfo = new ComputeTaskInfo(clusterId, taskRefId, channelId);
+				ComputeTaskInfo taskInfo = new ComputeTaskInfo(clusterId, taskRefId, channelId, DateTime.UtcNow);
 				_logger.LogDebug("Adding task {TaskHash} from channel {ChannelId} to queue {ClusterId}{RequirementsHash}", taskRefId.Hash, channelId, clusterId, requirementsHash);
 				tasks.Add(_taskScheduler.EnqueueAsync(new QueueKey(clusterId, requirementsHash), taskInfo, false));
 			}
@@ -306,8 +263,12 @@ namespace Horde.Build.Compute.Impl
 			if (cluster == null)
 			{
 				_logger.LogWarning("Invalid cluster '{ClusterId}'; failing task {TaskRefId}", taskInfo.ClusterId, taskInfo.TaskRefId);
-				ComputeTaskStatus status = new ComputeTaskStatus(taskInfo.TaskRefId, ComputeTaskState.Complete, agent.Id, null) { Detail = $"Invalid cluster '{taskInfo.ClusterId}'" };
+
+				ComputeTaskStatus status = CreateStatus(taskInfo.TaskRefId, ComputeTaskState.Complete);
+				status.AgentId = agent.Id.ToString();
+				status.Detail = $"Invalid cluster '{taskInfo.ClusterId}'";
 				await PostStatusMessageAsync(taskInfo, status);
+
 				return null;
 			}
 
@@ -315,8 +276,12 @@ namespace Horde.Build.Compute.Impl
 			if (requirements == null)
 			{
 				_logger.LogWarning("Unable to fetch requirements {RequirementsHash}", queueKey);
-				ComputeTaskStatus status = new ComputeTaskStatus(taskInfo.TaskRefId, ComputeTaskState.Complete, agent.Id, null) { Detail = $"Unable to retrieve requirements '{queueKey}'" };
+
+				ComputeTaskStatus status = CreateStatus(taskInfo.TaskRefId, ComputeTaskState.Complete);
+				status.AgentId = agent.Id.ToString();
+				status.Detail = $"Unable to retrieve requirements '{queueKey}'";
 				await PostStatusMessageAsync(taskInfo, status);
+
 				return null;
 			}
 
@@ -328,7 +293,9 @@ namespace Horde.Build.Compute.Impl
 			computeTask.OutputBucketId = cluster.ResponseBucketId.ToString();
 			computeTask.RequirementsHash = queueKey.RequirementsHash;
 			computeTask.TaskRefId = taskInfo.TaskRefId;
-
+			computeTask.QueuedAt = Timestamp.FromDateTime(taskInfo.QueuedAt);
+			computeTask.DispatchedMs = (int)(DateTime.UtcNow - taskInfo.QueuedAt).TotalMilliseconds;
+				
 			string leaseName = $"Remote action ({taskInfo.TaskRefId})";
 			byte[] payload = Any.Pack(computeTask).ToByteArray();
 
@@ -341,28 +308,28 @@ namespace Horde.Build.Compute.Impl
 		public override Task CancelLeaseAsync(IAgent agent, LeaseId leaseId, ComputeTaskMessage message)
 		{
 			ClusterId clusterId = new ClusterId(message.ClusterId);
-			ComputeTaskInfo taskInfo = new ComputeTaskInfo(clusterId, new RefId(new IoHash(message.TaskRefId.ToByteArray())), new ChannelId(message.ChannelId));
+			ComputeTaskInfo taskInfo = new ComputeTaskInfo(clusterId, new RefId(new IoHash(message.TaskRefId.ToByteArray())), new ChannelId(message.ChannelId), message.QueuedAt.ToDateTime());
 			return _taskScheduler.EnqueueAsync(new QueueKey(clusterId, new IoHash(message.RequirementsHash.ToByteArray())), taskInfo, true);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IComputeTaskStatus>> GetTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId)
+		public async Task<List<ComputeTaskStatus>> GetTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId)
 		{
-			List<ComputeTaskStatus> messages = await _messageQueue.ReadMessagesAsync(GetMessageQueueId(clusterId, channelId));
-			return messages.ConvertAll<IComputeTaskStatus>(x => x);
+			return await _messageQueue.ReadMessagesAsync(GetMessageQueueId(clusterId, channelId));
 		}
 
-		public async Task<List<IComputeTaskStatus>> WaitForTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId, CancellationToken cancellationToken)
+		public async Task<List<ComputeTaskStatus>> WaitForTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId, CancellationToken cancellationToken)
 		{
-			List<ComputeTaskStatus> messages = await _messageQueue.WaitForMessagesAsync(GetMessageQueueId(clusterId, channelId), cancellationToken);
-			return messages.ConvertAll<IComputeTaskStatus>(x => x);
+			return await _messageQueue.WaitForMessagesAsync(GetMessageQueueId(clusterId, channelId), cancellationToken);
 		}
 
 		public override async Task OnLeaseStartedAsync(IAgent agent, LeaseId leaseId, ComputeTaskMessage computeTask, ILogger logger)
 		{
 			await base.OnLeaseStartedAsync(agent, leaseId, computeTask, logger);
 
-			ComputeTaskStatus status = new ComputeTaskStatus(computeTask.TaskRefId, ComputeTaskState.Executing, agent.Id, leaseId);
+			ComputeTaskStatus status = CreateStatus(computeTask.TaskRefId, ComputeTaskState.Executing);
+			status.AgentId = agent.Id.ToString();
+			status.LeaseId = leaseId.ToString();
 			await PostStatusMessageAsync(computeTask, status);
 		}
 
@@ -370,9 +337,16 @@ namespace Horde.Build.Compute.Impl
 		{
 			await base.OnLeaseFinishedAsync(agent, leaseId, computeTask, outcome, output, logger);
 
+			DateTime queuedAt = computeTask.QueuedAt.ToDateTime();
+
 			ComputeTaskResultMessage message = ComputeTaskResultMessage.Parser.ParseFrom(output.ToArray());
 
-			ComputeTaskStatus status = new ComputeTaskStatus(computeTask.TaskRefId, ComputeTaskState.Complete, agent.Id, leaseId);
+			ComputeTaskStatus status = CreateStatus(computeTask.TaskRefId, ComputeTaskState.Complete);
+			status.AgentId = agent.Id.ToString();
+			status.LeaseId = leaseId.ToString();
+			status.QueueStats = new ComputeTaskQueueStats(queuedAt, computeTask.DispatchedMs, (int)(DateTime.UtcNow - queuedAt).TotalMilliseconds);
+			status.ExecutionStats = message.ExecutionStats?.ToNative();
+
 			if (message.ResultRefId != null)
 			{
 				status.ResultRefId = message.ResultRefId;
@@ -474,7 +448,7 @@ namespace Horde.Build.Compute.Impl
 						break;
 					}
 
-					ComputeTaskStatus status = new ComputeTaskStatus(computeTask.TaskRefId, ComputeTaskState.Complete, null, null);
+					ComputeTaskStatus status = CreateStatus(computeTask.TaskRefId, ComputeTaskState.Complete);
 					status.Outcome = ComputeTaskOutcome.BlobNotFound;
 					status.Detail = $"Missing requirements object {queueKey.RequirementsHash}";
 					_logger.LogInformation("Compute task failed due to missing requirements (queue: {QueueKey}, task: {TaskHash}, channel: {ChannelId})", queueKey, computeTask.TaskRefId, computeTask.ChannelId);
