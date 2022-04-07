@@ -38,7 +38,7 @@
 
 void SControlRigOutlinerItem::Construct(const FArguments& InArgs)
 {
-
+	ControlRigEditMode = InArgs._EditMode;
 	bIsChangingRigHierarchy = false;
 
 	DisplaySettings.bShowBones = false;
@@ -243,6 +243,22 @@ void SControlRigOutlinerItem::HandleSelectionChanged(TSharedPtr<FRigTreeElement>
 
 		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
 		const TArray<FRigElementKey> NewSelection = HierarchyTreeView->GetTreeView()->GetSelectedKeys();
+		//due to how Sequencer Tree View will redo selection on next tick if we aren't keeping or toggling selection we need to clear it out
+		if (FSlateApplication::Get().GetModifierKeys().IsShiftDown() == false || FSlateApplication::Get().GetModifierKeys().IsControlDown() == false)
+		{
+			if (ControlRigEditMode)
+			{
+				TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
+				ControlRigEditMode->GetAllSelectedControls(SelectedControls);
+				for (TPair<UControlRig*, TArray<FRigElementKey>>& CurrentSelection : SelectedControls)
+				{
+					if (CurrentSelection.Key)
+					{
+						CurrentSelection.Key->ClearControlSelection();
+					}
+				}
+			}
+		}
 		if (!Controller->SetSelection(NewSelection))
 		{
 			return;
@@ -313,6 +329,7 @@ void SControlRigOutliner::Rebuild()
 				[
 					SNew(SControlRigOutlinerItem)
 					.ControlRig(ControlRig)
+					.EditMode(EditMode)
 				];
 			}
 		}

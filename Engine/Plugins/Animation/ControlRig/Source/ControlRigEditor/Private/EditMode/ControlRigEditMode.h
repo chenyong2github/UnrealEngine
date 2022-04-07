@@ -12,6 +12,7 @@
 #include "UObject/StrongObjectPtr.h"
 #include "UnrealWidgetFwd.h"
 #include "IPersonaEditMode.h"
+#include "Misc/Guid.h"
 #include "ControlRigEditMode.generated.h"
 
 
@@ -253,6 +254,7 @@ private:
 protected:
 
 	TWeakPtr<ISequencer> WeakSequencer;
+	FGuid LastMovieSceneSig;
 
 	/** The scope for the interaction, one per manipulated Control rig */
 	TMap<UControlRig*,FControlRigInteractionScope*> InteractionScopes;
@@ -373,6 +375,8 @@ private:
 	void AddControlRigInternal(UControlRig* InControlRig);
 	void TickManipulatableObjects(float DeltaTime);
 
+	/* Check on tick to see if movie scene has changed, returns true if it has*/
+	bool CheckMovieSceneSig();
 	void SetControlShapeTransform(AControlRigShapeActor* ShapeActor, const FTransform& InTransform);
 	FTransform GetControlShapeTransform(AControlRigShapeActor* ShapeActor) const;
 	void MoveControlShape(AControlRigShapeActor* ShapeActor, const bool bTranslation, FVector& InDrag, 
@@ -407,6 +411,9 @@ private:
 	
 	TArray<TWeakObjectPtr<UControlRig>> RuntimeControlRigs;
 	TMap<UControlRig*,TStrongObjectPtr<UControlRigEditModeDelegateHelper>> DelegateHelpers;
+
+	//hack since we can't get the viewport client from the viewport, so in the tick we set the gameview bool and then in render/tickcontrolshapes we use it.
+	TMap<FViewport*, bool>  ViewportToGameView;
 
 	TArray<FRigElementKey> DeferredItemsToFrame;
 

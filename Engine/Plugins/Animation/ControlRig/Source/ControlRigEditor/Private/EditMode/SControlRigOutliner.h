@@ -23,6 +23,7 @@ class SControlRigOutlinerItem : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SControlRigOutlinerItem){}
 	SLATE_ARGUMENT(UControlRig*, ControlRig)
+	SLATE_ARGUMENT(FControlRigEditMode*, EditMode)
 	SLATE_END_ARGS()
 	SControlRigOutlinerItem();
 	~SControlRigOutlinerItem();
@@ -50,6 +51,8 @@ private:
 	TSharedPtr<SExpandableArea> PickerExpander;
 
 	TWeakObjectPtr<UControlRig> CurrentControlRig;
+	FControlRigEditMode* ControlRigEditMode = nullptr;
+
 };
 
 class SControlRigOutliner: public SCompoundWidget
