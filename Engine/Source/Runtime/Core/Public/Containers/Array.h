@@ -113,12 +113,12 @@ public:
 		return Tmp -= Offset;
 	}
 
-	ElementType& operator* () const
+	FORCEINLINE ElementType& operator* () const
 	{
 		return Container[ Index ];
 	}
 
-	ElementType* operator->() const
+	FORCEINLINE ElementType* operator->() const
 	{
 		return &Container[ Index ];
 	}
