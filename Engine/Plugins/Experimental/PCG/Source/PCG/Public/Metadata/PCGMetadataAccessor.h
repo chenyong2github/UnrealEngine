@@ -19,43 +19,49 @@ class PCG_API UPCGMetadataAccessorHelpers : public UBlueprintFunctionLibrary
 public:
 	/** Id-based metadata functions */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
-	static float GetFloatAttributeByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName);
+	static int64 GetInteger64AttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	static void SetInteger64AttributeByMetadataKey(UPARAM(ref) int64& Key, UPCGMetadata* Metadata, FName AttributeName, int64 Value);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	static float GetFloatAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	static void SetFloatAttributeByMetadataKey(UPARAM(ref) int64& Key, UPCGMetadata* Metadata, FName AttributeName, float Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
-	static FVector GetVectorAttributeByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName);
+	static FVector GetVectorAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	static void SetVectorAttributeByMetadataKey(UPARAM(ref) int64& Key, UPCGMetadata* Metadata, FName AttributeName, const FVector& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
-	static FVector4 GetVector4AttributeByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName);
+	static FVector4 GetVector4AttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	static void SetVector4AttributeByMetadataKey(UPARAM(ref) int64& Key, UPCGMetadata* Metadata, FName AttributeName, const FVector4& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
-	static FQuat GetQuatAttributeByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName);
+	static FQuat GetQuatAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	static void SetQuatAttributeByMetadataKey(UPARAM(ref) int64& Key, UPCGMetadata* Metadata, FName AttributeName, const FQuat& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
-	static FTransform GetTransformAttributeByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName);
+	static FTransform GetTransformAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	static void SetTransformAttributeByMetadataKey(UPARAM(ref) int64& Key, UPCGMetadata* Metadata, FName AttributeName, const FTransform& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
-	static FString GetStringAttributeByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName);
+	static FString GetStringAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	static void SetStringAttributeByMetadataKey(UPARAM(ref) int64& Key, UPCGMetadata* Metadata, FName AttributeName, const FString& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
-	static bool HasAttributeSetByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName);
+	static bool HasAttributeSetByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName);
 
 	/** Point functions */
 	UFUNCTION(BlueprintCallable, Category = "PCG", meta = (ScriptMethod))
@@ -68,47 +74,53 @@ public:
 	static void InitializeMetadata(UPARAM(ref) FPCGPoint& Point, UPCGMetadata* Metadata, const FPCGPoint& ParentPoint);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
-	static float GetFloatAttribute(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName);
+	static int64 GetInteger64Attribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
+	static void SetInteger64Attribute(UPARAM(ref) FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, int64 Value);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
+	static float GetFloatAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
 	static void SetFloatAttribute(UPARAM(ref) FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, float Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
-	static FVector GetVectorAttribute(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName);
+	static FVector GetVectorAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
 	static void SetVectorAttribute(UPARAM(ref) FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, const FVector& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
-	static FVector4 GetVector4Attribute(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName);
+	static FVector4 GetVector4Attribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
 	static void SetVector4Attribute(UPARAM(ref) FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, const FVector4& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
-	static FQuat GetQuatAttribute(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName);
+	static FQuat GetQuatAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
 	static void SetQuatAttribute(UPARAM(ref) FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, const FQuat& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
-	static FTransform GetTransformAttribute(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName);
+	static FTransform GetTransformAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
 	static void SetTransformAttribute(UPARAM(ref) FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, const FTransform& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
-	static FString GetStringAttribute(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName);
+	static FString GetStringAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
 	static void SetStringAttribute(UPARAM(ref) FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, const FString& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta = (ScriptMethod))
-	static bool HasAttributeSet(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName);
+	static bool HasAttributeSet(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName);
 
 protected:
 	template<typename T>
-	static T GetAttribute(PCGMetadataEntryKey Key, UPCGMetadata* Metadata, FName AttributeName);
+	static T GetAttribute(PCGMetadataEntryKey Key, const UPCGMetadata* Metadata, FName AttributeName);
 
 	template<typename T>
 	static void SetAttribute(PCGMetadataEntryKey& Key, UPCGMetadata* Metadata, FName AttributeName, const T& Value);

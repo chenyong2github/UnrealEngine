@@ -7,7 +7,7 @@
 
 /** Key-based implmentations */
 template<typename T>
-T UPCGMetadataAccessorHelpers::GetAttribute(PCGMetadataEntryKey Key, UPCGMetadata* Metadata, FName AttributeName)
+T UPCGMetadataAccessorHelpers::GetAttribute(PCGMetadataEntryKey Key, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	if (!Metadata)
 	{
@@ -64,7 +64,7 @@ void UPCGMetadataAccessorHelpers::SetAttribute(PCGMetadataEntryKey& Key, UPCGMet
 	}
 }
 
-bool UPCGMetadataAccessorHelpers::HasAttributeSetByMetadataKey(PCGMetadataEntryKey Key, UPCGMetadata* Metadata, FName AttributeName)
+bool UPCGMetadataAccessorHelpers::HasAttributeSetByMetadataKey(PCGMetadataEntryKey Key, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	if (!Metadata)
 	{
@@ -89,7 +89,17 @@ bool UPCGMetadataAccessorHelpers::HasAttributeSetByMetadataKey(PCGMetadataEntryK
 	}
 }
 
-float UPCGMetadataAccessorHelpers::GetFloatAttributeByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName)
+int64 UPCGMetadataAccessorHelpers::GetInteger64AttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
+{
+	return GetAttribute<int64>(Key, Metadata, AttributeName);
+}
+
+void UPCGMetadataAccessorHelpers::SetInteger64AttributeByMetadataKey(int64& Key, UPCGMetadata* Metadata, FName AttributeName, int64 Value)
+{
+	SetAttribute(Key, Metadata, AttributeName, Value);
+}
+
+float UPCGMetadataAccessorHelpers::GetFloatAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<float>(Key, Metadata, AttributeName);
 }
@@ -99,7 +109,7 @@ void UPCGMetadataAccessorHelpers::SetFloatAttributeByMetadataKey(int64& Key, UPC
 	SetAttribute(Key, Metadata, AttributeName, Value);
 }
 
-FVector UPCGMetadataAccessorHelpers::GetVectorAttributeByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName)
+FVector UPCGMetadataAccessorHelpers::GetVectorAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<FVector>(Key, Metadata, AttributeName);
 }
@@ -109,7 +119,7 @@ void UPCGMetadataAccessorHelpers::SetVectorAttributeByMetadataKey(int64& Key, UP
 	SetAttribute(Key, Metadata, AttributeName, Value);
 }
 
-FVector4 UPCGMetadataAccessorHelpers::GetVector4AttributeByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName)
+FVector4 UPCGMetadataAccessorHelpers::GetVector4AttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<FVector4>(Key, Metadata, AttributeName);
 }
@@ -119,7 +129,7 @@ void UPCGMetadataAccessorHelpers::SetVector4AttributeByMetadataKey(int64& Key, U
 	SetAttribute(Key, Metadata, AttributeName, Value);
 }
 
-FQuat UPCGMetadataAccessorHelpers::GetQuatAttributeByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName)
+FQuat UPCGMetadataAccessorHelpers::GetQuatAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<FQuat>(Key, Metadata, AttributeName);
 }
@@ -129,7 +139,7 @@ void UPCGMetadataAccessorHelpers::SetQuatAttributeByMetadataKey(int64& Key, UPCG
 	SetAttribute(Key, Metadata, AttributeName, Value);
 }
 
-FTransform UPCGMetadataAccessorHelpers::GetTransformAttributeByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName)
+FTransform UPCGMetadataAccessorHelpers::GetTransformAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<FTransform>(Key, Metadata, AttributeName);
 }
@@ -139,7 +149,7 @@ void UPCGMetadataAccessorHelpers::SetTransformAttributeByMetadataKey(int64& Key,
 	SetAttribute(Key, Metadata, AttributeName, Value);
 }
 
-FString UPCGMetadataAccessorHelpers::GetStringAttributeByMetadataKey(int64 Key, UPCGMetadata* Metadata, FName AttributeName)
+FString UPCGMetadataAccessorHelpers::GetStringAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<FString>(Key, Metadata, AttributeName);
 }
@@ -186,7 +196,17 @@ void UPCGMetadataAccessorHelpers::InitializeMetadata(FPCGPoint& Point, UPCGMetad
 	Point.MetadataEntry = Metadata ? (Metadata->HasParent(ParentMetadata) ? Metadata->AddEntry(ParentPoint.MetadataEntry) : Metadata->AddEntry()) : PCGInvalidEntryKey;
 }
 
-float UPCGMetadataAccessorHelpers::GetFloatAttribute(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName)
+int64 UPCGMetadataAccessorHelpers::GetInteger64Attribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
+{
+	return GetAttribute<int64>(Point.MetadataEntry, Metadata, AttributeName);
+}
+
+void UPCGMetadataAccessorHelpers::SetInteger64Attribute(FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, int64 Value)
+{
+	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
+}
+
+float UPCGMetadataAccessorHelpers::GetFloatAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<float>(Point.MetadataEntry, Metadata, AttributeName);
 }
@@ -196,7 +216,7 @@ void UPCGMetadataAccessorHelpers::SetFloatAttribute(FPCGPoint& Point, UPCGMetada
 	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
 }
 
-FVector UPCGMetadataAccessorHelpers::GetVectorAttribute(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName)
+FVector UPCGMetadataAccessorHelpers::GetVectorAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<FVector>(Point.MetadataEntry, Metadata, AttributeName);
 }
@@ -206,7 +226,7 @@ void UPCGMetadataAccessorHelpers::SetVectorAttribute(FPCGPoint& Point, UPCGMetad
 	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
 }
 
-FVector4 UPCGMetadataAccessorHelpers::GetVector4Attribute(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName)
+FVector4 UPCGMetadataAccessorHelpers::GetVector4Attribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<FVector4>(Point.MetadataEntry, Metadata, AttributeName);
 }
@@ -216,7 +236,7 @@ void UPCGMetadataAccessorHelpers::SetVector4Attribute(FPCGPoint& Point, UPCGMeta
 	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
 }
 
-FQuat UPCGMetadataAccessorHelpers::GetQuatAttribute(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName)
+FQuat UPCGMetadataAccessorHelpers::GetQuatAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<FQuat>(Point.MetadataEntry, Metadata, AttributeName);
 }
@@ -226,7 +246,7 @@ void UPCGMetadataAccessorHelpers::SetQuatAttribute(FPCGPoint& Point, UPCGMetadat
 	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
 }
 
-FTransform UPCGMetadataAccessorHelpers::GetTransformAttribute(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName)
+FTransform UPCGMetadataAccessorHelpers::GetTransformAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<FTransform>(Point.MetadataEntry, Metadata, AttributeName);
 }
@@ -236,7 +256,7 @@ void UPCGMetadataAccessorHelpers::SetTransformAttribute(FPCGPoint& Point, UPCGMe
 	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
 }
 
-FString UPCGMetadataAccessorHelpers::GetStringAttribute(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName)
+FString UPCGMetadataAccessorHelpers::GetStringAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<FString>(Point.MetadataEntry, Metadata, AttributeName);
 }
@@ -246,7 +266,7 @@ void UPCGMetadataAccessorHelpers::SetStringAttribute(FPCGPoint& Point, UPCGMetad
 	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
 }
 
-bool UPCGMetadataAccessorHelpers::HasAttributeSet(const FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName)
+bool UPCGMetadataAccessorHelpers::HasAttributeSet(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return HasAttributeSetByMetadataKey(Point.MetadataEntry, Metadata, AttributeName);
 }

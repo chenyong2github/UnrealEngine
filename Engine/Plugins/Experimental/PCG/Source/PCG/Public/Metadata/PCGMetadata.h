@@ -50,6 +50,9 @@ public:
 
 	/** Create new streams */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void CreateInteger64Attribute(FName AttributeName, int64 DefaultValue, bool bAllowsInterpolation, bool bOoverrideParent);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void CreateFloatAttribute(FName AttributeName, float DefaultValue, bool bAllowsInterpolation, bool bOverrideParent);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")

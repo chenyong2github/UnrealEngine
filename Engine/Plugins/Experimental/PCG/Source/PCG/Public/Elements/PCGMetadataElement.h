@@ -2,23 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PCGSettings.h"
 #include "PCGElement.h"
+#include "PCGPoint.h"
 
 #include "PCGMetadataElement.generated.h"
-
-UENUM()
-enum class EPCGPointProperties : uint8
-{
-	Density,
-	Extents,
-	Color,
-	Position,
-	Rotation,
-	Scale,
-	Transform
-};
 
 UENUM()
 enum class EPCGMetadataOperationTarget : uint8

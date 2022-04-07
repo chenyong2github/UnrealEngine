@@ -6,6 +6,19 @@
 
 #include "PCGPoint.generated.h"
 
+UENUM()
+enum class EPCGPointProperties : uint8
+{
+	Density,
+	Extents,
+	Color,
+	Position,
+	Rotation,
+	Scale,
+	Transform,
+	Steepness
+};
+
 USTRUCT(BlueprintType)
 struct PCG_API FPCGPoint
 {

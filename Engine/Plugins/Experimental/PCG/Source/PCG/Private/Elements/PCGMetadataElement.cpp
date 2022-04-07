@@ -230,6 +230,21 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *DestinationAttribute.ToString());
 				}
 			}
+			else if (PointProperty == EPCGPointProperties::Steepness)
+			{
+				auto SteepnessGetter = [](const FPCGPoint& InPoint) { return InPoint.Steepness; };
+
+				if (!SampledData->Metadata->HasAttribute(DestinationAttribute))
+				{
+					SampledData->Metadata->CreateFloatAttribute(DestinationAttribute, 0.5f, /*bAllowsInterpolation=*/true, /*bOverrideParent=*/true);
+				}
+
+				FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetMutableAttribute(DestinationAttribute);
+				if (!PCGMetadataOperations::SetValue<float, float>(SampledPoints, AttributeBase, SampledData->Metadata, SteepnessGetter))
+				{
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *DestinationAttribute.ToString());
+				}
+			}
 		}
 		else if(Target == EPCGMetadataOperationTarget::AttributeToProperty) // Attribute to property
 		{
@@ -304,6 +319,16 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(SourceAttribute);
 				if (!PCGMetadataOperations::SetValue<FVector, FTransform>(AttributeBase, SampledPoints, TransformSetter) &&
 					!PCGMetadataOperations::SetValue<FTransform, FTransform>(AttributeBase, SampledPoints, TransformSetter))
+				{
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *SourceAttribute.ToString());
+				}
+			}
+			else if (PointProperty == EPCGPointProperties::Steepness)
+			{
+				auto SteepnessSetter = [](FPCGPoint& InPoint, const float& InValue) { InPoint.Steepness = InValue; };
+
+				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(SourceAttribute);
+				if (!PCGMetadataOperations::SetValue<float, float>(AttributeBase, SampledPoints, SteepnessSetter))
 				{
 					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *SourceAttribute.ToString());
 				}
