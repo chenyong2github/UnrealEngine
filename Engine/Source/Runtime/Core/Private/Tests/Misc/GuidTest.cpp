@@ -11,6 +11,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGuidTest, "System.Core.Misc.Guid", EAutomation
 
 bool FGuidTest::RunTest( const FString& Parameters )
 {
+	// Base36		12SRDE1NOQERISMPEF0H6KUU9
+	// Base64		EjRWeIdlQyESNFZ4h2VDIQ
+	// Hex			0x12345678 0x87654321  0x12345678 0x87654321
 	FGuid g = FGuid(305419896, 2271560481, 305419896, 2271560481);
 
 	// string conversions
@@ -21,7 +24,7 @@ bool FGuidTest::RunTest( const FString& Parameters )
 	TestEqual<FString>(TEXT("String conversion (EGuidFormats::DigitsWithHyphensInParentheses)"), g.ToString(EGuidFormats::DigitsWithHyphensInParentheses), TEXT("(12345678-8765-4321-1234-567887654321)"));
 	TestEqual<FString>(TEXT("String conversion (EGuidFormats::HexValuesInBraces)"), g.ToString(EGuidFormats::HexValuesInBraces), TEXT("{0x12345678,0x8765,0x4321,{0x12,0x34,0x56,0x78,0x87,0x65,0x43,0x21}}"));
 	TestEqual<FString>(TEXT("String conversion (EGuidFormats::UniqueObjectGuid)"), g.ToString(EGuidFormats::UniqueObjectGuid), TEXT("12345678-87654321-12345678-87654321"));
-	TestEqual<FString>(TEXT("String conversion (EGuidFormats::Short)"), g.ToString(EGuidFormats::Short), TEXT("eFY0EiFDZYd4VjQSIUNlhw"));
+	TestEqual<FString>(TEXT("String conversion (EGuidFormats::Short)"), g.ToString(EGuidFormats::Short), TEXT("EjRWeIdlQyESNFZ4h2VDIQ"));
 	TestEqual<FString>(TEXT("String conversion (EGuidFormats::Base36Encoded)"), g.ToString(EGuidFormats::Base36Encoded), TEXT("12SRDE1NOQERISMPEF0H6KUU9"));
 
 	// parsing valid strings (exact)
@@ -45,7 +48,7 @@ bool FGuidTest::RunTest( const FString& Parameters )
 	TestTrue(TEXT("Parsing valid strings must succeed (EGuidFormats::UniqueObjectGuid)"), FGuid::ParseExact(TEXT("12345678-87654321-12345678-87654321"), EGuidFormats::UniqueObjectGuid, g2_1));
 	TestEqual(TEXT("Parsing valid strings must succeed (EGuidFormats::UniqueObjectGuid)"), g2_1, g);
 
-	TestTrue(TEXT("Parsing valid strings must succeed (EGuidFormats::Short)"), FGuid::ParseExact(TEXT("eFY0EiFDZYd4VjQSIUNlhw"), EGuidFormats::Short, g2_1));
+	TestTrue(TEXT("Parsing valid strings must succeed (EGuidFormats::Short)"), FGuid::ParseExact(TEXT("EjRWeIdlQyESNFZ4h2VDIQ"), EGuidFormats::Short, g2_1));
 	TestEqual(TEXT("Parsing valid strings must succeed (EGuidFormats::Short)"), g2_1, g);
 
 	TestTrue(TEXT("Parsing valid strings must succeed (EGuidFormats::Base36Encoded)"), FGuid::ParseExact(TEXT("12SRDE1NOQERISMPEF0H6KUU9"), EGuidFormats::Base36Encoded, g2_1));
@@ -75,8 +78,8 @@ bool FGuidTest::RunTest( const FString& Parameters )
 	TestTrue(TEXT("Parsing valid strings must succeed (12345678-87654321-12345678-87654321)"), FGuid::Parse(TEXT("12345678-87654321-12345678-87654321"), g3_1));
 	TestEqual(TEXT("Parsing valid strings must succeed (12345678-87654321-12345678-87654321)"), g3_1, g);
 
-	TestTrue(TEXT("Parsing valid strings must succeed (eFY0EiFDZYd4VjQSIUNlhw)"), FGuid::Parse(TEXT("eFY0EiFDZYd4VjQSIUNlhw"), g3_1));
-	TestEqual(TEXT("Parsing valid strings must succeed (eFY0EiFDZYd4VjQSIUNlhw)"), g3_1, g);
+	TestTrue(TEXT("Parsing valid strings must succeed (EjRWeIdlQyESNFZ4h2VDIQ)"), FGuid::Parse(TEXT("EjRWeIdlQyESNFZ4h2VDIQ"), g3_1));
+	TestEqual(TEXT("Parsing valid strings must succeed (EjRWeIdlQyESNFZ4h2VDIQ)"), g3_1, g);
 
 	TestTrue(TEXT("Parsing valid strings must succeed (12SRDE1NOQERISMPEF0H6KUU9)"), FGuid::Parse(TEXT("12SRDE1NOQERISMPEF0H6KUU9"), g3_1));
 	TestEqual(TEXT("Parsing valid strings must succeed (12SRDE1NOQERISMPEF0H6KUU9)"), g3_1, g);

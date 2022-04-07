@@ -76,9 +76,9 @@ void FGuid::AppendString(FString& Out, EGuidFormats Format) const
 
 	case EGuidFormats::Short:
 	{
-		const uint32 Data[] = {A,B,C,D};
+		uint32 Bytes[4] = { NETWORK_ORDER32(A), NETWORK_ORDER32(B), NETWORK_ORDER32(C), NETWORK_ORDER32(D) };
 		TCHAR Buffer[25];
-		int32 Len = FBase64::Encode(reinterpret_cast<const uint8*>(Data), sizeof(Data), Buffer);
+		int32 Len = FBase64::Encode(reinterpret_cast<const uint8*>(Bytes), sizeof(Bytes), Buffer);
 		TArrayView<TCHAR> Result(Buffer, Len);
 		
 		Algo::Replace(Result, '+', '-');
@@ -159,10 +159,10 @@ void FGuid::AppendString(FAnsiStringBuilderBase& Builder, EGuidFormats Format) c
 
 	case EGuidFormats::Short:
 	{
-		const uint32 Data[] = {A,B,C,D};
+		uint32 Bytes[4] = { NETWORK_ORDER32(A), NETWORK_ORDER32(B), NETWORK_ORDER32(C), NETWORK_ORDER32(D) };
 		int32 Index = Builder.AddUninitialized(24);
 		TArrayView<ANSICHAR> Result(Builder.GetData() + Index, 24);
-		int32 Len = FBase64::Encode(reinterpret_cast<const uint8*>(&Data), sizeof(Data), Result.GetData());
+		int32 Len = FBase64::Encode(reinterpret_cast<const uint8*>(Bytes), sizeof(Bytes), Result.GetData());
 
 		Algo::Replace(Result, '+', '-');
 		Algo::Replace(Result, '/', '_');
@@ -306,10 +306,10 @@ bool FGuid::ParseExact(const FString& GuidString, EGuidFormats Format, FGuid& Ou
 			return false;
 		}
 
-		OutGuid = FGuid(Data[0],
-						Data[1],
-						Data[2],
-						Data[3]);
+		OutGuid = FGuid(NETWORK_ORDER32(Data[0]),
+						NETWORK_ORDER32(Data[1]),
+						NETWORK_ORDER32(Data[2]),
+						NETWORK_ORDER32(Data[3]));
 		return true;
 	}
 
