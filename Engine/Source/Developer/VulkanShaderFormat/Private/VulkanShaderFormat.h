@@ -136,6 +136,3 @@ struct FVulkanSpirv : FSpirv
 
 // Updates all reflection entries in the specified SPIR-V module.
 extern void PatchSpirvReflectionEntries(FVulkanSpirv& OutSpirv);
-
-// Generates SPIR-V out of the specified GLSL source code.
-extern bool GenerateSpirv(const ANSICHAR* Source, FCompilerInfo& CompilerInfo, FString& OutErrors, const FString& DumpDebugInfoPath, FVulkanSpirv& OutSpirv);

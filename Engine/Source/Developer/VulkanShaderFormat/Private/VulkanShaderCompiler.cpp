@@ -1409,68 +1409,6 @@ FCompilerInfo::FCompilerInfo(const FShaderCompilerInput& InInput, const FString&
 	BaseSourceFilename = Input.GetSourceFilename();
 }
 
-/**
- * Compile a shader using the internal shader compiling library
- */
-static bool CompileUsingInternal(FCompilerInfo& CompilerInfo, const FVulkanBindingTable& BindingTable, const TArray<ANSICHAR>& GlslSource, FShaderCompilerOutput& Output)
-{
-	FString Errors;
-	FVulkanSpirv Spirv;
-	const ANSICHAR* Main = GlslSource.GetData();
-	Main = FCStringAnsi::Strstr(Main, "void main_");
-	check(Main);
-	auto GetNumEOLs = [](const ANSICHAR* Ptr)
-	{
-		uint32 NumLines = 0;
-		while (*Ptr)
-		{
-			if (*Ptr == '\n')
-			{
-				++NumLines;
-			}
-			++Ptr;
-		}
-
-		return NumLines;
-	};
-	uint32 NumLines = GetNumEOLs(Main);
-	if (GenerateSpirv(GlslSource.GetData(), CompilerInfo, Errors, CompilerInfo.Input.DumpDebugInfoPath, Spirv))
-	{
-		FString DebugName = CompilerInfo.Input.DumpDebugInfoPath.Right(CompilerInfo.Input.DumpDebugInfoPath.Len() - CompilerInfo.Input.DumpDebugInfoRootPath.Len());
-
-		Output.Target = CompilerInfo.Input.Target;
-		BuildShaderOutput(Output, CompilerInfo.Input,
-			GlslSource.GetData(), GlslSource.Num(),
-			BindingTable, NumLines, Spirv, DebugName, false);
-
-		if (CompilerInfo.bDebugDump)
-		{
-			FString InfoFile = CompilerInfo.Input.DumpDebugInfoPath / TEXT("Info.txt");
-			FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*InfoFile);
-			if (FileWriter)
-			{
-				FString OutputString = FString::Printf(TEXT("main_%0.8x_%0.8x\n"), Spirv.GetByteSize(), Spirv.CRC);
-				auto AnsiOutputString = StringCast<ANSICHAR>(*OutputString);
-				FileWriter->Serialize((ANSICHAR*)AnsiOutputString.Get(), AnsiOutputString.Length());
-				FileWriter->Close();
-			}
-			delete FileWriter;
-		}
-		return true;
-	}
-	else
-	{
-		if (Errors.Len() > 0)
-		{
-			FShaderCompilerError* Error = new(Output.Errors) FShaderCompilerError();
-			Error->StrippedErrorMessage = Errors;
-		}
-
-		return false;
-	}
-}
-
-
 #if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 
 static void GatherSpirvReflectionBindings(
