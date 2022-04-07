@@ -318,11 +318,12 @@ static bool CompressImageUsingNVTT(
 	const int32 BlockSizeX = 4;
 	const int32 BlockSizeY = 4;
 	const int32 BlockBytes = (PixelFormat == PF_DXT1 || PixelFormat == PF_BC4) ? 8 : 16;
-	const int32 ImageBlocksX = FMath::Max(SizeX / BlockSizeX, 1);
-	const int32 ImageBlocksY = FMath::Max(SizeY / BlockSizeY, 1);
+	const int32 ImageBlocksX = FMath::Max( FMath::DivideAndRoundUp( SizeX , BlockSizeX), 1);
+	const int32 ImageBlocksY = FMath::Max( FMath::DivideAndRoundUp( SizeY , BlockSizeY), 1);
 	const int32 BlocksPerBatch = FMath::Max<int32>(ImageBlocksX, FMath::RoundUpToPowerOfTwo(CompressionSettings::BlocksPerBatch));
 	const int32 RowsPerBatch = BlocksPerBatch / ImageBlocksX;
 	const int32 NumBatches = ImageBlocksY / RowsPerBatch;
+	// these round down, then if (RowsPerBatch * NumBatches) != ImageBlocksY , will encode without batches
 
 	// nvtt doesn't support 64-bit output sizes.
 	int64 OutDataSize = (int64)ImageBlocksX * ImageBlocksY * BlockBytes;
@@ -422,6 +423,7 @@ static bool CompressImageUsingNVTT(
  */
 class FTextureFormatDXT : public ITextureFormat
 {
+public:
 	virtual bool AllowParallelBuild() const override
 	{
 		return true;
@@ -498,6 +500,9 @@ class FTextureFormatDXT : public ITextureFormat
 		) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FTextureFormatDXT::CompressImage);
+		
+		// now we know NVTT will actually be used, Load the DLL :
+		const_cast<FTextureFormatDXT *>(this)->LoadDLL();
 
 		FImage Image;
 		InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
@@ -543,13 +548,76 @@ class FTextureFormatDXT : public ITextureFormat
 
 		if (bCompressionSucceeded)
 		{
+			// @@!! no more image size padding here
+			// TODO : change me in next commit
+			/*
+			OutCompressedImage.SizeX = Image.SizeX;
+			OutCompressedImage.SizeY = Image.SizeY;
+			/*/
 			OutCompressedImage.SizeX = FMath::Max(Image.SizeX, 4);
 			OutCompressedImage.SizeY = FMath::Max(Image.SizeY, 4);
+			/**/
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
 			OutCompressedImage.PixelFormat = CompressedPixelFormat;
 		}
 		return bCompressionSucceeded;
 	}
+
+	FTextureFormatDXT()
+	{
+		// don't LoadDLL until this format is actually used
+	}
+
+	void LoadDLL()
+	{
+#if PLATFORM_WINDOWS
+		// nvtt_64.dll is set to DelayLoad by nvTextureTools.Build.cs
+		// manually load before any call to it, because it's not put in the binaries search path,
+		// and so we can get the AVX2 variant or not :
+
+		if ( nvTextureToolsHandle != nullptr )
+		{
+			return;
+		}
+
+		// Lock so only one thread does init :
+		nvTextureToolsHandleLock.Lock();
+		
+		// double check inside lock :
+		if ( nvTextureToolsHandle != nullptr )
+		{
+			return;
+		}
+
+		if (FWindowsPlatformMisc::HasAVX2InstructionSupport())
+		{
+			nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win64/AVX2/nvtt_64.dll")));
+		}
+		else
+		{
+			nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win64/nvtt_64.dll")));
+		}
+
+		nvTextureToolsHandleLock.Unlock();
+#endif	//PLATFORM_WINDOWS
+	}
+
+	~FTextureFormatDXT()
+	{
+#if PLATFORM_WINDOWS
+		if ( nvTextureToolsHandle != nullptr )
+		{
+			FPlatformProcess::FreeDllHandle(nvTextureToolsHandle);
+			nvTextureToolsHandle = nullptr;
+		}
+#endif
+	}
+	
+#if PLATFORM_WINDOWS
+	// Handle to the nvtt dll
+	void* nvTextureToolsHandle = nullptr;
+	FCriticalSection nvTextureToolsHandleLock;
+#endif	//PLATFORM_WINDOWS
 };
 
 /**
@@ -565,6 +633,12 @@ public:
 		delete Singleton;
 		Singleton = NULL;
 	}
+	
+	/*
+	 @@!! uncomment me
+	virtual bool CanCallGetTextureFormats() override { return false; }
+	*/
+
 	virtual ITextureFormat* GetTextureFormat()
 	{
 		if (!Singleton)
@@ -577,37 +651,15 @@ public:
 	// IModuleInterface implementation.
 	virtual void StartupModule() override
 	{
-#if PLATFORM_WINDOWS
-#if PLATFORM_64BITS
-		if (FWindowsPlatformMisc::HasAVX2InstructionSupport())
-		{
-			nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win64/AVX2/nvtt_64.dll")));
-		}
-		else
-		{
-			nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win64/nvtt_64.dll")));
-		}
-#else	//32-bit platform
-		nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win32/nvtt_.dll")));
-#endif
-#endif	//PLATFORM_WINDOWS
 	}
 
 	virtual void ShutdownModule() override
 	{
-#if PLATFORM_WINDOWS
-		FPlatformProcess::FreeDllHandle(nvTextureToolsHandle);
-		nvTextureToolsHandle = 0;
-#endif
 	}
 
 	static inline UE::DerivedData::TBuildFunctionFactory<FDXTTextureBuildFunction> BuildFunctionFactory;
 
 private:
-#if PLATFORM_WINDOWS
-	// Handle to the nvtt dll
-	void* nvTextureToolsHandle;
-#endif	//PLATFORM_WINDOWS
 };
 
 IMPLEMENT_MODULE(FTextureFormatDXTModule, TextureFormatDXT);

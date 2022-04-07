@@ -22,6 +22,7 @@ public class nvTextureTools : ModuleRules
 
 			PublicDelayLoadDLLs.Add("nvtt_64.dll");
 
+			// note this does not stage it to a place where DelayLoad will find it, you must manually load :
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/nvTextureTools/Win64/nvtt_64.dll");
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/nvTextureTools/Win64/AVX2/nvtt_64.dll");
 		}
