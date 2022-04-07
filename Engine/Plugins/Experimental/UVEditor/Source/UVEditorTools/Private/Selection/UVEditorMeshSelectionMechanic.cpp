@@ -571,11 +571,11 @@ void UUVEditorMeshSelectionMechanic::SetSelectionMode(
 	using namespace UVEditorMeshSelectionMechanicLocals;
 
 	ESelectionMode OldMode = SelectionMode;
-	SelectionMode = TargetMode;
-	if (OldMode == SelectionMode || !bIsEnabled || !SelectionAPI)
+	if (OldMode == TargetMode || !SelectionAPI)
 	{
 		return;
 	}
+	SelectionMode = TargetMode;
 
 	if (ViewportButtonsAPI)
 	{
