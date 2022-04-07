@@ -153,6 +153,7 @@ UEditorExperimentalSettings::UEditorExperimentalSettings( const FObjectInitializ
 	, bEnableAsyncTextureCompilation(false)
 	, bEnableAsyncStaticMeshCompilation(false)
 	, bEnableAsyncSkeletalMeshCompilation(false)
+	, bEnableAsyncSoundWaveCompilation(false)
 	, bHDREditor(false)
 	, HDREditorNITLevel(160.0f)
 	, bUseOpenCLForConvexHullDecomp(false)

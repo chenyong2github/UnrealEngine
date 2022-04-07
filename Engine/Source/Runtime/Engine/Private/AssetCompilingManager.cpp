@@ -16,6 +16,7 @@ LLM_DEFINE_TAG(AssetCompilation, NAME_None, NAME_None, GET_STATFNAME(STAT_AssetC
 #include "ActorDeferredScriptManager.h"
 #include "StaticMeshCompiler.h"
 #include "TextureCompiler.h"
+#include "SoundWaveCompiler.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstance.h"
 #include "ObjectCacheContext.h"
@@ -203,6 +204,7 @@ FAssetCompilingManager::FAssetCompilingManager()
 	RegisterManager(&FSkeletalMeshCompilingManager::Get());
 	RegisterManager(&FTextureCompilingManager::Get());
 	RegisterManager(&FActorDeferredScriptManager::Get());
+	RegisterManager(&FSoundWaveCompilingManager::Get());
 #endif
 }
 

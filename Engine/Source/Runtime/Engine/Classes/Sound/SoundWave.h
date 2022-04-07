@@ -13,6 +13,7 @@
 #include "Async/AsyncWork.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundWaveTimecodeInfo.h"
+#include "Interfaces/Interface_AsyncCompilation.h"
 #include "Serialization/BulkData.h"
 #include "Serialization/BulkDataBuffer.h"
 #include "Sound/SoundGroups.h"
@@ -113,6 +114,8 @@ struct ENGINE_API FStreamedAudioPlatformData
 #if WITH_EDITORONLY_DATA
 	/** The key associated with this derived data. */
 	FString DerivedDataKey;
+	/** Protection for AsyncTask manipulation since it can be accessed from multiple threads */
+	mutable TDontCopy<FRWLock> AsyncTaskLock;
 	/** Async cache task if one is outstanding. */
 	struct FStreamedAudioAsyncCacheDerivedDataTask* AsyncTask;
 #endif // WITH_EDITORONLY_DATA
@@ -132,7 +135,11 @@ struct ENGINE_API FStreamedAudioPlatformData
 	 */
 	int32 GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
 
-	
+	/** Get the chunks while making sure any async task are finished before returning. */
+	TIndirectArray<struct FStreamedAudioChunk>& GetChunks() const;
+
+	/** Get the number of chunks while making sure any async task are finished before returning. */
+	int32 GetNumChunks() const;
 
 	/** Serialization. */
 	void Serialize(FArchive& Ar, class USoundWave* Owner);
@@ -141,6 +148,8 @@ struct ENGINE_API FStreamedAudioPlatformData
 	void Cache(class USoundWave& InSoundWave, const FPlatformAudioCookOverrides* CompressionOverrides, FName AudioFormatName, uint32 InFlags);
 	void FinishCache();
 	bool IsFinishedCache() const;
+	bool IsAsyncWorkComplete() const;
+	bool IsCompiling() const;
 	bool TryInlineChunkData();
 
 	UE_DEPRECATED(5.00, "Use AreDerivedChunksAvailable with the context instead.")
@@ -150,6 +159,13 @@ struct ENGINE_API FStreamedAudioPlatformData
 #endif // WITH_EDITORONLY_DATA
 
 private:
+#if WITH_EDITORONLY_DATA
+	friend class USoundWave;
+	/**  Utility function used internally to change task priority while maintaining thread-safety. */
+	bool RescheduleAsyncTask(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
+	/**  Utility function used internally to wait or poll a task while maintaining thread-safety. */
+	bool WaitAsyncTaskWithTimeout(float InTimeoutInSeconds);
+#endif
 
 	/**
 	 * Takes the results of a DDC operation and deserializes it into an FStreamedAudioChunk struct.
@@ -354,7 +370,7 @@ struct ISoundWaveClient
 	virtual void OnFinishDestroy(class USoundWave* Wave) = 0;
 };
 UCLASS(hidecategories=Object, editinlinenew, BlueprintType, meta= (LoadBehavior = "LazyOnDemand"))
-class ENGINE_API USoundWave : public USoundBase, public IAudioProxyDataFactory
+class ENGINE_API USoundWave : public USoundBase, public IAudioProxyDataFactory, public IInterface_AsyncCompilation
 {
 	GENERATED_UCLASS_BODY()
 
@@ -806,6 +822,21 @@ public:
 	virtual void BeginDestroy() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	/** IInterface_AsyncCompilation begin*/
+	virtual bool IsCompiling() const override;
+	/** IInterface_AsyncCompilation end*/
+
+	bool IsAsyncWorkComplete() const;
+
+private:
+	friend class FSoundWaveCompilingManager;
+	/**  Utility function used internally to change task priority while maintaining thread-safety. */
+	bool RescheduleAsyncTask(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
+	/**  Utility function used internally to wait or poll a task while maintaining thread-safety. */
+	bool WaitAsyncTaskWithTimeout(float InTimeoutInSeconds);
+
+public:
 #endif // WITH_EDITOR
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	virtual FName GetExporterName() override;
@@ -974,6 +1005,9 @@ public:
 
 #if WITH_EDITOR
 	void LogBakedData();
+
+	/** Returns if an async task for a certain platform has finished. */
+	bool IsCompressedDataReady(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides) const;
 #endif //WITH_EDITOR
 
 	virtual void BeginGetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides);
@@ -1228,8 +1262,13 @@ public:
 
 
 private:
+	void DiscardZerothChunkData();
+
 	/** Zeroth Chunk of audio for sources that use Load On Demand. */
 	FBulkDataBuffer<uint8> ZerothChunkData;
+
+	/* Accessor to get the zeroth chunk which might perform additional work in editor to handle async tasks. */
+	FBulkDataBuffer<uint8>& GetZerothChunkData() const;
 
 	/** The streaming derived data for this sound on this platform. */
 	FStreamedAudioPlatformData RunningPlatformData;
@@ -1259,7 +1298,6 @@ private:
 	float Duration = 0;
 
 	uint32 NumChannels = 0;
-	uint32 NumChunks = 0;
 	int32 NumFrames = 0;
 
 	// shared flags
