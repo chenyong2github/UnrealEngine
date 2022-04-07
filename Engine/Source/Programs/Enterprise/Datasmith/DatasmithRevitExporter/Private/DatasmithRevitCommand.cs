@@ -62,11 +62,11 @@ namespace DatasmithRevitExporter
 		{
 			UIDocument UIDoc = InCommandData.Application.ActiveUIDocument;
 			Document Doc = UIDoc.Document;
-			View3D ActiveView = Doc.ActiveView as View3D;
+			View3D ActiveView = FDirectLink.GetSyncView();
 
 			if (ActiveView == null)
 			{
-				string Message = "You must be in a 3D view to export.";
+				string Message = "You must select a 3D view to sync.";
 				MessageBox.Show(Message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 				return Result.Cancelled;
 			}
@@ -178,7 +178,7 @@ namespace DatasmithRevitExporter
 
 			if (ExportActiveViewOnly)
 			{
-				View3D ActiveView = Doc.ActiveView as View3D;
+				View3D ActiveView = FDirectLink.GetSyncView();
 
 				if (ActiveView == null)
 				{

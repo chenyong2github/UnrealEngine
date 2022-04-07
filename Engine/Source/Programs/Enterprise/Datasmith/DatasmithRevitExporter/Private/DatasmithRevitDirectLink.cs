@@ -144,6 +144,8 @@ namespace DatasmithRevitExporter
 		private FCachedDocumentData										RootCache = null;
 		private FCachedDocumentData										CurrentCache = null;
 		
+		private View3D													SyncView = null;
+
 		private HashSet<Document>										ModifiedLinkedDocuments = new HashSet<Document>();
 		private HashSet<ElementId>										ExportedLinkedDocuments = new HashSet<ElementId>();
 		private Stack<FCachedDocumentData>								CacheStack = new Stack<FCachedDocumentData>();
@@ -200,11 +202,16 @@ namespace DatasmithRevitExporter
 			return ActiveInstance;
 		}
 
-		public static void ActivateInstance(Document InDocument)
+		public static View3D GetSyncView()
+		{
+			return ActiveInstance?.SyncView ?? null;
+		}
+
+		public static void ActivateInstance(View3D InView)
 		{
 			if (UIApp == null)
 			{
-				UIApp = new UIApplication(InDocument.Application);
+				UIApp = new UIApplication(InView.Document.Application);
 			}
 
 			// Disable existing instance, if there's active one.
@@ -218,7 +225,12 @@ namespace DatasmithRevitExporter
 
 			foreach (FDirectLink DL in Instances)
 			{
-				if (DL.RootCache.SourceDocument.Equals(InDocument))
+				if (DL.SyncView == null || !DL.SyncView.IsValidObject)
+				{
+					continue;
+				}
+
+				if (DL.RootCache.SourceDocument.Equals(InView.Document) && DL.SyncView.Id == InView.Id)
 				{
 					InstanceToActivate = DL;
 					break;
@@ -227,7 +239,7 @@ namespace DatasmithRevitExporter
 
 			if (InstanceToActivate == null)
 			{
-				InstanceToActivate = new FDirectLink(InDocument);
+				InstanceToActivate = new FDirectLink(InView);
 				Instances.Add(InstanceToActivate);
 			}
 
@@ -235,11 +247,11 @@ namespace DatasmithRevitExporter
 			ActiveInstance = InstanceToActivate;
 		}
 
-		public static FDirectLink FindInstance(Document InDocument)
+		public static FDirectLink FindInstance(View3D InView)
 		{
 			foreach (var Inst in Instances)
 			{
-				if (Inst.RootCache.SourceDocument.Equals(InDocument))
+				if (Inst.SyncView.Id == InView.Id)
 				{
 					return Inst;
 				}
@@ -256,6 +268,27 @@ namespace DatasmithRevitExporter
 			FSettingsManager.SettingsUpdated -= Instance.SettingsChangedHandler;
 			Instances.Remove(Instance);
 			Instance?.Destroy(InApp);
+		}
+
+		public static void DestroyInstancesForDocument(Document InDoc, Application InApp)
+		{
+			for (int InstanceIndex = Instances.Count - 1; InstanceIndex >= 0; --InstanceIndex)
+			{
+				FDirectLink Instance = Instances[InstanceIndex];
+
+				if (!Instance.RootCache.SourceDocument.Equals(InDoc))
+				{
+					continue;
+				}
+
+				if (ActiveInstance == Instance)
+				{
+					ActiveInstance = null;
+				}
+
+				Instances.RemoveAt(InstanceIndex);
+				Instance?.Destroy(InApp);
+			}
 		}
 
 		public static void DestroyAllInstances(Application InApp) 
@@ -332,24 +365,27 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		private FDirectLink(Document InDocument)
+		private FDirectLink(View3D InView)
 		{
-			RootCache = new FCachedDocumentData(InDocument);
+			RootCache = new FCachedDocumentData(InView.Document);
+			
 			CurrentCache = RootCache;
+
+			SyncView = InView;
 
 			DatasmithScene = new FDatasmithFacadeScene(
 				FDatasmithRevitExportContext.HOST_NAME,
 				FDatasmithRevitExportContext.VENDOR_NAME,
 				FDatasmithRevitExportContext.PRODUCT_NAME,
-				InDocument.Application.VersionNumber);
+				InView.Document.Application.VersionNumber);
 
-			SceneName = Path.GetFileNameWithoutExtension(RootCache.SourceDocument.PathName);
+			SceneName = $"{Path.GetFileNameWithoutExtension(RootCache.SourceDocument.PathName)}_{InView.Name}";
 			string OutputPath = Path.Combine(Path.GetTempPath(), SceneName);
 			DatasmithScene.SetName(SceneName);
 			DatasmithScene.SetLabel(SceneName);
 
 			DocumentChangedHandler = new EventHandler<DocumentChangedEventArgs>(OnDocumentChanged);
-			InDocument.Application.DocumentChanged += DocumentChangedHandler;
+			InView.Document.Application.DocumentChanged += DocumentChangedHandler;
 
 			SettingsChangedHandler = new EventHandler((object Sender, EventArgs Args) => 
 			{
@@ -863,7 +899,7 @@ namespace DatasmithRevitExporter
 			if (CurrentBatchSize > 0)
 			{
 				// Send remaining chunk of metadata.
-				DatasmithDirectLink.UpdateScene(DatasmithScene);
+				DatasmithDirectLink?.UpdateScene(DatasmithScene);
 			}
 
 #if DEBUG
