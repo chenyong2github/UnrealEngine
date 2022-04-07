@@ -2,14 +2,18 @@
 
 #pragma once
 
+#ifdef UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "AI/Navigation/NavigationDirtyElement.h"
+#endif //UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+
+#include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "Templates/SubclassOf.h"
-#include "UObject/WeakObjectPtr.h"
 #include "Misc/CoreStats.h"
 #include "UObject/SoftObjectPath.h"
 #include "GameFramework/Actor.h"
@@ -233,60 +237,6 @@ struct FNavigationBoundsUpdateRequest
 	Type UpdateRequest;
 };
 
-struct FNavigationDirtyElement
-{
-	/** object owning this element */
-	FWeakObjectPtr Owner;
-	
-	/** cached interface pointer */
-	INavRelevantInterface* NavInterface;
-
-	/** override for update flags */
-	int32 FlagsOverride;
-	
-	/** flags of already existing entry for this actor */
-	int32 PrevFlags;
-	
-	/** bounds of already existing entry for this actor */
-	FBox PrevBounds;
-
-	/** prev flags & bounds data are set */
-	uint8 bHasPrevData : 1;
-
-	/** request was invalidated while queued, use prev values to dirty area */
-	uint8 bInvalidRequest : 1;
-
-	FNavigationDirtyElement()
-		: NavInterface(0), FlagsOverride(0), PrevFlags(0), PrevBounds(ForceInit), bHasPrevData(false), bInvalidRequest(false)
-	{
-	}
-
-	FNavigationDirtyElement(UObject* InOwner)
-		: Owner(InOwner), NavInterface(0), FlagsOverride(0), PrevFlags(0), PrevBounds(ForceInit), bHasPrevData(false), bInvalidRequest(false)
-	{
-	}
-
-	FNavigationDirtyElement(UObject* InOwner, INavRelevantInterface* InNavInterface, int32 InFlagsOverride = 0)
-		: Owner(InOwner), NavInterface(InNavInterface),	FlagsOverride(InFlagsOverride), PrevFlags(0), PrevBounds(ForceInit), bHasPrevData(false), bInvalidRequest(false)
-	{
-	}
-
-	bool operator==(const FNavigationDirtyElement& Other) const 
-	{ 
-		return Owner == Other.Owner; 
-	}
-
-	bool operator==(const UObject*& OtherOwner) const 
-	{ 
-		return (Owner == OtherOwner);
-	}
-
-	FORCEINLINE friend uint32 GetTypeHash(const FNavigationDirtyElement& Info)
-	{
-		return GetTypeHash(Info.Owner);
-	}
-};
-
 UENUM()
 enum class ENavDataGatheringMode : uint8
 {
@@ -317,7 +267,7 @@ struct FNavigationPortalEdge
 	FVector Right;
 	NavNodeRef ToRef;
 
-	FNavigationPortalEdge() : Left(0.f), Right(0.f)
+	FNavigationPortalEdge() : Left(0.f), Right(0.f), ToRef(INVALID_NAVNODEREF)
 	{}
 
 	FNavigationPortalEdge(const FVector& InLeft, const FVector& InRight, NavNodeRef InToRef)

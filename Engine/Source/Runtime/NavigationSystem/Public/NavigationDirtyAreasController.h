@@ -7,6 +7,7 @@
 NAVIGATIONSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogNavigationDirtyArea, Warning, All);
 
 class ANavigationData;
+struct FNavigationDirtyElement;
 
 struct NAVIGATIONSYSTEM_API FNavigationDirtyAreasController
 {

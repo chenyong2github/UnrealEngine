@@ -10,6 +10,7 @@
 #include "Misc/CoreDelegates.h"
 #include "NavFilters/NavigationQueryFilter.h"
 #include "AI/Navigation/NavigationTypes.h"
+#include "AI/Navigation/NavigationDirtyElement.h"
 #include "NavigationSystemTypes.h"
 #include "NavigationData.h"
 #include "AI/NavigationSystemBase.h"

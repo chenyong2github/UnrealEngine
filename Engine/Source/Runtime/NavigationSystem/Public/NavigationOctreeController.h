@@ -2,7 +2,7 @@
 
 #pragma once
 #include "NavigationOctree.h"
-
+#include "AI/Navigation/NavigationDirtyElement.h"
 
 struct NAVIGATIONSYSTEM_API FNavigationOctreeController
 {

@@ -4,6 +4,7 @@
 #include "NavigationOctreeController.h"
 #include "NavigationDirtyAreasController.h"
 
+struct FNavigationDirtyElement;
 
 struct NAVIGATIONSYSTEM_API FNavigationDataHandler
 {

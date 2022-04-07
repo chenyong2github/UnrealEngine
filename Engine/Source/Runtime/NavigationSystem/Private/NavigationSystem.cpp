@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "AI/Navigation/NavRelevantInterface.h"
+#include "AI/Navigation/NavigationDirtyElement.h"
 #include "UObject/UObjectIterator.h"
 #include "EngineUtils.h"
 #include "Logging/MessageLog.h"
