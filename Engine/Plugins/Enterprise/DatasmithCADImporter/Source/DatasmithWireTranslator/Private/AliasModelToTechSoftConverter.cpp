@@ -28,6 +28,9 @@
 
 namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
 {
+
+const FColor FAliasModelToTechSoftConverter::DefaultColor(200, 200, 200);
+
 #ifdef USE_TECHSOFT_SDK
 
 namespace AliasToTechSoftUtils
@@ -337,7 +340,7 @@ A3DTopoFace* FAliasModelToTechSoftConverter::AddTrimRegion(const AlTrimRegion& I
 
 	A3DTopoFace* FacePtr = CADLibrary::TechSoftInterface::CreateTopoFace(*Face);
 
-	CADLibrary::TechSoftUtils::SetEntityGraphicsColor(FacePtr, FColor(200,200,200));
+	CADLibrary::TechSoftUtils::SetEntityGraphicsColor(FacePtr, DefaultColor);
 
 	return FacePtr;
 }
@@ -406,6 +409,8 @@ bool FAliasModelToTechSoftConverter::AddBRep(AlDagNode& DagNode, EAliasObjectRef
 				if (TSSurface != nullptr)
 				{
 					A3DTopoFace* TSFace = CADLibrary::TechSoftUtils::CreateTopoFaceWithNaturalLoop(TSSurface);
+					CADLibrary::TechSoftUtils::SetEntityGraphicsColor(TSFace, DefaultColor);
+
 					if (TSFace != nullptr)
 					{
 						TSFaces.Add(TSFace);
