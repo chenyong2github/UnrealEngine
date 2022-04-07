@@ -36,7 +36,8 @@ private:
 	{
 		TWeakPtr<FImgMediaPlayer> Player;
 		TSharedPtr<STextBlock> UrlTextBlock;
-		TSharedPtr<STextBlock> BandwidthTextBlock;
+		TSharedPtr<STextBlock> CurrentBandwidthTextBlock;
+		TSharedPtr<STextBlock> MinimumBandwidthTextBlock;
 	};
 
 	/** Array of all players. */

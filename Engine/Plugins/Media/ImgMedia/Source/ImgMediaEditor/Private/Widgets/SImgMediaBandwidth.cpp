@@ -76,10 +76,16 @@ void SImgMediaBandwidth::Tick(const FGeometry& AllottedGeometry, const double In
 			TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = Player->GetLoader();
 			if (Loader.IsValid())
 			{
-				// Set bandwidth.
+				// Set cuurrent bandwidth.
 				float Bandwidth = Loader->GetCurrentBandwidth() / (1024.0f * 1024.0f);
-				PlayerInfo.BandwidthTextBlock->SetText(FText::Format(
+				PlayerInfo.CurrentBandwidthTextBlock->SetText(FText::Format(
 					LOCTEXT("Current", "Current: {0} MB/s"),
+					FText::AsNumber(Bandwidth)));
+
+				// Set minimum bandwidth.
+				Bandwidth = Loader->GetMinBandwidthForMipLevel0() / (1024.0f * 1024.0f);
+				PlayerInfo.MinimumBandwidthTextBlock->SetText(FText::Format(
+					LOCTEXT("Minimum", "Minimum: {0} MB/s"),
 					FText::AsNumber(Bandwidth)));
 			}
 		}
@@ -127,9 +133,15 @@ void SImgMediaBandwidth::RefreshPlayersContainer()
 								SNew(SHorizontalBox)
 
 								+ SHorizontalBox::Slot()
-									.AutoWidth()
+									.FillWidth(1.0f)
 									[
-										SAssignNew(PlayerInfo.BandwidthTextBlock, STextBlock)
+										SAssignNew(PlayerInfo.CurrentBandwidthTextBlock, STextBlock)
+									]
+
+								+ SHorizontalBox::Slot()
+									.FillWidth(1.0f)
+									[
+										SAssignNew(PlayerInfo.MinimumBandwidthTextBlock, STextBlock)
 									]
 							]
 

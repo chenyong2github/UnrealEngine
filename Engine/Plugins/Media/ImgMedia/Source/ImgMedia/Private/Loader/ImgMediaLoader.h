@@ -77,6 +77,8 @@ public:
 
 	/** Get the number of bytes read per second from the last frame read. */
 	float GetCurrentBandwidth() const { return CurrentBandwidth; }
+	/** Get the minimum number of bytes per second needed to read mip level 0.. */
+	float GetMinBandwidthForMipLevel0() const { return MinBandwidthForMipLevel0; }
 
 	/**
 	 * Get the time ranges of frames that are being loaded right now.
@@ -563,4 +565,6 @@ private:
 
 	/** Number of bytes read per second from the last frame read. */
 	float CurrentBandwidth;
+	/** Minimum number of bytes per second needed to read mip level 0. */
+	float MinBandwidthForMipLevel0;
 };

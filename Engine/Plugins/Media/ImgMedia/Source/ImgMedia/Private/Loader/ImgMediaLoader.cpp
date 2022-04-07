@@ -872,6 +872,14 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	SequenceDuration = FrameNumberToTime(GetNumImages());
 	SIZE_T UncompressedSize = FirstFrameInfo.UncompressedSize;
 
+	// Get minimum bandwidth needed for mip level 0.
+	MinBandwidthForMipLevel0 = UncompressedSize;
+	float FrameTime = SequenceFrameRate.AsInterval();
+	if (FrameTime > 0)
+	{
+		MinBandwidthForMipLevel0 /= FrameTime;
+	}
+
 #if 0
 	// todo: enable once both the CPU & GPU reader use the same tile count logic.
 	if (FirstFrameInfo.bHasTiles)
