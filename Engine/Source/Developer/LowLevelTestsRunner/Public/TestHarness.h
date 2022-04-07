@@ -100,144 +100,66 @@ struct Catch::StringMaker<TTuple<KeyType, ValueType>>
 
 /** Use with TEST_CASE_METHOD to quickly migrate automation tests to Catch. */
 class FAutomationTestFixture
-{
-public:
-
-	template <typename WhatType>
-	inline bool TestTrue(const WhatType What, const bool bValue)
-	{
-		CAPTURE(What);
-		CHECK(bValue);
-		return bValue;
-	}
-
-	template <typename WhatType>
-	inline bool TestFalse(const WhatType What, const bool bValue)
-	{
-		CAPTURE(What);
-		CHECK(!bValue);
-		return !bValue;
-	}
-
-	template <typename WhatType, typename ActualType, typename ExpectedType>
-	inline bool TestEqual(const WhatType What, const ActualType& Actual, const ExpectedType& Expected)
-	{
-		CAPTURE(What);
-		CHECK(Actual == Expected);
-		return Actual == Expected;
-	}
-
-	template <typename WhatType, typename ActualType, typename ExpectedType>
-	inline bool TestNotEqual(const WhatType& What, const ActualType& Actual, const ExpectedType& Expected)
-	{
-		CAPTURE(What);
-		CHECK(Actual != Expected);
-		return Actual != Expected;
-	}
-	template <typename WhatType, typename ActualType>
-	inline bool TestNull(const WhatType& What, const ActualType& Actual)
-	{
-		CAPTURE(What);
-		CHECK(Actual == nullptr);
-		return Actual == nullptr;
-	}
-	template <typename WhatType, typename ActualType>
-	inline bool TestNotNull(const WhatType& What, const ActualType& Actual)
-	{
-		CAPTURE(What);
-		CHECK(Actual != nullptr);
-		return Actual != nullptr;
-	}
-	template <typename WhatType, typename ActualType>
-	inline bool TestValid(const WhatType& What, const ActualType& Actual)
-	{
-		CAPTURE(What);
-		CHECK(Actual.IsValid() == true);
-		return Actual.IsValid() == true;
-	}
-	template <typename WhatType, typename ActualType>
-	inline bool TestInvalid(const WhatType& What, const ActualType& Actual)
-	{
-		CAPTURE(What);
-		CHECK(Actual.IsValid() == false);
-		return Actual.IsValid() == false;
-	}
-	template <typename WhatType, typename ActualType>
-	inline bool Verify(const WhatType What, const ActualType& Actual)
-	{
-		CAPTURE(What);
-		CHECK(Actual == true);
-		return Actual == true;
-	}
-	template <typename WhatType>
-	inline void AddWarning(const WhatType& What)
-	{
-		CAPTURE(What);
-		return;
-	}
-	template <typename WhatType>
-	inline void AddError(const WhatType& What)
-	{
-		CAPTURE(What);
-		return;
-	}
-	
+{	
 };
 
+#define VERIFY(What, Actual)\
+	CAPTURE(What);\
+	CHECK(Actual == true)
+
+#define ADD_WARNING(What)\
+	WARN(What)
+
+#define ADD_ERROR(What)\
+	FAIL(What)
+
 #define CHECK_EQUAL(Actual, Expected)\
-	CHECK(Actual == Expected);
+	CHECK(Actual == Expected)
 
 #define CHECK_NOT_EQUAL(Actual, Expected)\
-	CHECK(Actual != Expected);
+	CHECK(Actual != Expected)
 
 #define REQUIRE_EQUAL(Actual, Expected)\
-	REQUIRE(Actual == Expected);
+	REQUIRE(Actual == Expected)
 
 #define REQUIRE_NOT_EQUAL(Actual, Expected)\
-	REQUIRE(Actual != Expected);
-
-
+	REQUIRE(Actual != Expected)
 
 #define TEST_TRUE(What, Value)\
-{\
 	INFO(What);\
-	CHECK((Value)==true);\
-}
+	CHECK((Value)==true)
+
 #define TEST_FALSE(What, Value)\
-{\
 	INFO(What);\
-	CHECK((Value)==false);\
-}
+	CHECK((Value)==false)
+
 #define TEST_EQUAL(What, Actual, Expected)\
-{\
 	INFO(What);\
-	CHECK((Actual) == (Expected));\
-}
+	CHECK((Actual) == (Expected))
+
+#define TEST_EQUAL_STR(What, Expected, Actual)\
+	INFO(What);\
+	CAPTURE(Actual);\
+	CHECK(FCString::Strcmp(ToCStr((Expected)), ToCStr((Actual))) == 0)
 
 #define TEST_NOT_EQUAL(What, Actual, Expected)\
-{\
 	INFO(What);\
-	CHECK((Actual) != (Expected));\
-}
+	CHECK((Actual) != (Expected))
+
 #define TEST_NULL(What, Value)\
-{\
 	INFO(What);\
-	CHECK((Value)==nullptr);\
-}
+	CHECK((Value)==nullptr)
+
 #define TEST_NOT_NULL(What, Value)\
-{\
 	INFO(What);\
-	CHECK((Value)!=nullptr);\
-}
+	CHECK((Value)!=nullptr)
+
 #define TEST_VALID(What, Value)\
-{\
 	INFO(What);\
-	CHECK(Value.IsValid()==true);\
-}
+	CHECK(Value.IsValid()==true)
+
 #define TEST_INVALID(What, Value)\
-{\
 	INFO(What);\
-	CHECK(Value.IsValid()==false);\
-}
+	CHECK(Value.IsValid()==false)
 
 #endif // UE_ENABLE_TESTHARNESS_ENGINE_SUPPORT

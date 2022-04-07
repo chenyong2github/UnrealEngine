@@ -6,6 +6,8 @@
 #include "ObjectRefTrackingTestBase.h"
 #include "IO/IoDispatcher.h"
 
+#include "TestHarness.h"
+
 static_assert(sizeof(FObjectHandle) == sizeof(void*), "FObjectHandle type must always compile to something equivalent to a pointer size.");
 
 class FObjectHandleTestBase : public FObjectRefTrackingTestBase
@@ -18,17 +20,23 @@ protected:
 	{
 	#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 		// Late resolved handles cannot be null or resolved at this point
-		if (!TestFalse(TEXT("Handle to target is null"), IsObjectHandleNull(TargetHandle)))
+		bool bValue = IsObjectHandleNull(TargetHandle);
+		TEST_FALSE(TEXT("Handle to target is null"), bValue);
+		if (bValue)
 		{
 			return nullptr;
 		}
-		if (!TestFalse(TEXT("Handle to target is resolved"), IsObjectHandleResolved(TargetHandle)))
+		bValue = IsObjectHandleResolved(TargetHandle);
+		TEST_FALSE(TEXT("Handle to target is resolved"), bValue);
+		if (bValue)
 		{
 			return nullptr;
 		}
 	#else
+		bool bValue = IsObjectHandleResolved(TargetHandle);
 		// Immediately resolved handles may be null (if the target is invalid) and must be resolved at this point
-		if (!TestFalse(TEXT("Handle to target is not resolved"), IsObjectHandleResolved(TargetHandle)))
+		TEST_TRUE(TEXT("Handle to target is not resolved"), bValue);
+		if (!bValue)
 		{
 			return nullptr;
 		}
@@ -40,7 +48,9 @@ protected:
 	UObject* ConstructAndResolveHandle(const ANSICHAR* PackageName, const ANSICHAR* ObjectName, const ANSICHAR* ClassPackageName = nullptr, const ANSICHAR* ClassName = nullptr)
 	{
 		FObjectRef TargetRef{FName(PackageName), FName(ClassPackageName), FName(ClassName), FObjectPathId(ObjectName)};
-		if (!TestFalse(TEXT("Reference to target is null"), IsObjectRefNull(TargetRef)))
+		bool bValue = IsObjectRefNull(TargetRef);
+		TEST_FALSE(TEXT("Reference to target is null"), bValue);
+		if (bValue)
 		{
 			return nullptr;
 		}
@@ -51,7 +61,9 @@ protected:
 
 	UObject* ConstructAndResolveHandle(const FPackedObjectRef& PackedTargetRef)
 	{
-		if (!TestFalse(TEXT("Reference to target is null"), IsPackedObjectRefNull(PackedTargetRef)))
+		bool bValue = IsPackedObjectRefNull(PackedTargetRef);
+		TEST_FALSE(TEXT("Reference to target is null"), bValue);
+		if (bValue)
 		{
 			return nullptr;
 		}
@@ -110,7 +122,7 @@ protected:
 	}
 };
 
-TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Null Behavior", "[CoreUObject][ObjectHandle][Smoke]")
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Null Behavior", "[CoreUObject][ObjectHandle]")
 {
 	FObjectHandle TargetHandle = MakeObjectHandle(nullptr);
 
@@ -127,7 +139,7 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Null Behavi
 	ObjectRefMetrics.TestNumReads(TEXT("NumReads should be incremented by one after a resolve attempt on a null handle"), 1);
 }
 
-TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Pointer Behavior", "[CoreUObject][ObjectHandle][Smoke]")
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Pointer Behavior", "[CoreUObject][ObjectHandle]")
 {
 	FObjectHandle TargetHandle = MakeObjectHandle((UObject*)0x0042);
 
@@ -160,7 +172,7 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Eng
 	}
 }
 
-TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Non Existent Target", "[CoreUObject][ObjectHandle][Smoke]")
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Non Existent Target", "[CoreUObject][ObjectHandle]")
 {
 	// Confirm we don't successfully resolve an incorrect reference to engine content
 	TestResolveFailure("/Engine/EngineResources/NonExistentPackageName_0", "DefaultTexture");
@@ -177,7 +189,7 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Scr
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 
-TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Malformed Handle", "[CoreUObject][ObjectHandle][Smoke]")
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Malformed Handle", "[CoreUObject][ObjectHandle]")
 {
 	TestResolveFailure(FPackedObjectRef { 0xFFFF'FFFF'FFFF'FFFFull });
 	TestResolveFailure(FPackedObjectRef { 0xEFEF'EFEF'EFEF'EFEFull });

@@ -6,7 +6,7 @@
 namespace BulkDataTest
 {
 	// Test code paths for BulkData objects that do not reference a file on disk.
-	TEST_CASE_METHOD(FAutomationTestFixture, "CoreUObject::Serialization::FByteBulkData::Transient", "[CoreUObject][Serialization][Smoke]")
+	TEST_CASE_METHOD(FAutomationTestFixture, "CoreUObject::Serialization::FByteBulkData::Transient", "[CoreUObject][Serialization]")
 	{
 		FByteBulkData BulkData;
 
@@ -61,7 +61,7 @@ namespace BulkDataTest
 
 #if USE_NEW_BULKDATA // The warning only exists for BulkData2
 		// Both the ::Lock and ::GetCopy calls should warn that we cannot load the missing data (as it will still have a valid size)
-		FAIL(TEXT("Attempting to load a BulkData object that cannot be loaded from disk"));
+		WARN(TEXT("Attempting to load a BulkData object that cannot be loaded from disk"));
 #endif //USE_NEW_BULKDATA
 
 		DataPtr = BulkData.Lock(LOCK_READ_WRITE);
