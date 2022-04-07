@@ -50,7 +50,7 @@ enum class EGizmoElementViewAlignType
  * Contains common properties and utility functions.
  * This class does nothing by itself, use subclasses like UGizmoElementCylinder
  */
-UCLASS(Transient)
+UCLASS(Transient, Abstract)
 class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementBase : public UObject
 {
 	GENERATED_BODY()
