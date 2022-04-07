@@ -2961,6 +2961,9 @@ void FD3D12Device::CleanupRayTracing()
 	delete RayTracingPipelineCache;
 	RayTracingPipelineCache = nullptr;
 
+	delete RayTracingDispatchRaysDescBuffer;
+	RayTracingDispatchRaysDescBuffer = nullptr;
+
 	// Note: RayTracingDescriptorHeapCache is destroyed in ~FD3D12Device, after all deferred deletion is processed
 }
 

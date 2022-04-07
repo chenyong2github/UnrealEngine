@@ -49,9 +49,6 @@ FD3D12Device::~FD3D12Device()
 	delete RayTracingCompactionRequestHandler;
 	RayTracingCompactionRequestHandler = nullptr;
 
-	delete RayTracingDispatchRaysDescBuffer;
-	RayTracingDispatchRaysDescBuffer = nullptr;
-
 	DestroyRayTracingDescriptorCache(); // #dxr_todo UE-72158: unify RT descriptor cache with main FD3D12DescriptorCache
 #endif
 
