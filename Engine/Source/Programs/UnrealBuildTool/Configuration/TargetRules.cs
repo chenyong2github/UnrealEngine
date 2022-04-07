@@ -443,6 +443,11 @@ namespace UnrealBuildTool
 		protected bool? bIncludeAllTestsOverride;
 
 		/// <summary>
+		/// Set this to reference a VSTest run settings file from generated projects.
+		/// </summary>
+		public FileReference? VSTestRunSettingsFile;
+
+		/// <summary>
 		/// Additional plugins that are built for this target type but not enabled.
 		/// </summary>
 		[CommandLine("-BuildPlugin=", ListSeparator = '+')]

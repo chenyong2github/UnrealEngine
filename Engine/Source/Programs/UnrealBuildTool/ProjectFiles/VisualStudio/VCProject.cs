@@ -1345,6 +1345,22 @@ namespace UnrealBuildTool
 			VCProjectFileContent.AppendLine("    <CleanDependsOn> $(CleanDependsOn); </CleanDependsOn>");
 			VCProjectFileContent.AppendLine("    <CppCleanDependsOn></CppCleanDependsOn>");
 			VCProjectFileContent.AppendLine("  </PropertyGroup>");
+
+			FileReference[] VSTestRunSettingsFiles = ProjectTargets.Select(Target => Target.TargetRules?.VSTestRunSettingsFile)
+				.Where(File => File != null).Select(File => File!).Distinct().ToArray();
+			if (VSTestRunSettingsFiles.Length == 1)
+			{
+				string RunSettingsRelativePath = VSTestRunSettingsFiles[0].MakeRelativeTo(ProjectFilePath.Directory);
+				VCProjectFileContent.AppendLine("  <PropertyGroup>");
+				VCProjectFileContent.AppendLine($"    <RunSettingsFilePath>$(ProjectDir){RunSettingsRelativePath}</RunSettingsFilePath>");
+				VCProjectFileContent.AppendLine("  </PropertyGroup>");
+			}
+			else if (VSTestRunSettingsFiles.Length > 1)
+			{
+				string Files = String.Join(", ", VSTestRunSettingsFiles.Select(File => File!.FullName));
+				Log.TraceWarning($"Inconsistent VSTest run settings files for project '{ProjectFilePath}': {Files}");
+			}
+
 			if (!IsStubProject)
 			{
 				foreach (UnrealTargetPlatform Platform in ProjectPlatforms)

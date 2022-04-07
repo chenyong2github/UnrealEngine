@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.IO;
+using EpicGames.Core;
+using UnrealBuildBase;
 using UnrealBuildTool;
 
 [SupportedPlatforms(UnrealPlatformClass.All)]
@@ -54,6 +56,8 @@ public class LowLevelTestsTarget : TargetRules
 		{
 			bDebugBuildsActuallyUseDebugCRT = true;
 		}
+
+		VSTestRunSettingsFile = FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "LowLevelTests", "vstest.runsettings");
 
 		SetupPreprocessorDefinitions(Target);
 	}
