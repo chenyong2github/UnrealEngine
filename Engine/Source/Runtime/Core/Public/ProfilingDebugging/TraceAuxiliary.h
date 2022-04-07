@@ -99,4 +99,23 @@ public:
 	 *  as channels can be announced on module loading.
 	 */
 	static void EnableChannels();
+
+	/**
+	 *  Returns the destination string that is currently being traced to.
+	 *  Contains either a file path or network address. Points to an empty string if tracing is disabled.
+	 */
+	static const TCHAR*	GetTraceDestination();
+	
+	/**
+	 *  Returns whether the trace system is currently connected to a trace sink (file or network)
+	 */
+	static bool	IsConnected();
+
+	/**
+	 *  Adds a comma separated list of currently active channels to the passed in StringBuilder
+	 */
+	static void	GetActiveChannelsString(FStringBuilderBase& String);
+
+
+	
 };

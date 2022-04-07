@@ -1289,6 +1289,29 @@ void FTraceAuxiliary::EnableChannels()
 #endif
 }
 
+const TCHAR* FTraceAuxiliary::GetTraceDestination()
+{
+#if UE_TRACE_ENABLED
+	return GTraceAuxiliary.GetDest();
+#endif
+	return nullptr;
+}
+
+bool FTraceAuxiliary::IsConnected()
+{
+#if UE_TRACE_ENABLED
+	return GTraceAuxiliary.IsConnected();
+#endif
+	return false;
+}
+
+void FTraceAuxiliary::GetActiveChannelsString(FStringBuilderBase& String)
+{
+#if UE_TRACE_ENABLED
+	GTraceAuxiliary.GetActiveChannelsString(String);
+#endif
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 void FTraceAuxiliary::TryAutoConnect()
 {
