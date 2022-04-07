@@ -58,7 +58,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="Enum">Referenced enum</param>
 		public UhtEnumProperty(UhtPropertySettings PropertySettings, UhtEnum Enum) : base(PropertySettings)
 		{
-			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
+				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM | UhtPropertyCaps.IsRigVMEnum;
 			this.Enum = Enum;
 			this.HeaderFile.AddReferencedHeader(Enum);
 			if (this.Enum.CppForm == UhtEnumCppForm.EnumClass)
@@ -125,6 +126,17 @@ namespace EpicGames.UHT.Types
 					Builder.Append(Enum.SourceName);
 					break;
 
+				case UhtPropertyTextType.RigVMType:
+					if (Enum.CppForm == UhtEnumCppForm.EnumClass || !bIsTemplateArgument)
+					{
+						Builder.Append(Enum.CppType);
+					}
+					else
+					{
+						Builder.Append("TEnumAsByte<").Append(Enum.CppType).Append(">");
+					}
+					break;
+
 				default:
 					if (Enum.CppForm == UhtEnumCppForm.EnumClass)
 					{
@@ -161,19 +173,6 @@ namespace EpicGames.UHT.Types
 				Builder.Append("(TEnumAsByte<").Append(Enum.CppType).Append(">&)(").AppendFunctionThunkParameterName(Property).Append(')');
 			}
 			return Builder;
-		}
-
-		/// <summary>
-		/// Get the RigVM type for an enumeration
-		/// </summary>
-		/// <param name="Property">Property in question</param>
-		/// <param name="Enum">Referenced enumeration</param>
-		/// <param name="ParameterFlags">Parameter flags that can be updated</param>
-		/// <returns>Type string</returns>
-		public static string? GetEnumRigVMType(UhtProperty Property, UhtEnum Enum, ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			ParameterFlags |= UhtRigVMParameterFlags.IsEnum;
-			return Enum.CppType.ToString();
 		}
 
 		/// <summary>
@@ -297,12 +296,6 @@ namespace EpicGames.UHT.Types
 				return this.Enum == OtherByte.Enum;
 			}
 			return false;
-		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return GetEnumRigVMType(this, this.Enum, ref ParameterFlags);
 		}
 
 		private UhtProperty CreateUnderlyingProperty()

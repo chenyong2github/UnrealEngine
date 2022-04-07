@@ -60,6 +60,16 @@ namespace EpicGames.UHT.Utils
 		public UhtPointerMemberBehavior NonEngineObjectPtrMemberBehavior { get; }
 
 		/// <summary>
+		/// If true, UObject properties are enabled in RigVM
+		/// </summary>
+		public bool AreRigVMUObjectProeprtiesEnabled { get; }
+
+		/// <summary>
+		/// If true, UInterface properties are enabled in RigVM
+		/// </summary>
+		public bool AreRigVMUInterfaceProeprtiesEnabled { get; }
+
+		/// <summary>
 		/// If the token references a remapped identifier, update the value in the token 
 		/// </summary>
 		/// <param name="Token">Token to be remapped</param>

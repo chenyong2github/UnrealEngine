@@ -114,7 +114,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="BoolType">Type of the boolean</param>
 		public UhtBoolProperty(UhtPropertySettings PropertySettings, UhtBoolType BoolType) : base(PropertySettings)
 		{
-			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.IsParameterSupportedByBlueprint | 
+				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 			if (BoolType == UhtBoolType.Native || BoolType == UhtBoolType.UInt8)
 			{
 				this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn;
@@ -131,7 +132,7 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.Construction:
 				case UhtPropertyTextType.FunctionThunkParameterArrayType:
 				case UhtPropertyTextType.FunctionThunkRetVal:
-				case UhtPropertyTextType.RigVMTemplateArg:
+				case UhtPropertyTextType.RigVMType:
 				case UhtPropertyTextType.ExportMember:
 				case UhtPropertyTextType.GenericFunctionArgOrRetVal:
 					Builder.Append(this.CppTypeText);
@@ -252,12 +253,6 @@ namespace EpicGames.UHT.Types
 		{
 			// We don't test BoolType.
 			return Other is UhtBoolProperty;
-		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return CppTypeText;
 		}
 
 		#region Keyword

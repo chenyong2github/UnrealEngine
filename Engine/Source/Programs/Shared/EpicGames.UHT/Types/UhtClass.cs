@@ -818,6 +818,17 @@ namespace EpicGames.UHT.Types
 			{
 				StringBuilder Builder = Borrower.StringBuilder;
 				Builder.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg);
+				if (Property.bIsStaticArray)
+				{
+					if (Declaration.Function == null)
+					{
+						Builder.Append("*");
+					}
+					else
+					{
+						Builder.Append("[").Append(Property.ArrayDimensions).Append("]");
+					}
+				}
 				string ExpectedType = Builder.ToString();
 				int TypeEnd = TypeIndex + TypeCount;
 
@@ -1314,6 +1325,10 @@ namespace EpicGames.UHT.Types
 						{
 							StringBuilder Builder = Borrower.StringBuilder;
 							Builder.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg);
+							if (Property.bIsStaticArray)
+							{
+								Builder.Append($"*/[{Property.ArrayDimensions}]");
+							}
 							string ExpectedType = Builder.ToString();
 							Property.LogError($"Property '{Property.SourceName}' expected a getter function '[const] {ExpectedType} [&] {ExpectedName}() const', but it was not found");
 						}
@@ -1325,6 +1340,10 @@ namespace EpicGames.UHT.Types
 						{
 							StringBuilder Builder = Borrower.StringBuilder;
 							Builder.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg);
+							if (Property.bIsStaticArray)
+							{
+								Builder.Append($"*/[{Property.ArrayDimensions}]");
+							}
 							string ExpectedType = Builder.ToString();
 							Property.LogError($"Property '{Property.SourceName}' expected a setter function 'void {ExpectedName}([const] {ExpectedType} [&] InArg)', but it was not found");
 						}

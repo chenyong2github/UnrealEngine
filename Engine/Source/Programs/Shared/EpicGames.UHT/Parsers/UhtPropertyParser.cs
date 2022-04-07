@@ -426,12 +426,6 @@ namespace EpicGames.UHT.Parsers
 		{
 			throw new NotImplementedException();
 		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			throw new NotImplementedException();
-		}
 	}
 
 	/// <summary>

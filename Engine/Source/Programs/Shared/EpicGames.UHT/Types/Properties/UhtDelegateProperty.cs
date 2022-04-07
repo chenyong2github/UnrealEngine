@@ -42,7 +42,8 @@ namespace EpicGames.UHT.Types
 		{
 			this.Function = Function;
 			this.HeaderFile.AddReferencedHeader(Function);
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.IsParameterSupportedByBlueprint | 
+				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 		}
 
 		/// <inheritdoc/>
@@ -76,7 +77,7 @@ namespace EpicGames.UHT.Types
 			switch (TextType)
 			{
 				case UhtPropertyTextType.ExportMember:
-				case UhtPropertyTextType.RigVMTemplateArg:
+				case UhtPropertyTextType.RigVMType:
 				case UhtPropertyTextType.EventParameterFunctionMember:
 					Builder.Append(this.CppTypeText);
 					break;
@@ -157,12 +158,6 @@ namespace EpicGames.UHT.Types
 					this.LogError("Replicated functions cannot contain delegate parameters (this would be insecure)");
 				}
 			}
-		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return this.CppTypeText;
 		}
 	}
 }

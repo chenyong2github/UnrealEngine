@@ -15,7 +15,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		: UhtHeaderCodeGenerator
 	{
 		public static string RigVMExecuteContextDeclaration = "FRigVMExtendedExecuteContext& RigVMExecuteContext";
-		public static string RigVMExecuteContextPublicDeclaration = "FRigVMExecuteContext& RigVMExecuteContext";
+		public static string RigVMExecuteContextPublicDeclaration = "const FRigVMExecuteContext& RigVMExecuteContext";
 
 		/// <summary>
 		/// Construct an instance of this generator object

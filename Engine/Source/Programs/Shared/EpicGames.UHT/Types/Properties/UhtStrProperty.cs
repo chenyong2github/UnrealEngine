@@ -34,7 +34,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="PropertySettings">Property settings</param>
 		public UhtStrProperty(UhtPropertySettings PropertySettings) : base(PropertySettings)
 		{
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | 
+				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 		}
 
 		/// <inheritdoc/>
@@ -97,12 +98,6 @@ namespace EpicGames.UHT.Types
 					}
 				}
 			}
-		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return this.CppTypeText;
 		}
 
 		[UhtPropertyType(Keyword = "FString")]

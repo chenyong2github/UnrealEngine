@@ -471,6 +471,29 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					foreach (UhtRigVMMethodInfo MethodInfo in ScriptStruct.RigVMStructInfo.Methods)
 					{
+						Builder.Append("\t\tTArray<FRigVMFunctionArgument> ").AppendArgumentsName(ScriptStruct, MethodInfo).Append(";\r\n");
+						foreach (UhtRigVMParameter Parameter in ScriptStruct.RigVMStructInfo.Members)
+						{
+							Builder
+								.Append("\t\t")
+								.AppendArgumentsName(ScriptStruct, MethodInfo)
+								.Append(".Emplace(TEXT(\"")
+								.Append(Parameter.NameOriginal())
+								.Append("\"), TEXT(\"")
+								.Append(Parameter.TypeOriginal())
+								.Append("\"));\r\n");
+						}
+						foreach (UhtRigVMParameter Parameter in MethodInfo.Parameters)
+						{
+							Builder
+								.Append("\t\t")
+								.AppendArgumentsName(ScriptStruct, MethodInfo)
+								.Append(".Emplace(TEXT(\"")
+								.Append(Parameter.NameOriginal())
+								.Append("\"), TEXT(\"")
+								.Append(Parameter.TypeOriginal())
+								.Append("\"));\r\n");
+						}
 						Builder
 							.Append("\t\tFRigVMRegistry::Get().Register(TEXT(\"")
 							.Append(ScriptStruct.SourceName)
@@ -482,7 +505,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							.Append(MethodInfo.Name)
 							.Append(", ")
 							.Append(RegistrationName)
-							.Append(".OuterSingleton);\r\n");
+							.Append(".OuterSingleton, ")
+							.AppendArgumentsName(ScriptStruct, MethodInfo)
+							.Append(");\r\n");
 					}
 				}
 
@@ -1000,18 +1025,42 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							Builder.Append("\t#if WITH_EDITORONLY_DATA\r\n");
 						}
 						Builder.Append("\t\tconst ").Append(Class.SourceName).Append("* Obj = (const ").Append(Class.SourceName).Append("*)Object;\r\n");
-						Builder
-							.Append("\t\t")
-							.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
-							.Append("& Result = *(")
-							.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
-							.Append("*)OutValue;\r\n");
-						Builder
-							.Append("\t\tResult = (")
-							.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
-							.Append(")Obj->")
-							.Append(Property.Getter!)
-							.Append("();\r\n");
+						if (Property.bIsStaticArray)
+						{
+							Builder
+								.Append("\t\t")
+								.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
+								.Append("* Source = (")
+								.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
+								.Append("*)Obj->")
+								.Append(Property.Getter!)
+								.Append("();\r\n");
+							Builder
+								.Append("\t\t")
+								.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
+								.Append("* Result = (")
+								.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
+								.Append("*)OutValue;\r\n");
+							Builder
+								.Append("\t\tCopyAssignItems(Result, Source, ")
+								.Append(Property.ArrayDimensions)
+								.Append(");\r\n");
+						}
+						else
+						{
+							Builder
+								.Append("\t\t")
+								.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
+								.Append("& Result = *(")
+								.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
+								.Append("*)OutValue;\r\n");
+							Builder
+								.Append("\t\tResult = (")
+								.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
+								.Append(")Obj->")
+								.Append(Property.Getter!)
+								.Append("();\r\n");
+						}
 						if (bEditorOnlyProperty)
 						{
 							Builder.Append("\t#endif // WITH_EDITORONLY_DATA\r\n");
@@ -1027,12 +1076,24 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							Builder.Append("\t#if WITH_EDITORONLY_DATA\r\n");
 						}
 						Builder.Append("\t\t").Append(Class.SourceName).Append("* Obj = (").Append(Class.SourceName).Append("*)Object;\r\n");
-						Builder
-							.Append("\t\t")
-							.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
-							.Append("& Value = *(")
-							.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
-							.Append("*)InValue;\r\n");
+						if (Property.bIsStaticArray)
+						{
+							Builder
+								.Append("\t\t")
+								.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
+								.Append("* Value = (")
+								.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
+								.Append("*)InValue;\r\n");
+						}
+						else
+						{
+							Builder
+								.Append("\t\t")
+								.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
+								.Append("& Value = *(")
+								.AppendPropertyText(Property, UhtPropertyTextType.GetterSetterArg)
+								.Append("*)InValue;\r\n");
+						}
 						Builder
 							.Append("\t\tObj->")
 							.Append(Property.Setter!)

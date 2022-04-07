@@ -29,7 +29,7 @@ namespace EpicGames.UHT.Types
 		protected UhtNumericProperty(UhtPropertySettings PropertySettings, UhtPropertyIntType IntType) : base(PropertySettings)
 		{
 			this.IntType = IntType;
-			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg;
+			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.SupportsRigVM;
 		}
 
 		/// <inheritdoc/>
@@ -37,12 +37,6 @@ namespace EpicGames.UHT.Types
 		{
 			Builder.Append("0");
 			return Builder;
-		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return CppTypeText;
 		}
 	}
 }

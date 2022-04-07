@@ -60,6 +60,10 @@ namespace EpicGames.UHT.Types
 			}
 
 			this.PropertyCaps &= ~(UhtPropertyCaps.CanHaveConfig);
+			if (this.Session.Config!.AreRigVMUObjectProeprtiesEnabled)
+			{
+				this.PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
+			}
 		}
 
 		/// <inheritdoc/>
@@ -133,12 +137,6 @@ namespace EpicGames.UHT.Types
 		{
 			ErrorType = this.Class;
 			return this.Class.ClassFlags.HasAnyFlags(EClassFlags.Const);
-		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return null;
 		}
 
 		#region Parsing support methods

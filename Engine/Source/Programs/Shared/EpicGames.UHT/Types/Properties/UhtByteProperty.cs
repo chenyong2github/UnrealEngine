@@ -44,7 +44,12 @@ namespace EpicGames.UHT.Types
 		public UhtByteProperty(UhtPropertySettings PropertySettings, UhtPropertyIntType IntType, UhtEnum? Enum = null) : base(PropertySettings, IntType)
 		{
 			this.Enum = Enum;
-			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | 
+				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
+			if (this.Enum != null)
+			{
+				this.PropertyCaps |= UhtPropertyCaps.IsRigVMEnum;
+			}
 		}
 
 		/// <inheritdoc/>
@@ -147,19 +152,6 @@ namespace EpicGames.UHT.Types
 				{
 					this.LogError("Invalid enum param for Blueprints - currently only uint8 supported");
 				}
-			}
-		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			if (this.Enum != null)
-			{
-				return UhtEnumProperty.GetEnumRigVMType(this, this.Enum, ref ParameterFlags);
-			}
-			else
-			{
-				return CppTypeText;
 			}
 		}
 

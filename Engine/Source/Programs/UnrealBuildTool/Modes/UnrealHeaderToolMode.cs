@@ -79,6 +79,16 @@ namespace UnrealBuildTool.Modes
 		/// </summary>
 		private readonly UhtPointerMemberBehavior NonEngineObjectPtrMemberBehaviorInternal = UhtPointerMemberBehavior.AllowSilently;
 
+		/// <summary>
+		/// If true, UObject properties are enabled in RigVM
+		/// </summary>
+		private readonly bool AreRigVMUObjectProeprtiesEnabledInternal = false;
+
+		/// <summary>
+		/// If true, UInterface properties are enabled in RigVM
+		/// </summary>
+		private readonly bool AreRigVMUInterfaceProeprtiesEnabledInternal = false;
+
 		#region IUhtConfig Implementation
 		/// <inheritdoc/>
 		public EGeneratedCodeVersion DefaultGeneratedCodeVersion => this.DefaultGeneratedCodeVersionInternal;
@@ -94,6 +104,16 @@ namespace UnrealBuildTool.Modes
 
 		/// <inheritdoc/>
 		public UhtPointerMemberBehavior NonEngineObjectPtrMemberBehavior => this.NonEngineObjectPtrMemberBehaviorInternal;
+
+		/// <summary>
+		/// If true, UObject properties are enabled in RigVM
+		/// </summary>
+		public bool AreRigVMUObjectProeprtiesEnabled => this.AreRigVMUObjectProeprtiesEnabledInternal;
+
+		/// <summary>
+		/// If true, UInterface properties are enabled in RigVM
+		/// </summary>
+		public bool AreRigVMUInterfaceProeprtiesEnabled => this.AreRigVMUInterfaceProeprtiesEnabledInternal;
 
 		/// <inheritdoc/>
 		public void RedirectTypeIdentifier(ref UhtToken Token)
@@ -187,6 +207,8 @@ namespace UnrealBuildTool.Modes
 			this.EngineObjectPtrMemberBehaviorInternal = GetPointerMemberBehavior("UnrealHeaderTool", "EngineObjectPtrMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
 			this.NonEngineNativePointerMemberBehaviorInternal = GetPointerMemberBehavior("UnrealHeaderTool", "NonEngineNativePointerMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
 			this.NonEngineObjectPtrMemberBehaviorInternal = GetPointerMemberBehavior("UnrealHeaderTool", "NonEngineObjectPtrMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
+			this.AreRigVMUObjectProeprtiesEnabledInternal = GetBoolean("UnrealHeaderTool", "AreRigVMUObjectProeprtiesEnabled", false);
+			this.AreRigVMUInterfaceProeprtiesEnabledInternal = GetBoolean("UnrealHeaderTool", "AreRigVMUInterfaceProeprtiesEnabled", false);
 		}
 
 		private bool GetBoolean(string SectionName, string KeyName, bool bDefault)

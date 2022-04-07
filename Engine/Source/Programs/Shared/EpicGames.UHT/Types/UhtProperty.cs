@@ -384,6 +384,21 @@ namespace EpicGames.UHT.Types
 		/// True to see if the member property is supported by blueprint
 		/// </summary>
 		IsMemberSupportedByBlueprint = 1 << 11,
+
+		/// <summary>
+		/// True if the property supports RigVM
+		/// </summary>
+		SupportsRigVM = 1 << 12,
+
+		/// <summary>
+		/// True if the property should codegen as an enumeration
+		/// </summary>
+		IsRigVMEnum = 1 << 13,
+
+		/// <summary>
+		/// True if the property should codegen as an array
+		/// </summary>
+		IsRigVMArray = 1 << 14,
 	}
 
 	/// <summary>
@@ -509,9 +524,9 @@ namespace EpicGames.UHT.Types
 		FunctionThunkRetVal,
 
 		/// <summary>
-		/// Used when generating types for RigVM.  Only invoked for template arguments
+		/// Basic RigVM type
 		/// </summary>
-		RigVMTemplateArg,
+		RigVMType,
 
 		/// <summary>
 		/// Type expected in a getter/setter argument list
@@ -1365,6 +1380,19 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <summary>
+		/// Return the RigVM type
+		/// </summary>
+		/// <returns></returns>
+		public string GetRigVMType()
+		{
+			using (BorrowStringBuilder Borrower = new BorrowStringBuilder(StringBuilderCache.Small))
+			{
+				AppendText(Borrower.StringBuilder, UhtPropertyTextType.RigVMType);
+				return Borrower.StringBuilder.ToString();
+			}
+		}
+
+		/// <summary>
 		/// Appends any applicable objects and child properties
 		/// </summary>
 		/// <param name="Builder">Output builder</param>
@@ -1876,15 +1904,6 @@ namespace EpicGames.UHT.Types
 		}
 		#endregion
 
-		#region RigVM support methods
-		/// <summary>
-		/// Return the RigVM type string.
-		/// </summary>
-		/// <param name="ParameterFlags">Parameter flags that can be updated for specific types</param>
-		/// <returns>RigVM type string</returns>
-		public abstract string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags);
-		#endregion
-
 		#region Helper methods
 		/// <summary>
 		/// Generate a new name suffix based on the current suffix and the new suffix
@@ -1922,6 +1941,10 @@ namespace EpicGames.UHT.Types
 				{
 					return false;
 				}
+			}
+			if (this.bIsStaticArray != Other.bIsStaticArray)
+			{
+				return false;
 			}
 			return IsSameType(Other);
 		}

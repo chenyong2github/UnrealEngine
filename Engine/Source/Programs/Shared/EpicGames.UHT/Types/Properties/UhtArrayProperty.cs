@@ -46,7 +46,7 @@ namespace EpicGames.UHT.Types
 				Value.MetaData.Remove(UhtNames.NativeConst);
 			}
 
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef;
+			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.SupportsRigVM | UhtPropertyCaps.IsRigVMArray;
 			this.PropertyCaps &= ~(UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey);
 			this.PropertyCaps = (this.PropertyCaps & ~(UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn)) |
 				(this.ValueProperty.PropertyCaps & (UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn));
@@ -203,15 +203,6 @@ namespace EpicGames.UHT.Types
 				return this.ValueProperty.IsSameType(OtherArray.ValueProperty);
 			}
 			return false;
-		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			ParameterFlags |= UhtRigVMParameterFlags.IsArray;
-			StringBuilder Builder = new StringBuilder();
-			Builder.AppendPropertyText(this, UhtPropertyTextType.RigVMTemplateArg);
-			return Builder.ToString();
 		}
 
 #region Keyword

@@ -9,6 +9,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 {
 	internal static class UhtRigVMStringBuilderExtensions
 	{
+		public static StringBuilder AppendArgumentsName(this StringBuilder Builder, UhtStruct Struct, UhtRigVMMethodInfo MethodInfo)
+		{
+			return Builder.Append("Arguments_").Append(Struct.SourceName).Append('_').Append(MethodInfo.Name);
+		}
+
 		public static StringBuilder AppendParameterNames(this StringBuilder Builder, IEnumerable<UhtRigVMParameter> Parameters, 
 			bool bLeadingSeparator = false, string Separator = ", ", bool bCastName = false, bool bIncludeEditorOnly = false)
 		{

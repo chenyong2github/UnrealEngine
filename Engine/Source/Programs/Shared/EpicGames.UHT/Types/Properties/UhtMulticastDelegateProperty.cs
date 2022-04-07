@@ -43,7 +43,7 @@ namespace EpicGames.UHT.Types
 			this.Function = Function;
 			this.HeaderFile.AddReferencedHeader(Function);
 			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.CanBeBlueprintAssignable | UhtPropertyCaps.CanBeBlueprintCallable |
-				UhtPropertyCaps.CanBeBlueprintAuthorityOnly | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+				UhtPropertyCaps.CanBeBlueprintAuthorityOnly | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 			this.PropertyCaps &= ~(UhtPropertyCaps.IsParameterSupportedByBlueprint);
 		}
 
@@ -79,9 +79,9 @@ namespace EpicGames.UHT.Types
 			{
 				case UhtPropertyTextType.EventParameterFunctionMember:
 				case UhtPropertyTextType.ExportMember:
-				case UhtPropertyTextType.RigVMTemplateArg:
+				case UhtPropertyTextType.RigVMType:
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					Builder.Append("FMulticastScriptDelegate");
+					Builder.Append(this.CppTypeText);
 					break;
 
 				default:
@@ -124,12 +124,6 @@ namespace EpicGames.UHT.Types
 				return this.Function == OtherObject.Function;
 			}
 			return false;
-		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return this.CppTypeText;
 		}
 	}
 }

@@ -44,6 +44,7 @@ namespace EpicGames.UHT.Types
 		{
 			this.ScriptStruct = ScriptStruct;
 			this.HeaderFile.AddReferencedHeader(ScriptStruct);
+			this.PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
 			if (this.ScriptStruct.bHasNoOpConstructor)
 			{
 				this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg;
@@ -202,12 +203,6 @@ namespace EpicGames.UHT.Types
 		public override bool ValidateStructPropertyOkForNet(UhtProperty ReferencingProperty)
 		{
 			return ReferencingProperty.Session.ValidateScriptStructOkForNet(ReferencingProperty, this.ScriptStruct);
-		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return this.ScriptStruct.SourceName;
 		}
 
 		#region Structure default value sanitizers

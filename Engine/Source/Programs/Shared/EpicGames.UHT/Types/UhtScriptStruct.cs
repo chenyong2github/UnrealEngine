@@ -205,24 +205,27 @@ namespace EpicGames.UHT.Types
 				Property.LogError($"RigVM Struct '{this.Property.Outer?.SourceName}' - Member '{this.Property.SourceName}' is editor only - WITH_EDITORONLY_DATA not allowed on structs with RIGVM_METHOD.");
 			}
 
-			string? RigVMType = Property.GetRigVMType(ref this.ParameterFlags);
-			if (RigVMType == null)
+			if (Property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.SupportsRigVM))
 			{
-				Property.LogError($"RigVM Struct '{this.Property.Outer?.SourceName}' - Member '{this.Property.SourceName}' type '{this.Property.GetUserFacingDecl()}' not supported by RigVM.");
+				this.Type = Property.GetRigVMType();
+				if (Property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.IsRigVMEnum))
+				{
+					this.ParameterFlags |= UhtRigVMParameterFlags.IsEnum;
+				}
+				if (Property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.IsRigVMArray))
+				{
+					this.ParameterFlags |= UhtRigVMParameterFlags.IsArray;
+					if (this.IsConst())
+					{
+						string ExtendedType = this.ExtendedType(false);
+						this.CastName = $"{this.Name}_{Index}_Array";
+						this.CastType = $"TArrayView<const {ExtendedType.Substring(1, ExtendedType.Length - 2)}>";
+					}
+				}
 			}
 			else
 			{
-				this.Type = RigVMType;
-			}
-
-			if (this.bIsArray)
-			{
-				if (this.IsConst())
-				{
-					string ExtendedType = this.ExtendedType(false);
-					this.CastName = $"{this.Name}_{Index}_Array";
-					this.CastType = $"TArrayView<const {ExtendedType.Substring(1, ExtendedType.Length - 2)}>";
-				}
+				Property.LogError($"RigVM Struct '{this.Property.Outer?.SourceName}' - Member '{this.Property.SourceName}' type '{this.Property.GetUserFacingDecl()}' not supported by RigVM.");
 			}
 		}
 

@@ -34,7 +34,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="PropertySettings">Property settings</param>
 		public UhtNameProperty(UhtPropertySettings PropertySettings) : base(PropertySettings)
 		{
-			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
+				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 		}
 
 		/// <inheritdoc/>
@@ -84,12 +85,6 @@ namespace EpicGames.UHT.Types
 		public override bool IsSameType(UhtProperty Other)
 		{
 			return Other is UhtNameProperty;
-		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return this.CppTypeText;
 		}
 
 		#region Keyword

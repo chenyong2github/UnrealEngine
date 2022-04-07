@@ -47,6 +47,10 @@ namespace EpicGames.UHT.Types
 			this.PropertyFlags |= EPropertyFlags.UObjectWrapper;
 			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.PassCppArgsByRef;
 			this.PropertyCaps &= ~(UhtPropertyCaps.CanHaveConfig | UhtPropertyCaps.CanBeContainerKey);
+			if (this.Session.Config!.AreRigVMUInterfaceProeprtiesEnabled)
+			{
+				this.PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
+			}
 		}
 
 		/// <inheritdoc/>
@@ -169,12 +173,6 @@ namespace EpicGames.UHT.Types
 		{
 			ErrorType = this.InterfaceClass;
 			return this.InterfaceClass.ClassFlags.HasAnyFlags(EClassFlags.Const);
-		}
-
-		/// <inheritdoc/>
-		public override string? GetRigVMType(ref UhtRigVMParameterFlags ParameterFlags)
-		{
-			return null;
 		}
 
 		#region Keywords

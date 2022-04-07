@@ -82,7 +82,7 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.ExportMember:
 				case UhtPropertyTextType.Construction:
 				case UhtPropertyTextType.FunctionThunkParameterArrayType:
-				case UhtPropertyTextType.RigVMTemplateArg:
+				case UhtPropertyTextType.RigVMType:
 				case UhtPropertyTextType.GetterSetterArg:
 					AppendText(Builder);
 					break;
