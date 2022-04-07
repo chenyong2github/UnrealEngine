@@ -97,6 +97,7 @@ private:
 	void PostCompilation(UTexture* Texture);
 	void PostCompilation(TArrayView<UTexture* const> InCompiledTextures);
 
+	double LastReschedule = 0.0f;
 	bool bHasShutdown = false;
 	TArray<TSet<TWeakObjectPtr<UTexture>>> RegisteredTextureBuckets;
 	FAsyncCompilationNotification Notification;

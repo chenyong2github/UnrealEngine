@@ -578,8 +578,10 @@ void FTextureCompilingManager::ProcessTextures(bool bLimitExecutionTime, int32 M
 			}
 		}
 
-		if (GEngine)
+		if (GEngine && FPlatformTime::Seconds() - LastReschedule > 1.0f)
 		{
+			LastReschedule = FPlatformTime::Seconds();
+
 			TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::Reschedule);
 
 			auto TryRescheduleTexture = 
