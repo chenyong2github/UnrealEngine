@@ -175,13 +175,7 @@ void SetVertexParameterAttributeData(inout FMaterialVertexParameters VertexParam
 {
 	VertexParameters.WorldPosition		= mul(float4(PointLocalNoWPO, 1), LocalToTranslatedWorld).xyz;
 	VertexParameters.TangentToWorld		= mul(GetTangentBasis(RawAttributeData.TangentZ), LocalToWorld);
-
-#if INTERPOLATE_VERTEX_COLOR
 	VertexParameters.VertexColor		= RawAttributeData.Color;
-#else
-	// Coerce compiler into DCE as much code as possible.
-	VertexParameters.VertexColor		= float4(1, 1, 1, 1);
-#endif
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	UNROLL
 	for (uint TexCoordIndex = 0; TexCoordIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; ++TexCoordIndex)
