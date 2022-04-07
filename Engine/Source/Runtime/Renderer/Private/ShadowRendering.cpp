@@ -2251,7 +2251,9 @@ void FSceneRenderer::BeginAsyncDistanceFieldShadowProjections(FRDGBuilder& Graph
 
 				if (ScissorRect.Area() > 0 && (Views.Num() == 1 || ProjectedShadowInfo->DependentView == &View || !ProjectedShadowInfo->DependentView))
 				{
-					ProjectedShadowInfo->BeginRenderRayTracedDistanceFieldProjection(GraphBuilder, true, SceneTextures, View);
+					// Kick off distance field shadow calculation in async compute
+					// Don't need store result reference because it is internally cached by FProjectedShadowInfo
+					ProjectedShadowInfo->RenderRayTracedDistanceFieldProjection(GraphBuilder, true, SceneTextures, View);
 				}
 			}
 		}

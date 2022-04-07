@@ -574,13 +574,28 @@ public:
 		bool bDoParallelDispatch,
 		bool bDoCrossGPUCopy);
 
-	void BeginRenderRayTracedDistanceFieldProjection(
+	/** Reset cached ray traced distance field shadows texture. */
+	void ResetRayTracedDistanceFieldShadow(const FViewInfo* View)
+	{
+		DistanceFieldShadowViewGPUData& SDFShadowViewGPUData = CachedDistanceFieldShadowViewGPUData.FindOrAdd(View);
+		SDFShadowViewGPUData.RayTracedShadowsTexture = nullptr;
+	}
+
+	/**
+	* Render ray traced distance field shadows into a texture.
+	* Output texture is cached per view. This is useful to support async compute.
+	* (ie: kick off distance field shadows early in the frame using async compute, and then combine result into shadow mask texture when necessary)
+	*/
+	FRDGTextureRef RenderRayTracedDistanceFieldProjection(
 		FRDGBuilder& GraphBuilder,
 		bool bAsyncCompute,
 		const FMinimalSceneTextures& SceneTextures,
 		const FViewInfo& View);
 
-	/** Renders ray traced distance field shadows. */
+	/** 
+	* Renders ray traced distance field shadows into an existing texture.
+	* Will use cached results if already calculated earlier in the frame (ie: async compute)
+	*/
 	void RenderRayTracedDistanceFieldProjection(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
@@ -738,11 +753,6 @@ public:
 		return ShadowDepthPass.BuildRenderingCommands(GraphBuilder, GPUScene, InstanceCullingDrawParams);
 	}
 
-	void ResetRayTracedDistanceFieldShadow()
-	{
-		RayTracedShadowsTexture = nullptr;
-	}
-
 private:
 	// 0 if Setup...() wasn't called yet
 	FLightSceneInfo* LightSceneInfo;
@@ -793,18 +803,18 @@ private:
 	float ShaderSlopeDepthBias;
 	float ShaderMaxSlopeDepthBias;
 
-	/** Ray traced DF shadow intermediate output. Populated by BeginRenderRayTracedDistanceFieldProjection and consumed by RenderRayTracedDistanceFieldProjection. */
-	FRDGTextureRef RayTracedShadowsTexture;
-
 	/**  Cached light tile intersection parameters in case we needed to trace a distance field multiple times for a view but for different depth buffer*/
 	struct DistanceFieldShadowViewGPUData 
 	{
+		/** Ray traced DF shadow intermediate output. Populated by BeginRenderRayTracedDistanceFieldProjection and consumed by RenderRayTracedDistanceFieldProjection. */
+		FRDGTextureRef RayTracedShadowsTexture = nullptr;
+
 		FLightTileIntersectionParameters*			SDFLightTileIntersectionParameters = nullptr;
 		FDistanceFieldCulledObjectBufferParameters*	SDFCulledObjectBufferParameters = nullptr;
 		FLightTileIntersectionParameters*			HeightFieldLightTileIntersectionParameters = nullptr;
 		FDistanceFieldCulledObjectBufferParameters*	HeightFieldCulledObjectBufferParameters = nullptr;
 	};
-	TMap<const FViewInfo*, DistanceFieldShadowViewGPUData>	CachedDistanceFieldShadowViewGPUData;
+	TMap<const FViewInfo*, DistanceFieldShadowViewGPUData> CachedDistanceFieldShadowViewGPUData;
 
 	void CopyCachedShadowMap(
 		FRDGBuilder& GraphBuilder,

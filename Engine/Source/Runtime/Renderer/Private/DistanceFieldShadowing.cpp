@@ -858,22 +858,23 @@ void RayTraceShadows(
 	}
 }
 
-void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
+FRDGTextureRef FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 	FRDGBuilder& GraphBuilder,
 	bool bAsyncCompute, 
 	const FMinimalSceneTextures& SceneTextures,
 	const FViewInfo& View)
 {
-	if (RayTracedShadowsTexture)
+	DistanceFieldShadowViewGPUData& SDFShadowViewGPUData = CachedDistanceFieldShadowViewGPUData.FindOrAdd(&View);
+
+	if (SDFShadowViewGPUData.RayTracedShadowsTexture)
 	{
-		return;
+		// Ray traced distance field shadows were already calculated, simply return previous result.
+		return SDFShadowViewGPUData.RayTracedShadowsTexture;
 	}
 
 	const bool bDFShadowSupported = SupportsDistanceFieldShadows(View.GetFeatureLevel(), View.GetShaderPlatform());
 	const bool bHFShadowSupported = SupportsHeightFieldShadows(View.GetFeatureLevel(), View.GetShaderPlatform());
 	const FScene* Scene = (const FScene*)(View.Family->Scene);
-
-	DistanceFieldShadowViewGPUData& SDFShadowViewGPUData = CachedDistanceFieldShadowViewGPUData.FindOrAdd(&View);
 
 	if (bDFShadowSupported && View.Family->EngineShowFlags.RayTracedDistanceFieldShadows)
 	{
@@ -937,10 +938,10 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 				const FIntPoint BufferSize = GetBufferSizeForDFShadows();
 				FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(BufferSize, PF_G16R16F, FClearValueBinding::None, TexCreate_UAV));
 				Desc.Flags |= GFastVRamConfig.DistanceFieldShadows;
-				RayTracedShadowsTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracedShadows"));
+				SDFShadowViewGPUData.RayTracedShadowsTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracedShadows"));
 			}
 
-			RayTraceShadows(GraphBuilder, bAsyncCompute, SceneTextures, RayTracedShadowsTexture, View, Scene->DistanceFieldSceneData, this, DFPT_SignedDistanceField, false, nullptr, ObjectBufferParameters, *SDFShadowViewGPUData.SDFCulledObjectBufferParameters, *SDFShadowViewGPUData.SDFLightTileIntersectionParameters);
+			RayTraceShadows(GraphBuilder, bAsyncCompute, SceneTextures, SDFShadowViewGPUData.RayTracedShadowsTexture, View, Scene->DistanceFieldSceneData, this, DFPT_SignedDistanceField, false, nullptr, ObjectBufferParameters, *SDFShadowViewGPUData.SDFCulledObjectBufferParameters, *SDFShadowViewGPUData.SDFLightTileIntersectionParameters);
 		}
 	}
 
@@ -987,26 +988,28 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 
 		}
 
-		const bool bHasPrevOutput = !!RayTracedShadowsTexture;
+		const bool bHasPrevOutput = !!SDFShadowViewGPUData.RayTracedShadowsTexture;
 
 		FRDGTextureRef PrevOutputTexture = nullptr;
 
 		if (!RHISupports4ComponentUAVReadWrite(View.GetShaderPlatform()))
 		{
-			PrevOutputTexture = RayTracedShadowsTexture;
-			RayTracedShadowsTexture = nullptr;
+			PrevOutputTexture = SDFShadowViewGPUData.RayTracedShadowsTexture;
+			SDFShadowViewGPUData.RayTracedShadowsTexture = nullptr;
 		}
 
-		if (!RayTracedShadowsTexture)
+		if (!SDFShadowViewGPUData.RayTracedShadowsTexture)
 		{
 			const FIntPoint BufferSize = GetBufferSizeForDFShadows();
 			FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(BufferSize, PF_G16R16F, FClearValueBinding::None, TexCreate_UAV));
 			Desc.Flags |= GFastVRamConfig.DistanceFieldShadows;
-			RayTracedShadowsTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracedShadows"));
+			SDFShadowViewGPUData.RayTracedShadowsTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracedShadows"));
 		}
 
-		RayTraceShadows(GraphBuilder, bAsyncCompute, SceneTextures, RayTracedShadowsTexture, View, Scene->DistanceFieldSceneData, this, DFPT_HeightField, bHasPrevOutput, PrevOutputTexture, ObjectBufferParameters, *SDFShadowViewGPUData.HeightFieldCulledObjectBufferParameters, *SDFShadowViewGPUData.HeightFieldLightTileIntersectionParameters);
+		RayTraceShadows(GraphBuilder, bAsyncCompute, SceneTextures, SDFShadowViewGPUData.RayTracedShadowsTexture, View, Scene->DistanceFieldSceneData, this, DFPT_HeightField, bHasPrevOutput, PrevOutputTexture, ObjectBufferParameters, *SDFShadowViewGPUData.HeightFieldCulledObjectBufferParameters, *SDFShadowViewGPUData.HeightFieldLightTileIntersectionParameters);
 	}
+
+	return SDFShadowViewGPUData.RayTracedShadowsTexture;
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldShadowingUpsample, )
@@ -1029,7 +1032,7 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 	check(ScissorRect.Area() > 0);
 	const bool bRunTiled = UseShadowIndirectDraw(View.GetShaderPlatform()) && TiledShadowRendering != nullptr;
 
-	BeginRenderRayTracedDistanceFieldProjection(GraphBuilder, false, SceneTextures, View); 
+	FRDGTextureRef RayTracedShadowsTexture = RenderRayTracedDistanceFieldProjection(GraphBuilder, false, SceneTextures, View);
 
 	if (RayTracedShadowsTexture)
 	{

@@ -504,7 +504,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			}
 
 			// Reset the cached texture to create a new one mapping to the water depth buffer
-			DistanceFieldShadowInfo->ResetRayTracedDistanceFieldShadow();
+			DistanceFieldShadowInfo->ResetRayTracedDistanceFieldShadow(&View);
 
 			FTiledShadowRendering TiledShadowRendering;
 			if (bRunTiled)

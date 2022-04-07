@@ -717,7 +717,6 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 	, NumSubjectMeshCommandBuildRequestElements(0)
 	, ShaderDepthBias(0.0f)
 	, ShaderSlopeDepthBias(0.0f)
-	, RayTracedShadowsTexture(nullptr)
 {
 }
 
