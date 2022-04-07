@@ -162,11 +162,6 @@ class HEADMOUNTEDDISPLAY_API UHeadMountedDisplayFunctionLibrary : public UBluepr
 	UFUNCTION(BlueprintCallable, Category="Input|HeadMountedDisplay")
 	static void SetClippingPlanes(float Near, float Far);
 
-	/** DEPRECATED - Use GetPixelDensity */
-	UE_DEPRECATED(4.19, "Use GetPixelDensity instead")
-	UFUNCTION(BlueprintPure, Category = "Input|HeadMountedDisplay", meta = (DeprecatedFunction, DeprecationMessage = "Use GetPixelDensity instead"))
-	static float GetScreenPercentage();
-
 	/** 
 	 * Returns the current VR pixel density. Pixel density sets the VR render 
 	 * target texture size as a factor of recommended texture size. The recommended 

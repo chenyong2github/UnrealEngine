@@ -220,13 +220,6 @@ void UHeadMountedDisplayFunctionLibrary::SetClippingPlanes(float Near, float Far
 	}
 }
 
-/** DEPRECATED - Use GetPixelDensity */
-float UHeadMountedDisplayFunctionLibrary::GetScreenPercentage()
-{
-	static const auto ScreenPercentageTCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.ScreenPercentage"));
-	return ScreenPercentageTCVar->GetValueOnGameThread();
-}
-
 float UHeadMountedDisplayFunctionLibrary::GetPixelDensity()
 {
 	static const auto PixelDensityTCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("vr.pixeldensity"));
