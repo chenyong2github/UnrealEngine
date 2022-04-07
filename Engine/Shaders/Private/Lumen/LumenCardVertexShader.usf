@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenCardVertexShader.usf
-=============================================================================*/
-
 #include "../Common.ush"
 
 // Reroute SceneTexturesStruct uniform buffer references to the appropriate pass uniform buffer
@@ -42,18 +38,11 @@ void Main(
 
 	ISOLATE
 	{
-		WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+		// Don't use WPO as Lumen cards and mesh SDF are computed without them
+		//WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
 		ClipSpacePosition = INVARIANT(mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip));
 		Output.Position = INVARIANT(ClipSpacePosition);
-	}
-
-	bool bClampToNearPlane = false;// GetPrimitiveData(Input.PrimitiveId).ObjectWorldPositionAndRadius.w < .5f * max();
-
-	if (bClampToNearPlane && Output.Position.z < 0)
-	{
-		Output.Position.z = 0.01f;
-		Output.Position.w = 1.0f;
 	}
 
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);

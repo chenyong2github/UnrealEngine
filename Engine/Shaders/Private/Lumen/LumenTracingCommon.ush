@@ -768,7 +768,7 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	float3 WorldGradient = mul(VolumeNormal, transpose((float3x3)DFObjectData.WorldToVolume.M));
 	float WorldGradientLength = length(WorldGradient);
 	TraceSDFData.HitNormal = WorldGradientLength > 0.0f ? WorldGradient / WorldGradientLength : 0;
-	TraceSDFData.SurfaceCacheBias = DFObjectData.bMostlyTwoSided ? 40.0f : 20.0f;
+	TraceSDFData.SurfaceCacheBias = DFObjectData.bMostlyTwoSided ? 200.0f : 20.0f;
 
 	if (bCalculateHitVelocity)
 	{

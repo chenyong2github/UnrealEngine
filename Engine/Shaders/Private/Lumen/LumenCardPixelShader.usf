@@ -112,10 +112,6 @@ void Main(
 	Opacity = TotalCoverage - GetMaterialOpacityMaskClipValue() >= 0.0f ? 1.0f : 0.0f;
 #endif
 
-	// Normals are stored in local card space
-	WorldNormal = normalize(WorldNormal);
-	const float3 CardSpaceNormal = mul(float4(WorldNormal, 0.0f), ResolvedView.TranslatedWorldToView).xyz;
-
 #else // TEMPLATE_USES_STRATA
 
 	float3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
@@ -123,6 +119,7 @@ void Main(
 	float Specular = GetMaterialSpecular(PixelMaterialInputs);
 	float Roughness = GetMaterialRoughness(PixelMaterialInputs);
 	float3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
+	float3 WorldNormal = MaterialParameters.WorldNormal;
 
 	float Opacity = 1.0f;
 #if MATERIALBLENDING_ANY_TRANSLUCENT
@@ -147,10 +144,17 @@ void Main(
 	}
 #endif
 
-	// Normals are stored in local card space
-	const float3 CardSpaceNormal = mul(float4(MaterialParameters.WorldNormal, 0.0f), ResolvedView.TranslatedWorldToView).xyz;
-
 #endif // TEMPLATE_USES_STRATA
+
+	// Normals are stored in local card space
+	float3 CardSpaceNormal = float3(0, 0, 1);
+
+	// As of 04/06/2022 sometimes we get NaN normals from Nanite meshes with WPO
+	if (all(IsFinite(WorldNormal)))
+	{
+		WorldNormal = normalize(WorldNormal);
+		CardSpaceNormal = mul(float4(WorldNormal, 0.0f), ResolvedView.TranslatedWorldToView).xyz;
+	}
 
 	OutTarget0 = float4(sqrt(DiffuseColor), Opacity);
 	OutTarget1 = float4(CardSpaceNormal.xy * 0.5f + 0.5f, 0.0f, /*bValid*/ 1.0f);

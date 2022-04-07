@@ -202,18 +202,6 @@ FAutoConsoleVariableRef CVarLumenGIRecaptureLumenSceneEveryFrame(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneNaniteMultiViewCapture = 1;
-FAutoConsoleVariableRef CVarLumenSceneNaniteMultiViewCapture(
-	TEXT("r.LumenScene.SurfaceCache.NaniteMultiViewCapture"),
-	GLumenSceneNaniteMultiViewCapture,
-	TEXT("Toggle multi view Lumen Nanite Card capture for debugging."),
-	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-		{
-			Lumen::DebugResetSurfaceCache();
-		}),
-	ECVF_RenderThreadSafe
-);
-
 int32 GLumenSceneGlobalDFResolution = 224;
 FAutoConsoleVariableRef CVarLumenSceneGlobalDFResolution(
 	TEXT("r.LumenScene.GlobalSDF.Resolution"),
@@ -262,6 +250,36 @@ FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheResampleLighting(
 	TEXT("Whether to resample card lighting when cards are reallocated.  This is needed for Radiosity temporal accumulation but can be disabled for debugging."),
 	ECVF_RenderThreadSafe
 );
+
+static TAutoConsoleVariable<float> GLumenSceneSurfaceCacheCaptureMeshTargetScreenSize(
+	TEXT("r.LumenScene.SurfaceCache.Capture.MeshTargetScreenSize"),
+	0.1f,
+	TEXT("Controls which LOD level will be used to capture static meshes into surface cache."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+		{
+			Lumen::DebugResetSurfaceCache();
+		}),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> GLumenSceneSurfaceCacheCaptureNaniteLODScaleFactor(
+	TEXT("r.LumenScene.SurfaceCache.Capture.NaniteLODScaleFactor"),
+	1.0f,
+	TEXT("Controls which LOD level will be used to capture Nanite meshes into surface cache."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+		{
+			Lumen::DebugResetSurfaceCache();
+		}),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarLumenSceneSurfaceCacheCaptureNaniteMultiView(
+	TEXT("r.LumenScene.SurfaceCache.Capture.NaniteMultiView"),
+	1,
+	TEXT("Toggle multi view Lumen Nanite Card capture for debugging."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+		{
+			Lumen::DebugResetSurfaceCache();
+		}),
+	ECVF_RenderThreadSafe);
 
 static int32 GNaniteProgrammableRasterLumen = 0; // TODO: Not working properly in all cases yet
 static FAutoConsoleVariableRef CNaniteProgrammableRasterLumen(
@@ -808,6 +826,8 @@ FCardPageRenderData::FCardPageRenderData(
 {
 	ensure(CardIndex >= 0 && PageTableIndex >= 0);
 
+	NaniteLODScaleFactor = GLumenSceneSurfaceCacheCaptureNaniteLODScaleFactor.GetValueOnRenderThread();
+
 	if (InLumenCard.bDistantScene)
 	{
 		NaniteLODScaleFactor = Lumen::GetDistanceSceneNaniteLODScaleFactor();
@@ -941,27 +961,34 @@ void AddCardCaptureDraws(const FScene* Scene,
 			}
 			else
 			{
-				FLODMask LODToRender;
+				int32 LODToRender = 0;
 
 				if (PrimitiveGroup.bHeightfield)
 				{
 					// Landscape can't use last LOD, as it's a single quad with only 4 distinct heightfield values
 					// Also selected LOD needs to to match FLandscapeSectionLODUniformParameters uniform buffers
-					LODToRender.SetLOD(LumenLandscape::CardCaptureLOD);
+					LODToRender = LumenLandscape::CardCaptureLOD;
 				}
 				else
 				{
-					int32 MaxLOD = 0;
+					const float TargetScreenSize = GLumenSceneSurfaceCacheCaptureMeshTargetScreenSize.GetValueOnRenderThread();
+
+					int32 PrevLODToRender = INT_MAX;
+					int32 NextLODToRender = -1;
 					for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshRelevances.Num(); ++MeshIndex)
 					{
 						const FStaticMeshBatchRelevance& Mesh = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
-						if (Mesh.ScreenSize > 0.0f)
+						if (Mesh.ScreenSize >= TargetScreenSize)
 						{
-							//todo DynamicGI artist control - last LOD is sometimes billboard
-							MaxLOD = FMath::Max(MaxLOD, (int32)Mesh.LODIndex);
+							NextLODToRender = FMath::Max(NextLODToRender, (int32)Mesh.LODIndex);
+						}
+						else
+						{
+							PrevLODToRender = FMath::Min(PrevLODToRender, (int32)Mesh.LODIndex);
 						}
 					}
-					LODToRender.SetLOD(MaxLOD);
+
+					LODToRender = NextLODToRender >= 0 ? NextLODToRender : PrevLODToRender;
 				}
 
 				FMeshDrawCommandPrimitiveIdInfo IdInfo(PrimitiveSceneInfo->GetIndex(), PrimitiveSceneInfo->GetInstanceSceneDataOffset());
@@ -971,7 +998,7 @@ void AddCardCaptureDraws(const FScene* Scene,
 					const FStaticMeshBatchRelevance& StaticMeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
 					const FStaticMeshBatch& StaticMesh = PrimitiveSceneInfo->StaticMeshes[MeshIndex];
 
-					if (StaticMeshRelevance.bUseForMaterial && LODToRender.ContainsLOD(StaticMeshRelevance.LODIndex))
+					if (StaticMeshRelevance.bUseForMaterial && StaticMeshRelevance.LODIndex == LODToRender)
 					{
 						const int32 StaticMeshCommandInfoIndex = StaticMeshRelevance.GetStaticMeshCommandInfoIndex(MeshPass);
 						if (StaticMeshCommandInfoIndex >= 0)
@@ -2777,7 +2804,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					}
 				}
 
-				if (GLumenSceneNaniteMultiViewCapture != 0)
+				if (CVarLumenSceneSurfaceCacheCaptureNaniteMultiView.GetValueOnRenderThread() != 0)
 				{
 					Nanite::DrawLumenMeshCapturePass(
 						GraphBuilder,
