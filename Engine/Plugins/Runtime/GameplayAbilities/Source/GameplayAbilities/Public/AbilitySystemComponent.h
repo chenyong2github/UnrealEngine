@@ -345,7 +345,19 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	 * @return Count of the specified source effect
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category=GameplayEffects)
-	int32 GetGameplayEffectCount(TSubclassOf<UGameplayEffect> SourceGameplayEffect, UAbilitySystemComponent* OptionalInstigatorFilterComponent, bool bEnforceOnGoingCheck = true);
+	int32 GetGameplayEffectCount(TSubclassOf<UGameplayEffect> SourceGameplayEffect, UAbilitySystemComponent* OptionalInstigatorFilterComponent, bool bEnforceOnGoingCheck = true) const;
+
+	/**
+	 * Get the count of the specified source effect on the ability system component. For non-stacking effects, this is the sum of all active instances.
+	 * For stacking effects, this is the sum of all valid stack counts. If an instigator is specified, only effects from that instigator are counted.
+	 * 
+	 * @param SoftSourceGameplayEffect				Effect to get the count of. If this is not currently loaded, the count is 0
+	 * @param OptionalInstigatorFilterComponent		If specified, only count effects applied by this ability system component
+	 * 
+	 * @return Count of the specified source effect
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = GameplayEffects)
+	int32 GetGameplayEffectCount_IfLoaded(TSoftClassPtr<UGameplayEffect> SoftSourceGameplayEffect, UAbilitySystemComponent* OptionalInstigatorFilterComponent, bool bEnforceOnGoingCheck = true) const;
 
 	/** Returns the sum of StackCount of all gameplay effects that pass query */
 	int32 GetAggregatedStackCount(const FGameplayEffectQuery& Query) const;

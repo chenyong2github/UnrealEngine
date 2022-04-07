@@ -392,7 +392,7 @@ FGameplayEffectContextHandle UAbilitySystemComponent::MakeEffectContext() const
 	return Context;
 }
 
-int32 UAbilitySystemComponent::GetGameplayEffectCount(TSubclassOf<UGameplayEffect> SourceGameplayEffect, UAbilitySystemComponent* OptionalInstigatorFilterComponent, bool bEnforceOnGoingCheck)
+int32 UAbilitySystemComponent::GetGameplayEffectCount(TSubclassOf<UGameplayEffect> SourceGameplayEffect, UAbilitySystemComponent* OptionalInstigatorFilterComponent, bool bEnforceOnGoingCheck) const
 {
 	int32 Count = 0;
 
@@ -424,6 +424,19 @@ int32 UAbilitySystemComponent::GetGameplayEffectCount(TSubclassOf<UGameplayEffec
 	}
 
 	return Count;
+}
+
+int32 UAbilitySystemComponent::GetGameplayEffectCount_IfLoaded(TSoftClassPtr<UGameplayEffect> SoftSourceGameplayEffect, UAbilitySystemComponent* OptionalInstigatorFilterComponent, bool bEnforceOnGoingCheck) const
+{
+	TSubclassOf<UGameplayEffect> SourceGameplayEffect = SoftSourceGameplayEffect.Get();
+
+	//if the gameplay effect is not loaded, then there must be none active
+	if (!SourceGameplayEffect)
+	{
+		return 0;
+	}
+
+	return GetGameplayEffectCount(SourceGameplayEffect, OptionalInstigatorFilterComponent, bEnforceOnGoingCheck);
 }
 
 int32 UAbilitySystemComponent::GetAggregatedStackCount(const FGameplayEffectQuery& Query) const
