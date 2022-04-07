@@ -259,14 +259,14 @@ void FAnimNode_LayeredBoneBlend::Evaluate_AnyThread(FPoseContext& Output)
 				int32 SourceIndex = CurvePoseSourceIndices[CurvePoseIndex];
 				if (SourceIndex != DEFAULT_SOURCEINDEX)
 				{
-					// if source index is set, clear base pose curve value
-					BasePoseContext.Curve.Set(UIDIndex, 0.f);
+					// if source index is set, invalidate base pose curve value
+					BasePoseContext.Curve.InvalidateCurveWeight(UIDIndex);
 					for (int32 ChildIndex = 0; ChildIndex < NumPoses; ++ChildIndex)
 					{
 						if (SourceIndex != ChildIndex)
 						{
-							// if not source, clear it
-							TargetBlendCurves[ChildIndex].Set(UIDIndex, 0.f);
+							// if not source, invalidate it
+							TargetBlendCurves[ChildIndex].InvalidateCurveWeight(UIDIndex);
 						}
 					}
 				}

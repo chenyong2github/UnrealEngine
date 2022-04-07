@@ -401,6 +401,19 @@ struct FBaseBlendedCurve
 		}
 	}
 
+	/** Invalidate value of InUID */
+	void InvalidateCurveWeight(USkeleton::AnimCurveUID InUid)
+	{
+		check(bInitialized);
+
+		int32 ArrayIndex = GetArrayIndexByUID(InUid);
+		if (ArrayIndex != INDEX_NONE)
+		{
+			CurveWeights[ArrayIndex] = 0.f;
+			ValidCurveWeights[ArrayIndex] = false;
+		}
+	}
+
 	/** Set value of InUID to InValue */
 	void Set(USkeleton::AnimCurveUID InUid, float InValue)
 	{
