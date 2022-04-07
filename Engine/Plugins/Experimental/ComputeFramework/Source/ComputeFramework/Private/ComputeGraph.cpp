@@ -406,7 +406,7 @@ namespace
 	}
 }
 
-FString UComputeGraph::BuildKernelSource(int32 KernelIndex, FComputeKernelDefinitionSet& OutDefinitionSet, FComputeKernelPermutationVector& OutPermutationVector) const
+FString UComputeGraph::BuildKernelSource(int32 KernelIndex, FString& OutHashKey, FComputeKernelDefinitionSet& OutDefinitionSet, FComputeKernelPermutationVector& OutPermutationVector) const
 {
 	FString HLSL;
 
@@ -446,6 +446,9 @@ FString UComputeGraph::BuildKernelSource(int32 KernelIndex, FComputeKernelDefini
 					// Get define and permutation info for each data provider.
 					DataInterface->GetDefines(OutDefinitionSet);
 					DataInterface->GetPermutations(OutPermutationVector);
+
+					// Accumulate the hash key contribution from the data provider.
+					DataInterface->GetShaderHash(OutHashKey);
 				}
 			}
 
@@ -479,8 +482,12 @@ FString UComputeGraph::BuildKernelSource(int32 KernelIndex, FComputeKernelDefini
 			// Add the kernel code.
 			HLSL += KernelSource->GetSource();
 		}
-		// UE_LOG(LogComputeFramework, Display, TEXT("Kernel Source[%s]:\n%s\n"), *GetPathName(), *HLSL);
 	}
+	
+	// Accumulate the hash key contribution from the HLSL.
+	FSHA1 HashState;
+	HashState.UpdateWithString(*HLSL, HLSL.Len());
+	HashState.Finalize().AppendString(OutHashKey);
 
 	return HLSL;
 }
@@ -499,12 +506,12 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 				continue;
 			}
 
+			FString ShaderHashKey;
 			FComputeKernelDefinitionSet ShaderDefinitionSet;
 			FComputeKernelPermutationVector ShaderPermutationVector;
 
 			FString ShaderEntryPoint = Kernel->KernelSource->GetEntryPoint();
-			FString ShaderSource = BuildKernelSource(KernelIndex, ShaderDefinitionSet, ShaderPermutationVector);
-			const uint64 ShaderSourceHash = HashCombine(GetTypeHash(*ShaderSource), Kernel->KernelSource->GetSourceCodeHash());
+			FString ShaderSource = BuildKernelSource(KernelIndex, ShaderHashKey, ShaderDefinitionSet, ShaderPermutationVector);
 			FShaderParametersMetadata* ShaderMetadata = BuildKernelShaderMetadata(KernelIndex);
 
 			const ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
@@ -516,8 +523,8 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 				CacheFeatureLevel, 
 				GetName(), 
 				ShaderEntryPoint, 
-				MoveTemp(ShaderSource), 
-				ShaderSourceHash, 
+				ShaderHashKey,
+				MoveTemp(ShaderSource),
 				ShaderDefinitionSet,
 				ShaderPermutationVector,
 				ShaderMetadata,
@@ -611,12 +618,12 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 
 		if (ShaderFormats.Num() > 0)
 		{
+			FString ShaderHashKey;
 			FComputeKernelDefinitionSet ShaderDefinitionSet;
 			FComputeKernelPermutationVector ShaderPermutationVector;
 
 			FString ShaderEntryPoint = KernelSource->GetEntryPoint();
-			FString ShaderSource = BuildKernelSource(KernelIndex, ShaderDefinitionSet, ShaderPermutationVector);
-			uint64 ShaderSourceHash = FCrc::TypeCrc32(*ShaderSource, 0);
+			FString ShaderSource = BuildKernelSource(KernelIndex, ShaderHashKey, ShaderDefinitionSet, ShaderPermutationVector);
 			FShaderParametersMetadata* ShaderMetadata = BuildKernelShaderMetadata(KernelIndex);
 
 			TArray< TUniquePtr<FComputeKernelResource> >& Resources = KernelResources[KernelIndex].CachedKernelResourcesForCooking.FindOrAdd(TargetPlatform);
@@ -631,8 +638,8 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 					TargetFeatureLevel, 
 					GetName(), 
 					ShaderEntryPoint, 
-					ShaderSource, 
-					ShaderSourceHash, 
+					ShaderHashKey,
+					ShaderSource,
 					ShaderDefinitionSet,
 					ShaderPermutationVector,
 					ShaderMetadata,

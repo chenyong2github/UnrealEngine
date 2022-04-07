@@ -164,7 +164,7 @@ private:
 
 #if WITH_EDITOR
 	/** Build the HLSL source for a kernel with its linked data interfaces. */
-	FString BuildKernelSource(int32 KernelIndex, FComputeKernelDefinitionSet& OutDefinitionSet, FComputeKernelPermutationVector& OutPermutationVector) const;
+	FString BuildKernelSource(int32 KernelIndex, FString& OutHashKey, FComputeKernelDefinitionSet& OutDefinitionSet, FComputeKernelPermutationVector& OutPermutationVector) const;
 
 	/** Cache shader resources for all kernels in the graph. */
 	void CacheResourceShadersForRendering(uint32 CompilationFlags);

@@ -203,8 +203,8 @@ void FComputeKernelResource::SetupResource(
 	ERHIFeatureLevel::Type InFeatureLevel,
 	FString const& InFriendlyName,
 	FString const& InShaderEntryPoint,
+	FString const& InShaderHashKey,
 	FString InShaderSource,
-	uint64 InShaderCodeHash,
 	FComputeKernelDefinitionSet& InShaderDefinitionSet,
 	FComputeKernelPermutationVector& InShaderPermutationVector,
 	FShaderParametersMetadata* InShaderMetadata,
@@ -214,8 +214,8 @@ void FComputeKernelResource::SetupResource(
 	FeatureLevel = InFeatureLevel;
 	FriendlyName = InFriendlyName;
 	ShaderEntryPoint = InShaderEntryPoint;
+	ShaderCodeHash = GetTypeHash(InShaderHashKey);
 	ShaderSource = MoveTemp(InShaderSource);
-	ShaderCodeHash = InShaderCodeHash;
 	ShaderDefinitionSet = MoveTemp(InShaderDefinitionSet);
 	ShaderPermutationVector = MoveTemp(InShaderPermutationVector);
 	ShaderMetadata.Reset(InShaderMetadata);

@@ -35,6 +35,8 @@ public:
 	virtual void GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const {}
 	/** Gather the shader metadata exposed by the data provider payload. */
 	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const {}
+	/** Get a hash that changes on any data interface changes that affect kernel compilation. */
+	virtual void GetShaderHash(FString& InOutKey) const {}
 	/** Gather the shader code for this data provider. */
 	virtual void GetHLSL(FString& OutHLSL) const {}
 	/** Get types of UObject required to instantiate a UComputeDataProvider from this interface. */
