@@ -96,7 +96,7 @@ namespace Jupiter.Implementation
             Hash blake3Hash = hasher.Finalize();
 
             // we only keep the first 20 bytes of the Blake3 hash
-            Span<byte> hash = blake3Hash.AsSpan().Slice(0, HashLength);
+            Span<byte> hash = blake3Hash.AsSpanUnsafe().Slice(0, HashLength);
 
             return new ContentHash(hash.ToArray());
         }

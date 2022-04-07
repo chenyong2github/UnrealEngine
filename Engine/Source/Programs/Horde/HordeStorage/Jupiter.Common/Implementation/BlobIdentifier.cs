@@ -93,7 +93,7 @@ namespace Jupiter.Implementation
             }
             
             // we only keep the first 20 bytes of the Blake3 hash
-            Span<byte> hash = blake3Hash.AsSpan().Slice(0, 20);
+            Span<byte> hash = blake3Hash.AsSpanUnsafe().Slice(0, 20);
             return new BlobIdentifier(hash.ToArray());
         }
 
@@ -114,7 +114,7 @@ namespace Jupiter.Implementation
             }
 
             // we only keep the first 20 bytes of the Blake3 hash
-            Span<byte> hash = blake3Hash.AsSpan().Slice(0, 20);
+            Span<byte> hash = blake3Hash.AsSpanUnsafe().Slice(0, 20);
             return new BlobIdentifier(hash.ToArray());
         }
 
@@ -137,7 +137,7 @@ namespace Jupiter.Implementation
             Hash blake3Hash = hasher.Finalize();
 
             // we only keep the first 20 bytes of the Blake3 hash
-            byte[] hash = blake3Hash.AsSpan().Slice(0, 20).ToArray();
+            byte[] hash = blake3Hash.AsSpanUnsafe().Slice(0, 20).ToArray();
             return new BlobIdentifier(hash);
         }
 
