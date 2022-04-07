@@ -2767,6 +2767,7 @@ void PackStrataOut(
 					case STRATA_BSDF_TYPE_HAIR:
 					{
 						bIsSimpleMaterial = false;
+						bIsSingleMaterial = false;
 
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * FullyRough;
@@ -2777,6 +2778,7 @@ void PackStrataOut(
 					case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 					{
 						bIsSimpleMaterial = false;
+						bIsSingleMaterial = false;
 						EmissiveColor += BSDF_GETEMISSIVE(BSDF) * BSDF.LuminanceWeight;
 
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
