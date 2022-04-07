@@ -218,7 +218,7 @@ bool UNiagaraNode::ReallocatePins(bool bMarkNeedsResynchronizeOnChange)
 
 		// When matching pins, use the pin id if either pin id is valid, otherwise match by name.
 		// we typically don't allow orphaned pins to find a match, unless types match each other again
-		auto PinMatchPredicate = [&](UEdGraphPin* Pin) 
+		auto PinMatchPredicateGuid = [&](UEdGraphPin* Pin) 
 		{
 			// early out conditions for when matching up is not wanted
 			if (Pin->Direction != OldPin->Direction)
@@ -231,8 +231,32 @@ bool UNiagaraNode::ReallocatePins(bool bMarkNeedsResynchronizeOnChange)
 			return bAllowPin && ((bPinsHaveIds && Pin->PersistentGuid == OldPin->PersistentGuid) || (bPinsHaveIds == false && Pin->PinName == OldPin->PinName));
 		};
 
+		auto PinMatchPredicateName = [&](UEdGraphPin* Pin)
+		{
+			// early out conditions for when matching up is not wanted
+			if (Pin->Direction != OldPin->Direction || Pin->PinName != OldPin->PinName)
+			{
+				return false;
+			}
+
+			if (OldPin->PinType == Pin->PinType)
+			{
+				return true;
+			}
+
+			// Allow numeric pins and wildcard pins to match any type.
+			FNiagaraTypeDefinition NewType = Schema->PinTypeToTypeDefinition(Pin->PinType);
+			return NewType == FNiagaraTypeDefinition::GetGenericNumericDef() || NewType == FNiagaraTypeDefinition::GetWildcardDef();
+		};
+
 		OldPin->Modify();
-		if (UEdGraphPin** MatchingNewPin = Pins.FindByPredicate(PinMatchPredicate))
+		UEdGraphPin** MatchingNewPin = Pins.FindByPredicate(PinMatchPredicateGuid);
+		if (MatchingNewPin == nullptr)
+		{
+			MatchingNewPin = Pins.FindByPredicate(PinMatchPredicateName);
+		}
+
+		if (MatchingNewPin)
 		{
 			// If the pin types don't match, CopyPersistentDataFromOldPin could very well overwrite our Matching pin with bad data.
 			// Let's cache it for now and reset it after copying the other relevant data off the old pin.
