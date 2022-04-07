@@ -44,11 +44,18 @@ namespace Horde.Storage.Implementation
 
         public async Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey key, IReferencesStore.FieldFlags flags)
         {
+            bool includePayload = (flags & IReferencesStore.FieldFlags.IncludePayload) != 0;
             IMongoCollection<MongoReferencesModelV0> collection = GetCollection<MongoReferencesModelV0>();
             IAsyncCursor<MongoReferencesModelV0>? cursor = await collection.FindAsync(m => m.Ns == ns.ToString() && m.Bucket == bucket.ToString() && m.Key == key.ToString());
             MongoReferencesModelV0? model = await cursor.FirstOrDefaultAsync();
             if (model == null)
                 throw new ObjectNotFoundException(ns, bucket, key);
+
+            if (!includePayload)
+            {
+                // TODO: We should actually use this information to use a projection and not fetch the actual blob
+                model.InlineBlob = null;
+            }
 
             return model.ToObjectRecord();
         }
