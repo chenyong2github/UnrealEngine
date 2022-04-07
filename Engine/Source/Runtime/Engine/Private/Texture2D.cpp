@@ -508,7 +508,7 @@ float UTexture2D::GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale
 	float AvgBrightness = -1.0f;
 #if WITH_EDITOR
 
-	// @@!! this is done in a few places ; factor out to an FImage helper?
+	// @todo Oodle : GetAverageColor is done in a few places ; factor out to an FImage helper?
 
 	TArray64<uint8> RawData;
 	// use the source art if it exists

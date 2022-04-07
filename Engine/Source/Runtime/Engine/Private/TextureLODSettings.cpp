@@ -270,7 +270,7 @@ void UTextureLODSettings::GetMipGenSettings(const UTexture& Texture, TextureMipG
 	}
 
 	// angular filtering only applies to cubemaps
-	// @@!! currently intentionally NOT allowed on cubearrays
+	// note: currently intentionally NOT allowed on cubearrays
 	if (Setting == TMGS_Angular && !Texture.IsA(UTextureCube::StaticClass()))
 	{
 		Setting = TMGS_NoMipmaps;
