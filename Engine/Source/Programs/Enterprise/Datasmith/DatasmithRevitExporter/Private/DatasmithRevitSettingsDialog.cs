@@ -93,6 +93,7 @@ namespace DatasmithRevitExporter
 		private Autodesk.Revit.DB.Document Document;
 		private SortedList<string, int> AddedBuiltinParamGroups = new SortedList<string, int>();
 		private List<string> AddedParamNames = new List<string>();
+		private bool bSettingsChanged = false;
 
 		public DatasmithRevitSettingsDialog(Autodesk.Revit.DB.Document InDocument)
 		{
@@ -173,6 +174,10 @@ namespace DatasmithRevitExporter
 				LevelOfTessellation.AutoSize = true;
 				LevelOfTessellation.TabIndex = 3;
 				LevelOfTessellation.TextAlign = HorizontalAlignment.Right;
+				LevelOfTessellation.ValueChanged += (S, E) =>
+				{
+					bSettingsChanged = true;
+				};
 
 				OptionToolTip.SetToolTip(LevelOfTessellationLabel, FormatTooltip(DatasmithRevitResources.Strings.SettingsDialog_LevelOfTesselationTooltip));
 
@@ -229,6 +234,7 @@ namespace DatasmithRevitExporter
 
 						if (bAddedNewGroups)
 						{
+							bSettingsChanged = true;
 							ReloadAddedGroupsList();
 						}
 					}
@@ -249,6 +255,8 @@ namespace DatasmithRevitExporter
 						int[] IndicesToRemove = new int[GroupsList.SelectedIndices.Count];
 						GroupsList.SelectedIndices.CopyTo(IndicesToRemove, 0);
 						Array.Sort(IndicesToRemove, (A, B) => B.CompareTo(A));
+
+						bSettingsChanged = true;
 
 						foreach (int Index in IndicesToRemove)
 						{
@@ -356,10 +364,13 @@ namespace DatasmithRevitExporter
 
 		private void OnClosing(object InSender, FormClosingEventArgs InArgs)
 		{
-			Settings.LevelOfTesselation = Decimal.ToInt32(LevelOfTessellation.Value);
-			Settings.InsertionPoint = (FSettings.EInsertionPoint)InsertionPointCombo.SelectedIndex;
-			Settings.MetadataParamGroupsFilter = AddedBuiltinParamGroups.Values;
-			FSettingsManager.WriteSettings(Document, Settings);
+			if (bSettingsChanged)
+			{
+				Settings.LevelOfTesselation = Decimal.ToInt32(LevelOfTessellation.Value);
+				Settings.InsertionPoint = (FSettings.EInsertionPoint)InsertionPointCombo.SelectedIndex;
+				Settings.MetadataParamGroupsFilter = AddedBuiltinParamGroups.Values;
+				FSettingsManager.WriteSettings(Document, Settings);
+			}
 		}
 	}
 }

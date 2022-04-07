@@ -22,6 +22,7 @@ namespace DatasmithRevitExporter
 
 		private EventHandler<DocumentClosingEventArgs> DocumentClosingHandler;
 		private EventHandler<ViewActivatedEventArgs> ViewActivatedHandler;
+		private EventHandler<IdlingEventArgs> IdlingEventHandler;
 
 		PushButton AutoSyncPushButton;
 		PushButton SyncPushButton;
@@ -122,7 +123,10 @@ namespace DatasmithRevitExporter
 
 			ViewActivatedHandler = new EventHandler<ViewActivatedEventArgs>(OnViewActivated);
 			InApplication.ViewActivated += ViewActivatedHandler;
-			
+
+			IdlingEventHandler = new EventHandler<IdlingEventArgs>(OnIdling);
+			InApplication.Idling += IdlingEventHandler;
+
 			// Setup Direct Link
 
 			string RevitEngineDir = null;
@@ -150,6 +154,11 @@ namespace DatasmithRevitExporter
 			FSettingsManager.Init(InApplication);
 
 			return Result.Succeeded;
+		}
+
+		void OnIdling(object Sender, IdlingEventArgs Args)
+		{
+			FDirectLink.OnApplicationIdle();
 		}
 
 		static void OnDocumentClosing(object sender, DocumentClosingEventArgs e)

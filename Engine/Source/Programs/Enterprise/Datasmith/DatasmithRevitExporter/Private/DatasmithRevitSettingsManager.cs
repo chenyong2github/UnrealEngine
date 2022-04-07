@@ -138,6 +138,8 @@ namespace DatasmithRevitExporter
 
 		public static FSettings CurrentSettings = null;
 
+		public static event EventHandler SettingsUpdated;
+
 		public static void Init(UIControlledApplication InApplication)
 		{
 			DocumentOpenedHandler = new EventHandler<DocumentOpenedEventArgs>(OnDocumentOpened);
@@ -226,6 +228,8 @@ namespace DatasmithRevitExporter
 					CurrentSettings = Settings;
 
 					T.Commit();
+
+					SettingsUpdated?.Invoke(CurrentSettings, null);
 				}
 				catch { }
 			}
