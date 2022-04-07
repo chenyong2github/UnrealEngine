@@ -260,13 +260,23 @@ public:
 		
 	TArray<const UOptimusNodeLink *> GetPinLinks(const UOptimusNodePin* InNodePin) const;
 
-	/// Check to see if connecting these two pins will form a graph cycle.
-	/// @param InNodeOutputPin The output pin to connect from.
-	/// @param InNodeInputPin The input pin to connect into.
-	/// @return True if connecting these two pins will result in a graph cycle.
+	/// Check to see if connecting these two nodes will form a graph cycle.
+	/// @param InOutputNode The node from which the link originates
+	/// @param InInputNode The node to which the link ends
+	/// @return True if connecting these two nodes will result in a graph cycle.
 	bool DoesLinkFormCycle(
-		const UOptimusNodePin* InNodeOutputPin, 
-		const UOptimusNodePin* InNodeInputPin) const;
+		const UOptimusNode* InOutputNode, 
+		const UOptimusNode* InInputNode) const;
+		
+	/// Add a new pin to the target node with the type of source pin
+	/// and connect the source pin to the new pin
+	/// @param InTargetNode The node to add the pin to, it has to have an adder pin
+	/// @param InSourcePin The pin to create the new pin and to connect to the new pin
+	/// @return True if new pin and the new link is created.
+	bool AddPinAndLink(
+		UOptimusNode* InTargetNode,
+		UOptimusNodePin* InSourcePin
+	);
 
 	const TArray<UOptimusNode*>& GetAllNodes() const { return Nodes; }
 	const TArray<UOptimusNodeLink*>& GetAllLinks() const { return Links; }

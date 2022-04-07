@@ -125,6 +125,69 @@ UOptimusNodeGraph* UOptimusNode::GetOwningGraph() const
 	return Cast<UOptimusNodeGraph>(GetOuter());
 }
 
+bool UOptimusNode::CanConnect(
+	const UOptimusNodePin* InOtherPin,
+	EOptimusNodePinDirection InConnectionDirection,
+	FString* OutReason) const
+{
+	if (!ensure(InOtherPin))
+	{
+		if (OutReason)
+		{
+			*OutReason = TEXT("No pin given.");
+		}
+		return false;
+	}
+
+	if (InConnectionDirection == InOtherPin->GetDirection())
+	{
+		if (OutReason)
+		{
+			const FString DirectionText =
+				InConnectionDirection == EOptimusNodePinDirection::Input ? TEXT("input") : TEXT("output");
+			
+			*OutReason = FString::Printf(TEXT("Can't connect an %s pin to a %s")
+				, *DirectionText , *DirectionText);
+				
+		}
+		return false;
+	}
+
+	// Check for self-connect.
+	if (this == InOtherPin->GetOwningNode())
+	{
+		if (OutReason)
+		{
+			*OutReason = TEXT("Can't connect pins on the same node.");
+		}
+		return false;
+	}
+
+	if (this->GetOwningGraph() != InOtherPin->GetOwningNode()->GetOwningGraph())
+	{
+		if (OutReason)
+		{
+			*OutReason = TEXT("Pins belong to nodes from two different graphs.");
+		}
+		return false;
+	}
+
+	// Will this connection cause a cycle?
+	const UOptimusNode* OutputNode = InConnectionDirection == EOptimusNodePinDirection::Output ? this : InOtherPin->GetOwningNode();
+	const UOptimusNode* InputNode = InConnectionDirection == EOptimusNodePinDirection::Input ? this : InOtherPin->GetOwningNode();
+
+	if (GetOwningGraph()->DoesLinkFormCycle(OutputNode, InputNode))
+	{
+		if (OutReason)
+		{
+			*OutReason = TEXT("Connection results in a cycle.");
+		}
+		return false;
+	}
+
+	return true;
+}
+
 
 void UOptimusNode::SetDiagnosticLevel(EOptimusDiagnosticLevel InDiagnosticLevel)
 {

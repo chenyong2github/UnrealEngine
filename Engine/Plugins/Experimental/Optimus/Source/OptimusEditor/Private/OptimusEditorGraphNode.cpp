@@ -2,6 +2,7 @@
 
 #include "OptimusEditorGraphNode.h"
 
+#include "OptimusEditorHelpers.h"
 #include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphSchema.h"
 #include "OptimusEditorCommands.h"
@@ -9,8 +10,8 @@
 #include "OptimusDataType.h"
 #include "OptimusEditorGraphCommands.h"
 #include "OptimusNode.h"
-#include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
+#include "IOptimusNodeAdderPinProvider.h"
 
 #include "Framework/Commands/GenericCommands.h"
 #include "Logging/TokenizedMessage.h"
@@ -19,6 +20,20 @@
 
 #define LOCTEXT_NAMESPACE "OptimusEditorGraphNode"
 
+static void CreateAdderPins(UEdGraphNode* InGraphNode)
+{
+	FEdGraphPinType PinType;
+	PinType.PinCategory = OptimusEditor::GetAdderPinCategoryName();
+			
+	UEdGraphPin* InputAdderPin = InGraphNode->CreatePin(EGPD_Input, PinType, OptimusEditor::GetAdderPinName(EGPD_Input));	
+	UEdGraphPin* OutputAdderPin = InGraphNode->CreatePin(EGPD_Output, PinType, OptimusEditor::GetAdderPinName(EGPD_Output));
+
+
+#if WITH_EDITORONLY_DATA
+	InputAdderPin->PinFriendlyName = OptimusEditor::GetAdderPinFriendlyName(EGPD_Input);
+	OutputAdderPin->PinFriendlyName = OptimusEditor::GetAdderPinFriendlyName(EGPD_Output);
+#endif
+};
 
 void UOptimusEditorGraphNode::Construct(UOptimusNode* InModelNode)
 {
@@ -50,6 +65,11 @@ void UOptimusEditorGraphNode::Construct(UOptimusNode* InModelNode)
 			{
 				CreateGraphPinFromModelPin(ModelPin, EGPD_Output);
 			}
+		}
+
+		if (IOptimusNodeAdderPinProvider* AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(ModelNode))
+		{
+			CreateAdderPins(this);
 		}
 
 		SyncDiagnosticStateWithModelNode();

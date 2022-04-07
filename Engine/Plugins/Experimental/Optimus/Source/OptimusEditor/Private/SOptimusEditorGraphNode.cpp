@@ -2,6 +2,7 @@
 
 #include "SOptimusEditorGraphNode.h"
 
+#include "OptimusEditorHelpers.h"
 #include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphNode.h"
 #include "OptimusEditorStyle.h"
@@ -10,6 +11,7 @@
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
+#include "IOptimusNodeAdderPinProvider.h"
 
 #include "Editor.h"
 #include "GraphEditorSettings.h"
@@ -117,30 +119,69 @@ class SOptimusEditorExpanderArrow : public SExpanderArrow
 };
 
 
-class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
+class SOptimusEditorGraphPinWidget : public SCompoundWidget
 {
-	SLATE_BEGIN_ARGS(SOptimusEditorGraphPinTreeRow) {}
-
-	SLATE_ARGUMENT(bool, LeftAligned)
-
+public:	
+	SLATE_BEGIN_ARGS(SOptimusEditorGraphPinWidget) {}
+		/** The text displayed for the pin label*/
+		SLATE_ATTRIBUTE(FText, PinLabel)
 	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
+	
+	void Construct(
+		const FArguments& InArgs,
+		TSharedRef<SGraphPin> InPinWidget,
+		bool bIsValue,
+		TSharedPtr<ITableRow> InOptionalOwnerRow)
 	{
-		bLeftAligned = InArgs._LeftAligned;
+		const UEdGraphPin* InGraphPin = InPinWidget->GetPinObj();
+		check(InGraphPin);
+		const bool bIsLeaf = InGraphPin->SubPins.Num() == 0;
+		const bool bIsInput = InGraphPin->Direction == EGPD_Input;
+		const bool bLeftAligned = bIsInput;
+		
+		const TSharedRef<SWidget> LabelWidget = SNew(STextBlock)
+			.Text(InArgs._PinLabel)
+			.TextStyle(FEditorStyle::Get(), NAME_DefaultPinLabelStyle)
+			.ColorAndOpacity(FLinearColor::White)
+			// .ColorAndOpacity(this, &SOptimusEditorGraphNode::GetPinTextColor, WeakPin)
+			;
 
-		STableRow<UOptimusNodePin*>::Construct(STableRow<UOptimusNodePin*>::FArguments(), InOwnerTableView);
-	}
+		TSharedRef<SWidget> LabelContent = LabelWidget;
+		const TSharedRef<SWidget> PinContent = InPinWidget;
+		
+		if (bIsLeaf && bIsInput && bIsValue)
+		{
+			TSharedPtr<SWidget> InputValueWidget = InPinWidget->GetValueWidget();
 
-	const FSlateBrush* GetBorder() const override
-	{
-		// We want a transparent background.
-		return FCoreStyle::Get().GetBrush("NoBrush");
-	}
+			if (InputValueWidget.IsValid())
+			{
+				TSharedRef<SWidget> LabelAndInputWidget = 
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					.Padding(2.0f)
+					[
+						LabelWidget
+					]
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.Padding(2.0f, 2.0f, 18.0f, 2.0f)
+					[
+						InputValueWidget.IsValid() ? InputValueWidget.ToSharedRef() : SNew(SSpacer)
+					];
+				LabelContent = LabelAndInputWidget;
+			}
+		}
+
+		// To allow the label to be a part of the hoverable set of widgets for the pin.
+		// HoverWidgetLabels.Add(LabelWidget);
+		// HoverWidgetPins.Add(PinWidget.ToSharedRef());
 
 
-	void ConstructChildren( ETableViewMode::Type InOwnerTableMode, const TAttribute<FMargin>& InPadding, const TSharedRef<SWidget>& InContent ) override
-	{
 		const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
 		FMargin InputPadding = Settings->GetInputPinPadding();
 		InputPadding.Top = InputPadding.Bottom = 3.0f;
@@ -150,9 +191,24 @@ class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
 		OutputPadding.Top = OutputPadding.Bottom = 3.0f;
 		OutputPadding.Left = 2.0f;
 
-		this->Content = InContent;
-
 		SHorizontalBox::FSlot* InnerContentSlotNativePtr = nullptr;
+
+		
+		TSharedPtr<SWidget> ExpanderWidget;
+		if (InOptionalOwnerRow.IsValid())
+		{
+			ExpanderWidget =
+				SNew(SOptimusEditorExpanderArrow, InOptionalOwnerRow)
+					.LeftAligned(bLeftAligned);
+		}
+		else
+		{
+			// For pins that are not part of a tree view,
+			// add a spacer that is the same size as the expander arrow button
+			ExpanderWidget =
+				SNew(SSpacer)
+					.Size(FVector2d(10.0f, 10.0f));
+		}
 
 		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
 
@@ -164,7 +220,10 @@ class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
 			.VAlign(VAlign_Center)
 			.Padding(InputPadding)
 			[
-				SAssignNew(PinContentBox, SBox)
+				SNew(SBox)
+				[
+					PinContent
+				]
 			];
 
 			ContentBox->AddSlot()
@@ -172,8 +231,7 @@ class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			[
-				SNew(SOptimusEditorExpanderArrow, SharedThis(this))
-				.LeftAligned(bLeftAligned)
+				ExpanderWidget.ToSharedRef()
 			];
 
 			ContentBox->AddSlot()
@@ -182,9 +240,9 @@ class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
 			.Padding(2.0f)
 			.Expose(InnerContentSlotNativePtr)
 			[
-				SAssignNew(LabelContentBox, SBox)
+				SNew(SBox)
 				[
-					InContent
+					LabelContent
 				]
 			];
 		}
@@ -197,9 +255,9 @@ class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
 			.Padding(2.0f)
 			.Expose(InnerContentSlotNativePtr)
 			[
-				SAssignNew(LabelContentBox, SBox)
+				SNew(SBox)
 				[
-					InContent
+					LabelContent
 				]
 			];
 
@@ -208,8 +266,7 @@ class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			[
-				SNew(SOptimusEditorExpanderArrow, SharedThis(this))
-				.LeftAligned(bLeftAligned)
+				ExpanderWidget.ToSharedRef()
 			];
 
 			ContentBox->AddSlot()
@@ -218,7 +275,10 @@ class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
 			.VAlign(VAlign_Center)
 			.Padding(OutputPadding)
 			[
-				SAssignNew(PinContentBox, SBox)
+				SNew(SBox)
+				[
+					PinContent
+				]
 			];
 		}
 
@@ -227,15 +287,41 @@ class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
 			ContentBox
 		];
 
-		InnerContentSlot = InnerContentSlotNativePtr;
+	}
+};
+
+class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
+{
+	SLATE_BEGIN_ARGS(SOptimusEditorGraphPinTreeRow) {}
+		SLATE_DEFAULT_SLOT(FArguments, Content)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
+	{
+		STableRow<UOptimusNodePin*>::FArguments TableRowArgs;
+		TableRowArgs
+		.Content()
+		[
+			InArgs._Content.Widget
+		];
+		STableRow<UOptimusNodePin*>::Construct(TableRowArgs, InOwnerTableView);
 	}
 
-	/** Exposed boxes to slot pin widgets into */
-	TSharedPtr<SBox> PinContentBox;
-	TSharedPtr<SBox> LabelContentBox;
+	const FSlateBrush* GetBorder() const override
+	{
+		// We want a transparent background.
+		return FCoreStyle::Get().GetBrush("NoBrush");
+	}
 
-	/** Whether we align our content left or right */
-	bool bLeftAligned;
+
+	void ConstructChildren( ETableViewMode::Type InOwnerTableMode, const TAttribute<FMargin>& InPadding, const TSharedRef<SWidget>& InContent ) override
+	{
+		// ConstructChildren is called from STableRow<UOptimusNodePin*>::Construct(...)
+		this->ChildSlot
+		[
+			InContent
+		];
+	}
 };
 
 
@@ -304,6 +390,39 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 			.ItemHeight(20.0f)
 		];
 
+	// Add an extra pin for AdderPinProviders to show an adder pin on both input and output sides
+	if (IOptimusNodeAdderPinProvider* AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(GetModelNode()))
+	{
+		const TArray<EEdGraphPinDirection> Directions = {EGPD_Input, EGPD_Output};
+		
+		for (const EEdGraphPinDirection& Direction : Directions)
+		{
+			UEdGraphPin* GraphPin = GraphNode->FindPin(OptimusEditor::GetAdderPinName(Direction), Direction);
+			check(GraphPin);
+
+			TSharedPtr<SGraphPin> PinWidget = GetPinWidget(GraphPin);
+			TWeakPtr<SGraphPin> WeakPin = PinWidget;
+			check(PinWidget.IsValid());
+
+			TSharedPtr<SVerticalBox> NodeBox = Direction == EGPD_Input ? LeftNodeBox : RightNodeBox;
+			EHorizontalAlignment Alignment = Direction == EGPD_Input ? HAlign_Left : HAlign_Right;
+			
+			NodeBox->AddSlot()
+				.MaxHeight(22.0f)
+				.HAlign(Alignment)
+				[
+					SNew(SHorizontalBox)
+					.ToolTipText(LOCTEXT("OptimusNodeAdderPin_ToolTip", "Connect to add a new pin"))
+					+SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					[
+						SNew(SOptimusEditorGraphPinWidget, PinWidget.ToSharedRef(), false, nullptr)
+						.PinLabel(this, &SOptimusEditorGraphNode::GetPinLabel, WeakPin)
+					]
+				];
+		}
+	}
+	
 	// FIXME: Do expansion from stored expansion data.
 	SetTreeExpansion_Recursive(InputTree, *EditorGraphNode->GetTopLevelInputPins());
 	SetTreeExpansion_Recursive(OutputTree, *EditorGraphNode->GetTopLevelOutputPins());
@@ -443,6 +562,11 @@ void SOptimusEditorGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 				break;
 			}
 		}
+		else if (OptimusEditor::IsAdderPin(EdPinObj))
+		{
+			// TODO: Use a adder pin specific icon
+			PinToAdd->SetCustomPinIcon(CachedImg_Pin_Value_Connected, CachedImg_Pin_Value_Disconnected);
+		}
 
 		// Remove value widget from combined pin content
 		TSharedPtr<SWrapBox> LabelAndValueWidget = PinToAdd->GetLabelAndValue();
@@ -535,6 +659,18 @@ UOptimusNode* SOptimusEditorGraphNode::GetModelNode() const
 	return EditorGraphNode ? EditorGraphNode->ModelNode : nullptr;
 }
 
+TSharedPtr<SGraphPin> SOptimusEditorGraphNode::GetPinWidget(UEdGraphPin* InGraphPin)
+{
+	TWeakPtr<SGraphPin>* PinWidgetPtr = PinWidgetMap.Find(InGraphPin);
+	if (PinWidgetPtr)
+	{
+		TSharedPtr<SGraphPin> PinWidget = PinWidgetPtr->Pin();
+		return PinWidget;
+	}
+
+	return nullptr;
+}
+
 
 void SOptimusEditorGraphNode::SyncPinWidgetsWithGraphPins()
 {
@@ -619,79 +755,29 @@ TSharedRef<ITableRow> SOptimusEditorGraphNode::MakeTableRowWidget(
 	const TSharedRef<STableViewBase>& OwnerTable
 	)
 {
-	const bool bIsLeaf = InModelPin->GetSubPins().IsEmpty();
-	const bool bIsInput = InModelPin->GetDirection() == EOptimusNodePinDirection::Input;
-	  const bool bIsValue = (InModelPin->GetStorageType() == EOptimusNodePinStorageType::Value && InModelPin->GetPropertyFromPin() != nullptr);
-
-	TSharedRef<SOptimusEditorGraphPinTreeRow> TreeRow = SNew(SOptimusEditorGraphPinTreeRow, OwnerTable)
-		.LeftAligned(bIsInput)
-		.ToolTipText(InModelPin->GetTooltipText())
-		;
-
-	UOptimusEditorGraphNode* EditorGraphNode = GetEditorGraphNode();
+	const bool bIsValue = (InModelPin->GetStorageType() == EOptimusNodePinStorageType::Value && InModelPin->GetPropertyFromPin() != nullptr);
+	
+	const UOptimusEditorGraphNode* EditorGraphNode = GetEditorGraphNode();
 	TSharedPtr<SGraphPin> PinWidget;
+	TWeakPtr<SGraphPin> WeakPin;
 	if (ensure(EditorGraphNode))
 	{
 		UEdGraphPin* GraphPin = EditorGraphNode->FindGraphPinFromModelPin(InModelPin);
-		TWeakPtr<SGraphPin> *PinWidgetPtr = PinWidgetMap.Find(GraphPin);
-		if (PinWidgetPtr)
-		{
-			PinWidget = PinWidgetPtr->Pin();
-		}
+		PinWidget = GetPinWidget(GraphPin);
+		check(PinWidget);
+		WeakPin = PinWidget;
 	}
 
-	if (PinWidget.IsValid())
-	{
-		TWeakPtr<SGraphPin> WeakPin = PinWidget;
-		TSharedRef<SWidget> LabelWidget = SNew(STextBlock)
-			.Text(this, &SOptimusEditorGraphNode::GetPinLabel, WeakPin)
-			.TextStyle(FEditorStyle::Get(), NAME_DefaultPinLabelStyle)
-		    .ColorAndOpacity(FLinearColor::White)
-			// .ColorAndOpacity(this, &SOptimusEditorGraphNode::GetPinTextColor, WeakPin)
-			;
+	TSharedPtr<SOptimusEditorGraphPinTreeRow> RowWidget;
 
-		TSharedPtr<SWidget> InputValueWidget;
-		if (bIsLeaf && bIsInput && bIsValue)
-		{
-			InputValueWidget = PinWidget->GetValueWidget();
-		}
-
-		if (InputValueWidget.IsValid())
-		{
-			TSharedRef<SWidget> LabelAndInputWidget = 
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				.Padding(2.0f)
-				[
-					LabelWidget
-				]
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(2.0f, 2.0f, 18.0f, 2.0f)
-				[
-					InputValueWidget.IsValid() ? InputValueWidget.ToSharedRef() : SNew(SSpacer)
-				];
-
-			TreeRow->LabelContentBox->SetContent(LabelAndInputWidget);
-		}
-		else
-		{
-			TreeRow->LabelContentBox->SetContent(LabelWidget);
-		}
-
-		// To allow the label to be a part of the hoverable set of widgets for the pin.
-		// HoverWidgetLabels.Add(LabelWidget);
-		// HoverWidgetPins.Add(PinWidget.ToSharedRef());
-
-		TreeRow->PinContentBox->SetContent(PinWidget.ToSharedRef());
-	}
-
-	return TreeRow;
+	SAssignNew(RowWidget, SOptimusEditorGraphPinTreeRow, OwnerTable)
+	.ToolTipText_UObject(InModelPin, &UOptimusNodePin::GetTooltipText)
+	.Content()[
+		SNew(SOptimusEditorGraphPinWidget, PinWidget.ToSharedRef(), bIsValue, RowWidget)
+		.PinLabel(this, &SOptimusEditorGraphNode::GetPinLabel, WeakPin)
+	];
+	
+	return RowWidget.ToSharedRef();
 }
 
 

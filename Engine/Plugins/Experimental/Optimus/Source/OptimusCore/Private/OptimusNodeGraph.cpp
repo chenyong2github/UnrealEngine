@@ -10,6 +10,7 @@
 #include "OptimusCoreModule.h"
 #include "OptimusHelpers.h"
 #include "Actions/OptimusNodeGraphActions.h"
+#include "Actions/OptimusNodeActions.h"
 #include "Nodes/OptimusNode_GetResource.h"
 #include "Nodes/OptimusNode_GetVariable.h"
 #include "Nodes/OptimusNode_SetResource.h"
@@ -559,6 +560,71 @@ bool UOptimusNodeGraph::RemoveAllLinks(UOptimusNodePin* InNodePin)
 	return GetActionStack()->RunAction(Action);
 }
 
+bool UOptimusNodeGraph::AddPinAndLink(UOptimusNode* InTargetNode, UOptimusNodePin* InSourcePin)
+{
+	IOptimusNodeAdderPinProvider *AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(InTargetNode);
+	
+	if (!AdderPinProvider)
+	{
+		return false;
+	}
+	
+	if (!InSourcePin)
+	{
+		return false;
+	}
+
+	if (InSourcePin->GetDirection() == EOptimusNodePinDirection::Unknown)
+	{
+		return false;
+	}
+
+	const EOptimusNodePinDirection PinDirection =
+	InSourcePin->GetDirection() == EOptimusNodePinDirection::Input ?
+		EOptimusNodePinDirection::Output : EOptimusNodePinDirection::Input;
+	if (!AdderPinProvider->CanAddPinFromPin(InSourcePin, PinDirection))
+	{
+		return false;
+	}
+
+	// Add a pin according to adder pin provider and link to it
+	FOptimusCompoundAction *Action = new FOptimusCompoundAction(TEXT("Add Pin"));
+
+	// Create a name for the new pin up front, shared between two sub actions
+	const FName PinName = Optimus::GetUniqueNameForScope(InTargetNode, InSourcePin->GetFName());
+	
+	Action->AddSubAction<FOptimusNodeAction_ConnectAdderPin>(AdderPinProvider, InSourcePin, PinName);
+
+
+	FString OutputPinPath = FString::Printf(TEXT("%s.%s"),
+	*InTargetNode->GetNodePath(), *PinName.ToString());
+
+	FString InputPinPath = InSourcePin->GetPinPath();
+
+	if (InSourcePin->GetDirection() == EOptimusNodePinDirection::Output)
+	{
+		Swap(OutputPinPath, InputPinPath);
+	}
+	else
+	{
+		// Check to see if there's an existing link on the _input_ pin. Output pins can have any
+		// number of connections coming out.
+		TArray<int32> PinLinks = GetAllLinkIndexesToPin(InSourcePin);
+
+		// This shouldn't happen, but we'll cover for it anyway.
+		checkSlow(PinLinks.Num() <= 1);
+
+		for (int32 LinkIndex : PinLinks)
+		{
+			Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Links[LinkIndex]);
+		}
+	}
+	
+	Action->AddSubAction<FOptimusNodeGraphAction_AddLink>(OutputPinPath, InputPinPath);
+
+
+	return GetActionStack()->RunAction(Action);
+}
 
 UOptimusNode* UOptimusNodeGraph::ConvertCustomKernelToFunction(UOptimusNode* InCustomKernel)
 {
@@ -1229,25 +1295,21 @@ void UOptimusNodeGraph::RemoveLinkByIndex(int32 LinkIndex)
 	Link->Rename(nullptr, GetTransientPackage());
 }
 
-
-bool UOptimusNodeGraph::DoesLinkFormCycle(const UOptimusNodePin* InNodeOutputPin, const UOptimusNodePin* InNodeInputPin) const
+bool UOptimusNodeGraph::DoesLinkFormCycle(const UOptimusNode* InOutputNode, const UOptimusNode* InInputNode) const
 {
-	if (!ensure(InNodeOutputPin != nullptr && InNodeInputPin != nullptr) ||
-		!ensure(InNodeOutputPin->GetDirection() == EOptimusNodePinDirection::Output) ||
-		!ensure(InNodeInputPin->GetDirection() == EOptimusNodePinDirection::Input) ||
-		!ensure(InNodeOutputPin->GetOwningNode()->GetOwningGraph() == InNodeInputPin->GetOwningNode()->GetOwningGraph()))
+	if (!InOutputNode || !InInputNode)
 	{
-		// Invalid pins -- no cycle.
+		// Invalid nodes -- no cycle;
 		return false;
 	}
 
 	// Self-connection is a cycle.
-	if (InNodeOutputPin->GetOwningNode() == InNodeInputPin->GetOwningNode())
+	if (InOutputNode == InInputNode)
 	{
 		return true;
 	}
 
-	const UOptimusNode *CycleNode = InNodeOutputPin->GetOwningNode();
+	const UOptimusNode *CycleNode = InOutputNode;
 
 	// Crawl forward from the input pin's node to see if we end up hitting the output pin's node.
 	TSet<const UOptimusNode *> ProcessedNodes;
@@ -1262,8 +1324,8 @@ bool UOptimusNodeGraph::DoesLinkFormCycle(const UOptimusNodePin* InNodeOutputPin
 	};
 
 	// Enqueue as a work set all links going from the output pins of the node.
-	EnqueueIndexes(GetAllLinkIndexesToNode(InNodeInputPin->GetOwningNode(), EOptimusNodePinDirection::Output));
-	ProcessedNodes.Add(InNodeInputPin->GetOwningNode());
+	EnqueueIndexes(GetAllLinkIndexesToNode(InInputNode, EOptimusNodePinDirection::Output));
+	ProcessedNodes.Add(InInputNode);
 
 	int32 LinkIndex;
 	while (QueuedLinks.Dequeue(LinkIndex))

@@ -104,6 +104,15 @@ public:
 	const TArray<UOptimusNodePin*>& GetPins() const { return Pins; }
 
 	/**
+	 * Preliminary check for whether valid connection can be made
+	 * @param InOtherPin The pin that is about to be connect to this node
+	 * @param InConnectionDirection The input/output side of the node to connect
+	 * @param OutReason The reason that the connection is cannot be made if it is invalid
+	 * @return true if the other Pin can be connected to the specified side of the node.
+	 */
+	bool CanConnect(const UOptimusNodePin* InOtherPin, EOptimusNodePinDirection InConnectionDirection, FString* OutReason = nullptr) const;
+	
+	/**
 	 * Returns the node's diagnostic level (e.g. error state). For a node, only None, Warning,
 	 * and Error are relevant.
 	 */

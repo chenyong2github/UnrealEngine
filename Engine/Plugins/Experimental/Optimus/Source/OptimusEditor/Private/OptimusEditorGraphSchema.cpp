@@ -2,6 +2,7 @@
 
 #include "OptimusEditorGraphSchema.h"
 
+#include "OptimusEditorHelpers.h"
 #include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphSchemaActions.h"
 #include "OptimusEditorGraphNode.h"
@@ -10,6 +11,7 @@
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
+#include "IOptimusNodeAdderPinProvider.h"
 
 #include "EdGraphSchema_K2.h"
 #include "Editor.h"
@@ -19,19 +21,51 @@
 
 #define LOCTEXT_NAMESPACE "OptimusEditor"
 
-static UOptimusNodePin* GetModelPinFromGraphPin(const UEdGraphPin* InGraphPin)
+static bool IsValidAdderPinConnection(const UEdGraphPin* InPinA, const UEdGraphPin* InPinB, 
+	FString* OutReason = nullptr)
 {
-	UOptimusEditorGraphNode* GraphNode = Cast<UOptimusEditorGraphNode>(InGraphPin->GetOwningNode());
+	const bool bIsPinAAdderPin = OptimusEditor::IsAdderPin(InPinA);
+	const bool bIsPinBAdderPin = OptimusEditor::IsAdderPin(InPinB);
 
-	if (ensure(GraphNode != nullptr) && ensure(GraphNode->ModelNode != nullptr))
+	if (bIsPinAAdderPin && bIsPinBAdderPin)
 	{
-		return GraphNode->ModelNode->FindPin(InGraphPin->GetName());
+		if (OutReason)
+		{
+			*OutReason = TEXT("Can't connect adder pin to adder pin");
+		}
+		return false;
 	}
 
-	return nullptr;
+	// The pins should be in the correct order now.
+	UOptimusNodePin* ModelPinA = OptimusEditor::GetModelPinFromGraphPin(InPinA);
+	UOptimusNodePin* ModelPinB = OptimusEditor::GetModelPinFromGraphPin(InPinB);
+	UOptimusNode* ModelNodeA = OptimusEditor::GetModelNodeFromGraphPin(InPinA);
+	UOptimusNode* ModelNodeB = OptimusEditor::GetModelNodeFromGraphPin(InPinB);
+
+	// Default to Adder Pin on the PinB side
+	EOptimusNodePinDirection NewPinDirection =
+		InPinB->Direction == EGPD_Input?
+			EOptimusNodePinDirection::Input : EOptimusNodePinDirection::Output;
+	UOptimusNode* TargetNode = ModelNodeB;
+	UOptimusNodePin* SourcePin = ModelPinA;
+
+	// Flip Source/Target if the Adder Pin is on the PinA side
+	if (bIsPinAAdderPin)
+	{
+		NewPinDirection =
+			InPinA->Direction == EGPD_Input?
+				EOptimusNodePinDirection::Input : EOptimusNodePinDirection::Output;
+		TargetNode = ModelNodeA;
+		SourcePin = ModelPinB;
+	}
+
+	const IOptimusNodeAdderPinProvider *AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(TargetNode);
+	check(AdderPinProvider);
+
+	const bool bCanConnect = AdderPinProvider->CanAddPinFromPin(SourcePin, NewPinDirection, OutReason);
+	
+	return bCanConnect;
 }
-
-
 
 UOptimusEditorGraphSchema::UOptimusEditorGraphSchema()
 {
@@ -135,16 +169,45 @@ bool UOptimusEditorGraphSchema::TryCreateConnection(
 	}
 
 	// The pins should be in the correct order now.
-	UOptimusNodePin *OutputModelPin = GetModelPinFromGraphPin(InPinA);
-	UOptimusNodePin* InputModelPin = GetModelPinFromGraphPin(InPinB);
+	UOptimusNodePin *OutputModelPin = OptimusEditor::GetModelPinFromGraphPin(InPinA);
+	UOptimusNodePin* InputModelPin = OptimusEditor::GetModelPinFromGraphPin(InPinB);
 
-	if (!OutputModelPin->CanCannect(InputModelPin))
+	if (OutputModelPin && InputModelPin)
 	{
-		return false;
+		if (!OutputModelPin->CanCannect(InputModelPin))
+		{
+			return false;
+		}
+
+		UOptimusNodeGraph *Graph = OutputModelPin->GetOwningNode()->GetOwningGraph();
+		return Graph->AddLink(OutputModelPin, InputModelPin);
 	}
 
-	UOptimusNodeGraph *Graph = OutputModelPin->GetOwningNode()->GetOwningGraph();
-	return Graph->AddLink(OutputModelPin, InputModelPin);
+	// Pins might be connectable if one of the two pins is an adder pin;
+	if (OptimusEditor::IsAdderPin(InPinA) || OptimusEditor::IsAdderPin(InPinB))
+	{
+		const bool bCanConnect = IsValidAdderPinConnection(InPinA, InPinB);
+
+		if (!bCanConnect)
+		{
+			return false;
+		}
+
+		UOptimusNode* TargetNode = OptimusEditor::GetModelNodeFromGraphPin(InPinB);
+		UOptimusNodePin* SourcePin = OutputModelPin;
+
+		// Flip Source/Target if the Adder Pin is on the Output side 
+		if (OptimusEditor::IsAdderPin(InPinA))
+		{
+			// Add new pin on the output pin's node
+			TargetNode = OptimusEditor::GetModelNodeFromGraphPin(InPinA);
+			SourcePin = InputModelPin;
+		}
+		UOptimusNodeGraph *Graph = TargetNode->GetOwningGraph();
+		return Graph->AddPinAndLink(TargetNode, SourcePin);
+	}
+
+	return false;
 }
 
 
@@ -159,15 +222,31 @@ const FPinConnectionResponse UOptimusEditorGraphSchema::CanCreateConnection(
 	}
 
 	// The pins should be in the correct order now.
-	UOptimusNodePin* OutputModelPin = GetModelPinFromGraphPin(InPinA);
-	UOptimusNodePin* InputModelPin = GetModelPinFromGraphPin(InPinB);
+	UOptimusNodePin* OutputModelPin = OptimusEditor::GetModelPinFromGraphPin(InPinA);
+	UOptimusNodePin* InputModelPin = OptimusEditor::GetModelPinFromGraphPin(InPinB);
 
-	FString FailureReason;
-	bool bCanConnect = OutputModelPin->CanCannect(InputModelPin, &FailureReason);
+	if (InputModelPin && OutputModelPin)
+	{
+		FString FailureReason;
+		bool bCanConnect = OutputModelPin->CanCannect(InputModelPin, &FailureReason);
 
-	return FPinConnectionResponse(
-		bCanConnect ? CONNECT_RESPONSE_MAKE :  CONNECT_RESPONSE_DISALLOW,
-		FText::FromString(FailureReason));
+		return FPinConnectionResponse(
+			bCanConnect ? CONNECT_RESPONSE_MAKE :  CONNECT_RESPONSE_DISALLOW,
+			FText::FromString(FailureReason));
+	}
+	
+	// Pins might be connectable if one of the two pins is an adder pin;
+	if (OptimusEditor::IsAdderPin(InPinA) || OptimusEditor::IsAdderPin(InPinB))
+	{
+		FString FailureReason;
+		const bool bCanConnect = IsValidAdderPinConnection(InPinA, InPinB, &FailureReason);
+
+		return FPinConnectionResponse(
+			bCanConnect ? CONNECT_RESPONSE_MAKE :  CONNECT_RESPONSE_DISALLOW,
+			FText::FromString(FailureReason));
+	}
+	
+	return FPinConnectionResponse( CONNECT_RESPONSE_DISALLOW,FText::GetEmpty());
 }
 
 
@@ -290,6 +369,12 @@ const FSlateBrush* UOptimusEditorGraphSchema::GetIconFromPinType(
 
 FLinearColor UOptimusEditorGraphSchema::GetColorFromPinType(const FEdGraphPinType& InPinType)
 {
+	if (OptimusEditor::IsAdderPinType(InPinType))
+	{
+		const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
+		return Settings->WildcardPinTypeColor;
+	}
+	
 	// Use the PinSubCategory value to resolve the type. It's set in
 	// UOptimusEditorGraphSchema::GetPinTypeFromDataType.
 	FOptimusDataTypeHandle DataType = FOptimusDataTypeRegistry::Get().FindType(InPinType.PinSubCategory);
@@ -317,7 +402,7 @@ void UOptimusEditorGraphSchema::TrySetDefaultValue(
 	bool bMarkAsModified
 	) const
 {
-	UOptimusNodePin* ModelPin = GetModelPinFromGraphPin(&Pin);
+	UOptimusNodePin* ModelPin = OptimusEditor::GetModelPinFromGraphPin(&Pin);
 	if (ensure(ModelPin))
 	{
 		// Kill the existing transaction, since it copies the wrong node.

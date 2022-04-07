@@ -385,32 +385,9 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 		return false;
 	}
 
-	if (Direction == InOtherPin->GetDirection())
+	// Check connection at the node level
+	if (!GetOwningNode()->CanConnect(InOtherPin, Direction, OutReason))
 	{
-		if (OutReason)
-		{
-			*OutReason = FString::Printf(TEXT("Can't connect an %1$s pin to a %1$s"), 
-				Direction == EOptimusNodePinDirection::Input ? TEXT("input") : TEXT("output"));
-		}
-		return false;
-	}
-
-	// Check for self-connect.
-	if (GetOwningNode() == InOtherPin->GetOwningNode())
-	{
-		if (OutReason)
-		{
-			*OutReason = TEXT("Can't connect input and output pins on the same node.");
-		}
-		return false;
-	}
-
-	if (GetOwningNode()->GetOwningGraph() != InOtherPin->GetOwningNode()->GetOwningGraph())
-	{
-		if (OutReason)
-		{
-			*OutReason = TEXT("Pins belong to nodes from two different graphs.");
-		}
 		return false;
 	}
 
@@ -425,18 +402,9 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 		return false;
 	}
 
-	// Will this connection cause a cycle?
+
 	const UOptimusNodePin *OutputPin = Direction == EOptimusNodePinDirection::Output ? this : InOtherPin;
 	const UOptimusNodePin* InputPin = Direction == EOptimusNodePinDirection::Input ? this : InOtherPin;
-
-	if (GetOwningNode()->GetOwningGraph()->DoesLinkFormCycle(OutputPin, InputPin))
-	{
-		if (OutReason)
-		{
-			*OutReason = TEXT("Connection results in a cycle.");
-		}
-		return false;
-	}
 
 	// We don't allow resource -> value connections. All other combos are legit. 
 	// Value -> Resource just means the resource gets filled with the value.

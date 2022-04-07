@@ -8,6 +8,7 @@
 #include "IOptimusShaderTextProvider.h"
 #include "OptimusBindingTypes.h"
 #include "IOptimusParameterBindingProvider.h"
+#include "IOptimusNodeAdderPinProvider.h"
 
 #include "OptimusNode_CustomComputeKernel.generated.h"
 
@@ -19,7 +20,8 @@ UCLASS()
 class UOptimusNode_CustomComputeKernel :
 	public UOptimusNode_ComputeKernelBase,
 	public IOptimusShaderTextProvider,
-	public IOptimusParameterBindingProvider
+	public IOptimusParameterBindingProvider,
+	public IOptimusNodeAdderPinProvider
 {
 	GENERATED_BODY()
 
@@ -55,6 +57,13 @@ public:
 
 	// IOptimusParameterBindingProvider
 	virtual FString GetBindingDeclaration(FName BindingName) const override;
+
+	// IOptimusNodeAdderPinProvider
+	virtual bool CanAddPinFromPin(const UOptimusNodePin* InSourcePin, EOptimusNodePinDirection InNewPinDirection, FString* OutReason = nullptr) const override;
+
+	virtual UOptimusNodePin* TryAddPinFromPin(UOptimusNodePin* InSourcePin, FName InNewPinName) override;
+	
+	virtual bool RemoveAddedPin(UOptimusNodePin* InAddedPinToRemove) override;
 	
 	// FIXME: Use drop-down with a preset list + allow custom entry.
 	UPROPERTY(EditAnywhere, Category=Settings)

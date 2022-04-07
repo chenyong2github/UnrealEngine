@@ -11,9 +11,9 @@
 #include "OptimusNodePin.h"
 #include "OptimusObjectVersion.h"
 
-static const FName ParametersName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, Parameters);;
-static const FName InputBindingsName= GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, InputBindingArray);;
-static const FName OutputBindingsName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, OutputBindingArray);;
+static const FName ParametersName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, Parameters);
+static const FName InputBindingsName= GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, InputBindingArray);
+static const FName OutputBindingsName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, OutputBindingArray);
 
 UOptimusNode_CustomComputeKernel::UOptimusNode_CustomComputeKernel()
 {
@@ -117,6 +117,111 @@ FString UOptimusNode_CustomComputeKernel::GetBindingDeclaration(FName BindingNam
 	return FString();
 }
 
+bool UOptimusNode_CustomComputeKernel::CanAddPinFromPin(const UOptimusNodePin* InSourcePin, EOptimusNodePinDirection InNewPinDirection, FString* OutReason) const
+{
+	if (!CanConnect(InSourcePin, InNewPinDirection, OutReason))
+	{
+		return false;
+	}
+	
+	if (InSourcePin->GetDirection() == EOptimusNodePinDirection::Input)
+	{
+		if (InSourcePin->GetStorageType() != EOptimusNodePinStorageType::Resource)
+		{
+			if (OutReason)
+			{
+				*OutReason = TEXT("Can't add parameter pin as output");
+			}
+
+			return false;
+		}
+	}
+
+	return true;
+}
+
+UOptimusNodePin* UOptimusNode_CustomComputeKernel::TryAddPinFromPin(UOptimusNodePin* InSourcePin, FName InNewPinName) 
+{
+	const EOptimusNodePinDirection NewPinDirection =
+		InSourcePin->GetDirection() == EOptimusNodePinDirection::Input ?
+				EOptimusNodePinDirection::Output : EOptimusNodePinDirection::Input;
+	
+	if (InSourcePin->GetStorageType() == EOptimusNodePinStorageType::Value)
+	{
+		FOptimus_ShaderBinding Binding;
+		Binding.Name = InNewPinName;
+		Binding.DataType = {InSourcePin->GetDataType()};
+
+		Modify();
+		Parameters.Add(Binding);
+		UpdatePreamble();
+
+		UOptimusNodePin* BeforePin = nullptr;
+		if (!InputBindingArray.IsEmpty())
+		{
+			BeforePin = GetPins()[Parameters.Num() - 1];
+		}
+		
+		UOptimusNodePin* NewPin = AddPinDirect(InNewPinName, NewPinDirection, {}, Binding.DataType, BeforePin);
+
+		return NewPin;
+	}
+	else if (InSourcePin->GetStorageType() == EOptimusNodePinStorageType::Resource)
+	{
+		TArray<FOptimusParameterBinding>& BindingArray = 
+			InSourcePin->GetDirection() == EOptimusNodePinDirection::Input ?
+				OutputBindingArray.InnerArray : InputBindingArray.InnerArray;
+
+		FOptimusParameterBinding Binding;
+		Binding.Name = InNewPinName;
+		Binding.DataType = {InSourcePin->GetDataType()};
+		Binding.DataDomain = {InSourcePin->GetDataDomainLevelNames()};
+
+		Modify();
+		BindingArray.Add(Binding);
+		UpdatePreamble();
+		
+		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
+		UOptimusNodePin* NewPin	= AddPinDirect(InNewPinName, NewPinDirection, StorageConfig, Binding.DataType);
+	
+		return NewPin;
+	}
+	
+	return nullptr;
+}
+
+bool UOptimusNode_CustomComputeKernel::RemoveAddedPin(UOptimusNodePin* InAddedPinToRemove)
+{
+
+	if (InAddedPinToRemove->GetStorageType() == EOptimusNodePinStorageType::Value)
+	{
+		Modify();
+		Parameters.RemoveAll(
+			[InAddedPinToRemove](const FOptimus_ShaderBinding& Binding)
+			{
+				return Binding.Name == InAddedPinToRemove->GetFName(); 
+			});
+		UpdatePreamble();
+		return RemovePinDirect(InAddedPinToRemove);
+	}
+	else if (InAddedPinToRemove->GetStorageType() == EOptimusNodePinStorageType::Resource)
+	{
+		TArray<FOptimusParameterBinding>& BindingArray = 
+			InAddedPinToRemove->GetDirection() == EOptimusNodePinDirection::Input ?
+				InputBindingArray.InnerArray : OutputBindingArray.InnerArray;
+
+		Modify();
+		BindingArray.RemoveAll(
+			[InAddedPinToRemove](const FOptimusParameterBinding& Binding)
+			{
+				return Binding.Name == InAddedPinToRemove->GetFName(); 
+			});
+		UpdatePreamble();
+		return RemovePinDirect(InAddedPinToRemove);
+	}
+
+	return false;
+}
 
 #if WITH_EDITOR
 void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(

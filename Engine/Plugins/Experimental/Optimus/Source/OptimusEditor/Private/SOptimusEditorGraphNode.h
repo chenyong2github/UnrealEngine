@@ -36,6 +36,7 @@ public:
 private:
 	UOptimusEditorGraphNode *GetEditorGraphNode() const;
 	UOptimusNode* GetModelNode() const;
+	TSharedPtr<SGraphPin> GetPinWidget(UEdGraphPin* InGraphPin);
 
 	void SyncPinWidgetsWithGraphPins();
 	
