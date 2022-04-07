@@ -3,7 +3,7 @@
 #include "TokenTest.h"
 #include "TestHarness.h"
 
-TEST_CASE("Core::Containers::TToken::Default", "[Core][Containers][Smoke]")
+TEST_CASE("Core::Containers::TToken::Default", "[Core][Containers][TToken]")
 {
 	int32Token::Reset();
 	{
@@ -18,7 +18,7 @@ TEST_CASE("Core::Containers::TToken::Default", "[Core][Containers][Smoke]")
 	CHECK(int32Token::NumDestructionCalls() == 1);
 }
 
-TEST_CASE("Core::Containers::TToken::Explicit constructor", "[Core][Containers][Smoke]")
+TEST_CASE("Core::Containers::TToken::Explicit constructor", "[Core][Containers][TToken]")
 {
 	int32Token::Reset();
 	{
@@ -35,7 +35,7 @@ TEST_CASE("Core::Containers::TToken::Explicit constructor", "[Core][Containers][
 	CHECK(int32Token::NumMoveAssignmentCalls() == 0);
 }
 
-TEST_CASE("Core::Containers::TToken::Copy constructor", "[Core][Containers][Smoke]")
+TEST_CASE("Core::Containers::TToken::Copy constructor", "[Core][Containers][TToken]")
 {
 	int32Token::Reset();
 	{
@@ -53,7 +53,7 @@ TEST_CASE("Core::Containers::TToken::Copy constructor", "[Core][Containers][Smok
 	CHECK(int32Token::NumMoveAssignmentCalls() == 0);
 }
 
-TEST_CASE("Core::Containers::TToken::Move constructor", "[Core][Containers][Smoke]")
+TEST_CASE("Core::Containers::TToken::Move constructor", "[Core][Containers][TToken]")
 {
 	int32Token::Reset();
 	{
@@ -71,7 +71,7 @@ TEST_CASE("Core::Containers::TToken::Move constructor", "[Core][Containers][Smok
 	CHECK(int32Token::NumMoveAssignmentCalls() == 0);
 }
 
-TEST_CASE("Core::Containers::TToken::Copy assignment", "[Core][Containers][Smoke]")
+TEST_CASE("Core::Containers::TToken::Copy assignment", "[Core][Containers][TToken]")
 {
 	int32Token::Reset();
 	{
@@ -90,7 +90,7 @@ TEST_CASE("Core::Containers::TToken::Copy assignment", "[Core][Containers][Smoke
 	CHECK(int32Token::NumMoveAssignmentCalls() == 0);
 }
 
-TEST_CASE("Core::Containers::TToken::Move assignment", "[Core][Containers][Smoke]")
+TEST_CASE("Core::Containers::TToken::Move assignment", "[Core][Containers][TToken]")
 {
 	int32Token::Reset();
 	{
