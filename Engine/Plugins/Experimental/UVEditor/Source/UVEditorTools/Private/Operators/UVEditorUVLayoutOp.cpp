@@ -62,7 +62,19 @@ void FUVEditorUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 
 		for (FVector2i TileIndex : Tiles)
 		{
-			TUniquePtr<TArray<int32>> TileTids = MakeUnique<TArray<int32>>(TileClassifier.TidsForTile(TileIndex));
+			TUniquePtr<TArray<int32>> TileTids;
+			if (Selection.IsSet())
+			{
+				TSet<int32>& SelectionSet = Selection.GetValue();
+				TileTids = MakeUnique<TArray<int32>>(TileClassifier.TidsForTile(TileIndex).FilterByPredicate([&SelectionSet](int32 Tid)
+					{
+						return SelectionSet.Contains(Tid);
+					}));
+			}
+			else
+			{
+				TileTids = MakeUnique<TArray<int32>>(TileClassifier.TidsForTile(TileIndex));
+			}
 
 			// Do this first, so we don't need to keep the TileTids around after moving it into the packer.
 			TSet<int32> ElementsToMove;
@@ -93,7 +105,22 @@ void FUVEditorUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 	}
 	else
 	{
-		FDynamicMeshUVPacker Packer(UseUVLayer);
+		TUniquePtr<TArray<int32>> TidsToLayout = nullptr;
+		if (Selection.IsSet())
+		{
+			TidsToLayout = MakeUnique<TArray<int32>>();
+			TSet<int32>& SelectionSet = Selection.GetValue();
+			TidsToLayout->Reserve(SelectionSet.Num());
+			for(int Tid : SelectionSet)
+			{
+				if (OriginalMesh->IsTriangle(Tid))
+				{
+					TidsToLayout->Add(Tid);
+				}
+			}
+		}
+		
+		FDynamicMeshUVPacker Packer(UseUVLayer, MoveTemp(TidsToLayout) );
 		ExecutePacker(Packer);
 		if (Progress && Progress->Cancelled())
 		{
@@ -163,6 +190,7 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorUVLayoutOperatorFactory::MakeNewOperat
 	Op->UVTranslation = FVector2f(Settings->Translation);
 	Op->SetTransform(TargetTransform);
 	Op->bMaintainOriginatingUDIM = Settings->bEnableUDIMLayout;
+	Op->Selection = Selection;
 
 	return Op;
 }

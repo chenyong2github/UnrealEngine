@@ -99,6 +99,7 @@ public:
 	float UVScaleFactor = 1.0;
 	float GutterSize = 1.0;
 	bool bMaintainOriginatingUDIM = false;
+	TOptional<TSet<int32>> Selection;
 	FVector2f UVTranslation = FVector2f::Zero();
 
 	void SetTransform(const FTransformSRT3d& Transform);
@@ -133,6 +134,8 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UUVEditorUVLayoutProperties> Settings;
+
+	TOptional<TSet<int32>> Selection;
 
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	TUniqueFunction<int32()> GetSelectedUVChannel = []() { return 0; };

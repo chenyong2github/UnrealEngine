@@ -7,6 +7,7 @@
 #include "InteractiveTool.h"
 #include "InteractiveToolBuilder.h"
 #include "UVEditorToolAnalyticsUtils.h"
+#include "Selection/UVToolSelectionAPI.h"
 
 #include "UVEditorLayoutTool.generated.h"
 
@@ -32,7 +33,7 @@ public:
  * 
  */
 UCLASS()
-class UVEDITORTOOLS_API UUVEditorLayoutTool : public UInteractiveTool
+class UVEDITORTOOLS_API UUVEditorLayoutTool : public UInteractiveTool, public IUVToolSupportsSelection
 {
 	GENERATED_BODY()
 
@@ -66,6 +67,9 @@ protected:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UUVEditorUVLayoutOperatorFactory>> Factories;
+
+	UPROPERTY()
+	TObjectPtr<UUVToolSelectionAPI> UVToolSelectionAPI = nullptr;
 
 	//
 	// Analytics
