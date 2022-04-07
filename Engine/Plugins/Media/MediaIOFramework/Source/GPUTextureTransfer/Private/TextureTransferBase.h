@@ -7,14 +7,11 @@
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/PreWindowsApi.h"
-#endif
-
 #include "DVPAPI.h"
-
-#if PLATFORM_WINDOWS
 #include "Windows/PostWindowsApi.h"
 #include "Windows/HideWindowsPlatformTypes.h"
-#endif
+
+class FRHITexture;
 
 namespace UE::GPUTextureTransfer::Private
 {
@@ -26,13 +23,15 @@ namespace UE::GPUTextureTransfer::Private
 		//~ Begin ITextureTransfer interface
 		virtual bool BeginSync(void* InBuffer, ETransferDirection TransferDirection) override;
 		virtual void EndSync(void* InBuffer) override;
-		virtual bool TransferTexture(void* InBuffer, void* InRHITexture, ETransferDirection TransferDirection) override;
+		virtual bool TransferTexture(void* InBuffer, FRHITexture* InRHITexture, ETransferDirection TransferDirection) override;
 		virtual void RegisterBuffer(const FRegisterDMABufferArgs& Args) override;
 		virtual void UnregisterBuffer(void* InBuffer) override;
 		virtual void RegisterTexture(const FRegisterDMATextureArgs& Args) override;
-		virtual void UnregisterTexture(void* InRHITexture) override;
-		virtual void LockTexture(void* InRHITexture) override;
-		virtual void UnlockTexture(void* InRHITexture) override;
+		virtual void UnregisterTexture(FRHITexture* InRHITexture) override;
+		virtual uint32 GetBufferAlignment() const override;
+		virtual uint32 GetTextureStride() const override;
+		virtual void LockTexture(FRHITexture* InRHITexture) override;
+		virtual void UnlockTexture(FRHITexture* InRHITexture) override;
 		// End ITextureTransfer interface
 
 	protected:
@@ -65,7 +64,8 @@ namespace UE::GPUTextureTransfer::Private
 		struct FTextureInfo
 		{
 			DVPBufferHandle DVPHandle = 0;
-			union 
+
+			union
 			{
 				void* Handle = nullptr;
 				int Fd;
@@ -76,13 +76,12 @@ namespace UE::GPUTextureTransfer::Private
 		virtual DVPStatus Init_Impl(const FInitializeDMAArgs& InArgs) = 0;
 		virtual DVPStatus GetConstants_Impl(uint32* OutBufferAddrAlignment, uint32* OutBufferGPUStrideAlignment, uint32* OutSemaphoreAddrAlignment, uint32* OutSemaphoreAllocSize, uint32* OutSemaphorePayloadOffset, uint32* OutSemaphorePayloadSize) const = 0;
 		virtual DVPStatus BindBuffer_Impl(DVPBufferHandle InBufferHandle) const = 0;
-		virtual DVPStatus CreateGPUResource_Impl(void* InTexture, FTextureInfo* OutTextureInfo) const = 0;
+		virtual DVPStatus CreateGPUResource_Impl(const FRegisterDMATextureArgs& InArgs, FTextureInfo* OutTextureInfo) const = 0;
 		virtual DVPStatus UnbindBuffer_Impl(DVPBufferHandle InBufferHandle) const = 0;
 		virtual DVPStatus CloseDevice_Impl() const = 0;
 		virtual DVPStatus MapBufferWaitAPI_Impl(DVPBufferHandle InHandle) const;
 		virtual DVPStatus MapBufferEndAPI_Impl(DVPBufferHandle InHandle) const;
 
-		
 	private:
 		void ClearBufferInfo(FExternalBufferInfo& BufferInfo);
 		void ClearRegisteredTextures();
@@ -91,7 +90,7 @@ namespace UE::GPUTextureTransfer::Private
 
 		bool bInitialized = false;
 		TMap<void*, FExternalBufferInfo> RegisteredBuffers;
-		TMap<void*, FTextureInfo> RegisteredTextures;
+		TMap<FRHITexture*, FTextureInfo> RegisteredTextures;
 
 		uint32 BufferAddressAlignment = 0;
 		uint32 BufferGpuStrideAlignment = 0;
@@ -103,3 +102,4 @@ namespace UE::GPUTextureTransfer::Private
 		FCriticalSection CriticalSection;
 	};
 }
+#endif // PLATFORM_WINDOWS

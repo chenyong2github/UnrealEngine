@@ -23,11 +23,13 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"GPUTextureTransfer",
 					"MediaIOCore",
 					"MediaUtils",
 					"Projects",
 					"TimeManagement",
 					"RenderCore",
+					"RHI",
 					"SlateCore"
 				});
 

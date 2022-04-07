@@ -218,7 +218,7 @@ protected:
 	uint32 Height;
 
 	/** Pointer to raw pixels */
-	TArray<uint8> Buffer;
+	TArray<uint8, TAlignedHeapAllocator<4096>> Buffer;
 
 	/** Wheter the sample is in sRGB space and requires an explicit conversion to linear */
 	bool bIsSRGBInput;
