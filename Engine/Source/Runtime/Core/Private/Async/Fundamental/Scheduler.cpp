@@ -151,15 +151,15 @@ namespace LowLevelTasks
 		}
 	}
 
-	void FScheduler::ExecuteTask(FTask& Task)
+	inline void FScheduler::ExecuteTask(FTask*& InOutTask)
 	{
 		FTask* ParentTask = FTask::ActiveTask;
-		FTask::ActiveTask = &Task;
+		FTask::ActiveTask = InOutTask;
 
-		if (!Task.IsBackgroundTask())
+		if (!InOutTask->IsBackgroundTask())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteForegroundTask);
-			Task.ExecuteTask();
+			InOutTask = InOutTask->ExecuteTask();
 		}
 		else
 		{
@@ -181,7 +181,7 @@ namespace LowLevelTasks
 
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteBackgroundTask);
-				Task.ExecuteTask();
+				InOutTask = InOutTask->ExecuteTask();
 			}
 
 			if (!bSkipPriorityChange)
@@ -216,7 +216,14 @@ namespace LowLevelTasks
 			{
 				for (FTask* Task = QueueRegistry.Dequeue(); Task != nullptr; Task = QueueRegistry.Dequeue())
 				{
-					ExecuteTask(*Task);
+					while(Task)
+					{
+						ExecuteTask(Task);
+						if(Task)
+						{
+							verifySlow(Task->TryPrepareLaunch());
+						}
+					}
 				}
 			}
 		}
@@ -266,7 +273,15 @@ namespace LowLevelTasks
 		}
 		else
 		{
-			ExecuteTask(Task);
+			FTask* TaskPtr = &Task;
+			while(TaskPtr)
+			{
+				ExecuteTask(TaskPtr);
+				if(TaskPtr)
+				{
+					verifySlow(TaskPtr->TryPrepareLaunch());
+				}
+			}
 		}
 	}
 
@@ -299,33 +314,57 @@ namespace LowLevelTasks
 	template<FTask* (FSchedulerTls::FLocalQueueType::*DequeueFunction)(bool, bool), bool bIsBusyWaiting>
 	bool FScheduler::TryExecuteTaskFrom(FSchedulerTls::FLocalQueueType* Queue, FSchedulerTls::FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork, bool bDisableThrottleStealing)
 	{
-		for(int i = 0; i < 2; i++) // one retry if we pick up a task that cannot used during busy waiting.
+		bool AnyExecuted = false;
+
+		FTask* Task = (Queue->*DequeueFunction)(bPermitBackgroundWork, bDisableThrottleStealing);
+		while (Task)
 		{
-			FTask* Task = (Queue->*DequeueFunction)(bPermitBackgroundWork, bDisableThrottleStealing);
-			if (Task)
-			{	
+			if constexpr (bIsBusyWaiting)
+			{
 				FTask::FInitData InitData = Task->GetInitData();
 				bool bAllowBusyWaiting = EnumHasAnyFlags(InitData.Flags, ETaskFlags::AllowBusyWaiting);
-				if (bIsBusyWaiting && !bAllowBusyWaiting)
+				
+				if (!bAllowBusyWaiting || AnyExecuted) 
 				{
+					//either the task is not allowed during busy waiting or we have a  
+					//symetric switching task that we do not want to execute during BusyWaiting
+					//in either case we requeue and try again or we exit early with success.
 					QueueRegistry.Enqueue(Task, uint32(InitData.Priority));
-					continue;
-				}
-				if (OutOfWork.Stop())
-				{
-					//if we are ramping up work again we start waking up workers that might not have been woken while a lot of work might have been queued
-					if (!WakeUpWorker(bPermitBackgroundWork) && !FSchedulerTls::IsBackgroundWorker())
+
+					if(AnyExecuted)
 					{
-						WakeUpWorker(!bPermitBackgroundWork);
+						return AnyExecuted; 
+					}
+
+					Task = (Queue->*DequeueFunction)(bPermitBackgroundWork, bDisableThrottleStealing);
+					if(Task == nullptr)
+					{
+						return false;
 					}
 				}
-
-				ExecuteTask(*Task);
-				return true;
 			}
-			return false;
+			else
+			{
+				checkSlow(FTask::ActiveTask == nullptr);
+			}
+
+			if (OutOfWork.Stop())
+			{
+				//if we are ramping up work again we start waking up workers that might not have been woken while a lot of work might have been queued
+				if (!WakeUpWorker(bPermitBackgroundWork) && !FSchedulerTls::IsBackgroundWorker())
+				{
+					WakeUpWorker(!bPermitBackgroundWork);
+				}
+			}
+			
+			ExecuteTask(Task);
+			if(Task)
+			{
+				verifySlow(Task->TryPrepareLaunch());
+			}
+			AnyExecuted = true;
 		}
-		return false;
+		return AnyExecuted;
 	}
 
 	void FScheduler::WorkerMain(FSleepEvent* WorkerEvent, FSchedulerTls::FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles, bool bPermitBackgroundWork)

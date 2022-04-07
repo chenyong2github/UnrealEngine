@@ -80,7 +80,7 @@ namespace Tasks2Tests
 			}
 
 			FTask SignalTask;
-			SignalTask.Init(TEXT("Empty Signal Task"), [](){}, [&Tasks]()
+			SignalTask.Init(TEXT("Empty Signal Task"), [&Tasks]()
 			{
 				for (int i = 0; i < NumTasks; i++)
 				{
@@ -204,7 +204,7 @@ namespace Tasks2Tests
 			}
 
 			FTask SignalTask;
-			SignalTask.Init(TEXT("Signal Task"), [](){}, [&Tasks]()
+			SignalTask.Init(TEXT("Signal Task"), [&Tasks]()
 			{
 				for (int i = 0; i < NumTasks; i++)
 				{
@@ -380,7 +380,7 @@ namespace Tasks2Tests
 			}
 
 			FTask SignalTask;
-			SignalTask.Init(TEXT("Signal Task"), [](){}, [&Tasks]()
+			SignalTask.Init(TEXT("Signal Task"), [&Tasks]()
 			{
 				for (int i = 0; i < NumTasks; i++)
 				{
@@ -523,10 +523,10 @@ namespace Tasks2Tests
 				using FTaskHandle = TSharedPtr<FTask, ESPMode::ThreadSafe>;
 				FTaskHandle TaskHandle = MakeShared<FTask, ESPMode::ThreadSafe>();
 
-				TaskHandle->Init(TEXT("Refcounted Test"), [&TestValue]()
+				TaskHandle->Init(TEXT("Refcounted Test"), [&TestValue, TaskHandle]()
 				{
 					TestValue = 42;
-				}, [TaskHandle](){});
+				});
 				TryLaunch(*TaskHandle);
 
 				bool WasCanceled = TestCancel && TaskHandle->TryCancel();
@@ -583,17 +583,33 @@ namespace Tasks2Tests
 			using FTaskHandle = TUniquePtr<FTask>;
 			FTaskHandle TaskHandle = MakeUnique<FTask>();
 			FTask& Task = *TaskHandle;
-			Task.Init(TEXT("Uniqueptr Test"), [TestValue]()
+			Task.Init(TEXT("Uniqueptr Test"), [TestValue, TaskHandle = MoveTemp(TaskHandle)]()
 			{
 				*TestValue = 42;
-			}, [TestValue, TaskHandle = MoveTemp(TaskHandle)]()
-			{
-				verify(*TestValue == 42);
 				delete TestValue;
 			});
 			TryLaunch(Task);
 		}
 
+		//symetric switch
+		{
+			uint32 TestValue = 1337;
+
+			FTask TaskA;
+			FTask TaskB;
+			TaskB.Init(TEXT("TaskB"), [&TestValue]()
+			{
+				TestValue = 42;
+			});
+			TaskA.Init(TEXT("TaskA"), [&TaskB]() -> FTask*
+			{
+				return &TaskB;
+			});
+			verify(TryLaunch(TaskA));
+			BusyWaitForTask(TaskB);
+
+			verify(TestValue == 42);
+		}
 		return true;
 	}
 

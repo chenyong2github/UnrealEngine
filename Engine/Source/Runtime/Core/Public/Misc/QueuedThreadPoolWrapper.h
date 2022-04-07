@@ -319,6 +319,13 @@ private:
 		}
 	}
 
+	void FinalizeExecution()
+	{
+		TaskCount.fetch_sub(1, std::memory_order_release);
+		bool bWakeUpWorker = false;
+		ScheduleTasks(bWakeUpWorker);
+	}
+
 	void AddQueuedWork(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal) override
 	{
 		check(bIsExiting == false);
@@ -331,19 +338,11 @@ private:
 		LowLevelTasks::ETaskPriority TaskPriority = TaskPriorityMapper[int(Priority)];
 		LowLevelTasks::ETaskFlags Flags = (InQueuedWork->GetQueuedWorkFlags() & EQueuedWorkFlags::DoNotRunInsideBusyWait) == EQueuedWorkFlags::None ? LowLevelTasks::ETaskFlags::DefaultFlags : (LowLevelTasks::ETaskFlags::DefaultFlags & ~LowLevelTasks::ETaskFlags::AllowCancellation);
 
-		QueuedWorkInternalData->Task.Init(TEXT("FQueuedLowLevelThreadPoolTask"), TaskPriority, [InQueuedWork]
+		QueuedWorkInternalData->Task.Init(TEXT("FQueuedLowLevelThreadPoolTask"), TaskPriority, [InQueuedWork, InternalData = InQueuedWork->InternalData, Deleter = LowLevelTasks::TDeleter<FQueuedLowLevelThreadPool, &FQueuedLowLevelThreadPool::FinalizeExecution>{ this }]
 		{
 			FMemMark Mark(FMemStack::Get());
 			InQueuedWork->DoThreadedWork();
-		},
-		[this, InternalData = InQueuedWork->InternalData]()
-		{
-			TaskCount.fetch_sub(1, std::memory_order_release);
-			bool bWakeUpWorker = false;
-			ScheduleTasks(bWakeUpWorker);
-		},
-		Flags
-		);
+		}, Flags);
 
 		if (!bIsPaused)
 		{

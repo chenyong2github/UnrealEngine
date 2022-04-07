@@ -146,7 +146,7 @@ namespace LowLevelTasks
 
 	/*
 	* Generic implementation of a Deleter, it often comes up that one has to call a function to cleanup after a Task finished
-	* this can be done by capturing a TDeleter like this in the lambda of the Continuation: [Deleter(LowLevelTasks::TDeleter<Type, &Type::DeleteFunction>(value))](){}
+	* this can be done by capturing a TDeleter like so: [Deleter(LowLevelTasks::TDeleter<Type, &Type::DeleteFunction>(value))](){}
 	*/
 	template<typename Type, void (Type::*DeleteFunction)()>
 	class TDeleter
@@ -164,7 +164,13 @@ namespace LowLevelTasks
 			Other.Value = nullptr;
 		}
 
+		UE_DEPRECATED(5.1, "TDeleter::GetValue() has been deprecated. Please update to TDeleter::operator->().")
 		inline Type* GetValue() const
+		{
+			return Value;
+		}
+
+		inline Type* operator->() const
 		{
 			return Value;
 		}
@@ -293,7 +299,7 @@ namespace LowLevelTasks
 		};
 
 	private:
-		using FTaskDelegate = TTaskDelegate<void(bool), LOWLEVEL_TASK_SIZE - sizeof(FPackedData) - sizeof(void*)>;
+		using FTaskDelegate = TTaskDelegate<FTask*(bool), LOWLEVEL_TASK_SIZE - sizeof(FPackedData) - sizeof(void*)>;
 		FTaskDelegate Runnable;
 		mutable void* UserData = nullptr;
 		FPackedDataAtomic PackedData;
@@ -378,25 +384,31 @@ namespace LowLevelTasks
 		* try to expedite the task if succeded it will run immediately 
 		* but it will not set the completed state until the scheduler has executed it, because the scheduler still holds a reference.
 		* to check for completion in the context of expediting use WasExpedited. The TaskHandle canot be reused until IsCompleted returns true.
+		* @param Continuation: optional Continuation that needs to be executed or scheduled by the caller (can only be non null if the operation returned true)
 		*/
 		inline bool TryExpedite();
+		inline bool TryExpedite(FTask*& Continuation);
 
 		/*
 		* try to execute the task if it has not been launched yet the task will execute immediately.
+		* @param Continuation: optional Continuation that needs to be executed or scheduled by the caller (can only be non null if the operation returned true)
 		*/
 		inline bool TryExecute();
-
-		template<typename TRunnable, typename TContinuation>
-		inline void Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, TContinuation&& InContinuation, ETaskFlags Flags = ETaskFlags::DefaultFlags);
+		inline bool TryExecute(FTask*& Continuation);
 
 		template<typename TRunnable>
 		inline void Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, ETaskFlags Flags = ETaskFlags::DefaultFlags);
 
-		template<typename TRunnable, typename TContinuation>
-		inline void Init(const TCHAR* InDebugName, TRunnable&& InRunnable, TContinuation&& InContinuation, ETaskFlags Flags = ETaskFlags::DefaultFlags);
-
 		template<typename TRunnable>
 		inline void Init(const TCHAR* InDebugName, TRunnable&& InRunnable, ETaskFlags Flags = ETaskFlags::DefaultFlags);
+
+		template<typename TRunnable, typename TContinuation>
+		UE_DEPRECATED(5.1, "FTask::Init() has been deprecated. Please update to using a TDeleter.")
+		inline void Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, TContinuation&& InContinuation, ETaskFlags Flags = ETaskFlags::DefaultFlags);
+
+		template<typename TRunnable, typename TContinuation>
+		UE_DEPRECATED(5.1, "FTask::Init() has been deprecated. Please update to using a TDeleter.")
+		inline void Init(const TCHAR* InDebugName, TRunnable&& InRunnable, TContinuation&& InContinuation, ETaskFlags Flags = ETaskFlags::DefaultFlags);
 
 		inline const TCHAR* GetDebugName() const;
 		inline ETaskPriority GetPriority() const;
@@ -429,7 +441,8 @@ namespace LowLevelTasks
 		//after calling this function the task can be considered dead
 		template<bool bIsExpeditingThread>
 		inline void TryFinish();
-		inline void ExecuteTask();
+
+		inline FTask* ExecuteTask();
 		inline void InheritParentData(ETaskPriority& Priority);
 	};
 
@@ -463,6 +476,40 @@ namespace LowLevelTasks
 		}
 	}
 
+	template<typename TRunnable>
+	inline void FTask::Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, ETaskFlags Flags)
+	{
+		checkf(IsCompleted(), TEXT("State: %d"), PackedData.load(std::memory_order_relaxed).GetState());
+		checkSlow(!Runnable.IsSet());
+		
+		//if the Runnable returns an FTask* than enable symetric switching
+		if constexpr (TIsSame<FTask*, decltype(UE::Core::Private::IsInvocable::DeclVal<TRunnable>()())>::Value)
+		{
+			Runnable = [LocalRunnable = Forward<TRunnable>(InRunnable)](const bool bNotCanceled) -> FTask*
+			{
+				if (bNotCanceled)
+				{
+					FTask* Task = LocalRunnable();
+					return Task;
+				}
+				return nullptr;
+			};
+		}
+		else
+		{
+			Runnable = [LocalRunnable = Forward<TRunnable>(InRunnable)](const bool bNotCanceled) -> FTask*
+			{
+				if (bNotCanceled)
+				{
+					LocalRunnable();
+				}
+				return nullptr;
+			};
+		}
+		InheritParentData(InPriority);
+		PackedData.store(FPackedData(InDebugName, InPriority, ETaskState::Ready, Flags), std::memory_order_release);
+	}
+
 	template<typename TRunnable, typename TContinuation>
 	inline void FTask::Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, TContinuation&& InContinuation, ETaskFlags Flags)
 	{
@@ -475,22 +522,7 @@ namespace LowLevelTasks
 				LocalRunnable();
 			}
 			LocalContinuation();
-		};
-		InheritParentData(InPriority);
-		PackedData.store(FPackedData(InDebugName, InPriority, ETaskState::Ready, Flags), std::memory_order_release);
-	}
-
-	template<typename TRunnable>
-	inline void FTask::Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, ETaskFlags Flags)
-	{
-		checkf(IsCompleted(), TEXT("State: %d"), PackedData.load(std::memory_order_relaxed).GetState());
-		checkSlow(!Runnable.IsSet());
-		Runnable = [LocalRunnable = Forward<TRunnable>(InRunnable)](const bool NotCanceled)
-		{
-			if (NotCanceled)
-			{
-				LocalRunnable();
-			}
+			return nullptr;
 		};
 		InheritParentData(InPriority);
 		PackedData.store(FPackedData(InDebugName, InPriority, ETaskState::Ready, Flags), std::memory_order_release);
@@ -533,7 +565,7 @@ namespace LowLevelTasks
 
 		if(bTryLaunchOnSuccess && WasCanceled && TryPrepareLaunch())
 		{
-			ExecuteTask();
+			verifySlow(ExecuteTask() == nullptr);
 			return true;
 		}
 		return WasCanceled;
@@ -554,14 +586,22 @@ namespace LowLevelTasks
 			|| PackedData.compare_exchange_strong(CanceledState, FPackedData(LocalPackedData, ETaskState::Scheduled), std::memory_order_release);
 	}
 
-	inline bool FTask::TryExecute()
+	inline bool FTask::TryExecute(FTask*& OutContinuation)
 	{
 		if(TryPrepareLaunch())
 		{
-			ExecuteTask();
+			OutContinuation  = ExecuteTask();
 			return true;
 		}
 		return false;
+	}
+
+	inline bool FTask::TryExecute()
+	{
+		FTask* Continuation = nullptr;
+		bool Result = TryExecute(Continuation);
+		checkSlow(Continuation == nullptr);
+		return Result;
 	}
 
 	template<bool bIsExpeditingThread>
@@ -583,28 +623,37 @@ namespace LowLevelTasks
 		}
 	}
 
-	inline bool FTask::TryExpedite()
+	inline bool FTask::TryExpedite(FTask*& OutContinuation)
 	{
 		FPackedData LocalPackedData = PackedData.load(std::memory_order_relaxed);
 		FPackedData ScheduledState(LocalPackedData, ETaskState::Scheduled);
 		if(PackedData.compare_exchange_strong(ScheduledState, FPackedData(LocalPackedData, ETaskState::Running), std::memory_order_acquire))
 		{
-			Runnable(true);
+			OutContinuation  = Runnable(true);
 			TryFinish<true>();
 			return true;
 		}
 		return false;
 	}
 
-	inline void FTask::ExecuteTask()
+	inline bool FTask::TryExpedite()
+	{
+		FTask* Continuation = nullptr;
+		bool Result = TryExpedite(Continuation);
+		checkSlow(Continuation == nullptr);
+		return Result;
+	}
+
+	inline FTask* FTask::ExecuteTask()
 	{
 		ETaskState PreviousState = PackedData.fetch_or(ETaskState::RunningFlag, std::memory_order_acquire);
 		checkSlow(EnumHasAnyFlags(PreviousState, ETaskState::ScheduledFlag));
 
+		FTask* Continuation = nullptr;
 		if(!EnumHasAnyFlags(PreviousState, ETaskState::RunningFlag)) //we are running or canceled
 		{
 			FTaskDelegate LocalRunnable;
-			Runnable.CallAndMove(LocalRunnable, !EnumHasAnyFlags(PreviousState, ETaskState::CanceledFlag));
+			Continuation = Runnable.CallAndMove(LocalRunnable, !EnumHasAnyFlags(PreviousState, ETaskState::CanceledFlag));
 			//do not access the task again after this call
 			//as by defitition the task can be considered dead
 			PreviousState = PackedData.fetch_or(ETaskState::CompletedFlag, std::memory_order_seq_cst);
@@ -615,6 +664,8 @@ namespace LowLevelTasks
 			checkSlow(PreviousState == ETaskState::Running || PreviousState == ETaskState::Expediting || PreviousState == ETaskState::Expedited);
 			TryFinish<false>();
 		}
+
+		return Continuation;
 	}
 
 	inline const TCHAR* FTask::GetDebugName() const
