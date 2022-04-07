@@ -1319,6 +1319,12 @@ namespace Horde.Storage.FunctionalTests.References
                 HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.raw");
                 Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
             }
+
+            // delete the object again which doesn't exist anymore
+            {
+                HttpResponseMessage result = await _httpClient!.DeleteAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}");
+                result.EnsureSuccessStatusCode();
+            }
         }
 
         
