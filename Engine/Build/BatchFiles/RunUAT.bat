@@ -35,6 +35,10 @@ shift
 goto ParseArguments
 :ParseArguments_Done
 
+rem ## Verify that dotnet is present
+call "%SCRIPT_DIR%GetDotnetPath.bat"
+if errorlevel 1 goto Error_NoDotnetSDK
+
 rem ## Use the pre-compiled UAT scripts if -nocompile is specified in the command line
 if %NOCOMPILE_UAT%==1 goto RunPrecompiled
 
@@ -47,11 +51,6 @@ if not "%ForcePrecompiledUAT%"=="" goto RunPrecompiled
 rem ## check if the UAT projects are present. if not, we'll just use the precompiled ones.
 if not exist Source\Programs\AutomationTool\AutomationTool.csproj goto RunPrecompiled
 if not exist Source\Programs\AutomationToolLauncher\AutomationToolLauncher.csproj goto RunPrecompiled
-
-rem ## Verify that dotnet is present
-call "%SCRIPT_DIR%GetDotnetPath.bat"
-if errorlevel 1 goto Error_NoDotnetSDK
-
 
 
 rem Checking for out-of-date files won't find source files in places like Engine/Platform, resulting in occasionally
