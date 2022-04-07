@@ -62,17 +62,6 @@ void SetGBufferForShadingModel(
 		{
 			GBuffer.CustomData.rgb = EncodeSubsurfaceProfile(SubsurfaceProfile);
 			GBuffer.CustomData.a = Opacity;
-
-			// Average roughness for dual specular.
-			uint SubsurfaceProfileUInt = uint(SubsurfaceProfile * 255.0f + 0.5f);
-
-			float AverageToRoughness0 = 0;
-			float AverageToRoughness1 = 0;
-			float LobeMix = 0;
-			float MaterialRoughnessToAverage = 0;
-			GetSubsurfaceProfileDualSpecular(SubsurfaceProfileUInt, Opacity, AverageToRoughness0, AverageToRoughness1, LobeMix, MaterialRoughnessToAverage);
-
-			GBuffer.Roughness = saturate(GBuffer.Roughness * MaterialRoughnessToAverage);
 		}
 	#if SUBSURFACE_PROFILE_OPACITY_THRESHOLD
 		else

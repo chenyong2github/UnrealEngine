@@ -129,11 +129,18 @@ half CalculateCurvature(half3 WorldNormal, float3 WorldPosition)
 	return CurvatureApprox;
 }
 
-void GetProfileDualSpecular(uint SubsurfaceProfileInt, out half2 AverageToRoughness, out half LobeMix)
+void GetProfileDualSpecular(uint SubsurfaceProfileInt, half Roughness, half Opacity, out half2 LobeRoughness, out half LobeMix)
 {
 	half4 Data = GetSubsurfaceProfileTexture(SSSS_DUAL_SPECULAR_OFFSET, SubsurfaceProfileInt);
-	AverageToRoughness = Data.xy * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
-	LobeMix = Data.z;
+	half2 MaterialRoughnessToLobeRoughness = Data.xy * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
+	LobeMix = Data.z; 
+
+	half RoughnessLerpFactor = saturate(Opacity * 10.0f);
+	MaterialRoughnessToLobeRoughness.x = lerp(1.0f, MaterialRoughnessToLobeRoughness.x, RoughnessLerpFactor);
+	MaterialRoughnessToLobeRoughness.y = lerp(1.0f, MaterialRoughnessToLobeRoughness.y, RoughnessLerpFactor);
+
+	LobeRoughness.x = max(saturate(Roughness * MaterialRoughnessToLobeRoughness.x), 0.02f);
+	LobeRoughness.y = saturate(Roughness * MaterialRoughnessToLobeRoughness.y);
 }
 
 half4 GetSSProfilePreIntegratedValue(uint SubsurfaceProfileInt, half NoL, half Curvature)
@@ -204,17 +211,12 @@ void InitShadingModelContext(inout FMobileShadingModelContext ShadingModelContex
 				
 		ShadingModelContext.Curvature = GBuffer.CustomData.g;
 
-		half2 AverageToRoughness;
-		GetProfileDualSpecular(ShadingModelContext.SubsurfaceProfileInt, AverageToRoughness, ShadingModelContext.LobeMix);
+		half2 LobeRoughness;
+		GetProfileDualSpecular(ShadingModelContext.SubsurfaceProfileInt, GBuffer.Roughness, 
+			ShadingModelContext.Opacity, LobeRoughness, ShadingModelContext.LobeMix);
 
-		half AverageRoughness = GBuffer.Roughness;
-		ShadingModelContext.Lobe0Roughness = max(saturate(AverageRoughness * AverageToRoughness.x), 0.02f);
-		ShadingModelContext.Lobe1Roughness = saturate(AverageRoughness * AverageToRoughness.y);
-
-		// Smoothly lerp to default single GGX lobe as Opacity approaches 0
-		half RoughnessLerpFactor = saturate(ShadingModelContext.Opacity * 10.0f);
-		ShadingModelContext.Lobe0Roughness = lerp(1.0f, ShadingModelContext.Lobe0Roughness, RoughnessLerpFactor);
-		ShadingModelContext.Lobe1Roughness = lerp(1.0f, ShadingModelContext.Lobe1Roughness, RoughnessLerpFactor);
+		ShadingModelContext.Lobe0Roughness = LobeRoughness.x;
+		ShadingModelContext.Lobe1Roughness = LobeRoughness.y;
 	}
 	else if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 	{
@@ -413,7 +415,9 @@ FMobileDirectLighting MobileSubsurfaceProfileBxDF(FMobileShadingModelContext Sha
 
 	Lighting.Diffuse = BurleyDiffuse.rgb * ShadingModelContext.DiffuseColor;
 
-	Lighting.Specular = Shadow * NoL * MobileDualSpecularGGX(GBuffer.Roughness, ShadingModelContext.Lobe0Roughness, ShadingModelContext.Lobe1Roughness, ShadingModelContext.LobeMix, ShadingModelContext.EnvBrdf, ShadingModelContext.SpecularColor, ShadingModelContext.NoV, NoH, NoL, VoH);
+	half AverageRoughness = lerp(ShadingModelContext.Lobe0Roughness, ShadingModelContext.Lobe1Roughness, ShadingModelContext.LobeMix);
+
+	Lighting.Specular = Shadow * NoL * MobileDualSpecularGGX(AverageRoughness, ShadingModelContext.Lobe0Roughness, ShadingModelContext.Lobe1Roughness, ShadingModelContext.LobeMix, ShadingModelContext.EnvBrdf, ShadingModelContext.SpecularColor, ShadingModelContext.NoV, NoH, NoL, VoH);
 
 	return Lighting;
 }

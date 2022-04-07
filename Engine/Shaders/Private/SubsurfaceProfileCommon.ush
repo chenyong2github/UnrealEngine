@@ -76,24 +76,19 @@ half4 GetSubsurfaceProfileTexture(Texture2D InSSProfilesTexture, SamplerState In
 #endif 
 }
 
-void GetSubsurfaceProfileDualSpecular(uint SubsurfaceProfileInt, float Opacity, inout float AverageToRoughness0, inout float AverageToRoughness1, inout float LobeMix, inout float MaterialRoughnessToAverage)
+void GetSubsurfaceProfileDualSpecular(uint SubsurfaceProfileInt, float Roughness, float Opacity, out float LobeRoughness0, out float LobeRoughness1, out float LobeMix)
 {
 	const half4 Data = GetSubsurfaceProfileTexture(SSSS_DUAL_SPECULAR_OFFSET, SubsurfaceProfileInt);
-	AverageToRoughness0 = Data.x * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
-	AverageToRoughness1 = Data.y * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
-	LobeMix = Data.z;
 
 	// Smooth blend out dual specular when opacity is low, we have the extra SSSS_OPACITY_THRESHOLD_EPS so that we fade out by the time we
 	// get to 0.01, as opposed to 0.0.
-	MaterialRoughnessToAverage = lerp(1.0f, Data.w * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS, saturate((Opacity - SSSS_OPACITY_THRESHOLD_EPS) * 10.0f));
-}
+	float MaterialRoughnessToLobeRoughness0 = lerp(1.0f, Data.x * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS, saturate((Opacity - SSSS_OPACITY_THRESHOLD_EPS) * 10.0f));
+	float MaterialRoughnessToLobeRoughness1 = lerp(1.0f, Data.y * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS, saturate((Opacity - SSSS_OPACITY_THRESHOLD_EPS) * 10.0f));
+	LobeMix = Data.z;
 
-void GetSubsurfaceProfileRoughnesses(inout float Lobe0Roughness, inout float Lobe1Roughness, float Opacity)
-{
-	// Smoothly lerp to default single GGX lobe as Opacity approaches 0, before reverting to SHADINGMODELID_DEFAULT_LIT.
-	// See SUBSURFACE_PROFILE_OPACITY_THRESHOLD in ShadingModelsMaterial.ush.
-	Lobe0Roughness = lerp(1.0f, Lobe0Roughness, saturate(Opacity * 10.0f));
-	Lobe1Roughness = lerp(1.0f, Lobe1Roughness, saturate(Opacity * 10.0f));
+	// Avoid specular explosion, and approximate `area lights`.
+	LobeRoughness0 = max(saturate(Roughness * MaterialRoughnessToLobeRoughness0), 0.02f);
+	LobeRoughness1 = saturate(Roughness * MaterialRoughnessToLobeRoughness1);
 }
 
 // Surface albedo and mean free path length

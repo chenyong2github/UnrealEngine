@@ -562,16 +562,14 @@ float ApproximateHG(float cosJ, float g)
 	return (ISO_PHASE_FUNC_Normalized * (1.0f - g2) / max( 1e-5, gcos2));
 }
 
-void GetProfileDualSpecular(FGBufferData GBuffer, inout float AverageToRoughness0, inout float AverageToRoughness1, inout float LobeMix)
+void GetProfileDualSpecular(uint SubsurfaceProfileInt, float Roughness, float Opacity, out float LobeRoughness0, out float LobeRoughness1, out float LobeMix)
 {
 #if !FORWARD_SHADING
-	float DummyOpacity = 0;
-	float DummyMaterialRoughnessToAverage = 0;
-	GetSubsurfaceProfileDualSpecular(ExtractSubsurfaceProfileInt(GBuffer), DummyOpacity, AverageToRoughness0, AverageToRoughness1, LobeMix, DummyMaterialRoughnessToAverage);
+	GetSubsurfaceProfileDualSpecular(SubsurfaceProfileInt, Roughness, Opacity, LobeRoughness0, LobeRoughness1, LobeMix);
 #else
 	// Disable dual lobe, as subsurface profile doesn't work with forward.
-	AverageToRoughness0 = 1.f;
-	AverageToRoughness1 = 1.f;
+	Lobe0Roughness = Roughness;
+	Lobe1Roughness = Roughness;
 	LobeMix = 0.f;
 #endif
 }
@@ -583,17 +581,16 @@ FDirectLighting SubsurfaceProfileBxDF( FGBufferData GBuffer, half3 N, half3 V, h
 	SphereMaxNoH( Context, AreaLight.SphereSinAlpha, true );
 	Context.NoV = saturate( abs( Context.NoV ) + 1e-5 );
 
-	float AverageToRoughness0;
-	float AverageToRoughness1;
-	float LobeMix;
-	GetProfileDualSpecular(GBuffer, AverageToRoughness0, AverageToRoughness1, LobeMix);
+	uint SubsurfaceProfileId = ExtractSubsurfaceProfileInt(GBuffer);
+	float Opacity = GBuffer.CustomData.a;
+	float Roughness = GBuffer.Roughness;
 
-	float AverageRoughness = GBuffer.Roughness;
-	float Lobe0Roughness = max(saturate(AverageRoughness * AverageToRoughness0), 0.02f);
-	float Lobe1Roughness = saturate(AverageRoughness * AverageToRoughness1);
+	float Lobe0Roughness = 0;
+	float Lobe1Roughness = 0;
+	float LobeMix = 0;
 
-	const float Opacity = GBuffer.CustomData.a;
-	GetSubsurfaceProfileRoughnesses(Lobe0Roughness, Lobe1Roughness, Opacity);
+	GetProfileDualSpecular(SubsurfaceProfileId, Roughness, Opacity, Lobe0Roughness, Lobe1Roughness, LobeMix);
+	float AverageRoughness = lerp(Lobe0Roughness, Lobe1Roughness, LobeMix);
 
 	// Take the average roughness instead of compute a separate energy term for each roughness
 	const FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(AverageRoughness, Context.NoV, GBuffer.SpecularColor);
