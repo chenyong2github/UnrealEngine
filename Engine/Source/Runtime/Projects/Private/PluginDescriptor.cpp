@@ -283,7 +283,7 @@ void FPluginDescriptor::Write(TJsonWriter<>& Writer) const
 	{
 		FJsonObject::Duplicate(/*Source=*/ CachedJson, /*Dest=*/ PluginJsonObject);
 	}
-#endif
+#endif //if WITH_EDITOR
 
 	UpdateJson(*PluginJsonObject);
 
@@ -432,7 +432,7 @@ void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	{
 		JsonObject.SetField(KVP.Key, FJsonValue::Duplicate(KVP.Value));
 	}
-#endif
+#endif //if WITH_EDITOR
 }
 
 bool FPluginDescriptor::UpdatePluginFile(const FString& FileName, FText* OutFailReason /*= nullptr*/) const

@@ -7,6 +7,8 @@
 #include "CustomBuildSteps.h"
 #include "LocalizationDescriptor.h"
 
+class FJsonValue;
+
 /**
  * Descriptor for a plugin reference. Contains the information required to enable or disable a plugin for a given platform.
  */
@@ -51,6 +53,13 @@ struct PROJECTS_API FPluginReferenceDescriptor
 	/** When true, empty SupportedTargetPlatforms and PlatformAllowList are interpreted as 'no platforms' with the expectation that explicit platforms will be added in plugin platform extensions */
 	bool bHasExplicitPlatforms;
 
+#if WITH_EDITOR
+	/** Cached json for custom data */
+	mutable TSharedPtr<FJsonObject> CachedJson;
+
+	/** Additional fields to write */
+	TMap<FString, TSharedPtr<FJsonValue>> AdditionalFieldsToWrite;
+#endif //if WITH_EDITOR
 
 	/** Constructor */
 	FPluginReferenceDescriptor(const FString& InName = TEXT(""), bool bInEnabled = false);
@@ -68,10 +77,13 @@ struct PROJECTS_API FPluginReferenceDescriptor
 	bool IsSupportedTargetPlatform(const FString& Platform) const;
 
 	/** Reads the descriptor from the given JSON object */
-	bool Read(const FJsonObject& Object, FText* OutFailReason = nullptr);
+	bool Read(const TSharedRef<FJsonObject>& Object, FText* OutFailReason = nullptr);
 
-	/** Reads the descriptor from the given JSON object */
-	bool Read(const FJsonObject& Object, FText& OutFailReason);
+	UE_DEPRECATED(5.1, "Use Read(const TSharedRef<FJsonObject>&) instead.")
+	bool Read(const FJsonObject& Object, FText* OutFailReason = nullptr, TSharedPtr<FJsonObject> ObjectPtr = nullptr);
+
+	UE_DEPRECATED(5.1, "Use Read(const TSharedRef<FJsonObject>&) instead.")
+	bool Read(const FJsonObject& Object, FText& OutFailReason, TSharedPtr<FJsonObject> ObjectPtr = nullptr);
 
 	/** Reads an array of modules from the given JSON object */
 	static bool ReadArray(const FJsonObject& Object, const TCHAR* Name, TArray<FPluginReferenceDescriptor>& OutModules, FText* OutFailReason = nullptr);
@@ -90,4 +102,9 @@ struct PROJECTS_API FPluginReferenceDescriptor
 
 	/** Updates an array of plugin references in the specified JSON field (indexed by plugin name) */
 	static void UpdateArray(FJsonObject& JsonObject, const TCHAR* ArrayName, const TArray<FPluginReferenceDescriptor>& Plugins);
+
+#if WITH_EDITOR
+	/** Gets the string value for a given key by first looking into AdditionalFieldsToWrite and then CachedJson */
+	bool GetAdditionalStringField(const FString& Key, FString& OutValue) const;
+#endif //if WITH_EDITOR
 };
