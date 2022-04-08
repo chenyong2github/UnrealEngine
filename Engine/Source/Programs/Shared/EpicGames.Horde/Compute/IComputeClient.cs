@@ -347,14 +347,6 @@ namespace EpicGames.Horde.Compute
 	}
 
 	/// <summary>
-	/// 
-	/// </summary>
-	public interface IComputeTaskInfo
-	{
-
-	}
-
-	/// <summary>
 	/// Interface for communicating with a compute server
 	/// </summary>
 	public interface IComputeClient
@@ -386,7 +378,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channelId">Channel to receive updates on</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		IAsyncEnumerable<IComputeTaskInfo> GetTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId, CancellationToken cancellationToken = default);
+		IAsyncEnumerable<ComputeTaskStatus> GetTaskUpdatesAsync(ClusterId clusterId, ChannelId channelId, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
