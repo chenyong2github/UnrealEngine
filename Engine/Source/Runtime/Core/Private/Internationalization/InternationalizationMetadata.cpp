@@ -296,7 +296,7 @@ namespace
 		Record << SA_VALUE(TEXT("Type"), MetaDataTypeAsInt);
 		MetaDataType = static_cast<ELocMetadataType>(MetaDataTypeAsInt);
 
-		FStructuredArchive::FSlot ValueSlot = Record.EnterField(SA_FIELD_NAME(TEXT("Value")));
+		FStructuredArchive::FSlot ValueSlot = Record.EnterField(TEXT("Value"));
 
 		switch (MetaDataType)
 		{
@@ -359,7 +359,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FLocMetadataObject& Object)
 		Object.Values.Reserve(ValueCount);
 	}
 
-	FStructuredArchive::FStream Stream = Record.EnterStream(SA_FIELD_NAME(TEXT("Values")));
+	FStructuredArchive::FStream Stream = Record.EnterStream(TEXT("Values"));
 	TArray<FString> MapKeys;
 	Object.Values.GetKeys(MapKeys);
 	for (int32 i = 0; i < ValueCount; ++i)
@@ -375,7 +375,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FLocMetadataObject& Object)
 
 		ValueRecord << SA_VALUE(TEXT("Key"), Key);
 
-		FStructuredArchive::FSlot ValueSlot = ValueRecord.EnterField(SA_FIELD_NAME(TEXT("Value")));
+		FStructuredArchive::FSlot ValueSlot = ValueRecord.EnterField(TEXT("Value"));
 		if (bIsLoading)
 		{
 			TSharedPtr<FLocMetadataValue> Value;

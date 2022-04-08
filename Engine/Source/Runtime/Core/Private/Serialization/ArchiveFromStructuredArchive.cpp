@@ -151,7 +151,7 @@ FArchive& FArchiveFromStructuredArchiveImpl::operator<<(class UObject*& Value)
 			}
 			else
 			{
-				FStructuredArchive::FStream Stream = Pimpl->Root->EnterStream(SA_FIELD_NAME(TEXT("Objects")));
+				FStructuredArchive::FStream Stream = Pimpl->Root->EnterStream(TEXT("Objects"));
 
 				// Skip earlier elements
 				FString Str;
@@ -245,10 +245,10 @@ bool FArchiveFromStructuredArchiveImpl::Finalize(FStructuredArchive::FRecord Rec
 
 	if (bShouldSerialize)
 	{
-		FStructuredArchive::FSlot DataSlot = Record.EnterField(SA_FIELD_NAME(TEXT("Data")));
+		FStructuredArchive::FSlot DataSlot = Record.EnterField(TEXT("Data"));
 		DataSlot.Serialize(Pimpl->Buffer);
 
-		TOptional<FStructuredArchive::FSlot> ObjectsSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("Objects")), Pimpl->Objects.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> ObjectsSlot = Record.TryEnterField(TEXT("Objects"), Pimpl->Objects.Num() > 0);
 		if (ObjectsSlot.IsSet())
 		{
 			if (IsLoading())
@@ -273,7 +273,7 @@ bool FArchiveFromStructuredArchiveImpl::Finalize(FStructuredArchive::FRecord Rec
 			}
 		}
 
-		TOptional<FStructuredArchive::FSlot> NamesSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("Names")), Pimpl->Names.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> NamesSlot = Record.TryEnterField(TEXT("Names"), Pimpl->Names.Num() > 0);
 		if (NamesSlot.IsSet())
 		{
 			NamesSlot.GetValue() << Pimpl->Names;

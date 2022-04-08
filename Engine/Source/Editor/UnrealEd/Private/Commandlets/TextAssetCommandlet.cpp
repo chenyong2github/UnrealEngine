@@ -103,18 +103,18 @@ namespace StringConstants
 
 inline void WriteSimpleSchemaField(FStructuredArchiveRecord Record, const TCHAR* FieldName, FString& Type, FSimpleSchemaFieldPropertyGenerator PropertiesCallback = FSimpleSchemaFieldPropertyGenerator())
 {
-	FStructuredArchiveRecord FieldRecord = Record.EnterField(SA_FIELD_NAME(FieldName)).EnterRecord();
+	FStructuredArchiveRecord FieldRecord = Record.EnterField(FieldName).EnterRecord();
 	FieldRecord << SA_VALUE(TEXT("type"), Type);
 
 	if (PropertiesCallback)
 	{
-		FStructuredArchiveRecord PropertiesRecord = FieldRecord.EnterField(SA_FIELD_NAME(TEXT("properties"))).EnterRecord();
+		FStructuredArchiveRecord PropertiesRecord = FieldRecord.EnterField(TEXT("properties")).EnterRecord();
 		TArray<FString> Required;
 		PropertiesCallback(PropertiesRecord, Required);
 		if (Required.Num() > 0)
 		{
 			int32 NumRequired = Required.Num();
-			FStructuredArchiveArray RequiredArray = FieldRecord.EnterField(SA_FIELD_NAME(TEXT("required"))).EnterArray(NumRequired);
+			FStructuredArchiveArray RequiredArray = FieldRecord.EnterField(TEXT("required")).EnterArray(NumRequired);
 			for (FString& RequiredProperty : Required)
 			{
 				RequiredArray.EnterElement() << RequiredProperty;
@@ -140,7 +140,7 @@ void GeneratePropertySchema(FProperty* Property, FStructuredArchiveRecord Record
 		WriteSimpleSchemaField(Record, TEXT("__InnerStructName"), StringConstants::String);
 		WriteSimpleSchemaField(Record, TEXT("__Value"), StringConstants::Array);
 
-		FStructuredArchiveRecord ItemsRecord = Record.EnterRecord(SA_FIELD_NAME(TEXT("items")));
+		FStructuredArchiveRecord ItemsRecord = Record.EnterRecord(TEXT("items"));
 	}
 	else
 	{
@@ -239,7 +239,7 @@ void GenerateSchema()
 		{
 			if (NAME_SpecificClass == NAME_None || Class->GetFName() == NAME_SpecificClass)
 			{
-				FStructuredArchiveRecord ClassRecord = RootRecord.EnterRecord(SA_FIELD_NAME(*Class->GetFullName()));
+				FStructuredArchiveRecord ClassRecord = RootRecord.EnterRecord(*Class->GetFullName());
 				ClassRecord << SA_VALUE(*StringConstants::Type, StringConstants::Object);
 
 				WriteSimpleSchemaField(ClassRecord, TEXT("__Class"), StringConstants::Object);

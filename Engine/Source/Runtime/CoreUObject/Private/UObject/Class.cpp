@@ -1129,7 +1129,7 @@ void UStruct::LoadTaggedPropertiesFromText(FStructuredArchive::FSlot Slot, uint8
 		FName PropertyName = *PropertyNameString;
 
 		// If this property has a guid attached then we need to resolve it to the right name before we start loading
-		TOptional<FStructuredArchiveSlot> PropertyGuidSlot = PropertySlot.TryEnterAttribute(SA_FIELD_NAME(TEXT("PropertyGuid")), false);
+		TOptional<FStructuredArchiveSlot> PropertyGuidSlot = PropertySlot.TryEnterAttribute(TEXT("PropertyGuid"), false);
 		if (PropertyGuidSlot.IsSet())
 		{
 			FGuid PropertyGuid;
@@ -1445,7 +1445,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 					}
 					else
 					{
-						FStructuredArchive::FSlot ValueSlot = PropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Value")));
+						FStructuredArchive::FSlot ValueSlot = PropertyRecord.EnterField(TEXT("Value"));
 
 						switch (Property->ConvertFromType(Tag, ValueSlot, Data, DefaultsStruct))
 						{
@@ -1528,7 +1528,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 				if (((LoopMax - 1) > LoopMin) && UnderlyingArchive.IsTextFormat())
 				{
 					int32 NumItems = LoopMax - LoopMin;
-					StaticArrayContainer.Emplace(PropertiesRecord.EnterArray(SA_FIELD_NAME((*Property->GetName())), NumItems));
+					StaticArrayContainer.Emplace(PropertiesRecord.EnterArray(*Property->GetName(), NumItems));
 				}
 
 				for (int32 Idx = LoopMin; Idx < LoopMax; Idx++)
@@ -1558,7 +1558,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 
 						TStringBuilder<256> TagName;
 						Tag.Name.ToString(TagName);
-						FStructuredArchive::FSlot PropertySlot = StaticArrayContainer.IsSet() ? StaticArrayContainer->EnterElement() : PropertiesRecord.EnterField(SA_FIELD_NAME(TagName.ToString()));
+						FStructuredArchive::FSlot PropertySlot = StaticArrayContainer.IsSet() ? StaticArrayContainer->EnterElement() : PropertiesRecord.EnterField(TagName.ToString());
 
 						PropertySlot << Tag;
 

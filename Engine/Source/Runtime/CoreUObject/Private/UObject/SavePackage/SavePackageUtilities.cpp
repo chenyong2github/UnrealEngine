@@ -1787,7 +1787,7 @@ void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::
 		if( ObjectsWithThumbnails.Num() > 0 )
 		{
 			// Save out the image data for the thumbnails
-			FStructuredArchive::FStream ThumbnailStream = Record.EnterStream(SA_FIELD_NAME(TEXT("Thumbnails")));
+			FStructuredArchive::FStream ThumbnailStream = Record.EnterStream(TEXT("Thumbnails"));
 
 			for( int32 CurObjectIndex = 0; CurObjectIndex < ObjectsWithThumbnails.Num(); ++CurObjectIndex )
 			{
@@ -1808,7 +1808,7 @@ void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::
 
 				// Save number of thumbnails
 				int32 ThumbnailCount = ObjectsWithThumbnails.Num();
-				FStructuredArchive::FArray IndexArray = Record.EnterField(SA_FIELD_NAME(TEXT("Index"))).EnterArray(ThumbnailCount);
+				FStructuredArchive::FArray IndexArray = Record.EnterField(TEXT("Index")).EnterArray(ThumbnailCount);
 
 				// Store a list of object names along with the offset in the file where the thumbnail is stored
 				for( int32 CurObjectIndex = 0; CurObjectIndex < ObjectsWithThumbnails.Num(); ++CurObjectIndex )
@@ -2427,7 +2427,7 @@ namespace AssetRegistry
 
 		// Store the asset registry offset in the file and enter a record for the asset registry data
 		Linker->Summary.AssetRegistryDataOffset = BinaryArchive.Tell();
-		FStructuredArchiveRecord AssetRegistryRecord = ParentRecord.EnterField(SA_FIELD_NAME(TEXT("AssetRegistry"))).EnterRecord();
+		FStructuredArchiveRecord AssetRegistryRecord = ParentRecord.EnterField(TEXT("AssetRegistry")).EnterRecord();
 
 		// Offset to Dependencies
 		int64 OffsetToAssetRegistryDependencyDataOffset = INDEX_NONE;
@@ -2455,7 +2455,7 @@ namespace AssetRegistry
 			}
 		}
 		int32 ObjectCount = AssetObjects.Num();
-		FStructuredArchive::FArray AssetArray = AssetRegistryRecord.EnterArray(SA_FIELD_NAME(TEXT("TagMap")), ObjectCount);
+		FStructuredArchive::FArray AssetArray = AssetRegistryRecord.EnterArray(TEXT("TagMap"), ObjectCount);
 		for (int32 ObjectIdx = 0; ObjectIdx < AssetObjects.Num(); ++ObjectIdx)
 		{
 			const UObject* Object = AssetObjects[ObjectIdx];
@@ -2487,7 +2487,7 @@ namespace AssetRegistry
 			FStructuredArchive::FRecord AssetRecord = AssetArray.EnterElement().EnterRecord();
 			AssetRecord << SA_VALUE(TEXT("Path"), ObjectPath) << SA_VALUE(TEXT("Class"), ObjectClassName);
 
-			FStructuredArchive::FMap TagMap = AssetRecord.EnterField(SA_FIELD_NAME(TEXT("Tags"))).EnterMap(TagCount);
+			FStructuredArchive::FMap TagMap = AssetRecord.EnterField(TEXT("Tags")).EnterMap(TagCount);
 
 			for (TArray<UObject::FAssetRegistryTag>::TConstIterator TagIter(Tags); TagIter; ++TagIter)
 			{
@@ -2510,7 +2510,7 @@ namespace AssetRegistry
 			BinaryArchive << AssetRegistryDependencyDataOffset;
 			BinaryArchive.Seek(AssetRegistryDependencyDataOffset);
 		}
-		FStructuredArchiveRecord DependencyDataRecord = ParentRecord.EnterField(SA_FIELD_NAME(TEXT("AssetRegistryDependencyData"))).EnterRecord();
+		FStructuredArchiveRecord DependencyDataRecord = ParentRecord.EnterField(TEXT("AssetRegistryDependencyData")).EnterRecord();
 
 		// Convert the IsUsedInGame sets into a bitarray with a value per import/softpackagereference
 		TBitArray<> ImportUsedInGameBits;

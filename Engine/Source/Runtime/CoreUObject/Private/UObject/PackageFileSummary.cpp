@@ -134,7 +134,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 
 				if (LegacyFileVersion <= -2)
 				{
-					Sum.CustomVersionContainer.Serialize(Record.EnterField(SA_FIELD_NAME(TEXT("CustomVersions"))), GetCustomVersionFormatForArchive(LegacyFileVersion));
+					Sum.CustomVersionContainer.Serialize(Record.EnterField(TEXT("CustomVersions")), GetCustomVersionFormatForArchive(LegacyFileVersion));
 				}
 
 				if (!Sum.FileVersionUE.FileVersionUE4 && !Sum.FileVersionUE.FileVersionUE5 && !Sum.FileVersionLicenseeUE)
@@ -176,7 +176,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 				Record << SA_VALUE(TEXT("FileVersionLicenseeUE4"), Zero); // VersionLicenseeUE4
 
 				FCustomVersionContainer NoCustomVersions;
-				NoCustomVersions.Serialize(Record.EnterField(SA_FIELD_NAME(TEXT("CustomVersions"))));
+				NoCustomVersions.Serialize(Record.EnterField(TEXT("CustomVersions")));
 			}
 			else
 			{
@@ -188,7 +188,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 				Record << SA_VALUE(TEXT("FileVersionLicenseeUE4"), Sum.FileVersionLicenseeUE);
 
 				// Serialise custom version map.
-				Sum.CustomVersionContainer.Serialize(Record.EnterField(SA_FIELD_NAME(TEXT("CustomVersions"))));
+				Sum.CustomVersionContainer.Serialize(Record.EnterField(TEXT("CustomVersions")));
 			}
 		}
 		Record << SA_VALUE(TEXT("TotalHeaderSize"), Sum.TotalHeaderSize);
@@ -280,7 +280,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			Sum.Generations.AddZeroed(GenerationCount);
 		}
 
-		FStructuredArchive::FStream GenerationsStream = Record.EnterStream(SA_FIELD_NAME(TEXT("Generations")));
+		FStructuredArchive::FStream GenerationsStream = Record.EnterStream(TEXT("Generations"));
 		for (int32 i = 0; i<GenerationCount; i++)
 		{
 			Sum.Generations[i].Serialize(GenerationsStream.EnterElement(), Sum);

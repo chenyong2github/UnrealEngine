@@ -795,10 +795,10 @@ void FTextHistory_Base::Serialize(FStructuredArchive::FRecord Record)
 	if(BaseArchive.IsLoading())
 	{
 		FTextKey Namespace;
-		Namespace.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Namespace"))));
+		Namespace.SerializeAsString(Record.EnterField(TEXT("Namespace")));
 
 		FTextKey Key;
-		Key.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Key"))));
+		Key.SerializeAsString(Record.EnterField(TEXT("Key")));
 
 		Record << SA_VALUE(TEXT("SourceString"), SourceString);
 
@@ -885,10 +885,10 @@ void FTextHistory_Base::Serialize(FStructuredArchive::FRecord Record)
 		}
 
 		// Serialize the Namespace
-		Namespace.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Namespace"))));
+		Namespace.SerializeAsString(Record.EnterField(TEXT("Namespace")));
 
 		// Serialize the Key
-		Key.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Key"))));
+		Key.SerializeAsString(Record.EnterField(TEXT("Key")));
 
 		// Serialize the SourceString
 		Record << SA_VALUE(TEXT("SourceString"), SourceString);
@@ -1148,12 +1148,12 @@ void FTextHistory_NamedFormat::Serialize(FStructuredArchive::FRecord Record)
 	if (BaseArchive.IsSaving())
 	{
 		FText FormatText = SourceFmt.GetSourceText();
-		Record.EnterField(SA_FIELD_NAME(TEXT("FormatText"))) << FormatText;
+		Record.EnterField(TEXT("FormatText")) << FormatText;
 	}
 	else if (BaseArchive.IsLoading())
 	{
 		FText FormatText;
-		Record.EnterField(SA_FIELD_NAME(TEXT("FormatText"))) << FormatText;
+		Record.EnterField(TEXT("FormatText")) << FormatText;
 		SourceFmt = FTextFormat(FormatText);
 	}
 
@@ -1302,12 +1302,12 @@ void FTextHistory_OrderedFormat::Serialize(FStructuredArchive::FRecord Record)
 	if (BaseArchive.IsSaving())
 	{
 		FText FormatText = SourceFmt.GetSourceText();
-		Record.EnterField(SA_FIELD_NAME(TEXT("FormatText"))) << FormatText;
+		Record.EnterField(TEXT("FormatText")) << FormatText;
 	}
 	else if (BaseArchive.IsLoading())
 	{
 		FText FormatText;
-		Record.EnterField(SA_FIELD_NAME(TEXT("FormatText"))) << FormatText;
+		Record.EnterField(TEXT("FormatText")) << FormatText;
 		SourceFmt = FTextFormat(FormatText);
 	}
 
@@ -1455,12 +1455,12 @@ void FTextHistory_ArgumentDataFormat::Serialize(FStructuredArchive::FRecord Reco
 	if (BaseArchive.IsSaving())
 	{
 		FText FormatText = SourceFmt.GetSourceText();
-		Record.EnterField(SA_FIELD_NAME(TEXT("FormatText"))) << FormatText;
+		Record.EnterField(TEXT("FormatText")) << FormatText;
 	}
 	else if (BaseArchive.IsLoading())
 	{
 		FText FormatText;
-		Record.EnterField(SA_FIELD_NAME(TEXT("FormatText"))) << FormatText;
+		Record.EnterField(TEXT("FormatText")) << FormatText;
 		SourceFmt = FTextFormat(FormatText);
 	}
 
@@ -2422,7 +2422,7 @@ void FTextHistory_StringTableEntry::Serialize(FStructuredArchive::FRecord Record
 		FName TableId;
 		FTextKey Key;
 		Record << SA_VALUE(TEXT("TableId"), TableId);
-		Key.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Key"))));
+		Key.SerializeAsString(Record.EnterField(TEXT("Key")));
 
 		// String Table assets should already have been created via dependency loading when using the EDL (although they may not be fully loaded yet)
 		const bool bIsLoadingViaEDL = GEventDrivenLoaderEnabled && EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME && BaseArchive.GetLinker();
@@ -2440,7 +2440,7 @@ void FTextHistory_StringTableEntry::Serialize(FStructuredArchive::FRecord Record
 		}
 
 		Record << SA_VALUE(TEXT("TableId"), TableId);
-		Key.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Key"))));
+		Key.SerializeAsString(Record.EnterField(TEXT("Key")));
 	}
 
 	// Collect string table asset references
@@ -2599,7 +2599,7 @@ void FTextHistory_StringTableEntry::FStringTableReferenceData::CollectStringTabl
 		FScopeLock ScopeLock(&DataCS);
 
 		const FName OldTableId = TableId;
-		IStringTableEngineBridge::CollectStringTableAssetReferences(TableId, Record.EnterField(SA_FIELD_NAME(TEXT("AssetReferences"))));
+		IStringTableEngineBridge::CollectStringTableAssetReferences(TableId, Record.EnterField(TEXT("AssetReferences")));
 
 		if (TableId != OldTableId)
 		{

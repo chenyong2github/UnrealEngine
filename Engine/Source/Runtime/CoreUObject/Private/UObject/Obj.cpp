@@ -1431,7 +1431,7 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 		// Handle derived UClass objects (exact UClass objects are native only and shouldn't be touched)
 		if (ObjClass != UClass::StaticClass())
 		{
-			SerializeScriptProperties(Record.EnterField(SA_FIELD_NAME(TEXT("Properties"))));
+			SerializeScriptProperties(Record.EnterField(TEXT("Properties")));
 		}
 
 		// Keep track of pending kill
@@ -1477,7 +1477,7 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 
 			if (SerializedSparseClassDataStruct)
 			{
-				ObjClass->SerializeSparseClassData(Record.EnterField(SA_FIELD_NAME(TEXT("SparseClassData"))));
+				ObjClass->SerializeSparseClassData(Record.EnterField(TEXT("SparseClassData")));
 			}
 		}
 

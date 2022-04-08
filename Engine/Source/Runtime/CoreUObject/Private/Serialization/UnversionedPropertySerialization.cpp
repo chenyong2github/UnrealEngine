@@ -846,7 +846,7 @@ void SerializeUnversionedProperties(const UStruct* Struct, FStructuredArchive::F
 		check(CanUseUnversionedPropertySerialization());
 
 		FUnversionedHeader Header;
-		Header.Load(StructRecord.EnterStream(SA_FIELD_NAME(TEXT("Header"))));
+		Header.Load(StructRecord.EnterStream(TEXT("Header")));
 
 		if (Header.HasValues())
 		{
@@ -856,7 +856,7 @@ void SerializeUnversionedProperties(const UStruct* Struct, FStructuredArchive::F
 			{
 				FDefaultStruct Defaults(DefaultsData, DefaultsStruct);
 
-				FStructuredArchive::FStream ValueStream = StructRecord.EnterStream(SA_FIELD_NAME(TEXT("Values")));
+				FStructuredArchive::FStream ValueStream = StructRecord.EnterStream(TEXT("Values"));
 				for (FUnversionedHeader::FIterator It(Header, Schema); It; It.Next())
 				{
 					if (It.IsNonZero())
@@ -910,10 +910,10 @@ void SerializeUnversionedProperties(const UStruct* Struct, FStructuredArchive::F
 		Header.Finalize();
 
 		// Save header and non-zero values 
-		Header.Save(StructRecord.EnterStream(SA_FIELD_NAME(TEXT("Header"))));
+		Header.Save(StructRecord.EnterStream(TEXT("Header")));
 		if (Header.HasNonZeroValues())
 		{
-			FStructuredArchive::FStream ValueStream = StructRecord.EnterStream(SA_FIELD_NAME(TEXT("Values")));
+			FStructuredArchive::FStream ValueStream = StructRecord.EnterStream(TEXT("Values"));
 			for (FUnversionedHeader::FIterator It(Header, Schema); It; It.Next())
 			{
 				if (It.IsNonZero())

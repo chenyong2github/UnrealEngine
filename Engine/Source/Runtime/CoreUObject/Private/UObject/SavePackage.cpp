@@ -2811,7 +2811,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 				}
 				SlowTask.EnterProgressFrame();
 
-				FStructuredArchive::FStream Stream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("GatherableTextData")));
+				FStructuredArchive::FStream Stream = StructuredArchiveRoot.EnterStream(TEXT("GatherableTextData"));
 				Linker->Summary.GatherableTextDataOffset = 0;
 				Linker->Summary.GatherableTextDataCount = 0;
 				if (!(Linker->Summary.GetPackageFlags() & PKG_FilterEditorOnly))
@@ -3240,7 +3240,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 				{
 					SCOPED_SAVETIMER(UPackage_Save_WriteDependsMap);
 
-					FStructuredArchive::FStream DependsStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("DependsMap")));
+					FStructuredArchive::FStream DependsStream = StructuredArchiveRoot.EnterStream(TEXT("DependsMap"));
 					if (Linker->IsCooking())
 					{
 #if WITH_EDITOR
@@ -3284,7 +3284,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 					Linker->Summary.SoftPackageReferencesCount = Linker->SoftPackageReferenceList.Num();
 					if (!bTextFormat)
 					{
-						FStructuredArchive::FStream SoftReferenceStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("SoftReferences")));
+						FStructuredArchive::FStream SoftReferenceStream = StructuredArchiveRoot.EnterStream(TEXT("SoftReferences"));
 						for (FName& SoftPackageName : Linker->SoftPackageReferenceList)
 						{
 							SoftReferenceStream.EnterElement() << SoftPackageName;
@@ -3292,7 +3292,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 
 						// Save searchable names map
 						Linker->Summary.SearchableNamesOffset = Linker->Tell();
-						Linker->SerializeSearchableNamesMap(StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("SearchableNames"))));
+						Linker->SerializeSearchableNamesMap(StructuredArchiveRoot.EnterField(TEXT("SearchableNames")));
 					}
 				}
 				else
@@ -3310,7 +3310,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 					// Save thumbnails
 					{
 						SCOPED_SAVETIMER(UPackage_Save_SaveThumbnails);
-						SavePackageUtilities::SaveThumbnails(InOuter, Linker.Get(), StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("Thumbnails"))));
+						SavePackageUtilities::SaveThumbnails(InOuter, Linker.Get(), StructuredArchiveRoot.EnterField(TEXT("Thumbnails")));
 					}
 
 					if (!bTextFormat)
@@ -3490,7 +3490,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 						}
 					};
 
-					FStructuredArchive::FStream DepedenciesStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("PreloadDependencies")));
+					FStructuredArchive::FStream DepedenciesStream = StructuredArchiveRoot.EnterStream(TEXT("PreloadDependencies"));
 					TArray<UObject*> Subobjects;
 					TArray<UObject*> Deps;
 					TSet<FPackageIndex> SerializationBeforeCreateDependencies;
@@ -3718,7 +3718,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 					SCOPED_SAVETIMER(UPackage_Save_SaveExports);
 					FScopedSlowTask ExportScope(Linker->ExportMap.Num());
 
-					FStructuredArchive::FRecord ExportsRecord = StructuredArchiveRoot.EnterRecord(SA_FIELD_NAME(TEXT("Exports")));
+					FStructuredArchive::FRecord ExportsRecord = StructuredArchiveRoot.EnterRecord(TEXT("Exports"));
 
 					// Save exports.
 					int32 LastExportSaveStep = 0;
@@ -3739,7 +3739,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 							// UE_LOG(LogSavePackage, Log, TEXT("export %s for %s"), *Export.Object->GetFullName(), *Linker->CookingTarget()->PlatformName());
 
 							FString ObjectName = Export.Object->GetPathName(InOuter);
-							FStructuredArchive::FSlot ExportSlot = ExportsRecord.EnterField(SA_FIELD_NAME(*ObjectName));
+							FStructuredArchive::FSlot ExportSlot = ExportsRecord.EnterField(*ObjectName);
 
 							if (bTextFormat)
 							{
@@ -3924,7 +3924,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 						Linker->Seek(Linker->Summary.ImportOffset);
 
 						int32 NumImports = Linker->ImportMap.Num();
-						FStructuredArchive::FStream ImportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ImportTable")));
+						FStructuredArchive::FStream ImportTableStream = StructuredArchiveRoot.EnterStream(TEXT("ImportTable"));
 
 						for (int32 i = 0; i < Linker->ImportMap.Num(); i++)
 						{
@@ -3996,7 +3996,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 					Linker->Seek(Linker->Summary.ExportOffset);
 
 					int32 NumExports = Linker->ExportMap.Num();
-					FStructuredArchive::FStream ExportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ExportTable")));
+					FStructuredArchive::FStream ExportTableStream = StructuredArchiveRoot.EnterStream(TEXT("ExportTable"));
 					{
 #if WITH_EDITOR
 						FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(bIgnoreHeaderDiffs);
@@ -4065,7 +4065,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 #if WITH_EDITOR
 					FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(bIgnoreHeaderDiffs);
 #endif // WITH_EDITOR
-					StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("Summary"))) << Linker->Summary;
+					StructuredArchiveRoot.EnterField(TEXT("Summary")) << Linker->Summary;
 					SerializedPackageFlags = Linker->Summary.GetPackageFlags();
 
 					// Currently the PKG_ContainsNoAsset flag is not serialized as part of the summary

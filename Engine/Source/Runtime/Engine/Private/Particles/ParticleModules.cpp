@@ -1125,7 +1125,7 @@ void UParticleModuleRequired::Serialize(FStructuredArchive::FRecord Record)
 
 		if (bCooked)
 		{
-			DerivedData.Serialize(Record.EnterField(SA_FIELD_NAME(TEXT("DerivedData"))));
+			DerivedData.Serialize(Record.EnterField(TEXT("DerivedData")));
 		}
 	}
 }

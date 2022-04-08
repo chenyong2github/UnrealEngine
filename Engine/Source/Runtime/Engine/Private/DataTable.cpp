@@ -113,7 +113,7 @@ void UDataTable::LoadStructData(FStructuredArchiveSlot Slot)
 		// And be sure to call DestroyScriptStruct later
 		LoadUsingStruct->InitializeStruct(RowData);
 
-		LoadUsingStruct->SerializeItem(RowRecord.EnterField(SA_FIELD_NAME(TEXT("Value"))), RowData, nullptr);
+		LoadUsingStruct->SerializeItem(RowRecord.EnterField(TEXT("Value")), RowData, nullptr);
 
 		// Add to map
 		RowMap.Add(RowName, RowData);
@@ -146,7 +146,7 @@ void UDataTable::SaveStructData(FStructuredArchiveSlot Slot)
 		// Save out data
 		uint8* RowData = RowIt.Value();
 
-		SaveUsingStruct->SerializeItem(Row.EnterField(SA_FIELD_NAME(TEXT("Value"))), RowData, nullptr);
+		SaveUsingStruct->SerializeItem(Row.EnterField(TEXT("Value")), RowData, nullptr);
 	}
 }
 
@@ -248,11 +248,11 @@ void UDataTable::Serialize(FStructuredArchiveRecord Record)
 	{
 		DATATABLE_CHANGE_SCOPE();
 		EmptyTable();
-		LoadStructData(Record.EnterField(SA_FIELD_NAME(TEXT("Data"))));
+		LoadStructData(Record.EnterField(TEXT("Data")));
 	}
 	else if(BaseArchive.IsSaving())
 	{
-		SaveStructData(Record.EnterField(SA_FIELD_NAME(TEXT("Data"))));
+		SaveStructData(Record.EnterField(TEXT("Data")));
 	}
 }
 

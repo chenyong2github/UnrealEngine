@@ -841,10 +841,10 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 		if (UnderlyingArchive.UEVer() >= VER_UE4_ADDED_NAMESPACE_AND_KEY_DATA_TO_FTEXT)
 		{
 			FTextKey Namespace;
-			Namespace.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Namespace"))));
+			Namespace.SerializeAsString(Record.EnterField(TEXT("Namespace")));
 
 			FTextKey Key;
-			Key.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Key"))));
+			Key.SerializeAsString(Record.EnterField(TEXT("Key")));
 
 			// Get the DisplayString using the namespace, key, and source string.
 			TextId = FTextId(Namespace, Key);

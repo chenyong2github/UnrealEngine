@@ -1316,7 +1316,7 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 	{
 		Linker->Summary.PreloadDependencyCount = 0;
 
-		FStructuredArchive::FStream DepedenciesStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("PreloadDependencies")));
+		FStructuredArchive::FStream DepedenciesStream = StructuredArchiveRoot.EnterStream(TEXT("PreloadDependencies"));
 
 		TArray<UObject*> Subobjects;
 		TArray<UObject*> Deps;
@@ -1521,7 +1521,7 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 
 void WriteGatherableText(FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext)
 {
-	FStructuredArchive::FStream Stream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("GatherableTextData")));
+	FStructuredArchive::FStream Stream = StructuredArchiveRoot.EnterStream(TEXT("GatherableTextData"));
 	if (!SaveContext.IsFilterEditorOnly()
 		// We can only cache packages that:
 		//	1) Don't contain script data, as script data is very volatile and can only be safely gathered after it's been compiled (which happens automatically on asset load).
@@ -1599,7 +1599,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 	{
 		SCOPED_SAVETIMER(UPackage_Save_WriteDependsMap);
 
-		FStructuredArchive::FStream DependsStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("DependsMap")));
+		FStructuredArchive::FStream DependsStream = StructuredArchiveRoot.EnterStream(TEXT("DependsMap"));
 		Linker->Summary.DependsOffset = Linker->Tell();
 		if (SaveContext.IsCooking())
 		{
@@ -1630,7 +1630,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 		Linker->Summary.SoftPackageReferencesOffset = Linker->Tell();
 		Linker->Summary.SoftPackageReferencesCount = Linker->SoftPackageReferenceList.Num();
 		{
-			FStructuredArchive::FStream SoftReferenceStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("SoftReferences")));
+			FStructuredArchive::FStream SoftReferenceStream = StructuredArchiveRoot.EnterStream(TEXT("SoftReferences"));
 			for (FName& SoftPackageName : Linker->SoftPackageReferenceList)
 			{
 				SoftReferenceStream.EnterElement() << SoftPackageName;
@@ -1638,7 +1638,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 
 			// Save searchable names map
 			Linker->Summary.SearchableNamesOffset = Linker->Tell();
-			Linker->SerializeSearchableNamesMap(StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("SearchableNames"))));
+			Linker->SerializeSearchableNamesMap(StructuredArchiveRoot.EnterField(TEXT("SearchableNames")));
 		}
 	}
 	else
@@ -1651,7 +1651,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 	// Save thumbnails
 	{
 		SCOPED_SAVETIMER(UPackage_Save_SaveThumbnails);
-		SavePackageUtilities::SaveThumbnails(SaveContext.GetPackage(), Linker, StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("Thumbnails"))));
+		SavePackageUtilities::SaveThumbnails(SaveContext.GetPackage(), Linker, StructuredArchiveRoot.EnterField(TEXT("Thumbnails")));
 	}
 	{
 		// Save asset registry data so the editor can search for information about assets in this package
@@ -1686,7 +1686,7 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 	// Write ImportTable
 	{
 		SCOPED_SAVETIMER(UPackage_Save_WriteImportTable);
-		FStructuredArchive::FStream ImportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ImportTable")));
+		FStructuredArchive::FStream ImportTableStream = StructuredArchiveRoot.EnterStream(TEXT("ImportTable"));
 		for (FObjectImport& Import : Linker->ImportMap)
 		{
 			ImportTableStream.EnterElement() << Import;
@@ -1696,7 +1696,7 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 	// Write ExportTable
 	{
 		SCOPED_SAVETIMER(UPackage_Save_WriteExportTable);
-		FStructuredArchive::FStream ExportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ExportTable")));
+		FStructuredArchive::FStream ExportTableStream = StructuredArchiveRoot.EnterStream(TEXT("ExportTable"));
 		for (FObjectExport& Export : Linker->ExportMap)
 		{
 			ExportTableStream.EnterElement() << Export;
@@ -1706,7 +1706,7 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 	// Save thumbnails
 	{
 		SCOPED_SAVETIMER(UPackage_Save_SaveThumbnails);
-		SavePackageUtilities::SaveThumbnails(SaveContext.GetPackage(), Linker, StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("Thumbnails"))));
+		SavePackageUtilities::SaveThumbnails(SaveContext.GetPackage(), Linker, StructuredArchiveRoot.EnterField(TEXT("Thumbnails")));
 	}
 	// Save level information used by World browser
 	{
@@ -1724,7 +1724,7 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 	FLinkerSave* Linker = SaveContext.GetLinker();
 	FScopedSlowTask SlowTask(Linker->ExportMap.Num(), FText(), SaveContext.IsUsingSlowTask());
 
-	FStructuredArchive::FRecord ExportsRecord = StructuredArchiveRoot.EnterRecord(SA_FIELD_NAME(TEXT("Exports")));
+	FStructuredArchive::FRecord ExportsRecord = StructuredArchiveRoot.EnterRecord(TEXT("Exports"));
 
 	// Save exports.
 	int32 LastExportSaveStep = 0;
@@ -1746,7 +1746,7 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 			Linker->CurrentlySavingExport = FPackageIndex::FromExport(i);
 
 			FString ObjectName = Export.Object->GetPathName(SaveContext.GetPackage());
-			FStructuredArchive::FSlot ExportSlot = ExportsRecord.EnterField(SA_FIELD_NAME(*ObjectName));
+			FStructuredArchive::FSlot ExportSlot = ExportsRecord.EnterField(*ObjectName);
 
 #if WITH_EDITOR
 			bool bSupportsText = UClass::IsSafeToSerializeToStructuredArchives(Export.Object->GetClass());
@@ -1875,7 +1875,7 @@ ESavePackageResult UpdatePackageHeader(FStructuredArchive::FRecord& StructuredAr
 	if (!SaveContext.IsTextFormat())
 	{
 		Linker->Seek(Linker->Summary.ImportOffset);
-		FStructuredArchive::FStream ImportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ImportTable")));
+		FStructuredArchive::FStream ImportTableStream = StructuredArchiveRoot.EnterStream(TEXT("ImportTable"));
 		for (FObjectImport& Import : Linker->ImportMap)
 		{
 			ImportTableStream.EnterElement() << Import;
@@ -1886,7 +1886,7 @@ ESavePackageResult UpdatePackageHeader(FStructuredArchive::FRecord& StructuredAr
 	{
 		check(Linker->Tell() == SaveContext.OffsetAfterImportMap);
 		Linker->Seek(Linker->Summary.ExportOffset);
-		FStructuredArchive::FStream ExportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ExportTable")));
+		FStructuredArchive::FStream ExportTableStream = StructuredArchiveRoot.EnterStream(TEXT("ExportTable"));
 
 		for (FObjectExport& Export : Linker->ExportMap)
 		{
@@ -1952,7 +1952,7 @@ ESavePackageResult UpdatePackageHeader(FStructuredArchive::FRecord& StructuredAr
 			Linker->Seek(0);
 		}
 		{
-			StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("Summary"))) << Linker->Summary;
+			StructuredArchiveRoot.EnterField(TEXT("Summary")) << Linker->Summary;
 		}
 
 		if (!SaveContext.IsTextFormat())

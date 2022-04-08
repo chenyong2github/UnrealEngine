@@ -198,24 +198,24 @@ public:
 	void SerializeAsString(FStructuredArchiveSlot Slot)
 	{
 		FStructuredArchiveRecord Record = Slot.EnterRecord();
-		Namespace.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Namespace"))));
-		Key.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Key"))));
+		Namespace.SerializeAsString(Record.EnterField(TEXT("Namespace")));
+		Key.SerializeAsString(Record.EnterField(TEXT("Key")));
 	}
 
 	/** Serialize this text identity including its hash values (this method is sensitive to hashing algorithm changes, so only use it for generated files that can be rebuilt from another source) */
 	void SerializeWithHash(FStructuredArchiveSlot Slot)
 	{
 		FStructuredArchiveRecord Record = Slot.EnterRecord();
-		Namespace.SerializeWithHash(Record.EnterField(SA_FIELD_NAME(TEXT("Namespace"))));
-		Key.SerializeWithHash(Record.EnterField(SA_FIELD_NAME(TEXT("Key"))));
+		Namespace.SerializeWithHash(Record.EnterField(TEXT("Namespace")));
+		Key.SerializeWithHash(Record.EnterField(TEXT("Key")));
 	}
 
 	/** Serialize this text identity including its hash values, discarding the hash on load (to upgrade from an older hashing algorithm) */
 	void SerializeDiscardHash(FStructuredArchiveSlot Slot)
 	{
 		FStructuredArchiveRecord Record = Slot.EnterRecord();
-		Namespace.SerializeDiscardHash(Record.EnterField(SA_FIELD_NAME(TEXT("Namespace"))));
-		Key.SerializeDiscardHash(Record.EnterField(SA_FIELD_NAME(TEXT("Key"))));
+		Namespace.SerializeDiscardHash(Record.EnterField(TEXT("Namespace")));
+		Key.SerializeDiscardHash(Record.EnterField(TEXT("Key")));
 	}
 
 	/** Is this text identity empty? */
