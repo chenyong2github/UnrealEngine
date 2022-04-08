@@ -160,7 +160,7 @@ private:
 	TSet<FRemoteControlRoute> RegisteredHttpRoutes;
 
 	/** Set of routes that will be activated on websocket server start. */
-	TSet<FRemoteControlRoute> RegisteredWebSocketRoutes;
+	TSet<FRemoteControlWebsocketRoute> RegisteredWebSocketRoutes;
 
 	/** Port of the remote control http server. */
 	uint32 HttpServerPort;
