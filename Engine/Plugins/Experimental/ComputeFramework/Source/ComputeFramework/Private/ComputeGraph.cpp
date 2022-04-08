@@ -226,9 +226,11 @@ void UComputeGraph::CreateDataProviders(TArrayView<UObject*> InBindingObjects, T
 	}
 }
 
-FComputeGraphRenderProxy* UComputeGraph::CreateProxy() const
+FComputeGraphRenderProxy* UComputeGraph::CreateProxy(FName InOwnerName) const
 {
 	FComputeGraphRenderProxy* Proxy = new FComputeGraphRenderProxy;
+	Proxy->OwnerName = InOwnerName;
+	Proxy->GraphName = GetFName();
 
 	const int32 NumKernels = KernelInvocations.Num();
 	Proxy->KernelInvocations.Reserve(NumKernels);
@@ -243,7 +245,7 @@ FComputeGraphRenderProxy* UComputeGraph::CreateProxy() const
 		{
 			FComputeGraphRenderProxy::FKernelInvocation& Invocation = Proxy->KernelInvocations.AddDefaulted_GetRef();
 
-			Invocation.KernelName = Kernel->GetFName();
+			Invocation.KernelName = Kernel->KernelSource->GetEntryPoint();
 			Invocation.KernelGroupSize = Kernel->KernelSource->GetGroupSize();
 			Invocation.KernelResource = KernelResource;
 			Invocation.ShaderMetadata = ShaderMetadata;

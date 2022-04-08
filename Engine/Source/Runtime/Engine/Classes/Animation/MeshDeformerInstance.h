@@ -34,5 +34,5 @@ public:
 	/** Get if mesh deformer is active (compiled and valid). */
 	virtual bool IsActive() const PURE_VIRTUAL(, return false;);
 	/** Enqueue the mesh deformer workload on a scene. */
-	virtual void EnqueueWork(FSceneInterface* InScene, EWorkLoad WorkLoadType) PURE_VIRTUAL(, );
+	virtual void EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, FName InOwnerName) PURE_VIRTUAL(, );
 };

@@ -29,7 +29,7 @@ bool FComputeGraphInstance::ValidateDataProviders(UComputeGraph* InComputeGraph)
 	return InComputeGraph != nullptr && InComputeGraph->IsCompiled() && InComputeGraph->ValidateGraph() && InComputeGraph->ValidateProviders(DataProviders);
 }
 
-bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInterface const* InScene)
+bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInterface const* InScene, FName InOwnerName)
 {
 	if (InComputeGraph == nullptr || InScene == nullptr)
 	{
@@ -58,7 +58,7 @@ bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInt
 		return false;
 	}
 
-	FComputeGraphRenderProxy* ComputeGraphProxy = InComputeGraph->CreateProxy();
+	FComputeGraphRenderProxy* ComputeGraphProxy = InComputeGraph->CreateProxy(InOwnerName);
 	if (!ensure(ComputeGraphProxy))
 	{
 		return false;

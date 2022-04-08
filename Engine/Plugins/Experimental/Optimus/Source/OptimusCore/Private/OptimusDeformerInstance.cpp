@@ -178,11 +178,11 @@ bool UOptimusDeformerInstance::IsActive() const
 	return !ComputeGraphExecInfos.IsEmpty();
 }
 
-void UOptimusDeformerInstance::EnqueueWork(FSceneInterface* InScene, EWorkLoad WorkLoadType)
+void UOptimusDeformerInstance::EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, FName InOwnerName)
 {
 	for (FOptimusDeformerInstanceExecInfo& Info: ComputeGraphExecInfos)
 	{
-		Info.ComputeGraphInstance.EnqueueWork(Info.ComputeGraph, InScene);
+		Info.ComputeGraphInstance.EnqueueWork(Info.ComputeGraph, InScene, InOwnerName);
 	}
 }
 

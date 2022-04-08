@@ -33,7 +33,7 @@ private:
 	/** Description of each kernel that is enqueued. */
 	struct FShaderInvocation
 	{
-		FName KernelName;
+		FString KernelName;
 		FIntVector KernelGroupSize = FIntVector(1, 1, 1);
 		FComputeKernelResource const* KernelResource = nullptr;
 		FShaderParametersMetadata const* ShaderParamMetadata = nullptr;
@@ -47,6 +47,9 @@ private:
 	 */
 	struct FGraphInvocation
 	{
+		/** Graph name for profiling/debugging. */
+		FName OwnerName;
+		FName GraphName;
 		/** Shader invocations to dispatch. */
 		TArray<FShaderInvocation> ComputeShaders;
 		/** Data provider proxies. */

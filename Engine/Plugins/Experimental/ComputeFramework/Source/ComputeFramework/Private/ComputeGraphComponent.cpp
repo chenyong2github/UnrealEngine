@@ -65,5 +65,5 @@ void UComputeGraphComponent::SendRenderDynamicData_Concurrent()
 {
 	Super::SendRenderDynamicData_Concurrent();
 	
-	ComputeGraphInstance.EnqueueWork(ComputeGraph, GetScene());
+	ComputeGraphInstance.EnqueueWork(ComputeGraph, GetScene(), GetOwner()->GetFName());
 }

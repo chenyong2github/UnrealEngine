@@ -1056,7 +1056,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 		return Result;
 	}
 
-	UOptimusComputeGraph* ComputeGraph = NewObject<UOptimusComputeGraph>(this);
+	UOptimusComputeGraph* ComputeGraph = NewObject<UOptimusComputeGraph>(this, GetFName());
 
 	TArray<FNodeWithTraversalContext> ConnectedNodes;
 	CollectNodes(TerminalNodes, ConnectedNodes);

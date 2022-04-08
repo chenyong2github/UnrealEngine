@@ -18,7 +18,7 @@ public:
 	/** Description for each kernel in the graph. */
 	struct FKernelInvocation
 	{
-		FName KernelName;
+		FString KernelName;
 		FIntVector KernelGroupSize = FIntVector(1, 1, 1);
 		FComputeKernelResource const* KernelResource = nullptr;
 		FShaderParametersMetadata const* ShaderMetadata = nullptr;
@@ -27,5 +27,7 @@ public:
 		int32 ExecutionProviderIndex = -1;
 	};
 
+	FName OwnerName;
+	FName GraphName;
 	TArray<FKernelInvocation> KernelInvocations;
 };

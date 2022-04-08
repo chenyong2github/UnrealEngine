@@ -16,6 +16,9 @@ DECLARE_GPU_STAT_NAMED(ComputeFramework_ExecuteBatches, TEXT("ComputeFramework::
 void FComputeGraphTaskWorker::Enqueue(const FComputeGraphRenderProxy* ComputeGraph, TArray<FComputeDataProviderRenderProxy*> ComputeDataProviders)
 {
 	FGraphInvocation& GraphInvocation = GraphInvocations.AddDefaulted_GetRef();
+	GraphInvocation.OwnerName = ComputeGraph->OwnerName;
+	GraphInvocation.GraphName = ComputeGraph->GraphName;
+
 	GraphInvocation.ComputeShaders.Reserve(ComputeGraph->KernelInvocations.Num());
 
 	for (FComputeGraphRenderProxy::FKernelInvocation const& Invocation : ComputeGraph->KernelInvocations)
@@ -52,7 +55,9 @@ void FComputeGraphTaskWorker::SubmitWork(
 		for (int32 GraphIndex = 0; GraphIndex < GraphInvocations.Num(); ++GraphIndex)
 		{
 			FGraphInvocation const& GraphInvocation = GraphInvocations[GraphIndex];
-			
+
+			RDG_EVENT_SCOPE(GraphBuilder, "%s:%s", *GraphInvocation.OwnerName.ToString(), *GraphInvocation.GraphName.ToString());
+
 			for (int32 DataProviderIndex = 0; DataProviderIndex < GraphInvocation.DataProviderProxies.Num(); ++DataProviderIndex)
 			{
 				FComputeDataProviderRenderProxy* DataProvider = GraphInvocation.DataProviderProxies[DataProviderIndex];
@@ -65,6 +70,8 @@ void FComputeGraphTaskWorker::SubmitWork(
 			for (int32 KernelIndex = 0; KernelIndex < GraphInvocation.ComputeShaders.Num(); ++KernelIndex)
 			{
 				FShaderInvocation const& KernelInvocation = GraphInvocation.ComputeShaders[KernelIndex];
+
+				RDG_EVENT_SCOPE(GraphBuilder, "%s", *KernelInvocation.KernelName);
 
 				TArray<FIntVector> ThreadCounts;
 				const int32 NumSubInvocations = GraphInvocation.DataProviderProxies[KernelInvocation.ExecutionProviderIndex]->GetDispatchThreadCount(ThreadCounts);
@@ -110,18 +117,14 @@ void FComputeGraphTaskWorker::SubmitWork(
 					}
 				}
 
-				TCHAR KernelName[128];
-				KernelInvocation.KernelName.ToString(KernelName);
-
 				for (int32 SubInvocationIndex = 0; SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
 				{
 					TShaderRef<FComputeKernelShader> Shader = KernelInvocation.KernelResource->GetShader(DispatchData.PermutationId[SubInvocationIndex]);
-
-					FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ThreadCounts[SubInvocationIndex], KernelInvocation.KernelGroupSize);
+					const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ThreadCounts[SubInvocationIndex], KernelInvocation.KernelGroupSize);
 
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
-						RDG_EVENT_NAME("Compute[%s (%d)]", KernelName, SubInvocationIndex),
+						{},
 						ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 						Shader,
 						KernelInvocation.ShaderParamMetadata,

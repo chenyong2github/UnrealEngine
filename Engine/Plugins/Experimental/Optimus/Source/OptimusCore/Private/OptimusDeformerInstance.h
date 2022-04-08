@@ -147,7 +147,7 @@ protected:
 	void AllocateResources() override;
 	void ReleaseResources() override;
 	bool IsActive() const override;
-	void EnqueueWork(FSceneInterface* InScene, EWorkLoad WorkLoadType) override;
+	void EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, FName InOwnerName) override;
 
 private:
 	/** The Mesh Component that owns this Mesh Deformer Instance. */

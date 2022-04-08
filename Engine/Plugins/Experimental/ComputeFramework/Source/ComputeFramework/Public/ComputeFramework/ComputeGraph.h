@@ -126,7 +126,7 @@ public:
 	 * Create FComputeGraphRenderProxy render thread proxy. 
 	 * Ownership of the proxy is passed to the caller.
 	 */
-	FComputeGraphRenderProxy* CreateProxy() const;
+	FComputeGraphRenderProxy* CreateProxy(FName InOwnerName) const;
 
 	/**
 	 * Get unique data interface id.
