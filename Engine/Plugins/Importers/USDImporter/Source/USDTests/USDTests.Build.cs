@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"UnrealUSDWrapper",
 					"USDClasses",
+					"USDSchemas",
 					"USDStage",
 					"USDUtilities",
 				}

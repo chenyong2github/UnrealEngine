@@ -2,7 +2,7 @@
 
 #include "USDSchemaTranslator.h"
 
-#include "USDCollapsingCache.h"
+#include "USDInfoCache.h"
 #include "USDErrorUtils.h"
 #include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
@@ -204,9 +204,9 @@ bool FUsdSchemaTranslator::IsCollapsed( ECollapsingType CollapsingType ) const
 #if USE_USD_SDK
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdSchemaTranslator::IsCollapsed );
 
-	if ( Context->CollapsingCache.IsValid() )
+	if ( Context->InfoCache.IsValid() )
 	{
-		return Context->CollapsingCache->IsPathCollapsed( PrimPath, CollapsingType );
+		return Context->InfoCache->IsPathCollapsed( PrimPath, CollapsingType );
 	}
 
 	// This is merely a fallback, and we should never need this

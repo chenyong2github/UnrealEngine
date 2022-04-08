@@ -32,4 +32,18 @@ public:
 	 */
 	UFUNCTION( BlueprintCallable, Category = "Blueprint" )
 	static void DirtyStageActorBlueprint( AUsdStageActor* BlueprintDerivedStageActor );
+
+	/**
+	 * Queries a subtree vertex count using the stage actor's info cache, which is not yet exposed to blueprint.
+	 * May return -1 in case of an error.
+	 */
+	UFUNCTION( BlueprintCallable, Category = "Counts" )
+	static int64 GetSubtreeVertexCount( AUsdStageActor* StageActor, const FString& PrimPath );
+
+	/**
+	 * Queries a subtree material slot count using the stage actor's info cache, which is not yet exposed to blueprint.
+	 * May return -1 in case of an error.
+	 */
+	UFUNCTION( BlueprintCallable, Category = "Counts" )
+	static int64 GetSubtreeMaterialSlotCount( AUsdStageActor* StageActor, const FString& PrimPath );
 };

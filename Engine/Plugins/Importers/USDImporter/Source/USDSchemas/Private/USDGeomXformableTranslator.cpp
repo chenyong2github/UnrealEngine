@@ -455,9 +455,9 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomXformableTranslator::CollapsesChildren );
 
-	if ( Context->CollapsingCache.IsValid() )
+	if ( Context->InfoCache.IsValid() )
 	{
-		return Context->CollapsingCache->DoesPathCollapseChildren( PrimPath, CollapsingType );
+		return Context->InfoCache->DoesPathCollapseChildren( PrimPath, CollapsingType );
 	}
 
 	bool bCollapsesChildren = false;
@@ -482,10 +482,10 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 		{
 			IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 
-			// TODO: This can be optimized in order to make FUsdCollapsingCache::RebuildCacheForSubtree faster: If we have a child prim that we know doesn't collapse,
+			// TODO: This can be optimized in order to make FUsdInfoCache::RebuildCacheForSubtree faster: If we have a child prim that we know doesn't collapse,
 			// any of our parents should be able to know they can't collapse *us* either.
 			// This is somewhat niche though: Realistically to waste time here a prim and its children need to have a kind that allows collapsing, and also not be able to collapse.
-			// Also, if any of these prims *does* manage to collapse, FUsdCollapsingCache will already not actually query the subtree children if they can collapse or not anymore,
+			// Also, if any of these prims *does* manage to collapse, FUsdInfoCache will already not actually query the subtree children if they can collapse or not anymore,
 			// and just consider them collapsed by the parent
 			TArray< TUsdStore< pxr::UsdPrim > > ChildXformPrims = UsdUtils::GetAllPrimsOfType( Prim, pxr::TfType::Find< pxr::UsdGeomXformable >() );
 			for ( const TUsdStore< pxr::UsdPrim >& ChildXformPrim : ChildXformPrims )
@@ -546,36 +546,17 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 		{
 			bCollapsesChildren = false;
 		}
-		else
+		else if ( Context->InfoCache.IsValid() )
 		{
-			pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
-			if ( !Context->RenderContext.IsNone() )
+			TOptional<uint64> NumExpectedVertices = Context->InfoCache->GetSubtreeVertexCount( PrimPath );
+			if ( !NumExpectedVertices.IsSet() || NumExpectedVertices.GetValue() > GMaxNumVerticesCollapsedMesh )
 			{
-				RenderContextToken = UnrealToUsd::ConvertToken( *Context->RenderContext.ToString() ).Get();
+				bCollapsesChildren = false;
 			}
 
-			int32 NumVertices = 0;
-
-			TSet<UsdUtils::FUsdPrimMaterialSlot> CombinedSlots;
-			int32 NumMaxExpectedMaterialSlots = 0;
-
-			for ( const TUsdStore< pxr::UsdPrim >& ChildPrim : ChildGeomMeshes )
+			if ( bChildrenWantNanite )
 			{
-				pxr::UsdGeomMesh ChildGeomMesh( ChildPrim.Get() );
-
-				if ( pxr::UsdAttribute Points = ChildGeomMesh.GetPointsAttr() )
-				{
-					pxr::VtArray< pxr::GfVec3f > PointsArray;
-					Points.Get( &PointsArray, pxr::UsdTimeCode( Context->Time ) );
-
-					NumVertices += PointsArray.size();
-
-					if ( NumVertices > GMaxNumVerticesCollapsedMesh )
-					{
-						bCollapsesChildren = false;
-						break;
-					}
-				}
+				TOptional<uint64> NumExpectedMaterialSlots = Context->InfoCache->GetSubtreeMaterialSlotCount( PrimPath ).Get( 0 );
 
 				// Note that we wont try to prevent collapsing in general if the combined mesh would have a triangle count above the threshold but too many material slots:
 				// We'll just disable Nanite with a message on the log instead.
@@ -587,33 +568,14 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 				//  - If we don't enable Nanite for them, then what is the benefit? Now the mesh hasn't collapsed but we don't have Nanite anywhere anyway...
 				// At least for the case below (with the explicit overrides) we would end up with some meshes having Nanite, according to how the user set them.
 				// In the future we could expose the collapsing controls on the stage actor to let the user control this a bit better
-
-				// Don't collapse children if the child meshes have Nanite override opinions but the combined mesh would lead to over 64 material slots.
-				if ( bChildrenWantNanite )
+				const int32 MaxNumSections = 64; // There is no define for this, but it's checked for on NaniteBuilder.cpp, FBuilderModule::Build
+				if ( !NumExpectedMaterialSlots.IsSet() || NumExpectedMaterialSlots.GetValue() > MaxNumSections )
 				{
-					if ( Context->bMergeIdenticalMaterialSlots )
-					{
-						const bool bProvideMaterialIndices = false;
-						UsdUtils::FUsdPrimMaterialAssignmentInfo LocalInfo = UsdUtils::GetPrimMaterialAssignments( ChildPrim.Get(), Context->Time, bProvideMaterialIndices, RenderContextToken );
-						CombinedSlots.Append( LocalInfo.Slots );
-						NumMaxExpectedMaterialSlots = CombinedSlots.Num();
-					}
-					else
-					{
-						std::vector<pxr::UsdGeomSubset> GeomSubsets = pxr::UsdShadeMaterialBindingAPI( ChildPrim.Get() ).GetMaterialBindSubsets();
-						NumMaxExpectedMaterialSlots += FMath::Max<int32>( 1, GeomSubsets.size() + 1 ); // +1 because we may create an additional slot if it's not properly partitioned
-					}
-
-					const int32 MaxNumSections = 64; // There is no define for this, but it's checked for on NaniteBuilder.cpp, FBuilderModule::Build
-					if ( NumMaxExpectedMaterialSlots > MaxNumSections )
-					{
-						UE_LOG( LogUsd, Log, TEXT( "Not collapsing down from prim '%s' as child meshes want Nanite to be abled but the generated static mesh would have more than '%d' material slots" ),
-							*PrimPath.GetString(),
-							MaxNumSections
-						);
-						bCollapsesChildren = false;
-						break;
-					}
+					UE_LOG( LogUsd, Log, TEXT( "Not collapsing down from prim '%s' as child meshes want Nanite to be abled but the generated static mesh would have more than '%d' material slots" ),
+						*PrimPath.GetString(),
+						MaxNumSections
+					);
+					bCollapsesChildren = false;
 				}
 			}
 		}

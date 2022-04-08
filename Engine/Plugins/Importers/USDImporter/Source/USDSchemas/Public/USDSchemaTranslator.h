@@ -6,7 +6,7 @@
 
 #include "UnrealUSDWrapper.h"
 #include "USDAssetCache.h"
-#include "USDCollapsingCache.h"
+#include "USDInfoCache.h"
 #include "USDMemory.h"
 #include "USDSkeletalDataConversion.h"
 
@@ -154,8 +154,8 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	/** Where the translated assets will be stored */
 	TStrongObjectPtr< UUsdAssetCache > AssetCache;
 
-	/** Caches the collapsing state of prim paths */
-	TSharedPtr<FUsdCollapsingCache> CollapsingCache;
+	/** Caches various information about prims that are expensive to query */
+	TSharedPtr<FUsdInfoCache> InfoCache;
 
 	/** Where we place imported blend shapes, if available */
 	UsdUtils::FBlendShapeMap* BlendShapesByPath = nullptr;

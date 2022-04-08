@@ -6,7 +6,7 @@
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"
 #include "USDClassesModule.h"
-#include "USDCollapsingCache.h"
+#include "USDInfoCache.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
@@ -96,7 +96,7 @@ struct FUsdStageActorImpl
 		TranslationContext->RenderContext = StageActor->RenderContext;
 		TranslationContext->MaterialToPrimvarToUVIndex = &StageActor->MaterialToPrimvarToUVIndex;
 		TranslationContext->BlendShapesByPath = &StageActor->BlendShapesByPath;
-		TranslationContext->CollapsingCache = StageActor->CollapsingCache;
+		TranslationContext->InfoCache = StageActor->InfoCache;
 
 		// Its more convenient to toggle between variants using the USDStage window, as opposed to parsing LODs
 		TranslationContext->bAllowInterpretingLODs = false;
@@ -869,7 +869,7 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 
 	bool bDeselected = false;
 
-	if ( bHasResync && CollapsingCache.IsValid() )
+	if ( bHasResync && InfoCache.IsValid() )
 	{
 		// TODO: Selective rebuild of only the required parts of the cache.
 		// If a prim changes from CanBeCollapsed to not (or vice-versa), that means its parent may change, and its grandparent, etc. so we'd need to check a large
@@ -877,7 +877,7 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 		// However, if we know that only Prim resynced, we can traverse the tree root down and if we reach Prim and its collapsing state
 		// hasn't updated from before, we don't have to update its subtree at all, or sibling subtrees.
 		TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, TEXT( "/" ) );
-		CollapsingCache->RebuildCacheForSubtree( UsdStage.GetPseudoRoot(), TranslationContext.Get() );
+		InfoCache->RebuildCacheForSubtree( UsdStage.GetPseudoRoot(), TranslationContext.Get() );
 	}
 
 	for ( const TPair< FString, bool >& PrimChangedInfo : SortedPrimsChangedList )
@@ -921,8 +921,8 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 
 		auto UpdateComponents = [&]( const UE::FSdfPath& InPrimPath, const bool bInResync )
 		{
-			UE::FSdfPath ComponentsPrimPath = CollapsingCache.IsValid()
-				? CollapsingCache->UnwindToNonCollapsedPath( InPrimPath, ECollapsingType::Components )
+			UE::FSdfPath ComponentsPrimPath = InfoCache.IsValid()
+				? InfoCache->UnwindToNonCollapsedPath( InPrimPath, ECollapsingType::Components )
 				: InPrimPath;
 
 			TSet< UE::FSdfPath >& RefreshedComponents = bInResync ? ResyncedComponents : UpdatedComponents;
@@ -945,8 +945,8 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 
 		auto ReloadAssets = [&]( const UE::FSdfPath& InPrimPath, const bool bInResync )
 		{
-			UE::FSdfPath AssetsPrimPath = CollapsingCache.IsValid()
-				? CollapsingCache->UnwindToNonCollapsedPath( InPrimPath, ECollapsingType::Assets )
+			UE::FSdfPath AssetsPrimPath = InfoCache.IsValid()
+				? InfoCache->UnwindToNonCollapsedPath( InPrimPath, ECollapsingType::Assets )
 				: InPrimPath;
 
 			TSet< UE::FSdfPath >& RefreshedAssets = bInResync ? ResyncedAssets : UpdatedAssets;
@@ -1373,7 +1373,7 @@ USceneComponent* AUsdStageActor::GetGeneratedComponent( const FString& PrimPath 
 		return nullptr;
 	}
 
-	// We can't query our CollapsingCache with invalid paths, as we're using ensures to track when we miss the cache (which shouldn't ever happen)
+	// We can't query our InfoCache with invalid paths, as we're using ensures to track when we miss the cache (which shouldn't ever happen)
 	UE::FSdfPath UsdPath{ *PrimPath };
 	if ( !UsdStage.GetPrimAtPath( UsdPath ) )
 	{
@@ -1381,9 +1381,9 @@ USceneComponent* AUsdStageActor::GetGeneratedComponent( const FString& PrimPath 
 	}
 
 	FString UncollapsedPath = PrimPath;
-	if ( CollapsingCache.IsValid() )
+	if ( InfoCache.IsValid() )
 	{
-		UncollapsedPath = CollapsingCache->UnwindToNonCollapsedPath( UsdPath, ECollapsingType::Components ).GetString();
+		UncollapsedPath = InfoCache->UnwindToNonCollapsedPath( UsdPath, ECollapsingType::Components ).GetString();
 	}
 
 	if ( UUsdPrimTwin* UsdPrimTwin = GetRootPrimTwin()->Find( UncollapsedPath ) )
@@ -1401,7 +1401,7 @@ TArray<UObject*> AUsdStageActor::GetGeneratedAssets( const FString& PrimPath )
 		return {};
 	}
 
-	// We can't query our CollapsingCache with invalid paths, as we're using ensures to track when we miss the cache (which shouldn't ever happen)
+	// We can't query our InfoCache with invalid paths, as we're using ensures to track when we miss the cache (which shouldn't ever happen)
 	UE::FSdfPath UsdPath{ *PrimPath };
 	if ( !UsdStage.GetPrimAtPath( UsdPath ) )
 	{
@@ -1423,9 +1423,9 @@ TArray<UObject*> AUsdStageActor::GetGeneratedAssets( const FString& PrimPath )
 		Result.Add( FoundAsset );
 	}
 	// If we haven't try seeing if we collapsed into another asset
-	else if ( CollapsingCache.IsValid() )
+	else if ( InfoCache.IsValid() )
 	{
-		PathToUse = CollapsingCache->UnwindToNonCollapsedPath( UsdPath, ECollapsingType::Assets ).GetString();
+		PathToUse = InfoCache->UnwindToNonCollapsedPath( UsdPath, ECollapsingType::Assets ).GetString();
 		if ( UObject* FoundCollapsedAsset = AssetCache->GetAssetForPrim( PathToUse ) )
 		{
 			Result.Add( FoundCollapsedAsset );
@@ -1646,8 +1646,8 @@ void AUsdStageActor::OnObjectsReplaced( const TMap<UObject*, UObject*>& ObjectRe
 			AssetCache->Rename( nullptr, NewActor );
 			NewActor->AssetCache = AssetCache;
 
-			NewActor->CollapsingCache = CollapsingCache;
-			CollapsingCache = nullptr;
+			NewActor->InfoCache = InfoCache;
+			InfoCache = nullptr;
 
 			// It could be that we're automatically recompiling when going into PIE because our blueprint was dirty.
 			// In that case we also need bIsTransitioningIntoPIE to be true to prevent us from calling LoadUsdStage from PostRegisterAllComponents
@@ -1731,11 +1731,11 @@ void AUsdStageActor::LoadUsdStage()
 	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, RootTwin->PrimPath );
 
 	SlowTask.EnterProgressFrame( 0.1f );
-	if ( !CollapsingCache.IsValid() )
+	if ( !InfoCache.IsValid() )
 	{
-		CollapsingCache = MakeShared<FUsdCollapsingCache>();
+		InfoCache = MakeShared<FUsdInfoCache>();
 	}
-	CollapsingCache->RebuildCacheForSubtree( UsdStage.GetPseudoRoot(), TranslationContext.Get() );
+	InfoCache->RebuildCacheForSubtree( UsdStage.GetPseudoRoot(), TranslationContext.Get() );
 
 	SlowTask.EnterProgressFrame( 0.7f );
 	LoadAssets( *TranslationContext, UsdStage.GetPseudoRoot() );
@@ -1806,9 +1806,9 @@ void AUsdStageActor::UnloadUsdStage()
 		AssetCache->Reset();
 	}
 
-	if ( CollapsingCache )
+	if ( InfoCache )
 	{
-		CollapsingCache->Clear();
+		InfoCache->Clear();
 	}
 
 	ObjectsToWatch.Reset();
@@ -2132,12 +2132,12 @@ void AUsdStageActor::Serialize(FArchive& Ar)
 
 	if ( ( Ar.GetPortFlags() & PPF_DuplicateForPIE ) || Ar.IsTransacting() )
 	{
-		if ( !CollapsingCache.IsValid() )
+		if ( !InfoCache.IsValid() )
 		{
-			CollapsingCache = MakeShared<FUsdCollapsingCache>();
+			InfoCache = MakeShared<FUsdInfoCache>();
 		}
 
-		CollapsingCache->Serialize( Ar );
+		InfoCache->Serialize( Ar );
 	}
 }
 

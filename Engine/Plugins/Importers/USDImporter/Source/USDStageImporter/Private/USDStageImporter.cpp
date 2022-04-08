@@ -217,14 +217,14 @@ namespace UsdStageImporterImpl
 
 	void CacheCollapsingState( FUsdSchemaTranslationContext& TranslationContext )
 	{
-		if ( !TranslationContext.CollapsingCache.IsValid() )
+		if ( !TranslationContext.InfoCache.IsValid() )
 		{
-			TranslationContext.CollapsingCache = MakeShared<FUsdCollapsingCache>();
+			TranslationContext.InfoCache = MakeShared<FUsdInfoCache>();
 		}
 
-		if ( TranslationContext.CollapsingCache->IsEmpty() )
+		if ( TranslationContext.InfoCache->IsEmpty() )
 		{
-			TranslationContext.CollapsingCache->RebuildCacheForSubtree( TranslationContext.Stage.GetPseudoRoot(), TranslationContext );
+			TranslationContext.InfoCache->RebuildCacheForSubtree( TranslationContext.Stage.GetPseudoRoot(), TranslationContext );
 		}
 	}
 
@@ -1499,7 +1499,7 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	TranslationContext->bAllowInterpretingLODs = ImportContext.ImportOptions->bInterpretLODs;
 	TranslationContext->bAllowParsingSkeletalAnimations = ImportContext.ImportOptions->bImportGeometry && ImportContext.ImportOptions->bImportSkeletalAnimations;
 	TranslationContext->MaterialToPrimvarToUVIndex = &ImportContext.MaterialToPrimvarToUVIndex;
-	TranslationContext->CollapsingCache = ImportContext.CollapsingCache;
+	TranslationContext->InfoCache = ImportContext.InfoCache;
 	TranslationContext->BlendShapesByPath = &BlendShapesByPath;
 	{
 		UsdStageImporterImpl::CacheCollapsingState( TranslationContext.Get() );
@@ -1586,7 +1586,7 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	TranslationContext->bAllowInterpretingLODs = ImportContext.ImportOptions->bInterpretLODs;
 	TranslationContext->bAllowParsingSkeletalAnimations = ImportContext.ImportOptions->bImportGeometry && ImportContext.ImportOptions->bImportSkeletalAnimations;
 	TranslationContext->MaterialToPrimvarToUVIndex = &ImportContext.MaterialToPrimvarToUVIndex;
-	TranslationContext->CollapsingCache = ImportContext.CollapsingCache;
+	TranslationContext->InfoCache = ImportContext.InfoCache;
 	TranslationContext->BlendShapesByPath = &BlendShapesByPath;
 	{
 		UsdStageImporterImpl::CacheCollapsingState( TranslationContext.Get() );

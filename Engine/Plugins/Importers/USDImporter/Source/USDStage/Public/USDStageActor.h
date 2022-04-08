@@ -6,7 +6,7 @@
 #include "Misc/SecureHash.h"
 #include "Templates/Function.h"
 
-#include "USDCollapsingCache.h"
+#include "USDInfoCache.h"
 #include "USDLevelSequenceHelper.h"
 #include "USDListener.h"
 #include "USDPrimTwin.h"
@@ -186,7 +186,7 @@ public:
 	void ReloadAnimations();
 	float GetTime() { return Time; }
 	UUsdAssetCache* GetAssetCache() { return AssetCache; }
-	TSharedPtr<FUsdCollapsingCache> GetCollapsingCache() { return CollapsingCache; }
+	TSharedPtr<FUsdInfoCache> GetInfoCache() { return InfoCache; }
 	TMap< FString, TMap< FString, int32 > > GetMaterialToPrimvarToUVIndex() { return MaterialToPrimvarToUVIndex; }
 
 public:
@@ -287,7 +287,8 @@ protected:
 	void AnimatePrims();
 
 private:
-	TSharedPtr<FUsdCollapsingCache> CollapsingCache;
+	/** Caches various information about prims that are expensive to query */
+	TSharedPtr<FUsdInfoCache> InfoCache;
 
 	/** Keep track of blend shapes so that we can map 'inbetween shapes' to their separate morph targets when animating */
 	UsdUtils::FBlendShapeMap BlendShapesByPath;

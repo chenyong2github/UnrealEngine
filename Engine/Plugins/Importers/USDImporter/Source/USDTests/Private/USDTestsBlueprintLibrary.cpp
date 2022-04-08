@@ -90,3 +90,46 @@ void USDTestsBlueprintLibrary::DirtyStageActorBlueprint( AUsdStageActor* Bluepri
 	}
 #endif // WITH_EDITOR
 }
+
+int64 USDTestsBlueprintLibrary::GetSubtreeVertexCount( AUsdStageActor* StageActor, const FString& PrimPath )
+{
+	if ( StageActor )
+	{
+		if ( TSharedPtr<FUsdInfoCache> Cache = StageActor->GetInfoCache() )
+		{
+			TOptional<uint64> Result = Cache->GetSubtreeVertexCount( UE::FSdfPath{ *PrimPath } );
+			if ( Result.IsSet() )
+			{
+				// Narrowing conversion here, but we're only using this for our test scenes, which have at most a few thousand vertices
+				return static_cast< int64 >( Result.GetValue() );
+			}
+			else
+			{
+				return -1;
+			}
+		}
+	}
+
+	return -1;
+}
+
+int64 USDTestsBlueprintLibrary::GetSubtreeMaterialSlotCount( AUsdStageActor* StageActor, const FString& PrimPath )
+{
+	if ( StageActor )
+	{
+		if ( TSharedPtr<FUsdInfoCache> Cache = StageActor->GetInfoCache() )
+		{
+			TOptional<uint64> Result = Cache->GetSubtreeMaterialSlotCount( UE::FSdfPath{ *PrimPath } );
+			if ( Result.IsSet() )
+			{
+				return static_cast< int64 >( Result.GetValue() );
+			}
+			else
+			{
+				return -1;
+			}
+		}
+	}
+
+	return -1;
+}
