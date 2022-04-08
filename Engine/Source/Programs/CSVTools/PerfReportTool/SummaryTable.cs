@@ -826,7 +826,7 @@ namespace PerfSummaries
 		}
 
 
-		public void WriteToHTML(string htmlFilename, string VersionString, bool bSpreadsheetFriendlyStrings, List<SummarySectionBoundaryInfo> sectionBoundaries, bool bScrollableTable, bool bAddMinMaxColumns, int maxColumnStringLength, SummaryTableColumnFormatInfoCollection columnFormatInfoList, string weightByColumnName)
+		public void WriteToHTML(string htmlFilename, string VersionString, bool bSpreadsheetFriendlyStrings, List<SummarySectionBoundaryInfo> sectionBoundaries, bool bScrollableTable, bool bAddMinMaxColumns, int maxColumnStringLength, SummaryTableColumnFormatInfoCollection columnFormatInfoList, string weightByColumnName, string title)
 		{
 			System.IO.StreamWriter htmlFile = new System.IO.StreamWriter(htmlFilename, false);
 			int statColSpan = hasMinMaxColumns ? 3 : 1;
@@ -836,8 +836,15 @@ namespace PerfSummaries
 				cellPadding = 4;
 			}
 
+			// Generate an automatic title
+			if (title==null)
+			{
+				title = htmlFilename.Replace("_Email.html", "").Replace(".html", "").Replace("\\", "/");
+				title = title.Substring(title.LastIndexOf('/') + 1);
+			}
+
 			htmlFile.WriteLine("<html>");
-			htmlFile.WriteLine("<head><title>Performance summary</title>");
+			htmlFile.WriteLine("<head><title>Perf Summary: "+ title + "</title>");
 
 			// Figure out the sticky column count
 			int stickyColumnCount = 0;
@@ -1011,9 +1018,6 @@ namespace PerfSummaries
 				string TopHeaderRow = "";
 				if (bScrollableTable)
 				{
-					// Generate an automatic title
-					string title = htmlFilename.Replace("_Email.html", "").Replace(".html", "").Replace("\\", "/");
-					title = title.Substring(title.LastIndexOf('/') + 1);
 					TopHeaderRow += "<th colspan='" + firstStatColumnIndex + "'><h3>" + title + "</h3></th>";
 				}
 				else

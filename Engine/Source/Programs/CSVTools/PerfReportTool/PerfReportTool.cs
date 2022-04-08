@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.70";
+        private static string VersionString = "4.71";
 
         public static string Get() { return VersionString; }
     };
@@ -76,7 +76,8 @@ namespace PerfReportTool
 			"PerfReportTool v" + Version.Get() + "\n" +
 			"\n" +
 			"Format: \n" +
-			"       -csv <filename> or -csvdir <directory path> or -summaryTableCacheIn <directory path>\n" +
+			"       -csv <filename> or -csvdir <directory path> or -summaryTableCacheIn <directory path> or\n" +
+			"       -csvList <comma separated> or -prcList <comma separated>\n" +
 			"       -o <dir name>: output directory (will be created if necessary)\n" +
 			"\n" +
 			"Optional Args:\n" +
@@ -85,7 +86,8 @@ namespace PerfReportTool
 			"       -graphXML <xmlfilename>\n" +
 			"       -reportXML <xmlfilename>\n" +
 			"       -reportxmlbasedir <folder>\n" +
-			"       -title <name>\n" +
+			"       -title <name> - title for detailed reports\n" +
+			"       -summaryTitle <name> - title for summary tables\n" +
 			"       -maxy <value> - forces all graphs to use this value\n" +
 			"       -writeSummaryCsv : if specified, a csv file containing summary information will be generated.\n"+
 			"          Not available in bulk mode.\n" +
@@ -109,15 +111,16 @@ namespace PerfReportTool
 			"       -endEvent <event> : strip data after this event\n" +
 			"       -noStripEvents : if specified, don't strip out samples between excluded events from the stats\n" +
 			"\n" +
-			"Optional bulk mode args: (use with -csvdir or -summaryTableCacheIn)\n" +
+			"Optional bulk mode args: (use with -csvdir, -summaryTableCacheIn, -csvList, -prcList)\n" +
 			"       -recurse \n" +
 			"       -searchpattern <pattern>, e.g -searchpattern csvprofile*\n" +
-			"       -customTable <comma seprated fields>\n" +
-			"       -customTableSort <comma seprated field row sort order> (use with -customTable)\n" +
+			"       -customTable <comma separated fields>\n" +
+			"       -customTableSort <comma separated field row sort order> (use with -customTable)\n" +
 			"       -noDetailedReports : skips individual report generation\n" +
 			"       -collateTable : writes a collated table in addition to the main one, merging by row sort\n" +
 			"       -emailTable : writes a condensed email-friendly table (see the 'condensed' summary table)\n" +
 			"       -csvTable : writes the summary table in CSV format instead of html\n" +
+			"       -summaryTableXML <XML filename>\n" +
 			"       -summaryTable <name> :\n" +
 			"           Selects a custom summary table type from the list in reportTypes.xml \n"+
 			"           (if not specified, 'default' will be used)\n" +
@@ -140,6 +143,7 @@ namespace PerfReportTool
 			"       -listFiles : just list all files that pass the metadata query. Don't generate any reports.\n" +
 			"       -reportLinkRootPath <path> : Make report links relative to this\n" +
 			"       -csvLinkRootPath <path> : Make CSV file links relative to this\n" +
+			"       -linkTemplates : insert templates instead of links that can be replaced later, e.g {{LinkTemplate:Report:<CSV ID>}}\n" +
 			"       -weightByColumn : weight collated table averages by this column (overrides value specified in the report XML)\n" +
 			"       -noWeightedAvg : Don't use weighted averages for the collated table\n" +
 			"       -minFrameCount <n> : ignore CSVs without at least this number of valid frames\n" +
@@ -221,6 +225,8 @@ namespace PerfReportTool
 				csvDir=GetArg("csvDir");
 				int maxFileAgeDays = GetIntArg("maxFileAgeDays", -1);
 				string summaryTableCacheInDir = GetArg("summaryTableCacheIn");
+				string csvListStr = GetArg("csvList");
+				string prcListStr = GetArg("prcList");
 				if (csvDir.Length > 0)
 				{
 					bool recurse = GetBoolArg("recurse");
@@ -244,9 +250,9 @@ namespace PerfReportTool
 					}
 					// We don't write summary CSVs in bulk mode
 					bBulkMode = true;
-                    perfLog.LogTiming("DirectoryScan");
-                }
-				else if (summaryTableCacheInDir.Length>0)
+					perfLog.LogTiming("DirectoryScan");
+				}
+				else if (summaryTableCacheInDir.Length > 0)
 				{
 					bool recurse = GetBoolArg("recurse");
 					System.IO.FileInfo[] files = GetFilesWithSearchPattern(summaryTableCacheInDir, "*.prc", recurse, maxFileAgeDays);
@@ -261,16 +267,30 @@ namespace PerfReportTool
 					bSummaryTableCacheOnlyMode = true;
 					perfLog.LogTiming("DirectoryScan");
 				}
-				else
+				else if (csvListStr.Length > 0)
 				{
+					csvFilenames = csvListStr.Split(',');
+					bBulkMode = true;
+				}
+				else if (prcListStr.Length > 0)
+				{
+					csvFilenames = prcListStr.Split(',');
+					bBulkMode = true;
+					bSummaryTableCacheOnlyMode = true;
+				}
+				else
+				{ 
 					string csvFilenamesStr = GetArg("csv");
 					if (csvFilenamesStr.Length == 0)
 					{
 						csvFilenamesStr = GetArg("csvs", true);
 						if (csvFilenamesStr.Length == 0)
 						{
-							System.Console.Write(formatString);
-							return;
+							if (!GetBoolArg("listSummaryTables"))
+							{
+								System.Console.Write(formatString);
+								return;
+							}
 						}
 					}
 					csvFilenames = csvFilenamesStr.Split(';');
@@ -278,7 +298,7 @@ namespace PerfReportTool
 			}
 
 			// Load the report + graph XML data
-			reportXML = new ReportXML(GetArg("graphxml", false), GetArg("reportxml", false), GetArg("reportxmlbasedir", false));
+			reportXML = new ReportXML(GetArg("graphxml", false), GetArg("reportxml", false), GetArg("reportxmlbasedir", false), GetArg("summaryTableXml", false));
 
 			if (GetBoolArg("listSummaryTables"))
 			{
@@ -642,7 +662,8 @@ namespace PerfReportTool
 			{
 				filteredTable.ApplyDisplayNameMapping(statDisplaynameMapping);
 				string VersionString = GetBoolArg("noWatermarks") ? "" : Version.Get();
-				filteredTable.WriteToHTML(filenameWithoutExtension+".html", VersionString, bSpreadsheetFriendlyStrings, tableInfo.sectionBoundaries, bScrollableTable, addMinMaxColumns, GetIntArg("maxSummaryTableStringLength", -1), reportXML.columnFormatInfoList, weightByColumnName);
+				string summaryTitle = GetArg("summaryTitle", null);
+				filteredTable.WriteToHTML(filenameWithoutExtension+".html", VersionString, bSpreadsheetFriendlyStrings, tableInfo.sectionBoundaries, bScrollableTable, addMinMaxColumns, GetIntArg("maxSummaryTableStringLength", -1), reportXML.columnFormatInfoList, weightByColumnName, summaryTitle);
 			}
 		}
 
@@ -898,6 +919,13 @@ namespace PerfReportTool
 				Uri relativeCsvUri = finalDirUri.MakeRelativeUri(csvFileUri);
 				string csvPath = relativeCsvUri.ToString();
 
+				bool bLinkTemplates = GetBoolArg("linkTemplates");
+				string csvId = null;
+				if (csvStats.metaData != null)
+				{
+					csvId=csvStats.metaData.GetValue("csvid", null);
+				}
+
 				// re-root the CSV path if requested
 				string csvLinkRootPath = GetArg("csvLinkRootPath", null);
 				if ( csvDir != null && csvLinkRootPath != null)
@@ -910,7 +938,13 @@ namespace PerfReportTool
 					csvPath = new Uri(csvPath, UriKind.Absolute).ToString();
 				}
 
-				rowData.Add(SummaryTableElement.Type.ToolMetadata, "Csv File", "<a href='" + csvPath + "'>" + shortName + ".csv" + "</a>", null, csvPath);
+				string csvLink = "<a href='" + csvPath + "'>" + shortName + ".csv" + "</a>";
+				if (bLinkTemplates)
+				{
+					csvLink = "{LinkTemplate:Csv:" + (csvId ?? "0") + "}";
+				}
+
+				rowData.Add(SummaryTableElement.Type.ToolMetadata, "Csv File", csvLink, null, csvPath);
 				rowData.Add(SummaryTableElement.Type.ToolMetadata, "ReportType", reportTypeInfo.name);
 				rowData.Add(SummaryTableElement.Type.ToolMetadata, "ReportTypeID", reportTypeInfo.summaryTableCacheID);
 				if (htmlFilename != null)
@@ -921,8 +955,12 @@ namespace PerfReportTool
 					{
 						htmlUrl = reportLinkRootPath + htmlFilename;
 					}
-
-					rowData.Add(SummaryTableElement.Type.ToolMetadata, "Report", "<a href='" + htmlUrl + "'>Link</a>");
+					string reportLink = "<a href='" + htmlUrl + "'>Link</a>";
+					if (bLinkTemplates)
+					{
+						reportLink = "{LinkTemplate:Report:" + (csvId ?? "0") + "}";
+					}	
+					rowData.Add(SummaryTableElement.Type.ToolMetadata, "Report", reportLink);
 				}
 				// Pass through all the metadata from the CSV
 				if (csvStats.metaData != null)
@@ -1144,7 +1182,8 @@ namespace PerfReportTool
 			bool bExtraLinksSummary = GetBoolArg("extraLinksSummary");
 			if (bExtraLinksSummary)
 			{
-				summaries.Insert(0,new ExtraLinksSummary(null, null));
+				bool bLinkTemplates = GetBoolArg("linkTemplates");
+				summaries.Insert(0,new ExtraLinksSummary(null, null, bLinkTemplates));
 			}
 
 			// If the reporttype has summary info, then write out the summary]

@@ -22,8 +22,64 @@ namespace CSVStats
 			return commandLine;
 		}
 
+		private List<string> GetArgList(string inCommandLine)
+		{
+			List<string> args = new List<string>();
+			bool bInQuotes = false;
+			string currentArg = "";
+			for (int i=0; i< inCommandLine.Length; i++)
+			{
+				char c = inCommandLine[i];
+				if (c=='"')
+				{
+					bInQuotes = !bInQuotes;
+				}
+				else
+				{
+					if (bInQuotes)
+					{
+						currentArg += c;
+					}
+					else
+					{ 
+						if (Char.IsWhiteSpace(c))
+						{
+							if (currentArg.Length > 0)
+							{
+								args.Add(currentArg);
+								currentArg = "";
+							}
+						}
+						else
+						{
+							currentArg += c;
+						}
+
+					}
+				}
+			}
+			if (currentArg.Length > 0)
+			{
+				args.Add(currentArg);
+			}
+			return args;
+		}
+
 		public CommandLine(string[] args)
 		{
+			// Read commandline as a response file if specified (must be the only two args)
+			if (args.Length==2 && args[0].ToLower()=="-response")
+			{
+				string [] lines = File.ReadAllLines(args[1]);
+				List<string> argList = new List<string>();
+				foreach (string line in lines)
+				{
+					argList.AddRange(GetArgList(line));
+				}
+				args = argList.ToArray();
+			}
+
+			// Write the commandline as a string for reporting purposes
 			commandLine = "";
 			foreach (string arg in args)
 			{
@@ -36,6 +92,8 @@ namespace CSVStats
 					commandLine += arg + " ";
 				}
 			}
+
+			// Parse the commandline
 			CommandLineArgs = new Dictionary<string, string>();
 			for (int i = 0; i < args.Length; i++)
 			{

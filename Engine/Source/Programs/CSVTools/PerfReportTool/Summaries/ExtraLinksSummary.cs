@@ -14,35 +14,43 @@ namespace PerfSummaries
 	{
 		class ExtraLink
 		{
-			public ExtraLink(string fileLine)
+			public ExtraLink(string fileLine, string inLinkTemplateCsvId)
 			{
 				string[] Sections = fileLine.Split(',');
 				if (Sections.Length != 3)
-				{
+                {
 					throw new Exception("Bad links line format: " + fileLine);
 				}
-				LongName = Sections[0];
-				ShortName = Sections[1];
+                ReportText = Sections[0];
+                SummaryTableText = Sections[1];
 				LinkURL = Sections[2];
-			}
-			public string GetLinkString(bool bUseLongName)
-			{
-				string Text = bUseLongName ? LongName : ShortName;
-				return "<a href='" + LinkURL + "'>" + Text + "</a>";
-			}
-			public string LongName;
-			public string ShortName;
+                LinkTemplateCsvId = inLinkTemplateCsvId;
+            }
+            public string GetLinkString(bool bIsSummaryTable)
+            {
+                if (bIsSummaryTable && LinkTemplateCsvId != null)
+                {
+                    // Output a link template if link templates are enabled and we have a CSV
+                    return "{LinkTemplate:" + SummaryTableText.Replace(" ", "") + ":" + LinkTemplateCsvId + "}";
+                }
+                string Text = bIsSummaryTable ? SummaryTableText : ReportText;
+                return "<a href='" + LinkURL + "'>" + Text + "</a>";
+            }
+            public string ReportText;
+			public string SummaryTableText;
 			public string LinkURL;
-		};
+            public string LinkTemplateCsvId;
+        };
+        public ExtraLinksSummary(XElement element, string baseXmlDirectory, bool bInLinkTemplates=false)
+        {
+            title = "Links";
+            if (element != null)
+            {
+                title = element.GetSafeAttibute("title", title);
+            }
+            bLinkTemplates = bInLinkTemplates;
+        }
 
-		public ExtraLinksSummary(XElement element, string baseXmlDirectory)
-		{
-			title = "Links";
-			if (element != null)
-			{
-				title = element.GetSafeAttibute("title", title);
-			}
-		}
 		public ExtraLinksSummary() { }
 
 		public override string GetName() { return "extralinks"; }
@@ -51,7 +59,14 @@ namespace PerfSummaries
 		{
 			List<ExtraLink> links = new List<ExtraLink>();
 
-			string csvFilename = csvStats.metaData.GetValue("csvfilename", null);
+            string csvId = null;
+            if (bLinkTemplates && csvStats.metaData != null)
+            {
+                csvId = csvStats.metaData.GetValue("csvid", null);
+            }
+
+
+            string csvFilename = csvStats.metaData.GetValue("csvfilename", null);
 			if (csvFilename == null)
 			{
 				Console.WriteLine("Can't find CSV filename for ExtraLinks summary. Skipping");
@@ -67,7 +82,7 @@ namespace PerfSummaries
 			string[] lines = File.ReadAllLines(linksFilename);
 			foreach (string line in lines)
 			{
-				links.Add(new ExtraLink(line));
+				links.Add(new ExtraLink(line, csvId));
 			}
 			if (links.Count == 0)
 			{
@@ -81,7 +96,7 @@ namespace PerfSummaries
 				htmlFile.WriteLine("  <ul>");
 				foreach (ExtraLink link in links)
 				{
-					htmlFile.WriteLine("  <li>" + link.GetLinkString(true) + "</li>");
+					htmlFile.WriteLine("  <li>" + link.GetLinkString(false) + "</li>");
 				}
 				htmlFile.WriteLine("  </ul>");
 			}
@@ -91,14 +106,15 @@ namespace PerfSummaries
 			{
 				foreach (ExtraLink link in links)
 				{
-					rowData.Add(SummaryTableElement.Type.SummaryTableMetric, link.LongName, link.GetLinkString(false), null);
+					rowData.Add(SummaryTableElement.Type.SummaryTableMetric, link.ReportText, link.GetLinkString(true), null);
 				}
 			}
 		}
 		public override void PostInit(ReportTypeInfo reportTypeInfo, CsvStats csvStats)
 		{
-		}
+        }
 		string title;
+        bool bLinkTemplates;
 	};
 
 }

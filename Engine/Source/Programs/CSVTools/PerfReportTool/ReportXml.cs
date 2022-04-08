@@ -67,7 +67,7 @@ namespace PerfReportTool
 			return false;
 		}
 
-		public ReportXML(string graphXMLFilenameIn, string reportXMLFilenameIn, string baseXMLDirectoryOverride)
+		public ReportXML(string graphXMLFilenameIn, string reportXMLFilenameIn, string baseXMLDirectoryOverride, string additionalSummaryTableXmlFilename)
 		{
 			string location = System.Reflection.Assembly.GetEntryAssembly().Location.ToLower();
 			string baseDirectory = location.Replace("perfreporttool.exe", "");
@@ -83,14 +83,7 @@ namespace PerfReportTool
 			// Check if the base directory is being overridden
 			if (baseXMLDirectoryOverride.Length > 0)
 			{
-				if (IsAbsolutePath(baseXMLDirectoryOverride))
-				{
-					baseDirectory = baseXMLDirectoryOverride;
-				}
-				else
-				{
-					baseDirectory = Path.Combine(baseDirectory, baseXMLDirectoryOverride);
-				}
+				baseDirectory = IsAbsolutePath(baseXMLDirectoryOverride) ? baseXMLDirectoryOverride : Path.Combine(baseDirectory, baseXMLDirectoryOverride);
 			}
 			Console.Out.WriteLine("BaseDir:   " + baseDirectory);
 
@@ -100,15 +93,7 @@ namespace PerfReportTool
 			reportTypeXmlFilename = Path.Combine(baseDirectory, "reportTypes.xml");
 			if (reportXMLFilenameIn.Length > 0)
 			{
-				// Check if this is an absolute path
-				if (IsAbsolutePath(reportXMLFilenameIn))
-				{
-					reportTypeXmlFilename = reportXMLFilenameIn;
-				}
-				else
-				{
-					reportTypeXmlFilename = Path.Combine(baseDirectory, reportXMLFilenameIn);
-				}
+				reportTypeXmlFilename = IsAbsolutePath(reportXMLFilenameIn) ? reportXMLFilenameIn : Path.Combine(baseDirectory, reportXMLFilenameIn);
 			}
 			Console.Out.WriteLine("ReportXML: " + reportTypeXmlFilename);
 			XDocument reportTypesDoc = XDocument.Load(reportTypeXmlFilename);
@@ -117,6 +102,35 @@ namespace PerfReportTool
 			{
 				throw new Exception("No root element found in report XML " + reportTypeXmlFilename);
 			}
+
+			// Read the additional summary table XML (if supplied)
+			if (additionalSummaryTableXmlFilename.Length > 0)
+			{
+				if (!IsAbsolutePath(additionalSummaryTableXmlFilename))
+				{
+					additionalSummaryTableXmlFilename = Path.Combine(baseDirectory, additionalSummaryTableXmlFilename);
+				}
+				XDocument summaryXmlDoc = XDocument.Load(additionalSummaryTableXmlFilename);
+				XElement summaryTablesEl = summaryXmlDoc.Element("summaryTables");
+				if (summaryTablesEl == null)
+				{
+					throw new Exception("No summaryTables element found in summaryTableXML file: " + additionalSummaryTableXmlFilename);
+				}
+
+				XElement destSummaryTablesEl = rootElement.Element("summaryTables");
+				if (destSummaryTablesEl == null)
+				{
+					rootElement.Add(summaryTablesEl);
+				}
+				else
+				{
+					foreach (XElement child in summaryTablesEl.Elements())
+					{
+						destSummaryTablesEl.Add(child);
+					}
+				}
+			}
+			Console.Out.WriteLine("ReportXML: " + reportTypeXmlFilename);
 
 			reportTypesElement = rootElement.Element("reporttypes");
 			if (reportTypesElement == null)
@@ -128,14 +142,7 @@ namespace PerfReportTool
 			string graphsXMLFilename;
 			if (graphXMLFilenameIn.Length > 0)
 			{
-				if (IsAbsolutePath(graphXMLFilenameIn))
-				{
-					graphsXMLFilename = graphXMLFilenameIn;
-				}
-				else
-				{
-					graphsXMLFilename = Path.Combine(baseDirectory, graphXMLFilenameIn);
-				}
+				graphsXMLFilename = IsAbsolutePath(graphXMLFilenameIn) ? graphXMLFilenameIn : Path.Combine(baseDirectory, graphXMLFilenameIn);
 			}
 			else
 			{
@@ -442,12 +449,6 @@ namespace PerfReportTool
 		{
 			return summaryTables.Keys.ToList();
 		}
-
-		public string GetReportXmlFilename()
-		{
-			return reportTypeXmlFilename;
-		}
-
 
 		Dictionary<string, SummaryTableInfo> summaryTables;
 
