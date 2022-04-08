@@ -73,7 +73,7 @@ namespace Jupiter.Implementation
             Hash blake3Hash = Hasher.Hash(bytes);
 
             // we only keep the first 20 bytes of the Blake3 hash
-            TreeHash hash = new TreeHash(blake3Hash.AsSpan().Slice(0, HashLength).ToArray());
+            TreeHash hash = new TreeHash(blake3Hash.AsSpanUnsafe().Slice(0, HashLength).ToArray());
             return hash;
         }
     }
