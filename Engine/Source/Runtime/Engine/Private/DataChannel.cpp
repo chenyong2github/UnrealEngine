@@ -3405,6 +3405,7 @@ int64 UActorChannel::ReplicateActor()
 			}
 
 			MemMark.Pop();
+			NETWORK_PROFILER(GNetworkProfiler.TrackReplicateActor(Actor, RepFlags, FPlatformTime::Cycles() - ActorReplicateStartTime, Connection));
 
 			return bWroteSomethingImportant;
 		}
