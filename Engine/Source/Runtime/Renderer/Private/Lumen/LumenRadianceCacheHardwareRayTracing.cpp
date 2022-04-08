@@ -257,7 +257,8 @@ bool IsHardwareRayTracingRadianceCacheIndirectDispatch()
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingRadianceCache(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (Lumen::GetRadianceCacheHardwareRayTracingLightingMode() != Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache)
+	if (Lumen::UseHardwareRayTracedRadianceCache(*View.Family)
+		&& Lumen::GetRadianceCacheHardwareRayTracingLightingMode() != Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache)
 	{
 		FLumenRadianceCacheHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenRadianceCacheHardwareRayTracingRGS::FLightingModeDim>(LumenHWRTPipeline::ELightingMode::HitLighting);

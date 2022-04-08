@@ -78,10 +78,12 @@ IMPLEMENT_LUMEN_RAYGEN_AND_COMPUTE_RAYTRACING_SHADERS(FLumenTranslucencyVolumeHa
 IMPLEMENT_GLOBAL_SHADER(FLumenTranslucencyVolumeHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenTranslucencyVolumeHardwareRayTracing.usf", "LumenTranslucencyVolumeHardwareRayTracingRGS", SF_RayGen);
 IMPLEMENT_GLOBAL_SHADER(FLumenTranslucencyVolumeHardwareRayTracingCS, "/Engine/Private/Lumen/LumenTranslucencyVolumeHardwareRayTracing.usf", "LumenTranslucencyVolumeHardwareRayTracingCS", SF_Compute);
 
-void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingTranslucencyVolume(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
+void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingTranslucencyVolumeLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	extern int32 GLumenTranslucencyVolumeRadianceCache;
+	if (Lumen::UseHardwareRayTracedTranslucencyVolume(*View.Family))
 	{
+		extern int32 GLumenTranslucencyVolumeRadianceCache;
+
 		FLumenTranslucencyVolumeHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenTranslucencyVolumeHardwareRayTracingRGS::FRadianceCache>(GLumenTranslucencyVolumeRadianceCache != 0);
 		TShaderRef<FLumenTranslucencyVolumeHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenTranslucencyVolumeHardwareRayTracingRGS>(PermutationVector);

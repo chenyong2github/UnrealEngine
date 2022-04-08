@@ -118,6 +118,24 @@ namespace Lumen
 #endif
 } // namespace Lumen
 
+namespace LumenVisualize
+{
+	bool UseFarField()
+	{
+		return CVarLumenVisualizeHardwareRayTracingRetraceFarField.GetValueOnRenderThread() != 0;
+	}
+
+	bool IsHitLightingForceEnabled(const FViewInfo& View)
+	{
+		return Lumen::GetHardwareRayTracingLightingMode(View) != Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
+	}
+
+	bool UseHitLighting(const FViewInfo& View)
+	{
+		return LumenVisualize::IsHitLightingForceEnabled(View) || CVarLumenVisualizeHardwareRayTracingRetraceHitLighting.GetValueOnRenderThread() != 0;
+	}
+}
+
 #if RHI_RAYTRACING
 
 namespace LumenVisualize
@@ -438,8 +456,8 @@ IMPLEMENT_GLOBAL_SHADER(FLumenVisualizeHardwareRayTracingRGS, "/Engine/Private/L
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingVisualize(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	// Shading pass
-	if (Lumen::ShouldVisualizeHardwareRayTracing(*View.Family))
+	if (Lumen::ShouldVisualizeHardwareRayTracing(*View.Family)
+		&& (LumenVisualize::UseHitLighting(View) || LumenVisualize::UseFarField() || LumenReflections::UseHitLightingForReflections(View)))
 	{
 		for (int TraceMode = static_cast<int>(ETraceMode::HitLightingRetrace); TraceMode < static_cast<int>(ETraceMode::MAX); ++TraceMode)
 		{
@@ -479,9 +497,9 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 	bool bVisualizeModeWithHitLighting)
 #if RHI_RAYTRACING
 {
-	bool bTraceFarField = CVarLumenVisualizeHardwareRayTracingRetraceFarField.GetValueOnRenderThread() != 0;
-	bool bRetraceForHitLighting = CVarLumenVisualizeHardwareRayTracingRetraceHitLighting.GetValueOnRenderThread() != 0 && bVisualizeModeWithHitLighting;
-	bool bForceHitLighting = Lumen::GetHardwareRayTracingLightingMode(View) != Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
+	bool bTraceFarField = LumenVisualize::UseFarField();
+	bool bRetraceForHitLighting = LumenVisualize::UseHitLighting(View) && bVisualizeModeWithHitLighting;
+	bool bForceHitLighting = LumenVisualize::IsHitLightingForceEnabled(View);
 
 	// Reflection scene view uses reflection setup
 	if (VisualizeParameters.VisualizeMode == VISUALIZE_MODE_REFLECTION_VIEW)
@@ -638,7 +656,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 	}
 
 	// Fire secondary rays for hit-lighting, resolving some of the screen and collecting miss rays
-	if (bRetraceForHitLighting || bForceHitLighting)
+	if (bRetraceForHitLighting)
 	{
 		// Compact rays which need to be re-traced
 		if ((CVarLumenVisualizeHardwareRayTracingCompact.GetValueOnRenderThread() != 0) || bForceHitLighting)

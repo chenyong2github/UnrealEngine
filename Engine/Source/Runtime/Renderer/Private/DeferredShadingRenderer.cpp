@@ -1463,7 +1463,6 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 					{
 						PrepareLumenHardwareRayTracingScreenProbeGather(View, RayGenShaders);
 						PrepareLumenHardwareRayTracingRadianceCache(View, RayGenShaders);
-						PrepareLumenHardwareRayTracingTranslucencyVolume(View, RayGenShaders);
 						PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
 						PrepareLumenHardwareRayTracingVisualize(View, RayGenShaders);
 					}
@@ -1799,7 +1798,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 					{
 						PrepareLumenHardwareRayTracingVisualizeLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
 						PrepareLumenHardwareRayTracingRadianceCacheLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
-						PrepareLumenHardwareRayTracingTranslucencyVolume(View, LumenHardwareRayTracingRayGenShaders);
+						PrepareLumenHardwareRayTracingTranslucencyVolumeLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
 						PrepareLumenHardwareRayTracingRadiosityLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
 						PrepareLumenHardwareRayTracingReflectionsLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
 						PrepareLumenHardwareRayTracingScreenProbeGatherLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);

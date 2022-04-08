@@ -236,28 +236,25 @@ bool IsHardwareRayTracingScreenProbeGatherIndirectDispatch()
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGather(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (Lumen::UseHardwareRayTracedScreenProbeGather(*View.Family))
+	// Hit-lighting is disabled
+	if (Lumen::UseHardwareRayTracedScreenProbeGather(*View.Family) && false)
 	{
-		// Hit-lighting is disabled
-		if (false)
-		{
-			bool bUseFarFieldForScreenProbeGather = UseFarFieldForScreenProbeGather(*View.Family);
-			bool bApplySkyLight = !bUseFarFieldForScreenProbeGather;
-			bool bUseRadianceCache = LumenScreenProbeGather::UseRadianceCache(View);
-			const bool bIsForceHitLighting = IsHitLightingForceEnabledForScreenProbeGather();
+		bool bUseFarFieldForScreenProbeGather = UseFarFieldForScreenProbeGather(*View.Family);
+		bool bApplySkyLight = !bUseFarFieldForScreenProbeGather;
+		bool bUseRadianceCache = LumenScreenProbeGather::UseRadianceCache(View);
+		const bool bIsForceHitLighting = IsHitLightingForceEnabledForScreenProbeGather();
 
-			FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(LumenHWRTPipeline::ELightingMode::HitLighting);
-			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCache>(bUseRadianceCache);
-			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FEnableNearFieldTracing>(true);
-			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FEnableFarFieldTracing>(false);
-			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FWriteFinalLightingDim>(!bIsForceHitLighting || !bUseFarFieldForScreenProbeGather);
-			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingScreenProbeGatherIndirectDispatch());
-			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
-			TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
+		FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(LumenHWRTPipeline::ELightingMode::HitLighting);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCache>(bUseRadianceCache);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FEnableNearFieldTracing>(true);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FEnableFarFieldTracing>(false);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FWriteFinalLightingDim>(!bIsForceHitLighting || !bUseFarFieldForScreenProbeGather);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingScreenProbeGatherIndirectDispatch());
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
+		TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
 
-			OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
-		}
+		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 	}
 }
 

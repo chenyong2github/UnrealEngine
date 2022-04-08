@@ -245,7 +245,8 @@ bool LumenReflections::UseHitLightingForReflections(const FViewInfo& View)
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (Lumen::UseHardwareRayTracedReflections(*View.Family))
+	if (Lumen::UseHardwareRayTracedReflections(*View.Family)
+		&& LumenReflections::UseHitLightingForReflections(View))
 	{
 		for (int RadianceCacheDim = 0; RadianceCacheDim < FLumenReflectionHardwareRayTracingRGS::FRadianceCache::PermutationCount; ++RadianceCacheDim)
 		{
