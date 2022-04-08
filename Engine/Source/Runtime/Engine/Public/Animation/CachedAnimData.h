@@ -66,12 +66,14 @@ struct ENGINE_API FCachedAnimStateArray
 	FCachedAnimStateArray()
 		: bCheckedValidity(false)
 		, bCachedIsValid(true)
+		, bHasMultipleStateMachineEntries(false)
 	{}
 
 	/** Array of states */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "State Machine")
 	TArray<FCachedAnimStateData> States;
 
+	/** Returns the total local weight of all states. If the definition contains more than on state machine, the result can be larger than 1 */
 	float GetTotalWeight(UAnimInstance& InAnimInstance) const;
 	bool IsFullWeight(UAnimInstance& InAnimInstance) const;
 	bool IsRelevant(UAnimInstance& InAnimInstance) const;
@@ -80,6 +82,7 @@ private:
 	bool IsValid(UAnimInstance& InAnimInstance) const;
 	mutable bool bCheckedValidity;
 	mutable bool bCachedIsValid;
+	mutable bool bHasMultipleStateMachineEntries;
 };
 
 USTRUCT(BlueprintType)
