@@ -375,7 +375,7 @@ void UVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 
 uint32 UVolumeTexture::GetMaximumDimension() const
 {
-	return GetMax2DTextureDimension();
+	return GMaxVolumeTextureDimensions;
 }
 
 #endif // #if WITH_EDITOR

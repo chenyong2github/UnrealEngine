@@ -410,6 +410,9 @@ public:
 		delete Singleton;
 		Singleton = NULL;
 	}
+	
+	virtual bool CanCallGetTextureFormats() override { return false; }
+
 	virtual ITextureFormat* GetTextureFormat()
 	{
 		if (!Singleton)

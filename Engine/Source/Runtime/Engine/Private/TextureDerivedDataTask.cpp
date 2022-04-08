@@ -499,6 +499,11 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 
 			// Build the derived data.
 			const int32 MipCount = CompressedMips.Num();
+			
+			// VT can be bigger than (1<<(MAX_TEXTURE_MIP_COUNT-1)) , but doesn't actually make all those mips
+			// bForVirtualTextureStreamingBuild is false in this branch
+			check( MipCount <= MAX_TEXTURE_MIP_COUNT );
+
 			for (int32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
 			{
 				const FCompressedImage2D& CompressedImage = CompressedMips[MipIndex];
@@ -509,10 +514,25 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 				NewMip->SizeZ = CompressedImage.SizeZ;
 				NewMip->FileRegionType = FFileRegion::SelectType(EPixelFormat(CompressedImage.PixelFormat));
 				check(NewMip->SizeZ == 1 || InBuildSettingsPerLayer[0].bVolume || InBuildSettingsPerLayer[0].bTextureArray); // Only volume & arrays can have SizeZ != 1
-				NewMip->BulkData.Lock(LOCK_READ_WRITE);
+				
 				check(CompressedImage.RawData.GetTypeSize() == 1);
-				void* NewMipData = NewMip->BulkData.Realloc(CompressedImage.RawData.Num());
-				FMemory::Memcpy(NewMipData, CompressedImage.RawData.GetData(), CompressedImage.RawData.Num());
+				int64 CompressedDataSize = CompressedImage.RawData.Num();
+
+				// check CompressedDataSize against int32_max , except if VT
+				// bForVirtualTextureStreamingBuild is false in this branch
+				check( CompressedDataSize < MAX_int32 );
+
+				// CompressedImage sizes were padded up to multiple of 4 for d3d, no longer
+				UE_LOG(LogTextureUpload,Verbose,TEXT("Compressed Mip %d PF=%d : %dx%dx%d : %d ; up4 %dx%d=%d"),
+					MipIndex,(int)CompressedImage.PixelFormat,
+					CompressedImage.SizeX,CompressedImage.SizeY,CompressedImage.SizeZ,(int)CompressedDataSize,
+					(CompressedImage.SizeX+3)&(~3),
+					(CompressedImage.SizeY+3)&(~3),
+					((CompressedImage.SizeX+3)&(~3))*((CompressedImage.SizeY+3)&(~3)));
+
+				NewMip->BulkData.Lock(LOCK_READ_WRITE);
+				void* NewMipData = NewMip->BulkData.Realloc(CompressedDataSize);
+				FMemory::Memcpy(NewMipData, CompressedImage.RawData.GetData(), CompressedDataSize);
 				NewMip->BulkData.Unlock();
 
 				if (MipIndex == 0)
@@ -520,6 +540,8 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 					DerivedData->SizeX = CompressedImage.SizeX;
 					DerivedData->SizeY = CompressedImage.SizeY;
 					DerivedData->PixelFormat = (EPixelFormat)CompressedImage.PixelFormat;
+
+					// @@!! verify NumSlices
 					if (InBuildSettingsPerLayer[0].bVolume || InBuildSettingsPerLayer[0].bTextureArray)
 					{
 						DerivedData->SetNumSlices(CompressedImage.SizeZ);
@@ -548,6 +570,13 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 			// to build the texture, which should only ever be once.
 			this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, TexturePathName, InBuildSettingsPerLayer[0].bCubemap || (InBuildSettingsPerLayer[0].bVolume && !GSupportsVolumeTextureStreaming) || (InBuildSettingsPerLayer[0].bTextureArray && !GSupportsTexture2DArrayStreaming), bReplaceExistingDDC);
 		}
+		else
+		{
+			// BuildTexture failed
+			// will log below
+			check( DerivedData->Mips.Num() == 0 );
+			DerivedData->Mips.Empty();
+		}
 
 		if (DerivedData->Mips.Num())
 		{
@@ -560,7 +589,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 		}
 		else
 		{
-			UE_LOG(LogTexture, Warning, TEXT("Failed to build %s derived data for %s"), *InBuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *TexturePathName);
+			UE_LOG(LogTexture, Warning, TEXT("BuildTexture failed to build %s derived data for %s"), *InBuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *TexturePathName);
 		}
 	}
 }

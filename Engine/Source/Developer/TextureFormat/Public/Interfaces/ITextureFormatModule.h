@@ -22,6 +22,12 @@ public:
 	 */
 	virtual ITextureFormat* GetTextureFormat() = 0;
 
+	/**
+	* Will this TextureFormat call back to Managermodule GetTextureFormats ?
+	* 
+	*/
+	virtual bool CanCallGetTextureFormats() = 0;
+
 public:
 
 	/** Virtual destructor. */

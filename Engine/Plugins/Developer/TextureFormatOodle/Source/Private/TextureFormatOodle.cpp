@@ -1299,12 +1299,19 @@ public:
 		OO_SINTa OutBytesTotal = OutBytesPerSlice * Image.NumSlices;
 
 		OutImage.PixelFormat = CompressedPixelFormat;
-		OutImage.SizeX = NumBlocksX*4;
-		OutImage.SizeY = NumBlocksY*4;
+		// old behavior :
+		//OutImage.SizeX = NumBlocksX*4;
+		//OutImage.SizeY = NumBlocksY*4;
+		OutImage.SizeX = Image.SizeX;
+		OutImage.SizeY = Image.SizeY;
 		// note: cubes come in as 6 slices and go out as 1
 		OutImage.SizeZ = (InBuildSettings.bVolume || InBuildSettings.bTextureArray) ? Image.NumSlices : 1;
 		OutImage.RawData.AddUninitialized(OutBytesTotal);
 
+		UE_LOG(LogTextureFormatOodle, Verbose, TEXT("TFO out size=%dx%d stride=%d total=%d"),
+			OutImage.SizeX,OutImage.SizeY,
+			NumBlocksX * BytesPerBlock,
+			OutBytesTotal);
 
 		uint8 * OutBlocksBasePtr = (uint8 *) &OutImage.RawData[0];
 
@@ -1561,6 +1568,8 @@ public:
 	virtual void StartupModule() override
 	{
 	}
+
+	virtual bool CanCallGetTextureFormats() override { return false; }
 
 	virtual ITextureFormat* GetTextureFormat()
 	{

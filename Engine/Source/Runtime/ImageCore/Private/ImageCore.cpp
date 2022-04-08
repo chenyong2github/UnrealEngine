@@ -8,20 +8,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogImageCore, Log, All);
 
-static constexpr float MAX_HALF_FLOAT16 = 65504.0f;
-
-FORCEINLINE static FLinearColor SaturateToHalfFloat(const FLinearColor& LinearCol)
-{
-	// @@!! vector min+max
-	// @@!! why do we need this at all?
-	FLinearColor Result;
-	Result.R = FMath::Clamp(LinearCol.R, -MAX_HALF_FLOAT16, MAX_HALF_FLOAT16);
-	Result.G = FMath::Clamp(LinearCol.G, -MAX_HALF_FLOAT16, MAX_HALF_FLOAT16);
-	Result.B = FMath::Clamp(LinearCol.B, -MAX_HALF_FLOAT16, MAX_HALF_FLOAT16);
-	Result.A = LinearCol.A;
-	return Result;
-}
-
 IMPLEMENT_MODULE(FDefaultModuleImpl, ImageCore);
 
 
@@ -194,6 +180,17 @@ static uint8 Requantize16to8(const uint16 In)
 	return (uint8)Ret;
 }
 
+static const TCHAR * GammaSpaceGetName(EGammaSpace GammaSpace)
+{
+	switch(GammaSpace)
+	{
+	case EGammaSpace::Linear: return TEXT("Linear");
+	case EGammaSpace::Pow22: return TEXT("Pow22");
+	case EGammaSpace::sRGB: return TEXT("sRGB");
+	default: return TEXT("Invalid");
+	}
+}
+
 /**
  * Copies an image accounting for format differences. Sizes must match.
  *
@@ -205,28 +202,43 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.CopyImage);
 
 	check(SrcImage.GetNumPixels() == DestImage.GetNumPixels());
-
-	const bool bDestIsGammaCorrected = DestImage.IsGammaCorrected();
-	const int64 NumTexels = SrcImage.GetNumPixels();
-	int64 TexelsPerJob;
-	int32 NumJobs = ImageParallelForComputeNumJobsForPixels(TexelsPerJob,NumTexels);
-
+	
+	// short cut fast path identical pixels before we do anything else
 	if (SrcImage.Format == DestImage.Format &&
 		SrcImage.GammaSpace == DestImage.GammaSpace)
 	{
 		int64 Bytes = SrcImage.GetImageSizeBytes();
 		check( DestImage.GetImageSizeBytes() == Bytes );
 		memcpy(DestImage.RawData,SrcImage.RawData,Bytes);
+
+		return;
 	}
-	else if (SrcImage.Format == ERawImageFormat::RGBA32F)
+
+	UE_LOG(LogImageCore,Verbose,TEXT("CopyImage: %s %s -> %s %s %dx%d"),
+		ERawImageFormat::GetName(SrcImage.Format),
+		GammaSpaceGetName(SrcImage.GammaSpace),
+		ERawImageFormat::GetName(DestImage.Format),
+		GammaSpaceGetName(DestImage.GammaSpace),
+		SrcImage.SizeX,SrcImage.SizeY);
+
+	// bDestIsGammaCorrected for Dest (Pow22 and sRGB) will encode to sRGB
+	const bool bDestIsGammaCorrected = DestImage.IsGammaCorrected();
+	const int64 NumTexels = SrcImage.GetNumPixels();
+	int64 TexelsPerJob;
+	int32 NumJobs = ImageParallelForComputeNumJobsForPixels(TexelsPerJob,NumTexels);
+
+	if (SrcImage.Format == ERawImageFormat::RGBA32F)
 	{
 		// Convert from 32-bit linear floating point.
 		const FLinearColor* SrcColors = (const FLinearColor*) SrcImage.RawData;
-	
+			
 		// if gamma correction is done, it's always *TO* sRGB , not to Pow22
-		//@@!!
-		// check( DestImage.GammaSpace != EGammaSpace::Pow22 );
-
+		// bDestIsGammaCorrected always outputs sRGB
+		if ( DestImage.GammaSpace == EGammaSpace::Pow22 )
+		{
+			UE_LOG(LogImageCore, Warning, TEXT("Pow22 should not be used as a Dest GammaSpace.  Pow22 Source should encode to sRGB Dest."));
+		}
+		
 		switch (DestImage.Format)
 		{
 		case ERawImageFormat::G8:
@@ -643,6 +655,18 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 		FImageCore::CopyImage(SrcImage, TempImage);
 		FImageCore::CopyImage(TempImage, DestImage);
 	}
+}
+
+FORCEINLINE static FLinearColor SaturateToHalfFloat(const FLinearColor& LinearCol)
+{
+	static constexpr float MAX_HALF_FLOAT16 = 65504.0f;
+
+	FLinearColor Result;
+	Result.R = FMath::Clamp(LinearCol.R, -MAX_HALF_FLOAT16, MAX_HALF_FLOAT16);
+	Result.G = FMath::Clamp(LinearCol.G, -MAX_HALF_FLOAT16, MAX_HALF_FLOAT16);
+	Result.B = FMath::Clamp(LinearCol.B, -MAX_HALF_FLOAT16, MAX_HALF_FLOAT16);
+	Result.A = LinearCol.A;
+	return Result;
 }
 
 void FImage::TransformToWorkingColorSpace(const FVector2d& SourceRedChromaticity, const FVector2d& SourceGreenChromaticity, const FVector2d& SourceBlueChromaticity, const FVector2d& SourceWhiteChromaticity, UE::Color::EChromaticAdaptationMethod Method, double EqualityTolerance)

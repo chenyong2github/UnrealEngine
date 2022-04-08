@@ -23,6 +23,7 @@
 #include "DerivedDataSharedString.h"
 #include "HAL/IConsoleManager.h"
 
+// when GASTCCompressor == 0 ,use TextureFormatIntelISPCTexComp instead
 int32 GASTCCompressor = 0;
 static FAutoConsoleVariableRef CVarASTCCompressor(
 	TEXT("cook.ASTCTextureCompressor"),
@@ -112,6 +113,8 @@ class FASTCTextureBuildFunction final : public FTextureBuildFunction
 	#pragma pack(pop)
 #endif
 
+
+// @@!! this is a global !?
 IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 
 
@@ -228,13 +231,15 @@ static bool CompressSliceToASTC(
 	int32 SizeY,
 	FString CompressionParameters,
 	TArray64<uint8>& OutCompressedData,
-	int32 BitsPerChannel,
+	int32 BitsPerChannel, // @@!! actually BytesPerPixel
 	ERGBFormat Format
 )
 {
 	bool bHDR = Format == ERGBFormat::RGBAF;
 	// Compress and retrieve the PNG data to write out to disk
 	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(bHDR ? EImageFormat::EXR : EImageFormat::PNG);
+	// "BitsPerChannel" is actually "BytesPerPixel"
+	// it's either 4 for BGRA8 and 8 for RGBA16f
 	ImageWrapper->SetRaw(SourceData, SizeX * SizeY * BitsPerChannel, SizeX, SizeY, Format, BitsPerChannel * 2);
 	const TArray64<uint8> FileData = ImageWrapper->GetCompressed();
 	int64 FileDataSize = FileData.Num();
@@ -251,6 +256,7 @@ static bool CompressSliceToASTC(
 	while (!PNGFile)
 	{
 		PNGFile = IFileManager::Get().CreateFileWriter(*InputFilePath);   // Occasionally returns NULL due to error code ERROR_SHARING_VIOLATION
+		// @@!! don't sleep if not null !
 		FPlatformProcess::Sleep(0.01f);                             // ... no choice but to wait for the file to become free to access
 	}
 	PNGFile->Serialize((void*)&FileData[0], FileDataSize);
@@ -287,6 +293,7 @@ static bool CompressSliceToASTC(
 	}
 
 	// Wait for the process to complete
+	// @@!! WaitForProc instead!
 	int ReturnCode;
 	while (!FPlatformProcess::GetProcReturnCode(Proc, &ReturnCode))
 	{
@@ -502,9 +509,10 @@ public:
 		}
 
 		// Compress the image, slice by slice
+		// @@!! use FImage.GetSlice()
 		bool bCompressionSucceeded = true;
 		int32 SliceSizeInTexels = Image.SizeX * Image.SizeY;
-		for (int32 SliceIndex = 0; SliceIndex < Image.NumSlices && bCompressionSucceeded; ++SliceIndex)
+		for (int32 SliceIndex = 0; SliceIndex < Image.NumSlices; ++SliceIndex)
 		{
 			TArray64<uint8> CompressedSliceData;
 			if (bHDRImage)
@@ -530,6 +538,10 @@ public:
 					4,
 					ERGBFormat::RGBA
 				);
+			}
+			if ( ! bCompressionSucceeded )
+			{
+				return false;
 			}
 			OutCompressedImage.RawData.Append(CompressedSliceData);
 		}
@@ -564,6 +576,13 @@ public:
 		delete Singleton;
 		Singleton = NULL;
 	}
+	
+	virtual void StartupModule() override
+	{
+	}
+
+	virtual bool CanCallGetTextureFormats() override { return false; }
+
 	virtual ITextureFormat* GetTextureFormat()
 	{
 		if (!Singleton)

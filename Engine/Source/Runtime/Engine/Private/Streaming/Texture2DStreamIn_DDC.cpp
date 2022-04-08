@@ -8,6 +8,7 @@ Texture2DStreamIn_DDC.cpp: Stream in helper for 2D textures loading DDC files.
 #include "Streaming/TextureStreamingHelpers.h"
 #include "RenderUtils.h"
 #include "Serialization/MemoryReader.h"
+#include "Rendering/Texture2DResource.h"
 
 #if WITH_EDITORONLY_DATA
 
@@ -236,7 +237,7 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 			for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
 			{
 				const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
-				check(MipData[MipIndex]);
+				check(MipData[MipIndex].Data != nullptr);
 
 				if (MipMap.IsPagedToDerivedData())
 				{
@@ -260,9 +261,20 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 						const SIZE_T ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
 						FMemoryReaderView Ar(MakeMemoryView(DerivedMipData), true);
 
+						UE_LOG(LogTextureUpload,Verbose,TEXT("FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC Size: %dx%d , ExpectedMipSize=%d DerivedMipData=%d"),
+							MipMap.SizeX,MipMap.SizeY,
+							ExpectedMipSize,(int)DerivedMipData.Num());
+
+						// Serializes directly into MipData so it must be tight packed pitch :
+						uint32 DestPitch = MipData[MipIndex].Pitch;
+						FTexture2DResource::WarnRequiresTightPackedMip(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), DestPitch);
+
 						if (DerivedMipData.Num() == ExpectedMipSize)
 						{
-							Ar.Serialize(MipData[MipIndex], DerivedMipData.Num());
+							// Pitch ignored
+							// to copy and respect Pitch, use CopyTextureData2D
+							// MipData[] should have size but doesn't
+							Ar.Serialize(MipData[MipIndex].Data, DerivedMipData.Num());
 						}
 						else
 						{
@@ -294,7 +306,7 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 			for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
 			{
 				const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
-				check(MipData[MipIndex]);
+				check(MipData[MipIndex].Data != nullptr);
 
 				if (MipMap.IsPagedToDerivedData())
 				{
@@ -330,9 +342,21 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 					if (MipResult)
 					{
 						const SIZE_T ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
+						
+						UE_LOG(LogTextureUpload,Verbose,TEXT("FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC Size: %dx%d , ExpectedMipSize=%d MipResult=%d"),
+							MipMap.SizeX,MipMap.SizeY,
+							ExpectedMipSize,(int)MipResult.GetSize());
+						
+						// uses Memcpy instead of CopyTextureData2D, so Pitch must be tight packed
+						uint32 DestPitch = MipData[MipIndex].Pitch;
+						FTexture2DResource::WarnRequiresTightPackedMip(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), DestPitch);
+
 						if (MipResult.GetSize() == ExpectedMipSize)
 						{
-							FMemory::Memcpy(MipData[MipIndex], MipResult.GetData(), MipResult.GetSize());
+							// Pitch ignored
+							// to memcpy and respect Pitch, use CopyTextureData2D
+							// check MipData[] Size & Pitch
+							FMemory::Memcpy(MipData[MipIndex].Data, MipResult.GetData(), MipResult.GetSize());
 						}
 						else
 						{

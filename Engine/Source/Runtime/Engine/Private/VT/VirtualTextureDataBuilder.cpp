@@ -1151,6 +1151,8 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 	// Extract fallback color from last mip.
 	for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 	{
+		// this actually just samples one pixel ; it comes from last mip so it's often small already
+		// @todo Oodle : just use a "get average color" function
 		FImage OnePixelImage(1, 1, 1, ERawImageFormat::RGBA32F);
 		SourceBlocks.Last().MipsPerLayer[LayerIndex].Last().ResizeTo(OnePixelImage, 1, 1, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
 		OutData.LayerFallbackColors[LayerIndex] = OnePixelImage.AsRGBA32F()[0];

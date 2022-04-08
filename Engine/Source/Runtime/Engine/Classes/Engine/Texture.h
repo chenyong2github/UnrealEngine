@@ -130,6 +130,8 @@ struct FTextureSource
 	ENGINE_API FTextureSource();
 
 	ENGINE_API static int32 GetBytesPerPixel(ETextureSourceFormat Format);
+	// @@!! TSF_R16F missing
+	//	prefer ERawImageFormat::IsHDR
 	FORCEINLINE static bool IsHDR(ETextureSourceFormat Format) { return (Format == TSF_BGRE8 || Format == TSF_RGBA16F || Format == TSF_RGBA32F); }
 	
 	enum class ELockState : uint8
@@ -606,7 +608,8 @@ private:
 	void RemoveSourceData();
 	/** Retrieve the size and offset for a source mip. The size includes all slices. */
 	int64 CalcMipOffset(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
-
+	
+	int64 CalcTotalSize() const;
 	int64 CalcBlockSize(int32 BlockIndex) const;
 	int64 CalcLayerSize(int32 BlockIndex, int32 LayerIndex) const;
 	int64 CalcBlockSize(const FTextureSourceBlock& Block) const;
@@ -1314,7 +1317,7 @@ public:
 	/** Texture color management settings: source encoding and color space. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Texture, AdvancedDisplay)
 	FTextureSourceColorSettings SourceColorSettings;
-	
+
 	/* Store the FUE5MainStreamObjectVersion of the Texture uasset loaded for debugging (== LatestVersion if not loaded) */
 	int LoadedMainStreamObjectVersion;
 
@@ -1543,7 +1546,8 @@ public:
 	ENGINE_API void MarkPlatformDataTransient();
 
 	/**
-	* Return maximum dimension for this texture type.
+	* Return maximum dimension for this texture type (2d/cube/vol) in the current RHI
+	* use GetMaximumDimensionOfNonVT for platform-independent max dim
 	*/
 	ENGINE_API virtual uint32 GetMaximumDimension() const;
 
@@ -1558,7 +1562,7 @@ public:
 	ENGINE_API ETextureEncodeSpeed GetDesiredEncodeSpeed() const;
 		
 	/** Ensure settings are valid after import or edit; this is called by PostEditChange. */
-	ENGINE_API virtual void ValidateSettingsAfterImportOrEdit();
+	ENGINE_API virtual void ValidateSettingsAfterImportOrEdit(bool * pRequiresNotifyMaterials = nullptr);
 #endif // WITH_EDITOR
 
 	ENGINE_API EGammaSpace GetGammaSpace() const
@@ -1752,6 +1756,11 @@ public:
 	 */
 	ENGINE_API static class UEnum* GetPixelFormatEnum();
 
+	/** Get the largest allowed dimension of non-VT texture
+	* this is not for the current RHI (which may have a lower limit), this is for a Texture in general
+	*/
+	ENGINE_API static int32 GetMaximumDimensionOfNonVT();
+
 	/** Returns the minimum number of mips that must be resident in memory (cannot be streamed). */
 	static FORCEINLINE int32 GetStaticMinTextureResidentMipCount()
 	{
@@ -1833,3 +1842,4 @@ struct FTextureReferenceReplacer
 		}
 	}
 };
+ 

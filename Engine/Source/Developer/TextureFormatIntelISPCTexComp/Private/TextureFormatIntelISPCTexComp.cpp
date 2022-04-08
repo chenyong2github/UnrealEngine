@@ -329,14 +329,15 @@ static void IntelBC6HCompressScans(bc6h_enc_settings* pEncSettings, FImage* pInI
 {
 	check(pInImage->Format == ERawImageFormat::RGBA16F);
 	check((yStart % 4) == 0);
+	// sizes are padded to multiple of 4 for ISPC by PadImageToBlockSize :
 	check((pInImage->SizeX % 4) == 0);
 	check((yStart >= 0) && (yStart <= pInImage->SizeY));
 	check((yEnd   >= 0) && (yEnd   <= pInImage->SizeY));
 
 	const int64 InStride = (int64)pInImage->SizeX * 8;
-	const int64 OutStride = (int64)pInImage->SizeX / 4 * BLOCK_SIZE_IN_BYTES;
+	const int64 OutStride = (int64)((pInImage->SizeX + 3) / 4) * BLOCK_SIZE_IN_BYTES;
 	const int64 InSliceSize = (int64)pInImage->SizeY * InStride;
-	const int64 OutSliceSize = (int64)pInImage->SizeY / 4 * OutStride;
+	const int64 OutSliceSize = (int64)((pInImage->SizeY +3) / 4) * OutStride;
 
 	uint8* pInTexels = reinterpret_cast<uint8*>(&pInImage->RawData[0]) + InSliceSize * SliceIndex;
 	uint8* pOutTexels = reinterpret_cast<uint8*>(&pOutImage->RawData[0]) + OutSliceSize * SliceIndex;
@@ -358,14 +359,15 @@ static void IntelBC7CompressScans(bc7_enc_settings* pEncSettings, FImage* pInIma
 {
 	check(pInImage->Format == ERawImageFormat::BGRA8);
 	check((yStart % 4) == 0);
+	// sizes are padded to multiple of 4 for ISPC by PadImageToBlockSize :
 	check((pInImage->SizeX % 4) == 0);
 	check((yStart >= 0) && (yStart <= pInImage->SizeY));
 	check((yEnd   >= 0) && (yEnd   <= pInImage->SizeY));
 
 	const int64 InStride = (int64)pInImage->SizeX * 4;
-	const int64 OutStride = (int64)pInImage->SizeX / 4 * BLOCK_SIZE_IN_BYTES;
+	const int64 OutStride = (int64)((pInImage->SizeX + 3) / 4) * BLOCK_SIZE_IN_BYTES;
 	const int64 InSliceSize = (int64)pInImage->SizeY * InStride;
-	const int64 OutSliceSize = (int64)pInImage->SizeY / 4 * OutStride;
+	const int64 OutSliceSize = (int64)((pInImage->SizeY + 3) / 4) * OutStride;
 
 	uint8* pInTexels = reinterpret_cast<uint8*>(&pInImage->RawData[0]) + InSliceSize * SliceIndex;
 	uint8* pOutTexels = reinterpret_cast<uint8*>(&pOutImage->RawData[0]) + OutSliceSize * SliceIndex;
@@ -450,14 +452,16 @@ static void IntelASTCCompressScans(FASTCEncoderSettings* pEncSettings, FImage* p
 {
 	check(pInImage->Format == ERawImageFormat::BGRA8);
 	check((yStart % pEncSettings->block_height) == 0);
+	
+	// sizes are padded for ISPC by PadImageToBlockSize :
 	check((pInImage->SizeX % pEncSettings->block_width) == 0);
 	check((yStart >= 0) && (yStart <= pInImage->SizeY));
 	check((yEnd   >= 0) && (yEnd   <= pInImage->SizeY));
 
 	const int64 InStride = (int64)pInImage->SizeX * 4;
-	const int64 OutStride = (int64)pInImage->SizeX / pEncSettings->block_width * BLOCK_SIZE_IN_BYTES;
+	const int64 OutStride = (int64)FMath::DivideAndRoundUp( pInImage->SizeX , pEncSettings->block_width) * BLOCK_SIZE_IN_BYTES;
 	const int64 InSliceSize = (int64)pInImage->SizeY * InStride;
-	const int64 OutSliceSize = (int64)pInImage->SizeY / pEncSettings->block_height * OutStride;
+	const int64 OutSliceSize = (int64)FMath::DivideAndRoundUp( pInImage->SizeY , pEncSettings->block_height) * OutStride;
 
 	uint8* pInTexels = reinterpret_cast<uint8*>(&pInImage->RawData[0]) + InSliceSize * SliceIndex;
 	uint8* pOutTexels = reinterpret_cast<uint8*>(&pOutImage->RawData[0]) + OutSliceSize * SliceIndex;
@@ -544,7 +548,8 @@ static void IntelASTCCompressScans(FASTCEncoderSettings* pEncSettings, FImage* p
 	insurface.width		= pInImage->SizeX;
 	insurface.height	= yEnd - yStart;
 	insurface.stride	= pInImage->SizeX * 4;
-
+	
+	check((yStart % pEncSettings->block_height) == 0);
 	pOutTexels += yStart / pEncSettings->block_height * OutStride;
 	CompressBlocksASTC(&insurface, pOutTexels, pEncSettings);
 }
@@ -609,9 +614,10 @@ public:
 		const int WidthInBlocks = AlignedSizeX / BlockWidth;
 		const int HeightInBlocks = AlignedSizeY / BlockHeight;
 		const int64 SizePerSlice = (int64)WidthInBlocks * HeightInBlocks * BLOCK_SIZE_IN_BYTES;
+		// ISPC pads sizes, but OutCompressedImage gets the unpadded sizes :
 		OutCompressedImage.RawData.AddUninitialized(SizePerSlice * InImage.NumSlices);
-		OutCompressedImage.SizeX = FMath::Max(AlignedSizeX, BlockWidth);
-		OutCompressedImage.SizeY = FMath::Max(AlignedSizeY, BlockHeight);
+		OutCompressedImage.SizeX = InImage.SizeX;
+		OutCompressedImage.SizeY = InImage.SizeY;
 
 		// When we allow async tasks to execute we do so with BlockHeight lines of the image per task
 		// This isn't optimal for long thin textures, but works well with how ISPC works
@@ -632,6 +638,8 @@ public:
 		{
 			return;
 		}
+		
+		// ISPCtexcomp crashes on images not of block-aligned size
 
 		// Allocate temp buffer
 		//@TODO: Optimize away this temp buffer (could avoid last FMemory::Memcpy)
@@ -917,11 +925,15 @@ public:
 			mDllHandle = nullptr;
 		}
 	}
+	
+	virtual bool CanCallGetTextureFormats() override { return false; }
 
 	virtual ITextureFormat* GetTextureFormat()
 	{
 		if (!Singleton)
 		{
+			// @@!! todo: move this to first use, not at startup
+
 			FString DLLPath;
 #if PLATFORM_WINDOWS
 	#if PLATFORM_64BITS

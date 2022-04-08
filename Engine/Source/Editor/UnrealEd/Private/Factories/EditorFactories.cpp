@@ -2747,6 +2747,7 @@ void UTextureFactory::PostInitProperties()
 {
 	Super::PostInitProperties();
 	MipGenSettings = TextureMipGenSettings(0);
+	check( MipGenSettings == TMGS_FromTextureGroup );
 	bool bFlipNormalMapGreenChannelSetting = false;
 	GConfig->GetBool(TEXT("/Script/UnrealEd.EditorEngine"), TEXT("FlipNormalMapGreenChannel"), bFlipNormalMapGreenChannelSetting, GEngineIni);
 	bFlipNormalMapGreenChannel = bFlipNormalMapGreenChannelSetting;
@@ -2836,7 +2837,7 @@ public:
 	{
 		// only wipe out colors that are affected by png turning valid colors white if alpha = 0
 		const uint32 WhiteWithZeroAlpha = FColor(255, 255, 255, 0).DWColor();
-		//@@!! this is wrong for 16 bit channels ;ColorDataType is uint64 but we compare to a uin
+		//@@!! this is wrong for 16 bit channels ;ColorDataType is uint64 but we compare to a uint32
 
 		// Left -> Right
 		int64 NumLeftmostZerosToProcess = 0;
@@ -2935,8 +2936,7 @@ void FillZeroAlphaPNGData( int32 SizeX, int32 SizeY, ETextureSourceFormat Source
 
 		case TSF_RGBA16:
 		{
-			// @@!!
-			// this is broken so just disable for now
+			// @@!! this is broken so just disable for now
 			//PNGDataFill<uint16, uint64, 0, 1, 2, 3> PNGFill(SizeX, SizeY, SourceData );
 			//PNGFill.ProcessData();
 			break;
@@ -4036,6 +4036,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 	FVector4							ExistingAlphaCoverageThresholds = FVector4(0, 0, 0, 0);
 	bool								ExistingbUseNewMipFilter = false;
 	TextureMipGenSettings				ExistingMipGenSettings = TextureMipGenSettings(0);
+	check( ExistingMipGenSettings == TMGS_FromTextureGroup );
 	bool								ExistingVirtualTextureStreaming = false;
 
 	if (bForceOverwriteExistingSettings)
@@ -4197,9 +4198,11 @@ UObject* UTextureFactory::FactoryCreateBinary
 	// Start with the value that the loader suggests.
 	CompressionSettings = Texture->CompressionSettings;
 
-	// Figure out whether we're using a normal map LOD group.
 	// @@!! LODGroup is a member var on TextureFactory not pulled from Texture->LODGroup ?
+	//	notice above that CompressionSettings is primed from Texture->CompressionSettings
+	//	but LODGroup is not pulled from Texture->LODGroup
 
+	// Figure out whether we're using a normal map LOD group.
 	bool bIsNormalMapLODGroup = false;
 	if( LODGroup == TEXTUREGROUP_WorldNormalMap 
 	||	LODGroup == TEXTUREGROUP_CharacterNormalMap
@@ -4213,9 +4216,6 @@ UObject* UTextureFactory::FactoryCreateBinary
 		}
 		bIsNormalMapLODGroup = true;
 	}
-
-	// Propagate options.
-	Texture->CompressionSettings	= CompressionSettings;
 
 	// Packed normal map
 	if( Texture->IsNormalMap() )
@@ -4231,7 +4231,9 @@ UObject* UTextureFactory::FactoryCreateBinary
 	{
 		LODGroup = TEXTUREGROUP_IESLightProfile;
 	}
-
+	
+	// Propagate options.
+	Texture->CompressionSettings	= CompressionSettings;
 	Texture->LODGroup				= LODGroup;
 
 	// Revert the LODGroup to the default if it was forcibly set by the texture being a normal map.
@@ -4257,36 +4259,88 @@ UObject* UTextureFactory::FactoryCreateBinary
 	
 	Texture->bPreserveBorder		= bPreserveBorder;
 
-	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
-
-	if (Texture2D)
+	if ( ! Texture->Source.IsPowerOfTwo() )
 	{
-		// If the texture is larger than a certain threshold make it VT.
-		// Note that previously for re-imports we still checked size and potentially changed the VT status.
-		// But that was unintuitive for many users so now for re-imports we will end up ignoring this and respecting the existing setting below.
-		static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
-		check(CVarVirtualTexturesEnabled);
-		static const auto CVarVirtualTexturesAutoImportEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VT.EnableAutoImport"));
-		check(CVarVirtualTexturesAutoImportEnabled);
+		// try to set some better default options for non-pow2 textures
 
-		if (CVarVirtualTexturesEnabled->GetValueOnAnyThread() && CVarVirtualTexturesAutoImportEnabled->GetValueOnAnyThread())
+		// if Texture is not pow2 , change to TMGS_NoMipMaps (if it was default)
+		//   this used to be done by Texture2d.cpp ; it is now optional
+		//	 you can set it back to having mips if you want
+		if ( Texture->MipGenSettings == TMGS_FromTextureGroup )
 		{
-			const int32 VirtualTextureAutoEnableThreshold = GetDefault<UTextureImportSettings>()->AutoVTSize;
-			const int32 VirtualTextureAutoEnableThresholdPixels = VirtualTextureAutoEnableThreshold * VirtualTextureAutoEnableThreshold;
-
-			// We do this in pixels so a 8192 x 128 texture won't get VT enabled 
-			// We use the Source size instead of simple Texture2D->GetSizeX() as this uses the size of the platform data
-			// however for a new texture platform data may not be generated yet, and for an reimport of a texture this is the size of the
-			// old texture. 
-			// Using source size gives one small caveat. It looks at the size before mipmap power of two padding adjustment.
-			// Textures with more than 1 block (UDIM textures) must be imported as VT
-			if (Texture->Source.GetNumBlocks() > 1 ||
-				Texture2D->Source.GetSizeX() * Texture2D->Source.GetSizeY() >= VirtualTextureAutoEnableThresholdPixels)
+			Texture->MipGenSettings = TMGS_NoMipmaps;		
+		}
+		
+		// if Texture is not multiple of 4, change TC to EditorIcon ("UserInterface2D")
+		//	if you do not do this, you might see "Texture forced to uncompressed because size is not a multiple of 4"
+		//  this needs to match the logic in Texture.cpp : GetDefaultTextureFormatName
+		int32 SizeX = Texture->Source.GetSizeX();
+		int32 SizeY = Texture->Source.GetSizeY();
+		if ( (SizeX&3) != 0 || (SizeY&3) != 0 )
+		{
+			if ( Texture->CompressionSettings == TC_Default ) // AutoDXT/BC1
 			{
-				Texture2D->VirtualTextureStreaming = true;
+				Texture->CompressionSettings = TC_EditorIcon; // "UserInterface2D"
 			}
 		}
 	}
+			
+	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
+	check(CVarVirtualTexturesEnabled);
+	
+	// If the texture is larger than a certain threshold make it VT.
+	// Note that previously for re-imports we still checked size and potentially changed the VT status.
+	// But that was unintuitive for many users so now for re-imports we will end up ignoring this and respecting the existing setting below.
+
+	static const auto CVarVirtualTexturesAutoImportEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VT.EnableAutoImport"));
+	check(CVarVirtualTexturesAutoImportEnabled);
+
+	if (CVarVirtualTexturesEnabled->GetValueOnAnyThread() && CVarVirtualTexturesAutoImportEnabled->GetValueOnAnyThread())
+	{
+		const int64 VirtualTextureAutoEnableThreshold = GetDefault<UTextureImportSettings>()->AutoVTSize;
+		const int64 VirtualTextureAutoEnableThresholdPixels = VirtualTextureAutoEnableThreshold * VirtualTextureAutoEnableThreshold;
+
+		// We do this in pixels so a 8192 x 128 texture won't get VT enabled 
+		// We use the Source size instead of simple Texture2D->GetSizeX() as this uses the size of the platform data
+		// however for a new texture platform data may not be generated yet, and for an reimport of a texture this is the size of the
+		// old texture. 
+		// Using source size gives one small caveat. It looks at the size before mipmap power of two padding adjustment.
+		// Textures with more than 1 block (UDIM textures) must be imported as VT
+		if (Texture->Source.GetNumBlocks() > 1 ||
+			( (int64) Texture->Source.GetSizeX() * Texture->Source.GetSizeY() ) >= VirtualTextureAutoEnableThresholdPixels ||
+			Texture->Source.GetSizeX() > UTexture::GetMaximumDimensionOfNonVT() ||
+			Texture->Source.GetSizeY() > UTexture::GetMaximumDimensionOfNonVT() )
+		{
+			// only UTexture2D can be VT
+			if ( Texture->GetTextureClass() == ETextureClass::TwoD )
+			{
+				Texture->VirtualTextureStreaming = true;
+			}
+			else
+			{
+				UE_LOG(LogEditorFactories, Warning, TEXT("Texture is too large for non-VT (%d x %d) but is not a UTexture2D."),
+					Texture->Source.GetSizeX() , Texture->Source.GetSizeY());
+			}
+		}
+	}
+
+	// if Texture is too large and should be VT but VT is not enabled, warn about that	
+	if ( ! CVarVirtualTexturesEnabled->GetValueOnAnyThread() )
+	{
+		int32 MaxDimension = FMath::Max( Texture->Source.GetSizeX() , Texture->Source.GetSizeY() );
+		bool bLargeTextureMustBeVT = MaxDimension > UTexture::GetMaximumDimensionOfNonVT();
+		if ( bLargeTextureMustBeVT )
+		{
+			UE_LOG(LogEditorFactories, Warning, TEXT("Texture is too large for non-VT (%d x %d) but VT is not enabled in this project."),
+				Texture->Source.GetSizeX() , Texture->Source.GetSizeY());
+		}
+		else if ( Texture->Source.GetNumBlocks() > 1 )
+		{
+			UE_LOG(LogEditorFactories, Warning, TEXT("Texture has blocks which requires VT but VT is not enabled in this project."));
+		}
+	}
+
+	UTexture2D * Texture2D = Cast<UTexture2D>(Texture);
 
 	// Restore user set options
 	if (ExistingTexture && bUsingExistingSettings)
@@ -4522,22 +4576,18 @@ bool UTextureFactory::IsImportResolutionValid(int64 Width, int64 Height, bool bA
 {
 	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
 
-	//const int64 MaximumSupportedVirtualTextureResolution = 16 * 1024;
+	// VT res is currently limited by pixel count fitting in int32
 	const int64 MaximumSupportedVirtualTextureResolution = 32768;
-
-	// Calculate the maximum supported resolution utilizing the global max texture mip count
-	// (Note, have to subtract 1 because 1x1 is a valid mip-size; this means a GMaxTextureMipCount of 4 means a max resolution of 8x8, not 2^4 = 16x16)
-	int64 MaximumSupportedResolution = CVarVirtualTexturesEnabled->GetValueOnAnyThread() ? MaximumSupportedVirtualTextureResolution : ((int64)1 << (GMaxTextureMipCount - 1));
-
-	// MaximumSupportedResolution is also limited by Oodle Texture maximum of 16k (OODLETEX_MAX_SURFACE_DIMENSION)
-	MaximumSupportedResolution = FMath::Min(MaximumSupportedResolution,(int64)16384);
 	
-	// MAX_TEXTURE_MIP_COUNT currently = 15 , so this is 16384
-	// VT can exceed the size limit from MAX_TEXTURE_MIP_COUNT
-	const int64 MaximumSizeFromMipCount = 1 << (MAX_TEXTURE_MIP_COUNT - 1);
-	MaximumSupportedResolution = FMath::Min(MaximumSupportedResolution,(int64)MaximumSizeFromMipCount);
-
+	// Get the non-VT size limit :
+	int64 MaximumSupportedResolutionNonVT = (int64)UTexture::GetMaximumDimensionOfNonVT();
 	
+	// limit on current rendering RHI : == GetMax2DTextureDimension()
+	const int64 CurrentRHIMaxResolution = int64(1)<<(GMaxTextureMipCount-1);
+
+	// MaximumSupportedResolutionNonVT is only a popup/warning , not a hard limit
+	MaximumSupportedResolutionNonVT = FMath::Min(MaximumSupportedResolutionNonVT,CurrentRHIMaxResolution);
+
 	// No zero-size textures :
 	if (Width == 0 || Height == 0 )
 	{
@@ -4573,27 +4623,34 @@ bool UTextureFactory::IsImportResolutionValid(int64 Width, int64 Height, bool bA
 
 		return false;
 	}
-
-	if ( Width > MaximumSupportedResolution || Height > MaximumSupportedResolution )
+	
+	if ( (Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
 	{
-		if ( (Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
-		{
-			Warn->Log(ELogVerbosity::Error, *FText::Format(
-				NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLarge", "Texture is too large to import. The current maximun is {0} pixels"),
-				FText::AsNumber(FMath::Square(MaximumSupportedVirtualTextureResolution))
-				).ToString());
+		Warn->Log(ELogVerbosity::Error, *FText::Format(
+			NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLarge", "Texture is too large to import. The current maximun is {0} pixels"),
+			FText::AsNumber(FMath::Square(MaximumSupportedVirtualTextureResolution))
+			).ToString());
 
-			return false;
-		}
+		return false;
+	}
+
+	if ( Width > MaximumSupportedResolutionNonVT || Height > MaximumSupportedResolutionNonVT )
+	{
 
 		// we're larger than MaximumSupportedResolution
 		// but not larger than MaximumSupportedVirtualTextureResolution
 		// so this texture can still work, but only as VT
 		// prompt about this :
 
+		// check if VT is allowed & show extra message if not :
+
+		check(CVarVirtualTexturesEnabled != nullptr );
+		const FText VTMessage = CVarVirtualTexturesEnabled->GetValueOnAnyThread() ? FText() :
+			NSLOCTEXT("UnrealEd","Warning_LargeTextureVTDisabled", "\nWarning: Virtual Textures are disabled in this project.");
+
 		if ( EAppReturnType::Yes != FMessageDialog::Open( EAppMsgType::YesNo, FText::Format(
-				NSLOCTEXT("UnrealEd", "Warning_LargeTextureImport", "Attempting to import {0} x {1} texture, proceed?\nLargest supported non-VT texture size: {2} x {3}"),
-				FText::AsNumber(Width), FText::AsNumber(Height), FText::AsNumber(MaximumSupportedResolution), FText::AsNumber(MaximumSupportedResolution)) ) )
+				NSLOCTEXT("UnrealEd", "Warning_LargeTextureImport", "Attempting to import {0} x {1} texture, proceed?\nLargest supported non-VT texture size: {2} x {3}{4}"),
+				FText::AsNumber(Width), FText::AsNumber(Height), FText::AsNumber(MaximumSupportedResolutionNonVT), FText::AsNumber(MaximumSupportedResolutionNonVT), VTMessage) ) )
 		{
 			return false;
 		}
@@ -6040,6 +6097,7 @@ void UReimportFbxStaticMeshFactory::SetReimportPaths( UObject* Obj, const TArray
 		Mesh->Modify();
 		UFbxStaticMeshImportData* ImportData = UFbxStaticMeshImportData::GetImportDataForStaticMesh(Mesh, ImportUI->StaticMeshImportData);
 
+		check( ImportData != nullptr );
 		ImportData->UpdateFilenameOnly(NewReimportPaths[0]);
 	}
 }
@@ -6093,6 +6151,8 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 	{
 		// An existing import data object was not found, make one here and show the options dialog
 		ImportData = UFbxStaticMeshImportData::GetImportDataForStaticMesh(Mesh, ImportUI->StaticMeshImportData);
+		check( ImportData != nullptr );
+
 		Mesh->AssetImportData = ImportData;
 	}
 
@@ -6118,8 +6178,8 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 	}
 	CurrentFilename = Filename;
 
-
-	if( ImportData  && !ShowImportDialogAtReimport)
+	check( ImportData != nullptr );
+	if( !ShowImportDialogAtReimport)
 	{
 		// Import data already exists, apply it to the fbx import options
 		ReimportUI->StaticMeshImportData = ImportData;
@@ -6131,9 +6191,10 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 		ReimportUI->ReimportMesh = Mesh;
 
 		//Make sure the outer is the ImportUI, because there is some logic in the meta data needing this outer
-		UObject* OriginalOuter = ImportData != nullptr ? ImportData->GetOuter() : nullptr;
+		check( ImportData != nullptr );
+		UObject* OriginalOuter = ImportData->GetOuter();
 		ReimportUI->StaticMeshImportData = ImportData;
-		if (ReimportUI->StaticMeshImportData && OriginalOuter)
+		if ( OriginalOuter)
 		{
 			ReimportUI->StaticMeshImportData->Rename(nullptr, ReimportUI);
 		}
@@ -6155,13 +6216,14 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 		GetImportOptions( FFbxImporter, ReimportUI, bShowOptionDialog, bIsAutomated, Obj->GetPathName(), bOperationCanceled, bOutImportAll, bIsObjFormat, Filename, bForceImportType, FBXIT_StaticMesh);
 		
 		//Put back the original bAutoGenerateCollision settings since the user cancel the re-import
-		if (ReimportUI->StaticMeshImportData && bOperationCanceled && Mesh->bCustomizedCollision)
+		check( ReimportUI->StaticMeshImportData != nullptr );
+		if ( bOperationCanceled && Mesh->bCustomizedCollision)
 		{
 			ReimportUI->StaticMeshImportData->bAutoGenerateCollision = bOldAutoGenerateCollision;
 		}
 
 		//Put back the original SM outer
-		if (ReimportUI->StaticMeshImportData && OriginalOuter)
+		if ( OriginalOuter)
 		{
 			ReimportUI->StaticMeshImportData->Rename(nullptr, OriginalOuter);
 		}

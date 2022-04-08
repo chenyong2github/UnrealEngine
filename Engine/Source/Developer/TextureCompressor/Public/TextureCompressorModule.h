@@ -14,11 +14,12 @@
 struct FCompressedImage2D
 {
 	TArray64<uint8> RawData;
+	// in the past Sizes here were aligned up to a compressed block size multiple
+	//	that is no longer done, the real size is stored
 	int32 SizeX;
 	int32 SizeY;
 	int32 SizeZ; // Only for Volume Texture
 	uint8 PixelFormat; // EPixelFormat, opaque to avoid dependencies on Engine headers.
-	// @@!! fix me - this is missing NumSlices
 };
 
 /**

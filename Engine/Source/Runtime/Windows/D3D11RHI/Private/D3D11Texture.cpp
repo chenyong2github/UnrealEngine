@@ -529,8 +529,8 @@ FD3D11Texture* FD3D11DynamicRHI::CreateD3D11Texture2D(FRHITextureCreateDesc cons
 				uint32 DataOffset = SliceOffset + MipOffset;
 				uint32 SubResourceIndex = ArraySliceIndex * NumMips + MipIndex;
 
-				uint32 NumBlocksX = FMath::Max<uint32>(1,(SizeX >> MipIndex) / GPixelFormats[Format].BlockSizeX);
-				uint32 NumBlocksY = FMath::Max<uint32>(1,(SizeY >> MipIndex) / GPixelFormats[Format].BlockSizeY);
+				uint32 NumBlocksX = FMath::Max<uint32>(1,((SizeX >> MipIndex) + GPixelFormats[Format].BlockSizeX-1) / GPixelFormats[Format].BlockSizeX);
+				uint32 NumBlocksY = FMath::Max<uint32>(1,((SizeY >> MipIndex) + GPixelFormats[Format].BlockSizeY-1) / GPixelFormats[Format].BlockSizeY);
 
 				SubResourceData[SubResourceIndex].pSysMem = &Data[DataOffset];
 				SubResourceData[SubResourceIndex].SysMemPitch      =  NumBlocksX * GPixelFormats[Format].BlockBytes;
@@ -955,8 +955,8 @@ FTextureRHIRef FD3D11DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 
 	for (uint32 MipIndex = 0; MipIndex < NumInitialMips; ++MipIndex)
 	{
-		uint32 NumBlocksX = FMath::Max<uint32>(1, (SizeX >> MipIndex) / GPixelFormats[Format].BlockSizeX);
-		uint32 NumBlocksY = FMath::Max<uint32>(1, (SizeY >> MipIndex) / GPixelFormats[Format].BlockSizeY);
+		uint32 NumBlocksX = FMath::Max<uint32>(1, ((SizeX >> MipIndex) +GPixelFormats[Format].BlockSizeX-1) / GPixelFormats[Format].BlockSizeX);
+		uint32 NumBlocksY = FMath::Max<uint32>(1, ((SizeY >> MipIndex) +GPixelFormats[Format].BlockSizeY-1) / GPixelFormats[Format].BlockSizeY);
 
 		SubresourceData[MipIndex].pSysMem = InitialMipData[MipIndex];
 		SubresourceData[MipIndex].SysMemPitch = NumBlocksX * GPixelFormats[Format].BlockBytes;
@@ -967,8 +967,8 @@ FTextureRHIRef FD3D11DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 	uint32 TempBufferSize = ZeroBufferSize;
 	for (uint32 MipIndex = NumInitialMips; MipIndex < NumMips; ++MipIndex)
 	{
-		uint32 NumBlocksX = FMath::Max<uint32>(1, (SizeX >> MipIndex) / GPixelFormats[Format].BlockSizeX);
-		uint32 NumBlocksY = FMath::Max<uint32>(1, (SizeY >> MipIndex) / GPixelFormats[Format].BlockSizeY);
+		uint32 NumBlocksX = FMath::Max<uint32>(1, ((SizeX >> MipIndex) +GPixelFormats[Format].BlockSizeX-1) / GPixelFormats[Format].BlockSizeX);
+		uint32 NumBlocksY = FMath::Max<uint32>(1, ((SizeY >> MipIndex) +GPixelFormats[Format].BlockSizeY-1) / GPixelFormats[Format].BlockSizeY);
 		uint32 MipSize = NumBlocksX * NumBlocksY * GPixelFormats[Format].BlockBytes;
 
 		if (MipSize > TempBufferSize)

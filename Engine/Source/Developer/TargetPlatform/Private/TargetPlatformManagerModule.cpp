@@ -166,6 +166,11 @@ public:
 #endif
 		TextureFormatManager = FModuleManager::LoadModulePtr<ITextureFormatManagerModule>("TextureFormat");
 
+		//TextureFormatManager must have ->Invalidate called before it can be used
+		//TextureFormatManager->Invalidate();
+		// this is done by FTargetPlatformManagerModule->Invalidate() below
+		// FTargetPlatformManagerModule is not fully constructed yet so calls to it are dangerous
+
 		// Calling a virtual function from a constructor, but with no expectation that a derived implementation of this
 		// method would be called.  This is solely to avoid duplicating code in this implementation, not for polymorphism.
 		FTargetPlatformManagerModule::Invalidate();

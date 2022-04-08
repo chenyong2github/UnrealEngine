@@ -20,7 +20,14 @@ public:
 protected:
 
 	// StreamIn_Default : Locked mips of the intermediate textures, used as disk load destination.
-	TArray<void*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipData;
+	struct FStreamMipData
+	{
+		void * Data = nullptr;
+		uint32 Pitch = 0;
+		// @@!! Size would be nice but LockTexture doesn't return size
+	};
+	TArray<FStreamMipData, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipData;
+	void * InitialMipDataForAsyncCreate[MAX_TEXTURE_MIP_COUNT];
 
 	// ****************************
 	// ********* Helpers **********

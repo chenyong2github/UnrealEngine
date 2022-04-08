@@ -772,6 +772,7 @@ FIntPoint CalcMipMapExtent( uint32 TextureSizeX, uint32 TextureSizeY, EPixelForm
 
 SIZE_T CalcTextureMipWidthInBlocks(uint32 TextureSizeX, EPixelFormat Format, uint32 MipIndex)
 {
+	// note: FTexture2DResource applies a 2 block min for PVRTC that is not applied here
 	const uint32 BlockSizeX = GPixelFormats[Format].BlockSizeX;
 	if (BlockSizeX > 0)
 	{

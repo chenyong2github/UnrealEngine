@@ -237,8 +237,6 @@ bool FImageUtils::ExportTextureSourceToDDS(TArray64<uint8> & OutData, UTexture *
 		Dimension = 3;
 		SizeZ = NumSlices;
 		ArraySize = 1;
-
-		// @@!! if NumMips != 1 will fail later in FillMip right now due to Unreal getting Volume mips wrong
 	}
 	else
 	{
@@ -1216,9 +1214,9 @@ bool FImageUtils::GetTexture2DSourceImage(UTexture2D* Texture, FImage & OutImage
 
 	UE_LOG(LogImageUtils,Warning,TEXT("GetTexture2DSourceImage from PlatformData not implemented yet"));
 
-	// @@!! todo?
-	// can try to get texture from platformdata
-	// only a few formats would be possible to grab
+	// @@!! could export texture from platformdata
+	// only a few formats would be possible to grab to an FImage
+	//   (for DDS export we could do all formats)
 	// eg. see ExportHDR below
 
 	/*

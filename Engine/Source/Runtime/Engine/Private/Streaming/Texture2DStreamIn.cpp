@@ -9,6 +9,7 @@ Texture2DStreamIn.cpp: Stream in helper for 2D textures.
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "Rendering/Texture2DResource.h"
 
 FTexture2DStreamIn::FTexture2DStreamIn(UTexture2D* InTexture)
 	: FTexture2DUpdate(InTexture)
@@ -20,9 +21,9 @@ FTexture2DStreamIn::FTexture2DStreamIn(UTexture2D* InTexture)
 FTexture2DStreamIn::~FTexture2DStreamIn()
 {
 #if DO_CHECK
-	for (void* ThisMipData : MipData)
+	for (FStreamMipData & ThisMipData : MipData)
 	{
-		check(!ThisMipData);
+		check(ThisMipData.Data == nullptr);
 	}
 #endif
 }
@@ -36,8 +37,11 @@ void FTexture2DStreamIn::DoAllocateNewMips(const FContext& Context)
 			const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
 			const SIZE_T MipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
 
-			check(!MipData[MipIndex]);
-			MipData[MipIndex] = FMemory::Malloc(MipSize);
+			check(MipData[MipIndex].Data == nullptr);
+			MipData[MipIndex].Data = FMemory::Malloc(MipSize);
+			// @@!! store Size !
+			//MipData[MipIndex].Size = MipSize;
+			MipData[MipIndex].Pitch = 0; // 0 means tight packed
 		}
 	}
 }
@@ -46,10 +50,12 @@ void FTexture2DStreamIn::DoFreeNewMips(const FContext& Context)
 {
 	for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 	{
-		if (MipData[MipIndex])
+		if (MipData[MipIndex].Data != nullptr)
 		{
-			FMemory::Free(MipData[MipIndex]);
-			MipData[MipIndex] = nullptr;
+			FMemory::Free(MipData[MipIndex].Data);
+			MipData[MipIndex].Data = nullptr;
+			MipData[MipIndex].Pitch = -1;
+			//MipData[MipIndex].Size
 		}
 	}
 }
@@ -65,9 +71,14 @@ void FTexture2DStreamIn::DoLockNewMips(const FContext& Context)
 
 		for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 		{
-			check(!MipData[MipIndex]);
-			uint32 DestPitch = 0;
-			MipData[MipIndex] = RHILockTexture2D(IntermediateTextureRHI, MipIndex - MipOffset, RLM_WriteOnly, DestPitch, false, CVarFlushRHIThreadOnSTreamingTextureLocks.GetValueOnAnyThread() > 0);
+			check(MipData[MipIndex].Data == nullptr);
+			uint32 DestPitch = -1;
+			MipData[MipIndex].Data = RHILockTexture2D(IntermediateTextureRHI, MipIndex - MipOffset, RLM_WriteOnly, DestPitch, false, CVarFlushRHIThreadOnSTreamingTextureLocks.GetValueOnAnyThread() > 0);
+			MipData[MipIndex].Pitch = DestPitch;
+			// @@!! should store Size but RHILockTexture2D doesn't tell us size
+			//MipData[MipIndex].Size
+
+			UE_LOG(LogTextureUpload,Verbose,TEXT("FTexture2DStreamIn::DoLockNewMips( : Lock Mip %d Pitch=%d"),MipIndex,DestPitch);
 		}
 	}
 }
@@ -84,10 +95,11 @@ void FTexture2DStreamIn::DoUnlockNewMips(const FContext& Context)
 
 		for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 		{
-			if (MipData[MipIndex])
+			if (MipData[MipIndex].Data != nullptr)
 			{
 				RHIUnlockTexture2D(IntermediateTextureRHI, MipIndex - MipOffset, false, CVarFlushRHIThreadOnSTreamingTextureLocks.GetValueOnAnyThread() > 0 );
-				MipData[MipIndex] = nullptr;
+				MipData[MipIndex].Data = nullptr;
+				MipData[MipIndex].Pitch = -1;
 			}
 		}
 	}
@@ -112,15 +124,34 @@ void FTexture2DStreamIn::DoAsyncCreateWithNewMips(const FContext& Context)
 	if (!IsCancelled() && Context.Resource)
 	{
 		const FTexture2DMipMap& RequestedMipMap = *Context.MipsView[PendingFirstLODIdx];
-		ensure(!IntermediateTextureRHI);
 
+		// old textures have sizes padded up to multiple of 4; that's wrong, should be real size unpadded
+		check( RequestedMipMap.SizeX == FMath::Max(1, Context.MipsView[0]->SizeX >> PendingFirstLODIdx) );
+		check( RequestedMipMap.SizeY == FMath::Max(1, Context.MipsView[0]->SizeY >> PendingFirstLODIdx) );
+
+		check( PendingFirstLODIdx+ResourceState.NumRequestedLODs <= MipData.Num() );
+
+		// RHIAsyncCreateTexture2D needs void ** array
+		memset(InitialMipDataForAsyncCreate,0,sizeof(InitialMipDataForAsyncCreate));
+		for(int i=0;i<MipData.Num();i++)
+		{
+			InitialMipDataForAsyncCreate[i] = MipData[i].Data;
+
+			// this is only called with allocated mips that are tight-packed, not locked mips with pitches?
+			check( MipData[i].Pitch == 0 );
+		}
+		
+		// RHIAsyncCreateTexture2D assumes MipData is tight packed strides
+		FTexture2DResource::WarnRequiresTightPackedMip(RequestedMipMap.SizeX,RequestedMipMap.SizeY,Context.Resource->GetPixelFormat(),MipData[PendingFirstLODIdx].Pitch);
+
+		ensure(IntermediateTextureRHI == nullptr);
 		IntermediateTextureRHI = RHIAsyncCreateTexture2D(
 			RequestedMipMap.SizeX,
 			RequestedMipMap.SizeY,
 			Context.Resource->GetPixelFormat(),
 			ResourceState.NumRequestedLODs,
 			Context.Resource->GetCreationFlags(),
-			&MipData[PendingFirstLODIdx],
+			InitialMipDataForAsyncCreate+PendingFirstLODIdx,
 			ResourceState.NumRequestedLODs - ResourceState.NumResidentLODs);
 	}
 }

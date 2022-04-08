@@ -77,8 +77,8 @@ static bool CompressImageUsingQonvert(
 	const int32 BlockSizeX = 4;
 	const int32 BlockSizeY = 4;
 	const int32 BlockBytes = (PixelFormat == PF_ETC2_RGBA) ? 16 : 8;
-	const int32 ImageBlocksX = FMath::Max(SizeX / BlockSizeX, 1);
-	const int32 ImageBlocksY = FMath::Max(SizeY / BlockSizeY, 1);
+	const int32 ImageBlocksX = FMath::Max( FMath::DivideAndRoundUp(SizeX , BlockSizeX), 1);
+	const int32 ImageBlocksY = FMath::Max( FMath::DivideAndRoundUp(SizeY , BlockSizeY), 1);
 
 	// The converter doesn't support 64-bit sizes.
 	const int64 SourceDataSize = (int64)SizeX * SizeY * 4;
@@ -225,8 +225,8 @@ class FTextureFormatETC2 : public ITextureFormat
 
 		if (bCompressionSucceeded)
 		{
-			OutCompressedImage.SizeX = FMath::Max(Image.SizeX, 4);
-			OutCompressedImage.SizeY = FMath::Max(Image.SizeY, 4);
+			OutCompressedImage.SizeX = Image.SizeX;
+			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
 			OutCompressedImage.PixelFormat = CompressedPixelFormat;
 		}
@@ -269,10 +269,14 @@ public:
 	virtual void StartupModule() override
 	{
 	}
+	
+	virtual bool CanCallGetTextureFormats() override { return false; }
 
 	virtual ITextureFormat* GetTextureFormat()
 	{
 #if PLATFORM_WINDOWS
+		// @@!! TODO: move this to first use, not at startup
+
 		if (TextureConverterHandle == nullptr)
 		{
 			UE_LOG(LogTextureFormatETC2, Display, TEXT("ETC2 Texture loading DLL: %s"), *QualCommBinaryName);

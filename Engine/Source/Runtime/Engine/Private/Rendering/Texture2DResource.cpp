@@ -128,7 +128,7 @@ void FTexture2DResource::CreateTexture()
 			const int32 ResourceMipIdx = RHIMipIdx + RequestedMipIdx;
 			if (MipData[ResourceMipIdx])
 			{
-				uint32 DestPitch;
+				uint32 DestPitch = -1;
 				void* TheMipData = RHILockTexture2D( Texture2DRHI, RHIMipIdx, RLM_WriteOnly, DestPitch, false );
 				GetData( ResourceMipIdx, TheMipData, DestPitch );
 				RHIUnlockTexture2D( Texture2DRHI, RHIMipIdx, false );
@@ -157,7 +157,7 @@ void FTexture2DResource::CreatePartiallyResidentTexture()
 	{
 		if ( MipData[MipIndex] != NULL )
 		{
-			uint32 DestPitch;
+			uint32 DestPitch = -1;
 			void* TheMipData = RHILockTexture2D( Texture2DRHI, MipIndex, RLM_WriteOnly, DestPitch, false );
 			GetData( MipIndex, TheMipData, DestPitch );
 			RHIUnlockTexture2D( Texture2DRHI, MipIndex, false );
@@ -192,6 +192,39 @@ uint64 FTexture2DResource::GetPlatformMipsSize(uint32 NumMips) const
 	}
 }
 
+uint32 FTexture2DResource::CalculateTightPackedMipSize(int32 MipSizeX,int32 MipSizeY,EPixelFormat PixelFormat,
+	uint32 & OutPitch)
+{
+	const uint32 BlockSizeX = GPixelFormats[PixelFormat].BlockSizeX;		// Block width in pixels
+	const uint32 BlockSizeY = GPixelFormats[PixelFormat].BlockSizeY;		// Block height in pixels
+	const uint32 BlockBytes = GPixelFormats[PixelFormat].BlockBytes;
+	uint32 NumColumns		= (MipSizeX + BlockSizeX - 1) / BlockSizeX;	// Num-of columns in the source data (in blocks)
+	uint32 NumRows			= (MipSizeY + BlockSizeY - 1) / BlockSizeY;	// Num-of rows in the source data (in blocks)
+	if ( PixelFormat == PF_PVRTC2 || PixelFormat == PF_PVRTC4 )
+	{
+		// PVRTC has minimum 2 blocks width and height
+		NumColumns = FMath::Max<uint32>(NumColumns, 2);
+		NumRows = FMath::Max<uint32>(NumRows, 2);
+	}
+	const uint32 SrcPitch   = NumColumns * BlockBytes;						// Num-of bytes per row in the source data
+	const uint32 EffectiveSize = BlockBytes*NumColumns*NumRows;
+
+	OutPitch = SrcPitch;
+	return EffectiveSize;
+}
+
+void FTexture2DResource::WarnRequiresTightPackedMip(int32 SizeX,int32 SizeY,EPixelFormat PixelFormat,
+	uint32 Pitch)
+{
+	uint32 ExpectedPitch;
+	uint32 ExpectedSize = CalculateTightPackedMipSize(SizeX,SizeY,PixelFormat,ExpectedPitch);
+
+	if ( Pitch != 0 && Pitch != ExpectedPitch )
+	{
+		UE_LOG(LogTexture,Warning,TEXT("Requires tight packed pitch, expected: %d (%dx%d = %d total), saw: %d"),
+			ExpectedPitch,SizeX,SizeY,ExpectedSize,Pitch);
+	}
+}
 
 /**
  * Writes the data for a single mip-level into a destination buffer.
@@ -203,37 +236,44 @@ uint64 FTexture2DResource::GetPlatformMipsSize(uint32 NumMips) const
 void FTexture2DResource::GetData( uint32 MipIndex, void* Dest, uint32 DestPitch )
 {
 	const FTexture2DMipMap& MipMap = *GetPlatformMip(MipIndex);
-	check( MipData[MipIndex] );
+	check( MipData[MipIndex] != nullptr );
+	
+	uint32 SrcPitch;
+	uint32 EffectiveSize = CalculateTightPackedMipSize(MipMap.SizeX,MipMap.SizeY,PixelFormat,SrcPitch);
+
+	int64 BulkDataSize = MipMap.BulkData.GetBulkDataSize();
+
+	UE_LOG(LogTextureUpload,Verbose,TEXT("Size: %dx%d , EffectiveSize=%d BulkDataSize=%d , SrcPitch=%d DestPitch=%d"),
+		MipMap.SizeX,MipMap.SizeY,
+		EffectiveSize,(int)BulkDataSize,
+		SrcPitch,DestPitch);
+
+	#if WITH_EDITORONLY_DATA
+	// in Editor, Mip doesn't come from BulkData, it may be null
+	// MipData[] was set from Editor data
+	// @@!! check MipData[MipIndex] size ! but it's not stored
+	if ( BulkDataSize == 0 )
+	{
+		BulkDataSize = EffectiveSize;
+	}
+	#endif
+
+#if !WITH_EDITORONLY_DATA
+	// only checking when !WITH_EDITORONLY_DATA ? because in Editor BulkDataSize == 0 , so not possible to check
+	checkf((int64)EffectiveSize == BulkDataSize, 
+		TEXT("Texture '%s', mip %d, has a BulkDataSize [%d] that doesn't match calculated size [%d]. Texture size %dx%d, format %d"),
+		*TextureName.ToString(), MipIndex, BulkDataSize, EffectiveSize, GetSizeX(), GetSizeY(), (int32)PixelFormat);
+#endif
 
 	// for platforms that returned 0 pitch from Lock, we need to just use the bulk data directly, never do 
 	// runtime block size checking, conversion, or the like
-	if (DestPitch == 0)
+	if (DestPitch == 0 || DestPitch == SrcPitch )
 	{
-		FMemory::Memcpy(Dest, MipData[MipIndex], MipMap.BulkData.GetBulkDataSize());
+		// checking Dest size before we memcpy would be nice!
+		FMemory::Memcpy(Dest, MipData[MipIndex], BulkDataSize);
 	}
 	else
 	{
-		const uint32 BlockSizeX = GPixelFormats[PixelFormat].BlockSizeX;		// Block width in pixels
-		const uint32 BlockSizeY = GPixelFormats[PixelFormat].BlockSizeY;		// Block height in pixels
-		const uint32 BlockBytes = GPixelFormats[PixelFormat].BlockBytes;
-		uint32 NumColumns		= (MipMap.SizeX + BlockSizeX - 1) / BlockSizeX;	// Num-of columns in the source data (in blocks)
-		uint32 NumRows			= (MipMap.SizeY + BlockSizeY - 1) / BlockSizeY;	// Num-of rows in the source data (in blocks)
-		if ( PixelFormat == PF_PVRTC2 || PixelFormat == PF_PVRTC4 )
-		{
-			// PVRTC has minimum 2 blocks width and height
-			NumColumns = FMath::Max<uint32>(NumColumns, 2);
-			NumRows = FMath::Max<uint32>(NumRows, 2);
-		}
-		const uint32 SrcPitch   = NumColumns * BlockBytes;						// Num-of bytes per row in the source data
-		const uint32 EffectiveSize = BlockBytes*NumColumns*NumRows;
-
-	#if !WITH_EDITORONLY_DATA
-		// on console we don't want onload conversions
-		checkf(EffectiveSize == (uint32)MipMap.BulkData.GetBulkDataSize(), 
-			TEXT("Texture '%s', mip %d, has a BulkDataSize [%d] that doesn't match calculated size [%d]. Texture size %dx%d, format %d"),
-			*TextureName.ToString(), MipIndex, MipMap.BulkData.GetBulkDataSize(), EffectiveSize, GetSizeX(), GetSizeY(), (int32)PixelFormat);
-	#endif
-
 		// Copy the texture data.
 		CopyTextureData2D(MipData[MipIndex],Dest,MipMap.SizeY,PixelFormat,SrcPitch,DestPitch);
 	}

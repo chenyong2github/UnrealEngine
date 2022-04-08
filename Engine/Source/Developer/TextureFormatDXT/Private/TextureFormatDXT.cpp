@@ -548,15 +548,12 @@ public:
 
 		if (bCompressionSucceeded)
 		{
-			// @@!! no more image size padding here
-			// TODO : change me in next commit
-			/*
+			// no more image size padding here
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;
-			/*/
-			OutCompressedImage.SizeX = FMath::Max(Image.SizeX, 4);
-			OutCompressedImage.SizeY = FMath::Max(Image.SizeY, 4);
-			/**/
+			// old behavior :
+			//OutCompressedImage.SizeX = FMath::Max(Image.SizeX, 4);
+			//OutCompressedImage.SizeY = FMath::Max(Image.SizeY, 4);
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
 			OutCompressedImage.PixelFormat = CompressedPixelFormat;
 		}
@@ -634,10 +631,7 @@ public:
 		Singleton = NULL;
 	}
 	
-	/*
-	 @@!! uncomment me
 	virtual bool CanCallGetTextureFormats() override { return false; }
-	*/
 
 	virtual ITextureFormat* GetTextureFormat()
 	{

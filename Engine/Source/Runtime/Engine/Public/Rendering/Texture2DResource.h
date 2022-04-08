@@ -42,6 +42,13 @@ public:
 
 	virtual void InitRHI() override;
 	virtual bool IsProxy() const override { return ProxiedResource != nullptr; }
+	
+	// returns mip size in bytes; fills OutPitch
+	static uint32 CalculateTightPackedMipSize(int32 SizeX,int32 SizeY,EPixelFormat PixelFormat,uint32 & OutPitch);
+
+	// warn if "Pitch" is not compatible with tight-packed requirement
+	static void WarnRequiresTightPackedMip(int32 SizeX,int32 SizeY,EPixelFormat PixelFormat,uint32 Pitch);
+
 private:
 	/**
 	 * Make this Texture2DResource Proxy another one.

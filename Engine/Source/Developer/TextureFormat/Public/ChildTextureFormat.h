@@ -8,6 +8,7 @@
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "TextureCompressorModule.h"
+#include "Algo/Unique.h"
 
 /**
  * Version of ITextureFormat that handles a child texture format that is used as a "post-process" after compressing textures, useful for
@@ -24,6 +25,7 @@ public:
 	}
 
 protected:
+
 	void AddBaseTextureFormatModules(const TCHAR* ModuleNameWildcard)
 	{
 		TArray<FName> Modules;
@@ -38,8 +40,16 @@ protected:
 				BaseFormat->GetSupportedFormats(BaseFormats);
 			}
 		}
-
-		SupportedFormatsCached.Reset();
+	}
+	
+	void FinishAddBaseTextureFormatModules() 
+	{
+		// make unique:		
+		BaseFormats.Sort( FNameFastLess() );
+		BaseFormats.SetNum( Algo::Unique( BaseFormats ) );
+		
+		check( SupportedFormatsCached.IsEmpty() );
+		SupportedFormatsCached.Empty(BaseFormats.Num());
 		for (FName BaseFormat : BaseFormats)
 		{
 			FName ChildFormat(*(FormatPrefix + BaseFormat.ToString()));
