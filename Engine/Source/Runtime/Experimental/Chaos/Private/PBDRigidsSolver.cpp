@@ -1387,7 +1387,7 @@ namespace Chaos
 			for (int32 Idx = 0; Idx < ActiveGC.Num(); ++Idx)
 			{
 				PullData->DirtyGeometryCollections.AddDefaulted();
-				ActiveGC[Idx]->BufferPhysicsResults(this, PullData->DirtyGeometryCollections.Last());
+				ActiveGC[Idx]->BufferPhysicsResults_Internal(this, PullData->DirtyGeometryCollections.Last());
 			}
 		}
 

@@ -90,7 +90,10 @@ void FGeometryCollectionResults::Reset()
 	SolverDt = 0.0f;
 	DisabledStates.SetNum(0);
 	GlobalTransforms.SetNum(0);
-	ParticleToWorldTransforms.SetNum(0);
+	ParticleXs.SetNum(0);
+	ParticleRs.SetNum(0);
+	ParticleVs.SetNum(0);
+	ParticleWs.SetNum(0);
 	IsObjectDynamic = false;
 	IsObjectLoading = false;
 }
@@ -1596,7 +1599,7 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState()
 							FTransform NewChildWorldTransform = PhysicsThreadCollection.MassToLocal[TransformGroupIndex] * PhysicsThreadCollection.Transform[TransformGroupIndex] * ActorToWorld;
 							Chaos::FRigidTransform3 ParentToChildTransform = Handle->ChildToParent().Inverse();
 							FTransform NewParentWorldTRansform = ParentToChildTransform * NewChildWorldTransform;
-							SetClusteredParticleKinematicTarget(ParentHandle, NewParentWorldTRansform);
+							SetClusteredParticleKinematicTarget_Internal(ParentHandle, NewParentWorldTRansform);
 
 							InternalClusterParentUpdated = true;
 						}
@@ -1605,7 +1608,7 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState()
 					if (!Handle->Disabled())
 					{
 						FTransform WorldTransform = PhysicsThreadCollection.MassToLocal[TransformGroupIndex] * PhysicsThreadCollection.Transform[TransformGroupIndex] * ActorToWorld;
-						SetClusteredParticleKinematicTarget(Handle, WorldTransform);
+						SetClusteredParticleKinematicTarget_Internal(Handle, WorldTransform);
 					}
 				}
 			}
@@ -1613,10 +1616,10 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState()
 	}
 }
 
-void FGeometryCollectionPhysicsProxy::SetClusteredParticleKinematicTarget(Chaos::FPBDRigidClusteredParticleHandle* Handle, const FTransform& NewWorldTransform)
+void FGeometryCollectionPhysicsProxy::SetClusteredParticleKinematicTarget_Internal(Chaos::FPBDRigidClusteredParticleHandle* Handle, const FTransform& NewWorldTransform)
 {
 	// CONTEXT: PHYSICSTHREAD
-	// this should be called only on teh physics thread
+	// this should be called only on the physics thread
 	const Chaos::EObjectStateType ObjectState = Handle->ObjectState();
 	if (ensure(ObjectState == Chaos::EObjectStateType::Kinematic))
 	{
@@ -1629,7 +1632,93 @@ void FGeometryCollectionPhysicsProxy::SetClusteredParticleKinematicTarget(Chaos:
 		}
 	}
 }
-void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolver* CurrentSolver, Chaos::FDirtyGeometryCollectionData& BufferData)
+
+static EObjectStateTypeEnum GetObjectStateFromHandle(const Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* Handle)
+{
+	if (!Handle->Sleeping())
+	{
+		switch (Handle->ObjectState())
+		{
+		case Chaos::EObjectStateType::Kinematic:
+			return EObjectStateTypeEnum::Chaos_Object_Kinematic;
+		case Chaos::EObjectStateType::Static:
+			return EObjectStateTypeEnum::Chaos_Object_Static;
+		case Chaos::EObjectStateType::Sleeping:
+			return EObjectStateTypeEnum::Chaos_Object_Sleeping;
+		case Chaos::EObjectStateType::Dynamic:
+		case Chaos::EObjectStateType::Uninitialized:
+		default:
+			return EObjectStateTypeEnum::Chaos_Object_Dynamic;
+		}
+	}
+	return EObjectStateTypeEnum::Chaos_Object_Sleeping;
+}
+
+void FGeometryCollectionPhysicsProxy::PrepareBufferData(Chaos::FDirtyGeometryCollectionData& BufferData, const FGeometryDynamicCollection& ThreadCollection,  Chaos::FReal SolverLastDt)
+{
+	/**
+	* CONTEXT: GAMETHREAD or PHYSICS THREAD
+	* this method needs to be careful of data access , ultimately only the this pointer can be passed to the BufferData 
+	*/
+	BufferData.SetProxy(*this);
+
+	IsObjectDynamic = false;
+	FGeometryCollectionResults& TargetResults = BufferData.Results;
+	TargetResults.SolverDt = SolverLastDt;
+
+	const int32 NumTransformGroupElements = ThreadCollection.NumElements(FGeometryCollection::TransformGroup);
+	if (TargetResults.NumTransformGroup() != NumTransformGroupElements)
+	{
+		TargetResults.InitArrays(ThreadCollection);
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_External(Chaos::FDirtyGeometryCollectionData& BufferData)
+{
+	/**
+	* CONTEXT: GAMETHREAD
+	* Called per-tick when async is on after the simulation has completed.
+	* goal is collect current game thread data of the proxy so it can be used if no previous physics thread data is available for interpolating  
+	*/
+	//SCOPE_CYCLE_COUNTER(STAT_GeometryCollection_BufferPhysicsResults_External);
+	if (IsObjectDeleting) return;
+	PrepareBufferData(BufferData, GameThreadCollection);
+	
+	FGeometryCollectionResults& TargetResults = BufferData.Results;
+	//TargetResults.SolverDt = CurrentSolver->GetLastDt();	//todo: should this use timestamp for async mode?
+
+	// not interpolatable, so we don't fill it 
+	//	TargetResults.DisabledStates;
+	//	TargetResults.Parent;
+	//
+	//TargetResults.DynamicState; // ObjectState
+	TManagedArray<FVector3f>* LinearVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup);
+	TManagedArray<FVector3f>* AngularVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
+	
+	for (int32 TransformGroupIndex = 0; TransformGroupIndex < TargetResults.Transforms.Num(); ++TransformGroupIndex)
+	{
+		const Chaos::FGeometryParticle& GTParticle = *GTParticles[TransformGroupIndex];
+		TargetResults.ParticleXs[TransformGroupIndex] = GTParticle.X();
+		TargetResults.ParticleRs[TransformGroupIndex] = GTParticle.R();
+
+		if (LinearVelocities && AngularVelocities)
+		{
+			TargetResults.ParticleVs[TransformGroupIndex] = Chaos::FVec3((*LinearVelocities)[TransformGroupIndex]);
+			TargetResults.ParticleWs[TransformGroupIndex] = Chaos::FVec3((*AngularVelocities)[TransformGroupIndex]);
+		}
+
+		TargetResults.Parent[TransformGroupIndex] = GameThreadCollection.Parent[TransformGroupIndex];
+		TargetResults.Transforms[TransformGroupIndex] = GameThreadCollection.Transform[TransformGroupIndex];
+		
+	}
+	
+	// TargetResults.GlobalTransforms; // no need, can be recomputed ?  
+	//
+	// TargetResults.IsObjectDynamic;
+	// TargetResults.IsObjectLoading;
+}
+
+void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_Internal(Chaos::FPBDRigidsSolver* CurrentSolver, Chaos::FDirtyGeometryCollectionData& BufferData)
 {
 	/**
 	 * CONTEXT: PHYSICSTHREAD
@@ -1639,17 +1728,12 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolv
 	using namespace Chaos;
 	SCOPE_CYCLE_COUNTER(STAT_CacheResultGeomCollection);
 	if (IsObjectDeleting) return;
-	BufferData.SetProxy(*this);
+
+	//todo: should this use timestamp instead of GetLastDt for async mode?
+	PrepareBufferData(BufferData, PhysicsThreadCollection, CurrentSolver->GetLastDt());
 
 	IsObjectDynamic = false;
 	FGeometryCollectionResults& TargetResults = BufferData.Results;
-	TargetResults.SolverDt = CurrentSolver->GetLastDt();	//todo: should this use timestamp for async mode?
-
-	int32 NumTransformGroupElements = PhysicsThreadCollection.NumElements(FGeometryCollection::TransformGroup);
-	if (TargetResults.NumTransformGroup() != NumTransformGroupElements)
-	{
-		TargetResults.InitArrays(PhysicsThreadCollection);
-	}
 
 	const FTransform& ActorToWorld = Parameters.WorldTransform;
 	const TManagedArray<int32>& Parent = PhysicsThreadCollection.Parent;
@@ -1657,6 +1741,7 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolv
 	const bool IsActorScaled = !ActorToWorld.GetScale3D().Equals(FVector::OneVector);
 	const FTransform ActorScaleTransform(FQuat::Identity,  FVector::ZeroVector, ActorToWorld.GetScale3D());
 
+	const int32 NumTransformGroupElements = TargetResults.Transforms.Num(); 
 	if(NumTransformGroupElements > 0)
 	{ 
 		SCOPE_CYCLE_COUNTER(STAT_CalcParticleToWorld);
@@ -1675,31 +1760,7 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolv
 			}
 
 			// Dynamic state is also updated by the solver during field interaction.
-			if (!Handle->Sleeping())
-			{
-				const Chaos::EObjectStateType ObjectState = Handle->ObjectState();
-				switch (ObjectState)
-				{
-				case Chaos::EObjectStateType::Kinematic:
-					TargetResults.DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Kinematic;
-					break;
-				case Chaos::EObjectStateType::Static:
-					TargetResults.DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Static;
-					break;
-				case Chaos::EObjectStateType::Sleeping:
-					TargetResults.DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Sleeping;
-					break;
-				case Chaos::EObjectStateType::Dynamic:
-				case Chaos::EObjectStateType::Uninitialized:
-				default:
-					TargetResults.DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Dynamic;
-					break;
-				}
-			}
-			else
-			{
-				TargetResults.DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Sleeping;
-			}
+			TargetResults.DynamicState[TransformGroupIndex] = static_cast<int>(GetObjectStateFromHandle(Handle));
 
 			// Update the transform and parent hierarchy of the active rigid bodies. Active bodies can be either
 			// rigid geometry defined from the leaf nodes of the collection, or cluster bodies that drive an entire
@@ -1715,9 +1776,12 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolv
 				// or a collection of rigidly attached geometries (Clustering). The cluster is represented as a
 				// single transform in the GeometryCollection, and all children are stored in the local space
 				// of the parent cluster.
-	
-				FTransform& ParticleToWorld = TargetResults.ParticleToWorldTransforms[TransformGroupIndex];
-				ParticleToWorld = Chaos::FRigidTransform3(Handle->X(), Handle->R());
+
+				TargetResults.ParticleXs[TransformGroupIndex] = Handle->X();
+				TargetResults.ParticleRs[TransformGroupIndex] = Handle->R();
+				TargetResults.ParticleVs[TransformGroupIndex] = Handle->V();
+				TargetResults.ParticleWs[TransformGroupIndex] = Handle->W();
+				FRigidTransform3 ParticleToWorld(Handle->X(), Handle->R());
 				const FTransform MassToLocal = PhysicsThreadCollection.MassToLocal[TransformGroupIndex];
 
 				TargetResults.Transforms[TransformGroupIndex] = MassToLocal.GetRelativeTransformReverse(ParticleToWorld).GetRelativeTransform(ActorToWorld);
@@ -1786,8 +1850,11 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolv
 						{
 							Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* ProxyElementHandle = SolverParticleHandles[TransformGroupIndex];
 
-							FTransform& ParticleToWorld = TargetResults.ParticleToWorldTransforms[TransformGroupIndex];
-							ParticleToWorld             = ProxyElementHandle->ChildToParent() * FRigidTransform3(ClusterParent->X(), ClusterParent->R());    // aka ClusterChildToWorld
+							const FTransform ParticleToWorld = ProxyElementHandle->ChildToParent() * FRigidTransform3(ClusterParent->X(), ClusterParent->R());    // aka ClusterChildToWorld
+							TargetResults.ParticleXs[TransformGroupIndex] = ParticleToWorld.GetTranslation();
+							TargetResults.ParticleRs[TransformGroupIndex] = ParticleToWorld.GetRotation();
+							TargetResults.ParticleVs[TransformGroupIndex] = ClusterParent->V();
+							TargetResults.ParticleWs[TransformGroupIndex] = ClusterParent->W();
 
 							// GeomToActor = ActorToWorld.Inv() * ClusterChildToWorld * MassToLocal.Inv();
 							const FTransform MassToLocal                  = PhysicsThreadCollection.MassToLocal[TransformGroupIndex];
@@ -1816,6 +1883,7 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolv
 								FTransform ChildToWorld = Handle->ChildToParent() * FRigidTransform3(ClusterParent->X(), ClusterParent->R());
 								Handle->X() = Handle->P() = ChildToWorld.GetTranslation();
 								Handle->R() = Handle->Q() = ChildToWorld.GetRotation();
+								// TODO : shoudl we transfer velocity as well ?
 								Handle->UpdateWorldSpaceState(ChildToWorld, FVec3(0));
 								CurrentSolver->GetEvolution()->DirtyParticle(*Handle);
 							}
@@ -1855,7 +1923,7 @@ void FGeometryCollectionPhysicsProxy::FlipBuffer()
 }
 
 // Called from FPhysScene_ChaosInterface::SyncBodies(), NOT the solver.
-bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGeometryCollectionData& BufferData, const int32 SolverSyncTimestamp)
+bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGeometryCollectionData& PullData, const int32 SolverSyncTimestamp, const Chaos::FDirtyGeometryCollectionData* NextPullData, const Chaos::FRealSingle* Alpha)
 {
 	if(IsObjectDeleting) return false;
 
@@ -1867,54 +1935,81 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 	 *
 	 * Note: A read lock will have been acquired for this - so the physics thread won't force a buffer flip while this
 	 * sync is ongoing
+	 *
 	 */
 
-	const FGeometryCollectionResults& TargetResults = BufferData.Results;
+	const FGeometryCollectionResults& TargetResults = PullData.Results;
 
-	FGeometryDynamicCollection& DynamicCollection = GameThreadCollection;
-
-	TManagedArray<FVector3f>* LinearVelocity = DynamicCollection.FindAttributeTyped<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup);
+	TManagedArray<FVector3f>* LinearVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup);
+	TManagedArray<FVector3f>* AngularVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
 
 	// We should never be changing the number of entries, this would break other 
 	// attributes in the transform group.
-	const int32 NumTransforms = DynamicCollection.Transform.Num();
+	const int32 NumTransforms = GameThreadCollection.Transform.Num();
 	if (ensure(NumTransforms == TargetResults.Transforms.Num()))
 	{
+		// first : copy the non interpolate-able values
 		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 		{
 			if (!TargetResults.DisabledStates[TransformGroupIndex])
 			{
-				DynamicCollection.Parent[TransformGroupIndex] = TargetResults.Parent[TransformGroupIndex];
-				const FTransform& LocalTransform = TargetResults.Transforms[TransformGroupIndex];
-				const FTransform& ParticleToWorld = TargetResults.ParticleToWorldTransforms[TransformGroupIndex];
-
-				DynamicCollection.Transform[TransformGroupIndex] = LocalTransform;
-
-				Chaos::FGeometryParticle* GTParticle = GTParticles[TransformGroupIndex].Get();
-
-				if(LinearVelocity)
-				{
-					TManagedArray<FVector3f>* AngularVelocity = DynamicCollection.FindAttributeTyped<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
-					check(AngularVelocity);
-					FVector DiffX = ParticleToWorld.GetTranslation() - GTParticle->X();
-					FVector DiffR = (ParticleToWorld.GetRotation().Euler() - GTParticle->R().Euler()) * (UE_PI / 180.0f);
-
-					(*LinearVelocity)[TransformGroupIndex] = FVector3f(DiffX / TargetResults.SolverDt);
-					(*AngularVelocity)[TransformGroupIndex] = FVector3f(DiffR / TargetResults.SolverDt);
-				}
-
-				GTParticles[TransformGroupIndex]->SetX(ParticleToWorld.GetTranslation());
-				GTParticles[TransformGroupIndex]->SetR(ParticleToWorld.GetRotation());
-				GTParticles[TransformGroupIndex]->UpdateShapeBounds();
+				GameThreadCollection.Parent[TransformGroupIndex] = TargetResults.Parent[TransformGroupIndex];
 			}
+			GameThreadCollection.DynamicState[TransformGroupIndex] = TargetResults.DynamicState[TransformGroupIndex];
+			GameThreadCollection.Active[TransformGroupIndex] = !TargetResults.DisabledStates[TransformGroupIndex];
+		}
 
-			DynamicCollection.DynamicState[TransformGroupIndex] = TargetResults.DynamicState[TransformGroupIndex];
-			DynamicCollection.Active[TransformGroupIndex] = !TargetResults.DisabledStates[TransformGroupIndex];
+		// second : interpolate-able ones
+		const bool bNeedInterpolation = (NextPullData!= nullptr);
+		if (bNeedInterpolation)
+		{
+			const FGeometryCollectionResults& Prev = PullData.Results;
+			const FGeometryCollectionResults& Next = NextPullData->Results;
+			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
+			{
+				if (!TargetResults.DisabledStates[TransformGroupIndex])
+				{
+					Chaos::FGeometryParticle& GTParticle = *GTParticles[TransformGroupIndex];
+					GTParticle.SetX(FMath::Lerp(Prev.ParticleXs[TransformGroupIndex], Next.ParticleXs[TransformGroupIndex], *Alpha), false);
+					GTParticle.SetR(FMath::Lerp(Prev.ParticleRs[TransformGroupIndex], Next.ParticleRs[TransformGroupIndex], *Alpha), false);
+					GTParticle.UpdateShapeBounds();
+
+					GameThreadCollection.Transform[TransformGroupIndex].Blend(Prev.Transforms[TransformGroupIndex], Next.Transforms[TransformGroupIndex], *Alpha);
+
+					if(LinearVelocities && AngularVelocities)
+					{
+						// LWC : potential loss of precision if the velocity is insanely big ( unlikely ) 
+						(*LinearVelocities)[TransformGroupIndex] = FVector3f(FMath::Lerp(Prev.ParticleVs[TransformGroupIndex], Next.ParticleVs[TransformGroupIndex], *Alpha)); 
+						(*AngularVelocities)[TransformGroupIndex] = FVector3f(FMath::Lerp(Prev.ParticleWs[TransformGroupIndex], Next.ParticleWs[TransformGroupIndex], *Alpha));
+					}
+				}
+			}
+		}
+		else
+		{
+			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
+			{
+				if (!TargetResults.DisabledStates[TransformGroupIndex])
+				{
+					Chaos::FGeometryParticle& GTParticle = *GTParticles[TransformGroupIndex];
+					GTParticle.SetX(TargetResults.ParticleXs[TransformGroupIndex], false);
+					GTParticle.SetR(TargetResults.ParticleRs[TransformGroupIndex], false);
+					GTParticle.UpdateShapeBounds();
+
+					GameThreadCollection.Transform[TransformGroupIndex] = TargetResults.Transforms[TransformGroupIndex];
+
+					if(LinearVelocities && AngularVelocities)
+					{
+						// LWC : potential loss of precision if the velocity is insanely big ( unlikely ) 
+						(*LinearVelocities)[TransformGroupIndex] = FVector3f(TargetResults.ParticleVs[TransformGroupIndex]); 
+						(*AngularVelocities)[TransformGroupIndex] = FVector3f(TargetResults.ParticleWs[TransformGroupIndex]);
+					}
+				}
+			}
 		}
 
 		//question: why do we need this? Sleeping objects will always have to update GPU
-		DynamicCollection.MakeDirty();
-
+		GameThreadCollection.MakeDirty();
 	}
 
 	return true;

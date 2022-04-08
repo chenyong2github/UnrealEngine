@@ -19,7 +19,7 @@ namespace Chaos
 {
 
 FJointConstraintPhysicsProxy::FJointConstraintPhysicsProxy(FJointConstraint* InConstraint, FPBDJointConstraintHandle* InHandle, UObject* InOwner)
-	: Base(EPhysicsProxyType::JointConstraintType, InOwner)
+	: Base(EPhysicsProxyType::JointConstraintType, InOwner, new FProxyTimestampBase)
 	, Constraint_GT(InConstraint) // This proxy assumes ownership of the Constraint, and will free it during DestroyOnPhysicsThread
 	, Constraint_PT(InHandle)
 {

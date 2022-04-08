@@ -2156,7 +2156,7 @@ namespace ChaosTest {
 						const FReal ExpectedValue = ZStart + ZVel * InterpolatedTime;
 						const FReal TargetValue = ZStart + ZVel * NextSimStepTime;
 
-						if(!Proxy->IsResimSmoothing())
+						if(!Proxy->GetInterpolationData().IsResimSmoothing())
 						{
 							//no resim interpolation, just simple value interpolation
 							EXPECT_NEAR(Particle.X()[2], ExpectedValue, 1e-2);
@@ -4328,7 +4328,7 @@ namespace ChaosTest {
 			Particle2.SetGeometry(Sphere2);
 			Particle2.SetV(FVec3(0, 0, 1));
 			Particle2.SetGravityEnabled(false);
-			Proxy2->SetInterpChannel_External(1);
+			Proxy2->GetInterpolationData().SetInterpChannel_External(1);
 			Solver->RegisterObject(Proxy2);
 
 			FReal Time = 0;

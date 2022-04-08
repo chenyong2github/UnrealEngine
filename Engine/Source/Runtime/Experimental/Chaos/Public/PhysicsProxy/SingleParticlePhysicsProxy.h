@@ -70,18 +70,8 @@ public:
 	FSingleParticlePhysicsProxy(FSingleParticlePhysicsProxy&&) = delete;
 	virtual ~FSingleParticlePhysicsProxy();
 
-	void SetPullDataInterpIdx_External(const int32 Idx)
-	{
-		PullDataInterpIdx_External = Idx;
-	}
-
-	void SetResimSmoothing(bool ResimSmoothing) { bResimSmoothing = ResimSmoothing; }
-	bool IsResimSmoothing() const { return bResimSmoothing; }
-
-	int32 GetInterpChannel_External() const { return InterpChannel_External; }
-	void SetInterpChannel_External(int32 Channel) { InterpChannel_External = Channel; }
-
-	int32 GetPullDataInterpIdx_External() const { return PullDataInterpIdx_External; }
+	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
+	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
 
 	FORCEINLINE FRigidBodyHandle_External& GetGameThreadAPI()
 	{
@@ -180,11 +170,7 @@ protected:
 	FParticleHandle* Handle;
 
 private:
-
-	//Used by interpolation code
-	int32 PullDataInterpIdx_External;
-	int32 InterpChannel_External = 0;
-	bool bResimSmoothing = false;
+	FProxyInterpolationData InterpolationData;
 
 	//use static Create
 	FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner = nullptr);
@@ -964,16 +950,16 @@ public:
 	{
 		VerifyContext();
 		SetXBase(InX, bInvalidate);
-		SyncTimestamp->XTimestamp = GetSolverSyncTimestamp_External();
-		SyncTimestamp->OverWriteX = InX;
+		FSingleParticleProxyTimestamp& SyncTS = GetSyncTimestampAs<FSingleParticleProxyTimestamp>(); 
+		SyncTS.OverWriteX.Set(GetSolverSyncTimestamp_External(), InX);
 	}
 
 	void SetR(const FRotation3& InR, bool bInvalidate = true)
 	{
 		VerifyContext();
 		SetRBase(InR, bInvalidate);
-		SyncTimestamp->RTimestamp = GetSolverSyncTimestamp_External();
-		SyncTimestamp->OverWriteR = InR;
+		FSingleParticleProxyTimestamp& SyncTS = GetSyncTimestampAs<FSingleParticleProxyTimestamp>();
+		SyncTS.OverWriteR.Set(GetSolverSyncTimestamp_External(), InR);
 	}
 
 	void SetV(const FVec3& InV, bool bInvalidate = true)
@@ -986,9 +972,8 @@ public:
 			//but we also want position to snap to where it currently is on external thread
 			SetX(X(), bInvalidate);
 		}
-
-		SyncTimestamp->VTimestamp = GetSolverSyncTimestamp_External();
-		SyncTimestamp->OverWriteV = InV;
+		FSingleParticleProxyTimestamp& SyncTS = GetSyncTimestampAs<FSingleParticleProxyTimestamp>();
+		SyncTS.OverWriteV.Set(GetSolverSyncTimestamp_External(), InV);
 	}
 
 	void SetW(const FVec3& InW, bool bInvalidate = true)
@@ -1002,9 +987,8 @@ public:
 			//but we also want position to snap to where it currently is on external thread
 			SetR(R(), bInvalidate);
 		}
-
-		SyncTimestamp->WTimestamp = GetSolverSyncTimestamp_External();
-		SyncTimestamp->OverWriteW = InW;
+		FSingleParticleProxyTimestamp& SyncTS = GetSyncTimestampAs<FSingleParticleProxyTimestamp>();
+		SyncTS.OverWriteW.Set(GetSolverSyncTimestamp_External(), InW);
 	}
 
 	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = true)
@@ -1012,7 +996,8 @@ public:
 		VerifyContext();
 		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
 		{
-			SyncTimestamp->ObjectStateTimestamp = GetSolverSyncTimestamp_External();
+			FSingleParticleProxyTimestamp& SyncTS = GetSyncTimestampAs<FSingleParticleProxyTimestamp>();
+			SyncTS.ObjectStateTimestamp = GetSolverSyncTimestamp_External();
 			if (InState != EObjectStateType::Dynamic && Rigid->ObjectState() == EObjectStateType::Dynamic)
 			{
 				//we want to snap the particle to its current state on the external thread. This is because the user wants the object to fully stop right now

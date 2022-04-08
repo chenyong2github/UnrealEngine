@@ -132,8 +132,11 @@ public:
 		const int32 NumTransforms = Other.NumElements(FGeometryCollection::TransformGroup);
 		DisabledStates.SetNumUninitialized(NumTransforms);
 		GlobalTransforms.SetNumUninitialized(NumTransforms);
-		ParticleToWorldTransforms.SetNumUninitialized(NumTransforms);
-
+		ParticleXs.SetNumUninitialized(NumTransforms);
+		ParticleRs.SetNumUninitialized(NumTransforms);
+		ParticleVs.SetNumUninitialized(NumTransforms);
+		ParticleWs.SetNumUninitialized(NumTransforms);
+		
 		Transforms.SetNumUninitialized(NumTransforms);
 		Parent.SetNumUninitialized(NumTransforms);
 		DynamicState.SetNumUninitialized(NumTransforms);
@@ -142,7 +145,10 @@ public:
 	Chaos::FReal SolverDt;
 	TArray<bool> DisabledStates;
 	TArray<FMatrix> GlobalTransforms;
-	TArray<FTransform> ParticleToWorldTransforms;
+	TArray<Chaos::FVec3> ParticleXs;
+	TArray<Chaos::FRotation3> ParticleRs;
+	TArray<Chaos::FVec3> ParticleVs;
+	TArray<Chaos::FVec3> ParticleWs;
 
 	TArray<FTransform> Transforms;
 	TArray<int32> Parent;

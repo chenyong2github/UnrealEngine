@@ -16,6 +16,12 @@ namespace Chaos
 		FDirtyRigidParticleData Next;
 	};
 
+	struct CHAOS_API FChaosGeometryCollectionInterpolationData
+	{
+		FDirtyGeometryCollectionData Prev;
+		FDirtyGeometryCollectionData Next;
+	};
+	
 	struct CHAOS_API FChaosInterpolationResults
 	{
 		FChaosInterpolationResults()
@@ -27,6 +33,7 @@ namespace Chaos
 		FChaosInterpolationResults(const FChaosInterpolationResults& Other) = delete;
 		FChaosInterpolationResults(FChaosInterpolationResults&& Other)
 			: RigidInterpolations(MoveTemp(Other.RigidInterpolations))
+			, GeometryCollectionInterpolations(MoveTemp(Other.GeometryCollectionInterpolations))
 			, Prev(Other.Prev)
 			, Next(Other.Next)
 			, Alpha(Other.Alpha)
@@ -38,6 +45,7 @@ namespace Chaos
 		void Reset();
 		
 		TArray<FChaosRigidInterpolationData> RigidInterpolations;
+		TArray<FChaosGeometryCollectionInterpolationData> GeometryCollectionInterpolations;
 		FPullPhysicsData* Prev;
 		FPullPhysicsData* Next;
 		FRealSingle Alpha;

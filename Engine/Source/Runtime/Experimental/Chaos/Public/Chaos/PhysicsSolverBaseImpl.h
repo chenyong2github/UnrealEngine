@@ -39,6 +39,8 @@ namespace Chaos
 				LatestData = Results.Next;
 				//todo: go wide
 				const int32 SolverTimestamp = Results.Next ? Results.Next->SolverTimestamp : INDEX_NONE;
+
+				// single particles
 				for (const FChaosRigidInterpolationData& RigidInterp : Results.RigidInterpolations)
 				{
 					if (FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
@@ -48,10 +50,17 @@ namespace Chaos
 							RigidFunc(Proxy);
 						}
 					}
-
+				}
+				
+				// geometry collections
+				for (const FChaosGeometryCollectionInterpolationData& GCInterp : Results.GeometryCollectionInterpolations)
+				{
+					if (FGeometryCollectionPhysicsProxy* Proxy = GCInterp.Prev.GetProxy())
+					{
+						Proxy->PullFromPhysicsState(GCInterp.Prev, SolverTimestamp, &GCInterp.Next, &Results.Alpha);
+					}
 				}
 			}
-			
 		}
 		else
 		{
@@ -63,6 +72,8 @@ namespace Chaos
 			LatestData = Results.Next;
 			//todo: go wide
 			const int32 SolverTimestamp = Results.Next ? Results.Next->SolverTimestamp : INDEX_NONE;
+
+			// Single particles
 			for (const FChaosRigidInterpolationData& RigidInterp : Results.RigidInterpolations)
 				{
 					if (FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
@@ -74,22 +85,21 @@ namespace Chaos
 					}
 				}
 
+			// geometry collections
+			for (const FChaosGeometryCollectionInterpolationData& GCInterp : Results.GeometryCollectionInterpolations)
+			{
+				if (FGeometryCollectionPhysicsProxy* Proxy = GCInterp.Prev.GetProxy())
+				{
+					Proxy->PullFromPhysicsState(GCInterp.Next, SolverTimestamp);
+				}
+			}
+			
 		}
 
 		//no interpolation for GC or joints at the moment
 		if(LatestData)
 		{
-			const int32 SyncTimestamp = LatestData->SolverTimestamp;
-			for (const FDirtyGeometryCollectionData& DirtyData : LatestData->DirtyGeometryCollections)
-			{
-				if (auto Proxy = DirtyData.GetProxy())
-				{
-					Proxy->PullFromPhysicsState(DirtyData, SyncTimestamp);
-				}
-			}
-
-			//latest data may be used multiple times during interpolation, so for non interpolated GC we clear it
-			LatestData->DirtyGeometryCollections.Reset();
+			 const int32 SyncTimestamp = LatestData->SolverTimestamp;
 
 			//
 			// @todo(chaos) : Add Dirty Constraints Support

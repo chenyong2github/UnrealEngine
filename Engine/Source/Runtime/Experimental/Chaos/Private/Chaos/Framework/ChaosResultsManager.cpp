@@ -2,6 +2,7 @@
 
 #include "Chaos/Framework/ChaosResultsManager.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "Chaos/ChaosMarshallingManager.h"
 
 namespace Chaos
@@ -34,6 +35,10 @@ namespace Chaos
 
 		template <ESetPrevNextDataMode Mode>
 		void SetPrevNextDataHelper(const FPullPhysicsData& PullData);
+		
+		template <ESetPrevNextDataMode Mode, typename DirtyProxyDataType, typename InterpolationsType>
+		void SetPrevNextDataHelperTyped(const TArray<DirtyProxyDataType>& DirtyProxies, TArray<InterpolationsType>& Interpolations);
+
 		void RemoveProxy_External(FSingleParticlePhysicsProxy* Proxy)
 		{
 			ParticleToResimTarget.Remove(Proxy);
@@ -46,49 +51,57 @@ namespace Chaos
 		int32 ChannelIdx;
 	};
 
-	void FChaosInterpolationResults::Reset()
+	template <typename TProxyType, typename TInterpolationType>
+	static void ResetInterpolations(TArray<TInterpolationType>& Interpolations)
 	{
-		for (FChaosRigidInterpolationData& Data : RigidInterpolations)
+		for (TInterpolationType& Data : Interpolations)
 		{
-			if (FSingleParticlePhysicsProxy* Proxy = Data.Prev.GetProxy())
+			if (TProxyType* Proxy = Data.Prev.GetProxy())
 			{
-				Proxy->SetPullDataInterpIdx_External(INDEX_NONE);
+				Proxy->GetInterpolationData().SetPullDataInterpIdx_External(INDEX_NONE);
 			}
 		}
-		RigidInterpolations.Reset();
+		Interpolations.Reset();
+	}
+	
+	void FChaosInterpolationResults::Reset()
+	{
+		ResetInterpolations<FSingleParticlePhysicsProxy>(RigidInterpolations);
+		ResetInterpolations<FGeometryCollectionPhysicsProxy>(GeometryCollectionInterpolations);
 
 		//purposely leave Prev and Next alone as we use those for rebuild
 	}
 
-	template <ESetPrevNextDataMode Mode>
-	void FChaosResultsChannel::SetPrevNextDataHelper(const FPullPhysicsData& PullData)
+	template <ESetPrevNextDataMode Mode, typename DirtyProxyDataType, typename InterpolationsType>
+	void FChaosResultsChannel::SetPrevNextDataHelperTyped(const TArray<DirtyProxyDataType>& DirtyProxies, TArray<InterpolationsType>& Interpolations)
 	{
 		//clear results
-		const int32 Timestamp = PullData.SolverTimestamp;
-		for (const FDirtyRigidParticleData& Data : PullData.DirtyRigids)
+		for (const DirtyProxyDataType& Data : DirtyProxies)
 		{
-			if (FSingleParticlePhysicsProxy* Proxy = Data.GetProxy())
+			if (auto Proxy = Data.GetProxy())
 			{
+				FProxyInterpolationData& InterpolationData = Proxy->GetInterpolationData(); 
+				
 				//If proxy is not associated with this channel, do nothing
-				if (Proxy->GetInterpChannel_External() != ChannelIdx)
+				if (InterpolationData.GetInterpChannel_External() != ChannelIdx)
 				{
 					continue;
 				}
 
-				int32 DataIdx = Proxy->GetPullDataInterpIdx_External();
+				int32 DataIdx = InterpolationData.GetPullDataInterpIdx_External();
 				if(DataIdx == INDEX_NONE)
 				{
-					DataIdx = Results.RigidInterpolations.AddDefaulted(1);
-					Proxy->SetPullDataInterpIdx_External(DataIdx);
+					DataIdx = Interpolations.AddDefaulted(1);
+					InterpolationData.SetPullDataInterpIdx_External(DataIdx);
 
 					if(Mode == ESetPrevNextDataMode::Next)
 					{
 						//no prev so use GT data
-						Proxy->BufferPhysicsResults_External(Results.RigidInterpolations[DataIdx].Prev);
+						Proxy->BufferPhysicsResults_External(Interpolations[DataIdx].Prev);
 					}
 				}
 
-				FChaosRigidInterpolationData& OutData = Results.RigidInterpolations[DataIdx];
+				InterpolationsType& OutData = Interpolations[DataIdx];
 
 				if(Mode == ESetPrevNextDataMode::Prev)
 				{
@@ -100,11 +113,33 @@ namespace Chaos
 				{
 					OutData.Next = Data;
 				}
+			}
+		}
+	}
+	
+	template <ESetPrevNextDataMode Mode>
+	void FChaosResultsChannel::SetPrevNextDataHelper(const FPullPhysicsData& PullData)
+	{
+		//clear results
+		const int32 Timestamp = PullData.SolverTimestamp;
 
-				//update leash target
-				if(FDirtyRigidParticleData* ResimTarget = ParticleToResimTarget.Find(Proxy))
+		SetPrevNextDataHelperTyped<Mode>(PullData.DirtyRigids, Results.RigidInterpolations);
+
+		SetPrevNextDataHelperTyped<Mode>(PullData.DirtyGeometryCollections, Results.GeometryCollectionInterpolations);
+
+		// update resim target for rigids
+		for (const FDirtyRigidParticleData& Data : PullData.DirtyRigids)
+		{
+			if (FSingleParticlePhysicsProxy* Proxy = Data.GetProxy())
+			{
+				// only if the proxy is associated with this channel 
+				if (Proxy->GetInterpolationData().GetInterpChannel_External() == ChannelIdx)
 				{
-					*ResimTarget = Data;
+					//update leash target
+					if(FDirtyRigidParticleData* ResimTarget = ParticleToResimTarget.Find(Proxy))
+					{
+						*ResimTarget = Data;
+					}
 				}
 			}
 		}
@@ -239,13 +274,14 @@ namespace Chaos
 		{
 			FSingleParticlePhysicsProxy* Proxy = Itr.Key;
 
-			if(Proxy->IsResimSmoothing())
+			FProxyInterpolationData& InterpolationData = Proxy->GetInterpolationData(); 
+			if(InterpolationData.IsResimSmoothing())
 			{
-				if (Proxy->GetPullDataInterpIdx_External() == INDEX_NONE)	//not in results array
+				if (InterpolationData.GetPullDataInterpIdx_External() == INDEX_NONE)	//not in results array
 				{
 					//still need to interpolate, so add to results array
 					const int32 DataIdx = Results.RigidInterpolations.AddDefaulted(1);
-					Proxy->SetPullDataInterpIdx_External(DataIdx);
+					InterpolationData.SetPullDataInterpIdx_External(DataIdx);
 					FChaosRigidInterpolationData& RigidData = Results.RigidInterpolations[DataIdx];
 
 					RigidData.Next = Itr.Value;			//not dirty from sim, so just use whatever last next was
@@ -344,11 +380,12 @@ namespace Chaos
 		{
 			if (FSingleParticlePhysicsProxy* ResimProxy = ResimDirty.GetProxy())
 			{
+				FProxyInterpolationData& InterpolationData = ResimProxy->GetInterpolationData(); 
 				//Mark as resim only if proxy is owned by this channel
-				if(ResimProxy->GetInterpChannel_External() == ChannelIdx)
+				if(InterpolationData.GetInterpChannel_External() == ChannelIdx)
 				{
 					ParticleToResimTarget.FindOrAdd(ResimProxy) = ResimDirty;
-					ResimProxy->SetResimSmoothing(true);
+					InterpolationData.SetResimSmoothing(true);
 				}
 			}
 		}

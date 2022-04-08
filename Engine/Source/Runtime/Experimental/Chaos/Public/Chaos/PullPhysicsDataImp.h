@@ -14,7 +14,7 @@ namespace Chaos
 {
 class FJointConstraintPhysicsProxy;
 
-template <typename TProxy>
+template <typename TProxy, typename TTimeStamp>
 struct TBasePullData
 {
 public:
@@ -33,20 +33,20 @@ public:
 		}
 		return nullptr;
 	}
-
-	const FProxyTimestamp* GetTimestamp() const { return Timestamp.Get(); }
-
+	
+	const TTimeStamp* GetTimestamp() const { return static_cast<TTimeStamp*>(Timestamp.Get()); }
+	
 protected:
 	TBasePullData() : Proxy(nullptr){}
 	~TBasePullData() = default;
 	
 private:
 	TProxy* Proxy;
-	TSharedPtr<FProxyTimestamp,ESPMode::ThreadSafe> Timestamp;	//question: is destructor expensive now? might need a better way
+	TSharedPtr<FProxyTimestampBase,ESPMode::ThreadSafe> Timestamp;	//question: is destructor expensive now? might need a better way
 };
 
 //Simple struct for when the simulation dirties a particle. Copies all properties regardless of which changed since they tend to change together
-struct FDirtyRigidParticleData : public TBasePullData<FSingleParticlePhysicsProxy>
+struct FDirtyRigidParticleData : public TBasePullData<FSingleParticlePhysicsProxy, FSingleParticleProxyTimestamp>
 {
 	FVec3 X;
 	FQuat R;
@@ -55,7 +55,7 @@ struct FDirtyRigidParticleData : public TBasePullData<FSingleParticlePhysicsProx
 	EObjectStateType ObjectState;
 };
 
-struct FDirtyGeometryCollectionData : public TBasePullData<FGeometryCollectionPhysicsProxy>
+struct FDirtyGeometryCollectionData : public TBasePullData<FGeometryCollectionPhysicsProxy, FProxyTimestampBase>
 {
 	FGeometryCollectionResults Results;
 };
@@ -70,7 +70,7 @@ struct FJointConstraintOutputData {
 
 class FJointConstraint;
 
-struct FDirtyJointConstraintData : public TBasePullData<FJointConstraintPhysicsProxy>
+struct FDirtyJointConstraintData : public TBasePullData<FJointConstraintPhysicsProxy, FProxyTimestampBase>
 {
 	FJointConstraintOutputData OutputData;
 };

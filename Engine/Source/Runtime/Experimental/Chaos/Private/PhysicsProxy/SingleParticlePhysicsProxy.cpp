@@ -25,10 +25,9 @@ int32 SyncKinematicOnGameThread = 0;
 FAutoConsoleVariableRef CVar_SyncKinematicOnGameThread(TEXT("P.Chaos.SyncKinematicOnGameThread"), SyncKinematicOnGameThread, TEXT("If set to 1, if a kinematic is flagged to send position back to game thread, move component, if 0, do not."));
 
 FSingleParticlePhysicsProxy::FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner)
-	: IPhysicsProxyBase(EPhysicsProxyType::SingleParticleProxy, InOwner)
+	: IPhysicsProxyBase(EPhysicsProxyType::SingleParticleProxy, InOwner, new FSingleParticleProxyTimestamp)
 	, Particle(MoveTemp(InParticle))
 	, Handle(InHandle)
-	, PullDataInterpIdx_External(INDEX_NONE)
 {
 	Particle->SetProxy(this);
 }
@@ -255,29 +254,29 @@ bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidP
 	{
 		const bool bSyncXR = SyncKinematicOnGameThread || (Rigid->ObjectState() != EObjectStateType::Kinematic);
 
-		const FProxyTimestamp* ProxyTimestamp = PullData.GetTimestamp();
+		const FSingleParticleProxyTimestamp* ProxyTimestamp = PullData.GetTimestamp();
 		
 		if(NextPullData)
 		{
-			auto LerpHelper = [SolverSyncTimestamp](const int32 PropertyTimestamp, const auto& Prev, const auto& Overwrite) -> const auto*
+			auto LerpHelper = [SolverSyncTimestamp](const auto& Prev, const auto& OverwriteProperty) -> const auto*
 			{
 				//if overwrite is in the future, do nothing
 				//if overwrite is on this step, we want to interpolate from overwrite to the result of the frame that consumed the overwrite
 				//if overwrite is in the past, just do normal interpolation
 
 				//this is nested because otherwise compiler can't figure out the type of nullptr with an auto return type
-				return PropertyTimestamp <= SolverSyncTimestamp ? (PropertyTimestamp < SolverSyncTimestamp ? &Prev : &Overwrite) : nullptr;
+				return OverwriteProperty.Timestamp <= SolverSyncTimestamp ? (OverwriteProperty.Timestamp < SolverSyncTimestamp ? &Prev : &OverwriteProperty.Value) : nullptr;
 			};
 
 			if (bSyncXR)
 			{
-				const float UseResimInterpStrength = GetInterpChannel_External() == 0 ? ResimInterpStrength : ResimInterpStrength2;
+				const float UseResimInterpStrength = InterpolationData.GetInterpChannel_External() == 0 ? ResimInterpStrength : ResimInterpStrength2;
 
 				bool bKeepSmoothing = false;
-				if (const FVec3* Prev = LerpHelper(ProxyTimestamp->XTimestamp, PullData.X, ProxyTimestamp->OverWriteX))
+				if (const FVec3* Prev = LerpHelper(PullData.X, ProxyTimestamp->OverWriteX))
 				{
 					FVec3 Target = FMath::Lerp(*Prev, NextPullData->X, *Alpha);
-					if (IsResimSmoothing())
+					if (InterpolationData.IsResimSmoothing())
 					{
 						const FVec3 SmoothedTarget = FMath::Lerp(Rigid->X(), Target, UseResimInterpStrength);
 						if((SmoothedTarget - Target).SizeSquared() > MinLinError2ForResimInterp)
@@ -290,10 +289,10 @@ bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidP
 					Rigid->SetX(Target, false);
 				}
 
-				if (const FQuat* Prev = LerpHelper(ProxyTimestamp->RTimestamp, PullData.R, ProxyTimestamp->OverWriteR))
+				if (const FQuat* Prev = LerpHelper(PullData.R, ProxyTimestamp->OverWriteR))
 				{
 					FQuat Target = FMath::Lerp(*Prev, NextPullData->R, *Alpha);
-					if (IsResimSmoothing())
+					if (InterpolationData.IsResimSmoothing())
 					{
 						const FQuat SmoothedTarget = FMath::Lerp<FQuat>(Rigid->R(), Target, UseResimInterpStrength);
 						if(FQuat::ErrorAutoNormalize(SmoothedTarget, Target) > MinRotErrorForResimInterp)
@@ -305,16 +304,16 @@ bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidP
 					Rigid->SetR(Target, false);
 				}
 
-				SetResimSmoothing(bKeepSmoothing);
+				InterpolationData.SetResimSmoothing(bKeepSmoothing);
 			}
 
-			if (const FVec3* Prev = LerpHelper(ProxyTimestamp->VTimestamp, PullData.V, ProxyTimestamp->OverWriteV))
+			if (const FVec3* Prev = LerpHelper(PullData.V, ProxyTimestamp->OverWriteV))
 			{
 				FVec3 Target = FMath::Lerp(*Prev, NextPullData->V, *Alpha);
 				Rigid->SetV(Target, false);
 			}
 
-			if (const FVec3* Prev = LerpHelper(ProxyTimestamp->WTimestamp, PullData.W, ProxyTimestamp->OverWriteW))
+			if (const FVec3* Prev = LerpHelper(PullData.W, ProxyTimestamp->OverWriteW))
 			{
 				FVec3 Target = FMath::Lerp(*Prev, NextPullData->W, *Alpha);
 				Rigid->SetW(Target, false);
@@ -338,23 +337,23 @@ bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidP
 			if (bSyncXR)
 			{
 				//no interpolation, just ignore if overwrite comes after
-				if (SolverSyncTimestamp >= ProxyTimestamp->XTimestamp)
+				if (SolverSyncTimestamp >= ProxyTimestamp->OverWriteX.Timestamp)
 				{
 					Rigid->SetX(PullData.X, false);
 				}
 
-				if (SolverSyncTimestamp >= ProxyTimestamp->RTimestamp)
+				if (SolverSyncTimestamp >= ProxyTimestamp->OverWriteR.Timestamp)
 				{
 					Rigid->SetR(PullData.R, false);
 				}
 			}
 
-			if(SolverSyncTimestamp >= ProxyTimestamp->VTimestamp)
+			if(SolverSyncTimestamp >= ProxyTimestamp->OverWriteV.Timestamp)
 			{
 				Rigid->SetV(PullData.V, false);
 			}
 
-			if(SolverSyncTimestamp >= ProxyTimestamp->WTimestamp)
+			if(SolverSyncTimestamp >= ProxyTimestamp->OverWriteW.Timestamp)
 			{
 				Rigid->SetW(PullData.W, false);
 			}

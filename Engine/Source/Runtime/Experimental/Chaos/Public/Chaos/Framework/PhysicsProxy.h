@@ -32,7 +32,7 @@ struct FBodyInstance;
  *
  * #BG TODO - rename the callbacks functions, document for the base solver object
  */
-template<class Concrete, class ConcreteData>
+template<class Concrete, class ConcreteData, typename TProxyTimeStamp>
 class TPhysicsProxy : public IPhysicsProxyBase
 {
 
@@ -44,12 +44,12 @@ public:
 	using FIntArray = Chaos::TArrayCollectionArray<int32>;
 
 	TPhysicsProxy()
-		: IPhysicsProxyBase(ConcreteType(), nullptr)
+		: IPhysicsProxyBase(ConcreteType(), nullptr, new TProxyTimeStamp)
 	{
 	}
 
 	explicit TPhysicsProxy(UObject* InOwner)
-		: IPhysicsProxyBase(ConcreteType(), InOwner)
+		: IPhysicsProxyBase(ConcreteType(), InOwner, new TProxyTimeStamp)
 	{
 	}
 
@@ -122,4 +122,9 @@ public:
 	void* GetUserData() const { return nullptr; }
 
 	Chaos::FRigidTransform3 GetTransform() const { return Chaos::FRigidTransform3(); }
+	
+	FORCEINLINE_DEBUGGABLE TProxyTimeStamp& GetSyncTimestampTyped()
+	{
+		return GetSyncTimestampAs<TProxyTimeStamp>();
+	}
 };
