@@ -860,6 +860,8 @@ bool UWorld::DestroyActor( AActor* ThisActor, bool bNetForce, bool bShouldModify
 	// Notify the texture streaming manager about the destruction of this actor.
 	IStreamingManager::Get().NotifyActorDestroyed( ThisActor );
 
+	OnActorDestroyed.Broadcast(ThisActor);
+
 	// Tell this actor it's about to be destroyed.
 	ThisActor->Destroyed();
 

@@ -5339,6 +5339,16 @@ void UWorld::RemoveOnActorPreSpawnInitialization(FDelegateHandle InHandle) const
 	OnActorPreSpawnInitialization.Remove(InHandle);
 }
 
+FDelegateHandle UWorld::AddOnActorDestroyedHandler(const FOnActorDestroyed::FDelegate& InHandler) const
+{
+	return OnActorDestroyed.Add(InHandler);
+}
+
+void UWorld::RemoveOnActorDestroyededHandler(FDelegateHandle InHandle) const
+{
+	OnActorDestroyed.Remove(InHandle);
+}
+
 FDelegateHandle UWorld::AddMovieSceneSequenceTickHandler(const FOnMovieSceneSequenceTick::FDelegate& InHandler)
 {
 	return MovieSceneSequenceTick.Add(InHandler);
