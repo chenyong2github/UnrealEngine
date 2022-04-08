@@ -1401,7 +1401,7 @@ static void UpdateCoreCsvStats_EndFrame()
 	    }
 	    if (GInputLatencyTime > 0)
 	    {
-		    CSV_CUSTOM_STAT_GLOBAL(InputLatencyTime, FPlatformTime::ToMilliseconds(GInputLatencyTime), ECsvCustomStatOp::Set);
+		    CSV_CUSTOM_STAT_GLOBAL(InputLatencyTime, FPlatformTime::ToMilliseconds64(GInputLatencyTime), ECsvCustomStatOp::Set);
 	    }
 	    FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
 	    float PhysicalMBFree = float(MemoryStats.AvailablePhysical / 1024) / 1024.0f;
