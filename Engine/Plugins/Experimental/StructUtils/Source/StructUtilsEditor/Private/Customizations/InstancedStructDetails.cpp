@@ -238,6 +238,9 @@ void FInstancedStructDataDetails::GenerateChildContent(IDetailChildrenBuilder& C
 				StructInstanceData->SetPackage(OuterPackages[0]);
 			}
 		}
+
+		bool bStructMismatch = false;
+		SyncEditableInstanceFromSource(&bStructMismatch);
 	}
 
 	// Add the rows for the struct
