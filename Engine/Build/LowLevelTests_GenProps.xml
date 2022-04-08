@@ -7,6 +7,7 @@
   <Property Name="HeadlessChaosBinariesRelative" Value="Engine\Binaries" />
   <Property Name="HeadlessChaosResources" Value="" />
   <Property Name="HeadlessChaosResourcesDest" Value="" />
+  <Property Name="HeadlessChaosReportType" Value="console" />
   <Option Name="RunHeadlessChaosTests" DefaultValue="False" Description="Run Headless Chaos Tests" />
   <Property Name="HeadlessChaosSupportedPlatforms" Value="Win64" />
 </BuildGraph>

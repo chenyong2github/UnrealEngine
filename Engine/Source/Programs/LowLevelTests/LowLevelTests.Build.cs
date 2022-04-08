@@ -15,6 +15,8 @@ public class LowLevelTests : ModuleRules
 
 	public virtual string TestName => throw new Exception("TestName must be overwritten in subclasses.");
 	public virtual string TestShortName => throw new Exception("TestShortName must be overwritten in subclasses.");
+	
+	public virtual string ReportType => "console";
 	public virtual string ResourcesPath => string.Empty;
 
 	public virtual bool UsesCatch2 => true;
@@ -173,6 +175,7 @@ public class LowLevelTests : ModuleRules
 		InsertOrUpdateTestFlag(ref lastUpdatedNode, TestName, "BinariesRelative", TestBinariesPath);
 		InsertOrUpdateTestFlag(ref lastUpdatedNode, TestName, "Resources", TestResourcesPath);
 		InsertOrUpdateTestFlag(ref lastUpdatedNode, TestName, "ResourcesDest", Path.GetFileName(TestResourcesPath));
+		InsertOrUpdateTestFlag(ref lastUpdatedNode, TestName, "ReportType", ReportType.ToString());
 
 		InsertOrUpdateTestOption(ref lastUpdatedNode, TestName, TestShortName, "Run", "Tests", false.ToString());
 
