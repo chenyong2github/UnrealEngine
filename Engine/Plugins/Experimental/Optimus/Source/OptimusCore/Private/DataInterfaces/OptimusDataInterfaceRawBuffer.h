@@ -26,24 +26,16 @@ public:
 	static const int32 WriteValueOutputIndex;
 	
 	//~ Begin UOptimusComputeDataInterface Interface
-	// FString GetDisplayName() const override;
-	
-	/// Returns the list of pins that will map to the shader functions provided by this data interface.
 	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
-	
-	bool IsVisible() const override
-	{
-		return false;
-	}
+	bool IsVisible() const override	{ return false;	}
 	//~ End UOptimusComputeDataInterface Interface
 
 	//~ Begin UComputeDataInterface Interface
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
-	// void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
+	void GetShaderHash(FString& InOutKey) const override;
 	void GetHLSL(FString& OutHLSL) const override;
 	void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
-	// UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
 
 	/** The value type we should be allocating elements for */
@@ -73,7 +65,6 @@ class OPTIMUSCORE_API UOptimusTransientBufferDataInterface : public UOptimusRawB
 public:
 	//~ Begin UOptimusComputeDataInterface Interface
 	FString GetDisplayName() const override;
-	
 	//~ End UOptimusComputeDataInterface Interface
 
 	//~ Begin UComputeDataInterface Interface
@@ -97,7 +88,6 @@ public:
 	
 	//~ Begin UOptimusComputeDataInterface Interface
 	FString GetDisplayName() const override;
-
 	//~ End UOptimusComputeDataInterface Interface
 
 	//~ Begin UComputeDataInterface Interface
@@ -122,7 +112,6 @@ class OPTIMUSCORE_API UOptimusRawBufferDataProvider : public UComputeDataProvide
 public:
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;
-	// FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	//~ End UComputeDataProvider Interface
 
 	UPROPERTY(BlueprintReadWrite, Category = "Buffer")

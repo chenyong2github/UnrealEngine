@@ -50,6 +50,11 @@ void UOptimusSceneDataInterface::GetShaderParameters(TCHAR const* UID, FShaderPa
 	OutBuilder.AddNestedStruct<FSceneDataInterfaceParameters>(UID);
 }
 
+void UOptimusSceneDataInterface::GetShaderHash(FString& InOutKey) const
+{
+	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceScene.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+}
+
 void UOptimusSceneDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceScene.ush\"\n");

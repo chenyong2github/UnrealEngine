@@ -43,6 +43,11 @@ void UOptimusSkinnedMeshExecDataInterface::GetShaderParameters(TCHAR const* UID,
 	OutBuilder.AddNestedStruct<FSkinedMeshExecDataInterfaceParameters>(UID);
 }
 
+void UOptimusSkinnedMeshExecDataInterface::GetShaderHash(FString& InOutKey) const
+{
+	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceSkinnedMeshExec.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+}
+
 void UOptimusSkinnedMeshExecDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkinnedMeshExec.ush\"\n");

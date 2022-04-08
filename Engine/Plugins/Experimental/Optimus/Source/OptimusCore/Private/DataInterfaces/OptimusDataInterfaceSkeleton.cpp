@@ -82,6 +82,11 @@ void UOptimusSkeletonDataInterface::GetPermutations(FComputeKernelPermutationVec
 	//OutPermutationVector.AddPermutation(TEXT("MERGE_DUPLICATED_VERTICES"), 2);
 }
 
+void UOptimusSkeletonDataInterface::GetShaderHash(FString& InOutKey) const
+{
+	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceSkeleton.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+}
+
 void UOptimusSkeletonDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkeleton.ush\"\n");

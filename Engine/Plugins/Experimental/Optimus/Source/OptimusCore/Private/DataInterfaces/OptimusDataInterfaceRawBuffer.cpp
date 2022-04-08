@@ -137,6 +137,11 @@ void UOptimusPersistentBufferDataInterface::GetShaderParameters(TCHAR const* UID
 	OutBuilder.AddNestedStruct<FPersistentBufferDataInterfaceParameters>(UID);
 }
 
+void UOptimusRawBufferDataInterface::GetShaderHash(FString& InOutKey) const
+{
+	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceRawBuffer.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+}
+
 void UOptimusRawBufferDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#define BUFFER_TYPE ");
