@@ -22,6 +22,7 @@
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracing/RayTracingLighting.h"
 #include "LumenHardwareRayTracingCommon.h"
+#endif // RHI_RAYTRACING
 
 static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracing(
 	TEXT("r.Lumen.Visualize.HardwareRayTracing"),
@@ -85,8 +86,6 @@ static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingBucketMat
 	TEXT("Determines whether a secondary traces will be bucketed for coherent material access (default = 1"),
 	ECVF_RenderThreadSafe
 );
-
-#endif // RHI_RAYTRACING
 
 namespace Lumen
 {
