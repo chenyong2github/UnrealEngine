@@ -481,8 +481,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsDebugDatas
 
 	struct FDesc
 	{
-		FVector VoxelMinBound = FVector::ZeroVector;
-		FVector VoxelMaxBound = FVector::ZeroVector;
+		FVector3f VoxelMinBound = FVector3f::ZeroVector;
+		FVector3f VoxelMaxBound = FVector3f::ZeroVector;
 		FIntVector VoxelResolution = FIntVector::ZeroValue;
 		float VoxelSize = 0;
 		uint32 MaxSegmentPerVoxel = 0;

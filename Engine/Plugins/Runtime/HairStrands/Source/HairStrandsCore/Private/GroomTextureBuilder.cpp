@@ -636,6 +636,10 @@ class FHairStrandsTexturePS : public FGlobalShader
 		SHADER_PARAMETER(FIntVector, Voxel_Resolution)
 		SHADER_PARAMETER(float, Voxel_Size)
 		SHADER_PARAMETER(uint32, Voxel_MaxSegmentPerVoxel)
+
+		SHADER_PARAMETER(uint32, Voxel_OffsetAndCount_MaxCount)
+		SHADER_PARAMETER(uint32, Voxel_Data_MaxCount)
+
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, Voxel_OffsetAndCount)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, Voxel_Data)
 
@@ -678,8 +682,8 @@ static void InternalGenerateHairStrandsTextures(
 	FRHIShaderResourceView* InMeshUVsBuffer,
 	FRHIShaderResourceView* InMeshNormalsBuffer,
 
-	const FVector& VoxelMinBound,
-	const FVector& VoxelMaxBound,
+	const FVector3f& VoxelMinBound,
+	const FVector3f& VoxelMaxBound,
 	const FIntVector& VoxelResolution,
 	float VoxelSize,
 	uint32 VoxelMaxSegmentPerVoxel,
@@ -730,13 +734,16 @@ static void InternalGenerateHairStrandsTextures(
 	ParametersPS->InVF_ControlPointCount = InHairStrands_ControlPointCount;
 	ParametersPS->InVF_GroupIndex = InHairStrands_GroupIndex;
 
-	ParametersPS->Voxel_MinBound = (FVector3f)VoxelMinBound;
-	ParametersPS->Voxel_MaxBound = (FVector3f)VoxelMaxBound;
+	ParametersPS->Voxel_MinBound = VoxelMinBound;
+	ParametersPS->Voxel_MaxBound = VoxelMaxBound;
 	ParametersPS->Voxel_Resolution = VoxelResolution;
 	ParametersPS->Voxel_Size = VoxelSize;
 	ParametersPS->Voxel_MaxSegmentPerVoxel = VoxelMaxSegmentPerVoxel;
 	ParametersPS->Voxel_OffsetAndCount = GraphBuilder.CreateSRV(VoxelOffsetAndCount);
 	ParametersPS->Voxel_Data = GraphBuilder.CreateSRV(VoxelData);
+
+	ParametersPS->Voxel_OffsetAndCount_MaxCount = VoxelOffsetAndCount->Desc.NumElements;
+	ParametersPS->Voxel_Data_MaxCount = VoxelData->Desc.NumElements;
 
 	if (ShaderPrintData)
 	{
@@ -838,6 +845,7 @@ struct FStrandsTexturesReadback
 	TUniquePtr<FRHIGPUTextureReadback> Coverage;
 	TUniquePtr<FRHIGPUTextureReadback> Attribute;
 	TUniquePtr<FRHIGPUTextureReadback> Material;
+	uint32 NotReadyFrameCount = 0;
 
 	FStrandsTexturesOutput Output;
 	bool IsReady() const
@@ -1125,12 +1133,13 @@ void RunHairStrandsTexturesQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* 
 {
 	// Readback data
 	{
+		TArray<FStrandsTexturesReadback*> NotReadyQueue;
 		FStrandsTexturesReadback* R = nullptr;
 		while (GStrandsTexturesReadbacks.Dequeue(R))
 		{
 			if (R)
 			{
-				if (R->IsReady())
+				if (R->IsReady() || ++R->NotReadyFrameCount > 32)
 				{
 					CopyReadbackToTexture(R->Depth,    R->Output.Depth);
 					CopyReadbackToTexture(R->Tangent,  R->Output.Tangent);
@@ -1148,9 +1157,14 @@ void RunHairStrandsTexturesQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* 
 				}
 				else
 				{
-					GStrandsTexturesReadbacks.Enqueue(R);
+					NotReadyQueue.Add(R);
 				}
 			}
+		}
+
+		for (FStrandsTexturesReadback* E : NotReadyQueue)
+		{
+			GStrandsTexturesReadbacks.Enqueue(E);
 		}
 	}
 

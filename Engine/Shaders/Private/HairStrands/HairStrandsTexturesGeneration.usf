@@ -106,6 +106,10 @@ float3 Voxel_MaxBound;
 int3 Voxel_Resolution;
 float Voxel_Size;
 uint Voxel_MaxSegmentPerVoxel;
+
+uint Voxel_OffsetAndCount_MaxCount;
+uint Voxel_Data_MaxCount;
+
 StructuredBuffer<uint2> Voxel_OffsetAndCount;
 StructuredBuffer<uint2> Voxel_Data;
 
@@ -209,7 +213,6 @@ bool Trace(
 			PageIndexCoord = clamp(uint3(Coords), uint3(0, 0, 0), Voxel_Resolution - 1);
 		}
 
-		bool bLastStep = false;
 		const uint LoopCount = 256u;
 		for (uint LoopIt = 0; LoopIt < LoopCount; ++LoopIt)
 		{
@@ -225,14 +228,11 @@ bool Trace(
 				return bIsValid;
 			}
 
-			if (bLastStep)
+			const float3 WPCurr = (PageIndexCoord + 0.5f) * Voxel_Size  + Voxel_MinBound;
+			const bool bExit = dot((WPCurr - O), InRayD) > (MaxDistance + Voxel_Size);
+			if (bExit)
 			{
 				return bIsValid;
-			}
-
-			if (all(PageIndexCoord == EndCoord))
-			{
-				bLastStep = true;
 			}
 
 			const uint LinearPageIndexCoord = CoordToIndex(PageIndexCoord, Voxel_Resolution, 0);
@@ -254,19 +254,19 @@ bool Trace(
 				uint2 OffsetAndCount = 0;
 				{
 					const uint LinearIndexCoord = CoordToIndex(VolumeCoord, Voxel_Resolution, 0);
-					OffsetAndCount = Voxel_OffsetAndCount[LinearIndexCoord];
+					OffsetAndCount = Voxel_OffsetAndCount[clamp(LinearIndexCoord, 0, Voxel_OffsetAndCount_MaxCount-1)];
 					OffsetAndCount.y = min(OffsetAndCount.y, Voxel_MaxSegmentPerVoxel);
 				}
 
 				if (OffsetAndCount.y > 0)
 				{
-					const uint MaxVoxelCount = Voxel_Resolution.x * Voxel_Resolution.y * Voxel_Resolution.z;
 					for (uint PointIt = 0; PointIt < OffsetAndCount.y; ++PointIt)
 					{
-						const uint VoxelIndex = clamp(OffsetAndCount.x + PointIt, 0, MaxVoxelCount);
-						const uint2 P0_P1 = Voxel_Data[OffsetAndCount.x + PointIt];
-						const uint P0 = clamp(P0_P1.x, 0, InVF_ControlPointCount);
-						const uint P1 = clamp(P0_P1.y, 0, InVF_ControlPointCount);
+						const uint VoxelIndex = clamp(OffsetAndCount.x + PointIt, 0, Voxel_Data_MaxCount-1);
+						const uint2 P0_P1 = Voxel_Data[VoxelIndex].xx + uint2(0,1);
+
+						const uint P0 = P0_P1.x;
+						const uint P1 = P0_P1.y;
 
 						const uint4 PackedCP_P0 = InVF_PositionBuffer[P0];
 						const uint4 PackedCP_P1 = InVF_PositionBuffer[P1];
@@ -290,9 +290,19 @@ bool Trace(
 						float VertexU = 0;
 						const float WorldRadius = 2 * max(CP_Curr.WorldRadius, CP_Next.WorldRadius); //  0.05f;
 						const float Distance = Intersection(CP_Curr.Position, CP_Next.Position, RayP0, RayP1, WorldRadius, VertexU) * InMaxDistance;
-						if (Distance > 0 && Distance < OutDepth)
+
+						const bool bIntersect = Distance > 0;
+						const bool bClosest = Distance < OutDepth;
+
+						const bool bIntersectAndClosest = bIntersect && bClosest;
+
+						if (bIntersect)
 						{
 							OutCoverage = 1;
+						}
+
+						if (bIntersectAndClosest)
+						{
 							OutTangent = Tangent;
 							OutDepth = Distance;
 
@@ -314,7 +324,7 @@ bool Trace(
 								AddCrossWS(CP_Curr.Position, 0.05f, Color);
 								AddCrossWS(CP_Next.Position, 0.05f, Color);
 							}
-							#endif							
+							#endif
 						}
 					}
 				}
@@ -354,8 +364,8 @@ void MainPS(
 	const float3 B = normalize(InBitangent);
 	const float3 N = normalize(InNormal);
 
-	const float3 PixelAxisX = ddx(InPosition);
-	const float3 PixelAxisY = ddy(InPosition);
+	const float3 PixelAxisX = ddx_fine(InPosition);
+	const float3 PixelAxisY = ddy_fine(InPosition);
 
 	OutDepth = max(0, MaxDistance);
 	OutCoverage = 0;
@@ -369,14 +379,14 @@ void MainPS(
 
 	const bool bDebugEnable =
 	#if DEBUG_ENABLE
-		uint(GetCursorPos().x) == uint(InUV.x * OutputResolution.x) &&
-		uint(GetCursorPos().y) == uint(InUV.y * OutputResolution.y);
+		all(PixelCoord == GetCursorPos());
 	#else
 		false;
 	#endif
 
-	const uint SampleCount = 8;
 	uint bValidCount = 0;
+
+	const uint SampleCount = 16;
 	for (uint SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 	{
 		const float2 Jitter = Hammersley(SampleIt, SampleCount, 0) * 2 - 1;

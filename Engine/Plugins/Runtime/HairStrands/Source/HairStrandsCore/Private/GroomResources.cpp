@@ -35,8 +35,8 @@ static FAutoConsoleVariableRef CVarHairCardsBulkData_AsyncLoading(TEXT("r.HairSt
 static int32 GHairStrandsBulkData_Validation = 1;
 static FAutoConsoleVariableRef CVarHairStrandsBulkData_Validation(TEXT("r.HairStrands.Strands.BulkData.Validation"), GHairStrandsBulkData_Validation, TEXT("Validate some hair strands data at serialization/loading time."));
 
-static float GHairStrandsDebugVoxel_WorldSize = 1.0f;
-static int32 GHairStrandsDebugVoxel_MaxSegmentPerVoxel = 512;
+static float GHairStrandsDebugVoxel_WorldSize = 0.3f;
+static int32 GHairStrandsDebugVoxel_MaxSegmentPerVoxel = 2048;
 static FAutoConsoleVariableRef CVarHairStrandsDebugVoxel_WorldSize(TEXT("r.HairStrands.DebugData.VoxelSize"), GHairStrandsDebugVoxel_WorldSize, TEXT("Voxel size use for creating debug data."));
 static FAutoConsoleVariableRef CVarHairStrandsDebugVoxel_MaxSegmentPerVoxel(TEXT("r.HairStrands.DebugData.MaxSegmentPerVoxel"), GHairStrandsDebugVoxel_MaxSegmentPerVoxel, TEXT("Max number of segments per Voxel size when creating debug data."));
 
@@ -1587,9 +1587,9 @@ static uint32 ToLinearCoord(const FIntVector& T, const FIntVector& Resolution)
 	return T.X + T.Y * Resolution.X + T.Z * Resolution.X * Resolution.Y;
 }
 
-static FIntVector ToCoord(const FVector& T, const FIntVector& Resolution, const FVector& MinBound, const float VoxelSize)
+static FIntVector ToCoord(const FVector3f& T, const FIntVector& Resolution, const FVector3f& MinBound, const float VoxelSize)
 {
-	const FVector C = (T - MinBound) / VoxelSize;
+	const FVector3f C = (T - MinBound) / VoxelSize;
 	return FIntVector(
 		FMath::Clamp(FMath::FloorToInt(C.X), 0, Resolution.X - 1),
 		FMath::Clamp(FMath::FloorToInt(C.Y), 0, Resolution.Y - 1),
@@ -1600,16 +1600,18 @@ void CreateHairStrandsDebugDatas(
 	const FHairStrandsDatas& InData,
 	FHairStrandsDebugDatas& Out)
 {
-	const FVector BoundSize = InData.BoundingBox.Max - InData.BoundingBox.Min;
+	const FVector3f BoundSize = FVector3f(InData.BoundingBox.Max) - FVector3f(InData.BoundingBox.Min);
 	Out.VoxelDescription.VoxelSize = FMath::Clamp(GHairStrandsDebugVoxel_WorldSize, 0.1f, 10.f);
 	Out.VoxelDescription.VoxelResolution = FIntVector(FMath::CeilToInt(BoundSize.X / Out.VoxelDescription.VoxelSize), FMath::CeilToInt(BoundSize.Y / Out.VoxelDescription.VoxelSize), FMath::CeilToInt(BoundSize.Z / Out.VoxelDescription.VoxelSize));
-	Out.VoxelDescription.VoxelMinBound = InData.BoundingBox.Min;
-	Out.VoxelDescription.VoxelMaxBound = FVector(Out.VoxelDescription.VoxelResolution) * Out.VoxelDescription.VoxelSize + InData.BoundingBox.Min;
+	Out.VoxelDescription.VoxelMinBound = FVector3f(InData.BoundingBox.Min);
+	Out.VoxelDescription.VoxelMaxBound = FVector3f(Out.VoxelDescription.VoxelResolution) * Out.VoxelDescription.VoxelSize + FVector3f(InData.BoundingBox.Min);
 	Out.VoxelOffsetAndCount.Init(FHairStrandsDebugDatas::FOffsetAndCount(), Out.VoxelDescription.VoxelResolution.X * Out.VoxelDescription.VoxelResolution.Y * Out.VoxelDescription.VoxelResolution.Z);
 	Out.VoxelDescription.MaxSegmentPerVoxel = 0;
 
 	uint32 AllocationCount = 0;
 	TArray<TArray<FHairStrandsDebugDatas::FVoxel>> TempVoxelData;
+
+	const uint32 MaxNumberOfSegmentPerVoxel = uint32(FMath::Clamp(GHairStrandsDebugVoxel_MaxSegmentPerVoxel, 16, 64000));
 
 	// Fill in voxel (TODO: make it parallel)
 	const uint32 CurveCount = InData.StrandsCurves.Num();
@@ -1622,16 +1624,16 @@ void CreateHairStrandsDebugDatas(
 		{
 			const uint32 Index0 = PointOffset + PointIndex;
 			const uint32 Index1 = PointOffset + PointIndex + 1;
-			const FVector& P0 = (FVector)InData.StrandsPoints.PointsPosition[Index0];
-			const FVector& P1 = (FVector)InData.StrandsPoints.PointsPosition[Index1];
-			const FVector Segment = P1 - P0;
+			const FVector3f& P0 = InData.StrandsPoints.PointsPosition[Index0];
+			const FVector3f& P1 = InData.StrandsPoints.PointsPosition[Index1];
+			const FVector3f Segment = P1 - P0;
 
 			const float Length = Segment.Size();
-			const uint32 StepCount = FMath::CeilToInt(Length / Out.VoxelDescription.VoxelSize);
+			const uint32 StepCount = FMath::CeilToInt(Length / (0.25f * Out.VoxelDescription.VoxelSize));
 			uint32 PrevLinearCoord = ~0;
 			for (uint32 StepIt = 0; StepIt < StepCount + 1; ++StepIt)
 			{
-				const FVector P = P0 + Segment * StepIt / float(StepCount);
+				const FVector3f P = P0 + Segment * StepIt / float(StepCount);
 				const FIntVector Coord = ToCoord(P, Out.VoxelDescription.VoxelResolution, Out.VoxelDescription.VoxelMinBound, Out.VoxelDescription.VoxelSize);
 				const uint32 LinearCoord = ToLinearCoord(Coord, Out.VoxelDescription.VoxelResolution);
 				if (LinearCoord != PrevLinearCoord)
@@ -1642,9 +1644,12 @@ void CreateHairStrandsDebugDatas(
 						TempVoxelData.Add(TArray<FHairStrandsDebugDatas::FVoxel>());
 					}
 
-					const uint32 Offset = Out.VoxelOffsetAndCount[LinearCoord].Offset;
-					Out.VoxelOffsetAndCount[LinearCoord].Count += 1;
-					TempVoxelData[Offset].Add({Index0, Index1});
+					if (Out.VoxelOffsetAndCount[LinearCoord].Count+1 < MaxNumberOfSegmentPerVoxel)
+					{
+						const uint32 Offset = Out.VoxelOffsetAndCount[LinearCoord].Offset;
+						Out.VoxelOffsetAndCount[LinearCoord].Count += 1;
+						TempVoxelData[Offset].Add({Index0, Index1});
+					}
 
 					Out.VoxelDescription.MaxSegmentPerVoxel = FMath::Max(Out.VoxelDescription.MaxSegmentPerVoxel, Out.VoxelOffsetAndCount[LinearCoord].Count);
 
@@ -1655,16 +1660,27 @@ void CreateHairStrandsDebugDatas(
 			}
 		}
 	}
-	Out.VoxelDescription.MaxSegmentPerVoxel = FMath::Min(Out.VoxelDescription.MaxSegmentPerVoxel, uint32(FMath::Clamp(GHairStrandsDebugVoxel_MaxSegmentPerVoxel, 16, 64000)));
+
+	check(Out.VoxelDescription.MaxSegmentPerVoxel < MaxNumberOfSegmentPerVoxel);
 	Out.VoxelData.Reserve(AllocationCount);
 
 	for (int32 Index = 0, Count = Out.VoxelOffsetAndCount.Num(); Index < Count; ++Index)
 	{
-		const uint32 ArrayIndex = Out.VoxelOffsetAndCount[Index].Offset;
-		Out.VoxelOffsetAndCount[Index].Offset = Out.VoxelData.Num();
 		if (Out.VoxelOffsetAndCount[Index].Count > 0)
 		{
-			Out.VoxelData.Append(TempVoxelData[ArrayIndex]);
+			const uint32 ArrayIndex = Out.VoxelOffsetAndCount[Index].Offset;
+			const uint32 NewOffset = Out.VoxelData.Num();
+			Out.VoxelOffsetAndCount[Index].Offset = NewOffset;
+
+			for (FHairStrandsDebugDatas::FVoxel& Voxel : TempVoxelData[ArrayIndex])
+			{
+				Voxel.Index1 = NewOffset;
+				Out.VoxelData.Add(Voxel);
+			}
+		}
+		else
+		{
+			Out.VoxelOffsetAndCount[Index].Offset = 0;
 		}
 
 		// Sanity check
