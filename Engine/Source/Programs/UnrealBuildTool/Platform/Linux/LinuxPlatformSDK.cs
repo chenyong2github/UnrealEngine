@@ -16,14 +16,14 @@ namespace UnrealBuildTool
 			return "v19_clang-11.0.1-centos7";
 		}
 
-		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
+		protected override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
 		{
 			// all that matters is the number after the v, according to TryConvertVersionToInt()
 			MinVersion = "v10_clang-5.0.0-centos7";
 			MaxVersion = "v19_clang-11.0.1-centos7";
 		}
 
-		public override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
+		protected override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
 		{
 			MinVersion = MaxVersion = null;
 		}
@@ -34,7 +34,7 @@ namespace UnrealBuildTool
 		}
 
 
-		public override string? GetInstalledSDKVersion()
+		protected override string? GetInstalledSDKVersion()
 		{
 			// @todo turnkey: ForceUseSystemCompiler() returns true, we should probably run system clang -V or similar to get version
 
@@ -60,7 +60,7 @@ namespace UnrealBuildTool
 		}
 
 
-		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue)
+		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue, string? Hint)
 		{
 			if (StringValue != null)
 			{

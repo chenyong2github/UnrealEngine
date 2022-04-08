@@ -75,13 +75,13 @@ namespace UnrealBuildTool
 			return PreferredWindowsSdkVersions.First().ToString();
 		}
 
-		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
+		protected override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
 		{
 			MinVersion = "10.0.00000.0";
 			MaxVersion = "10.9.99999.0";
 		}
 
-		public override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
+		protected override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
 		{
 			// minimum version is the oldest version in the Preferred list -
 			MinVersion = PreferredWindowsSdkVersions.Min()?.ToString();
@@ -89,7 +89,7 @@ namespace UnrealBuildTool
 		}
 
 		[SupportedOSPlatform("windows")]
-		public override string? GetInstalledSDKVersion()
+		protected override string? GetInstalledSDKVersion()
 		{
 			if (!RuntimePlatform.IsWindows)
 			{
@@ -107,7 +107,7 @@ namespace UnrealBuildTool
 			return null;
 		}
 
-		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue)
+		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue, string? Hint)
 		{
 			OutValue = 0;
 
@@ -422,12 +422,14 @@ namespace UnrealBuildTool
 		#region Private implementation
 
 		[SupportedOSPlatform("windows")]
-		static readonly KeyValuePair<RegistryKey, string>[] InstallDirRoots = {
-			new KeyValuePair<RegistryKey, string>(Registry.CurrentUser, "SOFTWARE\\"),
-			new KeyValuePair<RegistryKey, string>(Registry.LocalMachine, "SOFTWARE\\"),
-			new KeyValuePair<RegistryKey, string>(Registry.CurrentUser, "SOFTWARE\\Wow6432Node\\"),
-			new KeyValuePair<RegistryKey, string>(Registry.LocalMachine, "SOFTWARE\\Wow6432Node\\")
-		};
+		static readonly Lazy<KeyValuePair<RegistryKey, string>[]> InstallDirRoots = new Lazy<KeyValuePair<RegistryKey, string>[]>(() =>
+			new KeyValuePair<RegistryKey, string>[]
+			{
+				new KeyValuePair<RegistryKey, string>(Registry.CurrentUser, "SOFTWARE\\"),
+				new KeyValuePair<RegistryKey, string>(Registry.LocalMachine, "SOFTWARE\\"),
+				new KeyValuePair<RegistryKey, string>(Registry.CurrentUser, "SOFTWARE\\Wow6432Node\\"),
+				new KeyValuePair<RegistryKey, string>(Registry.LocalMachine, "SOFTWARE\\Wow6432Node\\")
+			});
 
 		/// <summary>
 		/// Reads an install directory for a 32-bit program from a registry key. This checks for per-user and machine wide settings, and under the Wow64 virtual keys (HKCU\SOFTWARE, HKLM\SOFTWARE, HKCU\SOFTWARE\Wow6432Node, HKLM\SOFTWARE\Wow6432Node).
@@ -439,7 +441,7 @@ namespace UnrealBuildTool
 		[SupportedOSPlatform("windows")]
 		public static bool TryReadInstallDirRegistryKey32(string KeySuffix, string ValueName, [NotNullWhen(true)] out DirectoryReference? InstallDir)
 		{
-			foreach (KeyValuePair<RegistryKey, string> InstallRoot in InstallDirRoots)
+			foreach (KeyValuePair<RegistryKey, string> InstallRoot in InstallDirRoots.Value)
 			{
 				using (RegistryKey? Key = InstallRoot.Key.OpenSubKey(InstallRoot.Value + KeySuffix))
 				{
@@ -463,7 +465,7 @@ namespace UnrealBuildTool
 		static string[] ReadInstallDirSubKeys32(string KeyName)
 		{
 			HashSet<string> AllSubKeys = new HashSet<string>(StringComparer.Ordinal);
-			foreach (KeyValuePair<RegistryKey, string> Root in InstallDirRoots)
+			foreach (KeyValuePair<RegistryKey, string> Root in InstallDirRoots.Value)
 			{
 				using (RegistryKey? Key = Root.Key.OpenSubKey(Root.Value + KeyName))
 				{

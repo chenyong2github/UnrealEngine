@@ -17,7 +17,7 @@ namespace UnrealBuildTool
 			return "11.5";
 		}
 
-		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
+		protected override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
 		{
 			if (RuntimePlatform.IsMac)
 			{
@@ -32,12 +32,12 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
+		protected override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
 		{
 			MinVersion = MaxVersion = null;
 		}
 
-		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue)
+		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue, string? Hint)
 		{
 			OutValue = 0;
 
@@ -65,7 +65,7 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		public override string? GetInstalledSDKVersion()
+		protected override string? GetInstalledSDKVersion()
 		{
 			return UnrealBuildBase.ApplePlatformSDK.InstalledSDKVersion;
 		}

@@ -965,43 +965,49 @@ static FSlateIcon MakePlatformSdkIconAttribute(FName IniPlatformName, TSharedPtr
 //		));
 }
 
-static void FormatSdkInfo(const FString& PlatformOrDevice, const FTurnkeySdkInfo& SdkInfo, bool bIncludeAutoSdk, FText& OutInfo, FText& OutToolTip)
+static void FormatSdkInfo(const FString& PlatformOrDevice, const FTurnkeySdkInfo& SdkInfo, FText& OutInfo, FText& OutToolTip)
 {
+
+	TArray<FText> Lines;
+
+	for (TPair<FString, FTurnkeySdkInfo::Version> Pair : SdkInfo.SDKVersions)
+	{
+		const FString& Name = Pair.Key;
+		const FString& Min = Pair.Value.Min;
+		const FString& Max = Pair.Value.Max;
+		const FString& Current = Pair.Value.Current;
+		FFormatNamedArguments VersionArgs;
+		VersionArgs.Add(TEXT("Name"), FText::FromString(Name));
+		VersionArgs.Add(TEXT("Min"), FText::FromString(Min));
+		VersionArgs.Add(TEXT("Max"), FText::FromString(Max));
+		VersionArgs.Add(TEXT("Current"), FText::FromString(Current.Len() ? Current : FString(TEXT("--"))));
+
+		if (Min == Max)
+		{
+			Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_Single", "Allowed {Name} Version: {Min}"), VersionArgs));
+		}
+		else if (Min == TEXT(""))
+		{
+			Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_MaxOnly", "Allowed {Name} Versions: Up to {Max}"), VersionArgs));
+		}
+		else if (Max == TEXT(""))
+		{
+			Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_MinOnly", "Allowed {Name} Versions: {Min} and up"), VersionArgs));
+		}
+		else
+		{
+			Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_Range", "Allowed {Name} Versions: {Min} through {Max}"), VersionArgs));
+		}
+		Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_Current", "  Installed: {Current}"), VersionArgs));
+	}
+
 	FFormatOrderedArguments Args;
-	Args.Add(FText::FromString(SdkInfo.InstalledVersion));
-	Args.Add(FText::FromString(SdkInfo.AutoSDKVersion));
-	Args.Add(FText::FromString(SdkInfo.MinAllowedVersion));
-	Args.Add(FText::FromString(SdkInfo.MaxAllowedVersion));
 	Args.Add(SdkInfo.SdkErrorInformation);
 	Args.Add(FText::FromString(PlatformOrDevice));
 
-	TArray<FText> Lines;
-	Lines.Add(FText::Format(LOCTEXT("SdkInfo_Installed", "Installed SDK: {0}"), Args));
-	if (bIncludeAutoSdk)
-	{
-		Lines.Add(FText::Format(LOCTEXT("SdkInfo_AutoSDK", "AutoSDK: {1}"), Args));
-	}
-	
-	if (SdkInfo.MinAllowedVersion == SdkInfo.MaxAllowedVersion)
-	{
-		Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_Single", "Allowed Version: {2}"), Args));
-	}
-	else if (SdkInfo.MinAllowedVersion == TEXT(""))
-	{
-		Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_MaxOnly", "Allowed Versions: Up to {3}"), Args));
-	}
-	else if (SdkInfo.MaxAllowedVersion == TEXT(""))
-	{
-		Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_MinOnly", "Allowed Versions: {2} and up"), Args));
-	}
-	else
-	{
-		Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_Range", "Allowed Versions: {2} through {3}"), Args));
-	}
-
 	if (!SdkInfo.SdkErrorInformation.IsEmpty())
 	{
-		Lines.Add(FText::Format(LOCTEXT("SdkInfo_Error", "Error Info:\n{4}"), Args));
+		Lines.Add(FText::Format(LOCTEXT("SdkInfo_Error", "Error Info:\n{0}"), Args));
 	}
 
 	// now make a single \n delimted text
@@ -1010,11 +1016,11 @@ static void FormatSdkInfo(const FString& PlatformOrDevice, const FTurnkeySdkInfo
 	// make a tooltip
 	if (PlatformOrDevice.Contains(TEXT("@")))
 	{
-		OutToolTip = FText::Format(LOCTEXT("SdkInfo_ToolTip", "Information returned from:\nRunUAT Turnkey -command=VerifySdk -device={5}"), Args);
+		OutToolTip = FText::Format(LOCTEXT("SdkInfo_ToolTip", "Information returned from:\nRunUAT Turnkey -command=VerifySdk -device={1}"), Args);
 	}
 	else
 	{
-		OutToolTip = FText::Format(LOCTEXT("SdkInfo_ToolTip", "Information returned from:\nRunUAT Turnkey -command=VerifySdk -platform={5}"), Args);
+		OutToolTip = FText::Format(LOCTEXT("SdkInfo_ToolTip", "Information returned from:\nRunUAT Turnkey -command=VerifySdk -platform={1}"), Args);
 	}
 }
 
@@ -1318,7 +1324,7 @@ static void MakeTurnkeyPlatformMenu(UToolMenu* ToolMenu, FName IniPlatformName, 
 
 					FTurnkeySdkInfo SdkInfo = ITurnkeySupportModule::Get().GetSdkInfoForDeviceId(DeviceId);
 					FText SdkText, SdkToolTip;
-					FormatSdkInfo(DeviceId, SdkInfo, false, SdkText, SdkToolTip);
+					FormatSdkInfo(DeviceId, SdkInfo, SdkText, SdkToolTip);
 
 					FToolMenuSection& Section = SubToolMenu->AddSection("DeviceSdkInfo", LOCTEXT("TurnkeySection_DeviceSdkInfo", "Sdk Info"));
 					Section.AddEntry(
@@ -1363,7 +1369,7 @@ static void MakeTurnkeyPlatformMenu(UToolMenu* ToolMenu, FName IniPlatformName, 
 
 	const FTurnkeySdkInfo& SdkInfo = ITurnkeySupportModule::Get().GetSdkInfo(IniPlatformName, true);
 	FText SdkText, SdkToolTip;
-	FormatSdkInfo(IniPlatformName.ToString(), SdkInfo, true, SdkText, SdkToolTip);
+	FormatSdkInfo(IniPlatformName.ToString(), SdkInfo, SdkText, SdkToolTip);
 
 	SdkSection.AddEntry(
 		FToolMenuEntry::InitWidget(
@@ -2012,13 +2018,42 @@ bool GetSdkInfoFromTurnkey(FString Line, FName& PlatformName, FString& DeviceId,
 	FString FlagsString;
 	FParse::Value(*Info, TEXT("Status="), StatusString);
 	FParse::Value(*Info, TEXT("Flags="), FlagsString);
-	FParse::Value(*Info, TEXT("Installed="), SdkInfo.InstalledVersion);
-	FParse::Value(*Info, TEXT("AutoSDK="), SdkInfo.AutoSDKVersion);
-	FParse::Value(*Info, TEXT("MinAllowed="), SdkInfo.MinAllowedVersion);
-	FParse::Value(*Info, TEXT("MaxAllowed="), SdkInfo.MaxAllowedVersion);
 	FString ErrorString;
 	FParse::Value(*Info, TEXT("Error="), ErrorString);
 	SdkInfo.SdkErrorInformation = FText::FromString(ErrorString.Replace(TEXT("|"), TEXT("\n")));
+
+	FString SDKNamesString;
+	TArray<FString> SDKNames;
+	if (FParse::Value(*Info, TEXT("SDKs="), SDKNamesString))
+	{
+		SDKNamesString.ParseIntoArray(SDKNames, TEXT(","), true);
+	}
+	else
+	{
+		SDKNames.Add("SDK");
+	}
+	if (DeviceId.Len() == 0)
+	{
+		SDKNames.Add("AutoSDK");
+	}
+
+	for (const FString& Name : SDKNames)
+	{
+		FString Min, Max, Current;
+		// handle both AutoSDK and manual (auto only has Allowed_AutoSDK, others have Min/Max)
+		FParse::Value(*Info, *FString::Printf(TEXT("MinAllowed_%s="), *Name), Min);
+		FParse::Value(*Info, *FString::Printf(TEXT("MaxAllowed_%s="), *Name), Max);
+		FParse::Value(*Info, *FString::Printf(TEXT("Allowed_%s="), *Name), Min);
+		FParse::Value(*Info, *FString::Printf(TEXT("Allowed_%s="), *Name), Max);
+		FParse::Value(*Info, *FString::Printf(TEXT("Current_%s="), *Name), Current);
+		// also handle no name at all (for device, etc)
+		FParse::Value(*Info, *FString::Printf(TEXT("MinAllowed="), *Name), Min);
+		FParse::Value(*Info, *FString::Printf(TEXT("MaxAllowed="), *Name), Max);
+		FParse::Value(*Info, *FString::Printf(TEXT("Allowed="), *Name), Min);
+		FParse::Value(*Info, *FString::Printf(TEXT("Allowed="), *Name), Max);
+		FParse::Value(*Info, *FString::Printf(TEXT("Current=")), Current);
+		SdkInfo.SDKVersions.Add(Name, { Min, Max, Current });
+	}
 
 	SdkInfo.Status = ETurnkeyPlatformSdkStatus::Unknown;
 	if (StatusString == TEXT("Valid"))
@@ -2145,15 +2180,19 @@ void FTurnkeySupportModule::UpdateSdkInfo()
 						// future calls to Turnkey will inherit the AutoSDK env vars, and it won't be able to determine the manual SDK versions anymore. If we use the editor to
 						// install an SDK via Turnkey, it will directly update the installed version based on the result of that command, not this Update operation
 
-						FString OriginalManualInstallValue = PerPlatformSdkInfo[PlatformName].InstalledVersion;
+						TMap<FString, FTurnkeySdkInfo::Version> OriginalVersions = PerPlatformSdkInfo[PlatformName].SDKVersions;
 
 						// set it into the platform
 						PerPlatformSdkInfo[PlatformName] = SdkInfo;
 
-						// restore the original installed version if it set after the first time
-						if (OriginalManualInstallValue.Len() > 0)
+						// restore the original installed version if it set after the first time, except for AutoVersion
+						if (OriginalVersions.Num() > 0)
 						{
-							PerPlatformSdkInfo[PlatformName].InstalledVersion = OriginalManualInstallValue;
+							PerPlatformSdkInfo[PlatformName].SDKVersions = OriginalVersions;
+							if (SdkInfo.SDKVersions.Contains(TEXT("AutoSDK")))
+							{
+								PerPlatformSdkInfo[PlatformName].SDKVersions.Add(TEXT("AutoSDK"), SdkInfo.SDKVersions[TEXT("AutoSDK")]);
+							}
 						}
 
 

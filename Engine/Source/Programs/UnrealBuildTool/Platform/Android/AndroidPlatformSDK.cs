@@ -20,13 +20,13 @@ namespace UnrealBuildTool
 			return "-24";
 		}
 
-		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
+		protected override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
 		{
 			MinVersion = "r21a";
 			MaxVersion = "r23a";
 		}
 
-		public override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
+		protected override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
 		{
 			MinVersion = MaxVersion = null;
 		}
@@ -45,7 +45,7 @@ namespace UnrealBuildTool
 		}
 
 
-		public override string? GetInstalledSDKVersion()
+		protected override string? GetInstalledSDKVersion()
 		{
 			string? NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
 
@@ -97,7 +97,7 @@ namespace UnrealBuildTool
 		}
 
 
-		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue)
+		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue, string? Hint)
 		{
 			// convert r<num>[letter] to hex
 			if (!string.IsNullOrEmpty(StringValue))

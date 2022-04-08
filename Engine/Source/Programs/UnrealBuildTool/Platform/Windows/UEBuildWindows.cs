@@ -431,7 +431,7 @@ namespace UnrealBuildTool
 				}
 				catch(Exception) // Find function will throw if there is no visual studio installed! This can happen w/ clang builds
 				{
-					return string.Empty;
+					return null;
 				}
 			}
 		}

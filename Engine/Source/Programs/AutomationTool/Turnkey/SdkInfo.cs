@@ -58,10 +58,11 @@ namespace Turnkey
 				Result |= LocalAvailability.Platform_InvalidHostPrerequisites;
 			}
 
-			string ManualSDKVersion, AutoSDKVersion;
-			SDK.GetInstalledVersions(out ManualSDKVersion, out AutoSDKVersion);
+			// get all the SDK info we can
+			SDKCollection SDKInfo = SDK.GetAllSDKInfo();
 
-			if (AutoSDKVersion == null)
+			// if we don't have an AutoSDK in good shape, look for others
+			if (SDKInfo.AutoSdk?.Current == null)
 			{
 				// look to see if other versions are around
 				string AutoSdkVar = Environment.GetEnvironmentVariable("UE_SDKS_ROOT");
@@ -86,38 +87,32 @@ namespace Turnkey
 						}
 					}
 				}
-
 			}
 			else
 			{
 				Result |= LocalAvailability.AutoSdk_ValidVersionExists | LocalAvailability.AutoSdk_VariableExists;
 			}
 
-			// if we have the variable at all, 
-
-			// if anything is installed, this will return a value
-			if (!string.IsNullOrEmpty(ManualSDKVersion))
+			// if all manual SDKs are valid, then we are good
+			if (SDKInfo.AreAllManualSDKsValid())
 			{
-				if (SDK.IsVersionValid(ManualSDKVersion, bForAutoSDK: false))
-				{
-					Result |= LocalAvailability.InstalledSdk_ValidVersionExists;
-				}
-				else
-				{
-					Result |= LocalAvailability.InstalledSdk_InvalidVersionExists;
-				}
+				Result |= LocalAvailability.InstalledSdk_ValidVersionExists;
 			}
-
+			// but if we have any manual SDKs that have a Current version, then we have invalid version installed
+			else if (SDKInfo.Sdks.Where(x => string.Compare(x.Name, "AutoSDK", true) != 0 && x.Current != null).Count() > 0)
+			{ 
+				Result |= LocalAvailability.InstalledSdk_InvalidVersionExists;
+			}
 
 			// look for other, inactive, versions
 			foreach (string AlternateVersion in SDK.GetAllInstalledSDKVersions())
 			{
-				if (SDK.IsVersionValid(AlternateVersion, bForAutoSDK: false))
+				// @todo turnkey: do we want to deal with multiple installed sdk for platforms with multiple SDK types???
+				if (SDK.IsVersionValid(AlternateVersion, "Sdk"))
 				{
 					Result |= LocalAvailability.InstalledSdk_ValidInactiveVersionExists;
 				}
 			}
-
 
 			string FullSupportedPlatforms = TurnkeyUtils.GetVariableValue("Studio_FullInstallPlatforms");
 			string AutoSdkSupportedPlatforms = TurnkeyUtils.GetVariableValue("Studio_AutoSdkPlatforms");

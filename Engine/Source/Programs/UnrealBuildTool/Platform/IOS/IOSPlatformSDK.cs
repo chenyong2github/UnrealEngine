@@ -12,7 +12,7 @@ namespace UnrealBuildTool
 {
 	internal class IOSPlatformSDK : ApplePlatformSDK
 	{
-		public override void GetValidSoftwareVersionRange(out string MinVersion, out string? MaxVersion)
+		protected override void GetValidSoftwareVersionRange(out string MinVersion, out string? MaxVersion)
 		{
 			// what is our min IOS version?
 			MinVersion = "12.0";

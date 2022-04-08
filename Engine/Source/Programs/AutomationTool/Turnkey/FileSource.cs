@@ -96,16 +96,23 @@ namespace Turnkey
 
 		[XmlElement("Platform")]
 		public string PlatformString = null;
-
 		[XmlIgnore]
 		private List<UnrealTargetPlatform> Platforms;
+
+		[XmlElement("Type")]
+		public string TypeString = null;
+		[XmlIgnore]
+		public SourceType Type = SourceType.Full;
+		[XmlIgnore]
+		public string SpecificSDKType = null;
 
 		[XmlElement("Source")]
 		public CopySource[] Sources = null;
 
+
+
 		public string Version = null;
 		public string Name = null;
-		public SourceType Type = SourceType.Full;
 		public string AllowedFlashDeviceTypes = null;
 		
 		// Project for Build types to filter on
@@ -129,10 +136,10 @@ namespace Turnkey
 		{
 			FileSource Clone = new FileSource();
 			Clone.PlatformString = PlatformString;
+			Clone.TypeString = TypeString;
 			Clone.Version = Version;
 			Clone.Name = Name;
 			Clone.AllowedFlashDeviceTypes = AllowedFlashDeviceTypes;
-			Clone.Type = Type;
 			Clone.Project = Project;
 			Clone.BuildPlatformEnumerationSuffix = BuildPlatformEnumerationSuffix;
 
@@ -223,7 +230,9 @@ namespace Turnkey
 			if (Type == SourceType.Flash)
 			{
 				UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString());
-				bool bIsValid = SDK.IsSoftwareVersionValid(Version);
+				// if we are specific to any particular device type, use one of them to pass to the validation function (different device types may have different SDK versions)
+				string DeviceTypeHint = string.IsNullOrEmpty(AllowedFlashDeviceTypes) ? null : AllowedFlashDeviceTypes.Split(",").First();
+				bool bIsValid = SDK.IsSoftwareVersionValid(Version, DeviceTypeHint);
 				// if we were passed a device, also check if this Sdk is valid for that device
 				if (Device != null)
 				{
@@ -233,7 +242,8 @@ namespace Turnkey
 			}
 			else
 			{
-				return UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString()).IsVersionValid(Version, bForAutoSDK: (Type == SourceType.AutoSdk));
+				string SDKTypeHint = SpecificSDKType ?? Type.ToString();
+				return UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString()).IsVersionValid(Version, SDKTypeHint);
 			}
 		}
 
@@ -292,7 +302,7 @@ namespace Turnkey
 			return Best;
 		}
 
-		static public FileSource FindMatchingSdk(AutomationTool.Platform Platform, SourceType[] TypePriority, bool bSelectBest, string DeviceType = null, string CurrentSdk = null)
+		static public FileSource FindMatchingSdk(AutomationTool.Platform Platform, SourceType[] TypePriority, bool bSelectBest, string DeviceType = null, string CurrentSdk = null, string SpecificType = null)
 		{
 			UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(Platform.PlatformType.ToString());
 
@@ -304,13 +314,18 @@ namespace Turnkey
 				//				Sdks = Sdks.FindAll(x => x.Version == null || (Type == SourceType.Flash ? TurnkeyUtils.IsValueValid(x.Version, Platform.GetAllowedSoftwareVersions(), Platform) : SDK.IsVersionValid(x.Version, bForAutoSDK: x.Type == SourceType.AutoSdk)));
 				Sdks = Sdks.FindAll(x => x.Version == null ||
 					(Type == SourceType.Flash ?
-						SDK.IsSoftwareVersionValid(x.Version) :
-						SDK.IsVersionValid(x.Version, bForAutoSDK: (bSelectBest && x.Type == SourceType.AutoSdk))
+						SDK.IsSoftwareVersionValid(x.Version, DeviceType) :
+						SDK.IsVersionValid(x.Version, (bSelectBest && x.Type == SourceType.AutoSdk) ? "AutoSDK" : SpecificType ?? "Sdk")
 					));
 
 				if (DeviceType != null)
 				{
 					Sdks = Sdks.FindAll(x => TurnkeyUtils.IsValueValid(DeviceType, x.AllowedFlashDeviceTypes, Platform));
+				}
+
+				if (SpecificType != null)
+				{
+					Sdks = Sdks.FindAll(x => TurnkeyUtils.IsValueValid(SpecificType, x.SpecificSDKType, Platform));
 				}
 
 				// if none were found try next type
@@ -903,6 +918,13 @@ namespace Turnkey
 
 		internal void PostDeserialize()
 		{
+			// if the Type is a platform specific type, then 
+			if (!Enum.TryParse<SourceType>(TypeString, out Type))
+			{
+				Type = SourceType.Full;
+				SpecificSDKType = TypeString;
+			}
+
 			// validate
 			if (Version == null && IsSdkType())
 			{
@@ -930,7 +952,7 @@ namespace Turnkey
 					else
 					{
 						// allow for shared SDK "platform" types (we use the AutoSDK platform name in the SDK object to determine the shared SDK "platform"
-						foreach (UEBuildPlatformSDK SDK in UEBuildPlatformSDK.AllSDKs)
+						foreach (UEBuildPlatformSDK SDK in UEBuildPlatformSDK.AllPlatformSDKObjects)
 						{
 							// if the platforms contains a AutoSDK platform that doesn't match a real platform name, add the platform to the set
 							if (PlatformStrings.Contains(SDK.GetAutoSDKPlatformName().ToLower()))

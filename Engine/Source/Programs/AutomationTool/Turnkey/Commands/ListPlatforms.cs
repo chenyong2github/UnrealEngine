@@ -26,21 +26,19 @@ namespace Turnkey.Commands
 					continue;
 				}
 
-				string ManualSDKVersion, AutoSDKVersion;
-				string MinAllowedVersion, MaxAllowedVersion;
-				string MinAllowedSoftwareVersion, MaxAllowedSoftwareVersion;
-				SDK.GetInstalledVersions(out ManualSDKVersion, out AutoSDKVersion);
-				SDK.GetValidVersionRange(out MinAllowedVersion, out MaxAllowedVersion);
-				SDK.GetValidSoftwareVersionRange(out MinAllowedSoftwareVersion, out MaxAllowedSoftwareVersion);
-				
-				bool bIsAutoSdkValid = SDK.IsVersionValid(AutoSDKVersion, bForAutoSDK:true);
-				bool bIsManualSdkValid = SDK.IsVersionValid(ManualSDKVersion, bForAutoSDK:false);
+				SDKCollection SDKInfo = SDK.GetAllSDKInfo();
+				SDKCollection SoftwareInfo = SDK.GetAllSoftwareInfo();
+
+				string AutoSDKVersion = SDKInfo.AutoSdk?.Current;
 				TurnkeyUtils.Log("  Platform: {0}", TargetPlatform.ToString());
-				TurnkeyUtils.Log("  Installed Manual Sdk: {0}", ManualSDKVersion);
-				TurnkeyUtils.Log("  Installed Auto Sdk: {0}", AutoSDKVersion);
-				TurnkeyUtils.Log("  Allowed Sdk Range: {0}-{1}", MinAllowedVersion, MaxAllowedVersion);
-				TurnkeyUtils.Log("  Valid Manual SDK Installed? {0}", bIsManualSdkValid);
-				TurnkeyUtils.Log("  Valid Auto SDK Installed? {0}", bIsAutoSdkValid);
+				TurnkeyUtils.Log("  Installed Manual Sdk: {0}", SDKInfo.ToString());
+				TurnkeyUtils.Log("  Installed Auto Sdk: {0}", AutoSDKVersion ?? "");
+				foreach (SDKDescriptor Desc in SDKInfo.FullSdks)
+				{
+					TurnkeyUtils.Log($"  Allowed {Desc.Name} Range: {Desc.Min}-{Desc.Max}");
+				}
+				TurnkeyUtils.Log("  Valid Manual SDK(s) Installed? {0}", SDKInfo.AreAllManualSDKsValid());
+				TurnkeyUtils.Log("  Valid Auto SDK Installed? {0}", AutoSDKVersion != null);
 
 				string[] AllVersions = SDK.GetAllInstalledSDKVersions();
 				TurnkeyUtils.Log("  AllVersions Installed: {0}", string.Join(",", AllVersions));
@@ -61,7 +59,8 @@ namespace Turnkey.Commands
 					}
 				}
 
-				TurnkeyUtils.Log("  Allowed Device Software Range: {0}-{1}", MinAllowedSoftwareVersion, MaxAllowedSoftwareVersion);
+	
+				TurnkeyUtils.Log("  Allowed Device Software Range: {0}", SoftwareInfo.ToString(""));
 				TurnkeyUtils.Log("  Devices: ");
 
 				DeviceInfo[] Devices = Platform.GetDevices();
@@ -73,7 +72,7 @@ namespace Turnkey.Commands
 				{
 					foreach (DeviceInfo Device in Devices)
 					{
-						bool bIsSoftwareValid = SDK.IsSoftwareVersionValid(Device.SoftwareVersion);
+						bool bIsSoftwareValid = SDK.IsSoftwareVersionValid(Device.SoftwareVersion, Device.Type);
 
 						TurnkeyUtils.Log("    Name: {0}{1}", Device.Name, Device.bIsDefault ? "*" : "");
 						TurnkeyUtils.Log("      Id: {0}", Device.Id);

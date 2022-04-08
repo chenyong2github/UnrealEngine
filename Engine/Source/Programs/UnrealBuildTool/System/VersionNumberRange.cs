@@ -14,12 +14,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Minimum version number
 		/// </summary>
-		VersionNumber Min { get; }
+		public VersionNumber Min { get; }
 
 		/// <summary>
 		/// Maximum version number
 		/// </summary>
-		VersionNumber Max { get; }
+		public VersionNumber Max { get; }
 
 		/// <summary>
 		/// Constructor

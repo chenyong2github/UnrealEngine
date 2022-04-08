@@ -526,7 +526,7 @@ namespace UnrealBuildTool
 					throw new ArgumentException("Wrong Target.Architecture: {0}", Target.Architecture);
 				}
 
-				string PlatformSdkVersionString = UEBuildPlatformSDK.GetSDKForPlatform(BuildPlatform.GetPlatformName())!.GetInstalledSDKVersion()!;
+				string PlatformSdkVersionString = UEBuildPlatformSDK.GetSDKForPlatform(BuildPlatform.GetPlatformName())!.GetInstalledVersion()!;
 				var Version = GetLinuxToolchainVersionFromFullString(PlatformSdkVersionString);
 
 				string? InternalSdkPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux)!.GetInternalSDKPath();

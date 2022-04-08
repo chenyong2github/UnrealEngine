@@ -234,44 +234,42 @@ namespace Turnkey.Commands
 
 					int BestVersionIndex = Sdks.Any() ? Sdks.IndexOf(BestByType.First().Value) : -1;
 
-					string Current, MinVersion, MaxVersion;
+					SDKCollection SDKInfo;
 					if (DesiredType == FileSource.SourceType.Flash)
 					{
-						SDK.GetValidSoftwareVersionRange(out MinVersion, out MaxVersion);
 						DeviceInfo Device = GetDevice(AutomationPlatform, DeviceName);
-						Current = Device == null ? "N/A" : Device.SoftwareVersion;
+						SDKInfo = SDK.GetAllSoftwareInfo(Device.Type, Device.SoftwareVersion);
 					}
 					else
 					{
-						SDK.GetValidVersionRange(out MinVersion, out MaxVersion);
-						Current = SDK.GetInstalledVersion();
+						SDKInfo = SDK.GetAllSDKInfo();
 					}
 					//if (bStrippedDevices)
 					//{
 					//	Prompt += "\nNOTE: Some Flash Sdks were removed because no devices were found";
 					//}
 
-					MinVersion = MinVersion == null ? "" : MinVersion;
-					MaxVersion = MaxVersion == null ? "" : MaxVersion;
-
 					string Prompt;
 					string TypeString = DesiredType == FileSource.SourceType.Flash ? "Flash" : "Sdk";
 					
-					if (MinVersion == MaxVersion)
+//					Prompt = $"Select an {TypeString} to install [Current Version: {Current}, Allowed: {ValidVersions}]";
+					Prompt = $"Select an {TypeString} to install\n{SDKInfo.ToString("Allowed", "")}";
+					if (DesiredType != FileSource.SourceType.Flash)
 					{
-						Prompt = $"Select an {TypeString} to install [Current Version: {Current}, Required: {MinVersion}]";
+						Prompt += $"\n(Preferred: {SDK.GetMainVersion()}";
 					}
-					else
-					{
-						if (DesiredType == FileSource.SourceType.Flash)
-						{
-							Prompt = $"Select an {TypeString} to install [Current: {Current}, Valid Range: {MinVersion} - {MaxVersion}]";
-						}
-						else
-						{
-							Prompt = $"Select an {TypeString} to install [Current: {Current}, Main: {SDK.GetMainVersion()}, Valid Range: {MinVersion} - {MaxVersion}]";
-						}
-					}
+					//}
+					//else
+					//{
+					//	if (DesiredType == FileSource.SourceType.Flash)
+					//	{
+					//		Prompt = $"Select an {TypeString} to install [Current: {Current}, Valid Range: {MinVersion} - {MaxVersion}]";
+					//	}
+					//	else
+					//	{
+					//		Prompt = $"Select an {TypeString} to install [Current: {Current}, Main: {SDK.GetMainVersion()}, Valid Range: {MinVersion} - {MaxVersion}]";
+					//	}
+					//}
 
 
 					int Choice = TurnkeyUtils.ReadInputInt(Prompt, Options, true, BestVersionIndex >= 0 ?  (BestVersionIndex + 1) : -1);
