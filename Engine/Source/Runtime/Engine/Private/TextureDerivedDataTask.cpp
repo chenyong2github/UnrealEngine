@@ -541,7 +541,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 					DerivedData->SizeY = CompressedImage.SizeY;
 					DerivedData->PixelFormat = (EPixelFormat)CompressedImage.PixelFormat;
 
-					// @@!! verify NumSlices
+					// it would be better if CompressedImage just stored NumSlices, rather than recomputing it here
 					if (InBuildSettingsPerLayer[0].bVolume || InBuildSettingsPerLayer[0].bTextureArray)
 					{
 						DerivedData->SetNumSlices(CompressedImage.SizeZ);
