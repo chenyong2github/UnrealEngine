@@ -5,6 +5,10 @@
 #include "CoreMinimal.h"
 #include "Engine/Texture.h"
 
+// DEPRECATED
+// use Tiff ImageWrapper instead
+// delete me in UE 5.3
+
 class UTexture2D;
 
 struct FIBITMAP;

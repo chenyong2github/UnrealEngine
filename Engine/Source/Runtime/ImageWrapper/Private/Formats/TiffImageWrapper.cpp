@@ -2,7 +2,7 @@
 
 #include "Formats/TiffImageWrapper.h"
 
-#if WITH_LIBTIFF
+#if WITH_LIBTIFF // set from libtiff.build.cs , available on all tool platforms
 
 #include "Async/ParallelFor.h"
 #include "Async/TaskGraphInterfaces.h"
