@@ -127,7 +127,7 @@ static bool CompressImageUsingQonvert(
 
 	if (Qonvert(&SrcImg, &DstImg) != Q_SUCCESS)
 	{
-		UE_LOG(LogTextureFormatETC2, Fatal, TEXT("CONVERSION FAILED"));
+		UE_LOG(LogTextureFormatETC2, Error, TEXT("Qonvert failed"));
 		return false;
 	}
 
@@ -140,6 +140,54 @@ static bool CompressImageUsingQonvert(
  */
 class FTextureFormatETC2 : public ITextureFormat
 {
+public:
+
+#if PLATFORM_WINDOWS
+	void*	TextureConverterHandle = NULL;
+	FString AppLocalBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/AppLocalDependencies/Win64/Microsoft.VC.CRT");
+	FString QualCommBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/QualComm/Win64");
+	FString QualCommBinaryName = TEXT("TextureConverter.dll");
+#endif
+
+	FTextureFormatETC2()
+	{
+	}
+
+	~FTextureFormatETC2()
+	{
+#if PLATFORM_WINDOWS
+		if (TextureConverterHandle)
+		{
+			FPlatformProcess::FreeDllHandle(TextureConverterHandle);
+			TextureConverterHandle = nullptr;
+		}
+#endif
+	}
+
+	void LoadDLLOnce()
+	{
+		// Load DLL on first use, not at startup
+
+#if PLATFORM_WINDOWS
+		// should only be called once
+		check(TextureConverterHandle == nullptr);
+
+		UE_LOG(LogTextureFormatETC2, Display, TEXT("ETC2 Texture loading DLL: %s"), *QualCommBinaryName);
+
+		FPlatformProcess::PushDllDirectory(*AppLocalBinariesRoot);
+		void* handle = FPlatformProcess::GetDllHandle(*(QualCommBinariesRoot / QualCommBinaryName));
+		FPlatformProcess::PopDllDirectory(*AppLocalBinariesRoot);
+		
+		TextureConverterHandle = handle;
+
+		if (handle == nullptr )
+		{
+			UE_LOG(LogTextureFormatETC2, Error, TEXT("ETC2 Texture %s requested but could not be loaded"), *QualCommBinaryName);
+		}
+#endif
+	}
+
+
 	virtual bool AllowParallelBuild() const override
 	{
 		return !PLATFORM_MAC; // On Mac Qualcomm's TextureConverter library is not thead-safe
@@ -161,10 +209,7 @@ class FTextureFormatETC2 : public ITextureFormat
 
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
 	{
-		for (int32 i = 0; i < UE_ARRAY_COUNT(GSupportedTextureFormatNames); ++i)
-		{
-			OutFormats.Add(GSupportedTextureFormatNames[i]);
-		}
+		OutFormats.Append(GSupportedTextureFormatNames, UE_ARRAY_COUNT(GSupportedTextureFormatNames));
 	}
 
 	virtual FTextureFormatCompressorCaps GetFormatCapabilities() const override
@@ -203,6 +248,9 @@ class FTextureFormatETC2 : public ITextureFormat
 		FCompressedImage2D& OutCompressedImage
 		) const override
 	{
+
+		UE_CALL_ONCE( const_cast<FTextureFormatETC2 *>(this)->LoadDLLOnce );
+
 		FImage Image;
 		InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
@@ -235,35 +283,22 @@ class FTextureFormatETC2 : public ITextureFormat
 	}
 };
 
-static ITextureFormat* Singleton = NULL;
 
-
-
-#if PLATFORM_WINDOWS
-	void*	TextureConverterHandle = NULL;
-	FString AppLocalBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/AppLocalDependencies/Win64/Microsoft.VC.CRT");
-	FString QualCommBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/QualComm/Win64");
-	FString QualCommBinaryName = TEXT("TextureConverter.dll");
-#endif
 
 
 class FTextureFormatETC2Module : public ITextureFormatModule
 {
 public:
+	ITextureFormat* Singleton = NULL;
+
 	FTextureFormatETC2Module() { }
 	virtual ~FTextureFormatETC2Module()
 	{
-		ITextureFormat* p = Singleton;
-		Singleton = nullptr;
-		if (p)
-			delete p;
-
-#if PLATFORM_WINDOWS
-		void* handle = TextureConverterHandle;
-		TextureConverterHandle = nullptr;
-		if (handle)
-			FPlatformProcess::FreeDllHandle(handle);
-#endif
+		if ( Singleton )
+		{
+			delete Singleton;
+			Singleton = nullptr;
+		}
 	}
 
 	virtual void StartupModule() override
@@ -274,30 +309,6 @@ public:
 
 	virtual ITextureFormat* GetTextureFormat()
 	{
-#if PLATFORM_WINDOWS
-		// @@!! TODO: move this to first use, not at startup
-
-		if (TextureConverterHandle == nullptr)
-		{
-			UE_LOG(LogTextureFormatETC2, Display, TEXT("ETC2 Texture loading DLL: %s"), *QualCommBinaryName);
-			FPlatformProcess::PushDllDirectory(*AppLocalBinariesRoot);
-			void* handle = FPlatformProcess::GetDllHandle(*(QualCommBinariesRoot / QualCommBinaryName));
-			FPlatformProcess::PopDllDirectory(*AppLocalBinariesRoot);
-			if (handle == nullptr )
-			{
-				UE_LOG(LogTextureFormatETC2, Warning, TEXT("ETC2 Texture %s requested but could not be loaded"), *QualCommBinaryName);
-				return nullptr;
-			}
-			TextureConverterHandle = handle;
-		}
-
-		if (TextureConverterHandle == nullptr)
-		{
-			UE_LOG(LogTextureFormatETC2, Warning, TEXT("ETC2 Texture %s requested but could not be loaded"), *QualCommBinaryName);
-			return nullptr;
-		}
-#endif
-
 		if ( Singleton == nullptr )  // not thread safe
 		{
 			FTextureFormatETC2* ptr = new FTextureFormatETC2();

@@ -560,12 +560,52 @@ static void IntelASTCCompressScans(FASTCEncoderSettings* pEncSettings, FImage* p
 class FTextureFormatIntelISPCTexComp : public ITextureFormat
 {
 public:
+
+	void* mDllHandle = nullptr;
+
 	FTextureFormatIntelISPCTexComp()
 	{
 	}
 	virtual ~FTextureFormatIntelISPCTexComp()
 	{
+		if ( mDllHandle != nullptr )
+		{
+			FPlatformProcess::FreeDllHandle(mDllHandle);
+			mDllHandle = nullptr;
+		}
 	}
+
+	void LoadDLLOnce()
+	{
+		// LoadDLL is delayed to first use
+		// should only be called once
+		check( mDllHandle == nullptr );
+
+		FString DLLPath;
+#if PLATFORM_WINDOWS
+#if PLATFORM_64BITS
+		DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Intel/ISPCTexComp/Win64-Release/ispc_texcomp.dll");
+#else	//32-bit platform
+		DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Intel/ISPCTexComp/Win32-Release/ispc_texcomp.dll");
+#endif
+#elif PLATFORM_MAC
+		DLLPath = TEXT("libispc_texcomp.dylib");
+#elif PLATFORM_LINUX
+		DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Intel/ISPCTexComp/Linux64-Release/libispc_texcomp.so");
+#endif
+
+		if (DLLPath.Len() > 0)
+		{
+			mDllHandle = FPlatformProcess::GetDllHandle(*DLLPath);
+			UE_CLOG(mDllHandle == nullptr, LogTextureFormatIntelISPCTexComp, Error, TEXT("Unable to load %s"), *DLLPath);
+		}
+		else
+		{
+			UE_LOG(LogTextureFormatIntelISPCTexComp, Error, TEXT("Platform does not have an ispc_texcomp DLL/library"));
+		}
+	}
+
+
 	virtual bool AllowParallelBuild() const override
 	{
 		return true;
@@ -596,10 +636,7 @@ public:
 
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
 	{
-		for (int32 i = 0; i < UE_ARRAY_COUNT(GSupportedTextureFormatNames); ++i)
-		{
-			OutFormats.Add(GSupportedTextureFormatNames[i]);
-		}
+		OutFormats.Append(GSupportedTextureFormatNames, UE_ARRAY_COUNT(GSupportedTextureFormatNames));
 	}
 
 	virtual FTextureFormatCompressorCaps GetFormatCapabilities() const override
@@ -642,7 +679,6 @@ public:
 		// ISPCtexcomp crashes on images not of block-aligned size
 
 		// Allocate temp buffer
-		//@TODO: Optimize away this temp buffer (could avoid last FMemory::Memcpy)
 		TArray64<uint8> TempBuffer;
 		TempBuffer.SetNumUninitialized(AlignedTotalSize);
 
@@ -743,6 +779,9 @@ public:
 		check(InImage.SizeX > 0);
 		check(InImage.SizeY > 0);
 		check(InImage.NumSlices > 0);
+
+		// Load DLL on first use :
+		UE_CALL_ONCE( const_cast<FTextureFormatIntelISPCTexComp *>(this)->LoadDLLOnce );
 
 		bool bCompressionSucceeded = false;
 
@@ -911,18 +950,14 @@ class FTextureFormatIntelISPCTexCompModule : public ITextureFormatModule
 public:
 	FTextureFormatIntelISPCTexCompModule()
 	{
-		mDllHandle = nullptr;
 	}
 
 	virtual ~FTextureFormatIntelISPCTexCompModule()
 	{
-		delete Singleton;
-		Singleton = nullptr;
-
-		if ( mDllHandle != nullptr )
+		if ( Singleton )
 		{
-			FPlatformProcess::FreeDllHandle(mDllHandle);
-			mDllHandle = nullptr;
+			delete Singleton;
+			Singleton = nullptr;
 		}
 	}
 	
@@ -932,38 +967,12 @@ public:
 	{
 		if (!Singleton)
 		{
-			// @@!! todo: move this to first use, not at startup
-
-			FString DLLPath;
-#if PLATFORM_WINDOWS
-	#if PLATFORM_64BITS
-			DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Intel/ISPCTexComp/Win64-Release/ispc_texcomp.dll");
-	#else	//32-bit platform
-			DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Intel/ISPCTexComp/Win32-Release/ispc_texcomp.dll");
-	#endif
-#elif PLATFORM_MAC
-			DLLPath = TEXT("libispc_texcomp.dylib");
-#elif PLATFORM_LINUX
-			DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Intel/ISPCTexComp/Linux64-Release/libispc_texcomp.so");
-#endif
-
-			if (DLLPath.Len() > 0)
-			{
-				mDllHandle = FPlatformProcess::GetDllHandle(*DLLPath);
-				UE_CLOG(mDllHandle == nullptr, LogTextureFormatIntelISPCTexComp, Warning, TEXT("Unable to load %s"), *DLLPath);
-			}
-			else
-			{
-				UE_LOG(LogTextureFormatIntelISPCTexComp, Warning, TEXT("Platform does not have an ispc_texcomp DLL/library"));
-			}
-
 			Singleton = new FTextureFormatIntelISPCTexComp();
 		}
 		return Singleton;
 	}
 
 	static inline UE::DerivedData::TBuildFunctionFactory<FIntelISPCTexCompTextureBuildFunction> BuildFunctionFactory;
-	void* mDllHandle;
 };
 
 IMPLEMENT_MODULE(FTextureFormatIntelISPCTexCompModule, TextureFormatIntelISPCTexComp);
