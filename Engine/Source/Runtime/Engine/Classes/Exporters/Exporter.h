@@ -141,7 +141,11 @@ class UExporter : public UObject
 	/** 
 	 * Differentiates the filename for objects with multiple files to export. Only needs to be overridden if GetFileCount() returns > 1.
 	 */
-	virtual FString GetUniqueFilename( const TCHAR* Filename, int32 FileIndex, int32 FileCount ) { check( FileIndex == 0 && FileCount == 1 ); return( FString( Filename ) ); }
+	virtual FString GetUniqueFilename( UObject* Object, const TCHAR* Filename, int32 FileIndex, int32 FileCount ) const
+	{
+		check( FileIndex == 0 && FileCount == 1 );
+		return FString( Filename );
+	}
 
 	/**
 	* Return true if the exporter is in batch mode.

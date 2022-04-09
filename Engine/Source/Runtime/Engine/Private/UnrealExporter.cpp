@@ -377,7 +377,7 @@ bool UExporter::RunAssetExportTask(class UAssetExportTask* Task)
 			FBufferArchive Buffer;
 			if(ExportToArchive(Task->Object, Exporter, Buffer, *Extension, i))
 			{
-				FString UniqueFilename = Exporter->GetUniqueFilename(*Task->Filename, i, FileCount);
+				FString UniqueFilename = Exporter->GetUniqueFilename(Task->Object, *Task->Filename, i, FileCount);
 
 				if(!Task->bReplaceIdentical)
 				{

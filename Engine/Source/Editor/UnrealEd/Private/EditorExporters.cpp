@@ -229,7 +229,7 @@ int32 USoundSurroundExporterWAV::GetFileCount( UObject* Object ) const
 	return( SPEAKER_Count );
 }
 
-FString USoundSurroundExporterWAV::GetUniqueFilename( const TCHAR* Filename, int32 FileIndex, int32 FileCount )
+FString USoundSurroundExporterWAV::GetUniqueFilename( UObject* Object, const TCHAR* Filename, int32 FileIndex, int32 FileCount ) const
 {
 	static FString SpeakerLocations[SPEAKER_Count] =
 	{
