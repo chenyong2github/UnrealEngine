@@ -71,7 +71,10 @@ protected:
 	{
 		// Clean the dangling pointer from the TLS.
 		check(GetTlsSlot() != 0xFFFFFFFF);
-		FPlatformTLS::SetTlsValue(GetTlsSlot(), nullptr);
+		if(((FTlsAutoCleanup*)FPlatformTLS::GetTlsValue(GetTlsSlot())) == static_cast<FTlsAutoCleanup*>(this))
+		{
+			FPlatformTLS::SetTlsValue(GetTlsSlot(), nullptr);
+		}
 	}
 
 	/**
