@@ -55,7 +55,8 @@ void Main(uint2 DispatchThreadId : SV_DispatchThreadID)
 		const FHairAABB ViewBound = Transform(Bound, View.TranslatedWorldToCameraView);
 
 		// Compute voxel size to have 1px = 1 voxels
-		const float PixelWorldSize = PixelSizeAtDepth1 * ViewBound.Min.z;
+		const float DefaultNearClip = 0.001f;
+		const float PixelWorldSize = PixelSizeAtDepth1 * max(ViewBound.Min.z, DefaultNearClip);
 		float VoxelWorldSize = PixelWorldSize * NumPixelPerVoxel;
 		WriteHairAABB(MacroGroupId, Bound, OutMacroGroupAABBBuffer);
 
