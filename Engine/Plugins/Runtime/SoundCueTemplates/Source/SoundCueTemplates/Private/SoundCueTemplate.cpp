@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundCueTemplate.h"
+#include "ObjectEditorUtils.h"
 
 namespace SoundCueTemplateConsoleVariables
 {
@@ -58,6 +59,12 @@ void USoundCueTemplate::RebuildGraph(USoundCue& SoundCue) const
 	SoundCue.LinkGraphNodesFromSoundNodes();
 	SoundCue.PostEditChange();
 	SoundCue.MarkPackageDirty();
+}
+
+void USoundCueTemplate::AddSoundWavesToTemplate(TArray<UObject*>& SelectedObjects)
+{
+	TArray<TWeakObjectPtr<USoundWave>> Waves(FObjectEditorUtils::GetTypedWeakObjectPtrs<USoundWave>(SelectedObjects));
+	AddSoundWaves(Waves);
 }
 
 float USoundCueTemplate::GetNodeWidthOffset()

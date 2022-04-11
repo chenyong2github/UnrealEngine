@@ -39,6 +39,9 @@ public:
 	/** Override to provide a default new asset name prefix from SoundCueTemplateFactory */
 	virtual FString GenerateDefaultNewAssetName(const TArray<TWeakObjectPtr<USoundWave>>& Waves) const { return FString(); }
 
+	UFUNCTION(BlueprintCallable, Category = Config)
+	void AddSoundWavesToTemplate(TArray<UObject*>& SelectedObjects);
+
 protected:
 	/**
 	 * Function to override that uses internal editor-data only properties to re-build node
