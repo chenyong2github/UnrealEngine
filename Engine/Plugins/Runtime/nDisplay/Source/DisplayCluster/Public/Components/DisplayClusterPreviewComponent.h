@@ -62,6 +62,11 @@ public:
 		return RenderTarget;
 	}
 
+	UTextureRenderTarget2D* GetRenderTargetTexturePostProcess() const
+	{
+		return RenderTargetPostProcess;
+	}
+
 	void UpdatePreviewResources();
 
 	UMeshComponent* GetPreviewMesh()
@@ -88,6 +93,11 @@ protected:
 	void UpdatePreviewRenderTarget();
 	void ReleasePreviewRenderTarget();
 
+private:
+	void UpdateRenderTargetImpl(UTextureRenderTarget2D** InOutRenderTarget);
+	void ReleaseRenderTargetImpl(UTextureRenderTarget2D** InOutRenderTarget);
+
+protected:
 	bool UpdatePreviewMesh();
 	void ReleasePreviewMesh();
 	void UpdatePreviewMeshReference();
@@ -106,6 +116,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Preview", meta = (DisplayName = "Render Target"))
 	UTextureRenderTarget2D* RenderTarget;
 
+	// Texture when DCRA has post process disabled but is requesting a post process render target.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Preview")
+	UTextureRenderTarget2D* RenderTargetPostProcess;
+	
 private:
 	// Saved mesh policy params
 	UPROPERTY()

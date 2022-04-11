@@ -93,6 +93,10 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorViewportClient()
 {
 	EndTransaction();
+	if (RootActorLevelInstance.IsValid())
+	{
+		RootActorLevelInstance->UnsubscribeFromPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
+	}
 }
 
 FLinearColor FDisplayClusterLightCardEditorViewportClient::GetBackgroundColor() const
@@ -150,7 +154,7 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 
 				if (PreviewComp && LevelInstancePreviewComp)
 				{
-					PreviewComp->SetOverrideTexture(LevelInstancePreviewComp->GetRenderTargetTexture());
+					PreviewComp->SetOverrideTexture(LevelInstancePreviewComp->GetRenderTargetTexturePostProcess());
 				}
 			}
 		}
@@ -590,6 +594,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 		PreviewWorld->GetTimerManager().SetTimerForNextTick([=]()
 		{
 			DestroyProxies(ProxyType);
+			RootActor->SubscribeToPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
 			RootActorLevelInstance = RootActor;
 			
 			if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
@@ -612,6 +617,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				FindProjectionOriginComponent();
 
 				RootActorProxy->UpdatePreviewComponents();
+				RootActorProxy->EnableEditorRender(false);
 			}
 
 			// Filter out any primitives hidden in game except screen components
@@ -690,8 +696,12 @@ EDisplayClusterLightCardEditorProxyType ProxyType)
 			PreviewWorld->EditorDestroyActor(RootActorProxy.Get(), false);
 			RootActorProxy.Reset();
 		}
-	
-		RootActorLevelInstance.Reset();
+
+		if (RootActorLevelInstance.IsValid())
+		{
+			RootActorLevelInstance->UnsubscribeFromPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
+			RootActorLevelInstance.Reset();
+		}
 	}
 	
 	if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||

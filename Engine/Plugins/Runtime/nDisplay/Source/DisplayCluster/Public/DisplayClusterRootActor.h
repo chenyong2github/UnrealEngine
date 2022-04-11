@@ -344,6 +344,17 @@ private:
 
 #if WITH_EDITOR
 public:
+	/** Enable or disable editor render. Preview components may need to be on for texture overrides, but capture and rendering disabled. */
+	void EnableEditorRender(bool bValue);
+
+	/** If editor rendering is enabled. */
+	bool IsEditorRenderEnabled() const { return bEnableEditorRender; }
+	
+private:
+	/** Is editor rendering enabled? This can be false and the preview still enabled. */
+	bool bEnableEditorRender = true;
+	
+public:
 	DECLARE_DELEGATE(FOnPreviewUpdated);
 
 public:
@@ -368,11 +379,35 @@ public:
 	// Preview components free referenced meshes and materials
 	void ResetPreviewComponents_Editor(bool bInRestoreSceneMaterial);
 
-	UDisplayClusterPreviewComponent* GetPreviewComponent(const FString& NodeId, const FString& ViewportId);
+	UDisplayClusterPreviewComponent* GetPreviewComponent(const FString& NodeId, const FString& ViewportId) const;
 
 	void UpdatePreviewComponents();
 	void ReleasePreviewComponents();
 
+	/**
+	 * Enable the use of a post process render target when bPreviewEnablePostProcess is disabled on the actor. The root actor
+	 * will still display a pre post processed preview. This may increase editor overhead.
+	 *
+	 * Retrieve the post process texture from the preview component with GetRenderTargetTexturePostProcess().
+	 *
+	 * @param Object The object subscribing to updates
+	 * @return The number of subscribers to use post process.
+	 */
+	int32 SubscribeToPostProcessRenderTarget(const uint8* Object);
+
+	/**
+	 * Unsubscribe a registered object from requiring post process render target updates.
+	 *
+	 * @param Object The object subscribing to updates. When the counter is zero post process render targets will not be used.
+	 * @return The number of subscribers to use post process.
+	 */
+	int32 UnsubscribeFromPostProcessRenderTarget(const uint8* Object);
+
+	/** If one or more observers are subscribed to receive post process preview targets. */
+	bool DoObserversNeedPostProcessRenderTarget() const;
+	
+	/** When rendering the preview determine which render target should be used for the current frame. */
+	bool ShouldThisFrameOutputPreviewToPostProcessRenderTarget() const;
 
 	float GetPreviewRenderTargetRatioMult() const
 	{
@@ -415,7 +450,12 @@ protected:
 private:
 	bool bIsSelectedInEditor = false;
 	
-private:
+	/** When the preview render should be directed to the post process render target. */
+	bool bOutputFrameToPostProcessRenderTarget;
+
+	/** Enables preview components to output to the post process render target when bPreviewEnablePostProcess is disabled. Contains all subscribed objects. */
+	TSet<const uint8*> PostProcessRenderTargetObservers;
+	
 	TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 
 	int32 TickPerFrameCounter = 0;

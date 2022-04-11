@@ -88,7 +88,8 @@ IDisplayClusterViewport* UDisplayClusterPreviewComponent::GetCurrentViewport() c
 	return nullptr;
 }
 
-bool UDisplayClusterPreviewComponent::InitializePreviewComponent(ADisplayClusterRootActor* InRootActor, const FString& InClusterNodeId, const FString& InViewportId, UDisplayClusterConfigurationViewport* InViewportConfig)
+bool UDisplayClusterPreviewComponent::InitializePreviewComponent(ADisplayClusterRootActor* InRootActor, const FString& InClusterNodeId,
+	const FString& InViewportId, UDisplayClusterConfigurationViewport* InViewportConfig)
 {
 	RootActor = InRootActor;
 	ViewportId = InViewportId;
@@ -167,7 +168,8 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewMesh()
 
 		// And search for new mesh reference
 		IDisplayClusterViewport* Viewport = GetCurrentViewport();
-		const bool bIsViewportEnabled = RenderTarget != nullptr && Viewport != nullptr && Viewport->GetRenderSettings().bEnable && Viewport->GetProjectionPolicy().IsValid();
+		const bool bIsViewportEnabled = (RenderTarget != nullptr || RenderTargetPostProcess != nullptr)
+		&& Viewport != nullptr && Viewport->GetRenderSettings().bEnable && Viewport->GetProjectionPolicy().IsValid();
 		if (bIsViewportEnabled)
 		{
 			// Handle preview mesh:
@@ -250,7 +252,8 @@ void UDisplayClusterPreviewComponent::UpdatePreviewMaterial()
 		}
 		else
 		{
-			PreviewMaterialInstance->SetTextureParameterValue(TEXT("Preview"), RenderTarget);
+			PreviewMaterialInstance->SetTextureParameterValue(TEXT("Preview"),
+				RootActor && RootActor->bPreviewEnablePostProcess ? RenderTargetPostProcess : RenderTarget);
 		}
 	}
 }
@@ -274,13 +277,32 @@ void UDisplayClusterPreviewComponent::ReleasePreviewMaterial()
 
 void UDisplayClusterPreviewComponent::ReleasePreviewRenderTarget()
 {
-	if (RenderTarget != nullptr)
-	{
-		RenderTarget = nullptr;
-	}
+	ReleaseRenderTargetImpl(&RenderTarget);
+	ReleaseRenderTargetImpl(&RenderTargetPostProcess);
 }
 
 void UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget()
+{
+	if (RootActor)
+	{
+		if (RootActor->ShouldThisFrameOutputPreviewToPostProcessRenderTarget())
+		{
+			UpdateRenderTargetImpl(&RenderTargetPostProcess);
+		}
+		else
+		{
+			UpdateRenderTargetImpl(&RenderTarget);
+		}
+	}
+}
+
+void UDisplayClusterPreviewComponent::ReleaseRenderTargetImpl(UTextureRenderTarget2D** InOutRenderTarget)
+{
+	checkSlow(InOutRenderTarget);
+	*InOutRenderTarget = nullptr;
+}
+
+void UDisplayClusterPreviewComponent::UpdateRenderTargetImpl(UTextureRenderTarget2D** InOutRenderTarget)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget"), STAT_UpdatePreviewRenderTarget, STATGROUP_NDisplay);
 	
@@ -289,50 +311,53 @@ void UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget()
 	float        TextureGamma = 1.f;
 	bool         bTextureSRGB = false;
 
+	checkSlow(InOutRenderTarget);
+	UTextureRenderTarget2D*& RenderTargetPtr = *InOutRenderTarget;
+	
 	if (GetPreviewTextureSettings(TextureSize, TextureFormat, TextureGamma, bTextureSRGB))
 	{
-		if (RenderTarget != nullptr)
+		if (RenderTargetPtr != nullptr)
 		{
 			// Re-create RTT when format changed
-			if (RenderTarget->GetFormat() != TextureFormat)
+			if (RenderTargetPtr->GetFormat() != TextureFormat)
 			{
-				ReleasePreviewRenderTarget();
+				ReleaseRenderTargetImpl(&RenderTargetPtr);
 			}
 		}
 
-		if (RenderTarget != nullptr)
+		if (RenderTargetPtr != nullptr)
 		{
 			// Update an existing RTT resource only when settings change
-			if (RenderTarget->TargetGamma != TextureGamma
-				|| RenderTarget->SRGB != bTextureSRGB
-				|| RenderTarget->GetSurfaceWidth() != TextureSize.X
-				|| RenderTarget->GetSurfaceHeight() != TextureSize.Y)
+			if (RenderTargetPtr->TargetGamma != TextureGamma
+				|| RenderTargetPtr->SRGB != bTextureSRGB
+				|| RenderTargetPtr->GetSurfaceWidth() != TextureSize.X
+				|| RenderTargetPtr->GetSurfaceHeight() != TextureSize.Y)
 			{
-				RenderTarget->TargetGamma = TextureGamma;
-				RenderTarget->SRGB = bTextureSRGB;
+				RenderTargetPtr->TargetGamma = TextureGamma;
+				RenderTargetPtr->SRGB = bTextureSRGB;
 
-				RenderTarget->ResizeTarget(TextureSize.X, TextureSize.Y);
+				RenderTargetPtr->ResizeTarget(TextureSize.X, TextureSize.Y);
 			}
 		}
 		else
 		{
 			// Create new RTT
-			RenderTarget = NewObject<UTextureRenderTarget2D>(this);
-			RenderTarget->ClearColor = FLinearColor::Black;
-			RenderTarget->TargetGamma = TextureGamma;
-			RenderTarget->SRGB = bTextureSRGB;
+			RenderTargetPtr = NewObject<UTextureRenderTarget2D>(this);
+			RenderTargetPtr->ClearColor = FLinearColor::Black;
+			RenderTargetPtr->TargetGamma = TextureGamma;
+			RenderTargetPtr->SRGB = bTextureSRGB;
 
-			RenderTarget->InitCustomFormat(TextureSize.X, TextureSize.Y, TextureFormat, false);
+			RenderTargetPtr->InitCustomFormat(TextureSize.X, TextureSize.Y, TextureFormat, false);
 			UpdatePreviewMaterial();
 		}
 	}
 	else
 	{
 		//@todo: disable this viewport
-		if (RenderTarget)
+		if (RenderTargetPtr)
 		{
 			// clear preview RTT to black in this case
-			FTextureRenderTarget2DResource* TexResource = (FTextureRenderTarget2DResource*)RenderTarget->GetResource();
+			FTextureRenderTarget2DResource* TexResource = (FTextureRenderTarget2DResource*)RenderTargetPtr->GetResource();
 			if (TexResource)
 			{
 				FCanvas Canvas(TexResource, NULL, FGameTime(), GMaxRHIFeatureLevel);
@@ -340,6 +365,8 @@ void UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget()
 			}
 		}
 	}
+
+	*InOutRenderTarget = RenderTargetPtr;
 }
 
 bool UDisplayClusterPreviewComponent::GetPreviewTextureSettings(FIntPoint& OutSize, EPixelFormat& OutTextureFormat, float& OutGamma, bool& bOutSRGB) const

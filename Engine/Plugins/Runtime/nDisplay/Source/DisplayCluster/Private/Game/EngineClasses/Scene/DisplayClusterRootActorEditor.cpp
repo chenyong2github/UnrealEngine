@@ -126,7 +126,23 @@ void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 			TickPerFrameCounter = 0;
 
 			// Render viewport for preview material RTTs
-			ImplRenderPreview_Editor();
+			if (ViewportManager.IsValid())
+			{
+				// Either render to the preview components' standard RenderTarget or the RenderTargetPostProcess.
+				// This is needed in case preview post process is disabled but this preview should also be displayed
+				// in another editor window that requires post process completed.
+				
+				// TODO: Optimize the render routine to cache the pre PP preview then apply PostProcess.
+				
+				if (!PreviewRenderFrame.IsValid()) // Frame has finished.
+				{
+					bOutputFrameToPostProcessRenderTarget = bOutputFrameToPostProcessRenderTarget ?
+						bPreviewEnablePostProcess :
+						bPreviewEnablePostProcess || DoObserversNeedPostProcessRenderTarget();
+				}
+
+				ImplRenderPreview_Editor();
+			}
 		}
 
 		// preview frustums on each tick
@@ -170,6 +186,11 @@ void ADisplayClusterRootActor::RerunConstructionScripts_Editor()
 	ResetPreviewComponents_Editor(false);
 }
 
+void ADisplayClusterRootActor::EnableEditorRender(bool bValue)
+{
+	bEnableEditorRender = bValue;
+}
+
 bool ADisplayClusterRootActor::IsPreviewEnabled() const
 {
 	//@todo: (GUI) Scene preview can be disabled when the configuration window with internal preview is open.
@@ -199,7 +220,8 @@ void ADisplayClusterRootActor::GetPreviewRenderTargetableTextures(const TArray<F
 			if (OutTextureIndex != INDEX_NONE)
 			{
 				// Add scope for func GetRenderTargetTexture()
-				if (UTextureRenderTarget2D* RenderTarget2D = PreviewComponentIt.Value->GetRenderTargetTexture())
+				if (UTextureRenderTarget2D* RenderTarget2D = ShouldThisFrameOutputPreviewToPostProcessRenderTarget() ?
+					PreviewComponentIt.Value->GetRenderTargetTexturePostProcess() : PreviewComponentIt.Value->GetRenderTargetTexture())
 				{
 					FTextureRenderTargetResource* DstRenderTarget = RenderTarget2D->GameThread_GetRenderTargetResource();
 					if (DstRenderTarget != nullptr)
@@ -305,7 +327,7 @@ bool ADisplayClusterRootActor::ImplUpdatePreviewConfiguration_Editor(const FStri
 		PreviewSettings.PreviewRenderTargetRatioMult = PreviewRenderTargetRatioMult;
 
 		PreviewSettings.bFreezePreviewRender = bFreezePreviewRender;
-		PreviewSettings.bPreviewEnablePostProcess = bPreviewEnablePostProcess;
+		PreviewSettings.bPreviewEnablePostProcess = ShouldThisFrameOutputPreviewToPostProcessRenderTarget();
 
 		PreviewSettings.PreviewMaxTextureDimension = PreviewMaxTextureDimension;
 		
@@ -714,7 +736,6 @@ void ADisplayClusterRootActor::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	// Cluster node ID has been changed
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, bFreezePreviewRender)
 	|| PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, PreviewRenderTargetRatioMult)
-	|| PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, bPreviewEnablePostProcess)
 	|| PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, bPreviewICVFXFrustums)
 	|| PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, PreviewICVFXFrustumsFarDistance)
 	|| PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, PreviewMaxTextureDimension)
@@ -734,7 +755,12 @@ void ADisplayClusterRootActor::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	{
 		ResetInnerFrustumPriority();
 	}
-
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, bPreviewEnablePostProcess))
+	{
+		ResetPreviewComponents_Editor(false);
+		PreviewRenderFrame.Reset();
+		bReinitializeActor = false;
+	}
 	if (bReinitializeActor)
 	{
 		InitializeRootActor();
@@ -848,12 +874,36 @@ void ADisplayClusterRootActor::ReleasePreviewComponents()
 	OnPreviewDestroyed.ExecuteIfBound();
 }
 
+int32 ADisplayClusterRootActor::SubscribeToPostProcessRenderTarget(const uint8* Object)
+{
+	check(Object);
+	PostProcessRenderTargetObservers.Add(Object);
+	return PostProcessRenderTargetObservers.Num();
+}
+
+int32 ADisplayClusterRootActor::UnsubscribeFromPostProcessRenderTarget(const uint8* Object)
+{
+	check(Object);
+	PostProcessRenderTargetObservers.Remove(Object);
+	return PostProcessRenderTargetObservers.Num();
+}
+
+bool ADisplayClusterRootActor::DoObserversNeedPostProcessRenderTarget() const
+{
+	return PostProcessRenderTargetObservers.Num() > 0;
+}
+
+bool ADisplayClusterRootActor::ShouldThisFrameOutputPreviewToPostProcessRenderTarget() const
+{
+	return bOutputFrameToPostProcessRenderTarget;
+}
+
 FString ADisplayClusterRootActor::GeneratePreviewComponentName_Editor(const FString& NodeId, const FString& ViewportId) const
 {
 	return FString::Printf(TEXT("%s_%s"), *NodeId, *ViewportId);
 }
 
-UDisplayClusterPreviewComponent* ADisplayClusterRootActor::GetPreviewComponent(const FString& NodeId, const FString& ViewportId)
+UDisplayClusterPreviewComponent* ADisplayClusterRootActor::GetPreviewComponent(const FString& NodeId, const FString& ViewportId) const
 {
 	const FString PreviewCompId = GeneratePreviewComponentName_Editor(NodeId, ViewportId);
 	if (PreviewComponents.Contains(PreviewCompId))

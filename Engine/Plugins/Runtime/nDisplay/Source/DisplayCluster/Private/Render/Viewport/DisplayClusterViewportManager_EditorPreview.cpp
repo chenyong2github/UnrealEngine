@@ -110,6 +110,13 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 		return false;
 	}
 
+	const ADisplayClusterRootActor* RootActor = GetRootActor();
+	if (RootActor && !RootActor->IsEditorRenderEnabled())
+	{
+		bOutFrameRendered = true;
+		return true;
+	}
+	
 	FSceneInterface* PreviewScene = CurrentWorld->Scene;
 	FEngineShowFlags EngineShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 
@@ -153,6 +160,18 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 
 				ConfigureViewFamily(RenderTargetIt, ViewFamiliesIt, ViewFamily);
 
+				if (RenderTargetIt.CaptureMode == EDisplayClusterViewportCaptureMode::Default
+					&& RootActor
+					&& !RootActor->bPreviewEnablePostProcess
+					&& RootActor->DoObserversNeedPostProcessRenderTarget())
+				{
+					if (ViewFamily.EngineShowFlags.TemporalAA)
+					{
+						ViewFamily.EngineShowFlags.SetTemporalAA(false);
+						ViewFamily.EngineShowFlags.SetAntiAliasing(true);
+					}
+				}
+				
 				for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamiliesIt.Views)
 				{
 					bool bViewportAlreadyRendered = ViewportIndex < (int32)InFirstViewportNum;
