@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 #include "DatasmithC4DUtils.h"
 
-#include "CoreMinimal.h"
 #include "Logging/LogMacros.h"
 #include "MeshDescription.h"
 #include "Stats/Stats.h"

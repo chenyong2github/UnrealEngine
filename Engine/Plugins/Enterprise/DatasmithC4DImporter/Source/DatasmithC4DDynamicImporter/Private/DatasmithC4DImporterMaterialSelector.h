@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 #include "DatasmithDefinitions.h"
 #include "MasterMaterials/DatasmithMasterMaterial.h"
 #include "MasterMaterials/DatasmithMasterMaterialSelector.h"

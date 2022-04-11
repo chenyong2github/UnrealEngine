@@ -4,6 +4,8 @@
 
 #ifdef _CINEWARE_SDK_
 
+#include "CoreMinimal.h"
+
 #if PLATFORM_WINDOWS
 #define DATASMITH_C4D_PUSH_WARNINGS \
 	__pragma(warning(push)) \
@@ -23,8 +25,6 @@
 #define DATASMITH_C4D_PUSH_WARNINGS
 #define DATASMITH_C4D_POP_WARNINGS
 #endif
-
-#include "CoreMinimal.h"
 
 // CINEWARE_UPDATED
 DATASMITH_C4D_PUSH_WARNINGS
