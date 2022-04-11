@@ -9,6 +9,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "GameFeaturePluginOperationResult.h"
+#include "GameFeatureTypes.h"
 #include "GameFeaturePluginStateMachine.generated.h"
 
 class UGameFeatureData;
@@ -127,51 +128,10 @@ Transition states are expected to transition the machine to another state after 
                +------------+
 */
 
-/** The states a game feature plugin can be in before fully active */
-enum class EGameFeaturePluginState : uint8
-{
-	Uninitialized,				// Unset. Not yet been set up.
-	Terminal,					// Final State before removal of the state machine
-	UnknownStatus,				// Initialized, but the only thing known is the URL to query status.
-	CheckingStatus,				// Transition state UnknownStatus -> StatusKnown. The status is in the process of being queried.
-	ErrorCheckingStatus,		// Error state for UnknownStatus -> StatusKnown transition.
-	ErrorUnavailable,			// Error state for UnknownStatus -> StatusKnown transition.
-	StatusKnown,				// The plugin's information is known, but no action has taken place yet.
-	ErrorInstalling,			// Error state for Installed -> StatusKnown and StatusKnown -> Installed transitions.
-	Uninstalling,				// Transition state Installed -> StatusKnown. In the process of removing from local storage.
-	Downloading,				// Transition state StatusKnown -> Installed. In the process of adding to local storage.
-	Installed,					// The plugin is in local storage (i.e. it is on the hard drive)
-	ErrorMounting,				// Error state for Installed -> Registered and Registered -> Installed transitions.
-	ErrorWaitingForDependencies,// Error state for Installed -> Registered and Registered -> Installed transitions.
-	ErrorRegistering,			// Error state for Installed -> Registered and Registered -> Installed transitions.
-	WaitingForDependencies,		// Transition state Installed -> Registered. In the process of loading code/content for all dependencies into memory.
-	Unmounting,					// Transition state Registered -> Installed. The content file(s) (i.e. pak file) for the plugin is unmounting.
-	Mounting,					// Transition state Installed -> Registered. The content file(s) (i.e. pak file) for the plugin is getting mounted.
-	Unregistering,				// Transition state Registered -> Installed. Cleaning up data gathered in Registering.
-	Registering,				// Transition state Installed -> Registered. Discovering assets in the plugin, but not loading them, except a few for discovery reasons.
-	Registered,					// The assets in the plugin are known, but have not yet been loaded, except a few for discovery reasons.
-	Unloading,					// Transition state Loaded -> Registered. In the process of removing code/content from memory. 
-	Loading,					// Transition state Registered -> Loaded. In the process of loading code/content into memory.
-	Loaded,						// The plugin is loaded into memory and registered with some game systems but not yet active.
-	Deactivating,				// Transition state Active -> Loaded. Currently unregistering with game systems.
-	Activating,					// Transition state Loaded -> Active. Currently registering plugin code/content with game systems.
-	Active,						// Plugin is fully loaded and active. It is affecting the game.
-
-	MAX
-};
-
-namespace UE
-{
-	namespace GameFeatures
-	{
-		GAMEFEATURES_API FString ToString(EGameFeaturePluginState InType);
-	}
-}
-
 #define GAME_FEATURE_PLUGIN_PROTOCOL_LIST(XPROTO)	\
 	XPROTO(File,			TEXT("file:"))			\
 	XPROTO(InstallBundle,	TEXT("installbundle:"))	\
-	XPROTO(Unknown,			TEXT(""))				\
+	XPROTO(Unknown,			TEXT(""))				
 
 #define GAME_FEATURE_PLUGIN_PROTOCOL_ENUM(inEnum, inString) inEnum,
 enum class EGameFeaturePluginProtocol : uint8
@@ -414,7 +374,7 @@ private:
 	FGameFeaturePluginStateMachineProperties StateProperties;
 
 	/** All state machine state objects */
-	TUniquePtr<FGameFeaturePluginState> AllStates[(int32)EGameFeaturePluginState::MAX];
+	TUniquePtr<FGameFeaturePluginState> AllStates[EGameFeaturePluginState::MAX];
 
 	/** True when we are currently executing UpdateStateMachine, to avoid reentry */
 	bool bInUpdateStateMachine;

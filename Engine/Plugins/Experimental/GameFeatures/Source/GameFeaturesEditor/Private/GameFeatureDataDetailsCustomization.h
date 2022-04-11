@@ -6,6 +6,7 @@
 #include "Input/Reply.h"
 #include "IDetailCustomization.h"
 #include "GameFeaturesSubsystem.h"
+#include "GameFeatureTypesFwd.h"
 
 class IDetailLayoutBuilder;
 class SErrorText;
@@ -13,8 +14,6 @@ class IPlugin;
 
 //////////////////////////////////////////////////////////////////////////
 // FGameFeatureDataDetailsCustomization
-
-enum class EGameFeaturePluginState : uint8;
 
 class FGameFeatureDataDetailsCustomization : public IDetailCustomization
 {

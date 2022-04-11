@@ -5,7 +5,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SSegmentedControl.h"
 #include "GameFeatureData.h"
-#include "../../GameFeatures/Private/GameFeaturePluginStateMachine.h"
+#include "GameFeatureTypes.h"
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
 
@@ -54,37 +54,12 @@ void SGameFeatureStateWidget::Construct(const FArguments& InArgs)
 
 FText SGameFeatureStateWidget::GetDisplayNameOfState(EGameFeaturePluginState State)
 {
-	static_assert((int32)EGameFeaturePluginState::MAX == 26, "");
-
+#define GAME_FEATURE_PLUGIN_STATE_TEXT(inEnum, inText) case EGameFeaturePluginState::inEnum: return inText;
 	switch (State)
 	{
-	case EGameFeaturePluginState::Uninitialized: return LOCTEXT("UninitializedStateDisplayName", "Uninitialized");
-	case EGameFeaturePluginState::Terminal: return LOCTEXT("TerminalDisplayName", "Terminal");
-	case EGameFeaturePluginState::UnknownStatus: return LOCTEXT("UnknownStatusStateDisplayName", "UnknownStatus");
-	case EGameFeaturePluginState::CheckingStatus: return LOCTEXT("CheckingStatusStateDisplayName", "CheckingStatus");
-	case EGameFeaturePluginState::ErrorCheckingStatus: return LOCTEXT("ErrorCheckingStatusDisplayName", "ErrorCheckingStatus");
-	case EGameFeaturePluginState::ErrorUnavailable: return LOCTEXT("ErrorUnavailableDisplayName", "ErrorUnavailable");
-	case EGameFeaturePluginState::StatusKnown: return LOCTEXT("StatusKnownStateDisplayName", "StatusKnown");
-	case EGameFeaturePluginState::ErrorInstalling: return LOCTEXT("ErrorInstallingDisplayName", "ErrorInstalling");
-	case EGameFeaturePluginState::Uninstalling: return LOCTEXT("UninstallingStateDisplayName", "Uninstalling");
-	case EGameFeaturePluginState::Downloading: return LOCTEXT("DownloadingStateDisplayName", "Downloading");
-	case EGameFeaturePluginState::Installed: return LOCTEXT("InstalledStateDisplayName", "Installed");
-	case EGameFeaturePluginState::ErrorMounting: return LOCTEXT("ErrorMountingDisplayName", "ErrorMounting");
-	case EGameFeaturePluginState::ErrorWaitingForDependencies: return LOCTEXT("ErrorWaitingForDependenciesDisplayName", "ErrorWaitingForDependencies");
-	case EGameFeaturePluginState::Unmounting: return LOCTEXT("UnmountingStateDisplayName", "Unmounting");
-	case EGameFeaturePluginState::Mounting: return LOCTEXT("MountingStateDisplayName", "Mounting");
-	case EGameFeaturePluginState::WaitingForDependencies: return LOCTEXT("WaitingForDependenciesStateDisplayName", "WaitingForDependencies");
-	case EGameFeaturePluginState::Unregistering: return LOCTEXT("UnregisteringStateDisplayName", "Unregistering");
-	case EGameFeaturePluginState::Registering: return LOCTEXT("RegisteringStateDisplayName", "Registering");
-	case EGameFeaturePluginState::Registered: return LOCTEXT("RegisteredStateDisplayName", "Registered");
-	case EGameFeaturePluginState::Unloading: return LOCTEXT("UnloadingStateDisplayName", "Unloading");
-	case EGameFeaturePluginState::Loading: return LOCTEXT("LoadingStateDisplayName", "Loading");
-	case EGameFeaturePluginState::Loaded: return LOCTEXT("LoadedStateDisplayName", "Loaded");
-	case EGameFeaturePluginState::Deactivating: return LOCTEXT("DeactivatingStateDisplayName", "Deactivating");
-	case EGameFeaturePluginState::Activating: return LOCTEXT("ActivatingStateDisplayName", "Activating");
-	case EGameFeaturePluginState::Active: return LOCTEXT("ActiveStateDisplayName", "Active");
-	case EGameFeaturePluginState::ErrorRegistering: return LOCTEXT("ErrorRegisteringDisplayName", "ErrorRegistering");
+	GAME_FEATURE_PLUGIN_STATE_LIST(GAME_FEATURE_PLUGIN_STATE_TEXT)
 	}
+#undef GAME_FEATURE_PLUGIN_STATE_TEXT
 
 	const FString FallbackString = UE::GameFeatures::ToString(State);
 	ensureMsgf(false, TEXT("Unknown EGameFeaturePluginState entry %d %s"), (int)State, *FallbackString);

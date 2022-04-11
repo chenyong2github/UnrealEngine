@@ -6,8 +6,7 @@
 #include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
 #include "GameFeaturesSubsystem.h"
-
-enum class EGameFeaturePluginState : uint8;
+#include "GameFeatureTypesFwd.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FGameFeatureDataDetailsCustomization

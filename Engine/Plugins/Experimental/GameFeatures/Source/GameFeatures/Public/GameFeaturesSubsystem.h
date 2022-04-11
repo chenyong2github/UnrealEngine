@@ -6,6 +6,7 @@
 #include "Subsystems/EngineSubsystem.h"
 #include "GameFeaturePluginOperationResult.h"
 #include "Engine/Engine.h"
+#include "GameFeatureTypesFwd.h"
 
 #include "GameFeaturesSubsystem.generated.h"
 
@@ -15,7 +16,6 @@ struct FStreamableHandle;
 struct FAssetIdentifier;
 class UGameFeatureData;
 class UGameFeaturesProjectPolicies;
-enum class EGameFeaturePluginState : uint8;
 class IPlugin;
 class FJsonObject;
 struct FWorldContext;

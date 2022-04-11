@@ -19,7 +19,7 @@
 #include "Misc/Paths.h"
 
 #include "GameFeatureData.h"
-#include "../../GameFeatures/Private/GameFeaturePluginStateMachine.h"
+#include "GameFeatureTypes.h"
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
 

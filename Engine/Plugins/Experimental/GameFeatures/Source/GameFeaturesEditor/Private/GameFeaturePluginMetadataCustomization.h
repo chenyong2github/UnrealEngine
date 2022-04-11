@@ -6,12 +6,12 @@
 #include "Input/Reply.h"
 #include "IDetailCustomization.h"
 #include "Features/IPluginsEditorFeature.h"
+#include "GameFeatureTypesFwd.h"
 
 class IDetailLayoutBuilder;
 struct FPluginEditingContext;
 class IPlugin;
 struct FPluginDescriptor;
-enum class EGameFeaturePluginState : uint8;
 
 //////////////////////////////////////////////////////////////////////////
 // FGameFeaturePluginMetadataCustomization
