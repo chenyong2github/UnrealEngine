@@ -1151,7 +1151,7 @@ public:
 	friend struct FLandscapeComponentDataInterface;
 	friend class ULandscapeLODStreamingProxy;
 
-	void SetLOD(bool bForced, int32 InLODValue);
+	LANDSCAPE_API void SetLOD(bool bForced, int32 InLODValue);
 
 protected:
 
