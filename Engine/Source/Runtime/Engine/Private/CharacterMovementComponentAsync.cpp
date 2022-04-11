@@ -721,7 +721,6 @@ void FCharacterMovementComponentAsyncInput::StartNewPhysics(float deltaTime, int
 void FCharacterMovementComponentAsyncInput::PhysWalking(float deltaTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	//SCOPE_CYCLE_COUNTER(STAT_CharPhysWalking);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CharPhysWalking);
 
 	const FCharacterMovementComponentAsyncInput& Input = *this; // TODO Refactor
 
@@ -969,7 +968,6 @@ void FCharacterMovementComponentAsyncInput::PhysWalking(float deltaTime, int32 I
 void FCharacterMovementComponentAsyncInput::PhysFalling(float deltaTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const
 {
 //	SCOPE_CYCLE_COUNTER(STAT_CharPhysFalling);
-//	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CharPhysFalling);
 
 	const float MIN_TICK_TIME = UCharacterMovementComponent::MIN_TICK_TIME;
 
