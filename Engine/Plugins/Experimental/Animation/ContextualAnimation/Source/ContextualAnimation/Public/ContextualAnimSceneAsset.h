@@ -142,7 +142,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset")
-	bool Query(const FName& Role, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const;
+	bool Query(FName Role, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const;
 
 protected:
 
