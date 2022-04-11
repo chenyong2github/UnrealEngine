@@ -41,9 +41,9 @@ class USkeletalMeshComponent;
 	{ \
 		return DisplayName; \
 	} \
-	void InterfaceClassName::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const \
+	void InterfaceClassName::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const \
 	{ \
-		OutBuilder.AddNestedStruct<ParameterStructType>(UID); \
+		InOutBuilder.AddNestedStruct<ParameterStructType>(UID); \
 	} \
 	void InterfaceClassName::GetHLSL(FString& OutHLSL) const \
 	{ \
@@ -100,8 +100,9 @@ public:
 	// ~END UOptimusComputeDataInterface overrides.
 
 	// UComputeDataInterface overrides.
+	TCHAR const* GetClassName() const override { return TEXT("MLDeformerDebug"); }
 	virtual void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
-	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
+	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const override;
 	virtual void GetHLSL(FString& OutHLSL) const override;
 	virtual void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
 	virtual UComputeDataProvider* CreateDataProvider(TArrayView<TObjectPtr<UObject>> InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;

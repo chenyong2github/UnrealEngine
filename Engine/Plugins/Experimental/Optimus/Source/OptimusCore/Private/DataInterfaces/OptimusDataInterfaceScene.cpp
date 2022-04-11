@@ -45,9 +45,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSceneDataInterfaceParameters, )
 	SHADER_PARAMETER(uint32, FrameNumber)
 END_SHADER_PARAMETER_STRUCT()
 
-void UOptimusSceneDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusSceneDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
 {
-	OutBuilder.AddNestedStruct<FSceneDataInterfaceParameters>(UID);
+	InOutBuilder.AddNestedStruct<FSceneDataInterfaceParameters>(UID);
 }
 
 void UOptimusSceneDataInterface::GetShaderHash(FString& InOutKey) const

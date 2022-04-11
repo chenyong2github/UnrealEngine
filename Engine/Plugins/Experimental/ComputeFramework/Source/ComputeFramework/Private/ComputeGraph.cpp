@@ -7,9 +7,12 @@
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "ComputeFramework/ComputeFramework.h"
 #include "ComputeFramework/ComputeGraphRenderProxy.h"
+#include "ComputeFramework/ComputeKernelPermutationSet.h"
+#include "ComputeFramework/ComputeKernelPermutationVector.h"
 #include "ComputeFramework/ComputeKernel.h"
 #include "ComputeFramework/ComputeKernelShared.h"
 #include "ComputeFramework/ComputeKernelSource.h"
+#include "ComputeFramework/ShaderParameterMetadataAllocation.h"
 #include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "GameFramework/Actor.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -26,7 +29,10 @@ UComputeGraph::UComputeGraph(FVTableHelper& Helper)
 {
 }
 
-UComputeGraph::~UComputeGraph() = default;
+UComputeGraph::~UComputeGraph()
+{
+	ReleaseRenderProxy(RenderProxy);
+}
 
 void UComputeGraph::Serialize(FArchive& Ar)
 {
@@ -226,11 +232,117 @@ void UComputeGraph::CreateDataProviders(TArrayView<UObject*> InBindingObjects, T
 	}
 }
 
-FComputeGraphRenderProxy* UComputeGraph::CreateProxy(FName InOwnerName) const
+/** Compute Kernel compilation flags. */
+enum class EComputeKernelCompilationFlags
+{
+	None = 0,
+
+	/* Force recompilation even if kernel is not dirty and/or DDC data is available. */
+	Force = 1 << 0,
+
+	/* Compile the shader while blocking the main thread. */
+	Synchronous = 1 << 1,
+
+	/* Replaces all instances of the shader with the newly compiled version. */
+	ApplyCompletedShaderMapForRendering = 1 << 2,
+
+	IsCooking = 1 << 3,
+};
+
+void UComputeGraph::UpdateResources()
+{
+#if WITH_EDITOR
+	CacheResourceShadersForRendering(uint32(EComputeKernelCompilationFlags::ApplyCompletedShaderMapForRendering));
+#endif
+
+	ReleaseRenderProxy(RenderProxy);
+	RenderProxy = CreateRenderProxy();
+}
+
+FComputeGraphRenderProxy const* UComputeGraph::GetRenderProxy() const 
+{
+	return RenderProxy;
+}
+
+namespace
+{
+	/** 
+	 * Get the unique name that will be used for shader bindings. 
+	 * Multiple instances of the same data interface may be in a single graph, so we need to use an additional index to disambiguoate.
+	 */
+	FString GetUniqueDataInterfaceName(UComputeDataInterface const* InDataInterface, int32 InUniqueIndex)
+	{
+		check(InDataInterface != nullptr && InDataInterface->GetClassName() != nullptr);
+		return FString::Printf(TEXT("DI%d_%s"), InUniqueIndex, InDataInterface->GetClassName());
+	}
+}
+
+FShaderParametersMetadata* UComputeGraph::BuildKernelShaderMetadata(int32 InKernelIndex, FShaderParametersMetadataAllocations& InOutAllocations) const
+{
+	// Gather relevant data interfaces.
+	TArray<int32> DataInterfaceIndices;
+	for (FComputeGraphEdge const& GraphEdge : GraphEdges)
+	{
+		if (GraphEdge.KernelIndex == InKernelIndex)
+		{
+			DataInterfaceIndices.AddUnique(GraphEdge.DataInterfaceIndex);
+		}
+	}
+
+	// Extract shader parameter info from data interfaces.
+	FShaderParametersMetadataBuilder Builder;
+
+	for (int32 DataInterfaceIndex : DataInterfaceIndices)
+	{
+		UComputeDataInterface const* DataInterface = DataInterfaces[DataInterfaceIndex];
+		if (DataInterface != nullptr)
+		{
+			// Unique name needs to persist since it is directly referenced by shader metadata.
+			// Allocate and store the string in InOutAllocations which should have the same lifetime as our return FShaderParametersMetadata object.
+			int32 Index = InOutAllocations.Names.Add();
+			InOutAllocations.Names[Index] = GetUniqueDataInterfaceName(DataInterface, DataInterfaceIndex);
+			TCHAR const* NamePtr = *InOutAllocations.Names[Index];
+
+			DataInterface->GetShaderParameters(NamePtr, Builder, InOutAllocations);
+		}
+	}
+
+	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, *GetName());
+	InOutAllocations.ShaderParameterMetadatas.Add(ShaderParameterMetadata);
+
+	return ShaderParameterMetadata;
+}
+
+void UComputeGraph::BuildShaderPermutationVectors(TArray<FComputeKernelPermutationVector>& OutShaderPermutationVectors) const
+{
+	if (FApp::CanEverRender())
+	{
+		OutShaderPermutationVectors.Reset();
+		OutShaderPermutationVectors.AddDefaulted(KernelInvocations.Num());
+
+		TSet<uint64> Found;
+		for (FComputeGraphEdge const& GraphEdge : GraphEdges)
+		{
+			if (DataInterfaces[GraphEdge.DataInterfaceIndex] != nullptr)
+			{
+				uint64 PackedFoundValue = ((uint64)GraphEdge.DataInterfaceIndex << 32) | (uint64)GraphEdge.KernelIndex;
+				if (!Found.Find(PackedFoundValue))
+				{
+					DataInterfaces[GraphEdge.DataInterfaceIndex]->GetPermutations(OutShaderPermutationVectors[GraphEdge.KernelIndex]);
+					Found.Add(PackedFoundValue);
+				}
+			}
+		}
+	}
+}
+
+FComputeGraphRenderProxy* UComputeGraph::CreateRenderProxy() const
 {
 	FComputeGraphRenderProxy* Proxy = new FComputeGraphRenderProxy;
-	Proxy->OwnerName = InOwnerName;
 	Proxy->GraphName = GetFName();
+	Proxy->ShaderParameterMetadataAllocations = MakeUnique<FShaderParametersMetadataAllocations>();
+
+	BuildShaderPermutationVectors(Proxy->ShaderPermutationVectors);
 
 	const int32 NumKernels = KernelInvocations.Num();
 	Proxy->KernelInvocations.Reserve(NumKernels);
@@ -239,24 +351,22 @@ FComputeGraphRenderProxy* UComputeGraph::CreateProxy(FName InOwnerName) const
 	{
 		UComputeKernel const* Kernel = KernelInvocations[KernelIndex];
 		FComputeKernelResource const* KernelResource = KernelResources[KernelIndex].Get();
-		FShaderParametersMetadata const* ShaderMetadata = ShaderMetadatas[KernelIndex];
 
-		if (Kernel != nullptr && KernelResource != nullptr && ShaderMetadata != nullptr)
+		if (Kernel != nullptr && KernelResource != nullptr)
 		{
 			FComputeGraphRenderProxy::FKernelInvocation& Invocation = Proxy->KernelInvocations.AddDefaulted_GetRef();
 
 			Invocation.KernelName = Kernel->KernelSource->GetEntryPoint();
 			Invocation.KernelGroupSize = Kernel->KernelSource->GetGroupSize();
 			Invocation.KernelResource = KernelResource;
-			Invocation.ShaderMetadata = ShaderMetadata;
-			Invocation.ShaderPermutationVector = &ShaderPermutationVectors[KernelIndex];
+			Invocation.ShaderParameterMetadata = BuildKernelShaderMetadata(KernelIndex, *Proxy->ShaderParameterMetadataAllocations);
 
 			for (FComputeGraphEdge const& GraphEdge : GraphEdges)
 			{
 				if (GraphEdge.KernelIndex == KernelIndex)
 				{
 					Invocation.BoundProviderIndices.AddUnique(GraphEdge.DataInterfaceIndex);
-					
+
 					if (DataInterfaces[GraphEdge.DataInterfaceIndex]->IsExecutionInterface())
 					{
 						Invocation.ExecutionProviderIndex = GraphEdge.DataInterfaceIndex;
@@ -269,101 +379,15 @@ FComputeGraphRenderProxy* UComputeGraph::CreateProxy(FName InOwnerName) const
 	return Proxy;
 }
 
-void UComputeGraph::UpdateResources()
+void UComputeGraph::ReleaseRenderProxy(FComputeGraphRenderProxy* InRenderProxy) const
 {
-#if WITH_EDITOR
-	CacheResourceShadersForRendering(uint32(EComputeKernelCompilationFlags::ApplyCompletedShaderMapForRendering));
-#endif
-
-	// todo[CF]: Can we serialize instead of doing work here?
-	CacheShaderMetadata();
-	CacheShaderPermutationVectors();
-}
-
-TCHAR const* UComputeGraph::GetDataInterfaceUID(int32 DataInterfaceIndex)
-{
-	// Use static TChunkedArray so that data is never released/reallocated.
-	static TChunkedArray<FString, 512> UIDStore;
-	
-	if (DataInterfaceIndex >= UIDStore.Num())
+	if (InRenderProxy != nullptr)
 	{
-		UIDStore.Add(DataInterfaceIndex + 1 - UIDStore.Num());
-	}
-	if (UIDStore[DataInterfaceIndex].IsEmpty())
-	{
-		UIDStore[DataInterfaceIndex] = FString::Printf(TEXT("DI%03d"), DataInterfaceIndex);
-	}
-	return *UIDStore[DataInterfaceIndex];
-}
-
-FShaderParametersMetadata* UComputeGraph::BuildKernelShaderMetadata(int32 KernelIndex) const
-{
-	// Gather relevant data providers.
-	TArray<int32> DataProviderIndices;
-	for (FComputeGraphEdge const& GraphEdge : GraphEdges)
-	{
-		if (GraphEdge.KernelIndex == KernelIndex)
+		// Serialize release on render thread in case proxy is being accessed there.
+		ENQUEUE_RENDER_COMMAND(ReleaseRenderProxy)([InRenderProxy](FRHICommandListImmediate& RHICmdList)
 		{
-			DataProviderIndices.AddUnique(GraphEdge.DataInterfaceIndex);
-		}
-	}
-
-	// Extract shader parameter info from data providers.
-	FShaderParametersMetadataBuilder Builder;
-
-	for (int32 DataProviderIndex : DataProviderIndices)
-	{
-		UComputeDataInterface* DataInterface = DataInterfaces[DataProviderIndex];
-		if (DataInterface != nullptr)
-		{
-			TCHAR const* UID = GetDataInterfaceUID(DataProviderIndex);
-			DataInterface->GetShaderParameters(UID, Builder);
-		}
-	}
-
-	return Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, *GetName());
-}
-
-void UComputeGraph::CacheShaderMetadata()
-{
-	if (FApp::CanEverRender())
-	{
-		ShaderMetadatas.SetNum(KernelInvocations.Num());
-		for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); ++KernelIndex)
-		{
-			UComputeKernel* Kernel = KernelInvocations[KernelIndex];
-			if (Kernel == nullptr || Kernel->KernelSource == nullptr)
-			{
-				ShaderMetadatas[KernelIndex] = nullptr;
-			}
-			else
-			{
-				ShaderMetadatas[KernelIndex] = BuildKernelShaderMetadata(KernelIndex);
-			}
-		}
-	}
-}
-
-void UComputeGraph::CacheShaderPermutationVectors()
-{
-	if (FApp::CanEverRender())
-	{
-		ShaderPermutationVectors.Reset();
-		ShaderPermutationVectors.AddDefaulted(KernelInvocations.Num());
-
-		TSet<uint64> Found;
-		for (FComputeGraphEdge const& GraphEdge : GraphEdges)
-		{
-			if (DataInterfaces[GraphEdge.DataInterfaceIndex] != nullptr)
-			{
-				uint64 PackedFoundValue = ((uint64)GraphEdge.DataInterfaceIndex << 32) | (uint64)GraphEdge.KernelIndex;
-				if (!Found.Find(PackedFoundValue))
-				{
-					DataInterfaces[GraphEdge.DataInterfaceIndex]->GetPermutations(ShaderPermutationVectors[GraphEdge.KernelIndex]);
-					Found.Add(PackedFoundValue);
-				}
-			}
-		}
+			delete InRenderProxy;
+		});
 	}
 }
 
@@ -440,8 +464,8 @@ FString UComputeGraph::BuildKernelSource(int32 KernelIndex, FString& OutHashKey,
 				if (DataInterface != nullptr)
 				{
 					// Add a unique prefix to generate unique names in the data interface shader code.
-					TCHAR const* UID = GetDataInterfaceUID(DataProviderIndex);
-					HLSL += FString::Printf(TEXT("#define DI_UID %s_\n"), UID);
+					FString NamePrefix = GetUniqueDataInterfaceName(DataInterface, DataProviderIndex);
+					HLSL += FString::Printf(TEXT("#define DI_UID %s_\n"), *NamePrefix);
 					DataInterface->GetHLSL(HLSL);
 					HLSL += TEXT("#undef DI_UID\n");
 
@@ -460,7 +484,8 @@ FString UComputeGraph::BuildKernelSource(int32 KernelIndex, FString& OutHashKey,
 				FComputeGraphEdge const& GraphEdge = GraphEdges[GraphEdgeIndex];
 				if (DataInterfaces[GraphEdge.DataInterfaceIndex] != nullptr)
 				{
-					TCHAR const* UID = GetDataInterfaceUID(GraphEdge.DataInterfaceIndex);
+					FString NamePrefix = GetUniqueDataInterfaceName(DataInterfaces[GraphEdge.DataInterfaceIndex], GraphEdge.DataInterfaceIndex);
+
 					TCHAR const* WrapNameOverride = GraphEdge.BindingFunctionNameOverride.IsEmpty() ? nullptr : *GraphEdge.BindingFunctionNameOverride; 
 					if (GraphEdge.bKernelInput)
 					{
@@ -468,7 +493,7 @@ FString UComputeGraph::BuildKernelSource(int32 KernelIndex, FString& OutHashKey,
 						DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedInputs(DataProviderFunctions);
 						FShaderFunctionDefinition& DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
 						FShaderFunctionDefinition& KernelFunction = KernelSource->ExternalInputs[GraphEdge.KernelBindingIndex];
-						GetFunctionShimHLSL(DataProviderFunction, KernelFunction, UID, WrapNameOverride, HLSL);
+						GetFunctionShimHLSL(DataProviderFunction, KernelFunction, *NamePrefix, WrapNameOverride, HLSL);
 					}
 					else
 					{
@@ -476,7 +501,7 @@ FString UComputeGraph::BuildKernelSource(int32 KernelIndex, FString& OutHashKey,
 						DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedOutputs(DataProviderFunctions);
 						FShaderFunctionDefinition& DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
 						FShaderFunctionDefinition& KernelFunction = KernelSource->ExternalOutputs[GraphEdge.KernelBindingIndex];
-						GetFunctionShimHLSL(DataProviderFunction, KernelFunction, UID, WrapNameOverride, HLSL);
+						GetFunctionShimHLSL(DataProviderFunction, KernelFunction, *NamePrefix, WrapNameOverride, HLSL);
 					}
 				}
 			}
@@ -509,12 +534,13 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 			}
 
 			FString ShaderHashKey;
-			FComputeKernelDefinitionSet ShaderDefinitionSet;
-			FComputeKernelPermutationVector ShaderPermutationVector;
+			TUniquePtr <FComputeKernelDefinitionSet> ShaderDefinitionSet = MakeUnique<FComputeKernelDefinitionSet>();
+			TUniquePtr <FComputeKernelPermutationVector> ShaderPermutationVector = MakeUnique<FComputeKernelPermutationVector>();
+			TUniquePtr <FShaderParametersMetadataAllocations> ShaderParameterMetadataAllocations = MakeUnique<FShaderParametersMetadataAllocations>();
 
 			FString ShaderEntryPoint = Kernel->KernelSource->GetEntryPoint();
-			FString ShaderSource = BuildKernelSource(KernelIndex, ShaderHashKey, ShaderDefinitionSet, ShaderPermutationVector);
-			FShaderParametersMetadata* ShaderMetadata = BuildKernelShaderMetadata(KernelIndex);
+			FString ShaderSource = BuildKernelSource(KernelIndex, ShaderHashKey, *ShaderDefinitionSet, *ShaderPermutationVector);
+			FShaderParametersMetadata* ShaderParameterMetadata = BuildKernelShaderMetadata(KernelIndex, *ShaderParameterMetadataAllocations);
 
 			const ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
 			const EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[CacheFeatureLevel];
@@ -526,10 +552,11 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 				GetName(), 
 				ShaderEntryPoint, 
 				ShaderHashKey,
-				MoveTemp(ShaderSource),
+				ShaderSource,
 				ShaderDefinitionSet,
 				ShaderPermutationVector,
-				ShaderMetadata,
+				ShaderParameterMetadataAllocations,
+				ShaderParameterMetadata,
 				GetOutermost()->GetFName());
 
 			KernelResource->OnCompilationComplete().BindUObject(this, &UComputeGraph::ShaderCompileCompletionCallback);
@@ -602,7 +629,6 @@ void UComputeGraph::ShaderCompileCompletionCallback(FComputeKernelResource const
 	}
 }
 
-
 void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* TargetPlatform)
 {
 	TArray<FName> ShaderFormats;
@@ -621,17 +647,19 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 		if (ShaderFormats.Num() > 0)
 		{
 			FString ShaderHashKey;
-			FComputeKernelDefinitionSet ShaderDefinitionSet;
-			FComputeKernelPermutationVector ShaderPermutationVector;
+			TUniquePtr <FComputeKernelDefinitionSet> ShaderDefinitionSet = MakeUnique<FComputeKernelDefinitionSet>();
+			TUniquePtr <FComputeKernelPermutationVector> ShaderPermutationVector = MakeUnique<FComputeKernelPermutationVector>();
 
 			FString ShaderEntryPoint = KernelSource->GetEntryPoint();
-			FString ShaderSource = BuildKernelSource(KernelIndex, ShaderHashKey, ShaderDefinitionSet, ShaderPermutationVector);
-			FShaderParametersMetadata* ShaderMetadata = BuildKernelShaderMetadata(KernelIndex);
+			FString ShaderSource = BuildKernelSource(KernelIndex, ShaderHashKey, *ShaderDefinitionSet, *ShaderPermutationVector);
 
 			TArray< TUniquePtr<FComputeKernelResource> >& Resources = KernelResources[KernelIndex].CachedKernelResourcesForCooking.FindOrAdd(TargetPlatform);
 
 			for (int32 ShaderFormatIndex = 0; ShaderFormatIndex < ShaderFormats.Num(); ++ShaderFormatIndex)
 			{
+				TUniquePtr<FShaderParametersMetadataAllocations> ShaderParameterMetadataAllocations = MakeUnique<FShaderParametersMetadataAllocations>();
+				FShaderParametersMetadata* ShaderParameterMetadata = BuildKernelShaderMetadata(KernelIndex, *ShaderParameterMetadataAllocations);
+
 				const EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormats[ShaderFormatIndex]);
 				const ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
 
@@ -644,7 +672,8 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 					ShaderSource,
 					ShaderDefinitionSet,
 					ShaderPermutationVector,
-					ShaderMetadata,
+					ShaderParameterMetadataAllocations,
+					ShaderParameterMetadata,
 					GetOutermost()->GetFName());
 
 				const uint32 CompilationFlags = uint32(EComputeKernelCompilationFlags::IsCooking);

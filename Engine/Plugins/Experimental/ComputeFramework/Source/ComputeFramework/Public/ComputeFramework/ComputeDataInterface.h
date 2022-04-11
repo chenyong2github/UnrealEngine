@@ -9,6 +9,7 @@ struct FComputeKernelDefinitionSet;
 struct FComputeKernelPermutationVector;
 struct FShaderCompilerEnvironment;
 struct FShaderFunctionDefinition;
+struct FShaderParametersMetadataAllocations;
 class FShaderParametersMetadataBuilder;
 class UComputeDataProvider;
 
@@ -23,6 +24,8 @@ class COMPUTEFRAMEWORK_API UComputeDataInterface : public UObject
 	GENERATED_BODY()
 
 public:
+	/** Get a name for referencing the data interface its shader parameter structures. The InUniqueIndex is optional for use in generating the name. */
+	virtual TCHAR const* GetClassName() const PURE_VIRTUAL(UComputeDataInterface::GetClassName, return nullptr;)
 	/** Does the associated UComputeDataProvider provide invocations and thread counts. One and only one data interface per kernel should return true. */
 	virtual bool IsExecutionInterface() const { return false; }
 	/** Gather compile definitions from the data interface. Any connected kernel will compile with these. */
@@ -34,7 +37,7 @@ public:
 	/** Get the data interface functions available to fulfill external outputs of a kernel. */
 	virtual void GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const {}
 	/** Gather the shader metadata exposed by the data provider payload. */
-	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const {}
+	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const {}
 	/** Get a hash that changes on any data interface changes that affect kernel compilation. */
 	virtual void GetShaderHash(FString& InOutKey) const {}
 	/** Gather the shader code for this data provider. */

@@ -2,10 +2,9 @@
 
 #include "OptimusDataInterfaceRawBuffer.h"
 
-#include "OptimusDeformerInstance.h"
-
 #include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "OptimusDeformerInstance.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
@@ -120,9 +119,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTransientBufferDataInterfaceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<int>, BufferUAV)
 END_SHADER_PARAMETER_STRUCT()
 
-void UOptimusTransientBufferDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusTransientBufferDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
 {
-	OutBuilder.AddNestedStruct<FTransientBufferDataInterfaceParameters>(UID);
+	InOutBuilder.AddNestedStruct<FTransientBufferDataInterfaceParameters>(UID);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FPersistentBufferDataInterfaceParameters, )
@@ -131,10 +130,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPersistentBufferDataInterfaceParameters, )
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<int>, BufferUAV)
 END_SHADER_PARAMETER_STRUCT()
 
-
-void UOptimusPersistentBufferDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusPersistentBufferDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
 {
-	OutBuilder.AddNestedStruct<FPersistentBufferDataInterfaceParameters>(UID);
+	InOutBuilder.AddNestedStruct<FPersistentBufferDataInterfaceParameters>(UID);
 }
 
 void UOptimusRawBufferDataInterface::GetShaderHash(FString& InOutKey) const

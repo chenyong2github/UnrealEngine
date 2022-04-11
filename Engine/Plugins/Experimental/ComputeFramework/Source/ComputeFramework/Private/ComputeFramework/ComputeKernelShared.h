@@ -3,8 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ComputeFramework/ComputeKernelPermutationSet.h"
-#include "ComputeFramework/ComputeKernelPermutationVector.h"
 #include "Engine/EngineTypes.h"
 #include "RenderResource.h"
 #include "RenderingThread.h"
@@ -14,12 +12,15 @@
 #include "ShaderCompiler.h"
 #include "Templates/RefCounting.h"
 
+struct FComputeKernelDefinitionSet;
+struct FComputeKernelPermutationVector;
 class FComputeKernelResource;
 class FComputeKernelShaderMap;
 class FComputeKernelShader;
 class FComputeKernelShaderMapId;
 class UComputeKernelSource;
 class FShaderParametersMetadata;
+struct FShaderParametersMetadataAllocations;
 
 /** Stores outputs from the  kernel compile that need to be saved. */
 class FComputeKernelCompilationOutput
@@ -287,15 +288,7 @@ DECLARE_DELEGATE_OneParam(FOnComputeKernelCompilationComplete, class FComputeKer
 class FComputeKernelResource
 {
 public:
-
-	/**
-	 * Minimal initialization constructor.
-	 */
-	FComputeKernelResource()
-		: bContainsInlineShaders(false)
-		, bLoadedCookedShaderMapId(false)
-	{}
-
+	FComputeKernelResource();
 	virtual ~FComputeKernelResource();
 
 	/**
@@ -423,10 +416,11 @@ public:
 		FString const& InFriendlyName,
 		FString const& InShaderEntryPoint,
 		FString const& InShaderHashKey,
-		FString InShaderSource,
-		FComputeKernelDefinitionSet& InShaderDefinitionSet,
-		FComputeKernelPermutationVector& InShaderPermutationVector,
-		FShaderParametersMetadata* InShaderMetadata,
+		FString& InShaderSource,
+		TUniquePtr<FComputeKernelDefinitionSet>& InShaderDefinitionSet,
+		TUniquePtr<FComputeKernelPermutationVector>& InShaderPermutationVector,
+		TUniquePtr<FShaderParametersMetadataAllocations>& InShaderParameterMetadataAllocations,
+		FShaderParametersMetadata* InShaderParameterMetadata,
 		FName const& InAssetPath
 	);
 
@@ -439,7 +433,7 @@ public:
 
 	const FShaderParametersMetadata* GetShaderParamMetadata() const
 	{
-		return ShaderMetadata.Get();
+		return ShaderParameterMetadata;
 	}
 	
 	TShaderRef<FComputeKernelShader> GetShader(int32 PermutationId) const;
@@ -459,8 +453,6 @@ protected:
 	void GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& OutShaderMapIds);
 
 private:
-	TUniquePtr<FShaderParametersMetadata> ShaderMetadata;
-
 	TArray<FString> CompileErrors;
 
 	/** 
@@ -490,10 +482,16 @@ private:
 	uint64 ShaderCodeHash = 0;
 
 	/** Defines used when compiling shaders. */
-	FComputeKernelDefinitionSet ShaderDefinitionSet;
+	TUniquePtr<FComputeKernelDefinitionSet> ShaderDefinitionSet;
 	
 	/** Permutations used for compiling shaders. */
-	FComputeKernelPermutationVector ShaderPermutationVector;
+	TUniquePtr<FComputeKernelPermutationVector> ShaderPermutationVector;
+
+	/** Allocations for the ShaderParameterMetadata */
+	TUniquePtr<FShaderParametersMetadataAllocations> ShaderParameterMetadataAllocations;
+
+	/** Shader parameter metadata. It is expected that object is owned by ShaderParameterMetadataAllocations.  */
+	FShaderParametersMetadata const* ShaderParameterMetadata;
 
 	/** Compilation flags. */
 	uint32 KernelFlags = 0;

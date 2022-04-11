@@ -38,9 +38,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSkinedMeshExecDataInterfaceParameters, )
 	SHADER_PARAMETER(FIntVector, NumThreads)
 END_SHADER_PARAMETER_STRUCT()
 
-void UOptimusSkinnedMeshExecDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusSkinnedMeshExecDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
 {
-	OutBuilder.AddNestedStruct<FSkinedMeshExecDataInterfaceParameters>(UID);
+	InOutBuilder.AddNestedStruct<FSkinedMeshExecDataInterfaceParameters>(UID);
 }
 
 void UOptimusSkinnedMeshExecDataInterface::GetShaderHash(FString& InOutKey) const

@@ -48,9 +48,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMorphTargetDataInterfaceParameters, )
 	SHADER_PARAMETER_SRV(Buffer<float>, MorphBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
-void UOptimusMorphTargetDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusMorphTargetDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
 {
-	OutBuilder.AddNestedStruct<FMorphTargetDataInterfaceParameters>(UID);
+	InOutBuilder.AddNestedStruct<FMorphTargetDataInterfaceParameters>(UID);
 }
 
 void UOptimusMorphTargetDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const

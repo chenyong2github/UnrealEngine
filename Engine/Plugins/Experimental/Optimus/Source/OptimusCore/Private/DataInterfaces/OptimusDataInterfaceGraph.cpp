@@ -2,12 +2,12 @@
 
 #include "OptimusDataInterfaceGraph.h"
 
+#include "Components/SkinnedMeshComponent.h"
+#include "ComputeFramework/ShaderParameterMetadataAllocation.h"
+#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
+#include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusDeformerInstance.h"
 #include "OptimusVariableDescription.h"
-
-#include "Components/SkinnedMeshComponent.h"
-#include "ComputeFramework/ShaderParamTypeDefinition.h"
-#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 
 namespace
 {
@@ -77,18 +77,21 @@ void UOptimusGraphDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefini
 	}
 }
 
-void UOptimusGraphDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusGraphDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
 {
+	// Build metadata nested structure containing all variables.
 	FShaderParametersMetadataBuilder Builder;
 	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
 		AddParamForType(Builder, *Variable.Name, Variable.ValueType);
 	}
 
-	// Todo[CF]: This leaks! Provide an allocator to this function to collect stuff like this (and maybe UID TCHAR allocation).
 	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("UGraphDataInterface"));
+	// Add the metadata to InOutAllocations so that it is released when we are done.
+	InOutAllocations.ShaderParameterMetadatas.Add(ShaderParameterMetadata);
 
-	OutBuilder.AddNestedStruct(UID, ShaderParameterMetadata);
+	// Add the generated nested struct to our builder.
+	InOutBuilder.AddNestedStruct(UID, ShaderParameterMetadata);
 }
 
 void UOptimusGraphDataInterface::GetHLSL(FString& OutHLSL) const

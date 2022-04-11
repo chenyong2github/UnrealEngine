@@ -71,9 +71,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSkinedMeshWriteDataInterfaceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<UNORM float4>, ColorBufferUAV)
 END_SHADER_PARAMETER_STRUCT()
 
-void UOptimusSkinnedMeshWriteDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusSkinnedMeshWriteDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
 {
-	OutBuilder.AddNestedStruct<FSkinedMeshWriteDataInterfaceParameters>(UID);
+	InOutBuilder.AddNestedStruct<FSkinedMeshWriteDataInterfaceParameters>(UID);
 }
 
 void UOptimusSkinnedMeshWriteDataInterface::GetShaderHash(FString& InOutKey) const

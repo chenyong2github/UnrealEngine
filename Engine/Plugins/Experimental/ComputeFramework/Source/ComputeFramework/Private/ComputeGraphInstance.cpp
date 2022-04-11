@@ -58,27 +58,26 @@ bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInt
 		return false;
 	}
 
-	FComputeGraphRenderProxy* ComputeGraphProxy = InComputeGraph->CreateProxy(InOwnerName);
-	if (!ensure(ComputeGraphProxy))
+	FComputeGraphRenderProxy const* GraphRenderProxy = InComputeGraph->GetRenderProxy();
+	if (!ensure(GraphRenderProxy))
 	{
 		return false;
 	}
 
-	TArray<FComputeDataProviderRenderProxy*> ComputeDataProviderProxies;
+	TArray<FComputeDataProviderRenderProxy*> DataProviderRenderProxies;
 	for (UComputeDataProvider* DataProvider : DataProviders)
 	{
 		// Be sure to add null provider slots because we want to maintain consistent array indices.
 		// Note that we expect GetRenderProxy() to return a pointer that we can own and call delete on.
 		FComputeDataProviderRenderProxy* ProviderProxy = DataProvider != nullptr ? DataProvider->GetRenderProxy() : nullptr;
-		ComputeDataProviderProxies.Add(ProviderProxy);
+		DataProviderRenderProxies.Add(ProviderProxy);
 	}
 
 	ENQUEUE_RENDER_COMMAND(ComputeFrameworkEnqueueExecutionCommand)(
-		[ComputeGraphWorker, ComputeGraphProxy, DataProviderProxies = MoveTemp(ComputeDataProviderProxies)](FRHICommandListImmediate& RHICmdList)
+		[ComputeGraphWorker, InOwnerName, GraphRenderProxy, MovedDataProviderRenderProxies = MoveTemp(DataProviderRenderProxies)](FRHICommandListImmediate& RHICmdList)
 		{
 			// Compute graph scheduler will take ownership of the provider proxies.
-			ComputeGraphWorker->Enqueue(ComputeGraphProxy, DataProviderProxies);
-			delete ComputeGraphProxy;
+			ComputeGraphWorker->Enqueue(InOwnerName, GraphRenderProxy, MovedDataProviderRenderProxies);
 		});
 
 	return true;

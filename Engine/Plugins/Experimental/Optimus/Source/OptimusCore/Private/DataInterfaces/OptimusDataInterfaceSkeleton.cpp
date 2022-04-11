@@ -67,9 +67,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSkeletonDataInterfaceParameters, )
 	SHADER_PARAMETER_SRV(Buffer<uint>, InputWeightLookupStream)
 END_SHADER_PARAMETER_STRUCT()
 
-void UOptimusSkeletonDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusSkeletonDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
 {
-	OutBuilder.AddNestedStruct<FSkeletonDataInterfaceParameters>(UID);
+	InOutBuilder.AddNestedStruct<FSkeletonDataInterfaceParameters>(UID);
 }
 
 void UOptimusSkeletonDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const

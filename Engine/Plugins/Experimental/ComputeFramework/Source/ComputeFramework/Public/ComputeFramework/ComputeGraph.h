@@ -7,34 +7,16 @@
 #include "ComputeGraph.generated.h"
 
 class FArchive;
-class FComputeDataProviderRenderProxy;
 struct FComputeKernelDefinitionSet;
 struct FComputeKernelPermutationVector;
-struct FComputeKernelPermutationSet;
 class FComputeKernelResource;
 class FComputeGraphRenderProxy;
 class FShaderParametersMetadata;
+struct FShaderParametersMetadataAllocations;
 class ITargetPlatform;
 class UComputeDataInterface;
 class UComputeDataProvider;
 class UComputeKernel;
-
-/** Compute Kernel compilation flags. */
-enum class EComputeKernelCompilationFlags
-{
-	None = 0,
-
-	/* Force recompilation even if kernel is not dirty and/or DDC data is available. */
-	Force = 1 << 0,
-
-	/* Compile the shader while blocking the main thread. */
-	Synchronous = 1 << 1,
-
-	/* Replaces all instances of the shader with the newly compiled version. */
-	ApplyCompletedShaderMapForRendering = 1 << 2,
-
-	IsCooking = 1 << 3,
-};
 
 /** 
  * Description of a single edge in a UComputeGraph. 
@@ -122,19 +104,8 @@ public:
 	/** Returns true if there is a valid DataProvider entry for each of our DataInterfaces. */
 	bool ValidateProviders(TArray< TObjectPtr<UComputeDataProvider> > const& DataProviders) const;
 
-	/** 
-	 * Create FComputeGraphRenderProxy render thread proxy. 
-	 * Ownership of the proxy is passed to the caller.
-	 */
-	FComputeGraphRenderProxy* CreateProxy(FName InOwnerName) const;
-
-	/**
-	 * Get unique data interface id.
-	 * This is just a string containing the index of the data interface in UComputeGraph::DataInterfaces.
-	 * It is used as a prefix to disambiguate shader code etc.
-	 * This function permanently allocates the UID on first use so that returned TCHAR pointers can be held by structures with long lifetimes.
-	 */
-	static TCHAR const* GetDataInterfaceUID(int32 DataInterfaceIndex);
+	/** Get the render proxy which is a copy of all data required by the render thread. */
+	FComputeGraphRenderProxy const* GetRenderProxy() const;
 
 	/**
 	 * Call after changing the graph to build the graph resources for rendering.
@@ -156,11 +127,13 @@ protected:
 
 private:
 	/** Build the shader metadata which describes bindings for a kernel with its linked data interfaces.*/
-	FShaderParametersMetadata* BuildKernelShaderMetadata(int32 KernelIndex) const;
-	/** Recache the shader metadata for all kernels in the graph. */
-	void CacheShaderMetadata();
-	/** Recache the shader permutation vectors for all kernels in the graph. */
-	void CacheShaderPermutationVectors();
+	FShaderParametersMetadata* BuildKernelShaderMetadata(int32 InKernelIndex, FShaderParametersMetadataAllocations& InOutAllocations) const;
+	/** Build the shader permutation vectors for all kernels in the graph. */
+	void BuildShaderPermutationVectors(TArray<FComputeKernelPermutationVector>& OutShaderPermutationVectors) const;
+	/** Create the render proxy. */
+	FComputeGraphRenderProxy* CreateRenderProxy() const;
+	/** Release the render proxy. */
+	void ReleaseRenderProxy(FComputeGraphRenderProxy* InProxy) const;
 
 #if WITH_EDITOR
 	/** Build the HLSL source for a kernel with its linked data interfaces. */
@@ -217,10 +190,6 @@ private:
 
 	/** Kernel resources stored with the same indexing as the KernelInvocations array. */
 	TArray<FComputeKernelResourceSet>  KernelResources;
-
-	/** Shader metadata stored with the same indexing as the KernelInvocations array. */
-	TArray<FShaderParametersMetadata*> ShaderMetadatas;
-
-	/** Shader permutation vector stored with the same indexing as the KernelInvocations array. */
-	TArray<FComputeKernelPermutationVector> ShaderPermutationVectors;
+	/** Render proxy that owns all render thread resources. */
+	FComputeGraphRenderProxy* RenderProxy = nullptr;
 };

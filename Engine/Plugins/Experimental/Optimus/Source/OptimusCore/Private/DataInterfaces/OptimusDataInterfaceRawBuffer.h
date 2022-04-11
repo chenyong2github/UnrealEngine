@@ -68,7 +68,8 @@ public:
 	//~ End UOptimusComputeDataInterface Interface
 
 	//~ Begin UComputeDataInterface Interface
-	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
+	TCHAR const* GetClassName() const override { return TEXT("TransientBuffer"); }
+	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const override;
 	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
 
@@ -91,7 +92,8 @@ public:
 	//~ End UOptimusComputeDataInterface Interface
 
 	//~ Begin UComputeDataInterface Interface
-	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
+	TCHAR const* GetClassName() const override { return TEXT("PersistentBuffer"); }
+	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const override;
 	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
 

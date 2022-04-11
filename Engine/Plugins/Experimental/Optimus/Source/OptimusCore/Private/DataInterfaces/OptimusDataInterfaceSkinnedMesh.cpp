@@ -2,10 +2,9 @@
 
 #include "OptimusDataInterfaceSkinnedMesh.h"
 
-#include "OptimusDataDomain.h"
-
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "ComputeFramework/ShaderParameterMetadataBuilder.h"
+#include "OptimusDataDomain.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalRenderPublic.h"
@@ -100,9 +99,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSkinnedMeshDataInterfaceParameters, )
 	SHADER_PARAMETER_SRV(Buffer<uint>, DuplicatedIndices)
 END_SHADER_PARAMETER_STRUCT()
 
-void UOptimusSkinnedMeshDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusSkinnedMeshDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
 {
-	OutBuilder.AddNestedStruct<FSkinnedMeshDataInterfaceParameters>(UID);
+	InOutBuilder.AddNestedStruct<FSkinnedMeshDataInterfaceParameters>(UID);
 }
 
 void UOptimusSkinnedMeshDataInterface::GetShaderHash(FString& InOutKey) const

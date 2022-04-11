@@ -69,9 +69,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FClothDataInterfaceParameters, )
 	SHADER_PARAMETER_SRV(Buffer<float2>, ClothPositionsAndNormalsBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
-void UOptimusClothDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+void UOptimusClothDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
 {
-	OutBuilder.AddNestedStruct<FClothDataInterfaceParameters>(UID);
+	InOutBuilder.AddNestedStruct<FClothDataInterfaceParameters>(UID);
 }
 
 void UOptimusClothDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const

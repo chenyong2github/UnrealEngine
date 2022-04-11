@@ -2,14 +2,15 @@
 
 #include "ComputeFramework/ComputeKernelShared.h"
 
+#include "ComputeFramework/ComputeKernelPermutationSet.h"
+#include "ComputeFramework/ComputeKernelPermutationVector.h"
 #include "ComputeFramework/ComputeKernelShaderType.h"
 #include "ComputeFramework/ComputeKernelShader.h"
 #include "ComputeFramework/ComputeKernelShaderCompilationManager.h"
 #include "ComputeFramework/ComputeKernelSource.h"
+#include "ComputeFramework/ShaderParameterMetadataAllocation.h"
 #include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "Misc/App.h"
-#include "Modules/ModuleManager.h"
 #include "RendererInterface.h"
 #include "ShaderCompiler.h"
 #include "Stats/StatsMisc.h"
@@ -22,6 +23,12 @@ IMPLEMENT_TYPE_LAYOUT(FComputeKernelCompilationOutput);
 IMPLEMENT_TYPE_LAYOUT(FComputeKernelShaderMapId);
 IMPLEMENT_TYPE_LAYOUT(FComputeKernelShaderMapContent);
 
+FComputeKernelResource::FComputeKernelResource()
+	: bContainsInlineShaders(false)
+	, bLoadedCookedShaderMapId(false)
+{
+}
+
 FComputeKernelResource::~FComputeKernelResource()
 {
 	FComputeKernelShaderMap::RemovePending(this);
@@ -30,7 +37,7 @@ FComputeKernelResource::~FComputeKernelResource()
 /** Populates OutEnvironment with defines needed to compile shaders for this kernel. */
 void FComputeKernelResource::SetupShaderCompilationEnvironment(EShaderPlatform InPlatform, FShaderCompilerEnvironment& OutEnvironment) const
 {
-	for (FComputeKernelDefinition const& Define : ShaderDefinitionSet.Defines)
+	for (FComputeKernelDefinition const& Define : ShaderDefinitionSet->Defines)
 	{
 		OutEnvironment.SetDefine(*Define.Symbol, *Define.Define);
 	}
@@ -204,10 +211,11 @@ void FComputeKernelResource::SetupResource(
 	FString const& InFriendlyName,
 	FString const& InShaderEntryPoint,
 	FString const& InShaderHashKey,
-	FString InShaderSource,
-	FComputeKernelDefinitionSet& InShaderDefinitionSet,
-	FComputeKernelPermutationVector& InShaderPermutationVector,
-	FShaderParametersMetadata* InShaderMetadata,
+	FString& InShaderSource,
+	TUniquePtr<FComputeKernelDefinitionSet>& InShaderDefinitionSet,
+	TUniquePtr<FComputeKernelPermutationVector>& InShaderPermutationVector,
+	TUniquePtr<FShaderParametersMetadataAllocations>& InShaderParameterMetadataAllocations,
+	FShaderParametersMetadata* InShaderParameterMetadata,
 	FName const& InAssetPath
 	)
 {
@@ -218,7 +226,8 @@ void FComputeKernelResource::SetupResource(
 	ShaderSource = MoveTemp(InShaderSource);
 	ShaderDefinitionSet = MoveTemp(InShaderDefinitionSet);
 	ShaderPermutationVector = MoveTemp(InShaderPermutationVector);
-	ShaderMetadata.Reset(InShaderMetadata);
+	ShaderParameterMetadataAllocations = MoveTemp(InShaderParameterMetadataAllocations);
+	ShaderParameterMetadata = InShaderParameterMetadata;
 	CompileErrors.Reset();
 #if WITH_EDITOR
 	AssetPath = InAssetPath;
@@ -227,13 +236,14 @@ void FComputeKernelResource::SetupResource(
 
 int32 FComputeKernelResource::GetNumPermutations() const 
 {
+	// todo[CF]: ShaderPermutationVector is not serialized/restored in non-editor builds!
 	// todo[CF]: Support sparse permutation bits.
-	return 1 << ShaderPermutationVector.BitCount;
+	return ShaderPermutationVector.IsValid() ? 1 << ShaderPermutationVector->BitCount : 1;
 }
 
 void FComputeKernelResource::SetupCompileEnvironment(int32 InPermutationId, FShaderCompilerEnvironment& OutShaderEnvironment) const
 {
- 	for (TPair<FString, uint32> const& Permutation : ShaderPermutationVector.Permutations)
+ 	for (TPair<FString, uint32> const& Permutation : ShaderPermutationVector->Permutations)
 	{
 		FComputeKernelPermutationVector::FPermutationBits PermutationBits;
 		PermutationBits.PackedValue = Permutation.Value;
