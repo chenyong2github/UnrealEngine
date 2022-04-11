@@ -12,6 +12,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IHasPropertyBindingExtensibility.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "MessageLogInitializationOptions.h"
+#include "MessageLogModule.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMBlueprintViewModelContext.h"
 #include "MVVMEditorCommands.h"
@@ -52,12 +54,26 @@ void FModelViewViewModelEditorModule::StartupModule()
 
 	FBlueprintEditorUtils::OnRenameVariableReferencesEvent.AddRaw(this, &FModelViewViewModelEditorModule::HandleRenameVariableReferences);
 
+	{
+		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+		FMessageLogInitializationOptions InitOptions;
+		InitOptions.bShowFilters = true;
+		InitOptions.bShowPages = false;
+		InitOptions.bAllowClear = true;
+		MessageLogModule.RegisterLogListing("Model View Viewmodel", LOCTEXT("MVVMLog", "Model View Viewmodel"), InitOptions);
+	}
+
 	FMVVMEditorCommands::Register();
 }
 
 
 void FModelViewViewModelEditorModule::ShutdownModule()
 {
+	if (FMessageLogModule* MessageLogModule = FModuleManager::GetModulePtr<FMessageLogModule>("MessageLog"))
+	{
+		MessageLogModule->UnregisterLogListing("Model View Viewmodel");
+	}
+
 	FBlueprintEditorUtils::OnRenameVariableReferencesEvent.RemoveAll(this);
 
 	if (IUMGEditorModule* UMGEditorModule = FModuleManager::GetModulePtr<IUMGEditorModule>("UMGEditor"))

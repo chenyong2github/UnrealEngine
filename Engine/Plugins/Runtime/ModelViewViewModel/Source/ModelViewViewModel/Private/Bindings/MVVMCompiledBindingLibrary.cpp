@@ -49,6 +49,10 @@ FMVVMCompiledBindingLibrary::FMVVMCompiledBindingLibrary()
 
 void FMVVMCompiledBindingLibrary::Load()
 {
+	ensureAlwaysMsgf(LoadedProperties.Num() == 0, TEXT("The binding library was loaded more than once."));
+	ensureAlwaysMsgf(LoadedFunctions.Num() == 0, TEXT("The binding library was loaded more than once."));
+	ensureAlwaysMsgf(LoadedFieldIds.Num() == 0, TEXT("The binding library was loaded more than once."));
+
 	for (const FMVVMVCompiledFields& Field : CompiledFields)
 	{
 		{

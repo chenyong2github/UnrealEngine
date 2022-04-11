@@ -357,7 +357,60 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 
 TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddConversionFunctionFieldPath(TSubclassOf<UObject> SourceClass, FStringView FieldPath)
 {
-	return MakeError(TEXT("Not implemented yet"));
+	Impl->bCompiled = false;
+
+	if (SourceClass == nullptr)
+	{
+		return MakeError(TEXT("The source class is invalid."));
+	}
+	if (FieldPath.Len() == 0)
+	{
+		return MakeError(TEXT("The function path is empty."));
+	}
+
+	FMVVMFieldVariant FoundFunction = FMVVMFieldVariant(FindObject<UFunction>(nullptr, FieldPath.GetData(), true));
+	if (FoundFunction.IsEmpty() || !FoundFunction.IsFunction() || FoundFunction.GetFunction() == nullptr)
+	{
+		FoundFunction = UE::MVVM::BindingHelper::FindFieldByName(SourceClass.Get(), FMVVMBindingName(FieldPath.GetData()));
+	}
+
+	if (FoundFunction.IsEmpty() || !FoundFunction.IsFunction() || FoundFunction.GetFunction() == nullptr)
+	{
+		return MakeError(FString::Printf(TEXT("The function %s could not be found."), FieldPath.GetData()));
+	}
+
+	if (!BindingHelper::IsValidForRuntimeConversion(FoundFunction.GetFunction()))
+	{
+		return MakeError(FString::Printf(TEXT("Function %s cannot be used as a runtime conversion function."), *FoundFunction.GetFunction()->GetName()));
+	}
+
+	if (!FoundFunction.GetFunction()->HasAllFunctionFlags(FUNC_Static))
+	{
+		if (!SourceClass->IsChildOf(FoundFunction.GetFunction()->GetOuterUClass()))
+		{
+			return MakeError(FString::Printf(TEXT("Function %s is going to be executed with an invalid self."), *FoundFunction.GetFunction()->GetName()));
+		}
+	}
+
+	TArray<int32> RawFieldIndexes;
+	RawFieldIndexes.Add(Impl->AddUniqueField(FoundFunction));
+	const int32 FoundFieldPath = Impl->FieldPaths.IndexOfByPredicate([&RawFieldIndexes](const Private::FRawFieldPath& Other)
+		{
+			return Other.RawFieldIndexes == RawFieldIndexes;
+		});
+	if (FoundFieldPath != INDEX_NONE)
+	{
+		return MakeValue(Impl->FieldPaths[FoundFieldPath].PathHandle);
+	}
+
+	Private::FRawFieldPath RawFieldPath;
+	RawFieldPath.RawFieldIndexes = MoveTemp(RawFieldIndexes);
+	RawFieldPath.PathHandle = FFieldPathHandle::MakeHandle();
+	RawFieldPath.bIsReadable = false;
+	RawFieldPath.bIsWritable = false;
+
+	const int32 NewFieldPathIndex = Impl->FieldPaths.Add(MoveTemp(RawFieldPath));
+	return MakeValue(Impl->FieldPaths[NewFieldPathIndex].PathHandle);
 }
 
 
@@ -726,6 +779,10 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FString> FCompile
 
 		Result.Bindings.Add(Binding.BindingHandle, Binding.CompiledBinding);
 	}
+
+	Result.Library.LoadedProperties.Reset();
+	Result.Library.LoadedFunctions.Reset();
+	Result.Library.LoadedFieldIds.Reset();
 
 	Impl->bCompiled = true;
 	return MakeValue(MoveTemp(Result));

@@ -99,7 +99,7 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 		else if (GlobalViewModelInstance.IsValid())
 		{
 			UMVVMViewModelBase* FoundViewModelInstance = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetGlobalViewModelCollection()->FindViewModelInstance(GlobalViewModelInstance);
-			if (FoundViewModelInstance)
+			if (FoundViewModelInstance != nullptr)
 			{
 				ensureMsgf(FoundViewModelInstance->IsA(GlobalViewModelInstance.ContextClass), TEXT("The Global View Model Instance is not of the expected type."));
 				Result = FoundViewModelInstance;
@@ -117,7 +117,7 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 			if (FieldPathResult.HasValue())
 			{
 				TValueOrError<UObject*, void> ObjectResult = UE::MVVM::FieldPathHelper::EvaluateObjectProperty(FieldPathResult.GetValue());
-				if (ObjectResult.HasValue())
+				if (ObjectResult.HasValue() && ObjectResult.GetValue() != nullptr)
 				{
 					Result = ObjectResult.GetValue();
 					AssignProperty(ObjectResult.GetValue());
@@ -160,6 +160,7 @@ void UMVVMViewClass::Initialize(UUserWidget* UserWidget)
 		if (!bLoaded)
 		{
 			BindingLibrary.Load();
+			bLoaded = true;
 		}
 
 		View->ConstructView(this);

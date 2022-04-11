@@ -28,6 +28,7 @@ public class ModelViewViewModelEditor : ModuleRules
 				"BlueprintGraph",
 				"InputCore",
 				"Kismet",
+				"MessageLog",
 				"Projects",
 				"PropertyEditor",
 				"StatusBar",

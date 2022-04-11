@@ -197,7 +197,11 @@ TValueOrError<UObject*, void> EvaluateObjectProperty(const FFieldContext& InSour
 	else
 	{
 		check(InSource.GetObjectVariant().IsUObject());
+		check(InSource.GetObjectVariant().GetUObject());
+
 		UFunction* Function = InSource.GetFieldVariant().GetFunction();
+		check(InSource.GetObjectVariant().GetUObject()->GetClass()->IsChildOf(Function->GetOuterUClass()));
+
 		void* DataPtr = FMemory_Alloca_Aligned(Function->ParmsSize, Function->GetMinAlignment());
 		ObjectProperty->InitializeValue(DataPtr);
 		InSource.GetObjectVariant().GetUObject()->ProcessEvent(Function, DataPtr);

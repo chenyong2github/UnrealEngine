@@ -223,6 +223,7 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 		for (TFieldIterator<FObjectPropertyBase>It(WidgetBlueprintClass, EFieldIterationFlags::Default); It; ++It)
 		{
 			check(*It);
+			ensureMsgf(!ObjectPropertiesMap.Contains(It->GetFName()), TEXT("There are properties with the same names. %s"), *It->GetName());
 			ObjectPropertiesMap.Add(It->GetFName(), *It);
 		}
 

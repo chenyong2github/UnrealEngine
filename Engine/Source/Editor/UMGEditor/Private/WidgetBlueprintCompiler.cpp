@@ -998,6 +998,14 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 
 	Super::FinishCompilingClass(Class);
 
+	if (!bIsSkeletonOnly)
+	{
+		if (UUserWidget* UserWidget = Cast<UUserWidget>(BPGClass->GetDefaultObject()))
+		{
+			BPGClass->InitializeFieldNotification(UserWidget);
+		}
+	}
+
 	UWidgetBlueprintExtension::ForEachExtension(WidgetBlueprint(), [BPGClass](UWidgetBlueprintExtension* InExtension)
 		{
 			InExtension->FinishCompilingClass(BPGClass);

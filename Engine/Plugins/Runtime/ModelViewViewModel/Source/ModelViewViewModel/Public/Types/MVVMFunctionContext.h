@@ -91,8 +91,8 @@ namespace UE::MVVM
 
 		static FConstFunctionContext MakeStaticFunction(FunctionType InFunction)
 		{
-			check(InFunction->HasAnyFunctionFlags(FUNC_Static));
-			return InFunction ? FConstFunctionContext() : FConstFunctionContext(InFunction->GetOuterUClass()->GetDefaultObject(), InFunction);
+			check(InFunction && InFunction->HasAnyFunctionFlags(FUNC_Static));
+			return FConstFunctionContext(InFunction->GetOuterUClass()->GetDefaultObject(), InFunction);
 		}
 
 		FConstFunctionContext& operator=(const FFunctionContext& Other)
