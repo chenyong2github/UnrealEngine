@@ -652,7 +652,7 @@ FReply SReplaceNodeReferences::OnFindAndReplaceAll()
 
 void SReplaceNodeReferences::OnSubmitSearchQuery(bool bFindAndReplace)
 {
-	if (HasValidSource())
+	if (SourceProperty != nullptr)
 	{
 		FString SearchTerm;
 
@@ -690,7 +690,7 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 		}
 	}
 
-	if (HasValidSource() && SelectedTargetReferenceItem.IsValid() && SourceProperty!=nullptr )
+	if (SourceProperty != nullptr && SelectedTargetReferenceItem.IsValid())
 	{
 		FMemberReference SourceVariableReference;
 		SourceVariableReference.SetFromField<FProperty>(SourceProperty, SourceProperty->GetOwnerClass());
@@ -708,7 +708,7 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 
 					FReplaceNodeReferencesHelper::ReplaceReferences(SourceVariableReference, TargetVariableReference, Blueprint, InRawDataList);
 
-					if (SourceProperty && bShowReplacementsWhenFinished)
+					if (SourceProperty != nullptr && bShowReplacementsWhenFinished)
 					{
 						TSharedPtr<SFindInBlueprints> GlobalResults = FFindInBlueprintSearchManager::Get().GetGlobalFindResults();
 						if (GlobalResults)
@@ -756,7 +756,7 @@ void SReplaceNodeReferences::OnSourceSelectionChanged(FTreeViewItem Selection, E
 
 FText SReplaceNodeReferences::GetSourceDisplayText() const
 {
-	if (!HasValidSource())
+	if (SourceProperty == nullptr)
 	{
 		return LOCTEXT("UnselectedSourceReference", "Please select a source reference!");
 	}
@@ -765,7 +765,7 @@ FText SReplaceNodeReferences::GetSourceDisplayText() const
 
 const FSlateBrush* SReplaceNodeReferences::GetSourceReferenceIcon() const
 {
-	if (HasValidSource())
+	if (SourceProperty != nullptr)
 	{
 		return FBlueprintEditorUtils::GetIconFromPin(SourcePinType);
 	}
@@ -781,7 +781,7 @@ FSlateColor SReplaceNodeReferences::GetSourceReferenceIconColor() const
 
 const FSlateBrush* SReplaceNodeReferences::GetSecondarySourceReferenceIcon() const
 {
-	if (HasValidSource())
+	if (SourceProperty != nullptr)
 	{
 		return FBlueprintEditorUtils::GetSecondaryIconFromPin(SourcePinType);
 	}
@@ -793,11 +793,6 @@ FSlateColor SReplaceNodeReferences::GetSecondarySourceReferenceIconColor() const
 {
 	UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
 	return K2Schema->GetSecondaryPinTypeColor(SourcePinType);
-}
-
-bool SReplaceNodeReferences::HasValidSource() const
-{
-	return (SourceProperty != nullptr);
 }
 
 FText SReplaceNodeReferences::GetFindAllButtonText() const
@@ -838,7 +833,7 @@ FText SReplaceNodeReferences::GetFindAndReplaceToolTipText(bool bFindAndReplace)
 	}
 	else
 	{
-		if (!HasValidSource())
+		if (SourceProperty == nullptr)
 		{
 			return LOCTEXT("PickSourceVariable", "Pick a source variable from the menu!");
 		}
@@ -855,7 +850,7 @@ FText SReplaceNodeReferences::GetFindAndReplaceToolTipText(bool bFindAndReplace)
 
 bool SReplaceNodeReferences::CanBeginSearch(bool bFindAndReplace) const
 {
-	bool bCanSearch = HasValidSource() && !IsSearchInProgress();
+	bool bCanSearch = SourceProperty != nullptr && !IsSearchInProgress();
 
 	if (bFindAndReplace)
 	{

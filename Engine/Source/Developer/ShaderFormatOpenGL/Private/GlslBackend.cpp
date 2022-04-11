@@ -4162,7 +4162,12 @@ static ir_rvalue* GenShaderInputSemantic(
 	bool& ApplyFlipFrontFacingAdjustment
 	)
 {
-	if (Semantic && FCStringAnsi::Strnicmp(Semantic, "SV_", 3) == 0)
+	if (Semantic == nullptr)
+	{
+		return nullptr;
+	}
+
+	if (FCStringAnsi::Strnicmp(Semantic, "SV_", 3) == 0)
 	{
 		FSystemValue* SystemValues = SystemValueTable[Frequency];
 		for (int i = 0; SystemValues[i].Semantic != NULL; ++i)
@@ -4291,7 +4296,7 @@ static ir_rvalue* GenShaderInputSemantic(
 
 	// If we're here, no built-in variables matched.
 
-	if (Semantic && FCStringAnsi::Strnicmp(Semantic, "SV_", 3) == 0)
+	if (FCStringAnsi::Strnicmp(Semantic, "SV_", 3) == 0)
 	{
 		_mesa_glsl_warning(ParseState, "unrecognized system "
 			"value input '%s'", Semantic);

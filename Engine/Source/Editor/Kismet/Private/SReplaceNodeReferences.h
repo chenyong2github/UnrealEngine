@@ -159,9 +159,6 @@ protected:
 	/** Returns the secondary icon color for the source reference */
 	FSlateColor GetSecondarySourceReferenceIconColor() const;
 
-	/** Returns whether the source property is a valid property to search for and replace */
-	bool HasValidSource() const;
-
 	/** Returns the text for the Find All button */
 	FText GetFindAllButtonText() const;
 
