@@ -184,6 +184,11 @@ uint GetInvalidHairPrimitiveId()
 	return 0xFFFFFFFF;
 }
 
+void PatchPackedHairVisCoverage(inout FPackedHairVis Out, uint Coverage8bit)
+{
+	Out.Depth_Coverage8bit = (Out.Depth_Coverage8bit & (0x00FFFFFFu << 8)) | (Coverage8bit & 0xFFu);
+}
+
 struct FHairVis
 {
 	float	Depth;
@@ -372,70 +377,40 @@ float TransmittanceToCoverage(float InTransmittance, float InCoverageThreashold)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair PPLL
 
-uint GetCoverage8Bits(FPPLLNodeData In)
-{
-	return (In.Tangent_Coverage8bit >> 24) & 0xFF;
-}
-
-uint GetCoverage16Bits(FPPLLNodeData In)
-{
-	return (In.Specular_LightChannel_Backlit_Coverage16bit >> 16) & 0xFFFF;
-}
-
-FPPLLNodeData CreatePPLLNodeData(
+FPackedHairVisPPLL PackHairVisPPLL(
 	float	Depth, 
+	float	Coverage,
 	uint	PrimitiveId,
-	uint	MacroGroupId,
-	float3	Tangent,
-	float	CoverageFullPrecision, 
-	uint	Coverage8bit,
-	float3	BaseColor,
-	float	Roughness, 
-	float	Specular, 
-	float	Backlit, 
-	uint	LightChannelMask, 
-	float2	Velocity, 
+	uint	MaterialId,
 	uint	NextNodeIndex)
 {
-	FHairSample S;
+	FHairVis S;
 	S.Depth = Depth;
+	S.Coverage8bit = To8bitCoverage(Coverage); // To16bitCoverage(CoverageFullPrecision)
 	S.PrimitiveId = PrimitiveId;
-	S.MacroGroupId = MacroGroupId;
-	S.Tangent = Tangent;
-	S.Coverage8bit = Coverage8bit;
-	S.BaseColor = BaseColor;
-	S.Roughness = Roughness;
-	S.Specular = 0;			// Custom encoding for PPLL
-	S.Backlit = 0;			// Custom encoding for PPLL
-	S.LightChannelMask = 0; // Custom encoding for PPLL
-	
-	const FPackedHairSample PackedS = PackHairSample(S);
-	const uint Coverage16bit = To16bitCoverage(CoverageFullPrecision);
+	S.MaterialId = MaterialId;
+	const FPackedHairVis PackedS = PackHairVis(S);
 
-	FPPLLNodeData Out;
-	Out.Depth = PackedS.Depth;
-	Out.PrimitiveID_MacroGroupID = PackedS.PrimitiveID_MacroGroupID;
-	Out.Tangent_Coverage8bit = PackedS.Tangent_Coverage8bit;
-	Out.BaseColor_Roughness = PackedS.BaseColor_Roughness;
-	Out.Specular_LightChannel_Backlit_Coverage16bit = clamp(uint(Specular * 0xFF), 0, 0xFF) |  (clamp(uint(Backlit * 0x1F), 0, 0x1F)<<11) | ((LightChannelMask & 0x7)<<8) |  ((0xFFFF & Coverage16bit) << 16);
+	FPackedHairVisPPLL Out;
+	Out.Depth_Coverage8bit = PackedS.Depth_Coverage8bit;
+	Out.PrimitiveID_MaterialID = PackedS.PrimitiveID_MaterialID;
 	Out.NextNodeIndex = NextNodeIndex;
-	Out.PackedVelocity = PackVelocity(Velocity);
-
 	return Out;
 }
 
-FPackedHairSample ConvertToPackedHairSample(FPPLLNodeData In, uint InNewCoverage8bit)
+FHairVis UnpackHairVisPPLL(FPackedHairVisPPLL In)
 {
-	const uint Specular_LightChannel = In.Specular_LightChannel_Backlit_Coverage16bit & 0x7FF;
-	const float Backlit = float((In.Specular_LightChannel_Backlit_Coverage16bit >> 11) & 0x1F) / float(0x1F);
+	FPackedHairVis Temp;
+	Temp.Depth_Coverage8bit = In.Depth_Coverage8bit;
+	Temp.PrimitiveID_MaterialID = In.PrimitiveID_MaterialID;
+	return UnpackHairVis(Temp);
+}
 
-	FPackedHairSample Out;
-	Out.Depth = In.Depth;
-	Out.PrimitiveID_MacroGroupID = In.PrimitiveID_MacroGroupID;
-	Out.Tangent_Coverage8bit = (In.Tangent_Coverage8bit & 0x00FFFFFF) | ((InNewCoverage8bit & 0xFF)<<24);
-	Out.BaseColor_Roughness = In.BaseColor_Roughness;
-	Out.Specular_LightChannels_Backlit = Specular_LightChannel | (clamp(uint(Backlit * 0xFF), 0, 0xFF) << 16);
-
+FPackedHairVis ConvertToPackedHairVis(FPackedHairVisPPLL In)
+{
+	FPackedHairVis Out;
+	Out.Depth_Coverage8bit = In.Depth_Coverage8bit;
+	Out.PrimitiveID_MaterialID = In.PrimitiveID_MaterialID;
 	return Out;
 }
 

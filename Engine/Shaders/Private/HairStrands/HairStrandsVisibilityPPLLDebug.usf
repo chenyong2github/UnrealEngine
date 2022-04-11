@@ -9,9 +9,15 @@ float PPLLMaxTotalListElementCount;
 
 Texture2D<uint> PPLLCounter;
 Texture2D<uint> PPLLNodeIndex;
-StructuredBuffer<FPPLLNodeData> PPLLNodeData;
+StructuredBuffer<FPackedHairVisPPLL> PPLLNodeData;
 
 RWTexture2D<float4> SceneColorTextureUAV;
+
+FFontColor GetOccupancyColor(float In)
+{
+	float3 Color = lerp(float3(0, 1, 0), float3(1, 0, 0), saturate(In));
+	return InitFontColor(Color);
+}
 
 [numthreads(8, 8, 1)]
 void VisibilityDebugPPLLCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -26,7 +32,7 @@ void VisibilityDebugPPLLCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThread
 		do
 		{
 			StrandCount++;
-			FPPLLNodeData Node = PPLLNodeData[NextNodeIndex];
+			FPackedHairVisPPLL Node = PPLLNodeData[NextNodeIndex];
 			NextNodeIndex = Node.NextNodeIndex;
 		} while (NextNodeIndex != 0xFFFFFFFF);
 
@@ -61,76 +67,29 @@ void VisibilityDebugPPLLCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThread
 	{
 		ShaderPrintFilter(true);
 
+		const float PPLLNodeSizeInMb = (4 + 4 + 4) / 1000000.f;
+		const float NodePercentage = float(PPLLListElementcount) / float(PPLLMaxTotalListElementCount);
+
 		float2 StartPos = (BarOrigin + BarSize*float2(0.0f, 2.0f)) * View.ViewSizeAndInvSize.zw;
 		float2 Pos = StartPos;
-
-		Pos = ShaderPrintSymbol(Pos, _M_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _N_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _P_);
-		Pos = ShaderPrintSymbol(Pos, _P_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _N_);
-		Pos = ShaderPrintSymbol(Pos, _O_);
-		Pos = ShaderPrintSymbol(Pos, _D_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _P_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _R_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _P_);
-		Pos = ShaderPrintSymbol(Pos, _I_);
-		Pos = ShaderPrintSymbol(Pos, _X_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, PPLLMeanListElementCountPerPixel);
+		Pos = Print(Pos, TEXT("Mean Node Per Pixel : "));
+		Pos = ShaderPrint(Pos, PPLLMeanListElementCountPerPixel, FontEmerald);
 		Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
-
-		Pos = ShaderPrintSymbol(Pos, _P_);
-		Pos = ShaderPrintSymbol(Pos, _P_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _N_);
-		Pos = ShaderPrintSymbol(Pos, _O_);
-		Pos = ShaderPrintSymbol(Pos, _D_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _U_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _D_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, PPLLListElementcount);
-		Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
-
 		
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _O_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, PPLLMaxTotalListElementCount);
-		Pos = ShaderPrintNewline(Pos);
+		Pos = Print(Pos, TEXT("Nodes Used (%)      : "));
+		Pos = ShaderPrint(Pos, NodePercentage * 100.f, GetOccupancyColor(NodePercentage));
+		Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+		Pos = Print(Pos, TEXT("Nodes Used          : "));
+		Pos = ShaderPrint(Pos, PPLLListElementcount, FontSilver);
+		Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+		Pos = Print(Pos, TEXT("Allocated Nodes (Mb): "));
+		Pos = ShaderPrint(Pos, PPLLMaxTotalListElementCount * PPLLNodeSizeInMb, FontSilver);
+		Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+		Pos = Print(Pos, TEXT("Total               : "));
+		Pos = ShaderPrint(Pos, PPLLMaxTotalListElementCount, FontOrange);
+		Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 	}
 }

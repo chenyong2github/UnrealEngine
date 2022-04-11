@@ -27,25 +27,9 @@ uint VelocityType;
 
 RWTexture2D<uint> OutCompactNodeCounter;
 RWTexture2D<uint> OutCompactNodeIndex;
-#if PERMUTATION_PPLL == 0
-	RWStructuredBuffer<FPackedHairVis> OutCompactNodeVis;
-#else
-	RWStructuredBuffer<FPackedHairSample> OutCompactNodeData;
-#endif
+RWStructuredBuffer<FPackedHairVis> OutCompactNodeVis;
 RWBuffer<uint2> OutCompactNodeCoord;
 RWTexture2D<float> OutCoverageTexture;
-
-#ifndef PERMUTATION_VELOCITY
-	#error Velocity permutation needs to be defined
-#endif
-
-#define VELOCITY_TYPE_NONE 0
-#define VELOCITY_TYPE_AVG 1  
-#define VELOCITY_TYPE_CLOSEST 2
-#define VELOCITY_TYPE_MAX 3
-#if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
-	RWTexture2D<float2> OutVelocityTexture;
-#endif
 
 groupshared uint AllocationNodeCount;
 groupshared uint AllocationNodeOffset;
@@ -67,27 +51,15 @@ struct FSampleSetDesc
 
 Texture2D<uint> PPLLCounter;
 Texture2D<uint> PPLLNodeIndex;
-StructuredBuffer<FPPLLNodeData> PPLLNodeData;
+StructuredBuffer<FPackedHairVisPPLL> PPLLNodeData;
 
 
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
 void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
+	const uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
 	const uint FirstNodeIndex = PPLLNodeIndex[PixelCoord];
-
-	float ClosestDepth = 0; // Inverse-Z
 	float PixelCoverage = 0;
-
-#if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
-	float2 AverageVelocity = 0;
-	uint ValidVelocityCount = 0;
-
-	float2 ClosestVelocity = 0;
-
-	float2 MaxVelocity = 0;
-	float MaxVelocityMagnitude2 = 0;
-#endif
 	
 	const bool bExecute = FirstNodeIndex != 0xFFFFFFFF && all(PixelCoord < uint2(OutputResolution));
 
@@ -107,16 +79,15 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		uint NodeIndex = FirstNodeIndex;
 		while (NodeIndex != 0xFFFFFFFF)
 		{
-			const FPPLLNodeData PPLLNode = PPLLNodeData[NodeIndex];
-			const uint Coverage8bit		 = GetCoverage8Bits(PPLLNode);
-			const float Coverage		 = From8bitCoverage(Coverage8bit);
+			const FPackedHairVisPPLL PackedHairVis = PPLLNodeData[NodeIndex];
+			const FHairVis HairVis = UnpackHairVisPPLL(PackedHairVis);
 
-			TotalTransmittance *= 1.0f - Coverage;
+			TotalTransmittance *= 1.0f - HairVis.Coverage;
 
 			int InsertPos;
 			for (InsertPos = 0; InsertPos < PPLL_MAX_RENDER_NODE_COUNT; ++InsertPos)
 			{
-				if (PPLLNode.Depth > SortedDepth[InsertPos])
+				if (HairVis.Depth > SortedDepth[InsertPos])
 				{
 					// The new node is closer
 					break;
@@ -141,12 +112,12 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 				// Insert new node
 				SortedIndex[InsertPos] = NodeIndex;
-				SortedDepth[InsertPos] = PPLLNode.Depth;
+				SortedDepth[InsertPos] = HairVis.Depth;
 
 				PixelNodeCount++;
 			}
 
-			NodeIndex = PPLLNode.NextNodeIndex;
+			NodeIndex = PackedHairVis.NextNodeIndex;
 		}
 	}
 
@@ -170,7 +141,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	GroupMemoryBarrierWithGroupSync();
 	uint OffsetInStorage = AllocationNodeOffset + PixelDataSubOffsetInStorage;
 
-	if(bExecute)
+	if (bExecute)
 	{
 		//////////
 		// Second pass: compute total coverage for validated nodes we are going to render
@@ -180,10 +151,10 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		for (uint i = 0; i < PixelRenderNodecount; ++i)
 		{
 			const uint NodePPLLIndex	 = SortedIndex[i];
-			const FPPLLNodeData PPLLNode = PPLLNodeData[NodePPLLIndex];
-			const uint Coverage16bit	 = GetCoverage16Bits(PPLLNode);
 
-			const float Coverage = From16bitCoverage(Coverage16bit);
+			const FPackedHairVisPPLL PackedHairVis = PPLLNodeData[NodePPLLIndex];
+			const FHairVis HairVis = UnpackHairVisPPLL(PackedHairVis);
+			const float Coverage = HairVis.Coverage; // This should be 16bits, instead of 8bits for better precision
 
 			// Update current node coverage as a function of previous nodes coverage
 			SortedCoverage[i] = TotalSortedTransmittance * Coverage;
@@ -200,68 +171,20 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		for (uint j = 0; j < PixelRenderNodecount; ++j)
 		{
 			const uint NodePPLLIndex = SortedIndex[j];
-			uint Coverage16bit = 0;
-			FPPLLNodeData PPLLNode = PPLLNodeData[NodePPLLIndex];
+			FPackedHairVis PackedHairVis = ConvertToPackedHairVis(PPLLNodeData[NodePPLLIndex]);
 
 			// Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by PixelCoverage.
 			// Patch the coverage on the out node
 			const float PatchedCoverage8bit = To8bitCoverage(SortedCoverage[j] / float(ValidPixelSampleTotalCoverage));
-			FPackedHairSample OutNodeData = ConvertToPackedHairSample(PPLLNode, PatchedCoverage8bit);
-
-			ClosestDepth = max(ClosestDepth, OutNodeData.Depth); // Inverse-Z
-
+			PatchPackedHairVisCoverage(PackedHairVis, PatchedCoverage8bit);
+			
 			// TODOAGREGATE if last, Create FPackedHairSample from aggregated  data
-			OutCompactNodeData[OffsetInStorage + j] = OutNodeData;
+			OutCompactNodeVis[OffsetInStorage + j] = PackedHairVis;
 			OutCompactNodeCoord[OffsetInStorage + j] = PixelCoord;
 
-
-		#if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
-			const float2 Velocity = UnpackVelocity(PPLLNode.PackedVelocity);
-		
-			if (VelocityType == VELOCITY_TYPE_AVG)
-			{
-				AverageVelocity += Velocity;
-				++ValidVelocityCount;
-			}
-			else if (VelocityType == VELOCITY_TYPE_CLOSEST)
-			{
-				if (ClosestDepth < OutNodeData.Depth) // Inverse-Z
-				{
-					ClosestVelocity = Velocity;
-					ClosestDepth = OutNodeData.Depth;
-				}
-			}
-			else if (VelocityType == VELOCITY_TYPE_MAX)
-			{
-				const float2 CurrentVelocity = Velocity;
-				const float CurrentVelocityMagnitude2 = dot(CurrentVelocity, CurrentVelocity);
-				if (CurrentVelocityMagnitude2 > MaxVelocityMagnitude2)
-				{
-					MaxVelocity = Velocity;
-					MaxVelocityMagnitude2 = CurrentVelocityMagnitude2;
-				}
-			}
-		#endif		
 		}
 
-		PixelCoverage = TransmittanceToCoverage(TotalTransmittance, CoverageThreshold);
-
-	#if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
-		float2 VelocityOutput = 0;
-		if (VelocityType == VELOCITY_TYPE_AVG)
-		{
-			VelocityOutput = AverageVelocity / max(ValidVelocityCount, 1u);
-		}
-		else if (VelocityType == VELOCITY_TYPE_CLOSEST)
-		{
-			VelocityOutput = ClosestVelocity;
-		}
-		else if (VelocityType == VELOCITY_TYPE_MAX)
-		{
-			VelocityOutput = MaxVelocity;
-		}
-		OutVelocityTexture[PixelCoord] = EncodeVelocityToTexture(float3(VelocityOutput, 0.0)).xy;
-	#endif		
+		PixelCoverage = TransmittanceToCoverage(TotalTransmittance, CoverageThreshold);	
 	}
 
 	FNodeDesc NodeDesc;

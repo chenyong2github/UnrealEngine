@@ -2,18 +2,6 @@
 
 #pragma once
 
-// Footprint: 224bits | 28bytes
-struct FPPLLNodeData
-{
-	float Depth;
-	uint Specular_LightChannel_Backlit_Coverage16bit;
-	uint PrimitiveID_MacroGroupID;
-	uint Tangent_Coverage8bit;
-	uint BaseColor_Roughness;
-	uint NextNodeIndex;
-	uint PackedVelocity;
-};
-
 struct FPackedHairSample
 {
 	float Depth;
@@ -27,4 +15,11 @@ struct FPackedHairVis
 {
 	uint Depth_Coverage8bit;
 	uint PrimitiveID_MaterialID;
+};
+
+struct FPackedHairVisPPLL
+{
+	uint Depth_Coverage8bit;
+	uint PrimitiveID_MaterialID;
+	uint NextNodeIndex;
 };
