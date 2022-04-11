@@ -4,6 +4,13 @@
 #include "ActiveSound.h"
 #include "AudioGameplayFlags.h"
 
+constexpr TCHAR FProxyMutator_Attenuation::MutatorAttenuationName[];
+
+FProxyMutator_Attenuation::FProxyMutator_Attenuation()
+{
+	MutatorName = MutatorAttenuationName;
+}
+
 void FProxyMutator_Attenuation::Apply(FInteriorSettings& InteriorSettings) const
 {
 	FProxyVolumeMutator::Apply(InteriorSettings);

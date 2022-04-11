@@ -14,7 +14,7 @@ class FProxyMutator_Filter : public FProxyVolumeMutator
 {
 public:
 
-	FProxyMutator_Filter() = default;
+	FProxyMutator_Filter();
 	virtual ~FProxyMutator_Filter() = default;
 
 	float ExteriorLPF = MAX_FILTER_FREQUENCY;
@@ -24,6 +24,10 @@ public:
 
 	virtual void Apply(FInteriorSettings& InteriorSettings) const override;
 	virtual void Apply(FAudioProxyActiveSoundParams& Params) const override;
+
+protected:
+
+	constexpr static const TCHAR MutatorFilterName[] = TEXT("Filter");
 };
 
 /**

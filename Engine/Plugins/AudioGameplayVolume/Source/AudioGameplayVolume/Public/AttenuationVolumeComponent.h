@@ -13,7 +13,7 @@ class FProxyMutator_Attenuation : public FProxyVolumeMutator
 {
 public:
 
-	FProxyMutator_Attenuation() = default;
+	FProxyMutator_Attenuation();
 	virtual ~FProxyMutator_Attenuation() = default;
 
 	float ExteriorVolume = 1.0f;
@@ -23,6 +23,10 @@ public:
 
 	virtual void Apply(FInteriorSettings& InteriorSettings) const override;
 	virtual void Apply(FAudioProxyActiveSoundParams& Params) const override;
+
+protected:
+
+	constexpr static const TCHAR MutatorAttenuationName[] = TEXT("Attenuation");
 };
 
 /**
