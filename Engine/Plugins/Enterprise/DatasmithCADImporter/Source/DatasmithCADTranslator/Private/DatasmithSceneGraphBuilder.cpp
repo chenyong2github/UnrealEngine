@@ -86,8 +86,8 @@ bool FDatasmithSceneGraphBuilder::Build()
 {
 	LoadSceneGraphDescriptionFiles();
 
-	uint32 RootHash = RootFileDescription.GetDescriptorHash();
-	SceneGraph = CADFileToSceneGraphArchive.FindRef(RootHash);
+	uint32 RootHash = 0;
+	SceneGraph = FindSceneGraphArchive(RootFileDescription, RootHash);
 	if (!SceneGraph)
 	{
 		return false;
@@ -125,10 +125,17 @@ void FDatasmithSceneGraphBuilder::LoadSceneGraphDescriptionFiles()
 	}
 }
 
+CADLibrary::FArchiveSceneGraph* FDatasmithSceneBaseGraphBuilder::FindSceneGraphArchive(const CADLibrary::FFileDescriptor& File, uint32& FileHash) const
+{
+	FileHash = GetTypeHash(File.GetFileName());
+	return CADFileToSceneGraphArchive.FindRef(FileHash);
+}
+
 void FDatasmithSceneGraphBuilder::FillAnchorActor(const TSharedRef<IDatasmithActorElement>& ActorElement, const FString& CleanFilenameOfCADFile)
 {
 	CADLibrary::FFileDescriptor AnchorDescription(*CleanFilenameOfCADFile);
-	SceneGraph = CADFileToSceneGraphArchive.FindRef(GetTypeHash(AnchorDescription));
+	uint32 AnchorHash = 0;
+	SceneGraph = FindSceneGraphArchive(AnchorDescription, AnchorHash);
 	if (!SceneGraph)
 	{
 		return;
@@ -293,8 +300,8 @@ TSharedPtr< IDatasmithActorElement >  FDatasmithSceneBaseGraphBuilder::BuildInst
 	{
 		if (!Instance.ExternalReference.GetSourcePath().IsEmpty())
 		{
-			uint32 InstanceSceneGraphHash = GetTypeHash(Instance.ExternalReference);
-			SceneGraph = CADFileToSceneGraphArchive.FindRef(InstanceSceneGraphHash);
+			uint32 InstanceSceneGraphHash = 0;
+			SceneGraph = FindSceneGraphArchive(Instance.ExternalReference, InstanceSceneGraphHash);
 			if (SceneGraph)
 			{
 				if (AncestorSceneGraphHash.Find(InstanceSceneGraphHash) == INDEX_NONE)

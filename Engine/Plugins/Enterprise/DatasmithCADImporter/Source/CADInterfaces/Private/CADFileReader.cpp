@@ -52,10 +52,10 @@ namespace CADLibrary
 		FString FilePath = FPaths::GetPath(File.GetSourcePath());
 		FString RootFilePath = File.GetRootFolder();
 
-		// Basic case: FilePath is, or is in a sub-folder of, RootFilePath
-		if (FilePath.StartsWith(RootFilePath))
+		// Basic case: File exists at the initial path
+		if (IFileManager::Get().FileExists(*File.GetSourcePath()))
 		{
-			return IFileManager::Get().FileExists(*File.GetSourcePath());
+			return true;
 		}
 
 		// Advance case: end of FilePath is in a upper-folder of RootFilePath

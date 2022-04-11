@@ -203,7 +203,7 @@ void FDatasmithDispatcher::LinkCTFileToUnrealCacheFile(const CADLibrary::FFileDe
 {
 	FScopeLock Lock(&TaskPoolCriticalSection);
 
-	uint32 FileHash = GetTypeHash(CTFileDescription);
+	uint32 FileHash = GetTypeHash(CTFileDescription.GetFileName());
 	if (!UnrealSceneGraphFile.IsEmpty())
 	{
 		CADFileToUnrealFileMap.Add(FileHash, UnrealSceneGraphFile);
