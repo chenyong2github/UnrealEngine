@@ -139,9 +139,14 @@ DEFINE_STAT(EKismetCompilerStats_NotifyBlueprintChanged);
 DECLARE_CYCLE_STAT(TEXT("Mark Blueprint as Structurally Modified"), EKismetCompilerStats_MarkBlueprintasStructurallyModified, STATGROUP_KismetCompiler);
 DECLARE_CYCLE_STAT(TEXT("Refresh External DependencyNodes"), EKismetCompilerStats_RefreshExternalDependencyNodes, STATGROUP_KismetCompiler);
 
-struct FCompareNodePriority
+static void SortNodes(TArray<UK2Node*>& AllNodes, bool bSortByPriorityOnly = false)
 {
-	FORCEINLINE bool operator()( const UK2Node& A, const UK2Node& B ) const
+	auto SortNodesInternalByPriorityOnly = [](const UK2Node& A, const UK2Node& B)
+	{
+		return A.GetNodeRefreshPriority() > B.GetNodeRefreshPriority();
+	};
+
+	auto SortNodesInternal = [SortNodesInternalByPriorityOnly](const UK2Node& A, const UK2Node& B)
 	{
 		const bool NodeAChangesStructure = A.NodeCausesStructuralBlueprintChange();
 		const bool NodeBChangesStructure = B.NodeCausesStructuralBlueprintChange();
@@ -150,10 +155,22 @@ struct FCompareNodePriority
 		{
 			return NodeAChangesStructure;
 		}
-		
-		return A.GetNodeRefreshPriority() > B.GetNodeRefreshPriority();
+
+		return SortNodesInternalByPriorityOnly(A, B);
+	};
+
+	if (AllNodes.Num() > 1)
+	{
+		if (bSortByPriorityOnly)
+		{
+			AllNodes.Sort(SortNodesInternalByPriorityOnly);
+		}
+		else
+		{
+			AllNodes.Sort(SortNodesInternal);
+		}
 	}
-};
+}
 
 /**
  * This helper does a depth first search, looking for the highest parent class that
@@ -525,10 +542,7 @@ void FBlueprintEditorUtils::RefreshAllNodes(UBlueprint* Blueprint)
 	FBlueprintEditorUtils::GetAllNodesOfClass(Blueprint, AllNodes);
 
 	const bool bIsMacro = (Blueprint->BlueprintType == BPTYPE_MacroLibrary);
-	if( AllNodes.Num() > 1 )
-	{
-		AllNodes.Sort(FCompareNodePriority());
-	}
+	SortNodes(AllNodes);
 
 	bool bLastChangesStructure = (AllNodes.Num() > 0) ? AllNodes[0]->NodeCausesStructuralBlueprintChange() : true;
 	for( TArray<UK2Node*>::TIterator NodeIt(AllNodes); NodeIt; ++NodeIt )
@@ -580,10 +594,7 @@ void FBlueprintEditorUtils::ReconstructAllNodes(UBlueprint* Blueprint)
 	TArray<UK2Node*> AllNodes;
 	FBlueprintEditorUtils::GetAllNodesOfClass(Blueprint, AllNodes);
 
-	if (AllNodes.Num() > 1)
-	{
-		AllNodes.Sort(FCompareNodePriority());
-	}
+	SortNodes(AllNodes, true);
 
 	for (TArray<UK2Node*>::TIterator NodeIt(AllNodes); NodeIt; ++NodeIt)
 	{

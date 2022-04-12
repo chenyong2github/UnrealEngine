@@ -195,7 +195,7 @@ FText UKismetTextLibrary::Conv_Int64ToText(int64 Value, bool bAlwaysSign /*= fal
 	return FText::AsNumber(Value, &NumberFormatOptions);
 }
 
-FText UKismetTextLibrary::Conv_DoubleToText(double InDouble, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign, bool bUseGrouping, int32 MinimumIntegralDigits, int32 MaximumIntegralDigits, int32 MinimumFractionalDigits, int32 MaximumFractionalDigits)
+FText UKismetTextLibrary::Conv_DoubleToText(double Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign, bool bUseGrouping, int32 MinimumIntegralDigits, int32 MaximumIntegralDigits, int32 MinimumFractionalDigits, int32 MaximumFractionalDigits)
 {
 	FNumberFormattingOptions NumberFormatOptions;
 	NumberFormatOptions.AlwaysSign = bAlwaysSign;
@@ -206,21 +206,12 @@ FText UKismetTextLibrary::Conv_DoubleToText(double InDouble, TEnumAsByte<ERoundi
 	NumberFormatOptions.MinimumFractionalDigits = MinimumFractionalDigits;
 	NumberFormatOptions.MaximumFractionalDigits = MaximumFractionalDigits;
 	
-	return FText::AsNumber(InDouble, &NumberFormatOptions);
+	return FText::AsNumber(Value, &NumberFormatOptions);
 }
 
 FText UKismetTextLibrary::Conv_FloatToText(float Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign/* = false*/, bool bUseGrouping/* = true*/, int32 MinimumIntegralDigits/* = 1*/, int32 MaximumIntegralDigits/* = 324*/, int32 MinimumFractionalDigits/* = 0*/, int32 MaximumFractionalDigits/* = 3*/)
 {
-	FNumberFormattingOptions NumberFormatOptions;
-	NumberFormatOptions.AlwaysSign = bAlwaysSign;
-	NumberFormatOptions.UseGrouping = bUseGrouping;
-	NumberFormatOptions.RoundingMode = RoundingMode;
-	NumberFormatOptions.MinimumIntegralDigits = MinimumIntegralDigits;
-	NumberFormatOptions.MaximumIntegralDigits = MaximumIntegralDigits;
-	NumberFormatOptions.MinimumFractionalDigits = MinimumFractionalDigits;
-	NumberFormatOptions.MaximumFractionalDigits = MaximumFractionalDigits;
-
-	return FText::AsNumber(Value, &NumberFormatOptions);
+	return Conv_DoubleToText(Value, RoundingMode, bAlwaysSign, bUseGrouping, MinimumIntegralDigits, MaximumIntegralDigits, MinimumFractionalDigits, MaximumFractionalDigits);
 }
 
 FText UKismetTextLibrary::AsCurrencyBase(int32 BaseValue, const FString& CurrencyCode)

@@ -52,10 +52,11 @@ public:
 		return Pins[1];
 	}
 
+	void PropagatePinType();
+
 	BLUEPRINTGRAPH_API UEdGraphNode* GetExecTerminal() const;
 
 private:
-	void PropagatePinType();
 	void PropagatePinTypeFromDirection(bool bFromInput);
 
 	/** Recursion guard boolean to prevent PropagatePinType from infinitely recursing if you manage to create a loop of knots */

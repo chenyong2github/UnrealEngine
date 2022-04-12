@@ -4,6 +4,7 @@
 #include "K2Node_EnumEquality.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_CallFunction.h"
+#include "K2Node_Knot.h"
 #include "KismetCompilerMisc.h"
 #include "KismetCompiler.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -77,12 +78,23 @@ void UK2Node_EnumEquality::NotifyPinConnectionListChanged(UEdGraphPin* Pin)
 		}
 		else if (Pin->LinkedTo.Num() > 0)
 		{
-			// Make sure the pin is a valid enum
-			if (Pin->LinkedTo[0]->PinType.PinCategory == UEdGraphSchema_K2::PC_Byte &&
-				Pin->LinkedTo[0]->PinType.PinSubCategoryObject.IsValid() &&
-				Pin->LinkedTo[0]->PinType.PinSubCategoryObject.Get()->IsA(UEnum::StaticClass()))
+			UEdGraphPin* LinkedPin = Pin->LinkedTo[0];
+			check(LinkedPin);
+			
+			// If we're linked to a knot node, ensure that its enum data is up-to-date.
+			// Otherwise, PinSubCategoryObject might be null if we're reconstructed prior to our knot dependencies.
+			UK2Node_Knot* LinkedKnotNode = Cast<UK2Node_Knot>(LinkedPin->GetOwningNode());
+			if (LinkedKnotNode)
 			{
-				Pin->PinType = Pin->LinkedTo[0]->PinType;
+				LinkedKnotNode->PropagatePinType();
+			}
+
+			// Make sure the pin is a valid enum
+			if (LinkedPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Byte &&
+				LinkedPin->PinType.PinSubCategoryObject.IsValid() &&
+				LinkedPin->PinType.PinSubCategoryObject.Get()->IsA(UEnum::StaticClass()))
+			{
+				Pin->PinType = LinkedPin->PinType;
 
 				UEdGraphPin* OtherPin = (Input1Pin == Pin) ? Input2Pin : Input1Pin;
 
