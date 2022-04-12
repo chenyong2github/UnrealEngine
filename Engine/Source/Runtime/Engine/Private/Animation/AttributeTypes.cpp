@@ -11,13 +11,19 @@ namespace UE
 		TArray<TWeakObjectPtr<const UScriptStruct>> AttributeTypes::RegisteredTypes;
 		TArray<TUniquePtr<IAttributeBlendOperator>> AttributeTypes::Operators;
 		TArray<TWeakObjectPtr<const UScriptStruct>> AttributeTypes::InterpolatableTypes;
+		std::atomic<bool> AttributeTypes::bInitialized = false;		
+		
+		void AttributeTypes::LazyInitialize()
+		{
+			bool bWasUninitialized = false;
+			if (bInitialized.compare_exchange_strong(bWasUninitialized, true))
+			{
+				Initialize();
+			}
+		}
 
 		void AttributeTypes::Initialize()
 		{
-			static bool bInitialized = false;
-			checkf(bInitialized == false, TEXT("Trying to initialize attribute type system multiple times"));
-			
-			bInitialized = true;
 			RegisterType<FFloatAnimationAttribute>();
 			RegisterType<FIntegerAnimationAttribute>();
 			RegisterType<FStringAnimationAttribute>();
@@ -26,7 +32,7 @@ namespace UE
 		
 		static FDelayedAutoRegisterHelper DelayedAttributeTypesInitializationHelper(EDelayedRegisterRunPhase::ObjectSystemReady, []()
 		{
-			UE::Anim::AttributeTypes::Initialize();
+			UE::Anim::AttributeTypes::LazyInitialize();
 		});
 	}
 }
