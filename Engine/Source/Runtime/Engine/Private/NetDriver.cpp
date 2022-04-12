@@ -257,6 +257,7 @@ namespace NetDriverInternal
 
 				check(((uint8*)Dest - (uint8*)LocalParms) + CopySize <= Function->ParmsSize);
 
+				It->InitializeValue(Dest);
 				It->CopyCompleteValue(Dest, Out->PropAddr);
 
 				CopiedProperties.Emplace(*It, LocalParms);
