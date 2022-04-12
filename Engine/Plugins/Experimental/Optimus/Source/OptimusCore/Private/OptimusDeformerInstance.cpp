@@ -2,13 +2,12 @@
 
 #include "OptimusDeformerInstance.h"
 
+#include "Components/MeshComponent.h"
 #include "DataInterfaces/OptimusDataInterfaceGraph.h"
 #include "OptimusComputeGraph.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformer.h"
 #include "OptimusVariableDescription.h"
-
-#include "Components/MeshComponent.h"
 
 
 void FOptimusPersistentStructuredBuffer::InitRHI()
@@ -134,9 +133,10 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 	{
 		UOptimusVariableDescription* VariableDescriptionCopy = NewObject<UOptimusVariableDescription>();
 		VariableDescriptionCopy->Guid = VariableDescription->Guid;
-		VariableDescriptionCopy->ValueData = VariableDescription->ValueData;
 		VariableDescriptionCopy->VariableName = VariableDescription->VariableName;
 		VariableDescriptionCopy->DataType = VariableDescription->DataType;
+		VariableDescriptionCopy->ValueData = VariableDescription->ValueData;
+		VariableDescriptionCopy->ResetValueDataSize();
 		Variables->Descriptions.Add(VariableDescriptionCopy);
 	}
 

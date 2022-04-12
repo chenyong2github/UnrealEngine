@@ -42,7 +42,13 @@ class OPTIMUSCORE_API UOptimusVariableDescription :
 	GENERATED_BODY()
 public:
 	UOptimusVariableDescription() = default;
-	
+
+	/** 
+	 * Set the value data storage to match the size required by the DataType. 
+	 * If a reallocation is required then the value data will be zeroed.
+	 */
+	void ResetValueDataSize();
+
 	/** Returns the owning deformer to operate on this variable */
 	// FIXME: Move to interface-based system.
 	UOptimusDeformer* GetOwningDeformer() const;

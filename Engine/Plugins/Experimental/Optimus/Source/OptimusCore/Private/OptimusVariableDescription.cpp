@@ -6,6 +6,21 @@
 #include "OptimusHelpers.h"
 
 
+void UOptimusVariableDescription::ResetValueDataSize()
+{
+	if (DataType->CanCreateProperty())
+	{
+		// Create a temporary property from the type so that we can get the size of the
+		// type for properly resizing the storage.
+		TUniquePtr<FProperty> TempProperty(DataType->CreateProperty(nullptr, NAME_None));
+		if (ValueData.Num() != TempProperty->GetSize())
+		{
+			ValueData.SetNumZeroed(TempProperty->GetSize());
+		}
+	}
+}
+
+
 UOptimusDeformer* UOptimusVariableDescription::GetOwningDeformer() const
 {
 	const UOptimusVariableContainer* Container = CastChecked<UOptimusVariableContainer>(GetOuter());
@@ -40,14 +55,7 @@ void UOptimusVariableDescription::PostEditChangeProperty(FPropertyChangedEvent& 
 
 		// Make sure the value data container is still large enough to hold the property value.
 		ValueData.Reset();
-		if (DataType->CanCreateProperty())
-		{
-			// Create a temporary property from the type so that we can get the size of the
-			// type for properly resizing the storage.
-			TUniquePtr<FProperty> TempProperty(DataType->CreateProperty(nullptr, NAME_None));
-
-			ValueData.SetNumZeroed(TempProperty->GetSize());
-		}
+		ResetValueDataSize();
 	}
 }
 

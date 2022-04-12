@@ -148,27 +148,6 @@ public:
 	UFUNCTION(BlueprintGetter)
 	const TArray<UOptimusVariableDescription*>& GetVariables() const { return Variables->Descriptions; }
 
-	/** Set the value of a boolean variable */
-	UFUNCTION(BlueprintCallable, Category="Deformer")
-	bool SetBoolVariable(FName InVariableName, bool InValue);
-
-	/** Set the value of a boolean variable */
-	UFUNCTION(BlueprintCallable, Category="Deformer")
-	bool SetIntVariable(FName InVariableName, int32 InValue);
-
-	/** Set the value of a boolean variable */
-	UFUNCTION(BlueprintCallable, Category="Deformer")
-	bool SetFloatVariable(FName InVariableName, float InValue);
-
-	/** Set the value of a boolean variable */
-	UFUNCTION(BlueprintCallable, Category="Deformer")
-	bool SetVectorVariable(FName InVariableName, const FVector& InValue);
-
-	/** Set the value of a boolean variable */
-	UFUNCTION(BlueprintCallable, Category="Deformer")
-	bool SetVector4Variable(FName InVariableName, const FVector4& InValue);
-	
-	
 	UOptimusVariableDescription* ResolveVariable(
 		FName InVariableName
 		) const override;

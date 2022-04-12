@@ -316,66 +316,6 @@ bool UOptimusDeformer::SetVariableDataType(
 }
 
 
-template <typename T>
-bool UOptimusDeformer::SetVariableValue(
-	FName InVariableName,
-	FName InTypeName, 
-	const T& InValue
-	)
-{
-	const uint8* ValueBytes = reinterpret_cast<const uint8*>(&InValue);
-
-	FOptimusDataTypeHandle WantedType = FOptimusDataTypeRegistry::Get().FindType(InTypeName);
-	for (UOptimusVariableDescription* VariableDesc: Variables->Descriptions)
-	{
-		if (VariableDesc->VariableName == InVariableName && VariableDesc->DataType == WantedType)
-		{
-			TUniquePtr<FProperty> Property(WantedType->CreateProperty(nullptr, NAME_None));
-			if (ensure(Property->GetSize() == sizeof(T)) &&
-				ensure(Property->GetSize() == VariableDesc->ValueData.Num()))
-			{
-				FPlatformMemory::Memcpy(VariableDesc->ValueData.GetData(), ValueBytes, sizeof(T));
-			}
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool UOptimusDeformer::SetBoolVariable(
-	FName InVariableName,
-	bool InValue
-	)
-{
-	return SetVariableValue(InVariableName, FBoolProperty::StaticClass()->GetFName(), InValue);
-}
-
-
-bool UOptimusDeformer::SetIntVariable(FName InVariableName, int32 InValue)
-{
-	return SetVariableValue<int32>(InVariableName, FIntProperty::StaticClass()->GetFName(), InValue);
-}
-
-
-bool UOptimusDeformer::SetFloatVariable(FName InVariableName, float InValue)
-{
-	return SetVariableValue<float>(InVariableName, FFloatProperty::StaticClass()->GetFName(), InValue);
-}
-
-
-bool UOptimusDeformer::SetVectorVariable(FName InVariableName, const FVector& InValue)
-{
-	return SetVariableValue<FVector>(InVariableName, "FVector", InValue);
-}
-
-
-bool UOptimusDeformer::SetVector4Variable(FName InVariableName, const FVector4& InValue)
-{
-	return SetVariableValue<FVector4>(InVariableName, "FVector4", InValue);
-}
-
-
 UOptimusVariableDescription* UOptimusDeformer::ResolveVariable(
 	FName InVariableName
 	) const
