@@ -180,6 +180,20 @@ void UControlRig::Initialize(bool bInitRigUnits)
 		return;
 	}
 
+	// recompute the hash used to differentiate VMs based on their memory layout 
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		CachedMemoryHash = INDEX_NONE;
+
+		if(VM)
+		{
+			CachedMemoryHash = HashCombine(
+				VM->GetLiteralMemory()->GetMemoryHash(),
+				VM->GetWorkMemory()->GetMemoryHash()
+			);
+		}
+	}
+
 	if (IsTemplate())
 	{
 		// don't initialize template class 
@@ -1204,21 +1218,26 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 				UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject());
 
 				bool bIsValidSnapshot = false;
-				TObjectPtr<URigVM>* InitializedVMSnapshotPtr = CDO->InitializedVMSnapshots.Find(SnapshotHash);
-				if(InitializedVMSnapshotPtr && !InitializedVMSnapshotPtr->IsNull())
+				if(SnapshotHash != INDEX_NONE)
 				{
-					const URigVM* InitializedVMSnapshot = InitializedVMSnapshotPtr->Get();
+					TObjectPtr<URigVM>* InitializedVMSnapshotPtr = CDO->InitializedVMSnapshots.Find(SnapshotHash);
+					if(InitializedVMSnapshotPtr && !InitializedVMSnapshotPtr->IsNull())
+					{
+						const URigVM* InitializedVMSnapshot = InitializedVMSnapshotPtr->Get();
 
-					if(VM->WorkMemoryStorageObject->GetClass() == InitializedVMSnapshot->WorkMemoryStorageObject->GetClass())
-					{
-						VM->WorkMemoryStorageObject->CopyFrom(InitializedVMSnapshot->WorkMemoryStorageObject);
-						VM->InvalidateCachedMemory();
-						VM->Initialize(LocalMemory, AdditionalArguments, false);
-						bIsValidSnapshot = true;
-					}
-					else
-					{
-						CDO->InitializedVMSnapshots.Remove(SnapshotHash);
+						if(VM->WorkMemoryStorageObject->GetClass() == InitializedVMSnapshot->WorkMemoryStorageObject->GetClass())
+						{
+							InitializedVMSnapshots.Reset();
+
+							VM->WorkMemoryStorageObject->CopyFrom(InitializedVMSnapshot->WorkMemoryStorageObject);
+							VM->InvalidateCachedMemory();
+							VM->Initialize(LocalMemory, AdditionalArguments, false);
+							bIsValidSnapshot = true;
+						}
+						else
+						{
+							CDO->InitializedVMSnapshots.Remove(SnapshotHash);
+						}
 					}
 				}
 				
@@ -2975,6 +2994,11 @@ void UControlRig::PostInitInstance(UControlRig* InCDO)
 
 uint32 UControlRig::GetHashForInitializeVMSnapShot()
 {
+	if(CachedMemoryHash == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	
 	uint32 Hash = GetHierarchy()->GetNameHash();
 
 	const TArray<FRigVMExternalVariable> ExternalVariables = GetExternalVariablesImpl(false);
@@ -2985,6 +3009,8 @@ uint32 UControlRig::GetHashForInitializeVMSnapShot()
 	{
 		Hash = HashCombine(ExternalVariable.GetTypeHash(), Hash);
 	}
+
+	Hash = HashCombine(CachedMemoryHash, Hash);
 
 	return Hash;
 }
