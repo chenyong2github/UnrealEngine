@@ -8068,6 +8068,7 @@ bool UCharacterMovementComponent::ClientUpdatePositionAfterServerUpdate()
 			CurrentRootMotion.UpdateStateFrom(CharacterOwner->SavedRootMotion);
 			CharacterOwner->bClientResimulateRootMotionSources = false;
 		}
+		CharacterOwner->SavedRootMotion.Clear();
 
 		return false;
 	}
